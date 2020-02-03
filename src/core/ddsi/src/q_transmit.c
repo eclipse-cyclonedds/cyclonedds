@@ -461,7 +461,7 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
   return 0;
 }
 
-dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, unsigned fragnum, struct proxy_reader *prd, struct nn_xmsg **pmsg, int isnew)
+dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, unsigned fragnum, struct proxy_reader *prd, struct nn_xmsg **pmsg, int isnew)
 {
   /* We always fragment into FRAGMENT_SIZEd fragments, which are near
      the smallest allowed fragment size & can't be bothered (yet) to
@@ -730,7 +730,7 @@ static int must_skip_frag (const char *frags_to_skip, unsigned frag)
 }
 #endif
 
-static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew, uint32_t nfrags)
+static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew, uint32_t nfrags)
 {
 #if 0
   const char *frags_to_skip = getenv ("SKIPFRAGS");
@@ -787,7 +787,7 @@ static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *
   }
 }
 
-static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew)
+static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew)
 {
   /* on entry: &wr->e.lock held; on exit: lock no longer held */
   struct ddsi_domaingv const * const gv = wr->e.gv;
@@ -830,7 +830,7 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, 
   }
 }
 
-int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew)
+int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   uint32_t i, sz, nfrags;
@@ -885,7 +885,7 @@ int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct nn_
   return enqueued ? 0 : -1;
 }
 
-static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   /* returns: < 0 on error, 0 if no need to insert in whc, > 0 if inserted */
   int insres, res = 0;
@@ -1084,7 +1084,7 @@ static int maybe_grow_whc (struct writer *wr)
   return 0;
 }
 
-static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int end_of_txn, int gc_allowed)
+static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int end_of_txn, int gc_allowed)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   int r;
@@ -1171,7 +1171,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
     if (plist == NULL)
     {
       plist = ddsrt_malloc (sizeof (*plist));
-      nn_plist_init_empty (plist);
+      ddsi_plist_init_empty (plist);
     }
     assert (!(plist->present & PP_COHERENT_SET));
     plist->present |= PP_COHERENT_SET;
@@ -1184,7 +1184,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
     ddsrt_mutex_unlock (&wr->e.lock);
     if (plist != NULL)
     {
-      nn_plist_fini (plist);
+      ddsi_plist_fini (plist);
       ddsrt_free (plist);
     }
   }
@@ -1200,7 +1200,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
     ddsrt_mutex_unlock (&wr->e.lock);
     if (plist != NULL)
     {
-      nn_plist_fini (plist);
+      ddsi_plist_fini (plist);
       ddsrt_free (plist);
     }
   }
@@ -1215,14 +1215,14 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
        * creating the message, the WHC will free the plist (if any). Currently,
        * plist's are only used for coherent sets, which is assumed to be rare,
        * which in turn means that an extra copy doesn't hurt too badly ... */
-      nn_plist_t plist_stk, *plist_copy;
+      ddsi_plist_t plist_stk, *plist_copy;
       struct whc_state whcst, *whcstptr;
       if (plist == NULL)
         plist_copy = NULL;
       else
       {
         plist_copy = &plist_stk;
-        nn_plist_copy (plist_copy, plist);
+        ddsi_plist_copy (plist_copy, plist);
       }
       if (wr->heartbeat_xevent == NULL)
         whcstptr = NULL;
@@ -1233,7 +1233,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
       }
       transmit_sample_unlocks_wr (xp, wr, whcstptr, seq, plist_copy, serdata, NULL, 1);
       if (plist_copy)
-        nn_plist_fini (plist_copy);
+        ddsi_plist_fini (plist_copy);
     }
     else
     {
@@ -1246,7 +1246,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
     /* If not actually inserted, WHC didn't take ownership of plist */
     if (r == 0 && plist != NULL)
     {
-      nn_plist_fini (plist);
+      ddsi_plist_fini (plist);
       ddsrt_free (plist);
     }
   }

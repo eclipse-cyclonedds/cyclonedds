@@ -9,17 +9,16 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef NN_PLIST_H
-#define NN_PLIST_H
+#ifndef DDSI_PLIST_H
+#define DDSI_PLIST_H
 
 #include "dds/ddsi/q_feature_check.h"
-#include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_tran.h" /* FIXME: eliminate */
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
-
 
 #define PP_PROTOCOL_VERSION                     ((uint64_t)1 <<  0)
 #define PP_VENDORID                             ((uint64_t)1 <<  1)
@@ -118,7 +117,7 @@ typedef struct nn_prismtech_eotgroup_tid {
   uint32_t transactionId;
 } nn_prismtech_eotgroup_tid_t;
 
-typedef struct nn_plist {
+typedef struct ddsi_plist {
   uint64_t present;
   uint64_t aliased;
 
@@ -158,12 +157,12 @@ typedef struct nn_plist {
 #endif
   uint32_t domain_id;
   char *domain_tag;
-} nn_plist_t;
+} ddsi_plist_t;
 
 
 /***/
 
-typedef struct nn_plist_src {
+typedef struct ddsi_plist_src {
   nn_protocol_version_t protocol_version;
   nn_vendorid_t vendorid;
   int encoding;
@@ -172,16 +171,16 @@ typedef struct nn_plist_src {
   bool strict;
   ddsi_tran_factory_t factory; /* eliminate this */
   struct ddsrt_log_cfg *logconfig;
-} nn_plist_src_t;
+} ddsi_plist_src_t;
 
-void nn_plist_init_tables (void);
-DDS_EXPORT void nn_plist_init_empty (nn_plist_t *dest);
-DDS_EXPORT void nn_plist_mergein_missing (nn_plist_t *a, const nn_plist_t *b, uint64_t pmask, uint64_t qmask);
-DDS_EXPORT void nn_plist_copy (nn_plist_t *dst, const nn_plist_t *src);
-DDS_EXPORT nn_plist_t *nn_plist_dup (const nn_plist_t *src);
+void ddsi_plist_init_tables (void);
+DDS_EXPORT void ddsi_plist_init_empty (ddsi_plist_t *dest);
+DDS_EXPORT void ddsi_plist_mergein_missing (ddsi_plist_t *a, const ddsi_plist_t *b, uint64_t pmask, uint64_t qmask);
+DDS_EXPORT void ddsi_plist_copy (ddsi_plist_t *dst, const ddsi_plist_t *src);
+DDS_EXPORT ddsi_plist_t *ddsi_plist_dup (const ddsi_plist_t *src);
 
 /**
- * @brief Initialize an nn_plist_t from a PL_CDR_{LE,BE} paylaod.
+ * @brief Initialize an ddsi_plist_t from a PL_CDR_{LE,BE} paylaod.
  *
  * @param[in]  pwanted
  *               PP_... flags indicating which non-QoS parameters are of interest, treated as
@@ -206,8 +205,8 @@ DDS_EXPORT nn_plist_t *nn_plist_dup (const nn_plist_t *src);
  *               input (indicated by the "aliased" bits in the plist/xqos structures), but
  *               some things cannot be aliased (e.g., the array of pointers to strings for a
  *               sequence of strings).
- *               Generally, nn_plist_fini should be called when done with the parameter list,
- *               even when nn_plist_unlias or nn_xqos_unlias hasn't been called.
+ *               Generally, ddsi_plist_fini should be called when done with the parameter list,
+ *               even when ddsi_plist_unlias or ddsi_xqos_unlias hasn't been called.
  * @param[out] nextafterplist
  *               If non-NULL, *nextafterplist is set to the first byte following the parameter
  *               list sentinel on successful parse, or to NULL on failure
@@ -226,25 +225,25 @@ DDS_EXPORT nn_plist_t *nn_plist_dup (const nn_plist_t *src);
  *               Input contained an unrecognized parameter with the "incompatible-if-unknown"
  *               flag set; dest is cleared, *nextafterplist is NULL.
  */
-DDS_EXPORT dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const nn_plist_src_t *src);
-DDS_EXPORT void nn_plist_fini (nn_plist_t *ps);
-DDS_EXPORT void nn_plist_fini_mask (nn_plist_t *plist, uint64_t pmask, uint64_t qmask);
-DDS_EXPORT void nn_plist_unalias (nn_plist_t *plist);
-DDS_EXPORT void nn_plist_addtomsg (struct nn_xmsg *m, const nn_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
-DDS_EXPORT void nn_plist_init_default_participant (nn_plist_t *plist);
-DDS_EXPORT void nn_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const nn_plist_t *x, const nn_plist_t *y, uint64_t pmask, uint64_t qmask);
-DDS_EXPORT void nn_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const nn_plist_t *plist);
-DDS_EXPORT size_t nn_plist_print (char * __restrict buf, size_t bufsize, const nn_plist_t *plist);
+DDS_EXPORT dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const ddsi_plist_src_t *src);
+DDS_EXPORT void ddsi_plist_fini (ddsi_plist_t *ps);
+DDS_EXPORT void ddsi_plist_fini_mask (ddsi_plist_t *plist, uint64_t pmask, uint64_t qmask);
+DDS_EXPORT void ddsi_plist_unalias (ddsi_plist_t *plist);
+DDS_EXPORT void ddsi_plist_addtomsg (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
+DDS_EXPORT void ddsi_plist_init_default_participant (ddsi_plist_t *plist);
+DDS_EXPORT void ddsi_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const ddsi_plist_t *x, const ddsi_plist_t *y, uint64_t pmask, uint64_t qmask);
+DDS_EXPORT void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const ddsi_plist_t *plist);
+DDS_EXPORT size_t ddsi_plist_print (char * __restrict buf, size_t bufsize, const ddsi_plist_t *plist);
 
 struct nn_rmsg;
 struct nn_rsample_info;
 struct nn_rdata;
 
-DDS_EXPORT unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn_rmsg *rmsg, const nn_plist_src_t *src);
-DDS_EXPORT const unsigned char *nn_plist_findparam_native_unchecked (const void *src, nn_parameterid_t pid);
+DDS_EXPORT unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const struct nn_rmsg *rmsg, const ddsi_plist_src_t *src);
+DDS_EXPORT const unsigned char *ddsi_plist_findparam_native_unchecked (const void *src, nn_parameterid_t pid);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* NN_PLIST_H */
+#endif /* DDSI_PLIST_H */

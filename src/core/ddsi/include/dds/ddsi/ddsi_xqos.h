@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef NN_XQOS_H
-#define NN_XQOS_H
+#ifndef DDSI_XQOS_H
+#define DDSI_XQOS_H
 
 #include "dds/ddsc/dds_public_qosdefs.h"
 /*XXX*/
@@ -304,27 +304,27 @@ struct dds_qos {
 
 struct nn_xmsg;
 
-DDS_EXPORT void nn_xqos_init_empty (dds_qos_t *xqos);
-DDS_EXPORT void nn_xqos_init_default_reader (dds_qos_t *xqos);
-DDS_EXPORT void nn_xqos_init_default_writer (dds_qos_t *xqos);
-DDS_EXPORT void nn_xqos_init_default_writer_noautodispose (dds_qos_t *xqos);
-DDS_EXPORT void nn_xqos_init_default_subscriber (dds_qos_t *xqos);
-DDS_EXPORT void nn_xqos_init_default_publisher (dds_qos_t *xqos);
-DDS_EXPORT void nn_xqos_init_default_topic (dds_qos_t *xqos);
-DDS_EXPORT void nn_xqos_copy (dds_qos_t *dst, const dds_qos_t *src);
-DDS_EXPORT void nn_xqos_unalias (dds_qos_t *xqos);
-DDS_EXPORT void nn_xqos_fini (dds_qos_t *xqos);
-DDS_EXPORT void nn_xqos_fini_mask (dds_qos_t *xqos, uint64_t mask);
-DDS_EXPORT dds_return_t nn_xqos_valid (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
-DDS_EXPORT void nn_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
-DDS_EXPORT uint64_t nn_xqos_delta (const dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
-DDS_EXPORT void nn_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, uint64_t wanted);
-DDS_EXPORT void nn_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
-DDS_EXPORT size_t nn_xqos_print (char * __restrict buf, size_t bufsize, const dds_qos_t *xqos);
-DDS_EXPORT dds_qos_t *nn_xqos_dup (const dds_qos_t *src);
+DDS_EXPORT void ddsi_xqos_init_empty (dds_qos_t *xqos);
+DDS_EXPORT void ddsi_xqos_init_default_reader (dds_qos_t *xqos);
+DDS_EXPORT void ddsi_xqos_init_default_writer (dds_qos_t *xqos);
+DDS_EXPORT void ddsi_xqos_init_default_writer_noautodispose (dds_qos_t *xqos);
+DDS_EXPORT void ddsi_xqos_init_default_subscriber (dds_qos_t *xqos);
+DDS_EXPORT void ddsi_xqos_init_default_publisher (dds_qos_t *xqos);
+DDS_EXPORT void ddsi_xqos_init_default_topic (dds_qos_t *xqos);
+DDS_EXPORT void ddsi_xqos_copy (dds_qos_t *dst, const dds_qos_t *src);
+DDS_EXPORT void ddsi_xqos_unalias (dds_qos_t *xqos);
+DDS_EXPORT void ddsi_xqos_fini (dds_qos_t *xqos);
+DDS_EXPORT void ddsi_xqos_fini_mask (dds_qos_t *xqos, uint64_t mask);
+DDS_EXPORT dds_return_t ddsi_xqos_valid (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
+DDS_EXPORT void ddsi_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
+DDS_EXPORT uint64_t ddsi_xqos_delta (const dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
+DDS_EXPORT void ddsi_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, uint64_t wanted);
+DDS_EXPORT void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
+DDS_EXPORT size_t ddsi_xqos_print (char * __restrict buf, size_t bufsize, const dds_qos_t *xqos);
+DDS_EXPORT dds_qos_t *ddsi_xqos_dup (const dds_qos_t *src);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* NN_XQOS_H */
+#endif /* DDSI_XQOS_H */

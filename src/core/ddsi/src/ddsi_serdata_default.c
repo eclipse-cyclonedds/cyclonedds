@@ -462,7 +462,7 @@ static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi
   if (d == NULL)
     return NULL;
   serdata_default_append_blob (&d, 1, sample->size, sample->blob);
-  const unsigned char *rawkey = nn_plist_findparam_native_unchecked (sample->blob, sample->keyparam);
+  const unsigned char *rawkey = ddsi_plist_findparam_native_unchecked (sample->blob, sample->keyparam);
 #ifndef NDEBUG
   size_t keysize;
 #endif
@@ -659,8 +659,8 @@ static size_t serdata_default_print_plist (const struct ddsi_sertopic *sertopic_
 {
   const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
   const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)sertopic_common;
-  nn_plist_src_t src;
-  nn_plist_t tmp;
+  ddsi_plist_src_t src;
+  ddsi_plist_t tmp;
   src.buf = (const unsigned char *) d->data;
   src.bufsz = d->pos;
   src.encoding = d->hdr.identifier;
@@ -670,12 +670,12 @@ static size_t serdata_default_print_plist (const struct ddsi_sertopic *sertopic_
   src.protocol_version.minor = RTPS_MINOR;
   src.strict = false;
   src.vendorid = NN_VENDORID_ECLIPSE;
-  if (nn_plist_init_frommsg (&tmp, NULL, ~(uint64_t)0, ~(uint64_t)0, &src) < 0)
+  if (ddsi_plist_init_frommsg (&tmp, NULL, ~(uint64_t)0, ~(uint64_t)0, &src) < 0)
     return (size_t) snprintf (buf, size, "(unparseable-plist)");
   else
   {
-    size_t ret = nn_plist_print (buf, size, &tmp);
-    nn_plist_fini (&tmp);
+    size_t ret = ddsi_plist_print (buf, size, &tmp);
+    ddsi_plist_fini (&tmp);
     return ret;
   }
 }

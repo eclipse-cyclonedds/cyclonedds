@@ -176,8 +176,8 @@ static struct proxy_writer *mkwr (const struct ddsi_domaingv *gv, bool auto_disp
   xqos = ddsrt_malloc (sizeof (*xqos));
   wr_iid = ddsi_iid_gen ();
   memset (pwr, 0, sizeof (*pwr));
-  nn_xqos_init_empty (xqos);
-  nn_xqos_mergein_missing (xqos, &gv->default_xqos_wr, ~(uint64_t)0);
+  ddsi_xqos_init_empty (xqos);
+  ddsi_xqos_mergein_missing (xqos, &gv->default_xqos_wr, ~(uint64_t)0);
   xqos->ownership_strength.value = 0;
   xqos->writer_data_lifecycle.autodispose_unregistered_instances = auto_dispose;
   pwr->e.iid = wr_iid;
@@ -195,12 +195,12 @@ static struct dds_rhc *mkrhc (struct ddsi_domaingv *gv, dds_reader *rd, dds_hist
 {
   struct dds_rhc *rhc;
   dds_qos_t rqos;
-  nn_xqos_init_empty (&rqos);
+  ddsi_xqos_init_empty (&rqos);
   rqos.present |= QP_HISTORY | QP_DESTINATION_ORDER;
   rqos.history.kind = hk;
   rqos.history.depth = hdepth;
   rqos.destination_order.kind = dok;
-  nn_xqos_mergein_missing (&rqos, &gv->default_xqos_rd, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (&rqos, &gv->default_xqos_rd, ~(uint64_t)0);
   thread_state_awake_domain_ok (lookup_thread_state ());
   rhc = dds_rhc_default_new_xchecks (rd, gv, mdtopic, true);
   dds_rhc_set_qos(rhc, &rqos);

@@ -27,7 +27,7 @@
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_lat_estim.h"
@@ -127,7 +127,7 @@ static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint3
 
 static void make_builtin_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
 {
-  nn_xqos_copy (q, template);
+  ddsi_xqos_copy (q, template);
   q->reliability.kind = DDS_RELIABILITY_RELIABLE;
   q->reliability.max_blocking_time = 100 * T_MILLISECOND;
   q->durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
@@ -935,7 +935,7 @@ int rtps_init (struct ddsi_domaingv *gv)
 
   gv->tstart = now ();    /* wall clock time, used in logs */
 
-  nn_plist_init_tables ();
+  ddsi_plist_init_tables ();
 
   gv->disc_conn_uc = NULL;
   gv->data_conn_uc = NULL;
@@ -1082,15 +1082,15 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->xmsgpool = nn_xmsgpool_new ();
   gv->serpool = ddsi_serdatapool_new ();
 
-  nn_plist_init_default_participant (&gv->default_plist_pp);
-  nn_plist_init_default_participant (&gv->default_local_plist_pp);
-  nn_xqos_init_default_reader (&gv->default_xqos_rd);
-  nn_xqos_init_default_writer (&gv->default_xqos_wr);
-  nn_xqos_init_default_writer_noautodispose (&gv->default_xqos_wr_nad);
-  nn_xqos_init_default_topic (&gv->default_xqos_tp);
-  nn_xqos_init_default_subscriber (&gv->default_xqos_sub);
-  nn_xqos_init_default_publisher (&gv->default_xqos_pub);
-  nn_xqos_copy (&gv->spdp_endpoint_xqos, &gv->default_xqos_rd);
+  ddsi_plist_init_default_participant (&gv->default_plist_pp);
+  ddsi_plist_init_default_participant (&gv->default_local_plist_pp);
+  ddsi_xqos_init_default_reader (&gv->default_xqos_rd);
+  ddsi_xqos_init_default_writer (&gv->default_xqos_wr);
+  ddsi_xqos_init_default_writer_noautodispose (&gv->default_xqos_wr_nad);
+  ddsi_xqos_init_default_topic (&gv->default_xqos_tp);
+  ddsi_xqos_init_default_subscriber (&gv->default_xqos_sub);
+  ddsi_xqos_init_default_publisher (&gv->default_xqos_pub);
+  ddsi_xqos_copy (&gv->spdp_endpoint_xqos, &gv->default_xqos_rd);
   gv->spdp_endpoint_xqos.durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_rd, &gv->default_xqos_rd);
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_wr, &gv->default_xqos_wr);
@@ -1437,17 +1437,17 @@ err_unicast_sockets:
 #endif
   ddsrt_hh_free (gv->sertopics);
   ddsrt_mutex_destroy (&gv->sertopics_lock);
-  nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
-  nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);
-  nn_xqos_fini (&gv->spdp_endpoint_xqos);
-  nn_xqos_fini (&gv->default_xqos_pub);
-  nn_xqos_fini (&gv->default_xqos_sub);
-  nn_xqos_fini (&gv->default_xqos_tp);
-  nn_xqos_fini (&gv->default_xqos_wr_nad);
-  nn_xqos_fini (&gv->default_xqos_wr);
-  nn_xqos_fini (&gv->default_xqos_rd);
-  nn_plist_fini (&gv->default_local_plist_pp);
-  nn_plist_fini (&gv->default_plist_pp);
+  ddsi_xqos_fini (&gv->builtin_endpoint_xqos_wr);
+  ddsi_xqos_fini (&gv->builtin_endpoint_xqos_rd);
+  ddsi_xqos_fini (&gv->spdp_endpoint_xqos);
+  ddsi_xqos_fini (&gv->default_xqos_pub);
+  ddsi_xqos_fini (&gv->default_xqos_sub);
+  ddsi_xqos_fini (&gv->default_xqos_tp);
+  ddsi_xqos_fini (&gv->default_xqos_wr_nad);
+  ddsi_xqos_fini (&gv->default_xqos_wr);
+  ddsi_xqos_fini (&gv->default_xqos_rd);
+  ddsi_plist_fini (&gv->default_local_plist_pp);
+  ddsi_plist_fini (&gv->default_plist_pp);
   ddsi_serdatapool_free (gv->serpool);
   nn_xmsgpool_free (gv->xmsgpool);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -1784,17 +1784,17 @@ void rtps_fini (struct ddsi_domaingv *gv)
   ddsrt_hh_free (gv->sertopics);
   ddsrt_mutex_destroy (&gv->sertopics_lock);
 
-  nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
-  nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);
-  nn_xqos_fini (&gv->spdp_endpoint_xqos);
-  nn_xqos_fini (&gv->default_xqos_pub);
-  nn_xqos_fini (&gv->default_xqos_sub);
-  nn_xqos_fini (&gv->default_xqos_tp);
-  nn_xqos_fini (&gv->default_xqos_wr_nad);
-  nn_xqos_fini (&gv->default_xqos_wr);
-  nn_xqos_fini (&gv->default_xqos_rd);
-  nn_plist_fini (&gv->default_local_plist_pp);
-  nn_plist_fini (&gv->default_plist_pp);
+  ddsi_xqos_fini (&gv->builtin_endpoint_xqos_wr);
+  ddsi_xqos_fini (&gv->builtin_endpoint_xqos_rd);
+  ddsi_xqos_fini (&gv->spdp_endpoint_xqos);
+  ddsi_xqos_fini (&gv->default_xqos_pub);
+  ddsi_xqos_fini (&gv->default_xqos_sub);
+  ddsi_xqos_fini (&gv->default_xqos_tp);
+  ddsi_xqos_fini (&gv->default_xqos_wr_nad);
+  ddsi_xqos_fini (&gv->default_xqos_wr);
+  ddsi_xqos_fini (&gv->default_xqos_rd);
+  ddsi_plist_fini (&gv->default_local_plist_pp);
+  ddsi_plist_fini (&gv->default_plist_pp);
 
   ddsrt_mutex_destroy (&gv->lock);
 

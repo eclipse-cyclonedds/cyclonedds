@@ -32,6 +32,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_entity_index.c
     ddsi_deadline.c
     ddsi_deliver_locally.c
+    ddsi_plist.c
     q_addrset.c
     q_bitset_inlines.c
     q_bswap.c
@@ -46,7 +47,6 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     q_misc.c
     q_nwif.c
     q_pcap.c
-    q_plist.c
     q_qosmatch.c
     q_radmin.c
     q_receive.c
@@ -95,6 +95,8 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_deadline.h
     ddsi_deliver_locally.h
     ddsi_domaingv.h
+    ddsi_plist.h
+    ddsi_xqos.h
     q_addrset.h
     q_bitset.h
     q_bswap.h
@@ -112,7 +114,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_misc.h
     q_nwif.h
     q_pcap.h
-    q_plist.h
     q_protocol.h
     q_qosmatch.h
     q_radmin.h
@@ -127,7 +128,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_whc.h
     q_xevent.h
     q_xmsg.h
-    q_xqos.h
     sysdeps.h
 )
 if(ENABLE_LIFESPAN)

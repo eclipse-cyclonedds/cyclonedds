@@ -32,7 +32,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/circlist.h"
 #include "dds/ddsi/ddsi_rhc.h"
-#include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_domaingv.h"

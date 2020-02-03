@@ -50,6 +50,8 @@ extern "C" {
 #endif
 
 struct dds_rhc;
+struct ddsi_plist;
+struct ddsi_sertopic;
 struct ddsi_serdata;
 
 #define DDS_MIN_PSEUDO_HANDLE ((dds_entity_t) 0x7fff0000)
@@ -996,8 +998,6 @@ dds_create_topic(
   const dds_qos_t *qos,
   const dds_listener_t *listener);
 
-struct ddsi_sertopic;
-struct nn_plist;
 /**
  * @brief Creates a new topic with arbitrary type handling.
  *
@@ -1036,7 +1036,7 @@ dds_create_topic_arbitrary (
   struct ddsi_sertopic *sertopic,
   const dds_qos_t *qos,
   const dds_listener_t *listener,
-  const struct nn_plist *sedp_plist);
+  const struct ddsi_plist *sedp_plist);
 
 /**
  * @brief Finds a named topic.
