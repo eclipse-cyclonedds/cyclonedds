@@ -32,7 +32,6 @@ struct ddsi_sertopic {
   bool topickind_no_key;
   char *name;
   char *type_name;
-  uint64_t iid;
   struct ddsi_domaingv *gv;
   ddsrt_atomic_uint32_t refc; /* counts refs from entities (topic, reader, writer), not from data */
 };

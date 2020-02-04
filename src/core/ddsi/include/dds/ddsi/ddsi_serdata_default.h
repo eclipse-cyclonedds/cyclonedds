@@ -20,7 +20,6 @@
 #include "dds/ddsi/ddsi_sertopic.h"
 
 #include "dds/dds.h"
-#include "dds__topic.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -95,41 +94,28 @@ struct ddsi_serdata_default {
 #undef DDSI_SERDATA_DEFAULT_PREPAD
 #undef DDSI_SERDATA_DEFAULT_FIXED_FIELD
 
-struct dds_key_descriptor;
-struct dds_topic_descriptor;
-
 #ifndef DDS_TOPIC_INTERN_FILTER_FN_DEFINED
 #define DDS_TOPIC_INTERN_FILTER_FN_DEFINED
 typedef bool (*dds_topic_intern_filter_fn) (const void * sample, void *ctx);
 #endif
 
+/* Reduced version of dds_topic_descriptor_t */
+struct ddsi_sertopic_default_desc {
+  uint32_t m_size;    /* Size of topic type */
+  uint32_t m_align;   /* Alignment of topic type */
+  uint32_t m_flagset; /* Flags */
+  uint32_t m_nkeys;   /* Number of keys (can be 0) */
+  uint32_t *m_keys;   /* Key descriptors (NULL iff m_nkeys 0) */
+  uint32_t m_nops;    /* Number of words in m_ops (which >= number of ops stored in preproc output) */
+  uint32_t *m_ops;    /* Marshalling meta data */
+};
+
 struct ddsi_sertopic_default {
   struct ddsi_sertopic c;
   uint16_t native_encoding_identifier; /* (PL_)?CDR_(LE|BE) */
   struct serdatapool *serpool;
-
-  struct dds_topic_descriptor * type;
-  unsigned nkeys;
-
-  uint32_t flags;
+  struct ddsi_sertopic_default_desc type;
   size_t opt_size;
-  dds_topic_intern_filter_fn filter_fn;
-  void * filter_sample;
-  void * filter_ctx;
-  const struct dds_key_descriptor * keys;
-
-  /*
-    Array of keys, represented as offset in the OpenSplice internal
-    format data blob. Keys must be stored in the order visited by
-    serializer (so that the serializer can simply compare the current
-    offset with the next key offset). Also: keys[nkeys].off =def=
-    ~0u, which won't equal any real offset so that there is no need
-    to test for the end of the array.
-
-    Offsets work 'cos only primitive types, enums and strings are
-    accepted as keys. So there is no ambiguity if a key happens to
-    be inside a nested struct.
-  */
 };
 
 struct ddsi_plist_sample {

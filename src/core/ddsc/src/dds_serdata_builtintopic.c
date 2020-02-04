@@ -20,7 +20,6 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_plist.h"
-#include "dds__stream.h"
 #include "dds__serdata_builtintopic.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_entity.h"

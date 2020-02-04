@@ -9,9 +9,10 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_SERDATA_BUILTINTOPIC_H
-#define DDSI_SERDATA_BUILTINTOPIC_H
+#ifndef DDS__SERDATA_BUILTINTOPIC_H
+#define DDS__SERDATA_BUILTINTOPIC_H
 
+#include "dds/dds.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertopic.h"
@@ -33,7 +34,6 @@ enum ddsi_sertopic_builtintopic_type {
   DSBT_WRITER
 };
 
-struct ddsi_domaingv;
 struct ddsi_sertopic_builtintopic {
   struct ddsi_sertopic c;
   enum ddsi_sertopic_builtintopic_type type;

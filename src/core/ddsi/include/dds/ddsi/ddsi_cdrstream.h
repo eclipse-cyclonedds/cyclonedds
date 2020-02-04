@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_STREAM_H_
-#define _DDS_STREAM_H_
+#ifndef DDSI_CDRSTREAM_H
+#define DDSI_CDRSTREAM_H
 
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
@@ -44,8 +44,10 @@ bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, co
 
 void dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct ddsi_sertopic_default * __restrict topic);
 void dds_stream_read_sample (dds_istream_t * __restrict is, void * __restrict data, const struct ddsi_sertopic_default * __restrict topic);
+void dds_stream_free_sample (void *data, const uint32_t * ops);
 
-size_t dds_stream_check_optimize (const dds_topic_descriptor_t * __restrict desc);
+uint32_t dds_stream_countops (const uint32_t * __restrict ops);
+size_t dds_stream_check_optimize (const struct ddsi_sertopic_default_desc * __restrict desc);
 void dds_istream_from_serdata_default (dds_istream_t * __restrict s, const struct ddsi_serdata_default * __restrict d);
 void dds_ostream_from_serdata_default (dds_ostream_t * __restrict s, struct ddsi_serdata_default * __restrict d);
 void dds_ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct ddsi_serdata_default ** __restrict d);

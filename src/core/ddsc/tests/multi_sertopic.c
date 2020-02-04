@@ -125,7 +125,6 @@ static const dds_topic_descriptor_t type_uni_desc =
     DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_4BY, 0u, 4,
     DDS_OP_RTS,
     DDS_OP_RTS
-
   },
   .m_meta = "" /* this is on its way out anyway */
 };

@@ -782,7 +782,6 @@ static struct ddsi_sertopic *make_special_topic (const char *name, struct serdat
   ddsi_sertopic_init (&st->c, name, name, &ddsi_sertopic_ops_default, ops, false);
   st->native_encoding_identifier = enc_id;
   st->serpool = serpool;
-  st->nkeys = 1;
   return (struct ddsi_sertopic *) st;
 }
 
