@@ -22,7 +22,7 @@
 #include "dds/ddsrt/static_assert.h"
 
 #include "dds/ddsrt/avl.h"
-#include "dds__stream.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_misc.h"

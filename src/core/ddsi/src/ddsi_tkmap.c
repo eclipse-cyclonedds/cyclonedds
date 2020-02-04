@@ -22,9 +22,9 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsrt/hopscotch.h"
-#include "dds__stream.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsrt/hopscotch.h"
 
 #define REFC_DELETE 0x80000000
 #define REFC_MASK   0x0fffffff

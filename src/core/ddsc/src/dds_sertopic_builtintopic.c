@@ -49,7 +49,7 @@ static bool sertopic_builtin_equal (const struct ddsi_sertopic *acmn, const stru
 static uint32_t sertopic_builtin_hash (const struct ddsi_sertopic *tpcmn)
 {
   const struct ddsi_sertopic_builtintopic *tp = (struct ddsi_sertopic_builtintopic *) tpcmn;
-  return tp->type;
+  return (uint32_t) tp->type;
 }
 
 static void free_pp (void *vsample)

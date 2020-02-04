@@ -39,6 +39,8 @@ bool ddsi_sertopic_equal (const struct ddsi_sertopic *a, const struct ddsi_serto
     return false;
   if (a->serdata_ops != b->serdata_ops)
     return false;
+  if (a->topickind_no_key != b->topickind_no_key)
+    return false;
   return a->ops->equal (a, b);
 }
 
@@ -47,6 +49,7 @@ uint32_t ddsi_sertopic_hash (const struct ddsi_sertopic *a)
   uint32_t h;
   h = ddsrt_mh3 (a->name, strlen (a->name), a->serdata_basehash);
   h = ddsrt_mh3 (a->type_name, strlen (a->type_name), h);
+  h ^= a->serdata_basehash ^ (uint32_t) a->topickind_no_key;
   return h ^ a->ops->hash (a);
 }
 
@@ -63,10 +66,7 @@ struct ddsi_sertopic *ddsi_sertopic_lookup_locked (struct ddsi_domaingv *gv, con
   struct ddsi_sertopic *sertopic = ddsrt_hh_lookup (gv->sertopics, sertopic_template);
 #ifndef NDEBUG
   if (sertopic != NULL)
-  {
     assert (sertopic->gv != NULL);
-    assert (sertopic->iid != 0);
-  }
 #endif
   return ddsi_sertopic_ref (sertopic);
 }
@@ -74,12 +74,10 @@ struct ddsi_sertopic *ddsi_sertopic_lookup_locked (struct ddsi_domaingv *gv, con
 void ddsi_sertopic_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertopic *sertopic)
 {
   assert (sertopic->gv == NULL);
-  assert (sertopic->iid == 0);
   assert (ddsrt_atomic_ld32 (&sertopic->refc) == 1);
 
   (void) ddsi_sertopic_ref (sertopic);
   sertopic->gv = gv;
-  sertopic->iid = ddsi_iid_gen ();
   int x = ddsrt_hh_add (gv->sertopics, sertopic);
   assert (x);
   (void) x;
@@ -98,7 +96,6 @@ void ddsi_sertopic_unref (struct ddsi_sertopic *sertopic)
         (void) ddsrt_hh_remove (sertopic->gv->sertopics, sertopic);
         ddsrt_mutex_unlock (&sertopic->gv->sertopics_lock);
         sertopic->gv = NULL;
-        sertopic->iid = 0;
       }
 
       ddsi_sertopic_free (sertopic);
@@ -116,7 +113,6 @@ void ddsi_sertopic_init (struct ddsi_sertopic *tp, const char *name, const char 
   tp->serdata_basehash = ddsi_sertopic_compute_serdata_basehash (tp->serdata_ops);
   tp->topickind_no_key = topickind_no_key;
   /* set later, on registration */
-  tp->iid = 0;
   tp->gv = NULL;
 }
 
