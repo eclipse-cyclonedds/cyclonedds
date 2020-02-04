@@ -428,7 +428,7 @@ CU_Test(ddsc_liveliness, lease_duration, .init = liveliness_init, .fini = liveli
   uint32_t n;
 
   /* topics */
-  create_topic_name("ddsc_liveliness_ldur", 1, name, sizeof name);
+  create_topic_name("ddsc_liveliness_ldur", g_topic_nr++, name, sizeof name);
   CU_ASSERT_FATAL((pub_topic = dds_create_topic(g_pub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
   CU_ASSERT_FATAL((sub_topic = dds_create_topic(g_sub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
 
@@ -489,7 +489,7 @@ static void test_lease_duration_pwr(bool remote_reader)
   printf("running test lease_duration_pwr: %s reader\n", remote_reader ? "remote" : "local");
 
   /* topics */
-  create_topic_name("ddsc_liveliness_ldurpwr", 1, name, sizeof name);
+  create_topic_name("ddsc_liveliness_ldurpwr", g_topic_nr++, name, sizeof name);
   CU_ASSERT_FATAL((pub_topic = dds_create_topic(g_pub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
   if (remote_reader)
     CU_ASSERT_FATAL((sub_topic = dds_create_topic(g_sub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
@@ -571,7 +571,7 @@ static void test_create_delete_writer_stress(bool remote_reader)
   printf("running test create_delete_writer_stress: %s reader\n", remote_reader ? "remote" : "local");
 
   /* topics */
-  create_topic_name("ddsc_liveliness_wr_stress", 1, name, sizeof name);
+  create_topic_name("ddsc_liveliness_wr_stress", g_topic_nr++, name, sizeof name);
   CU_ASSERT_FATAL((pub_topic = dds_create_topic(g_pub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
   if (remote_reader)
     CU_ASSERT_FATAL((sub_topic = dds_create_topic(g_sub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
