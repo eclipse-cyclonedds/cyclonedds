@@ -39,6 +39,7 @@ typedef struct {
 } thread_context_t;
 
 #if defined(__linux)
+#include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <dirent.h>
 #define MAXTHREADNAMESIZE (15) /* 16 bytes including null-terminating byte. */
@@ -72,9 +73,10 @@ ddsrt_thread_getname(char *str, size_t size)
   assert(size > 0);
 
 #if defined(__linux)
-  /* Thread names are limited to 16 bytes on Linux. ERANGE is returned if the
-     buffer is smaller than 16 bytes. Use an intermediate buffer. */
-  (void)pthread_getname_np(pthread_self(), buf, sizeof(buf));
+  /* Thread names are limited to 16 bytes on Linux, which the buffer should
+     allow space for. prctl is favored over pthread_getname_np for
+     portability. e.g. musl libc. */
+  (void)prctl(PR_GET_NAME, (unsigned long)buf, 0UL, 0UL, 0UL);
   cnt = ddsrt_strlcpy(str, buf, size);
 #elif defined(__APPLE__)
   /* pthread_getname_np on APPLE uses strlcpy to copy the thread name, but
