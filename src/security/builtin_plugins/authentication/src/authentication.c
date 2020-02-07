@@ -205,7 +205,6 @@ typedef struct HandshakeInfo {
 
 typedef struct dds_security_authentication_impl {
     dds_security_authentication base;
-    int id; //sample internal member
     ddsrt_mutex_t lock;
     struct ddsrt_hh *objectHash;
     struct ddsrt_hh *remoteGuidHash;
@@ -225,7 +224,7 @@ typedef struct {
 static int compare_relation (const void *va, const void *vb);
 
 const ddsrt_avl_treedef_t relations_treedef =
-  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct IdentityRelation, avlnode), offsetof (struct IdentityRelation, remoteIdentity), compare_relation, 0);
+    DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct IdentityRelation, avlnode), offsetof (struct IdentityRelation, remoteIdentity), compare_relation, 0);
 
 static bool
 security_object_valid(
@@ -234,7 +233,7 @@ security_object_valid(
 {
     if (!obj) return false;
     if (obj->kind != kind) return false;
-    if ((ddsrt_address)obj->handle != (ddsrt_address)obj) return false;
+    if ((uintptr_t)obj->handle != (uintptr_t)obj) return false;
     return true;
 }
 
@@ -275,12 +274,12 @@ security_object_find(
 
 static int compare_relation (const void *va, const void *vb)
 {
-    const struct RemoteIdentityInfo * const *ha = va;
-    const struct RemoteIdentityInfo * const *hb = vb;
+    const struct RemoteIdentityInfo * ha = va;
+    const struct RemoteIdentityInfo * hb = vb;
 
-    if (*ha < *hb) {
+    if (IDENTITY_HANDLE(ha) < IDENTITY_HANDLE(hb)) {
         return -1;
-    } else if (*ha > *hb) {
+    } else if (IDENTITY_HANDLE(ha) > IDENTITY_HANDLE(hb)) {
         return 1;
     }
    return 0;
@@ -294,7 +293,7 @@ security_object_init(
     assert(obj);
 
     obj->kind = kind;
-    obj->handle = (int64_t)(ddsrt_address)obj;
+    obj->handle = (int64_t)(uintptr_t)obj;
 }
 
 static void
@@ -890,8 +889,6 @@ validate_local_identity(
         goto err_bad_param;
     }
 
-    implementation->id = 2;
-
     identityCertPEM = DDS_Security_Property_get_value(&participant_qos->property.value, PROPERTY_IDENTITY_CERT);
     if (!identityCertPEM) {
         result = DDS_SECURITY_VALIDATION_FAILED;
@@ -1356,7 +1353,11 @@ validate_remote_identity(
     if (!rinfo) {
         rinfo = remoteIdentityInfoNew(remote_participant_guid, remote_identity_token);
         (void)ddsrt_hh_add(impl->remoteGuidHash, rinfo);
+        relation = identityRelationNew(linfo, rinfo, lchallenge, rchallenge);
+        (void)ddsrt_hh_add(impl->objectHash, relation);
+        ddsrt_avl_insert(&relations_treedef, &linfo->relations, relation);
     } else {
+        ddsrt_avl_ipath_t path;
         /* When the remote identity has already been validated before,
            check if the remote identity token matches with the existing one
          */
@@ -1366,20 +1367,19 @@ validate_remote_identity(
                     "validate_remote_identity: remote_identity_token does not match with previously received one");
             goto err_inv_duplicate;
         }
-        relation = ddsrt_avl_lookup(&relations_treedef, &linfo->relations, rinfo);
-    }
-
-    if (!relation) {
-        relation = identityRelationNew(linfo, rinfo, lchallenge, rchallenge);
-        (void)ddsrt_hh_add(impl->objectHash, relation);
-        ddsrt_avl_insert(&relations_treedef, &linfo->relations, relation);
-    } else {
-        if (remote_auth_request_token) {
-            assert(rchallenge);
-            ddsrt_free(relation->rchallenge);
-            relation->rchallenge = rchallenge;
+        relation = ddsrt_avl_lookup_ipath(&relations_treedef, &linfo->relations, rinfo, &path);
+        if (!relation) {
+            relation = identityRelationNew(linfo, rinfo, lchallenge, rchallenge);
+            (void)ddsrt_hh_add(impl->objectHash, relation);
+            ddsrt_avl_insert_ipath(&relations_treedef, &linfo->relations, relation, &path);
+        } else {
+            if (remote_auth_request_token) {
+                assert(rchallenge);
+                ddsrt_free(relation->rchallenge);
+                relation->rchallenge = rchallenge;
+            }
+            ddsrt_free(lchallenge);
         }
-        ddsrt_free(lchallenge);
     }
 
     ddsrt_mutex_unlock(&impl->lock);
@@ -2978,7 +2978,7 @@ DDS_Security_SharedSecretHandle get_shared_secret(
     }
 
     ddsrt_mutex_unlock(&impl->lock);
-    return (DDS_Security_SharedSecretHandle)(ddsrt_address)((HandshakeInfo*)obj)->shared_secret_handle_impl;
+    return (DDS_Security_SharedSecretHandle)(uintptr_t)((HandshakeInfo*)obj)->shared_secret_handle_impl;
 
 
     err_invalid_handle:
@@ -3312,9 +3312,6 @@ int32_t init_authentication( const char *argument, void **context)
     authentication->base.return_handshake_handle = &return_handshake_handle;
     authentication->base.return_identity_handle = &return_identity_handle;
     authentication->base.return_sharedsecret_handle = &return_sharedsecret_handle;
-
-    //prepare implementation wrapper
-    authentication->id = 1;
 
     ddsrt_mutex_init(&authentication->lock);
 
