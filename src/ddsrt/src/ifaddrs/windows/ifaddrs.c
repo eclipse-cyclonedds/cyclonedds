@@ -189,10 +189,14 @@ copyaddr(
   if ((ifa = ddsrt_calloc_s(1, sizeof(*ifa))) == NULL) {
     err = DDS_RETCODE_OUT_OF_RESOURCES;
   } else {
+    size_t namelen = wcslen(iface->FriendlyName);
     ifa->flags = getflags(iface);
     ifa->type = guess_iftype(iface);
     ifa->addr = ddsrt_memdup(sa, sz);
-    (void)ddsrt_asprintf(&ifa->name, "%wS", iface->FriendlyName);
+    ifa->name = ddsrt_malloc(namelen + 1);
+    if (ifa->name != NULL) {
+      wcstombs(ifa->name, iface->FriendlyName, namelen);
+    }
     if (ifa->addr == NULL || ifa->name == NULL) {
       err = DDS_RETCODE_OUT_OF_RESOURCES;
     } else if (ifa->addr->sa_family == AF_INET6) {
