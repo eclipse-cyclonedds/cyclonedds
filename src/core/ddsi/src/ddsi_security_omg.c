@@ -184,9 +184,15 @@ struct dds_security_match_index {
   ddsrt_avl_tree_t matches;
 };
 
+struct pp_proxypp_match {
+  ddsrt_avl_node_t avlnode;
+  ddsi_guid_t proxypp_guid;
+  DDS_Security_ParticipantCryptoHandle proxypp_crypto_handle;
+};
+
 struct proxypp_pp_match {
   ddsrt_avl_node_t avlnode;
-  struct participant *pp;
+  ddsi_guid_t pp_guid;
   DDS_Security_IdentityHandle proxypp_identity_handle;
   DDS_Security_ParticipantCryptoHandle pp_crypto_handle;
   DDS_Security_ParticipantCryptoHandle proxypp_crypto_handle;
@@ -198,11 +204,14 @@ struct participant_sec_attributes {
   DDS_Security_ParticipantSecurityAttributes attr;
   DDS_Security_ParticipantCryptoHandle crypto_handle;
   bool plugin_attr;
+  ddsrt_mutex_t lock;
+  ddsrt_avl_ctree_t proxy_participants;
 };
 
 struct proxy_participant_sec_attributes {
+  struct dds_security_context *sc;
   ddsrt_mutex_t lock;
-  ddsrt_avl_tree_t local_participants;
+  ddsrt_avl_tree_t participants;
 };
 
 struct writer_sec_attributes {
@@ -217,14 +226,32 @@ struct reader_sec_attributes {
   bool plugin_attr;
 };
 
+struct cleanup_participant_crypto {
+  ddsrt_avl_node_t avlnode;
+  struct ddsi_domaingv *gv;
+  struct dds_security_context *sc;
+  ddsi_guid_t guid;
+  struct participant_sec_attributes *sec_attr;
+};
 
+struct dds_security_garbage {
+  ddsrt_mutex_t lock;
+  ddsrt_avl_tree_t pp_crypto_list;
+};
+
+static int compare_guid(const void *va, const void *vb);
 static int compare_crypto_handle (const void *va, const void *vb);
 static int compare_guid_pair(const void *va, const void *vb);
+static int compare_security_attribute(const void *va, const void *vb);
 
+const ddsrt_avl_ctreedef_t pp_proxypp_treedef =
+    DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct pp_proxypp_match, avlnode), offsetof (struct pp_proxypp_match, proxypp_guid), compare_guid, 0);
 const ddsrt_avl_treedef_t proxypp_pp_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct proxypp_pp_match, avlnode), offsetof (struct proxypp_pp_match, pp_crypto_handle), compare_crypto_handle, 0);
 const ddsrt_avl_treedef_t entity_match_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct security_entity_match, avlnode), offsetof (struct security_entity_match, guids), compare_guid_pair, 0);
+const ddsrt_avl_treedef_t participant_garbage_treedef =
+    DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct cleanup_participant_crypto, avlnode), offsetof (struct cleanup_participant_crypto, sec_attr), compare_security_attribute, 0);
 
 static int compare_crypto_handle (const void *va, const void *vb)
 {
@@ -239,6 +266,14 @@ static int guid_compare (const ddsi_guid_t *guid1, const ddsi_guid_t *guid2)
   return memcmp (guid1, guid2, sizeof (ddsi_guid_t));
 }
 
+static int compare_guid(const void *va, const void *vb)
+{
+  const ddsi_guid_t *ga = va;
+  const ddsi_guid_t *gb = vb;
+
+  return guid_compare(ga, gb);
+}
+
 static int compare_guid_pair(const void *va, const void *vb)
 {
   const struct guid_pair *na = va;
@@ -250,14 +285,12 @@ static int compare_guid_pair(const void *va, const void *vb)
   return r;
 }
 
-static void security_exception_clear(DDS_Security_SecurityException *exception)
+static int compare_security_attribute(const void *va, const void *vb)
 {
-  exception->code = 0;
-  exception->minor_code = 0;
-  if (exception->message) {
-    ddsrt_free(exception->message);
-    exception->message = NULL;
-  }
+  const struct participant_sec_attributes *sa = va;
+  const struct participant_sec_attributes *sb = vb;
+
+  return compare_crypto_handle(&sa->crypto_handle, &sb->crypto_handle);
 }
 
 static struct dds_security_context * q_omg_security_get_secure_context(const struct participant *pp)
@@ -295,7 +328,7 @@ void q_omg_log_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Secur
     logbuffer[sizeof(logbuffer)-1] = '\0';
   }
   dds_log_cfg(lc, cat, file, line, func, "%s: %s(code: %d)\n", logbuffer, exception->message ? exception->message : "",  exception->code);
-  security_exception_clear(exception);
+  DDS_Security_Exception_reset(exception);
 }
 
 static struct security_entity_match * entity_match_new(const ddsi_guid_t *src, const ddsi_guid_t *dst)
@@ -391,12 +424,35 @@ static void security_match_index_free(struct dds_security_match_index *list)
   }
 }
 
+static struct pp_proxypp_match * pp_proxypp_match_new(struct proxy_participant *proxypp, DDS_Security_ParticipantCryptoHandle proxypp_crypto_handle)
+{
+  struct pp_proxypp_match *pm;
+
+  pm = ddsrt_malloc(sizeof(*pm));
+  pm->proxypp_guid = proxypp->e.guid;
+  pm->proxypp_crypto_handle = proxypp_crypto_handle;
+
+  return pm;
+}
+
+static void pp_proxypp_match_free(struct dds_security_context *sc, struct pp_proxypp_match *pm)
+{
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+
+  if (pm->proxypp_crypto_handle != DDS_SECURITY_HANDLE_NIL)
+  {
+    if (!sc->crypto_context->crypto_key_factory->unregister_participant(sc->crypto_context->crypto_key_factory, pm->proxypp_crypto_handle, &exception))
+      EXCEPTION_ERROR(sc, &exception, "Failed to return permissions handle");
+  }
+  ddsrt_free(pm);
+}
+
 static struct proxypp_pp_match * proxypp_pp_match_new(struct participant *pp, DDS_Security_IdentityHandle identity_handle, DDS_Security_ParticipantCryptoHandle proxypp_crypto_handle, DDS_Security_PermissionsHandle permissions_hdl, DDS_Security_SharedSecretHandle shared_secret)
 {
   struct proxypp_pp_match *pm;
 
   pm = ddsrt_malloc(sizeof(*pm));
-  pm->pp = pp;
+  pm->pp_guid = pp->e.guid;
   pm->proxypp_identity_handle = identity_handle;
   pm->pp_crypto_handle = pp->sec_attr->crypto_handle;
   pm->proxypp_crypto_handle = proxypp_crypto_handle;
@@ -406,9 +462,8 @@ static struct proxypp_pp_match * proxypp_pp_match_new(struct participant *pp, DD
   return pm;
 }
 
-static void proxypp_pp_match_free(struct proxypp_pp_match *pm)
+static void proxypp_pp_match_free(struct dds_security_context *sc, struct proxypp_pp_match *pm)
 {
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pm->pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   if (pm->proxypp_crypto_handle != DDS_SECURITY_HANDLE_NIL)
@@ -426,33 +481,42 @@ static void proxypp_pp_match_free(struct proxypp_pp_match *pm)
     if (!sc->authentication_context->return_identity_handle(sc->authentication_context, pm->proxypp_identity_handle, &exception))
       EXCEPTION_ERROR(sc, &exception, "Failed to return remote identity handle");
   }
-
   ddsrt_free(pm);
 }
 
-static void proxypp_pp_match_free_wrapper(void *arg)
+static void pp_proxypp_unrelate(struct dds_security_context *sc, struct participant *pp, const ddsi_guid_t *proxypp_guid)
 {
-  struct proxypp_pp_match *pm = arg;
+  struct pp_proxypp_match *pm;
+  ddsrt_avl_dpath_t dpath;
 
-  proxypp_pp_match_free(pm);
+  ddsrt_mutex_lock(&pp->sec_attr->lock);
+  if ((pm = ddsrt_avl_clookup_dpath(&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, proxypp_guid, &dpath)) != NULL)
+  {
+    ddsrt_avl_cdelete_dpath(&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, pm, &dpath);
+    pp_proxypp_match_free(sc, pm);
+  }
+  ddsrt_mutex_unlock(&pp->sec_attr->lock);
 }
 
-static void q_omg_proxypp_pp_unrelate(struct proxy_participant *proxypp, struct participant *pp)
+static void proxypp_pp_unrelate(struct dds_security_context *sc, struct proxy_participant *proxypp, const ddsi_guid_t *pp_guid, int64_t pp_crypto_handle)
 {
-  if (proxypp->sec_attr && pp->sec_attr)
+  if (proxypp->sec_attr)
   {
     struct proxypp_pp_match *pm;
     struct security_entity_match *match;
+    ddsrt_avl_dpath_t dpath;
 
-    match = remove_entity_match(pp->e.gv->security_matches, &proxypp->e.guid, &pp->e.guid);
+    match = remove_entity_match(proxypp->e.gv->security_matches, &proxypp->e.guid, pp_guid);
     if (match)
-    {
       entity_match_free(match);
-      ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-      if ((pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->sec_attr->crypto_handle)) != NULL)
-        proxypp_pp_match_free(pm);
-      ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
+
+    ddsrt_mutex_lock(&proxypp->sec_attr->lock);
+    if ((pm = ddsrt_avl_lookup_dpath(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp_crypto_handle, &dpath)) != NULL)
+    {
+      ddsrt_avl_delete_dpath(&proxypp_pp_treedef, &proxypp->sec_attr->participants, pm, &dpath);
+      proxypp_pp_match_free(sc, pm);
     }
+    ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
   }
 }
 
@@ -489,6 +553,104 @@ static void reader_sec_attributes_free(struct reader_sec_attributes *attr)
    ddsrt_free(attr);
 }
 
+static struct dds_security_garbage *
+dds_security_garbage_new(void)
+{
+  struct dds_security_garbage *sgc;
+
+  sgc = ddsrt_malloc(sizeof(*sgc));
+  ddsrt_mutex_init(&sgc->lock);
+  ddsrt_avl_init(&participant_garbage_treedef, &sgc->pp_crypto_list);
+  return sgc;
+}
+
+static void
+dds_security_garbage_free(struct dds_security_garbage *sgc)
+{
+  if (sgc)
+  {
+    ddsrt_avl_free(&participant_garbage_treedef, &sgc->pp_crypto_list, 0);
+    ddsrt_mutex_destroy(&sgc->lock);
+    ddsrt_free(sgc);
+  }
+}
+
+static void
+dds_security_garbage_add_pp_crypto(struct dds_security_garbage *sgc, struct cleanup_participant_crypto *info)
+{
+  ddsrt_mutex_lock(&sgc->lock);
+  ddsrt_avl_insert(&participant_garbage_treedef, &sgc->pp_crypto_list, info);
+  ddsrt_mutex_unlock(&sgc->lock);
+}
+
+#if 0
+static struct cleanup_participant_crypto *
+dds_security_garbage_find_pp_crypto(struct dds_security_garbage *sgc, int64_t crypto_handle)
+{
+  struct cleanup_participant_crypto *info;
+  struct participant_sec_attributes key = { .crypto_handle=crypto_handle };
+
+  ddsrt_mutex_lock(&sgc->lock);
+  info = ddsrt_avl_lookup(&participant_garbage_treedef, &sgc->pp_crypto_list, &key);
+  ddsrt_mutex_unlock(&sgc->lock);
+
+  return info;
+}
+#endif
+
+static struct cleanup_participant_crypto *
+dds_security_garbage_remove_pp_crypto(struct dds_security_garbage *sgc, int64_t crypto_handle)
+{
+  struct cleanup_participant_crypto *info;
+  struct participant_sec_attributes key = { .crypto_handle=crypto_handle };
+  ddsrt_avl_dpath_t dpath;
+
+  ddsrt_mutex_lock(&sgc->lock);
+  info = ddsrt_avl_lookup_dpath(&participant_garbage_treedef, &sgc->pp_crypto_list, &key, &dpath);
+  if (info)
+    ddsrt_avl_delete_dpath(&participant_garbage_treedef, &sgc->pp_crypto_list, info, &dpath);
+  ddsrt_mutex_unlock(&sgc->lock);
+
+  return info;
+}
+
+#if 0
+static uint32_t
+get_proxypp_crypto_list(struct participant_sec_attributes *sec_attr, DDS_Security_ParticipantCryptoHandleSeq *hdls)
+{
+  uint32_t i;
+  struct pp_proxypp_match *pm;
+  ddsrt_avl_citer_t it;
+
+  ddsrt_mutex_lock(&sec_attr->lock);
+  hdls->_length =  hdls->_maximum = (uint32_t)ddsrt_avl_ccount(&sec_attr->proxy_participants);
+  hdls->_buffer = NULL;
+  if (hdls->_length == 0)
+    return 0;
+
+  hdls->_buffer = ddsrt_malloc(sizeof(int64_t));
+  for (pm = ddsrt_avl_citer_first(&pp_proxypp_treedef, &sec_attr->proxy_participants, &it), i = 0; pm; pm = ddsrt_avl_citer_next(&it), i++)
+    hdls->_buffer[i] = pm->proxypp_crypto_handle;
+  ddsrt_mutex_unlock(&sec_attr->lock);
+  return hdls->_length;
+}
+
+static int64_t
+get_first_proxypp_crypto(struct participant_sec_attributes *sec_attr)
+{
+  int64_t handle = 0;
+  struct pp_proxypp_match *pm;
+
+  ddsrt_mutex_lock(&sec_attr->lock);
+  pm = ddsrt_avl_croot(&pp_proxypp_treedef, &sec_attr->proxy_participants);
+  if (pm)
+    handle = pm->proxypp_crypto_handle;
+  ddsrt_mutex_unlock(&sec_attr->lock);
+
+  return handle;
+}
+#endif
+
 bool q_omg_is_security_loaded (dds_security_context *sc)
 {
   return (sc->crypto_context != NULL || sc->authentication_context != NULL || sc->access_control_context != NULL);
@@ -510,12 +672,9 @@ void q_omg_security_init (struct ddsi_domaingv *gv)
 
   gv->security_context = sc;
   gv->security_matches = security_match_index_new();
-  ddsi_handshake_admin_init(gv);
+  gv->security_garbage = dds_security_garbage_new();
 
-  //DDS_CTRACE ((*sc)->logcfg, "DDS Security init\n");
-#if HANDSHAKE_IMPLEMENTED
-  //remote_participant_crypto_handle_list_init();
-#endif
+  ddsi_handshake_admin_init(gv);
 }
 
 /**
@@ -523,10 +682,6 @@ void q_omg_security_init (struct ddsi_domaingv *gv)
  */
 static void release_plugins (dds_security_context *sc)
 {
-#if HANDSHAKE_IMPLEMENTED
-  q_handshake_terminate ();
-#endif
-
   if (dds_security_plugin_release (&sc->auth_plugin, sc->authentication_context))
     DDS_CERROR (sc->logcfg, "Error occured releasing %s plugin", sc->auth_plugin.name);
 
@@ -546,10 +701,6 @@ void q_omg_security_deinit (struct ddsi_domaingv *gv)
   assert (gv != NULL);
   assert (gv->security_context != NULL);
 
-#if HANDSHAKE_IMPLEMENTED
-  //remote_participant_crypto_handle_list_deinit();
-#endif
-
   if (gv->security_context->authentication_context != NULL && gv->security_context->access_control_context != NULL && gv->security_context->crypto_context != NULL){
     release_plugins (gv->security_context);
   }
@@ -559,9 +710,10 @@ void q_omg_security_deinit (struct ddsi_domaingv *gv)
   security_match_index_free(gv->security_matches);
   gv->security_matches = NULL;
 
-  ddsrt_mutex_destroy (&gv->security_context->omg_security_lock);
+  dds_security_garbage_free(gv->security_garbage);
+  gv->security_garbage = NULL;
 
-  //DDS_CTRACE ((*sc)->logcfg, "DDS Security deinit\n");
+  ddsrt_mutex_destroy (&gv->security_context->omg_security_lock);
   ddsrt_free (gv->security_context);
   gv->security_context = NULL;
 }
@@ -813,7 +965,7 @@ bool q_omg_security_check_create_participant(struct participant *pp, uint32_t do
 
   ETRACE (pp, "adjusted_guid: "PGUIDFMT" ", PGUID (pp->e.guid));
 
-  security_exception_clear(&exception);
+  DDS_Security_Exception_reset(&exception);
   /* Get the identity token and add this to the plist of the participant */
   if (!sc->authentication_context->get_identity_token(sc->authentication_context, &identity_token, identity_handle, &exception))
   {
@@ -897,31 +1049,34 @@ validation_failed:
   return allowed;
 }
 
-
-static void remove_participant_from_remote_entities(struct participant *pp)
-{
-  struct proxy_participant *proxypp;
-  struct entidx_enum_proxy_participant it;
-
-  entidx_enum_proxy_participant_init(&it, pp->e.gv->entity_index);
-  while ((proxypp = entidx_enum_proxy_participant_next(&it)) != NULL)
-  {
-    q_omg_proxypp_pp_unrelate(proxypp, pp);
-  }
-  entidx_enum_proxy_participant_fini(&it);
-}
-
-struct cleanup_participant_crypto_handle_arg {
-  struct dds_security_context *sc;
-  ddsi_guid_t guid;
-  DDS_Security_ParticipantCryptoHandle handle;
-};
-
 static void cleanup_participant_crypto_handle(void *arg)
 {
-  struct cleanup_participant_crypto_handle_arg *info = arg;
+  struct cleanup_participant_crypto *info = arg;
+  struct cleanup_participant_crypto *n;
+  struct dds_security_context *sc = info->sc;
+  struct ddsi_domaingv *gv = info->gv;
+  struct pp_proxypp_match *pm;
 
-  (void)info->sc->crypto_context->crypto_key_factory->unregister_participant(info->sc->crypto_context->crypto_key_factory, info->handle, NULL);
+  n = dds_security_garbage_remove_pp_crypto(gv->security_garbage, info->sec_attr->crypto_handle);
+  assert(n == info);
+
+  pm = ddsrt_avl_cfind_min(&pp_proxypp_treedef, &info->sec_attr->proxy_participants);
+  while (pm)
+  {
+    struct pp_proxypp_match *next = ddsrt_avl_cfind_succ(&pp_proxypp_treedef, &info->sec_attr->proxy_participants, pm);
+    struct proxy_participant *proxypp = entidx_lookup_proxy_participant_guid(gv->entity_index, &pm->proxypp_guid);
+    if (proxypp)
+      proxypp_pp_unrelate(sc, proxypp, &info->guid, info->sec_attr->crypto_handle);
+    ddsrt_avl_cdelete(&pp_proxypp_treedef, &info->sec_attr->proxy_participants, pm);
+    ddsrt_free(pm);
+    pm = next;
+  }
+
+  (void)info->sc->crypto_context->crypto_key_factory->unregister_participant(info->sc->crypto_context->crypto_key_factory, info->sec_attr->crypto_handle, NULL);
+
+  ddsrt_avl_cfree(&pp_proxypp_treedef, &info->sec_attr->proxy_participants, NULL);
+  ddsrt_mutex_unlock(&info->sec_attr->lock);
+  ddsrt_free(info->sec_attr);
   ddsrt_free(arg);
 }
 
@@ -933,8 +1088,6 @@ void q_omg_security_deregister_participant(struct participant *pp)
   if (!sc)
     return;
 
-  remove_participant_from_remote_entities(pp);
-
   /* When the participant is deleted the timed event queue may still contain
    * messages from this participant. Therefore the crypto handle should still
    * be available to ensure that the rtps message can be encoded.
@@ -943,10 +1096,12 @@ void q_omg_security_deregister_participant(struct participant *pp)
    * crypto handle.
    */
   if (pp->sec_attr->crypto_handle != DDS_SECURITY_HANDLE_NIL) {
-    struct cleanup_participant_crypto_handle_arg *arg = ddsrt_malloc (sizeof (*arg));
+    struct cleanup_participant_crypto *arg = ddsrt_malloc (sizeof (*arg));
+    arg->gv = pp->e.gv;
     arg->sc = sc;
-    arg->handle = pp->sec_attr->crypto_handle;
     arg->guid = pp->e.guid;
+    arg->sec_attr = pp->sec_attr;
+    dds_security_garbage_add_pp_crypto(arg->gv->security_garbage, arg);
     qxev_nt_callback(pp->e.gv->xevents, cleanup_participant_crypto_handle, arg);
   }
 
@@ -972,8 +1127,7 @@ void q_omg_security_deregister_participant(struct participant *pp)
       EXCEPTION_ERROR(sc, &exception, "Failed to return participant security attributes");
     }
   }
-
-  ddsrt_free(pp->sec_attr);
+  pp->sec_attr = NULL;
 }
 
 int64_t q_omg_security_get_local_participant_handle(const struct participant *pp)
@@ -1096,7 +1250,7 @@ static bool is_topic_discovery_protected(DDS_Security_PermissionsHandle permissi
   if (access_control->get_topic_sec_attributes(access_control, permission_handle, topic_name, &attributes, &exception))
     return attributes.is_discovery_protected;
   else
-    security_exception_clear(&exception);
+    DDS_Security_Exception_reset(&exception);
   return false;
 }
 
@@ -1121,7 +1275,7 @@ bool q_omg_security_check_create_topic(const struct ddsi_domaingv *gv, const dds
       if (!is_topic_discovery_protected(pp->permissions_handle, sc->access_control_context, topic_name))
         EXCEPTION_ERROR(sc, &exception, "Local topic permission denied");
       else
-        security_exception_clear(&exception);
+        DDS_Security_Exception_reset(&exception);
     }
     q_omg_shallow_free_security_qos(&topic_qos);
   }
@@ -1155,7 +1309,7 @@ bool q_omg_security_check_create_writer(struct participant *pp, uint32_t domain_
     if (!is_topic_discovery_protected( pp->permissions_handle, sc->access_control_context, topic_name))
       EXCEPTION_ERROR(sc, &exception, "Local topic permission denied");
     else
-      security_exception_clear(&exception);
+      DDS_Security_Exception_reset(&exception);
   }
 
   q_omg_shallow_free_security_qos(&security_qos);
@@ -1276,7 +1430,7 @@ bool q_omg_security_check_create_reader(struct participant *pp, uint32_t domain_
     if (!is_topic_discovery_protected( pp->permissions_handle, sc->access_control_context, topic_name))
       EXCEPTION_ERROR(sc, &exception, "Reader is not permitted");
     else
-      security_exception_clear(&exception);
+      DDS_Security_Exception_reset(&exception);
   }
 
   q_omg_shallow_free_security_qos(&security_qos);
@@ -1498,7 +1652,7 @@ static int64_t get_permissions_handle(struct participant *pp, struct proxy_parti
   struct proxypp_pp_match *pm;
 
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->sec_attr->crypto_handle);
+  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle);
   if (pm)
     hdl = pm->permissions_handle;
   ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
@@ -1510,7 +1664,8 @@ void q_omg_security_init_remote_participant(struct proxy_participant *proxypp)
 {
   proxypp->sec_attr = ddsrt_malloc(sizeof(*proxypp->sec_attr));
   ddsrt_mutex_init(&proxypp->sec_attr->lock);
-  ddsrt_avl_init (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants);
+  ddsrt_avl_init (&proxypp_pp_treedef, &proxypp->sec_attr->participants);
+  proxypp->sec_attr->sc = proxypp->e.gv->security_context;
 }
 
 static bool proxypp_is_authenticated(const struct proxy_participant *proxypp)
@@ -1520,10 +1675,27 @@ static bool proxypp_is_authenticated(const struct proxy_participant *proxypp)
   if (proxypp->sec_attr)
   {
     ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-    authenticated = !ddsrt_avl_is_empty(&proxypp->sec_attr->local_participants);
+    authenticated = !ddsrt_avl_is_empty(&proxypp->sec_attr->participants);
     ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
   }
   return authenticated;
+}
+
+static void match_proxypp_pp(struct participant *pp, struct proxy_participant *proxypp, DDS_Security_IdentityHandle remote_identity_handle, DDS_Security_ParticipantCryptoHandle proxypp_crypto_handle, DDS_Security_PermissionsHandle permissions_handle, DDS_Security_SharedSecretHandle shared_secret_handle)
+{
+  struct proxypp_pp_match *pm;
+  struct pp_proxypp_match *pc;
+
+  pm = proxypp_pp_match_new(pp, remote_identity_handle, proxypp_crypto_handle, permissions_handle, shared_secret_handle);
+  ddsrt_mutex_lock(&proxypp->sec_attr->lock);
+  ddsrt_avl_insert(&proxypp_pp_treedef, &proxypp->sec_attr->participants, pm);
+  ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
+
+  pc = pp_proxypp_match_new(proxypp, proxypp_crypto_handle);
+
+  ddsrt_mutex_lock(&pp->sec_attr->lock);
+  ddsrt_avl_cinsert(&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, pc);
+  ddsrt_mutex_unlock(&pp->sec_attr->lock);
 }
 
 bool q_omg_security_register_remote_participant(struct participant *pp, struct proxy_participant *proxypp, int64_t remote_identity_handle, int64_t shared_secret)
@@ -1534,7 +1706,6 @@ bool q_omg_security_register_remote_participant(struct participant *pp, struct p
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_ParticipantCryptoHandle crypto_handle;
   int64_t permissions_handle;
-  struct proxypp_pp_match *pm;
   struct security_entity_match *m;
 
   permissions_handle = check_remote_participant_permissions(gv->config.domainId, pp, proxypp, remote_identity_handle);
@@ -1558,12 +1729,10 @@ bool q_omg_security_register_remote_participant(struct participant *pp, struct p
 
   GVTRACE("match pp->crypto=%"PRId64" proxypp->crypto=%"PRId64"\n", pp->sec_attr->crypto_handle, crypto_handle);
 
-  pm = proxypp_pp_match_new(pp, remote_identity_handle, crypto_handle, permissions_handle, shared_secret);
+  match_proxypp_pp(pp, proxypp, remote_identity_handle, crypto_handle, permissions_handle, shared_secret);
 
   GVTRACE("create proxypp-pp match pp="PGUIDFMT" proxypp="PGUIDFMT" lidh=%"PRId64, PGUID(pp->e.guid), PGUID(proxypp->e.guid), pp->local_identity_handle);
 
-  ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  ddsrt_avl_insert(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, pm);
   if (m->tokens)
   {
     ret = sc->crypto_context->crypto_key_exchange->set_remote_participant_crypto_tokens(sc->crypto_context->crypto_key_exchange, pp->sec_attr->crypto_handle, crypto_handle, m->tokens, &exception);
@@ -1580,11 +1749,6 @@ bool q_omg_security_register_remote_participant(struct participant *pp, struct p
       ret = false;
     }
   }
-  ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
-
-#if 0
-  send_participant_crypto_tokens(pp, proxypp, pp->sec_attr->crypto_handle, crypto_handle);
-#endif
 
 register_failed:
   return ret;
@@ -1592,8 +1756,26 @@ register_failed:
 
 void q_omg_security_deregister_remote_participant(struct proxy_participant *proxypp)
 {
+  struct ddsi_domaingv *gv = proxypp->e.gv;
+
   if (proxypp->sec_attr) {
-    ddsrt_avl_free(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, proxypp_pp_match_free_wrapper);
+    dds_security_context *sc = proxypp->sec_attr->sc;
+    struct proxypp_pp_match *pm;
+    struct participant *pp;
+
+    pm = ddsrt_avl_find_min(&proxypp_pp_treedef, &proxypp->sec_attr->participants);
+    while (pm)
+    {
+      struct proxypp_pp_match *next = ddsrt_avl_find_succ(&proxypp_pp_treedef, &proxypp->sec_attr->participants, pm);
+
+      ddsrt_avl_delete(&proxypp_pp_treedef, &proxypp->sec_attr->participants, pm);
+      pp = entidx_lookup_participant_guid(gv->entity_index, &pm->pp_guid);
+      if (pp)
+        pp_proxypp_unrelate(sc, pp, &proxypp->e.guid);
+      proxypp_pp_match_free(sc, pm);
+      pm = next;
+    }
+
     ddsrt_mutex_destroy(&proxypp->sec_attr->lock);
     ddsrt_free(proxypp->sec_attr);
     proxypp->sec_attr = NULL;
@@ -1676,7 +1858,7 @@ void q_omg_security_set_participant_crypto_tokens(struct participant *pp, struct
   q_omg_copyin_DataHolderSeq(tseq, tokens);
 
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  if ((pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->sec_attr->crypto_handle)) == NULL)
+  if ((pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle)) == NULL)
   {
     ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
     GVTRACE("remember participant tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(proxypp->e.guid), PGUID(pp->e.guid));
@@ -1704,7 +1886,7 @@ void q_omg_security_participant_send_tokens(struct participant *pp, struct proxy
   int64_t crypto_handle = 0;
 
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->sec_attr->crypto_handle);
+  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle);
   if (pm)
     crypto_handle = pm->proxypp_crypto_handle;
   ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
@@ -1720,7 +1902,7 @@ int64_t q_omg_security_get_remote_participant_handle(int64_t pp_crypto_handle, s
 
   DDS_CTRACE(&proxypp->e.gv->logconfig, "get_remote_handle proxypp="PGUIDFMT" lidh=%"PRId64, PGUID(proxypp->e.guid), pp_crypto_handle);
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  if ((pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp_crypto_handle)) != NULL)
+  if ((pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp_crypto_handle)) != NULL)
     handle = pm->proxypp_crypto_handle;
   ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
 
@@ -1802,7 +1984,7 @@ bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *p
         if (!is_topic_discovery_protected(pp->permissions_handle, sc->access_control_context, publication_data.topic_name))
           EXCEPTION_ERROR(sc, &exception, "Access control does not allow remote writer "PGUIDFMT": %s", PGUID(pwr->e.guid));
         else
-          security_exception_clear(&exception);
+          DDS_Security_Exception_reset(&exception);
       }
     }
   }
@@ -1857,7 +2039,7 @@ static bool q_omg_security_register_remote_writer_match(struct proxy_writer *pwr
   }
 
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->sec_attr->crypto_handle);
+  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle);
   ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
 
   if (!pm)
@@ -1961,22 +2143,20 @@ bool q_omg_security_match_remote_writer_enabled(struct reader *rd, struct proxy_
   return q_omg_security_register_remote_writer_match(pwr, rd, crypto_handle);
 }
 
-void q_omg_security_deregister_remote_writer_match(const struct proxy_writer *pwr, const struct reader *rd)
+void q_omg_security_deregister_remote_writer_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *rd_guid, struct rd_pwr_match *m)
 {
-  struct dds_security_context *sc = q_omg_security_get_secure_context(rd->c.pp);
+  struct dds_security_context *sc = gv->security_context;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   struct security_entity_match *match = NULL;
 
-  if (q_omg_proxy_participant_is_secure(pwr->c.proxypp))
+  if (m->crypto_handle != 0)
   {
-    match = remove_entity_match(rd->e.gv->security_matches, &pwr->e.guid, &rd->e.guid);
+    match = remove_entity_match(gv->security_matches, &m->pwr_guid, rd_guid);
     if (match)
     {
-      if (match->crypto_handle != 0)
-      {
-        if (!sc->crypto_context->crypto_key_factory->unregister_datawriter(sc->crypto_context->crypto_key_factory, match->crypto_handle, &exception))
-          EXCEPTION_ERROR(sc, &exception, "Failed to unregster remote writer "PGUIDFMT" for reader "PGUIDFMT, PGUID(pwr->e.guid), PGUID(rd->e.guid));
-      }
+      assert(match->crypto_handle == m->crypto_handle);
+      if (!sc->crypto_context->crypto_key_factory->unregister_datawriter(sc->crypto_context->crypto_key_factory, match->crypto_handle, &exception))
+        EXCEPTION_ERROR(sc, &exception, "Failed to unregster remote writer "PGUIDFMT" for reader "PGUIDFMT, PGUID(m->pwr_guid), PGUID(*rd_guid));
       entity_match_free(match);
     }
   }
@@ -2027,7 +2207,7 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
         if (!is_topic_discovery_protected(pp->permissions_handle, sc->access_control_context, subscription_data.topic_name))
           EXCEPTION_ERROR(sc, &exception, "Access control does not allow remote reader "PGUIDFMT": %s", PGUID(prd->e.guid));
         else
-          security_exception_clear(&exception);
+          DDS_Security_Exception_reset(&exception);
       }
     }
   }
@@ -2136,22 +2316,21 @@ void set_proxy_writer_security_info(struct proxy_writer *pwr, const ddsi_plist_t
   q_omg_get_proxy_endpoint_security_info (&pwr->e, &pwr->c.proxypp->security_info, plist, &pwr->c.security_info);
 }
 
-void q_omg_security_deregister_remote_reader_match(const struct proxy_reader *prd, const struct writer *wr)
+void q_omg_security_deregister_remote_reader_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *wr_guid, struct wr_prd_match *m)
 {
-  struct dds_security_context *sc = q_omg_security_get_secure_context(wr->c.pp);
+  struct dds_security_context *sc = gv->security_context;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   struct security_entity_match *match = NULL;
 
-  if (q_omg_proxy_participant_is_secure(prd->c.proxypp))
+  if (m->crypto_handle)
   {
-    match = remove_entity_match(wr->e.gv->security_matches, &prd->e.guid, &wr->e.guid);
+    match = remove_entity_match(gv->security_matches, &m->prd_guid, wr_guid);
     if (match)
     {
-      if (match->crypto_handle != 0)
-      {
-        if (!sc->crypto_context->crypto_key_factory->unregister_datareader(sc->crypto_context->crypto_key_factory, match->crypto_handle, &exception))
-          EXCEPTION_ERROR(sc, &exception, "Failed to unregister remote reader "PGUIDFMT" for writer "PGUIDFMT, PGUID(prd->e.guid), PGUID(wr->e.guid));
-      }
+      assert(match->crypto_handle == m->crypto_handle);
+
+      if (!sc->crypto_context->crypto_key_factory->unregister_datareader(sc->crypto_context->crypto_key_factory, match->crypto_handle, &exception))
+        EXCEPTION_ERROR(sc, &exception, "Failed to unregister remote reader "PGUIDFMT" for writer "PGUIDFMT, PGUID(m->prd_guid), PGUID(*wr_guid));
       entity_match_free(match);
     }
   }
@@ -2206,7 +2385,7 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
    }
 
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->sec_attr->crypto_handle);
+  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle);
   ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
   if (!pm)
     return false;
@@ -2572,13 +2751,13 @@ static bool q_omg_security_decode_submessage (const struct ddsi_domaingv *gv, co
   DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
   struct dds_security_context *sc = NULL;
   DDS_Security_SecureSubmessageCategory_t cat = 0;
+  DDS_Security_DatawriterCryptoHandle pp_crypto_hdl = DDS_SECURITY_HANDLE_NIL;
   DDS_Security_DatawriterCryptoHandle proxypp_crypto_hdl = DDS_SECURITY_HANDLE_NIL;
   DDS_Security_DatawriterCryptoHandle send_crypto_hdl = DDS_SECURITY_HANDLE_NIL;
   DDS_Security_DatareaderCryptoHandle recv_crypto_hdl = DDS_SECURITY_HANDLE_NIL;
   DDS_Security_OctetSeq encoded_buffer;
   DDS_Security_OctetSeq plain_buffer;
   struct proxypp_pp_match *m;
-  ddsrt_avl_iter_t it;
   struct participant *pp = NULL;
   struct proxy_participant *proxypp;
   struct ddsi_guid proxypp_guid, pp_guid;
@@ -2595,56 +2774,47 @@ static bool q_omg_security_decode_submessage (const struct ddsi_domaingv *gv, co
   proxypp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
   if (!(proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp_guid)))
   {
-    GVTRACE ("Unknown remote participant "PGUIDFMT" for decoding submsg\n", PGUID (proxypp_guid));
+    GVTRACE (" Unknown remote participant "PGUIDFMT" for decoding submsg\n", PGUID (proxypp_guid));
     return false;
   }
   if (!proxypp->sec_attr)
   {
-    GVTRACE ("Remote participant "PGUIDFMT" not secure for decoding submsg\n", PGUID (proxypp_guid));
+    GVTRACE (" Remote participant "PGUIDFMT" not secure for decoding submsg\n", PGUID (proxypp_guid));
     return false;
   }
-  ddsrt_mutex_lock (&proxypp->sec_attr->lock);
-  for (m = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &it); m; m = ddsrt_avl_iter_next (&it))
+
+  if (!dst_prefix || guid_prefix_zero (dst_prefix))
   {
-    assert (m->proxypp_crypto_handle);
-    if (!dst_prefix || guid_prefix_zero (dst_prefix))
-    {
-      /* In case no destination prefix is provided (multicast), we use the first match
-         to get the proxypp's handle. This might be wrong in case of a specific configuration
-         per participant, which is not supported yet */
-      proxypp_crypto_hdl = m->proxypp_crypto_handle;
-      memset(&pp_guid, 0, sizeof(pp_guid));
-      sc = q_omg_security_get_secure_context_from_proxypp (proxypp);
-      assert (sc);
-      break;
-    }
-    if (guid_prefix_eq (&m->pp->e.guid.prefix, dst_prefix))
-    {
-      assert (m->pp);
-      pp_guid.prefix = *dst_prefix;
-      pp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
-      if (!(pp = entidx_lookup_participant_guid (gv->entity_index, &pp_guid)))
-      {
-        GVWARNING ("Unknown local participant "PGUIDFMT" for decoding submsg\n", PGUID (pp_guid));
-        ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
-        return false;
-      }
-      proxypp_crypto_hdl = m->proxypp_crypto_handle;
-      pp = m->pp;
-      sc = q_omg_security_get_secure_context (pp);
-      assert (sc);
-      break;
-    }
+    ddsrt_mutex_lock (&proxypp->sec_attr->lock);
+    m = ddsrt_avl_root(&proxypp_pp_treedef, &proxypp->sec_attr->participants);
+    proxypp_crypto_hdl = m->proxypp_crypto_handle;
+    memset(&pp_guid, 0, sizeof(pp_guid));
+    ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
+    sc = q_omg_security_get_secure_context_from_proxypp (proxypp);
   }
-  ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
+  else
+  {
+    pp_guid.prefix = *dst_prefix;
+    pp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+    if (!(pp = entidx_lookup_participant_guid (gv->entity_index, &pp_guid)))
+      return false;
+
+    sc = q_omg_security_get_secure_context (pp);
+    pp_crypto_hdl = pp->sec_attr->crypto_handle;
+    ddsrt_mutex_lock (&proxypp->sec_attr->lock);
+    m = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp_crypto_hdl);
+    if (m)
+      proxypp_crypto_hdl = m->proxypp_crypto_handle;
+    ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
+  }
+
   if (proxypp_crypto_hdl == DDS_SECURITY_HANDLE_NIL)
   {
-    GVTRACE ("Remote participant "PGUIDFMT" not matched yet for decoding submsg\n", PGUID (proxypp_guid));
+    GVTRACE (" Remote participant "PGUIDFMT" not matched yet for decoding submsg\n", PGUID (proxypp_guid));
     return false;
   }
 
-  GVTRACE("decode: pp_crypto=%"PRId64" proxypp_crypto=%"PRId64"\n", pp ? pp->sec_attr->crypto_handle:0, proxypp_crypto_hdl);
-
+  GVTRACE(" decode: pp_crypto=%"PRId64" proxypp_crypto=%"PRId64"\n", pp ? pp->sec_attr->crypto_handle:0, proxypp_crypto_hdl);
 
   /* Prepare buffers. */
   memset (&plain_buffer, 0, sizeof (plain_buffer));
@@ -2655,7 +2825,7 @@ static bool q_omg_security_decode_submessage (const struct ddsi_domaingv *gv, co
   /* Determine how the RTPS sub-message was encoded. */
   assert (sc);
   result = sc->crypto_context->crypto_transform->preprocess_secure_submsg (sc->crypto_context->crypto_transform, &recv_crypto_hdl, &send_crypto_hdl,
-      &cat, &encoded_buffer, pp ? pp->sec_attr->crypto_handle : 0, proxypp_crypto_hdl, &ex);
+      &cat, &encoded_buffer, pp_crypto_hdl, proxypp_crypto_hdl, &ex);
   GVTRACE ("decode_submessage: pp("PGUIDFMT") proxypp("PGUIDFMT"), cat(%d)", PGUID (pp_guid), PGUID (proxypp_guid), (int) cat);
   if (!result)
   {
@@ -2848,7 +3018,7 @@ bool q_omg_security_encode_rtps_message (const struct ddsi_domaingv *gv, int64_t
 
   if (!(pp = entidx_lookup_participant_guid (gv->entity_index, src_guid)))
   {
-    GVWARNING ("Unknown local participant "PGUIDFMT" for encoding rtps message\n", PGUID (*src_guid));
+//    GVWARNING ("Unknown local participant "PGUIDFMT" for encoding rtps message\n", PGUID (*src_guid));
     return false;
   }
 
@@ -2943,12 +3113,11 @@ static bool q_omg_security_decode_rtps_message (struct proxy_participant *proxyp
   encoded_buffer._maximum = (uint32_t) src_len;
 
   ddsrt_mutex_lock (&proxypp->sec_attr->lock);
-  for (struct proxypp_pp_match *pm = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &it); pm; pm = ddsrt_avl_iter_next (&it))
+  for (struct proxypp_pp_match *pm = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &it); pm; pm = ddsrt_avl_iter_next (&it))
   {
-    sc = q_omg_security_get_secure_context (pm->pp);
+    sc = q_omg_security_get_secure_context_from_proxypp(proxypp);
     assert (sc);
-    if (!sc->crypto_context->crypto_transform->decode_rtps_message (sc->crypto_context->crypto_transform,
-        &plain_buffer, &encoded_buffer, pm->pp_crypto_handle, pm->proxypp_crypto_handle, &ex))
+    if (!sc->crypto_context->crypto_transform->decode_rtps_message (sc->crypto_context->crypto_transform, &plain_buffer, &encoded_buffer, pm->pp_crypto_handle, pm->proxypp_crypto_handle, &ex))
     {
       if (ex.code == DDS_SECURITY_ERR_INVALID_CRYPTO_RECEIVER_SIGN_CODE)
         continue; /* Could be caused by 'with_origin_authentication' being used, so try next match */

@@ -459,6 +459,8 @@ q_omg_shallow_free_nn_dataholderseq(
   {
     q_omg_shallow_free_nn_dataholder(&(obj->tags[i]));
   }
+  if (obj->n > 0)
+    ddsrt_free(obj->tags);
 }
 
 static DDS_Security_Duration_t convert_duration(dds_duration_t d)

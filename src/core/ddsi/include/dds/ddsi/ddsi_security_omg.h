@@ -47,6 +47,7 @@ struct proxy_participant_sec_attributes;
 struct writer_sec_attributes;
 struct reader_sec_attributes;
 struct dds_security_context;
+struct dds_security_garbage;
 
 typedef struct nn_msg_sec_info {
   unsigned encoded:1;
@@ -628,10 +629,10 @@ bool q_omg_security_match_remote_writer_enabled(struct reader *rd, struct proxy_
  * writer match. For example it will release the security tokens that where associated with this
  * reader and the remote writer.
  *
- * @param[in] pwr   The remote writer.
- * @param[in] rd    The local reader.
+ * @param[in] rd_guid  GUID of the local reader.
+ * @param[in] m        match object with proxy writer
  */
-void q_omg_security_deregister_remote_writer_match(const struct proxy_writer *pwr, const struct reader *rd);
+void q_omg_security_deregister_remote_writer_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *rd_guid, struct rd_pwr_match *m);
 
 /**
  * @brief Set the crypto tokens used for the secure communication from the remote writer to the reader.
@@ -706,7 +707,7 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
 /**
  * @brief Check it the local writer is allowed to communicate with the remote reader.
  *
- * When a remote reader is allowed by access control it has to be checked if the local
+ * When a remote reader is allowed by accessstruct dds_security_garbage control it has to be checked if the local
  * writer is allowed to communicate with a particular local writer. This function will
  * check if the provided security end-point attributes are compatible, When the security
  * attributes are compatible then the function will register the writer and remote reader
@@ -734,10 +735,10 @@ bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_
  * reader match. For example it will release the security tokens that where associated with this
  * writer and the remote reader.
  *
- * @param[in] prd  The remote reader..
- * @param[in] wr   The local writer.
+ * @param[in] wr_guid  GUID of the local writer
+ * @param[in] m        match object with proxy reader
  */
-void q_omg_security_deregister_remote_reader_match(const struct proxy_reader *prd, const struct writer *wr);
+void q_omg_security_deregister_remote_reader_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *wr_guid, struct wr_prd_match *m);
 
 /**
  * @brief Set the crypto tokens used for the secure communication from the remote reader to the writer.

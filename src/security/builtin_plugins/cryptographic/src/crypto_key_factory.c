@@ -245,6 +245,7 @@ remove_relation_from_keymaterial(
     CryptoObject *remote_crypto)
 {
   endpoint_relation *relation;
+
   relation = crypto_endpoint_relation_find_by_crypto(key_material->endpoint_relations, local_crypto, remote_crypto);
   if (relation)
   {
@@ -258,24 +259,21 @@ remove_remote_writer_relation(
     dds_security_crypto_key_factory_impl *implementation,
     remote_datawriter_crypto *remote_writer)
 {
-  local_datareader_crypto *local_reader;
   remote_participant_crypto *remote_participant;
   participant_key_material *key_material;
+
+  DDSRT_UNUSED_ARG(implementation);
 
   assert(remote_writer);
   remote_participant = remote_writer->participant;
   assert(remote_participant);
-  local_reader = (local_datareader_crypto *)crypto_object_table_find(implementation->crypto_objects, remote_writer->local_reader_handle);
-  if (local_reader)
+
+  key_material = (participant_key_material *)crypto_object_table_find(
+      remote_participant->key_material, CRYPTO_OBJECT_HANDLE(remote_writer->local_reader->participant));
+  if (key_material)
   {
-    key_material = (participant_key_material *)crypto_object_table_find(
-        remote_participant->key_material, CRYPTO_OBJECT_HANDLE(local_reader->participant));
-    if (key_material)
-    {
-      remove_relation_from_keymaterial(key_material, (CryptoObject *)local_reader, (CryptoObject *)remote_writer);
-      CRYPTO_OBJECT_RELEASE(key_material);
-    }
-    CRYPTO_OBJECT_RELEASE(local_reader);
+    remove_relation_from_keymaterial(key_material, (CryptoObject *)remote_writer->local_reader, (CryptoObject *)remote_writer);
+    CRYPTO_OBJECT_RELEASE(key_material);
   }
 }
 
@@ -284,24 +282,21 @@ remove_remote_reader_relation(
     dds_security_crypto_key_factory_impl *implementation,
     remote_datareader_crypto *remote_reader)
 {
-  local_datawriter_crypto *local_writer;
   remote_participant_crypto *remote_participant;
   participant_key_material *key_material;
+
+  DDSRT_UNUSED_ARG(implementation);
 
   assert(remote_reader);
   remote_participant = remote_reader->participant;
   assert(remote_participant);
-  local_writer = (local_datawriter_crypto *)crypto_object_table_find(implementation->crypto_objects, remote_reader->local_writer_handle);
-  if (local_writer)
+
+  key_material = (participant_key_material *)crypto_object_table_find(
+      remote_participant->key_material, CRYPTO_OBJECT_HANDLE(remote_reader->local_writer->participant));
+  if (key_material)
   {
-    key_material = (participant_key_material *)crypto_object_table_find(
-        remote_participant->key_material, CRYPTO_OBJECT_HANDLE(local_writer->participant));
-    if (key_material)
-    {
-      remove_relation_from_keymaterial(key_material, (CryptoObject *)local_writer, (CryptoObject *)remote_reader);
-      CRYPTO_OBJECT_RELEASE(key_material);
-    }
-    CRYPTO_OBJECT_RELEASE(local_writer);
+    remove_relation_from_keymaterial(key_material, (CryptoObject *)remote_reader->local_writer, (CryptoObject *)remote_reader);
+    CRYPTO_OBJECT_RELEASE(key_material);
   }
 }
 
@@ -562,6 +557,7 @@ register_local_datawriter(
   crypto_object_table_insert(implementation->crypto_objects, (CryptoObject *)writer_crypto);
   CRYPTO_OBJECT_RELEASE(participant_crypto);
   CRYPTO_OBJECT_RELEASE(writer_crypto);
+
   return writer_crypto->_parent.handle;
 
 err_random_generation:
@@ -619,7 +615,7 @@ register_matched_remote_datareader(
   data_protectionKind = local_writer->data_protectionKind;
   metadata_protectionKind = local_writer->metadata_protectionKind;
 
-  reader_crypto = crypto_remote_datareader_crypto__new(remote_participant, metadata_protectionKind, data_protectionKind, local_datawriter_crypto_handle);
+  reader_crypto = crypto_remote_datareader_crypto__new(remote_participant, metadata_protectionKind, data_protectionKind, local_writer);
 
   /* check if the writer is BuiltinParticipantVolatileMessageSecureWriter */
   if (local_writer->is_builtin_participant_volatile_message_secure_writer)
@@ -667,6 +663,7 @@ register_matched_remote_datareader(
   CRYPTO_OBJECT_RELEASE(remote_participant);
   CRYPTO_OBJECT_RELEASE(local_writer);
   CRYPTO_OBJECT_RELEASE(reader_crypto);
+
   return DATAREADER_CRYPTO_HANDLE(reader_crypto);
 
 err_random_generation:
@@ -736,6 +733,7 @@ register_local_datareader(
   crypto_object_table_insert(implementation->crypto_objects, (CryptoObject *)reader_crypto);
   CRYPTO_OBJECT_RELEASE(participant_crypto);
   CRYPTO_OBJECT_RELEASE(reader_crypto);
+
   return DATAREADER_CRYPTO_HANDLE(reader_crypto);
 
 err_random_generation:
@@ -786,8 +784,7 @@ register_matched_remote_datawriter(
     goto err_invalid_parameter;
   }
 
-  writer_crypto = crypto_remote_datawriter_crypto__new(remote_participant, local_reader->metadata_protectionKind,
-      local_reader->data_protectionKind, local_datareader_crypto_handle);
+  writer_crypto = crypto_remote_datawriter_crypto__new(remote_participant, local_reader->metadata_protectionKind, local_reader->data_protectionKind, local_reader);
 
   /* check if the writer is BuiltinParticipantVolatileMessageSecureWriter */
   if (local_reader->is_builtin_participant_volatile_message_secure_reader)
@@ -833,6 +830,7 @@ register_matched_remote_datawriter(
   CRYPTO_OBJECT_RELEASE(remote_participant);
   CRYPTO_OBJECT_RELEASE(local_reader);
   CRYPTO_OBJECT_RELEASE(writer_crypto);
+
   return DATAREADER_CRYPTO_HANDLE(writer_crypto);
 
 err_random_generation:
@@ -1110,7 +1108,7 @@ crypto_factory_get_datawriter_crypto_tokens(
     goto err_inv_remote;
   }
 
-  if (remote_reader_crypto->local_writer_handle != local_writer_handle)
+  if (CRYPTO_OBJECT_HANDLE(remote_reader_crypto->local_writer) != local_writer_handle)
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE, 0,
         DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_MESSAGE);
@@ -1178,7 +1176,7 @@ crypto_factory_set_datawriter_crypto_tokens(
     goto err_inv_local;
   }
 
-  if (remote_writer_crypto->local_reader_handle != local_reader_handle)
+  if (CRYPTO_OBJECT_HANDLE(remote_writer_crypto->local_reader) != local_reader_handle)
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE, 0,
         DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_MESSAGE);
@@ -1252,7 +1250,7 @@ crypto_factory_get_datareader_crypto_tokens(
     goto err_inv_remote;
   }
 
-  if (remote_writer_crypto->local_reader_handle != local_reader_handle)
+  if (CRYPTO_OBJECT_HANDLE(remote_writer_crypto->local_reader) != local_reader_handle)
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE, 0,
         DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_MESSAGE);
@@ -1315,7 +1313,7 @@ crypto_factory_set_datareader_crypto_tokens(
     goto err_inv_local;
   }
 
-  if (remote_reader_crypto->local_writer_handle != local_writer_handle)
+  if (CRYPTO_OBJECT_HANDLE(remote_reader_crypto->local_writer) != local_writer_handle)
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE, 0,
         DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_MESSAGE);
@@ -1580,7 +1578,7 @@ crypto_factory_get_remote_writer_key_material(
         DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_MESSAGE);
     goto err_inv_crypto;
   }
-  if (writer_crypto->local_reader_handle != reader_id)
+  if (CRYPTO_OBJECT_HANDLE(writer_crypto->local_reader) != reader_id)
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE, 0,
         DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_MESSAGE);
@@ -1644,7 +1642,7 @@ crypto_factory_get_remote_reader_key_material(
                                DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_MESSAGE);
     goto err_inv_crypto;
   }
-  if (reader_crypto->local_writer_handle != writer_id)
+  if (CRYPTO_OBJECT_HANDLE(reader_crypto->local_writer) != writer_id)
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT,
                                DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE, 0,

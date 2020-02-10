@@ -598,9 +598,11 @@ static void func_begin_handshake_reply(struct dds_security_fsm *fsm, void *arg)
 
   TRACE_FUNC(fsm);
 
-  handshake->handshake_message_out = DDS_Security_DataHolder_alloc();
-
   ddsrt_mutex_lock(&handshake->lock);
+
+  if (handshake->handshake_message_out)
+    DDS_Security_DataHolder_free(handshake->handshake_message_out);
+  handshake->handshake_message_out = DDS_Security_DataHolder_alloc();
 
   ret = auth->begin_handshake_reply(
       auth, &(handshake->handshake_handle), handshake->handshake_message_out, &handshake->handshake_message_in_token,
@@ -673,9 +675,12 @@ static void func_begin_handshake_request(struct dds_security_fsm *fsm, void *arg
 
   TRACE_FUNC(fsm);
 
+  ddsrt_mutex_lock(&handshake->lock);
+
+  if (handshake->handshake_message_out)
+    DDS_Security_DataHolder_free(handshake->handshake_message_out);
   handshake->handshake_message_out = DDS_Security_DataHolder_alloc();
 
-  ddsrt_mutex_lock(&handshake->lock);
   ret = auth->begin_handshake_request(auth, &(handshake->handshake_handle), handshake->handshake_message_out, pp->local_identity_handle, handshake->remote_identity_handle, &handshake->pdata, &exception);
   ddsrt_mutex_unlock(&handshake->lock);
 
@@ -744,10 +749,13 @@ static void func_process_handshake(struct dds_security_fsm *fsm, void *arg)
 
   TRACE_FUNC(fsm);
 
+  ddsrt_mutex_lock(&handshake->lock);
+
+  if (handshake->handshake_message_out)
+    DDS_Security_DataHolder_free(handshake->handshake_message_out);
   handshake->handshake_message_out = DDS_Security_DataHolder_alloc();
 
-  ddsrt_mutex_lock(&handshake->lock);
-  ret = auth->process_handshake(auth, handshake->handshake_message_out, &(handshake->handshake_message_in_token), handshake->handshake_handle, &exception);
+  ret = auth->process_handshake(auth, handshake->handshake_message_out, &handshake->handshake_message_in_token, handshake->handshake_handle, &exception);
   ddsrt_mutex_unlock(&handshake->lock);
 
   HSTRACE("FSM: process_handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") ret=%d\n", PGUID (handshake->lguid), PGUID (handshake->rguid), ret);
@@ -1022,6 +1030,8 @@ void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struc
        * result of validate_remote_entity at the opposite participant
        */
       ddsrt_mutex_lock(&handshake->lock);
+      if (handshake->remote_auth_request_token)
+        DDS_Security_DataHolder_free(handshake->remote_auth_request_token);
       handshake->remote_auth_request_token = DDS_Security_DataHolder_alloc();
       q_omg_security_dataholder_copyout(handshake->remote_auth_request_token, &msg->message_data.tags[0]);
       ddsrt_mutex_unlock(&handshake->lock);
@@ -1048,6 +1058,7 @@ void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struc
     }
 
     ddsrt_mutex_lock(&handshake->lock);
+    DDS_Security_DataHolder_deinit(&handshake->handshake_message_in_token);
     q_omg_security_dataholder_copyout(&handshake->handshake_message_in_token, &msg->message_data.tags[0]);
     memcpy(&handshake->handshake_message_in_id, &msg->message_identity, sizeof(handshake->handshake_message_in_id));
     handshake->handled_handshake_message = 0;

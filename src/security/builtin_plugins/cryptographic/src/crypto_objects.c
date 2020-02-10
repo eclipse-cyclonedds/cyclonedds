@@ -11,6 +11,7 @@
  */
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/types.h"
@@ -63,7 +64,9 @@ void crypto_object_free(CryptoObject *obj)
 CryptoObject * crypto_object_keep(CryptoObject *obj)
 {
   if (obj)
+  {
     ddsrt_atomic_inc32(&obj->refcount);
+  }
   return obj;
 }
 
@@ -455,6 +458,7 @@ static void remote_datawriter_crypto__free(CryptoObject *obj)
     CRYPTO_OBJECT_RELEASE(datawriter_crypto->reader2writer_key_material);
     CRYPTO_OBJECT_RELEASE(datawriter_crypto->writer2reader_key_material[0]);
     CRYPTO_OBJECT_RELEASE(datawriter_crypto->writer2reader_key_material[1]);
+    CRYPTO_OBJECT_RELEASE(datawriter_crypto->local_reader);
     CRYPTO_OBJECT_RELEASE(datawriter_crypto->participant);
     crypto_object_deinit((CryptoObject *)datawriter_crypto);
     ddsrt_free(datawriter_crypto);
@@ -462,14 +466,14 @@ static void remote_datawriter_crypto__free(CryptoObject *obj)
 }
 
 remote_datawriter_crypto * crypto_remote_datawriter_crypto__new(const remote_participant_crypto *participant,
-    DDS_Security_ProtectionKind meta_protection, DDS_Security_BasicProtectionKind data_protection, DDS_Security_DatareaderCryptoHandle local_reader_handle)
+    DDS_Security_ProtectionKind meta_protection, DDS_Security_BasicProtectionKind data_protection, local_datareader_crypto *local_reader)
 {
   remote_datawriter_crypto *writer_crypto = ddsrt_calloc(1, sizeof(*writer_crypto));
   crypto_object_init((CryptoObject *)writer_crypto, CRYPTO_OBJECT_KIND_REMOTE_WRITER_CRYPTO, remote_datawriter_crypto__free);
   writer_crypto->participant = (remote_participant_crypto *)CRYPTO_OBJECT_KEEP(participant);
   writer_crypto->metadata_protectionKind = meta_protection;
   writer_crypto->data_protectionKind = data_protection;
-  writer_crypto->local_reader_handle = local_reader_handle;
+  writer_crypto->local_reader = (local_datareader_crypto *)CRYPTO_OBJECT_KEEP(local_reader);
   writer_crypto->is_builtin_participant_volatile_message_secure_writer = false;
 
   return writer_crypto;
@@ -514,6 +518,7 @@ static void remote_datareader_crypto__free(CryptoObject *obj)
     CRYPTO_OBJECT_RELEASE(datareader_crypto->reader2writer_key_material);
     CRYPTO_OBJECT_RELEASE(datareader_crypto->writer2reader_key_material_message);
     CRYPTO_OBJECT_RELEASE(datareader_crypto->writer2reader_key_material_payload);
+    CRYPTO_OBJECT_RELEASE(datareader_crypto->local_writer);
     CRYPTO_OBJECT_RELEASE(datareader_crypto->participant);
     crypto_object_deinit((CryptoObject *)datareader_crypto);
     ddsrt_free(datareader_crypto);
@@ -521,14 +526,14 @@ static void remote_datareader_crypto__free(CryptoObject *obj)
 }
 
 remote_datareader_crypto *crypto_remote_datareader_crypto__new(const remote_participant_crypto *participant, DDS_Security_ProtectionKind metadata_protectionKind,
-    DDS_Security_BasicProtectionKind data_protectionKind, DDS_Security_DatawriterCryptoHandle local_writer_handle)
+    DDS_Security_BasicProtectionKind data_protectionKind, local_datawriter_crypto *local_writer)
 {
   remote_datareader_crypto *reader_crypto = ddsrt_calloc(1, sizeof(*reader_crypto));
   crypto_object_init((CryptoObject *)reader_crypto, CRYPTO_OBJECT_KIND_REMOTE_READER_CRYPTO, remote_datareader_crypto__free);
   reader_crypto->participant = (remote_participant_crypto *)CRYPTO_OBJECT_KEEP(participant);
   reader_crypto->metadata_protectionKind = metadata_protectionKind;
   reader_crypto->data_protectionKind = data_protectionKind;
-  reader_crypto->local_writer_handle = local_writer_handle;
+  reader_crypto->local_writer = (local_datawriter_crypto *)CRYPTO_OBJECT_KEEP(local_writer);
   reader_crypto->is_builtin_participant_volatile_message_secure_reader = false;
 
   return reader_crypto;

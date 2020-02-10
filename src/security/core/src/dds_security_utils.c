@@ -845,6 +845,8 @@ DDS_Security_Exception_reset(
      DDS_Security_SecurityException *ex)
 {
     if (ex) {
+       ex->code = 0;
+       ex->minor_code = 0;
         if (ex->message) {
             ddsrt_free(ex->message);
         }

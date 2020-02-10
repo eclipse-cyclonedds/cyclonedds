@@ -129,28 +129,26 @@ bool write_auth_handshake_message(const struct participant *pp, const struct pro
     nn_participant_generic_message_init(&pmg, &wr->e.guid, seq, &proxypp->e.guid, NULL, NULL, DDS_SECURITY_AUTH_HANDSHAKE, mdata, related_message_id);
   }
 
-  if (nn_participant_generic_message_serialize(&pmg, &blob, &len) == DDS_RETCODE_OK)
-  {
-    GVTRACE("write_handshake("PGUIDFMT" --> "PGUIDFMT")(lguid="PGUIDFMT" rguid="PGUIDFMT") ",
-        PGUID (wr->e.guid), PGUID (prd_guid),
-        PGUID (pp->e.guid), PGUID (proxypp->e.guid));
-    nn_participant_generic_message_log(gv, &pmg, 1);
+  if (nn_participant_generic_message_serialize(&pmg, &blob, &len) != DDS_RETCODE_OK)
+    return false;
 
-    struct ddsi_rawcdr_sample raw = {
-        .blob = blob,
-        .size = len,
-        .key = NULL,
-        .keysize = 0
-    };
-    serdata = ddsi_serdata_from_sample (gv->rawcdr_topic, SDK_DATA, &raw);
-    serdata->timestamp = now ();
+  GVTRACE("write_handshake("PGUIDFMT" --> "PGUIDFMT")(lguid="PGUIDFMT" rguid="PGUIDFMT") ",
+      PGUID (wr->e.guid), PGUID (prd_guid),
+      PGUID (pp->e.guid), PGUID (proxypp->e.guid));
+  nn_participant_generic_message_log(gv, &pmg, 1);
 
-    result = enqueue_sample_wrlock_held (wr, seq, NULL, serdata, prd, 1) == 0;
-  }
-  else
-    GVERROR("Failed to serialize handshake message");
+  struct ddsi_rawcdr_sample raw = {
+      .blob = blob,
+      .size = len,
+      .key = NULL,
+      .keysize = 0
+  };
+  serdata = ddsi_serdata_from_sample (gv->rawcdr_topic, SDK_DATA, &raw);
+  serdata->timestamp = now ();
 
-
+  result = enqueue_sample_wrlock_held (wr, seq, NULL, serdata, prd, 1) == 0;
+  ddsi_serdata_unref (serdata);
+  dds_free(blob);
 
   ddsrt_mutex_unlock (&wr->e.lock);
   nn_participant_generic_message_deinit(&pmg);
@@ -299,6 +297,7 @@ static bool write_crypto_exchange_message(const struct participant *pp, const dd
   serdata = ddsi_serdata_from_sample (gv->rawcdr_topic, SDK_DATA, &raw);
   tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
   ddsrt_mutex_unlock (&wr->e.lock);
+  ddsrt_free(data);
 
   r = write_sample_p2p_wrlock_held(wr, seq, NULL, serdata, tk, prd);
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
