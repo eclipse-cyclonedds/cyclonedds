@@ -1324,7 +1324,7 @@ dds_create_writer(
  *
  * This operation registers an instance with a key value to the data writer and
  * returns an instance handle that could be used for successive write & dispose
- * operations. When the handle is not allocated, the function will return and
+ * operations. When the handle is not allocated, the function will return an
  * error and the handle will be un-touched.
  *
  * @param[in]  writer  The writer to which instance has be associated.
@@ -2035,7 +2035,7 @@ dds_waitset_attach(
  * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
- *             Entity attached.
+ *             Entity detached.
  * @retval DDS_RETCODE_ERROR
  *             An internal error has occurred.
  * @retval DDS_RETCODE_BAD_PARAMETER
@@ -2072,7 +2072,7 @@ dds_waitset_detach(
  * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
- *             Entity attached.
+ *             Trigger value set.
  * @retval DDS_RETCODE_ERROR
  *             An internal error has occurred.
  * @retval DDS_RETCODE_BAD_PARAMETER
