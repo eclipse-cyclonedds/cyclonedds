@@ -9,8 +9,10 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#include <stdlib.h>
 #include <assert.h>
 #include <errno.h>
+#include <locale.h>
 
 #include "dds/ddsrt/sockets.h"
 
@@ -189,14 +191,17 @@ copyaddr(
   if ((ifa = ddsrt_calloc_s(1, sizeof(*ifa))) == NULL) {
     err = DDS_RETCODE_OUT_OF_RESOURCES;
   } else {
-    size_t namelen = wcslen(iface->FriendlyName);
+    size_t namelen;
+    _locale_t lc = _create_locale(LC_ALL, "");
+    _wcstombs_s_l(&namelen, NULL, 0, iface->FriendlyName, _TRUNCATE, lc);
     ifa->flags = getflags(iface);
     ifa->type = guess_iftype(iface);
     ifa->addr = ddsrt_memdup(sa, sz);
     ifa->name = ddsrt_malloc(namelen + 1);
     if (ifa->name != NULL) {
-      wcstombs(ifa->name, iface->FriendlyName, namelen);
+      _wcstombs_s_l(&namelen, ifa->name, namelen, iface->FriendlyName, _TRUNCATE, lc);
     }
+    _free_locale(lc);
     if (ifa->addr == NULL || ifa->name == NULL) {
       err = DDS_RETCODE_OUT_OF_RESOURCES;
     } else if (ifa->addr->sa_family == AF_INET6) {
