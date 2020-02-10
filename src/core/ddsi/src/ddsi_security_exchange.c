@@ -150,7 +150,23 @@ bool write_auth_handshake_message(const struct participant *pp, const struct pro
   ddsi_serdata_unref (serdata);
   dds_free(blob);
 
+  GVTRACE("write_handshake("PGUIDFMT" --> "PGUIDFMT")(lguid="PGUIDFMT" rguid="PGUIDFMT") ",
+      PGUID (wr->e.guid), PGUID (prd_guid),
+      PGUID (pp->e.guid), PGUID (proxypp->e.guid));
+  nn_participant_generic_message_log(gv, &pmg, 1);
 
+  struct ddsi_rawcdr_sample raw = {
+      .blob = blob,
+      .size = len,
+      .key = NULL,
+      .keysize = 0
+  };
+  serdata = ddsi_serdata_from_sample (gv->rawcdr_topic, SDK_DATA, &raw);
+  serdata->timestamp = now ();
+
+  result = enqueue_sample_wrlock_held (wr, seq, NULL, serdata, prd, 1) == 0;
+  ddsi_serdata_unref (serdata);
+  dds_free(blob);
 
   ddsrt_mutex_unlock (&wr->e.lock);
   nn_participant_generic_message_deinit(&pmg);

@@ -499,7 +499,7 @@ static void pp_proxypp_unrelate(struct dds_security_context *sc, struct particip
 
 static void proxypp_pp_unrelate(struct dds_security_context *sc, struct proxy_participant *proxypp, const ddsi_guid_t *pp_guid, int64_t pp_crypto_handle)
 {
-  if (proxypp->sec_attr && pp->sec_attr)
+  if (proxypp->sec_attr)
   {
     struct proxypp_pp_match *pm;
     struct security_entity_match *match;
@@ -714,7 +714,6 @@ void q_omg_security_deinit (struct ddsi_domaingv *gv)
 
   ddsrt_mutex_destroy (&gv->security_context->omg_security_lock);
 
-  ddsrt_free (gv->security_context);
   gv->security_context = NULL;
 }
 

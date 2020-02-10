@@ -1855,9 +1855,6 @@ static void writer_drop_connection (const struct ddsi_guid *wr_guid, const struc
       remove_acked_messages (wr, &whcst, &deferred_free_list);
       wr->num_readers--;
       wr->num_reliable_readers -= m->is_reliable;
-#ifdef DDSI_INCLUDE_SECURITY
-      q_omg_security_deregister_remote_reader_match (prd, wr);
-#endif
     }
 
     ddsrt_mutex_unlock (&wr->e.lock);
@@ -2127,9 +2124,6 @@ static void proxy_writer_drop_connection (const struct ddsi_guid *pwr_guid, stru
         pwr->have_seen_heartbeat = 0;
       local_reader_ary_remove (&pwr->rdary, rd);
     }
-#ifdef DDSI_INCLUDE_SECURITY
-    q_omg_security_deregister_remote_writer_match (pwr, rd);
-#endif
     ddsrt_mutex_unlock (&pwr->e.lock);
     if (m)
     {
@@ -2153,9 +2147,6 @@ static void proxy_reader_drop_connection (const struct ddsi_guid *prd_guid, stru
     {
       ddsrt_avl_delete (&prd_writers_treedef, &prd->writers, m);
     }
-#ifdef DDSI_INCLUDE_SECURITY
-    q_omg_security_deregister_remote_reader_match (prd, wr);
-#endif
     ddsrt_mutex_unlock (&prd->e.lock);
     free_prd_wr_match (m);
   }
