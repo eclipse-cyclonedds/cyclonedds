@@ -167,14 +167,37 @@ guess_iftype (const PIP_ADAPTER_ADDRESSES iface)
   }
 }
 
-static int
+static dds_return_t
+copyname(const wchar_t *wstr, char **strp)
+{
+  int cnt, len;
+  char buf[1], *str;
+
+  len = WideCharToMultiByte(
+    CP_UTF8, WC_ERR_INVALID_CHARS, wstr, -1, buf, 0, NULL, NULL);
+  if (len == 0) {
+    return DDS_RETCODE_BAD_PARAMETER;
+  } else if ((str = ddsrt_malloc_s(len)) == NULL) {
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  }
+
+  cnt = WideCharToMultiByte(
+    CP_UTF8, WC_ERR_INVALID_CHARS, wstr, -1, str, len, NULL, NULL);
+  assert(cnt == len);
+  assert(str[len - 1] == '\0');
+
+  *strp = str;
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t
 copyaddr(
   ddsrt_ifaddrs_t **ifap,
   const PIP_ADAPTER_ADDRESSES iface,
   const PMIB_IPADDRTABLE addrtable,
   const PIP_ADAPTER_UNICAST_ADDRESS addr)
 {
-  dds_return_t err = DDS_RETCODE_OK;
+  dds_return_t rc = DDS_RETCODE_OK;
   ddsrt_ifaddrs_t *ifa;
   struct sockaddr *sa;
   size_t sz;
@@ -187,15 +210,17 @@ copyaddr(
   sz = (size_t)addr->Address.iSockaddrLength;
 
   if ((ifa = ddsrt_calloc_s(1, sizeof(*ifa))) == NULL) {
-    err = DDS_RETCODE_OUT_OF_RESOURCES;
+    rc = DDS_RETCODE_OUT_OF_RESOURCES;
   } else {
     ifa->flags = getflags(iface);
     ifa->type = guess_iftype(iface);
-    ifa->addr = ddsrt_memdup(sa, sz);
-    (void)ddsrt_asprintf(&ifa->name, "%wS", iface->FriendlyName);
-    if (ifa->addr == NULL || ifa->name == NULL) {
-      err = DDS_RETCODE_OUT_OF_RESOURCES;
-    } else if (ifa->addr->sa_family == AF_INET6) {
+    if ((ifa->addr = ddsrt_memdup(sa, sz)) == NULL) {
+      rc = DDS_RETCODE_OUT_OF_RESOURCES;
+    } else {
+      rc = copyname(iface->FriendlyName, &ifa->name);
+    }
+
+    if (ifa->addr->sa_family == AF_INET6) {
       ifa->index = iface->Ipv6IfIndex;
 
       /* Address is not in addrtable if the interface is not connected. */
@@ -222,18 +247,18 @@ copyaddr(
       if ((ifa->netmask = ddsrt_memdup(&nm, sz)) == NULL ||
           (ifa->broadaddr = ddsrt_memdup(&bc, sz)) == NULL)
       {
-        err = DDS_RETCODE_OUT_OF_RESOURCES;
+        rc = DDS_RETCODE_OUT_OF_RESOURCES;
       }
     }
   }
 
-  if (err == 0) {
+  if (rc == DDS_RETCODE_OK) {
     *ifap = ifa;
   } else {
     ddsrt_freeifaddrs(ifa);
   }
 
-  return err;
+  return rc;
 }
 
 dds_return_t
@@ -241,7 +266,7 @@ ddsrt_getifaddrs(
   ddsrt_ifaddrs_t **ifap,
   const int *afs)
 {
-  int err = 0;
+  dds_return_t rc = DDS_RETCODE_OK;
   int use;
   PIP_ADAPTER_ADDRESSES ifaces = NULL, iface;
   PIP_ADAPTER_UNICAST_ADDRESS addr = NULL;
@@ -257,12 +282,15 @@ ddsrt_getifaddrs(
 
   ifa = ifa_root = ifa_next = NULL;
 
-  if ((err = getifaces(&ifaces)) == DDS_RETCODE_OK &&
-      (err = getaddrtable(&addrtable)) == DDS_RETCODE_OK)
+  if ((rc = getifaces(&ifaces)) == DDS_RETCODE_OK &&
+      (rc = getaddrtable(&addrtable)) == DDS_RETCODE_OK)
   {
-    for (iface = ifaces; !err && iface != NULL; iface = iface->Next) {
+    for (iface = ifaces;
+         iface != NULL && rc == DDS_RETCODE_OK;
+         iface = iface->Next)
+    {
       for (addr = iface->FirstUnicastAddress;
-           addr != NULL;
+           addr != NULL && rc == DDS_RETCODE_OK;
            addr = addr->Next)
       {
         sa = (struct sockaddr *)addr->Address.lpSockaddr;
@@ -272,8 +300,8 @@ ddsrt_getifaddrs(
         }
 
         if (use) {
-          err = copyaddr(&ifa_next, iface, addrtable, addr);
-          if (err == DDS_RETCODE_OK) {
+          rc = copyaddr(&ifa_next, iface, addrtable, addr);
+          if (rc == DDS_RETCODE_OK) {
             if (ifa == NULL) {
               ifa = ifa_root = ifa_next;
             } else {
@@ -289,11 +317,11 @@ ddsrt_getifaddrs(
   ddsrt_free(ifaces);
   ddsrt_free(addrtable);
 
-  if (err == DDS_RETCODE_OK) {
+  if (rc == DDS_RETCODE_OK) {
     *ifap = ifa_root;
   } else {
     ddsrt_freeifaddrs(ifa_root);
   }
 
-  return err;
+  return rc;
 }
