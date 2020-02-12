@@ -179,7 +179,7 @@ static void fsm_check_auto_state_change (struct dds_security_fsm *fsm)
   }
 }
 
-static void fsm_state_change (struct dds_security_fsm_control *control, struct fsm_event *event)
+static void fsm_state_change (struct thread_state1 *ts1, struct dds_security_fsm_control *control, struct fsm_event *event)
 {
   struct dds_security_fsm *fsm = event->fsm;
   int event_id = event->event_id;
@@ -199,10 +199,14 @@ static void fsm_state_change (struct dds_security_fsm_control *control, struct f
         set_state_timer (fsm);
 
         ddsrt_mutex_unlock (&control->lock);
+
+        thread_state_asleep (ts1);
         if (fsm->transitions[i].func)
           fsm->transitions[i].func (fsm, fsm->arg);
         if (fsm->current && fsm->current->func)
           fsm->current->func (fsm, fsm->arg);
+
+        thread_state_awake (ts1, control->gv);
         ddsrt_mutex_lock (&control->lock);
         fsm_check_auto_state_change (fsm);
         break;
@@ -241,9 +245,8 @@ static void fsm_handle_timeout (struct dds_security_fsm_control *control, struct
 static uint32_t handle_events (struct dds_security_fsm_control *control)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
-
-  ddsrt_mutex_lock (&control->lock);
   thread_state_awake (ts1, control->gv);
+  ddsrt_mutex_lock (&control->lock);
   while (control->running)
   {
     if (control->event_queue)
@@ -253,7 +256,7 @@ static uint32_t handle_events (struct dds_security_fsm_control *control)
       control->event_queue = event->next;
       if (control->event_queue)
         control->event_queue->prev = NULL;
-      fsm_state_change (control, event);
+      fsm_state_change (ts1, control, event);
       ddsrt_free (event);
     }
     else
@@ -263,7 +266,7 @@ static uint32_t handle_events (struct dds_security_fsm_control *control)
       if (timeout > dds_time ())
       {
         thread_state_asleep (ts1);
-        (void)ddsrt_cond_waituntil( &control->cond, &control->lock, timeout);
+        (void)ddsrt_cond_waituntil (&control->cond, &control->lock, timeout);
         thread_state_awake (ts1, control->gv);
       }
       else
@@ -273,9 +276,8 @@ static uint32_t handle_events (struct dds_security_fsm_control *control)
       }
     }
   }
-  thread_state_asleep (ts1);
   ddsrt_mutex_unlock (&control->lock);
-
+  thread_state_asleep (ts1);
   return 0;
 }
 
