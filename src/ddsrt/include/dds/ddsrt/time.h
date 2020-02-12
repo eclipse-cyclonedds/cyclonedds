@@ -43,7 +43,7 @@ extern "C" {
 /** Absolute Time definition */
 typedef int64_t dds_time_t;
 
-/** Relative Time definition */
+/** Relative Time definition in nanoseconds */
 typedef int64_t dds_duration_t;
 
 /** @name Macro definition for time units in nanoseconds.

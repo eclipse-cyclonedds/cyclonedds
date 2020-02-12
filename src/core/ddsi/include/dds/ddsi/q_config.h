@@ -14,7 +14,7 @@
 
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/ddsi_portmapping.h"
 
@@ -253,7 +253,7 @@ struct config
   int64_t liveliness_monitoring_interval;
   int prioritize_retransmit;
   int xpack_send_async;
-  int multiple_recv_threads;
+  enum boolean_default multiple_recv_threads;
   unsigned recv_thread_stop_maxretries;
 
   unsigned primary_reorder_maxsamples;

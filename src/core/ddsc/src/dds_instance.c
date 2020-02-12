@@ -21,7 +21,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 
 dds_return_t dds_writedispose (dds_entity_t writer, const void *data)
 {

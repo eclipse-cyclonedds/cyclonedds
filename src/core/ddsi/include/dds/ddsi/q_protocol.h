@@ -58,9 +58,9 @@ typedef struct nn_fragment_number_set_header {
 typedef int32_t nn_count_t;
 #define DDSI_COUNT_MIN (-2147483647 - 1)
 #define DDSI_COUNT_MAX (2147483647)
-/* address field in locator maintained in network byte order, the rest
-   in host (yes: that's a FIXME)  */
+/* address field in locator maintained in network byte order, the rest in host */
 typedef struct {
+  const struct ddsi_tran_factory *tran;
   int32_t kind;
   uint32_t port;
   unsigned char address[16];

@@ -14,7 +14,7 @@
 
 #ifdef DDSI_INCLUDE_SECURITY
 
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsi/ddsi_plist_generic.h"

@@ -18,8 +18,6 @@
 extern "C" {
 #endif
 
-void dds_sample_free_contents (char * data, const uint32_t * ops);
-
 #if defined (__cplusplus)
 }
 #endif

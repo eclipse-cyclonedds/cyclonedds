@@ -1379,14 +1379,24 @@ is: &amp;quot;-1&amp;quot;.&lt;/p&gt;</xs:documentation>
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element controls whether all traffic is handled by a single
-receive thread or whether multiple receive threads may be used to improve
-latency. Currently multiple receive threads are only used for
-connectionless transport (e.g., UDP) and ManySocketsMode not set to
-single (the default).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;true&amp;quot;.&lt;/p&gt;</xs:documentation>
+receive thread (false) or whether multiple receive threads may be used to
+improve latency (true). By default it is disabled on Windows because it
+appears that one cannot count on being able to send packets to oneself,
+which is necessary to stop the thread during shutdown. Currently multiple
+receive threads are only used for connectionless transport (e.g., UDP)
+and ManySocketsMode not set to single (the default).&lt;/p&gt;&lt;p&gt;The default
+value is: &amp;quot;default&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:simpleContent>
-        <xs:extension base="xs:boolean">
+        <xs:restriction base="xs:anyType">
+          <xs:simpleType>
+            <xs:restriction base="xs:token">
+              <xs:enumeration value="false"/>
+              <xs:enumeration value="true"/>
+              <xs:enumeration value="default"/>
+            </xs:restriction>
+          </xs:simpleType>
           <xs:attribute name="maxretries" type="xs:integer">
             <xs:annotation>
               <xs:documentation>
@@ -1398,7 +1408,7 @@ attribute before aborting.&lt;/p&gt;&lt;p&gt;The default value is:
 &amp;quot;4294967295&amp;quot;.&lt;/p&gt;</xs:documentation>
             </xs:annotation>
           </xs:attribute>
-        </xs:extension>
+        </xs:restriction>
       </xs:simpleContent>
     </xs:complexType>
   </xs:element>

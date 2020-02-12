@@ -14,7 +14,7 @@
 #define DDS_SECURITY_FSM_H
 
 #include "dds/ddsrt/time.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -176,7 +176,7 @@ dds_security_fsm_free(struct dds_security_fsm *fsm);
  * @return Returns the new fsm control on success. Null on failure.
  */
 DDS_EXPORT struct dds_security_fsm_control *
-dds_security_fsm_control_create (struct q_globals *gv);
+dds_security_fsm_control_create (struct ddsi_domaingv *gv);
 
 /**
  * Frees the fsm control and the allocated fsm's.

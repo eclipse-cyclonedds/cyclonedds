@@ -18,7 +18,7 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 
 /*
@@ -283,7 +283,7 @@ dds_return_t dds_read_instance_mask (dds_entity_t rd_or_cnd, void **buf, dds_sam
   {
     lock = false;
     /* FIXME: Fix the interface. */
-    maxs = 100;
+    maxs = (uint32_t)bufsz;
   }
   return dds_read_impl (false, rd_or_cnd, buf, bufsz, maxs, si, mask, handle, lock, false);
 }
@@ -422,7 +422,7 @@ dds_return_t dds_take_instance_mask (dds_entity_t rd_or_cnd, void **buf, dds_sam
   {
     lock = false;
     /* FIXME: Fix the interface. */
-    maxs = 100;
+    maxs = (uint32_t)bufsz;
   }
   return dds_read_impl(true, rd_or_cnd, buf, bufsz, maxs, si, mask, handle, lock, false);
 }

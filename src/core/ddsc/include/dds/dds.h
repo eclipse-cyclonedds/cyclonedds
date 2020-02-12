@@ -50,6 +50,8 @@ extern "C" {
 #endif
 
 struct dds_rhc;
+struct ddsi_plist;
+struct ddsi_sertopic;
 struct ddsi_serdata;
 
 #define DDS_MIN_PSEUDO_HANDLE ((dds_entity_t) 0x7fff0000)
@@ -555,7 +557,9 @@ dds_set_enabled_status(dds_entity_t entity, uint32_t mask);
  * @param[in]  entity  Entity on which to get qos.
  * @param[out] qos     Pointer to the qos structure that returns the set policies.
  *
- * @returns A dds_return_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure. The QoS object will have
+ * at least all QoS relevant for the entity present and the corresponding dds_qget_...
+ * will return true.
  *
  * @retval DDS_RETCODE_OK
  *             The existing set of QoS policy values applied to the entity
@@ -962,7 +966,9 @@ dds_lookup_participant(
  * @brief Creates a new topic with default type handling.
  *
  * The type name for the topic is taken from the generated descriptor. Topic
- * matching is done on a combination of topic name and type name.
+ * matching is done on a combination of topic name and type name. Each successful
+ * call to dds_create_topic creates a new topic entity sharing the same QoS
+ * settings with all other topics of the same name.
  *
  * @param[in]  participant  Participant on which to create the topic.
  * @param[in]  descriptor   An IDL generated topic descriptor.
@@ -970,14 +976,20 @@ dds_lookup_participant(
  * @param[in]  qos          QoS to set on the new topic (can be NULL).
  * @param[in]  listener     Any listener functions associated with the new topic (can be NULL).
  *
- * @returns A valid topic handle or an error code.
+ * @returns A valid, unique topic handle or an error code.
  *
  * @retval >=0
- *             A valid topic handle.
+ *             A valid unique topic handle.
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             Either participant, descriptor, name or qos is invalid.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Either participant, descriptor, name or qos is invalid.
+ * @retval DDS_RETCODE_INCONSISTENT_POLICY
+ *             QoS mismatch between qos and an existing topic's QoS.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             Mismatch between type name in descriptor and pre-existing
+ *             topic's type name.
  */
-/* TODO: Check list of retcodes is complete. */
 DDS_EXPORT dds_entity_t
 dds_create_topic(
   dds_entity_t participant,
@@ -986,13 +998,17 @@ dds_create_topic(
   const dds_qos_t *qos,
   const dds_listener_t *listener);
 
-struct ddsi_sertopic;
-struct nn_plist;
 /**
  * @brief Creates a new topic with arbitrary type handling.
  *
  * The type name for the topic is taken from the provided "sertopic" object. Topic
- * matching is done on a combination of topic name and type name.
+ * matching is done on a combination of topic name and type name. Each successful
+ * call to dds_create_topic creates a new topic entity sharing the same QoS
+ * settings with all other topics of the same name.
+ *
+ * If sertopic is not yet known in the domain, it is added and its refcount
+ * incremented; if an equivalent sertopic object is already known, then the known
+ * one is used instead.
  *
  * @param[in]  participant  Participant on which to create the topic.
  * @param[in]  sertopic     Internal description of the topic type (includes name).
@@ -1000,21 +1016,27 @@ struct nn_plist;
  * @param[in]  listener     Any listener functions associated with the new topic (can be NULL).
  * @param[in]  sedp_plist   Topic description to be published as part of discovery (if NULL, not published).
  *
- * @returns A valid topic handle or an error code.
+ * @returns A valid, unique topic handle or an error code.
  *
  * @retval >=0
- *             A valid topic handle.
+ *             A valid unique topic handle.
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             Either participant, descriptor, name or qos is invalid.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Either participant, descriptor, name or qos is invalid.
+ * @retval DDS_RETCODE_INCONSISTENT_POLICY
+ *             QoS mismatch between qos and an existing topic's QoS.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             Mismatch between type name in sertopic and pre-existing
+ *             topic's type name.
  */
-/* TODO: Check list of retcodes is complete. */
 DDS_EXPORT dds_entity_t
 dds_create_topic_arbitrary (
   dds_entity_t participant,
   struct ddsi_sertopic *sertopic,
   const dds_qos_t *qos,
   const dds_listener_t *listener,
-  const struct nn_plist *sedp_plist);
+  const struct ddsi_plist *sedp_plist);
 
 /**
  * @brief Finds a named topic.
@@ -1030,8 +1052,9 @@ dds_create_topic_arbitrary (
  *             A valid topic handle.
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             Participant was invalid.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             No topic of this name existed yet in the participant
  */
-/* TODO: Check list of retcodes is complete. */
 DDS_EXPORT dds_entity_t
 dds_find_topic(dds_entity_t participant, const char *name);
 
@@ -1047,8 +1070,6 @@ dds_find_topic(dds_entity_t participant, const char *name);
  * @retval DDS_RETCODE_OK
  *             Success.
  */
-/* TODO: do we need a convenience version as well that allocates and add a _s suffix to this one? */
-/* TODO: Check annotation. Could be _Out_writes_to_(size, return + 1) as well. */
 DDS_EXPORT dds_return_t
 dds_get_name(dds_entity_t topic, char *name, size_t size);
 
@@ -1324,7 +1345,7 @@ dds_create_writer(
  *
  * This operation registers an instance with a key value to the data writer and
  * returns an instance handle that could be used for successive write & dispose
- * operations. When the handle is not allocated, the function will return and
+ * operations. When the handle is not allocated, the function will return an
  * error and the handle will be un-touched.
  *
  * @param[in]  writer  The writer to which instance has be associated.
@@ -2035,7 +2056,7 @@ dds_waitset_attach(
  * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
- *             Entity attached.
+ *             Entity detached.
  * @retval DDS_RETCODE_ERROR
  *             An internal error has occurred.
  * @retval DDS_RETCODE_BAD_PARAMETER
@@ -2072,7 +2093,7 @@ dds_waitset_detach(
  * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
- *             Entity attached.
+ *             Trigger value set.
  * @retval DDS_RETCODE_ERROR
  *             An internal error has occurred.
  * @retval DDS_RETCODE_BAD_PARAMETER

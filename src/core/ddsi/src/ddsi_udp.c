@@ -25,7 +25,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_pcap.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 
 typedef struct ddsi_udp_conn {
   struct ddsi_tran_conn m_base;
@@ -68,7 +68,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
   if (ret > 0)
   {
     if (srcloc)
-      ddsi_ipaddr_to_loc(srcloc, (struct sockaddr *)&src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
+      ddsi_ipaddr_to_loc(conn->m_factory, srcloc, (struct sockaddr *)&src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
 
     if(conn->m_base.gv->pcap_fp)
     {
@@ -88,8 +88,8 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
     {
       char addrbuf[DDSI_LOCSTRLEN];
       nn_locator_t tmp;
-      ddsi_ipaddr_to_loc(&tmp, (struct sockaddr *)&src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
-      ddsi_locator_to_string(conn->m_base.gv, addrbuf, sizeof(addrbuf), &tmp);
+      ddsi_ipaddr_to_loc(conn->m_factory, &tmp, (struct sockaddr *)&src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
+      ddsi_locator_to_string(addrbuf, sizeof(addrbuf), &tmp);
       DDS_CWARNING(&conn->m_base.gv->logconfig, "%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
     }
   }
@@ -432,10 +432,10 @@ static enum ddsi_locator_from_string_result ddsi_udp_address_from_string (ddsi_t
   return ddsi_ipaddr_from_string (tran, loc, str, tran->m_kind);
 }
 
-static char *ddsi_udp_locator_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)
+static char *ddsi_udp_locator_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)
 {
   if (loc->kind != NN_LOCATOR_KIND_UDPv4MCGEN) {
-    return ddsi_ipaddr_to_string(tran, dst, sizeof_dst, loc, with_port);
+    return ddsi_ipaddr_to_string(dst, sizeof_dst, loc, with_port);
   } else {
     struct sockaddr_in src;
     nn_udpv4mcgen_address_t mcgen;
@@ -472,7 +472,7 @@ static int ddsi_udp_is_valid_port (ddsi_tran_factory_t fact, uint32_t port)
   return (port <= 65535);
 }
 
-int ddsi_udp_init (struct q_globals *gv)
+int ddsi_udp_init (struct ddsi_domaingv *gv)
 {
   struct ddsi_tran_factory *fact = ddsrt_malloc (sizeof (*fact));
   memset (fact, 0, sizeof (*fact));

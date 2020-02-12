@@ -15,7 +15,7 @@
 #include "dds/dds.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 
 static void dds_qos_data_copy_in (ddsi_octetseq_t *data, const void * __restrict value, size_t sz, bool overwrite)
 {
@@ -51,7 +51,7 @@ static bool dds_qos_data_copy_out (const ddsi_octetseq_t *data, void **value, si
 dds_qos_t *dds_create_qos (void)
 {
   dds_qos_t *qos = ddsrt_malloc (sizeof (dds_qos_t));
-  nn_xqos_init_empty (qos);
+  ddsi_xqos_init_empty (qos);
   return qos;
 }
 
@@ -64,8 +64,8 @@ void dds_reset_qos (dds_qos_t * __restrict qos)
 {
   if (qos)
   {
-    nn_xqos_fini (qos);
-    nn_xqos_init_empty (qos);
+    ddsi_xqos_fini (qos);
+    ddsi_xqos_init_empty (qos);
   }
 }
 
@@ -78,7 +78,7 @@ void dds_delete_qos (dds_qos_t * __restrict qos)
 {
   if (qos)
   {
-    nn_xqos_fini (qos);
+    ddsi_xqos_fini (qos);
     ddsrt_free (qos);
   }
 }
@@ -92,7 +92,7 @@ dds_return_t dds_copy_qos (dds_qos_t * __restrict dst, const dds_qos_t * __restr
 {
   if (src == NULL || dst == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
-  nn_xqos_copy (dst, src);
+  ddsi_xqos_copy (dst, src);
   return DDS_RETCODE_OK;
 }
 
@@ -105,7 +105,7 @@ void dds_merge_qos (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src
 {
   /* Copy qos from source to destination unless already set */
   if (src != NULL && dst != NULL)
-    nn_xqos_mergein_missing (dst, src, ~(uint64_t)0);
+    ddsi_xqos_mergein_missing (dst, src, ~(uint64_t)0);
 }
 
 void dds_qos_merge (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src)
@@ -121,7 +121,7 @@ bool dds_qos_equal (const dds_qos_t * __restrict a, const dds_qos_t * __restrict
   else if (a == NULL || b == NULL)
     return false;
   else
-    return nn_xqos_delta (a, b, ~(uint64_t)0) == 0;
+    return ddsi_xqos_delta (a, b, ~(uint64_t)0) == 0;
 }
 
 void dds_qset_userdata (dds_qos_t * __restrict qos, const void * __restrict value, size_t sz)

@@ -24,7 +24,7 @@ struct ddsi_handshake
   ddsi_guid_t local_pguid;  /* the guid of the local participant */
   ddsi_guid_t remote_pguid; /* the guid of the remote participant */
   ddsi_handshake_end_cb_t end_cb;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   ddsrt_mutex_t lock;
   ddsrt_cond_t cv;
 

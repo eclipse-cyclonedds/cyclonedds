@@ -36,12 +36,12 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_bitset.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_globals.h" /* for mattr, cattr */
+#include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
 
 /* OVERVIEW ------------------------------------------------------------
 
@@ -2453,7 +2453,7 @@ static enum dqueue_elem_kind dqueue_elem_kind (const struct nn_rsample_chain_ele
 static uint32_t dqueue_thread (struct nn_dqueue *q)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
-  struct q_globals const * const gv = ddsrt_atomic_ldvoidp (&ts1->gv);
+  struct ddsi_domaingv const * const gv = ddsrt_atomic_ldvoidp (&ts1->gv);
   nn_mtime_t next_thread_cputime = { 0 };
   int keepgoing = 1;
   ddsi_guid_t rdguid, *prdguid = NULL;
@@ -2540,7 +2540,7 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
   return 0;
 }
 
-struct nn_dqueue *nn_dqueue_new (const char *name, const struct q_globals *gv, uint32_t max_samples, nn_dqueue_handler_t handler, void *arg)
+struct nn_dqueue *nn_dqueue_new (const char *name, const struct ddsi_domaingv *gv, uint32_t max_samples, nn_dqueue_handler_t handler, void *arg)
 {
   struct nn_dqueue *q;
   char *thrname;

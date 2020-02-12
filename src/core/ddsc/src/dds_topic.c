@@ -19,7 +19,6 @@
 #include "dds__topic.h"
 #include "dds__listener.h"
 #include "dds__participant.h"
-#include "dds__stream.h"
 #include "dds__init.h"
 #include "dds__domain.h"
 #include "dds__get_status.h"
@@ -30,8 +29,9 @@
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/q_plist.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_plist.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds__serdata_builtintopic.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_topic)
@@ -44,15 +44,6 @@ struct topic_sertopic_node {
   uint32_t refc;
   const struct ddsi_sertopic *st;
 };
-
-static int topic_sertopic_node_cmp (const void *va, const void *vb)
-{
-  const struct ddsi_sertopic *a = va;
-  const struct ddsi_sertopic *b = vb;
-  return strcmp (a->name, b->name);
-}
-
-const ddsrt_avl_treedef_t dds_topictree_def = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct topic_sertopic_node, avlnode), offsetof (struct topic_sertopic_node, st), topic_sertopic_node_cmp, 0);
 
 static bool is_valid_name (const char *name) ddsrt_nonnull_all;
 
@@ -112,164 +103,88 @@ static void dds_topic_status_cb (struct dds_topic *tp)
 }
 #endif
 
-struct ddsi_sertopic *dds_topic_lookup (dds_domain *domain, const char *name)
+dds_return_t dds_topic_pin (dds_entity_t handle, struct dds_topic **tp)
 {
-  const struct ddsi_sertopic key = { .name = (char *) name };
-  struct ddsi_sertopic *st;
-  struct topic_sertopic_node *nst;
-  ddsrt_mutex_lock (&dds_global.m_mutex);
-  if ((nst = ddsrt_avl_lookup (&dds_topictree_def, &domain->m_topics, &key)) == NULL)
-    st = NULL;
-  else
-    st = ddsi_sertopic_ref (nst->st);
-  ddsrt_mutex_unlock (&dds_global.m_mutex);
-  return st;
-}
-
-static bool dds_find_topic_check_and_add_ref (dds_entity_t participant, dds_entity_t topic, const char *name)
-{
-  dds_topic *tp;
-  if (dds_topic_lock (topic, &tp) != DDS_RETCODE_OK)
-    return false;
-
-  bool ret;
-  if (dds_entity_participant (&tp->m_entity)->m_entity.m_hdllink.hdl != participant || strcmp (tp->m_stopic->name, name) != 0)
-    ret = false;
-  else
-  {
-    /* Simply return the same topic, though that is different to the spirit
-       of the DDS specification, which gives you a unique copy.  Giving that
-       unique copy means there potentially many versions of exactly the same
-       topic around, and that two entities can be dealing with the same data
-       even though they have different topics objects (though with the same
-       name).  That I find a confusing model.
-
-       As far as I can tell, the only benefit is the ability to set different
-       listeners on the various copies of the topic.  And that seems to be a
-       really small benefit. */
-    ret = true;
-  }
-  dds_topic_unlock (tp);
-  return ret;
-}
-
-dds_entity_t dds_find_topic (dds_entity_t participant, const char *name)
-{
-  dds_entity *pe;
+  struct dds_entity *e;
   dds_return_t ret;
-  dds_entity_t topic;
-
-  if (name == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  /* claim participant handle to guarantee the handle remains valid after
-     unlocking the participant prior to verifying the found topic still
-     exists */
-  if ((ret = dds_entity_pin (participant, &pe)) < 0)
+  if ((ret = dds_entity_pin (handle, &e)) < 0)
     return ret;
-  if (dds_entity_kind (pe) != DDS_KIND_PARTICIPANT)
+  if (dds_entity_kind (e) != DDS_KIND_TOPIC)
   {
-    dds_entity_unpin (pe);
+    dds_entity_unpin (e);
     return DDS_RETCODE_ILLEGAL_OPERATION;
   }
+  *tp = (struct dds_topic *) e;
+  return DDS_RETCODE_OK;
+}
 
-  do {
-    dds_participant *p;
-    topic = DDS_RETCODE_PRECONDITION_NOT_MET;
-    if ((ret = dds_participant_lock (participant, &p)) == DDS_RETCODE_OK)
-    {
-      ddsrt_avl_iter_t it;
-      for (dds_entity *e = ddsrt_avl_iter_first (&dds_entity_children_td, &p->m_entity.m_children, &it); e != NULL; e = ddsrt_avl_iter_next (&it))
-      {
-        if (dds_entity_kind (e) == DDS_KIND_TOPIC && strcmp (((dds_topic *) e)->m_stopic->name, name) == 0)
-        {
-          topic = e->m_hdllink.hdl;
-          break;
-        }
-      }
-      dds_participant_unlock (p);
-    }
-  } while (topic > 0 && !dds_find_topic_check_and_add_ref (participant, topic, name));
+void dds_topic_unpin (struct dds_topic *tp)
+{
+  dds_entity_unpin (&tp->m_entity);
+}
 
-  dds_entity_unpin (pe);
-  return topic;
+void dds_topic_defer_set_qos (struct dds_topic *tp)
+{
+  struct dds_ktopic * const ktp = tp->m_ktopic;
+  struct dds_participant * const pp = dds_entity_participant (&tp->m_entity);
+  ddsrt_mutex_lock (&pp->m_entity.m_mutex);
+  ++ktp->defer_set_qos;
+  ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
+}
+
+void dds_topic_allow_set_qos (struct dds_topic *tp)
+{
+  struct dds_ktopic * const ktp = tp->m_ktopic;
+  struct dds_participant * const pp = dds_entity_participant (&tp->m_entity);
+  ddsrt_mutex_lock (&pp->m_entity.m_mutex);
+  assert (ktp->defer_set_qos > 0);
+  if (--ktp->defer_set_qos == 0)
+    ddsrt_cond_broadcast (&pp->m_entity.m_cond);
+  ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
 }
 
 static dds_return_t dds_topic_delete (dds_entity *e) ddsrt_nonnull_all;
 
 static dds_return_t dds_topic_delete (dds_entity *e)
 {
-  dds_topic *tp = (dds_topic *) e;
-  dds_domain *domain = tp->m_entity.m_domain;
-  ddsrt_avl_dpath_t dp;
-  struct topic_sertopic_node *stn;
-
-  ddsrt_mutex_lock (&dds_global.m_mutex);
-
-  stn = ddsrt_avl_lookup_dpath (&dds_topictree_def, &domain->m_topics, tp->m_stopic, &dp);
-  assert (stn != NULL);
-  if (--stn->refc == 0)
-  {
-    ddsrt_avl_delete_dpath (&dds_topictree_def, &domain->m_topics, stn, &dp);
-    ddsrt_free (stn);
-  }
-
+  struct dds_topic * const tp = (dds_topic *) e;
+  struct dds_ktopic * const ktp = tp->m_ktopic;
+  assert (dds_entity_kind (e->m_parent) == DDS_KIND_PARTICIPANT);
+  dds_participant * const pp = (dds_participant *) e->m_parent;
   ddsi_sertopic_unref (tp->m_stopic);
-  ddsrt_mutex_unlock (&dds_global.m_mutex);
+
+  ddsrt_mutex_lock (&pp->m_entity.m_mutex);
+  if (--ktp->refc == 0)
+  {
+    ddsrt_avl_delete (&participant_ktopics_treedef, &pp->m_ktopics, ktp);
+    dds_delete_qos (ktp->qos);
+    ddsrt_free (ktp->name);
+    ddsrt_free (ktp->type_name);
+    dds_free (ktp);
+  }
+  ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
   return DDS_RETCODE_OK;
 }
 
 static dds_return_t dds_topic_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
 {
-  /* note: e->m_qos is still the old one to allow for failure here */
+  /* We never actually set the qos of a struct dds_topic and really shouldn't be here,
+     but the code to check whether set_qos is supported uses the entity's qos_set
+     function as a proxy.  One of the weird things about the topic's set_qos is that
+     this is called with e == NULL.  */
   (void) e; (void) qos; (void) enabled;
+  assert (e == NULL);
   return DDS_RETCODE_OK;
 }
 
-static bool dupdef_qos_ok (const dds_qos_t *qos, const dds_topic *tp)
+static bool dupdef_qos_ok (const dds_qos_t *qos, const dds_ktopic *ktp)
 {
-  if ((qos == NULL) != (tp->m_entity.m_qos == NULL))
+  if ((qos == NULL) != (ktp->qos == NULL))
     return false;
   else if (qos == NULL)
     return true;
   else
-    return dds_qos_equal (tp->m_entity.m_qos, qos);
-}
-
-static bool sertopic_equivalent (const struct ddsi_sertopic *a, const struct ddsi_sertopic *b)
-{
-  if (strcmp (a->name_type_name, b->name_type_name) != 0)
-    return false;
-  if (a->serdata_basehash != b->serdata_basehash)
-    return false;
-  if (a->ops != b->ops)
-    return false;
-  if (a->serdata_ops != b->serdata_ops)
-    return false;
-  return true;
-}
-
-static dds_return_t create_topic_topic_arbitrary_check_sertopic (dds_entity_t participant, dds_entity_t topic, struct ddsi_sertopic *sertopic, const dds_qos_t *qos)
-{
-  dds_topic *tp;
-  dds_return_t ret;
-
-  if (dds_topic_lock (topic, &tp) < 0)
-    return DDS_RETCODE_NOT_FOUND;
-
-  if (dds_entity_participant (&tp->m_entity)->m_entity.m_hdllink.hdl != participant)
-    ret = DDS_RETCODE_NOT_FOUND;
-  else if (!sertopic_equivalent (tp->m_stopic, sertopic))
-    ret = DDS_RETCODE_PRECONDITION_NOT_MET;
-  else if (!dupdef_qos_ok (qos, tp))
-    ret = DDS_RETCODE_INCONSISTENT_POLICY;
-  else
-  {
-    /* See dds_find_topic_check_and_add_ref */
-    ret = DDS_RETCODE_OK;
-  }
-  dds_topic_unlock (tp);
-  return ret;
+    return dds_qos_equal (ktp->qos, qos);
 }
 
 const struct dds_entity_deriver dds_entity_deriver_topic = {
@@ -280,192 +195,192 @@ const struct dds_entity_deriver dds_entity_deriver_topic = {
   .validate_status = dds_topic_status_validate
 };
 
-dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const nn_plist_t *sedp_plist)
+/**
+* @brief Checks whether a ktopic with the same name exists in the participant,
+* and if so, whether it's QoS matches or not.
+*
+* The set of ktopics is stored in the participant, protected by the participant's
+* mutex and the internal state of these ktopics (including the QoS) is also
+* protected by that mutex.
+*
+* @param[out] ktp_out    matching ktopic if call was successful, or NULL if no
+*                        ktopic with this name exists
+* @param[in]  pp         pinned & locked participant
+* @param[in]  name       topic name to look for
+* @param[in]  type_name  type name the topic must have
+* @param[in]  new_qos    QoS for the new topic (can be NULL)
+*
+* @returns success + ktopic, success + NULL or error.
+*
+* @retval DDS_RETCODE_OK
+*             ktp_out is either NULL (first attempt at creating this topic), or
+*             the matching ktopic entity
+* @retval DDS_RETCODE_INCONSISTENT_POLICY
+*             a ktopic exists with differing QoS
+* @retval DDS_RETCODE_PRECONDITION_NOT_MET
+*             a ktopic exists with a different type name
+*/
+static dds_return_t lookup_and_check_ktopic (struct dds_ktopic **ktp_out, dds_participant *pp, const char *name, const char *type_name, const dds_qos_t *new_qos)
+{
+  struct ddsi_domaingv * const gv = &pp->m_entity.m_domain->gv;
+  struct dds_ktopic *ktp;
+  if ((ktp = *ktp_out = ddsrt_avl_lookup (&participant_ktopics_treedef, &pp->m_ktopics, name)) == NULL)
+  {
+    GVTRACE ("lookup_and_check_ktopic_may_unlock_pp: no such ktopic\n");
+    return DDS_RETCODE_OK;
+  }
+  else if (strcmp (ktp->type_name, type_name) != 0)
+  {
+    GVTRACE ("lookup_and_check_ktopic_may_unlock_pp: ktp %p typename %s mismatch\n", (void *) ktp, ktp->type_name);
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+  }
+  else if (!dupdef_qos_ok (new_qos, ktp))
+  {
+    GVTRACE ("lookup_and_check_ktopic_may_unlock_pp: ktp %p qos mismatch\n", (void *) ktp);
+    return DDS_RETCODE_INCONSISTENT_POLICY;
+  }
+  else
+  {
+    GVTRACE ("lookup_and_check_ktopic_may_unlock_pp: ktp %p reuse\n", (void *) ktp);
+    return DDS_RETCODE_OK;
+  }
+}
+
+static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct dds_ktopic *ktp, bool implicit, struct ddsi_sertopic *sertopic_registered, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
+{
+  dds_entity_t hdl;
+  dds_topic *tp = dds_alloc (sizeof (*tp));
+  hdl = dds_entity_init (&tp->m_entity, &pp->m_entity, DDS_KIND_TOPIC, implicit, NULL, listener, DDS_TOPIC_STATUS_MASK);
+  tp->m_entity.m_iid = ddsi_iid_gen ();
+  dds_entity_register_child (&pp->m_entity, &tp->m_entity);
+  tp->m_ktopic = ktp;
+  tp->m_stopic = sertopic_registered;
+
+  /* Publish Topic */
+  if (sedp_plist)
+  {
+    struct participant *ddsi_pp;
+    ddsi_plist_t plist;
+
+    thread_state_awake (lookup_thread_state (), &pp->m_entity.m_domain->gv);
+    ddsi_pp = entidx_lookup_participant_guid (pp->m_entity.m_domain->gv.entity_index, &pp->m_entity.m_guid);
+    assert (ddsi_pp);
+
+    ddsi_plist_init_empty (&plist);
+    ddsi_plist_mergein_missing (&plist, sedp_plist, ~(uint64_t)0, ~(uint64_t)0);
+    ddsi_xqos_mergein_missing (&plist.qos, ktp->qos, ~(uint64_t)0);
+    sedp_write_topic (ddsi_pp, &plist);
+    ddsi_plist_fini (&plist);
+    thread_state_asleep (lookup_thread_state ());
+  }
+
+  dds_entity_init_complete (&tp->m_entity);
+  return hdl;
+}
+
+dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
 {
   dds_return_t rc;
-  dds_participant *par;
-  dds_entity *par_ent;
-  dds_topic *top;
+  dds_participant *pp;
   dds_qos_t *new_qos = NULL;
   dds_entity_t hdl;
-  struct participant *ddsi_pp;
+  struct ddsi_sertopic *sertopic_registered;
 
   if (sertopic == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  /* Claim participant handle so we can be sure the handle will not be
-     reused if we temporarily unlock the participant to check the an
-     existing topic's compatibility */
-  if ((rc = dds_entity_pin (participant, &par_ent)) < 0)
-    return rc;
-  /* Verify that we've been given a participant, not strictly necessary
-     because dds_participant_lock below checks it, but this is more
-     obvious */
-  if (dds_entity_kind (par_ent) != DDS_KIND_PARTICIPANT)
   {
-    dds_entity_unpin (par_ent);
-    return DDS_RETCODE_ILLEGAL_OPERATION;
+    dds_entity *par_ent;
+    if ((rc = dds_entity_pin (participant, &par_ent)) < 0)
+      return rc;
+    if (dds_entity_kind (par_ent) != DDS_KIND_PARTICIPANT)
+    {
+      dds_entity_unpin (par_ent);
+      return DDS_RETCODE_ILLEGAL_OPERATION;
+    }
+    pp = (struct dds_participant *) par_ent;
   }
 
   new_qos = dds_create_qos ();
   if (qos)
-    nn_xqos_mergein_missing (new_qos, qos, DDS_TOPIC_QOS_MASK);
+    ddsi_xqos_mergein_missing (new_qos, qos, DDS_TOPIC_QOS_MASK);
   /* One would expect this:
    *
-   *   nn_xqos_mergein_missing (new_qos, &gv.default_xqos_tp, ~(uint64_t)0);
+   *   ddsi_xqos_mergein_missing (new_qos, &gv.default_xqos_tp, ~(uint64_t)0);
    *
-   * but the crazy defaults of the DDS specification has a default settings
-   * for reliability that are dependent on the entity type: readers and
+   * but the crazy defaults of the DDS specification has a default setting
+   * for reliability that is dependent on the entity type: readers and
    * topics default to best-effort, but writers to reliable.
    *
    * Leaving the topic QoS sparse means a default-default topic QoS of
    * best-effort will do "the right thing" and let a writer still default to
    * reliable ... (and keep behaviour unchanged) */
-  if ((rc = nn_xqos_valid (&par_ent->m_domain->gv.logconfig, new_qos)) != DDS_RETCODE_OK)
-    goto err_invalid_qos;
-
-  /* FIXME: just mutex_lock ought to be good enough, but there is the
-     pesky "closed" check still ... */
-  if ((rc = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
-    goto err_lock_participant;
-
-  bool retry_lookup;
-  do {
-    dds_entity_t topic;
-
-    /* claim participant handle to guarantee the handle remains valid after
-        unlocking the participant prior to verifying the found topic still
-        exists */
-    topic = DDS_RETCODE_PRECONDITION_NOT_MET;
-    ddsrt_avl_iter_t it;
-    for (dds_entity *e = ddsrt_avl_iter_first (&dds_entity_children_td, &par->m_entity.m_children, &it); e != NULL; e = ddsrt_avl_iter_next (&it))
-    {
-      if (dds_entity_kind (e) == DDS_KIND_TOPIC && strcmp (((dds_topic *) e)->m_stopic->name, sertopic->name) == 0)
-      {
-        topic = e->m_hdllink.hdl;
-        break;
-      }
-    }
-    if (topic < 0)
-    {
-      /* no topic with the name exists; we have locked the participant, and
-         so we can proceed with creating the topic */
-      retry_lookup = false;
-    }
-    else
-    {
-      /* some topic with the same name exists; need to lock the topic to
-         perform the checks, but locking the topic while holding the
-         participant lock violates the lock order (child -> parent).  So
-         unlock that participant and check the topic while accounting
-         for the various scary cases. */
-      dds_participant_unlock (par);
-
-      rc = create_topic_topic_arbitrary_check_sertopic (participant, topic, sertopic, new_qos);
-      switch (rc)
-      {
-        case DDS_RETCODE_OK: /* duplicate definition */
-          dds_entity_unpin (par_ent);
-          dds_delete_qos (new_qos);
-          return topic;
-
-        case DDS_RETCODE_NOT_FOUND:
-          /* either participant is now being deleted, topic was deleted, or
-             topic was deleted & the handle reused for something else -- so */
-          retry_lookup = true;
-          break;
-
-        case DDS_RETCODE_PRECONDITION_NOT_MET: /* incompatible sertopic */
-        case DDS_RETCODE_INCONSISTENT_POLICY: /* different QoS */
-          /* inconsistent definition */
-          dds_entity_unpin (par_ent);
-          dds_delete_qos (new_qos);
-          return rc;
-
-        default:
-          abort ();
-      }
-
-      if ((rc = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
-        goto err_lock_participant;
-    }
-  } while (retry_lookup);
-
-  /* FIXME: make this a function
-     Add sertopic to domain -- but note that it may have been created by another thread
-     on another participant that is attached to the same domain */
+  struct ddsi_domaingv * const gv = &pp->m_entity.m_domain->gv;
+  if ((rc = ddsi_xqos_valid (&gv->logconfig, new_qos)) != DDS_RETCODE_OK)
   {
-    struct dds_domain *domain = par->m_entity.m_domain;
-
-    ddsrt_avl_ipath_t ip;
-    struct topic_sertopic_node *stn;
-
-    ddsrt_mutex_lock (&dds_global.m_mutex);
-
-    stn = ddsrt_avl_lookup_ipath (&dds_topictree_def, &domain->m_topics, sertopic, &ip);
-    if (stn == NULL)
-    {
-      /* no existing definition: use new */
-      stn = ddsrt_malloc (sizeof (*stn));
-      stn->refc = 1;
-      stn->st = ddsi_sertopic_ref (sertopic);
-      ddsrt_avl_insert (&dds_topictree_def, &domain->m_topics, stn);
-      ddsrt_mutex_unlock (&dds_global.m_mutex);
-    }
-    else if (sertopic_equivalent (stn->st, sertopic))
-    {
-      /* ok -- same definition, so use existing one instead */
-      sertopic = ddsi_sertopic_ref (stn->st);
-      stn->refc++;
-      ddsrt_mutex_unlock (&dds_global.m_mutex);
-    }
-    else
-    {
-      /* bummer, delete */
-      ddsrt_mutex_unlock (&dds_global.m_mutex);
-      rc = DDS_RETCODE_PRECONDITION_NOT_MET;
-      goto err_sertopic_reuse;
-    }
+    dds_delete_qos (new_qos);
+    dds_entity_unpin (&pp->m_entity);
+    return rc;
   }
 
-  /* Create topic */
-  top = dds_alloc (sizeof (*top));
+  /* See if we're allowed to create the topic; ktp is returned pinned & locked
+     so we can be sure it doesn't disappear and its QoS can't change */
+  GVTRACE ("dds_create_topic_arbitrary (pp %p "PGUIDFMT" sertopic %p reg?%s refc %"PRIu32" %s/%s)\n",
+           (void *) pp, PGUID (pp->m_entity.m_guid), (void *) sertopic, sertopic->gv ? "yes" : "no",
+           ddsrt_atomic_ld32 (&sertopic->refc), sertopic->name, sertopic->type_name);
+  ddsrt_mutex_lock (&pp->m_entity.m_mutex);
+  struct dds_ktopic *ktp;
+  if ((rc = lookup_and_check_ktopic (&ktp, pp, sertopic->name, sertopic->type_name, new_qos)) != DDS_RETCODE_OK)
+  {
+    GVTRACE ("dds_create_topic_arbitrary: failed after compatibility check: %s\n", dds_strretcode (rc));
+    dds_participant_unlock (pp);
+    dds_delete_qos (new_qos);
+    return rc;
+  }
+
+  /* Create a ktopic if it doesn't exist yet, else reference existing one and delete the
+     unneeded "new_qos". */
+  if (ktp == NULL)
+  {
+    ktp = dds_alloc (sizeof (*ktp));
+    ktp->refc = 1;
+    ktp->defer_set_qos = 0;
+    ktp->qos = new_qos;
+    /* have to copy these because the ktopic can outlast any specific sertopic */
+    ktp->name = ddsrt_strdup (sertopic->name);
+    ktp->type_name = ddsrt_strdup (sertopic->type_name);
+    ddsrt_avl_insert (&participant_ktopics_treedef, &pp->m_ktopics, ktp);
+    GVTRACE ("create_and_lock_ktopic: ktp %p\n", (void *) ktp);
+  }
+  else
+  {
+    ktp->refc++;
+    dds_delete_qos (new_qos);
+  }
+
+  /* Sertopic: re-use a previously registered one if possible, else register this one */
+  {
+    ddsrt_mutex_lock (&gv->sertopics_lock);
+    if ((sertopic_registered = ddsi_sertopic_lookup_locked (gv, sertopic)) != NULL)
+      GVTRACE ("dds_create_topic_arbitrary: reuse sertopic %p\n", (void *) sertopic_registered);
+    else
+    {
+      GVTRACE ("dds_create_topic_arbitrary: register new sertopic %p\n", (void *) sertopic);
+      ddsi_sertopic_register_locked (gv, sertopic);
+      sertopic_registered = sertopic;
+    }
+    ddsrt_mutex_unlock (&gv->sertopics_lock);
+  }
+
+  /* Create topic referencing ktopic & sertopic_registered */
   /* FIXME: setting "implicit" based on sertopic->ops is a hack */
-  hdl = dds_entity_init (&top->m_entity, &par->m_entity, DDS_KIND_TOPIC, (sertopic->ops == &ddsi_sertopic_ops_builtintopic), new_qos, listener, DDS_TOPIC_STATUS_MASK);
-  top->m_entity.m_iid = ddsi_iid_gen ();
-  dds_entity_register_child (&par->m_entity, &top->m_entity);
-  top->m_stopic = sertopic;
-
-  /* Publish Topic */
-  thread_state_awake (lookup_thread_state (), &par->m_entity.m_domain->gv);
-  ddsi_pp = entidx_lookup_participant_guid (par->m_entity.m_domain->gv.entity_index, &par->m_entity.m_guid);
-  assert (ddsi_pp);
-  if (sedp_plist)
-  {
-    nn_plist_t plist;
-    nn_plist_init_empty (&plist);
-    nn_plist_mergein_missing (&plist, sedp_plist, ~(uint64_t)0, ~(uint64_t)0);
-    nn_xqos_mergein_missing (&plist.qos, new_qos, ~(uint64_t)0);
-    sedp_write_topic (ddsi_pp, &plist);
-    nn_plist_fini (&plist);
-  }
-  thread_state_asleep (lookup_thread_state ());
-
-  dds_entity_init_complete (&top->m_entity);
-  dds_participant_unlock (par);
-  dds_entity_unpin (par_ent);
+  hdl = create_topic_pp_locked (pp, ktp, (sertopic_registered->ops == &ddsi_sertopic_ops_builtintopic), sertopic_registered, listener, sedp_plist);
+  dds_participant_unlock (pp);
+  GVTRACE ("dds_create_topic_arbitrary: new topic %"PRId32"\n", hdl);
   return hdl;
-
-err_sertopic_reuse:
-  dds_participant_unlock (par);
-err_lock_participant:
-err_invalid_qos:
-  dds_delete_qos (new_qos);
-  dds_entity_unpin (par_ent);
-  return rc;
 }
 
-dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const nn_plist_t *sedp_plist)
+dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
 {
   assert(sertopic);
   assert(sertopic->name);
@@ -477,7 +392,7 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
 dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descriptor_t *desc, const char *name, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   struct ddsi_sertopic_default *st;
-  nn_plist_t plist;
+  ddsi_plist_t plist;
   dds_entity_t hdl;
   struct dds_entity *ppent;
   dds_return_t ret;
@@ -493,17 +408,23 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   ddsi_sertopic_init (&st->c, name, desc->m_typename, &ddsi_sertopic_ops_default, desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey, (desc->m_nkeys == 0));
   st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE);
   st->serpool = ppent->m_domain->gv.serpool;
-  st->type = (void*) desc;
-  st->nkeys = desc->m_nkeys;
-  st->keys = desc->m_keys;
+  st->type.m_size = desc->m_size;
+  st->type.m_align = desc->m_align;
+  st->type.m_flagset = desc->m_flagset;
+  st->type.m_nkeys = desc->m_nkeys;
+  st->type.m_keys = ddsrt_malloc (st->type.m_nkeys  * sizeof (*st->type.m_keys));
+  for (uint32_t i = 0; i < st->type.m_nkeys; i++)
+    st->type.m_keys[i] = desc->m_keys[i].m_index;
+  st->type.m_nops = dds_stream_countops (desc->m_ops);
+  st->type.m_ops = ddsrt_memdup (desc->m_ops, st->type.m_nops * sizeof (*st->type.m_ops));
 
   /* Check if topic cannot be optimised (memcpy marshal) */
-  if (!(desc->m_flagset & DDS_TOPIC_NO_OPTIMIZE)) {
-    st->opt_size = dds_stream_check_optimize (desc);
+  if (!(st->type.m_flagset & DDS_TOPIC_NO_OPTIMIZE)) {
+    st->opt_size = dds_stream_check_optimize (&st->type);
     DDS_CTRACE (&ppent->m_domain->gv.logconfig, "Marshalling for type: %s is %soptimised\n", desc->m_typename, st->opt_size ? "" : "not ");
   }
 
-  nn_plist_init_empty (&plist);
+  ddsi_plist_init_empty (&plist);
   /* Set Topic meta data (for SEDP publication) */
   plist.qos.topic_name = ddsrt_strdup (st->c.name);
   plist.qos.type_name = ddsrt_strdup (st->c.type_name);
@@ -526,8 +447,49 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   hdl = dds_create_topic_arbitrary (participant, &st->c, qos, listener, &plist);
   ddsi_sertopic_unref (&st->c);
   dds_entity_unpin (ppent);
-  nn_plist_fini (&plist);
+  ddsi_plist_fini (&plist);
   return hdl;
+}
+
+dds_entity_t dds_find_topic (dds_entity_t participant, const char *name)
+{
+  dds_participant *pp;
+  dds_return_t rc;
+
+  if (name == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  if ((rc = dds_participant_lock (participant, &pp)) < 0)
+    return rc;
+
+  ddsrt_avl_iter_t it;
+  for (dds_entity *e = ddsrt_avl_iter_first (&dds_entity_children_td, &pp->m_entity.m_children, &it); e != NULL; e = ddsrt_avl_iter_next (&it))
+  {
+    if (dds_entity_kind (e) != DDS_KIND_TOPIC)
+      continue;
+
+    struct dds_entity *x;
+    if (dds_entity_pin (e->m_hdllink.hdl, &x) != DDS_RETCODE_OK)
+      continue;
+
+    struct dds_topic * const tp = (struct dds_topic *) e;
+    if (x != e || strcmp (tp->m_ktopic->name, name) != 0)
+    {
+      dds_entity_unpin (x);
+      continue;
+    }
+
+    struct ddsi_sertopic * const sertopic = ddsi_sertopic_ref (tp->m_stopic);
+    struct dds_ktopic * const ktp = tp->m_ktopic;
+    ktp->refc++;
+    dds_entity_unpin (x);
+
+    dds_entity_t hdl = create_topic_pp_locked (pp, ktp, false, sertopic, NULL, NULL);
+    dds_participant_unlock (pp);
+    return hdl;
+  }
+  dds_participant_unlock (pp);
+  return DDS_RETCODE_PRECONDITION_NOT_MET;
 }
 
 static bool dds_topic_chaining_filter (const void *sample, void *ctx)
@@ -602,10 +564,10 @@ dds_return_t dds_get_name (dds_entity_t topic, char *name, size_t size)
   if (size <= 0 || name == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
   name[0] = '\0';
-  if ((ret = dds_topic_lock (topic, &t)) != DDS_RETCODE_OK)
+  if ((ret = dds_topic_pin (topic, &t)) != DDS_RETCODE_OK)
     return ret;
   (void) snprintf (name, size, "%s", t->m_stopic->name);
-  dds_topic_unlock (t);
+  dds_topic_unpin (t);
   return DDS_RETCODE_OK;
 }
 
@@ -616,10 +578,10 @@ dds_return_t dds_get_type_name (dds_entity_t topic, char *name, size_t size)
   if (size <= 0 || name == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
   name[0] = '\0';
-  if ((ret = dds_topic_lock (topic, &t)) != DDS_RETCODE_OK)
+  if ((ret = dds_topic_pin (topic, &t)) != DDS_RETCODE_OK)
     return ret;
   (void) snprintf (name, size, "%s", t->m_stopic->type_name);
-  dds_topic_unlock (t);
+  dds_topic_unpin (t);
   return DDS_RETCODE_OK;
 }
 

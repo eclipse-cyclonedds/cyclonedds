@@ -16,7 +16,7 @@
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_pcap.h"
 
@@ -127,7 +127,7 @@ static uint16_t calc_ipv4_checksum (const uint16_t *x)
   return (uint16_t) ~s;
 }
 
-void write_pcap_received (struct q_globals *gv, nn_wctime_t tstamp, const struct sockaddr_storage *src, const struct sockaddr_storage *dst, unsigned char *buf, size_t sz)
+void write_pcap_received (struct ddsi_domaingv *gv, nn_wctime_t tstamp, const struct sockaddr_storage *src, const struct sockaddr_storage *dst, unsigned char *buf, size_t sz)
 {
   if (gv->config.transport_selector == TRANS_UDP)
   {
@@ -160,7 +160,7 @@ void write_pcap_received (struct q_globals *gv, nn_wctime_t tstamp, const struct
   }
 }
 
-void write_pcap_sent (struct q_globals *gv, nn_wctime_t tstamp, const struct sockaddr_storage *src, const ddsrt_msghdr_t *hdr, size_t sz)
+void write_pcap_sent (struct ddsi_domaingv *gv, nn_wctime_t tstamp, const struct sockaddr_storage *src, const ddsrt_msghdr_t *hdr, size_t sz)
 {
   if (gv->config.transport_selector == TRANS_UDP)
   {

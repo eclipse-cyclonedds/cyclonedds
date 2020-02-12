@@ -15,7 +15,7 @@
 #include <stddef.h>
 
 #include "dds/ddsi/q_protocol.h" /* for, e.g., SubmessageKind_t */
-#include "dds/ddsi/q_xqos.h" /* for, e.g., octetseq, stringseq */
+#include "dds/ddsi/ddsi_xqos.h" /* for, e.g., octetseq, stringseq */
 #include "dds/ddsi/ddsi_tran.h"
 
 #if defined (__cplusplus)
@@ -59,7 +59,7 @@ void nn_xmsgpool_free (struct nn_xmsgpool *pool);
 struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_t *src_guid, struct participant *pp, size_t expected_size, enum nn_xmsg_kind kind);
 
 /* For sending to a particular destination (participant) */
-void nn_xmsg_setdst1 (struct q_globals *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const nn_locator_t *addr);
+void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const nn_locator_t *addr);
 bool nn_xmsg_getdst1prefix (struct nn_xmsg *m, ddsi_guid_prefix_t *gp);
 
 /* For sending to a particular proxy reader; this is a convenience
@@ -95,7 +95,7 @@ void nn_xmsg_set_data_readerId (struct nn_xmsg *m, ddsi_entityid_t *readerId);
    Returns 1 if merge was successful, else 0.  On failure, neither
    message will have been changed and both should be sent as if there
    had been no merging. */
-int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct q_globals *gv, struct nn_xmsg *m, const struct nn_xmsg *madd);
+int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, struct nn_xmsg *m, const struct nn_xmsg *madd);
 
 /* To set writer ids for updating last transmitted sequence number;
    wrfragid is 0 based, unlike DDSI but like other places where
@@ -144,10 +144,10 @@ int64_t nn_xpack_maxdelay (const struct nn_xpack *xp);
 unsigned nn_xpack_packetid (const struct nn_xpack *xp);
 
 /* SENDQ */
-void nn_xpack_sendq_init (struct q_globals *gv);
-void nn_xpack_sendq_start (struct q_globals *gv);
-void nn_xpack_sendq_stop (struct q_globals *gv);
-void nn_xpack_sendq_fini (struct q_globals *gv);
+void nn_xpack_sendq_init (struct ddsi_domaingv *gv);
+void nn_xpack_sendq_start (struct ddsi_domaingv *gv);
+void nn_xpack_sendq_stop (struct ddsi_domaingv *gv);
+void nn_xpack_sendq_fini (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)
 }

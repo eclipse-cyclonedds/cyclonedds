@@ -36,6 +36,7 @@ extern inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *
 extern inline void ddsi_serdata_unref (struct ddsi_serdata *serdata);
 extern inline uint32_t ddsi_serdata_size (const struct ddsi_serdata *d);
 extern inline struct ddsi_serdata *ddsi_serdata_from_ser (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size);
+extern inline struct ddsi_serdata *ddsi_serdata_from_ser_iov (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size);
 extern inline struct ddsi_serdata *ddsi_serdata_from_keyhash (const struct ddsi_sertopic *topic, const struct nn_keyhash *keyhash);
 extern inline struct ddsi_serdata *ddsi_serdata_from_sample (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, const void *sample);
 extern inline struct ddsi_serdata *ddsi_serdata_to_topicless (const struct ddsi_serdata *d);

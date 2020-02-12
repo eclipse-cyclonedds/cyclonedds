@@ -20,7 +20,7 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/ddsi_xqos.h"
 
 #define FORCE_ENV
 

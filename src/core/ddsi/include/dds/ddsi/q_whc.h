@@ -20,7 +20,7 @@ extern "C" {
 #endif
 
 struct ddsi_serdata;
-struct nn_plist;
+struct ddsi_plist;
 struct ddsi_tkmap_instance;
 struct whc_node; /* opaque, but currently used for deferred free lists */
 struct whc;
@@ -28,7 +28,7 @@ struct whc;
 struct whc_borrowed_sample {
   seqno_t seq;
   struct ddsi_serdata *serdata;
-  struct nn_plist *plist;
+  struct ddsi_plist *plist;
   bool unacked;
   nn_mtime_t last_rexmit_ts;
   unsigned rexmit_count;
@@ -73,7 +73,7 @@ typedef void (*whc_free_t)(struct whc *whc);
    reliable readers that have not acknowledged all data */
 /* max_drop_seq must go soon, it's way too ugly. */
 /* plist may be NULL or ddsrt_malloc'd, WHC takes ownership of plist */
-typedef int (*whc_insert_t)(struct whc *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
+typedef int (*whc_insert_t)(struct whc *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
 typedef uint32_t (*whc_downgrade_to_volatile_t)(struct whc *whc, struct whc_state *st);
 typedef uint32_t (*whc_remove_acked_messages_t)(struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list);
 typedef void (*whc_free_deferred_free_list_t)(struct whc *whc, struct whc_node *deferred_free_list);
@@ -121,7 +121,7 @@ inline bool whc_sample_iter_borrow_next (struct whc_sample_iter *it, struct whc_
 inline void whc_free (struct whc *whc) {
   whc->ops->free (whc);
 }
-inline int whc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk) {
+inline int whc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk) {
   return whc->ops->insert (whc, max_drop_seq, seq, exp, plist, serdata, tk);
 }
 inline unsigned whc_downgrade_to_volatile (struct whc *whc, struct whc_state *st) {

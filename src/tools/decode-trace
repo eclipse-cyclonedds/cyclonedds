@@ -36,6 +36,7 @@ for (@showopts) {
 my $topfmt = "%${topcolwidth}.${topcolwidth}s";
 my $guidre = "[0-9a-f]+(?::[0-9a-f]+){3}";
 my $gidre = "[0-9a-f]+(?::[0-9a-f]+){2}";
+my $leasere = "(?:L\\((?:[a-z]+ )?[0-9a-f:]+\\s+[0-9.]+\\)\\s*)+";
 my %opstr = ("00" => "R  ", "01" => "W  ", # index by $stinfo.$dflag
              "10" => " D ", "11" => "WD ",
              "20" => "  U", "21" => "W U",
@@ -258,7 +259,7 @@ while(<>) {
   # decent proxy for that.
   #
   # FIXME: find a way of dealing with decimal representation ...
-  if (/: ACKNACK\(F?#\d+:(\d+)\/(\d+):[01]* (?:L\([0-9a-f:]+\s+[0-9.]+\)\s*)?([0-9a-f]+(?::[0-9a-f]+){2}:[234]c7) -\> ([0-9a-f]+(?::[0-9a-f]+){2}:[234]c2) .*?(happy-now)?/) {
+  if (/: ACKNACK\(F?#\d+:(\d+)\/(\d+):[01]* (?:$leasere)?([0-9a-f]+(?::[0-9a-f]+){2}:[234]c7) -\> ([0-9a-f]+(?::[0-9a-f]+){2}:[234]c2) .*?(happy-now)?/) {
     if (defined $5 || ($1 > 1 && $2 == 0 && version_at_least(6,6,4))) {
       # happy-now should be enough, but historically DDSI2 advertised only data present in the WHC,
       # which caused happy-now to not show up if the historical data ended on an unregister, because
@@ -266,7 +267,7 @@ while(<>) {
       # last one written (that is, unregistered) (fixed in 6.6.4)
       check_disccomplete("A", $3);
     }
-  } elsif (/: HEARTBEAT\(F?#\d+:(\d+)\.\.(\d+)\s+(?:L\([0-9a-f:]+\s+[0-9.]+\)\s*)?([0-9a-f]+(?::[0-9a-f]+){2}:[234]c2)/) {
+  } elsif (/: HEARTBEAT\(F?L?#\d+:(\d+)\.\.(\d+)\s+(?:$leasere)?([0-9a-f]+(?::[0-9a-f]+){2}:[234]c2)/) {
     check_disccomplete("H", $3);
     # if there is no data and final is set there might be no ACK
     check_disccomplete("B", $3) if $2 < $1;
@@ -351,8 +352,10 @@ while(<>) {
     $rwguid{$tid} = $guid; # if $is_cyclone;
     die "$guid $rwguid{$tid}" unless $guid eq $rwguid{$tid};
     my $topic; my $type; my $groupcoh; my $partitions; my $keepall;
-    if ($3 =~ /topic=([^,]+?),type=([^,]+?).*?,presentation=(\d:\d):\d,partition=\{([^}]*?)\}.*?,history=([01]):/) {
-      $topic = $1; $type = $2; $groupcoh = ($3 eq "2:1"); $partitions = $4; $keepall = $5;
+    if ($qos =~ /topic(?:_name)?=([^,]+?),type(?:_name)=([^,]+?).*?,partition=\{([^}]*?)\}/) {
+      $topic = $1; $type = $2; $partitions = $3;
+      die unless $qos =~ /,history=([01]):/; $keepall = $1;
+      die unless $qos =~ /,presentation=(\d:\d):\d/; $groupcoh = ($1 eq "2:1");
       unless (defined $rwguid{$tid} && ($ftrflag{$tid} || (defined $psgid{$tid} && defined $psguid{$tid} && defined $rwgid{$tid})) || 1) { # $is_cyclone
         die;
       }
@@ -622,15 +625,14 @@ while(<>) {
     my $h = ($kind eq "READER") ? \%prd : \%pwr;
     my $hk = ($kind eq "READER") ? "prd" : "pwr";
     my $qos = $3;
-    unless ($3 =~ /topic=([^,]+?),type=([^,]+?),presentation=(\d+):\d+:\d+,partition=\{([^}]*?)\}.*?,durability=(\d+)/) {
+    unless ($3 =~ /topic(?:_name)?=([^,]+?),type(?:_name)?=([^,]+?),(?:.+?,)?partition=\{([^}]*?)\}/) {
       die unless $prwguid =~ /[4c][27]$/;
     }
-    my $topic = $1; my $type = $2; my $access_scope = $3; my $partitions = $4; my $durkind = $5;
+    my $topic = $1; my $type = $2; my $partitions = $3;
     (my $ppguid = $prwguid) =~ s/:[0-9a-f]+$/:1c1/;
     die unless exists $proxypp{$ppguid} && !defined $proxypp{$ppguid}->{tdel};
     my @ps = split ',', $partitions;
     my $stopic = make_stopic($partitions, $topic);
-    #print "$kind $topic\n" if $durkind >= 2 && ($kind eq "READER" || $access_scope >= 2);
     my $prw = { guid => $prwguid, ppguid => $ppguid,
                 topic => $topic, stopic => $stopic, type => $type, partition => \@ps,
                 matches => {}, checklost => 0, suppressbegin => 0, tcreate => $ts, tstamps => {} };
@@ -745,7 +747,7 @@ while(<>) {
         if $nlost > 0 && $shows{rematch};
       delete $prd->{matches}->{$wrguid}->{seqp1del};
     }
-  } elsif (/ACKNACK\(F?#\d+:(\d+)\/\d+:([01]*) (?:L\(:1c1 [0-9.]+\) )?($guidre) -> ($guidre)(\??)/o) {
+  } elsif (/ACKNACK\(F?#\d+:(\d+)\/\d+:([01]*) (?:$leasere)?($guidre) -> ($guidre)(\??)/o) {
     my $seqp1 = $1; my $nackset = $2; my $prdguid = hexify($3); my $wrguid = hexify($4); my $wrknown = ($5 eq "");
     my $wr = $wr{$wrguid};
     my $cnt = ($nackset =~ y/1//);
@@ -904,7 +906,7 @@ while(<>) {
         }
       }
     }
-  } elsif (/HEARTBEAT\(F?#\d+:(\d+)\.\.(\d+) ($guidre)/o) {
+  } elsif (/HEARTBEAT\(F?L?#\d+:(\d+)\.\.(\d+) ($guidre)/o) {
     my $prdguid = hexify($3);
     (my $ppguid = $prdguid) =~ s/:[0-9a-f]+$/:1c1/;
     $proxypp{$ppguid}->{non_spdp_seen} = 1 if exists $proxypp{$ppguid} && !defined $proxypp{$ppguid}->{tdel};
@@ -1475,7 +1477,7 @@ not necessarily the 4th field in, say, AWK):
 EOT
     ;
   exit 1;
-  return; 
+  return;
 }
 
 sub fmtblurb {

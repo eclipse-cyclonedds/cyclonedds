@@ -14,7 +14,7 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_transmit.h"
@@ -164,7 +164,7 @@ write_crypto_exchange_message(
    const char *classid,
    const nn_dataholderseq_t *tokens)
 {
-  struct q_globals * const gv = pp->e.gv;
+  struct ddsi_domaingv * const gv = pp->e.gv;
   struct nn_participant_generic_message pmg;
   struct ddsi_tkmap_instance *tk;
   struct ddsi_serdata *serdata;

@@ -37,7 +37,7 @@ enum ddsi_handshake_state {
 /* The handshake will not use the related handshake object after this callback
  * was executed. This means that it can be deleted in this callback. */
 typedef void (*ddsi_handshake_end_cb_t)(
-    struct q_globals const * const gv,
+    struct ddsi_domaingv const * const gv,
     struct ddsi_handshake *handshake,
     const ddsi_guid_t *lpguid, /* Local participant */
     const ddsi_guid_t *ppguid, /* Proxy participant */

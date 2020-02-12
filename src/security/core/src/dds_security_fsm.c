@@ -66,7 +66,7 @@ struct dds_security_fsm_control
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
   struct thread_state1 *ts;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   struct dds_security_fsm *first_fsm;
   struct dds_security_fsm *last_fsm;
   struct fsm_event *event_queue;
@@ -456,7 +456,7 @@ static void fsm_delete (struct dds_security_fsm_control *control, struct dds_sec
   ddsrt_free(fsm);
 }
 
-struct dds_security_fsm_control * dds_security_fsm_control_create (struct q_globals *gv)
+struct dds_security_fsm_control * dds_security_fsm_control_create (struct ddsi_domaingv *gv)
 {
   struct dds_security_fsm_control *control;
 

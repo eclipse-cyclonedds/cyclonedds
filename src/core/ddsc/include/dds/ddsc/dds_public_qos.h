@@ -149,6 +149,8 @@ dds_qset_durability (dds_qos_t * __restrict qos, dds_durability_kind_t kind);
 
 /**
  * @brief Set the history policy of a qos structure.
+ * 
+ * Note that depth is only relevant for keep last. If you want limited history for keep all, use dds_qset_resource_limits().
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
  * @param[in] kind - History kind value \ref DCPS_QoS_History
@@ -297,7 +299,7 @@ dds_qset_partition1 (
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
  * @param[in] kind - Reliability kind
- * @param[in] max_blocking_time - Max blocking duration applied when kind is reliable.
+ * @param[in] max_blocking_time - Max blocking duration applied when kind is reliable. This is how long the writer will block when its history is full.
  */
 DDS_EXPORT void
 dds_qset_reliability (

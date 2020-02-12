@@ -30,6 +30,7 @@ set(ddsc_test_sources
     "instance_get_key.c"
     "listener.c"
     "liveliness.c"
+    "multi_sertopic.c"
     "participant.c"
     "publisher.c"
     "qos.c"
@@ -51,12 +52,17 @@ set(ddsc_test_sources
     "unsupported.c"
     "waitset.c"
     "waitset_torture.c"
+    "whc.c"
     "write.c"
     "write_various_types.c"
     "writer.c")
 
 if(ENABLE_LIFESPAN)
   list(APPEND ddsc_test_sources "lifespan.c")
+endif()
+
+if(ENABLE_DEADLINE_MISSED)
+  list(APPEND ddsc_test_sources "deadline.c")
 endif()
 
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})

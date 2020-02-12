@@ -1253,15 +1253,17 @@ The default value is: "-1".
 #### //CycloneDDS/Domain/Internal/MultipleReceiveThreads
 Attributes: [maxretries](#cycloneddsdomaininternalmultiplereceivethreadsmaxretries)
 
-Boolean
+One of: false, true, default
 
 This element controls whether all traffic is handled by a single receive
-thread or whether multiple receive threads may be used to improve
-latency. Currently multiple receive threads are only used for
-connectionless transport (e.g., UDP) and ManySocketsMode not set to
-single (the default).
+thread (false) or whether multiple receive threads may be used to improve
+latency (true). By default it is disabled on Windows because it appears
+that one cannot count on being able to send packets to oneself, which is
+necessary to stop the thread during shutdown. Currently multiple receive
+threads are only used for connectionless transport (e.g., UDP) and
+ManySocketsMode not set to single (the default).
 
-The default value is: "true".
+The default value is: "default".
 
 
 #### //CycloneDDS/Domain/Internal/MultipleReceiveThreads[@maxretries]

@@ -24,7 +24,7 @@
 #include "dds__entity.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_gc.h"
@@ -107,12 +107,19 @@ static struct ddsi_serdata *mkkeysample (int32_t keyval, unsigned statusinfo)
   return sd;
 }
 
-#ifdef DDSI_INCLUDE_LIFESPAN
+#if defined(DDSI_INCLUDE_LIFESPAN) || defined (DDSI_INCLUDE_DEADLINE_MISSED)
 static nn_mtime_t rand_texp ()
 {
   nn_mtime_t ret = now_mt();
   ret.v -= DDS_MSECS(500) + (int64_t) (ddsrt_prng_random (&prng) % DDS_MSECS(1500));
   return ret;
+}
+#endif
+
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+static dds_duration_t rand_deadline ()
+{
+  return (dds_duration_t) (ddsrt_prng_random (&prng) % DDS_MSECS(500));
 }
 #endif
 
@@ -160,7 +167,7 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct pro
   return iid;
 }
 
-static struct proxy_writer *mkwr (const struct q_globals *gv, bool auto_dispose)
+static struct proxy_writer *mkwr (const struct ddsi_domaingv *gv, bool auto_dispose)
 {
   struct proxy_writer *pwr;
   struct dds_qos *xqos;
@@ -169,8 +176,8 @@ static struct proxy_writer *mkwr (const struct q_globals *gv, bool auto_dispose)
   xqos = ddsrt_malloc (sizeof (*xqos));
   wr_iid = ddsi_iid_gen ();
   memset (pwr, 0, sizeof (*pwr));
-  nn_xqos_init_empty (xqos);
-  nn_xqos_mergein_missing (xqos, &gv->default_xqos_wr, ~(uint64_t)0);
+  ddsi_xqos_init_empty (xqos);
+  ddsi_xqos_mergein_missing (xqos, &gv->default_xqos_wr, ~(uint64_t)0);
   xqos->ownership_strength.value = 0;
   xqos->writer_data_lifecycle.autodispose_unregistered_instances = auto_dispose;
   pwr->e.iid = wr_iid;
@@ -184,16 +191,16 @@ static void fwr (struct proxy_writer *wr)
   free (wr);
 }
 
-static struct dds_rhc *mkrhc (struct q_globals *gv, dds_reader *rd, dds_history_kind_t hk, int32_t hdepth, dds_destination_order_kind_t dok)
+static struct dds_rhc *mkrhc (struct ddsi_domaingv *gv, dds_reader *rd, dds_history_kind_t hk, int32_t hdepth, dds_destination_order_kind_t dok)
 {
   struct dds_rhc *rhc;
   dds_qos_t rqos;
-  nn_xqos_init_empty (&rqos);
+  ddsi_xqos_init_empty (&rqos);
   rqos.present |= QP_HISTORY | QP_DESTINATION_ORDER;
   rqos.history.kind = hk;
   rqos.history.depth = hdepth;
   rqos.destination_order.kind = dok;
-  nn_xqos_mergein_missing (&rqos, &gv->default_xqos_rd, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (&rqos, &gv->default_xqos_rd, ~(uint64_t)0);
   thread_state_awake_domain_ok (lookup_thread_state ());
   rhc = dds_rhc_default_new_xchecks (rd, gv, mdtopic, true);
   dds_rhc_set_qos(rhc, &rqos);
@@ -553,9 +560,9 @@ static dds_entity_t readcond_wrapper (dds_entity_t reader, uint32_t mask, dds_qu
   return dds_create_readcondition (reader, mask);
 }
 
-static struct q_globals *get_gv (dds_entity_t e)
+static struct ddsi_domaingv *get_gv (dds_entity_t e)
 {
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   dds_entity *x;
   if (dds_entity_pin (e, &x) < 0)
     abort ();
@@ -569,6 +576,9 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
   dds_qos_t *qos = dds_create_qos ();
   dds_qset_history (qos, DDS_HISTORY_KEEP_LAST, MAX_HIST_DEPTH);
   dds_qset_destination_order (qos, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+  dds_qset_deadline (qos, rand_deadline());
+#endif
   /* two identical readers because we need 63 conditions while we can currently only attach 32 a single reader */
   dds_entity_t rd[] = { dds_create_reader (pp, tp, qos, NULL), dds_create_reader (pp, tp, qos, NULL) };
   const size_t nrd = sizeof (rd) / sizeof (rd[0]);
@@ -584,7 +594,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
     dds_entity_unlock (x);
   }
 
-  const struct q_globals *gv = get_gv (pp);
+  const struct ddsi_domaingv *gv = get_gv (pp);
   struct ddsi_tkmap *tkmap = gv->m_tkmap;
   struct proxy_writer *wr[] = { mkwr (gv, 0), mkwr (gv, 1), mkwr (gv, 1) };
 
@@ -673,7 +683,8 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
     [9] = "tkc",
     [10] = "tkc1",
     [11] = "delwr",
-    [12] = "drpxp"
+    [12] = "drpxp",
+    [13] = "dlmis"
   };
   static const uint32_t opfreqs[] = {
     [0]  = 500, /* write */
@@ -689,9 +700,14 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
     [10] = 100, /* take cond, max 1 */
     [11] = 1,   /* unreg writer */
 #ifdef DDSI_INCLUDE_LIFESPAN
-    [12] = 100  /* drop expired sample */
+    [12] = 100, /* drop expired sample */
 #else
-    [12] = 0    /* drop expired sample */
+    [12] = 0,   /* drop expired sample */
+#endif
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+    [13] = 100  /* deadline missed */
+#else
+    [13] = 0    /* drop expired sample */
 #endif
   };
   uint32_t opthres[sizeof (opfreqs) / sizeof (opfreqs[0])];
@@ -832,6 +848,16 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
 #endif
         break;
       }
+      case 13: {
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+        thread_state_awake_domain_ok (lookup_thread_state ());
+        /* We can assume that rhc[k] is a dds_rhc_default at this point */
+        for (size_t k = 0; k < nrd; k++)
+          (void) dds_rhc_default_deadline_missed_cb (rhc[k], rand_texp());
+        thread_state_asleep (lookup_thread_state ());
+#endif
+        break;
+      }
     }
 
     if ((i % 200) == 0)
@@ -895,15 +921,15 @@ int main (int argc, char **argv)
   mainthread = lookup_thread_state ();
   assert (ddsrt_atomic_ldvoidp (&mainthread->gv) != NULL);
   {
-    struct dds_entity *x;
-    if (dds_entity_lock(tp, DDS_KIND_TOPIC, &x) < 0) abort();
-    mdtopic = dds_topic_lookup(x->m_domain, "RhcTypes_T");
-    dds_entity_unlock(x);
+    struct dds_topic *x;
+    if (dds_topic_pin (tp, &x) < 0) abort();
+    mdtopic = ddsi_sertopic_ref (x->m_stopic);
+    dds_topic_unpin (x);
   }
 
   if (0 >= first)
   {
-    struct q_globals *gv = get_gv (pp);
+    struct ddsi_domaingv *gv = get_gv (pp);
     struct ddsi_tkmap *tkmap = gv->m_tkmap;
     if (print)
       printf ("************* 0 *************\n");
@@ -954,7 +980,7 @@ int main (int argc, char **argv)
 
   if (1 >= first)
   {
-    struct q_globals *gv = get_gv (pp);
+    struct ddsi_domaingv *gv = get_gv (pp);
     struct ddsi_tkmap *tkmap = gv->m_tkmap;
     if (print)
       printf ("************* 1 *************\n");

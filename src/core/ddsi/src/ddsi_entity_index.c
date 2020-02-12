@@ -20,7 +20,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/q_rtps.h" /* guid_t */
@@ -220,13 +220,13 @@ static void gc_buckets_cb (struct gcreq *gcreq)
 
 static void gc_buckets (void *bs, void *varg)
 {
-  struct q_globals *gv = varg;
+  struct ddsi_domaingv *gv = varg;
   struct gcreq *gcreq = gcreq_new (gv->gcreq_queue, gc_buckets_cb);
   gcreq->arg = bs;
   gcreq_enqueue (gcreq);
 }
 
-struct entity_index *entity_index_new (struct q_globals *gv)
+struct entity_index *entity_index_new (struct ddsi_domaingv *gv)
 {
   struct entity_index *entidx;
   entidx = ddsrt_malloc (sizeof (*entidx));
