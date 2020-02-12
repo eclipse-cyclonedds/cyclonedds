@@ -1059,6 +1059,7 @@ static void cleanup_participant_crypto_handle(void *arg)
 
   n = dds_security_garbage_remove_pp_crypto(gv->security_garbage, info->sec_attr->crypto_handle);
   assert(n == info);
+  (void)n;
 
   pm = ddsrt_avl_cfind_min(&pp_proxypp_treedef, &info->sec_attr->proxy_participants);
   while (pm)
