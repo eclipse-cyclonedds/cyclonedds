@@ -243,6 +243,7 @@ int ddsrt_atomic_cas64 (volatile ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_
 }
 
 #define DDSRT_FAKE_ATOMIC64(name, oper, ret) \
+  uint64_t ddsrt_atomic_##name##64_##ret (volatile ddsrt_atomic_uint64_t *x, uint64_t v); \
   uint64_t ddsrt_atomic_##name##64_##ret (volatile ddsrt_atomic_uint64_t *x, uint64_t v) \
   { \
     const uint64_t idx = atomic64_lock_index (x); \
