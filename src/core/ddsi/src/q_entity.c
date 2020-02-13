@@ -1771,6 +1771,7 @@ static void free_rd_pwr_match (struct ddsi_domaingv *gv, const ddsi_guid_t *rd_g
 #else
     (void) rd_guid;
 #endif
+
 #ifdef DDSI_INCLUDE_SSM
     if (!is_unspec_locator (&m->ssm_mc_loc))
     {

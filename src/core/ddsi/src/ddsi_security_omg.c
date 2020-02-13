@@ -113,6 +113,9 @@
     (info.security_attributes & NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PROTECTED)    \
 )
 
+#define SECURITY_INFO_USE_RTPS_AUTHENTICATION(info) \
+    ((info).plugin_participant_attributes & DDS_SECURITY_PLUGIN_PARTICIPANT_ATTRIBUTES_FLAG_IS_RTPS_AUTHENTICATED)
+
 static bool endpoint_is_DCPSParticipantSecure (const ddsi_guid_t *guid)
 {
   return ((guid->entityid.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER) ||
@@ -149,21 +152,7 @@ static bool endpoint_is_DCPSParticipantVolatileMessageSecure (const ddsi_guid_t 
           (guid->entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER));
 }
 
-struct dds_security_context {
-  dds_security_plugin auth_plugin;
-  dds_security_plugin ac_plugin;
-  dds_security_plugin crypto_plugin;
 
-  dds_security_authentication *authentication_context;
-  dds_security_cryptography *crypto_context;
-  dds_security_access_control *access_control_context;
-  ddsrt_mutex_t omg_security_lock;
-  uint32_t next_plugin_id;
-
-  const struct ddsrt_log_cfg *logcfg;
-};
-
-typedef struct dds_security_context dds_security_context;
 
 struct guid_pair {
   ddsi_guid_t src;
@@ -200,6 +189,8 @@ struct proxypp_pp_match {
 };
 
 struct participant_sec_attributes {
+  ddsrt_avl_node_t avlnode;
+  ddsi_guid_t pp_guid;
   DDS_Security_ParticipantSecurityAttributes attr;
   DDS_Security_ParticipantCryptoHandle crypto_handle;
   bool plugin_attr;
@@ -233,15 +224,27 @@ struct cleanup_participant_crypto {
   struct participant_sec_attributes *sec_attr;
 };
 
-struct dds_security_garbage {
-  ddsrt_mutex_t lock;
-  ddsrt_avl_tree_t pp_crypto_list;
+struct dds_security_context {
+  dds_security_plugin auth_plugin;
+  dds_security_plugin ac_plugin;
+  dds_security_plugin crypto_plugin;
+
+  dds_security_authentication *authentication_context;
+  dds_security_cryptography *crypto_context;
+  dds_security_access_control *access_control_context;
+  ddsrt_mutex_t omg_security_lock;
+  uint32_t next_plugin_id;
+
+  struct participant_sec_index partiticpant_index;
+
+  const struct ddsrt_log_cfg *logcfg;
 };
+
+typedef struct dds_security_context dds_security_context;
 
 static int compare_guid(const void *va, const void *vb);
 static int compare_crypto_handle (const void *va, const void *vb);
 static int compare_guid_pair(const void *va, const void *vb);
-static int compare_security_attribute(const void *va, const void *vb);
 
 const ddsrt_avl_ctreedef_t pp_proxypp_treedef =
     DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct pp_proxypp_match, avlnode), offsetof (struct pp_proxypp_match, proxypp_guid), compare_guid, 0);
@@ -249,8 +252,8 @@ const ddsrt_avl_treedef_t proxypp_pp_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct proxypp_pp_match, avlnode), offsetof (struct proxypp_pp_match, pp_crypto_handle), compare_crypto_handle, 0);
 const ddsrt_avl_treedef_t entity_match_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct security_entity_match, avlnode), offsetof (struct security_entity_match, guids), compare_guid_pair, 0);
-const ddsrt_avl_treedef_t participant_garbage_treedef =
-    DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct cleanup_participant_crypto, avlnode), offsetof (struct cleanup_participant_crypto, sec_attr), compare_security_attribute, 0);
+const ddsrt_avl_ctreedef_t participant_index_treedef =
+    DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct participant_sec_attributes, avlnode), offsetof (struct participant_sec_attributes, crypto_handle), compare_crypto_handle, 0);
 
 static int compare_crypto_handle (const void *va, const void *vb)
 {
@@ -282,14 +285,6 @@ static int compare_guid_pair(const void *va, const void *vb)
   if ((r = guid_compare(&na->src, &nb->src)) == 0)
     r = guid_compare(&na->dst, &nb->dst);
   return r;
-}
-
-static int compare_security_attribute(const void *va, const void *vb)
-{
-  const struct participant_sec_attributes *sa = va;
-  const struct participant_sec_attributes *sb = vb;
-
-  return compare_crypto_handle(&sa->crypto_handle, &sb->crypto_handle);
 }
 
 static struct dds_security_context * q_omg_security_get_secure_context(const struct participant *pp)
@@ -436,13 +431,15 @@ static struct pp_proxypp_match * pp_proxypp_match_new(struct proxy_participant *
 
 static void pp_proxypp_match_free(struct dds_security_context *sc, struct pp_proxypp_match *pm)
 {
+  DDSRT_UNUSED_ARG(sc);
+#if 0
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
-
   if (pm->proxypp_crypto_handle != DDS_SECURITY_HANDLE_NIL)
   {
     if (!sc->crypto_context->crypto_key_factory->unregister_participant(sc->crypto_context->crypto_key_factory, pm->proxypp_crypto_handle, &exception))
-      EXCEPTION_ERROR(sc, &exception, "Failed to return permissions handle");
+      EXCEPTION_ERROR(sc, &exception, "1:Failed to return remote crypto handle");
   }
+#endif
   ddsrt_free(pm);
 }
 
@@ -468,12 +465,12 @@ static void proxypp_pp_match_free(struct dds_security_context *sc, struct proxyp
   if (pm->proxypp_crypto_handle != DDS_SECURITY_HANDLE_NIL)
   {
     if (!sc->crypto_context->crypto_key_factory->unregister_participant(sc->crypto_context->crypto_key_factory, pm->proxypp_crypto_handle, &exception))
-      EXCEPTION_ERROR(sc, &exception, "Failed to return permissions handle");
+      EXCEPTION_ERROR(sc, &exception, "2:Failed to return remote crypto handle");
   }
   if (pm->permissions_handle != DDS_SECURITY_HANDLE_NIL)
   {
     if (!sc->access_control_context->return_permissions_handle(sc->access_control_context, pm->permissions_handle, &exception))
-      EXCEPTION_ERROR(sc, &exception, "Failed to return permissions handle");
+      EXCEPTION_ERROR(sc, &exception, "Failed to return remote permissions handle");
   }
   if (pm->proxypp_identity_handle != DDS_SECURITY_HANDLE_NIL)
   {
@@ -519,6 +516,29 @@ static void proxypp_pp_unrelate(struct dds_security_context *sc, struct proxy_pa
   }
 }
 
+static struct participant_sec_attributes * participant_sec_attributes_new(ddsi_guid_t *guid)
+{
+  struct participant_sec_attributes *attr;
+
+  attr = ddsrt_malloc(sizeof(*attr));
+  ddsrt_mutex_init(&attr->lock);
+  ddsrt_avl_cinit(&pp_proxypp_treedef, &attr->proxy_participants);
+  attr->pp_guid = *guid;
+  attr->crypto_handle = DDS_SECURITY_HANDLE_NIL;
+  attr->plugin_attr = false;
+  return attr;
+}
+
+static void participant_sec_attributes_free(struct participant_sec_attributes *attr)
+{
+  if (attr)
+  {
+    ddsrt_avl_cfree(&pp_proxypp_treedef, &attr->proxy_participants, 0);
+    ddsrt_mutex_destroy(&attr->lock);
+    ddsrt_free(attr);
+  }
+}
+
 static struct writer_sec_attributes * writer_sec_attributes_new(void)
 {
   struct writer_sec_attributes *attr;
@@ -552,103 +572,75 @@ static void reader_sec_attributes_free(struct reader_sec_attributes *attr)
    ddsrt_free(attr);
 }
 
-static struct dds_security_garbage *
-dds_security_garbage_new(void)
-{
-  struct dds_security_garbage *sgc;
-
-  sgc = ddsrt_malloc(sizeof(*sgc));
-  ddsrt_mutex_init(&sgc->lock);
-  ddsrt_avl_init(&participant_garbage_treedef, &sgc->pp_crypto_list);
-  return sgc;
-}
-
 static void
-dds_security_garbage_free(struct dds_security_garbage *sgc)
+participant_index_add(dds_security_context *sc, struct participant_sec_attributes *attr)
 {
-  if (sgc)
-  {
-    ddsrt_avl_free(&participant_garbage_treedef, &sgc->pp_crypto_list, 0);
-    ddsrt_mutex_destroy(&sgc->lock);
-    ddsrt_free(sgc);
-  }
+  ddsrt_mutex_lock(&sc->partiticpant_index.lock);
+  ddsrt_avl_cinsert(&participant_index_treedef, &sc->partiticpant_index.participants, attr);
+  ddsrt_mutex_unlock(&sc->partiticpant_index.lock);
 }
 
-static void
-dds_security_garbage_add_pp_crypto(struct dds_security_garbage *sgc, struct cleanup_participant_crypto *info)
+static struct participant_sec_attributes *
+participant_index_find(dds_security_context *sc, int64_t crypto_handle)
 {
-  ddsrt_mutex_lock(&sgc->lock);
-  ddsrt_avl_insert(&participant_garbage_treedef, &sgc->pp_crypto_list, info);
-  ddsrt_mutex_unlock(&sgc->lock);
+  struct participant_sec_attributes *attr;
+
+  ddsrt_mutex_lock(&sc->partiticpant_index.lock);
+  attr = ddsrt_avl_clookup(&participant_index_treedef, &sc->partiticpant_index.participants, &crypto_handle);
+  ddsrt_mutex_unlock(&sc->partiticpant_index.lock);
+
+  return attr;
 }
 
-#if 0
-static struct cleanup_participant_crypto *
-dds_security_garbage_find_pp_crypto(struct dds_security_garbage *sgc, int64_t crypto_handle)
+static struct participant_sec_attributes *
+participant_index_remove(dds_security_context *sc, int64_t crypto_handle)
 {
-  struct cleanup_participant_crypto *info;
-  struct participant_sec_attributes key = { .crypto_handle=crypto_handle };
-
-  ddsrt_mutex_lock(&sgc->lock);
-  info = ddsrt_avl_lookup(&participant_garbage_treedef, &sgc->pp_crypto_list, &key);
-  ddsrt_mutex_unlock(&sgc->lock);
-
-  return info;
-}
-#endif
-
-static struct cleanup_participant_crypto *
-dds_security_garbage_remove_pp_crypto(struct dds_security_garbage *sgc, int64_t crypto_handle)
-{
-  struct cleanup_participant_crypto *info;
-  struct participant_sec_attributes key = { .crypto_handle=crypto_handle };
+  struct participant_sec_attributes *attr;
   ddsrt_avl_dpath_t dpath;
 
-  ddsrt_mutex_lock(&sgc->lock);
-  info = ddsrt_avl_lookup_dpath(&participant_garbage_treedef, &sgc->pp_crypto_list, &key, &dpath);
-  if (info)
-    ddsrt_avl_delete_dpath(&participant_garbage_treedef, &sgc->pp_crypto_list, info, &dpath);
-  ddsrt_mutex_unlock(&sgc->lock);
+  ddsrt_mutex_lock(&sc->partiticpant_index.lock);
+  attr = ddsrt_avl_clookup_dpath(&participant_index_treedef, &sc->partiticpant_index.participants, &crypto_handle, &dpath);
+  if (attr)
+    ddsrt_avl_cdelete_dpath(&participant_index_treedef, &sc->partiticpant_index.participants, attr, &dpath);
+  ddsrt_mutex_unlock(&sc->partiticpant_index.lock);
 
-  return info;
+  return attr;
 }
 
-#if 0
 static uint32_t
-get_proxypp_crypto_list(struct participant_sec_attributes *sec_attr, DDS_Security_ParticipantCryptoHandleSeq *hdls)
+get_matched_proxypp_crypto_handles(struct participant_sec_attributes *attr, DDS_Security_ParticipantCryptoHandleSeq *hdls)
 {
   uint32_t i;
   struct pp_proxypp_match *pm;
   ddsrt_avl_citer_t it;
 
-  ddsrt_mutex_lock(&sec_attr->lock);
-  hdls->_length =  hdls->_maximum = (uint32_t)ddsrt_avl_ccount(&sec_attr->proxy_participants);
+  ddsrt_mutex_lock(&attr->lock);
+  hdls->_length =  hdls->_maximum = (uint32_t)ddsrt_avl_ccount(&attr->proxy_participants);
   hdls->_buffer = NULL;
   if (hdls->_length == 0)
     return 0;
 
-  hdls->_buffer = ddsrt_malloc(sizeof(int64_t));
-  for (pm = ddsrt_avl_citer_first(&pp_proxypp_treedef, &sec_attr->proxy_participants, &it), i = 0; pm; pm = ddsrt_avl_citer_next(&it), i++)
+  hdls->_buffer = ddsrt_malloc(hdls->_length * sizeof(int64_t));
+  for (pm = ddsrt_avl_citer_first(&pp_proxypp_treedef, &attr->proxy_participants, &it), i = 0; pm; pm = ddsrt_avl_citer_next(&it), i++)
     hdls->_buffer[i] = pm->proxypp_crypto_handle;
-  ddsrt_mutex_unlock(&sec_attr->lock);
+  ddsrt_mutex_unlock(&attr->lock);
   return hdls->_length;
 }
 
 static int64_t
-get_first_proxypp_crypto(struct participant_sec_attributes *sec_attr)
+get_first_matched_proxypp_crypto_handle(struct participant_sec_attributes *attr)
 {
   int64_t handle = 0;
   struct pp_proxypp_match *pm;
 
-  ddsrt_mutex_lock(&sec_attr->lock);
-  pm = ddsrt_avl_croot(&pp_proxypp_treedef, &sec_attr->proxy_participants);
+  ddsrt_mutex_lock(&attr->lock);
+  pm = ddsrt_avl_croot(&pp_proxypp_treedef, &attr->proxy_participants);
   if (pm)
     handle = pm->proxypp_crypto_handle;
-  ddsrt_mutex_unlock(&sec_attr->lock);
+  ddsrt_mutex_unlock(&attr->lock);
 
   return handle;
 }
-#endif
 
 bool q_omg_is_security_loaded (dds_security_context *sc)
 {
@@ -666,12 +658,14 @@ void q_omg_security_init (struct ddsi_domaingv *gv)
   sc->ac_plugin.name = AC_NAME;
   sc->crypto_plugin.name = CRYPTO_NAME;
 
+  ddsrt_mutex_init(&sc->partiticpant_index.lock);
+  ddsrt_avl_cinit(&participant_index_treedef, &sc->partiticpant_index.participants);
+
   ddsrt_mutex_init (&sc->omg_security_lock);
   sc->logcfg = &gv->logconfig;
 
   gv->security_context = sc;
   gv->security_matches = security_match_index_new();
-  gv->security_garbage = dds_security_garbage_new();
 
   ddsi_handshake_admin_init(gv);
 }
@@ -682,13 +676,13 @@ void q_omg_security_init (struct ddsi_domaingv *gv)
 static void release_plugins (dds_security_context *sc)
 {
   if (dds_security_plugin_release (&sc->auth_plugin, sc->authentication_context))
-    DDS_CERROR (sc->logcfg, "Error occured releasing %s plugin", sc->auth_plugin.name);
+    DDS_CERROR (sc->logcfg, "Error occurred releasing %s plugin", sc->auth_plugin.name);
 
   if (dds_security_plugin_release (&sc->crypto_plugin, sc->crypto_context))
-    DDS_CERROR (sc->logcfg, "Error occured releasing %s plugin", sc->crypto_plugin.name);
+    DDS_CERROR (sc->logcfg, "Error occurred releasing %s plugin", sc->crypto_plugin.name);
 
   if (dds_security_plugin_release (&sc->ac_plugin, sc->access_control_context))
-    DDS_CERROR (sc->logcfg, "Error occured releasing %s plugin", sc->ac_plugin.name);
+    DDS_CERROR (sc->logcfg, "Error occurred releasing %s plugin", sc->ac_plugin.name);
 
   sc->authentication_context = NULL;
   sc->access_control_context = NULL;
@@ -697,8 +691,12 @@ static void release_plugins (dds_security_context *sc)
 
 void q_omg_security_deinit (struct ddsi_domaingv *gv)
 {
-  assert (gv != NULL);
+  dds_security_context *sc = gv->security_context;
+
   assert (gv->security_context != NULL);
+
+  ddsrt_avl_cfree(&participant_index_treedef, &sc->partiticpant_index.participants, 0);
+  ddsrt_mutex_destroy(&sc->partiticpant_index.lock);
 
   if (gv->security_context->authentication_context != NULL && gv->security_context->access_control_context != NULL && gv->security_context->crypto_context != NULL){
     release_plugins (gv->security_context);
@@ -708,9 +706,6 @@ void q_omg_security_deinit (struct ddsi_domaingv *gv)
 
   security_match_index_free(gv->security_matches);
   gv->security_matches = NULL;
-
-  dds_security_garbage_free(gv->security_garbage);
-  gv->security_garbage = NULL;
 
   ddsrt_mutex_destroy (&gv->security_context->omg_security_lock);
 
@@ -934,6 +929,7 @@ bool q_omg_security_check_create_participant(struct participant *pp, uint32_t do
   DDS_Security_IdentityToken identity_token;
   DDS_Security_PermissionsToken permissions_token = DDS_SECURITY_TOKEN_INIT;
   DDS_Security_PermissionsCredentialToken credential_token = DDS_SECURITY_TOKEN_INIT;
+  struct participant_sec_attributes *sec_attr = NULL;
   DDS_Security_Qos par_qos;
   ddsi_guid_t candidate_guid;
   ddsi_guid_t adjusted_guid;
@@ -943,9 +939,6 @@ bool q_omg_security_check_create_participant(struct participant *pp, uint32_t do
 
   /* Validate local identity */
   ETRACE (pp, "validate_local_identity: candidate_guid: "PGUIDFMT" ", PGUID (pp->e.guid));
-
-  pp->sec_attr = ddsrt_malloc(sizeof(struct participant_sec_attributes));
-  memset(pp->sec_attr, 0, sizeof(struct participant_sec_attributes));
 
   candidate_guid = nn_hton_guid(pp->e.guid);
   q_omg_shallow_copy_security_qos(&par_qos, &(pp->plist->qos));
@@ -961,6 +954,8 @@ bool q_omg_security_check_create_participant(struct participant *pp, uint32_t do
   }
   pp->e.guid = nn_ntoh_guid(adjusted_guid);
   pp->local_identity_handle = identity_handle;
+
+  sec_attr = participant_sec_attributes_new(&pp->e.guid);
 
   ETRACE (pp, "adjusted_guid: "PGUIDFMT" ", PGUID (pp->e.guid));
 
@@ -983,13 +978,12 @@ bool q_omg_security_check_create_participant(struct participant *pp, uint32_t do
        (DDS_Security_DomainId)domain_id, &par_qos, &exception);
   if (pp->permissions_handle == DDS_SECURITY_HANDLE_NIL)
   {
-    EXCEPTION_ERROR(sc, &exception, "Error occured while validating local permissions");
+    EXCEPTION_ERROR(sc, &exception, "Error occurred while validating local permissions");
     goto not_allowed;
   }
 
   /* ask to access control security plugin for create participant permissions related to this identity*/
-  allowed = sc->access_control_context->check_create_participant(sc->access_control_context, pp->permissions_handle, (DDS_Security_DomainId) domain_id, &par_qos, &exception);
-  if (!allowed)
+  if (!sc->access_control_context->check_create_participant(sc->access_control_context, pp->permissions_handle, (DDS_Security_DomainId) domain_id, &par_qos, &exception))
   {
     EXCEPTION_ERROR(sc, &exception, "It is not allowed to create participant");
     goto not_allowed;
@@ -1017,19 +1011,22 @@ bool q_omg_security_check_create_participant(struct participant *pp, uint32_t do
     goto no_credentials;
   }
 
-  if (!sc->access_control_context->get_participant_sec_attributes(sc->access_control_context, pp->permissions_handle, &pp->sec_attr->attr, &exception))
+  if (!sc->access_control_context->get_participant_sec_attributes(sc->access_control_context, pp->permissions_handle, &sec_attr->attr, &exception))
   {
     EXCEPTION_ERROR(sc, &exception, "Failed to get participant security attributes");
     goto no_sec_attr;
   }
 
-  pp->sec_attr->plugin_attr = true;
-  pp->sec_attr->crypto_handle = sc->crypto_context->crypto_key_factory->register_local_participant(
-            sc->crypto_context->crypto_key_factory, pp->local_identity_handle, pp->permissions_handle, NULL, &pp->sec_attr->attr, &exception);
-  if (!pp->sec_attr->crypto_handle) {
+  sec_attr->plugin_attr = true;
+  sec_attr->crypto_handle = sc->crypto_context->crypto_key_factory->register_local_participant(
+            sc->crypto_context->crypto_key_factory, pp->local_identity_handle, pp->permissions_handle, NULL, &sec_attr->attr, &exception);
+  if (!sec_attr->crypto_handle) {
     EXCEPTION_ERROR(sc, &exception, "Failed to register participant with crypto key factory");
     goto no_crypto;
   }
+
+  participant_index_add(sc, sec_attr);
+  pp->sec_attr = sec_attr;
 
   ETRACE (pp, "\n");
 
@@ -1044,12 +1041,19 @@ no_sec_attr:
 no_credentials:
   (void)sc->access_control_context->return_permissions_token(sc->access_control_context, &permissions_token, NULL);
 not_allowed:
+  if (!allowed)
+    participant_sec_attributes_free(sec_attr);
 validation_failed:
   q_omg_shallow_free_security_qos(&par_qos);
   return allowed;
 }
 
-static void cleanup_participant_crypto_handle(void *arg)
+struct cleanup_participant_sec_attributes_arg {
+  const struct q_globals *gv;
+  int64_t crypto_handle;
+};
+
+static void cleanup_participant_sec_attributes(void *arg)
 {
   struct cleanup_participant_crypto *info = arg;
   struct cleanup_participant_crypto *n;
@@ -1057,27 +1061,26 @@ static void cleanup_participant_crypto_handle(void *arg)
   struct ddsi_domaingv *gv = info->gv;
   struct pp_proxypp_match *pm;
 
-  n = dds_security_garbage_remove_pp_crypto(gv->security_garbage, info->sec_attr->crypto_handle);
-  assert(n == info);
-  (void)n;
+  if ((attr = participant_index_remove(sc, info->crypto_handle)) == NULL)
+    return;
 
-  pm = ddsrt_avl_cfind_min(&pp_proxypp_treedef, &info->sec_attr->proxy_participants);
+  pm = ddsrt_avl_cfind_min(&pp_proxypp_treedef, &attr->proxy_participants);
   while (pm)
   {
-    struct pp_proxypp_match *next = ddsrt_avl_cfind_succ(&pp_proxypp_treedef, &info->sec_attr->proxy_participants, pm);
+    struct pp_proxypp_match *next = ddsrt_avl_cfind_succ(&pp_proxypp_treedef, &attr->proxy_participants, pm);
     struct proxy_participant *proxypp = entidx_lookup_proxy_participant_guid(gv->entity_index, &pm->proxypp_guid);
     if (proxypp)
-      proxypp_pp_unrelate(sc, proxypp, &info->guid, info->sec_attr->crypto_handle);
-    ddsrt_avl_cdelete(&pp_proxypp_treedef, &info->sec_attr->proxy_participants, pm);
+      proxypp_pp_unrelate(sc, proxypp, &attr->pp_guid, attr->crypto_handle);
+    ddsrt_avl_cdelete(&pp_proxypp_treedef, &attr->proxy_participants, pm);
     ddsrt_free(pm);
     pm = next;
   }
 
-  (void)info->sc->crypto_context->crypto_key_factory->unregister_participant(info->sc->crypto_context->crypto_key_factory, info->sec_attr->crypto_handle, NULL);
+  (void)sc->crypto_context->crypto_key_factory->unregister_participant(sc->crypto_context->crypto_key_factory, attr->crypto_handle, NULL);
 
-  ddsrt_avl_cfree(&pp_proxypp_treedef, &info->sec_attr->proxy_participants, NULL);
-  ddsrt_mutex_unlock(&info->sec_attr->lock);
-  ddsrt_free(info->sec_attr);
+  ddsrt_avl_cfree(&pp_proxypp_treedef, &attr->proxy_participants, NULL);
+  ddsrt_mutex_unlock(&attr->lock);
+  ddsrt_free(attr);
   ddsrt_free(arg);
 }
 
@@ -1097,27 +1100,24 @@ void q_omg_security_deregister_participant(struct participant *pp)
    * crypto handle.
    */
   if (pp->sec_attr->crypto_handle != DDS_SECURITY_HANDLE_NIL) {
-    struct cleanup_participant_crypto *arg = ddsrt_malloc (sizeof (*arg));
+    struct cleanup_participant_sec_attributes_arg *arg = ddsrt_malloc (sizeof (*arg));
+    arg->crypto_handle = pp->sec_attr->crypto_handle;
     arg->gv = pp->e.gv;
-    arg->sc = sc;
-    arg->guid = pp->e.guid;
-    arg->sec_attr = pp->sec_attr;
-    dds_security_garbage_add_pp_crypto(arg->gv->security_garbage, arg);
-    qxev_nt_callback(pp->e.gv->xevents, cleanup_participant_crypto_handle, arg);
+    qxev_nt_callback(pp->e.gv->xevents, cleanup_participant_sec_attributes, arg);
   }
 
   if (pp->permissions_handle != DDS_SECURITY_HANDLE_NIL)
   {
     if (!sc->access_control_context->return_permissions_handle(sc->access_control_context, pp->permissions_handle, &exception))
     {
-      EXCEPTION_ERROR(sc, &exception, "Failed to return permissions handle");
+      EXCEPTION_ERROR(sc, &exception, "Failed to return local permissions handle");
     }
   }
   if (pp->local_identity_handle != DDS_SECURITY_HANDLE_NIL)
   {
     if (!sc->authentication_context->return_identity_handle(sc->authentication_context, pp->local_identity_handle, &exception))
     {
-      EXCEPTION_ERROR(sc, &exception, "Failed to return identity handle");
+      EXCEPTION_ERROR(sc, &exception, "Failed to return local identity handle");
     }
 
   }
@@ -1605,7 +1605,7 @@ static int64_t check_remote_participant_permissions(uint32_t domain_id, struct p
       EXCEPTION_WARNING(sc, &exception, "Plugin does not allow remote participant "PGUIDFMT,  PGUID(proxypp->e.guid));
       if (!sc->access_control_context->return_permissions_handle(sc->access_control_context, permissions_hdl, &exception))
       {
-        EXCEPTION_ERROR(sc, &exception, "Failed to return permissions handle");
+        EXCEPTION_ERROR(sc, &exception, "Failed to return remote permissions handle");
       }
       permissions_hdl = DDS_SECURITY_HANDLE_NIL;
     }
@@ -2761,7 +2761,7 @@ static bool q_omg_security_decode_submessage (const struct ddsi_domaingv *gv, co
   struct proxypp_pp_match *m;
   struct participant *pp = NULL;
   struct proxy_participant *proxypp;
-  struct ddsi_guid proxypp_guid, pp_guid;
+  ddsi_guid_t proxypp_guid, pp_guid  = { .prefix= {.u = {0,0,0} }, .entityid.u = 0 };
   bool result;
 
   assert (src_len <= UINT32_MAX);
@@ -2784,14 +2784,15 @@ static bool q_omg_security_decode_submessage (const struct ddsi_domaingv *gv, co
     return false;
   }
 
+  sc = q_omg_security_get_secure_context_from_proxypp (proxypp);
+
   if (!dst_prefix || guid_prefix_zero (dst_prefix))
   {
     ddsrt_mutex_lock (&proxypp->sec_attr->lock);
     m = ddsrt_avl_root(&proxypp_pp_treedef, &proxypp->sec_attr->participants);
-    proxypp_crypto_hdl = m->proxypp_crypto_handle;
-    memset(&pp_guid, 0, sizeof(pp_guid));
+    if (m)
+      proxypp_crypto_hdl = m->proxypp_crypto_handle;
     ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
-    sc = q_omg_security_get_secure_context_from_proxypp (proxypp);
   }
   else
   {
@@ -2800,7 +2801,6 @@ static bool q_omg_security_decode_submessage (const struct ddsi_domaingv *gv, co
     if (!(pp = entidx_lookup_participant_guid (gv->entity_index, &pp_guid)))
       return false;
 
-    sc = q_omg_security_get_secure_context (pp);
     pp_crypto_hdl = pp->sec_attr->crypto_handle;
     ddsrt_mutex_lock (&proxypp->sec_attr->lock);
     m = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp_crypto_hdl);
@@ -2826,28 +2826,11 @@ static bool q_omg_security_decode_submessage (const struct ddsi_domaingv *gv, co
   assert (sc);
   result = sc->crypto_context->crypto_transform->preprocess_secure_submsg (sc->crypto_context->crypto_transform, &recv_crypto_hdl, &send_crypto_hdl,
       &cat, &encoded_buffer, pp_crypto_hdl, proxypp_crypto_hdl, &ex);
-  GVTRACE ("decode_submessage: pp("PGUIDFMT") proxypp("PGUIDFMT"), cat(%d)", PGUID (pp_guid), PGUID (proxypp_guid), (int) cat);
+  GVTRACE ( "decode_submessage: pp("PGUIDFMT") proxypp("PGUIDFMT"), cat(%d)", PGUID (pp_guid), PGUID (proxypp_guid), (int) cat);
   if (!result)
   {
-    GVTRACE ("Pre-process submsg failed: %s\n", ex.message ? ex.message : "Unknown error");
+    GVTRACE (" Pre-process submsg failed: %s\n", ex.message ? ex.message : "Unknown error");
     DDS_Security_Exception_reset (&ex);
-    return false;
-  }
-
-  if (cat == DDS_SECURITY_INFO_SUBMESSAGE)
-  {
-    /* FIXME: Is DDS_SECURITY_INFO_SUBMESSAGE even possible when there's a SMID_SEC_PREFIX?
-      * This function is only called when there is a prefix. If it is possible, then we might
-      * have a problem because the further parsing expects a new buffer (without the security
-      * sub-messages). For now, consider this an error. */
-    GVWARNING ("Pre-process submsg returned DDS_SECURITY_INFO_SUBMESSAGE, which is unexpected with SMID_SEC_PREFIX\n");
-    *dst_buf = NULL;
-    *dst_len = 0;
-    return false;
-  }
-  if (cat != DDS_SECURITY_DATAREADER_SUBMESSAGE && cat != DDS_SECURITY_DATAWRITER_SUBMESSAGE)
-  {
-    GVWARNING ("Pre-process submsg failed from datawriter: returned unknown cat %d\n", (int) cat);
     return false;
   }
 
@@ -3001,13 +2984,14 @@ static bool q_omg_security_decode_serialized_payload (struct proxy_writer *pwr, 
   return true;
 }
 
-bool q_omg_security_encode_rtps_message (const struct ddsi_domaingv *gv, int64_t src_handle, const ddsi_guid_t *src_guid, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len, int64_t dst_handle)
+bool q_omg_security_encode_rtps_message (const struct q_globals *gv, int64_t src_handle, const ddsi_guid_t *src_guid, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len, int64_t dst_handle)
 {
+  struct dds_security_context *sc = gv->security_context;
   DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_ParticipantCryptoHandleSeq hdls = { 0, 0, NULL };
   DDS_Security_OctetSeq encoded_buffer;
   DDS_Security_OctetSeq plain_buffer;
-  struct participant *pp;
+  struct participant_sec_attributes *pp_attr = NULL;
   bool result = false;
   int32_t idx = 0;
 
@@ -3016,32 +3000,29 @@ bool q_omg_security_encode_rtps_message (const struct ddsi_domaingv *gv, int64_t
   assert (dst_buf);
   assert (dst_len);
 
-  if (!(pp = entidx_lookup_participant_guid (gv->entity_index, src_guid)))
-  {
-//    GVWARNING ("Unknown local participant "PGUIDFMT" for encoding rtps message\n", PGUID (*src_guid));
-    return false;
-  }
-
-  const struct dds_security_context *sc = q_omg_security_get_secure_context (pp);
-  assert (sc);
-
-  GVTRACE (" ] encode_rtps_message ["PGUIDFMT, PGUID (*src_guid));
-
-  /* When not send to a particular remote participant the message will be send to all known remote participants. */
-  if (dst_handle == DDS_SECURITY_HANDLE_NIL)
-  {
-    /* FIXME:
-    os_rwlockRead(&q_omg_remote_par_crypto_hdls.rwlock);
-    hdls._length = q_omg_remote_par_crypto_hdls.num_handles;
-    hdls._maximum = q_omg_remote_par_crypto_hdls.max_handles;
-    hdls._buffer = (DDS_Security_long_long *)q_omg_remote_par_crypto_hdls.handles;
-    */
-  }
-  else
+  if (dst_handle != 0)
   {
     hdls._buffer = (DDS_Security_long_long *) &dst_handle;
     hdls._length = hdls._maximum = 1;
   }
+  else if ((pp_attr = participant_index_find(sc, src_handle)) != NULL)
+  {
+    if (SECURITY_INFO_USE_RTPS_AUTHENTICATION(pp_attr->attr))
+    {
+      if (get_matched_proxypp_crypto_handles(pp_attr, &hdls) == 0)
+        return false;
+    }
+    else
+    {
+      dst_handle = get_first_matched_proxypp_crypto_handle(pp_attr);
+      hdls._buffer = (DDS_Security_long_long *) &dst_handle;
+      hdls._length = hdls._maximum = 1;
+    }
+  }
+  else
+    return false;
+
+  GVTRACE (" ] encode_rtps_message ["PGUIDFMT, PGUID (*src_guid));
 
   if (hdls._length > 0)
   {
@@ -3082,9 +3063,7 @@ bool q_omg_security_encode_rtps_message (const struct ddsi_domaingv *gv, int64_t
   }
 
   if (dst_handle == DDS_SECURITY_HANDLE_NIL)
-  {
-    // FIXME os_rwlockUnlock(&q_omg_remote_par_crypto_hdls.rwlock);
-  }
+    ddsrt_free(hdls._buffer);
 
   return result;
 }
@@ -3186,7 +3165,7 @@ static bool decode_payload (const struct ddsi_domaingv *gv, struct nn_rsample_in
   size_t dst_len = 0;
   if (!q_omg_security_decode_serialized_payload (sampleinfo->pwr, payloadp, *payloadsz, &dst_buf, &dst_len))
   {
-    GVWARNING ("decode_payload: failed to decrypt data from "PGUIDFMT"", PGUID (sampleinfo->pwr->e.guid));
+    GVWARNING ("decode_payload: failed to decrypt data from "PGUIDFMT"\n", PGUID (sampleinfo->pwr->e.guid));
     return false;
   }
 
