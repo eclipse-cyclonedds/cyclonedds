@@ -109,8 +109,6 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
 static struct entity_common *entity_common_from_proxy_endpoint_common (const struct proxy_endpoint_common *c);
 
 #ifdef DDSI_INCLUDE_SECURITY
-static const unsigned BES_MASK_NON_SECURITY = 0xf000ffff;
-
 static void handshake_end_cb(struct ddsi_domaingv const * const gv, struct ddsi_handshake *handshake, const struct ddsi_guid *lpguid, const struct ddsi_guid *ppguid, enum ddsi_handshake_state result);
 static void downgrade_to_nonsecure(struct proxy_participant *proxypp);
 #endif
@@ -4572,17 +4570,6 @@ static void add_proxy_builtin_endpoints(
                                  &gv->builtin_stateless_xqos_rd);
 #endif
 
-  /* write DCPSParticipant topic before the lease can expire */
-  builtintopic_write (gv->builtin_topic_interface, &proxypp->e, timestamp, true);
-
-  /* Register lease for auto liveliness, but be careful not to accidentally re-register
-     DDSI2's lease, as we may have become dependent on DDSI2 any time after
-     entidx_insert_proxy_participant_guid even if privileged_pp_guid was NULL originally */
-  ddsrt_mutex_lock (&proxypp->e.lock);
-  if (proxypp->owns_lease)
-    lease_register (ddsrt_atomic_ldvoidp (&proxypp->minl_auto));
-  ddsrt_mutex_unlock (&proxypp->e.lock);
-
 #undef PT_TE
 #undef TE
 #undef LTE
@@ -4770,6 +4757,9 @@ static void free_proxy_participant(struct proxy_participant *proxypp)
     assert (ddsrt_fibheap_min (&lease_fhdef_pp, &proxypp->leaseheap_man) == NULL);
     assert (ddsrt_atomic_ldvoidp (&proxypp->minl_man) == NULL);
     assert (!compare_guid (&minl_auto->entity->guid, &proxypp->e.guid));
+    /* if the lease hasn't been registered yet (which is the case when
+       new_proxy_participant calls this, it is marked as such and calling
+       lease_unregister is ok */
     lease_unregister (minl_auto);
     lease_free (minl_auto);
     lease_free (proxypp->lease);
@@ -4791,9 +4781,9 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
      runs on a single thread, it can't go wrong. FIXME, maybe? The
      same holds for the other functions for creating entities. */
   struct proxy_participant *proxypp;
-#ifdef DDSI_INCLUDE_SECURITY
-  bool secure = false;
-#endif
+  const bool is_secure = ((bes & NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0);
+  assert (!is_secure || (plist->present & PP_IDENTITY_TOKEN));
+  assert (is_secure || (bes & ~NN_BES_MASK_NON_SECURITY) == 0);
 
   assert (ppguid->entityid.u == NN_ENTITYID_PARTICIPANT);
   assert (entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid) == NULL);
@@ -4882,61 +4872,38 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
 #ifdef DDSI_INCLUDE_SECURITY
   proxypp->remote_identity_handle = 0;
   proxypp->sec_attr = NULL;
-  secure = ((bes & NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0);
-  if (!secure)
+  set_proxy_participant_security_info (proxypp, plist);
+  if (is_secure)
   {
-    /* Make sure we don't create any security builtin endpoint when it's considered unsecure. */
-    proxypp->bes &= BES_MASK_NON_SECURITY;
+    q_omg_security_init_remote_participant (proxypp);
+    /* check if the proxy participant has a match with a local participant */
+    if (!proxy_participant_check_security_info (gv, proxypp))
+    {
+      GVWARNING ("Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
+      free_proxy_participant (proxypp);
+      return;
+    }
   }
-  set_proxy_participant_security_info(proxypp, plist);
 #endif
 
-
-#ifdef DDSI_INCLUDE_SECURITY
-  if (secure)
-  {
-    /* Secure participant detected: start handshake. */
-    if ((plist->present & PP_IDENTITY_TOKEN))
-    {
-      /* initialize the security attributes associated with the proxy participant */
-      q_omg_security_init_remote_participant(proxypp);
-
-      /* check if the proxy participant has a match with a local participant */
-      if (proxy_participant_check_security_info(gv, proxypp))
-      {
-        /* Proxy participant must be in the hash tables for new_proxy_{writer,reader} to work */
-        entidx_insert_proxy_participant_guid (gv->entity_index, proxypp);
-        /* Create builtin endpoints, of which a few are used in the handshake. */
-        add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
-        /* create authentication handshakes for each local secure participant */
-        proxy_participant_create_handshakes(gv, proxypp);
-      }
-      else
-      {
-        DDS_CWARNING(&gv->logconfig, "Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
-        free_proxy_participant(proxypp);
-      }
-    }
-    else
-    {
-      /* Do not communicate with un-secure participants. */
-      DDS_CWARNING(&gv->logconfig, "Don't communicate with secure participant "PGUIDFMT" which does not provide an identity token\n", PGUID (*ppguid));
-      free_proxy_participant(proxypp);
-    }
-  }
-  else
-  {
-    /* Remote is un-secure. Try the discovery anyway. Maybe there's a local secure
-     * participant that allowed communication with remote non-secure ones
-     */
-    entidx_insert_proxy_participant_guid (gv->entity_index, proxypp);
-    add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
-    ELOGDISC (proxypp, "Un-secure participant "PGUIDFMT" tries to connect.\n", PGUID (*ppguid));
-  }
-#else
   /* Proxy participant must be in the hash tables for new_proxy_{writer,reader} to work */
   entidx_insert_proxy_participant_guid (gv->entity_index, proxypp);
   add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
+
+  /* write DCPSParticipant topic before the lease can expire */
+  builtintopic_write (gv->builtin_topic_interface, &proxypp->e, timestamp, true);
+
+  /* Register lease for auto liveliness, but be careful not to accidentally re-register
+     DDSI2's lease, as we may have become dependent on DDSI2 any time after
+     entidx_insert_proxy_participant_guid even if privileged_pp_guid was NULL originally */
+  ddsrt_mutex_lock (&proxypp->e.lock);
+  if (proxypp->owns_lease)
+    lease_register (ddsrt_atomic_ldvoidp (&proxypp->minl_auto));
+  ddsrt_mutex_unlock (&proxypp->e.lock);
+
+#ifdef DDSI_INCLUDE_SECURITY
+  if (is_secure)
+    proxy_participant_create_handshakes (gv, proxypp);
 #endif
 }
 
@@ -5184,7 +5151,7 @@ static void downgrade_to_nonsecure(struct proxy_participant *proxypp)
 
   /* Cleanup all kinds of related security information. */
   q_omg_security_deregister_remote_participant(proxypp);
-  proxypp->bes &= BES_MASK_NON_SECURITY;
+  proxypp->bes &= NN_BES_MASK_NON_SECURITY;
 }
 #endif
 
