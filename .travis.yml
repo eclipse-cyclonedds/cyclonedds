@@ -219,6 +219,9 @@ script:
         ;;
     esac
   - CYCLONEDDS_URI='<CycloneDDS><Domain><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks><LivelinessMonitoring>true</LivelinessMonitoring></Internal><Tracing><Verbosity>config</Verbosity><OutputFile>stderr</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 4 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${BUILD_TYPE}
+  - if [ "${ASAN}" = "none" ]; then
+      ${SHELL} ../src/tools/ddsperf/sanity.bash;
+    fi
   - if [ "${ASAN}" != "none" ]; then
       CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
       CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";

@@ -1311,7 +1311,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
         newn->idxnode = idxn;
         newn->idxnode_pos = idxn->headidx;
 
-        if (oldn && (whc->wrinfo.hdepth > 0 || oldn->seq <= max_drop_seq) && whc->wrinfo.tldepth > 0)
+        if (oldn && (whc->wrinfo.hdepth > 0 || oldn->seq <= max_drop_seq) && (!whc->wrinfo.is_transient_local || whc->wrinfo.tldepth > 0))
         {
           TRACE (" prune whcn %p", (void *)oldn);
           assert (oldn != whc->maxseq_node || whc->wrinfo.has_deadline);

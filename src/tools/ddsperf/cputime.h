@@ -19,6 +19,7 @@ struct record_cputime_state;
 struct record_cputime_state *record_cputime_new (dds_entity_t wr);
 void record_cputime_free (struct record_cputime_state *state);
 bool record_cputime (struct record_cputime_state *state, const char *prefix, dds_time_t tnow);
+double record_cputime_read_rss (const struct record_cputime_state *state);
 bool print_cputime (const struct CPUStats *s, const char *prefix, bool print_host, bool is_fresh);
 
 #endif

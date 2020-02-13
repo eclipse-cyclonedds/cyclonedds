@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "dds/ddsrt/endian.h"
+#include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsi/ddsi_ipaddr.h"
@@ -103,6 +104,7 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_tran_factory_
           return AFSR_UNKNOWN;
       }
       memcpy(&tmpaddr, &hent->addrs[0], sizeof(hent->addrs[0]));
+      ddsrt_free (hent);
 #else
       return AFSR_INVALID;
 #endif

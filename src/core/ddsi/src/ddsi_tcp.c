@@ -699,6 +699,7 @@ static bool ddsi_tcp_supports (const struct ddsi_tran_factory *fact_cmn, int32_t
 
 static int ddsi_tcp_locator (struct ddsi_tran_factory *fact_cmn, ddsi_tran_base_t base, nn_locator_t *loc)
 {
+  loc->tran = fact_cmn;
   loc->kind = fact_cmn->m_kind;
   memcpy(loc->address, base->gv->extloc.address, sizeof(loc->address));
   loc->port = base->m_port;
