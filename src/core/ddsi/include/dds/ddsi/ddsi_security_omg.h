@@ -629,10 +629,11 @@ bool q_omg_security_match_remote_writer_enabled(struct reader *rd, struct proxy_
  * writer match. For example it will release the security tokens that where associated with this
  * reader and the remote writer.
  *
- * @param[in] rd_guid  GUID of the local reader.
- * @param[in] m        match object with proxy writer
+ * @param[in] gv       The global parameters.
+ * @param[in] rd_guid  The guid of the reader.
+ * @param[in] match    The reader-proxy_writer match.
  */
-void q_omg_security_deregister_remote_writer_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *rd_guid, struct rd_pwr_match *m);
+void q_omg_security_deregister_remote_writer_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *rd_guid, struct rd_pwr_match *match);
 
 /**
  * @brief Set the crypto tokens used for the secure communication from the remote writer to the reader.
@@ -735,10 +736,11 @@ bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_
  * reader match. For example it will release the security tokens that where associated with this
  * writer and the remote reader.
  *
- * @param[in] wr_guid  GUID of the local writer
- * @param[in] m        match object with proxy reader
+ * @param[in] gv       The global parameters.
+ * @param[in] wr_guid  The guid of the writer.
+ * @param[in] match    The writer-proxy_reader match.
  */
-void q_omg_security_deregister_remote_reader_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *wr_guid, struct wr_prd_match *m);
+void q_omg_security_deregister_remote_reader_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *wr_guid, struct wr_prd_match *match);
 
 /**
  * @brief Set the crypto tokens used for the secure communication from the remote reader to the writer.
