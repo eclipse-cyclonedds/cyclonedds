@@ -21,8 +21,12 @@ extern "C" {
 
 DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_topic, DDS_KIND_TOPIC)
 
-DDS_EXPORT struct ddsi_sertopic * dds_topic_lookup (dds_domain * domain, const char * name) ddsrt_nonnull_all;
 DDS_EXPORT void dds_topic_free (dds_domainid_t domainid, struct ddsi_sertopic * st) ddsrt_nonnull_all;
+
+DDS_EXPORT dds_return_t dds_topic_pin (dds_entity_t handle, struct dds_topic **tp) ddsrt_nonnull_all;
+DDS_EXPORT void dds_topic_unpin (struct dds_topic *tp) ddsrt_nonnull_all;
+DDS_EXPORT void dds_topic_defer_set_qos (struct dds_topic *tp) ddsrt_nonnull_all;
+DDS_EXPORT void dds_topic_allow_set_qos (struct dds_topic *tp) ddsrt_nonnull_all;
 
 #ifndef DDS_TOPIC_INTERN_FILTER_FN_DEFINED
 #define DDS_TOPIC_INTERN_FILTER_FN_DEFINED
@@ -35,7 +39,7 @@ DDS_EXPORT void dds_topic_set_filter_with_ctx
 DDS_EXPORT dds_topic_intern_filter_fn dds_topic_get_filter_with_ctx
   (dds_entity_t topic);
 
-DDS_EXPORT dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const nn_plist_t *sedp_plist);
+DDS_EXPORT dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist);
 
 #if defined (__cplusplus)
 }

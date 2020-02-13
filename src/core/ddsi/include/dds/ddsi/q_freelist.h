@@ -25,11 +25,11 @@ extern "C" {
 
 #define FREELIST_TYPE FREELIST_DOUBLE
 
-#if 0
-#if HAVE_ATOMIC_LIFO
+#ifndef FREELIST_TYPE
+#if DDSRT_HAVE_ATOMIC_LIFO
 #define FREELIST_TYPE FREELIST_ATOMIC_LIFO
 #else
-#define FREELIST_TYPE FREELIST_SIMPLE
+#define FREELIST_TYPE FREELIST_DOUBLE
 #endif
 #endif
 
@@ -45,7 +45,7 @@ struct nn_freelist {
   ddsrt_atomic_lifo_t x;
   ddsrt_atomic_uint32_t count;
   uint32_t max;
-  off_t linkoff;
+  size_t linkoff;
 };
 
 #elif FREELIST_TYPE == FREELIST_DOUBLE
@@ -73,12 +73,12 @@ struct nn_freelist {
   struct nn_freelistM *emlist;
   uint32_t count;
   uint32_t max;
-  off_t linkoff;
+  size_t linkoff;
 };
 
 #endif
 
-void nn_freelist_init (struct nn_freelist *fl, uint32_t max, off_t linkoff);
+void nn_freelist_init (struct nn_freelist *fl, uint32_t max, size_t linkoff);
 void nn_freelist_fini (struct nn_freelist *fl, void (*free) (void *elem));
 bool nn_freelist_push (struct nn_freelist *fl, void *elem);
 void *nn_freelist_pushmany (struct nn_freelist *fl, void *first, void *last, uint32_t n);

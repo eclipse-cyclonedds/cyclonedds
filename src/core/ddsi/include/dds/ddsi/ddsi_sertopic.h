@@ -23,17 +23,17 @@ extern "C" {
 struct ddsi_serdata;
 struct ddsi_serdata_ops;
 struct ddsi_sertopic_ops;
+struct ddsi_domaingv;
 
 struct ddsi_sertopic {
   const struct ddsi_sertopic_ops *ops;
   const struct ddsi_serdata_ops *serdata_ops;
   uint32_t serdata_basehash;
   bool topickind_no_key;
-  char *name_type_name;
   char *name;
   char *type_name;
-  uint64_t iid;
-  ddsrt_atomic_uint32_t refc; /* counts refs from entities, not from data */
+  struct ddsi_domaingv *gv;
+  ddsrt_atomic_uint32_t refc; /* counts refs from entities (topic, reader, writer), not from data */
 };
 
 /* The old and the new happen to have the same memory layout on a 64-bit machine
@@ -47,6 +47,27 @@ struct ddsi_sertopic {
    compatible with the old and the new definition, even if it is only partially
    binary compatible. */
 #define DDSI_SERTOPIC_HAS_TOPICKIND_NO_KEY 1
+
+/* Type changed: name_type_name and ii removed and gv added; and the set of
+   operations got extended by the a predicate for testing to sertopics (with the
+   same "ops") for equality ("equal") as well as a function for hashing the
+   non-generic part of the sertopic definition (via "hash").  These two operations
+   make it possible to intern sertopics without duplicates, which has become
+   relevant now that multiple ddsi_sertopics can be associated with a single topic
+   name.
+
+   Testing for DDSI_SERTOPIC_HAS_EQUAL_AND_HASH allows one to have a single source
+   that can handle both variants, but there's no binary compatbility. */
+#define DDSI_SERTOPIC_HAS_EQUAL_AND_HASH 1
+
+/* Called to compare two sertopics for equality, if it is already known that name,
+   type name, topickind_no_Key, and operations are all the same.  (serdata_basehash
+   is computed from the set of operations.) */
+typedef bool (*ddsi_sertopic_equal_t) (const struct ddsi_sertopic *a, const struct ddsi_sertopic *b);
+
+/* Hash the custom components of a sertopic (this XOR'd with a hash computed from
+   the fields that are defined in struct ddsi_sertopic) */
+typedef uint32_t (*ddsi_sertopic_hash_t) (const struct ddsi_sertopic *tp);
 
 /* Called when the refcount dropped to zero */
 typedef void (*ddsi_sertopic_free_t) (struct ddsi_sertopic *tp);
@@ -66,14 +87,21 @@ struct ddsi_sertopic_ops {
   ddsi_sertopic_zero_samples_t zero_samples;
   ddsi_sertopic_realloc_samples_t realloc_samples;
   ddsi_sertopic_free_samples_t free_samples;
+  ddsi_sertopic_equal_t equal;
+  ddsi_sertopic_hash_t hash;
 };
 
+struct ddsi_sertopic *ddsi_sertopic_lookup_locked (struct ddsi_domaingv *gv, const struct ddsi_sertopic *sertopic_template);
+void ddsi_sertopic_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertopic *sertopic);
+
 DDS_EXPORT void ddsi_sertopic_init (struct ddsi_sertopic *tp, const char *name, const char *type_name, const struct ddsi_sertopic_ops *sertopic_ops, const struct ddsi_serdata_ops *serdata_ops, bool topickind_no_key);
-DDS_EXPORT void ddsi_sertopic_init_anon (struct ddsi_sertopic *tp, const struct ddsi_sertopic_ops *sertopic_ops, const struct ddsi_serdata_ops *serdata_ops, bool topickind_no_key);
 DDS_EXPORT void ddsi_sertopic_fini (struct ddsi_sertopic *tp);
 DDS_EXPORT struct ddsi_sertopic *ddsi_sertopic_ref (const struct ddsi_sertopic *tp);
 DDS_EXPORT void ddsi_sertopic_unref (struct ddsi_sertopic *tp);
 DDS_EXPORT uint32_t ddsi_sertopic_compute_serdata_basehash (const struct ddsi_serdata_ops *ops);
+
+DDS_EXPORT bool ddsi_sertopic_equal (const struct ddsi_sertopic *a, const struct ddsi_sertopic *b);
+DDS_EXPORT uint32_t ddsi_sertopic_hash (const struct ddsi_sertopic *tp);
 
 DDS_EXPORT inline void ddsi_sertopic_free (struct ddsi_sertopic *tp) {
   tp->ops->free (tp);

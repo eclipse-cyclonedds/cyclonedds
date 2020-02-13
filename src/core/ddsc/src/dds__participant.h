@@ -20,6 +20,8 @@ extern "C" {
 
 DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_participant, DDS_KIND_PARTICIPANT)
 
+extern const ddsrt_avl_treedef_t participant_ktopics_treedef;
+
 #if defined (__cplusplus)
 }
 #endif

@@ -20,7 +20,7 @@
 
 #if FREELIST_TYPE == FREELIST_NONE
 
-void nn_freelist_init (struct nn_freelist *fl, uint32_t max, off_t linkoff)
+void nn_freelist_init (struct nn_freelist *fl, uint32_t max, size_t linkoff)
 {
   (void) fl; (void) max; (void) linkoff;
 }
@@ -50,7 +50,7 @@ void *nn_freelist_pop (struct nn_freelist *fl)
 
 #elif FREELIST_TYPE == FREELIST_ATOMIC_LIFO
 
-void nn_freelist_init (struct nn_freelist *fl, uint32_t max, off_t linkoff)
+void nn_freelist_init (struct nn_freelist *fl, uint32_t max, size_t linkoff)
 {
   ddsrt_atomic_lifo_init (&fl->x);
   ddsrt_atomic_st32(&fl->count, 0);
@@ -104,7 +104,7 @@ void *nn_freelist_pop (struct nn_freelist *fl)
 
 static ddsrt_thread_local int freelist_inner_idx = -1;
 
-void nn_freelist_init (struct nn_freelist *fl, uint32_t max, off_t linkoff)
+void nn_freelist_init (struct nn_freelist *fl, uint32_t max, size_t linkoff)
 {
   int i;
   ddsrt_mutex_init (&fl->lock);

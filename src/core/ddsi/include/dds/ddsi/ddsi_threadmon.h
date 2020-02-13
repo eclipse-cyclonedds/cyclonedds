@@ -17,12 +17,12 @@ extern "C" {
 #endif
 
 struct ddsi_threadmon;
-struct q_globals;
+struct ddsi_domaingv;
 
 struct ddsi_threadmon *ddsi_threadmon_new (int64_t liveliness_monitoring_interval, bool noprogress_log_stacktraces);
 dds_return_t ddsi_threadmon_start (struct ddsi_threadmon *sl, const char *name);
-void ddsi_threadmon_register_domain (struct ddsi_threadmon *sl, const struct q_globals *gv);
-void ddsi_threadmon_unregister_domain (struct ddsi_threadmon *sl, const struct q_globals *gv);
+void ddsi_threadmon_register_domain (struct ddsi_threadmon *sl, const struct ddsi_domaingv *gv);
+void ddsi_threadmon_unregister_domain (struct ddsi_threadmon *sl, const struct ddsi_domaingv *gv);
 void ddsi_threadmon_stop (struct ddsi_threadmon *sl);
 void ddsi_threadmon_free (struct ddsi_threadmon *sl);
 

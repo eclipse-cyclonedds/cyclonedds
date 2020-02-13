@@ -112,6 +112,7 @@ typedef enum dds_entity_kind
   DDS_KIND_DOMAIN,
   DDS_KIND_CYCLONEDDS
 } dds_entity_kind_t;
+#define DDS_KIND_MAX DDS_KIND_CYCLONEDDS
 
 /* Handles are opaque pointers to implementation types */
 typedef uint64_t dds_instance_handle_t;

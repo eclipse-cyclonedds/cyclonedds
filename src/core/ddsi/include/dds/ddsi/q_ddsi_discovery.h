@@ -23,7 +23,7 @@ struct writer;
 struct reader;
 struct nn_rsample_info;
 struct nn_rdata;
-struct nn_plist;
+struct ddsi_plist;
 
 int spdp_write (struct participant *pp);
 int spdp_dispose_unregister (struct participant *pp);
@@ -33,8 +33,7 @@ int sedp_write_reader (struct reader *rd);
 int sedp_dispose_unregister_writer (struct writer *wr);
 int sedp_dispose_unregister_reader (struct reader *rd);
 
-int sedp_write_topic (struct participant *pp, const struct nn_plist *datap);
-int sedp_write_cm_participant (struct participant *pp, int alive);
+int sedp_write_topic (struct participant *pp, const struct ddsi_plist *datap);
 
 int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);
 

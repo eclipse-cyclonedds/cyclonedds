@@ -149,9 +149,7 @@ DU(ipv4);
 DUPF(allow_multicast);
 DUPF(boolean);
 DU(boolean_default);
-#if 0
 PF(boolean_default);
-#endif
 DUPF(string);
 DU(tracingOutputFileName);
 DU(verbosity);
@@ -731,8 +729,8 @@ static const struct cfgelem unsupp_cfgelems[] = {
     BLURB("<p>This element controls whether the actual sending of packets occurs on the same thread that prepares them, or is done asynchronously by another thread.</p>") },
   { LEAF_W_ATTRS("RediscoveryBlacklistDuration", rediscovery_blacklist_duration_attrs), 1, "10s", ABSOFF(prune_deleted_ppant.delay), 0, uf_duration_inf, 0, pf_duration,
     BLURB("<p>This element controls for how long a remote participant that was previously deleted will remain on a blacklist to prevent rediscovery, giving the software on a node time to perform any cleanup actions it needs to do. To some extent this delay is required internally by DDSI2E, but in the default configuration with the 'enforce' attribute set to false, DDSI2E will reallow rediscovery as soon as it has cleared its internal administration. Setting it to too small a value may result in the entry being pruned from the blacklist before DDSI2E is ready, it is therefore recommended to set it to at least several seconds.</p>") },
-  { LEAF_W_ATTRS("MultipleReceiveThreads", multiple_recv_threads_attrs), 1, "true", ABSOFF(multiple_recv_threads), 0, uf_boolean, 0, pf_boolean,
-    BLURB("<p>This element controls whether all traffic is handled by a single receive thread or whether multiple receive threads may be used to improve latency. Currently multiple receive threads are only used for connectionless transport (e.g., UDP) and ManySocketsMode not set to single (the default).</p>") },
+  { LEAF_W_ATTRS("MultipleReceiveThreads", multiple_recv_threads_attrs), 1, "default", ABSOFF(multiple_recv_threads), 0, uf_boolean_default, 0, pf_boolean_default,
+    BLURB("<p>This element controls whether all traffic is handled by a single receive thread (false) or whether multiple receive threads may be used to improve latency (true). By default it is disabled on Windows because it appears that one cannot count on being able to send packets to oneself, which is necessary to stop the thread during shutdown. Currently multiple receive threads are only used for connectionless transport (e.g., UDP) and ManySocketsMode not set to single (the default).</p>") },
   { MGROUP("ControlTopic", control_topic_cfgelems, control_topic_cfgattrs), 1, 0, 0, 0, 0, 0, 0, 0,
     BLURB("<p>The ControlTopic element allows configured whether DDSI2E provides a special control interface via a predefined topic or not.<p>") },
   { GROUP("Test", unsupp_test_cfgelems),
@@ -1621,7 +1619,7 @@ GENERIC_ENUM_CTYPE (boolean, int)
 
 static const char *en_boolean_default_vs[] = { "default", "false", "true", NULL };
 static const enum boolean_default en_boolean_default_ms[] = { BOOLDEF_DEFAULT, BOOLDEF_FALSE, BOOLDEF_TRUE, 0 };
-GENERIC_ENUM_UF (boolean_default)
+GENERIC_ENUM (boolean_default)
 
 static const char *en_besmode_vs[] = { "full", "writers", "minimal", NULL };
 static const enum besmode en_besmode_ms[] = { BESMODE_FULL, BESMODE_WRITERS, BESMODE_MINIMAL, 0 };

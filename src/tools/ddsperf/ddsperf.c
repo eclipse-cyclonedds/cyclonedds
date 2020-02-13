@@ -151,6 +151,18 @@ static dds_duration_t ping_intv;
    pongs had been received */
 static uint32_t ping_timeouts = 0;
 
+/* Maximum allowed increase in RSS between 2nd RSS sample and
+   final RSS sample: final one must be <=
+   init * (1 + rss_factor/100) + rss_term  */
+static bool rss_check = false;
+static double rss_factor = 0;
+static double rss_term = 0;
+
+/* Minimum number of samples, minimum number of roundtrips to
+   declare the run a success */
+static uint64_t min_received = 0;
+static uint64_t min_roundtrips = 0;
+
 static ddsrt_mutex_t disc_lock;
 
 /* Publisher statistics and lock protecting it */
@@ -207,6 +219,7 @@ struct subthread_arg_pongstat {
   uint64_t min, max;
   uint64_t sum;
   uint32_t cnt;
+  uint64_t totcnt;
   uint64_t *raw;
 };
 
@@ -733,6 +746,7 @@ static bool update_roundtrip (dds_instance_handle_t pubhandle, uint64_t tdelta, 
       if (x->cnt < PINGPONG_RAWSIZE)
         x->raw[x->cnt] = tdelta;
       x->cnt++;
+      x->totcnt++;
       ddsrt_mutex_unlock (&pongstat_lock);
       return allseen;
     }
@@ -742,6 +756,7 @@ static bool update_roundtrip (dds_instance_handle_t pubhandle, uint64_t tdelta, 
   x->pphandle = get_pphandle_for_pubhandle (pubhandle);
   x->min = x->max = x->sum = tdelta;
   x->cnt = 1;
+  x->totcnt = 1;
   x->raw = malloc (PINGPONG_RAWSIZE * sizeof (*x->raw));
   x->raw[0] = tdelta;
   npongstat++;
@@ -969,18 +984,24 @@ static void maybe_send_new_ping (dds_time_t tnow, dds_time_t *tnextping)
   }
 }
 
-static uint32_t subthread_waitset (void *varg)
+static dds_entity_t make_reader_waitset (dds_entity_t rd)
 {
-  struct subthread_arg * const arg = varg;
   dds_entity_t ws;
   int32_t rc;
   ws = dds_create_waitset (dp);
   if ((rc = dds_waitset_attach (ws, termcond, 0)) < 0)
     error2 ("dds_waitset_attach (termcond, 0): %d\n", (int) rc);
-  if ((rc = dds_set_status_mask (rd_data, DDS_DATA_AVAILABLE_STATUS)) < 0)
-    error2 ("dds_set_status_mask (rd_data, DDS_DATA_AVAILABLE_STATUS): %d\n", (int) rc);
-  if ((rc = dds_waitset_attach (ws, rd_data, 1)) < 0)
-    error2 ("dds_waitset_attach (ws, rd_data, 1): %d\n", (int) rc);
+  if ((rc = dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS | DDS_SUBSCRIPTION_MATCHED_STATUS)) < 0)
+    error2 ("dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS | DDS_SUBSCRIPTION_MATCHED_STATUS): %d\n", (int) rc);
+  if ((rc = dds_waitset_attach (ws, rd, 1)) < 0)
+    error2 ("dds_waitset_attach (ws, rd, 1): %d\n", (int) rc);
+  return ws;
+}
+
+static uint32_t subthread_waitset (void *varg)
+{
+  struct subthread_arg * const arg = varg;
+  dds_entity_t ws = make_reader_waitset (rd_data);
   while (!ddsrt_atomic_ld32 (&termflag))
   {
     if (!process_data (rd_data, arg))
@@ -998,15 +1019,7 @@ static uint32_t subthread_waitset (void *varg)
 static uint32_t subpingthread_waitset (void *varg)
 {
   struct subthread_arg * const arg = varg;
-  dds_entity_t ws;
-  int32_t rc;
-  ws = dds_create_waitset (dp);
-  if ((rc = dds_waitset_attach (ws, termcond, 0)) < 0)
-    error2 ("dds_waitset_attach (termcond, 0): %d\n", (int) rc);
-  if ((rc = dds_set_status_mask (rd_ping, DDS_DATA_AVAILABLE_STATUS)) < 0)
-    error2 ("dds_set_status_mask (rd_ping, DDS_DATA_AVAILABLE_STATUS): %d\n", (int) rc);
-  if ((rc = dds_waitset_attach (ws, rd_ping, 1)) < 0)
-    error2 ("dds_waitset_attach (ws, rd_ping, 1): %d\n", (int) rc);
+  dds_entity_t ws = make_reader_waitset (rd_ping);
   while (!ddsrt_atomic_ld32 (&termflag))
   {
     int32_t nxs;
@@ -1020,15 +1033,7 @@ static uint32_t subpingthread_waitset (void *varg)
 static uint32_t subpongthread_waitset (void *varg)
 {
   struct subthread_arg * const arg = varg;
-  dds_entity_t ws;
-  int32_t rc;
-  ws = dds_create_waitset (dp);
-  if ((rc = dds_waitset_attach (ws, termcond, 0)) < 0)
-    error2 ("dds_waitset_attach (termcond, 0): %d\n", (int) rc);
-  if ((rc = dds_set_status_mask (rd_pong, DDS_DATA_AVAILABLE_STATUS)) < 0)
-    error2 ("dds_set_status_mask (rd_pong, DDS_DATA_AVAILABLE_STATUS): %d\n", (int) rc);
-  if ((rc = dds_waitset_attach (ws, rd_pong, 1)) < 0)
-    error2 ("dds_waitset_attach (ws, rd_pong, 1): %d\n", (int) rc);
+  dds_entity_t ws = make_reader_waitset (rd_pong);
   while (!ddsrt_atomic_ld32 (&termflag))
   {
     int32_t nxs;
@@ -1101,7 +1106,7 @@ static dds_entity_t create_pong_writer (dds_instance_handle_t pphandle, const st
   return wr_pong;
 }
 
-static void delete_pong_writer (dds_instance_handle_t pphandle)
+static dds_entity_t delete_pong_writer (dds_instance_handle_t pphandle)
 {
   uint32_t i = 0;
   dds_entity_t wr_pong = 0;
@@ -1118,8 +1123,7 @@ static void delete_pong_writer (dds_instance_handle_t pphandle)
     }
   }
   ddsrt_mutex_unlock (&pongwr_lock);
-  if (wr_pong)
-    dds_delete (wr_pong);
+  return wr_pong;
 }
 
 static void free_ppant (void *vpp)
@@ -1143,6 +1147,7 @@ static void participant_data_listener (dds_entity_t rd, void *arg)
     if (info.instance_state != DDS_ALIVE_INSTANCE_STATE)
     {
       ddsrt_avl_dpath_t dpath;
+      dds_entity_t pong_wr_to_del = 0;
       ddsrt_mutex_lock (&disc_lock);
       if ((pp = ddsrt_avl_lookup_dpath (&ppants_td, &ppants, &info.instance_handle, &dpath)) != NULL)
       {
@@ -1151,7 +1156,7 @@ static void participant_data_listener (dds_entity_t rd, void *arg)
 
         if (pp->handle != dp_handle || ignorelocal == DDS_IGNORELOCAL_NONE)
         {
-          delete_pong_writer (pp->handle);
+          pong_wr_to_del = delete_pong_writer (pp->handle);
           n_pong_expected_delta--;
         }
 
@@ -1161,6 +1166,7 @@ static void participant_data_listener (dds_entity_t rd, void *arg)
         free_ppant (pp);
       }
       ddsrt_mutex_unlock (&disc_lock);
+      dds_delete (pong_wr_to_del);
     }
     else
     {
@@ -1171,6 +1177,7 @@ static void participant_data_listener (dds_entity_t rd, void *arg)
       /* only add unknown participants with the magic user_data value: DDSPerf:X:HOSTNAME, where X is decimal  */
       if (dds_qget_userdata (sample->qos, &vudata, &usz) && usz > 0)
       {
+        bool make_pongwr = false;
         const char *udata = vudata;
         int has_reader, pos;
         long pid;
@@ -1199,15 +1206,17 @@ static void participant_data_listener (dds_entity_t rd, void *arg)
             ddsrt_fibheap_insert (&ppants_to_match_fhd, &ppants_to_match, pp);
             ddsrt_avl_insert_ipath (&ppants_td, &ppants, pp, &ipath);
 
-            if (pp->handle != dp_handle || ignorelocal == DDS_IGNORELOCAL_NONE)
-            {
-              struct guidstr guidstr;
-              make_guidstr (&guidstr, &sample->key);
-              create_pong_writer (pp->handle, &guidstr);
-              n_pong_expected_delta++;
-            }
+            make_pongwr = (pp->handle != dp_handle || ignorelocal == DDS_IGNORELOCAL_NONE);
           }
           ddsrt_mutex_unlock (&disc_lock);
+
+          if (make_pongwr)
+          {
+            struct guidstr guidstr;
+            make_guidstr (&guidstr, &sample->key);
+            create_pong_writer (pp->handle, &guidstr);
+            n_pong_expected_delta++;
+          }
         }
         dds_free (vudata);
       }
@@ -1312,8 +1321,8 @@ static void subscription_matched_listener (dds_entity_t rd, const dds_subscripti
 static void publication_matched_listener (dds_entity_t wr, const dds_publication_matched_status_t status, void *arg)
 {
   /* this only works because the listener is called for every match; but I don't think that is something the
-   spec guarantees, and I don't think Cyclone should guarantee that either -- and if it isn't guaranteed
-   _really_ needs the get_matched_... interfaces to not have to implement the matching logic ... */
+     spec guarantees, and I don't think Cyclone should guarantee that either -- and if it isn't guaranteed
+     _really_ needs the get_matched_... interfaces to not have to implement the matching logic ... */
   (void) wr;
   if (status.current_count_change > 0)
   {
@@ -1326,8 +1335,8 @@ static void publication_matched_listener (dds_entity_t wr, const dds_publication
 static void set_data_available_listener (dds_entity_t rd, const char *rd_name, dds_on_data_available_fn fn, void *arg)
 {
   /* This convoluted code is so that we leave all listeners unchanged, except the
-   data_available one.  There is no real need for these complications, but it is
-   a nice exercise. */
+     data_available one.  There is no real need for these complications, but it is
+     a nice exercise. */
   dds_listener_t *listener = dds_create_listener (arg);
   dds_return_t rc;
   dds_lset_data_available (listener, fn);
@@ -1349,7 +1358,7 @@ static int cmp_uint64 (const void *va, const void *vb)
   return (*a == *b) ? 0 : (*a < *b) ? -1 : 1;
 }
 
-static void print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, struct record_cputime_state *cputime_state, struct record_netload_state *netload_state)
+static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, struct record_cputime_state *cputime_state, struct record_netload_state *netload_state)
 {
   char prefix[128];
   const double ts = (double) (tnow - tref) / 1e9;
@@ -1475,6 +1484,7 @@ static void print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
   if (output)
     record_netload (netload_state, prefix, tnow);
   fflush (stdout);
+  return output;
 }
 
 static void subthread_arg_init (struct subthread_arg *arg, dds_entity_t rd, uint32_t max_samples)
@@ -1561,8 +1571,14 @@ OPTIONS:\n\
   -d DEV:BW           report network load for device DEV with nominal\n\
                       bandwidth BW in bits/s (e.g., eth0:1e9)\n\
   -D DUR              run for at most DUR seconds\n\
-  -N COUNT            require at least COUNT matching participants\n\
-  -M DUR              require those participants to match within DUR seconds\n\
+  -Q KEY:VAL          set success criteria\n\
+                        rss:X%%       max allowed increase in RSS, in %%\n\
+                        rss:X         max allowed increase in RSS, in MB\n\
+                        samples:N     min received messages by \"sub\"\n\
+                        roundtrips:N  min roundtrips for \"pong\"\n\
+                        minmatch:N    require >= N matching participants\n\
+                        maxwait:DUR   require those participants to match\n\
+                                      within DUR seconds\n\
   -R TREF             timestamps in the output relative to TREF instead of\n\
                       process start\n\
   -i ID               use domain ID instead of the default domain\n\
@@ -1873,7 +1889,7 @@ int main (int argc, char *argv[])
 
   argv0 = argv[0];
 
-  while ((opt = getopt (argc, argv, "cd:D:i:n:k:uLK:T:M:N:R:h")) != EOF)
+  while ((opt = getopt (argc, argv, "cd:D:i:n:k:uLK:T:Q:R:h")) != EOF)
   {
     switch (opt)
     {
@@ -1903,11 +1919,28 @@ int main (int argc, char *argv[])
         else if (strcmp (optarg, "UK1024") == 0) topicsel = UK1024;
         else error3 ("%s: unknown topic\n", optarg);
         break;
-      case 'M': maxwait = atof (optarg); if (maxwait <= 0) maxwait = HUGE_VAL; break;
-      case 'N': minmatch = (unsigned) atoi (optarg); break;
+      case 'Q': {
+        int pos;
+        double d;
+        unsigned long n;
+        if (sscanf (optarg, "rss:%lf%n", &d, &pos) == 1 && (optarg[pos] == 0 || optarg[pos] == '%')) {
+          if (optarg[pos] == 0) rss_term = d * 1048576.0; else rss_factor = 1.0 + d / 100.0;
+          rss_check = true;
+        } else if (sscanf (optarg, "samples:%lu%n", &n, &pos) == 1 && optarg[pos] == 0) {
+          min_received = (uint64_t) n;
+        } else if (sscanf (optarg, "roundtrips:%lu%n", &n, &pos) == 1 && optarg[pos] == 0) {
+          min_roundtrips = (uint64_t) n;
+        } else if (sscanf (optarg, "maxwait:%lf%n", &maxwait, &pos) == 1 && optarg[pos] == 0) {
+          maxwait = (maxwait <= 0) ? HUGE_VAL : maxwait;
+        } else if (sscanf (optarg, "minmatch:%lu%n", &n, &pos) == 1 && optarg[pos] == 0) {
+          minmatch = (uint32_t) n;
+        } else {
+          error3 ("-Q%s: invalid success criterium\n", optarg);
+        }
+        break;
+      }
       case 'R': tref = 0; sscanf (optarg, "%"SCNd64, &tref); break;
-      case 'h': usage (); break;
-      default: error3 ("-%c: unknown option\n", opt); break;
+      case 'h': default: usage (); break;
     }
   }
 
@@ -2012,11 +2045,17 @@ int main (int argc, char *argv[])
   /* participants reader must exist before the "publication matched" or "subscription matched"
      listener is invoked, or it won't be able to get the details (FIXME: even the DDS spec
      has convenience functions for that ...) */
+  if ((rd_participants = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, NULL, NULL)) < 0)
+    error2 ("dds_create_reader(participants) failed: %d\n", (int) rd_participants);
+  /* set listener later: DATA_AVAILABLE still has the nasty habit of potentially triggering
+     before the reader is accessible to the application via its handle */
   listener = dds_create_listener (NULL);
   dds_lset_data_available (listener, participant_data_listener);
-  if ((rd_participants = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, NULL, listener)) < 0)
-    error2 ("dds_create_reader(participants) failed: %d\n", (int) rd_participants);
+  dds_set_listener (rd_participants, listener);
   dds_delete_listener (listener);
+  /* then there is the matter of data arriving prior to setting the listener ... this state
+     of affairs is undoubtedly a bug */
+  participant_data_listener (rd_participants, NULL);
   if ((rd_subscriptions = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL)) < 0)
     error2 ("dds_create_reader(subscriptions) failed: %d\n", (int) rd_subscriptions);
   if ((rd_publications = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, NULL, NULL)) < 0)
@@ -2161,7 +2200,7 @@ int main (int argc, char *argv[])
   const bool pingpong_waitset = (ping_intv != DDS_NEVER && ignorelocal == DDS_IGNORELOCAL_NONE) || pingpongmode == SM_WAITSET;
   if (pingpong_waitset)
   {
-    ddsrt_thread_create (&subpingtid, "ping", &attr, subpingthread_waitset, &subarg_pong);
+    ddsrt_thread_create (&subpingtid, "ping", &attr, subpingthread_waitset, &subarg_ping);
     ddsrt_thread_create (&subpongtid, "pong", &attr, subpongthread_waitset, &subarg_pong);
   }
   else
@@ -2185,6 +2224,7 @@ int main (int argc, char *argv[])
   dds_time_t tnext = tstart + DDS_SECS (1);
   dds_time_t tlast = tstart;
   dds_time_t tnextping = (ping_intv == DDS_INFINITY) ? DDS_NEVER : (ping_intv == 0) ? tstart + DDS_SECS (1) : tstart + ping_intv;
+  double rss_init = 0.0, rss_final = 0.0;
   while (!ddsrt_atomic_ld32 (&termflag) && tnow < tstop)
   {
     dds_time_t twakeup = DDS_NEVER;
@@ -2250,12 +2290,17 @@ int main (int argc, char *argv[])
     tnow = dds_time ();
     if (tnext <= tnow)
     {
-      print_stats (tref, tnow, tlast, cputime_state, netload_state);
+      bool output;
+      output = print_stats (tref, tnow, tlast, cputime_state, netload_state);
       tlast = tnow;
       if (tnow > tnext + DDS_MSECS (500))
         tnext = tnow + DDS_SECS (1);
       else
         tnext += DDS_SECS (1);
+
+      if (rss_init == 0.0 && matchcount >= minmatch && output)
+        rss_init = record_cputime_read_rss (cputime_state);
+      rss_final = record_cputime_read_rss (cputime_state);
     }
 
     /* If a "real" ping doesn't result in the expected number of pongs within a reasonable
@@ -2323,8 +2368,13 @@ int main (int argc, char *argv[])
   dds_delete (rd_data);
 
   uint64_t nlost = 0;
+  bool received_ok = true;
   for (uint32_t i = 0; i < eseq_admin.nph; i++)
+  {
     nlost += eseq_admin.stats[i].nlost;
+    if (eseq_admin.stats[i].nrecv < (uint64_t) min_received)
+      received_ok = false;
+  }
   fini_eseq_admin (&eseq_admin);
   subthread_arg_fini (&subarg_data);
   subthread_arg_fini (&subarg_ping);
@@ -2336,8 +2386,13 @@ int main (int argc, char *argv[])
   ddsrt_mutex_destroy (&pubstat_lock);
   hist_free (pubstat_hist);
   free (pongwr);
+  bool roundtrips_ok = true;
   for (uint32_t i = 0; i < npongstat; i++)
+  {
+    if (pongstat[i].totcnt < min_roundtrips)
+      roundtrips_ok = false;
     free (pongstat[i].raw);
+  }
   free (pongstat);
 
   bool ok = true;
@@ -2364,6 +2419,21 @@ int main (int argc, char *argv[])
   if (nlost > 0 && (reliable && histdepth == 0))
   {
     printf ("[%"PRIdPID"] error: %"PRIu64" samples lost\n", ddsrt_getpid (), nlost);
+    ok = false;
+  }
+  if (!roundtrips_ok)
+  {
+    printf ("[%"PRIdPID"] error: too few roundtrips for some peers\n", ddsrt_getpid ());
+    ok = false;
+  }
+  if (!received_ok)
+  {
+    printf ("[%"PRIdPID"] error: too few samples received from some peers\n", ddsrt_getpid ());
+    ok = false;
+  }
+  if (rss_check && rss_final >= rss_init * rss_factor + rss_term)
+  {
+    printf ("[%"PRIdPID"] error: RSS grew too much (%f -> %f)\n", ddsrt_getpid (), rss_init, rss_final);
     ok = false;
   }
   return ok ? 0 : 1;

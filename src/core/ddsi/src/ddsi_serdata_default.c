@@ -17,13 +17,14 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/mh3.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds__stream.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
@@ -117,59 +118,10 @@ static void serdata_default_append_blob (struct ddsi_serdata_default **d, size_t
   memcpy (p, data, sz);
 }
 
-/* Fixed seed and length */
-
-#define DDS_MH3_LEN 16
-#define DDS_MH3_SEED 0
-
-#define DDS_MH3_ROTL32(x,r) (((x) << (r)) | ((x) >> (32 - (r))))
-
-/* Really
- http://code.google.com/p/smhasher/source/browse/trunk/MurmurHash3.cpp,
- MurmurHash3_x86_32
- */
-
-static uint32_t dds_mh3 (const void * key)
-{
-  const uint8_t *data = (const uint8_t *) key;
-  const intptr_t nblocks = (intptr_t) (DDS_MH3_LEN / 4);
-  const uint32_t c1 = 0xcc9e2d51;
-  const uint32_t c2 = 0x1b873593;
-
-  uint32_t h1 = DDS_MH3_SEED;
-
-  const uint32_t *blocks = (const uint32_t *) (data + nblocks * 4);
-  register intptr_t i;
-
-  for (i = -nblocks; i; i++)
-  {
-    uint32_t k1 = blocks[i];
-
-    k1 *= c1;
-    k1 = DDS_MH3_ROTL32 (k1, 15);
-    k1 *= c2;
-
-    h1 ^= k1;
-    h1 = DDS_MH3_ROTL32 (h1, 13);
-    h1 = h1 * 5+0xe6546b64;
-  }
-
-  /* finalization */
-
-  h1 ^= DDS_MH3_LEN;
-  h1 ^= h1 >> 16;
-  h1 *= 0x85ebca6b;
-  h1 ^= h1 >> 13;
-  h1 *= 0xc2b2ae35;
-  h1 ^= h1 >> 16;
-
-  return h1;
-}
-
 static struct ddsi_serdata *fix_serdata_default(struct ddsi_serdata_default *d, uint32_t basehash)
 {
   if (d->keyhash.m_iskey)
-    d->c.hash = dds_mh3 (d->keyhash.m_hash) ^ basehash;
+    d->c.hash = ddsrt_mh3 (d->keyhash.m_hash, 16, 0) ^ basehash;
   else
     d->c.hash = *((uint32_t *)d->keyhash.m_hash) ^ basehash;
   return &d->c;
@@ -317,10 +269,63 @@ static struct ddsi_serdata_default *serdata_default_from_ser_common (const struc
   }
 }
 
+static struct ddsi_serdata_default *serdata_default_from_ser_iov_common (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
+{
+  const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
+
+  /* FIXME: check whether this really is the correct maximum: offsets are relative
+     to the CDR header, but there are also some places that use a serdata as-if it
+     were a stream, and those use offsets (m_index) relative to the start of the
+     serdata */
+  if (size > UINT32_MAX - offsetof (struct ddsi_serdata_default, hdr))
+    return NULL;
+  assert (niov >= 1);
+  if (iov[0].iov_len < 4) /* CDR header */
+    return NULL;
+  struct ddsi_serdata_default *d = serdata_default_new_size (tp, kind, (uint32_t) size);
+  if (d == NULL)
+    return NULL;
+
+  memcpy (&d->hdr, iov[0].iov_base, sizeof (d->hdr));
+  assert (d->hdr.identifier == CDR_LE || d->hdr.identifier == CDR_BE);
+  serdata_default_append_blob (&d, 1, iov[0].iov_len - 4, (const char *) iov[0].iov_base + 4);
+  for (ddsrt_msg_iovlen_t i = 1; i < niov; i++)
+    serdata_default_append_blob (&d, 1, iov[i].iov_len, iov[i].iov_base);
+
+  const bool needs_bswap = (d->hdr.identifier != NATIVE_ENCODING);
+  d->hdr.identifier = NATIVE_ENCODING;
+  const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & 2;
+  if (d->pos < pad)
+  {
+    ddsi_serdata_unref (&d->c);
+    return NULL;
+  }
+  else if (!dds_stream_normalize (d->data, d->pos - pad, needs_bswap, tp, kind == SDK_KEY))
+  {
+    ddsi_serdata_unref (&d->c);
+    return NULL;
+  }
+  else
+  {
+    dds_istream_t is;
+    dds_istream_from_serdata_default (&is, d);
+    dds_stream_extract_keyhash (&is, &d->keyhash, tp, kind == SDK_KEY);
+    return d;
+  }
+}
+
 static struct ddsi_serdata *serdata_default_from_ser (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
 {
   struct ddsi_serdata_default *d;
   if ((d = serdata_default_from_ser_common (tpcmn, kind, fragchain, size)) == NULL)
+    return NULL;
+  return fix_serdata_default (d, tpcmn->serdata_basehash);
+}
+
+static struct ddsi_serdata *serdata_default_from_ser_iov (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
+{
+  struct ddsi_serdata_default *d;
+  if ((d = serdata_default_from_ser_iov_common (tpcmn, kind, niov, iov, size)) == NULL)
     return NULL;
   return fix_serdata_default (d, tpcmn->serdata_basehash);
 }
@@ -333,11 +338,19 @@ static struct ddsi_serdata *serdata_default_from_ser_nokey (const struct ddsi_se
   return fix_serdata_default_nokey (d, tpcmn->serdata_basehash);
 }
 
+static struct ddsi_serdata *serdata_default_from_ser_iov_nokey (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
+{
+  struct ddsi_serdata_default *d;
+  if ((d = serdata_default_from_ser_iov_common (tpcmn, kind, niov, iov, size)) == NULL)
+    return NULL;
+  return fix_serdata_default_nokey (d, tpcmn->serdata_basehash);
+}
+
 static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
 {
   /* FIXME: not quite sure this is correct, though a check against a specially hacked OpenSplice suggests it is */
   const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
-  if (!(tp->type->m_flagset & DDS_TOPIC_FIXED_KEY))
+  if (!(tp->type.m_flagset & DDS_TOPIC_FIXED_KEY))
   {
     /* keyhash is MD5 of a key value, so impossible to turn into a key value */
     return NULL;
@@ -376,7 +389,7 @@ static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr_nokey (const struct dd
 
 static void gen_keyhash_from_sample (const struct ddsi_sertopic_default *topic, dds_keyhash_t *kh, const char *sample)
 {
-  const struct dds_topic_descriptor *desc = (const struct dds_topic_descriptor *) topic->type;
+  const struct ddsi_sertopic_default_desc *desc = &topic->type;
   kh->m_set = 1;
   if (desc->m_nkeys == 0)
   {
@@ -457,7 +470,7 @@ static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi
   if (d == NULL)
     return NULL;
   serdata_default_append_blob (&d, 1, sample->size, sample->blob);
-  const unsigned char *rawkey = nn_plist_findparam_native_unchecked (sample->blob, sample->keyparam);
+  const unsigned char *rawkey = ddsi_plist_findparam_native_unchecked (sample->blob, sample->keyparam);
 #ifndef NDEBUG
   size_t keysize;
 #endif
@@ -658,10 +671,27 @@ static size_t serdata_default_print_cdr (const struct ddsi_sertopic *sertopic_co
 
 static size_t serdata_default_print_plist (const struct ddsi_sertopic *sertopic_common, const struct ddsi_serdata *serdata_common, char *buf, size_t size)
 {
-  /* FIXME: should change q_plist.c to print to a string instead of a log, and then drop the
-     logging of QoS in the rest of code, instead relying on this */
-  (void)sertopic_common; (void)serdata_common;
-  return (size_t) snprintf (buf, size, "(plist)");
+  const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
+  const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)sertopic_common;
+  ddsi_plist_src_t src;
+  ddsi_plist_t tmp;
+  src.buf = (const unsigned char *) d->data;
+  src.bufsz = d->pos;
+  src.encoding = d->hdr.identifier;
+  src.factory = tp->c.gv->m_factory;
+  src.logconfig = &tp->c.gv->logconfig;
+  src.protocol_version.major = RTPS_MAJOR;
+  src.protocol_version.minor = RTPS_MINOR;
+  src.strict = false;
+  src.vendorid = NN_VENDORID_ECLIPSE;
+  if (ddsi_plist_init_frommsg (&tmp, NULL, ~(uint64_t)0, ~(uint64_t)0, &src) < 0)
+    return (size_t) snprintf (buf, size, "(unparseable-plist)");
+  else
+  {
+    size_t ret = ddsi_plist_print (buf, size, &tmp);
+    ddsi_plist_fini (&tmp);
+    return ret;
+  }
 }
 
 static size_t serdata_default_print_raw (const struct ddsi_sertopic *sertopic_common, const struct ddsi_serdata *serdata_common, char *buf, size_t size)
@@ -693,6 +723,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {
   .eqkey = serdata_default_eqkey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser,
+  .from_ser_iov = serdata_default_from_ser_iov,
   .from_keyhash = ddsi_serdata_from_keyhash_cdr,
   .from_sample = serdata_default_from_sample_cdr,
   .to_ser = serdata_default_to_ser,
@@ -710,6 +741,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey = {
   .eqkey = serdata_default_eqkey_nokey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser_nokey,
+  .from_ser_iov = serdata_default_from_ser_iov_nokey,
   .from_keyhash = ddsi_serdata_from_keyhash_cdr_nokey,
   .from_sample = serdata_default_from_sample_cdr_nokey,
   .to_ser = serdata_default_to_ser,
@@ -727,6 +759,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_plist = {
   .eqkey = serdata_default_eqkey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser,
+  .from_ser_iov = serdata_default_from_ser_iov,
   .from_keyhash = 0,
   .from_sample = serdata_default_from_sample_plist,
   .to_ser = serdata_default_to_ser,
@@ -744,6 +777,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_rawcdr = {
   .eqkey = serdata_default_eqkey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser,
+  .from_ser_iov = serdata_default_from_ser_iov,
   .from_keyhash = 0,
   .from_sample = serdata_default_from_sample_rawcdr,
   .to_ser = serdata_default_to_ser,

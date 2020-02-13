@@ -27,7 +27,7 @@
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_lat_estim.h"
@@ -42,7 +42,7 @@
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_nwif.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_receive.h"
 #include "dds/ddsi/q_pcap.h"
@@ -64,7 +64,7 @@
 
 #include "dds/ddsi/ddsi_security_omg.h"
 
-static void add_peer_addresses (const struct q_globals *gv, struct addrset *as, const struct config_peer_listelem *list)
+static void add_peer_addresses (const struct ddsi_domaingv *gv, struct addrset *as, const struct config_peer_listelem *list)
 {
   while (list)
   {
@@ -79,7 +79,7 @@ enum make_uc_sockets_ret {
   MUSRET_NOSOCKET
 };
 
-static enum make_uc_sockets_ret make_uc_sockets (struct q_globals *gv, uint32_t * pdisc, uint32_t * pdata, int ppid)
+static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint32_t * pdisc, uint32_t * pdata, int ppid)
 {
   if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
   {
@@ -129,7 +129,7 @@ static enum make_uc_sockets_ret make_uc_sockets (struct q_globals *gv, uint32_t 
 
 static void make_builtin_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
 {
-  nn_xqos_copy (q, template);
+  ddsi_xqos_copy (q, template);
   q->reliability.kind = DDS_RELIABILITY_RELIABLE;
   q->reliability.max_blocking_time = 100 * T_MILLISECOND;
   q->durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
@@ -138,7 +138,7 @@ static void make_builtin_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
 #ifdef DDSI_INCLUDE_SECURITY
 static void make_builtin_volatile_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
 {
-  nn_xqos_copy (q, template);
+  ddsi_xqos_copy (q, template);
   q->reliability.kind = DDS_RELIABILITY_RELIABLE;
   q->reliability.max_blocking_time = 100 * T_MILLISECOND;
   q->durability.kind = DDS_DURABILITY_VOLATILE;
@@ -158,7 +158,7 @@ static void add_property_to_xqos(dds_qos_t *q, const char *name, const char *val
 }
 #endif
 
-static int set_recvips (struct q_globals *gv)
+static int set_recvips (struct ddsi_domaingv *gv)
 {
   gv->recvips = NULL;
 
@@ -263,7 +263,7 @@ static int set_recvips (struct q_globals *gv)
  *   return -1 : ddsi is unicast, but 'mc' indicates it expects multicast
  *   return  0 : ddsi is multicast, but 'mc' indicates it expects unicast
  * The return 0 means that the possible changes in 'loc' can be ignored. */
-static int string_to_default_locator (const struct q_globals *gv, nn_locator_t *loc, const char *string, uint32_t port, int mc, const char *tag)
+static int string_to_default_locator (const struct ddsi_domaingv *gv, nn_locator_t *loc, const char *string, uint32_t port, int mc, const char *tag)
 {
   if (strspn (string, " \t") == strlen (string))
   {
@@ -302,11 +302,12 @@ static int string_to_default_locator (const struct q_globals *gv, nn_locator_t *
   return 1;
 }
 
-static int set_spdp_address (struct q_globals *gv)
+static int set_spdp_address (struct ddsi_domaingv *gv)
 {
   const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
   int rc = 0;
   /* FIXME: FIXME: FIXME: */
+  gv->loc_spdp_mc.tran = NULL;
   gv->loc_spdp_mc.kind = NN_LOCATOR_KIND_INVALID;
   if (strcmp (gv->config.spdpMulticastAddressString, "239.255.0.1") != 0)
   {
@@ -334,7 +335,7 @@ static int set_spdp_address (struct q_globals *gv)
   return 0;
 }
 
-static int set_default_mc_address (struct q_globals *gv)
+static int set_default_mc_address (struct ddsi_domaingv *gv)
 {
   const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DATA, 0);
   int rc;
@@ -348,7 +349,7 @@ static int set_default_mc_address (struct q_globals *gv)
   return 0;
 }
 
-static int set_ext_address_and_mask (struct q_globals *gv)
+static int set_ext_address_and_mask (struct ddsi_domaingv *gv)
 {
   nn_locator_t loc;
   int rc;
@@ -367,6 +368,7 @@ static int set_ext_address_and_mask (struct q_globals *gv)
   if (!gv->config.externalMaskString || strcmp (gv->config.externalMaskString, "0.0.0.0") == 0)
   {
     memset(&gv->extmask.address, 0, sizeof(gv->extmask.address));
+    gv->extmask.tran = NULL;
     gv->extmask.kind = NN_LOCATOR_KIND_INVALID;
     gv->extmask.port = NN_LOCATOR_PORT_INVALID;
   }
@@ -384,7 +386,7 @@ static int set_ext_address_and_mask (struct q_globals *gv)
 }
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-static int known_channel_p (const struct q_globals *gv, const char *name)
+static int known_channel_p (const struct ddsi_domaingv *gv, const char *name)
 {
   const struct config_channel_listelem *c;
   for (c = gv->config.channels; c; c = c->next)
@@ -394,7 +396,7 @@ static int known_channel_p (const struct q_globals *gv, const char *name)
 }
 #endif
 
-static int check_thread_properties (const struct q_globals *gv)
+static int check_thread_properties (const struct ddsi_domaingv *gv)
 {
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   static const char *fixed[] = { "recv", "tev", "gc", "lease", "dq.builtins", "debmon", "fsm", NULL };
@@ -434,7 +436,7 @@ static int check_thread_properties (const struct q_globals *gv)
   return ok;
 }
 
-int rtps_config_open_trace (struct q_globals *gv)
+int rtps_config_open_trace (struct ddsi_domaingv *gv)
 {
   DDSRT_WARNING_MSVC_OFF(4996);
   int status;
@@ -470,7 +472,7 @@ int rtps_config_open_trace (struct q_globals *gv)
   DDSRT_WARNING_MSVC_ON(4996);
 }
 
-int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
+int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
 {
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   unsigned num_channels = 0;
@@ -636,7 +638,7 @@ err_config_late_error:
 }
 
 struct joinleave_spdp_defmcip_helper_arg {
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   int errcount;
   int dojoin;
 };
@@ -662,7 +664,7 @@ static void joinleave_spdp_defmcip_helper (const nn_locator_t *loc, void *varg)
   }
 }
 
-int joinleave_spdp_defmcip (struct q_globals *gv, int dojoin)
+int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin)
 {
   /* Addrset provides an easy way to filter out duplicates */
   struct joinleave_spdp_defmcip_helper_arg arg;
@@ -684,7 +686,7 @@ int joinleave_spdp_defmcip (struct q_globals *gv, int dojoin)
   return 0;
 }
 
-int create_multicast_sockets (struct q_globals *gv)
+int create_multicast_sockets (struct ddsi_domaingv *gv)
 {
   ddsi_tran_qos_t qos = ddsi_tran_create_qos ();
   ddsi_tran_conn_t disc, data;
@@ -734,7 +736,7 @@ err_disc:
   return 0;
 }
 
-static void rtps_term_prep (struct q_globals *gv)
+static void rtps_term_prep (struct ddsi_domaingv *gv)
 {
   /* Stop all I/O */
   ddsrt_mutex_lock (&gv->lock);
@@ -749,7 +751,7 @@ static void rtps_term_prep (struct q_globals *gv)
 }
 
 struct wait_for_receive_threads_helper_arg {
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   unsigned count;
 };
 
@@ -762,7 +764,7 @@ static void wait_for_receive_threads_helper (struct xevent *xev, void *varg, nn_
   (void) resched_xevent_if_earlier (xev, add_duration_to_mtime (tnow, T_SECOND));
 }
 
-static void wait_for_receive_threads (struct q_globals *gv)
+static void wait_for_receive_threads (struct ddsi_domaingv *gv)
 {
   struct xevent *trigev;
   struct wait_for_receive_threads_helper_arg cbarg;
@@ -790,7 +792,7 @@ static void wait_for_receive_threads (struct q_globals *gv)
   }
 }
 
-static struct ddsi_sertopic *make_special_topic (struct serdatapool *serpool, uint16_t enc_id, const struct ddsi_serdata_ops *ops)
+static struct ddsi_sertopic *make_special_topic (const char *name, struct serdatapool *serpool, uint16_t enc_id, const struct ddsi_serdata_ops *ops)
 {
   /* FIXME: two things (at least)
      - it claims there is a key, but the underlying type description is missing
@@ -802,27 +804,63 @@ static struct ddsi_sertopic *make_special_topic (struct serdatapool *serpool, ui
        (kinda natural if they stop being "default" ones) */
   struct ddsi_sertopic_default *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
-  ddsi_sertopic_init_anon (&st->c, &ddsi_sertopic_ops_default, ops, false);
+  ddsi_sertopic_init (&st->c, name, name, &ddsi_sertopic_ops_default, ops, false);
   st->native_encoding_identifier = enc_id;
   st->serpool = serpool;
-  st->nkeys = 1;
   return (struct ddsi_sertopic *) st;
 }
 
-static void make_special_topics (struct q_globals *gv)
-{
-  gv->plist_topic = make_special_topic (gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE, &ddsi_serdata_ops_plist);
-  gv->rawcdr_topic = make_special_topic (gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE, &ddsi_serdata_ops_rawcdr);
-}
-
-static void free_special_topics (struct q_globals *gv)
+static void free_special_topics (struct ddsi_domaingv *gv)
 {
   ddsi_sertopic_unref (gv->plist_topic);
   ddsi_sertopic_unref (gv->rawcdr_topic);
 }
 
-static int setup_and_start_recv_threads (struct q_globals *gv)
+static void make_special_topics (struct ddsi_domaingv *gv)
 {
+  gv->plist_topic = make_special_topic ("plist", gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE, &ddsi_serdata_ops_plist);
+  gv->rawcdr_topic = make_special_topic ("rawcdr", gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE, &ddsi_serdata_ops_rawcdr);
+
+  ddsrt_mutex_lock (&gv->sertopics_lock);
+  ddsi_sertopic_register_locked (gv, gv->plist_topic);
+  ddsi_sertopic_register_locked (gv, gv->rawcdr_topic);
+  ddsrt_mutex_unlock (&gv->sertopics_lock);
+
+  /* register increments refcount (which is reasonable), but at some point
+     one needs to get rid of that reference */
+  free_special_topics (gv);
+}
+
+static bool use_multiple_receive_threads (const struct config *cfg)
+{
+  /* Under some unknown circumstances Windows (at least Windows 10) exhibits
+     the interesting behaviour of losing its ability to let us send packets
+     to our own sockets. When that happens, dedicated receive threads can no
+     longer be stopped and Cyclone hangs in shutdown.  So until someone
+     figures out why this happens, it is probably best have a different
+     default on Windows. */
+#if _WIN32
+  const bool def = false;
+#else
+  const bool def = true;
+#endif
+  switch (cfg->multiple_recv_threads)
+  {
+    case BOOLDEF_FALSE:
+      return false;
+    case BOOLDEF_TRUE:
+      return true;
+    case BOOLDEF_DEFAULT:
+      return def;
+  }
+  assert (0);
+  return false;
+}
+
+static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
+{
+  const bool multi_recv_thr = use_multiple_receive_threads (&gv->config);
+
   for (uint32_t i = 0; i < MAX_RECV_THREADS; i++)
   {
     gv->recv_threads[i].ts = NULL;
@@ -837,7 +875,7 @@ static int setup_and_start_recv_threads (struct q_globals *gv)
   gv->n_recv_threads = 1;
   gv->recv_threads[0].name = "recv";
   gv->recv_threads[0].arg.mode = RTM_MANY;
-  if (gv->m_factory->m_connless && gv->config.many_sockets_mode != MSM_NO_UNICAST && gv->config.multiple_recv_threads)
+  if (gv->m_factory->m_connless && gv->config.many_sockets_mode != MSM_NO_UNICAST && multi_recv_thr)
   {
     if (ddsi_is_mcaddr (gv, &gv->loc_default_mc) && !ddsi_is_ssm_mcaddr (gv, &gv->loc_default_mc) && (gv->config.allowMulticast & AMC_ASM))
     {
@@ -903,7 +941,17 @@ fail:
   return -1;
 }
 
-int rtps_init (struct q_globals *gv)
+static int ddsi_sertopic_equal_wrap (const void *a, const void *b)
+{
+  return ddsi_sertopic_equal (a, b);
+}
+
+static uint32_t ddsi_sertopic_hash_wrap (const void *tp)
+{
+  return ddsi_sertopic_hash (tp);
+}
+
+int rtps_init (struct ddsi_domaingv *gv)
 {
   uint32_t port_disc_uc = 0;
   uint32_t port_data_uc = 0;
@@ -911,7 +959,7 @@ int rtps_init (struct q_globals *gv)
 
   gv->tstart = now ();    /* wall clock time, used in logs */
 
-  nn_plist_init_tables ();
+  ddsi_plist_init_tables ();
 
   gv->disc_conn_uc = NULL;
   gv->data_conn_uc = NULL;
@@ -982,7 +1030,7 @@ int rtps_init (struct q_globals *gv)
   {
     if (!gv->interfaces[gv->selected_interface].mc_capable)
     {
-      GVWARNING ("selected interface is not multicast-capable: disabling multicast\n");
+      GVWARNING ("selected interface \"%s\" is not multicast-capable: disabling multicast\n", gv->interfaces[gv->selected_interface].name);
       gv->config.allowMulticast = AMC_FALSE;
       /* ensure discovery can work: firstly, that the process will be reachable on a "well-known" port
          number, and secondly, that the local interface's IP address gets added to the discovery
@@ -1021,12 +1069,11 @@ int rtps_init (struct q_globals *gv)
   {
     char buf[DDSI_LOCSTRLEN];
     /* the "ownip", "extip" labels in the trace have been there for so long, that it seems worthwhile to retain them even though they need not be IP any longer */
-    GVLOG (DDS_LC_CONFIG, "ownip: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->ownloc));
-    GVLOG (DDS_LC_CONFIG, "extip: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->extloc));
-    GVLOG (DDS_LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->extmask), gv->m_factory->m_kind != NN_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
-    GVLOG (DDS_LC_CONFIG, "networkid: 0x%lx\n", (unsigned long) gv->myNetworkId);
-    GVLOG (DDS_LC_CONFIG, "SPDP MC: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->loc_spdp_mc));
-    GVLOG (DDS_LC_CONFIG, "default MC: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->loc_default_mc));
+    GVLOG (DDS_LC_CONFIG, "ownip: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->ownloc));
+    GVLOG (DDS_LC_CONFIG, "extip: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extloc));
+    GVLOG (DDS_LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extmask), gv->m_factory->m_kind != NN_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
+    GVLOG (DDS_LC_CONFIG, "SPDP MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_spdp_mc));
+    GVLOG (DDS_LC_CONFIG, "default MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_default_mc));
 #ifdef DDSI_INCLUDE_SSM
     GVLOG (DDS_LC_CONFIG, "SSM support included\n");
 #endif
@@ -1059,23 +1106,23 @@ int rtps_init (struct q_globals *gv)
   gv->xmsgpool = nn_xmsgpool_new ();
   gv->serpool = ddsi_serdatapool_new ();
 
-  nn_plist_init_default_participant (&gv->default_plist_pp);
-  nn_plist_init_default_participant (&gv->default_local_plist_pp);
-  nn_xqos_init_default_reader (&gv->default_xqos_rd);
-  nn_xqos_init_default_writer (&gv->default_xqos_wr);
-  nn_xqos_init_default_writer_noautodispose (&gv->default_xqos_wr_nad);
-  nn_xqos_init_default_topic (&gv->default_xqos_tp);
-  nn_xqos_init_default_subscriber (&gv->default_xqos_sub);
-  nn_xqos_init_default_publisher (&gv->default_xqos_pub);
-  nn_xqos_copy (&gv->spdp_endpoint_xqos, &gv->default_xqos_rd);
+  ddsi_plist_init_default_participant (&gv->default_plist_pp);
+  ddsi_plist_init_default_participant (&gv->default_local_plist_pp);
+  ddsi_xqos_init_default_reader (&gv->default_xqos_rd);
+  ddsi_xqos_init_default_writer (&gv->default_xqos_wr);
+  ddsi_xqos_init_default_writer_noautodispose (&gv->default_xqos_wr_nad);
+  ddsi_xqos_init_default_topic (&gv->default_xqos_tp);
+  ddsi_xqos_init_default_subscriber (&gv->default_xqos_sub);
+  ddsi_xqos_init_default_publisher (&gv->default_xqos_pub);
+  ddsi_xqos_copy (&gv->spdp_endpoint_xqos, &gv->default_xqos_rd);
   gv->spdp_endpoint_xqos.durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_rd, &gv->default_xqos_rd);
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_wr, &gv->default_xqos_wr);
 #ifdef DDSI_INCLUDE_SECURITY
   make_builtin_volatile_endpoint_xqos(&gv->builtin_volatile_xqos_rd, &gv->default_xqos_rd);
   make_builtin_volatile_endpoint_xqos(&gv->builtin_volatile_xqos_wr, &gv->default_xqos_wr);
-  nn_xqos_copy (&gv->builtin_stateless_xqos_rd, &gv->default_xqos_rd);
-  nn_xqos_copy (&gv->builtin_stateless_xqos_wr, &gv->default_xqos_wr);
+  ddsi_xqos_copy (&gv->builtin_stateless_xqos_rd, &gv->default_xqos_rd);
+  ddsi_xqos_copy (&gv->builtin_stateless_xqos_wr, &gv->default_xqos_wr);
   gv->builtin_stateless_xqos_wr.reliability.kind = DDS_RELIABILITY_BEST_EFFORT;
   gv->builtin_stateless_xqos_wr.durability.kind = DDS_DURABILITY_VOLATILE;
 
@@ -1083,10 +1130,12 @@ int rtps_init (struct q_globals *gv)
    * the entities (see DDS Security spec chapter 8.8.8.1). */
   add_property_to_xqos(&gv->builtin_volatile_xqos_rd, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureReader");
   add_property_to_xqos(&gv->builtin_volatile_xqos_wr, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureWriter");
-  
+
   q_omg_security_init( &gv->security_context, &gv->logconfig );
 #endif
 
+  ddsrt_mutex_init (&gv->sertopics_lock);
+  gv->sertopics = ddsrt_hh_new (1, ddsi_sertopic_hash_wrap, ddsi_sertopic_equal_wrap);
   make_special_topics (gv);
 
   ddsrt_mutex_init (&gv->participant_set_lock);
@@ -1354,7 +1403,7 @@ int rtps_init (struct q_globals *gv)
   {
     struct config_peer_listelem peer_local;
     char local_addr[DDSI_LOCSTRLEN];
-    ddsi_locator_to_string_no_port (gv, local_addr, sizeof (local_addr), &gv->interfaces[gv->selected_interface].loc);
+    ddsi_locator_to_string_no_port (local_addr, sizeof (local_addr), &gv->interfaces[gv->selected_interface].loc);
     peer_local.next = NULL;
     peer_local.peer = local_addr;
     add_peer_addresses (gv, gv->as_disc, &peer_local);
@@ -1419,25 +1468,34 @@ err_unicast_sockets:
   ddsrt_cond_destroy (&gv->participant_set_cond);
   ddsrt_mutex_destroy (&gv->participant_set_lock);
   free_special_topics (gv);
+#ifndef NDEBUG
+  {
+    struct ddsrt_hh_iter it;
+    assert (ddsrt_hh_iter_first (gv->sertopics, &it) == NULL);
+  }
+#endif
+  ddsrt_hh_free (gv->sertopics);
+  ddsrt_mutex_destroy (&gv->sertopics_lock);
 #ifdef DDSI_INCLUDE_SECURITY
-  nn_xqos_fini (&gv->builtin_stateless_xqos_wr);
-  nn_xqos_fini (&gv->builtin_stateless_xqos_rd);
-  nn_xqos_fini (&gv->builtin_volatile_xqos_wr);
-  nn_xqos_fini (&gv->builtin_volatile_xqos_rd);
-  
+  ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);
+  ddsi_xqos_fini (&gv->builtin_stateless_xqos_rd);
+  ddsi_xqos_fini (&gv->builtin_volatile_xqos_wr);
+  ddsi_xqos_fini (&gv->builtin_volatile_xqos_rd);
+
   q_omg_security_deinit( &gv->security_context );
 #endif
-  nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
-  nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);
-  nn_xqos_fini (&gv->spdp_endpoint_xqos);
-  nn_xqos_fini (&gv->default_xqos_pub);
-  nn_xqos_fini (&gv->default_xqos_sub);
-  nn_xqos_fini (&gv->default_xqos_tp);
-  nn_xqos_fini (&gv->default_xqos_wr_nad);
-  nn_xqos_fini (&gv->default_xqos_wr);
-  nn_xqos_fini (&gv->default_xqos_rd);
-  nn_plist_fini (&gv->default_local_plist_pp);
-  nn_plist_fini (&gv->default_plist_pp);
+  ddsi_xqos_fini (&gv->builtin_endpoint_xqos_wr);
+  ddsi_xqos_fini (&gv->builtin_endpoint_xqos_rd);
+  ddsi_xqos_fini (&gv->spdp_endpoint_xqos);
+  ddsi_xqos_fini (&gv->default_xqos_pub);
+  ddsi_xqos_fini (&gv->default_xqos_sub);
+  ddsi_xqos_fini (&gv->default_xqos_tp);
+  ddsi_xqos_fini (&gv->default_xqos_wr_nad);
+  ddsi_xqos_fini (&gv->default_xqos_wr);
+  ddsi_xqos_fini (&gv->default_xqos_rd);
+  ddsi_plist_fini (&gv->default_local_plist_pp);
+  ddsi_plist_fini (&gv->default_plist_pp);
+
   ddsi_serdatapool_free (gv->serpool);
   nn_xmsgpool_free (gv->xmsgpool);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -1472,7 +1530,7 @@ static void stop_all_xeventq_upto (struct config_channel_listelem *chptr)
 }
 #endif
 
-int rtps_start (struct q_globals *gv)
+int rtps_start (struct ddsi_domaingv *gv)
 {
   if (xeventq_start (gv->xevents, NULL) < 0)
     return -1;
@@ -1538,7 +1596,7 @@ static void builtins_dqueue_ready_cb (void *varg)
   ddsrt_mutex_unlock (&arg->lock);
 }
 
-void rtps_stop (struct q_globals *gv)
+void rtps_stop (struct ddsi_domaingv *gv)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
 
@@ -1669,7 +1727,7 @@ void rtps_stop (struct q_globals *gv)
   ddsrt_mutex_destroy (&gv->privileged_pp_lock);
 }
 
-void rtps_fini (struct q_globals *gv)
+void rtps_fini (struct ddsi_domaingv *gv)
 {
   /* Shut down the GC system -- no new requests will be added */
   gcreq_queue_free (gv->gcreq_queue);
@@ -1765,25 +1823,34 @@ void rtps_fini (struct q_globals *gv)
   ddsrt_cond_destroy (&gv->participant_set_cond);
   free_special_topics (gv);
 
+#ifndef NDEBUG
+  {
+    struct ddsrt_hh_iter it;
+    assert (ddsrt_hh_iter_first (gv->sertopics, &it) == NULL);
+  }
+#endif
+  ddsrt_hh_free (gv->sertopics);
+  ddsrt_mutex_destroy (&gv->sertopics_lock);
+
 #ifdef DDSI_INCLUDE_SECURITY
-  nn_xqos_fini (&gv->builtin_stateless_xqos_wr);
-  nn_xqos_fini (&gv->builtin_stateless_xqos_rd);
-  nn_xqos_fini (&gv->builtin_volatile_xqos_wr);
-  nn_xqos_fini (&gv->builtin_volatile_xqos_rd);
-  
+  ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);
+  ddsi_xqos_fini (&gv->builtin_stateless_xqos_rd);
+  ddsi_xqos_fini (&gv->builtin_volatile_xqos_wr);
+  ddsi_xqos_fini (&gv->builtin_volatile_xqos_rd);
+
   q_omg_security_deinit( &gv->security_context);
 #endif
-  nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
-  nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);
-  nn_xqos_fini (&gv->spdp_endpoint_xqos);
-  nn_xqos_fini (&gv->default_xqos_pub);
-  nn_xqos_fini (&gv->default_xqos_sub);
-  nn_xqos_fini (&gv->default_xqos_tp);
-  nn_xqos_fini (&gv->default_xqos_wr_nad);
-  nn_xqos_fini (&gv->default_xqos_wr);
-  nn_xqos_fini (&gv->default_xqos_rd);
-  nn_plist_fini (&gv->default_local_plist_pp);
-  nn_plist_fini (&gv->default_plist_pp);
+  ddsi_xqos_fini (&gv->builtin_endpoint_xqos_wr);
+  ddsi_xqos_fini (&gv->builtin_endpoint_xqos_rd);
+  ddsi_xqos_fini (&gv->spdp_endpoint_xqos);
+  ddsi_xqos_fini (&gv->default_xqos_pub);
+  ddsi_xqos_fini (&gv->default_xqos_sub);
+  ddsi_xqos_fini (&gv->default_xqos_tp);
+  ddsi_xqos_fini (&gv->default_xqos_wr_nad);
+  ddsi_xqos_fini (&gv->default_xqos_wr);
+  ddsi_xqos_fini (&gv->default_xqos_rd);
+  ddsi_plist_fini (&gv->default_local_plist_pp);
+  ddsi_plist_fini (&gv->default_plist_pp);
 
   ddsrt_mutex_destroy (&gv->lock);
 

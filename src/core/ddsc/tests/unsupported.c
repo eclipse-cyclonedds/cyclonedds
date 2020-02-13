@@ -84,21 +84,6 @@ CU_Test(ddsc_unsupported, dds_begin_end_coherent, .init = setup, .fini = teardow
     }
 }
 
-CU_Test(ddsc_unsupported, dds_wait_for_acks, .init = setup, .fini = teardown)
-{
-    dds_return_t result;
-    static struct index_result pars[] = {
-        {PUB, DDS_RETCODE_UNSUPPORTED},
-        {WRI, DDS_RETCODE_UNSUPPORTED},
-        {BAD, DDS_RETCODE_BAD_PARAMETER}
-    };
-
-    for (size_t i=0; i < sizeof (pars) / sizeof (pars[0]);i++) {
-        result = dds_wait_for_acks(e[pars[i].index], 0);
-        CU_ASSERT_EQUAL(result, pars[i].exp_res);
-    }
-}
-
 CU_Test(ddsc_unsupported, dds_suspend_resume, .init = setup, .fini = teardown)
 {
     dds_return_t result;

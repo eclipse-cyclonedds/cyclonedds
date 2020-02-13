@@ -18,11 +18,11 @@
 extern "C" {
 #endif
 
-enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (ddsi_tran_factory_t tran, const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface *interf);
+enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface *interf);
 enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str, int32_t kind);
 int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr *const sa2);
-char *ddsi_ipaddr_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port);
-void ddsi_ipaddr_to_loc (nn_locator_t *dst, const struct sockaddr *src, int32_t kind);
+char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port);
+void ddsi_ipaddr_to_loc (const struct ddsi_tran_factory *tran, nn_locator_t *dst, const struct sockaddr *src, int32_t kind);
 void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const nn_locator_t *src);
 
 #if defined (__cplusplus)

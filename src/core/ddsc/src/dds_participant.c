@@ -10,14 +10,15 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+#include <string.h>
 
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_plist.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_plist.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/version.h"
 #include "dds__init.h"
@@ -30,6 +31,13 @@ DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_participant)
 
 #define DDS_PARTICIPANT_STATUS_MASK    (0u)
 
+static int cmp_ktopic_name (const void *a, const void *b)
+{
+  return strcmp (a, b);
+}
+
+const ddsrt_avl_treedef_t participant_ktopics_treedef = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY(offsetof (struct dds_ktopic, pp_ktopics_avlnode), offsetof (struct dds_ktopic, name), cmp_ktopic_name, 0);
+
 static dds_return_t dds_participant_status_validate (uint32_t mask)
 {
   return (mask & ~DDS_PARTICIPANT_STATUS_MASK) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK;
@@ -41,6 +49,9 @@ static dds_return_t dds_participant_delete (dds_entity *e)
 {
   dds_return_t ret;
   assert (dds_entity_kind (e) == DDS_KIND_PARTICIPANT);
+
+  /* ktopics & topics are children and therefore must all have been deleted by the time we get here */
+  assert (ddsrt_avl_is_empty (&((struct dds_participant *) e)->m_ktopics));
 
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   if ((ret = delete_participant (&e->m_domain->gv, &e->m_guid)) < 0)
@@ -58,8 +69,8 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
     thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
     if ((pp = entidx_lookup_participant_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
     {
-      nn_plist_t plist;
-      nn_plist_init_empty (&plist);
+      ddsi_plist_t plist;
+      ddsi_plist_init_empty (&plist);
       plist.qos.present = plist.qos.aliased = qos->present;
       plist.qos = *qos;
       update_participant_plist (pp, &plist);
@@ -83,7 +94,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   dds_entity_t ret;
   ddsi_guid_t guid;
   dds_participant * pp;
-  nn_plist_t plist;
+  ddsi_plist_t plist;
   dds_qos_t *new_qos = NULL;
   char *config = "";
 
@@ -98,19 +109,19 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
 
   new_qos = dds_create_qos ();
   if (qos != NULL)
-    nn_xqos_mergein_missing (new_qos, qos, DDS_PARTICIPANT_QOS_MASK);
-  nn_xqos_mergein_missing (new_qos, &dom->gv.default_local_plist_pp.qos, ~(uint64_t)0);
-  if ((ret = nn_xqos_valid (&dom->gv.logconfig, new_qos)) < 0)
+    ddsi_xqos_mergein_missing (new_qos, qos, DDS_PARTICIPANT_QOS_MASK);
+  ddsi_xqos_mergein_missing (new_qos, &dom->gv.default_local_plist_pp.qos, ~(uint64_t)0);
+  if ((ret = ddsi_xqos_valid (&dom->gv.logconfig, new_qos)) < 0)
     goto err_qos_validation;
 
   /* Translate qos */
-  nn_plist_init_empty (&plist);
+  ddsi_plist_init_empty (&plist);
   dds_merge_qos (&plist.qos, new_qos);
 
   thread_state_awake (lookup_thread_state (), &dom->gv);
   ret = new_participant (&guid, &dom->gv, 0, &plist);
   thread_state_asleep (lookup_thread_state ());
-  nn_plist_fini (&plist);
+  ddsi_plist_fini (&plist);
   if (ret < 0)
   {
     ret = DDS_RETCODE_ERROR;
@@ -125,6 +136,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   pp->m_entity.m_iid = get_entity_instance_id (&dom->gv, &guid);
   pp->m_entity.m_domain = dom;
   pp->m_builtin_subscriber = 0;
+  ddsrt_avl_init (&participant_ktopics_treedef, &pp->m_ktopics);
 
   /* Add participant to extent */
   ddsrt_mutex_lock (&dom->m_entity.m_mutex);

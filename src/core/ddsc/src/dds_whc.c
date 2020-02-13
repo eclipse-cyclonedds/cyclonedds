@@ -22,14 +22,20 @@
 #ifdef DDSI_INCLUDE_LIFESPAN
 #include "dds/ddsi/ddsi_lifespan.h"
 #endif
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+#include "dds/ddsi/ddsi_deadline.h"
+#endif
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_freelist.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/q_entity.h"
 #include "dds__whc.h"
+#include "dds__entity.h"
+#include "dds__writer.h"
 
 #define USE_EHH 0
 
@@ -42,7 +48,7 @@ struct whc_node {
   seqno_t seq;
   uint64_t total_bytes; /* cumulative number of bytes up to and including this node */
   size_t size;
-  struct nn_plist *plist; /* 0 if nothing special */
+  struct ddsi_plist *plist; /* 0 if nothing special */
   unsigned unacked: 1; /* counted in whc::unacked_bytes iff 1 */
   unsigned borrowed: 1; /* at most one can borrow it at any time */
   nn_mtime_t last_rexmit_ts;
@@ -66,6 +72,9 @@ struct whc_idxnode {
   seqno_t prune_seq;
   struct ddsi_tkmap_instance *tk;
   uint32_t headidx;
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+  struct deadline_elem deadline; /* list element for deadline missed */
+#endif
   struct whc_node *hist[];
 };
 
@@ -76,6 +85,15 @@ struct whc_seq_entry {
 };
 #endif
 
+struct whc_writer_info {
+  dds_writer * writer; /* can be NULL, eg in case of whc for built-in writers */
+  unsigned is_transient_local: 1;
+  unsigned has_deadline: 1;
+  uint32_t hdepth; /* 0 = unlimited */
+  uint32_t tldepth; /* 0 = disabled/unlimited (no need to maintain an index if KEEP_ALL <=> is_transient_local + tldepth=0) */
+  uint32_t idxdepth; /* = max (hdepth, tldepth) */
+};
+
 struct whc_impl {
   struct whc common;
   ddsrt_mutex_t lock;
@@ -84,13 +102,10 @@ struct whc_impl {
   size_t sample_overhead;
   uint32_t fragment_size;
   uint64_t total_bytes; /* total number of bytes pushed in */
-  unsigned is_transient_local: 1;
   unsigned xchecks: 1;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   struct ddsi_tkmap *tkmap;
-  uint32_t hdepth; /* 0 = unlimited */
-  uint32_t tldepth; /* 0 = disabled/unlimited (no need to maintain an index if KEEP_ALL <=> is_transient_local + tldepth=0) */
-  uint32_t idxdepth; /* = max (hdepth, tldepth) */
+  struct whc_writer_info wrinfo;
   seqno_t max_drop_seq; /* samples in whc with seq <= max_drop_seq => transient-local */
   struct whc_intvnode *open_intv; /* interval where next sample will go (usually) */
   struct whc_node *maxseq_node; /* NULL if empty; if not in open_intv, open_intv is empty */
@@ -103,6 +118,9 @@ struct whc_impl {
   ddsrt_avl_tree_t seq;
 #ifdef DDSI_INCLUDE_LIFESPAN
   struct lifespan_adm lifespan; /* Lifespan administration */
+#endif
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+  struct deadline_adm deadline; /* Deadline missed administration */
 #endif
 };
 
@@ -137,7 +155,7 @@ static uint32_t whc_default_remove_acked_messages_full (struct whc_impl *whc, se
 static uint32_t whc_default_remove_acked_messages (struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list);
 static void whc_default_free_deferred_free_list (struct whc *whc, struct whc_node *deferred_free_list);
 static void whc_default_get_state (const struct whc *whc, struct whc_state *st);
-static int whc_default_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
+static int whc_default_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
 static seqno_t whc_default_next_seq (const struct whc *whc, seqno_t seq);
 static bool whc_default_borrow_sample (const struct whc *whc, seqno_t seq, struct whc_borrowed_sample *sample);
 static bool whc_default_borrow_sample_key (const struct whc *whc, const struct ddsi_serdata *serdata_key, struct whc_borrowed_sample *sample);
@@ -373,43 +391,89 @@ static nn_mtime_t whc_sample_expired_cb(void *hc, nn_mtime_t tnow)
 }
 #endif
 
-struct whc *whc_new (struct q_globals *gv, int is_transient_local, uint32_t hdepth, uint32_t tldepth)
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+static nn_mtime_t whc_deadline_missed_cb(void *hc, nn_mtime_t tnow)
+{
+  struct whc_impl *whc = hc;
+  void *vidxnode;
+  nn_mtime_t tnext;
+  ddsrt_mutex_lock (&whc->lock);
+  while ((tnext = deadline_next_missed_locked (&whc->deadline, tnow, &vidxnode)).v == 0)
+  {
+    struct whc_idxnode *idxnode = vidxnode;
+    deadline_reregister_instance_locked (&whc->deadline, &idxnode->deadline, tnow);
+
+    status_cb_data_t cb_data;
+    cb_data.raw_status_id = (int) DDS_OFFERED_DEADLINE_MISSED_STATUS_ID;
+    cb_data.extra = 0;
+    cb_data.handle = 0;
+    cb_data.add = true;
+    ddsrt_mutex_unlock (&whc->lock);
+    dds_writer_status_cb (&whc->wrinfo.writer->m_entity, &cb_data);
+    ddsrt_mutex_lock (&whc->lock);
+
+    tnow = now_mt ();
+  }
+  ddsrt_mutex_unlock (&whc->lock);
+  return tnext;
+}
+#endif
+
+struct whc_writer_info *whc_make_wrinfo (struct dds_writer *wr, const dds_qos_t *qos)
+{
+  struct whc_writer_info *wrinfo = ddsrt_malloc (sizeof (*wrinfo));
+  wrinfo->writer = wr;
+  wrinfo->is_transient_local = (qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
+  wrinfo->has_deadline = (qos->deadline.deadline != DDS_INFINITY);
+  wrinfo->hdepth = (qos->history.kind == DDS_HISTORY_KEEP_ALL) ? 0 : (unsigned) qos->history.depth;
+  if (!wrinfo->is_transient_local)
+    wrinfo->tldepth = 0;
+  else
+    wrinfo->tldepth = (qos->durability_service.history.kind == DDS_HISTORY_KEEP_ALL) ? 0 : (unsigned) qos->durability_service.history.depth;
+  wrinfo->idxdepth = wrinfo->hdepth > wrinfo->tldepth ? wrinfo->hdepth : wrinfo->tldepth;
+  return wrinfo;
+}
+
+void whc_free_wrinfo (struct whc_writer_info *wrinfo)
+{
+  ddsrt_free (wrinfo);
+}
+
+struct whc *whc_new (struct ddsi_domaingv *gv, const struct whc_writer_info *wrinfo)
 {
   size_t sample_overhead = 80; /* INFO_TS, DATA (estimate), inline QoS */
   struct whc_impl *whc;
   struct whc_intvnode *intv;
 
-  assert ((hdepth == 0 || tldepth <= hdepth) || is_transient_local);
+  assert ((wrinfo->hdepth == 0 || wrinfo->tldepth <= wrinfo->hdepth) || wrinfo->is_transient_local);
 
   whc = ddsrt_malloc (sizeof (*whc));
   whc->common.ops = &whc_ops;
   ddsrt_mutex_init (&whc->lock);
-  whc->is_transient_local = is_transient_local ? 1 : 0;
   whc->xchecks = (gv->config.enabled_xchecks & DDS_XCHECK_WHC) != 0;
   whc->gv = gv;
   whc->tkmap = gv->m_tkmap;
-  whc->hdepth = hdepth;
-  whc->tldepth = tldepth;
-  whc->idxdepth = hdepth > tldepth ? hdepth : tldepth;
+  memcpy (&whc->wrinfo, wrinfo, sizeof (*wrinfo));
   whc->seq_size = 0;
   whc->max_drop_seq = 0;
   whc->unacked_bytes = 0;
   whc->total_bytes = 0;
   whc->sample_overhead = sample_overhead;
   whc->fragment_size = gv->config.fragment_size;
+  whc->idx_hash = ddsrt_hh_new (1, whc_idxnode_hash_key, whc_idxnode_eq_key);
 #if USE_EHH
   whc->seq_hash = ddsrt_ehh_new (sizeof (struct whc_seq_entry), 32, whc_seq_entry_hash, whc_seq_entry_eq);
 #else
   whc->seq_hash = ddsrt_hh_new (1, whc_node_hash, whc_node_eq);
 #endif
 
-  if (whc->idxdepth > 0)
-    whc->idx_hash = ddsrt_hh_new (1, whc_idxnode_hash_key, whc_idxnode_eq_key);
-  else
-    whc->idx_hash = NULL;
-
 #ifdef DDSI_INCLUDE_LIFESPAN
   lifespan_init (gv, &whc->lifespan, offsetof(struct whc_impl, lifespan), offsetof(struct whc_node, lifespan), whc_sample_expired_cb);
+#endif
+
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+  whc->deadline.dur = (wrinfo->writer != NULL) ? wrinfo->writer->m_entity.m_qos->deadline.deadline : DDS_INFINITY;
+  deadline_init (gv, &whc->deadline, offsetof(struct whc_impl, deadline), offsetof(struct whc_idxnode, deadline), whc_deadline_missed_cb);
 #endif
 
   /* seq interval tree: always has an "open" node */
@@ -434,7 +498,7 @@ static void free_whc_node_contents (struct whc_node *whcn)
 {
   ddsi_serdata_unref (whcn->serdata);
   if (whcn->plist) {
-    nn_plist_fini (whcn->plist);
+    ddsi_plist_fini (whcn->plist);
     ddsrt_free (whcn->plist);
   }
 }
@@ -450,14 +514,19 @@ void whc_default_free (struct whc *whc_generic)
   lifespan_fini (&whc->lifespan);
 #endif
 
-  if (whc->idx_hash)
-  {
-    struct ddsrt_hh_iter it;
-    struct whc_idxnode *n;
-    for (n = ddsrt_hh_iter_first (whc->idx_hash, &it); n != NULL; n = ddsrt_hh_iter_next (&it))
-      ddsrt_free (n);
-    ddsrt_hh_free (whc->idx_hash);
-  }
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+  deadline_stop (&whc->deadline);
+  ddsrt_mutex_lock (&whc->lock);
+  deadline_clear (&whc->deadline);
+  ddsrt_mutex_unlock (&whc->lock);
+  deadline_fini (&whc->deadline);
+#endif
+
+  struct ddsrt_hh_iter it;
+  struct whc_idxnode *idxn;
+  for (idxn = ddsrt_hh_iter_first (whc->idx_hash, &it); idxn != NULL; idxn = ddsrt_hh_iter_next (&it))
+    ddsrt_free (idxn);
+  ddsrt_hh_free (whc->idx_hash);
 
   {
     struct whc_node *whcn = whc->maxseq_node;
@@ -577,31 +646,19 @@ static seqno_t whc_default_next_seq (const struct whc *whc_generic, seqno_t seq)
   return nseq;
 }
 
-static void delete_one_sample_from_idx (struct whc_impl *whc, struct whc_node *whcn)
+static void delete_one_sample_from_idx (struct whc_node *whcn)
 {
   struct whc_idxnode * const idxn = whcn->idxnode;
   assert (idxn != NULL);
   assert (idxn->hist[idxn->headidx] != NULL);
   assert (idxn->hist[whcn->idxnode_pos] == whcn);
-  if (whcn->idxnode_pos != idxn->headidx)
-    idxn->hist[whcn->idxnode_pos] = NULL;
-  else
-  {
-#ifndef NDEBUG
-    for (uint32_t i = 0; i < whc->idxdepth; i++)
-      assert (i == idxn->headidx || idxn->hist[i] == NULL);
-#endif
-    if (!ddsrt_hh_remove (whc->idx_hash, idxn))
-      assert (0);
-    ddsi_tkmap_instance_unref (whc->tkmap, idxn->tk);
-    ddsrt_free (idxn);
-  }
+  idxn->hist[whcn->idxnode_pos] = NULL;
   whcn->idxnode = NULL;
 }
 
 static void free_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop_seq, struct whc_idxnode *idxn)
 {
-  for (uint32_t i = 0; i < whc->idxdepth; i++)
+  for (uint32_t i = 0; i < whc->wrinfo.idxdepth; i++)
   {
     if (idxn->hist[i])
     {
@@ -622,6 +679,9 @@ static void delete_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop
 {
   if (!ddsrt_hh_remove (whc->idx_hash, idxn))
     assert (0);
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+  deadline_unregister_instance_locked (&whc->deadline, &idxn->deadline);
+#endif
   free_one_instance_from_idx (whc, max_drop_seq, idxn);
 }
 
@@ -631,9 +691,9 @@ static int whcn_in_tlidx (const struct whc_impl *whc, const struct whc_idxnode *
     return 0;
   else
   {
-    uint32_t d = (idxn->headidx + (pos > idxn->headidx ? whc->idxdepth : 0)) - pos;
-    assert (d < whc->idxdepth);
-    return d < whc->tldepth;
+    uint32_t d = (idxn->headidx + (pos > idxn->headidx ? whc->wrinfo.idxdepth : 0)) - pos;
+    assert (d < whc->wrinfo.idxdepth);
+    return d < whc->wrinfo.tldepth;
   }
 }
 
@@ -649,7 +709,7 @@ static uint32_t whc_default_downgrade_to_volatile (struct whc *whc_generic, stru
   ddsrt_mutex_lock (&whc->lock);
   check_whc (whc);
 
-  if (whc->idxdepth == 0)
+  if (whc->wrinfo.idxdepth == 0)
   {
     /* if not maintaining an index at all, this is nonsense */
     get_state_locked (whc, st);
@@ -657,19 +717,24 @@ static uint32_t whc_default_downgrade_to_volatile (struct whc *whc_generic, stru
     return 0;
   }
 
-  assert (!whc->is_transient_local);
-  if (whc->tldepth > 0)
+  assert (!whc->wrinfo.is_transient_local);
+  if (whc->wrinfo.tldepth > 0)
   {
-    assert (whc->hdepth == 0 || whc->tldepth <= whc->hdepth);
-    whc->tldepth = 0;
-    if (whc->hdepth == 0)
+    assert (whc->wrinfo.hdepth == 0 || whc->wrinfo.tldepth <= whc->wrinfo.hdepth);
+    whc->wrinfo.tldepth = 0;
+    if (whc->wrinfo.hdepth == 0)
     {
       struct ddsrt_hh_iter it;
-      struct whc_idxnode *n;
-      for (n = ddsrt_hh_iter_first (whc->idx_hash, &it); n != NULL; n = ddsrt_hh_iter_next (&it))
-        free_one_instance_from_idx (whc, 0, n);
+      struct whc_idxnode *idxn;
+      for (idxn = ddsrt_hh_iter_first (whc->idx_hash, &it); idxn != NULL; idxn = ddsrt_hh_iter_next (&it))
+      {
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+        deadline_unregister_instance_locked (&whc->deadline, &idxn->deadline);
+#endif
+        free_one_instance_from_idx (whc, 0, idxn);
+      }
       ddsrt_hh_free (whc->idx_hash);
-      whc->idxdepth = 0;
+      whc->wrinfo.idxdepth = 0;
       whc->idx_hash = NULL;
     }
   }
@@ -711,7 +776,7 @@ static void whc_delete_one_intv (struct whc_impl *whc, struct whc_intvnode **p_i
 
   /* If it is in the tlidx, take it out.  Transient-local data never gets here */
   if (whcn->idxnode)
-    delete_one_sample_from_idx (whc, whcn);
+    delete_one_sample_from_idx (whcn);
   if (whcn->unacked)
   {
     assert (whc->unacked_bytes >= whcn->size);
@@ -927,15 +992,27 @@ static uint32_t whc_default_remove_acked_messages_full (struct whc_impl *whc, se
   struct whc_node deferred_list_head, *last_to_free = &deferred_list_head;
   uint32_t ndropped = 0;
 
-  if (whc->is_transient_local && whc->tldepth == 0)
+  whcn = find_nextseq_intv (&intv, whc, whc->max_drop_seq);
+  if (whc->wrinfo.is_transient_local && whc->wrinfo.tldepth == 0)
   {
-    /* KEEP_ALL on transient local, so we can never ever delete anything */
-    TRACE ("  KEEP_ALL transient-local: do nothing\n");
+    /* KEEP_ALL on transient local, so we can never ever delete anything, but
+       we have to ack the data in whc */
+    TRACE ("  KEEP_ALL transient-local: ack data\n");
+    while (whcn && whcn->seq <= max_drop_seq)
+    {
+      if (whcn->unacked)
+      {
+        assert (whc->unacked_bytes >= whcn->size);
+        whc->unacked_bytes -= whcn->size;
+        whcn->unacked = 0;
+      }
+      whcn = whcn->next_seq;
+    }
+    whc->max_drop_seq = max_drop_seq;
     *deferred_free_list = NULL;
     return 0;
   }
 
-  whcn = find_nextseq_intv (&intv, whc, whc->max_drop_seq);
   deferred_list_head.next_seq = NULL;
   prev_seq = whcn ? whcn->prev_seq : NULL;
   while (whcn && whcn->seq <= max_drop_seq)
@@ -982,10 +1059,10 @@ static uint32_t whc_default_remove_acked_messages_full (struct whc_impl *whc, se
    the T-L history but that are not anymore. Writing new samples will eventually push these
    out, but if the difference is large and the update rate low, it may take a long time.
    Thus, we had better prune them. */
-  if (whc->tldepth > 0 && whc->idxdepth > whc->tldepth)
+  if (whc->wrinfo.tldepth > 0 && whc->wrinfo.idxdepth > whc->wrinfo.tldepth)
   {
-    assert (whc->hdepth == whc->idxdepth);
-    TRACE ("  idxdepth %"PRIu32" > tldepth %"PRIu32" > 0 -- must prune\n", whc->idxdepth, whc->tldepth);
+    assert (whc->wrinfo.hdepth == whc->wrinfo.idxdepth);
+    TRACE ("  idxdepth %"PRIu32" > tldepth %"PRIu32" > 0 -- must prune\n", whc->wrinfo.idxdepth, whc->wrinfo.tldepth);
 
     /* Do a second pass over the sequence number range we just processed: this time we only
      encounter samples that were retained because of the transient-local durability setting
@@ -1010,11 +1087,11 @@ static uint32_t whc_default_remove_acked_messages_full (struct whc_impl *whc, se
       idxn->prune_seq = max_drop_seq;
 
       idx = idxn->headidx;
-      cnt = whc->idxdepth - whc->tldepth;
+      cnt = whc->wrinfo.idxdepth - whc->wrinfo.tldepth;
       while (cnt--)
       {
         struct whc_node *oldn;
-        if (++idx == whc->idxdepth)
+        if (++idx == whc->wrinfo.idxdepth)
           idx = 0;
         if ((oldn = idxn->hist[idx]) != NULL)
         {
@@ -1061,12 +1138,16 @@ static uint32_t whc_default_remove_acked_messages (struct whc *whc_generic, seqn
     get_state_locked (whc, &tmp);
     TRACE ("whc_default_remove_acked_messages(%p max_drop_seq %"PRId64")\n", (void *)whc, max_drop_seq);
     TRACE ("  whc: [%"PRId64",%"PRId64"] max_drop_seq %"PRId64" h %"PRIu32" tl %"PRIu32"\n",
-           tmp.min_seq, tmp.max_seq, whc->max_drop_seq, whc->hdepth, whc->tldepth);
+           tmp.min_seq, tmp.max_seq, whc->max_drop_seq, whc->wrinfo.hdepth, whc->wrinfo.tldepth);
   }
 
   check_whc (whc);
 
-  if (whc->idxdepth == 0)
+  /* In case a deadline is set, a sample may be added to whc temporarily, which could be
+     stored in acked state. The _noidx variant of removing messages assumes that unacked
+     data exists in whc. So in case of a deadline, the _full variant is used instead,
+     even when index depth is 0 */
+  if (whc->wrinfo.idxdepth == 0 && !whc->wrinfo.has_deadline && !whc->wrinfo.is_transient_local)
     cnt = whc_default_remove_acked_messages_noidx (whc, max_drop_seq, deferred_free_list);
   else
     cnt = whc_default_remove_acked_messages_full (whc, max_drop_seq, deferred_free_list);
@@ -1075,13 +1156,11 @@ static uint32_t whc_default_remove_acked_messages (struct whc *whc_generic, seqn
   return cnt;
 }
 
-static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct nn_plist *plist, struct ddsi_serdata *serdata)
+static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct ddsi_plist *plist, struct ddsi_serdata *serdata)
 {
   struct whc_node *newn = NULL;
 
 #ifndef DDSI_INCLUDE_LIFESPAN
-  /* FIXME: the 'exp' arg is used for lifespan, refactor this parameter to a struct 'writer info'
-    that contains both lifespan and deadline info of the writer */
   DDSRT_UNUSED_ARG (exp);
 #endif
 
@@ -1149,7 +1228,7 @@ static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t ma
   return newn;
 }
 
-static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   struct whc_impl * const whc = (struct whc_impl *)whc_generic;
   struct whc_node *newn = NULL;
@@ -1172,7 +1251,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
     TRACE ("whc_default_insert(%p max_drop_seq %"PRId64" seq %"PRId64" exp %"PRId64" plist %p serdata %p:%"PRIx32")\n",
            (void *) whc, max_drop_seq, seq, exp.v, (void *) plist, (void *) serdata, serdata->hash);
     TRACE ("  whc: [%"PRId64",%"PRId64"] max_drop_seq %"PRId64" h %"PRIu32" tl %"PRIu32"\n",
-           whcst.min_seq, whcst.max_seq, whc->max_drop_seq, whc->hdepth, whc->tldepth);
+           whcst.min_seq, whcst.max_seq, whc->max_drop_seq, whc->wrinfo.hdepth, whc->wrinfo.tldepth);
   }
 
   assert (max_drop_seq < MAX_SEQ_NUMBER);
@@ -1189,7 +1268,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
   TRACE ("  whcn %p:", (void*)newn);
 
   /* Special case of empty data (such as commit messages) can't go into index, and if we're not maintaining an index, we're done, too */
-  if (serdata->kind == SDK_EMPTY || whc->idxdepth == 0)
+  if (serdata->kind == SDK_EMPTY)
   {
     TRACE (" empty or no hist\n");
     ddsrt_mutex_unlock (&whc->lock);
@@ -1215,42 +1294,50 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
     }
     else
     {
-      struct whc_node *oldn;
-      if (++idxn->headidx == whc->idxdepth)
-        idxn->headidx = 0;
-      if ((oldn = idxn->hist[idxn->headidx]) != NULL)
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+      deadline_renew_instance_locked (&whc->deadline, &idxn->deadline);
+#endif
+      if (whc->wrinfo.idxdepth > 0)
       {
-        TRACE (" overwrite whcn %p", (void *)oldn);
-        oldn->idxnode = NULL;
-      }
-      idxn->hist[idxn->headidx] = newn;
-      newn->idxnode = idxn;
-      newn->idxnode_pos = idxn->headidx;
-
-      if (oldn && (whc->hdepth > 0 || oldn->seq <= max_drop_seq))
-      {
-        TRACE (" prune whcn %p", (void *)oldn);
-        assert (oldn != whc->maxseq_node);
-        whc_delete_one (whc, oldn);
-      }
-
-      /* Special case for dropping everything beyond T-L history when the new sample is being
-       auto-acknowledged (for lack of reliable readers), and the keep-last T-L history is
-       shallower than the keep-last regular history (normal path handles this via pruning in
-       whc_default_remove_acked_messages, but that never happens when there are no readers). */
-      if (seq <= max_drop_seq && whc->tldepth > 0 && whc->idxdepth > whc->tldepth)
-      {
-        uint32_t pos = idxn->headidx + whc->idxdepth - whc->tldepth;
-        if (pos >= whc->idxdepth)
-          pos -= whc->idxdepth;
-        if ((oldn = idxn->hist[pos]) != NULL)
+        struct whc_node *oldn;
+        if (++idxn->headidx == whc->wrinfo.idxdepth)
+          idxn->headidx = 0;
+        if ((oldn = idxn->hist[idxn->headidx]) != NULL)
         {
-          TRACE (" prune tl whcn %p", (void *)oldn);
-          assert (oldn != whc->maxseq_node);
-          whc_delete_one (whc, oldn);
+          TRACE (" overwrite whcn %p", (void *)oldn);
+          oldn->idxnode = NULL;
         }
+        idxn->hist[idxn->headidx] = newn;
+        newn->idxnode = idxn;
+        newn->idxnode_pos = idxn->headidx;
+
+        if (oldn && (whc->wrinfo.hdepth > 0 || oldn->seq <= max_drop_seq) && (!whc->wrinfo.is_transient_local || whc->wrinfo.tldepth > 0))
+        {
+          TRACE (" prune whcn %p", (void *)oldn);
+          assert (oldn != whc->maxseq_node || whc->wrinfo.has_deadline);
+          whc_delete_one (whc, oldn);
+          if (oldn == whc->maxseq_node)
+            whc->maxseq_node = whc_findmax_procedurally (whc);
+        }
+
+        /* Special case for dropping everything beyond T-L history when the new sample is being
+        auto-acknowledged (for lack of reliable readers), and the keep-last T-L history is
+        shallower than the keep-last regular history (normal path handles this via pruning in
+        whc_default_remove_acked_messages, but that never happens when there are no readers). */
+        if (seq <= max_drop_seq && whc->wrinfo.tldepth > 0 && whc->wrinfo.idxdepth > whc->wrinfo.tldepth)
+        {
+          uint32_t pos = idxn->headidx + whc->wrinfo.idxdepth - whc->wrinfo.tldepth;
+          if (pos >= whc->wrinfo.idxdepth)
+            pos -= whc->wrinfo.idxdepth;
+          if ((oldn = idxn->hist[pos]) != NULL)
+          {
+            TRACE (" prune tl whcn %p", (void *)oldn);
+            assert (oldn != whc->maxseq_node);
+            whc_delete_one (whc, oldn);
+          }
+        }
+        TRACE ("\n");
       }
-      TRACE ("\n");
     }
   }
   else
@@ -1259,20 +1346,26 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
     /* Ignore unregisters, but insert everything else */
     if (!(serdata->statusinfo & NN_STATUSINFO_UNREGISTER))
     {
-      idxn = ddsrt_malloc (sizeof (*idxn) + whc->idxdepth * sizeof (idxn->hist[0]));
+      idxn = ddsrt_malloc (sizeof (*idxn) + whc->wrinfo.idxdepth * sizeof (idxn->hist[0]));
       TRACE (" idxn %p", (void *)idxn);
       ddsi_tkmap_instance_ref (tk);
       idxn->iid = tk->m_iid;
       idxn->tk = tk;
       idxn->prune_seq = 0;
       idxn->headidx = 0;
-      idxn->hist[0] = newn;
-      for (uint32_t i = 1; i < whc->idxdepth; i++)
-        idxn->hist[i] = NULL;
-      newn->idxnode = idxn;
-      newn->idxnode_pos = 0;
+      if (whc->wrinfo.idxdepth > 0)
+      {
+        idxn->hist[0] = newn;
+        for (uint32_t i = 1; i < whc->wrinfo.idxdepth; i++)
+          idxn->hist[i] = NULL;
+        newn->idxnode = idxn;
+        newn->idxnode_pos = 0;
+      }
       if (!ddsrt_hh_add (whc->idx_hash, idxn))
         assert (0);
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+      deadline_register_instance_locked (&whc->deadline, &idxn->deadline, now_mt ());
+#endif
     }
     else
     {
@@ -1346,7 +1439,7 @@ static void return_sample_locked (struct whc_impl *whc, struct whc_borrowed_samp
     ddsi_serdata_unref (sample->serdata);
     if (sample->plist)
     {
-      nn_plist_fini (sample->plist);
+      ddsi_plist_fini (sample->plist);
       ddsrt_free (sample->plist);
     }
   }

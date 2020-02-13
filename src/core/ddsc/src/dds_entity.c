@@ -23,7 +23,7 @@
 #include "dds__topic.h"
 #include "dds/version.h"
 #include "dds/ddsi/ddsi_pmd.h"
-#include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_transmit.h"
 
 extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
@@ -135,11 +135,65 @@ static bool entity_has_status (const dds_entity *e)
   return false;
 }
 
+static bool entity_may_have_children (const dds_entity *e)
+{
+  switch (e->m_kind)
+  {
+    case DDS_KIND_TOPIC:
+      return false;
+    case DDS_KIND_READER:
+    case DDS_KIND_WRITER:
+    case DDS_KIND_PUBLISHER:
+    case DDS_KIND_SUBSCRIBER:
+    case DDS_KIND_PARTICIPANT:
+    case DDS_KIND_COND_READ:
+    case DDS_KIND_COND_QUERY:
+    case DDS_KIND_COND_GUARD:
+    case DDS_KIND_WAITSET:
+    case DDS_KIND_DOMAIN:
+    case DDS_KIND_CYCLONEDDS:
+      break;
+    case DDS_KIND_DONTCARE:
+      abort ();
+      break;
+  }
+  return true;
+}
+
+#ifndef NDEBUG
+static bool entity_kind_has_qos (dds_entity_kind_t kind)
+{
+  switch (kind)
+  {
+    case DDS_KIND_READER:
+    case DDS_KIND_WRITER:
+    case DDS_KIND_PUBLISHER:
+    case DDS_KIND_SUBSCRIBER:
+    case DDS_KIND_PARTICIPANT:
+      return true;
+    case DDS_KIND_TOPIC:
+    case DDS_KIND_COND_READ:
+    case DDS_KIND_COND_QUERY:
+    case DDS_KIND_COND_GUARD:
+    case DDS_KIND_WAITSET:
+    case DDS_KIND_DOMAIN:
+    case DDS_KIND_CYCLONEDDS:
+      break;
+    case DDS_KIND_DONTCARE:
+      abort ();
+      break;
+  }
+  return false;
+}
+#endif
+
 dds_entity_t dds_entity_init (dds_entity *e, dds_entity *parent, dds_entity_kind_t kind, bool implicit, dds_qos_t *qos, const dds_listener_t *listener, status_mask_t mask)
 {
   dds_handle_t handle;
 
+  /* CycloneDDS is at the root of the hierarchy */
   assert ((kind == DDS_KIND_CYCLONEDDS) == (parent == NULL));
+  assert (entity_kind_has_qos (kind) == (qos != NULL));
   assert (e);
 
   e->m_kind = kind;
@@ -196,7 +250,7 @@ dds_entity_t dds_entity_init (dds_entity *e, dds_entity *parent, dds_entity_kind
   {
     /* for topics, refc counts readers/writers, for all others, it counts children (this we can get away with
        as long as topics can't have children) */
-    if ((handle = dds_handle_create (&e->m_hdllink, implicit, (kind != DDS_KIND_TOPIC))) <= 0)
+    if ((handle = dds_handle_create (&e->m_hdllink, implicit, entity_may_have_children (e))) <= 0)
       return (dds_entity_t) handle;
   }
 
@@ -219,41 +273,40 @@ void dds_entity_register_child (dds_entity *parent, dds_entity *child)
   dds_entity_add_ref_locked (parent);
 }
 
-static dds_entity *get_first_child (ddsrt_avl_tree_t *remaining_children, bool ignore_topics)
+static dds_entity *get_next_child (ddsrt_avl_tree_t *remaining_children, uint32_t allowed_kinds, uint64_t *cursor)
 {
   ddsrt_avl_iter_t it;
-  for (dds_entity *e = ddsrt_avl_iter_first (&dds_entity_children_td, remaining_children, &it); e != NULL; e = ddsrt_avl_iter_next (&it))
+  for (dds_entity *e = ddsrt_avl_iter_succ (&dds_entity_children_td, remaining_children, &it, cursor); e != NULL; e = ddsrt_avl_iter_next (&it))
   {
-    if ((!ignore_topics) || (dds_entity_kind(e) != DDS_KIND_TOPIC))
+    dds_entity_kind_t kind = dds_entity_kind (e);
+    if ((1u << (uint32_t) kind) & allowed_kinds)
       return e;
   }
   return NULL;
 }
 
-static void delete_children(struct dds_entity *parent, bool ignore_topics)
+static void delete_children (struct dds_entity *parent, uint32_t allowed_kinds)
 {
   dds_entity *child;
   dds_return_t ret;
+  uint64_t cursor = 0;
   ddsrt_mutex_lock (&parent->m_mutex);
-  while ((child = get_first_child(&parent->m_children, ignore_topics)) != NULL)
+  while ((child = get_next_child (&parent->m_children, allowed_kinds, &cursor)) != NULL)
   {
     dds_entity_t child_handle = child->m_hdllink.hdl;
+    cursor = child->m_iid;
 
     /* The child will remove itself from the parent->m_children list. */
     ddsrt_mutex_unlock (&parent->m_mutex);
     ret = dds_delete_impl (child_handle, DIS_FROM_PARENT);
     assert (ret == DDS_RETCODE_OK || ret == DDS_RETCODE_BAD_PARAMETER);
+    (void) ret;
     ddsrt_mutex_lock (&parent->m_mutex);
 
-    /* The dds_delete can fail if the child is being deleted in parallel,
-     * in which case: wait when its not deleted yet.
-     * The child will trigger the condition after it removed itself from
-     * the childrens list. */
-    if ((ret == DDS_RETCODE_BAD_PARAMETER) &&
-        (get_first_child(&parent->m_children, ignore_topics) == child))
-    {
+    /* The dds_delete can fail if the child is being deleted in parallel, in which case:
+       wait until it is has gone. */
+    if (ddsrt_avl_lookup (&dds_entity_children_td, &parent->m_children, &cursor) != NULL)
       ddsrt_cond_wait (&parent->m_cond, &parent->m_mutex);
-    }
   }
   ddsrt_mutex_unlock (&parent->m_mutex);
 }
@@ -283,12 +336,20 @@ static const char *entity_kindstr (dds_entity_kind_t kind)
 
 static void print_delete (const dds_entity *e, enum delete_impl_state delstate , dds_instance_handle_t iid)
 {
-  unsigned cm = ddsrt_atomic_ld32 (&e->m_hdllink.cnt_flags);
-  printf ("delete(%p, delstate %s, iid %"PRIx64"): %s%s %d pin %u refc %u %s %s\n",
-          (void *) e, (delstate == DIS_IMPLICIT) ? "implicit" : (delstate == DIS_EXPLICIT) ? "explicit" : "from_parent", iid,
-          entity_kindstr (e->m_kind), (e->m_flags & DDS_ENTITY_IMPLICIT) ? " [implicit]" : "",
-          e->m_hdllink.hdl, cm & 0xfff, (cm >> 12) & 0x7fff, (cm & 0x80000000) ? "closed" : "open",
-          ddsrt_avl_is_empty (&e->m_children) ? "childless" : "has-children");
+  if (e)
+  {
+    unsigned cm = ddsrt_atomic_ld32 (&e->m_hdllink.cnt_flags);
+    printf ("delete(%p, delstate %s, iid %"PRIx64"): %s%s %d pin %u refc %u %s %s\n",
+            (void *) e, (delstate == DIS_IMPLICIT) ? "implicit" : (delstate == DIS_EXPLICIT) ? "explicit" : "from_parent", iid,
+            entity_kindstr (e->m_kind), (e->m_flags & DDS_ENTITY_IMPLICIT) ? " [implicit]" : "",
+            e->m_hdllink.hdl, cm & 0xfff, (cm >> 12) & 0x7fff, (cm & 0x80000000) ? "closed" : "open",
+            ddsrt_avl_is_empty (&e->m_children) ? "childless" : "has-children");
+  }
+  else
+  {
+    printf ("delete(%p, delstate %s, handle %"PRId64"): pin failed\n",
+            (void *) e, (delstate == DIS_IMPLICIT) ? "implicit" : (delstate == DIS_EXPLICIT) ? "explicit" : "from_parent", iid);
+  }
 }
 #endif
 
@@ -315,7 +376,12 @@ static dds_return_t dds_delete_impl (dds_entity_t entity, enum delete_impl_state
   else if (ret == DDS_RETCODE_TRY_AGAIN) /* non-child refs exist */
     return DDS_RETCODE_OK;
   else
+  {
+#if TRACE_DELETE
+    print_delete (NULL, delstate, (uint64_t) entity);
+#endif
     return ret;
+  }
 }
 
 dds_return_t dds_delete_impl_pinned (dds_entity *e, enum delete_impl_state delstate)
@@ -392,8 +458,15 @@ static dds_return_t really_delete_pinned_closed_locked (struct dds_entity *e, en
    *
    * To circumvent the problem. We ignore topics in the first loop.
    */
-  delete_children(e, true  /* ignore topics */);
-  delete_children(e, false /* delete topics */);
+  DDSRT_STATIC_ASSERT ((uint32_t) DDS_KIND_MAX < 32);
+  static const uint32_t disallowed_kinds[] = {
+    1u << (uint32_t) DDS_KIND_TOPIC,
+    (uint32_t) 0
+  };
+  for (size_t i = 0; i < sizeof (disallowed_kinds) / sizeof (disallowed_kinds[0]); i++)
+  {
+    delete_children (e, ~disallowed_kinds[i]);
+  }
 
   /* The dds_handle_delete will wait until the last active claim on that handle is
      released. It is possible that this last release will be done by a thread that was
@@ -476,11 +549,18 @@ dds_entity_t dds_get_parent (dds_entity_t entity)
   }
 }
 
-dds_participant *dds_entity_participant (dds_entity *e)
+dds_participant *dds_entity_participant (const dds_entity *e)
 {
   while (e && dds_entity_kind (e) != DDS_KIND_PARTICIPANT)
     e = e->m_parent;
   return (dds_participant *) e;
+}
+
+const ddsi_guid_t *dds_entity_participant_guid (const dds_entity *e)
+{
+  struct dds_participant const * const pp = dds_entity_participant (e);
+  assert (pp != NULL);
+  return &pp->m_entity.m_guid;
 }
 
 dds_entity_t dds_get_participant (dds_entity_t entity)
@@ -577,49 +657,122 @@ dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
     ret = DDS_RETCODE_ILLEGAL_OPERATION;
   else
   {
+    dds_qos_t *entity_qos;
+    if (dds_entity_kind (e) != DDS_KIND_TOPIC)
+      entity_qos = e->m_qos;
+    else
+    {
+      struct dds_topic * const tp = (dds_topic *) e;
+      struct dds_participant * const pp = dds_entity_participant (e);
+      ddsrt_mutex_lock (&pp->m_entity.m_mutex);
+      entity_qos = tp->m_ktopic->qos;
+      ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
+    }
+
     dds_reset_qos (qos);
-    nn_xqos_mergein_missing (qos, e->m_qos, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
+    ddsi_xqos_mergein_missing (qos, entity_qos, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
     ret = DDS_RETCODE_OK;
   }
   dds_entity_unlock(e);
   return ret;
 }
 
-static dds_return_t dds_set_qos_locked_impl (dds_entity *e, const dds_qos_t *qos, uint64_t mask)
+static dds_return_t dds_set_qos_locked_raw (dds_entity *e, dds_qos_t **e_qos_ptr, bool e_enabled, const dds_qos_t *qos, uint64_t mask, const struct ddsrt_log_cfg *logcfg, dds_return_t (*set_qos) (struct dds_entity *e, const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all)
 {
   dds_return_t ret;
+
+  /* Any attempt to do this on a topic ends up doing it on the ktopic instead, so that there is
+     but a single QoS for a topic in a participant while there can be multiple definitions of it,
+     and hence, multiple sertopics.  Those are needed for multi-language support. */
   dds_qos_t *newqos = dds_create_qos ();
-  nn_xqos_mergein_missing (newqos, qos, mask);
-  nn_xqos_mergein_missing (newqos, e->m_qos, ~(uint64_t)0);
-  if ((ret = nn_xqos_valid (&e->m_domain->gv.logconfig, newqos)) != DDS_RETCODE_OK)
-    ; /* oops ... invalid or inconsistent */
-  else if (!(e->m_flags & DDS_ENTITY_ENABLED))
-    ; /* do as you please while the entity is not enabled (perhaps we should even allow invalid ones?) */
+  ddsi_xqos_mergein_missing (newqos, qos, mask);
+  ddsi_xqos_mergein_missing (newqos, *e_qos_ptr, ~(uint64_t)0);
+  if ((ret = ddsi_xqos_valid (logcfg, newqos)) != DDS_RETCODE_OK)
+  {
+    /* invalid or inconsistent QoS settings */
+    goto error_or_nochange;
+  }
+  else if (!e_enabled)
+  {
+    /* do as you please while the entity is not enabled */
+  }
   else
   {
-    const uint64_t delta = nn_xqos_delta (e->m_qos, newqos, ~(uint64_t)0);
-    if (delta == 0) /* no change */
-      ret = DDS_RETCODE_OK;
-    else if (delta & ~QP_CHANGEABLE_MASK)
-      ret = DDS_RETCODE_IMMUTABLE_POLICY;
-    else if (delta & (QP_RXO_MASK | QP_PARTITION))
-      ret = DDS_RETCODE_UNSUPPORTED; /* not yet supporting things that affect matching */
-    else
+    const uint64_t delta = ddsi_xqos_delta (*e_qos_ptr, newqos, ~(uint64_t)0);
+    if (delta == 0)
     {
-      /* yay! */
+      /* new settings are identical to the old */
+      goto error_or_nochange;
+    }
+    else if (delta & ~QP_CHANGEABLE_MASK)
+    {
+      /* not all QoS may be changed according to the spec */
+      ret = DDS_RETCODE_IMMUTABLE_POLICY;
+      goto error_or_nochange;
+    }
+    else if (delta & (QP_RXO_MASK | QP_PARTITION))
+    {
+      /* Cyclone doesn't (yet) support changing QoS that affect matching.  Simply re-doing the
+         matching is easy enough, but the consequences are very weird.  E.g., what is the
+         expectation if a transient-local writer has published data while its partition QoS is set
+         to A, and then changes its partition to B?  Should a reader in B get the data originally
+         published in A?
+
+         One can do the same thing with other RxO QoS settings, e.g., the latency budget setting.
+         I find that weird, and I'd rather have sane answers to these questions than set up these
+         traps and pitfalls for people to walk into ...
+       */
+      ret = DDS_RETCODE_UNSUPPORTED;
+      goto error_or_nochange;
     }
   }
 
-  if (ret != DDS_RETCODE_OK)
-    dds_delete_qos (newqos);
-  else if ((ret = dds_entity_deriver_set_qos (e, newqos, e->m_flags & DDS_ENTITY_ENABLED)) != DDS_RETCODE_OK)
-    dds_delete_qos (newqos);
+  assert (ret == DDS_RETCODE_OK);
+  if ((ret = set_qos (e, newqos, e_enabled)) != DDS_RETCODE_OK)
+    goto error_or_nochange;
   else
   {
-    dds_delete_qos (e->m_qos);
-    e->m_qos = newqos;
+    dds_delete_qos (*e_qos_ptr);
+    *e_qos_ptr = newqos;
   }
+  return DDS_RETCODE_OK;
+
+error_or_nochange:
+  dds_delete_qos (newqos);
   return ret;
+}
+
+static dds_return_t dds_set_qos_locked_impl (dds_entity *e, const dds_qos_t *qos, uint64_t mask)
+{
+  const struct ddsrt_log_cfg *logcfg = &e->m_domain->gv.logconfig;
+  dds_entity_kind_t kind = dds_entity_kind (e);
+  if (kind != DDS_KIND_TOPIC)
+  {
+    return dds_set_qos_locked_raw (e, &e->m_qos, (e->m_flags & DDS_ENTITY_ENABLED) != 0, qos, mask, logcfg, dds_entity_deriver_table[kind]->set_qos);
+  }
+  else
+  {
+    /* Topics must be enabled for now (all are currently, so for now it is not a meaningful limitation):
+       there can only be a single QoS (or different versions with the same name can have different QoS -
+       in particular a different value for TOPIC_DATA - and therefore the idea that it is a free-for-all
+       on the QoS for a disabled entity falls apart for topics.
+
+       FIXME: topic should have a QoS object while still disabled */
+    assert (e->m_flags & DDS_ENTITY_ENABLED);
+    struct dds_topic * const tp = (struct dds_topic *) e;
+    struct dds_participant * const pp = dds_entity_participant (e);
+    struct dds_ktopic * const ktp = tp->m_ktopic;
+    dds_return_t rc;
+    ddsrt_mutex_lock (&pp->m_entity.m_mutex);
+    while (ktp->defer_set_qos != 0)
+      ddsrt_cond_wait (&pp->m_entity.m_cond, &pp->m_entity.m_mutex);
+
+    /* dds_entity_deriver_table[kind]->set_qos had better avoid looking at the entity! */
+    rc = dds_set_qos_locked_raw (NULL, &ktp->qos, (e->m_flags & DDS_ENTITY_ENABLED) != 0, qos, mask, logcfg, dds_entity_deriver_table[kind]->set_qos);
+
+    ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
+    return rc;
+  }
 }
 
 static void pushdown_pubsub_qos (dds_entity *e)
@@ -650,7 +803,7 @@ static void pushdown_pubsub_qos (dds_entity *e)
   ddsrt_mutex_unlock (&e->m_mutex);
 }
 
-static void pushdown_topic_qos (dds_entity *e, struct dds_entity *tp)
+static void pushdown_topic_qos (dds_entity *e, struct dds_ktopic *ktp)
 {
   /* on input: both entities claimed but no mutexes held */
   enum { NOP, PROP, CHANGE } todo;
@@ -658,12 +811,12 @@ static void pushdown_topic_qos (dds_entity *e, struct dds_entity *tp)
   {
     case DDS_KIND_READER: {
       dds_reader *rd = (dds_reader *) e;
-      todo = (&rd->m_topic->m_entity == tp) ? CHANGE : NOP;
+      todo = (rd->m_topic->m_ktopic == ktp) ? CHANGE : NOP;
       break;
     }
     case DDS_KIND_WRITER: {
       dds_writer *wr = (dds_writer *) e;
-      todo = (&wr->m_topic->m_entity == tp) ? CHANGE : NOP;
+      todo = (wr->m_topic->m_ktopic == ktp) ? CHANGE : NOP;
       break;
     }
     default: {
@@ -677,10 +830,11 @@ static void pushdown_topic_qos (dds_entity *e, struct dds_entity *tp)
       break;
     case CHANGE: {
       /* may lock topic while holding reader/writer lock */
+      struct dds_participant * const pp = dds_entity_participant (e);
       ddsrt_mutex_lock (&e->m_mutex);
-      ddsrt_mutex_lock (&tp->m_mutex);
-      dds_set_qos_locked_impl (e, tp->m_qos, QP_TOPIC_DATA);
-      ddsrt_mutex_unlock (&tp->m_mutex);
+      ddsrt_mutex_lock (&pp->m_entity.m_mutex);
+      dds_set_qos_locked_impl (e, ktp->qos, QP_TOPIC_DATA);
+      ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
       ddsrt_mutex_unlock (&e->m_mutex);
       break;
     }
@@ -697,7 +851,7 @@ static void pushdown_topic_qos (dds_entity *e, struct dds_entity *tp)
           assert (x == c);
           /* see dds_get_children for why "c" remains valid despite unlocking m_mutex */
           ddsrt_mutex_unlock (&e->m_mutex);
-          pushdown_topic_qos (c, tp);
+          pushdown_topic_qos (c, ktp);
           ddsrt_mutex_lock (&e->m_mutex);
           dds_entity_unpin (c);
         }
@@ -740,7 +894,8 @@ dds_return_t dds_set_qos (dds_entity_t entity, const dds_qos_t *qos)
       assert (dds_entity_kind (e->m_parent) == DDS_KIND_PARTICIPANT);
       if (dds_entity_pin (e->m_parent->m_hdllink.hdl, &pp) == DDS_RETCODE_OK)
       {
-        pushdown_topic_qos (pp, e);
+        struct dds_topic *tp = (struct dds_topic *) e;
+        pushdown_topic_qos (pp, tp->m_ktopic);
         dds_entity_unpin (pp);
       }
       break;

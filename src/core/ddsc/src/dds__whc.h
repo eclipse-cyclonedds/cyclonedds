@@ -18,8 +18,13 @@
 extern "C" {
 #endif
 
-struct q_globals;
-struct whc *whc_new (struct q_globals *gv, int is_transient_local, uint32_t hdepth, uint32_t tldepth);
+struct ddsi_domaingv;
+struct whc_writer_info;
+struct dds_writer;
+
+struct whc *whc_new (struct ddsi_domaingv *gv, const struct whc_writer_info *wrinfo);
+struct whc_writer_info *whc_make_wrinfo (struct dds_writer *wr, const dds_qos_t *qos);
+void whc_free_wrinfo (struct whc_writer_info *);
 
 #if defined (__cplusplus)
 }

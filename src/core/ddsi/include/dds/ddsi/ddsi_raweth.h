@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-int ddsi_raweth_init (struct q_globals *gv);
+int ddsi_raweth_init (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)
 }

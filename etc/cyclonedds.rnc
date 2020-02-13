@@ -51,7 +51,7 @@ somewhat. It also causes the set of port numbers needed by Cyclone DDS to
 become predictable, which may be useful for firewall and NAT
 configuration.</p><p>The default value is: &quot;single&quot;.</p>""" ] ]
         element ManySocketsMode {
-          "false"|"true"|"single"|"none"|"many"
+          ("false"|"true"|"single"|"none"|"many")
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This element sets the level of standards conformance of this instance
@@ -78,7 +78,7 @@ though there is no good reason not to.</li></ul>
 <p>The default setting is "lax".</p><p>The default value is:
 &quot;lax&quot;.</p>""" ] ]
         element StandardsConformance {
-          "lax"|"strict"|"pedantic"
+          ("lax"|"strict"|"pedantic")
         }?
       }*
       & [ a:documentation [ xml:lang="en" """
@@ -745,13 +745,13 @@ is available.</p><p>The default value is: &quot;false&quot;.</p>""" ] ]
 <p>This element allows selecting the transport to be used (udp, udp6,
 tcp, tcp6, raweth)</p><p>The default value is: &quot;default&quot;.</p>""" ] ]
         element Transport {
-          "default"|"udp"|"udp6"|"tcp"|"tcp6"|"raweth"
+          ("default"|"udp"|"udp6"|"tcp"|"tcp6"|"raweth")
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>Deprecated (use Transport instead)</p><p>The default value is:
 &quot;default&quot;.</p>""" ] ]
         element UseIPv6 {
-          "false"|"true"|"default"
+          ("false"|"true"|"default")
         }?
       }?
       & [ a:documentation [ xml:lang="en" """
@@ -810,7 +810,7 @@ most efficient, and <i>full</i> is inefficient but certain to be
 compliant. See also Internal/ConservativeBuiltinReaderStartup.</p><p>The
 default value is: &quot;writers&quot;.</p>""" ] ]
         element BuiltinEndpointSet {
-          "full"|"writers"|"minimal"
+          ("full"|"writers"|"minimal")
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>The ControlTopic element allows configured whether Cyclone DDS
@@ -1036,10 +1036,13 @@ is: &quot;-1&quot;.</p>""" ] ]
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This element controls whether all traffic is handled by a single
-receive thread or whether multiple receive threads may be used to improve
-latency. Currently multiple receive threads are only used for
-connectionless transport (e.g., UDP) and ManySocketsMode not set to
-single (the default).</p><p>The default value is: &quot;true&quot;.</p>""" ] ]
+receive thread (false) or whether multiple receive threads may be used to
+improve latency (true). By default it is disabled on Windows because it
+appears that one cannot count on being able to send packets to oneself,
+which is necessary to stop the thread during shutdown. Currently multiple
+receive threads are only used for connectionless transport (e.g., UDP)
+and ManySocketsMode not set to single (the default).</p><p>The default
+value is: &quot;default&quot;.</p>""" ] ]
         element MultipleReceiveThreads {
           [ a:documentation [ xml:lang="en" """
 <p>Receive threads dedicated to a single socket can only be triggered for
@@ -1051,7 +1054,7 @@ attribute before aborting.</p><p>The default value is:
           attribute maxretries {
             xsd:integer
           }?
-          & xsd:boolean
+          & ("false"|"true"|"default")
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This setting controls the delay between receipt of a HEARTBEAT
@@ -1136,7 +1139,7 @@ try to merge.</li></ul>
 Internal/RetransmitMergingPeriod.</p><p>The default value is:
 &quot;never&quot;.</p>""" ] ]
         element RetransmitMerging {
-          "never"|"adaptive"|"always"
+          ("never"|"adaptive"|"always")
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This setting determines the size of the time window in which a NACK of
@@ -1521,7 +1524,7 @@ using TCP.</p><p>The default value is: &quot;false&quot;.</p>""" ] ]
 General/Transport instead.</p><p>The default value is:
 &quot;default&quot;.</p>""" ] ]
         element Enable {
-          "false"|"true"|"default"
+          ("false"|"true"|"default")
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This element enables the TCP_NODELAY socket option, preventing
@@ -1630,7 +1633,7 @@ from the underlying operating system to be able to assign some of the
 privileged scheduling classes.</p><p>The default value is:
 &quot;default&quot;.</p>""" ] ]
             element Class {
-              "realtime"|"timeshare"|"default"
+              ("realtime"|"timeshare"|"default")
             }?
             & [ a:documentation [ xml:lang="en" """
 <p>This element specifies the thread priority (decimal integer or
@@ -1771,7 +1774,7 @@ situation rather than the current situation. Currently, the most useful
 verbosity levels are <i>config</i>, <i>fine</i> and
 <i>finest</i>.</p><p>The default value is: &quot;none&quot;.</p>""" ] ]
         element Verbosity {
-          "finest"|"finer"|"fine"|"config"|"info"|"warning"|"severe"|"none"
+          ("finest"|"finer"|"fine"|"config"|"info"|"warning"|"severe"|"none")
         }?
       }*
     }*

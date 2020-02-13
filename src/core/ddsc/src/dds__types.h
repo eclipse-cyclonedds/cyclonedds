@@ -17,7 +17,7 @@
 #include "dds/dds.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds__handles.h"
@@ -34,6 +34,7 @@ struct dds_writer;
 struct dds_publisher;
 struct dds_subscriber;
 struct dds_topic;
+struct dds_ktopic;
 struct dds_readcond;
 struct dds_guardcond;
 struct dds_statuscond;
@@ -127,7 +128,7 @@ typedef struct dds_entity {
   ddsrt_avl_node_t m_avlnode_child; /* [m_mutex of m_parent] */
   ddsrt_avl_tree_t m_children;      /* [m_mutex] tree on m_iid using m_avlnode_child */
   struct dds_domain *m_domain;      /* constant */
-  dds_qos_t *m_qos;                 /* [m_mutex] */
+  dds_qos_t *m_qos;                 /* [m_mutex]; null for topics (they rely on correpsonding "ktopic") (+waitset,domain,&c.) */
   ddsi_guid_t m_guid;               /* unique (if not 0) and constant; FIXME: set during creation, but possibly after becoming visible */
   dds_instance_handle_t m_iid;      /* unique for all time, constant; FIXME: like GUID */
   uint32_t m_flags;                 /* [m_mutex] */
@@ -215,7 +216,6 @@ typedef struct dds_domain {
 
   ddsrt_avl_node_t m_node; /* for dds_global.m_domains */
   dds_domainid_t m_id;
-  ddsrt_avl_tree_t m_topics;
   struct cfgst *cfgst;
 
   struct ddsi_sertopic *builtin_participant_topic;
@@ -227,7 +227,7 @@ typedef struct dds_domain {
   struct local_orphan_writer *builtintopic_writer_subscriptions;
 
   struct ddsi_builtin_topic_interface btif;
-  struct q_globals gv;
+  struct ddsi_domaingv gv;
 } dds_domain;
 
 typedef struct dds_subscriber {
@@ -238,14 +238,31 @@ typedef struct dds_publisher {
   struct dds_entity m_entity;
 } dds_publisher;
 
+typedef struct dds_ktopic {
+  /* name -> <type_name, QoS> mapping for topics, part of the participant
+     and protected by the participant's lock (including the actual QoS
+     setting)
+
+     defer_set_qos is used to implement an intentionally unfair single-writer/
+     multiple-reader lock using the participant's lock & cond var: set_qos
+     "write-locks" it, create_reader and create_writer "read-lock" it. */
+  ddsrt_avl_node_t pp_ktopics_avlnode;
+  uint32_t refc;
+  uint32_t defer_set_qos; /* set_qos must wait for this to be 0 */
+  dds_qos_t *qos;
+  char *name; /* [constant] */
+  char *type_name; /* [constant] */
+} dds_ktopic;
+
 typedef struct dds_participant {
   struct dds_entity m_entity;
   dds_entity_t m_builtin_subscriber;
+  ddsrt_avl_tree_t m_ktopics; /* [m_entity.m_mutex] */
 } dds_participant;
 
 typedef struct dds_reader {
   struct dds_entity m_entity;
-  struct dds_topic *m_topic;
+  struct dds_topic *m_topic; /* refc'd, constant, lock(rd) -> lock(tp) allowed */
   struct dds_rhc *m_rhc; /* aliases m_rd->rhc with a wider interface, FIXME: but m_rd owns it for resource management */
   struct reader *m_rd;
   bool m_data_on_readers;
@@ -265,7 +282,7 @@ typedef struct dds_reader {
 
 typedef struct dds_writer {
   struct dds_entity m_entity;
-  struct dds_topic *m_topic;
+  struct dds_topic *m_topic; /* refc'd, constant, lock(wr) -> lock(tp) allowed */
   struct nn_xpack *m_xp;
   struct writer *m_wr;
   struct whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
@@ -287,6 +304,7 @@ typedef bool (*dds_topic_intern_filter_fn) (const void * sample, void *ctx);
 typedef struct dds_topic {
   struct dds_entity m_entity;
   struct ddsi_sertopic *m_stopic;
+  struct dds_ktopic *m_ktopic; /* refc'd, constant */
 
   dds_topic_intern_filter_fn filter_fn;
   void *filter_ctx;

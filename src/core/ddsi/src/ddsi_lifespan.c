@@ -49,7 +49,7 @@ nn_mtime_t lifespan_next_expired_locked (const struct lifespan_adm *lifespan_adm
   return (node != NULL) ? node->t_expire : NN_MTIME_NEVER;
 }
 
-void lifespan_init (const struct q_globals *gv, struct lifespan_adm *lifespan_adm, size_t fh_offset, size_t fh_node_offset, sample_expired_cb_t sample_expired_cb)
+void lifespan_init (const struct ddsi_domaingv *gv, struct lifespan_adm *lifespan_adm, size_t fh_offset, size_t fh_node_offset, sample_expired_cb_t sample_expired_cb)
 {
   ddsrt_fibheap_init (&lifespan_fhdef, &lifespan_adm->ls_exp_heap);
   lifespan_adm->evt = qxev_callback (gv->xevents, NN_MTIME_NEVER, lifespan_rhc_node_exp, lifespan_adm);

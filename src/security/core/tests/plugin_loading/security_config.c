@@ -20,7 +20,7 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/ddsi_xqos.h"
 
 #include "dds/security/dds_security_api_defs.h"
 
@@ -39,6 +39,32 @@
   " initFunction=\"init_access_control\"" \
   " finalizeFunction=\"finalize_access_control\" />"
 
+#define PROPLIST(auth, crypto, ac, pre_str, post_str, binprops)         \
+  "property_list={" pre_str                                             \
+  "0:\"dds.sec.auth.library.path\":\""auth"\","                         \
+  "0:\"dds.sec.auth.library.init\":\"init_authentication\","            \
+  "0:\"dds.sec.auth.library.finalize\":\"finalize_authentication\","    \
+  "0:\"dds.sec.crypto.library.path\":\""crypto"\","                     \
+  "0:\"dds.sec.crypto.library.init\":\"init_crypto\","                  \
+  "0:\"dds.sec.crypto.library.finalize\":\"finalize_crypto\","          \
+  "0:\"dds.sec.access.library.path\":\""ac"\","                         \
+  "0:\"dds.sec.access.library.init\":\"init_access_control\","          \
+  "0:\"dds.sec.access.library.finalize\":\"finalize_access_control\","  \
+  "0:\"dds.sec.auth.identity_ca\":\"testtext_IdentityCA_testtext\","    \
+  "0:\"dds.sec.auth.private_key\":\"testtext_PrivateKey_testtext\","    \
+  "0:\"dds.sec.auth.identity_certificate\":\"testtext_IdentityCertificate_testtext\"," \
+  "0:\"dds.sec.access.permissions_ca\":\"file:Permissions_CA.pem\","    \
+  "0:\"dds.sec.access.governance\":\"file:Governance.p7s\","            \
+  "0:\"dds.sec.access.permissions\":\"file:Permissions.p7s\""           \
+  post_str "}:{" binprops "}"
+#define PARTICIPANT_QOS(auth, crypto, ac, pre_str, post_str, binprops)  \
+  "PARTICIPANT * QOS={*" PROPLIST (auth, crypto, ac, pre_str, post_str, binprops) "*"
+#define PARTICIPANT_QOS_ALL_OK(pre_str, post_str, binprops)             \
+  PARTICIPANT_QOS (MOCKLIB_PATH ("dds_security_authentication_all_ok"), \
+                   MOCKLIB_PATH ("dds_security_cryptography_all_ok"),   \
+                   MOCKLIB_PATH ("dds_security_access_control_all_ok"), \
+                   pre_str, post_str, binprops)
+
 #define URI_VARIABLE DDS_PROJECT_NAME_NOSPACE_CAPS"_URI"
 
 /*
@@ -52,6 +78,7 @@ static uint32_t found;
 static void logger(void *ptr, const dds_log_data_t *data)
 {
   char **expected = (char**)ptr;
+  fputs (data->message, stdout);
   for (uint32_t i = 0; expected[i] != NULL; i++) {
     if (ddsi2_patmatch(expected[i], data->message)) {
       found |= (uint32_t)(1 << i);
@@ -196,23 +223,7 @@ CU_Test(ddsc_security_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
     "config: Domain/DDSSecurity/Cryptographic/Library[@initFunction]: init_crypto*",
     "config: Domain/DDSSecurity/Cryptographic/Library[@finalizeFunction]: finalize_crypto*",
     /* The config should have been parsed into the participant QoS. */
-    "PARTICIPANT * QOS={*property_list={value={{dds.sec.auth.library.path,"MOCKLIB_PATH("dds_security_authentication_all_ok")",0},"
-    "{dds.sec.auth.library.init,init_authentication,0},"
-    "{dds.sec.auth.library.finalize,finalize_authentication,0},"
-    "{dds.sec.crypto.library.path,"MOCKLIB_PATH("dds_security_cryptography_all_ok")",0},"
-    "{dds.sec.crypto.library.init,init_crypto,0},"
-    "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
-    "{dds.sec.access.library.path,"MOCKLIB_PATH("dds_security_access_control_all_ok")",0},"
-    "{dds.sec.access.library.init,init_access_control,0},"
-    "{dds.sec.access.library.finalize,finalize_access_control,0},"
-    "{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
-    "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
-    "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
-    "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
-    "{dds.sec.access.governance,file:Governance.p7s,0},"
-    "{dds.sec.access.permissions,file:Permissions.p7s,0},"
-    "{dds.sec.auth.password,testtext_Password_testtext,0},"
-    "{dds.sec.auth.trusted_ca_dir,testtext_Dir_testtext,0}}binary_value={}}*}*",
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"testtext_Dir_testtext\"", ""),
     NULL
   };
   const char *sec_config =
@@ -287,23 +298,7 @@ CU_Test(ddsc_security_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
     "config: Domain/DDSSecurity/Cryptographic/Library[@initFunction]: init_crypto*",
     "config: Domain/DDSSecurity/Cryptographic/Library[@finalizeFunction]: finalize_crypto*",
     /* The config should have been parsed into the participant QoS. */
-    "PARTICIPANT * QOS={*property_list={value={{dds.sec.auth.library.path,"MOCKLIB_PATH("dds_security_authentication_all_ok")",0},"
-    "{dds.sec.auth.library.init,init_authentication,0},"
-    "{dds.sec.auth.library.finalize,finalize_authentication,0},"
-    "{dds.sec.crypto.library.path,"MOCKLIB_PATH("dds_security_cryptography_all_ok")",0},"
-    "{dds.sec.crypto.library.init,init_crypto,0},"
-    "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
-    "{dds.sec.access.library.path,"MOCKLIB_PATH("dds_security_access_control_all_ok")",0},"
-    "{dds.sec.access.library.init,init_access_control,0},"
-    "{dds.sec.access.library.finalize,finalize_access_control,0},"
-    "{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
-    "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
-    "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
-    "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
-    "{dds.sec.access.governance,file:Governance.p7s,0},"
-    "{dds.sec.access.permissions,file:Permissions.p7s,0},"
-    "{dds.sec.auth.password,,0},"
-    "{dds.sec.auth.trusted_ca_dir,,0}}binary_value={}}*}*",
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"\",0:\"dds.sec.auth.trusted_ca_dir\":\"\"", ""),
     NULL
   };
 
@@ -373,22 +368,7 @@ CU_Test(ddsc_security_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini
     "config: Domain/DDSSecurity/Cryptographic/Library[@initFunction]: init_crypto*",
     "config: Domain/DDSSecurity/Cryptographic/Library[@finalizeFunction]: finalize_crypto*",
     /* The config should have been parsed into the participant QoS. */
-    "PARTICIPANT * QOS={*property_list={value={"
-    "{dds.sec.auth.library.path,"MOCKLIB_PATH("dds_security_authentication_all_ok")",0},"
-    "{dds.sec.auth.library.init,init_authentication,0},"
-    "{dds.sec.auth.library.finalize,finalize_authentication,0},"
-    "{dds.sec.crypto.library.path,"MOCKLIB_PATH("dds_security_cryptography_all_ok")",0},"
-    "{dds.sec.crypto.library.init,init_crypto,0},"
-    "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
-    "{dds.sec.access.library.path,"MOCKLIB_PATH("dds_security_access_control_all_ok")",0},"
-    "{dds.sec.access.library.init,init_access_control,0},{dds.sec.access.library.finalize,finalize_access_control,0},{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
-    "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
-    "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
-    "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
-    "{dds.sec.access.governance,file:Governance.p7s,0},"
-    "{dds.sec.access.permissions,file:Permissions.p7s,0},"
-    "{dds.sec.auth.password,testtext_Password_testtext,0},"
-    "{dds.sec.auth.trusted_ca_dir,testtext_Dir_testtext,0}}binary_value={}}*}*",
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"testtext_Dir_testtext\"", ""),
     NULL
   };
 
@@ -444,24 +424,7 @@ CU_Test(ddsc_security_config, qos, .init = ddsrt_init, .fini = ddsrt_fini)
   /* Expected traces when creating participant with the security elements. */
   const char *log_expected[] = {
     /* The config should have been parsed into the participant QoS. */
-    "PARTICIPANT * QOS={*property_list={value={"
-    "{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
-    "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
-    "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
-    "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
-    "{dds.sec.access.governance,file:Governance.p7s,0},"
-    "{dds.sec.access.permissions,file:Permissions.p7s,0},"
-    "{dds.sec.auth.password,testtext_Password_testtext,0},"
-    "{dds.sec.auth.trusted_ca_dir,file:/test/dir,0},"
-    "{dds.sec.auth.library.path,"MOCKLIB_PATH("dds_security_authentication_all_ok")",0},"
-    "{dds.sec.auth.library.init,init_authentication,0},"
-    "{dds.sec.auth.library.finalize,finalize_authentication,0},"
-    "{dds.sec.crypto.library.path,"MOCKLIB_PATH("dds_security_cryptography_all_ok")",0},"
-    "{dds.sec.crypto.library.init,init_crypto,0},"
-    "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
-    "{dds.sec.access.library.path,"MOCKLIB_PATH("dds_security_access_control_all_ok")",0},"
-    "{dds.sec.access.library.init,init_access_control,0},"
-    "{dds.sec.access.library.finalize,finalize_access_control,0}}binary_value={}}*}*",
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"file:/test/dir\"", ""),
     NULL
   };
 
@@ -473,16 +436,9 @@ CU_Test(ddsc_security_config, qos, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_set_log_sink(&logger, (void*)log_expected);
   dds_set_trace_sink(&logger, (void*)log_expected);
 
-  /* Create the qos */
+  /* Create the qos -- the properties are dumped in the order in which they are set, so for
+     PARTICIPANT_QOS_ALL_OK to work, the order must match that one */
   CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
-  dds_qset_prop(qos, "dds.sec.auth.identity_ca", "testtext_IdentityCA_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.private_key", "testtext_PrivateKey_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", "testtext_IdentityCertificate_testtext");
-  dds_qset_prop(qos, "dds.sec.access.permissions_ca", "file:Permissions_CA.pem");
-  dds_qset_prop(qos, "dds.sec.access.governance", "file:Governance.p7s");
-  dds_qset_prop(qos, "dds.sec.access.permissions", "file:Permissions.p7s");
-  dds_qset_prop(qos, "dds.sec.auth.password", "testtext_Password_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.trusted_ca_dir", "file:/test/dir");
   dds_qset_prop(qos, "dds.sec.auth.library.path", ""MOCKLIB_PATH("dds_security_authentication_all_ok")"");
   dds_qset_prop(qos, "dds.sec.auth.library.init", "init_authentication");
   dds_qset_prop(qos, "dds.sec.auth.library.finalize", "finalize_authentication");
@@ -492,6 +448,14 @@ CU_Test(ddsc_security_config, qos, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_prop(qos, "dds.sec.access.library.path", ""MOCKLIB_PATH("dds_security_access_control_all_ok")"");
   dds_qset_prop(qos, "dds.sec.access.library.init", "init_access_control");
   dds_qset_prop(qos, "dds.sec.access.library.finalize", "finalize_access_control");
+  dds_qset_prop(qos, "dds.sec.auth.identity_ca", "testtext_IdentityCA_testtext");
+  dds_qset_prop(qos, "dds.sec.auth.private_key", "testtext_PrivateKey_testtext");
+  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", "testtext_IdentityCertificate_testtext");
+  dds_qset_prop(qos, "dds.sec.access.permissions_ca", "file:Permissions_CA.pem");
+  dds_qset_prop(qos, "dds.sec.access.governance", "file:Governance.p7s");
+  dds_qset_prop(qos, "dds.sec.access.permissions", "file:Permissions.p7s");
+  dds_qset_prop(qos, "dds.sec.auth.password", "testtext_Password_testtext");
+  dds_qset_prop(qos, "dds.sec.auth.trusted_ca_dir", "file:/test/dir");
 
   /* Create participant with security config in qos. */
   found = 0;
@@ -513,27 +477,8 @@ CU_Test(ddsc_security_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
   /* Expected traces when creating participant with the security elements. */
   const char *log_expected[] = {
     /* The config should have been parsed into the participant QoS. */
-    "PARTICIPANT * QOS={*property_list={value={"
-    "{test.prop1,testtext_value1_testtext,0},"
-    "{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
-    "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
-    "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
-    "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
-    "{dds.sec.access.governance,file:Governance.p7s,0},"
-    "{dds.sec.access.permissions,file:Permissions.p7s,0},"
-    "{dds.sec.auth.password,testtext_Password_testtext,0},"
-    "{dds.sec.auth.trusted_ca_dir,file:/test/dir,0},"
-    "{dds.sec.auth.library.path,"MOCKLIB_PATH("dds_security_authentication_all_ok")",0},"
-    "{dds.sec.auth.library.init,init_authentication,0},"
-    "{dds.sec.auth.library.finalize,finalize_authentication,0},"
-    "{dds.sec.crypto.library.path,"MOCKLIB_PATH("dds_security_cryptography_all_ok")",0},"
-    "{dds.sec.crypto.library.init,init_crypto,0},"
-    "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
-    "{dds.sec.access.library.path,"MOCKLIB_PATH("dds_security_access_control_all_ok")",0},"
-    "{dds.sec.access.library.init,init_access_control,0},"
-    "{dds.sec.access.library.finalize,finalize_access_control,0},"
-    "{test.prop2,testtext_value2_testtext,0}}"
-    "binary_value={{test.bprop1,(3,*),0}}}*}*",
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"file:/test/dir\",0:\"test.prop1\":\"testtext_value1_testtext\",0:\"test.prop2\":\"testtext_value2_testtext\"",
+                            "0:\"test.bprop1\":3<1,2,3>"),
     NULL
   };
 
@@ -545,19 +490,10 @@ CU_Test(ddsc_security_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_set_log_sink(&logger, (void*)log_expected);
   dds_set_trace_sink(&logger, (void*)log_expected);
 
-  /* Create the qos */
+  /* Create the qos -- the properties are dumped in the order in which they are set, so for
+     PARTICIPANT_QOS_ALL_OK to work, the order must match that one */
   unsigned char bvalue[3] = { 0x01, 0x02, 0x03 };
   CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
-  dds_qset_prop(qos, "test.prop1", "testtext_value1_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.identity_ca", "testtext_IdentityCA_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.private_key", "testtext_PrivateKey_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", "testtext_IdentityCertificate_testtext");
-  dds_qset_prop(qos, "dds.sec.access.permissions_ca", "file:Permissions_CA.pem");
-  dds_qset_prop(qos, "dds.sec.access.governance", "file:Governance.p7s");
-  dds_qset_prop(qos, "dds.sec.access.permissions", "file:Permissions.p7s");
-  dds_qset_prop(qos, "dds.sec.auth.password", "testtext_Password_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.trusted_ca_dir", "file:/test/dir");
-
   dds_qset_prop(qos, "dds.sec.auth.library.path", ""MOCKLIB_PATH("dds_security_authentication_all_ok")"");
   dds_qset_prop(qos, "dds.sec.auth.library.init", "init_authentication");
   dds_qset_prop(qos, "dds.sec.auth.library.finalize", "finalize_authentication");
@@ -567,10 +503,17 @@ CU_Test(ddsc_security_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_prop(qos, "dds.sec.access.library.path", ""MOCKLIB_PATH("dds_security_access_control_all_ok")"");
   dds_qset_prop(qos, "dds.sec.access.library.init", "init_access_control");
   dds_qset_prop(qos, "dds.sec.access.library.finalize", "finalize_access_control");
-
-  dds_qset_prop(qos, "test.prop2", "testtext_value2_testtext");
-
   dds_qset_prop(qos, "dds.sec.auth.identity_ca", "testtext_IdentityCA_testtext");
+  dds_qset_prop(qos, "dds.sec.auth.private_key", "testtext_PrivateKey_testtext");
+  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", "testtext_IdentityCertificate_testtext");
+  dds_qset_prop(qos, "dds.sec.access.permissions_ca", "file:Permissions_CA.pem");
+  dds_qset_prop(qos, "dds.sec.access.governance", "file:Governance.p7s");
+  dds_qset_prop(qos, "dds.sec.access.permissions", "file:Permissions.p7s");
+  dds_qset_prop(qos, "dds.sec.auth.password", "testtext_Password_testtext");
+  dds_qset_prop(qos, "dds.sec.auth.trusted_ca_dir", "file:/test/dir");
+
+  dds_qset_prop(qos, "test.prop1", "testtext_value1_testtext");
+  dds_qset_prop(qos, "test.prop2", "testtext_value2_testtext");
 
   dds_qset_bprop(qos, "test.bprop1", bvalue, 3);
 
@@ -595,23 +538,7 @@ CU_Test(ddsc_security_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini
   const char *log_expected[] = {
     /* The security settings from qos properties should have been parsed into the participant QoS. */
     "new_participant(*): using security settings from QoS*",
-    "PARTICIPANT * QOS={*property_list={value={"
-    "{dds.sec.auth.identity_ca,testtext_QOS_IdentityCA_testtext,0},"
-    "{dds.sec.auth.private_key,testtext_QOS_PrivateKey_testtext,0},"
-    "{dds.sec.auth.identity_certificate,testtext_QOS_IdentityCertificate_testtext,0},"
-    "{dds.sec.access.permissions_ca,file:QOS_Permissions_CA.pem,0},"
-    "{dds.sec.access.governance,file:QOS_Governance.p7s,0},"
-    "{dds.sec.access.permissions,file:QOS_Permissions.p7s,0},"
-    "{dds.sec.auth.library.path,"MOCKLIB_PATH("dds_security_authentication_all_ok")",0},"
-    "{dds.sec.auth.library.init,init_authentication,0},"
-    "{dds.sec.auth.library.finalize,finalize_authentication,0},"
-    "{dds.sec.crypto.library.path,"MOCKLIB_PATH("dds_security_cryptography_all_ok")",0},"
-    "{dds.sec.crypto.library.init,init_crypto,0},"
-    "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
-    "{dds.sec.access.library.path,"MOCKLIB_PATH("dds_security_access_control_all_ok")",0},"
-    "{dds.sec.access.library.init,init_access_control,0},"
-    "{dds.sec.access.library.finalize,finalize_access_control,0}"
-    "}binary_value={}}*}*",
+    PARTICIPANT_QOS_ALL_OK ("", "", ""),
     NULL
   };
 
@@ -633,23 +560,24 @@ CU_Test(ddsc_security_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini
   dds_entity_t participant;
   dds_qos_t * qos;
 
+  /* Create the qos -- the properties are dumped in the order in which they are set, so for
+     PARTICIPANT_QOS_ALL_OK to work, the order must match that one */
   CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
-  dds_qset_prop(qos, "dds.sec.auth.identity_ca", "testtext_QOS_IdentityCA_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.private_key", "testtext_QOS_PrivateKey_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", "testtext_QOS_IdentityCertificate_testtext");
-  dds_qset_prop(qos, "dds.sec.access.permissions_ca", "file:QOS_Permissions_CA.pem");
-  dds_qset_prop(qos, "dds.sec.access.governance", "file:QOS_Governance.p7s");
-  dds_qset_prop(qos, "dds.sec.access.permissions", "file:QOS_Permissions.p7s");
-
-  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_PATH, ""MOCKLIB_PATH("dds_security_authentication_all_ok")"");
-  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_INIT, "init_authentication");
-  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE, "finalize_authentication");
-  dds_qset_prop(qos, DDS_SEC_PROP_CRYPTO_LIBRARY_PATH, ""MOCKLIB_PATH("dds_security_cryptography_all_ok")"");
-  dds_qset_prop(qos, DDS_SEC_PROP_CRYPTO_LIBRARY_INIT, "init_crypto");
-  dds_qset_prop(qos, DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE, "finalize_crypto");
-  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_PATH, ""MOCKLIB_PATH("dds_security_access_control_all_ok")"");
-  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_INIT, "init_access_control");
-  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE, "finalize_access_control");
+  dds_qset_prop(qos, "dds.sec.auth.library.path", ""MOCKLIB_PATH("dds_security_authentication_all_ok")"");
+  dds_qset_prop(qos, "dds.sec.auth.library.init", "init_authentication");
+  dds_qset_prop(qos, "dds.sec.auth.library.finalize", "finalize_authentication");
+  dds_qset_prop(qos, "dds.sec.crypto.library.path", ""MOCKLIB_PATH("dds_security_cryptography_all_ok")"");
+  dds_qset_prop(qos, "dds.sec.crypto.library.init", "init_crypto");
+  dds_qset_prop(qos, "dds.sec.crypto.library.finalize", "finalize_crypto");
+  dds_qset_prop(qos, "dds.sec.access.library.path", ""MOCKLIB_PATH("dds_security_access_control_all_ok")"");
+  dds_qset_prop(qos, "dds.sec.access.library.init", "init_access_control");
+  dds_qset_prop(qos, "dds.sec.access.library.finalize", "finalize_access_control");
+  dds_qset_prop(qos, "dds.sec.auth.identity_ca", "testtext_IdentityCA_testtext");
+  dds_qset_prop(qos, "dds.sec.auth.private_key", "testtext_PrivateKey_testtext");
+  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", "testtext_IdentityCertificate_testtext");
+  dds_qset_prop(qos, "dds.sec.access.permissions_ca", "file:Permissions_CA.pem");
+  dds_qset_prop(qos, "dds.sec.access.governance", "file:Governance.p7s");
+  dds_qset_prop(qos, "dds.sec.access.permissions", "file:Permissions.p7s");
 
   /* Set up the trace sinks to detect the config parsing. */
   dds_set_log_mask(DDS_LC_FATAL | DDS_LC_ERROR | DDS_LC_WARNING | DDS_LC_CONFIG);
@@ -677,24 +605,7 @@ CU_Test(ddsc_security_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini
    * qos containing only non-security properties. */
   const char *log_expected[] = {
     /* The security settings from config should have been parsed into the participant QoS. */
-    "PARTICIPANT * QOS={*property_list={value={{test.dds.sec.prop1,testtext_value1_testtext,0},"
-    "{dds.sec.auth.library.path,"MOCKLIB_PATH("dds_security_authentication_all_ok")",0},"
-    "{dds.sec.auth.library.init,init_authentication,0},"
-    "{dds.sec.auth.library.finalize,finalize_authentication,0},"
-    "{dds.sec.crypto.library.path,"MOCKLIB_PATH("dds_security_cryptography_all_ok")",0},"
-    "{dds.sec.crypto.library.init,init_crypto,0},"
-    "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
-    "{dds.sec.access.library.path,"MOCKLIB_PATH("dds_security_access_control_all_ok")",0},"
-    "{dds.sec.access.library.init,init_access_control,0},"
-    "{dds.sec.access.library.finalize,finalize_access_control,0},"
-    "{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
-    "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
-    "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
-    "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
-    "{dds.sec.access.governance,file:Governance.p7s,0},"
-    "{dds.sec.access.permissions,file:Permissions.p7s,0},"
-    "{dds.sec.auth.password,testtext_Password_testtext,0},"
-    "{dds.sec.auth.trusted_ca_dir,testtext_Dir_testtext,0}}binary_value={}}*}*",
+    PARTICIPANT_QOS_ALL_OK ("0:\"test.dds.sec.prop1\":\"testtext_value1_testtext\",", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"testtext_Dir_testtext\"", ""),
     NULL
   };
 

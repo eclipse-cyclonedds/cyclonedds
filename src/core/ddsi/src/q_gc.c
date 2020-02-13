@@ -24,7 +24,7 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_lease.h"
-#include "dds/ddsi/q_globals.h" /* for mattr, cattr */
+#include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
 #include "dds/ddsi/q_receive.h" /* for trigger_receive_threads */
 
 struct gcreq_queue {
@@ -34,11 +34,11 @@ struct gcreq_queue {
   ddsrt_cond_t cond;
   int terminate;
   int32_t count;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   struct thread_state1 *ts;
 };
 
-static void threads_vtime_gather_for_wait (const struct q_globals *gv, unsigned *nivs, struct idx_vtime *ivs)
+static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, unsigned *nivs, struct idx_vtime *ivs)
 {
   /* copy vtimes of threads, skipping those that are sleeping */
   uint32_t i, j;
@@ -189,7 +189,7 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
   return 0;
 }
 
-struct gcreq_queue *gcreq_queue_new (struct q_globals *gv)
+struct gcreq_queue *gcreq_queue_new (struct ddsi_domaingv *gv)
 {
   struct gcreq_queue *q = ddsrt_malloc (sizeof (*q));
 

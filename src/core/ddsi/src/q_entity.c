@@ -26,13 +26,13 @@
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_qosmatch.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_xevent.h" /* qxev_spdp, &c. */
 #include "dds/ddsi/q_ddsi_discovery.h" /* spdp_write, &c. */
@@ -70,7 +70,7 @@ struct deleted_participants_admin {
   int64_t delay;
 };
 
-struct proxy_writer_alive_state {
+struct alive_state {
   bool alive;
   uint32_t vclock;
 };
@@ -100,10 +100,6 @@ static const unsigned builtin_writers_besmask =
   NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER |
   NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER |
   NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
-static const unsigned prismtech_builtin_writers_besmask =
-  NN_DISC_BUILTIN_ENDPOINT_CM_PARTICIPANT_WRITER |
-  NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER |
-  NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
 
 
 static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc, status_cb_t status_cb, void *status_cbarg);
@@ -113,9 +109,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
 static struct entity_common *entity_common_from_proxy_endpoint_common (const struct proxy_endpoint_common *c);
 
 #ifdef DDSI_INCLUDE_SECURITY
-static const unsigned BES_MASK_NON_SECURITY = 0xf000ffff;
-
-static void handshake_end_cb(struct q_globals const * const gv, struct ddsi_handshake *handshake, const struct ddsi_guid *lpguid, const struct ddsi_guid *ppguid, enum ddsi_handshake_state result);
+static void handshake_end_cb(struct ddsi_domaingv const * const gv, struct ddsi_handshake *handshake, const struct ddsi_guid *lpguid, const struct ddsi_guid *ppguid, enum ddsi_handshake_state result);
 static void downgrade_to_nonsecure(struct proxy_participant *proxypp);
 #endif
 
@@ -232,7 +226,19 @@ bool is_local_orphan_endpoint (const struct entity_common *e)
           is_builtin_endpoint (e->guid.entityid, NN_VENDORID_ECLIPSE));
 }
 
-static void entity_common_init (struct entity_common *e, struct q_globals *gv, const struct ddsi_guid *guid, const char *name, enum entity_kind kind, nn_wctime_t tcreate, nn_vendorid_t vendorid, bool onlylocal)
+static int compare_ldur (const void *va, const void *vb)
+{
+  const struct ldur_fhnode *a = va;
+  const struct ldur_fhnode *b = vb;
+  return (a->ldur == b->ldur) ? 0 : (a->ldur < b->ldur) ? -1 : 1;
+}
+
+/* used in participant for keeping writer liveliness renewal */
+const ddsrt_fibheap_def_t ldur_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct ldur_fhnode, heapnode), compare_ldur);
+/* used in (proxy)participant for writer liveliness monitoring */
+const ddsrt_fibheap_def_t lease_fhdef_pp = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct lease, pp_heapnode), compare_lease_tdur);
+
+static void entity_common_init (struct entity_common *e, struct ddsi_domaingv *gv, const struct ddsi_guid *guid, const char *name, enum entity_kind kind, nn_wctime_t tcreate, nn_vendorid_t vendorid, bool onlylocal)
 {
   e->guid = *guid;
   e->kind = kind;
@@ -282,10 +288,28 @@ static void local_reader_ary_fini (struct local_reader_ary *x)
 static void local_reader_ary_insert (struct local_reader_ary *x, struct reader *rd)
 {
   ddsrt_mutex_lock (&x->rdary_lock);
+  x->rdary = ddsrt_realloc (x->rdary, (x->n_readers + 2) * sizeof (*x->rdary));
+  if (x->n_readers <= 1 || rd->topic == x->rdary[x->n_readers - 1]->topic)
+  {
+    /* if the first or second reader, or if the topic is the same as that of
+       the last one in the list simply appending the new will maintain order */
+    x->rdary[x->n_readers] = rd;
+  }
+  else
+  {
+    uint32_t i;
+    for (i = 0; i < x->n_readers; i++)
+      if (x->rdary[i]->topic == rd->topic)
+        break;
+    if (i < x->n_readers)
+    {
+      /* shift any with the same topic plus whichever follow to make room */
+      memmove (&x->rdary[i + 1], &x->rdary[i], (x->n_readers - i) * sizeof (x->rdary[i]));
+    }
+    x->rdary[i] = rd;
+  }
+  x->rdary[x->n_readers + 1] = NULL;
   x->n_readers++;
-  x->rdary = ddsrt_realloc (x->rdary, (x->n_readers + 1) * sizeof (*x->rdary));
-  x->rdary[x->n_readers - 1] = rd;
-  x->rdary[x->n_readers] = NULL;
   ddsrt_mutex_unlock (&x->rdary_lock);
 }
 
@@ -294,13 +318,20 @@ static void local_reader_ary_remove (struct local_reader_ary *x, struct reader *
   uint32_t i;
   ddsrt_mutex_lock (&x->rdary_lock);
   for (i = 0; i < x->n_readers; i++)
-  {
     if (x->rdary[i] == rd)
       break;
-  }
   assert (i < x->n_readers);
-  /* if i == N-1 copy is a no-op */
-  x->rdary[i] = x->rdary[x->n_readers-1];
+  if (i + 1 < x->n_readers)
+  {
+    /* dropping the final one never requires any fixups; dropping one that has
+       the same topic as the last is as simple as moving the last one in the
+       removed one's location; else shift all following readers to keep it
+       grouped by topic */
+    if (rd->topic == x->rdary[x->n_readers - 1]->topic)
+      x->rdary[i] = x->rdary[x->n_readers - 1];
+    else
+      memmove (&x->rdary[i], &x->rdary[i + 1], (x->n_readers - i - 1) * sizeof (x->rdary[i]));
+  }
   x->n_readers--;
   x->rdary[x->n_readers] = NULL;
   x->rdary = ddsrt_realloc (x->rdary, (x->n_readers + 1) * sizeof (*x->rdary));
@@ -448,22 +479,11 @@ static void remove_deleted_participant_guid (struct deleted_participants_admin *
 }
 
 /* PARTICIPANT ------------------------------------------------------ */
-
-static int compare_ldur (const void *va, const void *vb)
-{
-  const struct ldur_fhnode *a = va;
-  const struct ldur_fhnode *b = vb;
-  return (a->ldur == b->ldur) ? 0 : (a->ldur < b->ldur) ? -1 : 1;
-}
-
-/* used in participant for keeping writer liveliness renewal */
-const ddsrt_fibheap_def_t ldur_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct ldur_fhnode, heapnode), compare_ldur);
-
 static bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, const dds_qos_t *xqos, nn_wctime_t timestamp)
 {
   uint64_t mask;
 
-  mask = nn_xqos_delta (ent_qos, xqos, QP_CHANGEABLE_MASK & ~(QP_RXO_MASK | QP_PARTITION)) & xqos->present;
+  mask = ddsi_xqos_delta (ent_qos, xqos, QP_CHANGEABLE_MASK & ~(QP_RXO_MASK | QP_PARTITION)) & xqos->present;
 #if 0
   int a = (ent_qos->present & QP_TOPIC_DATA) ? (int) ent_qos->topic_data.length : 6;
   int b = (xqos->present & QP_TOPIC_DATA) ? (int) xqos->topic_data.length : 6;
@@ -476,7 +496,7 @@ static bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, cons
           !!(mask & QP_TOPIC_DATA));
 #endif
   EELOGDISC (e, "update_qos_locked "PGUIDFMT" delta=%"PRIu64" QOS={", PGUID(e->guid), mask);
-  nn_log_xqos (DDS_LC_DISCOVERY, &e->gv->logconfig, xqos);
+  ddsi_xqos_log (DDS_LC_DISCOVERY, &e->gv->logconfig, xqos);
   EELOGDISC (e, "}\n");
 
   if (mask == 0)
@@ -484,8 +504,8 @@ static bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, cons
     return false;
 
   ddsrt_mutex_lock (&e->qos_lock);
-  nn_xqos_fini_mask (ent_qos, mask);
-  nn_xqos_mergein_missing (ent_qos, xqos, mask);
+  ddsi_xqos_fini_mask (ent_qos, mask);
+  ddsi_xqos_mergein_missing (ent_qos, xqos, mask);
   ddsrt_mutex_unlock (&e->qos_lock);
   builtintopic_write (e->gv->builtin_topic_interface, e, timestamp, true);
   return true;
@@ -517,7 +537,7 @@ static void pp_release_entityid(struct participant *pp, ddsi_entityid_t id)
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 
-static void force_as_disc_address(struct q_globals *gv, const ddsi_guid_t *subguid)
+static void force_as_disc_address(struct ddsi_domaingv *gv, const ddsi_guid_t *subguid)
 {
   struct writer *wr = entidx_lookup_writer_guid (gv->entity_index, subguid);
   assert (wr != NULL);
@@ -530,36 +550,48 @@ static void force_as_disc_address(struct q_globals *gv, const ddsi_guid_t *subgu
 }
 
 #ifdef DDSI_INCLUDE_SECURITY
-static void add_security_builtin_endpoints(struct participant *pp, ddsi_guid_t *subguid, const ddsi_guid_t *group_guid, struct q_globals *gv, bool add_writers, bool add_readers)
+static void add_security_builtin_endpoints(struct participant *pp, ddsi_guid_t *subguid, const ddsi_guid_t *group_guid, struct ddsi_domaingv *gv, bool add_writers, bool add_readers)
 {
   if (add_writers)
   {
+    struct whc_writer_info *wrinfo;
+
     subguid->entityid = to_entityid (NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER);
-    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
+    wrinfo = whc_make_wrinfo (NULL, &gv->builtin_endpoint_xqos_wr);
+    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
+    whc_free_wrinfo (wrinfo);
     /* But we need the as_disc address set for SPDP, because we need to
        send it to everyone regardless of the existence of readers. */
     force_as_disc_address(gv, subguid);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER;
 
     subguid->entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER);
-    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_stateless_xqos_wr, whc_new(gv, 0, 1, 1), NULL, NULL);
+    wrinfo = whc_make_wrinfo (NULL, &gv->builtin_stateless_xqos_wr);
+    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_stateless_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
+    whc_free_wrinfo (wrinfo);
     pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_ANNOUNCER;
 
     subguid->entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER);
-    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_volatile_xqos_wr, whc_new(gv, 0, 0, 0), NULL, NULL);
+    wrinfo = whc_make_wrinfo (NULL, &gv->builtin_volatile_xqos_wr);
+    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_volatile_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
+    whc_free_wrinfo (wrinfo);
     pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_VOLATILE_SECURE_ANNOUNCER;
 
+    wrinfo = whc_make_wrinfo (NULL, &gv->builtin_endpoint_xqos_wr);
+
     subguid->entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER);
-    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
+    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_SECURE_ANNOUNCER;
 
     subguid->entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER);
-    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
+    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     pp->bes |= NN_BUILTIN_ENDPOINT_PUBLICATION_MESSAGE_SECURE_ANNOUNCER;
 
     subguid->entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER);
-    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
+    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     pp->bes |= NN_BUILTIN_ENDPOINT_SUBSCRIPTION_MESSAGE_SECURE_ANNOUNCER;
+
+    whc_free_wrinfo (wrinfo);
   }
 
   if (add_readers)
@@ -598,7 +630,7 @@ static void add_security_builtin_endpoints(struct participant *pp, ddsi_guid_t *
 
 #ifdef DDSI_INCLUDE_SECURITY
 
-static void connect_participant_secure(struct q_globals *gv, struct participant *pp)
+static void connect_participant_secure(struct ddsi_domaingv *gv, struct participant *pp)
 {
   struct proxy_participant *proxypp;
   struct entidx_enum_proxy_participant it;
@@ -622,7 +654,7 @@ static void disconnect_participant_secure(struct participant *pp)
 {
   struct proxy_participant *proxypp;
   struct entidx_enum_proxy_participant it;
-  struct q_globals * const gv = pp->e.gv;
+  struct ddsi_domaingv * const gv = pp->e.gv;
 
   if (q_omg_participant_is_secure(pp))
   {
@@ -636,10 +668,86 @@ static void disconnect_participant_secure(struct participant *pp)
 }
 #endif
 
-dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *gv, unsigned flags, const nn_plist_t *plist)
+static void gc_participant_lease (struct gcreq *gcreq)
+{
+  lease_free (gcreq->arg);
+  gcreq_free (gcreq);
+}
+
+static void participant_replace_minl (struct participant *pp, struct lease *lnew)
+{
+  /* By loading/storing the pointer atomically, we ensure we always
+     read a valid (or once valid) lease. By delaying freeing the lease
+     through the garbage collector, we ensure whatever lease update
+     occurs in parallel completes before the memory is released. */
+  struct gcreq *gcreq = gcreq_new (pp->e.gv->gcreq_queue, gc_participant_lease);
+  struct lease *lease_old = ddsrt_atomic_ldvoidp (&pp->minl_man);
+  assert (lease_old != NULL);
+  lease_unregister (lease_old); /* ensures lease will not expire while it is replaced */
+  gcreq->arg = lease_old;
+  gcreq_enqueue (gcreq);
+  ddsrt_atomic_stvoidp (&pp->minl_man, lnew);
+}
+
+static void participant_add_wr_lease_locked (struct participant * pp, const struct writer * wr)
+{
+  struct lease *minl_prev;
+  struct lease *minl_new;
+
+  assert (wr->lease != NULL);
+  minl_prev = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
+  ddsrt_fibheap_insert (&lease_fhdef_pp, &pp->leaseheap_man, wr->lease);
+  minl_new = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
+  /* if inserted lease is new shortest lease */
+  if (minl_prev != minl_new)
+  {
+    nn_etime_t texp = add_duration_to_etime (now_et (), minl_new->tdur);
+    struct lease *lnew = lease_new (texp, minl_new->tdur, minl_new->entity);
+    if (minl_prev == NULL)
+    {
+      assert (ddsrt_atomic_ldvoidp (&pp->minl_man) == NULL);
+      ddsrt_atomic_stvoidp (&pp->minl_man, lnew);
+    }
+    else
+    {
+      participant_replace_minl (pp, lnew);
+    }
+    lease_register (lnew);
+  }
+}
+
+static void participant_remove_wr_lease_locked (struct participant * pp, struct writer * wr)
+{
+  struct lease *minl;
+
+  assert (wr->lease != NULL);
+  assert (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
+  minl = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
+  ddsrt_fibheap_delete (&lease_fhdef_pp, &pp->leaseheap_man, wr->lease);
+  /* if writer with min lease is removed: update participant lease to use new minimal duration */
+  if (wr->lease == minl)
+  {
+    if ((minl = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man)) != NULL)
+    {
+      dds_duration_t trem = minl->tdur - wr->lease->tdur;
+      assert (trem >= 0);
+      nn_etime_t texp = add_duration_to_etime (now_et(), trem);
+      struct lease *lnew = lease_new (texp, minl->tdur, minl->entity);
+      participant_replace_minl (pp, lnew);
+      lease_register (lnew);
+    }
+    else
+    {
+      participant_replace_minl (pp, NULL);
+    }
+  }
+}
+
+dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
 {
   struct participant *pp;
   ddsi_guid_t subguid, group_guid;
+  struct whc_writer_info *wrinfo;
   dds_return_t ret = DDS_RETCODE_OK;
 
   /* no reserved bits may be set */
@@ -694,8 +802,8 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   pp->lease_duration = gv->config.lease_duration;
   ddsrt_fibheap_init (&ldur_fhdef, &pp->ldur_auto_wr);
   pp->plist = ddsrt_malloc (sizeof (*pp->plist));
-  nn_plist_copy (pp->plist, plist);
-  nn_plist_mergein_missing (pp->plist, &gv->default_local_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
+  ddsi_plist_copy (pp->plist, plist);
+  ddsi_plist_mergein_missing (pp->plist, &gv->default_local_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
 
 #ifdef DDSI_INCLUDE_SECURITY
   /*
@@ -706,7 +814,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
    * and return if any is found */
   {
     bool ready_to_load_security = false;
-    if (nn_xqos_has_prop(&pp->plist->qos, "dds.sec.", true, false)) {
+    if (ddsi_xqos_has_prop(&pp->plist->qos, "dds.sec.", true, false)) {
       char *req[] = {DDS_SEC_PROP_AUTH_IDENTITY_CA,
                      DDS_SEC_PROP_AUTH_PRIV_KEY,
                      DDS_SEC_PROP_AUTH_IDENTITY_CERT,
@@ -729,7 +837,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
 
       /* check if all required security properties exist in qos */
       for (size_t i = 0; i < sizeof(req) / sizeof(req[0]); i++) {
-        if (!nn_xqos_has_prop(&pp->plist->qos, req[i], false, true)) {
+        if (!ddsi_xqos_has_prop(&pp->plist->qos, req[i], false, true)) {
           GVERROR ("new_participant("
                            PGUIDFMT
                            "): required security property %s missing in Property QoS\n", PGUID(*ppguid), req[i]);
@@ -747,7 +855,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
       GVLOGDISC ("new_participant("
                          PGUIDFMT
                          "): using security settings from configuration\n", PGUID(*ppguid));
-      nn_xqos_mergein_security_config(&pp->plist->qos, &gv->config.omg_security_configuration->cfg);
+      ddsi_xqos_mergein_security_config(&pp->plist->qos, &gv->config.omg_security_configuration->cfg);
       ready_to_load_security = true;
     }
 
@@ -774,7 +882,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   if (gv->logconfig.c.mask & DDS_LC_DISCOVERY)
   {
     GVLOGDISC ("PARTICIPANT "PGUIDFMT" QOS={", PGUID (pp->e.guid));
-    nn_log_xqos (DDS_LC_DISCOVERY, &gv->logconfig, &pp->plist->qos);
+    ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, &pp->plist->qos);
     GVLOGDISC ("}\n");
   }
 
@@ -788,6 +896,9 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
     pp->m_conn = NULL;
   }
 
+  ddsrt_fibheap_init (&lease_fhdef_pp, &pp->leaseheap_man);
+  ddsrt_atomic_stvoidp (&pp->minl_man, NULL);
+
   /* Before we create endpoints -- and may call unref_participant if
      things go wrong -- we must initialize all that unref_participant
      depends on. */
@@ -796,18 +907,18 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
 
   /* Create built-in endpoints (note: these have no GID, and no group GUID). */
   pp->bes = 0;
-  pp->prismtech_bes = 0;
   subguid.prefix = pp->e.guid.prefix;
   memset (&group_guid, 0, sizeof (group_guid));
-  /* SPDP writer */
-#define LAST_WR_PARAMS NULL, NULL
 
+  /* SPDP writer */
   /* Note: skip SEDP <=> skip SPDP because of the way ddsi_discovery.c does things
      currently.  */
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
     subguid.entityid = to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->spdp_endpoint_xqos, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
+    wrinfo = whc_make_wrinfo (NULL, &gv->spdp_endpoint_xqos);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->spdp_endpoint_xqos, whc_new(gv, wrinfo), NULL, NULL);
+    whc_free_wrinfo (wrinfo);
     /* But we need the as_disc address set for SPDP, because we need to
        send it to everyone regardless of the existence of readers. */
     force_as_disc_address(gv, &subguid);
@@ -818,34 +929,23 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   entidx_insert_participant_guid (gv->entity_index, pp);
 
   /* SEDP writers: */
+  wrinfo = whc_make_wrinfo (NULL, &gv->builtin_endpoint_xqos_wr);
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER;
 
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
-    pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_PARTICIPANT_WRITER;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
-    pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
-    pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
   }
 
   if (gv->config.do_topic_discovery)
   {
     /* TODO: make this one configurable, we don't want all participants to publish all topics (or even just those that they use themselves) */
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_TOPIC_ANNOUNCER;
   }
 
@@ -853,9 +953,11 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
     subguid.entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
   }
+
+  whc_free_wrinfo (wrinfo);
 
   /* SPDP, SEDP, PMD readers: */
   if (!(flags & RTPS_PF_NO_BUILTIN_READERS))
@@ -875,19 +977,6 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
     subguid.entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER);
     new_reader_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
     pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_READER);
-    new_reader_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
-    pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_PARTICIPANT_READER;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_READER);
-    new_reader_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
-    pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_READER;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_READER);
-    new_reader_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
-    pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_READER;
-
   }
 
 #ifdef DDSI_INCLUDE_SECURITY
@@ -897,8 +986,6 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   }
 #endif
 
-#undef LAST_WR_PARAMS
-
   /* If the participant doesn't have the full set of builtin writers
      it depends on the privileged participant, which must exist, hence
      the reference count of the privileged participant is incremented.
@@ -907,8 +994,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
      Except when the participant is only locally available. */
   if (!(flags & RTPS_PF_ONLY_LOCAL)) {
     ddsrt_mutex_lock (&gv->privileged_pp_lock);
-    if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask ||
-        (pp->prismtech_bes & prismtech_builtin_writers_besmask) != prismtech_builtin_writers_besmask)
+    if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask)
     {
       /* Simply crash when the privileged participant doesn't exist when
          it is needed.  Its existence is a precondition, and this is not
@@ -956,10 +1042,6 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
     pp->spdp_xevent = qxev_spdp (gv->xevents, add_duration_to_mtime (now_mt (), 100 * T_MILLISECOND), &pp->e.guid, NULL);
   }
 
-  /* Also write the CM data - this one being transient local, we only
-   need to write it once (or when it changes, I suppose) */
-  sedp_write_cm_participant (pp, 1);
-
   {
     nn_mtime_t tsched;
     tsched.v = (pp->lease_duration == T_NEVER) ? T_NEVER : 0;
@@ -972,13 +1054,12 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
     connect_participant_secure (gv, pp);
   }
 #endif
-
   return ret;
 
 #ifdef DDSI_INCLUDE_SECURITY
 not_allowed:
 new_pp_err_secprop:
-  nn_plist_fini (pp->plist);
+  ddsi_plist_fini (pp->plist);
   ddsrt_free (pp->plist);
   inverse_uint32_set_fini (&pp->avail_entityids.x);
   ddsrt_mutex_destroy (&pp->refc_lock);
@@ -992,7 +1073,7 @@ new_pp_err:
   return ret;
 }
 
-dds_return_t new_participant (ddsi_guid_t *p_ppguid, struct q_globals *gv, unsigned flags, const nn_plist_t *plist)
+dds_return_t new_participant (ddsi_guid_t *p_ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
 {
   union { uint64_t u64; uint32_t u32[2]; } u;
   u.u32[0] = gv->ppguid_base.prefix.u[1];
@@ -1005,7 +1086,7 @@ dds_return_t new_participant (ddsi_guid_t *p_ppguid, struct q_globals *gv, unsig
   return new_participant_guid (p_ppguid, gv, flags, plist);
 }
 
-void update_participant_plist (struct participant *pp, const nn_plist_t *plist)
+void update_participant_plist (struct participant *pp, const ddsi_plist_t *plist)
 {
   ddsrt_mutex_lock (&pp->e.lock);
   if (update_qos_locked (&pp->e, &pp->plist->qos, &plist->qos, now ()))
@@ -1013,7 +1094,7 @@ void update_participant_plist (struct participant *pp, const nn_plist_t *plist)
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 
-static void delete_builtin_endpoint (struct q_globals *gv, const struct ddsi_guid *ppguid, unsigned entityid)
+static void delete_builtin_endpoint (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, unsigned entityid)
 {
   ddsi_guid_t guid;
   guid.prefix = ppguid->prefix;
@@ -1070,13 +1151,6 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
     NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER,
     NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER,
     NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER,
-    /* PrismTech ones: */
-    NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER,
-    NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_READER,
-    NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_WRITER,
-    NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_READER,
-    NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER,
-    NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_READER
   };
   ddsi_guid_t stguid;
 
@@ -1095,7 +1169,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
   ELOGDISC (pp, "unref_participant("PGUIDFMT" @ %p <- "PGUIDFMT" @ %p) user %"PRId32" builtin %"PRId32"\n",
             PGUID (pp->e.guid), (void*)pp, PGUID (stguid), (void*)guid_of_refing_entity, pp->user_refc, pp->builtin_refc);
 
-  if (pp->user_refc == 0 && (pp->bes != 0 || pp->prismtech_bes != 0) && !pp->builtins_deleted)
+  if (pp->user_refc == 0 && pp->bes != 0 && !pp->builtins_deleted)
   {
     int i;
 
@@ -1131,9 +1205,6 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
        scheduled for deletion when it runs into an empty WHC */
     spdp_dispose_unregister (pp);
 
-    /* We don't care, but other implementations might: */
-    sedp_write_cm_participant (pp, 0);
-
     /* If this happens to be the privileged_pp, clear it */
     ddsrt_mutex_lock (&pp->e.gv->privileged_pp_lock);
     if (pp == pp->e.gv->privileged_pp)
@@ -1149,8 +1220,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
 
     if (!(pp->e.onlylocal))
     {
-      if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask ||
-          (pp->prismtech_bes & prismtech_builtin_writers_besmask) != prismtech_builtin_writers_besmask)
+      if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask)
       {
         /* Participant doesn't have a full complement of built-in
            writers, therefore, it relies on gv->privileged_pp, and
@@ -1187,7 +1257,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
          while longer for it to wakeup. */
       ddsi_conn_free (pp->m_conn);
     }
-    nn_plist_fini (pp->plist);
+    ddsi_plist_fini (pp->plist);
     ddsrt_free (pp->plist);
     ddsrt_mutex_destroy (&pp->refc_lock);
     entity_common_fini (&pp->e);
@@ -1209,7 +1279,7 @@ static void gc_delete_participant (struct gcreq *gcreq)
   unref_participant (pp, NULL);
 }
 
-dds_return_t delete_participant (struct q_globals *gv, const struct ddsi_guid *ppguid)
+dds_return_t delete_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid)
 {
   struct participant *pp;
   GVLOGDISC ("delete_participant("PGUIDFMT")\n", PGUID (*ppguid));
@@ -1228,7 +1298,7 @@ dds_return_t delete_participant (struct q_globals *gv, const struct ddsi_guid *p
 struct writer *get_builtin_writer (const struct participant *pp, unsigned entityid)
 {
   ddsi_guid_t bwr_guid;
-  unsigned bes_mask = 0, prismtech_bes_mask = 0;
+  uint32_t bes_mask = 0;
 
   if (pp->e.onlylocal) {
       return NULL;
@@ -1257,15 +1327,6 @@ struct writer *get_builtin_writer (const struct participant *pp, unsigned entity
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
       bes_mask = NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
       break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER:
-      prismtech_bes_mask = NN_DISC_BUILTIN_ENDPOINT_CM_PARTICIPANT_WRITER;
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_WRITER:
-      prismtech_bes_mask = NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER;
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER:
-      prismtech_bes_mask = NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
-      break;
     case NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER:
       bes_mask = NN_DISC_BUILTIN_ENDPOINT_TOPIC_ANNOUNCER;
       break;
@@ -1286,7 +1347,7 @@ struct writer *get_builtin_writer (const struct participant *pp, unsigned entity
       return NULL;
   }
 
-  if ((pp->bes & bes_mask) || (pp->prismtech_bes & prismtech_bes_mask))
+  if (pp->bes & bes_mask)
   {
     /* Participant has this SEDP writer => use it. */
     bwr_guid.prefix = pp->e.guid.prefix;
@@ -1496,13 +1557,13 @@ static void rebuild_make_locs_nrds(int **locs_nrds, int nreaders, int nlocs, con
   *locs_nrds = ln;
 }
 
-static void rebuild_trace_covered(const struct q_globals *gv, int nreaders, int nlocs, const nn_locator_t *locs, const int *locs_nrds, const int8_t *covered)
+static void rebuild_trace_covered(const struct ddsi_domaingv *gv, int nreaders, int nlocs, const nn_locator_t *locs, const int *locs_nrds, const int8_t *covered)
 {
   int i, j;
   for (i = 0; i < nlocs; i++)
   {
     char buf[DDSI_LOCATORSTRLEN];
-    ddsi_locator_to_string(gv, buf, sizeof(buf), &locs[i]);
+    ddsi_locator_to_string(buf, sizeof(buf), &locs[i]);
     GVLOGDISC ("  loc %2d = %-30s %2d {", i, buf, locs_nrds[i]);
     for (j = 0; j < nreaders; j++)
       if (covered[j * nlocs + i] >= 0)
@@ -1513,7 +1574,7 @@ static void rebuild_trace_covered(const struct q_globals *gv, int nreaders, int 
   }
 }
 
-static int rebuild_select(const struct q_globals *gv, int nlocs, const nn_locator_t *locs, const int *locs_nrds, bool prefer_multicast)
+static int rebuild_select(const struct ddsi_domaingv *gv, int nlocs, const nn_locator_t *locs, const int *locs_nrds, bool prefer_multicast)
 {
   int i, j;
   if (nlocs == 0)
@@ -1536,12 +1597,12 @@ static int rebuild_select(const struct q_globals *gv, int nlocs, const nn_locato
   return (locs_nrds[j] > 0) ? j : -1;
 }
 
-static void rebuild_add(const struct q_globals *gv, struct addrset *newas, int locidx, int nreaders, int nlocs, const nn_locator_t *locs, const int8_t *covered)
+static void rebuild_add(const struct ddsi_domaingv *gv, struct addrset *newas, int locidx, int nreaders, int nlocs, const nn_locator_t *locs, const int8_t *covered)
 {
   char str[DDSI_LOCATORSTRLEN];
   if (locs[locidx].kind != NN_LOCATOR_KIND_UDPv4MCGEN)
   {
-    ddsi_locator_to_string(gv, str, sizeof(str), &locs[locidx]);
+    ddsi_locator_to_string(str, sizeof(str), &locs[locidx]);
     GVLOGDISC ("  simple %s\n", str);
     add_to_addrset(gv, newas, &locs[locidx]);
   }
@@ -1560,7 +1621,7 @@ static void rebuild_add(const struct q_globals *gv, struct addrset *newas, int l
         iph |= 1u << covered[i * nlocs + locidx];
     ipn = htonl(iph);
     memcpy(l.address + 12, &ipn, 4);
-    ddsi_locator_to_string(gv, str, sizeof(str), &l);
+    ddsi_locator_to_string(str, sizeof(str), &l);
     GVLOGDISC ("  mcgen %s\n", str);
     add_to_addrset(gv, newas, &l);
   }
@@ -1639,7 +1700,7 @@ static void rebuild_writer_addrset (struct writer *wr)
   ELOGDISC (wr, "\n");
 }
 
-void rebuild_or_clear_writer_addrsets (struct q_globals *gv, int rebuild)
+void rebuild_or_clear_writer_addrsets (struct ddsi_domaingv *gv, int rebuild)
 {
   struct entidx_enum_writer est;
   struct writer *wr;
@@ -1683,7 +1744,7 @@ static void free_wr_prd_match (struct wr_prd_match *m)
   }
 }
 
-static void free_rd_pwr_match (struct q_globals *gv, struct rd_pwr_match *m)
+static void free_rd_pwr_match (struct ddsi_domaingv *gv, struct rd_pwr_match *m)
 {
   if (m)
   {
@@ -1728,13 +1789,26 @@ static void free_wr_rd_match (struct wr_rd_match *m)
   if (m) ddsrt_free (m);
 }
 
-static void proxy_writer_get_alive_state_locked (struct proxy_writer *pwr, struct proxy_writer_alive_state *st)
+static void writer_get_alive_state_locked (struct writer *wr, struct alive_state *st)
+{
+  st->alive = wr->alive;
+  st->vclock = wr->alive_vclock;
+}
+
+static void writer_get_alive_state (struct writer *wr, struct alive_state *st)
+{
+  ddsrt_mutex_lock (&wr->e.lock);
+  writer_get_alive_state_locked (wr, st);
+  ddsrt_mutex_unlock (&wr->e.lock);
+}
+
+static void proxy_writer_get_alive_state_locked (struct proxy_writer *pwr, struct alive_state *st)
 {
   st->alive = pwr->alive;
   st->vclock = pwr->alive_vclock;
 }
 
-static void proxy_writer_get_alive_state (struct proxy_writer *pwr, struct proxy_writer_alive_state *st)
+static void proxy_writer_get_alive_state (struct proxy_writer *pwr, struct alive_state *st)
 {
   ddsrt_mutex_lock (&pwr->e.lock);
   proxy_writer_get_alive_state_locked (pwr, st);
@@ -1798,7 +1872,73 @@ static void writer_drop_local_connection (const struct ddsi_guid *wr_guid, struc
   }
 }
 
-static void reader_update_notify_pwr_alive_state (struct reader *rd, const struct proxy_writer *pwr, const struct proxy_writer_alive_state *alive_state)
+static void reader_update_notify_alive_state_invoke_cb (struct reader *rd, uint64_t iid, bool notify, int delta, const struct alive_state *alive_state)
+{
+  /* Liveliness changed events can race each other and can, potentially, be delivered
+   in a different order. */
+  if (notify && rd->status_cb)
+  {
+    status_cb_data_t data;
+    data.handle = iid;
+    data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
+    if (delta < 0) {
+      data.extra = (uint32_t) LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE;
+      (rd->status_cb) (rd->status_cb_entity, &data);
+    } else if (delta > 0) {
+      data.extra = (uint32_t) LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE;
+      (rd->status_cb) (rd->status_cb_entity, &data);
+    } else {
+      /* Twitch: the resulting (proxy)writer state is unchanged, but there has been
+        a transition to another state and back to the current state. So we'll call
+        the callback twice in this case. */
+      static const enum liveliness_changed_data_extra x[] = {
+        LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE,
+        LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE
+      };
+      data.extra = (uint32_t) x[alive_state->alive];
+      (rd->status_cb) (rd->status_cb_entity, &data);
+      data.extra = (uint32_t) x[!alive_state->alive];
+      (rd->status_cb) (rd->status_cb_entity, &data);
+    }
+  }
+}
+
+static void reader_update_notify_wr_alive_state (struct reader *rd, const struct writer *wr, const struct alive_state *alive_state)
+{
+  struct rd_wr_match *m;
+  bool notify = false;
+  int delta = 0; /* -1: alive -> not_alive; 0: unchanged; 1: not_alive -> alive */
+  ddsrt_mutex_lock (&rd->e.lock);
+  if ((m = ddsrt_avl_lookup (&rd_local_writers_treedef, &rd->local_writers, &wr->e.guid)) != NULL)
+  {
+    if ((int32_t) (alive_state->vclock - m->wr_alive_vclock) > 0)
+    {
+      delta = (int) alive_state->alive - (int) m->wr_alive;
+      notify = true;
+      m->wr_alive = alive_state->alive;
+      m->wr_alive_vclock = alive_state->vclock;
+    }
+  }
+  ddsrt_mutex_unlock (&rd->e.lock);
+
+  if (delta < 0 && rd->rhc)
+  {
+    struct ddsi_writer_info wrinfo;
+    ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, NN_STATUSINFO_UNREGISTER);
+    ddsi_rhc_unregister_wr (rd->rhc, &wrinfo);
+  }
+
+  reader_update_notify_alive_state_invoke_cb (rd, wr->e.iid, notify, delta, alive_state);
+}
+
+static void reader_update_notify_wr_alive_state_guid (const struct ddsi_guid *rd_guid, const struct writer *wr, const struct alive_state *alive_state)
+{
+  struct reader *rd;
+  if ((rd = entidx_lookup_reader_guid (wr->e.gv->entity_index, rd_guid)) != NULL)
+    reader_update_notify_wr_alive_state (rd, wr, alive_state);
+}
+
+static void reader_update_notify_pwr_alive_state (struct reader *rd, const struct proxy_writer *pwr, const struct alive_state *alive_state)
 {
   struct rd_pwr_match *m;
   bool notify = false;
@@ -1823,24 +1963,10 @@ static void reader_update_notify_pwr_alive_state (struct reader *rd, const struc
     ddsi_rhc_unregister_wr (rd->rhc, &wrinfo);
   }
 
-  /* Liveliness changed events can race each other and can, potentially, be delivered
-   in a different order. */
-  if (notify && rd->status_cb)
-  {
-    status_cb_data_t data;
-    data.handle = pwr->e.iid;
-    if (delta == 0)
-      data.extra = (uint32_t) LIVELINESS_CHANGED_TWITCH;
-    else if (delta < 0)
-      data.extra = (uint32_t) LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE;
-    else
-      data.extra = (uint32_t) LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE;
-    data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
-    (rd->status_cb) (rd->status_cb_entity, &data);
-  }
+  reader_update_notify_alive_state_invoke_cb (rd, pwr->e.iid, notify, delta, alive_state);
 }
 
-static void reader_update_notify_pwr_alive_state_guid (const struct ddsi_guid *rd_guid, const struct proxy_writer *pwr, const struct proxy_writer_alive_state *alive_state)
+static void reader_update_notify_pwr_alive_state_guid (const struct ddsi_guid *rd_guid, const struct proxy_writer *pwr, const struct alive_state *alive_state)
 {
   struct reader *rd;
   if ((rd = entidx_lookup_reader_guid (pwr->e.gv->entity_index, rd_guid)) != NULL)
@@ -1907,7 +2033,7 @@ static void reader_drop_local_connection (const struct ddsi_guid *rd_guid, const
         status_cb_data_t data;
         data.handle = wr->e.iid;
         data.add = false;
-        data.extra = (uint32_t) LIVELINESS_CHANGED_REMOVE_ALIVE;
+        data.extra = (uint32_t) (m->wr_alive ? LIVELINESS_CHANGED_REMOVE_ALIVE : LIVELINESS_CHANGED_REMOVE_NOT_ALIVE);
 
         data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
         (rd->status_cb) (rd->status_cb_entity, &data);
@@ -2149,7 +2275,7 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
   }
 }
 
-static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, nn_count_t *init_count, const struct proxy_writer_alive_state *alive_state)
+static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, nn_count_t *init_count, const struct alive_state *alive_state)
 {
   struct rd_pwr_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
@@ -2223,12 +2349,14 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
   }
 }
 
-static void reader_add_local_connection (struct reader *rd, struct writer *wr)
+static void reader_add_local_connection (struct reader *rd, struct writer *wr, const struct alive_state *alive_state)
 {
   struct rd_wr_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
 
   m->wr_guid = wr->e.guid;
+  m->wr_alive = alive_state->alive;
+  m->wr_alive_vclock = alive_state->vclock;
 
   ddsrt_mutex_lock (&rd->e.lock);
 
@@ -2251,7 +2379,7 @@ static void reader_add_local_connection (struct reader *rd, struct writer *wr)
       status_cb_data_t data;
       data.handle = wr->e.iid;
       data.add = true;
-      data.extra = (uint32_t) LIVELINESS_CHANGED_ADD_ALIVE;
+      data.extra = (uint32_t) (alive_state->alive ? LIVELINESS_CHANGED_ADD_ALIVE : LIVELINESS_CHANGED_ADD_NOT_ALIVE);
 
       data.raw_status_id = (int) DDS_SUBSCRIPTION_MATCHED_STATUS_ID;
       (rd->status_cb) (rd->status_cb_entity, &data);
@@ -2470,24 +2598,6 @@ static ddsi_entityid_t builtin_entityid_match (ddsi_entityid_t x)
       res.u = NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER;
       break;
 
-    case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_READER:
-      res.u = NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER;
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER:
-      res.u = NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_READER;
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_READER:
-      res.u = NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_WRITER;
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_WRITER:
-      res.u = NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_READER;
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_READER:
-      res.u = NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER;
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER:
-      res.u = NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_READER;
-      break;
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER:
       res.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER;
       break;
@@ -2580,7 +2690,7 @@ void connect_writer_with_proxy_reader_secure(struct writer *wr, struct proxy_rea
 void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_writer *pwr, nn_mtime_t tnow)
 {
   nn_count_t init_count;
-  struct proxy_writer_alive_state alive_state;
+  struct alive_state alive_state;
 
   /* Initialize the reader's tracking information for the writer liveliness state to something
      sensible, but that may be outdated by the time the reader gets added to the writer's list
@@ -2634,7 +2744,7 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
   const int isb1 = (is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) != 0);
   dds_qos_policy_id_t reason;
   nn_count_t init_count;
-  struct proxy_writer_alive_state alive_state;
+  struct alive_state alive_state;
   if (isb0 != isb1)
     return;
   if (rd->e.onlylocal)
@@ -2699,6 +2809,7 @@ static bool ignore_local_p (const ddsi_guid_t *guid1, const ddsi_guid_t *guid2, 
 static void connect_writer_with_reader (struct writer *wr, struct reader *rd, nn_mtime_t tnow)
 {
   dds_qos_policy_id_t reason;
+  struct alive_state alive_state;
   (void)tnow;
   if (!is_local_orphan_endpoint (&wr->e) && (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) || is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE)))
     return;
@@ -2710,8 +2821,17 @@ static void connect_writer_with_reader (struct writer *wr, struct reader *rd, nn
     reader_qos_mismatch (rd, reason);
     return;
   }
-  reader_add_local_connection (rd, wr);
+  /* Initialze the reader's tracking information for the writer liveliness state to something
+     sensible, but that may be outdated by the time the reader gets added to the writer's list
+     of matching readers. */
+  writer_get_alive_state (wr, &alive_state);
+  reader_add_local_connection (rd, wr, &alive_state);
   writer_add_local_connection (wr, rd);
+
+  /* Once everything is set up: update with the latest state, any updates to the alive state
+     happening in parallel will cause this to become a no-op. */
+  writer_get_alive_state (wr, &alive_state);
+  reader_update_notify_wr_alive_state (rd, wr, &alive_state);
 }
 
 static void connect_writer_with_proxy_reader_wrapper (struct entity_common *vwr, struct entity_common *vprd, nn_mtime_t tnow)
@@ -3054,7 +3174,7 @@ static void new_reader_writer_common (const struct ddsrt_log_cfg *logcfg, const 
             topic ? topic->type_name : "(null)");
 }
 
-static void endpoint_common_init (struct entity_common *e, struct endpoint_common *c, struct q_globals *gv, enum entity_kind kind, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct participant *pp, bool onlylocal)
+static void endpoint_common_init (struct entity_common *e, struct endpoint_common *c, struct ddsi_domaingv *gv, enum entity_kind kind, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct participant *pp, bool onlylocal)
 {
   entity_common_init (e, gv, guid, NULL, kind, now (), NN_VENDORID_ECLIPSE, pp->e.onlylocal || onlylocal);
   c->pp = ref_participant (pp, &e->guid);
@@ -3267,10 +3387,8 @@ unsigned remove_acked_messages (struct writer *wr, struct whc_state *whcst, stru
   assert (wr->e.guid.entityid.u != NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
   ASSERT_MUTEX_HELD (&wr->e.lock);
   n = whc_remove_acked_messages (wr->whc, writer_max_drop_seq (wr), whcst, deferred_free_list);
-  /* when transitioning from >= low-water to < low-water, signal
-     anyone waiting in throttle_writer() */
-  if (wr->throttling && whcst->unacked_bytes <= wr->whc_low)
-    ddsrt_cond_broadcast (&wr->throttle_cond);
+  /* trigger anyone waiting in throttle_writer() or wait_for_acks() */
+  ddsrt_cond_broadcast (&wr->throttle_cond);
   if (wr->retransmitting && whcst->unacked_bytes == 0)
     writer_clear_retransmitting (wr);
   if (wr->state == WRST_LINGERING && whcst->unacked_bytes == 0)
@@ -3279,6 +3397,91 @@ unsigned remove_acked_messages (struct writer *wr, struct whc_state *whcst, stru
     delete_writer_nolinger_locked (wr);
   }
   return n;
+}
+
+static void writer_notify_liveliness_change_may_unlock (struct writer *wr)
+{
+  struct alive_state alive_state;
+  writer_get_alive_state_locked (wr, &alive_state);
+
+  struct ddsi_guid rdguid;
+  struct pwr_rd_match *m;
+  memset (&rdguid, 0, sizeof (rdguid));
+  while (wr->alive_vclock == alive_state.vclock &&
+         (m = ddsrt_avl_lookup_succ (&wr_local_readers_treedef, &wr->local_readers, &rdguid)) != NULL)
+  {
+    rdguid = m->rd_guid;
+    ddsrt_mutex_unlock (&wr->e.lock);
+    /* unlocking pwr means alive state may have changed already; we break out of the loop once we
+       detect this but there for the reader in the current iteration, anything is possible */
+    reader_update_notify_wr_alive_state_guid (&rdguid, wr, &alive_state);
+    ddsrt_mutex_lock (&wr->e.lock);
+  }
+}
+
+void writer_set_alive_may_unlock (struct writer *wr, bool notify)
+{
+  /* Caller has wr->e.lock, so we can safely read wr->alive.  Updating wr->alive requires
+     also taking wr->c.pp->e.lock because wr->alive <=> (wr->lease in pp's lease heap). */
+  assert (!wr->alive);
+
+  /* check that writer still exists (when deleting it is removed from guid hash) */
+  if (entidx_lookup_writer_guid (wr->e.gv->entity_index, &wr->e.guid) == NULL)
+  {
+    ELOGDISC (wr, "writer_set_alive_may_unlock("PGUIDFMT") - not in entity index, wr deleting\n", PGUID (wr->e.guid));
+    return;
+  }
+
+  ddsrt_mutex_lock (&wr->c.pp->e.lock);
+  wr->alive = true;
+  wr->alive_vclock++;
+  if (wr->xqos->liveliness.lease_duration != T_NEVER)
+  {
+    if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT)
+      participant_add_wr_lease_locked (wr->c.pp, wr);
+    else if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
+      lease_set_expiry (wr->lease, add_duration_to_etime (now_et (), wr->lease->tdur));
+  }
+  ddsrt_mutex_unlock (&wr->c.pp->e.lock);
+
+  if (notify)
+    writer_notify_liveliness_change_may_unlock (wr);
+}
+
+static int writer_set_notalive_locked (struct writer *wr, bool notify)
+{
+  if (!wr->alive)
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+
+  /* To update wr->alive, both wr->e.lock and wr->c.pp->e.lock
+     should be taken */
+  ddsrt_mutex_lock (&wr->c.pp->e.lock);
+  wr->alive = false;
+  wr->alive_vclock++;
+  if (wr->xqos->liveliness.lease_duration != T_NEVER && wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT)
+    participant_remove_wr_lease_locked (wr->c.pp, wr);
+  ddsrt_mutex_unlock (&wr->c.pp->e.lock);
+
+  if (notify)
+  {
+    if (wr->status_cb)
+    {
+      status_cb_data_t data;
+      data.handle = wr->e.iid;
+      data.raw_status_id = (int) DDS_LIVELINESS_LOST_STATUS_ID;
+      (wr->status_cb) (wr->status_cb_entity, &data);
+    }
+    writer_notify_liveliness_change_may_unlock (wr);
+  }
+  return DDS_RETCODE_OK;
+}
+
+int writer_set_notalive (struct writer *wr, bool notify)
+{
+  ddsrt_mutex_lock (&wr->e.lock);
+  int ret = writer_set_notalive_locked(wr, notify);
+  ddsrt_mutex_unlock (&wr->e.lock);
+  return ret;
 }
 
 static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc, status_cb_t status_cb, void * status_entity)
@@ -3303,6 +3506,8 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->rexmit_count = 0;
   wr->rexmit_lost_count = 0;
   wr->force_md5_keyhash = 0;
+  wr->alive = 1;
+  wr->alive_vclock = 0;
 
   wr->status_cb = status_cb;
   wr->status_cb_entity = status_entity;
@@ -3310,13 +3515,13 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   /* Copy QoS, merging in defaults */
 
   wr->xqos = ddsrt_malloc (sizeof (*wr->xqos));
-  nn_xqos_copy (wr->xqos, xqos);
-  nn_xqos_mergein_missing (wr->xqos, &wr->e.gv->default_xqos_wr, ~(uint64_t)0);
+  ddsi_xqos_copy (wr->xqos, xqos);
+  ddsi_xqos_mergein_missing (wr->xqos, &wr->e.gv->default_xqos_wr, ~(uint64_t)0);
   assert (wr->xqos->aliased == 0);
   set_topic_type_name (wr->xqos, topic);
 
   ELOGDISC (wr, "WRITER "PGUIDFMT" QOS={", PGUID (wr->e.guid));
-  nn_log_xqos (DDS_LC_DISCOVERY, &wr->e.gv->logconfig, wr->xqos);
+  ddsi_xqos_log (DDS_LC_DISCOVERY, &wr->e.gv->logconfig, wr->xqos);
   ELOGDISC (wr, "}\n");
 
   assert (wr->xqos->present & QP_RELIABILITY);
@@ -3417,7 +3622,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   }
 
   assert (wr->xqos->present & QP_LIVELINESS);
-  if (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC && wr->xqos->liveliness.lease_duration != T_NEVER)
+  if (wr->xqos->liveliness.lease_duration != T_NEVER)
   {
     wr->lease_duration = ddsrt_malloc (sizeof(*wr->lease_duration));
     wr->lease_duration->ldur = wr->xqos->liveliness.lease_duration;
@@ -3497,22 +3702,38 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_g
   if (wr->lease_duration != NULL)
   {
     assert (wr->lease_duration->ldur != T_NEVER);
-    assert (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC);
     assert (!is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE));
+    if (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC)
+    {
+      /* Store writer lease duration in participant's heap in case of automatic liveliness */
+      ddsrt_mutex_lock (&pp->e.lock);
+      ddsrt_fibheap_insert (&ldur_fhdef, &pp->ldur_auto_wr, wr->lease_duration);
+      ddsrt_mutex_unlock (&pp->e.lock);
 
-    /* Store writer lease duration in participant's heap in case of automatic liveliness */
-    ddsrt_mutex_lock (&pp->e.lock);
-    ddsrt_fibheap_insert (&ldur_fhdef, &pp->ldur_auto_wr, wr->lease_duration);
-    ddsrt_mutex_unlock (&pp->e.lock);
-
-    /* Trigger pmd update */
-    (void) resched_xevent_if_earlier (pp->pmd_update_xevent, now_mt ());
+      /* Trigger pmd update */
+      (void) resched_xevent_if_earlier (pp->pmd_update_xevent, now_mt ());
+    }
+    else
+    {
+      nn_etime_t texpire = add_duration_to_etime (now_et (), wr->lease_duration->ldur);
+      wr->lease = lease_new (texpire, wr->lease_duration->ldur, &wr->e);
+      if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT)
+      {
+        ddsrt_mutex_lock (&pp->e.lock);
+        participant_add_wr_lease_locked (pp, wr);
+        ddsrt_mutex_unlock (&pp->e.lock);
+      }
+      else
+      {
+        lease_register (wr->lease);
+      }
+    }
   }
 
   return 0;
 }
 
-dds_return_t new_writer (struct writer **wr_out, struct q_globals *gv, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, const struct ddsi_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg)
+dds_return_t new_writer (struct writer **wr_out, struct ddsi_domaingv *gv, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, const struct ddsi_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg)
 {
   struct participant *pp;
   dds_return_t rc;
@@ -3534,7 +3755,7 @@ dds_return_t new_writer (struct writer **wr_out, struct q_globals *gv, struct dd
   return new_writer_guid (wr_out, wrguid, group_guid, pp, topic, xqos, whc, status_cb, status_cb_arg);
 }
 
-struct local_orphan_writer *new_local_orphan_writer (struct q_globals *gv, ddsi_entityid_t entityid, struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc)
+struct local_orphan_writer *new_local_orphan_writer (struct ddsi_domaingv *gv, ddsi_entityid_t entityid, struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc)
 {
   ddsi_guid_t guid;
   struct local_orphan_writer *lowr;
@@ -3603,23 +3824,23 @@ static void gc_delete_writer (struct gcreq *gcreq)
   {
     assert (wr->lease_duration->ldur == DDS_DURATION_INVALID);
     ddsrt_free (wr->lease_duration);
+    if (wr->xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC)
+      lease_free (wr->lease);
   }
 
   /* Do last gasp on SEDP and free writer. */
   if (!is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE))
     sedp_dispose_unregister_writer (wr);
-  if (wr->status_cb)
-  {
-    (wr->status_cb) (wr->status_cb_entity, NULL);
-  }
-
   whc_free (wr->whc);
+  if (wr->status_cb)
+    (wr->status_cb) (wr->status_cb_entity, NULL);
+
 #ifdef DDSI_INCLUDE_SSM
   if (wr->ssm_as)
     unref_addrset (wr->ssm_as);
 #endif
   unref_addrset (wr->as); /* must remain until readers gone (rebuilding of addrset) */
-  nn_xqos_fini (wr->xqos);
+  ddsi_xqos_fini (wr->xqos);
   ddsrt_free (wr->xqos);
   local_reader_ary_fini (&wr->rdary);
   ddsrt_cond_destroy (&wr->throttle_cond);
@@ -3660,7 +3881,7 @@ static void writer_set_state (struct writer *wr, enum writer_state newstate)
   wr->state = newstate;
 }
 
-dds_return_t unblock_throttled_writer (struct q_globals *gv, const struct ddsi_guid *guid)
+dds_return_t unblock_throttled_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid)
 {
   struct writer *wr;
   assert (is_writer_entityid (guid->entityid));
@@ -3676,6 +3897,20 @@ dds_return_t unblock_throttled_writer (struct q_globals *gv, const struct ddsi_g
   return 0;
 }
 
+dds_return_t writer_wait_for_acks (struct writer *wr, dds_time_t abstimeout)
+{
+  dds_return_t rc;
+  seqno_t ref_seq;
+  ddsrt_mutex_lock (&wr->e.lock);
+  ref_seq = wr->seq;
+  while (wr->state == WRST_OPERATIONAL && ref_seq > writer_max_drop_seq (wr))
+    if (!ddsrt_cond_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
+      break;
+  rc = (ref_seq <= writer_max_drop_seq (wr)) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
+  ddsrt_mutex_unlock (&wr->e.lock);
+  return rc;
+}
+
 dds_return_t delete_writer_nolinger_locked (struct writer *wr)
 {
   ELOGDISC (wr, "delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (wr->e.guid));
@@ -3685,17 +3920,27 @@ dds_return_t delete_writer_nolinger_locked (struct writer *wr)
   entidx_remove_writer_guid (wr->e.gv->entity_index, wr);
   writer_set_state (wr, WRST_DELETING);
   if (wr->lease_duration != NULL) {
-    ddsrt_mutex_lock (&wr->c.pp->e.lock);
-    ddsrt_fibheap_delete (&ldur_fhdef, &wr->c.pp->ldur_auto_wr, wr->lease_duration);
-    ddsrt_mutex_unlock (&wr->c.pp->e.lock);
     wr->lease_duration->ldur = DDS_DURATION_INVALID;
-    resched_xevent_if_earlier (wr->c.pp->pmd_update_xevent, now_mt ());
+    if (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC)
+    {
+      ddsrt_mutex_lock (&wr->c.pp->e.lock);
+      ddsrt_fibheap_delete (&ldur_fhdef, &wr->c.pp->ldur_auto_wr, wr->lease_duration);
+      ddsrt_mutex_unlock (&wr->c.pp->e.lock);
+      resched_xevent_if_earlier (wr->c.pp->pmd_update_xevent, now_mt ());
+    }
+    else
+    {
+      if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
+        lease_unregister (wr->lease);
+      if (writer_set_notalive_locked (wr, false) != DDS_RETCODE_OK)
+        ELOGDISC (wr, "writer_set_notalive failed for "PGUIDFMT"\n", PGUID (wr->e.guid));
+    }
   }
   gcreq_writer (wr);
   return 0;
 }
 
-dds_return_t delete_writer_nolinger (struct q_globals *gv, const struct ddsi_guid *guid)
+dds_return_t delete_writer_nolinger (struct ddsi_domaingv *gv, const struct ddsi_guid *guid)
 {
   struct writer *wr;
   /* We take no care to ensure application writers are not deleted
@@ -3725,7 +3970,7 @@ void delete_local_orphan_writer (struct local_orphan_writer *lowr)
   ddsrt_mutex_unlock (&lowr->wr.e.lock);
 }
 
-dds_return_t delete_writer (struct q_globals *gv, const struct ddsi_guid *guid)
+dds_return_t delete_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid)
 {
   struct writer *wr;
   struct whc_state whcst;
@@ -3766,7 +4011,7 @@ dds_return_t delete_writer (struct q_globals *gv, const struct ddsi_guid *guid)
 /* READER ----------------------------------------------------------- */
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-static struct addrset *get_as_from_mapping (const struct q_globals *gv, const char *partition, const char *topic)
+static struct addrset *get_as_from_mapping (const struct ddsi_domaingv *gv, const char *partition, const char *topic)
 {
   struct config_partitionmapping_listelem *pm;
   struct addrset *as = new_addrset ();
@@ -3782,13 +4027,13 @@ static struct addrset *get_as_from_mapping (const struct q_globals *gv, const ch
 
 struct join_leave_mcast_helper_arg {
   ddsi_tran_conn_t conn;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
 };
 
 static void join_mcast_helper (const nn_locator_t *n, void *varg)
 {
   struct join_leave_mcast_helper_arg *arg = varg;
-  struct q_globals *gv = arg->gv;
+  struct ddsi_domaingv *gv = arg->gv;
   if (ddsi_is_mcaddr (gv, n))
   {
     if (n->kind != NN_LOCATOR_KIND_UDPv4MCGEN)
@@ -3830,7 +4075,7 @@ static void join_mcast_helper (const nn_locator_t *n, void *varg)
 static void leave_mcast_helper (const nn_locator_t *n, void *varg)
 {
   struct join_leave_mcast_helper_arg *arg = varg;
-  struct q_globals *gv = arg->gv;
+  struct ddsi_domaingv *gv = arg->gv;
   if (ddsi_is_mcaddr (gv, n))
   {
     if (n->kind != NN_LOCATOR_KIND_UDPv4MCGEN)
@@ -3902,15 +4147,15 @@ static dds_return_t new_reader_guid
 
   /* Copy QoS, merging in defaults */
   rd->xqos = ddsrt_malloc (sizeof (*rd->xqos));
-  nn_xqos_copy (rd->xqos, xqos);
-  nn_xqos_mergein_missing (rd->xqos, &pp->e.gv->default_xqos_rd, ~(uint64_t)0);
+  ddsi_xqos_copy (rd->xqos, xqos);
+  ddsi_xqos_mergein_missing (rd->xqos, &pp->e.gv->default_xqos_rd, ~(uint64_t)0);
   assert (rd->xqos->aliased == 0);
   set_topic_type_name (rd->xqos, topic);
 
   if (rd->e.gv->logconfig.c.mask & DDS_LC_DISCOVERY)
   {
     ELOGDISC (rd, "READER "PGUIDFMT" QOS={", PGUID (rd->e.guid));
-    nn_log_xqos (DDS_LC_DISCOVERY, &rd->e.gv->logconfig, rd->xqos);
+    ddsi_xqos_log (DDS_LC_DISCOVERY, &rd->e.gv->logconfig, rd->xqos);
     ELOGDISC (rd, "}\n");
   }
   assert (rd->xqos->present & QP_RELIABILITY);
@@ -4017,7 +4262,7 @@ static dds_return_t new_reader_guid
 dds_return_t new_reader
 (
   struct reader **rd_out,
-  struct q_globals *gv,
+  struct ddsi_domaingv *gv,
   struct ddsi_guid *rdguid,
   const struct ddsi_guid *group_guid,
   const struct ddsi_guid *ppguid,
@@ -4086,7 +4331,7 @@ static void gc_delete_reader (struct gcreq *gcreq)
   }
   ddsi_sertopic_unref ((struct ddsi_sertopic *) rd->topic);
 
-  nn_xqos_fini (rd->xqos);
+  ddsi_xqos_fini (rd->xqos);
   ddsrt_free (rd->xqos);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   unref_addrset (rd->as);
@@ -4096,7 +4341,7 @@ static void gc_delete_reader (struct gcreq *gcreq)
   ddsrt_free (rd);
 }
 
-dds_return_t delete_reader (struct q_globals *gv, const struct ddsi_guid *guid)
+dds_return_t delete_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid)
 {
   struct reader *rd;
   assert (!is_writer_entityid (guid->entityid));
@@ -4121,21 +4366,13 @@ void update_reader_qos (struct reader *rd, const dds_qos_t *xqos)
 }
 
 /* PROXY-PARTICIPANT ------------------------------------------------ */
-const ddsrt_fibheap_def_t lease_fhdef_proxypp = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct lease, pp_heapnode), compare_lease_tdur);
-
-static void gc_proxy_participant_lease (struct gcreq *gcreq)
-{
-  lease_free (gcreq->arg);
-  gcreq_free (gcreq);
-}
-
 static void proxy_participant_replace_minl (struct proxy_participant *proxypp, bool manbypp, struct lease *lnew)
 {
   /* By loading/storing the pointer atomically, we ensure we always
      read a valid (or once valid) lease. By delaying freeing the lease
      through the garbage collector, we ensure whatever lease update
      occurs in parallel completes before the memory is released. */
-  struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, gc_proxy_participant_lease);
+  struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, gc_participant_lease);
   struct lease *lease_old = ddsrt_atomic_ldvoidp (manbypp ? &proxypp->minl_man : &proxypp->minl_auto);
   lease_unregister (lease_old); /* ensures lease will not expire while it is replaced */
   gcreq->arg = lease_old;
@@ -4148,11 +4385,11 @@ void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct
   ddsrt_mutex_lock (&proxypp->e.lock);
   if (proxypp->owns_lease)
   {
-    struct lease *minl = ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_auto);
-    ddsrt_fibheap_delete (&lease_fhdef_proxypp, &proxypp->leaseheap_auto, proxypp->lease);
+    struct lease *minl = ddsrt_fibheap_min (&lease_fhdef_pp, &proxypp->leaseheap_auto);
+    ddsrt_fibheap_delete (&lease_fhdef_pp, &proxypp->leaseheap_auto, proxypp->lease);
     if (minl == proxypp->lease)
     {
-      if ((minl = ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_auto)) != NULL)
+      if ((minl = ddsrt_fibheap_min (&lease_fhdef_pp, &proxypp->leaseheap_auto)) != NULL)
       {
         dds_duration_t trem = minl->tdur - proxypp->lease->tdur;
         assert (trem >= 0);
@@ -4179,7 +4416,7 @@ void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct
 
       The lease_unregister call ensures the lease will never expire
       while we are messing with it. */
-    struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, gc_proxy_participant_lease);
+    struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, gc_participant_lease);
     lease_unregister (proxypp->lease);
     gcreq->arg = proxypp->lease;
     gcreq_enqueue (gcreq);
@@ -4197,7 +4434,7 @@ struct bestab {
 };
 
 static void create_proxy_builtin_endpoints(
-  struct q_globals *gv,
+  struct ddsi_domaingv *gv,
   const struct bestab *bestab,
   int nbes,
   const struct ddsi_guid *ppguid,
@@ -4206,16 +4443,16 @@ static void create_proxy_builtin_endpoints(
   dds_qos_t *xqos_wr,
   dds_qos_t *xqos_rd)
 {
-  nn_plist_t plist_rd, plist_wr;
+  ddsi_plist_t plist_rd, plist_wr;
   int i;
   /* Note: no entity name or group GUID supplied, but that shouldn't
    * matter, as these are internal to DDSI and don't use group
    * coherency
    */
-  nn_plist_init_empty (&plist_wr);
-  nn_plist_init_empty (&plist_rd);
-  nn_xqos_copy (&plist_wr.qos, xqos_wr);
-  nn_xqos_copy (&plist_rd.qos, xqos_rd);
+  ddsi_plist_init_empty (&plist_wr);
+  ddsi_plist_init_empty (&plist_rd);
+  ddsi_xqos_copy (&plist_wr.qos, xqos_wr);
+  ddsi_xqos_copy (&plist_rd.qos, xqos_rd);
   for (i = 0; i < nbes; i++)
   {
     const struct bestab *te = &bestab[i];
@@ -4240,13 +4477,13 @@ static void create_proxy_builtin_endpoints(
       }
     }
   }
-  nn_plist_fini (&plist_wr);
-  nn_plist_fini (&plist_rd);
+  ddsi_plist_fini (&plist_wr);
+  ddsi_plist_fini (&plist_rd);
 }
 
 
 static void add_proxy_builtin_endpoints(
-  struct q_globals *gv,
+  struct ddsi_domaingv *gv,
   const struct ddsi_guid *ppguid,
   struct proxy_participant *proxypp,
   nn_wctime_t timestamp)
@@ -4273,12 +4510,6 @@ static void add_proxy_builtin_endpoints(
     LTE (PARTICIPANT_MESSAGE_DATA_READER, P2P, PARTICIPANT_MESSAGE_READER),
     TE (DISC_, TOPIC_ANNOUNCER, SEDP, TOPIC_WRITER),
     TE (DISC_, TOPIC_DETECTOR, SEDP, TOPIC_READER),
-    PT_TE (DISC_, CM_PARTICIPANT_READER, SEDP, CM_PARTICIPANT_READER),
-    PT_TE (DISC_, CM_PARTICIPANT_WRITER, SEDP, CM_PARTICIPANT_WRITER),
-    PT_TE (DISC_, CM_PUBLISHER_READER, SEDP, CM_PUBLISHER_READER),
-    PT_TE (DISC_, CM_PUBLISHER_WRITER, SEDP, CM_PUBLISHER_WRITER),
-    PT_TE (DISC_, CM_SUBSCRIBER_READER, SEDP, CM_SUBSCRIBER_READER),
-    PT_TE (DISC_, CM_SUBSCRIBER_WRITER, SEDP, CM_SUBSCRIBER_WRITER)
   };
   create_proxy_builtin_endpoints(gv,
                                  bestab_default,
@@ -4339,17 +4570,6 @@ static void add_proxy_builtin_endpoints(
                                  &gv->builtin_stateless_xqos_rd);
 #endif
 
-  /* Register lease for auto liveliness, but be careful not to accidentally re-register
-     DDSI2's lease, as we may have become dependent on DDSI2 any time after
-     entidx_insert_proxy_participant_guid even if privileged_pp_guid was NULL originally */
-  ddsrt_mutex_lock (&proxypp->e.lock);
-
-  if (proxypp->owns_lease)
-    lease_register (ddsrt_atomic_ldvoidp (&proxypp->minl_auto));
-
-  builtintopic_write (gv->builtin_topic_interface, &proxypp->e, timestamp, true);
-  ddsrt_mutex_unlock (&proxypp->e.lock);
-
 #undef PT_TE
 #undef TE
 #undef LTE
@@ -4365,9 +4585,9 @@ static void proxy_participant_add_pwr_lease_locked (struct proxy_participant * p
   assert (pwr->lease != NULL);
   manbypp = (pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
   lh = manbypp ? &proxypp->leaseheap_man : &proxypp->leaseheap_auto;
-  minl_prev = ddsrt_fibheap_min (&lease_fhdef_proxypp, lh);
-  ddsrt_fibheap_insert (&lease_fhdef_proxypp, lh, pwr->lease);
-  minl_new = ddsrt_fibheap_min (&lease_fhdef_proxypp, lh);
+  minl_prev = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
+  ddsrt_fibheap_insert (&lease_fhdef_pp, lh, pwr->lease);
+  minl_new = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
   /* if inserted lease is new shortest lease */
   if (proxypp->owns_lease && minl_prev != minl_new)
   {
@@ -4396,12 +4616,12 @@ static void proxy_participant_remove_pwr_lease_locked (struct proxy_participant 
   assert (pwr->lease != NULL);
   manbypp = (pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
   lh = manbypp ? &proxypp->leaseheap_man : &proxypp->leaseheap_auto;
-  minl = ddsrt_fibheap_min (&lease_fhdef_proxypp, lh);
-  ddsrt_fibheap_delete (&lease_fhdef_proxypp, lh, pwr->lease);
+  minl = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
+  ddsrt_fibheap_delete (&lease_fhdef_pp, lh, pwr->lease);
   /* if pwr with min lease is removed: update proxypp lease to use new minimal duration */
   if (proxypp->owns_lease && pwr->lease == minl)
   {
-    if ((minl = ddsrt_fibheap_min (&lease_fhdef_proxypp, lh)) != NULL)
+    if ((minl = ddsrt_fibheap_min (&lease_fhdef_pp, lh)) != NULL)
     {
       dds_duration_t trem = minl->tdur - pwr->lease->tdur;
       assert (trem >= 0);
@@ -4421,7 +4641,7 @@ static void proxy_participant_remove_pwr_lease_locked (struct proxy_participant 
 
 void handshake_end_cb
 (
-  struct q_globals const * const gv,
+  struct ddsi_domaingv const * const gv,
   struct ddsi_handshake *handshake,
   const struct ddsi_guid *lpguid,
   const struct ddsi_guid *ppguid,
@@ -4492,7 +4712,7 @@ void handshake_end_cb
   }
 }
 
-static int proxy_participant_check_security_info(struct q_globals *gv, struct proxy_participant *proxypp)
+static int proxy_participant_check_security_info(struct ddsi_domaingv *gv, struct proxy_participant *proxypp)
 {
   int r = 0;
   struct participant *pp;
@@ -4510,7 +4730,7 @@ static int proxy_participant_check_security_info(struct q_globals *gv, struct pr
 }
 
 
-static void proxy_participant_create_handshakes(struct q_globals *gv, struct proxy_participant *proxypp)
+static void proxy_participant_create_handshakes(struct ddsi_domaingv *gv, struct proxy_participant *proxypp)
 {
   struct participant *pp;
   struct entidx_enum_participant est;
@@ -4527,56 +4747,43 @@ static void proxy_participant_create_handshakes(struct q_globals *gv, struct pro
 
 #endif
 
-#ifdef DDSI_INCLUDE_SECURITY
-
 static void free_proxy_participant(struct proxy_participant *proxypp)
 {
-  q_omg_security_deregister_remote_participant(proxypp);
-  unref_addrset (proxypp->as_default);
-  unref_addrset (proxypp->as_meta);
-  nn_plist_fini (proxypp->plist);
-  ddsrt_free (proxypp->plist);
   if (proxypp->owns_lease)
   {
     struct lease * minl_auto = ddsrt_atomic_ldvoidp (&proxypp->minl_auto);
-    ddsrt_fibheap_delete (&lease_fhdef_proxypp, &proxypp->leaseheap_auto, proxypp->lease);
-    assert (ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_auto) == NULL);
-    assert (ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_man) == NULL);
+    ddsrt_fibheap_delete (&lease_fhdef_pp, &proxypp->leaseheap_auto, proxypp->lease);
+    assert (ddsrt_fibheap_min (&lease_fhdef_pp, &proxypp->leaseheap_auto) == NULL);
+    assert (ddsrt_fibheap_min (&lease_fhdef_pp, &proxypp->leaseheap_man) == NULL);
     assert (ddsrt_atomic_ldvoidp (&proxypp->minl_man) == NULL);
     assert (!compare_guid (&minl_auto->entity->guid, &proxypp->e.guid));
+    /* if the lease hasn't been registered yet (which is the case when
+       new_proxy_participant calls this, it is marked as such and calling
+       lease_unregister is ok */
     lease_unregister (minl_auto);
     lease_free (minl_auto);
     lease_free (proxypp->lease);
   }
+#ifdef DDSI_INCLUDE_SECURITY
+  q_omg_security_deregister_remote_participant(proxypp);
+#endif
+  unref_addrset (proxypp->as_default);
+  unref_addrset (proxypp->as_meta);
+  ddsi_plist_fini (proxypp->plist);
+  ddsrt_free (proxypp->plist);
   entity_common_fini (&proxypp->e);
   ddsrt_free (proxypp);
 }
-#endif
 
-void new_proxy_participant
-(
-  struct q_globals *gv,
-  const struct ddsi_guid *ppguid,
-  unsigned bes,
-  unsigned prismtech_bes,
-  const struct ddsi_guid *privileged_pp_guid,
-  struct addrset *as_default,
-  struct addrset *as_meta,
-  const nn_plist_t *plist,
-  dds_duration_t tlease_dur,
-  nn_vendorid_t vendor,
-  unsigned custom_flags,
-  nn_wctime_t timestamp,
-  seqno_t seq
-)
+void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const ddsi_plist_t *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, nn_wctime_t timestamp, seqno_t seq)
 {
   /* No locking => iff all participants use unique guids, and sedp
      runs on a single thread, it can't go wrong. FIXME, maybe? The
      same holds for the other functions for creating entities. */
   struct proxy_participant *proxypp;
-#ifdef DDSI_INCLUDE_SECURITY
-  bool secure = false;
-#endif
+  const bool is_secure = ((bes & NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0);
+  assert (!is_secure || (plist->present & PP_IDENTITY_TOKEN));
+  assert (is_secure || (bes & ~NN_BES_MASK_NON_SECURITY) == 0);
 
   assert (ppguid->entityid.u == NN_ENTITYID_PARTICIPANT);
   assert (entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid) == NULL);
@@ -4592,7 +4799,6 @@ void new_proxy_participant
   proxypp->deleting = 0;
   proxypp->vendor = vendor;
   proxypp->bes = bes;
-  proxypp->prismtech_bes = prismtech_bes;
   proxypp->seq = seq;
   if (privileged_pp_guid) {
     proxypp->privileged_pp_guid = *privileged_pp_guid;
@@ -4611,13 +4817,15 @@ void new_proxy_participant
     proxypp->minimal_bes_mode = 1;
   else
     proxypp->minimal_bes_mode = 0;
+  proxypp->implicitly_created = ((custom_flags & CF_IMPLICITLY_CREATED_PROXYPP) != 0);
+  proxypp->proxypp_have_spdp = ((custom_flags & CF_PROXYPP_NO_SPDP) == 0);
 
   {
     struct proxy_participant *privpp;
     privpp = entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp->privileged_pp_guid);
 
-    ddsrt_fibheap_init (&lease_fhdef_proxypp, &proxypp->leaseheap_auto);
-    ddsrt_fibheap_init (&lease_fhdef_proxypp, &proxypp->leaseheap_man);
+    ddsrt_fibheap_init (&lease_fhdef_pp, &proxypp->leaseheap_auto);
+    ddsrt_fibheap_init (&lease_fhdef_pp, &proxypp->leaseheap_man);
     ddsrt_atomic_stvoidp (&proxypp->minl_man, NULL);
 
     if (privpp != NULL && privpp->is_ddsi2_pp)
@@ -4643,7 +4851,7 @@ void new_proxy_participant
 
       /* Add the proxypp lease to heap so that monitoring liveliness will include this lease
          and uses the shortest duration for proxypp and all its pwr's (with automatic liveliness) */
-      ddsrt_fibheap_insert (&lease_fhdef_proxypp, &proxypp->leaseheap_auto, proxypp->lease);
+      ddsrt_fibheap_insert (&lease_fhdef_pp, &proxypp->leaseheap_auto, proxypp->lease);
 
       /* Set the shortest lease for auto liveliness: clone proxypp's lease and store the clone in
          proxypp->minl_auto. As there are no pwr's at this point, the proxy pp's lease is the
@@ -4657,125 +4865,73 @@ void new_proxy_participant
   proxypp->as_default = as_default;
   proxypp->as_meta = as_meta;
   proxypp->endpoints = NULL;
-  proxypp->plist = nn_plist_dup (plist);
-  nn_xqos_mergein_missing (&proxypp->plist->qos, &gv->default_plist_pp.qos, ~(uint64_t)0);
+  proxypp->plist = ddsi_plist_dup (plist);
+  ddsi_xqos_mergein_missing (&proxypp->plist->qos, &gv->default_plist_pp.qos, ~(uint64_t)0);
   ddsrt_avl_init (&proxypp_groups_treedef, &proxypp->groups);
 
 #ifdef DDSI_INCLUDE_SECURITY
   proxypp->remote_identity_handle = 0;
   proxypp->sec_attr = NULL;
-  secure = ((bes & NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0);
-  if (!secure)
+  set_proxy_participant_security_info (proxypp, plist);
+  if (is_secure)
   {
-    /* Make sure we don't create any security builtin endpoint when it's considered unsecure. */
-    proxypp->bes &= BES_MASK_NON_SECURITY;
+    q_omg_security_init_remote_participant (proxypp);
+    /* check if the proxy participant has a match with a local participant */
+    if (!proxy_participant_check_security_info (gv, proxypp))
+    {
+      GVWARNING ("Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
+      free_proxy_participant (proxypp);
+      return;
+    }
   }
-  set_proxy_participant_security_info(proxypp, plist);
 #endif
 
-  if (custom_flags & CF_INC_KERNEL_SEQUENCE_NUMBERS)
-    proxypp->kernel_sequence_numbers = 1;
-  else
-    proxypp->kernel_sequence_numbers = 0;
-  if (custom_flags & CF_IMPLICITLY_CREATED_PROXYPP)
-    proxypp->implicitly_created = 1;
-  else
-    proxypp->implicitly_created = 0;
-
-  if (custom_flags & CF_PROXYPP_NO_SPDP)
-    proxypp->proxypp_have_spdp = 0;
-  else
-    proxypp->proxypp_have_spdp = 1;
-  /* Non-PrismTech doesn't implement the PT extensions and therefore won't generate
-     a CMParticipant; if a PT peer does not implement a CMParticipant writer, then it
-     presumably also is a handicapped implementation (perhaps simply an old one) */
-  if (!vendor_is_eclipse_or_prismtech(proxypp->vendor) ||
-      (proxypp->bes != 0 && !(proxypp->prismtech_bes & NN_DISC_BUILTIN_ENDPOINT_CM_PARTICIPANT_WRITER)))
-    proxypp->proxypp_have_cm = 1;
-  else
-    proxypp->proxypp_have_cm = 0;
-
-#ifdef DDSI_INCLUDE_SECURITY
-  if (secure)
-  {
-    /* Secure participant detected: start handshake. */
-    if ((plist->present & PP_IDENTITY_TOKEN))
-    {
-      /* initialize the security attributes associated with the proxy participant */
-      q_omg_security_init_remote_participant(proxypp);
-
-      /* check if the proxy participant has a match with a local participant */
-      if (proxy_participant_check_security_info(gv, proxypp))
-      {
-        /* Proxy participant must be in the hash tables for new_proxy_{writer,reader} to work */
-        entidx_insert_proxy_participant_guid (gv->entity_index, proxypp);
-        /* Create builtin endpoints, of which a few are used in the handshake. */
-        add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
-        /* create authentication handshakes for each local secure participant */
-        proxy_participant_create_handshakes(gv, proxypp);
-      }
-      else
-      {
-        DDS_CWARNING(&gv->logconfig, "Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
-        free_proxy_participant(proxypp);
-      }
-    }
-    else
-    {
-      /* Do not communicate with un-secure participants. */
-      DDS_CWARNING(&gv->logconfig, "Don't communicate with secure participant "PGUIDFMT" which does not provide an identity token\n", PGUID (*ppguid));
-      free_proxy_participant(proxypp);
-    }
-  }
-  else
-  {
-    /* Remote is un-secure. Try the discovery anyway. Maybe there's a local secure
-     * participant that allowed communication with remote non-secure ones
-     */
-    entidx_insert_proxy_participant_guid (gv->entity_index, proxypp);
-    add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
-    ELOGDISC (proxypp, "Un-secure participant "PGUIDFMT" tries to connect.\n", PGUID (*ppguid));
-  }
-#else
   /* Proxy participant must be in the hash tables for new_proxy_{writer,reader} to work */
   entidx_insert_proxy_participant_guid (gv->entity_index, proxypp);
   add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
+
+  /* write DCPSParticipant topic before the lease can expire */
+  builtintopic_write (gv->builtin_topic_interface, &proxypp->e, timestamp, true);
+
+  /* Register lease for auto liveliness, but be careful not to accidentally re-register
+     DDSI2's lease, as we may have become dependent on DDSI2 any time after
+     entidx_insert_proxy_participant_guid even if privileged_pp_guid was NULL originally */
+  ddsrt_mutex_lock (&proxypp->e.lock);
+  if (proxypp->owns_lease)
+    lease_register (ddsrt_atomic_ldvoidp (&proxypp->minl_auto));
+  ddsrt_mutex_unlock (&proxypp->e.lock);
+
+#ifdef DDSI_INCLUDE_SECURITY
+  if (is_secure)
+    proxy_participant_create_handshakes (gv, proxypp);
 #endif
 }
 
-int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp)
+int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, nn_wctime_t timestamp)
 {
-  nn_plist_t *new_plist = ddsrt_malloc (sizeof (*new_plist));
-  nn_plist_init_empty (new_plist);
-  nn_plist_mergein_missing (new_plist, datap, PP_PRISMTECH_NODE_NAME | PP_PRISMTECH_EXEC_NAME | PP_PRISMTECH_PROCESS_ID | PP_ENTITY_NAME, QP_USER_DATA);
-  nn_plist_mergein_missing (new_plist, &proxypp->e.gv->default_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
-
   if (seq > proxypp->seq)
+  {
     proxypp->seq = seq;
 
-  switch (source)
-  {
-    case UPD_PROXYPP_SPDP:
-      (void) update_qos_locked (&proxypp->e, &proxypp->plist->qos, &new_plist->qos, timestamp);
-      nn_plist_fini (new_plist);
-      ddsrt_free (new_plist);
-      proxypp->proxypp_have_spdp = 1;
-      break;
-
-    case UPD_PROXYPP_CM:
-      nn_plist_fini (proxypp->plist);
-      ddsrt_free (proxypp->plist);
-      proxypp->plist = new_plist;
-      proxypp->proxypp_have_cm = 1;
-      break;
+    struct ddsi_domaingv * const gv = proxypp->e.gv;
+    const uint64_t pmask = PP_ENTITY_NAME;
+    const uint64_t qmask = QP_USER_DATA;
+    ddsi_plist_t *new_plist = ddsrt_malloc (sizeof (*new_plist));
+    ddsi_plist_init_empty (new_plist);
+    ddsi_plist_mergein_missing (new_plist, datap, pmask, qmask);
+    ddsi_plist_mergein_missing (new_plist, &gv->default_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
+    (void) update_qos_locked (&proxypp->e, &proxypp->plist->qos, &new_plist->qos, timestamp);
+    ddsi_plist_fini (new_plist);
+    ddsrt_free (new_plist);
+    proxypp->proxypp_have_spdp = 1;
   }
   return 0;
 }
 
-int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp)
+int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, nn_wctime_t timestamp)
 {
   ddsrt_mutex_lock (&proxypp->e.lock);
-  update_proxy_participant_plist_locked (proxypp, seq, datap, source, timestamp);
+  update_proxy_participant_plist_locked (proxypp, seq, datap, timestamp);
   ddsrt_mutex_unlock (&proxypp->e.lock);
   return 0;
 }
@@ -4823,32 +4979,13 @@ static void unref_proxy_participant (struct proxy_participant *proxypp, struct p
 
   if (refc == 0)
   {
+    struct ddsi_domaingv * const gv = proxypp->e.gv;
+    const ddsi_guid_t pp_guid = proxypp->e.guid;
     assert (proxypp->endpoints == NULL);
-    if (proxypp->owns_lease)
-    {
-      struct lease * minl_auto = ddsrt_atomic_ldvoidp (&proxypp->minl_auto);
-      ddsrt_fibheap_delete (&lease_fhdef_proxypp, &proxypp->leaseheap_auto, proxypp->lease);
-      assert (ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_auto) == NULL);
-      assert (ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_man) == NULL);
-      assert (ddsrt_atomic_ldvoidp (&proxypp->minl_man) == NULL);
-      assert (!compare_guid (&minl_auto->entity->guid, &proxypp->e.guid));
-      lease_unregister (minl_auto);
-      lease_free (minl_auto);
-      lease_free (proxypp->lease);
-    }
     ddsrt_mutex_unlock (&proxypp->e.lock);
     ELOGDISC (proxypp, "unref_proxy_participant("PGUIDFMT"): refc=0, freeing\n", PGUID (proxypp->e.guid));
-
-#ifdef DDSI_INCLUDE_SECURITY
-    q_omg_security_deregister_remote_participant(proxypp);
-#endif
-    unref_addrset (proxypp->as_default);
-    unref_addrset (proxypp->as_meta);
-    nn_plist_fini (proxypp->plist);
-    ddsrt_free (proxypp->plist);
-    entity_common_fini (&proxypp->e);
-    remove_deleted_participant_guid (proxypp->e.gv->deleted_participants, &proxypp->e.guid, DPG_LOCAL | DPG_REMOTE);
-    ddsrt_free (proxypp);
+    free_proxy_participant (proxypp);
+    remove_deleted_participant_guid (gv->deleted_participants, &pp_guid, DPG_LOCAL | DPG_REMOTE);
   }
   else if (proxypp->endpoints == NULL && proxypp->implicitly_created)
   {
@@ -5014,7 +5151,7 @@ static void downgrade_to_nonsecure(struct proxy_participant *proxypp)
 
   /* Cleanup all kinds of related security information. */
   q_omg_security_deregister_remote_participant(proxypp);
-  proxypp->bes &= BES_MASK_NON_SECURITY;
+  proxypp->bes &= NN_BES_MASK_NON_SECURITY;
 }
 #endif
 
@@ -5032,7 +5169,7 @@ static void purge_helper (const nn_locator_t *n, void * varg)
     delete_proxy_participant_by_guid (data->proxypp->e.gv, &data->proxypp->e.guid, data->timestamp, 1);
 }
 
-void purge_proxy_participants (struct q_globals *gv, const nn_locator_t *loc, bool delete_from_as_disc)
+void purge_proxy_participants (struct ddsi_domaingv *gv, const nn_locator_t *loc, bool delete_from_as_disc)
 {
   /* FIXME: check whether addr:port can't be reused for a new connection by the time we get here. */
   /* NOTE: This function exists for the sole purpose of cleaning up after closing a TCP connection in ddsi_tcp_close_conn and the state of the calling thread could be anything at this point. Because of that we do the unspeakable and toggle the thread state conditionally. We can't afford to have it in "asleep", as that causes a race with the garbage collector. */
@@ -5055,7 +5192,7 @@ void purge_proxy_participants (struct q_globals *gv, const nn_locator_t *loc, bo
   thread_state_asleep (ts1);
 }
 
-int delete_proxy_participant_by_guid (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit)
+int delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit)
 {
   struct proxy_participant *ppt;
 
@@ -5078,7 +5215,7 @@ int delete_proxy_participant_by_guid (struct q_globals *gv, const struct ddsi_gu
   return 0;
 }
 
-uint64_t get_entity_instance_id (const struct q_globals *gv, const struct ddsi_guid *guid)
+uint64_t get_entity_instance_id (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid)
 {
   struct thread_state1 *ts1 = lookup_thread_state ();
   struct entity_common *e;
@@ -5092,7 +5229,7 @@ uint64_t get_entity_instance_id (const struct q_globals *gv, const struct ddsi_g
 
 /* PROXY-ENDPOINT --------------------------------------------------- */
 
-static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_endpoint_common *c, enum entity_kind kind, const struct ddsi_guid *guid, nn_wctime_t tcreate, seqno_t seq, struct proxy_participant *proxypp, struct addrset *as, const nn_plist_t *plist)
+static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_endpoint_common *c, enum entity_kind kind, const struct ddsi_guid *guid, nn_wctime_t tcreate, seqno_t seq, struct proxy_participant *proxypp, struct addrset *as, const ddsi_plist_t *plist)
 {
   const char *name;
   int ret;
@@ -5104,7 +5241,7 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
 
   name = (plist->present & PP_ENTITY_NAME) ? plist->entity_name : "";
   entity_common_init (e, proxypp->e.gv, guid, name, kind, tcreate, proxypp->vendor, false);
-  c->xqos = nn_xqos_dup (&plist->qos);
+  c->xqos = ddsi_xqos_dup (&plist->qos);
   c->as = ref_addrset (as);
   c->vendor = proxypp->vendor;
   c->seq = seq;
@@ -5121,7 +5258,7 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
 
   if ((ret = ref_proxy_participant (proxypp, c)) != DDS_RETCODE_OK)
   {
-    nn_xqos_fini (c->xqos);
+    ddsi_xqos_fini (c->xqos);
     ddsrt_free (c->xqos);
     unref_addrset (c->as);
     entity_common_fini (e);
@@ -5134,7 +5271,7 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
 static void proxy_endpoint_common_fini (struct entity_common *e, struct proxy_endpoint_common *c)
 {
   unref_proxy_participant (c->proxypp, c);
-  nn_xqos_fini (c->xqos);
+  ddsi_xqos_fini (c->xqos);
   ddsrt_free (c->xqos);
   unref_addrset (c->as);
   entity_common_fini (e);
@@ -5156,7 +5293,7 @@ get_proxy_writer_reorder_mode(const ddsi_entityid_t pwr_entityid, int isreliable
   return NN_REORDER_MODE_MONOTONICALLY_INCREASING;
 }
 
-int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const nn_plist_t *plist, struct nn_dqueue *dqueue, struct xeventq *evq, nn_wctime_t timestamp, seqno_t seq)
+int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const ddsi_plist_t *plist, struct nn_dqueue *dqueue, struct xeventq *evq, nn_wctime_t timestamp, seqno_t seq)
 {
   struct proxy_participant *proxypp;
   struct proxy_writer *pwr;
@@ -5400,7 +5537,7 @@ static void gc_delete_proxy_writer (struct gcreq *gcreq)
 
 /* First stage in deleting the proxy writer. In this function the pwr and its member pointers
    will remain valid. The real cleaning-up is done async in gc_delete_proxy_writer. */
-int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit)
+int delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit)
 {
   struct proxy_writer *pwr;
   DDSRT_UNUSED_ARG (isimplicit);
@@ -5434,7 +5571,7 @@ int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_
 
 static void proxy_writer_notify_liveliness_change_may_unlock (struct proxy_writer *pwr)
 {
-  struct proxy_writer_alive_state alive_state;
+  struct alive_state alive_state;
   proxy_writer_get_alive_state_locked (pwr, &alive_state);
 
   struct ddsi_guid rdguid;
@@ -5469,8 +5606,13 @@ void proxy_writer_set_alive_may_unlock (struct proxy_writer *pwr, bool notify)
   ddsrt_mutex_lock (&pwr->c.proxypp->e.lock);
   pwr->alive = true;
   pwr->alive_vclock++;
-  if (pwr->c.xqos->liveliness.lease_duration != T_NEVER && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
-    proxy_participant_add_pwr_lease_locked (pwr->c.proxypp, pwr);
+  if (pwr->c.xqos->liveliness.lease_duration != T_NEVER)
+  {
+    if (pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
+      proxy_participant_add_pwr_lease_locked (pwr->c.proxypp, pwr);
+    else
+      lease_set_expiry (pwr->lease, add_duration_to_etime (now_et (), pwr->lease->tdur));
+  }
   ddsrt_mutex_unlock (&pwr->c.proxypp->e.lock);
 
   if (notify)
@@ -5501,23 +5643,9 @@ int proxy_writer_set_notalive (struct proxy_writer *pwr, bool notify)
   return DDS_RETCODE_OK;
 }
 
-void proxy_writer_set_notalive_guid (struct q_globals *gv, const struct ddsi_guid *pwrguid, bool notify)
-{
-  struct proxy_writer *pwr;
-  if ((pwr = entidx_lookup_proxy_writer_guid (gv->entity_index, pwrguid)) == NULL)
-    GVLOGDISC (" "PGUIDFMT"?\n", PGUID (*pwrguid));
-  else
-  {
-    GVLOGDISC ("proxy_writer_set_notalive_guid ("PGUIDFMT")", PGUID (*pwrguid));
-    if (proxy_writer_set_notalive (pwr, notify) == DDS_RETCODE_PRECONDITION_NOT_MET)
-      GVLOGDISC (" pwr was not alive");
-    GVLOGDISC ("\n");
-  }
-}
-
 /* PROXY-READER ----------------------------------------------------- */
 
-int new_proxy_reader (struct q_globals *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const nn_plist_t *plist, nn_wctime_t timestamp, seqno_t seq
+int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const ddsi_plist_t *plist, nn_wctime_t timestamp, seqno_t seq
 #ifdef DDSI_INCLUDE_SSM
                       , int favours_ssm
 #endif
@@ -5639,7 +5767,7 @@ static void gc_delete_proxy_reader (struct gcreq *gcreq)
   ddsrt_free (prd);
 }
 
-int delete_proxy_reader (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit)
+int delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit)
 {
   struct proxy_reader *prd;
   (void)isimplicit;

@@ -78,7 +78,7 @@ enum ddsi_nearby_address_result {
   DNAR_SAME
 };
 
-typedef enum ddsi_nearby_address_result (*ddsi_is_nearby_address_fn_t) (ddsi_tran_factory_t tran, const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface *interf);
+typedef enum ddsi_nearby_address_result (*ddsi_is_nearby_address_fn_t) (const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface *interf);
 
 enum ddsi_locator_from_string_result {
   AFSR_OK,      /* conversion succeeded */
@@ -89,12 +89,12 @@ enum ddsi_locator_from_string_result {
 
 typedef enum ddsi_locator_from_string_result (*ddsi_locator_from_string_fn_t) (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str);
 
-typedef char * (*ddsi_locator_to_string_fn_t) (ddsi_tran_factory_t tran, char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port);
+typedef char * (*ddsi_locator_to_string_fn_t) (char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port);
 
 typedef int (*ddsi_enumerate_interfaces_fn_t) (ddsi_tran_factory_t tran, enum transport_selector transport_selector, ddsrt_ifaddrs_t **interfs);
 
 /* Data types */
-struct q_globals;
+struct ddsi_domaingv;
 struct ddsi_tran_base
 {
   /* Data */
@@ -102,7 +102,7 @@ struct ddsi_tran_base
   uint32_t m_port;
   uint32_t m_trantype;
   bool m_multicast;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
 
   /* Functions */
 
@@ -182,7 +182,7 @@ struct ddsi_tran_factory
   const char *m_default_spdp_address;
   bool m_connless;
   bool m_stream;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
 
   /* Relationships */
 
@@ -197,11 +197,11 @@ struct ddsi_tran_qos
   int m_diffserv;
 };
 
-void ddsi_tran_factories_fini (struct q_globals *gv);
-void ddsi_factory_add (struct q_globals *gv, ddsi_tran_factory_t factory);
+void ddsi_tran_factories_fini (struct ddsi_domaingv *gv);
+void ddsi_factory_add (struct ddsi_domaingv *gv, ddsi_tran_factory_t factory);
 void ddsi_factory_free (ddsi_tran_factory_t factory);
-ddsi_tran_factory_t ddsi_factory_find (const struct q_globals *gv, const char * type);
-ddsi_tran_factory_t ddsi_factory_find_supported_kind (const struct q_globals *gv, int32_t kind);
+ddsi_tran_factory_t ddsi_factory_find (const struct ddsi_domaingv *gv, const char * type);
+ddsi_tran_factory_t ddsi_factory_find_supported_kind (const struct ddsi_domaingv *gv, int32_t kind);
 void ddsi_factory_conn_init (const struct ddsi_tran_factory *factory, ddsi_tran_conn_t conn);
 
 inline bool ddsi_factory_supports (const struct ddsi_tran_factory *factory, int32_t kind) {
@@ -253,11 +253,11 @@ int ddsi_conn_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcip, const n
 int ddsi_conn_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcip, const nn_locator_t *mcip, const struct nn_interface *interf);
 void ddsi_conn_transfer_group_membership (ddsi_tran_conn_t conn, ddsi_tran_conn_t newconn);
 int ddsi_conn_rejoin_transferred_mcgroups (ddsi_tran_conn_t conn);
-int ddsi_is_mcaddr (const struct q_globals *gv, const nn_locator_t *loc);
-int ddsi_is_ssm_mcaddr (const struct q_globals *gv, const nn_locator_t *loc);
-enum ddsi_nearby_address_result ddsi_is_nearby_address (const struct q_globals *gv, const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface *interf);
+int ddsi_is_mcaddr (const struct ddsi_domaingv *gv, const nn_locator_t *loc);
+int ddsi_is_ssm_mcaddr (const struct ddsi_domaingv *gv, const nn_locator_t *loc);
+enum ddsi_nearby_address_result ddsi_is_nearby_address (const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface *interf);
 
-enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct q_globals *gv, nn_locator_t *loc, const char *str, ddsi_tran_factory_t default_factory);
+enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi_domaingv *gv, nn_locator_t *loc, const char *str, ddsi_tran_factory_t default_factory);
 
 /*  8 for transport/
     1 for [
@@ -270,8 +270,8 @@ enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct q_gl
 */
 #define DDSI_LOCSTRLEN 70
 
-char *ddsi_locator_to_string (const struct q_globals *gv, char *dst, size_t sizeof_dst, const nn_locator_t *loc);
-char *ddsi_locator_to_string_no_port (const struct q_globals *gv, char *dst, size_t sizeof_dst, const nn_locator_t *loc);
+char *ddsi_locator_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *loc);
+char *ddsi_locator_to_string_no_port (char *dst, size_t sizeof_dst, const nn_locator_t *loc);
 
 int ddsi_enumerate_interfaces (ddsi_tran_factory_t factory, enum transport_selector transport_selector, ddsrt_ifaddrs_t **interfs);
 

@@ -23,7 +23,7 @@
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_addrset.h"
-#include "dds/ddsi/q_globals.h" /* gv.mattr */
+#include "dds/ddsi/ddsi_domaingv.h" /* gv.mattr */
 #include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
 
 /* So what does one do with const & mutexes? I need to take lock in a
@@ -44,7 +44,7 @@ static int compare_locators_vwrap (const void *va, const void *vb);
 static const ddsrt_avl_ctreedef_t addrset_treedef =
   DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct addrset_node, avlnode), offsetof (struct addrset_node, loc), compare_locators_vwrap, 0);
 
-static int add_addresses_to_addrset_1 (const struct q_globals *gv, struct addrset *as, const char *ip, int port_mode, const char *msgtag, int req_mc, int mcgen_base, int mcgen_count, int mcgen_idx)
+static int add_addresses_to_addrset_1 (const struct ddsi_domaingv *gv, struct addrset *as, const char *ip, int port_mode, const char *msgtag, int req_mc, int mcgen_base, int mcgen_count, int mcgen_idx)
 {
   char buf[DDSI_LOCSTRLEN];
   nn_locator_t loc;
@@ -94,7 +94,7 @@ static int add_addresses_to_addrset_1 (const struct q_globals *gv, struct addrse
   if (port_mode >= 0)
   {
     loc.port = (unsigned) port_mode;
-    GVLOG (DDS_LC_CONFIG, "%s: add %s", msgtag, ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
+    GVLOG (DDS_LC_CONFIG, "%s: add %s", msgtag, ddsi_locator_to_string(buf, sizeof(buf), &loc));
     add_to_addrset (gv, as, &loc);
   }
   else
@@ -107,7 +107,7 @@ static int add_addresses_to_addrset_1 (const struct q_globals *gv, struct addrse
       {
         loc.port = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, i);
         if (i == 0)
-          GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
+          GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(buf, sizeof(buf), &loc));
         else
           GVLOG (DDS_LC_CONFIG, ", :%"PRIu32, loc.port);
         add_to_addrset (gv, as, &loc);
@@ -119,7 +119,7 @@ static int add_addresses_to_addrset_1 (const struct q_globals *gv, struct addrse
         loc.port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
       else
         loc.port = (uint32_t) port_mode;
-      GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
+      GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(buf, sizeof(buf), &loc));
       add_to_addrset (gv, as, &loc);
     }
   }
@@ -128,7 +128,7 @@ static int add_addresses_to_addrset_1 (const struct q_globals *gv, struct addrse
   return 0;
 }
 
-int add_addresses_to_addrset (const struct q_globals *gv, struct addrset *as, const char *addrs, int port_mode, const char *msgtag, int req_mc)
+int add_addresses_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const char *addrs, int port_mode, const char *msgtag, int req_mc)
 {
   /* port_mode: -1  => take from string, if 0 & unicast, add for a range of participant indices;
      port_mode >= 0 => always set port to port_mode
@@ -231,6 +231,7 @@ void unref_addrset (struct addrset *as)
 
 void set_unspec_locator (nn_locator_t *loc)
 {
+  loc->tran = NULL;
   loc->kind = NN_LOCATOR_KIND_INVALID;
   loc->port = NN_LOCATOR_PORT_INVALID;
   memset (loc->address, 0, sizeof (loc->address));
@@ -245,7 +246,7 @@ int is_unspec_locator (const nn_locator_t *loc)
 }
 
 #ifdef DDSI_INCLUDE_SSM
-int addrset_contains_ssm (const struct q_globals *gv, const struct addrset *as)
+int addrset_contains_ssm (const struct ddsi_domaingv *gv, const struct addrset *as)
 {
   struct addrset_node *n;
   ddsrt_avl_citer_t it;
@@ -262,7 +263,7 @@ int addrset_contains_ssm (const struct q_globals *gv, const struct addrset *as)
   return 0;
 }
 
-int addrset_any_ssm (const struct q_globals *gv, const struct addrset *as, nn_locator_t *dst)
+int addrset_any_ssm (const struct ddsi_domaingv *gv, const struct addrset *as, nn_locator_t *dst)
 {
   struct addrset_node *n;
   ddsrt_avl_citer_t it;
@@ -280,7 +281,7 @@ int addrset_any_ssm (const struct q_globals *gv, const struct addrset *as, nn_lo
   return 0;
 }
 
-int addrset_any_non_ssm_mc (const struct q_globals *gv, const struct addrset *as, nn_locator_t *dst)
+int addrset_any_non_ssm_mc (const struct ddsi_domaingv *gv, const struct addrset *as, nn_locator_t *dst)
 {
   struct addrset_node *n;
   ddsrt_avl_citer_t it;
@@ -308,7 +309,7 @@ int addrset_purge (struct addrset *as)
   return 0;
 }
 
-void add_to_addrset (const struct q_globals *gv, struct addrset *as, const nn_locator_t *loc)
+void add_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const nn_locator_t *loc)
 {
   if (!is_unspec_locator (loc))
   {
@@ -325,7 +326,7 @@ void add_to_addrset (const struct q_globals *gv, struct addrset *as, const nn_lo
   }
 }
 
-void remove_from_addrset (const struct q_globals *gv, struct addrset *as, const nn_locator_t *loc)
+void remove_from_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const nn_locator_t *loc)
 {
   ddsrt_avl_dpath_t path;
   ddsrt_avl_ctree_t *tree = ddsi_is_mcaddr (gv, loc) ? &as->mcaddrs : &as->ucaddrs;
@@ -339,7 +340,7 @@ void remove_from_addrset (const struct q_globals *gv, struct addrset *as, const 
   UNLOCK (as);
 }
 
-void copy_addrset_into_addrset_uc (const struct q_globals *gv, struct addrset *as, const struct addrset *asadd)
+void copy_addrset_into_addrset_uc (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asadd)
 {
   struct addrset_node *n;
   ddsrt_avl_citer_t it;
@@ -349,7 +350,7 @@ void copy_addrset_into_addrset_uc (const struct q_globals *gv, struct addrset *a
   UNLOCK (asadd);
 }
 
-void copy_addrset_into_addrset_mc (const struct q_globals *gv, struct addrset *as, const struct addrset *asadd)
+void copy_addrset_into_addrset_mc (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asadd)
 {
   struct addrset_node *n;
   ddsrt_avl_citer_t it;
@@ -359,14 +360,14 @@ void copy_addrset_into_addrset_mc (const struct q_globals *gv, struct addrset *a
   UNLOCK (asadd);
 }
 
-void copy_addrset_into_addrset (const struct q_globals *gv, struct addrset *as, const struct addrset *asadd)
+void copy_addrset_into_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asadd)
 {
   copy_addrset_into_addrset_uc (gv, as, asadd);
   copy_addrset_into_addrset_mc (gv, as, asadd);
 }
 
 #ifdef DDSI_INCLUDE_SSM
-void copy_addrset_into_addrset_no_ssm_mc (const struct q_globals *gv, struct addrset *as, const struct addrset *asadd)
+void copy_addrset_into_addrset_no_ssm_mc (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asadd)
 {
   struct addrset_node *n;
   ddsrt_avl_citer_t it;
@@ -380,7 +381,7 @@ void copy_addrset_into_addrset_no_ssm_mc (const struct q_globals *gv, struct add
 
 }
 
-void copy_addrset_into_addrset_no_ssm (const struct q_globals *gv, struct addrset *as, const struct addrset *asadd)
+void copy_addrset_into_addrset_no_ssm (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asadd)
 {
   copy_addrset_into_addrset_uc (gv, as, asadd);
   copy_addrset_into_addrset_no_ssm_mc (gv, as, asadd);
@@ -548,19 +549,19 @@ int addrset_forone (struct addrset *as, addrset_forone_fun_t f, void *arg)
 struct log_addrset_helper_arg
 {
   uint32_t tf;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
 };
 
 static void log_addrset_helper (const nn_locator_t *n, void *varg)
 {
   const struct log_addrset_helper_arg *arg = varg;
-  const struct q_globals *gv = arg->gv;
+  const struct ddsi_domaingv *gv = arg->gv;
   char buf[DDSI_LOCSTRLEN];
   if (gv->logconfig.c.mask & arg->tf)
-    GVLOG (arg->tf, " %s", ddsi_locator_to_string (gv, buf, sizeof(buf), n));
+    GVLOG (arg->tf, " %s", ddsi_locator_to_string (buf, sizeof(buf), n));
 }
 
-void nn_log_addrset (struct q_globals *gv, uint32_t tf, const char *prefix, const struct addrset *as)
+void nn_log_addrset (struct ddsi_domaingv *gv, uint32_t tf, const char *prefix, const struct addrset *as)
 {
   if (gv->logconfig.c.mask & tf)
   {

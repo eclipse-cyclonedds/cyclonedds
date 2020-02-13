@@ -12,9 +12,9 @@
 #ifndef DDSI_OMG_SECURITY_H
 #define DDSI_OMG_SECURITY_H
 
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsrt/retcode.h"
@@ -164,7 +164,7 @@ unsigned determine_publication_writer(const struct writer *wr);
  */
 bool
 is_proxy_participant_deletion_allowed(
-  struct q_globals * const gv,
+  struct ddsi_domaingv * const gv,
   const struct ddsi_guid *guid,
   const ddsi_entityid_t pwr_entityid);
 
@@ -210,7 +210,7 @@ q_omg_security_is_local_rtps_protected(
 void
 set_proxy_participant_security_info(
   struct proxy_participant *proxypp,
-  const nn_plist_t *plist);
+  const ddsi_plist_t *plist);
 
 /**
  * @brief Set security information, depending on plist and proxy participant,
@@ -222,7 +222,7 @@ set_proxy_participant_security_info(
 void
 set_proxy_reader_security_info(
   struct proxy_reader *prd,
-  const nn_plist_t *plist);
+  const ddsi_plist_t *plist);
 
 /**
  * @brief Set security information, depending on plist and proxy participant,
@@ -234,7 +234,7 @@ set_proxy_reader_security_info(
 void
 set_proxy_writer_security_info(
   struct proxy_writer *pwr,
-  const nn_plist_t *plist);
+  const ddsi_plist_t *plist);
 
 /**
  * @brief Encode RTPS message.
@@ -311,7 +311,7 @@ encode_payload(
  */
 bool
 decode_Data(
-  const struct q_globals *gv,
+  const struct ddsi_domaingv *gv,
   struct nn_rsample_info *sampleinfo,
   unsigned char *payloadp,
   uint32_t payloadsz,
@@ -339,7 +339,7 @@ decode_Data(
  */
 bool
 decode_DataFrag(
-  const struct q_globals *gv,
+  const struct ddsi_domaingv *gv,
   struct nn_rsample_info *sampleinfo,
   unsigned char *payloadp,
   uint32_t payloadsz,
@@ -464,7 +464,7 @@ decode_SecPrefix(
 nn_rtps_msg_state_t
 decode_rtps_message(
   struct thread_state1 * const ts1,
-  struct q_globals *gv,
+  struct ddsi_domaingv *gv,
   struct nn_rmsg **rmsg,
   Header_t **hdr,
   unsigned char **buff,
@@ -748,7 +748,7 @@ determine_publication_writer(
 
 inline bool
 is_proxy_participant_deletion_allowed(
-  UNUSED_ARG(struct q_globals * const gv),
+  UNUSED_ARG(struct ddsi_domaingv * const gv),
   UNUSED_ARG(const struct ddsi_guid *guid),
   UNUSED_ARG(const ddsi_entityid_t pwr_entityid))
 {
@@ -817,27 +817,27 @@ q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct proxy_rea
 inline void
 set_proxy_participant_security_info(
   UNUSED_ARG(struct proxy_participant *prd),
-  UNUSED_ARG(const nn_plist_t *plist))
+  UNUSED_ARG(const ddsi_plist_t *plist))
 {
 }
 
 inline void
 set_proxy_reader_security_info(
   UNUSED_ARG(struct proxy_reader *prd),
-  UNUSED_ARG(const nn_plist_t *plist))
+  UNUSED_ARG(const ddsi_plist_t *plist))
 {
 }
 
 inline void
 set_proxy_writer_security_info(
   UNUSED_ARG(struct proxy_writer *pwr),
-  UNUSED_ARG(const nn_plist_t *plist))
+  UNUSED_ARG(const ddsi_plist_t *plist))
 {
 }
 
 inline bool
 decode_Data(
-  UNUSED_ARG(const struct q_globals *gv),
+  UNUSED_ARG(const struct ddsi_domaingv *gv),
   UNUSED_ARG(struct nn_rsample_info *sampleinfo),
   UNUSED_ARG(unsigned char *payloadp),
   UNUSED_ARG(uint32_t payloadsz),
@@ -848,7 +848,7 @@ decode_Data(
 
 inline bool
 decode_DataFrag(
-  UNUSED_ARG(const struct q_globals *gv),
+  UNUSED_ARG(const struct ddsi_domaingv *gv),
   UNUSED_ARG(struct nn_rsample_info *sampleinfo),
   UNUSED_ARG(unsigned char *payloadp),
   UNUSED_ARG(uint32_t payloadsz),
@@ -902,7 +902,7 @@ decode_SecPrefix(
 inline nn_rtps_msg_state_t
 decode_rtps_message(
   UNUSED_ARG(struct thread_state1 * const ts1),
-  UNUSED_ARG(struct q_globals *gv),
+  UNUSED_ARG(struct ddsi_domaingv *gv),
   UNUSED_ARG(struct nn_rmsg **rmsg),
   UNUSED_ARG(Header_t **hdr),
   UNUSED_ARG(unsigned char **buff),

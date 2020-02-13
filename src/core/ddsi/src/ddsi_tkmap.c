@@ -18,13 +18,13 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_gc.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsrt/hopscotch.h"
-#include "dds__stream.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsrt/hopscotch.h"
 
 #define REFC_DELETE 0x80000000
 #define REFC_MASK   0x0fffffff
@@ -32,7 +32,7 @@
 struct ddsi_tkmap
 {
   struct ddsrt_chh *m_hh;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   ddsrt_mutex_t m_lock;
   ddsrt_cond_t m_cond;
 };
@@ -86,7 +86,7 @@ static int dds_tk_equals_void (const void *a, const void *b)
   return dds_tk_equals (a, b);
 }
 
-struct ddsi_tkmap *ddsi_tkmap_new (struct q_globals *gv)
+struct ddsi_tkmap *ddsi_tkmap_new (struct ddsi_domaingv *gv)
 {
   struct ddsi_tkmap *tkmap = dds_alloc (sizeof (*tkmap));
   tkmap->m_hh = ddsrt_chh_new (1, dds_tk_hash_void, dds_tk_equals_void, gc_buckets, tkmap);

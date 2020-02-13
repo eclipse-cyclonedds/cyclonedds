@@ -13,12 +13,13 @@
 #include <string.h>
 
 #include "dds/ddsrt/endian.h"
+#include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsi/ddsi_ipaddr.h"
 #include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 
 int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr *const sa2)
 {
@@ -54,11 +55,10 @@ int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr
   return eq;
 }
 
-enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (ddsi_tran_factory_t tran, const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
+enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
 {
   struct sockaddr_storage tmp, iftmp, nmtmp, ownip;
   size_t i;
-  (void)tran;
   ddsi_ipaddr_from_loc(&tmp, loc);
   for (i = 0; i < ninterf; i++)
   {
@@ -104,6 +104,7 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_tran_factory_
           return AFSR_UNKNOWN;
       }
       memcpy(&tmpaddr, &hent->addrs[0], sizeof(hent->addrs[0]));
+      ddsrt_free (hent);
 #else
       return AFSR_INVALID;
 #endif
@@ -111,16 +112,15 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_tran_factory_
   if (tmpaddr.ss_family != af) {
     return AFSR_MISMATCH;
   }
-  ddsi_ipaddr_to_loc (loc, (struct sockaddr *)&tmpaddr, kind);
+  ddsi_ipaddr_to_loc (tran, loc, (struct sockaddr *)&tmpaddr, kind);
   /* This is just an address, so there is no valid value for port, other than INVALID.
      Without a guarantee that tmpaddr has port 0, best is to set it explicitly here */
   loc->port = NN_LOCATOR_PORT_INVALID;
   return AFSR_OK;
 }
 
-char *ddsi_ipaddr_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)
+char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)
 {
-  (void)tran;
   assert (sizeof_dst > 1);
   if (loc->kind == NN_LOCATOR_KIND_INVALID)
     (void) snprintf (dst, sizeof_dst, "(invalid)");
@@ -161,8 +161,9 @@ char *ddsi_ipaddr_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_
   return dst;
 }
 
-void ddsi_ipaddr_to_loc (nn_locator_t *dst, const struct sockaddr *src, int32_t kind)
+void ddsi_ipaddr_to_loc (const struct ddsi_tran_factory *tran, nn_locator_t *dst, const struct sockaddr *src, int32_t kind)
 {
+  dst->tran = (struct ddsi_tran_factory *) tran;
   dst->kind = kind;
   switch (src->sa_family)
   {
@@ -172,6 +173,7 @@ void ddsi_ipaddr_to_loc (nn_locator_t *dst, const struct sockaddr *src, int32_t 
       assert (kind == NN_LOCATOR_KIND_UDPv4 || kind == NN_LOCATOR_KIND_TCPv4);
       if (x->sin_addr.s_addr == htonl (INADDR_ANY))
       {
+        dst->tran = NULL;
         dst->kind = NN_LOCATOR_KIND_INVALID;
         dst->port = NN_LOCATOR_PORT_INVALID;
         memset (dst->address, 0, sizeof (dst->address));
@@ -191,6 +193,7 @@ void ddsi_ipaddr_to_loc (nn_locator_t *dst, const struct sockaddr *src, int32_t 
       assert (kind == NN_LOCATOR_KIND_UDPv6 || kind == NN_LOCATOR_KIND_TCPv6);
       if (IN6_IS_ADDR_UNSPECIFIED (&x->sin6_addr))
       {
+        dst->tran = NULL;
         dst->kind = NN_LOCATOR_KIND_INVALID;
         dst->port = NN_LOCATOR_PORT_INVALID;
         memset (dst->address, 0, sizeof (dst->address));

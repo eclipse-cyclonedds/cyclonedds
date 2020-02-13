@@ -54,7 +54,7 @@ print CYC <<EOF;
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
-#include "dds__stream.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 
 #include "c_base.h"
 #include "sd_cdr.h"
@@ -116,7 +116,15 @@ EOF
   ;
   print CYC gencmp ($t);
   print CYC <<EOF;
-  ddd.type = (struct dds_topic_descriptor *) &$t->[1]_desc;
+  ddd.type = (struct ddsi_sertopic_default_desc) {
+    .m_size = $t->[1]_desc.m_size,
+    .m_align = $t->[1]_desc.m_align,
+    .m_flagset = $t->[1]_desc.m_flagset,
+    .m_nkeys = 0,
+    .m_keys = NULL,
+    .m_nops = dds_stream_countops ($t->[1]_desc.m_ops),
+    .m_ops = (uint32_t *) $t->[1]_desc.m_ops
+  };
   for (uint32_t i = 0; i < 1000; i++) {
     for (size_t j = 0; j < sizeof (garbage); j++)
       garbage[j] = (unsigned char) ddsrt_random ();

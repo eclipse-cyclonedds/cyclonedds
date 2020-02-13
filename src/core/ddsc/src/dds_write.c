@@ -18,13 +18,14 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds__stream.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_deliver_locally.h"
 
 dds_return_t dds_write (dds_entity_t writer, const void *data)
 {
@@ -71,80 +72,103 @@ dds_return_t dds_write_ts (dds_entity_t writer, const void *data, dds_time_t tim
   return ret;
 }
 
-static dds_return_t try_store (struct ddsi_rhc *rhc, const struct ddsi_writer_info *pwr_info, struct ddsi_serdata *payload, struct ddsi_tkmap_instance *tk, dds_duration_t *max_block_ms)
+static struct reader *writer_first_in_sync_reader (struct entity_index *entity_index, struct entity_common *wrcmn, ddsrt_avl_iter_t *it)
 {
-  while (! ddsi_rhc_store (rhc, pwr_info, payload, tk))
+  assert (wrcmn->kind == EK_WRITER);
+  struct writer *wr = (struct writer *) wrcmn;
+  struct wr_rd_match *m = ddsrt_avl_iter_first (&wr_local_readers_treedef, &wr->local_readers, it);
+  return m ? entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
+}
+
+static struct reader *writer_next_in_sync_reader (struct entity_index *entity_index, ddsrt_avl_iter_t *it)
+{
+  struct wr_rd_match *m = ddsrt_avl_iter_next (it);
+  return m ? entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
+}
+
+struct local_sourceinfo {
+  const struct ddsi_sertopic *src_topic;
+  struct ddsi_serdata *src_payload;
+  struct ddsi_tkmap_instance *src_tk;
+  nn_mtime_t timeout;
+};
+
+static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, struct ddsi_domaingv *gv, struct ddsi_sertopic const * const topic, void *vsourceinfo)
+{
+  struct local_sourceinfo *si = vsourceinfo;
+  if (topic == si->src_topic)
   {
-    if (*max_block_ms > 0)
+    *tk = si->src_tk;
+    /* FIXME: see if this pair of refc increments can't be avoided
+       They're needed because free_sample_after_delivery will always be called, but
+       in the common case of a local writer and a single sertopic, make_sample doesn't
+       actually create a sample, and so free_sample_after_delivery doesn't actually
+       have to free anything */
+    ddsi_tkmap_instance_ref (si->src_tk);
+    return ddsi_serdata_ref (si->src_payload);
+  }
+  else
+  {
+    /* ouch ... convert a serdata from one sertopic to another ... */
+    ddsrt_iovec_t iov;
+    uint32_t size = ddsi_serdata_size (si->src_payload);
+    (void) ddsi_serdata_to_ser_ref (si->src_payload, 0, size, &iov);
+    struct ddsi_serdata *d = ddsi_serdata_from_ser_iov (topic, si->src_payload->kind, 1, &iov, size);
+    ddsi_serdata_to_ser_unref (si->src_payload, &iov);
+    if (d)
     {
-      dds_sleepfor (DDS_HEADBANG_TIMEOUT);
-      *max_block_ms -= DDS_HEADBANG_TIMEOUT;
+      d->statusinfo = si->src_payload->statusinfo;
+      d->timestamp = si->src_payload->timestamp;
+      *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, d);
     }
     else
     {
-      return DDS_RETCODE_TIMEOUT;
+      DDS_CWARNING (&gv->logconfig, "local: deserialization %s/%s failed in topic type conversion\n", topic->name, topic->type_name);
     }
+    return d;
   }
-  return DDS_RETCODE_OK;
+}
+
+static dds_return_t local_on_delivery_failure_fastpath (struct entity_common *source_entity, bool source_entity_locked, struct local_reader_ary *fastpath_rdary, void *vsourceinfo)
+{
+  (void) fastpath_rdary;
+  (void) source_entity_locked;
+  assert (source_entity->kind == EK_WRITER);
+  struct writer *wr = (struct writer *) source_entity;
+  struct local_sourceinfo *si = vsourceinfo;
+  nn_mtime_t tnow = now_mt ();
+  if (si->timeout.v == 0)
+    si->timeout = add_duration_to_mtime (tnow, wr->xqos->reliability.max_blocking_time);
+  if (tnow.v >= si->timeout.v)
+    return DDS_RETCODE_TIMEOUT;
+  else
+  {
+    dds_sleepfor (DDS_HEADBANG_TIMEOUT);
+    return DDS_RETCODE_OK;
+  }
 }
 
 static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *payload, struct ddsi_tkmap_instance *tk)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
-  ddsrt_mutex_lock (&wr->rdary.rdary_lock);
-  if (wr->rdary.fastpath_ok)
-  {
-    struct reader ** const rdary = wr->rdary.rdary;
-    if (rdary[0])
-    {
-      dds_duration_t max_block_ms = wr->xqos->reliability.max_blocking_time;
-      struct ddsi_writer_info pwr_info;
-      ddsi_make_writer_info (&pwr_info, &wr->e, wr->xqos, payload->statusinfo);
-      for (uint32_t i = 0; rdary[i]; i++) {
-        DDS_CTRACE (&wr->e.gv->logconfig, "reader "PGUIDFMT"\n", PGUID (rdary[i]->e.guid));
-        if ((ret = try_store (rdary[i]->rhc, &pwr_info, payload, tk, &max_block_ms)) != DDS_RETCODE_OK)
-          break;
-      }
-    }
-    ddsrt_mutex_unlock (&wr->rdary.rdary_lock);
-  }
-  else
-  {
-    /* When deleting, pwr is no longer accessible via the hash
-       tables, and consequently, a reader may be deleted without
-       it being possible to remove it from rdary. The primary
-       reason rdary exists is to avoid locking the proxy writer
-       but this is less of an issue when we are deleting it, so
-       we fall back to using the GUIDs so that we can deliver all
-       samples we received from it. As writer being deleted any
-       reliable samples that are rejected are simply discarded. */
-    ddsrt_avl_iter_t it;
-    struct pwr_rd_match *m;
-    struct ddsi_writer_info wrinfo;
-    const struct entity_index *gh = wr->e.gv->entity_index;
-    dds_duration_t max_block_ms = wr->xqos->reliability.max_blocking_time;
-    ddsrt_mutex_unlock (&wr->rdary.rdary_lock);
-    ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, payload->statusinfo);
-    ddsrt_mutex_lock (&wr->e.lock);
-    for (m = ddsrt_avl_iter_first (&wr_local_readers_treedef, &wr->local_readers, &it); m != NULL; m = ddsrt_avl_iter_next (&it))
-    {
-      struct reader *rd;
-      if ((rd = entidx_lookup_reader_guid (gh, &m->rd_guid)) != NULL)
-      {
-        DDS_CTRACE (&wr->e.gv->logconfig, "reader-via-guid "PGUIDFMT"\n", PGUID (rd->e.guid));
-        /* Copied the return value ignore from DDSI deliver_user_data () function. */
-        if ((ret = try_store (rd->rhc, &wrinfo, payload, tk, &max_block_ms)) != DDS_RETCODE_OK)
-          break;
-      }
-    }
-    ddsrt_mutex_unlock (&wr->e.lock);
-  }
-
-  if (ret == DDS_RETCODE_TIMEOUT)
-  {
+  static const struct deliver_locally_ops deliver_locally_ops = {
+    .makesample = local_make_sample,
+    .first_reader = writer_first_in_sync_reader,
+    .next_reader = writer_next_in_sync_reader,
+    .on_failure_fastpath = local_on_delivery_failure_fastpath
+  };
+  struct local_sourceinfo sourceinfo = {
+    .src_topic = wr->topic,
+    .src_payload = payload,
+    .src_tk = tk,
+    .timeout = { 0 },
+  };
+  dds_return_t rc;
+  struct ddsi_writer_info wrinfo;
+  ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, payload->statusinfo);
+  rc = deliver_locally_allinsync (wr->e.gv, &wr->e, false, &wr->rdary, &wrinfo, &deliver_locally_ops, &sourceinfo);
+  if (rc == DDS_RETCODE_TIMEOUT)
     DDS_CERROR (&wr->e.gv->logconfig, "The writer could not deliver data on time, probably due to a local reader resources being full\n");
-  }
-  return ret;
+  return rc;
 }
 
 dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)

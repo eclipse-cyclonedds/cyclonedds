@@ -16,8 +16,8 @@
 extern "C" {
 #endif
 
-int create_multicast_sockets (struct q_globals *gv);
-int joinleave_spdp_defmcip (struct q_globals *gv, int dojoin);
+int create_multicast_sockets (struct ddsi_domaingv *gv);
+int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin);
 
 #if defined (__cplusplus)
 }

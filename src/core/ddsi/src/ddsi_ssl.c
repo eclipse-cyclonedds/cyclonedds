@@ -28,7 +28,7 @@
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 
 static SSL_CTX *ddsi_ssl_ctx = NULL;
 static bool ddsi_ssl_allow_self_signed_hack = false;
@@ -38,7 +38,7 @@ static SSL *ddsi_ssl_new (void)
   return SSL_new (ddsi_ssl_ctx);
 }
 
-static void ddsi_ssl_error (const struct q_globals *gv, SSL *ssl, const char *str, int err)
+static void ddsi_ssl_error (const struct ddsi_domaingv *gv, SSL *ssl, const char *str, int err)
 {
   char buff[128];
   ERR_error_string ((unsigned) SSL_get_error (ssl, err), buff);
@@ -178,7 +178,7 @@ static void ddsi_ssl_dynlock_destroy (CRYPTO_dynlock_value *lock, const char *fi
 
 static int ddsi_ssl_password (char *buf, int num, int rwflag, void *udata)
 {
-  struct q_globals *gv = udata;
+  struct ddsi_domaingv *gv = udata;
   (void) rwflag;
   if (num < 0 || (size_t) num < strlen (gv->config.ssl_key_pass) + 1)
     return 0;
@@ -188,7 +188,7 @@ static int ddsi_ssl_password (char *buf, int num, int rwflag, void *udata)
   return (int) strlen (gv->config.ssl_key_pass);
 }
 
-static SSL_CTX *ddsi_ssl_ctx_init (struct q_globals *gv)
+static SSL_CTX *ddsi_ssl_ctx_init (struct ddsi_domaingv *gv)
 {
   SSL_CTX *ctx = SSL_CTX_new (SSLv23_method ());
   unsigned disallow_TLSv1_2;
@@ -281,7 +281,7 @@ fail:
   return NULL;
 }
 
-static void dds_report_tls_version (const struct q_globals *gv, const SSL *ssl, const char *oper)
+static void dds_report_tls_version (const struct ddsi_domaingv *gv, const SSL *ssl, const char *oper)
 {
   if (ssl)
   {
@@ -292,7 +292,7 @@ static void dds_report_tls_version (const struct q_globals *gv, const SSL *ssl, 
   }
 }
 
-static SSL *ddsi_ssl_connect (const struct q_globals *gv, ddsrt_socket_t sock)
+static SSL *ddsi_ssl_connect (const struct ddsi_domaingv *gv, ddsrt_socket_t sock)
 {
   SSL *ssl;
   int err;
@@ -326,7 +326,7 @@ static BIO *ddsi_ssl_listen (ddsrt_socket_t sock)
   return bio;
 }
 
-static SSL *ddsi_ssl_accept (const struct q_globals *gv, BIO *bio, ddsrt_socket_t *sock)
+static SSL *ddsi_ssl_accept (const struct ddsi_domaingv *gv, BIO *bio, ddsrt_socket_t *sock)
 {
   SSL *ssl = NULL;
   BIO *nbio;
@@ -350,7 +350,7 @@ static SSL *ddsi_ssl_accept (const struct q_globals *gv, BIO *bio, ddsrt_socket_
   return ssl;
 }
 
-static bool ddsi_ssl_init (struct q_globals *gv)
+static bool ddsi_ssl_init (struct ddsi_domaingv *gv)
 {
   /* FIXME: allocate this stuff ... don't copy gv into a global variable ... */
   ERR_load_BIO_strings ();
