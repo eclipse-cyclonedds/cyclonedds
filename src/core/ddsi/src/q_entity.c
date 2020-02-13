@@ -4827,6 +4827,8 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
     proxypp->minimal_bes_mode = 1;
   else
     proxypp->minimal_bes_mode = 0;
+  proxypp->implicitly_created = ((custom_flags & CF_IMPLICITLY_CREATED_PROXYPP) != 0);
+  proxypp->proxypp_have_spdp = ((custom_flags & CF_PROXYPP_NO_SPDP) == 0);
 
   {
     struct proxy_participant *privpp;
@@ -4889,19 +4891,6 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
   set_proxy_participant_security_info(proxypp, plist);
 #endif
 
-  if (custom_flags & CF_INC_KERNEL_SEQUENCE_NUMBERS)
-    proxypp->kernel_sequence_numbers = 1;
-  else
-    proxypp->kernel_sequence_numbers = 0;
-  if (custom_flags & CF_IMPLICITLY_CREATED_PROXYPP)
-    proxypp->implicitly_created = 1;
-  else
-    proxypp->implicitly_created = 0;
-
-  if (custom_flags & CF_PROXYPP_NO_SPDP)
-    proxypp->proxypp_have_spdp = 0;
-  else
-    proxypp->proxypp_have_spdp = 1;
 
 #ifdef DDSI_INCLUDE_SECURITY
   if (secure)

@@ -358,7 +358,6 @@ struct proxy_participant
   struct proxy_endpoint_common *endpoints; /* all proxy endpoints can be reached from here */
   ddsrt_avl_tree_t groups; /* table of all groups (publisher, subscriber), see struct proxy_group */
   seqno_t seq; /* sequence number of most recent SPDP message */
-  unsigned kernel_sequence_numbers : 1; /* whether this proxy participant generates OSPL kernel sequence numbers */
   unsigned implicitly_created : 1; /* participants are implicitly created for Cloud/Fog discovered endpoints */
   unsigned is_ddsi2_pp: 1; /* if this is the federation-leader on the remote node */
   unsigned minimal_bes_mode: 1;
@@ -665,19 +664,17 @@ int writer_set_notalive (struct writer *wr, bool notify);
       XX --
 */
 
-/* Set this custom flag when using nn_prismtech_writer_info_t iso nn_prismtech_writer_info_old_t */
-#define CF_INC_KERNEL_SEQUENCE_NUMBERS         (1 << 0)
 /* Set when this proxy participant is created implicitly and has to be deleted upon disappearance
    of its last endpoint.  FIXME: Currently there is a potential race with adding a new endpoint
    in parallel to deleting the last remaining one. The endpoint will then be created, added to the
    proxy participant and then both are deleted. With the current single-threaded discovery
    this can only happen when it is all triggered by lease expiry. */
-#define CF_IMPLICITLY_CREATED_PROXYPP          (1 << 1)
+#define CF_IMPLICITLY_CREATED_PROXYPP          (1 << 0)
 /* Set when this proxy participant is a DDSI2 participant, to help Cloud figure out whom to send
    discovery data when used in conjunction with the networking bridge */
-#define CF_PARTICIPANT_IS_DDSI2                (1 << 2)
+#define CF_PARTICIPANT_IS_DDSI2                (1 << 1)
 /* Set when this proxy participant is not to be announced on the built-in topics yet */
-#define CF_PROXYPP_NO_SPDP                     (1 << 3)
+#define CF_PROXYPP_NO_SPDP                     (1 << 2)
 
 void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const struct ddsi_plist *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, nn_wctime_t timestamp, seqno_t seq);
 int delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);

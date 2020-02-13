@@ -657,9 +657,6 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
   }
 
   if (datap->present & PP_PRISMTECH_PARTICIPANT_VERSION_INFO) {
-    if (datap->prismtech_participant_version_info.flags & NN_PRISMTECH_FL_KERNEL_SEQUENCE_NUMBER)
-      custom_flags |= CF_INC_KERNEL_SEQUENCE_NUMBERS;
-
     if ((datap->prismtech_participant_version_info.flags & NN_PRISMTECH_FL_DDSI2_PARTICIPANT_FLAG) &&
         (datap->prismtech_participant_version_info.flags & NN_PRISMTECH_FL_PARTICIPANT_IS_DDSI2))
       custom_flags |= CF_PARTICIPANT_IS_DDSI2;
