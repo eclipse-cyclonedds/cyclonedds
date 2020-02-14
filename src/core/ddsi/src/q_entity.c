@@ -1771,7 +1771,6 @@ static void free_rd_pwr_match (struct ddsi_domaingv *gv, const ddsi_guid_t *rd_g
 #else
     (void) rd_guid;
 #endif
-
 #ifdef DDSI_INCLUDE_SSM
     if (!is_unspec_locator (&m->ssm_mc_loc))
     {
@@ -3916,7 +3915,6 @@ static void gc_delete_writer (struct gcreq *gcreq)
 #ifdef DDSI_INCLUDE_SECURITY
   q_omg_security_deregister_writer(wr);
 #endif
-
 #ifdef DDSI_INCLUDE_SSM
   if (wr->ssm_as)
     unref_addrset (wr->ssm_as);
@@ -4966,7 +4964,7 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
     /* check if the proxy participant has a match with a local participant */
     if (!proxy_participant_check_security_info (gv, proxypp))
     {
-      GVWARNING ("Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
+ //     GVWARNING ("Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
       free_proxy_participant (proxypp);
       return;
     }

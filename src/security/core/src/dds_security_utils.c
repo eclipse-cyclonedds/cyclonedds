@@ -842,11 +842,9 @@ DDS_Security_Exception_set_with_openssl_error(
 
 void
 DDS_Security_Exception_reset(
-     DDS_Security_SecurityException *ex)
+    DDS_Security_SecurityException *ex)
 {
     if (ex) {
-       ex->code = 0;
-       ex->minor_code = 0;
         if (ex->message) {
             ddsrt_free(ex->message);
         }
@@ -859,7 +857,9 @@ DDS_Security_Exception_clean(
      DDS_Security_SecurityException *ex)
 {
     if (ex) {
-        memset(ex, 0, sizeof(DDS_Security_SecurityException));
+      ex->code = 0;
+      ex->minor_code = 0;
+      ex->message = NULL;
     }
 }
 

@@ -47,7 +47,6 @@ struct proxy_participant_sec_attributes;
 struct writer_sec_attributes;
 struct reader_sec_attributes;
 struct dds_security_context;
-struct dds_security_garbage;
 
 typedef struct nn_msg_sec_info {
   unsigned encoded:1;
@@ -55,6 +54,70 @@ typedef struct nn_msg_sec_info {
   int64_t src_pp_handle;
   int64_t dst_pp_handle;
 } nn_msg_sec_info_t;
+
+struct guid_pair {
+  ddsi_guid_t src;
+  ddsi_guid_t dst;
+};
+
+struct security_entity_match {
+  ddsrt_avl_node_t avlnode;
+  struct guid_pair guids;
+  bool matched;
+  int64_t crypto_handle;
+  DDS_Security_ParticipantCryptoTokenSeq *tokens;
+};
+
+struct dds_security_match_index {
+  ddsrt_mutex_t lock;
+  ddsrt_avl_tree_t matches;
+};
+
+struct pp_proxypp_match {
+  ddsrt_avl_node_t avlnode;
+  ddsi_guid_t proxypp_guid;
+  DDS_Security_ParticipantCryptoHandle proxypp_crypto_handle;
+};
+
+struct proxypp_pp_match {
+  ddsrt_avl_node_t avlnode;
+  ddsi_guid_t pp_guid;
+  DDS_Security_IdentityHandle proxypp_identity_handle;
+  DDS_Security_ParticipantCryptoHandle pp_crypto_handle;
+  DDS_Security_ParticipantCryptoHandle proxypp_crypto_handle;
+  DDS_Security_PermissionsHandle permissions_handle;
+  DDS_Security_SharedSecretHandle shared_secret;
+};
+
+struct participant_sec_attributes {
+  ddsrt_avl_node_t avlnode;
+  ddsi_guid_t pp_guid;
+  DDS_Security_ParticipantSecurityAttributes attr;
+  DDS_Security_IdentityHandle local_identity_handle;
+  DDS_Security_PermissionsHandle permissions_handle;
+  DDS_Security_ParticipantCryptoHandle crypto_handle;
+  bool plugin_attr;
+  ddsrt_mutex_t lock;
+  ddsrt_avl_ctree_t proxy_participants;
+};
+
+struct proxy_participant_sec_attributes {
+  struct dds_security_context *sc;
+  ddsrt_mutex_t lock;
+  ddsrt_avl_tree_t participants;
+};
+
+struct writer_sec_attributes {
+  DDS_Security_EndpointSecurityAttributes attr;
+  DDS_Security_DatawriterCryptoHandle crypto_handle;
+  bool plugin_attr;
+};
+
+struct reader_sec_attributes {
+  DDS_Security_EndpointSecurityAttributes attr;
+  DDS_Security_DatareaderCryptoHandle crypto_handle;
+  bool plugin_attr;
+};
 
 struct dds_security_authentication *q_omg_participant_get_authentication(const struct participant *pp);
 

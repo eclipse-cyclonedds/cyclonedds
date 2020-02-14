@@ -234,8 +234,6 @@ struct participant
   ddsrt_atomic_voidp_t minl_man; /* lease object for shortest manual-by-participant liveliness writer's lease */
   ddsrt_fibheap_t leaseheap_man; /* keeps leases for this participant's writers (with liveliness manual-by-participant) */
 #ifdef DDSI_INCLUDE_SECURITY
-  int64_t local_identity_handle;   /* OMG DDS Security related member */
-  int64_t permissions_handle; /* OMG DDS Security related member */
   struct participant_sec_attributes *sec_attr;
   nn_security_info_t security_info;
 #endif

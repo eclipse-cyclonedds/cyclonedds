@@ -1131,6 +1131,7 @@ int rtps_init (struct ddsi_domaingv *gv)
    * the entities (see DDS Security spec chapter 8.8.8.1). */
   add_property_to_xqos(&gv->builtin_volatile_xqos_rd, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureReader");
   add_property_to_xqos(&gv->builtin_volatile_xqos_wr, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureWriter");
+
   q_omg_security_init(gv);
 #endif
 
@@ -1481,6 +1482,7 @@ err_unicast_sockets:
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_rd);
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_rd);
+
   q_omg_security_deinit (gv);
 #endif
   ddsi_xqos_fini (&gv->builtin_endpoint_xqos_wr);

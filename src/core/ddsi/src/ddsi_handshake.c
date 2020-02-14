@@ -64,7 +64,6 @@ typedef enum {
     EVENT_RECV_CRYPTO_TOKENS                    = 104
 } handshake_event_t;
 
-
 struct handshake_entities {
   struct participant *pp;
   struct proxy_participant *proxypp;
@@ -537,7 +536,7 @@ static void func_validate_remote_identity(struct dds_security_fsm *fsm, void *ar
   ddsrt_mutex_lock(&handshake->lock);
   ret = auth->validate_remote_identity(
       auth, &handshake->remote_identity_handle, &handshake->local_auth_request_token, handshake->remote_auth_request_token,
-      pp->local_identity_handle, &remote_identity_token, (DDS_Security_GUID_t *)&remote_guid, &exception);
+      pp->sec_attr->local_identity_handle, &remote_identity_token, (DDS_Security_GUID_t *)&remote_guid, &exception);
   ddsrt_mutex_unlock(&handshake->lock);
 
   /* Trace a failed handshake. */
@@ -607,7 +606,7 @@ static void func_begin_handshake_reply(struct dds_security_fsm *fsm, void *arg)
 
   ret = auth->begin_handshake_reply(
       auth, &(handshake->handshake_handle), handshake->handshake_message_out, &handshake->handshake_message_in_token,
-      handshake->remote_identity_handle, pp->local_identity_handle, &handshake->pdata, &exception);
+      handshake->remote_identity_handle, pp->sec_attr->local_identity_handle, &handshake->pdata, &exception);
 
   ddsrt_mutex_unlock(&handshake->lock);
 
@@ -682,7 +681,7 @@ static void func_begin_handshake_request(struct dds_security_fsm *fsm, void *arg
     DDS_Security_DataHolder_free(handshake->handshake_message_out);
   handshake->handshake_message_out = DDS_Security_DataHolder_alloc();
 
-  ret = auth->begin_handshake_request(auth, &(handshake->handshake_handle), handshake->handshake_message_out, pp->local_identity_handle, handshake->remote_identity_handle, &handshake->pdata, &exception);
+  ret = auth->begin_handshake_request(auth, &(handshake->handshake_handle), handshake->handshake_message_out, pp->sec_attr->local_identity_handle, handshake->remote_identity_handle, &handshake->pdata, &exception);
   ddsrt_mutex_unlock(&handshake->lock);
 
   HSTRACE("FSM: begin_handshake_request (lguid="PGUIDFMT" rguid="PGUIDFMT") ret=%d\n", PGUID (handshake->lguid), PGUID (handshake->rguid), ret);

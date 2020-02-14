@@ -200,13 +200,13 @@ static void fsm_state_change (struct thread_state1 *ts1, struct dds_security_fsm
 
         ddsrt_mutex_unlock (&control->lock);
 
-        thread_state_asleep (ts1);
+        thread_state_awake (ts1, control->gv);
         if (fsm->transitions[i].func)
           fsm->transitions[i].func (fsm, fsm->arg);
         if (fsm->current && fsm->current->func)
           fsm->current->func (fsm, fsm->arg);
 
-        thread_state_awake (ts1, control->gv);
+        thread_state_asleep (ts1);
         ddsrt_mutex_lock (&control->lock);
         fsm_check_auto_state_change (fsm);
         break;
