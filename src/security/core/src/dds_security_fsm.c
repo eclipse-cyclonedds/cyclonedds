@@ -49,7 +49,8 @@ struct dds_security_fsm
 {
   struct dds_security_fsm *next_fsm;
   struct dds_security_fsm *prev_fsm;
-  bool active;
+  bool busy;
+  bool deleting;
   struct dds_security_fsm_control *control;
   const dds_security_fsm_transition *transitions;
   uint32_t size;
@@ -69,8 +70,10 @@ struct dds_security_fsm_control
   struct ddsi_domaingv *gv;
   struct dds_security_fsm *first_fsm;
   struct dds_security_fsm *last_fsm;
-  struct fsm_event *event_queue;
+  struct fsm_event *first_event;
+  struct fsm_event *last_event;
   ddsrt_fibheap_t timers;
+  ddsrt_thread_t tid;
   bool running;
 };
 
@@ -84,6 +87,68 @@ static int compare_timer_event (const void *va, const void *vb)
   const struct fsm_timer_event *a = va;
   const struct fsm_timer_event *b = vb;
   return (a->endtime == b->endtime) ? 0 : (a->endtime < b->endtime) ? -1 : 1;
+}
+
+static void append_event(struct dds_security_fsm_control *control, struct fsm_event *event)
+{
+  event->next = NULL;
+  event->prev = control->last_event;
+  if (control->last_event)
+    control->last_event->next = event;
+  else
+    control->first_event = event;
+  control->last_event = event;
+}
+
+static void insert_event(struct dds_security_fsm_control *control, struct fsm_event *event)
+{
+  event->prev = NULL;
+  event->next = control->first_event;
+  if (control->first_event)
+    control->first_event->prev = event;
+  else
+    control->last_event = event;
+  control->first_event = event;
+}
+
+static struct fsm_event *get_event(struct dds_security_fsm_control *control)
+{
+  struct fsm_event *event = control->first_event;
+
+  if (event)
+  {
+    control->first_event = event->next;
+    if (event->next)
+        event->next->prev = NULL;
+    else
+      control->last_event = NULL;
+    event->next = NULL;
+    event->prev = NULL;
+  }
+  return event;
+}
+
+static void remove_events(struct dds_security_fsm_control *control, struct dds_security_fsm *fsm)
+{
+  struct fsm_event *event = control->first_event;
+
+  while (event)
+  {
+    struct fsm_event *next = event->next;
+    if (event->fsm == fsm)
+    {
+      if (event->prev)
+        event->prev->next = event->next;
+      else
+        control->first_event = event->next;
+      if (event->next)
+        event->next->prev = event->prev;
+      else
+        control->last_event = event->prev;
+      ddsrt_free(event);
+    }
+    event = next;
+  }
 }
 
 static void fsm_dispatch (struct dds_security_fsm *fsm, int event_id, bool lifo)
@@ -103,26 +168,10 @@ static void fsm_dispatch (struct dds_security_fsm *fsm, int event_id, bool lifo)
   event->next = NULL;
   event->prev = NULL;
 
-  if (lifo) {
-    /* Insert event at the top of the event list */
-    if (control->event_queue) {
-       control->event_queue->prev = event;
-    }
-    event->next = control->event_queue;
-    control->event_queue = event;
-  } else {
-    /* Insert FIFO event */
-    if (control->event_queue) {
-      struct fsm_event *last = control->event_queue;
-      while (last->next != NULL ) {
-        last = last->next;
-      }
-      last->next = event;
-      event->prev = last;
-    } else {
-      control->event_queue = event;
-    }
-  }
+  if (lifo)
+    insert_event(control, event);
+  else
+    append_event(control, event);
 }
 
 static void set_state_timer (struct dds_security_fsm *fsm)
@@ -185,57 +234,57 @@ static void fsm_state_change (struct thread_state1 *ts1, struct dds_security_fsm
   int event_id = event->event_id;
   uint32_t i;
 
-  if (fsm->active)
+  if (fsm->debug_func)
+    fsm->debug_func (fsm, DDS_SECURITY_FSM_DEBUG_ACT_HANDLING, fsm->current, event_id, fsm->arg);
+
+  for (i = 0; i < fsm->size; i++)
   {
-    if (fsm->debug_func)
-      fsm->debug_func (fsm, DDS_SECURITY_FSM_DEBUG_ACT_HANDLING, fsm->current, event_id, fsm->arg);
-
-    for (i = 0; i < fsm->size; i++)
+    if ((fsm->transitions[i].begin == fsm->current) && (fsm->transitions[i].event_id == event_id))
     {
-      if ((fsm->transitions[i].begin == fsm->current) && (fsm->transitions[i].event_id == event_id))
-      {
-        clear_state_timer (fsm);
-        fsm->current = fsm->transitions[i].end;
-        set_state_timer (fsm);
+      clear_state_timer (fsm);
+      fsm->current = fsm->transitions[i].end;
+      set_state_timer (fsm);
+      fsm->busy = true;
 
-        ddsrt_mutex_unlock (&control->lock);
+      ddsrt_mutex_unlock (&control->lock);
 
-        thread_state_awake (ts1, control->gv);
-        if (fsm->transitions[i].func)
-          fsm->transitions[i].func (fsm, fsm->arg);
-        if (fsm->current && fsm->current->func)
-          fsm->current->func (fsm, fsm->arg);
+      thread_state_awake (ts1, control->gv);
+      if (fsm->transitions[i].func)
+        fsm->transitions[i].func (fsm, fsm->arg);
+      if (fsm->current && fsm->current->func)
+        fsm->current->func (fsm, fsm->arg);
 
-        thread_state_asleep (ts1);
-        ddsrt_mutex_lock (&control->lock);
+      thread_state_asleep (ts1);
+      ddsrt_mutex_lock (&control->lock);
+      fsm->busy = false;
+      if (!fsm->deleting)
         fsm_check_auto_state_change (fsm);
-        break;
-      }
+      else
+        ddsrt_cond_broadcast(&control->cond);
+      break;
     }
   }
-  else if (event_id == DDS_SECURITY_FSM_EVENT_DELETE)
-    fsm_delete (control, fsm);
-
 }
 
 static void fsm_handle_timeout (struct dds_security_fsm_control *control, struct fsm_timer_event *timer_event)
 {
   struct dds_security_fsm *fsm = timer_event->fsm;
 
-  if (fsm->active)
+  switch (timer_event->kind)
   {
-    switch (timer_event->kind)
-    {
-    case FSM_TIMEOUT_STATE:
-      fsm_dispatch (fsm, DDS_SECURITY_FSM_EVENT_TIMEOUT, true);
-      break;
-    case FSM_TIMEOUT_OVERALL:
-      ddsrt_mutex_unlock (&control->lock);
-      if (fsm->overall_timeout_action)
-        fsm->overall_timeout_action (fsm, fsm->arg);
-      ddsrt_mutex_lock (&control->lock);
-      break;
-    }
+  case FSM_TIMEOUT_STATE:
+    fsm_dispatch (fsm, DDS_SECURITY_FSM_EVENT_TIMEOUT, true);
+    break;
+  case FSM_TIMEOUT_OVERALL:
+    fsm->busy = true;
+    ddsrt_mutex_unlock (&control->lock);
+    if (fsm->overall_timeout_action)
+      fsm->overall_timeout_action (fsm, fsm->arg);
+    ddsrt_mutex_lock (&control->lock);
+    fsm->busy = false;
+    if (fsm->deleting)
+      ddsrt_cond_broadcast(&control->cond);
+    break;
   }
 
   /* mark timer event as being processed */
@@ -245,17 +294,16 @@ static void fsm_handle_timeout (struct dds_security_fsm_control *control, struct
 static uint32_t handle_events (struct dds_security_fsm_control *control)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct fsm_event *event;
+
+  control->tid = ddsrt_thread_self();
+
   thread_state_awake (ts1, control->gv);
   ddsrt_mutex_lock (&control->lock);
   while (control->running)
   {
-    if (control->event_queue)
+    if ((event = get_event(control)) != NULL)
     {
-      struct fsm_event *event = control->event_queue;
-
-      control->event_queue = event->next;
-      if (control->event_queue)
-        control->event_queue->prev = NULL;
       fsm_state_change (ts1, control, event);
       ddsrt_free (event);
     }
@@ -288,7 +336,7 @@ void dds_security_fsm_set_timeout (struct dds_security_fsm *fsm, dds_security_fs
   assert(timeout > 0);
 
   ddsrt_mutex_lock (&fsm->control->lock);
-  if (fsm->active)
+  if (!fsm->deleting)
   {
     if (timeout != DDS_NEVER)
     {
@@ -297,7 +345,7 @@ void dds_security_fsm_set_timeout (struct dds_security_fsm *fsm, dds_security_fs
       fsm->overall_timeout_event.endtime = ddsrt_time_add_duration(dds_time(), timeout);
       ddsrt_fibheap_insert (&timer_events_fhdef, &fsm->control->timers, &fsm->overall_timeout_event);
       if (fsm->overall_timeout_event.endtime < first_timeout(fsm->control))
-        ddsrt_cond_signal (&fsm->control->cond);
+        ddsrt_cond_broadcast (&fsm->control->cond);
     }
     else
       clear_overall_timer (fsm);
@@ -311,10 +359,10 @@ void dds_security_fsm_dispatch (struct dds_security_fsm *fsm, int32_t event_id, 
   assert(fsm->control);
 
   ddsrt_mutex_lock (&fsm->control->lock);
-  if (fsm->active)
+  if (!fsm->deleting)
   {
     fsm_dispatch (fsm, event_id, prio);
-    ddsrt_cond_signal (&fsm->control->cond);
+    ddsrt_cond_broadcast (&fsm->control->cond);
   }
   ddsrt_mutex_unlock (&fsm->control->lock);
 }
@@ -324,7 +372,6 @@ const dds_security_fsm_state * dds_security_fsm_current_state (struct dds_securi
   const dds_security_fsm_state *state;
 
   assert(fsm);
-  assert(fsm->active);
 
   ddsrt_mutex_lock (&fsm->control->lock);
   state = fsm->current;
@@ -407,7 +454,8 @@ struct dds_security_fsm * dds_security_fsm_create (struct dds_security_fsm_contr
     fsm->overall_timeout_event.kind = FSM_TIMEOUT_OVERALL;
     fsm->overall_timeout_event.endtime = DDS_NEVER;
     fsm->overall_timeout_event.fsm = fsm;
-    fsm->active = true;
+    fsm->busy = false;
+    fsm->deleting = false;
     fsm->next_fsm = NULL;
     fsm->prev_fsm = NULL;
     fsm->control = control;
@@ -425,16 +473,17 @@ dds_security_fsm_start (struct dds_security_fsm *fsm)
   dds_security_fsm_dispatch(fsm, DDS_SECURITY_FSM_EVENT_AUTO, false);
 }
 
-static void fsm_deactivate (struct dds_security_fsm *fsm, bool gen_del_event)
+static void fsm_deactivate (struct dds_security_fsm_control *control, struct dds_security_fsm *fsm)
 {
-  if (fsm->active)
+  fsm->deleting = true;
+  remove_events(control, fsm);
+  clear_state_timer (fsm);
+  clear_overall_timer (fsm);
+  fsm->current = NULL;
+  if (!ddsrt_thread_equal(control->tid, ddsrt_thread_self()))
   {
-    fsm->active = false;
-    clear_state_timer (fsm);
-    clear_overall_timer (fsm);
-    fsm->current = NULL;
-    if (gen_del_event)
-      fsm_dispatch (fsm, DDS_SECURITY_FSM_EVENT_DELETE, false);
+    while (fsm->busy)
+      ddsrt_cond_wait(&control->cond, &control->lock);
   }
 }
 
@@ -447,14 +496,14 @@ void dds_security_fsm_free (struct dds_security_fsm *fsm)
 
   control = fsm->control;
   ddsrt_mutex_lock (&control->lock);
-  fsm_deactivate (fsm, true);
+  fsm_deactivate (control, fsm);
   ddsrt_mutex_unlock (&control->lock);
 }
 
 static void fsm_delete (struct dds_security_fsm_control *control, struct dds_security_fsm *fsm)
 {
-  fsm_deactivate (fsm, false);
   remove_fsm_from_list (control, fsm);
+  fsm_deactivate (control, fsm);
   ddsrt_free(fsm);
 }
 
@@ -464,7 +513,8 @@ struct dds_security_fsm_control * dds_security_fsm_control_create (struct ddsi_d
 
   control = ddsrt_malloc (sizeof(*control));
   control->running = false;
-  control->event_queue = NULL;
+  control->first_event = NULL;
+  control->last_event = NULL;
   control->first_fsm = NULL;
   control->last_fsm = NULL;
   control->gv = gv;
@@ -486,12 +536,11 @@ void dds_security_fsm_control_free (struct dds_security_fsm_control *control)
   while ((fsm = control->first_fsm) != NULL)
   {
     control->first_fsm = fsm->next_fsm;
-    fsm_deactivate (fsm, false);
-    ddsrt_free (fsm);
+    fsm_delete (control, fsm);
   }
-  while ((event = control->event_queue) != NULL)
+  while ((event = control->first_event) != NULL)
   {
-    control->event_queue = event->next;
+    control->first_event = event->next;
     ddsrt_free (event);
   }
 
@@ -520,7 +569,7 @@ void dds_security_fsm_control_stop (struct dds_security_fsm_control *control)
 
   ddsrt_mutex_lock (&control->lock);
   control->running = false;
-  ddsrt_cond_signal (&control->cond);
+  ddsrt_cond_broadcast (&control->cond);
   ddsrt_mutex_unlock (&control->lock);
 
   join_thread (control->ts);

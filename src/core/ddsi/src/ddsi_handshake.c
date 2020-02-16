@@ -75,7 +75,8 @@ struct ddsi_handshake
   enum ddsi_handshake_state state;
   struct handshake_entities participants;
   DDS_Security_HandshakeHandle handshake_handle;
-  uint32_t refc;
+  ddsrt_atomic_uint32_t refc;
+  ddsrt_atomic_uint32_t deleting;
   ddsi_handshake_end_cb_t end_cb;
   ddsrt_mutex_t lock;
   struct dds_security_fsm *fsm;
@@ -118,6 +119,11 @@ static int compare_handshake(const void *va, const void *vb)
 
 static bool validate_handshake(struct ddsi_handshake *handshake)
 {
+
+  if (ddsrt_atomic_ld32(&handshake->deleting) > 0)
+    return false;
+
+#if 0
   struct participant *pp;
   struct proxy_participant *proxypp;
 
@@ -136,7 +142,7 @@ static bool validate_handshake(struct ddsi_handshake *handshake)
 
   assert(pp == handshake->participants.pp);
   assert(proxypp == handshake->participants.proxypp);
-
+#endif
   return true;
 }
 
@@ -923,7 +929,8 @@ static struct ddsi_handshake * ddsi_handshake_create(struct participant *pp, str
 
   ddsrt_mutex_init(&handshake->lock);
   handshake->auth = q_omg_participant_get_authentication(pp);
-  handshake->refc = 1;
+  ddsrt_atomic_st32(&handshake->refc, 1);
+  ddsrt_atomic_st32(&handshake->deleting, 0);
   handshake->participants.pp = pp;
   handshake->participants.proxypp = proxypp;
   handshake->lguid = pp->e.guid;
@@ -974,20 +981,11 @@ fsm_control_failed:
 
 void ddsi_handshake_release(struct ddsi_handshake *handshake)
 {
-  bool release = false;
   if (!handshake) return;
 
-  ddsrt_mutex_lock(&handshake->lock);
-  release = (--handshake->refc) == 0;
-  ddsrt_mutex_unlock(&handshake->lock);
-
-  if (release)
+  if (ddsrt_atomic_dec32_nv(&handshake->refc) == 0)
   {
     HSTRACE("handshake delete (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(handshake->lguid), PGUID(handshake->rguid));
-    if (handshake->fsm) {
-      dds_security_fsm_free(handshake->fsm);
-      handshake->fsm = NULL;
-    }
     DDS_Security_DataHolder_deinit(&handshake->local_auth_request_token);
     DDS_Security_DataHolder_deinit(&handshake->handshake_message_in_token);
     DDS_Security_DataHolder_free(handshake->handshake_message_out);
@@ -1155,9 +1153,12 @@ void ddsi_handshake_remove(struct participant *pp, struct proxy_participant *pro
   if (handshake)
   {
     ddsrt_avl_delete(&handshake_treedef, &hsadmin->handshakes, handshake);
-    ddsi_handshake_release(handshake);
+    ddsrt_atomic_st32(&handshake->deleting, 1);
   }
   ddsrt_mutex_unlock(&hsadmin->lock);
+  if (handshake && handshake->fsm)
+    dds_security_fsm_free(handshake->fsm);
+  ddsi_handshake_release(handshake);
 }
 
 struct ddsi_handshake * ddsi_handshake_find(struct participant *pp, struct proxy_participant *proxypp)
@@ -1168,7 +1169,7 @@ struct ddsi_handshake * ddsi_handshake_find(struct participant *pp, struct proxy
   ddsrt_mutex_lock(&hsadmin->lock);
   handshake = ddsi_handshake_find_locked(hsadmin, pp, proxypp);
   if (handshake)
-    handshake->refc++;
+    ddsrt_atomic_inc32(&handshake->refc);
   ddsrt_mutex_unlock(&hsadmin->lock);
 
   return handshake;
