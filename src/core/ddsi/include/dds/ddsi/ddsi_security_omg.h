@@ -99,12 +99,14 @@ struct participant_sec_attributes {
   bool plugin_attr;
   ddsrt_mutex_t lock;
   ddsrt_avl_ctree_t proxy_participants;
+  bool initialized;
 };
 
 struct proxy_participant_sec_attributes {
   struct dds_security_context *sc;
   ddsrt_mutex_t lock;
   ddsrt_avl_tree_t participants;
+  bool initialized;
 };
 
 struct writer_sec_attributes {
@@ -185,6 +187,10 @@ bool q_omg_proxy_participant_is_secure(const struct proxy_participant *proxypp);
  * @retval false  Participant is not allowed
  */
 bool q_omg_security_check_create_participant(struct participant *pp, uint32_t domain_id);
+
+void q_omg_security_participant_set_initialized(struct participant *pp);
+
+bool q_omg_security_participant_is_initialized(struct participant *pp);
 
 /**
  * @brief Remove the participant from the security plugins.
@@ -525,6 +531,10 @@ bool q_omg_participant_allow_unauthenticated(struct participant *pp);
  *
  */
 void q_omg_security_init_remote_participant(struct proxy_participant *proxypp);
+
+void q_omg_security_remote_participant_set_initialized(struct proxy_participant *proxypp);
+
+bool q_omg_security_remote_participant_is_initialized(struct proxy_participant *proxypp);
 
 /**
  * @brief Registers the matched proxy participant with the crypto plugin

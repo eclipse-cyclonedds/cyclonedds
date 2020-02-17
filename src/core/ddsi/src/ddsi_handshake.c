@@ -65,8 +65,8 @@ typedef enum {
 } handshake_event_t;
 
 struct handshake_entities {
-  struct participant *pp;
-  struct proxy_participant *proxypp;
+  ddsi_guid_t lguid;
+  ddsi_guid_t rguid;
 };
 
 struct ddsi_handshake
@@ -82,8 +82,7 @@ struct ddsi_handshake
   struct dds_security_fsm *fsm;
   const struct ddsi_domaingv *gv;
   dds_security_authentication *auth;
-  ddsi_guid_t lguid;
-  ddsi_guid_t rguid;
+
   DDS_Security_HandshakeMessageToken handshake_message_in_token;
   nn_message_identity_t handshake_message_in_id;
   DDS_Security_HandshakeMessageToken *handshake_message_out;
@@ -110,39 +109,30 @@ static int compare_handshake(const void *va, const void *vb)
 {
   const struct handshake_entities *ha = va;
   const struct handshake_entities *hb = vb;
+  int r;
 
-  if (ha->proxypp == hb->proxypp)
-    return (ha->pp > hb->pp) ? 1 : (ha->pp < hb->pp) ? -1 : 0;
-  else
-    return (ha->proxypp > hb->proxypp) ? 1 : -1;
+  r = memcmp(&ha->rguid, &hb->rguid, sizeof(ha->rguid));
+  if (r == 0)
+    r = memcmp(&ha->lguid, &hb->lguid, sizeof(ha->lguid));
+  return r;
 }
 
-static bool validate_handshake(struct ddsi_handshake *handshake)
+static bool validate_handshake(struct ddsi_handshake *handshake, struct participant **pp, struct proxy_participant **proxypp)
 {
-
   if (ddsrt_atomic_ld32(&handshake->deleting) > 0)
     return false;
 
-#if 0
-  struct participant *pp;
-  struct proxy_participant *proxypp;
-
-  if ((pp = entidx_lookup_participant_guid(handshake->gv->entity_index, &handshake->lguid)) == NULL)
+  if (pp)
   {
-    HSERROR("Handshake invalid: participant "PGUIDFMT" not found", PGUID (handshake->lguid));
-    ddsi_handshake_remove(handshake->participants.pp, handshake->participants.proxypp, handshake);
-    return false;
-  }
-  else if ((proxypp = entidx_lookup_proxy_participant_guid(handshake->gv->entity_index, &handshake->rguid)) == NULL)
-  {
-    HSERROR("Handshake invalid: proxy participant "PGUIDFMT" not found", PGUID (handshake->rguid));
-    ddsi_handshake_remove(handshake->participants.pp, handshake->participants.proxypp, handshake);
-    return false;
+    if ((*pp = entidx_lookup_participant_guid(handshake->gv->entity_index, &handshake->participants.lguid)) == NULL)
+      return false;
   }
 
-  assert(pp == handshake->participants.pp);
-  assert(proxypp == handshake->participants.proxypp);
-#endif
+  if (proxypp)
+  {
+    if ((*proxypp = entidx_lookup_proxy_participant_guid(handshake->gv->entity_index, &handshake->participants.rguid)) == NULL)
+      return false;
+  }
   return true;
 }
 
@@ -245,8 +235,8 @@ static void q_handshake_fsm_debug(
   else                                                             dispatch = "";
 
   HSTRACE ("FSM: handshake_debug (lguid="PGUIDFMT" rguid="PGUIDFMT") act=%s, state=%s, event=%s\n",
-      PGUID (handshake->lguid),
-      PGUID (handshake->rguid),
+      PGUID (handshake->participants.lguid),
+      PGUID (handshake->participants.rguid),
       dispatch,
       state,
       event);
@@ -486,10 +476,9 @@ static const dds_security_fsm_transition handshake_transistions [] =
 
 
 
-static bool send_handshake_message(const struct ddsi_handshake *handshake, DDS_Security_DataHolder *token, struct proxy_participant *proxypp, int request)
+static bool send_handshake_message(const struct ddsi_handshake *handshake, DDS_Security_DataHolder *token, struct participant *pp, struct proxy_participant *proxypp, int request)
 {
   bool ret = false;
-  struct participant *pp;
   nn_dataholderseq_t mdata;
   DDS_Security_DataHolderSeq tseq;
 
@@ -498,12 +487,7 @@ static bool send_handshake_message(const struct ddsi_handshake *handshake, DDS_S
 
   q_omg_shallow_copyout_DataHolderSeq(&mdata, &tseq);
 
-  if (!(pp = entidx_lookup_participant_guid(handshake->gv->entity_index, &handshake->lguid)))
-  {
-    /* The participant is most likely in the process of being deleted. */
-    HSWARNING("Send handshake: failed to find local participant (lguid="PGUIDFMT" rguid="PGUIDFMT")", PGUID (handshake->lguid), PGUID (handshake->rguid));
-  }
-  else if (!(ret = write_auth_handshake_message(pp, proxypp, &mdata, request, &handshake->handshake_message_in_id)))
+  if (!(ret = write_auth_handshake_message(pp, proxypp, &mdata, request, &handshake->handshake_message_in_id)))
   {
     HSWARNING("Send handshake: failed to send message (lguid="PGUIDFMT" rguid="PGUIDFMT")", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
   }
@@ -519,24 +503,24 @@ static void func_validate_remote_identity(struct dds_security_fsm *fsm, void *ar
   DDS_Security_SecurityException exception = {0};
   struct ddsi_handshake *handshake = (struct ddsi_handshake*)arg;
   dds_security_authentication *auth = handshake->auth;
-  struct participant *pp = handshake->participants.pp;
-  struct proxy_participant *proxypp = handshake->participants.proxypp;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
   DDS_Security_IdentityToken remote_identity_token;
   ddsi_guid_t remote_guid;
 
-  if (!validate_handshake(handshake))
+  if (!validate_handshake(handshake, &pp, &proxypp))
     return;
 
   TRACE_FUNC(fsm);
 
   if (!(proxypp->plist->present & PP_IDENTITY_TOKEN))
   {
-    HSERROR("validate remote identity failed: remote participant ("PGUIDFMT") identity token missing", PGUID (handshake->rguid));
+    HSERROR("validate remote identity failed: remote participant ("PGUIDFMT") identity token missing", PGUID (proxypp->e.guid));
     ret = DDS_SECURITY_VALIDATION_FAILED;
     goto ident_token_missing;
   }
 
-  remote_guid = nn_hton_guid(handshake->rguid);
+  remote_guid = nn_hton_guid(proxypp->e.guid);
   q_omg_security_dataholder_copyout(&remote_identity_token, &proxypp->plist->identity_token);
 
   ddsrt_mutex_lock(&handshake->lock);
@@ -556,7 +540,7 @@ static void func_validate_remote_identity(struct dds_security_fsm *fsm, void *ar
     goto validation_failed;
   }
 
-  HSTRACE("FSM: validate_remote_identity (lguid="PGUIDFMT" rguid="PGUIDFMT") ret=%d\n", PGUID (handshake->lguid), PGUID (handshake->rguid), ret);
+  HSTRACE("FSM: validate_remote_identity (lguid="PGUIDFMT" rguid="PGUIDFMT") ret=%d\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), ret);
 
   DDS_Security_DataHolder_deinit(&remote_identity_token);
 
@@ -565,7 +549,7 @@ static void func_validate_remote_identity(struct dds_security_fsm *fsm, void *ar
    * to be send.
    */
   if (handshake->local_auth_request_token.class_id && strlen(handshake->local_auth_request_token.class_id) != 0)
-    (void)send_handshake_message(handshake, &handshake->local_auth_request_token, proxypp, 1);
+    (void)send_handshake_message(handshake, &handshake->local_auth_request_token, pp, proxypp, 1);
 
 validation_failed:
 ident_token_missing:
@@ -576,18 +560,20 @@ ident_token_missing:
 static void func_handshake_init_message_resend(struct dds_security_fsm *fsm, void *arg)
 {
   struct ddsi_handshake *handshake = arg;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
 
   DDSRT_UNUSED_ARG(fsm);
 
-  if (!validate_handshake(handshake))
-     return;
+  if (!validate_handshake(handshake, &pp, &proxypp))
+    return;
 
   TRACE_FUNC(fsm);
 
-  HSTRACE("FSM: handshake init_message_resend (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(handshake->lguid), PGUID(handshake->rguid));
+  HSTRACE("FSM: handshake init_message_resend (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(pp->e.guid), PGUID(proxypp->e.guid));
 
   if (strlen(handshake->local_auth_request_token.class_id) != 0)
-    (void)send_handshake_message(handshake, &handshake->local_auth_request_token, handshake->participants.proxypp, 1);
+    (void)send_handshake_message(handshake, &handshake->local_auth_request_token, pp, proxypp, 1);
 }
 
 static void func_begin_handshake_reply(struct dds_security_fsm *fsm, void *arg)
@@ -596,10 +582,10 @@ static void func_begin_handshake_reply(struct dds_security_fsm *fsm, void *arg)
   DDS_Security_SecurityException exception = {0};
   struct ddsi_handshake *handshake = arg;
   dds_security_authentication *auth = handshake->auth;
-  struct participant *pp = handshake->participants.pp;
-  struct proxy_participant *proxypp = handshake->participants.proxypp;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
 
-  if (!validate_handshake(handshake))
+  if (!validate_handshake(handshake, &pp, &proxypp))
      return;
 
   TRACE_FUNC(fsm);
@@ -616,7 +602,7 @@ static void func_begin_handshake_reply(struct dds_security_fsm *fsm, void *arg)
 
   ddsrt_mutex_unlock(&handshake->lock);
 
-  HSTRACE("FSM: begin_handshake_reply (lguid="PGUIDFMT" rguid="PGUIDFMT") ret=%d\n", PGUID (handshake->lguid), PGUID (handshake->rguid), ret);
+  HSTRACE("FSM: begin_handshake_reply (lguid="PGUIDFMT" rguid="PGUIDFMT") ret=%d\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), ret);
 
   /* Trace a failed handshake. */
   if ((ret != DDS_SECURITY_VALIDATION_OK                       ) &&
@@ -630,14 +616,14 @@ static void func_begin_handshake_reply(struct dds_security_fsm *fsm, void *arg)
   }
 
   if (ret == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE) {
-    if (!send_handshake_message(handshake, handshake->handshake_message_out, proxypp, 0)) {
+    if (!send_handshake_message(handshake, handshake->handshake_message_out, pp, proxypp, 0)) {
       ret = DDS_SECURITY_VALIDATION_FAILED;
       goto handshake_failed;
     }
   }
   else if (ret == DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE)
   {
-    if (send_handshake_message(handshake, handshake->handshake_message_out, proxypp, 0))
+    if (send_handshake_message(handshake, handshake->handshake_message_out, pp, proxypp, 0))
       ret = DDS_SECURITY_VALIDATION_OK;
     else
     {
@@ -673,10 +659,10 @@ static void func_begin_handshake_request(struct dds_security_fsm *fsm, void *arg
   DDS_Security_SecurityException exception = {0};
   struct ddsi_handshake *handshake = arg;
   dds_security_authentication *auth = handshake->auth;
-  struct participant *pp = handshake->participants.pp;
-  struct proxy_participant *proxypp = handshake->participants.proxypp;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
 
-  if (!validate_handshake(handshake))
+  if (!validate_handshake(handshake, &pp, &proxypp))
     return;
 
   TRACE_FUNC(fsm);
@@ -690,7 +676,7 @@ static void func_begin_handshake_request(struct dds_security_fsm *fsm, void *arg
   ret = auth->begin_handshake_request(auth, &(handshake->handshake_handle), handshake->handshake_message_out, pp->sec_attr->local_identity_handle, handshake->remote_identity_handle, &handshake->pdata, &exception);
   ddsrt_mutex_unlock(&handshake->lock);
 
-  HSTRACE("FSM: begin_handshake_request (lguid="PGUIDFMT" rguid="PGUIDFMT") ret=%d\n", PGUID (handshake->lguid), PGUID (handshake->rguid), ret);
+  HSTRACE("FSM: begin_handshake_request (lguid="PGUIDFMT" rguid="PGUIDFMT") ret=%d\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), ret);
 
   /* Trace a failed handshake. */
   if ((ret != DDS_SECURITY_VALIDATION_OK                       ) &&
@@ -705,7 +691,7 @@ static void func_begin_handshake_request(struct dds_security_fsm *fsm, void *arg
 
   if (ret == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE)
   {
-    if (!send_handshake_message(handshake, handshake->handshake_message_out, proxypp, 0))
+    if (!send_handshake_message(handshake, handshake->handshake_message_out, pp, proxypp, 0))
     {
       ret = DDS_SECURITY_VALIDATION_FAILED;
       goto handshake_failed;
@@ -713,7 +699,7 @@ static void func_begin_handshake_request(struct dds_security_fsm *fsm, void *arg
   }
   else if (ret == DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE)
   {
-    if (send_handshake_message(handshake, handshake->handshake_message_out, proxypp, 0))
+    if (send_handshake_message(handshake, handshake->handshake_message_out, pp, proxypp, 0))
     {
       ret = DDS_SECURITY_VALIDATION_OK;
     } else {
@@ -749,8 +735,10 @@ static void func_process_handshake(struct dds_security_fsm *fsm, void *arg)
   DDS_Security_SecurityException exception = {0};
   struct ddsi_handshake *handshake = arg;
   dds_security_authentication *auth = handshake->auth;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
 
-  if (!validate_handshake(handshake))
+  if (!validate_handshake(handshake, &pp, &proxypp))
     return;
 
   TRACE_FUNC(fsm);
@@ -764,7 +752,7 @@ static void func_process_handshake(struct dds_security_fsm *fsm, void *arg)
   ret = auth->process_handshake(auth, handshake->handshake_message_out, &handshake->handshake_message_in_token, handshake->handshake_handle, &exception);
   ddsrt_mutex_unlock(&handshake->lock);
 
-  HSTRACE("FSM: process_handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") ret=%d\n", PGUID (handshake->lguid), PGUID (handshake->rguid), ret);
+  HSTRACE("FSM: process_handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") ret=%d\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), ret);
 
   /* Trace a failed handshake. */
   if ((ret != DDS_SECURITY_VALIDATION_OK                       ) &&
@@ -785,12 +773,12 @@ static void func_process_handshake(struct dds_security_fsm *fsm, void *arg)
       ret = DDS_SECURITY_VALIDATION_FAILED;
       goto handshake_failed;
     }
-    handshake->end_cb(handshake, handshake->participants.pp, handshake->participants.proxypp, STATE_HANDSHAKE_PROCESSED);
+    handshake->end_cb(handshake, pp, proxypp, STATE_HANDSHAKE_PROCESSED);
   }
 
   if (ret == DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE)
   {
-    if (!send_handshake_message(handshake, handshake->handshake_message_out, handshake->participants.proxypp, 0))
+    if (!send_handshake_message(handshake, handshake->handshake_message_out, pp, proxypp, 0))
     {
       ret = DDS_SECURITY_VALIDATION_FAILED;
       goto handshake_failed;
@@ -810,8 +798,10 @@ handshake_failed:
 static void func_send_crypto_tokens(struct dds_security_fsm *fsm, void *arg)
 {
   struct ddsi_handshake *handshake = arg;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
 
-  if (!validate_handshake(handshake))
+  if (!validate_handshake(handshake, &pp, &proxypp))
     return;
 
   TRACE_FUNC(fsm);
@@ -822,16 +812,18 @@ static void func_send_crypto_tokens(struct dds_security_fsm *fsm, void *arg)
    * waiting for the crypto tokens from the remote participant
    */
 
-  HSTRACE("FSM: handshake send crypto tokens (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID (handshake->lguid), PGUID (handshake->rguid));
-  handshake->end_cb(handshake, handshake->participants.pp, handshake->participants.proxypp, STATE_HANDSHAKE_SEND_TOKENS);
+  HSTRACE("FSM: handshake send crypto tokens (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
+  handshake->end_cb(handshake, pp, proxypp, STATE_HANDSHAKE_SEND_TOKENS);
   dds_security_fsm_dispatch(fsm, EVENT_VALIDATION_OK_FINAL_MESSAGE, true);
 }
 
 static void func_send_crypto_tokens_final(struct dds_security_fsm *fsm, void *arg)
 {
   struct ddsi_handshake *handshake = arg;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
 
-  if (!validate_handshake(handshake))
+  if (!validate_handshake(handshake, &pp, &proxypp))
     return;
 
   TRACE_FUNC(fsm);
@@ -842,75 +834,83 @@ static void func_send_crypto_tokens_final(struct dds_security_fsm *fsm, void *ar
    * waiting for the crypto tokens from the remote participant
    */
 
-  HSTRACE("FSM: handshake send crypto tokens final (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID (handshake->lguid), PGUID (handshake->rguid));
-  handshake->end_cb(handshake, handshake->participants.pp, handshake->participants.proxypp, STATE_HANDSHAKE_SEND_TOKENS);
+  HSTRACE("FSM: handshake send crypto tokens final (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
+  handshake->end_cb(handshake, pp, proxypp, STATE_HANDSHAKE_SEND_TOKENS);
   dds_security_fsm_dispatch(fsm, EVENT_VALIDATION_OK, true);
 }
 
 static void func_handshake_message_resend(struct dds_security_fsm *fsm, void *arg)
 {
   struct ddsi_handshake *handshake = arg;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
 
   DDSRT_UNUSED_ARG(fsm);
   DDSRT_UNUSED_ARG(arg);
 
-  if (!validate_handshake(handshake))
+  if (!validate_handshake(handshake, &pp, &proxypp))
     return;
 
   TRACE_FUNC(fsm);
 
-  HSTRACE("handshake resend (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(handshake->lguid), PGUID(handshake->rguid));
+  HSTRACE("handshake resend (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(pp->e.guid), PGUID(proxypp->e.guid));
   if (handshake->handshake_message_out) {
-    (void)send_handshake_message(handshake, handshake->handshake_message_out, handshake->participants.proxypp, 0);
+    (void)send_handshake_message(handshake, handshake->handshake_message_out, pp, proxypp, 0);
   }
 }
 
 static void func_validation_ok(struct dds_security_fsm *fsm, void *arg)
 {
   struct ddsi_handshake *handshake = arg;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
 
   DDSRT_UNUSED_ARG(fsm);
 
-  if (!validate_handshake(handshake))
+  if (!validate_handshake(handshake, &pp, &proxypp))
     return;
 
   TRACE_FUNC(fsm);
 
-  HSTRACE("FSM: handshake succeeded (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(handshake->lguid), PGUID(handshake->rguid));
+  HSTRACE("FSM: handshake succeeded (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(pp->e.guid), PGUID(proxypp->e.guid));
   handshake->state = STATE_HANDSHAKE_OK;
-  handshake->end_cb(handshake, handshake->participants.pp, handshake->participants.proxypp, STATE_HANDSHAKE_OK);
+  handshake->end_cb(handshake, pp, proxypp, STATE_HANDSHAKE_OK);
 }
 
 static void func_validation_failed(struct dds_security_fsm *fsm, void *arg)
 {
   struct ddsi_handshake *handshake = arg;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
 
   DDSRT_UNUSED_ARG(fsm);
 
-  if (!validate_handshake(handshake))
+  if (!validate_handshake(handshake, &pp, &proxypp))
     return;
 
   TRACE_FUNC(fsm);
 
-  HSTRACE("FSM: handshake failed (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(handshake->lguid), PGUID(handshake->rguid));
+  HSTRACE("FSM: handshake failed (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(pp->e.guid), PGUID(proxypp->e.guid));
   handshake->state = STATE_HANDSHAKE_FAILED;
-  handshake->end_cb(handshake, handshake->participants.pp, handshake->participants.proxypp, STATE_HANDSHAKE_FAILED);
+  handshake->end_cb(handshake, pp, proxypp, STATE_HANDSHAKE_FAILED);
 }
 
 static void func_handshake_timeout(struct dds_security_fsm *fsm, void *arg)
 {
   struct ddsi_handshake *handshake = arg;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
 
   DDSRT_UNUSED_ARG(fsm);
 
-  if (!validate_handshake(handshake))
+  if (!validate_handshake(handshake, &pp, &proxypp))
     return;
 
   TRACE_FUNC(fsm);
 
-  HSTRACE("FSM: handshake timeout (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(handshake->lguid), PGUID(handshake->rguid));
+  HSTRACE("FSM: handshake timeout (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(pp->e.guid), PGUID(proxypp->e.guid));
   handshake->state = STATE_HANDSHAKE_TIMED_OUT;
-  handshake->end_cb(handshake, handshake->participants.pp, handshake->participants.proxypp, STATE_HANDSHAKE_TIMED_OUT);
+  handshake->end_cb(handshake, pp, proxypp, STATE_HANDSHAKE_TIMED_OUT);
 }
 
 
@@ -931,10 +931,8 @@ static struct ddsi_handshake * ddsi_handshake_create(struct participant *pp, str
   handshake->auth = q_omg_participant_get_authentication(pp);
   ddsrt_atomic_st32(&handshake->refc, 1);
   ddsrt_atomic_st32(&handshake->deleting, 0);
-  handshake->participants.pp = pp;
-  handshake->participants.proxypp = proxypp;
-  handshake->lguid = pp->e.guid;
-  handshake->rguid = proxypp->e.guid;
+  handshake->participants.lguid = pp->e.guid;
+  handshake->participants.rguid = proxypp->e.guid;
   handshake->gv = gv;
   handshake->handshake_handle = 0;
   handshake->shared_secret = 0;
@@ -985,7 +983,7 @@ void ddsi_handshake_release(struct ddsi_handshake *handshake)
 
   if (ddsrt_atomic_dec32_nv(&handshake->refc) == 0)
   {
-    HSTRACE("handshake delete (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(handshake->lguid), PGUID(handshake->rguid));
+    HSTRACE("handshake delete (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(handshake->participants.lguid), PGUID(handshake->participants.rguid));
     DDS_Security_DataHolder_deinit(&handshake->local_auth_request_token);
     DDS_Security_DataHolder_deinit(&handshake->handshake_message_in_token);
     DDS_Security_DataHolder_free(handshake->handshake_message_out);
@@ -1010,13 +1008,16 @@ void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struc
 
   TRACE_FUNC(handshake->fsm);
 
+  if (!validate_handshake(handshake, NULL, NULL))
+    return;
+
   HSTRACE ("FSM: handshake_handle_message (lguid="PGUIDFMT" rguid="PGUIDFMT") class_id=%s\n",
-      PGUID (handshake->lguid), PGUID (handshake->rguid),
+      PGUID (pp->e.guid), PGUID (proxypp->e.guid),
       msg->message_class_id ? msg->message_class_id: "NULL");
 
   if (!msg->message_class_id || msg->message_data.n == 0 || !msg->message_data.tags[0].class_id)
   {
-    HSERROR("received handshake message ("PGUIDFMT" --> "PGUIDFMT") does not contain a handshake message token\n", PGUID (handshake->rguid), PGUID (handshake->lguid));
+    HSERROR("received handshake message ("PGUIDFMT" --> "PGUIDFMT") does not contain a handshake message token\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
     goto invalid_message;
   }
   else if (strcmp(msg->message_class_id, DDS_SECURITY_AUTH_REQUEST) == 0)
@@ -1036,13 +1037,13 @@ void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struc
     }
     else
     {
-      HSERROR("received handshake message ("PGUIDFMT" --> "PGUIDFMT") does not contain a valid handshake message token\n", PGUID (handshake->rguid), PGUID (handshake->lguid));
+      HSERROR("received handshake message ("PGUIDFMT" --> "PGUIDFMT") does not contain a valid handshake message token\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
     }
   }
   else if (strcmp(msg->message_class_id, DDS_SECURITY_AUTH_HANDSHAKE) == 0)
   {
     if (msg->message_data.tags[0].class_id == NULL)
-      HSERROR("received handshake message ("PGUIDFMT" --> "PGUIDFMT") does not contain a valid handshake message token\n", PGUID (handshake->rguid), PGUID (handshake->lguid));
+      HSERROR("received handshake message ("PGUIDFMT" --> "PGUIDFMT") does not contain a valid handshake message token\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
     else if (strcmp(msg->message_data.tags[0].class_id, DDS_SECURITY_AUTH_HANDSHAKE_REQUEST_TOKEN_ID) == 0)
       event = EVENT_RECEIVED_MESSAGE_REQUEST;
     else if (strcmp(msg->message_data.tags[0].class_id, DDS_SECURITY_AUTH_HANDSHAKE_REPLY_TOKEN_ID) == 0)
@@ -1051,7 +1052,7 @@ void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struc
       event = EVENT_RECEIVED_MESSAGE_FINAL;
     else
     {
-      HSERROR("received handshake message ("PGUIDFMT" --> "PGUIDFMT") does not contain a valid handshake message token\n", PGUID (handshake->rguid), PGUID (handshake->lguid));
+      HSERROR("received handshake message ("PGUIDFMT" --> "PGUIDFMT") does not contain a valid handshake message token\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
       goto invalid_message;
     }
 
@@ -1065,7 +1066,7 @@ void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struc
   }
   else
   {
-    HSERROR("received handshake message ("PGUIDFMT" --> "PGUIDFMT") does not contain a valid message_class_id\n", PGUID (handshake->rguid), PGUID (handshake->lguid));
+    HSERROR("received handshake message ("PGUIDFMT" --> "PGUIDFMT") does not contain a valid message_class_id\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
   }
 
 invalid_message:
@@ -1074,11 +1075,16 @@ invalid_message:
 
 void ddsi_handshake_crypto_tokens_received(struct ddsi_handshake *handshake)
 {
+  struct participant *pp;
+  struct proxy_participant *proxypp;
+
   assert(handshake);
   assert(handshake->fsm);
-  assert(validate_handshake(handshake));
 
-  HSTRACE("FSM: tokens received (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(handshake->lguid), PGUID(handshake->rguid));
+  if (!validate_handshake(handshake, &pp, &proxypp))
+    return;
+
+  HSTRACE("FSM: tokens received (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(pp->e.guid), PGUID(proxypp->e.guid));
 
   dds_security_fsm_dispatch(handshake->fsm, EVENT_RECV_CRYPTO_TOKENS, false);
 }
@@ -1137,8 +1143,8 @@ static struct ddsi_handshake * ddsi_handshake_find_locked(
 {
   struct handshake_entities handles;
 
-  handles.pp = pp;
-  handles.proxypp = proxypp;
+  handles.lguid = pp->e.guid;
+  handles.rguid = proxypp->e.guid;
 
   return ddsrt_avl_lookup(&handshake_treedef, &hsadmin->handshakes, &handles);
 }

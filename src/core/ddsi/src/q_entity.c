@@ -644,14 +644,14 @@ static void connect_participant_secure(struct ddsi_domaingv *gv, struct particip
 
   if (q_omg_participant_is_secure(pp))
   {
+    q_omg_security_participant_set_initialized(pp);
+
     entidx_enum_proxy_participant_init (&it, gv->entity_index);
     while ((proxypp = entidx_enum_proxy_participant_next (&it)) != NULL)
     {
       /* Do not start handshaking when security info doesn't match. */
-      if (q_omg_is_similar_participant_security_info(pp, proxypp))
-      {
+      if (q_omg_security_remote_participant_is_initialized(proxypp) && q_omg_is_similar_participant_security_info(pp, proxypp))
         ddsi_handshake_register(pp, proxypp, handshake_end_cb);
-      }
     }
     entidx_enum_proxy_participant_fini (&it);
   }
@@ -4821,16 +4821,32 @@ static void proxy_participant_create_handshakes(struct ddsi_domaingv *gv, struct
   struct participant *pp;
   struct entidx_enum_participant est;
 
+  q_omg_security_remote_participant_set_initialized(proxypp);
+
   entidx_enum_participant_init (&est, gv->entity_index);
   while (((pp = entidx_enum_participant_next (&est)) != NULL)) {
-    if (q_omg_participant_is_secure(pp))
-    {
+    if (q_omg_security_participant_is_initialized(pp))
       ddsi_handshake_register(pp, proxypp, handshake_end_cb);
-    }
   }
   entidx_enum_participant_fini(&est);
 }
 
+static void disconnect_proxy_participant_secure(struct proxy_participant *proxypp)
+{
+  struct participant *pp;
+  struct entidx_enum_participant it;
+  struct ddsi_domaingv * const gv = proxypp->e.gv;
+
+  if (q_omg_proxy_participant_is_secure(proxypp))
+  {
+    entidx_enum_participant_init (&it, gv->entity_index);
+    while ((pp = entidx_enum_participant_next (&it)) != NULL)
+    {
+      ddsi_handshake_remove(pp, proxypp, NULL);
+    }
+    entidx_enum_participant_fini (&it);
+  }
+}
 #endif
 
 static void free_proxy_participant(struct proxy_participant *proxypp)
@@ -4851,6 +4867,7 @@ static void free_proxy_participant(struct proxy_participant *proxypp)
     lease_free (proxypp->lease);
   }
 #ifdef DDSI_INCLUDE_SECURITY
+  disconnect_proxy_participant_secure(proxypp);
   q_omg_security_deregister_remote_participant(proxypp);
 #endif
   unref_addrset (proxypp->as_default);
@@ -4988,7 +5005,9 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
 
 #ifdef DDSI_INCLUDE_SECURITY
   if (is_secure)
+  {
     proxy_participant_create_handshakes (gv, proxypp);
+  }
 #endif
 }
 
