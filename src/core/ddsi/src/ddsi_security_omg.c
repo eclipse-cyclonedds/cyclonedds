@@ -1677,6 +1677,7 @@ bool q_omg_security_register_remote_participant(struct participant *pp, struct p
     goto register_failed;
   }
 
+  ddsrt_mutex_lock(&pp->e.lock);
   m = find_or_create_entity_match(gv->security_matches, &proxypp->e.guid, &pp->e.guid);
   m->crypto_handle = crypto_handle;
 
@@ -2626,7 +2627,7 @@ void q_omg_security_set_remote_writer_crypto_tokens(struct reader *rd, const dds
   struct ddsi_domaingv *gv = rd->e.gv;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   struct security_entity_match *match;
-  struct proxy_writer *pwr;
+  struct proxy_writer *pwr = NULL;
 
   if (!sc)
      return;
@@ -2634,37 +2635,37 @@ void q_omg_security_set_remote_writer_crypto_tokens(struct reader *rd, const dds
   ddsrt_mutex_lock(&rd->e.lock);
   match = find_or_create_entity_match(gv->security_matches, pwr_guid, &rd->e.guid);
   if (match->matched)
+  {
     ddsrt_mutex_unlock(&rd->e.lock);
-  else if ((pwr = entidx_lookup_proxy_writer_guid(gv->entity_index, pwr_guid)) == NULL)
-    ddsrt_mutex_unlock(&rd->e.lock);
+    return;
+  }
+
+  DDS_Security_DatawriterCryptoTokenSeq * tseq = DDS_Security_DataHolderSeq_alloc();
+  q_omg_copyin_DataHolderSeq(tseq, tokens);
+
+  if ((pwr = entidx_lookup_proxy_writer_guid(gv->entity_index, pwr_guid)) == NULL || match->crypto_handle == 0 )
+  {
+    GVTRACE("remember writer tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(*pwr_guid), PGUID(rd->e.guid));
+    match->tokens = tseq;
+  }
   else
   {
-    DDS_Security_DatawriterCryptoTokenSeq * tseq = DDS_Security_DataHolderSeq_alloc();
-    q_omg_copyin_DataHolderSeq(tseq, tokens);
-
-    if (match->crypto_handle != 0)
+    if (sc->crypto_context->crypto_key_exchange->set_remote_datawriter_crypto_tokens(sc->crypto_context->crypto_key_exchange, rd->sec_attr->crypto_handle, match->crypto_handle, tseq, &exception))
     {
-      if (sc->crypto_context->crypto_key_exchange->set_remote_datawriter_crypto_tokens(sc->crypto_context->crypto_key_exchange, rd->sec_attr->crypto_handle, match->crypto_handle, tseq, &exception))
-      {
-        GVTRACE("set_remote_writer_crypto_tokens "PGUIDFMT" with reader "PGUIDFMT"\n", PGUID(pwr->e.guid), PGUID(rd->e.guid));
-        match->matched = true;
-        DDS_Security_DataHolderSeq_free(tseq);
-      }
-      else
-        EXCEPTION_ERROR(sc, &exception, "Failed to set remote writer crypto tokens "PGUIDFMT" for reader "PGUIDFMT, PGUID(pwr->e.guid), PGUID(rd->e.guid));
+      GVTRACE("set_remote_writer_crypto_tokens "PGUIDFMT" with reader "PGUIDFMT"\n", PGUID(pwr->e.guid), PGUID(rd->e.guid));
+      match->matched = true;
+      DDS_Security_DataHolderSeq_free(tseq);
     }
     else
-    {
-      GVTRACE("remember writer tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(pwr->e.guid), PGUID(rd->e.guid));
-      match->tokens = tseq;
-    }
-    ddsrt_mutex_unlock(&rd->e.lock);
-
-    if (match->matched)
-      connect_reader_with_proxy_writer_secure(rd, pwr, now_mt (), match->crypto_handle);
-
-    notify_handshake_recv_token(rd->c.pp, pwr->c.proxypp);
+      EXCEPTION_ERROR(sc, &exception, "Failed to set remote writer crypto tokens "PGUIDFMT" for reader "PGUIDFMT, PGUID(pwr->e.guid), PGUID(rd->e.guid));
   }
+  ddsrt_mutex_unlock(&rd->e.lock);
+
+  if (match->matched)
+    connect_reader_with_proxy_writer_secure(rd, pwr, now_mt (), match->crypto_handle);
+
+  if (pwr)
+    notify_handshake_recv_token(rd->c.pp, pwr->c.proxypp);
 }
 
 #if 0
@@ -2720,7 +2721,7 @@ void q_omg_security_set_remote_reader_crypto_tokens(struct writer *wr, const dds
   struct ddsi_domaingv *gv = wr->e.gv;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   struct security_entity_match *match;
-  struct proxy_reader *prd;
+  struct proxy_reader *prd = NULL;
 
   if (!sc)
      return;
@@ -2728,35 +2729,37 @@ void q_omg_security_set_remote_reader_crypto_tokens(struct writer *wr, const dds
   ddsrt_mutex_lock(&wr->e.lock);
   match = find_or_create_entity_match(gv->security_matches, prd_guid, &wr->e.guid);
   if (match->matched)
+  {
     ddsrt_mutex_unlock(&wr->e.lock);
-  else if ((prd = entidx_lookup_proxy_reader_guid(gv->entity_index, prd_guid)) == NULL)
-    ddsrt_mutex_unlock(&wr->e.lock);
+    return;
+  }
+
+  DDS_Security_DatawriterCryptoTokenSeq *tseq = DDS_Security_DataHolderSeq_alloc();
+  q_omg_copyin_DataHolderSeq(tseq, tokens);
+
+  if (((prd = entidx_lookup_proxy_reader_guid(gv->entity_index, prd_guid)) == NULL) || (match->crypto_handle == 0))
+  {
+    GVTRACE("remember reader tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(*prd_guid), PGUID(wr->e.guid));
+    match->tokens = tseq;
+  }
   else
   {
-    DDS_Security_DatawriterCryptoTokenSeq *tseq = DDS_Security_DataHolderSeq_alloc();
-    q_omg_copyin_DataHolderSeq(tseq, tokens);
-
-    if (match->crypto_handle != 0)
+    if (sc->crypto_context->crypto_key_exchange->set_remote_datareader_crypto_tokens(sc->crypto_context->crypto_key_exchange, wr->sec_attr->crypto_handle, match->crypto_handle, tseq, &exception))
     {
-      if (sc->crypto_context->crypto_key_exchange->set_remote_datareader_crypto_tokens(sc->crypto_context->crypto_key_exchange, wr->sec_attr->crypto_handle, match->crypto_handle, tseq, &exception))
-      {
-        GVTRACE("set_remote_reader_crypto_tokens "PGUIDFMT" with writer "PGUIDFMT"\n", PGUID(prd->e.guid), PGUID(wr->e.guid));
-        match->matched = true;
-        DDS_Security_DataHolderSeq_free(tseq);
-      }
-      else
-        EXCEPTION_ERROR(sc, &exception, "Failed to set remote reader crypto tokens "PGUIDFMT" for writer "PGUIDFMT, PGUID(prd->e.guid), PGUID(wr->e.guid));
+      GVTRACE("set_remote_reader_crypto_tokens "PGUIDFMT" with writer "PGUIDFMT"\n", PGUID(prd->e.guid), PGUID(wr->e.guid));
+      match->matched = true;
+      DDS_Security_DataHolderSeq_free(tseq);
     }
     else
-    {
-      GVTRACE("remember reader tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(prd->e.guid), PGUID(wr->e.guid));
-      match->tokens = tseq;
-    }
-    ddsrt_mutex_unlock(&wr->e.lock);
-    if (match->matched)
-      connect_writer_with_proxy_reader_secure(wr, prd, now_mt (), match->crypto_handle);
-    notify_handshake_recv_token(wr->c.pp, prd->c.proxypp);
+      EXCEPTION_ERROR(sc, &exception, "Failed to set remote reader crypto tokens "PGUIDFMT" for writer "PGUIDFMT, PGUID(prd->e.guid), PGUID(wr->e.guid));
   }
+  ddsrt_mutex_unlock(&wr->e.lock);
+
+  if (match->matched)
+    connect_writer_with_proxy_reader_secure(wr, prd, now_mt (), match->crypto_handle);
+
+  if (prd)
+    notify_handshake_recv_token(wr->c.pp, prd->c.proxypp);
 }
 
 bool q_omg_reader_is_discovery_protected(const struct reader *rd)
