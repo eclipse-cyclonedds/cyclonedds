@@ -1677,7 +1677,6 @@ bool q_omg_security_register_remote_participant(struct participant *pp, struct p
     goto register_failed;
   }
 
-  ddsrt_mutex_lock(&pp->e.lock);
   m = find_or_create_entity_match(gv->security_matches, &proxypp->e.guid, &pp->e.guid);
   m->crypto_handle = crypto_handle;
 
