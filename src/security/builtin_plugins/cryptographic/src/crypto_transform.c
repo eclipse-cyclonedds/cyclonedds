@@ -2141,7 +2141,6 @@ decode_datawriter_submessage(
     {
       DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
           "decode_datawriter_submessage: submessage is signed, which is unexpected");
-      assert(0);
       goto fail_decrypt;
     }
     /* When the CryptoHeader indicates that authentication is performed then calculate the HMAC */

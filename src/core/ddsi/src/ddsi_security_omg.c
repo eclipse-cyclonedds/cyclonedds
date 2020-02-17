@@ -966,11 +966,11 @@ bool q_omg_security_check_create_participant(struct participant *pp, uint32_t do
 
 no_crypto:
 no_sec_attr:
+no_credentials:
   if (permissions_token.class_id)
     (void)sc->access_control_context->return_permissions_token(sc->access_control_context, &permissions_token, NULL);
   if (credential_token.class_id)
     (void)sc->access_control_context->return_permissions_credential_token(sc->access_control_context, &credential_token, NULL);
-no_credentials:
   (void)sc->access_control_context->return_permissions_token(sc->access_control_context, &permissions_token, NULL);
 not_allowed:
   if (!allowed)
@@ -1677,6 +1677,7 @@ bool q_omg_security_register_remote_participant(struct participant *pp, struct p
     goto register_failed;
   }
 
+  ddsrt_mutex_lock(&pp->e.lock);
   m = find_or_create_entity_match(gv->security_matches, &proxypp->e.guid, &pp->e.guid);
   m->crypto_handle = crypto_handle;
 
@@ -1702,6 +1703,7 @@ bool q_omg_security_register_remote_participant(struct participant *pp, struct p
       ret = false;
     }
   }
+  ddsrt_mutex_unlock(&pp->e.lock);
 
 register_failed:
   return ret;
@@ -1805,32 +1807,35 @@ void q_omg_security_set_participant_crypto_tokens(struct participant *pp, struct
   if (!sc)
     return;
 
+  ddsrt_mutex_lock(&proxypp->sec_attr->lock);
+  pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle);
+  ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
+
+  ddsrt_mutex_lock(&pp->e.lock);
   m = find_or_create_entity_match(gv->security_matches, &proxypp->e.guid, &pp->e.guid);
 
   tseq = DDS_Security_DataHolderSeq_alloc();
   q_omg_copyin_DataHolderSeq(tseq, tokens);
 
-  ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  if ((pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle)) == NULL)
+  if (!pm)
   {
-    ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
     GVTRACE("remember participant tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(proxypp->e.guid), PGUID(pp->e.guid));
     m->tokens = tseq;
-    notify_handshake_recv_token(pp, proxypp);
-  }
-  else if (sc->crypto_context->crypto_key_exchange->set_remote_participant_crypto_tokens(sc->crypto_context->crypto_key_exchange, pp->sec_attr->crypto_handle, pm->proxypp_crypto_handle, tseq, &exception))
-  {
-    m->matched= true;
-    ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
-    GVTRACE("set participant tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(proxypp->e.guid), PGUID(pp->e.guid));
-    notify_handshake_recv_token(pp, proxypp);
-    DDS_Security_DataHolderSeq_free(tseq);
   }
   else
   {
-    ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
-    EXCEPTION_ERROR(sc, &exception, "Failed to set remote participant crypto tokens "PGUIDFMT" for participant "PGUIDFMT, PGUID(proxypp->e.guid), PGUID(pp->e.guid));
+    if (sc->crypto_context->crypto_key_exchange->set_remote_participant_crypto_tokens(sc->crypto_context->crypto_key_exchange, pp->sec_attr->crypto_handle, pm->proxypp_crypto_handle, tseq, &exception))
+    {
+      m->matched= true;
+      GVTRACE("set participant tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(proxypp->e.guid), PGUID(pp->e.guid));
+      DDS_Security_DataHolderSeq_free(tseq);
+    }
+    else
+      EXCEPTION_ERROR(sc, &exception, "Failed to set remote participant crypto tokens "PGUIDFMT" for participant "PGUIDFMT, PGUID(proxypp->e.guid), PGUID(pp->e.guid));
   }
+  ddsrt_mutex_unlock(&pp->e.lock);
+
+  notify_handshake_recv_token(pp, proxypp);
 }
 
 void q_omg_security_participant_send_tokens(struct participant *pp, struct proxy_participant *proxypp)

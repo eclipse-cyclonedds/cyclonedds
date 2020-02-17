@@ -193,6 +193,7 @@ static void clear_state_timer (struct dds_security_fsm *fsm)
 
   if (fsm->state_timeout_event.endtime != DDS_NEVER)
     ddsrt_fibheap_delete (&timer_events_fhdef, &control->timers, &fsm->state_timeout_event);
+  fsm->state_timeout_event.endtime = DDS_NEVER;
 }
 
 static void clear_overall_timer (struct dds_security_fsm *fsm)
@@ -201,6 +202,7 @@ static void clear_overall_timer (struct dds_security_fsm *fsm)
 
   if (fsm->overall_timeout_event.endtime != DDS_NEVER)
     ddsrt_fibheap_delete (&timer_events_fhdef, &control->timers, &fsm->overall_timeout_event);
+  fsm->overall_timeout_event.endtime = DDS_NEVER;
 }
 
 static dds_time_t first_timeout (struct dds_security_fsm_control *control)
