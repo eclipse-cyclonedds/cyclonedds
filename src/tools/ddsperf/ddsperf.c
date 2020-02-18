@@ -1749,7 +1749,7 @@ static void set_mode_ping (int *xoptind, int xargc, char * const xargv[])
   {
     int pos = 0, mult = 1;
     double ping_rate;
-    if (strcmp (xargv[*xoptind], "inf") == 0 && lookup_multiplier (frequency_units, xargv[*xoptind] + 3) > 0)
+    if (strncmp (xargv[*xoptind], "inf", 3) == 0 && lookup_multiplier (frequency_units, xargv[*xoptind] + 3) > 0)
     {
       ping_intv = 0;
     }
@@ -1891,16 +1891,16 @@ int main (int argc, char *argv[])
 
   while ((opt = getopt (argc, argv, "cd:D:i:n:k:uLK:T:Q:R:h")) != EOF)
   {
+    int pos;
     switch (opt)
     {
       case 'c': collect_stats = true; break;
       case 'd': {
         char *col;
-        int pos;
         (void) ddsrt_strlcpy (netload_if, optarg, sizeof (netload_if));
         if ((col = strrchr (netload_if, ':')) == NULL || col == netload_if ||
             (sscanf (col+1, "%lf%n", &netload_bw, &pos) != 1 || (col+1)[pos] != 0))
-          error3 ("-d%s: expected DEVICE:BANDWIDTH\n", optarg);
+          error3 ("-d %s: expected DEVICE:BANDWIDTH\n", optarg);
         *col = 0;
         break;
       }
@@ -1917,10 +1917,9 @@ int main (int argc, char *argv[])
         else if (strcmp (optarg, "OU") == 0) topicsel = OU;
         else if (strcmp (optarg, "UK16") == 0) topicsel = UK16;
         else if (strcmp (optarg, "UK1024") == 0) topicsel = UK1024;
-        else error3 ("%s: unknown topic\n", optarg);
+        else error3 ("-T %s: unknown topic\n", optarg);
         break;
       case 'Q': {
-        int pos;
         double d;
         unsigned long n;
         if (sscanf (optarg, "rss:%lf%n", &d, &pos) == 1 && (optarg[pos] == 0 || optarg[pos] == '%')) {
@@ -1935,11 +1934,16 @@ int main (int argc, char *argv[])
         } else if (sscanf (optarg, "minmatch:%lu%n", &n, &pos) == 1 && optarg[pos] == 0) {
           minmatch = (uint32_t) n;
         } else {
-          error3 ("-Q%s: invalid success criterium\n", optarg);
+          error3 ("-Q %s: invalid success criterium\n", optarg);
         }
         break;
       }
-      case 'R': tref = 0; sscanf (optarg, "%"SCNd64, &tref); break;
+      case 'R': {
+        tref = 0;
+        if (sscanf (optarg, "%"SCNd64"%n", &tref, &pos) != 1 || optarg[pos] != 0)
+          error3 ("-R %s: invalid reference time\n", optarg);
+        break;
+      }
       case 'h': default: usage (); break;
     }
   }
@@ -1959,7 +1963,7 @@ int main (int argc, char *argv[])
   if (nkeyvals == 0)
     nkeyvals = 1;
   if (topicsel == OU && nkeyvals != 1)
-    error3 ("-n%u invalid: topic OU has no key\n", nkeyvals);
+    error3 ("-n %u invalid: topic OU has no key\n", nkeyvals);
   if (topicsel != KS && baggagesize != 0)
     error3 ("size %"PRIu32" invalid: only topic KS has a sequence\n", baggagesize);
   if (baggagesize != 0 && baggagesize < 12)
