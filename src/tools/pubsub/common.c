@@ -583,7 +583,7 @@ int double_to_dds_duration(dds_duration_t *dd, double d) {
     if (d < 0)
         return -1;
     double nanosec = d * 1e9;
-    if(nanosec > INT64_MAX) {
+    if(nanosec > (double)INT64_MAX) {
         *dd = DDS_INFINITY;
     } else {
         *dd = (int64_t) nanosec;
