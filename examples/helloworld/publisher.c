@@ -28,7 +28,7 @@ int main (int argc, char ** argv)
   /* Create a Writer. */
   writer = dds_create_writer (participant, topic, NULL, NULL);
   if (writer < 0)
-    DDS_FATAL("dds_create_write: %s\n", dds_strretcode(-writer));
+    DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-writer));
 
   printf("=== [Publisher]  Waiting for a reader to be discovered ...\n");
   fflush (stdout);
