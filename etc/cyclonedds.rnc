@@ -469,6 +469,29 @@ the NACK.</p><p>The default value is: &quot;0&quot;.</p>""" ] ]
           xsd:integer
         }?
         & [ a:documentation [ xml:lang="en" """
+<p>This element controls the delay for answering a heartbeat that
+requests an ACK</p>
+
+<p>The unit must be specified explicitly. Recognised units: ns, us, ms,
+s, min, hr, day.</p><p>The default value is: &quot;0 ms&quot;.</p>""" ] ]
+        element AckDelay {
+          [ a:documentation [ xml:lang="en" """
+<p>Randomize acknowledgement delays using a value between 0 -
+AckDelay</p><p>The default value is: &quot;false&quot;.</p>""" ] ]
+          attribute randomize {
+            xsd:boolean
+          }?
+          & duration
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>This element controls whether a reliable writer requests ACKs. When
+enabled, matching readers will send ACKs at a rate of 50% of the maximum
+interval for periodic heartbeats, to ensure samples can be removed from
+the writer history.</p><p>The default value is: &quot;false&quot;.</p>""" ] ]
+        element AckSuppression {
+          xsd:boolean
+        }?
+        & [ a:documentation [ xml:lang="en" """
 <p>This element controls which network interfaces are assumed to be
 capable of multicasting even when the interface flags returned by the
 operating system state it is not (this provides a workaround for some
@@ -546,6 +569,16 @@ that queue are dropped until space becomes available again.</p><p>The
 default value is: &quot;256&quot;.</p>""" ] ]
         element DeliveryQueueMaxSamples {
           xsd:integer
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>This element controls whether a ParticipantMessageData reader is
+created for DDSI liveliness protocol, effectively also disabling writers
+which get created upon reader discovery. PMD writers are reliable and may
+cause spikes in ACK traffic when adding a participant. Note liveliness
+still works by deriving it from other traffic.</p><p>The default value
+is: &quot;false&quot;.</p>""" ] ]
+        element DisablePmdReader {
+          xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This element enables expensive checks in builds with assertions

@@ -1087,7 +1087,12 @@ static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct hand
     }
     else if (!(msg->smhdr.flags & HEARTBEAT_FLAG_FINAL))
     {
-      tsched = arg->tnow_mt;
+      RSTTRACE ("/ACK");
+      int64_t delay = rst->gv->config.ackdelay_randomize ? \
+          pseudo_random_delay(&(pwr->e.guid), &(wn->rd_guid), arg->tnow_mt, rst->gv->config.ack_delay / 1000000) : rst->gv->config.ack_delay;
+      tsched.v = arg->tnow_mt.v + delay;
+      if (delay > 0)
+        RSTTRACE ("d");
     }
     if (resched_xevent_if_earlier (wn->acknack_xevent, tsched))
     {

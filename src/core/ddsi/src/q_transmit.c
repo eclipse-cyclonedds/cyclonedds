@@ -231,22 +231,25 @@ static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const
   const int64_t hb_intv_ack = gv->config.const_hb_intv_sched;
   assert(wr->heartbeat_xevent != NULL && whcst != NULL);
 
-  if (piggyback)
+  if (!gv->config.ack_suppression)
   {
-    /* If it is likely that a heartbeat requiring an ack will go out
-       shortly after the sample was written, it is better to piggyback
-       it onto the sample.  The current idea is that a write shortly
-       before the next heartbeat will go out should have one
-       piggybacked onto it, so that the scheduled heartbeat can be
-       suppressed. */
-    if (tnow.v >= tlast.v + 4 * hb_intv_ack / 5)
-      return 2;
-  }
-  else
-  {
-    /* For heartbeat events use a slightly longer interval */
-    if (tnow.v >= tlast.v + hb_intv_ack)
-      return 2;
+    if (piggyback)
+    {
+      /* If it is likely that a heartbeat requiring an ack will go out
+         shortly after the sample was written, it is better to piggyback
+         it onto the sample.  The current idea is that a write shortly
+         before the next heartbeat will go out should have one
+         piggybacked onto it, so that the scheduled heartbeat can be
+         suppressed. */
+      if (tnow.v >= tlast.v + 4 * hb_intv_ack / 5)
+        return 2;
+    }
+    else
+    {
+      /* For heartbeat events use a slightly longer interval */
+      if (tnow.v >= tlast.v + hb_intv_ack)
+        return 2;
+    }
   }
 
   if (whcst->unacked_bytes >= wr->whc_low + (wr->whc_high - wr->whc_low) / 2)
@@ -255,6 +258,10 @@ static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const
       return 2;
     else if (tnow.v >= hbc->t_of_last_ackhb.v + gv->config.const_hb_intv_min)
       return 1;
+  }
+  else if (gv->config.ack_suppression && (tnow.v >= hbc->t_of_last_ackhb.v + (gv->config.const_hb_intv_sched_max / 2)))
+  {
+      return 2;
   }
 
   return 0;

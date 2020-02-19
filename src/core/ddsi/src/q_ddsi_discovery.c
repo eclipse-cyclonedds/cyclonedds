@@ -362,35 +362,6 @@ int spdp_dispose_unregister (struct participant *pp)
   return ret;
 }
 
-static unsigned pseudo_random_delay (const ddsi_guid_t *x, const ddsi_guid_t *y, nn_mtime_t tnow)
-{
-  /* You know, an ordinary random generator would be even better, but
-     the C library doesn't have a reentrant one and I don't feel like
-     integrating, say, the Mersenne Twister right now. */
-  static const uint64_t cs[] = {
-    UINT64_C (15385148050874689571),
-    UINT64_C (17503036526311582379),
-    UINT64_C (11075621958654396447),
-    UINT64_C ( 9748227842331024047),
-    UINT64_C (14689485562394710107),
-    UINT64_C (17256284993973210745),
-    UINT64_C ( 9288286355086959209),
-    UINT64_C (17718429552426935775),
-    UINT64_C (10054290541876311021),
-    UINT64_C (13417933704571658407)
-  };
-  uint32_t a = x->prefix.u[0], b = x->prefix.u[1], c = x->prefix.u[2], d = x->entityid.u;
-  uint32_t e = y->prefix.u[0], f = y->prefix.u[1], g = y->prefix.u[2], h = y->entityid.u;
-  uint32_t i = (uint32_t) ((uint64_t) tnow.v >> 32), j = (uint32_t) tnow.v;
-  uint64_t m = 0;
-  m += (a + cs[0]) * (b + cs[1]);
-  m += (c + cs[2]) * (d + cs[3]);
-  m += (e + cs[4]) * (f + cs[5]);
-  m += (g + cs[6]) * (h + cs[7]);
-  m += (i + cs[8]) * (j + cs[9]);
-  return (unsigned) (m >> 32);
-}
-
 static void respond_to_spdp (const struct ddsi_domaingv *gv, const ddsi_guid_t *dest_proxypp_guid)
 {
   struct entidx_enum_participant est;
@@ -399,12 +370,7 @@ static void respond_to_spdp (const struct ddsi_domaingv *gv, const ddsi_guid_t *
   entidx_enum_participant_init (&est, gv->entity_index);
   while ((pp = entidx_enum_participant_next (&est)) != NULL)
   {
-    /* delay_base has 32 bits, so delay_norm is approximately 1s max;
-       delay_max <= 1s by gv.config checks */
-    unsigned delay_base = pseudo_random_delay (&pp->e.guid, dest_proxypp_guid, tnow);
-    unsigned delay_norm = delay_base >> 2;
-    int64_t delay_max_ms = gv->config.spdp_response_delay_max / 1000000;
-    int64_t delay = (int64_t) delay_norm * delay_max_ms / 1000;
+    int64_t delay = pseudo_random_delay(&pp->e.guid, dest_proxypp_guid, tnow, gv->config.spdp_response_delay_max / 1000000);
     nn_mtime_t tsched = add_duration_to_mtime (tnow, delay);
     GVTRACE (" %"PRId64, delay);
     if (!pp->e.gv->config.unicast_response_to_spdp_messages)

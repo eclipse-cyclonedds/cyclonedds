@@ -37,6 +37,8 @@ int WildcardOverlap(char * p1, char * p2);
 
 int ddsi2_patmatch (const char *pat, const char *str);
 
+int64_t pseudo_random_delay (const ddsi_guid_t *x, const ddsi_guid_t *y, nn_mtime_t tnow, int64_t max_ms);
+
 #if defined (__cplusplus)
 }
 #endif

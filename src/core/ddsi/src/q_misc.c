@@ -89,3 +89,32 @@ int ddsi2_patmatch (const char *pat, const char *str)
   }
   return *str == 0;
 }
+
+int64_t pseudo_random_delay (const ddsi_guid_t *x, const ddsi_guid_t *y, nn_mtime_t tnow, int64_t max_ms)
+{
+  /* You know, an ordinary random generator would be even better, but
+     the C library doesn't have a reentrant one and I don't feel like
+     integrating, say, the Mersenne Twister right now. */
+  static const uint64_t cs[] = {
+    UINT64_C (15385148050874689571),
+    UINT64_C (17503036526311582379),
+    UINT64_C (11075621958654396447),
+    UINT64_C ( 9748227842331024047),
+    UINT64_C (14689485562394710107),
+    UINT64_C (17256284993973210745),
+    UINT64_C ( 9288286355086959209),
+    UINT64_C (17718429552426935775),
+    UINT64_C (10054290541876311021),
+    UINT64_C (13417933704571658407)
+  };
+  uint32_t a = x->prefix.u[0], b = x->prefix.u[1], c = x->prefix.u[2], d = x->entityid.u;
+  uint32_t e = y->prefix.u[0], f = y->prefix.u[1], g = y->prefix.u[2], h = y->entityid.u;
+  uint32_t i = (uint32_t) ((uint64_t) tnow.v >> 32), j = (uint32_t) tnow.v;
+  uint64_t m = 0;
+  m += (a + cs[0]) * (b + cs[1]);
+  m += (c + cs[2]) * (d + cs[3]);
+  m += (e + cs[4]) * (f + cs[5]);
+  m += (g + cs[6]) * (h + cs[7]);
+  m += (i + cs[8]) * (j + cs[9]);
+  return (int64_t) (m >> 32) * max_ms / 4295;
+}

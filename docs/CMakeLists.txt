@@ -15,14 +15,17 @@ if(PERL_FOUND)
       options.md cyclonedds.rnc
     COMMAND
       ${PERL_EXECUTABLE} -w "${CMAKE_CURRENT_SOURCE_DIR}/makernc.pl" "${CMAKE_CURRENT_SOURCE_DIR}/../src/core/ddsi/src/q_config.c" options.md cyclonedds.rnc
+    DEPENDS
+      "${CMAKE_CURRENT_SOURCE_DIR}/makernc.pl"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../src/core/ddsi/src/q_config.c")
+  add_custom_target(
+    options_doc ALL
     COMMAND
       ${PERL_EXECUTABLE} -w "${CMAKE_CURRENT_SOURCE_DIR}/compare.pl" options.md "${CMAKE_CURRENT_SOURCE_DIR}/manual/options.md"
     COMMAND
       ${PERL_EXECUTABLE} -w "${CMAKE_CURRENT_SOURCE_DIR}/compare.pl" cyclonedds.rnc "${CMAKE_CURRENT_SOURCE_DIR}/../etc/cyclonedds.rnc"
     DEPENDS
-      "${CMAKE_CURRENT_SOURCE_DIR}/makernc.pl"
-      "${CMAKE_CURRENT_SOURCE_DIR}/../src/core/ddsi/src/q_config.c")
-  add_custom_target(options_doc ALL DEPENDS "options.md" "cyclonedds.rnc")
+      "options.md" "cyclonedds.rnc")
 
   find_package(Java COMPONENTS Runtime)
   if(JAVA_FOUND AND EXISTS "${TRANG_PATH}" OR EXISTS "$ENV{TRANG}")
@@ -35,13 +38,16 @@ if(PERL_FOUND)
         cyclonedds.xsd
       COMMAND
         ${Java_JAVA_EXECUTABLE} -jar "${TRANG_PATH}" -I rnc -O xsd cyclonedds.rnc cyclonedds.xsd
+      DEPENDS
+        "cyclonedds.rnc")
+    add_custom_target(
+      options_xsd ALL
       COMMAND
         ${PERL_EXECUTABLE} -w "${CMAKE_CURRENT_SOURCE_DIR}/compare.pl" cyclonedds.xsd "${CMAKE_CURRENT_SOURCE_DIR}/../etc/cyclonedds.xsd"
       DEPENDS
-        "cyclonedds.rnc")
-    add_custom_target(options_xsd ALL DEPENDS "cyclonedds.xsd")
+        "cyclonedds.xsd")
   else()
-    message(STATUS "Java or not trang not found: not converting/checking RNC to XSD")
+    message(STATUS "Java or trang not found: not converting/checking RNC to XSD")
   endif()
 else()
   message(STATUS "perl not found: not generating/checking options documentation and RNC")

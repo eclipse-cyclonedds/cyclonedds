@@ -485,6 +485,12 @@ static const struct cfgelem multiple_recv_threads_attrs[] = {
   END_MARKER
 };
 
+static const struct cfgelem ackdelay_attrs[] = {
+    { ATTR("randomize"), 1, "false", ABSOFF(ackdelay_randomize), 0, uf_boolean, 0, pf_boolean,
+      BLURB("<p>Randomize acknowledgement delays using a value between 0 - AckDelay</p>") },
+    END_MARKER
+};
+
 static const struct cfgelem unsupp_cfgelems[] = {
   { MOVED("MaxMessageSize", "CycloneDDS/General/MaxMessageSize") },
   { MOVED("FragmentSize", "CycloneDDS/General/FragmentSize") },
@@ -504,6 +510,12 @@ static const struct cfgelem unsupp_cfgelems[] = {
 <li><i>writers</i>: all participants have the writers, but just one has the readers;</li>\n\
 <li><i>minimal</i>: only one participant has built-in endpoints.</li></ul>\n\
 <p>The default is <i>writers</i>, as this is thought to be compliant and reasonably efficient. <i>Minimal</i> may or may not be compliant but is most efficient, and <i>full</i> is inefficient but certain to be compliant. See also Internal/ConservativeBuiltinReaderStartup.</p>") },
+  { LEAF("DisablePmdReader"), 1, "false", ABSOFF(disable_pmd_reader), 0, uf_boolean, 0, pf_boolean,
+    BLURB("<p>This element controls whether a ParticipantMessageData reader is created for DDSI liveliness protocol, effectively also disabling writers which get created upon reader discovery. PMD writers are reliable and may cause spikes in ACK traffic when adding a participant. Note liveliness still works by deriving it from other traffic.</p>") },
+  { LEAF("AckSuppression"), 1, "false", ABSOFF(ack_suppression), 0, uf_boolean, 0, pf_boolean,
+    BLURB("<p>This element controls whether a reliable writer requests ACKs. When enabled, matching readers will send ACKs at a rate of 50% of the maximum interval for periodic heartbeats, to ensure samples can be removed from the writer history.</p>") },
+  { LEAF_W_ATTRS("AckDelay", ackdelay_attrs), 1, "0 ms", ABSOFF(ack_delay), 0, uf_duration_ms_1hr, 0, pf_duration,
+    BLURB("<p>This element controls the delay for answering a heartbeat that requests an ACK</p>") },
   { LEAF("MeasureHbToAckLatency"), 1, "false", ABSOFF(meas_hb_to_ack_latency), 0, uf_boolean, 0, pf_boolean,
     BLURB("<p>This element enables heartbeat-to-ack latency among DDSI2E services by prepending timestamps to Heartbeat and AckNack messages and calculating round trip times. This is non-standard behaviour. The measured latencies are quite noisy and are currently not used anywhere.</p>") },
   { LEAF("UnicastResponseToSPDPMessages"), 1, "true", ABSOFF(unicast_response_to_spdp_messages), 0, uf_boolean, 0, pf_boolean,
