@@ -1315,7 +1315,7 @@ discovery;</li>
 
 <li><i>dq.CHAN</i>: delivery thread for channel CHAN;</li>
 
-<li><i>tev.CHAN</i>: timed-even thread for channel CHAN.</li></ul>""" ] ]
+<li><i>tev.CHAN</i>: timed-event thread for channel CHAN.</li></ul>""" ] ]
           attribute Name {
             text
           }
