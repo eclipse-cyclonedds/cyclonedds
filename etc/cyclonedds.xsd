@@ -636,6 +636,8 @@ reserved. This includes renaming or moving options.&lt;/p&gt;</xs:documentation>
     <xs:complexType>
       <xs:all>
         <xs:element minOccurs="0" ref="config:AccelerateRexmitBlockSize"/>
+        <xs:element minOccurs="0" ref="config:AckDelay"/>
+        <xs:element minOccurs="0" ref="config:AckSuppression"/>
         <xs:element minOccurs="0" ref="config:AssumeMulticastCapable"/>
         <xs:element minOccurs="0" ref="config:AutoReschedNackDelay"/>
         <xs:element minOccurs="0" ref="config:BuiltinEndpointSet"/>
@@ -644,6 +646,7 @@ reserved. This includes renaming or moving options.&lt;/p&gt;</xs:documentation>
         <xs:element minOccurs="0" ref="config:DefragReliableMaxSamples"/>
         <xs:element minOccurs="0" ref="config:DefragUnreliableMaxSamples"/>
         <xs:element minOccurs="0" ref="config:DeliveryQueueMaxSamples"/>
+        <xs:element minOccurs="0" ref="config:DisablePmdReader"/>
         <xs:element minOccurs="0" ref="config:EnableExpensiveChecks"/>
         <xs:element minOccurs="0" ref="config:GenerateKeyhash"/>
         <xs:element minOccurs="0" ref="config:HeartbeatInterval"/>
@@ -690,6 +693,38 @@ reserved. This includes renaming or moving options.&lt;/p&gt;</xs:documentation>
 get this many samples retransmitted when they NACK something, even if
 some of these samples have sequence numbers outside the set covered by
 the NACK.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;0&amp;quot;.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="AckDelay">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element controls the delay for answering a heartbeat that
+requests an ACK&lt;/p&gt;
+
+&lt;p&gt;The unit must be specified explicitly. Recognised units: ns, us, ms,
+s, min, hr, day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;0 ms&amp;quot;.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:extension base="config:duration">
+          <xs:attribute name="randomize" type="xs:boolean">
+            <xs:annotation>
+              <xs:documentation>
+&lt;p&gt;Randomize acknowledgement delays using a value between 0 -
+AckDelay&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;false&amp;quot;.&lt;/p&gt;</xs:documentation>
+            </xs:annotation>
+          </xs:attribute>
+        </xs:extension>
+      </xs:simpleContent>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="AckSuppression" type="xs:boolean">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element controls whether a reliable writer requests ACKs. When
+enabled, matching readers will send ACKs at a rate of 50% of the maximum
+interval for periodic heartbeats, to ensure samples can be removed from
+the writer history.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;false&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="AssumeMulticastCapable" type="xs:string">
@@ -785,6 +820,17 @@ value is: &amp;quot;4&amp;quot;.&lt;/p&gt;</xs:documentation>
 in samples. Once a delivery queue is full, incoming samples destined for
 that queue are dropped until space becomes available again.&lt;/p&gt;&lt;p&gt;The
 default value is: &amp;quot;256&amp;quot;.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="DisablePmdReader" type="xs:boolean">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element controls whether a ParticipantMessageData reader is
+created for DDSI liveliness protocol, effectively also disabling writers
+which get created upon reader discovery. PMD writers are reliable and may
+cause spikes in ACK traffic when adding a participant. Note liveliness
+still works by deriving it from other traffic.&lt;/p&gt;&lt;p&gt;The default value
+is: &amp;quot;false&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="EnableExpensiveChecks">

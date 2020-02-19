@@ -282,6 +282,8 @@ struct config
   int unicast_response_to_spdp_messages;
   int synchronous_delivery_priority_threshold;
   int64_t synchronous_delivery_latency_bound;
+  int disable_pmd_reader;
+  int ack_suppression;
 
   /* Write cache */
 
@@ -302,6 +304,8 @@ struct config
   uint32_t socket_min_sndbuf_size;
   int64_t nack_delay;
   int64_t preemptive_ack_delay;
+  int64_t ack_delay;
+  int ackdelay_randomize;
   int64_t schedule_time_rounding;
   int64_t auto_resched_nack_delay;
   int64_t ds_grace_period;
