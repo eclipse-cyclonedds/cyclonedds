@@ -3168,7 +3168,7 @@ static void update_proxy_participant_endpoint_matching (struct proxy_participant
     enum entity_kind mkind;
 
     guid.entityid = endpoint_ids[i];
-    if ((e = entidx_lookup_guid_untyped(proxypp->e.gv->entity_index, &guid)) == NULL)
+    if ((e = entidx_lookup_guid_untyped(entidx, &guid)) == NULL)
       continue;
 
     mkind = generic_do_match_mkind (e->kind, false);
@@ -3179,10 +3179,10 @@ static void update_proxy_participant_endpoint_matching (struct proxy_participant
       struct match_entities_range_key max;
       const char *tp = entity_topic_name (e);
 
-      entidx_enum_init_topic_w_prefix (&it, entidx, mkind, tp, &pp->e.guid.prefix, &max);
+      entidx_enum_init_topic(&it, entidx, mkind, tp, &max);
       while ((em = entidx_enum_next_max (&it, &max)) != NULL)
       {
-        if (&pp->e == get_entity_parent(e))
+        if (&pp->e == get_entity_parent(em))
           generic_do_match_connect (e, em, tnow, false);
       }
       entidx_enum_fini (&it);

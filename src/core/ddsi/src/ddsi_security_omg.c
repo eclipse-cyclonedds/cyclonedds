@@ -1981,7 +1981,7 @@ static void send_reader_crypto_tokens(struct reader *rd, struct proxy_writer *pw
   r = sc->crypto_context->crypto_key_exchange->create_local_datareader_crypto_tokens(sc->crypto_context->crypto_key_exchange, &tokens, local_crypto, remote_crypto, &exception);
   if (!r)
     EXCEPTION_ERROR(sc, &exception,"Failed to create local reader crypto tokens "PGUIDFMT" for remote writer "PGUIDFMT, PGUID(rd->e.guid), PGUID(pwr->e.guid));
-  else
+  else if (tokens._length > 0)
   {
     nn_dataholderseq_t tholder;
 
@@ -2390,6 +2390,8 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
         else
           EXCEPTION_ERROR(sc, &exception, "Failed to set remote reader crypto tokens "PGUIDFMT" --> "PGUIDFMT, PGUID(prd->e.guid), PGUID(wr->e.guid));
       }
+      else if (!wr->sec_attr->attr.is_submessage_protected)
+        match->matched = true;
     }
   }
   ddsrt_mutex_unlock(&wr->e.lock);
