@@ -325,7 +325,7 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
 
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   if (participant < 0)
-    DDS_FATAL("dds_create_particpant: %s\n", dds_strretcode(-participant));
+    DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 
   /* A Topic is created for our sample type on the domain participant. */
 

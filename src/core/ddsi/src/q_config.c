@@ -385,7 +385,7 @@ static const struct cfgelem thread_properties_cfgattrs[] = {
 <li><i>tev</i>: general timed-event handling, retransmits and discovery;</li>\n\
 <li><i>xmit.CHAN</i>: transmit thread for channel CHAN;</li>\n\
 <li><i>dq.CHAN</i>: delivery thread for channel CHAN;</li>\n\
-<li><i>tev.CHAN</i>: timed-even thread for channel CHAN.</li></ul>") },
+<li><i>tev.CHAN</i>: timed-event thread for channel CHAN.</li></ul>") },
   END_MARKER
 };
 
