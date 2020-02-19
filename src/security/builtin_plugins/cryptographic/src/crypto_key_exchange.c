@@ -74,13 +74,13 @@ static bool check_not_data_empty(const DDS_Security_OctetSeq *seq)
 static bool check_crypto_keymaterial(const DDS_Security_KeyMaterial_AES_GCM_GMAC *keymat)
 {
   bool status;
-
   uint32_t transform_kind = CRYPTO_TRANSFORM_KIND(keymat->transformation_kind);
   uint32_t key_sz = CRYPTO_KEY_SIZE_BYTES(transform_kind);
 
-  status = (transform_kind >= CRYPTO_TRANSFORMATION_KIND_AES128_GMAC && transform_kind <= CRYPTO_TRANSFORMATION_KIND_AES256_GCM &&
+  status = (transform_kind == CRYPTO_TRANSFORMATION_KIND_NONE ||
+    (transform_kind <= CRYPTO_TRANSFORMATION_KIND_AES256_GCM &&
     keymat->master_salt._length == key_sz && keymat->master_salt._buffer != NULL && check_not_data_empty(&keymat->master_salt) &&
-    keymat->master_sender_key._length == key_sz && keymat->master_sender_key._buffer != NULL && check_not_data_empty(&keymat->master_sender_key));
+    keymat->master_sender_key._length == key_sz && keymat->master_sender_key._buffer != NULL && check_not_data_empty(&keymat->master_sender_key)));
 
   if (status && CRYPTO_TRANSFORM_ID(keymat->receiver_specific_key_id))
   {
@@ -186,6 +186,27 @@ fail_invalid_arg:
   return false;
 }
 
+
+static DDS_Security_boolean
+allow_empty_tokens(
+    const dds_security_crypto_key_exchange_impl *impl,
+    const DDS_Security_ParticipantCryptoTokenSeq *tokens,
+    int64_t handle)
+{
+  const dds_security_crypto_key_factory *factory;
+  DDS_Security_ProtectionKind kind;
+
+  if (tokens->_length > 0)
+    return false;
+
+  factory = cryptography_get_crypto_key_factory(impl->crypto);
+  if (crypto_factory_get_protection_kind(factory, handle, &kind))
+    return false;
+
+  return (kind == DDS_SECURITY_PROTECTION_KIND_NONE);
+}
+
+
 static DDS_Security_boolean
 set_remote_participant_crypto_tokens(
     dds_security_crypto_key_exchange *instance,
@@ -207,6 +228,9 @@ set_remote_participant_crypto_tokens(
         "set_remote_participant_crypto_tokens: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
     return false;
   }
+
+  if (allow_empty_tokens(impl, tokens, remote_id))
+    return true;
 
   if (!check_crypto_tokens(tokens))
   {
@@ -318,6 +342,9 @@ set_remote_datawriter_crypto_tokens(
         "set_remote_datawriter_crypto_tokens: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
     return false;
   }
+
+  if (allow_empty_tokens(impl, tokens, remote_writer_handle))
+    return true;
 
   if (!check_crypto_tokens(tokens))
   {
@@ -446,6 +473,9 @@ set_remote_datareader_crypto_tokens(
         "set_remote_datareader_crypto_tokens: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
     return false;
   }
+
+  if (allow_empty_tokens(impl, tokens, remote_reader_handle))
+    return true;
 
   if (!check_crypto_tokens(tokens))
   {

@@ -981,6 +981,51 @@ void dds_security_crypto_key_factory__dealloc(dds_security_crypto_key_factory *i
   ddsrt_free(implementation);
 }
 
+
+bool
+crypto_factory_get_protection_kind(
+    const dds_security_crypto_key_factory *factory,
+    int64_t handle,
+    DDS_Security_ProtectionKind *kind)
+{
+  const dds_security_crypto_key_factory_impl *impl = (const dds_security_crypto_key_factory_impl *)factory;
+  CryptoObject *obj;
+  bool result = true;
+
+  obj = crypto_object_table_find(impl->crypto_objects, handle);
+  if (!obj)
+  {
+    return false;
+  }
+
+  switch (obj->kind)
+  {
+  case CRYPTO_OBJECT_KIND_LOCAL_CRYPTO:
+    *kind = ((local_participant_crypto *)obj)->rtps_protection_kind;
+    break;
+  case CRYPTO_OBJECT_KIND_REMOTE_CRYPTO:
+    *kind = ((remote_participant_crypto *)obj)->rtps_protection_kind;
+    break;
+  case CRYPTO_OBJECT_KIND_LOCAL_WRITER_CRYPTO:
+    *kind = ((local_datawriter_crypto *)obj)->metadata_protectionKind;
+    break;
+  case CRYPTO_OBJECT_KIND_REMOTE_WRITER_CRYPTO:
+    *kind = ((remote_datawriter_crypto *)obj)->metadata_protectionKind;
+    break;
+  case CRYPTO_OBJECT_KIND_LOCAL_READER_CRYPTO:
+    *kind = ((local_datareader_crypto *)obj)->metadata_protectionKind;
+    break;
+  case CRYPTO_OBJECT_KIND_REMOTE_READER_CRYPTO:
+    *kind = ((remote_datareader_crypto *)obj)->metadata_protectionKind;
+    break;
+  default:
+    result = false;
+    break;
+  }
+  CRYPTO_OBJECT_RELEASE(obj);
+  return result;
+}
+
 bool
 crypto_factory_get_participant_crypto_tokens(
     const dds_security_crypto_key_factory *factory,

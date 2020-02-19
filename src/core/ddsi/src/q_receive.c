@@ -80,11 +80,6 @@ static void deliver_user_data_synchronously (struct nn_rsample_chain *sc, const 
 
 static void maybe_set_reader_in_sync (struct proxy_writer *pwr, struct pwr_rd_match *wn, seqno_t last_deliv_seq)
 {
-  if (wn->filtered)
-  {
-    wn->in_sync = PRMSS_OUT_OF_SYNC;
-    return;
-  }
   switch (wn->in_sync)
   {
     case PRMSS_SYNC:
@@ -99,12 +94,15 @@ static void maybe_set_reader_in_sync (struct proxy_writer *pwr, struct pwr_rd_ma
       }
       break;
     case PRMSS_OUT_OF_SYNC:
-      assert (nn_reorder_next_seq (wn->u.not_in_sync.reorder) <= nn_reorder_next_seq (pwr->reorder));
-      if (pwr->have_seen_heartbeat && nn_reorder_next_seq (wn->u.not_in_sync.reorder) == nn_reorder_next_seq (pwr->reorder))
+      if (!wn->filtered)
       {
-        ETRACE (pwr, " msr_in_sync("PGUIDFMT" out-of-sync to tlcatchup)", PGUID (wn->rd_guid));
-        wn->in_sync = PRMSS_TLCATCHUP;
-        maybe_set_reader_in_sync (pwr, wn, last_deliv_seq);
+        assert (nn_reorder_next_seq (wn->u.not_in_sync.reorder) <= nn_reorder_next_seq (pwr->reorder));
+        if (pwr->have_seen_heartbeat && nn_reorder_next_seq (wn->u.not_in_sync.reorder) == nn_reorder_next_seq (pwr->reorder))
+        {
+          ETRACE (pwr, " msr_in_sync("PGUIDFMT" out-of-sync to tlcatchup)", PGUID (wn->rd_guid));
+          wn->in_sync = PRMSS_TLCATCHUP;
+          maybe_set_reader_in_sync (pwr, wn, last_deliv_seq);
+        }
       }
       break;
   }
