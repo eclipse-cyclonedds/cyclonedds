@@ -421,13 +421,13 @@ static const struct cfgelem compatibility_cfgelems[] = {
   END_MARKER
 };
 
-static const struct cfgelem unsupp_test_cfgelems[] = {
+static const struct cfgelem internal_test_cfgelems[] = {
   { LEAF("XmitLossiness"), 1, "0", ABSOFF(xmit_lossiness), 0, uf_int, 0, pf_int,
     BLURB("<p>This element controls the fraction of outgoing packets to drop, specified as samples per thousand.</p>") },
   END_MARKER
 };
 
-static const struct cfgelem unsupp_watermarks_cfgelems[] = {
+static const struct cfgelem internal_watermarks_cfgelems[] = {
   { LEAF("WhcLow"), 1, "1 kB", ABSOFF(whc_lowwater_mark), 0, uf_memsize, 0, pf_memsize,
     BLURB("<p>This element sets the low-water mark for the DDSI2E WHCs, expressed in bytes. A suspended writer resumes transmitting when its DDSI2E WHC shrinks to this size.</p>") },
   { LEAF("WhcHigh"), 1, "100 kB", ABSOFF(whc_highwater_mark), 0, uf_memsize, 0, pf_memsize,
@@ -485,7 +485,7 @@ static const struct cfgelem multiple_recv_threads_attrs[] = {
   END_MARKER
 };
 
-static const struct cfgelem unsupp_cfgelems[] = {
+static const struct cfgelem internal_cfgelems[] = {
   { MOVED("MaxMessageSize", "CycloneDDS/General/MaxMessageSize") },
   { MOVED("FragmentSize", "CycloneDDS/General/FragmentSize") },
   { LEAF("DeliveryQueueMaxSamples"), 1, "256", ABSOFF(delivery_queue_maxsamples), 0, uf_uint, 0, pf_uint,
@@ -588,9 +588,9 @@ static const struct cfgelem unsupp_cfgelems[] = {
     BLURB("<p>This element controls whether all traffic is handled by a single receive thread (false) or whether multiple receive threads may be used to improve latency (true). By default it is disabled on Windows because it appears that one cannot count on being able to send packets to oneself, which is necessary to stop the thread during shutdown. Currently multiple receive threads are only used for connectionless transport (e.g., UDP) and ManySocketsMode not set to single (the default).</p>") },
   { MGROUP("ControlTopic", control_topic_cfgelems, control_topic_cfgattrs), 1, 0, 0, 0, 0, 0, 0, 0,
     BLURB("<p>The ControlTopic element allows configured whether DDSI2E provides a special control interface via a predefined topic or not.<p>") },
-  { GROUP("Test", unsupp_test_cfgelems),
+  { GROUP("Test", internal_test_cfgelems),
     BLURB("<p>Testing options.</p>") },
-  { GROUP("Watermarks", unsupp_watermarks_cfgelems),
+  { GROUP("Watermarks", internal_watermarks_cfgelems),
     BLURB("<p>Watermarks for flow-control.</p>") },
   { LEAF("EnableExpensiveChecks"), 1, "", ABSOFF(enabled_xchecks), 0, uf_xcheck, 0, pf_xcheck,
     BLURB("<p>This element enables expensive checks in builds with assertions enabled and is ignored otherwise. Recognised categories are:</p>\n\
@@ -794,7 +794,7 @@ static const struct cfgelem domain_cfgelems[] = {
     BLURB("<p>The Discovery element allows specifying various parameters related to the discovery of peers.</p>") },
   { GROUP("Tracing", tracing_cfgelems),
     BLURB("<p>The Tracing element controls the amount and type of information that is written into the tracing log by the DDSI service. This is useful to track the DDSI service during application development.</p>") },
-  { GROUP("Internal|Unsupported", unsupp_cfgelems),
+  { GROUP("Internal|Unsupported", internal_cfgelems),
     BLURB("<p>The Internal elements deal with a variety of settings that evolving and that are not necessarily fully supported. For the vast majority of the Internal settings, the functionality per-se is supported, but the right to change the way the options control the functionality is reserved. This includes renaming or moving options.</p>") },
   { GROUP("TCP", tcp_cfgelems),
     BLURB("<p>The TCP element allows specifying various parameters related to running DDSI over TCP.</p>") },

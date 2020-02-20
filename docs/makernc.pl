@@ -475,7 +475,7 @@ sub conv_table {
         $fqname1 = "$fqname/$fs->{name}";
         $elems++;
       }
-      my $prefix1 = ($fs->{table} eq "unsupp_cfgelems") ? "<b>Internal</b>" : $prefix;
+      my $prefix1 = ($fs->{table} eq "internal_cfgelems") ? "<b>Internal</b>" : $prefix;
       &$convsub ($fh, $fs, $fs->{name}, $fqname1, $indent, $prefix1, $closure);
     }
   }
