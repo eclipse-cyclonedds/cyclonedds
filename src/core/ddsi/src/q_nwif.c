@@ -214,32 +214,39 @@ static int set_reuse_options (const struct ddsrt_log_cfg *logcfg, ddsrt_socket_t
   return 0;
 }
 
-static int bind_socket (ddsrt_socket_t socket, unsigned short port, const struct ddsi_domaingv *gv)
+static int bind_socket (ddsrt_socket_t socket, unsigned short port, bool multicast, const struct ddsi_domaingv *gv)
 {
   dds_return_t rc = DDS_RETCODE_ERROR;
 
 #if DDSRT_HAVE_IPV6
   if (gv->config.transport_selector == TRANS_TCP6 || gv->config.transport_selector == TRANS_UDP6)
   {
-    struct sockaddr_in6 socketname;
-    memset (&socketname, 0, sizeof (socketname));
-    socketname.sin6_family = AF_INET6;
-    socketname.sin6_port = htons (port);
-    socketname.sin6_addr = ddsrt_in6addr_any;
-    if (IN6_IS_ADDR_LINKLOCAL (&socketname.sin6_addr)) {
-      socketname.sin6_scope_id = gv->interfaceNo;
+    union {
+      struct sockaddr_storage x;
+      struct sockaddr_in6 a;
+    } socketname;
+    ddsi_ipaddr_from_loc (&socketname.x, &gv->ownloc);
+    if (multicast || !gv->config.bind_unicast_to_interface_addr)
+      socketname.a.sin6_addr = ddsrt_in6addr_any;
+    socketname.a.sin6_port = htons (port);
+    if (IN6_IS_ADDR_LINKLOCAL (&socketname.a.sin6_addr)) {
+      socketname.a.sin6_scope_id = gv->interfaceNo;
     }
-    rc = ddsrt_bind (socket, (struct sockaddr *) &socketname, sizeof (socketname));
+    rc = ddsrt_bind (socket, (struct sockaddr *) &socketname.a, sizeof (socketname.a));
   }
   else
 #endif
   if (gv->config.transport_selector == TRANS_TCP || gv->config.transport_selector == TRANS_UDP)
   {
-    struct sockaddr_in socketname;
-    socketname.sin_family = AF_INET;
-    socketname.sin_port = htons (port);
-    socketname.sin_addr.s_addr = htonl (INADDR_ANY);
-    rc = ddsrt_bind (socket, (struct sockaddr *) &socketname, sizeof (socketname));
+    union {
+      struct sockaddr_storage x;
+      struct sockaddr_in a;
+    } socketname;
+    ddsi_ipaddr_from_loc (&socketname.x, &gv->ownloc);
+    if (multicast || !gv->config.bind_unicast_to_interface_addr)
+      socketname.a.sin_addr.s_addr = htonl (INADDR_ANY);
+    socketname.a.sin_port = htons (port);
+    rc = ddsrt_bind (socket, (struct sockaddr *) &socketname.a, sizeof (socketname.a));
   }
   if (rc != DDS_RETCODE_OK && rc != DDS_RETCODE_PRECONDITION_NOT_MET)
   {
@@ -338,7 +345,7 @@ static int set_mc_options_transmit (ddsrt_socket_t socket, const struct ddsi_dom
   }
 }
 
-int make_socket (ddsrt_socket_t *sock, uint16_t port, bool stream, bool reuse, const struct ddsi_domaingv *gv)
+int make_socket (ddsrt_socket_t *sock, uint16_t port, bool stream, bool multicast, const struct ddsi_domaingv *gv)
 {
   /* FIXME: this stuff has to move to the transports */
   int rc = -2;
@@ -366,7 +373,7 @@ int make_socket (ddsrt_socket_t *sock, uint16_t port, bool stream, bool reuse, c
     return rc;
   }
 
-  if (port && reuse && ((rc = set_reuse_options (&gv->logconfig, *sock)) < 0))
+  if (port && multicast && ((rc = set_reuse_options (&gv->logconfig, *sock)) < 0))
   {
     goto fail;
   }
@@ -376,7 +383,7 @@ int make_socket (ddsrt_socket_t *sock, uint16_t port, bool stream, bool reuse, c
     (rc = set_rcvbuf (&gv->logconfig, *sock, &gv->config.socket_min_rcvbuf_size) < 0) ||
     (rc = set_sndbuf (&gv->logconfig, *sock, gv->config.socket_min_sndbuf_size) < 0) ||
     ((rc = maybe_set_dont_route (&gv->logconfig, *sock, &gv->config)) < 0) ||
-    ((rc = bind_socket (*sock, port, gv)) < 0)
+    ((rc = bind_socket (*sock, port, multicast, gv)) < 0)
   )
   {
     goto fail;

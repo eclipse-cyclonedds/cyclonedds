@@ -35,7 +35,7 @@ struct nn_interface {
   char *name;
 };
 
-int make_socket (ddsrt_socket_t *socket, uint16_t port, bool stream, bool reuse, const struct ddsi_domaingv *gv);
+int make_socket (ddsrt_socket_t *socket, uint16_t port, bool stream, bool multicast, const struct ddsi_domaingv *gv);
 int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address);
 uint32_t locator_to_hopefully_unique_uint32 (const nn_locator_t *src);
 
