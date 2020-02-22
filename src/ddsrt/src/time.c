@@ -26,8 +26,8 @@ void dds_sleepfor(dds_duration_t n)
   struct timespec t, r;
 
   if (n >= 0) {
-    t.tv_sec = n / DDS_NSECS_IN_SEC;
-    t.tv_nsec = n % DDS_NSECS_IN_SEC;
+    t.tv_sec = (time_t) (n / DDS_NSECS_IN_SEC);
+    t.tv_nsec = (long) (n % DDS_NSECS_IN_SEC);
     while (nanosleep(&t, &r) == -1 && errno == EINTR) {
       t = r;
     }
