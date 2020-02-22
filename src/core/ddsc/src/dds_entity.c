@@ -677,8 +677,9 @@ dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
   return ret;
 }
 
-static dds_return_t dds_set_qos_locked_raw (dds_entity *e, dds_qos_t **e_qos_ptr, bool e_enabled, const dds_qos_t *qos, uint64_t mask, const struct ddsrt_log_cfg *logcfg, dds_return_t (*set_qos) (struct dds_entity *e, const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all)
+static dds_return_t dds_set_qos_locked_raw (dds_entity *e, dds_qos_t **e_qos_ptr, const dds_qos_t *qos, uint64_t mask, const struct ddsrt_log_cfg *logcfg)
 {
+  const bool enabled = ((e->m_flags & DDS_ENTITY_ENABLED) != 0);
   dds_return_t ret;
 
   /* Any attempt to do this on a topic ends up doing it on the ktopic instead, so that there is
@@ -692,7 +693,7 @@ static dds_return_t dds_set_qos_locked_raw (dds_entity *e, dds_qos_t **e_qos_ptr
     /* invalid or inconsistent QoS settings */
     goto error_or_nochange;
   }
-  else if (!e_enabled)
+  else if (!enabled)
   {
     /* do as you please while the entity is not enabled */
   }
@@ -728,7 +729,7 @@ static dds_return_t dds_set_qos_locked_raw (dds_entity *e, dds_qos_t **e_qos_ptr
   }
 
   assert (ret == DDS_RETCODE_OK);
-  if ((ret = set_qos (e, newqos, e_enabled)) != DDS_RETCODE_OK)
+  if ((ret = dds_entity_deriver_set_qos (e, newqos, enabled)) != DDS_RETCODE_OK)
     goto error_or_nochange;
   else
   {
@@ -748,7 +749,7 @@ static dds_return_t dds_set_qos_locked_impl (dds_entity *e, const dds_qos_t *qos
   dds_entity_kind_t kind = dds_entity_kind (e);
   if (kind != DDS_KIND_TOPIC)
   {
-    return dds_set_qos_locked_raw (e, &e->m_qos, (e->m_flags & DDS_ENTITY_ENABLED) != 0, qos, mask, logcfg, dds_entity_deriver_table[kind]->set_qos);
+    return dds_set_qos_locked_raw (e, &e->m_qos, qos, mask, logcfg);
   }
   else
   {
@@ -767,9 +768,7 @@ static dds_return_t dds_set_qos_locked_impl (dds_entity *e, const dds_qos_t *qos
     while (ktp->defer_set_qos != 0)
       ddsrt_cond_wait (&pp->m_entity.m_cond, &pp->m_entity.m_mutex);
 
-    /* dds_entity_deriver_table[kind]->set_qos had better avoid looking at the entity! */
-    rc = dds_set_qos_locked_raw (NULL, &ktp->qos, (e->m_flags & DDS_ENTITY_ENABLED) != 0, qos, mask, logcfg, dds_entity_deriver_table[kind]->set_qos);
-
+    rc = dds_set_qos_locked_raw (e, &ktp->qos, qos, mask, logcfg);
     ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
     return rc;
   }
