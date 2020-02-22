@@ -170,10 +170,8 @@ static dds_return_t dds_topic_qos_set (dds_entity *e, const dds_qos_t *qos, bool
 {
   /* We never actually set the qos of a struct dds_topic and really shouldn't be here,
      but the code to check whether set_qos is supported uses the entity's qos_set
-     function as a proxy.  One of the weird things about the topic's set_qos is that
-     this is called with e == NULL.  */
+     function as a proxy.  */
   (void) e; (void) qos; (void) enabled;
-  assert (e == NULL);
   return DDS_RETCODE_OK;
 }
 
