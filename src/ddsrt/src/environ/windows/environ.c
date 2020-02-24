@@ -26,7 +26,7 @@ isenvvar(const char *name)
 
 DDSRT_WARNING_MSVC_OFF(4996)
 dds_return_t
-ddsrt_getenv(const char *name, char **value)
+ddsrt_getenv(const char *name, const char **value)
 {
   char *env;
 

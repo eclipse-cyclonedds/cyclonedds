@@ -14,6 +14,7 @@
 
 #include "dds/export.h"
 #include "dds/ddsrt/attributes.h"
+#include "dds/ddsrt/expand_vars.h"
 #include "dds/ddsrt/retcode.h"
 
 #if defined(__cplusplus)
@@ -42,7 +43,7 @@ extern "C" {
 DDS_EXPORT dds_return_t
 ddsrt_getenv(
   const char *name,
-  char **value)
+  const char **value)
 ddsrt_nonnull_all;
 
 /**

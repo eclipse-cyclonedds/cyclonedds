@@ -27,8 +27,11 @@
 #define TOK_CLOSE_TAG -5
 #define TOK_SHORTHAND_CLOSE_TAG -6
 #define TOK_ERROR -7
+#define TOK_CDATA -8
 
 #define NOMARKER (~(size_t)0)
+
+static const char *cdata_magic = "<![CDATA[";
 
 struct ddsrt_xmlp_state {
     size_t cbufp; /* current position in cbuf */
@@ -559,6 +562,8 @@ static int next_token (struct ddsrt_xmlp_state *st, char **payload)
         } else if (peek_chars (st, "<?", 1)) {
             processing_instruction (st, "?>");
             return next_token (st, payload);
+        } else if (peek_chars (st, cdata_magic, 0)) {
+            tok = TOK_CDATA;
         } else if (peek_chars (st, "<!", 1)) {
             processing_instruction (st, ">");
             return next_token (st, payload);
@@ -652,7 +657,6 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
                 }
             } else {
                 /* text */
-                static const char *cdata_magic = "<![CDATA[";
                 char *content;
                 int cmt = 0;
                 rewind_to_input_marker (st);
