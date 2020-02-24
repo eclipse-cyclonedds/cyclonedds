@@ -26,7 +26,7 @@ CU_Theory((const char *name), ddsrt_environ, bad_name)
   dds_return_t rc;
   static const char value[] = "bar";
   static char dummy[] = "foobar";
-  char *ptr;
+  const char *ptr;
 
   rc = ddsrt_setenv(name, value);
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_BAD_PARAMETER);
@@ -71,7 +71,7 @@ CU_Test(ddsrt_environ, getenv)
   static const char name[] = "foo";
   static const char value[] = "bar";
   static char dummy[] = "foobar";
-  char *ptr;
+  const char *ptr;
 
   /* Ensure "not found" is returned. */
   rc = ddsrt_unsetenv(name);

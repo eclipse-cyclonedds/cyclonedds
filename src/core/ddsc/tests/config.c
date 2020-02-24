@@ -29,7 +29,7 @@
 
 static void config__check_env (const char *env_variable, const char *expected_value)
 {
-  char *env_uri = NULL;
+  const char *env_uri = NULL;
   ddsrt_getenv (env_variable, &env_uri);
 #ifdef FORCE_ENV
   {

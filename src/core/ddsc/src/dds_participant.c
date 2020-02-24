@@ -96,7 +96,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   dds_participant * pp;
   ddsi_plist_t plist;
   dds_qos_t *new_qos = NULL;
-  char *config = "";
+  const char *config = "";
 
   /* Make sure DDS instance is initialized. */
   if ((ret = dds_init ()) < 0)
