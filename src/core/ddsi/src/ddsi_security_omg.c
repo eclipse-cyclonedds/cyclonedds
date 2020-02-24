@@ -559,6 +559,13 @@ get_first_matched_proxypp_crypto_handle(struct participant_sec_attributes *attr)
   return handle;
 }
 
+struct dds_security_cryptography *q_omg_participant_get_cryptography(const struct participant *pp)
+{
+  if (pp && pp->e.gv->security_context && q_omg_is_security_loaded(pp->e.gv->security_context))
+    return pp->e.gv->security_context->crypto_context;
+  return NULL;
+}
+
 bool q_omg_is_security_loaded (dds_security_context *sc)
 {
   return (sc->crypto_context != NULL || sc->authentication_context != NULL || sc->access_control_context != NULL);

@@ -60,6 +60,7 @@ set(security_crypto_test_sources
 )
 
 add_cunit_executable(cunit_security_plugins ${security_auth_test_sources} ${security_ac_test_sources} ${security_crypto_test_sources})
+
 target_include_directories(
   cunit_security_plugins PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
@@ -69,15 +70,10 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
 )
-target_link_libraries(cunit_security_plugins PRIVATE ddsc security_api)
-
-if(OPENSSL_FOUND)
-target_link_libraries(cunit_security_plugins PRIVATE ddsc dds_security_ac)
-target_link_libraries(cunit_security_plugins PRIVATE ddsc dds_security_crypto)
-  target_link_libraries(cunit_security_plugins PRIVATE OpenSSL::SSL)
-
-else()
-  message(FATAL_ERROR "To build with openssl support, set ENABLE_OPENSSL to ON")
+target_link_libraries(cunit_security_plugins PRIVATE ddsc security_api dds_security_ac dds_security_crypto)
+target_link_libraries(cunit_security_plugins PRIVATE OpenSSL::SSL)
+if(CMAKE_GENERATOR MATCHES "Visual Studio")
+  set_target_properties(cunit_security_plugins PROPERTIES LINK_FLAGS "/ignore:4099")
 endif()
 
 target_include_directories(
@@ -91,11 +87,6 @@ target_include_directories(
       "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
 )
 
-
-
 set(CUnit_builtin_plugins_tests_dir "${CMAKE_CURRENT_LIST_DIR}")
 set(CUnit_build_dir "${CMAKE_CURRENT_BINARY_DIR}")
-
 configure_file("config_env.h.in" "config_env.h")
-
-

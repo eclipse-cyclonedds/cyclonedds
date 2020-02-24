@@ -17,7 +17,7 @@ PREPEND(srcs_security_core "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_security_fsm.c
     dds_security_timed_cb.c
 )
- 
+
 PREPEND(hdrs_public_security_core "${CMAKE_CURRENT_LIST_DIR}/include/security/core"
     dds_security_serialize.h
     dds_security_types.h
@@ -35,12 +35,7 @@ endif()
 
 add_library(security_core INTERFACE)
 
-
-target_sources(security_core
-    INTERFACE
-        ${srcs_security_core}
-
-)
+target_sources(security_core INTERFACE ${srcs_security_core})
 
 target_include_directories(security_core
     INTERFACE
@@ -49,12 +44,9 @@ target_include_directories(security_core
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>"
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsc,INTERFACE_INCLUDE_DIRECTORIES>>"
 )
-#target_link_libraries(security_core PRIVATE ddsrt security_api)
 
 if(BUILD_TESTING)
   add_subdirectory(tests)
-# Temporarily disabled because needs refractoring w.r.t. security implementation
-#  add_subdirectory(tests/plugin_loading)
 endif()
 
 install(

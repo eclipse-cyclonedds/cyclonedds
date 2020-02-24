@@ -123,6 +123,8 @@ struct reader_sec_attributes {
 
 struct dds_security_authentication *q_omg_participant_get_authentication(const struct participant *pp);
 
+DDS_EXPORT struct dds_security_cryptography *q_omg_participant_get_cryptography(const struct participant *pp);
+
 void q_omg_log_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, ...);
 
 /**
@@ -1082,7 +1084,6 @@ void q_omg_security_init( struct ddsi_domaingv *gv );
 void q_omg_security_deinit( struct ddsi_domaingv *gv );
 
 bool q_omg_is_security_loaded(  struct dds_security_context *sc );
-
 
 #else /* DDSI_INCLUDE_SECURITY */
 

@@ -26,16 +26,12 @@ generate_export_header(
         EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/security/export.h"
 )
 
-add_definitions(-DDDSI_INCLUDE_SSL)
-
 target_link_libraries(dds_security_ac PUBLIC ddsc)
 target_link_libraries(dds_security_ac PUBLIC OpenSSL::SSL)
-
-target_sources(dds_security_ac
-    PRIVATE
-        ${srcs_accesscontrol}
-)
-
+if(CMAKE_GENERATOR MATCHES "Visual Studio")
+  set_target_properties(dds_security_ac PROPERTIES LINK_FLAGS "/ignore:4099")
+endif()
+target_sources(dds_security_ac PRIVATE ${srcs_accesscontrol})
 target_include_directories(dds_security_ac
     PUBLIC
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>"

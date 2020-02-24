@@ -23,7 +23,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_timed_cb.h"
-
+#include "dds/security/core/dds_security_utils.h"
 
 #if OPENSLL_VERSION_NUMBER >= 0x10002000L
 #define AUTH_INCLUDE_EC
