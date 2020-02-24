@@ -40,7 +40,7 @@ static DDS_Security_IdentityHandle local_participant_identity = 1;
 static DDS_Security_IdentityHandle remote_participant_identities[] = {2, 3, 4, 5};
 
 static DDS_Security_ParticipantCryptoHandle local_particpant_crypto = 0;
-static DDS_Security_ParticipantCryptoHandle remote_particpant_cryptos[4];
+static DDS_Security_ParticipantCryptoHandle remote_particpant_cryptos[sizeof(remote_participant_identities) / sizeof(remote_participant_identities[0])];
 
 static DDS_Security_SharedSecretHandleImpl *shared_secret_handle_impl = NULL;
 static DDS_Security_SharedSecretHandle shared_secret_handle;
@@ -63,7 +63,7 @@ struct submsg_header
 struct crypto_header
 {
   struct CryptoTransformIdentifier transform_identifier;
-  unsigned char session_id[4];
+  unsigned char session_id[sizeof(remote_participant_identities) / sizeof(remote_participant_identities[0])];
   unsigned char init_vector_suffix[8];
 };
 
@@ -167,7 +167,7 @@ static int register_remote_participants(void)
   unsigned i;
   int result = 0;
 
-  for (i = 0; i < 4; ++i)
+  for (i = 0; i < sizeof(remote_particpant_cryptos) / sizeof(remote_particpant_cryptos[0]); ++i)
   {
     remote_particpant_cryptos[i] =
         crypto->crypto_key_factory->register_matched_remote_participant(
@@ -194,7 +194,7 @@ unregister_remote_participants(void)
 {
   unsigned i;
   DDS_Security_SecurityException exception = {NULL, 0, 0};
-  for (i = 0; i < 4; ++i)
+  for (i = 0; i < sizeof(remote_particpant_cryptos) / sizeof(remote_particpant_cryptos[0]); ++i)
   {
     if (remote_particpant_cryptos[i])
     {
@@ -825,6 +825,7 @@ static void encode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
   }
 
   CU_ASSERT_FATAL(result);
+  assert(result); // for Clang's static analyzer
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
 
@@ -832,6 +833,7 @@ static void encode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
 
   result = check_encoded_data(&encoded_buffer, encrypted, &header, &footer, &data);
   CU_ASSERT_FATAL(result);
+  assert(result); // for Clang's static analyzer
 
   CU_ASSERT(header->transform_identifier.transformation_kind[3] == transformation_kind);
 
@@ -922,7 +924,7 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
   struct crypto_header *header = NULL;
   struct crypto_footer *footer = NULL;
   uint32_t session_id;
-  int i;
+  size_t i;
 
   CU_ASSERT_FATAL(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
@@ -943,9 +945,9 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
 
   register_remote_participants();
 
-  reader_list._length = reader_list._maximum = 4;
-  reader_list._buffer = DDS_Security_ParticipantCryptoHandleSeq_allocbuf(4);
-  for (i = 0; i < 4; i++)
+  reader_list._length = reader_list._maximum = (uint32_t) (sizeof(remote_particpant_cryptos) / sizeof(remote_particpant_cryptos[0]));
+  reader_list._buffer = DDS_Security_ParticipantCryptoHandleSeq_allocbuf(reader_list._maximum);
+  for (i = 0; i < sizeof(remote_particpant_cryptos) / sizeof(remote_particpant_cryptos[0]); i++)
   {
     set_remote_participant_protection_kind(remote_particpant_cryptos[i], protection_kind);
     reader_list._buffer[i] = remote_particpant_cryptos[i];
@@ -955,7 +957,7 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
   /* Now call the function. */
 
   buffer = &plain_buffer;
-  while (index != 4)
+  while ((uint32_t) index != reader_list._length)
   {
     result = crypto->crypto_transform->encode_rtps_message(
         crypto->crypto_transform,
@@ -1082,14 +1084,17 @@ CU_Test(ddssec_builtin_encode_rtps_message, invalid_args, .init = suite_encode_r
   memset(&empty_reader_list, 0, sizeof(empty_reader_list));
 
   CU_ASSERT_FATAL(local_particpant_crypto != 0);
+  assert(local_particpant_crypto != 0); // for Clang's static analyzer
 
   register_remote_participants();
-  for (i = 0; i < 4; i++)
+  for (i = 0; i < sizeof (remote_particpant_cryptos) / sizeof (remote_particpant_cryptos[0]); i++)
   {
+    assert (remote_particpant_cryptos[i]); // for Clang's static analyzer
     set_remote_participant_protection_kind(remote_particpant_cryptos[i], DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION);
   }
 
   CU_ASSERT_FATAL(remote_particpant_cryptos[0] != 0);
+  assert(remote_particpant_cryptos[0] != 0); // for Clang's static analyzer
 
   reader_list._length = reader_list._maximum = 1;
   reader_list._buffer = DDS_Security_ParticipantCryptoHandleSeq_allocbuf(1);

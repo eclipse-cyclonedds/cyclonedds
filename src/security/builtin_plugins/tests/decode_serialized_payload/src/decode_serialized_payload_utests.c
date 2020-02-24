@@ -9,6 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#include <assert.h>
+
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/bio.h>
@@ -218,6 +220,7 @@ static DDS_Security_DatawriterCryptoHandle register_local_datawriter(bool encryp
     printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
+  assert (writer_crypto != 0);
   return writer_crypto;
 }
 
@@ -239,6 +242,7 @@ static DDS_Security_DatawriterCryptoHandle register_remote_datawriter(DDS_Securi
     printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
+  assert (writer_crypto != 0);
   return writer_crypto;
 }
 
@@ -839,6 +843,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
   }
 
   CU_ASSERT_FATAL(result);
+  assert(result); // for Clang's static analyzer
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
 
@@ -846,6 +851,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
 
   result = split_encoded_data(encoded_buffer._buffer, encoded_buffer._length, &header, &contents, (uint32_t *) &length, &footer);
   CU_ASSERT_FATAL(result);
+  assert(result); // for Clang's static analyzer
 
   /* use incorrect transformation kind */
   {

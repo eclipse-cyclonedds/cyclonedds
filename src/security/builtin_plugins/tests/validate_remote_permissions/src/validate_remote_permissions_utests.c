@@ -277,6 +277,7 @@ static void corrupt_permission_signature(DDS_Security_AuthenticatedPeerCredentia
   /* It is expected that the permissions are available in a fixed location. */
   CU_ASSERT_FATAL(token != NULL);
   CU_ASSERT_FATAL(token->properties._buffer != NULL);
+  assert(token->properties._buffer != NULL); // for Clang's static analyzer
   CU_ASSERT_FATAL(token->properties._length == 2);
   CU_ASSERT_FATAL(token->properties._buffer[1].name != NULL);
   CU_ASSERT_FATAL(token->properties._buffer[1].value != NULL);
@@ -285,6 +286,7 @@ static void corrupt_permission_signature(DDS_Security_AuthenticatedPeerCredentia
   /* Corrupt a byte somewhere in the signature. */
   permissions = token->properties._buffer[1].value;
   CU_ASSERT_FATAL(permissions != NULL);
+  assert(permissions != NULL); // for Clang's static analyzer
   len = strlen(permissions);
   CU_ASSERT_FATAL(len > 100);
   permissions[len - 75]--;

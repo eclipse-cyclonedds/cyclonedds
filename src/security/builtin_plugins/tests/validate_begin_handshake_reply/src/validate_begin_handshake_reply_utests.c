@@ -1586,6 +1586,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_participant_data ,
 
     property = find_binary_property(&handshake_token_in, "c.pdata");
     CU_ASSERT_FATAL(property != NULL);
+    assert(property != NULL); // for Clang's static analyzer
 
     ddsrt_free(property->name);
     property->name = ddsrt_strdup("c.pdatax");
@@ -1835,17 +1836,18 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_challenge ,  .init
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
 
-  fill_handshake_message_token_default(&handshake_token_in, remote_participant_data2, challenge2->value._buffer, challenge2->value._length);
+    fill_handshake_message_token_default(&handshake_token_in, remote_participant_data2, challenge2->value._buffer, challenge2->value._length);
 
-  result = auth->begin_handshake_reply(
-    auth,
-    &handshake_handle,
-    &handshake_token_out,
-    &handshake_token_in,
-    remote_identity_handle1,
-    local_identity_handle,
-    &serialized_participant_data,
-    &exception);
+    result = auth->begin_handshake_reply(
+      auth,
+      &handshake_handle,
+      &handshake_token_out,
+      &handshake_token_in,
+      remote_identity_handle1,
+      local_identity_handle,
+      &serialized_participant_data,
+      &exception);
+    CU_ASSERT_FATAL (result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
 
     handshake_message_deinit(&handshake_token_in);
     handshake_message_deinit(&handshake_token_out);

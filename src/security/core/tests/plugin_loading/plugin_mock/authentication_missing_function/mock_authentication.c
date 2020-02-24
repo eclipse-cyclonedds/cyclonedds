@@ -13,6 +13,7 @@
 #include "dds/ddsrt/misc.h"
 #include "mock_authentication.h"
 #include <stdio.h>
+#include <assert.h>
 #include <string.h>
 #include <stdbool.h>
 
@@ -72,6 +73,11 @@ DDS_Security_ValidationResult_t validate_local_identity(
       identity_certificate = participant_qos->property.value._buffer[i].value;
     }
   }
+
+  /* for Clang's static analyzer */
+  assert(identity_certificate != NULL);
+  assert(identity_ca != NULL);
+  assert(private_key != NULL);
 
   if( strcmp(identity_certificate, test_identity_certificate) != 0){
 

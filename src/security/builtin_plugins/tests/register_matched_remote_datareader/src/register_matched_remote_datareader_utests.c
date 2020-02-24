@@ -9,6 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#include <assert.h>
+
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/bio.h>
@@ -200,8 +202,9 @@ CU_Test(ddssec_builtin_register_remote_datareader, happy_day, .init = suite_regi
     printf("register_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
-  CU_ASSERT(result != 0);
-  CU_ASSERT(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  CU_ASSERT_FATAL(result != 0);
+  CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  assert(result != 0); // for Clang's static analyzer
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   reader_crypto = (remote_datareader_crypto *)result;
@@ -265,6 +268,7 @@ CU_Test(ddssec_builtin_register_remote_datareader, volatile_secure, .init = suit
 
   /* A valid handle to be returned */
   CU_ASSERT_FATAL(result != 0);
+  assert(result != 0); // for Clang's static analyzer
   CU_ASSERT_FATAL(((remote_datareader_crypto *)result)->is_builtin_participant_volatile_message_secure_reader);
   CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
   reset_exception(&exception);
@@ -293,7 +297,6 @@ CU_Test(ddssec_builtin_register_remote_datareader, with_origin_authentication, .
   /*set writer protection kind */
   writer_crypto = (local_datawriter_crypto *)local_writer_handle;
   writer_crypto->metadata_protectionKind = DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION;
-  writer_crypto = (local_datawriter_crypto *)local_writer_handle;
 
   /* Now call the function. */
   result = crypto->crypto_key_factory->register_matched_remote_datareader(
@@ -310,6 +313,7 @@ CU_Test(ddssec_builtin_register_remote_datareader, with_origin_authentication, .
   /* A valid handle to be returned */
   CU_ASSERT(result != 0);
   CU_ASSERT(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  assert(result != 0); // for Clang's static analyzer
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   reader_crypto = (remote_datareader_crypto *)result;

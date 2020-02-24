@@ -9,6 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#include <assert.h>
+
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/bio.h>
@@ -199,10 +201,12 @@ CU_Test(ddssec_builtin_register_remote_datawriter, happy_day, .init = suite_regi
   /* A valid handle to be returned */
   CU_ASSERT_FATAL(result != 0);
   CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  assert(result != 0); // for Clang's static analyzer
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   writer_crypto = (remote_datawriter_crypto *)result;
   CU_ASSERT_FATAL(writer_crypto->reader2writer_key_material != NULL);
+  assert(writer_crypto->reader2writer_key_material != NULL); // for Clang's static analyzer
   CU_ASSERT(master_salt_not_empty(writer_crypto->reader2writer_key_material));
   CU_ASSERT(master_key_not_empty(writer_crypto->reader2writer_key_material));
   CU_ASSERT_FATAL(writer_crypto->reader2writer_key_material->receiver_specific_key_id == 0);
@@ -254,6 +258,7 @@ CU_Test(ddssec_builtin_register_remote_datawriter, volatile_secure, .init = suit
 
   /* A valid handle to be returned */
   CU_ASSERT_FATAL(result != 0);
+  assert(result != 0); // for Clang's static analyzer
   CU_ASSERT_FATAL(((remote_datawriter_crypto *)result)->is_builtin_participant_volatile_message_secure_writer);
   CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
   reset_exception(&exception);
@@ -282,7 +287,6 @@ CU_Test(ddssec_builtin_register_remote_datawriter, with_origin_authentication, .
   /*set reader protection kind */
   reader_crypto = (local_datareader_crypto *)local_reader_handle;
   reader_crypto->metadata_protectionKind = DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION;
-  reader_crypto = (local_datareader_crypto *)local_reader_handle;
   /* Now call the function. */
 
   result = crypto->crypto_key_factory->register_matched_remote_datawriter(
@@ -296,12 +300,14 @@ CU_Test(ddssec_builtin_register_remote_datawriter, with_origin_authentication, .
     printf("register_remote_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
-  CU_ASSERT(result != 0);
-  CU_ASSERT(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  CU_ASSERT_FATAL(result != 0);
+  CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  assert(result != 0); // for Clang's static analyzer
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   writer_crypto = (remote_datawriter_crypto *)result;
   CU_ASSERT_FATAL(writer_crypto->reader2writer_key_material != NULL);
+  assert(writer_crypto->reader2writer_key_material != NULL); // for Clang's static analyzer
   CU_ASSERT(master_salt_not_empty(writer_crypto->reader2writer_key_material));
   CU_ASSERT(master_key_not_empty(writer_crypto->reader2writer_key_material));
   CU_ASSERT_FATAL(writer_crypto->reader2writer_key_material->receiver_specific_key_id != 0);

@@ -660,7 +660,7 @@ free_binary_properties(
     uint32_t length)
 {
     uint32_t i;
-
+    assert (seq);
     for (i = 0; i < length; i++) {
         ddsrt_free(seq[i].name);
         ddsrt_free(seq[i].value._buffer);
