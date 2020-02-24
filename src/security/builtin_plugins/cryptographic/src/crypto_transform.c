@@ -1082,7 +1082,6 @@ encode_datawriter_submessage_encrypt (
   struct submsg_header *prefix;
   struct crypto_header *header;
   struct submsg_header *postfix;
-  struct submsg_header *body;
   struct crypto_footer *footer;
   uint32_t transform_kind, transform_id;
   DDS_Security_boolean result = false;
@@ -1147,7 +1146,7 @@ encode_datawriter_submessage_encrypt (
       goto enc_dw_submsg_fail;
 
     /* add SEC_BODY submessage */
-    body = add_submessage(&data, SMID_SEC_BODY_KIND, flags, submsg_len);
+    struct submsg_header *body = add_submessage(&data, SMID_SEC_BODY_KIND, flags, submsg_len);
     encrypted = (struct encrypted_data *)(body + 1);
     contents = encrypted->data;
 
@@ -1171,7 +1170,6 @@ encode_datawriter_submessage_encrypt (
       goto enc_dw_submsg_fail;
 
     /* copy submessage */
-    body = (struct submsg_header *)contents;
     memcpy(contents, plain_submsg->_buffer, plain_submsg->_length);
     payload_len = plain_submsg->_length;
     data._length += payload_len;
@@ -1319,7 +1317,6 @@ encode_datareader_submessage(
   struct submsg_header *prefix;
   struct crypto_header *header;
   struct submsg_header *postfix;
-  struct submsg_header *body;
   struct crypto_footer *footer;
   session_key_material *session = NULL;
   DDS_Security_ProtectionKind protection_kind;
@@ -1404,7 +1401,7 @@ encode_datareader_submessage(
       goto enc_dr_submsg_fail;
 
     /* add SEC_BODY submessage */
-    body = add_submessage(&data, SMID_SEC_BODY_KIND, flags, submsg_len);
+    struct submsg_header *body = add_submessage(&data, SMID_SEC_BODY_KIND, flags, submsg_len);
     encrypted = (struct encrypted_data *)(body + 1);
     contents = encrypted->data;
 
@@ -1428,7 +1425,6 @@ encode_datareader_submessage(
       goto enc_dr_submsg_fail;
 
     /* copy submessage */
-    body = (struct submsg_header *)contents;
     memcpy(contents, plain_submsg->_buffer, plain_submsg->_length);
     payload_len = plain_submsg->_length;
     data._length += payload_len;
@@ -1540,8 +1536,6 @@ static DDS_Security_boolean encode_rtps_message_sign (
     DDS_Security_SecurityException *ex
 )
 {
-  size_t length_to_postfix, remaining = encoded_rtps_message->_length;
-  unsigned char *ptr;
   DDS_Security_boolean result;
   struct submsg_header *prefix = (struct submsg_header *)(encoded_rtps_message->_buffer + RTPS_HEADER_SIZE);
   struct crypto_header *header = (struct crypto_header *)(prefix + 1);
@@ -1551,13 +1545,13 @@ static DDS_Security_boolean encode_rtps_message_sign (
   if (submessage_header->id == SMID_SRTPS_INFO_SRC_KIND) /* not encrypted */
   {
     /* skip INFO_SRC_HDR to RTPS submessage header */
-    ptr = ((unsigned char *)submessage_header + sizeof(struct submsg_header) + submessage_header->length);
-    remaining = (size_t) (encoded_rtps_message->_buffer + encoded_rtps_message->_length - ptr);
+    unsigned char *ptr = ((unsigned char *)submessage_header + sizeof(struct submsg_header) + submessage_header->length);
+    size_t remaining = (size_t) (encoded_rtps_message->_buffer + encoded_rtps_message->_length - ptr);
     /* There may be multiple RTPS submessages until postfix */
     while (remaining - sizeof(struct submsg_header) > 0)
     {
       submessage_header = (struct submsg_header *)ptr;
-      length_to_postfix = submessage_header->length + sizeof(struct submsg_header);
+      size_t length_to_postfix = submessage_header->length + sizeof(struct submsg_header);
       postfix = (struct submsg_header *)(((unsigned char *)submessage_header) + length_to_postfix);
       if (postfix->id == SMID_SRTPS_POSTFIX_KIND)
         break;
