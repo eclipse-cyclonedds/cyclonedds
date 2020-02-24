@@ -566,6 +566,8 @@ static void encode_serialized_payload_check(uint32_t key_size, bool encrypted)
 
   writer_crypto = register_local_datawriter(encrypted);
   CU_ASSERT_FATAL(writer_crypto != 0);
+  assert(writer_crypto != 0); // for Clang's static analyzer
+
   CU_ASSERT(check_protection_kind(writer_crypto, encrypted ? DDS_SECURITY_BASICPROTECTION_KIND_ENCRYPT : DDS_SECURITY_BASICPROTECTION_KIND_SIGN));
 
   session_keys = get_datawriter_session(writer_crypto);
@@ -586,12 +588,14 @@ static void encode_serialized_payload_check(uint32_t key_size, bool encrypted)
     printf("[ERROR] encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
   }
   CU_ASSERT_FATAL(result);
+  assert(result); // for Clang's static analyzer
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
   reset_exception(&exception);
 
   result = split_encoded_data(encoded_buffer._buffer, encoded_buffer._length, &header, &encoded_payload, &footer, encrypted);
   CU_ASSERT_FATAL(result == true);
+  assert(result); // for Clang's static analyzer
   CU_ASSERT(check_payload_encoded(&encoded_payload, &plain_buffer, encrypted));
 
   session_id = ddsrt_fromBE4u(*(uint32_t *)header->session_id);

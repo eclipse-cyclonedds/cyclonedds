@@ -1133,6 +1133,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_certificate_property)
     CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
     CU_ASSERT (exception.minor_code != 0);
     CU_ASSERT_FATAL (exception.message != NULL);
+    assert(exception.message != NULL); // for Clang's static analyzer
     CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property 'dds.sec.auth.identity_certificate'") == 0);
 
     dds_security_property_deinit(&participant_qos.property.value);
@@ -1189,6 +1190,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_ca_property)
     CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
     CU_ASSERT (exception.minor_code != 0);
     CU_ASSERT_FATAL (exception.message != NULL);
+    assert(exception.message != NULL); // for Clang's static analyzer
     CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property 'dds.sec.auth.identity_ca'") == 0);
 
     dds_security_property_deinit(&participant_qos.property.value);
@@ -1240,6 +1242,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_private_key_property)
     CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
     CU_ASSERT (exception.minor_code != 0);
     CU_ASSERT_FATAL (exception.message != NULL);
+    assert(exception.message != NULL); // for Clang's static analyzer
     CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property 'dds.sec.auth.private_key'") == 0);
 
     dds_security_property_deinit(&participant_qos.property.value);

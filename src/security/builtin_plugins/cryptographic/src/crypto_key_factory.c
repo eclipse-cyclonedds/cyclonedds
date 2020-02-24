@@ -1150,6 +1150,8 @@ crypto_factory_set_datawriter_crypto_tokens(
   endpoint_relation *relation;
   uint32_t key_id, i;
 
+  assert (num_key_mat > 0);
+
   remote_writer_crypto = (remote_datawriter_crypto *)crypto_object_table_find(impl->crypto_objects, remote_writer_handle);
   if (!remote_writer_crypto)
   {

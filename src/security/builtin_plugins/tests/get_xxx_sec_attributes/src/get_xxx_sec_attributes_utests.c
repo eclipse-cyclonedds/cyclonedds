@@ -1279,7 +1279,7 @@ static void test_liveliness_discovery_reader_attr(
   DDS_Security_DataTagQosPolicy data_tag;
   DDS_Security_PartitionQosPolicy *partition = NULL;
   bool result;
-  return;
+
   CU_ASSERT_FATAL(access_control->get_datareader_sec_attributes != NULL);
 
   memset(&attr, 0, sizeof(attr));

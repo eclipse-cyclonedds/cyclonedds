@@ -810,11 +810,13 @@ static void encode_datawriter_submessage_not_signed(DDS_Security_CryptoTransform
 
   writer_crypto = register_local_datawriter(&datawriter_security_attributes, &datawriter_properties);
   CU_ASSERT_FATAL(writer_crypto != 0);
+  assert(writer_crypto != 0); // for Clang's static analyzer
 
   session_keys = get_datawriter_session(writer_crypto);
 
   reader_crypto = register_remote_datareader(writer_crypto);
   CU_ASSERT_FATAL(reader_crypto != 0);
+  assert(reader_crypto != 0); // for Clang's static analyzer
 
   reader_list._length = reader_list._maximum = 1;
   reader_list._buffer = DDS_Security_DatareaderCryptoHandleSeq_allocbuf(1);
@@ -837,6 +839,8 @@ static void encode_datawriter_submessage_not_signed(DDS_Security_CryptoTransform
   }
 
   CU_ASSERT_FATAL(result);
+  assert(result != 0); // for Clang's static analyzer
+
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
 
@@ -844,6 +848,7 @@ static void encode_datawriter_submessage_not_signed(DDS_Security_CryptoTransform
 
   result = check_encoded_data(&encoded_buffer, is_encrypted, &header, &footer, &data);
   CU_ASSERT_FATAL(result);
+  assert(result); // for Clang's static analyzer
 
   CU_ASSERT(header->transform_identifier.transformation_kind[3] == transformation_kind);
 
@@ -961,6 +966,7 @@ static void encode_datawriter_submessage_sign(DDS_Security_CryptoTransformKind_E
 
   writer_crypto = register_local_datawriter(&datawriter_security_attributes, &datawriter_properties);
   CU_ASSERT_FATAL(writer_crypto != 0);
+  assert(writer_crypto != 0); // for Clang's static analyzer
 
   session_keys = get_datawriter_session(writer_crypto);
 
@@ -970,6 +976,7 @@ static void encode_datawriter_submessage_sign(DDS_Security_CryptoTransformKind_E
   {
     reader_crypto = register_remote_datareader(writer_crypto);
     CU_ASSERT_FATAL(reader_crypto != 0);
+    assert(reader_crypto != 0); // for Clang's static analyzer
     reader_list._buffer[i] = reader_crypto;
   }
   index = 0;
@@ -994,6 +1001,7 @@ static void encode_datawriter_submessage_sign(DDS_Security_CryptoTransformKind_E
     }
 
     CU_ASSERT_FATAL(result);
+    assert(result); // for Clang's static analyzer
     CU_ASSERT(exception.code == 0);
     CU_ASSERT(exception.message == NULL);
 
@@ -1003,6 +1011,7 @@ static void encode_datawriter_submessage_sign(DDS_Security_CryptoTransformKind_E
 
   result = check_encoded_data(&encoded_buffer, is_encrypted, &header, &footer, &data);
   CU_ASSERT_FATAL(result);
+  assert(result); // for Clang's static analyzer
 
   CU_ASSERT(header->transform_identifier.transformation_kind[3] == transformation_kind);
 

@@ -605,6 +605,7 @@ static DDS_Security_long test_corrupted_signature(bool corrupt_permissions, bool
   /* Just some (hardcoded) sanity checks. */
   CU_ASSERT_FATAL(prop != NULL);
   CU_ASSERT_FATAL(prop->value != NULL);
+  assert(prop && prop->value); // for Clang's static analyzer
   len = strlen(prop->value);
   CU_ASSERT_FATAL(len > 2250);
 

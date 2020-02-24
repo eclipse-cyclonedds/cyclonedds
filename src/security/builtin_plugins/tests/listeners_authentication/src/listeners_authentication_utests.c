@@ -1724,7 +1724,8 @@ fill_handshake_message_token(
            set_binary_property_string(c_kagree_algo, "c.kagree_algox", "rubbish");
         }
 
-        CU_ASSERT(hash1_from_request != NULL);
+        CU_ASSERT_FATAL(hash1_from_request != NULL);
+        assert(hash1_from_request != NULL); // for Clang's static analyzer
 
         set_binary_property_value(hash_c1, "hash_c1", hash1_from_request->value._buffer, hash1_from_request->value._length);
 
@@ -1786,6 +1787,7 @@ fill_handshake_message_token(
             EVP_PKEY *private_key_x509;
             unsigned char *sign;
             size_t signlen;
+            DDS_Security_ValidationResult_t rc;
 
             const DDS_Security_BinaryProperty_t * binary_properties[ HANDSHAKE_SIGNATURE_SIZE ];
 
@@ -1802,10 +1804,14 @@ fill_handshake_message_token(
             binary_properties[4] = dh1;
             binary_properties[5] = hash_c1;
 
-            if (create_signature_for_test(private_key_x509, binary_properties, HANDSHAKE_SIGNATURE_SIZE , &sign, &signlen, &exception) != DDS_SECURITY_VALIDATION_OK)
+            rc = create_signature_for_test(private_key_x509, binary_properties, HANDSHAKE_SIGNATURE_SIZE , &sign, &signlen, &exception);
+            if (rc != DDS_SECURITY_VALIDATION_OK)
             {
                 printf("Exception: %s\n", exception.message);
             }
+            CU_ASSERT_FATAL (rc == DDS_SECURITY_VALIDATION_OK);
+            assert(rc == DDS_SECURITY_VALIDATION_OK); // for Clang's static analyzer
+          
             set_binary_property_value(signature, "signature", sign, (uint32_t)signlen);
 
             ddsrt_free(sign);
@@ -2008,8 +2014,10 @@ CU_Test(ddssec_builtin_listeners_auth, local_remote_set_before_validation)
     hash1_sent_in_request = find_binary_property(&handshake_token_out, "hash_c1");
 
     CU_ASSERT_FATAL(dh1 != NULL);
+    assert(dh1 != NULL); // for Clang's static analyzer
     CU_ASSERT_FATAL(dh1->value._length > 0);
     CU_ASSERT_FATAL(dh1->value._buffer != NULL);
+    assert(dh1->value._length > 0 && dh1->value._buffer != NULL); // for Clang's static analyzer
 
     dh1_pub_key.data = dh1->value._buffer;
     dh1_pub_key.length = dh1->value._length;

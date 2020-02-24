@@ -9,6 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#include <assert.h>
+
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/bio.h>
@@ -172,6 +174,7 @@ CU_Test(ddssec_builtin_register_local_datawriter, happy_day, .init = suite_regis
   /* A valid handle to be returned */
   CU_ASSERT(result != 0);
   CU_ASSERT(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  assert(result != 0); // for Clang's static analyzer
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   writer_crypto = (local_datawriter_crypto *)result;
@@ -230,8 +233,9 @@ CU_Test(ddssec_builtin_register_local_datawriter, builtin_endpoint, .init = suit
     printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
-  CU_ASSERT(result != 0);
-  CU_ASSERT(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  CU_ASSERT_FATAL(result != 0);
+  CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  assert(result != 0); // for Clang's static analyzer
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   writer_crypto = (local_datawriter_crypto *)result;
@@ -289,8 +293,9 @@ CU_Test(ddssec_builtin_register_local_datawriter, special_endpoint_name, .init =
     printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
-  CU_ASSERT(result != 0);
-  CU_ASSERT(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  CU_ASSERT_FATAL(result != 0);
+  CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  assert(result != 0); // for Clang's static analyzer
   CU_ASSERT_FATAL(((local_datawriter_crypto *)result)->is_builtin_participant_volatile_message_secure_writer);
 
   reset_exception(&exception);
