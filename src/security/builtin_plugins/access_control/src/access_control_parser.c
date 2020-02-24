@@ -419,7 +419,7 @@ static DDS_Security_boolean validate_rules(const struct domain_rule *rule, DDS_S
     {
       /* Last but not least, check the domain ids (ex is set when there's a failure) */
       validate_domains(rule->domains->domain_id_set, ex);
-      if (!rule->topic_access_rules && rule->topic_access_rules->topic_rule)
+      if (!(rule->topic_access_rules && rule->topic_access_rules->topic_rule))
         DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_IDENTITY_EMPTY_CODE, 0, "Found rule in Governance file without topic_access_rules");
       else
       {
