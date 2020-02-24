@@ -22,7 +22,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/misc.h"
 
-#if DDSI_INCLUDE_SSL
+#ifdef DDSI_INCLUDE_SSL
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #endif
@@ -806,7 +806,7 @@ DDS_Security_Exception_set(
     ex->minor_code = minor_code;
 }
 
-#if DDSI_INCLUDE_SSL
+#ifdef DDSI_INCLUDE_SSL
 DDS_EXPORT void
 DDS_Security_Exception_set_with_openssl_error(
     DDS_Security_SecurityException *ex,

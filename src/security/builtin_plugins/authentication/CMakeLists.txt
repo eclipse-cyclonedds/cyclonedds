@@ -15,7 +15,7 @@ PREPEND(srcs_authentication "${CMAKE_CURRENT_LIST_DIR}/src"
     authentication.c
     auth_utils.c
 )
- 
+
 PREPEND(hdrs_private_authentication "${CMAKE_CURRENT_LIST_DIR}/src"
     auth_defs.h
     authentication.h
@@ -31,21 +31,12 @@ generate_export_header(
         EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/security/export.h"
 )
 
-
-
-find_package(OpenSSL )
-
-add_definitions(-DDDSI_INCLUDE_SSL)
-
 target_link_libraries(dds_security_auth PUBLIC ddsc)
 target_link_libraries(dds_security_auth PUBLIC OpenSSL::SSL)
-
-target_sources(dds_security_auth
-    PRIVATE
-        ${srcs_authentication}
-
-)
-
+if(CMAKE_GENERATOR MATCHES "Visual Studio")
+  set_target_properties(dds_security_auth PROPERTIES LINK_FLAGS "/ignore:4099")
+endif()
+target_sources(dds_security_auth PRIVATE ${srcs_authentication})
 target_include_directories(dds_security_auth
     PUBLIC
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>"
@@ -55,7 +46,7 @@ target_include_directories(dds_security_auth
 )
 
 install(
-  TARGETS 
+  TARGETS
   EXPORT "${PROJECT_NAME}"
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib

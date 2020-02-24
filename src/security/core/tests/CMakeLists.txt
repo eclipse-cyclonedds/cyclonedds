@@ -12,14 +12,78 @@
 include (GenerateExportHeader)
 include (CUnit)
 
+idlc_generate(SecurityCoreTests SecurityCoreTests.idl)
+
+function(add_wrapper libname linklibs)
+  set(srcs_wrapper
+    "${CMAKE_CURRENT_LIST_DIR}/common/${libname}_wrapper.c"
+    "${CMAKE_CURRENT_LIST_DIR}/common/plugin_wrapper_msg_q.c")
+  add_library("dds_security_${libname}_wrapper" SHARED "")
+  if(CMAKE_GENERATOR MATCHES "Visual Studio")
+    set_target_properties("dds_security_${libname}_wrapper" PROPERTIES LINK_FLAGS "/ignore:4099")
+  endif()
+
+  generate_export_header(
+    "dds_security_${libname}_wrapper"
+    BASE_NAME SECURITY
+    EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/security/${libname}_wrapper_export.h")
+
+  set_target_properties(
+    "dds_security_${libname}_wrapper"
+    PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY                ${CMAKE_CURRENT_BINARY_DIR}
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG          ${CMAKE_CURRENT_BINARY_DIR}
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE        ${CMAKE_CURRENT_BINARY_DIR}
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_CURRENT_BINARY_DIR}
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL     ${CMAKE_CURRENT_BINARY_DIR}
+    LIBRARY_OUTPUT_DIRECTORY                ${CMAKE_CURRENT_BINARY_DIR}
+    LIBRARY_OUTPUT_DIRECTORY_DEBUG          ${CMAKE_CURRENT_BINARY_DIR}
+    LIBRARY_OUTPUT_DIRECTORY_RELEASE        ${CMAKE_CURRENT_BINARY_DIR}
+    LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_CURRENT_BINARY_DIR}
+    LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL     ${CMAKE_CURRENT_BINARY_DIR})
+
+  if(APPLE)
+    set_target_properties("dds_security_${libname}_wrapper" PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+  endif()
+
+  target_link_libraries("dds_security_${libname}_wrapper" PUBLIC ddsc ${linklibs})
+  target_sources("dds_security_${libname}_wrapper" PRIVATE ${srcs_wrapper})
+  target_include_directories("dds_security_${libname}_wrapper"
+    PUBLIC
+      "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>"
+      "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_core,INTERFACE_INCLUDE_DIRECTORIES>>"
+      "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>"
+      "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+      "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/include>"
+      "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsc/src>")
+endfunction()
+
 set(security_core_test_sources
     "tc_fsm.c"
     "dds_security_core.c"
     "security_utils.c"
-  )
+)
 
-add_definitions(-DDDSI_INCLUDE_SECURITY)
+if(ENABLE_SSL)
+  add_wrapper(access_control "")
+  add_wrapper(authentication dds_security_auth)
+  add_wrapper(cryptography dds_security_crypto)
+
+  list(APPEND security_core_test_sources
+    "common/security_config_test_utils.c"
+    "common/handshake_test_utils.c"
+    "authentication.c"
+    "config.c"
+    "handshake.c"
+    "plugin_loading.c"
+    "secure_communication.c"
+  )
+endif()
+
 add_cunit_executable(cunit_security_core ${security_core_test_sources})
+if(CMAKE_GENERATOR MATCHES "Visual Studio")
+  set_target_properties(cunit_security_core PROPERTIES LINK_FLAGS "/ignore:4099")
+endif()
 
 target_include_directories(
   cunit_security_core PRIVATE
@@ -33,6 +97,15 @@ target_include_directories(
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsc/src>"
  )
 
+set(common_etc_dir "${CMAKE_CURRENT_SOURCE_DIR}/common/etc")
+set(plugin_wrapper_lib_dir "${CMAKE_CURRENT_BINARY_DIR}")
+file(TO_NATIVE_PATH "/" file_path_sep)
+string(REPLACE "\\" "\\\\" file_path_sep ${file_path_sep})
+configure_file("common/config_env.h.in" "common/config_env.h")
 
-target_link_libraries(cunit_security_core PRIVATE ddsc security_api)
+target_link_libraries(cunit_security_core PRIVATE ddsc security_api SecurityCoreTests)
+if(ENABLE_SSL)
+  target_link_libraries(cunit_security_core PRIVATE dds_security_auth dds_security_ac dds_security_crypto dds_security_authentication_wrapper dds_security_cryptography_wrapper)
+  target_link_libraries(cunit_security_core PRIVATE OpenSSL::SSL)
+endif()
 target_include_directories(cunit_security_core PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")

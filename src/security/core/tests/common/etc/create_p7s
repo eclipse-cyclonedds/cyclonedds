@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+# Argument
+if [ -z "$1" ]
+then
+    echo "This script can be used for signing Permissions and Governance file list. Can be called from any directory"
+    echo "Expected a filename list with or without the .xml extension"
+    echo "PERMISSION_CA_CERT and PERMISSION_CA_KEY environment variables are used for signing if they are set"
+    exit
+fi
+
+# Location of the pem files is the same as this script location.
+PEM_LOCATION="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+if [ -v PERMISSION_CA_CERT ] && [ -v PERMISSION_CA_KEY ] ; then
+    echo "Using custom permission key and certificate"
+    echo "PERMISSION_CA_CERT: $PERMISSION_CA_CERT"
+    echo "PERMISSION_CA_KEY: $PERMISSION_CA_KEY"
+else
+    PERMISSION_CA_CERT=${PEM_LOCATION}/default_permissions_ca.pem
+    PERMISSION_CA_KEY=${PEM_LOCATION}/default_permissions_ca_key.pem
+fi
+
+# Do all given files.
+for filename in "$@"
+do
+    if [ ${filename:${#filename}-4:4} == ".xml" ] ; then
+        BASE_FILE_NAME=${filename:0:-4}
+        echo $BASE_FILE_NAME
+    else
+        BASE_FILE_NAME=$filename
+    fi
+
+    # Create the p7s file(s)
+    openssl smime -sign -in "${BASE_FILE_NAME}.xml" -text -out "${BASE_FILE_NAME}.p7s" -signer "$PERMISSION_CA_CERT" -inkey "$PERMISSION_CA_KEY"
+done
+

@@ -291,7 +291,7 @@ CU_Test(dds_security_timed_cb, test_create_dispatcher)
     /*************************************************************************
      * Check if adding callbacks succeeds
      *************************************************************************/
-    
+
     /* The last argument is a sequence number in which
      * the callbacks are expected to be called. */
     /* We can only really check if it crashes or not... */
@@ -299,7 +299,7 @@ CU_Test(dds_security_timed_cb, test_create_dispatcher)
     dds_security_timed_dispatcher_add(tcb, d2, tc__callback, past,    (void*)0);
     dds_security_timed_dispatcher_add(tcb, d2, tc__callback, present, (void*)2);
     dds_security_timed_dispatcher_add(tcb, d1, tc__callback, future,  (void*)7);
-        
+
     CU_PASS("Added callbacks")
 
     /*************************************************************************
@@ -308,7 +308,7 @@ CU_Test(dds_security_timed_cb, test_create_dispatcher)
     d3 = dds_security_timed_dispatcher_new(tcb);
     d4 = dds_security_timed_dispatcher_new(tcb);
     d5 = dds_security_timed_dispatcher_new(tcb);
-    
+
     CU_ASSERT_PTR_NOT_NULL_FATAL(d3);
     CU_ASSERT_PTR_NOT_NULL_FATAL(d4);
     CU_ASSERT_PTR_NOT_NULL_FATAL(d5);
@@ -351,7 +351,7 @@ CU_Test(dds_security_timed_cb, test_create_dispatcher)
     /*************************************************************************
      * Check if timeout callbacks are triggered in the right sequence
      *************************************************************************/
-    
+
     int idx;
     int timeout = 200; /* 2 seconds */
 

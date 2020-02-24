@@ -271,7 +271,7 @@ DDS_Security_Exception_set(
         ...);
 
 
-#if DDSI_INCLUDE_SSL
+#ifdef DDSI_INCLUDE_SSL
 DDS_EXPORT void
 DDS_Security_Exception_set_with_openssl_error(
          DDS_Security_SecurityException *ex,
@@ -279,7 +279,6 @@ DDS_Security_Exception_set_with_openssl_error(
          int code,
          int minor_code,
          const char *fmt);
-
 #endif
 
 DDS_EXPORT void
