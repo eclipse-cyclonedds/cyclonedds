@@ -113,12 +113,12 @@ extern inline uint64_t ddsrt_atomic_or64_nv (ddsrt_atomic_uint64_t *x, uint64_t 
 #endif
 extern inline uintptr_t ddsrt_atomic_orptr_nv (ddsrt_atomic_uintptr_t *x, uintptr_t v);
 /* CAS */
-extern inline int ddsrt_atomic_cas32 (ddsrt_atomic_uint32_t *x, uint32_t exp, uint32_t des);
+extern inline bool ddsrt_atomic_cas32 (ddsrt_atomic_uint32_t *x, uint32_t exp, uint32_t des);
 #if DDSRT_HAVE_ATOMIC64
-extern inline int ddsrt_atomic_cas64 (ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_t des);
+extern inline bool ddsrt_atomic_cas64 (ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_t des);
 #endif
-extern inline int ddsrt_atomic_casptr (ddsrt_atomic_uintptr_t *x, uintptr_t exp, uintptr_t des);
-extern inline int ddsrt_atomic_casvoidp (ddsrt_atomic_voidp_t *x, void *exp, void *des);
+extern inline bool ddsrt_atomic_casptr (ddsrt_atomic_uintptr_t *x, uintptr_t exp, uintptr_t des);
+extern inline bool ddsrt_atomic_casvoidp (ddsrt_atomic_voidp_t *x, void *exp, void *des);
 #if DDSRT_HAVE_ATOMIC_LIFO
 extern inline int ddsrt_atomic_casvoidp2 (ddsrt_atomic_uintptr2_t *x, uintptr_t a0, uintptr_t b0, uintptr_t a1, uintptr_t b1);
 #endif

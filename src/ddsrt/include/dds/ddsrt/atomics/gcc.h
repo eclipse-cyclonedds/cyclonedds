@@ -29,42 +29,42 @@ extern "C" {
 ddsrt_attribute_no_sanitize (("thread"))
 inline uint32_t ddsrt_atomic_ld32(const ddsrt_atomic_uint32_t *x)
 {
-  return x->v;
+  return __atomic_load_n(&x->v, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 ddsrt_attribute_no_sanitize (("thread"))
 inline uint64_t ddsrt_atomic_ld64(const ddsrt_atomic_uint64_t *x)
 {
-  return x->v;
+  return __atomic_load_n(&x->v, __ATOMIC_SEQ_CST);
 }
 #endif
 ddsrt_attribute_no_sanitize (("thread"))
 inline uintptr_t ddsrt_atomic_ldptr(const ddsrt_atomic_uintptr_t *x)
 {
-  return x->v;
+  return __atomic_load_n(&x->v, __ATOMIC_SEQ_CST);
 }
 ddsrt_attribute_no_sanitize (("thread"))
 inline void *ddsrt_atomic_ldvoidp(const ddsrt_atomic_voidp_t *x)
 {
-  return (void *) ddsrt_atomic_ldptr(x);
+  return (void *) __atomic_load_n(&x->v, __ATOMIC_SEQ_CST);
 }
 
 ddsrt_attribute_no_sanitize (("thread"))
 inline void ddsrt_atomic_st32(ddsrt_atomic_uint32_t *x, uint32_t v)
 {
-  x->v = v;
+  __atomic_store_n(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 ddsrt_attribute_no_sanitize (("thread"))
 inline void ddsrt_atomic_st64(ddsrt_atomic_uint64_t *x, uint64_t v)
 {
-  x->v = v;
+  __atomic_store_n(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #endif
 ddsrt_attribute_no_sanitize (("thread"))
 inline void ddsrt_atomic_stptr(ddsrt_atomic_uintptr_t *x, uintptr_t v)
 {
-  x->v = v;
+  __atomic_store_n(&x->v, v, __ATOMIC_SEQ_CST);
 }
 ddsrt_attribute_no_sanitize (("thread"))
 inline void ddsrt_atomic_stvoidp(ddsrt_atomic_voidp_t *x, void *v)
@@ -75,96 +75,96 @@ inline void ddsrt_atomic_stvoidp(ddsrt_atomic_voidp_t *x, void *v)
 /* INC */
 
 inline void ddsrt_atomic_inc32(ddsrt_atomic_uint32_t *x) {
-  __sync_fetch_and_add (&x->v, 1);
+  __atomic_fetch_add(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline void ddsrt_atomic_inc64 (ddsrt_atomic_uint64_t *x) {
-  __sync_fetch_and_add (&x->v, 1);
+  __atomic_fetch_add(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 #endif
 inline void ddsrt_atomic_incptr (ddsrt_atomic_uintptr_t *x) {
-  __sync_fetch_and_add (&x->v, 1);
+  __atomic_fetch_add(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 inline uint32_t ddsrt_atomic_inc32_ov (ddsrt_atomic_uint32_t *x) {
-  return __sync_fetch_and_add (&x->v, 1);
+  return __atomic_fetch_add(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 inline uint32_t ddsrt_atomic_inc32_nv (ddsrt_atomic_uint32_t *x) {
-  return __sync_add_and_fetch (&x->v, 1);
+  return __atomic_add_fetch(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline uint64_t ddsrt_atomic_inc64_nv (ddsrt_atomic_uint64_t *x) {
-  return __sync_add_and_fetch (&x->v, 1);
+  return __atomic_add_fetch(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 #endif
 inline uintptr_t ddsrt_atomic_incptr_nv (ddsrt_atomic_uintptr_t *x) {
-  return __sync_add_and_fetch (&x->v, 1);
+  return __atomic_add_fetch(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 
 /* DEC */
 
 inline void ddsrt_atomic_dec32 (ddsrt_atomic_uint32_t *x) {
-  __sync_fetch_and_sub (&x->v, 1);
+  __atomic_fetch_sub(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline void ddsrt_atomic_dec64 (ddsrt_atomic_uint64_t *x) {
-  __sync_fetch_and_sub (&x->v, 1);
+  __atomic_fetch_sub(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 #endif
 inline void ddsrt_atomic_decptr (ddsrt_atomic_uintptr_t *x) {
-  __sync_fetch_and_sub (&x->v, 1);
+  __atomic_fetch_sub(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 inline uint32_t ddsrt_atomic_dec32_nv (ddsrt_atomic_uint32_t *x) {
-  return __sync_sub_and_fetch (&x->v, 1);
+  return __atomic_sub_fetch(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline uint64_t ddsrt_atomic_dec64_nv (ddsrt_atomic_uint64_t *x) {
-  return __sync_sub_and_fetch (&x->v, 1);
+  return __atomic_sub_fetch(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 #endif
 inline uintptr_t ddsrt_atomic_decptr_nv (ddsrt_atomic_uintptr_t *x) {
-  return __sync_sub_and_fetch (&x->v, 1);
+  return __atomic_sub_fetch(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 inline uint32_t ddsrt_atomic_dec32_ov (ddsrt_atomic_uint32_t *x) {
-  return __sync_fetch_and_sub (&x->v, 1);
+  return __atomic_sub_fetch(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline uint64_t ddsrt_atomic_dec64_ov (ddsrt_atomic_uint64_t *x) {
-  return __sync_fetch_and_sub (&x->v, 1);
+  return __atomic_sub_fetch(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 #endif
 inline uintptr_t ddsrt_atomic_decptr_ov (ddsrt_atomic_uintptr_t *x) {
-  return __sync_fetch_and_sub (&x->v, 1);
+  return __atomic_fetch_sub(&x->v, 1, __ATOMIC_SEQ_CST);
 }
 
 /* ADD */
 
 inline void ddsrt_atomic_add32 (ddsrt_atomic_uint32_t *x, uint32_t v) {
-  __sync_fetch_and_add (&x->v, v);
+  __atomic_fetch_add(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline void ddsrt_atomic_add64 (ddsrt_atomic_uint64_t *x, uint64_t v) {
-  __sync_fetch_and_add (&x->v, v);
+  __atomic_fetch_add(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #endif
 inline void ddsrt_atomic_addptr (ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  __sync_fetch_and_add (&x->v, v);
+  __atomic_fetch_add(&x->v, v, __ATOMIC_SEQ_CST);
 }
 inline void ddsrt_atomic_addvoidp (ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
   ddsrt_atomic_addptr ((ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
 }
 inline uint32_t ddsrt_atomic_add32_ov (ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_fetch_and_add (&x->v, v);
+  return __atomic_fetch_add(&x->v, v, __ATOMIC_SEQ_CST);
 }
 inline uint32_t ddsrt_atomic_add32_nv (ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_add_and_fetch (&x->v, v);
+  return __atomic_add_fetch(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline uint64_t ddsrt_atomic_add64_nv (ddsrt_atomic_uint64_t *x, uint64_t v) {
-  return __sync_add_and_fetch (&x->v, v);
+  return __atomic_add_fetch(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #endif
 inline uintptr_t ddsrt_atomic_addptr_nv (ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_add_and_fetch (&x->v, v);
+  return __atomic_add_fetch(&x->v, v, __ATOMIC_SEQ_CST);
 }
 inline void *ddsrt_atomic_addvoidp_nv (ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
   return (void *) ddsrt_atomic_addptr_nv ((ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
@@ -173,32 +173,32 @@ inline void *ddsrt_atomic_addvoidp_nv (ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
 /* SUB */
 
 inline void ddsrt_atomic_sub32 (ddsrt_atomic_uint32_t *x, uint32_t v) {
-  __sync_fetch_and_sub (&x->v, v);
+  __atomic_fetch_sub(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline void ddsrt_atomic_sub64 (ddsrt_atomic_uint64_t *x, uint64_t v) {
-  __sync_fetch_and_sub (&x->v, v);
+  __atomic_fetch_sub(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #endif
 inline void ddsrt_atomic_subptr (ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  __sync_fetch_and_sub (&x->v, v);
+  __atomic_fetch_sub(&x->v, v, __ATOMIC_SEQ_CST);
 }
 inline void ddsrt_atomic_subvoidp (ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
   ddsrt_atomic_subptr ((ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
 }
 inline uint32_t ddsrt_atomic_sub32_ov (ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_fetch_and_sub (&x->v, v);
+  return __atomic_fetch_sub(&x->v, v, __ATOMIC_SEQ_CST);
 }
 inline uint32_t ddsrt_atomic_sub32_nv (ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_sub_and_fetch (&x->v, v);
+  return __atomic_sub_fetch(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline uint64_t ddsrt_atomic_sub64_nv (ddsrt_atomic_uint64_t *x, uint64_t v) {
-  return __sync_sub_and_fetch (&x->v, v);
+  return __atomic_sub_fetch(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #endif
 inline uintptr_t ddsrt_atomic_subptr_nv (ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_sub_and_fetch (&x->v, v);
+  return __atomic_sub_fetch(&x->v, v, __ATOMIC_SEQ_CST);
 }
 inline void *ddsrt_atomic_subvoidp_nv (ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
   return (void *) ddsrt_atomic_subptr_nv ((ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
@@ -207,90 +207,89 @@ inline void *ddsrt_atomic_subvoidp_nv (ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
 /* AND */
 
 inline void ddsrt_atomic_and32 (ddsrt_atomic_uint32_t *x, uint32_t v) {
-  __sync_fetch_and_and (&x->v, v);
+  __atomic_fetch_and(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline void ddsrt_atomic_and64 (ddsrt_atomic_uint64_t *x, uint64_t v) {
-  __sync_fetch_and_and (&x->v, v);
+  __atomic_fetch_and(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #endif
 inline void ddsrt_atomic_andptr (ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  __sync_fetch_and_and (&x->v, v);
+  __atomic_fetch_and(&x->v, v, __ATOMIC_SEQ_CST);
 }
 inline uint32_t ddsrt_atomic_and32_ov (ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_fetch_and_and (&x->v, v);
+  return __atomic_fetch_and(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline uint64_t ddsrt_atomic_and64_ov (ddsrt_atomic_uint64_t *x, uint64_t v) {
-  return __sync_fetch_and_and (&x->v, v);
+  return __atomic_fetch_and(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #endif
 inline uintptr_t ddsrt_atomic_andptr_ov (ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_fetch_and_and (&x->v, v);
+  return __atomic_fetch_and(&x->v, v, __ATOMIC_SEQ_CST);
 }
 inline uint32_t ddsrt_atomic_and32_nv (ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_and_and_fetch (&x->v, v);
+  return __atomic_and_fetch(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline uint64_t ddsrt_atomic_and64_nv (ddsrt_atomic_uint64_t *x, uint64_t v) {
-  return __sync_and_and_fetch (&x->v, v);
+  return __atomic_and_fetch(&x->v, v, __ATOMIC_SEQ_CST);
 }
 #endif
 inline uintptr_t ddsrt_atomic_andptr_nv (ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_and_and_fetch (&x->v, v);
+  return __atomic_and_fetch (&x->v, v, __ATOMIC_SEQ_CST);
 }
 
 /* OR */
 
 inline void ddsrt_atomic_or32 (ddsrt_atomic_uint32_t *x, uint32_t v) {
-  __sync_fetch_and_or (&x->v, v);
+  __atomic_fetch_or (&x->v, v, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline void ddsrt_atomic_or64 (ddsrt_atomic_uint64_t *x, uint64_t v) {
-  __sync_fetch_and_or (&x->v, v);
+  __atomic_fetch_or (&x->v, v, __ATOMIC_SEQ_CST);
 }
 #endif
 inline void ddsrt_atomic_orptr (ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  __sync_fetch_and_or (&x->v, v);
+  __atomic_fetch_or (&x->v, v, __ATOMIC_SEQ_CST);
 }
 inline uint32_t ddsrt_atomic_or32_ov (ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_fetch_and_or (&x->v, v);
+  return __atomic_fetch_or (&x->v, v, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline uint64_t ddsrt_atomic_or64_ov (ddsrt_atomic_uint64_t *x, uint64_t v) {
-  return __sync_fetch_and_or (&x->v, v);
+  return __atomic_fetch_or (&x->v, v, __ATOMIC_SEQ_CST);
 }
 #endif
 inline uintptr_t ddsrt_atomic_orptr_ov (ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_fetch_and_or (&x->v, v);
+  return __atomic_fetch_or (&x->v, v, __ATOMIC_SEQ_CST);
 }
 inline uint32_t ddsrt_atomic_or32_nv (ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_or_and_fetch (&x->v, v);
+  return __atomic_or_fetch (&x->v, v, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 inline uint64_t ddsrt_atomic_or64_nv (ddsrt_atomic_uint64_t *x, uint64_t v) {
-  return __sync_or_and_fetch (&x->v, v);
+  return __atomic_or_fetch (&x->v, v, __ATOMIC_SEQ_CST);
 }
 #endif
 inline uintptr_t ddsrt_atomic_orptr_nv (ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_or_and_fetch (&x->v, v);
+  return __atomic_or_fetch (&x->v, v, __ATOMIC_SEQ_CST);
 }
 
 /* CAS */
-
-inline int ddsrt_atomic_cas32 (ddsrt_atomic_uint32_t *x, uint32_t exp, uint32_t des) {
-  return __sync_bool_compare_and_swap (&x->v, exp, des);
+inline bool ddsrt_atomic_cas32 (ddsrt_atomic_uint32_t *x, uint32_t exp, uint32_t des) {
+  return __atomic_compare_exchange_n(&x->v, &exp, des, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
-inline int ddsrt_atomic_cas64 (ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_t des) {
-  return __sync_bool_compare_and_swap (&x->v, exp, des);
+inline bool ddsrt_atomic_cas64 (ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_t des) {
+  return __atomic_compare_exchange_n (&x->v, &exp, des, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 }
 #endif
-inline int ddsrt_atomic_casptr (ddsrt_atomic_uintptr_t *x, uintptr_t exp, uintptr_t des) {
-  return __sync_bool_compare_and_swap (&x->v, exp, des);
+inline bool ddsrt_atomic_casptr (ddsrt_atomic_uintptr_t *x, uintptr_t exp, uintptr_t des) {
+  return __atomic_compare_exchange_n (&x->v, &exp, des, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 }
-inline int ddsrt_atomic_casvoidp (ddsrt_atomic_voidp_t *x, void *exp, void *des) {
-  return ddsrt_atomic_casptr (x, (uintptr_t) exp, (uintptr_t) des);
+inline bool ddsrt_atomic_casvoidp (ddsrt_atomic_voidp_t *x, void *exp, void *des) {
+  return __atomic_compare_exchange_n ((void **)(&x->v), &exp, des, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC_LIFO
 #if DDSRT_HAVE_ATOMIC64
@@ -319,21 +318,21 @@ inline int ddsrt_atomic_casvoidp2 (ddsrt_atomic_uintptr2_t *x, uintptr_t a0, uin
 /* FENCES */
 
 inline void ddsrt_atomic_fence (void) {
-  __sync_synchronize ();
+  __atomic_thread_fence (__ATOMIC_SEQ_CST);
 }
 inline void ddsrt_atomic_fence_ldld (void) {
 #if !(defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64)
-  __sync_synchronize ();
+  __atomic_thread_fence (__ATOMIC_SEQ_CST);
 #endif
 }
 inline void ddsrt_atomic_fence_stst (void) {
 #if !(defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64)
-  __sync_synchronize ();
+  __sync_synchronize (__ATOMIC_SEQ_CST);
 #endif
 }
 inline void ddsrt_atomic_fence_acq (void) {
 #if !(defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64)
-  ddsrt_atomic_fence ();
+  ddsrt_atomic_fence (__ATOMIC_SEQ_CST);
 #else
   asm volatile ("" ::: "memory");
 #endif
