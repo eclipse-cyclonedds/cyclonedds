@@ -25,47 +25,15 @@ else()
   add_library(ddsc)
 endif()
 
-add_definitions(-DDDSI_INCLUDE_NETWORK_PARTITIONS -DDDSI_INCLUDE_SSM)
-
-option(ENABLE_LIFESPAN "Enable Lifespan QoS support" ON)
-if(ENABLE_LIFESPAN)
-  add_definitions(-DDDSI_INCLUDE_LIFESPAN)
-endif()
-
-option(ENABLE_DEADLINE_MISSED "Enable Deadline Missed QoS support" ON)
-if(ENABLE_DEADLINE_MISSED)
-  add_definitions(-DDDSI_INCLUDE_DEADLINE_MISSED)
-endif()
-
-# OpenSSL is huge, raising the RSS by 1MB or so, and moreover find_package(OpenSSL) causes
-# trouble on some older CMake versions that otherwise work fine, so provide an option to avoid
-# all OpenSSL related things.
-#
-# Historically the option was DDSC_ENABLE_OPENSSL so make some allowance for those who are
-# currently relying on it.
-option(ENABLE_SSL "Enable openssl support" ON)
-option(DDSC_ENABLE_OPENSSL "Deprecated: please use ENABLE_SSL instead" ON)
-if(NOT DDSC_ENABLE_OPENSSL)
-  message(ERROR "DDSC_ENABLE_OPENSSL is deprecated, please use ENABLE_SSL instead")
-  set(ENABLE_SSL OFF)
-endif()
-if(ENABLE_SSL)
-  find_package(OpenSSL)
-  if(OPENSSL_FOUND)
-    add_definitions(-DDDSI_INCLUDE_SSL)
-    target_link_libraries(ddsc PRIVATE OpenSSL::SSL)
-    if(CMAKE_GENERATOR MATCHES "Visual Studio")
-      set_target_properties(ddsc PROPERTIES LINK_FLAGS "/ignore:4099")
-    endif()
-    message(STATUS "Building with OpenSSL support")
-  else()
-    message(STATUS "Building without OpenSSL support")
+if(ENABLE_SSL AND OPENSSL_FOUND)
+  target_link_libraries(ddsc PRIVATE OpenSSL::SSL)
+  if(CMAKE_GENERATOR MATCHES "Visual Studio")
+    set_target_properties(ddsc PROPERTIES LINK_FLAGS "/ignore:4099")
   endif()
 endif()
 
 # Support the OMG DDS Security within ddsc adds quite a bit of code.
 if(ENABLE_SECURITY)
-  add_definitions(-DDDSI_INCLUDE_SECURITY)
   target_link_libraries(ddsc PRIVATE security_core)
   target_include_directories(
     ddsc PUBLIC

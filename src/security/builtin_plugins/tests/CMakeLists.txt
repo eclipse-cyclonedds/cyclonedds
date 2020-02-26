@@ -10,7 +10,6 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 include(CUnit)
-find_package(OpenSSL)
 
 set(security_auth_test_sources
     "common/src/loader.c"

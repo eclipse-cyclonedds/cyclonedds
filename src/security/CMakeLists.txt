@@ -11,12 +11,11 @@
 #
 cmake_minimum_required(VERSION 3.7)
 
-if( ENABLE_SECURITY )
-    add_definitions(-DDDSI_INCLUDE_SECURITY)
-    add_subdirectory(api)
-    add_subdirectory(core)
+if(ENABLE_SECURITY)
+  add_subdirectory(api)
+  add_subdirectory(core)
 
-  if ( ENABLE_SSL)
+  if(ENABLE_SSL)
     add_subdirectory(builtin_plugins)
   endif()
 endif()
