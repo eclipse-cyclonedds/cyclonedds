@@ -12,115 +12,115 @@
 #include "dds/ddsrt/atomics.h"
 
 /* LD, ST */
-extern inline uint32_t ddsrt_atomic_ld32 (const volatile ddsrt_atomic_uint32_t *x);
+extern inline uint32_t ddsrt_atomic_ld32 (const ddsrt_atomic_uint32_t *x);
 #if DDSRT_HAVE_ATOMIC64
-extern inline uint64_t ddsrt_atomic_ld64 (const volatile ddsrt_atomic_uint64_t *x);
+extern inline uint64_t ddsrt_atomic_ld64 (const ddsrt_atomic_uint64_t *x);
 #endif
-extern inline uintptr_t ddsrt_atomic_ldptr (const volatile ddsrt_atomic_uintptr_t *x);
-extern inline void *ddsrt_atomic_ldvoidp (const volatile ddsrt_atomic_voidp_t *x);
-extern inline void ddsrt_atomic_st32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
+extern inline uintptr_t ddsrt_atomic_ldptr (const ddsrt_atomic_uintptr_t *x);
+extern inline void *ddsrt_atomic_ldvoidp (const ddsrt_atomic_voidp_t *x);
+extern inline void ddsrt_atomic_st32 (ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
-extern inline void ddsrt_atomic_st64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
+extern inline void ddsrt_atomic_st64 (ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-extern inline void ddsrt_atomic_stptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-extern inline void ddsrt_atomic_stvoidp (volatile ddsrt_atomic_voidp_t *x, void *v);
+extern inline void ddsrt_atomic_stptr (ddsrt_atomic_uintptr_t *x, uintptr_t v);
+extern inline void ddsrt_atomic_stvoidp (ddsrt_atomic_voidp_t *x, void *v);
 /* INC */
-extern inline void ddsrt_atomic_inc32 (volatile ddsrt_atomic_uint32_t *x);
+extern inline void ddsrt_atomic_inc32 (ddsrt_atomic_uint32_t *x);
 #if DDSRT_HAVE_ATOMIC64
-extern inline void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x);
+extern inline void ddsrt_atomic_inc64 (ddsrt_atomic_uint64_t *x);
 #endif
-extern inline void ddsrt_atomic_incptr (volatile ddsrt_atomic_uintptr_t *x);
-extern inline uint32_t ddsrt_atomic_inc32_ov (volatile ddsrt_atomic_uint32_t *x);
-extern inline uint32_t ddsrt_atomic_inc32_nv (volatile ddsrt_atomic_uint32_t *x);
+extern inline void ddsrt_atomic_incptr (ddsrt_atomic_uintptr_t *x);
+extern inline uint32_t ddsrt_atomic_inc32_ov (ddsrt_atomic_uint32_t *x);
+extern inline uint32_t ddsrt_atomic_inc32_nv (ddsrt_atomic_uint32_t *x);
 #if DDSRT_HAVE_ATOMIC64
-extern inline uint64_t ddsrt_atomic_inc64_nv (volatile ddsrt_atomic_uint64_t *x);
+extern inline uint64_t ddsrt_atomic_inc64_nv (ddsrt_atomic_uint64_t *x);
 #endif
-extern inline uintptr_t ddsrt_atomic_incptr_nv (volatile ddsrt_atomic_uintptr_t *x);
+extern inline uintptr_t ddsrt_atomic_incptr_nv (ddsrt_atomic_uintptr_t *x);
 /* DEC */
-extern inline void ddsrt_atomic_dec32 (volatile ddsrt_atomic_uint32_t *x);
+extern inline void ddsrt_atomic_dec32 (ddsrt_atomic_uint32_t *x);
 #if DDSRT_HAVE_ATOMIC64
-extern inline void ddsrt_atomic_dec64 (volatile ddsrt_atomic_uint64_t *x);
+extern inline void ddsrt_atomic_dec64 (ddsrt_atomic_uint64_t *x);
 #endif
-extern inline void ddsrt_atomic_decptr (volatile ddsrt_atomic_uintptr_t *x);
-extern inline uint32_t ddsrt_atomic_dec32_nv (volatile ddsrt_atomic_uint32_t *x);
+extern inline void ddsrt_atomic_decptr (ddsrt_atomic_uintptr_t *x);
+extern inline uint32_t ddsrt_atomic_dec32_nv (ddsrt_atomic_uint32_t *x);
 #if DDSRT_HAVE_ATOMIC64
-extern inline uint64_t ddsrt_atomic_dec64_nv (volatile ddsrt_atomic_uint64_t *x);
+extern inline uint64_t ddsrt_atomic_dec64_nv (ddsrt_atomic_uint64_t *x);
 #endif
-extern inline uintptr_t ddsrt_atomic_decptr_nv (volatile ddsrt_atomic_uintptr_t *x);
-extern inline uint32_t ddsrt_atomic_dec32_ov (volatile ddsrt_atomic_uint32_t *x);
+extern inline uintptr_t ddsrt_atomic_decptr_nv (ddsrt_atomic_uintptr_t *x);
+extern inline uint32_t ddsrt_atomic_dec32_ov (ddsrt_atomic_uint32_t *x);
 #if DDSRT_HAVE_ATOMIC64
-extern inline uint64_t ddsrt_atomic_dec64_ov (volatile ddsrt_atomic_uint64_t *x);
+extern inline uint64_t ddsrt_atomic_dec64_ov (ddsrt_atomic_uint64_t *x);
 #endif
-extern inline uintptr_t ddsrt_atomic_decptr_ov (volatile ddsrt_atomic_uintptr_t *x);
+extern inline uintptr_t ddsrt_atomic_decptr_ov (ddsrt_atomic_uintptr_t *x);
 /* ADD */
-extern inline void ddsrt_atomic_add32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
+extern inline void ddsrt_atomic_add32 (ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
-extern inline void ddsrt_atomic_add64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
+extern inline void ddsrt_atomic_add64 (ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-extern inline void ddsrt_atomic_addptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-extern inline void ddsrt_atomic_addvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v);
-extern inline uint32_t ddsrt_atomic_add32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
-extern inline uint32_t ddsrt_atomic_add32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
+extern inline void ddsrt_atomic_addptr (ddsrt_atomic_uintptr_t *x, uintptr_t v);
+extern inline void ddsrt_atomic_addvoidp (ddsrt_atomic_voidp_t *x, ptrdiff_t v);
+extern inline uint32_t ddsrt_atomic_add32_ov (ddsrt_atomic_uint32_t *x, uint32_t v);
+extern inline uint32_t ddsrt_atomic_add32_nv (ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
-extern inline uint64_t ddsrt_atomic_add64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
+extern inline uint64_t ddsrt_atomic_add64_nv (ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-extern inline uintptr_t ddsrt_atomic_addptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-extern inline void *ddsrt_atomic_addvoidp_nv (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v);
+extern inline uintptr_t ddsrt_atomic_addptr_nv (ddsrt_atomic_uintptr_t *x, uintptr_t v);
+extern inline void *ddsrt_atomic_addvoidp_nv (ddsrt_atomic_voidp_t *x, ptrdiff_t v);
 /* SUB */
-extern inline void ddsrt_atomic_sub32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
+extern inline void ddsrt_atomic_sub32 (ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
-extern inline void ddsrt_atomic_sub64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
+extern inline void ddsrt_atomic_sub64 (ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-extern inline void ddsrt_atomic_subptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-extern inline void ddsrt_atomic_subvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v);
-extern inline uint32_t ddsrt_atomic_sub32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
-extern inline uint32_t ddsrt_atomic_sub32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
+extern inline void ddsrt_atomic_subptr (ddsrt_atomic_uintptr_t *x, uintptr_t v);
+
+extern inline uint32_t ddsrt_atomic_sub32_ov (ddsrt_atomic_uint32_t *x, uint32_t v);
+extern inline uint32_t ddsrt_atomic_sub32_nv (ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
-extern inline uint64_t ddsrt_atomic_sub64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
+extern inline uint64_t ddsrt_atomic_sub64_nv (ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-extern inline uintptr_t ddsrt_atomic_subptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-extern inline void *ddsrt_atomic_subvoidp_nv (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v);
+extern inline uintptr_t ddsrt_atomic_subptr_nv (ddsrt_atomic_uintptr_t *x, uintptr_t v);
+extern inline void *ddsrt_atomic_subvoidp_nv (ddsrt_atomic_voidp_t *x, ptrdiff_t v);
 /* AND */
-extern inline void ddsrt_atomic_and32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
+extern inline void ddsrt_atomic_and32 (ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
-extern inline void ddsrt_atomic_and64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
+extern inline void ddsrt_atomic_and64 (ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-extern inline void ddsrt_atomic_andptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-extern inline uint32_t ddsrt_atomic_and32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
+extern inline void ddsrt_atomic_andptr (ddsrt_atomic_uintptr_t *x, uintptr_t v);
+extern inline uint32_t ddsrt_atomic_and32_ov (ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
-extern inline uint64_t ddsrt_atomic_and64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
+extern inline uint64_t ddsrt_atomic_and64_ov (ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-extern inline uintptr_t ddsrt_atomic_andptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-extern inline uint32_t ddsrt_atomic_and32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
+extern inline uintptr_t ddsrt_atomic_andptr_ov (ddsrt_atomic_uintptr_t *x, uintptr_t v);
+extern inline uint32_t ddsrt_atomic_and32_nv (ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
-extern inline uint64_t ddsrt_atomic_and64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
+extern inline uint64_t ddsrt_atomic_and64_nv (ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-extern inline uintptr_t ddsrt_atomic_andptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
+extern inline uintptr_t ddsrt_atomic_andptr_nv (ddsrt_atomic_uintptr_t *x, uintptr_t v);
 /* OR */
-extern inline void ddsrt_atomic_or32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
+extern inline void ddsrt_atomic_or32 (ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
-extern inline void ddsrt_atomic_or64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
+extern inline void ddsrt_atomic_or64 (ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-extern inline void ddsrt_atomic_orptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-extern inline uint32_t ddsrt_atomic_or32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
+extern inline void ddsrt_atomic_orptr (ddsrt_atomic_uintptr_t *x, uintptr_t v);
+extern inline uint32_t ddsrt_atomic_or32_ov (ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
-extern inline uint64_t ddsrt_atomic_or64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
+extern inline uint64_t ddsrt_atomic_or64_ov (ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-extern inline uintptr_t ddsrt_atomic_orptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-extern inline uint32_t ddsrt_atomic_or32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
+extern inline uintptr_t ddsrt_atomic_orptr_ov (ddsrt_atomic_uintptr_t *x, uintptr_t v);
+extern inline uint32_t ddsrt_atomic_or32_nv (ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
-extern inline uint64_t ddsrt_atomic_or64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
+extern inline uint64_t ddsrt_atomic_or64_nv (ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-extern inline uintptr_t ddsrt_atomic_orptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
+extern inline uintptr_t ddsrt_atomic_orptr_nv (ddsrt_atomic_uintptr_t *x, uintptr_t v);
 /* CAS */
-extern inline int ddsrt_atomic_cas32 (volatile ddsrt_atomic_uint32_t *x, uint32_t exp, uint32_t des);
+extern inline int ddsrt_atomic_cas32 (ddsrt_atomic_uint32_t *x, uint32_t exp, uint32_t des);
 #if DDSRT_HAVE_ATOMIC64
-extern inline int ddsrt_atomic_cas64 (volatile ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_t des);
+extern inline int ddsrt_atomic_cas64 (ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_t des);
 #endif
-extern inline int ddsrt_atomic_casptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t exp, uintptr_t des);
-extern inline int ddsrt_atomic_casvoidp (volatile ddsrt_atomic_voidp_t *x, void *exp, void *des);
+extern inline int ddsrt_atomic_casptr (ddsrt_atomic_uintptr_t *x, uintptr_t exp, uintptr_t des);
+extern inline int ddsrt_atomic_casvoidp (ddsrt_atomic_voidp_t *x, void *exp, void *des);
 #if DDSRT_HAVE_ATOMIC_LIFO
-extern inline int ddsrt_atomic_casvoidp2 (volatile ddsrt_atomic_uintptr2_t *x, uintptr_t a0, uintptr_t b0, uintptr_t a1, uintptr_t b1);
+extern inline int ddsrt_atomic_casvoidp2 (ddsrt_atomic_uintptr2_t *x, uintptr_t a0, uintptr_t b0, uintptr_t a1, uintptr_t b1);
 #endif
 /* FENCES */
 extern inline void ddsrt_atomic_fence (void);
@@ -218,14 +218,14 @@ void ddsrt_atomics_init (void) { }
 void ddsrt_atomics_fini (void) { }
 #endif
 
-static uint32_t atomic64_lock_index (const volatile ddsrt_atomic_uint64_t *x)
+static uint32_t atomic64_lock_index (const ddsrt_atomic_uint64_t *x)
 {
   const uint32_t u = (uint16_t) ((uintptr_t) x >> 3);
   const uint32_t v = u * 0xb4817365;
   return v >> (32 - N_MUTEXES_LG2);
 }
 
-int ddsrt_atomic_cas64 (volatile ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_t des)
+int ddsrt_atomic_cas64 (ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_t des)
 {
   const uint32_t idx = atomic64_lock_index (x);
   ddsrt_mutex_lock (&mutexes[idx]);
@@ -243,8 +243,8 @@ int ddsrt_atomic_cas64 (volatile ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_
 }
 
 #define DDSRT_FAKE_ATOMIC64(name, oper, ret) \
-  uint64_t ddsrt_atomic_##name##64_##ret (volatile ddsrt_atomic_uint64_t *x, uint64_t v); \
-  uint64_t ddsrt_atomic_##name##64_##ret (volatile ddsrt_atomic_uint64_t *x, uint64_t v) \
+  uint64_t ddsrt_atomic_##name##64_##ret (ddsrt_atomic_uint64_t *x, uint64_t v); \
+  uint64_t ddsrt_atomic_##name##64_##ret (ddsrt_atomic_uint64_t *x, uint64_t v) \
   { \
     const uint64_t idx = atomic64_lock_index (x); \
     ddsrt_mutex_lock (&mutexes[idx]); \
@@ -257,11 +257,11 @@ int ddsrt_atomic_cas64 (volatile ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_
 #define DDSRT_FAKE_ATOMIC64_TRIPLET(name, oper) \
   DDSRT_FAKE_ATOMIC64(name, oper, nv) \
   DDSRT_FAKE_ATOMIC64(name, oper, ov) \
-  void ddsrt_atomic_##name##64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) { \
+  void ddsrt_atomic_##name##64 (ddsrt_atomic_uint64_t *x, uint64_t v) { \
     (void) ddsrt_atomic_##name##64_ov (x, v); \
   }
 
-uint64_t ddsrt_atomic_ld64 (const volatile ddsrt_atomic_uint64_t *x)
+uint64_t ddsrt_atomic_ld64 (const ddsrt_atomic_uint64_t *x)
 {
   const uint32_t idx = atomic64_lock_index (x);
   ddsrt_mutex_lock (&mutexes[idx]);
@@ -270,7 +270,7 @@ uint64_t ddsrt_atomic_ld64 (const volatile ddsrt_atomic_uint64_t *x)
   return v;
 }
 
-void ddsrt_atomic_st64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
+void ddsrt_atomic_st64 (ddsrt_atomic_uint64_t *x, uint64_t v)
 {
   const uint32_t idx = atomic64_lock_index (x);
   ddsrt_mutex_lock (&mutexes[idx]);
@@ -283,16 +283,16 @@ DDSRT_FAKE_ATOMIC64_TRIPLET(sub, -)
 DDSRT_FAKE_ATOMIC64_TRIPLET(or,  |)
 DDSRT_FAKE_ATOMIC64_TRIPLET(and, &)
 
-void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x) {
+void ddsrt_atomic_inc64 (ddsrt_atomic_uint64_t *x) {
   ddsrt_atomic_add64 (x, 1);
 }
-uint64_t ddsrt_atomic_inc64_nv (volatile ddsrt_atomic_uint64_t *x) {
+uint64_t ddsrt_atomic_inc64_nv (ddsrt_atomic_uint64_t *x) {
   return ddsrt_atomic_add64_nv (x, 1);
 }
-void ddsrt_atomic_dec64 (volatile ddsrt_atomic_uint64_t *x) {
+void ddsrt_atomic_dec64 (ddsrt_atomic_uint64_t *x) {
   ddsrt_atomic_sub64 (x, 1);
 }
-uint64_t ddsrt_atomic_dec64_nv (volatile ddsrt_atomic_uint64_t *x) {
+uint64_t ddsrt_atomic_dec64_nv (ddsrt_atomic_uint64_t *x) {
   return ddsrt_atomic_sub64_nv (x, 1);
 }
 
@@ -306,7 +306,7 @@ uint64_t ddsrt_atomic_dec64_nv (volatile ddsrt_atomic_uint64_t *x) {
 #define DDSRT_FAKE_SYNC(name, size, oper, ret)                          \
   unsigned __sync_##name##_##size (volatile unsigned *x, unsigned v) \
   {                                                                     \
-    const uint32_t idx = atomic64_lock_index ((const volatile ddsrt_atomic_uint64_t *) x); \
+    const uint32_t idx = atomic64_lock_index ((const ddsrt_atomic_uint64_t *) x); \
     ddsrt_mutex_lock (&mutexes[idx]);                                   \
     const uint32_t ov = *x;                                             \
     const uint32_t nv = ov oper v;                                      \
@@ -325,7 +325,7 @@ DDSRT_FAKE_SYNC_PAIR (and, 4, &)
 
 bool __sync_bool_compare_and_swap_4 (volatile unsigned *x, unsigned exp, unsigned des)
 {
-  const uint32_t idx = atomic64_lock_index ((const volatile ddsrt_atomic_uint64_t *) x);
+  const uint32_t idx = atomic64_lock_index ((const ddsrt_atomic_uint64_t *) x);
   ddsrt_mutex_lock (&mutexes[idx]);
   if (*x == exp)
   {

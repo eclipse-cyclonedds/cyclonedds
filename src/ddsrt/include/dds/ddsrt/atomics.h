@@ -65,23 +65,23 @@ typedef ddsrt_atomic_uintptr_t ddsrt_atomic_voidp_t;
    the form of a different implementation where it is used, or as an emulation using a mutex in
    ddsrt.  It seems that the places where they'd be used end up adding a mutex, so an emulation in
    ddsrt while being able to check whether it is supported by hardware is a sensible approach.  */
-DDS_EXPORT uint64_t ddsrt_atomic_ld64 (const volatile ddsrt_atomic_uint64_t *x);
-DDS_EXPORT void ddsrt_atomic_st64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
-DDS_EXPORT void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x);
-DDS_EXPORT uint64_t ddsrt_atomic_inc64_nv (volatile ddsrt_atomic_uint64_t *x);
-DDS_EXPORT void ddsrt_atomic_dec64 (volatile ddsrt_atomic_uint64_t *x);
-DDS_EXPORT uint64_t ddsrt_atomic_dec64_nv (volatile ddsrt_atomic_uint64_t *x);
-DDS_EXPORT void ddsrt_atomic_add64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
-DDS_EXPORT uint64_t ddsrt_atomic_add64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
-DDS_EXPORT void ddsrt_atomic_sub64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
-DDS_EXPORT uint64_t ddsrt_atomic_sub64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
-DDS_EXPORT void ddsrt_atomic_and64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
-DDS_EXPORT uint64_t ddsrt_atomic_and64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
-DDS_EXPORT uint64_t ddsrt_atomic_and64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
-DDS_EXPORT void ddsrt_atomic_or64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
-DDS_EXPORT uint64_t ddsrt_atomic_or64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
-DDS_EXPORT uint64_t ddsrt_atomic_or64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
-DDS_EXPORT int ddsrt_atomic_cas64 (volatile ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_t des);
+DDS_EXPORT uint64_t ddsrt_atomic_ld64 (const ddsrt_atomic_uint64_t *x);
+DDS_EXPORT void ddsrt_atomic_st64 (ddsrt_atomic_uint64_t *x, uint64_t v);
+DDS_EXPORT void ddsrt_atomic_inc64 (ddsrt_atomic_uint64_t *x);
+DDS_EXPORT uint64_t ddsrt_atomic_inc64_nv (ddsrt_atomic_uint64_t *x);
+DDS_EXPORT void ddsrt_atomic_dec64 (ddsrt_atomic_uint64_t *x);
+DDS_EXPORT uint64_t ddsrt_atomic_dec64_nv (ddsrt_atomic_uint64_t *x);
+DDS_EXPORT void ddsrt_atomic_add64 (ddsrt_atomic_uint64_t *x, uint64_t v);
+DDS_EXPORT uint64_t ddsrt_atomic_add64_nv (ddsrt_atomic_uint64_t *x, uint64_t v);
+DDS_EXPORT void ddsrt_atomic_sub64 (ddsrt_atomic_uint64_t *x, uint64_t v);
+DDS_EXPORT uint64_t ddsrt_atomic_sub64_nv (ddsrt_atomic_uint64_t *x, uint64_t v);
+DDS_EXPORT void ddsrt_atomic_and64 (ddsrt_atomic_uint64_t *x, uint64_t v);
+DDS_EXPORT uint64_t ddsrt_atomic_and64_ov (ddsrt_atomic_uint64_t *x, uint64_t v);
+DDS_EXPORT uint64_t ddsrt_atomic_and64_nv (ddsrt_atomic_uint64_t *x, uint64_t v);
+DDS_EXPORT void ddsrt_atomic_or64 (ddsrt_atomic_uint64_t *x, uint64_t v);
+DDS_EXPORT uint64_t ddsrt_atomic_or64_ov (ddsrt_atomic_uint64_t *x, uint64_t v);
+DDS_EXPORT uint64_t ddsrt_atomic_or64_nv (ddsrt_atomic_uint64_t *x, uint64_t v);
+DDS_EXPORT int ddsrt_atomic_cas64 (ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_t des);
 #endif
 
 void ddsrt_atomics_init (void);
