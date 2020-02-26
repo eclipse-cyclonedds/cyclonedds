@@ -11,8 +11,6 @@
 #
 include (GenerateExportHeader)
 
-find_package(OpenSSL)
-
 PREPEND(srcs_accesscontrol "${CMAKE_CURRENT_LIST_DIR}/src"
     access_control_objects.c
     access_control_parser.c

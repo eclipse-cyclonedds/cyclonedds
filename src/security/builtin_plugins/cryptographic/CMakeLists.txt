@@ -11,8 +11,6 @@
 #
 include (GenerateExportHeader)
 
-find_package(OpenSSL)
-
 PREPEND(srcs_cryptographic "${CMAKE_CURRENT_LIST_DIR}/src"
     crypto_cipher.c
     crypto_key_exchange
