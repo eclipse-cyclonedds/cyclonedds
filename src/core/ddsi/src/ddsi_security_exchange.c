@@ -296,10 +296,10 @@ static bool write_crypto_exchange_message(const struct participant *pp, const dd
   };
   serdata = ddsi_serdata_from_sample (gv->rawcdr_topic, SDK_DATA, &raw);
   tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
-  ddsrt_mutex_unlock (&wr->e.lock);
-  ddsrt_free(data);
 
   r = write_sample_p2p_wrlock_held(wr, seq, NULL, serdata, tk, prd);
+  ddsrt_mutex_unlock (&wr->e.lock);
+  ddsrt_free(data);
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
   ddsi_serdata_unref (serdata);
 

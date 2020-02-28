@@ -1649,23 +1649,26 @@ static int handle_InfoTS (const struct receiver_state *rst, const InfoTS_t *msg,
 static int handle_one_gap (struct proxy_writer *pwr, struct pwr_rd_match *wn, seqno_t a, seqno_t b, struct nn_rdata *gap, int *refc_adjust)
 {
   struct nn_rsample_chain sc;
-  nn_reorder_result_t res;
+  nn_reorder_result_t res = 0;
   int gap_was_valuable = 0;
   ASSERT_MUTEX_HELD (&pwr->e.lock);
 
   /* Clean up the defrag admin: no fragments of a missing sample will
      be arriving in the future */
   if (!(wn && wn->filtered))
-     nn_defrag_notegap (pwr->defrag, a, b);
-
-  /* Primary reorder: the gap message may cause some samples to become
-     deliverable. */
-  if ((res = nn_reorder_gap (&sc, pwr->reorder, gap, a, b, refc_adjust)) > 0)
   {
-    if (pwr->deliver_synchronously)
-      deliver_user_data_synchronously (&sc, NULL);
-    else
-      nn_dqueue_enqueue (pwr->dqueue, &sc, res);
+    nn_defrag_notegap (pwr->defrag, a, b);
+
+    /* Primary reorder: the gap message may cause some samples to become
+     deliverable. */
+
+    if ((res = nn_reorder_gap (&sc, pwr->reorder, gap, a, b, refc_adjust)) > 0)
+    {
+      if (pwr->deliver_synchronously)
+        deliver_user_data_synchronously (&sc, NULL);
+      else
+        nn_dqueue_enqueue (pwr->dqueue, &sc, res);
+    }
   }
 
   /* If the result was REJECT or TOO_OLD, then this gap didn't add
