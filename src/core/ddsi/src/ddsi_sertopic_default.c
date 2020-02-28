@@ -56,7 +56,7 @@ static uint32_t sertopic_default_hash (const struct ddsi_sertopic *tpcmn)
 {
   const struct ddsi_sertopic_default *tp = (struct ddsi_sertopic_default *) tpcmn;
   uint32_t h = 0;
-  h = ddsrt_mh3 (&tp->native_encoding_identifier, sizeof (tp->native_encoding_identifier), 0);
+  h = ddsrt_mh3 (&tp->native_encoding_identifier, sizeof (tp->native_encoding_identifier), h);
   h = ddsrt_mh3 (&tp->type.m_size, sizeof (tp->type.m_size), h);
   h = ddsrt_mh3 (&tp->type.m_align, sizeof (tp->type.m_align), h);
   h = ddsrt_mh3 (&tp->type.m_flagset, sizeof (tp->type.m_flagset), h);
