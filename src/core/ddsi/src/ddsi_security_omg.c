@@ -1829,7 +1829,6 @@ bool q_omg_is_similar_participant_security_info(struct participant *pp, struct p
       proxypp->security_info.plugin_security_attributes = pp_security_info.plugin_security_attributes;
     }
   }
-  assert(matching);
   return matching;
 }
 
@@ -2504,10 +2503,10 @@ void q_omg_security_set_remote_writer_crypto_tokens(struct reader *rd, const dds
     {
       GVTRACE("set_remote_writer_crypto_tokens "PGUIDFMT" with reader "PGUIDFMT"\n", PGUID(pwr->e.guid), PGUID(rd->e.guid));
       match->matched = true;
-      DDS_Security_DataHolderSeq_free(tseq);
     }
     else
       EXCEPTION_ERROR(sc, &exception, "Failed to set remote writer crypto tokens "PGUIDFMT" for reader "PGUIDFMT, PGUID(pwr->e.guid), PGUID(rd->e.guid));
+    DDS_Security_DataHolderSeq_free(tseq);
   }
   ddsrt_mutex_unlock(&rd->e.lock);
 
@@ -2551,10 +2550,10 @@ void q_omg_security_set_remote_reader_crypto_tokens(struct writer *wr, const dds
     {
       GVTRACE("set_remote_reader_crypto_tokens "PGUIDFMT" with writer "PGUIDFMT"\n", PGUID(prd->e.guid), PGUID(wr->e.guid));
       match->matched = true;
-      DDS_Security_DataHolderSeq_free(tseq);
     }
     else
       EXCEPTION_ERROR(sc, &exception, "Failed to set remote reader crypto tokens "PGUIDFMT" for writer "PGUIDFMT, PGUID(prd->e.guid), PGUID(wr->e.guid));
+    DDS_Security_DataHolderSeq_free(tseq);
   }
   ddsrt_mutex_unlock(&wr->e.lock);
 
