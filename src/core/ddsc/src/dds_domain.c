@@ -286,6 +286,23 @@ static dds_return_t dds_domain_free (dds_entity *vdomain)
   return DDS_RETCODE_NO_DATA;
 }
 
+dds_return_t dds_domain_set_deafmute (dds_entity_t entity, bool deaf, bool mute, dds_duration_t reset_after)
+{
+  struct dds_entity *e;
+  dds_return_t rc;
+  if ((rc = dds_entity_pin (entity, &e)) < 0)
+    return rc;
+  if (e->m_domain == NULL)
+    rc = DDS_RETCODE_ILLEGAL_OPERATION;
+  else
+  {
+    ddsi_set_deafmute (&e->m_domain->gv, deaf, mute, reset_after);
+    rc = DDS_RETCODE_OK;
+  }
+  dds_entity_unpin (e);
+  return rc;
+}
+
 #include "dds__entity.h"
 static void pushdown_set_batch (struct dds_entity *e, bool enable)
 {
