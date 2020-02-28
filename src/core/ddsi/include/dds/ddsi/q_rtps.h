@@ -12,6 +12,7 @@
 #ifndef NN_RTPS_H
 #define NN_RTPS_H
 
+#include "dds/export.h"
 #include "dds/ddsi/ddsi_vendor.h"
 #include "dds/ddsi/ddsi_guid.h"
 
@@ -59,12 +60,14 @@ typedef int64_t seqno_t;
 
 struct cfgst;
 struct ddsi_domaingv;
-int rtps_config_prep (struct ddsi_domaingv *config, struct cfgst *cfgst);
-int rtps_config_open_trace (struct ddsi_domaingv *config);
-int rtps_init (struct ddsi_domaingv *config);
-int rtps_start (struct ddsi_domaingv *config);
-void rtps_stop (struct ddsi_domaingv *config);
-void rtps_fini (struct ddsi_domaingv *config);
+int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst);
+int rtps_config_open_trace (struct ddsi_domaingv *gv);
+int rtps_init (struct ddsi_domaingv *gv);
+int rtps_start (struct ddsi_domaingv *gv);
+void rtps_stop (struct ddsi_domaingv *gv);
+void rtps_fini (struct ddsi_domaingv *gv);
+
+DDS_EXPORT void ddsi_set_deafmute (struct ddsi_domaingv *gv, bool deaf, bool mute, int64_t reset_after);
 
 #if defined (__cplusplus)
 }

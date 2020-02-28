@@ -926,11 +926,35 @@ static uint32_t ddsi_sertopic_hash_wrap (const void *tp)
   return ddsi_sertopic_hash (tp);
 }
 
+static void reset_deaf_mute (struct xevent *xev, void *varg, UNUSED_ARG (nn_mtime_t tnow))
+{
+  struct ddsi_domaingv *gv = varg;
+  gv->deaf = 0;
+  gv->mute = 0;
+  GVLOGDISC ("DEAFMUTE auto-reset to [deaf, mute]=[%d, %d]\n", gv->deaf, gv->mute);
+  delete_xevent (xev);
+}
+
+void ddsi_set_deafmute (struct ddsi_domaingv *gv, bool deaf, bool mute, int64_t reset_after)
+{
+  gv->deaf = deaf;
+  gv->mute = mute;
+  GVLOGDISC (" DEAFMUTE set [deaf, mute]=[%d, %d]", gv->deaf, gv->mute);
+  if (reset_after < DDS_INFINITY)
+  {
+    nn_mtime_t when = add_duration_to_mtime (now_mt (), reset_after);
+    GVTRACE (" reset after %"PRId64".%09u ns", reset_after / DDS_NSECS_IN_SEC, (unsigned) (reset_after % DDS_NSECS_IN_SEC));
+    qxev_callback (gv->xevents, when, reset_deaf_mute, gv);
+  }
+  GVLOGDISC ("\n");
+}
+
 int rtps_init (struct ddsi_domaingv *gv)
 {
   uint32_t port_disc_uc = 0;
   uint32_t port_data_uc = 0;
   bool mc_available = true;
+  nn_mtime_t reset_deaf_mute_time = { T_NEVER };
 
   gv->tstart = now ();    /* wall clock time, used in logs */
 
@@ -952,6 +976,15 @@ int rtps_init (struct ddsi_domaingv *gv)
     char str[DDSRT_RFC3339STRLEN+1];
     ddsrt_ctime(gv->tstart.v, str, sizeof(str));
     GVLOG (DDS_LC_CONFIG, "started at %d.06%d -- %s\n", sec, usec, str);
+  }
+
+  /* Allow configuration to set "deaf_mute" in case we want to start out that way */
+  gv->deaf = gv->config.initial_deaf;
+  gv->mute = gv->config.initial_mute;
+  if (gv->deaf || gv->mute)
+  {
+    GVLOG (DDS_LC_CONFIG | DDS_LC_DISCOVERY, "DEAFMUTE initial deaf=%d mute=%d reset after %"PRId64"d ns\n", gv->deaf, gv->mute, gv->config.initial_deaf_mute_reset);
+    reset_deaf_mute_time = add_duration_to_mtime (now_mt (), gv->config.initial_deaf_mute_reset);
   }
 
   /* Initialize thread pool */
@@ -1400,6 +1433,8 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->user_dqueue = nn_dqueue_new ("user", gv, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
 #endif
 
+  if (reset_deaf_mute_time.v < T_NEVER)
+    qxev_callback (gv->xevents, reset_deaf_mute_time, reset_deaf_mute, gv);
   return 0;
 
 err_mc_conn:

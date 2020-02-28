@@ -3358,6 +3358,40 @@ DDS_EXPORT dds_return_t
 dds_assert_liveliness (
   dds_entity_t entity);
 
+/**
+ * @brief This operation allows making the domain's network stack
+ * temporarily deaf and/or mute. It is a support function for testing and,
+ * other special uses and is subject to change.
+ *
+ * @param[in] entity  A domain entity or an entity bound to a domain, such
+ *                    as a participant, reader or writer.
+ * @param[in] deaf    Whether to network stack should pretend to be deaf and
+ *                    ignore any incoming packets.
+ * @param[in] mute    Whether to network stack should pretend to be mute and
+ *                    discard any outgoing packets where it normally would.
+ *                    pass them to the operating system kernel for transmission.
+ * @param[in] reset_after  Any value less than INFINITY will cause it to
+ *                    set deaf = mute = false after reset_after ns have passed.
+ *                    This is done by an event scheduled for the appropriate
+ *                    time and otherwise forgotten. These events are not
+ *                    affected by subsequent calls to this function.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The operation was successful.
+ * @retval DDS_BAD_PARAMETER
+ *             The entity parameter is not a valid parameter.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+*/
+DDS_EXPORT dds_return_t
+dds_domain_set_deafmute (
+  dds_entity_t entity,
+  bool deaf,
+  bool mute,
+  dds_duration_t reset_after);
+
 #if defined (__cplusplus)
 }
 #endif

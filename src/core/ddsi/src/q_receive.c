@@ -3140,97 +3140,6 @@ static int recv_thread_waitset_add_conn (os_sockWaitset ws, ddsi_tran_conn_t con
   }
 }
 
-enum local_deaf_state_recover {
-  LDSR_NORMAL    = 0, /* matches gv.deaf for normal operation */
-  LDSR_DEAF      = 1, /* matches gv.deaf for "deaf" state */
-  LDSR_REJOIN    = 2
-};
-
-struct local_deaf_state {
-  enum local_deaf_state_recover state;
-  nn_mtime_t tnext;
-};
-
-static int check_and_handle_deafness_recover (struct ddsi_domaingv *gv, struct local_deaf_state *st, unsigned num_fixed_uc)
-{
-  int rebuildws = 0;
-  if (now_mt().v < st->tnext.v)
-  {
-    GVTRACE ("check_and_handle_deafness_recover: state %d too early\n", (int)st->state);
-    return 0;
-  }
-  switch (st->state)
-  {
-    case LDSR_NORMAL:
-      assert(0);
-      break;
-    case LDSR_DEAF: {
-      ddsi_tran_conn_t disc = gv->disc_conn_mc, data = gv->data_conn_mc;
-      GVTRACE ("check_and_handle_deafness_recover: state %d create new sockets\n", (int) st->state);
-      if (!create_multicast_sockets (gv))
-        goto error;
-      GVTRACE ("check_and_handle_deafness_recover: state %d transfer group membership admin\n", (int) st->state);
-      ddsi_transfer_group_membership (gv->mship, disc, gv->disc_conn_mc);
-      ddsi_transfer_group_membership (gv->mship, data, gv->data_conn_mc);
-      GVTRACE ("check_and_handle_deafness_recover: state %d drop from waitset and add new\n", (int) st->state);
-      /* see waitset construction code in recv_thread */
-      os_sockWaitsetPurge (gv->recv_threads[0].arg.u.many.ws, num_fixed_uc);
-      if (recv_thread_waitset_add_conn (gv->recv_threads[0].arg.u.many.ws, gv->disc_conn_mc) < 0)
-        DDS_FATAL("check_and_handle_deafness_recover: failed to add disc_conn_mc to waitset\n");
-      if (recv_thread_waitset_add_conn (gv->recv_threads[0].arg.u.many.ws, gv->data_conn_mc) < 0)
-        DDS_FATAL("check_and_handle_deafness_recover: failed to add data_conn_mc to waitset\n");
-      GVTRACE ("check_and_handle_deafness_recover: state %d close sockets\n", (int)st->state);
-      ddsi_conn_free(disc);
-      ddsi_conn_free(data);
-      rebuildws = 1;
-      st->state = LDSR_REJOIN;
-    }
-      /* FALLS THROUGH */
-    case LDSR_REJOIN:
-      GVTRACE ("check_and_handle_deafness_recover: state %d rejoin on disc socket\n", (int)st->state);
-      if (ddsi_rejoin_transferred_mcgroups (gv, gv->mship, gv->disc_conn_mc) < 0)
-        goto error;
-      GVTRACE ("check_and_handle_deafness_recover: state %d rejoin on data socket\n", (int)st->state);
-      if (ddsi_rejoin_transferred_mcgroups (gv, gv->mship, gv->data_conn_mc) < 0)
-        goto error;
-      GVTRACE ("check_and_handle_deafness_recover: state %d done\n", (int)st->state);
-      st->state = LDSR_NORMAL;
-      break;
-  }
-  GVTRACE ("check_and_handle_deafness_recover: state %d returning %d\n", (int)st->state, rebuildws);
-  return rebuildws;
-error:
-  GVTRACE ("check_and_handle_deafness_recover: state %d failed, returning %d\n", (int)st->state, rebuildws);
-  st->state = LDSR_DEAF;
-  st->tnext = add_duration_to_mtime(now_mt(), T_SECOND);
-  return rebuildws;
-}
-
-static int check_and_handle_deafness (struct ddsi_domaingv *gv, struct local_deaf_state *st, unsigned num_fixed_uc)
-{
-  const int gv_deaf = gv->deaf;
-  assert (gv_deaf == 0 || gv_deaf == 1);
-  if (gv_deaf == (int)st->state)
-    return 0;
-  else if (gv_deaf)
-  {
-    GVTRACE ("check_and_handle_deafness: going deaf (%d -> %d)\n", (int)st->state, (int)LDSR_DEAF);
-    st->state = LDSR_DEAF;
-    st->tnext = now_mt();
-    return 0;
-  }
-  else if (!gv->config.allowMulticast)
-  {
-    GVTRACE ("check_and_handle_deafness: no longer deaf (multicast disabled)\n");
-    st->state = LDSR_NORMAL;
-    return 0;
-  }
-  else
-  {
-    return check_and_handle_deafness_recover (gv, st, num_fixed_uc);
-  }
-}
-
 void trigger_recv_threads (const struct ddsi_domaingv *gv)
 {
   for (uint32_t i = 0; i < gv->n_recv_threads; i++)
@@ -3283,9 +3192,6 @@ uint32_t recv_thread (void *vrecv_thread_arg)
     struct local_participant_set lps;
     unsigned num_fixed = 0, num_fixed_uc = 0;
     os_sockWaitsetCtx ctx;
-    struct local_deaf_state lds;
-    lds.state = gv->deaf ? LDSR_DEAF : LDSR_NORMAL;
-    lds.tnext = now_mt();
     local_participant_set_init (&lps, &gv->participant_set_generation);
     if (gv->m_factory->m_connless)
     {
@@ -3307,9 +3213,8 @@ uint32_t recv_thread (void *vrecv_thread_arg)
 
     while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing))
     {
-      int rebuildws;
+      int rebuildws = 0;
       LOG_THREAD_CPUTIME (&gv->logconfig, next_thread_cputime);
-      rebuildws = check_and_handle_deafness (gv, &lds, num_fixed_uc);
       if (gv->config.many_sockets_mode != MSM_MANY_UNICAST)
       {
         /* no other sockets to check */
