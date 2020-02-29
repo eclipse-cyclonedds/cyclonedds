@@ -14,6 +14,7 @@
 
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/ddsi_xqos.h"
+#include "dds/ddsi/ddsi_keyhash.h"
 #include "dds/ddsi/ddsi_tran.h" /* FIXME: eliminate */
 
 #if defined (__cplusplus)
@@ -96,10 +97,6 @@ typedef struct nn_locators {
 typedef uint32_t nn_ipv4address_t;
 
 typedef uint32_t nn_port_t;
-
-typedef struct nn_keyhash {
-  unsigned char value[16];
-} nn_keyhash_t;
 
 #ifdef DDSI_INCLUDE_SECURITY
 typedef struct nn_tag {
@@ -218,7 +215,7 @@ typedef struct ddsi_plist {
   uint32_t builtin_endpoint_set;
   /* int type_max_size_serialized; */
   char *entity_name;
-  nn_keyhash_t keyhash;
+  ddsi_keyhash_t keyhash;
   uint32_t statusinfo;
   nn_prismtech_participant_version_info_t prismtech_participant_version_info;
   char *type_description;

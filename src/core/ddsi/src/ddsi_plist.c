@@ -487,7 +487,7 @@ static size_t ser_generic_srcsize (const enum pserop * __restrict desc)
       case Xb: case Xbx2: SIMPLE (Xb, unsigned char); break;
       case XbCOND: SIMPLE (XbCOND, unsigned char); break;
       case XG: SIMPLE (XG, ddsi_guid_t); break;
-      case XK: SIMPLE (XK, nn_keyhash_t); break;
+      case XK: SIMPLE (XK, ddsi_keyhash_t); break;
       case XbPROP: SIMPLE (XbPROP, unsigned char); break;
       case XQ: SIMPLE (XQ, ddsi_octetseq_t); break;
       case Xopt: break;
@@ -531,7 +531,7 @@ static bool fini_generic_embeddable (void * __restrict dst, size_t * __restrict 
       case Xb: case Xbx2: SIMPLE (Xb, unsigned char); break;
       case XbCOND: SIMPLE (XbCOND, unsigned char); break;
       case XG: SIMPLE (XG, ddsi_guid_t); break;
-      case XK: SIMPLE (XK, nn_keyhash_t); break;
+      case XK: SIMPLE (XK, ddsi_keyhash_t); break;
       case XbPROP: SIMPLE (XbPROP, unsigned char); break;
       case XQ:
       {
@@ -564,7 +564,7 @@ static size_t pserop_memalign (enum pserop op)
     case XO: case XQ: return alignof (ddsi_octetseq_t);
     case XS: return alignof (char *);
     case XG: return alignof (ddsi_guid_t);
-    case XK: return alignof (nn_keyhash_t);
+    case XK: return alignof (ddsi_keyhash_t);
     case Xb: case Xbx2: return 1;
     case Xo: case Xox2: return 1;
     case XbCOND: case XbPROP: return 1;
@@ -705,7 +705,7 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
         break;
       }
       case XK: { /* keyhash */
-        nn_keyhash_t * const x = deser_generic_dst (dst, dstoff, alignof (nn_keyhash_t));
+        ddsi_keyhash_t * const x = deser_generic_dst (dst, dstoff, alignof (ddsi_keyhash_t));
         if (dd->bufsz - *srcoff < sizeof (*x))
           goto fail;
         memcpy (x, dd->buf + *srcoff, sizeof (*x));
@@ -817,7 +817,7 @@ static void ser_generic_size_embeddable (size_t *dstoff, const void *src, size_t
       case Xb: case Xbx2: SIMPLE1 (Xb, unsigned char); break;
       case XbCOND: SIMPLE1 (XbCOND, unsigned char); break;
       case XG: SIMPLE1 (XG, ddsi_guid_t); break;
-      case XK: SIMPLE1 (XK, nn_keyhash_t); break;
+      case XK: SIMPLE1 (XK, ddsi_keyhash_t); break;
       case XbPROP: /* "propagate" boolean: when 'false'; no serialisation; no size; force early out */
                COMPLEX (XbPROP, unsigned char, if (! *x) return); break;
       case XQ: COMPLEX (XQ, ddsi_octetseq_t, {
@@ -973,7 +973,7 @@ static dds_return_t ser_generic_embeddable (char * const data, size_t *dstoff, c
         break;
       }
       case XK: { /* keyhash */
-        nn_keyhash_t const * const x = deser_generic_src (src, &srcoff, alignof (nn_keyhash_t));
+        ddsi_keyhash_t const * const x = deser_generic_src (src, &srcoff, alignof (ddsi_keyhash_t));
         char * const p = data + *dstoff;
         memcpy (p, x, sizeof (*x));
         *dstoff += sizeof (*x);
@@ -1055,7 +1055,7 @@ static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict 
       case XbCOND: SIMPLE (XbCOND, unsigned char); break;
       case XbPROP: SIMPLE (XbPROP, unsigned char); break;
       case XG: SIMPLE (XG, ddsi_guid_t); break;
-      case XK: SIMPLE (XK, nn_keyhash_t); break;
+      case XK: SIMPLE (XK, ddsi_keyhash_t); break;
       case XQ: COMPLEX (XQ, ddsi_octetseq_t, if (x->length) {
         const size_t elem_size = ser_generic_srcsize (desc + 1);
         if (gen_seq_aliased)
@@ -1149,7 +1149,7 @@ static dds_return_t valid_generic (const void *src, size_t srcoff, const enum ps
       case XbCOND: SIMPLE (XbCOND, unsigned char, *x == 0 || *x == 1); break;
       case XbPROP: SIMPLE (XbPROP, unsigned char, *x == 0 || *x == 1); break;
       case XG: TRIVIAL (XG, ddsi_guid_t); break;
-      case XK: TRIVIAL (XK, nn_keyhash_t); break;
+      case XK: TRIVIAL (XK, ddsi_keyhash_t); break;
       case XQ: COMPLEX (XQ, ddsi_octetseq_t, {
         if ((x->length == 0) != (x->value == NULL))
           return DDS_RETCODE_BAD_PARAMETER;
@@ -1213,7 +1213,7 @@ static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, co
         break;
       case XbPROP: TRIVIAL (XbPROP, unsigned char); break;
       case XG: SIMPLE (XG, ddsi_guid_t, memcmp (x, y, sizeof (*x)) == 0); break;
-      case XK: SIMPLE (XK, nn_keyhash_t, memcmp (x, y, sizeof (*x)) == 0); break;
+      case XK: SIMPLE (XK, ddsi_keyhash_t, memcmp (x, y, sizeof (*x)) == 0); break;
       case XQ: COMPLEX (XQ, ddsi_octetseq_t, {
         if (x->length != y->length)
           return false;
@@ -1393,7 +1393,7 @@ static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize,
         break;
       }
       case XK: { /* keyhash */
-        nn_keyhash_t const * const x = deser_generic_src (src, &srcoff, alignof (nn_keyhash_t));
+        ddsi_keyhash_t const * const x = deser_generic_src (src, &srcoff, alignof (ddsi_keyhash_t));
         if (!prtf (buf, bufsize, "%s{%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x}", sep,
                    x->value[0], x->value[1], x->value[2], x->value[3], x->value[4], x->value[5], x->value[6], x->value[7],
                    x->value[8], x->value[9], x->value[10], x->value[11], x->value[12], x->value[13], x->value[14], x->value[15]))

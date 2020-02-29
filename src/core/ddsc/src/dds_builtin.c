@@ -176,7 +176,7 @@ static struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct dd
   struct dds_domain *domain = vdomain;
   struct ddsi_tkmap_instance *tk;
   struct ddsi_serdata *sd;
-  struct nn_keyhash kh;
+  struct ddsi_keyhash kh;
   memcpy (&kh, guid, sizeof (kh));
   /* any random builtin topic will do (provided it has a GUID for a key), because what matters is the "class" of the topic, not the actual topic; also, this is called early in the initialisation of the entity with this GUID, which simply causes serdata_from_keyhash to create a key-only serdata because the key lookup fails. */
   sd = ddsi_serdata_from_keyhash (domain->builtin_participant_topic, &kh);
@@ -191,7 +191,7 @@ struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, nn
   struct dds_domain *dom = e->gv->builtin_topic_interface->arg;
   struct ddsi_sertopic *topic = NULL;
   struct ddsi_serdata *serdata;
-  struct nn_keyhash keyhash;
+  struct ddsi_keyhash keyhash;
   switch (e->kind)
   {
     case EK_PARTICIPANT:
