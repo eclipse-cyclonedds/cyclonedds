@@ -160,7 +160,7 @@ struct ddsi_serdata_ops {
 
 #define DDSI_SERDATA_HAS_PRINT 1
 #define DDSI_SERDATA_HAS_FROM_SER_IOV 1
-#define DDSI_SERDATA_HAS_ADD_KEYHASH 1
+#define DDSI_SERDATA_HAS_GET_KEYHASH 1
 
 DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertopic *tp, enum ddsi_serdata_kind kind);
 
