@@ -38,11 +38,15 @@ static bool sertopic_default_equal (const struct ddsi_sertopic *acmn, const stru
     return false;
   if (a->type.m_nkeys != b->type.m_nkeys)
     return false;
-  if (memcmp (a->type.m_keys, b->type.m_keys, a->type.m_nkeys * sizeof (*a->type.m_keys)) != 0)
+  if (
+    (a->type.m_nkeys > 0) &&
+    memcmp (a->type.m_keys, b->type.m_keys, a->type.m_nkeys * sizeof (*a->type.m_keys)) != 0)
     return false;
   if (a->type.m_nops != b->type.m_nops)
     return false;
-  if (memcmp (a->type.m_ops, b->type.m_ops, a->type.m_nops * sizeof (*a->type.m_ops)) != 0)
+  if (
+    (a->type.m_nops > 0) &&
+    memcmp (a->type.m_ops, b->type.m_ops, a->type.m_nops * sizeof (*a->type.m_ops)) != 0)
     return false;
   assert (a->opt_size == b->opt_size);
   return true;
