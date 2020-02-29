@@ -4,7 +4,7 @@
 DDS Security
 ############
 
-CycloneDDS is (will be) compliant with The Object Management Group (OMG) DDS Security specification.
+CycloneDDS is compliant with The Object Management Group (OMG) DDS Security specification.
 
 This specification defines the Security Model and Service Plugin Interface (SPI) architecture for
 compliant DDS implementations. The DDS Security Model is enforced by the invocation of these SPIs
@@ -109,25 +109,28 @@ ID CA gets Alice's subject information and public key and generates an IdentityC
 Alice's certificate includes her public key and certificate of ID CA; so that her certificate can
 be verified if it is really issued by ID CA.
 
-Access Control is configured with governance and permissions files.
-Governance file defines the security behavior of domains and topics.
-Permissions file contains the permissions of the domain participant, topics, readers and writers,
-binds them to identity certificate by subject name (distinguished name).
+Access Control is configured with governance and permissions files. Governance file defines the
+security behavior of domains and topics. Permissions file contains the permissions of the domain
+participant, topics, readers and writers, binds them to identity certificate by subject name
+(distinguished name).
 
 Governance files and Permissions files are signed by Permission CA. Signed documents also
 contains Permissions CA certificate; so that they can be verified if they are really issued
 by Permissions CA.
 
-Authenticated participants handshakes with each other and generates a shared key by Diffie-Hellman
-key exchange. This shared key is used for encrypting/decrypting data with AES.
+Authenticated participants perform a handshake with each other and generate a shared key by
+Diffie-Hellman key exchange. This shared key is used for encrypting/decrypting data with AES.
 
 During the handshake Alice checks Bob's certificate and Bob's Permissions file if they are really
 issued by the ID CA certificate and Permissions CA Certificate that **she** has. Also Bob checks
 Alice's certificate and Alice's Permissions file if they are really issued by the ID CA certificate
 and Permissions CA that **he** has.
-Permissions file can contain  permissions for several identities; so subject name of identity
+Permissions files can contain permissions for several identities; so subject name of identity
 certificate exist in permissions file to establish a binding between identity and its permissions.
 
+There are several ways to set up the certificates and signed configuration files to be used with
+Cyclone DDS Security. One of them is using OpenSSL, which is described in section
+`Creating certificates using OpenSSL`_.
 
 *************
 Configuration
@@ -142,29 +145,21 @@ The configuration of DDS Security is split up into two parts.
 - `Plugins Configuration`_
 - `Access Control Configuration`_
 
-This section explains the configuration in details. However, you can see a concrete example on
-security section of Example Readme file.
-
-.. _`Plugins Configuration`:
-
 
 Plugins Configuration
 *********************
 
-TODO: Update to reflect the configuration through QoS policies.
+CycloneDDS gets the security configuration from DDS2I XML configuration elements or from
+the participant QoS policies as stated in the DDS Security specification.
 
-| CyclonDDS gets the plugin configuration from DDS2I configuration elements or the Participant QoS
-  Policies as stated in the DDS Security specification.
+This behavior allows applications to use DDS Security without recompiling the binaries.
+Only supplying a new configuration with DDS Security enabled is enough to switch from a
+non-secure to a secure deployment. The configuration is at domain level, which means
+that all participants created for that domain receive the same DDS security settings.
 
-| This behavior allows applications to use DDS Security without update. Only supplying a new
-  configuration with DDS Security enabled is enough to switch from a non-secure to a secure
-  deployment. However, the same DDS Security configuration is forced upon all the participants
-  within the federation.
-
-| The configuration options are bundled in the ``DDSSecurity`` configuration section in DDS2I.
-
-| Every DDS Security plugin has its own configuration sub-section.
-
+The configuration options for a domain are bundled in the ``DDSSecurity`` configuration
+section in the CycloneDDS configuration. Every DDS Security plugin has its own configuration
+sub-section.
 
 .. _`Authentication Properties`:
 
@@ -172,35 +167,31 @@ TODO: Update to reflect the configuration through QoS policies.
 Authentication Properties
 =========================
 
-| To authenticate CycloneDDS, it has to be configured with IdentityCertificate
-  (DDSSecurity/Authentication/IdentityCertificate - see Configuration Guide - DDS Security).
-  This IdentityCertificate is used to authenticate all participants of that particular
-  CycloneDDS domain.
+To enable authentication for a node, it has to be configured with an identity certificate
+(``DDSSecurity/Authentication/IdentityCertificate``). This identity certificate is used to
+authenticate all participants of that particular CycloneDDS domain. Associated with the
+identity certificate is the corresponding private key
+(``DDSSecurity/Authentication/PrivateKey``). The private key may either be a 2048-bit RSA
+or a 256-bit Elliptic Curve Key with a prime256v1 curve.
 
-| Associated with the IdentityCertificate is the corresponding PrivateKey
-  (DDSSecurity/Authentication/PrivateKey).
-  The PrivateKey may either be a 2048-bit RSA or a 256-bit Elliptic Curve Key with
-  a prime256v1 curve.
+The certificate of identity CA, which is the issuer of the node's identity certificate,
+is configured in ``DDSSecurity/Authentication/IdentityCA``. The public key of the
+identity CA (as part of its certificate) shall either be a 2048-bit RSA key or a 256-bit
+Elliptic Curve Key for the prime256v1 curve. The identity CA certificate can be a
+self-signed certificate.
 
-| IdentityCA (DDSSecurity/Authentication/IdentityCA) is the certificate of Identity Certificate
-  Authority (CA) which is the issuer of the IdentityCertificate.  The public key of the
-  IdentityCA shall either be a 2048-bit RSA key or a 256-bit Elliptic Curve Key for the prime256v1
-  curve. The identity_ca can be a self-signed certificate.
+The identity certificate, private key and the identity CA should be a X509 document in PEM
+format. It may either be specified directly in the configuration file (as CDATA, prefixed
+with ``data:,``) or the configuration file should contain a reference to a corresponding
+file (prefixed with ``file:``).
 
-| Currently the IdentityCertificate, IdentityCA and PrivateKey should be a X509 document in pem
-  format.
-  It may either be specified directly in the configuration file or the configuration file should
-  contain a reference to a corresponding file.
+Optionally the private key could be protected by a password
+(``DDSSecurity/Authentication/Password``).
 
-| Optionally the PrivateKey could be protected by a password (DDSSecurity/Authentication/Password).
-
-| Furthermore the CycloneDDS configuration allows to configure a directory containing additional
-  IdentityCA's
-  which are used to verify the identity certificates that are received by remote instances
-  (DDSSecurity/Authentication/TrustedCADirectory). This option allows to use more than one identity
-  CA throughout the system. TrustedCADirectory is an extension to DDS Security specification; so it
-  can not be used when communicating with other vendors.
-
+Furthermore the CycloneDDS configuration allows to configure a directory containing additional
+identity CA's which are used to verify the identity certificates that are received by remote instances
+(``DDSSecurity/Authentication/TrustedCADirectory``). This option allows to use more than one identity
+CA throughout the system.
 
 .. _`Access Control Properties`:
 
@@ -208,11 +199,11 @@ Authentication Properties
 Access Control Properties
 =========================
 
-Governance Document (DDSSecurity/AccessControl/Governance),
-Permissions Document (DDSSecurity/AccessControl/Permissions) and
-Permissions CA Certificate (DDSSecurity/AccessControl/PermissionsCA) are required for access
-control plugin. See DDS Security section of Configuration Guide for property descriptions. They
-can be provided by data itself (with CDATA) or path to file on disk.
+A governance document (``DDSSecurity/AccessControl/Governance``), a permissions document
+(``DDSSecurity/AccessControl/Permissions``) and the permissions CA certificate
+(``DDSSecurity/AccessControl/PermissionsCA``) are required for the access control plugin.
+Similar to the authentication plugin properties, these values can be provided as CDATA or
+by using a path to a file.
 
 
 .. _`Cryptography Properties`:
@@ -221,7 +212,7 @@ can be provided by data itself (with CDATA) or path to file on disk.
 Cryptography Properties
 =======================
 
-Cryptography plugin has no property
+The cryptography plugin has no properties in the configuration.
 
 
 .. _`Access Control Configuration`:
@@ -229,15 +220,15 @@ Cryptography plugin has no property
 Access Control Configuration
 ****************************
 
-| Access Control configuration consists of Governance document and Permissions document.
-  Both governance and permissions files must be signed by the Permissions CA in S/MIME format.
-  Participants use their own permissions CA to validate remote permissions. So, all permissions CA
-  Certificates must be same for all participants.
+Access Control configuration consists of Governance document and Permissions document.
+Both governance and permissions files must be signed by the Permissions CA in S/MIME format.
+Participants use their own permissions CA to validate remote permissions. So, all permissions CA
+Certificates must be same for all participants.
 
-| The signed document should use S/MIME version 3.2 format as defined in IETF RFC 5761 using
-  SignedData Content Type (section 2.4.2 of IETF RFC 5761) formatted as multipart/signed (section
-  3.4.3 of IETF RFC 5761). This corresponds to the mime-type application/pkcs7-signature.
-  Additionally the signer certificate should be be included within the signature.
+The signed document should use S/MIME version 3.2 format as defined in IETF RFC 5761 using
+SignedData Content Type (section 2.4.2 of IETF RFC 5761) formatted as multipart/signed (section
+3.4.3 of IETF RFC 5761). This corresponds to the mime-type application/pkcs7-signature.
+Additionally the signer certificate should be be included within the signature.
 
 
 ===================
@@ -245,10 +236,12 @@ Governance Document
 ===================
 
 Governance document defines the security behavior of domains and topics. It is an XML document and
-its format is specified in OMG DDS Security Version 1.1 Section 9.4.1.2.3
+its format is specified in OMG DDS Security Version 1.1 Section 9.4.1.2.3.
 
-The attributes that specified in Governance document must match with the remote one for
-establishing communication.
+This section describes the properties that can be specified in a permissions document. An example
+of a governance document is provided in `Create a signed governance document`_. The options
+that are specified in Governance document must match with the remote node to establishing
+communication.
 
 
 Protection Kinds
@@ -345,9 +338,8 @@ Topic Attributes
 
 There are different settings for different domain ranges. The domain rules are evaluated in the
 same order as they appear in the document. A rule only applies to a particular DomainParticipant
-if the domain Section matches the DDS domain_id to
-which the DomainParticipant belongs. If multiple rules match, the first rule that matches is the
-only one that applies.
+if the domain Section matches the DDS domain_id to which the participant belongs. If multiple
+rules match, the first rule that matches is the only one that applies.
 
 The topic access rules are evaluated in the same order as they appear within the
 <topic_access_rules> Section. If multiple rules match the first rule that matches is the only one
@@ -378,6 +370,9 @@ The permissions document is an XML document containing the permissions of the do
 and binding them to the subject name of the DomainParticipant as defined in the identity
 certificate. Its format is specified in OMG DDS Security Version 1.1 Section 9.4.1.3.
 
+This section describes the properties that can be specified in a permissions document. An example
+of a permissions document is provided in `Creating a signed permissions document`_.
+
 
 Validity period
 ===============
@@ -394,20 +389,19 @@ The subject name must match with Identity Certificate subject. It is checked dur
 participant and during handshake with remote participant. Use the following openssl command to get
 subject name from identity certificate:
 
-``openssl x509 -noout -subject -nameopt RFC2253 -in <identity_certificate_file.crt>``
+``openssl x509 -noout -subject -nameopt RFC2253 -in <identity_certificate_file.pem>``
 
 
 Rules
 =====
 
-DomainParticipant permissions are defined by set of rules.
-
-The rules are applied in the same order that appear in the document. If the criteria for the rule
-matches the domain_id join and/or publish or subscribe operation that is being attempted, then the
-allow or deny decision is applied. If the criteria for a rule does not match the operation being
-attempted, the evaluation shall proceed to the next rule. If all rules have been examined without
-a match, then the decision specified by the “default” rule is applied. The default rule, if
-present, must appear after all allow and deny rules. If the default rule is not present, the
+Participant permissions are defined by set of rules. The rules are applied in the same order
+that appear in the document. If the criteria for the rule matches the domain_id join and/or publish
+or subscribe operation that is being attempted, then the allow or deny decision is applied.
+If the criteria for a rule does not match the operation being attempted, the evaluation
+shall proceed to the next rule. If all rules have been examined without a match, then the
+decision specified by the “default” rule is applied. The default rule, if present, must
+appear after all allow and deny rules. If the default rule is not present, the
 implied default decision is DENY. The matching criteria for each rule specify the domain_id,
 topics (published and subscribed), the partitions (published and subscribed), and the data-tags
 associated with the DataWriter and DataReader.
@@ -420,11 +414,11 @@ the expressions with the <topics> section).
 `fnmatch pattern matching`_ can be used for topic expressions and partition expressions.
 
 
-Interactions with DDS Security
-******************************
+Logging and tracing
+*******************
 
-DDS Security provides the responses through CycloneDDS error and info log. Users can get
-messages for:
+The security implementation uses the standard logging and tracing mechanism in CycloneDDS.
+The following is written to log and trace:
 
 - Configuration errors such as plugin library files, certificate files, governance and permissions
   files that can not be found on filesystem.
@@ -433,17 +427,16 @@ messages for:
   readers and writers.
 - Integrity errors such as Permissions file-Permissions CA and Identity Cert-Identity CA integrity.
 
-Local subscription, publication and topic permission errors are written to error log.
-Remote participation, subscription and publication permission errors are written to info log as
-warning message.
+Local subscription, publication and topic permission errors are written as errors.
+Remote participation, subscription and publication permission errors are written to log as
+warning messages.
 
 
 Data Communication And Handshake Process
-*******************************************
+****************************************
 
-Authentication handshake between participants starts after participant discovery.
-If a reader and a writer created during that period, their match will be delayed until after the
-handshake succeeds.
+Authentication handshake between participants starts after participant discovery. If a reader and
+a writer created during that period, their match will be delayed until after the handshake succeeds.
 This means, during the handshake process, volatile data will be lost, just like there is no reader.
 
 After publication match, the encryption / decryption keys are exchanged between reader and writer.
@@ -452,12 +445,11 @@ resent.
 
 
 DDS Secure Discovery
-******************************
+********************
 
 Just like normal operation, DDSI will discover local and remote participants, topics, readers and
-writers.
-However, when DDS Security is enabled, it is more complex and will take a longer time (especially
-due to the handshaking that has to happen).
+writers. However, when DDS Security is enabled, it is more complex and will take a longer time
+(due to the handshaking that is required).
 
 With every new node in the system, the discovery takes exponentially longer. This can become a
 problem if the system contains a number of slow platforms or is large.
@@ -467,30 +459,199 @@ Internal/SquashParticipants configuration.
 
 
 Proprietary builtin endpoints
-******************************
+*****************************
 
-| The DDS standard contains some builtin endpoints. A few are added by the DDS Security
-  specification. The behaviour of all these builtin endpoints are specified (and thus are be
-  handled by the plugins that implement the DDS Security specification), meaning that they
-  don't have to be present in the Governance or Permissions documents and the users don't
-  have to be bothered with them.
-|
-| A few of these builtin endpoints slave according to the <discovery_protection_kind> within
-  the Governance document. In short, related submessages are protected according to the value
-  of <discovery_protection_kind>. This protects meta information that is send during the
-  discovery phase.
+The DDS standard contains some builtin endpoints. A few are added by the DDS Security
+specification. The behaviour of all these builtin endpoints are specified (and thus are be
+handled by the plugins that implement the DDS Security specification), meaning that they
+don't have to be present in the Governance or Permissions documents and the users don't
+have to be bothered with them.
+
+A few of these builtin endpoints slave according to the <discovery_protection_kind> within
+the Governance document. In short, related submessages are protected according to the value
+of <discovery_protection_kind>. This protects meta information that is send during the
+discovery phase.
 
 
 *******************
 DataTag Permissions
 *******************
 
-| Data Tags provide an extra (optional) level of identification. This can mean f.i. that
-  a certain reader is not allowed to read data from writer A but it is allowed to read from
-  writer B (all the same topic).
-|
-| This optional feature is not yet supported.
+Data Tags provide an extra (optional) level of identification. This can mean f.i. that
+a certain reader is not allowed to read data from writer A but it is allowed to read from
+writer B (all the same topic).
 
+This optional feature is not yet supported.
+
+
+.. _`Example configuration`:
+
+*********************
+Example configuration
+*********************
+
+This sections show an example configuration for DDS Security in Cyclone DDS. First step is
+creating the required CA and identity certificates. Then a governance and permissions document
+is created to configure access control. Next an example configuration (XML) that
+is using these assets is shown, and a code fragment that shows how to set the security
+properties by using the participant QoS.
+
+
+.. _`Creating certificates using OpenSSL`:
+
+Creating certificates using OpenSSL
+***********************************
+
+This section describes how to generate a set of CA and identity certificates using OpenSSL,
+and how to use OpenSSL to sign the governance and access control configuration files.
+
+First step is generation of the CA for identity management (authentication). First we create the
+private key for the CA by:
+
+.. code-block:: bash
+
+  openssl genrsa -out example_id_ca_priv_key.pem 2048
+
+Next we can generate the certificate for the identity CA (which is in this case a self-signed
+certificate):
+
+.. code-block:: bash
+
+  openssl req -x509 -key example_id_ca_priv_key.pem -out example_id_ca_cert.pem -days 3650 -subj "/C=NL/ST=OV/L=Locality Name/OU=Example OU/O=Example ID CA Organization/CN=Example ID CA/emailAddress=authority@cycloneddssecurity.adlinktech.com"
+
+We repeat these steps for generating the private key of the permissions CA (used for
+signing the AccessControl configiguration files):
+
+.. code-block:: bash
+
+  openssl genrsa -out example_perm_ca_priv_key.pem 2048
+
+And the self-signed certificate for the permissions CA:
+
+.. code-block:: bash
+
+  openssl req -x509 -key example_perm_ca_priv_key.pem -out example_perm_ca_cert.pem -days 3650 -subj "/C=NL/ST=OV/L=Locality Name/OU=Example OU/O=Example CA Organization/CN=Example Permissions CA/emailAddress=authority@cycloneddssecurity.adlinktech.com"
+
+==============================
+Create an Identity Certificate
+==============================
+
+Now that we have set up the CA for identity management, we can create an identity certificate
+signed by this CA and the private key corresponding to this identity. Here we are creating
+a private key and certificate for identity named Alice. These steps need to be repeated for each
+identity in the system.
+
+Generating the private key for Alice's identity:
+
+.. code-block:: bash
+
+  openssl genrsa -out example_alice_priv_key.pem 2048
+
+Now we create a 'certificate signing request' (CSR) to request the identity CA to generate a certificate:
+
+.. code-block:: bash
+
+  openssl req -new -key example_alice_priv_key.pem -out example_alice.csr -subj "/C=NL/ST=OV/L=Locality Name/OU=Organizational Unit Name/O=Example Organization/CN=Alice Example/emailAddress=alice@cycloneddssecurity.adlinktech.com"
+
+Next Alice's identity certificate is created:
+
+.. code-block:: bash
+
+  openssl x509 -req -CA example_id_ca_cert.pem -CAkey example_id_ca_priv_key.pem -CAcreateserial -days 3650 -in example_alice.csr -out example_alice_cert.pem
+
+
+Now the file 'example_alice_cert.pem' can be used as ``IdentityCertificate`` in the DDS Security
+authentication configuration and 'example_alice_priv_key.pem' for the ``PrivateKey`` setting. The
+certificate of the CA used for signing this identity, 'example_id_ca_cert.pem' in this example,
+should be used for the ``IdentityCA`` configuration setting.
+
+
+.. _`Create a signed governance document`:
+
+===================================
+Create a signed governance document
+===================================
+
+An example of a governance document that is using signing for submessage and encrypted payload:
+
+.. literalinclude:: _static/example_governance.xml
+    :linenos:
+    :language: xml
+
+As mentioned before, the governance document needs to be signed by the permissions CA
+that was created above. This can be done by using this openssl command:
+
+.. code-block:: bash
+
+  openssl smime -sign -in example_governance.xml -text -out example_governance.p7s -signer example_perm_ca_cert.pem -inkey example_perm_ca_priv_key.pem
+
+
+.. _`Creating a signed permissions document`:
+
+======================================
+Creating a signed permissions document
+======================================
+
+The permissions document is an XML document that contains the permissions of the participant and
+binds them to the subject name of the identity certificate (distinguished name) for the participant
+as defined in the DDS:Auth:PKI-DH authentication plugin.
+
+An example of a permissions document:
+
+.. literalinclude:: _static/example_permissions.xml
+    :linenos:
+    :language: xml
+
+This document also needs to be signed by the permissions CA:
+
+.. code-block:: bash
+
+  openssl smime -sign -in example_permissions.xml -text -out example_permissions.p7s -signer example_perm_ca_cert.pem -inkey example_perm_ca_priv_key.pem
+
+
+Example DDS Security configuration
+**********************************
+
+With the above steps we have all certificates and documents that are required when configuring
+security. In the next two sections, both configuring security by properties and configuring
+security by DDS configuration are covered.
+
+======================================
+Security properties in participant QoS
+======================================
+
+This code fragment shows how to set the security properties to a QoS object and use this QoS
+when creating a participant:
+
+.. literalinclude:: _static/security_by_qos.c
+    :linenos:
+    :language: c
+
+
+===========================================
+Configure security in Cyclone configuration
+===========================================
+
+As an alternative for using the QoS, security settings can also be applied using the CycloneDDS
+configuration XML. In case both QoS and the configuration XML contain security settings, the values
+from the QoS will be used and the security settings in the configuration XML are ignored.
+
+The following XML fragment shows how to set security settings through configuration:
+
+.. literalinclude:: _static/security_by_config.xml
+    :linenos:
+    :language: xml
+
+To use this configuration file for an application, set the CYCLONEDDS_URI environment
+variable to this config file:
+
+.. code-block:: bash
+
+  export CYCLONEDDS_URI=/path/to/secure_config.xml
+
+Bacause this example configuration uses the attribute ``id=any`` for the ``domain`` element, any participant
+that is created (which implicitly creates a domain) in an application using this configuration gets
+these security settings.
 
 ***************************
 External Plugin Development
@@ -502,7 +663,7 @@ The plugins are loaded in the run-time. However, you can also implement your own
 implementing the given API according to OMG DDS Security specification.
 You can implement all of the plugins or just one of them.
 
-| The followings are the key points for implementing you own plugin:
+The followings are the key points for implementing you own plugin:
 
 
 Interface
@@ -516,24 +677,23 @@ dds_security_api_cryptography.h header files accordingly.
 Init and Finalize
 *****************
 
-| A plugin should have an init and a finalize functions. plugin_init and plugin_finalize
-  interfaces are given in dds_security_api.h header file and function should be same as in
-  configuration file.
-| Init function is called once, just after the plugin is loaded. Finalize function is
-  called once, just before the plugin is unloaded.
-
+A plugin should have an init and a finalize functions. plugin_init and plugin_finalize
+interfaces are given in dds_security_api.h header file and function should be same as in
+configuration file.
+Init function is called once, just after the plugin is loaded. Finalize function is
+called once, just before the plugin is unloaded.
 
 Inter Plugin Communication
 **************************
 
-| There is a shared object (*DDS_Security_SharedSecretHandle*) within authentication and
-  cryptography plugins. If you want to implement only one of them and use the builtin for the
-  other one, you have to get or provide the shared object properly.
-| *DDS_Security_SharedSecretHandle* is the integer representation of
-  *DDS_Security_SharedSecretHandleImpl* struct object. Cryptography plugin gets the
-  *DDS_Security_SharedSecretHandle* from authentication plugin and casts to
-  *DDS_Security_SharedSecretHandleImpl* struct. Then all needed information can be retieved
-  through *DDS_Security_SharedSecretHandleImpl* struct:
+There is a shared object (*DDS_Security_SharedSecretHandle*) within authentication and
+cryptography plugins. If you want to implement only one of them and use the builtin for the
+other one, you have to get or provide the shared object properly.
+*DDS_Security_SharedSecretHandle* is the integer representation of
+*DDS_Security_SharedSecretHandleImpl* struct object. Cryptography plugin gets the
+*DDS_Security_SharedSecretHandle* from authentication plugin and casts to
+*DDS_Security_SharedSecretHandleImpl* struct. Then all needed information can be retieved
+through *DDS_Security_SharedSecretHandleImpl* struct:
 
 ::
 
@@ -549,9 +709,9 @@ Inter Plugin Communication
 Error Codes
 ***********
 
-| Most of the plugin functions have parameter for reporting exception. The following exception
-  codes should be used in the reported exception data according to the situation.
-  dds_security_api_err.h header file contains the code and message constants.
+Most of the plugin functions have parameter for reporting exception. The following exception
+codes should be used in the reported exception data according to the situation.
+dds_security_api_err.h header file contains the code and message constants.
 
 +-------+----------------------------------------------------------------+
 | Code  |            Message                                             |
@@ -638,9 +798,11 @@ Error Codes
 +-------+----------------------------------------------------------------+
 | 149   | Could not find valid grant in permissions                      |
 +-------+----------------------------------------------------------------+
-| 150   | Permissions of subject (%s) outside validity date: %s - %s     |
+| 150   | Unsupported URI type: %s                                       |
 +-------+----------------------------------------------------------------+
-| 151   | Unsupported URI type: %s                                       |
+| 151   | The payload is not aligned at 4 bytes                          |
++-------+----------------------------------------------------------------+
+| 200   | Undefined Error Message                                        |
 +-------+----------------------------------------------------------------+
 
 .. EoF
