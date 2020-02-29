@@ -346,7 +346,7 @@ static struct ddsi_serdata *serdata_default_from_ser_iov_nokey (const struct dds
   return fix_serdata_default_nokey (d, tpcmn->serdata_basehash);
 }
 
-static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
+static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_sertopic *tpcmn, const ddsi_keyhash_t *keyhash)
 {
   /* FIXME: not quite sure this is correct, though a check against a specially hacked OpenSplice suggests it is */
   const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
@@ -374,7 +374,7 @@ static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_ser
   }
 }
 
-static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr_nokey (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
+static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr_nokey (const struct ddsi_sertopic *tpcmn, const ddsi_keyhash_t *keyhash)
 {
   const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
   struct ddsi_serdata_default *d = serdata_default_new(tp, SDK_KEY);
@@ -700,7 +700,7 @@ static size_t serdata_default_print_raw (const struct ddsi_sertopic *sertopic_co
   return (size_t) snprintf (buf, size, "(blob)");
 }
 
-static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_common, struct nn_keyhash *buf, bool force_md5)
+static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_common, struct ddsi_keyhash *buf, bool force_md5)
 {
   const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
   assert(buf);

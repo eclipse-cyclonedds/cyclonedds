@@ -98,6 +98,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_builtin_topic_if.h
     ddsi_rhc.h
     ddsi_guid.h
+    ddsi_keyhash.h
     ddsi_entity_index.h
     ddsi_deadline.h
     ddsi_deliver_locally.h

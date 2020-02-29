@@ -1874,7 +1874,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
           break;
       }
       keyhash_payload.p_endpoint_guid.parameterid = pid;
-      keyhash_payload.p_endpoint_guid.length = sizeof (nn_keyhash_t);
+      keyhash_payload.p_endpoint_guid.length = sizeof (ddsi_keyhash_t);
       memcpy (keyhash_payload.kh, &qos.keyhash, sizeof (qos.keyhash));
       keyhash_payload.p_sentinel.parameterid = PID_SENTINEL;
       keyhash_payload.p_sentinel.length = 0;

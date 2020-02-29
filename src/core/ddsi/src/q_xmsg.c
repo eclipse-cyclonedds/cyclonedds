@@ -952,7 +952,7 @@ void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serda
   if (serdata->kind != SDK_EMPTY)
   {
     char *p = nn_xmsg_addpar (m, PID_KEYHASH, 16);
-    ddsi_serdata_get_keyhash(serdata, (struct nn_keyhash*)p, force_md5);
+    ddsi_serdata_get_keyhash(serdata, (struct ddsi_keyhash*)p, force_md5);
   }
 }
 
