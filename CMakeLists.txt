@@ -173,19 +173,21 @@ endif()
 
 # Make it easy to enable Clang's/gcc's analyzers
 set(USE_SANITIZER "" CACHE STRING "Sanitizers to enable on the build.")
-foreach(san "${USE_SANITIZER}")
-  message(STATUS "Enabling sanitizer: '${san}'")
+if(NOT("${USE_SANITIZER}" STREQUAL ""))
+  foreach(san "${USE_SANITIZER}")
+    message(STATUS "Enabling sanitizer: '${san}'")
 
-  if("${san}" STREQUAL address)
-    add_compile_options(-fno-omit-frame-pointer)
-    link_libraries(-fno-omit-frame-pointer)
-  endif()
+    if("${san}" STREQUAL address)
+      add_compile_options(-fno-omit-frame-pointer)
+      link_libraries(-fno-omit-frame-pointer)
+    endif()
 
-  if(NOT("${san}" STREQUAL "none"))
-    add_compile_options("-fsanitize=${san}")
-    link_libraries("-fsanitize=${san}")
-  endif()
-endforeach()
+    if(NOT("${san}" STREQUAL "none"))
+      add_compile_options("-fsanitize=${san}")
+      link_libraries("-fsanitize=${san}")
+    endif()
+  endforeach()
+endif()
 
 
 include(GNUInstallDirs)
