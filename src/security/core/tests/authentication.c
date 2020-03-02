@@ -14,6 +14,7 @@
 
 #include "dds/dds.h"
 #include "CUnit/Test.h"
+#include "CUnit/Theory.h"
 
 #include "dds/version.h"
 #include "dds/ddsrt/cdtors.h"
@@ -44,8 +45,7 @@ static const char *config =
     "      <IdentityCertificate>${TEST_IDENTITY_CERTIFICATE}</IdentityCertificate>"
     "      <PrivateKey>${TEST_IDENTITY_PRIVATE_KEY}</PrivateKey>"
     "      <IdentityCA>${TEST_IDENTITY_CA_CERTIFICATE}</IdentityCA>"
-    "      <Password>testtext_Password_testtext</Password>"
-    "      <TrustedCADirectory>.</TrustedCADirectory>"
+    "      ${TRUSTED_CA_DIR:+<TrustedCADir>}${TRUSTED_CA_DIR}${TRUSTED_CA_DIR:+</TrustedCADir>}"
     "    </Authentication>"
     "    <AccessControl>"
     "      <Library finalizeFunction=\"finalize_access_control\" initFunction=\"init_access_control\"/>"
@@ -61,6 +61,7 @@ static const char *config =
 
 #define DDS_DOMAINID1 0
 #define DDS_DOMAINID2 1
+#define MAX_ADDITIONAL_CONF 255
 
 static dds_entity_t g_domain1 = 0;
 static dds_entity_t g_participant1 = 0;
@@ -68,7 +69,7 @@ static dds_entity_t g_participant1 = 0;
 static dds_entity_t g_domain2 = 0;
 static dds_entity_t g_participant2 = 0;
 
-static void authentication_init(void)
+static void authentication_init(bool different_ca, const char * trusted_ca_dir, bool exp_pp_fail)
 {
   struct kvp governance_vars[] = {
     { "ALLOW_UNAUTH_PP", "false" },
@@ -82,38 +83,74 @@ static void authentication_init(void)
     { "TEST_IDENTITY_CERTIFICATE", TEST_IDENTITY_CERTIFICATE },
     { "TEST_IDENTITY_PRIVATE_KEY", TEST_IDENTITY_PRIVATE_KEY },
     { "TEST_IDENTITY_CA_CERTIFICATE", TEST_IDENTITY_CA_CERTIFICATE },
+    { "TRUSTED_CA_DIR", trusted_ca_dir },
     { NULL, NULL }
   };
+
   struct kvp config_vars2[] = {
     { "GOVERNANCE_DATA", gov_config_signed },
     { "TEST_IDENTITY_CERTIFICATE", TEST_IDENTITY2_CERTIFICATE },
     { "TEST_IDENTITY_PRIVATE_KEY", TEST_IDENTITY2_PRIVATE_KEY },
     { "TEST_IDENTITY_CA_CERTIFICATE", TEST_IDENTITY_CA2_CERTIFICATE },
+    { "TRUSTED_CA_DIR", trusted_ca_dir },
     { NULL, NULL }
   };
 
   char *conf1 = ddsrt_expand_vars (config, &expand_lookup_vars_env, config_vars1);
   char *conf2 = ddsrt_expand_vars (config, &expand_lookup_vars_env, config_vars2);
   g_domain1 = dds_create_domain (DDS_DOMAINID1, conf1);
-  g_domain2 = dds_create_domain (DDS_DOMAINID2, conf2);
+  g_domain2 = dds_create_domain (DDS_DOMAINID2, different_ca ? conf2 : conf1);
   dds_free (conf1);
   dds_free (conf2);
   ddsrt_free (gov_config_signed);
 
-  CU_ASSERT_FATAL ((g_participant1 = dds_create_participant (DDS_DOMAINID1, NULL, NULL)) > 0);
-  CU_ASSERT_FATAL ((g_participant2 = dds_create_participant (DDS_DOMAINID2, NULL, NULL)) > 0);
+  g_participant1 = dds_create_participant (DDS_DOMAINID1, NULL, NULL);
+  g_participant2 = dds_create_participant (DDS_DOMAINID2, NULL, NULL);
+  if (exp_pp_fail)
+  {
+    CU_ASSERT_FATAL (g_participant1 <= 0);
+    CU_ASSERT_FATAL (g_participant2 <= 0);
+  }
+  else
+  {
+    CU_ASSERT_FATAL (g_participant1 > 0);
+    CU_ASSERT_FATAL (g_participant2 > 0);
+  }
 }
 
-static void authentication_fini(void)
+static void authentication_fini(bool delete_pp)
 {
-  CU_ASSERT_EQUAL_FATAL (dds_delete (g_participant1), DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL_FATAL (dds_delete (g_participant2), DDS_RETCODE_OK);
+  if (delete_pp)
+  {
+    CU_ASSERT_EQUAL_FATAL (dds_delete (g_participant1), DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL (dds_delete (g_participant2), DDS_RETCODE_OK);
+  }
   CU_ASSERT_EQUAL_FATAL (dds_delete (g_domain1), DDS_RETCODE_OK);
   CU_ASSERT_EQUAL_FATAL (dds_delete (g_domain2), DDS_RETCODE_OK);
 }
 
-CU_Test(ddssec_authentication, different_ca, .init = authentication_init, .fini = authentication_fini)
+CU_Test(ddssec_authentication, different_ca)
 {
+  authentication_init (true, NULL, false);
   validate_handshake (DDS_DOMAINID1, true, NULL, true, "error: unable to get local issuer certificate");
   validate_handshake (DDS_DOMAINID2, true, NULL, true, "error: unable to get local issuer certificate");
+  authentication_fini (true);
+}
+
+
+CU_TheoryDataPoints(ddssec_authentication, trusted_ca_dir) = {
+    CU_DataPoints(const char *, "",    ".",   "/nonexisting", NULL),
+    CU_DataPoints(bool,         false, false, true,           false)
+};
+
+CU_Theory((const char * ca_dir, bool exp_fail), ddssec_authentication, trusted_ca_dir)
+{
+  printf("Testing custom CA dir: %s\n", ca_dir);
+  authentication_init (false, ca_dir, exp_fail);
+  if (!exp_fail)
+  {
+    validate_handshake (DDS_DOMAINID1, false, NULL, false, NULL);
+    validate_handshake (DDS_DOMAINID2, false, NULL, false, NULL);
+  }
+  authentication_fini (!exp_fail);
 }

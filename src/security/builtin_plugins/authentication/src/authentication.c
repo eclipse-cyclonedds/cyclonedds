@@ -980,16 +980,12 @@ validate_local_identity(
 
     password = DDS_Security_Property_get_value(&participant_qos->property.value, PROPERTY_PASSWORD);
 
-
     trusted_ca_dir = DDS_Security_Property_get_value(&participant_qos->property.value, PROPERTY_TRUSTED_CA_DIR);
-
-    if( trusted_ca_dir ){
-        result = get_trusted_ca_list(trusted_ca_dir, &(implementation->trustedCAList), ex );
-        if (result != DDS_SECURITY_VALIDATION_OK) {
+    if (trusted_ca_dir && *trusted_ca_dir != '\0')
+    {
+        if ((result = get_trusted_ca_list (trusted_ca_dir, &(implementation->trustedCAList), ex)) != DDS_SECURITY_VALIDATION_OK)
             goto err_inv_trusted_ca_dir;
-        }
     }
-
 
     result = load_X509_certificate(identityCaPEM, &identityCA, ex);
     if (result != DDS_SECURITY_VALIDATION_OK) {
