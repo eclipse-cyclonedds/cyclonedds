@@ -252,11 +252,11 @@ static void test_fini(size_t n_sub_domain, size_t n_pub_domain)
 
 static void sync_writer_to_readers(dds_entity_t pub_participant, dds_entity_t writer, size_t n_exp_rd)
 {
-  size_t found = 0;
   dds_attach_t triggered;
   dds_return_t ret;
   dds_entity_t waitset_wr = dds_create_waitset (pub_participant);
   CU_ASSERT_FATAL (waitset_wr > 0);
+  dds_publication_matched_status_t pub_matched;
 
   /* Sync writer to reader. */
   ret = dds_waitset_attach (waitset_wr, writer, writer);
@@ -264,9 +264,11 @@ static void sync_writer_to_readers(dds_entity_t pub_participant, dds_entity_t wr
   while (true)
   {
     ret = dds_waitset_wait (waitset_wr, &triggered, 1, DDS_SECS(5));
-    CU_ASSERT_FATAL(ret >= 1);
+    CU_ASSERT_FATAL (ret >= 1);
     CU_ASSERT_EQUAL_FATAL (writer, (dds_entity_t)(intptr_t) triggered);
-    if ((found += (size_t)ret) >= n_exp_rd)
+    ret = dds_get_publication_matched_status(writer, &pub_matched);
+    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    if (pub_matched.total_count >= n_exp_rd)
       break;
   };
   dds_delete (waitset_wr);
