@@ -44,8 +44,6 @@ static const char *config =
     "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE"</IdentityCertificate>"
     "      <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY"</PrivateKey>"
     "      <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE"</IdentityCA>"
-    "      <Password>testtext_Password_testtext</Password>"
-    "      <TrustedCADirectory>.</TrustedCADirectory>"
     "    </Authentication>"
     "    <AccessControl>"
     "      <Library finalizeFunction=\"finalize_access_control\" initFunction=\"init_access_control\"/>"

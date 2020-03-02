@@ -87,14 +87,14 @@ char * ddsrt_file_normalize(const char *filepath)
     char *normPtr;
 
     norm = NULL;
-    if ((filepath != NULL) && (*filepath != '\0')) {
-        norm = ddsrt_malloc(strlen(filepath) + 1);
+    if (filepath != NULL) {
+        norm = ddsrt_malloc (strlen (filepath) + 1);
         /* replace any / or \ by DDSRT_FILESEPCHAR */
         fpPtr = (char *) filepath;
         normPtr = norm;
         while (*fpPtr != '\0') {
             *normPtr = *fpPtr;
-            if ((*fpPtr == '/') || (*fpPtr == '\\')) {
+            if (*fpPtr == '/' || *fpPtr == '\\') {
                 *normPtr = DDSRT_FILESEPCHAR;
                 normPtr++;
             } else {
@@ -106,7 +106,6 @@ char * ddsrt_file_normalize(const char *filepath)
         }
         *normPtr = '\0';
     }
-
     return norm;
 }
 
