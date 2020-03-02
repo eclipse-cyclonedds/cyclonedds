@@ -145,9 +145,9 @@ static bool handle_begin_handshake_request(dds_domainid_t domain_id, DDS_Securit
   if ((msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REQUEST, lid, rid, 0, TIMEOUT)))
   {
     add_handshake(msg->hsHandle, 1, msg->lidHandle, msg->ridHandle, msg->result);
-    if (msg->result == DDS_SECURITY_VALIDATION_OK)
+    if (msg->result != DDS_SECURITY_VALIDATION_FAILED)
       result = handle_process_message(domain_id, msg->hsHandle);
-    else if (msg->result == DDS_SECURITY_VALIDATION_FAILED && err_msg)
+    else if (err_msg)
       *err_msg = ddsrt_strdup (msg->err_msg);
     test_authentication_plugin_release_msg(msg);
   }
@@ -162,9 +162,9 @@ static bool handle_begin_handshake_reply(dds_domainid_t domain_id, DDS_Security_
   if ((msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REPLY, lid, rid, 0, TIMEOUT)))
   {
     add_handshake(msg->hsHandle, 0, msg->lidHandle, msg->ridHandle, msg->result);
-    if (msg->result == DDS_SECURITY_VALIDATION_OK)
+    if (msg->result != DDS_SECURITY_VALIDATION_FAILED)
       result = handle_process_message(domain_id, msg->hsHandle);
-    else if (msg->result == DDS_SECURITY_VALIDATION_FAILED && err_msg)
+    else if (err_msg)
       *err_msg = ddsrt_strdup (msg->err_msg);
     test_authentication_plugin_release_msg(msg);
   }
