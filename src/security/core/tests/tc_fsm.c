@@ -29,11 +29,21 @@
 #define DB_TC_PRINT_DEBUG  (true)
 
 static dds_entity_t g_participant = 0;
+static ddsrt_mutex_t g_lock;
 static struct dds_security_fsm_control *g_fsm_control = NULL;
 static const dds_duration_t msec100 = DDS_MSECS(100);
 
 //static int fsm_arg = FSM_AUTH_ARG;
 
+#define DO_SIMPLE(name, var, bit) static void name(struct dds_security_fsm *fsm, void *arg) { \
+  DDSRT_UNUSED_ARG(fsm); \
+  DDSRT_UNUSED_ARG(arg); \
+  if (DB_TC_PRINT_DEBUG) \
+    printf("Transition %s\n", __FUNCTION__); \
+  ddsrt_mutex_lock(&g_lock); \
+  visited_##var |= 1u << (bit); \
+  ddsrt_mutex_unlock(&g_lock); \
+}
 
 
 /**********************************************************************
@@ -136,6 +146,7 @@ static void a(struct dds_security_fsm *fsm, void *arg)
     printf("[%p] Transition %s\n", fsm, __FUNCTION__);
   }
 
+  ddsrt_mutex_lock (&g_lock);
   if (arg != NULL) {
     fsm_arg = (int *) arg;
 
@@ -151,71 +162,17 @@ static void a(struct dds_security_fsm *fsm, void *arg)
   } else {
     correct_fsm = 0;
   }
-  visited_auth |= 1UL << 0;
+  visited_auth |= 1u << 0;
+  ddsrt_mutex_unlock (&g_lock);
 }
 
-static void b(struct dds_security_fsm *fsm, void *arg)
-{
-  DDSRT_UNUSED_ARG(fsm);
-  DDSRT_UNUSED_ARG(arg);
-  if (DB_TC_PRINT_DEBUG)
-    printf("[%p] Transition %s\n", fsm, __FUNCTION__);
-  visited_auth |= 1UL << 1;
-}
-
-static void c(struct dds_security_fsm *fsm, void *arg)
-{
-  DDSRT_UNUSED_ARG(fsm);
-  DDSRT_UNUSED_ARG(arg);
-  if (DB_TC_PRINT_DEBUG)
-    printf("[%p] Transition %s\n", fsm, __FUNCTION__);
-  visited_auth |= 1UL << 2;
-}
-
-static void d(struct dds_security_fsm *fsm, void *arg)
-{
-  DDSRT_UNUSED_ARG(fsm);
-  DDSRT_UNUSED_ARG(arg);
-  if (DB_TC_PRINT_DEBUG)
-    printf("[%p] Transition %s\n", fsm, __FUNCTION__);
-  visited_auth |= 1UL << 3;
-}
-
-static void e(struct dds_security_fsm *fsm, void *arg)
-{
-  DDSRT_UNUSED_ARG(fsm);
-  DDSRT_UNUSED_ARG(arg);
-  if (DB_TC_PRINT_DEBUG)
-    printf("[%p] Transition %s\n", fsm, __FUNCTION__);
-  visited_auth |= 1UL << 4;
-}
-
-static void f(struct dds_security_fsm *fsm, void *arg)
-{
-  DDSRT_UNUSED_ARG(fsm);
-  DDSRT_UNUSED_ARG(arg);
-  if (DB_TC_PRINT_DEBUG)
-    printf("[%p] Transition %s\n", fsm, __FUNCTION__);
-  visited_auth |= 1UL << 5;
-}
-
-static void g(struct dds_security_fsm *fsm, void *arg)
-{
-  DDSRT_UNUSED_ARG(fsm);
-  DDSRT_UNUSED_ARG(arg);
-  if (DB_TC_PRINT_DEBUG)
-    printf("[%p] Transition %s\n", fsm, __FUNCTION__);
-  visited_auth |= 1UL << 6;
-}
-
-static void h(struct dds_security_fsm *fsm, void *arg)
-{
-  DDSRT_UNUSED_ARG(fsm);
-  DDSRT_UNUSED_ARG(arg);
-  if (DB_TC_PRINT_DEBUG)
-    printf("[%p] Transition %s\n", fsm, __FUNCTION__);
-  visited_auth |= 1UL << 7;
-}
+DO_SIMPLE(b, auth, 1)
+DO_SIMPLE(c, auth, 2)
+DO_SIMPLE(d, auth, 3)
+DO_SIMPLE(e, auth, 4)
+DO_SIMPLE(f, auth, 5)
+DO_SIMPLE(g, auth, 6)
+DO_SIMPLE(h, auth, 7)
 
 #define SHM_MSG_RECEIVED (PluginReturn_MAX + 1)
 
@@ -279,33 +236,9 @@ static uint32_t visited_test = 0;
 static int do_stuff_counter = 0;
 static int do_other_stuff_counter = 0;
 
-/* The functions called from the state-machine. */
-static void doStart(struct dds_security_fsm *fsm, void *arg)
-{
-  DDSRT_UNUSED_ARG(fsm);
-  DDSRT_UNUSED_ARG(arg);
-  if (DB_TC_PRINT_DEBUG)
-    printf("Transition %s\n", __FUNCTION__);
-  visited_test |= 1UL << 0;
-}
-
-static void doRestart(struct dds_security_fsm *fsm, void *arg)
-{
-  DDSRT_UNUSED_ARG(fsm);
-  DDSRT_UNUSED_ARG(arg);
-  if (DB_TC_PRINT_DEBUG)
-    printf("Transition %s\n", __FUNCTION__);
-  visited_test |= 1UL << 1;
-}
-
-static void doEventStuff(struct dds_security_fsm *fsm, void *arg)
-{
-  DDSRT_UNUSED_ARG(fsm);
-  DDSRT_UNUSED_ARG(arg);
-  if (DB_TC_PRINT_DEBUG)
-    printf("Transition %s\n", __FUNCTION__);
-  visited_test |= 1UL << 4;
-}
+DO_SIMPLE(doStart, test, 0)
+DO_SIMPLE(doRestart, test, 1)
+DO_SIMPLE(doEventStuff, test, 4)
 
 static void doStuff(struct dds_security_fsm *fsm, void *arg)
 {
@@ -315,7 +248,9 @@ static void doStuff(struct dds_security_fsm *fsm, void *arg)
   if (DB_TC_PRINT_DEBUG) {
     printf("Transition %s - %d\n", __FUNCTION__, do_stuff_counter);
   }
-  visited_test |= 1UL << 2;
+  ddsrt_mutex_lock (&g_lock);
+  visited_test |= 1u << 2;
+  ddsrt_mutex_unlock (&g_lock);
 
   if (do_stuff_counter < 2) {
     dds_security_fsm_dispatch(fsm, eventZ, false);
@@ -333,7 +268,10 @@ static void doOtherStuff(struct dds_security_fsm *fsm, void *arg)
   if (DB_TC_PRINT_DEBUG) {
     printf("Transition %s - %d\n", __FUNCTION__, do_other_stuff_counter);
   }
-  visited_test |= 1UL << 3;
+  ddsrt_mutex_lock (&g_lock);
+  visited_test |= 1u << 3;
+  ddsrt_mutex_unlock (&g_lock);
+
   if (do_other_stuff_counter == 0) {
     dds_security_fsm_dispatch(fsm, DDS_SECURITY_FSM_EVENT_AUTO, false);
   }
@@ -382,17 +320,8 @@ static uint32_t correct_fsm_timeout = 0;
 static uint32_t correct_arg_timeout = 0;
 static struct fsm_timeout_arg fsm_arg = { .id = FSM_AUTH_ARG };
 
-
-/* The functions called from the state-machine. */
-static void doInterupt(struct dds_security_fsm *fsm, void *arg)
-{
-  DDSRT_UNUSED_ARG(fsm);
-  DDSRT_UNUSED_ARG(arg);
-  if (DB_TC_PRINT_DEBUG) {
-    printf("Transition %s\n", __FUNCTION__);
-  }
-  visited_timeout |= 1UL << 0;
-}
+DO_SIMPLE(doInterrupt, timeout, 0)
+DO_SIMPLE(TimeoutCallback2, timeout, 3)
 
 static void doTimeout(struct dds_security_fsm *fsm, void *arg)
 {
@@ -401,7 +330,9 @@ static void doTimeout(struct dds_security_fsm *fsm, void *arg)
   if (DB_TC_PRINT_DEBUG) {
     printf("Transition >>>> %s\n", __FUNCTION__);
   }
-  visited_timeout |= 1UL << 1;
+  ddsrt_mutex_lock (&g_lock);
+  visited_timeout |= 1u << 1;
+  ddsrt_mutex_unlock (&g_lock);
 
   if (DB_TC_PRINT_DEBUG) {
     printf("Transition <<<< %s\n", __FUNCTION__);
@@ -418,7 +349,8 @@ static void TimeoutCallback(struct dds_security_fsm *fsm, void *arg)
     printf("TimeoutCallback\n");
   }
 
-  visited_timeout |= 1UL << 2;
+  ddsrt_mutex_lock (&g_lock);
+  visited_timeout |= 1u << 2;
 
   if (farg != NULL) {
     if (farg->id == FSM_AUTH_ARG) {
@@ -432,21 +364,12 @@ static void TimeoutCallback(struct dds_security_fsm *fsm, void *arg)
   } else {
     correct_fsm_timeout = 0;
   }
-}
-
-static void TimeoutCallback2(struct dds_security_fsm *fsm, void *arg)
-{
-  DDSRT_UNUSED_ARG(fsm);
-  DDSRT_UNUSED_ARG(arg);
-  if (DB_TC_PRINT_DEBUG) {
-    printf("TimeoutCallback2\n");
-  }
-  visited_timeout |= 1UL << 3;
+  ddsrt_mutex_unlock (&g_lock);
 }
 
 static dds_security_fsm_state StateInitial     = {doTimeout,  0};
 static dds_security_fsm_state StateWaitTimeout = {NULL, DDS_SECS(4)};
-static dds_security_fsm_state StateInterupt    = {doInterupt, 0};
+static dds_security_fsm_state StateInterupt    = {doInterrupt, 0};
 
 
 static const dds_security_fsm_transition TimeoutTransitions[] = {
@@ -515,9 +438,6 @@ static dds_security_fsm_transition ParallelTimeoutTransitions_3[] = {
 };
 static const uint32_t ParallelTimeoutTransitionsSize_3 = sizeof(ParallelTimeoutTransitions_3) / sizeof(ParallelTimeoutTransitions_3[0]);
 
-
-
-
 static void fsm_control_init(void)
 {
   dds_return_t rc;
@@ -525,6 +445,8 @@ static void fsm_control_init(void)
 
   g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_FATAL(g_participant > 0);
+
+  ddsrt_mutex_init (&g_lock);
 
   rc = dds_entity_pin(g_participant, &e);
   CU_ASSERT_FATAL(rc == 0);
@@ -542,6 +464,7 @@ static void fsm_control_fini(void)
 {
   dds_security_fsm_control_stop(g_fsm_control);
   dds_security_fsm_control_free(g_fsm_control);
+  ddsrt_mutex_destroy (&g_lock);
 
   dds_delete(g_participant);
 }
@@ -582,10 +505,9 @@ CU_Test(ddssec_fsm, create, .init = fsm_control_init, .fini = fsm_control_fini)
   }
   CU_ASSERT(timeout > 0);
 
-  CU_ASSERT(
-          CHECK_BIT(visited_auth, 0) && CHECK_BIT(visited_auth, 1) && CHECK_BIT(visited_auth, 2) &&
-          CHECK_BIT(visited_auth, 3) && CHECK_BIT(visited_auth, 4) && CHECK_BIT(visited_auth, 5) &&
-          CHECK_BIT(visited_auth, 6) && CHECK_BIT(visited_auth, 7));
+  ddsrt_mutex_lock (&g_lock);
+  CU_ASSERT(visited_auth == 0xff);
+  ddsrt_mutex_unlock (&g_lock);
 
   /*
    * "Check correct callback parameter passing (from fsm to user defined methods) ");
@@ -594,7 +516,9 @@ CU_Test(ddssec_fsm, create, .init = fsm_control_init, .fini = fsm_control_fini)
   dds_security_fsm_free(fsm_auth);
 
   /* Check whether timeout callback has NOT been invoked */
+  ddsrt_mutex_lock (&g_lock);
   CU_ASSERT(visited_timeout == 0);
+  ddsrt_mutex_unlock (&g_lock);
 }
 
 /*
@@ -638,10 +562,9 @@ CU_Test(ddssec_fsm, multiple, .init = fsm_control_init, .fini = fsm_control_fini
   CU_ASSERT_FATAL(timeout > 0);
 
   // not all bits are set since we're running the state machine a second time
-  CU_ASSERT_FATAL(
-          CHECK_BIT(visited_auth, 0) && !CHECK_BIT(visited_auth, 1) && CHECK_BIT(visited_auth, 2) &&
-          !CHECK_BIT(visited_auth, 3) && CHECK_BIT(visited_auth, 4) && !CHECK_BIT(visited_auth, 5) &&
-          CHECK_BIT(visited_auth, 6) && !CHECK_BIT(visited_auth, 7));
+  ddsrt_mutex_lock (&g_lock);
+  CU_ASSERT_FATAL(visited_auth == 0x55);
+  ddsrt_mutex_unlock (&g_lock);
 
   /* Wait for the last state to occur */
   timeout = 100; /* 10 sec */
@@ -651,9 +574,9 @@ CU_Test(ddssec_fsm, multiple, .init = fsm_control_init, .fini = fsm_control_fini
   }
   CU_ASSERT_FATAL(timeout > 0);
 
-  CU_ASSERT(
-          CHECK_BIT(visited_test, 0) && CHECK_BIT(visited_test, 1) && CHECK_BIT(visited_test, 2) &&
-          CHECK_BIT(visited_test, 3));
+  ddsrt_mutex_lock (&g_lock);
+  CU_ASSERT(visited_test == 0x1f);
+  ddsrt_mutex_unlock (&g_lock);
 
   dds_security_fsm_free(fsm_auth);
   dds_security_fsm_free(fsm_test);
@@ -668,6 +591,8 @@ CU_Test(ddssec_fsm, timeout, .init = fsm_control_init, .fini = fsm_control_fini)
   dds_time_t delay1 = DDS_SECS(1);
   int timeout;
 
+  visited_timeout = 0;
+
   /*
    * Test timeout monitoring of state machines
    */
@@ -681,13 +606,17 @@ CU_Test(ddssec_fsm, timeout, .init = fsm_control_init, .fini = fsm_control_fini)
 
   // Wait for the last state to occur
   timeout = 100; /* 10 sec */
-  while ((dds_security_fsm_current_state(fsm_timeout) != &StateInterupt) && (timeout > 0)) {
+  ddsrt_mutex_lock (&g_lock);
+  while (visited_timeout != 0x7 && (timeout > 0)) {
+    ddsrt_mutex_unlock (&g_lock);
     dds_sleepfor(100 * DDS_NSECS_IN_MSEC);
     timeout--;
+    ddsrt_mutex_lock (&g_lock);
   }
   CU_ASSERT(timeout > 0);
-  CU_ASSERT(CHECK_BIT(visited_timeout, 0) && CHECK_BIT(visited_timeout, 1) && CHECK_BIT(visited_timeout, 2));
+  CU_ASSERT(visited_timeout == 0x7);
   CU_ASSERT(correct_arg_timeout && correct_fsm_timeout);
+  ddsrt_mutex_unlock (&g_lock);
 
   dds_security_fsm_free(fsm_timeout);
 }
@@ -713,18 +642,15 @@ CU_Test(ddssec_fsm, double_timeout, .init = fsm_control_init, .fini = fsm_contro
   dds_security_fsm_start(fsm_timeout);
   dds_security_fsm_start(fsm_timeout2);
   timeout = 100; /* 10 sec */
-  while ((CHECK_BIT(visited_timeout, 2) == 0) && (timeout > 0)) {
+  ddsrt_mutex_lock (&g_lock);
+  while (visited_timeout != 0xf && (timeout > 0)) {
+    ddsrt_mutex_unlock (&g_lock);
     dds_sleepfor(100 * DDS_NSECS_IN_MSEC);
     timeout--;
+    ddsrt_mutex_lock (&g_lock);
   }
-  CU_ASSERT(CHECK_BIT(visited_timeout, 2));
-//  dds_security_fsm_cleanup(fsm_timeout);
-  timeout = 100; /* 10 sec */
-  while ((CHECK_BIT(visited_timeout, 3) == 0) && (timeout > 0)) {
-    dds_sleepfor(100 * DDS_NSECS_IN_MSEC);
-    timeout--;
-  }
-  CU_ASSERT(CHECK_BIT(visited_timeout, 3));
+  CU_ASSERT(visited_timeout == 0xf);
+  ddsrt_mutex_unlock (&g_lock);
   dds_security_fsm_free(fsm_timeout);
   dds_security_fsm_free(fsm_timeout2);
 }
@@ -817,10 +743,14 @@ CU_Test(ddssec_fsm, delete_with_timeout, .init = fsm_control_init, .fini = fsm_c
 
   /* Wait until we're in the timeout function. */
   timeout = 100; /* 10 sec */
+  ddsrt_mutex_lock (&g_lock);
   while ((visited_timeout == 0) && (timeout > 0)) {
+    ddsrt_mutex_unlock (&g_lock);
     dds_sleepfor(100 * DDS_NSECS_IN_MSEC);
     timeout--;
+    ddsrt_mutex_lock (&g_lock);
   }
+  ddsrt_mutex_unlock (&g_lock);
 
   dds_security_fsm_free(fsm_timeout);
 }
