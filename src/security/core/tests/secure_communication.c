@@ -69,7 +69,7 @@ static const char *config =
     "      <Permissions>file:" COMMON_ETC_PATH("default_permissions.p7s") "</Permissions>"
     "    </AccessControl>"
     "    <Cryptographic>"
-    "      <Library finalizeFunction=\"${CRYPTO_FINI}\" initFunction=\"${CRYPTO_INIT}\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
+    "      <Library finalizeFunction=\"finalize_test_cryptography_wrapped\" initFunction=\"init_test_cryptography_wrapped\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
     "    </Cryptographic>"
     "  </DDSSecurity>"
     "</Domain>";
@@ -200,12 +200,12 @@ static void test_init(const struct domain_sec_config * domain_config, size_t n_s
   assert (n_pub_participants < MAX_PARTICIPANTS);
 
   struct kvp governance_vars[] = {
-    { "DISCOVERY_PROTECTION_KIND", pk_to_str (domain_config->discovery_pk) },
-    { "LIVELINESS_PROTECTION_KIND", pk_to_str (domain_config->liveliness_pk) },
-    { "RTPS_PROTECTION_KIND", pk_to_str (domain_config->rtps_pk) },
-    { "METADATA_PROTECTION_KIND", pk_to_str (domain_config->metadata_pk) },
-    { "DATA_PROTECTION_KIND", bpk_to_str (domain_config->payload_pk) },
-    { NULL, NULL }
+    { "DISCOVERY_PROTECTION_KIND", pk_to_str (domain_config->discovery_pk), 1 },
+    { "LIVELINESS_PROTECTION_KIND", pk_to_str (domain_config->liveliness_pk), 1 },
+    { "RTPS_PROTECTION_KIND", pk_to_str (domain_config->rtps_pk), 1 },
+    { "METADATA_PROTECTION_KIND", pk_to_str (domain_config->metadata_pk), 1 },
+    { "DATA_PROTECTION_KIND", bpk_to_str (domain_config->payload_pk), 1 },
+    { NULL, NULL, 0 }
   };
 
   printf("Governance configuration: ");
@@ -215,10 +215,8 @@ static void test_init(const struct domain_sec_config * domain_config, size_t n_s
   char * gov_config_signed = get_governance_config (governance_vars);
 
   struct kvp config_vars[] = {
-    { "GOVERNANCE_DATA", gov_config_signed },
-    { "CRYPTO_INIT", "init_test_cryptography_wrapped" },
-    { "CRYPTO_FINI", "finalize_test_cryptography_wrapped" },
-    { NULL, NULL }
+    { "GOVERNANCE_DATA", gov_config_signed, 1 },
+    { NULL, NULL, 0 }
   };
 
   char *conf_pub = ddsrt_expand_vars (config, &expand_lookup_vars_env, config_vars);
@@ -454,7 +452,7 @@ CU_TheoryDataPoints(ddssec_secure_communication, multiple_readers) = {
     CU_DataPoints(size_t, 1, 3, 1, 3), /* number of participants per domain */
     CU_DataPoints(size_t, 3, 1, 3, 3), /* number of readers per participant */
 };
-CU_Theory((size_t n_dom, size_t n_pp, size_t n_rd), ddssec_secure_communication, multiple_readers, .timeout = 60)
+CU_Theory((size_t n_dom, size_t n_pp, size_t n_rd), ddssec_secure_communication, multiple_readers, .timeout = 60, .disabled = true)
 {
   DDS_Security_ProtectionKind metadata_pk[] = { PK_N, PK_SOA, PK_EOA };
   DDS_Security_BasicProtectionKind payload_pk[] = { BPK_N, BPK_S, BPK_E };
@@ -473,7 +471,7 @@ CU_TheoryDataPoints(ddssec_secure_communication, multiple_readers_writers) = {
     CU_DataPoints(size_t, 1, 1, 2), /* number of writer domains */
     CU_DataPoints(size_t, 1, 3, 3), /* number of writers per domain */
 };
-CU_Theory((size_t n_rd_dom, size_t n_rd, size_t n_wr_dom, size_t n_wr), ddssec_secure_communication, multiple_readers_writers, .timeout = 60)
+CU_Theory((size_t n_rd_dom, size_t n_rd, size_t n_wr_dom, size_t n_wr), ddssec_secure_communication, multiple_readers_writers, .timeout = 60, .disabled = true)
 {
   DDS_Security_ProtectionKind metadata_pk[] = { PK_SOA, PK_EOA };
   for (size_t metadata = 0; metadata < sizeof (metadata_pk) / sizeof (metadata_pk[0]); metadata++)

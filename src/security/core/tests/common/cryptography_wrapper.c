@@ -11,6 +11,7 @@
  */
 #include <string.h>
 #include <stdio.h>
+#include "CUnit/Test.h"
 #include "dds/dds.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
@@ -74,15 +75,15 @@ void set_protection_kinds(
   impl->payload_protection_kind = payload_protection_kind;
 }
 
-static unsigned char * find_buffer_match(unsigned char *input, size_t input_len, unsigned char *match, size_t match_len)
+static unsigned char * find_buffer_match(const unsigned char *input, size_t input_len, const unsigned char *match, size_t match_len)
 {
   if (match_len <= input_len && match_len > 0 && input_len > 0)
   {
-    unsigned char *match_end = match + match_len;
-    unsigned char *i = input;
+    const unsigned char *match_end = match + match_len;
+    unsigned char *i = (unsigned char *) input;
     while (i <= input + input_len - match_len)
     {
-      unsigned char *m = match, *j = i;
+      unsigned char *m = (unsigned char *) match, *j = i;
       while (*m == *j && j < input + input_len)
       {
         j++;
@@ -113,7 +114,7 @@ static DDS_Security_long_long check_handle(DDS_Security_long_long handle)
 {
   /* Assume that handle, which actually is a pointer, has a value that is likely to be
      a valid memory address and not a value returned by the mock implementation. */
-  assert (handle == 0 || handle > 4096);
+  CU_ASSERT_FATAL (handle == 0 || handle > 4096);
   return handle;
 }
 

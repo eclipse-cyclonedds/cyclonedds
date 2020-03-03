@@ -46,7 +46,8 @@ struct dds_security_authentication_impl
 };
 
 static struct dds_security_authentication_impl **auth_impl;
-static size_t auth_impl_count = 0;
+static size_t auth_impl_idx = 0;
+static size_t auth_impl_use = 0;
 
 static const char *test_identity_certificate = TEST_IDENTITY_CERTIFICATE_DUMMY;
 static const char *test_private_key          = TEST_IDENTITY_PRIVATE_KEY_DUMMY;
@@ -436,11 +437,10 @@ static DDS_Security_boolean test_return_sharedsecret_handle(
 
 static struct dds_security_authentication_impl * get_impl_for_domain(dds_domainid_t domain_id)
 {
-  for (size_t i = 0; i < auth_impl_count; i++)
+  for (size_t i = 0; i < auth_impl_idx; i++)
   {
-    if (auth_impl[i]->gv->config.domainId == domain_id)
+    if (auth_impl[i] && auth_impl[i]->gv->config.domainId == domain_id)
     {
-      assert(auth_impl[i]);
       return auth_impl[i];
     }
   }
@@ -531,6 +531,10 @@ int32_t finalize_test_authentication_init_error(void *context)
   return 0;
 }
 
+/**
+ * Init and fini functions for using wrapped mode for the authentication plugin.
+ * These functions assumes that there are no concurrent calls, as the static
+ * variables used here are not protected by a lock. */
 int32_t init_test_authentication_wrapped(const char *argument, void **context)
 {
   int32_t ret;
@@ -544,10 +548,10 @@ int32_t init_test_authentication_wrapped(const char *argument, void **context)
 
   ret = init_authentication(argument, (void **)&impl->instance);
 
-  auth_impl_count++;
-  auth_impl = ddsrt_realloc(auth_impl, auth_impl_count * sizeof(*auth_impl));
-  auth_impl[auth_impl_count - 1] = impl;
-
+  auth_impl_idx++;
+  auth_impl = ddsrt_realloc(auth_impl, auth_impl_idx * sizeof(*auth_impl));
+  auth_impl[auth_impl_idx - 1] = impl;
+  auth_impl_use++;
   *context = impl;
   return ret;
 }
@@ -559,8 +563,23 @@ int32_t finalize_test_authentication_wrapped(void *context)
   assert(impl->mode == PLUGIN_MODE_WRAPPED);
   deinit_message_queue(&impl->msg_queue);
   ret = finalize_authentication(impl->instance);
+
+  size_t idx;
+  for (idx = 0; idx < auth_impl_idx; idx++)
+    if (auth_impl[idx] == impl)
+      break;
+  assert (idx < auth_impl_idx);
+  auth_impl[idx] = NULL;
+
   ddsrt_free(context);
-  auth_impl_count--;
+
+  if (--auth_impl_use == 0)
+  {
+    ddsrt_free (auth_impl);
+    auth_impl = NULL;
+    auth_impl_idx = 0;
+  }
+
   return ret;
 }
 

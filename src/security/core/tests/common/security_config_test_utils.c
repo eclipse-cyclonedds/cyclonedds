@@ -61,11 +61,14 @@ static const char *governance_xml =
 
 const char * expand_lookup_vars(const char *name, void * data)
 {
-  const struct kvp *vars = (struct kvp *)data;
+  struct kvp *vars = (struct kvp *)data;
   for (uint32_t i = 0; vars[i].key != NULL; i++)
   {
     if (!strcmp(vars[i].key, name))
+    {
+      vars[i].count--;
       return vars[i].value;
+    }
   }
   return NULL;
 }
@@ -76,6 +79,21 @@ const char * expand_lookup_vars_env(const char *name, void * data)
   if ((env = expand_lookup_vars (name, data)))
     return env;
   return ((ddsrt_getenv(name, &env)) == DDS_RETCODE_OK) ? env : NULL;
+}
+
+int32_t expand_lookup_unmatched (const struct kvp * lookup_table)
+{
+  int32_t unmatched = 0;
+  for (uint32_t i = 0; lookup_table[i].key != NULL; i++)
+  {
+    int32_t c = lookup_table[i].count;
+    if (c > 0 && unmatched >= INT32_MAX - c)
+      return INT32_MAX;
+    if (c < 0 && unmatched <= INT32_MIN - c)
+      return INT32_MIN;
+    unmatched += c;
+  }
+  return unmatched;
 }
 
 static char * smime_sign(char * ca_cert_path, char * ca_priv_key_path, const char * data)

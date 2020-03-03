@@ -38,7 +38,7 @@ static const char *config =
     "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}"
     "<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
     "<Domain id=\"any\">"
-    "  <Tracing><Verbosity>finest</></>"
+    "  <Tracing><Verbosity>config</></>"
     "  <DDSSecurity>"
     "    <Authentication>"
     "      <Library finalizeFunction=\"finalize_test_authentication_wrapped\" initFunction=\"init_test_authentication_wrapped\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
@@ -71,38 +71,30 @@ static dds_entity_t g_participant2 = 0;
 
 static void authentication_init(bool different_ca, const char * trusted_ca_dir, bool exp_pp_fail)
 {
-  struct kvp governance_vars[] = {
-    { "ALLOW_UNAUTH_PP", "false" },
-    { "ENABLE_JOIN_AC", "true" },
-    { NULL, NULL }
-  };
-  char * gov_config_signed = get_governance_config (governance_vars);
-
   struct kvp config_vars1[] = {
-    { "GOVERNANCE_DATA", gov_config_signed },
-    { "TEST_IDENTITY_CERTIFICATE", TEST_IDENTITY_CERTIFICATE },
-    { "TEST_IDENTITY_PRIVATE_KEY", TEST_IDENTITY_PRIVATE_KEY },
-    { "TEST_IDENTITY_CA_CERTIFICATE", TEST_IDENTITY_CA_CERTIFICATE },
-    { "TRUSTED_CA_DIR", trusted_ca_dir },
-    { NULL, NULL }
+    { "TEST_IDENTITY_CERTIFICATE", TEST_IDENTITY_CERTIFICATE, 1 },
+    { "TEST_IDENTITY_PRIVATE_KEY", TEST_IDENTITY_PRIVATE_KEY, 1 },
+    { "TEST_IDENTITY_CA_CERTIFICATE", TEST_IDENTITY_CA_CERTIFICATE, 1 },
+    { "TRUSTED_CA_DIR", trusted_ca_dir, 3 },
+    { NULL, NULL, 0 }
   };
 
   struct kvp config_vars2[] = {
-    { "GOVERNANCE_DATA", gov_config_signed },
-    { "TEST_IDENTITY_CERTIFICATE", TEST_IDENTITY2_CERTIFICATE },
-    { "TEST_IDENTITY_PRIVATE_KEY", TEST_IDENTITY2_PRIVATE_KEY },
-    { "TEST_IDENTITY_CA_CERTIFICATE", TEST_IDENTITY_CA2_CERTIFICATE },
-    { "TRUSTED_CA_DIR", trusted_ca_dir },
-    { NULL, NULL }
+    { "TEST_IDENTITY_CERTIFICATE", TEST_IDENTITY2_CERTIFICATE, 1 },
+    { "TEST_IDENTITY_PRIVATE_KEY", TEST_IDENTITY2_PRIVATE_KEY, 1 },
+    { "TEST_IDENTITY_CA_CERTIFICATE", TEST_IDENTITY_CA2_CERTIFICATE, 1 },
+    { "TRUSTED_CA_DIR", trusted_ca_dir, 3 },
+    { NULL, NULL, 0 }
   };
 
   char *conf1 = ddsrt_expand_vars (config, &expand_lookup_vars_env, config_vars1);
   char *conf2 = ddsrt_expand_vars (config, &expand_lookup_vars_env, config_vars2);
+  CU_ASSERT_EQUAL_FATAL (expand_lookup_unmatched (config_vars1), 0);
+  CU_ASSERT_EQUAL_FATAL (expand_lookup_unmatched (config_vars2), 0);
   g_domain1 = dds_create_domain (DDS_DOMAINID1, conf1);
   g_domain2 = dds_create_domain (DDS_DOMAINID2, different_ca ? conf2 : conf1);
   dds_free (conf1);
   dds_free (conf2);
-  ddsrt_free (gov_config_signed);
 
   g_participant1 = dds_create_participant (DDS_DOMAINID1, NULL, NULL);
   g_participant2 = dds_create_participant (DDS_DOMAINID2, NULL, NULL);

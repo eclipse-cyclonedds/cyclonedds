@@ -18,10 +18,12 @@
 struct kvp {
   const char *key;
   const char *value;
+  int32_t count;
 };
 
 const char * expand_lookup_vars (const char *name, void * data);
 const char * expand_lookup_vars_env (const char *name, void * data);
+int32_t expand_lookup_unmatched (const struct kvp * lookup_table);
 
 char * get_governance_config (struct kvp *config_vars);
 
