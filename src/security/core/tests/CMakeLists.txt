@@ -46,6 +46,9 @@ function(add_wrapper libname linklibs)
     set_target_properties("dds_security_${libname}_wrapper" PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
   endif()
 
+  target_link_libraries("dds_security_${libname}_wrapper" PRIVATE CUnit)
+  target_include_directories("dds_security_${libname}_wrapper" PRIVATE "${CUNIT_DIR}/include")
+
   target_link_libraries("dds_security_${libname}_wrapper" PUBLIC ddsc ${linklibs})
   target_sources("dds_security_${libname}_wrapper" PRIVATE ${srcs_wrapper})
   target_include_directories("dds_security_${libname}_wrapper"
@@ -87,7 +90,7 @@ endif()
 
 target_include_directories(
   cunit_security_core PRIVATE
-  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
+        "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>"
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsc,INTERFACE_INCLUDE_DIRECTORIES>>"
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_core,INTERFACE_INCLUDE_DIRECTORIES>>"
