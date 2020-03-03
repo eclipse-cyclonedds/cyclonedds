@@ -448,6 +448,8 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
 
   st_tmp = &st->c;
   hdl = dds_create_topic_generic (participant, &st_tmp, qos, listener, &plist);
+  if (hdl < 0)
+    ddsi_sertopic_unref (st_tmp);
   dds_entity_unpin (ppent);
   ddsi_plist_fini (&plist);
   return hdl;
