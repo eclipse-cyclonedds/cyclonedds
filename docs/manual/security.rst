@@ -42,9 +42,6 @@ authentication and Diffie-Hellman is used for key exchange. AccessControl use Pe
 signed by shared Certificate Authority. Cryptography uses AES-GCM (AES using Galois Counter Mode)
 for encryption and AES-GMAC for message authentication.
 
-The plugins are accessed by the DDSI2 service when DDS Security is enabled by supplying the
-security configuration within the XML configuration or Participant QoS.
-
 Security plugins are dynamically loaded where the locations are defined in CycloneDDS
 configuration or Participant QoS settings.
 
@@ -149,7 +146,7 @@ The configuration of DDS Security is split up into two parts.
 Plugins Configuration
 *********************
 
-CycloneDDS gets the security configuration from DDS2I XML configuration elements or from
+CycloneDDS gets the security configuration from XML configuration elements or from
 the participant QoS policies as stated in the DDS Security specification.
 
 This behavior allows applications to use DDS Security without recompiling the binaries.
@@ -188,10 +185,10 @@ file (prefixed with ``file:``).
 Optionally the private key could be protected by a password
 (``DDSSecurity/Authentication/Password``).
 
-Furthermore the CycloneDDS configuration allows to configure a directory containing additional
-identity CA's which are used to verify the identity certificates that are received by remote instances
-(``DDSSecurity/Authentication/TrustedCADirectory``). This option allows to use more than one identity
-CA throughout the system.
+Furthermore the CycloneDDS configuration allows configuring a directory containing additional
+identity CA's which are used to verify the identity certificates that are received from remote instances
+(``DDSSecurity/Authentication/TrustedCADirectory``). This option allows multiple identity
+CAs throughout the system.
 
 .. _`Access Control Properties`:
 
@@ -223,7 +220,7 @@ Access Control Configuration
 Access Control configuration consists of Governance document and Permissions document.
 Both governance and permissions files must be signed by the Permissions CA in S/MIME format.
 Participants use their own permissions CA to validate remote permissions. So, all permissions CA
-Certificates must be same for all participants.
+Certificates must be the same for all participants.
 
 The signed document should use S/MIME version 3.2 format as defined in IETF RFC 5761 using
 SignedData Content Type (section 2.4.2 of IETF RFC 5761) formatted as multipart/signed (section
@@ -235,8 +232,8 @@ Additionally the signer certificate should be be included within the signature.
 Governance Document
 ===================
 
-Governance document defines the security behavior of domains and topics. It is an XML document and
-its format is specified in OMG DDS Security Version 1.1 Section 9.4.1.2.3.
+The Governance document defines the security behavior of domains and topics. It is an XML document
+and its format is specified in OMG DDS Security Version 1.1 Section 9.4.1.2.3.
 
 This section describes the properties that can be specified in a permissions document. An example
 of a governance document is provided in `Create a signed governance document`_. The options
@@ -377,9 +374,8 @@ of a permissions document is provided in `Creating a signed permissions document
 Validity period
 ===============
 
-It is checked before creating participant; expired permissions document results with DDSI shutdown.
-Validity period is also checked during handshake with remote participant; expired remote
-permissions document prevents communications to be established.
+It is checked before creating participant. Validity period is also checked during handshake with
+remote participant; expired remote permissions document prevents communications to be established.
 
 
 Subject Name
@@ -447,15 +443,10 @@ resent.
 DDS Secure Discovery
 ********************
 
-Just like normal operation, DDSI will discover local and remote participants, topics, readers and
-writers. However, when DDS Security is enabled, it is more complex and will take a longer time
-(due to the handshaking that is required).
-
-With every new node in the system, the discovery takes exponentially longer. This can become a
-problem if the system contains a number of slow platforms or is large.
-
-The Security discovery performance can be increased quite a bit by using the DDSI
-Internal/SquashParticipants configuration.
+Just like normal operation, Cyclone DDS discovers remote participants, topics, readers and writers.
+However, when DDS Security is enabled, it is more complex and will take a longer time (due to the
+handshaking that is required). The effort to perform discovery grows quadratically in the number of
+nodes. This can become a problem if the system contains a number of slow platforms or is large.
 
 
 Proprietary builtin endpoints
