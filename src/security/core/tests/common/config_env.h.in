@@ -12,7 +12,7 @@
 #ifndef CONFIG_ENV_H
 #define CONFIG_ENV_H
 
-#define FILE_PATH_SEP             "@file_path_sep@"
+#define FILE_PATH_SEP             "/"
 #define COMMON_ETC_DIR            "@common_etc_dir@"
 #define PLUGIN_WRAPPER_LIB_DIR    "@plugin_wrapper_lib_dir@"
 #define PLUGIN_WRAPPER_LIB_PREFIX "@CMAKE_SHARED_LIBRARY_PREFIX@"

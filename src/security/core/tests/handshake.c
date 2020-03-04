@@ -35,9 +35,12 @@
 
 static const char *config =
     "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}"
-    "<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
     "<Domain id=\"any\">"
-    "  <Tracing><Verbosity>finest</></>"
+    "  <Discovery>"
+    "    <ExternalDomainId>0</ExternalDomainId>"
+    "    <Tag>\\${CYCLONEDDS_PID}</Tag>"
+    "  </Discovery>"
+    "  <Tracing><Verbosity>config</></>"
     "  <DDSSecurity>"
     "    <Authentication>"
     "      <Library finalizeFunction=\"finalize_test_authentication_wrapped\" initFunction=\"init_test_authentication_wrapped\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
@@ -68,30 +71,27 @@ static dds_entity_t g_part2_participant = 0;
 
 static void handshake_init(void)
 {
-  /* Domains for pub and sub use a different domain id, but the portgain setting
-   * in configuration is 0, so that both domains will map to the same port number.
-   * This allows to create two domains in a single test process. */
-  char *conf_part1 = ddsrt_expand_envvars(config, DDS_DOMAINID_PART1);
-  char *conf_part2 = ddsrt_expand_envvars(config, DDS_DOMAINID_PART2);
-  g_part1_domain = dds_create_domain(DDS_DOMAINID_PART1, conf_part1);
-  g_part2_domain = dds_create_domain(DDS_DOMAINID_PART2, conf_part2);
-  dds_free(conf_part1);
-  dds_free(conf_part2);
+  char *conf_part1 = ddsrt_expand_envvars_sh (config, DDS_DOMAINID_PART1);
+  char *conf_part2 = ddsrt_expand_envvars_sh (config, DDS_DOMAINID_PART2);
+  g_part1_domain = dds_create_domain (DDS_DOMAINID_PART1, conf_part1);
+  g_part2_domain = dds_create_domain (DDS_DOMAINID_PART2, conf_part2);
+  dds_free (conf_part1);
+  dds_free (conf_part2);
 
-  CU_ASSERT_FATAL((g_part1_participant = dds_create_participant(DDS_DOMAINID_PART1, NULL, NULL)) > 0);
-  CU_ASSERT_FATAL((g_part2_participant = dds_create_participant(DDS_DOMAINID_PART2, NULL, NULL)) > 0);
+  CU_ASSERT_FATAL ((g_part1_participant = dds_create_participant (DDS_DOMAINID_PART1, NULL, NULL)) > 0);
+  CU_ASSERT_FATAL ((g_part2_participant = dds_create_participant (DDS_DOMAINID_PART2, NULL, NULL)) > 0);
 }
 
 static void handshake_fini(void)
 {
-  CU_ASSERT_EQUAL_FATAL(dds_delete(g_part1_participant), DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL_FATAL(dds_delete(g_part2_participant), DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL_FATAL(dds_delete(g_part1_domain), DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL_FATAL(dds_delete(g_part2_domain), DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL (dds_delete (g_part1_participant), DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL (dds_delete (g_part2_participant), DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL (dds_delete (g_part1_domain), DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL (dds_delete (g_part2_domain), DDS_RETCODE_OK);
 }
 
 CU_Test(ddssec_handshake, happy_day, .init = handshake_init, .fini = handshake_fini)
 {
-  validate_handshake(DDS_DOMAINID_PART1, false, NULL, false, NULL);
-  validate_handshake(DDS_DOMAINID_PART2, false, NULL, false, NULL);
+  validate_handshake (DDS_DOMAINID_PART1, false, NULL, false, NULL);
+  validate_handshake (DDS_DOMAINID_PART2, false, NULL, false, NULL);
 }

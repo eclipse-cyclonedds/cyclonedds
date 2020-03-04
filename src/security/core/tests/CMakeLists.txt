@@ -62,8 +62,8 @@ function(add_wrapper libname linklibs)
 endfunction()
 
 set(security_core_test_sources
-    "tc_fsm.c"
-    "dds_security_core.c"
+    "fsm.c"
+    "timed_cb.c"
     "security_utils.c"
 )
 
@@ -102,8 +102,6 @@ target_include_directories(
 
 set(common_etc_dir "${CMAKE_CURRENT_SOURCE_DIR}/common/etc")
 set(plugin_wrapper_lib_dir "${CMAKE_CURRENT_BINARY_DIR}")
-file(TO_NATIVE_PATH "/" file_path_sep)
-string(REPLACE "\\" "\\\\" file_path_sep ${file_path_sep})
 configure_file("common/config_env.h.in" "common/config_env.h")
 
 target_link_libraries(cunit_security_core PRIVATE ddsc security_api SecurityCoreTests)

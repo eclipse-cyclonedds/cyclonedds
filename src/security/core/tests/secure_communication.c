@@ -51,8 +51,11 @@
 
 static const char *config =
     "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}"
-    "<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
     "<Domain id=\"any\">"
+    "  <Discovery>"
+    "    <ExternalDomainId>0</ExternalDomainId>"
+    "    <Tag>\\${CYCLONEDDS_PID}</Tag>"
+    "  </Discovery>"
     "  <DDSSecurity>"
     "    <Authentication>"
     "      <Library finalizeFunction=\"finalize_authentication\" initFunction=\"init_authentication\" />"
@@ -219,12 +222,12 @@ static void test_init(const struct domain_sec_config * domain_config, size_t n_s
     { NULL, NULL, 0 }
   };
 
-  char *conf_pub = ddsrt_expand_vars (config, &expand_lookup_vars_env, config_vars);
+  char *conf_pub = ddsrt_expand_vars_sh (config, &expand_lookup_vars_env, config_vars);
   create_dom_pp_pubsub (DDS_DOMAINID_PUB, conf_pub, domain_config, n_pub_domains, n_pub_participants,
       g_pub_domains, g_pub_participants, g_pub_publishers, &dds_create_publisher);
   dds_free (conf_pub);
 
-  char *conf_sub = ddsrt_expand_vars (config, &expand_lookup_vars_env, config_vars);
+  char *conf_sub = ddsrt_expand_vars_sh (config, &expand_lookup_vars_env, config_vars);
   create_dom_pp_pubsub (DDS_DOMAINID_SUB, conf_sub, domain_config, n_sub_domains, n_sub_participants,
       g_sub_domains, g_sub_participants, g_sub_subscribers, &dds_create_subscriber);
   dds_free (conf_sub);
