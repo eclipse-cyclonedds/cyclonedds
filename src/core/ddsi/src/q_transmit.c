@@ -1159,7 +1159,7 @@ static int maybe_grow_whc (struct writer *wr)
 int write_sample_p2p_wrlock_held(struct writer *wr, seqno_t seq, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, struct proxy_reader *prd)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
-  int r;
+  int r = 0;
   nn_mtime_t tnow;
   int rexmit = 1;
   struct wr_prd_match *wprd = NULL;
@@ -1170,10 +1170,14 @@ int write_sample_p2p_wrlock_held(struct writer *wr, seqno_t seq, struct ddsi_pli
   serdata->twrite = tnow;
   serdata->timestamp = now();
 
+
   if (prd->filter)
   {
     if ((wprd = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
     {
+      if (wprd->seq == MAX_SEQ_NUMBER)
+        goto prd_is_deleting;
+
       rexmit = prd->filter(wr, prd, serdata);
       /* determine if gap has to added */
       if (rexmit)
@@ -1212,6 +1216,7 @@ int write_sample_p2p_wrlock_held(struct writer *wr, seqno_t seq, struct ddsi_pli
       writer_hbcontrol_note_asyncwrite(wr, tnow);
   }
 
+prd_is_deleting:
   return r;
 }
 

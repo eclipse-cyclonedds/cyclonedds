@@ -21,6 +21,7 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_gc.h"
 #include "dds/security/dds_security_api_types.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/ddsi/ddsi_security_omg.h"
@@ -991,6 +992,7 @@ void ddsi_handshake_release(struct ddsi_handshake *handshake)
     DDS_Security_DataHolder_free(handshake->handshake_message_out);
     DDS_Security_DataHolder_free(handshake->remote_auth_request_token);
     DDS_Security_OctetSeq_deinit(&handshake->pdata);
+    dds_security_fsm_free(handshake->fsm);
     ddsrt_mutex_destroy(&handshake->lock);
     ddsrt_free(handshake);
   }
@@ -1146,22 +1148,31 @@ static struct ddsi_handshake * ddsi_handshake_find_locked(
   return ddsrt_avl_lookup(&handshake_treedef, &hsadmin->handshakes, &handles);
 }
 
-void ddsi_handshake_remove(struct participant *pp, struct proxy_participant *proxypp, struct ddsi_handshake *handshake)
+static void gc_delete_handshale (struct gcreq *gcreq)
+{
+  struct ddsi_handshake *handshake = gcreq->arg;
+
+  ddsi_handshake_release(handshake);
+  gcreq_free(gcreq);
+}
+
+void ddsi_handshake_remove(struct participant *pp, struct proxy_participant *proxypp)
 {
   struct ddsi_hsadmin *hsadmin = pp->e.gv->hsadmin;
+  struct ddsi_handshake *handshake = NULL;
 
   ddsrt_mutex_lock(&hsadmin->lock);
-  if (!handshake)
-    handshake = ddsi_handshake_find_locked(hsadmin, pp, proxypp);
+  handshake = ddsi_handshake_find_locked(hsadmin, pp, proxypp);
   if (handshake)
   {
+    struct gcreq *gcreq = gcreq_new (pp->e.gv->gcreq_queue, gc_delete_handshale);
     ddsrt_avl_delete(&handshake_treedef, &hsadmin->handshakes, handshake);
     ddsrt_atomic_st32(&handshake->deleting, 1);
+    dds_security_fsm_stop(handshake->fsm);
+    gcreq->arg = handshake;
+    gcreq_enqueue (gcreq);
   }
   ddsrt_mutex_unlock(&hsadmin->lock);
-  if (handshake && handshake->fsm)
-    dds_security_fsm_free(handshake->fsm);
-  ddsi_handshake_release(handshake);
 }
 
 struct ddsi_handshake * ddsi_handshake_find(struct participant *pp, struct proxy_participant *proxypp)

@@ -131,10 +131,9 @@ void ddsi_handshake_register(struct participant *pp, struct proxy_participant *p
  *
  * @param[in] pp         The local participant.
  * @param[in] proxypp    The remote participant.
- * @param[in] handshake  The handshake.
  *
  */
-void ddsi_handshake_remove(struct participant *pp, struct proxy_participant *proxypp, struct ddsi_handshake *handshake);
+void ddsi_handshake_remove(struct participant *pp, struct proxy_participant *proxypp);
 
 /**
  * @brief Searches for the handshake associated with the specified participants
