@@ -148,6 +148,24 @@ DDS_EXPORT const dds_security_fsm_state*
 dds_security_fsm_current_state(struct dds_security_fsm *fsm);
 
 /**
+ * Stops the state machine.
+ * Stops all running timeouts and events and cleaning all memory
+ * related to this machine.
+ *
+ * When calling this from another thread, then it may block until
+ * a possible concurrent event has finished. After this call, the
+ * fsm may not be used anymore.
+ *
+ * When in the fsm action callback function context, this will
+ * not block. It will garbage collect when the event has been
+ * handled.
+ *
+ * @param fsm   The state machine to b stopped
+ */
+DDS_EXPORT void
+dds_security_fsm_stop(struct dds_security_fsm *fsm);
+
+/**
  * Free the state machine.
  * Stops all running timeouts and events and cleaning all memory
  * related to this machine.
