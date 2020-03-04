@@ -19,6 +19,7 @@
 #include "dds/version.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/q_config.h"
@@ -36,8 +37,11 @@
 
 static const char *config =
     "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}"
-    "<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
     "<Domain id=\"any\">"
+    "  <Discovery>"
+    "    <ExternalDomainId>0</ExternalDomainId>"
+    "    <Tag>\\${CYCLONEDDS_PID}</Tag>"
+    "  </Discovery>"
     "  <Tracing><Verbosity>config</></>"
     "  <DDSSecurity>"
     "    <Authentication>"
@@ -87,8 +91,8 @@ static void authentication_init(bool different_ca, const char * trusted_ca_dir, 
     { NULL, NULL, 0 }
   };
 
-  char *conf1 = ddsrt_expand_vars (config, &expand_lookup_vars_env, config_vars1);
-  char *conf2 = ddsrt_expand_vars (config, &expand_lookup_vars_env, config_vars2);
+  char *conf1 = ddsrt_expand_vars_sh (config, &expand_lookup_vars_env, config_vars1);
+  char *conf2 = ddsrt_expand_vars_sh (config, &expand_lookup_vars_env, config_vars2);
   CU_ASSERT_EQUAL_FATAL (expand_lookup_unmatched (config_vars1), 0);
   CU_ASSERT_EQUAL_FATAL (expand_lookup_unmatched (config_vars2), 0);
   g_domain1 = dds_create_domain (DDS_DOMAINID1, conf1);
