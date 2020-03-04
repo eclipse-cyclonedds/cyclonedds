@@ -668,7 +668,7 @@ static void disconnect_participant_secure(struct participant *pp)
     entidx_enum_proxy_participant_init (&it, gv->entity_index);
     while ((proxypp = entidx_enum_proxy_participant_next (&it)) != NULL)
     {
-      ddsi_handshake_remove(pp, proxypp, NULL);
+      ddsi_handshake_remove(pp, proxypp);
     }
     entidx_enum_proxy_participant_fini (&it);
   }
@@ -3102,19 +3102,21 @@ static void match_volatile_secure_endpoints (struct participant *pp, struct prox
 
   guid = pp->e.guid;
   guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER;
-  rd = entidx_lookup_reader_guid (pp->e.gv->entity_index, &guid);
-  assert(rd);
+  if ((rd = entidx_lookup_reader_guid (pp->e.gv->entity_index, &guid)) == NULL)
+    return;
+
   guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER;
-  wr = entidx_lookup_writer_guid (pp->e.gv->entity_index, &guid);
-  assert(wr);
+  if ((wr = entidx_lookup_writer_guid (pp->e.gv->entity_index, &guid)) == NULL)
+    return;
 
   guid = proxypp->e.guid;
   guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER;
-  prd = entidx_lookup_proxy_reader_guid (pp->e.gv->entity_index, &guid);
-  assert(rd);
+  if ((prd = entidx_lookup_proxy_reader_guid (pp->e.gv->entity_index, &guid)) == NULL)
+    return;
+
   guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER;
-  pwr = entidx_lookup_proxy_writer_guid (pp->e.gv->entity_index, &guid);
-  assert(wr);
+  if ((pwr = entidx_lookup_proxy_writer_guid (pp->e.gv->entity_index, &guid)) == NULL)
+    return;
 
   connect_proxy_writer_with_reader_wrapper(&pwr->e, &rd->e, tnow);
   connect_writer_with_proxy_reader_wrapper(&wr->e, &prd->e, tnow);
@@ -4771,7 +4773,7 @@ void handshake_end_cb(struct ddsi_handshake *handshake, struct participant *pp, 
   case STATE_HANDSHAKE_OK:
     DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") succeeded\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
     update_proxy_participant_endpoint_matching(proxypp, pp);
-    ddsi_handshake_remove(pp, proxypp, handshake);
+    ddsi_handshake_remove(pp, proxypp);
     break;
 
   case STATE_HANDSHAKE_TIMED_OUT:
@@ -4780,7 +4782,7 @@ void handshake_end_cb(struct ddsi_handshake *handshake, struct participant *pp, 
       downgrade_to_nonsecure(proxypp);
       update_proxy_participant_endpoint_matching(proxypp, pp);
     }
-    ddsi_handshake_remove(pp, proxypp, handshake);
+    ddsi_handshake_remove(pp, proxypp);
     break;
   case STATE_HANDSHAKE_FAILED:
     DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Failed\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), (int)result);
@@ -4788,11 +4790,11 @@ void handshake_end_cb(struct ddsi_handshake *handshake, struct participant *pp, 
       downgrade_to_nonsecure(proxypp);
       update_proxy_participant_endpoint_matching(proxypp, pp);
     }
-    ddsi_handshake_remove(pp, proxypp, handshake);
+    ddsi_handshake_remove(pp, proxypp);
     break;
   default:
     DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Unknown failure\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), (int)result);
-    ddsi_handshake_remove(pp, proxypp, handshake);
+    ddsi_handshake_remove(pp, proxypp);
     break;
   }
 }
@@ -4840,7 +4842,7 @@ static void disconnect_proxy_participant_secure(struct proxy_participant *proxyp
     entidx_enum_participant_init (&it, gv->entity_index);
     while ((pp = entidx_enum_participant_next (&it)) != NULL)
     {
-      ddsi_handshake_remove(pp, proxypp, NULL);
+      ddsi_handshake_remove(pp, proxypp);
     }
     entidx_enum_participant_fini (&it);
   }
