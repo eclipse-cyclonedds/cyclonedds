@@ -15,4 +15,10 @@ module SecurityCoreTests {
         long    value;
     };
 #pragma keylist Type1 id
+
+    struct Type2 {
+        long    id; //@Key
+        string  text;
+    };
+#pragma keylist Type2 id
 };

@@ -105,7 +105,12 @@ struct domain_sec_config {
   DDS_Security_ProtectionKind rtps_pk;
   DDS_Security_ProtectionKind metadata_pk;
   DDS_Security_BasicProtectionKind payload_pk;
+  const char * payload_secret;
 };
+
+typedef void (*set_crypto_params_fn)(struct dds_security_cryptography_impl *, const struct domain_sec_config *);
+typedef dds_entity_t (*pubsub_create_fn)(dds_entity_t, const dds_qos_t *qos, const dds_listener_t *listener);
+typedef dds_entity_t (*ep_create_fn)(dds_entity_t, dds_entity_t, const dds_qos_t *qos, const dds_listener_t *listener);
 
 
 static struct dds_security_cryptography_impl * get_crypto_context(dds_entity_t participant)
@@ -158,6 +163,16 @@ static void print_config_vars(struct kvp *vars)
     printf("%s=%s; ", vars[i].key, vars[i].value);
 }
 
+static dds_qos_t *get_qos()
+{
+  dds_qos_t * qos = dds_create_qos ();
+  CU_ASSERT_FATAL (qos != NULL);
+  dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, -1);
+  dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
+  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
+  return qos;
+}
+
 static char *create_topic_name(const char *prefix, uint32_t nr, char *name, size_t size)
 {
   ddsrt_pid_t pid = ddsrt_getpid ();
@@ -166,20 +181,20 @@ static char *create_topic_name(const char *prefix, uint32_t nr, char *name, size
   return name;
 }
 
-static dds_entity_t create_pp (dds_domainid_t domain_id, const struct domain_sec_config * domain_config)
+static dds_entity_t create_pp (dds_domainid_t domain_id, const struct domain_sec_config * domain_config, set_crypto_params_fn set_crypto_params)
 {
   dds_entity_t pp = dds_create_participant (domain_id, NULL, NULL);
   CU_ASSERT_FATAL (pp > 0);
   struct dds_security_cryptography_impl * crypto_context = get_crypto_context (pp);
   CU_ASSERT_FATAL (crypto_context != NULL);
-  set_protection_kinds (crypto_context, domain_config->rtps_pk, domain_config->metadata_pk, domain_config->payload_pk);
+  if (set_crypto_params)
+    set_crypto_params (crypto_context, domain_config);
   return pp;
 }
 
-typedef dds_entity_t (*pubsub_create_fn)(dds_entity_t, const dds_qos_t *qos, const dds_listener_t *listener);
 
 static void create_dom_pp_pubsub(dds_domainid_t domain_id_base, const char * domain_conf, const struct domain_sec_config * domain_sec_config,
-    size_t n_dom, size_t n_pp, dds_entity_t * doms, dds_entity_t * pps, dds_entity_t * pubsubs, pubsub_create_fn pubsub_create)
+    size_t n_dom, size_t n_pp, dds_entity_t * doms, dds_entity_t * pps, dds_entity_t * pubsubs, pubsub_create_fn pubsub_create, set_crypto_params_fn set_crypto_params)
 {
   for (size_t d = 0; d < n_dom; d++)
   {
@@ -188,14 +203,14 @@ static void create_dom_pp_pubsub(dds_domainid_t domain_id_base, const char * dom
     for (size_t p = 0; p < n_pp; p++)
     {
       size_t pp_index = d * n_pp + p;
-      pps[pp_index] = create_pp (domain_id_base + (uint32_t)d, domain_sec_config);
+      pps[pp_index] = create_pp (domain_id_base + (uint32_t)d, domain_sec_config, set_crypto_params);
       pubsubs[pp_index] = pubsub_create (pps[pp_index], NULL, NULL);
       CU_ASSERT_FATAL (pubsubs[pp_index] > 0);
     }
   }
 }
 
-static void test_init(const struct domain_sec_config * domain_config, size_t n_sub_domains, size_t n_sub_participants, size_t n_pub_domains, size_t n_pub_participants)
+static void test_init(const struct domain_sec_config * domain_config, size_t n_sub_domains, size_t n_sub_participants, size_t n_pub_domains, size_t n_pub_participants, set_crypto_params_fn set_crypto_params)
 {
   assert (n_sub_domains < MAX_DOMAINS);
   assert (n_sub_participants < MAX_PARTICIPANTS);
@@ -224,12 +239,12 @@ static void test_init(const struct domain_sec_config * domain_config, size_t n_s
 
   char *conf_pub = ddsrt_expand_vars_sh (config, &expand_lookup_vars_env, config_vars);
   create_dom_pp_pubsub (DDS_DOMAINID_PUB, conf_pub, domain_config, n_pub_domains, n_pub_participants,
-      g_pub_domains, g_pub_participants, g_pub_publishers, &dds_create_publisher);
+      g_pub_domains, g_pub_participants, g_pub_publishers, &dds_create_publisher, set_crypto_params);
   dds_free (conf_pub);
 
   char *conf_sub = ddsrt_expand_vars_sh (config, &expand_lookup_vars_env, config_vars);
   create_dom_pp_pubsub (DDS_DOMAINID_SUB, conf_sub, domain_config, n_sub_domains, n_sub_participants,
-      g_sub_domains, g_sub_participants, g_sub_subscribers, &dds_create_subscriber);
+      g_sub_domains, g_sub_participants, g_sub_subscribers, &dds_create_subscriber, set_crypto_params);
   dds_free (conf_sub);
 
   dds_free (gov_config_signed);
@@ -290,9 +305,8 @@ static void reader_wait_for_data(dds_entity_t sub_participant, dds_entity_t read
   dds_delete (waitset_rd);
 }
 
-typedef dds_entity_t (*ep_create_fn)(dds_entity_t, dds_entity_t, const dds_qos_t *qos, const dds_listener_t *listener);
-
-static void create_eps (dds_entity_t **endpoints, dds_entity_t **topics, size_t n_dom, size_t n_pp, size_t n_eps, const char * topic_name, const dds_entity_t * pps, const dds_qos_t * qos, ep_create_fn ep_create, unsigned status_mask)
+static void create_eps (dds_entity_t **endpoints, dds_entity_t **topics, size_t n_dom, size_t n_pp, size_t n_eps, const char * topic_name, const dds_topic_descriptor_t *topic_descriptor,
+    const dds_entity_t * pps, const dds_qos_t * qos, ep_create_fn ep_create, unsigned status_mask)
 {
   *topics = ddsrt_malloc (n_dom * n_pp * sizeof (dds_entity_t));
   *endpoints = ddsrt_malloc (n_dom * n_pp * n_eps * sizeof (dds_entity_t));
@@ -301,7 +315,7 @@ static void create_eps (dds_entity_t **endpoints, dds_entity_t **topics, size_t 
     for (size_t p = 0; p < n_pp; p++)
     {
       size_t pp_index = d * n_pp + p;
-      (*topics)[pp_index] = dds_create_topic (pps[pp_index], &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
+      (*topics)[pp_index] = dds_create_topic (pps[pp_index], topic_descriptor, topic_name, NULL, NULL);
       CU_ASSERT_FATAL ((*topics)[pp_index] > 0);
       for (size_t e = 0; e < n_eps; e++)
       {
@@ -315,9 +329,16 @@ static void create_eps (dds_entity_t **endpoints, dds_entity_t **topics, size_t 
   }
 }
 
+static void free_eps(dds_entity_t *endpoints, dds_entity_t *topics)
+{
+  ddsrt_free (endpoints);
+  ddsrt_free (topics);
+}
+
 static void test_write_read(struct domain_sec_config *domain_config,
     size_t n_sub_domains, size_t n_sub_participants, size_t n_readers,
-    size_t n_pub_domains, size_t n_pub_participants, size_t n_writers)
+    size_t n_pub_domains, size_t n_pub_participants, size_t n_writers,
+    set_crypto_params_fn set_crypto_params)
 {
   dds_entity_t *writers, *readers, *writer_topics, *reader_topics;
   dds_qos_t *qos;
@@ -330,18 +351,13 @@ static void test_write_read(struct domain_sec_config *domain_config,
 
   printf("Testing: %"PRIuSIZE" subscriber domains, %"PRIuSIZE" pp per domain, %"PRIuSIZE" rd per pp; %"PRIuSIZE" publishing domains, %"PRIuSIZE" pp per domain, %"PRIuSIZE" wr per pp\n",
       n_sub_domains, n_sub_participants, n_readers, n_pub_domains, n_pub_participants, n_writers);
-  test_init(domain_config, n_sub_domains, n_sub_participants, n_pub_domains, n_pub_participants);
+  test_init(domain_config, n_sub_domains, n_sub_participants, n_pub_domains, n_pub_participants, set_crypto_params);
 
   create_topic_name("ddssec_secure_communication_", g_topic_nr++, name, sizeof name);
 
-  qos = dds_create_qos ();
-  CU_ASSERT_FATAL (qos != NULL);
-  dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, -1);
-  dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
-  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
-
-  create_eps (&writers, &writer_topics, n_pub_domains, n_pub_participants, n_writers, name, g_pub_participants, qos, &dds_create_writer, DDS_PUBLICATION_MATCHED_STATUS);
-  create_eps (&readers, &reader_topics, n_sub_domains, n_sub_participants, n_readers, name, g_sub_participants, qos, &dds_create_reader, DDS_DATA_AVAILABLE_STATUS);
+  qos = get_qos ();
+  create_eps (&writers, &writer_topics, n_pub_domains, n_pub_participants, n_writers, name, &SecurityCoreTests_Type1_desc, g_pub_participants, qos, &dds_create_writer, DDS_PUBLICATION_MATCHED_STATUS);
+  create_eps (&readers, &reader_topics, n_sub_domains, n_sub_participants, n_readers, name, &SecurityCoreTests_Type1_desc, g_sub_participants, qos, &dds_create_reader, DDS_DATA_AVAILABLE_STATUS);
 
   for (size_t d = 0; d < n_pub_domains; d++)
   {
@@ -389,35 +405,91 @@ static void test_write_read(struct domain_sec_config *domain_config,
   /* Cleanup */
   dds_delete_qos (qos);
   test_fini (n_sub_domains, n_pub_domains);
-  ddsrt_free (readers);
-  ddsrt_free (writers);
-  ddsrt_free (reader_topics);
-  ddsrt_free (writer_topics);
+  free_eps (readers, reader_topics);
+  free_eps (writers, writer_topics);
+}
+
+static void set_encryption_parameters_basic(struct dds_security_cryptography_impl * crypto_context, const struct domain_sec_config *domain_config)
+{
+  set_protection_kinds (crypto_context, domain_config->rtps_pk, domain_config->metadata_pk, domain_config->payload_pk);
+}
+
+static void set_encryption_parameters_secret(struct dds_security_cryptography_impl * crypto_context, const struct domain_sec_config *domain_config)
+{
+  set_encrypted_secret (crypto_context, domain_config->payload_secret);
 }
 
 static void test_discovery_liveliness_protection(DDS_Security_ProtectionKind discovery_pk, DDS_Security_ProtectionKind liveliness_pk)
 {
-  struct domain_sec_config domain_config = { discovery_pk, liveliness_pk, PK_N, PK_N, BPK_N };
+  struct domain_sec_config domain_config = { discovery_pk, liveliness_pk, PK_N, PK_N, BPK_N, NULL };
   /* FIXME: add more asserts in wrapper or test instead of just testing communication */
-  test_write_read (&domain_config, 1, 1, 1, 1, 1, 1);
+  test_write_read (&domain_config, 1, 1, 1, 1, 1, 1, NULL);
 }
 
 static void test_data_protection_kind(DDS_Security_ProtectionKind rtps_pk, DDS_Security_ProtectionKind metadata_pk, DDS_Security_BasicProtectionKind payload_pk)
 {
-  struct domain_sec_config domain_config = { PK_N, PK_N, rtps_pk, metadata_pk, payload_pk };
-  test_write_read (&domain_config, 1, 1, 1, 1, 1, 1);
+  struct domain_sec_config domain_config = { PK_N, PK_N, rtps_pk, metadata_pk, payload_pk, NULL };
+  test_write_read (&domain_config, 1, 1, 1, 1, 1, 1, &set_encryption_parameters_basic);
 }
 
 static void test_multiple_readers(size_t n_dom, size_t n_pp, size_t n_rd, DDS_Security_ProtectionKind metadata_pk, DDS_Security_BasicProtectionKind payload_pk)
 {
-  struct domain_sec_config domain_config = { PK_N, PK_N, PK_N, metadata_pk, payload_pk };
-  test_write_read (&domain_config, n_dom, n_pp, n_rd, 1, 1, 1);
+  struct domain_sec_config domain_config = { PK_N, PK_N, PK_N, metadata_pk, payload_pk, NULL };
+  test_write_read (&domain_config, n_dom, n_pp, n_rd, 1, 1, 1, NULL);
 }
 
 static void test_multiple_writers(size_t n_rd_dom, size_t n_rd, size_t n_wr_dom, size_t n_wr, DDS_Security_ProtectionKind metadata_pk)
 {
-  struct domain_sec_config domain_config = { PK_N, PK_N, PK_N, metadata_pk, BPK_N };
-  test_write_read (&domain_config, n_rd_dom, 1, n_rd, n_wr_dom, 1, n_wr);
+  struct domain_sec_config domain_config = { PK_N, PK_N, PK_N, metadata_pk, BPK_N, NULL };
+  test_write_read (&domain_config, n_rd_dom, 1, n_rd, n_wr_dom, 1, n_wr, NULL);
+}
+
+static void test_payload_secret(DDS_Security_ProtectionKind rtps_pk, DDS_Security_ProtectionKind metadata_pk, DDS_Security_BasicProtectionKind payload_pk)
+{
+  dds_entity_t *writers, *readers, *writer_topics, *reader_topics;
+  const char * secret = "my_test_secret";
+  dds_qos_t *qos;
+  SecurityCoreTests_Type2 sample;
+  SecurityCoreTests_Type2 rd_sample = {0, NULL};
+  void * samples[] = { &rd_sample };
+  dds_sample_info_t info[1];
+  dds_return_t ret;
+  char name[100];
+  struct domain_sec_config domain_config = { PK_N, PK_N, rtps_pk, metadata_pk, payload_pk, secret };
+
+  size_t payload_sz = 100 * strlen (secret) + 1;
+  sample.id = 1;
+  sample.text = ddsrt_malloc (payload_sz);
+  for (size_t n = 0; n < 100; n++)
+    memcpy (sample.text + n * strlen (secret), secret, strlen (secret));
+  sample.text[payload_sz - 1] = '\0';
+
+  test_init (&domain_config, 1, 1, 1, 1, &set_encryption_parameters_secret);
+  create_topic_name ("ddssec_secure_communication_", g_topic_nr++, name, sizeof name);
+  qos = get_qos ();
+  create_eps (&writers, &writer_topics, 1, 1, 1, name, &SecurityCoreTests_Type2_desc, g_pub_participants, qos, &dds_create_writer, DDS_PUBLICATION_MATCHED_STATUS);
+  create_eps (&readers, &reader_topics, 1, 1, 1, name, &SecurityCoreTests_Type2_desc, g_sub_participants, qos, &dds_create_reader, DDS_DATA_AVAILABLE_STATUS);
+  dds_delete_qos (qos);
+  sync_writer_to_readers (g_pub_participants[0], writers[0], 1);
+  ret = dds_write (writers[0], &sample);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+
+  while (true)
+  {
+    if ((ret = dds_take (readers[0], samples, info, 1, 1)) == 0)
+    {
+      reader_wait_for_data (g_sub_participants[0], readers[0]);
+      continue;
+    }
+    CU_ASSERT_EQUAL_FATAL (ret, 1);
+    break;
+  }
+
+  test_fini (1, 1);
+  free_eps (readers, reader_topics);
+  free_eps (writers, writer_topics);
+  ddsrt_free (rd_sample.text);
+  ddsrt_free (sample.text);
 }
 
 CU_Test(ddssec_secure_communication, protection_kinds, .timeout = 120)
@@ -446,6 +518,23 @@ CU_Test(ddssec_secure_communication, discovery_liveliness_protection, .timeout =
     for (size_t liveliness = 0; liveliness < sizeof (liveliness_pk) / sizeof (liveliness_pk[0]); liveliness++)
     {
       test_discovery_liveliness_protection (discovery_pk[disc], liveliness_pk[liveliness]);
+    }
+  }
+}
+
+CU_Test(ddssec_secure_communication, check_encrypted_secret, .timeout = 60)
+{
+  DDS_Security_ProtectionKind rtps_pk[] = { PK_N, PK_E, PK_EOA };
+  DDS_Security_ProtectionKind metadata_pk[] = { PK_N, PK_E, PK_EOA };
+  DDS_Security_BasicProtectionKind payload_pk[] = { BPK_N, BPK_E };
+  for (size_t rtps = 0; rtps < sizeof (rtps_pk) / sizeof (rtps_pk[0]); rtps++)
+  {
+    for (size_t metadata = 0; metadata < sizeof (metadata_pk) / sizeof (metadata_pk[0]); metadata++)
+    {
+      for (size_t payload = 0; payload < sizeof (payload_pk) / sizeof (payload_pk[0]); payload++)
+      {
+        test_payload_secret (rtps_pk[rtps], metadata_pk[metadata], payload_pk[payload]);
+      }
     }
   }
 }
