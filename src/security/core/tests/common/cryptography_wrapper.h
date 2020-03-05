@@ -24,6 +24,8 @@ SECURITY_EXPORT void set_protection_kinds(
   DDS_Security_ProtectionKind metadata_protection_kind,
   DDS_Security_BasicProtectionKind payload_protection_kind);
 
+SECURITY_EXPORT void set_encrypted_secret(struct dds_security_cryptography_impl * impl, const char * secret);
+
 /* Init in all-ok mode: all functions return success without calling the actual plugin */
 SECURITY_EXPORT int32_t init_test_cryptography_all_ok(const char *argument, void **context);
 SECURITY_EXPORT int32_t finalize_test_cryptography_all_ok(void *context);
