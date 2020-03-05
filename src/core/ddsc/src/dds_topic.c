@@ -276,7 +276,7 @@ static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct d
   return hdl;
 }
 
-dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
+dds_entity_t dds_create_topic_generic (dds_entity_t participant, struct ddsi_sertopic **sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
 {
   dds_return_t rc;
   dds_participant *pp;
@@ -284,7 +284,7 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
   dds_entity_t hdl;
   struct ddsi_sertopic *sertopic_registered;
 
-  if (sertopic == NULL)
+  if (sertopic == NULL || *sertopic == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
   {
@@ -323,14 +323,14 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
 
   /* See if we're allowed to create the topic; ktp is returned pinned & locked
      so we can be sure it doesn't disappear and its QoS can't change */
-  GVTRACE ("dds_create_topic_arbitrary (pp %p "PGUIDFMT" sertopic %p reg?%s refc %"PRIu32" %s/%s)\n",
-           (void *) pp, PGUID (pp->m_entity.m_guid), (void *) sertopic, sertopic->gv ? "yes" : "no",
-           ddsrt_atomic_ld32 (&sertopic->refc), sertopic->name, sertopic->type_name);
+  GVTRACE ("dds_create_topic_generic (pp %p "PGUIDFMT" sertopic %p reg?%s refc %"PRIu32" %s/%s)\n",
+           (void *) pp, PGUID (pp->m_entity.m_guid), (void *) (*sertopic), (*sertopic)->gv ? "yes" : "no",
+           ddsrt_atomic_ld32 (&(*sertopic)->refc), (*sertopic)->name, (*sertopic)->type_name);
   ddsrt_mutex_lock (&pp->m_entity.m_mutex);
   struct dds_ktopic *ktp;
-  if ((rc = lookup_and_check_ktopic (&ktp, pp, sertopic->name, sertopic->type_name, new_qos)) != DDS_RETCODE_OK)
+  if ((rc = lookup_and_check_ktopic (&ktp, pp, (*sertopic)->name, (*sertopic)->type_name, new_qos)) != DDS_RETCODE_OK)
   {
-    GVTRACE ("dds_create_topic_arbitrary: failed after compatibility check: %s\n", dds_strretcode (rc));
+    GVTRACE ("dds_create_topic_generic: failed after compatibility check: %s\n", dds_strretcode (rc));
     dds_participant_unlock (pp);
     dds_delete_qos (new_qos);
     return rc;
@@ -345,8 +345,8 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
     ktp->defer_set_qos = 0;
     ktp->qos = new_qos;
     /* have to copy these because the ktopic can outlast any specific sertopic */
-    ktp->name = ddsrt_strdup (sertopic->name);
-    ktp->type_name = ddsrt_strdup (sertopic->type_name);
+    ktp->name = ddsrt_strdup ((*sertopic)->name);
+    ktp->type_name = ddsrt_strdup ((*sertopic)->type_name);
     ddsrt_avl_insert (&participant_ktopics_treedef, &pp->m_ktopics, ktp);
     GVTRACE ("create_and_lock_ktopic: ktp %p\n", (void *) ktp);
   }
@@ -359,13 +359,13 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
   /* Sertopic: re-use a previously registered one if possible, else register this one */
   {
     ddsrt_mutex_lock (&gv->sertopics_lock);
-    if ((sertopic_registered = ddsi_sertopic_lookup_locked (gv, sertopic)) != NULL)
-      GVTRACE ("dds_create_topic_arbitrary: reuse sertopic %p\n", (void *) sertopic_registered);
+    if ((sertopic_registered = ddsi_sertopic_lookup_locked (gv, *sertopic)) != NULL)
+      GVTRACE ("dds_create_topic_generic: reuse sertopic %p\n", (void *) sertopic_registered);
     else
     {
-      GVTRACE ("dds_create_topic_arbitrary: register new sertopic %p\n", (void *) sertopic);
-      ddsi_sertopic_register_locked (gv, sertopic);
-      sertopic_registered = sertopic;
+      GVTRACE ("dds_create_topic_generic: register new sertopic %p\n", (void *) (*sertopic));
+      ddsi_sertopic_register_locked (gv, *sertopic);
+      sertopic_registered = *sertopic;
     }
     ddsrt_mutex_unlock (&gv->sertopics_lock);
   }
@@ -373,14 +373,27 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
   /* Create topic referencing ktopic & sertopic_registered */
   /* FIXME: setting "implicit" based on sertopic->ops is a hack */
   hdl = create_topic_pp_locked (pp, ktp, (sertopic_registered->ops == &ddsi_sertopic_ops_builtintopic), sertopic_registered, listener, sedp_plist);
+  ddsi_sertopic_unref (*sertopic);
+  *sertopic = sertopic_registered;
   dds_participant_unlock (pp);
-  GVTRACE ("dds_create_topic_arbitrary: new topic %"PRId32"\n", hdl);
+  GVTRACE ("dds_create_topic_generic: new topic %"PRId32"\n", hdl);
   return hdl;
+}
+
+dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
+{
+  dds_entity_t ret;
+  struct ddsi_sertopic *st = sertopic;
+  ddsi_sertopic_ref (st);
+  if ((ret = dds_create_topic_generic (participant, &st, qos, listener, sedp_plist)) < 0)
+    ddsi_sertopic_unref (st);
+  return ret;
 }
 
 dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descriptor_t *desc, const char *name, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   struct ddsi_sertopic_default *st;
+  struct ddsi_sertopic *st_tmp;
   ddsi_plist_t plist;
   dds_entity_t hdl;
   struct dds_entity *ppent;
@@ -433,8 +446,10 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
       plist.qos.subscription_keys.key_list.strs[index] = dds_string_dup (desc->m_keys[index].m_name);
   }
 
-  hdl = dds_create_topic_arbitrary (participant, &st->c, qos, listener, &plist);
-  ddsi_sertopic_unref (&st->c);
+  st_tmp = &st->c;
+  hdl = dds_create_topic_generic (participant, &st_tmp, qos, listener, &plist);
+  if (hdl < 0)
+    ddsi_sertopic_unref (st_tmp);
   dds_entity_unpin (ppent);
   ddsi_plist_fini (&plist);
   return hdl;

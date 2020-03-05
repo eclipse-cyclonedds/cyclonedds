@@ -76,7 +76,12 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic)
   }
 
   dds_qos_t *qos = dds__create_builtin_qos ();
-  tp = dds_create_topic_arbitrary (par->m_entity.m_hdllink.hdl, sertopic, qos, NULL, NULL);
+  if ((tp = dds_create_topic_generic (par->m_entity.m_hdllink.hdl, &sertopic, qos, NULL, NULL)) > 0)
+  {
+    /* keep ownership for built-in sertopics because there are re-used, lifetime for these
+       sertopics is bound to domain */
+    ddsi_sertopic_ref (sertopic);
+  }
   dds_delete_qos (qos);
   dds_entity_unpin (e);
   return tp;
