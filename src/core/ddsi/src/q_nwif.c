@@ -482,10 +482,10 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
     switch (ifa->type)
     {
       case DDSRT_IFTYPE_WIFI:
-        DDS_LOG(DDS_LC_CONFIG, " wireless");
+        GVLOG (DDS_LC_CONFIG, " wireless");
         break;
       case DDSRT_IFTYPE_WIRED:
-        DDS_LOG(DDS_LC_CONFIG, " wired");
+        GVLOG (DDS_LC_CONFIG, " wired");
         break;
       case DDSRT_IFTYPE_UNKNOWN:
         break;
