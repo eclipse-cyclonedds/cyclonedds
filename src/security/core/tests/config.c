@@ -50,6 +50,15 @@
                    "file:Permissions_CA.pem", "file:Governance.p7s", "file:Permissions.p7s", \
                    pre_str, post_str, binprops)
 
+static const char *default_config =
+    "<Domain id=\"any\">"
+    "  <Discovery>"
+    "    <Tag>${CYCLONEDDS_PID}</Tag>"
+    "  </Discovery>"
+    "  <Tracing><Verbosity>finest</></>"
+    "</Domain>";
+
+
 /*
  * The 'found' variable will contain flags related to the expected log
  * messages that were received.
@@ -96,8 +105,17 @@ CU_Test(ddssec_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
     NULL
   };
 
+  const char *sec_config =
+    "<Domain id=\"any\">"
+    "  <Discovery>"
+    "    <Tag>${CYCLONEDDS_PID}</Tag>"
+    "  </Discovery>"
+    "  <Tracing><Verbosity>config</></>"
+    "  <DDSSecurity />"
+    "</Domain>";
+
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, "<DDSSecurity/>");
+  domain = dds_create_domain(0, sec_config);
   CU_ASSERT_EQUAL_FATAL(domain, DDS_RETCODE_ERROR);
   reset_logger();
 
@@ -116,7 +134,7 @@ CU_Test(ddssec_config, non, .init = ddsrt_init, .fini = ddsrt_fini)
   };
 
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, "<Tracing><Verbosity>finest</></>");
+  domain = dds_create_domain(0, default_config);
   CU_ASSERT_FATAL(domain > 0);
   dds_delete(domain);
   reset_logger();
@@ -139,6 +157,9 @@ CU_Test(ddssec_config, missing, .init = ddsrt_init, .fini = ddsrt_fini)
   /* IdentityCertificate, IdentityCA and PrivateKey values or elements are missing. */
   const char *sec_config =
     "<Domain id=\"any\">"
+    "  <Discovery>"
+    "    <Tag>${CYCLONEDDS_PID}</Tag>"
+    "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
     "  <DDSSecurity>"
     "    <Authentication>"
@@ -190,30 +211,31 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
   };
 
   const char *sec_config =
-    "<"DDS_PROJECT_NAME">"
-    "  <Domain id=\"any\">"
-    "    <Tracing><Verbosity>finest</></>"
-    "    <DDSSecurity>"
-    "      <Authentication>"
-    "        <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
-    "        <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
-    "        <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE_DUMMY"</IdentityCA>"
-    "        <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY_DUMMY"</PrivateKey>"
-    "        <Password>testtext_Password_testtext</Password>"
-    "        <TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
-    "      </Authentication>"
-    "      <Cryptographic>"
-    "        <Library initFunction=\"init_test_cryptography_all_ok\" finalizeFunction=\"finalize_test_cryptography_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
-    "      </Cryptographic>"
-    "      <AccessControl>"
-    "        <Library initFunction=\"init_test_access_control_all_ok\" finalizeFunction=\"finalize_test_access_control_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_access_control_wrapper") "\"/>"
-    "        <Governance>file:Governance.p7s</Governance>"
-    "        <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-    "        <Permissions>file:Permissions.p7s</Permissions>"
-    "      </AccessControl>"
-    "    </DDSSecurity>"
-    "  </Domain>"
-    "</"DDS_PROJECT_NAME">";
+    "<Domain id=\"any\">"
+    "  <Discovery>"
+    "    <Tag>${CYCLONEDDS_PID}</Tag>"
+    "  </Discovery>"
+    "  <Tracing><Verbosity>finest</></>"
+    "  <DDSSecurity>"
+    "    <Authentication>"
+    "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
+    "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
+    "      <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE_DUMMY"</IdentityCA>"
+    "      <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY_DUMMY"</PrivateKey>"
+    "      <Password>testtext_Password_testtext</Password>"
+    "      <TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
+    "    </Authentication>"
+    "    <Cryptographic>"
+    "      <Library initFunction=\"init_test_cryptography_all_ok\" finalizeFunction=\"finalize_test_cryptography_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
+    "    </Cryptographic>"
+    "    <AccessControl>"
+    "      <Library initFunction=\"init_test_access_control_all_ok\" finalizeFunction=\"finalize_test_access_control_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_access_control_wrapper") "\"/>"
+    "      <Governance>file:Governance.p7s</Governance>"
+    "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+    "      <Permissions>file:Permissions.p7s</Permissions>"
+    "    </AccessControl>"
+    "  </DDSSecurity>"
+    "</Domain>";
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, sec_config);
@@ -261,6 +283,10 @@ CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
 
   const char *sec_config =
     "<Domain id=\"any\">"
+    "  <Discovery>"
+    "    <Tag>${CYCLONEDDS_PID}</Tag>"
+    "  </Discovery>"
+    "  <Tracing><Verbosity>finest</></>"
     "  <DDSSecurity>"
     "    <Authentication>"
     "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
@@ -278,7 +304,6 @@ CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <Permissions>file:Permissions.p7s</Permissions>"
     "    </AccessControl>"
     "  </DDSSecurity>"
-    "  <Tracing><Verbosity>finest</></>"
     "</Domain>";
 
   set_logger_exp(log_expected);
@@ -325,30 +350,31 @@ CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
   };
 
   const char *sec_config =
-    "<"DDS_PROJECT_NAME">"
-    "  <Domain id=\"any\">"
-    "    <DDSSecurity>"
-    "      <Authentication>"
-    "        <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
-    "        <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
-    "        <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE_DUMMY"</IdentityCA>"
-    "        <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY_DUMMY"</PrivateKey>"
-    "        <Password>testtext_Password_testtext</Password>"
-    "        <TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
-    "      </Authentication>"
-    "      <Cryptographic>"
-    "        <Library initFunction=\"init_test_cryptography_all_ok\" finalizeFunction=\"finalize_test_cryptography_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
-    "      </Cryptographic>"
-    "      <AccessControl>"
-    "        <Library initFunction=\"init_test_access_control_all_ok\" finalizeFunction=\"finalize_test_access_control_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_access_control_wrapper") "\"/>"
-    "        <Governance>file:Governance.p7s</Governance>"
-    "        <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-    "        <Permissions>file:Permissions.p7s</Permissions>"
-    "      </AccessControl>"
-    "    </DDSSecurity>"
-    "    <Tracing><Verbosity>finest</></>"
-    "  </Domain>"
-    "</"DDS_PROJECT_NAME">";
+    "<Domain id=\"any\">"
+    "  <Discovery>"
+    "    <Tag>${CYCLONEDDS_PID}</Tag>"
+    "  </Discovery>"
+    "  <Tracing><Verbosity>finest</></>"
+    "  <DDSSecurity>"
+    "    <Authentication>"
+    "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
+    "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
+    "      <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE_DUMMY"</IdentityCA>"
+    "      <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY_DUMMY"</PrivateKey>"
+    "      <Password>testtext_Password_testtext</Password>"
+    "      <TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
+    "    </Authentication>"
+    "    <Cryptographic>"
+    "      <Library initFunction=\"init_test_cryptography_all_ok\" finalizeFunction=\"finalize_test_cryptography_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
+    "    </Cryptographic>"
+    "    <AccessControl>"
+    "      <Library initFunction=\"init_test_access_control_all_ok\" finalizeFunction=\"finalize_test_access_control_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_access_control_wrapper") "\"/>"
+    "      <Governance>file:Governance.p7s</Governance>"
+    "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+    "      <Permissions>file:Permissions.p7s</Permissions>"
+    "    </AccessControl>"
+    "  </DDSSecurity>"
+    "</Domain>";
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, sec_config);
@@ -395,7 +421,7 @@ CU_Test(ddssec_config, qos, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_prop(qos, "dds.sec.auth.trusted_ca_dir", "file:/test/dir");
 
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, "<Tracing><Verbosity>finest</></>");
+  domain = dds_create_domain(0, default_config);
   CU_ASSERT_FATAL(domain > 0);
   participant = dds_create_participant(0, qos, NULL);
   CU_ASSERT_FATAL(participant > 0);
@@ -445,7 +471,7 @@ CU_Test(ddssec_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_bprop(qos, "test.bprop1", bvalue, 3);
 
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, "<Tracing><Verbosity>finest</></>");
+  domain = dds_create_domain(0, default_config);
   CU_ASSERT_FATAL(domain > 0);
   participant = dds_create_participant(0, qos, NULL);
   CU_ASSERT_FATAL(participant > 0);
@@ -475,19 +501,24 @@ CU_Test(ddssec_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini)
   };
 
   const char *sec_config =
-    "<Tracing><Verbosity>finest</></>"
-    "<DDSSecurity>"
-    "  <Authentication>"
-    "    <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
-    "    <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE_DUMMY"</IdentityCA>"
-    "    <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY_DUMMY"</PrivateKey>"
-    "  </Authentication>"
-    "  <AccessControl>"
-    "    <Governance>file:Governance.p7s</Governance>"
-    "    <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-    "    <Permissions>file:Permissions.p7s</Permissions>"
-    "  </AccessControl>"
-    "</DDSSecurity>";
+    "<Domain id=\"any\">"
+    "  <Discovery>"
+    "    <Tag>${CYCLONEDDS_PID}</Tag>"
+    "  </Discovery>"
+    "  <Tracing><Verbosity>finest</></>"
+    "  <DDSSecurity>"
+    "    <Authentication>"
+    "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
+    "      <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE_DUMMY"</IdentityCA>"
+    "      <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY_DUMMY"</PrivateKey>"
+    "    </Authentication>"
+    "    <AccessControl>"
+    "      <Governance>file:Governance.p7s</Governance>"
+    "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+    "      <Permissions>file:Permissions.p7s</Permissions>"
+    "    </AccessControl>"
+    "  </DDSSecurity>"
+    "</Domain>";
 
   CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_authentication_wrapper"));
@@ -533,26 +564,31 @@ CU_Test(ddssec_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini)
   };
 
   const char *sec_config =
-    "<Tracing><Verbosity>finest</></>"
-    "<DDSSecurity>"
-    "  <Authentication>"
-    "    <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
-    "    <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
-    "    <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE_DUMMY"</IdentityCA>"
-    "    <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY_DUMMY"</PrivateKey>"
-    "    <Password>testtext_Password_testtext</Password>"
-    "    <TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
-    "  </Authentication>"
-    "  <Cryptographic>"
-    "    <Library initFunction=\"init_test_cryptography_all_ok\" finalizeFunction=\"finalize_test_cryptography_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
-    "  </Cryptographic>"
-    "  <AccessControl>"
-    "    <Library initFunction=\"init_test_access_control_all_ok\" finalizeFunction=\"finalize_test_access_control_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_access_control_wrapper") "\"/>"
-    "    <Governance>file:Governance.p7s</Governance>"
-    "    <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-    "    <Permissions>file:Permissions.p7s</Permissions>"
-    "  </AccessControl>"
-    "</DDSSecurity>";
+    "<Domain id=\"any\">"
+    "  <Discovery>"
+    "    <Tag>${CYCLONEDDS_PID}</Tag>"
+    "  </Discovery>"
+    "  <Tracing><Verbosity>finest</></>"
+    "  <DDSSecurity>"
+    "    <Authentication>"
+    "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
+    "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
+    "      <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE_DUMMY"</IdentityCA>"
+    "      <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY_DUMMY"</PrivateKey>"
+    "      <Password>testtext_Password_testtext</Password>"
+    "      <TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
+    "    </Authentication>"
+    "    <Cryptographic>"
+    "      <Library initFunction=\"init_test_cryptography_all_ok\" finalizeFunction=\"finalize_test_cryptography_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
+    "    </Cryptographic>"
+    "    <AccessControl>"
+    "      <Library initFunction=\"init_test_access_control_all_ok\" finalizeFunction=\"finalize_test_access_control_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_access_control_wrapper") "\"/>"
+    "      <Governance>file:Governance.p7s</Governance>"
+    "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+    "      <Permissions>file:Permissions.p7s</Permissions>"
+    "    </AccessControl>"
+    "  </DDSSecurity>"
+    "</Domain>";
 
   CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
   dds_qset_prop(qos, "test.dds.sec.prop1", "testtext_value1_testtext");
@@ -598,19 +634,24 @@ CU_Test(ddssec_config, qos_invalid, .init = ddsrt_init, .fini = ddsrt_fini)
   };
 
   const char *sec_config =
-    "<Tracing><Verbosity>finest</></>"
-    "<DDSSecurity>"
-    "  <Authentication>"
-    "    <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
-    "    <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE_DUMMY"</IdentityCA>"
-    "    <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY_DUMMY"</PrivateKey>"
-    "  </Authentication>"
-    "  <AccessControl>"
-    "    <Governance>file:Governance.p7s</Governance>"
-    "    <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-    "    <Permissions>file:Permissions.p7s</Permissions>"
-    "  </AccessControl>"
-    "</DDSSecurity>";
+    "<Domain id=\"any\">"
+    "  <Discovery>"
+    "    <Tag>${CYCLONEDDS_PID}</Tag>"
+    "  </Discovery>"
+    "  <Tracing><Verbosity>finest</></>"
+    "  <DDSSecurity>"
+    "    <Authentication>"
+    "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
+    "      <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE_DUMMY"</IdentityCA>"
+    "      <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY_DUMMY"</PrivateKey>"
+    "    </Authentication>"
+    "    <AccessControl>"
+    "      <Governance>file:Governance.p7s</Governance>"
+    "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+    "      <Permissions>file:Permissions.p7s</Permissions>"
+    "    </AccessControl>"
+    "  </DDSSecurity>"
+    "</Domain>";
 
   set_logger_exp(log_expected);
 
