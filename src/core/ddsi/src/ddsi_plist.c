@@ -2332,7 +2332,7 @@ static dds_return_t return_unrecognized_pid (ddsi_plist_t *plist, nn_parameterid
   }
 }
 
-static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t pwanted, uint64_t qwanted, uint16_t pid, const struct dd *dd, ddsi_tran_factory_t factory, const ddsrt_log_cfg_t *logcfg)
+static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t pwanted, uint64_t qwanted, nn_parameterid_t pid, const struct dd *dd, ddsi_tran_factory_t factory, const ddsrt_log_cfg_t *logcfg)
 {
   /* special-cased ipv4address and port, because they have state beyond that what gets
      passed into the generic code */
@@ -2349,6 +2349,8 @@ static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params
     XP (METATRAFFIC_MULTICAST);
 #undef XP
 #undef XA
+  default:
+    break;
   }
 
   const struct piddesc_index *index;

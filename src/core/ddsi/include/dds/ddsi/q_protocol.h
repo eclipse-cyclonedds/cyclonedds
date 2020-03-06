@@ -191,9 +191,136 @@ typedef struct InfoSRC {
 #define PL_CDR_LE 0x0003u
 #endif
 
-typedef uint16_t nn_parameterid_t; /* spec says short */
+#define PID_VENDORSPECIFIC_FLAG 0x8000u
+#define PID_UNRECOGNIZED_INCOMPATIBLE_FLAG 0x4000u
+
+typedef enum nn_parameterid {
+  PID_PAD = 0x0u,
+  PID_SENTINEL = 0x1u,
+  PID_USER_DATA = 0x2cu,
+  PID_TOPIC_NAME = 0x5u,
+  PID_TYPE_NAME = 0x7u,
+  PID_MULTICAST_IPADDRESS = 0x11u,
+  PID_GROUP_DATA = 0x2du,
+  PID_TOPIC_DATA = 0x2eu,
+  PID_DURABILITY = 0x1du,
+  PID_DURABILITY_SERVICE = 0x1eu,
+  PID_DEADLINE = 0x23u,
+  PID_LATENCY_BUDGET = 0x27u,
+  PID_LIVELINESS = 0x1bu,
+  PID_RELIABILITY = 0x1au,
+  PID_LIFESPAN = 0x2bu,
+  PID_DESTINATION_ORDER = 0x25u,
+  PID_HISTORY = 0x40u,
+  PID_RESOURCE_LIMITS = 0x41u,
+  PID_OWNERSHIP = 0x1fu,
+  PID_OWNERSHIP_STRENGTH = 0x6u,
+  PID_PRESENTATION = 0x21u,
+  PID_PARTITION = 0x29u,
+  PID_TIME_BASED_FILTER = 0x4u,
+  PID_TRANSPORT_PRIORITY = 0x49u,
+  PID_DOMAIN_ID = 0xfu,
+  PID_DOMAIN_TAG = (0x14u | PID_UNRECOGNIZED_INCOMPATIBLE_FLAG),
+  PID_PROTOCOL_VERSION = 0x15u,
+  PID_VENDORID = 0x16u,
+  PID_UNICAST_LOCATOR = 0x2fu,
+  PID_MULTICAST_LOCATOR = 0x30u,
+  PID_DEFAULT_UNICAST_LOCATOR = 0x31u,
+  PID_DEFAULT_MULTICAST_LOCATOR = 0x48u,
+  PID_METATRAFFIC_UNICAST_LOCATOR = 0x32u,
+  PID_METATRAFFIC_MULTICAST_LOCATOR = 0x33u,
+  PID_DEFAULT_UNICAST_IPADDRESS = 0xcu,
+  PID_DEFAULT_UNICAST_PORT = 0xeu,
+  PID_METATRAFFIC_UNICAST_IPADDRESS = 0x45u,
+  PID_METATRAFFIC_UNICAST_PORT = 0xdu,
+  PID_METATRAFFIC_MULTICAST_IPADDRESS = 0xbu,
+  PID_METATRAFFIC_MULTICAST_PORT = 0x46u,
+  PID_EXPECTS_INLINE_QOS = 0x43u,
+  PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT = 0x34u,
+  PID_PARTICIPANT_BUILTIN_ENDPOINTS = 0x44u,
+  PID_PARTICIPANT_LEASE_DURATION = 0x2u,
+  PID_CONTENT_FILTER_PROPERTY = 0x35u,
+  PID_PARTICIPANT_GUID = 0x50u,
+  PID_PARTICIPANT_ENTITYID = 0x51u,
+  PID_GROUP_GUID = 0x52u,
+  PID_GROUP_ENTITYID = 0x53u,
+  PID_BUILTIN_ENDPOINT_SET = 0x58u,
+  PID_PROPERTY_LIST = 0x59u,
+  PID_TYPE_MAX_SIZE_SERIALIZED = 0x60u,
+  PID_ENTITY_NAME = 0x62u,
+  PID_KEYHASH = 0x70u,
+  PID_STATUSINFO = 0x71u,
+  PID_CONTENT_FILTER_INFO = 0x55u,
+  PID_COHERENT_SET = 0x56u,
+  PID_DIRECTED_WRITE = 0x57u,
+  PID_ORIGINAL_WRITER_INFO = 0x61u,
+  PID_ENDPOINT_GUID = 0x5au, /* !SPEC <=> PRISMTECH_ENDPOINT_GUID */
+
+/* Security related PID values. */
+  PID_IDENTITY_TOKEN = 0x1001u,
+  PID_PERMISSIONS_TOKEN = 0x1002u,
+
+#ifdef DDSI_INCLUDE_SSM
+  /* To indicate whether a reader favours the use of SSM.  Iff the
+     reader favours SSM, it will use SSM if available. */
+  PID_READER_FAVOURS_SSM = 0x72u,
+#endif
+
+  /* Deprecated parameter IDs as of RTSP 2.2 (accepted but ignored) */
+  PID_PERSISTENCE = 0x03u,
+  PID_TYPE_CHECKSUM = 0x08u,
+  PID_TYPE2_NAME = 0x09u,
+  PID_TYPE2_CHECKSUM = 0x0au,
+  PID_EXPECTS_ACK = 0x10u,
+  PID_MANAGER_KEY = 0x12u,
+  PID_SEND_QUEUE_SIZE = 0x13u,
+  PID_RELIABILITY_ENABLED = 0x14u,
+  PID_VARGAPPS_SEQUENCE_NUMBER_LAST = 0x17u,
+  PID_RECV_QUEUE_SIZE = 0x18u,
+  PID_RELIABILITY_OFFERED = 0x19u,
+
+  PID_PRISMTECH_BUILTIN_ENDPOINT_SET = (PID_VENDORSPECIFIC_FLAG | 0x0u),
+
+  /* parameter ids for READER_DATA_LIFECYCLE & WRITER_DATA_LIFECYCLE are
+     undefined, but let's publish them anyway */
+  PID_PRISMTECH_READER_DATA_LIFECYCLE = (PID_VENDORSPECIFIC_FLAG | 0x2u),
+  PID_PRISMTECH_WRITER_DATA_LIFECYCLE = (PID_VENDORSPECIFIC_FLAG | 0x3u),
+
+  /* ENDPOINT_GUID is formally undefined, so in strictly conforming
+     mode, we use our own */
+  PID_PRISMTECH_ENDPOINT_GUID = (PID_VENDORSPECIFIC_FLAG | 0x4u),
+
+  PID_PRISMTECH_SYNCHRONOUS_ENDPOINT = (PID_VENDORSPECIFIC_FLAG | 0x5u),
+
+  /* Relaxed QoS matching readers/writers are best ignored by
+     implementations that don't understand them.  This also covers "old"
+     DDSI2's, although they may emit an error. */
+  PID_PRISMTECH_RELAXED_QOS_MATCHING =
+  (PID_VENDORSPECIFIC_FLAG | PID_UNRECOGNIZED_INCOMPATIBLE_FLAG | 0x6u),
+
+  PID_PRISMTECH_PARTICIPANT_VERSION_INFO = (PID_VENDORSPECIFIC_FLAG | 0x7u),
+
+  /* See CMTopics protocol.doc (2013-12-09) */
+  PID_PRISMTECH_NODE_NAME = (PID_VENDORSPECIFIC_FLAG | 0x8u),
+  PID_PRISMTECH_EXEC_NAME = (PID_VENDORSPECIFIC_FLAG | 0x9u),
+  PID_PRISMTECH_PROCESS_ID = (PID_VENDORSPECIFIC_FLAG | 0xau),
+  PID_PRISMTECH_SERVICE_TYPE = (PID_VENDORSPECIFIC_FLAG | 0xbu),
+  PID_PRISMTECH_ENTITY_FACTORY = (PID_VENDORSPECIFIC_FLAG | 0xcu),
+  PID_PRISMTECH_WATCHDOG_SCHEDULING = (PID_VENDORSPECIFIC_FLAG | 0xdu),
+  PID_PRISMTECH_LISTENER_SCHEDULING = (PID_VENDORSPECIFIC_FLAG | 0xeu),
+  PID_PRISMTECH_SUBSCRIPTION_KEYS = (PID_VENDORSPECIFIC_FLAG | 0xfu),
+  PID_PRISMTECH_READER_LIFESPAN = (PID_VENDORSPECIFIC_FLAG | 0x10u),
+  PID_PRISMTECH_TYPE_DESCRIPTION = (PID_VENDORSPECIFIC_FLAG | 0x12u),
+  PID_PRISMTECH_LAN = (PID_VENDORSPECIFIC_FLAG | 0x13u),
+  PID_PRISMTECH_ENDPOINT_GID = (PID_VENDORSPECIFIC_FLAG | 0x14u),
+  PID_PRISMTECH_GROUP_GID = (PID_VENDORSPECIFIC_FLAG | 0x15u),
+  PID_PRISMTECH_EOTINFO = (PID_VENDORSPECIFIC_FLAG | 0x16u),
+  PID_PRISMTECH_PART_CERT_NAME = (PID_VENDORSPECIFIC_FLAG | 0x17u),
+  PID_PRISMTECH_LAN_CERT_NAME = (PID_VENDORSPECIFIC_FLAG | 0x18u),
+} nn_parameterid_t;
+
 typedef struct nn_parameter {
-  nn_parameterid_t parameterid;
+  nn_parameterid_t parameterid : 16; /* spec says short */
   uint16_t length; /* spec says signed short */
   /* char value[]; O! how I long for C99 */
 } nn_parameter_t;
@@ -330,132 +457,7 @@ DDSRT_WARNING_MSVC_ON(4200)
 #define PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE 0x2u
 #define PARTICIPANT_MESSAGE_DATA_VENDER_SPECIFIC_KIND_FLAG 0x8000000u
 
-#define PID_VENDORSPECIFIC_FLAG 0x8000u
-#define PID_UNRECOGNIZED_INCOMPATIBLE_FLAG 0x4000u
-
-#define PID_PAD                                 0x0u
-#define PID_SENTINEL                            0x1u
-#define PID_DOMAIN_ID                           0xfu
-#define PID_DOMAIN_TAG                          (0x14u | PID_UNRECOGNIZED_INCOMPATIBLE_FLAG)
-#define PID_USER_DATA                           0x2cu
-#define PID_TOPIC_NAME                          0x5u
-#define PID_TYPE_NAME                           0x7u
-#define PID_GROUP_DATA                          0x2du
-#define PID_TOPIC_DATA                          0x2eu
-#define PID_DURABILITY                          0x1du
-#define PID_DURABILITY_SERVICE                  0x1eu
-#define PID_DEADLINE                            0x23u
-#define PID_LATENCY_BUDGET                      0x27u
-#define PID_LIVELINESS                          0x1bu
-#define PID_RELIABILITY                         0x1au
-#define PID_LIFESPAN                            0x2bu
-#define PID_DESTINATION_ORDER                   0x25u
-#define PID_HISTORY                             0x40u
-#define PID_RESOURCE_LIMITS                     0x41u
-#define PID_OWNERSHIP                           0x1fu
-#define PID_OWNERSHIP_STRENGTH                  0x6u
-#define PID_PRESENTATION                        0x21u
-#define PID_PARTITION                           0x29u
-#define PID_TIME_BASED_FILTER                   0x4u
-#define PID_TRANSPORT_PRIORITY                  0x49u
-#define PID_PROTOCOL_VERSION                    0x15u
-#define PID_VENDORID                            0x16u
-#define PID_UNICAST_LOCATOR                     0x2fu
-#define PID_MULTICAST_LOCATOR                   0x30u
-#define PID_MULTICAST_IPADDRESS                 0x11u
-#define PID_DEFAULT_UNICAST_LOCATOR             0x31u
-#define PID_DEFAULT_MULTICAST_LOCATOR           0x48u
-#define PID_METATRAFFIC_UNICAST_LOCATOR         0x32u
-#define PID_METATRAFFIC_MULTICAST_LOCATOR       0x33u
-#define PID_DEFAULT_UNICAST_IPADDRESS           0xcu
-#define PID_DEFAULT_UNICAST_PORT                0xeu
-#define PID_METATRAFFIC_UNICAST_IPADDRESS       0x45u
-#define PID_METATRAFFIC_UNICAST_PORT            0xdu
-#define PID_METATRAFFIC_MULTICAST_IPADDRESS     0xbu
-#define PID_METATRAFFIC_MULTICAST_PORT          0x46u
-#define PID_EXPECTS_INLINE_QOS                  0x43u
-#define PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT 0x34u
-#define PID_PARTICIPANT_BUILTIN_ENDPOINTS       0x44u
-#define PID_PARTICIPANT_LEASE_DURATION          0x2u
-#define PID_CONTENT_FILTER_PROPERTY             0x35u
-#define PID_PARTICIPANT_GUID                    0x50u
-#define PID_PARTICIPANT_ENTITYID                0x51u
-#define PID_GROUP_GUID                          0x52u
-#define PID_GROUP_ENTITYID                      0x53u
-#define PID_BUILTIN_ENDPOINT_SET                0x58u
-#define PID_PROPERTY_LIST                       0x59u
-#define PID_TYPE_MAX_SIZE_SERIALIZED            0x60u
-#define PID_ENTITY_NAME                         0x62u
-#define PID_KEYHASH                             0x70u
-#define PID_STATUSINFO                          0x71u
-#define PID_CONTENT_FILTER_INFO                 0x55u
-#define PID_COHERENT_SET                        0x56u
-#define PID_DIRECTED_WRITE                      0x57u
-#define PID_ORIGINAL_WRITER_INFO                0x61u
-#define PID_ENDPOINT_GUID                       0x5au /* !SPEC <=> PRISMTECH_ENDPOINT_GUID */
-
-/* Security related PID values. */
-#define PID_IDENTITY_TOKEN                      0x1001u
-#define PID_PERMISSIONS_TOKEN                   0x1002u
-
-#ifdef DDSI_INCLUDE_SSM
-/* To indicate whether a reader favours the use of SSM.  Iff the
-   reader favours SSM, it will use SSM if available. */
-#define PID_READER_FAVOURS_SSM                  0x72u
-#endif
-
-/* Deprecated parameter IDs (accepted but ignored) */
-#define PID_PERSISTENCE                         0x03u
-#define PID_TYPE_CHECKSUM                       0x08u
-#define PID_TYPE2_NAME                          0x09u
-#define PID_TYPE2_CHECKSUM                      0x0au
-#define PID_EXPECTS_ACK                         0x10u
-#define PID_MANAGER_KEY                         0x12u
-#define PID_SEND_QUEUE_SIZE                     0x13u
-#define PID_RELIABILITY_ENABLED                 0x14u
-#define PID_VARGAPPS_SEQUENCE_NUMBER_LAST       0x17u
-#define PID_RECV_QUEUE_SIZE                     0x18u
-#define PID_RELIABILITY_OFFERED                 0x19u
-
-#define PID_PRISMTECH_BUILTIN_ENDPOINT_SET      (PID_VENDORSPECIFIC_FLAG | 0x0u)
-
-/* parameter ids for READER_DATA_LIFECYCLE & WRITER_DATA_LIFECYCLE are
-   undefined, but let's publish them anyway */
-#define PID_PRISMTECH_READER_DATA_LIFECYCLE     (PID_VENDORSPECIFIC_FLAG | 0x2u)
-#define PID_PRISMTECH_WRITER_DATA_LIFECYCLE     (PID_VENDORSPECIFIC_FLAG | 0x3u)
-
-/* ENDPOINT_GUID is formally undefined, so in strictly conforming
-   mode, we use our own */
-#define PID_PRISMTECH_ENDPOINT_GUID             (PID_VENDORSPECIFIC_FLAG | 0x4u)
-
-#define PID_PRISMTECH_SYNCHRONOUS_ENDPOINT      (PID_VENDORSPECIFIC_FLAG | 0x5u)
-
-/* Relaxed QoS matching readers/writers are best ignored by
-   implementations that don't understand them.  This also covers "old"
-   DDSI2's, although they may emit an error. */
-#define PID_PRISMTECH_RELAXED_QOS_MATCHING      (PID_VENDORSPECIFIC_FLAG | PID_UNRECOGNIZED_INCOMPATIBLE_FLAG | 0x6u)
-
-#define PID_PRISMTECH_PARTICIPANT_VERSION_INFO  (PID_VENDORSPECIFIC_FLAG | 0x7u)
-
-/* See CMTopics protocol.doc (2013-12-09) */
-#define PID_PRISMTECH_NODE_NAME                 (PID_VENDORSPECIFIC_FLAG | 0x8u)
-#define PID_PRISMTECH_EXEC_NAME                 (PID_VENDORSPECIFIC_FLAG | 0x9u)
-#define PID_PRISMTECH_PROCESS_ID                (PID_VENDORSPECIFIC_FLAG | 0xau)
-#define PID_PRISMTECH_SERVICE_TYPE              (PID_VENDORSPECIFIC_FLAG | 0xbu)
-#define PID_PRISMTECH_ENTITY_FACTORY            (PID_VENDORSPECIFIC_FLAG | 0xcu)
-#define PID_PRISMTECH_WATCHDOG_SCHEDULING       (PID_VENDORSPECIFIC_FLAG | 0xdu)
-#define PID_PRISMTECH_LISTENER_SCHEDULING       (PID_VENDORSPECIFIC_FLAG | 0xeu)
-#define PID_PRISMTECH_SUBSCRIPTION_KEYS         (PID_VENDORSPECIFIC_FLAG | 0xfu)
-#define PID_PRISMTECH_READER_LIFESPAN           (PID_VENDORSPECIFIC_FLAG | 0x10u)
-#define PID_PRISMTECH_TYPE_DESCRIPTION          (PID_VENDORSPECIFIC_FLAG | 0x12u)
-#define PID_PRISMTECH_LAN                       (PID_VENDORSPECIFIC_FLAG | 0x13u)
-#define PID_PRISMTECH_ENDPOINT_GID              (PID_VENDORSPECIFIC_FLAG | 0x14u)
-#define PID_PRISMTECH_GROUP_GID                 (PID_VENDORSPECIFIC_FLAG | 0x15u)
-#define PID_PRISMTECH_EOTINFO                   (PID_VENDORSPECIFIC_FLAG | 0x16u)
-#define PID_PRISMTECH_PART_CERT_NAME            (PID_VENDORSPECIFIC_FLAG | 0x17u);
-#define PID_PRISMTECH_LAN_CERT_NAME             (PID_VENDORSPECIFIC_FLAG | 0x18u);
-
-#if defined (__cplusplus)
+#if defined(__cplusplus)
 }
 #endif
 
