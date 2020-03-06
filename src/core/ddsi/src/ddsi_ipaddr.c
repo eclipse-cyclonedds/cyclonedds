@@ -76,7 +76,7 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const nn_locator_
   return DNAR_DISTANT;
 }
 
-enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str, int32_t kind)
+enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str, nn_locator_kind_t kind)
 {
   int af = AF_INET;
   struct sockaddr_storage tmpaddr;
@@ -161,7 +161,7 @@ char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *l
   return dst;
 }
 
-void ddsi_ipaddr_to_loc (const struct ddsi_tran_factory *tran, nn_locator_t *dst, const struct sockaddr *src, int32_t kind)
+void ddsi_ipaddr_to_loc (const struct ddsi_tran_factory *tran, nn_locator_t *dst, const struct sockaddr *src, nn_locator_kind_t kind)
 {
   dst->tran = (struct ddsi_tran_factory *) tran;
   dst->kind = kind;

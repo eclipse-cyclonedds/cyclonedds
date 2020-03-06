@@ -58,10 +58,22 @@ typedef struct nn_fragment_number_set_header {
 typedef int32_t nn_count_t;
 #define DDSI_COUNT_MIN (-2147483647 - 1)
 #define DDSI_COUNT_MAX (2147483647)
+
+typedef enum nn_locator_kind {
+  NN_LOCATOR_KIND_INVALID = -1,
+  NN_LOCATOR_KIND_RESERVED = 0,
+  NN_LOCATOR_KIND_UDPv4 = 1,
+  NN_LOCATOR_KIND_UDPv6 = 2,
+  NN_LOCATOR_KIND_TCPv4 = 4,
+  NN_LOCATOR_KIND_TCPv6 = 8,
+  NN_LOCATOR_KIND_RAWETH = 0x8000, /* proposed vendor-specific */
+  NN_LOCATOR_KIND_UDPv4MCGEN = 0x4fff0000,
+} nn_locator_kind_t;
+
 /* address field in locator maintained in network byte order, the rest in host */
 typedef struct {
   const struct ddsi_tran_factory *tran;
-  int32_t kind;
+  nn_locator_kind_t kind;
   uint32_t port;
   unsigned char address[16];
 } nn_locator_t;
@@ -97,15 +109,8 @@ typedef struct {
 #define NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER (1u << 4)
 #define NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_READER (1u << 5)
 
-#define NN_LOCATOR_KIND_INVALID -1
-#define NN_LOCATOR_KIND_RESERVED 0
-#define NN_LOCATOR_KIND_UDPv4 1
-#define NN_LOCATOR_KIND_UDPv6 2
-#define NN_LOCATOR_KIND_TCPv4 4
-#define NN_LOCATOR_KIND_TCPv6 8
-#define NN_LOCATOR_KIND_RAWETH 0x8000 /* proposed vendor-specific */
-#define NN_LOCATOR_KIND_UDPv4MCGEN 0x4fff0000
 #define NN_LOCATOR_PORT_INVALID 0
+
 
 /* Only one specific version is grokked */
 #define RTPS_MAJOR 2
