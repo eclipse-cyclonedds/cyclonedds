@@ -46,7 +46,7 @@ static void debug_print_rawdata (const struct ddsi_domaingv *gv, const char *msg
   GVTRACE (">");
 }
 
-void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind)
+void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, pmd_kind_t pmd_kind)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
   struct lease *lease;
@@ -63,7 +63,7 @@ void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *
   thread_state_asleep (ts1);
 }
 
-void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, struct participant *pp, unsigned pmd_kind)
+void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, struct participant *pp, pmd_kind_t pmd_kind)
 {
 #define PMD_DATA_LENGTH 1
   struct ddsi_domaingv * const gv = pp->e.gv;

@@ -25,8 +25,15 @@ struct nn_xpack;
 struct participant;
 struct receiver_state;
 
-void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind);
-void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, struct participant *pp, unsigned pmd_kind);
+typedef enum pmd_kind {
+  PARTICIPANT_MESSAGE_DATA_KIND_UNKNOWN = 0x0u,
+  PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE = 0x1u,
+  PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE = 0x2u,
+  PARTICIPANT_MESSAGE_DATA_VENDER_SPECIFIC_KIND_FLAG = 0x8000000u,
+} pmd_kind_t;
+
+void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, pmd_kind_t pmd_kind);
+void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, struct participant *pp, pmd_kind_t pmd_kind);
 void handle_pmd_message (const struct receiver_state *rst, nn_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len);
 
 #if defined (__cplusplus)
