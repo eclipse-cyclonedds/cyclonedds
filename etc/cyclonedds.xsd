@@ -638,7 +638,6 @@ reserved. This includes renaming or moving options.&lt;/p&gt;</xs:documentation>
         <xs:element minOccurs="0" ref="config:AccelerateRexmitBlockSize"/>
         <xs:element minOccurs="0" ref="config:AssumeMulticastCapable"/>
         <xs:element minOccurs="0" ref="config:AutoReschedNackDelay"/>
-        <xs:element minOccurs="0" ref="config:BindUnicastToInterfaceAddr"/>
         <xs:element minOccurs="0" ref="config:BuiltinEndpointSet"/>
         <xs:element minOccurs="0" ref="config:ControlTopic"/>
         <xs:element minOccurs="0" ref="config:DDSI2DirectMaxThreads"/>
@@ -715,14 +714,6 @@ of HEARTBEAT messages.&lt;/p&gt;
 &lt;p&gt;Valid values are finite durations with an explicit unit or the keyword
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
 day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;1 s&amp;quot;.&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="BindUnicastToInterfaceAddr" type="xs:boolean">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;Bind unicast sockets to the address of the preferred interface; if
-false, bind to 0.0.0.0 (IPv4) or its equivalent&lt;/p&gt;&lt;p&gt;The default value
-is: &amp;quot;true&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="BuiltinEndpointSet">

@@ -491,13 +491,6 @@ day.</p><p>The default value is: &quot;1 s&quot;.</p>""" ] ]
           duration_inf
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>Bind unicast sockets to the address of the preferred interface; if
-false, bind to 0.0.0.0 (IPv4) or its equivalent</p><p>The default value
-is: &quot;true&quot;.</p>""" ] ]
-        element BindUnicastToInterfaceAddr {
-          xsd:boolean
-        }?
-        & [ a:documentation [ xml:lang="en" """
 <p>This element controls which participants will have which built-in
 endpoints for the discovery and liveliness protocols. Valid values
 are:</p>

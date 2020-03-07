@@ -175,13 +175,13 @@ static int ddsi_raweth_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t 
   return ret;
 }
 
-static ddsi_tran_conn_t ddsi_raweth_create_conn (ddsi_tran_factory_t fact, uint32_t port, ddsi_tran_qos_t qos)
+static ddsi_tran_conn_t ddsi_raweth_create_conn (ddsi_tran_factory_t fact, uint32_t port, const struct ddsi_tran_qos *qos)
 {
   ddsrt_socket_t sock;
   dds_return_t rc;
   ddsi_raweth_conn_t uc = NULL;
   struct sockaddr_ll addr;
-  bool mcast = (bool) (qos ? qos->m_multicast : 0);
+  bool mcast = (qos->m_purpose == DDSI_TRAN_QOS_RECV_MC);
 
   /* If port is zero, need to create dynamic port */
 

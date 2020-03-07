@@ -292,8 +292,6 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     }
   }
 
-  ddsi_tran_conn_t conn = pub->m_entity.m_domain->gv.data_conn_uc;
-
   if ((rc = dds_topic_pin (topic, &tp)) != DDS_RETCODE_OK)
     goto err_pin_topic;
   assert (tp->m_stopic);
@@ -331,6 +329,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   }
 
   /* Create writer */
+  ddsi_tran_conn_t conn = pub->m_entity.m_domain->gv.xmit_conn;
   struct dds_writer * const wr = dds_alloc (sizeof (*wr));
   const dds_entity_t writer = dds_entity_init (&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, false, wqos, listener, DDS_WRITER_STATUS_MASK);
   wr->m_topic = tp;

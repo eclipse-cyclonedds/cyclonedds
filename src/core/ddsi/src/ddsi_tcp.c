@@ -167,7 +167,7 @@ static void ddsi_tcp_sock_free (const struct ddsrt_log_cfg *logcfg, ddsrt_socket
 
 static void ddsi_tcp_sock_new (ddsrt_socket_t *sock, unsigned short port, const struct ddsi_domaingv *gv)
 {
-  if (make_socket (sock, port, true, true, gv) != 0)
+  if (make_socket (sock, port, true, true, true, gv) != 0)
   {
     *sock = DDSRT_INVALID_SOCKET;
   }
@@ -706,7 +706,7 @@ static int ddsi_tcp_locator (struct ddsi_tran_factory *fact_cmn, ddsi_tran_base_
   return 0;
 }
 
-static ddsi_tran_conn_t ddsi_tcp_create_conn (struct ddsi_tran_factory *fact_cmn, uint32_t port, ddsi_tran_qos_t qos)
+static ddsi_tran_conn_t ddsi_tcp_create_conn (struct ddsi_tran_factory *fact_cmn, uint32_t port, const struct ddsi_tran_qos *qos)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) fact_cmn;
   (void) qos;
@@ -853,7 +853,7 @@ static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, dd
   return conn;
 }
 
-static ddsi_tran_listener_t ddsi_tcp_create_listener (ddsi_tran_factory_t fact, uint32_t port, ddsi_tran_qos_t qos)
+static ddsi_tran_listener_t ddsi_tcp_create_listener (ddsi_tran_factory_t fact, uint32_t port, const struct ddsi_tran_qos *qos)
 {
   char buff[DDSI_LOCSTRLEN];
   ddsrt_socket_t sock;

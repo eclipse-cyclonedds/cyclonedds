@@ -578,8 +578,6 @@ static const struct cfgelem internal_cfgelems[] = {
     BLURB("<p>This element controls whether retransmits are prioritized over new data, speeding up recovery.</p>") },
   { LEAF("UseMulticastIfMreqn"), 1, "0", ABSOFF(use_multicast_if_mreqn), 0, uf_int, 0, pf_int,
     BLURB("<p>Do not use.</p>") },
-  { LEAF("BindUnicastToInterfaceAddr"), 1, "true", ABSOFF(bind_unicast_to_interface_addr), 0, uf_boolean, 0, pf_boolean,
-    BLURB("<p>Bind unicast sockets to the address of the preferred interface; if false, bind to 0.0.0.0 (IPv4) or its equivalent</p>") },
   { LEAF("SendAsync"), 1, "false", ABSOFF(xpack_send_async), 0, uf_boolean, 0, pf_boolean,
     BLURB("<p>This element controls whether the actual sending of packets occurs on the same thread that prepares them, or is done asynchronously by another thread.</p>") },
   { LEAF_W_ATTRS("RediscoveryBlacklistDuration", rediscovery_blacklist_duration_attrs), 1, "10s", ABSOFF(prune_deleted_ppant.delay), 0, uf_duration_inf, 0, pf_duration,

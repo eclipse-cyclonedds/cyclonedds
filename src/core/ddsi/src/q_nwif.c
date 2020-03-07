@@ -214,7 +214,7 @@ static int set_reuse_options (const struct ddsrt_log_cfg *logcfg, ddsrt_socket_t
   return 0;
 }
 
-static int bind_socket (ddsrt_socket_t socket, unsigned short port, bool multicast, const struct ddsi_domaingv *gv)
+static int bind_socket (ddsrt_socket_t socket, unsigned short port, bool bind_to_any, const struct ddsi_domaingv *gv)
 {
   dds_return_t rc = DDS_RETCODE_ERROR;
 
@@ -226,7 +226,7 @@ static int bind_socket (ddsrt_socket_t socket, unsigned short port, bool multica
       struct sockaddr_in6 a;
     } socketname;
     ddsi_ipaddr_from_loc (&socketname.x, &gv->ownloc);
-    if (multicast || !gv->config.bind_unicast_to_interface_addr)
+    if (bind_to_any)
       socketname.a.sin6_addr = ddsrt_in6addr_any;
     socketname.a.sin6_port = htons (port);
     if (IN6_IS_ADDR_LINKLOCAL (&socketname.a.sin6_addr)) {
@@ -243,7 +243,7 @@ static int bind_socket (ddsrt_socket_t socket, unsigned short port, bool multica
       struct sockaddr_in a;
     } socketname;
     ddsi_ipaddr_from_loc (&socketname.x, &gv->ownloc);
-    if (multicast || !gv->config.bind_unicast_to_interface_addr)
+    if (bind_to_any)
       socketname.a.sin_addr.s_addr = htonl (INADDR_ANY);
     socketname.a.sin_port = htons (port);
     rc = ddsrt_bind (socket, (struct sockaddr *) &socketname.a, sizeof (socketname.a));
@@ -345,7 +345,7 @@ static int set_mc_options_transmit (ddsrt_socket_t socket, const struct ddsi_dom
   }
 }
 
-int make_socket (ddsrt_socket_t *sock, uint16_t port, bool stream, bool multicast, const struct ddsi_domaingv *gv)
+int make_socket (ddsrt_socket_t *sock, uint16_t port, bool stream, bool reuse_addr, bool bind_to_any, const struct ddsi_domaingv *gv)
 {
   /* FIXME: this stuff has to move to the transports */
   int rc = -2;
@@ -373,18 +373,15 @@ int make_socket (ddsrt_socket_t *sock, uint16_t port, bool stream, bool multicas
     return rc;
   }
 
-  if (port && multicast && ((rc = set_reuse_options (&gv->logconfig, *sock)) < 0))
+  if (port && reuse_addr && ((rc = set_reuse_options (&gv->logconfig, *sock)) < 0))
   {
     goto fail;
   }
 
-  if
-  (
-    (rc = set_rcvbuf (&gv->logconfig, *sock, &gv->config.socket_min_rcvbuf_size) < 0) ||
-    (rc = set_sndbuf (&gv->logconfig, *sock, gv->config.socket_min_sndbuf_size) < 0) ||
-    ((rc = maybe_set_dont_route (&gv->logconfig, *sock, &gv->config)) < 0) ||
-    ((rc = bind_socket (*sock, port, multicast, gv)) < 0)
-  )
+  if ((rc = set_rcvbuf (&gv->logconfig, *sock, &gv->config.socket_min_rcvbuf_size) < 0) ||
+      (rc = set_sndbuf (&gv->logconfig, *sock, gv->config.socket_min_sndbuf_size) < 0) ||
+      ((rc = maybe_set_dont_route (&gv->logconfig, *sock, &gv->config)) < 0) ||
+      ((rc = bind_socket (*sock, port, bind_to_any, gv)) < 0))
   {
     goto fail;
   }
