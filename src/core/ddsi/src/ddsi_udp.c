@@ -218,16 +218,37 @@ static unsigned short get_socket_port (const struct ddsrt_log_cfg *logcfg, ddsrt
   return ddsrt_sockaddr_get_port((struct sockaddr *)&addr);
 }
 
-static ddsi_tran_conn_t ddsi_udp_create_conn (ddsi_tran_factory_t fact, uint32_t port, ddsi_tran_qos_t qos)
+static ddsi_tran_conn_t ddsi_udp_create_conn (ddsi_tran_factory_t fact, uint32_t port, const ddsi_tran_qos_t *qos)
 {
   int ret;
   ddsrt_socket_t sock;
   ddsi_udp_conn_t uc = NULL;
-  bool mcast = (bool) (qos ? qos->m_multicast : false);
+  bool reuse_addr = false, bind_to_any = false;
+  const char *purpose_str = NULL;
+
+  switch (qos->m_purpose)
+  {
+    case DDSI_TRAN_QOS_XMIT:
+      reuse_addr = false;
+      bind_to_any = false;
+      purpose_str = "transmit";
+      break;
+    case DDSI_TRAN_QOS_RECV_UC:
+      reuse_addr = false;
+      bind_to_any = true;
+      purpose_str = "unicast";
+      break;
+    case DDSI_TRAN_QOS_RECV_MC:
+      reuse_addr = true;
+      bind_to_any = true;
+      purpose_str = "multicast";
+      break;
+  }
+  assert (purpose_str != NULL);
 
   /* If port is zero, need to create dynamic port */
 
-  ret = make_socket (&sock, (unsigned short) port, false, mcast, fact->gv);
+  ret = make_socket (&sock, (unsigned short) port, false, reuse_addr, bind_to_any, fact->gv);
 
   if (ret == 0)
   {
@@ -235,7 +256,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn (ddsi_tran_factory_t fact, uint32_t
     memset (uc, 0, sizeof (*uc));
 
     uc->m_sock = sock;
-    uc->m_diffserv = qos ? qos->m_diffserv : 0;
+    uc->m_diffserv = qos->m_diffserv;
 #if defined _WIN32 && !defined WINCE
     uc->m_sockEvent = WSACreateEvent();
     WSAEventSelect(uc->m_sock, uc->m_sockEvent, FD_WRITE);
@@ -244,7 +265,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn (ddsi_tran_factory_t fact, uint32_t
     ddsi_factory_conn_init (fact, &uc->m_base);
     uc->m_base.m_base.m_port = get_socket_port (&fact->gv->logconfig, sock);
     uc->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
-    uc->m_base.m_base.m_multicast = mcast;
+    uc->m_base.m_base.m_multicast = (qos->m_purpose == DDSI_TRAN_QOS_RECV_MC);
     uc->m_base.m_base.m_handle_fn = ddsi_udp_conn_handle;
 
     uc->m_base.m_read_fn = ddsi_udp_conn_read;
@@ -254,7 +275,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn (ddsi_tran_factory_t fact, uint32_t
 
     DDS_CTRACE (&fact->gv->logconfig,
                 "ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n",
-                mcast ? "multicast" : "unicast",
+                purpose_str,
                 uc->m_sock,
                 uc->m_base.m_base.m_port);
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
@@ -271,7 +292,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn (ddsi_tran_factory_t fact, uint32_t
   {
     if (fact->gv->config.participantIndex != PARTICIPANT_INDEX_AUTO)
     {
-      DDS_CERROR (&fact->gv->logconfig, "UDP make_socket failed for %s port %"PRIu32"\n", mcast ? "multicast" : "unicast", port);
+      DDS_CERROR (&fact->gv->logconfig, "UDP make_socket failed for %s port %"PRIu32"\n", purpose_str, port);
     }
   }
 

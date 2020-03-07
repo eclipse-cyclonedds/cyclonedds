@@ -652,7 +652,8 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domain
 
   if (gv->config.many_sockets_mode == MSM_MANY_UNICAST)
   {
-    pp->m_conn = ddsi_factory_create_conn (gv->m_factory, 0, NULL);
+    const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_RECV_UC, .m_diffserv = 0 };
+    pp->m_conn = ddsi_factory_create_conn (gv->m_factory, 0, &qos);
     ddsi_conn_locator (pp->m_conn, &pp->m_locator);
   }
   else

@@ -96,14 +96,15 @@ static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint3
   if (!ddsi_is_valid_port (gv->m_factory, *pdisc) || !ddsi_is_valid_port (gv->m_factory, *pdata))
     return MUSRET_INVALID_PORTS;
 
-  gv->disc_conn_uc = ddsi_factory_create_conn (gv->m_factory, *pdisc, NULL);
+  const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_RECV_UC, .m_diffserv = 0 };
+  gv->disc_conn_uc = ddsi_factory_create_conn (gv->m_factory, *pdisc, &qos);
   if (gv->disc_conn_uc)
   {
     /* Check not configured to use same unicast port for data and discovery */
 
     if (*pdata != 0 && (*pdata != *pdisc))
     {
-      gv->data_conn_uc = ddsi_factory_create_conn (gv->m_factory, *pdata, NULL);
+      gv->data_conn_uc = ddsi_factory_create_conn (gv->m_factory, *pdata, &qos);
     }
     else
     {
@@ -663,10 +664,9 @@ int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin)
 
 int create_multicast_sockets (struct ddsi_domaingv *gv)
 {
-  ddsi_tran_qos_t qos = ddsi_tran_create_qos ();
+  const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_RECV_MC, .m_diffserv = 0 };
   ddsi_tran_conn_t disc, data;
   uint32_t port;
-  qos->m_multicast = 1;
 
   port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
   if (!ddsi_is_valid_port (gv->m_factory, port))
@@ -675,7 +675,7 @@ int create_multicast_sockets (struct ddsi_domaingv *gv)
              gv->config.extDomainId.value, port);
     goto err_disc;
   }
-  if ((disc = ddsi_factory_create_conn (gv->m_factory, port, qos)) == NULL)
+  if ((disc = ddsi_factory_create_conn (gv->m_factory, port, &qos)) == NULL)
     goto err_disc;
   if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
   {
@@ -691,12 +691,11 @@ int create_multicast_sockets (struct ddsi_domaingv *gv)
                gv->config.extDomainId.value, port);
       goto err_disc;
     }
-    if ((data = ddsi_factory_create_conn (gv->m_factory, port, qos)) == NULL)
+    if ((data = ddsi_factory_create_conn (gv->m_factory, port, &qos)) == NULL)
     {
       goto err_data;
     }
   }
-  ddsi_tran_free_qos (qos);
 
   gv->disc_conn_mc = disc;
   gv->data_conn_mc = data;
@@ -707,7 +706,6 @@ int create_multicast_sockets (struct ddsi_domaingv *gv)
 err_data:
   ddsi_conn_free (disc);
 err_disc:
-  ddsi_tran_free_qos (qos);
   return 0;
 }
 
@@ -964,7 +962,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->data_conn_uc = NULL;
   gv->disc_conn_mc = NULL;
   gv->data_conn_mc = NULL;
-  gv->tev_conn = NULL;
+  gv->xmit_conn = NULL;
   gv->listener = NULL;
   gv->thread_pool = NULL;
   gv->debmon = NULL;
@@ -1280,9 +1278,6 @@ int rtps_init (struct ddsi_domaingv *gv)
   }
   else
   {
-    /* Must have a data_conn_uc/tev_conn/transmit_conn */
-    gv->data_conn_uc = ddsi_factory_create_conn (gv->m_factory, 0, NULL);
-
     if (gv->config.tcp_port == -1)
       ; /* nop */
     else if (!ddsi_is_valid_port (gv->m_factory, (uint32_t) gv->config.tcp_port))
@@ -1311,9 +1306,10 @@ int rtps_init (struct ddsi_domaingv *gv)
   }
 
   /* Create shared transmit connection */
-
-  gv->tev_conn = gv->data_conn_uc;
-  GVLOG (DDS_LC_CONFIG, "Timed event transmit port: %d\n", (int) ddsi_conn_port (gv->tev_conn));
+  {
+    const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_XMIT, .m_diffserv = 0 };
+    gv->xmit_conn = ddsi_factory_create_conn (gv->m_factory, 0, &qos);
+  }
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   {
@@ -1376,7 +1372,7 @@ int rtps_init (struct ddsi_domaingv *gv)
 
   gv->xevents = xeventq_new
   (
-    gv->tev_conn,
+    gv->xmit_conn,
     gv->config.max_queued_rexmit_bytes,
     gv->config.max_queued_rexmit_msgs,
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
@@ -1438,6 +1434,8 @@ int rtps_init (struct ddsi_domaingv *gv)
   return 0;
 
 err_mc_conn:
+  if (gv->xmit_conn)
+    ddsi_conn_free (gv->xmit_conn);
   if (gv->disc_conn_mc)
     ddsi_conn_free (gv->disc_conn_mc);
   if (gv->data_conn_mc && gv->data_conn_mc != gv->disc_conn_mc)
@@ -1762,6 +1760,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
 
   (void) joinleave_spdp_defmcip (gv, 0);
 
+  ddsi_conn_free (gv->xmit_conn);
   ddsi_conn_free (gv->disc_conn_mc);
   if (gv->data_conn_mc != gv->disc_conn_mc)
     ddsi_conn_free (gv->data_conn_mc);
@@ -1769,8 +1768,6 @@ void rtps_fini (struct ddsi_domaingv *gv)
     ddsi_conn_free (gv->disc_conn_uc);
   if (gv->data_conn_uc != gv->disc_conn_uc)
     ddsi_conn_free (gv->data_conn_uc);
-
-  /* Not freeing gv->tev_conn: it aliases data_conn_uc */
 
   free_group_membership(gv->mship);
   ddsi_tran_factories_fini (gv);

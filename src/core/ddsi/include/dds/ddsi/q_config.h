@@ -332,7 +332,6 @@ struct config
   int64_t initial_deaf_mute_reset;
 
   int use_multicast_if_mreqn;
-  int bind_unicast_to_interface_addr;
   struct prune_deleted_ppant prune_deleted_ppant;
 };
 

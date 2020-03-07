@@ -3156,7 +3156,7 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
         iov.iov_base = &dummy;
         iov.iov_len = 1;
         GVTRACE ("trigger_recv_threads: %d single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
-        ddsi_conn_write (gv->data_conn_uc, dst, 1, &iov, 0);
+        ddsi_conn_write (gv->xmit_conn, dst, 1, &iov, 0);
         break;
       }
       case RTM_MANY: {
