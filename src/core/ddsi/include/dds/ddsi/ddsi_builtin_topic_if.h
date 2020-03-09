@@ -13,7 +13,6 @@
 #define _DDSI_BUILTIN_TOPIC_IF_H_
 
 #include "dds/ddsi/ddsi_vendor.h"
-#include "dds/ddsi/q_time.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -30,7 +29,7 @@ struct ddsi_builtin_topic_interface {
   bool (*builtintopic_is_builtintopic) (const struct ddsi_sertopic *topic, void *arg);
   bool (*builtintopic_is_visible) (const struct ddsi_guid *guid, nn_vendorid_t vendorid, void *arg);
   struct ddsi_tkmap_instance * (*builtintopic_get_tkmap_entry) (const struct ddsi_guid *guid, void *arg);
-  void (*builtintopic_write) (const struct entity_common *e, nn_wctime_t timestamp, bool alive, void *arg);
+  void (*builtintopic_write) (const struct entity_common *e, ddsrt_wctime_t timestamp, bool alive, void *arg);
 };
 
 inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid) {
@@ -42,7 +41,7 @@ inline bool builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interf
 inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid) {
   return btif ? btif->builtintopic_get_tkmap_entry (guid, btif->arg) : NULL;
 }
-inline void builtintopic_write (const struct ddsi_builtin_topic_interface *btif, const struct entity_common *e, nn_wctime_t timestamp, bool alive) {
+inline void builtintopic_write (const struct ddsi_builtin_topic_interface *btif, const struct entity_common *e, ddsrt_wctime_t timestamp, bool alive) {
   if (btif) btif->builtintopic_write (e, timestamp, alive, btif->arg);
 }
 

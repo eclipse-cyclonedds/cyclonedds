@@ -108,9 +108,9 @@ static struct ddsi_serdata *mkkeysample (int32_t keyval, unsigned statusinfo)
 }
 
 #if defined(DDSI_INCLUDE_LIFESPAN) || defined (DDSI_INCLUDE_DEADLINE_MISSED)
-static nn_mtime_t rand_texp ()
+static ddsrt_mtime_t rand_texp ()
 {
-  nn_mtime_t ret = now_mt();
+  ddsrt_mtime_t ret = ddsrt_time_monotonic();
   ret.v -= DDS_MSECS(500) + (int64_t) (ddsrt_prng_random (&prng) % DDS_MSECS(1500));
   return ret;
 }
@@ -158,7 +158,7 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct pro
   if (lifespan_expiry && (sd->statusinfo & (NN_STATUSINFO_UNREGISTER | NN_STATUSINFO_DISPOSE)) == 0)
     pwr_info.lifespan_exp = rand_texp();
   else
-    pwr_info.lifespan_exp = NN_MTIME_NEVER;
+    pwr_info.lifespan_exp = DDSRT_MTIME_NEVER;
 #endif
   dds_rhc_store (rhc, &pwr_info, sd, tk);
   ddsi_tkmap_instance_unref (tkmap, tk);
@@ -831,7 +831,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
         wr_info.iid = wr[which]->e.iid;
         wr_info.ownership_strength = wr[which]->c.xqos->ownership_strength.value;
 #ifdef DDSI_INCLUDE_LIFESPAN
-        wr_info.lifespan_exp = NN_MTIME_NEVER;
+        wr_info.lifespan_exp = DDSRT_MTIME_NEVER;
 #endif
         for (size_t k = 0; k < nrd; k++)
           dds_rhc_unregister_wr (rhc[k], &wr_info);
@@ -962,7 +962,7 @@ int main (int argc, char **argv)
     wr0_info.iid = wr0->e.iid;
     wr0_info.ownership_strength = wr0->c.xqos->ownership_strength.value;
 #ifdef DDSI_INCLUDE_LIFESPAN
-    wr0_info.lifespan_exp = NN_MTIME_NEVER;
+    wr0_info.lifespan_exp = DDSRT_MTIME_NEVER;
 #endif
     dds_rhc_unregister_wr (rhc, &wr0_info);
     thread_state_asleep (lookup_thread_state ());

@@ -20,21 +20,21 @@ struct writer;
 struct whc_state;
 
 struct hbcontrol {
-  nn_mtime_t t_of_last_write;
-  nn_mtime_t t_of_last_hb;
-  nn_mtime_t t_of_last_ackhb;
-  nn_mtime_t tsched;
+  ddsrt_mtime_t t_of_last_write;
+  ddsrt_mtime_t t_of_last_hb;
+  ddsrt_mtime_t t_of_last_ackhb;
+  ddsrt_mtime_t tsched;
   uint32_t hbs_since_last_write;
   uint32_t last_packetid;
 };
 
 void writer_hbcontrol_init (struct hbcontrol *hbc);
-int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow);
-void writer_hbcontrol_note_asyncwrite (struct writer *wr, nn_mtime_t tnow);
-int writer_hbcontrol_ack_required (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow);
-struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow, uint32_t packetid, int *hbansreq);
-int writer_hbcontrol_must_send (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow);
-struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow, int hbansreq, int issync);
+int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow);
+void writer_hbcontrol_note_asyncwrite (struct writer *wr, ddsrt_mtime_t tnow);
+int writer_hbcontrol_ack_required (const struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow);
+struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, int *hbansreq);
+int writer_hbcontrol_must_send (const struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow);
+struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, int hbansreq, int issync);
 
 #if defined (__cplusplus)
 }

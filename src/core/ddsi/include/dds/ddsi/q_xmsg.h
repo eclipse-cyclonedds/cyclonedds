@@ -117,7 +117,7 @@ void nn_xmsg_shrink (struct nn_xmsg *m, struct nn_xmsg_marker marker, size_t sz)
 void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t off, size_t len);
 void nn_xmsg_submsg_setnext (struct nn_xmsg *msg, struct nn_xmsg_marker marker);
 void nn_xmsg_submsg_init (struct nn_xmsg *msg, struct nn_xmsg_marker marker, SubmessageKind_t smkind);
-void nn_xmsg_add_timestamp (struct nn_xmsg *m, nn_wctime_t t);
+void nn_xmsg_add_timestamp (struct nn_xmsg *m, ddsrt_wctime_t t);
 void nn_xmsg_add_entityid (struct nn_xmsg * m);
 void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len);
 void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serdata);

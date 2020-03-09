@@ -25,7 +25,7 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/ddsi_plist.h"
-#include "dds/ddsi/q_time.h"
+#include "dds/ddsi/ddsi_time.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_vendor.h"
 #include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
@@ -215,7 +215,7 @@ static dds_return_t deser_reliability (void * __restrict dst, size_t * __restric
   if (validate_external_duration (&mbt) < 0)
     return DDS_RETCODE_BAD_PARAMETER;
   x->kind = (enum dds_reliability_kind) (kind - 1);
-  x->max_blocking_time = nn_from_ddsi_duration (mbt);
+  x->max_blocking_time = ddsi_from_ddsi_duration (mbt);
   *dstoff += sizeof (*x);
   *flagset->present |= flag;
   return 0;
@@ -226,7 +226,7 @@ static dds_return_t ser_reliability (struct nn_xmsg *xmsg, nn_parameterid_t pid,
   DDSRT_STATIC_ASSERT (DDS_EXTERNAL_RELIABILITY_BEST_EFFORT == 1 && DDS_EXTERNAL_RELIABILITY_RELIABLE == 2 &&
                        DDS_RELIABILITY_BEST_EFFORT == 0 && DDS_RELIABILITY_RELIABLE == 1);
   dds_reliability_qospolicy_t const * const x = deser_generic_src (src, &srcoff, alignof (dds_reliability_qospolicy_t));
-  ddsi_duration_t mbt = nn_to_ddsi_duration (x->max_blocking_time);
+  ddsi_duration_t mbt = ddsi_to_ddsi_duration (x->max_blocking_time);
   uint32_t * const p = nn_xmsg_addpar (xmsg, pid, 3 * sizeof (uint32_t));
   p[0] = 1 + (uint32_t) x->kind;
   p[1] = (uint32_t) mbt.seconds;
@@ -551,7 +551,7 @@ static dds_return_t deser_generic (void * __restrict dst, size_t * __restrict ds
             goto fail;
           if (validate_external_duration (&tmp))
             goto fail;
-          x[i] = nn_from_ddsi_duration (tmp);
+          x[i] = ddsi_from_ddsi_duration (tmp);
         }
         *dstoff += cnt * sizeof (*x);
         break;
@@ -796,7 +796,7 @@ static dds_return_t ser_generic_embeddable (char * const data, size_t *dstoff, c
         uint32_t * const p = ser_generic_align4 (data, dstoff);
         for (uint32_t i = 0; i < cnt; i++)
         {
-          ddsi_duration_t tmp = nn_to_ddsi_duration (x[i]);
+          ddsi_duration_t tmp = ddsi_to_ddsi_duration (x[i]);
           p[2 * i + 0] = (uint32_t) tmp.seconds;
           p[2 * i + 1] = tmp.fraction;
         }

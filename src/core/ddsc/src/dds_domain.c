@@ -59,7 +59,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   domain->m_entity.m_domain = domain;
   domain->m_entity.m_iid = ddsi_iid_gen ();
 
-  domain->gv.tstart = now ();
+  domain->gv.tstart = ddsrt_time_wallclock ();
 
   /* | domain_id | domain id in config | result
      +-----------+---------------------+----------

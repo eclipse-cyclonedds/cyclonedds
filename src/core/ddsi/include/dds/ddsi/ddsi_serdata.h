@@ -13,7 +13,6 @@
 #define DDSI_SERDATA_H
 
 #include "dds/ddsrt/sockets.h"
-#include "dds/ddsi/q_time.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 
 #if defined (__cplusplus)
@@ -37,11 +36,11 @@ struct ddsi_serdata {
   const struct ddsi_sertopic *topic;
 
   /* these get set by generic code after creating the serdata */
-  nn_wctime_t timestamp;
+  ddsrt_wctime_t timestamp;
   uint32_t statusinfo;
 
   /* FIXME: can I get rid of this one? */
-  nn_mtime_t twrite; /* write time, not source timestamp, set post-throttling */
+  ddsrt_mtime_t twrite; /* write time, not source timestamp, set post-throttling */
 };
 
 /* Serialised size of sample inclusive of DDSI encoding header

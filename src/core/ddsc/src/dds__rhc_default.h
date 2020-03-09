@@ -26,10 +26,10 @@ struct rhc_sample;
 DDS_EXPORT struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_domaingv *gv, const struct ddsi_sertopic *topic, bool xchecks);
 DDS_EXPORT struct dds_rhc *dds_rhc_default_new (struct dds_reader *reader, const struct ddsi_sertopic *topic);
 #ifdef DDSI_INCLUDE_LIFESPAN
-DDS_EXPORT nn_mtime_t dds_rhc_default_sample_expired_cb(void *hc, nn_mtime_t tnow);
+DDS_EXPORT ddsrt_mtime_t dds_rhc_default_sample_expired_cb(void *hc, ddsrt_mtime_t tnow);
 #endif
 #ifdef DDSI_INCLUDE_DEADLINE_MISSED
-DDS_EXPORT nn_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, nn_mtime_t tnow);
+DDS_EXPORT ddsrt_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow);
 #endif
 
 #if defined (__cplusplus)

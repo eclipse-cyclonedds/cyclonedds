@@ -274,7 +274,7 @@ struct rhc_instance {
   uint32_t no_writers_gen;     /* __/ */
   int32_t strength;            /* "current" ownership strength */
   ddsi_guid_t wr_guid;         /* guid of last writer (if wr_iid != 0 then wr_guid is the corresponding guid, else undef) */
-  nn_wctime_t tstamp;          /* source time stamp of last update */
+  ddsrt_wctime_t tstamp;          /* source time stamp of last update */
   struct ddsrt_circlist_elem nonempty_list; /* links non-empty instances in arbitrary ordering */
 #ifdef DDSI_INCLUDE_DEADLINE_MISSED
   struct deadline_elem deadline; /* element in deadline missed administration */
@@ -594,11 +594,11 @@ static void drop_expired_samples (struct dds_rhc_default *rhc, struct rhc_sample
   TRACE (")\n");
 }
 
-nn_mtime_t dds_rhc_default_sample_expired_cb(void *hc, nn_mtime_t tnow)
+ddsrt_mtime_t dds_rhc_default_sample_expired_cb(void *hc, ddsrt_mtime_t tnow)
 {
   struct dds_rhc_default *rhc = hc;
   struct rhc_sample *sample;
-  nn_mtime_t tnext;
+  ddsrt_mtime_t tnext;
   ddsrt_mutex_lock (&rhc->lock);
   while ((tnext = lifespan_next_expired_locked (&rhc->lifespan, tnow, (void **)&sample)).v == 0)
     drop_expired_samples (rhc, sample);
@@ -608,11 +608,11 @@ nn_mtime_t dds_rhc_default_sample_expired_cb(void *hc, nn_mtime_t tnow)
 #endif /* DDSI_INCLUDE_LIFESPAN */
 
 #ifdef DDSI_INCLUDE_DEADLINE_MISSED
-nn_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, nn_mtime_t tnow)
+ddsrt_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
 {
   struct dds_rhc_default *rhc = hc;
   void *vinst;
-  nn_mtime_t tnext;
+  ddsrt_mtime_t tnext;
   ddsrt_mutex_lock (&rhc->lock);
   while ((tnext = deadline_next_missed_locked (&rhc->deadline, tnow, &vinst)).v == 0)
   {
@@ -630,7 +630,7 @@ nn_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, nn_mtime_t tnow)
     dds_reader_status_cb (&rhc->reader->m_entity, &cb_data);
     ddsrt_mutex_lock (&rhc->lock);
 
-    tnow = now_mt ();
+    tnow = ddsrt_time_monotonic ();
   }
   ddsrt_mutex_unlock (&rhc->lock);
   return tnext;
@@ -837,7 +837,7 @@ static void free_instance_rhc_free_wrap (void *vnode, void *varg)
 static void dds_rhc_default_free (struct dds_rhc_default *rhc)
 {
 #ifdef DDSI_INCLUDE_LIFESPAN
-  dds_rhc_default_sample_expired_cb (rhc, NN_MTIME_NEVER);
+  dds_rhc_default_sample_expired_cb (rhc, DDSRT_MTIME_NEVER);
   lifespan_fini (&rhc->lifespan);
 #endif
 #ifdef DDSI_INCLUDE_DEADLINE_MISSED
@@ -1067,7 +1067,7 @@ static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct 
   return 1;
 }
 
-static void update_inst (struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, bool wr_iid_valid, nn_wctime_t tstamp)
+static void update_inst (struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, bool wr_iid_valid, ddsrt_wctime_t tstamp)
 {
   inst->tstamp = tstamp;
   inst->wr_iid_islive = wr_iid_valid;
@@ -1264,7 +1264,7 @@ static int rhc_unregister_isreg_w_sideeffects (struct dds_rhc_default *rhc, cons
   }
 }
 
-static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, nn_wctime_t tstamp, struct trigger_info_qcond *trig_qc, bool *nda)
+static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp, struct trigger_info_qcond *trig_qc, bool *nda)
 {
   assert (inst->wrcount > 0);
 
@@ -1327,7 +1327,7 @@ static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_in
   }
 }
 
-static bool dds_rhc_unregister (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, nn_wctime_t tstamp, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
+static bool dds_rhc_unregister (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
 {
   bool notify_data_available = false;
 
@@ -1384,7 +1384,7 @@ static struct rhc_instance *alloc_new_instance (struct dds_rhc_default *rhc, con
 
 #ifdef DDSI_INCLUDE_DEADLINE_MISSED
   if (!inst->isdisposed)
-    deadline_register_instance_locked (&rhc->deadline, &inst->deadline, now_mt ());
+    deadline_register_instance_locked (&rhc->deadline, &inst->deadline, ddsrt_time_monotonic ());
 #endif
 
   return inst;
@@ -1598,7 +1598,7 @@ static bool dds_rhc_default_store (struct dds_rhc_default * __restrict rhc, cons
         inst->disposed_gen++;
 #ifdef DDSI_INCLUDE_DEADLINE_MISSED
         if (!is_dispose)
-          deadline_register_instance_locked (&rhc->deadline, &inst->deadline, now_mt ());
+          deadline_register_instance_locked (&rhc->deadline, &inst->deadline, ddsrt_time_monotonic ());
 #endif
       }
       if (is_dispose)
@@ -1639,7 +1639,7 @@ static bool dds_rhc_default_store (struct dds_rhc_default * __restrict rhc, cons
           {
             inst->isdisposed = 0;
 #ifdef DDSI_INCLUDE_DEADLINE_MISSED
-            deadline_register_instance_locked (&rhc->deadline, &inst->deadline, now_mt ());
+            deadline_register_instance_locked (&rhc->deadline, &inst->deadline, ddsrt_time_monotonic ());
 #endif
           }
           goto error_or_nochange;

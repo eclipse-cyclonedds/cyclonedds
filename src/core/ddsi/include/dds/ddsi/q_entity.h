@@ -119,9 +119,9 @@ struct wr_prd_match {
   ddsi_guid_t arbitrary_unacked_reader;
   nn_count_t next_acknack; /* next acceptable acknack sequence number */
   nn_count_t next_nackfrag; /* next acceptable nackfrag sequence number */
-  nn_etime_t t_acknack_accepted; /* (local) time an acknack was last accepted */
+  ddsrt_etime_t t_acknack_accepted; /* (local) time an acknack was last accepted */
   struct nn_lat_estim hb_to_ack_latency;
-  nn_wctime_t hb_to_ack_latency_tlastlog;
+  ddsrt_wctime_t hb_to_ack_latency_tlastlog;
   uint32_t non_responsive_count;
   uint32_t rexmit_requests;
 };
@@ -135,12 +135,12 @@ enum pwr_rd_match_syncstate {
 struct pwr_rd_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t rd_guid;
-  nn_mtime_t tcreate;
+  ddsrt_mtime_t tcreate;
   nn_count_t count; /* most recent acknack sequence number */
   nn_count_t next_heartbeat; /* next acceptable heartbeat (see also add_proxy_writer_to_reader) */
-  nn_wctime_t hb_timestamp; /* time of most recent heartbeat that rescheduled the ack event */
-  nn_etime_t t_heartbeat_accepted; /* (local) time a heartbeat was last accepted */
-  nn_mtime_t t_last_nack; /* (local) time we last sent a NACK */  /* FIXME: probably elapsed time is better */
+  ddsrt_wctime_t hb_timestamp; /* time of most recent heartbeat that rescheduled the ack event */
+  ddsrt_etime_t t_heartbeat_accepted; /* (local) time a heartbeat was last accepted */
+  ddsrt_mtime_t t_last_nack; /* (local) time we last sent a NACK */  /* FIXME: probably elapsed time is better */
   seqno_t seq_last_nack; /* last seq for which we requested a retransmit */
   struct xevent *acknack_xevent; /* entry in xevent queue for sending acknacks */
   enum pwr_rd_match_syncstate in_sync; /* whether in sync with the proxy writer */
@@ -159,7 +159,7 @@ struct ddsi_tkmap_instance;
 struct entity_common {
   enum entity_kind kind;
   ddsi_guid_t guid;
-  nn_wctime_t tupdate; /* timestamp of last update */
+  ddsrt_wctime_t tupdate; /* timestamp of last update */
   char *name;
   uint64_t iid;
   struct ddsi_tkmap_instance *tk;
@@ -271,8 +271,8 @@ struct writer
   struct ldur_fhnode *lease_duration; /* fibheap node to keep lease duration for this writer, NULL in case of automatic liveliness with inifite duration  */
   struct whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
-  nn_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
-  nn_etime_t t_whc_high_upd; /* time "whc_high" was last updated for controlled ramp-up of throughput */
+  ddsrt_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
+  ddsrt_etime_t t_whc_high_upd; /* time "whc_high" was last updated for controlled ramp-up of throughput */
   int32_t num_reliable_readers; /* number of matching reliable PROXY readers */
   ddsrt_avl_tree_t readers; /* all matching PROXY readers, see struct wr_prd_match */
   ddsrt_avl_tree_t local_readers; /* all matching LOCAL readers, see struct wr_rd_match */
@@ -653,11 +653,11 @@ int writer_set_notalive (struct writer *wr, bool notify);
 /* Set when this proxy participant is not to be announced on the built-in topics yet */
 #define CF_PROXYPP_NO_SPDP                     (1 << 3)
 
-void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const struct ddsi_plist *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, nn_wctime_t timestamp, seqno_t seq);
-int delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
+void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const struct ddsi_plist *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq);
+int delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
 
-int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, nn_wctime_t timestamp);
-int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, nn_wctime_t timestamp);
+int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp);
+int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp);
 void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct lease *newlease);
 
 void purge_proxy_participants (struct ddsi_domaingv *gv, const nn_locator_t *loc, bool delete_from_as_disc);
@@ -665,8 +665,8 @@ void purge_proxy_participants (struct ddsi_domaingv *gv, const nn_locator_t *loc
 
 /* To create a new proxy writer or reader; the proxy participant is
    determined from the GUID and must exist. */
-  int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, nn_wctime_t timestamp, seqno_t seq);
-int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, nn_wctime_t timestamp, seqno_t seq
+  int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, seqno_t seq);
+int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, seqno_t seq
 #ifdef DDSI_INCLUDE_SSM
                       , int favours_ssm
 #endif
@@ -677,19 +677,19 @@ int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
    reader or writer. Actual deletion is scheduled in the future, when
    no outstanding references may still exist (determined by checking
    thread progress, &c.). */
-int delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
-int delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
+int delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
+int delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
 
-void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
-void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
+void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
+void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
 
 void proxy_writer_set_alive_may_unlock (struct proxy_writer *pwr, bool notify);
 int proxy_writer_set_notalive (struct proxy_writer *pwr, bool notify);
 
-int new_proxy_group (const struct ddsi_guid *guid, const char *name, const struct dds_qos *xqos, nn_wctime_t timestamp);
+int new_proxy_group (const struct ddsi_guid *guid, const char *name, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
 
 struct entity_index;
-void delete_proxy_group (struct entity_index *entidx, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
+void delete_proxy_group (struct entity_index *entidx, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
 
 /* Call this to empty all address sets of all writers to stop all outgoing traffic, or to
    rebuild them all (which only makes sense after previously having emptied them all). */
