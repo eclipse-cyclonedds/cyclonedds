@@ -20,10 +20,6 @@
 extern "C" {
 #endif
 
-#define T_MILLISECOND 1000000ll
-#define T_SECOND (1000 * T_MILLISECOND)
-#define T_MICROSECOND (T_MILLISECOND/1000)
-
 typedef struct {
   int32_t seconds;
   uint32_t fraction;

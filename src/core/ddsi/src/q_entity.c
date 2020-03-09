@@ -806,7 +806,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domain
        fire before the calls return.  If the initial sample wasn't
        accepted, all is lost, but we continue nonetheless, even though
        the participant won't be able to discover or be discovered.  */
-    pp->spdp_xevent = qxev_spdp (gv->xevents, add_duration_to_mtime (now_mt (), 100 * T_MILLISECOND), &pp->e.guid, NULL);
+    pp->spdp_xevent = qxev_spdp (gv->xevents, add_duration_to_mtime (now_mt (), DDS_MSECS (100)), &pp->e.guid, NULL);
   }
 
   {
@@ -1908,7 +1908,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
        ensure a heartbeat is scheduled soon. */
     if (wr->heartbeat_xevent)
     {
-      const int64_t delta = 1 * T_MILLISECOND;
+      const int64_t delta = DDS_MSECS (1);
       const nn_mtime_t tnext = add_duration_to_mtime (now_mt (), delta);
       ddsrt_mutex_lock (&wr->e.lock);
       /* To make sure that we keep sending heartbeats at a higher rate
@@ -2185,11 +2185,10 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   }
   m->count = init_count;
   /* Spec says we may send a pre-emptive AckNack (8.4.2.3.4), hence we
-     schedule it for the configured delay * T_MILLISECOND. From then
-     on it it'll keep sending pre-emptive ones until the proxy writer
-     receives a heartbeat.  (We really only need a pre-emptive AckNack
-     per proxy writer, but hopefully it won't make that much of a
-     difference in practice.) */
+     schedule it for the configured delay. From then on it it'll keep
+     sending pre-emptive ones until the proxy writer receives a heartbeat.
+     (We really only need a pre-emptive AckNack per proxy writer, but
+     hopefully it won't make that much of a difference in practice.) */
   if (rd->reliable)
   {
     m->acknack_xevent = qxev_acknack (pwr->evq, add_duration_to_mtime (tnow, pwr->e.gv->config.preemptive_ack_delay), &pwr->e.guid, &rd->e.guid);

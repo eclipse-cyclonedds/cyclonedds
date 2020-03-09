@@ -2893,7 +2893,7 @@ void ddsi_xqos_init_default_writer (dds_qos_t *xqos)
 
   xqos->present |= QP_RELIABILITY;
   xqos->reliability.kind = DDS_RELIABILITY_RELIABLE;
-  xqos->reliability.max_blocking_time = 100 * T_MILLISECOND;
+  xqos->reliability.max_blocking_time = DDS_MSECS (100);
 
   xqos->present |= QP_OWNERSHIP_STRENGTH;
   xqos->ownership_strength.value = 0;
@@ -2928,7 +2928,7 @@ void ddsi_xqos_init_default_topic (dds_qos_t *xqos)
 
   xqos->present |= QP_RELIABILITY;
   xqos->reliability.kind = DDS_RELIABILITY_BEST_EFFORT;
-  xqos->reliability.max_blocking_time = 100 * T_MILLISECOND;
+  xqos->reliability.max_blocking_time = DDS_MSECS (100);
 
   xqos->present |= QP_TRANSPORT_PRIORITY;
   xqos->transport_priority.value = 0;
