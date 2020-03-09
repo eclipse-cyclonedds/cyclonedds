@@ -76,7 +76,7 @@ void lease_management_term (struct ddsi_domaingv *gv)
   ddsrt_mutex_destroy (&gv->leaseheap_lock);
 }
 
-struct lease *lease_new (nn_etime_t texpire, dds_duration_t tdur, struct entity_common *e)
+struct lease *lease_new (ddsrt_etime_t texpire, dds_duration_t tdur, struct entity_common *e)
 {
   struct lease *l;
   if ((l = ddsrt_malloc (sizeof (*l))) == NULL)
@@ -96,7 +96,7 @@ struct lease *lease_new (nn_etime_t texpire, dds_duration_t tdur, struct entity_
  */
 struct lease *lease_clone (const struct lease *l)
 {
-  nn_etime_t texp;
+  ddsrt_etime_t texp;
   dds_duration_t tdur;
   texp.v = (int64_t) ddsrt_atomic_ld64 (&l->tend);
   tdur = l->tdur;
@@ -144,7 +144,7 @@ void lease_free (struct lease *l)
   ddsrt_free (l);
 }
 
-static void trace_lease_renew (const struct lease *l, const char *tag, nn_etime_t tend_new)
+static void trace_lease_renew (const struct lease *l, const char *tag, ddsrt_etime_t tend_new)
 {
   struct ddsi_domaingv const * gv = l->entity->gv;
   if (gv->logconfig.c.mask & DDS_LC_TRACE)
@@ -155,14 +155,14 @@ static void trace_lease_renew (const struct lease *l, const char *tag, nn_etime_
       GVTRACE (":%"PRIx32, l->entity->guid.entityid.u);
     else
       GVTRACE (""PGUIDFMT"", PGUID (l->entity->guid));
-    etime_to_sec_usec (&tsec, &tusec, tend_new);
+    ddsrt_etime_to_sec_usec (&tsec, &tusec, tend_new);
     GVTRACE (" %"PRId32".%06"PRId32")", tsec, tusec);
   }
 }
 
-void lease_renew (struct lease *l, nn_etime_t tnowE)
+void lease_renew (struct lease *l, ddsrt_etime_t tnowE)
 {
-  nn_etime_t tend_new = add_duration_to_etime (tnowE, l->tdur);
+  ddsrt_etime_t tend_new = ddsrt_etime_add_duration (tnowE, l->tdur);
 
   /* do not touch tend if moving forward or if already expired */
   int64_t tend;
@@ -179,7 +179,7 @@ void lease_renew (struct lease *l, nn_etime_t tnowE)
   trace_lease_renew (l, "", tend_new);
 }
 
-void lease_set_expiry (struct lease *l, nn_etime_t when)
+void lease_set_expiry (struct lease *l, ddsrt_etime_t when)
 {
   struct ddsi_domaingv * const gv = l->entity->gv;
   bool trigger = false;
@@ -212,7 +212,7 @@ void lease_set_expiry (struct lease *l, nn_etime_t when)
     force_lease_check (gv->gcreq_queue);
 }
 
-int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, nn_etime_t tnowE)
+int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, ddsrt_etime_t tnowE)
 {
   struct lease *l;
   int64_t delay;
@@ -273,7 +273,7 @@ int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, nn_etime_t 
           entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp->privileged_pp_guid) != NULL)
       {
         GVLOGDISC ("but postponing because privileged pp "PGUIDFMT" is still live\n", PGUID (proxypp->privileged_pp_guid));
-        l->tsched = add_duration_to_etime (tnowE, DDS_MSECS (200));
+        l->tsched = ddsrt_etime_add_duration (tnowE, DDS_MSECS (200));
         ddsrt_fibheap_insert (&lease_fhdef, &gv->leaseheap, l);
         continue;
       }
@@ -285,7 +285,7 @@ int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, nn_etime_t 
     switch (k)
     {
       case EK_PROXY_PARTICIPANT:
-        delete_proxy_participant_by_guid (gv, &g, now(), 1);
+        delete_proxy_participant_by_guid (gv, &g, ddsrt_time_wallclock(), 1);
         break;
       case EK_PROXY_WRITER:
         proxy_writer_set_notalive ((struct proxy_writer *) l->entity, true);

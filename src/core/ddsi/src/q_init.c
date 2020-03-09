@@ -728,13 +728,13 @@ struct wait_for_receive_threads_helper_arg {
   unsigned count;
 };
 
-static void wait_for_receive_threads_helper (struct xevent *xev, void *varg, nn_mtime_t tnow)
+static void wait_for_receive_threads_helper (struct xevent *xev, void *varg, ddsrt_mtime_t tnow)
 {
   struct wait_for_receive_threads_helper_arg * const arg = varg;
   if (arg->count++ == arg->gv->config.recv_thread_stop_maxretries)
     abort ();
   trigger_recv_threads (arg->gv);
-  (void) resched_xevent_if_earlier (xev, add_duration_to_mtime (tnow, DDS_SECS (1)));
+  (void) resched_xevent_if_earlier (xev, ddsrt_mtime_add_duration (tnow, DDS_SECS (1)));
 }
 
 static void wait_for_receive_threads (struct ddsi_domaingv *gv)
@@ -743,7 +743,7 @@ static void wait_for_receive_threads (struct ddsi_domaingv *gv)
   struct wait_for_receive_threads_helper_arg cbarg;
   cbarg.gv = gv;
   cbarg.count = 0;
-  if ((trigev = qxev_callback (gv->xevents, add_duration_to_mtime (now_mt (), DDS_SECS (1)), wait_for_receive_threads_helper, &cbarg)) == NULL)
+  if ((trigev = qxev_callback (gv->xevents, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_SECS (1)), wait_for_receive_threads_helper, &cbarg)) == NULL)
   {
     /* retrying is to deal a packet geting lost because the socket buffer is full or because the
        macOS firewall (and perhaps others) likes to ask if the process is allowed to receive data,
@@ -924,7 +924,7 @@ static uint32_t ddsi_sertopic_hash_wrap (const void *tp)
   return ddsi_sertopic_hash (tp);
 }
 
-static void reset_deaf_mute (struct xevent *xev, void *varg, UNUSED_ARG (nn_mtime_t tnow))
+static void reset_deaf_mute (struct xevent *xev, void *varg, UNUSED_ARG (ddsrt_mtime_t tnow))
 {
   struct ddsi_domaingv *gv = varg;
   gv->deaf = 0;
@@ -940,7 +940,7 @@ void ddsi_set_deafmute (struct ddsi_domaingv *gv, bool deaf, bool mute, int64_t 
   GVLOGDISC (" DEAFMUTE set [deaf, mute]=[%d, %d]", gv->deaf, gv->mute);
   if (reset_after < DDS_INFINITY)
   {
-    nn_mtime_t when = add_duration_to_mtime (now_mt (), reset_after);
+    ddsrt_mtime_t when = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), reset_after);
     GVTRACE (" reset after %"PRId64".%09u ns", reset_after / DDS_NSECS_IN_SEC, (unsigned) (reset_after % DDS_NSECS_IN_SEC));
     qxev_callback (gv->xevents, when, reset_deaf_mute, gv);
   }
@@ -952,9 +952,9 @@ int rtps_init (struct ddsi_domaingv *gv)
   uint32_t port_disc_uc = 0;
   uint32_t port_data_uc = 0;
   bool mc_available = true;
-  nn_mtime_t reset_deaf_mute_time = NN_MTIME_NEVER;
+  ddsrt_mtime_t reset_deaf_mute_time = DDSRT_MTIME_NEVER;
 
-  gv->tstart = now ();    /* wall clock time, used in logs */
+  gv->tstart = ddsrt_time_wallclock ();    /* wall clock time, used in logs */
 
   ddsi_plist_init_tables ();
 
@@ -982,7 +982,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   if (gv->deaf || gv->mute)
   {
     GVLOG (DDS_LC_CONFIG | DDS_LC_DISCOVERY, "DEAFMUTE initial deaf=%d mute=%d reset after %"PRId64"d ns\n", gv->deaf, gv->mute, gv->config.initial_deaf_mute_reset);
-    reset_deaf_mute_time = add_duration_to_mtime (now_mt (), gv->config.initial_deaf_mute_reset);
+    reset_deaf_mute_time = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), gv->config.initial_deaf_mute_reset);
   }
 
   /* Initialize thread pool */
@@ -1640,7 +1640,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
   {
     struct entidx_enum_proxy_participant est;
     struct proxy_participant *proxypp;
-    const nn_wctime_t tnow = now();
+    const ddsrt_wctime_t tnow = ddsrt_time_wallclock();
     /* Clean up proxy readers, proxy writers and proxy
        participants. Deleting a proxy participants deletes all its
        readers and writers automatically */

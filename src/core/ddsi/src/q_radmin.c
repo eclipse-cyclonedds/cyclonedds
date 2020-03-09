@@ -2427,7 +2427,7 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
   struct ddsi_domaingv const * const gv = ddsrt_atomic_ldvoidp (&ts1->gv);
-  nn_mtime_t next_thread_cputime = { 0 };
+  ddsrt_mtime_t next_thread_cputime = { 0 };
   int keepgoing = 1;
   ddsi_guid_t rdguid, *prdguid = NULL;
   uint32_t rdguid_count = 0;

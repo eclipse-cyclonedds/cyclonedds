@@ -17,7 +17,7 @@
 #include "dds/ddsi/q_feature_check.h"
 
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_time.h"
+#include "dds/ddsi/ddsi_time.h"
 
 #if defined (__cplusplus)
 extern "C" {

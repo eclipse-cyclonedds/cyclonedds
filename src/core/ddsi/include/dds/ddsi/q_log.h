@@ -15,7 +15,7 @@
 #include <stdarg.h>
 
 #include "dds/ddsrt/log.h"
-#include "dds/ddsi/q_time.h"
+#include "dds/ddsi/ddsi_time.h"
 #include "dds/ddsrt/rusage.h"
 
 #if defined (__cplusplus)
@@ -45,7 +45,7 @@ extern "C" {
 #define LOG_THREAD_CPUTIME(logcfg, guard)                                \
     do {                                                                 \
         if ((logcfg)->c.mask & DDS_LC_TIMING) {                          \
-            nn_mtime_t tnowlt = now_mt();                                \
+            ddsrt_mtime_t tnowlt = ddsrt_time_monotonic ();              \
             if (tnowlt.v >= (guard).v) {                                 \
                 ddsrt_rusage_t usage;                                    \
                 if (ddsrt_getrusage(DDSRT_RUSAGE_THREAD, &usage) == 0) { \

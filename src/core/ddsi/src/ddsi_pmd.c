@@ -25,7 +25,6 @@
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_xmsg.h"
 
@@ -57,7 +56,7 @@ void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *
   else
   {
     if ((lease = ddsrt_atomic_ldvoidp (&pp->minl_man)) != NULL)
-      lease_renew (lease, now_et());
+      lease_renew (lease, ddsrt_time_elapsed());
     write_pmd_message (ts1, NULL, pp, pmd_kind);
   }
   thread_state_asleep (ts1);
@@ -93,7 +92,7 @@ void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, s
     .keysize = 16
   };
   serdata = ddsi_serdata_from_sample (gv->rawcdr_topic, SDK_DATA, &raw);
-  serdata->timestamp = now ();
+  serdata->timestamp = ddsrt_time_wallclock ();
 
   tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
   write_sample_nogc (ts1, xp, wr, serdata, tk);
@@ -101,7 +100,7 @@ void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, s
 #undef PMD_DATA_LENGTH
 }
 
-void handle_pmd_message (const struct receiver_state *rst, nn_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len)
+void handle_pmd_message (const struct receiver_state *rst, ddsrt_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len)
 {
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
   const int bswap = (data->identifier == CDR_LE) ^ (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
@@ -139,7 +138,7 @@ void handle_pmd_message (const struct receiver_state *rst, nn_wctime_t timestamp
                  (l = ddsrt_atomic_ldvoidp (&proxypp->minl_man)) != NULL)
         {
           /* Renew lease for entity with shortest manual-by-participant lease */
-          lease_renew (l, now_et ());
+          lease_renew (l, ddsrt_time_elapsed ());
         }
       }
       break;

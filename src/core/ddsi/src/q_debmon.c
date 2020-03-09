@@ -22,7 +22,6 @@
 
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/ddsi_plist.h"

@@ -26,13 +26,17 @@ dds_time_t dds_time(void)
   return (ts.tv_sec * DDS_NSECS_IN_SEC) + ts.tv_nsec;
 }
 
-dds_time_t ddsrt_time_monotonic(void)
+ddsrt_wctime_t ddsrt_time_wallclock(void)
 {
-  return gethrtime ();
+  return (ddsrt_wctime_t) { dds_time() };
 }
 
-dds_time_t ddsrt_time_elapsed(void)
+ddsrt_mtime_t ddsrt_time_monotonic(void)
 {
-  /* Elapsed time clock not worth the bother for now. */
-  return ddsrt_time_monotonic();
+  return (ddsrt_mtime_t) { gethrtime () };
+}
+
+ddsrt_etime_t ddsrt_time_elapsed(void)
+{
+  return (ddsrt_etime_t) { gethrtime () };
 }

@@ -76,7 +76,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
       socklen_t dest_len = sizeof (dest);
       if (ddsrt_getsockname (((ddsi_udp_conn_t) conn)->m_sock, (struct sockaddr *) &dest, &dest_len) != DDS_RETCODE_OK)
         memset(&dest, 0, sizeof(dest));
-      write_pcap_received(conn->m_base.gv, now(), &src, &dest, buf, (size_t) ret);
+      write_pcap_received(conn->m_base.gv, ddsrt_time_wallclock(), &src, &dest, buf, (size_t) ret);
     }
 
     /* Check for udp packet truncation */
@@ -155,7 +155,7 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
     socklen_t alen = sizeof (sa);
     if (ddsrt_getsockname (((ddsi_udp_conn_t) conn)->m_sock, (struct sockaddr *) &sa, &alen) != DDS_RETCODE_OK)
       memset(&sa, 0, sizeof(sa));
-    write_pcap_sent (conn->m_base.gv, now (), &sa, &msg, (size_t) ret);
+    write_pcap_sent (conn->m_base.gv, ddsrt_time_wallclock (), &sa, &msg, (size_t) ret);
   }
   else if (rc != DDS_RETCODE_OK &&
            rc != DDS_RETCODE_NOT_ALLOWED &&

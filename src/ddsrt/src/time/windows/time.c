@@ -13,7 +13,7 @@
 #include <sys/timeb.h>
 #include <time.h>
 
-#include "dds/ddsrt/timeconv.h"
+#include "dds/ddsrt/time.h"
 
 extern inline DWORD
 ddsrt_duration_to_msecs_ceil(dds_duration_t reltime);
@@ -100,16 +100,21 @@ void ddsrt_time_fini(void)
 #endif
 }
 
-dds_time_t ddsrt_time_monotonic(void)
+ddsrt_wctime_t ddsrt_time_wallclock(void)
+{
+  return (ddsrt_wctime_t) { dds_time() } ;
+}
+
+ddsrt_mtime_t ddsrt_time_monotonic(void)
 {
   ULONGLONG ubit;
 
   (void)QueryUnbiasedInterruptTime(&ubit); /* 100ns ticks */
 
-  return (dds_time_t)(ubit * 100);
+  return (ddsrt_mtime_t) { ubit * 100 };
 }
 
-dds_time_t ddsrt_time_elapsed(void)
+ddsrt_etime_t ddsrt_time_elapsed(void)
 {
   LARGE_INTEGER qpc;
   static LONGLONG qpc_freq; /* Counts per nanosecond. */
@@ -152,7 +157,7 @@ dds_time_t ddsrt_time_elapsed(void)
    * the time progression to actual time progression. */
   QueryPerformanceCounter(&qpc);
 
-  return (dds_time_t)(qpc.QuadPart * qpc_freq);
+  return (ddsrt_etime_t) { qpc.QuadPart * qpc_freq };
 }
 
 void dds_sleepfor(dds_duration_t reltime)

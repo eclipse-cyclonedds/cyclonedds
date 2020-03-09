@@ -179,7 +179,7 @@ static int write_mpayload (struct writer *wr, int alive, nn_parameterid_t keypar
   nn_xmsg_payload_to_plistsample (&plist_sample, keyparam, mpayload);
   serdata = ddsi_serdata_from_sample (wr->e.gv->plist_topic, alive ? SDK_DATA : SDK_KEY, &plist_sample);
   serdata->statusinfo = alive ? 0 : NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
-  serdata->timestamp = now ();
+  serdata->timestamp = ddsrt_time_wallclock ();
   return write_sample_nogc_notk (ts1, NULL, wr, serdata);
 }
 
@@ -362,7 +362,7 @@ int spdp_dispose_unregister (struct participant *pp)
   return ret;
 }
 
-static unsigned pseudo_random_delay (const ddsi_guid_t *x, const ddsi_guid_t *y, nn_mtime_t tnow)
+static unsigned pseudo_random_delay (const ddsi_guid_t *x, const ddsi_guid_t *y, ddsrt_mtime_t tnow)
 {
   /* You know, an ordinary random generator would be even better, but
      the C library doesn't have a reentrant one and I don't feel like
@@ -395,7 +395,7 @@ static void respond_to_spdp (const struct ddsi_domaingv *gv, const ddsi_guid_t *
 {
   struct entidx_enum_participant est;
   struct participant *pp;
-  nn_mtime_t tnow = now_mt ();
+  ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
   entidx_enum_participant_init (&est, gv->entity_index);
   while ((pp = entidx_enum_participant_next (&est)) != NULL)
   {
@@ -405,7 +405,7 @@ static void respond_to_spdp (const struct ddsi_domaingv *gv, const ddsi_guid_t *
     unsigned delay_norm = delay_base >> 2;
     int64_t delay_max_ms = gv->config.spdp_response_delay_max / 1000000;
     int64_t delay = (int64_t) delay_norm * delay_max_ms / 1000;
-    nn_mtime_t tsched = add_duration_to_mtime (tnow, delay);
+    ddsrt_mtime_t tsched = ddsrt_mtime_add_duration (tnow, delay);
     GVTRACE (" %"PRId64, delay);
     if (!pp->e.gv->config.unicast_response_to_spdp_messages)
       /* pp can't reach gc_delete_participant => can safely reschedule */
@@ -416,7 +416,7 @@ static void respond_to_spdp (const struct ddsi_domaingv *gv, const ddsi_guid_t *
   entidx_enum_participant_fini (&est);
 }
 
-static int handle_SPDP_dead (const struct receiver_state *rst, nn_wctime_t timestamp, const ddsi_plist_t *datap, unsigned statusinfo)
+static int handle_SPDP_dead (const struct receiver_state *rst, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap, unsigned statusinfo)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   ddsi_guid_t guid;
@@ -478,7 +478,7 @@ static struct proxy_participant *find_ddsi2_proxy_participant (const struct enti
   return pp;
 }
 
-static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, const ddsi_guid_t *ddsi2guid, nn_wctime_t timestamp)
+static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, const ddsi_guid_t *ddsi2guid, ddsrt_wctime_t timestamp)
 {
   struct entidx_enum_proxy_participant it;
   struct proxy_participant *pp, *d2pp;
@@ -514,7 +514,7 @@ static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, cons
   }
 }
 
-static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_wctime_t timestamp, const ddsi_plist_t *datap)
+static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   const unsigned bes_sedp_announcer_mask =
@@ -596,7 +596,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
          that are not alive are not set alive here. This is done only when
          data is received from a particular pwr (in handle_regular) */
       if ((lease = ddsrt_atomic_ldvoidp (&proxypp->minl_auto)) != NULL)
-        lease_renew (lease, now_et ());
+        lease_renew (lease, ddsrt_time_elapsed ());
       ddsrt_mutex_lock (&proxypp->e.lock);
       if (proxypp->implicitly_created || seq > proxypp->seq)
       {
@@ -797,7 +797,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
   return 1;
 }
 
-static void handle_SPDP (const struct receiver_state *rst, seqno_t seq, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
+static void handle_SPDP (const struct receiver_state *rst, seqno_t seq, ddsrt_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
@@ -1049,7 +1049,7 @@ static const char *durability_to_string (dds_durability_kind_t k)
   return "undefined-durability";
 }
 
-static struct proxy_participant *implicitly_create_proxypp (struct ddsi_domaingv *gv, const ddsi_guid_t *ppguid, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp, seqno_t seq)
+static struct proxy_participant *implicitly_create_proxypp (struct ddsi_domaingv *gv, const ddsi_guid_t *ppguid, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, ddsrt_wctime_t timestamp, seqno_t seq)
 {
   ddsi_guid_t privguid;
   ddsi_plist_t pp_plist;
@@ -1129,7 +1129,7 @@ static struct proxy_participant *implicitly_create_proxypp (struct ddsi_domaingv
   return entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid);
 }
 
-static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp)
+static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, ddsrt_wctime_t timestamp)
 {
 #define E(msg, lbl) do { GVLOGDISC (msg); goto lbl; } while (0)
   struct ddsi_domaingv * const gv = rst->gv;
@@ -1225,7 +1225,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, dd
       GVLOGDISC (" "PGUIDFMT" attach-to-DS "PGUIDFMT, PGUID(pp->e.guid), PGUIDPREFIX(*src_guid_prefix), pp->privileged_pp_guid.entityid.u);
       ddsrt_mutex_lock (&pp->e.lock);
       pp->privileged_pp_guid.prefix = *src_guid_prefix;
-      lease_set_expiry(pp->lease, NN_ETIME_NEVER);
+      lease_set_expiry(pp->lease, DDSRT_ETIME_NEVER);
       ddsrt_mutex_unlock (&pp->e.lock);
     }
     GVLOGDISC ("\n");
@@ -1324,7 +1324,7 @@ err:
 #undef E
 }
 
-static void handle_SEDP_dead (const struct receiver_state *rst, ddsi_plist_t *datap, nn_wctime_t timestamp)
+static void handle_SEDP_dead (const struct receiver_state *rst, ddsi_plist_t *datap, ddsrt_wctime_t timestamp)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   int res;
@@ -1341,7 +1341,7 @@ static void handle_SEDP_dead (const struct receiver_state *rst, ddsi_plist_t *da
   GVLOGDISC (" %s\n", (res < 0) ? " unknown" : " delete");
 }
 
-static void handle_SEDP (const struct receiver_state *rst, seqno_t seq, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
+static void handle_SEDP (const struct receiver_state *rst, seqno_t seq, ddsrt_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
@@ -1477,7 +1477,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
   unsigned char *datap;
   int needs_free;
   uint32_t datasz = sampleinfo->size;
-  nn_wctime_t timestamp;
+  ddsrt_wctime_t timestamp;
 
   needs_free = defragment (&datap, fragchain, sampleinfo->size);
 
@@ -1625,10 +1625,10 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     goto done_upd_deliv;
   }
 
-  if (sampleinfo->timestamp.v != NN_WCTIME_INVALID.v)
+  if (sampleinfo->timestamp.v != DDSRT_WCTIME_INVALID.v)
     timestamp = sampleinfo->timestamp;
   else
-    timestamp = now ();
+    timestamp = ddsrt_time_wallclock ();
   switch (srcguid.entityid.u)
   {
     case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:

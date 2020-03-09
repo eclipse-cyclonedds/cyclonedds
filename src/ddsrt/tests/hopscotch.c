@@ -167,7 +167,7 @@ CU_Theory ((const struct ops *ops, bool random, adj_fun_t adj, const char *adjna
   void *h = ops->new ();
   uint32_t i, nk = 0;
   uint64_t nn = 0;
-  dds_time_t t0, t1;
+  ddsrt_mtime_t t0, t1;
   t0 = ddsrt_time_monotonic ();
   for (uint32_t iter = 0; iter < MAX_ITERS; iter++)
   {
@@ -205,5 +205,5 @@ CU_Theory ((const struct ops *ops, bool random, adj_fun_t adj, const char *adjna
   }
   t1 = ddsrt_time_monotonic ();
   ops->free (h);
-  printf (" %"PRIu64" %.0f ns/cycle\n", nn, (double) (t1 - t0) / (double) nn);
+  printf (" %"PRIu64" %.0f ns/cycle\n", nn, (double) (t1.v - t0.v) / (double) nn);
 }

@@ -538,14 +538,14 @@ void nn_xmsg_shrink (struct nn_xmsg *m, struct nn_xmsg_marker marker, size_t sz)
   m->sz = marker.offset + sz;
 }
 
-void nn_xmsg_add_timestamp (struct nn_xmsg *m, nn_wctime_t t)
+void nn_xmsg_add_timestamp (struct nn_xmsg *m, ddsrt_wctime_t t)
 {
   InfoTimestamp_t * ts;
   struct nn_xmsg_marker sm;
 
   ts = (InfoTimestamp_t*) nn_xmsg_append (m, &sm, sizeof (InfoTimestamp_t));
   nn_xmsg_submsg_init (m, sm, SMID_INFO_TS);
-  ts->time = nn_wctime_to_ddsi_time (t);
+  ts->time = ddsi_wctime_to_ddsi_time (t);
   nn_xmsg_submsg_setnext (m, sm);
 }
 
