@@ -35,14 +35,6 @@ void dds_sleepfor(dds_duration_t n)
 }
 #endif
 
-void dds_sleepuntil(dds_time_t abstime)
-{
-  dds_time_t now = dds_time();
-
-  if (abstime > now)
-    dds_sleepfor (abstime - now);
-}
-
 size_t
 ddsrt_ctime(dds_time_t n, char *str, size_t size)
 {
