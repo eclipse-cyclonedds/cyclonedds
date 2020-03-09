@@ -87,16 +87,6 @@ DDS_EXPORT dds_time_t dds_time(void);
 DDS_EXPORT void dds_sleepfor (dds_duration_t reltime);
 
 /**
- * @brief Suspend execution of calling thread until absolute time n elapsed.
- *
- * Execution is suspended until the given absolute time elapsed. Should the
- * call be interrupted, it is re-entered with the remaining time.
- *
- * @param[in]  abstime  Absolute time in nanoseconds since UNIX Epoch.
- */
-DDS_EXPORT void dds_sleepuntil (dds_time_t abstime);
-
-/**
  * @brief Get high resolution, monotonic time.
  *
  * The monotonic clock is a clock with near real-time progression and can be
