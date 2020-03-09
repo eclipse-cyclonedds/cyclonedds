@@ -46,7 +46,7 @@ target_include_directories(dds_security_auth
 )
 
 install(
-  TARGETS
+  TARGETS dds_security_auth
   EXPORT "${PROJECT_NAME}"
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib

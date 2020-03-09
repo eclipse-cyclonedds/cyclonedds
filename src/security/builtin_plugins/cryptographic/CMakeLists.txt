@@ -45,7 +45,7 @@ target_include_directories(dds_security_crypto
 )
 
 install(
-  TARGETS
+  TARGETS dds_security_crypto
   EXPORT "${PROJECT_NAME}"
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
