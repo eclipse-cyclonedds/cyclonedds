@@ -952,7 +952,7 @@ static void nn_xpack_reinit (struct nn_xpack *xp)
   xp->call_flags = 0;
   xp->msg_len.length = 0;
   xp->included_msgs.latest = NULL;
-  xp->maxdelay = T_NEVER;
+  xp->maxdelay = DDS_INFINITY;
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   xp->encoderId = 0;
 #endif

@@ -1072,8 +1072,7 @@ static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct hand
      once, regardless of which readers care about it. */
   if (wn->acknack_xevent)
   {
-    nn_mtime_t tsched;
-    tsched.v = T_NEVER;
+    nn_mtime_t tsched = NN_MTIME_NEVER;
     if (pwr->last_seq > refseq)
     {
       RSTTRACE ("/NAK");
@@ -1142,7 +1141,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
   ddsrt_mutex_lock (&pwr->e.lock);
   if (msg->smhdr.flags & HEARTBEAT_FLAG_LIVELINESS &&
       pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC &&
-      pwr->c.xqos->liveliness.lease_duration != T_NEVER)
+      pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
   {
     if ((lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_man)) != NULL)
       lease_renew (lease, tnow);

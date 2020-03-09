@@ -417,7 +417,7 @@ static void remember_deleted_participant_guid (struct deleted_participants_admin
     if ((n = ddsrt_malloc (sizeof (*n))) != NULL)
     {
       n->guid = *guid;
-      n->t_prune.v = T_NEVER;
+      n->t_prune = NN_MTIME_NEVER;
       n->for_what = DPG_LOCAL | DPG_REMOTE;
       ddsrt_avl_insert_ipath (&deleted_participants_treedef, &admin->deleted_participants, n, &path);
     }
@@ -811,7 +811,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domain
 
   {
     nn_mtime_t tsched;
-    tsched.v = (pp->lease_duration == T_NEVER) ? T_NEVER : 0;
+    tsched = (pp->lease_duration == DDS_INFINITY) ? NN_MTIME_NEVER : (nn_mtime_t){0};
     pp->pmd_update_xevent = qxev_pmd_update (gv->xevents, tsched, &pp->e.guid);
   }
   return 0;
@@ -1089,7 +1089,7 @@ dds_duration_t pp_get_pmd_interval (struct participant *pp)
   dds_duration_t intv;
   ddsrt_mutex_lock (&pp->e.lock);
   ldur_node = ddsrt_fibheap_min (&ldur_fhdef, &pp->ldur_auto_wr);
-  intv = (ldur_node != NULL) ? ldur_node->ldur : T_NEVER;
+  intv = (ldur_node != NULL) ? ldur_node->ldur : DDS_INFINITY;
   if (pp->lease_duration < intv)
     intv = pp->lease_duration;
   ddsrt_mutex_unlock (&pp->e.lock);
@@ -2920,7 +2920,7 @@ void writer_set_alive_may_unlock (struct writer *wr, bool notify)
   ddsrt_mutex_lock (&wr->c.pp->e.lock);
   wr->alive = true;
   wr->alive_vclock++;
-  if (wr->xqos->liveliness.lease_duration != T_NEVER)
+  if (wr->xqos->liveliness.lease_duration != DDS_INFINITY)
   {
     if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT)
       participant_add_wr_lease_locked (wr->c.pp, wr);
@@ -2943,7 +2943,7 @@ static int writer_set_notalive_locked (struct writer *wr, bool notify)
   ddsrt_mutex_lock (&wr->c.pp->e.lock);
   wr->alive = false;
   wr->alive_vclock++;
-  if (wr->xqos->liveliness.lease_duration != T_NEVER && wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT)
+  if (wr->xqos->liveliness.lease_duration != DDS_INFINITY && wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT)
     participant_remove_wr_lease_locked (wr->c.pp, wr);
   ddsrt_mutex_unlock (&wr->c.pp->e.lock);
 
@@ -3089,22 +3089,16 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   }
 
   /* heartbeat event will be deleted when the handler can't find a
-     writer for it in the hash table. T_NEVER => won't ever be
+     writer for it in the hash table. NEVER => won't ever be
      scheduled, and this can only change by writing data, which won't
      happen until after it becomes visible. */
   if (wr->reliable)
-  {
-    nn_mtime_t tsched;
-    tsched.v = T_NEVER;
-    wr->heartbeat_xevent = qxev_heartbeat (wr->evq, tsched, &wr->e.guid);
-  }
+    wr->heartbeat_xevent = qxev_heartbeat (wr->evq, NN_MTIME_NEVER, &wr->e.guid);
   else
-  {
     wr->heartbeat_xevent = NULL;
-  }
 
   assert (wr->xqos->present & QP_LIVELINESS);
-  if (wr->xqos->liveliness.lease_duration != T_NEVER)
+  if (wr->xqos->liveliness.lease_duration != DDS_INFINITY)
   {
     wr->lease_duration = ddsrt_malloc (sizeof(*wr->lease_duration));
     wr->lease_duration->ldur = wr->xqos->liveliness.lease_duration;
@@ -3181,7 +3175,7 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_g
 
   if (wr->lease_duration != NULL)
   {
-    assert (wr->lease_duration->ldur != T_NEVER);
+    assert (wr->lease_duration->ldur != DDS_INFINITY);
     assert (!is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE));
     if (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC)
     {
@@ -3278,7 +3272,7 @@ static void gc_delete_writer (struct gcreq *gcreq)
 
   if (wr->heartbeat_xevent)
   {
-    wr->hbcontrol.tsched.v = T_NEVER;
+    wr->hbcontrol.tsched = NN_MTIME_NEVER;
     delete_xevent (wr->heartbeat_xevent);
   }
 
@@ -4026,7 +4020,7 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
         lease that doesn't expire now and that has a "reasonable" lease duration. That way the lease renewal in
         the data path is fine, and we only need to do something special in SEDP handling. */
       nn_etime_t texp = add_duration_to_etime (now_et(), tlease_dur);
-      dds_duration_t dur = (tlease_dur == T_NEVER) ? gv->config.lease_duration : tlease_dur;
+      dds_duration_t dur = (tlease_dur == DDS_INFINITY) ? gv->config.lease_duration : tlease_dur;
       proxypp->lease = lease_new (texp, dur, &proxypp->e);
       proxypp->owns_lease = 1;
 
@@ -4529,7 +4523,7 @@ int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
 #endif
 
   assert (pwr->c.xqos->present & QP_LIVELINESS);
-  if (pwr->c.xqos->liveliness.lease_duration != T_NEVER)
+  if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
   {
     nn_etime_t texpire = add_duration_to_etime (now_et (), pwr->c.xqos->liveliness.lease_duration);
     pwr->lease = lease_new (texpire, pwr->c.xqos->liveliness.lease_duration, &pwr->e);
@@ -4689,7 +4683,7 @@ static void gc_delete_proxy_writer (struct gcreq *gcreq)
     free_pwr_rd_match (m);
   }
   local_reader_ary_fini (&pwr->rdary);
-  if (pwr->c.xqos->liveliness.lease_duration != T_NEVER)
+  if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
     lease_free (pwr->lease);
   proxy_endpoint_common_fini (&pwr->e, &pwr->c);
   nn_defrag_free (pwr->defrag);
@@ -4722,7 +4716,7 @@ int delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid,
   builtintopic_write (gv->builtin_topic_interface, &pwr->e, timestamp, false);
   entidx_remove_proxy_writer_guid (gv->entity_index, pwr);
   ddsrt_mutex_unlock (&gv->lock);
-  if (pwr->c.xqos->liveliness.lease_duration != T_NEVER &&
+  if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY &&
       pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
     lease_unregister (pwr->lease);
   if (proxy_writer_set_notalive (pwr, false) != DDS_RETCODE_OK)
@@ -4768,7 +4762,7 @@ void proxy_writer_set_alive_may_unlock (struct proxy_writer *pwr, bool notify)
   ddsrt_mutex_lock (&pwr->c.proxypp->e.lock);
   pwr->alive = true;
   pwr->alive_vclock++;
-  if (pwr->c.xqos->liveliness.lease_duration != T_NEVER)
+  if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
   {
     if (pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
       proxy_participant_add_pwr_lease_locked (pwr->c.proxypp, pwr);
@@ -4795,7 +4789,7 @@ int proxy_writer_set_notalive (struct proxy_writer *pwr, bool notify)
   ddsrt_mutex_lock (&pwr->c.proxypp->e.lock);
   pwr->alive = false;
   pwr->alive_vclock++;
-  if (pwr->c.xqos->liveliness.lease_duration != T_NEVER && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
+  if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
     proxy_participant_remove_pwr_lease_locked (pwr->c.proxypp, pwr);
   ddsrt_mutex_unlock (&pwr->c.proxypp->e.lock);
 

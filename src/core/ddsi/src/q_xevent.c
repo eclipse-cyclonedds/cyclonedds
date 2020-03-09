@@ -321,7 +321,7 @@ void delete_xevent (struct xevent *ev)
   /* Can delete it only once, no matter how we implement it internally */
   assert (ev->tsched.v != TSCHED_DELETE);
   assert (TSCHED_DELETE < ev->tsched.v);
-  if (ev->tsched.v != T_NEVER)
+  if (ev->tsched.v != DDS_NEVER)
   {
     ev->tsched.v = TSCHED_DELETE;
     ddsrt_fibheap_decrease_key (&evq_xevents_fhdef, &evq->xevents, ev);
@@ -343,13 +343,13 @@ void delete_xevent_callback (struct xevent *ev)
   assert (ev->kind == XEVK_CALLBACK);
   ddsrt_mutex_lock (&evq->lock);
   /* wait until neither scheduled nor executing; loop in case the callback reschedules the event */
-  while (ev->tsched.v != T_NEVER || ev->u.callback.executing)
+  while (ev->tsched.v != DDS_NEVER || ev->u.callback.executing)
   {
-    if (ev->tsched.v != T_NEVER)
+    if (ev->tsched.v != DDS_NEVER)
     {
       assert (ev->tsched.v != TSCHED_DELETE);
       ddsrt_fibheap_delete (&evq_xevents_fhdef, &evq->xevents, ev);
-      ev->tsched.v = T_NEVER;
+      ev->tsched.v = DDS_NEVER;
     }
     if (ev->u.callback.executing)
     {
@@ -364,7 +364,7 @@ int resched_xevent_if_earlier (struct xevent *ev, nn_mtime_t tsched)
 {
   struct xeventq *evq = ev->evq;
   int is_resched;
-  if (tsched.v == T_NEVER)
+  if (tsched.v == DDS_NEVER)
     return 0;
   ddsrt_mutex_lock (&evq->lock);
   /* If you want to delete it, you to say so by calling the right
@@ -377,7 +377,7 @@ int resched_xevent_if_earlier (struct xevent *ev, nn_mtime_t tsched)
   else
   {
     nn_mtime_t tbefore = earliest_in_xeventq (evq);
-    if (ev->tsched.v != T_NEVER)
+    if (ev->tsched.v != DDS_NEVER)
     {
       ev->tsched = tsched;
       ddsrt_fibheap_decrease_key (&evq_xevents_fhdef, &evq->xevents, ev);
@@ -405,7 +405,7 @@ static struct xevent *qxev_common (struct xeventq *evq, nn_mtime_t tsched, enum 
   ASSERT_MUTEX_HELD (&evq->lock);
 
   /* round up the scheduled time if required */
-  if (tsched.v != T_NEVER && evq->gv->config.schedule_time_rounding != 0)
+  if (tsched.v != DDS_NEVER && evq->gv->config.schedule_time_rounding != 0)
   {
     nn_mtime_t tsched_rounded = mtime_round_up (tsched, evq->gv->config.schedule_time_rounding);
     EVQTRACE ("rounded event scheduled for %"PRId64" to %"PRId64"\n", tsched.v, tsched_rounded.v);
@@ -440,7 +440,7 @@ static void qxev_insert (struct xevent *ev)
      event administration. */
   struct xeventq *evq = ev->evq;
   ASSERT_MUTEX_HELD (&evq->lock);
-  if (ev->tsched.v != T_NEVER)
+  if (ev->tsched.v != DDS_NEVER)
   {
     nn_mtime_t tbefore = earliest_in_xeventq (evq);
     ddsrt_fibheap_insert (&evq_xevents_fhdef, &evq->xevents, ev);
@@ -606,7 +606,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mt
   {
     hbansreq = 1; /* just for trace */
     msg = NULL; /* Need not send it now, and no need to schedule it for the future */
-    t_next.v = T_NEVER;
+    t_next.v = DDS_NEVER;
   }
   else if (!writer_hbcontrol_must_send (wr, &whcst, tnow))
   {
@@ -625,7 +625,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mt
            PGUID (wr->e.guid),
            hbansreq ? "" : " final",
            msg ? "sent" : "suppressed",
-           (t_next.v == T_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
+           (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
            ddsrt_avl_is_empty (&wr->readers) ? (seqno_t) -1 : ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->min_seq,
            ddsrt_avl_is_empty (&wr->readers) || ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
            whcst.max_seq, writer_read_seq_xmit (wr));
@@ -1111,9 +1111,9 @@ static void handle_xevk_pmd_update (struct thread_state1 * const ts1, struct nn_
   write_pmd_message (ts1, xp, pp, PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE);
 
   intv = pp_get_pmd_interval (pp);
-  if (intv == T_NEVER)
+  if (intv == DDS_INFINITY)
   {
-    tnext.v = T_NEVER;
+    tnext.v = DDS_NEVER;
     GVTRACE ("resched pmd("PGUIDFMT"): never\n", PGUID (pp->e.guid));
   }
   else
@@ -1258,7 +1258,7 @@ static void handle_xevents (struct thread_state1 * const ts1, struct xeventq *xe
            determine whether it is currently on the heap or not (i.e.,
            scheduled or not), so set to TSCHED_NEVER to indicate it
            currently isn't. */
-        xev->tsched.v = T_NEVER;
+        xev->tsched.v = DDS_NEVER;
         thread_state_awake_to_awake_no_nest (ts1);
         handle_timed_xevent (ts1, xev, xp, tnow);
       }
@@ -1314,7 +1314,7 @@ static uint32_t xevent_thread (struct xeventq * xevq)
     else
     {
       nn_mtime_t twakeup = earliest_in_xeventq (xevq);
-      if (twakeup.v == T_NEVER)
+      if (twakeup.v == DDS_NEVER)
       {
         /* no scheduled events nor any non-timed events */
         ddsrt_cond_wait (&xevq->cond, &xevq->lock);
