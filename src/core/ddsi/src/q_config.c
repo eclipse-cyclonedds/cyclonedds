@@ -1910,10 +1910,10 @@ static enum update_result uf_duration_inf (struct cfgst *cfgst, void *parent, st
 {
   if (ddsrt_strcasecmp (value, "inf") == 0) {
     int64_t * const elem = cfg_address (cfgst, parent, cfgelem);
-    *elem = T_NEVER;
+    *elem = DDS_INFINITY;
     return URES_SUCCESS;
   } else {
-    return uf_duration_gen (cfgst, parent, cfgelem, value, 0, 0, T_NEVER - 1);
+    return uf_duration_gen (cfgst, parent, cfgelem, value, 0, 0, DDS_INFINITY - 1);
   }
 }
 
@@ -1940,7 +1940,7 @@ static enum update_result uf_duration_100ms_1hr (struct cfgst *cfgst, void *pare
 static void pf_duration (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
   int64_t const * const elem = cfg_address (cfgst, parent, cfgelem);
-  if (*elem == T_NEVER)
+  if (*elem == DDS_INFINITY)
     cfg_logelem (cfgst, sources, "inf");
   else
     pf_int64_unit (cfgst, *elem, sources, unittab_duration, "s");

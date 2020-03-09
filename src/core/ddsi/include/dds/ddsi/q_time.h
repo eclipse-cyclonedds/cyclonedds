@@ -20,7 +20,6 @@
 extern "C" {
 #endif
 
-#define T_NEVER 0x7fffffffffffffffll
 #define T_MILLISECOND 1000000ll
 #define T_SECOND (1000 * T_MILLISECOND)
 #define T_MICROSECOND (T_MILLISECOND/1000)
@@ -46,9 +45,9 @@ typedef struct {
   int64_t v;
 } nn_etime_t;
 
-#define NN_MTIME_NEVER ((nn_mtime_t) { T_NEVER })
-#define NN_WCTIME_NEVER ((nn_wctime_t) { T_NEVER })
-#define NN_ETIME_NEVER ((nn_etime_t) { T_NEVER })
+#define NN_MTIME_NEVER ((nn_mtime_t) { DDS_NEVER })
+#define NN_WCTIME_NEVER ((nn_wctime_t) { DDS_NEVER })
+#define NN_ETIME_NEVER ((nn_etime_t) { DDS_NEVER })
 #define NN_WCTIME_INVALID ((nn_wctime_t) { INT64_MIN })
 
 int valid_ddsi_timestamp (ddsi_time_t t);

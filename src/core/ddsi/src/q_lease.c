@@ -110,7 +110,7 @@ void lease_register (struct lease *l) /* FIXME: make lease admin struct */
   ddsrt_mutex_lock (&gv->leaseheap_lock);
   assert (l->tsched.v == TSCHED_NOT_ON_HEAP);
   int64_t tend = (int64_t) ddsrt_atomic_ld64 (&l->tend);
-  if (tend != T_NEVER)
+  if (tend != DDS_NEVER)
   {
     l->tsched.v = tend;
     ddsrt_fibheap_insert (&lease_fhdef, &gv->leaseheap, l);
@@ -175,7 +175,7 @@ void lease_renew (struct lease *l, nn_etime_t tnowE)
   /* Only at this point we can assume that gv can be recovered from the entity in the
    * lease (i.e. the entity still exists). In cases where dereferencing l->entity->gv
    * is not safe (e.g. the deletion of entities), the early out in the loop above
-   * will be the case because tend is set to T_NEVER. */
+   * will be the case because tend is set to DDS_NEVER. */
   trace_lease_renew (l, "", tend_new);
 }
 
@@ -197,7 +197,7 @@ void lease_set_expiry (struct lease *l, nn_etime_t when)
     trace_lease_renew (l, "earlier ", when);
     trigger = true;
   }
-  else if (l->tsched.v == TSCHED_NOT_ON_HEAP && when.v < T_NEVER)
+  else if (l->tsched.v == TSCHED_NOT_ON_HEAP && when.v < DDS_NEVER)
   {
     /* not currently scheduled, with a finite new expiry time */
     l->tsched = when;
@@ -229,7 +229,7 @@ int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, nn_etime_t 
     int64_t tend = (int64_t) ddsrt_atomic_ld64 (&l->tend);
     if (tnowE.v < tend)
     {
-      if (tend == T_NEVER) {
+      if (tend == DDS_NEVER) {
         /* don't reinsert if it won't expire */
         l->tsched.v = TSCHED_NOT_ON_HEAP;
       } else {
@@ -302,7 +302,7 @@ int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, nn_etime_t 
     ddsrt_mutex_lock (&gv->leaseheap_lock);
   }
 
-  delay = (l == NULL) ? T_NEVER : (l->tsched.v - tnowE.v);
+  delay = (l == NULL) ? DDS_INFINITY : (l->tsched.v - tnowE.v);
   ddsrt_mutex_unlock (&gv->leaseheap_lock);
   return delay;
 }

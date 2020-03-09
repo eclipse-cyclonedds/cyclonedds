@@ -58,7 +58,7 @@ void writer_hbcontrol_init (struct hbcontrol *hbc)
   hbc->t_of_last_write.v = 0;
   hbc->t_of_last_hb.v = 0;
   hbc->t_of_last_ackhb.v = 0;
-  hbc->tsched.v = T_NEVER;
+  hbc->tsched = NN_MTIME_NEVER;
   hbc->hbs_since_last_write = 0;
   hbc->last_packetid = 0;
 }
@@ -306,7 +306,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
     ETRACE (wr, "heartbeat(wr "PGUIDFMT"%s) piggybacked, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRId64", xmit %"PRId64")\n",
             PGUID (wr->e.guid),
             *hbansreq ? "" : " final",
-            (hbc->tsched.v == T_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
+            (hbc->tsched.v == DDS_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
             ddsrt_avl_is_empty (&wr->readers) ? -1 : root_rdmatch (wr)->min_seq,
             ddsrt_avl_is_empty (&wr->readers) || root_rdmatch (wr)->all_have_replied_to_hb ? "" : "!",
             whcst->max_seq, writer_read_seq_xmit (wr));

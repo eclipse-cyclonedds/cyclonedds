@@ -662,7 +662,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
     GVLOGDISC (" (depends on "PGUIDFMT")", PGUID (privileged_pp_guid));
     /* never expire lease for this proxy: it won't actually expire
        until the "privileged" one expires anyway */
-    lease_duration = T_NEVER;
+    lease_duration = DDS_INFINITY;
   }
   else if (vendor_is_eclipse_or_opensplice (rst->vendor) && !(custom_flags & CF_PARTICIPANT_IS_DDSI2))
   {
@@ -674,7 +674,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
     else
     {
       privileged_pp_guid.prefix = ddsi2->e.guid.prefix;
-      lease_duration = T_NEVER;
+      lease_duration = DDS_INFINITY;
       GVLOGDISC (" (depends on "PGUIDFMT")", PGUID (privileged_pp_guid));
     }
   }
@@ -1086,7 +1086,7 @@ static struct proxy_participant *implicitly_create_proxypp (struct ddsi_domaingv
        doing anything about (1).  That means we fall back to the legacy mode of locally generating
        GIDs but leaving the system id unchanged if the remote is OSPL.  */
     actual_vendorid = (datap->present & PP_VENDORID) ?  datap->vendorid : vendorid;
-    new_proxy_participant(gv, ppguid, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, T_NEVER, actual_vendorid, CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
+    new_proxy_participant(gv, ppguid, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, DDS_INFINITY, actual_vendorid, CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
   }
   else if (ppguid->prefix.u[0] == src_guid_prefix->u[0] && vendor_is_eclipse_or_opensplice (vendorid))
   {
@@ -1120,7 +1120,7 @@ static struct proxy_participant *implicitly_create_proxypp (struct ddsi_domaingv
       ddsrt_mutex_unlock (&privpp->e.lock);
 
       pp_plist.prismtech_participant_version_info.flags &= ~NN_PRISMTECH_FL_PARTICIPANT_IS_DDSI2;
-      new_proxy_participant (gv, ppguid, 0, &privguid, as_default, as_meta, &pp_plist, T_NEVER, vendorid, CF_IMPLICITLY_CREATED_PROXYPP | CF_PROXYPP_NO_SPDP, timestamp, seq);
+      new_proxy_participant (gv, ppguid, 0, &privguid, as_default, as_meta, &pp_plist, DDS_INFINITY, vendorid, CF_IMPLICITLY_CREATED_PROXYPP | CF_PROXYPP_NO_SPDP, timestamp, seq);
     }
   }
 

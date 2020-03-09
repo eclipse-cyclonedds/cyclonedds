@@ -75,7 +75,7 @@ nn_mtime_t mtime_round_up (nn_mtime_t t, int64_t round)
      t is nanoseconds, round is milliseconds.  Avoid functions from
      maths libraries to keep code portable */
   assert (t.v >= 0 && round >= 0);
-  if (round == 0 || t.v == T_NEVER)
+  if (round == 0 || t.v == DDS_INFINITY)
   {
     return t;
   }
@@ -100,12 +100,12 @@ static int64_t add_duration_to_time (int64_t t, int64_t d)
   uint64_t sum;
   assert (t >= 0 && d >= 0);
   sum = (uint64_t)t + (uint64_t)d;
-  return sum >= T_NEVER ? T_NEVER : (int64_t)sum;
+  return sum >= DDS_NEVER ? DDS_NEVER : (int64_t)sum;
 }
 
 nn_mtime_t add_duration_to_mtime (nn_mtime_t t, int64_t d)
 {
-  /* assumed T_NEVER <=> MAX_INT64 */
+  /* assumed DDS_NEVER <=> MAX_INT64 */
   nn_mtime_t u;
   u.v = add_duration_to_time (t.v, d);
   return u;
@@ -113,7 +113,7 @@ nn_mtime_t add_duration_to_mtime (nn_mtime_t t, int64_t d)
 
 nn_wctime_t add_duration_to_wctime (nn_wctime_t t, int64_t d)
 {
-  /* assumed T_NEVER <=> MAX_INT64 */
+  /* assumed DDS_NEVER <=> MAX_INT64 */
   nn_wctime_t u;
   u.v = add_duration_to_time (t.v, d);
   return u;
@@ -121,7 +121,7 @@ nn_wctime_t add_duration_to_wctime (nn_wctime_t t, int64_t d)
 
 nn_etime_t add_duration_to_etime (nn_etime_t t, int64_t d)
 {
-  /* assumed T_NEVER <=> MAX_INT64 */
+  /* assumed DDS_NEVER <=> MAX_INT64 */
   nn_etime_t u;
   u.v = add_duration_to_time (t.v, d);
   return u;
@@ -134,7 +134,7 @@ int valid_ddsi_timestamp (ddsi_time_t t)
 
 static ddsi_time_t nn_to_ddsi_time (int64_t t)
 {
-  if (t == T_NEVER)
+  if (t == DDS_NEVER)
     return DDSI_TIME_INFINITE;
   else
   {
@@ -157,7 +157,7 @@ ddsi_time_t nn_wctime_to_ddsi_time (nn_wctime_t t)
 static int64_t nn_from_ddsi_time (ddsi_time_t x)
 {
   if (x.seconds == DDSI_TIME_INFINITE.seconds && x.fraction == DDSI_TIME_INFINITE.fraction)
-    return T_NEVER;
+    return DDS_NEVER;
   else
   {
     /* Round-to-nearest conversion of DDSI time fraction to nanoseconds */

@@ -952,7 +952,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   uint32_t port_disc_uc = 0;
   uint32_t port_data_uc = 0;
   bool mc_available = true;
-  nn_mtime_t reset_deaf_mute_time = { T_NEVER };
+  nn_mtime_t reset_deaf_mute_time = NN_MTIME_NEVER;
 
   gv->tstart = now ();    /* wall clock time, used in logs */
 
@@ -1429,7 +1429,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->user_dqueue = nn_dqueue_new ("user", gv, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
 #endif
 
-  if (reset_deaf_mute_time.v < T_NEVER)
+  if (reset_deaf_mute_time.v < DDS_NEVER)
     qxev_callback (gv->xevents, reset_deaf_mute_time, reset_deaf_mute, gv);
   return 0;
 

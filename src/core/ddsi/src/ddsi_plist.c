@@ -2803,14 +2803,14 @@ static void xqos_init_default_common (dds_qos_t *xqos)
   xqos->durability.kind = DDS_DURABILITY_VOLATILE;
 
   xqos->present |= QP_DEADLINE;
-  xqos->deadline.deadline = T_NEVER;
+  xqos->deadline.deadline = DDS_INFINITY;
 
   xqos->present |= QP_LATENCY_BUDGET;
   xqos->latency_budget.duration = 0;
 
   xqos->present |= QP_LIVELINESS;
   xqos->liveliness.kind = DDS_LIVELINESS_AUTOMATIC;
-  xqos->liveliness.lease_duration = T_NEVER;
+  xqos->liveliness.lease_duration = DDS_INFINITY;
 
   xqos->present |= QP_DESTINATION_ORDER;
   xqos->destination_order.kind = DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP;
@@ -2866,12 +2866,12 @@ void ddsi_xqos_init_default_reader (dds_qos_t *xqos)
   xqos->time_based_filter.minimum_separation = 0;
 
   xqos->present |= QP_PRISMTECH_READER_DATA_LIFECYCLE;
-  xqos->reader_data_lifecycle.autopurge_nowriter_samples_delay = T_NEVER;
-  xqos->reader_data_lifecycle.autopurge_disposed_samples_delay = T_NEVER;
+  xqos->reader_data_lifecycle.autopurge_nowriter_samples_delay = DDS_INFINITY;
+  xqos->reader_data_lifecycle.autopurge_disposed_samples_delay = DDS_INFINITY;
 
   xqos->present |= QP_PRISMTECH_READER_LIFESPAN;
   xqos->reader_lifespan.use_lifespan = 0;
-  xqos->reader_lifespan.duration = T_NEVER;
+  xqos->reader_lifespan.duration = DDS_INFINITY;
 
   xqos->present |= QP_PRISMTECH_SUBSCRIPTION_KEYS;
   xqos->subscription_keys.use_key_list = 0;
@@ -2902,7 +2902,7 @@ void ddsi_xqos_init_default_writer (dds_qos_t *xqos)
   xqos->transport_priority.value = 0;
 
   xqos->present |= QP_LIFESPAN;
-  xqos->lifespan.duration = T_NEVER;
+  xqos->lifespan.duration = DDS_INFINITY;
 
   xqos->present |= QP_PRISMTECH_WRITER_DATA_LIFECYCLE;
   xqos->writer_data_lifecycle.autodispose_unregistered_instances = 1;
@@ -2934,7 +2934,7 @@ void ddsi_xqos_init_default_topic (dds_qos_t *xqos)
   xqos->transport_priority.value = 0;
 
   xqos->present |= QP_LIFESPAN;
-  xqos->lifespan.duration = T_NEVER;
+  xqos->lifespan.duration = DDS_INFINITY;
 
   xqos->present |= QP_PRISMTECH_SUBSCRIPTION_KEYS;
   xqos->subscription_keys.use_key_list = 0;
