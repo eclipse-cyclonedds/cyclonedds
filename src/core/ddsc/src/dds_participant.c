@@ -98,6 +98,8 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   dds_qos_t *new_qos = NULL;
   const char *config = "";
 
+  printf ("%s[%d]", __FILE__, __LINE__);
+  
   /* Make sure DDS instance is initialized. */
   if ((ret = dds_init ()) < 0)
     goto err_dds_init;
