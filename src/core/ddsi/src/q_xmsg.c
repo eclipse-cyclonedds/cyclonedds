@@ -885,8 +885,8 @@ static void nn_xmsg_chain_add (struct nn_xmsg_chain *chain, struct nn_xmsg *m)
  * If data is send too fast, a sleep is inserted to get the used bandwidth at the configured rate.
  */
 
-#define NN_BW_LIMIT_MAX_BUFFER (-30 * T_MILLISECOND)
-#define NN_BW_LIMIT_MIN_SLEEP (2 * T_MILLISECOND)
+#define NN_BW_LIMIT_MAX_BUFFER (DDS_MSECS (-30))
+#define NN_BW_LIMIT_MIN_SLEEP (DDS_MSECS (2))
 static void nn_bw_limit_sleep_if_needed (struct ddsi_domaingv const * const gv, struct nn_bw_limiter *this, ssize_t size)
 {
   if ( this->bandwidth > 0 ) {
@@ -898,7 +898,7 @@ static void nn_bw_limit_sleep_if_needed (struct ddsi_domaingv const * const gv, 
     actual_interval = tnow.v - this->last_update.v;
     this->last_update = tnow;
 
-    target_interval = T_SECOND*size/this->bandwidth;
+    target_interval = DDS_NSECS_IN_SEC*size/this->bandwidth;
 
     this->balance += (target_interval - actual_interval);
 

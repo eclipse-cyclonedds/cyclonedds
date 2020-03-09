@@ -49,8 +49,8 @@ nn_etime_t now_et (void)
 
 static void time_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, int64_t t)
 {
-  *sec = (int32_t) (t / T_SECOND);
-  *usec = (int32_t) (t % T_SECOND) / 1000;
+  *sec = (int32_t) (t / DDS_NSECS_IN_SEC);
+  *usec = (int32_t) (t % DDS_NSECS_IN_SEC) / 1000;
 }
 
 void mtime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, nn_mtime_t t)
@@ -142,9 +142,9 @@ static ddsi_time_t nn_to_ddsi_time (int64_t t)
        because that would break backwards compatibility, but round-to-nearest
        of the inverse is correctly rounded anyway, so it shouldn't ever matter. */
     ddsi_time_t x;
-    int ns = (int) (t % T_SECOND);
-    x.seconds = (int) (t / T_SECOND);
-    x.fraction = (unsigned) (((T_SECOND-1) + ((int64_t) ns << 32)) / T_SECOND);
+    int ns = (int) (t % DDS_NSECS_IN_SEC);
+    x.seconds = (int) (t / DDS_NSECS_IN_SEC);
+    x.fraction = (unsigned) (((DDS_NSECS_IN_SEC-1) + ((int64_t) ns << 32)) / DDS_NSECS_IN_SEC);
     return x;
   }
 }
@@ -161,8 +161,8 @@ static int64_t nn_from_ddsi_time (ddsi_time_t x)
   else
   {
     /* Round-to-nearest conversion of DDSI time fraction to nanoseconds */
-    int ns = (int) (((int64_t) 2147483648u + (int64_t) x.fraction * T_SECOND) >> 32);
-    return x.seconds * (int64_t) T_SECOND + ns;
+    int ns = (int) (((int64_t) 2147483648u + (int64_t) x.fraction * DDS_NSECS_IN_SEC) >> 32);
+    return x.seconds * DDS_NSECS_IN_SEC + ns;
   }
 }
 

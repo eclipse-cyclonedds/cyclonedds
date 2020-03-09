@@ -273,7 +273,7 @@ int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, nn_etime_t 
           entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp->privileged_pp_guid) != NULL)
       {
         GVLOGDISC ("but postponing because privileged pp "PGUIDFMT" is still live\n", PGUID (proxypp->privileged_pp_guid));
-        l->tsched = add_duration_to_etime (tnowE, 200 * T_MILLISECOND);
+        l->tsched = add_duration_to_etime (tnowE, DDS_MSECS (200));
         ddsrt_fibheap_insert (&lease_fhdef, &gv->leaseheap, l);
         continue;
       }

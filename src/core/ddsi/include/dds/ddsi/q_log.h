@@ -55,7 +55,7 @@ extern "C" {
                         "thread_cputime %d.%09d\n",                      \
                         (int)(usage.stime / DDS_NSECS_IN_SEC),           \
                         (int)(usage.stime % DDS_NSECS_IN_SEC));          \
-                    (guard).v = tnowlt.v + T_SECOND;                     \
+                    (guard).v = tnowlt.v + DDS_NSECS_IN_SEC;             \
                 }                                                        \
             }                                                            \
         }                                                                \

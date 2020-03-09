@@ -603,7 +603,7 @@ static int accept_ack_or_hb_w_timeout (nn_count_t new_count, nn_count_t *exp_cou
 
      This combined procedure should give the best of all worlds, and
      is not more expensive in the common case. */
-  const int64_t timeout = 2 * T_SECOND;
+  const int64_t timeout = DDS_SECS (2);
 
   if (new_count < *exp_count && tnow.v - t_last_accepted->v < timeout && !force_accept)
     return 0;
@@ -714,7 +714,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   {
     nn_wctime_t tstamp_now = now ();
     nn_lat_estim_update (&rn->hb_to_ack_latency, tstamp_now.v - timestamp.v);
-    if ((rst->gv->logconfig.c.mask & DDS_LC_TRACE) && tstamp_now.v > rn->hb_to_ack_latency_tlastlog.v + 10 * T_SECOND)
+    if ((rst->gv->logconfig.c.mask & DDS_LC_TRACE) && tstamp_now.v > rn->hb_to_ack_latency_tlastlog.v + DDS_SECS (10))
     {
       nn_lat_estim_log (DDS_LC_TRACE, &rst->gv->logconfig, NULL, &rn->hb_to_ack_latency);
       rn->hb_to_ack_latency_tlastlog = tstamp_now;

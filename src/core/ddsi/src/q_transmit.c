@@ -1072,7 +1072,7 @@ static int maybe_grow_whc (struct writer *wr)
   if (!wr->retransmitting && gv->config.whc_adaptive && wr->whc_high < gv->config.whc_highwater_mark)
   {
     nn_etime_t tnow = now_et();
-    nn_etime_t tgrow = add_duration_to_etime (wr->t_whc_high_upd, 10 * T_MILLISECOND);
+    nn_etime_t tgrow = add_duration_to_etime (wr->t_whc_high_upd, DDS_MSECS (10));
     if (tnow.v >= tgrow.v)
     {
       uint32_t m = (gv->config.whc_highwater_mark - wr->whc_high) / 32;

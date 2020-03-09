@@ -91,8 +91,8 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
   struct thread_state1 * const ts1 = lookup_thread_state ();
   nn_mtime_t next_thread_cputime = { 0 };
   nn_mtime_t t_trigger_recv_threads = { 0 };
-  int64_t shortsleep = 1 * T_MILLISECOND;
-  int64_t delay = T_MILLISECOND; /* force evaluation after startup */
+  int64_t shortsleep = DDS_MSECS (1);
+  int64_t delay = DDS_MSECS (1); /* force evaluation after startup */
   struct gcreq *gcreq = NULL;
   int trace_shortsleep = 1;
   ddsrt_mutex_lock (&q->lock);

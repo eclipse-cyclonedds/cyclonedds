@@ -913,12 +913,12 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
     msg = NULL;
   }
 
-  if (!pwr->have_seen_heartbeat && tnow.v - rwn->tcreate.v <= 300 * T_SECOND)
+  if (!pwr->have_seen_heartbeat && tnow.v - rwn->tcreate.v <= DDS_SECS (300))
   {
      /* Force pre-emptive AckNacks out until we receive a heartbeat,
         but let the frequency drop over time and stop after a couple
         of minutes. */
-    int intv, age = (int) ((tnow.v - rwn->tcreate.v) / T_SECOND + 1);
+    int intv, age = (int) ((tnow.v - rwn->tcreate.v) / DDS_NSECS_IN_SEC + 1);
     if (age <= 10)
       intv = 1;
     else if (age <= 60)
@@ -927,7 +927,7 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
       intv = 5;
     else
       intv = 10;
-    (void) resched_xevent_if_earlier (ev, add_duration_to_mtime (tnow, intv * T_SECOND));
+    (void) resched_xevent_if_earlier (ev, add_duration_to_mtime (tnow, intv * DDS_NSECS_IN_SEC));
   }
   ddsrt_mutex_unlock (&pwr->e.lock);
 
@@ -940,7 +940,7 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
  outofmem:
   /* What to do if out of memory?  Crash or burn? */
   ddsrt_mutex_unlock (&pwr->e.lock);
-  (void) resched_xevent_if_earlier (ev, add_duration_to_mtime (tnow, 100 * T_MILLISECOND));
+  (void) resched_xevent_if_earlier (ev, add_duration_to_mtime (tnow, DDS_MSECS (100)));
 }
 
 static bool resend_spdp_sample_by_guid_key (struct writer *wr, const ddsi_guid_t *guid, struct proxy_reader *prd)
@@ -1056,11 +1056,11 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   {
     /* Directed events are used to send SPDP packets to newly
        discovered peers, and used just once. */
-    if (--ev->u.spdp.directed == 0 || gv->config.spdp_interval < T_SECOND || pp->lease_duration < T_SECOND)
+    if (--ev->u.spdp.directed == 0 || gv->config.spdp_interval < DDS_SECS (1) || pp->lease_duration < DDS_SECS (1))
       delete_xevent (ev);
     else
     {
-      nn_mtime_t tnext = add_duration_to_mtime (tnow, T_SECOND);
+      nn_mtime_t tnext = add_duration_to_mtime (tnow, DDS_SECS (1));
       GVTRACE ("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x (resched %gs)\n",
                PGUID (pp->e.guid),
                PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
@@ -1073,17 +1073,17 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     /* schedule next when 80% of the interval has elapsed, or 2s
        before the lease ends, whichever comes first (similar to PMD),
        but never wait longer than spdp_interval */
-    const dds_duration_t mindelta = 10 * T_MILLISECOND;
+    const dds_duration_t mindelta = DDS_MSECS (10);
     const dds_duration_t ldur = pp->lease_duration;
     nn_mtime_t tnext;
     int64_t intv;
 
     if (ldur < 5 * mindelta / 4)
       intv = mindelta;
-    else if (ldur < 10 * T_SECOND)
+    else if (ldur < DDS_SECS (10))
       intv = 4 * ldur / 5;
     else
-      intv = ldur - 2 * T_SECOND;
+      intv = ldur - DDS_SECS (2);
     if (intv > gv->config.spdp_interval)
       intv = gv->config.spdp_interval;
 
@@ -1120,8 +1120,8 @@ static void handle_xevk_pmd_update (struct thread_state1 * const ts1, struct nn_
   {
     /* schedule next when 80% of the interval has elapsed, or 2s
        before the lease ends, whichever comes first */
-    if (intv >= 10 * T_SECOND)
-      tnext.v = tnow.v + intv - 2 * T_SECOND;
+    if (intv >= DDS_SECS (10))
+      tnext.v = tnow.v + intv - DDS_SECS (2);
     else
       tnext.v = tnow.v + 4 * intv / 5;
     GVTRACE ("resched pmd("PGUIDFMT"): %gs\n", PGUID (pp->e.guid), (double)(tnext.v - tnow.v) / 1e9);

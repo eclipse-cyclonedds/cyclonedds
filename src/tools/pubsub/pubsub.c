@@ -77,7 +77,6 @@ static enum tgprint_mode printmode = TGPM_FIELDS;
 static unsigned print_metadata = PM_STATE;
 static int printtype = 0;
 
-#define T_SECOND ((int64_t) 1000000000)
 struct tstamp_t {
     int isabs;
     int64_t t;
@@ -351,7 +350,7 @@ static int read_int_w_tstamp(struct tstamp_t *tstamp, char *buf, int bufsize, in
             posoff = 1;
         }
         if (read_int(buf, bufsize, pos + posoff, 1))
-            tstamp->t = atoi(buf + pos) * T_SECOND;
+            tstamp->t = atoi(buf + pos) * DDS_NSECS_IN_SEC;
         else
             return 0;
         while ((c = getc(stdin)) != EOF && isspace((unsigned char) c))
@@ -1256,7 +1255,7 @@ static char *pub_do_nonarb(const struct writerspec *spec, uint32_t *seq) {
                 tstamp = dds_time();
                 tstamp_spec.t += tstamp;
             }
-            tstamp = (tstamp_spec.t % T_SECOND) + ((int) (tstamp_spec.t / T_SECOND) * DDS_NSECS_IN_SEC);
+            tstamp = (tstamp_spec.t % DDS_NSECS_IN_SEC) + ((int) (tstamp_spec.t / DDS_NSECS_IN_SEC) * DDS_NSECS_IN_SEC);
             if ((result = fn(spec->wr, &d, tstamp)) != DDS_RETCODE_OK) {
                 printf ("%s %d: error %d (%s)\n", get_write_operstr(command), k, (int) result, dds_err_str(result));
                 if (flushflag) {
@@ -1360,7 +1359,7 @@ static char *pub_do_nonarb(const struct writerspec *spec, uint32_t *seq) {
 //            command = *line++;
 //            if (*line == '@') {
 //                if (*++line == '=') { ++line; tstamp_spec.isabs = 1; }
-//                tstamp_spec.t = T_SECOND * strtol(line, (char **) &line, 10);
+//                tstamp_spec.t = DDS_NSECS_IN_SEC * strtol(line, (char **) &line, 10);
 //            }
 //        case '{': {
 //            write_oper_t fn = get_write_oper(command);
@@ -1373,10 +1372,10 @@ static char *pub_do_nonarb(const struct writerspec *spec, uint32_t *seq) {
 //                int diddodup = 0;
 //                if (!tstamp_spec.isabs) {
 //                    DDS_DomainParticipant_get_current_time(dp, &tstamp);
-//                    tstamp_spec.t += tstamp.sec * T_SECOND + tstamp.nanosec;
+//                    tstamp_spec.t += tstamp.sec * DDS_NSECS_IN_SEC + tstamp.nanosec;
 //                }
-//                tstamp.sec = (int) (tstamp_spec.t / T_SECOND);
-//                tstamp.nanosec = (unsigned) (tstamp_spec.t % T_SECOND);
+//                tstamp.sec = (int) (tstamp_spec.t / DDS_NSECS_IN_SEC);
+//                tstamp.nanosec = (unsigned) (tstamp_spec.t % DDS_NSECS_IN_SEC);
 //                line = endp;
 //                result = fn(spec->wr, arb, DDS_HANDLE_NIL, &tstamp);
 //                if (result == DDS_RETCODE_OK && spec->dupwr) {
@@ -2684,8 +2683,8 @@ int main(int argc, char *argv[]) {
 //            }
 //            tnow = dds_time();
 //            if (m != 0 && tnow < tend) {
-//                uint64_t tdelta = (tend-tnow) < T_SECOND/10 ? tend-tnow : T_SECOND/10;
-//                os_time delay = { (os_timeSec) (tdelta / T_SECOND), (os_int32) (tdelta % T_SECOND)};
+//                uint64_t tdelta = (tend-tnow) < DDS_NSECS_IN_SEC/10 ? tend-tnow : DDS_NSECS_IN_SEC/10;
+//                os_time delay = { (os_timeSec) (tdelta / DDS_NSECS_IN_SEC), (os_int32) (tdelta % DDS_NSECS_IN_SEC)};
 //                os_nanoSleep(delay);
 //                tnow = dds_time();
 //            }

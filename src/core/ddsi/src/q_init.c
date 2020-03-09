@@ -130,7 +130,7 @@ static void make_builtin_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
 {
   ddsi_xqos_copy (q, template);
   q->reliability.kind = DDS_RELIABILITY_RELIABLE;
-  q->reliability.max_blocking_time = 100 * T_MILLISECOND;
+  q->reliability.max_blocking_time = DDS_MSECS (100);
   q->durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
 }
 
@@ -734,7 +734,7 @@ static void wait_for_receive_threads_helper (struct xevent *xev, void *varg, nn_
   if (arg->count++ == arg->gv->config.recv_thread_stop_maxretries)
     abort ();
   trigger_recv_threads (arg->gv);
-  (void) resched_xevent_if_earlier (xev, add_duration_to_mtime (tnow, T_SECOND));
+  (void) resched_xevent_if_earlier (xev, add_duration_to_mtime (tnow, DDS_SECS (1)));
 }
 
 static void wait_for_receive_threads (struct ddsi_domaingv *gv)
@@ -743,7 +743,7 @@ static void wait_for_receive_threads (struct ddsi_domaingv *gv)
   struct wait_for_receive_threads_helper_arg cbarg;
   cbarg.gv = gv;
   cbarg.count = 0;
-  if ((trigev = qxev_callback (gv->xevents, add_duration_to_mtime (now_mt (), T_SECOND), wait_for_receive_threads_helper, &cbarg)) == NULL)
+  if ((trigev = qxev_callback (gv->xevents, add_duration_to_mtime (now_mt (), DDS_SECS (1)), wait_for_receive_threads_helper, &cbarg)) == NULL)
   {
     /* retrying is to deal a packet geting lost because the socket buffer is full or because the
        macOS firewall (and perhaps others) likes to ask if the process is allowed to receive data,

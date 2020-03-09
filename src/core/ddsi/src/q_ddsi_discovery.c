@@ -628,7 +628,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
   else
   {
     GVLOGDISC (" (PARTICIPANT_LEASE_DURATION defaulting to 100s)");
-    lease_duration = 100 * T_SECOND;
+    lease_duration = DDS_SECS (100);
   }
 
   if (datap->present & PP_PRISMTECH_PARTICIPANT_VERSION_INFO) {
