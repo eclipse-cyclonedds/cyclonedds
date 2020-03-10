@@ -324,7 +324,7 @@ while(<>) {
     my $userdata = $_;
     if ($userdata =~ s/.*QOS=\{.*?user_data=//) {
       $userdata =~ s/\}$//;
-      $userdata =~ s/,(?:prismtech_)?entity_factory=\d$//;
+      $userdata =~ s/,(?:(?:prismtech|adlink)_)?entity_factory=\d$//;
       $userdata = " userdata:$userdata";
     } else {
       $userdata = "";

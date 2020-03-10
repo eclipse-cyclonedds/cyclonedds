@@ -296,28 +296,28 @@ int spdp_write (struct participant *pp)
   }
   ps.participant_lease_duration = pp->lease_duration;
 
-  /* Add PrismTech specific version information */
+  /* Add Adlink specific version information */
   {
-    ps.present |= PP_PRISMTECH_PARTICIPANT_VERSION_INFO;
-    memset (&ps.prismtech_participant_version_info, 0, sizeof (ps.prismtech_participant_version_info));
-    ps.prismtech_participant_version_info.version = 0;
-    ps.prismtech_participant_version_info.flags =
-      NN_PRISMTECH_FL_DDSI2_PARTICIPANT_FLAG |
-      NN_PRISMTECH_FL_PTBES_FIXED_0 |
-      NN_PRISMTECH_FL_SUPPORTS_STATUSINFOX;
+    ps.present |= PP_ADLINK_PARTICIPANT_VERSION_INFO;
+    memset (&ps.adlink_participant_version_info, 0, sizeof (ps.adlink_participant_version_info));
+    ps.adlink_participant_version_info.version = 0;
+    ps.adlink_participant_version_info.flags =
+      NN_ADLINK_FL_DDSI2_PARTICIPANT_FLAG |
+      NN_ADLINK_FL_PTBES_FIXED_0 |
+      NN_ADLINK_FL_SUPPORTS_STATUSINFOX;
     if (pp->e.gv->config.besmode == BESMODE_MINIMAL)
-      ps.prismtech_participant_version_info.flags |= NN_PRISMTECH_FL_MINIMAL_BES_MODE;
+      ps.adlink_participant_version_info.flags |= NN_ADLINK_FL_MINIMAL_BES_MODE;
     ddsrt_mutex_lock (&pp->e.gv->privileged_pp_lock);
     if (pp->is_ddsi2_pp)
-      ps.prismtech_participant_version_info.flags |= NN_PRISMTECH_FL_PARTICIPANT_IS_DDSI2;
+      ps.adlink_participant_version_info.flags |= NN_ADLINK_FL_PARTICIPANT_IS_DDSI2;
     ddsrt_mutex_unlock (&pp->e.gv->privileged_pp_lock);
 
     if (ddsrt_gethostname(node, sizeof(node)-1) < 0)
       (void) ddsrt_strlcpy (node, "unknown", sizeof (node));
     size = strlen(node) + strlen(DDS_VERSION) + strlen(DDS_HOST_NAME) + strlen(DDS_TARGET_NAME) + 4; /* + ///'\0' */
-    ps.prismtech_participant_version_info.internals = ddsrt_malloc(size);
-    (void) snprintf(ps.prismtech_participant_version_info.internals, size, "%s/%s/%s/%s", node, DDS_VERSION, DDS_HOST_NAME, DDS_TARGET_NAME);
-    ETRACE (pp, "spdp_write("PGUIDFMT") - internals: %s\n", PGUID (pp->e.guid), ps.prismtech_participant_version_info.internals);
+    ps.adlink_participant_version_info.internals = ddsrt_malloc(size);
+    (void) snprintf(ps.adlink_participant_version_info.internals, size, "%s/%s/%s/%s", node, DDS_VERSION, DDS_HOST_NAME, DDS_TARGET_NAME);
+    ETRACE (pp, "spdp_write("PGUIDFMT") - internals: %s\n", PGUID (pp->e.guid), ps.adlink_participant_version_info.internals);
   }
 
   /* Participant QoS's insofar as they are set, different from the default.  Currently, that means just USER_DATA. */
@@ -631,21 +631,21 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, dds
     lease_duration = DDS_SECS (100);
   }
 
-  if (datap->present & PP_PRISMTECH_PARTICIPANT_VERSION_INFO) {
-    if (datap->prismtech_participant_version_info.flags & NN_PRISMTECH_FL_KERNEL_SEQUENCE_NUMBER)
+  if (datap->present & PP_ADLINK_PARTICIPANT_VERSION_INFO) {
+    if (datap->adlink_participant_version_info.flags & NN_ADLINK_FL_KERNEL_SEQUENCE_NUMBER)
       custom_flags |= CF_INC_KERNEL_SEQUENCE_NUMBERS;
 
-    if ((datap->prismtech_participant_version_info.flags & NN_PRISMTECH_FL_DDSI2_PARTICIPANT_FLAG) &&
-        (datap->prismtech_participant_version_info.flags & NN_PRISMTECH_FL_PARTICIPANT_IS_DDSI2))
+    if ((datap->adlink_participant_version_info.flags & NN_ADLINK_FL_DDSI2_PARTICIPANT_FLAG) &&
+        (datap->adlink_participant_version_info.flags & NN_ADLINK_FL_PARTICIPANT_IS_DDSI2))
       custom_flags |= CF_PARTICIPANT_IS_DDSI2;
 
     GVLOGDISC (" (0x%08x-0x%08x-0x%08x-0x%08x-0x%08x %s)",
-               datap->prismtech_participant_version_info.version,
-               datap->prismtech_participant_version_info.flags,
-               datap->prismtech_participant_version_info.unused[0],
-               datap->prismtech_participant_version_info.unused[1],
-               datap->prismtech_participant_version_info.unused[2],
-               datap->prismtech_participant_version_info.internals);
+               datap->adlink_participant_version_info.version,
+               datap->adlink_participant_version_info.flags,
+               datap->adlink_participant_version_info.unused[0],
+               datap->adlink_participant_version_info.unused[1],
+               datap->adlink_participant_version_info.unused[2],
+               datap->adlink_participant_version_info.internals);
   }
 
   /* If any of the SEDP announcer are missing AND the guid prefix of
@@ -1114,12 +1114,12 @@ static struct proxy_participant *implicitly_create_proxypp (struct ddsi_domaingv
       as_meta = ref_addrset(privpp->as_meta);
       /* copy just what we need */
       tmp_plist = *privpp->plist;
-      tmp_plist.present = PP_PARTICIPANT_GUID | PP_PRISMTECH_PARTICIPANT_VERSION_INFO;
+      tmp_plist.present = PP_PARTICIPANT_GUID | PP_ADLINK_PARTICIPANT_VERSION_INFO;
       tmp_plist.participant_guid = *ppguid;
       ddsi_plist_mergein_missing (&pp_plist, &tmp_plist, ~(uint64_t)0, ~(uint64_t)0);
       ddsrt_mutex_unlock (&privpp->e.lock);
 
-      pp_plist.prismtech_participant_version_info.flags &= ~NN_PRISMTECH_FL_PARTICIPANT_IS_DDSI2;
+      pp_plist.adlink_participant_version_info.flags &= ~NN_ADLINK_FL_PARTICIPANT_IS_DDSI2;
       new_proxy_participant (gv, ppguid, 0, &privguid, as_default, as_meta, &pp_plist, DDS_INFINITY, vendorid, CF_IMPLICITLY_CREATED_PROXYPP | CF_PROXYPP_NO_SPDP, timestamp, seq);
     }
   }
@@ -1179,7 +1179,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, dd
   is_writer = is_writer_entityid (datap->endpoint_guid.entityid);
   if (!is_writer)
     ddsi_xqos_mergein_missing (xqos, &gv->default_xqos_rd, ~(uint64_t)0);
-  else if (vendor_is_eclipse_or_prismtech(vendorid))
+  else if (vendor_is_eclipse_or_adlink(vendorid))
     ddsi_xqos_mergein_missing (xqos, &gv->default_xqos_wr, ~(uint64_t)0);
   else
     ddsi_xqos_mergein_missing (xqos, &gv->default_xqos_wr_nad, ~(uint64_t)0);
@@ -1273,7 +1273,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, dd
   ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, xqos);
   GVLOGDISC ("}\n");
 
-  if ((datap->endpoint_guid.entityid.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_VENDOR && !vendor_is_eclipse_or_prismtech (vendorid))
+  if ((datap->endpoint_guid.entityid.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_VENDOR && !vendor_is_eclipse_or_adlink (vendorid))
   {
     GVLOGDISC ("ignoring vendor-specific endpoint "PGUIDFMT"\n", PGUID (datap->endpoint_guid));
   }

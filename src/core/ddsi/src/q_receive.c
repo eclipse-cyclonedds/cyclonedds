@@ -1775,7 +1775,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   else if (sampleinfo->size)
   {
     /* dispose or unregister with included serialized key or data
-       (data is a PrismTech extension) -- i.e., dispose or unregister
+       (data is a Adlink extension) -- i.e., dispose or unregister
        as one would expect to receive */
     if (data_smhdr_flags & DATA_FLAG_KEYFLAG)
     {
@@ -2787,7 +2787,7 @@ static int handle_submsg_sequence
           ts_for_latmeas = 0;
         }
         break;
-      case SMID_PT_MSG_LEN:
+      case SMID_ADLINK_MSG_LEN:
       {
 #if 0
         state = "parse:msg_len";
@@ -2795,7 +2795,7 @@ static int handle_submsg_sequence
         GVTRACE ("MSG_LEN(%"PRIu32")", ((MsgLen_t*) sm)->length);
         break;
       }
-      case SMID_PT_ENTITY_ID:
+      case SMID_ADLINK_ENTITY_ID:
       {
 #if 0
         state = "parse:entity_id";
@@ -2921,7 +2921,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
         ml->length = ddsrt_bswap4u (ml->length);
       }
 
-      if (ml->smhdr.submessageId != SMID_PT_MSG_LEN)
+      if (ml->smhdr.submessageId != SMID_ADLINK_MSG_LEN)
       {
         malformed_packet_received_nosubmsg (gv, buff, sz, "header", hdr->vendorid);
         sz = -1;

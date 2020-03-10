@@ -45,8 +45,8 @@ extern "C" {
 #define PP_STATUSINFO                           ((uint64_t)1 << 22)
 #define PP_ORIGINAL_WRITER_INFO                 ((uint64_t)1 << 23)
 #define PP_ENDPOINT_GUID                        ((uint64_t)1 << 24)
-#define PP_PRISMTECH_PARTICIPANT_VERSION_INFO   ((uint64_t)1 << 26)
-#define PP_PRISMTECH_TYPE_DESCRIPTION           ((uint64_t)1 << 27)
+#define PP_ADLINK_PARTICIPANT_VERSION_INFO      ((uint64_t)1 << 26)
+#define PP_ADLINK_TYPE_DESCRIPTION              ((uint64_t)1 << 27)
 #define PP_COHERENT_SET                         ((uint64_t)1 << 28)
 #ifdef DDSI_INCLUDE_SSM
 #define PP_READER_FAVOURS_SSM                   ((uint64_t)1 << 29)
@@ -61,15 +61,15 @@ extern "C" {
    PID_UNRECOGNIZED_INCOMPATIBLE_FLAG set (see DDSI 2.1 9.6.2.2.1) */
 #define PP_INCOMPATIBLE                         ((uint64_t)1 << 63)
 
-#define NN_PRISMTECH_PARTICIPANT_VERSION_INFO_FIXED_CDRSIZE (24)
+#define NN_ADLINK_PARTICIPANT_VERSION_INFO_FIXED_CDRSIZE (24)
 
-#define NN_PRISMTECH_FL_KERNEL_SEQUENCE_NUMBER  (1u << 0)
-#define NN_PRISMTECH_FL_DISCOVERY_INCLUDES_GID  (1u << 1)
-#define NN_PRISMTECH_FL_PTBES_FIXED_0           (1u << 2)
-#define NN_PRISMTECH_FL_DDSI2_PARTICIPANT_FLAG  (1u << 3)
-#define NN_PRISMTECH_FL_PARTICIPANT_IS_DDSI2    (1u << 4)
-#define NN_PRISMTECH_FL_MINIMAL_BES_MODE        (1u << 5)
-#define NN_PRISMTECH_FL_SUPPORTS_STATUSINFOX    (1u << 5)
+#define NN_ADLINK_FL_KERNEL_SEQUENCE_NUMBER     (1u << 0)
+#define NN_ADLINK_FL_DISCOVERY_INCLUDES_GID     (1u << 1)
+#define NN_ADLINK_FL_PTBES_FIXED_0              (1u << 2)
+#define NN_ADLINK_FL_DDSI2_PARTICIPANT_FLAG     (1u << 3)
+#define NN_ADLINK_FL_PARTICIPANT_IS_DDSI2       (1u << 4)
+#define NN_ADLINK_FL_MINIMAL_BES_MODE           (1u << 5)
+#define NN_ADLINK_FL_SUPPORTS_STATUSINFOX       (1u << 5)
 /* SUPPORTS_STATUSINFOX: when set, also means any combination of
    write/unregister/dispose supported */
 
@@ -104,13 +104,13 @@ typedef struct nn_reader_favours_ssm {
 } nn_reader_favours_ssm_t;
 #endif
 
-typedef struct nn_prismtech_participant_version_info
+typedef struct nn_adlink_participant_version_info
 {
   uint32_t version;
   uint32_t flags;
   uint32_t unused[3];
   char *internals;
-} nn_prismtech_participant_version_info_t;
+} nn_adlink_participant_version_info_t;
 
 typedef struct ddsi_plist {
   uint64_t present;
@@ -144,7 +144,7 @@ typedef struct ddsi_plist {
   char *entity_name;
   nn_keyhash_t keyhash;
   uint32_t statusinfo;
-  nn_prismtech_participant_version_info_t prismtech_participant_version_info;
+  nn_adlink_participant_version_info_t adlink_participant_version_info;
   char *type_description;
   nn_sequence_number_t coherent_set_seqno;
 #ifdef DDSI_INCLUDE_SSM

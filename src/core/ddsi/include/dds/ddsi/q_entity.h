@@ -638,7 +638,7 @@ int writer_set_notalive (struct writer *wr, bool notify);
       XX --
 */
 
-/* Set this custom flag when using nn_prismtech_writer_info_t iso nn_prismtech_writer_info_old_t */
+/* Set this custom flag when using nn_adlink_writer_info_t iso nn_adlink_writer_info_old_t */
 #define CF_INC_KERNEL_SEQUENCE_NUMBERS         (1 << 0)
 /* Set when this proxy participant is created implicitly and has to be deleted upon disappearance
    of its last endpoint.  FIXME: Currently there is a potential race with adding a new endpoint
