@@ -2480,7 +2480,7 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   /* These can change as a consequence of handling data and/or
      discovery activities. The safe way of dealing with them is to
      lock the proxy writer */
-  if (is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) && !ddsrt_avl_is_empty (&pwr->readers))
+  if (is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) && !ddsrt_avl_is_empty (&pwr->readers) && !pwr->filtered)
   {
     /* builtins really don't care about multiple copies or anything */
     m->in_sync = PRMSS_SYNC;
