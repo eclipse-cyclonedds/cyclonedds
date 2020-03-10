@@ -21,7 +21,6 @@
 #include "dds/ddsi/ddsi_tcp.h"
 #include "dds/ddsi/ddsi_ipaddr.h"
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_entity.h"
@@ -165,12 +164,94 @@ static void ddsi_tcp_sock_free (const struct ddsrt_log_cfg *logcfg, ddsrt_socket
   }
 }
 
-static void ddsi_tcp_sock_new (ddsrt_socket_t *sock, unsigned short port, const struct ddsi_domaingv *gv)
+static dds_return_t ddsi_tcp_sock_new (struct ddsi_tran_factory_tcp * const fact, ddsrt_socket_t *sock, uint16_t port)
 {
-  if (make_socket (sock, port, true, true, true, gv) != 0)
+  struct ddsi_domaingv * const gv = fact->fact.gv;
+  const int one = 1;
+  dds_return_t rc;
+
   {
-    *sock = DDSRT_INVALID_SOCKET;
+    int af = AF_UNSPEC;
+    switch (fact->fact.m_kind)
+    {
+      case NN_LOCATOR_KIND_TCPv4:
+        af = AF_INET;
+        break;
+#if DDSRT_HAVE_IPV6
+      case NN_LOCATOR_KIND_TCPv6:
+        af = AF_INET6;
+        break;
+#endif
+      default:
+        DDS_FATAL ("ddsi_tcp_sock_new: unsupported kind %"PRId32"\n", fact->fact.m_kind);
+    }
+    assert (af != AF_UNSPEC);
+    if ((rc = ddsrt_socket (sock, af, SOCK_STREAM, 0)) != DDS_RETCODE_OK)
+    {
+      GVERROR ("ddsi_tcp_sock_new: failed to create socket: %s\n", dds_strretcode (rc));
+      goto fail;
+    }
   }
+
+  /* REUSEADDR if we're binding to a port number */
+  if (port && (rc = ddsrt_setsockopt (*sock, SOL_SOCKET, SO_REUSEADDR, (char *) &one, sizeof (one))) != DDS_RETCODE_OK)
+  {
+    GVERROR ("ddsi_tcp_sock_new: failed to enable address reuse: %s\n", dds_strretcode (rc));
+    goto fail_w_socket;
+  }
+
+  {
+    union {
+      struct sockaddr_storage x;
+      struct sockaddr_in a4;
+      struct sockaddr_in6 a6;
+    } socketname;
+    memset (&socketname.x, 0, sizeof (socketname.x));
+    switch (fact->fact.m_kind)
+    {
+      case NN_LOCATOR_KIND_TCPv4:
+        socketname.a4.sin_family = AF_INET;
+        socketname.a4.sin_addr.s_addr = htonl (INADDR_ANY);
+        socketname.a4.sin_port = htons (port);
+        break;
+#if DDSRT_HAVE_IPV6
+      case NN_LOCATOR_KIND_TCPv6:
+        socketname.a4.sin_family = AF_INET6;
+        socketname.a6.sin6_addr = ddsrt_in6addr_any;
+        socketname.a6.sin6_port = htons (port);
+        break;
+#endif
+      default:
+        DDS_FATAL ("ddsi_tcp_sock_new: unsupported kind %"PRId32"\n", fact->fact.m_kind);
+    }
+    if ((rc = ddsrt_bind (*sock, (struct sockaddr *) &socketname, ddsrt_sockaddr_get_size ((struct sockaddr *) &socketname))) != DDS_RETCODE_OK)
+    {
+      GVERROR ("ddsi_tcp_sock_new: failed to bind to ANY:%"PRIu16": %s\n", port, dds_strretcode (rc));
+      goto fail_w_socket;
+    }
+  }
+
+#ifdef SO_NOSIGPIPE
+  if (ddsrt_setsockopt (*sock, SOL_SOCKET, SO_NOSIGPIPE, (char *) &one, sizeof (one)) != DDS_RETCODE_OK)
+  {
+    GVERROR ("ddsi_tcp_sock_new: failed to set NOSIGPIPE: %s\n", dds_strretcode (rc));
+    goto fail_w_socket;
+  }
+#endif
+#ifdef TCP_NODELAY
+  if (gv->config.tcp_nodelay && (rc = ddsrt_setsockopt (*sock, IPPROTO_TCP, TCP_NODELAY, (char*) &one, sizeof (one))) != DDS_RETCODE_OK)
+  {
+    GVERROR ("ddsi_tcp_sock_new: failed to set NODELAY: %s\n", dds_strretcode (rc));
+    goto fail_w_socket;
+  }
+#endif
+  return DDS_RETCODE_OK;
+
+fail_w_socket:
+  ddsrt_close (*sock);
+fail:
+  *sock = DDSRT_INVALID_SOCKET;
+  return rc;
 }
 
 static void ddsi_tcp_node_free (void * ptr)
@@ -187,16 +268,12 @@ static void ddsi_tcp_conn_connect (ddsi_tcp_conn_t conn, const ddsrt_msghdr_t * 
   ddsrt_socket_t sock;
   dds_return_t ret;
 
-  ddsi_tcp_sock_new (&sock, 0, conn->m_base.m_base.gv);
-  if (sock != DDSRT_INVALID_SOCKET)
+  if (ddsi_tcp_sock_new (fact, &sock, 0) == DDS_RETCODE_OK)
   {
     /* Attempt to connect, expected that may fail */
-
-    do
-    {
+    do {
       ret = ddsrt_connect(sock, msg->msg_name, msg->msg_namelen);
-    }
-    while (ret == DDS_RETCODE_INTERRUPTED);
+    } while (ret == DDS_RETCODE_INTERRUPTED);
 
     if (ret != DDS_RETCODE_OK)
     {
@@ -855,48 +932,45 @@ static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, dd
 
 static ddsi_tran_listener_t ddsi_tcp_create_listener (ddsi_tran_factory_t fact, uint32_t port, const struct ddsi_tran_qos *qos)
 {
-  char buff[DDSI_LOCSTRLEN];
-  ddsrt_socket_t sock;
-  struct sockaddr_storage addr;
-  socklen_t addrlen = sizeof (addr);
-  ddsi_tcp_listener_t tl = NULL;
   struct ddsi_tran_factory_tcp * const fact_tcp = (struct ddsi_tran_factory_tcp *) fact;
+  struct ddsi_domaingv * const gv = fact_tcp->fact.gv;
+  ddsrt_socket_t sock;
 
   (void) qos;
 
-  ddsi_tcp_sock_new (&sock, (unsigned short) port, fact->gv);
+  if (ddsi_tcp_sock_new (fact_tcp, &sock, (unsigned short) port) != DDS_RETCODE_OK)
+    return NULL;
 
-  if (sock != DDSRT_INVALID_SOCKET)
+  dds_return_t ret;
+  ddsi_tcp_listener_t tl = (ddsi_tcp_listener_t) ddsrt_malloc (sizeof (*tl));
+  memset (tl, 0, sizeof (*tl));
+
+  tl->m_sock = sock;
+
+  tl->m_base.m_base.gv = fact->gv;
+  tl->m_base.m_listen_fn = ddsi_tcp_listen;
+  tl->m_base.m_accept_fn = ddsi_tcp_accept;
+  tl->m_base.m_factory = fact;
+
+  tl->m_base.m_base.m_port = get_socket_port (&fact->gv->logconfig, sock);
+  tl->m_base.m_base.m_trantype = DDSI_TRAN_LISTENER;
+  tl->m_base.m_base.m_handle_fn = ddsi_tcp_listener_handle;
+  tl->m_base.m_locator_fn = ddsi_tcp_locator;
+
+  struct sockaddr_storage addr;
+  socklen_t addrlen = sizeof (addr);
+  if ((ret = ddsrt_getsockname (sock, (struct sockaddr *) &addr, &addrlen)) != DDS_RETCODE_OK)
   {
-    dds_return_t ret;
-    tl = (ddsi_tcp_listener_t) ddsrt_malloc (sizeof (*tl));
-    memset (tl, 0, sizeof (*tl));
-
-    tl->m_sock = sock;
-
-    tl->m_base.m_base.gv = fact->gv;
-    tl->m_base.m_listen_fn = ddsi_tcp_listen;
-    tl->m_base.m_accept_fn = ddsi_tcp_accept;
-    tl->m_base.m_factory = fact;
-
-    tl->m_base.m_base.m_port = get_socket_port (&fact->gv->logconfig, sock);
-    tl->m_base.m_base.m_trantype = DDSI_TRAN_LISTENER;
-    tl->m_base.m_base.m_handle_fn = ddsi_tcp_listener_handle;
-    tl->m_base.m_locator_fn = ddsi_tcp_locator;
-
-    ret = ddsrt_getsockname(sock, (struct sockaddr *)&addr, &addrlen);
-    if (ret != DDS_RETCODE_OK) {
-        DDS_CERROR (&fact->gv->logconfig, "ddsi_tcp_create_listener: ddsrt_getsockname returned %"PRId32"\n", ret);
-        ddsi_tcp_sock_free(&fact->gv->logconfig, sock, NULL);
-        ddsrt_free(tl);
-        return NULL;
-    }
-
-    sockaddr_to_string_with_port(fact_tcp, buff, sizeof(buff), (struct sockaddr *)&addr);
-    DDS_CLOG (DDS_LC_TCP, &fact->gv->logconfig, "tcp create listener socket %"PRIdSOCK" on %s\n", sock, buff);
+    GVERROR ("ddsi_tcp_create_listener: ddsrt_getsockname returned %"PRId32"\n", ret);
+    ddsi_tcp_sock_free (&fact->gv->logconfig, sock, NULL);
+    ddsrt_free (tl);
+    return NULL;
   }
 
-  return tl ? &tl->m_base : NULL;
+  char buff[DDSI_LOCSTRLEN];
+  sockaddr_to_string_with_port (fact_tcp, buff, sizeof (buff), (struct sockaddr *) &addr);
+  GVLOG (DDS_LC_TCP, "tcp create listener socket %"PRIdSOCK" on %s\n", sock, buff);
+  return &tl->m_base;
 }
 
 static void ddsi_tcp_conn_delete (ddsi_tcp_conn_t conn)
@@ -948,55 +1022,56 @@ static void ddsi_tcp_release_conn (ddsi_tran_conn_t conn)
 
 static void ddsi_tcp_unblock_listener (ddsi_tran_listener_t listener)
 {
+  struct ddsi_tran_factory_tcp * const fact_tcp = (struct ddsi_tran_factory_tcp *) listener->m_factory;
+  struct ddsi_domaingv * const gv = fact_tcp->fact.gv;
   ddsi_tcp_listener_t tl = (ddsi_tcp_listener_t) listener;
   ddsrt_socket_t sock;
   dds_return_t ret;
 
   /* Connect to own listener socket to wake listener from blocking 'accept()' */
-  ddsi_tcp_sock_new (&sock, 0, listener->m_base.gv);
-  if (sock != DDSRT_INVALID_SOCKET)
-  {
-    struct sockaddr_storage addr;
-    socklen_t addrlen = sizeof (addr);
+  if (ddsi_tcp_sock_new (fact_tcp, &sock, 0) != DDS_RETCODE_OK)
+    goto fail;
 
-    ret = ddsrt_getsockname(tl->m_sock, (struct sockaddr *)&addr, &addrlen);
-    if (ret != DDS_RETCODE_OK) {
-      DDS_CWARNING (&listener->m_base.gv->logconfig, "tcp failed to get listener address error %"PRId32"\n", ret);
-    } else {
-      switch (addr.ss_family) {
-        case AF_INET:
-          {
-            struct sockaddr_in *socketname = (struct sockaddr_in*)&addr;
-            if (socketname->sin_addr.s_addr == htonl (INADDR_ANY)) {
-              socketname->sin_addr.s_addr = htonl (INADDR_LOOPBACK);
-            }
-          }
-          break;
-#if DDSRT_HAVE_IPV6
-        case AF_INET6:
-          {
-            struct sockaddr_in6 *socketname = (struct sockaddr_in6*)&addr;
-            if (memcmp(&socketname->sin6_addr, &ddsrt_in6addr_any, sizeof(socketname->sin6_addr)) == 0) {
-                socketname->sin6_addr = ddsrt_in6addr_loopback;
-            }
-          }
-          break;
-#endif
-      }
-      do
-      {
-        ret = ddsrt_connect(sock, (struct sockaddr *)&addr, ddsrt_sockaddr_get_size((struct sockaddr *)&addr));
-      } while (ret == DDS_RETCODE_INTERRUPTED);
-      if (ret != DDS_RETCODE_OK)
-      {
-        struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) listener->m_factory;
-        char buff[DDSI_LOCSTRLEN];
-        sockaddr_to_string_with_port(fact, buff, sizeof(buff), (struct sockaddr *)&addr);
-        DDS_CWARNING (&listener->m_base.gv->logconfig, "tcp failed to connect to own listener (%s) error %"PRId32"\n", buff, ret);
-      }
-    }
-    ddsi_tcp_sock_free (&listener->m_base.gv->logconfig, sock, NULL);
+  struct sockaddr_storage addr;
+  socklen_t addrlen = sizeof (addr);
+  if ((ret = ddsrt_getsockname (tl->m_sock, (struct sockaddr *) &addr, &addrlen)) != DDS_RETCODE_OK)
+  {
+    GVWARNING ("tcp failed to get listener address error %"PRId32"\n", ret);
+    goto fail_w_socket;
   }
+  switch (addr.ss_family)
+  {
+    case AF_INET: {
+      struct sockaddr_in *socketname = (struct sockaddr_in *) &addr;
+      if (socketname->sin_addr.s_addr == htonl (INADDR_ANY))
+        socketname->sin_addr.s_addr = htonl (INADDR_LOOPBACK);
+      break;
+    }
+#if DDSRT_HAVE_IPV6
+    case AF_INET6: {
+      struct sockaddr_in6 *socketname = (struct sockaddr_in6 *) &addr;
+      if (memcmp (&socketname->sin6_addr, &ddsrt_in6addr_any, sizeof (socketname->sin6_addr)) == 0)
+        socketname->sin6_addr = ddsrt_in6addr_loopback;
+      break;
+    }
+#endif
+  }
+
+  do {
+    ret = ddsrt_connect (sock, (struct sockaddr *) &addr, ddsrt_sockaddr_get_size ((struct sockaddr *) &addr));
+  } while (ret == DDS_RETCODE_INTERRUPTED);
+  if (ret != DDS_RETCODE_OK)
+  {
+    struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) listener->m_factory;
+    char buff[DDSI_LOCSTRLEN];
+    sockaddr_to_string_with_port (fact, buff, sizeof (buff), (struct sockaddr *) &addr);
+    GVWARNING ("tcp failed to connect to own listener (%s) error %"PRId32"\n", buff, ret);
+  }
+
+fail_w_socket:
+  ddsi_tcp_sock_free (&listener->m_base.gv->logconfig, sock, NULL);
+fail:
+  return;
 }
 
 static void ddsi_tcp_release_listener (ddsi_tran_listener_t listener)

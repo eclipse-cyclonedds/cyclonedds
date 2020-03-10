@@ -41,7 +41,7 @@
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_nwif.h"
+#include "dds/ddsi/ddsi_ownip.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_receive.h"
