@@ -377,7 +377,6 @@ static int submsg_is_compatible (const struct nn_xmsg *msg, SubmessageKind_t smk
         case SMID_ACKNACK: case SMID_HEARTBEAT:
         case SMID_GAP: case SMID_NACK_FRAG:
         case SMID_HEARTBEAT_FRAG:
-        case SMID_PT_INFO_CONTAINER:
         case SMID_PT_MSG_LEN:
         case SMID_PT_ENTITY_ID:
           /* normal control stuff is ok */
@@ -411,7 +410,6 @@ static int submsg_is_compatible (const struct nn_xmsg *msg, SubmessageKind_t smk
         case SMID_GAP:
         case SMID_NACK_FRAG:
         case SMID_HEARTBEAT_FRAG:
-        case SMID_PT_INFO_CONTAINER:
         case SMID_PT_MSG_LEN:
         case SMID_PT_ENTITY_ID:
           /* anything else is strictly verboten */

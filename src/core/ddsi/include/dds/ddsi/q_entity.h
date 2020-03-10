@@ -332,7 +332,6 @@ struct proxy_participant
   uint32_t refc; /* number of proxy endpoints (both user & built-in; not groups, they don't have a life of their own) */
   nn_vendorid_t vendor; /* vendor code from discovery */
   unsigned bes; /* built-in endpoint set */
-  unsigned prismtech_bes; /* prismtech-specific extension of built-in endpoints set */
   ddsi_guid_t privileged_pp_guid; /* if this PP depends on another PP for its SEDP writing */
   struct ddsi_plist *plist; /* settings/QoS for this participant */
   ddsrt_atomic_voidp_t minl_auto; /* lease object for shortest automatic liveliness pwr's lease (includes this proxypp's lease) */
