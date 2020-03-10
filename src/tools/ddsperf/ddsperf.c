@@ -2051,8 +2051,15 @@ int main (int argc, char *argv[])
      has convenience functions for that ...) */
   if ((rd_participants = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, NULL, NULL)) < 0)
     error2 ("dds_create_reader(participants) failed: %d\n", (int) rd_participants);
-  /* set listener later: DATA_AVAILABLE still has the nasty habit of potentially triggering
-     before the reader is accessible to the application via its handle */
+  if ((rd_subscriptions = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL)) < 0)
+    error2 ("dds_create_reader(subscriptions) failed: %d\n", (int) rd_subscriptions);
+  if ((rd_publications = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, NULL, NULL)) < 0)
+    error2 ("dds_create_reader(publications) failed: %d\n", (int) rd_publications);
+
+  /* Set DATA_AVAILABLE listener on participant later: it has the nasty habit of potentially
+     triggering before the reader is accessible to the application via its handle. Furthermore,
+     upon matching a participant, a new writer is created that gets a publication_matched
+     listener, which in turn depends on rd_subscriptions. */
   listener = dds_create_listener (NULL);
   dds_lset_data_available (listener, participant_data_listener);
   dds_set_listener (rd_participants, listener);
@@ -2060,10 +2067,6 @@ int main (int argc, char *argv[])
   /* then there is the matter of data arriving prior to setting the listener ... this state
      of affairs is undoubtedly a bug */
   participant_data_listener (rd_participants, NULL);
-  if ((rd_subscriptions = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL)) < 0)
-    error2 ("dds_create_reader(subscriptions) failed: %d\n", (int) rd_subscriptions);
-  if ((rd_publications = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, NULL, NULL)) < 0)
-    error2 ("dds_create_reader(publications) failed: %d\n", (int) rd_publications);
 
   /* stats writer always exists, reader only when we were requested to collect & print stats */
   qos = dds_create_qos ();
