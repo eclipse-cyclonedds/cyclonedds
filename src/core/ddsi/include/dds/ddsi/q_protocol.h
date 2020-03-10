@@ -150,7 +150,6 @@ typedef enum SubmessageKind {
   SMID_DATA = 0x15,
   SMID_DATA_FRAG = 0x16,
   /* vendor-specific sub messages (0x80 .. 0xff) */
-  SMID_PT_INFO_CONTAINER = 0x80,
   SMID_PT_MSG_LEN = 0x81,
   SMID_PT_ENTITY_ID = 0x82
 } SubmessageKind_t;
@@ -291,12 +290,6 @@ DDSRT_WARNING_MSVC_ON(4200)
 #define NACKFRAG_SIZE(numbits) (offsetof (NackFrag_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits) + 4)
 #define NACKFRAG_SIZE_MAX NACKFRAG_SIZE (256u)
 
-typedef struct PT_InfoContainer {
-  SubmessageHeader_t smhdr;
-  uint32_t id;
-} PT_InfoContainer_t;
-#define PTINFO_ID_ENCRYPT (0x01u)
-
 typedef union Submessage {
   SubmessageHeader_t smhdr;
   AckNack_t acknack;
@@ -309,7 +302,6 @@ typedef union Submessage {
   HeartbeatFrag_t heartbeatfrag;
   Gap_t gap;
   NackFrag_t nackfrag;
-  PT_InfoContainer_t pt_infocontainer;
 } Submessage_t;
 
 DDSRT_WARNING_MSVC_OFF(4200)

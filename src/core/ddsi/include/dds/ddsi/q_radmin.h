@@ -123,7 +123,6 @@ struct nn_rsample_info {
   ddsrt_wctime_t timestamp;
   ddsrt_wctime_t reception_timestamp; /* OpenSplice extension -- but we get it essentially for free, so why not? */
   unsigned statusinfo: 2;       /* just the two defined bits from the status info */
-  unsigned pt_wr_info_zoff: 16; /* PrismTech writer info offset */
   unsigned bswap: 1;            /* so we can extract well formatted writer info quicker */
   unsigned complex_qos: 1;      /* includes QoS other than keyhash, 2-bit statusinfo, PT writer info */
 };
@@ -156,8 +155,6 @@ struct nn_rdata {
 #define NN_ZOFF_TO_OFF(zoff) ((unsigned) (zoff))
 #define NN_OFF_TO_ZOFF(off) ((unsigned short) (off))
 #endif
-#define NN_SAMPLEINFO_HAS_WRINFO(rsi) ((rsi)->pt_wr_info_zoff != NN_OFF_TO_ZOFF (0))
-#define NN_SAMPLEINFO_WRINFO_OFF(rsi) NN_ZOFF_TO_OFF ((rsi)->pt_wr_info_zoff)
 #define NN_RDATA_PAYLOAD_OFF(rdata) NN_ZOFF_TO_OFF ((rdata)->payload_zoff)
 #define NN_RDATA_SUBMSG_OFF(rdata) NN_ZOFF_TO_OFF ((rdata)->submsg_zoff)
 

@@ -2686,7 +2686,6 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const struct 
   const unsigned char *pl;
   (void)rmsg;
   dest->statusinfo = 0;
-  dest->pt_wr_info_zoff = NN_OFF_TO_ZOFF (0);
   dest->complex_qos = 0;
   switch (src->encoding)
   {

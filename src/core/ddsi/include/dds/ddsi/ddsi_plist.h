@@ -112,11 +112,6 @@ typedef struct nn_prismtech_participant_version_info
   char *internals;
 } nn_prismtech_participant_version_info_t;
 
-typedef struct nn_prismtech_eotgroup_tid {
-  ddsi_entityid_t writer_entityid;
-  uint32_t transactionId;
-} nn_prismtech_eotgroup_tid_t;
-
 typedef struct ddsi_plist {
   uint64_t present;
   uint64_t aliased;

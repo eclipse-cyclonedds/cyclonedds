@@ -283,7 +283,7 @@ static void set_sampleinfo_proxy_writer (struct nn_rsample_info *sampleinfo, dds
 
 static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, Data_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp)
 {
-  /* on success: sampleinfo->{seq,rst,statusinfo,pt_wr_info_zoff,bswap,complex_qos} all set */
+  /* on success: sampleinfo->{seq,rst,statusinfo,bswap,complex_qos} all set */
   ddsi_guid_t pwr_guid;
   unsigned char *ptr;
 
@@ -320,7 +320,6 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
     *payloadp = NULL;
     sampleinfo->size = 0; /* size is full payload size, no payload & unfragmented => size = 0 */
     sampleinfo->statusinfo = 0;
-    sampleinfo->pt_wr_info_zoff = NN_OFF_TO_ZOFF (0);
     sampleinfo->complex_qos = 0;
     return 1;
   }
@@ -349,7 +348,6 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
   else
   {
     sampleinfo->statusinfo = 0;
-    sampleinfo->pt_wr_info_zoff = NN_OFF_TO_ZOFF (0);
     sampleinfo->complex_qos = 0;
   }
 
@@ -393,7 +391,7 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
 
 static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rmsg, DataFrag_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp)
 {
-  /* on success: sampleinfo->{rst,statusinfo,pt_wr_info_zoff,bswap,complex_qos} all set */
+  /* on success: sampleinfo->{rst,statusinfo,bswap,complex_qos} all set */
   uint32_t payloadsz;
   ddsi_guid_t pwr_guid;
   unsigned char *ptr;
@@ -471,7 +469,6 @@ static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rms
   else
   {
     sampleinfo->statusinfo = 0;
-    sampleinfo->pt_wr_info_zoff = NN_OFF_TO_ZOFF (0);
     sampleinfo->complex_qos = 0;
   }
 

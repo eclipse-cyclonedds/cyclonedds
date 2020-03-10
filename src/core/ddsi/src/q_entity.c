@@ -4063,12 +4063,10 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
   /* Add proxy endpoints based on the advertised (& possibly augmented
      ...) built-in endpoint set. */
   {
-#define PT_TE(ap_, a_, bp_, b_) { 0, NN_##ap_##BUILTIN_ENDPOINT_##a_, NN_ENTITYID_##bp_##_BUILTIN_##b_ }
-#define TE(ap_, a_, bp_, b_) { NN_##ap_##BUILTIN_ENDPOINT_##a_, 0, NN_ENTITYID_##bp_##_BUILTIN_##b_ }
-#define LTE(a_, bp_, b_) { NN_##BUILTIN_ENDPOINT_##a_, 0, NN_ENTITYID_##bp_##_BUILTIN_##b_ }
+#define TE(ap_, a_, bp_, b_) { NN_##ap_##BUILTIN_ENDPOINT_##a_, NN_ENTITYID_##bp_##_BUILTIN_##b_ }
+#define LTE(a_, bp_, b_) { NN_##BUILTIN_ENDPOINT_##a_, NN_ENTITYID_##bp_##_BUILTIN_##b_ }
     static const struct bestab {
       unsigned besflag;
-      unsigned prismtech_besflag;
       unsigned entityid;
     } bestab[] = {
 #if 0
@@ -4086,7 +4084,6 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
       TE (DISC_, TOPIC_ANNOUNCER, SEDP, TOPIC_WRITER),
       TE (DISC_, TOPIC_DETECTOR, SEDP, TOPIC_READER)
     };
-#undef PT_TE
 #undef TE
 #undef LTE
     ddsi_plist_t plist_rd, plist_wr;
@@ -4101,7 +4098,7 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
     for (i = 0; i < (int) (sizeof (bestab) / sizeof (*bestab)); i++)
     {
       const struct bestab *te = &bestab[i];
-      if ((proxypp->bes & te->besflag) || (proxypp->prismtech_bes & te->prismtech_besflag))
+      if (proxypp->bes & te->besflag)
       {
         ddsi_guid_t guid1;
         guid1.prefix = proxypp->e.guid.prefix;
