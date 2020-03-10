@@ -280,6 +280,8 @@ static bool write_crypto_exchange_message(const struct participant *pp, const dd
   nn_participant_generic_message_init(&pmg, &wr->e.guid, seq, dst_pguid, dst_eguid, src_eguid, classid, tokens, NULL);
   nn_participant_generic_message_serialize(&pmg, &data, &len);
 
+  nn_participant_generic_message_log(gv, &pmg, 0);
+
   /* Get the key value. */
   ddsrt_md5_state_t md5st;
   ddsrt_md5_byte_t digest[16];
