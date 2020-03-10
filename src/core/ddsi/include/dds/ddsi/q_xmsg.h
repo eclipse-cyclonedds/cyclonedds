@@ -27,7 +27,7 @@ struct addrset;
 struct proxy_reader;
 struct proxy_writer;
 
-struct nn_prismtech_participant_version_info;
+struct nn_adlink_participant_version_info;
 struct nn_xmsgpool;
 struct nn_xmsg_data;
 struct nn_xmsg;

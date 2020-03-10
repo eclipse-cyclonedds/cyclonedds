@@ -1449,28 +1449,28 @@ static const struct piddesc piddesc_omg[] = {
 
 /* Understood parameters for Eclipse Foundation (Cyclone DDS) vendor code */
 static const struct piddesc piddesc_eclipse[] = {
-  QP  (PRISMTECH_ENTITY_FACTORY,            entity_factory, Xb),
-  QP  (PRISMTECH_READER_LIFESPAN,           reader_lifespan, Xb, XD),
-  QP  (PRISMTECH_WRITER_DATA_LIFECYCLE,     writer_data_lifecycle, Xb),
-  QP  (PRISMTECH_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
-  QP  (PRISMTECH_SUBSCRIPTION_KEYS,         subscription_keys, XbCOND, XQ, XS, XSTOP),
+  QP  (ADLINK_ENTITY_FACTORY,            entity_factory, Xb),
+  QP  (ADLINK_READER_LIFESPAN,           reader_lifespan, Xb, XD),
+  QP  (ADLINK_WRITER_DATA_LIFECYCLE,     writer_data_lifecycle, Xb),
+  QP  (ADLINK_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
+  QP  (ADLINK_SUBSCRIPTION_KEYS,         subscription_keys, XbCOND, XQ, XS, XSTOP),
   { PID_PAD, PDF_QOS, QP_CYCLONE_IGNORELOCAL, "CYCLONE_IGNORELOCAL",
     offsetof (struct ddsi_plist, qos.ignorelocal), membersize (struct ddsi_plist, qos.ignorelocal),
     { .desc = { XE2, XSTOP } }, 0 },
-  PP  (PRISMTECH_PARTICIPANT_VERSION_INFO,  prismtech_participant_version_info, Xux5, XS),
-  PP  (PRISMTECH_TYPE_DESCRIPTION,          type_description, XS),
+  PP  (ADLINK_PARTICIPANT_VERSION_INFO,  adlink_participant_version_info, Xux5, XS),
+  PP  (ADLINK_TYPE_DESCRIPTION,          type_description, XS),
   { PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
 };
 
-/* Understood parameters for PrismTech vendor code */
-static const struct piddesc piddesc_prismtech[] = {
-  QP  (PRISMTECH_ENTITY_FACTORY,            entity_factory, Xb),
-  QP  (PRISMTECH_READER_LIFESPAN,           reader_lifespan, Xb, XD),
-  QP  (PRISMTECH_WRITER_DATA_LIFECYCLE,     writer_data_lifecycle, Xb),
-  QP  (PRISMTECH_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
-  QP  (PRISMTECH_SUBSCRIPTION_KEYS,         subscription_keys, XbCOND, XQ, XS, XSTOP),
-  PP  (PRISMTECH_PARTICIPANT_VERSION_INFO,  prismtech_participant_version_info, Xux5, XS),
-  PP  (PRISMTECH_TYPE_DESCRIPTION,          type_description, XS),
+/* Understood parameters for Adlink vendor code */
+static const struct piddesc piddesc_adlink[] = {
+  QP  (ADLINK_ENTITY_FACTORY,            entity_factory, Xb),
+  QP  (ADLINK_READER_LIFESPAN,           reader_lifespan, Xb, XD),
+  QP  (ADLINK_WRITER_DATA_LIFECYCLE,     writer_data_lifecycle, Xb),
+  QP  (ADLINK_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
+  QP  (ADLINK_SUBSCRIPTION_KEYS,         subscription_keys, XbCOND, XQ, XS, XSTOP),
+  PP  (ADLINK_PARTICIPANT_VERSION_INFO,  adlink_participant_version_info, Xux5, XS),
+  PP  (ADLINK_TYPE_DESCRIPTION,          type_description, XS),
   { PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
 };
 
@@ -1524,7 +1524,7 @@ static const struct piddesc *piddesc_omg_index[115];
 static const struct piddesc *piddesc_omg_index[114];
 #endif
 static const struct piddesc *piddesc_eclipse_index[19];
-static const struct piddesc *piddesc_prismtech_index[19];
+static const struct piddesc *piddesc_adlink_index[19];
 
 #define INDEX_ANY(vendorid_, tab_) [vendorid_] = { \
     .index_max = sizeof (piddesc_##tab_##_index) / sizeof (piddesc_##tab_##_index[0]) - 1, \
@@ -1535,11 +1535,11 @@ static const struct piddesc *piddesc_prismtech_index[19];
 static const struct piddesc_index piddesc_vendor_index[] = {
   INDEX_ANY (0, omg),
   INDEX (ECLIPSE, eclipse),
-  INDEX (PRISMTECH_OSPL, prismtech),
-  INDEX (PRISMTECH_JAVA, prismtech),
-  INDEX (PRISMTECH_LITE, prismtech),
-  INDEX (PRISMTECH_GATEWAY, prismtech),
-  INDEX (PRISMTECH_CLOUD, prismtech)
+  INDEX (ADLINK_OSPL, adlink),
+  INDEX (ADLINK_JAVA, adlink),
+  INDEX (ADLINK_LITE, adlink),
+  INDEX (ADLINK_GATEWAY, adlink),
+  INDEX (ADLINK_CLOUD, adlink)
 };
 
 #undef INDEX
@@ -2781,7 +2781,7 @@ void ddsi_plist_init_default_participant (ddsi_plist_t *plist)
 {
   ddsi_plist_init_empty (plist);
 
-  plist->qos.present |= QP_PRISMTECH_ENTITY_FACTORY;
+  plist->qos.present |= QP_ADLINK_ENTITY_FACTORY;
   plist->qos.entity_factory.autoenable_created_entities = 0;
 
   plist->qos.present |= QP_USER_DATA;
@@ -2864,15 +2864,15 @@ void ddsi_xqos_init_default_reader (dds_qos_t *xqos)
   xqos->present |= QP_TIME_BASED_FILTER;
   xqos->time_based_filter.minimum_separation = 0;
 
-  xqos->present |= QP_PRISMTECH_READER_DATA_LIFECYCLE;
+  xqos->present |= QP_ADLINK_READER_DATA_LIFECYCLE;
   xqos->reader_data_lifecycle.autopurge_nowriter_samples_delay = DDS_INFINITY;
   xqos->reader_data_lifecycle.autopurge_disposed_samples_delay = DDS_INFINITY;
 
-  xqos->present |= QP_PRISMTECH_READER_LIFESPAN;
+  xqos->present |= QP_ADLINK_READER_LIFESPAN;
   xqos->reader_lifespan.use_lifespan = 0;
   xqos->reader_lifespan.duration = DDS_INFINITY;
 
-  xqos->present |= QP_PRISMTECH_SUBSCRIPTION_KEYS;
+  xqos->present |= QP_ADLINK_SUBSCRIPTION_KEYS;
   xqos->subscription_keys.use_key_list = 0;
   xqos->subscription_keys.key_list.n = 0;
   xqos->subscription_keys.key_list.strs = NULL;
@@ -2903,7 +2903,7 @@ void ddsi_xqos_init_default_writer (dds_qos_t *xqos)
   xqos->present |= QP_LIFESPAN;
   xqos->lifespan.duration = DDS_INFINITY;
 
-  xqos->present |= QP_PRISMTECH_WRITER_DATA_LIFECYCLE;
+  xqos->present |= QP_ADLINK_WRITER_DATA_LIFECYCLE;
   xqos->writer_data_lifecycle.autodispose_unregistered_instances = 1;
 }
 
@@ -2935,7 +2935,7 @@ void ddsi_xqos_init_default_topic (dds_qos_t *xqos)
   xqos->present |= QP_LIFESPAN;
   xqos->lifespan.duration = DDS_INFINITY;
 
-  xqos->present |= QP_PRISMTECH_SUBSCRIPTION_KEYS;
+  xqos->present |= QP_ADLINK_SUBSCRIPTION_KEYS;
   xqos->subscription_keys.use_key_list = 0;
   xqos->subscription_keys.key_list.n = 0;
   xqos->subscription_keys.key_list.strs = NULL;
@@ -2949,7 +2949,7 @@ static void ddsi_xqos_init_default_publisher_subscriber (dds_qos_t *xqos)
   xqos->group_data.length = 0;
   xqos->group_data.value = NULL;
 
-  xqos->present |= QP_PRISMTECH_ENTITY_FACTORY;
+  xqos->present |= QP_ADLINK_ENTITY_FACTORY;
   xqos->entity_factory.autoenable_created_entities = 1;
 
   xqos->present |= QP_PARTITION;

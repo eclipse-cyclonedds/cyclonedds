@@ -302,7 +302,7 @@ void dds_qset_writer_data_lifecycle (dds_qos_t * __restrict qos, bool autodispos
   if (qos == NULL)
     return;
   qos->writer_data_lifecycle.autodispose_unregistered_instances = autodispose;
-  qos->present |= QP_PRISMTECH_WRITER_DATA_LIFECYCLE;
+  qos->present |= QP_ADLINK_WRITER_DATA_LIFECYCLE;
 }
 
 void dds_qset_reader_data_lifecycle (dds_qos_t * __restrict qos, dds_duration_t autopurge_nowriter_samples_delay, dds_duration_t autopurge_disposed_samples_delay)
@@ -311,7 +311,7 @@ void dds_qset_reader_data_lifecycle (dds_qos_t * __restrict qos, dds_duration_t 
     return;
   qos->reader_data_lifecycle.autopurge_nowriter_samples_delay = autopurge_nowriter_samples_delay;
   qos->reader_data_lifecycle.autopurge_disposed_samples_delay = autopurge_disposed_samples_delay;
-  qos->present |= QP_PRISMTECH_READER_DATA_LIFECYCLE;
+  qos->present |= QP_ADLINK_READER_DATA_LIFECYCLE;
 }
 
 void dds_qset_durability_service (dds_qos_t * __restrict qos, dds_duration_t service_cleanup_delay, dds_history_kind_t history_kind, int32_t history_depth, int32_t max_samples, int32_t max_instances, int32_t max_samples_per_instance)
@@ -520,7 +520,7 @@ bool dds_qget_destination_order (const dds_qos_t * __restrict qos, dds_destinati
 
 bool dds_qget_writer_data_lifecycle (const dds_qos_t * __restrict qos, bool *autodispose)
 {
-  if (qos == NULL || !(qos->present & QP_PRISMTECH_WRITER_DATA_LIFECYCLE))
+  if (qos == NULL || !(qos->present & QP_ADLINK_WRITER_DATA_LIFECYCLE))
     return false;
   if (autodispose)
     *autodispose = qos->writer_data_lifecycle.autodispose_unregistered_instances;
@@ -529,7 +529,7 @@ bool dds_qget_writer_data_lifecycle (const dds_qos_t * __restrict qos, bool *aut
 
 bool dds_qget_reader_data_lifecycle (const dds_qos_t * __restrict qos, dds_duration_t *autopurge_nowriter_samples_delay, dds_duration_t *autopurge_disposed_samples_delay)
 {
-  if (qos == NULL || !(qos->present & QP_PRISMTECH_READER_DATA_LIFECYCLE))
+  if (qos == NULL || !(qos->present & QP_ADLINK_READER_DATA_LIFECYCLE))
     return false;
   if (autopurge_nowriter_samples_delay)
     *autopurge_nowriter_samples_delay = qos->reader_data_lifecycle.autopurge_nowriter_samples_delay;

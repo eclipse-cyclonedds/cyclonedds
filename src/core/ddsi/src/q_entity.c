@@ -176,7 +176,7 @@ int is_builtin_entityid (ddsi_entityid_t id, nn_vendorid_t vendorid)
     return 1;
   else if ((id.u & NN_ENTITYID_SOURCE_MASK) != NN_ENTITYID_SOURCE_VENDOR)
     return 0;
-  else if (!vendor_is_eclipse_or_prismtech (vendorid))
+  else if (!vendor_is_eclipse_or_adlink (vendorid))
     return 0;
   else
   {
@@ -3981,14 +3981,14 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
     memset (&proxypp->privileged_pp_guid.prefix, 0, sizeof (proxypp->privileged_pp_guid.prefix));
     proxypp->privileged_pp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
   }
-  if ((plist->present & PP_PRISMTECH_PARTICIPANT_VERSION_INFO) &&
-      (plist->prismtech_participant_version_info.flags & NN_PRISMTECH_FL_DDSI2_PARTICIPANT_FLAG) &&
-      (plist->prismtech_participant_version_info.flags & NN_PRISMTECH_FL_PARTICIPANT_IS_DDSI2))
+  if ((plist->present & PP_ADLINK_PARTICIPANT_VERSION_INFO) &&
+      (plist->adlink_participant_version_info.flags & NN_ADLINK_FL_DDSI2_PARTICIPANT_FLAG) &&
+      (plist->adlink_participant_version_info.flags & NN_ADLINK_FL_PARTICIPANT_IS_DDSI2))
     proxypp->is_ddsi2_pp = 1;
   else
     proxypp->is_ddsi2_pp = 0;
-  if ((plist->present & PP_PRISMTECH_PARTICIPANT_VERSION_INFO) &&
-      (plist->prismtech_participant_version_info.flags & NN_PRISMTECH_FL_MINIMAL_BES_MODE))
+  if ((plist->present & PP_ADLINK_PARTICIPANT_VERSION_INFO) &&
+      (plist->adlink_participant_version_info.flags & NN_ADLINK_FL_MINIMAL_BES_MODE))
     proxypp->minimal_bes_mode = 1;
   else
     proxypp->minimal_bes_mode = 0;

@@ -434,11 +434,11 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   if (desc->m_meta)
   {
     plist.type_description = dds_string_dup (desc->m_meta);
-    plist.present |= PP_PRISMTECH_TYPE_DESCRIPTION;
+    plist.present |= PP_ADLINK_TYPE_DESCRIPTION;
   }
   if (desc->m_nkeys)
   {
-    plist.qos.present |= QP_PRISMTECH_SUBSCRIPTION_KEYS;
+    plist.qos.present |= QP_ADLINK_SUBSCRIPTION_KEYS;
     plist.qos.subscription_keys.use_key_list = 1;
     plist.qos.subscription_keys.key_list.n = desc->m_nkeys;
     plist.qos.subscription_keys.key_list.strs = dds_alloc (desc->m_nkeys * sizeof (char*));

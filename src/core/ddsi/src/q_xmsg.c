@@ -377,8 +377,8 @@ static int submsg_is_compatible (const struct nn_xmsg *msg, SubmessageKind_t smk
         case SMID_ACKNACK: case SMID_HEARTBEAT:
         case SMID_GAP: case SMID_NACK_FRAG:
         case SMID_HEARTBEAT_FRAG:
-        case SMID_PT_MSG_LEN:
-        case SMID_PT_ENTITY_ID:
+        case SMID_ADLINK_MSG_LEN:
+        case SMID_ADLINK_ENTITY_ID:
           /* normal control stuff is ok */
           return 1;
         case SMID_DATA: case SMID_DATA_FRAG:
@@ -410,8 +410,8 @@ static int submsg_is_compatible (const struct nn_xmsg *msg, SubmessageKind_t smk
         case SMID_GAP:
         case SMID_NACK_FRAG:
         case SMID_HEARTBEAT_FRAG:
-        case SMID_PT_MSG_LEN:
-        case SMID_PT_ENTITY_ID:
+        case SMID_ADLINK_MSG_LEN:
+        case SMID_ADLINK_ENTITY_ID:
           /* anything else is strictly verboten */
           return 0;
       }
@@ -553,7 +553,7 @@ void nn_xmsg_add_entityid (struct nn_xmsg * m)
   struct nn_xmsg_marker sm;
 
   eid = (EntityId_t*) nn_xmsg_append (m, &sm, sizeof (EntityId_t));
-  nn_xmsg_submsg_init (m, sm, SMID_PT_ENTITY_ID);
+  nn_xmsg_submsg_init (m, sm, SMID_ADLINK_ENTITY_ID);
   eid->entityid.u = NN_ENTITYID_PARTICIPANT;
   nn_xmsg_submsg_setnext (m, sm);
 }
@@ -982,7 +982,7 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
 
   /* MSG_LEN first sub message for stream based connections */
 
-  xp->msg_len.smhdr.submessageId = SMID_PT_MSG_LEN;
+  xp->msg_len.smhdr.submessageId = SMID_ADLINK_MSG_LEN;
   xp->msg_len.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
   xp->msg_len.smhdr.octetsToNextHeader = 4;
 
