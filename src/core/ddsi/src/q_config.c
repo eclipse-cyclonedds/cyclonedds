@@ -30,7 +30,6 @@
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_addrset.h"
-#include "dds/ddsi/q_nwif.h"
 
 #include "dds/ddsrt/xmlparser.h"
 

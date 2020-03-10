@@ -21,8 +21,8 @@
 #include "dds/ddsrt/fibheap.h"
 
 #include "dds/ddsi/ddsi_plist.h"
+#include "dds/ddsi/ddsi_ownip.h"
 #include "dds/ddsi/q_protocol.h"
-#include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_sockwaitset.h"
 #include "dds/ddsi/q_config.h"
 

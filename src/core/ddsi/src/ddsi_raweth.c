@@ -13,7 +13,6 @@
 #include "dds/ddsi/ddsi_raweth.h"
 #include "dds/ddsi/ddsi_ipaddr.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
-#include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_pcap.h"

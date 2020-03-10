@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef Q_NWIF_H
-#define Q_NWIF_H
+#ifndef DDSI_OWNIP_H
+#define DDSI_OWNIP_H
 
 #include <stdbool.h>
 
@@ -35,12 +35,10 @@ struct nn_interface {
   char *name;
 };
 
-int make_socket (ddsrt_socket_t *socket, uint16_t port, bool stream, bool reuse_addr, bool bind_to_any, const struct ddsi_domaingv *gv);
 int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address);
-uint32_t locator_to_hopefully_unique_uint32 (const nn_locator_t *src);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* Q_NWIF_H */
+#endif /* DDSI_OWNIP_H */
