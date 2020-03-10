@@ -2300,7 +2300,7 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
             if (rres2 > 0)
             {
               if (!pwr->deliver_synchronously)
-                nn_dqueue_enqueue (pwr->dqueue, &sc, rres2);
+                nn_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, rres2);
               else
                 deliver_user_data_synchronously (&sc, &wn->rd_guid);
             }
