@@ -31,6 +31,33 @@ int numRemote = 0;
 struct Handshake handshakeList[MAX_HANDSHAKES];
 int numHandshake = 0;
 
+static char * get_validation_result_str(DDS_Security_ValidationResult_t result)
+{
+  switch (result)
+  {
+    case DDS_SECURITY_VALIDATION_OK: return "OK";
+    case DDS_SECURITY_VALIDATION_PENDING_RETRY: return "PENDING_RETRY";
+    case DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_REQUEST: return "PENDING_HANDSHAKE_REQUEST";
+    case DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE: return "PENDING_HANDSHAKE_MESSAGE";
+    case DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE: return "OK_FINAL_MESSAGE";
+    case DDS_SECURITY_VALIDATION_FAILED: return "FAILED";
+  }
+  abort ();
+  return "";
+}
+
+static char * get_node_type_str(enum hs_node_type node_type)
+{
+  switch (node_type)
+  {
+    case HSN_UNDEFINED: return "UNDEFINED";
+    case HSN_REQUESTER: return "REQUESTER";
+    case HSN_REPLIER: return "REPLIER";
+  }
+  abort ();
+  return "";
+}
+
 static void add_local_identity(DDS_Security_IdentityHandle handle, DDS_Security_GUID_t *guid)
 {
   printf("add local identity %"PRId64"\n", handle);
@@ -77,16 +104,18 @@ static void clear_stores(void)
   numHandshake = 0;
 }
 
-static void add_handshake(DDS_Security_HandshakeHandle handle, int isRequest, DDS_Security_IdentityHandle lHandle, DDS_Security_IdentityHandle rHandle, DDS_Security_ValidationResult_t result)
+static struct Handshake *add_handshake(enum hs_node_type node_type, DDS_Security_IdentityHandle lHandle, DDS_Security_IdentityHandle rHandle)
 {
-  printf("add handshake %"PRId64"\n", handle);
-  handshakeList[numHandshake].handle = handle;
-  handshakeList[numHandshake].isRequest = isRequest;
-  handshakeList[numHandshake].handshakeResult = result;
+  printf("add handshake %"PRId64"-%"PRId64"\n", lHandle, rHandle);
+  handshakeList[numHandshake].handle = -1;
+  handshakeList[numHandshake].node_type = node_type;
+  handshakeList[numHandshake].handshakeResult = DDS_SECURITY_VALIDATION_FAILED;
   handshakeList[numHandshake].lidx = find_local_identity(lHandle);
   handshakeList[numHandshake].ridx = find_remote_identity(rHandle);
   handshakeList[numHandshake].finalResult = DDS_SECURITY_VALIDATION_FAILED;
+  handshakeList[numHandshake].err_msg = NULL;
   numHandshake++;
+  return &handshakeList[numHandshake - 1];
 }
 
 static int find_handshake(DDS_Security_HandshakeHandle handle)
@@ -99,134 +128,144 @@ static int find_handshake(DDS_Security_HandshakeHandle handle)
   return -1;
 }
 
-static char * get_validation_result_str(DDS_Security_ValidationResult_t result)
-{
-  switch (result)
-  {
-    case DDS_SECURITY_VALIDATION_OK:
-      return "ok";
-    case DDS_SECURITY_VALIDATION_PENDING_RETRY:
-      return "pending retry";
-    case DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_REQUEST:
-      return "handshake request";
-    case DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE:
-      return "handshake message";
-    case DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE:
-      return "ok final";
-    default:
-    case DDS_SECURITY_VALIDATION_FAILED:
-      return "failed";
-  }
-}
-
-static bool handle_process_message(dds_domainid_t domain_id, DDS_Security_IdentityHandle handshake)
+static void handle_process_message(dds_domainid_t domain_id, DDS_Security_IdentityHandle handshake)
 {
   struct message *msg;
-  bool result = false;
   if ((msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_PROCESS_HANDSHAKE, 0, 0, handshake, TIMEOUT)))
   {
     int idx;
     if ((idx = find_handshake(msg->hsHandle)) >= 0)
     {
-      printf("set handshake %"PRId64" final result to '%s'\n", msg->hsHandle, get_validation_result_str(msg->result));
+      printf("set handshake %"PRId64" final result to '%s' (errmsg: %s)\n", msg->hsHandle, get_validation_result_str(msg->result), msg->err_msg);
       handshakeList[idx].finalResult = msg->result;
-      result = true;
+      handshakeList[idx].err_msg = ddsrt_strdup (msg->err_msg);
     }
     test_authentication_plugin_release_msg(msg);
   }
-  return result;
 }
 
-static bool handle_begin_handshake_request(dds_domainid_t domain_id, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, char ** err_msg)
+static void handle_begin_handshake_request(dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid)
 {
   struct message *msg;
-  bool result = false;
   printf("handle begin handshake request %"PRId64"<->%"PRId64"\n", lid, rid);
   if ((msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REQUEST, lid, rid, 0, TIMEOUT)))
   {
-    add_handshake(msg->hsHandle, 1, msg->lidHandle, msg->ridHandle, msg->result);
+    hs->handle = msg->hsHandle;
+    hs->handshakeResult = msg->result;
     if (msg->result != DDS_SECURITY_VALIDATION_FAILED)
-      result = handle_process_message(domain_id, msg->hsHandle);
-    else if (err_msg)
-      *err_msg = ddsrt_strdup (msg->err_msg);
+      handle_process_message(domain_id, msg->hsHandle);
+    else
+      hs->err_msg = ddsrt_strdup (msg->err_msg);
     test_authentication_plugin_release_msg(msg);
   }
-  return result;
 }
 
-static bool handle_begin_handshake_reply(dds_domainid_t domain_id, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, char ** err_msg)
+static void handle_begin_handshake_reply(dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid)
 {
   struct message *msg;
-  bool result = false;
   printf("handle begin handshake reply %"PRId64"<->%"PRId64"\n", lid, rid);
   if ((msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REPLY, lid, rid, 0, TIMEOUT)))
   {
-    add_handshake(msg->hsHandle, 0, msg->lidHandle, msg->ridHandle, msg->result);
+    hs->handle = msg->hsHandle;
+    hs->handshakeResult = msg->result;
     if (msg->result != DDS_SECURITY_VALIDATION_FAILED)
-      result = handle_process_message(domain_id, msg->hsHandle);
-    else if (err_msg)
-      *err_msg = ddsrt_strdup (msg->err_msg);
+      handle_process_message(domain_id, msg->hsHandle);
+    else
+      hs->err_msg = ddsrt_strdup (msg->err_msg);
     test_authentication_plugin_release_msg(msg);
   }
-  return result;
 }
 
-static bool handle_validate_remote_identity(dds_domainid_t domain_id, DDS_Security_IdentityHandle lid, int count, bool * is_hs_requester, char ** err_msg_req, char ** err_msg_reply)
+static void handle_validate_remote_identity(dds_domainid_t domain_id, DDS_Security_IdentityHandle lid, int count)
 {
-  bool result = true;
   struct message *msg;
-  assert(is_hs_requester);
-  while (count-- > 0 && result && (msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_VALIDATE_REMOTE_IDENTITY, lid, 0, 0, TIMEOUT)))
+  while (count-- > 0 && (msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_VALIDATE_REMOTE_IDENTITY, lid, 0, 0, TIMEOUT)))
   {
+    struct Handshake *hs;
     add_remote_identity(msg->ridHandle, &msg->rguid);
+    hs = add_handshake(HSN_UNDEFINED, lid, msg->ridHandle);
     if (msg->result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_REQUEST)
     {
-      result = handle_begin_handshake_request(domain_id, lid, msg->ridHandle, err_msg_req);
-      *is_hs_requester = true;
+      hs->node_type = HSN_REQUESTER;
+      handle_begin_handshake_request(domain_id, hs, lid, msg->ridHandle);
     }
     else if (msg->result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE)
     {
-      result = handle_begin_handshake_reply(domain_id, lid, msg->ridHandle, err_msg_reply);
-      *is_hs_requester = false;
+      hs->node_type = HSN_REPLIER;
+      handle_begin_handshake_reply(domain_id, hs, lid, msg->ridHandle);
     }
     else
-      result = false;
-
+    {
+      printf("validate remote failed\n");
+    }
     test_authentication_plugin_release_msg(msg);
   }
-  return result;
 }
 
-void validate_handshake(dds_domainid_t domain_id, bool exp_req_fail, const char * exp_req_msg, bool exp_reply_fail, const char * exp_reply_msg)
+static void handle_validate_local_identity(dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg)
 {
-  printf("validate handshake for domain %d\n", domain_id);
+ struct message *msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_VALIDATE_LOCAL_IDENTITY, 0, 0, 0, TIMEOUT);
+  CU_ASSERT_FATAL (msg != NULL);
+  CU_ASSERT_FATAL ((msg->result == DDS_SECURITY_VALIDATION_OK) != exp_localid_fail);
+  if (exp_localid_fail && exp_localid_msg)
+  {
+    printf("validate_local_identity failed as expected (msg: %s)\n", msg->err_msg);
+    CU_ASSERT_FATAL (msg->err_msg && strstr(msg->err_msg, exp_localid_msg) != NULL);
+  }
+  else
+    add_local_identity (msg->lidHandle, &msg->lguid);
+  test_authentication_plugin_release_msg (msg);
+}
+
+void validate_handshake(dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, struct Handshake *hs_list[], int *nhs)
+{
   clear_stores();
 
-  struct message *msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_VALIDATE_LOCAL_IDENTITY, 0, 0, 0, TIMEOUT);
-  CU_ASSERT_FATAL (msg != NULL);
-  add_local_identity (msg->lidHandle, &msg->lguid);
-  test_authentication_plugin_release_msg (msg);
-  bool is_requester = false;
-  char * err_msg_req = NULL, *err_msg_reply = NULL;
-  bool ret = handle_validate_remote_identity (domain_id, localIdentityList[0].handle, 1, &is_requester, &err_msg_req, &err_msg_reply);
-  CU_ASSERT_FATAL ((is_requester && ret != exp_req_fail) || (!is_requester && ret != exp_reply_fail));
-  if (ret)
+  if (nhs)
+    *nhs = 0;
+  if (hs_list)
+    *hs_list = NULL;
+
+  handle_validate_local_identity(domain_id, exp_localid_fail, exp_localid_msg);
+  if (!exp_localid_fail)
   {
-    DDS_Security_ValidationResult_t exp_result = is_requester ? DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE : DDS_SECURITY_VALIDATION_OK;
-    CU_ASSERT_EQUAL_FATAL (handshakeList[0].finalResult, exp_result);
+    handle_validate_remote_identity (domain_id, localIdentityList[0].handle, 1);
+    for (int n = 0; n < numHandshake; n++)
+    {
+      struct Handshake *hs = &handshakeList[n];
+      printf("Result: hs %"PRId64", node type %s, final result %s\n", hs->handle, get_node_type_str(hs->node_type), get_validation_result_str(hs->finalResult));
+      if (hs->err_msg && strlen (hs->err_msg))
+        printf("- err_msg: %s\n", hs->err_msg);
+    }
+    if (nhs)
+      *nhs = numHandshake;
+    if (hs_list)
+      *hs_list = handshakeList;
+    else
+      handshake_list_fini(handshakeList, numHandshake);
   }
-  else if (is_requester && exp_req_msg)
-  {
-    CU_ASSERT_FATAL (err_msg_req && strstr(err_msg_req, exp_req_msg) != NULL);
-  }
-  else if (!is_requester && exp_reply_msg)
-  {
-    CU_ASSERT_FATAL (err_msg_reply && strstr(err_msg_reply, exp_reply_msg) != NULL);
-  }
-  if (err_msg_req)
-    ddsrt_free (err_msg_req);
-  if (err_msg_reply)
-    ddsrt_free (err_msg_reply);
   printf ("finished validate handshake for domain %d\n\n", domain_id);
 }
 
+void validate_handshake_nofail (dds_domainid_t domain_id)
+{
+  struct Handshake *hs_list;
+  int nhs;
+  validate_handshake (domain_id, false, NULL, &hs_list, &nhs);
+  for (int n = 0; n < nhs; n++)
+  {
+    struct Handshake hs = hs_list[n];
+    DDS_Security_ValidationResult_t exp_result = hs.node_type == HSN_REQUESTER ? DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE : DDS_SECURITY_VALIDATION_OK;
+    CU_ASSERT_EQUAL_FATAL (hs.finalResult, exp_result);
+  }
+  handshake_list_fini (hs_list, nhs);
+}
+
+void handshake_list_fini(struct Handshake *hs_list, int nhs)
+{
+  for (int n = 0; n < nhs; n++)
+  {
+    struct Handshake hs = hs_list[n];
+    ddsrt_free (hs.err_msg);
+  }
+}

@@ -59,9 +59,9 @@ static const char *config =
     "  <DDSSecurity>"
     "    <Authentication>"
     "      <Library finalizeFunction=\"finalize_authentication\" initFunction=\"init_authentication\" />"
-    "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE"</IdentityCertificate>"
-    "      <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY"</PrivateKey>"
-    "      <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE"</IdentityCA>"
+    "      <IdentityCertificate>data:,"TEST_IDENTITY1_CERTIFICATE"</IdentityCertificate>"
+    "      <PrivateKey>data:,"TEST_IDENTITY1_PRIVATE_KEY"</PrivateKey>"
+    "      <IdentityCA>data:,"TEST_IDENTITY_CA1_CERTIFICATE"</IdentityCA>"
     "      <Password></Password>"
     "      <TrustedCADirectory>.</TrustedCADirectory>"
     "    </Authentication>"
@@ -89,6 +89,10 @@ const char * g_pk_encrypt = "ENCRYPT";
 const char * g_pk_sign_oa = "SIGN_WITH_ORIGIN_AUTHENTICATION";
 const char * g_pk_encrypt_oa = "ENCRYPT_WITH_ORIGIN_AUTHENTICATION";
 
+const char * g_pp_secret = "ppsecret";
+const char * g_groupdata_secret = "groupsecret";
+const char * g_ep_secret = "epsecret";
+
 uint32_t g_topic_nr = 0;
 
 static dds_entity_t g_pub_domains[MAX_DOMAINS];
@@ -106,6 +110,9 @@ struct domain_sec_config {
   DDS_Security_ProtectionKind metadata_pk;
   DDS_Security_BasicProtectionKind payload_pk;
   const char * payload_secret;
+  const char * pp_userdata_secret;
+  const char * groupdata_secret;
+  const char * ep_userdata_secret;
 };
 
 typedef void (*set_crypto_params_fn)(struct dds_security_cryptography_impl *, const struct domain_sec_config *);
@@ -170,6 +177,7 @@ static dds_qos_t *get_qos()
   dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, -1);
   dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
+  dds_qset_userdata (qos, g_ep_secret, strlen (g_ep_secret));
   return qos;
 }
 
@@ -183,12 +191,15 @@ static char *create_topic_name(const char *prefix, uint32_t nr, char *name, size
 
 static dds_entity_t create_pp (dds_domainid_t domain_id, const struct domain_sec_config * domain_config, set_crypto_params_fn set_crypto_params)
 {
-  dds_entity_t pp = dds_create_participant (domain_id, NULL, NULL);
+  dds_qos_t *qos = dds_create_qos ();
+  dds_qset_userdata (qos, g_pp_secret, strlen (g_pp_secret));
+  dds_entity_t pp = dds_create_participant (domain_id, qos, NULL);
   CU_ASSERT_FATAL (pp > 0);
+  dds_delete_qos (qos);
   struct dds_security_cryptography_impl * crypto_context = get_crypto_context (pp);
   CU_ASSERT_FATAL (crypto_context != NULL);
-  if (set_crypto_params)
-    set_crypto_params (crypto_context, domain_config);
+  assert (set_crypto_params);
+  set_crypto_params (crypto_context, domain_config);
   return pp;
 }
 
@@ -204,8 +215,11 @@ static void create_dom_pp_pubsub(dds_domainid_t domain_id_base, const char * dom
     {
       size_t pp_index = d * n_pp + p;
       pps[pp_index] = create_pp (domain_id_base + (uint32_t)d, domain_sec_config, set_crypto_params);
-      pubsubs[pp_index] = pubsub_create (pps[pp_index], NULL, NULL);
+      dds_qos_t *qos = dds_create_qos ();
+      dds_qset_groupdata (qos, g_groupdata_secret, strlen (g_groupdata_secret));
+      pubsubs[pp_index] = pubsub_create (pps[pp_index], qos, NULL);
       CU_ASSERT_FATAL (pubsubs[pp_index] > 0);
+      dds_delete_qos (qos);
     }
   }
 }
@@ -230,7 +244,7 @@ static void test_init(const struct domain_sec_config * domain_config, size_t n_s
   print_config_vars(governance_vars);
   printf("\n");
 
-  char * gov_config_signed = get_governance_config (governance_vars);
+  char * gov_config_signed = get_governance_config (governance_vars, false);
 
   struct kvp config_vars[] = {
     { "GOVERNANCE_DATA", gov_config_signed, 1 },
@@ -417,13 +431,21 @@ static void set_encryption_parameters_basic(struct dds_security_cryptography_imp
 static void set_encryption_parameters_secret(struct dds_security_cryptography_impl * crypto_context, const struct domain_sec_config *domain_config)
 {
   set_encrypted_secret (crypto_context, domain_config->payload_secret);
+  set_encryption_parameters_basic (crypto_context, domain_config);
+}
+
+static void set_encryption_parameters_disc(struct dds_security_cryptography_impl * crypto_context, const struct domain_sec_config *domain_config)
+{
+  set_entity_data_secret (crypto_context, domain_config->pp_userdata_secret, domain_config->groupdata_secret, domain_config->ep_userdata_secret);
+  set_encryption_parameters_basic (crypto_context, domain_config);
+  set_disc_protection_kinds (crypto_context, domain_config->discovery_pk, domain_config->liveliness_pk);
 }
 
 static void test_discovery_liveliness_protection(DDS_Security_ProtectionKind discovery_pk, DDS_Security_ProtectionKind liveliness_pk)
 {
   struct domain_sec_config domain_config = { discovery_pk, liveliness_pk, PK_N, PK_N, BPK_N, NULL };
   /* FIXME: add more asserts in wrapper or test instead of just testing communication */
-  test_write_read (&domain_config, 1, 1, 1, 1, 1, 1, NULL);
+  test_write_read (&domain_config, 1, 1, 1, 1, 1, 1, &set_encryption_parameters_disc);
 }
 
 static void test_data_protection_kind(DDS_Security_ProtectionKind rtps_pk, DDS_Security_ProtectionKind metadata_pk, DDS_Security_BasicProtectionKind payload_pk)
