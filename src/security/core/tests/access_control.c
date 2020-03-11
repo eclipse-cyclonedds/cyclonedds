@@ -44,15 +44,15 @@ static const char *config =
     "  <DDSSecurity>"
     "    <Authentication>"
     "      <Library finalizeFunction=\"finalize_test_authentication_wrapped\" initFunction=\"init_test_authentication_wrapped\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
-    "      <IdentityCertificate>" TEST_IDENTITY_CERTIFICATE "</IdentityCertificate>"
-    "      <PrivateKey>" TEST_IDENTITY_PRIVATE_KEY "</PrivateKey>"
-    "      <IdentityCA>" TEST_IDENTITY_CA_CERTIFICATE "</IdentityCA>"
+    "      <IdentityCertificate>data:," TEST_IDENTITY1_CERTIFICATE "</IdentityCertificate>"
+    "      <PrivateKey>data:," TEST_IDENTITY1_PRIVATE_KEY "</PrivateKey>"
+    "      <IdentityCA>data:," TEST_IDENTITY_CA1_CERTIFICATE "</IdentityCA>"
     "    </Authentication>"
     "    <AccessControl>"
     "      <Library finalizeFunction=\"finalize_access_control\" initFunction=\"init_access_control\"/>"
-    "      <Governance>${TEST_GOVERNANCE}</Governance>"
-    "      <PermissionsCA>${TEST_PERMISSIONS_CA}</PermissionsCA>"
-    "      <Permissions>${TEST_PERMISSIONS}</Permissions>"
+    "      ${INCL_GOV:+<Governance>}${TEST_GOVERNANCE}${INCL_GOV:+</Governance>}"
+    "      ${INCL_PERM_CA:+<PermissionsCA>}${TEST_PERMISSIONS_CA}${INCL_PERM_CA:+</PermissionsCA>}"
+    "      ${INCL_PERM:+<Permissions>}${TEST_PERMISSIONS}${INCL_PERM:+</Permissions>}"
     "    </AccessControl>"
     "    <Cryptographic>"
     "      <Library finalizeFunction=\"finalize_crypto\" initFunction=\"init_crypto\"/>"
@@ -69,9 +69,12 @@ static dds_entity_t g_participant1 = 0;
 static dds_entity_t g_domain2 = 0;
 static dds_entity_t g_participant2 = 0;
 
-static void access_control_init(const char * gov, const char * perm, const char * ca, bool exp_pp_fail)
+static void access_control_init(bool incl_gov, const char * gov, bool incl_perm, const char * perm, bool incl_ca, const char * ca, bool exp_pp_fail)
 {
   struct kvp config_vars[] = {
+    { "INCL_GOV", incl_gov ? "1" : "", 2 },
+    { "INCL_PERM", incl_perm ? "1" : "", 2 },
+    { "INCL_PERM_CA", incl_ca ? "1" : "", 2 },
     { "TEST_GOVERNANCE", gov, 1 },
     { "TEST_PERMISSIONS", perm, 1 },
     { "TEST_PERMISSIONS_CA", ca, 1 },
@@ -86,16 +89,8 @@ static void access_control_init(const char * gov, const char * perm, const char 
 
   g_participant1 = dds_create_participant (DDS_DOMAINID1, NULL, NULL);
   g_participant2 = dds_create_participant (DDS_DOMAINID2, NULL, NULL);
-  if (exp_pp_fail)
-  {
-    CU_ASSERT_FATAL (g_participant1 <= 0);
-    CU_ASSERT_FATAL (g_participant2 <= 0);
-  }
-  else
-  {
-    CU_ASSERT_FATAL (g_participant1 > 0);
-    CU_ASSERT_FATAL (g_participant2 > 0);
-  }
+  CU_ASSERT_FATAL ((exp_pp_fail && g_participant1 <= 0) || g_participant1 > 0);
+  CU_ASSERT_FATAL ((exp_pp_fail && g_participant2 <= 0) || g_participant2 > 0);
 }
 
 static void access_control_fini(bool delete_pp)
@@ -121,16 +116,34 @@ static void access_control_fini(bool delete_pp)
 #define CA_F PF_F COMMON_ETC_PATH("default_permissions_ca.pem")
 #define CA_FNE PF_F COMMON_ETC_PATH("default_permissions_ca_non_existing.pem")
 #define CA_DI PF_D COMMON_ETC_PATH("default_permissions_ca.pem")
-#define CA_D TEST_PERMISSIONS_CA_CERTIFICATE
+#define CA_D PF_D TEST_PERMISSIONS_CA_CERTIFICATE
 
-CU_TheoryDataPoints(ddssec_access_control, config_parameters) = {
-    CU_DataPoints(const char *, GOV_F,  GOV_FNE,  GOV_FNE, GOV_F,    GOV_F,  "",     GOV_F, GOV_F,  GOV_DI, GOV_F),
-    CU_DataPoints(const char *, PERM_F, PERM_FNE, PERM_F,  PERM_FNE, PERM_F, PERM_F, "",    PERM_F, PERM_F, PERM_F),
-    CU_DataPoints(const char *, CA_F,   CA_FNE,   CA_F,    CA_F,     CA_FNE, CA_F,   CA_F,  "",     CA_F,   CA_D),
-    CU_DataPoints(bool,         false,  true,     true,    true,     true,   true,   true,  true,   true,   false)
+CU_TheoryDataPoints(ddssec_access_control, config_parameters_file) = {
+    CU_DataPoints(const char *,
+    /*                         */"existing files",
+    /*                          |      */"non-existing files",
+    /*                          |       |        */"non-existing governance file",
+    /*                          |       |         |       */"non-existing permissions file",
+    /*                          |       |         |        |        */"non-existing permissions ca file",
+    /*                          |       |         |        |         |      */"empty governance",
+    /*                          |       |         |        |         |       |      */"empty permissions",
+    /*                          |       |         |        |         |       |       |     */"empty permissions ca",
+    /*                          |       |         |        |         |       |       |      |      */"all empty",
+    /*                          |       |         |        |         |       |       |      |       |     */"invalid governance uri type",
+    /*                          |       |         |        |         |       |       |      |       |      |      */"permissions ca type data",
+    /*                          |       |         |        |         |       |       |      |       |      |       |      */"no governance element",
+    /*                          |       |         |        |         |       |       |      |       |      |       |       |      */"no permissions element",
+    /*                          |       |         |        |         |       |       |      |       |      |       |       |       |     */"no permissions ca element"),
+    CU_DataPoints(const char *, GOV_F,  GOV_FNE,  GOV_FNE, GOV_F,    GOV_F,  "",     GOV_F, GOV_F,  "",    GOV_DI, GOV_F,  "",     GOV_F, GOV_F),   // Governance config
+    CU_DataPoints(const char *, PERM_F, PERM_FNE, PERM_F,  PERM_FNE, PERM_F, PERM_F, "",    PERM_F, "",    PERM_F, PERM_F, PERM_F, "",    PERM_F),  // Permissions config
+    CU_DataPoints(const char *, CA_F,   CA_FNE,   CA_F,    CA_F,     CA_FNE, CA_F,   CA_F,  "",     "",    CA_F,   CA_D,   CA_F,   CA_F,  ""),      // Permissions CA
+    CU_DataPoints(bool,         true,   true,     true,    true,     true,   true,   true,  true,   true,  true,   true,   false,  false, false),   // include empty config elements
+    CU_DataPoints(bool,         false,  true,     true,    true,     true,   true,   true,  true,   false, true,   false,  true,   true,  true)     // expect failure
 };
-CU_Theory((const char * gov, const char * perm, const char * ca, bool exp_fail), ddssec_access_control, config_parameters)
+CU_Theory((const char * test_descr, const char * gov, const char * perm, const char * ca, bool incl_empty_els, bool exp_fail),
+    ddssec_access_control, config_parameters_file)
 {
-  access_control_init (gov, perm, ca, exp_fail);
+  printf("running test config_parameters_file: %s\n", test_descr);
+  access_control_init (incl_empty_els || strlen (gov), gov, incl_empty_els || strlen (perm), perm, incl_empty_els || strlen (ca), ca, exp_fail);
   access_control_fini (!exp_fail);
 }
