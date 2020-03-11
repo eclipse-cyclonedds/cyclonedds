@@ -25,6 +25,7 @@
 #include "dds/ddsrt/expand_vars.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/io.h"
 #include "common/config_env.h"
 #include "security_config_test_utils.h"
 
@@ -58,6 +59,33 @@ static const char *governance_xml =
     "    </domain_rule>"
     "  </domain_access_rules>"
     "</dds>";
+
+static const char *permissions_xml_grant =
+    "    <grant name=\"${GRANT_NAME}\">"
+    "      <subject_name>${SUBJECT_NAME}</subject_name>"
+    "      <validity><not_before>2015-09-15T01:00:00</not_before><not_after>2115-09-15T01:00:00</not_after></validity>"
+    "      <allow_rule>"
+    "        <domains><id_range><min>0</min><max>230</max></id_range></domains>"
+    "        <publish>"
+    "          <topics><topic>*</topic></topics>"
+    "          <partitions><partition>*</partition></partitions>"
+    "        </publish>"
+    "        <subscribe>"
+    "          <topics><topic>*</topic></topics>"
+    "          <partitions><partition>*</partition></partitions>"
+    "        </subscribe>"
+    "      </allow_rule>"
+    "      <default>DENY</default>"
+    "    </grant>";
+
+static const char *permissions_xml =
+    "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+    "<dds xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"https://www.omg.org/spec/DDS-SECURITY/20170901/omg_shared_ca_permissions.xsd\">"
+    "  <permissions>"
+    "    ${GRANTS}"
+    "  </permissions>"
+    "</dds>";
+
 
 const char * expand_lookup_vars(const char *name, void * data)
 {
@@ -157,18 +185,59 @@ static char * smime_sign(char * ca_cert_path, char * ca_priv_key_path, const cha
   return output;
 }
 
-static char *get_signed_governance_data(const char *gov_xml)
+static char *get_signed_data(const char *data)
 {
   return smime_sign (
     COMMON_ETC_PATH("default_permissions_ca.pem"),
     COMMON_ETC_PATH("default_permissions_ca_key.pem"),
-    gov_xml);
+    data);
 }
 
-char * get_governance_config(struct kvp *config_vars)
+static char * prefix_data (char * config_signed, bool add_prefix)
 {
-  char * config = ddsrt_expand_vars(governance_xml, &expand_lookup_vars, config_vars);
-  char * config_signed = get_signed_governance_data(config);
-  ddsrt_free (config);
+  if (add_prefix)
+  {
+    char * tmp = config_signed;
+    ddsrt_asprintf (&config_signed, "data:,%s", tmp);
+    ddsrt_free (tmp);
+  }
   return config_signed;
+}
+
+char * get_governance_config(struct kvp *config_vars, bool add_prefix)
+{
+  char * config = ddsrt_expand_vars (governance_xml, &expand_lookup_vars, config_vars);
+  char * config_signed = get_signed_data (config);
+  ddsrt_free (config);
+  return prefix_data (config_signed, add_prefix);
+}
+
+char * get_permissions_grant(const char * name, const char * subject)
+{
+  struct kvp vars[] = {
+    { "GRANT_NAME", name, 1 },
+    { "SUBJECT_NAME", subject, 1 },
+    { NULL, NULL, 0 }
+  };
+  return ddsrt_expand_vars (permissions_xml_grant, &expand_lookup_vars, vars);
+}
+
+char * get_permissions_config(char * grants[], size_t ngrants, bool add_prefix)
+{
+  char *grants_str = NULL;
+  for (size_t n = 0; n < ngrants; n++)
+  {
+    char * tmp = grants_str;
+    ddsrt_asprintf (&grants_str, "%s%s", grants_str ? grants_str : "", grants[n]);
+    ddsrt_free (tmp);
+  }
+  struct kvp vars[] = {
+    { "GRANTS", grants_str, 1 },
+    { NULL, NULL, 0}
+  };
+  char *config = ddsrt_expand_vars (permissions_xml, &expand_lookup_vars, vars);
+  char *config_signed = get_signed_data (config);
+  ddsrt_free (grants_str);
+  ddsrt_free (config);
+  return prefix_data (config_signed, add_prefix);
 }

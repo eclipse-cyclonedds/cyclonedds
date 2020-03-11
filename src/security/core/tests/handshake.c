@@ -43,9 +43,9 @@ static const char *config =
     "  <DDSSecurity>"
     "    <Authentication>"
     "      <Library finalizeFunction=\"finalize_test_authentication_wrapped\" initFunction=\"init_test_authentication_wrapped\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
-    "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE"</IdentityCertificate>"
-    "      <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY"</PrivateKey>"
-    "      <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE"</IdentityCA>"
+    "      <IdentityCertificate>data:,"TEST_IDENTITY1_CERTIFICATE"</IdentityCertificate>"
+    "      <PrivateKey>data:,"TEST_IDENTITY1_PRIVATE_KEY"</PrivateKey>"
+    "      <IdentityCA>data:,"TEST_IDENTITY_CA1_CERTIFICATE"</IdentityCA>"
     "    </Authentication>"
     "    <AccessControl>"
     "      <Library finalizeFunction=\"finalize_access_control\" initFunction=\"init_access_control\"/>"
@@ -91,6 +91,6 @@ static void handshake_fini(void)
 
 CU_Test(ddssec_handshake, happy_day, .init = handshake_init, .fini = handshake_fini)
 {
-  validate_handshake (DDS_DOMAINID_PART1, false, NULL, false, NULL);
-  validate_handshake (DDS_DOMAINID_PART2, false, NULL, false, NULL);
+  validate_handshake_nofail (DDS_DOMAINID_PART1);
+  validate_handshake_nofail (DDS_DOMAINID_PART2);
 }
