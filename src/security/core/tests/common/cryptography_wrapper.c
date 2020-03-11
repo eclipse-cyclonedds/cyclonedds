@@ -56,9 +56,16 @@ struct dds_security_cryptography_impl {
   struct dds_security_crypto_key_factory_impl factory_wrap;
   struct dds_security_crypto_key_exchange_impl exchange_wrap;
   enum crypto_plugin_mode mode;
+  bool protection_kinds_set;
+  bool disc_protection_kinds_set;
   DDS_Security_ProtectionKind rtps_protection_kind;
   DDS_Security_ProtectionKind metadata_protection_kind;
   DDS_Security_BasicProtectionKind payload_protection_kind;
+  DDS_Security_ProtectionKind disc_protection_kind;
+  DDS_Security_ProtectionKind liveliness_protection_kind;
+  const char * pp_secret;
+  const char * groupdata_secret;
+  const char * ep_secret;
   const char * encrypted_secret;
 };
 
@@ -74,12 +81,32 @@ void set_protection_kinds(
   impl->rtps_protection_kind = rtps_protection_kind;
   impl->metadata_protection_kind = metadata_protection_kind;
   impl->payload_protection_kind = payload_protection_kind;
+  impl->protection_kinds_set = true;
 }
 
 void set_encrypted_secret(struct dds_security_cryptography_impl * impl, const char * secret)
 {
   assert(impl);
   impl->encrypted_secret = secret;
+}
+
+void set_disc_protection_kinds(
+  struct dds_security_cryptography_impl * impl,
+  DDS_Security_ProtectionKind disc_protection_kind,
+  DDS_Security_ProtectionKind liveliness_protection_kind)
+{
+  assert(impl);
+  impl->disc_protection_kind = disc_protection_kind;
+  impl->liveliness_protection_kind = liveliness_protection_kind;
+  impl->disc_protection_kinds_set = true;
+}
+
+void set_entity_data_secret(struct dds_security_cryptography_impl * impl, const char * pp_secret, const char * groupdata_secret, const char * ep_secret)
+{
+  assert(impl);
+  impl->pp_secret = pp_secret;
+  impl->groupdata_secret = groupdata_secret;
+  impl->ep_secret = ep_secret;
 }
 
 static unsigned char * find_buffer_match(const unsigned char *input, size_t input_len, const unsigned char *match, size_t match_len)
@@ -434,9 +461,11 @@ static DDS_Security_boolean encode_serialized_payload(
       if (!impl->instance->encode_serialized_payload (impl->instance, encoded_buffer,
           extra_inline_qos, plain_buffer, check_handle (sending_datawriter_crypto), ex))
         return false;
-      if (impl->parent->encrypted_secret && (impl->parent->payload_protection_kind == DDS_SECURITY_BASICPROTECTION_KIND_ENCRYPT
-          || expect_encrypted_buffer (impl->parent->metadata_protection_kind)
-          || expect_encrypted_buffer (impl->parent->rtps_protection_kind)))
+      if (impl->parent->protection_kinds_set
+          && impl->parent->encrypted_secret
+          && (impl->parent->payload_protection_kind == DDS_SECURITY_BASICPROTECTION_KIND_ENCRYPT
+              || expect_encrypted_buffer (impl->parent->metadata_protection_kind)
+              || expect_encrypted_buffer (impl->parent->rtps_protection_kind)))
       {
         if (find_buffer_match (encoded_buffer->_buffer, encoded_buffer->_length, (const unsigned char *) impl->parent->encrypted_secret, strlen (impl->parent->encrypted_secret)) != NULL)
         {
@@ -445,7 +474,7 @@ static DDS_Security_boolean encode_serialized_payload(
           return false;
         }
       }
-      return check_buffers (encoded_buffer, plain_buffer, impl->parent->payload_protection_kind == DDS_SECURITY_BASICPROTECTION_KIND_ENCRYPT, ex);
+      return !impl->parent->protection_kinds_set || check_buffers (encoded_buffer, plain_buffer, impl->parent->payload_protection_kind == DDS_SECURITY_BASICPROTECTION_KIND_ENCRYPT, ex);
     }
     default:
       return true;
@@ -458,16 +487,15 @@ static DDS_Security_boolean check_buffer_submsg(
     const DDS_Security_OctetSeq *plain_rtps_submessage,
     DDS_Security_SecurityException *ex)
 {
-  bool exp_enc = expect_encrypted_buffer (impl->parent->metadata_protection_kind) || expect_encrypted_buffer (impl->parent->rtps_protection_kind);
-  if (exp_enc
-      && impl->parent->encrypted_secret
-      && find_buffer_match (encoded_rtps_submessage->_buffer, encoded_rtps_submessage->_length, (const unsigned char *) impl->parent->encrypted_secret, strlen (impl->parent->encrypted_secret)) != NULL)
+  bool exp_enc = impl->parent->protection_kinds_set && (expect_encrypted_buffer (impl->parent->metadata_protection_kind) || expect_encrypted_buffer (impl->parent->rtps_protection_kind));
+  if (exp_enc && impl->parent->encrypted_secret && find_buffer_match (encoded_rtps_submessage->_buffer, encoded_rtps_submessage->_length, (const unsigned char *) impl->parent->encrypted_secret, strlen (impl->parent->encrypted_secret)) != NULL)
   {
     ex->code = 1;
     ex->message = ddsrt_strdup ("Expect encryption, but found secret in submessage after encoding");
     return false;
   }
-  return expect_encrypted_buffer (impl->parent->metadata_protection_kind) ? check_buffers (encoded_rtps_submessage, plain_rtps_submessage, true, ex) : true;
+
+  return impl->parent->protection_kinds_set && expect_encrypted_buffer (impl->parent->metadata_protection_kind) ? check_buffers (encoded_rtps_submessage, plain_rtps_submessage, true, ex) : true;
 }
 
 static DDS_Security_boolean encode_datawriter_submessage(
@@ -486,7 +514,33 @@ static DDS_Security_boolean encode_datawriter_submessage(
       if (!impl->instance->encode_datawriter_submessage (impl->instance, encoded_rtps_submessage,
         plain_rtps_submessage, check_handle (sending_datawriter_crypto), receiving_datareader_crypto_list, receiving_datareader_crypto_list_index, ex))
         return false;
-      return check_buffer_submsg(impl, encoded_rtps_submessage, plain_rtps_submessage, ex);
+      if (!check_buffer_submsg(impl, encoded_rtps_submessage, plain_rtps_submessage, ex))
+        return false;
+
+      if (impl->parent->disc_protection_kinds_set && expect_encrypted_buffer (impl->parent->disc_protection_kind))
+      {
+        if (impl->parent->pp_secret && find_buffer_match (plain_rtps_submessage->_buffer, plain_rtps_submessage->_length, (const unsigned char *) impl->parent->pp_secret, strlen (impl->parent->pp_secret)) != NULL)
+        {
+          ex->code = 1;
+          ex->message = ddsrt_strdup ("Expect discovery encryption, but found participant userdata secret in submessage after encoding");
+          return false;
+        }
+        if (impl->parent->groupdata_secret && find_buffer_match (plain_rtps_submessage->_buffer, plain_rtps_submessage->_length, (const unsigned char *) impl->parent->groupdata_secret, strlen (impl->parent->groupdata_secret)) != NULL)
+        {
+          ex->code = 1;
+          ex->message = ddsrt_strdup ("Expect discovery encryption, but found publisher/subscriber groupdata secret in submessage after encoding");
+          return false;
+        }
+        if (impl->parent->ep_secret && find_buffer_match (plain_rtps_submessage->_buffer, plain_rtps_submessage->_length, (const unsigned char *) impl->parent->ep_secret, strlen (impl->parent->ep_secret)) != NULL)
+        {
+          ex->code = 1;
+          ex->message = ddsrt_strdup ("Expect discovery encryption, but found reader/writer userdata secret in submessage after encoding");
+          return false;
+        }
+      }
+      return true;
+
+
     default:
       return true;
   }
@@ -529,7 +583,8 @@ static DDS_Security_boolean encode_rtps_message(
       if (!impl->instance->encode_rtps_message (impl->instance, encoded_rtps_message,
           plain_rtps_message, check_handle (sending_participant_crypto), receiving_participant_crypto_list, receiving_participant_crypto_list_index, ex))
         return false;
-      if (impl->parent->encrypted_secret
+      if (impl->parent->protection_kinds_set
+          && impl->parent->encrypted_secret
           && expect_encrypted_buffer (impl->parent->rtps_protection_kind)
           && find_buffer_match (encoded_rtps_message->_buffer, encoded_rtps_message->_length, (const unsigned char *) impl->parent->encrypted_secret, strlen (impl->parent->encrypted_secret)) != NULL)
       {
@@ -537,7 +592,7 @@ static DDS_Security_boolean encode_rtps_message(
         ex->message = ddsrt_strdup ("Expect encryption, but found secret in RTPS message after encoding");
         return false;
       }
-      return expect_encrypted_buffer (impl->parent->rtps_protection_kind) ?
+      return impl->parent->protection_kinds_set && expect_encrypted_buffer (impl->parent->rtps_protection_kind) ?
         check_buffers (encoded_rtps_message, plain_rtps_message, true, ex) : true;
     default:
       return true;

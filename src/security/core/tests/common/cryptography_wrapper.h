@@ -26,6 +26,13 @@ SECURITY_EXPORT void set_protection_kinds(
 
 SECURITY_EXPORT void set_encrypted_secret(struct dds_security_cryptography_impl * impl, const char * secret);
 
+SECURITY_EXPORT void set_disc_protection_kinds(
+  struct dds_security_cryptography_impl * impl,
+  DDS_Security_ProtectionKind disc_protection_kind,
+  DDS_Security_ProtectionKind liveliness_protection_kind);
+
+SECURITY_EXPORT void set_entity_data_secret(struct dds_security_cryptography_impl * impl, const char * pp_secret, const char * groupdata_secret, const char * ep_secret);
+
 /* Init in all-ok mode: all functions return success without calling the actual plugin */
 SECURITY_EXPORT int32_t init_test_cryptography_all_ok(const char *argument, void **context);
 SECURITY_EXPORT int32_t finalize_test_cryptography_all_ok(void *context);
