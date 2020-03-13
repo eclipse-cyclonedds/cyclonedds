@@ -60,8 +60,8 @@ typedef void (*ddsi_tran_free_fn_t) (ddsi_tran_factory_t);
 typedef void (*ddsi_tran_peer_locator_fn_t) (ddsi_tran_conn_t, nn_locator_t *);
 typedef void (*ddsi_tran_disable_multiplexing_fn_t) (ddsi_tran_conn_t);
 typedef ddsi_tran_conn_t (*ddsi_tran_accept_fn_t) (ddsi_tran_listener_t);
-typedef ddsi_tran_conn_t (*ddsi_tran_create_conn_fn_t) (ddsi_tran_factory_t fact, uint32_t, const struct ddsi_tran_qos *);
-typedef ddsi_tran_listener_t (*ddsi_tran_create_listener_fn_t) (ddsi_tran_factory_t fact, uint32_t port, const struct ddsi_tran_qos *);
+typedef dds_return_t (*ddsi_tran_create_conn_fn_t) (ddsi_tran_conn_t *conn, ddsi_tran_factory_t fact, uint32_t, const struct ddsi_tran_qos *);
+typedef dds_return_t (*ddsi_tran_create_listener_fn_t) (ddsi_tran_listener_t *listener, ddsi_tran_factory_t fact, uint32_t port, const struct ddsi_tran_qos *);
 typedef void (*ddsi_tran_release_conn_fn_t) (ddsi_tran_conn_t);
 typedef void (*ddsi_tran_close_conn_fn_t) (ddsi_tran_conn_t);
 typedef void (*ddsi_tran_unblock_listener_fn_t) (ddsi_tran_listener_t);
@@ -214,15 +214,17 @@ inline bool ddsi_factory_supports (const struct ddsi_tran_factory *factory, int3
 inline int ddsi_is_valid_port (ddsi_tran_factory_t factory, uint32_t port) {
   return factory->m_is_valid_port_fn (factory, port);
 }
-inline ddsi_tran_conn_t ddsi_factory_create_conn (ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos) {
+inline dds_return_t ddsi_factory_create_conn (ddsi_tran_conn_t *conn, ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos) {
+  *conn = NULL;
   if (!ddsi_is_valid_port (factory, port))
-    return NULL;
-  return factory->m_create_conn_fn (factory, port, qos);
+    return DDS_RETCODE_BAD_PARAMETER;
+  return factory->m_create_conn_fn (conn, factory, port, qos);
 }
-inline ddsi_tran_listener_t ddsi_factory_create_listener (ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos) {
+inline dds_return_t ddsi_factory_create_listener (ddsi_tran_listener_t *listener, ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos) {
+  *listener = NULL;
   if (!ddsi_is_valid_port (factory, port))
-    return NULL;
-  return factory->m_create_listener_fn (factory, port, qos);
+    return DDS_RETCODE_BAD_PARAMETER;
+  return factory->m_create_listener_fn (listener, factory, port, qos);
 }
 
 void ddsi_tran_free (ddsi_tran_base_t base);

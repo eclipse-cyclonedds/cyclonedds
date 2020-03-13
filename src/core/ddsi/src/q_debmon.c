@@ -369,8 +369,7 @@ struct debug_monitor *new_debug_monitor (struct ddsi_domaingv *gv, int32_t port)
     goto err_invalid_port;
   }
 
-  dm->servsock = ddsi_factory_create_listener (dm->tran_factory, (uint32_t) port, NULL);
-  if (dm->servsock == NULL)
+  if (ddsi_factory_create_listener (&dm->servsock, dm->tran_factory, (uint32_t) port, NULL) != DDS_RETCODE_OK)
   {
     GVWARNING ("debmon: can't create socket\n");
     goto err_servsock;

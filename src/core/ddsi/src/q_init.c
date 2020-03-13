@@ -72,13 +72,16 @@ static void add_peer_addresses (const struct ddsi_domaingv *gv, struct addrset *
 }
 
 enum make_uc_sockets_ret {
-  MUSRET_SUCCESS,
-  MUSRET_INVALID_PORTS,
-  MUSRET_NOSOCKET
+  MUSRET_SUCCESS,       /* unicast socket(s) created */
+  MUSRET_INVALID_PORTS, /* specified port numbers are invalid */
+  MUSRET_PORTS_IN_USE,  /* ports were in use, keep trying */
+  MUSRET_ERROR          /* generic error, no use continuing */
 };
 
 static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint32_t * pdisc, uint32_t * pdata, int ppid)
 {
+  dds_return_t rc;
+
   if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
   {
     assert (ppid == PARTICIPANT_INDEX_NONE);
@@ -97,33 +100,29 @@ static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint3
     return MUSRET_INVALID_PORTS;
 
   const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_RECV_UC, .m_diffserv = 0 };
-  gv->disc_conn_uc = ddsi_factory_create_conn (gv->m_factory, *pdisc, &qos);
-  if (gv->disc_conn_uc)
+  rc = ddsi_factory_create_conn (&gv->disc_conn_uc, gv->m_factory, *pdisc, &qos);
+  if (rc != DDS_RETCODE_OK)
+    goto fail_disc;
+
+  if (*pdata == 0 || *pdata == *pdisc)
+    gv->data_conn_uc = gv->disc_conn_uc;
+  else
   {
-    /* Check not configured to use same unicast port for data and discovery */
-
-    if (*pdata != 0 && (*pdata != *pdisc))
-    {
-      gv->data_conn_uc = ddsi_factory_create_conn (gv->m_factory, *pdata, &qos);
-    }
-    else
-    {
-      gv->data_conn_uc = gv->disc_conn_uc;
-    }
-    if (gv->data_conn_uc == NULL)
-    {
-      ddsi_conn_free (gv->disc_conn_uc);
-      gv->disc_conn_uc = NULL;
-    }
-    else
-    {
-      /* Set unicast locators */
-      ddsi_conn_locator (gv->disc_conn_uc, &gv->loc_meta_uc);
-      ddsi_conn_locator (gv->data_conn_uc, &gv->loc_default_uc);
-    }
+    rc = ddsi_factory_create_conn (&gv->data_conn_uc, gv->m_factory, *pdata, &qos);
+    if (rc != DDS_RETCODE_OK)
+      goto fail_data;
   }
+  ddsi_conn_locator (gv->disc_conn_uc, &gv->loc_meta_uc);
+  ddsi_conn_locator (gv->data_conn_uc, &gv->loc_default_uc);
+  return MUSRET_SUCCESS;
 
-  return gv->data_conn_uc ? MUSRET_SUCCESS : MUSRET_NOSOCKET;
+fail_data:
+  ddsi_conn_free (gv->disc_conn_uc);
+  gv->disc_conn_uc = NULL;
+fail_disc:
+  if (rc == DDS_RETCODE_PRECONDITION_NOT_MET)
+    return MUSRET_PORTS_IN_USE;
+  return MUSRET_ERROR;
 }
 
 static void make_builtin_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
@@ -675,7 +674,7 @@ int create_multicast_sockets (struct ddsi_domaingv *gv)
              gv->config.extDomainId.value, port);
     goto err_disc;
   }
-  if ((disc = ddsi_factory_create_conn (gv->m_factory, port, &qos)) == NULL)
+  if (ddsi_factory_create_conn (&disc, gv->m_factory, port, &qos) != DDS_RETCODE_OK)
     goto err_disc;
   if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
   {
@@ -691,10 +690,8 @@ int create_multicast_sockets (struct ddsi_domaingv *gv)
                gv->config.extDomainId.value, port);
       goto err_disc;
     }
-    if ((data = ddsi_factory_create_conn (gv->m_factory, port, &qos)) == NULL)
-    {
+    if (ddsi_factory_create_conn (&data, gv->m_factory, port, &qos) != DDS_RETCODE_OK)
       goto err_data;
-    }
   }
 
   gv->disc_conn_mc = disc;
@@ -1192,18 +1189,21 @@ int rtps_init (struct ddsi_domaingv *gv)
           GVERROR ("Failed to create unicast sockets for domain %"PRIu32" participant index %d: resulting port numbers (%"PRIu32", %"PRIu32") are out of range\n",
                    gv->config.extDomainId.value, gv->config.participantIndex, port_disc_uc, port_data_uc);
           goto err_unicast_sockets;
-        case MUSRET_NOSOCKET:
+        case MUSRET_PORTS_IN_USE:
           GVERROR ("rtps_init: failed to create unicast sockets for domain %"PRId32" participant index %d (ports %"PRIu32", %"PRIu32")\n", gv->config.extDomainId.value, gv->config.participantIndex, port_disc_uc, port_data_uc);
+          goto err_unicast_sockets;
+        case MUSRET_ERROR:
+          /* something bad happened; assume make_uc_sockets logged the error */
           goto err_unicast_sockets;
       }
     }
     else if (gv->config.participantIndex == PARTICIPANT_INDEX_AUTO)
     {
       /* try to find a free one, and update gv->config.participantIndex */
-      enum make_uc_sockets_ret musret = MUSRET_NOSOCKET;
+      enum make_uc_sockets_ret musret = MUSRET_PORTS_IN_USE;
       int ppid;
       GVLOG (DDS_LC_CONFIG, "rtps_init: trying to find a free participant index\n");
-      for (ppid = 0; ppid <= gv->config.maxAutoParticipantIndex && musret == MUSRET_NOSOCKET; ppid++)
+      for (ppid = 0; ppid <= gv->config.maxAutoParticipantIndex && musret == MUSRET_PORTS_IN_USE; ppid++)
       {
         musret = make_uc_sockets (gv, &port_disc_uc, &port_data_uc, ppid);
         switch (musret)
@@ -1214,8 +1214,11 @@ int rtps_init (struct ddsi_domaingv *gv)
             GVERROR ("Failed to create unicast sockets for domain %"PRIu32" participant index %d: resulting port numbers (%"PRIu32", %"PRIu32") are out of range\n",
                      gv->config.extDomainId.value, ppid, port_disc_uc, port_data_uc);
             goto err_unicast_sockets;
-          case MUSRET_NOSOCKET: /* Try next one */
+          case MUSRET_PORTS_IN_USE: /* Try next one */
             break;
+          case MUSRET_ERROR:
+            /* something bad happened; assume make_uc_sockets logged the error */
+            goto err_unicast_sockets;
         }
       }
       if (ppid > gv->config.maxAutoParticipantIndex)
@@ -1235,7 +1238,7 @@ int rtps_init (struct ddsi_domaingv *gv)
 
   if (gv->config.pcap_file && *gv->config.pcap_file)
   {
-    gv->pcap_fp = new_pcap_file (&gv->logconfig, gv->config.pcap_file);
+    gv->pcap_fp = new_pcap_file (gv, gv->config.pcap_file);
     if (gv->pcap_fp)
     {
       ddsrt_mutex_init (&gv->pcap_lock);
@@ -1286,8 +1289,9 @@ int rtps_init (struct ddsi_domaingv *gv)
     }
     else
     {
-      gv->listener = ddsi_factory_create_listener (gv->m_factory, (uint32_t) gv->config.tcp_port, NULL);
-      if (gv->listener == NULL || ddsi_listener_listen (gv->listener) != 0)
+      dds_return_t rc;
+      rc = ddsi_factory_create_listener (&gv->listener, gv->m_factory, (uint32_t) gv->config.tcp_port, NULL);
+      if (rc != DDS_RETCODE_OK || ddsi_listener_listen (gv->listener) != 0)
       {
         GVERROR ("Failed to create %s listener\n", gv->m_factory->m_typename);
         if (gv->listener)
@@ -1308,7 +1312,10 @@ int rtps_init (struct ddsi_domaingv *gv)
   /* Create shared transmit connection */
   {
     const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_XMIT, .m_diffserv = 0 };
-    gv->xmit_conn = ddsi_factory_create_conn (gv->m_factory, 0, &qos);
+    dds_return_t rc;
+    rc = ddsi_factory_create_conn (&gv->xmit_conn, gv->m_factory, 0, &qos);
+    if (rc != DDS_RETCODE_OK)
+      goto err_mc_conn;
   }
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS

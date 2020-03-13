@@ -587,6 +587,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domain
   struct participant *pp;
   ddsi_guid_t subguid, group_guid;
   struct whc_writer_info *wrinfo;
+  ddsi_tran_conn_t ppconn;
 
   /* no reserved bits may be set */
   assert ((flags & ~(RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS | RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP | RTPS_PF_ONLY_LOCAL)) == 0);
@@ -602,6 +603,18 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domain
      recreate it. */
   if (entidx_lookup_participant_guid (gv->entity_index, ppguid) != NULL)
     return DDS_RETCODE_PRECONDITION_NOT_MET;
+
+  if (gv->config.many_sockets_mode != MSM_MANY_UNICAST)
+    ppconn = NULL;
+  else
+  {
+    const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_RECV_UC, .m_diffserv = 0 };
+    if (ddsi_factory_create_conn (&ppconn, gv->m_factory, 0, &qos) != DDS_RETCODE_OK)
+    {
+      GVERROR ("new_participant("PGUIDFMT", %x) failed: could not create network endpoint\n", PGUID (*ppguid), flags);
+      return DDS_RETCODE_OUT_OF_RESOURCES;
+    }
+  }
 
   if (gv->config.max_participants == 0)
   {
@@ -621,6 +634,8 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domain
     {
       ddsrt_mutex_unlock (&gv->participant_set_lock);
       GVERROR ("new_participant("PGUIDFMT", %x) failed: max participants reached\n", PGUID (*ppguid), flags);
+      if (ppconn)
+        ddsi_conn_free (ppconn);
       return DDS_RETCODE_OUT_OF_RESOURCES;
     }
   }
@@ -649,16 +664,9 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domain
     GVLOGDISC ("}\n");
   }
 
+  pp->m_conn = ppconn;
   if (gv->config.many_sockets_mode == MSM_MANY_UNICAST)
-  {
-    const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_RECV_UC, .m_diffserv = 0 };
-    pp->m_conn = ddsi_factory_create_conn (gv->m_factory, 0, &qos);
     ddsi_conn_locator (pp->m_conn, &pp->m_locator);
-  }
-  else
-  {
-    pp->m_conn = NULL;
-  }
 
   ddsrt_fibheap_init (&lease_fhdef_pp, &pp->leaseheap_man);
   ddsrt_atomic_stvoidp (&pp->minl_man, NULL);

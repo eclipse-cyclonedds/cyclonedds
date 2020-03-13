@@ -26,6 +26,13 @@
 #include "dds/ddsi/q_pcap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 
+union addr {
+  struct sockaddr_storage x;
+  struct sockaddr a;
+  struct sockaddr_in a4;
+  struct sockaddr_in6 a6;
+};
+
 typedef struct ddsi_udp_conn {
   struct ddsi_tran_conn m_base;
   ddsrt_socket_t m_sock;
@@ -35,20 +42,27 @@ typedef struct ddsi_udp_conn {
   int m_diffserv;
 } *ddsi_udp_conn_t;
 
-static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc)
+static void addr_to_loc (const struct ddsi_tran_factory *tran, nn_locator_t *dst, const union addr *src)
 {
+  ddsi_ipaddr_to_loc (tran, dst, &src->a, (src->a.sa_family == AF_INET) ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
+}
+
+static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn_cmn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc)
+{
+  ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
+  struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
   dds_return_t rc;
   ssize_t ret = 0;
   ddsrt_msghdr_t msghdr;
-  struct sockaddr_storage src;
+  union addr src;
   ddsrt_iovec_t msg_iov;
   socklen_t srclen = (socklen_t) sizeof (src);
   (void) allow_spurious;
 
-  msg_iov.iov_base = (void*) buf;
-  msg_iov.iov_len = (ddsrt_iov_len_t)len; /* Windows uses unsigned, POSIX (except Linux) int */
+  msg_iov.iov_base = (void *) buf;
+  msg_iov.iov_len = (ddsrt_iov_len_t) len; /* Windows uses unsigned, POSIX (except Linux) int */
 
-  msghdr.msg_name = &src;
+  msghdr.msg_name = &src.x;
   msghdr.msg_namelen = srclen;
   msghdr.msg_iov = &msg_iov;
   msghdr.msg_iovlen = 1;
@@ -61,65 +75,67 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
 #endif
 
   do {
-    rc = ddsrt_recvmsg(((ddsi_udp_conn_t) conn)->m_sock, &msghdr, 0, &ret);
+    rc = ddsrt_recvmsg (conn->m_sock, &msghdr, 0, &ret);
   } while (rc == DDS_RETCODE_INTERRUPTED);
 
   if (ret > 0)
   {
     if (srcloc)
-      ddsi_ipaddr_to_loc(conn->m_factory, srcloc, (struct sockaddr *)&src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
+      addr_to_loc (conn->m_base.m_factory, srcloc, &src);
 
-    if(conn->m_base.gv->pcap_fp)
+    if (gv->pcap_fp)
     {
-      struct sockaddr_storage dest;
+      union addr dest;
       socklen_t dest_len = sizeof (dest);
-      if (ddsrt_getsockname (((ddsi_udp_conn_t) conn)->m_sock, (struct sockaddr *) &dest, &dest_len) != DDS_RETCODE_OK)
-        memset(&dest, 0, sizeof(dest));
-      write_pcap_received(conn->m_base.gv, ddsrt_time_wallclock(), &src, &dest, buf, (size_t) ret);
+      if (ddsrt_getsockname (conn->m_sock, &dest.a, &dest_len) != DDS_RETCODE_OK)
+        memset (&dest, 0, sizeof (dest));
+      write_pcap_received (gv, ddsrt_time_wallclock (), &src.x, &dest.x, buf, (size_t) ret);
     }
 
     /* Check for udp packet truncation */
-    if ((((size_t) ret) > len)
 #if DDSRT_MSGHDR_FLAGS
-        || (msghdr.msg_flags & MSG_TRUNC)
+    const bool trunc_flag = (msghdr.msg_flags & MSG_TRUNC) != 0;
+#else
+    const bool trunc_flag = false;
 #endif
-        )
+    if ((size_t) ret > len || trunc_flag)
     {
       char addrbuf[DDSI_LOCSTRLEN];
       nn_locator_t tmp;
-      ddsi_ipaddr_to_loc(conn->m_factory, &tmp, (struct sockaddr *)&src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
-      ddsi_locator_to_string(addrbuf, sizeof(addrbuf), &tmp);
-      DDS_CWARNING(&conn->m_base.gv->logconfig, "%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
+      addr_to_loc (conn->m_base.m_factory, &tmp, &src);
+      ddsi_locator_to_string (addrbuf, sizeof (addrbuf), &tmp);
+      GVWARNING ("%s => %d truncated to %d\n", addrbuf, (int) ret, (int) len);
     }
   }
-  else if (rc != DDS_RETCODE_BAD_PARAMETER &&
-           rc != DDS_RETCODE_NO_CONNECTION)
+  else if (rc != DDS_RETCODE_BAD_PARAMETER && rc != DDS_RETCODE_NO_CONNECTION)
   {
-    DDS_CERROR(&conn->m_base.gv->logconfig, "UDP recvmsg sock %d: ret %d retcode %"PRId32"\n", (int) ((ddsi_udp_conn_t) conn)->m_sock, (int) ret, rc);
+    GVERROR ("UDP recvmsg sock %d: ret %d retcode %"PRId32"\n", (int) conn->m_sock, (int) ret, rc);
     ret = -1;
   }
   return ret;
 }
 
-static void set_msghdr_iov (ddsrt_msghdr_t *mhdr, ddsrt_iovec_t *iov, size_t iovlen)
+static void set_msghdr_iov (ddsrt_msghdr_t *mhdr, const ddsrt_iovec_t *iov, size_t iovlen)
 {
-  mhdr->msg_iov = iov;
-  mhdr->msg_iovlen = (ddsrt_msg_iovlen_t)iovlen;
+  mhdr->msg_iov = (ddsrt_iovec_t *) iov;
+  mhdr->msg_iovlen = (ddsrt_msg_iovlen_t) iovlen;
 }
 
-static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
+static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn_cmn, const nn_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
 {
+  ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
+  struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
   dds_return_t rc;
   ssize_t ret = -1;
   unsigned retry = 2;
   int sendflags = 0;
   ddsrt_msghdr_t msg;
-  struct sockaddr_storage dstaddr;
-  assert(niov <= INT_MAX);
-  ddsi_ipaddr_from_loc(&dstaddr, dst);
-  set_msghdr_iov (&msg, (ddsrt_iovec_t *) iov, niov);
-  msg.msg_name = &dstaddr;
-  msg.msg_namelen = (socklen_t) ddsrt_sockaddr_get_size((struct sockaddr *) &dstaddr);
+  union addr dstaddr;
+  assert (niov <= INT_MAX);
+  ddsi_ipaddr_from_loc (&dstaddr.x, dst);
+  set_msghdr_iov (&msg, iov, niov);
+  msg.msg_name = &dstaddr.x;
+  msg.msg_namelen = (socklen_t) ddsrt_sockaddr_get_size (&dstaddr.a);
 #if defined(__sun) && !defined(_XPG4_2)
   msg.msg_accrights = NULL;
   msg.msg_accrightslen = 0;
@@ -130,56 +146,53 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
 #if DDSRT_MSGHDR_FLAGS
   msg.msg_flags = (int) flags;
 #else
-  DDSRT_UNUSED_ARG(flags);
+  DDSRT_UNUSED_ARG (flags);
 #endif
 #if MSG_NOSIGNAL && !LWIP_SOCKET
   sendflags |= MSG_NOSIGNAL;
 #endif
   do {
-    ddsi_udp_conn_t uc = (ddsi_udp_conn_t) conn;
-    rc = ddsrt_sendmsg (uc->m_sock, &msg, sendflags, &ret);
+    rc = ddsrt_sendmsg (conn->m_sock, &msg, sendflags, &ret);
 #if defined _WIN32 && !defined WINCE
-    if (rc == DDS_RETCODE_TRY_AGAIN) {
+    if (rc == DDS_RETCODE_TRY_AGAIN)
+    {
       WSANETWORKEVENTS ev;
-      WaitForSingleObject(uc->m_sockEvent, INFINITE);
-      WSAEnumNetworkEvents(uc->m_sock, uc->m_sockEvent, &ev);
+      WaitForSingleObject (conn->m_sockEvent, INFINITE);
+      WSAEnumNetworkEvents (conn->m_sock, conn->m_sockEvent, &ev);
     }
 #endif
-  } while ((rc == DDS_RETCODE_INTERRUPTED) ||
-           (rc == DDS_RETCODE_TRY_AGAIN) ||
-           (rc == DDS_RETCODE_NOT_ALLOWED && retry-- > 0));
-  if (ret > 0 && conn->m_base.gv->pcap_fp)
+  } while (rc == DDS_RETCODE_INTERRUPTED || rc == DDS_RETCODE_TRY_AGAIN || (rc == DDS_RETCODE_NOT_ALLOWED && retry-- > 0));
+  if (ret > 0 && gv->pcap_fp)
   {
-    struct sockaddr_storage sa;
+    union addr sa;
     socklen_t alen = sizeof (sa);
-    if (ddsrt_getsockname (((ddsi_udp_conn_t) conn)->m_sock, (struct sockaddr *) &sa, &alen) != DDS_RETCODE_OK)
+    if (ddsrt_getsockname (conn->m_sock, &sa.a, &alen) != DDS_RETCODE_OK)
       memset(&sa, 0, sizeof(sa));
-    write_pcap_sent (conn->m_base.gv, ddsrt_time_wallclock (), &sa, &msg, (size_t) ret);
+    write_pcap_sent (gv, ddsrt_time_wallclock (), &sa.x, &msg, (size_t) ret);
   }
-  else if (rc != DDS_RETCODE_OK &&
-           rc != DDS_RETCODE_NOT_ALLOWED &&
-           rc != DDS_RETCODE_NO_CONNECTION)
+  else if (rc != DDS_RETCODE_OK && rc != DDS_RETCODE_NOT_ALLOWED && rc != DDS_RETCODE_NO_CONNECTION)
   {
-    DDS_CERROR(&conn->m_base.gv->logconfig, "ddsi_udp_conn_write failed with retcode %"PRId32"\n", rc);
+    GVERROR ("ddsi_udp_conn_write failed with retcode %"PRId32"\n", rc);
   }
-  return (rc == DDS_RETCODE_OK ? ret : -1);
+  return (rc == DDS_RETCODE_OK) ? ret : -1;
 }
 
-static void ddsi_udp_disable_multiplexing (ddsi_tran_conn_t base)
+static void ddsi_udp_disable_multiplexing (ddsi_tran_conn_t conn_cmn)
 {
 #if defined _WIN32 && !defined WINCE
-  ddsi_udp_conn_t uc = (ddsi_udp_conn_t) base;
+  ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   uint32_t zero = 0, dummy;
-  WSAEventSelect(uc->m_sock, 0, 0);
-  WSAIoctl(uc->m_sock, FIONBIO, &zero,sizeof(zero), NULL,0, &dummy, NULL,NULL);
+  WSAEventSelect (conn->m_sock, 0, 0);
+  WSAIoctl (conn->m_sock, FIONBIO, &zero,sizeof(zero), NULL,0, &dummy, NULL,NULL);
 #else
-  (void)base;
+  (void) conn_cmn;
 #endif
 }
 
-static ddsrt_socket_t ddsi_udp_conn_handle (ddsi_tran_base_t base)
+static ddsrt_socket_t ddsi_udp_conn_handle (ddsi_tran_base_t conn_cmn)
 {
-  return ((ddsi_udp_conn_t) base)->m_sock;
+  ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
+  return conn->m_sock;
 }
 
 static bool ddsi_udp_supports (const struct ddsi_tran_factory *fact, int32_t kind)
@@ -187,162 +200,171 @@ static bool ddsi_udp_supports (const struct ddsi_tran_factory *fact, int32_t kin
   return kind == fact->m_kind || (kind == NN_LOCATOR_KIND_UDPv4MCGEN && fact->m_kind == NN_LOCATOR_KIND_UDPv4);
 }
 
-static int ddsi_udp_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t base, nn_locator_t *loc)
+static int ddsi_udp_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t conn_cmn, nn_locator_t *loc)
 {
+  ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   int ret = -1;
-  ddsi_udp_conn_t uc = (ddsi_udp_conn_t) base;
-  if (uc->m_sock != DDSRT_INVALID_SOCKET)
+  if (conn->m_sock != DDSRT_INVALID_SOCKET)
   {
     loc->kind = fact->m_kind;
-    loc->port = uc->m_base.m_base.m_port;
-    memcpy(loc->address, uc->m_base.m_base.gv->extloc.address, sizeof (loc->address));
+    loc->port = conn->m_base.m_base.m_port;
+    memcpy (loc->address, conn->m_base.m_base.gv->extloc.address, sizeof (loc->address));
     ret = 0;
   }
   return ret;
 }
 
-static uint16_t get_socket_port (struct ddsi_domaingv * const gv, ddsrt_socket_t sock)
+static uint16_t get_socket_port (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock)
 {
   dds_return_t ret;
-  struct sockaddr_storage addr;
+  union addr addr;
   socklen_t addrlen = sizeof (addr);
-
-  ret = ddsrt_getsockname (sock, (struct sockaddr *)&addr, &addrlen);
+  ret = ddsrt_getsockname (sock, &addr.a, &addrlen);
   if (ret != DDS_RETCODE_OK)
   {
     GVERROR ("ddsi_udp_get_socket_port: getsockname returned %"PRId32"\n", ret);
     return 0;
   }
-
-  return ddsrt_sockaddr_get_port ((struct sockaddr *)&addr);
+  return ddsrt_sockaddr_get_port (&addr.a);
 }
 
-static dds_return_t set_dont_route (struct ddsi_domaingv * const gv, ddsrt_socket_t socket, bool ipv6)
+static dds_return_t set_dont_route (struct ddsi_domaingv const * const gv, ddsrt_socket_t socket, bool ipv6)
 {
   dds_return_t rc;
 #if DDSRT_HAVE_IPV6
   if (ipv6)
   {
-    const unsigned ipv6Flag = 1;
-    if ((rc = ddsrt_setsockopt (socket, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &ipv6Flag, sizeof (ipv6Flag))) != DDS_RETCODE_OK)
+    const unsigned uone = 1;
+    if ((rc = ddsrt_setsockopt (socket, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &uone, sizeof (uone))) != DDS_RETCODE_OK)
       GVERROR ("ddsi_udp_create_conn: set IPV6_UNICAST_HOPS = 1 failed: %s\n", dds_strretcode (rc));
     return rc;
   }
+#else
+  (void) ipv6;
 #endif
   const int one = 1;
-  if ((rc = ddsrt_setsockopt (socket, SOL_SOCKET, SO_DONTROUTE, (char *) &one, sizeof (one))) != DDS_RETCODE_OK)
+  if ((rc = ddsrt_setsockopt (socket, SOL_SOCKET, SO_DONTROUTE, &one, sizeof (one))) != DDS_RETCODE_OK)
     GVERROR ("ddsi_udp_create_conn: set SO_DONTROUTE = 1 failed: %s\n", dds_strretcode (rc));
   return rc;
 }
 
-static dds_return_t set_rcvbuf (struct ddsi_domaingv * const gv, ddsrt_socket_t sock, const struct config_maybe_uint32 *min_size)
+static dds_return_t set_rcvbuf (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, const struct config_maybe_uint32 *min_size)
 {
-  uint32_t ReceiveBufferSize;
-  socklen_t optlen = (socklen_t) sizeof (ReceiveBufferSize);
+  uint32_t size;
+  socklen_t optlen = (socklen_t) sizeof (size);
   uint32_t socket_min_rcvbuf_size;
   dds_return_t rc;
 
-  if (min_size->isdefault)
-    socket_min_rcvbuf_size = 1048576;
-  else
-    socket_min_rcvbuf_size = min_size->value;
-  rc = ddsrt_getsockopt (sock, SOL_SOCKET, SO_RCVBUF, (char *) &ReceiveBufferSize, &optlen);
+  socket_min_rcvbuf_size = min_size->isdefault ? 1048576 : min_size->value;
+  rc = ddsrt_getsockopt (sock, SOL_SOCKET, SO_RCVBUF, &size, &optlen);
   if (rc == DDS_RETCODE_BAD_PARAMETER)
   {
     /* not all stacks support getting/setting RCVBUF */
     GVLOG (DDS_LC_CONFIG, "cannot retrieve socket receive buffer size\n");
     return DDS_RETCODE_OK;
   }
-
-  if (rc != DDS_RETCODE_OK)
+  else if (rc != DDS_RETCODE_OK)
   {
     GVERROR ("ddsi_udp_create_conn: get SO_RCVBUF failed: %s\n", dds_strretcode (rc));
-    goto fail;
+    return rc;
   }
 
-  if (ReceiveBufferSize < socket_min_rcvbuf_size)
+  if (size < socket_min_rcvbuf_size)
   {
     /* make sure the receive buffersize is at least the minimum required */
-    ReceiveBufferSize = socket_min_rcvbuf_size;
-    (void) ddsrt_setsockopt (sock, SOL_SOCKET, SO_RCVBUF, (const char *) &ReceiveBufferSize, sizeof (ReceiveBufferSize));
+    size = socket_min_rcvbuf_size;
+    (void) ddsrt_setsockopt (sock, SOL_SOCKET, SO_RCVBUF, &size, sizeof (size));
 
     /* We don't check the return code from setsockopt, because some O/Ss tend
        to silently cap the buffer size.  The only way to make sure is to read
        the option value back and check it is now set correctly. */
-    if ((rc = ddsrt_getsockopt (sock, SOL_SOCKET, SO_RCVBUF, (char *) &ReceiveBufferSize, &optlen)) != DDS_RETCODE_OK)
+    if ((rc = ddsrt_getsockopt (sock, SOL_SOCKET, SO_RCVBUF, &size, &optlen)) != DDS_RETCODE_OK)
     {
       GVERROR ("ddsi_udp_create_conn: get SO_RCVBUF failed: %s\n", dds_strretcode (rc));
-      goto fail;
+      return rc;
     }
 
-    if (ReceiveBufferSize >= socket_min_rcvbuf_size)
-      GVLOG (DDS_LC_CONFIG, "socket receive buffer size set to %"PRIu32" bytes\n", ReceiveBufferSize);
+    if (size >= socket_min_rcvbuf_size)
+      GVLOG (DDS_LC_CONFIG, "socket receive buffer size set to %"PRIu32" bytes\n", size);
+    else if (min_size->isdefault)
+    GVLOG (DDS_LC_CONFIG,
+           "failed to increase socket receive buffer size to %"PRIu32" bytes, continuing with %"PRIu32" bytes\n",
+           socket_min_rcvbuf_size, size);
     else
-      GVLOG (min_size->isdefault ? DDS_LC_CONFIG : DDS_LC_ERROR,
-             "failed to increase socket receive buffer size to %"PRIu32" bytes, continuing with %"PRIu32" bytes\n",
-             socket_min_rcvbuf_size, ReceiveBufferSize);
+    {
+      /* If the configuration states it must be >= X, then error out if the
+         kernel doesn't give us at least X */
+      GVLOG (DDS_LC_CONFIG | DDS_LC_ERROR,
+             "failed to increase socket receive buffer size to %"PRIu32" bytes, maximum is %"PRIu32" bytes\n",
+             socket_min_rcvbuf_size, size);
+      rc = DDS_RETCODE_NOT_ENOUGH_SPACE;
+    }
   }
 
-fail:
   return rc;
 }
 
-static dds_return_t set_sndbuf (struct ddsi_domaingv * const gv, ddsrt_socket_t sock, uint32_t min_size)
+static dds_return_t set_sndbuf (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, uint32_t min_size)
 {
-  unsigned SendBufferSize;
-  socklen_t optlen = (socklen_t) sizeof(SendBufferSize);
+  unsigned size;
+  socklen_t optlen = (socklen_t) sizeof(size);
   dds_return_t rc;
 
-  rc = ddsrt_getsockopt(sock, SOL_SOCKET, SO_SNDBUF,(char *)&SendBufferSize, &optlen);
+  rc = ddsrt_getsockopt (sock, SOL_SOCKET, SO_SNDBUF, &size, &optlen);
   if (rc == DDS_RETCODE_BAD_PARAMETER)
   {
     /* not all stacks support getting/setting SNDBUF */
     GVLOG (DDS_LC_CONFIG, "cannot retrieve socket send buffer size\n");
     return DDS_RETCODE_OK;
   }
-
-  if (rc != DDS_RETCODE_OK)
+  else if (rc != DDS_RETCODE_OK)
   {
     GVERROR ("ddsi_udp_create_conn: get SO_SNDBUF failed: %s\n", dds_strretcode (rc));
-    goto fail;
+    return rc;
   }
 
-  if (SendBufferSize < min_size)
+  if (size < min_size)
   {
     /* make sure the send buffersize is at least the minimum required */
-    SendBufferSize = min_size;
-    if ((rc = ddsrt_setsockopt (sock, SOL_SOCKET, SO_SNDBUF, (const char *) &SendBufferSize, sizeof (SendBufferSize))) != DDS_RETCODE_OK)
+    size = min_size;
+    if ((rc = ddsrt_setsockopt (sock, SOL_SOCKET, SO_SNDBUF, &size, sizeof (size))) != DDS_RETCODE_OK)
     {
       GVERROR ("ddsi_udp_create_conn: set SO_SNDBUF failed: %s\n", dds_strretcode (rc));
-      goto fail;
+      return rc;
     }
   }
 
-fail:
-  return rc;
+  return DDS_RETCODE_OK;
 }
 
-static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv * const gv, ddsrt_socket_t sock)
+static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock)
 {
+  /* Function is a never-called no-op if IPv6 is not supported to keep the call-site a bit cleaner  */
 #if DDSRT_HAVE_IPV6
-  const unsigned interfaceNo = gv->interfaceNo;
+  const unsigned ifno = gv->interfaceNo;
   const unsigned ttl = (unsigned) gv->config.multicast_ttl;
   const unsigned loop = (unsigned) !!gv->config.enableMulticastLoopback;
   dds_return_t rc;
-  if ((rc = ddsrt_setsockopt (sock, IPPROTO_IPV6, IPV6_MULTICAST_IF, &interfaceNo, sizeof (interfaceNo))) != DDS_RETCODE_OK)
+  if ((rc = ddsrt_setsockopt (sock, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifno, sizeof (ifno))) != DDS_RETCODE_OK) {
     GVERROR ("ddsi_udp_create_conn: set IPV6_MULTICAST_IF failed: %s\n", dds_strretcode (rc));
-  else if ((rc = ddsrt_setsockopt (sock, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, (char *) &ttl, sizeof (ttl))) != DDS_RETCODE_OK)
+    return rc;
+  }
+  if ((rc = ddsrt_setsockopt (sock, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &ttl, sizeof (ttl))) != DDS_RETCODE_OK) {
     GVERROR ("ddsi_udp_create_conn: set IPV6_MULTICAST_HOPS failed: %s\n", dds_strretcode (rc));
-  else if ((rc = ddsrt_setsockopt (sock, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &loop, sizeof (loop))) != DDS_RETCODE_OK)
+    return rc;
+  }
+  if ((rc = ddsrt_setsockopt (sock, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &loop, sizeof (loop))) != DDS_RETCODE_OK) {
     GVERROR ("ddsi_udp_create_conn: set IPV6_MULTICAST_LOOP failed: %s\n", dds_strretcode (rc));
-  return rc;
+    return rc;
+  }
+  return DDS_RETCODE_OK;
 #else
   (void) gv; (void) sock;
   return DDS_RETCODE_ERROR;
 #endif
 }
 
-static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv * const gv, ddsrt_socket_t sock)
+static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock)
 {
 #if (defined(__linux) || defined(__APPLE__)) && !LWIP_SOCKET
   if (gv->config.use_multicast_if_mreqn)
@@ -362,23 +384,29 @@ static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv * cons
   return ddsrt_setsockopt (sock, IPPROTO_IP, IP_MULTICAST_IF, gv->ownloc.address + 12, 4);
 }
 
-static dds_return_t set_mc_options_transmit_ipv4 (struct ddsi_domaingv * const gv, ddsrt_socket_t sock)
+static dds_return_t set_mc_options_transmit_ipv4 (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock)
 {
   const unsigned char ttl = (unsigned char) gv->config.multicast_ttl;
   const unsigned char loop = (unsigned char) !!gv->config.enableMulticastLoopback;
   dds_return_t rc;
-  if ((rc = set_mc_options_transmit_ipv4_if (gv, sock)) != DDS_RETCODE_OK)
+  if ((rc = set_mc_options_transmit_ipv4_if (gv, sock)) != DDS_RETCODE_OK) {
     GVERROR ("ddsi_udp_create_conn: set IP_MULTICAST_IF failed: %s\n", dds_strretcode (rc));
-  else if ((rc = ddsrt_setsockopt (sock, IPPROTO_IP, IP_MULTICAST_TTL, (char *) &ttl, sizeof (ttl))) != DDS_RETCODE_OK)
+    return rc;
+  }
+  if ((rc = ddsrt_setsockopt (sock, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof (ttl))) != DDS_RETCODE_OK) {
     GVERROR ("ddsi_udp_create_conn: set IP_MULTICAST_TTL failed: %s\n", dds_strretcode (rc));
-  else if ((rc = ddsrt_setsockopt (sock, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof (loop))) != DDS_RETCODE_OK)
+    return rc;
+  }
+  if ((rc = ddsrt_setsockopt (sock, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof (loop))) != DDS_RETCODE_OK) {
     GVERROR ("ddsi_udp_create_conn: set IP_MULTICAST_LOOP failed: %s\n", dds_strretcode (rc));
-  return rc;
+    return rc;
+  }
+  return DDS_RETCODE_OK;
 }
 
-static ddsi_tran_conn_t ddsi_udp_create_conn (ddsi_tran_factory_t fact, uint32_t port, const ddsi_tran_qos_t *qos)
+static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_factory_t fact, uint32_t port, const ddsi_tran_qos_t *qos)
 {
-  struct ddsi_domaingv * const gv = fact->gv;
+  struct ddsi_domaingv const * const gv = fact->gv;
   const int one = 1;
 
   dds_return_t rc;
@@ -406,31 +434,37 @@ static ddsi_tran_conn_t ddsi_udp_create_conn (ddsi_tran_factory_t fact, uint32_t
   }
   assert (purpose_str != NULL);
 
+  union addr socketname;
+  nn_locator_t ownloc_w_port = gv->ownloc;
+  assert (ownloc_w_port.port == NN_LOCATOR_PORT_INVALID);
+  if (port) {
+    /* PORT_INVALID maps to 0 in ipaddr_from_loc */
+    ownloc_w_port.port = port;
+  }
+  ddsi_ipaddr_from_loc (&socketname.x, &ownloc_w_port);
+  switch (fact->m_kind)
   {
-    int af = AF_UNSPEC;
-    switch (fact->m_kind)
-    {
-      case NN_LOCATOR_KIND_UDPv4:
-        af = AF_INET;
-        break;
+    case NN_LOCATOR_KIND_UDPv4:
+      if (bind_to_any)
+        socketname.a4.sin_addr.s_addr = htonl (INADDR_ANY);
+      break;
 #if DDSRT_HAVE_IPV6
-      case NN_LOCATOR_KIND_UDPv6:
-        af = AF_INET6;
-        ipv6 = true;
-        break;
+    case NN_LOCATOR_KIND_UDPv6:
+      ipv6 = true;
+      if (bind_to_any)
+        socketname.a6.sin6_addr = ddsrt_in6addr_any;
+      break;
 #endif
-      default:
-        DDS_FATAL ("ddsi_udp_create_conn: unsupported kind %"PRId32"\n", fact->m_kind);
-    }
-    assert (af != AF_UNSPEC);
-    if ((rc = ddsrt_socket (&sock, af, SOCK_DGRAM, 0)) != DDS_RETCODE_OK)
-    {
-      GVERROR ("ddsi_udp_create_conn: failed to create socket: %s\n", dds_strretcode (rc));
-      goto fail;
-    }
+    default:
+      DDS_FATAL ("ddsi_udp_create_conn: unsupported kind %"PRId32"\n", fact->m_kind);
+  }
+  if ((rc = ddsrt_socket (&sock, socketname.a.sa_family, SOCK_DGRAM, 0)) != DDS_RETCODE_OK)
+  {
+    GVERROR ("ddsi_udp_create_conn: failed to create socket: %s\n", dds_strretcode (rc));
+    goto fail;
   }
 
-  if (reuse_addr && (rc = ddsrt_setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, (char *) &one, sizeof (one))) != DDS_RETCODE_OK)
+  if (reuse_addr && (rc = ddsrt_setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof (one))) != DDS_RETCODE_OK)
   {
     GVERROR ("ddsi_udp_create_conn: failed to enable address reuse: %s\n", dds_strretcode (rc));
     if (rc != DDS_RETCODE_BAD_PARAMETER)
@@ -448,45 +482,21 @@ static ddsi_tran_conn_t ddsi_udp_create_conn (ddsi_tran_factory_t fact, uint32_t
   if (gv->config.dontRoute && (rc = set_dont_route (gv, sock, ipv6)) != DDS_RETCODE_OK)
     goto fail_w_socket;
 
+  if ((rc = ddsrt_bind (sock, &socketname.a, ddsrt_sockaddr_get_size (&socketname.a))) != DDS_RETCODE_OK)
   {
-    union {
-      struct sockaddr_storage x;
-      struct sockaddr_in a4;
-      struct sockaddr_in6 a6;
-    } socketname;
-    nn_locator_t ownloc_w_port = gv->ownloc;
-    assert (ownloc_w_port.port == NN_LOCATOR_PORT_INVALID);
-    if (port) {
-      /* PORT_INVALID maps to 0 in ipaddr_from_loc */
-      ownloc_w_port.port = port;
-    }
-    ddsi_ipaddr_from_loc (&socketname.x, &ownloc_w_port);
+    /* PRECONDITION_NOT_MET (= EADDRINUSE) is expected if reuse_addr isn't set, should be handled at
+       a higher level and therefore needs to return a specific error message */
+    if (!reuse_addr && rc == DDS_RETCODE_PRECONDITION_NOT_MET)
+      goto fail_addrinuse;
+
+    char buf[DDSI_LOCATORSTRLEN];
     if (bind_to_any)
-    {
-      switch (fact->m_kind)
-      {
-        case NN_LOCATOR_KIND_UDPv4:
-          socketname.a4.sin_addr.s_addr = htonl (INADDR_ANY);
-          break;
-#if DDSRT_HAVE_IPV6
-        case NN_LOCATOR_KIND_UDPv6:
-          socketname.a6.sin6_addr = ddsrt_in6addr_any;
-          break;
-#endif
-        default:
-          DDS_FATAL ("ddsi_udp_create_conn: unsupported kind %"PRId32"\n", fact->m_kind);
-      }
-    }
-    if ((rc = ddsrt_bind (sock, (struct sockaddr *) &socketname, ddsrt_sockaddr_get_size ((struct sockaddr *) &socketname))) != DDS_RETCODE_OK)
-    {
-      char buf[DDSI_LOCATORSTRLEN];
-      if (bind_to_any)
-        snprintf (buf, sizeof (buf), "ANY:%"PRIu32, port);
-      else
-        ddsi_locator_to_string (buf, sizeof (buf), &ownloc_w_port);
-      GVERROR ("ddsi_udp_create_conn: failed to bind to %s: %s\n", buf, dds_strretcode (rc));
-      goto fail_w_socket;
-    }
+      snprintf (buf, sizeof (buf), "ANY:%"PRIu32, port);
+    else
+      ddsi_locator_to_string (buf, sizeof (buf), &ownloc_w_port);
+    GVERROR ("ddsi_udp_create_conn: failed to bind to %s: %s\n", buf,
+             (rc == DDS_RETCODE_PRECONDITION_NOT_MET) ? "address in use" : dds_strretcode (rc));
+    goto fail_w_socket;
   }
 
   rc = ipv6 ? set_mc_options_transmit_ipv6 (gv, sock) : set_mc_options_transmit_ipv4 (gv, sock);
@@ -494,9 +504,9 @@ static ddsi_tran_conn_t ddsi_udp_create_conn (ddsi_tran_factory_t fact, uint32_t
     goto fail_w_socket;
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-  if ((qos->m_diffserv != 0) && (fact->m_kind == NN_LOCATOR_KIND_UDPv4))
+  if (qos->m_diffserv != 0 && fact->m_kind == NN_LOCATOR_KIND_UDPv4)
   {
-    if ((rc = ddsrt_setsockopt (sock, IPPROTO_IP, IP_TOS, (char *) &qos->m_diffserv, sizeof (qos->m_diffserv))) != DDS_RETCODE_OK)
+    if ((rc = ddsrt_setsockopt (sock, IPPROTO_IP, IP_TOS, &qos->m_diffserv, sizeof (qos->m_diffserv))) != DDS_RETCODE_OK)
     {
       GVERROR ("ddsi_udp_create_conn: set diffserv retcode %"PRId32"\n", rc);
       goto fail_w_socket;
@@ -504,49 +514,52 @@ static ddsi_tran_conn_t ddsi_udp_create_conn (ddsi_tran_factory_t fact, uint32_t
   }
 #endif
 
-  ddsi_udp_conn_t uc = (ddsi_udp_conn_t) ddsrt_malloc (sizeof (*uc));
-  memset (uc, 0, sizeof (*uc));
+  ddsi_udp_conn_t conn = ddsrt_malloc (sizeof (*conn));
+  memset (conn, 0, sizeof (*conn));
 
-  uc->m_sock = sock;
-  uc->m_diffserv = qos->m_diffserv;
+  conn->m_sock = sock;
+  conn->m_diffserv = qos->m_diffserv;
 #if defined _WIN32 && !defined WINCE
-  uc->m_sockEvent = WSACreateEvent();
-  WSAEventSelect(uc->m_sock, uc->m_sockEvent, FD_WRITE);
+  conn->m_sockEvent = WSACreateEvent ();
+  WSAEventSelect (conn->m_sock, conn->m_sockEvent, FD_WRITE);
 #endif
 
-  ddsi_factory_conn_init (fact, &uc->m_base);
-  uc->m_base.m_base.m_port = get_socket_port (gv, sock);
-  uc->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
-  uc->m_base.m_base.m_multicast = (qos->m_purpose == DDSI_TRAN_QOS_RECV_MC);
-  uc->m_base.m_base.m_handle_fn = ddsi_udp_conn_handle;
+  ddsi_factory_conn_init (fact, &conn->m_base);
+  conn->m_base.m_base.m_port = get_socket_port (gv, sock);
+  conn->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
+  conn->m_base.m_base.m_multicast = (qos->m_purpose == DDSI_TRAN_QOS_RECV_MC);
+  conn->m_base.m_base.m_handle_fn = ddsi_udp_conn_handle;
 
-  uc->m_base.m_read_fn = ddsi_udp_conn_read;
-  uc->m_base.m_write_fn = ddsi_udp_conn_write;
-  uc->m_base.m_disable_multiplexing_fn = ddsi_udp_disable_multiplexing;
-  uc->m_base.m_locator_fn = ddsi_udp_conn_locator;
+  conn->m_base.m_read_fn = ddsi_udp_conn_read;
+  conn->m_base.m_write_fn = ddsi_udp_conn_write;
+  conn->m_base.m_disable_multiplexing_fn = ddsi_udp_disable_multiplexing;
+  conn->m_base.m_locator_fn = ddsi_udp_conn_locator;
 
-  GVTRACE ("ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n", purpose_str, uc->m_sock, uc->m_base.m_base.m_port);
-  return &uc->m_base;
+  GVTRACE ("ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n", purpose_str, conn->m_sock, conn->m_base.m_base.m_port);
+  *conn_out = &conn->m_base;
+  return DDS_RETCODE_OK;
 
 fail_w_socket:
   ddsrt_close (sock);
 fail:
-  if (fact->gv->config.participantIndex != PARTICIPANT_INDEX_AUTO)
-    GVERROR ("ddsi_udp_create_conn: failed for %s port %"PRIu32"\n", purpose_str, port);
-  return NULL;
+  return DDS_RETCODE_ERROR;
+
+fail_addrinuse:
+  ddsrt_close (sock);
+  return DDS_RETCODE_PRECONDITION_NOT_MET;
 }
 
 static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const nn_locator_t *mcloc, const struct nn_interface *interf)
 {
   dds_return_t rc;
-  struct sockaddr_storage mcip;
-  ddsi_ipaddr_from_loc(&mcip, mcloc);
+  union addr mcip;
+  ddsi_ipaddr_from_loc (&mcip.x, mcloc);
 #if DDSRT_HAVE_IPV6
   if (mcloc->kind == NN_LOCATOR_KIND_UDPv6)
   {
     struct ipv6_mreq ipv6mreq;
     memset (&ipv6mreq, 0, sizeof (ipv6mreq));
-    memcpy (&ipv6mreq.ipv6mr_multiaddr, &((struct sockaddr_in6 *) &mcip)->sin6_addr, sizeof (ipv6mreq.ipv6mr_multiaddr));
+    memcpy (&ipv6mreq.ipv6mr_multiaddr, &mcip.a6, sizeof (ipv6mreq.ipv6mr_multiaddr));
     ipv6mreq.ipv6mr_interface = interf ? interf->if_index : 0;
     rc = ddsrt_setsockopt (socket, IPPROTO_IPV6, join ? IPV6_JOIN_GROUP : IPV6_LEAVE_GROUP, &ipv6mreq, sizeof (ipv6mreq));
   }
@@ -554,12 +567,12 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const nn_loca
 #endif
   {
     struct ip_mreq mreq;
-    mreq.imr_multiaddr = ((struct sockaddr_in *) &mcip)->sin_addr;
+    mreq.imr_multiaddr = mcip.a4.sin_addr;
     if (interf)
       memcpy (&mreq.imr_interface, interf->loc.address + 12, sizeof (mreq.imr_interface));
     else
       mreq.imr_interface.s_addr = htonl (INADDR_ANY);
-    rc = ddsrt_setsockopt (socket, IPPROTO_IP, join ? IP_ADD_MEMBERSHIP : IP_DROP_MEMBERSHIP, (char *) &mreq, sizeof (mreq));
+    rc = ddsrt_setsockopt (socket, IPPROTO_IP, join ? IP_ADD_MEMBERSHIP : IP_DROP_MEMBERSHIP, &mreq, sizeof (mreq));
   }
   return (rc == DDS_RETCODE_OK) ? 0 : -1;
 }
@@ -568,17 +581,17 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const nn_loca
 static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
 {
   dds_return_t rc;
-  struct sockaddr_storage mcip, srcip;
-  ddsi_ipaddr_from_loc(&mcip, mcloc);
-  ddsi_ipaddr_from_loc(&srcip, srcloc);
+  union addr mcip, srcip;
+  ddsi_ipaddr_from_loc (&mcip.x, mcloc);
+  ddsi_ipaddr_from_loc (&srcip.x, srcloc);
 #if DDSRT_HAVE_IPV6
   if (mcloc->kind == NN_LOCATOR_KIND_UDPv6)
   {
     struct group_source_req gsr;
     memset (&gsr, 0, sizeof (gsr));
     gsr.gsr_interface = interf ? interf->if_index : 0;
-    memcpy (&gsr.gsr_group, &mcip, sizeof (gsr.gsr_group));
-    memcpy (&gsr.gsr_source, &srcip, sizeof (gsr.gsr_source));
+    memcpy (&gsr.gsr_group, &mcip.a6, sizeof (gsr.gsr_group));
+    memcpy (&gsr.gsr_source, &srcip.a6, sizeof (gsr.gsr_source));
     rc = ddsrt_setsockopt (socket, IPPROTO_IPV6, join ? MCAST_JOIN_SOURCE_GROUP : MCAST_LEAVE_SOURCE_GROUP, &gsr, sizeof (gsr));
   }
   else
@@ -586,8 +599,8 @@ static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const nn_loca
   {
     struct ip_mreq_source mreq;
     memset (&mreq, 0, sizeof (mreq));
-    mreq.imr_sourceaddr = ((struct sockaddr_in *) &srcip)->sin_addr;
-    mreq.imr_multiaddr = ((struct sockaddr_in *) &mcip)->sin_addr;
+    mreq.imr_sourceaddr = srcip.a4.sin_addr;
+    mreq.imr_multiaddr = mcip.a4.sin_addr;
     if (interf)
       memcpy (&mreq.imr_interface, interf->loc.address + 12, sizeof (mreq.imr_interface));
     else
@@ -598,43 +611,42 @@ static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const nn_loca
 }
 #endif
 
-static int ddsi_udp_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
+static int ddsi_udp_join_mc (ddsi_tran_conn_t conn_cmn, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
 {
-  ddsi_udp_conn_t uc = (ddsi_udp_conn_t) conn;
-  (void)srcloc;
+  ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
+  (void) srcloc;
 #ifdef DDSI_INCLUDE_SSM
   if (srcloc)
-    return joinleave_ssm_mcgroup(uc->m_sock, 1, srcloc, mcloc, interf);
+    return joinleave_ssm_mcgroup (conn->m_sock, 1, srcloc, mcloc, interf);
   else
 #endif
-    return joinleave_asm_mcgroup(uc->m_sock, 1, mcloc, interf);
+    return joinleave_asm_mcgroup (conn->m_sock, 1, mcloc, interf);
 }
 
-static int ddsi_udp_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
+static int ddsi_udp_leave_mc (ddsi_tran_conn_t conn_cmn, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
 {
-  ddsi_udp_conn_t uc = (ddsi_udp_conn_t) conn;
-  (void)srcloc;
+  ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
+  (void) srcloc;
 #ifdef DDSI_INCLUDE_SSM
   if (srcloc)
-    return joinleave_ssm_mcgroup(uc->m_sock, 0, srcloc, mcloc, interf);
+    return joinleave_ssm_mcgroup (conn->m_sock, 0, srcloc, mcloc, interf);
   else
 #endif
-    return joinleave_asm_mcgroup(uc->m_sock, 0, mcloc, interf);
+    return joinleave_asm_mcgroup (conn->m_sock, 0, mcloc, interf);
 }
 
-static void ddsi_udp_release_conn (ddsi_tran_conn_t conn)
+static void ddsi_udp_release_conn (ddsi_tran_conn_t conn_cmn)
 {
-  ddsi_udp_conn_t uc = (ddsi_udp_conn_t) conn;
-  DDS_CTRACE (&conn->m_base.gv->logconfig,
-              "ddsi_udp_release_conn %s socket %"PRIdSOCK" port %"PRIu32"\n",
-              conn->m_base.m_multicast ? "multicast" : "unicast",
-              uc->m_sock,
-              uc->m_base.m_base.m_port);
-  ddsrt_close (uc->m_sock);
+  ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
+  struct ddsi_domaingv const * const gv = conn->m_base.m_base.gv;
+  GVTRACE ("ddsi_udp_release_conn %s socket %"PRIdSOCK" port %"PRIu32"\n",
+           conn_cmn->m_base.m_multicast ? "multicast" : "unicast",
+           conn->m_sock, conn->m_base.m_base.m_port);
+  ddsrt_close (conn->m_sock);
 #if defined _WIN32 && !defined WINCE
-  WSACloseEvent(uc->m_sockEvent);
+  WSACloseEvent (conn->m_sockEvent);
 #endif
-  ddsrt_free (conn);
+  ddsrt_free (conn_cmn);
 }
 
 static int ddsi_udp_is_mcaddr (const ddsi_tran_factory_t tran, const nn_locator_t *loc)
@@ -720,7 +732,8 @@ static char *ddsi_udp_locator_to_string (char *dst, size_t sizeof_dst, const nn_
 
 static void ddsi_udp_fini (ddsi_tran_factory_t fact)
 {
-  DDS_CLOG (DDS_LC_CONFIG, &fact->gv->logconfig, "udp finalized\n");
+  struct ddsi_domaingv const * const gv = fact->gv;
+  GVLOG (DDS_LC_CONFIG, "udp finalized\n");
   ddsrt_free (fact);
 }
 
@@ -730,7 +743,7 @@ static int ddsi_udp_is_valid_port (ddsi_tran_factory_t fact, uint32_t port)
   return (port <= 65535);
 }
 
-int ddsi_udp_init (struct ddsi_domaingv *gv)
+int ddsi_udp_init (struct ddsi_domaingv*gv)
 {
   struct ddsi_tran_factory *fact = ddsrt_malloc (sizeof (*fact));
   memset (fact, 0, sizeof (*fact));
