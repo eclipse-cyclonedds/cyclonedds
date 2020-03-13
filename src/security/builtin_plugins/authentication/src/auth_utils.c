@@ -1288,10 +1288,12 @@ create_asymmetrical_signature(
         goto err_sign;
     }
 
-    if (EVP_PKEY_CTX_set_rsa_padding(kctx, RSA_PKCS1_PSS_PADDING) < 1) {
-        result = DDS_SECURITY_VALIDATION_FAILED;
-        DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "Failed to initialize signing context: ");
-        goto err_sign;
+    if (EVP_PKEY_id(pkey) == EVP_PKEY_RSA) {
+        if (EVP_PKEY_CTX_set_rsa_padding(kctx, RSA_PKCS1_PSS_PADDING) < 1) {
+            result = DDS_SECURITY_VALIDATION_FAILED;
+            DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "Failed to initialize signing context: ");
+            goto err_sign;
+         }
     }
 
     if (EVP_DigestSignUpdate(mdctx, data, dataLen) != 1) {
@@ -1345,11 +1347,13 @@ validate_asymmetrical_signature(
         goto err_verify;
     }
 
-    if (EVP_PKEY_CTX_set_rsa_padding(kctx, RSA_PKCS1_PSS_PADDING) < 1) {
-         result = DDS_SECURITY_VALIDATION_FAILED;
-         DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "Failed to initialize signing context: ");
-         goto err_verify;
-     }
+    if (EVP_PKEY_id(pkey) == EVP_PKEY_RSA) {
+        if (EVP_PKEY_CTX_set_rsa_padding(kctx, RSA_PKCS1_PSS_PADDING) < 1) {
+            result = DDS_SECURITY_VALIDATION_FAILED;
+            DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "Failed to initialize signing context: ");
+            goto err_verify;
+        }
+    }
 
     if (EVP_DigestVerifyUpdate(mdctx, data, dataLen) != 1) {
         result = DDS_SECURITY_VALIDATION_FAILED;
