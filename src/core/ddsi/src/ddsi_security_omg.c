@@ -2149,12 +2149,15 @@ void q_omg_security_deregister_remote_writer_match(const struct ddsi_domaingv *g
   }
 }
 
-bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *prd, uint32_t domain_id, struct participant *pp)
+bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *prd, uint32_t domain_id, struct participant *pp, bool *relay_only)
 {
   struct ddsi_domaingv *gv = pp->e.gv;
   struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   bool ok = true;
+
+  /* relay_only is meaningless in all cases except the one where the access control plugin says otherwise */
+  *relay_only = false;
 
   if (!sc)
     return true;
@@ -2185,11 +2188,14 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
     else
     {
       DDS_Security_SubscriptionBuiltinTopicDataSecure subscription_data;
+      DDS_Security_boolean sec_relay_only;
 
       q_omg_shallow_copy_SubscriptionBuiltinTopicDataSecure(&subscription_data, &prd->e.guid, prd->c.xqos, &prd->security_info);
-      ok = sc->access_control_context->check_remote_datareader(sc->access_control_context, permissions_handle, (int)domain_id, &subscription_data, false, &exception);
+      ok = sc->access_control_context->check_remote_datareader(sc->access_control_context, permissions_handle, (int)domain_id, &subscription_data, &sec_relay_only, &exception);
       q_omg_shallow_free_SubscriptionBuiltinTopicDataSecure(&subscription_data);
-      if (!ok)
+      if (ok)
+        *relay_only = !!sec_relay_only;
+      else
       {
         if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, subscription_data.topic_name))
           EXCEPTION_ERROR(sc, &exception, "Access control does not allow remote reader "PGUIDFMT": %s", PGUID(prd->e.guid));
@@ -2349,7 +2355,7 @@ static void send_writer_crypto_tokens(struct writer *wr, struct proxy_reader *pr
   }
 }
 
-static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd, struct writer *wr, int64_t *crypto_handle)
+static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd, struct writer *wr, int64_t *crypto_handle, bool relay_only)
 {
   struct participant *pp = wr->c.pp;
   struct proxy_participant *proxypp = prd->c.proxypp;
@@ -2380,7 +2386,7 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
   {
     /* Generate writer crypto info. */
     match->crypto_handle = sc->crypto_context->crypto_key_factory->register_matched_remote_datareader(
-        sc->crypto_context->crypto_key_factory, wr->sec_attr->crypto_handle, proxypp->sec_attr->crypto_handle, pm->shared_secret, false, &exception);
+        sc->crypto_context->crypto_key_factory, wr->sec_attr->crypto_handle, proxypp->sec_attr->crypto_handle, pm->shared_secret, relay_only, &exception);
 
     *crypto_handle = match->crypto_handle;
 
@@ -2421,7 +2427,7 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
   return match->matched;
 }
 
-bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_reader *prd, int64_t *crypto_handle)
+bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_reader *prd, bool relay_only, int64_t *crypto_handle)
 {
   struct ddsi_domaingv *gv = wr->e.gv;
   nn_security_info_t info;
@@ -2474,7 +2480,7 @@ bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_
     prd->security_info.plugin_security_attributes = info.plugin_security_attributes;
   }
 
-  return q_omg_security_register_remote_reader_match(prd, wr, crypto_handle);
+  return q_omg_security_register_remote_reader_match(prd, wr, crypto_handle, relay_only);
 }
 
 void q_omg_security_set_remote_writer_crypto_tokens(struct reader *rd, const ddsi_guid_t *pwr_guid, const nn_dataholderseq_t *tokens)
@@ -3673,7 +3679,7 @@ extern inline bool q_omg_proxy_participant_is_secure(UNUSED_ARG(const struct pro
 extern inline unsigned determine_subscription_writer(UNUSED_ARG(const struct reader *rd));
 
 extern inline bool q_omg_security_match_remote_writer_enabled(UNUSED_ARG(struct reader *rd), UNUSED_ARG(struct proxy_writer *pwr), UNUSED_ARG(int64_t *crypto_handle));
-extern inline bool q_omg_security_match_remote_reader_enabled(UNUSED_ARG(struct writer *wr), UNUSED_ARG(struct proxy_reader *prd), UNUSED_ARG(int64_t *crypto_handle));
+extern inline bool q_omg_security_match_remote_reader_enabled(UNUSED_ARG(struct writer *wr), UNUSED_ARG(struct proxy_reader *prd), UNUSED_ARG(bool relay_only), UNUSED_ARG(int64_t *crypto_handle));
 
 extern inline bool q_omg_writer_is_discovery_protected(UNUSED_ARG(const struct writer *wr));
 extern inline bool q_omg_writer_is_submessage_protected(UNUSED_ARG(const struct writer *wr));
@@ -3683,7 +3689,7 @@ extern inline void q_omg_get_proxy_writer_security_info(UNUSED_ARG(struct proxy_
 extern inline bool q_omg_security_check_remote_writer_permissions(UNUSED_ARG(const struct proxy_writer *pwr), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp));
 extern inline void q_omg_security_deregister_remote_writer_match(UNUSED_ARG(const struct proxy_writer *pwr), UNUSED_ARG(const struct reader *rd), UNUSED_ARG(struct rd_pwr_match *match));
 extern inline void q_omg_get_proxy_reader_security_info(UNUSED_ARG(struct proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(nn_security_info_t *info));
-extern inline bool q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *par));
+extern inline bool q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *par), UNUSED_ARG(bool *relay_only));
 extern inline void q_omg_security_deregister_remote_reader_match(UNUSED_ARG(const struct proxy_reader *prd), UNUSED_ARG(const struct writer *wr), UNUSED_ARG(struct wr_prd_match *match));
 
 extern inline unsigned determine_publication_writer(UNUSED_ARG(const struct writer *wr));

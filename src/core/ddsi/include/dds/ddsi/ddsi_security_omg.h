@@ -768,15 +768,17 @@ bool q_omg_reader_is_submessage_protected(const struct reader *rd);
  * This function will check with the access control plugin if the remote reader
  * is allowed to communicate with this participant.
  *
- * @param[in] prd       The remote reader.
- * @param[in] domain_id The domain id.
- * @param[in] pp        The local participant.
+ * @param[in] prd         The remote reader.
+ * @param[in] domain_id   The domain id.
+ * @param[in] pp          The local participant.
+ * @param[out] relay_only The "relay_only" value returned by the access control
+ *                        operation check_remote_datareader()
  *
  * @returns bool
  * @retval true   The remote reader is allowed to communicate.
- * @retval false  Otherwise.
+ * @retval false  Otherwise; relay_only is unspecified.
  */
-bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *prd, uint32_t domain_id, struct participant *pp);
+bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *prd, uint32_t domain_id, struct participant *pp, bool *relay_only);
 
 /**
  * @brief Check it the local writer is allowed to communicate with the remote reader.
@@ -793,13 +795,15 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
  *
  * @param[in] wr              The local writer.
  * @param[in] prd             The remote reader.
+ * @param[in] relay_only      The "relay_only" returned by access control
+ *                            operation check_remote_datareader()
  * @param[out] crypto_handle  The crypto handle associated with the match.
  *
  * @returns bool
  * @retval true   The local writer and remote reader are allowed to communicate.
  * @retval false  Otherwise.
  */
-bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_reader *prd, int64_t *crypto_handle);
+bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_reader *prd, bool relay_only, int64_t *crypto_handle);
 
 /**
  * @brief Release the security information associated with the match between a writer and
@@ -1226,7 +1230,7 @@ inline bool q_omg_security_match_remote_writer_enabled(UNUSED_ARG(struct reader 
   return true;
 }
 
-inline bool q_omg_security_match_remote_reader_enabled(UNUSED_ARG(struct writer *wr), UNUSED_ARG(struct proxy_reader *prd), UNUSED_ARG(int64_t *crypto_handle))
+inline bool q_omg_security_match_remote_reader_enabled(UNUSED_ARG(struct writer *wr), UNUSED_ARG(struct proxy_reader *prd), UNUSED_ARG(bool relay_only), UNUSED_ARG(int64_t *crypto_handle))
 {
   return true;
 }
@@ -1274,7 +1278,7 @@ inline bool q_omg_reader_is_submessage_protected(UNUSED_ARG(const struct reader 
 }
 
 
-inline bool q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp))
+inline bool q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp), UNUSED_ARG(bool *relay_only))
 {
   return true;
 }
