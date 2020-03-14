@@ -1956,7 +1956,7 @@ bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *p
   {
     DDS_Security_PermissionsHandle permissions_handle;
 
-    if ((permissions_handle = get_permissions_handle(pp, pwr->c.proxypp)) != 0)
+    if ((permissions_handle = get_permissions_handle(pp, pwr->c.proxypp)) == 0)
     {
       GVTRACE("Secure remote writer "PGUIDFMT" proxypp does not have permissions handle yet\n", PGUID(pwr->e.guid));
       return false;
@@ -2180,7 +2180,7 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
   {
     DDS_Security_PermissionsHandle permissions_handle;
 
-    if ((permissions_handle = get_permissions_handle(pp, prd->c.proxypp)) != 0)
+    if ((permissions_handle = get_permissions_handle(pp, prd->c.proxypp)) == 0)
     {
       GVTRACE("Secure remote reader "PGUIDFMT" proxypp does not have permissions handle yet\n", PGUID(prd->e.guid));
       return false;
