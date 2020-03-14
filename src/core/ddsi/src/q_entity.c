@@ -2767,6 +2767,7 @@ static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_re
   const int isb1 = (is_builtin_entityid (prd->e.guid.entityid, prd->c.vendor) != 0);
   dds_qos_policy_id_t reason;
   int64_t crypto_handle;
+  bool relay_only;
 
   DDSRT_UNUSED_ARG(tnow);
   if (isb0 != isb1)
@@ -2779,12 +2780,12 @@ static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_re
     return;
   }
 
-  if (!q_omg_security_check_remote_reader_permissions (prd, wr->e.gv->config.domainId, wr->c.pp))
+  if (!q_omg_security_check_remote_reader_permissions (prd, wr->e.gv->config.domainId, wr->c.pp, &relay_only))
   {
     EELOGDISC (&wr->e, "connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") not allowed by security\n",
                    PGUID (wr->e.guid), PGUID (prd->e.guid));
   }
-  else if (!q_omg_security_match_remote_reader_enabled (wr, prd, &crypto_handle))
+  else if (!q_omg_security_match_remote_reader_enabled (wr, prd, relay_only, &crypto_handle))
   {
     EELOGDISC (&wr->e, "connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") waiting for approval by security\n",
                      PGUID (wr->e.guid), PGUID (prd->e.guid));
