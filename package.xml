@@ -12,9 +12,14 @@
     <url type="repository">https://github.com/eclipse-cyclonedds/cyclonedds</url>
 
     <buildtool_depend>cmake</buildtool_depend>
+
     <depend>openssl</depend>
     <test_depend>libcunit-dev</test_depend>
+
+    <doc_depend>perl</doc_depend>
+    <doc_depend>python3-breathe</doc_depend>
     <doc_depend>python3-sphinx</doc_depend>
+    <doc_depend>trang</doc_depend>
 
     <export>
         <build_type>cmake</build_type>
