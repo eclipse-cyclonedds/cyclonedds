@@ -747,7 +747,7 @@ Boolean
 Ack a sample only when it has been delivered, instead of when committed
 to delivering it.
 
-The default value is: "false".
+The default value is: "true".
 
 
 #### //CycloneDDS/Domain/Internal/LeaseDuration

@@ -557,7 +557,7 @@ static const struct cfgelem internal_cfgelems[] = {
     BLURB("<p>This element controls whether DDSI2E advertises all the domain participants it serves in DDSI (when set to <i>false</i>), or rather only one domain participant (the one corresponding to the DDSI2E process; when set to <i>true</i>). In the latter case DDSI2E becomes the virtual owner of all readers and writers of all domain participants, dramatically reducing discovery traffic (a similar effect can be obtained by setting Internal/BuiltinEndpointSet to \"minimal\" but with less loss of information).</p>") },
   { LEAF("SPDPResponseMaxDelay"), 1, "0 ms", ABSOFF(spdp_response_delay_max), 0, uf_duration_ms_1s, 0, pf_duration,
     BLURB("<p>Maximum pseudo-random delay in milliseconds between discovering a remote participant and responding to it.</p>") },
-  { LEAF("LateAckMode"), 1, "false", ABSOFF(late_ack_mode), 0, uf_boolean, 0, pf_boolean,
+  { LEAF("LateAckMode"), 1, "true", ABSOFF(late_ack_mode), 0, uf_boolean, 0, pf_boolean,
     BLURB("<p>Ack a sample only when it has been delivered, instead of when committed to delivering it.</p>") },
   { LEAF("RetryOnRejectBestEffort"), 1, "false", ABSOFF(retry_on_reject_besteffort), 0, uf_boolean, 0, pf_boolean,
     BLURB("<p>Whether or not to locally retry pushing a received best-effort sample into the reader caches when resource limits are reached.</p>") },

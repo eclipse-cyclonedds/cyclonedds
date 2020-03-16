@@ -609,7 +609,7 @@ day.</p><p>The default value is: &quot;20 ms&quot;.</p>""" ] ]
         & [ a:documentation [ xml:lang="en" """
 <p>Ack a sample only when it has been delivered, instead of when
 committed to delivering it.</p><p>The default value is:
-&quot;false&quot;.</p>""" ] ]
+&quot;true&quot;.</p>""" ] ]
         element LateAckMode {
           xsd:boolean
         }?
