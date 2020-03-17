@@ -106,6 +106,8 @@ extern "C" {
 #define DDS_SECURITY_ERR_URI_TYPE_NOT_SUPPORTED_MESSAGE "Unsupported URI type: %s"
 #define DDS_SECURITY_ERR_INVALID_CRYPTO_DATA_NOT_ALIGNED_CODE 151
 #define DDS_SECURITY_ERR_INVALID_CRYPTO_DATA_NOT_ALIGNED_MESSAGE "The payload is not aligned at 4 bytes"
+#define DDS_SECURITY_ERR_TRUSTED_CA_DIR_MAX_EXCEEDED_CODE 152
+#define DDS_SECURITY_ERR_TRUSTED_CA_DIR_MAX_EXCEEDED_MESSAGE "Cannot open trusted CA directory: maximum number of CA directories (%d) exceeded"
 
 #define DDS_SECURITY_ERR_UNDEFINED_CODE 200
 #define DDS_SECURITY_ERR_UNDEFINED_MESSAGE "Undefined Error Message"

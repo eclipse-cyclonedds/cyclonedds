@@ -793,6 +793,8 @@ dds_security_api_err.h header file contains the code and message constants.
 +-------+----------------------------------------------------------------+
 | 151   | The payload is not aligned at 4 bytes                          |
 +-------+----------------------------------------------------------------+
+| 152   | Cannot open trusted CA directory: maximum number exceeded      |
++-------+----------------------------------------------------------------+
 | 200   | Undefined Error Message                                        |
 +-------+----------------------------------------------------------------+
 

@@ -919,38 +919,41 @@ DDS_Security_ValidationResult_t get_trusted_ca_list(const char *trusted_ca_dir, 
 
   char *fpath, *fname;
   X509 *ca;
-  while (ddsrt_readdir(d_descr, &d_entry) == DDS_RETCODE_OK)
+  bool failed = false;
+  while (!failed && ddsrt_readdir(d_descr, &d_entry) == DDS_RETCODE_OK)
   {
     ddsrt_asprintf(&fpath, "%s%s%s", trusted_ca_dir, ddsrt_file_sep(), d_entry.d_name);
     if (ddsrt_stat(fpath, &status) == DDS_RETCODE_OK
       && strcmp(d_entry.d_name, ".") != 0 && strcmp(d_entry.d_name, "..") != 0
       && (fname = ddsrt_file_normalize(fpath)) != NULL)
     {
-      if (load_X509_certificate_from_file(fname, &ca, ex) == DDS_SECURITY_VALIDATION_OK)
+      if (ca_cnt >= MAX_TRUSTED_CA)
+      {
+        DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_TRUSTED_CA_DIR_MAX_EXCEEDED_CODE, 0, DDS_SECURITY_ERR_TRUSTED_CA_DIR_MAX_EXCEEDED_MESSAGE, MAX_TRUSTED_CA);
+        failed = true;
+      }
+      else if (load_X509_certificate_from_file(fname, &ca, ex) == DDS_SECURITY_VALIDATION_OK)
         ca_buf[ca_cnt++] = ca;
       else
         DDS_Security_Exception_reset(ex);
       ddsrt_free(fname);
     }
     ddsrt_free(fpath);
-    if (ca_cnt >= MAX_TRUSTED_CA)
-    {
-      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_TRUSTED_CA_DIR_CODE, 0, DDS_SECURITY_ERR_INVALID_TRUSTED_CA_DIR_MESSAGE);
-      ddsrt_closedir(d_descr);
-      return DDS_SECURITY_VALIDATION_FAILED;
-    }
   }
-
   ddsrt_closedir(d_descr);
-  free_ca_list_contents(ca_list);
-  if (ca_cnt > 0)
+
+  if (!failed)
   {
-    ca_list->buffer = ddsrt_malloc(ca_cnt * sizeof(X509 *));
-    for (unsigned i = 0; i < ca_cnt; ++i)
-      ca_list->buffer[i] = ca_buf[i];
+    free_ca_list_contents(ca_list);
+    if (ca_cnt > 0)
+    {
+      ca_list->buffer = ddsrt_malloc(ca_cnt * sizeof(X509 *));
+      for (unsigned i = 0; i < ca_cnt; ++i)
+        ca_list->buffer[i] = ca_buf[i];
+    }
+    ca_list->length = ca_cnt;
   }
-  ca_list->length = ca_cnt;
-  return DDS_SECURITY_VALIDATION_OK;
+  return failed ? DDS_SECURITY_VALIDATION_FAILED : DDS_SECURITY_VALIDATION_OK;
 }
 
 DDS_Security_ValidationResult_t create_asymmetrical_signature(EVP_PKEY *pkey, const unsigned char *data, const size_t dataLen,
