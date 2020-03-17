@@ -151,13 +151,12 @@ static DDS_Security_ValidationResult_t check_key_type_and_size(EVP_PKEY *key, in
     }
     if (isPrivate)
     {
-      RSA *rsaKey = EVP_PKEY_get1_RSA(key);
+      RSA *rsaKey = EVP_PKEY_get0_RSA(key);
       if (rsaKey && RSA_check_key(rsaKey) != 1)
       {
         DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "RSA key not correct : ");
         return DDS_SECURITY_VALIDATION_FAILED;
       }
-      RSA_free(rsaKey);
     }
     return DDS_SECURITY_VALIDATION_OK;
 
@@ -167,13 +166,12 @@ static DDS_Security_ValidationResult_t check_key_type_and_size(EVP_PKEY *key, in
       DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "EC %s has unsupported key size (%d)", sub, EVP_PKEY_bits(key));
       return DDS_SECURITY_VALIDATION_FAILED;
     }
-    EC_KEY *ecKey = EVP_PKEY_get1_EC_KEY(key);
+    EC_KEY *ecKey = EVP_PKEY_get0_EC_KEY(key);
     if (ecKey && EC_KEY_check_key(ecKey) != 1)
     {
       DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "EC key not correct : ");
       return DDS_SECURITY_VALIDATION_FAILED;
     }
-    EC_KEY_free(ecKey);
     return DDS_SECURITY_VALIDATION_OK;
 
   default:
@@ -230,15 +228,15 @@ DDS_Security_ValidationResult_t load_X509_certificate_from_data(const char *data
     BIO_free(bio);
     return DDS_SECURITY_VALIDATION_FAILED;
   }
+  BIO_free(bio);
+
   if (get_authentication_algo_kind(*x509Cert) == AUTH_ALGO_KIND_UNKNOWN)
   {
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CERT_AUTH_ALGO_KIND_UNKNOWN_CODE, DDS_SECURITY_VALIDATION_FAILED, DDS_SECURITY_ERR_CERT_AUTH_ALGO_KIND_UNKNOWN_MESSAGE);
     X509_free(*x509Cert);
-    BIO_free(bio);
     return DDS_SECURITY_VALIDATION_FAILED;
   }
 
-  BIO_free(bio);
   return DDS_SECURITY_VALIDATION_OK;
 }
 
@@ -262,15 +260,15 @@ DDS_Security_ValidationResult_t load_X509_certificate_from_file(const char *file
     (void)fclose(file_ptr);
     return DDS_SECURITY_VALIDATION_FAILED;
   }
+  (void)fclose(file_ptr);
+
   if (get_authentication_algo_kind(*x509Cert) == AUTH_ALGO_KIND_UNKNOWN)
   {
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CERT_AUTH_ALGO_KIND_UNKNOWN_CODE, DDS_SECURITY_VALIDATION_FAILED, DDS_SECURITY_ERR_CERT_AUTH_ALGO_KIND_UNKNOWN_MESSAGE);
     X509_free(*x509Cert);
-    (void)fclose(file_ptr);
     return DDS_SECURITY_VALIDATION_FAILED;
   }
 
-  (void)fclose(file_ptr);
   return DDS_SECURITY_VALIDATION_OK;
 }
 
@@ -327,32 +325,26 @@ static DDS_Security_ValidationResult_t load_private_key_from_file(const char *fi
  */
 AuthConfItemPrefix_t get_conf_item_type(const char *str, char **data)
 {
-  const char *pf_f = "file:", *pf_d = "data:,", *pf_p = "pkcs11:";
-  size_t len_pf_f = strlen(pf_f);
-  size_t len_pf_d = strlen(pf_d);
-  size_t len_pf_p = strlen(pf_p);
-  char *ptr;
+  const char *f = "file:", *d = "data:,", *p = "pkcs11:";
+  size_t sf = strlen(f), sd = strlen(d), sp = strlen(p);
   assert(str);
   assert(data);
 
-  ptr = ddssec_strchrs(str, " \t", false);
-
-  if (strncmp(ptr, pf_f, len_pf_f) == 0)
+  char *ptr = ddssec_strchrs(str, " \t", false);
+  if (strncmp(ptr, f, sf) == 0)
   {
-    if (strncmp(&(ptr[len_pf_f]), "//", 2) == 0)
-      *data = ddsrt_strdup(&(ptr[len_pf_f + 2]));
-    else
-      *data = ddsrt_strdup(&(ptr[len_pf_f]));
+    size_t e = strncmp(ptr + sf, "//", 2) == 0 ? 2 : 0;
+    *data = ddsrt_strdup(ptr + sf + e);
     return AUTH_CONF_ITEM_PREFIX_FILE;
   }
-  if (strncmp(ptr, pf_d, len_pf_d) == 0)
+  if (strncmp(ptr, d, sd) == 0)
   {
-    *data = ddsrt_strdup(&(ptr[len_pf_d]));
+    *data = ddsrt_strdup(ptr + sd);
     return AUTH_CONF_ITEM_PREFIX_DATA;
   }
-  if (strncmp(ptr, pf_p, len_pf_p) == 0)
+  if (strncmp(ptr, p, sp) == 0)
   {
-    *data = ddsrt_strdup(&(ptr[len_pf_p]));
+    *data = ddsrt_strdup(ptr + sp);
     return AUTH_CONF_ITEM_PREFIX_PKCS11;
   }
 
@@ -423,15 +415,20 @@ DDS_Security_ValidationResult_t load_X509_private_key(const char *data, const ch
   }
   ddsrt_free(contents);
 
-  if (result == DDS_SECURITY_VALIDATION_OK && ((result = check_key_type_and_size(*privateKey, true, ex)) != DDS_SECURITY_VALIDATION_OK))
-    EVP_PKEY_free(*privateKey);
+  if (result == DDS_SECURITY_VALIDATION_OK)
+  {
+    if (check_key_type_and_size(*privateKey, true, ex) != DDS_SECURITY_VALIDATION_OK)
+    {
+      result = DDS_SECURITY_VALIDATION_FAILED;
+      EVP_PKEY_free(*privateKey);
+    }
+  }
 
   return result;
 }
 
 DDS_Security_ValidationResult_t verify_certificate(X509 *identityCert, X509 *identityCa, DDS_Security_SecurityException *ex)
 {
-  DDS_Security_ValidationResult_t result = DDS_SECURITY_VALIDATION_OK;
   X509_STORE_CTX *ctx;
   X509_STORE *store;
   assert(identityCert);
@@ -442,34 +439,35 @@ DDS_Security_ValidationResult_t verify_certificate(X509 *identityCert, X509 *ide
 
   if (!(store = X509_STORE_new()))
   {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "X509_STORE_new failed : ");
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "X509_STORE_new failed : ");
     goto err_store_new;
   }
   if (X509_STORE_add_cert(store, identityCa) != 1)
   {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "X509_STORE_add_cert failed : ");
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "X509_STORE_add_cert failed : ");
     goto err_add_cert;
   }
   if (!(ctx = X509_STORE_CTX_new()))
   {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "X509_STORE_CTX_new failed : ");
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "X509_STORE_CTX_new failed : ");
     goto err_ctx_new;
   }
   if (X509_STORE_CTX_init(ctx, store, identityCert, NULL) != 1)
   {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "X509_STORE_CTX_init failed : ");
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "X509_STORE_CTX_init failed : ");
     goto err_ctx_init;
   }
-  int r = X509_verify_cert(ctx);
-  if (r != 1)
+  if (X509_verify_cert(ctx) != 1)
   {
     const char *msg = X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx));
-    char *subject = NULL;
-    result = DDS_SECURITY_VALIDATION_FAILED;
-    subject = get_certificate_subject_name(identityCert, NULL);
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "Certificate not valid: error: %s; subject: %s", msg, subject ? subject : "[not found]");
+    char *subject = get_certificate_subject_name(identityCert, NULL);
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Certificate not valid: error: %s; subject: %s", msg, subject ? subject : "[not found]");
     ddsrt_free(subject);
+    goto err_ctx_init;
   }
+  X509_STORE_CTX_free(ctx);
+  X509_STORE_free(store);
+  return DDS_SECURITY_VALIDATION_OK;
 
 err_ctx_init:
   X509_STORE_CTX_free(ctx);
@@ -477,7 +475,7 @@ err_ctx_new:
 err_add_cert:
   X509_STORE_free(store);
 err_store_new:
-  return result;
+  return DDS_SECURITY_VALIDATION_FAILED;
 }
 
 AuthenticationAlgoKind_t get_authentication_algo_kind(X509 *cert)
@@ -552,7 +550,7 @@ static DDS_Security_ValidationResult_t get_rsa_dh_parameters(EVP_PKEY **params, 
   if ((dh = DH_get_2048_256()) == NULL)
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to allocate DH parameter using DH_get_2048_256: ");
-    DH_free(dh);
+    EVP_PKEY_free(*params);
     return DDS_SECURITY_VALIDATION_FAILED;
   }
   if (EVP_PKEY_set1_DH(*params, dh) <= 0)
@@ -700,7 +698,7 @@ static DDS_Security_ValidationResult_t dh_public_key_to_oct_ecdh(EVP_PKEY *pkey,
   if (!(eckey = EVP_PKEY_get1_EC_KEY(pkey)))
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to get EC key from PKEY: ");
-    goto failed;
+    goto failed_key;
   }
   if (!(point = EC_KEY_get0_public_key(eckey)))
   {
@@ -729,6 +727,7 @@ static DDS_Security_ValidationResult_t dh_public_key_to_oct_ecdh(EVP_PKEY *pkey,
 
 failed:
   EC_KEY_free(eckey);
+failed_key:
   return DDS_SECURITY_VALIDATION_FAILED;
 }
 
@@ -823,13 +822,13 @@ static DDS_Security_ValidationResult_t dh_oct_to_public_key_ecdh(EVP_PKEY **pkey
   }
   if (EC_KEY_set_group(eckey, group) != 1)
   {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to convert octet sequence to ASN1 integer: ");
-    goto fail_eckey_set_group;
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to set EC group: ");
+    goto fail_eckey_set;
   }
   if (EC_KEY_set_public_key(eckey, point) != 1)
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to set EC public key: ");
-    goto fail_eckey_set_pubkey;
+    goto fail_eckey_set;
   }
   if (!(*pkey = EVP_PKEY_new()))
   {
@@ -849,8 +848,7 @@ static DDS_Security_ValidationResult_t dh_oct_to_public_key_ecdh(EVP_PKEY **pkey
 fail_pkey_set_eckey:
   EVP_PKEY_free(*pkey);
 fail_alloc_pkey:
-fail_eckey_set_pubkey:
-fail_eckey_set_group:
+fail_eckey_set:
   EC_KEY_free(eckey);
 fail_alloc_eckey:
 fail_oct2point:
@@ -905,60 +903,53 @@ void free_ca_list_contents(X509Seq *ca_list)
 
 DDS_Security_ValidationResult_t get_trusted_ca_list(const char *trusted_ca_dir, X509Seq *ca_list, DDS_Security_SecurityException *ex)
 {
-  dds_return_t ret;
   ddsrt_dir_handle_t d_descr;
   struct ddsrt_dirent d_entry;
   struct ddsrt_stat status;
-  char *trusted_ca_dir_normalized;
-
-  X509 *ca_buffer_array[MAX_TRUSTED_CA];
-  unsigned ca_buffer_array_size = 0;
-  trusted_ca_dir_normalized = ddsrt_file_normalize(trusted_ca_dir);
-
-  ret = ddsrt_opendir(trusted_ca_dir_normalized, &d_descr);
-  ddsrt_free(trusted_ca_dir_normalized);
-  if (ret != DDS_RETCODE_OK || ca_buffer_array_size >= MAX_TRUSTED_CA)
+  X509 *ca_buf[MAX_TRUSTED_CA];
+  unsigned ca_cnt = 0;
+  char *tca_dir_norm = ddsrt_file_normalize(trusted_ca_dir);
+  dds_return_t ret = ddsrt_opendir(tca_dir_norm, &d_descr);
+  ddsrt_free(tca_dir_norm);
+  if (ret != DDS_RETCODE_OK)
   {
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_TRUSTED_CA_DIR_CODE, 0, DDS_SECURITY_ERR_INVALID_TRUSTED_CA_DIR_MESSAGE);
     return DDS_SECURITY_VALIDATION_FAILED;
   }
 
-  while ((ret = ddsrt_readdir(d_descr, &d_entry)) == DDS_RETCODE_OK)
+  char *fpath, *fname;
+  X509 *ca;
+  while (ddsrt_readdir(d_descr, &d_entry) == DDS_RETCODE_OK)
   {
-    char *full_file_path;
-    ddsrt_asprintf(&full_file_path, "%s%s%s", trusted_ca_dir, ddsrt_file_sep(), d_entry.d_name);
-    if (ddsrt_stat(full_file_path, &status) == DDS_RETCODE_OK)
+    ddsrt_asprintf(&fpath, "%s%s%s", trusted_ca_dir, ddsrt_file_sep(), d_entry.d_name);
+    if (ddsrt_stat(fpath, &status) == DDS_RETCODE_OK
+      && strcmp(d_entry.d_name, ".") != 0 && strcmp(d_entry.d_name, "..") != 0
+      && (fname = ddsrt_file_normalize(fpath)) != NULL)
     {
-      if (strcmp(d_entry.d_name, ".") != 0 && strcmp(d_entry.d_name, "..") != 0)
-      {
-        char *filename = ddsrt_file_normalize(full_file_path);
-        if (filename)
-        {
-          X509 *identityCA;
-          if (load_X509_certificate_from_file(filename, &identityCA, ex) == DDS_SECURITY_VALIDATION_OK)
-          {
-            ca_buffer_array[ca_buffer_array_size] = identityCA;
-            ca_buffer_array_size++;
-          }
-          else
-            DDS_Security_Exception_reset(ex);
-          ddsrt_free(filename);
-        }
-      }
+      if (load_X509_certificate_from_file(fname, &ca, ex) == DDS_SECURITY_VALIDATION_OK)
+        ca_buf[ca_cnt++] = ca;
+      else
+        DDS_Security_Exception_reset(ex);
+      ddsrt_free(fname);
     }
-    ddsrt_free(full_file_path);
+    ddsrt_free(fpath);
+    if (ca_cnt >= MAX_TRUSTED_CA)
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_TRUSTED_CA_DIR_CODE, 0, DDS_SECURITY_ERR_INVALID_TRUSTED_CA_DIR_MESSAGE);
+      ddsrt_closedir(d_descr);
+      return DDS_SECURITY_VALIDATION_FAILED;
+    }
   }
 
   ddsrt_closedir(d_descr);
   free_ca_list_contents(ca_list);
-
-  if (ca_buffer_array_size > 0)
+  if (ca_cnt > 0)
   {
-    ca_list->buffer = ddsrt_malloc(ca_buffer_array_size * sizeof(X509 *));
-    for (unsigned i = 0; i < ca_buffer_array_size; ++i)
-      ca_list->buffer[i] = ca_buffer_array[i];
+    ca_list->buffer = ddsrt_malloc(ca_cnt * sizeof(X509 *));
+    for (unsigned i = 0; i < ca_cnt; ++i)
+      ca_list->buffer[i] = ca_buf[i];
   }
-  ca_list->length = ca_buffer_array_size;
+  ca_list->length = ca_cnt;
   return DDS_SECURITY_VALIDATION_OK;
 }
 
