@@ -36,8 +36,10 @@ build_script:
   - mkdir build
   - cd build
   - conan install -s arch=%ARCH% -s build_type=%CONFIGURATION% ..
-  - cmake -DBUILD_TESTING=on -DWERROR=ON -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DCMAKE_INSTALL_PREFIX=%CD%/install -G "%GENERATOR%" ..
+  - cmake -DBUILD_TESTING=on -DBUILD_DOCS=ON -DWERROR=ON -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DCMAKE_INSTALL_PREFIX=%CD%/install -G "%GENERATOR%" ..
   - cmake --build . --config %CONFIGURATION% --target install -- /nologo /verbosity:minimal /maxcpucount /p:CL_MPCount=2
+  - cd ..
+  - git diff --exit-code # check that no files (e.g. generated schemas) are changed
   - cd install/share/CycloneDDS/examples/helloworld
   - mkdir build
   - cd build

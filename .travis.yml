@@ -202,6 +202,7 @@ script:
           -DENABLE_LIFESPAN=${LIFESPAN}
           -DENABLE_DEADLINE_MISSED=${DEADLINE}
           -DBUILD_TESTING=on
+          -DBUILD_DOCS=ON
           -DWERROR=on
           -G "${GENERATOR}" ..
   - case "${GENERATOR}" in
@@ -224,6 +225,7 @@ script:
       CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
     fi
   - cd ..
+  - git diff --exit-code # check that no files (e.g. generated schemas) are changed
   - mkdir helloworld_build
   - cd helloworld_build
   - cmake -DCMAKE_PREFIX_PATH=${INSTALLPREFIX}
