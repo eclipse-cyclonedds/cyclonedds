@@ -956,94 +956,70 @@ DDS_Security_ValidationResult_t get_trusted_ca_list(const char *trusted_ca_dir, 
   return failed ? DDS_SECURITY_VALIDATION_FAILED : DDS_SECURITY_VALIDATION_OK;
 }
 
-DDS_Security_ValidationResult_t create_asymmetrical_signature(EVP_PKEY *pkey, const unsigned char *data, const size_t dataLen,
+
+static DDS_Security_ValidationResult_t create_validate_asymmetrical_signature_impl(bool create, EVP_PKEY *pkey, const unsigned char *data, const size_t dataLen,
     unsigned char **signature, size_t *signatureLen, DDS_Security_SecurityException *ex)
 {
   EVP_MD_CTX *mdctx = NULL;
   EVP_PKEY_CTX *kctx = NULL;
-
   if (!(mdctx = EVP_MD_CTX_create()))
   {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to create signing context: ");
-    goto err_create_ctx;
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to create digest context: ");
+    return DDS_SECURITY_VALIDATION_FAILED;
   }
-  if (EVP_DigestSignInit(mdctx, &kctx, EVP_sha256(), NULL, pkey) != 1)
+  if ((create ? EVP_DigestSignInit(mdctx, &kctx, EVP_sha256(), NULL, pkey) : EVP_DigestVerifyInit(mdctx, &kctx, EVP_sha256(), NULL, pkey)) != 1)
   {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to initialize signing context: ");
-    goto err_sign;
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to initialize digest context: ");
+    return DDS_SECURITY_VALIDATION_FAILED;
   }
   if (EVP_PKEY_id(pkey) == EVP_PKEY_RSA)
   {
     if (EVP_PKEY_CTX_set_rsa_padding(kctx, RSA_PKCS1_PSS_PADDING) < 1)
     {
-      DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to initialize signing context: ");
-      goto err_sign;
+      DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to initialize digest context: ");
+      goto err;
     }
   }
-  if (EVP_DigestSignUpdate(mdctx, data, dataLen) != 1)
+  if ((create ? EVP_DigestSignUpdate(mdctx, data, dataLen) : EVP_DigestVerifyUpdate(mdctx, data, dataLen)) != 1)
   {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to update signing context: ");
-    goto err_sign;
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to update digest context: ");
+    goto err;
   }
-  if (EVP_DigestSignFinal(mdctx, NULL, signatureLen) != 1)
+  if (create)
   {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to finalize signing context: ");
-    goto err_sign;
+    if (EVP_DigestSignFinal(mdctx, NULL, signatureLen) != 1)
+    {
+      DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to finalize digest context: ");
+      goto err;
+    }
+    *signature = ddsrt_malloc(sizeof(unsigned char) * (*signatureLen));
   }
-  *signature = ddsrt_malloc(sizeof(unsigned char) * (*signatureLen));
-  if (EVP_DigestSignFinal(mdctx, *signature, signatureLen) != 1)
+  if ((create ? EVP_DigestSignFinal(mdctx, *signature, signatureLen) : EVP_DigestVerifyFinal(mdctx, *signature, *signatureLen)) != 1)
   {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to finalize signing context: ");
-    ddsrt_free(*signature);
-    goto err_sign;
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to finalize digest context: ");
+    if (create)
+      ddsrt_free(*signature);
+    goto err;
   }
   EVP_MD_CTX_destroy(mdctx);
   return DDS_SECURITY_VALIDATION_OK;
 
-err_sign:
+err:
   EVP_MD_CTX_destroy(mdctx);
-err_create_ctx:
   return DDS_SECURITY_VALIDATION_FAILED;
 }
 
-DDS_Security_ValidationResult_t validate_asymmetrical_signature(EVP_PKEY *pkey, const unsigned char *data, const size_t dataLen,
-    const unsigned char *signature, const size_t signatureLen, DDS_Security_SecurityException *ex)
-{
-  EVP_MD_CTX *mdctx = NULL;
-  EVP_PKEY_CTX *kctx = NULL;
-  if (!(mdctx = EVP_MD_CTX_create()))
-  {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to create verify context: ");
-    goto err_create_ctx;
-  }
-  if (EVP_DigestVerifyInit(mdctx, &kctx, EVP_sha256(), NULL, pkey) != 1)
-  {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to initialize verify context: ");
-    goto err_verify;
-  }
-  if (EVP_PKEY_id(pkey) == EVP_PKEY_RSA)
-  {
-    if (EVP_PKEY_CTX_set_rsa_padding(kctx, RSA_PKCS1_PSS_PADDING) < 1)
-    {
-      DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to initialize signing context: ");
-      goto err_verify;
-    }
-  }
-  if (EVP_DigestVerifyUpdate(mdctx, data, dataLen) != 1)
-  {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to update verify context: ");
-    goto err_verify;
-  }
-  if (EVP_DigestVerifyFinal(mdctx, signature, signatureLen) != 1)
-  {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to finalize verify context: ");
-    goto err_verify;
-  }
-  EVP_MD_CTX_destroy(mdctx);
-  return DDS_SECURITY_VALIDATION_OK;
 
-err_verify:
-  EVP_MD_CTX_destroy(mdctx);
-err_create_ctx:
-  return DDS_SECURITY_VALIDATION_FAILED;
+DDS_Security_ValidationResult_t create_asymmetrical_signature(EVP_PKEY *pkey, const unsigned char *data, const size_t dataLen,
+    unsigned char **signature, size_t *signatureLen, DDS_Security_SecurityException *ex)
+{
+  return create_validate_asymmetrical_signature_impl(true, pkey, data, dataLen, signature, signatureLen, ex);
+}
+
+DDS_Security_ValidationResult_t validate_asymmetrical_signature(EVP_PKEY *pkey, const unsigned char *data, const size_t dataLen,
+    const unsigned char *signature, size_t signatureLen, DDS_Security_SecurityException *ex)
+{
+  unsigned char *s = (unsigned char *)signature;
+  size_t s_len = signatureLen;
+  return create_validate_asymmetrical_signature_impl(false, pkey, data, dataLen, &s, &s_len, ex);
 }

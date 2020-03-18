@@ -570,40 +570,35 @@ static void get_hash_binary_property_seq(const DDS_Security_BinaryPropertySeq *s
   DDS_Security_Serializer_free(serializer);
 }
 
-static DDS_Security_ValidationResult_t create_signature(EVP_PKEY *pkey, const DDS_Security_BinaryProperty_t **binary_properties,
-    const uint32_t binary_properties_length, unsigned char **signature, size_t *signatureLen, DDS_Security_SecurityException *ex)
+static DDS_Security_ValidationResult_t create_validate_signature_impl(bool create, EVP_PKEY *pkey, const DDS_Security_BinaryProperty_t **bprops,
+    const uint32_t n_bprops, unsigned char **signature, size_t *signature_len, DDS_Security_SecurityException *ex)
 {
   DDS_Security_ValidationResult_t result;
   unsigned char *buffer;
   size_t size;
   DDS_Security_Serializer serializer = DDS_Security_Serializer_new(4096, 4096);
-
-  DDS_Security_Serialize_BinaryPropertyArray(serializer, binary_properties, binary_properties_length);
+  DDS_Security_Serialize_BinaryPropertyArray(serializer, bprops, n_bprops);
   DDS_Security_Serializer_buffer(serializer, &buffer, &size);
-
-  result = create_asymmetrical_signature(pkey, buffer, size, signature, signatureLen, ex);
+  result = create ?
+    create_asymmetrical_signature(pkey, buffer, size, signature, signature_len, ex) :
+    validate_asymmetrical_signature(pkey, buffer, size, *signature, *signature_len, ex);
   ddsrt_free(buffer);
   DDS_Security_Serializer_free(serializer);
-
   return result;
 }
 
-static DDS_Security_ValidationResult_t validate_signature(EVP_PKEY *pkey, const DDS_Security_BinaryProperty_t **properties,
-    const uint32_t properties_length, unsigned char *signature, size_t signatureLen, DDS_Security_SecurityException *ex)
+static DDS_Security_ValidationResult_t create_signature(EVP_PKEY *pkey, const DDS_Security_BinaryProperty_t **bprops,
+    const uint32_t n_bprops, unsigned char **signature, size_t *signature_len, DDS_Security_SecurityException *ex)
 {
-  DDS_Security_ValidationResult_t result;
-  unsigned char *buffer;
-  size_t size;
-  DDS_Security_Serializer serializer = DDS_Security_Serializer_new(4096, 4096);
+  return create_validate_signature_impl(true, pkey, bprops, n_bprops, signature, signature_len, ex);
+}
 
-  DDS_Security_Serialize_BinaryPropertyArray(serializer, properties, properties_length);
-  DDS_Security_Serializer_buffer(serializer, &buffer, &size);
-
-  result = validate_asymmetrical_signature(pkey, buffer, size, signature, signatureLen, ex);
-  ddsrt_free(buffer);
-  DDS_Security_Serializer_free(serializer);
-
-  return result;
+static DDS_Security_ValidationResult_t validate_signature(EVP_PKEY *pkey, const DDS_Security_BinaryProperty_t **bprops,
+    const uint32_t n_bprops, const unsigned char *signature, size_t signature_len, DDS_Security_SecurityException *ex)
+{
+  unsigned char *s = (unsigned char *)signature;
+  size_t s_len = signature_len;
+  return create_validate_signature_impl(false, pkey, bprops, n_bprops, &s, &s_len, ex);
 }
 
 static DDS_Security_ValidationResult_t compute_hash_value(HashValue_t value, const DDS_Security_BinaryProperty_t **properties,
@@ -1089,19 +1084,12 @@ DDS_Security_ValidationResult_t validate_remote_identity(dds_security_authentica
       ddsrt_free(lchallenge);
     }
   }
-
   ddsrt_mutex_unlock(&impl->lock);
 
   if (!remote_auth_request_token)
-  {
-    /* Create local_auth_request_token with contents set to the challenge */
     fill_auth_request_token(local_auth_request_token, relation->lchallenge);
-  }
   else
-  {
-    /* Set local_auth_request token to TokenNil */
     DDS_Security_set_token_nil(local_auth_request_token);
-  }
 
   *remote_identity_handle = IDENTITY_HANDLE(remoteIdent);
   return memcmp(&localIdent->adjustedGUID, &remoteIdent->guid, sizeof(DDS_Security_GUID_t)) < 0 ?
@@ -1285,549 +1273,318 @@ failed_deser:
   return DDS_SECURITY_VALIDATION_FAILED;
 }
 
-static DDS_Security_ValidationResult_t validate_handshake_request_token(const DDS_Security_HandshakeMessageToken *token, HandshakeInfo *handshake, X509Seq *trusted_ca_list, DDS_Security_SecurityException *ex)
+enum handshake_token_type
+{
+  HS_TOKEN_REQ,
+  HS_TOKEN_REPLY,
+  HS_TOKEN_FINAL
+};
+
+static DDS_Security_ValidationResult_t validate_handshake_token(const DDS_Security_HandshakeMessageToken *token, enum handshake_token_type token_type,
+    HandshakeInfo *handshake, EVP_PKEY **pdhkey_reply, X509Seq *trusted_ca_list, DDS_Security_SecurityException *ex)
 {
   IdentityRelation *relation = handshake->relation;
   X509 *identityCert;
-  const DDS_Security_BinaryProperty_t *c_id, *c_perm, *c_pdata, *c_dsign_algo, *c_kagree_algo, *dh1, *challenge, *hash_c1;
-  EVP_PKEY *pdhkey = NULL;
+  const DDS_Security_BinaryProperty_t *c_id, *c_perm, *c_pdata, *c_dsign_algo, *c_kagree_algo, *dh1, *dh2, *hash_c1, *hash_c2, *challenge1, *challenge2, *signature;
+  EVP_PKEY *pdhkey_req = NULL;
   AuthenticationAlgoKind_t dsignAlgoKind, kagreeAlgoKind;
+  const char * token_class_id = NULL;
 
   assert(relation);
 
-  if (!token->class_id || strncmp(AUTH_HANDSHAKE_REQUEST_TOKEN_ID, token->class_id, strlen(AUTH_HANDSHAKE_REQUEST_TOKEN_ID)) != 0)
+  switch (token_type)
   {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken incorrect class_id: %s (expected %s)", token->class_id ? token->class_id : "NULL", AUTH_HANDSHAKE_REQUEST_TOKEN_ID);
-    goto err_inv_class_id;
+    case HS_TOKEN_REQ:
+      token_class_id = AUTH_HANDSHAKE_REQUEST_TOKEN_ID;
+      break;
+    case HS_TOKEN_REPLY:
+      token_class_id = AUTH_HANDSHAKE_REPLY_TOKEN_ID;
+      break;
+    case HS_TOKEN_FINAL:
+      token_class_id = AUTH_HANDSHAKE_FINAL_TOKEN_ID;
+      break;
+    default:
+      assert(false);
   }
 
-  /* Check presents of mandatory properties: c.i, c.perm, c.pdata, c.dsign_algo, c.kagree_algo, dh1, challenge1 */
-  c_id = DDS_Security_DataHolder_find_binary_property(token, "c.id");
-  if (!c_id || c_id->value._length == 0 || c_id->value._buffer == NULL)
+  if (!token->class_id || strncmp(token_class_id, token->class_id, strlen(token_class_id)) != 0)
   {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property c.id missing");
-    goto err_no_c_id;
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken incorrect class_id: %s (expected %s)", token->class_id ? token->class_id : "NULL", token_class_id);
+    goto failed;
   }
 
-  if (load_X509_certificate_from_data((char *)c_id->value._buffer, (int)c_id->value._length, &identityCert, ex) != DDS_SECURITY_VALIDATION_OK)
-    goto err_identity_cert_load;
-
+  if (token_type == HS_TOKEN_REQ || token_type == HS_TOKEN_REPLY)
   {
-    DDS_Security_ValidationResult_t result = DDS_SECURITY_VALIDATION_OK;
-    if (trusted_ca_list->length == 0)
-      result = verify_certificate(identityCert, relation->localIdentity->identityCA, ex);
-    else
+    c_id = DDS_Security_DataHolder_find_binary_property(token, "c.id");
+    if (!c_id || c_id->value._length == 0 || c_id->value._buffer == NULL)
     {
-      DDS_Security_Exception_clean(ex);
-      for (unsigned i = 0; i < trusted_ca_list->length; ++i)
-      {
-        DDS_Security_Exception_reset(ex);
-        if ((result = verify_certificate(identityCert, trusted_ca_list->buffer[i], ex)) == DDS_SECURITY_VALIDATION_OK)
-          break;
-      }
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property c.id missing");
+      goto failed;
     }
-    if (result != DDS_SECURITY_VALIDATION_OK)
-      goto err_inv_identity_cert;
-  }
 
-  if (check_certificate_expiry(identityCert, ex) != DDS_SECURITY_VALIDATION_OK)
-    goto err_inv_identity_cert;
+    if (load_X509_certificate_from_data((char *)c_id->value._buffer, (int)c_id->value._length, &identityCert, ex) != DDS_SECURITY_VALIDATION_OK)
+      goto failed;
 
-  if (!(c_perm = DDS_Security_DataHolder_find_binary_property(token, "c.perm")))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property c.perm missing");
-    goto err_no_c_perm;
-  }
-  if (c_perm->value._length > 0)
-  {
-    ddsrt_free(relation->remoteIdentity->permissionsDocument);
-    relation->remoteIdentity->permissionsDocument = string_from_data(c_perm->value._buffer, c_perm->value._length);
-  }
+    {
+      DDS_Security_ValidationResult_t result = DDS_SECURITY_VALIDATION_OK;
+      if (trusted_ca_list->length == 0)
+        result = verify_certificate(identityCert, relation->localIdentity->identityCA, ex);
+      else
+      {
+        DDS_Security_Exception_clean(ex);
+        for (unsigned i = 0; i < trusted_ca_list->length; ++i)
+        {
+          DDS_Security_Exception_reset(ex);
+          if ((result = verify_certificate(identityCert, trusted_ca_list->buffer[i], ex)) == DDS_SECURITY_VALIDATION_OK)
+            break;
+        }
+      }
+      if (result != DDS_SECURITY_VALIDATION_OK)
+        goto failed_idcert;
+    }
 
-  if (!(c_pdata = DDS_Security_DataHolder_find_binary_property(token, "c.pdata")))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property c.pdata missing");
-    goto err_no_c_pdata;
-  }
-  if (validate_pdata(&c_pdata->value, identityCert, ex) != DDS_SECURITY_VALIDATION_OK)
-    goto err_inv_pdata;
+    if (check_certificate_expiry(identityCert, ex) != DDS_SECURITY_VALIDATION_OK)
+      goto failed_idcert;
 
-  if (!(c_dsign_algo = DDS_Security_DataHolder_find_binary_property(token, "c.dsign_algo")))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property c.dsign_algo missing");
-    goto err_no_c_dsign_algo;
-  }
+    if (!(c_perm = DDS_Security_DataHolder_find_binary_property(token, "c.perm")))
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property c.perm missing");
+      goto failed_idcert;
+    }
+    if (c_perm->value._length > 0)
+    {
+      ddsrt_free(relation->remoteIdentity->permissionsDocument);
+      relation->remoteIdentity->permissionsDocument = string_from_data(c_perm->value._buffer, c_perm->value._length);
+    }
 
-  if ((dsignAlgoKind = get_dsign_algo_from_string((const char *)c_dsign_algo->value._buffer)) == AUTH_ALGO_KIND_UNKNOWN)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property c.dsign_algo not supported");
-    goto err_no_c_dsign_algo;
-  }
+    if (!(c_pdata = DDS_Security_DataHolder_find_binary_property(token, "c.pdata")))
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property c.pdata missing");
+      goto failed_idcert;
+    }
+    if (validate_pdata(&c_pdata->value, identityCert, ex) != DDS_SECURITY_VALIDATION_OK)
+      goto failed_idcert;
 
-  if (!(c_kagree_algo = DDS_Security_DataHolder_find_binary_property(token, "c.kagree_algo")))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property c.kagree_algo missing");
-    goto err_no_c_kagree_algo;
-  }
+    if (!(c_dsign_algo = DDS_Security_DataHolder_find_binary_property(token, "c.dsign_algo")))
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property c.dsign_algo missing");
+      goto failed_idcert;
+    }
 
-  if ((kagreeAlgoKind = get_kagree_algo_from_string((const char *)c_kagree_algo->value._buffer)) == AUTH_ALGO_KIND_UNKNOWN)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property c.kagree_algo not support");
-    goto err_no_c_kagree_algo;
+    if ((dsignAlgoKind = get_dsign_algo_from_string((const char *)c_dsign_algo->value._buffer)) == AUTH_ALGO_KIND_UNKNOWN)
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property c.dsign_algo not supported");
+      goto failed_idcert;
+    }
+
+    if (!(c_kagree_algo = DDS_Security_DataHolder_find_binary_property(token, "c.kagree_algo")))
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property c.kagree_algo missing");
+      goto failed_idcert;
+    }
+
+    if ((kagreeAlgoKind = get_kagree_algo_from_string((const char *)c_kagree_algo->value._buffer)) == AUTH_ALGO_KIND_UNKNOWN)
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property c.kagree_algo not support");
+      goto failed_idcert;
+    }
   }
 
   dh1 = DDS_Security_DataHolder_find_binary_property(token, "dh1");
-  if (!dh1 || dh1->value._length == 0 || dh1->value._buffer == NULL)
+  if (token_type == HS_TOKEN_REQ)
   {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property dh1 missing");
-    goto err_no_dh;
+    if (!dh1 || dh1->value._length == 0 || dh1->value._buffer == NULL)
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property dh1 missing");
+      goto failed_idcert;
+    }
+    if (dh_oct_to_public_key(&pdhkey_req, kagreeAlgoKind, dh1->value._buffer, dh1->value._length, ex) != DDS_SECURITY_VALIDATION_OK)
+      goto failed_idcert;
   }
-  if (dh_oct_to_public_key(&pdhkey, kagreeAlgoKind, dh1->value._buffer, dh1->value._length, ex) != DDS_SECURITY_VALIDATION_OK)
-    goto err_no_dh;
+  if (token_type == HS_TOKEN_REPLY || token_type == HS_TOKEN_FINAL)
+  {
+    dh2 = DDS_Security_DataHolder_find_binary_property(token, "dh2");
+    if (token_type == HS_TOKEN_REPLY &&
+        (!dh2 || dh2->value._length == 0 || dh2->value._buffer == NULL))
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property dh2 missing");
+      goto failed_idcert;
+    }
 
-  if (!(challenge = DDS_Security_DataHolder_find_binary_property(token, "challenge1")))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property challenge1 missing");
-    goto err_no_challenge;
+    signature = DDS_Security_DataHolder_find_binary_property(token, "signature");
+    if (!signature || signature->value._length == 0 || signature->value._buffer == NULL)
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property signature missing");
+      goto failed_idcert;
+    }
   }
-  if (challenge->value._length != sizeof(AuthenticationChallenge) || challenge->value._buffer == NULL)
+  if (token_type == HS_TOKEN_REPLY)
   {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property challenge1 invalid");
-    goto err_no_challenge;
+    *pdhkey_reply = NULL;
+    if (dh_oct_to_public_key(pdhkey_reply, kagreeAlgoKind, dh2->value._buffer, dh2->value._length, ex) != DDS_SECURITY_VALIDATION_OK)
+      goto failed_idcert;
+  }
+  if (!(challenge1 = DDS_Security_DataHolder_find_binary_property(token, "challenge1")))
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge1 missing");
+    goto failed_key;
+  }
+  if (challenge1->value._length != sizeof(AuthenticationChallenge) || challenge1->value._buffer == NULL)
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge1 invalid");
+    goto failed_key;
   }
 
-  /* When validate_remote_identity was provided with a remote_auth_request_token then the future_challenge in the remote identity was set and the challenge1
-     property of the handshake_request_token should be the same as the future_challenge stored in the remote identity. */
+  if (token_type == HS_TOKEN_REPLY || token_type == HS_TOKEN_FINAL)
+  {
+    if (!(challenge2 = DDS_Security_DataHolder_find_binary_property(token, "challenge2")))
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge2 missing");
+      goto failed_key;
+    }
+    if (challenge2->value._length != sizeof(AuthenticationChallenge) || challenge2->value._buffer == NULL)
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge2 invalid");
+      goto failed_key;
+    }
+  }
+
+  /* When validate_remote_identity was provided with a remote_auth_request_token then the future_challenge in the remote identity was set and the challenge(1|2)
+     property of the handshake_(request|reply|final)_token should be the same as the future_challenge stored in the remote identity. */
+  const DDS_Security_BinaryProperty_t *rc = token_type == HS_TOKEN_REPLY ? challenge2 : challenge1;
   if (relation->rchallenge)
   {
-    if (memcmp(relation->rchallenge->value, challenge->value._buffer, sizeof(AuthenticationChallenge)) != 0)
+    if (memcmp(relation->rchallenge->value, rc->value._buffer, sizeof(AuthenticationChallenge)) != 0)
     {
-      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property challenge1 does not match future_challenge");
-      goto err_no_challenge;
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge%d does not match future_challenge", token_type == HS_TOKEN_REPLY ? 2 : 1);
+      goto failed_key;
     }
   }
   else
   {
-    if (challenge->value._length == sizeof(relation->rchallenge->value))
+    if (token_type != HS_TOKEN_FINAL && rc->value._length == sizeof(relation->rchallenge->value))
     {
       relation->rchallenge = ddsrt_malloc(sizeof(AuthenticationChallenge));
-      memcpy(relation->rchallenge, challenge->value._buffer, challenge->value._length);
+      memcpy(relation->rchallenge, rc->value._buffer, rc->value._length);
     }
     else
     {
-      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property challenge1 invalid (incorrect size)");
-      goto err_no_challenge;
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge%d invalid (incorrect size or missing)", token_type == HS_TOKEN_REPLY ? 2 : 1);
+      goto failed_key;
     }
   }
 
+  if (token_type == HS_TOKEN_REQ)
   {
     const DDS_Security_BinaryProperty_t *binary_properties[] = { c_id, c_perm, c_pdata, c_dsign_algo, c_kagree_algo };
     (void)compute_hash_value(&handshake->hash_c1[0], binary_properties, 5, NULL);
-  }
-  if ((hash_c1 = DDS_Security_DataHolder_find_binary_property(token, "hash_c1")))
-  {
-    if (hash_c1->value._length != sizeof(HashValue_t) || memcmp(hash_c1->value._buffer, &handshake->hash_c1, sizeof(HashValue_t)) != 0)
-    {
-      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property hash_c1 invalid (incorrect size)");
-      goto err_inv_hash_c1;
-    }
-  }
-
-  if (relation->remoteIdentity->identityCert)
-    X509_free(relation->remoteIdentity->identityCert);
-  relation->remoteIdentity->identityCert = identityCert;
-  relation->remoteIdentity->dsignAlgoKind = dsignAlgoKind;
-  relation->remoteIdentity->kagreeAlgoKind = kagreeAlgoKind;
-  DDS_Security_OctetSeq_copy(&relation->remoteIdentity->pdata, &c_pdata->value);
-  handshake->rdh = pdhkey;
-  return DDS_SECURITY_VALIDATION_OK;
-
-err_inv_hash_c1:
-err_no_challenge:
-  EVP_PKEY_free(pdhkey);
-err_no_dh:
-err_no_c_kagree_algo:
-err_no_c_dsign_algo:
-err_inv_pdata:
-err_no_c_pdata:
-err_no_c_perm:
-err_inv_identity_cert:
-  X509_free(identityCert);
-err_identity_cert_load:
-err_no_c_id:
-err_inv_class_id:
-  return DDS_SECURITY_VALIDATION_FAILED;
-}
-
-static DDS_Security_ValidationResult_t validate_handshake_reply_token(const DDS_Security_HandshakeMessageToken *token, HandshakeInfo *handshake, EVP_PKEY **pdhkey, X509Seq *trusted_ca_list, DDS_Security_SecurityException *ex)
-{
-  IdentityRelation *relation = handshake->relation;
-  X509 *identityCert;
-  EVP_PKEY *public_key;
-  const DDS_Security_BinaryProperty_t *c_id, *c_perm, *c_pdata, *c_dsign_algo, *c_kagree_algo, *dh1, *dh2, *hash_c1, *hash_c2, *challenge1, *challenge2, *signature;
-  AuthenticationAlgoKind_t dsignAlgoKind, kagreeAlgoKind;
-
-  assert(relation);
-
-  if (!token->class_id || strncmp(AUTH_HANDSHAKE_REPLY_TOKEN_ID, token->class_id, strlen(AUTH_HANDSHAKE_REPLY_TOKEN_ID)) != 0)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken incorrect class_id: %s (expected %s)", token->class_id ? token->class_id : "NULL", AUTH_HANDSHAKE_REPLY_TOKEN_ID);
-    goto err_inv_class_id;
-  }
-
-  /* Check presents of mandatory properties: c.id, c.perm, c.pdata, c.dsign_algo, c.kagree_algo, challenge1, dh2, challenge2, signature */
-  c_id = DDS_Security_DataHolder_find_binary_property(token, "c.id");
-  if (!c_id || (c_id->value._length == 0) || (c_id->value._buffer == NULL))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property c.id missing");
-    goto err_no_c_id;
-  }
-
-  /* Verify Identity Certificate */
-  if (load_X509_certificate_from_data((char *)c_id->value._buffer, (int)c_id->value._length, &identityCert, ex) != DDS_SECURITY_VALIDATION_OK)
-    goto err_identity_cert_load;
-
-  {
-    DDS_Security_ValidationResult_t result = DDS_SECURITY_VALIDATION_OK;
-    if (trusted_ca_list->length == 0)
-      result = verify_certificate(identityCert, relation->localIdentity->identityCA, ex);
-    else
-    {
-      DDS_Security_Exception_clean(ex);
-      for (unsigned i = 0; i < trusted_ca_list->length; ++i)
-      {
-        DDS_Security_Exception_reset(ex);
-        result = verify_certificate(identityCert, trusted_ca_list->buffer[i], ex);
-        if (result == DDS_SECURITY_VALIDATION_OK)
-          break;
-      }
-    }
-    if (result != DDS_SECURITY_VALIDATION_OK)
-      goto err_inv_identity_cert;
-  }
-
-  if (check_certificate_expiry(identityCert, ex) != DDS_SECURITY_VALIDATION_OK)
-    goto err_inv_identity_cert;
-
-  if (!(c_perm = DDS_Security_DataHolder_find_binary_property(token, "c.perm")))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property c.perm missing");
-    goto err_no_c_perm;
-  }
-  if (c_perm->value._length > 0)
-  {
-    ddsrt_free(relation->remoteIdentity->permissionsDocument);
-    relation->remoteIdentity->permissionsDocument = string_from_data(c_perm->value._buffer, c_perm->value._length);
-  }
-
-  if (!(c_pdata = DDS_Security_DataHolder_find_binary_property(token, "c.pdata")))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property c.pdata missing");
-    goto err_no_c_pdata;
-  }
-  if (validate_pdata(&c_pdata->value, identityCert, ex) != DDS_SECURITY_VALIDATION_OK)
-    goto err_inv_pdata;
-
-  if (!(c_dsign_algo = DDS_Security_DataHolder_find_binary_property(token, "c.dsign_algo")))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property c.dsign_algo missing");
-    goto err_no_c_dsign_algo;
-  }
-
-  if ((dsignAlgoKind = get_dsign_algo_from_string((const char *)c_dsign_algo->value._buffer)) == AUTH_ALGO_KIND_UNKNOWN)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property c.dsign_algo not supported");
-    goto err_no_c_dsign_algo;
-  }
-
-  if (!(c_kagree_algo = DDS_Security_DataHolder_find_binary_property(token, "c.kagree_algo")))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property c.kagree_algo missing");
-    goto err_no_c_kagree_algo;
-  }
-
-  if ((kagreeAlgoKind = get_kagree_algo_from_string((const char *)c_kagree_algo->value._buffer)) == AUTH_ALGO_KIND_UNKNOWN)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property c.kagree_algo not support");
-    goto err_no_c_kagree_algo;
-  }
-
-  /* dh1 is optional  */
-  dh1 = DDS_Security_DataHolder_find_binary_property(token, "dh1");
-  DDSRT_UNUSED_ARG(dh1);
-
-  dh2 = DDS_Security_DataHolder_find_binary_property(token, "dh2");
-  if (!dh2 || dh2->value._length == 0 || dh2->value._buffer == NULL)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property dh2 missing");
-    goto err_no_dh;
   }
 
   if ((hash_c1 = DDS_Security_DataHolder_find_binary_property(token, "hash_c1")))
   {
     if (hash_c1->value._length != sizeof(HashValue_t) || memcmp(hash_c1->value._buffer, handshake->hash_c1, sizeof(HashValue_t)) != 0)
     {
-      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property hash_c1 invalid");
-      goto err_inv_hash_c1;
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property hash_c1 invalid");
+      goto failed_key;
     }
   }
 
+  if (token_type == HS_TOKEN_REPLY)
   {
     const DDS_Security_BinaryProperty_t *binary_properties[] = { c_id, c_perm, c_pdata, c_dsign_algo, c_kagree_algo };
     (void)compute_hash_value(&handshake->hash_c2[0], binary_properties, 5, NULL);
   }
 
-  if ((hash_c2 = DDS_Security_DataHolder_find_binary_property(token, "hash_c2")))
+  if (token_type == HS_TOKEN_REPLY || token_type == HS_TOKEN_FINAL)
   {
-    if (hash_c2->value._length != sizeof(HashValue_t) || memcmp(hash_c2->value._buffer, handshake->hash_c2, sizeof(HashValue_t)) != 0)
+    if ((hash_c2 = DDS_Security_DataHolder_find_binary_property(token, "hash_c2")))
     {
-      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property hash_c2 invalid");
-      goto err_inv_hash_c2;
+      if (hash_c2->value._length != sizeof(HashValue_t) || memcmp(hash_c2->value._buffer, handshake->hash_c2, sizeof(HashValue_t)) != 0)
+      {
+        DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property hash_c2 invalid");
+        goto failed_key;
+      }
     }
-  }
-
-  signature = DDS_Security_DataHolder_find_binary_property(token, "signature");
-  if (!signature || signature->value._length == 0 || signature->value._buffer == NULL)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property signature missing");
-    goto err_no_signature;
-  }
-
-  *pdhkey = NULL;
-  if (dh_oct_to_public_key(pdhkey, kagreeAlgoKind, dh2->value._buffer, dh2->value._length, ex) != DDS_SECURITY_VALIDATION_OK)
-    goto err_inv_dh;
-
-  if (!(challenge1 = DDS_Security_DataHolder_find_binary_property(token, "challenge1")))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge1 missing");
-    goto err_no_challenge;
-  }
-  if (challenge1->value._length != sizeof(AuthenticationChallenge) || challenge1->value._buffer == NULL)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge1 invalid");
-    goto err_no_challenge;
-  }
-
-  if (!(challenge2 = DDS_Security_DataHolder_find_binary_property(token, "challenge2")))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge2 missing");
-    goto err_no_challenge;
-  }
-  if (challenge2->value._length != sizeof(AuthenticationChallenge) || challenge2->value._buffer == NULL)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge2 invalid");
-    goto err_no_challenge;
-  }
-
-  /* When validate_remote_identity was provided with a remote_auth_request_token then the future_challenge in the remote identity was set and the challenge2
-     property of the handshake_reply_token should be the same as the future_challenge stored in the remote identity. */
-  if (relation->rchallenge)
-  {
-    if (memcmp(relation->rchallenge->value, challenge2->value._buffer, sizeof(AuthenticationChallenge)) != 0)
+    if (relation->lchallenge)
     {
-      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge2 does not match future_challenge");
-      goto err_no_challenge;
-    }
-  }
-  else
-  {
-    if (challenge2->value._length == sizeof(relation->rchallenge->value))
-    {
-      relation->rchallenge = ddsrt_malloc(sizeof(AuthenticationChallenge));
-      memcpy(relation->rchallenge, challenge2->value._buffer, challenge2->value._length);
+      const DDS_Security_BinaryProperty_t *lc = token_type == HS_TOKEN_REPLY ? challenge1 : challenge2;
+      if (memcmp(relation->lchallenge->value, lc->value._buffer, sizeof(AuthenticationChallenge)) != 0)
+      {
+        DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge1 does not match future_challenge");
+        goto failed_key;
+      }
     }
     else
     {
-      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge2 invalid (incorrect size)");
-      goto err_no_challenge;
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: No future challenge exists for this token");
+      goto failed_key;
     }
   }
 
-  if (relation->lchallenge)
+  if (token_type == HS_TOKEN_REQ || token_type == HS_TOKEN_REPLY)
   {
-    if (memcmp(relation->lchallenge->value, challenge1->value._buffer, sizeof(AuthenticationChallenge)) != 0)
+    /* TODO: check if an identity certificate was already associated with the remote identity and when that is the case both should be the same */
+    if (relation->remoteIdentity->identityCert)
+      X509_free(relation->remoteIdentity->identityCert);
+    relation->remoteIdentity->identityCert = identityCert;
+    relation->remoteIdentity->dsignAlgoKind = dsignAlgoKind;
+    relation->remoteIdentity->kagreeAlgoKind = kagreeAlgoKind;
+  }
+
+  if (token_type == HS_TOKEN_REQ)
+  {
+    DDS_Security_OctetSeq_copy(&relation->remoteIdentity->pdata, &c_pdata->value);
+    handshake->rdh = pdhkey_req;
+  }
+  if (token_type == HS_TOKEN_REPLY || token_type == HS_TOKEN_FINAL)
+  {
+    EVP_PKEY *public_key = X509_get_pubkey(relation->remoteIdentity->identityCert);
+    if (public_key)
     {
-      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge1 does not match future_challenge");
-      goto err_no_challenge;
+      DDS_Security_BinaryProperty_t *hash_c1_val = hash_value_to_binary_property("hash_c1", handshake->hash_c1);
+      DDS_Security_BinaryProperty_t *hash_c2_val = hash_value_to_binary_property("hash_c2", handshake->hash_c2);
+      bool r = token_type == HS_TOKEN_REPLY;
+      const DDS_Security_BinaryProperty_t *properties[HANDSHAKE_SIGNATURE_CONTENT_SIZE] =
+      { r ? hash_c2_val : hash_c1_val, r ? challenge2 : challenge1, r ? dh2 : dh1,
+        r ? challenge1 : challenge2, r ? dh1 : dh2, r ? hash_c1_val : hash_c2_val };
+      DDS_Security_ValidationResult_t result = validate_signature(public_key, properties, HANDSHAKE_SIGNATURE_CONTENT_SIZE, signature->value._buffer, signature->value._length, ex);
+      EVP_PKEY_free(public_key);
+      DDS_Security_BinaryProperty_free(hash_c1_val);
+      DDS_Security_BinaryProperty_free(hash_c2_val);
+      if (result != DDS_SECURITY_VALIDATION_OK)
+        goto failed_key;
+    }
+    else
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "X509_get_pubkey failed");
+      goto failed_key;
     }
   }
-  else
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: No future challenge exists for this token");
-    goto err_no_challenge;
-  }
-
-  /* TODO: check if an identity certificate was already associated with the remote identity and when that is the case both should be the same */
-  if (relation->remoteIdentity->identityCert)
-    X509_free(relation->remoteIdentity->identityCert);
-  relation->remoteIdentity->identityCert = identityCert;
-  relation->remoteIdentity->dsignAlgoKind = dsignAlgoKind;
-  relation->remoteIdentity->kagreeAlgoKind = kagreeAlgoKind;
-
-  if ((public_key = X509_get_pubkey(relation->remoteIdentity->identityCert)))
-  {
-    DDS_Security_BinaryProperty_t *hash_c1_val = hash_value_to_binary_property("hash_c1", handshake->hash_c1);
-    DDS_Security_BinaryProperty_t *hash_c2_val = hash_value_to_binary_property("hash_c2", handshake->hash_c2);
-    const DDS_Security_BinaryProperty_t *properties[HANDSHAKE_SIGNATURE_CONTENT_SIZE] = { hash_c2_val, challenge2, dh2, challenge1, dh1, hash_c1_val };
-    DDS_Security_ValidationResult_t result = validate_signature(public_key, properties, HANDSHAKE_SIGNATURE_CONTENT_SIZE, signature->value._buffer, signature->value._length, ex);
-    EVP_PKEY_free(public_key);
-    DDS_Security_BinaryProperty_free(hash_c1_val);
-    DDS_Security_BinaryProperty_free(hash_c2_val);
-    if (result != DDS_SECURITY_VALIDATION_OK)
-      goto err_inv_signature;
-  }
-  else
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "X509_get_pubkey failed");
-    goto err_inv_signature;
-  }
-
-  DDS_Security_OctetSeq_copy(&relation->remoteIdentity->pdata, &c_pdata->value);
+  if (token_type == HS_TOKEN_REPLY)
+    DDS_Security_OctetSeq_copy(&relation->remoteIdentity->pdata, &c_pdata->value);
   return DDS_SECURITY_VALIDATION_OK;
 
-err_inv_signature:
-err_no_challenge:
-err_inv_dh:
-  EVP_PKEY_free(*pdhkey);
-err_no_signature:
-err_inv_hash_c2:
-err_inv_hash_c1:
-err_no_dh:
-err_no_c_kagree_algo:
-err_no_c_dsign_algo:
-err_inv_pdata:
-err_no_c_pdata:
-err_no_c_perm:
-err_inv_identity_cert:
+failed_key:
+  EVP_PKEY_free(token_type == HS_TOKEN_REQ ? pdhkey_req : *pdhkey_reply);
+failed_idcert:
   X509_free(identityCert);
-err_identity_cert_load:
-err_no_c_id:
-err_inv_class_id:
+failed:
   return DDS_SECURITY_VALIDATION_FAILED;
+}
+
+static DDS_Security_ValidationResult_t validate_handshake_request_token(const DDS_Security_HandshakeMessageToken *token, HandshakeInfo *handshake, X509Seq *trusted_ca_list, DDS_Security_SecurityException *ex)
+{
+  return validate_handshake_token(token, HS_TOKEN_REQ, handshake, NULL, trusted_ca_list, ex);
+}
+
+static DDS_Security_ValidationResult_t validate_handshake_reply_token(const DDS_Security_HandshakeMessageToken *token, HandshakeInfo *handshake, EVP_PKEY **pdhkey, X509Seq *trusted_ca_list, DDS_Security_SecurityException *ex)
+{
+  return validate_handshake_token(token, HS_TOKEN_REPLY, handshake, pdhkey, trusted_ca_list, ex);
 }
 
 static DDS_Security_ValidationResult_t validate_handshake_final_token(const DDS_Security_HandshakeMessageToken *token, HandshakeInfo *handshake, DDS_Security_SecurityException *ex)
 {
-  IdentityRelation *relation = handshake->relation;
-  const DDS_Security_BinaryProperty_t *dh1, *dh2, *hash_c1, *hash_c2, *challenge1, *challenge2, *signature;
-  EVP_PKEY *public_key;
-
-  assert(relation);
-
-  if (!token->class_id || strncmp(AUTH_HANDSHAKE_FINAL_TOKEN_ID, token->class_id, strlen(AUTH_HANDSHAKE_FINAL_TOKEN_ID)) != 0)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken incorrect class_id: %s (expected %s)", token->class_id ? token->class_id : "NULL", AUTH_HANDSHAKE_FINAL_TOKEN_ID);
-    goto failed;
-  }
-
-  /* Check presents of mandatory properties: challenge1, challenge2, signature */
-
-  /* dh1 and dh2 are optional  */
-  dh1 = DDS_Security_DataHolder_find_binary_property(token, "dh1");
-  DDSRT_UNUSED_ARG(dh1);
-  dh2 = DDS_Security_DataHolder_find_binary_property(token, "dh2");
-  DDSRT_UNUSED_ARG(dh2);
-
-  /* hash_c1 is optional  */
-  if ((hash_c1 = DDS_Security_DataHolder_find_binary_property(token, "hash_c1")))
-  {
-    if (hash_c1->value._length != sizeof(HashValue_t) || memcmp(hash_c1->value._buffer, handshake->hash_c1, sizeof(HashValue_t)) != 0)
-    {
-      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property hash_c1 invalid");
-      goto failed;
-    }
-  }
-
-  /* hash_c2 is optional  */
-  if ((hash_c2 = DDS_Security_DataHolder_find_binary_property(token, "hash_c2")))
-  {
-    if (hash_c2->value._length != sizeof(HashValue_t) || memcmp(hash_c2->value._buffer, handshake->hash_c2, sizeof(HashValue_t)) != 0)
-    {
-      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: HandshakeMessageToken property hash_c2 invalid");
-      goto failed;
-    }
-  }
-
-  if (!(challenge1 = DDS_Security_DataHolder_find_binary_property(token, "challenge1")))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge1 missing");
-    goto failed;
-  }
-  if (challenge1->value._length != sizeof(AuthenticationChallenge) || challenge1->value._buffer == NULL)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge1 invalid");
-    goto failed;
-  }
-
-  if (!(challenge2 = DDS_Security_DataHolder_find_binary_property(token, "challenge2")))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge2 missing");
-    goto failed;
-  }
-  if (challenge2->value._length != sizeof(AuthenticationChallenge) || challenge2->value._buffer == NULL)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge2 invalid");
-    goto failed;
-  }
-
-  /* When validate_remote_identity was provided with a remote_auth_request_token then the future_challenge in the remote identity was set and the challenge1
-     property of the handshake_reply_token should be the same as the future_challenge stored in the remote identity. */
-  if (relation->rchallenge)
-  {
-    if (memcmp(relation->rchallenge->value, challenge1->value._buffer, sizeof(AuthenticationChallenge)) != 0)
-    {
-      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge1 does not match future_challenge");
-      goto failed;
-    }
-  }
-  else
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: No challenge exists to check challenge1 in the token.");
-    goto failed;
-  }
-
-  if (relation->lchallenge)
-  {
-    if (memcmp(relation->lchallenge->value, challenge2->value._buffer, sizeof(AuthenticationChallenge)) != 0)
-    {
-      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property challenge2 does not match future_challenge");
-      goto failed;
-    }
-  }
-  else
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: No challenge exists to check challenge2 in the token.");
-    goto failed;
-  }
-
-  if (!(signature = DDS_Security_DataHolder_find_binary_property(token, "signature")))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: HandshakeMessageToken property signature missing");
-    goto failed;
-  }
-
-  /* Validate signature */
-  if ((public_key = X509_get_pubkey(relation->remoteIdentity->identityCert)))
-  {
-    DDS_Security_BinaryProperty_t *hash_c1_val = hash_value_to_binary_property("hash_c1", handshake->hash_c1);
-    DDS_Security_BinaryProperty_t *hash_c2_val = hash_value_to_binary_property("hash_c2", handshake->hash_c2);
-    const DDS_Security_BinaryProperty_t *properties[HANDSHAKE_SIGNATURE_CONTENT_SIZE] = { hash_c1_val, challenge1, dh1, challenge2, dh2, hash_c2_val };
-    DDS_Security_ValidationResult_t result = validate_signature(public_key, properties, HANDSHAKE_SIGNATURE_CONTENT_SIZE, signature->value._buffer, signature->value._length, ex);
-    EVP_PKEY_free(public_key);
-    DDS_Security_BinaryProperty_free(hash_c1_val);
-    DDS_Security_BinaryProperty_free(hash_c2_val);
-    if (result != DDS_SECURITY_VALIDATION_OK)
-      goto failed;
-  }
-  else
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "X509_get_pubkey failed");
-    goto failed;
-  }
-  return DDS_SECURITY_VALIDATION_OK;
-
-failed:
-  return DDS_SECURITY_VALIDATION_FAILED;
+  return validate_handshake_token(token, HS_TOKEN_FINAL, handshake, NULL, NULL, ex);
 }
 
 DDS_Security_ValidationResult_t begin_handshake_reply(dds_security_authentication *instance, DDS_Security_HandshakeHandle *handshake_handle,
