@@ -1551,18 +1551,21 @@ static DDS_Security_ValidationResult_t validate_handshake_token(const DDS_Securi
       DDS_Security_BinaryProperty_free(hash_c1_val);
       DDS_Security_BinaryProperty_free(hash_c2_val);
       if (result != DDS_SECURITY_VALIDATION_OK)
-        goto failed_key;
+        goto failed_pubkey;
     }
     else
     {
       DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "X509_get_pubkey failed");
-      goto failed_key;
+      goto failed_pubkey;
     }
   }
   if (token_type == HS_TOKEN_REPLY)
     DDS_Security_OctetSeq_copy(&relation->remoteIdentity->pdata, &c_pdata->value);
   return DDS_SECURITY_VALIDATION_OK;
 
+failed_pubkey:
+  if (token_type == HS_TOKEN_REQ || token_type == HS_TOKEN_REPLY)
+    relation->remoteIdentity->identityCert = NULL;
 failed_key:
   EVP_PKEY_free(token_type == HS_TOKEN_REQ ? pdhkey_req : *pdhkey_reply);
 failed_idcert:
