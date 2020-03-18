@@ -193,7 +193,9 @@ inline dds_time_t ddsrt_time_add_duration(dds_time_t abstime, dds_duration_t rel
  * @returns A timestamp in nanoseconds since UNIX Epoch.
  */
 inline ddsrt_mtime_t ddsrt_mtime_add_duration(ddsrt_mtime_t abstime, dds_duration_t reltime) {
-  return (ddsrt_mtime_t) { ddsrt_time_add_duration (abstime.v, reltime) };
+  ddsrt_mtime_t t;
+  t.v = ddsrt_time_add_duration (abstime.v, reltime);
+  return t;
 }
 
 /**
@@ -209,7 +211,9 @@ inline ddsrt_mtime_t ddsrt_mtime_add_duration(ddsrt_mtime_t abstime, dds_duratio
  * @returns A timestamp in nanoseconds since UNIX Epoch.
  */
 inline ddsrt_wctime_t ddsrt_wctime_add_duration(ddsrt_wctime_t abstime, dds_duration_t reltime) {
-  return (ddsrt_wctime_t) { ddsrt_time_add_duration (abstime.v, reltime) };
+  ddsrt_wctime_t t;
+  t.v = ddsrt_time_add_duration (abstime.v, reltime);
+  return t;
 }
 
 /**
@@ -225,7 +229,9 @@ inline ddsrt_wctime_t ddsrt_wctime_add_duration(ddsrt_wctime_t abstime, dds_dura
  * @returns A timestamp in nanoseconds since UNIX Epoch.
  */
 inline ddsrt_etime_t ddsrt_etime_add_duration(ddsrt_etime_t abstime, dds_duration_t reltime) {
-  return (ddsrt_etime_t) { ddsrt_time_add_duration (abstime.v, reltime) };
+  ddsrt_etime_t t;
+  t.v = ddsrt_time_add_duration (abstime.v, reltime);
+  return t;
 }
 
 #if _WIN32
