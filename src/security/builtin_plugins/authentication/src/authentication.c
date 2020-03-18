@@ -1284,10 +1284,11 @@ static DDS_Security_ValidationResult_t validate_handshake_token(const DDS_Securi
     HandshakeInfo *handshake, EVP_PKEY **pdhkey_reply, X509Seq *trusted_ca_list, DDS_Security_SecurityException *ex)
 {
   IdentityRelation *relation = handshake->relation;
-  X509 *identityCert;
-  const DDS_Security_BinaryProperty_t *c_id, *c_perm, *c_pdata, *c_dsign_algo, *c_kagree_algo, *dh1, *dh2, *hash_c1, *hash_c2, *challenge1, *challenge2, *signature;
+  X509 *identityCert = NULL;
+  const DDS_Security_BinaryProperty_t *c_id = NULL, *c_perm = NULL, *c_pdata = NULL, *c_dsign_algo = NULL, *c_kagree_algo = NULL, *dh1 = NULL, *dh2 = NULL,
+      *hash_c1 = NULL, *hash_c2 = NULL, *challenge1 = NULL, *challenge2 = NULL, *signature = NULL;
   EVP_PKEY *pdhkey_req = NULL;
-  AuthenticationAlgoKind_t dsignAlgoKind, kagreeAlgoKind;
+  AuthenticationAlgoKind_t dsignAlgoKind = AUTH_ALGO_KIND_UNKNOWN, kagreeAlgoKind = AUTH_ALGO_KIND_UNKNOWN;
   const char * token_class_id = NULL;
 
   assert(relation);
