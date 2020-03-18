@@ -89,8 +89,8 @@ static void access_control_init(bool incl_gov, const char * gov, bool incl_perm,
 
   g_participant1 = dds_create_participant (DDS_DOMAINID1, NULL, NULL);
   g_participant2 = dds_create_participant (DDS_DOMAINID2, NULL, NULL);
-  CU_ASSERT_FATAL ((exp_pp_fail && g_participant1 <= 0) || g_participant1 > 0);
-  CU_ASSERT_FATAL ((exp_pp_fail && g_participant2 <= 0) || g_participant2 > 0);
+  CU_ASSERT_EQUAL_FATAL (exp_pp_fail, g_participant1 <= 0);
+  CU_ASSERT_EQUAL_FATAL (exp_pp_fail, g_participant2 <= 0);
 }
 
 static void access_control_fini(bool delete_pp)

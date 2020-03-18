@@ -144,8 +144,8 @@ static void authentication_init(
   g_domain2 = dds_create_domain (DDS_DOMAINID2, conf2);
   g_participant1 = dds_create_participant (DDS_DOMAINID1, NULL, NULL);
   g_participant2 = dds_create_participant (DDS_DOMAINID2, NULL, NULL);
-  CU_ASSERT_FATAL ((exp_pp1_fail && g_participant1 <= 0) || g_participant1 > 0);
-  CU_ASSERT_FATAL ((exp_pp2_fail && g_participant2 <= 0) || g_participant2 > 0);
+  CU_ASSERT_EQUAL_FATAL (exp_pp1_fail, g_participant1 <= 0);
+  CU_ASSERT_EQUAL_FATAL (exp_pp2_fail, g_participant2 <= 0);
 
   ddsrt_free (gov_config_signed);
   ddsrt_free (conf1);
@@ -287,41 +287,66 @@ CU_TheoryDataPoints(ddssec_authentication, id_ca_certs) = {
     CU_DataPoints(const char *, ID1,   ID2,   ID3,   ID1,   ID3),      /* Identity for domain 2 */
     CU_DataPoints(const char *, ID1K,  ID2K,  ID3K,  ID1K,  ID1K),     /* Private key for domain 2 identity */
     CU_DataPoints(const char *, CA1,   CA2,   CA1,   CA2,   CA1),      /* CA for domain 2 identity */
+    CU_DataPoints(bool,         false, false, false, false, false),    /* expect create participant1 fails */
+    CU_DataPoints(bool,         false, false, false, true,  false),    /* expect create participant2 fails */
     CU_DataPoints(bool,         false, false, false, true,  false),    /* expect validate local failed for domain 2 */
     CU_DataPoints(const char *, NULL,  NULL,  NULL,  FM_CA, NULL),     /* expected error message for validate local failed */
-    CU_DataPoints(bool,         false, false, false, false, true),     /* expect handshake request failed */
+    CU_DataPoints(bool,         false, true,  false, false, true),     /* expect handshake request failed */
     CU_DataPoints(const char *, NULL,  NULL,  NULL,  NULL,  FM_INVK),  /* expected error message for handshake request failed */
-    CU_DataPoints(bool,         false, true,  false, true,  false),    /* expect handshake reply failed */
+    CU_DataPoints(bool,         false, true,  false, true,  true),     /* expect handshake reply failed */
     CU_DataPoints(const char *, NULL,  FM_CA, NULL,  FM_CA, NULL)      /* expected error message for handshake reply failed */
 };
+#undef FM_CA
+#undef FM_INVK
 
 static void validate_hs(struct Handshake *hs, bool exp_fail_hs_req, const char * fail_hs_req_msg, bool exp_fail_hs_reply, const char * fail_hs_reply_msg)
 {
   DDS_Security_ValidationResult_t exp_result = hs->node_type == HSN_REQUESTER ? DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE : DDS_SECURITY_VALIDATION_OK;
-  if (hs->node_type == HSN_REQUESTER && exp_fail_hs_req)
+  if (hs->node_type == HSN_REQUESTER)
   {
     CU_ASSERT_EQUAL_FATAL (hs->finalResult, exp_fail_hs_req ? DDS_SECURITY_VALIDATION_FAILED : exp_result);
-    CU_ASSERT_FATAL (hs->err_msg != NULL);
-    CU_ASSERT_FATAL (strstr(hs->err_msg, fail_hs_req_msg) != NULL);
+    if (exp_fail_hs_req)
+    {
+      if (fail_hs_req_msg == NULL)
+      {
+        CU_ASSERT_EQUAL_FATAL (hs->err_msg, NULL);
+      }
+      else
+      {
+        CU_ASSERT_FATAL (hs->err_msg != NULL);
+        CU_ASSERT_FATAL (strstr(hs->err_msg, fail_hs_req_msg) != NULL);
+      }
+    }
   }
-  else if (hs->node_type == HSN_REPLIER && exp_fail_hs_reply)
+  else if (hs->node_type == HSN_REPLIER)
   {
     CU_ASSERT_EQUAL_FATAL (hs->finalResult, exp_fail_hs_reply ? DDS_SECURITY_VALIDATION_FAILED : exp_result);
-    CU_ASSERT_FATAL (hs->err_msg != NULL);
-    CU_ASSERT_FATAL (strstr(hs->err_msg, fail_hs_reply_msg) != NULL);
+    if (exp_fail_hs_reply)
+    {
+      if (fail_hs_reply_msg == NULL)
+      {
+        CU_ASSERT_EQUAL_FATAL (hs->err_msg, NULL);
+      }
+      else
+      {
+        CU_ASSERT_FATAL (hs->err_msg != NULL);
+        CU_ASSERT_FATAL (strstr(hs->err_msg, fail_hs_reply_msg) != NULL);
+      }
+    }
   }
 }
 
-CU_Theory((const char * test_descr,
-    const char * id2, const char *key2, const char *ca2, bool exp_fail_local, const char * fail_local_msg,
-    bool exp_fail_hs_req, const char * fail_hs_req_msg, bool exp_fail_hs_reply, const char * fail_hs_reply_msg),
+CU_Theory((const char * test_descr, const char * id2, const char *key2, const char *ca2,
+    bool exp_fail_pp1, bool exp_fail_pp2,
+    bool exp_fail_local, const char * fail_local_msg,
+    bool exp_fail_hs_req, const char * fail_hs_req_msg,
+    bool exp_fail_hs_reply, const char * fail_hs_reply_msg),
     ddssec_authentication, id_ca_certs)
 {
   struct Handshake *hs_list;
   int nhs;
-  bool exp_fail_hs = exp_fail_hs_req || exp_fail_hs_reply;
   printf("running test id_ca_certs: %s\n", test_descr);
-  authentication_init (ID1, ID1K, CA1, id2, key2, ca2, NULL, NULL, exp_fail_hs, exp_fail_hs);
+  authentication_init (ID1, ID1K, CA1, id2, key2, ca2, NULL, NULL, exp_fail_pp1, exp_fail_pp2);
 
   // Domain 1
   validate_handshake (DDS_DOMAINID1, false, NULL, &hs_list, &nhs);
@@ -335,7 +360,7 @@ CU_Theory((const char * test_descr,
     validate_hs (&hs_list[n], exp_fail_hs_req, fail_hs_req_msg, exp_fail_hs_reply, fail_hs_reply_msg);
   handshake_list_fini (hs_list, nhs);
 
-  authentication_fini (!exp_fail_hs, !exp_fail_hs);
+  authentication_fini (!exp_fail_pp1, !exp_fail_pp2);
 }
 
 CU_TheoryDataPoints(ddssec_authentication, trusted_ca_dir) = {

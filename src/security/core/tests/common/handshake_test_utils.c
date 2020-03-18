@@ -22,9 +22,6 @@
 
 #define TIMEOUT DDS_SECS(2)
 
-static const char * validatation_result_str[] = { "OK", "FAILED", "PENDING_RETRY", "PENDING_HANDSHAKE_REQUEST", "PENDING_HANDSHAKE_MESSAGE", "OK_FINAL_MESSAGE" };
-static const char * node_type_str[] = { "UNDEFINED", "REQUESTER", "REPLIER" };
-
 struct Identity localIdentityList[MAX_LOCAL_IDENTITIES];
 int numLocal = 0;
 
@@ -33,6 +30,33 @@ int numRemote = 0;
 
 struct Handshake handshakeList[MAX_HANDSHAKES];
 int numHandshake = 0;
+
+static char * get_validation_result_str(DDS_Security_ValidationResult_t result)
+{
+  switch (result)
+  {
+    case DDS_SECURITY_VALIDATION_OK: return "OK";
+    case DDS_SECURITY_VALIDATION_PENDING_RETRY: return "PENDING_RETRY";
+    case DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_REQUEST: return "PENDING_HANDSHAKE_REQUEST";
+    case DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE: return "PENDING_HANDSHAKE_MESSAGE";
+    case DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE: return "OK_FINAL_MESSAGE";
+    case DDS_SECURITY_VALIDATION_FAILED: return "FAILED";
+  }
+  abort ();
+  return "";
+}
+
+static char * get_node_type_str(enum hs_node_type node_type)
+{
+  switch (node_type)
+  {
+    case HSN_UNDEFINED: return "UNDEFINED";
+    case HSN_REQUESTER: return "REQUESTER";
+    case HSN_REPLIER: return "REPLIER";
+  }
+  abort ();
+  return "";
+}
 
 static void add_local_identity(DDS_Security_IdentityHandle handle, DDS_Security_GUID_t *guid)
 {
@@ -112,7 +136,7 @@ static void handle_process_message(dds_domainid_t domain_id, DDS_Security_Identi
     int idx;
     if ((idx = find_handshake(msg->hsHandle)) >= 0)
     {
-      printf("set handshake %"PRId64" final result to '%s' (errmsg: %s)\n", msg->hsHandle, validatation_result_str[msg->result], msg->err_msg);
+      printf("set handshake %"PRId64" final result to '%s' (errmsg: %s)\n", msg->hsHandle, get_validation_result_str(msg->result), msg->err_msg);
       handshakeList[idx].finalResult = msg->result;
       handshakeList[idx].err_msg = ddsrt_strdup (msg->err_msg);
     }
@@ -209,7 +233,7 @@ void validate_handshake(dds_domainid_t domain_id, bool exp_localid_fail, const c
     for (int n = 0; n < numHandshake; n++)
     {
       struct Handshake *hs = &handshakeList[n];
-      printf("Result: hs %"PRId64", node type %s, final result %s\n", hs->handle, node_type_str[hs->node_type], validatation_result_str[hs->finalResult]);
+      printf("Result: hs %"PRId64", node type %s, final result %s\n", hs->handle, get_node_type_str(hs->node_type), get_validation_result_str(hs->finalResult));
       if (hs->err_msg && strlen (hs->err_msg))
         printf("- err_msg: %s\n", hs->err_msg);
     }
