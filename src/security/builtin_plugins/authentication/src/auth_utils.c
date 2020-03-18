@@ -956,8 +956,7 @@ DDS_Security_ValidationResult_t get_trusted_ca_list(const char *trusted_ca_dir, 
   return failed ? DDS_SECURITY_VALIDATION_FAILED : DDS_SECURITY_VALIDATION_OK;
 }
 
-
-static DDS_Security_ValidationResult_t create_validate_asymmetrical_signature_impl(bool create, EVP_PKEY *pkey, const unsigned char *data, const size_t dataLen,
+DDS_Security_ValidationResult_t create_validate_asymmetrical_signature(bool create, EVP_PKEY *pkey, const unsigned char *data, const size_t dataLen,
     unsigned char **signature, size_t *signatureLen, DDS_Security_SecurityException *ex)
 {
   EVP_MD_CTX *mdctx = NULL;
@@ -970,7 +969,7 @@ static DDS_Security_ValidationResult_t create_validate_asymmetrical_signature_im
   if ((create ? EVP_DigestSignInit(mdctx, &kctx, EVP_sha256(), NULL, pkey) : EVP_DigestVerifyInit(mdctx, &kctx, EVP_sha256(), NULL, pkey)) != 1)
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to initialize digest context: ");
-    return DDS_SECURITY_VALIDATION_FAILED;
+    goto err;
   }
   if (EVP_PKEY_id(pkey) == EVP_PKEY_RSA)
   {
@@ -1007,19 +1006,4 @@ static DDS_Security_ValidationResult_t create_validate_asymmetrical_signature_im
 err:
   EVP_MD_CTX_destroy(mdctx);
   return DDS_SECURITY_VALIDATION_FAILED;
-}
-
-
-DDS_Security_ValidationResult_t create_asymmetrical_signature(EVP_PKEY *pkey, const unsigned char *data, const size_t dataLen,
-    unsigned char **signature, size_t *signatureLen, DDS_Security_SecurityException *ex)
-{
-  return create_validate_asymmetrical_signature_impl(true, pkey, data, dataLen, signature, signatureLen, ex);
-}
-
-DDS_Security_ValidationResult_t validate_asymmetrical_signature(EVP_PKEY *pkey, const unsigned char *data, const size_t dataLen,
-    const unsigned char *signature, size_t signatureLen, DDS_Security_SecurityException *ex)
-{
-  unsigned char *s = (unsigned char *)signature;
-  size_t s_len = signatureLen;
-  return create_validate_asymmetrical_signature_impl(false, pkey, data, dataLen, &s, &s_len, ex);
 }

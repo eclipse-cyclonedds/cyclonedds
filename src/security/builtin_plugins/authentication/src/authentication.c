@@ -579,9 +579,7 @@ static DDS_Security_ValidationResult_t create_validate_signature_impl(bool creat
   DDS_Security_Serializer serializer = DDS_Security_Serializer_new(4096, 4096);
   DDS_Security_Serialize_BinaryPropertyArray(serializer, bprops, n_bprops);
   DDS_Security_Serializer_buffer(serializer, &buffer, &size);
-  result = create ?
-    create_asymmetrical_signature(pkey, buffer, size, signature, signature_len, ex) :
-    validate_asymmetrical_signature(pkey, buffer, size, *signature, *signature_len, ex);
+  result = create_validate_asymmetrical_signature(create, pkey, buffer, size, signature, signature_len, ex);
   ddsrt_free(buffer);
   DDS_Security_Serializer_free(serializer);
   return result;
