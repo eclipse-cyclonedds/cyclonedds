@@ -2264,6 +2264,7 @@ validate_handshake_reply_token(
         DDS_Security_BinaryProperty_free(hash_c2_val);
 
         if( result != DDS_SECURITY_VALIDATION_OK) {
+            relation->remoteIdentity->identityCert = NULL;
             goto err_inv_signature;
         }
     } else {
