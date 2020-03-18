@@ -218,9 +218,7 @@ endif()
 option(BUILD_DOCS "Build documentation." OFF)
 option(BUILD_SCHEMA "Build generated schema for configuration options." OFF)
 
-if(BUILD_DOCS)
-  add_subdirectory(docs)
-endif()
+add_subdirectory(docs)
 
 # Pull-in CPack and support for generating <Package>Config.cmake and packages.
 include(Packaging)
