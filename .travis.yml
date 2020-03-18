@@ -202,7 +202,7 @@ script:
           -DENABLE_LIFESPAN=${LIFESPAN}
           -DENABLE_DEADLINE_MISSED=${DEADLINE}
           -DBUILD_TESTING=on
-          -DBUILD_DOCS=ON
+          -DBUILD_SCHEMA=ON
           -DWERROR=on
           -G "${GENERATOR}" ..
   - case "${GENERATOR}" in
