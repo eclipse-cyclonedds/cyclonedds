@@ -2524,7 +2524,7 @@ void q_omg_security_set_remote_writer_crypto_tokens(struct reader *rd, const dds
   ddsrt_mutex_unlock(&rd->e.lock);
 
   if (match->matched)
-    connect_reader_with_proxy_writer_secure(rd, pwr, now_mt (), match->crypto_handle);
+    connect_reader_with_proxy_writer_secure(rd, pwr, ddsrt_time_monotonic (), match->crypto_handle);
 
   if (pwr)
     notify_handshake_recv_token(rd->c.pp, pwr->c.proxypp);
@@ -2571,7 +2571,7 @@ void q_omg_security_set_remote_reader_crypto_tokens(struct writer *wr, const dds
   ddsrt_mutex_unlock(&wr->e.lock);
 
   if (match->matched)
-    connect_writer_with_proxy_reader_secure(wr, prd, now_mt (), match->crypto_handle);
+    connect_writer_with_proxy_reader_secure(wr, prd, ddsrt_time_monotonic (), match->crypto_handle);
 
   if (prd)
     notify_handshake_recv_token(wr->c.pp, prd->c.proxypp);

@@ -30,7 +30,6 @@
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_addrset.h"
-#include "dds/ddsi/q_nwif.h"
 
 #include "dds/ddsrt/xmlparser.h"
 
@@ -532,7 +531,7 @@ static const struct cfgelem thread_properties_cfgattrs[] = {
 <li><i>fsm</i>: finite state machine thread for handling security handshake;</li>\n\
 <li><i>xmit.CHAN</i>: transmit thread for channel CHAN;</li>\n\
 <li><i>dq.CHAN</i>: delivery thread for channel CHAN;</li>\n\
-<li><i>tev.CHAN</i>: timed-even thread for channel CHAN.</li></ul>") },
+<li><i>tev.CHAN</i>: timed-event thread for channel CHAN.</li></ul>") },
   END_MARKER
 };
 
@@ -568,13 +567,13 @@ static const struct cfgelem compatibility_cfgelems[] = {
   END_MARKER
 };
 
-static const struct cfgelem unsupp_test_cfgelems[] = {
+static const struct cfgelem internal_test_cfgelems[] = {
   { LEAF("XmitLossiness"), 1, "0", ABSOFF(xmit_lossiness), 0, uf_int, 0, pf_int,
     BLURB("<p>This element controls the fraction of outgoing packets to drop, specified as samples per thousand.</p>") },
   END_MARKER
 };
 
-static const struct cfgelem unsupp_watermarks_cfgelems[] = {
+static const struct cfgelem internal_watermarks_cfgelems[] = {
   { LEAF("WhcLow"), 1, "1 kB", ABSOFF(whc_lowwater_mark), 0, uf_memsize, 0, pf_memsize,
     BLURB("<p>This element sets the low-water mark for the DDSI2E WHCs, expressed in bytes. A suspended writer resumes transmitting when its DDSI2E WHC shrinks to this size.</p>") },
   { LEAF("WhcHigh"), 1, "100 kB", ABSOFF(whc_highwater_mark), 0, uf_memsize, 0, pf_memsize,
@@ -632,7 +631,7 @@ static const struct cfgelem multiple_recv_threads_attrs[] = {
   END_MARKER
 };
 
-static const struct cfgelem unsupp_cfgelems[] = {
+static const struct cfgelem internal_cfgelems[] = {
   { MOVED("MaxMessageSize", "CycloneDDS/General/MaxMessageSize") },
   { MOVED("FragmentSize", "CycloneDDS/General/FragmentSize") },
   { LEAF("DeliveryQueueMaxSamples"), 1, "256", ABSOFF(delivery_queue_maxsamples), 0, uf_uint, 0, pf_uint,
@@ -733,9 +732,9 @@ static const struct cfgelem unsupp_cfgelems[] = {
     BLURB("<p>This element controls whether all traffic is handled by a single receive thread (false) or whether multiple receive threads may be used to improve latency (true). By default it is disabled on Windows because it appears that one cannot count on being able to send packets to oneself, which is necessary to stop the thread during shutdown. Currently multiple receive threads are only used for connectionless transport (e.g., UDP) and ManySocketsMode not set to single (the default).</p>") },
   { MGROUP("ControlTopic", control_topic_cfgelems, control_topic_cfgattrs), 1, 0, 0, 0, 0, 0, 0, 0,
     BLURB("<p>The ControlTopic element allows configured whether DDSI2E provides a special control interface via a predefined topic or not.<p>") },
-  { GROUP("Test", unsupp_test_cfgelems),
+  { GROUP("Test", internal_test_cfgelems),
     BLURB("<p>Testing options.</p>") },
-  { GROUP("Watermarks", unsupp_watermarks_cfgelems),
+  { GROUP("Watermarks", internal_watermarks_cfgelems),
     BLURB("<p>Watermarks for flow-control.</p>") },
   { LEAF("EnableExpensiveChecks"), 1, "", ABSOFF(enabled_xchecks), 0, uf_xcheck, 0, pf_xcheck,
     BLURB("<p>This element enables expensive checks in builds with assertions enabled and is ignored otherwise. Recognised categories are:</p>\n\
@@ -943,7 +942,7 @@ static const struct cfgelem domain_cfgelems[] = {
     BLURB("<p>The Discovery element allows specifying various parameters related to the discovery of peers.</p>") },
   { GROUP("Tracing", tracing_cfgelems),
     BLURB("<p>The Tracing element controls the amount and type of information that is written into the tracing log by the DDSI service. This is useful to track the DDSI service during application development.</p>") },
-  { GROUP("Internal|Unsupported", unsupp_cfgelems),
+  { GROUP("Internal|Unsupported", internal_cfgelems),
     BLURB("<p>The Internal elements deal with a variety of settings that evolving and that are not necessarily fully supported. For the vast majority of the Internal settings, the functionality per-se is supported, but the right to change the way the options control the functionality is reserved. This includes renaming or moving options.</p>") },
   { GROUP("TCP", tcp_cfgelems),
     BLURB("<p>The TCP element allows specifying various parameters related to running DDSI over TCP.</p>") },
@@ -1014,12 +1013,12 @@ static const struct cfgelem root_cfgelem = {
 
 static const struct unit unittab_duration[] = {
   { "ns", 1 },
-  { "us", 1000 },
-  { "ms", T_MILLISECOND },
-  { "s", T_SECOND },
-  { "min", 60 * T_SECOND },
-  { "hr", 3600 * T_SECOND },
-  { "day", 24 * 3600 * T_SECOND },
+  { "us", DDS_USECS (1) },
+  { "ms", DDS_MSECS (1) },
+  { "s", DDS_SECS (1) },
+  { "min", DDS_SECS (60) },
+  { "hr", DDS_SECS (3600) },
+  { "day", DDS_SECS (24 * 3600) },
   { NULL, 0 }
 };
 
@@ -2075,37 +2074,37 @@ static enum update_result uf_duration_inf (struct cfgst *cfgst, void *parent, st
 {
   if (ddsrt_strcasecmp (value, "inf") == 0) {
     int64_t * const elem = cfg_address (cfgst, parent, cfgelem);
-    *elem = T_NEVER;
+    *elem = DDS_INFINITY;
     return URES_SUCCESS;
   } else {
-    return uf_duration_gen (cfgst, parent, cfgelem, value, 0, 0, T_NEVER - 1);
+    return uf_duration_gen (cfgst, parent, cfgelem, value, 0, 0, DDS_INFINITY - 1);
   }
 }
 
 static enum update_result uf_duration_ms_1hr (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
-  return uf_duration_gen (cfgst, parent, cfgelem, value, T_MILLISECOND, 0, 3600 * T_SECOND);
+  return uf_duration_gen (cfgst, parent, cfgelem, value, DDS_MSECS (1), 0, DDS_SECS (3600));
 }
 
 static enum update_result uf_duration_ms_1s (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
-  return uf_duration_gen (cfgst, parent, cfgelem, value, T_MILLISECOND, 0, T_SECOND);
+  return uf_duration_gen (cfgst, parent, cfgelem, value, DDS_MSECS (1), 0, DDS_SECS (1));
 }
 
 static enum update_result uf_duration_us_1s (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
-  return uf_duration_gen (cfgst, parent, cfgelem, value, 1000, 0, T_SECOND);
+  return uf_duration_gen (cfgst, parent, cfgelem, value, DDS_USECS (1), 0, DDS_SECS (1));
 }
 
 static enum update_result uf_duration_100ms_1hr (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
-  return uf_duration_gen (cfgst, parent, cfgelem, value, 0, 100 * T_MILLISECOND, 3600 * T_SECOND);
+  return uf_duration_gen (cfgst, parent, cfgelem, value, 0, DDS_MSECS (100), DDS_SECS (3600));
 }
 
 static void pf_duration (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
   int64_t const * const elem = cfg_address (cfgst, parent, cfgelem);
-  if (*elem == T_NEVER)
+  if (*elem == DDS_INFINITY)
     cfg_logelem (cfgst, sources, "inf");
   else
     pf_int64_unit (cfgst, *elem, sources, unittab_duration, "s");
@@ -2743,7 +2742,7 @@ static int set_default_channel (struct config *cfg)
     c->next = NULL;
     c->name = ddsrt_strdup ("user");
     c->priority = 0;
-    c->resolution = 1 * T_MILLISECOND;
+    c->resolution = DDS_MSECS (1);
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
     c->data_bandwidth_limit = 0;
     c->auxiliary_bandwidth_limit = 0;

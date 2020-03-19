@@ -1749,7 +1749,7 @@ static void set_mode_ping (int *xoptind, int xargc, char * const xargv[])
   {
     int pos = 0, mult = 1;
     double ping_rate;
-    if (strcmp (xargv[*xoptind], "inf") == 0 && lookup_multiplier (frequency_units, xargv[*xoptind] + 3) > 0)
+    if (strncmp (xargv[*xoptind], "inf", 3) == 0 && lookup_multiplier (frequency_units, xargv[*xoptind] + 3) > 0)
     {
       ping_intv = 0;
     }
@@ -1891,16 +1891,16 @@ int main (int argc, char *argv[])
 
   while ((opt = getopt (argc, argv, "cd:D:i:n:k:uLK:T:Q:R:h")) != EOF)
   {
+    int pos;
     switch (opt)
     {
       case 'c': collect_stats = true; break;
       case 'd': {
         char *col;
-        int pos;
         (void) ddsrt_strlcpy (netload_if, optarg, sizeof (netload_if));
         if ((col = strrchr (netload_if, ':')) == NULL || col == netload_if ||
             (sscanf (col+1, "%lf%n", &netload_bw, &pos) != 1 || (col+1)[pos] != 0))
-          error3 ("-d%s: expected DEVICE:BANDWIDTH\n", optarg);
+          error3 ("-d %s: expected DEVICE:BANDWIDTH\n", optarg);
         *col = 0;
         break;
       }
@@ -1917,10 +1917,9 @@ int main (int argc, char *argv[])
         else if (strcmp (optarg, "OU") == 0) topicsel = OU;
         else if (strcmp (optarg, "UK16") == 0) topicsel = UK16;
         else if (strcmp (optarg, "UK1024") == 0) topicsel = UK1024;
-        else error3 ("%s: unknown topic\n", optarg);
+        else error3 ("-T %s: unknown topic\n", optarg);
         break;
       case 'Q': {
-        int pos;
         double d;
         unsigned long n;
         if (sscanf (optarg, "rss:%lf%n", &d, &pos) == 1 && (optarg[pos] == 0 || optarg[pos] == '%')) {
@@ -1935,11 +1934,16 @@ int main (int argc, char *argv[])
         } else if (sscanf (optarg, "minmatch:%lu%n", &n, &pos) == 1 && optarg[pos] == 0) {
           minmatch = (uint32_t) n;
         } else {
-          error3 ("-Q%s: invalid success criterium\n", optarg);
+          error3 ("-Q %s: invalid success criterium\n", optarg);
         }
         break;
       }
-      case 'R': tref = 0; sscanf (optarg, "%"SCNd64, &tref); break;
+      case 'R': {
+        tref = 0;
+        if (sscanf (optarg, "%"SCNd64"%n", &tref, &pos) != 1 || optarg[pos] != 0)
+          error3 ("-R %s: invalid reference time\n", optarg);
+        break;
+      }
       case 'h': default: usage (); break;
     }
   }
@@ -1959,7 +1963,7 @@ int main (int argc, char *argv[])
   if (nkeyvals == 0)
     nkeyvals = 1;
   if (topicsel == OU && nkeyvals != 1)
-    error3 ("-n%u invalid: topic OU has no key\n", nkeyvals);
+    error3 ("-n %u invalid: topic OU has no key\n", nkeyvals);
   if (topicsel != KS && baggagesize != 0)
     error3 ("size %"PRIu32" invalid: only topic KS has a sequence\n", baggagesize);
   if (baggagesize != 0 && baggagesize < 12)
@@ -2047,8 +2051,15 @@ int main (int argc, char *argv[])
      has convenience functions for that ...) */
   if ((rd_participants = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, NULL, NULL)) < 0)
     error2 ("dds_create_reader(participants) failed: %d\n", (int) rd_participants);
-  /* set listener later: DATA_AVAILABLE still has the nasty habit of potentially triggering
-     before the reader is accessible to the application via its handle */
+  if ((rd_subscriptions = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL)) < 0)
+    error2 ("dds_create_reader(subscriptions) failed: %d\n", (int) rd_subscriptions);
+  if ((rd_publications = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, NULL, NULL)) < 0)
+    error2 ("dds_create_reader(publications) failed: %d\n", (int) rd_publications);
+
+  /* Set DATA_AVAILABLE listener on participant later: it has the nasty habit of potentially
+     triggering before the reader is accessible to the application via its handle. Furthermore,
+     upon matching a participant, a new writer is created that gets a publication_matched
+     listener, which in turn depends on rd_subscriptions. */
   listener = dds_create_listener (NULL);
   dds_lset_data_available (listener, participant_data_listener);
   dds_set_listener (rd_participants, listener);
@@ -2056,10 +2067,6 @@ int main (int argc, char *argv[])
   /* then there is the matter of data arriving prior to setting the listener ... this state
      of affairs is undoubtedly a bug */
   participant_data_listener (rd_participants, NULL);
-  if ((rd_subscriptions = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL)) < 0)
-    error2 ("dds_create_reader(subscriptions) failed: %d\n", (int) rd_subscriptions);
-  if ((rd_publications = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, NULL, NULL)) < 0)
-    error2 ("dds_create_reader(publications) failed: %d\n", (int) rd_publications);
 
   /* stats writer always exists, reader only when we were requested to collect & print stats */
   qos = dds_create_qos ();

@@ -21,8 +21,8 @@
 #include "dds/ddsrt/fibheap.h"
 
 #include "dds/ddsi/ddsi_plist.h"
+#include "dds/ddsi/ddsi_ownip.h"
 #include "dds/ddsi/q_protocol.h"
-#include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_sockwaitset.h"
 #include "dds/ddsi/q_config.h"
 
@@ -118,18 +118,40 @@ struct ddsi_domaingv {
      DCPS participant of DDSI2 itself will be mirrored in a DDSI
      participant, and in multi-socket mode that one gets its own
      socket. */
-
   struct ddsi_tran_conn * disc_conn_mc;
   struct ddsi_tran_conn * data_conn_mc;
   struct ddsi_tran_conn * disc_conn_uc;
   struct ddsi_tran_conn * data_conn_uc;
 
-  /* TCP listener */
+  /* Connection used for all output (for connectionless transports), this
+     used to simply be data_conn_uc, but:
 
+     - Windows has a quirk that makes multicast delivery within a machine
+       utterly unreliable if the transmitting socket is bound to 0.0.0.0
+       (despite all sockets having multicast interfaces set correctly),
+       but apparently only in the presence of sockets transmitting to the
+       same multicast group that have been bound to non-0.0.0.0 ...
+     - At least Fast-RTPS and Connext fail to honour the set of advertised
+       addresses and substitute 127.0.0.1 for the advertised IP address and
+       expect it to work.
+     - Fast-RTPS (at least) binds the socket it uses for transmitting
+       multicasts to non-0.0.0.0
+
+     So binding to 0.0.0.0 means the unicasts from Fast-RTPS & Connext will
+     arrive but the multicasts from Cyclone get dropped often on Windows
+     when trying to interoperate; and binding to the IP address means
+     unicast messages from the others fail to arrive (because they fail to
+     arrive).
+
+     The only work around is to use a separate socket for sending.  It is
+     rather sad that Cyclone needs to work around the bugs of the others,
+     but it seems the only way to get the users what they expect. */
+  struct ddsi_tran_conn * xmit_conn;
+
+  /* TCP listener */
   struct ddsi_tran_listener * listener;
 
   /* Thread pool */
-
   struct ddsrt_thread_pool_s * thread_pool;
 
   /* In many sockets mode, the receive threads maintain a local array
@@ -221,7 +243,7 @@ struct ddsi_domaingv {
 
   /* Start time of the DDSI2 service, for logging relative time stamps,
      should I ever so desire. */
-  nn_wctime_t tstart;
+  ddsrt_wctime_t tstart;
 
   /* Default QoSs for participant, readers and writers (needed for
      eliminating default values in outgoing discovery packets, and for
@@ -257,10 +279,6 @@ struct ddsi_domaingv {
   /* Built-in stuff other than SPDP gets funneled through the builtins
      delivery queue; currently just SEDP and PMD */
   struct nn_dqueue *builtins_dqueue;
-
-  /* Connection used by general timed-event queue for transmitting data */
-
-  struct ddsi_tran_conn * tev_conn;
 
   struct debug_monitor *debmon;
 

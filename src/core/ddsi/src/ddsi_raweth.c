@@ -13,7 +13,6 @@
 #include "dds/ddsi/ddsi_raweth.h"
 #include "dds/ddsi/ddsi_ipaddr.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
-#include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_pcap.h"
@@ -175,27 +174,27 @@ static int ddsi_raweth_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t 
   return ret;
 }
 
-static ddsi_tran_conn_t ddsi_raweth_create_conn (ddsi_tran_factory_t fact, uint32_t port, ddsi_tran_qos_t qos)
+static dds_return_t ddsi_raweth_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_factory_t fact, uint32_t port, const struct ddsi_tran_qos *qos)
 {
   ddsrt_socket_t sock;
   dds_return_t rc;
   ddsi_raweth_conn_t uc = NULL;
   struct sockaddr_ll addr;
-  bool mcast = (bool) (qos ? qos->m_multicast : 0);
+  bool mcast = (qos->m_purpose == DDSI_TRAN_QOS_RECV_MC);
 
   /* If port is zero, need to create dynamic port */
 
   if (port == 0 || port > 65535)
   {
     DDS_CERROR (&fact->gv->logconfig, "ddsi_raweth_create_conn %s port %u - using port number as ethernet type, %u won't do\n", mcast ? "multicast" : "unicast", port, port);
-    return NULL;
+    return DDS_RETCODE_ERROR;
   }
 
   rc = ddsrt_socket(&sock, PF_PACKET, SOCK_DGRAM, htons((uint16_t)port));
   if (rc != DDS_RETCODE_OK)
   {
     DDS_CERROR (&fact->gv->logconfig, "ddsi_raweth_create_conn %s port %u failed ... retcode = %d\n", mcast ? "multicast" : "unicast", port, rc);
-    return NULL;
+    return DDS_RETCODE_ERROR;
   }
 
   memset(&addr, 0, sizeof(addr));
@@ -208,13 +207,13 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (ddsi_tran_factory_t fact, uint3
   {
     ddsrt_close(sock);
     DDS_CERROR (&fact->gv->logconfig, "ddsi_raweth_create_conn %s bind port %u failed ... retcode = %d\n", mcast ? "multicast" : "unicast", port, rc);
-    return NULL;
+    return DDS_RETCODE_ERROR;
   }
 
   if ((uc = (ddsi_raweth_conn_t) ddsrt_malloc (sizeof (*uc))) == NULL)
   {
     ddsrt_close(sock);
-    return NULL;
+    return DDS_RETCODE_ERROR;
   }
 
   memset (uc, 0, sizeof (*uc));
@@ -231,7 +230,8 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (ddsi_tran_factory_t fact, uint3
   uc->m_base.m_disable_multiplexing_fn = 0;
 
   DDS_CTRACE (&fact->gv->logconfig, "ddsi_raweth_create_conn %s socket %d port %u\n", mcast ? "multicast" : "unicast", uc->m_sock, uc->m_base.m_base.m_port);
-  return &uc->m_base;
+  *conn_out = &uc->m_base;
+  return DDS_RETCODE_OK;
 }
 
 static int isbroadcast(const nn_locator_t *loc)

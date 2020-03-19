@@ -18,7 +18,7 @@
 #include <sys/time.h>
 
 #include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/timeconv.h"
+#include "dds/ddsrt/time.h"
 
 void ddsrt_mutex_init (ddsrt_mutex_t *mutex)
 {

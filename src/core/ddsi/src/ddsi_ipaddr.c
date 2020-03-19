@@ -17,7 +17,6 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsi/ddsi_ipaddr.h"
-#include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 

@@ -72,7 +72,7 @@ my $last_infots;
 my %spdp_info;
 my $hexmode = 1;
 my $sysid_hex;
-my $proto = '(?:udp4?|tcp4?)\/';
+my $proto_ip = "(?:(?:udp[46]?|tcp[46]?)\/)?(?:[0-9.]+|\[[0-9a-fA-F:]+\])";
 my %tstamps;
 my %topic_qos;
 my $recv_packet = 0;
@@ -275,12 +275,14 @@ while(<>) {
     check_disccomplete("B", $1);
   }
 
-  # Special handling of INFOTS & SPDP for extracting start times of remote nodes and making an
-  # informed guess as to whether the remote node learned of our existence because we sent a
-  # multicast or a unicast
   if (/recv(?:UC|MC)?: INFOTS\((\d+)\.(\d+)\)/) {
+    # Special handling of INFOTS for guessing at source time stamps (in particular also
+    # for guessing at start times of other nodes
     $last_infots = ($1 - $t0sec) + ($2/1e3 - $t0usec) / 1e6;
-  } elsif ($hexmode ? m/recv: DATA\(((?:[0-9a-f]+:){3}100c2) -> ($guidre)/ : m/recv: DATA\(((?:[0-9a-f]+:){3}65730) -> ($guidre)/) {
+  } elsif ($hexmode ? m/recv(?:UC|MC)?: DATA\(((?:[0-9a-f]+:){3}100c2) -> ($guidre)/ : m/recv(?:UC|MC)?: DATA\(((?:[0-9a-f]+:){3}65730) -> ($guidre)/) {
+    # SPDP for extracting start times of remote nodes and making an informed guess as to
+    # whether the remote node learned of our existence because we sent a multicast or a
+    # unicast
     my $src = $1; my $dst = $2;
     (my $ppguid = hexify($src)) =~ s/:(100c2|65730)$/:1c1/;
     my $directed = ($dst !~ /^0:0:0:/);
@@ -290,23 +292,39 @@ while(<>) {
       # relatively long after discovery.  "Relatively long" being a pretty difficult
       # concept to work with, we use the "discovery complete" flag to see if it is a
       # likely asymmetrical disconnect
-      if ($proxypp{$ppguid}->{disccompleteflag}) {
+      if ($proxypp{$ppguid}->{disccompleteflag} && $ts > $proxypp{$ppguid}->{tasymdisc} + 5) {
         my $sysid = $proxypp{$ppguid}->{sysid};
         my $sx = decimal_sysid($sysid);
         printf "%9.3f %35s $topfmt ASYM %s (%s; %s; %s) likely asymmetrical disconnect\n", $ts, $sysid, "", $sysid{$sysid}->{ip}, $sx, $sysid{$sysid}->{name}, vendorstr($spdp_info{$ppguid}->{vendor});
+        $proxypp{$ppguid}->{tasymdisc} = $ts;
       }
+    }
+  } elsif (/: ACKNACK\(#\d+:1\/0:\s+(?:$leasere)?([0-9a-f]+(?::[0-9a-f]+){2}:([34])c7) -\>/) {
+    # An ACKNACK that acks nothing, nacks nothing and requests a response (no "F" flag
+    # present) is a tell-tale sign of a pre-emptive ACKNACK.  Receipt of one of those
+    # after having received a normal one is indicative of an asymmetrical disconnect.
+    # Detecting when all is well again is too hard.  Being lazy, we simply gate it with
+    # the "discovery complete" flag and suppress it within a window of 1s.
+    my $src = $1; my $src_id = $2;
+    (my $ppguid = hexify($src)) =~ s/:[0-9a-f]+$/:1c1/;
+    if (exists $proxypp{$ppguid} && $proxypp{$ppguid}->{disccompleteflag} && $ts > $proxypp{$ppguid}->{tasymdisc} + 1) {
+      my $sysid = $proxypp{$ppguid}->{sysid};
+      my $sx = decimal_sysid($sysid);
+      printf "%9.3f %35s $topfmt ASYM %s (%s; %s; %s) likely asymmetrical disconnect\n", $ts, $sysid, "", $sysid{$sysid}->{ip}, $sx, $sysid{$sysid}->{name}, vendorstr($spdp_info{$ppguid}->{vendor});
+      $proxypp{$ppguid}->{tasymdisc} = $ts;
     }
   }
 
-  if (/: ownip: (?:$proto)?([0-9.]+)/o) {
+  if (/: ownip: ($proto_ip)/o) {
     $ownip = $1;
+    $ownip =~ s/^(udp|tcp)[46]?\///;
   } elsif (/: PARTICIPANT ($guidre) QOS=\{/o) {
     my $guid = hexify($1);
     (my $gid = $guid) =~ s/:[^:]+$//;
     my $userdata = $_;
     if ($userdata =~ s/.*QOS=\{.*?user_data=//) {
       $userdata =~ s/\}$//;
-      $userdata =~ s/,entity_factory=\d$//;
+      $userdata =~ s/,(?:(?:prismtech|adlink)_)?entity_factory=\d$//;
       $userdata = " userdata:$userdata";
     } else {
       $userdata = "";
@@ -320,7 +338,7 @@ while(<>) {
     }
     $pp{$guid} = { gid => $gid, guid => $guid, name => $name, sname => $sname, sub => {}, pub => {} };
     if (! $self_seen) {
-      my $sysid = $guid;
+      (my $sysid = $guid) =~ s/:1c1$//;
       $self_seen = 1;
       $sysid{$sysid} = { self => 1, ip => $ownip, name => $name, sname => $sname };
       my $sx = decimal_sysid($sysid);
@@ -352,7 +370,9 @@ while(<>) {
     $rwguid{$tid} = $guid; # if $is_cyclone;
     die "$guid $rwguid{$tid}" unless $guid eq $rwguid{$tid};
     my $topic; my $type; my $groupcoh; my $partitions; my $keepall;
-    if ($qos =~ /topic(?:_name)?=([^,]+?),type(?:_name)=([^,]+?).*?,partition=\{([^}]*?)\}/) {
+    # GUID prefix of 0:0:0: local built-in writer
+    my $local_builtin = ($guid =~ /^0:0:0:/);
+    if (! $local_builtin && $qos =~ /topic(?:_name)?="?([^,"]+?)"?,type(?:_name)="?([^,"]+?)"?.*?,partition=\{([^}]*?)\}/) {
       $topic = $1; $type = $2; $partitions = $3;
       die unless $qos =~ /,history=([01]):/; $keepall = $1;
       die unless $qos =~ /,presentation=(\d:\d):\d/; $groupcoh = ($1 eq "2:1");
@@ -361,7 +381,7 @@ while(<>) {
       }
       $rwgid{$tid} = $psguid{$tid} = $psgid{$tid} = "" if 1; # $is_cyclone;
     } else {
-      # no topic, type: DDSI built-in reader/writer
+      # all-zero GUID prefix or no topic, type: DDSI built-in reader/writer
       if (defined $rwgid{$tid} || $ftrflag{$tid}) {
         die;
       }
@@ -449,43 +469,46 @@ while(<>) {
       die;
     }
     if (!defined ($wr{$wrguid}->{topic})) {
-      die;
-    }
-    my $wr = $wr{$wrguid};
-    $cseq = "C#$cseq" if $cseq ne "";
-    my $dest = getdest($wrguid);
-    $wr->{seq} = $seq;
-    if (defined $wr->{cs}) {
-      $wr->{cs}->{seq} = $seq unless defined $wr->{cs}->{seq};
-    }
-    if (scalar (keys %{$wr->{matches}}) > 0) {
-      push @ackcheck, { ts => $ts + 1, tswrite => $ts, wrguid => $wrguid, seq => $seq };
-    }
-    my $op = ($data =~ /^:e:/) ? "W  " : $opstr{$st.$dflag};
-    my $print = 0;
-    my $printlim = $shows{limit};
-    $xmit_appdata++;
-    $print = show_topic($wr->{topic}) && $shows{out};
-    $print = 0 unless $data =~ /$data_filter/o;
-    my $sdata = $printlim ? (sprintf "%-100.100s", $data) : (sprintf "%-100s", $data);
-    printf "%9.3f %35s $topfmt %s #%-4d %-6s XMT  %s -> %s\n", $ts, fmtguid($wrguid), $wr->{stopic}, $op, $seq, $cseq, $sdata, $dest if $print;
-    if ($data =~ /^:e:/ && defined $wr->{cs}) {
-      # assume empty transaction if no $wr->{cs}
-      my $pub = $pub{$wr->{psguid}};
-      die unless defined $pub;
-      $wr->{cs} = undef;
-      if ($pub->{txn} == 0) {
-        # presumably an empty transaction
-        $pub->{txn} = keys %{$pub->{es}};
-        printf "%9.3f %35s $topfmt %16s XMT  BEGIN [empty, %d writers]\n", $ts, fmtguid($pub->{guid}), "", "", $pub->{txn} if $shows{out};
+      # PMD looks like regular data but is built-in without a topic name
+      die unless $wrguid =~ /[4c][23]$/;
+    } else {
+      my $wr = $wr{$wrguid};
+      $cseq = "C#$cseq" if $cseq ne "";
+      my $dest = getdest($wrguid);
+      $wr->{seq} = $seq;
+      if (defined $wr->{cs}) {
+        $wr->{cs}->{seq} = $seq unless defined $wr->{cs}->{seq};
       }
-      if (--$pub->{txn} == 0) {
-        printf "%9.3f %35s $topfmt %16s XMT  COMMIT\n", $ts, fmtguid($pub->{guid}), "", ""
-          if $shows{out};
+      if (scalar (keys %{$wr->{matches}}) > 0) {
+        push @ackcheck, { ts => $ts + 1, tswrite => $ts, wrguid => $wrguid, seq => $seq };
+      }
+      my $op = ($data =~ /^:e:/) ? "W  " : $opstr{$st.$dflag};
+      my $print = 0;
+      my $printlim = $shows{limit};
+      $xmit_appdata++;
+      $print = show_topic($wr->{topic}) && $shows{out};
+      $print = 0 unless $data =~ /$data_filter/o;
+      my $sdata = $printlim ? (sprintf "%-100.100s", $data) : (sprintf "%-100s", $data);
+      printf "%9.3f %35s $topfmt %s #%-4d %-6s XMT  %s -> %s\n", $ts, fmtguid($wrguid), $wr->{stopic}, $op, $seq, $cseq, $sdata, $dest if $print;
+      if ($data =~ /^:e:/ && defined $wr->{cs}) {
+        # assume empty transaction if no $wr->{cs}
+        my $pub = $pub{$wr->{psguid}};
+        die unless defined $pub;
+        $wr->{cs} = undef;
+        if ($pub->{txn} == 0) {
+          # presumably an empty transaction
+          $pub->{txn} = keys %{$pub->{es}};
+          printf "%9.3f %35s $topfmt %16s XMT  BEGIN [empty, %d writers]\n", $ts, fmtguid($pub->{guid}), "", "", $pub->{txn} if $shows{out};
+        }
+        if (--$pub->{txn} == 0) {
+          printf "%9.3f %35s $topfmt %16s XMT  COMMIT\n", $ts, fmtguid($pub->{guid}), "", ""
+            if $shows{out};
+        }
       }
     }
-  } elsif (/: (?:SPDP ST\d+)?SPDP ST(\d) ($guidre)\s+bes\s+([0-9a-f]+)\s+.*NEW(?: processguid ($guidre) )?.*?meta(?: (?:$proto)?[0-9.]+:\d+)*? (?:$proto)?([0-9.]+:\d+)\)/o) {
+  } elsif (/: (?:SPDP ST\d+)?SPDP ST(\d) ($guidre)\s+bes\s+([0-9a-f]+)\s+.*NEW(?: processguid ($guidre) )?.*?meta(?: ${proto_ip}:\d+)*? (${proto_ip}:\d+)\)/o) {
     my $st = $1; my $ppguid = hexify($2); my $bes = hex $3; my $processguid = $4; my $ip = $5;
+    $ip =~ s/^(udp|tcp)[46]?\///;
     my $hostname = $ip;
     my $sysid;
     if (defined $processguid) {
@@ -499,8 +522,9 @@ while(<>) {
         # presumably OSPL: first word is system id
         ($sysid = $ppguid) =~ s/:.*//;
       } else {
-        # presumably Cyclone, old format: 2nd word is process id
-        ($sysid = $ppguid) =~ s/:[0-9a-f]+:1c1$//;
+        # presumably Cyclone, old format: 2nd word is process id; new format: altogether
+        # crazy -- so don't bother with the old one
+        ($sysid = $ppguid) =~ s/:1c1$//;
       }
     } else {
       ($sysid = $ppguid) =~ s/:1c1$//;
@@ -562,6 +586,7 @@ while(<>) {
             sname => $sname,
             infots => $spdp_info{$ppguid}->{ts},
             tcreate => $ts,
+            tasymdisc => $ts,
             non_spdp_seen => 0,
             disccomplete => init_proxypp_disccomplete($bes),
             disccompleteflag => 0,
@@ -625,7 +650,7 @@ while(<>) {
     my $h = ($kind eq "READER") ? \%prd : \%pwr;
     my $hk = ($kind eq "READER") ? "prd" : "pwr";
     my $qos = $3;
-    unless ($3 =~ /topic(?:_name)?=([^,]+?),type(?:_name)?=([^,]+?),(?:.+?,)?partition=\{([^}]*?)\}/) {
+    unless ($qos =~ /topic(?:_name)?="?([^,"]+?)"?,type(?:_name)?="?([^,"]+?)"?,(?:.+?,)?partition=\{([^}]*?)\}/) {
       die unless $prwguid =~ /[4c][27]$/;
     }
     my $topic = $1; my $type = $2; my $partitions = $3;
@@ -713,7 +738,7 @@ while(<>) {
     my $pwrguid = hexify($1); my $rdguid = hexify($2);
     die unless exists $pwr{$pwrguid} || $pwrguid =~ /[4c][23]$/;
     die unless exists $rd{$rdguid} || $rdguid =~ /[4c][74]$/;
-    die if defined $pwr{$pwrguid}->{tdel};
+    #die if defined $pwr{$pwrguid}->{tdel}; # the order reversal is possible, however unlikely
     #next if $pwrguid =~ /[4c]2$/;
     $pwr{$pwrguid}->{matches}->{$rdguid} = {};
     $rd{$rdguid}->{matches}->{$pwrguid} = {};
@@ -722,7 +747,7 @@ while(<>) {
     my $wrguid = hexify($1); my $prdguid = hexify($2); my $bereader = $3 ne '';
     die unless exists $wr{$wrguid} || $wrguid =~ /[4c][23]$/;
     die unless exists $prd{$prdguid} || $prdguid =~ /[4c][74]$/;
-    die if defined $prd{$prdguid}->{tdel};
+    #die if defined $prd{$prdguid}->{tdel}; # the order reversal is possible, however unlikely
     #next if $wrguid =~ /[4c]2$/;
     my $wr = $wr{$wrguid};
     my $prd = $prd{$prdguid};

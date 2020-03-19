@@ -17,7 +17,7 @@
 #include "dds/ddsi/q_feature_check.h"
 
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_time.h"
+#include "dds/ddsi/ddsi_time.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -164,9 +164,8 @@ typedef enum SubmessageKind {
   SMID_SRTPS_PREFIX = 0x33,
   SMID_SRTPS_POSTFIX = 0x34,
   /* vendor-specific sub messages (0x80 .. 0xff) */
-  SMID_PT_INFO_CONTAINER = 0x80,
-  SMID_PT_MSG_LEN = 0x81,
-  SMID_PT_ENTITY_ID = 0x82
+  SMID_ADLINK_MSG_LEN = 0x81,
+  SMID_ADLINK_ENTITY_ID = 0x82
 } SubmessageKind_t;
 
 typedef struct InfoTimestamp {
@@ -305,12 +304,6 @@ DDSRT_WARNING_MSVC_ON(4200)
 #define NACKFRAG_SIZE(numbits) (offsetof (NackFrag_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits) + 4)
 #define NACKFRAG_SIZE_MAX NACKFRAG_SIZE (256u)
 
-typedef struct PT_InfoContainer {
-  SubmessageHeader_t smhdr;
-  uint32_t id;
-} PT_InfoContainer_t;
-#define PTINFO_ID_ENCRYPT (0x01u)
-
 typedef union Submessage {
   SubmessageHeader_t smhdr;
   AckNack_t acknack;
@@ -323,7 +316,6 @@ typedef union Submessage {
   HeartbeatFrag_t heartbeatfrag;
   Gap_t gap;
   NackFrag_t nackfrag;
-  PT_InfoContainer_t pt_infocontainer;
 } Submessage_t;
 
 DDSRT_WARNING_MSVC_OFF(4200)
@@ -401,7 +393,7 @@ DDSRT_WARNING_MSVC_ON(4200)
 #define PID_COHERENT_SET                        0x56u
 #define PID_DIRECTED_WRITE                      0x57u
 #define PID_ORIGINAL_WRITER_INFO                0x61u
-#define PID_ENDPOINT_GUID                       0x5au /* !SPEC <=> PRISMTECH_ENDPOINT_GUID */
+#define PID_ENDPOINT_GUID                       0x5au /* !SPEC <=> ADLINK_ENDPOINT_GUID */
 
 /* Security related PID values. */
 #define PID_IDENTITY_TOKEN                      0x1001u
@@ -430,43 +422,42 @@ DDSRT_WARNING_MSVC_ON(4200)
 #define PID_RECV_QUEUE_SIZE                     0x18u
 #define PID_RELIABILITY_OFFERED                 0x19u
 
-#define PID_PRISMTECH_BUILTIN_ENDPOINT_SET      (PID_VENDORSPECIFIC_FLAG | 0x0u)
+#define PID_ADLINK_BUILTIN_ENDPOINT_SET         (PID_VENDORSPECIFIC_FLAG | 0x0u)
 
 /* parameter ids for READER_DATA_LIFECYCLE & WRITER_DATA_LIFECYCLE are
    undefined, but let's publish them anyway */
-#define PID_PRISMTECH_READER_DATA_LIFECYCLE     (PID_VENDORSPECIFIC_FLAG | 0x2u)
-#define PID_PRISMTECH_WRITER_DATA_LIFECYCLE     (PID_VENDORSPECIFIC_FLAG | 0x3u)
+#define PID_ADLINK_READER_DATA_LIFECYCLE        (PID_VENDORSPECIFIC_FLAG | 0x2u)
+#define PID_ADLINK_WRITER_DATA_LIFECYCLE        (PID_VENDORSPECIFIC_FLAG | 0x3u)
 
 /* ENDPOINT_GUID is formally undefined, so in strictly conforming
    mode, we use our own */
-#define PID_PRISMTECH_ENDPOINT_GUID             (PID_VENDORSPECIFIC_FLAG | 0x4u)
+#define PID_ADLINK_ENDPOINT_GUID                (PID_VENDORSPECIFIC_FLAG | 0x4u)
 
-#define PID_PRISMTECH_SYNCHRONOUS_ENDPOINT      (PID_VENDORSPECIFIC_FLAG | 0x5u)
+#define PID_ADLINK_SYNCHRONOUS_ENDPOINT         (PID_VENDORSPECIFIC_FLAG | 0x5u)
 
 /* Relaxed QoS matching readers/writers are best ignored by
    implementations that don't understand them.  This also covers "old"
    DDSI2's, although they may emit an error. */
-#define PID_PRISMTECH_RELAXED_QOS_MATCHING      (PID_VENDORSPECIFIC_FLAG | PID_UNRECOGNIZED_INCOMPATIBLE_FLAG | 0x6u)
+#define PID_ADLINK_RELAXED_QOS_MATCHING         (PID_VENDORSPECIFIC_FLAG | PID_UNRECOGNIZED_INCOMPATIBLE_FLAG | 0x6u)
 
-#define PID_PRISMTECH_PARTICIPANT_VERSION_INFO  (PID_VENDORSPECIFIC_FLAG | 0x7u)
+#define PID_ADLINK_PARTICIPANT_VERSION_INFO     (PID_VENDORSPECIFIC_FLAG | 0x7u)
 
-/* See CMTopics protocol.doc (2013-12-09) */
-#define PID_PRISMTECH_NODE_NAME                 (PID_VENDORSPECIFIC_FLAG | 0x8u)
-#define PID_PRISMTECH_EXEC_NAME                 (PID_VENDORSPECIFIC_FLAG | 0x9u)
-#define PID_PRISMTECH_PROCESS_ID                (PID_VENDORSPECIFIC_FLAG | 0xau)
-#define PID_PRISMTECH_SERVICE_TYPE              (PID_VENDORSPECIFIC_FLAG | 0xbu)
-#define PID_PRISMTECH_ENTITY_FACTORY            (PID_VENDORSPECIFIC_FLAG | 0xcu)
-#define PID_PRISMTECH_WATCHDOG_SCHEDULING       (PID_VENDORSPECIFIC_FLAG | 0xdu)
-#define PID_PRISMTECH_LISTENER_SCHEDULING       (PID_VENDORSPECIFIC_FLAG | 0xeu)
-#define PID_PRISMTECH_SUBSCRIPTION_KEYS         (PID_VENDORSPECIFIC_FLAG | 0xfu)
-#define PID_PRISMTECH_READER_LIFESPAN           (PID_VENDORSPECIFIC_FLAG | 0x10u)
-#define PID_PRISMTECH_TYPE_DESCRIPTION          (PID_VENDORSPECIFIC_FLAG | 0x12u)
-#define PID_PRISMTECH_LAN                       (PID_VENDORSPECIFIC_FLAG | 0x13u)
-#define PID_PRISMTECH_ENDPOINT_GID              (PID_VENDORSPECIFIC_FLAG | 0x14u)
-#define PID_PRISMTECH_GROUP_GID                 (PID_VENDORSPECIFIC_FLAG | 0x15u)
-#define PID_PRISMTECH_EOTINFO                   (PID_VENDORSPECIFIC_FLAG | 0x16u)
-#define PID_PRISMTECH_PART_CERT_NAME            (PID_VENDORSPECIFIC_FLAG | 0x17u);
-#define PID_PRISMTECH_LAN_CERT_NAME             (PID_VENDORSPECIFIC_FLAG | 0x18u);
+#define PID_ADLINK_NODE_NAME                    (PID_VENDORSPECIFIC_FLAG | 0x8u)
+#define PID_ADLINK_EXEC_NAME                    (PID_VENDORSPECIFIC_FLAG | 0x9u)
+#define PID_ADLINK_PROCESS_ID                   (PID_VENDORSPECIFIC_FLAG | 0xau)
+#define PID_ADLINK_SERVICE_TYPE                 (PID_VENDORSPECIFIC_FLAG | 0xbu)
+#define PID_ADLINK_ENTITY_FACTORY               (PID_VENDORSPECIFIC_FLAG | 0xcu)
+#define PID_ADLINK_WATCHDOG_SCHEDULING          (PID_VENDORSPECIFIC_FLAG | 0xdu)
+#define PID_ADLINK_LISTENER_SCHEDULING          (PID_VENDORSPECIFIC_FLAG | 0xeu)
+#define PID_ADLINK_SUBSCRIPTION_KEYS            (PID_VENDORSPECIFIC_FLAG | 0xfu)
+#define PID_ADLINK_READER_LIFESPAN              (PID_VENDORSPECIFIC_FLAG | 0x10u)
+#define PID_ADLINK_TYPE_DESCRIPTION             (PID_VENDORSPECIFIC_FLAG | 0x12u)
+#define PID_ADLINK_LAN                          (PID_VENDORSPECIFIC_FLAG | 0x13u)
+#define PID_ADLINK_ENDPOINT_GID                 (PID_VENDORSPECIFIC_FLAG | 0x14u)
+#define PID_ADLINK_GROUP_GID                    (PID_VENDORSPECIFIC_FLAG | 0x15u)
+#define PID_ADLINK_EOTINFO                      (PID_VENDORSPECIFIC_FLAG | 0x16u)
+#define PID_ADLINK_PART_CERT_NAME               (PID_VENDORSPECIFIC_FLAG | 0x17u);
+#define PID_ADLINK_LAN_CERT_NAME                (PID_VENDORSPECIFIC_FLAG | 0x18u);
 
 #if defined (__cplusplus)
 }

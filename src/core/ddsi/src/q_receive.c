@@ -209,7 +209,7 @@ static int valid_InfoTS (InfoTS_t *msg, size_t size, int byteswap)
       msg->time.seconds = ddsrt_bswap4 (msg->time.seconds);
       msg->time.fraction = ddsrt_bswap4u (msg->time.fraction);
     }
-    return valid_ddsi_timestamp (msg->time);
+    return ddsi_is_valid_timestamp (msg->time);
   }
 }
 
@@ -314,7 +314,7 @@ static int set_sampleinfo_bswap (struct nn_rsample_info *sampleinfo, struct CDRH
 
 static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, Data_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp, uint32_t *payloadsz)
 {
-  /* on success: sampleinfo->{seq,rst,statusinfo,pt_wr_info_zoff,bswap,complex_qos} all set */
+  /* on success: sampleinfo->{seq,rst,statusinfo,bswap,complex_qos} all set */
   ddsi_guid_t pwr_guid;
   unsigned char *ptr;
 
@@ -351,7 +351,6 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
     *payloadp = NULL;
     sampleinfo->size = 0; /* size is full payload size, no payload & unfragmented => size = 0 */
     sampleinfo->statusinfo = 0;
-    sampleinfo->pt_wr_info_zoff = NN_OFF_TO_ZOFF (0);
     sampleinfo->complex_qos = 0;
     return 1;
   }
@@ -380,7 +379,6 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
   else
   {
     sampleinfo->statusinfo = 0;
-    sampleinfo->pt_wr_info_zoff = NN_OFF_TO_ZOFF (0);
     sampleinfo->complex_qos = 0;
   }
 
@@ -407,7 +405,6 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
 
 static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rmsg, DataFrag_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp, uint32_t *payloadsz)
 {
-  /* on success: sampleinfo->{rst,statusinfo,pt_wr_info_zoff,bswap,complex_qos} all set */
   ddsi_guid_t pwr_guid;
   unsigned char *ptr;
 
@@ -484,7 +481,6 @@ static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rms
   else
   {
     sampleinfo->statusinfo = 0;
-    sampleinfo->pt_wr_info_zoff = NN_OFF_TO_ZOFF (0);
     sampleinfo->complex_qos = 0;
   }
 
@@ -581,7 +577,7 @@ static int acknack_is_nack (const AckNack_t *msg)
   return x != 0;
 }
 
-static int accept_ack_or_hb_w_timeout (nn_count_t new_count, nn_count_t *exp_count, nn_etime_t tnow, nn_etime_t *t_last_accepted, int force_accept)
+static int accept_ack_or_hb_w_timeout (nn_count_t new_count, nn_count_t *exp_count, ddsrt_etime_t tnow, ddsrt_etime_t *t_last_accepted, int force_accept)
 {
   /* AckNacks and Heartbeats with a sequence number (called "count"
      for some reason) equal to or less than the highest one received
@@ -599,7 +595,7 @@ static int accept_ack_or_hb_w_timeout (nn_count_t new_count, nn_count_t *exp_cou
 
      This combined procedure should give the best of all worlds, and
      is not more expensive in the common case. */
-  const int64_t timeout = 2 * T_SECOND;
+  const int64_t timeout = DDS_SECS (2);
 
   if (new_count < *exp_count && tnow.v - t_last_accepted->v < timeout && !force_accept)
     return 0;
@@ -685,7 +681,7 @@ struct nn_xmsg * nn_gap_info_create_gap(struct writer *wr, struct proxy_reader *
   return m;
 }
 
-static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const AckNack_t *msg, nn_wctime_t timestamp, SubmessageKind_t prev_smid)
+static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const AckNack_t *msg, ddsrt_wctime_t timestamp, SubmessageKind_t prev_smid)
 {
   struct proxy_reader *prd;
   struct wr_prd_match *rn;
@@ -789,9 +785,9 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
      moment. */
   if (rst->gv->config.meas_hb_to_ack_latency && timestamp.v)
   {
-    nn_wctime_t tstamp_now = now ();
+    ddsrt_wctime_t tstamp_now = ddsrt_time_wallclock ();
     nn_lat_estim_update (&rn->hb_to_ack_latency, tstamp_now.v - timestamp.v);
-    if ((rst->gv->logconfig.c.mask & DDS_LC_TRACE) && tstamp_now.v > rn->hb_to_ack_latency_tlastlog.v + 10 * T_SECOND)
+    if ((rst->gv->logconfig.c.mask & DDS_LC_TRACE) && tstamp_now.v > rn->hb_to_ack_latency_tlastlog.v + DDS_SECS (10))
     {
       nn_lat_estim_log (DDS_LC_TRACE, &rst->gv->logconfig, NULL, &rn->hb_to_ack_latency);
       rn->hb_to_ack_latency_tlastlog = tstamp_now;
@@ -938,7 +934,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
         if (rst->gv->config.retransmit_merging != REXMIT_MERGE_NEVER && rn->assumed_in_sync && !prd->filter)
         {
           /* send retransmit to all receivers, but skip if recently done */
-          nn_mtime_t tstamp = now_mt ();
+          ddsrt_mtime_t tstamp = ddsrt_time_monotonic ();
           if (tstamp.v > sample.last_rexmit_ts.v + rst->gv->config.retransmit_merging_period)
           {
             RSTTRACE (" RX%"PRId64, seqbase + i);
@@ -1024,7 +1020,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
        gradually lowering rate.  If we just got a request for a
        retransmit, and there is more to be retransmitted, surely the
        rate should be kept up for now */
-    writer_hbcontrol_note_asyncwrite (wr, now_mt ());
+    writer_hbcontrol_note_asyncwrite (wr, ddsrt_time_monotonic ());
   }
   /* If "final" flag not set, we must respond with a heartbeat. Do it
      now if we haven't done so already */
@@ -1089,9 +1085,9 @@ struct handle_Heartbeat_helper_arg {
   struct receiver_state *rst;
   const Heartbeat_t *msg;
   struct proxy_writer *pwr;
-  nn_wctime_t timestamp;
-  nn_etime_t tnow;
-  nn_mtime_t tnow_mt;
+  ddsrt_wctime_t timestamp;
+  ddsrt_etime_t tnow;
+  ddsrt_mtime_t tnow_mt;
 };
 
 static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct handle_Heartbeat_helper_arg * const arg)
@@ -1128,8 +1124,7 @@ static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct hand
      once, regardless of which readers care about it. */
   if (wn->acknack_xevent)
   {
-    nn_mtime_t tsched;
-    tsched.v = T_NEVER;
+    ddsrt_mtime_t tsched = DDSRT_MTIME_NEVER;
 
     if (wn->filtered)
       last_seq = wn->last_seq;
@@ -1158,7 +1153,7 @@ static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct hand
   }
 }
 
-static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct nn_rmsg *rmsg, const Heartbeat_t *msg, nn_wctime_t timestamp, SubmessageKind_t prev_smid)
+static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const Heartbeat_t *msg, ddsrt_wctime_t timestamp, SubmessageKind_t prev_smid)
 {
   /* We now cheat: and process the heartbeat for _all_ readers,
      always, regardless of the destination address in the Heartbeat
@@ -1211,7 +1206,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
   ddsrt_mutex_lock (&pwr->e.lock);
   if (msg->smhdr.flags & HEARTBEAT_FLAG_LIVELINESS &&
       pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC &&
-      pwr->c.xqos->liveliness.lease_duration != T_NEVER)
+      pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
   {
     if ((lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_man)) != NULL)
       lease_renew (lease, tnow);
@@ -1342,7 +1337,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
   arg.pwr = pwr;
   arg.timestamp = timestamp;
   arg.tnow = tnow;
-  arg.tnow_mt = now_mt ();
+  arg.tnow_mt = ddsrt_time_monotonic ();
   handle_forall_destinations (&dst, pwr, (ddsrt_avl_walk_t) handle_Heartbeat_helper, &arg);
   RSTTRACE (")");
 
@@ -1350,7 +1345,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
   return 1;
 }
 
-static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime_t tnow), const HeartbeatFrag_t *msg, SubmessageKind_t prev_smid)
+static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_etime_t tnow), const HeartbeatFrag_t *msg, SubmessageKind_t prev_smid)
 {
   const seqno_t seq = fromSN (msg->writerSN);
   const nn_fragment_number_t fragnum = msg->lastFragmentNum - 1; /* we do 0-based */
@@ -1459,7 +1454,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
            samples we no longer care about) */
         int64_t delay = rst->gv->config.nack_delay;
         RSTTRACE ("/nackfrag");
-        (void) resched_xevent_if_earlier (m->acknack_xevent, add_duration_to_mtime (now_mt(), delay));
+        (void) resched_xevent_if_earlier (m->acknack_xevent, ddsrt_mtime_add_duration (ddsrt_time_monotonic(), delay));
       }
     }
   }
@@ -1468,7 +1463,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
   return 1;
 }
 
-static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const NackFrag_t *msg, SubmessageKind_t prev_smid)
+static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, const NackFrag_t *msg, SubmessageKind_t prev_smid)
 {
   struct proxy_reader *prd;
   struct wr_prd_match *rn;
@@ -1588,7 +1583,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
     struct whc_state whcst;
     whc_get_state(wr->whc, &whcst);
     force_heartbeat_to_peer (wr, &whcst, prd, 1);
-    writer_hbcontrol_note_asyncwrite (wr, now_mt ());
+    writer_hbcontrol_note_asyncwrite (wr, ddsrt_time_monotonic ());
   }
 
  out:
@@ -1628,17 +1623,17 @@ static int handle_InfoSRC (struct receiver_state *rst, const InfoSRC_t *msg)
   return 1;
 }
 
-static int handle_InfoTS (const struct receiver_state *rst, const InfoTS_t *msg, nn_wctime_t *timestamp)
+static int handle_InfoTS (const struct receiver_state *rst, const InfoTS_t *msg, ddsrt_wctime_t *timestamp)
 {
   RSTTRACE ("INFOTS(");
   if (msg->smhdr.flags & INFOTS_INVALIDATE_FLAG)
   {
-    *timestamp = NN_WCTIME_INVALID;
+    *timestamp = DDSRT_WCTIME_INVALID;
     RSTTRACE ("invalidate");
   }
   else
   {
-    *timestamp = nn_wctime_from_ddsi_time (msg->time);
+    *timestamp = ddsi_wctime_from_ddsi_time (msg->time);
     if (rst->gv->logconfig.c.mask & DDS_LC_TRACE)
       RSTTRACE ("%d.%09d", (int) (timestamp->v / 1000000000), (int) (timestamp->v % 1000000000));
   }
@@ -1714,7 +1709,7 @@ static int handle_one_gap (struct proxy_writer *pwr, struct pwr_rd_match *wn, se
   return gap_was_valuable;
 }
 
-static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rmsg *rmsg, const Gap_t *msg, SubmessageKind_t prev_smid)
+static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const Gap_t *msg, SubmessageKind_t prev_smid)
 {
   /* Option 1: Process the Gap for the proxy writer and all
      out-of-sync readers: what do I care which reader is being
@@ -1854,7 +1849,7 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
   return 1;
 }
 
-static struct ddsi_serdata *get_serdata (struct ddsi_sertopic const * const topic, const struct nn_rdata *fragchain, uint32_t sz, int justkey, unsigned statusinfo, nn_wctime_t tstamp)
+static struct ddsi_serdata *get_serdata (struct ddsi_sertopic const * const topic, const struct nn_rdata *fragchain, uint32_t sz, int justkey, unsigned statusinfo, ddsrt_wctime_t tstamp)
 {
   struct ddsi_serdata *sd = ddsi_serdata_from_ser (topic, justkey ? SDK_KEY : SDK_DATA, fragchain, sz);
   if (sd)
@@ -1871,7 +1866,7 @@ struct remote_sourceinfo {
   const ddsi_plist_t *qos;
   const struct nn_rdata *fragchain;
   unsigned statusinfo;
-  nn_wctime_t tstamp;
+  ddsrt_wctime_t tstamp;
 };
 
 static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk, struct ddsi_domaingv *gv, struct ddsi_sertopic const * const topic, void *vsourceinfo)
@@ -1883,7 +1878,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   const struct nn_rdata * __restrict fragchain = si->fragchain;
   const uint32_t statusinfo = si->statusinfo;
   const unsigned char data_smhdr_flags = si->data_smhdr_flags;
-  const nn_wctime_t tstamp = si->tstamp;
+  const ddsrt_wctime_t tstamp = si->tstamp;
   const ddsi_plist_t * __restrict qos = si->qos;
   const char *failmsg = NULL;
   struct ddsi_serdata *sample = NULL;
@@ -1910,7 +1905,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   else if (sampleinfo->size)
   {
     /* dispose or unregister with included serialized key or data
-       (data is a PrismTech extension) -- i.e., dispose or unregister
+       (data is a Adlink extension) -- i.e., dispose or unregister
        as one would expect to receive */
     if (data_smhdr_flags & DATA_FLAG_KEYFLAG)
     {
@@ -2122,7 +2117,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   }
 
   /* FIXME: should it be 0, local wall clock time or INVALID? */
-  const nn_wctime_t tstamp = (sampleinfo->timestamp.v != NN_WCTIME_INVALID.v) ? sampleinfo->timestamp : ((nn_wctime_t) {0});
+  const ddsrt_wctime_t tstamp = (sampleinfo->timestamp.v != DDSRT_WCTIME_INVALID.v) ? sampleinfo->timestamp : ((ddsrt_wctime_t) {0});
   struct ddsi_writer_info wrinfo;
   ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos, statusinfo);
 
@@ -2190,7 +2185,7 @@ static void clean_defrag (struct proxy_writer *pwr)
   nn_defrag_notegap (pwr->defrag, 1, seq);
 }
 
-static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct nn_rmsg *rmsg, const Data_DataFrag_common_t *msg, const struct nn_rsample_info *sampleinfo,
+static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const Data_DataFrag_common_t *msg, const struct nn_rsample_info *sampleinfo,
     uint32_t fragnum, struct nn_rdata *rdata, struct nn_dqueue **deferred_wakeup, bool renew_manbypp_lease)
 {
   struct proxy_writer *pwr;
@@ -2489,7 +2484,7 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
   }
 }
 
-static int handle_Data (struct receiver_state *rst, nn_etime_t tnow, struct nn_rmsg *rmsg, const Data_t *msg, size_t size, struct nn_rsample_info *sampleinfo, unsigned char *datap, struct nn_dqueue **deferred_wakeup, SubmessageKind_t prev_smid)
+static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const Data_t *msg, size_t size, struct nn_rsample_info *sampleinfo, unsigned char *datap, struct nn_dqueue **deferred_wakeup, SubmessageKind_t prev_smid)
 {
   RSTTRACE ("DATA("PGUIDFMT" -> "PGUIDFMT" #%"PRId64,
             PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
@@ -2554,7 +2549,7 @@ static int handle_Data (struct receiver_state *rst, nn_etime_t tnow, struct nn_r
   return 1;
 }
 
-static int handle_DataFrag (struct receiver_state *rst, nn_etime_t tnow, struct nn_rmsg *rmsg, const DataFrag_t *msg, size_t size, struct nn_rsample_info *sampleinfo, unsigned char *datap, struct nn_dqueue **deferred_wakeup, SubmessageKind_t prev_smid)
+static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const DataFrag_t *msg, size_t size, struct nn_rsample_info *sampleinfo, unsigned char *datap, struct nn_dqueue **deferred_wakeup, SubmessageKind_t prev_smid)
 {
   RSTTRACE ("DATAFRAG("PGUIDFMT" -> "PGUIDFMT" #%"PRId64"/[%u..%u]",
             PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
@@ -2781,8 +2776,8 @@ static int handle_submsg_sequence
   struct ddsi_domaingv *gv,
   ddsi_tran_conn_t conn,
   const nn_locator_t *srcloc,
-  nn_wctime_t tnowWC,
-  nn_etime_t tnowE,
+  ddsrt_wctime_t tnowWC,
+  ddsrt_etime_t tnowE,
   const ddsi_guid_prefix_t * const src_prefix,
   const ddsi_guid_prefix_t * const dst_prefix,
   unsigned char * const msg /* NOT const - we may byteswap it */,
@@ -2797,7 +2792,7 @@ static int handle_submsg_sequence
   Header_t * hdr = (Header_t *) msg;
   struct receiver_state *rst;
   int rst_live, ts_for_latmeas;
-  nn_wctime_t timestamp;
+  ddsrt_wctime_t timestamp;
   size_t submsg_size = 0;
   unsigned char * end = msg + len;
   struct nn_dqueue *deferred_wakeup = NULL;
@@ -2830,7 +2825,7 @@ static int handle_submsg_sequence
   rst->gv = gv;
   rst_live = 0;
   ts_for_latmeas = 0;
-  timestamp = NN_WCTIME_INVALID;
+  timestamp = DDSRT_WCTIME_INVALID;
 
   assert (thread_is_asleep ());
   thread_state_awake_fixed_domain (ts1);
@@ -2885,14 +2880,14 @@ static int handle_submsg_sequence
         state = "parse:acknack";
         if (!valid_AckNack (rst, &sm->acknack, submsg_size, byteswap))
           goto malformed;
-        handle_AckNack (rst, tnowE, &sm->acknack, ts_for_latmeas ? timestamp : NN_WCTIME_INVALID, prev_smid);
+        handle_AckNack (rst, tnowE, &sm->acknack, ts_for_latmeas ? timestamp : DDSRT_WCTIME_INVALID, prev_smid);
         ts_for_latmeas = 0;
         break;
       case SMID_HEARTBEAT:
         state = "parse:heartbeat";
         if (!valid_Heartbeat (&sm->heartbeat, submsg_size, byteswap))
           goto malformed;
-        handle_Heartbeat (rst, tnowE, rmsg, &sm->heartbeat, ts_for_latmeas ? timestamp : NN_WCTIME_INVALID, prev_smid);
+        handle_Heartbeat (rst, tnowE, rmsg, &sm->heartbeat, ts_for_latmeas ? timestamp : DDSRT_WCTIME_INVALID, prev_smid);
         ts_for_latmeas = 0;
         break;
       case SMID_GAP:
@@ -3006,7 +3001,7 @@ static int handle_submsg_sequence
           ts_for_latmeas = 0;
         }
         break;
-      case SMID_PT_MSG_LEN:
+      case SMID_ADLINK_MSG_LEN:
       {
 #if 0
         state = "parse:msg_len";
@@ -3014,7 +3009,7 @@ static int handle_submsg_sequence
         GVTRACE ("MSG_LEN(%"PRIu32")", ((MsgLen_t*) sm)->length);
         break;
       }
-      case SMID_PT_ENTITY_ID:
+      case SMID_ADLINK_ENTITY_ID:
       {
 #if 0
         state = "parse:entity_id";
@@ -3173,7 +3168,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
         ml->length = ddsrt_bswap4u (ml->length);
       }
 
-      if (ml->smhdr.submessageId != SMID_PT_MSG_LEN)
+      if (ml->smhdr.submessageId != SMID_ADLINK_MSG_LEN)
       {
         malformed_packet_received_nosubmsg (gv, buff, sz, "header", hdr->vendorid);
         sz = -1;
@@ -3223,30 +3218,10 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
         GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu from %s\n",
                  PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
       }
-      nn_rtps_msg_state_t res = decode_rtps_message(ts1,
-                                                    gv,
-                                                    &rmsg,
-                                                    &hdr,
-                                                    &buff,
-                                                    &sz,
-                                                    rbpool,
-                                                    conn->m_stream);
-
+      nn_rtps_msg_state_t res = decode_rtps_message (ts1, gv, &rmsg, &hdr, &buff, &sz, rbpool, conn->m_stream);
       if (res != NN_RTPS_MSG_STATE_ERROR)
       {
-        handle_submsg_sequence (ts1,
-                                gv,
-                                conn,
-                                &srcloc,
-                                now (),
-                                now_et (),
-                                &hdr->guid_prefix,
-                                guidprefix,
-                                buff,
-                                (size_t) sz,
-                                buff + RTPS_MESSAGE_HEADER_SIZE,
-                                rmsg,
-                                res == NN_RTPS_MSG_STATE_ENCODED);
+        handle_submsg_sequence (ts1, gv, conn, &srcloc, ddsrt_time_wallclock (), ddsrt_time_elapsed (), &hdr->guid_prefix, guidprefix, buff, (size_t) sz, buff + RTPS_MESSAGE_HEADER_SIZE, rmsg, res == NN_RTPS_MSG_STATE_ENCODED);
       }
       else
       {
@@ -3416,97 +3391,6 @@ static int recv_thread_waitset_add_conn (os_sockWaitset ws, ddsi_tran_conn_t con
   }
 }
 
-enum local_deaf_state_recover {
-  LDSR_NORMAL    = 0, /* matches gv.deaf for normal operation */
-  LDSR_DEAF      = 1, /* matches gv.deaf for "deaf" state */
-  LDSR_REJOIN    = 2
-};
-
-struct local_deaf_state {
-  enum local_deaf_state_recover state;
-  nn_mtime_t tnext;
-};
-
-static int check_and_handle_deafness_recover (struct ddsi_domaingv *gv, struct local_deaf_state *st, unsigned num_fixed_uc)
-{
-  int rebuildws = 0;
-  if (now_mt().v < st->tnext.v)
-  {
-    GVTRACE ("check_and_handle_deafness_recover: state %d too early\n", (int)st->state);
-    return 0;
-  }
-  switch (st->state)
-  {
-    case LDSR_NORMAL:
-      assert(0);
-      break;
-    case LDSR_DEAF: {
-      ddsi_tran_conn_t disc = gv->disc_conn_mc, data = gv->data_conn_mc;
-      GVTRACE ("check_and_handle_deafness_recover: state %d create new sockets\n", (int) st->state);
-      if (!create_multicast_sockets (gv))
-        goto error;
-      GVTRACE ("check_and_handle_deafness_recover: state %d transfer group membership admin\n", (int) st->state);
-      ddsi_transfer_group_membership (gv->mship, disc, gv->disc_conn_mc);
-      ddsi_transfer_group_membership (gv->mship, data, gv->data_conn_mc);
-      GVTRACE ("check_and_handle_deafness_recover: state %d drop from waitset and add new\n", (int) st->state);
-      /* see waitset construction code in recv_thread */
-      os_sockWaitsetPurge (gv->recv_threads[0].arg.u.many.ws, num_fixed_uc);
-      if (recv_thread_waitset_add_conn (gv->recv_threads[0].arg.u.many.ws, gv->disc_conn_mc) < 0)
-        DDS_FATAL("check_and_handle_deafness_recover: failed to add disc_conn_mc to waitset\n");
-      if (recv_thread_waitset_add_conn (gv->recv_threads[0].arg.u.many.ws, gv->data_conn_mc) < 0)
-        DDS_FATAL("check_and_handle_deafness_recover: failed to add data_conn_mc to waitset\n");
-      GVTRACE ("check_and_handle_deafness_recover: state %d close sockets\n", (int)st->state);
-      ddsi_conn_free(disc);
-      ddsi_conn_free(data);
-      rebuildws = 1;
-      st->state = LDSR_REJOIN;
-    }
-      /* FALLS THROUGH */
-    case LDSR_REJOIN:
-      GVTRACE ("check_and_handle_deafness_recover: state %d rejoin on disc socket\n", (int)st->state);
-      if (ddsi_rejoin_transferred_mcgroups (gv, gv->mship, gv->disc_conn_mc) < 0)
-        goto error;
-      GVTRACE ("check_and_handle_deafness_recover: state %d rejoin on data socket\n", (int)st->state);
-      if (ddsi_rejoin_transferred_mcgroups (gv, gv->mship, gv->data_conn_mc) < 0)
-        goto error;
-      GVTRACE ("check_and_handle_deafness_recover: state %d done\n", (int)st->state);
-      st->state = LDSR_NORMAL;
-      break;
-  }
-  GVTRACE ("check_and_handle_deafness_recover: state %d returning %d\n", (int)st->state, rebuildws);
-  return rebuildws;
-error:
-  GVTRACE ("check_and_handle_deafness_recover: state %d failed, returning %d\n", (int)st->state, rebuildws);
-  st->state = LDSR_DEAF;
-  st->tnext = add_duration_to_mtime(now_mt(), T_SECOND);
-  return rebuildws;
-}
-
-static int check_and_handle_deafness (struct ddsi_domaingv *gv, struct local_deaf_state *st, unsigned num_fixed_uc)
-{
-  const int gv_deaf = gv->deaf;
-  assert (gv_deaf == 0 || gv_deaf == 1);
-  if (gv_deaf == (int)st->state)
-    return 0;
-  else if (gv_deaf)
-  {
-    GVTRACE ("check_and_handle_deafness: going deaf (%d -> %d)\n", (int)st->state, (int)LDSR_DEAF);
-    st->state = LDSR_DEAF;
-    st->tnext = now_mt();
-    return 0;
-  }
-  else if (!gv->config.allowMulticast)
-  {
-    GVTRACE ("check_and_handle_deafness: no longer deaf (multicast disabled)\n");
-    st->state = LDSR_NORMAL;
-    return 0;
-  }
-  else
-  {
-    return check_and_handle_deafness_recover (gv, st, num_fixed_uc);
-  }
-}
-
 void trigger_recv_threads (const struct ddsi_domaingv *gv)
 {
   for (uint32_t i = 0; i < gv->n_recv_threads; i++)
@@ -3523,7 +3407,7 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
         iov.iov_base = &dummy;
         iov.iov_len = 1;
         GVTRACE ("trigger_recv_threads: %d single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
-        ddsi_conn_write (gv->data_conn_uc, dst, 1, &iov, 0);
+        ddsi_conn_write (gv->xmit_conn, dst, 1, &iov, 0);
         break;
       }
       case RTM_MANY: {
@@ -3542,7 +3426,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
   struct ddsi_domaingv * const gv = recv_thread_arg->gv;
   struct nn_rbufpool *rbpool = recv_thread_arg->rbpool;
   os_sockWaitset waitset = recv_thread_arg->mode == RTM_MANY ? recv_thread_arg->u.many.ws : NULL;
-  nn_mtime_t next_thread_cputime = { 0 };
+  ddsrt_mtime_t next_thread_cputime = { 0 };
 
   nn_rbufpool_setowner (rbpool, ddsrt_thread_self ());
   if (waitset == NULL)
@@ -3559,9 +3443,6 @@ uint32_t recv_thread (void *vrecv_thread_arg)
     struct local_participant_set lps;
     unsigned num_fixed = 0, num_fixed_uc = 0;
     os_sockWaitsetCtx ctx;
-    struct local_deaf_state lds;
-    lds.state = gv->deaf ? LDSR_DEAF : LDSR_NORMAL;
-    lds.tnext = now_mt();
     local_participant_set_init (&lps, &gv->participant_set_generation);
     if (gv->m_factory->m_connless)
     {
@@ -3583,9 +3464,8 @@ uint32_t recv_thread (void *vrecv_thread_arg)
 
     while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing))
     {
-      int rebuildws;
+      int rebuildws = 0;
       LOG_THREAD_CPUTIME (&gv->logconfig, next_thread_cputime);
-      rebuildws = check_and_handle_deafness (gv, &lds, num_fixed_uc);
       if (gv->config.many_sockets_mode != MSM_MANY_UNICAST)
       {
         /* no other sockets to check */

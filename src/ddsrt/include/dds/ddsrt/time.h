@@ -21,6 +21,7 @@
 #define DDS_TIME_H
 
 #include <stdint.h>
+#include <assert.h>
 
 #include "dds/export.h"
 #include "dds/ddsrt/types.h"
@@ -72,6 +73,23 @@ typedef int64_t dds_duration_t;
 #define DDS_USECS(n) ((n) * DDS_NSECS_IN_USEC)
 /** @}*/
 
+typedef struct {
+  dds_time_t v;
+} ddsrt_mtime_t;
+
+typedef struct {
+  dds_time_t v;
+} ddsrt_wctime_t;
+
+typedef struct {
+  dds_time_t v;
+} ddsrt_etime_t;
+
+#define DDSRT_MTIME_NEVER ((ddsrt_mtime_t) { DDS_NEVER })
+#define DDSRT_WCTIME_NEVER ((ddsrt_wctime_t) { DDS_NEVER })
+#define DDSRT_ETIME_NEVER ((ddsrt_etime_t) { DDS_NEVER })
+#define DDSRT_WCTIME_INVALID ((ddsrt_wctime_t) { INT64_MIN })
+
 /**
  * @brief Get the current time in nanoseconds since the UNIX Epoch.
  *
@@ -90,14 +108,12 @@ DDS_EXPORT dds_time_t dds_time(void);
 DDS_EXPORT void dds_sleepfor (dds_duration_t reltime);
 
 /**
- * @brief Suspend execution of calling thread until absolute time n elapsed.
+ * @brief Get the current time in nanoseconds since the UNIX Epoch.  Identical
+ * to (ddsrt_wctime_t){dds_time()}
  *
- * Execution is suspended until the given absolute time elapsed. Should the
- * call be interrupted, it is re-entered with the remaining time.
- *
- * @param[in]  abstime  Absolute time in nanoseconds since UNIX Epoch.
+ * @returns Curren time.
  */
-DDS_EXPORT void dds_sleepuntil (dds_time_t abstime);
+DDS_EXPORT ddsrt_wctime_t ddsrt_time_wallclock(void);
 
 /**
  * @brief Get high resolution, monotonic time.
@@ -112,7 +128,7 @@ DDS_EXPORT void dds_sleepuntil (dds_time_t abstime);
  *
  * @returns Monotonic time if available, otherwise real time.
  */
-DDS_EXPORT dds_time_t ddsrt_time_monotonic(void);
+DDS_EXPORT ddsrt_mtime_t ddsrt_time_monotonic(void);
 
 /**
  * @brief Get high resolution, elapsed (and thus monotonic) time since some
@@ -126,7 +142,7 @@ DDS_EXPORT dds_time_t ddsrt_time_monotonic(void);
  *
  * @returns Elapsed time if available, otherwise return monotonic time.
  */
-DDS_EXPORT dds_time_t ddsrt_time_elapsed(void);
+DDS_EXPORT ddsrt_etime_t ddsrt_time_elapsed(void);
 
 /**
  * @brief Convert time into a human readable string in RFC 3339 format.
@@ -147,6 +163,137 @@ DDS_EXPORT dds_time_t ddsrt_time_elapsed(void);
 #define DDSRT_RFC3339STRLEN (25)
 
 DDS_EXPORT size_t ddsrt_ctime(dds_time_t abstime, char *str, size_t size);
+
+/**
+ * @brief Calculate a time given an offset time and a duration.
+ *
+ * Negative time can become positive by adding a large enough duration, of
+ * course a positive time can become negative given a large enough negative
+ * duration.
+ *
+ * @param[in]  abstime  Timestamp in nanoseconds since UNIX Epoch.
+ * @param[in]  reltime  Relative time in nanoseconds.
+ *
+ * @returns A timestamp in nanoseconds since UNIX Epoch.
+ */
+inline dds_time_t ddsrt_time_add_duration(dds_time_t abstime, dds_duration_t reltime)
+{
+  assert(abstime >= 0);
+  assert(reltime >= 0);
+  return (reltime >= DDS_NEVER - abstime ? DDS_NEVER : abstime + reltime);
+}
+
+/**
+ * @brief Calculate a monotonic time given an offset time and a duration.
+ *
+ * Negative time can become positive by adding a large enough duration, of
+ * course a positive time can become negative given a large enough negative
+ * duration.
+ *
+ * @param[in]  abstime  Timestamp in nanoseconds since UNIX Epoch.
+ * @param[in]  reltime  Relative time in nanoseconds.
+ *
+ * @returns A timestamp in nanoseconds since UNIX Epoch.
+ */
+inline ddsrt_mtime_t ddsrt_mtime_add_duration(ddsrt_mtime_t abstime, dds_duration_t reltime) {
+  ddsrt_mtime_t t;
+  t.v = ddsrt_time_add_duration (abstime.v, reltime);
+  return t;
+}
+
+/**
+ * @brief Calculate a wall-clock time given an offset time and a duration.
+ *
+ * Negative time can become positive by adding a large enough duration, of
+ * course a positive time can become negative given a large enough negative
+ * duration.
+ *
+ * @param[in]  abstime  Timestamp in nanoseconds since UNIX Epoch.
+ * @param[in]  reltime  Relative time in nanoseconds.
+ *
+ * @returns A timestamp in nanoseconds since UNIX Epoch.
+ */
+inline ddsrt_wctime_t ddsrt_wctime_add_duration(ddsrt_wctime_t abstime, dds_duration_t reltime) {
+  ddsrt_wctime_t t;
+  t.v = ddsrt_time_add_duration (abstime.v, reltime);
+  return t;
+}
+
+/**
+ * @brief Calculate an elapsed time given an offset time and a duration.
+ *
+ * Negative time can become positive by adding a large enough duration, of
+ * course a positive time can become negative given a large enough negative
+ * duration.
+ *
+ * @param[in]  abstime  Timestamp in nanoseconds since UNIX Epoch.
+ * @param[in]  reltime  Relative time in nanoseconds.
+ *
+ * @returns A timestamp in nanoseconds since UNIX Epoch.
+ */
+inline ddsrt_etime_t ddsrt_etime_add_duration(ddsrt_etime_t abstime, dds_duration_t reltime) {
+  ddsrt_etime_t t;
+  t.v = ddsrt_time_add_duration (abstime.v, reltime);
+  return t;
+}
+
+#if _WIN32
+/**
+ * @brief Convert a relative time to microseconds rounding up.
+ *
+ * @param[in]  reltime  Relative time to convert.
+ *
+ * @returns INFINITE if @reltime was @DDS_INIFINITY, relative time converted to
+ *          microseconds otherwise.
+ */
+inline DWORD
+ddsrt_duration_to_msecs_ceil(dds_duration_t reltime)
+{
+  if (reltime == DDS_INFINITY) {
+    return INFINITE;
+  } else if (reltime > 0) {
+    assert(INFINITE < (DDS_INFINITY / DDS_NSECS_IN_MSEC));
+    dds_duration_t max_nsecs = (INFINITE - 1) * DDS_NSECS_IN_MSEC;
+
+    if (reltime < (max_nsecs - (DDS_NSECS_IN_MSEC - 1))) {
+      reltime += (DDS_NSECS_IN_MSEC - 1);
+    } else {
+      reltime = max_nsecs;
+    }
+
+    return (DWORD)(reltime / DDS_NSECS_IN_MSEC);
+  }
+
+  return 0;
+}
+#endif
+
+/**
+ * @brief Convert monotonic time seconds & microseconds
+ *
+ * @param[in]   t     Monotonic time to convert
+ * @param[out]  sec   Seconds part
+ * @param[out]  usec  Microseconds part
+ */
+DDS_EXPORT void ddsrt_mtime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, ddsrt_mtime_t t);
+
+/**
+ * @brief Convert wall-clock time seconds & microseconds
+ *
+ * @param[in]   t     Wall-clock time to convert
+ * @param[out]  sec   Seconds part
+ * @param[out]  usec  Microseconds part
+ */
+DDS_EXPORT void ddsrt_wctime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, ddsrt_wctime_t t);
+
+/**
+ * @brief Convert elapsed time seconds & microseconds
+ *
+ * @param[in]   t     Elasped time to convert
+ * @param[out]  sec   Seconds part
+ * @param[out]  usec  Microseconds part
+ */
+DDS_EXPORT void ddsrt_etime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, ddsrt_etime_t t);
 
 #if defined(__cplusplus)
 }

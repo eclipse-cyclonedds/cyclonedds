@@ -239,7 +239,7 @@ if(NOT WITH_FREERTOS)
 endif()
 
 if(WIN32)
-  target_link_libraries(ddsrt INTERFACE wsock32 ws2_32 iphlpapi bcrypt)
+  target_link_libraries(ddsrt INTERFACE ws2_32 iphlpapi bcrypt)
 elseif(UNIX)
   check_library_exists(c clock_gettime "" HAVE_CLOCK_GETTIME)
   if(NOT HAVE_CLOCK_GETTIME)

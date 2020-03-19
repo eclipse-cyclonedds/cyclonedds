@@ -18,7 +18,7 @@
 #include <sys/time.h>
 
 #include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/timeconv.h"
+#include "dds/ddsrt/time.h"
 
 void ddsrt_mutex_init (ddsrt_mutex_t *mutex)
 {
@@ -109,8 +109,8 @@ ddsrt_cond_waituntil(
     return true;
   }
   if (abstime > 0) {
-    ts.tv_sec = abstime / DDS_NSECS_IN_SEC;
-    ts.tv_nsec = abstime % DDS_NSECS_IN_SEC;
+    ts.tv_sec = (time_t) (abstime / DDS_NSECS_IN_SEC);
+    ts.tv_nsec = (suseconds_t) (abstime % DDS_NSECS_IN_SEC);
   }
 
   switch (pthread_cond_timedwait(&cond->cond, &mutex->mutex, &ts)) {

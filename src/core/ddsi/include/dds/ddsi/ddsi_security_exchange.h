@@ -29,8 +29,8 @@ extern "C" {
 #define GMCLASSID_SECURITY_DATAREADER_CRYPTO_TOKENS     "dds.sec.datareader_crypto_tokens"
 
 bool write_auth_handshake_message(const struct participant *pp, const struct proxy_participant *proxypp, nn_dataholderseq_t *mdata, bool request, const nn_message_identity_t *related_message_id);
-void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, nn_wctime_t timestamp,  unsigned statusinfo, const void *vdata, size_t len);
-void handle_crypto_exchange_message(const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len);
+void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, ddsrt_wctime_t timestamp,  unsigned statusinfo, const void *vdata, size_t len);
+void handle_crypto_exchange_message(const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, ddsrt_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len);
 void auth_get_serialized_participant_data(struct participant *pp, ddsi_octetseq_t *seq);
 bool write_crypto_participant_tokens(const struct participant *pp, const struct proxy_participant *proxypp, const nn_dataholderseq_t *tokens);
 bool write_crypto_writer_tokens(const struct writer *wr, const struct proxy_reader *prd, const nn_dataholderseq_t *tokens);

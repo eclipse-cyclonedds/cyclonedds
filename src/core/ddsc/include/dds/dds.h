@@ -998,25 +998,29 @@ dds_create_topic(
   const dds_qos_t *qos,
   const dds_listener_t *listener);
 
+
+#define DDS_HAS_CREATE_TOPIC_GENERIC 1
 /**
- * @brief Creates a new topic with arbitrary type handling.
+ * @brief Creates a new topic with provided type handling.
  *
  * The type name for the topic is taken from the provided "sertopic" object. Topic
  * matching is done on a combination of topic name and type name. Each successful
  * call to dds_create_topic creates a new topic entity sharing the same QoS
  * settings with all other topics of the same name.
  *
- * If sertopic is not yet known in the domain, it is added and its refcount
- * incremented; if an equivalent sertopic object is already known, then the known
- * one is used instead.
+ * In case this function returns a valid handle, the ownership of the provided
+ * sertopic is handed over to Cyclone. On return, the caller gets in the sertopic parameter a
+ * pointer to the sertopic that is actually used by the topic. This can be the provided sertopic
+ * (if this sertopic was not yet known in the domain), or a sertopic thas was
+ * already known in the domain.
  *
- * @param[in]  participant  Participant on which to create the topic.
- * @param[in]  sertopic     Internal description of the topic type (includes name).
- * @param[in]  qos          QoS to set on the new topic (can be NULL).
- * @param[in]  listener     Any listener functions associated with the new topic (can be NULL).
- * @param[in]  sedp_plist   Topic description to be published as part of discovery (if NULL, not published).
+ * @param[in]     participant  Participant on which to create the topic.
+ * @param[in,out] sertopic     Internal description of the topic type (includes name). On return, the sertopic parameter is set to the actual sertopic that is used by the topic.
+ * @param[in]     qos          QoS to set on the new topic (can be NULL).
+ * @param[in]     listener     Any listener functions associated with the new topic (can be NULL).
+ * @param[in]     sedp_plist   Topic description to be published as part of discovery (if NULL, not published).
  *
- * @returns A valid, unique topic handle or an error code.
+ * @returns A valid, unique topic handle or an error code. Iff a valid handle, the domain takes ownership of provided serdata.
  *
  * @retval >=0
  *             A valid unique topic handle.
@@ -1031,6 +1035,14 @@ dds_create_topic(
  *             topic's type name.
  */
 DDS_EXPORT dds_entity_t
+dds_create_topic_generic (
+  dds_entity_t participant,
+  struct ddsi_sertopic **sertopic,
+  const dds_qos_t *qos,
+  const dds_listener_t *listener,
+  const struct ddsi_plist *sedp_plist);
+
+DDS_DEPRECATED_EXPORT dds_entity_t
 dds_create_topic_arbitrary (
   dds_entity_t participant,
   struct ddsi_sertopic *sertopic,
@@ -3357,6 +3369,40 @@ dds_get_matched_publication_data (
 DDS_EXPORT dds_return_t
 dds_assert_liveliness (
   dds_entity_t entity);
+
+/**
+ * @brief This operation allows making the domain's network stack
+ * temporarily deaf and/or mute. It is a support function for testing and,
+ * other special uses and is subject to change.
+ *
+ * @param[in] entity  A domain entity or an entity bound to a domain, such
+ *                    as a participant, reader or writer.
+ * @param[in] deaf    Whether to network stack should pretend to be deaf and
+ *                    ignore any incoming packets.
+ * @param[in] mute    Whether to network stack should pretend to be mute and
+ *                    discard any outgoing packets where it normally would.
+ *                    pass them to the operating system kernel for transmission.
+ * @param[in] reset_after  Any value less than INFINITY will cause it to
+ *                    set deaf = mute = false after reset_after ns have passed.
+ *                    This is done by an event scheduled for the appropriate
+ *                    time and otherwise forgotten. These events are not
+ *                    affected by subsequent calls to this function.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The operation was successful.
+ * @retval DDS_BAD_PARAMETER
+ *             The entity parameter is not a valid parameter.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+*/
+DDS_EXPORT dds_return_t
+dds_domain_set_deafmute (
+  dds_entity_t entity,
+  bool deaf,
+  bool mute,
+  dds_duration_t reset_after);
 
 #if defined (__cplusplus)
 }

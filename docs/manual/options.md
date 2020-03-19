@@ -2002,7 +2002,7 @@ threads exist:
 
 * dq.CHAN: delivery thread for channel CHAN;
 
-* tev.CHAN: timed-even thread for channel CHAN.
+* tev.CHAN: timed-event thread for channel CHAN.
 
 
 ##### //CycloneDDS/Domain/Threads/Thread/Scheduling

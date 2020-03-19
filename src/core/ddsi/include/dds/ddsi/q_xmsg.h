@@ -29,7 +29,7 @@ struct proxy_writer;
 struct writer;
 struct participant;
 
-struct nn_prismtech_participant_version_info;
+struct nn_adlink_participant_version_info;
 struct nn_xmsgpool;
 struct nn_xmsg_data;
 struct nn_xmsg;
@@ -126,7 +126,7 @@ void nn_xmsg_submsg_append_refd_payload (struct nn_xmsg *msg, struct nn_xmsg_mar
 #endif
 void nn_xmsg_submsg_setnext (struct nn_xmsg *msg, struct nn_xmsg_marker marker);
 void nn_xmsg_submsg_init (struct nn_xmsg *msg, struct nn_xmsg_marker marker, SubmessageKind_t smkind);
-void nn_xmsg_add_timestamp (struct nn_xmsg *m, nn_wctime_t t);
+void nn_xmsg_add_timestamp (struct nn_xmsg *m, ddsrt_wctime_t t);
 void nn_xmsg_add_entityid (struct nn_xmsg * m);
 void *nn_xmsg_addpar_bo (struct nn_xmsg *m, nn_parameterid_t pid, size_t len, bool be);
 void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len);
