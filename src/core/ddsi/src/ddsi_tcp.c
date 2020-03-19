@@ -42,7 +42,9 @@
 union addr {
   struct sockaddr a;
   struct sockaddr_in a4;
+#if DDSRT_HAVE_IPV6
   struct sockaddr_in6 a6;
+#endif
 };
 
 typedef struct ddsi_tcp_conn {
