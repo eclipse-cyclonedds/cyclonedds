@@ -22,7 +22,7 @@ typedef struct {
 
 /* All existing vendor codes have the major part equal to 1 (and this will probably be true for a long, long time) */
 #define NN_VENDORID_MINOR_RTI                0x01
-#define NN_VENDORID_MINOR_PRISMTECH_OSPL     0x02
+#define NN_VENDORID_MINOR_ADLINK_OSPL        0x02
 #define NN_VENDORID_MINOR_OCI                0x03
 #define NN_VENDORID_MINOR_MILSOFT            0x04
 #define NN_VENDORID_MINOR_KONGSBERG          0x05
@@ -31,13 +31,13 @@ typedef struct {
 #define NN_VENDORID_MINOR_ICOUP              0x08
 #define NN_VENDORID_MINOR_ETRI               0x09
 #define NN_VENDORID_MINOR_RTI_MICRO          0x0a
-#define NN_VENDORID_MINOR_PRISMTECH_JAVA     0x0b
-#define NN_VENDORID_MINOR_PRISMTECH_GATEWAY  0x0c
-#define NN_VENDORID_MINOR_PRISMTECH_LITE     0x0d
+#define NN_VENDORID_MINOR_ADLINK_JAVA        0x0b
+#define NN_VENDORID_MINOR_ADLINK_GATEWAY     0x0c
+#define NN_VENDORID_MINOR_ADLINK_LITE        0x0d
 #define NN_VENDORID_MINOR_TECHNICOLOR        0x0e
 #define NN_VENDORID_MINOR_EPROSIMA           0x0f
 #define NN_VENDORID_MINOR_ECLIPSE            0x10
-#define NN_VENDORID_MINOR_PRISMTECH_CLOUD    0x20
+#define NN_VENDORID_MINOR_ADLINK_CLOUD       0x20
 
 #if defined(_WIN32) && defined(__cplusplus)
 #define NN_VENDORID(vendor) {{ 0x01, NN_VENDORID_MINOR_##vendor }}
@@ -63,7 +63,7 @@ inline bool vendor_is_rti (nn_vendorid_t vendor) {
   return vendor_equals (vendor, NN_VENDORID (RTI));
 }
 inline bool vendor_is_opensplice (nn_vendorid_t vendor) {
-  return vendor_equals (vendor, NN_VENDORID (PRISMTECH_OSPL));
+  return vendor_equals (vendor, NN_VENDORID (ADLINK_OSPL));
 }
 inline bool vendor_is_twinoaks (nn_vendorid_t vendor) {
   return vendor_equals (vendor, NN_VENDORID (TWINOAKS));
@@ -72,20 +72,20 @@ inline bool vendor_is_eprosima (nn_vendorid_t vendor) {
   return vendor_equals (vendor, NN_VENDORID (EPROSIMA));
 }
 inline bool vendor_is_cloud (nn_vendorid_t vendor) {
-  return vendor_equals (vendor, NN_VENDORID (PRISMTECH_CLOUD));
+  return vendor_equals (vendor, NN_VENDORID (ADLINK_CLOUD));
 }
 inline bool vendor_is_eclipse_or_opensplice (nn_vendorid_t vendor) {
   return vendor_is_eclipse (vendor) | vendor_is_opensplice (vendor);
 }
-inline bool vendor_is_prismtech (nn_vendorid_t vendor) {
-  return (vendor_equals (vendor, NN_VENDORID (PRISMTECH_OSPL)) ||
-          vendor_equals (vendor, NN_VENDORID (PRISMTECH_LITE)) ||
-          vendor_equals (vendor, NN_VENDORID (PRISMTECH_GATEWAY)) ||
-          vendor_equals (vendor, NN_VENDORID (PRISMTECH_JAVA)) ||
-          vendor_equals (vendor, NN_VENDORID (PRISMTECH_CLOUD)));
+inline bool vendor_is_adlink (nn_vendorid_t vendor) {
+  return (vendor_equals (vendor, NN_VENDORID (ADLINK_OSPL)) ||
+          vendor_equals (vendor, NN_VENDORID (ADLINK_LITE)) ||
+          vendor_equals (vendor, NN_VENDORID (ADLINK_GATEWAY)) ||
+          vendor_equals (vendor, NN_VENDORID (ADLINK_JAVA)) ||
+          vendor_equals (vendor, NN_VENDORID (ADLINK_CLOUD)));
 }
-inline bool vendor_is_eclipse_or_prismtech (nn_vendorid_t vendor) {
-  return vendor_is_eclipse (vendor) || vendor_is_prismtech (vendor);
+inline bool vendor_is_eclipse_or_adlink (nn_vendorid_t vendor) {
+  return vendor_is_eclipse (vendor) || vendor_is_adlink (vendor);
 }
 
 #if defined (__cplusplus)

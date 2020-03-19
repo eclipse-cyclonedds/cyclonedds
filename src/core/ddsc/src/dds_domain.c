@@ -59,7 +59,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   domain->m_entity.m_domain = domain;
   domain->m_entity.m_iid = ddsi_iid_gen ();
 
-  domain->gv.tstart = now ();
+  domain->gv.tstart = ddsrt_time_wallclock ();
 
   /* | domain_id | domain id in config | result
      +-----------+---------------------+----------
@@ -284,6 +284,23 @@ static dds_return_t dds_domain_free (dds_entity *vdomain)
   ddsrt_cond_broadcast (&dds_global.m_cond);
   ddsrt_mutex_unlock (&dds_global.m_mutex);
   return DDS_RETCODE_NO_DATA;
+}
+
+dds_return_t dds_domain_set_deafmute (dds_entity_t entity, bool deaf, bool mute, dds_duration_t reset_after)
+{
+  struct dds_entity *e;
+  dds_return_t rc;
+  if ((rc = dds_entity_pin (entity, &e)) < 0)
+    return rc;
+  if (e->m_domain == NULL)
+    rc = DDS_RETCODE_ILLEGAL_OPERATION;
+  else
+  {
+    ddsi_set_deafmute (&e->m_domain->gv, deaf, mute, reset_after);
+    rc = DDS_RETCODE_OK;
+  }
+  dds_entity_unpin (e);
+  return rc;
 }
 
 #include "dds__entity.h"

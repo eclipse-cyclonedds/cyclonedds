@@ -25,7 +25,7 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/ddsi_plist.h"
-#include "dds/ddsi/q_time.h"
+#include "dds/ddsi/ddsi_time.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_vendor.h"
@@ -283,7 +283,7 @@ static dds_return_t deser_reliability (void * __restrict dst, size_t * __restric
   if (validate_external_duration (&mbt) < 0)
     return DDS_RETCODE_BAD_PARAMETER;
   x->kind = (enum dds_reliability_kind) (kind - 1);
-  x->max_blocking_time = nn_from_ddsi_duration (mbt);
+  x->max_blocking_time = ddsi_from_ddsi_duration (mbt);
   *dstoff += sizeof (*x);
   *flagset->present |= flag;
   return 0;
@@ -295,7 +295,7 @@ static dds_return_t ser_reliability (struct nn_xmsg *xmsg, nn_parameterid_t pid,
   DDSRT_STATIC_ASSERT (DDS_EXTERNAL_RELIABILITY_BEST_EFFORT == 1 && DDS_EXTERNAL_RELIABILITY_RELIABLE == 2 &&
                        DDS_RELIABILITY_BEST_EFFORT == 0 && DDS_RELIABILITY_RELIABLE == 1);
   dds_reliability_qospolicy_t const * const x = deser_generic_src (src, &srcoff, alignof (dds_reliability_qospolicy_t));
-  ddsi_duration_t mbt = nn_to_ddsi_duration (x->max_blocking_time);
+  ddsi_duration_t mbt = ddsi_to_ddsi_duration (x->max_blocking_time);
   uint32_t * const p = nn_xmsg_addpar_bo (xmsg, pid, 3 * sizeof (uint32_t), be);
   p[0] = BO4U(1 + (uint32_t) x->kind);
   p[1] = BO4U((uint32_t) mbt.seconds);
@@ -660,7 +660,7 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
             goto fail;
           if (validate_external_duration (&tmp))
             goto fail;
-          x[i] = nn_from_ddsi_duration (tmp);
+          x[i] = ddsi_from_ddsi_duration (tmp);
         }
         *dstoff += cnt * sizeof (*x);
         break;
@@ -931,7 +931,7 @@ static dds_return_t ser_generic_embeddable (char * const data, size_t *dstoff, c
         uint32_t * const p = ser_generic_align4 (data, dstoff);
         for (uint32_t i = 0; i < cnt; i++)
         {
-          ddsi_duration_t tmp = nn_to_ddsi_duration (x[i]);
+          ddsi_duration_t tmp = ddsi_to_ddsi_duration (x[i]);
           p[2 * i + 0] = BO4U((uint32_t) tmp.seconds);
           p[2 * i + 1] = BO4U(tmp.fraction);
         }
@@ -1611,28 +1611,28 @@ static const struct piddesc piddesc_omg[] = {
 
 /* Understood parameters for Eclipse Foundation (Cyclone DDS) vendor code */
 static const struct piddesc piddesc_eclipse[] = {
-  QP  (PRISMTECH_ENTITY_FACTORY,            entity_factory, Xb),
-  QP  (PRISMTECH_READER_LIFESPAN,           reader_lifespan, Xb, XD),
-  QP  (PRISMTECH_WRITER_DATA_LIFECYCLE,     writer_data_lifecycle, Xb),
-  QP  (PRISMTECH_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
-  QP  (PRISMTECH_SUBSCRIPTION_KEYS,         subscription_keys, XbCOND, XQ, XS, XSTOP),
+  QP  (ADLINK_ENTITY_FACTORY,            entity_factory, Xb),
+  QP  (ADLINK_READER_LIFESPAN,           reader_lifespan, Xb, XD),
+  QP  (ADLINK_WRITER_DATA_LIFECYCLE,     writer_data_lifecycle, Xb),
+  QP  (ADLINK_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
+  QP  (ADLINK_SUBSCRIPTION_KEYS,         subscription_keys, XbCOND, XQ, XS, XSTOP),
   { PID_PAD, PDF_QOS, QP_CYCLONE_IGNORELOCAL, "CYCLONE_IGNORELOCAL",
     offsetof (struct ddsi_plist, qos.ignorelocal), membersize (struct ddsi_plist, qos.ignorelocal),
     { .desc = { XE2, XSTOP } }, 0 },
-  PP  (PRISMTECH_PARTICIPANT_VERSION_INFO,  prismtech_participant_version_info, Xux5, XS),
-  PP  (PRISMTECH_TYPE_DESCRIPTION,          type_description, XS),
+  PP  (ADLINK_PARTICIPANT_VERSION_INFO,  adlink_participant_version_info, Xux5, XS),
+  PP  (ADLINK_TYPE_DESCRIPTION,          type_description, XS),
   { PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
 };
 
-/* Understood parameters for PrismTech vendor code */
-static const struct piddesc piddesc_prismtech[] = {
-  QP  (PRISMTECH_ENTITY_FACTORY,            entity_factory, Xb),
-  QP  (PRISMTECH_READER_LIFESPAN,           reader_lifespan, Xb, XD),
-  QP  (PRISMTECH_WRITER_DATA_LIFECYCLE,     writer_data_lifecycle, Xb),
-  QP  (PRISMTECH_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
-  QP  (PRISMTECH_SUBSCRIPTION_KEYS,         subscription_keys, XbCOND, XQ, XS, XSTOP),
-  PP  (PRISMTECH_PARTICIPANT_VERSION_INFO,  prismtech_participant_version_info, Xux5, XS),
-  PP  (PRISMTECH_TYPE_DESCRIPTION,          type_description, XS),
+/* Understood parameters for Adlink vendor code */
+static const struct piddesc piddesc_adlink[] = {
+  QP  (ADLINK_ENTITY_FACTORY,            entity_factory, Xb),
+  QP  (ADLINK_READER_LIFESPAN,           reader_lifespan, Xb, XD),
+  QP  (ADLINK_WRITER_DATA_LIFECYCLE,     writer_data_lifecycle, Xb),
+  QP  (ADLINK_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
+  QP  (ADLINK_SUBSCRIPTION_KEYS,         subscription_keys, XbCOND, XQ, XS, XSTOP),
+  PP  (ADLINK_PARTICIPANT_VERSION_INFO,  adlink_participant_version_info, Xux5, XS),
+  PP  (ADLINK_TYPE_DESCRIPTION,          type_description, XS),
   { PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
 };
 
@@ -1696,7 +1696,7 @@ struct piddesc_index {
 
 static const struct piddesc *piddesc_omg_index[DEFAULT_OMG_PIDS_ARRAY_SIZE + SECURITY_OMG_PIDS_ARRAY_SIZE];
 static const struct piddesc *piddesc_eclipse_index[19];
-static const struct piddesc *piddesc_prismtech_index[19];
+static const struct piddesc *piddesc_adlink_index[19];
 
 #define INDEX_ANY(vendorid_, tab_) [vendorid_] = { \
     .index_max = sizeof (piddesc_##tab_##_index) / sizeof (piddesc_##tab_##_index[0]) - 1, \
@@ -1707,11 +1707,11 @@ static const struct piddesc *piddesc_prismtech_index[19];
 static const struct piddesc_index piddesc_vendor_index[] = {
   INDEX_ANY (0, omg),
   INDEX (ECLIPSE, eclipse),
-  INDEX (PRISMTECH_OSPL, prismtech),
-  INDEX (PRISMTECH_JAVA, prismtech),
-  INDEX (PRISMTECH_LITE, prismtech),
-  INDEX (PRISMTECH_GATEWAY, prismtech),
-  INDEX (PRISMTECH_CLOUD, prismtech)
+  INDEX (ADLINK_OSPL, adlink),
+  INDEX (ADLINK_JAVA, adlink),
+  INDEX (ADLINK_LITE, adlink),
+  INDEX (ADLINK_GATEWAY, adlink),
+  INDEX (ADLINK_CLOUD, adlink)
 };
 
 #undef INDEX
@@ -2869,7 +2869,6 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const struct 
   const unsigned char *pl;
   (void)rmsg;
   dest->statusinfo = 0;
-  dest->pt_wr_info_zoff = NN_OFF_TO_ZOFF (0);
   dest->complex_qos = 0;
   switch (src->encoding)
   {
@@ -2965,7 +2964,7 @@ void ddsi_plist_init_default_participant (ddsi_plist_t *plist)
 {
   ddsi_plist_init_empty (plist);
 
-  plist->qos.present |= QP_PRISMTECH_ENTITY_FACTORY;
+  plist->qos.present |= QP_ADLINK_ENTITY_FACTORY;
   plist->qos.entity_factory.autoenable_created_entities = 0;
 
   plist->qos.present |= QP_USER_DATA;
@@ -2986,14 +2985,14 @@ static void xqos_init_default_common (dds_qos_t *xqos)
   xqos->durability.kind = DDS_DURABILITY_VOLATILE;
 
   xqos->present |= QP_DEADLINE;
-  xqos->deadline.deadline = T_NEVER;
+  xqos->deadline.deadline = DDS_INFINITY;
 
   xqos->present |= QP_LATENCY_BUDGET;
   xqos->latency_budget.duration = 0;
 
   xqos->present |= QP_LIVELINESS;
   xqos->liveliness.kind = DDS_LIVELINESS_AUTOMATIC;
-  xqos->liveliness.lease_duration = T_NEVER;
+  xqos->liveliness.lease_duration = DDS_INFINITY;
 
   xqos->present |= QP_DESTINATION_ORDER;
   xqos->destination_order.kind = DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP;
@@ -3048,15 +3047,15 @@ void ddsi_xqos_init_default_reader (dds_qos_t *xqos)
   xqos->present |= QP_TIME_BASED_FILTER;
   xqos->time_based_filter.minimum_separation = 0;
 
-  xqos->present |= QP_PRISMTECH_READER_DATA_LIFECYCLE;
-  xqos->reader_data_lifecycle.autopurge_nowriter_samples_delay = T_NEVER;
-  xqos->reader_data_lifecycle.autopurge_disposed_samples_delay = T_NEVER;
+  xqos->present |= QP_ADLINK_READER_DATA_LIFECYCLE;
+  xqos->reader_data_lifecycle.autopurge_nowriter_samples_delay = DDS_INFINITY;
+  xqos->reader_data_lifecycle.autopurge_disposed_samples_delay = DDS_INFINITY;
 
-  xqos->present |= QP_PRISMTECH_READER_LIFESPAN;
+  xqos->present |= QP_ADLINK_READER_LIFESPAN;
   xqos->reader_lifespan.use_lifespan = 0;
-  xqos->reader_lifespan.duration = T_NEVER;
+  xqos->reader_lifespan.duration = DDS_INFINITY;
 
-  xqos->present |= QP_PRISMTECH_SUBSCRIPTION_KEYS;
+  xqos->present |= QP_ADLINK_SUBSCRIPTION_KEYS;
   xqos->subscription_keys.use_key_list = 0;
   xqos->subscription_keys.key_list.n = 0;
   xqos->subscription_keys.key_list.strs = NULL;
@@ -3076,7 +3075,7 @@ void ddsi_xqos_init_default_writer (dds_qos_t *xqos)
 
   xqos->present |= QP_RELIABILITY;
   xqos->reliability.kind = DDS_RELIABILITY_RELIABLE;
-  xqos->reliability.max_blocking_time = 100 * T_MILLISECOND;
+  xqos->reliability.max_blocking_time = DDS_MSECS (100);
 
   xqos->present |= QP_OWNERSHIP_STRENGTH;
   xqos->ownership_strength.value = 0;
@@ -3085,9 +3084,9 @@ void ddsi_xqos_init_default_writer (dds_qos_t *xqos)
   xqos->transport_priority.value = 0;
 
   xqos->present |= QP_LIFESPAN;
-  xqos->lifespan.duration = T_NEVER;
+  xqos->lifespan.duration = DDS_INFINITY;
 
-  xqos->present |= QP_PRISMTECH_WRITER_DATA_LIFECYCLE;
+  xqos->present |= QP_ADLINK_WRITER_DATA_LIFECYCLE;
   xqos->writer_data_lifecycle.autodispose_unregistered_instances = 1;
 }
 
@@ -3111,15 +3110,15 @@ void ddsi_xqos_init_default_topic (dds_qos_t *xqos)
 
   xqos->present |= QP_RELIABILITY;
   xqos->reliability.kind = DDS_RELIABILITY_BEST_EFFORT;
-  xqos->reliability.max_blocking_time = 100 * T_MILLISECOND;
+  xqos->reliability.max_blocking_time = DDS_MSECS (100);
 
   xqos->present |= QP_TRANSPORT_PRIORITY;
   xqos->transport_priority.value = 0;
 
   xqos->present |= QP_LIFESPAN;
-  xqos->lifespan.duration = T_NEVER;
+  xqos->lifespan.duration = DDS_INFINITY;
 
-  xqos->present |= QP_PRISMTECH_SUBSCRIPTION_KEYS;
+  xqos->present |= QP_ADLINK_SUBSCRIPTION_KEYS;
   xqos->subscription_keys.use_key_list = 0;
   xqos->subscription_keys.key_list.n = 0;
   xqos->subscription_keys.key_list.strs = NULL;
@@ -3133,7 +3132,7 @@ static void ddsi_xqos_init_default_publisher_subscriber (dds_qos_t *xqos)
   xqos->group_data.length = 0;
   xqos->group_data.value = NULL;
 
-  xqos->present |= QP_PRISMTECH_ENTITY_FACTORY;
+  xqos->present |= QP_ADLINK_ENTITY_FACTORY;
   xqos->entity_factory.autoenable_created_entities = 1;
 
   xqos->present |= QP_PARTITION;

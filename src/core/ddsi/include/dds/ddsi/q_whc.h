@@ -13,7 +13,7 @@
 #define Q_WHC_H
 
 #include <stddef.h>
-#include "dds/ddsi/q_time.h"
+#include "dds/ddsrt/time.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -30,7 +30,7 @@ struct whc_borrowed_sample {
   struct ddsi_serdata *serdata;
   struct ddsi_plist *plist;
   bool unacked;
-  nn_mtime_t last_rexmit_ts;
+  ddsrt_mtime_t last_rexmit_ts;
   unsigned rexmit_count;
 };
 
@@ -73,7 +73,7 @@ typedef void (*whc_free_t)(struct whc *whc);
    reliable readers that have not acknowledged all data */
 /* max_drop_seq must go soon, it's way too ugly. */
 /* plist may be NULL or ddsrt_malloc'd, WHC takes ownership of plist */
-typedef int (*whc_insert_t)(struct whc *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
+typedef int (*whc_insert_t)(struct whc *whc, seqno_t max_drop_seq, seqno_t seq, ddsrt_mtime_t exp, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
 typedef uint32_t (*whc_downgrade_to_volatile_t)(struct whc *whc, struct whc_state *st);
 typedef uint32_t (*whc_remove_acked_messages_t)(struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list);
 typedef void (*whc_free_deferred_free_list_t)(struct whc *whc, struct whc_node *deferred_free_list);
@@ -121,7 +121,7 @@ inline bool whc_sample_iter_borrow_next (struct whc_sample_iter *it, struct whc_
 inline void whc_free (struct whc *whc) {
   whc->ops->free (whc);
 }
-inline int whc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk) {
+inline int whc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, ddsrt_mtime_t exp, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk) {
   return whc->ops->insert (whc, max_drop_seq, seq, exp, plist, serdata, tk);
 }
 inline unsigned whc_downgrade_to_volatile (struct whc *whc, struct whc_state *st) {

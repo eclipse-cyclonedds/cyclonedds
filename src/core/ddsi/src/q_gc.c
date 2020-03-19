@@ -19,7 +19,6 @@
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_unused.h"
@@ -89,10 +88,10 @@ static int threads_vtime_check (uint32_t *nivs, struct idx_vtime *ivs)
 static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
-  nn_mtime_t next_thread_cputime = { 0 };
-  nn_mtime_t t_trigger_recv_threads = { 0 };
-  int64_t shortsleep = 1 * T_MILLISECOND;
-  int64_t delay = T_MILLISECOND; /* force evaluation after startup */
+  ddsrt_mtime_t next_thread_cputime = { 0 };
+  ddsrt_mtime_t t_trigger_recv_threads = { 0 };
+  int64_t shortsleep = DDS_MSECS (1);
+  int64_t delay = DDS_MSECS (1); /* force evaluation after startup */
   struct gcreq *gcreq = NULL;
   int trace_shortsleep = 1;
   ddsrt_mutex_lock (&q->lock);
@@ -105,7 +104,7 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
        groups.  Do rate-limit it a bit. */
     if (q->gv->deaf)
     {
-      nn_mtime_t tnow_mt = now_mt ();
+      ddsrt_mtime_t tnow_mt = ddsrt_time_monotonic ();
       if (tnow_mt.v > t_trigger_recv_threads.v)
       {
         trigger_recv_threads (q->gv);
@@ -149,7 +148,7 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
        burden on the system than having a separate thread or adding it
        to the workload of the data handling threads. */
     thread_state_awake_fixed_domain (ts1);
-    delay = check_and_handle_lease_expiration (q->gv, now_et ());
+    delay = check_and_handle_lease_expiration (q->gv, ddsrt_time_elapsed ());
     thread_state_asleep (ts1);
 
     if (gcreq)

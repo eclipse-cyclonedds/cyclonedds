@@ -26,7 +26,6 @@
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_transmit.h"
@@ -61,12 +60,12 @@ void writer_hbcontrol_init (struct hbcontrol *hbc)
   hbc->t_of_last_write.v = 0;
   hbc->t_of_last_hb.v = 0;
   hbc->t_of_last_ackhb.v = 0;
-  hbc->tsched.v = T_NEVER;
+  hbc->tsched = DDSRT_MTIME_NEVER;
   hbc->hbs_since_last_write = 0;
   hbc->last_packetid = 0;
 }
 
-static void writer_hbcontrol_note_hb (struct writer *wr, nn_mtime_t tnow, int ansreq)
+static void writer_hbcontrol_note_hb (struct writer *wr, ddsrt_mtime_t tnow, int ansreq)
 {
   struct hbcontrol * const hbc = &wr->hbcontrol;
 
@@ -80,7 +79,7 @@ static void writer_hbcontrol_note_hb (struct writer *wr, nn_mtime_t tnow, int an
   hbc->hbs_since_last_write++;
 }
 
-int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *whcst, UNUSED_ARG (nn_mtime_t tnow))
+int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *whcst, UNUSED_ARG (ddsrt_mtime_t tnow))
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct hbcontrol const * const hbc = &wr->hbcontrol;
@@ -106,11 +105,11 @@ int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *
   return ret;
 }
 
-void writer_hbcontrol_note_asyncwrite (struct writer *wr, nn_mtime_t tnow)
+void writer_hbcontrol_note_asyncwrite (struct writer *wr, ddsrt_mtime_t tnow)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct hbcontrol * const hbc = &wr->hbcontrol;
-  nn_mtime_t tnext;
+  ddsrt_mtime_t tnext;
 
   /* Reset number of heartbeats since last write: that means the
      heartbeat rate will go back up to the default */
@@ -129,13 +128,13 @@ void writer_hbcontrol_note_asyncwrite (struct writer *wr, nn_mtime_t tnow)
   }
 }
 
-int writer_hbcontrol_must_send (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow /* monotonic */)
+int writer_hbcontrol_must_send (const struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow /* monotonic */)
 {
   struct hbcontrol const * const hbc = &wr->hbcontrol;
   return (tnow.v >= hbc->t_of_last_hb.v + writer_hbcontrol_intv (wr, whcst, tnow));
 }
 
-struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow, int hbansreq, int issync)
+struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, int hbansreq, int issync)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg *msg;
@@ -234,7 +233,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   return msg;
 }
 
-static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tlast, nn_mtime_t tnow, int piggyback)
+static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tlast, ddsrt_mtime_t tnow, int piggyback)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct hbcontrol const * const hbc = &wr->hbcontrol;
@@ -270,17 +269,17 @@ static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const
   return 0;
 }
 
-int writer_hbcontrol_ack_required (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow)
+int writer_hbcontrol_ack_required (const struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow)
 {
   struct hbcontrol const * const hbc = &wr->hbcontrol;
   return writer_hbcontrol_ack_required_generic (wr, whcst, hbc->t_of_last_write, tnow, 0);
 }
 
-struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow, uint32_t packetid, int *hbansreq)
+struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, int *hbansreq)
 {
   struct hbcontrol * const hbc = &wr->hbcontrol;
   uint32_t last_packetid;
-  nn_mtime_t tlast;
+  ddsrt_mtime_t tlast;
   struct nn_xmsg *msg;
 
   tlast = hbc->t_of_last_write;
@@ -316,7 +315,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
     ETRACE (wr, "heartbeat(wr "PGUIDFMT"%s) piggybacked, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRId64", xmit %"PRId64")\n",
             PGUID (wr->e.guid),
             *hbansreq ? "" : " final",
-            (hbc->tsched.v == T_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
+            (hbc->tsched.v == DDS_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
             ddsrt_avl_is_empty (&wr->readers) ? -1 : root_rdmatch (wr)->min_seq,
             ddsrt_avl_is_empty (&wr->readers) || root_rdmatch (wr)->all_have_replied_to_hb ? "" : "!",
             whcst->max_seq, writer_read_seq_xmit(wr));
@@ -383,7 +382,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
   {
     /* If configured to measure heartbeat-to-ack latency, we must add
        a timestamp.  No big deal if it fails. */
-    nn_xmsg_add_timestamp (msg, now ());
+    nn_xmsg_add_timestamp (msg, ddsrt_time_wallclock ());
   }
 
   hb = nn_xmsg_append (msg, &sm_marker, sizeof (Heartbeat_t));
@@ -757,9 +756,9 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
   }
 
   if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT && ((lease = ddsrt_atomic_ldvoidp (&wr->c.pp->minl_man)) != NULL))
-    lease_renew (lease, now_et());
+    lease_renew (lease, ddsrt_time_elapsed());
   else if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC && wr->lease != NULL)
-    lease_renew (wr->lease, now_et());
+    lease_renew (wr->lease, ddsrt_time_elapsed());
 
   if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
@@ -990,13 +989,13 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
 
   if ((wr->reliable && have_reliable_subs (wr)) || wr_deadline || wr->handle_as_transient_local)
   {
-    nn_mtime_t exp = NN_MTIME_NEVER;
+    ddsrt_mtime_t exp = DDSRT_MTIME_NEVER;
 #ifdef DDSI_INCLUDE_LIFESPAN
     /* Don't set expiry for samples with flags unregister or dispose, because these are required
      * for sample lifecycle and should always be delivered to the reader so that is can clean up
      * its history cache. */
     if (wr->xqos->lifespan.duration != DDS_INFINITY && (serdata->statusinfo & (NN_STATUSINFO_UNREGISTER | NN_STATUSINFO_DISPOSE)) == 0)
-      exp = add_duration_to_mtime(serdata->twrite, wr->xqos->lifespan.duration);
+      exp = ddsrt_mtime_add_duration(serdata->twrite, wr->xqos->lifespan.duration);
 #endif
     res = ((insres = whc_insert (wr->whc, writer_max_drop_seq (wr), seq, exp, plist, serdata, tk)) < 0) ? insres : 1;
 
@@ -1071,8 +1070,8 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
      writer. */
   struct ddsi_domaingv const * const gv = wr->e.gv;
   dds_return_t result = DDS_RETCODE_OK;
-  nn_mtime_t tnow = now_mt ();
-  const nn_mtime_t abstimeout = add_duration_to_mtime (tnow, wr->xqos->reliability.max_blocking_time);
+  ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
+  const ddsrt_mtime_t abstimeout = ddsrt_mtime_add_duration (tnow, wr->xqos->reliability.max_blocking_time);
   struct whc_state whcst;
   whc_get_state (wr->whc, &whcst);
 
@@ -1108,7 +1107,7 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
   while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing) && !writer_may_continue (wr, &whcst))
   {
     int64_t reltimeout;
-    tnow = now_mt ();
+    tnow = ddsrt_time_monotonic ();
     reltimeout = abstimeout.v - tnow.v;
     result = DDS_RETCODE_TIMEOUT;
     if (reltimeout > 0)
@@ -1143,8 +1142,8 @@ static int maybe_grow_whc (struct writer *wr)
   struct ddsi_domaingv const * const gv = wr->e.gv;
   if (!wr->retransmitting && gv->config.whc_adaptive && wr->whc_high < gv->config.whc_highwater_mark)
   {
-    nn_etime_t tnow = now_et();
-    nn_etime_t tgrow = add_duration_to_etime (wr->t_whc_high_upd, 10 * T_MILLISECOND);
+    ddsrt_etime_t tnow = ddsrt_time_elapsed();
+    ddsrt_etime_t tgrow = ddsrt_etime_add_duration (wr->t_whc_high_upd, DDS_MSECS (10));
     if (tnow.v >= tgrow.v)
     {
       uint32_t m = (gv->config.whc_highwater_mark - wr->whc_high) / 32;
@@ -1160,15 +1159,15 @@ int write_sample_p2p_wrlock_held(struct writer *wr, seqno_t seq, struct ddsi_pli
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   int r = 0;
-  nn_mtime_t tnow;
+  ddsrt_mtime_t tnow;
   int rexmit = 1;
   struct wr_prd_match *wprd = NULL;
   seqno_t gseq;
   struct nn_xmsg *gap = NULL;
 
-  tnow = now_mt ();
+  tnow = ddsrt_time_monotonic ();
   serdata->twrite = tnow;
-  serdata->timestamp = now();
+  serdata->timestamp = ddsrt_time_wallclock ();
 
 
   if (prd->filter)
@@ -1225,7 +1224,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
   struct ddsi_domaingv const * const gv = wr->e.gv;
   int r;
   seqno_t seq;
-  nn_mtime_t tnow;
+  ddsrt_mtime_t tnow;
   struct lease *lease;
 
   /* If GC not allowed, we must be sure to never block when writing.  That is only the case for (true, aggressive) KEEP_LAST writers, and also only if there is no limit to how much unacknowledged data the WHC may contain. */
@@ -1249,9 +1248,9 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
   }
 
   if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT && ((lease = ddsrt_atomic_ldvoidp (&wr->c.pp->minl_man)) != NULL))
-    lease_renew (lease, now_et());
+    lease_renew (lease, ddsrt_time_elapsed());
   else if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC && wr->lease != NULL)
-    lease_renew (wr->lease, now_et());
+    lease_renew (wr->lease, ddsrt_time_elapsed());
 
   ddsrt_mutex_lock (&wr->e.lock);
 
@@ -1298,7 +1297,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
   }
 
   /* Always use the current monotonic time */
-  tnow = now_mt ();
+  tnow = ddsrt_time_monotonic ();
   serdata->twrite = tnow;
 
   seq = ++wr->seq;

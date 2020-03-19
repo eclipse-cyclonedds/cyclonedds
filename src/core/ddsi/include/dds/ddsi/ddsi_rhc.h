@@ -20,8 +20,8 @@
 
 /* DDS_EXPORT inline i.c.w. __attributes__((visibility...)) and some compilers: */
 #include "dds/ddsrt/attributes.h"
+#include "dds/ddsrt/time.h"
 #include "dds/ddsi/ddsi_guid.h"
-#include "dds/ddsi/q_time.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -40,7 +40,7 @@ struct ddsi_writer_info
   int32_t ownership_strength;
   uint64_t iid;
 #ifdef DDSI_INCLUDE_LIFESPAN
-  nn_mtime_t lifespan_exp;
+  ddsrt_mtime_t lifespan_exp;
 #endif
 };
 

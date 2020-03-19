@@ -170,25 +170,25 @@ if(${CMAKE_GENERATOR} STREQUAL "Xcode")
   set (CMAKE_XCODE_ATTRIBUTE_GCC_WARN_ABOUT_MISSING_PROTOTYPES YES)
 endif()
 
-# Make it easy to enable one of Clang's/gcc's analyzers, and default to using
-# the address sanitizer for ordinary debug builds; gcc is giving some grief on
-# Travis, so don't enable it for gcc by default
-if(NOT USE_SANITIZER)
-  if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug" AND
-      NOT ("${CMAKE_GENERATOR}" STREQUAL "Xcode") AND
-      ("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang"
-        OR "${CMAKE_C_COMPILER_ID}" STREQUAL "AppleClang"))
-    message(STATUS "Enabling address sanitizer; set USE_SANITIZER=none to prevent this")
-    set(USE_SANITIZER address)
-  else()
-    set(USE_SANITIZER none)
-  endif()
+
+# Make it easy to enable Clang's/gcc's analyzers
+set(USE_SANITIZER "" CACHE STRING "Sanitizers to enable on the build.")
+if(NOT("${USE_SANITIZER}" STREQUAL ""))
+  foreach(san "${USE_SANITIZER}")
+    message(STATUS "Enabling sanitizer: '${san}'")
+
+    if("${san}" STREQUAL address)
+      add_compile_options(-fno-omit-frame-pointer)
+      link_libraries(-fno-omit-frame-pointer)
+    endif()
+
+    if(NOT("${san}" STREQUAL "none"))
+      add_compile_options("-fsanitize=${san}")
+      link_libraries("-fsanitize=${san}")
+    endif()
+  endforeach()
 endif()
-if(NOT ("${USE_SANITIZER}" STREQUAL "none"))
-  message(STATUS "Sanitizer set to ${USE_SANITIZER}")
-  add_compile_options(-fno-omit-frame-pointer -fsanitize=${USE_SANITIZER})
-  link_libraries(-fno-omit-frame-pointer -fsanitize=${USE_SANITIZER})
-endif()
+
 
 include(GNUInstallDirs)
 include(AnalyzeBuild)

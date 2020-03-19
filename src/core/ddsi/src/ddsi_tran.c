@@ -24,13 +24,13 @@
 
 extern inline uint32_t ddsi_conn_type (ddsi_tran_conn_t conn);
 extern inline uint32_t ddsi_conn_port (ddsi_tran_conn_t conn);
-extern inline ddsi_tran_listener_t ddsi_factory_create_listener (ddsi_tran_factory_t factory, uint32_t port, ddsi_tran_qos_t qos);
+extern inline dds_return_t ddsi_factory_create_listener (ddsi_tran_listener_t *listener, ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos);
 extern inline bool ddsi_factory_supports (const struct ddsi_tran_factory *factory, int32_t kind);
 extern inline int ddsi_is_valid_port (ddsi_tran_factory_t factory, uint32_t port);
 extern inline ddsrt_socket_t ddsi_conn_handle (ddsi_tran_conn_t conn);
 extern inline int ddsi_conn_locator (ddsi_tran_conn_t conn, nn_locator_t * loc);
 extern inline ddsrt_socket_t ddsi_tran_handle (ddsi_tran_base_t base);
-extern inline ddsi_tran_conn_t ddsi_factory_create_conn (ddsi_tran_factory_t factory, uint32_t port, ddsi_tran_qos_t qos);
+extern inline dds_return_t ddsi_factory_create_conn (ddsi_tran_conn_t *conn, ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos);
 extern inline int ddsi_listener_locator (ddsi_tran_listener_t listener, nn_locator_t * loc);
 extern inline int ddsi_listener_listen (ddsi_tran_listener_t listener);
 extern inline ddsi_tran_conn_t ddsi_listener_accept (ddsi_tran_listener_t listener);
@@ -182,11 +182,6 @@ bool ddsi_conn_peer_locator (ddsi_tran_conn_t conn, nn_locator_t * loc)
   return false;
 }
 
-void ddsi_tran_free_qos (ddsi_tran_qos_t qos)
-{
-  ddsrt_free (qos);
-}
-
 int ddsi_conn_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
 {
   return conn->m_factory->m_join_mc_fn (conn, srcloc, mcloc, interf);
@@ -195,14 +190,6 @@ int ddsi_conn_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const 
 int ddsi_conn_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
 {
   return conn->m_factory->m_leave_mc_fn (conn, srcloc, mcloc, interf);
-}
-
-ddsi_tran_qos_t ddsi_tran_create_qos (void)
-{
-  ddsi_tran_qos_t qos;
-  qos = (ddsi_tran_qos_t) ddsrt_malloc (sizeof (*qos));
-  memset (qos, 0, sizeof (*qos));
-  return qos;
 }
 
 void ddsi_tran_free (ddsi_tran_base_t base)

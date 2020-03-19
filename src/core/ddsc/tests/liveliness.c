@@ -597,7 +597,7 @@ static void test_create_delete_writer_stress(bool remote_reader)
   {
     dds_qset_liveliness(wqos, n % 2 ? DDS_LIVELINESS_AUTOMATIC : DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, DDS_MSECS(n % 3 ? ldur + n : ldur - n) + ((n % 3) == 2 ? 1 : 0));
     CU_ASSERT_FATAL((writers[n] = dds_create_writer(g_pub_participant, pub_topic, wqos, NULL)) > 0);
-    dds_write(writers[n], &sample);
+    CU_ASSERT_EQUAL_FATAL(dds_write(writers[n], &sample), DDS_RETCODE_OK);
     if (n % 3 == 2)
       dds_delete(writers[n]);
     else if (n % 2)
@@ -717,7 +717,7 @@ static void test_status_counts(bool remote_reader)
   CU_ASSERT_EQUAL_FATAL(llstatus.total_count_change, 1);
 
   /* write sample and re-check status counts */
-  dds_write(writer, &sample);
+  CU_ASSERT_EQUAL_FATAL(dds_write(writer, &sample), DDS_RETCODE_OK);
   CU_ASSERT_EQUAL_FATAL(dds_waitset_wait(waitset, &triggered, 1, DDS_SECS(5)), 1);
 
   dds_get_liveliness_changed_status(reader, &lcstatus);

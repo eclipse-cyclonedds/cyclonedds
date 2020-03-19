@@ -13,6 +13,7 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/time.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/hopscotch.h"
 
@@ -20,7 +21,6 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
 #include "dds/ddsi/q_receive.h"
@@ -64,7 +64,7 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
      reason why it has to be 100ms), regardless of the lease settings.
      Note: can't trust sl->self, may have been scheduled before the
      assignment. */
-  nn_mtime_t tlast = { 0 };
+  ddsrt_mtime_t tlast = { 0 };
   bool was_alive = true;
   for (uint32_t i = 0; i < thread_states.nthreads; i++)
   {
@@ -80,7 +80,7 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
     /* Check progress only if enough time has passed: there is no
        guarantee that os_cond_timedwait wont ever return early, and we
        do want to avoid spurious warnings. */
-    nn_mtime_t tnow = now_mt ();
+    ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
     if (tnow.v < tlast.v)
       continue;
 

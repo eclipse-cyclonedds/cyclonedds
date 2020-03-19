@@ -13,14 +13,14 @@
 #define DDSI_LIFESPAN_H
 
 #include "dds/ddsrt/fibheap.h"
-#include "dds/ddsi/q_time.h"
+#include "dds/ddsrt/time.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-typedef nn_mtime_t (*sample_expired_cb_t)(void *hc, nn_mtime_t tnow);
+typedef ddsrt_mtime_t (*sample_expired_cb_t)(void *hc, ddsrt_mtime_t tnow);
 
 struct lifespan_adm {
   ddsrt_fibheap_t ls_exp_heap;              /* heap for sample expiration (lifespan) */
@@ -32,24 +32,24 @@ struct lifespan_adm {
 
 struct lifespan_fhnode {
   ddsrt_fibheap_node_t heapnode;
-  nn_mtime_t t_expire;
+  ddsrt_mtime_t t_expire;
 };
 
 DDS_EXPORT void lifespan_init (const struct ddsi_domaingv *gv, struct lifespan_adm *lifespan_adm, size_t fh_offset, size_t fh_node_offset, sample_expired_cb_t sample_expired_cb);
 DDS_EXPORT void lifespan_fini (const struct lifespan_adm *lifespan_adm);
-DDS_EXPORT nn_mtime_t lifespan_next_expired_locked (const struct lifespan_adm *lifespan_adm, nn_mtime_t tnow, void **sample);
+DDS_EXPORT ddsrt_mtime_t lifespan_next_expired_locked (const struct lifespan_adm *lifespan_adm, ddsrt_mtime_t tnow, void **sample);
 DDS_EXPORT void lifespan_register_sample_real (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);
 DDS_EXPORT void lifespan_unregister_sample_real (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);
 
 inline void lifespan_register_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node)
 {
-  if (node->t_expire.v != T_NEVER)
+  if (node->t_expire.v != DDS_NEVER)
     lifespan_register_sample_real (lifespan_adm, node);
 }
 
 inline void lifespan_unregister_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node)
 {
-  if (node->t_expire.v != T_NEVER)
+  if (node->t_expire.v != DDS_NEVER)
     lifespan_unregister_sample_real (lifespan_adm, node);
 }
 

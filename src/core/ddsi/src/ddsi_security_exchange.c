@@ -144,7 +144,7 @@ bool write_auth_handshake_message(const struct participant *pp, const struct pro
       .keysize = 0
   };
   serdata = ddsi_serdata_from_sample (gv->rawcdr_topic, SDK_DATA, &raw);
-  serdata->timestamp = now ();
+  serdata->timestamp = ddsrt_time_wallclock ();
 
   result = enqueue_sample_wrlock_held (wr, seq, NULL, serdata, prd, 1) == 0;
   ddsi_serdata_unref (serdata);
@@ -173,7 +173,7 @@ void auth_get_serialized_participant_data(struct participant *pp, ddsi_octetseq_
   nn_xmsg_free (mpayload);
 }
 
-void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, size_t len)
+void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, ddsrt_wctime_t timestamp, unsigned statusinfo, const void *vdata, size_t len)
 {
   const struct CDRHeader *hdr = vdata; /* built-ins not deserialized (yet) */
   const bool bswap = (hdr->identifier == CDR_LE) ^ DDSRT_LITTLE_ENDIAN;
@@ -331,7 +331,7 @@ bool write_crypto_reader_tokens(const struct reader *rd, const struct proxy_writ
   return write_crypto_exchange_message(pp, &proxypp->e.guid, &rd->e.guid, &pwr->e.guid, GMCLASSID_SECURITY_DATAREADER_CRYPTO_TOKENS, tokens);
 }
 
-void handle_crypto_exchange_message(const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len)
+void handle_crypto_exchange_message(const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, ddsrt_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len)
 {
   struct ddsi_domaingv *gv = rst->gv;
   const struct CDRHeader *hdr = vdata; /* built-ins not deserialized (yet) */

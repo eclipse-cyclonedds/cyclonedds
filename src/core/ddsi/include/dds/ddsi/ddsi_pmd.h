@@ -12,7 +12,7 @@
 #ifndef DDSI_PMD_H
 #define DDSI_PMD_H
 
-#include "dds/ddsi/q_time.h"
+#include "dds/ddsrt/time.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -27,7 +27,7 @@ struct receiver_state;
 
 void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind);
 void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, struct participant *pp, unsigned pmd_kind);
-void handle_pmd_message (const struct receiver_state *rst, nn_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len);
+void handle_pmd_message (const struct receiver_state *rst, ddsrt_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len);
 
 #if defined (__cplusplus)
 }

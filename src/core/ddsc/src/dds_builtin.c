@@ -77,7 +77,12 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic)
   }
 
   dds_qos_t *qos = dds__create_builtin_qos ();
-  tp = dds_create_topic_impl (par->m_entity.m_hdllink.hdl, sertopic, qos, NULL, NULL);
+  if ((tp = dds_create_topic_impl (par->m_entity.m_hdllink.hdl, &sertopic, qos, NULL, NULL)) > 0)
+  {
+    /* keep ownership for built-in sertopics because there are re-used, lifetime for these
+       sertopics is bound to domain */
+    ddsi_sertopic_ref (sertopic);
+  }
   dds_delete_qos (qos);
   dds_entity_unpin (e);
   return tp;
@@ -185,7 +190,7 @@ static struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct dd
   return tk;
 }
 
-struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, nn_wctime_t timestamp, bool alive)
+struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, ddsrt_wctime_t timestamp, bool alive)
 {
   /* initialize to avoid gcc warning ultimately caused by C's horrible type system */
   struct dds_domain *dom = e->gv->builtin_topic_interface->arg;
@@ -215,7 +220,7 @@ struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, nn
   return serdata;
 }
 
-static void dds__builtin_write (const struct entity_common *e, nn_wctime_t timestamp, bool alive, void *vdomain)
+static void dds__builtin_write (const struct entity_common *e, ddsrt_wctime_t timestamp, bool alive, void *vdomain)
 {
   struct dds_domain *dom = vdomain;
   if (dds__builtin_is_visible (&e->guid, get_entity_vendorid (e), dom))

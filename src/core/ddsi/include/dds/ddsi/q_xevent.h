@@ -43,7 +43,7 @@ struct xeventq *xeventq_new
   uint32_t auxiliary_bandwidth_limit
 );
 
-/* xeventq_free calls callback handlers with t = T_NEVER, at which point they are required to free
+/* xeventq_free calls callback handlers with t = NEVER, at which point they are required to free
    whatever memory is claimed for the argument and call delete_xevent. */
 DDS_EXPORT void xeventq_free (struct xeventq *evq);
 DDS_EXPORT dds_return_t xeventq_start (struct xeventq *evq, const char *name); /* <0 => error, =0 => ok */
@@ -62,16 +62,16 @@ DDS_EXPORT int qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg 
 /* All of the following lock EVQ for the duration of the operation */
 DDS_EXPORT void delete_xevent (struct xevent *ev);
 DDS_EXPORT void delete_xevent_callback (struct xevent *ev);
-DDS_EXPORT int resched_xevent_if_earlier (struct xevent *ev, nn_mtime_t tsched);
+DDS_EXPORT int resched_xevent_if_earlier (struct xevent *ev, ddsrt_mtime_t tsched);
 
-DDS_EXPORT struct xevent *qxev_heartbeat (struct xeventq *evq, nn_mtime_t tsched, const ddsi_guid_t *wr_guid);
-DDS_EXPORT struct xevent *qxev_acknack (struct xeventq *evq, nn_mtime_t tsched, const ddsi_guid_t *pwr_guid, const ddsi_guid_t *rd_guid);
-DDS_EXPORT struct xevent *qxev_spdp (struct xeventq *evq, nn_mtime_t tsched, const ddsi_guid_t *pp_guid, const ddsi_guid_t *proxypp_guid);
-DDS_EXPORT struct xevent *qxev_pmd_update (struct xeventq *evq, nn_mtime_t tsched, const ddsi_guid_t *pp_guid);
-DDS_EXPORT struct xevent *qxev_delete_writer (struct xeventq *evq, nn_mtime_t tsched, const ddsi_guid_t *guid);
+DDS_EXPORT struct xevent *qxev_heartbeat (struct xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *wr_guid);
+DDS_EXPORT struct xevent *qxev_acknack (struct xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pwr_guid, const ddsi_guid_t *rd_guid);
+DDS_EXPORT struct xevent *qxev_spdp (struct xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pp_guid, const ddsi_guid_t *proxypp_guid);
+DDS_EXPORT struct xevent *qxev_pmd_update (struct xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pp_guid);
+DDS_EXPORT struct xevent *qxev_delete_writer (struct xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *guid);
 
-/* cb will be called with now = T_NEVER if the event is still enqueued when when xeventq_free starts cleaning up */
-DDS_EXPORT struct xevent *qxev_callback (struct xeventq *evq, nn_mtime_t tsched, void (*cb) (struct xevent *xev, void *arg, nn_mtime_t now), void *arg);
+/* cb will be called with now = NEVER if the event is still enqueued when when xeventq_free starts cleaning up */
+DDS_EXPORT struct xevent *qxev_callback (struct xeventq *evq, ddsrt_mtime_t tsched, void (*cb) (struct xevent *xev, void *arg, ddsrt_mtime_t now), void *arg);
 
 #if defined (__cplusplus)
 }

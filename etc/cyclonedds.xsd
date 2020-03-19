@@ -2150,7 +2150,7 @@ handshake;&lt;/li&gt;
 
 &lt;li&gt;&lt;i&gt;dq.CHAN&lt;/i&gt;: delivery thread for channel CHAN;&lt;/li&gt;
 
-&lt;li&gt;&lt;i&gt;tev.CHAN&lt;/i&gt;: timed-even thread for channel CHAN.&lt;/li&gt;&lt;/ul&gt;</xs:documentation>
+&lt;li&gt;&lt;i&gt;tev.CHAN&lt;/i&gt;: timed-event thread for channel CHAN.&lt;/li&gt;&lt;/ul&gt;</xs:documentation>
         </xs:annotation>
       </xs:attribute>
     </xs:complexType>

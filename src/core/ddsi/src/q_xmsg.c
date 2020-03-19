@@ -142,7 +142,7 @@ struct nn_xmsg_chain {
 struct nn_bw_limiter {
     uint32_t       bandwidth;   /*gv.config in bytes/s   (0 = UNLIMITED)*/
     int64_t        balance;
-    nn_mtime_t      last_update;
+    ddsrt_mtime_t  last_update;
 };
 #endif
 
@@ -410,9 +410,8 @@ static int submsg_is_compatible (const struct nn_xmsg *msg, SubmessageKind_t smk
         case SMID_ACKNACK: case SMID_HEARTBEAT:
         case SMID_GAP: case SMID_NACK_FRAG:
         case SMID_HEARTBEAT_FRAG:
-        case SMID_PT_INFO_CONTAINER:
-        case SMID_PT_MSG_LEN:
-        case SMID_PT_ENTITY_ID:
+        case SMID_ADLINK_MSG_LEN:
+        case SMID_ADLINK_ENTITY_ID:
           /* normal control stuff is ok */
           return 1;
         case SMID_DATA: case SMID_DATA_FRAG:
@@ -458,9 +457,8 @@ static int submsg_is_compatible (const struct nn_xmsg *msg, SubmessageKind_t smk
         case SMID_GAP:
         case SMID_NACK_FRAG:
         case SMID_HEARTBEAT_FRAG:
-        case SMID_PT_INFO_CONTAINER:
-        case SMID_PT_MSG_LEN:
-        case SMID_PT_ENTITY_ID:
+        case SMID_ADLINK_MSG_LEN:
+        case SMID_ADLINK_ENTITY_ID:
           /* anything else is strictly verboten */
           return 0;
       }
@@ -659,14 +657,14 @@ void nn_xmsg_shrink (struct nn_xmsg *m, struct nn_xmsg_marker marker, size_t sz)
   m->sz = marker.offset + sz;
 }
 
-void nn_xmsg_add_timestamp (struct nn_xmsg *m, nn_wctime_t t)
+void nn_xmsg_add_timestamp (struct nn_xmsg *m, ddsrt_wctime_t t)
 {
   InfoTimestamp_t * ts;
   struct nn_xmsg_marker sm;
 
   ts = (InfoTimestamp_t*) nn_xmsg_append (m, &sm, sizeof (InfoTimestamp_t));
   nn_xmsg_submsg_init (m, sm, SMID_INFO_TS);
-  ts->time = nn_wctime_to_ddsi_time (t);
+  ts->time = ddsi_wctime_to_ddsi_time (t);
   nn_xmsg_submsg_setnext (m, sm);
 }
 
@@ -676,7 +674,7 @@ void nn_xmsg_add_entityid (struct nn_xmsg * m)
   struct nn_xmsg_marker sm;
 
   eid = (EntityId_t*) nn_xmsg_append (m, &sm, sizeof (EntityId_t));
-  nn_xmsg_submsg_init (m, sm, SMID_PT_ENTITY_ID);
+  nn_xmsg_submsg_init (m, sm, SMID_ADLINK_ENTITY_ID);
   eid->entityid.u = NN_ENTITYID_PARTICIPANT;
   nn_xmsg_submsg_setnext (m, sm);
 }
@@ -1063,12 +1061,12 @@ static void nn_xmsg_chain_add (struct nn_xmsg_chain *chain, struct nn_xmsg *m)
  * If data is send too fast, a sleep is inserted to get the used bandwidth at the configured rate.
  */
 
-#define NN_BW_LIMIT_MAX_BUFFER (-30 * T_MILLISECOND)
-#define NN_BW_LIMIT_MIN_SLEEP (2 * T_MILLISECOND)
+#define NN_BW_LIMIT_MAX_BUFFER (DDS_MSECS (-30))
+#define NN_BW_LIMIT_MIN_SLEEP (DDS_MSECS (2))
 static void nn_bw_limit_sleep_if_needed (struct ddsi_domaingv const * const gv, struct nn_bw_limiter *this, ssize_t size)
 {
   if ( this->bandwidth > 0 ) {
-    nn_mtime_t tnow = now_mt();
+    ddsrt_mtime_t tnow = ddsrt_time_monotonic();
     int64_t actual_interval;
     int64_t target_interval;
 
@@ -1076,7 +1074,7 @@ static void nn_bw_limit_sleep_if_needed (struct ddsi_domaingv const * const gv, 
     actual_interval = tnow.v - this->last_update.v;
     this->last_update = tnow;
 
-    target_interval = T_SECOND*size/this->bandwidth;
+    target_interval = DDS_NSECS_IN_SEC*size/this->bandwidth;
 
     this->balance += (target_interval - actual_interval);
 
@@ -1111,7 +1109,7 @@ static void nn_bw_limit_init (struct nn_bw_limiter *limiter, uint32_t bandwidth_
   limiter->bandwidth = bandwidth_limit;
   limiter->balance = 0;
   if (bandwidth_limit)
-    limiter->last_update = now_mt ();
+    limiter->last_update = ddsrt_time_monotonic();
   else
     limiter->last_update.v = 0;
 }
@@ -1130,7 +1128,7 @@ static void nn_xpack_reinit (struct nn_xpack *xp)
   xp->call_flags = 0;
   xp->msg_len.length = 0;
   xp->included_msgs.latest = NULL;
-  xp->maxdelay = T_NEVER;
+  xp->maxdelay = DDS_INFINITY;
 #ifdef DDSI_INCLUDE_SECURITY
   xp->sec_info.use_rtps_encoding = 0;
 #endif
@@ -1165,7 +1163,7 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
 
   /* MSG_LEN first sub message for stream based connections */
 
-  xp->msg_len.smhdr.submessageId = SMID_PT_MSG_LEN;
+  xp->msg_len.smhdr.submessageId = SMID_ADLINK_MSG_LEN;
   xp->msg_len.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
   xp->msg_len.smhdr.octetsToNextHeader = 4;
 

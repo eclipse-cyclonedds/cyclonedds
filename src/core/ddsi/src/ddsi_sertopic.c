@@ -74,7 +74,6 @@ struct ddsi_sertopic *ddsi_sertopic_lookup_locked (struct ddsi_domaingv *gv, con
 void ddsi_sertopic_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertopic *sertopic)
 {
   assert (sertopic->gv == NULL);
-  assert (ddsrt_atomic_ld32 (&sertopic->refc) == 1);
 
   (void) ddsi_sertopic_ref (sertopic);
   sertopic->gv = gv;
