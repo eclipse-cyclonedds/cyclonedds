@@ -40,7 +40,7 @@ build_script:
   - cmake --build . --config %CONFIGURATION% --target install -- /nologo /verbosity:minimal /maxcpucount /p:CL_MPCount=2
   - cd ..
   - git diff --exit-code # check that no files (e.g. generated schemas) are changed
-  - cd install/share/CycloneDDS/examples/helloworld
+  - cd build/install/share/CycloneDDS/examples/helloworld
   - mkdir build
   - cd build
   - cmake -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DCMAKE_PREFIX_PATH=%CD%/../../../../.. -G "%GENERATOR%" ..
