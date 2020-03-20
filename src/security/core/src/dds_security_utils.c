@@ -760,50 +760,49 @@ DDS_Security_HandleSeq_deinit(
     DDS_Security_HandleSeq_freebuf(seq);
 }
 
-
-
-
-void
-DDS_Security_Exception_set(
-     DDS_Security_SecurityException *ex,
-     const char *context,
-     int code,
-     int minor_code,
-     const char *fmt,
-    ...)
+void DDS_Security_Exception_vset (DDS_Security_SecurityException *ex, const char *context, int code, int minor_code, const char *fmt, va_list args1)
 {
-    int32_t ret;
-    size_t len;
-    char buf[1] = { '\0' };
-    char *str = NULL;
-    va_list args1, args2;
+  int32_t ret;
+  size_t len;
+  char buf[1] = { '\0' };
+  char *str = NULL;
+  va_list args2;
 
-    assert(context);
-    assert(fmt);
-    assert(ex);
-    DDSRT_UNUSED_ARG( context );
+  assert(context);
+  assert(fmt);
+  assert(ex);
+  DDSRT_UNUSED_ARG( context );
 
-    va_start(args1, fmt);
-    va_copy(args2, args1);
+  va_copy(args2, args1);
 
-    if ((ret = vsnprintf(buf, sizeof(buf), fmt, args1)) >= 0) {
-        len = (size_t)ret; /* +1 for null byte */
-        if ((str = ddsrt_malloc(len + 1)) == NULL) {
-            assert(false);
-        } else if ((ret = vsnprintf(str, len + 1, fmt, args2)) >= 0) {
-            assert((size_t) ret == len);
-        } else {
-            ddsrt_free(str);
-            str = NULL;
-        }
+  if ((ret = vsnprintf(buf, sizeof(buf), fmt, args1)) >= 0) {
+    len = (size_t)ret; /* +1 for null byte */
+    if ((str = ddsrt_malloc(len + 1)) == NULL) {
+      assert(false);
+    } else if ((ret = vsnprintf(str, len + 1, fmt, args2)) >= 0) {
+      assert((size_t) ret == len);
+    } else {
+      ddsrt_free(str);
+      str = NULL;
     }
+  }
 
-    va_end(args1);
-    va_end(args2);
+  va_end(args1);
 
-    ex->message = str;
-    ex->code = code;
-    ex->minor_code = minor_code;
+  ex->message = str;
+  ex->code = code;
+  ex->minor_code = minor_code;
+}
+
+void DDS_Security_Exception_set (DDS_Security_SecurityException *ex, const char *context, int code, int minor_code, const char *fmt, ...)
+{
+  va_list args1;
+  assert(context);
+  assert(fmt);
+  assert(ex);
+  va_start(args1, fmt);
+  DDS_Security_Exception_vset (ex, context, code, minor_code, fmt, args1);
+  va_end(args1);
 }
 
 #ifdef DDSI_INCLUDE_SSL

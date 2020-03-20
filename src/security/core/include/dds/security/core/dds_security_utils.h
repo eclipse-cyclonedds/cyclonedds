@@ -14,6 +14,7 @@
 #define DSCMN_SECURITY_UTILS_H_
 
 #include <stddef.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include "dds/export.h"
@@ -262,13 +263,22 @@ DDS_Security_HandleSeq_deinit(
          DDS_Security_HandleSeq *seq);
 
 DDS_EXPORT void
+DDS_Security_Exception_vset(
+         DDS_Security_SecurityException *ex,
+         const char *context,
+         int code,
+         int minor_code,
+         const char *fmt,
+         va_list ap);
+
+DDS_EXPORT void
 DDS_Security_Exception_set(
          DDS_Security_SecurityException *ex,
          const char *context,
          int code,
          int minor_code,
          const char *fmt,
-        ...);
+         ...);
 
 
 #ifdef DDSI_INCLUDE_SSL

@@ -100,7 +100,7 @@ AuthConfItemPrefix_t get_conf_item_type(const char *str, char **data);
 void free_ca_list_contents(X509Seq *ca_list);
 DDS_Security_ValidationResult_t get_trusted_ca_list(const char* trusted_ca_dir, X509Seq *ca_list, DDS_Security_SecurityException *ex);
 char * string_from_data(const unsigned char *data, uint32_t size);
-DDS_Security_ValidationResult_t create_asymmetrical_signature(EVP_PKEY *pkey, const unsigned char *data, const size_t dataLen, unsigned char **signature, size_t *signatureLen, DDS_Security_SecurityException *ex);
-DDS_Security_ValidationResult_t validate_asymmetrical_signature(EVP_PKEY *pkey, const unsigned char *data, const size_t dataLen, const unsigned char *signature, const size_t signatureLen, DDS_Security_SecurityException *ex);
+DDS_Security_ValidationResult_t create_validate_asymmetrical_signature(bool create, EVP_PKEY *pkey, const unsigned char *data, const size_t dataLen,
+    unsigned char **signature, size_t *signatureLen, DDS_Security_SecurityException *ex);
 
 #endif /* AUTH_UTILS_H */
