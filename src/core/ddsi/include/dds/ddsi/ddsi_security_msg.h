@@ -95,6 +95,7 @@ nn_participant_generic_message_serialize(
    size_t *len);
 
 DDS_EXPORT extern const enum pserop pserop_participant_generic_message[];
+DDS_EXPORT extern const size_t pserop_participant_generic_message_nops;
 
 DDS_EXPORT int
 volatile_secure_data_filter(

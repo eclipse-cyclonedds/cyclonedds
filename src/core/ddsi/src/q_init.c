@@ -50,6 +50,7 @@
 #include "dds/ddsi/q_debmon.h"
 #include "dds/ddsi/q_init.h"
 #include "dds/ddsi/ddsi_threadmon.h"
+#include "dds/ddsi/ddsi_pmd.h"
 
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_udp.h"
@@ -57,6 +58,8 @@
 #include "dds/ddsi/ddsi_raweth.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_serdata_pserop.h"
+#include "dds/ddsi/ddsi_serdata_plist.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 
 #include "dds/ddsi/ddsi_tkmap.h"
@@ -788,38 +791,75 @@ static void wait_for_receive_threads (struct ddsi_domaingv *gv)
   }
 }
 
-static struct ddsi_sertopic *make_special_topic (const char *name, struct serdatapool *serpool, uint16_t enc_id, const struct ddsi_serdata_ops *ops)
+static struct ddsi_sertopic *make_special_topic_pserop (const char *name, const char *typename, size_t memsize, size_t nops, const enum pserop *ops, size_t nops_key, const enum pserop *ops_key)
 {
-  /* FIXME: two things (at least)
-     - it claims there is a key, but the underlying type description is missing
-       that only works as long as it ends up comparing the keyhash field ...
-       the keyhash field should be eliminated; but this can simply be moved over to an alternate
-       topic class, it need not use the "default" one, that's mere expediency
-     - initialising/freeing them here, in this manner, is not very clean
-       it should be moved to somewhere in the topic implementation
-       (kinda natural if they stop being "default" ones) */
-  struct ddsi_sertopic_default *st = ddsrt_malloc (sizeof (*st));
+  struct ddsi_sertopic_pserop *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
-  ddsi_sertopic_init (&st->c, name, name, &ddsi_sertopic_ops_default, ops, false);
-  st->native_encoding_identifier = enc_id;
-  st->serpool = serpool;
+  ddsi_sertopic_init (&st->c, name, typename, &ddsi_sertopic_ops_pserop, &ddsi_serdata_ops_pserop, nops_key == 0);
+  st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? CDR_LE : CDR_BE;
+  st->memsize = memsize;
+  st->nops = nops;
+  st->ops = ops;
+  st->nops_key = nops_key;
+  st->ops_key = ops_key;
+  return (struct ddsi_sertopic *) st;
+}
+
+static struct ddsi_sertopic *make_special_topic_plist (const char *name, const char *typename, nn_parameterid_t keyparam)
+{
+  struct ddsi_sertopic_plist *st = ddsrt_malloc (sizeof (*st));
+  memset (st, 0, sizeof (*st));
+  ddsi_sertopic_init (&st->c, name, typename, &ddsi_sertopic_ops_plist, &ddsi_serdata_ops_plist, false);
+  st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? PL_CDR_LE : PL_CDR_BE;
+  st->keyparam = keyparam;
   return (struct ddsi_sertopic *) st;
 }
 
 static void free_special_topics (struct ddsi_domaingv *gv)
 {
-  ddsi_sertopic_unref (gv->plist_topic);
-  ddsi_sertopic_unref (gv->rawcdr_topic);
+#ifdef DDSI_INCLUDE_SECURITY
+  ddsi_sertopic_unref (gv->pgm_volatile_topic);
+  ddsi_sertopic_unref (gv->pgm_stateless_topic);
+  ddsi_sertopic_unref (gv->pmd_secure_topic);
+  ddsi_sertopic_unref (gv->spdp_secure_topic);
+  ddsi_sertopic_unref (gv->sedp_reader_secure_topic);
+  ddsi_sertopic_unref (gv->sedp_writer_secure_topic);
+#endif
+  ddsi_sertopic_unref (gv->pmd_topic);
+  ddsi_sertopic_unref (gv->spdp_topic);
+  ddsi_sertopic_unref (gv->sedp_reader_topic);
+  ddsi_sertopic_unref (gv->sedp_writer_topic);
 }
 
 static void make_special_topics (struct ddsi_domaingv *gv)
 {
-  gv->plist_topic = make_special_topic ("plist", gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE, &ddsi_serdata_ops_plist);
-  gv->rawcdr_topic = make_special_topic ("rawcdr", gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE, &ddsi_serdata_ops_rawcdr);
+  gv->spdp_topic = make_special_topic_plist ("DCPSParticipant", "ParticipantBuiltinTopicData", PID_PARTICIPANT_GUID);
+  gv->sedp_reader_topic = make_special_topic_plist ("DCPSSubscription", "SubscriptionBuiltinTopicData", PID_ENDPOINT_GUID);
+  gv->sedp_writer_topic = make_special_topic_plist ("DCPSPublication", "PublicationBuiltinTopicData", PID_ENDPOINT_GUID);
+  gv->pmd_topic = make_special_topic_pserop ("DCPSParticipantMessage", "ParticipantMessageData", sizeof (ParticipantMessageData_t), participant_message_data_nops, participant_message_data_ops, participant_message_data_nops_key, participant_message_data_ops_key);
+
+#ifdef DDSI_INCLUDE_SECURITY
+  gv->spdp_secure_topic = make_special_topic_plist ("DCPSParticipantsSecure", "ParticipantBuiltinTopicDataSecure", PID_PARTICIPANT_GUID);
+  gv->sedp_reader_secure_topic = make_special_topic_plist ("DCPSSubscriptionsSecure", "SubscriptionBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
+  gv->sedp_writer_secure_topic = make_special_topic_plist ("DCPSPublicationsSecure", "PublicationBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
+  gv->pmd_secure_topic = make_special_topic_pserop ("DCPSParticipantMessageSecure", "ParticipantMessageDataSecure", sizeof (ParticipantMessageData_t), participant_message_data_nops, participant_message_data_ops, participant_message_data_nops_key, participant_message_data_ops_key);
+  gv->pgm_stateless_topic = make_special_topic_pserop ("DCPSParticipantStatelessMessage", "ParticipantStatelessMessage", sizeof (nn_participant_generic_message_t), pserop_participant_generic_message_nops, pserop_participant_generic_message, 0, NULL);
+  gv->pgm_volatile_topic = make_special_topic_pserop ("DCPSParticipantVolatileMessageSecure", "ParticipantVolatileMessageSecure", sizeof (nn_participant_generic_message_t), pserop_participant_generic_message_nops, pserop_participant_generic_message, 0, NULL);
+#endif
 
   ddsrt_mutex_lock (&gv->sertopics_lock);
-  ddsi_sertopic_register_locked (gv, gv->plist_topic);
-  ddsi_sertopic_register_locked (gv, gv->rawcdr_topic);
+  ddsi_sertopic_register_locked (gv, gv->spdp_topic);
+  ddsi_sertopic_register_locked (gv, gv->sedp_reader_topic);
+  ddsi_sertopic_register_locked (gv, gv->sedp_writer_topic);
+  ddsi_sertopic_register_locked (gv, gv->pmd_topic);
+#ifdef DDSI_INCLUDE_SECURITY
+  ddsi_sertopic_register_locked (gv, gv->spdp_secure_topic);
+  ddsi_sertopic_register_locked (gv, gv->sedp_reader_secure_topic);
+  ddsi_sertopic_register_locked (gv, gv->sedp_writer_secure_topic);
+  ddsi_sertopic_register_locked (gv, gv->pmd_secure_topic);
+  ddsi_sertopic_register_locked (gv, gv->pgm_stateless_topic);
+  ddsi_sertopic_register_locked (gv, gv->pgm_volatile_topic);
+#endif
   ddsrt_mutex_unlock (&gv->sertopics_lock);
 
   /* register increments refcount (which is reasonable), but at some point

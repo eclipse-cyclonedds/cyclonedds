@@ -311,7 +311,7 @@ struct nn_rsample_info;
 struct nn_rdata;
 
 DDS_EXPORT unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const struct nn_rmsg *rmsg, const ddsi_plist_src_t *src);
-DDS_EXPORT const unsigned char *ddsi_plist_findparam_native_unchecked (const void *src, nn_parameterid_t pid);
+DDS_EXPORT dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint16_t encoding, nn_parameterid_t needle, void **needlep, size_t *needlesz);
 
 #if defined (__cplusplus)
 }

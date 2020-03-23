@@ -247,6 +247,7 @@ static dds_return_t lookup_and_check_ktopic (struct dds_ktopic **ktp_out, dds_pa
 
 static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct dds_ktopic *ktp, bool implicit, struct ddsi_sertopic *sertopic_registered, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
 {
+  (void) sedp_plist;
   dds_entity_t hdl;
   dds_topic *tp = dds_alloc (sizeof (*tp));
   hdl = dds_entity_init (&tp->m_entity, &pp->m_entity, DDS_KIND_TOPIC, implicit, NULL, listener, DDS_TOPIC_STATUS_MASK);
@@ -254,25 +255,6 @@ static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct d
   dds_entity_register_child (&pp->m_entity, &tp->m_entity);
   tp->m_ktopic = ktp;
   tp->m_stopic = sertopic_registered;
-
-  /* Publish Topic */
-  if (sedp_plist)
-  {
-    struct participant *ddsi_pp;
-    ddsi_plist_t plist;
-
-    thread_state_awake (lookup_thread_state (), &pp->m_entity.m_domain->gv);
-    ddsi_pp = entidx_lookup_participant_guid (pp->m_entity.m_domain->gv.entity_index, &pp->m_entity.m_guid);
-    assert (ddsi_pp);
-
-    ddsi_plist_init_empty (&plist);
-    ddsi_plist_mergein_missing (&plist, sedp_plist, ~(uint64_t)0, ~(uint64_t)0);
-    ddsi_xqos_mergein_missing (&plist.qos, ktp->qos, ~(uint64_t)0);
-    sedp_write_topic (ddsi_pp, &plist);
-    ddsi_plist_fini (&plist);
-    thread_state_asleep (lookup_thread_state ());
-  }
-
   dds_entity_init_complete (&tp->m_entity);
   return hdl;
 }

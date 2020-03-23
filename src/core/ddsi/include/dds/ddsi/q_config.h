@@ -261,8 +261,6 @@ struct config
 
   unsigned delivery_queue_maxsamples;
 
-  int do_topic_discovery;
-
   uint32_t max_msg_size;
   uint32_t fragment_size;
 

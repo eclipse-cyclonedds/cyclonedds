@@ -294,8 +294,18 @@ struct ddsi_domaingv {
      transmit queue*/
   struct serdatapool *serpool;
   struct nn_xmsgpool *xmsgpool;
-  struct ddsi_sertopic *plist_topic; /* used for all discovery data */
-  struct ddsi_sertopic *rawcdr_topic; /* used for participant message data */
+  struct ddsi_sertopic *spdp_topic; /* key = participant GUID */
+  struct ddsi_sertopic *sedp_reader_topic; /* key = endpoint GUID */
+  struct ddsi_sertopic *sedp_writer_topic; /* key = endpoint GUID */
+  struct ddsi_sertopic *pmd_topic; /* participant message data */
+#ifdef DDSI_INCLUDE_SECURITY
+  struct ddsi_sertopic *spdp_secure_topic; /* key = participant GUID */
+  struct ddsi_sertopic *sedp_reader_secure_topic; /* key = endpoint GUID */
+  struct ddsi_sertopic *sedp_writer_secure_topic; /* key = endpoint GUID */
+  struct ddsi_sertopic *pmd_secure_topic; /* participant message data */
+  struct ddsi_sertopic *pgm_stateless_topic; /* participant generic message */
+  struct ddsi_sertopic *pgm_volatile_topic; /* participant generic message */
+#endif
 
   ddsrt_mutex_t sendq_lock;
   ddsrt_cond_t sendq_cond;

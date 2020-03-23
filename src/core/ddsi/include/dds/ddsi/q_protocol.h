@@ -203,7 +203,7 @@ typedef uint16_t nn_parameterid_t; /* spec says short */
 typedef struct nn_parameter {
   nn_parameterid_t parameterid;
   uint16_t length; /* spec says signed short */
-  /* char value[]; O! how I long for C99 */
+  /* char value[] */
 } nn_parameter_t;
 
 typedef struct Data_DataFrag_common {
@@ -318,18 +318,10 @@ typedef union Submessage {
   NackFrag_t nackfrag;
 } Submessage_t;
 
-DDSRT_WARNING_MSVC_OFF(4200)
-typedef struct ParticipantMessageData {
-  ddsi_guid_prefix_t participantGuidPrefix;
-  uint32_t kind; /* really 4 octets */
-  uint32_t length;
-  char value[];
-} ParticipantMessageData_t;
-DDSRT_WARNING_MSVC_ON(4200)
 #define PARTICIPANT_MESSAGE_DATA_KIND_UNKNOWN 0x0u
 #define PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE 0x1u
 #define PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE 0x2u
-#define PARTICIPANT_MESSAGE_DATA_VENDER_SPECIFIC_KIND_FLAG 0x8000000u
+#define PARTICIPANT_MESSAGE_DATA_VENDOR_SPECIFIC_KIND_FLAG 0x8000000u
 
 #define PID_VENDORSPECIFIC_FLAG 0x8000u
 #define PID_UNRECOGNIZED_INCOMPATIBLE_FLAG 0x4000u
