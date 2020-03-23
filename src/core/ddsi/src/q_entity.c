@@ -204,7 +204,6 @@ int is_builtin_endpoint (ddsi_entityid_t id, nn_vendorid_t vendorid)
 }
 
 #ifdef DDSI_INCLUDE_SECURITY
-
 static int is_builtin_volatile_endpoint (ddsi_entityid_t id)
 {
   switch (id.u) {
@@ -217,13 +216,13 @@ static int is_builtin_volatile_endpoint (ddsi_entityid_t id)
   return 0;
 }
 #else
-
+#ifndef NDEBUG
 static int is_builtin_volatile_endpoint (ddsi_entityid_t id)
 {
   DDSRT_UNUSED_ARG(id);
   return 0;
 }
-
+#endif
 #endif
 
 bool is_local_orphan_endpoint (const struct entity_common *e)
@@ -633,9 +632,63 @@ static void add_security_builtin_endpoints(struct participant *pp, ddsi_guid_t *
 }
 #endif
 
+static void add_builtin_endpoints(struct participant *pp, ddsi_guid_t *subguid, const ddsi_guid_t *group_guid, struct ddsi_domaingv *gv, bool add_writers, bool add_readers)
+{
+  if (add_writers)
+  {
+    struct whc_writer_info *wrinfo = whc_make_wrinfo (NULL, &gv->builtin_endpoint_xqos_wr);
+
+    /* SEDP writers: */
+    subguid->entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER);
+    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
+    pp->bes |= NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER;
+
+    subguid->entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER);
+    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
+    pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
+
+    /* PMD writer: */
+    subguid->entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
+    pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
+
+    if (gv->config.do_topic_discovery)
+    {
+      subguid->entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER);
+      new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
+      pp->bes |= NN_DISC_BUILTIN_ENDPOINT_TOPIC_ANNOUNCER;
+    }
+
+    whc_free_wrinfo (wrinfo);
+  }
+
+  /* SPDP, SEDP, PMD readers: */
+  if (add_readers)
+  {
+    subguid->entityid = to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
+    new_reader_guid (NULL, subguid, group_guid, pp, NULL, &gv->spdp_endpoint_xqos, NULL, NULL, NULL);
+    pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR;
+
+    subguid->entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER);
+    new_reader_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
+    pp->bes |= NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_DETECTOR;
+
+    subguid->entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_READER);
+    new_reader_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
+    pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_DETECTOR;
+
+    subguid->entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER);
+    new_reader_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
+    pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER;
+  }
 
 #ifdef DDSI_INCLUDE_SECURITY
+  if (q_omg_participant_is_secure (pp))
+    add_security_builtin_endpoints (pp, subguid, group_guid, gv, add_writers, add_readers);
+#endif
+}
 
+#ifdef DDSI_INCLUDE_SECURITY
 static void connect_participant_secure(struct ddsi_domaingv *gv, struct participant *pp)
 {
   struct proxy_participant *proxypp;
@@ -749,6 +802,81 @@ static void participant_remove_wr_lease_locked (struct participant * pp, struct 
   }
 }
 
+#ifdef DDSI_INCLUDE_SECURITY
+static dds_return_t check_and_load_security_config (struct ddsi_domaingv * const gv, const ddsi_guid_t *ppguid, dds_qos_t *qos)
+{
+  /* If some security properties (name starts with dds.sec. conform DDS Security spec 7.2.4.1)
+     are present in the QoS, all must be and they will be used.  If none are, take the settings
+     from the configuration if it has them.  When no security configuration exists anywhere,
+     create an unsecured participant.
+
+     This may modify "qos" */
+  if (ddsi_xqos_has_prop_prefix (qos, "dds.sec."))
+  {
+    char const * const req[] = {
+      DDS_SEC_PROP_AUTH_IDENTITY_CA,
+      DDS_SEC_PROP_AUTH_PRIV_KEY,
+      DDS_SEC_PROP_AUTH_IDENTITY_CERT,
+      DDS_SEC_PROP_ACCESS_PERMISSIONS_CA,
+      DDS_SEC_PROP_ACCESS_GOVERNANCE,
+      DDS_SEC_PROP_ACCESS_PERMISSIONS,
+
+      DDS_SEC_PROP_AUTH_LIBRARY_PATH,
+      DDS_SEC_PROP_AUTH_LIBRARY_INIT,
+      DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE,
+      DDS_SEC_PROP_CRYPTO_LIBRARY_PATH,
+      DDS_SEC_PROP_CRYPTO_LIBRARY_INIT,
+      DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE,
+      DDS_SEC_PROP_ACCESS_LIBRARY_PATH,
+      DDS_SEC_PROP_ACCESS_LIBRARY_INIT,
+      DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE
+    };
+    GVLOGDISC ("new_participant("PGUIDFMT"): using security settings from QoS\n", PGUID (*ppguid));
+
+    /* check if all required security properties exist in qos; report all missing ones, not just the first */
+    dds_return_t ret = DDS_RETCODE_OK;
+    for (size_t i = 0; i < sizeof(req) / sizeof(req[0]); i++)
+    {
+      const char *value;
+      if (!ddsi_xqos_find_prop (qos, req[i], &value) || strlen (value) == 0)
+      {
+        GVERROR ("new_participant("PGUIDFMT"): required security property %s missing in Property QoS\n", PGUID (*ppguid), req[i]);
+        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+      }
+    }
+    if (ret != DDS_RETCODE_OK)
+      return ret;
+  }
+  else if (gv->config.omg_security_configuration)
+  {
+    /* For security, configuration can be provided through the configuration.  However, the specification
+       (and the plugins) expect it to be in the QoS, so merge it in. */
+    GVLOGDISC ("new_participant("PGUIDFMT"): using security settings from configuration\n", PGUID (*ppguid));
+    ddsi_xqos_mergein_security_config (qos, &gv->config.omg_security_configuration->cfg);
+  }
+  else
+  {
+    /* No security configuration */
+    return DDS_RETCODE_OK;
+  }
+
+  if (q_omg_is_security_loaded (gv->security_context))
+  {
+    GVLOGDISC ("new_participant("PGUIDFMT"): security is already loaded for this domain\n", PGUID (*ppguid));
+    return DDS_RETCODE_OK;
+  }
+  else if (q_omg_security_load (gv->security_context, qos) < 0)
+  {
+    GVERROR ("Could not load security\n");
+    return DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+  }
+  else
+  {
+    return DDS_RETCODE_OK;
+  }
+}
+#endif
+
 dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
 {
   struct participant *pp;
@@ -828,77 +956,18 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
 
 #ifdef DDSI_INCLUDE_SECURITY
   pp->sec_attr = NULL;
-  /*
-   * if there there are security properties check them .
-   * if there are no security properties, then merge from security configuration if there is
-   */
-  /* check for existing security properties (name starts with dds.sec. conform DDS Security spec 7.2.4.1)
-   * and return if any is found */
+  if ((ret = check_and_load_security_config (gv, ppguid, &pp->plist->qos)) != DDS_RETCODE_OK)
+    goto not_allowed;
+  if ((ret = q_omg_security_check_create_participant (pp, gv->config.domainId)) != DDS_RETCODE_OK)
+    goto not_allowed;
+  *ppguid = pp->e.guid;
+#else
+  if (ddsi_xqos_has_prop_prefix (&pp->plist->qos, "dds.sec."))
   {
-    bool ready_to_load_security = false;
-    if (ddsi_xqos_has_prop(&pp->plist->qos, "dds.sec.", true, false)) {
-      char *req[] = {DDS_SEC_PROP_AUTH_IDENTITY_CA,
-                     DDS_SEC_PROP_AUTH_PRIV_KEY,
-                     DDS_SEC_PROP_AUTH_IDENTITY_CERT,
-                     DDS_SEC_PROP_ACCESS_PERMISSIONS_CA,
-                     DDS_SEC_PROP_ACCESS_GOVERNANCE,
-                     DDS_SEC_PROP_ACCESS_PERMISSIONS,
-
-                     DDS_SEC_PROP_AUTH_LIBRARY_PATH,
-                     DDS_SEC_PROP_AUTH_LIBRARY_INIT,
-                     DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE,
-                     DDS_SEC_PROP_CRYPTO_LIBRARY_PATH,
-                     DDS_SEC_PROP_CRYPTO_LIBRARY_INIT,
-                     DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE,
-                     DDS_SEC_PROP_ACCESS_LIBRARY_PATH,
-                     DDS_SEC_PROP_ACCESS_LIBRARY_INIT,
-                     DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE};
-      GVLOGDISC ("new_participant("
-                         PGUIDFMT
-                         "): using security settings from QoS\n", PGUID(*ppguid));
-
-      /* check if all required security properties exist in qos */
-      for (size_t i = 0; i < sizeof(req) / sizeof(req[0]); i++) {
-        if (!ddsi_xqos_has_prop(&pp->plist->qos, req[i], false, true)) {
-          GVERROR ("new_participant("
-                           PGUIDFMT
-                           "): required security property %s missing in Property QoS\n", PGUID(*ppguid), req[i]);
-          ret = DDS_RETCODE_PRECONDITION_NOT_MET;
-        }
-      }
-      if (ret == DDS_RETCODE_OK) {
-        ready_to_load_security = true;
-      } else {
-        goto new_pp_err_secprop;
-      }
-    } else if (gv->config.omg_security_configuration) {
-      /* For security, configuration can be provided through the configuration.
-       * However, the specification (and the plugins) expect it to be in the QoS. */
-      GVLOGDISC ("new_participant("
-                         PGUIDFMT
-                         "): using security settings from configuration\n", PGUID(*ppguid));
-      ddsi_xqos_mergein_security_config(&pp->plist->qos, &gv->config.omg_security_configuration->cfg);
-      ready_to_load_security = true;
-    }
-
-    if( q_omg_is_security_loaded( gv->security_context ) == false ){
-      if (ready_to_load_security && q_omg_security_load(gv->security_context, &pp->plist->qos) < 0) {
-        GVERROR("Could not load security\n");
-        ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
-        goto new_pp_err_secprop;
-      }
-    } else {
-      GVLOGDISC ("new_participant("
-                               PGUIDFMT
-                               "): security is already loaded for this domain\n", PGUID(*ppguid));
-    }
-
-    if (!q_omg_security_check_create_participant (pp, gv->config.domainId))
-    {
-      ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
-      goto not_allowed;
-    }
-    *ppguid = pp->e.guid;
+    /* disallow creating a participant with a security configuration if there is support for security
+       has been left out */
+    ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+    goto not_allowed;
   }
 #endif
 
@@ -927,9 +996,7 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   subguid.prefix = pp->e.guid.prefix;
   memset (&group_guid, 0, sizeof (group_guid));
 
-  /* SPDP writer */
-  /* Note: skip SEDP <=> skip SPDP because of the way ddsi_discovery.c does things
-     currently.  */
+  /* SPDP is very much special and must be done first */
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
     subguid.entityid = to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
@@ -938,70 +1005,15 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
     whc_free_wrinfo (wrinfo);
     /* But we need the as_disc address set for SPDP, because we need to
        send it to everyone regardless of the existence of readers. */
-    force_as_disc_address(gv, &subguid);
+    force_as_disc_address (gv, &subguid);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER;
   }
 
   /* Make it globally visible, else the endpoint matching won't work. */
   entidx_insert_participant_guid (gv->entity_index, pp);
 
-  /* SEDP writers: */
-  wrinfo = whc_make_wrinfo (NULL, &gv->builtin_endpoint_xqos_wr);
-  if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
-  {
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
-    pp->bes |= NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
-    pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
-  }
-
-  if (gv->config.do_topic_discovery)
-  {
-    /* TODO: make this one configurable, we don't want all participants to publish all topics (or even just those that they use themselves) */
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
-    pp->bes |= NN_DISC_BUILTIN_ENDPOINT_TOPIC_ANNOUNCER;
-  }
-
-  /* PMD writer: */
-  if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
-  {
-    subguid.entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
-    pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
-  }
-
-  whc_free_wrinfo (wrinfo);
-
-  /* SPDP, SEDP, PMD readers: */
-  if (!(flags & RTPS_PF_NO_BUILTIN_READERS))
-  {
-    subguid.entityid = to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
-    new_reader_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->spdp_endpoint_xqos, NULL, NULL, NULL);
-    pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER);
-    new_reader_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
-    pp->bes |= NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_DETECTOR;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_READER);
-    new_reader_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
-    pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_DETECTOR;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER);
-    new_reader_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
-    pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER;
-  }
-
-#ifdef DDSI_INCLUDE_SECURITY
-  if (q_omg_participant_is_secure(pp))
-  {
-    add_security_builtin_endpoints(pp, &subguid, &group_guid, gv, !(flags & RTPS_PF_NO_BUILTIN_WRITERS), !(flags & RTPS_PF_NO_BUILTIN_READERS));
-  }
-#endif
+  /* add all built-in endpoints other than the SPDP writer */
+  add_builtin_endpoints (pp, &subguid, &group_guid, gv, !(flags & RTPS_PF_NO_BUILTIN_WRITERS), !(flags & RTPS_PF_NO_BUILTIN_READERS));
 
   /* If the participant doesn't have the full set of builtin writers
      it depends on the privileged participant, which must exist, hence
@@ -1009,7 +1021,8 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
      If it is the privileged participant, set the global variable
      pointing to it.
      Except when the participant is only locally available. */
-  if (!(flags & RTPS_PF_ONLY_LOCAL)) {
+  if (!(flags & RTPS_PF_ONLY_LOCAL))
+  {
     ddsrt_mutex_lock (&gv->privileged_pp_lock);
     if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask)
     {
@@ -1066,16 +1079,16 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   }
 
 #ifdef DDSI_INCLUDE_SECURITY
-  if (q_omg_participant_is_secure(pp))
+  if (q_omg_participant_is_secure (pp))
   {
     connect_participant_secure (gv, pp);
   }
 #endif
   return ret;
 
-#ifdef DDSI_INCLUDE_SECURITY
 not_allowed:
-new_pp_err_secprop:
+  if (ppconn)
+    ddsi_conn_free (ppconn);
   ddsi_plist_fini (pp->plist);
   ddsrt_free (pp->plist);
   inverse_uint32_set_fini (&pp->avail_entityids.x);
@@ -1085,7 +1098,6 @@ new_pp_err_secprop:
   ddsrt_mutex_lock (&gv->participant_set_lock);
   gv->nparticipants--;
   ddsrt_mutex_unlock (&gv->participant_set_lock);
-#endif
 new_pp_err:
   return ret;
 }
@@ -4886,6 +4898,7 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
   const bool is_secure = ((bes & NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0);
   assert (!is_secure || (plist->present & PP_IDENTITY_TOKEN));
   assert (is_secure || (bes & ~NN_BES_MASK_NON_SECURITY) == 0);
+  (void) is_secure;
 
   assert (ppguid->entityid.u == NN_ENTITYID_PARTICIPANT);
   assert (entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid) == NULL);

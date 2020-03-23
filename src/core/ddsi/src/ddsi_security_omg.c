@@ -844,9 +844,9 @@ bool q_omg_participant_allow_unauthenticated(struct participant *pp)
   return ((pp->sec_attr != NULL) && pp->sec_attr->attr.allow_unauthenticated_participants);
 }
 
-bool q_omg_security_check_create_participant(struct participant *pp, uint32_t domain_id)
+dds_return_t q_omg_security_check_create_participant(struct participant *pp, uint32_t domain_id)
 {
-  bool allowed = false;
+  dds_return_t ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
   struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
   DDS_Security_IdentityHandle identity_handle = DDS_SECURITY_HANDLE_NIL;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
@@ -860,7 +860,7 @@ bool q_omg_security_check_create_participant(struct participant *pp, uint32_t do
   ddsi_guid_t adjusted_guid;
 
   if (!sc)
-    return true;
+    return DDS_RETCODE_OK;
 
   /* Validate local identity */
   ETRACE (pp, "validate_local_identity: candidate_guid: "PGUIDFMT" ", PGUID (pp->e.guid));
@@ -953,7 +953,7 @@ bool q_omg_security_check_create_participant(struct participant *pp, uint32_t do
 
   ETRACE (pp, "\n");
 
-  allowed = true;
+  ret = DDS_RETCODE_OK;
 
 no_crypto:
 no_sec_attr:
@@ -963,11 +963,11 @@ no_credentials:
   if (credential_token.class_id)
     (void)sc->access_control_context->return_permissions_credential_token(sc->access_control_context, &credential_token, NULL);
 not_allowed:
-  if (!allowed)
+  if (ret != DDS_RETCODE_OK)
     participant_sec_attributes_free(sec_attr);
 validation_failed:
   q_omg_shallow_free_security_qos(&par_qos);
-  return allowed;
+  return ret;
 }
 
 void q_omg_security_participant_set_initialized(struct participant *pp)

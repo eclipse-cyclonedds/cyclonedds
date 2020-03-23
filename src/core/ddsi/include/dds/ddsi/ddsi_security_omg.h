@@ -184,11 +184,12 @@ bool q_omg_proxy_participant_is_secure(const struct proxy_participant *proxypp);
  * @param[in] pp         The participant to check if alloweed by security.
  * #param[in] domain_id  The domain_id
  *
- * @returns bool
- * @retval true   Participant is allowed
- * @retval false  Participant is not allowed
+ * @returns dds_return_t
+ * @retval DDS_RETCODE_OK   Participant is allowed
+ * @retval DDS_RETCODE_NOT_ALLOWED_BY_SECURITY
+ *                          Participant is not allowed
  */
-bool q_omg_security_check_create_participant(struct participant *pp, uint32_t domain_id);
+dds_return_t q_omg_security_check_create_participant(struct participant *pp, uint32_t domain_id);
 
 void q_omg_security_participant_set_initialized(struct participant *pp);
 

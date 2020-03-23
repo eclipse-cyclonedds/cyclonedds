@@ -3179,16 +3179,30 @@ dds_qos_t * ddsi_xqos_dup (const dds_qos_t *src)
   return dst;
 }
 
-bool ddsi_xqos_has_prop (const dds_qos_t *xqos, const char *pname, bool startswith, bool check_non_empty)
+bool ddsi_xqos_has_prop_prefix (const dds_qos_t *xqos, const char *nameprefix)
 {
   if (!(xqos->present & QP_PROPERTY_LIST))
     return false;
+  const size_t len = strlen (nameprefix);
+  for (uint32_t i = 0; i < xqos->property.value.n; i++)
+  {
+    if (strncmp (xqos->property.value.props[i].name, nameprefix, len) == 0)
+      return true;
+  }
+  return false;
+}
 
-  for (uint32_t i = 0; i < xqos->property.value.n; i++) {
-    if (startswith && (strncmp(xqos->property.value.props[i].name, pname, strlen(pname)) == 0)) {
-      return !check_non_empty || strlen(xqos->property.value.props[i].value) != 0;
-    } else if (!startswith && (strcmp(xqos->property.value.props[i].name, pname) == 0)) {
-      return !check_non_empty || strlen(xqos->property.value.props[i].value) != 0;
+bool ddsi_xqos_find_prop (const dds_qos_t *xqos, const char *name, const char **value)
+{
+  if (!(xqos->present & QP_PROPERTY_LIST))
+    return false;
+  for (uint32_t i = 0; i < xqos->property.value.n; i++)
+  {
+    if (strcmp (xqos->property.value.props[i].name, name) == 0)
+    {
+      if (value)
+        *value = xqos->property.value.props[i].value;
+      return true;
     }
   }
   return false;

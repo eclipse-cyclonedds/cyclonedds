@@ -141,3 +141,43 @@ CU_Test(ddsc_security_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
   CU_ASSERT_FATAL(found == 0x7);
 #endif
 }
+
+CU_Test(ddsc_security_qos, empty, .init = ddsrt_init, .fini = ddsrt_fini)
+{
+  /* Expected traces when creating participant with some (not all) security QoS
+     settings.  We need to test this one here to be sure that it also refuses to
+     start when security is configured but the implementation doesn't include
+     support for it. */
+  const char *log_expected[] = {
+#ifdef DDSI_INCLUDE_SECURITY
+    "new_participant(*): using security settings from QoS*",
+    "new_participant(*): required security property * missing*",
+#endif
+    NULL
+  };
+
+  /* Set up the trace sinks to detect the config parsing. */
+  dds_set_log_mask (DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
+  dds_set_log_sink (&logger, (void *) log_expected);
+  dds_set_trace_sink (&logger, (void *) log_expected);
+
+  /* Create participant with incomplete/nonsensical security configuration: this should always fail */
+  found = 0;
+  dds_qos_t *qos = dds_create_qos ();
+  dds_qset_prop (qos, "dds.sec.nonsense", "");
+  dds_entity_t domain = dds_create_domain (0, "<Tracing><Category>trace</Category>");
+  CU_ASSERT_FATAL (domain > 0);
+  dds_entity_t participant = dds_create_participant (0, qos, NULL);
+  dds_delete_qos (qos);
+  CU_ASSERT_FATAL (participant < 0);
+  (void) dds_delete (domain);
+  dds_set_log_sink (NULL, NULL);
+  dds_set_trace_sink (NULL, NULL);
+
+  /* All traces should have been provided. */
+#ifndef DDSI_INCLUDE_SECURITY
+  CU_ASSERT_FATAL (found == 0x0);
+#else
+  CU_ASSERT_FATAL (found == 0x3);
+#endif
+}
