@@ -1536,12 +1536,13 @@ static DDS_Security_ValidationResult_t validate_handshake_token_impl (const DDS_
     DDS_Security_BinaryProperty_t hash_c2_val = {
       .name = "hash_c2", .value = { ._length = sizeof (handshake->hash_c2), ._buffer = handshake->hash_c2 }
     };
-    const DDS_Security_BinaryProperty_t **properties;
+    DDS_Security_ValidationResult_t result;
     if (token_type == HS_TOKEN_REPLY)
-      properties = (const DDS_Security_BinaryProperty_t *[]) { &hash_c2_val, challenge2, dh2, challenge1, dh1, &hash_c1_val };
+      result = validate_signature (public_key, (const DDS_Security_BinaryProperty_t *[]) {
+        &hash_c2_val, challenge2, dh2, challenge1, dh1, &hash_c1_val }, 6, signature->value._buffer, signature->value._length, ex);
     else
-      properties = (const DDS_Security_BinaryProperty_t *[]) { &hash_c1_val, challenge1, dh1, challenge2, dh2, &hash_c2_val };
-    const DDS_Security_ValidationResult_t result = validate_signature (public_key, properties, 6, signature->value._buffer, signature->value._length, ex);
+      result = validate_signature (public_key, (const DDS_Security_BinaryProperty_t *[]) {
+        &hash_c1_val, challenge1, dh1, challenge2, dh2, &hash_c2_val }, 6, signature->value._buffer, signature->value._length, ex);
     EVP_PKEY_free (public_key);
     if (result != DDS_SECURITY_VALIDATION_OK)
       return result;
