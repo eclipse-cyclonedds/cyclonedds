@@ -322,7 +322,9 @@ DDS_EXPORT void ddsi_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, ui
 DDS_EXPORT void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
 DDS_EXPORT size_t ddsi_xqos_print (char * __restrict buf, size_t bufsize, const dds_qos_t *xqos);
 DDS_EXPORT dds_qos_t *ddsi_xqos_dup (const dds_qos_t *src);
-DDS_EXPORT bool ddsi_xqos_has_prop (const dds_qos_t *xqos, const char *pname, bool startswith, bool check_non_empty);
+DDS_EXPORT bool ddsi_xqos_has_prop_prefix (const dds_qos_t *xqos, const char *nameprefix);
+DDS_EXPORT bool ddsi_xqos_find_prop (const dds_qos_t *xqos, const char *name, const char **value);
+
 #ifdef DDSI_INCLUDE_SECURITY
 struct omg_security_configuration_type;
 DDS_EXPORT void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security_configuration_type *cfg);
