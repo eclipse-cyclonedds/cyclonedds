@@ -23,6 +23,11 @@
 #include "dds/export.h"
 #include "dds/ddsc/dds_public_qosdefs.h"
 
+/* Whether or not the "property list" QoS setting is supported in this version.  If it is,
+   the "dds.sec." properties are treated specially, preventing the accidental creation of
+   an non-secure participant by an implementation built without support for DDS Security. */
+#define DDS_HAS_PROPERTY_LIST_QOS 1
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
