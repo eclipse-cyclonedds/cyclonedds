@@ -25,7 +25,6 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/security/core/dds_security_utils.h"
 
-
 const enum pserop pserop_participant_generic_message[] =
 {
   /* nn_participant_generic_message */
@@ -47,7 +46,7 @@ const enum pserop pserop_participant_generic_message[] =
   XSTOP,
   XSTOP                /* end                                            */
 };
-
+const size_t pserop_participant_generic_message_nops = sizeof (pserop_participant_generic_message) / sizeof (pserop_participant_generic_message[0]);
 
 static void
 alias_simple_sequence(ddsi_octetseq_t *dst, const ddsi_octetseq_t *src, size_t elem_size)

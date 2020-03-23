@@ -18,6 +18,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_plist_generic.h"
 
 #include "dds/dds.h"
 
@@ -136,8 +137,6 @@ extern DDS_EXPORT const struct ddsi_sertopic_ops ddsi_sertopic_ops_default;
 
 extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_cdr;
 extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey;
-extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_plist;
-extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_rawcdr;
 
 struct serdatapool * ddsi_serdatapool_new (void);
 void ddsi_serdatapool_free (struct serdatapool * pool);

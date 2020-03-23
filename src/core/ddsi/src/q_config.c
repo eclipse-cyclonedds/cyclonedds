@@ -863,8 +863,6 @@ static const struct cfgelem discovery_cfgelems[] = {
     BLURB("<p>This element specifies the interval between spontaneous transmissions of participant discovery packets.</p>") },
   { LEAF("DefaultMulticastAddress"), 1, "auto", ABSOFF(defaultMulticastAddressString), 0, uf_networkAddress, 0, pf_networkAddress,
     BLURB("<p>This element specifies the default multicast address for all traffic other than participant discovery packets. It defaults to Discovery/SPDPMulticastAddress.</p>") },
-  { LEAF("EnableTopicDiscovery"), 1, "true", ABSOFF(do_topic_discovery), 0, uf_boolean, 0, pf_boolean,
-    BLURB("<p>Do not use.</p>") },
   { GROUP("Ports", discovery_ports_cfgelems),
     BLURB("<p>The Ports element allows specifying various parameters related to the port numbers used for discovery. These all have default values specified by the DDSI 2.1 specification and rarely need to be changed.</p>") },
   END_MARKER

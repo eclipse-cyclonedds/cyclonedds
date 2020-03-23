@@ -407,11 +407,6 @@ Discovery/SPDPMulticastAddress.</p><p>The default value is:
           text
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>Do not use.</p><p>The default value is: &quot;true&quot;.</p>""" ] ]
-        element EnableTopicDiscovery {
-          xsd:boolean
-        }?
-        & [ a:documentation [ xml:lang="en" """
 <p>An override for the domain id, to be used in discovery and for
 determining the port number mapping. This allows creating multiple
 domains in a single process while making them appear as a single domain

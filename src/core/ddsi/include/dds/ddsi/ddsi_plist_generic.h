@@ -19,6 +19,7 @@
 #include "dds/export.h"
 
 #include "dds/ddsrt/attributes.h"
+#include "dds/ddsrt/retcode.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -48,9 +49,11 @@ enum pserop {
 DDS_EXPORT void plist_fini_generic (void * __restrict dst, const enum pserop *desc, bool aliased);
 DDS_EXPORT dds_return_t plist_deser_generic (void * __restrict dst, const void * __restrict src, size_t srcsize, bool bswap, const enum pserop * __restrict desc);
 DDS_EXPORT dds_return_t plist_ser_generic (void **dst, size_t *dstsize, const void *src, const enum pserop * __restrict desc);
+DDS_EXPORT dds_return_t plist_ser_generic_be (void **dst, size_t *dstsize, const void *src, const enum pserop * __restrict desc);
 DDS_EXPORT dds_return_t plist_unalias_generic (void * __restrict dst, const enum pserop * __restrict desc);
 DDS_EXPORT bool plist_equal_generic (const void *srcx, const void *srcy, const enum pserop * __restrict desc);
 DDS_EXPORT size_t plist_memsize_generic (const enum pserop * __restrict desc);
+DDS_EXPORT size_t plist_print_generic (char * __restrict buf, size_t bufsize, const void * __restrict src, const enum pserop * __restrict desc);
 
 #if defined (__cplusplus)
 }

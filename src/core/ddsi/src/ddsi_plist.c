@@ -1028,6 +1028,19 @@ dds_return_t plist_ser_generic (void **dst, size_t *dstsize, const void *src, co
   return ret;
 }
 
+dds_return_t plist_ser_generic_be (void **dst, size_t *dstsize, const void *src, const enum pserop * __restrict desc)
+{
+  const size_t srcoff = 0;
+  size_t dstoff = 0;
+  dds_return_t ret;
+  *dstsize = ser_generic_size (src, srcoff, desc);
+  if ((*dst = ddsrt_malloc (*dstsize == 0 ? 1 : *dstsize)) == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  ret = ser_generic_embeddable (*dst, &dstoff, src, srcoff, desc, true);
+  assert (dstoff == *dstsize);
+  return ret;
+}
+
 static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased, const enum pserop * __restrict desc)
 {
 #define COMPLEX(basecase_, type_, ...) do {                      \
@@ -1249,7 +1262,14 @@ static uint32_t isprint_runlen (uint32_t n, const unsigned char *xs)
 
 static bool prtf_octetseq (char * __restrict *buf, size_t * __restrict bufsize, uint32_t n, const unsigned char *xs)
 {
+  /* Truncate octet sequences: 100 is arbitrary but experience suggests it is
+     usually enough, and truncating it helps a lot when printing handshake
+     messages during authentication. */
+  const uint32_t lim = 100;
+  bool trunc = (n > lim);
   uint32_t i = 0;
+  if (trunc)
+    n = lim;
   while (i < n)
   {
     uint32_t m = isprint_runlen (n - i, xs);
@@ -1272,7 +1292,7 @@ static bool prtf_octetseq (char * __restrict *buf, size_t * __restrict bufsize, 
       }
     }
   }
-  return true;
+  return trunc ? prtf (buf, bufsize, "...") : true;
 }
 
 static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff, const enum pserop * __restrict desc, const char *sep)
@@ -1387,7 +1407,7 @@ static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize,
       }
       case XG: { /* GUID */
         ddsi_guid_t const * const x = deser_generic_src (src, &srcoff, alignof (ddsi_guid_t));
-        if (!prtf (buf, bufsize, "%s"PGUIDFMT, sep, PGUID (*x)))
+        if (!prtf (buf, bufsize, "%s{"PGUIDFMT"}", sep, PGUID (*x)))
           return false;
         srcoff += sizeof (*x);
         break;
@@ -1415,14 +1435,13 @@ static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize,
         if (!prtf (buf, bufsize, "}"))
           return false;
         srcoff += sizeof (*x);
-        while (*++desc != XSTOP) { }
         break;
       }
       case Xopt:
         break;
     }
     sep = ":";
-    desc++;
+    desc = pserop_advance(desc);
   }
 }
 
@@ -2845,20 +2864,47 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
   return DDS_RETCODE_BAD_PARAMETER;
 }
 
-const unsigned char *ddsi_plist_findparam_native_unchecked (const void *src, nn_parameterid_t pid)
+dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint16_t encoding, nn_parameterid_t needle, void **needlep, size_t *needlesz)
 {
-  /* Scans the parameter list starting at src looking just for pid, returning NULL if not found;
-     no further checking is done and the input is assumed to valid and in native format.  Clearly
-     this is only to be used for internally generated data -- to precise, for grabbing the key
-     value from discovery data that is being sent out. */
-  const nn_parameter_t *par = src;
-  while (par->parameterid != pid)
+  /* set needle to PID_SENTINEL if all you want to do is scan the structure */
+  assert (needle == PID_SENTINEL || (needlep != NULL && needlesz != NULL));
+  bool bswap;
+  if (needlep)
+    *needlep = NULL;
+  switch (encoding)
   {
-    if (par->parameterid == PID_SENTINEL)
-      return NULL;
-    par = (const nn_parameter_t *) ((const char *) (par + 1) + par->length);
+    case PL_CDR_LE:
+      bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
+      break;
+    case PL_CDR_BE:
+      bswap = (DDSRT_ENDIAN != DDSRT_BIG_ENDIAN);
+      break;
+    default:
+      return DDS_RETCODE_BAD_PARAMETER;
   }
-  return (unsigned char *) (par + 1);
+  const unsigned char *pl = buf;
+  const unsigned char *endp = pl + bufsz;
+  while (pl + sizeof (nn_parameter_t) <= endp)
+  {
+    const nn_parameter_t *par = (const nn_parameter_t *) pl;
+    nn_parameterid_t pid;
+    uint16_t length;
+    pid = (nn_parameterid_t) (bswap ? ddsrt_bswap2u (par->parameterid) : par->parameterid);
+    length = (uint16_t) (bswap ? ddsrt_bswap2u (par->length) : par->length);
+    pl += sizeof (*par);
+
+    if (pid == PID_SENTINEL)
+      return (needlep && *needlep == NULL) ? DDS_RETCODE_NOT_FOUND : DDS_RETCODE_OK;
+    else if (length > (size_t) (endp - pl) || (length % 4) != 0 /* DDSI 9.4.2.11 */)
+      return DDS_RETCODE_BAD_PARAMETER;
+    else if (pid == needle)
+    {
+      *needlep = (void *) pl;
+      *needlesz = length;
+    }
+    pl += length;
+  }
+  return DDS_RETCODE_BAD_PARAMETER;
 }
 
 unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const struct nn_rmsg *rmsg, const ddsi_plist_src_t *src)
@@ -3379,6 +3425,9 @@ static void plist_or_xqos_print (char * __restrict *buf, size_t * __restrict buf
   /* shift == 0: plist, shift > 0: just qos */
   const char *sep = "";
   uint64_t pw, qw;
+  if (*bufsize == 0)
+    return;
+  (*buf)[0] = 0;
   if (shift > 0)
   {
     const dds_qos_t *qos = src;
@@ -3463,4 +3512,11 @@ void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_
 void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const ddsi_plist_t *plist)
 {
   plist_or_xqos_log (cat, logcfg, plist, 0, ~(uint64_t)0, ~(uint64_t)0);
+}
+
+size_t plist_print_generic (char * __restrict buf, size_t bufsize, const void * __restrict src, const enum pserop * __restrict desc)
+{
+  const size_t bufsize_in = bufsize;
+  (void) print_generic (&buf, &bufsize, src, 0, desc);
+  return bufsize_in - bufsize;
 }

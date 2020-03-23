@@ -1099,15 +1099,9 @@ static bool resend_spdp_sample_by_guid_key (struct writer *wr, const ddsi_guid_t
   ddsi_plist_init_empty (&ps);
   ps.present |= PP_PARTICIPANT_GUID;
   ps.participant_guid = *guid;
-  struct nn_xmsg *mpayload = nn_xmsg_new (gv->xmsgpool, guid, wr->c.pp, 0, NN_XMSG_KIND_DATA);
-  ddsi_plist_addtomsg (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0);
-  nn_xmsg_addpar_sentinel (mpayload);
+  struct ddsi_serdata *sd = ddsi_serdata_from_sample (gv->spdp_topic, SDK_KEY, &ps);
   ddsi_plist_fini (&ps);
-  struct ddsi_plist_sample plist_sample;
-  nn_xmsg_payload_to_plistsample (&plist_sample, PID_PARTICIPANT_GUID, mpayload);
-  struct ddsi_serdata *sd = ddsi_serdata_from_sample (gv->plist_topic, SDK_KEY, &plist_sample);
   struct whc_borrowed_sample sample;
-  nn_xmsg_free (mpayload);
 
   ddsrt_mutex_lock (&wr->e.lock);
   sample_found = whc_borrow_sample_key (wr->whc, sd, &sample);

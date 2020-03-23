@@ -1976,7 +1976,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
       GVTRACE ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": ST%x %s/%s:%s%s",
                sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
                PGUID (guid), sampleinfo->seq, statusinfo, topic->name, topic->type_name,
-               tmp, res < sizeof (tmp) ? "" : "(trunc)");
+               tmp, res < sizeof (tmp) - 1 ? "" : "(trunc)");
     }
   }
   return sample;

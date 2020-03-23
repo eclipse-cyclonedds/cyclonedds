@@ -522,7 +522,6 @@ the discovery of peers.&lt;/p&gt;</xs:documentation>
       <xs:all>
         <xs:element minOccurs="0" ref="config:DSGracePeriod"/>
         <xs:element minOccurs="0" ref="config:DefaultMulticastAddress"/>
-        <xs:element minOccurs="0" ref="config:EnableTopicDiscovery"/>
         <xs:element minOccurs="0" ref="config:ExternalDomainId"/>
         <xs:element minOccurs="0" ref="config:MaxAutoParticipantIndex"/>
         <xs:element minOccurs="0" ref="config:ParticipantIndex"/>
@@ -554,12 +553,6 @@ day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;30 s&amp;quot;.&lt;/p&gt;
 other than participant discovery packets. It defaults to
 Discovery/SPDPMulticastAddress.&lt;/p&gt;&lt;p&gt;The default value is:
 &amp;quot;auto&amp;quot;.&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="EnableTopicDiscovery" type="xs:boolean">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;Do not use.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;true&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="ExternalDomainId" type="xs:string">
