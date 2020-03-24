@@ -68,12 +68,6 @@ struct crypto_contents_ref
   unsigned char *_data;
 };
 
-struct receiver_specific_mac
-{
-  DDS_Security_CryptoTransformKeyId receiver_mac_key_id;
-  crypto_hmac_t receiver_mac;
-};
-
 struct receiver_specific_mac_seq
 {
   uint32_t _length;
@@ -1467,64 +1461,73 @@ enc_dr_submsg_inv_args:
   return result;
 }
 
-static DDS_Security_boolean
+static bool
 check_reader_specific_mac(
+    dds_security_crypto_key_factory *factory,
     struct crypto_header *header,
     struct crypto_footer *footer,
-    master_key_material *key_material,
+    CryptoObjectKind_t kind,
+    DDS_Security_Handle rmt_handle,
     const char *context,
     DDS_Security_SecurityException *ex)
 {
+  bool result = false;
+  master_key_material *keymat = NULL;
+  uint32_t index;
   uint32_t session_id;
   crypto_session_key_t key;
   crypto_hmac_t *href = NULL;
   crypto_hmac_t hmac;
-  uint32_t i;
 
-  if (key_material->receiver_specific_key_id == 0)
+  if (footer->receiver_specific_macs._length == 0)
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_RECEIVER_SIGN_CODE, 0,
-        "%s: don't have receiver key material to check specific mac", context);
+                "%s: message does not contain a receiver specific mac", context);
     return false;
   }
 
-  session_id = CRYPTO_TRANSFORM_ID(header->session_id);
-  for (i = 0; !href && (i < footer->receiver_specific_macs._length); i++)
+  if (!crypto_factory_get_specific_keymat(factory, kind, rmt_handle, &footer->receiver_specific_macs._buffer[0], footer->receiver_specific_macs._length, &index, &keymat))
   {
-    uint32_t id = CRYPTO_TRANSFORM_ID(footer->receiver_specific_macs._buffer[i].receiver_mac_key_id);
-
-    if (id == key_material->receiver_specific_key_id)
-      href = &footer->receiver_specific_macs._buffer[i].receiver_mac;
+    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_RECEIVER_SIGN_CODE, 0,
+            "%s: message does not contain a known receiver specific key", context);
+    goto check_failed;
   }
 
+  href = &footer->receiver_specific_macs._buffer[index].receiver_mac;
   if (!href)
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_RECEIVER_SIGN_CODE, 0,
         "%s: message does not contain receiver specific mac", context);
-    return false;
+    goto check_failed;
   }
 
-  if (!crypto_calculate_receiver_specific_key(&key, session_id, key_material->master_salt, key_material->master_receiver_specific_key, key_material->transformation_kind, ex))
+  session_id = CRYPTO_TRANSFORM_ID(header->session_id);
+  if (!crypto_calculate_receiver_specific_key(&key, session_id, keymat->master_salt, keymat->master_receiver_specific_key, keymat->transformation_kind, ex))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_RECEIVER_SIGN_CODE, 0,
         "%s: failed to calculate receiver specific session key", context);
-    return false;
+    goto check_failed;
   }
 
-  if (!crypto_cipher_encrypt_data(&key, crypto_get_key_size(key_material->transformation_kind), header->session_id, NULL, 0, footer->common_mac.data, CRYPTO_HMAC_SIZE, NULL, NULL, &hmac, ex))
+  if (!crypto_cipher_encrypt_data(&key, crypto_get_key_size(keymat->transformation_kind), header->session_id, NULL, 0, footer->common_mac.data, CRYPTO_HMAC_SIZE, NULL, NULL, &hmac, ex))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_RECEIVER_SIGN_CODE, 0,
         "%s: failed to calculate receiver specific hmac", context);
-    return false;
+    goto check_failed;
   }
 
   if (memcmp(hmac.data, href->data, CRYPTO_HMAC_SIZE) != 0)
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_RECEIVER_SIGN_CODE, 0,
         "%s: message does not contain a valid receiver specific mac", context);
-    return false;
+    goto check_failed;
   }
-  return true;
+
+  result = true;
+
+check_failed:
+  CRYPTO_OBJECT_RELEASE(keymat);
+  return result;
 }
 
 static DDS_Security_boolean encode_rtps_message_sign (
@@ -1869,7 +1872,7 @@ decode_rtps_message(dds_security_crypto_transform *instance,
 
   transform_kind = CRYPTO_TRANSFORM_KIND(header.transform_identifier.transformation_kind);
 
-  /* Retrieve key material from sending_participant_crypto and  receiving_participant_crypto from factory */
+  /* Retrieve key material from sending_participant_crypto and receiving_participant_crypto from factory */
   if (!crypto_factory_get_participant_crypto_tokens(factory, receiving_participant_crypto, sending_participant_crypto, &pp_key_material, &remote_protection_kind, ex))
     goto fail_tokens;
 
@@ -1878,7 +1881,7 @@ decode_rtps_message(dds_security_crypto_transform *instance,
 
   if (has_origin_authentication(remote_protection_kind))
   { /* default governance value */
-    if (!check_reader_specific_mac(&header, footer, pp_key_material->remote_key_material, context, ex))
+    if (!check_reader_specific_mac(factory, &header, footer, CRYPTO_OBJECT_KIND_REMOTE_CRYPTO, sending_participant_crypto, context, ex))
       goto fail_reader_mac;
   }
 
@@ -2095,7 +2098,7 @@ decode_datawriter_submessage(
 
   if (has_origin_authentication(protection_kind))
   {
-    if (!check_reader_specific_mac(&header, footer, writer_master_key, context, ex))
+    if (!check_reader_specific_mac(factory, &header, footer, CRYPTO_OBJECT_KIND_REMOTE_WRITER_CRYPTO, writer_crypto, context, ex))
       goto fail_reader_mac;
   }
 
@@ -2137,6 +2140,7 @@ decode_datawriter_submessage(
           "decode_datawriter_submessage: submessage is signed, which is unexpected");
       goto fail_decrypt;
     }
+    assert(transform_id != 0);
     /* When the CryptoHeader indicates that authentication is performed then calculate the HMAC */
     if (!crypto_cipher_decrypt_data(&remote_session, header.session_id, NULL, 0, contents._data, contents._length, NULL, 0, &footer->common_mac, ex))
       goto fail_decrypt;
@@ -2218,7 +2222,7 @@ decode_datareader_submessage(
 
   if (has_origin_authentication(protection_kind))
   {
-    if (!check_reader_specific_mac(&header, footer, reader_master_key, context, ex))
+    if (!check_reader_specific_mac(factory, &header, footer, CRYPTO_OBJECT_KIND_REMOTE_READER_CRYPTO, reader_crypto, context, ex))
       goto fail_reader_mac;
   }
 

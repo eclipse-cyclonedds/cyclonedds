@@ -389,7 +389,16 @@ static void proxypp_pp_match_free(struct dds_security_context *sc, struct proxyp
   if (pm->permissions_handle != DDS_SECURITY_HANDLE_NIL)
   {
     if (!sc->access_control_context->return_permissions_handle(sc->access_control_context, pm->permissions_handle, &exception))
+    {
+      /* FIXME: enable exception warning when access control is updated to return a permission handle for each
+       * matching local and remote participant.
+       */
+#if 0
       EXCEPTION_ERROR(sc, &exception, "Failed to return remote permissions handle");
+#else
+      DDS_Security_Exception_reset(&exception);
+#endif
+    }
   }
   ddsrt_free(pm);
 }
@@ -1011,6 +1020,8 @@ static void cleanup_participant_sec_attributes(void *arg)
   if ((attr = participant_index_remove(sc, info->crypto_handle)) == NULL)
     return;
 
+  GVTRACE("cleanup participant "PGUIDFMT" security attributes\n", PGUID(attr->pp_guid));
+
   pm = ddsrt_avl_cfind_min(&pp_proxypp_treedef, &attr->proxy_participants);
   while (pm)
   {
@@ -1041,7 +1052,8 @@ static void cleanup_participant_sec_attributes(void *arg)
       EXCEPTION_ERROR(sc, &exception, "Failed to return participant security attributes");
   }
 
-  (void)sc->crypto_context->crypto_key_factory->unregister_participant(sc->crypto_context->crypto_key_factory, attr->crypto_handle, NULL);
+  if (!sc->crypto_context->crypto_key_factory->unregister_participant(sc->crypto_context->crypto_key_factory, attr->crypto_handle, &exception))
+    EXCEPTION_ERROR(sc, &exception, "Failed to unregister participant");
 
   ddsrt_avl_cfree(&pp_proxypp_treedef, &attr->proxy_participants, NULL);
   ddsrt_mutex_unlock(&attr->lock);
@@ -1702,7 +1714,7 @@ bool q_omg_security_register_remote_participant(struct participant *pp, struct p
 
   proxypp->sec_attr->crypto_handle = crypto_handle;
 
-  GVTRACE("match pp->crypto=%"PRId64" proxypp->crypto=%"PRId64"\n", pp->sec_attr->crypto_handle, crypto_handle);
+  GVTRACE("match pp->crypto=%"PRId64" proxypp->crypto=%"PRId64" permissions=%"PRId64"\n", pp->sec_attr->crypto_handle, crypto_handle, permissions_handle);
   match_proxypp_pp(pp, proxypp, permissions_handle, shared_secret);
 
   GVTRACE("create proxypp-pp match pp="PGUIDFMT" proxypp="PGUIDFMT" lidh=%"PRId64, PGUID(pp->e.guid), PGUID(proxypp->e.guid), pp->sec_attr->local_identity_handle);
@@ -2031,7 +2043,7 @@ static bool q_omg_security_register_remote_writer_match(struct proxy_writer *pwr
   match = find_or_create_entity_match(gv->security_matches, &pwr->e.guid, &rd->e.guid);
   if (match->matched)
     *crypto_handle = match->crypto_handle;
-  else
+  else if (match->crypto_handle == 0)
   {
     /* Generate writer crypto info. */
     match->crypto_handle = sc->crypto_context->crypto_key_factory->register_matched_remote_datawriter(
@@ -2382,7 +2394,7 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
   match = find_or_create_entity_match(gv->security_matches, &prd->e.guid, &wr->e.guid);
   if (match->matched)
     *crypto_handle = match->crypto_handle;
-  else
+  else if (match->crypto_handle == 0)
   {
     /* Generate writer crypto info. */
     match->crypto_handle = sc->crypto_context->crypto_key_factory->register_matched_remote_datareader(

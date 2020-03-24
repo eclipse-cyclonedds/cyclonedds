@@ -12,7 +12,9 @@
 #ifndef CRYPTO_DEFS_H
 #define CRYPTO_DEFS_H
 
+#include "dds/security/core/dds_security_types.h"
 #include "dds/security/dds_security_api.h"
+
 
 #define DDS_CRYPTO_PLUGIN_CONTEXT "Cryptographic"
 
@@ -110,5 +112,11 @@ typedef enum RTPS_Message_Type
   /** The Constant SRTPS_POSTFIX. */
   RTPS_Message_Type_SRTPS_POSTFIX = 0x34
 } RTPS_Message_Type;
+
+struct receiver_specific_mac
+{
+  DDS_Security_CryptoTransformKeyId receiver_mac_key_id;
+  crypto_hmac_t receiver_mac;
+};
 
 #endif /* CRYPTO_DEFS_H */

@@ -72,11 +72,13 @@ struct crypto_footer
   uint32_t length;
 };
 
+#if 0
 struct receiver_specific_mac
 {
   DDS_Security_CryptoTransformKeyId receiver_mac_key_id;
   unsigned char receiver_mac[CRYPTO_HMAC_SIZE];
 };
+#endif
 
 struct encrypted_data
 {
@@ -742,7 +744,7 @@ static bool check_reader_signing(DDS_Security_DatareaderCryptoHandleSeq *list, s
   for (i = 0; i < list->_length; i++)
   {
     key_id = ddsrt_bswap4u(*(uint32_t *)rmac[i].receiver_mac_key_id);
-    if (!check_reader_sign(list->_buffer[i], session_id, key_id, key_size, init_vector, footer->common_mac, rmac[i].receiver_mac))
+    if (!check_reader_sign(list->_buffer[i], session_id, key_id, key_size, init_vector, footer->common_mac, rmac[i].receiver_mac.data))
     {
       return false;
     }

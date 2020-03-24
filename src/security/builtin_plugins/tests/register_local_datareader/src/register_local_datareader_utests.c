@@ -54,6 +54,14 @@ static void prepare_participant_security_attributes(DDS_Security_ParticipantSecu
   attributes->plugin_participant_attributes |= DDS_SECURITY_PLUGIN_PARTICIPANT_ATTRIBUTES_FLAG_IS_RTPS_ENCRYPTED;
 }
 
+static void reset_exception(DDS_Security_SecurityException *ex)
+{
+  ex->code = 0;
+  ex->minor_code = 0;
+  ddsrt_free(ex->message);
+  ex->message = NULL;
+}
+
 static void suite_register_local_datareader_init(void)
 {
   DDS_Security_IdentityHandle participant_identity = 5; //valid dummy value
@@ -111,6 +119,14 @@ static void suite_register_local_datareader_init(void)
 static void suite_register_local_datareader_fini(void)
 {
   DDS_Security_SharedSecretHandleImpl *shared_secret_handle_impl = (DDS_Security_SharedSecretHandleImpl *)shared_secret_handle;
+  DDS_Security_SecurityException exception = {NULL, 0, 0};
+
+  crypto->crypto_key_factory->unregister_participant(crypto->crypto_key_factory, remote_participant_crypto_handle, &exception);
+  reset_exception(&exception);
+
+  crypto->crypto_key_factory->unregister_participant(crypto->crypto_key_factory, local_participant_crypto_handle, &exception);
+  reset_exception(&exception);
+
   unload_plugins(plugins);
   ddsrt_free(shared_secret_handle_impl->shared_secret);
   ddsrt_free(shared_secret_handle_impl);
@@ -120,13 +136,7 @@ static void suite_register_local_datareader_fini(void)
   remote_participant_crypto_handle = DDS_SECURITY_HANDLE_NIL;
 }
 
-static void reset_exception(DDS_Security_SecurityException *ex)
-{
-  ex->code = 0;
-  ex->minor_code = 0;
-  ddsrt_free(ex->message);
-  ex->message = NULL;
-}
+
 
 static void prepare_endpoint_security_attributes(DDS_Security_EndpointSecurityAttributes *attributes)
 {

@@ -18,6 +18,64 @@
 #include "crypto_objects.h"
 #include "crypto_utils.h"
 
+static int compare_participant_handle(const void *va, const void *vb);
+static int compare_endpoint_relation (const void *va, const void *vb);
+static int compare_relation_key (const void *va, const void *vb);
+static void key_relation_free(CryptoObject *obj);
+
+const ddsrt_avl_ctreedef_t loc_pp_keymat_treedef =
+  DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct participant_key_material, loc_avlnode), offsetof (struct participant_key_material, rmt_pp_handle), compare_participant_handle, 0);
+
+const ddsrt_avl_ctreedef_t rmt_pp_keymat_treedef =
+  DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct participant_key_material, rmt_avlnode), offsetof (struct participant_key_material, loc_pp_handle), compare_participant_handle, 0);
+
+const ddsrt_avl_treedef_t endpoint_relation_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct key_relation, avlnode), 0, compare_endpoint_relation, 0);
+
+const ddsrt_avl_treedef_t specific_key_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct key_relation, avlnode), offsetof (struct key_relation, key_id), compare_relation_key, 0);
+
+
+static int compare_participant_handle(const void *va, const void *vb)
+{
+  const DDS_Security_ParticipantCryptoHandle *ha = va;
+  const DDS_Security_ParticipantCryptoHandle *hb = vb;
+
+  if (*ha > *hb)
+    return 1;
+  else if (*ha < *hb)
+    return -1;
+  return 0;
+}
+
+static int compare_endpoint_relation (const void *va, const void *vb)
+{
+  const key_relation *ra = va;
+  const key_relation *rb = vb;
+  int r;
+
+  r = (int)(ra->key_id - rb->key_id);
+  if (r != 0 || ra->local_crypto == 0 || rb->local_crypto == 0)
+  {
+    return r;
+  }
+
+  if (ra->local_crypto > rb->local_crypto)
+    return 1;
+  else if (ra->local_crypto < rb->local_crypto)
+    return -1;
+  else
+    return 0;
+}
+
+static int compare_relation_key (const void *va, const void *vb)
+{
+  const uint32_t *ka = va;
+  const uint32_t *kb = vb;
+
+  return (int)(*ka - *kb);
+}
+
 bool crypto_object_valid(CryptoObject *obj, CryptoObjectKind_t kind)
 {
   return (obj && obj->kind == kind && obj->handle == (int64_t)(uintptr_t)obj);
@@ -57,16 +115,15 @@ static void crypto_object_deinit(CryptoObject *obj)
 
 void crypto_object_free(CryptoObject *obj)
 {
+
   if (obj && obj->destructor)
     obj->destructor(obj);
 }
 
-CryptoObject * crypto_object_keep(CryptoObject *obj)
+void * crypto_object_keep(CryptoObject *obj)
 {
   if (obj)
-  {
     ddsrt_atomic_inc32(&obj->refcount);
-  }
   return obj;
 }
 
@@ -74,26 +131,6 @@ void crypto_object_release(CryptoObject *obj)
 {
   if (obj && ddsrt_atomic_dec32_nv(&obj->refcount) == 0)
     crypto_object_free(obj);
-}
-
-static uint32_t participant_key_material_hash(const void *obj)
-{
-  const participant_key_material *object = obj;
-  return (uint32_t)object->pp_local_handle;
-}
-
-static int participant_key_material_equal(const void *ha, const void *hb)
-{
-  const participant_key_material *la = ha;
-  const participant_key_material *lb = hb;
-  return la->pp_local_handle == lb->pp_local_handle;
-}
-
-static CryptoObject * participant_key_material_find(const struct CryptoObjectTable *table, const void *arg)
-{
-  struct participant_key_material template;
-  template.pp_local_handle = *(int64_t *)arg;
-  return crypto_object_table_find_by_template(table, &template);
 }
 
 CryptoObject * crypto_object_table_find_by_template(const struct CryptoObjectTable *table, const void *template)
@@ -301,7 +338,7 @@ session_key_material * crypto_session_key_material_new(master_key_material *mast
   session->init_vector_suffix = crypto_get_random_uint64();
   session->max_blocks_per_session = INT64_MAX; /* FIXME: should be a config parameter */
   session->block_counter = session->max_blocks_per_session;
-  session->master_key_material = (master_key_material *)CRYPTO_OBJECT_KEEP(master_key);
+  session->master_key_material = CRYPTO_OBJECT_KEEP(master_key);
 
   return session;
 }
@@ -321,7 +358,9 @@ static void local_participant_crypto__free(CryptoObject *obj)
     CHECK_CRYPTO_OBJECT_KIND (obj, CRYPTO_OBJECT_KIND_LOCAL_CRYPTO);
     CRYPTO_OBJECT_RELEASE (participant_crypto->session);
     CRYPTO_OBJECT_RELEASE (participant_crypto->key_material);
+    ddsrt_avl_cfree(&loc_pp_keymat_treedef, &participant_crypto->key_material_table, 0);
     crypto_object_deinit ((CryptoObject *)participant_crypto);
+    ddsrt_mutex_init(&participant_crypto->lock);
     ddsrt_free (participant_crypto);
   }
 }
@@ -333,6 +372,9 @@ local_participant_crypto * crypto_local_participant_crypto__new(DDS_Security_Ide
   local_participant_crypto *participant_crypto = ddsrt_calloc (1, sizeof(*participant_crypto));
   participant_crypto->identity_handle = participant_identity;
   crypto_object_init ((CryptoObject *)participant_crypto, CRYPTO_OBJECT_KIND_LOCAL_CRYPTO, local_participant_crypto__free);
+  ddsrt_mutex_init(&participant_crypto->lock);
+  ddsrt_avl_cinit(&loc_pp_keymat_treedef, &participant_crypto->key_material_table);
+
   return participant_crypto;
 }
 
@@ -344,8 +386,11 @@ static void remote_participant_crypto__free(CryptoObject *obj)
   if (participant_crypto)
   {
     CRYPTO_OBJECT_RELEASE (participant_crypto->session);
-    crypto_object_table_free (participant_crypto->key_material);
+    ddsrt_avl_cfree(&rmt_pp_keymat_treedef, &participant_crypto->key_material_table, 0);
     crypto_object_deinit ((CryptoObject *)participant_crypto);
+    ddsrt_avl_free(&endpoint_relation_treedef, &participant_crypto->relation_index, 0);
+    ddsrt_avl_free(&specific_key_treedef, &participant_crypto->specific_key_index, 0);
+    ddsrt_mutex_destroy(&participant_crypto->lock);
     ddsrt_free(participant_crypto);
   }
 }
@@ -356,7 +401,10 @@ remote_participant_crypto * crypto_remote_participant_crypto__new(DDS_Security_I
   remote_participant_crypto *participant_crypto = ddsrt_calloc (1, sizeof(*participant_crypto));
   crypto_object_init ((CryptoObject *)participant_crypto, CRYPTO_OBJECT_KIND_REMOTE_CRYPTO, remote_participant_crypto__free);
   participant_crypto->identity_handle = participant_identity;
-  participant_crypto->key_material = crypto_object_table_new (participant_key_material_hash, participant_key_material_equal, participant_key_material_find);
+  ddsrt_avl_cinit(&rmt_pp_keymat_treedef, &participant_crypto->key_material_table);
+  ddsrt_mutex_init(&participant_crypto->lock);
+  ddsrt_avl_init(&endpoint_relation_treedef, &participant_crypto->relation_index);
+  ddsrt_avl_init(&specific_key_treedef, &participant_crypto->specific_key_index);
 
   return participant_crypto;
 }
@@ -373,29 +421,129 @@ static void participant_key_material_free(CryptoObject *obj)
     CRYPTO_OBJECT_RELEASE(keymaterial->P2P_kx_key_material);
     CRYPTO_OBJECT_RELEASE(keymaterial->local_P2P_key_material);
     CRYPTO_OBJECT_RELEASE(keymaterial->remote_key_material);
-    crypto_object_table_free(keymaterial->endpoint_relations);
     crypto_object_deinit((CryptoObject *)keymaterial);
     ddsrt_free(keymaterial);
   }
 }
 
-participant_key_material * crypto_participant_key_material_new(const local_participant_crypto *pplocal)
+participant_key_material * crypto_participant_key_material_new(const local_participant_crypto *loc_pp_crypto, const remote_participant_crypto *rmt_pp_crypto)
 {
   participant_key_material *keymaterial = ddsrt_calloc(1, sizeof(*keymaterial));
   crypto_object_init((CryptoObject *)keymaterial, CRYPTO_OBJECT_KIND_PARTICIPANT_KEY_MATERIAL, participant_key_material_free);
-  keymaterial->pp_local_handle = pplocal->_parent.handle;
-  keymaterial->endpoint_relations = crypto_object_table_new(NULL, NULL, NULL);
+  keymaterial->loc_pp_handle = PARTICIPANT_CRYPTO_HANDLE(loc_pp_crypto);
+  keymaterial->rmt_pp_handle = PARTICIPANT_CRYPTO_HANDLE(rmt_pp_crypto);
   keymaterial->local_P2P_key_material = crypto_master_key_material_new(CRYPTO_TRANSFORMATION_KIND_NONE);
   keymaterial->P2P_kx_key_material = crypto_master_key_material_new(CRYPTO_TRANSFORMATION_KIND_AES256_GCM); /* as defined in table 67 of the DDS Security spec v1.1 */
 
   return keymaterial;
 }
 
-static void endpoint_relation_free(CryptoObject *obj)
+void crypto_local_participant_add_keymat(local_participant_crypto *loc_pp_crypto, participant_key_material *keymat)
 {
-  endpoint_relation *relation = (endpoint_relation *)obj;
+  ddsrt_mutex_lock(&loc_pp_crypto->lock);
+  ddsrt_avl_cinsert(&loc_pp_keymat_treedef, &loc_pp_crypto->key_material_table, CRYPTO_OBJECT_KEEP(keymat));
+  ddsrt_mutex_unlock(&loc_pp_crypto->lock);
+}
+
+participant_key_material * crypto_local_participant_remove_keymat(local_participant_crypto *loc_pp_crypto, DDS_Security_ParticipantCryptoHandle rmt_pp_handle)
+{
+  participant_key_material *keymat;
+  ddsrt_avl_dpath_t dpath;
+
+  ddsrt_mutex_lock(&loc_pp_crypto->lock);
+  keymat = ddsrt_avl_clookup_dpath(&loc_pp_keymat_treedef, &loc_pp_crypto->key_material_table, &rmt_pp_handle, &dpath);
+  if (keymat)
+    ddsrt_avl_cdelete_dpath(&loc_pp_keymat_treedef, &loc_pp_crypto->key_material_table, keymat, &dpath);
+  ddsrt_mutex_unlock(&loc_pp_crypto->lock);
+
+  return keymat;
+}
+
+participant_key_material * crypto_local_participant_lookup_keymat(local_participant_crypto *loc_pp_crypto, DDS_Security_ParticipantCryptoHandle rmt_pp_handle)
+{
+  participant_key_material *keymat;
+
+  ddsrt_mutex_lock(&loc_pp_crypto->lock);
+  keymat = CRYPTO_OBJECT_KEEP(ddsrt_avl_clookup(&loc_pp_keymat_treedef, &loc_pp_crypto->key_material_table, &rmt_pp_handle));
+  ddsrt_mutex_unlock(&loc_pp_crypto->lock);
+
+  return keymat;
+}
+
+void crypto_remote_participant_add_keymat(remote_participant_crypto *rmt_pp_crypto, participant_key_material *keymat)
+{
+  ddsrt_mutex_lock(&rmt_pp_crypto->lock);
+  ddsrt_avl_cinsert(&rmt_pp_keymat_treedef, &rmt_pp_crypto->key_material_table, CRYPTO_OBJECT_KEEP(keymat));
+  ddsrt_mutex_unlock(&rmt_pp_crypto->lock);
+}
+
+participant_key_material * crypto_remote_participant_remove_keymat(remote_participant_crypto *rmt_pp_crypto, DDS_Security_ParticipantCryptoHandle loc_pp_handle)
+{
+  participant_key_material *keymat;
+  ddsrt_avl_dpath_t dpath;
+
+  ddsrt_mutex_lock(&rmt_pp_crypto->lock);
+  keymat = ddsrt_avl_clookup_dpath(&rmt_pp_keymat_treedef, &rmt_pp_crypto->key_material_table, &loc_pp_handle, &dpath);
+  if (keymat)
+    ddsrt_avl_cdelete_dpath(&rmt_pp_keymat_treedef, &rmt_pp_crypto->key_material_table, keymat, &dpath);
+  ddsrt_mutex_unlock(&rmt_pp_crypto->lock);
+
+  return keymat;
+}
+
+participant_key_material * crypto_remote_participant_lookup_keymat(remote_participant_crypto *rmt_pp_crypto, DDS_Security_ParticipantCryptoHandle loc_pp_handle)
+{
+  participant_key_material *keymat;
+
+  ddsrt_mutex_lock(&rmt_pp_crypto->lock);
+  keymat = CRYPTO_OBJECT_KEEP(ddsrt_avl_clookup(&rmt_pp_keymat_treedef, &rmt_pp_crypto->key_material_table, &loc_pp_handle));
+  ddsrt_mutex_unlock(&rmt_pp_crypto->lock);
+
+  return keymat;
+}
+
+size_t crypto_local_participnant_get_matching(local_participant_crypto *loc_pp_crypto, DDS_Security_ParticipantCryptoHandle **handles)
+{
+  participant_key_material *keymat;
+  ddsrt_avl_citer_t it;
+  size_t num, i;
+
+  ddsrt_mutex_lock(&loc_pp_crypto->lock);
+  num = ddsrt_avl_ccount(&loc_pp_crypto->key_material_table);
+  if (num > 0)
+  {
+    *handles = ddsrt_malloc(num * sizeof(DDS_Security_ParticipantCryptoHandle));
+    for (i = 0, keymat = ddsrt_avl_citer_first(&loc_pp_keymat_treedef, &loc_pp_crypto->key_material_table, &it); i < num && keymat; i++, keymat = ddsrt_avl_citer_next(&it))
+      (*handles)[i] = keymat->rmt_pp_handle;
+  }
+  ddsrt_mutex_unlock(&loc_pp_crypto->lock);
+  return num;
+}
+
+size_t crypto_remote_participnant_get_matching(remote_participant_crypto *rmt_pp_crypto, DDS_Security_ParticipantCryptoHandle **handles)
+{
+  participant_key_material *keymat;
+  ddsrt_avl_citer_t it;
+  size_t num, i;
+
+  ddsrt_mutex_lock(&rmt_pp_crypto->lock);
+  num = ddsrt_avl_ccount(&rmt_pp_crypto->key_material_table);
+  if (num > 0)
+  {
+    *handles = ddsrt_malloc(num * sizeof(DDS_Security_ParticipantCryptoHandle));
+    for (i = 0, keymat = ddsrt_avl_citer_first(&rmt_pp_keymat_treedef, &rmt_pp_crypto->key_material_table, &it); i < num && keymat; i++, keymat = ddsrt_avl_citer_next(&it))
+      (*handles)[i] = keymat->loc_pp_handle;
+  }
+  ddsrt_mutex_unlock(&rmt_pp_crypto->lock);
+  return num;
+}
+
+static void key_relation_free(CryptoObject *obj)
+{
+  key_relation *relation = (key_relation *)obj;
   if (relation)
   {
+    CRYPTO_OBJECT_RELEASE(relation->key_material);
     CRYPTO_OBJECT_RELEASE(relation->local_crypto);
     CRYPTO_OBJECT_RELEASE(relation->remote_crypto);
     crypto_object_deinit((CryptoObject *)relation);
@@ -403,16 +551,17 @@ static void endpoint_relation_free(CryptoObject *obj)
   }
 }
 
-endpoint_relation * crypto_endpoint_relation_new(DDS_Security_SecureSubmessageCategory_t kind,
-    uint32_t key_id, CryptoObject *local_crypto, CryptoObject *remote_crypto)
+key_relation * crypto_key_relation_new(DDS_Security_SecureSubmessageCategory_t kind,
+    uint32_t key_id, CryptoObject *local_crypto, CryptoObject *remote_crypto, master_key_material *keymat)
 {
-  endpoint_relation *relation = ddsrt_malloc(sizeof(*relation));
-  crypto_object_init((CryptoObject *)relation, CRYPTO_OBJECT_KIND_ENDPOINT_RELATION, endpoint_relation_free);
+  key_relation *relation = ddsrt_malloc(sizeof(*relation));
+  crypto_object_init((CryptoObject *)relation, CRYPTO_OBJECT_KIND_RELATION, key_relation_free);
 
   relation->kind = kind;
   relation->key_id = key_id;
   relation->local_crypto = CRYPTO_OBJECT_KEEP(local_crypto);
   relation->remote_crypto = CRYPTO_OBJECT_KEEP(remote_crypto);
+  relation->key_material = (master_key_material *)CRYPTO_OBJECT_KEEP(keymat);
 
   return relation;
 }
@@ -539,60 +688,90 @@ remote_datareader_crypto *crypto_remote_datareader_crypto__new(const remote_part
   return reader_crypto;
 }
 
-
-typedef struct endpoint_relation_find_arg
+void crypto_insert_endpoint_relation(
+    remote_participant_crypto *rpc,
+    key_relation *relation)
 {
-  CryptoObject *found;
-  CryptoObject *local_crypto;
-  CryptoObject *remote_crypto;
-  uint32_t key_id;
-} endpoint_relation_find_arg;
+  ddsrt_mutex_lock(&rpc->lock);
+  ddsrt_avl_insert(&endpoint_relation_treedef, &rpc->relation_index, CRYPTO_OBJECT_KEEP(relation));
+  ddsrt_mutex_unlock(&rpc->lock);
+}
 
-static int endpoint_relation_cmp_key(CryptoObject *obj, void *arg)
+void crypto_remove_endpoint_relation(
+    remote_participant_crypto *rpc,
+    CryptoObject *lch,
+    uint32_t key_id)
 {
-  const endpoint_relation *rel = (const endpoint_relation *)obj;
-  endpoint_relation_find_arg *find_arg = (endpoint_relation_find_arg *)arg;
+  key_relation template;
+  key_relation *relation;
+  ddsrt_avl_dpath_t dpath;
 
-  if (rel->key_id == find_arg->key_id)
+  template.key_id = key_id;
+  template.local_crypto = lch;
+
+  ddsrt_mutex_lock(&rpc->lock);
+  relation =  ddsrt_avl_lookup_dpath(&endpoint_relation_treedef, &rpc->relation_index, &template, &dpath);
+  if (relation)
   {
-    find_arg->found = crypto_object_keep(obj);
-    return 0;
+    ddsrt_avl_delete_dpath(&endpoint_relation_treedef, &rpc->relation_index, relation, &dpath);
+    CRYPTO_OBJECT_RELEASE(relation);
   }
-  return 1;
+  ddsrt_mutex_unlock(&rpc->lock);
 }
 
-static int endpoint_relation_cmp_crypto(CryptoObject *obj, void *arg)
+key_relation * crypto_find_endpoint_relation(
+    remote_participant_crypto *rpc,
+    CryptoObject *lch,
+    uint32_t key_id)
 {
-  const endpoint_relation *rel = (const endpoint_relation *)obj;
-  endpoint_relation_find_arg *find_arg = (endpoint_relation_find_arg *)arg;
+  key_relation template;
+  key_relation *relation;
 
-  if ((rel->local_crypto == find_arg->local_crypto) &&
-      (rel->remote_crypto == find_arg->remote_crypto))
+  template.key_id = key_id;
+  template.local_crypto = lch;
+
+  ddsrt_mutex_lock(&rpc->lock);
+  relation =  CRYPTO_OBJECT_KEEP(ddsrt_avl_lookup(&endpoint_relation_treedef, &rpc->relation_index, &template));
+  ddsrt_mutex_unlock(&rpc->lock);
+
+  return relation;
+}
+
+void crypto_insert_specific_key_relation(
+    remote_participant_crypto *rpc,
+    key_relation *relation)
+{
+  ddsrt_mutex_lock(&rpc->lock);
+  ddsrt_avl_insert(&specific_key_treedef, &rpc->specific_key_index, CRYPTO_OBJECT_KEEP(relation));
+  ddsrt_mutex_unlock(&rpc->lock);
+}
+
+void crypto_remove_specific_key_relation(
+    remote_participant_crypto *rpc,
+    uint32_t key_id)
+{
+  key_relation *relation;
+  ddsrt_avl_dpath_t dpath;
+
+  ddsrt_mutex_lock(&rpc->lock);
+  relation =  ddsrt_avl_lookup_dpath(&specific_key_treedef, &rpc->specific_key_index, &key_id, &dpath);
+  if (relation)
   {
-    find_arg->found = crypto_object_keep(obj);
-    return 0;
+    ddsrt_avl_delete_dpath(&specific_key_treedef, &rpc->specific_key_index, relation, &dpath);
+    CRYPTO_OBJECT_RELEASE(relation);
   }
-  return 1;
+  ddsrt_mutex_unlock(&rpc->lock);
 }
 
-endpoint_relation * crypto_endpoint_relation_find_by_key(struct CryptoObjectTable *table, uint32_t key_id)
+key_relation * crypto_find_specific_key_relation(
+    remote_participant_crypto *rpc,
+    uint32_t key_id)
 {
-  endpoint_relation_find_arg find_arg;
-  find_arg.found = NULL;
-  find_arg.key_id = key_id;
-  find_arg.local_crypto = NULL;
-  find_arg.remote_crypto = NULL;
-  crypto_object_table_walk(table, endpoint_relation_cmp_key, &find_arg);
-  return (endpoint_relation *)(find_arg.found);
-}
+  key_relation *relation;
 
-endpoint_relation * crypto_endpoint_relation_find_by_crypto(struct CryptoObjectTable *table, CryptoObject *local_crypto, CryptoObject *remote_crypto)
-{
-  endpoint_relation_find_arg find_arg;
-  find_arg.found = NULL;
-  find_arg.key_id = 0;
-  find_arg.local_crypto = local_crypto;
-  find_arg.remote_crypto = remote_crypto;
-  crypto_object_table_walk(table, endpoint_relation_cmp_crypto, &find_arg);
-  return (endpoint_relation *)(find_arg.found);
+  ddsrt_mutex_lock(&rpc->lock);
+  relation =  CRYPTO_OBJECT_KEEP(ddsrt_avl_lookup(&specific_key_treedef, &rpc->specific_key_index, &key_id));
+  ddsrt_mutex_unlock(&rpc->lock);
+
+  return relation;
 }

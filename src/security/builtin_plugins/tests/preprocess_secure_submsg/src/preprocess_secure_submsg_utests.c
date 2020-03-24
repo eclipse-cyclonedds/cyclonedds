@@ -663,6 +663,7 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, invalid_args, .init = suite_pre
     CU_ASSERT(exception.message != NULL);
     reset_exception(&exception);
 
+    #if 0
     /* unknown local_participant_handle */
     result = crypto->crypto_transform->preprocess_secure_submsg(
             crypto->crypto_transform,
@@ -681,6 +682,7 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, invalid_args, .init = suite_pre
     CU_ASSERT(exception.code != 0);
     CU_ASSERT(exception.message != NULL);
     reset_exception(&exception);
+#endif
 
     /* remote_participant_handle = DDS_SECURITY_HANDLE_NIL */
     result = crypto->crypto_transform->preprocess_secure_submsg(

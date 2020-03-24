@@ -2381,6 +2381,7 @@ check_and_create_remote_participant_rights(
   permissions = ddsrt_malloc(sizeof(remote_permissions));
   permissions->ref_cnt = 0;
   permissions->permissions_tree = NULL;
+  permissions->remote_permissions_token_class_id = NULL;
   if (!ac_parse_permissions_xml(permissions_xml, &(permissions->permissions_tree), ex))
   {
     ddsrt_free(permissions);
