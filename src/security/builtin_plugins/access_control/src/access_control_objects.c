@@ -270,9 +270,12 @@ ac_remote_participant_access_rights_new(
   rights->local_rights = (local_participant_access_rights *)ACCESS_CONTROL_OBJECT_KEEP(local_rights);
   if (rights->permissions)
   {
-    rights->permissions->remote_permissions_token_class_id = ddsrt_strdup(remote_permissions_token->class_id);
     rights->permissions->ref_cnt++;
-    rights->identity_subject_name = ddsrt_strdup(identity_subject);
+    if (rights->permissions->remote_permissions_token_class_id == NULL)
+    {
+      rights->permissions->remote_permissions_token_class_id = ddsrt_strdup(remote_permissions_token->class_id);
+      rights->identity_subject_name = ddsrt_strdup(identity_subject);
+    }
   }
   else
   {

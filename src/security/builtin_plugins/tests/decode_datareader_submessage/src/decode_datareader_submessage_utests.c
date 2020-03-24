@@ -63,11 +63,13 @@ struct crypto_footer
   unsigned char length[4];
 };
 
+#if 0
 struct receiver_specific_mac
 {
   DDS_Security_CryptoTransformKeyId receiver_mac_key_id;
   unsigned char receiver_mac[CRYPTO_HMAC_SIZE];
 };
+#endif
 
 struct seq_number
 {
@@ -1559,7 +1561,7 @@ CU_Test(ddssec_builtin_decode_datareader_submessage, invalid_data, .init = suite
     CU_ASSERT(len == 1);
 
     rmac = (struct receiver_specific_mac *)(footer + 1);
-    rmac->receiver_mac[0] = (unsigned char)(rmac->receiver_mac[0] + 1);
+    rmac->receiver_mac.data[0] = (unsigned char)(rmac->receiver_mac.data[0] + 1);
 
     result = crypto->crypto_transform->decode_datareader_submessage(
         crypto->crypto_transform,

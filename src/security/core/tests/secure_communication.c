@@ -435,13 +435,13 @@ static void test_data_protection_kind(DDS_Security_ProtectionKind rtps_pk, DDS_S
 static void test_multiple_readers(size_t n_dom, size_t n_pp, size_t n_rd, DDS_Security_ProtectionKind metadata_pk, DDS_Security_BasicProtectionKind payload_pk)
 {
   struct domain_sec_config domain_config = { PK_N, PK_N, PK_N, metadata_pk, payload_pk, NULL };
-  test_write_read (&domain_config, n_dom, n_pp, n_rd, 1, 1, 1, NULL);
+  test_write_read (&domain_config, n_dom, n_pp, n_rd, 1, 1, 1, set_encryption_parameters_basic);
 }
 
 static void test_multiple_writers(size_t n_rd_dom, size_t n_rd, size_t n_wr_dom, size_t n_wr, DDS_Security_ProtectionKind metadata_pk)
 {
   struct domain_sec_config domain_config = { PK_N, PK_N, PK_N, metadata_pk, BPK_N, NULL };
-  test_write_read (&domain_config, n_rd_dom, 1, n_rd, n_wr_dom, 1, n_wr, NULL);
+  test_write_read (&domain_config, n_rd_dom, 1, n_rd, n_wr_dom, 1, n_wr, set_encryption_parameters_basic);
 }
 
 static void test_payload_secret(DDS_Security_ProtectionKind rtps_pk, DDS_Security_ProtectionKind metadata_pk, DDS_Security_BasicProtectionKind payload_pk)
@@ -544,7 +544,7 @@ CU_TheoryDataPoints(ddssec_secure_communication, multiple_readers) = {
     CU_DataPoints(size_t, 1, 3, 1, 3), /* number of participants per domain */
     CU_DataPoints(size_t, 3, 1, 3, 3), /* number of readers per participant */
 };
-CU_Theory((size_t n_dom, size_t n_pp, size_t n_rd), ddssec_secure_communication, multiple_readers, .timeout = 60, .disabled = true)
+CU_Theory((size_t n_dom, size_t n_pp, size_t n_rd), ddssec_secure_communication, multiple_readers, .timeout = 60, .disabled = false)
 {
   DDS_Security_ProtectionKind metadata_pk[] = { PK_N, PK_SOA, PK_EOA };
   DDS_Security_BasicProtectionKind payload_pk[] = { BPK_N, BPK_S, BPK_E };
@@ -563,7 +563,7 @@ CU_TheoryDataPoints(ddssec_secure_communication, multiple_readers_writers) = {
     CU_DataPoints(size_t, 1, 1, 2), /* number of writer domains */
     CU_DataPoints(size_t, 1, 3, 3), /* number of writers per domain */
 };
-CU_Theory((size_t n_rd_dom, size_t n_rd, size_t n_wr_dom, size_t n_wr), ddssec_secure_communication, multiple_readers_writers, .timeout = 60, .disabled = true)
+CU_Theory((size_t n_rd_dom, size_t n_rd, size_t n_wr_dom, size_t n_wr), ddssec_secure_communication, multiple_readers_writers, .timeout = 60, .disabled = false)
 {
   DDS_Security_ProtectionKind metadata_pk[] = { PK_SOA, PK_EOA };
   for (size_t metadata = 0; metadata < sizeof (metadata_pk) / sizeof (metadata_pk[0]); metadata++)

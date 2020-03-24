@@ -73,11 +73,13 @@ struct crypto_footer
   uint32_t length;
 };
 
+#if 0
 struct receiver_specific_mac
 {
   DDS_Security_CryptoTransformKeyId receiver_mac_key_id;
   unsigned char receiver_mac[CRYPTO_HMAC_SIZE];
 };
+#endif
 
 static void reset_exception(DDS_Security_SecurityException *ex)
 {
@@ -567,32 +569,20 @@ static session_key_material * get_local_participant_session(DDS_Security_Partici
   return participant_crypto_impl->session;
 }
 
-static participant_key_material * keymaterial_table_find(struct CryptoObjectTable *table, uint64_t handle)
-{
-  CryptoObject *object;
-  assert(table);
-
-  ddsrt_mutex_lock(&table->lock);
-  object = table->findfnc(table, &handle);
-  ddsrt_mutex_unlock(&table->lock);
-
-  return (participant_key_material *)object;
-}
-
 static master_key_material * get_remote_participant_key_material(DDS_Security_ParticipantCryptoHandle participant_crypto)
 {
   participant_key_material *key_material;
+  master_key_material * master_keymat = NULL;
   remote_participant_crypto *participant_crypto_impl = (remote_participant_crypto *)participant_crypto;
 
-  key_material = (participant_key_material *)keymaterial_table_find(participant_crypto_impl->key_material, (uint64_t) local_particpant_crypto);
-  if (!key_material)
+  key_material = crypto_remote_participant_lookup_keymat(participant_crypto_impl, local_particpant_crypto);
+  if (key_material)
   {
-    return NULL;
+    master_keymat = key_material->local_P2P_key_material;
+    CRYPTO_OBJECT_RELEASE(key_material);
   }
-  else
-  {
-    return key_material->local_P2P_key_material;
-  }
+
+  return master_keymat;
 }
 
 static void set_protection_kind(DDS_Security_ParticipantCryptoHandle participant_crypto, DDS_Security_ProtectionKind protection_kind)
@@ -692,7 +682,7 @@ static bool check_signing(
   for (i = 0; i < list->_length; i++)
   {
     key_id = ddsrt_bswap4u(*(uint32_t *)rmac[i].receiver_mac_key_id);
-    if (!check_sign(list->_buffer[i], session_id, key_id, key_size, init_vector, footer->common_mac, rmac[i].receiver_mac))
+    if (!check_sign(list->_buffer[i], session_id, key_id, key_size, init_vector, footer->common_mac, rmac[i].receiver_mac.data))
     {
       return false;
     }

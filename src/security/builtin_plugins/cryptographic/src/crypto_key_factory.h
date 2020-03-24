@@ -148,4 +148,14 @@ bool crypto_factory_get_endpoint_relation(
     DDS_Security_SecureSubmessageCategory_t *category,
     DDS_Security_SecurityException *ex);
 
+bool
+crypto_factory_get_specific_keymat(
+    const dds_security_crypto_key_factory *factory,
+    CryptoObjectKind_t kind,
+    DDS_Security_Handle rmt_handle,
+    const struct receiver_specific_mac * const mac_list,
+    uint32_t num_mac,
+    uint32_t *index,
+    master_key_material **key_mat);
+
 #endif /* CRYPTO_KEY_FACTORY_H */

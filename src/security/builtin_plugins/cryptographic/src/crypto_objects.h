@@ -16,6 +16,8 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/types.h"
+#include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/sync.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "crypto_defs.h"
@@ -38,6 +40,7 @@
 
 #define CRYPTO_TRANSFORM_HAS_KEYS(k) ((k) != CRYPTO_TRANSFORMATION_KIND_NONE && (k) != CRYPTO_TRANSFORMATION_KIND_INVALID)
 
+
 typedef DDS_Security_ParticipantCryptoHandle DDS_Security_LocalParticipantCryptoHandle;
 typedef DDS_Security_ParticipantCryptoHandle DDS_Security_RemoteParticipantCryptoHandle;
 
@@ -53,7 +56,7 @@ typedef enum
   CRYPTO_OBJECT_KIND_KEY_MATERIAL,
   CRYPTO_OBJECT_KIND_SESSION_KEY_MATERIAL,
   CRYPTO_OBJECT_KIND_PARTICIPANT_KEY_MATERIAL,
-  CRYPTO_OBJECT_KIND_ENDPOINT_RELATION
+  CRYPTO_OBJECT_KIND_RELATION
 } CryptoObjectKind_t;
 
 typedef struct CryptoObject CryptoObject;
@@ -103,44 +106,54 @@ typedef struct remote_session_info
   crypto_session_key_t key;
 } remote_session_info;
 
-typedef struct endpoint_relation
+typedef struct key_relation
 {
   CryptoObject _parent;
+  ddsrt_avl_node_t avlnode;
   DDS_Security_SecureSubmessageCategory_t kind;
   uint32_t key_id;
   CryptoObject *local_crypto;
   CryptoObject *remote_crypto;
-} endpoint_relation;
+  master_key_material *key_material;
+} key_relation;
 
 typedef struct local_participant_crypto
 {
   CryptoObject _parent;
+  ddsrt_mutex_t lock;
   master_key_material *key_material;
   DDS_Security_IdentityHandle identity_handle;
+  ddsrt_avl_ctree_t key_material_table;
   session_key_material *session;
   DDS_Security_ProtectionKind rtps_protection_kind;
+  struct local_datareader_crypto *builtin_reader;
 } local_participant_crypto;
 
 typedef struct participant_key_material
 {
   CryptoObject _parent;
-  DDS_Security_ParticipantCryptoHandle pp_local_handle;
+  ddsrt_avl_node_t loc_avlnode;
+  ddsrt_avl_node_t rmt_avlnode;
+  DDS_Security_ParticipantCryptoHandle loc_pp_handle;
+  DDS_Security_ParticipantCryptoHandle rmt_pp_handle;
   master_key_material *remote_key_material;
   master_key_material *local_P2P_key_material;
   master_key_material *P2P_kx_key_material;
   session_key_material *P2P_writer_session;
   session_key_material *P2P_reader_session;
-  struct CryptoObjectTable *endpoint_relations;
 } participant_key_material;
 
 typedef struct remote_participant_crypto
 {
   CryptoObject _parent;
+  ddsrt_mutex_t lock;
   DDS_Security_GUID_t remoteGuid;
   DDS_Security_IdentityHandle identity_handle;
-  struct CryptoObjectTable *key_material;
+  ddsrt_avl_ctree_t key_material_table;
   session_key_material *session;
   DDS_Security_ProtectionKind rtps_protection_kind;
+  ddsrt_avl_tree_t relation_index;
+  ddsrt_avl_tree_t specific_key_index;
 } remote_participant_crypto;
 
 typedef struct local_datawriter_crypto
@@ -223,28 +236,45 @@ void crypto_object_init(
     CryptoObjectKind_t kind,
     CryptoObjectDestructor destructor);
 
-endpoint_relation *
-crypto_endpoint_relation_new(
+key_relation *
+crypto_key_relation_new(
     DDS_Security_SecureSubmessageCategory_t kind,
     uint32_t key_id,
     CryptoObject *local_crypto,
-    CryptoObject *remote_crypto);
+    CryptoObject *remote_crypto,
+    master_key_material *keymat);
 
-endpoint_relation *
-crypto_endpoint_relation_find_by_key(
-    struct CryptoObjectTable *table,
+void
+crypto_insert_endpoint_relation(
+    remote_participant_crypto *rpc,
+    key_relation *relation);
+
+void
+crypto_remove_endpoint_relation(
+    remote_participant_crypto *rpc,
+    CryptoObject *lch,
     uint32_t key_id);
 
-endpoint_relation *
-crypto_endpoint_relation_find_by_crypto(
-    struct CryptoObjectTable *table,
-    CryptoObject *local_crypto,
-    CryptoObject *remote_crypto);
+key_relation *
+crypto_find_endpoint_relation(
+    remote_participant_crypto *rpc,
+    CryptoObject *lch,
+    uint32_t key_id);
 
-bool endpoint_relation_get_locals(
-    const endpoint_relation *relation,
-    const local_participant_crypto *participant,
-    DDS_Security_HandleSeq *list);
+void
+crypto_insert_specific_key_relation(
+    remote_participant_crypto *rpc,
+    key_relation *relation);
+
+void
+crypto_remove_specific_key_relation(
+    remote_participant_crypto *rpc,
+    uint32_t key_id);
+
+key_relation *
+crypto_find_specific_key_relation(
+    remote_participant_crypto *rpc,
+    uint32_t key_id);
 
 local_datawriter_crypto *
 crypto_local_datawriter_crypto__new(
@@ -272,7 +302,7 @@ crypto_remote_datawriter_crypto__new(
     DDS_Security_BasicProtectionKind data_protection,
     local_datareader_crypto *local_reader);
 
-CryptoObject *
+void *
 crypto_object_keep(
     CryptoObject *obj);
 
@@ -296,7 +326,8 @@ crypto_remote_participant_crypto__new(
 
 participant_key_material *
 crypto_participant_key_material_new(
-    const local_participant_crypto *pplocal);
+    const local_participant_crypto *loc_pp_crypto,
+    const remote_participant_crypto *rmt_pp_crypto);
 
 struct CryptoObjectTable;
 
@@ -350,5 +381,45 @@ void crypto_object_table_walk(
     struct CryptoObjectTable *table,
     CryptoObjectTableCallback callback,
     void *arg);
+
+void
+crypto_local_participant_add_keymat(
+    local_participant_crypto *loc_pp_crypte,
+    participant_key_material *keymat);
+
+participant_key_material *
+crypto_local_participant_remove_keymat(
+    local_participant_crypto *loc_pp_crypte,
+    DDS_Security_ParticipantCryptoHandle rmt_pp_handle);
+
+participant_key_material *
+crypto_local_participant_lookup_keymat(
+    local_participant_crypto *loc_pp_crypte,
+    DDS_Security_ParticipantCryptoHandle rmt_pp_handle);
+
+void
+crypto_remote_participant_add_keymat(
+    remote_participant_crypto *rmt_pp_crypte,
+    participant_key_material *keymat);
+
+participant_key_material *
+crypto_remote_participant_remove_keymat(
+    remote_participant_crypto *rmt_pp_crypte,
+    DDS_Security_ParticipantCryptoHandle loc_pp_handle);
+
+participant_key_material *
+crypto_remote_participant_lookup_keymat(
+    remote_participant_crypto *rmt_pp_crypte,
+    DDS_Security_ParticipantCryptoHandle loc_pp_handle);
+
+size_t
+crypto_local_participnant_get_matching(
+    local_participant_crypto *loc_pp_crypto,
+    DDS_Security_ParticipantCryptoHandle **handles);
+
+size_t
+crypto_remote_participnant_get_matching(
+    remote_participant_crypto *rmt_pp_crypto,
+    DDS_Security_ParticipantCryptoHandle **handles);
 
 #endif /* CRYPTO_OBJECTS_H */

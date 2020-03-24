@@ -75,11 +75,13 @@ struct crypto_footer
   unsigned char length[4];
 };
 
+#if 0
 struct receiver_specific_mac
 {
   DDS_Security_CryptoTransformKeyId receiver_mac_key_id;
   unsigned char receiver_mac[CRYPTO_HMAC_SIZE];
 };
+#endif
 
 static void reset_exception(DDS_Security_SecurityException *ex)
 {
