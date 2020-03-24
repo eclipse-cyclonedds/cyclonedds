@@ -282,7 +282,7 @@ bool ac_check_subjects_are_equal(const char *permissions_sn, const char *identit
     if (name_idsn == NULL || tok_idsn == NULL)
       goto check_subj_equal_failed;
     value_pmsn = DDS_Security_Property_get_value(&prop_pmsn, name_idsn);
-    if (value_pmsn == NULL || strcmp(value_pmsn, value_pmsn) != 0)
+    if (value_pmsn == NULL || strcmp(tok_idsn, value_pmsn) != 0)
     {
       ddsrt_free(value_pmsn);
       goto check_subj_equal_failed;
