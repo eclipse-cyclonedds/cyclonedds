@@ -10,10 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "dds/dds.h"
-#include "RoundTrip.h"
-#include "Space.h"
-#include "test-common.h"
-#include "CUnit/Test.h"
+#include "test_common.h"
 
 static dds_entity_t g_participant = 0;
 static dds_entity_t g_subscriber  = 0;
@@ -336,7 +333,7 @@ CU_Test(ddsc_builtin_topics, read_nothing)
   CU_ASSERT_FATAL (ret == 0);
   ret = dds_return_loan (rd, &raw2, n2);
   CU_ASSERT_FATAL (ret == 0);
-  
+
   ret = dds_delete (pp);
   CU_ASSERT_FATAL (ret == 0);
 }

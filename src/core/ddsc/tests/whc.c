@@ -13,9 +13,6 @@
 #include <limits.h>
 
 #include "dds/dds.h"
-#include "CUnit/Theory.h"
-#include "Space.h"
-
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/environ.h"
@@ -23,6 +20,8 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_whc.h"
 #include "dds__entity.h"
+
+#include "test_common.h"
 
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
@@ -32,7 +31,6 @@
 #define SAMPLE_COUNT 5
 #define DEADLINE_DURATION DDS_MSECS(1)
 
-static uint32_t g_topic_nr = 0;
 static dds_entity_t g_domain = 0;
 static dds_entity_t g_participant   = 0;
 static dds_entity_t g_subscriber    = 0;
@@ -41,15 +39,6 @@ static dds_qos_t *g_qos;
 static dds_entity_t g_remote_domain        = 0;
 static dds_entity_t g_remote_participant   = 0;
 static dds_entity_t g_remote_subscriber    = 0;
-
-static char *create_topic_name (const char *prefix, uint32_t nr, char *name, size_t size)
-{
-  /* Get unique g_topic name. */
-  ddsrt_pid_t pid = ddsrt_getpid ();
-  ddsrt_tid_t tid = ddsrt_gettid ();
-  (void) snprintf (name, size, "%s%d_pid%" PRIdPID "_tid%" PRIdTID "", prefix, nr, pid, tid);
-  return name;
-}
 
 static void whc_init(void)
 {
@@ -177,7 +166,7 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
   dds_qset_deadline (g_qos, dl ? DEADLINE_DURATION : DDS_INFINITY);
   dds_qset_durability_service (g_qos, 0, dh, dh == KA ? 0 : dhd, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
 
-  create_topic_name ("ddsc_whc_end_state_test", g_topic_nr++, name, sizeof name);
+  create_unique_topic_name ("ddsc_whc_end_state_test", name, sizeof name);
   topic = dds_create_topic (g_participant, k ? &Space_Type1_desc : &Space_Type3_desc, name, NULL, NULL);
   CU_ASSERT_FATAL(topic > 0);
   remote_topic = dds_create_topic (g_remote_participant, k ? &Space_Type1_desc : &Space_Type3_desc, name, NULL, NULL);

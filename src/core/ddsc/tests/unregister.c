@@ -13,12 +13,10 @@
 #include <limits.h>
 
 #include "dds/dds.h"
-#include "CUnit/Test.h"
-#include "CUnit/Theory.h"
-#include "Space.h"
-
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
+
+#include "test_common.h"
 
 /**************************************************************************************************
  *
@@ -41,16 +39,6 @@ static void*             g_samples[MAX_SAMPLES];
 static Space_Type1       g_data[MAX_SAMPLES];
 static dds_sample_info_t g_info[MAX_SAMPLES];
 
-static char*
-create_topic_name(const char *prefix, char *name, size_t size)
-{
-    /* Get semi random g_topic name. */
-    ddsrt_pid_t pid = ddsrt_getpid();
-    ddsrt_tid_t tid = ddsrt_gettid();
-    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
-    return name;
-}
-
 static void
 unregistering_init(void)
 {
@@ -69,7 +57,7 @@ unregistering_init(void)
     g_waitset = dds_create_waitset(g_participant);
     CU_ASSERT_FATAL(g_waitset > 0);
 
-    g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_topic_name("ddsc_unregistering_test", name, 100), qos, NULL);
+    g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_unique_topic_name("ddsc_unregistering_test", name, 100), qos, NULL);
     CU_ASSERT_FATAL(g_topic > 0);
 
     /* Create a reader that keeps one sample on three instances. */
@@ -616,7 +604,7 @@ CU_Test(ddsc_unregister_instance_ih_ts, unregistering_instance)
     /* Create a writer that WILL automatically dispose unregistered samples. */
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(g_participant > 0);
-    g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_topic_name("ddsc_unregistering_instance_test", name, 100), NULL, NULL);
+    g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_unique_topic_name("ddsc_unregistering_instance_test", name, 100), NULL, NULL);
     CU_ASSERT_FATAL(g_topic > 0);
     g_writer = dds_create_writer(g_participant, g_topic, NULL, NULL);
     CU_ASSERT_FATAL(g_writer > 0);

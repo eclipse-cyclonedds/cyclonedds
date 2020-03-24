@@ -13,19 +13,18 @@
 #include <limits.h>
 
 #include "dds/dds.h"
-#include "CUnit/Theory.h"
-#include "WriteTypes.h"
-
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/environ.h"
+
+#include "test_common.h"
+#include "WriteTypes.h"
 
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
 #define DDS_CONFIG_NO_PORT_GAIN "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
 #define DDS_CONFIG_NO_PORT_GAIN_LOG "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Tracing><OutputFile>cyclonedds_writetypes_various.${CYCLONEDDS_DOMAIN_ID}.${CYCLONEDDS_PID}.log</OutputFile><Verbosity>finest</Verbosity></Tracing><Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
 
-static uint32_t g_topic_nr = 0;
 static dds_entity_t g_pub_domain = 0;
 static dds_entity_t g_pub_participant = 0;
 static dds_entity_t g_pub_publisher = 0;
@@ -33,15 +32,6 @@ static dds_entity_t g_pub_publisher = 0;
 static dds_entity_t g_sub_domain = 0;
 static dds_entity_t g_sub_participant = 0;
 static dds_entity_t g_sub_subscriber = 0;
-
-static char *create_topic_name (const char *prefix, uint32_t nr, char *name, size_t size)
-{
-  /* Get unique g_topic name. */
-  ddsrt_pid_t pid = ddsrt_getpid ();
-  ddsrt_tid_t tid = ddsrt_gettid ();
-  (void) snprintf (name, size, "%s%d_pid%" PRIdPID "_tid%" PRIdTID "", prefix, nr, pid, tid);
-  return name;
-}
 
 static void writetypes_init(void)
 {
@@ -152,7 +142,7 @@ CU_Theory((const dds_topic_descriptor_t *desc, compare_fn_t cmp, size_t nsamples
   CU_ASSERT_FATAL (qos != NULL);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS (1));
   dds_qset_writer_data_lifecycle (qos, false);
-  create_topic_name ("ddsc_writetypes_various", g_topic_nr++, name, sizeof name);
+  create_unique_topic_name ("ddsc_writetypes_various", name, sizeof name);
   pub_topic = dds_create_topic (g_pub_participant, desc, name, qos, NULL);
   CU_ASSERT_FATAL (pub_topic > 0);
   sub_topic = dds_create_topic (g_sub_participant, desc, name, qos, NULL);

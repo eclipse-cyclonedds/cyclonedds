@@ -13,12 +13,10 @@
 #include <limits.h>
 
 #include "dds/dds.h"
-#include "Space.h"
-#include "RoundTrip.h"
-#include "CUnit/Theory.h"
-
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
+
+#include "test_common.h"
 
 /**************************************************************************************************
  *
@@ -83,16 +81,6 @@ static void*              g_samples[MAX_SAMPLES];
 static Space_Type1        g_data[MAX_SAMPLES];
 static dds_sample_info_t  g_info[MAX_SAMPLES];
 
-static char*
-create_topic_name(const char *prefix, char *name, size_t size)
-{
-    /* Get semi random g_topic name. */
-    ddsrt_pid_t pid = ddsrt_getpid();
-    ddsrt_tid_t tid = ddsrt_gettid();
-    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
-    return name;
-}
-
 static bool
 filter_init(const void * sample)
 {
@@ -140,7 +128,7 @@ reader_iterator_init(void)
     g_waitset = dds_create_waitset(g_participant);
     CU_ASSERT_FATAL(g_waitset > 0);
 
-    g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_topic_name("ddsc_read_iterator_test", name, sizeof name), NULL, NULL);
+    g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_unique_topic_name("ddsc_read_iterator_test", name, sizeof name), NULL, NULL);
     CU_ASSERT_FATAL(g_topic > 0);
 
     /* Create a writer that will not automatically dispose unregistered samples. */
@@ -459,7 +447,8 @@ CU_Test(ddsc_read_next_wl, reader, .init=reader_iterator_init, .fini=reader_iter
     CU_ASSERT_EQUAL_FATAL(cnt, RDR_NOT_READ_CNT);
     CU_ASSERT_EQUAL_FATAL(cntinv, RDR_INV_READ_CNT);
 
-    ret = dds_return_loan(g_reader, g_loans, ret);
+    /* return_loan 3rd arg should be in [highest count ever returned, read limit] */
+    ret = dds_return_loan(g_reader, g_loans, 1);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */
@@ -683,7 +672,8 @@ CU_Test(ddsc_take_next_wl, reader, .init=reader_iterator_init, .fini=reader_iter
     CU_ASSERT_EQUAL_FATAL(cnt, RDR_NOT_READ_CNT);
     CU_ASSERT_EQUAL_FATAL(cntinv, RDR_INV_READ_CNT);
 
-    ret = dds_return_loan(g_reader, g_loans, ret);
+    /* return_loan 3rd arg should be in [highest count ever returned, read limit] */
+    ret = dds_return_loan(g_reader, g_loans, 1);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */
