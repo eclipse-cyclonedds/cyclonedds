@@ -13,15 +13,14 @@
 #include <limits.h>
 
 #include "dds/dds.h"
-#include "CUnit/Theory.h"
-#include "RoundTrip.h"
-
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/time.h"
+
+#include "test_common.h"
 
 /**************************************************************************************************
  *
@@ -63,17 +62,6 @@ static dds_entity_t subscriber  = 0;
 static dds_entity_t readcond    = 0;
 
 
-static char*
-create_topic_name(const char *prefix, char *name, size_t size)
-{
-    /* Get semi random g_topic name. */
-    ddsrt_pid_t pid = ddsrt_getpid();
-    ddsrt_tid_t tid = ddsrt_gettid();
-    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
-    return name;
-}
-
-
 static void
 ddsc_waitset_basic_init(void)
 {
@@ -109,7 +97,7 @@ ddsc_waitset_init(void)
     subscriber = dds_create_subscriber(participant, NULL, NULL);
     CU_ASSERT_FATAL(subscriber >  0);
 
-    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_waitset_test", name, sizeof name), NULL, NULL);
+    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_unique_topic_name("ddsc_waitset_test", name, sizeof name), NULL, NULL);
     CU_ASSERT_FATAL(topic >  0);
 
     reader = dds_create_reader(subscriber, topic, NULL, NULL);

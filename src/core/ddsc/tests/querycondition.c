@@ -12,12 +12,11 @@
 #include <limits.h>
 
 #include "dds/dds.h"
-#include "CUnit/Theory.h"
-#include "Space.h"
-
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
+
+#include "test_common.h"
 
 /**************************************************************************************************
  *
@@ -68,16 +67,6 @@ filter_mod2(const void * sample)
     return (s->long_1 % 2 == 0);
 }
 
-static char*
-create_topic_name(const char *prefix, char *name, size_t size)
-{
-    /* Get semi random g_topic name. */
-    ddsrt_pid_t pid = ddsrt_getpid();
-    ddsrt_tid_t tid = ddsrt_gettid();
-    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
-    return name;
-}
-
 static void
 querycondition_init_hdepth(int hdepth)
 {
@@ -93,7 +82,7 @@ querycondition_init_hdepth(int hdepth)
     g_waitset = dds_create_waitset(g_participant);
     CU_ASSERT_FATAL(g_waitset > 0);
 
-    g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_topic_name("ddsc_querycondition_test", name, sizeof name), NULL, NULL);
+    g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_unique_topic_name("ddsc_querycondition_test", name, sizeof name), NULL, NULL);
     CU_ASSERT_FATAL(g_topic > 0);
 
     /* Create a reader that keeps last sample of all instances. */

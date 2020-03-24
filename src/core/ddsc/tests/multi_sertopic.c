@@ -13,8 +13,6 @@
 #include <limits.h>
 
 #include "dds/dds.h"
-#include "CUnit/Theory.h"
-#include "Space.h"
 #include "config_env.h"
 
 #include "dds/version.h"
@@ -29,6 +27,8 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/time.h"
+
+#include "test_common.h"
 
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
@@ -167,7 +167,6 @@ static const dds_topic_descriptor_t type_ary2_desc =
   .m_meta = "" /* this is on its way out anyway */
 };
 
-static uint32_t g_topic_nr = 0;
 static dds_entity_t g_pub_domain = 0;
 static dds_entity_t g_pub_participant = 0;
 static dds_entity_t g_pub_publisher = 0;
@@ -175,15 +174,6 @@ static dds_entity_t g_pub_publisher = 0;
 static dds_entity_t g_sub_domain = 0;
 static dds_entity_t g_sub_participant = 0;
 static dds_entity_t g_sub_subscriber = 0;
-
-static char *create_topic_name (const char *prefix, uint32_t nr, char *name, size_t size)
-{
-  /* Get unique g_topic name. */
-  ddsrt_pid_t pid = ddsrt_getpid();
-  ddsrt_tid_t tid = ddsrt_gettid();
-  (void) snprintf (name, size, "%s%d_pid%" PRIdPID "_tid%" PRIdTID "", prefix, nr, pid, tid);
-  return name;
-}
 
 static void multi_sertopic_init (void)
 {
@@ -366,7 +356,7 @@ static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, 
   dds_qset_destination_order (qos, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
   dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, 0);
 
-  create_topic_name ("ddsc_multi_sertopic_lease_duration_zero", g_topic_nr++, name, sizeof name);
+  create_unique_topic_name ("ddsc_multi_sertopic_lease_duration_zero", name, sizeof name);
 
   for (size_t i = 0; i < sizeof (pub_topics) / sizeof (pub_topics[0]); i++)
   {

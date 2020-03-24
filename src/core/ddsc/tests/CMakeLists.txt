@@ -55,7 +55,9 @@ set(ddsc_test_sources
     "whc.c"
     "write.c"
     "write_various_types.c"
-    "writer.c")
+    "writer.c"
+    "test_common.c"
+    "test_common.h")
 
 if(ENABLE_LIFESPAN)
   list(APPEND ddsc_test_sources "lifespan.c")

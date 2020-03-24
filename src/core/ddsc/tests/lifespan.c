@@ -13,15 +13,14 @@
 #include <limits.h>
 
 #include "dds/dds.h"
-#include "CUnit/Theory.h"
-#include "Space.h"
-
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_whc.h"
 #include "dds__entity.h"
+
+#include "test_common.h"
 
 static dds_entity_t g_participant = 0;
 static dds_entity_t g_subscriber  = 0;
@@ -32,16 +31,6 @@ static dds_entity_t g_writer      = 0;
 static dds_entity_t g_waitset     = 0;
 static dds_entity_t g_rcond       = 0;
 static dds_entity_t g_qcond       = 0;
-
-static char*
-create_topic_name(const char *prefix, char *name, size_t size)
-{
-    /* Get semi random g_topic name. */
-    ddsrt_pid_t pid = ddsrt_getpid();
-    ddsrt_tid_t tid = ddsrt_gettid();
-    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
-    return name;
-}
 
 static void lifespan_init(void)
 {
@@ -65,7 +54,7 @@ static void lifespan_init(void)
   g_waitset = dds_create_waitset(g_participant);
   CU_ASSERT_FATAL(g_waitset > 0);
 
-  g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_topic_name("ddsc_qos_lifespan_test", name, sizeof name), NULL, NULL);
+  g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_unique_topic_name("ddsc_qos_lifespan_test", name, sizeof name), NULL, NULL);
   CU_ASSERT_FATAL(g_topic > 0);
 
   dds_qset_history(qos, DDS_HISTORY_KEEP_ALL, DDS_LENGTH_UNLIMITED);
