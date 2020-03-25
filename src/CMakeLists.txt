@@ -16,6 +16,26 @@ if(NOT ${PROJECT_NAME} STREQUAL "CycloneDDS")
   message(FATAL_ERROR "Top-level CMakeLists.txt was moved to the top-level directory.  Please run cmake on ${dir} instead of ${CMAKE_CURRENT_LIST_DIR}")
 endif()
 
+# Generate a header file listing compile-time options relevant to the API.  Define to
+# "1" if enabled so that the generated features.h ends up having either
+#
+# - #define DDS_HAS_SECURITY 1
+# or
+# - /* #undef DDS_HAS_SECURITY */
+#
+# which caters both for those who prefer #ifdef DDS_HAS_SECURITY and for those who prefer
+# #if DDS_HAS_SECURITY.
+if(ENABLE_SECURITY)
+  set(DDS_HAS_SECURITY "1")
+endif()
+if(ENABLE_LIFESPAN)
+  set(DDS_HAS_LIFESPAN "1")
+endif()
+if(ENABLE_DEADLINE_MISSED)
+  set(DDS_HAS_DEADLINE_MISSED "1")
+endif()
+configure_file(features.h.in "${CMAKE_CURRENT_BINARY_DIR}/core/include/dds/features.h")
+
 add_definitions(-DDDSI_INCLUDE_NETWORK_PARTITIONS -DDDSI_INCLUDE_SSM)
 
 # OpenSSL is huge, raising the RSS by 1MB or so, and moreover find_package(OpenSSL) causes
