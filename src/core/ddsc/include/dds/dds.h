@@ -25,6 +25,7 @@
 #endif
 
 #include "dds/export.h"
+#include "dds/features.h"
 
 /**
  * Handle to an entity. A valid entity handle will always have a positive
