@@ -1,17 +1,50 @@
 MIME-Version: 1.0
-Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----024D6D35BD8D71C15552DF3E23F615BB"
+Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----A38CC2CF99C9B2ECE7711B9937B56A67"
 
 This is an S/MIME signed message
 
-------024D6D35BD8D71C15552DF3E23F615BB
+------A38CC2CF99C9B2ECE7711B9937B56A67
 Content-Type: text/plain
 
 <?xml version="1.0" encoding="utf-8"?>
 <dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="https://www.omg.org/spec/DDS-SECURITY/20170901/omg_shared_ca_permissions.xsd">
     <permissions>
-        <grant name="default_permissions">
+        <grant name="alice_permissions">
             <subject_name>emailAddress=alice@cycloneddssecurity.adlinktech.com,CN=Alice Example,O=Example Organization,OU=Organizational Unit Name,L=Locality Name,ST=OV,C=NL</subject_name>
+            <validity>
+                <!-- Format is CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm] in GMT -->
+                <not_before>2015-09-15T01:00:00</not_before>
+                <not_after>2115-09-15T01:00:00</not_after>
+            </validity>
+            <allow_rule>
+                <domains>
+                    <id_range>
+                        <min>0</min>
+                        <max>230</max>
+                    </id_range>
+                </domains>
+                <publish>
+                    <topics>
+                        <topic>*</topic>
+                    </topics>
+                    <partitions>
+                        <partition>*</partition>
+                    </partitions>
+                </publish>
+                <subscribe>
+                    <topics>
+                        <topic>*</topic>
+                    </topics>
+                    <partitions>
+                        <partition>*</partition>
+                    </partitions>
+                </subscribe>
+            </allow_rule>
+            <default>DENY</default>
+        </grant>
+        <grant name="bob_permissions">
+            <subject_name>emailAddress=bob@cycloneddssecurity.adlinktech.com,CN=Bob Example,O=Example Organization,OU=Organizational Unit Name,L=Locality Name,ST=OV,C=NL</subject_name>
             <validity>
                 <!-- Format is CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm] in GMT -->
                 <not_before>2015-09-15T01:00:00</not_before>
@@ -46,7 +79,7 @@ Content-Type: text/plain
     </permissions>
 </dds>
 
-------024D6D35BD8D71C15552DF3E23F615BB
+------A38CC2CF99C9B2ECE7711B9937B56A67
 Content-Type: application/x-pkcs7-signature; name="smime.p7s"
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="smime.p7s"
@@ -82,16 +115,16 @@ DBdFeGFtcGxlIENBIE9yZ2FuaXphdGlvbjEfMB0GA1UEAwwWRXhhbXBsZSBQZXJt
 aXNzaW9ucyBDQTE6MDgGCSqGSIb3DQEJARYrYXV0aG9yaXR5QGN5Y2xvbmVkZHNz
 ZWN1cml0eS5hZGxpbmt0ZWNoLmNvbQIUfoby6818hlJQ+41KUHiM6BZll/0wDQYJ
 YIZIAWUDBAIBBQCggeQwGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG
-9w0BCQUxDxcNMjAwMjI3MTM1MDU2WjAvBgkqhkiG9w0BCQQxIgQgLVEvOwNNW9+x
-+KKNuY51LjFOBF441MR89lv8fK5pDKMweQYJKoZIhvcNAQkPMWwwajALBglghkgB
+9w0BCQUxDxcNMjAwMzI1MDczMTM5WjAvBgkqhkiG9w0BCQQxIgQg3FQPbVj9xFlc
+/eoZaddhdX1BXlKZyENrbh7DcCwklVwweQYJKoZIhvcNAQkPMWwwajALBglghkgB
 ZQMEASowCwYJYIZIAWUDBAEWMAsGCWCGSAFlAwQBAjAKBggqhkiG9w0DBzAOBggq
 hkiG9w0DAgICAIAwDQYIKoZIhvcNAwICAUAwBwYFKw4DAgcwDQYIKoZIhvcNAwIC
-ASgwDQYJKoZIhvcNAQEBBQAEggEAxDaQlT3KGO3Z69Dgh1JAnkR8fEW+SK/pRls0
-du8ZemKaeLAgwwS9rbMh+6YJqsYWrp1LWjxNI3oJqTp1RvcRzJJXF48nkP+Oe1jY
-2KX9wx5LthmrT/573EvZHkXsx7mBu3Ar2etm4iE3lqkblEiynTNfy4XmJBNdB+u8
-cTzzm6J9372FK3iu5Od9yVDV33Ys/OHBI8GYcrK9RBKovkctr2fK+RJHaVqrDy3y
-oE03GAaFr8brL2g9WlWRsE3nuRvPXppsz32kUWvHLUfEpGbq1K/9C137JSgVHNX2
-atfV404PDWdFqL/JMSdc8RIJTzY6I2Bwrg8z1912DkYD5KPuOA==
+ASgwDQYJKoZIhvcNAQEBBQAEggEAWJxDp9TDqXKazAlIj9SZ8mQXhhGoTDeqZbxE
+Bs561dHUmQVtA2S85TWGiCffKqWj3wlF5GwZNneYEV1deE3LZFa0o1+/VpeIBSGO
+Qs1xKS7zx8IkGok3k88bh+eohDrgpzdLWkZeJ4P7J/3JmCMFdTXuCpuQYhRIrXO0
+pq4ueV2qGyCN6GZS2PC88GV0xeoS62Vj1Xze8omfgDI7KCPhKz6gJSEFUUqIzg7p
+Zhqm15qorUoBVXcvMwaG95/xZVfcZzMbmJB/nhwd9KYu9ImkGj6ssSbgr3VR4OkQ
+gQUib4aVQJQgBaWEPrgSjRkAp9rMB7R9IW6p2auMA/Gd/kbd7g==
 
-------024D6D35BD8D71C15552DF3E23F615BB--
+------A38CC2CF99C9B2ECE7711B9937B56A67--
 
