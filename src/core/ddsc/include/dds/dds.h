@@ -739,8 +739,22 @@ dds_set_listener(dds_entity_t entity, const dds_listener_t * listener);
  *
  * @retval >0
  *             A valid participant handle.
+ * @retval DDS_RETCODE_NOT_ALLOWED_BY_SECURITY
+ *             An invalid DDS Security configuration was specified (whether
+ *             that be missing or incorrect entries, expired certificates,
+ *             or anything else related to the security settings and
+ *             implementation).
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             Some security properties specified in the QoS, but the Cyclone
+ *             build does not include support for DDS Security.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES
+ *             Some resource limit (maximum participants, memory, handles,
+ *             &c.) prevented creation of the participant.
  * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
+ *             The "CYCLONEDDS_URI" environment variable lists non-existent
+ *             or invalid configuration files, or contains invalid embedded
+ *             configuration items; or an unspecified internal error has
+ *             occurred.
  */
 DDS_EXPORT dds_entity_t
 dds_create_participant(

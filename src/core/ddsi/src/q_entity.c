@@ -966,7 +966,7 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   {
     /* disallow creating a participant with a security configuration if there is support for security
        has been left out */
-    ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+    ret = DDS_RETCODE_PRECONDITION_NOT_MET;
     goto not_allowed;
   }
 #endif
