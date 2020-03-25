@@ -30,15 +30,13 @@ if(BUILD_SCHEMA OR BUILD_DOCS)
     "${config_c_PATH}")
   add_custom_target(options_doc ALL DEPENDS "${config_md_PATH}" "${config_rnc_PATH}")
 
-  find_program(TRANG_EXECUTABLE trang)
-  if(NOT TRANG_EXECUTABLE)
-    message(FATAL_ERROR "Trang not found - needed for generating xsd files")
-  endif()
+  find_package(Trang REQUIRED)
+
   add_custom_command(
     OUTPUT "${config_xsd_PATH}"
-    COMMAND "${TRANG_EXECUTABLE}" -I rnc -O xsd "${config_rnc_PATH}" "${config_xsd_PATH}"
+    COMMAND ${Trang_TRANG_CMD} -I rnc -O xsd "${config_rnc_PATH}" "${config_xsd_PATH}"
     COMMENT "Translating schema into XSD"
-    DEPENDS "${config_rnc_PATH}")
+    DEPENDS ${Trang_TRANG_DEPENDS} "${config_rnc_PATH}")
   add_custom_target(options_xsd ALL DEPENDS "${config_xsd_PATH}")
 endif()
 
