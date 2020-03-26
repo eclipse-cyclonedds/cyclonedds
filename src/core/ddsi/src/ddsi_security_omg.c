@@ -623,6 +623,11 @@ static void release_plugins (dds_security_context *sc)
   sc->crypto_context = NULL;
 }
 
+void q_omg_security_stop (struct ddsi_domaingv *gv)
+{
+  ddsi_handshake_admin_stop(gv);
+}
+
 void q_omg_security_deinit (struct ddsi_domaingv *gv)
 {
   dds_security_context *sc = gv->security_context;

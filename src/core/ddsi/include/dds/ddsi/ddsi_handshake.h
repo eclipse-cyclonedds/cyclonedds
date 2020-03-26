@@ -169,6 +169,13 @@ struct ddsi_handshake * ddsi_handshake_find(struct participant *pp, struct proxy
 void ddsi_handshake_admin_init(struct ddsi_domaingv *gv);
 
 /**
+* @brief Stop handshake background processing.
+*
+* @param[in] gv         The global parameters
+*/
+void ddsi_handshake_admin_stop(struct ddsi_domaingv *gv);
+
+/**
  * @brief Deinitialze the handshake administration.
  *
  * @param[in] gv         The global parameters

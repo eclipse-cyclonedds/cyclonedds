@@ -1102,6 +1102,8 @@ dds_return_t q_omg_security_load( struct dds_security_context *security_context,
 
 void q_omg_security_init( struct ddsi_domaingv *gv );
 
+void q_omg_security_stop (struct ddsi_domaingv *gv);
+
 void q_omg_security_deinit( struct ddsi_domaingv *gv );
 
 bool q_omg_is_security_loaded(  struct dds_security_context *sc );
@@ -1394,10 +1396,6 @@ inline dds_return_t q_omg_security_load( UNUSED_ARG( struct dds_security_context
 {
   return DDS_RETCODE_ERROR;
 }
-
-inline void q_omg_security_init( UNUSED_ARG( struct dds_security_context *sc) ) {}
-
-inline void q_omg_security_deinit( UNUSED_ARG( struct dds_security_context *sc) ) {}
 
 inline bool q_omg_is_security_loaded(  UNUSED_ARG( struct dds_security_context *sc )) { return false; }
 
