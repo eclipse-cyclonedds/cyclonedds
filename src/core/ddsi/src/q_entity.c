@@ -3620,7 +3620,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
     assert ((wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL) ||
             (wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER));
   }
-  wr->handle_as_transient_local = (wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
+  wr->handle_as_transient_local = (wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL || wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER);
   wr->include_keyhash =
     wr->e.gv->config.generate_keyhash &&
     ((wr->e.guid.entityid.u & NN_ENTITYID_KIND_MASK) == NN_ENTITYID_KIND_WRITER_WITH_KEY);
@@ -4773,6 +4773,7 @@ void handshake_end_cb(struct ddsi_handshake *handshake, struct participant *pp, 
     DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") processed\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
     if (q_omg_security_register_remote_participant(pp, proxypp, shared_secret)) {
       match_volatile_secure_endpoints(pp, proxypp);
+      q_omg_security_set_remote_participant_authenticated(pp, proxypp);
     }
     break;
 

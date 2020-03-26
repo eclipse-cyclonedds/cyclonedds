@@ -1998,3 +1998,27 @@ invalid_handle:
   CRYPTO_OBJECT_RELEASE(obj);
   return result;
 }
+
+master_key_material *
+crypto_factory_get_master_key_material_for_test(
+    const dds_security_crypto_key_factory *factory,
+    DDS_Security_ParticipantCryptoHandle local_id,
+    DDS_Security_ParticipantCryptoHandle remote_id)
+{
+  dds_security_crypto_key_factory_impl *impl = (dds_security_crypto_key_factory_impl *)factory;
+  remote_participant_crypto *rmt_cr = (remote_participant_crypto *)crypto_object_table_find(impl->crypto_objects, remote_id);
+  participant_key_material *keymat;
+  master_key_material *master_keymat = NULL;
+
+  if (rmt_cr)
+  {
+    keymat = crypto_remote_participant_lookup_keymat(rmt_cr, local_id);
+    if (keymat)
+    {
+      master_keymat = keymat->local_P2P_key_material;
+      CRYPTO_OBJECT_RELEASE(keymat);
+    }
+  }
+
+  return master_keymat;
+}

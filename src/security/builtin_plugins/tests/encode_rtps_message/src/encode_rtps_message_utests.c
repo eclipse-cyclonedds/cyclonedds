@@ -28,6 +28,7 @@
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
 #include "common/src/crypto_helper.h"
+#include "crypto_key_factory.h"
 #include "crypto_objects.h"
 #include "crypto_utils.h"
 
@@ -571,18 +572,7 @@ static session_key_material * get_local_participant_session(DDS_Security_Partici
 
 static master_key_material * get_remote_participant_key_material(DDS_Security_ParticipantCryptoHandle participant_crypto)
 {
-  participant_key_material *key_material;
-  master_key_material * master_keymat = NULL;
-  remote_participant_crypto *participant_crypto_impl = (remote_participant_crypto *)participant_crypto;
-
-  key_material = crypto_remote_participant_lookup_keymat(participant_crypto_impl, local_particpant_crypto);
-  if (key_material)
-  {
-    master_keymat = key_material->local_P2P_key_material;
-    CRYPTO_OBJECT_RELEASE(key_material);
-  }
-
-  return master_keymat;
+  return crypto_factory_get_master_key_material_for_test(crypto->crypto_key_factory, local_particpant_crypto, participant_crypto);
 }
 
 static void set_protection_kind(DDS_Security_ParticipantCryptoHandle participant_crypto, DDS_Security_ProtectionKind protection_kind)

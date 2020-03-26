@@ -14,6 +14,7 @@
 
 #include "dds/security/dds_security_api.h"
 #include "crypto_objects.h"
+#include "dds/security/export.h"
 
 /**
  * @brief Allocation function for implementer structure (with internal variables) transparently.
@@ -157,5 +158,11 @@ crypto_factory_get_specific_keymat(
     uint32_t num_mac,
     uint32_t *index,
     master_key_material **key_mat);
+
+SECURITY_EXPORT master_key_material *
+crypto_factory_get_master_key_material_for_test(
+    const dds_security_crypto_key_factory *factory,
+    DDS_Security_ParticipantCryptoHandle local_id,
+    DDS_Security_ParticipantCryptoHandle remote_id);
 
 #endif /* CRYPTO_KEY_FACTORY_H */

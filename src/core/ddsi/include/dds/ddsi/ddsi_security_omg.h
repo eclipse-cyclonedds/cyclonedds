@@ -64,6 +64,7 @@ struct security_entity_match {
   ddsrt_avl_node_t avlnode;
   struct guid_pair guids;
   bool matched;
+  bool tokens_sent;
   int64_t crypto_handle;
   DDS_Security_ParticipantCryptoTokenSeq *tokens;
 };
@@ -85,6 +86,7 @@ struct proxypp_pp_match {
   DDS_Security_ParticipantCryptoHandle pp_crypto_handle;
   DDS_Security_PermissionsHandle permissions_handle;
   DDS_Security_SharedSecretHandle shared_secret;
+  bool authenticated;
 };
 
 struct participant_sec_attributes {
@@ -557,6 +559,20 @@ bool q_omg_security_remote_participant_is_initialized(struct proxy_participant *
  * @retval false   The proxy participant is not allowed.
  */
 bool q_omg_security_register_remote_participant(struct participant *pp, struct proxy_participant *proxypp, int64_t shared_secret);
+
+/**
+ * @brief Sets the matching participant and proxy participant as authorized.
+ *
+ * When the authentication handshake has finished successfully and the
+ * volatile secure readers and writers are matched then with this function
+ * the matching local and remote participant are set to authenticated which
+ * allows the crypto tokens to be exchanged and the corresponding entities
+ * be matched.
+ *
+ * @param[in] pp                 The participant.
+ * @param[in] proxypp            The proxy participant.
+ */
+void q_omg_security_set_remote_participant_authenticated(struct participant *pp, struct proxy_participant *proxypp);
 
 /**
  * @brief Removes a registered proxy participant from administation of the authentication,
