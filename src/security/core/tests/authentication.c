@@ -19,7 +19,6 @@
 #include "dds/version.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/environ.h"
-#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/q_config.h"
@@ -31,14 +30,11 @@
 
 #include "common/config_env.h"
 #include "common/authentication_wrapper.h"
-#include "common/handshake_test_utils.h"
+#include "common/test_utils.h"
 #include "common/security_config_test_utils.h"
 #include "common/test_identity.h"
 #include "common/cert_utils.h"
 #include "common/security_config_test_utils.h"
-
-#include "SecurityCoreTests.h"
-
 
 #define ID1 TEST_IDENTITY1_CERTIFICATE
 #define ID1K TEST_IDENTITY1_PRIVATE_KEY
@@ -152,119 +148,6 @@ static void authentication_init(
   ddsrt_free (conf2);
 }
 
-static char *create_topic_name(const char *prefix, uint32_t nr, char *name, size_t size)
-{
-  ddsrt_pid_t pid = ddsrt_getpid ();
-  ddsrt_tid_t tid = ddsrt_gettid ();
-  (void)snprintf(name, size, "%s%d_pid%" PRIdPID "_tid%" PRIdTID "", prefix, nr, pid, tid);
-  return name;
-}
-
-static void sync_writer_to_reader()
-{
-  dds_attach_t triggered;
-  dds_return_t ret;
-  dds_entity_t waitset_wr = dds_create_waitset (g_participant1);
-  CU_ASSERT_FATAL (waitset_wr > 0);
-  dds_publication_matched_status_t pub_matched;
-
-  /* Sync writer to reader. */
-  ret = dds_waitset_attach (waitset_wr, g_wr, g_wr);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  while (true)
-  {
-    ret = dds_waitset_wait (waitset_wr, &triggered, 1, DDS_SECS(5));
-    CU_ASSERT_FATAL (ret >= 1);
-    CU_ASSERT_EQUAL_FATAL (g_wr, (dds_entity_t)(intptr_t) triggered);
-    ret = dds_get_publication_matched_status(g_wr, &pub_matched);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-    if (pub_matched.total_count >= 1)
-      break;
-  };
-  dds_delete (waitset_wr);
-}
-
-static void reader_wait_for_data()
-{
-  dds_attach_t triggered;
-  dds_return_t ret;
-  dds_entity_t waitset_rd = dds_create_waitset (g_participant2);
-  CU_ASSERT_FATAL (waitset_rd > 0);
-
-  ret = dds_waitset_attach (waitset_rd, g_rd, g_rd);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  ret = dds_waitset_wait (waitset_rd, &triggered, 1, DDS_SECS(5));
-  CU_ASSERT_EQUAL_FATAL (ret, 1);
-  CU_ASSERT_EQUAL_FATAL (g_rd, (dds_entity_t)(intptr_t)triggered);
-  dds_delete (waitset_rd);
-}
-
-static void rd_wr_init()
-{
-  char name[100];
-  dds_qos_t * qos = dds_create_qos ();
-  CU_ASSERT_FATAL (qos != NULL);
-  dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, -1);
-  dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
-  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
-
-  create_topic_name("ddssec_authentication_", g_topic_nr++, name, sizeof (name));
-  g_pub = dds_create_publisher (g_participant1, NULL, NULL);
-  CU_ASSERT_FATAL (g_pub > 0);
-  g_sub = dds_create_subscriber (g_participant2, NULL, NULL);
-  CU_ASSERT_FATAL (g_sub > 0);
-  g_pub_tp = dds_create_topic (g_participant1, &SecurityCoreTests_Type1_desc, name, NULL, NULL);
-  CU_ASSERT_FATAL (g_pub_tp > 0);
-  g_sub_tp = dds_create_topic (g_participant2, &SecurityCoreTests_Type1_desc, name, NULL, NULL);
-  CU_ASSERT_FATAL (g_sub_tp > 0);
-  g_wr = dds_create_writer (g_pub, g_pub_tp, qos, NULL);
-  CU_ASSERT_FATAL (g_wr > 0);
-  dds_set_status_mask (g_wr, DDS_PUBLICATION_MATCHED_STATUS);
-  g_rd = dds_create_reader (g_sub, g_sub_tp, qos, NULL);
-  CU_ASSERT_FATAL (g_rd > 0);
-  dds_set_status_mask (g_rd, DDS_DATA_AVAILABLE_STATUS);
-  sync_writer_to_reader();
-  dds_delete_qos (qos);
-}
-
-static void write_read(dds_duration_t dur, bool exp_write_fail, bool exp_read_fail)
-{
-  SecurityCoreTests_Type1 sample = { 1, 1 };
-  SecurityCoreTests_Type1 rd_sample;
-  void * samples[] = { &rd_sample };
-  dds_sample_info_t info[1];
-  dds_return_t ret;
-  dds_time_t tend = dds_time () + dur;
-  bool write_fail = false, read_fail = false;
-
-  rd_wr_init ();
-  do
-  {
-    ret = dds_write (g_wr, &sample);
-    if (ret != DDS_RETCODE_OK)
-      write_fail = true;
-    while (true)
-    {
-      if ((ret = dds_take (g_rd, samples, info, 1, 1)) == 0)
-      {
-        reader_wait_for_data ();
-        continue;
-      }
-      else if (ret < 0)
-      {
-        read_fail = true;
-        break;
-      }
-      CU_ASSERT_EQUAL_FATAL (ret, 1);
-      break;
-    }
-    dds_sleepfor (DDS_MSECS (1));
-  }
-  while (dds_time() < tend && !write_fail && !read_fail);
-  CU_ASSERT_EQUAL_FATAL (write_fail, exp_write_fail);
-  CU_ASSERT_EQUAL_FATAL (read_fail, exp_read_fail);
-}
-
 static void authentication_fini(bool delete_pp1, bool delete_pp2)
 {
   if (delete_pp1)
@@ -276,7 +159,7 @@ static void authentication_fini(bool delete_pp1, bool delete_pp2)
 }
 
 #define FM_CA "error: unable to get local issuer certificate"
-#define FM_INVK "Failed to finalize verify context"
+#define FM_INVK "Failed to finalize digest context"
 CU_TheoryDataPoints(ddssec_authentication, id_ca_certs) = {
     CU_DataPoints(const char *,
     /*                         */"valid ID1-ID1",
@@ -341,7 +224,7 @@ CU_Theory((const char * test_descr, const char * id2, const char *key2, const ch
     bool exp_fail_local, const char * fail_local_msg,
     bool exp_fail_hs_req, const char * fail_hs_req_msg,
     bool exp_fail_hs_reply, const char * fail_hs_reply_msg),
-    ddssec_authentication, id_ca_certs)
+    ddssec_authentication, id_ca_certs, .timeout=30)
 {
   struct Handshake *hs_list;
   int nhs;
@@ -393,12 +276,12 @@ CU_TheoryDataPoints(ddssec_authentication, expired_cert) = {
     /*                       |      |      |      |      |      |     */"id1 valid after 1s, delay 1100ms",
     /*                       |      |      |      |      |      |      |    *//*"ca and id1 expire during session"*/),
     CU_DataPoints(int32_t,   0,     -M(1), 0,     0,     0,     0,     0,     /*0*/     ),   /* CA1 not before */
-    CU_DataPoints(int32_t,   D(1),  0,     D(1),  D(1),  M(1),  D(1),  D(1),  /*2*/     ),  /* CA1 not after */
-    CU_DataPoints(int32_t,   0,     0,     -D(1), 0,     0,     0,     1,     /*0*/     ),  /* ID1 not before */
-    CU_DataPoints(int32_t,   D(1),  D(1),  0,     D(1),  M(1),  1,     D(1),  /*2*/     ),  /* ID1 not after */
+    CU_DataPoints(int32_t,   D(1),  0,     D(1),  D(1),  M(1),  D(1),  D(1),  /*2*/     ),  /* CA1 not after (offset from local time) */
+    CU_DataPoints(int32_t,   0,     0,     -D(1), 0,     0,     0,     1,     /*0*/     ),  /* ID1 not before (offset from local time) */
+    CU_DataPoints(int32_t,   D(1),  D(1),  0,     D(1),  M(1),  1,     D(1),  /*2*/     ),  /* ID1 not after (offset from local time) */
     CU_DataPoints(bool,      false, true,  true,  false, false, true,  false, /*false*/ ),  /* expect validate local ID1 fail */
-    CU_DataPoints(int32_t,   0,     0,     0,     -D(1), 0,     0,     0,     /*0*/     ),  /* ID2 not before */
-    CU_DataPoints(int32_t,   D(1),  D(1),  D(1),  0,     D(1),  1,     D(1),  /*D(1)*/  ),  /* ID2 not after */
+    CU_DataPoints(int32_t,   0,     0,     0,     -D(1), 0,     0,     0,     /*0*/     ),  /* ID2 not before (offset from local time) */
+    CU_DataPoints(int32_t,   D(1),  D(1),  D(1),  0,     D(1),  1,     D(1),  /*D(1)*/  ),  /* ID2 not after (offset from local time) */
     CU_DataPoints(bool,      false, true,  false, true,  false, true,  false, /*false*/ ),  /* expect validate local ID2 fail */
     CU_DataPoints(uint32_t,  0,     0,     0,     0,     0,     1100,  1100,  /*0*/     ),  /* delay (ms) after generating certificate */
     CU_DataPoints(uint32_t,  1,     0,     0,     0,     1,     0,     1,     /*3500*/  ),  /* write/read data during x ms */
@@ -409,22 +292,32 @@ CU_Theory(
     int32_t id1_not_before, int32_t id1_not_after, bool id1_local_fail,
     int32_t id2_not_before, int32_t id2_not_after, bool id2_local_fail,
     uint32_t delay, uint32_t write_read_dur, bool exp_read_fail),
-  ddssec_authentication, expired_cert)
+  ddssec_authentication, expired_cert, .timeout=30)
 {
-  char *ca, *id1, *id2, *id1_subj, *id2_subj;
   printf("running test expired_cert: %s\n", test_descr);
+
+  char topic_name[100];
+  create_topic_name("ddssec_authentication_", g_topic_nr++, topic_name, sizeof (topic_name));
+
+  char *ca, *id1, *id2, *id1_subj, *id2_subj;
   ca = generate_ca ("ca1", CA1K, ca_not_before, ca_not_after);
   id1 = generate_identity (ca, CA1K, "id1", ID1K, id1_not_before, id1_not_after, &id1_subj);
   id2 = generate_identity (ca, CA1K, "id2", ID1K, id2_not_before, id2_not_after, &id2_subj);
   dds_sleepfor (DDS_MSECS (delay));
 
-  char * grants[] = { get_permissions_grant ("id1", id1_subj), get_permissions_grant ("id2", id2_subj) };
+  dds_time_t now = dds_time ();
+  char * grants[] = {
+    get_permissions_grant ("id1", id1_subj, now - DDS_SECS(D(1)), now + DDS_SECS(D(1)), NULL, NULL, NULL),
+    get_permissions_grant ("id2", id2_subj, now - DDS_SECS(D(1)), now + DDS_SECS(D(1)), NULL, NULL, NULL) };
   char * perm_config = get_permissions_config (grants, 2, true);
   authentication_init (id1, ID1K, ca, id2, ID1K, ca, NULL, perm_config, id1_local_fail, id2_local_fail);
   validate_handshake (DDS_DOMAINID1, id1_local_fail, NULL, NULL, NULL);
   validate_handshake (DDS_DOMAINID2, id2_local_fail, NULL, NULL, NULL);
   if (write_read_dur > 0)
-    write_read (DDS_MSECS (write_read_dur), false, exp_read_fail);
+  {
+    rd_wr_init (g_participant1, &g_pub, &g_pub_tp, &g_wr, g_participant2, &g_sub, &g_sub_tp, &g_rd, topic_name);
+    write_read_for (g_wr, g_participant2, g_rd, DDS_MSECS (write_read_dur), false, exp_read_fail);
+  }
   authentication_fini (!id1_local_fail, !id2_local_fail);
   ddsrt_free (grants[0]);
   ddsrt_free (grants[1]);
