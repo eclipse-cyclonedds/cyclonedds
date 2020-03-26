@@ -378,6 +378,7 @@ static struct proxypp_pp_match * proxypp_pp_match_new(struct participant *pp, DD
   pm->pp_crypto_handle = pp->sec_attr->crypto_handle;
   pm->permissions_handle = permissions_hdl;
   pm->shared_secret = shared_secret;
+  pm->authenticated = false;
 
   return pm;
 }
@@ -1753,6 +1754,37 @@ register_failed:
   return ret;
 }
 
+void q_omg_security_set_remote_participant_authenticated(struct participant *pp, struct proxy_participant *proxypp)
+{
+  struct proxypp_pp_match *pm;
+
+  ddsrt_mutex_lock(&proxypp->sec_attr->lock);
+  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle);
+  if (pm)
+    pm->authenticated = true;
+  ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
+}
+
+static bool is_volatile_secure_endpoint(ddsi_entityid_t entityid)
+{
+  return ((entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER) || (entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER));
+}
+
+static struct proxypp_pp_match * get_pp_proxypp_match_if_authenticated(struct participant *pp, struct proxy_participant *proxypp, ddsi_entityid_t entityid)
+{
+  struct proxypp_pp_match *pm;
+
+  ddsrt_mutex_lock(&proxypp->sec_attr->lock);
+  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle);
+  if (pm)
+  {
+    if (!pm->authenticated && !is_volatile_secure_endpoint(entityid))
+      pm = NULL;
+  }
+  ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
+  return pm;
+}
+
 void q_omg_security_deregister_remote_participant(struct proxy_participant *proxypp)
 {
   struct ddsi_domaingv *gv = proxypp->e.gv;
@@ -2028,11 +2060,9 @@ static bool q_omg_security_register_remote_writer_match(struct proxy_writer *pwr
   struct security_entity_match *match;
   bool send_tokens = false;
 
-  ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle);
-  ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
+  *crypto_handle = 0;
 
-  if (!pm)
+  if ((pm = get_pp_proxypp_match_if_authenticated(pp, proxypp, pwr->e.guid.entityid)) == NULL)
     return false;
 
   /* TODO: the security_entity_match should be removed after the the received tokens are stored in the plugin.
@@ -2380,10 +2410,7 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
 
   *crypto_handle = 0;
 
-  ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle);
-  ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
-  if (!pm)
+  if ((pm = get_pp_proxypp_match_if_authenticated(pp, proxypp, prd->e.guid.entityid)) == NULL)
     return false;
 
   /* TODO: the security_entity_match should be removed after the the received tokens are stored in the plugin.
