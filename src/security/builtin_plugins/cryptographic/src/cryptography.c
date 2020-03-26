@@ -11,6 +11,7 @@
  */
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/types.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/security/dds_security_api.h"
 #include "cryptography.h"
 #include "crypto_key_exchange.h"
@@ -24,6 +25,7 @@
 
 typedef struct dds_security_cryptography_impl {
   dds_security_cryptography base;
+  struct ddsi_domaingv *gv;
 } dds_security_cryptography_impl;
 
 dds_security_crypto_key_factory *cryptography_get_crypto_key_factory (const struct dds_security_cryptography *crypto)
@@ -45,7 +47,7 @@ dds_security_crypto_transform *cryptography_get_crypto_transform (const struct d
 }
 
 
-int init_crypto (const char *argument, void **context)
+int init_crypto (const char *argument, void **context, struct ddsi_domaingv *gv)
 {
   dds_security_cryptography_impl *cryptography;
   dds_security_crypto_key_exchange *crypto_key_exchange;
@@ -56,6 +58,7 @@ int init_crypto (const char *argument, void **context)
 
   /* allocate new instance */
   cryptography = ddsrt_malloc (sizeof(*cryptography));
+  cryptography->base.gv = gv;
 
   /* assign the sub components */
   crypto_key_exchange = dds_security_crypto_key_exchange__alloc ((dds_security_cryptography *)cryptography);

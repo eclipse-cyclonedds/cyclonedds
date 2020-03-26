@@ -41,6 +41,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/hopscotch.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_timed_cb.h"
 #include "dds/security/core/dds_security_utils.h"
@@ -2223,14 +2224,14 @@ DDS_Security_boolean return_sharedsecret_handle(dds_security_authentication *ins
   return true;
 }
 
-int32_t init_authentication(const char *argument, void **context)
+int32_t init_authentication(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
   DDSRT_UNUSED_ARG(argument);
   dds_security_authentication_impl *authentication;
 
   authentication = (dds_security_authentication_impl *)ddsrt_malloc(sizeof(dds_security_authentication_impl));
   memset(authentication, 0, sizeof(dds_security_authentication_impl));
-
+  authentication->base.gv = gv;
   authentication->timed_callbacks = dds_security_timed_cb_new();
   authentication->dispatcher = dds_security_timed_dispatcher_new(authentication->timed_callbacks);
 

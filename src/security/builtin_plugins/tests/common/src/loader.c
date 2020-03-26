@@ -64,7 +64,7 @@ load_plugin(
         }
 
         char * init_parameters = "";
-        (void)info->func_init(init_parameters, &plugin);
+        (void)info->func_init(init_parameters, &plugin, NULL);
         if (plugin) {
             info->context = plugin;
         } else {
