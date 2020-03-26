@@ -212,6 +212,8 @@ struct dds_security_context {
 
   struct pending_match_index security_matches;
   struct participant_sec_index partiticpant_index;
+  struct dds_security_access_control_listener ac_listener;
+  struct dds_security_authentication_listener auth_listener;
 };
 
 typedef struct dds_security_context dds_security_context;
@@ -525,34 +527,44 @@ static void proxypp_pp_match_free(struct ddsi_domaingv *gv, struct dds_security_
   ddsrt_free(pm);
 }
 
-static void pp_proxypp_unrelate(struct dds_security_context *sc, struct participant *pp, const ddsi_guid_t *proxypp_guid)
+static void pp_proxypp_unrelate_locked(struct dds_security_context *sc, struct participant *pp, const ddsi_guid_t *proxypp_guid)
 {
   struct pp_proxypp_match *pm;
   ddsrt_avl_dpath_t dpath;
 
-  ddsrt_mutex_lock(&pp->sec_attr->lock);
   if ((pm = ddsrt_avl_clookup_dpath(&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, proxypp_guid, &dpath)) != NULL)
   {
     ddsrt_avl_cdelete_dpath(&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, pm, &dpath);
     pp_proxypp_match_free(sc, pm);
   }
+}
+
+static void pp_proxypp_unrelate(struct dds_security_context *sc, struct participant *pp, const ddsi_guid_t *proxypp_guid)
+{
+  ddsrt_mutex_lock(&pp->sec_attr->lock);
+  pp_proxypp_unrelate_locked (sc, pp, proxypp_guid);
   ddsrt_mutex_unlock(&pp->sec_attr->lock);
+}
+
+static void proxypp_pp_unrelate_locked(struct dds_security_context *sc, struct proxy_participant *proxypp, const ddsi_guid_t *pp_guid, int64_t pp_crypto_handle)
+{
+  DDSRT_UNUSED_ARG(pp_guid);
+  struct proxypp_pp_match *pm;
+  ddsrt_avl_dpath_t dpath;
+
+  if ((pm = ddsrt_avl_lookup_dpath(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp_crypto_handle, &dpath)) != NULL)
+  {
+    ddsrt_avl_delete_dpath(&proxypp_pp_treedef, &proxypp->sec_attr->participants, pm, &dpath);
+    proxypp_pp_match_free(proxypp->e.gv, sc, pm);
+  }
 }
 
 static void proxypp_pp_unrelate(struct dds_security_context *sc, struct proxy_participant *proxypp, const ddsi_guid_t *pp_guid, int64_t pp_crypto_handle)
 {
-  DDSRT_UNUSED_ARG(pp_guid);
   if (proxypp->sec_attr)
   {
-    struct proxypp_pp_match *pm;
-    ddsrt_avl_dpath_t dpath;
-
     ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-    if ((pm = ddsrt_avl_lookup_dpath(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp_crypto_handle, &dpath)) != NULL)
-    {
-      ddsrt_avl_delete_dpath(&proxypp_pp_treedef, &proxypp->sec_attr->participants, pm, &dpath);
-      proxypp_pp_match_free(proxypp->e.gv, sc, pm);
-    }
+    proxypp_pp_unrelate_locked(sc, proxypp, pp_guid, pp_crypto_handle);
     ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
   }
 }
@@ -798,6 +810,70 @@ static void deinit_plugin_suite_config (dds_security_plugin_suite_config *suite_
   deinit_plugin_config (&suite_config->cryptography);
 }
 
+static DDS_Security_boolean on_revoke_permissions_cb(const dds_security_access_control *plugin, const DDS_Security_PermissionsHandle handle)
+{
+  struct ddsi_domaingv *gv = plugin->gv;
+  struct entidx_enum_participant epp;
+  struct entidx_enum_proxy_participant eproxypp;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
+  bool local_perm = false;
+  thread_state_awake (lookup_thread_state (), gv);
+
+  /* Find participants using this permissions handle */
+  entidx_enum_participant_init (&epp, gv->entity_index);
+  while ((pp = entidx_enum_participant_next (&epp)) != NULL)
+  {
+    struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+    ddsrt_mutex_lock (&pp->sec_attr->lock);
+    if (pp->sec_attr->permissions_handle == handle)
+    {
+      uint32_t i = 0;
+      ddsrt_avl_citer_t it;
+      local_perm = true;
+      for (struct pp_proxypp_match *ppm = ddsrt_avl_citer_first (&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, &it); ppm; ppm = ddsrt_avl_citer_next (&it), i++)
+        pp_proxypp_unrelate_locked (sc, pp, &ppm->proxypp_guid);
+    }
+    ddsrt_mutex_unlock (&pp->sec_attr->lock);
+  }
+  entidx_enum_participant_fini (&epp);
+
+  /* Find proxy participants using this permissions handle */
+  if (!local_perm)
+  {
+    entidx_enum_proxy_participant_init (&eproxypp, gv->entity_index);
+    while ((proxypp = entidx_enum_proxy_participant_next (&eproxypp)) != NULL)
+    {
+      ddsrt_mutex_lock (&proxypp->sec_attr->lock);
+      uint32_t i = 0;
+      ddsrt_avl_iter_t it;
+      bool del_proxypp = true;
+      for (struct proxypp_pp_match *ppm = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &it); ppm; ppm = ddsrt_avl_iter_next (&it), i++)
+      {
+        if (ppm->permissions_handle == handle)
+          proxypp_pp_unrelate_locked (proxypp->sec_attr->sc, proxypp, &ppm->pp_guid, ppm->pp_crypto_handle);
+        else
+          del_proxypp = false;
+      }
+      ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
+      if (del_proxypp)
+        delete_proxy_participant_by_guid (gv, &proxypp->e.guid, ddsrt_time_wallclock (), false);
+    }
+    entidx_enum_proxy_participant_fini (&eproxypp);
+  }
+
+  thread_state_asleep (lookup_thread_state ());
+  return true;
+}
+
+static DDS_Security_boolean on_revoke_identity_cb(const dds_security_authentication *plugin, const DDS_Security_IdentityHandle handle)
+{
+  (void)plugin;
+  (void)handle;
+  return true;
+}
+
+
 dds_return_t q_omg_security_load (dds_security_context *sc, const dds_qos_t *qos, struct ddsi_domaingv *gv)
 {
   dds_security_plugin_suite_config psc;
@@ -836,18 +912,19 @@ dds_return_t q_omg_security_load (dds_security_context *sc, const dds_qos_t *qos
   }
 
   /* Add listeners */
-#if LISTENERS_IMPLEMENTED
-  if (!access_control_context->set_listener (access_control_context, &listener_ac, &ex))
+  DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
+  sc->ac_listener.on_revoke_permissions = on_revoke_permissions_cb;
+  if (!sc->access_control_context->set_listener (sc->access_control_context, &sc->ac_listener, &ex))
   {
     GVERROR ("Could not set access_control listener: %s\n", ex.message ? ex.message : "<unknown error>");
     goto error_set_ac_listener;
   }
-  if (!authentication_context->set_listener (authentication_context, &listener_auth, &ex))
+  sc->auth_listener.on_revoke_identity = on_revoke_identity_cb;
+  if (!sc->authentication_context->set_listener (sc->authentication_context, &sc->auth_listener, &ex))
   {
     GVERROR ("Could not set authentication listener: %s\n", ex.message ? ex.message : "<unknown error>");
-    goto err_set_auth_listener;
+    goto error_set_auth_listener;
   }
-#endif
 
 #if HANDSHAKE_IMPLEMENTED
     (void) q_handshake_initialize ();
@@ -858,11 +935,9 @@ dds_return_t q_omg_security_load (dds_security_context *sc, const dds_qos_t *qos
   GVTRACE ("DDS Security plugins have been loaded\n");
   return DDS_RETCODE_OK;
 
-#if LISTENERS_IMPLEMENTED
 error_set_auth_listener:
-  access_control_context->set_listener (access_control_context, NULL, &ex);
+  sc->access_control_context->set_listener (sc->access_control_context, NULL, &ex);
 error_set_ac_listener:
-#endif
 error_verify:
   release_plugins (gv, sc);
 error:

@@ -639,7 +639,7 @@ static void validity_callback(struct dds_security_timed_dispatcher_t *d, dds_sec
     assert(listener);
     dds_security_authentication_listener *auth_listener = (dds_security_authentication_listener *)listener;
     if (auth_listener->on_revoke_identity)
-      auth_listener->on_revoke_identity(auth_listener, (dds_security_authentication *)info->auth, info->hdl);
+      auth_listener->on_revoke_identity((dds_security_authentication *)info->auth, info->hdl);
   }
   ddsrt_free(arg);
 }

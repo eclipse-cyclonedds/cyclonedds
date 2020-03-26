@@ -29,7 +29,6 @@ typedef struct dds_security_authentication_listener dds_security_authentication_
 
 /* AuthenticationListener interface */
 typedef DDS_Security_boolean (*DDS_Security_authentication_listener_on_revoke_identity)(
-    dds_security_authentication_listener *context,
     const dds_security_authentication *plugin,
     const DDS_Security_IdentityHandle handle);
 
