@@ -1092,7 +1092,7 @@ secure_conn_write(
  * @retval DDS_RETCODE_OK   All plugins are successfully loaded
  * @retval DDS_RETCODE_ERROR  One or more security plugins are not loaded.
  */
-dds_return_t q_omg_security_load( struct dds_security_context *security_context, const dds_qos_t *qos );
+dds_return_t q_omg_security_load( struct dds_security_context *security_context, const dds_qos_t *qos, struct ddsi_domaingv *gv );
 
 
 void q_omg_security_init( struct ddsi_domaingv *gv );
@@ -1389,7 +1389,7 @@ decode_rtps_message(
   return NN_RTPS_MSG_STATE_PLAIN;
 }
 
-inline dds_return_t q_omg_security_load( UNUSED_ARG( struct dds_security_context *security_context ), UNUSED_ARG( const dds_qos_t *property_seq) )
+inline dds_return_t q_omg_security_load( UNUSED_ARG( struct dds_security_context *security_context ), UNUSED_ARG( const dds_qos_t *property_seq), UNUSED_ARG ( struct ddsi_domaingv *gv ) )
 {
   return DDS_RETCODE_ERROR;
 }

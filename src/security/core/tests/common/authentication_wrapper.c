@@ -22,7 +22,7 @@
 #include "test_identity.h"
 #include "plugin_wrapper_msg_q.h"
 
-int32_t init_authentication(const char *argument, void **context);
+int32_t init_authentication(const char *argument, void **context, struct ddsi_domaingv *gv);
 int32_t finalize_authentication(void *context);
 
 enum auth_plugin_mode {
@@ -41,7 +41,6 @@ struct dds_security_authentication_impl
   dds_security_authentication base;
   dds_security_authentication *instance;
   struct message_queue msg_queue;
-  const struct ddsi_domaingv *gv;
   enum auth_plugin_mode mode;
 };
 
@@ -439,7 +438,7 @@ static struct dds_security_authentication_impl * get_impl_for_domain(dds_domaini
 {
   for (size_t i = 0; i < auth_impl_idx; i++)
   {
-    if (auth_impl[i] && auth_impl[i]->gv->config.domainId == domain_id)
+    if (auth_impl[i] && auth_impl[i]->instance->gv->config.domainId == domain_id)
     {
       return auth_impl[i];
     }
@@ -483,10 +482,11 @@ static struct dds_security_authentication_impl * init_test_authentication_common
   return impl;
 }
 
-int32_t init_test_authentication_all_ok(const char *argument, void **context)
+int32_t init_test_authentication_all_ok(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
   DDSRT_UNUSED_ARG(argument);
   DDSRT_UNUSED_ARG(context);
+  DDSRT_UNUSED_ARG(gv);
   struct dds_security_authentication_impl *impl = init_test_authentication_common();
   impl->mode = PLUGIN_MODE_ALL_OK;
   *context = impl;
@@ -500,10 +500,11 @@ int32_t finalize_test_authentication_all_ok(void *context)
   return 0;
 }
 
-int32_t init_test_authentication_missing_func(const char *argument, void **context)
+int32_t init_test_authentication_missing_func(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
   DDSRT_UNUSED_ARG(argument);
   DDSRT_UNUSED_ARG(context);
+  DDSRT_UNUSED_ARG(gv);
   struct dds_security_authentication_impl *impl = init_test_authentication_common();
   impl->base.get_shared_secret = NULL;
   impl->mode = PLUGIN_MODE_MISSING_FUNC;
@@ -518,10 +519,11 @@ int32_t finalize_test_authentication_missing_func(void *context)
   return 0;
 }
 
-int32_t init_test_authentication_init_error(const char *argument, void **context)
+int32_t init_test_authentication_init_error(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
   DDSRT_UNUSED_ARG(argument);
   DDSRT_UNUSED_ARG(context);
+  DDSRT_UNUSED_ARG(gv);
   return 1;
 }
 
@@ -535,19 +537,14 @@ int32_t finalize_test_authentication_init_error(void *context)
  * Init and fini functions for using wrapped mode for the authentication plugin.
  * These functions assumes that there are no concurrent calls, as the static
  * variables used here are not protected by a lock. */
-int32_t init_test_authentication_wrapped(const char *argument, void **context)
+int32_t init_test_authentication_wrapped(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
   int32_t ret;
   struct dds_security_authentication_impl *impl = init_test_authentication_common();
   impl->mode = PLUGIN_MODE_WRAPPED;
 
   init_message_queue(&impl->msg_queue);
-  struct thread_state1 * const ts1 = lookup_thread_state ();
-  struct ddsi_domaingv const * const gv = ddsrt_atomic_ldvoidp (&ts1->gv);
-  impl->gv = gv;
-
-  ret = init_authentication(argument, (void **)&impl->instance);
-
+  ret = init_authentication(argument, (void **)&impl->instance, gv);
   auth_impl_idx++;
   auth_impl = ddsrt_realloc(auth_impl, auth_impl_idx * sizeof(*auth_impl));
   auth_impl[auth_impl_idx - 1] = impl;

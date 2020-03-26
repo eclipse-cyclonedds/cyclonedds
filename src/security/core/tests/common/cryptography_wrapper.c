@@ -22,7 +22,7 @@
 #include "dds/security/core/dds_security_utils.h"
 #include "cryptography_wrapper.h"
 
-int32_t init_crypto(const char *argument, void **context);
+int32_t init_crypto(const char *argument, void **context, struct ddsi_domaingv *gv);
 int32_t finalize_crypto(void *context);
 
 enum crypto_plugin_mode {
@@ -700,14 +700,14 @@ static DDS_Security_boolean decode_serialized_payload(
 /**
  * Init and finalize functions
  */
-static struct dds_security_cryptography_impl * init_test_cryptography_common(const char *argument, bool wrapped)
+static struct dds_security_cryptography_impl * init_test_cryptography_common(const char *argument, bool wrapped, struct ddsi_domaingv *gv)
 {
   struct dds_security_cryptography_impl *impl = (struct dds_security_cryptography_impl*) ddsrt_malloc(sizeof(*impl));
   memset(impl, 0, sizeof(*impl));
 
   if (wrapped)
   {
-    if (init_crypto(argument, (void **)&impl->instance) != DDS_SECURITY_SUCCESS)
+    if (init_crypto(argument, (void **)&impl->instance, gv) != DDS_SECURITY_SUCCESS)
       return NULL;
 
     impl->transform_wrap.instance = impl->instance->crypto_transform;
@@ -763,9 +763,9 @@ static int32_t finalize_test_cryptography_common(struct dds_security_cryptograph
   return DDS_SECURITY_SUCCESS;
 }
 
-int32_t init_test_cryptography_all_ok(const char *argument, void **context)
+int32_t init_test_cryptography_all_ok(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
-  struct dds_security_cryptography_impl *impl = init_test_cryptography_common(argument, false);
+  struct dds_security_cryptography_impl *impl = init_test_cryptography_common(argument, false, gv);
   if (!impl)
     return DDS_SECURITY_FAILED;
   impl->mode = PLUGIN_MODE_ALL_OK;
@@ -780,9 +780,9 @@ int32_t finalize_test_cryptography_all_ok(void *context)
   return finalize_test_cryptography_common(impl, false);
 }
 
-int32_t init_test_cryptography_missing_func(const char *argument, void **context)
+int32_t init_test_cryptography_missing_func(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
-  struct dds_security_cryptography_impl *impl = init_test_cryptography_common(argument, false);
+  struct dds_security_cryptography_impl *impl = init_test_cryptography_common(argument, false, gv);
   if (!impl)
     return DDS_SECURITY_FAILED;
   impl->base.crypto_key_exchange->set_remote_participant_crypto_tokens = NULL;
@@ -798,9 +798,9 @@ int32_t finalize_test_cryptography_missing_func(void *context)
   return finalize_test_cryptography_common(impl, false);
 }
 
-int32_t init_test_cryptography_wrapped(const char *argument, void **context)
+int32_t init_test_cryptography_wrapped(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
-  struct dds_security_cryptography_impl *impl = init_test_cryptography_common(argument, true);
+  struct dds_security_cryptography_impl *impl = init_test_cryptography_common(argument, true, gv);
   if (!impl)
     return DDS_SECURITY_FAILED;
   impl->mode = PLUGIN_MODE_WRAPPED;

@@ -514,10 +514,11 @@ static struct dds_security_access_control_impl * init_test_access_control_common
   return impl;
 }
 
-int32_t init_test_access_control_all_ok(const char *argument, void **context)
+int32_t init_test_access_control_all_ok(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
   DDSRT_UNUSED_ARG(argument);
   DDSRT_UNUSED_ARG(context);
+  DDSRT_UNUSED_ARG(gv);
   struct dds_security_access_control_impl *impl = init_test_access_control_common();
   impl->mode = PLUGIN_MODE_ALL_OK;
   *context = impl;
@@ -531,10 +532,11 @@ int32_t finalize_test_access_control_all_ok(void *context)
   return 0;
 }
 
-int32_t init_test_access_control_missing_func(const char *argument, void **context)
+int32_t init_test_access_control_missing_func(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
   DDSRT_UNUSED_ARG(argument);
   DDSRT_UNUSED_ARG(context);
+  DDSRT_UNUSED_ARG(gv);
   struct dds_security_access_control_impl *impl = init_test_access_control_common();
   impl->base.check_create_datareader = NULL;
   impl->mode = PLUGIN_MODE_MISSING_FUNC;

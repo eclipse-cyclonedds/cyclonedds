@@ -20,13 +20,14 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/types.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
+#include "dds/security/core/dds_security_timed_cb.h"
 #include "access_control.h"
 #include "access_control_utils.h"
 #include "access_control_objects.h"
 #include "access_control_parser.h"
-#include "dds/security/core/dds_security_timed_cb.h"
 
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L && OPENSSL_VERSION_NUMBER < 0x10100000L
 #define REMOVE_THREAD_STATE() ERR_remove_thread_state(NULL);
@@ -82,7 +83,6 @@ typedef struct dds_security_access_control_impl
 
   struct dds_security_timed_cb_data *timed_callbacks;
   struct dds_security_timed_dispatcher_t *dispatcher;
-
 } dds_security_access_control_impl;
 
 static bool get_sec_attributes(dds_security_access_control_impl *ac, const DDS_Security_PermissionsHandle permissions_handle, const char *topic_name,
@@ -162,12 +162,9 @@ validate_local_permissions(
   }
 #endif
 
-  permissions_handle = ACCESS_CONTROL_OBJECT_HANDLE(rights);
-
-  if (permissions_handle != DDS_SECURITY_HANDLE_NIL)
+  if ((permissions_handle = ACCESS_CONTROL_OBJECT_HANDLE(rights)) != DDS_SECURITY_HANDLE_NIL)
   {
     assert (rights->permissions_expiry != DDS_TIME_INVALID);
-
     if (rights->permissions_expiry != 0)
       add_validity_end_trigger(ac, permissions_handle, rights->permissions_expiry);
   }
@@ -228,10 +225,12 @@ validate_remote_permissions(
   remote_rights = check_and_create_remote_participant_rights(remote_identity_handle, local_rights, remote_permissions_token, remote_credential_token, ex);
 #endif
 
-  permissions_handle = ACCESS_CONTROL_OBJECT_HANDLE(remote_rights);
-
-  if (permissions_handle != DDS_SECURITY_HANDLE_NIL)
-    add_validity_end_trigger(ac, permissions_handle, remote_rights->permissions_expiry);
+  if ((permissions_handle = ACCESS_CONTROL_OBJECT_HANDLE(remote_rights)) != DDS_SECURITY_HANDLE_NIL)
+  {
+    assert (remote_rights->permissions_expiry != DDS_TIME_INVALID);
+    if (remote_rights->permissions_expiry != 0)
+      add_validity_end_trigger(ac, permissions_handle, remote_rights->permissions_expiry);
+  }
 
   if (remote_rights)
     access_control_table_insert(ac->remote_permissions, (AccessControlObject *)remote_rights);
@@ -1475,14 +1474,13 @@ return_permissions_handle(
   return true;
 }
 
-int init_access_control(const char *argument, void **context)
+int init_access_control(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
   DDSRT_UNUSED_ARG(argument);
 
   dds_security_access_control_impl *access_control = ddsrt_malloc(sizeof(*access_control));
   memset(access_control, 0, sizeof(*access_control));
-
-
+  access_control->base.gv = gv;
   access_control->timed_callbacks = dds_security_timed_cb_new();
   access_control->dispatcher = dds_security_timed_dispatcher_new(access_control->timed_callbacks);
   access_control->base.validate_local_permissions = &validate_local_permissions;
@@ -1881,7 +1879,6 @@ validity_callback(struct dds_security_timed_dispatcher_t *d,
                   void *arg)
 {
   validity_cb_info *info = arg;
-
   DDSRT_UNUSED_ARG(d);
   assert(d);
   assert(arg);
@@ -1892,7 +1889,7 @@ validity_callback(struct dds_security_timed_dispatcher_t *d,
     {
       dds_security_access_control_listener *ac_listener = (dds_security_access_control_listener *)listener;
       if (ac_listener->on_revoke_permissions)
-        ac_listener->on_revoke_permissions(ac_listener, (dds_security_access_control *)info->ac, info->hdl);
+        ac_listener->on_revoke_permissions((dds_security_access_control *)info->ac, info->hdl);
     }
   }
   ddsrt_free(arg);

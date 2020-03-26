@@ -19,40 +19,40 @@
 #include "dds/ddsrt/dynlib.h"
 #include "dds/ddsrt/io.h"
 
-static bool check_plugin_configuration (const dds_security_plugin_config *config, const char *name, const struct ddsrt_log_cfg *logcfg)
+static bool check_plugin_configuration (const dds_security_plugin_config *config, const char *name, struct ddsi_domaingv *gv)
 {
   if (config->library_path == NULL || *config->library_path == 0) {
-    DDS_CERROR (logcfg, "%s security plugin library path is undefined or empty\n", name);
+    GVERROR ("%s security plugin library path is undefined or empty\n", name);
     return false;
   }
   if (config->library_init == NULL || *config->library_init == 0) {
-    DDS_CERROR (logcfg, "%s security plugin init function is undefined or empty\n", name);
+    GVERROR ("%s security plugin init function is undefined or empty\n", name);
     return false;
   }
   if (config->library_finalize == NULL || *config->library_finalize == 0) {
-    DDS_CERROR (logcfg, "%s security plugin finalize function is undefined or empty\n", name);
+    GVERROR ("%s security plugin finalize function is undefined or empty\n", name);
     return false;
   }
   return true;
 }
 
-dds_return_t dds_security_check_plugin_configuration (const dds_security_plugin_suite_config *security_suite_config, const struct ddsrt_log_cfg *logcfg)
+dds_return_t dds_security_check_plugin_configuration (const dds_security_plugin_suite_config *security_suite_config, struct ddsi_domaingv *gv)
 {
-  if (check_plugin_configuration (&security_suite_config->access_control, "AccessControl", logcfg) &&
-      check_plugin_configuration (&security_suite_config->authentication, "Authentication", logcfg) &&
-      check_plugin_configuration (&security_suite_config->cryptography, "Cryptography", logcfg))
+  if (check_plugin_configuration (&security_suite_config->access_control, "AccessControl", gv) &&
+      check_plugin_configuration (&security_suite_config->authentication, "Authentication", gv) &&
+      check_plugin_configuration (&security_suite_config->cryptography, "Cryptography", gv))
     return DDS_RETCODE_OK;
   else
     return DDS_RETCODE_ERROR;
 }
 
-static bool verify_function (const void *function_ptr, dds_security_plugin *plugin, const char *function_name, const struct ddsrt_log_cfg *logcfg)
+static bool verify_function (const void *function_ptr, dds_security_plugin *plugin, const char *function_name, struct ddsi_domaingv *gv)
 {
   if (function_ptr != NULL)
     return true;
   else
   {
-    DDS_CERROR (logcfg, "Could not find the function for %s: %s\n", plugin->name, function_name);
+    GVERROR ("Could not find the function for %s: %s\n", plugin->name, function_name);
     return false;
   }
 }
@@ -62,12 +62,12 @@ struct verify_plugin_functions_tab {
   const char *name;
 };
 
-static bool verify_plugin_functions (const void *context, dds_security_plugin *plugin, const struct verify_plugin_functions_tab *entries, size_t nentries, const struct ddsrt_log_cfg *logcfg)
+static bool verify_plugin_functions (const void *context, dds_security_plugin *plugin, const struct verify_plugin_functions_tab *entries, size_t nentries, struct ddsi_domaingv *gv)
 {
   for (size_t i = 0; i < nentries; i++)
   {
     const char *p = (const char *) context + entries[i].off;
-    if (!verify_function (*((void **) p), plugin, entries[i].name, logcfg))
+    if (!verify_function (*((void **) p), plugin, entries[i].name, gv))
       return false;
   }
   return true;
@@ -77,7 +77,7 @@ dds_return_t dds_security_verify_plugin_functions(
     dds_security_authentication *authentication_context, dds_security_plugin *auth_plugin,
     dds_security_cryptography *crypto_context, dds_security_plugin *crypto_plugin,
     dds_security_access_control *access_control_context, dds_security_plugin *ac_plugin,
-    const struct ddsrt_log_cfg *logcfg)
+    struct ddsi_domaingv *gv)
 {
 #define FGEN(context, name) { offsetof (context, name), #name }
 #define F(name) FGEN (dds_security_authentication, name)
@@ -170,7 +170,7 @@ dds_return_t dds_security_verify_plugin_functions(
     F (decode_serialized_payload)
   };
 #undef F
-#define C(context, plugin, table) verify_plugin_functions (context, plugin, table, sizeof (table) / sizeof (table[0]), logcfg)
+#define C(context, plugin, table) verify_plugin_functions (context, plugin, table, sizeof (table) / sizeof (table[0]), gv)
   if (C (authentication_context, auth_plugin, auth) &&
       C (access_control_context, ac_plugin, ac) &&
       C (crypto_context->crypto_key_factory, crypto_plugin, cryptoF) &&
@@ -189,7 +189,8 @@ dds_return_t dds_security_verify_plugin_functions(
 /**
  * All fields of the library properties are supposed to be non-empty
  */
-dds_return_t dds_security_load_security_library (const dds_security_plugin_config *plugin_config, dds_security_plugin *security_plugin, void **security_plugin_context, const struct ddsrt_log_cfg *logcfg)
+dds_return_t dds_security_load_security_library (const dds_security_plugin_config *plugin_config, dds_security_plugin *security_plugin,
+    void **security_plugin_context, struct ddsi_domaingv *gv)
 {
   dds_return_t lib_ret;
   char *init_parameters = "";
@@ -211,30 +212,30 @@ dds_return_t dds_security_load_security_library (const dds_security_plugin_confi
   {
     char buffer[256];
     ddsrt_dlerror (buffer, sizeof (buffer));
-    DDS_CERROR (logcfg, "Could not load %s library: %s\n", security_plugin->name, buffer);
+    GVERROR ("Could not load %s library: %s\n", security_plugin->name, buffer);
     goto load_error;
   }
 
   void *tmp;
   if (ddsrt_dlsym (security_plugin->lib_handle, plugin_config->library_init, &tmp) != DDS_RETCODE_OK)
   {
-    DDS_CERROR (logcfg, "Could not find the function: %s\n", plugin_config->library_init);
+    GVERROR ("Could not find the function: %s\n", plugin_config->library_init);
     goto library_error;
   }
   security_plugin->func_init = (plugin_init) tmp;
 
   if (ddsrt_dlsym (security_plugin->lib_handle, plugin_config->library_finalize, &tmp) != DDS_RETCODE_OK)
   {
-    DDS_CERROR (logcfg, "Could not find the function: %s\n", plugin_config->library_finalize);
+    GVERROR ("Could not find the function: %s\n", plugin_config->library_finalize);
     goto library_error;
   }
   security_plugin->func_finalize = (plugin_finalize) tmp;
 
   if (security_plugin->func_init != 0)
   {
-    if (security_plugin->func_init (init_parameters, (void **) security_plugin_context) != DDS_RETCODE_OK)
+    if (security_plugin->func_init (init_parameters, (void **) security_plugin_context, gv) != DDS_RETCODE_OK)
     {
-      DDS_CERROR (logcfg, "Error occured while initializing %s plugin\n", security_plugin->name);
+      GVERROR ("Error occured while initializing %s plugin\n", security_plugin->name);
       goto library_error;
     }
   }

@@ -17,7 +17,7 @@
 #include "dds/security/dds_security_api.h"
 #include "dds/security/export.h"
 
-SECURITY_EXPORT int32_t init_authentication(const char *argument, void **context);
+SECURITY_EXPORT int32_t init_authentication(const char *argument, void **context, struct ddsi_domaingv *gv);
 SECURITY_EXPORT int32_t finalize_authentication(void *context);
 
 DDS_Security_ValidationResult_t validate_local_identity(dds_security_authentication *instance, DDS_Security_IdentityHandle *local_identity_handle, DDS_Security_GUID_t *adjusted_participant_guid,

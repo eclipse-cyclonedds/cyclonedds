@@ -13,8 +13,7 @@
 #ifndef DDS_SECURITY_API_H
 #define DDS_SECURITY_API_H
 
-
-/* Various security plugins. */
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds_security_api_access_control.h"
 #include "dds_security_api_authentication.h"
 #include "dds_security_api_cryptography.h"
@@ -24,25 +23,12 @@
 extern "C" {
 #endif
 
-
-/**
- * Integration functions for Security plugins
- *
- */
-
-typedef int  (*plugin_init)(
-         const char *argument,
-         void **context
-        );
-
-typedef int  (*plugin_finalize)(
-         void *context
-        );
-
+/* Integration functions for Security plugins */
+typedef int (*plugin_init)(const char *argument, void **context, struct ddsi_domaingv *gv);
+typedef int  (*plugin_finalize)(void *context);
 
 #if defined (__cplusplus)
 }
 #endif
-
 
 #endif /* DDS_SECURITY_API_H */

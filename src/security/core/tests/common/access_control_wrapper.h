@@ -12,15 +12,16 @@
 #ifndef SECURITY_CORE_TEST_ACCESS_CONTROL_WRAPPER_H_
 #define SECURITY_CORE_TEST_ACCESS_CONTROL_WRAPPER_H_
 
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/access_control_wrapper_export.h"
 
 /* Init in all-ok mode: all functions return success without calling the actual plugin */
-SECURITY_EXPORT int32_t init_test_access_control_all_ok(const char *argument, void **context);
+SECURITY_EXPORT int32_t init_test_access_control_all_ok(const char *argument, void **context, struct ddsi_domaingv *gv);
 SECURITY_EXPORT int32_t finalize_test_access_control_all_ok(void *context);
 
 /* Init in missing function mode: one of the function pointers is null */
-SECURITY_EXPORT int32_t init_test_access_control_missing_func(const char *argument, void **context);
+SECURITY_EXPORT int32_t init_test_access_control_missing_func(const char *argument, void **context, struct ddsi_domaingv *gv);
 SECURITY_EXPORT int32_t finalize_test_access_control_missing_func(void *context);
 
 #endif /* SECURITY_CORE_TEST_ACCESS_CONTROL_WRAPPER_H_ */
