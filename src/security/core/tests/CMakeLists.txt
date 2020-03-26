@@ -74,7 +74,7 @@ if(ENABLE_SSL)
 
   list(APPEND security_core_test_sources
     "common/security_config_test_utils.c"
-    "common/handshake_test_utils.c"
+    "common/test_utils.c"
     "common/cert_utils.c"
     "authentication.c"
     "access_control.c"
