@@ -1811,7 +1811,7 @@ fill_handshake_message_token(
             }
             CU_ASSERT_FATAL (rc == DDS_SECURITY_VALIDATION_OK);
             assert(rc == DDS_SECURITY_VALIDATION_OK); // for Clang's static analyzer
-          
+
             set_binary_property_value(signature, "signature", sign, (uint32_t)signlen);
 
             ddsrt_free(sign);
@@ -1911,18 +1911,13 @@ fill_handshake_message_token(
 }
 
 
-static DDS_Security_boolean
-on_revoke_identity_cb( dds_security_authentication_listener *instance,
-                 const dds_security_authentication *plugin,
-                 const DDS_Security_IdentityHandle handle)
+static DDS_Security_boolean on_revoke_identity_cb(const dds_security_authentication *plugin, const DDS_Security_IdentityHandle handle)
 {
-    DDSRT_UNUSED_ARG( instance );
-    DDSRT_UNUSED_ARG( plugin );
-    if (identity_handle_for_callback1 == DDS_SECURITY_HANDLE_NIL) {
+    DDSRT_UNUSED_ARG (plugin);
+    if (identity_handle_for_callback1 == DDS_SECURITY_HANDLE_NIL)
         identity_handle_for_callback1 = handle;
-    } else if (identity_handle_for_callback2 == DDS_SECURITY_HANDLE_NIL) {
+    else if (identity_handle_for_callback2 == DDS_SECURITY_HANDLE_NIL)
         identity_handle_for_callback2 = handle;
-    }
     printf( "Listener called for handle: %lld  Local:%lld Remote:%lld\n", (long long) handle, (long long) local_identity_handle, (long long) remote_identity_handle2);
 
     return true;

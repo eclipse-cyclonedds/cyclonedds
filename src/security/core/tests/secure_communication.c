@@ -445,13 +445,13 @@ static void test_discovery_liveliness_protection(DDS_Security_ProtectionKind dis
 {
   struct domain_sec_config domain_config = { discovery_pk, liveliness_pk, PK_N, PK_N, BPK_N, NULL };
   /* FIXME: add more asserts in wrapper or test instead of just testing communication */
-  test_write_read (&domain_config, 1, 1, 1, 1, 1, 1, &set_encryption_parameters_disc);
+  test_write_read (&domain_config, 1, 1, 1, 1, 1, 1, set_encryption_parameters_disc);
 }
 
 static void test_data_protection_kind(DDS_Security_ProtectionKind rtps_pk, DDS_Security_ProtectionKind metadata_pk, DDS_Security_BasicProtectionKind payload_pk)
 {
   struct domain_sec_config domain_config = { PK_N, PK_N, rtps_pk, metadata_pk, payload_pk, NULL };
-  test_write_read (&domain_config, 1, 1, 1, 1, 1, 1, &set_encryption_parameters_basic);
+  test_write_read (&domain_config, 1, 1, 1, 1, 1, 1, set_encryption_parameters_basic);
 }
 
 static void test_multiple_readers(size_t n_dom, size_t n_pp, size_t n_rd, DDS_Security_ProtectionKind metadata_pk, DDS_Security_BasicProtectionKind payload_pk)
@@ -486,7 +486,7 @@ static void test_payload_secret(DDS_Security_ProtectionKind rtps_pk, DDS_Securit
     memcpy (sample.text + n * strlen (secret), secret, strlen (secret));
   sample.text[payload_sz - 1] = '\0';
 
-  test_init (&domain_config, 1, 1, 1, 1, &set_encryption_parameters_secret);
+  test_init (&domain_config, 1, 1, 1, 1, set_encryption_parameters_secret);
   create_topic_name ("ddssec_secure_communication_", g_topic_nr++, name, sizeof name);
   qos = get_qos ();
   create_eps (&writers, &writer_topics, 1, 1, 1, name, &SecurityCoreTests_Type2_desc, g_pub_participants, qos, &dds_create_writer, DDS_PUBLICATION_MATCHED_STATUS);
