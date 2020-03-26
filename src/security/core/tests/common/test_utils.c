@@ -14,13 +14,16 @@
 
 #include "CUnit/Test.h"
 #include "dds/dds.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/security/dds_security_api.h"
 #include "authentication_wrapper.h"
-#include "handshake_test_utils.h"
+#include "test_utils.h"
+#include "SecurityCoreTests.h"
 
-#define TIMEOUT DDS_SECS(2)
+#define HS_TIMEOUT DDS_SECS(2)
 
 struct Identity localIdentityList[MAX_LOCAL_IDENTITIES];
 int numLocal = 0;
@@ -131,7 +134,7 @@ static int find_handshake(DDS_Security_HandshakeHandle handle)
 static void handle_process_message(dds_domainid_t domain_id, DDS_Security_IdentityHandle handshake)
 {
   struct message *msg;
-  if ((msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_PROCESS_HANDSHAKE, 0, 0, handshake, TIMEOUT)))
+  if ((msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_PROCESS_HANDSHAKE, 0, 0, handshake, HS_TIMEOUT)))
   {
     int idx;
     if ((idx = find_handshake(msg->hsHandle)) >= 0)
@@ -148,7 +151,7 @@ static void handle_begin_handshake_request(dds_domainid_t domain_id, struct Hand
 {
   struct message *msg;
   printf("handle begin handshake request %"PRId64"<->%"PRId64"\n", lid, rid);
-  if ((msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REQUEST, lid, rid, 0, TIMEOUT)))
+  if ((msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REQUEST, lid, rid, 0, HS_TIMEOUT)))
   {
     hs->handle = msg->hsHandle;
     hs->handshakeResult = msg->result;
@@ -164,7 +167,7 @@ static void handle_begin_handshake_reply(dds_domainid_t domain_id, struct Handsh
 {
   struct message *msg;
   printf("handle begin handshake reply %"PRId64"<->%"PRId64"\n", lid, rid);
-  if ((msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REPLY, lid, rid, 0, TIMEOUT)))
+  if ((msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REPLY, lid, rid, 0, HS_TIMEOUT)))
   {
     hs->handle = msg->hsHandle;
     hs->handshakeResult = msg->result;
@@ -179,7 +182,7 @@ static void handle_begin_handshake_reply(dds_domainid_t domain_id, struct Handsh
 static void handle_validate_remote_identity(dds_domainid_t domain_id, DDS_Security_IdentityHandle lid, int count)
 {
   struct message *msg;
-  while (count-- > 0 && (msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_VALIDATE_REMOTE_IDENTITY, lid, 0, 0, TIMEOUT)))
+  while (count-- > 0 && (msg = test_authentication_plugin_take_msg(domain_id, MESSAGE_KIND_VALIDATE_REMOTE_IDENTITY, lid, 0, 0, HS_TIMEOUT)))
   {
     struct Handshake *hs;
     add_remote_identity(msg->ridHandle, &msg->rguid);
@@ -204,7 +207,7 @@ static void handle_validate_remote_identity(dds_domainid_t domain_id, DDS_Securi
 
 static void handle_validate_local_identity(dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg)
 {
- struct message *msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_VALIDATE_LOCAL_IDENTITY, 0, 0, 0, TIMEOUT);
+ struct message *msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_VALIDATE_LOCAL_IDENTITY, 0, 0, 0, HS_TIMEOUT);
   CU_ASSERT_FATAL (msg != NULL);
   CU_ASSERT_FATAL ((msg->result == DDS_SECURITY_VALIDATION_OK) != exp_localid_fail);
   if (exp_localid_fail && exp_localid_msg)
@@ -268,4 +271,113 @@ void handshake_list_fini(struct Handshake *hs_list, int nhs)
     struct Handshake hs = hs_list[n];
     ddsrt_free (hs.err_msg);
   }
+}
+
+void sync_writer_to_readers(dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_count)
+{
+  dds_attach_t triggered;
+  dds_entity_t ws = dds_create_waitset (pp_wr);
+  CU_ASSERT_FATAL (ws > 0);
+  dds_publication_matched_status_t pub_matched;
+
+  dds_return_t ret = dds_waitset_attach (ws, wr, wr);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  while (true)
+  {
+    ret = dds_waitset_wait (ws, &triggered, 1, DDS_SECS(5));
+    CU_ASSERT_FATAL (ret >= 1);
+    CU_ASSERT_EQUAL_FATAL (wr, (dds_entity_t)(intptr_t) triggered);
+    ret = dds_get_publication_matched_status(wr, &pub_matched);
+    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    if (pub_matched.total_count >= exp_count)
+      break;
+  };
+  dds_delete (ws);
+  CU_ASSERT_EQUAL_FATAL (pub_matched.total_count, exp_count);
+}
+
+char *create_topic_name(const char *prefix, uint32_t nr, char *name, size_t size)
+{
+  ddsrt_pid_t pid = ddsrt_getpid ();
+  ddsrt_tid_t tid = ddsrt_gettid ();
+  (void)snprintf(name, size, "%s%d_pid%" PRIdPID "_tid%" PRIdTID "", prefix, nr, pid, tid);
+  return name;
+}
+
+bool reader_wait_for_data(dds_entity_t pp, dds_entity_t rd, dds_duration_t dur)
+{
+  dds_attach_t triggered;
+  dds_entity_t ws = dds_create_waitset (pp);
+  CU_ASSERT_FATAL (ws > 0);
+  dds_return_t ret = dds_waitset_attach (ws, rd, rd);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_waitset_wait (ws, &triggered, 1, dur);
+  if (ret > 0)
+    CU_ASSERT_EQUAL_FATAL (rd, (dds_entity_t)(intptr_t)triggered);
+  dds_delete (ws);
+  return ret > 0;
+}
+
+void rd_wr_init(
+    dds_entity_t pp_wr, dds_entity_t *pub, dds_entity_t *pub_tp, dds_entity_t *wr,
+    dds_entity_t pp_rd, dds_entity_t *sub, dds_entity_t *sub_tp, dds_entity_t *rd,
+    const char * topic_name)
+{
+  dds_qos_t * qos = dds_create_qos ();
+  CU_ASSERT_FATAL (qos != NULL);
+  dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, -1);
+  dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
+  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
+
+  *pub = dds_create_publisher (pp_wr, NULL, NULL);
+  CU_ASSERT_FATAL (*pub > 0);
+  *sub = dds_create_subscriber (pp_rd, NULL, NULL);
+  CU_ASSERT_FATAL (*sub > 0);
+  *pub_tp = dds_create_topic (pp_wr, &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
+  CU_ASSERT_FATAL (*pub_tp > 0);
+  *sub_tp = dds_create_topic (pp_rd, &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
+  CU_ASSERT_FATAL (*sub_tp > 0);
+  *wr = dds_create_writer (*pub, *pub_tp, qos, NULL);
+  CU_ASSERT_FATAL (*wr > 0);
+  dds_set_status_mask (*wr, DDS_PUBLICATION_MATCHED_STATUS);
+  *rd = dds_create_reader (*sub, *sub_tp, qos, NULL);
+  CU_ASSERT_FATAL (*rd > 0);
+  dds_set_status_mask (*rd, DDS_DATA_AVAILABLE_STATUS);
+  sync_writer_to_readers(pp_wr, *wr, 1);
+  dds_delete_qos (qos);
+}
+
+void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_duration_t dur, bool exp_write_fail, bool exp_read_fail)
+{
+  SecurityCoreTests_Type1 sample = { 1, 1 };
+  SecurityCoreTests_Type1 rd_sample;
+  void * samples[] = { &rd_sample };
+  dds_sample_info_t info[1];
+  dds_return_t ret;
+  dds_time_t tend = dds_time () + dur;
+  bool write_fail = false, read_fail = false;
+
+  do
+  {
+    if (dds_write (wr, &sample) != DDS_RETCODE_OK)
+      write_fail = true;
+
+    while (!write_fail)
+    {
+      if ((ret = dds_take (rd, samples, info, 1, 1)) > 0)
+      {
+        CU_ASSERT_EQUAL_FATAL (ret, 1);
+        break;
+      }
+      if (ret < 0 || !reader_wait_for_data (pp_rd, rd, DDS_MSECS (100)))
+      {
+        read_fail = true;
+        break;
+      }
+    }
+    dds_sleepfor (DDS_MSECS (1));
+  }
+  while (dds_time() < tend && !write_fail && !read_fail);
+  CU_ASSERT_EQUAL (write_fail, exp_write_fail);
+  CU_ASSERT_EQUAL (read_fail, exp_read_fail);
 }

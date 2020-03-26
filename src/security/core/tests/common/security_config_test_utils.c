@@ -60,22 +60,25 @@ static const char *governance_xml =
     "  </domain_access_rules>"
     "</dds>";
 
+static const char *topic_xml =
+    "<topic>${TOPIC_NAME}</topic>";
+
 static const char *permissions_xml_grant =
     "    <grant name=\"${GRANT_NAME}\">"
     "      <subject_name>${SUBJECT_NAME}</subject_name>"
-    "      <validity><not_before>2015-09-15T01:00:00</not_before><not_after>2115-09-15T01:00:00</not_after></validity>"
+    "      <validity><not_before>${NOT_BEFORE:-2015-09-15T01:00:00}</not_before><not_after>${NOT_AFTER:-2115-09-15T01:00:00}</not_after></validity>"
     "      <allow_rule>"
     "        <domains><id_range><min>0</min><max>230</max></id_range></domains>"
     "        <publish>"
-    "          <topics><topic>*</topic></topics>"
+    "          <topics>${PUB_TOPICS:-<topic>*</topic>}</topics>"
     "          <partitions><partition>*</partition></partitions>"
     "        </publish>"
     "        <subscribe>"
-    "          <topics><topic>*</topic></topics>"
+    "          <topics>${SUB_TOPICS:-<topic>*</topic>}</topics>"
     "          <partitions><partition>*</partition></partitions>"
     "        </subscribe>"
     "      </allow_rule>"
-    "      <default>DENY</default>"
+    "      <default>${DEFAULT_POLICY:-DENY}</default>"
     "    </grant>";
 
 static const char *permissions_xml =
@@ -212,11 +215,46 @@ char * get_governance_config(struct kvp *config_vars, bool add_prefix)
   return prefix_data (config_signed, add_prefix);
 }
 
-char * get_permissions_grant(const char * name, const char * subject)
+
+char * get_permissions_topic(const char * name)
 {
+  struct kvp vars[] = {
+    { "TOPIC_NAME", name, 1 },
+    { NULL, NULL, 0 }
+  };
+  return ddsrt_expand_vars (topic_xml, &expand_lookup_vars, vars);
+}
+
+static char * get_xml_datetime(dds_time_t t, char * buf, size_t len)
+{
+  struct tm tm;
+  time_t sec = (time_t)(t / DDS_NSECS_IN_SEC);
+#if _WIN32
+  (void)gmtime_s(&tm, &sec);
+#else
+  (void)gmtime_r(&sec, &tm);
+#endif /* _WIN32 */
+
+  strftime(buf, len, "%FT%TZ", &tm);
+  return buf;
+}
+
+char * get_permissions_grant(const char * name, const char * subject,
+    dds_time_t not_before, dds_time_t not_after, const char * pub_topics, const char * sub_topics, const char * default_policy)
+{
+  char not_before_str[] = "0000-00-00T00:00:00Z";
+  char not_after_str[] = "0000-00-00T00:00:00Z";
+  get_xml_datetime(not_before, not_before_str, sizeof(not_before_str));
+  get_xml_datetime(not_after, not_after_str, sizeof(not_after_str));
+
   struct kvp vars[] = {
     { "GRANT_NAME", name, 1 },
     { "SUBJECT_NAME", subject, 1 },
+    { "NOT_BEFORE", not_before_str, 1 },
+    { "NOT_AFTER", not_after_str, 1 },
+    { "PUB_TOPICS", pub_topics, 1 },
+    { "SUB_TOPICS", sub_topics, 1 },
+    { "DEFAULT_POLICY", default_policy, 1 },
     { NULL, NULL, 0 }
   };
   return ddsrt_expand_vars (permissions_xml_grant, &expand_lookup_vars, vars);

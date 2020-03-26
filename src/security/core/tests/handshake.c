@@ -30,7 +30,7 @@
 #include "common/config_env.h"
 #include "common/authentication_wrapper.h"
 #include "common/plugin_wrapper_msg_q.h"
-#include "common/handshake_test_utils.h"
+#include "common/test_utils.h"
 #include "common/test_identity.h"
 
 static const char *config =
