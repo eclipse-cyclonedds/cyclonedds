@@ -1120,21 +1120,6 @@ static void release_handshake(void *arg)
   ddsi_handshake_release((struct ddsi_handshake *)arg);
 }
 
-static void ddsi_handshake_admin_delete(struct ddsi_hsadmin *hsadmin)
-{
-  if (hsadmin)
-  {
-    ddsrt_mutex_destroy(&hsadmin->lock);
-    ddsrt_avl_free(&handshake_treedef, &hsadmin->handshakes, release_handshake);
-    if (hsadmin->fsm_control)
-    {
-      dds_security_fsm_control_stop(hsadmin->fsm_control);
-      dds_security_fsm_control_free(hsadmin->fsm_control);
-    }
-    ddsrt_free(hsadmin);
-  }
-}
-
 static struct ddsi_handshake * ddsi_handshake_find_locked(
     struct ddsi_hsadmin *hsadmin,
     struct participant *pp,
@@ -1213,10 +1198,23 @@ void ddsi_handshake_admin_init(struct ddsi_domaingv *gv)
 
 void ddsi_handshake_admin_deinit(struct ddsi_domaingv *gv)
 {
-  assert(gv);
-  ddsi_handshake_admin_delete(gv->hsadmin);
+  struct ddsi_hsadmin *hsadmin = gv->hsadmin;
+  if (hsadmin)
+  {
+    ddsrt_mutex_destroy(&hsadmin->lock);
+    ddsrt_avl_free(&handshake_treedef, &hsadmin->handshakes, release_handshake);
+    if (hsadmin->fsm_control)
+      dds_security_fsm_control_free(hsadmin->fsm_control);
+    ddsrt_free(hsadmin);
+  }
 }
 
+void ddsi_handshake_admin_stop(struct ddsi_domaingv *gv)
+{
+  struct ddsi_hsadmin *hsadmin = gv->hsadmin;
+  if (hsadmin && hsadmin->fsm_control)
+    dds_security_fsm_control_stop(hsadmin->fsm_control);
+}
 
 #else
 

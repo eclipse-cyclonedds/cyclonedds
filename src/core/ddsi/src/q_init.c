@@ -1518,12 +1518,12 @@ err_unicast_sockets:
   ddsrt_hh_free (gv->sertopics);
   ddsrt_mutex_destroy (&gv->sertopics_lock);
 #ifdef DDSI_INCLUDE_SECURITY
+  q_omg_security_stop (gv); // should be a no-op as it starts lazily
+  q_omg_security_deinit (gv);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_rd);
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_rd);
-
-  q_omg_security_deinit (gv);
 #endif
   ddsi_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_endpoint_xqos_rd);
@@ -1749,6 +1749,12 @@ void rtps_stop (struct ddsi_domaingv *gv)
     thread_state_asleep (ts1);
   }
 
+  /* Stop background (handshake) processing in security implementation,
+     do this only once we know no new events will be coming in. */
+#if DDSI_INCLUDE_SECURITY
+  q_omg_security_stop (gv);
+#endif
+
   /* Wait until all participants are really gone => by then we can be
      certain that no new GC requests will be added, short of what we
      do here */
@@ -1854,7 +1860,6 @@ void rtps_fini (struct ddsi_domaingv *gv)
   }
 
   ddsi_tkmap_free (gv->m_tkmap);
-
   entity_index_free (gv->entity_index);
   gv->entity_index = NULL;
   deleted_participants_admin_free (gv->deleted_participants);
@@ -1873,12 +1878,11 @@ void rtps_fini (struct ddsi_domaingv *gv)
   ddsrt_mutex_destroy (&gv->sertopics_lock);
 
 #ifdef DDSI_INCLUDE_SECURITY
+  q_omg_security_deinit (gv);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_rd);
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_rd);
-
-  q_omg_security_deinit (gv);
 #endif
   ddsi_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_endpoint_xqos_rd);
