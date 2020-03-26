@@ -17,6 +17,7 @@ target_include_directories(
   security_api INTERFACE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/include>"
 )
 
 install(

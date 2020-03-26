@@ -12,10 +12,11 @@
 #ifndef ACCESS_CONTROL_H
 #define ACCESS_CONTROL_H
 
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/export.h"
 
-SECURITY_EXPORT int init_access_control(const char *argument, void **context);
+SECURITY_EXPORT int init_access_control(const char *argument, void **context, struct ddsi_domaingv *gv);
 SECURITY_EXPORT int finalize_access_control(void *context);
 
 #endif /* ACCESS_CONTROL_H */

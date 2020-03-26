@@ -858,7 +858,7 @@ static dds_return_t check_and_load_security_config (struct ddsi_domaingv * const
     GVLOGDISC ("new_participant("PGUIDFMT"): security is already loaded for this domain\n", PGUID (*ppguid));
     return DDS_RETCODE_OK;
   }
-  else if (q_omg_security_load (gv->security_context, qos) < 0)
+  else if (q_omg_security_load (gv->security_context, qos, gv) < 0)
   {
     GVERROR ("Could not load security\n");
     return DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;

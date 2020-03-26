@@ -14,10 +14,11 @@
 #ifndef SECURITY_CORE_PLUGINS_H_
 #define SECURITY_CORE_PLUGINS_H_
 
+#include <stdint.h>
 #include "dds/export.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/dynlib.h"
-#include <stdint.h>
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/security/dds_security_api.h"
 
 struct ddsrt_log_cfg;
@@ -47,24 +48,14 @@ typedef struct dds_security_plugin_suite_config{
   dds_security_plugin_config access_control;
 } dds_security_plugin_suite_config;
 
-DDS_EXPORT dds_return_t dds_security_plugin_release(
-        const dds_security_plugin *security_plugin,
-        void *context );
-
-DDS_EXPORT dds_return_t dds_security_check_plugin_configuration(
-        const dds_security_plugin_suite_config *security_suite_config,
-        const struct ddsrt_log_cfg *logcfg);
-
-DDS_EXPORT dds_return_t dds_security_load_security_library(
-        const dds_security_plugin_config *plugin_config,
-        dds_security_plugin *security_plugin, void **security_plugin_context,
-        const struct ddsrt_log_cfg *logcfg);
-
+DDS_EXPORT dds_return_t dds_security_plugin_release(const dds_security_plugin *security_plugin, void *context);
+DDS_EXPORT dds_return_t dds_security_check_plugin_configuration(const dds_security_plugin_suite_config *security_suite_config, struct ddsi_domaingv *gv);
+DDS_EXPORT dds_return_t dds_security_load_security_library(const dds_security_plugin_config *plugin_config, dds_security_plugin *security_plugin,
+    void **security_plugin_context, struct ddsi_domaingv *gv);
 DDS_EXPORT dds_return_t dds_security_verify_plugin_functions(
-        dds_security_authentication *authentication_context, dds_security_plugin *auth_plugin,
-        dds_security_cryptography *crypto_context, dds_security_plugin *crypto_plugin,
-        dds_security_access_control *access_control_context, dds_security_plugin *ac_plugin,
-        const struct ddsrt_log_cfg *logcfg);
+    dds_security_authentication *authentication_context, dds_security_plugin *auth_plugin,
+    dds_security_cryptography *crypto_context, dds_security_plugin *crypto_plugin,
+    dds_security_access_control *access_control_context, dds_security_plugin *ac_plugin,
+    struct ddsi_domaingv *gv);
 
 #endif /* SECURITY_CORE_PLUGINS_H_ */
-

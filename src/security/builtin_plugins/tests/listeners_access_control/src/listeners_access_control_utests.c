@@ -568,9 +568,8 @@ CU_Clean(ddssec_builtin_listeners_access_control)
   return 0;
 }
 
-static DDS_Security_boolean on_revoke_permissions_cb(dds_security_access_control_listener *instance, const dds_security_access_control *plugin, const DDS_Security_PermissionsHandle handle)
+static DDS_Security_boolean on_revoke_permissions_cb(const dds_security_access_control *plugin, const DDS_Security_PermissionsHandle handle)
 {
-  DDSRT_UNUSED_ARG(instance);
   DDSRT_UNUSED_ARG(plugin);
   if (permission_handle_for_callback1 == DDS_SECURITY_HANDLE_NIL)
     permission_handle_for_callback1 = handle;
