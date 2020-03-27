@@ -37,7 +37,7 @@
 #include "dds/ddsi/ddsi_sertopic.h"
 
 #include "dds/ddsi/sysdeps.h"
-#include "dds__whc.h"
+#include "dds/ddsc/dds_whc.h"
 
 static const struct wr_prd_match *root_rdmatch (const struct writer *wr)
 {
@@ -76,7 +76,7 @@ static void writer_hbcontrol_note_hb (struct writer *wr, ddsrt_mtime_t tnow, int
   hbc->hbs_since_last_write++;
 }
 
-int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *whcst, UNUSED_ARG (ddsrt_mtime_t tnow))
+int64_t writer_hbcontrol_intv (const struct writer *wr, const struct dds_whc_state *whcst, UNUSED_ARG (ddsrt_mtime_t tnow))
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct hbcontrol const * const hbc = &wr->hbcontrol;
@@ -125,13 +125,13 @@ void writer_hbcontrol_note_asyncwrite (struct writer *wr, ddsrt_mtime_t tnow)
   }
 }
 
-int writer_hbcontrol_must_send (const struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow /* monotonic */)
+int writer_hbcontrol_must_send (const struct writer *wr, const struct dds_whc_state *whcst, ddsrt_mtime_t tnow /* monotonic */)
 {
   struct hbcontrol const * const hbc = &wr->hbcontrol;
   return (tnow.v >= hbc->t_of_last_hb.v + writer_hbcontrol_intv (wr, whcst, tnow));
 }
 
-struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, int hbansreq, int issync)
+struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const struct dds_whc_state *whcst, ddsrt_mtime_t tnow, int hbansreq, int issync)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg *msg;
@@ -223,7 +223,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   return msg;
 }
 
-static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tlast, ddsrt_mtime_t tnow, int piggyback)
+static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const struct dds_whc_state *whcst, ddsrt_mtime_t tlast, ddsrt_mtime_t tnow, int piggyback)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct hbcontrol const * const hbc = &wr->hbcontrol;
@@ -259,13 +259,13 @@ static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const
   return 0;
 }
 
-int writer_hbcontrol_ack_required (const struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow)
+int writer_hbcontrol_ack_required (const struct writer *wr, const struct dds_whc_state *whcst, ddsrt_mtime_t tnow)
 {
   struct hbcontrol const * const hbc = &wr->hbcontrol;
   return writer_hbcontrol_ack_required_generic (wr, whcst, hbc->t_of_last_write, tnow, 0);
 }
 
-struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, int *hbansreq)
+struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct dds_whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, int *hbansreq)
 {
   struct hbcontrol * const hbc = &wr->hbcontrol;
   uint32_t last_packetid;
@@ -314,7 +314,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
   return msg;
 }
 
-void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, int hbliveliness, ddsi_entityid_t dst, int issync)
+void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct dds_whc_state *whcst, int hbansreq, int hbliveliness, ddsi_entityid_t dst, int issync)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
@@ -344,7 +344,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
 
   hb->readerId = nn_hton_entityid (dst);
   hb->writerId = nn_hton_entityid (wr->e.guid.entityid);
-  if (WHCST_ISEMPTY(whcst))
+  if (WHC_STATE_IS_EMPTY(whcst))
   {
     /* Really don't have data.  Fake one at the current wr->seq.
        We're not really allowed to generate heartbeats when the WHC is
@@ -673,7 +673,7 @@ static void create_HeartbeatFrag (struct writer *wr, seqno_t seq, unsigned fragn
 dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_guid *wr_guid, struct nn_xpack *xp)
 {
   struct nn_xmsg *msg = NULL;
-  struct whc_state whcst;
+  struct dds_whc_state whcst;
   struct thread_state1 * const ts1 = lookup_thread_state ();
   struct lease *lease;
 
@@ -697,7 +697,7 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   nn_xmsg_setencoderid (msg, wr->partition_id);
 #endif
-  whc_get_state (wr->whc, &whcst);
+  dds_whc_get_state (wr->whc, &whcst);
   add_Heartbeat (msg, wr, &whcst, 0, 1, to_entityid (NN_ENTITYID_UNKNOWN), 1);
   ddsrt_mutex_unlock (&wr->e.lock);
   nn_xpack_addmsg (xp, msg, 0);
@@ -729,7 +729,7 @@ static int must_skip_frag (const char *frags_to_skip, unsigned frag)
 }
 #endif
 
-static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew, uint32_t nfrags)
+static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *wr, const struct dds_whc_state *whcst, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew, uint32_t nfrags)
 {
 #if 0
   const char *frags_to_skip = getenv ("SKIPFRAGS");
@@ -786,7 +786,7 @@ static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *
   }
 }
 
-static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew)
+static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, const struct dds_whc_state *whcst, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew)
 {
   /* on entry: &wr->e.lock held; on exit: lock no longer held */
   struct ddsi_domaingv const * const gv = wr->e.gv;
@@ -927,19 +927,19 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
     if (wr->xqos->lifespan.duration != DDS_INFINITY && (serdata->statusinfo & (NN_STATUSINFO_UNREGISTER | NN_STATUSINFO_DISPOSE)) == 0)
       exp = ddsrt_mtime_add_duration(serdata->twrite, wr->xqos->lifespan.duration);
 #endif
-    res = ((insres = whc_insert (wr->whc, writer_max_drop_seq (wr), seq, exp, plist, serdata, tk)) < 0) ? insres : 1;
+    res = ((insres = dds_whc_insert (wr->whc, writer_max_drop_seq (wr), seq, exp, plist, serdata, tk)) < 0) ? insres : 1;
 
 #ifdef DDSI_INCLUDE_DEADLINE_MISSED
     if (!(wr->reliable && have_reliable_subs (wr)) && !wr->handle_as_transient_local)
     {
       /* Sample was inserted only because writer has deadline, so we'll remove the sample from whc */
       struct whc_node *deferred_free_list = NULL;
-      struct whc_state whcst;
-      uint32_t n = whc_remove_acked_messages (wr->whc, seq, &whcst, &deferred_free_list);
+      struct dds_whc_state whcst;
+      uint32_t n = dds_whc_remove_acked_messages (wr->whc, seq, &whcst, &deferred_free_list);
       (void)n;
       assert (n <= 1);
       assert (whcst.min_seq == -1 && whcst.max_seq == -1);
-      whc_free_deferred_free_list (wr->whc, deferred_free_list);
+      dds_whc_free_deferred_free_list (wr->whc, deferred_free_list);
     }
 #endif
   }
@@ -947,16 +947,16 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
 #ifndef NDEBUG
   if (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER && !is_local_orphan_endpoint (&wr->e))
   {
-    struct whc_state whcst;
-    whc_get_state(wr->whc, &whcst);
-    if (WHCST_ISEMPTY(&whcst))
+    struct dds_whc_state whcst;
+    dds_whc_get_state(wr->whc, &whcst);
+    if (WHC_STATE_IS_EMPTY(&whcst))
       assert (wr->c.pp->builtins_deleted);
   }
 #endif
   return res;
 }
 
-static int writer_may_continue (const struct writer *wr, const struct whc_state *whcst)
+static int writer_may_continue (const struct writer *wr, const struct dds_whc_state *whcst)
 {
   return (whcst->unacked_bytes <= wr->whc_low && !wr->retransmitting) || (wr->state != WRST_OPERATIONAL);
 }
@@ -1000,8 +1000,7 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
   dds_return_t result = DDS_RETCODE_OK;
   ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
   const ddsrt_mtime_t abstimeout = ddsrt_mtime_add_duration (tnow, wr->xqos->reliability.max_blocking_time);
-  struct whc_state whcst;
-  whc_get_state (wr->whc, &whcst);
+  struct dds_whc_state whcst;
 
   {
     ASSERT_MUTEX_HELD (&wr->e.lock);
@@ -1029,7 +1028,7 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
     }
     nn_xpack_send (xp, true);
     ddsrt_mutex_lock (&wr->e.lock);
-    whc_get_state (wr->whc, &whcst);
+    dds_whc_get_state (wr->whc, &whcst);
   }
 
   while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing) && !writer_may_continue (wr, &whcst))
@@ -1044,7 +1043,7 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
       if (ddsrt_cond_waitfor (&wr->throttle_cond, &wr->e.lock, reltimeout))
         result = DDS_RETCODE_OK;
       thread_state_awake_domain_ok (ts1);
-      whc_get_state(wr->whc, &whcst);
+      dds_whc_get_state(wr->whc, &whcst);
     }
     if (result == DDS_RETCODE_TIMEOUT)
     {
@@ -1128,8 +1127,8 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
 
   /* If WHC overfull, block. */
   {
-    struct whc_state whcst;
-    whc_get_state(wr->whc, &whcst);
+    struct dds_whc_state whcst;
+    dds_whc_get_state(wr->whc, &whcst);
     if (whcst.unacked_bytes > wr->whc_high)
     {
       dds_return_t ores;
@@ -1215,7 +1214,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
        * plist's are only used for coherent sets, which is assumed to be rare,
        * which in turn means that an extra copy doesn't hurt too badly ... */
       ddsi_plist_t plist_stk, *plist_copy;
-      struct whc_state whcst, *whcstptr;
+      struct dds_whc_state whcst, *whcstptr;
       if (plist == NULL)
         plist_copy = NULL;
       else
@@ -1227,7 +1226,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
         whcstptr = NULL;
       else
       {
-        whc_get_state(wr->whc, &whcst);
+        dds_whc_get_state(wr->whc, &whcst);
         whcstptr = &whcst;
       }
       transmit_sample_unlocks_wr (xp, wr, whcstptr, seq, plist_copy, serdata, NULL, 1);

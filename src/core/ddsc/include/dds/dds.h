@@ -50,9 +50,11 @@ extern "C" {
 #endif
 
 struct dds_rhc;
+struct dds_whc;
 struct ddsi_plist;
 struct ddsi_sertopic;
 struct ddsi_serdata;
+struct dds_rhc_new_cb;
 
 #define DDS_MIN_PSEUDO_HANDLE ((dds_entity_t) 0x7fff0000)
 
@@ -1297,7 +1299,7 @@ dds_create_reader_rhc(
   dds_entity_t topic,
   const dds_qos_t *qos,
   const dds_listener_t *listener,
-  struct dds_rhc *rhc);
+  struct dds_rhc_new_cb * cb);
 
 /**
  * @brief Wait until reader receives all historic data
@@ -1344,6 +1346,34 @@ dds_create_writer(
   dds_entity_t topic,
   const dds_qos_t *qos,
   const dds_listener_t *listener);
+
+/**
+ * @brief Creates a new instance of a DDS writer with a custom history cache
+ *
+ * When a participant is used to create a writer, an implicit publisher is created.
+ * This implicit publisher will be deleted automatically when the created writer
+ * is deleted.
+ *
+ * @param[in]  participant_or_publisher The participant or publisher on which the writer is being created.
+ * @param[in]  topic The topic to write.
+ * @param[in]  qos The QoS to set on the new writer (can be NULL).
+ * @param[in]  listener Any listener functions associated with the new writer (can be NULL).
+ * @param[in]  whc Writer history cache
+ *
+ * @returns A valid writer handle or an error code.
+ *
+ * @returns >0
+ *              A valid writer handle.
+ * @returns DDS_RETCODE_ERROR
+ *              An internal error occurred.
+ */
+DDS_EXPORT dds_entity_t
+dds_create_writer_whc(
+  dds_entity_t participant_or_publisher,
+  dds_entity_t topic,
+  const dds_qos_t *qos,
+  const dds_listener_t *listener,
+  struct dds_whc *whc);
 
 /*
   Writing data (and variants of it) is straightforward. The first set

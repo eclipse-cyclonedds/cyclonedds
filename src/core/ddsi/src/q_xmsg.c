@@ -136,7 +136,7 @@ struct nn_xmsg_chain {
 struct nn_bw_limiter {
     uint32_t       bandwidth;   /*gv.config in bytes/s   (0 = UNLIMITED)*/
     int64_t        balance;
-    nn_mtime_t      last_update;
+    ddsrt_mtime_t      last_update;
 };
 #endif
 
@@ -888,7 +888,7 @@ static void nn_xmsg_chain_add (struct nn_xmsg_chain *chain, struct nn_xmsg *m)
 static void nn_bw_limit_sleep_if_needed (struct ddsi_domaingv const * const gv, struct nn_bw_limiter *this, ssize_t size)
 {
   if ( this->bandwidth > 0 ) {
-    nn_mtime_t tnow = now_mt();
+    ddsrt_mtime_t tnow = ddsrt_time_monotonic();
     int64_t actual_interval;
     int64_t target_interval;
 
@@ -931,7 +931,7 @@ static void nn_bw_limit_init (struct nn_bw_limiter *limiter, uint32_t bandwidth_
   limiter->bandwidth = bandwidth_limit;
   limiter->balance = 0;
   if (bandwidth_limit)
-    limiter->last_update = now_mt ();
+    limiter->last_update = ddsrt_time_monotonic ();
   else
     limiter->last_update.v = 0;
 }

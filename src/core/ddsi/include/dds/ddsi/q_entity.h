@@ -38,7 +38,7 @@ struct nn_rsample_info;
 struct nn_rdata;
 struct addrset;
 struct ddsi_sertopic;
-struct whc;
+struct dds_whc;
 struct dds_qos;
 struct ddsi_plist;
 struct lease;
@@ -269,7 +269,7 @@ struct writer
   struct addrset *as_group; /* alternate case, used for SPDP, when using Cloud with multiple bootstrap locators */
   struct xevent *heartbeat_xevent; /* timed event for "periodically" publishing heartbeats when unack'd data present, NULL <=> unreliable */
   struct ldur_fhnode *lease_duration; /* fibheap node to keep lease duration for this writer, NULL in case of automatic liveliness with inifite duration  */
-  struct whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */
+  struct dds_whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
   ddsrt_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
   ddsrt_etime_t t_whc_high_upd; /* time "whc_high" was last updated for controlled ramp-up of throughput */
@@ -596,7 +596,7 @@ DDS_EXPORT struct writer *get_builtin_writer (const struct participant *pp, unsi
    GUID "ppguid". May return NULL if participant unknown or
    writer/reader already known. */
 
-dds_return_t new_writer (struct writer **wr_out, struct ddsi_domaingv *gv, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, const struct ddsi_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg);
+dds_return_t new_writer (struct writer **wr_out, struct ddsi_domaingv *gv, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, const struct ddsi_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct dds_whc * whc, status_cb_t status_cb, void *status_cb_arg);
 
 dds_return_t new_reader (struct reader **rd_out, struct ddsi_domaingv *gv, struct ddsi_guid *rdguid, const struct ddsi_guid *group_guid, const struct ddsi_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct ddsi_rhc * rhc, status_cb_t status_cb, void *status_cb_arg);
 
@@ -604,10 +604,10 @@ void update_reader_qos (struct reader *rd, const struct dds_qos *xqos);
 void update_writer_qos (struct writer *wr, const struct dds_qos *xqos);
 
 struct whc_node;
-struct whc_state;
-unsigned remove_acked_messages (struct writer *wr, struct whc_state *whcst, struct whc_node **deferred_free_list);
+struct dds_whc_state;
+unsigned remove_acked_messages (struct writer *wr, struct dds_whc_state *whcst, struct whc_node **deferred_free_list);
 seqno_t writer_max_drop_seq (const struct writer *wr);
-int writer_must_have_hb_scheduled (const struct writer *wr, const struct whc_state *whcst);
+int writer_must_have_hb_scheduled (const struct writer *wr, const struct dds_whc_state *whcst);
 void writer_set_retransmitting (struct writer *wr);
 void writer_clear_retransmitting (struct writer *wr);
 dds_return_t writer_wait_for_acks (struct writer *wr, dds_time_t abstimeout);
@@ -622,7 +622,7 @@ dds_return_t delete_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *gu
 struct local_orphan_writer {
   struct writer wr;
 };
-struct local_orphan_writer *new_local_orphan_writer (struct ddsi_domaingv *gv, ddsi_entityid_t entityid, struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc);
+struct local_orphan_writer *new_local_orphan_writer (struct ddsi_domaingv *gv, ddsi_entityid_t entityid, struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct dds_whc *whc);
 void delete_local_orphan_writer (struct local_orphan_writer *wr);
 
 void writer_set_alive_may_unlock (struct writer *wr, bool notify);

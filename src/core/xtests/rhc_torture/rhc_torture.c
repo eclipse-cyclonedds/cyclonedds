@@ -31,11 +31,12 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds__topic.h"
 #include "dds/ddsc/dds_rhc.h"
-#include "dds__rhc_default.h"
 #include "dds/ddsi/ddsi_iid.h"
 #ifdef DDSI_INCLUDE_LIFESPAN
 #include "dds/ddsi/ddsi_lifespan.h"
 #endif
+
+#include "dds__rhc_default.h"
 
 #include "RhcTypes.h"
 

@@ -25,7 +25,7 @@ static void instance_deadline_missed_cb (struct xevent *xev, void *varg, ddsrt_m
 
 /* Gets the instance from the list in deadline admin that has the earliest missed deadline and
  * removes the instance element from the list. If no more instances with missed deadline exist
- * in the list, the deadline (nn_mtime_t) for the first instance to 'expire' is returned. If the
+ * in the list, the deadline (ddsrt_mtime_t) for the first instance to 'expire' is returned. If the
  * list is empty, DDSRT_MTIME_NEVER is returned */
 ddsrt_mtime_t deadline_next_missed_locked (struct deadline_adm *deadline_adm, ddsrt_mtime_t tnow, void **instance)
 {

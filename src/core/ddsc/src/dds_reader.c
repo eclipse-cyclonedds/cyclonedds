@@ -19,8 +19,6 @@
 #include "dds__reader.h"
 #include "dds__listener.h"
 #include "dds__init.h"
-#include "dds/ddsc/dds_rhc.h"
-#include "dds__rhc_default.h"
 #include "dds__topic.h"
 #include "dds__get_status.h"
 #include "dds__qos.h"
@@ -30,6 +28,9 @@
 #include "dds__builtin.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsc/dds_rhc.h"
+
+#include "dds__rhc_default.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
 
@@ -356,7 +357,7 @@ const struct dds_entity_deriver dds_entity_deriver_reader = {
   .validate_status = dds_reader_status_validate
 };
 
-static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
+static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc_new_cb * rhc_cb)
 {
   dds_qos_t *rqos;
   dds_subscriber *sub = NULL;
@@ -461,7 +462,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   const dds_entity_t reader = dds_entity_init (&rd->m_entity, &sub->m_entity, DDS_KIND_READER, false, rqos, listener, DDS_READER_STATUS_MASK);
   rd->m_sample_rejected_status.last_reason = DDS_NOT_REJECTED;
   rd->m_topic = tp;
-  rd->m_rhc = rhc ? rhc : dds_rhc_default_new (rd, tp->m_stopic);
+  rd->m_rhc = rhc_cb ? rhc_cb->cb(rd, tp->m_stopic) : dds_rhc_default_new (rd, tp->m_stopic);
   if (dds_rhc_associate (rd->m_rhc, rd, tp->m_stopic, rd->m_entity.m_domain->gv.m_tkmap) < 0)
   {
     /* FIXME: see also create_querycond, need to be able to undo entity_init */
@@ -553,11 +554,11 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   return dds_create_reader_int (participant_or_subscriber, topic, qos, listener, NULL);
 }
 
-dds_entity_t dds_create_reader_rhc (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
+dds_entity_t dds_create_reader_rhc (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc_new_cb *cb)
 {
-  if (rhc == NULL)
+  if (cb == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
-  return dds_create_reader_int (participant_or_subscriber, topic, qos, listener, rhc);
+  return dds_create_reader_int (participant_or_subscriber, topic, qos, listener, cb);
 }
 
 uint32_t dds_reader_lock_samples (dds_entity_t reader)

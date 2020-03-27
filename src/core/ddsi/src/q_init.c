@@ -59,7 +59,7 @@
 #include "dds/ddsi/ddsi_serdata_default.h"
 
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds__whc.h"
+#include "dds/ddsc/dds_whc.h"
 #include "dds/ddsi/ddsi_iid.h"
 
 static void add_peer_addresses (const struct ddsi_domaingv *gv, struct addrset *as, const struct config_peer_listelem *list)

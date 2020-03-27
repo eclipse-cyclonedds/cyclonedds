@@ -37,7 +37,7 @@
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_tcp.h"
 
-#include "dds__whc.h"
+#include "dds/ddsc/dds_whc.h"
 
 struct plugin {
   debug_monitor_plugin_t fn;
@@ -184,12 +184,12 @@ static int print_participants (struct thread_state1 * const ts1, struct ddsi_dom
       {
         ddsrt_avl_iter_t rdit;
         struct wr_prd_match *m;
-        struct whc_state whcst;
+        struct dds_whc_state whcst;
         if (w->c.pp != p)
           continue;
         ddsrt_mutex_lock (&w->e.lock);
         print_endpoint_common (conn, "wr", &w->e, &w->c, w->xqos);
-        whc_get_state(w->whc, &whcst);
+        dds_whc_get_state(w->whc, &whcst);
         x += cpf (conn, "    whc [%"PRId64",%"PRId64"] unacked %"PRIuSIZE"%s [%"PRIu32",%"PRIu32"] seq %"PRId64" seq_xmit %"PRId64" cs_seq %"PRId64"\n",
                   whcst.min_seq, whcst.max_seq, whcst.unacked_bytes,
                   w->throttling ? " THROTTLING" : "",

@@ -12,8 +12,8 @@
 #include <assert.h>
 #include "dds__reader.h"
 #include "dds__readcond.h"
-#include "dds/ddsc/dds_rhc.h"
 #include "dds__entity.h"
+#include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_entity.h"

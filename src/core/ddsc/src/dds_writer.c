@@ -28,7 +28,8 @@
 #include "dds__get_status.h"
 #include "dds__qos.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds__whc.h"
+#include "dds/ddsc/dds_whc.h"
+#include "dds__whc_default.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_writer)
 
@@ -259,14 +260,13 @@ const struct dds_entity_deriver dds_entity_deriver_writer = {
   .validate_status = dds_writer_status_validate
 };
 
-dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
+dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_whc *whc)
 {
   dds_return_t rc;
   dds_qos_t *wqos;
   dds_publisher *pub = NULL;
   dds_topic *tp;
   dds_entity_t publisher;
-  struct whc_writer_info *wrinfo;
   bool created_implicit_pub = false;
 
   {
@@ -335,9 +335,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wr->m_topic = tp;
   dds_entity_add_ref_locked (&tp->m_entity);
   wr->m_xp = nn_xpack_new (conn, get_bandwidth_limit (wqos->transport_priority), pub->m_entity.m_domain->gv.config.xpack_send_async);
-  wrinfo = whc_make_wrinfo (wr, wqos);
-  wr->m_whc = whc_new (&pub->m_entity.m_domain->gv, wrinfo);
-  whc_free_wrinfo (wrinfo);
+  wr->m_whc = whc ? whc : dds_whc_default_new (&pub->m_entity.m_domain->gv, wr, wqos);
   wr->whc_batch = pub->m_entity.m_domain->gv.config.whc_batch;
 
   thread_state_awake (lookup_thread_state (), &pub->m_entity.m_domain->gv);
@@ -364,6 +362,18 @@ err_pin_topic:
   if (created_implicit_pub)
     (void) dds_delete (publisher);
   return rc;
+}
+
+dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener) {
+  return dds_create_writer_int(participant_or_publisher, topic, qos, listener, NULL);
+}
+
+
+dds_entity_t dds_create_writer_whc (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_whc *whc) {
+  if (whc == NULL) {
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+  return dds_create_writer_int(participant_or_publisher, topic, qos, listener, whc);
 }
 
 dds_entity_t dds_get_publisher (dds_entity_t writer)

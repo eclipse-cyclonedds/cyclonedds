@@ -17,7 +17,7 @@
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_whc.h"
+#include "dds__whc.h"
 #include "dds__entity.h"
 
 #include "test_common.h"
@@ -113,7 +113,7 @@ static void check_whc_state(dds_entity_t writer, seqno_t exp_min, seqno_t exp_ma
   wr = entidx_lookup_writer_guid(wr_entity->m_domain->gv.entity_index, &wr_entity->m_guid);
   CU_ASSERT_FATAL(wr != NULL);
   assert(wr != NULL); /* for Clang's static analyzer */
-  whc_get_state(wr->whc, &whcst);
+  dds_whc_get_state(wr->whc, &whcst);
   thread_state_asleep(lookup_thread_state());
   dds_entity_unpin(wr_entity);
 

@@ -26,7 +26,7 @@
 #include "dds__builtin.h"
 
 struct bwhc {
-  struct whc common;
+  struct dds_whc common;
   enum ddsi_sertopic_builtintopic_type type;
   const struct entity_index *entidx;
 };
@@ -39,24 +39,24 @@ enum bwhc_iter_state {
 };
 
 struct bwhc_iter {
-  struct whc_sample_iter_base c;
+  struct dds_whc_sample_iter_base c;
   enum bwhc_iter_state st;
   bool have_sample;
   struct entidx_enum it;
 };
 
 /* check that our definition of whc_sample_iter fits in the type that callers allocate */
-DDSRT_STATIC_ASSERT (sizeof (struct bwhc_iter) <= sizeof (struct whc_sample_iter));
+DDSRT_STATIC_ASSERT (sizeof (struct bwhc_iter) <= sizeof (struct dds_whc_sample_iter));
 
-static void bwhc_free (struct whc *whc_generic)
+static void bwhc_free (struct dds_whc *whc_generic)
 {
   ddsrt_free (whc_generic);
 }
 
-static void bwhc_sample_iter_init (const struct whc *whc_generic, struct whc_sample_iter *opaque_it)
+static void bwhc_sample_iter_init (const struct dds_whc *whc_generic, struct dds_whc_sample_iter *opaque_it)
 {
   struct bwhc_iter *it = (struct bwhc_iter *) opaque_it;
-  it->c.whc = (struct whc *) whc_generic;
+  it->c.whc = (struct dds_whc *) whc_generic;
   it->st = BIS_INIT_LOCAL;
   it->have_sample = false;
 }
@@ -67,7 +67,7 @@ static bool is_visible (const struct entity_common *e)
   return builtintopic_is_visible (e->gv->builtin_topic_interface, &e->guid, vendorid);
 }
 
-static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, struct whc_borrowed_sample *sample)
+static bool bwhc_sample_iter_borrow_next (struct dds_whc_sample_iter *opaque_it, struct dds_whc_borrowed_sample *sample)
 {
   struct bwhc_iter * const it = (struct bwhc_iter *) opaque_it;
   struct bwhc * const whc = (struct bwhc *) it->c.whc;
@@ -135,7 +135,7 @@ static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, str
   return false;
 }
 
-static void bwhc_get_state (const struct whc *whc, struct whc_state *st)
+static void bwhc_get_state (const struct dds_whc *whc, struct dds_whc_state *st)
 {
   (void)whc;
   st->max_seq = -1;
@@ -143,7 +143,7 @@ static void bwhc_get_state (const struct whc *whc, struct whc_state *st)
   st->unacked_bytes = 0;
 }
 
-static int bwhc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, ddsrt_mtime_t exp, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+static int bwhc_insert (struct dds_whc *whc, seqno_t max_drop_seq, seqno_t seq, ddsrt_mtime_t exp, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   (void)whc;
   (void)max_drop_seq;
@@ -156,14 +156,14 @@ static int bwhc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, ddsr
   return 0;
 }
 
-static unsigned bwhc_downgrade_to_volatile (struct whc *whc, struct whc_state *st)
+static unsigned bwhc_downgrade_to_volatile (struct dds_whc *whc, struct dds_whc_state *st)
 {
   (void)whc;
   (void)st;
   return 0;
 }
 
-static unsigned bwhc_remove_acked_messages (struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list)
+static unsigned bwhc_remove_acked_messages (struct dds_whc *whc, seqno_t max_drop_seq, struct dds_whc_state *whcst, struct whc_node **deferred_free_list)
 {
   (void)whc;
   (void)max_drop_seq;
@@ -172,13 +172,13 @@ static unsigned bwhc_remove_acked_messages (struct whc *whc, seqno_t max_drop_se
   return 0;
 }
 
-static void bwhc_free_deferred_free_list (struct whc *whc, struct whc_node *deferred_free_list)
+static void bwhc_free_deferred_free_list (struct dds_whc *whc, struct whc_node *deferred_free_list)
 {
   (void)whc;
   (void)deferred_free_list;
 }
 
-static const struct whc_ops bwhc_ops = {
+static const struct dds_whc_ops bwhc_ops = {
   .insert = bwhc_insert,
   .remove_acked_messages = bwhc_remove_acked_messages,
   .free_deferred_free_list = bwhc_free_deferred_free_list,
@@ -193,11 +193,11 @@ static const struct whc_ops bwhc_ops = {
   .free = bwhc_free
 };
 
-struct whc *builtintopic_whc_new (enum ddsi_sertopic_builtintopic_type type, const struct entity_index *entidx)
+struct dds_whc *builtintopic_whc_new (enum ddsi_sertopic_builtintopic_type type, const struct entity_index *entidx)
 {
   struct bwhc *whc = ddsrt_malloc (sizeof (*whc));
   whc->common.ops = &bwhc_ops;
   whc->type = type;
   whc->entidx = entidx;
-  return (struct whc *) whc;
+  return (struct dds_whc *) whc;
 }

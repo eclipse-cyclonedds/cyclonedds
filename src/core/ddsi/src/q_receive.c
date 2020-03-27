@@ -56,7 +56,7 @@
 #include "dds/ddsi/ddsi_serdata_default.h" /* FIXME: get rid of this */
 
 #include "dds/ddsi/sysdeps.h"
-#include "dds__whc.h"
+#include "dds/ddsc/dds_whc.h"
 
 /*
 Notes:
@@ -530,7 +530,7 @@ static int add_Gap (struct nn_xmsg *msg, struct writer *wr, struct proxy_reader 
   return 0;
 }
 
-static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *whcst, struct proxy_reader *prd, int hbansreq)
+static void force_heartbeat_to_peer (struct writer *wr, const struct dds_whc_state *whcst, struct proxy_reader *prd, int hbansreq)
 {
   struct nn_xmsg *m;
 
@@ -554,7 +554,7 @@ static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *
 
 static seqno_t grow_gap_to_next_seq (const struct writer *wr, seqno_t seq)
 {
-  seqno_t next_seq = whc_next_seq (wr->whc, seq - 1);
+  seqno_t next_seq = dds_whc_next_seq (wr->whc, seq - 1);
   seqno_t seq_xmit = writer_read_seq_xmit (wr);
   if (next_seq == MAX_SEQ_NUMBER) /* no next sample */
     return seq_xmit + 1;
@@ -632,7 +632,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   uint32_t msgs_sent, msgs_lost;
   seqno_t max_seq_in_reply;
   struct whc_node *deferred_free_list = NULL;
-  struct whc_state whcst;
+  struct dds_whc_state whcst;
   int hb_sent_in_response = 0;
   memset (gapbits, 0, sizeof (gapbits));
   countp = (nn_count_t *) ((char *) msg + offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (msg->readerSNState.numbits));
@@ -738,7 +738,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   else
   {
     /* There's actually no guarantee that we need this information */
-    whc_get_state(wr->whc, &whcst);
+    dds_whc_get_state(wr->whc, &whcst);
   }
 
   /* If this reader was marked as "non-responsive" in the past, it's now responding again,
@@ -746,7 +746,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   if (rn->seq == MAX_SEQ_NUMBER && prd->c.xqos->reliability.kind == DDS_RELIABILITY_RELIABLE)
   {
     seqno_t oldest_seq;
-    oldest_seq = WHCST_ISEMPTY(&whcst) ? wr->seq : whcst.max_seq;
+    oldest_seq = WHC_STATE_IS_EMPTY(&whcst) ? wr->seq : whcst.max_seq;
     rn->has_replied_to_hb = 1; /* was temporarily cleared to ensure heartbeats went out */
     rn->seq = seqbase - 1;
     if (oldest_seq > rn->seq) {
@@ -786,7 +786,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
        data in our WHC, we start sending it regardless of whether the
        remote reader asked for it */
     RSTTRACE (" preemptive-nack");
-    if (WHCST_ISEMPTY(&whcst))
+    if (WHC_STATE_IS_EMPTY(&whcst))
     {
       RSTTRACE (" whc-empty ");
       force_heartbeat_to_peer (wr, &whcst, prd, 0);
@@ -848,8 +848,8 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
     if (i >= msg->readerSNState.numbits || nn_bitset_isset (numbits, msg->bits, i))
     {
       seqno_t seq = seqbase + i;
-      struct whc_borrowed_sample sample;
-      if (seqbase + i >= min_seq_to_rexmit && whc_borrow_sample (wr->whc, seq, &sample))
+      struct dds_whc_borrowed_sample sample;
+      if (seqbase + i >= min_seq_to_rexmit && dds_whc_borrow_sample (wr->whc, seq, &sample))
       {
         if (!wr->retransmitting && sample.unacked)
           writer_set_retransmitting (wr);
@@ -887,7 +887,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
           }
         }
 
-        whc_return_sample(wr->whc, &sample, true);
+        dds_whc_return_sample(wr->whc, &sample, true);
       }
       else if (gapstart == -1)
       {
@@ -974,7 +974,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   RSTTRACE (")");
  out:
   ddsrt_mutex_unlock (&wr->e.lock);
-  whc_free_deferred_free_list (wr->whc, deferred_free_list);
+  dds_whc_free_deferred_free_list (wr->whc, deferred_free_list);
   return 1;
 }
 
@@ -1365,7 +1365,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
   struct wr_prd_match *rn;
   struct writer *wr;
   struct lease *lease;
-  struct whc_borrowed_sample sample;
+  struct dds_whc_borrowed_sample sample;
   ddsi_guid_t src, dst;
   nn_count_t *countp;
   seqno_t seq = fromSN (msg->writerSN);
@@ -1427,7 +1427,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
 
   /* Resend the requested fragments if we still have the sample, send
      a Gap if we don't have them anymore. */
-  if (whc_borrow_sample (wr->whc, seq, &sample))
+  if (dds_whc_borrow_sample (wr->whc, seq, &sample))
   {
     const unsigned base = msg->fragmentNumberState.bitmap_base - 1;
     int enqueued = 1;
@@ -1443,7 +1443,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
           enqueued = qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0);
       }
     }
-    whc_return_sample (wr->whc, &sample, false);
+    dds_whc_return_sample (wr->whc, &sample, false);
   }
   else
   {
@@ -1469,8 +1469,8 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
     /* Not everything was retransmitted yet, so force a heartbeat out
        to give the reader a chance to nack the rest and make sure
        hearbeats will go out at a reasonably high rate for a while */
-    struct whc_state whcst;
-    whc_get_state(wr->whc, &whcst);
+    struct dds_whc_state whcst;
+    dds_whc_get_state(wr->whc, &whcst);
     force_heartbeat_to_peer (wr, &whcst, prd, 1);
     writer_hbcontrol_note_asyncwrite (wr, ddsrt_time_monotonic ());
   }

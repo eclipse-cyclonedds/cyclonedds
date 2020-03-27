@@ -5,3 +5,4 @@ gen.*
 .settings/
 .vs/
 build/
+.vscode/

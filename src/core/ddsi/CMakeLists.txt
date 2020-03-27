@@ -56,7 +56,6 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     q_thread.c
     q_transmit.c
     q_inverse_uint32_set.c
-    q_whc.c
     q_xevent.c
     q_xmsg.c
     q_freelist.c
@@ -127,7 +126,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_transmit.h
     q_inverse_uint32_set.h
     q_unused.h
-    q_whc.h
     q_xevent.h
     q_xmsg.h
     sysdeps.h

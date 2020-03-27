@@ -41,7 +41,7 @@
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_pmd.h"
-#include "dds__whc.h"
+#include "dds/ddsc/dds_whc.h"
 
 #include "dds/ddsi/sysdeps.h"
 
@@ -608,7 +608,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
   struct writer *wr;
   ddsrt_mtime_t t_next;
   int hbansreq = 0;
-  struct whc_state whcst;
+  struct dds_whc_state whcst;
 
   if ((wr = entidx_lookup_writer_guid (gv->entity_index, &ev->u.heartbeat.wr_guid)) == NULL)
   {
@@ -618,7 +618,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
 
   ddsrt_mutex_lock (&wr->e.lock);
   assert (wr->reliable);
-  whc_get_state(wr->whc, &whcst);
+  dds_whc_get_state(wr->whc, &whcst);
   if (!writer_must_have_hb_scheduled (wr, &whcst))
   {
     hbansreq = 1; /* just for trace */
@@ -978,11 +978,11 @@ static bool resend_spdp_sample_by_guid_key (struct writer *wr, const ddsi_guid_t
   struct ddsi_plist_sample plist_sample;
   nn_xmsg_payload_to_plistsample (&plist_sample, PID_PARTICIPANT_GUID, mpayload);
   struct ddsi_serdata *sd = ddsi_serdata_from_sample (gv->plist_topic, SDK_KEY, &plist_sample);
-  struct whc_borrowed_sample sample;
+  struct dds_whc_borrowed_sample sample;
   nn_xmsg_free (mpayload);
 
   ddsrt_mutex_lock (&wr->e.lock);
-  sample_found = whc_borrow_sample_key (wr->whc, sd, &sample);
+  sample_found = dds_whc_borrow_sample_key (wr->whc, sd, &sample);
   if (sample_found)
   {
     /* Claiming it is new rather than a retransmit so that the rexmit
@@ -991,7 +991,7 @@ static bool resend_spdp_sample_by_guid_key (struct writer *wr, const ddsi_guid_t
      place anyway.  Nor is it necessary to fiddle with heartbeat
      control stuff. */
     enqueue_sample_wrlock_held (wr, sample.seq, sample.plist, sample.serdata, prd, 1);
-    whc_return_sample(wr->whc, &sample, false);
+    dds_whc_return_sample(wr->whc, &sample, false);
   }
   ddsrt_mutex_unlock (&wr->e.lock);
   ddsi_serdata_unref (sd);

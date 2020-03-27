@@ -25,8 +25,8 @@
 
 #include "dds__entity.h"
 #include "dds__reader.h"
-#include "dds/ddsc/dds_rhc.h"
 #include "dds__rhc_default.h"
+#include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/avl.h"

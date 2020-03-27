@@ -25,6 +25,7 @@ struct dds_rhc;
 struct dds_readcond;
 struct dds_reader;
 struct ddsi_tkmap;
+struct status_cb_data;
 
 typedef dds_return_t (*dds_rhc_associate_t) (struct dds_rhc *rhc, struct dds_reader *reader, const struct ddsi_sertopic *topic, struct ddsi_tkmap *tkmap);
 typedef int (*dds_rhc_read_t) (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond);
@@ -35,6 +36,12 @@ typedef bool (*dds_rhc_add_readcondition_t) (struct dds_rhc *rhc, struct dds_rea
 typedef void (*dds_rhc_remove_readcondition_t) (struct dds_rhc *rhc, struct dds_readcond *cond);
 
 typedef uint32_t (*dds_rhc_lock_samples_t) (struct dds_rhc *rhc);
+
+typedef struct dds_rhc * (*rhc_new_cb_t) (struct dds_reader * reader, const struct ddsi_sertopic * topic);
+
+struct dds_rhc_new_cb {
+  rhc_new_cb_t cb;
+};
 
 struct dds_rhc_ops {
   /* A copy of DDSI rhc ops comes first so we can use either interface without
@@ -96,6 +103,8 @@ DDS_EXPORT inline uint32_t dds_rhc_lock_samples (struct dds_rhc *rhc) {
 }
 
 DDS_EXPORT void dds_reader_data_available_cb (struct dds_reader *rd);
+
+DDS_EXPORT void dds_reader_status_cb (void *entity, const struct status_cb_data * data);
 
 #if defined (__cplusplus)
 }
