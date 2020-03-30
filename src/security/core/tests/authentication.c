@@ -228,7 +228,7 @@ CU_Theory((const char * test_descr, const char * id2, const char *key2, const ch
 {
   struct Handshake *hs_list;
   int nhs;
-  printf("running test id_ca_certs: %s\n", test_descr);
+  print_test_msg ("running test id_ca_certs: %s\n", test_descr);
   authentication_init (ID1, ID1K, CA1, id2, key2, ca2, NULL, NULL, exp_fail_pp1, exp_fail_pp2);
 
   // Domain 1
@@ -252,7 +252,7 @@ CU_TheoryDataPoints(ddssec_authentication, trusted_ca_dir) = {
 };
 CU_Theory((const char * ca_dir, bool exp_fail), ddssec_authentication, trusted_ca_dir)
 {
-  printf("Testing custom CA dir: %s\n", ca_dir);
+  print_test_msg ("Testing custom CA dir: %s\n", ca_dir);
   authentication_init (ID1, ID1K, CA1, ID1, ID1K, CA1, ca_dir, NULL, exp_fail, exp_fail);
   if (!exp_fail)
   {
@@ -275,17 +275,17 @@ CU_TheoryDataPoints(ddssec_authentication, expired_cert) = {
     /*                       |      |      |      |     */"ca and id1 1min valid",
     /*                       |      |      |      |      |     */"id1 and id2 1s valid, delay 1100ms",
     /*                       |      |      |      |      |      |     */"id1 valid after 1s, delay 1100ms",
-    /*                       |      |      |      |      |      |      |     */"id1 expire during session"),
+    /*                       |      |      |      |      |      |      |     */"id1 expires during session"),
     CU_DataPoints(int32_t,   0,     -M(1), 0,     0,     0,     0,     0,     0     ),  /* CA1 not before */
     CU_DataPoints(int32_t,   D(1),  0,     D(1),  D(1),  M(1),  D(1),  D(1),  D(1)  ),  /* CA1 not after (offset from local time) */
     CU_DataPoints(int32_t,   0,     0,     -D(1), 0,     0,     0,     S(1),  0     ),  /* ID1 not before (offset from local time) */
-    CU_DataPoints(int32_t,   D(1),  D(1),  0,     D(1),  M(1),  S(1),  D(1),  S(2)  ),  /* ID1 not after (offset from local time) */
+    CU_DataPoints(int32_t,   D(1),  D(1),  0,     D(1),  M(1),  S(1),  D(1),  S(4)  ),  /* ID1 not after (offset from local time) */
     CU_DataPoints(bool,      false, true,  true,  false, false, true,  false, false ),  /* expect validate local ID1 fail */
     CU_DataPoints(int32_t,   0,     0,     0,     -D(1), 0,     0,     0,     0     ),  /* ID2 not before (offset from local time) */
     CU_DataPoints(int32_t,   D(1),  D(1),  D(1),  0,     D(1),  S(1),  D(1),  D(1)  ),  /* ID2 not after (offset from local time) */
     CU_DataPoints(bool,      false, true,  false, true,  false, true,  false, false ),  /* expect validate local ID2 fail */
     CU_DataPoints(uint32_t,  0,     0,     0,     0,     0,     1100,  1100,  0     ),  /* delay (ms) after generating certificate */
-    CU_DataPoints(uint32_t,  1,     0,     0,     0,     1,     0,     1,     3500  ),  /* write/read data during x ms */
+    CU_DataPoints(uint32_t,  1,     0,     0,     0,     1,     0,     1,     10000 ),  /* write/read data during x ms */
     CU_DataPoints(bool,      false, false, false, false, false, false, false, true  ),  /* expect read data failure */
 };
 CU_Theory(
@@ -295,11 +295,12 @@ CU_Theory(
     uint32_t delay, uint32_t write_read_dur, bool exp_read_fail),
   ddssec_authentication, expired_cert, .timeout=30)
 {
-  printf("running test expired_cert: %s\n", test_descr);
+  print_test_msg ("running test expired_cert: %s\n", test_descr);
 
   char topic_name[100];
   create_topic_name("ddssec_authentication_", g_topic_nr++, topic_name, sizeof (topic_name));
 
+  print_test_msg ("generate ids (id1: %d-%d, id2: %d-%d):\n", id1_not_before, id1_not_after, id2_not_before, id2_not_after);
   char *ca, *id1, *id2, *id1_subj, *id2_subj;
   ca = generate_ca ("ca1", CA1K, ca_not_before, ca_not_after);
   id1 = generate_identity (ca, CA1K, "id1", ID1K, id1_not_before, id1_not_after, &id1_subj);

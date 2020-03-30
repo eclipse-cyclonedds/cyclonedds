@@ -50,6 +50,7 @@ struct Handshake
   char * err_msg;
 };
 
+void print_test_msg (const char *msg, ...);
 void validate_handshake(dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, struct Handshake *hs_list[], int *nhs);
 void validate_handshake_nofail (dds_domainid_t domain_id);
 void handshake_list_fini(struct Handshake *hs_list, int nhs);
