@@ -262,7 +262,8 @@ CU_Theory((const char * ca_dir, bool exp_fail), ddssec_authentication, trusted_c
   authentication_fini (!exp_fail, !exp_fail);
 }
 
-#define M(n) ((n)*60)
+#define S(n) (n)
+#define M(n) (S(n)*60)
 #define H(n) (M(n)*60)
 #define D(n) (H(n)*24)
 CU_TheoryDataPoints(ddssec_authentication, expired_cert) = {
@@ -274,18 +275,18 @@ CU_TheoryDataPoints(ddssec_authentication, expired_cert) = {
     /*                       |      |      |      |     */"ca and id1 1min valid",
     /*                       |      |      |      |      |     */"id1 and id2 1s valid, delay 1100ms",
     /*                       |      |      |      |      |      |     */"id1 valid after 1s, delay 1100ms",
-    /*                       |      |      |      |      |      |      |    *//*"ca and id1 expire during session"*/),
-    CU_DataPoints(int32_t,   0,     -M(1), 0,     0,     0,     0,     0,     /*0*/     ),   /* CA1 not before */
-    CU_DataPoints(int32_t,   D(1),  0,     D(1),  D(1),  M(1),  D(1),  D(1),  /*2*/     ),  /* CA1 not after (offset from local time) */
-    CU_DataPoints(int32_t,   0,     0,     -D(1), 0,     0,     0,     1,     /*0*/     ),  /* ID1 not before (offset from local time) */
-    CU_DataPoints(int32_t,   D(1),  D(1),  0,     D(1),  M(1),  1,     D(1),  /*2*/     ),  /* ID1 not after (offset from local time) */
-    CU_DataPoints(bool,      false, true,  true,  false, false, true,  false, /*false*/ ),  /* expect validate local ID1 fail */
-    CU_DataPoints(int32_t,   0,     0,     0,     -D(1), 0,     0,     0,     /*0*/     ),  /* ID2 not before (offset from local time) */
-    CU_DataPoints(int32_t,   D(1),  D(1),  D(1),  0,     D(1),  1,     D(1),  /*D(1)*/  ),  /* ID2 not after (offset from local time) */
-    CU_DataPoints(bool,      false, true,  false, true,  false, true,  false, /*false*/ ),  /* expect validate local ID2 fail */
-    CU_DataPoints(uint32_t,  0,     0,     0,     0,     0,     1100,  1100,  /*0*/     ),  /* delay (ms) after generating certificate */
-    CU_DataPoints(uint32_t,  1,     0,     0,     0,     1,     0,     1,     /*3500*/  ),  /* write/read data during x ms */
-    CU_DataPoints(bool,      false, false, false, false, false, false, false, /*true*/  ),  /* expect read data failure */
+    /*                       |      |      |      |      |      |      |     */"id1 expire during session"),
+    CU_DataPoints(int32_t,   0,     -M(1), 0,     0,     0,     0,     0,     0     ),  /* CA1 not before */
+    CU_DataPoints(int32_t,   D(1),  0,     D(1),  D(1),  M(1),  D(1),  D(1),  D(1)  ),  /* CA1 not after (offset from local time) */
+    CU_DataPoints(int32_t,   0,     0,     -D(1), 0,     0,     0,     S(1),  0     ),  /* ID1 not before (offset from local time) */
+    CU_DataPoints(int32_t,   D(1),  D(1),  0,     D(1),  M(1),  S(1),  D(1),  S(2)  ),  /* ID1 not after (offset from local time) */
+    CU_DataPoints(bool,      false, true,  true,  false, false, true,  false, false ),  /* expect validate local ID1 fail */
+    CU_DataPoints(int32_t,   0,     0,     0,     -D(1), 0,     0,     0,     0     ),  /* ID2 not before (offset from local time) */
+    CU_DataPoints(int32_t,   D(1),  D(1),  D(1),  0,     D(1),  S(1),  D(1),  D(1)  ),  /* ID2 not after (offset from local time) */
+    CU_DataPoints(bool,      false, true,  false, true,  false, true,  false, false ),  /* expect validate local ID2 fail */
+    CU_DataPoints(uint32_t,  0,     0,     0,     0,     0,     1100,  1100,  0     ),  /* delay (ms) after generating certificate */
+    CU_DataPoints(uint32_t,  1,     0,     0,     0,     1,     0,     1,     3500  ),  /* write/read data during x ms */
+    CU_DataPoints(bool,      false, false, false, false, false, false, false, true  ),  /* expect read data failure */
 };
 CU_Theory(
   (const char * test_descr, int32_t ca_not_before, int32_t ca_not_after,
