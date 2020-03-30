@@ -36,7 +36,7 @@ if(BUILD_SCHEMA OR BUILD_DOCS)
     OUTPUT "${config_xsd_PATH}"
     COMMAND ${Trang_TRANG_CMD} -I rnc -O xsd "${config_rnc_PATH}" "${config_xsd_PATH}"
     COMMENT "Translating schema into XSD"
-    DEPENDS ${Trang_TRANG_DEPENDS} "${config_rnc_PATH}")
+    DEPENDS "${config_rnc_PATH}")
   add_custom_target(options_xsd ALL DEPENDS "${config_xsd_PATH}")
 endif()
 
