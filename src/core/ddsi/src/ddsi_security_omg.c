@@ -702,7 +702,7 @@ static DDS_Security_boolean on_revoke_permissions_cb(const dds_security_access_c
   struct entidx_enum_proxy_participant eproxypp;
   struct participant *pp;
   struct proxy_participant *proxypp;
-  bool local_perm = false;
+  bool local = false;
   thread_state_awake (lookup_thread_state (), gv);
 
   /* Find participants using this permissions handle */
@@ -715,7 +715,7 @@ static DDS_Security_boolean on_revoke_permissions_cb(const dds_security_access_c
     {
       uint32_t i = 0;
       ddsrt_avl_citer_t it;
-      local_perm = true;
+      local = true;
       for (struct pp_proxypp_match *ppm = ddsrt_avl_citer_first (&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, &it); ppm; ppm = ddsrt_avl_citer_next (&it), i++)
         pp_proxypp_unrelate_locked (sc, pp, &ppm->proxypp_guid);
     }
@@ -724,7 +724,7 @@ static DDS_Security_boolean on_revoke_permissions_cb(const dds_security_access_c
   entidx_enum_participant_fini (&epp);
 
   /* Find proxy participants using this permissions handle */
-  if (!local_perm)
+  if (!local)
   {
     entidx_enum_proxy_participant_init (&eproxypp, gv->entity_index);
     while ((proxypp = entidx_enum_proxy_participant_next (&eproxypp)) != NULL)
@@ -753,8 +753,49 @@ static DDS_Security_boolean on_revoke_permissions_cb(const dds_security_access_c
 
 static DDS_Security_boolean on_revoke_identity_cb(const dds_security_authentication *plugin, const DDS_Security_IdentityHandle handle)
 {
-  (void)plugin;
-  (void)handle;
+  struct ddsi_domaingv *gv = plugin->gv;
+  struct entidx_enum_participant epp;
+  struct entidx_enum_proxy_participant eproxypp;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
+  bool local = false;
+  thread_state_awake (lookup_thread_state (), gv);
+
+  /* Find participants using this identity handle */
+  entidx_enum_participant_init (&epp, gv->entity_index);
+  while ((pp = entidx_enum_participant_next (&epp)) != NULL)
+  {
+    struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+    ddsrt_mutex_lock (&pp->sec_attr->lock);
+    if (pp->sec_attr->local_identity_handle == handle)
+    {
+      uint32_t i = 0;
+      ddsrt_avl_citer_t it;
+      local = true;
+      for (struct pp_proxypp_match *ppm = ddsrt_avl_citer_first (&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, &it); ppm; ppm = ddsrt_avl_citer_next (&it), i++)
+        pp_proxypp_unrelate_locked (sc, pp, &ppm->proxypp_guid);
+    }
+    ddsrt_mutex_unlock (&pp->sec_attr->lock);
+  }
+  entidx_enum_participant_fini (&epp);
+
+  /* Find proxy participants using this permissions handle */
+  if (!local)
+  {
+    entidx_enum_proxy_participant_init (&eproxypp, gv->entity_index);
+    while ((proxypp = entidx_enum_proxy_participant_next (&eproxypp)) != NULL)
+    {
+      bool del_pp;
+      ddsrt_mutex_lock (&proxypp->sec_attr->lock);
+      del_pp = proxypp->sec_attr->remote_identity_handle == handle;
+      ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
+      if (del_pp)
+        delete_proxy_participant_by_guid (gv, &proxypp->e.guid, ddsrt_time_wallclock (), false);
+    }
+    entidx_enum_proxy_participant_fini (&eproxypp);
+  }
+
+  thread_state_asleep (lookup_thread_state ());
   return true;
 }
 
