@@ -78,7 +78,7 @@ struct record_netload_state *record_netload_new (const char *dev, double bw)
   st->bw = bw;
   st->data_valid = false;
   st->errored = false;
-  record_netload (st, NULL, dds_time ());
+  record_netload (st, "", dds_time ());
   return st;
 }
 

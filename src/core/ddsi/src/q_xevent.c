@@ -1271,7 +1271,7 @@ static void handle_xevk_pmd_update (struct thread_state1 * const ts1, struct nn_
 
 static void handle_xevk_delete_writer (UNUSED_ARG (struct nn_xpack *xp), struct xevent *ev, UNUSED_ARG (ddsrt_mtime_t tnow))
 {
-  /* don't worry if the writer is already gone by the time we get here. */
+  /* don't worry if the writer is already gone by the time we get here, delete_writer_nolinger checks for that. */
   struct ddsi_domaingv * const gv = ev->evq->gv;
   GVTRACE ("handle_xevk_delete_writer: "PGUIDFMT"\n", PGUID (ev->u.delete_writer.guid));
   delete_writer_nolinger (gv, &ev->u.delete_writer.guid);

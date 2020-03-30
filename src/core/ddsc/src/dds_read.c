@@ -94,7 +94,6 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
           rd->m_loan = buf[0];
           rd->m_loan_size = maxs;
         }
-        nodata_cleanups = NC_RESET_BUF;
       }
       else
       {
@@ -103,7 +102,7 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
         rd->m_loan_size = maxs;
       }
       rd->m_loan_out = true;
-      nodata_cleanups |= NC_CLEAR_LOAN_OUT;
+      nodata_cleanups = NC_RESET_BUF | NC_CLEAR_LOAN_OUT;
     }
     ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
   }
@@ -457,12 +456,11 @@ dds_return_t dds_take_next_wl (dds_entity_t reader, void **buf, dds_sample_info_
 
 dds_return_t dds_return_loan (dds_entity_t reader_or_condition, void **buf, int32_t bufsz)
 {
-  const struct ddsi_sertopic *st;
   dds_reader *rd;
   dds_entity *entity;
-  dds_return_t ret = DDS_RETCODE_OK;
+  dds_return_t ret;
 
-  if (buf == NULL || (*buf == NULL && bufsz > 0))
+  if (buf == NULL || (buf[0] == NULL && bufsz > 0) || (buf[0] != NULL && bufsz <= 0))
     return DDS_RETCODE_BAD_PARAMETER;
 
   if ((ret = dds_entity_pin (reader_or_condition, &entity)) < 0) {
@@ -476,16 +474,46 @@ dds_return_t dds_return_loan (dds_entity_t reader_or_condition, void **buf, int3
     rd = (dds_reader *) entity->m_parent;
   }
 
-  st = rd->m_topic->m_stopic;
-  for (int32_t i = 0; i < bufsz; i++)
-    ddsi_sertopic_free_sample (st, buf[i], DDS_FREE_CONTENTS);
-
-  /* If possible return loan buffer to reader */
-  ddsrt_mutex_lock (&rd->m_entity.m_mutex);
-  if (rd->m_loan != 0 && (buf[0] == rd->m_loan))
+  if (bufsz <= 0)
   {
-    rd->m_loan_out = false;
+    /* No data whatsoever, or an invocation following a failed read/take call.  Read/take
+       already take care of restoring the state prior to their invocation if they return
+       no data.  Return late so invalid handles can be detected. */
+    dds_entity_unpin (entity);
+    return DDS_RETCODE_OK;
+  }
+  assert (buf[0] != NULL);
+
+  const struct ddsi_sertopic *st = rd->m_topic->m_stopic;
+
+  /* The potentially time consuming part of what happens here (freeing samples)
+     can safely be done without holding the reader lock, but that particular
+     lock is not used during insertion of data & triggering waitsets (that's
+     the observer_lock), so holding it for a bit longer in return for simpler
+     code is a fair trade-off. */
+  ddsrt_mutex_lock (&rd->m_entity.m_mutex);
+  if (buf[0] != rd->m_loan)
+  {
+    /* Not so much a loan as a buffer allocated by the middleware on behalf of the
+       application.  So it really is no more than a sophisticated variant of "free". */
+    ddsi_sertopic_free_samples (st, buf, (size_t) bufsz, DDS_FREE_ALL);
+    buf[0] = NULL;
+  }
+  else if (!rd->m_loan_out)
+  {
+    /* Trying to return a loan that has been returned already */
+    ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
+    dds_entity_unpin (entity);
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+  }
+  else
+  {
+    /* Free only the memory referenced from the samples, not the samples themselves.
+       Zero them to guarantee the absence of dangling pointers that might cause
+       trouble on a following operation.  FIXME: there's got to be a better way */
+    ddsi_sertopic_free_samples (st, buf, (size_t) bufsz, DDS_FREE_CONTENTS);
     ddsi_sertopic_zero_samples (st, rd->m_loan, rd->m_loan_size);
+    rd->m_loan_out = false;
     buf[0] = NULL;
   }
   ddsrt_mutex_unlock (&rd->m_entity.m_mutex);

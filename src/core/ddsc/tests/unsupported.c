@@ -15,7 +15,7 @@
 #include "dds/dds.h"
 #include "RoundTrip.h"
 
-#include "test-common.h"
+#include "test_common.h"
 
 static dds_entity_t e[8];
 

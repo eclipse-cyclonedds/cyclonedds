@@ -12,7 +12,6 @@
 #include <stdlib.h>
 
 #include "dds/dds.h"
-#include "CUnit/Test.h"
 #include "config_env.h"
 
 #include "dds/version.h"
@@ -21,6 +20,8 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_xqos.h"
+
+#include "test_common.h"
 
 #define FORCE_ENV
 

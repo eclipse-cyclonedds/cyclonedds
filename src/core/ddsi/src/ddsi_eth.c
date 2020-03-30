@@ -16,6 +16,7 @@ int ddsi_eth_enumerate_interfaces (ddsi_tran_factory_t fact, enum transport_sele
     int afs[] = { AF_INET, DDSRT_AF_TERM };
 
     (void)fact;
+    (void)transport_selector;
 
 #if DDSRT_HAVE_IPV6
     if (transport_selector == TRANS_TCP6 ||
