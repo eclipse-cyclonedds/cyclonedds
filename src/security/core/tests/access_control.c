@@ -148,7 +148,7 @@ CU_TheoryDataPoints(ddssec_access_control, config_parameters_file) = {
 CU_Theory((const char * test_descr, const char * gov, const char * perm, const char * ca, bool incl_empty_els, bool exp_fail),
     ddssec_access_control, config_parameters_file)
 {
-  printf("running test config_parameters_file: %s\n", test_descr);
+  print_test_msg ("running test config_parameters_file: %s\n", test_descr);
   access_control_init (
       (const char *[]) { TEST_IDENTITY1_CERTIFICATE, TEST_IDENTITY1_CERTIFICATE },
       (const char *[]) { TEST_IDENTITY1_PRIVATE_KEY, TEST_IDENTITY1_PRIVATE_KEY },
@@ -170,29 +170,28 @@ CU_TheoryDataPoints(ddssec_access_control, permissions_expiry) = {
     /*                       |     */"valid -1 minute until now",
     /*                       |      |     */"1s valid, create pp after 1100ms",
     /*                       |      |      |      */"node 2 permissions expired",
-    /*                       |      |      |      |     */"node 1 3s valid, write/read for 1s delayed 3s",
-    /*                       |      |      |      |      |     */"node 2 3s valid, write/read for 1s delayed 3s"),
+    /*                       |      |      |      |     */"node 1 3s valid, write/read for 10s",
+    /*                       |      |      |      |      |     */"node 2 3s valid, write/read for 10s"),
     CU_DataPoints(int32_t,   0,     -M(1), 0,     0,     0,     0),     /* node 1 permissions not before (offset from local time) */
-    CU_DataPoints(int32_t,   M(1),  0,     S(1),  D(1),  S(3),  D(1)),  /* node 1 permissions not after (offset from local time) */
+    CU_DataPoints(int32_t,   M(1),  0,     S(1),  D(1),  S(4),  D(1)),  /* node 1 permissions not after (offset from local time) */
     CU_DataPoints(int32_t,   0,     -M(1), 0,     -D(1), 0,     0),     /* node 2 permissions not before (offset from local time) */
-    CU_DataPoints(int32_t,   M(1),  0,     S(1),  0,     D(1),  S(3)),  /* node 2 permissions not after (offset from local time) */
+    CU_DataPoints(int32_t,   M(1),  0,     S(1),  0,     D(1),  S(4)),  /* node 2 permissions not after (offset from local time) */
     CU_DataPoints(uint32_t,  0,     0,     1100,  0,     0,     0),     /* delay (ms) after generating permissions */
     CU_DataPoints(bool,      false, true,  true,  false, false, false), /* expect pp 1 create failure */
     CU_DataPoints(bool,      false, true,  true,  true,  false, false), /* expect pp 2 create failure */
-    CU_DataPoints(uint32_t,  0,     0,     0,     0,     3000,  3000),  /* delay (ms) after creating readers/writers */
-    CU_DataPoints(uint32_t,  1,     0,     0,     0,     1000,  1000),  /* write/read data during x ms */
+    CU_DataPoints(uint32_t,  1,     0,     0,     0,     10000, 10000),  /* write/read data during x ms */
     CU_DataPoints(bool,      false, false, false, false, true,  true),  /* expect read data failure */
 };
 CU_Theory(
   (const char * test_descr,
     int32_t perm1_not_before, int32_t perm1_not_after, int32_t perm2_not_before, int32_t perm2_not_after,
-    uint32_t delay_perm, bool exp_pp1_fail, bool exp_pp2_fail, uint32_t delay_wr_rd, uint32_t write_read_dur, bool exp_read_fail),
+    uint32_t delay_perm, bool exp_pp1_fail, bool exp_pp2_fail, uint32_t write_read_dur, bool exp_read_fail),
   ddssec_access_control, permissions_expiry, .timeout=20)
 {
-  printf("running test permissions_expiry: %s\n", test_descr);
+  print_test_msg ("running test permissions_expiry: %s\n", test_descr);
 
   char topic_name[100];
-  create_topic_name("ddssec_access_control_", g_topic_nr++, topic_name, sizeof (topic_name));
+  create_topic_name ("ddssec_access_control_", g_topic_nr++, topic_name, sizeof (topic_name));
 
   /* create ca and id1/id2 certs that will not expire during this test */
   char *ca, *id1, *id2, *id1_subj, *id2_subj;
@@ -202,7 +201,7 @@ CU_Theory(
 
   /* localtime will be converted to gmtime in get_permissions_grant */
   dds_time_t now = dds_time ();
-  char * perm_topic = get_permissions_topic(topic_name);
+  char * perm_topic = get_permissions_topic (topic_name);
   char * grants[] = {
     get_permissions_grant ("id1", id1_subj, now + DDS_SECS(perm1_not_before), now + DDS_SECS(perm1_not_after), perm_topic, perm_topic, NULL),
     get_permissions_grant ("id2", id2_subj, now + DDS_SECS(perm2_not_before), now + DDS_SECS(perm2_not_after), perm_topic, perm_topic, NULL) };
@@ -222,7 +221,6 @@ CU_Theory(
   {
     dds_entity_t wr = 0, rd = 0;
     rd_wr_init (g_participant[0], &g_pubsub[0], &g_topic[0], &wr, g_participant[1], &g_pubsub[1], &g_topic[1], &rd, topic_name);
-    dds_sleepfor (DDS_MSECS (delay_wr_rd));
     write_read_for (wr, g_participant[1], rd, DDS_MSECS (write_read_dur), false, exp_read_fail);
   }
 
@@ -243,12 +241,14 @@ CU_Theory(
 #undef M
 
 
-#define N_NODES 4
+#define N_RD 1 // N_RD > 1 not yet implemented
+#define N_WR 3
+#define N_NODES (N_RD + N_WR)
 #define PERM_EXP_BASE 3
 CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
 {
   char topic_name[100];
-  create_topic_name("ddssec_access_control_", g_topic_nr++, topic_name, sizeof (topic_name));
+  create_topic_name ("ddssec_access_control_", g_topic_nr++, topic_name, sizeof (topic_name));
 
   dds_time_t t_perm = dds_time ();
   char *ca = generate_ca ("ca1", TEST_IDENTITY_CA1_PRIVATE_KEY, 0, 3600);
@@ -266,7 +266,7 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
     ca_list[i] = ca;
     id[i] = generate_identity (ca_list[i], TEST_IDENTITY_CA1_PRIVATE_KEY, id_name, pk[i], 0, 3600, &id_subj[i]);
     exp_fail[i] = false;
-    dds_duration_t v = DDS_SECS(i == 0 ? 3600 : PERM_EXP_BASE + i); /* 1st node is reader and should not expire */
+    dds_duration_t v = DDS_SECS(i < N_RD ? 3600 : PERM_EXP_BASE + 2 * i); /* 1st node is reader and should not expire */
     grants[i] = get_permissions_grant (id_name, id_subj[i], t_perm, t_perm + v, perm_topic, perm_topic, NULL);
     ddsrt_free (id_name);
   }
@@ -274,34 +274,39 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
   char * perm_config = get_permissions_config (grants, N_NODES, true);
   access_control_init (
       id, pk, ca_list, exp_fail, N_NODES,
-      true, PF_F COMMON_ETC_PATH("default_governance.p7s"),
+      true, PF_F COMMON_ETC_PATH ("default_governance.p7s"),
       true, perm_config,
-      true, PF_F COMMON_ETC_PATH("default_permissions_ca.pem"));
+      true, PF_F COMMON_ETC_PATH ("default_permissions_ca.pem"));
 
   dds_qos_t * qos = dds_create_qos ();
   CU_ASSERT_FATAL (qos != NULL);
   dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, -1);
   dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
-  dds_entity_t sub_tp = dds_create_topic (g_participant[0], &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (sub_tp > 0);
-  dds_entity_t sub = dds_create_subscriber (g_participant[0], NULL, NULL);
-  CU_ASSERT_FATAL (sub > 0);
-  dds_entity_t rd = dds_create_reader (sub, sub_tp, qos, NULL);
-  CU_ASSERT_FATAL (rd > 0);
-  dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
 
-  dds_entity_t wr[N_NODES - 1];
-  for (int i = 1; i < N_NODES; i++)
+  dds_entity_t rd[N_RD];
+  for (int i = 0; i < N_RD; i++)
   {
-    dds_entity_t pub = dds_create_publisher (g_participant[i], NULL, NULL);
+    dds_entity_t sub = dds_create_subscriber (g_participant[i], NULL, NULL);
+    CU_ASSERT_FATAL (sub > 0);
+    dds_entity_t sub_tp = dds_create_topic (g_participant[i], &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
+    CU_ASSERT_FATAL (sub_tp > 0);
+    rd[i] = dds_create_reader (sub, sub_tp, qos, NULL);
+    CU_ASSERT_FATAL (rd[i] > 0);
+    dds_set_status_mask (rd[i], DDS_DATA_AVAILABLE_STATUS);
+  }
+
+  dds_entity_t wr[N_WR];
+  for (int i = 0; i < N_WR; i++)
+  {
+    dds_entity_t pub = dds_create_publisher (g_participant[i + N_RD], NULL, NULL);
     CU_ASSERT_FATAL (pub > 0);
-    dds_entity_t pub_tp = dds_create_topic (g_participant[i], &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
+    dds_entity_t pub_tp = dds_create_topic (g_participant[i + N_RD], &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
     CU_ASSERT_FATAL (pub_tp > 0);
-    wr[i - 1] = dds_create_writer (pub, pub_tp, qos, NULL);
-    CU_ASSERT_FATAL (wr[i - 1] > 0);
-    dds_set_status_mask (wr[i - 1], DDS_PUBLICATION_MATCHED_STATUS);
-    sync_writer_to_readers(g_participant[i], wr[i - 1], 1);
+    wr[i] = dds_create_writer (pub, pub_tp, qos, NULL);
+    CU_ASSERT_FATAL (wr[i] > 0);
+    dds_set_status_mask (wr[i], DDS_PUBLICATION_MATCHED_STATUS);
+    sync_writer_to_readers (g_participant[i + N_RD], wr[i], N_RD);
   }
   dds_delete_qos (qos);
 
@@ -311,47 +316,48 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
   dds_sample_info_t info[1];
   dds_return_t ret;
 
-  for (int i = 1; i < N_NODES; i++)
+  for (int i = 0; i < N_WR; i++)
   {
     // sleep until 1s before next writer pp permission expires
-    dds_duration_t delay = DDS_SECS (PERM_EXP_BASE + i - 1) - (dds_time () - t_perm);
+    dds_duration_t delay = DDS_SECS (PERM_EXP_BASE + 2 * i) - (dds_time () - t_perm);
     if (delay > 0)
       dds_sleepfor (delay);
 
-    printf ("run %d\n", i);
+    print_test_msg ("run %d\n", i);
 
-    for (int w = 1; w < N_NODES; w++)
+    for (int w = 0; w < N_WR; w++)
     {
       sample.id = w;
-      ret = dds_write (wr[w - 1], &sample);
+      ret = dds_write (wr[w], &sample);
       CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-      printf ("write %d\n", w);
+      print_test_msg ("write %d\n", w);
     }
 
     // Expect reader to receive data from writers with non-expired permissions
     int n_samples = 0, n_invalid = 0, n_wait = 0;
-    while (n_samples + n_invalid < N_NODES - 1 && n_wait < 5)
+    while (n_samples + n_invalid < N_WR && n_wait < 5)
     {
-      ret = dds_take (rd, samples, info, 1, 1);
+      ret = dds_take (rd[0], samples, info, 1, 1);
       CU_ASSERT_FATAL (ret >= 0);
       if (ret == 0)
       {
-        reader_wait_for_data (g_participant[0], rd, DDS_MSECS (100));
+        reader_wait_for_data (g_participant[0], rd[0], DDS_MSECS (200));
+        print_test_msg ("wait for data\n");
         n_wait++;
       }
       else if (info[0].instance_state == DDS_IST_ALIVE)
       {
-        printf ("recv sample %d\n", rd_sample.id);
+        print_test_msg ("recv sample %d\n", rd_sample.id);
         n_samples++;
       }
       else
       {
-        printf ("recv inv sample\n");
+        print_test_msg ("recv inv sample\n");
         n_invalid++;
       }
     }
-    CU_ASSERT_EQUAL (n_samples, N_NODES - i);
-    CU_ASSERT (n_invalid < i);
+    CU_ASSERT_EQUAL (n_samples, N_WR - i);
+    CU_ASSERT (n_invalid <= i);
   }
 
   access_control_fini (N_NODES);
