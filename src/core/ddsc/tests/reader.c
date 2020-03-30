@@ -13,13 +13,11 @@
 #include <limits.h>
 
 #include "dds/dds.h"
-#include "Space.h"
-#include "RoundTrip.h"
-#include "CUnit/Theory.h"
-
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
+
+#include "test_common.h"
 
 /**************************************************************************************************
  *
@@ -64,16 +62,6 @@ static void*              g_samples[MAX_SAMPLES];
 static Space_Type1        g_data[MAX_SAMPLES];
 static dds_sample_info_t  g_info[MAX_SAMPLES];
 
-static char*
-create_topic_name(const char *prefix, char *name, size_t size)
-{
-    /* Get semi random g_topic name. */
-    ddsrt_pid_t pid = ddsrt_getpid();
-    ddsrt_tid_t tid = ddsrt_gettid();
-    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
-    return name;
-}
-
 static void
 reader_init(void)
 {
@@ -94,7 +82,7 @@ reader_init(void)
     g_waitset = dds_create_waitset(g_participant);
     CU_ASSERT_FATAL(g_waitset > 0);
 
-    g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_topic_name("ddsc_reader_test", name, sizeof name), NULL, NULL);
+    g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_unique_topic_name("ddsc_reader_test", name, sizeof name), NULL, NULL);
     CU_ASSERT_FATAL(g_topic > 0);
 
     /* Create a reader that keeps last sample of all instances. */
@@ -306,7 +294,7 @@ CU_Test(ddsc_reader_create, participant_mismatch)
     sub1 = dds_create_subscriber(par1, NULL, NULL);
     CU_ASSERT_FATAL(sub1 > 0);
 
-    top2 = dds_create_topic(par2, &Space_Type1_desc, create_topic_name("ddsc_reader_participant_mismatch", name, sizeof name), NULL, NULL);
+    top2 = dds_create_topic(par2, &Space_Type1_desc, create_unique_topic_name("ddsc_reader_participant_mismatch", name, sizeof name), NULL, NULL);
     CU_ASSERT_FATAL(top2 > 0);
 
     /* Create reader with participant mismatch. */
@@ -2512,7 +2500,7 @@ CU_Test(ddsc_take_mask, take_instance_last_sample)
     CU_ASSERT_FATAL(g_participant > 0);
     g_waitset = dds_create_waitset(g_participant);
     CU_ASSERT_FATAL(g_waitset > 0);
-    g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_topic_name("ddsc_reader_test", name, 100), NULL, NULL);
+    g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_unique_topic_name("ddsc_reader_test", name, 100), NULL, NULL);
     CU_ASSERT_FATAL(g_topic > 0);
     g_reader = dds_create_reader(g_participant, g_topic, g_qos, NULL);
     CU_ASSERT_FATAL(g_reader > 0);

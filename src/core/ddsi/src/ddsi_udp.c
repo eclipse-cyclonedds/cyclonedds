@@ -30,7 +30,9 @@ union addr {
   struct sockaddr_storage x;
   struct sockaddr a;
   struct sockaddr_in a4;
+#if DDSRT_HAVE_IPV6
   struct sockaddr_in6 a6;
+#endif
 };
 
 typedef struct ddsi_udp_conn {
@@ -559,7 +561,7 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const nn_loca
   {
     struct ipv6_mreq ipv6mreq;
     memset (&ipv6mreq, 0, sizeof (ipv6mreq));
-    memcpy (&ipv6mreq.ipv6mr_multiaddr, &mcip.a6, sizeof (ipv6mreq.ipv6mr_multiaddr));
+    ipv6mreq.ipv6mr_multiaddr = mcip.a6.sin6_addr;
     ipv6mreq.ipv6mr_interface = interf ? interf->if_index : 0;
     rc = ddsrt_setsockopt (socket, IPPROTO_IPV6, join ? IPV6_JOIN_GROUP : IPV6_LEAVE_GROUP, &ipv6mreq, sizeof (ipv6mreq));
   }
@@ -590,8 +592,8 @@ static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const nn_loca
     struct group_source_req gsr;
     memset (&gsr, 0, sizeof (gsr));
     gsr.gsr_interface = interf ? interf->if_index : 0;
-    memcpy (&gsr.gsr_group, &mcip.a6, sizeof (gsr.gsr_group));
-    memcpy (&gsr.gsr_source, &srcip.a6, sizeof (gsr.gsr_source));
+    gsr.gsr_group = mcip.x;
+    gsr.gsr_source = srcip.x;
     rc = ddsrt_setsockopt (socket, IPPROTO_IPV6, join ? MCAST_JOIN_SOURCE_GROUP : MCAST_LEAVE_SOURCE_GROUP, &gsr, sizeof (gsr));
   }
   else

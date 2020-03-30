@@ -3994,8 +3994,23 @@ dds_return_t writer_wait_for_acks (struct writer *wr, dds_time_t abstimeout)
 
 dds_return_t delete_writer_nolinger_locked (struct writer *wr)
 {
-  ELOGDISC (wr, "delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (wr->e.guid));
   ASSERT_MUTEX_HELD (&wr->e.lock);
+
+  /* We can get here via multiple paths in parallel, in particular: because all data got
+     ACK'd while lingering, and because the linger timeout elapses.  Those two race each
+     other, the first calling this function directly, the second calling from
+     handle_xevk_delete_writer via delete_writer_nolinger.
+
+     There are two practical options to decide whether to ignore the call: one is to check
+     whether the writer is still in the GUID hashes, the second to check whether the state
+     is WRST_DELETING.  The latter seems a bit less surprising. */
+  if (wr->state == WRST_DELETING)
+  {
+    ELOGDISC (wr, "delete_writer_nolinger(guid "PGUIDFMT") already done\n", PGUID (wr->e.guid));
+    return 0;
+  }
+
+  ELOGDISC (wr, "delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (wr->e.guid));
   builtintopic_write (wr->e.gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), false);
   local_reader_ary_setinvalid (&wr->rdary);
   entidx_remove_writer_guid (wr->e.gv->entity_index, wr);

@@ -10,12 +10,11 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "dds/dds.h"
-#include "RoundTrip.h"
-#include "CUnit/Theory.h"
-
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
+
+#include "test_common.h"
 
 /**************************************************************************************************
  *
@@ -36,21 +35,11 @@ char g_topicRtmAddressName[MAX_NAME_SIZE];
 char g_topicRtmDataTypeName[MAX_NAME_SIZE];
 char g_nameBuffer[MAX_NAME_SIZE];
 
-static char*
-create_topic_name(const char *prefix, char *name, size_t size)
-{
-    /* Get semi random g_topic name. */
-    ddsrt_pid_t pid = ddsrt_getpid();
-    ddsrt_tid_t tid = ddsrt_gettid();
-    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
-    return name;
-}
-
 static void
 ddsc_topic_init(void)
 {
-    create_topic_name("ddsc_topic_test_rtm_address",  g_topicRtmAddressName,  MAX_NAME_SIZE);
-    create_topic_name("ddsc_topic_test_rtm_datatype", g_topicRtmDataTypeName, MAX_NAME_SIZE);
+    create_unique_topic_name("ddsc_topic_test_rtm_address",  g_topicRtmAddressName,  MAX_NAME_SIZE);
+    create_unique_topic_name("ddsc_topic_test_rtm_datatype", g_topicRtmDataTypeName, MAX_NAME_SIZE);
 
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(g_participant > 0);

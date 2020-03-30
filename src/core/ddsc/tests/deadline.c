@@ -13,9 +13,6 @@
 #include <limits.h>
 
 #include "dds/dds.h"
-#include "CUnit/Theory.h"
-#include "Space.h"
-
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/environ.h"
@@ -23,6 +20,8 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_whc.h"
 #include "dds__entity.h"
+
+#include "test_common.h"
 
 #define MAX_RUNS 4
 #define WRITER_DEADLINE DDS_MSECS(50)
@@ -41,15 +40,6 @@ static dds_entity_t g_remote_domain      = 0;
 static dds_entity_t g_remote_participant = 0;
 static dds_entity_t g_remote_subscriber  = 0;
 static dds_entity_t g_remote_topic       = 0;
-
-
-static char * create_topic_name(const char *prefix, char *name, size_t size)
-{
-  ddsrt_pid_t pid = ddsrt_getpid();
-  ddsrt_tid_t tid = ddsrt_gettid();
-  (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
-  return name;
-}
 
 static void sync_reader_writer(dds_entity_t participant, dds_entity_t reader, dds_entity_t writer)
 {
@@ -126,7 +116,7 @@ static void deadline_init(void)
   g_publisher = dds_create_publisher(g_participant, NULL, NULL);
   CU_ASSERT_FATAL(g_publisher > 0);
 
-  create_topic_name("ddsc_qos_deadline_test", name, sizeof name);
+  create_unique_topic_name("ddsc_qos_deadline_test", name, sizeof name);
   g_topic = dds_create_topic(g_participant, &Space_Type1_desc, name, NULL, NULL);
   CU_ASSERT_FATAL(g_topic > 0);
   g_remote_topic = dds_create_topic(g_remote_participant, &Space_Type1_desc, name, NULL, NULL);

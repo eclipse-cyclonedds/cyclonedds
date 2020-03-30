@@ -11,12 +11,12 @@
  */
 #include <limits.h>
 #include <stdlib.h>
-#include "CUnit/Theory.h"
-#include "dds/dds.h"
-#include "RoundTrip.h"
 
+#include "dds/dds.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
+
+#include "test_common.h"
 
 /****************************************************************************
  * Test globals.
@@ -56,15 +56,6 @@ static dds_instance_handle_t writer_i_hdl = 0;
 /****************************************************************************
  * Test initializations and teardowns.
  ****************************************************************************/
-static char*
-create_topic_name(const char *prefix, char *name, size_t size)
-{
-    /* Get semi random g_topic name. */
-    ddsrt_pid_t pid = ddsrt_getpid();
-    ddsrt_tid_t tid = ddsrt_gettid();
-    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
-    return name;
-}
 
 static void
 init_entity_status(void)
@@ -74,7 +65,7 @@ init_entity_status(void)
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT(participant > 0);
 
-    top = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_status_test", topicName, 100), NULL, NULL);
+    top = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_unique_topic_name("ddsc_status_test", topicName, 100), NULL, NULL);
     CU_ASSERT(top > 0);
 
     qos = dds_create_qos();

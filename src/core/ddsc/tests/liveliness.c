@@ -13,8 +13,6 @@
 #include <limits.h>
 
 #include "dds/dds.h"
-#include "CUnit/Theory.h"
-#include "Space.h"
 #include "config_env.h"
 
 #include "dds/version.h"
@@ -29,12 +27,13 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/time.h"
 
+#include "test_common.h"
+
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
 #define DDS_CONFIG_NO_PORT_GAIN "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
 #define DDS_CONFIG_NO_PORT_GAIN_LOG "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Tracing><OutputFile>cyclonedds_liveliness_tests.${CYCLONEDDS_DOMAIN_ID}.${CYCLONEDDS_PID}.log</OutputFile><Verbosity>finest</Verbosity></Tracing><Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
 
-uint32_t g_topic_nr = 0;
 static dds_entity_t g_pub_domain = 0;
 static dds_entity_t g_pub_participant = 0;
 static dds_entity_t g_pub_publisher = 0;
@@ -42,15 +41,6 @@ static dds_entity_t g_pub_publisher = 0;
 static dds_entity_t g_sub_domain = 0;
 static dds_entity_t g_sub_participant = 0;
 static dds_entity_t g_sub_subscriber = 0;
-
-static char *create_topic_name(const char *prefix, uint32_t nr, char *name, size_t size)
-{
-  /* Get unique g_topic name. */
-  ddsrt_pid_t pid = ddsrt_getpid();
-  ddsrt_tid_t tid = ddsrt_gettid();
-  (void)snprintf(name, size, "%s%d_pid%" PRIdPID "_tid%" PRIdTID "", prefix, nr, pid, tid);
-  return name;
-}
 
 static void liveliness_init(void)
 {
@@ -179,7 +169,7 @@ static void test_pmd_count(dds_liveliness_kind_t kind, uint32_t ldur, double mul
     dds_sleepfor(DDS_MSECS(50));
 
   /* topics */
-  create_topic_name("ddsc_liveliness_pmd_count", g_topic_nr++, name, sizeof name);
+  create_unique_topic_name("ddsc_liveliness_pmd_count", name, sizeof name);
   CU_ASSERT_FATAL((pub_topic = dds_create_topic(g_pub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
   if (remote_reader)
     CU_ASSERT_FATAL((sub_topic = dds_create_topic(g_sub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
@@ -272,7 +262,7 @@ static void test_expire_liveliness_kinds(uint32_t ldur, double mult, uint32_t wr
            ldur, mult, wr_cnt_auto, wr_cnt_man_pp, wr_cnt_man_tp, remote_reader ? "remote" : "local");
 
     /* topics */
-    create_topic_name("ddsc_liveliness_expire_kinds", g_topic_nr++, name, sizeof name);
+    create_unique_topic_name("ddsc_liveliness_expire_kinds", name, sizeof name);
     CU_ASSERT_FATAL((pub_topic = dds_create_topic(g_pub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
     if (remote_reader)
       CU_ASSERT_FATAL((sub_topic = dds_create_topic(g_sub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
@@ -428,7 +418,7 @@ CU_Test(ddsc_liveliness, lease_duration, .init = liveliness_init, .fini = liveli
   uint32_t n;
 
   /* topics */
-  create_topic_name("ddsc_liveliness_ldur", g_topic_nr++, name, sizeof name);
+  create_unique_topic_name("ddsc_liveliness_ldur", name, sizeof name);
   CU_ASSERT_FATAL((pub_topic = dds_create_topic(g_pub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
   CU_ASSERT_FATAL((sub_topic = dds_create_topic(g_sub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
 
@@ -489,7 +479,7 @@ static void test_lease_duration_pwr(bool remote_reader)
   printf("running test lease_duration_pwr: %s reader\n", remote_reader ? "remote" : "local");
 
   /* topics */
-  create_topic_name("ddsc_liveliness_ldurpwr", g_topic_nr++, name, sizeof name);
+  create_unique_topic_name("ddsc_liveliness_ldurpwr", name, sizeof name);
   CU_ASSERT_FATAL((pub_topic = dds_create_topic(g_pub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
   if (remote_reader)
     CU_ASSERT_FATAL((sub_topic = dds_create_topic(g_sub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
@@ -571,7 +561,7 @@ static void test_create_delete_writer_stress(bool remote_reader)
   printf("running test create_delete_writer_stress: %s reader\n", remote_reader ? "remote" : "local");
 
   /* topics */
-  create_topic_name("ddsc_liveliness_wr_stress", g_topic_nr++, name, sizeof name);
+  create_unique_topic_name("ddsc_liveliness_wr_stress", name, sizeof name);
   CU_ASSERT_FATAL((pub_topic = dds_create_topic(g_pub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
   if (remote_reader)
     CU_ASSERT_FATAL((sub_topic = dds_create_topic(g_sub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
@@ -672,7 +662,7 @@ static void test_status_counts(bool remote_reader)
   printf("running test status_counts: %s reader\n", remote_reader ? "remote" : "local");
 
   /* topics */
-  create_topic_name("ddsc_liveliness_status_counts", g_topic_nr++, name, sizeof name);
+  create_unique_topic_name("ddsc_liveliness_status_counts", name, sizeof name);
   CU_ASSERT_FATAL((pub_topic = dds_create_topic(g_pub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
   if (remote_reader)
     CU_ASSERT_FATAL((sub_topic = dds_create_topic(g_sub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
@@ -772,7 +762,7 @@ static void test_assert_liveliness(uint32_t wr_cnt_auto, uint32_t wr_cnt_man_pp,
            wr_cnt_auto, wr_cnt_man_pp, wr_cnt_man_tp, ldur, remote_reader ? "remote" : "local");
 
     /* topics */
-    create_topic_name("ddsc_liveliness_assert", g_topic_nr++, name, sizeof name);
+    create_unique_topic_name("ddsc_liveliness_assert", name, sizeof name);
     CU_ASSERT_FATAL((pub_topic = dds_create_topic(g_pub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
     if (remote_reader)
       CU_ASSERT_FATAL((sub_topic = dds_create_topic(g_sub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
@@ -1018,7 +1008,7 @@ static void lease_duration_zero_or_one_impl (dds_duration_t sleep, dds_livelines
   dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
   dds_qset_history(qos, DDS_HISTORY_KEEP_ALL, 0);
 
-  create_topic_name("ddsc_liveliness_lease_duration_zero", g_topic_nr++, name, sizeof name);
+  create_unique_topic_name("ddsc_liveliness_lease_duration_zero", name, sizeof name);
   pub_topic = dds_create_topic(g_pub_participant, &Space_Type1_desc, name, qos, NULL);
   CU_ASSERT_FATAL(pub_topic > 0);
   if (remote_reader)

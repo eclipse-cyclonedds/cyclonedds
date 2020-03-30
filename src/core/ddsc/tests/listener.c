@@ -10,14 +10,14 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "dds/dds.h"
-#include "RoundTrip.h"
-#include "CUnit/Test.h"
 
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
+
+#include "test_common.h"
 
 /****************************************************************************
  * TODO: Add DDS_INCONSISTENT_TOPIC_STATUS test
@@ -311,15 +311,6 @@ waitfor_cb(uint32_t expected)
 /****************************************************************************
  * Test initializations and teardowns.
  ****************************************************************************/
-static char*
-create_topic_name(const char *prefix, char *name, size_t size)
-{
-    /* Get semi random g_topic name. */
-    ddsrt_pid_t pid = ddsrt_getpid();
-    ddsrt_tid_t tid = ddsrt_gettid();
-    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
-    return name;
-}
 
 static void
 init_triggering_base(void)
@@ -340,7 +331,7 @@ init_triggering_base(void)
     g_publisher = dds_create_publisher(g_participant, NULL, NULL);
     CU_ASSERT_FATAL(g_publisher > 0);
 
-    g_topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_listener_test", name, 100), NULL, NULL);
+    g_topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, create_unique_topic_name("ddsc_listener_test", name, 100), NULL, NULL);
     CU_ASSERT_FATAL(g_topic > 0);
 
     g_listener = dds_create_listener(NULL);

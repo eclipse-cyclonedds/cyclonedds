@@ -12,13 +12,11 @@
 #include <limits.h>
 
 #include "dds/dds.h"
-#include "CUnit/Test.h"
-#include "CUnit/Theory.h"
-#include "RoundTrip.h"
-
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
+
+#include "test_common.h"
 
 /**************************************************************************************************
  *
@@ -44,16 +42,6 @@ accept_all(const void * sample)
     return true;
 }
 
-static char*
-create_topic_name(const char *prefix, char *name, size_t size)
-{
-    /* Get semi random g_topic name. */
-    ddsrt_pid_t pid = ddsrt_getpid();
-    ddsrt_tid_t tid = ddsrt_gettid();
-    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
-    return name;
-}
-
 static void
 hierarchy_init(void)
 {
@@ -63,7 +51,7 @@ hierarchy_init(void)
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(g_participant > 0 );
 
-    g_topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_hierarchy_test", name, sizeof name), NULL, NULL);
+    g_topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, create_unique_topic_name("ddsc_hierarchy_test", name, sizeof name), NULL, NULL);
     CU_ASSERT_FATAL(g_topic > 0);
 
     g_publisher = dds_create_publisher(g_participant, NULL, NULL);
@@ -179,7 +167,7 @@ CU_Test(ddsc_entity_delete, recursive_with_deleted_topic)
     /* First, create a topic and a writer with that topic. */
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(g_participant > 0);
-    g_topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_hierarchy_test", name, 100), NULL, NULL);
+    g_topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, create_unique_topic_name("ddsc_hierarchy_test", name, 100), NULL, NULL);
     CU_ASSERT_FATAL(g_topic > 0);
     g_writer = dds_create_writer(g_participant, g_topic, NULL, NULL);
     CU_ASSERT_FATAL(g_writer> 0);
@@ -747,7 +735,7 @@ CU_Test(ddsc_entity_implicit_publisher, deleted)
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(participant > 0);
 
-    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_entity_implicit_publisher_test", name, 100), NULL, NULL);
+    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_unique_topic_name("ddsc_entity_implicit_publisher_test", name, 100), NULL, NULL);
     CU_ASSERT_FATAL(topic > 0);
 
     writer = dds_create_writer(participant, topic, NULL, NULL);
@@ -799,7 +787,7 @@ CU_Test(ddsc_entity_implicit_subscriber, deleted)
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(participant > 0);
 
-    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_entity_implicit_subscriber_test", name, 100), NULL, NULL);
+    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_unique_topic_name("ddsc_entity_implicit_subscriber_test", name, 100), NULL, NULL);
     CU_ASSERT_FATAL(topic > 0);
 
     reader = dds_create_reader(participant, topic, NULL, NULL);
@@ -854,7 +842,7 @@ CU_Test(ddsc_entity_get_children, implicit_publisher)
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(participant > 0);
 
-    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_entity_implicit_publisher_test", name, 100), NULL, NULL);
+    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_unique_topic_name("ddsc_entity_implicit_publisher_test", name, 100), NULL, NULL);
     CU_ASSERT_FATAL(topic > 0);
 
     writer = dds_create_writer(participant, topic, NULL, NULL);
@@ -898,7 +886,7 @@ CU_Test(ddsc_entity_get_children, implicit_subscriber)
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(participant > 0);
 
-    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_entity_implicit_subscriber_test", name, 100), NULL, NULL);
+    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_unique_topic_name("ddsc_entity_implicit_subscriber_test", name, 100), NULL, NULL);
     CU_ASSERT_FATAL(topic > 0);
 
     reader = dds_create_reader(participant, topic, NULL, NULL);
@@ -942,7 +930,7 @@ CU_Test(ddsc_entity_get_parent, implicit_publisher)
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(participant > 0);
 
-    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_entity_implicit_publisher_promotion_test", name, 100), NULL, NULL);
+    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_unique_topic_name("ddsc_entity_implicit_publisher_promotion_test", name, 100), NULL, NULL);
     CU_ASSERT_FATAL(topic > 0);
 
     writer = dds_create_writer(participant, topic, NULL, NULL);
@@ -973,7 +961,7 @@ CU_Test(ddsc_entity_get_parent, implicit_subscriber)
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(participant > 0);
 
-    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_entity_implicit_subscriber_promotion_test", name, 100), NULL, NULL);
+    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_unique_topic_name("ddsc_entity_implicit_subscriber_promotion_test", name, 100), NULL, NULL);
     CU_ASSERT_FATAL(topic > 0);
 
     reader = dds_create_reader(participant, topic, NULL, NULL);
@@ -1005,7 +993,7 @@ CU_Test(ddsc_entity_implicit, delete_publisher)
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(participant > 0);
 
-    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_entity_implicit_delete_publisher", name, 100), NULL, NULL);
+    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_unique_topic_name("ddsc_entity_implicit_delete_publisher", name, 100), NULL, NULL);
     CU_ASSERT_FATAL(topic > 0);
 
     writer = dds_create_writer(participant, topic, NULL, NULL);
@@ -1037,7 +1025,7 @@ CU_Test(ddsc_entity_implicit, delete_subscriber)
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(participant > 0);
 
-    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_entity_implicit_delete_subscriber", name, 100), NULL, NULL);
+    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_unique_topic_name("ddsc_entity_implicit_delete_subscriber", name, 100), NULL, NULL);
     CU_ASSERT_FATAL(topic > 0);
 
     reader = dds_create_reader(participant, topic, NULL, NULL);
