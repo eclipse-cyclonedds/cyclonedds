@@ -553,7 +553,9 @@ void nn_xmsg_submsg_remove(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker)
   /* Just reset the message size to the start of the current sub-message. */
   msg->sz = sm_marker.offset;
 
-  /* if it is a DATA_REXMIT one, reset the readerId offset because it may no longer be valid */
+  /* Deleting the submessage means the readerId offset in a DATA_REXMIT message is no
+     longer valid.  Converting the message kind to a _NOMERGE one ensures no subsequent
+     operation will assume its validity. */
   if (msg->kind == NN_XMSG_KIND_DATA_REXMIT)
     msg->kind = NN_XMSG_KIND_DATA_REXMIT_NOMERGE;
 }
@@ -579,8 +581,14 @@ void nn_xmsg_submsg_replace(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker
   /* Replace the sub-message. */
   memcpy(msg->data->payload + sm_marker.offset, new_submsg, new_len);
 
-  /* if it is a DATA_REXMIT one, reset the readerId offset because it may no longer be valid,
-     or patching it might break stuff if the replaced data is encrypted or authenticated */
+  /* The replacement submessage may have undergone any transformation and so the readerId
+     offset in a DATA_REXMIT message is potentially no longer valid.  Converting the
+     message kind to a _NOMERGE one ensures no subsequent operation will assume its
+     validity.  This is used by the security implementation when encrypting and/or signing
+     messages and apart from the offset possibly no longer being valid (for which one
+     might conceivably be able to correct), there is also the issue that it may now be
+     meaningless junk or that rewriting it would make the receiver reject it as having
+     been tampered with. */
   if (msg->kind == NN_XMSG_KIND_DATA_REXMIT)
     msg->kind = NN_XMSG_KIND_DATA_REXMIT_NOMERGE;
 }
