@@ -429,6 +429,7 @@ static int submsg_is_compatible (const struct nn_xmsg *msg, SubmessageKind_t smk
       break;
     case NN_XMSG_KIND_DATA:
     case NN_XMSG_KIND_DATA_REXMIT:
+    case NN_XMSG_KIND_DATA_REXMIT_NOMERGE:
       switch (smkind)
       {
         case SMID_PAD:
@@ -551,6 +552,12 @@ void nn_xmsg_submsg_remove(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker)
 {
   /* Just reset the message size to the start of the current sub-message. */
   msg->sz = sm_marker.offset;
+
+  /* Deleting the submessage means the readerId offset in a DATA_REXMIT message is no
+     longer valid.  Converting the message kind to a _NOMERGE one ensures no subsequent
+     operation will assume its validity. */
+  if (msg->kind == NN_XMSG_KIND_DATA_REXMIT)
+    msg->kind = NN_XMSG_KIND_DATA_REXMIT_NOMERGE;
 }
 
 void nn_xmsg_submsg_replace(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, unsigned char *new_submsg, size_t new_len)
@@ -573,6 +580,17 @@ void nn_xmsg_submsg_replace(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker
 
   /* Replace the sub-message. */
   memcpy(msg->data->payload + sm_marker.offset, new_submsg, new_len);
+
+  /* The replacement submessage may have undergone any transformation and so the readerId
+     offset in a DATA_REXMIT message is potentially no longer valid.  Converting the
+     message kind to a _NOMERGE one ensures no subsequent operation will assume its
+     validity.  This is used by the security implementation when encrypting and/or signing
+     messages and apart from the offset possibly no longer being valid (for which one
+     might conceivably be able to correct), there is also the issue that it may now be
+     meaningless junk or that rewriting it would make the receiver reject it as having
+     been tampered with. */
+  if (msg->kind == NN_XMSG_KIND_DATA_REXMIT)
+    msg->kind = NN_XMSG_KIND_DATA_REXMIT_NOMERGE;
 }
 
 void nn_xmsg_submsg_append_refd_payload(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker)
@@ -1614,6 +1632,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
       break;
     case NN_XMSG_KIND_DATA:
     case NN_XMSG_KIND_DATA_REXMIT:
+    case NN_XMSG_KIND_DATA_REXMIT_NOMERGE:
       GVTRACE ("%s("PGUIDFMT":#%"PRId64"/%u)",
                (m->kind == NN_XMSG_KIND_DATA) ? "data" : "rexmit",
                PGUID (m->kindspecific.data.wrguid),

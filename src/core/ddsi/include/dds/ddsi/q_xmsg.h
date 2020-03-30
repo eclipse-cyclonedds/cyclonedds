@@ -43,7 +43,8 @@ struct nn_xmsg_marker {
 enum nn_xmsg_kind {
   NN_XMSG_KIND_CONTROL,
   NN_XMSG_KIND_DATA,
-  NN_XMSG_KIND_DATA_REXMIT
+  NN_XMSG_KIND_DATA_REXMIT,
+  NN_XMSG_KIND_DATA_REXMIT_NOMERGE
 };
 
 /* XMSGPOOL */
