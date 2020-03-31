@@ -544,7 +544,7 @@ CU_TheoryDataPoints(ddssec_secure_communication, multiple_readers) = {
     CU_DataPoints(size_t, 1, 3, 1, 3), /* number of participants per domain */
     CU_DataPoints(size_t, 3, 1, 3, 3), /* number of readers per participant */
 };
-CU_Theory((size_t n_dom, size_t n_pp, size_t n_rd), ddssec_secure_communication, multiple_readers, .timeout = 60, .disabled = false)
+CU_Theory((size_t n_dom, size_t n_pp, size_t n_rd), ddssec_secure_communication, multiple_readers, .timeout = 90, .disabled = false)
 {
   DDS_Security_ProtectionKind metadata_pk[] = { PK_N, PK_SOA, PK_EOA };
   DDS_Security_BasicProtectionKind payload_pk[] = { BPK_N, BPK_S, BPK_E };
