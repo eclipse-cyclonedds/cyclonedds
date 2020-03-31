@@ -52,17 +52,13 @@ static int compare_endpoint_relation (const void *va, const void *vb)
 {
   const key_relation *ra = va;
   const key_relation *rb = vb;
-  int r;
-
-  r = (int)(ra->key_id - rb->key_id);
-  if (r != 0 || ra->local_crypto == 0 || rb->local_crypto == 0)
-  {
-    return r;
-  }
-
-  if (ra->local_crypto > rb->local_crypto)
+  if (ra->key_id > rb->key_id)
     return 1;
-  else if (ra->local_crypto < rb->local_crypto)
+  else if (ra->key_id < rb->key_id)
+    return -1;
+  else if ((uintptr_t) ra->local_crypto > (uintptr_t) rb->local_crypto)
+    return 1;
+  else if ((uintptr_t) ra->local_crypto < (uintptr_t) rb->local_crypto)
     return -1;
   else
     return 0;
@@ -72,8 +68,7 @@ static int compare_relation_key (const void *va, const void *vb)
 {
   const uint32_t *ka = va;
   const uint32_t *kb = vb;
-
-  return (int)(*ka - *kb);
+  return (*ka == *kb) ? 0 : (*ka < *kb) ? -1 : 1;
 }
 
 bool crypto_object_valid(CryptoObject *obj, CryptoObjectKind_t kind)
@@ -692,6 +687,7 @@ void crypto_insert_endpoint_relation(
     remote_participant_crypto *rpc,
     key_relation *relation)
 {
+  assert (relation->local_crypto != NULL && relation->remote_crypto != NULL);
   ddsrt_mutex_lock(&rpc->lock);
   ddsrt_avl_insert(&endpoint_relation_treedef, &rpc->relation_index, CRYPTO_OBJECT_KEEP(relation));
   ddsrt_mutex_unlock(&rpc->lock);
@@ -702,15 +698,11 @@ void crypto_remove_endpoint_relation(
     CryptoObject *lch,
     uint32_t key_id)
 {
-  key_relation template;
+  const key_relation template = { .key_id = key_id, .local_crypto = lch };
   key_relation *relation;
   ddsrt_avl_dpath_t dpath;
-
-  template.key_id = key_id;
-  template.local_crypto = lch;
-
   ddsrt_mutex_lock(&rpc->lock);
-  relation =  ddsrt_avl_lookup_dpath(&endpoint_relation_treedef, &rpc->relation_index, &template, &dpath);
+  relation = ddsrt_avl_lookup_dpath(&endpoint_relation_treedef, &rpc->relation_index, &template, &dpath);
   if (relation)
   {
     ddsrt_avl_delete_dpath(&endpoint_relation_treedef, &rpc->relation_index, relation, &dpath);
@@ -724,16 +716,14 @@ key_relation * crypto_find_endpoint_relation(
     CryptoObject *lch,
     uint32_t key_id)
 {
-  key_relation template;
-  key_relation *relation;
-
-  template.key_id = key_id;
-  template.local_crypto = lch;
-
+  const key_relation template = { .key_id = key_id, .local_crypto = lch };
+  key_relation *relation, *cand;
   ddsrt_mutex_lock(&rpc->lock);
-  relation =  CRYPTO_OBJECT_KEEP(ddsrt_avl_lookup(&endpoint_relation_treedef, &rpc->relation_index, &template));
+  if ((cand = ddsrt_avl_lookup_succ_eq (&endpoint_relation_treedef, &rpc->relation_index, &template)) == NULL || cand->key_id != key_id)
+    relation = NULL;
+  else
+    relation = CRYPTO_OBJECT_KEEP (cand);
   ddsrt_mutex_unlock(&rpc->lock);
-
   return relation;
 }
 
