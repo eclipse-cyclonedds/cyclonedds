@@ -227,8 +227,9 @@ script:
       CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
     fi
   - cd ..
-  - if [ ${BUILD_SCHEMA} ]; then
-      git diff --exit-code; # check that no files (e.g. generated schemas) are changed
+  - |
+    if [ ${BUILD_SCHEMA} ]; then
+      git diff --exit-code
     fi
   - mkdir helloworld_build
   - cd helloworld_build
