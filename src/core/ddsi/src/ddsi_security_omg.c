@@ -810,110 +810,121 @@ static void deinit_plugin_suite_config (dds_security_plugin_suite_config *suite_
   deinit_plugin_config (&suite_config->cryptography);
 }
 
+typedef bool (*expired_pp_check_fn_t)(const struct participant * pp, DDS_Security_Handle handle);
+typedef bool (*expired_proxypp_check_fn_t)(const struct proxy_participant * proxypp, DDS_Security_Handle handle);
+
+static bool delete_pp_by_handle (DDS_Security_Handle handle, expired_pp_check_fn_t expired_pp_check_fn, struct ddsi_domaingv *gv)
+{
+  struct participant *pp;
+  struct entidx_enum_participant epp;
+  bool result = false;
+  entidx_enum_participant_init (&epp, gv->entity_index);
+  while ((pp = entidx_enum_participant_next (&epp)) != NULL)
+  {
+    if (q_omg_participant_is_secure (pp) && expired_pp_check_fn (pp, handle))
+    {
+      delete_participant (gv, &pp->e.guid);
+      result = true;
+    }
+  }
+  entidx_enum_participant_fini (&epp);
+  return result;
+}
+
+static bool delete_proxypp_by_handle (const DDS_Security_Handle handle, expired_proxypp_check_fn_t expired_proxypp_check_fn, struct ddsi_domaingv *gv)
+{
+  struct proxy_participant *proxypp;
+  struct entidx_enum_proxy_participant eproxypp;
+  bool result = false;
+  entidx_enum_proxy_participant_init (&eproxypp, gv->entity_index);
+  while ((proxypp = entidx_enum_proxy_participant_next (&eproxypp)) != NULL)
+  {
+    if (q_omg_proxy_participant_is_secure(proxypp) && expired_proxypp_check_fn (proxypp, handle))
+    {
+      delete_proxy_participant_by_guid (gv, &proxypp->e.guid, ddsrt_time_wallclock (), false);
+      result = true;
+    }
+  }
+  entidx_enum_proxy_participant_fini (&eproxypp);
+  return result;
+}
+
+static bool pp_expired_by_perm (const struct participant * pp, DDS_Security_Handle handle)
+{
+  return pp->sec_attr->permissions_handle == handle;
+}
+
+static bool proxypp_expired_by_perm (const struct proxy_participant * proxypp, DDS_Security_Handle handle)
+{
+  bool result = false;
+  uint32_t i = 0;
+  ddsrt_avl_iter_t it;
+  ddsrt_mutex_lock (&proxypp->sec_attr->lock);
+  for (struct proxypp_pp_match *ppm = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &it); ppm; ppm = ddsrt_avl_iter_next (&it), i++)
+  {
+    if (ppm->permissions_handle == handle)
+    {
+      result = true;
+      break;
+    }
+  }
+  ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
+  return result;
+}
+
+static bool pp_expired_by_id (const struct participant * pp, DDS_Security_Handle handle)
+{
+  return pp->sec_attr->local_identity_handle == handle;
+}
+
+static bool proxypp_expired_by_id (const struct proxy_participant * proxypp, DDS_Security_Handle handle)
+{
+  return proxypp->sec_attr->remote_identity_handle == handle;
+}
+
+/* When a local identity (i.e. the identity of a local participant) or
+  a local permissions handle (bound to a local participant) expires,
+  the participant will be deleted. Strictly speaking, as described in the DDS
+  Security specification, the communication for this partcipant should be
+  stopped. A possible interpretation is that the participant and its
+  depending endpoints remain alive in 'expired' state and e.g. unread data
+  that was received earlier could still be retrieved by the application.
+  As we considered this as an edge case that would not be used widely,
+  the current implementation simply deletes the DDSI participant and leaves
+  the participant entity in the API in an invalid state, which could result
+  in error codes when calling API functions on these entities. This approach
+  dramatically simplifies the code for handling the revocation of permission
+  and identity handles.
+
+  For remote identity revocation, in case any of the permission handles
+  in a pp-match of a proxy participant is expired, the proxy participant
+  is deleted, as the expired permission grant for a (remote) participant
+  applies to the participant as a whole (bound to its subject of the
+  identity certificate used by the participant) */
 static DDS_Security_boolean on_revoke_permissions_cb(const dds_security_access_control *plugin, const DDS_Security_PermissionsHandle handle)
 {
   struct ddsi_domaingv *gv = plugin->gv;
-  struct entidx_enum_participant epp;
-  struct entidx_enum_proxy_participant eproxypp;
-  struct participant *pp;
-  struct proxy_participant *proxypp;
-  bool local = false;
   thread_state_awake (lookup_thread_state (), gv);
 
-  /* Find participants using this permissions handle */
-  entidx_enum_participant_init (&epp, gv->entity_index);
-  while ((pp = entidx_enum_participant_next (&epp)) != NULL)
-  {
-    struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
-    ddsrt_mutex_lock (&pp->sec_attr->lock);
-    if (pp->sec_attr->permissions_handle == handle)
-    {
-      uint32_t i = 0;
-      ddsrt_avl_citer_t it;
-      local = true;
-      for (struct pp_proxypp_match *ppm = ddsrt_avl_citer_first (&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, &it); ppm; ppm = ddsrt_avl_citer_next (&it), i++)
-        pp_proxypp_unrelate_locked (sc, pp, &ppm->proxypp_guid);
-    }
-    ddsrt_mutex_unlock (&pp->sec_attr->lock);
-  }
-  entidx_enum_participant_fini (&epp);
-
-  /* Find proxy participants using this permissions handle */
-  if (!local)
-  {
-    entidx_enum_proxy_participant_init (&eproxypp, gv->entity_index);
-    while ((proxypp = entidx_enum_proxy_participant_next (&eproxypp)) != NULL)
-    {
-      ddsrt_mutex_lock (&proxypp->sec_attr->lock);
-      uint32_t i = 0;
-      ddsrt_avl_iter_t it;
-      bool del_proxypp = true;
-      for (struct proxypp_pp_match *ppm = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &it); ppm; ppm = ddsrt_avl_iter_next (&it), i++)
-      {
-        if (ppm->permissions_handle == handle)
-          proxypp_pp_unrelate_locked (proxypp->sec_attr->sc, proxypp, &ppm->pp_guid, ppm->pp_crypto_handle);
-        else
-          del_proxypp = false;
-      }
-      ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
-      if (del_proxypp)
-        delete_proxy_participant_by_guid (gv, &proxypp->e.guid, ddsrt_time_wallclock (), false);
-    }
-    entidx_enum_proxy_participant_fini (&eproxypp);
-  }
+  if (!delete_pp_by_handle (handle, pp_expired_by_perm, gv))
+    delete_proxypp_by_handle (handle, proxypp_expired_by_perm, gv);
 
   thread_state_asleep (lookup_thread_state ());
   return true;
 }
 
+/* See comment above on_revoke_permissions_cb */
 static DDS_Security_boolean on_revoke_identity_cb(const dds_security_authentication *plugin, const DDS_Security_IdentityHandle handle)
 {
   struct ddsi_domaingv *gv = plugin->gv;
-  struct entidx_enum_participant epp;
-  struct entidx_enum_proxy_participant eproxypp;
-  struct participant *pp;
-  struct proxy_participant *proxypp;
-  bool local = false;
   thread_state_awake (lookup_thread_state (), gv);
 
-  /* Find participants using this identity handle */
-  entidx_enum_participant_init (&epp, gv->entity_index);
-  while ((pp = entidx_enum_participant_next (&epp)) != NULL)
-  {
-    struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
-    ddsrt_mutex_lock (&pp->sec_attr->lock);
-    if (pp->sec_attr->local_identity_handle == handle)
-    {
-      uint32_t i = 0;
-      ddsrt_avl_citer_t it;
-      local = true;
-      for (struct pp_proxypp_match *ppm = ddsrt_avl_citer_first (&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, &it); ppm; ppm = ddsrt_avl_citer_next (&it), i++)
-        pp_proxypp_unrelate_locked (sc, pp, &ppm->proxypp_guid);
-    }
-    ddsrt_mutex_unlock (&pp->sec_attr->lock);
-  }
-  entidx_enum_participant_fini (&epp);
-
-  /* Find proxy participants using this permissions handle */
-  if (!local)
-  {
-    entidx_enum_proxy_participant_init (&eproxypp, gv->entity_index);
-    while ((proxypp = entidx_enum_proxy_participant_next (&eproxypp)) != NULL)
-    {
-      bool del_pp;
-      ddsrt_mutex_lock (&proxypp->sec_attr->lock);
-      del_pp = proxypp->sec_attr->remote_identity_handle == handle;
-      ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
-      if (del_pp)
-        delete_proxy_participant_by_guid (gv, &proxypp->e.guid, ddsrt_time_wallclock (), false);
-    }
-    entidx_enum_proxy_participant_fini (&eproxypp);
-  }
+  if (!delete_pp_by_handle (handle, pp_expired_by_id, gv))
+    delete_proxypp_by_handle (handle, proxypp_expired_by_id, gv);
 
   thread_state_asleep (lookup_thread_state ());
   return true;
 }
-
 
 dds_return_t q_omg_security_load (dds_security_context *sc, const dds_qos_t *qos, struct ddsi_domaingv *gv)
 {
