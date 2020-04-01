@@ -255,6 +255,7 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
   char *perm_topic = get_permissions_topic (topic_name);
 
   // 1st node used as reader, other nodes as writer
+  print_test_msg ("creating permissions grants\n");
   const char *id[N_NODES], *pk[N_NODES], *ca_list[N_NODES];
   char * id_subj[N_NODES], *grants[N_NODES];
   bool exp_fail[N_NODES];
@@ -266,8 +267,11 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
     ca_list[i] = ca;
     id[i] = generate_identity (ca_list[i], TEST_IDENTITY_CA1_PRIVATE_KEY, id_name, pk[i], 0, 3600, &id_subj[i]);
     exp_fail[i] = false;
-    dds_duration_t v = DDS_SECS(i < N_RD ? 3600 : PERM_EXP_BASE + 2 * i); /* 1st node is reader and should not expire */
-    grants[i] = get_permissions_grant (id_name, id_subj[i], t_perm, t_perm + v, perm_topic, perm_topic, NULL);
+    dds_duration_t v = DDS_SECS(i < N_RD ? 3600 : PERM_EXP_BASE + 2 * i); /* readers should not expire */
+    dds_time_t t_exp = ddsrt_time_add_duration (t_perm, v);
+    if (i >= N_RD)
+      print_test_msg ("w[%d] grant expires at %d.%06d\n", i - N_RD, (int32_t) (t_exp / DDS_NSECS_IN_SEC), (int32_t) (t_exp % DDS_NSECS_IN_SEC) / 1000);
+    grants[i] = get_permissions_grant (id_name, id_subj[i], t_perm, t_exp, perm_topic, perm_topic, NULL);
     ddsrt_free (id_name);
   }
 
@@ -316,16 +320,16 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
   dds_sample_info_t info[1];
   dds_return_t ret;
 
-  for (int i = 0; i < N_WR; i++)
+  for (int run = 0; run < N_WR; run++)
   {
-    // sleep until 1s before next writer pp permission expires
-    dds_duration_t delay = DDS_SECS (PERM_EXP_BASE + 2 * i) - (dds_time () - t_perm);
+    // sleep until 1s after next writer pp permission expires
+    dds_duration_t delay = DDS_SECS (PERM_EXP_BASE + 2 * run + 1) - (dds_time () - t_perm);
     if (delay > 0)
       dds_sleepfor (delay);
 
-    print_test_msg ("run %d\n", i);
+    print_test_msg ("run %d\n", run);
 
-    for (int w = 0; w < N_WR; w++)
+    for (int w = run; w < N_WR; w++)
     {
       sample.id = w;
       ret = dds_write (wr[w], &sample);
@@ -356,8 +360,8 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
         n_invalid++;
       }
     }
-    CU_ASSERT_EQUAL (n_samples, N_WR - i);
-    CU_ASSERT (n_invalid <= i);
+    CU_ASSERT_EQUAL (n_samples, N_WR - run);
+    CU_ASSERT (n_invalid <= run);
   }
 
   access_control_fini (N_NODES);
