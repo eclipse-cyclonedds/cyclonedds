@@ -523,27 +523,31 @@ static const char *get_kagree_algo(AuthenticationAlgoKind_t kind)
   }
 }
 
-static AuthenticationAlgoKind_t get_dsign_algo_from_string(const char *name)
+static bool str_octseq_equal (const char *str, const DDS_Security_OctetSeq *binstr)
 {
-  if (name)
-  {
-    if (strcmp(AUTH_DSIG_ALGO_RSA_2048_SHA256_IDENT, name) == 0)
+  size_t i;
+  for (i = 0; str[i] && i < binstr->_length; i++)
+    if ((unsigned char) str[i] != binstr->_buffer[i])
+      return false;
+  /* allow zero-termination in binstr */
+  return (str[i] == 0 && (i == binstr->_length || binstr->_buffer[i] == 0));
+}
+
+static AuthenticationAlgoKind_t get_dsign_algo_from_octseq(const DDS_Security_OctetSeq *name)
+{
+  if (str_octseq_equal(AUTH_DSIG_ALGO_RSA_2048_SHA256_IDENT, name))
       return AUTH_ALGO_KIND_RSA_2048;
-    if (strcmp(AUTH_DSIG_ALGO_ECDSA_SHA256_IDENT, name) == 0)
-      return AUTH_ALGO_KIND_EC_PRIME256V1;
-  }
+  if (str_octseq_equal(AUTH_DSIG_ALGO_ECDSA_SHA256_IDENT, name))
+    return AUTH_ALGO_KIND_EC_PRIME256V1;
   return AUTH_ALGO_KIND_UNKNOWN;
 }
 
-static AuthenticationAlgoKind_t get_kagree_algo_from_string(const char *name)
+static AuthenticationAlgoKind_t get_kagree_algo_from_octseq(const DDS_Security_OctetSeq *name)
 {
-  if (name)
-  {
-    if (strcmp(AUTH_KAGREE_ALGO_RSA_2048_SHA256_IDENT, name) == 0)
-      return AUTH_ALGO_KIND_RSA_2048;
-    if (strcmp(AUTH_KAGREE_ALGO_ECDH_PRIME256V1_IDENT, name) == 0)
-      return AUTH_ALGO_KIND_EC_PRIME256V1;
-  }
+  if (str_octseq_equal(AUTH_KAGREE_ALGO_RSA_2048_SHA256_IDENT, name))
+    return AUTH_ALGO_KIND_RSA_2048;
+  if (str_octseq_equal(AUTH_KAGREE_ALGO_ECDH_PRIME256V1_IDENT, name))
+    return AUTH_ALGO_KIND_EC_PRIME256V1;
   return AUTH_ALGO_KIND_UNKNOWN;
 }
 
@@ -1418,12 +1422,12 @@ static DDS_Security_ValidationResult_t validate_handshake_token_impl (const DDS_
 
     if ((c_dsign_algo = find_required_nonempty_binprop (token, "c.dsign_algo", ex)) == NULL)
       return DDS_SECURITY_VALIDATION_FAILED;
-    if ((dsignAlgoKind = get_dsign_algo_from_string ((const char *) c_dsign_algo->value._buffer)) == AUTH_ALGO_KIND_UNKNOWN)
+    if ((dsignAlgoKind = get_dsign_algo_from_octseq (&c_dsign_algo->value)) == AUTH_ALGO_KIND_UNKNOWN)
       return set_exception (ex, "process_handshake: HandshakeMessageToken property c.dsign_algo not supported");
 
     if ((c_kagree_algo = find_required_nonempty_binprop (token, "c.kagree_algo", ex)) == NULL)
       return DDS_SECURITY_VALIDATION_FAILED;
-    if ((kagreeAlgoKind = get_kagree_algo_from_string ((const char *) c_kagree_algo->value._buffer)) == AUTH_ALGO_KIND_UNKNOWN)
+    if ((kagreeAlgoKind = get_kagree_algo_from_octseq (&c_kagree_algo->value)) == AUTH_ALGO_KIND_UNKNOWN)
       return set_exception (ex, "process_handshake: HandshakeMessageToken property c.kagree_algo not supported");
 
     /* calculate the hash value and set in handshake hash_c1 (req) or hash_c2 (reply) */
