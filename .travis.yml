@@ -8,7 +8,7 @@ language: c
 # does not exist and expects the download to fail if the token is incorrect.
 # Coverity Scan quota are not checked as the Coverity enabled build must only
 # run from cron.
-install_coverity: &install_coverity
+install_coverity: &install_coverity |
   if [ "${COVERITY_SCAN}" = "true" ]; then
     COV_DIR="/tmp/coverity-scan-analysis";
     COV_ARC="/tmp/cov-analysis-${COV_PLATFORM}.tgz";
@@ -25,7 +25,7 @@ install_coverity: &install_coverity
     cov-configure --comptype ${COV_COMPTYPE} --compiler ${CC} --template;
   fi
 
-submit_to_coverity_scan: &submit_to_coverity_scan
+submit_to_coverity_scan: &submit_to_coverity_scan |
   if [ "${COVERITY_SCAN}" = "true" ]; then
     tar -czf analysis-results.tgz cov-int &&
     curl -s -S -F project="${TRAVIS_REPO_SLUG}"
@@ -207,7 +207,8 @@ script:
           -DBUILD_SCHEMA=${BUILD_SCHEMA}
           -DWERROR=on
           -G "${GENERATOR}" ..
-  - case "${GENERATOR}" in
+  - |
+    case "${GENERATOR}" in
       "Unix Makefiles")
         ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- -j 4
         ;;
@@ -219,15 +220,18 @@ script:
         ;;
     esac
   - CYCLONEDDS_URI='<CycloneDDS><Domain><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks><LivelinessMonitoring>true</LivelinessMonitoring></Internal><Tracing><Verbosity>config</Verbosity><OutputFile>stderr</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 4 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${BUILD_TYPE}
-  - if [ "${ASAN}" = "none" ]; then
+  - |
+    if [ "${ASAN}" = "none" ]; then
       ${SHELL} ../src/tools/ddsperf/sanity.bash;
     fi
-  - if [ "${ASAN}" != "none" ]; then
+  - |
+    if [ "${ASAN}" != "none" ]; then
       CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
       CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
     fi
   - cd ..
-  - if [ ${BUILD_SCHEMA} ]; then
+  - |
+    if [ ${BUILD_SCHEMA} ]; then
       git diff --exit-code; # check that no files (e.g. generated schemas) are changed
     fi
   - mkdir helloworld_build
