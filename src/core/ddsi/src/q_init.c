@@ -1199,8 +1199,6 @@ int rtps_init (struct ddsi_domaingv *gv)
    * the entities (see DDS Security spec chapter 8.8.8.1). */
   add_property_to_xqos(&gv->builtin_volatile_xqos_rd, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureReader");
   add_property_to_xqos(&gv->builtin_volatile_xqos_wr, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureWriter");
-
-  q_omg_security_init(gv);
 #endif
 
   ddsrt_mutex_init (&gv->sertopics_lock);
@@ -1470,6 +1468,10 @@ int rtps_init (struct ddsi_domaingv *gv)
 #endif
   );
 
+#ifdef DDSI_INCLUDE_SECURITY
+  q_omg_security_init(gv);
+#endif
+
   gv->as_disc = new_addrset ();
   if (gv->config.allowMulticast & AMC_SPDP)
     add_to_addrset (gv, gv->as_disc, &gv->loc_spdp_mc);
@@ -1559,7 +1561,8 @@ err_unicast_sockets:
   ddsrt_mutex_destroy (&gv->sertopics_lock);
 #ifdef DDSI_INCLUDE_SECURITY
   q_omg_security_stop (gv); // should be a no-op as it starts lazily
-  q_omg_security_deinit (gv);
+  q_omg_security_deinit(gv->security_context);
+  q_omg_security_free (gv);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_rd);
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_wr);
@@ -1835,6 +1838,10 @@ void rtps_fini (struct ddsi_domaingv *gv)
   nn_dqueue_free (gv->user_dqueue);
 #endif
 
+#ifdef DDSI_INCLUDE_SECURITY
+  q_omg_security_deinit (gv->security_context);
+#endif
+
   xeventq_free (gv->xevents);
 
   if (gv->config.xpack_send_async)
@@ -1918,7 +1925,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
   ddsrt_mutex_destroy (&gv->sertopics_lock);
 
 #ifdef DDSI_INCLUDE_SECURITY
-  q_omg_security_deinit (gv);
+  q_omg_security_free (gv);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_rd);
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_wr);
