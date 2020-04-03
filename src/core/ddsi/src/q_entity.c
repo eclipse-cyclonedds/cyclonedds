@@ -5638,6 +5638,9 @@ static void gc_delete_proxy_writer (struct gcreq *gcreq)
   local_reader_ary_fini (&pwr->rdary);
   if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
     lease_free (pwr->lease);
+#ifdef DDSI_INCLUDE_SECURITY
+  q_omg_security_deregister_remote_writer(pwr);
+#endif
   proxy_endpoint_common_fini (&pwr->e, &pwr->c);
   nn_defrag_free (pwr->defrag);
   nn_reorder_free (pwr->reorder);
@@ -5869,6 +5872,9 @@ static void gc_delete_proxy_reader (struct gcreq *gcreq)
     writer_drop_connection (&m->wr_guid, prd);
     free_prd_wr_match (m);
   }
+#ifdef DDSI_INCLUDE_SECURITY
+  q_omg_security_deregister_remote_reader(prd);
+#endif
   proxy_endpoint_common_fini (&prd->e, &prd->c);
   ddsrt_free (prd);
 }
