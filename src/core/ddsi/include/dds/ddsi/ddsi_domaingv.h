@@ -329,7 +329,6 @@ struct ddsi_domaingv {
   /* security globals */
 #ifdef DDSI_INCLUDE_SECURITY
   struct dds_security_context *security_context;
-  struct dds_security_match_index *security_matches;
   struct ddsi_hsadmin *hsadmin;
 #endif
 

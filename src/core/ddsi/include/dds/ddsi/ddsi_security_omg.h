@@ -55,24 +55,10 @@ typedef struct nn_msg_sec_info {
   int64_t dst_pp_handle;
 } nn_msg_sec_info_t;
 
-struct guid_pair {
-  ddsi_guid_t src;
-  ddsi_guid_t dst;
-};
 
-struct security_entity_match {
-  ddsrt_avl_node_t avlnode;
-  struct guid_pair guids;
-  bool matched;
-  bool tokens_sent;
-  int64_t crypto_handle;
-  DDS_Security_ParticipantCryptoTokenSeq *tokens;
-};
 
-struct dds_security_match_index {
-  ddsrt_mutex_t lock;
-  ddsrt_avl_tree_t matches;
-};
+
+
 
 struct pp_proxypp_match {
   ddsrt_avl_node_t avlnode;
@@ -740,6 +726,15 @@ void q_omg_security_deregister_remote_writer_match(const struct ddsi_domaingv *g
 void q_omg_security_set_remote_writer_crypto_tokens(struct reader *rd, const ddsi_guid_t *pwr_guid, const nn_dataholderseq_t *tokens);
 
 /**
+ * @brief Release all the security resources associated with the remote writer.
+ *
+ * Cleanup security resource associated with the remote writer.
+ *
+ * @param[in] pwr       The remote writer.
+ */
+void q_omg_security_deregister_remote_writer(const struct proxy_writer *pwr);
+
+/**
  * @brief Set security information, depending on plist and proxy participant,
  * into the given proxy reader.
  *
@@ -849,6 +844,15 @@ void q_omg_security_deregister_remote_reader_match(const struct ddsi_domaingv *g
  * @param[in] tokens    The crypto token received from the remote reader for the writer.
  */
 void q_omg_security_set_remote_reader_crypto_tokens(struct writer *wr, const ddsi_guid_t *prd_guid, const nn_dataholderseq_t *tokens);
+
+/**
+ * @brief Release all the security resources associated with the remote reader.
+ *
+ * Cleanup security resource associated with the remote reader.
+ *
+ * @param[in] prd       The remote reader.
+ */
+void q_omg_security_deregister_remote_reader(const struct proxy_reader *prd);
 
 /**
  * @brief Encode RTPS message.
