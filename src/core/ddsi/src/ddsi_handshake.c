@@ -553,7 +553,15 @@ static void func_validate_remote_identity(struct dds_security_fsm *fsm, void *ar
    * to be send.
    */
   if (handshake->local_auth_request_token.class_id && strlen(handshake->local_auth_request_token.class_id) != 0)
+  {
+    /* A short sleep to give the remote node some time for matching the
+       BuiltinParticipantStatelessMessageWriter, so that it won't drop the
+       sample we're sending (that would result in a time-out and the
+       handshake taking 1s longer than required) */
+    dds_sleepfor (DDS_MSECS(10));
+    HSTRACE("FSM: validate_remote_identity: send_handshake_message AUTH_REQUEST\n");
     (void)send_handshake_message(handshake, &handshake->local_auth_request_token, pp, proxypp, 1);
+  }
 
 validation_failed:
 ident_token_missing:
