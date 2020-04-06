@@ -141,6 +141,7 @@ static bool validate_handshake(struct ddsi_handshake *handshake, struct particip
 #define RESEND_TIMEOUT          DDS_SECS(1)
 #define SEND_TOKENS_TIMEOUT     DDS_MSECS(100)
 #define AUTHENTICATION_TIMEOUT  DDS_SECS(100)
+#define INITIAL_DELAY           DDS_MSECS(10)
 
 static void func_validate_remote_identity     (struct dds_security_fsm *fsm, void *arg);
 static void func_handshake_init_message_resend(struct dds_security_fsm *fsm, void *arg);
@@ -153,6 +154,7 @@ static void func_validation_failed            (struct dds_security_fsm *fsm, voi
 static void func_send_crypto_tokens_final     (struct dds_security_fsm *fsm, void *arg);
 static void func_send_crypto_tokens           (struct dds_security_fsm *fsm, void *arg);
 
+static dds_security_fsm_state state_initial_delay                       = { NULL,                      INITIAL_DELAY };
 static dds_security_fsm_state state_validate_remote_identity            = { func_validate_remote_identity,         0 };
 static dds_security_fsm_state state_validate_remote_identity_retry_wait = { NULL,                      RETRY_TIMEOUT };
 static dds_security_fsm_state state_handshake_init_message_resend       = { func_handshake_init_message_resend,    0 };
@@ -192,6 +194,7 @@ static void q_handshake_fsm_debug(
 
 
   if      (current == NULL)                                        state = "NULL";
+  else if (current == &state_initial_delay)                        state = "state_initial_delay";
   else if (current == &state_validate_remote_identity)             state = "state_validate_remote_identity";
   else if (current == &state_validate_remote_identity_retry_wait)  state = "state_validate_remote_identity_retry_wait";
   else if (current == &state_handshake_init_message_resend)        state = "state_handshake_init_message_resend";
@@ -249,6 +252,15 @@ static void q_handshake_fsm_debug(
  Inspiration from https://confluence.prismtech.com/display/VC/Authentication?preview=/30379826/34340895/PT_StateMachine_3g.gif
 
                             [START]
+                               |
+                     .---------------------.
+                     | state_initial_delay |
+                     |---------------------|
+                     | initial_delay       |
+                     '---------------------'
+                               |
+                            TIMEOUT
+                 EVENT_RECEIVED_MESSAGE_REQUEST
                                |
                                v
                .---------------------------------.
@@ -367,6 +379,17 @@ VALIDATION_FAILED |                                         |                   
 static const dds_security_fsm_transition handshake_transistions [] =
 {   /* Start */
     { NULL,                                 EVENT_AUTO,                                 NULL,
+                                            &state_initial_delay                           },
+    /* initial delay: a short delay to give the remote node some time for matching the
+       BuiltinParticipantStatelessMessageWriter, so that it won't drop the auth_request
+       we're sending (that would result in a time-out and the handshake taking longer
+       than required). For the node that receives the auth_request, the transition for
+       the event EVENT_RECEIVED_MESSAGE_REQUEST is added, because that node may receive the
+       auth_request during this delay and can continue immediately (as the sender already
+       waited for this delay before sending the request) */
+    { &state_initial_delay,                 EVENT_TIMEOUT,                              NULL,
+                                            &state_validate_remote_identity                },
+    { &state_initial_delay,                 EVENT_RECEIVED_MESSAGE_REQUEST,             NULL,
                                             &state_validate_remote_identity                },
     /* validate remote identity */
     { &state_validate_remote_identity,      EVENT_VALIDATION_PENDING_RETRY,             NULL,
@@ -553,15 +576,7 @@ static void func_validate_remote_identity(struct dds_security_fsm *fsm, void *ar
    * to be send.
    */
   if (handshake->local_auth_request_token.class_id && strlen(handshake->local_auth_request_token.class_id) != 0)
-  {
-    /* A short sleep to give the remote node some time for matching the
-       BuiltinParticipantStatelessMessageWriter, so that it won't drop the
-       sample we're sending (that would result in a time-out and the
-       handshake taking 1s longer than required) */
-    dds_sleepfor (DDS_MSECS(10));
-    HSTRACE("FSM: validate_remote_identity: send_handshake_message AUTH_REQUEST\n");
     (void)send_handshake_message(handshake, &handshake->local_auth_request_token, pp, proxypp, 1);
-  }
 
 validation_failed:
 ident_token_missing:
