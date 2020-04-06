@@ -1103,7 +1103,7 @@ encode_datawriter_submessage_encrypt (
         */
 
   size = 2 * sizeof(struct submsg_header) + sizeof(struct crypto_header) + sizeof(struct crypto_footer) + ALIGN4(plain_submsg->_length);
-  size += reader_crypto_list->_length * CRYPTO_HMAC_SIZE;
+  size += reader_crypto_list->_length * sizeof(struct receiver_specific_mac);
   /* assure that the buffer contains enough memory to accommodate the encrypted payload */
   if (is_encryption_required(session->master_key_material->transformation_kind))
     size += sizeof(struct submsg_header) + sizeof(uint32_t) + CRYPTO_ENCRYPTION_MAX_PADDING;
@@ -1150,9 +1150,9 @@ encode_datawriter_submessage_encrypt (
 
     /* adjust the length of the body submessage when needed */
     encrypted->length = ddsrt_toBE4u(payload_len);
-    if (payload_len + sizeof(encrypted->length) > plain_submsg->_length)
+    if (payload_len > plain_submsg->_length)
     {
-      size_t inc = payload_len + sizeof(encrypted->length) - plain_submsg->_length;
+      size_t inc = payload_len - plain_submsg->_length;
       body->length = (uint16_t)(body->length + inc);
       data._length += (uint32_t)inc;
     }
@@ -1182,7 +1182,9 @@ encode_datawriter_submessage_encrypt (
   footer->receiver_specific_macs._length = 0;
 
   *encoded_submsg = data;
-  if (has_origin_authentication(protection_kind))
+  if (!has_origin_authentication(protection_kind))
+    *index = (int32_t) reader_crypto_list->_length;
+  else
   {
     if (reader_crypto_list->_length != 0)
     {
@@ -1191,10 +1193,7 @@ encode_datawriter_submessage_encrypt (
       (*index)++;
     }
   }
-  else
-  {
-    *index = (int32_t) reader_crypto_list->_length;
-  }
+
   result = true;
 
 enc_dw_submsg_fail:
@@ -1357,7 +1356,7 @@ encode_datareader_submessage(
      */
 
   size = 2 * sizeof(struct submsg_header) + sizeof(struct crypto_header) + sizeof(struct crypto_footer) + ALIGN4(plain_submsg->_length);
-  size += writer_crypto_list->_length * CRYPTO_HMAC_SIZE;
+  size += writer_crypto_list->_length * sizeof(struct receiver_specific_mac);
   /* assure that the buffer contains enough memory to accommodate the encrypted payload */
   if (is_encryption_required(session->master_key_material->transformation_kind))
     size += sizeof(struct submsg_header) + sizeof(uint32_t) + CRYPTO_ENCRYPTION_MAX_PADDING;
@@ -1405,9 +1404,9 @@ encode_datareader_submessage(
 
     /* adjust the length of the body submessage when needed */
     encrypted->length = ddsrt_toBE4u(payload_len);
-    if (payload_len + sizeof(encrypted->length) > plain_submsg->_length)
+    if (payload_len > plain_submsg->_length)
     {
-      size_t inc = payload_len + sizeof(encrypted->length) - plain_submsg->_length;
+      size_t inc = payload_len - plain_submsg->_length;
       body->length = (uint16_t)(body->length + inc);
       data._length += (uint32_t)inc;
     }
@@ -1641,7 +1640,7 @@ static DDS_Security_boolean encode_rtps_message_encrypt (
 
   size = RTPS_HEADER_SIZE; /* RTPS Header */
   size += 2 * sizeof(struct submsg_header) + sizeof(struct crypto_header) + sizeof(struct crypto_footer) + ALIGN4(plain_rtps_message->_length);
-  size += receiving_participant_crypto_list->_length * CRYPTO_HMAC_SIZE;
+  size += receiving_participant_crypto_list->_length * sizeof(struct receiver_specific_mac);
   size += sizeof(struct submsg_header) + RTPS_HEADER_SIZE; /* INFO_SRC */
 
   if (is_encryption_required(session->master_key_material->transformation_kind))
