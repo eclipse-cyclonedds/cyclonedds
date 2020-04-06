@@ -625,27 +625,6 @@ int64_t q_omg_security_get_remote_participant_handle(struct proxy_participant *p
 void q_omg_security_set_participant_crypto_tokens(struct participant *pp, struct proxy_participant *proxypp, const nn_dataholderseq_t *tokens);
 
 /**
- * @brief Set security information, depending on plist and proxy participant,
- * into the given proxy writer.
- *
- * @param[in] pwr      Proxy writer to set security info on.
- * @param[in] plist    Paramater list, possibly contains security info.
- */
-void set_proxy_writer_security_info(struct proxy_writer *pwr, const ddsi_plist_t *plist);
-
-/**
- * @brief Determine the security settings associated with the remote writer.
- *
- * From the security information contained in the parameter list from the remote writer
- * the corresponding security settings are determined and returned in the info parameter.
- *
- * @param[in] pwr       The remote writer.
- * @param[in] plist     The parameter list from the remote writer.
- * @param[out] info     The security settings associated with the remote writer.
- */
-void q_omg_get_proxy_writer_security_info(struct proxy_writer *pwr, const ddsi_plist_t *plist, nn_security_info_t *info);
-
-/**
  * @brief Check if the writer has the is_discovery_protected flag set
  *
  * @param[in] wr        The local writer.
@@ -740,27 +719,6 @@ void q_omg_security_deregister_remote_writer_match(const struct ddsi_domaingv *g
 void q_omg_security_set_remote_writer_crypto_tokens(struct reader *rd, const ddsi_guid_t *pwr_guid, const nn_dataholderseq_t *tokens);
 
 /**
- * @brief Set security information, depending on plist and proxy participant,
- * into the given proxy reader.
- *
- * @param[in] prd      Proxy reader to set security info on.
- * @param[in] plist    Paramater list, possibly contains security info.
- */
-void set_proxy_reader_security_info(struct proxy_reader *prd, const ddsi_plist_t *plist);
-
-/**
- * @brief Determine the security settings associated with the remote reader.
- *
- * From the security information contained in the parameter list from the remote reader
- * the corresponding security settings are determined and returned in the info parameter.
- *
- * @param[in] prd       The remote reader.
- * @param[in] plist     The parameter list from the remote reader.
- * @param[out] info     The security settings associated with the remote reader.
- */
-void q_omg_get_proxy_reader_security_info(struct proxy_reader *prd, const ddsi_plist_t *plist, nn_security_info_t *info);
-
-/**
  * @brief Check if the reader has the is_discovery_protected flag set
  *
  * @param[in] rd        The local reader.
@@ -796,6 +754,18 @@ bool q_omg_reader_is_submessage_protected(const struct reader *rd);
  * @retval false  Otherwise; relay_only is unspecified.
  */
 bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *prd, uint32_t domain_id, struct participant *pp, bool *relay_only);
+
+
+/**
+ * @brief Set security information, depending on plist and proxy participant,
+ * into the given proxy endpoint.
+ *
+ * @param[in] entity            The endpoint common attributes.
+ * @param[in] proxypp_sec_info  The security info of the proxy participant
+ * @param[in] plist             Paramater list which may contain security info.
+ * @param[in] info              The proxy endpoint security info to be set.
+ */
+void q_omg_get_proxy_endpoint_security_info(const struct entity_common *entity, nn_security_info_t *proxypp_sec_info, const ddsi_plist_t *plist, nn_security_info_t *info);
 
 /**
  * @brief Check it the local writer is allowed to communicate with the remote reader.

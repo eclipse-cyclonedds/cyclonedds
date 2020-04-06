@@ -2044,7 +2044,7 @@ bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *p
     }
   }
 
-  if (SECURITY_INFO_IS_WRITE_PROTECTED(pwr->security_info))
+  if (SECURITY_INFO_IS_WRITE_PROTECTED(pwr->c.security_info))
   {
     DDS_Security_PermissionsHandle permissions_handle;
 
@@ -2055,7 +2055,7 @@ bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *p
     }
     else
     {
-      q_omg_shallow_copy_PublicationBuiltinTopicDataSecure(&publication_data, &pwr->e.guid, pwr->c.xqos, &pwr->security_info);
+      q_omg_shallow_copy_PublicationBuiltinTopicDataSecure(&publication_data, &pwr->e.guid, pwr->c.xqos, &pwr->c.security_info);
       ok = sc->access_control_context->check_remote_datawriter(sc->access_control_context, permissions_handle, (int)domain_id, &publication_data, &exception);
       q_omg_shallow_free_PublicationBuiltinTopicDataSecure(&publication_data);
       if (!ok)
@@ -2185,11 +2185,11 @@ bool q_omg_security_match_remote_writer_enabled(struct reader *rd, struct proxy_
    * q_omg_participant_allow_unauthenticated() returns FALSE there.
    */
   (void)q_omg_get_reader_security_info(rd, &info);
-  if (!SECURITY_INFO_COMPATIBLE(pwr->security_info, info, NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID))
+  if (!SECURITY_INFO_COMPATIBLE(pwr->c.security_info, info, NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID))
   {
     GVWARNING("match_remote_writer "PGUIDFMT" with reader "PGUIDFMT" security_attributes mismatch: 0x%08x.0x%08x - 0x%08x.0x%08x\n",
                 PGUID(pwr->e.guid), PGUID(rd->e.guid),
-                pwr->security_info.security_attributes, pwr->security_info.plugin_security_attributes,
+                pwr->c.security_info.security_attributes, pwr->c.security_info.plugin_security_attributes,
                 info.security_attributes, info.plugin_security_attributes);
     return false;
   }
@@ -2210,11 +2210,11 @@ bool q_omg_security_match_remote_writer_enabled(struct reader *rd, struct proxy_
    * the valid flag is 0. To be able to support these product, assume
    * that the attributes are the same. If there is actually a mismatch,
    * communication will fail at a later moment anyway. */
-  if (!SECURITY_ATTR_IS_VALID(pwr->security_info.security_attributes)) {
-    pwr->security_info.security_attributes = info.security_attributes;
+  if (!SECURITY_ATTR_IS_VALID(pwr->c.security_info.security_attributes)) {
+    pwr->c.security_info.security_attributes = info.security_attributes;
   }
-  if (!SECURITY_ATTR_IS_VALID(pwr->security_info.plugin_security_attributes)) {
-    pwr->security_info.plugin_security_attributes = info.plugin_security_attributes;
+  if (!SECURITY_ATTR_IS_VALID(pwr->c.security_info.plugin_security_attributes)) {
+    pwr->c.security_info.plugin_security_attributes = info.plugin_security_attributes;
   }
 
   return q_omg_security_register_remote_writer_match(pwr, rd, crypto_handle);
@@ -2266,7 +2266,7 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
     }
   }
 
-  if (SECURITY_INFO_IS_READ_PROTECTED(prd->security_info))
+  if (SECURITY_INFO_IS_READ_PROTECTED(prd->c.security_info))
   {
     DDS_Security_PermissionsHandle permissions_handle;
 
@@ -2280,7 +2280,7 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
       DDS_Security_SubscriptionBuiltinTopicDataSecure subscription_data;
       DDS_Security_boolean sec_relay_only;
 
-      q_omg_shallow_copy_SubscriptionBuiltinTopicDataSecure(&subscription_data, &prd->e.guid, prd->c.xqos, &prd->security_info);
+      q_omg_shallow_copy_SubscriptionBuiltinTopicDataSecure(&subscription_data, &prd->e.guid, prd->c.xqos, &prd->c.security_info);
       ok = sc->access_control_context->check_remote_datareader(sc->access_control_context, permissions_handle, (int)domain_id, &subscription_data, &sec_relay_only, &exception);
       q_omg_shallow_free_SubscriptionBuiltinTopicDataSecure(&subscription_data);
       if (ok)
@@ -2298,10 +2298,13 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
   return ok;
 }
 
-static void q_omg_get_proxy_endpoint_security_info(const struct entity_common *entity, nn_security_info_t *proxypp_sec_info, const ddsi_plist_t *plist, nn_security_info_t *info)
+void q_omg_get_proxy_endpoint_security_info(const struct entity_common *entity, nn_security_info_t *proxypp_sec_info, const ddsi_plist_t *plist, nn_security_info_t *info)
 {
   const bool proxypp_info_available =
     (proxypp_sec_info->security_attributes != 0 || proxypp_sec_info->plugin_security_attributes != 0);
+
+  info->security_attributes = 0;
+  info->plugin_security_attributes = 0;
 
   /*
    * If Security info is present, use that.
@@ -2369,34 +2372,6 @@ static void q_omg_get_proxy_endpoint_security_info(const struct entity_common *e
       NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID | NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED;
     info->plugin_security_attributes = 0;
   }
-  else
-  {
-    info->security_attributes = 0;
-    info->plugin_security_attributes = 0;
-  }
-}
-
-void q_omg_get_proxy_reader_security_info(struct proxy_reader *prd, const ddsi_plist_t *plist, nn_security_info_t *info)
-{
-  q_omg_get_proxy_endpoint_security_info(&(prd->e), &(prd->c.proxypp->security_info), plist, info);
-}
-
-void set_proxy_reader_security_info(struct proxy_reader *prd, const ddsi_plist_t *plist)
-{
-  assert (prd);
-  q_omg_get_proxy_endpoint_security_info (&prd->e, &prd->c.proxypp->security_info, plist, &prd->c.security_info);
-}
-
-
-void q_omg_get_proxy_writer_security_info(struct proxy_writer *pwr, const ddsi_plist_t *plist, nn_security_info_t *info)
-{
-  q_omg_get_proxy_endpoint_security_info(&(pwr->e), &(pwr->c.proxypp->security_info), plist, info);
-}
-
-void set_proxy_writer_security_info(struct proxy_writer *pwr, const ddsi_plist_t *plist)
-{
-  assert (pwr);
-  q_omg_get_proxy_endpoint_security_info (&pwr->e, &pwr->c.proxypp->security_info, plist, &pwr->c.security_info);
 }
 
 void q_omg_security_deregister_remote_reader_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *wr_guid, struct wr_prd_match *m)
@@ -2535,11 +2510,11 @@ bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_
    * q_omg_participant_allow_unauthenticated() returns FALSE there.
    */
   (void)q_omg_get_writer_security_info(wr, &info);
-  if (!SECURITY_INFO_COMPATIBLE(prd->security_info, info, NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID))
+  if (!SECURITY_INFO_COMPATIBLE(prd->c.security_info, info, NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID))
   {
     GVWARNING("match_remote_reader "PGUIDFMT" with writer "PGUIDFMT" security_attributes mismatch: 0x%08x.0x%08x - 0x%08x.0x%08x\n",
         PGUID(prd->e.guid), PGUID(wr->e.guid),
-        prd->security_info.security_attributes, prd->security_info.plugin_security_attributes,
+        prd->c.security_info.security_attributes, prd->c.security_info.plugin_security_attributes,
         info.security_attributes, info.plugin_security_attributes);
     return false;
   }
@@ -2560,11 +2535,11 @@ bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_
    * the valid flag is 0. To be able to support these product, assume
    * that the attributes are the same. If there is actually a mismatch,
    * communication will fail at a later moment anyway. */
-  if (!SECURITY_ATTR_IS_VALID(prd->security_info.security_attributes)) {
-    prd->security_info.security_attributes = info.security_attributes;
+  if (!SECURITY_ATTR_IS_VALID(prd->c.security_info.security_attributes)) {
+    prd->c.security_info.security_attributes = info.security_attributes;
   }
-  if (!SECURITY_ATTR_IS_VALID(prd->security_info.plugin_security_attributes)) {
-    prd->security_info.plugin_security_attributes = info.plugin_security_attributes;
+  if (!SECURITY_ATTR_IS_VALID(prd->c.security_info.plugin_security_attributes)) {
+    prd->c.security_info.plugin_security_attributes = info.plugin_security_attributes;
   }
 
   return q_omg_security_register_remote_reader_match(prd, wr, crypto_handle, relay_only);
