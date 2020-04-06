@@ -4475,9 +4475,6 @@ dds_return_t delete_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *gu
   GVLOGDISC ("delete_reader_guid(guid "PGUIDFMT") ...\n", PGUID (*guid));
   builtintopic_write (rd->e.gv->builtin_topic_interface, &rd->e, ddsrt_time_wallclock(), false);
   entidx_remove_reader_guid (gv->entity_index, rd);
-#ifdef DDSI_INCLUDE_SECURITY
-  q_omg_security_deregister_reader(rd);
-#endif
   gcreq_reader (rd);
   return 0;
 }
@@ -5369,8 +5366,7 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
     memset (&c->group_guid, 0, sizeof (c->group_guid));
 
 #ifdef DDSI_INCLUDE_SECURITY
-  c->security_info.security_attributes = 0;
-  c->security_info.plugin_security_attributes = 0;
+  q_omg_get_proxy_endpoint_security_info(e, &proxypp->security_info, plist, &c->security_info);
 #endif
 
   if ((ret = ref_proxy_participant (proxypp, c)) != DDS_RETCODE_OK)
@@ -5515,11 +5511,6 @@ int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
   pwr->evq = evq;
   pwr->ddsi2direct_cb = 0;
   pwr->ddsi2direct_cbarg = 0;
-
-#ifdef DDSI_INCLUDE_SECURITY
-  set_proxy_writer_security_info(pwr, plist);
-  q_omg_get_proxy_writer_security_info(pwr, plist, &(pwr->security_info));
-#endif
 
   local_reader_ary_init (&pwr->rdary);
 
@@ -5798,14 +5789,9 @@ int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
 #endif
   prd->is_fict_trans_reader = 0;
 
-#ifdef DDSI_INCLUDE_SECURITY
-  set_proxy_reader_security_info(prd, plist);
-#endif
-
   ddsrt_avl_init (&prd_writers_treedef, &prd->writers);
 
 #ifdef DDSI_INCLUDE_SECURITY
-  q_omg_get_proxy_reader_security_info(prd, plist, &(prd->security_info));
   if (prd->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER)
     prd->filter = volatile_secure_data_filter;
   else
