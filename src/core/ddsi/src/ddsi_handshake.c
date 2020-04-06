@@ -143,18 +143,20 @@ static bool validate_handshake(struct ddsi_handshake *handshake, struct particip
 #define AUTHENTICATION_TIMEOUT  DDS_SECS(100)
 #define INITIAL_DELAY           DDS_MSECS(10)
 
-static void func_validate_remote_identity     (struct dds_security_fsm *fsm, void *arg);
-static void func_handshake_init_message_resend(struct dds_security_fsm *fsm, void *arg);
-static void func_begin_handshake_reply        (struct dds_security_fsm *fsm, void *arg);
-static void func_begin_handshake_request      (struct dds_security_fsm *fsm, void *arg);
-static void func_process_handshake            (struct dds_security_fsm *fsm, void *arg);
-static void func_handshake_message_resend     (struct dds_security_fsm *fsm, void *arg);
-static void func_validation_ok                (struct dds_security_fsm *fsm, void *arg);
-static void func_validation_failed            (struct dds_security_fsm *fsm, void *arg);
-static void func_send_crypto_tokens_final     (struct dds_security_fsm *fsm, void *arg);
-static void func_send_crypto_tokens           (struct dds_security_fsm *fsm, void *arg);
+static void func_validate_remote_and_begin_reply (struct dds_security_fsm *fsm, void *arg);
+static void func_validate_remote_identity        (struct dds_security_fsm *fsm, void *arg);
+static void func_handshake_init_message_resend   (struct dds_security_fsm *fsm, void *arg);
+static void func_begin_handshake_reply           (struct dds_security_fsm *fsm, void *arg);
+static void func_begin_handshake_request         (struct dds_security_fsm *fsm, void *arg);
+static void func_process_handshake               (struct dds_security_fsm *fsm, void *arg);
+static void func_handshake_message_resend        (struct dds_security_fsm *fsm, void *arg);
+static void func_validation_ok                   (struct dds_security_fsm *fsm, void *arg);
+static void func_validation_failed               (struct dds_security_fsm *fsm, void *arg);
+static void func_send_crypto_tokens_final        (struct dds_security_fsm *fsm, void *arg);
+static void func_send_crypto_tokens              (struct dds_security_fsm *fsm, void *arg);
 
 static dds_security_fsm_state state_initial_delay                       = { NULL,                      INITIAL_DELAY };
+static dds_security_fsm_state state_validate_remote_and_begin_reply     = { func_validate_remote_and_begin_reply,  0 };
 static dds_security_fsm_state state_validate_remote_identity            = { func_validate_remote_identity,         0 };
 static dds_security_fsm_state state_validate_remote_identity_retry_wait = { NULL,                      RETRY_TIMEOUT };
 static dds_security_fsm_state state_handshake_init_message_resend       = { func_handshake_init_message_resend,    0 };
@@ -195,6 +197,7 @@ static void q_handshake_fsm_debug(
 
   if      (current == NULL)                                        state = "NULL";
   else if (current == &state_initial_delay)                        state = "state_initial_delay";
+  else if (current == &state_validate_remote_and_begin_reply)      state = "state_validate_remote_and_begin_reply";
   else if (current == &state_validate_remote_identity)             state = "state_validate_remote_identity";
   else if (current == &state_validate_remote_identity_retry_wait)  state = "state_validate_remote_identity_retry_wait";
   else if (current == &state_handshake_init_message_resend)        state = "state_handshake_init_message_resend";
@@ -249,124 +252,126 @@ static void q_handshake_fsm_debug(
 
 
 /************************************************************************************************************
- Inspiration from https://confluence.prismtech.com/display/VC/Authentication?preview=/30379826/34340895/PT_StateMachine_3g.gif
-
                             [START]
                                |
-                     .---------------------.
-                     | state_initial_delay |
-                     |---------------------|
-                     | initial_delay       |
-                     '---------------------'
-                               |
-                            TIMEOUT
-                 EVENT_RECEIVED_MESSAGE_REQUEST
-                               |
-                               v
-               .---------------------------------.
-               | state_validate_remote_identity  |
-  .------------|---------------------------------|----------.--------------------.
-  |            | func_validate_remote_identity() |          |                    |
-  |            '---------------------------------'          |  VALIDATION_PENDING_HANDSHAKE_MESSAGE
-VALIDATION_FAILED             ^  | VALIDATION_PENDING_RETRY |                    |
-VALIDATION_OK                 |  |                          |                    |
-  |                   TIMEOUT |  v                          |                    v
-  |       .-------------------------------------------.     |  .-----------------------------------.
-  |       | state_validate_remote_identity_retry_wait |     |  | state_handshake_init_message_wait |<---------------.
-  |       |-------------------------------------------|     |  |-----------------------------------|           AUTO |
-  |       | retry_timeout                             |     |  | resend_timeout                    |---------.      |
-  |       '-------------------------------------------'     |  '-----------------------------------' TIMEOUT |      |
-  |                                                         |                    |                           |      |
-  |                     .-----------------------------------'                    |                           |      |
-  |                     |      VALIDATION_PENDING_HANDSHAKE_REQUEST              |                           v      |
-  |                     |                                                        |       .--------------------------------------.
-  |                     v                                      RECEIVED_MESSAGE_REQUEST  | state_handshake_init_message_resend  |
-  |    .--------------------------------.                                        |       |--------------------------------------|
-  |    | state_begin_handshake_request  | VALIDATION_PENDING_RETRY               |       | func_handshake_init_message_resend() |
-  |    |--------------------------------|------------.                           |       '--------------------------------------'
-  |    | func_begin_handshake_request() |            |                           |                           ^
-  |    '--------------------------------'            |                           |                           |
-  |        |            |        ^                   |                           |                           |
-  |        |            |        | TIMEOUT           v                           |                           |
-  | VALIDATION_FAILED   |      .------------------------------------------.      |                           |
-  | VALIDATION_OK       |      | state_begin_handshake_request_retry_wait |      |                           |
-  |        |            |      |------------------------------------------|      |                           |
-  |--------'            |      | retry_timeout                            |      |                           |
-  |                     |      '------------------------------------------'      |                           |
-  |                     |                                                        v                  VALIDATION_FAILED
-  |                     |                                        .------------------------------.            |
-  |   VALIDATION_PENDING_HANDSHAKE_MESSAGE                       | state_begin_handshake_reply  |------------'
-  |                     |                                .-------|------------------------------|
-  |                     |                                |       | func_begin_handshake_reply() |------------.
-  |                     |                                |       '------------------------------'            |
-  |                     |                                |       VALIDATION_OK |              ^     VALIDATION_PENDING_RETRY
-  |                     |                                |                     |              |              |
-  |                     |     VALIDATION_PENDING_HANDSHAKE_MESSAGE             v              | TIMEOUT      |
-  |                     |                                |         goto state_validation_ok   |              |
-  |                     |                                v                                    |              v
-  |                     |                .------------------------------.            .------------------------------------------.
-  |                     |                | state_handshake_message_wait |            | state_begin_handshake_reply_retry_wait   |
-  |                     .--------------->|------------------------------|-------.    |------------------------------------------|
-  |                     |                | resend_timeout               |       |    | retry_timeout                            |
-  |                     |                '------------------------------'       |    '------------------------------------------'
-  |                     | AUTO                           |          ^           |
-  |                     |                        TIMEOUT |          |           |
-  |    .---------------------------------.               |          |           | RECEIVED_MESSAGE_REPLY
-  |    | state_handshake_message_resend  |               |  VALIDATION_FAILED   | RECEIVED_MESSAGE_FINAL
-  |    |---------------------------------|<--------------'          |           |
-  |    | func_handshake_message_resend() |                          |           v
-  |    '---------------------------------'                        .--------------------------.
-  |                                                               | state_process_handshake  |
-  |                              .--------------------------------|--------------------------|--------------------------.
-  |                              |            .------------------>| func_process_handshake() |                          |
-  |                              |            |                   '--------------------------'                          |
-  |                              |            |                                 |                                       |
-  |          VALIDATION_PENDING_RETRY      TIMEOUT                VALIDATION_OK |                                       |
-  |                              v            |                                 v                                       |
-  |           .------------------------------------.            .-------------------------------.                       |
-  |           | state_process_handshake_retry_wait |            | state_send_crypto_tokens_wait |                       |
-  |           |------------------------------------|            |-------------------------------|                       |
-  |           | retry_timeout                      |            | send_tokens_timeout           |                       |
-  |           '------------------------------------'            '-------------------------------'                       |
-  |                                                                     |              |              VALIDATION_OK_FINAL_MESSAGE
-  |                                                       .-------------'              '---------.                      |
-  |                                                       | RECV_CRYPTO_TOKENS           TIMEOUT |                      |
-  |                                                       v                                      v                      |
-  |                                      .---------------------------------.       .---------------------------.        |
-  |                                      | state_send_crypto_tokens_final  |       | state_send_crypto_tokens  |        |
-  |                       .--------------|---------------------------------|       |---------------------------|        |
-  |                       |              | func_send_crypto_tokens_final() |       | func_send_crypto_tokens() |        |
-  |                       |              '---------------------------------'       '---------------------------'        |
-  |                       |                               ^                                      |                      |
-  |                   VALIDATION_OK                       |       .--------------------.   VALIDATION_OK_FINAL_MESSAGE  |
-  |                       |                       TIMEOUT |       | RECV_CRYPTO_TOKENS |         |                      |
-  |                       |                               |       v                    |         v                      |
-  |                       |            .-------------------------------------.     .--------------------------.         |
-  |                       |            | state_send_crypto_tokens_final_wait |     | state_wait_crypto_tokens |<--------'
-  |                       |            |-------------------------------------|     |--------------------------|
-  |                       |            | send_tokens_timeout                 |     |                          |---------.
-  |                       |            '-------------------------------------'     '--------------------------'         |
-  |                       |                               ^                              |               ^              |
-  |                       |                               |                  RECEIVED_MESSAGE_REPLY     AUTO      VALIDATION_OK
-  |                       |                      RECV_CRYPTO_TOKENS                      v               |              |
-  |                       |                               |                     .---------------------------------.     |
-  |                       |                               |                     |  state_handshake_final_resend   |     |
-  |                       |                               '---------------------|---------------------------------|     |
-  | VALIDATION_OK         |                                                     | func_handshake_message_resend() |     |
-  |---------------------------------------------------------.                   '---------------------------------'     |
-  |                                                         |                                                           |
-  '---------------.                                         |                                                           |
-VALIDATION_FAILED |                                         |                                                           |
-                  v                                         v                                                           |
-            .--------------------------.               .----------------------.                                         |
-            | state_validation_failed  |               | state_validation_ok  |                                         |
-            |--------------------------|               |----------------------|<----------------------------------------'
-            | func_validation_failed() |               | func_validation_ok() |
-            '--------------------------'               '----------------------'
-                          |                                       |
-                          v                                       v
-                        [END]                                   [END]
-
+                     .---------------------.                                .----------------------------------------.
+                     | state_initial_delay |                                | state_validate_remote_and_begin_reply  |
+                     |---------------------|------------------------------->|----------------------------------------|------------------.
+                     | initial_delay       |    RECEIVED_MESSAGE_REQUEST    | func_validate_remote_and_begin_reply() |                  |
+                     '---------------------'                                '----------------------------------------'                  |
+                               |                                                                                              VALIDATION_PENDING_RETRY
+                            TIMEOUT                                                                                     VALIDATION_PENDING_HANDSHAKE_MESSAGE
+                               |                                                                                                 VALIDATION_OK
+                               v                                                                                                 VALIDATION_FAILED
+               .---------------------------------.                                                                                      |
+               | state_validate_remote_identity  |                                                                                      |
+  .------------|---------------------------------|----------.--------------------.                                                      |
+  |            | func_validate_remote_identity() |          |                    |                                                      |
+  |            '---------------------------------'          |  VALIDATION_PENDING_HANDSHAKE_MESSAGE                                     |
+VALIDATION_FAILED             ^  | VALIDATION_PENDING_RETRY |                    |                                                      |
+VALIDATION_OK                 |  |                          |                    |                                                      |
+  |                   TIMEOUT |  v                          |                    v                                                      |
+  |       .-------------------------------------------.     |  .-----------------------------------.                                    |
+  |       | state_validate_remote_identity_retry_wait |     |  | state_handshake_init_message_wait |<---------------.                   |
+  |       |-------------------------------------------|     |  |-----------------------------------|           AUTO |                   |
+  |       | retry_timeout                             |     |  | resend_timeout                    |---------.      |                   |
+  |       '-------------------------------------------'     |  '-----------------------------------' TIMEOUT |      |                   |
+  |                                                         |                    |                           |      |                   |
+  |                     .-----------------------------------'                    |                           |      |                   |
+  |                     |      VALIDATION_PENDING_HANDSHAKE_REQUEST              |                           v      |                   |
+  |                     |                                                        |       .--------------------------------------.       |
+  |                     v                                      RECEIVED_MESSAGE_REQUEST  | state_handshake_init_message_resend  |       |
+  |    .--------------------------------.                                        |       |--------------------------------------|       |
+  |    | state_begin_handshake_request  | VALIDATION_PENDING_RETRY               |       | func_handshake_init_message_resend() |       |
+  |    |--------------------------------|------------.                           |       '--------------------------------------'       |
+  |    | func_begin_handshake_request() |            |                           |                           ^                          |
+  |    '--------------------------------'            |                           |                           |                          |
+  |        |            |        ^                   |                           |                           |                          |
+  |        |            |        | TIMEOUT           v                           |                           |                          |
+  | VALIDATION_FAILED   |      .------------------------------------------.      |                           |                          |
+  | VALIDATION_OK       |      | state_begin_handshake_request_retry_wait |      |                           |                          |
+  |        |            |      |------------------------------------------|      |                           |                          |
+  |--------'            |      | retry_timeout                            |      |                           |                          |
+  |                     |      '------------------------------------------'      |                           |                          |
+  |                     |                                                        v                  VALIDATION_FAILED                   |
+  |                     |                                        .------------------------------.            |                          |
+  |   VALIDATION_PENDING_HANDSHAKE_MESSAGE                       | state_begin_handshake_reply  |------------'                          |
+  |                     |                                .-------|------------------------------|                                       |
+  |                     |                                |       | func_begin_handshake_reply() |------------.                          |
+  |                     |                                |       '------------------------------'            |                          |
+  |                     |                                |       VALIDATION_OK |              ^     VALIDATION_PENDING_RETRY            |
+  |                     |                                |                     |              |              |                          |
+  |                     |                                |                     |              |              | VALIDATION_PENDING_RETRY |
+  |                     |     VALIDATION_PENDING_HANDSHAKE_MESSAGE             v              | TIMEOUT      |--------------------------|
+  |                     |                                |         goto state_validation_ok   |              |                          |
+  |                     |                                v                                    |              v                          |
+  |                     |                .------------------------------.            .------------------------------------------.       |
+  |                     |                | state_handshake_message_wait |<--------.  | state_begin_handshake_reply_retry_wait   |       |
+  |                     .--------------->|------------------------------|------.  |  |------------------------------------------|       |
+  |                     |                | resend_timeout               |      |  |  | retry_timeout                            |       |
+  |                     |                '------------------------------'      |  |  '------------------------------------------'       |
+  |                     |                                |          ^          |  |                                                     |
+  |                     | AUTO                           |          |          |  |        VALIDATION_PENDING_HANDSHAKE_MESSAGE         |
+  |                     |                                |          |          |  '-----------------------------------------------------|
+  |                     |                        TIMEOUT |          |          |                                                        |
+  |    .---------------------------------.               |          |          | RECEIVED_MESSAGE_REPLY                                 |
+  |    | state_handshake_message_resend  |               |  VALIDATION_FAILED  | RECEIVED_MESSAGE_FINAL                                 |
+  |    |---------------------------------|<--------------'          |          |                                                        |
+  |    | func_handshake_message_resend() |                          |          v                                                        |
+  |    '---------------------------------'                        .--------------------------.                                          |
+  |                                                               | state_process_handshake  |                                          |
+  |                              .--------------------------------|--------------------------|--------------------------.               |
+  |                              |            .------------------>| func_process_handshake() |                          |               |
+  |                              |            |                   '--------------------------'                          |               |
+  |                              |            |                                 |                                       |               |
+  |          VALIDATION_PENDING_RETRY      TIMEOUT                VALIDATION_OK |                                       |               |
+  |                              v            |                                 v                                       |               |
+  |           .------------------------------------.            .-------------------------------.                       |               |
+  |           | state_process_handshake_retry_wait |            | state_send_crypto_tokens_wait |                       |               |
+  |           |------------------------------------|            |-------------------------------|                       |               |
+  |           | retry_timeout                      |            | send_tokens_timeout           |                       |               |
+  |           '------------------------------------'            '-------------------------------'                       |               |
+  |                                                                     |              |              VALIDATION_OK_FINAL_MESSAGE       |
+  |                                                       .-------------'              '---------.                      |               |
+  |                                                       | RECV_CRYPTO_TOKENS           TIMEOUT |                      |               |
+  |                                                       v                                      v                      |               |
+  |                                      .---------------------------------.       .---------------------------.        |               |
+  |                                      | state_send_crypto_tokens_final  |       | state_send_crypto_tokens  |        |               |
+  |                       .--------------|---------------------------------|       |---------------------------|        |               |
+  |                       |              | func_send_crypto_tokens_final() |       | func_send_crypto_tokens() |        |               |
+  |                       |              '---------------------------------'       '---------------------------'        |               |
+  |                       |                               ^                                      |                      |               |
+  |                   VALIDATION_OK                       |       .--------------------.   VALIDATION_OK_FINAL_MESSAGE  |               |
+  |                       |                       TIMEOUT |       | RECV_CRYPTO_TOKENS |         |                      |               |
+  |                       |                               |       v                    |         v                      |               |
+  |                       |            .-------------------------------------.     .--------------------------.         |               |
+  |                       |            | state_send_crypto_tokens_final_wait |     | state_wait_crypto_tokens |<--------'               |
+  |                       |            |-------------------------------------|     |--------------------------|                         |
+  |                       |            | send_tokens_timeout                 |     |                          |---------.               |
+  |                       |            '-------------------------------------'     '--------------------------'         |               |
+  |                       |                               ^                              |               ^              |               |
+  |                       |                               |                  RECEIVED_MESSAGE_REPLY     AUTO      VALIDATION_OK         |
+  |                       |                      RECV_CRYPTO_TOKENS                      v               |              |               |
+  |                       |                               |                     .---------------------------------.     |               |
+  |                       |                               |                     |  state_handshake_final_resend   |     |               |
+  |                       |                               '---------------------|---------------------------------|     |               |
+  | VALIDATION_OK         |                                                     | func_handshake_message_resend() |     |               |
+  |---------------------------------------------------------.                   '---------------------------------'     |               |
+  |                                                         |                                                           |               |
+  '---------------.                                         |                                                           |               |
+VALIDATION_FAILED |                                         |                                                           |               |
+                  v                                         v                                                           |               |
+            .--------------------------.               .----------------------.                                         |               |
+            | state_validation_failed  |               | state_validation_ok  |                                         |               |
+            |--------------------------|               |----------------------|<----------------------------------------'               |
+            | func_validation_failed() |               | func_validation_ok() |                                                         |
+            '--------------------------'               '----------------------'                                                         |
+                          |         ^                              |       ^                                                            |
+                          v         |                              v       | VALIDATION_OK                                              |
+                        [END]       |                            [END]     |                                                            |
+                                    |                                      |                                                            |
+                                    |       VALIDATION_FAILED              |                                                            |
+                                    '---------------------------------------------------------------------------------------------------'
 
  .----------------------------------------.
  | state_begin_handshake_reply_retry_wait |
@@ -390,7 +395,16 @@ static const dds_security_fsm_transition handshake_transistions [] =
     { &state_initial_delay,                 EVENT_TIMEOUT,                              NULL,
                                             &state_validate_remote_identity                },
     { &state_initial_delay,                 EVENT_RECEIVED_MESSAGE_REQUEST,             NULL,
-                                            &state_validate_remote_identity                },
+                                            &state_validate_remote_and_begin_reply         },
+    /* validate remote and begin reply */
+    { &state_validate_remote_and_begin_reply, EVENT_VALIDATION_PENDING_RETRY,             NULL,
+                                            &state_begin_handshake_reply_retry_wait          },
+    { &state_validate_remote_and_begin_reply, EVENT_VALIDATION_FAILED,                    NULL,
+                                            &state_handshake_init_message_resend             },
+    { &state_validate_remote_and_begin_reply, EVENT_VALIDATION_OK,                        NULL,
+                                            &state_validation_ok                             },
+    { &state_validate_remote_and_begin_reply, EVENT_VALIDATION_PENDING_HANDSHAKE_MESSAGE, NULL,
+                                            &state_handshake_message_wait                    },
     /* validate remote identity */
     { &state_validate_remote_identity,      EVENT_VALIDATION_PENDING_RETRY,             NULL,
                                             &state_validate_remote_identity_retry_wait     },
@@ -520,22 +534,14 @@ static bool send_handshake_message(const struct ddsi_handshake *handshake, DDS_S
   return ret;
 }
 
-static void func_validate_remote_identity(struct dds_security_fsm *fsm, void *arg)
+static DDS_Security_ValidationResult_t validate_remote_identity_impl(struct ddsi_handshake *handshake, dds_security_authentication *auth,
+    struct participant *pp, struct proxy_participant *proxypp)
 {
   DDS_Security_ValidationResult_t ret;
-  DDS_Security_SecurityException exception = {0};
-  struct ddsi_handshake *handshake = (struct ddsi_handshake*)arg;
-  dds_security_authentication *auth = handshake->auth;
-  struct participant *pp;
-  struct proxy_participant *proxypp;
   DDS_Security_IdentityToken remote_identity_token;
   int64_t remote_identity_handle;
   ddsi_guid_t remote_guid;
-
-  if (!validate_handshake(handshake, &pp, &proxypp))
-    return;
-
-  TRACE_FUNC(fsm);
+  DDS_Security_SecurityException exception = {0};
 
   if (!(proxypp->plist->present & PP_IDENTITY_TOKEN))
   {
@@ -578,9 +584,25 @@ static void func_validate_remote_identity(struct dds_security_fsm *fsm, void *ar
   if (handshake->local_auth_request_token.class_id && strlen(handshake->local_auth_request_token.class_id) != 0)
     (void)send_handshake_message(handshake, &handshake->local_auth_request_token, pp, proxypp, 1);
 
-validation_failed:
 ident_token_missing:
-  /* Use return value as state machine event. */
+validation_failed:
+  return ret;
+}
+
+static void func_validate_remote_identity(struct dds_security_fsm *fsm, void *arg)
+{
+  DDS_Security_ValidationResult_t ret;
+  struct ddsi_handshake *handshake = (struct ddsi_handshake*)arg;
+  dds_security_authentication *auth = handshake->auth;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
+
+  if (!validate_handshake(handshake, &pp, &proxypp))
+    return;
+
+  TRACE_FUNC(fsm);
+
+  ret = validate_remote_identity_impl(handshake, auth, pp, proxypp);
   dds_security_fsm_dispatch(fsm, (int32_t)ret, true);
 }
 
@@ -603,19 +625,11 @@ static void func_handshake_init_message_resend(struct dds_security_fsm *fsm, voi
     (void)send_handshake_message(handshake, &handshake->local_auth_request_token, pp, proxypp, 1);
 }
 
-static void func_begin_handshake_reply(struct dds_security_fsm *fsm, void *arg)
+static DDS_Security_ValidationResult_t begin_handshake_reply_impl(struct ddsi_handshake *handshake, dds_security_authentication *auth,
+    struct participant *pp, struct proxy_participant *proxypp)
 {
   DDS_Security_ValidationResult_t ret;
   DDS_Security_SecurityException exception = {0};
-  struct ddsi_handshake *handshake = arg;
-  dds_security_authentication *auth = handshake->auth;
-  struct participant *pp;
-  struct proxy_participant *proxypp;
-
-  if (!validate_handshake(handshake, &pp, &proxypp))
-     return;
-
-  TRACE_FUNC(fsm);
 
   ddsrt_mutex_lock(&handshake->lock);
 
@@ -632,31 +646,26 @@ static void func_begin_handshake_reply(struct dds_security_fsm *fsm, void *arg)
   HSTRACE("FSM: begin_handshake_reply (lguid="PGUIDFMT" rguid="PGUIDFMT") ret=%d\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), ret);
 
   /* Trace a failed handshake. */
-  if ((ret != DDS_SECURITY_VALIDATION_OK                       ) &&
-      (ret != DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE         ) &&
-      (ret != DDS_SECURITY_VALIDATION_PENDING_RETRY            ) &&
-      (ret != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE))
+  if (ret != DDS_SECURITY_VALIDATION_OK
+      && ret != DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE
+      && ret != DDS_SECURITY_VALIDATION_PENDING_RETRY
+      && ret != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE)
   {
     HSEXCEPTION(&exception, "Begin handshake reply failed");
-    ret = DDS_SECURITY_VALIDATION_FAILED;
     goto handshake_failed;
   }
 
-  if (ret == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE) {
-    if (!send_handshake_message(handshake, handshake->handshake_message_out, pp, proxypp, 0)) {
-      ret = DDS_SECURITY_VALIDATION_FAILED;
+  if (ret == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE)
+  {
+    if (!send_handshake_message(handshake, handshake->handshake_message_out, pp, proxypp, 0))
       goto handshake_failed;
-    }
   }
   else if (ret == DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE)
   {
     if (send_handshake_message(handshake, handshake->handshake_message_out, pp, proxypp, 0))
       ret = DDS_SECURITY_VALIDATION_OK;
     else
-    {
-      ret = DDS_SECURITY_VALIDATION_FAILED;
       goto handshake_failed;
-    }
   }
 
   if (ret == DDS_SECURITY_VALIDATION_OK)
@@ -665,18 +674,61 @@ static void func_begin_handshake_reply(struct dds_security_fsm *fsm, void *arg)
     if (handshake->shared_secret == DDS_SECURITY_HANDLE_NIL)
     {
       HSEXCEPTION(&exception, "Getting shared secret failed");
-      ret = DDS_SECURITY_VALIDATION_FAILED;
       goto handshake_failed;
     }
   }
-
-  dds_security_fsm_dispatch(fsm, (int32_t)ret, true);
-  return;
+  return ret;
 
 handshake_failed:
   DDS_Security_DataHolder_free(handshake->handshake_message_out);
   handshake->handshake_message_out = NULL;
-  /* Use return value as state machine event. */
+  return DDS_SECURITY_VALIDATION_FAILED;
+}
+
+static void func_begin_handshake_reply(struct dds_security_fsm *fsm, void *arg)
+{
+  DDS_Security_ValidationResult_t ret;
+  struct ddsi_handshake *handshake = arg;
+  dds_security_authentication *auth = handshake->auth;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
+
+  if (!validate_handshake(handshake, &pp, &proxypp))
+     return;
+
+  TRACE_FUNC(fsm);
+
+  ret = begin_handshake_reply_impl(handshake, auth, pp, proxypp);
+  dds_security_fsm_dispatch(fsm, (int32_t)ret, true);
+}
+
+static void func_validate_remote_and_begin_reply(struct dds_security_fsm *fsm, void *arg)
+{
+  DDS_Security_ValidationResult_t ret;
+  struct ddsi_handshake *handshake = arg;
+  dds_security_authentication *auth = handshake->auth;
+  struct participant *pp;
+  struct proxy_participant *proxypp;
+
+  if (!validate_handshake(handshake, &pp, &proxypp))
+    return;
+
+  TRACE_FUNC(fsm);
+
+  ret = validate_remote_identity_impl(handshake, auth, pp, proxypp);
+  /* In the only path to this state an auth_request is received so the result
+     of validate_remote_identity should be PENDING_HANDSHAKE_MESSAGE, or failed
+     in case of an error. */
+  if (ret != DDS_SECURITY_VALIDATION_FAILED)
+  {
+    if (ret != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE)
+    {
+      HSWARNING("func_validate_remote_and_begin_reply: invalid result %d from validate_remote_identity", ret);
+      ret = DDS_SECURITY_VALIDATION_FAILED;
+    }
+    else
+      ret = begin_handshake_reply_impl(handshake, auth, pp, proxypp);
+  }
   dds_security_fsm_dispatch(fsm, (int32_t)ret, true);
 }
 
