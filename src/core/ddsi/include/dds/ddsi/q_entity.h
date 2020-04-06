@@ -455,9 +455,6 @@ struct proxy_writer {
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
   struct lease *lease;
-#ifdef DDSI_INCLUDE_SECURITY
-  nn_security_info_t security_info;
-#endif
 };
 
 
@@ -473,9 +470,6 @@ struct proxy_reader {
 #endif
   ddsrt_avl_tree_t writers; /* matching LOCAL writers */
   filter_fn_t filter;
-#ifdef DDSI_INCLUDE_SECURITY
-  nn_security_info_t security_info;
-#endif
 };
 
 DDS_EXPORT extern const ddsrt_avl_treedef_t wr_readers_treedef;
