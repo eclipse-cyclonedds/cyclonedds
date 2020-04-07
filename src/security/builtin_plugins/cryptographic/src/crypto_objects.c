@@ -472,28 +472,29 @@ void crypto_remote_participant_add_keymat(remote_participant_crypto *rmt_pp_cryp
   ddsrt_mutex_unlock(&rmt_pp_crypto->lock);
 }
 
-participant_key_material * crypto_remote_participant_remove_keymat(remote_participant_crypto *rmt_pp_crypto, DDS_Security_ParticipantCryptoHandle loc_pp_handle)
+participant_key_material * crypto_remote_participant_remove_keymat_locked(remote_participant_crypto *rmt_pp_crypto, DDS_Security_ParticipantCryptoHandle loc_pp_handle)
 {
   participant_key_material *keymat;
   ddsrt_avl_dpath_t dpath;
 
-  ddsrt_mutex_lock(&rmt_pp_crypto->lock);
   keymat = ddsrt_avl_clookup_dpath(&rmt_pp_keymat_treedef, &rmt_pp_crypto->key_material_table, &loc_pp_handle, &dpath);
   if (keymat)
     ddsrt_avl_cdelete_dpath(&rmt_pp_keymat_treedef, &rmt_pp_crypto->key_material_table, keymat, &dpath);
-  ddsrt_mutex_unlock(&rmt_pp_crypto->lock);
 
   return keymat;
+}
+
+participant_key_material * crypto_remote_participant_lookup_keymat_locked(remote_participant_crypto *rmt_pp_crypto, DDS_Security_ParticipantCryptoHandle loc_pp_handle)
+{
+  return CRYPTO_OBJECT_KEEP(ddsrt_avl_clookup(&rmt_pp_keymat_treedef, &rmt_pp_crypto->key_material_table, &loc_pp_handle));
 }
 
 participant_key_material * crypto_remote_participant_lookup_keymat(remote_participant_crypto *rmt_pp_crypto, DDS_Security_ParticipantCryptoHandle loc_pp_handle)
 {
   participant_key_material *keymat;
-
   ddsrt_mutex_lock(&rmt_pp_crypto->lock);
-  keymat = CRYPTO_OBJECT_KEEP(ddsrt_avl_clookup(&rmt_pp_keymat_treedef, &rmt_pp_crypto->key_material_table, &loc_pp_handle));
+  keymat = crypto_remote_participant_lookup_keymat_locked(rmt_pp_crypto, loc_pp_handle);
   ddsrt_mutex_unlock(&rmt_pp_crypto->lock);
-
   return keymat;
 }
 
@@ -727,30 +728,50 @@ key_relation * crypto_find_endpoint_relation(
   return relation;
 }
 
+void crypto_insert_specific_key_relation_locked(
+    remote_participant_crypto *rpc,
+    key_relation *relation)
+{
+  ddsrt_avl_insert(&specific_key_treedef, &rpc->specific_key_index, CRYPTO_OBJECT_KEEP(relation));
+}
+
 void crypto_insert_specific_key_relation(
     remote_participant_crypto *rpc,
     key_relation *relation)
 {
   ddsrt_mutex_lock(&rpc->lock);
-  ddsrt_avl_insert(&specific_key_treedef, &rpc->specific_key_index, CRYPTO_OBJECT_KEEP(relation));
+  crypto_insert_specific_key_relation_locked(rpc, relation);
   ddsrt_mutex_unlock(&rpc->lock);
+}
+
+void crypto_remove_specific_key_relation_locked(
+    remote_participant_crypto *rpc,
+    uint32_t key_id)
+{
+  key_relation *relation;
+  ddsrt_avl_dpath_t dpath;
+  relation = ddsrt_avl_lookup_dpath(&specific_key_treedef, &rpc->specific_key_index, &key_id, &dpath);
+  if (relation)
+  {
+    ddsrt_avl_delete_dpath(&specific_key_treedef, &rpc->specific_key_index, relation, &dpath);
+    CRYPTO_OBJECT_RELEASE(relation);
+  }
 }
 
 void crypto_remove_specific_key_relation(
     remote_participant_crypto *rpc,
     uint32_t key_id)
 {
-  key_relation *relation;
-  ddsrt_avl_dpath_t dpath;
-
   ddsrt_mutex_lock(&rpc->lock);
-  relation =  ddsrt_avl_lookup_dpath(&specific_key_treedef, &rpc->specific_key_index, &key_id, &dpath);
-  if (relation)
-  {
-    ddsrt_avl_delete_dpath(&specific_key_treedef, &rpc->specific_key_index, relation, &dpath);
-    CRYPTO_OBJECT_RELEASE(relation);
-  }
+  crypto_remove_specific_key_relation_locked(rpc, key_id);
   ddsrt_mutex_unlock(&rpc->lock);
+}
+
+key_relation * crypto_find_specific_key_relation_locked(
+    remote_participant_crypto *rpc,
+    uint32_t key_id)
+{
+  return CRYPTO_OBJECT_KEEP(ddsrt_avl_lookup(&specific_key_treedef, &rpc->specific_key_index, &key_id));
 }
 
 key_relation * crypto_find_specific_key_relation(
@@ -760,7 +781,7 @@ key_relation * crypto_find_specific_key_relation(
   key_relation *relation;
 
   ddsrt_mutex_lock(&rpc->lock);
-  relation =  CRYPTO_OBJECT_KEEP(ddsrt_avl_lookup(&specific_key_treedef, &rpc->specific_key_index, &key_id));
+  relation = crypto_find_specific_key_relation_locked(rpc, key_id);
   ddsrt_mutex_unlock(&rpc->lock);
 
   return relation;

@@ -40,6 +40,7 @@ bool crypto_factory_get_participant_crypto_tokens(
     DDS_Security_ParticipantCryptoHandle local_id,
     DDS_Security_ParticipantCryptoHandle remote_id,
     participant_key_material **pp_key_material,
+    master_key_material **remote_key_matarial,
     DDS_Security_ProtectionKind *protection_kind,
     DDS_Security_SecurityException *ex);
 
