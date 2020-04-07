@@ -4052,9 +4052,7 @@ dds_return_t delete_writer_nolinger (struct ddsi_domaingv *gv, const struct ddsi
     return DDS_RETCODE_BAD_PARAMETER;
   }
   GVLOGDISC ("delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (*guid));
-#ifdef DDSI_INCLUDE_SECURITY
-  q_omg_security_deregister_writer(wr);
-#endif
+
   ddsrt_mutex_lock (&wr->e.lock);
   delete_writer_nolinger_locked (wr);
   ddsrt_mutex_unlock (&wr->e.lock);
