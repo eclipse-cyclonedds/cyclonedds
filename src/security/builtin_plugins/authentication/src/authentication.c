@@ -530,8 +530,10 @@ static bool str_octseq_equal (const char *str, const DDS_Security_OctetSeq *bins
   for (i = 0; str[i] && i < binstr->_length; i++)
     if ((unsigned char) str[i] != binstr->_buffer[i])
       return false;
-  /* allow zero-termination in binstr */
-  return (str[i] == 0 && (i == binstr->_length || binstr->_buffer[i] == 0));
+  /* allow zero-termination in binstr, but disallow anything other than a single \0 */
+  return (str[i] == 0 &&
+          (i == binstr->_length ||
+           (i+1 == binstr->_length && binstr->_buffer[i] == 0)));
 }
 
 static AuthenticationAlgoKind_t get_dsign_algo_from_octseq(const DDS_Security_OctetSeq *name)
