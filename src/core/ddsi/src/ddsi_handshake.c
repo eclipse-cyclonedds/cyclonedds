@@ -91,7 +91,6 @@ struct ddsi_handshake
   DDS_Security_AuthRequestMessageToken *remote_auth_request_token;
   DDS_Security_OctetSeq pdata;
   int64_t shared_secret;
-  int handled_handshake_message;
 };
 
 struct ddsi_hsadmin {
@@ -1139,7 +1138,6 @@ void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struc
     DDS_Security_DataHolder_deinit(&handshake->handshake_message_in_token);
     q_omg_security_dataholder_copyout(&handshake->handshake_message_in_token, &msg->message_data.tags[0]);
     memcpy(&handshake->handshake_message_in_id, &msg->message_identity, sizeof(handshake->handshake_message_in_id));
-    handshake->handled_handshake_message = 0;
     dds_security_fsm_dispatch(handshake->fsm, event, false);
     ddsrt_mutex_unlock(&handshake->lock);
   }
