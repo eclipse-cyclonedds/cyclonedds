@@ -8,6 +8,9 @@ Changelog for Eclipse Cyclone DDS
 `0.5.1 (2020-03-11) <https://github.com/eclipse-cyclonedds/cyclonedds/compare/V0.5.0...0.5.1>`_
 -----------------------------------------------------------------------------------------------
 
+* Enable QOS features: liveliness, lifespan, deadline
+* Fix issues on Windows where multicast data was not received
+
 `V0.5.0 (2019-11-21) <https://github.com/eclipse-cyclonedds/cyclonedds/compare/V0.1.0...V0.5.0>`_
 -------------------------------------------------------------------------------------------------
 
