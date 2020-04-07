@@ -261,13 +261,25 @@ crypto_find_endpoint_relation(
     CryptoObject *lch,
     uint32_t key_id);
 
+void crypto_insert_specific_key_relation_locked(
+    remote_participant_crypto *rpc,
+    key_relation *relation);
+
 void
 crypto_insert_specific_key_relation(
     remote_participant_crypto *rpc,
     key_relation *relation);
 
+void crypto_remove_specific_key_relation_locked(
+    remote_participant_crypto *rpc,
+    uint32_t key_id);
+
 void
 crypto_remove_specific_key_relation(
+    remote_participant_crypto *rpc,
+    uint32_t key_id);
+
+key_relation * crypto_find_specific_key_relation_locked(
     remote_participant_crypto *rpc,
     uint32_t key_id);
 
@@ -403,8 +415,13 @@ crypto_remote_participant_add_keymat(
     participant_key_material *keymat);
 
 participant_key_material *
-crypto_remote_participant_remove_keymat(
+crypto_remote_participant_remove_keymat_locked(
     remote_participant_crypto *rmt_pp_crypte,
+    DDS_Security_ParticipantCryptoHandle loc_pp_handle);
+
+participant_key_material *
+crypto_remote_participant_lookup_keymat_locked(
+    remote_participant_crypto *rmt_pp_crypto,
     DDS_Security_ParticipantCryptoHandle loc_pp_handle);
 
 participant_key_material *

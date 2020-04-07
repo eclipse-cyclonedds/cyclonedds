@@ -179,7 +179,7 @@ create_local_participant_crypto_tokens(
   }
 
   factory = cryptography_get_crypto_key_factory(impl->crypto);
-  if (!crypto_factory_get_participant_crypto_tokens(factory, local_id, remote_id, &pp_key_material, NULL, ex))
+  if (!crypto_factory_get_participant_crypto_tokens(factory, local_id, remote_id, &pp_key_material, NULL, NULL, ex))
     goto fail_invalid_arg;
   serialize_master_key_material(pp_key_material->local_P2P_key_material, &buffer, &length);
   CRYPTO_OBJECT_RELEASE(pp_key_material);
