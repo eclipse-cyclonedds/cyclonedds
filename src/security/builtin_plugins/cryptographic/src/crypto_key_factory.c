@@ -1131,9 +1131,11 @@ crypto_factory_set_participant_crypto_tokens(
   key_material = crypto_remote_participant_lookup_keymat(remote_crypto, local_id);
   if (key_material)
   {
+    ddsrt_mutex_lock(&remote_crypto->lock);
     if (!key_material->remote_key_material)
       key_material->remote_key_material = crypto_master_key_material_new(CRYPTO_TRANSFORMATION_KIND_NONE);
     crypto_token_copy(key_material->remote_key_material, remote_key_mat);
+    ddsrt_mutex_unlock(&remote_crypto->lock);
 
     uint32_t specific_key = key_material->remote_key_material->receiver_specific_key_id;
     if (specific_key != 0)
