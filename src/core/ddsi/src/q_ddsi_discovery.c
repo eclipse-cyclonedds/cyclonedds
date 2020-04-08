@@ -1534,6 +1534,13 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
                PGUID (srcguid), sampleinfo->seq);
     goto done_upd_deliv;
   }
+  if (d == NULL)
+  {
+    GVLOG (DDS_LC_DISCOVERY | DDS_LC_WARNING, "data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRId64": deserialization failed\n",
+           sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
+           PGUID (srcguid), sampleinfo->seq);
+    goto done_upd_deliv;
+  }
 
   d->timestamp = (sampleinfo->timestamp.v != DDSRT_WCTIME_INVALID.v) ? sampleinfo->timestamp : ddsrt_time_wallclock ();
   d->statusinfo = statusinfo;
