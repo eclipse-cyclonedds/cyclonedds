@@ -638,16 +638,12 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, dds
     }
   }
 
-  const bool is_secure = (datap->builtin_endpoint_set & NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0;
+  const bool is_secure = ((datap->builtin_endpoint_set & NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0 &&
+                          (datap->present & PP_IDENTITY_TOKEN));
   /* Make sure we don't create any security builtin endpoint when it's considered unsecure. */
   if (!is_secure)
     builtin_endpoint_set &= NN_BES_MASK_NON_SECURITY;
   GVLOGDISC ("SPDP ST0 "PGUIDFMT" bes %x%s NEW", PGUID (datap->participant_guid), builtin_endpoint_set, is_secure ? " (secure)" : "");
-  if (is_secure && !(datap->present & PP_IDENTITY_TOKEN))
-  {
-    GVLOGDISC (" identity token missing\n");
-    return 0;
-  }
 
   if (datap->present & PP_PARTICIPANT_LEASE_DURATION)
   {
