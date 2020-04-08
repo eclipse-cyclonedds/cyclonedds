@@ -48,6 +48,9 @@
 #define AC_NAME "Access Control"
 #define CRYPTO_NAME "Cryptographic"
 
+/* TODO: This constant which determines the time pending matches are maintained
+ * and not used should be made a configurable parameter,
+ */
 #define PENDING_MATCH_EXPIRY_TIME 300
 
 #define EXCEPTION_LOG(sc,e,cat, ...) \
@@ -159,6 +162,20 @@ struct participant_sec_index {
   ddsrt_avl_ctree_t participants;
 };
 
+/* The pending _match_index uses an avl tree to store pending_match's where the
+ * guid_pair is used as the key. The remote_guid is the primary key and
+ * the local_guid is the secondary key. The use of the remote_guid as the primary key
+ * is used in the function clear_pending_matches_by_remote_guid to clear the
+ * pending matches associated with a remote entity.
+ *
+ * The table containing the pending matches is protected by the pending_match_index:lock.
+ * It is allowed to access the fields (crypto_handle and tokens) of a pending_match outside
+ * the pending_match_index:lock provided that the pending_match is protected by the
+ * lock of the entity corresponding to the local_guid.
+ * A pending_match is either created when registering and matching an remote entity and
+ * the corresponding crypto tokens are not available or when the crypto tokens associated
+ * with a remote entity are received but it has not yet been discovered.
+ */
 struct guid_pair {
   ddsi_guid_t remote_guid;
   ddsi_guid_t local_guid;
@@ -321,6 +338,7 @@ static struct pending_match * find_or_create_pending_entity_match(struct pending
     match->tokens = NULL;
     match->guids = guids;
     match->kind = kind;
+    match->expiry = DDSRT_MTIME_NEVER;
     ddsrt_avl_insert_ipath(&pending_match_index_treedef, &index->pending_matches, match, &ipath);
   }
 
@@ -331,17 +349,15 @@ static struct pending_match * find_or_create_pending_entity_match(struct pending
   {
     match->tokens = tokens;
     match->expiry = ddsrt_mtime_add_duration(ddsrt_time_monotonic(), DDS_SECS(PENDING_MATCH_EXPIRY_TIME));
-    if (index->evt == NULL)
-      index->evt = qxev_callback(index->gv->xevents, match->expiry, pending_match_expiry_cb, index);
-    else
-      (void)resched_xevent_if_earlier(index->evt, match->expiry);
+    ddsrt_fibheap_insert(&pending_match_expiry_fhdef, &index->expiry_timers, match);
+    (void)resched_xevent_if_earlier(index->evt, match->expiry);
   }
   ddsrt_mutex_unlock(&index->lock);
 
   return match;
 }
 
-static void clear_and_free_pending_match(dds_security_context *sc, struct pending_match *match)
+static void unregister_and_free_pending_match(dds_security_context *sc, struct pending_match *match)
 {
   if (match->crypto_handle != 0)
   {
@@ -371,17 +387,13 @@ static void clear_and_free_pending_match(dds_security_context *sc, struct pendin
   free_pending_match(match);
 }
 
-static void remove_pending_match(struct pending_match_index *index, struct pending_match *match)
+static void delete_pending_match(struct pending_match_index *index, struct pending_match *match)
 {
-  struct pending_match *found;
-  ddsrt_avl_dpath_t dpath;
-
   ddsrt_mutex_lock(&index->lock);
-  if ((found = ddsrt_avl_lookup_dpath(&pending_match_index_treedef, &index->pending_matches, &match->guids, &dpath)) != NULL)
-  {
-    ddsrt_avl_delete_dpath(&pending_match_index_treedef, &index->pending_matches, found, &dpath);
-    free_pending_match(found);
-  }
+  ddsrt_avl_delete(&pending_match_index_treedef, &index->pending_matches, match);
+  if (match->expiry.v != DDS_NEVER)
+    ddsrt_fibheap_delete(&pending_match_expiry_fhdef, &index->expiry_timers, match);
+  free_pending_match(match);
   ddsrt_mutex_unlock(&index->lock);
 }
 
@@ -395,12 +407,26 @@ static void pending_match_expiry_cb(struct xevent *xev, void *varg, ddsrt_mtime_
   {
     ddsrt_fibheap_delete(&pending_match_expiry_fhdef, &index->expiry_timers, match);
     ddsrt_avl_delete(&pending_match_index_treedef, &index->pending_matches, match);
-    clear_and_free_pending_match(index->gv->security_context, match);
+    unregister_and_free_pending_match(index->gv->security_context, match);
     match = ddsrt_fibheap_min(&pending_match_expiry_fhdef, &index->expiry_timers);
   }
   if (match)
     resched_xevent_if_earlier(xev, match->expiry);
   ddsrt_mutex_unlock(&index->lock);
+}
+
+static void inc_guid(ddsi_guid_t *guid)
+{
+  guid->entityid.u++;
+  if (guid->entityid.u == 0)
+  {
+    for (int i = 2; i >= 0; i++)
+    {
+      guid->prefix.u[i]++;
+      if (guid->prefix.u[i] != 0)
+        break;
+    }
+  }
 }
 
 static void clear_pending_matches_by_local_guid(dds_security_context *sc, struct pending_match_index *index, const ddsi_guid_t *local_guid)
@@ -415,7 +441,11 @@ static void clear_pending_matches_by_local_guid(dds_security_context *sc, struct
     if (guid_compare(&match->guids.local_guid, local_guid) == 0)
     {
       ddsrt_avl_delete(&pending_match_index_treedef, &index->pending_matches, match);
-      clear_and_free_pending_match(sc, match);
+      if (match->expiry.v != DDS_NEVER)
+        ddsrt_fibheap_delete(&pending_match_expiry_fhdef, &index->expiry_timers, match);
+      inc_guid(&match->guids.remote_guid);
+      next = ddsrt_avl_lookup_succ_eq(&pending_match_index_treedef, &index->pending_matches, &match->guids);
+      unregister_and_free_pending_match(sc, match);
     }
     match = next;
   }
@@ -433,7 +463,9 @@ static void clear_pending_matches_by_remote_guid(dds_security_context *sc, struc
   {
     struct pending_match *next = ddsrt_avl_lookup_succ(&pending_match_index_treedef, &index->pending_matches, &match->guids);
     ddsrt_avl_delete(&pending_match_index_treedef, &index->pending_matches, match);
-    clear_and_free_pending_match(sc, match);
+    if (match->expiry.v != DDS_NEVER)
+      ddsrt_fibheap_delete(&pending_match_expiry_fhdef, &index->expiry_timers, match);
+    unregister_and_free_pending_match(sc, match);
     match = next;
   }
   ddsrt_mutex_unlock(&index->lock);
@@ -445,12 +477,14 @@ static void pending_match_index_init(const struct ddsi_domaingv *gv, struct pend
   ddsrt_avl_init(&pending_match_index_treedef, &index->pending_matches);
   ddsrt_fibheap_init(&pending_match_expiry_fhdef, &index->expiry_timers);
   index->gv = gv;
-  index->evt = NULL;
+  index->evt = qxev_callback(gv->xevents, DDSRT_MTIME_NEVER, pending_match_expiry_cb, index);;
 }
 
 static void pending_match_index_deinit(struct pending_match_index *index)
 {
+  delete_xevent_callback(index->evt);
   ddsrt_mutex_destroy(&index->lock);
+  assert(ddsrt_avl_is_empty(&index->pending_matches));
   ddsrt_avl_free(&pending_match_index_treedef, &index->pending_matches, 0);
 }
 
@@ -727,25 +761,24 @@ void q_omg_security_stop (struct ddsi_domaingv *gv)
   ddsi_handshake_admin_stop(gv);
 }
 
-void q_omg_security_deinit (struct ddsi_domaingv *gv)
+void q_omg_security_deinit (struct dds_security_context *sc)
+{
+  pending_match_index_deinit(&sc->security_matches);
+}
+
+void q_omg_security_free (struct ddsi_domaingv *gv)
 {
   dds_security_context *sc = gv->security_context;
-
-  assert (gv->security_context != NULL);
 
   ddsrt_avl_cfree(&participant_index_treedef, &sc->partiticpant_index.participants, 0);
   ddsrt_mutex_destroy(&sc->partiticpant_index.lock);
 
-  if (gv->security_context->authentication_context != NULL && gv->security_context->access_control_context != NULL && gv->security_context->crypto_context != NULL){
-    release_plugins (gv->security_context);
+  if (sc->authentication_context != NULL && sc->access_control_context != NULL && sc->crypto_context != NULL){
+    release_plugins (sc);
   }
-
   ddsi_handshake_admin_deinit(gv);
-  pending_match_index_deinit(&sc->security_matches);
-
-  ddsrt_mutex_destroy (&gv->security_context->omg_security_lock);
-
-  ddsrt_free(gv->security_context);
+  ddsrt_mutex_destroy (&sc->omg_security_lock);
+  ddsrt_free(sc);
   gv->security_context = NULL;
 }
 
@@ -1760,16 +1793,11 @@ bool q_omg_security_register_remote_participant(struct participant *pp, struct p
     if (match->tokens)
     {
       ret = sc->crypto_context->crypto_key_exchange->set_remote_participant_crypto_tokens(sc->crypto_context->crypto_key_exchange, pp->sec_attr->crypto_handle, crypto_handle, match->tokens, &exception);
-      if (ret)
-      {
-        remove_pending_match(&sc->security_matches, match);
-        GVTRACE(" set participant tokens src("PGUIDFMT") to dst("PGUIDFMT") (by registering remote)\n", PGUID(proxypp->e.guid), PGUID(pp->e.guid));
-      }
-      else
-      {
+      if (!ret)
         EXCEPTION_ERROR(sc, &exception, " Failed to set remote participant crypto tokens "PGUIDFMT" --> "PGUIDFMT, PGUID(proxypp->e.guid), PGUID(pp->e.guid));
-        ret = false;
-      }
+      else
+        GVTRACE(" set participant tokens src("PGUIDFMT") to dst("PGUIDFMT") (by registering remote)\n", PGUID(proxypp->e.guid), PGUID(pp->e.guid));
+      delete_pending_match(&sc->security_matches, match);
     }
     else
       notify_handshake = true;
@@ -2127,15 +2155,15 @@ static bool q_omg_security_register_remote_writer_match(struct proxy_writer *pwr
         send_tokens = true;
         if (pending_match->tokens)
         {
-          if (sc->crypto_context->crypto_key_exchange->set_remote_datawriter_crypto_tokens(
+          if (!sc->crypto_context->crypto_key_exchange->set_remote_datawriter_crypto_tokens(
               sc->crypto_context->crypto_key_exchange, rd->sec_attr->crypto_handle, *crypto_handle, pending_match->tokens, &exception))
+            EXCEPTION_ERROR(sc, &exception, "Failed to set remote writer crypto tokens "PGUIDFMT" --> "PGUIDFMT, PGUID(pwr->e.guid), PGUID(rd->e.guid));
+          else
           {
             GVTRACE("match_remote_writer "PGUIDFMT" with reader "PGUIDFMT": tokens available\n", PGUID(pwr->e.guid), PGUID(rd->e.guid));
             allowed = true;
           }
-          else
-            EXCEPTION_ERROR(sc, &exception, "Failed to set remote writer crypto tokens "PGUIDFMT" --> "PGUIDFMT, PGUID(pwr->e.guid), PGUID(rd->e.guid));
-          remove_pending_match(&sc->security_matches, pending_match);
+          delete_pending_match(&sc->security_matches, pending_match);
         }
       }
     }
@@ -2449,10 +2477,6 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
   if ((proxypp_match = get_pp_proxypp_match_if_authenticated(pp, proxypp, prd->e.guid.entityid)) == NULL)
     return false;
 
-  /* TODO: the security_entity_match should be removed after the the received tokens are stored in the plugin.
-   * Currently the security_entity_match is also used to detect if a match between a reader and writer has
-   * already been completed.
-   */
   ddsrt_mutex_lock(&wr->e.lock);
   if ((match = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
     allowed = true;
@@ -2490,15 +2514,15 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
         GVTRACE(" register_remote_reader_match: proxypp_crypto=%"PRId64" wr_crypto=%"PRId64" prd_crypto=%"PRId64"\n", proxypp->sec_attr->crypto_handle, wr->sec_attr->crypto_handle, *crypto_handle);
         if (pending_match->tokens)
         {
-          if (sc->crypto_context->crypto_key_exchange->set_remote_datareader_crypto_tokens(
+          if (!sc->crypto_context->crypto_key_exchange->set_remote_datareader_crypto_tokens(
               sc->crypto_context->crypto_key_exchange, wr->sec_attr->crypto_handle, *crypto_handle, pending_match->tokens, &exception))
+            EXCEPTION_ERROR(sc, &exception, "Failed to set remote reader crypto tokens "PGUIDFMT" --> "PGUIDFMT, PGUID(prd->e.guid), PGUID(wr->e.guid));
+          else
           {
             GVTRACE(" match_remote_reader "PGUIDFMT" with writer "PGUIDFMT": tokens available\n", PGUID(prd->e.guid), PGUID(wr->e.guid));
             allowed = true;
           }
-          else
-            EXCEPTION_ERROR(sc, &exception, "Failed to set remote reader crypto tokens "PGUIDFMT" --> "PGUIDFMT, PGUID(prd->e.guid), PGUID(wr->e.guid));
-          remove_pending_match(&sc->security_matches, pending_match);
+          delete_pending_match(&sc->security_matches, pending_match);
         }
       }
     }
@@ -2590,14 +2614,14 @@ void q_omg_security_set_remote_writer_crypto_tokens(struct reader *rd, const dds
     GVTRACE("remember writer tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(*pwr_guid), PGUID(rd->e.guid));
   else
   {
-    if (sc->crypto_context->crypto_key_exchange->set_remote_datawriter_crypto_tokens(sc->crypto_context->crypto_key_exchange, rd->sec_attr->crypto_handle, match->crypto_handle, tseq, &exception))
+    if (!sc->crypto_context->crypto_key_exchange->set_remote_datawriter_crypto_tokens(sc->crypto_context->crypto_key_exchange, rd->sec_attr->crypto_handle, match->crypto_handle, tseq, &exception))
+      EXCEPTION_ERROR(sc, &exception, "Failed to set remote writer crypto tokens "PGUIDFMT" for reader "PGUIDFMT, PGUID(pwr->e.guid), PGUID(rd->e.guid));
+    else
     {
       GVTRACE("set_remote_writer_crypto_tokens "PGUIDFMT" with reader "PGUIDFMT"\n", PGUID(pwr->e.guid), PGUID(rd->e.guid));
       crypto_handle = match->crypto_handle;
     }
-    else
-      EXCEPTION_ERROR(sc, &exception, "Failed to set remote writer crypto tokens "PGUIDFMT" for reader "PGUIDFMT, PGUID(pwr->e.guid), PGUID(rd->e.guid));
-    remove_pending_match(&sc->security_matches, match);
+    delete_pending_match(&sc->security_matches, match);
   }
   ddsrt_mutex_unlock(&rd->e.lock);
 
@@ -2629,14 +2653,14 @@ void q_omg_security_set_remote_reader_crypto_tokens(struct writer *wr, const dds
      GVTRACE("remember reader tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(*prd_guid), PGUID(wr->e.guid));
    else
    {
-     if (sc->crypto_context->crypto_key_exchange->set_remote_datareader_crypto_tokens(sc->crypto_context->crypto_key_exchange, wr->sec_attr->crypto_handle, match->crypto_handle, tseq, &exception))
+     if (!sc->crypto_context->crypto_key_exchange->set_remote_datareader_crypto_tokens(sc->crypto_context->crypto_key_exchange, wr->sec_attr->crypto_handle, match->crypto_handle, tseq, &exception))
+       EXCEPTION_ERROR(sc, &exception, "Failed to set remote reader crypto tokens "PGUIDFMT" for writer "PGUIDFMT, PGUID(prd->e.guid), PGUID(wr->e.guid));
+     else
      {
        GVTRACE("set_remote_reader_crypto_tokens "PGUIDFMT" with writer "PGUIDFMT"\n", PGUID(prd->e.guid), PGUID(wr->e.guid));
        crypto_handle = match->crypto_handle;
      }
-     else
-       EXCEPTION_ERROR(sc, &exception, "Failed to set remote reader crypto tokens "PGUIDFMT" for writer "PGUIDFMT, PGUID(prd->e.guid), PGUID(wr->e.guid));
-     remove_pending_match(&sc->security_matches, match);
+     delete_pending_match(&sc->security_matches, match);
    }
    ddsrt_mutex_unlock(&wr->e.lock);
 

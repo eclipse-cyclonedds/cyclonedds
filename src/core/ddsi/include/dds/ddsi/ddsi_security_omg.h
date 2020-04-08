@@ -1108,7 +1108,9 @@ void q_omg_security_init( struct ddsi_domaingv *gv );
 
 void q_omg_security_stop (struct ddsi_domaingv *gv);
 
-void q_omg_security_deinit( struct ddsi_domaingv *gv );
+void q_omg_security_deinit (struct dds_security_context *sc );
+
+void q_omg_security_free (struct ddsi_domaingv *gv);
 
 bool q_omg_is_security_loaded(  struct dds_security_context *sc );
 
