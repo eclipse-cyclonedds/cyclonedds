@@ -102,6 +102,8 @@ static struct ddsi_serdata *serdata_plist_from_ser (const struct ddsi_sertopic *
 {
   const struct ddsi_sertopic_plist *tp = (const struct ddsi_sertopic_plist *) tpcmn;
   struct ddsi_serdata_plist *d = serdata_plist_new (tp, kind, size, NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain)));
+  if (d == NULL)
+    return NULL;
   uint32_t off = 4; /* must skip the CDR header */
   assert (fragchain->min == 0);
   assert (fragchain->maxp1 >= off); /* CDR header must be in first fragment */
@@ -128,6 +130,8 @@ static struct ddsi_serdata *serdata_plist_from_ser_iov (const struct ddsi_sertop
   const struct ddsi_sertopic_plist *tp = (const struct ddsi_sertopic_plist *) tpcmn;
   assert (niov >= 1);
   struct ddsi_serdata_plist *d = serdata_plist_new (tp, kind, size, iov[0].iov_base);
+  if (d == NULL)
+    return NULL;
   memcpy (d->data + d->pos, (const char *) iov[0].iov_base + 4, iov[0].iov_len - 4);
   d->pos += (uint32_t) iov[0].iov_len - 4;
   for (ddsrt_msg_iovlen_t i = 1; i < niov; i++)
@@ -141,14 +145,18 @@ static struct ddsi_serdata *serdata_plist_from_ser_iov (const struct ddsi_sertop
 static struct ddsi_serdata *serdata_plist_from_keyhash (const struct ddsi_sertopic *tpcmn, const ddsi_keyhash_t *keyhash)
 {
   const struct ddsi_sertopic_plist *tp = (const struct ddsi_sertopic_plist *) tpcmn;
-  const struct { uint16_t identifier, options; nn_parameter_t par; ddsi_keyhash_t kh; } in = {
-    .identifier = CDR_BE,
+  const struct { uint16_t identifier, options; nn_parameter_t par; ddsi_keyhash_t kh; nn_parameter_t sentinel; } in = {
+    .identifier = PL_CDR_BE,
     .options = 0,
     .par = {
       .parameterid = ddsrt_toBE2u (tp->keyparam),
-      .length = sizeof (*keyhash)
+      .length = ddsrt_toBE2u ((uint16_t) sizeof (*keyhash))
     },
-    *keyhash
+    .kh = *keyhash,
+    .sentinel = {
+      .parameterid = ddsrt_toBE2u (PID_SENTINEL),
+      .length = 0
+    }
   };
   const ddsrt_iovec_t iov = { .iov_base = (void *) &in, .iov_len = sizeof (in) };
   return serdata_plist_from_ser_iov (tpcmn, SDK_KEY, 1, &iov, sizeof (in) - 4);
