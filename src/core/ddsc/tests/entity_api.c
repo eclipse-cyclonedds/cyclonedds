@@ -255,6 +255,28 @@ CU_Test(ddsc_entity, status, .init = create_entity, .fini = delete_entity)
     CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_OK);
 }
 
+CU_Test(ddsc_entity, guid, .init = create_entity, .fini = delete_entity)
+{
+    dds_return_t status;
+    dds_guid_t guid, zero;
+    memset(&zero, 0, sizeof(zero));
+
+    /* Don't check actual handle contents. That's a job
+     * for the specific entity children, not for the generic part. */
+
+    /* Check getting Handle with bad parameters. */
+    status = dds_get_guid (0, NULL);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+    status = dds_get_guid (entity, NULL);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+    status = dds_get_guid (0, &guid);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+
+    /* Get Instance Handle, which should not be 0 for a participant. */
+    status = dds_get_guid (entity, &guid);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+    CU_ASSERT_FATAL(memcmp(&guid, &zero, sizeof(guid)) != 0);
+}
 
 CU_Test(ddsc_entity, instance_handle, .init = create_entity, .fini = delete_entity)
 {

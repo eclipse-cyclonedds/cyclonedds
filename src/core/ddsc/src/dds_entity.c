@@ -25,6 +25,7 @@
 #include "dds/ddsi/ddsi_pmd.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_transmit.h"
+#include "dds/ddsi/q_bswap.h"
 
 extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
 extern inline bool dds_entity_is_enabled (const dds_entity *e);
@@ -1281,6 +1282,36 @@ dds_return_t dds_get_instance_handle (dds_entity_t entity, dds_instance_handle_t
   if ((ret = dds_entity_pin (entity, &e)) != DDS_RETCODE_OK)
     return ret;
   *ihdl = e->m_iid;
+  dds_entity_unpin(e);
+  return ret;
+}
+
+dds_return_t dds_get_guid (dds_entity_t entity, dds_guid_t *guid)
+{
+  dds_entity *e;
+  dds_return_t ret;
+
+  if (guid == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  if ((ret = dds_entity_pin (entity, &e)) != DDS_RETCODE_OK)
+    return ret;
+  switch (dds_entity_kind (e))
+  {
+    case DDS_KIND_PARTICIPANT:
+    case DDS_KIND_READER:
+    case DDS_KIND_WRITER: {
+      DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
+      ddsi_guid_t tmp = nn_ntoh_guid (e->m_guid);
+      memcpy (guid, &tmp, sizeof (*guid));
+      ret = DDS_RETCODE_OK;
+      break;
+    }
+    default: {
+      ret = DDS_RETCODE_ILLEGAL_OPERATION;
+      break;
+    }
+  }
   dds_entity_unpin(e);
   return ret;
 }

@@ -418,6 +418,26 @@ dds_get_mask(dds_entity_t condition, uint32_t *mask);
 DDS_EXPORT dds_return_t
 dds_get_instance_handle(dds_entity_t entity, dds_instance_handle_t *ihdl);
 
+/**
+ * @brief Returns the GUID that represents the entity in the network,
+ * and therefore only supports participants, readers and writers.
+ *
+ * @param[in]   entity  Entity of which to get the instance handle.
+ * @param[out]  guid    Where to store the GUID.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             Success.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ */
+/* TODO: Check list of return codes is complete. */
+DDS_EXPORT dds_return_t
+dds_get_guid (dds_entity_t entity, dds_guid_t *guid);
+
 /*
   All entities have a set of "status conditions" (following the DCPS
   spec), read peeks, take reads & resets (analogously to read & take
