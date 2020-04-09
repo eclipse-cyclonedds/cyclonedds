@@ -175,7 +175,7 @@ static struct ddsi_serdata *serdata_builtin_to_topicless (const struct ddsi_serd
   return ddsi_serdata_ref (serdata_common);
 }
 
-static void convkey (dds_builtintopic_guid_t *key, const ddsi_guid_t *guid)
+static void convkey (dds_guid_t *key, const ddsi_guid_t *guid)
 {
   ddsi_guid_t tmp;
   tmp = nn_hton_guid (*guid);
