@@ -385,7 +385,7 @@ static void qp_qos (const dds_qos_t *q, FILE *fp)
   qp_group_data (q, fp);
 }
 
-static void print_key(FILE *fp, const char *label, const dds_builtintopic_guid_t *key)
+static void print_key(FILE *fp, const char *label, const dds_guid_t *key)
 {
   fprintf(fp, "%s", label);
   for(size_t j = 0; j < sizeof (key->v); j++) {

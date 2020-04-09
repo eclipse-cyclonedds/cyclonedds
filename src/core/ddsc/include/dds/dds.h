@@ -186,17 +186,21 @@ typedef struct dds_builtintopic_guid
 }
 dds_builtintopic_guid_t;
 
+/* "dds_builtintopic_guid_t" is a bit of a weird name for what everyone just calls a GUID,
+   so let us try and switch to using the more logical one */
+typedef struct dds_builtintopic_guid dds_guid_t;
+
 typedef struct dds_builtintopic_participant
 {
-  dds_builtintopic_guid_t key;
+  dds_guid_t key;
   dds_qos_t *qos;
 }
 dds_builtintopic_participant_t;
 
 typedef struct dds_builtintopic_endpoint
 {
-  dds_builtintopic_guid_t key;
-  dds_builtintopic_guid_t participant_key;
+  dds_guid_t key;
+  dds_guid_t participant_key;
   dds_instance_handle_t participant_instance_handle;
   char *topic_name;
   char *type_name;
