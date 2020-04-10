@@ -1199,8 +1199,6 @@ int rtps_init (struct ddsi_domaingv *gv)
    * the entities (see DDS Security spec chapter 8.8.8.1). */
   add_property_to_xqos(&gv->builtin_volatile_xqos_rd, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureReader");
   add_property_to_xqos(&gv->builtin_volatile_xqos_wr, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureWriter");
-
-//  q_omg_security_init(gv);
 #endif
 
   ddsrt_mutex_init (&gv->sertopics_lock);

@@ -415,20 +415,6 @@ static void pending_match_expiry_cb(struct xevent *xev, void *varg, ddsrt_mtime_
   ddsrt_mutex_unlock(&index->lock);
 }
 
-static void inc_guid(ddsi_guid_t *guid)
-{
-  guid->entityid.u++;
-  if (guid->entityid.u == 0)
-  {
-    for (int i = 2; i >= 0; i++)
-    {
-      guid->prefix.u[i]++;
-      if (guid->prefix.u[i] != 0)
-        break;
-    }
-  }
-}
-
 static void clear_pending_matches_by_local_guid(dds_security_context *sc, struct pending_match_index *index, const ddsi_guid_t *local_guid)
 {
   struct pending_match *match;
@@ -443,8 +429,7 @@ static void clear_pending_matches_by_local_guid(dds_security_context *sc, struct
       ddsrt_avl_delete(&pending_match_index_treedef, &index->pending_matches, match);
       if (match->expiry.v != DDS_NEVER)
         ddsrt_fibheap_delete(&pending_match_expiry_fhdef, &index->expiry_timers, match);
-      inc_guid(&match->guids.remote_guid);
-      next = ddsrt_avl_lookup_succ_eq(&pending_match_index_treedef, &index->pending_matches, &match->guids);
+      next = ddsrt_avl_lookup_succ(&pending_match_index_treedef, &index->pending_matches, &match->guids);
       unregister_and_free_pending_match(sc, match);
     }
     match = next;
