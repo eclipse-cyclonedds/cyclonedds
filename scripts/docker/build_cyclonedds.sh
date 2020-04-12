@@ -13,4 +13,4 @@ docker run -it --rm -v $WORKSPACE/:/cyclonedds --workdir /cyclonedds $IMAGE_NAME
 # Launch the docker after build
 docker run --name $CONTAINER_NAME -it -v $WORKSPACE/:/cyclonedds --workdir /cyclonedds $IMAGE_NAME /bin/bash
 # If you want to connect to the above docker to run cyclonedds examples (multiple apps in separate terminals) , use the below command
-docker exec -it cyclonedds /bin/bash
+# docker exec -it cyclonedds /bin/bash
