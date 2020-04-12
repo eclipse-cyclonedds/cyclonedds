@@ -1,0 +1,8 @@
+# Build a docker image with pre-built cyclonedds core & examples
+FROM ubuntu:cyclonedds
+
+ADD . /cyclonedds
+
+WORKDIR /cyclonedds
+
+RUN ./scripts/build.sh
