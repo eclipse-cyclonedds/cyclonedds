@@ -20,6 +20,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/types.h"
+#include "dds/ddsi/q_gc.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/core/dds_security_serialize.h"
@@ -841,12 +842,14 @@ unregister_participant(
 
         if ((rmt_pp_crypto = (remote_participant_crypto *)crypto_object_table_find(implementation->crypto_objects, handles[i])) != NULL)
         {
-          if ((keymat = crypto_remote_participant_remove_keymat(rmt_pp_crypto, participant_crypto_handle)) != NULL)
+          ddsrt_mutex_lock(&rmt_pp_crypto->lock);
+          if ((keymat = crypto_remote_participant_remove_keymat_locked(rmt_pp_crypto, participant_crypto_handle)) != NULL)
           {
             if (keymat->remote_key_material && keymat->remote_key_material->receiver_specific_key_id != 0)
-              crypto_remove_specific_key_relation(rmt_pp_crypto, keymat->remote_key_material->receiver_specific_key_id);
+              crypto_remove_specific_key_relation_locked(rmt_pp_crypto, keymat->remote_key_material->receiver_specific_key_id);
             CRYPTO_OBJECT_RELEASE(keymat);
           }
+          ddsrt_mutex_unlock(&rmt_pp_crypto->lock);
           CRYPTO_OBJECT_RELEASE(rmt_pp_crypto);
         }
       }
@@ -862,12 +865,14 @@ unregister_participant(
       num = crypto_remote_participnant_get_matching(rmt_pp_crypto, &handles);
       for (i = 0; i < num; i++)
       {
-        if ((keymat = crypto_remote_participant_remove_keymat(rmt_pp_crypto, handles[i])) != NULL)
+        ddsrt_mutex_lock(&rmt_pp_crypto->lock);
+        if ((keymat = crypto_remote_participant_remove_keymat_locked(rmt_pp_crypto, handles[i])) != NULL)
         {
           if (keymat->remote_key_material && keymat->remote_key_material->receiver_specific_key_id != 0)
-            crypto_remove_specific_key_relation(rmt_pp_crypto, keymat->remote_key_material->receiver_specific_key_id);
+            crypto_remove_specific_key_relation_locked(rmt_pp_crypto, keymat->remote_key_material->receiver_specific_key_id);
           CRYPTO_OBJECT_RELEASE(keymat);
         }
+        ddsrt_mutex_unlock(&rmt_pp_crypto->lock);
 
         if ((loc_pp_crypto = (local_participant_crypto *)crypto_object_table_find(implementation->crypto_objects, handles[i])) != NULL)
         {
@@ -1063,8 +1068,8 @@ crypto_factory_get_participant_crypto_tokens(
     DDS_Security_ParticipantCryptoHandle local_id,
     DDS_Security_ParticipantCryptoHandle remote_id,
     participant_key_material **pp_key_material,
+    master_key_material **remote_key_matarial,
     DDS_Security_ProtectionKind *protection_kind,
-
     DDS_Security_SecurityException *ex)
 {
   assert (pp_key_material != NULL);
@@ -1085,20 +1090,31 @@ crypto_factory_get_participant_crypto_tokens(
     goto err_remote;
   }
 
-  if (!(*pp_key_material = (participant_key_material *)crypto_remote_participant_lookup_keymat(remote_crypto, local_id)))
+  ddsrt_mutex_lock(&remote_crypto->lock);
+  if (!(*pp_key_material = (participant_key_material *)crypto_remote_participant_lookup_keymat_locked(remote_crypto, local_id)))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE, 0,
         DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_MESSAGE);
+    ddsrt_mutex_unlock(&remote_crypto->lock);
     goto err_remote;
   }
+  if (remote_key_matarial != NULL)
+    *remote_key_matarial = (*pp_key_material)->remote_key_material;
   if (protection_kind != NULL)
     *protection_kind = remote_crypto->rtps_protection_kind;
+  ddsrt_mutex_unlock(&remote_crypto->lock);
   result = true;
 
 err_remote:
   CRYPTO_OBJECT_RELEASE(remote_crypto);
 err_no_remote:
   return result;
+}
+
+static void gc_remote_key_material (struct gcreq *gcreq)
+{
+  CRYPTO_OBJECT_RELEASE (gcreq->arg);
+  gcreq_free (gcreq);
 }
 
 bool
@@ -1128,32 +1144,45 @@ crypto_factory_set_participant_crypto_tokens(
     goto err_inv_remote;
   }
 
-  key_material = crypto_remote_participant_lookup_keymat(remote_crypto, local_id);
+  ddsrt_mutex_lock(&remote_crypto->lock);
+  key_material = crypto_remote_participant_lookup_keymat_locked(remote_crypto, local_id);
   if (key_material)
   {
-    ddsrt_mutex_lock(&remote_crypto->lock);
-    if (!key_material->remote_key_material)
-      key_material->remote_key_material = crypto_master_key_material_new(CRYPTO_TRANSFORMATION_KIND_NONE);
+    /* Because setting crypto tokens is not done very often, we're not using an
+       atomic pointer (which makes the code less readable) and do not introduce an
+       additional lock for the remote key material. Instead it is protected by the
+       remote_participant_crypto lock. For cleaning up the old remote key
+       material, the garbage collector is used so that any pointer to the remote
+       key material can be safely used until thread state sleep. */
+    master_key_material *remote_key_mat_old = key_material->remote_key_material;
+    key_material->remote_key_material = crypto_master_key_material_new(CRYPTO_TRANSFORMATION_KIND_NONE);
+    if (remote_key_mat_old != NULL)
+    {
+      struct gcreq *gcreq = gcreq_new(impl->crypto->gv->gcreq_queue, gc_remote_key_material);
+      gcreq->arg = remote_key_mat_old;
+      gcreq_enqueue(gcreq);
+    }
     crypto_token_copy(key_material->remote_key_material, remote_key_mat);
-    ddsrt_mutex_unlock(&remote_crypto->lock);
 
     uint32_t specific_key = key_material->remote_key_material->receiver_specific_key_id;
     if (specific_key != 0)
     {
-      key_relation *relation = crypto_find_specific_key_relation(remote_crypto, specific_key);
+      key_relation *relation = crypto_find_specific_key_relation_locked(remote_crypto, specific_key);
       if (!relation)
       {
         local_participant_crypto *local_crypto = (local_participant_crypto *)crypto_object_table_find(impl->crypto_objects, local_id);
         relation = crypto_key_relation_new(0, specific_key, CRYPTO_OBJECT(local_crypto), CRYPTO_OBJECT(remote_crypto), key_material->remote_key_material);
-        crypto_insert_specific_key_relation(remote_crypto, relation);
+        crypto_insert_specific_key_relation_locked(remote_crypto, relation);
         CRYPTO_OBJECT_RELEASE(local_crypto);
       }
       CRYPTO_OBJECT_RELEASE(relation);
     }
+    ddsrt_mutex_unlock(&remote_crypto->lock);
     CRYPTO_OBJECT_RELEASE(key_material);
   }
   else
   {
+    ddsrt_mutex_unlock(&remote_crypto->lock);
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE, 0,
         DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_MESSAGE);
     goto err_inv_remote;

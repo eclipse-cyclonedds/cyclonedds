@@ -996,7 +996,7 @@ add_receiver_specific_mac(
     return false;
 
   /* get remote crypto tokens */
-  if (!crypto_factory_get_participant_crypto_tokens(factory, sending_participant_crypto, receiving_participant_crypto, &pp_key_material, &remote_protection_kind, ex))
+  if (!crypto_factory_get_participant_crypto_tokens(factory, sending_participant_crypto, receiving_participant_crypto, &pp_key_material, NULL, &remote_protection_kind, ex))
   {
     CRYPTO_OBJECT_RELEASE(session);
     return false;
@@ -1841,6 +1841,7 @@ decode_rtps_message(dds_security_crypto_transform *instance,
   uint32_t decoded_body_size;
   static const char *context = "decode_rtps_message";
   participant_key_material *pp_key_material;
+  master_key_material *remote_key_material;
   DDS_Security_ProtectionKind remote_protection_kind;
   bool result = false;
 
@@ -1872,10 +1873,9 @@ decode_rtps_message(dds_security_crypto_transform *instance,
   transform_kind = CRYPTO_TRANSFORM_KIND(header.transform_identifier.transformation_kind);
 
   /* Retrieve key material from sending_participant_crypto and receiving_participant_crypto from factory */
-  if (!crypto_factory_get_participant_crypto_tokens(factory, receiving_participant_crypto, sending_participant_crypto, &pp_key_material, &remote_protection_kind, ex))
+  if (!crypto_factory_get_participant_crypto_tokens(factory, receiving_participant_crypto, sending_participant_crypto, &pp_key_material, &remote_key_material, &remote_protection_kind, ex))
     goto fail_tokens;
-
-  if (!pp_key_material->remote_key_material)
+  if (remote_key_material == NULL)
     goto fail_remote_keys_not_ready;
 
   if (has_origin_authentication(remote_protection_kind))
@@ -1886,8 +1886,8 @@ decode_rtps_message(dds_security_crypto_transform *instance,
 
   /* calculate the session key */
   decoded_body = DDS_Security_OctetSeq_allocbuf(contents._length);
-  if (!initialize_remote_session_info(&remote_session, &header, pp_key_material->remote_key_material->master_salt,
-        pp_key_material->remote_key_material->master_sender_key, pp_key_material->remote_key_material->transformation_kind, ex))
+  if (!initialize_remote_session_info(&remote_session, &header, remote_key_material->master_salt,
+        remote_key_material->master_sender_key, remote_key_material->transformation_kind, ex))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
         "decode_rtps_message: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
