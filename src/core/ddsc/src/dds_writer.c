@@ -20,6 +20,7 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 #include "dds__writer.h"
 #include "dds__listener.h"
 #include "dds__init.h"
@@ -312,6 +313,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   dds_topic_defer_set_qos (tp);
 
   /* Merge Topic & Publisher qos */
+  struct ddsi_domaingv *gv = &pub->m_entity.m_domain->gv;
   wqos = dds_create_qos ();
   if (qos)
     ddsi_xqos_mergein_missing (wqos, qos, DDS_WRITER_QOS_MASK);
@@ -319,29 +321,47 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     ddsi_xqos_mergein_missing (wqos, pub->m_entity.m_qos, ~(uint64_t)0);
   if (tp->m_ktopic->qos)
     ddsi_xqos_mergein_missing (wqos, tp->m_ktopic->qos, ~(uint64_t)0);
-  ddsi_xqos_mergein_missing (wqos, &pub->m_entity.m_domain->gv.default_xqos_wr, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (wqos, &gv->default_xqos_wr, ~(uint64_t)0);
 
-  if ((rc = ddsi_xqos_valid (&pub->m_entity.m_domain->gv.logconfig, wqos)) < 0 ||
-      (rc = validate_writer_qos(wqos)) != DDS_RETCODE_OK)
-  {
-    dds_delete_qos(wqos);
+  if ((rc = ddsi_xqos_valid (&gv->logconfig, wqos)) < 0 || (rc = validate_writer_qos(wqos)) != DDS_RETCODE_OK)
     goto err_bad_qos;
+
+  thread_state_awake (lookup_thread_state (), gv);
+  const struct ddsi_guid *ppguid = dds_entity_participant_guid (&pub->m_entity);
+  struct participant *pp = entidx_lookup_participant_guid (gv->entity_index, ppguid);
+  if (pp == NULL)
+  {
+    GVLOGDISC ("new_writer - participant "PGUIDFMT" not found\n", PGUID (*ppguid));
+    rc = DDS_RETCODE_BAD_PARAMETER;
+    goto err_pp_not_found;
   }
 
+#ifdef DDSI_INCLUDE_SECURITY
+  /* Check if DDS Security is enabled */
+  if (q_omg_participant_is_secure (pp))
+  {
+    /* ask to access control security plugin for create writer permissions */
+    if (!q_omg_security_check_create_writer (pp, gv->config.domainId, tp->m_stopic->name, wqos))
+    {
+      rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+      goto err_not_allowed;
+    }
+  }
+#endif
+
   /* Create writer */
-  ddsi_tran_conn_t conn = pub->m_entity.m_domain->gv.xmit_conn;
+  ddsi_tran_conn_t conn = gv->xmit_conn;
   struct dds_writer * const wr = dds_alloc (sizeof (*wr));
   const dds_entity_t writer = dds_entity_init (&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, false, wqos, listener, DDS_WRITER_STATUS_MASK);
   wr->m_topic = tp;
   dds_entity_add_ref_locked (&tp->m_entity);
-  wr->m_xp = nn_xpack_new (conn, get_bandwidth_limit (wqos->transport_priority), pub->m_entity.m_domain->gv.config.xpack_send_async);
+  wr->m_xp = nn_xpack_new (conn, get_bandwidth_limit (wqos->transport_priority), gv->config.xpack_send_async);
   wrinfo = whc_make_wrinfo (wr, wqos);
-  wr->m_whc = whc_new (&pub->m_entity.m_domain->gv, wrinfo);
+  wr->m_whc = whc_new (gv, wrinfo);
   whc_free_wrinfo (wrinfo);
-  wr->whc_batch = pub->m_entity.m_domain->gv.config.whc_batch;
+  wr->whc_batch = gv->config.whc_batch;
 
-  thread_state_awake (lookup_thread_state (), &pub->m_entity.m_domain->gv);
-  rc = new_writer (&wr->m_wr, &wr->m_entity.m_domain->gv, &wr->m_entity.m_guid, NULL, dds_entity_participant_guid (&pub->m_entity), tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
+  rc = new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
   assert(rc == DDS_RETCODE_OK);
   thread_state_asleep (lookup_thread_state ());
 
@@ -355,7 +375,13 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   dds_publisher_unlock (pub);
   return writer;
 
+#ifdef DDSI_INCLUDE_SECURITY
+err_not_allowed:
+#endif
+err_pp_not_found:
+  thread_state_asleep (lookup_thread_state ());
 err_bad_qos:
+  dds_delete_qos(wqos);
   dds_topic_allow_set_qos (tp);
 err_pp_mismatch:
   dds_topic_unpin (tp);

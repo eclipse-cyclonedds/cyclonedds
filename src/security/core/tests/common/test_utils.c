@@ -294,16 +294,41 @@ void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_c
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   while (true)
   {
-    ret = dds_waitset_wait (ws, &triggered, 1, DDS_SECS(5));
-    CU_ASSERT_FATAL (ret >= 1);
-    CU_ASSERT_EQUAL_FATAL (wr, (dds_entity_t)(intptr_t) triggered);
-    ret = dds_get_publication_matched_status(wr, &pub_matched);
+    ret = dds_waitset_wait (ws, &triggered, 1, DDS_SECS(2));
+    CU_ASSERT_EQUAL_FATAL (exp_count > 0, ret >= 1);
+    if (exp_count > 0)
+      CU_ASSERT_EQUAL_FATAL (wr, (dds_entity_t)(intptr_t) triggered);
+    ret = dds_get_publication_matched_status (wr, &pub_matched);
     CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
     if (pub_matched.total_count >= exp_count)
       break;
   };
   dds_delete (ws);
   CU_ASSERT_EQUAL_FATAL (pub_matched.total_count, exp_count);
+}
+
+void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_count)
+{
+  dds_attach_t triggered;
+  dds_entity_t ws = dds_create_waitset (pp_rd);
+  CU_ASSERT_FATAL (ws > 0);
+  dds_subscription_matched_status_t sub_matched;
+
+  dds_return_t ret = dds_waitset_attach (ws, rd, rd);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  while (true)
+  {
+    ret = dds_waitset_wait (ws, &triggered, 1, DDS_SECS(2));
+    CU_ASSERT_EQUAL_FATAL (exp_count > 0, ret >= 1);
+    if (exp_count > 0)
+      CU_ASSERT_EQUAL_FATAL (rd, (dds_entity_t)(intptr_t) triggered);
+    ret = dds_get_subscription_matched_status (rd, &sub_matched);
+    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    if (sub_matched.total_count >= exp_count)
+      break;
+  };
+  dds_delete (ws);
+  CU_ASSERT_EQUAL_FATAL (sub_matched.total_count, exp_count);
 }
 
 char *create_topic_name (const char *prefix, uint32_t nr, char *name, size_t size)
@@ -328,10 +353,12 @@ bool reader_wait_for_data (dds_entity_t pp, dds_entity_t rd, dds_duration_t dur)
   return ret > 0;
 }
 
-void rd_wr_init(
+void rd_wr_init_fail(
     dds_entity_t pp_wr, dds_entity_t *pub, dds_entity_t *pub_tp, dds_entity_t *wr,
     dds_entity_t pp_rd, dds_entity_t *sub, dds_entity_t *sub_tp, dds_entity_t *rd,
-    const char * topic_name)
+    const char * topic_name,
+    bool exp_pubtp_fail, bool exp_wr_fail,
+    bool exp_subtp_fail, bool exp_rd_fail)
 {
   dds_qos_t * qos = dds_create_qos ();
   CU_ASSERT_FATAL (qos != NULL);
@@ -344,17 +371,35 @@ void rd_wr_init(
   *sub = dds_create_subscriber (pp_rd, NULL, NULL);
   CU_ASSERT_FATAL (*sub > 0);
   *pub_tp = dds_create_topic (pp_wr, &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (*pub_tp > 0);
+  CU_ASSERT_EQUAL_FATAL (exp_pubtp_fail, *pub_tp <= 0);
   *sub_tp = dds_create_topic (pp_rd, &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (*sub_tp > 0);
-  *wr = dds_create_writer (*pub, *pub_tp, qos, NULL);
-  CU_ASSERT_FATAL (*wr > 0);
-  dds_set_status_mask (*wr, DDS_PUBLICATION_MATCHED_STATUS);
-  *rd = dds_create_reader (*sub, *sub_tp, qos, NULL);
-  CU_ASSERT_FATAL (*rd > 0);
-  dds_set_status_mask (*rd, DDS_DATA_AVAILABLE_STATUS);
-  sync_writer_to_readers(pp_wr, *wr, 1);
+  CU_ASSERT_EQUAL_FATAL (exp_subtp_fail, *sub_tp <= 0);
+  if (!exp_pubtp_fail)
+  {
+    *wr = dds_create_writer (*pub, *pub_tp, qos, NULL);
+    CU_ASSERT_EQUAL_FATAL (exp_wr_fail, *wr <= 0);
+    if (exp_wr_fail)
+      goto fail;
+    dds_set_status_mask (*wr, DDS_PUBLICATION_MATCHED_STATUS);
+  }
+  if (!exp_subtp_fail)
+  {
+    *rd = dds_create_reader (*sub, *sub_tp, qos, NULL);
+    CU_ASSERT_EQUAL_FATAL (exp_rd_fail, *rd <= 0);
+    if (exp_rd_fail)
+      goto fail;
+    dds_set_status_mask (*rd, DDS_SUBSCRIPTION_MATCHED_STATUS);
+  }
+fail:
   dds_delete_qos (qos);
+}
+
+void rd_wr_init(
+    dds_entity_t pp_wr, dds_entity_t *pub, dds_entity_t *pub_tp, dds_entity_t *wr,
+    dds_entity_t pp_rd, dds_entity_t *sub, dds_entity_t *sub_tp, dds_entity_t *rd,
+    const char * topic_name)
+{
+  rd_wr_init_fail (pp_wr, pub, pub_tp, wr, pp_rd, sub, sub_tp, rd, topic_name, false, false, false, false);
 }
 
 void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_duration_t dur, bool exp_write_fail, bool exp_read_fail)
@@ -367,9 +412,10 @@ void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_du
   dds_time_t tend = dds_time () + dur;
   bool write_fail = false, read_fail = false;
 
+  dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
   do
   {
-    print_test_msg("write\n");
+    print_test_msg ("write\n");
     if (dds_write (wr, &sample) != DDS_RETCODE_OK)
       write_fail = true;
 
@@ -399,7 +445,7 @@ void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_du
       break;
     dds_sleepfor (DDS_MSECS (100));
   }
-  while (dds_time() < tend);
+  while (dds_time () < tend);
   CU_ASSERT_EQUAL_FATAL (write_fail, exp_write_fail);
   CU_ASSERT_EQUAL_FATAL (read_fail, exp_read_fail);
 }

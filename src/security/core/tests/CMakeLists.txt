@@ -68,7 +68,7 @@ set(security_core_test_sources
 )
 
 if(ENABLE_SSL)
-  add_wrapper(access_control "")
+  add_wrapper(access_control dds_security_ac)
   add_wrapper(authentication dds_security_auth)
   add_wrapper(cryptography dds_security_crypto)
 
@@ -108,7 +108,7 @@ configure_file("common/config_env.h.in" "common/config_env.h")
 
 target_link_libraries(cunit_security_core PRIVATE ddsc security_api SecurityCoreTests)
 if(ENABLE_SSL)
-  target_link_libraries(cunit_security_core PRIVATE dds_security_auth dds_security_ac dds_security_crypto dds_security_authentication_wrapper dds_security_cryptography_wrapper)
+  target_link_libraries(cunit_security_core PRIVATE dds_security_auth dds_security_ac dds_security_crypto dds_security_access_control_wrapper dds_security_authentication_wrapper dds_security_cryptography_wrapper)
   target_link_libraries(cunit_security_core PRIVATE OpenSSL::SSL)
 endif()
 target_include_directories(cunit_security_core PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")

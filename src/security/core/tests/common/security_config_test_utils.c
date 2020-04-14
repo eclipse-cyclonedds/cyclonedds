@@ -50,8 +50,8 @@ static const char *governance_xml =
     "          <topic_expression>*</topic_expression>"
     "          <enable_discovery_protection>${ENABLE_DISC_PROTECTION:-false}</enable_discovery_protection>"
     "          <enable_liveliness_protection>${ENABLE_LIVELINESS_PROTECTION:-false}</enable_liveliness_protection>"
-    "          <enable_read_access_control>${ENABLE_READ_AC:-false}</enable_read_access_control>"
-    "          <enable_write_access_control>${ENABLE_WRITE_AC:-false}</enable_write_access_control>"
+    "          <enable_read_access_control>${ENABLE_READ_AC:-true}</enable_read_access_control>"
+    "          <enable_write_access_control>${ENABLE_WRITE_AC:-true}</enable_write_access_control>"
     "          <metadata_protection_kind>${METADATA_PROTECTION_KIND:-NONE}</metadata_protection_kind>"
     "          <data_protection_kind>${DATA_PROTECTION_KIND:-NONE}</data_protection_kind>"
     "        </topic_rule>"
@@ -68,7 +68,7 @@ static const char *permissions_xml_grant =
     "      <subject_name>${SUBJECT_NAME}</subject_name>"
     "      <validity><not_before>${NOT_BEFORE:-2015-09-15T01:00:00}</not_before><not_after>${NOT_AFTER:-2115-09-15T01:00:00}</not_after></validity>"
     "      <allow_rule>"
-    "        <domains><id_range><min>0</min><max>230</max></id_range></domains>"
+    "        <domains>${DOMAIN_ID:+<id>}${DOMAIN_ID:-<id_range><min>0</min><max>230</max></id_range>}${DOMAIN_ID:+</id>}</domains>"
     "        <publish>"
     "          <topics>${PUB_TOPICS:-<topic>*</topic>}</topics>"
     "          <partitions><partition>*</partition></partitions>"
@@ -239,7 +239,7 @@ static char * get_xml_datetime(dds_time_t t, char * buf, size_t len)
   return buf;
 }
 
-char * get_permissions_grant(const char * name, const char * subject,
+char * get_permissions_grant(const char * name, const char * subject, const char * domain_id,
     dds_time_t not_before, dds_time_t not_after, const char * pub_topics, const char * sub_topics, const char * default_policy)
 {
   char not_before_str[] = "0000-00-00T00:00:00Z";
@@ -252,6 +252,7 @@ char * get_permissions_grant(const char * name, const char * subject,
     { "SUBJECT_NAME", subject, 1 },
     { "NOT_BEFORE", not_before_str, 1 },
     { "NOT_AFTER", not_after_str, 1 },
+    { "DOMAIN_ID", domain_id, 3 },
     { "PUB_TOPICS", pub_topics, 1 },
     { "SUB_TOPICS", sub_topics, 1 },
     { "DEFAULT_POLICY", default_policy, 1 },

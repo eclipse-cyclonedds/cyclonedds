@@ -30,6 +30,7 @@
 #include "dds__builtin.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
 
@@ -430,6 +431,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
   /* Merge qos from topic and subscriber, dds_copy_qos only fails when it is passed a null
      argument, but that isn't the case here */
+  struct ddsi_domaingv *gv = &sub->m_entity.m_domain->gv;
   rqos = dds_create_qos ();
   if (qos)
     ddsi_xqos_mergein_missing (rqos, qos, DDS_READER_QOS_MASK);
@@ -437,24 +439,42 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     ddsi_xqos_mergein_missing (rqos, sub->m_entity.m_qos, ~(uint64_t)0);
   if (tp->m_ktopic->qos)
     ddsi_xqos_mergein_missing (rqos, tp->m_ktopic->qos, ~(uint64_t)0);
-  ddsi_xqos_mergein_missing (rqos, &sub->m_entity.m_domain->gv.default_xqos_rd, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (rqos, &gv->default_xqos_rd, ~(uint64_t)0);
 
-  if ((rc = ddsi_xqos_valid (&sub->m_entity.m_domain->gv.logconfig, rqos)) < 0 ||
-      (rc = validate_reader_qos(rqos)) != DDS_RETCODE_OK)
-  {
-    dds_delete_qos (rqos);
+  if ((rc = ddsi_xqos_valid (&gv->logconfig, rqos)) < 0 || (rc = validate_reader_qos(rqos)) != DDS_RETCODE_OK)
     goto err_bad_qos;
-  }
 
   /* Additional checks required for built-in topics: we don't want to
      run into a resource limit on a built-in topic, it is a needless
      complication */
   if (pseudo_topic && !dds__validate_builtin_reader_qos (tp->m_entity.m_domain, pseudo_topic, rqos))
   {
-    dds_delete_qos (rqos);
     rc = DDS_RETCODE_INCONSISTENT_POLICY;
     goto err_bad_qos;
   }
+
+  thread_state_awake (lookup_thread_state (), gv);
+  const struct ddsi_guid * ppguid = dds_entity_participant_guid (&sub->m_entity);
+  struct participant * pp = entidx_lookup_participant_guid (gv->entity_index, ppguid);
+  if (pp == NULL)
+  {
+    GVLOGDISC ("new_reader - participant "PGUIDFMT" not found\n", PGUID (*ppguid));
+    rc = DDS_RETCODE_BAD_PARAMETER;
+    goto err_pp_not_found;
+  }
+
+#ifdef DDSI_INCLUDE_SECURITY
+  /* Check if DDS Security is enabled */
+  if (q_omg_participant_is_secure (pp))
+  {
+    /* ask to access control security plugin for create reader permissions */
+    if (!q_omg_security_check_create_reader (pp, gv->config.domainId, tp->m_stopic->name, rqos))
+    {
+      rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+      goto err_not_allowed;
+    }
+  }
+#endif
 
   /* Create reader and associated read cache (if not provided by caller) */
   struct dds_reader * const rd = dds_alloc (sizeof (*rd));
@@ -474,8 +494,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
      it; and then invoke those listeners that are in the pending set */
   dds_entity_init_complete (&rd->m_entity);
 
-  thread_state_awake (lookup_thread_state (), &sub->m_entity.m_domain->gv);
-  rc = new_reader (&rd->m_rd, &rd->m_entity.m_domain->gv, &rd->m_entity.m_guid, NULL, dds_entity_participant_guid (&sub->m_entity), tp->m_stopic, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
+  rc = new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_stopic, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
   assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
   thread_state_asleep (lookup_thread_state ());
 
@@ -487,7 +506,13 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   dds_subscriber_unlock (sub);
   return reader;
 
+#ifdef DDSI_INCLUDE_SECURITY
+err_not_allowed:
+#endif
+err_pp_not_found:
+  thread_state_asleep (lookup_thread_state ());
 err_bad_qos:
+  dds_delete_qos (rqos);
   dds_topic_allow_set_qos (tp);
 err_pp_mismatch:
   dds_topic_unpin (tp);

@@ -2136,7 +2136,8 @@ bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *p
   struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PublicationBuiltinTopicDataSecure publication_data;
-  bool ok = true;
+  DDS_Security_TopicBuiltinTopicData topic_data;
+  bool result = true;
 
   if (!sc)
     return true;
@@ -2167,19 +2168,32 @@ bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *p
     else
     {
       q_omg_shallow_copy_PublicationBuiltinTopicDataSecure(&publication_data, &pwr->e.guid, pwr->c.xqos, &pwr->c.security_info);
-      ok = sc->access_control_context->check_remote_datawriter(sc->access_control_context, permissions_handle, (int)domain_id, &publication_data, &exception);
-      q_omg_shallow_free_PublicationBuiltinTopicDataSecure(&publication_data);
-      if (!ok)
+      result = sc->access_control_context->check_remote_datawriter(sc->access_control_context, permissions_handle, (int)domain_id, &publication_data, &exception);
+      if (!result)
       {
         if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, publication_data.topic_name))
           EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote writer "PGUIDFMT": %s", PGUID(pwr->e.guid));
         else
           DDS_Security_Exception_reset(&exception);
       }
+      else
+      {
+        q_omg_shallow_copy_TopicBuiltinTopicData(&topic_data, publication_data.topic_name, publication_data.type_name);
+        result = sc->access_control_context->check_remote_topic(sc->access_control_context, permissions_handle, (int)domain_id, &topic_data, &exception);
+        q_omg_shallow_free_TopicBuiltinTopicData(&topic_data);
+        if (!result)
+        {
+          if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, publication_data.topic_name))
+            EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote topic %s: %s", publication_data.topic_name);
+          else
+            DDS_Security_Exception_reset(&exception);
+        }
+      }
+      q_omg_shallow_free_PublicationBuiltinTopicDataSecure(&publication_data);
     }
   }
 
-  return ok;
+  return result;
 }
 
 static void send_reader_crypto_tokens(struct reader *rd, struct proxy_writer *pwr, DDS_Security_DatareaderCryptoHandle local_crypto, DDS_Security_DatawriterCryptoHandle remote_crypto)
@@ -2363,7 +2377,10 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
   struct ddsi_domaingv *gv = pp->e.gv;
   struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
-  bool ok = true;
+  DDS_Security_SubscriptionBuiltinTopicDataSecure subscription_data;
+  DDS_Security_TopicBuiltinTopicData topic_data;
+  DDS_Security_boolean sec_relay_only;
+  bool result = true;
 
   /* relay_only is meaningless in all cases except the one where the access control plugin says otherwise */
   *relay_only = false;
@@ -2396,25 +2413,34 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
     }
     else
     {
-      DDS_Security_SubscriptionBuiltinTopicDataSecure subscription_data;
-      DDS_Security_boolean sec_relay_only;
-
       q_omg_shallow_copy_SubscriptionBuiltinTopicDataSecure(&subscription_data, &prd->e.guid, prd->c.xqos, &prd->c.security_info);
-      ok = sc->access_control_context->check_remote_datareader(sc->access_control_context, permissions_handle, (int)domain_id, &subscription_data, &sec_relay_only, &exception);
-      q_omg_shallow_free_SubscriptionBuiltinTopicDataSecure(&subscription_data);
-      if (ok)
-        *relay_only = !!sec_relay_only;
-      else
+      result = sc->access_control_context->check_remote_datareader(sc->access_control_context, permissions_handle, (int)domain_id, &subscription_data, &sec_relay_only, &exception);
+      if (!result)
       {
         if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, subscription_data.topic_name))
           EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote reader "PGUIDFMT": %s", PGUID(prd->e.guid));
         else
           DDS_Security_Exception_reset(&exception);
       }
+      else
+      {
+        *relay_only = !!sec_relay_only;
+        q_omg_shallow_copy_TopicBuiltinTopicData(&topic_data, subscription_data.topic_name, subscription_data.type_name);
+        result = sc->access_control_context->check_remote_topic(sc->access_control_context, permissions_handle, (int)domain_id, &topic_data, &exception);
+        q_omg_shallow_free_TopicBuiltinTopicData(&topic_data);
+        if (!result)
+        {
+          if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, subscription_data.topic_name))
+            EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote topic %s: %s", subscription_data.topic_name);
+          else
+            DDS_Security_Exception_reset(&exception);
+        }
+      }
+      q_omg_shallow_free_SubscriptionBuiltinTopicDataSecure(&subscription_data);
     }
   }
 
-  return ok;
+  return result;
 }
 
 void q_omg_get_proxy_endpoint_security_info(const struct entity_common *entity, nn_security_info_t *proxypp_sec_info, const ddsi_plist_t *plist, nn_security_info_t *info)

@@ -309,8 +309,8 @@ CU_Theory(
 
   dds_time_t now = dds_time ();
   char * grants[] = {
-    get_permissions_grant ("id1", id1_subj, now - DDS_SECS(D(1)), now + DDS_SECS(D(1)), NULL, NULL, NULL),
-    get_permissions_grant ("id2", id2_subj, now - DDS_SECS(D(1)), now + DDS_SECS(D(1)), NULL, NULL, NULL) };
+    get_permissions_grant ("id1", id1_subj, NULL, now - DDS_SECS(D(1)), now + DDS_SECS(D(1)), NULL, NULL, NULL),
+    get_permissions_grant ("id2", id2_subj, NULL, now - DDS_SECS(D(1)), now + DDS_SECS(D(1)), NULL, NULL, NULL) };
   char * perm_config = get_permissions_config (grants, 2, true);
   authentication_init (id1, ID1K, ca, id2, ID1K, ca, NULL, perm_config, id1_local_fail, id2_local_fail);
   validate_handshake (DDS_DOMAINID1, id1_local_fail, NULL, NULL, NULL);
@@ -318,6 +318,7 @@ CU_Theory(
   if (write_read_dur > 0)
   {
     rd_wr_init (g_participant1, &g_pub, &g_pub_tp, &g_wr, g_participant2, &g_sub, &g_sub_tp, &g_rd, topic_name);
+    sync_writer_to_readers(g_participant1, g_wr, 1);
     write_read_for (g_wr, g_participant2, g_rd, DDS_MSECS (write_read_dur), false, exp_read_fail);
   }
   authentication_fini (!id1_local_fail, !id2_local_fail);
