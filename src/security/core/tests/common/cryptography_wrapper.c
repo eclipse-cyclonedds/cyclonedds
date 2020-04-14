@@ -22,8 +22,8 @@
 #include "dds/security/core/dds_security_utils.h"
 #include "cryptography_wrapper.h"
 
-int32_t init_crypto(const char *argument, void **context, struct ddsi_domaingv *gv);
-int32_t finalize_crypto(void *context);
+int init_crypto(const char *argument, void **context, struct ddsi_domaingv *gv);
+int finalize_crypto(void *context);
 
 enum crypto_plugin_mode {
   PLUGIN_MODE_ALL_OK,
@@ -754,16 +754,16 @@ static struct dds_security_cryptography_impl * init_test_cryptography_common(con
   return impl;
 }
 
-static int32_t finalize_test_cryptography_common(struct dds_security_cryptography_impl * impl, bool wrapped)
+static int finalize_test_cryptography_common(struct dds_security_cryptography_impl * impl, bool wrapped)
 {
-  int32_t ret;
+  int ret;
   if (wrapped && (ret = finalize_crypto(impl->instance)) != DDS_SECURITY_SUCCESS)
     return ret;
   ddsrt_free(impl);
   return DDS_SECURITY_SUCCESS;
 }
 
-int32_t init_test_cryptography_all_ok(const char *argument, void **context, struct ddsi_domaingv *gv)
+int init_test_cryptography_all_ok(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
   struct dds_security_cryptography_impl *impl = init_test_cryptography_common(argument, false, gv);
   if (!impl)
@@ -773,14 +773,14 @@ int32_t init_test_cryptography_all_ok(const char *argument, void **context, stru
   return DDS_SECURITY_SUCCESS;
 }
 
-int32_t finalize_test_cryptography_all_ok(void *context)
+int finalize_test_cryptography_all_ok(void *context)
 {
   struct dds_security_cryptography_impl* impl = (struct dds_security_cryptography_impl*) context;
   assert(impl->mode == PLUGIN_MODE_ALL_OK);
   return finalize_test_cryptography_common(impl, false);
 }
 
-int32_t init_test_cryptography_missing_func(const char *argument, void **context, struct ddsi_domaingv *gv)
+int init_test_cryptography_missing_func(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
   struct dds_security_cryptography_impl *impl = init_test_cryptography_common(argument, false, gv);
   if (!impl)
@@ -791,14 +791,14 @@ int32_t init_test_cryptography_missing_func(const char *argument, void **context
   return DDS_SECURITY_SUCCESS;
 }
 
-int32_t finalize_test_cryptography_missing_func(void *context)
+int finalize_test_cryptography_missing_func(void *context)
 {
   struct dds_security_cryptography_impl* impl = (struct dds_security_cryptography_impl*) context;
   assert(impl->mode == PLUGIN_MODE_MISSING_FUNC);
   return finalize_test_cryptography_common(impl, false);
 }
 
-int32_t init_test_cryptography_wrapped(const char *argument, void **context, struct ddsi_domaingv *gv)
+int init_test_cryptography_wrapped(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
   struct dds_security_cryptography_impl *impl = init_test_cryptography_common(argument, true, gv);
   if (!impl)
@@ -808,7 +808,7 @@ int32_t init_test_cryptography_wrapped(const char *argument, void **context, str
   return DDS_SECURITY_SUCCESS;
 }
 
-int32_t finalize_test_cryptography_wrapped(void *context)
+int finalize_test_cryptography_wrapped(void *context)
 {
   struct dds_security_cryptography_impl* impl = (struct dds_security_cryptography_impl*) context;
   assert(impl->mode == PLUGIN_MODE_WRAPPED);

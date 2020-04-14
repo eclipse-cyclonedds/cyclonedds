@@ -20,10 +20,39 @@
 #include "dds/security/core/dds_security_utils.h"
 #include "access_control_wrapper.h"
 
+int init_access_control(const char *argument, void **context, struct ddsi_domaingv *gv);
+int finalize_access_control(void *context);
+
 enum ac_plugin_mode {
   PLUGIN_MODE_ALL_OK,
+  PLUGIN_MODE_WRAPPED,
+  PLUGIN_MODE_NOT_ALLOWED,
   PLUGIN_MODE_MISSING_FUNC
 };
+
+enum ac_plugin_not_allowed {
+  NOT_ALLOWED_ID_LOCAL_PP,
+  NOT_ALLOWED_ID_LOCAL_TOPIC,
+  NOT_ALLOWED_ID_LOCAL_PUB,
+  NOT_ALLOWED_ID_LOCAL_SUB,
+  NOT_ALLOWED_ID_REMOTE_PERM,
+  NOT_ALLOWED_ID_REMOTE_PP,
+  NOT_ALLOWED_ID_REMOTE_TOPIC,
+  NOT_ALLOWED_ID_REMOTE_WRITER,
+  NOT_ALLOWED_ID_REMOTE_READER,
+  NOT_ALLOWED_ID_REMOTE_READER_RELAY_ONLY
+};
+
+#define NOT_ALLOWED_LOCAL_PP                      (1u << NOT_ALLOWED_ID_LOCAL_PP)
+#define NOT_ALLOWED_LOCAL_TOPIC                   (1u << NOT_ALLOWED_ID_LOCAL_TOPIC)
+#define NOT_ALLOWED_LOCAL_PUB                     (1u << NOT_ALLOWED_ID_LOCAL_PUB)
+#define NOT_ALLOWED_LOCAL_SUB                     (1u << NOT_ALLOWED_ID_LOCAL_SUB)
+#define NOT_ALLOWED_REMOTE_PERM                   (1u << NOT_ALLOWED_ID_REMOTE_PERM)
+#define NOT_ALLOWED_REMOTE_PP                     (1u << NOT_ALLOWED_ID_REMOTE_PP)
+#define NOT_ALLOWED_REMOTE_TOPIC                  (1u << NOT_ALLOWED_ID_REMOTE_TOPIC)
+#define NOT_ALLOWED_REMOTE_WRITER                 (1u << NOT_ALLOWED_ID_REMOTE_WRITER)
+#define NOT_ALLOWED_REMOTE_READER                 (1u << NOT_ALLOWED_ID_REMOTE_READER)
+#define NOT_ALLOWED_REMOTE_READER_RELAY_ONLY      (1u << NOT_ALLOWED_ID_REMOTE_READER_RELAY_ONLY)
 
 /**
  * Implementation structure for storing encapsulated members of the instance
@@ -31,7 +60,9 @@ enum ac_plugin_mode {
  */
 struct dds_security_access_control_impl {
   dds_security_access_control base;
+  dds_security_access_control *instance;
   enum ac_plugin_mode mode;
+  uint32_t not_allowed_mask;
 };
 
 static DDS_Security_PermissionsHandle validate_local_permissions(
@@ -42,14 +73,16 @@ static DDS_Security_PermissionsHandle validate_local_permissions(
     const DDS_Security_Qos *participant_qos,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(auth_plugin);
-  DDSRT_UNUSED_ARG(auth_plugin);
-  DDSRT_UNUSED_ARG(identity);
-  DDSRT_UNUSED_ARG(domain_id);
-  DDSRT_UNUSED_ARG(participant_qos);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return 1;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->validate_local_permissions(impl->instance, auth_plugin, identity, domain_id, participant_qos, ex);
+
+    default:
+      return 1;
+  }
 }
 
 static DDS_Security_PermissionsHandle validate_remote_permissions(
@@ -61,31 +94,54 @@ static DDS_Security_PermissionsHandle validate_remote_permissions(
     const DDS_Security_AuthenticatedPeerCredentialToken *remote_credential_token,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(auth_plugin);
-  DDSRT_UNUSED_ARG(local_identity_handle);
-  DDSRT_UNUSED_ARG(remote_identity_handle);
-  DDSRT_UNUSED_ARG(remote_permissions_token);
-  DDSRT_UNUSED_ARG(remote_credential_token);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return 0;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_NOT_ALLOWED:
+      if (impl->not_allowed_mask & NOT_ALLOWED_REMOTE_PERM)
+      {
+        ex->code = 1;
+        ex->message = ddsrt_strdup ("not_allowed: validate_remote_permissions");
+        return 0;
+      }
+      /* fall through */
+    case PLUGIN_MODE_WRAPPED:
+      return impl->instance->validate_remote_permissions(impl->instance, auth_plugin, local_identity_handle, remote_identity_handle,
+        remote_permissions_token, remote_credential_token, ex);
+
+    default:
+      return 0;
+  }
 }
 
-static DDS_Security_boolean check_create_participant( dds_security_access_control *instance,
+static DDS_Security_boolean check_create_participant(
+    dds_security_access_control *instance,
     const DDS_Security_PermissionsHandle permissions_handle,
     const DDS_Security_DomainId domain_id,
     const DDS_Security_Qos *participant_qos,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(domain_id);
-  DDSRT_UNUSED_ARG(participant_qos);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_NOT_ALLOWED:
+      if (impl->not_allowed_mask & NOT_ALLOWED_LOCAL_PP)
+      {
+        ex->code = 1;
+        ex->message = ddsrt_strdup ("not_allowed: check_create_participant");
+        return false;
+      }
+      /* fall through */
+    case PLUGIN_MODE_WRAPPED:
+      return impl->instance->check_create_participant(impl->instance, permissions_handle, domain_id, participant_qos, ex);
+
+    default:
+      return true;
+  }
 }
 
-static DDS_Security_boolean check_create_datawriter( dds_security_access_control *instance,
+static DDS_Security_boolean check_create_datawriter(
+    dds_security_access_control *instance,
     const DDS_Security_PermissionsHandle permissions_handle,
     const DDS_Security_DomainId domain_id,
     const char *topic_name,
@@ -94,18 +150,30 @@ static DDS_Security_boolean check_create_datawriter( dds_security_access_control
     const DDS_Security_DataTags *data_tag,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(domain_id);
-  DDSRT_UNUSED_ARG(topic_name);
-  DDSRT_UNUSED_ARG(writer_qos);
-  DDSRT_UNUSED_ARG(partition);
-  DDSRT_UNUSED_ARG(data_tag);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_NOT_ALLOWED:
+      if (impl->not_allowed_mask & NOT_ALLOWED_LOCAL_PUB)
+      {
+        if (topic_name && strncmp (topic_name, AC_WRAPPER_TOPIC_PREFIX, strlen (AC_WRAPPER_TOPIC_PREFIX)) == 0)
+        {
+          ex->code = 1;
+          ex->message = ddsrt_strdup ("not_allowed: check_create_datawriter");
+          return false;
+        }
+      }
+      /* fall through */
+    case PLUGIN_MODE_WRAPPED:
+      return impl->instance->check_create_datawriter(impl->instance, permissions_handle, domain_id, topic_name, writer_qos, partition, data_tag, ex);
+
+    default:
+      return true;
+  }
 }
 
-static DDS_Security_boolean check_create_datareader( dds_security_access_control *instance,
+static DDS_Security_boolean check_create_datareader(
+    dds_security_access_control *instance,
     const DDS_Security_PermissionsHandle permissions_handle,
     const DDS_Security_DomainId domain_id,
     const char *topic_name,
@@ -114,31 +182,50 @@ static DDS_Security_boolean check_create_datareader( dds_security_access_control
     const DDS_Security_DataTags *data_tag,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(domain_id);
-  DDSRT_UNUSED_ARG(topic_name);
-  DDSRT_UNUSED_ARG(reader_qos);
-  DDSRT_UNUSED_ARG(partition);
-  DDSRT_UNUSED_ARG(data_tag);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_NOT_ALLOWED:
+      if (impl->not_allowed_mask & NOT_ALLOWED_LOCAL_SUB)
+      {
+        ex->code = 1;
+        ex->message = ddsrt_strdup ("not_allowed: check_create_datareader");
+        return false;
+      }
+      /* fall through */
+    case PLUGIN_MODE_WRAPPED:
+      return impl->instance->check_create_datareader(impl->instance, permissions_handle, domain_id, topic_name, reader_qos, partition, data_tag, ex);
+
+    default:
+      return true;
+  }
 }
 
-static DDS_Security_boolean check_create_topic( dds_security_access_control *instance,
+static DDS_Security_boolean check_create_topic(
+    dds_security_access_control *instance,
     const DDS_Security_PermissionsHandle permissions_handle,
     const DDS_Security_DomainId domain_id,
     const char *topic_name,
     const DDS_Security_Qos *qos,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(domain_id);
-  DDSRT_UNUSED_ARG(topic_name);
-  DDSRT_UNUSED_ARG(qos);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_NOT_ALLOWED:
+      if (impl->not_allowed_mask & NOT_ALLOWED_LOCAL_TOPIC)
+      {
+        ex->code = 1;
+        ex->message = ddsrt_strdup ("not_allowed: check_create_topic");
+        return false;
+      }
+      /* fall through */
+    case PLUGIN_MODE_WRAPPED:
+      return impl->instance->check_create_topic(impl->instance, permissions_handle, domain_id, topic_name, qos, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean check_local_datawriter_register_instance(
@@ -148,12 +235,16 @@ static DDS_Security_boolean check_local_datawriter_register_instance(
     const DDS_Security_DynamicData *key,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(writer);
-  DDSRT_UNUSED_ARG(key);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->check_local_datawriter_register_instance(impl->instance, permissions_handle, writer, key, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean check_local_datawriter_dispose_instance(
@@ -163,69 +254,137 @@ static DDS_Security_boolean check_local_datawriter_dispose_instance(
     const DDS_Security_DynamicData key,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(writer);
-  DDSRT_UNUSED_ARG(key);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->check_local_datawriter_dispose_instance(impl->instance, permissions_handle, writer, key, ex);
+
+    default:
+      return true;
+  }
 }
 
-static DDS_Security_boolean check_remote_participant( dds_security_access_control *instance,
+static DDS_Security_boolean check_remote_participant(
+    dds_security_access_control *instance,
     const DDS_Security_PermissionsHandle permissions_handle,
     const DDS_Security_DomainId domain_id,
     const DDS_Security_ParticipantBuiltinTopicDataSecure *participant_data,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(domain_id);
-  DDSRT_UNUSED_ARG(participant_data);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_NOT_ALLOWED:
+      if (impl->not_allowed_mask & NOT_ALLOWED_REMOTE_PP)
+      {
+        ex->code = 1;
+        ex->message = ddsrt_strdup ("not_allowed: check_remote_participant");
+        return false;
+      }
+      /* fall through */
+    case PLUGIN_MODE_WRAPPED:
+      return impl->instance->check_remote_participant(impl->instance, permissions_handle, domain_id, participant_data, ex);
+
+    default:
+      return true;
+  }
 }
 
-static DDS_Security_boolean check_remote_datawriter( dds_security_access_control *instance,
+static DDS_Security_boolean check_remote_datawriter(
+    dds_security_access_control *instance,
     const DDS_Security_PermissionsHandle permissions_handle,
     const DDS_Security_DomainId domain_id,
     const DDS_Security_PublicationBuiltinTopicDataSecure *publication_data,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(domain_id);
-  DDSRT_UNUSED_ARG(publication_data);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_NOT_ALLOWED:
+      if (impl->not_allowed_mask & NOT_ALLOWED_REMOTE_WRITER)
+      {
+        ex->code = 1;
+        ex->message = ddsrt_strdup ("not_allowed: check_remote_datawriter");
+        return false;
+      }
+      /* fall through */
+    case PLUGIN_MODE_WRAPPED:
+      return impl->instance->check_remote_datawriter(impl->instance, permissions_handle, domain_id, publication_data, ex);
+
+    default:
+      return true;
+  }
 }
 
-static DDS_Security_boolean check_remote_datareader( dds_security_access_control *instance,
+static DDS_Security_boolean check_remote_datareader(
+    dds_security_access_control *instance,
     const DDS_Security_PermissionsHandle permissions_handle,
     const DDS_Security_DomainId domain_id,
     const DDS_Security_SubscriptionBuiltinTopicDataSecure *subscription_data,
-    DDS_Security_boolean *relay_only, DDS_Security_SecurityException *ex)
+    DDS_Security_boolean *relay_only,
+    DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(domain_id);
-  DDSRT_UNUSED_ARG(subscription_data);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  *relay_only = false;
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_NOT_ALLOWED:
+      if (impl->not_allowed_mask & NOT_ALLOWED_REMOTE_READER)
+      {
+        if (subscription_data->topic_name && strncmp (subscription_data->topic_name, AC_WRAPPER_TOPIC_PREFIX, strlen (AC_WRAPPER_TOPIC_PREFIX)) == 0)
+        {
+          ex->code = 1;
+          ex->message = ddsrt_strdup ("not_allowed: check_remote_datareader");
+          return false;
+        }
+      }
+      /* fall through */
+    case PLUGIN_MODE_WRAPPED:
+    {
+      bool ret;
+      if ((ret = impl->instance->check_remote_datareader(impl->instance, permissions_handle, domain_id, subscription_data, relay_only, ex)))
+      {
+        /* Only relay_only for the user reader, not the builtin ones. */
+        if (impl->mode == PLUGIN_MODE_NOT_ALLOWED && impl->not_allowed_mask & NOT_ALLOWED_REMOTE_READER_RELAY_ONLY)
+        {
+          if (subscription_data->topic_name && strncmp (subscription_data->topic_name, AC_WRAPPER_TOPIC_PREFIX, strlen (AC_WRAPPER_TOPIC_PREFIX)) == 0)
+            *relay_only = true;
+        }
+      }
+      return ret;
+    }
+
+    default:
+      *relay_only = false;
+      return true;
+  }
 }
 
-static DDS_Security_boolean check_remote_topic( dds_security_access_control *instance,
+static DDS_Security_boolean check_remote_topic(
+    dds_security_access_control *instance,
     const DDS_Security_PermissionsHandle permissions_handle,
     const DDS_Security_DomainId domain_id,
     const DDS_Security_TopicBuiltinTopicData *topic_data,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(domain_id);
-  DDSRT_UNUSED_ARG(topic_data);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_NOT_ALLOWED:
+      if (impl->not_allowed_mask & NOT_ALLOWED_REMOTE_TOPIC)
+      {
+        ex->code = 1;
+        ex->message = ddsrt_strdup ("not_allowed: check_remote_topic");
+        return false;
+      }
+      /* fall through */
+    case PLUGIN_MODE_WRAPPED:
+      return impl->instance->check_remote_topic(impl->instance, permissions_handle, domain_id, topic_data, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean check_local_datawriter_match(
@@ -236,13 +395,16 @@ static DDS_Security_boolean check_local_datawriter_match(
     const DDS_Security_SubscriptionBuiltinTopicDataSecure *subscription_data,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(writer_permissions_handle);
-  DDSRT_UNUSED_ARG(reader_permissions_handle);
-  DDSRT_UNUSED_ARG(publication_data);
-  DDSRT_UNUSED_ARG(subscription_data);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->check_local_datawriter_match(impl->instance, writer_permissions_handle, reader_permissions_handle, publication_data, subscription_data, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean check_local_datareader_match(
@@ -253,13 +415,16 @@ static DDS_Security_boolean check_local_datareader_match(
     const DDS_Security_PublicationBuiltinTopicDataSecure *publication_data,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(reader_permissions_handle);
-  DDSRT_UNUSED_ARG(writer_permissions_handle);
-  DDSRT_UNUSED_ARG(subscription_data);
-  DDSRT_UNUSED_ARG(publication_data);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->check_local_datareader_match(impl->instance, reader_permissions_handle, writer_permissions_handle, subscription_data, publication_data, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean check_remote_datawriter_register_instance(
@@ -271,14 +436,16 @@ static DDS_Security_boolean check_remote_datawriter_register_instance(
     const DDS_Security_InstanceHandle instance_handle,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(reader);
-  DDSRT_UNUSED_ARG(publication_handle);
-  DDSRT_UNUSED_ARG(key);
-  DDSRT_UNUSED_ARG(instance_handle);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->check_remote_datawriter_register_instance(impl->instance, permissions_handle, reader, publication_handle, key, instance_handle, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean check_remote_datawriter_dispose_instance(
@@ -289,13 +456,16 @@ static DDS_Security_boolean check_remote_datawriter_dispose_instance(
     const DDS_Security_DynamicData key,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(reader);
-  DDSRT_UNUSED_ARG(publication_handle);
-  DDSRT_UNUSED_ARG(key);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->check_remote_datawriter_dispose_instance(impl->instance, permissions_handle, reader, publication_handle, key, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean get_permissions_token(
@@ -304,12 +474,18 @@ static DDS_Security_boolean get_permissions_token(
     const DDS_Security_PermissionsHandle handle,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(handle);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  memset(permissions_token, 0, sizeof(*permissions_token));
-  permissions_token->class_id = ddsrt_strdup("");
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->get_permissions_token(impl->instance, permissions_token, handle, ex);
+
+    default:
+      memset(permissions_token, 0, sizeof(*permissions_token));
+      permissions_token->class_id = ddsrt_strdup ("");
+      return true;
+  }
 }
 
 static DDS_Security_boolean get_permissions_credential_token(
@@ -318,31 +494,51 @@ static DDS_Security_boolean get_permissions_credential_token(
     const DDS_Security_PermissionsHandle handle,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_credential_token);
-  DDSRT_UNUSED_ARG(handle);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->get_permissions_credential_token(impl->instance, permissions_credential_token, handle, ex);
+
+    default:
+      return true;
+  }
 }
 
-static DDS_Security_boolean set_listener( dds_security_access_control *instance,
+static DDS_Security_boolean set_listener(
+    dds_security_access_control *instance,
     const dds_security_access_control_listener *listener,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(listener);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->set_listener (impl->instance, listener, ex);
+
+    default:
+      return true;
+  }
 }
 
-static DDS_Security_boolean return_permissions_token( dds_security_access_control *instance,
+static DDS_Security_boolean return_permissions_token(
+    dds_security_access_control *instance,
     const DDS_Security_PermissionsToken *token,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  ddsrt_free (token->class_id);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->return_permissions_token (impl->instance, token, ex);
+
+    default:
+      ddsrt_free (token->class_id);
+      return true;
+  }
 }
 
 static DDS_Security_boolean return_permissions_credential_token(
@@ -350,10 +546,16 @@ static DDS_Security_boolean return_permissions_credential_token(
     const DDS_Security_PermissionsCredentialToken *permissions_credential_token,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_credential_token);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->return_permissions_credential_token(impl->instance, permissions_credential_token, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean get_participant_sec_attributes(
@@ -362,25 +564,35 @@ static DDS_Security_boolean get_participant_sec_attributes(
     DDS_Security_ParticipantSecurityAttributes *attributes,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(attributes);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->get_participant_sec_attributes(impl->instance, permissions_handle, attributes, ex);
+
+    default:
+      return true;
+  }
 }
 
-static DDS_Security_boolean get_topic_sec_attributes( dds_security_access_control *instance,
+static DDS_Security_boolean get_topic_sec_attributes(
+    dds_security_access_control *instance,
     const DDS_Security_PermissionsHandle permissions_handle,
     const char *topic_name,
     DDS_Security_TopicSecurityAttributes *attributes,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(topic_name);
-  DDSRT_UNUSED_ARG(attributes);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->get_topic_sec_attributes(impl->instance, permissions_handle, topic_name, attributes, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean get_datawriter_sec_attributes(
@@ -392,14 +604,16 @@ static DDS_Security_boolean get_datawriter_sec_attributes(
     DDS_Security_EndpointSecurityAttributes *attributes,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(topic_name);
-  DDSRT_UNUSED_ARG(partition);
-  DDSRT_UNUSED_ARG(data_tag);
-  DDSRT_UNUSED_ARG(attributes);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->get_datawriter_sec_attributes(impl->instance, permissions_handle, topic_name, partition, data_tag, attributes, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean get_datareader_sec_attributes(
@@ -411,14 +625,16 @@ static DDS_Security_boolean get_datareader_sec_attributes(
     DDS_Security_EndpointSecurityAttributes *attributes,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(topic_name);
-  DDSRT_UNUSED_ARG(partition);
-  DDSRT_UNUSED_ARG(data_tag);
-  DDSRT_UNUSED_ARG(attributes);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->get_datareader_sec_attributes(impl->instance, permissions_handle, topic_name, partition, data_tag, attributes, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean return_participant_sec_attributes(
@@ -426,10 +642,16 @@ static DDS_Security_boolean return_participant_sec_attributes(
     const DDS_Security_ParticipantSecurityAttributes *attributes,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(attributes);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->return_participant_sec_attributes(impl->instance, attributes, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean return_topic_sec_attributes(
@@ -437,10 +659,16 @@ static DDS_Security_boolean return_topic_sec_attributes(
     const DDS_Security_TopicSecurityAttributes *attributes,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(attributes);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->return_topic_sec_attributes(impl->instance, attributes, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean return_datawriter_sec_attributes(
@@ -448,10 +676,16 @@ static DDS_Security_boolean return_datawriter_sec_attributes(
     const DDS_Security_EndpointSecurityAttributes *attributes,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(attributes);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->return_datawriter_sec_attributes(impl->instance, attributes, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean return_datareader_sec_attributes(
@@ -459,10 +693,16 @@ static DDS_Security_boolean return_datareader_sec_attributes(
     const DDS_Security_EndpointSecurityAttributes *attributes,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(attributes);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->return_datareader_sec_attributes(impl->instance, attributes, ex);
+
+    default:
+      return true;
+  }
 }
 
 static DDS_Security_boolean return_permissions_handle(
@@ -470,17 +710,29 @@ static DDS_Security_boolean return_permissions_handle(
     const DDS_Security_PermissionsHandle permissions_handle,
     DDS_Security_SecurityException *ex)
 {
-  DDSRT_UNUSED_ARG(permissions_handle);
-  DDSRT_UNUSED_ARG(ex);
-  DDSRT_UNUSED_ARG(instance);
-  return true;
+  struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
+  switch (impl->mode)
+  {
+    case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_NOT_ALLOWED:
+      return impl->instance->return_permissions_handle(impl->instance, permissions_handle, ex);
+
+    default:
+      return true;
+  }
 }
 
-
-static struct dds_security_access_control_impl * init_test_access_control_common()
+static struct dds_security_access_control_impl * init_test_access_control_common(const char *argument, bool wrapped, struct ddsi_domaingv *gv)
 {
   struct dds_security_access_control_impl *impl = ddsrt_malloc(sizeof(*impl));
   memset(impl, 0, sizeof(*impl));
+
+  if (wrapped)
+  {
+    if (init_access_control(argument, (void **)&impl->instance, gv) != DDS_SECURITY_SUCCESS)
+      return NULL;
+  }
+
   impl->base.validate_local_permissions = &validate_local_permissions;
   impl->base.validate_remote_permissions = &validate_remote_permissions;
   impl->base.check_create_participant = &check_create_participant;
@@ -514,40 +766,90 @@ static struct dds_security_access_control_impl * init_test_access_control_common
   return impl;
 }
 
-int32_t init_test_access_control_all_ok(const char *argument, void **context, struct ddsi_domaingv *gv)
+static int finalize_test_access_control_common(struct dds_security_access_control_impl * impl, bool wrapped)
 {
-  DDSRT_UNUSED_ARG(argument);
+  int32_t ret;
+  if (wrapped && (ret = finalize_access_control(impl->instance)) != DDS_SECURITY_SUCCESS)
+    return ret;
+  ddsrt_free(impl);
+  return DDS_SECURITY_SUCCESS;
+}
+
+int init_test_access_control_all_ok(const char *argument, void **context, struct ddsi_domaingv *gv)
+{
   DDSRT_UNUSED_ARG(context);
-  DDSRT_UNUSED_ARG(gv);
-  struct dds_security_access_control_impl *impl = init_test_access_control_common();
+  struct dds_security_access_control_impl *impl = init_test_access_control_common(argument, false, gv);
   impl->mode = PLUGIN_MODE_ALL_OK;
   *context = impl;
   return 0;
 }
 
-int32_t finalize_test_access_control_all_ok(void *context)
+int finalize_test_access_control_all_ok(void *context)
 {
-  assert(((struct dds_security_access_control_impl *)context)->mode == PLUGIN_MODE_ALL_OK);
-  ddsrt_free(context);
-  return 0;
+  struct dds_security_access_control_impl* impl = (struct dds_security_access_control_impl*) context;
+  assert(impl->mode == PLUGIN_MODE_ALL_OK);
+  return finalize_test_access_control_common(impl, false);
 }
 
-int32_t init_test_access_control_missing_func(const char *argument, void **context, struct ddsi_domaingv *gv)
+int init_test_access_control_wrapped(const char *argument, void **context, struct ddsi_domaingv *gv)
 {
-  DDSRT_UNUSED_ARG(argument);
+  struct dds_security_access_control_impl *impl = init_test_access_control_common(argument, true, gv);
+  if (!impl)
+    return DDS_SECURITY_FAILED;
+  impl->mode = PLUGIN_MODE_WRAPPED;
+  *context = impl;
+  return DDS_SECURITY_SUCCESS;
+}
+
+int finalize_test_access_control_wrapped(void *context)
+{
+  struct dds_security_access_control_impl* impl = (struct dds_security_access_control_impl*) context;
+  assert(impl->mode == PLUGIN_MODE_WRAPPED);
+  return finalize_test_access_control_common(impl, true);
+}
+
+int init_test_access_control_missing_func(const char *argument, void **context, struct ddsi_domaingv *gv)
+{
   DDSRT_UNUSED_ARG(context);
-  DDSRT_UNUSED_ARG(gv);
-  struct dds_security_access_control_impl *impl = init_test_access_control_common();
+  struct dds_security_access_control_impl *impl = init_test_access_control_common(argument, false, gv);
   impl->base.check_create_datareader = NULL;
   impl->mode = PLUGIN_MODE_MISSING_FUNC;
   *context = impl;
   return 0;
 }
 
-int32_t finalize_test_access_control_missing_func(void *context)
+int finalize_test_access_control_missing_func(void *context)
 {
-  assert(((struct dds_security_access_control_impl *)context)->mode == PLUGIN_MODE_MISSING_FUNC);
-  ddsrt_free(context);
-  return 0;
+  struct dds_security_access_control_impl* impl = (struct dds_security_access_control_impl*) context;
+  assert(impl->mode == PLUGIN_MODE_MISSING_FUNC);
+  return finalize_test_access_control_common(impl, false);
 }
 
+#define INIT_NOT_ALLOWED(name_, mask_) \
+  int init_test_access_control_##name_ (const char *argument, void **context, struct ddsi_domaingv *gv) \
+  { \
+    DDSRT_UNUSED_ARG(context); \
+    struct dds_security_access_control_impl *impl = init_test_access_control_common(argument, true, gv); \
+    impl->mode = PLUGIN_MODE_NOT_ALLOWED; \
+    impl->not_allowed_mask = mask_; \
+    *context = impl; \
+    return 0; \
+  }
+
+INIT_NOT_ALLOWED(local_participant_not_allowed, NOT_ALLOWED_LOCAL_PP)
+INIT_NOT_ALLOWED(local_topic_not_allowed, NOT_ALLOWED_LOCAL_TOPIC)
+INIT_NOT_ALLOWED(local_publishing_not_allowed, NOT_ALLOWED_LOCAL_PUB)
+INIT_NOT_ALLOWED(local_subscribing_not_allowed, NOT_ALLOWED_LOCAL_SUB)
+INIT_NOT_ALLOWED(remote_permissions_invalidate, NOT_ALLOWED_REMOTE_PERM)
+INIT_NOT_ALLOWED(remote_participant_not_allowed, NOT_ALLOWED_REMOTE_PP)
+INIT_NOT_ALLOWED(remote_topic_not_allowed, NOT_ALLOWED_REMOTE_TOPIC)
+INIT_NOT_ALLOWED(remote_writer_not_allowed, NOT_ALLOWED_REMOTE_WRITER)
+INIT_NOT_ALLOWED(remote_reader_not_allowed, NOT_ALLOWED_REMOTE_READER)
+INIT_NOT_ALLOWED(remote_reader_relay_only, NOT_ALLOWED_REMOTE_READER_RELAY_ONLY)
+
+int finalize_test_access_control_not_allowed(void *context)
+{
+  struct dds_security_access_control_impl* impl = (struct dds_security_access_control_impl*) context;
+  assert(impl->mode == PLUGIN_MODE_NOT_ALLOWED);
+  return finalize_test_access_control_common(impl, true);
+}

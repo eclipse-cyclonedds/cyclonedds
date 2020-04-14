@@ -703,6 +703,24 @@ q_omg_shallow_free_PublicationBuiltinTopicDataSecure(
   g_omg_shallow_free_StringSeq(&obj->partition.name);
 }
 
+void
+q_omg_shallow_copy_TopicBuiltinTopicData(
+    DDS_Security_TopicBuiltinTopicData *dst,
+    const char *topic_name,
+    const char *type_name)
+{
+  memset(dst, 0, sizeof(DDS_Security_TopicBuiltinTopicData));
+  dst->name = (DDS_Security_string)topic_name;
+  dst->type_name = (DDS_Security_string)type_name;
+}
+
+void
+q_omg_shallow_free_TopicBuiltinTopicData(
+    DDS_Security_TopicBuiltinTopicData *obj)
+{
+  DDSRT_UNUSED_ARG(obj);
+}
+
 
 
 #endif /* DDSI_INCLUDE_SECURITY */

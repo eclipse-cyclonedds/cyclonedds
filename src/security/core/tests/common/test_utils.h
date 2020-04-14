@@ -56,11 +56,18 @@ void validate_handshake_nofail (dds_domainid_t domain_id);
 void handshake_list_fini(struct Handshake *hs_list, int nhs);
 char *create_topic_name(const char *prefix, uint32_t nr, char *name, size_t size);
 void sync_writer_to_readers(dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_count);
+void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_count);
 bool reader_wait_for_data(dds_entity_t pp, dds_entity_t rd, dds_duration_t dur);
 void rd_wr_init(
     dds_entity_t pp_wr, dds_entity_t *pub, dds_entity_t *pub_tp, dds_entity_t *wr,
     dds_entity_t pp_rd, dds_entity_t *sub, dds_entity_t *sub_tp, dds_entity_t *rd,
-    const char *topic_name);
+    const char * topic_name);
+void rd_wr_init_fail(
+    dds_entity_t pp_wr, dds_entity_t *pub, dds_entity_t *pub_tp, dds_entity_t *wr,
+    dds_entity_t pp_rd, dds_entity_t *sub, dds_entity_t *sub_tp, dds_entity_t *rd,
+    const char * topic_name,
+    bool exp_pubtp_fail, bool exp_wr_fail,
+    bool exp_subtp_fail, bool exp_rd_fail);
 void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_duration_t dur, bool exp_write_fail, bool exp_read_fail);
 
 #endif /* SECURITY_CORE_TEST_UTILS_H_ */

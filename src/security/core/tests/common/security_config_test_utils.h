@@ -27,7 +27,7 @@ int32_t expand_lookup_unmatched (const struct kvp * lookup_table);
 
 char * get_governance_config (struct kvp *config_vars, bool add_prefix);
 char * get_permissions_topic(const char * name);
-char * get_permissions_grant(const char * name, const char * subject,
+char * get_permissions_grant(const char * name, const char * subject, const char * domain_id,
     dds_time_t not_before, dds_time_t not_after, const char * pub_topics, const char * sub_topics, const char * default_policy);
 char * get_permissions_config(char * grants[], size_t ngrants, bool add_prefix);
 

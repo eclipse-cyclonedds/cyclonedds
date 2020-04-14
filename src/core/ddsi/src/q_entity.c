@@ -2771,6 +2771,7 @@ void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_wri
 
 static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_reader *prd, ddsrt_mtime_t tnow)
 {
+  struct ddsi_domaingv *gv = wr->e.gv;
   const int isb0 = (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) != 0);
   const int isb1 = (is_builtin_entityid (prd->e.guid.entityid, prd->c.vendor) != 0);
   dds_qos_policy_id_t reason;
@@ -2790,13 +2791,15 @@ static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_re
 
   if (!q_omg_security_check_remote_reader_permissions (prd, wr->e.gv->config.domainId, wr->c.pp, &relay_only))
   {
-    EELOGDISC (&wr->e, "connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") not allowed by security\n",
-                   PGUID (wr->e.guid), PGUID (prd->e.guid));
+    GVLOGDISC ("connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") not allowed by security\n", PGUID (wr->e.guid), PGUID (prd->e.guid));
+  }
+  else if (relay_only)
+  {
+    GVWARNING ("connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") relay_only not supported\n", PGUID (wr->e.guid), PGUID (prd->e.guid));
   }
   else if (!q_omg_security_match_remote_reader_enabled (wr, prd, relay_only, &crypto_handle))
   {
-    EELOGDISC (&wr->e, "connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") waiting for approval by security\n",
-                     PGUID (wr->e.guid), PGUID (prd->e.guid));
+    GVLOGDISC ("connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") waiting for approval by security\n", PGUID (wr->e.guid), PGUID (prd->e.guid));
   }
   else
   {
@@ -3801,27 +3804,10 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_g
   return 0;
 }
 
-dds_return_t new_writer (struct writer **wr_out, struct ddsi_domaingv *gv, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, const struct ddsi_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg)
+dds_return_t new_writer (struct writer **wr_out, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg)
 {
-  struct participant *pp;
   dds_return_t rc;
   uint32_t kind;
-
-  if ((pp = entidx_lookup_participant_guid (gv->entity_index, ppguid)) == NULL)
-  {
-    GVLOGDISC ("new_writer - participant "PGUIDFMT" not found\n", PGUID (*ppguid));
-    return DDS_RETCODE_BAD_PARAMETER;
-  }
-
-#ifdef DDSI_INCLUDE_SECURITY
-  /* Check if DDS Security is enabled */
-  if (q_omg_participant_is_secure (pp))
-  {
-    /* ask to access control security plugin for create writer permissions */
-    if (!q_omg_security_check_create_writer (pp, gv->config.domainId, topic->name, xqos))
-      return DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
-  }
-#endif
 
   /* participant can't be freed while we're mucking around cos we are
      awake and do not touch the thread's vtime (entidx_lookup already
@@ -4367,10 +4353,9 @@ static dds_return_t new_reader_guid
 dds_return_t new_reader
 (
   struct reader **rd_out,
-  struct ddsi_domaingv *gv,
   struct ddsi_guid *rdguid,
   const struct ddsi_guid *group_guid,
-  const struct ddsi_guid *ppguid,
+  struct participant *pp,
   const struct ddsi_sertopic *topic,
   const struct dds_qos *xqos,
   struct ddsi_rhc * rhc,
@@ -4378,25 +4363,8 @@ dds_return_t new_reader
   void * status_cbarg
 )
 {
-  struct participant * pp;
   dds_return_t rc;
   uint32_t kind;
-
-  if ((pp = entidx_lookup_participant_guid (gv->entity_index, ppguid)) == NULL)
-  {
-    GVLOGDISC ("new_reader - participant "PGUIDFMT" not found\n", PGUID (*ppguid));
-    return DDS_RETCODE_BAD_PARAMETER;
-  }
-
-#ifdef DDSI_INCLUDE_SECURITY
-  /* Check if DDS Security is enabled */
-  if (q_omg_participant_is_secure (pp))
-  {
-    /* ask to access control security plugin for create writer permissions */
-    if (!q_omg_security_check_create_reader (pp, gv->config.domainId, topic->name, xqos))
-      return DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
-  }
-#endif
 
   rdguid->prefix = pp->e.guid.prefix;
   kind = topic->topickind_no_key ? NN_ENTITYID_KIND_READER_NO_KEY : NN_ENTITYID_KIND_READER_WITH_KEY;

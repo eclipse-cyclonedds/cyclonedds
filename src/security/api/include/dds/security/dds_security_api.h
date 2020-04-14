@@ -25,7 +25,7 @@ extern "C" {
 
 /* Integration functions for Security plugins */
 typedef int (*plugin_init)(const char *argument, void **context, struct ddsi_domaingv *gv);
-typedef int  (*plugin_finalize)(void *context);
+typedef int (*plugin_finalize)(void *context);
 
 #if defined (__cplusplus)
 }
