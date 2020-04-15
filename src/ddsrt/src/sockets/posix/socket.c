@@ -32,9 +32,9 @@
 #include <fcntl.h>
 #endif
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/sockio.h>
-#endif /* __APPLE__ */
+#endif /* __APPLE__ || __FreeBSD__ */
 #endif /* LWIP_SOCKET */
 
 dds_return_t
@@ -316,13 +316,13 @@ ddsrt_setsockopt(
     goto err_setsockopt;
   }
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__FreeBSD__)
   if (level == SOL_SOCKET && optname == SO_REUSEADDR &&
       setsockopt(sock, level, SO_REUSEPORT, optval, optlen) == -1)
   {
     goto err_setsockopt;
   }
-#endif /* __APPLE__ */
+#endif /* __APPLE__ || __FreeBSD__ */
 
   return DDS_RETCODE_OK;
 err_setsockopt:
