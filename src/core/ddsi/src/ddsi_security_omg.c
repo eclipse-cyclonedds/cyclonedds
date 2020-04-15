@@ -841,7 +841,7 @@ static bool delete_proxypp_by_handle (const DDS_Security_Handle handle, expired_
   {
     if (q_omg_proxy_participant_is_secure(proxypp) && expired_proxypp_check_fn (proxypp, handle))
     {
-      delete_proxy_participant_by_guid (gv, &proxypp->e.guid, ddsrt_time_wallclock (), false);
+      (void) delete_proxy_participant_by_guid (gv, &proxypp->e.guid, ddsrt_time_wallclock (), true);
       result = true;
     }
   }
