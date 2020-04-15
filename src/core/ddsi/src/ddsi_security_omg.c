@@ -3248,7 +3248,10 @@ static bool q_omg_security_decode_rtps_message (struct proxy_participant *proxyp
     if (!sc->crypto_context->crypto_transform->decode_rtps_message (sc->crypto_context->crypto_transform, &plain_buffer, &encoded_buffer, pm->pp_crypto_handle, proxypp->sec_attr->crypto_handle, &ex))
     {
       if (ex.code == DDS_SECURITY_ERR_INVALID_CRYPTO_RECEIVER_SIGN_CODE)
+      {
+        DDS_Security_Exception_reset (&ex);
         continue; /* Could be caused by 'with_origin_authentication' being used, so try next match */
+      }
       GVTRACE ("decoding rtps message from remote participant "PGUIDFMT" failed: %s\n", PGUID (proxypp->e.guid), ex.message ? ex.message : "Unknown error");
       DDS_Security_Exception_reset (&ex);
       ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
