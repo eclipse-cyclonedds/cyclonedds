@@ -466,13 +466,19 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
     goto fail;
   }
 
-  if (reuse_addr && (rc = ddsrt_setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof (one))) != DDS_RETCODE_OK)
+  /* If we're binding to a port number, allow others to bind to the same port */
+  if (port)
   {
-    GVERROR ("ddsi_udp_create_conn: failed to enable address reuse: %s\n", dds_strretcode (rc));
-    if (rc != DDS_RETCODE_BAD_PARAMETER)
+#ifdef SO_REUSEPORT
+    if ((rc = ddsrt_setsockopt (sock, SOL_SOCKET, SO_REUSEPORT, &one, sizeof (one))) != DDS_RETCODE_OK)
     {
-      /* There must at some point have been an implementation that refused to do SO_REUSEADDR, but I
-         don't know which */
+      GVERROR("ddsi_tcp_sock_new: failed to enable port reuse: %s\n", dds_strretcode(rc));
+      goto fail_w_socket;
+    }
+#endif
+    if ((rc = ddsrt_setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof (one))) != DDS_RETCODE_OK)
+    {
+      GVERROR ("ddsi_tcp_sock_new: failed to enable address reuse: %s\n", dds_strretcode (rc));
       goto fail_w_socket;
     }
   }

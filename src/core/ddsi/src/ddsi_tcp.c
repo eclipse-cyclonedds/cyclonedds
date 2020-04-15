@@ -202,11 +202,21 @@ static dds_return_t ddsi_tcp_sock_new (struct ddsi_tran_factory_tcp * const fact
     goto fail;
   }
 
-  /* REUSEADDR if we're binding to a port number */
-  if (port && (rc = ddsrt_setsockopt (*sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof (one))) != DDS_RETCODE_OK)
+  /* If we're binding to a port number, allow others to bind to the same port */
+  if (port)
   {
-    GVERROR ("ddsi_tcp_sock_new: failed to enable address reuse: %s\n", dds_strretcode (rc));
-    goto fail_w_socket;
+#ifdef SO_REUSEPORT
+    if ((rc = ddsrt_setsockopt (*sock, SOL_SOCKET, SO_REUSEPORT, &one, sizeof (one))) != DDS_RETCODE_OK)
+    {
+      GVERROR("ddsi_tcp_sock_new: failed to enable port reuse: %s\n", dds_strretcode(rc));
+      goto fail_w_socket;
+    }
+#endif
+    if ((rc = ddsrt_setsockopt (*sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof (one))) != DDS_RETCODE_OK)
+    {
+      GVERROR ("ddsi_tcp_sock_new: failed to enable address reuse: %s\n", dds_strretcode (rc));
+      goto fail_w_socket;
+    }
   }
 
   if ((rc = ddsrt_bind (*sock, &socketname.a, ddsrt_sockaddr_get_size (&socketname.a))) != DDS_RETCODE_OK)
