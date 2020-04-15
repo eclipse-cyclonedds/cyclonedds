@@ -299,7 +299,9 @@ struct config
   int64_t writer_linger_duration;
   int multicast_ttl;
   struct config_maybe_uint32 socket_min_rcvbuf_size;
-  uint32_t socket_min_sndbuf_size;
+  struct config_maybe_uint32 socket_max_rcvbuf_size;
+  struct config_maybe_uint32 socket_min_sndbuf_size;
+  struct config_maybe_uint32 socket_max_sndbuf_size;
   int64_t nack_delay;
   int64_t preemptive_ack_delay;
   int64_t schedule_time_rounding;

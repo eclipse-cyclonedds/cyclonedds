@@ -250,92 +250,72 @@ static dds_return_t set_dont_route (struct ddsi_domaingv const * const gv, ddsrt
   return rc;
 }
 
-static dds_return_t set_rcvbuf (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, const struct config_maybe_uint32 *min_size)
+static dds_return_t set_buf (
+  struct ddsi_domaingv const * const gv,
+  ddsrt_socket_t sock,
+  int optname,
+  const struct config_maybe_uint32 *maybe_min_size,
+  const struct config_maybe_uint32 *maybe_max_size)
 {
-  uint32_t size;
-  socklen_t optlen = (socklen_t) sizeof (size);
-  uint32_t socket_min_rcvbuf_size;
-  dds_return_t rc;
-
-  socket_min_rcvbuf_size = min_size->isdefault ? 1048576 : min_size->value;
-  rc = ddsrt_getsockopt (sock, SOL_SOCKET, SO_RCVBUF, &size, &optlen);
-  if (rc == DDS_RETCODE_BAD_PARAMETER)
-  {
-    /* not all stacks support getting/setting RCVBUF */
-    GVLOG (DDS_LC_CONFIG, "cannot retrieve socket receive buffer size\n");
-    return DDS_RETCODE_OK;
-  }
-  else if (rc != DDS_RETCODE_OK)
-  {
-    GVERROR ("ddsi_udp_create_conn: get SO_RCVBUF failed: %s\n", dds_strretcode (rc));
-    return rc;
+  const char * str_optname;
+  switch (optname){
+    case SO_RCVBUF:
+      str_optname = "SO_RCVBUF";
+      break;
+    case SO_SNDBUF:
+      str_optname = "SO_SNDBUF";
+      break;
+    default:
+      return DDS_RETCODE_BAD_PARAMETER;
   }
 
-  if (size < socket_min_rcvbuf_size)
-  {
-    /* make sure the receive buffersize is at least the minimum required */
-    size = socket_min_rcvbuf_size;
-    (void) ddsrt_setsockopt (sock, SOL_SOCKET, SO_RCVBUF, &size, sizeof (size));
-
-    /* We don't check the return code from setsockopt, because some O/Ss tend
-       to silently cap the buffer size.  The only way to make sure is to read
-       the option value back and check it is now set correctly. */
-    if ((rc = ddsrt_getsockopt (sock, SOL_SOCKET, SO_RCVBUF, &size, &optlen)) != DDS_RETCODE_OK)
-    {
-      GVERROR ("ddsi_udp_create_conn: get SO_RCVBUF failed: %s\n", dds_strretcode (rc));
-      return rc;
-    }
-
-    if (size >= socket_min_rcvbuf_size)
-      GVLOG (DDS_LC_CONFIG, "socket receive buffer size set to %"PRIu32" bytes\n", size);
-    else if (min_size->isdefault)
-    GVLOG (DDS_LC_CONFIG,
-           "failed to increase socket receive buffer size to %"PRIu32" bytes, continuing with %"PRIu32" bytes\n",
-           socket_min_rcvbuf_size, size);
-    else
-    {
-      /* If the configuration states it must be >= X, then error out if the
-         kernel doesn't give us at least X */
-      GVLOG (DDS_LC_CONFIG | DDS_LC_ERROR,
-             "failed to increase socket receive buffer size to %"PRIu32" bytes, maximum is %"PRIu32" bytes\n",
-             socket_min_rcvbuf_size, size);
-      rc = DDS_RETCODE_NOT_ENOUGH_SPACE;
+  if (maybe_max_size->isdefault) {
+    GVLOG(DDS_LC_CONFIG, "%s: Using system default %s buffer size\n", __func__, str_optname);
+  } else {
+    size_t optval = maybe_max_size->value;
+    socklen_t optlen = sizeof(optval);
+    GVLOG(DDS_LC_CONFIG, "%s: Requesting %s buffer of size %zu bytes\n", __func__, str_optname, optval);
+    dds_return_t rc = ddsrt_setsockopt(sock, SOL_SOCKET, optname, &optval, optlen);
+    switch (rc) {
+      case DDS_RETCODE_OK:
+        break;
+      case DDS_RETCODE_UNSUPPORTED:
+        /* not all stacks support getting/setting buffer size */
+        GVLOG(DDS_LC_CONFIG, "%s: Cannot set %s\n", __func__, str_optname);
+        break;
+      default:
+        GVLOG(DDS_LC_ERROR | DDS_LC_CONFIG, "%s: Set %s failed: %s\n", __func__, str_optname, dds_strretcode(rc));
+        return rc;
     }
   }
 
-  return rc;
-}
-
-static dds_return_t set_sndbuf (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, uint32_t min_size)
-{
-  unsigned size;
-  socklen_t optlen = (socklen_t) sizeof(size);
-  dds_return_t rc;
-
-  rc = ddsrt_getsockopt (sock, SOL_SOCKET, SO_SNDBUF, &size, &optlen);
-  if (rc == DDS_RETCODE_BAD_PARAMETER)
-  {
-    /* not all stacks support getting/setting SNDBUF */
-    GVLOG (DDS_LC_CONFIG, "cannot retrieve socket send buffer size\n");
-    return DDS_RETCODE_OK;
-  }
-  else if (rc != DDS_RETCODE_OK)
-  {
-    GVERROR ("ddsi_udp_create_conn: get SO_SNDBUF failed: %s\n", dds_strretcode (rc));
-    return rc;
-  }
-
-  if (size < min_size)
-  {
-    /* make sure the send buffersize is at least the minimum required */
-    size = min_size;
-    if ((rc = ddsrt_setsockopt (sock, SOL_SOCKET, SO_SNDBUF, &size, sizeof (size))) != DDS_RETCODE_OK)
-    {
-      GVERROR ("ddsi_udp_create_conn: set SO_SNDBUF failed: %s\n", dds_strretcode (rc));
-      return rc;
+  if (maybe_min_size->isdefault) {
+    GVLOG(DDS_LC_CONFIG, "%s: Not checking %s buffer size\n", __func__, str_optname);
+  } else {
+    size_t min_size = maybe_min_size->value;
+    size_t optval = 0;
+    socklen_t optlen = sizeof(optval);
+    GVLOG(DDS_LC_CONFIG, "%s: Checking buffer %s is at least %zu bytes\n", __func__, str_optname, optval);
+    dds_return_t rc = ddsrt_getsockopt(sock, SOL_SOCKET, optname, &optval, &optlen);
+    switch (rc) {
+      case DDS_RETCODE_OK:
+        break;
+      case DDS_RETCODE_UNSUPPORTED:
+        /* not all stacks support getting/setting buffer size */
+        GVLOG(DDS_LC_WARNING | DDS_LC_CONFIG, "%s: Cannot get %s\n", __func__, str_optname);
+        break;
+      default:
+        GVLOG(DDS_LC_ERROR | DDS_LC_CONFIG, "%s: Get %s failed: %s\n", __func__, str_optname, dds_strretcode(rc));
+        return rc;
+    }
+    if (min_size <= optval ) {
+      GVLOG(DDS_LC_CONFIG, "%s: %s is %zu bytes, which is OK. (minimum %zu bytes)\n", __func__, str_optname, optval, min_size);
+    } else {
+      GVLOG (DDS_LC_CONFIG | DDS_LC_ERROR, "%s: %s is too small! Got %zu bytes, but minimum is %zu bytes\n",
+             __func__, str_optname, optval, min_size);
+      return DDS_RETCODE_ERROR;
     }
   }
-
   return DDS_RETCODE_OK;
 }
 
@@ -469,7 +449,7 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
   if (reuse_addr && (rc = ddsrt_setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof (one))) != DDS_RETCODE_OK)
   {
     GVERROR ("ddsi_udp_create_conn: failed to enable address reuse: %s\n", dds_strretcode (rc));
-    if (rc != DDS_RETCODE_BAD_PARAMETER)
+    if (rc != DDS_RETCODE_UNSUPPORTED)
     {
       /* There must at some point have been an implementation that refused to do SO_REUSEADDR, but I
          don't know which */
@@ -477,9 +457,9 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
     }
   }
 
-  if ((rc = set_rcvbuf (gv, sock, &gv->config.socket_min_rcvbuf_size)) != DDS_RETCODE_OK)
+  if ((rc = set_buf (gv, sock, SO_RCVBUF, &gv->config.socket_min_rcvbuf_size, &gv->config.socket_max_rcvbuf_size)) != DDS_RETCODE_OK)
     goto fail_w_socket;
-  if ((rc = set_sndbuf (gv, sock, gv->config.socket_min_sndbuf_size)) != DDS_RETCODE_OK)
+  if ((rc = set_buf (gv, sock, SO_SNDBUF, &gv->config.socket_min_sndbuf_size, &gv->config.socket_max_sndbuf_size)) != DDS_RETCODE_OK)
     goto fail_w_socket;
   if (gv->config.dontRoute && (rc = set_dont_route (gv, sock, ipv6)) != DDS_RETCODE_OK)
     goto fail_w_socket;

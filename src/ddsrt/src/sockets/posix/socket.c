@@ -248,6 +248,29 @@ ddsrt_getsockname(
   return DDS_RETCODE_ERROR;
 }
 
+static dds_return_t sockopt_error_to_retcode(int errnum) {
+  switch(errnum){
+    case 0:
+      return DDS_RETCODE_OK;
+    case ENOPROTOOPT:
+      return DDS_RETCODE_UNSUPPORTED;
+    case EBADF:
+    case ENOTSOCK:
+    case EINVAL:
+      return DDS_RETCODE_BAD_PARAMETER;
+    case EDOM:
+      return DDS_RETCODE_OUT_OF_RANGE;
+    case ENOMEM:
+    case ENOBUFS:
+      return DDS_RETCODE_OUT_OF_RESOURCES;
+    case EISCONN:
+      return DDS_RETCODE_ILLEGAL_OPERATION;
+    case EACCES:
+    default:
+      return DDS_RETCODE_ERROR;
+  }
+}
+
 dds_return_t
 ddsrt_getsockopt(
   ddsrt_socket_t sock,
@@ -256,30 +279,10 @@ ddsrt_getsockopt(
   void *optval,
   socklen_t *optlen)
 {
-#if LWIP_SOCKET
-  if (optname == SO_SNDBUF || optname == SO_RCVBUF)
-    return DDS_RETCODE_BAD_PARAMETER;
-# if !SO_REUSE
-  if (optname == SO_REUSEADDR)
-    return DDS_RETCODE_BAD_PARAMETER;
-# endif /* SO_REUSE */
-#endif /* LWIP_SOCKET */
-
-  if (getsockopt(sock, level, optname, optval, optlen) == 0)
-    return DDS_RETCODE_OK;
-
-  switch (errno) {
-    case EBADF:
-    case EFAULT:
-    case EINVAL:
-    case ENOPROTOOPT:
-    case ENOTSOCK:
-      return DDS_RETCODE_BAD_PARAMETER;
-    default:
-      break;
+  if(0 != getsockopt(sock, level, optname, optval, optlen)){
+    return sockopt_error_to_retcode(errno);
   }
-
-  return DDS_RETCODE_ERROR;
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t
@@ -290,53 +293,25 @@ ddsrt_setsockopt(
   const void *optval,
   socklen_t optlen)
 {
-#if LWIP_SOCKET
-  if (optname == SO_SNDBUF || optname == SO_RCVBUF)
-    return DDS_RETCODE_BAD_PARAMETER;
-# if !SO_REUSE
-  if (optname == SO_REUSEADDR)
-    return DDS_RETCODE_BAD_PARAMETER;
-# endif /* SO_REUSE */
-#endif /* LWIP_SOCKET */
 
-  switch (optname) {
-    case SO_SNDBUF:
-    case SO_RCVBUF:
-      /* optlen == 4 && optval == 0 does not work. */
-      if (!(optlen == 4 && *((unsigned *)optval) == 0)) {
-        break;
-      }
-      /* falls through */
-    case SO_DONTROUTE:
+  if (optname == SO_DONTROUTE) {
       /* SO_DONTROUTE causes problems on macOS (e.g. no multicasting). */
-      return DDS_RETCODE_OK;
+      return DDS_RETCODE_UNSUPPORTED;
   }
 
-  if (setsockopt(sock, level, optname, optval, optlen) == -1) {
-    goto err_setsockopt;
+  if (0 != setsockopt(sock, level, optname, optval, optlen) ) {
+    return sockopt_error_to_retcode(errno);
   }
 
 #if defined(__APPLE__)
   if (level == SOL_SOCKET && optname == SO_REUSEADDR &&
-      setsockopt(sock, level, SO_REUSEPORT, optval, optlen) == -1)
+       0 != setsockopt(sock, level, SO_REUSEPORT, optval, optlen))
   {
-    goto err_setsockopt;
+    return sockopt_error_to_retcode(errno);
   }
 #endif /* __APPLE__ */
 
   return DDS_RETCODE_OK;
-err_setsockopt:
-  switch (errno) {
-    case EBADF:
-    case EINVAL:
-    case ENOPROTOOPT:
-    case ENOTSOCK:
-      return DDS_RETCODE_BAD_PARAMETER;
-    default:
-      break;
-  }
-
-  return DDS_RETCODE_ERROR;
 }
 
 dds_return_t

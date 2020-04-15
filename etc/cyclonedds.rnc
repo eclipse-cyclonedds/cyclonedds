@@ -686,6 +686,32 @@ B&quot;.</p>""" ] ]
           memsize
         }?
         & [ a:documentation [ xml:lang="en" """
+<p>This setting controls the desired size of socket receive buffers. We
+will request a buffer of this size upon creation of the socket, though
+the actual buffer size is often limited by the OS. If the value given is
+"default", we will use the system default size.</p>
+
+<p>The unit must be specified explicitly. Recognised units: B (bytes), kB
+& KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
+(2<sup>30</sup> bytes).</p><p>The default value is: &quot;8
+MiB&quot;.</p>""" ] ]
+        element MaximumSocketReceiveBufferSize {
+          memsize
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>This setting controls the default size of socket send buffers. We will
+request a buffer of this size upon creation of the socket, though the
+actual buffer size is often limited by the system. If the value given is
+"default", we will use the system default size.</p>
+
+<p>The unit must be specified explicitly. Recognised units: B (bytes), kB
+& KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
+(2<sup>30</sup> bytes).</p><p>The default value is: &quot;8
+MiB&quot;.</p>""" ] ]
+        element MaximumSocketSendBufferSize {
+          memsize
+        }?
+        & [ a:documentation [ xml:lang="en" """
 <p>This element enables heartbeat-to-ack latency among Cyclone DDS
 services by prepending timestamps to Heartbeat and AckNack messages and
 calculating round trip times. This is non-standard behaviour. The
@@ -695,27 +721,21 @@ anywhere.</p><p>The default value is: &quot;false&quot;.</p>""" ] ]
           xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This setting controls the minimum size of socket receive buffers. The
-operating system provides some size receive buffer upon creation of the
-socket, this option can be used to increase the size of the buffer beyond
-that initially provided by the operating system. If the buffer size
-cannot be increased to the specified size, an error is reported.</p>
-
-<p>The default setting is the word "default", which means Cyclone DDS
-will attempt to increase the buffer size to 1MB, but will silently accept
-a smaller buffer should that attempt fail.</p>
+<p>This setting controls the minimum size of socket receive buffers. If
+the buffer size is smaller, an error is reported. If the value is
+"default", we will allow an arbitrarily small buffer.</p>
 
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB
 & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).</p><p>The default value is:
-&quot;default&quot;.</p>""" ] ]
+(2<sup>30</sup> bytes).</p><p>The default value is: &quot;64
+KiB&quot;.</p>""" ] ]
         element MinimumSocketReceiveBufferSize {
           memsize
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This setting controls the minimum size of socket send buffers. This
-setting can only increase the size of the send buffer, if the operating
-system by default creates a larger buffer, it is left unchanged.</p>
+<p>This setting controls the minimum size of socket send buffers. If the
+buffer size is smaller, an error is reported. If the value is "default",
+we will allow an arbitrarily small buffer.</p>
 
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB
 & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB

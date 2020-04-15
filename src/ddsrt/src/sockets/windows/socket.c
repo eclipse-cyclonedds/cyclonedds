@@ -309,6 +309,24 @@ ddsrt_getsockname(
   return DDS_RETCODE_ERROR;
 }
 
+static dds_return_t sockopt_error_to_retcode(int errnum)
+{
+  switch (errnum) {
+    case WSAENETDOWN:
+      return DDS_RETCODE_NO_NETWORK;
+    case WSAENOPROTOOPT:
+      return DDS_RETCODE_UNSUPPORTED;
+    case WSAEFAULT:
+    case WSAEINVAL:
+    case WSAENOTSOCK:
+      return DDS_RETCODE_BAD_PARAMETER;
+    case WSAEINPROGRESS:
+      return DDS_RETCODE_TRY_AGAIN;
+    default:
+      return DDS_RETCODE_ERROR;
+  }
+}
+
 dds_return_t
 ddsrt_getsockopt(
   ddsrt_socket_t sock,
@@ -317,45 +335,39 @@ ddsrt_getsockopt(
   void *optval,
   socklen_t *optlen)
 {
-  int err, ret;
+  int ret;
 
   if (level == IPPROTO_IP && (optname == IP_MULTICAST_TTL ||
                               optname == IP_MULTICAST_LOOP))
   {
     /* IP_MULTICAST_TTL and IP_MULTICAST_LOOP take a DWORD* rather than a
        char* on Windows. */
-    int dwoptlen = sizeof(DWORD);
-    DWORD dwoptval = *((unsigned char *)optval);
+    DWORD dwoptval = 0;
+    int dwoptlen = sizeof(dwoptval);
     ret = getsockopt(sock, level, optname, (char *)&dwoptval, &dwoptlen);
     if (ret != SOCKET_ERROR) {
       assert(dwoptlen == sizeof(DWORD));
       *((unsigned char *)optval) = (unsigned char)dwoptval;
-      *optlen = sizeof( unsigned char );
+      *optlen = sizeof(unsigned char);
+    }
+  } else if (level == SOL_SOCKET && (optname == SO_RCVBUF || optname == SO_SNDBUF)) {
+    DWORD dwoptval = 0;
+    int dwoptlen = sizeof(dwoptval);
+    ret = getsockopt(sock, level, optname, (char *)&dwoptval, &dwoptlen);
+    if (ret != SOCKET_ERROR) {
+      assert(dwoptlen == sizeof(DWORD));
+      *((size_t *)optval) = (unsigned char)dwoptval;
+      *optlen = sizeof(size_t);
     }
   } else {
     ret = getsockopt(sock, level, optname, optval, (int *)optlen);
   }
 
-  if (ret != SOCKET_ERROR)
-    return DDS_RETCODE_OK;
-
-  err = WSAGetLastError();
-  assert(err != WSANOTINITIALISED);
-  switch (err) {
-    case WSAENETDOWN:
-      return DDS_RETCODE_NO_NETWORK;
-    case WSAEFAULT:
-    case WSAEINVAL:
-    case WSAENOPROTOOPT:
-    case WSAENOTSOCK:
-      return DDS_RETCODE_BAD_PARAMETER;
-    case WSAEINPROGRESS:
-      return DDS_RETCODE_TRY_AGAIN;
-    default:
-      break;
+  if (ret == SOCKET_ERROR) {
+    return sockopt_error_to_retcode(WSAGetLastError());
   }
 
-  return DDS_RETCODE_ERROR;
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t
@@ -366,42 +378,25 @@ ddsrt_setsockopt(
   const void *optval,
   socklen_t optlen)
 {
-  int err, ret;
-  DWORD dwoptval;
+  int ret;
 
-  if (level == IPPROTO_IP && (optname == IP_MULTICAST_TTL ||
-                              optname == IP_MULTICAST_LOOP))
-  {
-    /* On win32 IP_MULTICAST_TTL and IP_MULTICAST_LOOP take DWORD * param
-       rather than char * */
-    dwoptval = *((unsigned char *)optval);
-    optval = &dwoptval;
-    optlen = sizeof(DWORD);
-    ret = setsockopt(sock, level, optname, optval, (int)optlen);
+  if (level == IPPROTO_IP && (optname == IP_MULTICAST_TTL || optname == IP_MULTICAST_LOOP)) {
+    /* On win32 IP_MULTICAST_TTL and IP_MULTICAST_LOOP take DWORD * param rather than char * */
+    DWORD dword_optval = *((const unsigned char *)optval);
+    ret = setsockopt(sock, level, optname, (const char *)dword_optval, sizeof(dword_optval));
+  }
+  else if (level == SOL_SOCKET && (optname == SO_RCVBUF || optname == SO_SNDBUF)) {
+    DWORD dword_optval = *((const size_t *)optval);
+    ret = setsockopt(sock, level, optname, (const char *)dword_optval, sizeof(dword_optval));
   } else {
-    ret = setsockopt(sock, level, optname, optval, (int)optlen);
+    ret = setsockopt(sock, level, optname, (const char *)optval, sizeof(optval));
   }
 
-  if (ret != SOCKET_ERROR)
-    return DDS_RETCODE_OK;
-
-  err = WSAGetLastError();
-  assert(err != WSANOTINITIALISED);
-  switch (err) {
-    case WSAENETDOWN:
-      return DDS_RETCODE_NO_NETWORK;
-    case WSAEFAULT:
-    case WSAEINVAL:
-    case WSAENOPROTOOPT:
-    case WSAENOTSOCK:
-      return DDS_RETCODE_BAD_PARAMETER;
-    case WSAEINPROGRESS:
-      return DDS_RETCODE_IN_PROGRESS;
-    default:
-      break;
+  if (ret == SOCKET_ERROR) {
+    return sockopt_error_to_retcode(WSAGetLastError());
   }
 
-  return DDS_RETCODE_ERROR;
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t

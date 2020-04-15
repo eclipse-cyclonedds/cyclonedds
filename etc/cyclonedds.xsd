@@ -654,6 +654,8 @@ reserved. This includes renaming or moving options.&lt;/p&gt;</xs:documentation>
         <xs:element minOccurs="0" ref="config:MaxQueuedRexmitBytes"/>
         <xs:element minOccurs="0" ref="config:MaxQueuedRexmitMessages"/>
         <xs:element minOccurs="0" ref="config:MaxSampleSize"/>
+        <xs:element minOccurs="0" ref="config:MaximumSocketReceiveBufferSize"/>
+        <xs:element minOccurs="0" ref="config:MaximumSocketSendBufferSize"/>
         <xs:element minOccurs="0" ref="config:MeasureHbToAckLatency"/>
         <xs:element minOccurs="0" ref="config:MinimumSocketReceiveBufferSize"/>
         <xs:element minOccurs="0" ref="config:MinimumSocketSendBufferSize"/>
@@ -957,6 +959,34 @@ this are discarded with a warning.&lt;/p&gt;
 B&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
+  <xs:element name="MaximumSocketReceiveBufferSize" type="config:memsize">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This setting controls the desired size of socket receive buffers. We
+will request a buffer of this size upon creation of the socket, though
+the actual buffer size is often limited by the OS. If the value given is
+"default", we will use the system default size.&lt;/p&gt;
+
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
+&amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
+(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;8
+MiB&amp;quot;.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="MaximumSocketSendBufferSize" type="config:memsize">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This setting controls the default size of socket send buffers. We will
+request a buffer of this size upon creation of the socket, though the
+actual buffer size is often limited by the system. If the value given is
+"default", we will use the system default size.&lt;/p&gt;
+
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
+&amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
+(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;8
+MiB&amp;quot;.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
   <xs:element name="MeasureHbToAckLatency" type="xs:boolean">
     <xs:annotation>
       <xs:documentation>
@@ -970,28 +1000,22 @@ anywhere.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;false&amp;quot;.&lt;
   <xs:element name="MinimumSocketReceiveBufferSize" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
-&lt;p&gt;This setting controls the minimum size of socket receive buffers. The
-operating system provides some size receive buffer upon creation of the
-socket, this option can be used to increase the size of the buffer beyond
-that initially provided by the operating system. If the buffer size
-cannot be increased to the specified size, an error is reported.&lt;/p&gt;
-
-&lt;p&gt;The default setting is the word "default", which means Cyclone DDS
-will attempt to increase the buffer size to 1MB, but will silently accept
-a smaller buffer should that attempt fail.&lt;/p&gt;
+&lt;p&gt;This setting controls the minimum size of socket receive buffers. If
+the buffer size is smaller, an error is reported. If the value is
+"default", we will allow an arbitrarily small buffer.&lt;/p&gt;
 
 &lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
 &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
-(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is:
-&amp;quot;default&amp;quot;.&lt;/p&gt;</xs:documentation>
+(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;64
+KiB&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="MinimumSocketSendBufferSize" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
-&lt;p&gt;This setting controls the minimum size of socket send buffers. This
-setting can only increase the size of the send buffer, if the operating
-system by default creates a larger buffer, it is left unchanged.&lt;/p&gt;
+&lt;p&gt;This setting controls the minimum size of socket send buffers. If the
+buffer size is smaller, an error is reported. If the value is "default",
+we will allow an arbitrarily small buffer.&lt;/p&gt;
 
 &lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
 &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
