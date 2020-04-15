@@ -134,7 +134,7 @@ my %range =
 
 my %unit_blurb =
   ("bandwidth" => "\n<p>The unit must be specified explicitly. Recognised units: <i>X</i>b/s, <i>X</i>bps for bits/s or <i>X</i>B/s, <i>X</i>Bps for bytes/s; where <i>X</i> is an optional prefix: k for 10<sup>3</sup>, Ki for 2<sup>10</sup>, M for 10<sup>6</sup>, Mi for 2<sup>20</sup>, G for 10<sup>9</sup>, Gi for 2<sup>30</sup>.</p>",
-   "memsize" => "\n<p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>",
+   "memsize" => "\n<p>The unit must be specified explicitly. Recognised units: B (bytes), KiB (2<sup>10</sup> B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B), kB (10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup> B).</p>",
    "duration" => "\n<p>The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.</p>",
    "duration_inf" => "\n<p>Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.</p>");
 

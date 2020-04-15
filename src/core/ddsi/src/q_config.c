@@ -873,11 +873,11 @@ static const struct unit unittab_duration[] = {
 static const struct unit unittab_memsize[] = {
   { "B", 1 },
   { "KiB", 1024 },
-  { "kB", 1024 },
+  { "kB", 1000 },
   { "MiB", 1048576 },
-  { "MB", 1048576 },
+  { "MB", 1000000 },
   { "GiB", 1073741824 },
-  { "GB", 1073741824 },
+  { "GB", 1000000000 },
   { NULL, 0 }
 };
 

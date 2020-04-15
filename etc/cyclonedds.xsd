@@ -506,10 +506,10 @@ smaller. The DDSI spec mandates a minimum fragment size of 1025 bytes,
 but Cyclone DDS will do whatever size is requested, accepting fragments
 of which the size is at least the minimum of 1025 and FragmentSize.&lt;/p&gt;
 
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
-&amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
-(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;1280
-B&amp;quot;.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2&lt;sup&gt;10&lt;/sup&gt; B), MiB (2&lt;sup&gt;20&lt;/sup&gt; B), GiB (2&lt;sup&gt;30&lt;/sup&gt; B),
+kB (10&lt;sup&gt;3&lt;/sup&gt; B), MB (10&lt;sup&gt;6&lt;/sup&gt; B), GB (10&lt;sup&gt;9&lt;/sup&gt;
+B).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;1280 B&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="MaxMessageSize" type="config:memsize">
@@ -526,10 +526,10 @@ packetsize below the MTU to prevent IP fragmentation. In those cases, it
 is generally advisable to also consider reducing
 Internal/FragmentSize.&lt;/p&gt;
 
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
-&amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
-(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;4096
-B&amp;quot;.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2&lt;sup&gt;10&lt;/sup&gt; B), MiB (2&lt;sup&gt;20&lt;/sup&gt; B), GiB (2&lt;sup&gt;30&lt;/sup&gt; B),
+kB (10&lt;sup&gt;3&lt;/sup&gt; B), MB (10&lt;sup&gt;6&lt;/sup&gt; B), GB (10&lt;sup&gt;9&lt;/sup&gt;
+B).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;4096 B&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="MulticastRecvNetworkInterfaceAddresses" type="xs:string">
@@ -931,10 +931,10 @@ AuxiliaryBandwidthLimit has been set, in which case it becomes NackDelay
 * AuxiliaryBandwidthLimit. It must be large enough to contain the largest
 sample that may need to be retransmitted.&lt;/p&gt;
 
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
-&amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
-(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;50
-kB&amp;quot;.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2&lt;sup&gt;10&lt;/sup&gt; B), MiB (2&lt;sup&gt;20&lt;/sup&gt; B), GiB (2&lt;sup&gt;30&lt;/sup&gt; B),
+kB (10&lt;sup&gt;3&lt;/sup&gt; B), MB (10&lt;sup&gt;6&lt;/sup&gt; B), GB (10&lt;sup&gt;9&lt;/sup&gt;
+B).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;50 kB&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="MaxQueuedRexmitMessages" type="xs:integer">
@@ -951,10 +951,10 @@ retransmission.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;200&amp;quot;.
 that Cyclone DDS will forward in either direction. Samples larger than
 this are discarded with a warning.&lt;/p&gt;
 
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
-&amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
-(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;2147483647
-B&amp;quot;.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2&lt;sup&gt;10&lt;/sup&gt; B), MiB (2&lt;sup&gt;20&lt;/sup&gt; B), GiB (2&lt;sup&gt;30&lt;/sup&gt; B),
+kB (10&lt;sup&gt;3&lt;/sup&gt; B), MB (10&lt;sup&gt;6&lt;/sup&gt; B), GB (10&lt;sup&gt;9&lt;/sup&gt;
+B).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;2147483647 B&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="MeasureHbToAckLatency" type="xs:boolean">
@@ -980,10 +980,10 @@ cannot be increased to the specified size, an error is reported.&lt;/p&gt;
 will attempt to increase the buffer size to 1MB, but will silently accept
 a smaller buffer should that attempt fail.&lt;/p&gt;
 
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
-&amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
-(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is:
-&amp;quot;default&amp;quot;.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2&lt;sup&gt;10&lt;/sup&gt; B), MiB (2&lt;sup&gt;20&lt;/sup&gt; B), GiB (2&lt;sup&gt;30&lt;/sup&gt; B),
+kB (10&lt;sup&gt;3&lt;/sup&gt; B), MB (10&lt;sup&gt;6&lt;/sup&gt; B), GB (10&lt;sup&gt;9&lt;/sup&gt;
+B).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;default&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="MinimumSocketSendBufferSize" type="config:memsize">
@@ -993,10 +993,10 @@ a smaller buffer should that attempt fail.&lt;/p&gt;
 setting can only increase the size of the send buffer, if the operating
 system by default creates a larger buffer, it is left unchanged.&lt;/p&gt;
 
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
-&amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
-(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;64
-KiB&amp;quot;.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2&lt;sup&gt;10&lt;/sup&gt; B), MiB (2&lt;sup&gt;20&lt;/sup&gt; B), GiB (2&lt;sup&gt;30&lt;/sup&gt; B),
+kB (10&lt;sup&gt;3&lt;/sup&gt; B), MB (10&lt;sup&gt;6&lt;/sup&gt; B), GB (10&lt;sup&gt;9&lt;/sup&gt;
+B).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;64 KiB&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="MonitorPort" type="xs:integer">
@@ -1315,10 +1315,10 @@ transmit pressure.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;true&amp;qu
 DDS WHCs, expressed in bytes. A writer is suspended when the WHC reaches
 this size.&lt;/p&gt;
 
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
-&amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
-(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;100
-kB&amp;quot;.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2&lt;sup&gt;10&lt;/sup&gt; B), MiB (2&lt;sup&gt;20&lt;/sup&gt; B), GiB (2&lt;sup&gt;30&lt;/sup&gt; B),
+kB (10&lt;sup&gt;3&lt;/sup&gt; B), MB (10&lt;sup&gt;6&lt;/sup&gt; B), GB (10&lt;sup&gt;9&lt;/sup&gt;
+B).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;100 kB&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="WhcHighInit" type="config:memsize">
@@ -1327,10 +1327,10 @@ kB&amp;quot;.&lt;/p&gt;</xs:documentation>
 &lt;p&gt;This element sets the initial level of the high-water mark for the
 Cyclone DDS WHCs, expressed in bytes.&lt;/p&gt;
 
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
-&amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
-(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;30
-kB&amp;quot;.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2&lt;sup&gt;10&lt;/sup&gt; B), MiB (2&lt;sup&gt;20&lt;/sup&gt; B), GiB (2&lt;sup&gt;30&lt;/sup&gt; B),
+kB (10&lt;sup&gt;3&lt;/sup&gt; B), MB (10&lt;sup&gt;6&lt;/sup&gt; B), GB (10&lt;sup&gt;9&lt;/sup&gt;
+B).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;30 kB&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="WhcLow" type="config:memsize">
@@ -1340,9 +1340,10 @@ kB&amp;quot;.&lt;/p&gt;</xs:documentation>
 expressed in bytes. A suspended writer resumes transmitting when its
 Cyclone DDS WHC shrinks to this size.&lt;/p&gt;
 
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
-&amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
-(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;1 kB&amp;quot;.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2&lt;sup&gt;10&lt;/sup&gt; B), MiB (2&lt;sup&gt;20&lt;/sup&gt; B), GiB (2&lt;sup&gt;30&lt;/sup&gt; B),
+kB (10&lt;sup&gt;3&lt;/sup&gt; B), MB (10&lt;sup&gt;6&lt;/sup&gt; B), GB (10&lt;sup&gt;9&lt;/sup&gt;
+B).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;1 kB&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="WriteBatch" type="xs:boolean">
@@ -1612,10 +1613,10 @@ buffer. Must be greater than the maximum packet size by a modest amount
 (too large packets are dropped). Each allocation is shrunk immediately
 after processing a message, or freed straightaway.&lt;/p&gt;
 
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
-&amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
-(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;128
-KiB&amp;quot;.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2&lt;sup&gt;10&lt;/sup&gt; B), MiB (2&lt;sup&gt;20&lt;/sup&gt; B), GiB (2&lt;sup&gt;30&lt;/sup&gt; B),
+kB (10&lt;sup&gt;3&lt;/sup&gt; B), MB (10&lt;sup&gt;6&lt;/sup&gt; B), GB (10&lt;sup&gt;9&lt;/sup&gt;
+B).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;128 KiB&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="ReceiveBufferSize" type="config:memsize">
@@ -1626,10 +1627,10 @@ buffers may be needed. The minimum workable size a little bit larger than
 Sizing/ReceiveBufferChunkSize, and the value used is taken as the
 configured value and the actual minimum workable size.&lt;/p&gt;
 
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
-&amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
-(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;1
-MiB&amp;quot;.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2&lt;sup&gt;10&lt;/sup&gt; B), MiB (2&lt;sup&gt;20&lt;/sup&gt; B), GiB (2&lt;sup&gt;30&lt;/sup&gt; B),
+kB (10&lt;sup&gt;3&lt;/sup&gt; B), MB (10&lt;sup&gt;6&lt;/sup&gt; B), GB (10&lt;sup&gt;9&lt;/sup&gt;
+B).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;1 MiB&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="TCP">
@@ -1833,10 +1834,10 @@ assign some of the privileged priorities.&lt;/p&gt;&lt;p&gt;The default value is
 value &lt;i&gt;default&lt;/i&gt; leaves the stack size at the operating system
 default.&lt;/p&gt;
 
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB
-&amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB
-(2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;&lt;p&gt;The default value is:
-&amp;quot;default&amp;quot;.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2&lt;sup&gt;10&lt;/sup&gt; B), MiB (2&lt;sup&gt;20&lt;/sup&gt; B), GiB (2&lt;sup&gt;30&lt;/sup&gt; B),
+kB (10&lt;sup&gt;3&lt;/sup&gt; B), MB (10&lt;sup&gt;6&lt;/sup&gt; B), GB (10&lt;sup&gt;9&lt;/sup&gt;
+B).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;default&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="Tracing">

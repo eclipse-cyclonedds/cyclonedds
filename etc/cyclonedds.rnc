@@ -357,10 +357,10 @@ smaller. The DDSI spec mandates a minimum fragment size of 1025 bytes,
 but Cyclone DDS will do whatever size is requested, accepting fragments
 of which the size is at least the minimum of 1025 and FragmentSize.</p>
 
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB
-& KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).</p><p>The default value is: &quot;1280
-B&quot;.</p>""" ] ]
+<p>The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2<sup>10</sup> B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B),
+kB (10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup>
+B).</p><p>The default value is: &quot;1280 B&quot;.</p>""" ] ]
         element FragmentSize {
           memsize
         }?
@@ -376,10 +376,10 @@ packetsize below the MTU to prevent IP fragmentation. In those cases, it
 is generally advisable to also consider reducing
 Internal/FragmentSize.</p>
 
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB
-& KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).</p><p>The default value is: &quot;4096
-B&quot;.</p>""" ] ]
+<p>The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2<sup>10</sup> B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B),
+kB (10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup>
+B).</p><p>The default value is: &quot;4096 B&quot;.</p>""" ] ]
         element MaxMessageSize {
           memsize
         }?
@@ -660,10 +660,10 @@ AuxiliaryBandwidthLimit has been set, in which case it becomes NackDelay
 * AuxiliaryBandwidthLimit. It must be large enough to contain the largest
 sample that may need to be retransmitted.</p>
 
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB
-& KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).</p><p>The default value is: &quot;50
-kB&quot;.</p>""" ] ]
+<p>The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2<sup>10</sup> B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B),
+kB (10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup>
+B).</p><p>The default value is: &quot;50 kB&quot;.</p>""" ] ]
         element MaxQueuedRexmitBytes {
           memsize
         }?
@@ -678,10 +678,10 @@ retransmission.</p><p>The default value is: &quot;200&quot;.</p>""" ] ]
 that Cyclone DDS will forward in either direction. Samples larger than
 this are discarded with a warning.</p>
 
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB
-& KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).</p><p>The default value is: &quot;2147483647
-B&quot;.</p>""" ] ]
+<p>The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2<sup>10</sup> B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B),
+kB (10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup>
+B).</p><p>The default value is: &quot;2147483647 B&quot;.</p>""" ] ]
         element MaxSampleSize {
           memsize
         }?
@@ -705,10 +705,10 @@ cannot be increased to the specified size, an error is reported.</p>
 will attempt to increase the buffer size to 1MB, but will silently accept
 a smaller buffer should that attempt fail.</p>
 
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB
-& KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).</p><p>The default value is:
-&quot;default&quot;.</p>""" ] ]
+<p>The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2<sup>10</sup> B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B),
+kB (10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup>
+B).</p><p>The default value is: &quot;default&quot;.</p>""" ] ]
         element MinimumSocketReceiveBufferSize {
           memsize
         }?
@@ -717,10 +717,10 @@ a smaller buffer should that attempt fail.</p>
 setting can only increase the size of the send buffer, if the operating
 system by default creates a larger buffer, it is left unchanged.</p>
 
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB
-& KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).</p><p>The default value is: &quot;64
-KiB&quot;.</p>""" ] ]
+<p>The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2<sup>10</sup> B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B),
+kB (10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup>
+B).</p><p>The default value is: &quot;64 KiB&quot;.</p>""" ] ]
         element MinimumSocketSendBufferSize {
           memsize
         }?
@@ -971,10 +971,10 @@ transmit pressure.</p><p>The default value is: &quot;true&quot;.</p>""" ] ]
 DDS WHCs, expressed in bytes. A writer is suspended when the WHC reaches
 this size.</p>
 
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB
-& KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).</p><p>The default value is: &quot;100
-kB&quot;.</p>""" ] ]
+<p>The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2<sup>10</sup> B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B),
+kB (10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup>
+B).</p><p>The default value is: &quot;100 kB&quot;.</p>""" ] ]
           element WhcHigh {
             memsize
           }?
@@ -982,10 +982,10 @@ kB&quot;.</p>""" ] ]
 <p>This element sets the initial level of the high-water mark for the
 Cyclone DDS WHCs, expressed in bytes.</p>
 
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB
-& KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).</p><p>The default value is: &quot;30
-kB&quot;.</p>""" ] ]
+<p>The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2<sup>10</sup> B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B),
+kB (10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup>
+B).</p><p>The default value is: &quot;30 kB&quot;.</p>""" ] ]
           element WhcHighInit {
             memsize
           }?
@@ -994,9 +994,10 @@ kB&quot;.</p>""" ] ]
 expressed in bytes. A suspended writer resumes transmitting when its
 Cyclone DDS WHC shrinks to this size.</p>
 
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB
-& KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).</p><p>The default value is: &quot;1 kB&quot;.</p>""" ] ]
+<p>The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2<sup>10</sup> B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B),
+kB (10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup>
+B).</p><p>The default value is: &quot;1 kB&quot;.</p>""" ] ]
           element WhcLow {
             memsize
           }?
@@ -1185,10 +1186,10 @@ buffer. Must be greater than the maximum packet size by a modest amount
 (too large packets are dropped). Each allocation is shrunk immediately
 after processing a message, or freed straightaway.</p>
 
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB
-& KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).</p><p>The default value is: &quot;128
-KiB&quot;.</p>""" ] ]
+<p>The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2<sup>10</sup> B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B),
+kB (10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup>
+B).</p><p>The default value is: &quot;128 KiB&quot;.</p>""" ] ]
         element ReceiveBufferChunkSize {
           memsize
         }?
@@ -1198,10 +1199,10 @@ buffers may be needed. The minimum workable size a little bit larger than
 Sizing/ReceiveBufferChunkSize, and the value used is taken as the
 configured value and the actual minimum workable size.</p>
 
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB
-& KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).</p><p>The default value is: &quot;1
-MiB&quot;.</p>""" ] ]
+<p>The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2<sup>10</sup> B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B),
+kB (10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup>
+B).</p><p>The default value is: &quot;1 MiB&quot;.</p>""" ] ]
         element ReceiveBufferSize {
           memsize
         }?
@@ -1347,10 +1348,10 @@ assign some of the privileged priorities.</p><p>The default value is:
 value <i>default</i> leaves the stack size at the operating system
 default.</p>
 
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB
-& KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).</p><p>The default value is:
-&quot;default&quot;.</p>""" ] ]
+<p>The unit must be specified explicitly. Recognised units: B (bytes),
+KiB (2<sup>10</sup> B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B),
+kB (10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup>
+B).</p><p>The default value is: &quot;default&quot;.</p>""" ] ]
           element StackSize {
             memsize
           }?

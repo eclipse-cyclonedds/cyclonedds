@@ -448,9 +448,9 @@ smaller. The DDSI spec mandates a minimum fragment size of 1025 bytes,
 but Cyclone DDS will do whatever size is requested, accepting fragments
 of which the size is at least the minimum of 1025 and FragmentSize.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB &
-KiB (2^10 bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).
+The unit must be specified explicitly. Recognised units: B (bytes), KiB
+(2^10 B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B), kB
+(10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup> B).
 
 The default value is: "1280 B".
 
@@ -468,9 +468,9 @@ On some networks it may be necessary to set this item to keep the
 packetsize below the MTU to prevent IP fragmentation. In those cases, it
 is generally advisable to also consider reducing Internal/FragmentSize.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB &
-KiB (2^10 bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).
+The unit must be specified explicitly. Recognised units: B (bytes), KiB
+(2^10 B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B), kB
+(10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup> B).
 
 The default value is: "4096 B".
 
@@ -814,9 +814,9 @@ AuxiliaryBandwidthLimit has been set, in which case it becomes NackDelay
 * AuxiliaryBandwidthLimit. It must be large enough to contain the largest
 sample that may need to be retransmitted.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB &
-KiB (2^10 bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).
+The unit must be specified explicitly. Recognised units: B (bytes), KiB
+(2^10 B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B), kB
+(10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup> B).
 
 The default value is: "50 kB".
 
@@ -837,9 +837,9 @@ This setting controls the maximum (CDR) serialised size of samples that
 Cyclone DDS will forward in either direction. Samples larger than this
 are discarded with a warning.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB &
-KiB (2^10 bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).
+The unit must be specified explicitly. Recognised units: B (bytes), KiB
+(2^10 B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B), kB
+(10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup> B).
 
 The default value is: "2147483647 B".
 
@@ -868,9 +868,9 @@ The default setting is the word "default", which means Cyclone DDS will
 attempt to increase the buffer size to 1MB, but will silently accept a
 smaller buffer should that attempt fail.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB &
-KiB (2^10 bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).
+The unit must be specified explicitly. Recognised units: B (bytes), KiB
+(2^10 B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B), kB
+(10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup> B).
 
 The default value is: "default".
 
@@ -882,9 +882,9 @@ This setting controls the minimum size of socket send buffers. This
 setting can only increase the size of the send buffer, if the operating
 system by default creates a larger buffer, it is left unchanged.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB &
-KiB (2^10 bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).
+The unit must be specified explicitly. Recognised units: B (bytes), KiB
+(2^10 B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B), kB
+(10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup> B).
 
 The default value is: "64 KiB".
 
@@ -1203,9 +1203,9 @@ This element sets the maximum allowed high-water mark for the Cyclone DDS
 WHCs, expressed in bytes. A writer is suspended when the WHC reaches this
 size.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB &
-KiB (2^10 bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).
+The unit must be specified explicitly. Recognised units: B (bytes), KiB
+(2^10 B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B), kB
+(10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup> B).
 
 The default value is: "100 kB".
 
@@ -1216,9 +1216,9 @@ Number-with-unit
 This element sets the initial level of the high-water mark for the
 Cyclone DDS WHCs, expressed in bytes.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB &
-KiB (2^10 bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).
+The unit must be specified explicitly. Recognised units: B (bytes), KiB
+(2^10 B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B), kB
+(10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup> B).
 
 The default value is: "30 kB".
 
@@ -1230,9 +1230,9 @@ This element sets the low-water mark for the Cyclone DDS WHCs, expressed
 in bytes. A suspended writer resumes transmitting when its Cyclone DDS
 WHC shrinks to this size.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB &
-KiB (2^10 bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).
+The unit must be specified explicitly. Recognised units: B (bytes), KiB
+(2^10 B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B), kB
+(10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup> B).
 
 The default value is: "1 kB".
 
@@ -1481,9 +1481,9 @@ buffer. Must be greater than the maximum packet size by a modest amount
 (too large packets are dropped). Each allocation is shrunk immediately
 after processing a message, or freed straightaway.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB &
-KiB (2^10 bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).
+The unit must be specified explicitly. Recognised units: B (bytes), KiB
+(2^10 B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B), kB
+(10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup> B).
 
 The default value is: "128 KiB".
 
@@ -1496,9 +1496,9 @@ buffers may be needed. The minimum workable size a little bit larger than
 Sizing/ReceiveBufferChunkSize, and the value used is taken as the
 configured value and the actual minimum workable size.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB &
-KiB (2^10 bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).
+The unit must be specified explicitly. Recognised units: B (bytes), KiB
+(2^10 B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B), kB
+(10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup> B).
 
 The default value is: "1 MiB".
 
@@ -1689,9 +1689,9 @@ Number-with-unit
 This element configures the stack size for this thread. The default value
 default leaves the stack size at the operating system default.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB &
-KiB (2^10 bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB
-(2<sup>30</sup> bytes).
+The unit must be specified explicitly. Recognised units: B (bytes), KiB
+(2^10 B), MiB (2<sup>20</sup> B), GiB (2<sup>30</sup> B), kB
+(10<sup>3</sup> B), MB (10<sup>6</sup> B), GB (10<sup>9</sup> B).
 
 The default value is: "default".
 
