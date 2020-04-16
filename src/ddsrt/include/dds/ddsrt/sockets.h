@@ -147,6 +147,24 @@ ddsrt_setsocknonblocking(
   ddsrt_socket_t sock,
   bool nonblock);
 
+/**
+ * @brief Set whether a port may be shared with other sockets
+ *
+ * @param[in]   sock  Socket to set reusability for.
+ * @param[in]   reuse Whether to allow sharing the port.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             Sharing flags successfully set
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Sharing the socket is unsupported by this implementation
+ * @retval DDS_RETCODE_ERROR
+ *             An unknown error error occurred.
+ */
+DDS_EXPORT dds_return_t
+ddsrt_setsockreuse(ddsrt_socket_t sock, bool reuse);
+
 DDS_EXPORT int32_t
 ddsrt_select(
   int32_t nfds,
