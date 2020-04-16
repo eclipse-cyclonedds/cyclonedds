@@ -400,9 +400,9 @@ ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
 
 dds_return_t
 ddsrt_setsockreuse(ddsrt_socket_t sock, bool reuse) {
-  int rc;
   int flags = reuse;
 #ifdef SO_REUSEPORT
+  int rc;
   switch (rc = ddsrt_setsockopt (sock, SOL_SOCKET, SO_REUSEPORT, &flags, sizeof (flags))) {
     case DDS_RETCODE_BAD_PARAMETER:
       // e.g. LWIP, which defines SO_REUSEPORT but doesn't implement it.

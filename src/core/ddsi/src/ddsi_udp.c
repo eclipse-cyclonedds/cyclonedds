@@ -409,7 +409,6 @@ static dds_return_t set_mc_options_transmit_ipv4 (struct ddsi_domaingv const * c
 static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_factory_t fact, uint32_t port, const ddsi_tran_qos_t *qos)
 {
   struct ddsi_domaingv const * const gv = fact->gv;
-  const int one = 1;
 
   dds_return_t rc;
   ddsrt_socket_t sock;
@@ -469,8 +468,8 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
   /* If we're binding to a port number, allow others to bind to the same port */
   if (port)
   {
-    if ((rc = ddsrt_setsockreuse(sock, true)) != DDS_RETCODE_OK) {
-      GVERROR("ddsi_tcp_sock_new: failed to enable port reuse: %s\n", dds_strretcode(rc));
+    if ((rc = ddsrt_setsockreuse (sock, true)) != DDS_RETCODE_OK) {
+      GVERROR("ddsi_udp_create_conn: failed to enable port reuse: %s\n", dds_strretcode(rc));
       goto fail_w_socket;
     }
   }
