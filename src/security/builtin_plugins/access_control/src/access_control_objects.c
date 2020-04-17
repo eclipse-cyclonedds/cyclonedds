@@ -272,10 +272,10 @@ ac_remote_participant_access_rights_new(
   {
     rights->permissions->ref_cnt++;
     if (rights->permissions->remote_permissions_token_class_id == NULL)
-    {
       rights->permissions->remote_permissions_token_class_id = ddsrt_strdup(remote_permissions_token->class_id);
-      rights->identity_subject_name = ddsrt_strdup(identity_subject);
-    }
+    else
+      assert (strcmp (rights->permissions->remote_permissions_token_class_id, remote_permissions_token->class_id) == 0);
+    rights->identity_subject_name = ddsrt_strdup(identity_subject);
   }
   else
   {
