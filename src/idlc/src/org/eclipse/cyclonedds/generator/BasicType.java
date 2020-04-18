@@ -20,15 +20,15 @@ public class BasicType extends AbstractType
   {
     BOOLEAN ("bool", "DDS_OP_TYPE_BOO", "DDS_OP_SUBTYPE_BOO", Alignment.BOOL, "Boolean"),
     OCTET ("uint8_t", "DDS_OP_TYPE_1BY", "DDS_OP_SUBTYPE_1BY", Alignment.ONE, "Octet"),
-    CHAR ("char", "DDS_OP_TYPE_1BY", "DDS_OP_SUBTYPE_1BY", Alignment.ONE, "Char"),
-    SHORT ("int16_t", "DDS_OP_TYPE_2BY", "DDS_OP_SUBTYPE_2BY", Alignment.TWO, "Short"),
+    CHAR ("char", "DDS_OP_TYPE_1BY | DDS_OP_FLAG_SGN", "DDS_OP_SUBTYPE_1BY | DDS_OP_FLAG_SGN", Alignment.ONE, "Char"),
+    SHORT ("int16_t", "DDS_OP_TYPE_2BY | DDS_OP_FLAG_SGN", "DDS_OP_SUBTYPE_2BY | DDS_OP_FLAG_SGN", Alignment.TWO, "Short"),
     USHORT ("uint16_t", "DDS_OP_TYPE_2BY", "DDS_OP_SUBTYPE_2BY", Alignment.TWO, "UShort"),
-    LONG ("int32_t", "DDS_OP_TYPE_4BY", "DDS_OP_SUBTYPE_4BY", Alignment.FOUR, "Long"),
+    LONG ("int32_t", "DDS_OP_TYPE_4BY | DDS_OP_FLAG_SGN", "DDS_OP_SUBTYPE_4BY | DDS_OP_FLAG_SGN", Alignment.FOUR, "Long"),
     ULONG ("uint32_t", "DDS_OP_TYPE_4BY", "DDS_OP_SUBTYPE_4BY", Alignment.FOUR, "ULong"),
-    LONGLONG ("int64_t", "DDS_OP_TYPE_8BY", "DDS_OP_SUBTYPE_8BY", Alignment.EIGHT, "LongLong"),
+    LONGLONG ("int64_t", "DDS_OP_TYPE_8BY | DDS_OP_FLAG_SGN", "DDS_OP_SUBTYPE_8BY | DDS_OP_FLAG_SGN", Alignment.EIGHT, "LongLong"),
     ULONGLONG ("uint64_t", "DDS_OP_TYPE_8BY", "DDS_OP_SUBTYPE_8BY", Alignment.EIGHT, "ULongLong"),
-    FLOAT ("float", "DDS_OP_TYPE_4BY", "DDS_OP_SUBTYPE_4BY", Alignment.FOUR, "Float"),
-    DOUBLE ("double", "DDS_OP_TYPE_8BY", "DDS_OP_SUBTYPE_8BY", Alignment.EIGHT, "Double"),
+    FLOAT ("float", "DDS_OP_TYPE_4BY | DDS_OP_FLAG_FP", "DDS_OP_SUBTYPE_4BY | DDS_OP_FLAG_FP", Alignment.FOUR, "Float"),
+    DOUBLE ("double", "DDS_OP_TYPE_8BY | DDS_OP_FLAG_FP", "DDS_OP_SUBTYPE_8BY | DDS_OP_FLAG_FP", Alignment.EIGHT, "Double"),
     STRING ("char *", "DDS_OP_TYPE_STR", "DDS_OP_SUBTYPE_STR", Alignment.PTR, "String");
 
     public final String cType;
