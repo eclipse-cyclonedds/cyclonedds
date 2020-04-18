@@ -1162,9 +1162,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, dd
 #endif
 
   assert (datap);
-
-  if (!(datap->present & PP_ENDPOINT_GUID))
-    E (" no guid?\n", err);
+  assert (datap->present & PP_ENDPOINT_GUID);
   GVLOGDISC (" "PGUIDFMT, PGUID (datap->endpoint_guid));
 
   ppguid.prefix = datap->endpoint_guid.prefix;
@@ -1350,11 +1348,7 @@ static void handle_SEDP_dead (const struct receiver_state *rst, ddsi_plist_t *da
 {
   struct ddsi_domaingv * const gv = rst->gv;
   int res;
-  if (!(datap->present & PP_ENDPOINT_GUID))
-  {
-    GVLOGDISC (" no guid?\n");
-    return;
-  }
+  assert (datap->present & PP_ENDPOINT_GUID);
   GVLOGDISC (" "PGUIDFMT, PGUID (datap->endpoint_guid));
   if (is_writer_entityid (datap->endpoint_guid.entityid))
     res = delete_proxy_writer (gv, &datap->endpoint_guid, timestamp, 0);
