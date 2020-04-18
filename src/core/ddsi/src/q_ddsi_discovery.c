@@ -1368,6 +1368,8 @@ static void handle_SEDP (const struct receiver_state *rst, seqno_t seq, struct d
   ddsi_plist_t decoded_data;
   if (ddsi_serdata_to_sample (serdata, &decoded_data, NULL, NULL))
   {
+    struct ddsi_domaingv * const gv = rst->gv;
+    GVLOGDISC ("SEDP ST%x", serdata->statusinfo);
     switch (serdata->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
     {
       case 0:
