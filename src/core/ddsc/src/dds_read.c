@@ -40,7 +40,7 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
 #define NC_FREE_BUF 2u
 #define NC_RESET_BUF 4u
 
-  if (buf == NULL || si == NULL || maxs == 0 || bufsz == 0 || bufsz < maxs)
+  if (buf == NULL || si == NULL || maxs == 0 || bufsz == 0 || bufsz < maxs || maxs > INT32_MAX)
     return DDS_RETCODE_BAD_PARAMETER;
 
   if ((ret = dds_entity_pin (reader_or_condition, &entity)) < 0) {
@@ -60,14 +60,6 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
   }
 
   thread_state_awake (ts1, &entity->m_domain->gv);
-
-  if (hand != DDS_HANDLE_NIL)
-  {
-    if (ddsi_tkmap_find_by_id (entity->m_domain->gv.m_tkmap, hand) == NULL) {
-      ret = DDS_RETCODE_PRECONDITION_NOT_MET;
-      goto fail_awake_pinned;
-    }
-  }
 
   /* Allocate samples if not provided (assuming all or none provided) */
   if (buf[0] == NULL)
@@ -142,8 +134,6 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
 #undef NC_FREE_BUF
 #undef NC_RESET_BUF
 
-fail_awake_pinned:
-  thread_state_asleep (ts1);
 fail_pinned:
   dds_entity_unpin (entity);
 fail:
@@ -157,12 +147,8 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
   struct dds_reader *rd;
   struct dds_entity *entity;
 
-  assert (take);
-  assert (buf);
-  assert (si);
-  assert (hand == DDS_HANDLE_NIL);
-  assert (maxs > 0);
-  (void)take;
+  if (buf == NULL || si == NULL || maxs == 0 || maxs > INT32_MAX)
+    return DDS_RETCODE_BAD_PARAMETER;
 
   if ((ret = dds_entity_pin (reader_or_condition, &entity)) < 0) {
     return ret;
