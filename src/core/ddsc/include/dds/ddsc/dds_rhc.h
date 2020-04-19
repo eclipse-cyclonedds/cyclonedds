@@ -41,6 +41,7 @@ struct dds_rhc_ops {
   struct ddsi_rhc_ops rhc_ops;
   dds_rhc_read_take_t read;
   dds_rhc_read_take_t take;
+  dds_rhc_read_take_cdr_t readcdr;
   dds_rhc_read_take_cdr_t takecdr;
   dds_rhc_add_readcondition_t add_readcondition;
   dds_rhc_remove_readcondition_t remove_readcondition;
@@ -80,6 +81,9 @@ DDS_EXPORT inline int32_t dds_rhc_read (struct dds_rhc *rhc, bool lock, void **v
 }
 DDS_EXPORT inline int32_t dds_rhc_take (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond) {
   return rhc->common.ops->take (rhc, lock, values, info_seq, max_samples, mask, handle, cond);
+}
+DDS_EXPORT inline int32_t dds_rhc_readcdr (struct dds_rhc *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle) {
+  return rhc->common.ops->readcdr (rhc, lock, values, info_seq, max_samples, sample_states, view_states, instance_states, handle);
 }
 DDS_EXPORT inline int32_t dds_rhc_takecdr (struct dds_rhc *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle) {
   return rhc->common.ops->takecdr (rhc, lock, values, info_seq, max_samples, sample_states, view_states, instance_states, handle);
