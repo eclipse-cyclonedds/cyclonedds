@@ -370,6 +370,7 @@ static void dds_rhc_default_relinquish_ownership (struct dds_rhc_default * __res
 static void dds_rhc_default_set_qos (struct dds_rhc_default *rhc, const struct dds_qos *qos);
 static int32_t dds_rhc_default_read (struct dds_rhc_default *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond);
 static int32_t dds_rhc_default_take (struct dds_rhc_default *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond);
+static int32_t dds_rhc_default_readcdr (struct dds_rhc_default *rhc, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle);
 static int32_t dds_rhc_default_takecdr (struct dds_rhc_default *rhc, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle);
 static bool dds_rhc_default_add_readcondition (struct dds_rhc_default *rhc, dds_readcond *cond);
 static void dds_rhc_default_remove_readcondition (struct dds_rhc_default *rhc, dds_readcond *cond);
@@ -395,6 +396,9 @@ static int32_t dds_rhc_default_read_wrap (struct dds_rhc *rhc, bool lock, void *
 }
 static int32_t dds_rhc_default_take_wrap (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond) {
   return dds_rhc_default_take ((struct dds_rhc_default *) rhc, lock, values, info_seq, max_samples, mask, handle, cond);
+}
+static int32_t dds_rhc_default_readcdr_wrap (struct dds_rhc *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle) {
+  return dds_rhc_default_readcdr ((struct dds_rhc_default *) rhc, lock, values, info_seq, max_samples, sample_states, view_states, instance_states, handle);
 }
 static int32_t dds_rhc_default_takecdr_wrap (struct dds_rhc *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle) {
   return dds_rhc_default_takecdr ((struct dds_rhc_default *) rhc, lock, values, info_seq, max_samples, sample_states, view_states, instance_states, handle);
@@ -425,6 +429,7 @@ static const struct dds_rhc_ops dds_rhc_default_ops = {
   },
   .read = dds_rhc_default_read_wrap,
   .take = dds_rhc_default_take_wrap,
+  .readcdr = dds_rhc_default_readcdr_wrap,
   .takecdr = dds_rhc_default_takecdr_wrap,
   .add_readcondition = dds_rhc_default_add_readcondition_wrap,
   .remove_readcondition = dds_rhc_default_remove_readcondition_wrap,
@@ -2331,6 +2336,13 @@ static int32_t dds_rhc_take_w_qminv (struct dds_rhc_default *rhc, bool lock, voi
   return take_w_qminv (rhc, lock, values, info_seq, (int32_t) max_samples, qminv, handle, cond, read_take_to_sample, read_take_to_invsample);
 }
 
+static int32_t dds_rhc_readcdr_w_qminv (struct dds_rhc_default *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t qminv, dds_instance_handle_t handle, dds_readcond *cond)
+{
+  DDSRT_STATIC_ASSERT (sizeof (void *) == sizeof (struct ddsi_serdata *));
+  assert (max_samples <= INT32_MAX);
+  return read_w_qminv (rhc, lock, (void **) values, info_seq, (int32_t) max_samples, qminv, handle, cond, read_take_to_sample_ref, read_take_to_invsample_ref);
+}
+
 static int32_t dds_rhc_takecdr_w_qminv (struct dds_rhc_default *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t qminv, dds_instance_handle_t handle, dds_readcond *cond)
 {
   DDSRT_STATIC_ASSERT (sizeof (void *) == sizeof (struct ddsi_serdata *));
@@ -2727,9 +2739,10 @@ static int32_t dds_rhc_default_take (struct dds_rhc_default *rhc, bool lock, voi
   return dds_rhc_take_w_qminv (rhc, lock, values, info_seq, max_samples, qminv, handle, cond);
 }
 
+static int32_t dds_rhc_default_readcdr (struct dds_rhc_default *rhc, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle)
 {
-    unsigned qminv = qmask_from_mask_n_cond(mask, cond);
-    return dds_rhc_take_w_qminv (rhc, lock, values, info_seq, max_samples, qminv, handle, cond);
+  uint32_t qminv = qmask_from_dcpsquery (sample_states, view_states, instance_states);
+  return dds_rhc_readcdr_w_qminv (rhc, lock, values, info_seq, max_samples, qminv, handle, NULL);
 }
 
 static int32_t dds_rhc_default_takecdr (struct dds_rhc_default *rhc, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle)
