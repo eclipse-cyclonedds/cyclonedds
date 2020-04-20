@@ -363,79 +363,7 @@ struct trigger_info_post {
   struct trigger_info_cmn c;
 };
 
-static void dds_rhc_default_free (struct dds_rhc_default *rhc);
-static bool dds_rhc_default_store (struct dds_rhc_default * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk);
-static void dds_rhc_default_unregister_wr (struct dds_rhc_default * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo);
-static void dds_rhc_default_relinquish_ownership (struct dds_rhc_default * __restrict rhc, const uint64_t wr_iid);
-static void dds_rhc_default_set_qos (struct dds_rhc_default *rhc, const struct dds_qos *qos);
-static int32_t dds_rhc_default_read (struct dds_rhc_default *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond);
-static int32_t dds_rhc_default_take (struct dds_rhc_default *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond);
-static int32_t dds_rhc_default_readcdr (struct dds_rhc_default *rhc, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle);
-static int32_t dds_rhc_default_takecdr (struct dds_rhc_default *rhc, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle);
-static bool dds_rhc_default_add_readcondition (struct dds_rhc_default *rhc, dds_readcond *cond);
-static void dds_rhc_default_remove_readcondition (struct dds_rhc_default *rhc, dds_readcond *cond);
-static uint32_t dds_rhc_default_lock_samples (struct dds_rhc_default *rhc);
-
-static void dds_rhc_default_free_wrap (struct ddsi_rhc *rhc) {
-  dds_rhc_default_free ((struct dds_rhc_default *) rhc);
-}
-static bool dds_rhc_default_store_wrap (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk) {
-  return dds_rhc_default_store ((struct dds_rhc_default *) rhc, wrinfo, sample, tk);
-}
-static void dds_rhc_default_unregister_wr_wrap (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo) {
-  dds_rhc_default_unregister_wr ((struct dds_rhc_default *) rhc, wrinfo);
-}
-static void dds_rhc_default_relinquish_ownership_wrap (struct ddsi_rhc * __restrict rhc, const uint64_t wr_iid) {
-  dds_rhc_default_relinquish_ownership ((struct dds_rhc_default *) rhc, wr_iid);
-}
-static void dds_rhc_default_set_qos_wrap (struct ddsi_rhc *rhc, const struct dds_qos *qos) {
-  dds_rhc_default_set_qos ((struct dds_rhc_default *) rhc, qos);
-}
-static int32_t dds_rhc_default_read_wrap (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond) {
-  return dds_rhc_default_read ((struct dds_rhc_default *) rhc, lock, values, info_seq, max_samples, mask, handle, cond);
-}
-static int32_t dds_rhc_default_take_wrap (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond) {
-  return dds_rhc_default_take ((struct dds_rhc_default *) rhc, lock, values, info_seq, max_samples, mask, handle, cond);
-}
-static int32_t dds_rhc_default_readcdr_wrap (struct dds_rhc *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle) {
-  return dds_rhc_default_readcdr ((struct dds_rhc_default *) rhc, lock, values, info_seq, max_samples, sample_states, view_states, instance_states, handle);
-}
-static int32_t dds_rhc_default_takecdr_wrap (struct dds_rhc *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle) {
-  return dds_rhc_default_takecdr ((struct dds_rhc_default *) rhc, lock, values, info_seq, max_samples, sample_states, view_states, instance_states, handle);
-}
-static bool dds_rhc_default_add_readcondition_wrap (struct dds_rhc *rhc, dds_readcond *cond) {
-  return dds_rhc_default_add_readcondition ((struct dds_rhc_default *) rhc, cond);
-}
-static void dds_rhc_default_remove_readcondition_wrap (struct dds_rhc *rhc, dds_readcond *cond) {
-  dds_rhc_default_remove_readcondition ((struct dds_rhc_default *) rhc, cond);
-}
-static uint32_t dds_rhc_default_lock_samples_wrap (struct dds_rhc *rhc) {
-  return dds_rhc_default_lock_samples ((struct dds_rhc_default *) rhc);
-}
-static dds_return_t dds_rhc_default_associate (struct dds_rhc *rhc, dds_reader *reader, const struct ddsi_sertopic *topic, struct ddsi_tkmap *tkmap)
-{
-  /* ignored out of laziness */
-  (void) rhc; (void) reader; (void) topic; (void) tkmap;
-  return DDS_RETCODE_OK;
-}
-
-static const struct dds_rhc_ops dds_rhc_default_ops = {
-  .rhc_ops = {
-    .store = dds_rhc_default_store_wrap,
-    .unregister_wr = dds_rhc_default_unregister_wr_wrap,
-    .relinquish_ownership = dds_rhc_default_relinquish_ownership_wrap,
-    .set_qos = dds_rhc_default_set_qos_wrap,
-    .free = dds_rhc_default_free_wrap
-  },
-  .read = dds_rhc_default_read_wrap,
-  .take = dds_rhc_default_take_wrap,
-  .readcdr = dds_rhc_default_readcdr_wrap,
-  .takecdr = dds_rhc_default_takecdr_wrap,
-  .add_readcondition = dds_rhc_default_add_readcondition_wrap,
-  .remove_readcondition = dds_rhc_default_remove_readcondition_wrap,
-  .lock_samples = dds_rhc_default_lock_samples_wrap,
-  .associate = dds_rhc_default_associate
-};
+static const struct dds_rhc_ops dds_rhc_default_ops;
 
 static uint32_t qmask_of_sample (const struct rhc_sample *s)
 {
@@ -675,8 +603,16 @@ struct dds_rhc *dds_rhc_default_new (dds_reader *reader, const struct ddsi_serto
   return dds_rhc_default_new_xchecks (reader, &reader->m_entity.m_domain->gv, topic, (reader->m_entity.m_domain->gv.config.enabled_xchecks & DDS_XCHECK_RHC) != 0);
 }
 
-static void dds_rhc_default_set_qos (struct dds_rhc_default * rhc, const dds_qos_t * qos)
+static dds_return_t dds_rhc_default_associate (struct dds_rhc *rhc, dds_reader *reader, const struct ddsi_sertopic *topic, struct ddsi_tkmap *tkmap)
 {
+  /* ignored out of laziness */
+  (void) rhc; (void) reader; (void) topic; (void) tkmap;
+  return DDS_RETCODE_OK;
+}
+
+static void dds_rhc_default_set_qos (struct ddsi_rhc *rhc_common, const dds_qos_t * qos)
+{
+  struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
   /* Set read related QoS */
 
   rhc->max_samples = qos->resource_limits.max_samples;
@@ -822,8 +758,9 @@ static void free_instance_rhc_free (struct rhc_instance *inst, struct dds_rhc_de
   free_empty_instance(inst, rhc);
 }
 
-static uint32_t dds_rhc_default_lock_samples (struct dds_rhc_default *rhc)
+static uint32_t dds_rhc_default_lock_samples (struct dds_rhc *rhc_common)
 {
+  struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
   uint32_t no;
   ddsrt_mutex_lock (&rhc->lock);
   no = rhc->n_vsamples + rhc->n_invsamples;
@@ -839,8 +776,9 @@ static void free_instance_rhc_free_wrap (void *vnode, void *varg)
   free_instance_rhc_free (vnode, varg);
 }
 
-static void dds_rhc_default_free (struct dds_rhc_default *rhc)
+static void dds_rhc_default_free (struct ddsi_rhc *rhc_common)
 {
+  struct dds_rhc_default *rhc = (struct dds_rhc_default *) rhc_common;
 #ifdef DDSI_INCLUDE_LIFESPAN
   dds_rhc_default_sample_expired_cb (rhc, DDSRT_MTIME_NEVER);
   lifespan_fini (&rhc->lifespan);
@@ -1464,8 +1402,9 @@ static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst
   delivered (true unless a reliable sample rejected).
 */
 
-static bool dds_rhc_default_store (struct dds_rhc_default * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk)
+static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk)
 {
+  struct dds_rhc_default * const __restrict rhc = (struct dds_rhc_default * __restrict) rhc_common;
   const uint64_t wr_iid = wrinfo->iid;
   const uint32_t statusinfo = sample->statusinfo;
   const bool has_data = (sample->kind == SDK_DATA);
@@ -1740,7 +1679,7 @@ error_or_nochange:
   return delivered;
 }
 
-static void dds_rhc_default_unregister_wr (struct dds_rhc_default * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo)
+static void dds_rhc_default_unregister_wr (struct ddsi_rhc * __restrict rhc_common, const struct ddsi_writer_info * __restrict wrinfo)
 {
   /* Only to be called when writer with ID WR_IID has died.
 
@@ -1757,6 +1696,7 @@ static void dds_rhc_default_unregister_wr (struct dds_rhc_default * __restrict r
      need to get two IIDs: the one visible to the application in the
      built-in topics and in get_instance_handle, and one used internally
      for tracking registrations and unregistrations. */
+  struct dds_rhc_default * __restrict const rhc = (struct dds_rhc_default * __restrict) rhc_common;
   bool notify_data_available = false;
   struct rhc_instance *inst;
   struct ddsrt_hh_iter iter;
@@ -1825,8 +1765,9 @@ static void dds_rhc_default_unregister_wr (struct dds_rhc_default * __restrict r
   }
 }
 
-static void dds_rhc_default_relinquish_ownership (struct dds_rhc_default * __restrict rhc, const uint64_t wr_iid)
+static void dds_rhc_default_relinquish_ownership (struct ddsi_rhc * __restrict rhc_common, const uint64_t wr_iid)
 {
+  struct dds_rhc_default * __restrict const rhc = (struct dds_rhc_default * __restrict) rhc_common;
   struct rhc_instance *inst;
   struct ddsrt_hh_iter iter;
   ddsrt_mutex_lock (&rhc->lock);
@@ -2393,12 +2334,13 @@ static bool cond_is_sample_state_dependent (const struct dds_readcond *cond)
   }
 }
 
-static bool dds_rhc_default_add_readcondition (struct dds_rhc_default *rhc, dds_readcond *cond)
+static bool dds_rhc_default_add_readcondition (struct dds_rhc *rhc_common, dds_readcond *cond)
 {
   /* On the assumption that a readcondition will be attached to a
      waitset for nearly all of its life, we keep track of all
      readconditions on a reader in one set, without distinguishing
      between those attached to a waitset or not. */
+  struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
   struct ddsrt_hh_iter it;
 
   assert ((dds_entity_kind (&cond->m_entity) == DDS_KIND_COND_READ && cond->m_query.m_filter == 0) ||
@@ -2498,8 +2440,9 @@ static bool dds_rhc_default_add_readcondition (struct dds_rhc_default *rhc, dds_
   return true;
 }
 
-static void dds_rhc_default_remove_readcondition (struct dds_rhc_default *rhc, dds_readcond *cond)
+static void dds_rhc_default_remove_readcondition (struct dds_rhc *rhc_common, dds_readcond *cond)
 {
+  struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
   dds_readcond **ptr;
   ddsrt_mutex_lock (&rhc->lock);
   ptr = &rhc->conds;
@@ -2727,26 +2670,30 @@ static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_f
  ******  READ/TAKE  ******
  *************************/
 
-static int32_t dds_rhc_default_read (struct dds_rhc_default *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond)
+static int32_t dds_rhc_default_read (struct dds_rhc *rhc_common, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond)
 {
+  struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
   uint32_t qminv = qmask_from_mask_n_cond (mask, cond);
   return dds_rhc_read_w_qminv (rhc, lock, values, info_seq, max_samples, qminv, handle, cond);
 }
 
-static int32_t dds_rhc_default_take (struct dds_rhc_default *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond)
+static int32_t dds_rhc_default_take (struct dds_rhc *rhc_common, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond)
 {
+  struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
   uint32_t qminv = qmask_from_mask_n_cond(mask, cond);
   return dds_rhc_take_w_qminv (rhc, lock, values, info_seq, max_samples, qminv, handle, cond);
 }
 
-static int32_t dds_rhc_default_readcdr (struct dds_rhc_default *rhc, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle)
+static int32_t dds_rhc_default_readcdr (struct dds_rhc *rhc_common, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle)
 {
+  struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
   uint32_t qminv = qmask_from_dcpsquery (sample_states, view_states, instance_states);
   return dds_rhc_readcdr_w_qminv (rhc, lock, values, info_seq, max_samples, qminv, handle, NULL);
 }
 
-static int32_t dds_rhc_default_takecdr (struct dds_rhc_default *rhc, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle)
+static int32_t dds_rhc_default_takecdr (struct dds_rhc *rhc_common, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle)
 {
+  struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
   uint32_t qminv = qmask_from_dcpsquery (sample_states, view_states, instance_states);
   return dds_rhc_takecdr_w_qminv (rhc, lock, values, info_seq, max_samples, qminv, handle, NULL);
 }
@@ -2924,3 +2871,21 @@ static int rhc_check_counts_locked (struct dds_rhc_default *rhc, bool check_cond
 }
 #undef CHECK_MAX_CONDS
 #endif
+
+static const struct dds_rhc_ops dds_rhc_default_ops = {
+  .rhc_ops = {
+    .store = dds_rhc_default_store,
+    .unregister_wr = dds_rhc_default_unregister_wr,
+    .relinquish_ownership = dds_rhc_default_relinquish_ownership,
+    .set_qos = dds_rhc_default_set_qos,
+    .free = dds_rhc_default_free
+  },
+  .read = dds_rhc_default_read,
+  .take = dds_rhc_default_take,
+  .readcdr = dds_rhc_default_readcdr,
+  .takecdr = dds_rhc_default_takecdr,
+  .add_readcondition = dds_rhc_default_add_readcondition,
+  .remove_readcondition = dds_rhc_default_remove_readcondition,
+  .lock_samples = dds_rhc_default_lock_samples,
+  .associate = dds_rhc_default_associate
+};
