@@ -2145,7 +2145,7 @@ bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *p
   {
     if (q_omg_participant_allow_unauthenticated(pp))
     {
-      GVTRACE (" allow non-secure remote writer "PGUIDFMT, PGUID (pwr->e.guid));
+      GVTRACE(" allow non-secure remote writer "PGUIDFMT, PGUID(pwr->e.guid));
       return true;
     }
     else
@@ -2376,7 +2376,6 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
   DDS_Security_SubscriptionBuiltinTopicDataSecure subscription_data;
   DDS_Security_TopicBuiltinTopicData topic_data;
   DDS_Security_boolean sec_relay_only;
-  bool result = true;
 
   /* relay_only is meaningless in all cases except the one where the access control plugin says otherwise */
   *relay_only = false;
@@ -2388,7 +2387,7 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
   {
     if (q_omg_participant_allow_unauthenticated(pp))
     {
-      GVTRACE (" allow non-secure remote reader "PGUIDFMT, PGUID (prd->e.guid));
+      GVTRACE(" allow non-secure remote reader "PGUIDFMT, PGUID(prd->e.guid));
       return true;
     }
     else
@@ -2398,43 +2397,40 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
     }
   }
 
-  if (SECURITY_INFO_IS_READ_PROTECTED(prd->c.security_info))
-  {
-    DDS_Security_PermissionsHandle permissions_handle;
+  if (!SECURITY_INFO_IS_READ_PROTECTED(prd->c.security_info))
+    return true;
 
-    if ((permissions_handle = get_permissions_handle(pp, prd->c.proxypp)) == 0)
-    {
-      GVTRACE("Secure remote reader "PGUIDFMT" proxypp does not have permissions handle yet\n", PGUID(prd->e.guid));
-      return false;
-    }
+  DDS_Security_PermissionsHandle permissions_handle;
+  if ((permissions_handle = get_permissions_handle(pp, prd->c.proxypp)) == 0)
+  {
+    GVTRACE("Secure remote reader "PGUIDFMT" proxypp does not have permissions handle yet\n", PGUID(prd->e.guid));
+    return false;
+  }
+
+  q_omg_shallow_copy_SubscriptionBuiltinTopicDataSecure(&subscription_data, &prd->e.guid, prd->c.xqos, &prd->c.security_info);
+  bool result = sc->access_control_context->check_remote_datareader(sc->access_control_context, permissions_handle, (int)domain_id, &subscription_data, &sec_relay_only, &exception);
+  if (!result)
+  {
+    if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, subscription_data.topic_name))
+      EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote reader "PGUIDFMT": %s", PGUID(prd->e.guid));
     else
+      DDS_Security_Exception_reset(&exception);
+  }
+  else
+  {
+    *relay_only = !!sec_relay_only;
+    q_omg_shallow_copy_TopicBuiltinTopicData(&topic_data, subscription_data.topic_name, subscription_data.type_name);
+    result = sc->access_control_context->check_remote_topic(sc->access_control_context, permissions_handle, (int)domain_id, &topic_data, &exception);
+    q_omg_shallow_free_TopicBuiltinTopicData(&topic_data);
+    if (!result)
     {
-      q_omg_shallow_copy_SubscriptionBuiltinTopicDataSecure(&subscription_data, &prd->e.guid, prd->c.xqos, &prd->c.security_info);
-      result = sc->access_control_context->check_remote_datareader(sc->access_control_context, permissions_handle, (int)domain_id, &subscription_data, &sec_relay_only, &exception);
-      if (!result)
-      {
-        if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, subscription_data.topic_name))
-          EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote reader "PGUIDFMT": %s", PGUID(prd->e.guid));
-        else
-          DDS_Security_Exception_reset(&exception);
-      }
+      if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, subscription_data.topic_name))
+        EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote topic %s: %s", subscription_data.topic_name);
       else
-      {
-        *relay_only = !!sec_relay_only;
-        q_omg_shallow_copy_TopicBuiltinTopicData(&topic_data, subscription_data.topic_name, subscription_data.type_name);
-        result = sc->access_control_context->check_remote_topic(sc->access_control_context, permissions_handle, (int)domain_id, &topic_data, &exception);
-        q_omg_shallow_free_TopicBuiltinTopicData(&topic_data);
-        if (!result)
-        {
-          if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, subscription_data.topic_name))
-            EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote topic %s: %s", subscription_data.topic_name);
-          else
-            DDS_Security_Exception_reset(&exception);
-        }
-      }
-      q_omg_shallow_free_SubscriptionBuiltinTopicDataSecure(&subscription_data);
+        DDS_Security_Exception_reset(&exception);
     }
   }
+  q_omg_shallow_free_SubscriptionBuiltinTopicDataSecure(&subscription_data);
 
   return result;
 }
