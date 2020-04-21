@@ -2137,7 +2137,6 @@ bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *p
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PublicationBuiltinTopicDataSecure publication_data;
   DDS_Security_TopicBuiltinTopicData topic_data;
-  bool result = true;
 
   if (!sc)
     return true;
@@ -2156,42 +2155,39 @@ bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *p
     }
   }
 
-  if (SECURITY_INFO_IS_WRITE_PROTECTED(pwr->c.security_info))
-  {
-    DDS_Security_PermissionsHandle permissions_handle;
+  if (!SECURITY_INFO_IS_WRITE_PROTECTED(pwr->c.security_info))
+    return true;
 
-    if ((permissions_handle = get_permissions_handle(pp, pwr->c.proxypp)) == 0)
-    {
-      GVTRACE("Secure remote writer "PGUIDFMT" proxypp does not have permissions handle yet\n", PGUID(pwr->e.guid));
-      return false;
-    }
+  DDS_Security_PermissionsHandle permissions_handle;
+  if ((permissions_handle = get_permissions_handle(pp, pwr->c.proxypp)) == 0)
+  {
+    GVTRACE("Secure remote writer "PGUIDFMT" proxypp does not have permissions handle yet\n", PGUID(pwr->e.guid));
+    return false;
+  }
+
+  q_omg_shallow_copy_PublicationBuiltinTopicDataSecure(&publication_data, &pwr->e.guid, pwr->c.xqos, &pwr->c.security_info);
+  bool result = sc->access_control_context->check_remote_datawriter(sc->access_control_context, permissions_handle, (int)domain_id, &publication_data, &exception);
+  if (!result)
+  {
+    if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, publication_data.topic_name))
+      EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote writer "PGUIDFMT": %s", PGUID(pwr->e.guid));
     else
+      DDS_Security_Exception_reset(&exception);
+  }
+  else
+  {
+    q_omg_shallow_copy_TopicBuiltinTopicData(&topic_data, publication_data.topic_name, publication_data.type_name);
+    result = sc->access_control_context->check_remote_topic(sc->access_control_context, permissions_handle, (int)domain_id, &topic_data, &exception);
+    q_omg_shallow_free_TopicBuiltinTopicData(&topic_data);
+    if (!result)
     {
-      q_omg_shallow_copy_PublicationBuiltinTopicDataSecure(&publication_data, &pwr->e.guid, pwr->c.xqos, &pwr->c.security_info);
-      result = sc->access_control_context->check_remote_datawriter(sc->access_control_context, permissions_handle, (int)domain_id, &publication_data, &exception);
-      if (!result)
-      {
-        if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, publication_data.topic_name))
-          EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote writer "PGUIDFMT": %s", PGUID(pwr->e.guid));
-        else
-          DDS_Security_Exception_reset(&exception);
-      }
+      if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, publication_data.topic_name))
+        EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote topic %s: %s", publication_data.topic_name);
       else
-      {
-        q_omg_shallow_copy_TopicBuiltinTopicData(&topic_data, publication_data.topic_name, publication_data.type_name);
-        result = sc->access_control_context->check_remote_topic(sc->access_control_context, permissions_handle, (int)domain_id, &topic_data, &exception);
-        q_omg_shallow_free_TopicBuiltinTopicData(&topic_data);
-        if (!result)
-        {
-          if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, publication_data.topic_name))
-            EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote topic %s: %s", publication_data.topic_name);
-          else
-            DDS_Security_Exception_reset(&exception);
-        }
-      }
-      q_omg_shallow_free_PublicationBuiltinTopicDataSecure(&publication_data);
+        DDS_Security_Exception_reset(&exception);
     }
   }
+  q_omg_shallow_free_PublicationBuiltinTopicDataSecure(&publication_data);
 
   return result;
 }

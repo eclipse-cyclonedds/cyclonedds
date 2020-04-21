@@ -456,12 +456,11 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   thread_state_awake (lookup_thread_state (), gv);
   const struct ddsi_guid * ppguid = dds_entity_participant_guid (&sub->m_entity);
   struct participant * pp = entidx_lookup_participant_guid (gv->entity_index, ppguid);
-  if (pp == NULL)
-  {
-    GVLOGDISC ("new_reader - participant "PGUIDFMT" not found\n", PGUID (*ppguid));
-    rc = DDS_RETCODE_BAD_PARAMETER;
-    goto err_pp_not_found;
-  }
+
+  /* When deleting a participant, the child handles (that include the subscriber)
+     are removed before removing the DDSI participant. So at this point, within
+     the subscriber lock, we can assert that the participant exists. */
+  assert (pp != NULL);
 
 #ifdef DDSI_INCLUDE_SECURITY
   /* Check if DDS Security is enabled */
@@ -508,9 +507,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
 #ifdef DDSI_INCLUDE_SECURITY
 err_not_allowed:
-#endif
-err_pp_not_found:
   thread_state_asleep (lookup_thread_state ());
+#endif
 err_bad_qos:
   dds_delete_qos (rqos);
   dds_topic_allow_set_qos (tp);
