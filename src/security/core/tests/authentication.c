@@ -34,7 +34,6 @@
 #include "common/security_config_test_utils.h"
 #include "common/test_identity.h"
 #include "common/cert_utils.h"
-#include "common/security_config_test_utils.h"
 
 #define ID1 TEST_IDENTITY1_CERTIFICATE
 #define ID1K TEST_IDENTITY1_PRIVATE_KEY

@@ -69,5 +69,6 @@ void rd_wr_init_fail(
     bool exp_pubtp_fail, bool exp_wr_fail,
     bool exp_subtp_fail, bool exp_rd_fail);
 void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_duration_t dur, bool exp_write_fail, bool exp_read_fail);
+struct dds_security_cryptography_impl * get_crypto_context(dds_entity_t participant);
 
 #endif /* SECURITY_CORE_TEST_UTILS_H_ */
