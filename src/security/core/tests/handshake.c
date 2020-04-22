@@ -20,6 +20,7 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/string.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_misc.h"
@@ -29,9 +30,11 @@
 
 #include "common/config_env.h"
 #include "common/authentication_wrapper.h"
+#include "common/cryptography_wrapper.h"
 #include "common/plugin_wrapper_msg_q.h"
 #include "common/test_utils.h"
 #include "common/test_identity.h"
+#include "common/security_config_test_utils.h"
 
 static const char *config =
     "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}"
@@ -42,7 +45,7 @@ static const char *config =
     "  </Discovery>"
     "  <DDSSecurity>"
     "    <Authentication>"
-    "      <Library finalizeFunction=\"finalize_test_authentication_wrapped\" initFunction=\"init_test_authentication_wrapped\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
+    "      <Library initFunction=\"${AUTH_INIT}\" finalizeFunction=\"${AUTH_FINI}\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate>data:,"TEST_IDENTITY1_CERTIFICATE"</IdentityCertificate>"
     "      <PrivateKey>data:,"TEST_IDENTITY1_PRIVATE_KEY"</PrivateKey>"
     "      <IdentityCA>data:,"TEST_IDENTITY_CA1_CERTIFICATE"</IdentityCA>"
@@ -54,43 +57,120 @@ static const char *config =
     "      <Permissions>file:" COMMON_ETC_PATH("default_permissions.p7s") "</Permissions>"
     "    </AccessControl>"
     "    <Cryptographic>"
-    "      <Library finalizeFunction=\"finalize_crypto\" initFunction=\"init_crypto\"/>"
+    "      <Library initFunction=\"${CRYPTO_INIT}\" finalizeFunction=\"${CRYPTO_FINI}\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
     "    </Cryptographic>"
     "  </DDSSecurity>"
     "</Domain>";
 
-#define DDS_DOMAINID_PART1 0
-#define DDS_DOMAINID_PART2 1
+#define DDS_DOMAINID1 0
+#define DDS_DOMAINID2 1
 
-static dds_entity_t g_part1_domain = 0;
-static dds_entity_t g_part1_participant = 0;
+static dds_entity_t g_domain1 = 0;
+static dds_entity_t g_participant1 = 0;
 
-static dds_entity_t g_part2_domain = 0;
-static dds_entity_t g_part2_participant = 0;
+static dds_entity_t g_domain2 = 0;
+static dds_entity_t g_participant2 = 0;
 
-static void handshake_init(void)
+static uint32_t g_topic_nr = 0;
+static dds_entity_t g_pub = 0, g_pub_tp = 0, g_wr = 0, g_sub = 0, g_sub_tp = 0, g_rd = 0;
+
+static void handshake_init(const char * auth_init, const char * auth_fini, const char * crypto_init, const char * crypto_fini)
 {
-  char *conf_part1 = ddsrt_expand_envvars_sh (config, DDS_DOMAINID_PART1);
-  char *conf_part2 = ddsrt_expand_envvars_sh (config, DDS_DOMAINID_PART2);
-  g_part1_domain = dds_create_domain (DDS_DOMAINID_PART1, conf_part1);
-  g_part2_domain = dds_create_domain (DDS_DOMAINID_PART2, conf_part2);
-  dds_free (conf_part1);
-  dds_free (conf_part2);
+  struct kvp config_vars[] = {
+    { "AUTH_INIT", auth_init, 1},
+    { "AUTH_FINI", auth_fini, 1},
+    { "CRYPTO_INIT", crypto_init, 1 },
+    { "CRYPTO_FINI", crypto_fini, 1 },
+    { NULL, NULL, 0 }
+  };
 
-  CU_ASSERT_FATAL ((g_part1_participant = dds_create_participant (DDS_DOMAINID_PART1, NULL, NULL)) > 0);
-  CU_ASSERT_FATAL ((g_part2_participant = dds_create_participant (DDS_DOMAINID_PART2, NULL, NULL)) > 0);
+  char *conf = ddsrt_expand_vars_sh (config, &expand_lookup_vars_env, config_vars);
+  int32_t unmatched = expand_lookup_unmatched (config_vars);
+  CU_ASSERT_EQUAL_FATAL (unmatched, 0);
+  g_domain1 = dds_create_domain (DDS_DOMAINID1, conf);
+  g_domain2 = dds_create_domain (DDS_DOMAINID2, conf);
+  dds_free (conf);
+
+  g_participant1 = dds_create_participant (DDS_DOMAINID1, NULL, NULL);
+  CU_ASSERT_FATAL (g_participant1 > 0);
+  g_participant2 = dds_create_participant (DDS_DOMAINID2, NULL, NULL);
+  CU_ASSERT_FATAL (g_participant2 > 0);
 }
 
 static void handshake_fini(void)
 {
-  CU_ASSERT_EQUAL_FATAL (dds_delete (g_part1_participant), DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL_FATAL (dds_delete (g_part2_participant), DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL_FATAL (dds_delete (g_part1_domain), DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL_FATAL (dds_delete (g_part2_domain), DDS_RETCODE_OK);
+  dds_return_t ret = dds_delete (g_domain1);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_delete (g_domain2);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 }
 
-CU_Test(ddssec_handshake, happy_day, .init = handshake_init, .fini = handshake_fini)
+CU_Test(ddssec_handshake, happy_day)
 {
-  validate_handshake_nofail (DDS_DOMAINID_PART1);
-  validate_handshake_nofail (DDS_DOMAINID_PART2);
+  handshake_init (
+    "init_test_authentication_wrapped", "finalize_test_authentication_wrapped",
+    "init_test_cryptography_wrapped", "finalize_test_cryptography_wrapped");
+  validate_handshake_nofail (DDS_DOMAINID1);
+  validate_handshake_nofail (DDS_DOMAINID2);
+  handshake_fini ();
+}
+
+CU_Test(ddssec_handshake, check_tokens)
+{
+  handshake_init (
+    "init_test_authentication_wrapped", "finalize_test_authentication_wrapped",
+    "init_test_cryptography_store_tokens", "finalize_test_cryptography_store_tokens");
+  validate_handshake_nofail (DDS_DOMAINID1);
+  validate_handshake_nofail (DDS_DOMAINID2);
+
+  char topic_name[100];
+  create_topic_name("ddssec_authentication_", g_topic_nr++, topic_name, sizeof (topic_name));
+  rd_wr_init (g_participant1, &g_pub, &g_pub_tp, &g_wr, g_participant2, &g_sub, &g_sub_tp, &g_rd, topic_name);
+  write_read_for (g_wr, g_participant2, g_rd, DDS_MSECS (100), false, false);
+
+  // Get subscriber and publisher crypto tokens
+  struct dds_security_cryptography_impl * crypto_context_pub = get_crypto_context (g_participant1);
+  CU_ASSERT_FATAL (crypto_context_pub != NULL);
+  struct ddsrt_circlist *pub_tokens = get_crypto_tokens (crypto_context_pub);
+
+  struct dds_security_cryptography_impl * crypto_context_sub = get_crypto_context (g_participant2);
+  CU_ASSERT_FATAL (crypto_context_sub != NULL);
+  struct ddsrt_circlist *sub_tokens = get_crypto_tokens (crypto_context_sub);
+
+  // Find all publisher tokens in subscribers token store
+  while (!ddsrt_circlist_isempty (pub_tokens))
+  {
+    struct ddsrt_circlist_elem *list_elem = ddsrt_circlist_oldest (pub_tokens);
+    struct crypto_token_data *token_data = DDSRT_FROM_CIRCLIST (struct crypto_token_data, e, list_elem);
+    enum crypto_tokens_type exp_type = TOKEN_TYPE_INVALID;
+    for (size_t n = 0; n < token_data->n_tokens; n++)
+    {
+      switch (token_data->type)
+      {
+        case LOCAL_PARTICIPANT_TOKENS: exp_type = REMOTE_PARTICIPANT_TOKENS; break;
+        case REMOTE_PARTICIPANT_TOKENS: exp_type = LOCAL_PARTICIPANT_TOKENS; break;
+        case LOCAL_WRITER_TOKENS: exp_type = REMOTE_WRITER_TOKENS; break;
+        case REMOTE_WRITER_TOKENS: exp_type = LOCAL_WRITER_TOKENS; break;
+        case LOCAL_READER_TOKENS: exp_type = REMOTE_READER_TOKENS; break;
+        case REMOTE_READER_TOKENS: exp_type = LOCAL_READER_TOKENS; break;
+        default: CU_FAIL ("Unexpected token type");
+      }
+      printf("- find token %s #%"PRIuSIZE", len %"PRIuSIZE"\n", get_crypto_token_type_str (token_data->type), n, token_data->data_len[n]);
+      struct crypto_token_data *st = find_crypto_token (crypto_context_sub, exp_type, token_data->data[n], token_data->data_len[n]);
+      CU_ASSERT_FATAL (st != NULL);
+    }
+    ddsrt_circlist_remove (pub_tokens, list_elem);
+    ddsrt_free (token_data);
+  }
+
+  // Cleanup
+  while (!ddsrt_circlist_isempty (sub_tokens))
+  {
+    struct ddsrt_circlist_elem *list_elem = ddsrt_circlist_oldest (sub_tokens);
+    ddsrt_circlist_remove (sub_tokens, list_elem);
+    ddsrt_free (list_elem);
+  }
+  ddsrt_free (sub_tokens);
+  ddsrt_free (pub_tokens);
+  handshake_fini ();
 }

@@ -12,12 +12,36 @@
 #ifndef SECURITY_CORE_TEST_CRYPTO_WRAPPER_H_
 #define SECURITY_CORE_TEST_CRYPTO_WRAPPER_H_
 
+#include "dds/ddsrt/circlist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/dds_security_api_defs.h"
 #include "dds/security/cryptography_wrapper_export.h"
 
+#define CRYPTO_TOKEN_MAXLEN 10
+#define CRYPTO_TOKEN_SIZE 256
+
 struct dds_security_cryptography_impl;
+
+enum crypto_tokens_type {
+  LOCAL_PARTICIPANT_TOKENS,
+  LOCAL_WRITER_TOKENS,
+  LOCAL_READER_TOKENS,
+  REMOTE_PARTICIPANT_TOKENS,
+  REMOTE_WRITER_TOKENS,
+  REMOTE_READER_TOKENS,
+  TOKEN_TYPE_INVALID
+};
+
+struct crypto_token_data {
+  struct ddsrt_circlist_elem e;
+  enum crypto_tokens_type type;
+  DDS_Security_ParticipantCryptoHandle local_handle;
+  DDS_Security_ParticipantCryptoHandle remote_handle;
+  uint32_t n_tokens;
+  unsigned char data[CRYPTO_TOKEN_MAXLEN][CRYPTO_TOKEN_SIZE];
+  size_t data_len[CRYPTO_TOKEN_MAXLEN];
+};
 
 SECURITY_EXPORT void set_protection_kinds(
   struct dds_security_cryptography_impl * impl,
@@ -34,6 +58,10 @@ SECURITY_EXPORT void set_disc_protection_kinds(
 
 SECURITY_EXPORT void set_entity_data_secret(struct dds_security_cryptography_impl * impl, const char * pp_secret, const char * groupdata_secret, const char * ep_secret);
 
+SECURITY_EXPORT const char *get_crypto_token_type_str (enum crypto_tokens_type type);
+SECURITY_EXPORT struct ddsrt_circlist * get_crypto_tokens (struct dds_security_cryptography_impl * impl);
+SECURITY_EXPORT struct crypto_token_data * find_crypto_token (struct dds_security_cryptography_impl * impl, enum crypto_tokens_type type, unsigned char * data, size_t data_len);
+
 /* Init in all-ok mode: all functions return success without calling the actual plugin */
 SECURITY_EXPORT int init_test_cryptography_all_ok(const char *argument, void **context, struct ddsi_domaingv *gv);
 SECURITY_EXPORT int finalize_test_cryptography_all_ok(void *context);
@@ -45,5 +73,9 @@ SECURITY_EXPORT int finalize_test_cryptography_missing_func(void *context);
 /* Init in wrapper mode */
 SECURITY_EXPORT int init_test_cryptography_wrapped(const char *argument, void **context, struct ddsi_domaingv *gv);
 SECURITY_EXPORT int finalize_test_cryptography_wrapped(void *context);
+
+/* Init in store-token mode (stores all exchanged security tokens) */
+SECURITY_EXPORT int32_t init_test_cryptography_store_tokens(const char *argument, void **context, struct ddsi_domaingv *gv);
+SECURITY_EXPORT int32_t finalize_test_cryptography_store_tokens(void *context);
 
 #endif /* SECURITY_CORE_TEST_CRYPTO_WRAPPER_H_ */

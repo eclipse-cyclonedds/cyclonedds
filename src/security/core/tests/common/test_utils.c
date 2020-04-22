@@ -18,6 +18,10 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_security_omg.h"
+#include "dds__entity.h"
 #include "dds/security/dds_security_api.h"
 #include "authentication_wrapper.h"
 #include "test_utils.h"
@@ -448,4 +452,22 @@ void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_du
   while (dds_time () < tend);
   CU_ASSERT_EQUAL_FATAL (write_fail, exp_write_fail);
   CU_ASSERT_EQUAL_FATAL (read_fail, exp_read_fail);
+}
+
+struct dds_security_cryptography_impl * get_crypto_context(dds_entity_t participant)
+{
+  struct dds_entity *pp_entity = NULL;
+  struct participant *pp;
+  struct dds_security_cryptography_impl *context;
+  dds_return_t ret;
+
+  ret = dds_entity_lock (participant, DDS_KIND_PARTICIPANT, &pp_entity);
+  CU_ASSERT_EQUAL_FATAL (ret, 0);
+  thread_state_awake (lookup_thread_state(), &pp_entity->m_domain->gv);
+  pp = entidx_lookup_participant_guid (pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
+  CU_ASSERT_FATAL (pp != NULL);
+  context = (struct dds_security_cryptography_impl *) q_omg_participant_get_cryptography (pp);
+  thread_state_asleep (lookup_thread_state ());
+  dds_entity_unlock (pp_entity);
+  return context;
 }

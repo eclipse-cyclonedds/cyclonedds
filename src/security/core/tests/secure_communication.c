@@ -27,14 +27,11 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_xqos.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/ddsi_security_omg.h"
-#include "dds__entity.h"
 #include "dds/security/dds_security_api.h"
 
 #include "common/config_env.h"
 #include "common/test_identity.h"
+#include "common/test_utils.h"
 #include "common/security_config_test_utils.h"
 #include "common/cryptography_wrapper.h"
 
@@ -119,25 +116,6 @@ typedef void (*set_crypto_params_fn)(struct dds_security_cryptography_impl *, co
 typedef dds_entity_t (*pubsub_create_fn)(dds_entity_t, const dds_qos_t *qos, const dds_listener_t *listener);
 typedef dds_entity_t (*ep_create_fn)(dds_entity_t, dds_entity_t, const dds_qos_t *qos, const dds_listener_t *listener);
 
-
-static struct dds_security_cryptography_impl * get_crypto_context(dds_entity_t participant)
-{
-  struct dds_entity *pp_entity = NULL;
-  struct participant *pp;
-  struct dds_security_cryptography_impl *context;
-  dds_return_t ret;
-
-  ret = dds_entity_lock (participant, DDS_KIND_PARTICIPANT, &pp_entity);
-  CU_ASSERT_EQUAL_FATAL (ret, 0);
-  thread_state_awake (lookup_thread_state(), &pp_entity->m_domain->gv);
-  pp = entidx_lookup_participant_guid (pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
-  CU_ASSERT_FATAL (pp != NULL);
-  context = (struct dds_security_cryptography_impl *) q_omg_participant_get_cryptography (pp);
-  thread_state_asleep (lookup_thread_state ());
-  dds_entity_unlock (pp_entity);
-  return context;
-}
-
 static const char * pk_to_str(DDS_Security_ProtectionKind pk)
 {
   switch (pk)
@@ -179,14 +157,6 @@ static dds_qos_t *get_qos()
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
   dds_qset_userdata (qos, g_ep_secret, strlen (g_ep_secret));
   return qos;
-}
-
-static char *create_topic_name(const char *prefix, uint32_t nr, char *name, size_t size)
-{
-  ddsrt_pid_t pid = ddsrt_getpid ();
-  ddsrt_tid_t tid = ddsrt_gettid ();
-  (void)snprintf(name, size, "%s%d_pid%" PRIdPID "_tid%" PRIdTID "", prefix, nr, pid, tid);
-  return name;
 }
 
 static dds_entity_t create_pp (dds_domainid_t domain_id, const struct domain_sec_config * domain_config, set_crypto_params_fn set_crypto_params)
@@ -280,45 +250,6 @@ static void test_fini(size_t n_sub_domain, size_t n_pub_domain)
   printf("Test finished\n");
 }
 
-static void sync_writer_to_readers(dds_entity_t pub_participant, dds_entity_t writer, size_t n_exp_rd)
-{
-  dds_attach_t triggered;
-  dds_return_t ret;
-  dds_entity_t waitset_wr = dds_create_waitset (pub_participant);
-  CU_ASSERT_FATAL (waitset_wr > 0);
-  dds_publication_matched_status_t pub_matched;
-
-  /* Sync writer to reader. */
-  ret = dds_waitset_attach (waitset_wr, writer, writer);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  while (true)
-  {
-    ret = dds_waitset_wait (waitset_wr, &triggered, 1, DDS_SECS(5));
-    CU_ASSERT_FATAL (ret >= 1);
-    CU_ASSERT_EQUAL_FATAL (writer, (dds_entity_t)(intptr_t) triggered);
-    ret = dds_get_publication_matched_status(writer, &pub_matched);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-    if (pub_matched.total_count >= n_exp_rd)
-      break;
-  };
-  dds_delete (waitset_wr);
-}
-
-static void reader_wait_for_data(dds_entity_t sub_participant, dds_entity_t reader)
-{
-  dds_attach_t triggered;
-  dds_return_t ret;
-  dds_entity_t waitset_rd = dds_create_waitset (sub_participant);
-  CU_ASSERT_FATAL (waitset_rd > 0);
-
-  ret = dds_waitset_attach (waitset_rd, reader, reader);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  ret = dds_waitset_wait (waitset_rd, &triggered, 1, DDS_SECS(5));
-  CU_ASSERT_EQUAL_FATAL (ret, 1);
-  CU_ASSERT_EQUAL_FATAL (reader, (dds_entity_t)(intptr_t)triggered);
-  dds_delete (waitset_rd);
-}
-
 static void create_eps (dds_entity_t **endpoints, dds_entity_t **topics, size_t n_dom, size_t n_pp, size_t n_eps, const char * topic_name, const dds_topic_descriptor_t *topic_descriptor,
     const dds_entity_t * pps, const dds_qos_t * qos, ep_create_fn ep_create, unsigned status_mask)
 {
@@ -381,7 +312,7 @@ static void test_write_read(struct domain_sec_config *domain_config,
       for (size_t w = 0; w < n_writers; w++)
       {
         size_t wr_index = pp_index * n_writers + w;
-        sync_writer_to_readers (g_pub_participants[pp_index], writers[wr_index], n_sub_domains * n_sub_participants * n_readers);
+        sync_writer_to_readers (g_pub_participants[pp_index], writers[wr_index], (uint32_t)(n_sub_domains * n_sub_participants * n_readers));
         sample.id = (int32_t) wr_index;
         printf("writer %"PRId32" writing sample %d\n", writers[wr_index], sample.id);
         ret = dds_write (writers[wr_index], &sample);
@@ -404,7 +335,7 @@ static void test_write_read(struct domain_sec_config *domain_config,
           ret = dds_take (readers[rd_index], samples, info, 1, 1);
           if (ret == 0)
           {
-            reader_wait_for_data (g_sub_participants[pp_index], readers[rd_index]);
+            reader_wait_for_data (g_sub_participants[pp_index], readers[rd_index], DDS_SECS(5));
             continue;
           }
           printf("reader %"PRId32" received sample %d\n", readers[rd_index], rd_sample.id);
@@ -500,7 +431,7 @@ static void test_payload_secret(DDS_Security_ProtectionKind rtps_pk, DDS_Securit
   {
     if ((ret = dds_take (readers[0], samples, info, 1, 1)) == 0)
     {
-      reader_wait_for_data (g_sub_participants[0], readers[0]);
+      reader_wait_for_data (g_sub_participants[0], readers[0], DDS_SECS(5));
       continue;
     }
     CU_ASSERT_EQUAL_FATAL (ret, 1);
