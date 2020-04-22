@@ -55,6 +55,8 @@
 
 #define EXCEPTION_LOG(gv,e,cat,...) \
   q_omg_log_exception(&gv->logconfig, cat, e, __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__)
+#define EXCEPTION_VLOG(gv,e,cat,fmt,va_list) \
+  q_omg_vlog_exception(&gv->logconfig, cat, e, __FILE__, __LINE__, DDS_FUNCTION, fmt, va_list)
 
 #define EXCEPTION_ERROR(gv,e,...)     EXCEPTION_LOG(gv, e, DDS_LC_ERROR, __VA_ARGS__)
 #define EXCEPTION_WARNING(gv,e,...)   EXCEPTION_LOG(gv, e, DDS_LC_WARNING, __VA_ARGS__)
@@ -296,21 +298,26 @@ static struct dds_security_context * q_omg_security_get_secure_context_from_prox
   return NULL;
 }
 
-void q_omg_log_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, ...)
+void q_omg_vlog_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, va_list ap)
 {
   char logbuffer[512];
-  va_list ap;
   int l;
 
-  va_start (ap, fmt);
   l = vsnprintf(logbuffer, sizeof(logbuffer), fmt, ap);
-  va_end (ap);
   if ((size_t) l >= sizeof(logbuffer))
   {
     logbuffer[sizeof(logbuffer)-1] = '\0';
   }
   dds_log_cfg(lc, cat, file, line, func, "%s: %s(code: %d)\n", logbuffer, exception->message ? exception->message : "",  exception->code);
   DDS_Security_Exception_reset(exception);
+}
+
+void q_omg_log_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, ...)
+{
+  va_list ap;
+  va_start (ap, fmt);
+  q_omg_vlog_exception(lc, cat, exception, file, line, func, fmt, ap);
+  va_end (ap);
 }
 
 static void free_pending_match(struct pending_match *match)
@@ -1390,6 +1397,20 @@ static bool is_topic_discovery_protected(DDS_Security_PermissionsHandle permissi
   return false;
 }
 
+static void handle_not_allowed(const struct ddsi_domaingv *gv, DDS_Security_PermissionsHandle permissions_handle, dds_security_access_control * ac_ctx,
+  DDS_Security_SecurityException * exception, const char * topic_name, const char * fmt, ...)
+{
+  /* In case topic has discovery protection enabled: don't log in log category error, as the message
+      will contain the topic name which may be considered as sensitive information */
+  va_list ap;
+  bool discovery_protected = is_topic_discovery_protected(permissions_handle, ac_ctx, topic_name);
+  va_start (ap, fmt);
+  EXCEPTION_VLOG(gv, exception, discovery_protected ? DDS_LC_TRACE : DDS_LC_ERROR, fmt, ap);
+  va_end (ap);
+  if (discovery_protected)
+    DDS_Security_Exception_reset(exception);
+}
+
 bool q_omg_security_check_create_topic(const struct ddsi_domaingv *gv, const ddsi_guid_t *pp_guid, const char *topic_name, const struct dds_qos *qos)
 {
   bool result = true;
@@ -1406,13 +1427,7 @@ bool q_omg_security_check_create_topic(const struct ddsi_domaingv *gv, const dds
     q_omg_shallow_copy_security_qos(&topic_qos, qos);
     result = sc->access_control_context->check_create_topic(sc->access_control_context, pp->sec_attr->permissions_handle, (DDS_Security_DomainId)gv->config.domainId, topic_name, &topic_qos, &exception);
     if (!result)
-    {
-      /*log if the topic discovery is not protected*/
-      if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, topic_name))
-        EXCEPTION_ERROR(gv, &exception, "Local topic permission denied");
-      else
-        DDS_Security_Exception_reset(&exception);
-    }
+      handle_not_allowed(gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, topic_name, "Local topic permission denied");
     q_omg_shallow_free_security_qos(&topic_qos);
   }
   thread_state_asleep (lookup_thread_state ());
@@ -1440,13 +1455,7 @@ bool q_omg_security_check_create_writer(struct participant *pp, uint32_t domain_
 
   result = sc->access_control_context->check_create_datawriter(sc->access_control_context, pp->sec_attr->permissions_handle, (DDS_Security_DomainId)domain_id, topic_name, &security_qos, &partitions, NULL, &exception);
   if (!result)
-  {
-    /*log if the topic discovery is not protected*/
-    if (!is_topic_discovery_protected( pp->sec_attr->permissions_handle, sc->access_control_context, topic_name))
-      EXCEPTION_ERROR(pp->e.gv, &exception, "Local topic permission denied");
-    else
-      DDS_Security_Exception_reset(&exception);
-  }
+    handle_not_allowed(pp->e.gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, topic_name, "Local topic permission denied");
 
   q_omg_shallow_free_security_qos(&security_qos);
   g_omg_shallow_free_StringSeq(&partitions.name);
@@ -1561,13 +1570,7 @@ bool q_omg_security_check_create_reader(struct participant *pp, uint32_t domain_
 
   result = sc->access_control_context->check_create_datareader(sc->access_control_context, pp->sec_attr->permissions_handle, (DDS_Security_DomainId)domain_id, topic_name, &security_qos, &partitions, NULL, &exception);
   if (!result)
-  {
-    /*log if the topic discovery is not protected*/
-    if (!is_topic_discovery_protected( pp->sec_attr->permissions_handle, sc->access_control_context, topic_name))
-      EXCEPTION_ERROR(pp->e.gv, &exception, "Reader is not permitted");
-    else
-      DDS_Security_Exception_reset(&exception);
-  }
+    handle_not_allowed(pp->e.gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, topic_name, "Reader is not permitted");
 
   q_omg_shallow_free_security_qos(&security_qos);
   g_omg_shallow_free_StringSeq(&partitions.name);
@@ -2169,10 +2172,8 @@ bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *p
   bool result = sc->access_control_context->check_remote_datawriter(sc->access_control_context, permissions_handle, (int)domain_id, &publication_data, &exception);
   if (!result)
   {
-    if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, publication_data.topic_name))
-      EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote writer "PGUIDFMT": %s", PGUID(pwr->e.guid));
-    else
-      DDS_Security_Exception_reset(&exception);
+    handle_not_allowed(gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, publication_data.topic_name,
+      "Access control does not allow remote writer "PGUIDFMT": %s", PGUID(pwr->e.guid));
   }
   else
   {
@@ -2180,12 +2181,8 @@ bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *p
     result = sc->access_control_context->check_remote_topic(sc->access_control_context, permissions_handle, (int)domain_id, &topic_data, &exception);
     q_omg_shallow_free_TopicBuiltinTopicData(&topic_data);
     if (!result)
-    {
-      if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, publication_data.topic_name))
-        EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote topic %s: %s", publication_data.topic_name);
-      else
-        DDS_Security_Exception_reset(&exception);
-    }
+      handle_not_allowed(gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, publication_data.topic_name,
+        "Access control does not allow remote topic %s: %s", publication_data.topic_name);
   }
   q_omg_shallow_free_PublicationBuiltinTopicDataSecure(&publication_data);
 
@@ -2411,10 +2408,8 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
   bool result = sc->access_control_context->check_remote_datareader(sc->access_control_context, permissions_handle, (int)domain_id, &subscription_data, &sec_relay_only, &exception);
   if (!result)
   {
-    if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, subscription_data.topic_name))
-      EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote reader "PGUIDFMT": %s", PGUID(prd->e.guid));
-    else
-      DDS_Security_Exception_reset(&exception);
+    handle_not_allowed(gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, subscription_data.topic_name,
+      "Access control does not allow remote reader "PGUIDFMT": %s", PGUID(prd->e.guid));
   }
   else
   {
@@ -2423,12 +2418,8 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
     result = sc->access_control_context->check_remote_topic(sc->access_control_context, permissions_handle, (int)domain_id, &topic_data, &exception);
     q_omg_shallow_free_TopicBuiltinTopicData(&topic_data);
     if (!result)
-    {
-      if (!is_topic_discovery_protected(pp->sec_attr->permissions_handle, sc->access_control_context, subscription_data.topic_name))
-        EXCEPTION_ERROR(gv, &exception, "Access control does not allow remote topic %s: %s", subscription_data.topic_name);
-      else
-        DDS_Security_Exception_reset(&exception);
-    }
+      handle_not_allowed(gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, subscription_data.topic_name,
+        "Access control does not allow remote topic %s: %s", subscription_data.topic_name);
   }
   q_omg_shallow_free_SubscriptionBuiltinTopicDataSecure(&subscription_data);
 

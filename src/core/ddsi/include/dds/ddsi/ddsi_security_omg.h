@@ -113,6 +113,7 @@ struct dds_security_authentication *q_omg_participant_get_authentication(const s
 
 DDS_EXPORT struct dds_security_cryptography *q_omg_participant_get_cryptography(const struct participant *pp);
 
+void q_omg_vlog_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, va_list ap);
 void q_omg_log_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, ...);
 
 /**
