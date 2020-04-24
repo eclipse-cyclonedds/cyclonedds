@@ -43,6 +43,20 @@ struct crypto_token_data {
   size_t data_len[CRYPTO_TOKEN_MAXLEN];
 };
 
+enum crypto_encode_decode_fn {
+  ENCODE_DATAWRITER_SUBMESSAGE,
+  ENCODE_DATAREADER_SUBMESSAGE,
+  DECODE_DATAWRITER_SUBMESSAGE,
+  DECODE_DATAREADER_SUBMESSAGE
+};
+
+struct crypto_encode_decode_data {
+  struct ddsrt_circlist_elem e;
+  enum crypto_encode_decode_fn function;
+  DDS_Security_long_long handle;
+  uint32_t count;
+};
+
 SECURITY_EXPORT void set_protection_kinds(
   struct dds_security_cryptography_impl * impl,
   DDS_Security_ProtectionKind rtps_protection_kind,
@@ -61,6 +75,7 @@ SECURITY_EXPORT void set_entity_data_secret(struct dds_security_cryptography_imp
 SECURITY_EXPORT const char *get_crypto_token_type_str (enum crypto_tokens_type type);
 SECURITY_EXPORT struct ddsrt_circlist * get_crypto_tokens (struct dds_security_cryptography_impl * impl);
 SECURITY_EXPORT struct crypto_token_data * find_crypto_token (struct dds_security_cryptography_impl * impl, enum crypto_tokens_type type, unsigned char * data, size_t data_len);
+SECURITY_EXPORT struct crypto_encode_decode_data * get_encode_decode_log (struct dds_security_cryptography_impl * impl, enum crypto_encode_decode_fn function, DDS_Security_long_long handle);
 
 /* Init in all-ok mode: all functions return success without calling the actual plugin */
 SECURITY_EXPORT int init_test_cryptography_all_ok(const char *argument, void **context, struct ddsi_domaingv *gv);

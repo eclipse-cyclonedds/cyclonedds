@@ -38,6 +38,12 @@ int numRemote = 0;
 struct Handshake handshakeList[MAX_HANDSHAKES];
 int numHandshake = 0;
 
+const char * g_pk_none = "NONE";
+const char * g_pk_sign = "SIGN";
+const char * g_pk_encrypt = "ENCRYPT";
+const char * g_pk_sign_oa = "SIGN_WITH_ORIGIN_AUTHENTICATION";
+const char * g_pk_encrypt_oa = "ENCRYPT_WITH_ORIGIN_AUTHENTICATION";
+
 static char * get_validation_result_str (DDS_Security_ValidationResult_t result)
 {
   switch (result)
@@ -470,4 +476,30 @@ struct dds_security_cryptography_impl * get_crypto_context(dds_entity_t particip
   thread_state_asleep (lookup_thread_state ());
   dds_entity_unlock (pp_entity);
   return context;
+}
+
+const char * pk_to_str(DDS_Security_ProtectionKind pk)
+{
+  switch (pk)
+  {
+    case DDS_SECURITY_PROTECTION_KIND_NONE: return g_pk_none;
+    case DDS_SECURITY_PROTECTION_KIND_SIGN: return g_pk_sign;
+    case DDS_SECURITY_PROTECTION_KIND_ENCRYPT: return g_pk_encrypt;
+    case DDS_SECURITY_PROTECTION_KIND_SIGN_WITH_ORIGIN_AUTHENTICATION: return g_pk_sign_oa;
+    case DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION: return g_pk_encrypt_oa;
+  }
+  assert (false);
+  return NULL;
+}
+
+const char * bpk_to_str(DDS_Security_BasicProtectionKind bpk)
+{
+  switch (bpk)
+  {
+    case DDS_SECURITY_BASICPROTECTION_KIND_NONE: return g_pk_none;
+    case DDS_SECURITY_BASICPROTECTION_KIND_SIGN: return g_pk_sign;
+    case DDS_SECURITY_BASICPROTECTION_KIND_ENCRYPT: return g_pk_encrypt;
+  }
+  assert (false);
+  return NULL;
 }

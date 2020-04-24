@@ -74,6 +74,8 @@ struct dds_security_cryptography_impl {
   const char * encrypted_secret;
   ddsrt_mutex_t token_data_lock;
   struct ddsrt_circlist token_data_list;
+  ddsrt_mutex_t encode_decode_log_lock;
+  struct ddsrt_circlist encode_decode_log;
 };
 
 static DDS_Security_ParticipantCryptoHandle g_local_participant_handle = 0;
@@ -211,6 +213,12 @@ struct ddsrt_circlist * get_crypto_tokens (struct dds_security_cryptography_impl
   ddsrt_circlist_init (tokens);
 
   ddsrt_mutex_lock (&impl->token_data_lock);
+  if (ddsrt_circlist_isempty (&impl->encode_decode_log))
+  {
+    ddsrt_mutex_unlock (&impl->token_data_lock);
+    return tokens;
+  }
+
   struct ddsrt_circlist_elem *elem0 = ddsrt_circlist_oldest (&impl->token_data_list), *elem = elem0;
   while (elem != NULL)
   {
@@ -231,6 +239,11 @@ struct crypto_token_data * find_crypto_token (struct dds_security_cryptography_i
 {
   assert (data_len <= CRYPTO_TOKEN_SIZE);
   ddsrt_mutex_lock (&impl->token_data_lock);
+  if (ddsrt_circlist_isempty (&impl->encode_decode_log))
+  {
+    ddsrt_mutex_unlock (&impl->token_data_lock);
+    return NULL;
+  }
   struct ddsrt_circlist_elem *elem0 = ddsrt_circlist_oldest (&impl->token_data_list), *elem = elem0;
   while (elem != NULL)
   {
@@ -253,6 +266,60 @@ struct crypto_token_data * find_crypto_token (struct dds_security_cryptography_i
       break;
   }
   ddsrt_mutex_unlock (&impl->token_data_lock);
+  return NULL;
+}
+
+static void log_encode_decode (struct dds_security_cryptography_impl * impl, enum crypto_encode_decode_fn function, DDS_Security_long_long handle)
+{
+  ddsrt_mutex_lock (&impl->encode_decode_log_lock);
+  if (!ddsrt_circlist_isempty (&impl->encode_decode_log))
+  {
+    struct ddsrt_circlist_elem *elem0 = ddsrt_circlist_oldest (&impl->encode_decode_log), *elem = elem0;
+    while (elem != NULL)
+    {
+      struct crypto_encode_decode_data *data = DDSRT_FROM_CIRCLIST (struct crypto_encode_decode_data, e, elem);
+      if (data->function == function && data->handle == handle)
+      {
+        data->count++;
+        ddsrt_mutex_unlock (&impl->encode_decode_log_lock);
+        return;
+      }
+      elem = elem->next;
+      if (elem == elem0)
+        break;
+    }
+  }
+  /* add new entry */
+  struct crypto_encode_decode_data *new_data = ddsrt_malloc (sizeof (*new_data));
+  new_data->function = function;
+  new_data->handle = handle;
+  new_data->count = 1;
+  ddsrt_circlist_append(&impl->encode_decode_log, &new_data->e);
+  ddsrt_mutex_unlock (&impl->encode_decode_log_lock);
+}
+
+struct crypto_encode_decode_data * get_encode_decode_log (struct dds_security_cryptography_impl * impl, enum crypto_encode_decode_fn function, DDS_Security_long_long handle)
+{
+  ddsrt_mutex_lock (&impl->encode_decode_log_lock);
+  if (!ddsrt_circlist_isempty (&impl->encode_decode_log))
+  {
+    struct ddsrt_circlist_elem *elem0 = ddsrt_circlist_oldest (&impl->encode_decode_log), *elem = elem0;
+    while (elem != NULL)
+    {
+      struct crypto_encode_decode_data *data = DDSRT_FROM_CIRCLIST (struct crypto_encode_decode_data, e, elem);
+      if (data->function == function && data->handle == handle)
+      {
+        struct crypto_encode_decode_data *result = ddsrt_malloc (sizeof (*result));
+        memcpy (result, data, sizeof (*result));
+        ddsrt_mutex_unlock (&impl->encode_decode_log_lock);
+        return result;
+      }
+      elem = elem->next;
+      if (elem == elem0)
+        break;
+    }
+  }
+  ddsrt_mutex_unlock (&impl->encode_decode_log_lock);
   return NULL;
 }
 
@@ -705,6 +772,8 @@ static DDS_Security_boolean encode_datawriter_submessage(
   switch (impl->parent->mode)
   {
     case PLUGIN_MODE_WRAPPED:
+      log_encode_decode (impl->parent, ENCODE_DATAWRITER_SUBMESSAGE, sending_datawriter_crypto);
+      /* fall-through */
     case PLUGIN_MODE_TOKEN_LOG:
       if (!impl->instance->encode_datawriter_submessage (impl->instance, encoded_rtps_submessage,
         plain_rtps_submessage, check_handle (sending_datawriter_crypto), receiving_datareader_crypto_list, receiving_datareader_crypto_list_index, ex))
@@ -753,6 +822,8 @@ static DDS_Security_boolean encode_datareader_submessage(
   switch (impl->parent->mode)
   {
     case PLUGIN_MODE_WRAPPED:
+      log_encode_decode (impl->parent, ENCODE_DATAREADER_SUBMESSAGE, sending_datareader_crypto);
+      /* fall-through */
     case PLUGIN_MODE_TOKEN_LOG:
       if (!impl->instance->encode_datareader_submessage (impl->instance, encoded_rtps_submessage,
         plain_rtps_submessage, check_handle (sending_datareader_crypto), receiving_datawriter_crypto_list, ex))
@@ -850,6 +921,8 @@ static DDS_Security_boolean decode_datawriter_submessage(
   switch (impl->parent->mode)
   {
     case PLUGIN_MODE_WRAPPED:
+      log_encode_decode (impl->parent, DECODE_DATAWRITER_SUBMESSAGE, receiving_datareader_crypto);
+      /* fall-through */
     case PLUGIN_MODE_TOKEN_LOG:
       return impl->instance->decode_datawriter_submessage (impl->instance, plain_rtps_submessage,
           encoded_rtps_submessage, check_handle (receiving_datareader_crypto), check_handle (sending_datawriter_crypto), ex);
@@ -870,6 +943,8 @@ static DDS_Security_boolean decode_datareader_submessage(
   switch (impl->parent->mode)
   {
     case PLUGIN_MODE_WRAPPED:
+      log_encode_decode (impl->parent, DECODE_DATAREADER_SUBMESSAGE, receiving_datawriter_crypto);
+      /* fall-through */
     case PLUGIN_MODE_TOKEN_LOG:
       return impl->instance->decode_datareader_submessage (impl->instance, plain_rtps_submessage,
           encoded_rtps_submessage, check_handle (receiving_datawriter_crypto), check_handle (sending_datareader_crypto), ex);
@@ -1006,6 +1081,8 @@ int init_test_cryptography_wrapped(const char *argument, void **context, struct 
   if (!impl)
     return DDS_SECURITY_FAILED;
   impl->mode = PLUGIN_MODE_WRAPPED;
+  ddsrt_mutex_init (&impl->encode_decode_log_lock);
+  ddsrt_circlist_init (&impl->encode_decode_log);
   *context = impl;
   return DDS_SECURITY_SUCCESS;
 }
@@ -1014,6 +1091,15 @@ int finalize_test_cryptography_wrapped(void *context)
 {
   struct dds_security_cryptography_impl* impl = (struct dds_security_cryptography_impl*) context;
   assert(impl->mode == PLUGIN_MODE_WRAPPED);
+  ddsrt_mutex_lock (&impl->encode_decode_log_lock);
+  while (!ddsrt_circlist_isempty (&impl->encode_decode_log))
+  {
+    struct ddsrt_circlist_elem *list_elem = ddsrt_circlist_oldest (&impl->encode_decode_log);
+    ddsrt_circlist_remove (&impl->encode_decode_log, list_elem);
+    ddsrt_free (list_elem);
+  }
+  ddsrt_mutex_unlock (&impl->encode_decode_log_lock);
+  ddsrt_mutex_destroy (&impl->encode_decode_log_lock);
   return finalize_test_cryptography_common(impl, true);
 }
 
@@ -1043,12 +1129,12 @@ int32_t finalize_test_cryptography_store_tokens(void *context)
   while (!ddsrt_circlist_isempty (&impl->token_data_list))
   {
     struct ddsrt_circlist_elem *list_elem = ddsrt_circlist_oldest (&impl->token_data_list);
-    struct crypto_token_data *token_data = DDSRT_FROM_CIRCLIST (struct crypto_token_data, e, list_elem);
     ddsrt_circlist_remove (&impl->token_data_list, list_elem);
-    ddsrt_free (token_data);
+    ddsrt_free (list_elem);
   }
   ddsrt_mutex_unlock (&impl->token_data_lock);
   ddsrt_mutex_destroy (&impl->token_data_lock);
+
   /* don't detroy g_print_token_lock as this will result in multiple
      calls to mutex_destroy for this lock in case of multiple domains */
 

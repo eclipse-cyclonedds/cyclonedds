@@ -29,6 +29,17 @@
 #include "common/config_env.h"
 #include "security_config_test_utils.h"
 
+static const char *topic_rule =
+    "        <topic_rule>"
+    "          <topic_expression>${TOPIC_EXPRESSION}</topic_expression>"
+    "          <enable_discovery_protection>${ENABLE_DISC_PROTECTION}</enable_discovery_protection>"
+    "          <enable_liveliness_protection>${ENABLE_LIVELINESS_PROTECTION}</enable_liveliness_protection>"
+    "          <enable_read_access_control>${ENABLE_READ_AC}</enable_read_access_control>"
+    "          <enable_write_access_control>${ENABLE_WRITE_AC}</enable_write_access_control>"
+    "          <metadata_protection_kind>${METADATA_PROTECTION_KIND}</metadata_protection_kind>"
+    "          <data_protection_kind>${DATA_PROTECTION_KIND}</data_protection_kind>"
+    "        </topic_rule>";
+
 static const char *governance_xml =
     "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
     "<dds xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"https://www.omg.org/spec/DDS-SECURITY/20170901/omg_shared_ca_governance.xsd\">"
@@ -46,15 +57,7 @@ static const char *governance_xml =
     "      <liveliness_protection_kind>${LIVELINESS_PROTECTION_KIND:-NONE}</liveliness_protection_kind>"
     "      <rtps_protection_kind>${RTPS_PROTECTION_KIND:-NONE}</rtps_protection_kind>"
     "      <topic_access_rules>"
-    "        <topic_rule>"
-    "          <topic_expression>*</topic_expression>"
-    "          <enable_discovery_protection>${ENABLE_DISC_PROTECTION:-false}</enable_discovery_protection>"
-    "          <enable_liveliness_protection>${ENABLE_LIVELINESS_PROTECTION:-false}</enable_liveliness_protection>"
-    "          <enable_read_access_control>${ENABLE_READ_AC:-true}</enable_read_access_control>"
-    "          <enable_write_access_control>${ENABLE_WRITE_AC:-true}</enable_write_access_control>"
-    "          <metadata_protection_kind>${METADATA_PROTECTION_KIND:-NONE}</metadata_protection_kind>"
-    "          <data_protection_kind>${DATA_PROTECTION_KIND:-NONE}</data_protection_kind>"
-    "        </topic_rule>"
+    "        ${TOPIC_RULES}"
     "      </topic_access_rules>"
     "    </domain_rule>"
     "  </domain_access_rules>"
@@ -207,11 +210,48 @@ static char * prefix_data (char * config_signed, bool add_prefix)
   return config_signed;
 }
 
-char * get_governance_config(struct kvp *config_vars, bool add_prefix)
+static void print_config_vars(struct kvp *vars)
 {
-  char * config = ddsrt_expand_vars (governance_xml, &expand_lookup_vars, config_vars);
+  for (uint32_t i = 0; vars[i].key != NULL; i++)
+    printf("%s=%s; ", vars[i].key, vars[i].value);
+}
+
+char * get_governance_topic_rule(const char * topic_expr, bool discovery_protection, bool liveliness_protection,
+    bool read_ac, bool write_ac, const char * metadata_protection_kind, const char * data_protection_kind)
+{
+  struct kvp vars[] = {
+    { "TOPIC_EXPRESSION", topic_expr != NULL ? topic_expr : "*", 1 },
+    { "ENABLE_DISC_PROTECTION", discovery_protection ? "true" : "false", 1 },
+    { "ENABLE_LIVELINESS_PROTECTION", liveliness_protection ? "true" : "false", 1 },
+    { "ENABLE_READ_AC", read_ac ? "true" : "false", 1 },
+    { "ENABLE_WRITE_AC", write_ac ? "true" : "false", 1 },
+    { "METADATA_PROTECTION_KIND", metadata_protection_kind != NULL ? metadata_protection_kind : "NONE", 1 },
+    { "DATA_PROTECTION_KIND", data_protection_kind != NULL ? data_protection_kind : "NONE", 1 },
+    { NULL, NULL, 0 }
+  };
+  return ddsrt_expand_vars (topic_rule, &expand_lookup_vars, vars);
+}
+
+char * get_governance_config(bool allow_unauth_pp, bool enable_join_ac, const char * discovery_protection_kind, const char * liveliness_protection_kind,
+    const char * rtps_protection_kind, const char * topic_rules, bool add_prefix)
+{
+  struct kvp vars[] = {
+    { "ALLOW_UNAUTH_PP", allow_unauth_pp ? "true" : "false", 1 },
+    { "ENABLE_JOIN_AC", enable_join_ac ? "true" : "false", 1 },
+    { "DISCOVERY_PROTECTION_KIND", discovery_protection_kind != NULL ? discovery_protection_kind : "NONE", 1 },
+    { "LIVELINESS_PROTECTION_KIND", liveliness_protection_kind != NULL ? liveliness_protection_kind : "NONE", 1 },
+    { "RTPS_PROTECTION_KIND", rtps_protection_kind != NULL ? rtps_protection_kind : "NONE", 1 },
+    { "TOPIC_RULES", topic_rules != NULL ? topic_rules : get_governance_topic_rule (NULL, false, false, false, false, NULL, NULL), 1 },
+    { NULL, NULL, 0 }
+  };
+  char * config = ddsrt_expand_vars (governance_xml, &expand_lookup_vars, vars);
   char * config_signed = get_signed_data (config);
   ddsrt_free (config);
+
+  printf("Governance configuration: ");
+  print_config_vars(vars);
+  printf("\n");
+
   return prefix_data (config_signed, add_prefix);
 }
 
