@@ -23,15 +23,20 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_xqos.h"
+#include "dds__entity.h"
 
 #include "dds/security/dds_security_api.h"
 
 #include "common/config_env.h"
 #include "common/access_control_wrapper.h"
+#include "common/cryptography_wrapper.h"
 #include "common/security_config_test_utils.h"
 #include "common/test_identity.h"
 #include "common/test_utils.h"
@@ -59,7 +64,7 @@ static const char *config =
     "      ${INCL_PERM:+<Permissions><![CDATA[}${TEST_PERMISSIONS}${INCL_PERM:+]]></Permissions>}"
     "    </AccessControl>"
     "    <Cryptographic>"
-    "      <Library finalizeFunction=\"finalize_crypto\" initFunction=\"init_crypto\"/>"
+    "      <Library initFunction=\"${CRYPTO_INIT:-init_test_cryptography_wrapped}\" finalizeFunction=\"${CRYPTO_INIT:-finalize_test_cryptography_wrapped}\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
     "    </Cryptographic>"
     "  </DDSSecurity>"
     "</Domain>";
@@ -113,6 +118,41 @@ static void access_control_fini(size_t n)
   for (size_t i = 0; i < n; i++)
     CU_ASSERT_EQUAL_FATAL (dds_delete (g_domain[i]), DDS_RETCODE_OK);
 }
+
+static DDS_Security_DatawriterCryptoHandle get_builtin_writer_crypto_handle(dds_entity_t participant, unsigned entityid)
+{
+  DDS_Security_DatawriterCryptoHandle crypto_handle;
+  struct dds_entity *pp_entity;
+  struct participant *pp;
+  struct writer *wr;
+  CU_ASSERT_EQUAL_FATAL(dds_entity_pin(participant, &pp_entity), 0);
+  thread_state_awake(lookup_thread_state(), &pp_entity->m_domain->gv);
+  pp = entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
+  wr = get_builtin_writer(pp, entityid);
+  CU_ASSERT_FATAL(wr != NULL);
+  assert(wr != NULL); /* for Clang's static analyzer */
+  crypto_handle = wr->sec_attr->crypto_handle;
+  thread_state_asleep(lookup_thread_state());
+  dds_entity_unpin(pp_entity);
+  return crypto_handle;
+}
+
+// static DDS_Security_DatawriterCryptoHandle get_writer_crypto_handle(dds_entity_t writer)
+// {
+//   DDS_Security_DatawriterCryptoHandle crypto_handle;
+//   struct dds_entity *wr_entity;
+//   struct writer *wr;
+//   CU_ASSERT_EQUAL_FATAL(dds_entity_pin(writer, &wr_entity), 0);
+//   thread_state_awake(lookup_thread_state(), &wr_entity->m_domain->gv);
+//   wr = entidx_lookup_writer_guid(wr_entity->m_domain->gv.entity_index, &wr_entity->m_guid);
+//   CU_ASSERT_FATAL(wr != NULL);
+//   assert(wr != NULL); /* for Clang's static analyzer */
+//   crypto_handle = wr->sec_attr->crypto_handle;
+//   thread_state_asleep(lookup_thread_state());
+//   dds_entity_unpin(wr_entity);
+//   return crypto_handle;
+// }
+
 
 #define GOV_F PF_F COMMON_ETC_PATH("default_governance.p7s")
 #define GOV_FNE PF_F COMMON_ETC_PATH("default_governance_non_existing.p7s")
@@ -512,11 +552,9 @@ CU_Theory(
     get_permissions_grant ("id2", id2_subj, perm_inv_pp2 ? "99" : NULL, now, now + DDS_SECS(3600), perm_topic, perm_topic, NULL) };
   char * perm_config = get_permissions_config (grants, 2, true);
 
-  struct kvp governance_vars_pp1[] = { { "ENABLE_JOIN_AC", join_ac_pp1 ? "true" : "false", 1 }, { NULL, NULL, 0 } };
-  struct kvp governance_vars_pp2[] = { { "ENABLE_JOIN_AC", join_ac_pp2 ? "true" : "false", 1 }, { NULL, NULL, 0 } };
-
-  char * gov_config_pp1 = get_governance_config (governance_vars_pp1, true);
-  char * gov_config_pp2 = get_governance_config (governance_vars_pp2, true);
+  char * gov_topic_rule = get_governance_topic_rule ("*", false, false, true, true, "NONE", "NONE");
+  char * gov_config_pp1 = get_governance_config (false, join_ac_pp1, NULL, NULL, NULL, gov_topic_rule, true);
+  char * gov_config_pp2 = get_governance_config (false, join_ac_pp2, NULL, NULL, NULL, gov_topic_rule, true);
   const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
 
   access_control_init (
@@ -536,6 +574,109 @@ CU_Theory(
 
   ddsrt_free (gov_config_pp1);
   ddsrt_free (gov_config_pp2);
+  ddsrt_free (gov_topic_rule);
+  ddsrt_free (perm_topic);
+  ddsrt_free (grants[0]);
+  ddsrt_free (grants[1]);
+  ddsrt_free (perm_config);
+  ddsrt_free (ca);
+  ddsrt_free (id1_subj);
+  ddsrt_free (id2_subj);
+  ddsrt_free (id1);
+  ddsrt_free (id2);
+}
+
+#define na false
+#define E ENCRYPT
+CU_TheoryDataPoints(ddssec_access_control, discovery_protection) = {
+    CU_DataPoints(const char *,
+    /*                                        */"disabled",
+    /*                                         |     */"enabled, protection kind none",
+    /*                                         |      |     */"disabled, protection kind encrypt",
+    /*                                         |      |      |     */"enabled, protection kind encrypt",
+    /*                                         |      |      |      |     */"enabled, protection kind sign",
+    /*                                         |      |      |      |      |     */"enabled, protection kind encrypt-with-origin_auth",
+    /*                                         |      |      |      |      |      |      */"enabled for node 1, disabled for node 2",
+    /*                                         |      |      |      |      |      |       |     */"node 1 and node 2 different protection kinds"),
+    CU_DataPoints(bool,                        false, true,  false, true,  true,  true,   true,  true),   /* enable_discovery_protection for pp 1 */
+    CU_DataPoints(bool,                        false, true,  false, true,  true,  true,   false, true),   /* enable_discovery_protection for pp 2 */
+    CU_DataPoints(DDS_Security_ProtectionKind, PK_N,  PK_N,  PK_E,  PK_E,  PK_S,  PK_EOA, PK_E,  PK_E),   /* discovery_protection_kind pp 1 */
+    CU_DataPoints(DDS_Security_ProtectionKind, PK_N,  PK_N,  PK_E,  PK_E,  PK_S,  PK_EOA, PK_N,  PK_S),   /* discovery_protection_kind pp 2 */
+    CU_DataPoints(bool,                        false, false, false, false, false, false,  true,  true),   /* expect rd-wr match fail */
+    CU_DataPoints(bool,                        false, false, true,  true,  true,  true,   true,  true),   /* expect SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER of pp 1 to have a crypto handle */
+    CU_DataPoints(bool,                        na,    na,    true,  true,  true,  true,   false, false),  /* expect encode_datawriter_submessage for SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER of pp 1 */
+};
+#undef na
+CU_Theory(
+  (const char * test_descr, bool enable_discovery_protection_pp1, bool enable_discovery_protection_pp2,
+    DDS_Security_ProtectionKind discovery_protection_kind_pp1, DDS_Security_ProtectionKind discovery_protection_kind_pp2,
+    bool exp_rd_wr_match_fail, bool exp_secure_pub_wr_handle, bool exp_secure_pub_wr_encode_decode),
+  ddssec_access_control, discovery_protection, .timeout=30)
+{
+  print_test_msg ("running test discovery_protection: %s\n", test_descr);
+
+  char topic_name[100];
+  create_topic_name ("ddssec_access_control_", g_topic_nr++, topic_name, sizeof (topic_name));
+
+  /* create ca and id1/id2 certs that will not expire during this test */
+  char *ca, *id1, *id2, *id1_subj, *id2_subj;
+  ca = generate_ca ("ca1", TEST_IDENTITY_CA1_PRIVATE_KEY, 0, 3600);
+  id1 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id1", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id1_subj);
+  id2 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id2", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id2_subj);
+
+  /* localtime will be converted to gmtime in get_permissions_grant */
+  dds_time_t now = dds_time ();
+  char * perm_topic = get_permissions_topic (topic_name);
+  char * grants[] = {
+    get_permissions_grant ("id1", id1_subj, NULL, now, now + DDS_SECS(3600), perm_topic, perm_topic, NULL),
+    get_permissions_grant ("id2", id2_subj, NULL, now, now + DDS_SECS(3600), perm_topic, perm_topic, NULL) };
+  char * perm_config = get_permissions_config (grants, 2, true);
+
+  char * gov_topic_rule1 = get_governance_topic_rule (topic_name, enable_discovery_protection_pp1, false, true, true, "ENCRYPT", "NONE");
+  char * gov_topic_rule2 = get_governance_topic_rule (topic_name, enable_discovery_protection_pp2, false, true, true, "ENCRYPT", "NONE");
+  char * gov_config1 = get_governance_config (false, true, pk_to_str (discovery_protection_kind_pp1), NULL, "ENCRYPT", gov_topic_rule1, true);
+  char * gov_config2 = get_governance_config (false, true, pk_to_str (discovery_protection_kind_pp2), NULL, "ENCRYPT", gov_topic_rule2, true);
+  const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
+
+  access_control_init (
+      2,
+      (const char *[]) { id1, id2 },
+      (const char *[]) { TEST_IDENTITY1_PRIVATE_KEY, TEST_IDENTITY1_PRIVATE_KEY },
+      (const char *[]) { ca, ca },
+      (bool []) { false, false }, NULL, NULL,
+      (bool []) { true, true }, (const char *[]) { gov_config1, gov_config2 },
+      (bool []) { true, true }, (const char *[]) { perm_config, perm_config },
+      (bool []) { true, true }, (const char *[]) { def_perm_ca, def_perm_ca });
+  validate_handshake (DDS_DOMAINID, false, NULL, NULL, NULL);
+
+  dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
+  rd_wr_init (g_participant[0], &pub, &pub_tp, &wr, g_participant[1], &sub, &sub_tp, &rd, topic_name);
+  sync_writer_to_readers (g_participant[0], wr, exp_rd_wr_match_fail ? 0 : 1);
+  if (!exp_rd_wr_match_fail)
+    write_read_for (wr, g_participant[1], rd, DDS_MSECS (100), false, false);
+
+  DDS_Security_DatawriterCryptoHandle secure_pub_wr_handle = get_builtin_writer_crypto_handle (g_participant[0], NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER);
+  print_test_msg ("crypto handle for SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER: %ld\n", secure_pub_wr_handle);
+  CU_ASSERT_EQUAL_FATAL (exp_secure_pub_wr_handle, secure_pub_wr_handle != 0);
+
+  struct dds_security_cryptography_impl * crypto_context_pub = get_crypto_context (g_participant[0]);
+  CU_ASSERT_FATAL (crypto_context_pub != NULL);
+
+  struct crypto_encode_decode_data *log = get_encode_decode_log (crypto_context_pub, ENCODE_DATAWRITER_SUBMESSAGE, secure_pub_wr_handle);
+  CU_ASSERT_EQUAL_FATAL (exp_secure_pub_wr_handle && exp_secure_pub_wr_encode_decode, log != NULL);
+  if (log != NULL)
+  {
+    print_test_msg ("encode_datawriter_submessage count for SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER: %u\n", log->count);
+    CU_ASSERT_FATAL (log->count > 0);
+    ddsrt_free (log);
+  }
+
+  access_control_fini (2);
+
+  ddsrt_free (gov_config1);
+  ddsrt_free (gov_config2);
+  ddsrt_free (gov_topic_rule1);
+  ddsrt_free (gov_topic_rule2);
   ddsrt_free (perm_topic);
   ddsrt_free (grants[0]);
   ddsrt_free (grants[1]);

@@ -37,15 +37,6 @@
 
 #include "SecurityCoreTests.h"
 
-#define PK_N DDS_SECURITY_PROTECTION_KIND_NONE
-#define PK_S DDS_SECURITY_PROTECTION_KIND_SIGN
-#define PK_SOA DDS_SECURITY_PROTECTION_KIND_SIGN_WITH_ORIGIN_AUTHENTICATION
-#define PK_E DDS_SECURITY_PROTECTION_KIND_ENCRYPT
-#define PK_EOA DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION
-#define BPK_N DDS_SECURITY_BASICPROTECTION_KIND_NONE
-#define BPK_S DDS_SECURITY_BASICPROTECTION_KIND_SIGN
-#define BPK_E DDS_SECURITY_BASICPROTECTION_KIND_ENCRYPT
-
 static const char *config =
     "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}"
     "<Domain id=\"any\">"
@@ -80,16 +71,6 @@ static const char *config =
 #define MAX_DOMAINS 10
 #define MAX_PARTICIPANTS 10
 
-const char * g_pk_none = "NONE";
-const char * g_pk_sign = "SIGN";
-const char * g_pk_encrypt = "ENCRYPT";
-const char * g_pk_sign_oa = "SIGN_WITH_ORIGIN_AUTHENTICATION";
-const char * g_pk_encrypt_oa = "ENCRYPT_WITH_ORIGIN_AUTHENTICATION";
-
-const char * g_pp_secret = "ppsecret";
-const char * g_groupdata_secret = "groupsecret";
-const char * g_ep_secret = "epsecret";
-
 uint32_t g_topic_nr = 0;
 
 static dds_entity_t g_pub_domains[MAX_DOMAINS];
@@ -116,37 +97,9 @@ typedef void (*set_crypto_params_fn)(struct dds_security_cryptography_impl *, co
 typedef dds_entity_t (*pubsub_create_fn)(dds_entity_t, const dds_qos_t *qos, const dds_listener_t *listener);
 typedef dds_entity_t (*ep_create_fn)(dds_entity_t, dds_entity_t, const dds_qos_t *qos, const dds_listener_t *listener);
 
-static const char * pk_to_str(DDS_Security_ProtectionKind pk)
-{
-  switch (pk)
-  {
-    case DDS_SECURITY_PROTECTION_KIND_NONE: return g_pk_none;
-    case DDS_SECURITY_PROTECTION_KIND_SIGN: return g_pk_sign;
-    case DDS_SECURITY_PROTECTION_KIND_ENCRYPT: return g_pk_encrypt;
-    case DDS_SECURITY_PROTECTION_KIND_SIGN_WITH_ORIGIN_AUTHENTICATION: return g_pk_sign_oa;
-    case DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION: return g_pk_encrypt_oa;
-  }
-  assert (false);
-  return NULL;
-}
-
-static const char * bpk_to_str(DDS_Security_BasicProtectionKind bpk)
-{
-  switch (bpk)
-  {
-    case DDS_SECURITY_BASICPROTECTION_KIND_NONE: return g_pk_none;
-    case DDS_SECURITY_BASICPROTECTION_KIND_SIGN: return g_pk_sign;
-    case DDS_SECURITY_BASICPROTECTION_KIND_ENCRYPT: return g_pk_encrypt;
-  }
-  assert (false);
-  return NULL;
-}
-
-static void print_config_vars(struct kvp *vars)
-{
-  for (uint32_t i = 0; vars[i].key != NULL; i++)
-    printf("%s=%s; ", vars[i].key, vars[i].value);
-}
+const char * g_pp_secret = "ppsecret";
+const char * g_groupdata_secret = "groupsecret";
+const char * g_ep_secret = "epsecret";
 
 static dds_qos_t *get_qos()
 {
@@ -201,20 +154,9 @@ static void test_init(const struct domain_sec_config * domain_config, size_t n_s
   assert (n_pub_domains < MAX_DOMAINS);
   assert (n_pub_participants < MAX_PARTICIPANTS);
 
-  struct kvp governance_vars[] = {
-    { "DISCOVERY_PROTECTION_KIND", pk_to_str (domain_config->discovery_pk), 1 },
-    { "LIVELINESS_PROTECTION_KIND", pk_to_str (domain_config->liveliness_pk), 1 },
-    { "RTPS_PROTECTION_KIND", pk_to_str (domain_config->rtps_pk), 1 },
-    { "METADATA_PROTECTION_KIND", pk_to_str (domain_config->metadata_pk), 1 },
-    { "DATA_PROTECTION_KIND", bpk_to_str (domain_config->payload_pk), 1 },
-    { NULL, NULL, 0 }
-  };
-
-  printf("Governance configuration: ");
-  print_config_vars(governance_vars);
-  printf("\n");
-
-  char * gov_config_signed = get_governance_config (governance_vars, false);
+  char * gov_topic_rule = get_governance_topic_rule ("*", false, false, true, true, pk_to_str (domain_config->metadata_pk), bpk_to_str (domain_config->payload_pk));
+  char * gov_config_signed = get_governance_config (false, false, pk_to_str (domain_config->discovery_pk), pk_to_str (domain_config->liveliness_pk),
+    pk_to_str (domain_config->rtps_pk), gov_topic_rule, false);
 
   struct kvp config_vars[] = {
     { "GOVERNANCE_DATA", gov_config_signed, 1 },
@@ -232,6 +174,7 @@ static void test_init(const struct domain_sec_config * domain_config, size_t n_s
   dds_free (conf_sub);
 
   dds_free (gov_config_signed);
+  dds_free (gov_topic_rule);
 }
 
 static void test_fini(size_t n_sub_domain, size_t n_pub_domain)

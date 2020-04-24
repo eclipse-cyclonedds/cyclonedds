@@ -17,6 +17,15 @@
 
 #include "dds/security/dds_security_api.h"
 
+#define PK_N DDS_SECURITY_PROTECTION_KIND_NONE
+#define PK_S DDS_SECURITY_PROTECTION_KIND_SIGN
+#define PK_SOA DDS_SECURITY_PROTECTION_KIND_SIGN_WITH_ORIGIN_AUTHENTICATION
+#define PK_E DDS_SECURITY_PROTECTION_KIND_ENCRYPT
+#define PK_EOA DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION
+#define BPK_N DDS_SECURITY_BASICPROTECTION_KIND_NONE
+#define BPK_S DDS_SECURITY_BASICPROTECTION_KIND_SIGN
+#define BPK_E DDS_SECURITY_BASICPROTECTION_KIND_ENCRYPT
+
 #define MAX_LOCAL_IDENTITIES 8
 #define MAX_REMOTE_IDENTITIES 8
 #define MAX_HANDSHAKES 32
@@ -70,5 +79,7 @@ void rd_wr_init_fail(
     bool exp_subtp_fail, bool exp_rd_fail);
 void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_duration_t dur, bool exp_write_fail, bool exp_read_fail);
 struct dds_security_cryptography_impl * get_crypto_context(dds_entity_t participant);
+const char * pk_to_str(DDS_Security_ProtectionKind pk);
+const char * bpk_to_str(DDS_Security_BasicProtectionKind bpk);
 
 #endif /* SECURITY_CORE_TEST_UTILS_H_ */

@@ -101,15 +101,8 @@ static void authentication_init(
   if (perm_config == NULL)
     perm_config = DEF_PERM_CONF;
 
-  struct kvp governance_vars[] = {
-    { "DISCOVERY_PROTECTION_KIND", "NONE", 1 },
-    { "LIVELINESS_PROTECTION_KIND", "NONE", 1 },
-    { "RTPS_PROTECTION_KIND", "NONE", 1 },
-    { "METADATA_PROTECTION_KIND", "NONE", 1 },
-    { "DATA_PROTECTION_KIND", "NONE", 1 },
-    { NULL, NULL, 0 }
-  };
-  char * gov_config_signed = get_governance_config (governance_vars, true);
+  char * gov_topic_rule = get_governance_topic_rule ("*", false, false, true, true, "NONE", "NONE");
+  char * gov_config_signed = get_governance_config (false, false, NULL, NULL, NULL, gov_topic_rule, true);
 
   struct kvp config_vars1[] = {
     { "TEST_IDENTITY_CERTIFICATE", id1_cert, 1 },
@@ -143,6 +136,7 @@ static void authentication_init(
   CU_ASSERT_EQUAL_FATAL (exp_pp2_fail, g_participant2 <= 0);
 
   ddsrt_free (gov_config_signed);
+  ddsrt_free (gov_topic_rule);
   ddsrt_free (conf1);
   ddsrt_free (conf2);
 }

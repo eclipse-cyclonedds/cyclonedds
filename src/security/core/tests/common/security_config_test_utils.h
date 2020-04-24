@@ -25,7 +25,11 @@ const char * expand_lookup_vars (const char *name, void * data);
 const char * expand_lookup_vars_env (const char *name, void * data);
 int32_t expand_lookup_unmatched (const struct kvp * lookup_table);
 
-char * get_governance_config (struct kvp *config_vars, bool add_prefix);
+char * get_governance_topic_rule(const char * topic_expr, bool discovery_protection, bool liveliness_protection,
+    bool read_ac, bool write_ac, const char * metadata_protection_kind, const char * data_protection_kind);
+char * get_governance_config(bool allow_unauth_pp, bool enable_join_ac, const char * discovery_protection_kind, const char * liveliness_protection_kind,
+    const char * rtps_protection_kind, const char * topic_rules, bool add_prefix);
+
 char * get_permissions_topic(const char * name);
 char * get_permissions_grant(const char * name, const char * subject, const char * domain_id,
     dds_time_t not_before, dds_time_t not_after, const char * pub_topics, const char * sub_topics, const char * default_policy);
