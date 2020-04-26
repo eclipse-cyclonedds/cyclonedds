@@ -415,8 +415,9 @@ static void free_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst,
 static void get_trigger_info_cmn (struct trigger_info_cmn *info, struct rhc_instance *inst);
 static void get_trigger_info_pre (struct trigger_info_pre *info, struct rhc_instance *inst);
 static void init_trigger_info_qcond (struct trigger_info_qcond *qc);
-static void drop_instance_noupdate_no_writers (struct dds_rhc_default *rhc, struct rhc_instance *inst);
+static void drop_instance_noupdate_no_writers (struct dds_rhc_default * __restrict rhc, struct rhc_instance * __restrict * __restrict instptr);
 static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_from_insert, const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc, const struct rhc_instance *inst, struct dds_entity *triggers[], size_t *ntriggers);
+static void account_for_nonempty_to_empty_transition (struct dds_rhc_default * __restrict rhc, struct rhc_instance * __restrict * __restrict instptr, const char *__restrict traceprefix);
 #ifndef NDEBUG
 static int rhc_check_counts_locked (struct dds_rhc_default *rhc, bool check_conds, bool check_qcmask);
 #endif
@@ -512,18 +513,7 @@ static void drop_expired_samples (struct dds_rhc_default *rhc, struct rhc_sample
   get_trigger_info_cmn (&post.c, inst);
   update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst, NULL, &ntriggers);
   if (inst_is_empty (inst))
-  {
-    remove_inst_from_nonempty_list (rhc, inst);
-    if (inst->isdisposed)
-      rhc->n_not_alive_disposed--;
-    if (inst->wrcount == 0)
-    {
-      TRACE ("; iid %"PRIx64" #0,empty,drop", inst->iid);
-      if (!inst->isdisposed)
-        rhc->n_not_alive_no_writers--;
-      drop_instance_noupdate_no_writers (rhc, inst);
-    }
-  }
+    account_for_nonempty_to_empty_transition(rhc, &inst, "; ");
   TRACE (")\n");
 }
 
@@ -1023,8 +1013,9 @@ static void update_inst (struct rhc_instance *inst, const struct ddsi_writer_inf
   inst->strength = wrinfo->ownership_strength;
 }
 
-static void drop_instance_noupdate_no_writers (struct dds_rhc_default *rhc, struct rhc_instance *inst)
+static void drop_instance_noupdate_no_writers (struct dds_rhc_default *__restrict rhc, struct rhc_instance * __restrict * __restrict instptr)
 {
+  struct rhc_instance *inst = *instptr;
   int ret;
   assert (inst_is_empty (inst));
 
@@ -1037,6 +1028,7 @@ static void drop_instance_noupdate_no_writers (struct dds_rhc_default *rhc, stru
   (void) ret;
 
   free_empty_instance (inst, rhc);
+  *instptr = NULL;
 }
 
 static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *inst, uint64_t wr_iid, bool iid_update)
@@ -1163,6 +1155,25 @@ static void account_for_empty_to_nonempty_transition (struct dds_rhc_default *rh
     rhc->n_not_alive_no_writers++;
 }
 
+static void account_for_nonempty_to_empty_transition (struct dds_rhc_default *__restrict rhc, struct rhc_instance * __restrict * __restrict instptr, const char * __restrict traceprefix)
+{
+  struct rhc_instance *inst = *instptr;
+  assert (inst_is_empty (inst));
+  remove_inst_from_nonempty_list (rhc, inst);
+  if (inst->isdisposed)
+    rhc->n_not_alive_disposed--;
+  if (inst->wrcount == 0)
+  {
+    TRACE ("%siid %"PRIx64" #0,empty,drop\n", traceprefix, inst->iid);
+    if (!inst->isdisposed)
+    {
+      /* disposed has priority over no writers (why not just 2 bits?) */
+      rhc->n_not_alive_no_writers--;
+    }
+    drop_instance_noupdate_no_writers (rhc, instptr);
+  }
+}
+
 static int rhc_unregister_isreg_w_sideeffects (struct dds_rhc_default *rhc, const struct rhc_instance *inst, uint64_t wr_iid)
 {
   /* Returns 1 if last registration just disappeared */
@@ -1207,8 +1218,9 @@ static int rhc_unregister_isreg_w_sideeffects (struct dds_rhc_default *rhc, cons
   }
 }
 
-static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp, struct trigger_info_qcond *trig_qc, bool *nda)
+static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_instance **instptr, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp, struct trigger_info_qcond *trig_qc, bool *nda)
 {
+  struct rhc_instance * const inst = *instptr;
   assert (inst->wrcount > 0);
 
   if (--inst->wrcount > 0)
@@ -1253,7 +1265,7 @@ static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_in
     {
       /* No content left, no registrations left, so drop */
       TRACE (",#0,empty,disposed,drop");
-      drop_instance_noupdate_no_writers (rhc, inst);
+      drop_instance_noupdate_no_writers (rhc, instptr);
       return 1;
     }
     else
@@ -1270,8 +1282,9 @@ static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_in
   }
 }
 
-static bool dds_rhc_unregister (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
+static bool dds_rhc_unregister (struct dds_rhc_default *rhc, struct rhc_instance **instptr, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
 {
+  struct rhc_instance * const inst = *instptr;
   bool notify_data_available = false;
 
   /* 'post' always gets set; instance may have been freed upon return. */
@@ -1281,7 +1294,7 @@ static bool dds_rhc_unregister (struct dds_rhc_default *rhc, struct rhc_instance
     /* other registrations remain */
     get_trigger_info_cmn (&post->c, inst);
   }
-  else if (rhc_unregister_updateinst (rhc, inst, wrinfo, tstamp, trig_qc, &notify_data_available))
+  else if (rhc_unregister_updateinst (rhc, instptr, wrinfo, tstamp, trig_qc, &notify_data_available))
   {
     /* instance dropped */
     init_trigger_info_cmn_nonmatch (&post->c);
@@ -1477,7 +1490,7 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
     }
     if (statusinfo & NN_STATUSINFO_UNREGISTER)
     {
-      if (dds_rhc_unregister (rhc, inst, wrinfo, sample->timestamp, &post, &trig_qc))
+      if (dds_rhc_unregister (rhc, &inst, wrinfo, sample->timestamp, &post, &trig_qc))
         notify_data_available = true;
     }
     else
@@ -1633,7 +1646,7 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
          mean an application reading "x" after the write and reading it
          again after the unregister will see a change in the
          no_writers_generation field? */
-      dds_rhc_unregister (rhc, inst, wrinfo, sample->timestamp, &post, &trig_qc);
+      dds_rhc_unregister (rhc, &inst, wrinfo, sample->timestamp, &post, &trig_qc);
     }
     else
     {
@@ -1744,7 +1757,7 @@ static void dds_rhc_default_unregister_wr (struct ddsi_rhc * __restrict rhc_comm
         }
       }
 
-      (void) dds_rhc_unregister (rhc, inst, wrinfo, inst->tstamp, &post, &trig_qc);
+      (void) dds_rhc_unregister (rhc, &inst, wrinfo, inst->tstamp, &post, &trig_qc);
 
       TRACE ("\n");
 
@@ -2067,8 +2080,9 @@ static int32_t read_w_qminv_inst (struct dds_rhc_default * const __restrict rhc,
   return n;
 }
 
-static int32_t take_w_qminv_inst (struct dds_rhc_default * const __restrict rhc, struct rhc_instance * const __restrict inst, void * __restrict * __restrict values, dds_sample_info_t * __restrict info_seq, const int32_t max_samples, const uint32_t qminv, const dds_querycond_mask_t qcmask, size_t * __restrict ntriggers, read_take_to_sample_t to_sample, read_take_to_invsample_t to_invsample)
+static int32_t take_w_qminv_inst (struct dds_rhc_default * const __restrict rhc, struct rhc_instance * __restrict * __restrict instptr, void * __restrict * __restrict values, dds_sample_info_t * __restrict info_seq, const int32_t max_samples, const uint32_t qminv, const dds_querycond_mask_t qcmask, size_t * __restrict ntriggers, read_take_to_sample_t to_sample, read_take_to_invsample_t to_invsample)
 {
+  struct rhc_instance *inst = *instptr;
   assert (max_samples > 0);
   if (inst_is_empty (inst) || (qmask_of_inst (inst) & qminv) != 0)
   {
@@ -2154,21 +2168,7 @@ static int32_t take_w_qminv_inst (struct dds_rhc_default * const __restrict rhc,
   }
 
   if (inst_is_empty (inst))
-  {
-    remove_inst_from_nonempty_list (rhc, inst);
-    if (inst->isdisposed)
-      rhc->n_not_alive_disposed--;
-    if (inst->wrcount == 0)
-    {
-      TRACE ("take: iid %"PRIx64" #0,empty,drop\n", inst->iid);
-      if (!inst->isdisposed)
-      {
-        /* disposed has priority over no writers (why not just 2 bits?) */
-        rhc->n_not_alive_no_writers--;
-      }
-      drop_instance_noupdate_no_writers (rhc, inst);
-    }
-  }
+    account_for_nonempty_to_empty_transition (rhc, instptr, "take: ");
   return n;
 }
 
@@ -2239,7 +2239,7 @@ static int32_t take_w_qminv (struct dds_rhc_default * __restrict rhc, bool lock,
     struct rhc_instance template, *inst;
     template.iid = handle;
     if ((inst = ddsrt_hh_lookup (rhc->instances, &template)) != NULL)
-      n = take_w_qminv_inst (rhc, inst, values, info_seq, max_samples, qminv, qcmask, &ntriggers, to_sample, to_invsample);
+      n = take_w_qminv_inst (rhc, &inst, values, info_seq, max_samples, qminv, qcmask, &ntriggers, to_sample, to_invsample);
     else
       n = DDS_RETCODE_PRECONDITION_NOT_MET;
   }
@@ -2250,7 +2250,7 @@ static int32_t take_w_qminv (struct dds_rhc_default * __restrict rhc, bool lock,
     while (n_insts-- > 0 && n < max_samples)
     {
       struct rhc_instance * const inst1 = next_nonempty_instance (inst);
-      n += take_w_qminv_inst (rhc, inst, values + n, info_seq + n, max_samples - n, qminv, qcmask, &ntriggers, to_sample, to_invsample);
+      n += take_w_qminv_inst (rhc, &inst, values + n, info_seq + n, max_samples - n, qminv, qcmask, &ntriggers, to_sample, to_invsample);
       inst = inst1;
     }
   }
@@ -2475,7 +2475,9 @@ static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_f
   TRACE ("update_conditions_locked(%p %p) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32" read %"PRIu32"\n",
          (void *) rhc, (void *) inst, rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
          rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples, rhc->n_vread);
-  TRACE ("  read -[%d,%d]+[%d,%d] qcmask -[%"PRIx32",%"PRIx32"]+[%"PRIx32",%"PRIx32"]\n",
+  TRACE ("  pre (%"PRIx32",%d,%d) post (%"PRIx32",%d,%d) read -[%d,%d]+[%d,%d] qcmask -[%"PRIx32",%"PRIx32"]+[%"PRIx32",%"PRIx32"]\n",
+         pre->c.qminst, pre->c.has_read, pre->c.has_not_read,
+         post->c.qminst, post->c.has_read, post->c.has_not_read,
          trig_qc->dec_invsample_read, trig_qc->dec_sample_read, trig_qc->inc_invsample_read, trig_qc->inc_sample_read,
          trig_qc->dec_conds_invsample, trig_qc->dec_conds_sample, trig_qc->inc_conds_invsample, trig_qc->inc_conds_sample);
 
@@ -2611,15 +2613,18 @@ static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_f
            or there was a match and now there is not: so also scan all samples for matches.  The only
            difference is in whether the number of matches should be added or subtracted. */
         int32_t mcurrent = 0;
-        if (inst->inv_exists)
-          mcurrent += (qmask_of_invsample (inst) & iter->m_qminv) == 0 && (inst->conds & qcmask) != 0;
-        if (inst->latest)
+        if (inst)
         {
-          struct rhc_sample *sample = inst->latest->next, * const end = sample;
-          do {
-            mcurrent += (qmask_of_sample (sample) & iter->m_qminv) == 0 && (sample->conds & qcmask) != 0;
-            sample = sample->next;
-          } while (sample != end);
+          if (inst->inv_exists)
+            mcurrent += (qmask_of_invsample (inst) & iter->m_qminv) == 0 && (inst->conds & qcmask) != 0;
+          if (inst->latest)
+          {
+            struct rhc_sample *sample = inst->latest->next, * const end = sample;
+            do {
+              mcurrent += (qmask_of_sample (sample) & iter->m_qminv) == 0 && (sample->conds & qcmask) != 0;
+              sample = sample->next;
+            } while (sample != end);
+          }
         }
         if (mdelta == 0 && mcurrent == 0)
           TRACE ("no change @ %"PRIu32" (2)", ddsrt_atomic_ld32 (&iter->m_entity.m_status.m_trigger));
