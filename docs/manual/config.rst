@@ -106,7 +106,7 @@ from its WHC when it fills up too far, and allows readers to always receive all 
 complication exists in the case of unresponsive readers, readers that do not respond to
 a Heartbeat at all, or that for some reason fail to receive some samples despite
 resending it.  The specification leaves the way these get treated unspecified.  The
-default beahviour of Eclipse Cyclone DDS is to never consider readers unresponsive, but it can
+default behaviour of Eclipse Cyclone DDS is to never consider readers unresponsive, but it can
 be configured to consider them so after a certain length of time has passed at which
 point the participant containing the reader is undiscovered.
 
@@ -214,7 +214,7 @@ settings.
 Proxies have the same natural hierarchy that ‘normal’ DDSI entities have: each proxy
 endpoint is owned by some proxy participant, and once the proxy participant is deleted,
 all of its proxy endpoints are deleted as well.  Participants assert their liveliness
-periodically (called *automic* liveliness in the DCPS specification and the only mode
+periodically (called *automatic* liveliness in the DCPS specification and the only mode
 currently supported by Eclipse Cyclone DDS), and when nothing has been heard from a participant
 for the lease duration published by that participant in its SPDP message, the lease
 becomes expired triggering a clean-up.
@@ -807,7 +807,7 @@ size of the second to ``Internal/SecondaryReorderMaxSamples``.
 In between the receive thread and the delivery threads sit queues, of which the maximum
 size is controlled by the ``Internal/DeliveryQueueMaxSamples`` setting.  Generally there
 is no need for these queues to be very large (unless one has very small samples in very
-large messaegs), their primary function is to smooth out the processing when batches of
+large messages), their primary function is to smooth out the processing when batches of
 samples become available at once, for example following a retransmission.
 
 When any of these receive buffers hit their size limit and it concerns application data,
