@@ -36,7 +36,7 @@ public class IdlcCmdOptions extends CmdOptions
     io.println ("   -nostamp         Do not timestamp generated code");
     io.println ("   -lax             Skip over structs containing unsupported datatypes");
     io.println ("   -quiet           Suppress console output other than error messages (default)");
-    io.println ("   -verbose         Enable console ouptut other than error messages");
+    io.println ("   -verbose         Enable console output other than error messages");
     io.println ("   -map_wide        Map the unsupported wchar and wstring types to char and string");
     io.println ("   -map_longdouble  Map the unsupported long double type to double");
   }

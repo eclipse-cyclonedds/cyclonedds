@@ -377,7 +377,7 @@ can be done to properly connect readers and writers:
 
   The use of these events will be outside the scope of this example
 
-* Poll for the publication/subscription matches statusses
+* Poll for the publication/subscription matches statuses
 
   * The Subscriber should poll for a subscription matched status to be set
   * The Publisher should poll for a publication matched status to be set
