@@ -27,8 +27,6 @@
 #include "test_utils.h"
 #include "SecurityCoreTests.h"
 
-#define HS_TIMEOUT DDS_SECS(2)
-
 struct Identity localIdentityList[MAX_LOCAL_IDENTITIES];
 int numLocal = 0;
 
@@ -151,10 +149,10 @@ static int find_handshake (DDS_Security_HandshakeHandle handle)
   return -1;
 }
 
-static void handle_process_message (dds_domainid_t domain_id, DDS_Security_IdentityHandle handshake)
+static void handle_process_message (dds_domainid_t domain_id, DDS_Security_IdentityHandle handshake, dds_duration_t timeout)
 {
   struct message *msg;
-  if ((msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_PROCESS_HANDSHAKE, 0, 0, handshake, HS_TIMEOUT)))
+  if ((msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_PROCESS_HANDSHAKE, 0, 0, handshake, timeout)))
   {
     int idx;
     if ((idx = find_handshake (msg->hsHandle)) >= 0)
@@ -167,42 +165,42 @@ static void handle_process_message (dds_domainid_t domain_id, DDS_Security_Ident
   }
 }
 
-static void handle_begin_handshake_request (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid)
+static void handle_begin_handshake_request (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, dds_duration_t timeout)
 {
   struct message *msg;
   print_test_msg ("handle begin handshake request %"PRId64"<->%"PRId64"\n", lid, rid);
-  if ((msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REQUEST, lid, rid, 0, HS_TIMEOUT)))
+  if ((msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REQUEST, lid, rid, 0, timeout)))
   {
     hs->handle = msg->hsHandle;
     hs->handshakeResult = msg->result;
     if (msg->result != DDS_SECURITY_VALIDATION_FAILED)
-      handle_process_message (domain_id, msg->hsHandle);
+      handle_process_message (domain_id, msg->hsHandle, timeout);
     else
       hs->err_msg = ddsrt_strdup (msg->err_msg);
     test_authentication_plugin_release_msg (msg);
   }
 }
 
-static void handle_begin_handshake_reply (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid)
+static void handle_begin_handshake_reply (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, dds_duration_t timeout)
 {
   struct message *msg;
   print_test_msg ("handle begin handshake reply %"PRId64"<->%"PRId64"\n", lid, rid);
-  if ((msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REPLY, lid, rid, 0, HS_TIMEOUT)))
+  if ((msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REPLY, lid, rid, 0, timeout)))
   {
     hs->handle = msg->hsHandle;
     hs->handshakeResult = msg->result;
     if (msg->result != DDS_SECURITY_VALIDATION_FAILED)
-      handle_process_message (domain_id, msg->hsHandle);
+      handle_process_message (domain_id, msg->hsHandle, timeout);
     else
       hs->err_msg = ddsrt_strdup (msg->err_msg);
     test_authentication_plugin_release_msg (msg);
   }
 }
 
-static void handle_validate_remote_identity (dds_domainid_t domain_id, DDS_Security_IdentityHandle lid, int count)
+static void handle_validate_remote_identity (dds_domainid_t domain_id, DDS_Security_IdentityHandle lid, int count, dds_duration_t timeout)
 {
   struct message *msg;
-  while (count-- > 0 && (msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_VALIDATE_REMOTE_IDENTITY, lid, 0, 0, HS_TIMEOUT)))
+  while (count-- > 0 && (msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_VALIDATE_REMOTE_IDENTITY, lid, 0, 0, timeout)))
   {
     struct Handshake *hs;
     add_remote_identity (msg->ridHandle, &msg->rguid);
@@ -210,12 +208,12 @@ static void handle_validate_remote_identity (dds_domainid_t domain_id, DDS_Secur
     if (msg->result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_REQUEST)
     {
       hs->node_type = HSN_REQUESTER;
-      handle_begin_handshake_request (domain_id, hs, lid, msg->ridHandle);
+      handle_begin_handshake_request (domain_id, hs, lid, msg->ridHandle, timeout);
     }
     else if (msg->result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE)
     {
       hs->node_type = HSN_REPLIER;
-      handle_begin_handshake_reply (domain_id, hs, lid, msg->ridHandle);
+      handle_begin_handshake_reply (domain_id, hs, lid, msg->ridHandle, timeout);
     }
     else
     {
@@ -225,9 +223,9 @@ static void handle_validate_remote_identity (dds_domainid_t domain_id, DDS_Secur
   }
 }
 
-static void handle_validate_local_identity (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg)
+static void handle_validate_local_identity (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, dds_duration_t timeout)
 {
- struct message *msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_VALIDATE_LOCAL_IDENTITY, 0, 0, 0, HS_TIMEOUT);
+ struct message *msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_VALIDATE_LOCAL_IDENTITY, 0, 0, 0, timeout);
   CU_ASSERT_FATAL (msg != NULL);
   CU_ASSERT_FATAL ((msg->result == DDS_SECURITY_VALIDATION_OK) != exp_localid_fail);
   if (exp_localid_fail && exp_localid_msg)
@@ -240,7 +238,7 @@ static void handle_validate_local_identity (dds_domainid_t domain_id, bool exp_l
   test_authentication_plugin_release_msg (msg);
 }
 
-void validate_handshake (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, struct Handshake *hs_list[], int *nhs)
+void validate_handshake (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, struct Handshake *hs_list[], int *nhs, dds_duration_t timeout)
 {
   clear_stores ();
 
@@ -249,10 +247,10 @@ void validate_handshake (dds_domainid_t domain_id, bool exp_localid_fail, const 
   if (hs_list)
     *hs_list = NULL;
 
-  handle_validate_local_identity (domain_id, exp_localid_fail, exp_localid_msg);
+  handle_validate_local_identity (domain_id, exp_localid_fail, exp_localid_msg, timeout);
   if (!exp_localid_fail)
   {
-    handle_validate_remote_identity (domain_id, localIdentityList[0].handle, 1);
+    handle_validate_remote_identity (domain_id, localIdentityList[0].handle, 1, timeout);
     for (int n = 0; n < numHandshake; n++)
     {
       struct Handshake *hs = &handshakeList[n];
@@ -270,11 +268,11 @@ void validate_handshake (dds_domainid_t domain_id, bool exp_localid_fail, const 
   print_test_msg ("finished validate handshake for domain %d\n\n", domain_id);
 }
 
-void validate_handshake_nofail (dds_domainid_t domain_id)
+void validate_handshake_nofail (dds_domainid_t domain_id, dds_duration_t timeout)
 {
   struct Handshake *hs_list;
   int nhs;
-  validate_handshake (domain_id, false, NULL, &hs_list, &nhs);
+  validate_handshake (domain_id, false, NULL, &hs_list, &nhs, timeout);
   for (int n = 0; n < nhs; n++)
   {
     struct Handshake hs = hs_list[n];
@@ -282,6 +280,43 @@ void validate_handshake_nofail (dds_domainid_t domain_id)
     CU_ASSERT_EQUAL_FATAL (hs.finalResult, exp_result);
   }
   handshake_list_fini (hs_list, nhs);
+}
+
+void validate_handshake_result(struct Handshake *hs, bool exp_fail_hs_req, const char * fail_hs_req_msg, bool exp_fail_hs_reply, const char * fail_hs_reply_msg)
+{
+  DDS_Security_ValidationResult_t exp_result = hs->node_type == HSN_REQUESTER ? DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE : DDS_SECURITY_VALIDATION_OK;
+  if (hs->node_type == HSN_REQUESTER)
+  {
+    CU_ASSERT_EQUAL_FATAL (hs->finalResult, exp_fail_hs_req ? DDS_SECURITY_VALIDATION_FAILED : exp_result);
+    if (exp_fail_hs_req)
+    {
+      if (fail_hs_req_msg == NULL)
+      {
+        CU_ASSERT_EQUAL_FATAL (hs->err_msg, NULL);
+      }
+      else
+      {
+        CU_ASSERT_FATAL (hs->err_msg != NULL);
+        CU_ASSERT_FATAL (strstr(hs->err_msg, fail_hs_req_msg) != NULL);
+      }
+    }
+  }
+  else if (hs->node_type == HSN_REPLIER)
+  {
+    CU_ASSERT_EQUAL_FATAL (hs->finalResult, exp_fail_hs_reply ? DDS_SECURITY_VALIDATION_FAILED : exp_result);
+    if (exp_fail_hs_reply)
+    {
+      if (fail_hs_reply_msg == NULL)
+      {
+        CU_ASSERT_EQUAL_FATAL (hs->err_msg, NULL);
+      }
+      else
+      {
+        CU_ASSERT_FATAL (hs->err_msg != NULL);
+        CU_ASSERT_FATAL (strstr(hs->err_msg, fail_hs_reply_msg) != NULL);
+      }
+    }
+  }
 }
 
 void handshake_list_fini (struct Handshake *hs_list, int nhs)
@@ -293,7 +328,7 @@ void handshake_list_fini (struct Handshake *hs_list, int nhs)
   }
 }
 
-void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_count)
+void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_count, dds_duration_t timeout)
 {
   dds_attach_t triggered;
   dds_entity_t ws = dds_create_waitset (pp_wr);
@@ -304,7 +339,7 @@ void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_c
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   while (true)
   {
-    ret = dds_waitset_wait (ws, &triggered, 1, DDS_SECS(2));
+    ret = dds_waitset_wait (ws, &triggered, 1, timeout);
     CU_ASSERT_EQUAL_FATAL (exp_count > 0, ret >= 1);
     if (exp_count > 0)
       CU_ASSERT_EQUAL_FATAL (wr, (dds_entity_t)(intptr_t) triggered);
@@ -317,7 +352,7 @@ void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_c
   CU_ASSERT_EQUAL_FATAL (pub_matched.total_count, exp_count);
 }
 
-void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_count)
+void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_count, dds_duration_t timeout)
 {
   dds_attach_t triggered;
   dds_entity_t ws = dds_create_waitset (pp_rd);
@@ -328,7 +363,7 @@ void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_c
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   while (true)
   {
-    ret = dds_waitset_wait (ws, &triggered, 1, DDS_SECS(2));
+    ret = dds_waitset_wait (ws, &triggered, 1, timeout);
     CU_ASSERT_EQUAL_FATAL (exp_count > 0, ret >= 1);
     if (exp_count > 0)
       CU_ASSERT_EQUAL_FATAL (rd, (dds_entity_t)(intptr_t) triggered);

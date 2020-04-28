@@ -255,7 +255,7 @@ static void test_write_read(struct domain_sec_config *domain_config,
       for (size_t w = 0; w < n_writers; w++)
       {
         size_t wr_index = pp_index * n_writers + w;
-        sync_writer_to_readers (g_pub_participants[pp_index], writers[wr_index], (uint32_t)(n_sub_domains * n_sub_participants * n_readers));
+        sync_writer_to_readers (g_pub_participants[pp_index], writers[wr_index], (uint32_t)(n_sub_domains * n_sub_participants * n_readers), DDS_SECS(2));
         sample.id = (int32_t) wr_index;
         printf("writer %"PRId32" writing sample %d\n", writers[wr_index], sample.id);
         ret = dds_write (writers[wr_index], &sample);
@@ -366,7 +366,7 @@ static void test_payload_secret(DDS_Security_ProtectionKind rtps_pk, DDS_Securit
   create_eps (&writers, &writer_topics, 1, 1, 1, name, &SecurityCoreTests_Type2_desc, g_pub_participants, qos, &dds_create_writer, DDS_PUBLICATION_MATCHED_STATUS);
   create_eps (&readers, &reader_topics, 1, 1, 1, name, &SecurityCoreTests_Type2_desc, g_sub_participants, qos, &dds_create_reader, DDS_DATA_AVAILABLE_STATUS);
   dds_delete_qos (qos);
-  sync_writer_to_readers (g_pub_participants[0], writers[0], 1);
+  sync_writer_to_readers (g_pub_participants[0], writers[0], 1, DDS_SECS(2));
   ret = dds_write (writers[0], &sample);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 

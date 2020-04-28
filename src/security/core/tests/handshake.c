@@ -107,11 +107,25 @@ static void handshake_fini(void)
 
 CU_Test(ddssec_handshake, happy_day)
 {
+  struct Handshake *hs_list;
+  int nhs;
+
   handshake_init (
     "init_test_authentication_wrapped", "finalize_test_authentication_wrapped",
     "init_test_cryptography_wrapped", "finalize_test_cryptography_wrapped");
-  validate_handshake_nofail (DDS_DOMAINID1);
-  validate_handshake_nofail (DDS_DOMAINID2);
+
+  validate_handshake (DDS_DOMAINID1, false, NULL, &hs_list, &nhs, DDS_SECS(2));
+  CU_ASSERT_EQUAL_FATAL (nhs, 1);
+  for (int n = 0; n < nhs; n++)
+    validate_handshake_result (&hs_list[n], false, NULL, false, NULL);
+  handshake_list_fini (hs_list, nhs);
+
+  validate_handshake (DDS_DOMAINID2, false, NULL, &hs_list, &nhs, DDS_SECS(2));
+  CU_ASSERT_EQUAL_FATAL (nhs, 1);
+  for (int n = 0; n < nhs; n++)
+    validate_handshake_result (&hs_list[n], false, NULL, false, NULL);
+  handshake_list_fini (hs_list, nhs);
+
   handshake_fini ();
 }
 
@@ -120,8 +134,8 @@ CU_Test(ddssec_handshake, check_tokens)
   handshake_init (
     "init_test_authentication_wrapped", "finalize_test_authentication_wrapped",
     "init_test_cryptography_store_tokens", "finalize_test_cryptography_store_tokens");
-  validate_handshake_nofail (DDS_DOMAINID1);
-  validate_handshake_nofail (DDS_DOMAINID2);
+  validate_handshake_nofail (DDS_DOMAINID1, DDS_SECS (2));
+  validate_handshake_nofail (DDS_DOMAINID2, DDS_SECS (2));
 
   char topic_name[100];
   create_topic_name("ddssec_authentication_", g_topic_nr++, topic_name, sizeof (topic_name));

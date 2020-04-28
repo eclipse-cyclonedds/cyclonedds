@@ -175,43 +175,6 @@ CU_TheoryDataPoints(ddssec_authentication, id_ca_certs) = {
 #undef FM_CA
 #undef FM_INVK
 
-static void validate_hs(struct Handshake *hs, bool exp_fail_hs_req, const char * fail_hs_req_msg, bool exp_fail_hs_reply, const char * fail_hs_reply_msg)
-{
-  DDS_Security_ValidationResult_t exp_result = hs->node_type == HSN_REQUESTER ? DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE : DDS_SECURITY_VALIDATION_OK;
-  if (hs->node_type == HSN_REQUESTER)
-  {
-    CU_ASSERT_EQUAL_FATAL (hs->finalResult, exp_fail_hs_req ? DDS_SECURITY_VALIDATION_FAILED : exp_result);
-    if (exp_fail_hs_req)
-    {
-      if (fail_hs_req_msg == NULL)
-      {
-        CU_ASSERT_EQUAL_FATAL (hs->err_msg, NULL);
-      }
-      else
-      {
-        CU_ASSERT_FATAL (hs->err_msg != NULL);
-        CU_ASSERT_FATAL (strstr(hs->err_msg, fail_hs_req_msg) != NULL);
-      }
-    }
-  }
-  else if (hs->node_type == HSN_REPLIER)
-  {
-    CU_ASSERT_EQUAL_FATAL (hs->finalResult, exp_fail_hs_reply ? DDS_SECURITY_VALIDATION_FAILED : exp_result);
-    if (exp_fail_hs_reply)
-    {
-      if (fail_hs_reply_msg == NULL)
-      {
-        CU_ASSERT_EQUAL_FATAL (hs->err_msg, NULL);
-      }
-      else
-      {
-        CU_ASSERT_FATAL (hs->err_msg != NULL);
-        CU_ASSERT_FATAL (strstr(hs->err_msg, fail_hs_reply_msg) != NULL);
-      }
-    }
-  }
-}
-
 CU_Theory((const char * test_descr, const char * id2, const char *key2, const char *ca2,
     bool exp_fail_pp1, bool exp_fail_pp2,
     bool exp_fail_local, const char * fail_local_msg,
@@ -225,15 +188,15 @@ CU_Theory((const char * test_descr, const char * id2, const char *key2, const ch
   authentication_init (ID1, ID1K, CA1, id2, key2, ca2, NULL, NULL, exp_fail_pp1, exp_fail_pp2);
 
   // Domain 1
-  validate_handshake (DDS_DOMAINID1, false, NULL, &hs_list, &nhs);
+  validate_handshake (DDS_DOMAINID1, false, NULL, &hs_list, &nhs, DDS_SECS(2));
   for (int n = 0; n < nhs; n++)
-    validate_hs (&hs_list[n], exp_fail_hs_req, fail_hs_req_msg, exp_fail_hs_reply, fail_hs_reply_msg);
+    validate_handshake_result (&hs_list[n], exp_fail_hs_req, fail_hs_req_msg, exp_fail_hs_reply, fail_hs_reply_msg);
   handshake_list_fini (hs_list, nhs);
 
   // Domain 2
-  validate_handshake (DDS_DOMAINID2, exp_fail_local, fail_local_msg, &hs_list, &nhs);
+  validate_handshake (DDS_DOMAINID2, exp_fail_local, fail_local_msg, &hs_list, &nhs, DDS_SECS(2));
   for (int n = 0; n < nhs; n++)
-    validate_hs (&hs_list[n], exp_fail_hs_req, fail_hs_req_msg, exp_fail_hs_reply, fail_hs_reply_msg);
+    validate_handshake_result (&hs_list[n], exp_fail_hs_req, fail_hs_req_msg, exp_fail_hs_reply, fail_hs_reply_msg);
   handshake_list_fini (hs_list, nhs);
 
   authentication_fini (!exp_fail_pp1, !exp_fail_pp2);
@@ -249,8 +212,8 @@ CU_Theory((const char * ca_dir, bool exp_fail), ddssec_authentication, trusted_c
   authentication_init (ID1, ID1K, CA1, ID1, ID1K, CA1, ca_dir, NULL, exp_fail, exp_fail);
   if (!exp_fail)
   {
-    validate_handshake_nofail (DDS_DOMAINID1);
-    validate_handshake_nofail (DDS_DOMAINID2);
+    validate_handshake_nofail (DDS_DOMAINID1, DDS_SECS (2));
+    validate_handshake_nofail (DDS_DOMAINID2, DDS_SECS (2));
   }
   authentication_fini (!exp_fail, !exp_fail);
 }
@@ -306,12 +269,12 @@ CU_Theory(
     get_permissions_grant ("id2", id2_subj, NULL, now - DDS_SECS(D(1)), now + DDS_SECS(D(1)), NULL, NULL, NULL) };
   char * perm_config = get_permissions_config (grants, 2, true);
   authentication_init (id1, ID1K, ca, id2, ID1K, ca, NULL, perm_config, id1_local_fail, id2_local_fail);
-  validate_handshake (DDS_DOMAINID1, id1_local_fail, NULL, NULL, NULL);
-  validate_handshake (DDS_DOMAINID2, id2_local_fail, NULL, NULL, NULL);
+  validate_handshake (DDS_DOMAINID1, id1_local_fail, NULL, NULL, NULL, DDS_SECS(2));
+  validate_handshake (DDS_DOMAINID2, id2_local_fail, NULL, NULL, NULL, DDS_SECS(2));
   if (write_read_dur > 0)
   {
     rd_wr_init (g_participant1, &g_pub, &g_pub_tp, &g_wr, g_participant2, &g_sub, &g_sub_tp, &g_rd, topic_name);
-    sync_writer_to_readers(g_participant1, g_wr, 1);
+    sync_writer_to_readers(g_participant1, g_wr, 1, DDS_SECS(2));
     write_read_for (g_wr, g_participant2, g_rd, DDS_MSECS (write_read_dur), false, exp_read_fail);
   }
   authentication_fini (!id1_local_fail, !id2_local_fail);
