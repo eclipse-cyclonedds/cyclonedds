@@ -1784,10 +1784,10 @@ Text
 
 This option specifies the file to which received and sent packets will be
 logged in the "pcap" format suitable for analysis using common networking
-tools, such as WireShark. IP and UDP headers are fictitious, in particular
-the destination address of received packets. The TTL may be used to
-distinguish between sent and received packets: it is 255 for sent packets
-and 128 for received ones. Currently IPv4 only.
+tools, such as WireShark. IP and UDP headers are fictitious, in
+particular the destination address of received packets. The TTL may be
+used to distinguish between sent and received packets: it is 255 for sent
+packets and 128 for received ones. Currently IPv4 only.
 
 The default value is: "".
 
