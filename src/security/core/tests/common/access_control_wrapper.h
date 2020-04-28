@@ -37,14 +37,15 @@ SECURITY_EXPORT int finalize_test_access_control_wrapped(void *context);
 
 INIT_NOT_ALLOWED_DECL(local_participant_not_allowed)
 INIT_NOT_ALLOWED_DECL(local_topic_not_allowed)
-INIT_NOT_ALLOWED_DECL(local_publishing_not_allowed)
-INIT_NOT_ALLOWED_DECL(local_subscribing_not_allowed)
-INIT_NOT_ALLOWED_DECL(remote_permissions_invalidate)
+INIT_NOT_ALLOWED_DECL(local_writer_not_allowed)
+INIT_NOT_ALLOWED_DECL(local_reader_not_allowed)
+INIT_NOT_ALLOWED_DECL(local_permissions_not_allowed)
 INIT_NOT_ALLOWED_DECL(remote_participant_not_allowed)
 INIT_NOT_ALLOWED_DECL(remote_topic_not_allowed)
 INIT_NOT_ALLOWED_DECL(remote_writer_not_allowed)
 INIT_NOT_ALLOWED_DECL(remote_reader_not_allowed)
 INIT_NOT_ALLOWED_DECL(remote_reader_relay_only)
+INIT_NOT_ALLOWED_DECL(remote_permissions_not_allowed)
 
 SECURITY_EXPORT int finalize_test_access_control_not_allowed(void *context);
 
