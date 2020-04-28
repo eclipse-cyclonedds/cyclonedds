@@ -33,26 +33,28 @@ enum ac_plugin_mode {
 enum ac_plugin_not_allowed {
   NOT_ALLOWED_ID_LOCAL_PP,
   NOT_ALLOWED_ID_LOCAL_TOPIC,
-  NOT_ALLOWED_ID_LOCAL_PUB,
-  NOT_ALLOWED_ID_LOCAL_SUB,
-  NOT_ALLOWED_ID_REMOTE_PERM,
+  NOT_ALLOWED_ID_LOCAL_WRITER,
+  NOT_ALLOWED_ID_LOCAL_READER,
+  NOT_ALLOWED_ID_LOCAL_PERM,
   NOT_ALLOWED_ID_REMOTE_PP,
   NOT_ALLOWED_ID_REMOTE_TOPIC,
   NOT_ALLOWED_ID_REMOTE_WRITER,
   NOT_ALLOWED_ID_REMOTE_READER,
-  NOT_ALLOWED_ID_REMOTE_READER_RELAY_ONLY
+  NOT_ALLOWED_ID_REMOTE_READER_RELAY_ONLY,
+  NOT_ALLOWED_ID_REMOTE_PERM,
 };
 
 #define NOT_ALLOWED_LOCAL_PP                      (1u << NOT_ALLOWED_ID_LOCAL_PP)
 #define NOT_ALLOWED_LOCAL_TOPIC                   (1u << NOT_ALLOWED_ID_LOCAL_TOPIC)
-#define NOT_ALLOWED_LOCAL_PUB                     (1u << NOT_ALLOWED_ID_LOCAL_PUB)
-#define NOT_ALLOWED_LOCAL_SUB                     (1u << NOT_ALLOWED_ID_LOCAL_SUB)
-#define NOT_ALLOWED_REMOTE_PERM                   (1u << NOT_ALLOWED_ID_REMOTE_PERM)
+#define NOT_ALLOWED_LOCAL_WRITER                  (1u << NOT_ALLOWED_ID_LOCAL_WRITER)
+#define NOT_ALLOWED_LOCAL_READER                  (1u << NOT_ALLOWED_ID_LOCAL_READER)
+#define NOT_ALLOWED_LOCAL_PERM                    (1u << NOT_ALLOWED_ID_LOCAL_PERM)
 #define NOT_ALLOWED_REMOTE_PP                     (1u << NOT_ALLOWED_ID_REMOTE_PP)
 #define NOT_ALLOWED_REMOTE_TOPIC                  (1u << NOT_ALLOWED_ID_REMOTE_TOPIC)
 #define NOT_ALLOWED_REMOTE_WRITER                 (1u << NOT_ALLOWED_ID_REMOTE_WRITER)
 #define NOT_ALLOWED_REMOTE_READER                 (1u << NOT_ALLOWED_ID_REMOTE_READER)
 #define NOT_ALLOWED_REMOTE_READER_RELAY_ONLY      (1u << NOT_ALLOWED_ID_REMOTE_READER_RELAY_ONLY)
+#define NOT_ALLOWED_REMOTE_PERM                   (1u << NOT_ALLOWED_ID_REMOTE_PERM)
 
 /**
  * Implementation structure for storing encapsulated members of the instance
@@ -76,8 +78,15 @@ static DDS_Security_PermissionsHandle validate_local_permissions(
   struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
   switch (impl->mode)
   {
-    case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
+      if (impl->not_allowed_mask & NOT_ALLOWED_LOCAL_PERM)
+      {
+        ex->code = 1;
+        ex->message = ddsrt_strdup ("not_allowed: validate_local_permissions");
+        return 0;
+      }
+      /* fall through */
+    case PLUGIN_MODE_WRAPPED:
       return impl->instance->validate_local_permissions(impl->instance, auth_plugin, identity, domain_id, participant_qos, ex);
 
     default:
@@ -154,7 +163,7 @@ static DDS_Security_boolean check_create_datawriter(
   switch (impl->mode)
   {
     case PLUGIN_MODE_NOT_ALLOWED:
-      if (impl->not_allowed_mask & NOT_ALLOWED_LOCAL_PUB)
+      if (impl->not_allowed_mask & NOT_ALLOWED_LOCAL_WRITER)
       {
         if (topic_name && strncmp (topic_name, AC_WRAPPER_TOPIC_PREFIX, strlen (AC_WRAPPER_TOPIC_PREFIX)) == 0)
         {
@@ -186,7 +195,7 @@ static DDS_Security_boolean check_create_datareader(
   switch (impl->mode)
   {
     case PLUGIN_MODE_NOT_ALLOWED:
-      if (impl->not_allowed_mask & NOT_ALLOWED_LOCAL_SUB)
+      if (impl->not_allowed_mask & NOT_ALLOWED_LOCAL_READER)
       {
         ex->code = 1;
         ex->message = ddsrt_strdup ("not_allowed: check_create_datareader");
@@ -838,14 +847,15 @@ int finalize_test_access_control_missing_func(void *context)
 
 INIT_NOT_ALLOWED(local_participant_not_allowed, NOT_ALLOWED_LOCAL_PP)
 INIT_NOT_ALLOWED(local_topic_not_allowed, NOT_ALLOWED_LOCAL_TOPIC)
-INIT_NOT_ALLOWED(local_publishing_not_allowed, NOT_ALLOWED_LOCAL_PUB)
-INIT_NOT_ALLOWED(local_subscribing_not_allowed, NOT_ALLOWED_LOCAL_SUB)
-INIT_NOT_ALLOWED(remote_permissions_invalidate, NOT_ALLOWED_REMOTE_PERM)
+INIT_NOT_ALLOWED(local_writer_not_allowed, NOT_ALLOWED_LOCAL_WRITER)
+INIT_NOT_ALLOWED(local_reader_not_allowed, NOT_ALLOWED_LOCAL_READER)
+INIT_NOT_ALLOWED(local_permissions_not_allowed, NOT_ALLOWED_LOCAL_PERM)
 INIT_NOT_ALLOWED(remote_participant_not_allowed, NOT_ALLOWED_REMOTE_PP)
 INIT_NOT_ALLOWED(remote_topic_not_allowed, NOT_ALLOWED_REMOTE_TOPIC)
 INIT_NOT_ALLOWED(remote_writer_not_allowed, NOT_ALLOWED_REMOTE_WRITER)
 INIT_NOT_ALLOWED(remote_reader_not_allowed, NOT_ALLOWED_REMOTE_READER)
 INIT_NOT_ALLOWED(remote_reader_relay_only, NOT_ALLOWED_REMOTE_READER_RELAY_ONLY)
+INIT_NOT_ALLOWED(remote_permissions_not_allowed, NOT_ALLOWED_REMOTE_PERM)
 
 int finalize_test_access_control_not_allowed(void *context)
 {

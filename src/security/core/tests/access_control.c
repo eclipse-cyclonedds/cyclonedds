@@ -439,72 +439,80 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
 CU_TheoryDataPoints(ddssec_access_control, hooks) = {
     CU_DataPoints(const char *,
     /*                 */"init_test_access_control_local_participant_not_allowed",
-    /*                  |     */"init_test_access_control_local_topic_not_allowed",
-    /*                  |      |     */"init_test_access_control_local_publishing_not_allowed",
-    /*                  |      |      |      */"init_test_access_control_local_subscribing_not_allowed",
-    /*                  |      |      |      |     */"init_test_access_control_remote_permissions_invalidate",
-    /*                  |      |      |      |      |     */"init_test_access_control_remote_participant_not_allowed",
-    /*                  |      |      |      |      |      |     */"init_test_access_control_remote_topic_not_allowed",
-    /*                  |      |      |      |      |      |      |     */"init_test_access_control_remote_writer_not_allowed",
-    /*                  |      |      |      |      |      |      |      |     */"init_test_access_control_remote_reader_not_allowed",
-    /*                  |      |      |      |      |      |      |      |      |     */"init_test_access_control_remote_reader_relay_only"),
-    CU_DataPoints(bool, true,  false, false, false, false, false, false, false, false, false),  // exp_pp_fail
-    CU_DataPoints(bool, na,    true,  false, false, false, false, false, false, false, false),  // exp_local_topic_fail
-    CU_DataPoints(bool, na,    false, false, false, false, false, false, false, false, false),  // exp_remote_topic_fail
-    CU_DataPoints(bool, na,    na,    true,  false, false, false, false, false, false, false),  // exp_wr_fail
-    CU_DataPoints(bool, na,    na,    false, true,  false, false, false, false, false, false),  // exp_rd_fail
-    CU_DataPoints(bool, na,    na,    na,    na,    true,  true,  true,  false, true,  true),   // exp_wr_rd_sync_fail
-    CU_DataPoints(bool, na,    na,    false, na,    true,  true,  true,  true,  false, false),  // exp_rd_wr_sync_fail
+    /*                  |     */"init_test_access_control_local_permissions_not_allowed",
+    /*                  |      |     */"init_test_access_control_local_topic_not_allowed",
+    /*                  |      |      |     */"init_test_access_control_local_writer_not_allowed",
+    /*                  |      |      |      |      */"init_test_access_control_local_reader_not_allowed",
+    /*                  |      |      |      |      |     */"init_test_access_control_remote_permissions_not_allowed",
+    /*                  |      |      |      |      |      |     */"init_test_access_control_remote_participant_not_allowed",
+    /*                  |      |      |      |      |      |      |     */"init_test_access_control_remote_topic_not_allowed",
+    /*                  |      |      |      |      |      |      |      |     */"init_test_access_control_remote_writer_not_allowed",
+    /*                  |      |      |      |      |      |      |      |      |     */"init_test_access_control_remote_reader_not_allowed",
+    /*                  |      |      |      |      |      |      |      |      |      |     */"init_test_access_control_remote_reader_relay_only"),
+    CU_DataPoints(bool, true,  true,  false, false, false, false, false, false, false, false, false),  // exp_pp_fail
+    CU_DataPoints(bool, na,    na,    true,  false, false, false, false, false, false, false, false),  // exp_local_topic_fail
+    CU_DataPoints(bool, na,    na,    false, false, false, false, false, false, false, false, false),  // exp_remote_topic_fail
+    CU_DataPoints(bool, na,    na,    na,    true,  false, false, false, false, false, false, false),  // exp_wr_fail
+    CU_DataPoints(bool, na,    na,    na,    false, true,  false, false, false, false, false, false),  // exp_rd_fail
+    CU_DataPoints(bool, na,    na,    na,    na,    na,    true,  true,  true,  false, true,  true),   // exp_wr_rd_sync_fail
+    CU_DataPoints(bool, na,    na,    na,    false, na,    true,  true,  true,  true,  false, false),  // exp_rd_wr_sync_fail
 };
 #undef na
+
 CU_Theory(
   (const char * init_fn, bool exp_pp_fail, bool exp_local_topic_fail, bool exp_remote_topic_fail, bool exp_wr_fail, bool exp_rd_fail, bool exp_wr_rd_sync_fail, bool exp_rd_wr_sync_fail),
-  ddssec_access_control, hooks, .timeout=40)
+  ddssec_access_control, hooks, .timeout=60)
 {
-  print_test_msg ("running test access_control_hooks: %s\n", init_fn);
-
-  const char * def_gov = PF_F COMMON_ETC_PATH("default_governance.p7s");
-  const char * def_perm = PF_F COMMON_ETC_PATH("default_permissions.p7s");
-  const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
-
-  access_control_init (
-      2,
-      (const char *[]) { TEST_IDENTITY1_CERTIFICATE, TEST_IDENTITY1_CERTIFICATE },
-      (const char *[]) { TEST_IDENTITY1_PRIVATE_KEY, TEST_IDENTITY1_PRIVATE_KEY },
-      (const char *[]) { TEST_IDENTITY_CA1_CERTIFICATE, TEST_IDENTITY_CA1_CERTIFICATE },
-      (bool []) { exp_pp_fail, false },
-      (const char *[]) { init_fn, "init_test_access_control_wrapped" }, (const char *[]) { "finalize_test_access_control_not_allowed", "finalize_test_access_control_wrapped" },
-      (bool []) { true, true, true }, (const char *[]) { def_gov, def_gov },
-      (bool []) { true, true, true }, (const char *[]) { def_perm, def_perm },
-      (bool []) { true, true, true }, (const char *[]) { def_perm_ca, def_perm_ca });
-
-  if (!exp_pp_fail)
+  for (int i = 0; i <= 1; i++)
   {
-    dds_entity_t lwr = 0, rwr = 0, lrd = 0, rrd = 0;
-    dds_entity_t ltopic[2], rtopic[2];
-    dds_entity_t lpub, lsub, rpub, rsub;
-    char topic_name[100];
+    bool discovery_protection = (i == 0);
+    print_test_msg ("running test access_control_hooks: %s with discovery protection %s\n", init_fn, discovery_protection ? "enabled" : "disabled");
 
-    // Local writer, remote reader
-    create_topic_name (AC_WRAPPER_TOPIC_PREFIX, g_topic_nr++, topic_name, sizeof (topic_name));
-    rd_wr_init_fail (
-      g_participant[0], &lpub, &ltopic[0], &lwr,
-      g_participant[1], &rsub, &rtopic[0], &rrd,
-      topic_name, exp_local_topic_fail, exp_wr_fail, exp_remote_topic_fail, false);
-    if (!exp_local_topic_fail && !exp_remote_topic_fail && !exp_wr_fail)
-      sync_writer_to_readers (g_participant[0], lwr, exp_wr_rd_sync_fail ? 0 : 1, DDS_SECS(2));
+    char * gov_topic_rule = get_governance_topic_rule ("*", discovery_protection, false, true, true, NULL, NULL);
+    char * gov_config = get_governance_config (false, true, "ENCRYPT", NULL, NULL, gov_topic_rule, true);
 
-    // Local reader, remote writer
-    create_topic_name (AC_WRAPPER_TOPIC_PREFIX, g_topic_nr++, topic_name, sizeof (topic_name));
-    rd_wr_init_fail (
-      g_participant[1], &rpub, &rtopic[1], &rwr,
-      g_participant[0], &lsub, &ltopic[1], &lrd,
-      topic_name, exp_remote_topic_fail, false, exp_local_topic_fail, exp_rd_fail);
-    if (!exp_local_topic_fail && !exp_remote_topic_fail && !exp_rd_fail)
-      sync_reader_to_writers (g_participant[0], lrd, exp_rd_wr_sync_fail ? 0 : 1, DDS_SECS(2));
+    const char * def_perm = PF_F COMMON_ETC_PATH("default_permissions.p7s");
+    const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
+
+    access_control_init (
+        2,
+        (const char *[]) { TEST_IDENTITY1_CERTIFICATE, TEST_IDENTITY1_CERTIFICATE },
+        (const char *[]) { TEST_IDENTITY1_PRIVATE_KEY, TEST_IDENTITY1_PRIVATE_KEY },
+        (const char *[]) { TEST_IDENTITY_CA1_CERTIFICATE, TEST_IDENTITY_CA1_CERTIFICATE },
+        (bool []) { exp_pp_fail, false },
+        (const char *[]) { init_fn, "init_test_access_control_wrapped" }, (const char *[]) { "finalize_test_access_control_not_allowed", "finalize_test_access_control_wrapped" },
+        (bool []) { true, true, true }, (const char *[]) { gov_config, gov_config },
+        (bool []) { true, true, true }, (const char *[]) { def_perm, def_perm },
+        (bool []) { true, true, true }, (const char *[]) { def_perm_ca, def_perm_ca });
+
+    if (!exp_pp_fail)
+    {
+      dds_entity_t lwr = 0, rwr = 0, lrd = 0, rrd = 0;
+      dds_entity_t ltopic[2], rtopic[2];
+      dds_entity_t lpub, lsub, rpub, rsub;
+      char topic_name[100];
+
+      // Local writer, remote reader
+      create_topic_name (AC_WRAPPER_TOPIC_PREFIX, g_topic_nr++, topic_name, sizeof (topic_name));
+      rd_wr_init_fail (
+        g_participant[0], &lpub, &ltopic[0], &lwr,
+        g_participant[1], &rsub, &rtopic[0], &rrd,
+        topic_name, exp_local_topic_fail, exp_wr_fail, exp_remote_topic_fail, false);
+      if (!exp_local_topic_fail && !exp_remote_topic_fail && !exp_wr_fail)
+        sync_writer_to_readers (g_participant[0], lwr, exp_wr_rd_sync_fail ? 0 : 1, DDS_SECS(2));
+
+      // Local reader, remote writer
+      create_topic_name (AC_WRAPPER_TOPIC_PREFIX, g_topic_nr++, topic_name, sizeof (topic_name));
+      rd_wr_init_fail (
+        g_participant[1], &rpub, &rtopic[1], &rwr,
+        g_participant[0], &lsub, &ltopic[1], &lrd,
+        topic_name, exp_remote_topic_fail, false, exp_local_topic_fail, exp_rd_fail);
+      if (!exp_local_topic_fail && !exp_remote_topic_fail && !exp_rd_fail)
+        sync_reader_to_writers (g_participant[0], lrd, exp_rd_wr_sync_fail ? 0 : 1, DDS_SECS(1));
+    }
+
+    access_control_fini (2, (void * []) { gov_topic_rule, gov_config }, 2);
   }
-
-  access_control_fini (2, NULL, 0);
 }
 
 #define na false
