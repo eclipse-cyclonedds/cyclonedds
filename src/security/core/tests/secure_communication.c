@@ -154,8 +154,8 @@ static void test_init(const struct domain_sec_config * domain_config, size_t n_s
   assert (n_pub_domains < MAX_DOMAINS);
   assert (n_pub_participants < MAX_PARTICIPANTS);
 
-  char * gov_topic_rule = get_governance_topic_rule ("*", false, false, true, true, pk_to_str (domain_config->metadata_pk), bpk_to_str (domain_config->payload_pk));
-  char * gov_config_signed = get_governance_config (false, false, pk_to_str (domain_config->discovery_pk), pk_to_str (domain_config->liveliness_pk),
+  char * gov_topic_rule = get_governance_topic_rule ("*", true, true, true, true, pk_to_str (domain_config->metadata_pk), bpk_to_str (domain_config->payload_pk));
+  char * gov_config_signed = get_governance_config (false, true, pk_to_str (domain_config->discovery_pk), pk_to_str (domain_config->liveliness_pk),
     pk_to_str (domain_config->rtps_pk), gov_topic_rule, false);
 
   struct kvp config_vars[] = {
