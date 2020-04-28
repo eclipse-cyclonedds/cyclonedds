@@ -569,7 +569,7 @@ CU_Theory(
 }
 
 #define na false
-CU_TheoryDataPoints(ddssec_access_control, discovery_protection) = {
+CU_TheoryDataPoints(ddssec_access_control, discovery_liveliness_protection) = {
     CU_DataPoints(const char *,
     /*                                        */"disabled",
     /*                                         |     */"enabled, protection kind none",
@@ -588,14 +588,19 @@ CU_TheoryDataPoints(ddssec_access_control, discovery_protection) = {
     CU_DataPoints(bool,                        na,    na,    true,  true,  true,  true,   false, false),  /* expect encode_datawriter_submessage for SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER of pp 1 */
 };
 #undef na
-CU_Theory(
-  (const char * test_descr, bool enable_discovery_protection_pp1, bool enable_discovery_protection_pp2,
-    DDS_Security_ProtectionKind discovery_protection_kind_pp1, DDS_Security_ProtectionKind discovery_protection_kind_pp2,
-    bool exp_rd_wr_match_fail, bool exp_secure_pub_wr_handle, bool exp_secure_pub_wr_encode_decode),
-  ddssec_access_control, discovery_protection, .timeout=30)
-{
-  print_test_msg ("running test discovery_protection: %s\n", test_descr);
 
+enum test_discovery_liveliness
+{
+  TEST_DISCOVERY,
+  TEST_LIVELINESS
+};
+
+static void test_discovery_liveliness_protection(enum test_discovery_liveliness kind,
+    bool enable_protection_pp1, bool enable_protection_pp2,
+    DDS_Security_ProtectionKind protection_kind_pp1, DDS_Security_ProtectionKind protection_kind_pp2,
+    bool exp_rd_wr_match_fail, bool exp_secure_pub_wr_handle, bool exp_secure_pub_wr_encode_decode)
+{
+  bool dp = kind == TEST_DISCOVERY, lp = kind == TEST_LIVELINESS;
   char topic_name[100];
   create_topic_name ("ddssec_access_control_", g_topic_nr++, topic_name, sizeof (topic_name));
 
@@ -613,10 +618,10 @@ CU_Theory(
     get_permissions_grant ("id2", id2_subj, NULL, now, now + DDS_SECS(3600), perm_topic, perm_topic, NULL) };
   char * perm_config = get_permissions_config (grants, 2, true);
 
-  char * gov_topic_rule1 = get_governance_topic_rule (topic_name, enable_discovery_protection_pp1, false, true, true, "ENCRYPT", "NONE");
-  char * gov_topic_rule2 = get_governance_topic_rule (topic_name, enable_discovery_protection_pp2, false, true, true, "ENCRYPT", "NONE");
-  char * gov_config1 = get_governance_config (false, true, pk_to_str (discovery_protection_kind_pp1), NULL, "ENCRYPT", gov_topic_rule1, true);
-  char * gov_config2 = get_governance_config (false, true, pk_to_str (discovery_protection_kind_pp2), NULL, "ENCRYPT", gov_topic_rule2, true);
+  char * gov_topic_rule1 = get_governance_topic_rule (topic_name, dp && enable_protection_pp1, lp && enable_protection_pp1, true, true, "ENCRYPT", "NONE");
+  char * gov_topic_rule2 = get_governance_topic_rule (topic_name, dp && enable_protection_pp2, lp && enable_protection_pp2, true, true, "ENCRYPT", "NONE");
+  char * gov_config1 = get_governance_config (false, true, dp ? pk_to_str (protection_kind_pp1) : NULL, lp ? pk_to_str (protection_kind_pp1) : NULL, "ENCRYPT", gov_topic_rule1, true);
+  char * gov_config2 = get_governance_config (false, true, dp ? pk_to_str (protection_kind_pp2) : NULL, lp ? pk_to_str (protection_kind_pp2) : NULL, "ENCRYPT", gov_topic_rule2, true);
   const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
 
   access_control_init (
@@ -636,8 +641,10 @@ CU_Theory(
   if (!exp_rd_wr_match_fail)
     write_read_for (wr, g_participant[1], rd, DDS_MSECS (100), false, false);
 
-  DDS_Security_DatawriterCryptoHandle secure_pub_wr_handle = get_builtin_writer_crypto_handle (g_participant[0], NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER);
-  print_test_msg ("crypto handle for SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER: %ld\n", secure_pub_wr_handle);
+  unsigned builtin_wr = dp ? NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER : NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER;
+  const char * builtin_wr_descr = dp ? "SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER" : "P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER";
+  DDS_Security_DatawriterCryptoHandle secure_pub_wr_handle = get_builtin_writer_crypto_handle (g_participant[0], builtin_wr);
+  print_test_msg ("crypto handle for %s: %ld\n", builtin_wr_descr, secure_pub_wr_handle);
   CU_ASSERT_EQUAL_FATAL (exp_secure_pub_wr_handle, secure_pub_wr_handle != 0);
 
   struct dds_security_cryptography_impl * crypto_context_pub = get_crypto_context (g_participant[0]);
@@ -647,12 +654,27 @@ CU_Theory(
   CU_ASSERT_EQUAL_FATAL (exp_secure_pub_wr_handle && exp_secure_pub_wr_encode_decode, log != NULL);
   if (log != NULL)
   {
-    print_test_msg ("encode_datawriter_submessage count for SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER: %u\n", log->count);
+    print_test_msg ("encode_datawriter_submessage count for %s: %u\n", builtin_wr_descr, log->count);
     CU_ASSERT_FATAL (log->count > 0);
     ddsrt_free (log);
   }
 
   access_control_fini (2, (void * []) { gov_config1, gov_config2, gov_topic_rule1, gov_topic_rule2, perm_topic, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 13);
+}
+
+CU_Theory(
+  (const char * test_descr, bool enable_discovery_protection_pp1, bool enable_discovery_protection_pp2,
+    DDS_Security_ProtectionKind discovery_protection_kind_pp1, DDS_Security_ProtectionKind discovery_protection_kind_pp2,
+    bool exp_rd_wr_match_fail, bool exp_secure_pub_wr_handle, bool exp_secure_pub_wr_encode_decode),
+  ddssec_access_control, discovery_liveliness_protection, .timeout=40)
+{
+  enum test_discovery_liveliness kinds[2] = { TEST_DISCOVERY, TEST_LIVELINESS };
+  for (size_t i = 0; i < sizeof (kinds) / sizeof (kinds[0]); i++)
+  {
+    print_test_msg ("running test %s_protection: %s\n", kinds[i] == TEST_DISCOVERY ? "discovery" : "liveliness", test_descr);
+    test_discovery_liveliness_protection (kinds[i], enable_discovery_protection_pp1, enable_discovery_protection_pp2,
+      discovery_protection_kind_pp1, discovery_protection_kind_pp2, exp_rd_wr_match_fail, exp_secure_pub_wr_handle, exp_secure_pub_wr_encode_decode);
+  }
 }
 
 static void test_encoding_mismatch(
