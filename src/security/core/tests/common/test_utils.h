@@ -60,26 +60,27 @@ struct Handshake
 };
 
 void print_test_msg (const char *msg, ...);
-void validate_handshake(dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, struct Handshake *hs_list[], int *nhs);
-void validate_handshake_nofail (dds_domainid_t domain_id);
-void handshake_list_fini(struct Handshake *hs_list, int nhs);
-char *create_topic_name(const char *prefix, uint32_t nr, char *name, size_t size);
-void sync_writer_to_readers(dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_count);
-void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_count);
-bool reader_wait_for_data(dds_entity_t pp, dds_entity_t rd, dds_duration_t dur);
-void rd_wr_init(
+void validate_handshake (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, struct Handshake *hs_list[], int *nhs, dds_duration_t timeout);
+void validate_handshake_nofail (dds_domainid_t domain_id, dds_duration_t timeout);
+void validate_handshake_result (struct Handshake *hs, bool exp_fail_hs_req, const char * fail_hs_req_msg, bool exp_fail_hs_reply, const char * fail_hs_reply_msg);
+void handshake_list_fini (struct Handshake *hs_list, int nhs);
+char *create_topic_name (const char *prefix, uint32_t nr, char *name, size_t size);
+void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_count, dds_duration_t timeout);
+void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_count, dds_duration_t timeout);
+bool reader_wait_for_data (dds_entity_t pp, dds_entity_t rd, dds_duration_t dur);
+void rd_wr_init (
     dds_entity_t pp_wr, dds_entity_t *pub, dds_entity_t *pub_tp, dds_entity_t *wr,
     dds_entity_t pp_rd, dds_entity_t *sub, dds_entity_t *sub_tp, dds_entity_t *rd,
     const char * topic_name);
-void rd_wr_init_fail(
+void rd_wr_init_fail (
     dds_entity_t pp_wr, dds_entity_t *pub, dds_entity_t *pub_tp, dds_entity_t *wr,
     dds_entity_t pp_rd, dds_entity_t *sub, dds_entity_t *sub_tp, dds_entity_t *rd,
     const char * topic_name,
     bool exp_pubtp_fail, bool exp_wr_fail,
     bool exp_subtp_fail, bool exp_rd_fail);
-void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_duration_t dur, bool exp_write_fail, bool exp_read_fail);
-struct dds_security_cryptography_impl * get_crypto_context(dds_entity_t participant);
-const char * pk_to_str(DDS_Security_ProtectionKind pk);
-const char * bpk_to_str(DDS_Security_BasicProtectionKind bpk);
+void write_read_for (dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_duration_t dur, bool exp_write_fail, bool exp_read_fail);
+struct dds_security_cryptography_impl * get_crypto_context (dds_entity_t participant);
+const char * pk_to_str (DDS_Security_ProtectionKind pk);
+const char * bpk_to_str (DDS_Security_BasicProtectionKind bpk);
 
 #endif /* SECURITY_CORE_TEST_UTILS_H_ */

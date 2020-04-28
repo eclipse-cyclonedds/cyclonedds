@@ -113,10 +113,15 @@ static void access_control_init(
   }
 }
 
-static void access_control_fini(size_t n)
+static void access_control_fini(size_t n, void * res[], size_t nres)
 {
   for (size_t i = 0; i < n; i++)
     CU_ASSERT_EQUAL_FATAL (dds_delete (g_domain[i]), DDS_RETCODE_OK);
+  if (res != NULL)
+  {
+    for (size_t i = 0; i < nres; i++)
+      ddsrt_free (res[i]);
+  }
 }
 
 static DDS_Security_DatawriterCryptoHandle get_builtin_writer_crypto_handle(dds_entity_t participant, unsigned entityid)
@@ -203,7 +208,7 @@ CU_Theory((const char * test_descr, const char * gov, const char * perm, const c
       (bool []) { has_gov, has_gov }, (const char *[]) { gov, gov },
       (bool []) { has_perm, has_perm }, (const char *[]) { perm, perm },
       (bool []) { has_ca, has_ca }, (const char *[]) { ca, ca });
-  access_control_fini (2);
+  access_control_fini (2, NULL, 0);
 }
 
 #define S(n) (n)
@@ -276,21 +281,11 @@ CU_Theory(
     dds_entity_t pub, sub;
     dds_entity_t topic0, topic1;
     rd_wr_init (g_participant[0], &pub, &topic0, &wr, g_participant[1], &sub, &topic1, &rd, topic_name);
-    sync_writer_to_readers(g_participant[0], wr, 1);
+    sync_writer_to_readers(g_participant[0], wr, 1, DDS_SECS(2));
     write_read_for (wr, g_participant[1], rd, DDS_MSECS (write_read_dur), false, exp_read_fail);
   }
 
-  access_control_fini (2);
-
-  ddsrt_free (perm_topic);
-  ddsrt_free (grants[0]);
-  ddsrt_free (grants[1]);
-  ddsrt_free (perm_config);
-  ddsrt_free (ca);
-  ddsrt_free (id1_subj);
-  ddsrt_free (id2_subj);
-  ddsrt_free (id1);
-  ddsrt_free (id2);
+  access_control_fini (2, (void * []) { perm_topic, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 9);
 }
 
 
@@ -369,7 +364,7 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
     wr[i] = dds_create_writer (pub, pub_tp, qos, NULL);
     CU_ASSERT_FATAL (wr[i] > 0);
     dds_set_status_mask (wr[i], DDS_PUBLICATION_MATCHED_STATUS);
-    sync_writer_to_readers (g_participant[i + N_RD], wr[i], N_RD);
+    sync_writer_to_readers (g_participant[i + N_RD], wr[i], N_RD, DDS_SECS(2));
   }
   dds_delete_qos (qos);
 
@@ -423,7 +418,7 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
     CU_ASSERT (n_invalid <= run);
   }
 
-  access_control_fini (N_NODES);
+  access_control_fini (N_NODES, NULL, 0);
 
   for (int i = 0; i < N_NODES; i++)
   {
@@ -497,7 +492,7 @@ CU_Theory(
       g_participant[1], &rsub, &rtopic[0], &rrd,
       topic_name, exp_local_topic_fail, exp_wr_fail, exp_remote_topic_fail, false);
     if (!exp_local_topic_fail && !exp_remote_topic_fail && !exp_wr_fail)
-      sync_writer_to_readers (g_participant[0], lwr, exp_wr_rd_sync_fail ? 0 : 1);
+      sync_writer_to_readers (g_participant[0], lwr, exp_wr_rd_sync_fail ? 0 : 1, DDS_SECS(2));
 
     // Local reader, remote writer
     create_topic_name (AC_WRAPPER_TOPIC_PREFIX, g_topic_nr++, topic_name, sizeof (topic_name));
@@ -506,10 +501,10 @@ CU_Theory(
       g_participant[0], &lsub, &ltopic[1], &lrd,
       topic_name, exp_remote_topic_fail, false, exp_local_topic_fail, exp_rd_fail);
     if (!exp_local_topic_fail && !exp_remote_topic_fail && !exp_rd_fail)
-      sync_reader_to_writers (g_participant[0], lrd, exp_rd_wr_sync_fail ? 0 : 1);
+      sync_reader_to_writers (g_participant[0], lrd, exp_rd_wr_sync_fail ? 0 : 1, DDS_SECS(2));
   }
 
-  access_control_fini (2);
+  access_control_fini (2, NULL, 0);
 }
 
 #define na false
@@ -568,26 +563,12 @@ CU_Theory(
       (bool []) { true, true }, (const char *[]) { def_perm_ca, def_perm_ca });
 
   if (!exp_pp1_fail && !exp_pp2_fail)
-    validate_handshake (DDS_DOMAINID, exp_hs_fail, NULL, NULL, NULL);
+    validate_handshake (DDS_DOMAINID, exp_hs_fail, NULL, NULL, NULL, DDS_SECS(2));
 
-  access_control_fini (2);
-
-  ddsrt_free (gov_config_pp1);
-  ddsrt_free (gov_config_pp2);
-  ddsrt_free (gov_topic_rule);
-  ddsrt_free (perm_topic);
-  ddsrt_free (grants[0]);
-  ddsrt_free (grants[1]);
-  ddsrt_free (perm_config);
-  ddsrt_free (ca);
-  ddsrt_free (id1_subj);
-  ddsrt_free (id2_subj);
-  ddsrt_free (id1);
-  ddsrt_free (id2);
+  access_control_fini (2, (void * []) { gov_config_pp1, gov_config_pp2, gov_topic_rule, perm_topic, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 12);
 }
 
 #define na false
-#define E ENCRYPT
 CU_TheoryDataPoints(ddssec_access_control, discovery_protection) = {
     CU_DataPoints(const char *,
     /*                                        */"disabled",
@@ -647,11 +628,11 @@ CU_Theory(
       (bool []) { true, true }, (const char *[]) { gov_config1, gov_config2 },
       (bool []) { true, true }, (const char *[]) { perm_config, perm_config },
       (bool []) { true, true }, (const char *[]) { def_perm_ca, def_perm_ca });
-  validate_handshake (DDS_DOMAINID, false, NULL, NULL, NULL);
+  validate_handshake (DDS_DOMAINID, false, NULL, NULL, NULL, DDS_SECS(2));
 
   dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
   rd_wr_init (g_participant[0], &pub, &pub_tp, &wr, g_participant[1], &sub, &sub_tp, &rd, topic_name);
-  sync_writer_to_readers (g_participant[0], wr, exp_rd_wr_match_fail ? 0 : 1);
+  sync_writer_to_readers (g_participant[0], wr, exp_rd_wr_match_fail ? 0 : 1, DDS_SECS(2));
   if (!exp_rd_wr_match_fail)
     write_read_for (wr, g_participant[1], rd, DDS_MSECS (100), false, false);
 
@@ -671,19 +652,100 @@ CU_Theory(
     ddsrt_free (log);
   }
 
-  access_control_fini (2);
+  access_control_fini (2, (void * []) { gov_config1, gov_config2, gov_topic_rule1, gov_topic_rule2, perm_topic, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 13);
+}
 
-  ddsrt_free (gov_config1);
-  ddsrt_free (gov_config2);
-  ddsrt_free (gov_topic_rule1);
-  ddsrt_free (gov_topic_rule2);
-  ddsrt_free (perm_topic);
-  ddsrt_free (grants[0]);
-  ddsrt_free (grants[1]);
-  ddsrt_free (perm_config);
-  ddsrt_free (ca);
-  ddsrt_free (id1_subj);
-  ddsrt_free (id2_subj);
-  ddsrt_free (id1);
-  ddsrt_free (id2);
+static void test_encoding_mismatch(
+    bool exp_hs_fail, bool exp_rd_wr_fail,
+    DDS_Security_ProtectionKind rtps_pk1, DDS_Security_ProtectionKind rtps_pk2,
+    DDS_Security_ProtectionKind discovery_pk1, DDS_Security_ProtectionKind discovery_pk2,
+    DDS_Security_ProtectionKind liveliness_pk1, DDS_Security_ProtectionKind liveliness_pk2,
+    DDS_Security_ProtectionKind metadata_pk1, DDS_Security_ProtectionKind metadata_pk2,
+    DDS_Security_BasicProtectionKind payload_pk1, DDS_Security_BasicProtectionKind payload_pk2)
+{
+  char topic_name[100];
+  create_topic_name ("ddssec_access_control_", g_topic_nr++, topic_name, sizeof (topic_name));
+
+  /* create ca and id1/id2 certs that will not expire during this test */
+  char *ca, *id1, *id2, *id1_subj, *id2_subj;
+  ca = generate_ca ("ca1", TEST_IDENTITY_CA1_PRIVATE_KEY, 0, 3600);
+  id1 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id1", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id1_subj);
+  id2 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id2", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id2_subj);
+
+  /* localtime will be converted to gmtime in get_permissions_grant */
+  dds_time_t now = dds_time ();
+  char * perm_topic = get_permissions_topic (topic_name);
+  char * grants[] = {
+    get_permissions_grant ("id1", id1_subj, NULL, now, now + DDS_SECS(3600), perm_topic, perm_topic, NULL),
+    get_permissions_grant ("id2", id2_subj, NULL, now, now + DDS_SECS(3600), perm_topic, perm_topic, NULL) };
+  char * perm_config = get_permissions_config (grants, 2, true);
+
+  char * gov_topic_rule1 = get_governance_topic_rule (topic_name, true, true, true, true, pk_to_str (metadata_pk1), bpk_to_str (payload_pk1));
+  char * gov_topic_rule2 = get_governance_topic_rule (topic_name, true, true, true, true, pk_to_str (metadata_pk2), bpk_to_str (payload_pk2));
+  char * gov_config1 = get_governance_config (false, true, pk_to_str (discovery_pk1), pk_to_str (liveliness_pk1), pk_to_str (rtps_pk1), gov_topic_rule1, true);
+  char * gov_config2 = get_governance_config (false, true, pk_to_str (discovery_pk2), pk_to_str (liveliness_pk2), pk_to_str (rtps_pk2), gov_topic_rule2, true);
+  const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
+
+  access_control_init (
+      2,
+      (const char *[]) { id1, id2 },
+      (const char *[]) { TEST_IDENTITY1_PRIVATE_KEY, TEST_IDENTITY1_PRIVATE_KEY },
+      (const char *[]) { ca, ca },
+      (bool []) { false, false }, NULL, NULL,
+      (bool []) { true, true }, (const char *[]) { gov_config1, gov_config2 },
+      (bool []) { true, true }, (const char *[]) { perm_config, perm_config },
+      (bool []) { true, true }, (const char *[]) { def_perm_ca, def_perm_ca });
+
+  struct Handshake *hs_list;
+  int nhs;
+  validate_handshake (DDS_DOMAINID, false, NULL, &hs_list, &nhs, DDS_MSECS(500));
+  CU_ASSERT_EQUAL_FATAL (exp_hs_fail, nhs < 1);
+  handshake_list_fini (hs_list, nhs);
+
+  if (!exp_hs_fail)
+  {
+    dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
+    rd_wr_init (g_participant[0], &pub, &pub_tp, &wr, g_participant[1], &sub, &sub_tp, &rd, topic_name);
+    sync_writer_to_readers (g_participant[0], wr, exp_rd_wr_fail ? 0 : 1, DDS_SECS(1));
+  }
+
+  access_control_fini (2, (void * []) { gov_config1, gov_config2, gov_topic_rule1, gov_topic_rule2, perm_topic, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 13);
+}
+
+static DDS_Security_ProtectionKind pk[] = { PK_N, PK_S, PK_E, PK_SOA, PK_EOA };
+static DDS_Security_BasicProtectionKind bpk[] = { BPK_N, BPK_S, BPK_E };
+
+CU_Test(ddssec_access_control, encoding_mismatch_rtps, .timeout=30)
+{
+  for (size_t pk1 = 0; pk1 < sizeof (pk) / sizeof (pk[0]); pk1++)
+    for (size_t pk2 = pk1 + 1; pk2 < sizeof (pk) / sizeof (pk[0]); pk2++)
+      test_encoding_mismatch (pk1 != pk2, false, pk[pk1], pk[pk2], PK_N, PK_N, PK_N, PK_N, PK_N, PK_N, BPK_N, BPK_N);
+}
+
+CU_Test(ddssec_access_control, encoding_mismatch_discovery, .timeout=30)
+{
+  for (size_t pk1 = 0; pk1 < sizeof (pk) / sizeof (pk[0]); pk1++)
+    for (size_t pk2 = pk1 + 1; pk2 < sizeof (pk) / sizeof (pk[0]); pk2++)
+      test_encoding_mismatch (pk1 != pk2, false, PK_N, PK_N, pk[pk1], pk[pk2], PK_N, PK_N, PK_N, PK_N, BPK_N, BPK_N);
+}
+
+CU_Test(ddssec_access_control, encoding_mismatch_liveliness, .timeout=30)
+{
+  for (size_t pk1 = 0; pk1 < sizeof (pk) / sizeof (pk[0]); pk1++)
+    for (size_t pk2 = pk1 + 1; pk2 < sizeof (pk) / sizeof (pk[0]); pk2++)
+      test_encoding_mismatch (pk1 != pk2, false, PK_N, PK_N, PK_N, PK_N, pk[pk1], pk[pk2], PK_N, PK_N, BPK_N, BPK_N);
+}
+
+CU_Test(ddssec_access_control, encoding_mismatch_metadata, .timeout=30)
+{
+  for (size_t pk1 = 0; pk1 < sizeof (pk) / sizeof (pk[0]); pk1++)
+    for (size_t pk2 = pk1 + 1; pk2 < sizeof (pk) / sizeof (pk[0]); pk2++)
+      test_encoding_mismatch (false, pk1 != pk2, PK_N, PK_N, PK_N, PK_N, PK_N, PK_N, pk[pk1], pk[pk2], BPK_N, BPK_N);
+}
+
+CU_Test(ddssec_access_control, encoding_mismatch_payload, .timeout=30)
+{
+  for (size_t pk1 = 0; pk1 < sizeof (bpk) / sizeof (bpk[0]); pk1++)
+    for (size_t pk2 = pk1 + 1; pk2 < sizeof (bpk) / sizeof (bpk[0]); pk2++)
+      test_encoding_mismatch (false, pk1 != pk2, PK_N, PK_N, PK_N, PK_N, PK_N, PK_N, PK_N, PK_N, bpk[pk1], bpk[pk2]);
 }
