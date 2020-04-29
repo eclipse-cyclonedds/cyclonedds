@@ -263,10 +263,9 @@ CU_Theory(
   id2 = generate_identity (ca, CA1K, "id2", ID1K, id2_not_before, id2_not_after, &id2_subj);
   dds_sleepfor (DDS_MSECS (delay));
 
-  dds_time_t now = dds_time ();
   char * grants[] = {
-    get_permissions_grant ("id1", id1_subj, NULL, now - DDS_SECS(D(1)), now + DDS_SECS(D(1)), NULL, NULL, NULL),
-    get_permissions_grant ("id2", id2_subj, NULL, now - DDS_SECS(D(1)), now + DDS_SECS(D(1)), NULL, NULL, NULL) };
+    get_permissions_default_grant ("id1", id1_subj, topic_name),
+    get_permissions_default_grant ("id2", id2_subj, topic_name) };
   char * perm_config = get_permissions_config (grants, 2, true);
   authentication_init (id1, ID1K, ca, id2, ID1K, ca, NULL, perm_config, id1_local_fail, id2_local_fail);
   validate_handshake (DDS_DOMAINID1, id1_local_fail, NULL, NULL, NULL, DDS_SECS(2));

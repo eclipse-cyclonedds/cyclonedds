@@ -25,14 +25,16 @@ const char * expand_lookup_vars (const char *name, void * data);
 const char * expand_lookup_vars_env (const char *name, void * data);
 int32_t expand_lookup_unmatched (const struct kvp * lookup_table);
 
-char * get_governance_topic_rule(const char * topic_expr, bool discovery_protection, bool liveliness_protection,
+char * get_governance_topic_rule (const char * topic_expr, bool discovery_protection, bool liveliness_protection,
     bool read_ac, bool write_ac, const char * metadata_protection_kind, const char * data_protection_kind);
-char * get_governance_config(bool allow_unauth_pp, bool enable_join_ac, const char * discovery_protection_kind, const char * liveliness_protection_kind,
+char * get_governance_config (bool allow_unauth_pp, bool enable_join_ac, const char * discovery_protection_kind, const char * liveliness_protection_kind,
     const char * rtps_protection_kind, const char * topic_rules, bool add_prefix);
 
-char * get_permissions_topic(const char * name);
-char * get_permissions_grant(const char * name, const char * subject, const char * domain_id,
-    dds_time_t not_before, dds_time_t not_after, const char * pub_topics, const char * sub_topics, const char * default_policy);
-char * get_permissions_config(char * grants[], size_t ngrants, bool add_prefix);
+char * get_permissions_rules (const char * domain_id, const char * allow_pub_topic, const char * allow_sub_topic,
+    const char * deny_pub_topic, const char * deny_sub_topic);
+char * get_permissions_grant (const char * grant_name, const char * subject_name, dds_time_t not_before, dds_time_t not_after,
+    const char * rules_xml, const char * default_policy);
+char * get_permissions_default_grant (const char * grant_name, const char * subject_name, const char * topic_name);
+char * get_permissions_config (char * grants[], size_t ngrants, bool add_prefix);
 
 #endif /* SECURITY_CORE_TEST_SECURITY_CONFIG_TEST_UTILS_H_ */

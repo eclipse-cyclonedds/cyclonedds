@@ -90,6 +90,7 @@ static void access_control_init(
   CU_ASSERT_FATAL (n_nodes <= MAX_DOMAINS);
   for (size_t i = 0; i < n_nodes; i++)
   {
+    print_test_msg ("init domain %"PRIuSIZE"\n", i);
     struct kvp config_vars[] = {
       { "TEST_IDENTITY_CERTIFICATE", id_certs[i], 1 },
       { "TEST_IDENTITY_PRIVATE_KEY", id_keys[i], 1 },
@@ -256,10 +257,10 @@ CU_Theory(
 
   /* localtime will be converted to gmtime in get_permissions_grant */
   dds_time_t now = dds_time ();
-  char * perm_topic = get_permissions_topic (topic_name);
+  char * rules_xml = get_permissions_rules (NULL, topic_name, topic_name, NULL, NULL);
   char * grants[] = {
-    get_permissions_grant ("id1", id1_subj, NULL, now + DDS_SECS(perm1_not_before), now + DDS_SECS(perm1_not_after), perm_topic, perm_topic, NULL),
-    get_permissions_grant ("id2", id2_subj, NULL, now + DDS_SECS(perm2_not_before), now + DDS_SECS(perm2_not_after), perm_topic, perm_topic, NULL) };
+    get_permissions_grant ("id1", id1_subj, now + DDS_SECS(perm1_not_before), now + DDS_SECS(perm1_not_after), rules_xml, NULL),
+    get_permissions_grant ("id2", id2_subj, now + DDS_SECS(perm2_not_before), now + DDS_SECS(perm2_not_after), rules_xml, NULL) };
   char * perm_config = get_permissions_config (grants, 2, true);
   dds_sleepfor (DDS_MSECS (delay_perm));
 
@@ -285,7 +286,7 @@ CU_Theory(
     write_read_for (wr, g_participant[1], rd, DDS_MSECS (write_read_dur), false, exp_read_fail);
   }
 
-  access_control_fini (2, (void * []) { perm_topic, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 9);
+  access_control_fini (2, (void * []) { rules_xml, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 9);
 }
 
 
@@ -300,7 +301,7 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
 
   dds_time_t t_perm = dds_time ();
   char *ca = generate_ca ("ca1", TEST_IDENTITY_CA1_PRIVATE_KEY, 0, 3600);
-  char *perm_topic = get_permissions_topic (topic_name);
+  char *rules_xml = get_permissions_rules (NULL, topic_name, topic_name, NULL, NULL);
 
   // 1st node used as reader, other nodes as writer
   print_test_msg ("creating permissions grants\n");
@@ -323,7 +324,7 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
     dds_time_t t_exp = ddsrt_time_add_duration (t_perm, v);
     if (i >= N_RD)
       print_test_msg ("w[%d] grant expires at %d.%06d\n", i - N_RD, (int32_t) (t_exp / DDS_NSECS_IN_SEC), (int32_t) (t_exp % DDS_NSECS_IN_SEC) / 1000);
-    grants[i] = get_permissions_grant (id_name, id_subj[i], NULL, t_perm, t_exp, perm_topic, perm_topic, NULL);
+    grants[i] = get_permissions_grant (id_name, id_subj[i], t_perm, t_exp, rules_xml, NULL);
     ddsrt_free (id_name);
   }
 
@@ -427,7 +428,7 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
     ddsrt_free ((char *)id[i]);
   }
   ddsrt_free (ca);
-  ddsrt_free (perm_topic);
+  ddsrt_free (rules_xml);
   ddsrt_free (perm_config_str);
 }
 #undef N_RD
@@ -547,12 +548,12 @@ CU_Theory(
   id1 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id1", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id1_subj);
   id2 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id2", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id2_subj);
 
-  /* localtime will be converted to gmtime in get_permissions_grant */
   dds_time_t now = dds_time ();
-  char * perm_topic = get_permissions_topic (topic_name);
+  char * rules1_xml = get_permissions_rules (perm_inv_pp1 ? "99" : NULL, topic_name, topic_name, NULL, NULL);
+  char * rules2_xml = get_permissions_rules (perm_inv_pp2 ? "99" : NULL, topic_name, topic_name, NULL, NULL);
   char * grants[] = {
-    get_permissions_grant ("id1", id1_subj, perm_inv_pp1 ? "99" : NULL, now, now + DDS_SECS(3600), perm_topic, perm_topic, NULL),
-    get_permissions_grant ("id2", id2_subj, perm_inv_pp2 ? "99" : NULL, now, now + DDS_SECS(3600), perm_topic, perm_topic, NULL) };
+    get_permissions_grant ("id1", id1_subj, now, now + DDS_SECS(3600), rules1_xml, NULL),
+    get_permissions_grant ("id2", id2_subj, now, now + DDS_SECS(3600), rules2_xml, NULL) };
   char * perm_config = get_permissions_config (grants, 2, true);
 
   char * gov_topic_rule = get_governance_topic_rule ("*", false, false, true, true, "NONE", "NONE");
@@ -573,7 +574,7 @@ CU_Theory(
   if (!exp_pp1_fail && !exp_pp2_fail)
     validate_handshake (DDS_DOMAINID, exp_hs_fail, NULL, NULL, NULL, DDS_SECS(2));
 
-  access_control_fini (2, (void * []) { gov_config_pp1, gov_config_pp2, gov_topic_rule, perm_topic, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 12);
+  access_control_fini (2, (void * []) { gov_config_pp1, gov_config_pp2, gov_topic_rule, rules1_xml, rules2_xml, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 13);
 }
 
 #define na false
@@ -618,12 +619,9 @@ static void test_discovery_liveliness_protection(enum test_discovery_liveliness 
   id1 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id1", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id1_subj);
   id2 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id2", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id2_subj);
 
-  /* localtime will be converted to gmtime in get_permissions_grant */
-  dds_time_t now = dds_time ();
-  char * perm_topic = get_permissions_topic (topic_name);
   char * grants[] = {
-    get_permissions_grant ("id1", id1_subj, NULL, now, now + DDS_SECS(3600), perm_topic, perm_topic, NULL),
-    get_permissions_grant ("id2", id2_subj, NULL, now, now + DDS_SECS(3600), perm_topic, perm_topic, NULL) };
+    get_permissions_default_grant ("id1", id1_subj, topic_name),
+    get_permissions_default_grant ("id2", id2_subj, topic_name) };
   char * perm_config = get_permissions_config (grants, 2, true);
 
   char * gov_topic_rule1 = get_governance_topic_rule (topic_name, dp && enable_protection_pp1, lp && enable_protection_pp1, true, true, "ENCRYPT", "NONE");
@@ -667,7 +665,7 @@ static void test_discovery_liveliness_protection(enum test_discovery_liveliness 
     ddsrt_free (log);
   }
 
-  access_control_fini (2, (void * []) { gov_config1, gov_config2, gov_topic_rule1, gov_topic_rule2, perm_topic, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 13);
+  access_control_fini (2, (void * []) { gov_config1, gov_config2, gov_topic_rule1, gov_topic_rule2, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 12);
 }
 
 CU_Theory(
@@ -702,12 +700,9 @@ static void test_encoding_mismatch(
   id1 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id1", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id1_subj);
   id2 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id2", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id2_subj);
 
-  /* localtime will be converted to gmtime in get_permissions_grant */
-  dds_time_t now = dds_time ();
-  char * perm_topic = get_permissions_topic (topic_name);
   char * grants[] = {
-    get_permissions_grant ("id1", id1_subj, NULL, now, now + DDS_SECS(3600), perm_topic, perm_topic, NULL),
-    get_permissions_grant ("id2", id2_subj, NULL, now, now + DDS_SECS(3600), perm_topic, perm_topic, NULL) };
+    get_permissions_default_grant ("id1", id1_subj, topic_name),
+    get_permissions_default_grant ("id2", id2_subj, topic_name) };
   char * perm_config = get_permissions_config (grants, 2, true);
 
   char * gov_topic_rule1 = get_governance_topic_rule (topic_name, true, true, true, true, pk_to_str (metadata_pk1), bpk_to_str (payload_pk1));
@@ -739,7 +734,7 @@ static void test_encoding_mismatch(
     sync_writer_to_readers (g_participant[0], wr, exp_rd_wr_fail ? 0 : 1, DDS_SECS(1));
   }
 
-  access_control_fini (2, (void * []) { gov_config1, gov_config2, gov_topic_rule1, gov_topic_rule2, perm_topic, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 13);
+  access_control_fini (2, (void * []) { gov_config1, gov_config2, gov_topic_rule1, gov_topic_rule2, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 12);
 }
 
 static DDS_Security_ProtectionKind pk[] = { PK_N, PK_S, PK_E, PK_SOA, PK_EOA };
@@ -778,4 +773,84 @@ CU_Test(ddssec_access_control, encoding_mismatch_payload, .timeout=30)
   for (size_t pk1 = 0; pk1 < sizeof (bpk) / sizeof (bpk[0]); pk1++)
     for (size_t pk2 = pk1 + 1; pk2 < sizeof (bpk) / sizeof (bpk[0]); pk2++)
       test_encoding_mismatch (false, pk1 != pk2, PK_N, PK_N, PK_N, PK_N, PK_N, PK_N, PK_N, PK_N, bpk[pk1], bpk[pk2]);
+}
+
+
+static void test_readwrite_protection (
+  bool allow_pub, bool allow_sub, bool deny_pub, bool deny_sub, bool write_ac, bool read_ac,
+  bool exp_pub_pp_fail, bool exp_pub_tp_fail, bool exp_wr_fail,
+  bool exp_sub_pp_fail, bool exp_sub_tp_fail, bool exp_rd_fail,
+  bool exp_sync_fail, const char * default_policy)
+{
+  print_test_msg ("running test readwrite_protection: \n");
+  print_test_msg ("- allow_pub=%d | allow_sub=%d | deny_pub=%d | deny_sub=%d | write_ac=%d | read_ac=%d | default_policy=%s\n", allow_pub, allow_sub, deny_pub, deny_sub, write_ac, read_ac, default_policy);
+  print_test_msg ("- exp_pub_pp_fail=%d | exp_pub_tp_fail=%d | exp_wr_fail=%d | exp_sub_pp_fail=%d | exp_sub_tp_fail=%d | exp_rd_fail=%d | exp_sync_fail=%d\n", exp_pub_pp_fail, exp_pub_tp_fail, exp_wr_fail, exp_sub_pp_fail, exp_sub_tp_fail, exp_rd_fail, exp_sync_fail);
+
+  char topic_name[100];
+  create_topic_name ("ddssec_access_control_", g_topic_nr++, topic_name, sizeof (topic_name));
+
+  /* create ca and id1/id2 certs that will not expire during this test */
+  char *ca, *id1, *id2, *id1_subj, *id2_subj;
+  ca = generate_ca ("ca1", TEST_IDENTITY_CA1_PRIVATE_KEY, 0, 3600);
+  id1 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id1", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id1_subj);
+  id2 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id2", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id2_subj);
+
+  dds_time_t now = dds_time ();
+  char * rules_xml = get_permissions_rules (NULL, allow_pub ? topic_name : NULL, allow_sub ? topic_name : NULL, deny_pub ? topic_name : NULL, deny_sub ? topic_name : NULL);
+  char * grants[] = {
+    get_permissions_grant ("id1", id1_subj, now, now + DDS_SECS(3600), rules_xml, default_policy),
+    get_permissions_grant ("id2", id2_subj, now, now + DDS_SECS(3600), rules_xml, default_policy) };
+  char * perm_config = get_permissions_config (grants, 2, true);
+
+  char * gov_topic_rule = get_governance_topic_rule (topic_name, false, false, read_ac, write_ac, pk_to_str (PK_E), bpk_to_str (BPK_E));
+  char * gov_config = get_governance_config (false, true, NULL, NULL, NULL, gov_topic_rule, true);
+  const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
+
+  access_control_init (
+      2,
+      (const char *[]) { id1, id2 },
+      (const char *[]) { TEST_IDENTITY1_PRIVATE_KEY, TEST_IDENTITY1_PRIVATE_KEY },
+      (const char *[]) { ca, ca },
+      (bool []) { exp_pub_pp_fail, exp_sub_pp_fail }, NULL, NULL,
+      (bool []) { true, true }, (const char *[]) { gov_config, gov_config },
+      (bool []) { true, true }, (const char *[]) { perm_config, perm_config },
+      (bool []) { true, true }, (const char *[]) { def_perm_ca, def_perm_ca });
+
+  if (!exp_pub_pp_fail && !exp_sub_pp_fail)
+  {
+    dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
+    validate_handshake_nofail (DDS_DOMAINID, DDS_MSECS(500));
+    rd_wr_init_fail (g_participant[0], &pub, &pub_tp, &wr, g_participant[1], &sub, &sub_tp, &rd, topic_name, exp_pub_tp_fail, exp_wr_fail, exp_sub_tp_fail, exp_rd_fail);
+    if (!exp_pub_tp_fail && !exp_wr_fail && !exp_sub_tp_fail && !exp_rd_fail)
+      sync_writer_to_readers (g_participant[0], wr, exp_sync_fail ? 0 : 1, DDS_SECS(1));
+  }
+
+  access_control_fini (2, (void * []) { gov_config, gov_topic_rule, rules_xml, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 11);
+}
+
+CU_Test(ddssec_access_control, readwrite_protection, .timeout=60)
+{
+  for (int allow_pub = 0; allow_pub <= 1; allow_pub++)
+    for (int allow_sub = 0; allow_sub <= 1; allow_sub++)
+      for (int deny_pub = 0; deny_pub <= 1 && !(allow_pub && deny_pub); deny_pub++)
+        for (int deny_sub = 0; deny_sub <= 1 && !(allow_sub && deny_sub); deny_sub++)
+          for (int write_ac = 0; write_ac <= 1; write_ac++)
+            for (int read_ac = 0; read_ac <= 1; read_ac++)
+              for (int default_deny = 0; default_deny <= 1; default_deny++)
+              {
+                /* creating local writer/reader fails if write_ac/read_ac enabled and no allow-pub/sub or a deny-pub/sub rule exists */
+                bool exp_wr_fail = write_ac && !allow_pub && (deny_pub || default_deny);
+                bool exp_rd_fail = read_ac && !allow_sub && (deny_sub || default_deny);
+                /* if both read_ac and write_ac are enabled, and pub and sub not allowed, topic creation should fail */
+                bool exp_tp_fail = write_ac && read_ac && !allow_pub && !allow_sub && (deny_pub || deny_sub || default_deny);
+                /* participant creation should fail under same conditions as topic creation (as opposed to the DDS Security spec,
+                  table 63, that states that participant creation fails when there is not any topic that has enable_read/write_ac
+                  set to false and join_ac is enabled; it seems that the allow_rule condition is missing there) */
+                bool exp_pp_fail = write_ac && read_ac && !allow_pub && !allow_sub && default_deny;
+                /* join-ac is enabled in this test, so check_remote_pp fails (and therefore the reader/writer sync) in case not any allow rule exists */
+                bool exp_sync_fail = !allow_pub && !allow_sub && default_deny;
+
+                test_readwrite_protection (allow_pub, allow_sub, deny_pub, deny_sub, write_ac, read_ac,
+                  exp_pp_fail, exp_tp_fail, exp_wr_fail, exp_pp_fail, exp_tp_fail, exp_rd_fail, exp_sync_fail, default_deny ? "DENY" : "ALLOW");
+              }
 }
