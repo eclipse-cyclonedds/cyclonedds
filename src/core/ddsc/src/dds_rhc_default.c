@@ -267,6 +267,7 @@ struct rhc_instance {
   unsigned isnew : 1;          /* NEW or NOT_NEW view state */
   unsigned a_sample_free : 1;  /* whether or not a_sample is in use */
   unsigned isdisposed : 1;     /* DISPOSED or NOT_DISPOSED (if not disposed, wrcount determines ALIVE/NOT_ALIVE_NO_WRITERS) */
+  unsigned autodispose : 1;    /* wrcount > 0 => at least one registered writer has had auto-dispose set on some update */
   unsigned wr_iid_islive : 1;  /* whether wr_iid is of a live writer */
   unsigned inv_exists : 1;     /* whether or not state change occurred since last sample (i.e., must return invalid sample) */
   unsigned inv_isread : 1;     /* whether or not that state change has been read before */
@@ -696,7 +697,12 @@ static void inst_clear_invsample_if_exists (struct dds_rhc_default *rhc, struct 
 
 static void inst_set_invsample (struct dds_rhc_default *rhc, struct rhc_instance *inst, struct trigger_info_qcond *trig_qc, bool *nda)
 {
-  if (!inst->inv_exists || inst->inv_isread)
+  if (inst->inv_exists && !inst->inv_isread)
+  {
+    /* FIXME: should this indeed trigger a "notify data available" event?*/
+    *nda = true;
+  }
+  else
   {
     /* Obviously optimisable, but that is perhaps not worth the bother */
     inst_clear_invsample_if_exists (rhc, inst, trig_qc);
@@ -1027,7 +1033,7 @@ static void drop_instance_noupdate_no_writers (struct dds_rhc_default *__restric
   *instptr = NULL;
 }
 
-static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *inst, uint64_t wr_iid, bool iid_update)
+static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *inst, uint64_t wr_iid, bool autodispose, bool iid_update)
 {
   const uint64_t inst_wr_iid = inst->wr_iid_islive ? inst->wr_iid : 0;
 
@@ -1064,6 +1070,7 @@ static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *
     }
     inst->wrcount++;
     inst->no_writers_gen++;
+    inst->autodispose = autodispose;
     TRACE ("new1");
 
     if (!inst_is_empty (inst) && !inst->isdisposed)
@@ -1089,6 +1096,8 @@ static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *
     if (lwregs_add (&rhc->registrations, inst->iid, wr_iid))
     {
       inst->wrcount++;
+      if (autodispose)
+        inst->autodispose = 1;
       TRACE ("new2iidnull");
     }
     else
@@ -1125,6 +1134,8 @@ static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *
          registers a previously unknown writer or not */
       TRACE ("new3");
       inst->wrcount++;
+      if (autodispose)
+        inst->autodispose = 1;
     }
     else
     {
@@ -1218,6 +1229,8 @@ static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_in
 {
   struct rhc_instance * const inst = *instptr;
   assert (inst->wrcount > 0);
+  if (wrinfo->auto_dispose)
+    inst->autodispose = 1;
 
   if (--inst->wrcount > 0)
   {
@@ -1239,20 +1252,27 @@ static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_in
     if (!inst_is_empty (inst))
     {
       /* Instance still has content - do not drop until application
-       takes the last sample.  Set the invalid sample if the latest
-       sample has been read already, so that the application can
-       read the change to not-alive.  (If the latest sample is still
-       unread, we don't bother, even though it means the application
-       won't see the timestamp for the unregister event. It shouldn't
-       care.) */
-      if (inst->latest == NULL || inst->latest->isread)
-      {
-        inst_set_invsample (rhc, inst, trig_qc, nda);
-        update_inst (inst, wrinfo, false, tstamp);
-      }
+         takes the last sample.  Set the invalid sample if the latest
+         sample has been read already, so that the application can
+         read the change to not-alive.  (If the latest sample is still
+         unread, we don't bother, even though it means the application
+         won't see the timestamp for the unregister event. It shouldn't
+         care.) */
       if (!inst->isdisposed)
       {
-        rhc->n_not_alive_no_writers++;
+        if (inst->latest == NULL || inst->latest->isread)
+        {
+          inst_set_invsample (rhc, inst, trig_qc, nda);
+          update_inst (inst, wrinfo, false, tstamp);
+        }
+        if (!inst->autodispose)
+          rhc->n_not_alive_no_writers++;
+        else
+        {
+          TRACE (",autodispose");
+          inst->isdisposed = 1;
+          rhc->n_not_alive_disposed++;
+        }
       }
       inst->wr_iid_islive = 0;
       return 0;
@@ -1270,6 +1290,11 @@ static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_in
       assert (inst_is_empty (inst));
       inst_set_invsample (rhc, inst, trig_qc, nda);
       update_inst (inst, wrinfo, false, tstamp);
+      if (inst->autodispose)
+      {
+        TRACE (",autodispose");
+        inst->isdisposed = 1;
+      }
       account_for_empty_to_nonempty_transition (rhc, inst);
       inst->wr_iid_islive = 0;
       return 0;
@@ -1313,6 +1338,7 @@ static struct rhc_instance *alloc_new_instance (struct dds_rhc_default *rhc, con
   inst->tk = tk;
   inst->wrcount = (serdata->statusinfo & NN_STATUSINFO_UNREGISTER) ? 0 : 1;
   inst->isdisposed = (serdata->statusinfo & NN_STATUSINFO_DISPOSE) != 0;
+  inst->autodispose = wrinfo->auto_dispose;
   inst->deadline_reg = 0;
   inst->isnew = 1;
   inst->a_sample_free = 1;
@@ -1517,7 +1543,7 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
     get_trigger_info_pre (&pre, inst);
     if (has_data || is_dispose)
     {
-      dds_rhc_register (rhc, inst, wr_iid, false);
+      dds_rhc_register (rhc, inst, wr_iid, wrinfo->auto_dispose, false);
     }
     if (statusinfo & NN_STATUSINFO_UNREGISTER)
     {
@@ -1563,7 +1589,7 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
          (i.e., out-of-memory), abort the operation and hope that the
          caller can still notify the application.  */
 
-      dds_rhc_register (rhc, inst, wr_iid, true);
+      dds_rhc_register (rhc, inst, wr_iid, wrinfo->auto_dispose, true);
 
       /* Sample arriving for a NOT_ALIVE instance => view state NEW */
       if (has_data && not_alive)
@@ -1710,16 +1736,16 @@ static void dds_rhc_default_unregister_wr (struct ddsi_rhc * __restrict rhc_comm
   struct rhc_instance *inst;
   struct ddsrt_hh_iter iter;
   const uint64_t wr_iid = wrinfo->iid;
-  const int auto_dispose = wrinfo->auto_dispose;
-
+  const bool auto_dispose = wrinfo->auto_dispose;
   size_t ntriggers = SIZE_MAX;
 
   ddsrt_mutex_lock (&rhc->lock);
-  TRACE ("rhc_unregister_wr_iid(%"PRIx64",%d:\n", wr_iid, auto_dispose);
+  TRACE ("rhc_unregister_wr_iid %"PRIx64",%d:\n", wr_iid, wrinfo->auto_dispose);
   for (inst = ddsrt_hh_iter_first (rhc->instances, &iter); inst; inst = ddsrt_hh_iter_next (&iter))
   {
     if ((inst->wr_iid_islive && inst->wr_iid == wr_iid) || lwregs_contains (&rhc->registrations, inst->iid, wr_iid))
     {
+      assert (inst->wrcount > 0);
       struct trigger_info_pre pre;
       struct trigger_info_post post;
       struct trigger_info_qcond trig_qc;
@@ -1731,10 +1757,11 @@ static void dds_rhc_default_unregister_wr (struct ddsi_rhc * __restrict rhc_comm
       assert (inst->wrcount > 0);
       if (auto_dispose && !inst->isdisposed)
       {
+        notify_data_available = true;
         inst->isdisposed = 1;
 
         /* Set invalid sample for disposing it (unregister may also set it for unregistering) */
-        if (inst->latest)
+        if (inst->latest && !inst->latest->isread)
         {
           assert (!inst->inv_exists);
           rhc->n_not_alive_disposed++;

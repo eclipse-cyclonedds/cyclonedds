@@ -997,9 +997,9 @@ CU_Test(ddsc_listener, data_available_delete_writer_disposed, .init=init_trigger
     ret = dds_delete (g_writer);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     g_writer = 0;
-    triggered = waitfor_cb(DDS_DATA_AVAILABLE_STATUS);
-    CU_ASSERT_EQUAL_FATAL(triggered & DDS_DATA_AVAILABLE_STATUS, DDS_DATA_AVAILABLE_STATUS);
-    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
+    ddsrt_mutex_lock(&g_mutex);
+    CU_ASSERT_EQUAL_FATAL(cb_called & DDS_DATA_AVAILABLE_STATUS_ID, 0);
+    ddsrt_mutex_unlock(&g_mutex);
 
     /* The listener should have swallowed the status. */
     ret = dds_read_status(g_subscriber, &status, DDS_DATA_ON_READERS_STATUS);
