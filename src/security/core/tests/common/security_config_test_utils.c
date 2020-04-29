@@ -27,6 +27,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/io.h"
 #include "common/config_env.h"
+#include "common/test_utils.h"
 #include "security_config_test_utils.h"
 
 static const char *topic_rule =
@@ -63,24 +64,37 @@ static const char *governance_xml =
     "  </domain_access_rules>"
     "</dds>";
 
-static const char *topic_xml =
-    "<topic>${TOPIC_NAME}</topic>";
+static const char *permissions_xml_pub =
+    "        <publish>"
+    "          <topics><topic>${TOPIC_NAME}</topic></topics>"
+    "          <partitions><partition>*</partition></partitions>"
+    "        </publish>";
+
+static const char *permissions_xml_sub =
+    "        <subscribe>"
+    "          <topics><topic>${TOPIC_NAME}</topic></topics>"
+    "          <partitions><partition>*</partition></partitions>"
+    "        </subscribe>";
+
+static const char *permissions_xml_allow_rule =
+    "      <allow_rule>"
+    "        <domains>${DOMAIN_ID:+<id>}${DOMAIN_ID:-<id_range><min>0</min><max>230</max></id_range>}${DOMAIN_ID:+</id>}</domains>"
+    "        ${PUBLISH}"
+    "        ${SUBSCRIBE}"
+    "      </allow_rule>";
+
+static const char *permissions_xml_deny_rule =
+    "      <deny_rule>"
+    "        <domains>${DOMAIN_ID:+<id>}${DOMAIN_ID:-<id_range><min>0</min><max>230</max></id_range>}${DOMAIN_ID:+</id>}</domains>"
+    "        ${PUBLISH}"
+    "        ${SUBSCRIBE}"
+    "      </deny_rule>";
 
 static const char *permissions_xml_grant =
     "    <grant name=\"${GRANT_NAME}\">"
     "      <subject_name>${SUBJECT_NAME}</subject_name>"
     "      <validity><not_before>${NOT_BEFORE:-2015-09-15T01:00:00}</not_before><not_after>${NOT_AFTER:-2115-09-15T01:00:00}</not_after></validity>"
-    "      <allow_rule>"
-    "        <domains>${DOMAIN_ID:+<id>}${DOMAIN_ID:-<id_range><min>0</min><max>230</max></id_range>}${DOMAIN_ID:+</id>}</domains>"
-    "        <publish>"
-    "          <topics>${PUB_TOPICS:-<topic>*</topic>}</topics>"
-    "          <partitions><partition>*</partition></partitions>"
-    "        </publish>"
-    "        <subscribe>"
-    "          <topics>${SUB_TOPICS:-<topic>*</topic>}</topics>"
-    "          <partitions><partition>*</partition></partitions>"
-    "        </subscribe>"
-    "      </allow_rule>"
+    "      ${RULES}"
     "      <default>${DEFAULT_POLICY:-DENY}</default>"
     "    </grant>";
 
@@ -128,6 +142,20 @@ int32_t expand_lookup_unmatched (const struct kvp * lookup_table)
     unmatched += c;
   }
   return unmatched;
+}
+
+static char * get_xml_datetime(dds_time_t t, char * buf, size_t len)
+{
+  struct tm tm;
+  time_t sec = (time_t)(t / DDS_NSECS_IN_SEC);
+#if _WIN32
+  (void)gmtime_s(&tm, &sec);
+#else
+  (void)gmtime_r(&sec, &tm);
+#endif /* _WIN32 */
+
+  strftime(buf, len, "%FT%TZ", &tm);
+  return buf;
 }
 
 static char * smime_sign(char * ca_cert_path, char * ca_priv_key_path, const char * data)
@@ -232,7 +260,7 @@ char * get_governance_topic_rule(const char * topic_expr, bool discovery_protect
   return ddsrt_expand_vars (topic_rule, &expand_lookup_vars, vars);
 }
 
-char * get_governance_config(bool allow_unauth_pp, bool enable_join_ac, const char * discovery_protection_kind, const char * liveliness_protection_kind,
+char * get_governance_config (bool allow_unauth_pp, bool enable_join_ac, const char * discovery_protection_kind, const char * liveliness_protection_kind,
     const char * rtps_protection_kind, const char * topic_rules, bool add_prefix)
 {
   struct kvp vars[] = {
@@ -248,57 +276,89 @@ char * get_governance_config(bool allow_unauth_pp, bool enable_join_ac, const ch
   char * config_signed = get_signed_data (config);
   ddsrt_free (config);
 
-  printf("Governance configuration: ");
-  print_config_vars(vars);
+  print_test_msg ("governance configuration: ");
+  print_config_vars (vars);
   printf("\n");
 
   return prefix_data (config_signed, add_prefix);
 }
 
-
-char * get_permissions_topic(const char * name)
+static char * expand_permissions_pubsub (const char * template, const char * topic_name)
 {
   struct kvp vars[] = {
-    { "TOPIC_NAME", name, 1 },
+    { "TOPIC_NAME", topic_name, 1 },
     { NULL, NULL, 0 }
   };
-  return ddsrt_expand_vars (topic_xml, &expand_lookup_vars, vars);
+  return ddsrt_expand_vars (template, &expand_lookup_vars, vars);
 }
 
-static char * get_xml_datetime(dds_time_t t, char * buf, size_t len)
+static char * expand_permissions_rule (const char * template, const char * domain_id, const char * pub_xml, const char * sub_xml)
 {
-  struct tm tm;
-  time_t sec = (time_t)(t / DDS_NSECS_IN_SEC);
-#if _WIN32
-  (void)gmtime_s(&tm, &sec);
-#else
-  (void)gmtime_r(&sec, &tm);
-#endif /* _WIN32 */
-
-  strftime(buf, len, "%FT%TZ", &tm);
-  return buf;
+  struct kvp vars[] = {
+    { "DOMAIN_ID", domain_id, 3 },
+    { "PUBLISH", pub_xml, 1 },
+    { "SUBSCRIBE", sub_xml, 1 },
+    { NULL, NULL, 0 }
+  };
+  return ddsrt_expand_vars (template, &expand_lookup_vars, vars);
 }
 
-char * get_permissions_grant(const char * name, const char * subject, const char * domain_id,
-    dds_time_t not_before, dds_time_t not_after, const char * pub_topics, const char * sub_topics, const char * default_policy)
+char * get_permissions_rules (const char * domain_id, const char * allow_pub_topic, const char * allow_sub_topic, const char * deny_pub_topic, const char * deny_sub_topic)
+{
+  char * allow_pub_xml = NULL, * allow_sub_xml = NULL, * deny_pub_xml = NULL, * deny_sub_xml = NULL;
+  char * allow_rule_xml = NULL, * deny_rule_xml = NULL, * rules_xml;
+
+  if (allow_pub_topic != NULL) allow_pub_xml = expand_permissions_pubsub (permissions_xml_pub, allow_pub_topic);
+  if (allow_sub_topic != NULL) allow_sub_xml = expand_permissions_pubsub (permissions_xml_sub, allow_sub_topic);
+  if (deny_pub_topic != NULL) deny_pub_xml = expand_permissions_pubsub (permissions_xml_pub, deny_pub_topic);
+  if (deny_sub_topic != NULL) deny_sub_xml = expand_permissions_pubsub (permissions_xml_sub, deny_sub_topic);
+
+  if (allow_pub_xml != NULL || allow_sub_xml != NULL)
+  {
+    allow_rule_xml = expand_permissions_rule (permissions_xml_allow_rule, domain_id, allow_pub_xml, allow_sub_xml);
+    if (allow_pub_xml != NULL) ddsrt_free (allow_pub_xml);
+    if (allow_sub_xml != NULL) ddsrt_free (allow_sub_xml);
+  }
+  if (deny_pub_xml != NULL || deny_sub_xml != NULL)
+  {
+    deny_rule_xml = expand_permissions_rule (permissions_xml_deny_rule, domain_id, deny_pub_xml, deny_sub_xml);
+    if (deny_pub_xml != NULL) ddsrt_free (deny_pub_xml);
+    if (deny_sub_xml != NULL) ddsrt_free (deny_sub_xml);
+  }
+  ddsrt_asprintf (&rules_xml, "%s%s", allow_rule_xml != NULL ? allow_rule_xml : "", deny_rule_xml != NULL ? deny_rule_xml : "");
+  if (allow_rule_xml != NULL) ddsrt_free (allow_rule_xml);
+  if (deny_rule_xml != NULL) ddsrt_free (deny_rule_xml);
+  return rules_xml;
+}
+
+char * get_permissions_grant (const char * grant_name, const char * subject_name, dds_time_t not_before, dds_time_t not_after, const char * rules_xml, const char * default_policy)
 {
   char not_before_str[] = "0000-00-00T00:00:00Z";
   char not_after_str[] = "0000-00-00T00:00:00Z";
-  get_xml_datetime(not_before, not_before_str, sizeof(not_before_str));
-  get_xml_datetime(not_after, not_after_str, sizeof(not_after_str));
+  get_xml_datetime (not_before, not_before_str, sizeof(not_before_str));
+  get_xml_datetime (not_after, not_after_str, sizeof(not_after_str));
 
   struct kvp vars[] = {
-    { "GRANT_NAME", name, 1 },
-    { "SUBJECT_NAME", subject, 1 },
+    { "GRANT_NAME", grant_name, 1 },
+    { "SUBJECT_NAME", subject_name, 1 },
     { "NOT_BEFORE", not_before_str, 1 },
     { "NOT_AFTER", not_after_str, 1 },
-    { "DOMAIN_ID", domain_id, 3 },
-    { "PUB_TOPICS", pub_topics, 1 },
-    { "SUB_TOPICS", sub_topics, 1 },
+    { "RULES", rules_xml, 1 },
     { "DEFAULT_POLICY", default_policy, 1 },
     { NULL, NULL, 0 }
   };
-  return ddsrt_expand_vars (permissions_xml_grant, &expand_lookup_vars, vars);
+  char * res = ddsrt_expand_vars (permissions_xml_grant, &expand_lookup_vars, vars);
+  CU_ASSERT_FATAL (expand_lookup_unmatched (vars) == 0);
+  return res;
+}
+
+char * get_permissions_default_grant (const char * grant_name, const char * subject_name, const char * topic_name)
+{
+  dds_time_t now = dds_time ();
+  char * rules_xml = get_permissions_rules (NULL, topic_name, topic_name, NULL, NULL);
+  char * grant_xml = get_permissions_grant (grant_name, subject_name, now, now + DDS_SECS(3600), rules_xml, "DENY");
+  ddsrt_free (rules_xml);
+  return grant_xml;
 }
 
 char * get_permissions_config(char * grants[], size_t ngrants, bool add_prefix)
