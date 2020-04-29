@@ -894,6 +894,7 @@ int main (int argc, char **argv)
   uint32_t states_seen[2 * 2 * 3][2] = {{ 0 }};
   unsigned seed = 0;
   bool print = false;
+  int xchecks = 1;
   int first = 0, count = 10000;
 
   ddsrt_mutex_init (&wait_gc_cycle_lock);
@@ -909,9 +910,20 @@ int main (int argc, char **argv)
     count = atoi (argv[3]);
   if (argc > 4)
     print = (atoi (argv[4]) != 0);
+  if (argc > 5)
+    xchecks = atoi (argv[4]);
 
-  printf ("prng seed %u first %d count %d print %d\n", seed, first, count, print);
+  printf ("prng seed %u first %d count %d print %d xchecks %d\n", seed, first, count, print, xchecks);
   ddsrt_prng_init_simple (&prng, seed);
+
+  if (xchecks != 0)
+  {
+    struct ddsi_domaingv *gv = get_gv (pp);
+    if (xchecks > 0)
+      gv->config.enabled_xchecks = ~0u;
+    else
+      gv->config.enabled_xchecks = 0u;
+  }
 
   memset (rres_mseq, 0, sizeof (rres_mseq));
   for (size_t i = 0; i < sizeof (rres_iseq) / sizeof(rres_iseq[0]); i++)
