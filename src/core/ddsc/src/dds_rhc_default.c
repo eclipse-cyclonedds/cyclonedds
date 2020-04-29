@@ -1648,7 +1648,7 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
       }
 
       /* If instance became disposed, add an invalid sample if there are no samples left */
-      if (inst_became_disposed && inst->latest == NULL)
+      if (inst_became_disposed && (inst->latest == NULL || inst->latest->isread))
         inst_set_invsample (rhc, inst, &trig_qc, &notify_data_available);
 
       update_inst (inst, wrinfo, true, sample->timestamp);
