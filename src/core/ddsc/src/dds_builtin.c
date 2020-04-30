@@ -15,6 +15,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds__init.h"
@@ -181,10 +182,13 @@ static struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct dd
   struct dds_domain *domain = vdomain;
   struct ddsi_tkmap_instance *tk;
   struct ddsi_serdata *sd;
-  struct ddsi_keyhash kh;
-  memcpy (&kh, guid, sizeof (kh));
-  /* any random builtin topic will do (provided it has a GUID for a key), because what matters is the "class" of the topic, not the actual topic; also, this is called early in the initialisation of the entity with this GUID, which simply causes serdata_from_keyhash to create a key-only serdata because the key lookup fails. */
-  sd = ddsi_serdata_from_keyhash (domain->builtin_participant_topic, &kh);
+  union { ddsi_guid_t guid; struct ddsi_keyhash keyhash; } x;
+  x.guid = nn_hton_guid (*guid);
+  /* any random builtin topic will do (provided it has a GUID for a key), because what matters is the "class"
+     of the topic, not the actual topic; also, this is called early in the initialisation of the entity with
+     this GUID, which simply causes serdata_from_keyhash to create a key-only serdata because the key lookup
+     fails. */
+  sd = ddsi_serdata_from_keyhash (domain->builtin_participant_topic, &x.keyhash);
   tk = ddsi_tkmap_find (domain->gv.m_tkmap, sd, true);
   ddsi_serdata_unref (sd);
   return tk;
@@ -196,7 +200,7 @@ struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, dd
   struct dds_domain *dom = e->gv->builtin_topic_interface->arg;
   struct ddsi_sertopic *topic = NULL;
   struct ddsi_serdata *serdata;
-  struct ddsi_keyhash keyhash;
+  union { ddsi_guid_t guid; struct ddsi_keyhash keyhash; } x;
   switch (e->kind)
   {
     case EK_PARTICIPANT:
@@ -213,8 +217,8 @@ struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, dd
       break;
   }
   assert (topic != NULL);
-  memcpy (&keyhash, &e->guid, sizeof (keyhash));
-  serdata = ddsi_serdata_from_keyhash (topic, &keyhash);
+  x.guid = nn_hton_guid (e->guid);
+  serdata = ddsi_serdata_from_keyhash (topic, &x.keyhash);
   serdata->timestamp = timestamp;
   serdata->statusinfo = alive ? 0 : NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
   return serdata;
