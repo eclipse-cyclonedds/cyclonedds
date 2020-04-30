@@ -171,6 +171,41 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_keyhash (const struct ddsi
   return fix_serdata_builtin(d, tp->c.serdata_basehash);
 }
 
+static struct ddsi_serdata *ddsi_serdata_builtin_from_sample (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
+{
+  const struct ddsi_sertopic_builtintopic *tp = (const struct ddsi_sertopic_builtintopic *)tpcmn;
+  union {
+    dds_guid_t extguid;
+    nn_keyhash_t keyhash;
+  } x;
+
+  /* no-one should be trying to convert user-provided data into a built-in topic sample, but converting
+     a key is something that can be necessary, e.g., dds_lookup_instance depends on it */
+  if (kind != SDK_KEY)
+    return NULL;
+
+  /* memset x (even though it is entirely superfluous) so we can leave out a default case from the
+     switch (ensuring at least some compilers will warn when more types are added) without getting
+     warnings from any compiler */
+  memset (&x, 0, sizeof (x));
+  switch (tp->type)
+  {
+    case DSBT_PARTICIPANT: {
+      const dds_builtintopic_participant_t *s = sample;
+      x.extguid = s->key;
+      break;
+    }
+    case DSBT_READER:
+    case DSBT_WRITER: {
+      const dds_builtintopic_endpoint_t *s = sample;
+      x.extguid = s->key;
+      break;
+    }
+  }
+
+  return ddsi_serdata_from_keyhash (tpcmn, &x.keyhash);
+}
+
 static struct ddsi_serdata *serdata_builtin_to_topicless (const struct ddsi_serdata *serdata_common)
 {
   /* All built-in ones are currently topicless */
@@ -291,7 +326,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic = {
   .from_ser = 0,
   .from_ser_iov = 0,
   .from_keyhash = ddsi_serdata_builtin_from_keyhash,
-  .from_sample = 0,
+  .from_sample = ddsi_serdata_builtin_from_sample,
   .to_ser = serdata_builtin_to_ser,
   .to_sample = serdata_builtin_to_sample,
   .to_ser_ref = serdata_builtin_to_ser_ref,
