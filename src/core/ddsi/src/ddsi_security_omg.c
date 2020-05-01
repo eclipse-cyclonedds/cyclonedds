@@ -735,6 +735,11 @@ void q_omg_security_init (struct ddsi_domaingv *gv)
   ddsrt_mutex_init (&sc->omg_security_lock);
   gv->security_context = sc;
 
+  if (gv->config.omg_security_configuration)
+    gv->handshake_include_optional = gv->config.omg_security_configuration->cfg.authentication_properties.include_optional_fields;
+  else
+    gv->handshake_include_optional = false;
+
   ddsi_handshake_admin_init(gv);
 }
 

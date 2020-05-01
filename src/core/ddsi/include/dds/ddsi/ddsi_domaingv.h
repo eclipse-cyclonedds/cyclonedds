@@ -330,6 +330,7 @@ struct ddsi_domaingv {
 #ifdef DDSI_INCLUDE_SECURITY
   struct dds_security_context *security_context;
   struct ddsi_hsadmin *hsadmin;
+  bool handshake_include_optional;
 #endif
 
 };

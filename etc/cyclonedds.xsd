@@ -327,6 +327,7 @@ specification.&lt;/p&gt;</xs:documentation>
       <xs:all>
         <xs:element ref="config:IdentityCA"/>
         <xs:element ref="config:IdentityCertificate"/>
+        <xs:element minOccurs="0" ref="config:IncludeOptionalFields"/>
         <xs:element minOccurs="0" name="Library">
           <xs:annotation>
             <xs:documentation>
@@ -417,6 +418,17 @@ public key.&lt;/p&gt;
 MIIDjjCCAnYCCQDCEu9...6rmT87dhTo=&lt;br&gt;
 
 -----END CERTIFICATE-----&lt;/IdentityCertificate&gt;&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="IncludeOptionalFields" type="xs:boolean">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;The authentication handshake tokens may contain optional fields to be
+included for finding interoperability problems.
+
+If this parameter is set to true the optional fields are included in the
+handshake token exchange.&lt;/p&gt;&lt;p&gt;The default value is:
+&amp;quot;false&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="Password" type="xs:string">

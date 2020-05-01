@@ -63,7 +63,7 @@ DDS_Security_BinaryProperty_free(
 void
 DDS_Security_BinaryProperty_copy(
      DDS_Security_BinaryProperty_t *dst,
-     DDS_Security_BinaryProperty_t *src)
+     const DDS_Security_BinaryProperty_t *src)
 {
     dst->name = src->name ? ddsrt_strdup(src->name) : NULL;
     dst->propagate = src->propagate;
@@ -80,8 +80,8 @@ DDS_Security_BinaryProperty_copy(
 
 bool
 DDS_Security_BinaryProperty_equal(
-     DDS_Security_BinaryProperty_t *pa,
-     DDS_Security_BinaryProperty_t *pb)
+     const DDS_Security_BinaryProperty_t *pa,
+     const DDS_Security_BinaryProperty_t *pb)
 {
     uint32_t i;
 
@@ -248,7 +248,7 @@ DDS_Security_Property_deinit(
 void
 DDS_Security_Property_copy(
      DDS_Security_Property_t *dst,
-     DDS_Security_Property_t *src)
+     const DDS_Security_Property_t *src)
 {
     dst->name = src->name ? ddsrt_strdup(src->name) : NULL;
     dst->value = src->value ? ddsrt_strdup(src->value) : NULL;
@@ -257,8 +257,8 @@ DDS_Security_Property_copy(
 
 bool
 DDS_Security_Property_equal(
-     DDS_Security_Property_t *pa,
-     DDS_Security_Property_t *pb)
+     const DDS_Security_Property_t *pa,
+     const DDS_Security_Property_t *pb)
 {
     if (pa->name && pb->name) {
         if (strcmp(pa->name, pb->name) != 0) {

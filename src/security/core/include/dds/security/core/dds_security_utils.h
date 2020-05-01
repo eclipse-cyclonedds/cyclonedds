@@ -53,12 +53,12 @@ DDS_Security_BinaryProperty_free(
 DDS_EXPORT void
 DDS_Security_BinaryProperty_copy(
          DDS_Security_BinaryProperty_t *dst,
-         DDS_Security_BinaryProperty_t *src);
+         const DDS_Security_BinaryProperty_t *src);
 
 DDS_EXPORT bool
 DDS_Security_BinaryProperty_equal(
-         DDS_Security_BinaryProperty_t *pa,
-         DDS_Security_BinaryProperty_t *pb);
+         const DDS_Security_BinaryProperty_t *pa,
+         const DDS_Security_BinaryProperty_t *pb);
 
 DDS_EXPORT void
 DDS_Security_BinaryProperty_set_by_value(
@@ -111,12 +111,12 @@ DDS_Security_Property_deinit(
 DDS_EXPORT void
 DDS_Security_Property_copy(
          DDS_Security_Property_t *dst,
-         DDS_Security_Property_t *src);
+         const DDS_Security_Property_t *src);
 
 DDS_EXPORT bool
 DDS_Security_Property_equal(
-         DDS_Security_Property_t *pa,
-         DDS_Security_Property_t *pb);
+         const DDS_Security_Property_t *pa,
+         const DDS_Security_Property_t *pb);
 
 DDS_EXPORT char *
 DDS_Security_Property_get_value(
