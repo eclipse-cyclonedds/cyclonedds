@@ -89,8 +89,10 @@ calculate_kx_keys(
   unsigned char *kx_master_salt, *kx_master_sender_key;
   size_t shared_secret_size = get_secret_size_from_secret_handle(shared_secret);
   unsigned char hash[SHA256_DIGEST_LENGTH];
-  size_t concatenated_bytes1_size = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE * 2 + sizeof(KXSALTCOOKIE);
-  size_t concatenated_bytes2_size = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE * 2 + sizeof(KXKEYCOOKIE);
+  size_t KXKEYCOOKIE_SIZE = strlen(KXKEYCOOKIE);
+  size_t KXSALTCOOKIE_SIZE = strlen(KXSALTCOOKIE);
+  size_t concatenated_bytes1_size = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE * 2 + KXSALTCOOKIE_SIZE;
+  size_t concatenated_bytes2_size = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE * 2 + KXKEYCOOKIE_SIZE;
   DDS_Security_octet *concatenated_bytes1, *concatenated_bytes2;
 
   memset(ex, 0, sizeof(*ex));
@@ -108,9 +110,8 @@ calculate_kx_keys(
 
   /* master_salt */
   memcpy(concatenated_bytes1, challenge1, DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
-  memcpy(concatenated_bytes1 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE, KXSALTCOOKIE, sizeof(KXSALTCOOKIE));
-  memcpy(concatenated_bytes1 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE + sizeof(KXSALTCOOKIE), challenge2,
-         DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
+  memcpy(concatenated_bytes1 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE, KXSALTCOOKIE, KXSALTCOOKIE_SIZE);
+  memcpy(concatenated_bytes1 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE + KXSALTCOOKIE_SIZE, challenge2, DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
 
   SHA256(concatenated_bytes1, concatenated_bytes1_size, hash);
   if (!(kx_master_salt = crypto_hmac256(hash, SHA256_DIGEST_LENGTH, shared_secret_key, (uint32_t) shared_secret_size, ex)))
@@ -118,9 +119,8 @@ calculate_kx_keys(
 
   /* master_sender_key */
   memcpy(concatenated_bytes2, challenge2, DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
-  memcpy(concatenated_bytes2 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE, KXKEYCOOKIE, sizeof(KXKEYCOOKIE));
-  memcpy(concatenated_bytes2 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE + sizeof(KXKEYCOOKIE), challenge1,
-         DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
+  memcpy(concatenated_bytes2 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE, KXKEYCOOKIE, KXKEYCOOKIE_SIZE);
+  memcpy(concatenated_bytes2 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE + KXKEYCOOKIE_SIZE, challenge1, DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
 
   SHA256(concatenated_bytes2, concatenated_bytes2_size, hash);
   if (!(kx_master_sender_key = crypto_hmac256(hash, SHA256_DIGEST_LENGTH, shared_secret_key, (uint32_t) shared_secret_size, ex)))
@@ -1158,6 +1158,7 @@ crypto_factory_set_participant_crypto_tokens(
     master_key_material *remote_key_mat_new = crypto_master_key_material_new(CRYPTO_TRANSFORMATION_KIND_NONE);
     crypto_token_copy(remote_key_mat_new, remote_key_mat);
     key_material->remote_key_material = remote_key_mat_new;
+
     if (remote_key_mat_old != NULL)
     {
       struct gcreq *gcreq = gcreq_new(impl->crypto->gv->gcreq_queue, gc_remote_key_material);
