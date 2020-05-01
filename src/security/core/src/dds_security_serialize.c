@@ -396,7 +396,8 @@ DDS_Security_Serialize_PropertyQosPolicy(
     DDS_Security_Serialize_uint16(ser, PID_PROPERTY_LIST);
     DDS_Security_Serialize_mark_len(ser);
     DDS_Security_Serialize_PropertySeq(ser, &policy->value);
-    DDS_Security_Serialize_BinaryPropertySeq(ser, &policy->binary_value);
+    if (policy->binary_value._length > 0)
+      DDS_Security_Serialize_BinaryPropertySeq(ser, &policy->binary_value);
     DDS_Security_Serialize_update_len(ser);
 }
 
@@ -679,10 +680,18 @@ DDS_Security_Deserialize_DataHolder(
 static int
 DDS_Security_Deserialize_PropertyQosPolicy(
      DDS_Security_Deserializer dser,
-     DDS_Security_PropertyQosPolicy *policy)
+     DDS_Security_PropertyQosPolicy *policy,
+     size_t len)
 {
-    return DDS_Security_Deserialize_PropertySeq(dser, &policy->value) &&
-           DDS_Security_Deserialize_BinaryPropertySeq(dser, &policy->binary_value);
+    size_t sl = dser->remain;
+
+    if (!DDS_Security_Deserialize_PropertySeq(dser, &policy->value))
+        return 0;
+
+    if (sl - dser->remain > len)
+        return DDS_Security_Deserialize_BinaryPropertySeq(dser, &policy->binary_value);
+
+    return 1;
 }
 
 static int
@@ -742,7 +751,7 @@ DDS_Security_Deserialize_ParticipantBuiltinTopicData(
                 r = DDS_Security_Deserialize_DataHolder(dser, &pdata->permissions_token);
                 break;
             case PID_PROPERTY_LIST:
-                r = DDS_Security_Deserialize_PropertyQosPolicy(dser, &pdata->property);
+                r = DDS_Security_Deserialize_PropertyQosPolicy(dser, &pdata->property, len);
                 break;
             case PID_PARTICIPANT_SECURITY_INFO:
                 r = DDS_Security_Deserialize_ParticipantSecurityInfo(dser, &pdata->security_info);
