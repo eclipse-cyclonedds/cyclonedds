@@ -2,6 +2,14 @@
 Changelog for Eclipse Cyclone DDS
 =================================
 
+Versions are numbered "Major.Minor.Patch", where:
+
+Major versions signify guiding milestones. The current major version "0" reflects that Cyclone DDS is in its `Incubation Phase <https://www.eclipse.org/projects/dev_process/#6_2_3_Incubation>`_. Once it is "mature", the major version will be "1" and a new milestone will be chosen for "2".
+
+Minor versions signify compatibility. A change in the minor version will accompany changes in public function signatures or data structures.
+
+Patch versions signify public releases. New features or fixes may be introduced so long as compatibility is maintained.
+
 `Unreleased <https://github.com/eclipse-cyclonedds/cyclonedds/compare/0.5.1...master>`_
 ---------------------------------------------------------------------------------------
 
