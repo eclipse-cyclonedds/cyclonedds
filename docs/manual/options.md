@@ -262,7 +262,7 @@ The default value is: "".
 
 
 #### //CycloneDDS/Domain/DDSSecurity/Authentication
-Children: [IdentityCA](#cycloneddsdomainddssecurityauthenticationidentityca), [IdentityCertificate](#cycloneddsdomainddssecurityauthenticationidentitycertificate), [Library](#cycloneddsdomainddssecurityauthenticationlibrary), [Password](#cycloneddsdomainddssecurityauthenticationpassword), [PrivateKey](#cycloneddsdomainddssecurityauthenticationprivatekey), [TrustedCADirectory](#cycloneddsdomainddssecurityauthenticationtrustedcadirectory)
+Children: [IdentityCA](#cycloneddsdomainddssecurityauthenticationidentityca), [IdentityCertificate](#cycloneddsdomainddssecurityauthenticationidentitycertificate), [IncludeOptionalFields](#cycloneddsdomainddssecurityauthenticationincludeoptionalfields), [Library](#cycloneddsdomainddssecurityauthenticationlibrary), [Password](#cycloneddsdomainddssecurityauthenticationpassword), [PrivateKey](#cycloneddsdomainddssecurityauthenticationprivatekey), [TrustedCADirectory](#cycloneddsdomainddssecurityauthenticationtrustedcadirectory)
 
 
 This element configures the Authentication plugin of the DDS Security
@@ -309,6 +309,18 @@ Examples:
 MIIDjjCCAnYCCQDCEu9...6rmT87dhTo=<br>
 
 -----END CERTIFICATE-----</IdentityCertificate>
+
+
+##### //CycloneDDS/Domain/DDSSecurity/Authentication/IncludeOptionalFields
+Boolean
+
+The authentication handshake tokens may contain optional fields to be
+included for finding interoperability problems.
+
+If this parameter is set to true the optional fields are included in the
+handshake token exchange.
+
+The default value is: "false".
 
 
 ##### //CycloneDDS/Domain/DDSSecurity/Authentication/Library

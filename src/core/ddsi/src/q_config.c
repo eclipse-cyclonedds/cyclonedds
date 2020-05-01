@@ -353,7 +353,9 @@ The value of the password property shall be interpreted as the Base64 encoding o
 If the password property is not present, then the value supplied in the private_key property must contain the unencrypted private key. </p>") },
   { LEAF ("TrustedCADirectory"), 1, "", RELOFF (config_omg_security_listelem, cfg.authentication_properties.trusted_ca_dir), 0, uf_string, ff_free, pf_string,
     BLURB("<p>Trusted CA Directory which contains trusted CA certificates as separated files.</p>") },
-
+  { LEAF ("IncludeOptionalFields"), 1, "false", RELOFF (config_omg_security_listelem, cfg.authentication_properties.include_optional_fields), 0, uf_boolean, 0, pf_boolean,
+    BLURB("<p>The authentication handshake tokens may contain optional fields to be included for finding interoperability problems.\n\
+If this parameter is set to true the optional fields are included in the handshake token exchange.</p>") },
   END_MARKER
 };
 

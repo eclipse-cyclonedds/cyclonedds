@@ -174,6 +174,7 @@ typedef struct authentication_properties_type{
   char *private_key;
   char *password;
   char *trusted_ca_dir;
+  bool include_optional_fields;
 } authentication_properties_type;
 
 typedef struct access_control_properties_type{
