@@ -62,6 +62,7 @@ crypto_calculate_key_impl(
   memcpy(buffer, prefix, strlen(prefix));
   memcpy(&buffer[strlen(prefix)], master_salt, key_bytes);
   memcpy(&buffer[strlen(prefix) + key_bytes], &id, sizeof(id));
+
   if (HMAC(EVP_sha256(), master_key, (int)key_bytes, buffer, sz, md, NULL) == NULL)
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CIPHER_ERROR, 0, "HMAC failed: ");
