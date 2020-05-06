@@ -627,14 +627,20 @@ DDS_Security_Deserialize_PropertySeq(
      DDS_Security_Deserializer dser,
      DDS_Security_PropertySeq *seq)
 {
+    /* A well-formed CDR string is length + content including terminating 0, length is
+       4 bytes and 4-byte aligned, so the minimum length for a non-empty property
+       sequence is 4+1+(3 pad)+4+1 = 13 bytes.  Just use 8 because it is way faster
+       and just as good for checking that the length value isn't completely ridiculous. */
+    const uint32_t minpropsize = (uint32_t) (2 * sizeof (uint32_t));
     int r = 1;
     uint32_t i;
 
     if (!DDS_Security_Deserialize_uint32_t(dser, &seq->_length)) {
         return 0;
-    }
-
-    if (seq->_length > 0) {
+    } else if (seq->_length > dser->remain / minpropsize) {
+        seq->_length = 0;
+        return 0;
+    } else if (seq->_length > 0) {
         seq->_buffer = DDS_Security_PropertySeq_allocbuf(seq->_length);
         for (i = 0; i < seq->_length && r; i++) {
             r = DDS_Security_Deserialize_Property(dser, &seq->_buffer[i]);
@@ -649,14 +655,19 @@ DDS_Security_Deserialize_BinaryPropertySeq(
      DDS_Security_Deserializer dser,
      DDS_Security_BinaryPropertySeq *seq)
 {
+    /* A well-formed CDR string + a well-formed octet sequence: 4+1+(3 pad)+4 = 12 bytes.
+       Just use 8 because it is way faster and just as good for checking that the length
+       value isn't completely ridiculous. */
+    const uint32_t minpropsize = (uint32_t) (2 * sizeof (uint32_t));
     int r = 1;
     uint32_t i;
 
     if (!DDS_Security_Deserialize_uint32_t(dser, &seq->_length)) {
         return 0;
-    }
-
-    if (seq->_length > 0) {
+    } else if (seq->_length > dser->remain / minpropsize) {
+        seq->_length = 0;
+        return 0;
+    } else if (seq->_length > 0) {
         seq->_buffer = DDS_Security_BinaryPropertySeq_allocbuf(seq->_length);
         for (i = 0; i < seq->_length && r; i++) {
             r = DDS_Security_Deserialize_BinaryProperty(dser, &seq->_buffer[i]);
