@@ -2063,23 +2063,27 @@ read_document(
     char **doc,
     DDS_Security_SecurityException *ex)
 {
-  bool result = true;
   char *data = NULL;
-
   switch (DDS_Security_get_conf_item_type(doc_uri, &data))
   {
-  case DDS_SECURITY_CONFIG_ITEM_PREFIX_DATA:
-    *doc = data;
-    break;
-  case DDS_SECURITY_CONFIG_ITEM_PREFIX_FILE:
-    result = read_document_from_file(data, doc, ex);
-    ddsrt_free(data);
-    break;
-  default:
-    DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_URI_TYPE_NOT_SUPPORTED_CODE, 0, DDS_SECURITY_ERR_URI_TYPE_NOT_SUPPORTED_MESSAGE, doc_uri);
-    return false;
+    case DDS_SECURITY_CONFIG_ITEM_PREFIX_DATA:
+      *doc = data;
+      return true;
+
+    case DDS_SECURITY_CONFIG_ITEM_PREFIX_FILE: {
+      const bool result = read_document_from_file(data, doc, ex);
+      ddsrt_free(data);
+      return result;
+    }
+
+    case DDS_SECURITY_CONFIG_ITEM_PREFIX_PKCS11:
+    case DDS_SECURITY_CONFIG_ITEM_PREFIX_UNKNOWN:
+      DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_URI_TYPE_NOT_SUPPORTED_CODE, 0, DDS_SECURITY_ERR_URI_TYPE_NOT_SUPPORTED_MESSAGE, doc_uri);
+      ddsrt_free(data);
+      return false;
   }
-  return result;
+  assert (0);
+  return false;
 }
 
 static bool
