@@ -65,15 +65,15 @@ $ cmake --build .
 > for demonstration purposes.
 
 
-## Deploying ddsperf
+## Deploying cyclonedds
  * Launch the emulator.
 ```
 $ <path/to/Android/Sdk>/emulator/emulator -avd Pixel_XL_API_29 -netdelay none -netspeed full
 ```
 
- * Push the `ddsperf` binary to the emulator.
+ * Push cyclonedds to the emulator.
 ```
-$ <path/to/Android/Sdk>/platform-tools/adb push <path/to/cyclonedds>/build.android/bin/ddsperf /data/local/tmp
+$ <path/to/Android/Sdk>/platform-tools/adb push <path/to/cyclonedds>/build.android/* /data/local/tmp
 ```
 
 > The binary must be copied to the local filesystem, not the sd-card, as that
@@ -85,21 +85,21 @@ $ <path/to/Android/Sdk>/platform-tools/adb push <path/to/cyclonedds>/build.andro
 $ <path/to/Android/Sdk>/platform-tools/adb shell
 ```
 
- * Change to `/data/local/tmp` and make the binary executable.
+ * Change to `/data/local/tmp` and make binaries executable.
 ```
 $ cd /data/local/tmp
-$ chmod 755 ddsperf
+$ chmod 755 bin/*
 ```
 
 
 ## Running ddsperf over the loopback interface
  * Ensure the emulator is running.
  * Open a shell on the emulator.
- * Change to `/data/local/tmp`.
- * Execute `./ddsperf -D10 pub & ./ddsperf -D10 sub`.
+ * `cd /data/local/tmp/bin`
+ * `./ddsperf -D10 pub & ./ddsperf -D10 sub`
 
 
-## Running ddsperf over a network interface
+## Running cyclonedds over host's network interface
 Each emulator instance runs behind a virtual router/firewall service that
 isolates it from the host. The Android version running in the emulator can
 communicate with the host over the loopback interface using the specialized
