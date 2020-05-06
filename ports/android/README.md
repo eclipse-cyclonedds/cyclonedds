@@ -96,7 +96,7 @@ $ chmod 755 ddsperf
  * Ensure the emulator is running.
  * Open a shell on the emulator.
  * Change to `/data/local/tmp`.
- * Execute `./ddsperf -D10 & ./ddsperf -D10 sub`.
+ * Execute `./ddsperf -D10 pub & ./ddsperf -D10 sub`.
 
 
 ## Running ddsperf over a network interface
