@@ -1212,6 +1212,10 @@ int write_sample_p2p_wrlock_held(struct writer *wr, seqno_t seq, struct ddsi_pli
     if (wr->heartbeat_xevent)
       writer_hbcontrol_note_asyncwrite(wr, tnow);
   }
+  else if (gap)
+  {
+    nn_xmsg_free (gap);
+  }
 
 prd_is_deleting:
   return r;
