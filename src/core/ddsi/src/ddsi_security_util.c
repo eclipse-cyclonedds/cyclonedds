@@ -517,7 +517,7 @@ q_omg_shallow_copy_ParticipantBuiltinTopicDataSecure(
 
   /* Copy the DDS_Security_OctetSeq content (length, pointer, etc), not the buffer content. */
   if (plist->qos.present & QP_USER_DATA)
-    memcpy(&(dst->user_data.value), &(plist->qos.user_data.value), sizeof(DDS_Security_OctetSeq));
+    g_omg_shallow_copy_octSeq(&dst->user_data.value, &plist->qos.user_data);
   /* Tokens are actually DataHolders. */
   if (plist->present & PP_IDENTITY_TOKEN)
     q_omg_shallow_copyin_DataHolder(&(dst->identity_token), &(plist->identity_token));
