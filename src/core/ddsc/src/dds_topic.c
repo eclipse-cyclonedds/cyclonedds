@@ -359,7 +359,8 @@ dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertop
   hdl = create_topic_pp_locked (pp, ktp, (sertopic_registered->ops == &ddsi_sertopic_ops_builtintopic), sertopic_registered, listener, sedp_plist);
   ddsi_sertopic_unref (*sertopic);
   *sertopic = sertopic_registered;
-  dds_participant_unlock (pp);
+  ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
+  dds_entity_unpin (&pp->m_entity);
   GVTRACE ("dds_create_topic_generic: new topic %"PRId32"\n", hdl);
   return hdl;
 
