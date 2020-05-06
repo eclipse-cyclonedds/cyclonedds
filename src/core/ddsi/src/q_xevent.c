@@ -620,6 +620,31 @@ static void handle_xevk_entityid (struct nn_xpack *xp, struct xevent_nt *ev)
 }
 
 #ifdef DDSI_INCLUDE_SECURITY
+static int send_heartbeat_to_all_readers_check_and_sched (struct xevent *ev, struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, ddsrt_mtime_t *t_next)
+{
+  int send;
+  if (!writer_must_have_hb_scheduled (wr, whcst))
+  {
+    wr->hbcontrol.tsched = DDSRT_MTIME_NEVER;
+    send = -1;
+  }
+  else if (!writer_hbcontrol_must_send (wr, whcst, tnow))
+  {
+    wr->hbcontrol.tsched = ddsrt_mtime_add_duration (tnow, writer_hbcontrol_intv (wr, whcst, tnow));
+    send = -1;
+  }
+  else
+  {
+    const int hbansreq = writer_hbcontrol_ack_required (wr, whcst, tnow);
+    wr->hbcontrol.tsched = ddsrt_mtime_add_duration (tnow, writer_hbcontrol_intv (wr, whcst, tnow));
+    send = hbansreq;
+  }
+
+  resched_xevent_if_earlier (ev, wr->hbcontrol.tsched);
+  *t_next = wr->hbcontrol.tsched;
+  return send;
+}
+
 static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *ev, struct writer *wr, ddsrt_mtime_t tnow)
 {
   struct whc_state whcst;
@@ -629,17 +654,11 @@ static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *e
   ddsrt_mutex_lock (&wr->e.lock);
 
   whc_get_state(wr->whc, &whcst);
-
-  if (!writer_must_have_hb_scheduled (wr, &whcst))
-    t_next = DDSRT_MTIME_NEVER;
-  else if (!writer_hbcontrol_must_send (wr, &whcst, tnow))
-    t_next = ddsrt_mtime_add_duration (tnow, writer_hbcontrol_intv (wr, &whcst, tnow));
-  else
+  const int hbansreq = send_heartbeat_to_all_readers_check_and_sched (ev, wr, &whcst, tnow, &t_next);
+  if (hbansreq >= 0)
   {
     struct wr_prd_match *m;
     struct ddsi_guid last_guid = { .prefix = {.u = {0,0,0}}, .entityid = {0} };
-    const int hbansreq = writer_hbcontrol_ack_required (wr, &whcst, tnow);
-    t_next = ddsrt_mtime_add_duration (tnow, writer_hbcontrol_intv (wr, &whcst, tnow));
 
     while ((m = ddsrt_avl_lookup_succ (&wr_readers_treedef, &wr->readers, &last_guid)) != NULL)
     {
@@ -669,16 +688,11 @@ static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *e
           count++;
         }
       }
-
     }
   }
 
-  resched_xevent_if_earlier (ev, t_next);
-  wr->hbcontrol.tsched = t_next;
-
   if (count == 0)
   {
-    (void)resched_xevent_if_earlier (ev, t_next);
     ETRACE (wr, "heartbeat(wr "PGUIDFMT") suppressed, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRId64", xmit %"PRId64")\n",
         PGUID (wr->e.guid),
         (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
