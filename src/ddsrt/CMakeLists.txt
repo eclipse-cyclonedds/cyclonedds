@@ -62,6 +62,10 @@ if(WITH_FREERTOS)
   set(system_name freertos)
 elseif(APPLE)
   set(system_name darwin)
+elseif(ANDROID)
+  # FIXME: Not correct, but will do for the short-term. A better way would be
+  #        fallback to linux, and then posix.
+  set(system_name linux)
 else()
   string(TOLOWER ${CMAKE_SYSTEM_NAME} system_name)
 endif()
