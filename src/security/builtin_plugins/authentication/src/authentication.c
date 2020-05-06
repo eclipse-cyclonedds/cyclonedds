@@ -762,6 +762,12 @@ DDS_Security_ValidationResult_t validate_local_identity(dds_security_authenticat
   if (verify_certificate(identityCert, identityCA, ex) != DDS_SECURITY_VALIDATION_OK)
     goto err_verification_failed;
 
+  if ((certExpiry = get_certificate_expiry(identityCert)) == DDS_TIME_INVALID)
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Expiry date of the certificate is invalid");
+    goto err_verification_failed;
+  }
+
   if (get_adjusted_participant_guid(identityCert, candidate_participant_guid, adjusted_participant_guid, ex) != DDS_SECURITY_VALIDATION_OK)
     goto err_adj_guid_failed;
 
@@ -774,12 +780,7 @@ DDS_Security_ValidationResult_t validate_local_identity(dds_security_authenticat
   identity = local_identity_info_new(domain_id, identityCert, identityCA, privateKey, candidate_participant_guid, adjusted_participant_guid);
   *local_identity_handle = IDENTITY_HANDLE(identity);
 
-  if ((certExpiry = get_certificate_expiry(identityCert)) == DDS_TIME_INVALID)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Expiry date of the certificate is invalid");
-    goto err_verification_failed;
-  }
-  else if (certExpiry != DDS_NEVER)
+  if (certExpiry != DDS_NEVER)
     add_validity_end_trigger(implementation, *local_identity_handle, certExpiry);
 
   ddsrt_mutex_lock(&implementation->lock);
