@@ -1475,7 +1475,7 @@ is therefore recommended to set it to at least several seconds.&lt;/p&gt;
 
 &lt;p&gt;Valid values are finite durations with an explicit unit or the keyword
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
-day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;10s&amp;quot;.&lt;/p&gt;</xs:documentation>
+day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;0s&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:simpleContent>

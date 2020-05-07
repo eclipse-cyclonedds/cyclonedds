@@ -1113,7 +1113,7 @@ is therefore recommended to set it to at least several seconds.</p>
 
 <p>Valid values are finite durations with an explicit unit or the keyword
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
-day.</p><p>The default value is: &quot;10s&quot;.</p>""" ] ]
+day.</p><p>The default value is: &quot;0s&quot;.</p>""" ] ]
         element RediscoveryBlacklistDuration {
           [ a:documentation [ xml:lang="en" """
 <p>This attribute controls whether the configured time during which
