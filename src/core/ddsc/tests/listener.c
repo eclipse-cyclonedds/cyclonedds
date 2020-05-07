@@ -380,12 +380,18 @@ CU_Test (ddsc_listener, incompatible_qos)
 
 CU_Test (ddsc_listener, data_available)
 {
-  // data available on reader
+  // data available on reader (+ absence of data-on-readers)
   dotest ("da sm r pm w ?pm w ?sm r wr w 0 ?da r ?!dor");
-  // data available set on subscriber
+  // data available set on subscriber (+ absence of data-on-readers)
   dotest ("da R sm r pm w ?pm w ?sm r wr w 0 ?da r ?!dor");
-  // data available set on participant
+  // data available set on participant (+ absence of data-on-readers)
   dotest ("da P sm r pm w ?pm w ?sm r wr w 0 ?da r ?!dor");
+
+  // non-auto-dispose, transient-local: disconnect => no_writers, reconnect => alive (using invalid samples)
+  // the invalid sample has the source time stamp of the latest update -- one wonders whether that is wise?
+  dotest ("da r(d=tl) ?pm w'(d=tl,ad=n) ; wr w' (1,2,3)@1.1 ?da r read{fan(1,2,3)w'} r ;"
+          " deaf P ; ?da r read{suo(1,2,3)w'@1.1,fuo1w'@1.1} r ;"
+          " hearing P ; ?da r read{sao(1,2,3)w'@1.1,fao1w'@1.1} r");
 }
 
 CU_Test (ddsc_listener, data_available_delete_writer)

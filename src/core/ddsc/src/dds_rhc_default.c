@@ -1034,7 +1034,7 @@ static void drop_instance_noupdate_no_writers (struct dds_rhc_default *__restric
   *instptr = NULL;
 }
 
-static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *inst, uint64_t wr_iid, bool autodispose, bool iid_update, bool * __restrict nda)
+static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *inst, uint64_t wr_iid, bool autodispose, bool sample_accepted, bool * __restrict nda)
 {
   const uint64_t inst_wr_iid = inst->wr_iid_islive ? inst->wr_iid : 0;
 
@@ -1061,12 +1061,16 @@ static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *
     /* Currently no writers at all */
     assert (!inst->wr_iid_islive);
 
-    /* to avoid wr_iid update when register is called for sample rejected */
-    if (iid_update)
-    {
-      inst->wr_iid = wr_iid;
+    /* When registering a writer based on a rejected sample and causing
+       the instance to transition from not-alive to alive, we do want
+       to generate an invalid sample with the id of the newly registered
+       (or re-registered) writer, but we don't want inst_accepts_sample
+       to be affected (it was "too old" in the ordering).  wr_iid_islive
+       determines whether wr_iid is meaningful, so setting wr_iid while
+       leaving wr_iid_islive false gets us the desired behaviour. */
+    inst->wr_iid = wr_iid;
+    if (sample_accepted)
       inst->wr_iid_islive = 1;
-    }
     inst->wrcount++;
     inst->no_writers_gen++;
     inst->autodispose = autodispose;
@@ -1108,7 +1112,7 @@ static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *
       TRACE ("restore");
     }
     /* to avoid wr_iid update when register is called for sample rejected */
-    if (iid_update)
+    if (sample_accepted)
     {
       inst->wr_iid = wr_iid;
       inst->wr_iid_islive = 1;
@@ -1136,7 +1140,6 @@ static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *
       inst->wrcount++;
       if (autodispose)
         inst->autodispose = 1;
-      *nda = true;
     }
     else
     {
@@ -1145,7 +1148,7 @@ static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *
     assert (inst->wrcount >= 2);
     /* the most recent writer gets the fast path */
     /* to avoid wr_iid update when register is called for sample rejected */
-    if (iid_update)
+    if (sample_accepted)
     {
       inst->wr_iid = wr_iid;
       inst->wr_iid_islive = 1;
@@ -1568,7 +1571,19 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
 
     get_trigger_info_pre (&pre, inst);
     if (has_data || is_dispose)
+    {
       dds_rhc_register (rhc, inst, wr_iid, wrinfo->auto_dispose, false, &notify_data_available);
+      if (notify_data_available)
+      {
+        if (inst->latest == NULL || inst->latest->isread)
+        {
+          const bool was_empty = inst_is_empty (inst);
+          inst_set_invsample (rhc, inst, &trig_qc, &notify_data_available);
+          if (was_empty)
+            account_for_empty_to_nonempty_transition (rhc, inst);
+        }
+      }
+    }
 
     /* notify sample lost */
     cb_data.raw_status_id = (int) DDS_SAMPLE_LOST_STATUS_ID;
