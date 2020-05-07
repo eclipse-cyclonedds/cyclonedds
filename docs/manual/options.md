@@ -1349,7 +1349,7 @@ is therefore recommended to set it to at least several seconds.
 Valid values are finite durations with an explicit unit or the keyword
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
 
-The default value is: "10s".
+The default value is: "0s".
 
 
 #### //CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration[@enforce]
