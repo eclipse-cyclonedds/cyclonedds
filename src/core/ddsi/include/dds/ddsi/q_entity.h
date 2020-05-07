@@ -696,7 +696,7 @@ int writer_set_notalive (struct writer *wr, bool notify);
 #define CF_PROXYPP_NO_SPDP                     (1 << 2)
 
 void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const struct ddsi_plist *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq);
-int delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
+DDS_EXPORT int delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
 
 int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp);
 int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp);
