@@ -78,18 +78,19 @@ static bool check_crypto_keymaterial(
 {
   bool status = false;
   uint32_t transform_kind = CRYPTO_TRANSFORM_KIND(keymat->transformation_kind);
-  uint32_t key_sz = CRYPTO_KEY_SIZE_BYTES(transform_kind);
 
   if (transform_kind != CRYPTO_TRANSFORMATION_KIND_NONE)
   {
-    status = (transform_kind <= CRYPTO_TRANSFORMATION_KIND_AES256_GCM &&
-        keymat->master_salt._length == key_sz && keymat->master_salt._buffer != NULL && check_not_data_empty(&keymat->master_salt) &&
-        keymat->master_sender_key._length == key_sz && keymat->master_sender_key._buffer != NULL && check_not_data_empty(&keymat->master_sender_key));
-
-    if (status && CRYPTO_TRANSFORM_ID(keymat->receiver_specific_key_id))
+    if (transform_kind <= CRYPTO_TRANSFORMATION_KIND_AES256_GCM)
     {
-      status = (keymat->master_receiver_specific_key._length == key_sz &&
-          keymat->master_receiver_specific_key._buffer != NULL && check_not_data_empty(&keymat->master_receiver_specific_key));
+      uint32_t key_sz = CRYPTO_KEY_SIZE_BYTES(transform_kind);
+      status = (keymat->master_salt._length == key_sz && keymat->master_salt._buffer != NULL && check_not_data_empty(&keymat->master_salt) &&
+                keymat->master_sender_key._length == key_sz && keymat->master_sender_key._buffer != NULL && check_not_data_empty(&keymat->master_sender_key));
+      if (status && CRYPTO_TRANSFORM_ID(keymat->receiver_specific_key_id))
+      {
+        status = (keymat->master_receiver_specific_key._length == key_sz &&
+                  keymat->master_receiver_specific_key._buffer != NULL && check_not_data_empty(&keymat->master_receiver_specific_key));
+      }
     }
   }
   else

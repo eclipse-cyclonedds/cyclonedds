@@ -736,7 +736,7 @@ void q_omg_security_init (struct ddsi_domaingv *gv)
   gv->security_context = sc;
 
   if (gv->config.omg_security_configuration)
-    gv->handshake_include_optional = gv->config.omg_security_configuration->cfg.authentication_properties.include_optional_fields;
+    gv->handshake_include_optional = gv->config.omg_security_configuration->cfg.authentication_properties.include_optional_fields != 0;
   else
     gv->handshake_include_optional = false;
 
