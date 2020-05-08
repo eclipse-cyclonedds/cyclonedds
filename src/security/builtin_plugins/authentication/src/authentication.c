@@ -1126,7 +1126,7 @@ DDS_Security_ValidationResult_t begin_handshake_request(dds_security_authenticat
   EVP_PKEY *dhkey;
   unsigned char *certData, *dhPubKeyData = NULL;
   uint32_t certDataSize, dhPubKeyDataSize;
-  uint32_t tsz = impl->include_optional ? 8 : 7;
+  uint32_t tokcount = impl->include_optional ? 8 : 7;
   int created = 0;
 
   if (!instance || !handshake_handle || !handshake_message || !serialized_local_participant_data)
@@ -1184,39 +1184,41 @@ DDS_Security_ValidationResult_t begin_handshake_request(dds_security_authenticat
   if (localIdent->pdata._length == 0)
     DDS_Security_OctetSeq_copy(&localIdent->pdata, serialized_local_participant_data);
 
-  DDS_Security_BinaryProperty_t *tokens = DDS_Security_BinaryPropertySeq_allocbuf(tsz);
-  uint32_t idx = 0;
+  DDS_Security_BinaryProperty_t *tokens = DDS_Security_BinaryPropertySeq_allocbuf(tokcount);
+  uint32_t tokidx = 0;
 
-  DDS_Security_BinaryProperty_set_by_ref(&tokens[idx++], "c.id", certData, certDataSize);
-  DDS_Security_BinaryProperty_set_by_string(&tokens[idx++], "c.perm", localIdent->permissionsDocument ? localIdent->permissionsDocument : "");
-  DDS_Security_BinaryProperty_set_by_value(&tokens[idx++], "c.pdata", serialized_local_participant_data->_buffer, serialized_local_participant_data->_length);
-  DDS_Security_BinaryProperty_set_by_string(&tokens[idx++], "c.dsign_algo", get_dsign_algo(localIdent->dsignAlgoKind));
-  DDS_Security_BinaryProperty_set_by_string(&tokens[idx++], "c.kagree_algo", get_kagree_algo(localIdent->kagreeAlgoKind));
+  DDS_Security_BinaryProperty_set_by_ref(&tokens[tokidx++], "c.id", certData, certDataSize);
+  DDS_Security_BinaryProperty_set_by_string(&tokens[tokidx++], "c.perm", localIdent->permissionsDocument ? localIdent->permissionsDocument : "");
+  DDS_Security_BinaryProperty_set_by_value(&tokens[tokidx++], "c.pdata", serialized_local_participant_data->_buffer, serialized_local_participant_data->_length);
+  DDS_Security_BinaryProperty_set_by_string(&tokens[tokidx++], "c.dsign_algo", get_dsign_algo(localIdent->dsignAlgoKind));
+  DDS_Security_BinaryProperty_set_by_string(&tokens[tokidx++], "c.kagree_algo", get_kagree_algo(localIdent->kagreeAlgoKind));
 
   /* Todo: including hash_c1 is optional (conform spec); add a configuration option to leave it out */
   {
     DDS_Security_BinaryPropertySeq bseq = { ._length = 5, ._buffer = tokens };
     get_hash_binary_property_seq(&bseq, handshake->hash_c1);
     if (impl->include_optional)
-      DDS_Security_BinaryProperty_set_by_value(&tokens[idx++], "hash_c1", handshake->hash_c1, sizeof(HashValue_t));
+      DDS_Security_BinaryProperty_set_by_value(&tokens[tokidx++], "hash_c1", handshake->hash_c1, sizeof(HashValue_t));
   }
 
   /* Set the DH public key associated with the local participant in dh1 property */
   assert(dhPubKeyData);
   assert(dhPubKeyDataSize < 1200);
-  DDS_Security_BinaryProperty_set_by_ref(&tokens[idx++], "dh1", dhPubKeyData, dhPubKeyDataSize);
+  DDS_Security_BinaryProperty_set_by_ref(&tokens[tokidx++], "dh1", dhPubKeyData, dhPubKeyDataSize);
 
   /* Set the challenge in challenge1 property */
-  DDS_Security_BinaryProperty_set_by_value(&tokens[idx++], "challenge1", relation->lchallenge->value, sizeof(AuthenticationChallenge));
+  DDS_Security_BinaryProperty_set_by_value(&tokens[tokidx++], "challenge1", relation->lchallenge->value, sizeof(AuthenticationChallenge));
 
   (void)ddsrt_hh_add(impl->objectHash, handshake);
 
   ddsrt_mutex_unlock(&impl->lock);
 
+  assert(tokcount == tokidx);
+
   handshake_message->class_id = ddsrt_strdup(AUTH_HANDSHAKE_REQUEST_TOKEN_ID);
   handshake_message->properties._length = 0;
   handshake_message->properties._buffer = NULL;
-  handshake_message->binary_properties._length = tsz;
+  handshake_message->binary_properties._length = tokidx;
   handshake_message->binary_properties._buffer = tokens;
   *handshake_handle = HANDSHAKE_HANDLE(handshake);
 
@@ -1627,7 +1629,7 @@ DDS_Security_ValidationResult_t begin_handshake_reply(dds_security_authenticatio
   EVP_PKEY *dhkeyLocal = NULL;
   unsigned char *certData, *dhPubKeyData;
   uint32_t certDataSize, dhPubKeyDataSize;
-  uint32_t tsz = impl->include_optional ? 12 : 9;
+  uint32_t tokcount = impl->include_optional ? 12 : 9;
   int created = 0;
 
   if (!instance || !handshake_handle || !handshake_message_out || !handshake_message_in || !serialized_local_participant_data)
@@ -1694,23 +1696,23 @@ DDS_Security_ValidationResult_t begin_handshake_reply(dds_security_authenticatio
   if (localIdent->pdata._length == 0)
     DDS_Security_OctetSeq_copy(&localIdent->pdata, serialized_local_participant_data);
 
-  DDS_Security_BinaryProperty_t *tokens = DDS_Security_BinaryPropertySeq_allocbuf(tsz);
-  uint32_t idx = 0;
+  DDS_Security_BinaryProperty_t *tokens = DDS_Security_BinaryPropertySeq_allocbuf(tokcount);
+  uint32_t tokidx = 0;
 
   /* Store the Identity Certificate associated with the local identify in c.id property */
-  DDS_Security_BinaryProperty_set_by_ref(&tokens[idx++], "c.id", certData, certDataSize);
+  DDS_Security_BinaryProperty_set_by_ref(&tokens[tokidx++], "c.id", certData, certDataSize);
   certData = NULL;
-  DDS_Security_BinaryProperty_set_by_string(&tokens[idx++], "c.perm", localIdent->permissionsDocument ? localIdent->permissionsDocument : "");
-  DDS_Security_BinaryProperty_set_by_value(&tokens[idx++], "c.pdata", serialized_local_participant_data->_buffer, serialized_local_participant_data->_length);
-  DDS_Security_BinaryProperty_set_by_string(&tokens[idx++], "c.dsign_algo", get_dsign_algo(localIdent->dsignAlgoKind));
-  DDS_Security_BinaryProperty_set_by_string(&tokens[idx++], "c.kagree_algo", get_kagree_algo(remoteIdent->kagreeAlgoKind));
+  DDS_Security_BinaryProperty_set_by_string(&tokens[tokidx++], "c.perm", localIdent->permissionsDocument ? localIdent->permissionsDocument : "");
+  DDS_Security_BinaryProperty_set_by_value(&tokens[tokidx++], "c.pdata", serialized_local_participant_data->_buffer, serialized_local_participant_data->_length);
+  DDS_Security_BinaryProperty_set_by_string(&tokens[tokidx++], "c.dsign_algo", get_dsign_algo(localIdent->dsignAlgoKind));
+  DDS_Security_BinaryProperty_set_by_string(&tokens[tokidx++], "c.kagree_algo", get_kagree_algo(remoteIdent->kagreeAlgoKind));
 
   /* Calculate the hash_c2 */
   DDS_Security_BinaryPropertySeq bseq = { ._length = 5, ._buffer = tokens };
   get_hash_binary_property_seq(&bseq, handshake->hash_c2);
 
   /* Set the DH public key associated with the local participant in dh2 property */
-  DDS_Security_BinaryProperty_t *dh2 = &tokens[idx++];
+  DDS_Security_BinaryProperty_t *dh2 = &tokens[tokidx++];
   DDS_Security_BinaryProperty_set_by_ref(dh2, "dh2", dhPubKeyData, dhPubKeyDataSize);
 
   /* Find the dh1 property from the received request token */
@@ -1718,18 +1720,18 @@ DDS_Security_ValidationResult_t begin_handshake_reply(dds_security_authenticatio
   assert(dh1);
 
   assert(relation->rchallenge);
-  DDS_Security_BinaryProperty_t *challenge1 = &tokens[idx++];
+  DDS_Security_BinaryProperty_t *challenge1 = &tokens[tokidx++];
   DDS_Security_BinaryProperty_set_by_value(challenge1, "challenge1", relation->rchallenge->value, sizeof(AuthenticationChallenge));
   assert(relation->lchallenge);
-  DDS_Security_BinaryProperty_t *challenge2 = &tokens[idx++];
+  DDS_Security_BinaryProperty_t *challenge2 = &tokens[tokidx++];
   DDS_Security_BinaryProperty_set_by_value(challenge2, "challenge2", relation->lchallenge->value, sizeof(AuthenticationChallenge));
 
   /* THe dh1 and hash_c1 and hash_c2 are optional */
   if (impl->include_optional)
   {
-    DDS_Security_BinaryProperty_set_by_value(&tokens[idx++], "dh1", dh1->value._buffer, dh1->value._length);
-    DDS_Security_BinaryProperty_set_by_value(&tokens[idx++], "hash_c2", handshake->hash_c2, sizeof(HashValue_t));
-    DDS_Security_BinaryProperty_set_by_value(&tokens[idx++], "hash_c1", handshake->hash_c1, sizeof(HashValue_t));
+    DDS_Security_BinaryProperty_set_by_value(&tokens[tokidx++], "dh1", dh1->value._buffer, dh1->value._length);
+    DDS_Security_BinaryProperty_set_by_value(&tokens[tokidx++], "hash_c2", handshake->hash_c2, sizeof(HashValue_t));
+    DDS_Security_BinaryProperty_set_by_value(&tokens[tokidx++], "hash_c1", handshake->hash_c1, sizeof(HashValue_t));
   }
 
   /* Calculate the signature */
@@ -1744,12 +1746,14 @@ DDS_Security_ValidationResult_t begin_handshake_reply(dds_security_authenticatio
     DDS_Security_BinaryProperty_free(hash_c2_val);
     if (result != DDS_SECURITY_VALIDATION_OK)
       goto err_signature;
-    DDS_Security_BinaryProperty_set_by_ref(&tokens[idx++], "signature", sign, (uint32_t)signlen);
+    DDS_Security_BinaryProperty_set_by_ref(&tokens[tokidx++], "signature", sign, (uint32_t)signlen);
   }
+
+  assert(tokidx == tokcount);
 
   (void)ddsrt_hh_add(impl->objectHash, handshake);
   handshake_message_out->class_id = ddsrt_strdup(AUTH_HANDSHAKE_REPLY_TOKEN_ID);
-  handshake_message_out->binary_properties._length = tsz;
+  handshake_message_out->binary_properties._length = tokidx;
   handshake_message_out->binary_properties._buffer = tokens;
 
   ddsrt_mutex_unlock(&impl->lock);
@@ -1758,7 +1762,7 @@ DDS_Security_ValidationResult_t begin_handshake_reply(dds_security_authenticatio
   return DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE;
 
 err_signature:
-  free_binary_properties(tokens, tsz);
+  free_binary_properties(tokens, tokcount);
 err_get_public_key:
 err_gen_dh_keys:
   ddsrt_free(certData);

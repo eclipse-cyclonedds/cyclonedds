@@ -37,7 +37,9 @@
  */
 
 #define KXKEYCOOKIE "key exchange key"
+#define KXKEYCOOKIE_SIZE (sizeof(KXKEYCOOKIE) - 1)
 #define KXSALTCOOKIE "keyexchange salt"
+#define KXSALTCOOKIE_SIZE (sizeof(KXSALTCOOKIE) - 1)
 
 typedef struct dds_security_crypto_key_factory_impl
 {
@@ -89,8 +91,6 @@ calculate_kx_keys(
   unsigned char *kx_master_salt, *kx_master_sender_key;
   size_t shared_secret_size = get_secret_size_from_secret_handle(shared_secret);
   unsigned char hash[SHA256_DIGEST_LENGTH];
-  size_t KXKEYCOOKIE_SIZE = strlen(KXKEYCOOKIE);
-  size_t KXSALTCOOKIE_SIZE = strlen(KXSALTCOOKIE);
   size_t concatenated_bytes1_size = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE * 2 + KXSALTCOOKIE_SIZE;
   size_t concatenated_bytes2_size = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE * 2 + KXKEYCOOKIE_SIZE;
   DDS_Security_octet *concatenated_bytes1, *concatenated_bytes2;
