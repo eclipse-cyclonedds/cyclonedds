@@ -562,7 +562,7 @@ static const struct cfgelem compatibility_cfgelems[] = {
     BLURB("<p>This element specifies whether QoS settings set to default values are explicitly published in the discovery protocol. Implementations are to use the default value for QoS settings not published, which allows a significant reduction of the amount of data that needs to be exchanged for the discovery protocol, but this requires all implementations to adhere to the default values specified by the specifications.</p>\n\
 <p>When interoperability is required with an implementation that does not follow the specifications in this regard, setting this option to true will help.</p>") },
   { LEAF ("ManySocketsMode"), 1, "single", ABSOFF (many_sockets_mode), 0, uf_many_sockets_mode, 0, pf_many_sockets_mode,
-    BLURB("<p>This option specifies whether a network socket will be created for each domain participant on a host. The specification seems to assume that each participant has a unique address, and setting this option will ensure this to be the case. This is not the defeault.</p>\n\
+    BLURB("<p>This option specifies whether a network socket will be created for each domain participant on a host. The specification seems to assume that each participant has a unique address, and setting this option will ensure this to be the case. This is not the default.</p>\n\
 <p>Disabling it slightly improves performance and reduces network traffic somewhat. It also causes the set of port numbers needed by DDSI2E to become predictable, which may be useful for firewall and NAT configuration.</p>") },
   { LEAF("AssumeRtiHasPmdEndpoints"), 1, "false", ABSOFF(assume_rti_has_pmd_endpoints), 0, uf_boolean, 0, pf_boolean,
     BLURB("<p>This option assumes ParticipantMessageData endpoints required by the liveliness protocol are present in RTI participants even when not properly advertised by the participant discovery protocol.</p>") },
@@ -674,7 +674,7 @@ static const struct cfgelem internal_cfgelems[] = {
     BLURB("<p>This setting determines the size of the time window in which a NACK of some sample is ignored because a retransmit of that sample has been multicasted too recently. This setting has no effect on unicasted retransmits.</p>\n\
 <p>See also Internal/RetransmitMerging.</p>") },
   { LEAF_W_ATTRS("HeartbeatInterval", heartbeat_interval_attrs), 1, "100 ms", ABSOFF(const_hb_intv_sched), 0, uf_duration_inf, 0, pf_duration,
-    BLURB("<p>This elemnents allows configuring the base interval for sending writer heartbeats and the bounds within it can vary.</p>") },
+    BLURB("<p>This element allows configuring the base interval for sending writer heartbeats and the bounds within which it can vary.</p>") },
   { LEAF("MaxQueuedRexmitBytes"), 1, "50 kB", ABSOFF(max_queued_rexmit_bytes), 0, uf_memsize, 0, pf_memsize,
     BLURB("<p>This setting limits the maximum number of bytes queued for retransmission. The default value of 0 is unlimited unless an AuxiliaryBandwidthLimit has been set, in which case it becomes NackDelay * AuxiliaryBandwidthLimit. It must be large enough to contain the largest sample that may need to be retransmitted.</p>") },
   { LEAF("MaxQueuedRexmitMessages"), 1, "200", ABSOFF(max_queued_rexmit_msgs), 0, uf_uint, 0, pf_uint,
@@ -715,7 +715,7 @@ static const struct cfgelem internal_cfgelems[] = {
   { LEAF("MaxSampleSize"), 1, "2147483647 B", ABSOFF(max_sample_size), 0, uf_memsize, 0, pf_memsize,
     BLURB("<p>This setting controls the maximum (CDR) serialised size of samples that DDSI2E will forward in either direction. Samples larger than this are discarded with a warning.</p>") },
   { LEAF("WriteBatch"), 1, "false", ABSOFF(whc_batch), 0, uf_boolean, 0, pf_boolean,
-    BLURB("<p>This element enables the batching of write operations. By default each write operation writes through the write cache and out onto the transport. Enabling write batching causes multiple small write operations to be aggregated within the write cache into a single larger write. This gives greater throughput at the expense of latency. Currently there is no mechanism for the write cache to automatically flush itself, so that if write batching is enabled, the application may havee to use the dds_write_flush function to ensure thta all samples are written.</p>") },
+    BLURB("<p>This element enables the batching of write operations. By default each write operation writes through the write cache and out onto the transport. Enabling write batching causes multiple small write operations to be aggregated within the write cache into a single larger write. This gives greater throughput at the expense of latency. Currently there is no mechanism for the write cache to automatically flush itself, so that if write batching is enabled, the application may have to use the dds_write_flush function to ensure that all samples are written.</p>") },
   { LEAF_W_ATTRS("LivelinessMonitoring", liveliness_monitoring_attrs), 1, "false", ABSOFF(liveliness_monitoring), 0, uf_boolean, 0, pf_boolean,
     BLURB("<p>This element controls whether or not implementation should internally monitor its own liveliness. If liveliness monitoring is enabled, stack traces can be dumped automatically when some thread appears to have stopped making progress.</p>") },
   { LEAF("MonitorPort"), 1, "-1", ABSOFF(monitor_port), 0, uf_int, 0, pf_int,
@@ -760,7 +760,7 @@ static const struct cfgelem discovery_ports_cfgelems[] = {
   { LEAF("DomainGain"), 1, "250", ABSOFF(ports.dg), 0, uf_uint, 0, pf_uint,
     BLURB("<p>This element specifies the domain gain, relating domain ids to sets of port numbers (refer to the DDSI 2.1 specification, section 9.6.1, constant DG).</p>") },
   { LEAF("ParticipantGain"), 1, "2", ABSOFF(ports.pg), 0, uf_uint, 0, pf_uint,
-    BLURB("<p>This element specifies the participant gain, relating p0, articipant index to sets of port numbers (refer to the DDSI 2.1 specification, section 9.6.1, constant PG).</p>") },
+    BLURB("<p>This element specifies the participant gain, relating p0, participant index to sets of port numbers (refer to the DDSI 2.1 specification, section 9.6.1, constant PG).</p>") },
   { LEAF("MulticastMetaOffset"), 1, "0", ABSOFF(ports.d0), 0, uf_uint, 0, pf_uint,
     BLURB("<p>This element specifies the port number for multicast meta traffic (refer to the DDSI 2.1 specification, section 9.6.1, constant d0).</p>") },
   { LEAF("UnicastMetaOffset"), 1, "10", ABSOFF(ports.d1), 0, uf_uint, 0, pf_uint,
@@ -906,7 +906,7 @@ static const struct cfgelem tracing_cfgelems[] = {
   { LEAF("AppendToFile"), 1, "false", ABSOFF(tracingAppendToFile), 0, uf_boolean, 0, pf_boolean,
     BLURB("<p>This option specifies whether the output is to be appended to an existing log file. The default is to create a new log file each time, which is generally the best option if a detailed log is generated.</p>") },
   { LEAF("PacketCaptureFile"), 1, "", ABSOFF(pcap_file), 0, uf_string, ff_free, pf_string,
-    BLURB("<p>This option specifies the file to which received and sent packets will be logged in the \"pcap\" format suitable for analysis using common networking tools, such as WireShark. IP and UDP headers are ficitious, in particular the destination address of received packets. The TTL may be used to distinguish between sent and received packets: it is 255 for sent packets and 128 for received ones. Currently IPv4 only.</p>") },
+    BLURB("<p>This option specifies the file to which received and sent packets will be logged in the \"pcap\" format suitable for analysis using common networking tools, such as WireShark. IP and UDP headers are fictitious, in particular the destination address of received packets. The TTL may be used to distinguish between sent and received packets: it is 255 for sent packets and 128 for received ones. Currently IPv4 only.</p>") },
   END_MARKER
 };
 

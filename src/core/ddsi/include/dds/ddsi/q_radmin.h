@@ -102,6 +102,13 @@ DDSRT_STATIC_ASSERT (sizeof (struct nn_rmsg) == offsetof (struct nn_rmsg, chunk)
 #define NN_RMSG_PAYLOAD(m) ((unsigned char *) (m + 1))
 #define NN_RMSG_PAYLOADOFF(m, o) (NN_RMSG_PAYLOAD (m) + (o))
 
+/* Align rmsg chunks to the larger of sizeof(void*) or 8.
+
+Ideally, we would use C11's alignof(struct nn_rmsg); however, to avoid dependency on C11,
+we ensure rmsg chunks are at least aligned to sizeof(void *) or 8,
+whichever is larger. */
+#define ALIGNOF_RMSG (sizeof(void *) > 8 ? sizeof(void *) : 8)
+
 struct receiver_state {
   ddsi_guid_prefix_t src_guid_prefix;     /* 12 */
   ddsi_guid_prefix_t dst_guid_prefix;     /* 12 */

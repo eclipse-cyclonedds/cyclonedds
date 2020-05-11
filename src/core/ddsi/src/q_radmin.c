@@ -303,9 +303,11 @@ static void nn_rbuf_release (struct nn_rbuf *rbuf);
 #define RMSGTRACE(...)              TRACE_CFG (rmsg, rmsg->chunk.rbuf->rbufpool->logcfg, __VA_ARGS__)
 #define RDATATRACE(rdata, ...)      TRACE_CFG ((rdata)->rmsg, (rdata)->rmsg->chunk.rbuf->rbufpool->logcfg, __VA_ARGS__)
 
-static uint32_t align8uint32 (uint32_t x)
+static uint32_t align_rmsg (uint32_t x)
 {
-  return (x + 7u) & (uint32_t)-8;
+  x += (uint32_t) ALIGNOF_RMSG - 1;
+  x -= x % (uint32_t) ALIGNOF_RMSG;
+  return x;
 }
 
 #ifndef NDEBUG
@@ -553,15 +555,15 @@ struct nn_rmsg *nn_rmsg_new (struct nn_rbufpool *rbp)
 
 void nn_rmsg_setsize (struct nn_rmsg *rmsg, uint32_t size)
 {
-  uint32_t size8 = align8uint32 (size);
-  RMSGTRACE ("rmsg_setsize(%p, %"PRIu32" => %"PRIu32")\n", (void *) rmsg, size, size8);
+  uint32_t size8P = align_rmsg (size);
+  RMSGTRACE ("rmsg_setsize(%p, %"PRIu32" => %"PRIu32")\n", (void *) rmsg, size, size8P);
   ASSERT_RBUFPOOL_OWNER (rmsg->chunk.rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
   assert (ddsrt_atomic_ld32 (&rmsg->refcount) == RMSG_REFCOUNT_UNCOMMITTED_BIAS);
   assert (rmsg->chunk.u.size == 0);
-  assert (size8 <= rmsg->chunk.rbuf->max_rmsg_size);
+  assert (size8P <= rmsg->chunk.rbuf->max_rmsg_size);
   assert (rmsg->lastchunk == &rmsg->chunk);
-  rmsg->chunk.u.size = size8;
+  rmsg->chunk.u.size = size8P;
 #if USE_VALGRIND
   VALGRIND_MEMPOOL_CHANGE (rmsg->chunk.rbuf->rbufpool, rmsg, rmsg, offsetof (struct nn_rmsg, chunk.u.payload) + rmsg->chunk.size);
 #endif
@@ -620,7 +622,7 @@ void nn_rmsg_commit (struct nn_rmsg *rmsg)
   ASSERT_RBUFPOOL_OWNER (chunk->rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
   assert (chunk->u.size <= chunk->rbuf->max_rmsg_size);
-  assert ((chunk->u.size % 8) == 0);
+  assert ((chunk->u.size % ALIGNOF_RMSG) == 0);
   assert (ddsrt_atomic_ld32 (&rmsg->refcount) >= RMSG_REFCOUNT_UNCOMMITTED_BIAS);
   assert (ddsrt_atomic_ld32 (&rmsg->chunk.rbuf->n_live_rmsg_chunks) > 0);
   assert (ddsrt_atomic_ld32 (&chunk->rbuf->n_live_rmsg_chunks) > 0);
@@ -677,15 +679,15 @@ void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size)
 {
   struct nn_rmsg_chunk *chunk = rmsg->lastchunk;
   struct nn_rbuf *rbuf = chunk->rbuf;
-  uint32_t size8 = align8uint32 (size);
+  uint32_t size8P = align_rmsg (size);
   void *ptr;
-  RMSGTRACE ("rmsg_alloc(%p, %"PRIu32" => %"PRIu32")\n", (void *) rmsg, size, size8);
+  RMSGTRACE ("rmsg_alloc(%p, %"PRIu32" => %"PRIu32")\n", (void *) rmsg, size, size8P);
   ASSERT_RBUFPOOL_OWNER (rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
-  assert ((chunk->u.size % 8) == 0);
-  assert (size8 <= rbuf->max_rmsg_size);
+  assert ((chunk->u.size % ALIGNOF_RMSG) == 0);
+  assert (size8P <= rbuf->max_rmsg_size);
 
-  if (chunk->u.size + size8 > rbuf->max_rmsg_size)
+  if (chunk->u.size + size8P > rbuf->max_rmsg_size)
   {
     struct nn_rbufpool *rbp = rbuf->rbufpool;
     struct nn_rmsg_chunk *newchunk;
@@ -703,7 +705,7 @@ void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size)
   }
 
   ptr = (unsigned char *) (chunk + 1) + chunk->u.size;
-  chunk->u.size += size8;
+  chunk->u.size += size8P;
   RMSGTRACE ("rmsg_alloc(%p, %"PRIu32") = %p\n", (void *) rmsg, size, ptr);
 #if USE_VALGRIND
   if (chunk == &rmsg->chunk) {

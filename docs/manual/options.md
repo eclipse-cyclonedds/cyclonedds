@@ -64,7 +64,7 @@ One of: false, true, single, none, many
 This option specifies whether a network socket will be created for each
 domain participant on a host. The specification seems to assume that each
 participant has a unique address, and setting this option will ensure
-this to be the case. This is not the defeault.
+this to be the case. This is not the default.
 
 Disabling it slightly improves performance and reduces network traffic
 somewhat. It also causes the set of port numbers needed by Cyclone DDS to
@@ -644,7 +644,7 @@ The default value is: "0".
 ##### //CycloneDDS/Domain/Discovery/Ports/ParticipantGain
 Integer
 
-This element specifies the participant gain, relating p0, articipant
+This element specifies the participant gain, relating p0, participant
 index to sets of port numbers (refer to the DDSI 2.1 specification,
 section 9.6.1, constant PG).
 
@@ -1050,8 +1050,8 @@ Attributes: [max](#cycloneddsdomaininternalheartbeatintervalmax), [min](#cyclone
 
 Number-with-unit
 
-This elemnents allows configuring the base interval for sending writer
-heartbeats and the bounds within it can vary.
+This element allows configuring the base interval for sending writer
+heartbeats and the bounds within which it can vary.
 
 Valid values are finite durations with an explicit unit or the keyword
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
@@ -1600,8 +1600,8 @@ transport. Enabling write batching causes multiple small write operations
 to be aggregated within the write cache into a single larger write. This
 gives greater throughput at the expense of latency. Currently there is no
 mechanism for the write cache to automatically flush itself, so that if
-write batching is enabled, the application may havee to use the
-dds_write_flush function to ensure thta all samples are written.
+write batching is enabled, the application may have to use the
+dds_write_flush function to ensure that all samples are written.
 
 The default value is: "false".
 
@@ -2140,10 +2140,10 @@ Text
 
 This option specifies the file to which received and sent packets will be
 logged in the "pcap" format suitable for analysis using common networking
-tools, such as WireShark. IP and UDP headers are ficitious, in particular
-the destination address of received packets. The TTL may be used to
-distinguish between sent and received packets: it is 255 for sent packets
-and 128 for received ones. Currently IPv4 only.
+tools, such as WireShark. IP and UDP headers are fictitious, in
+particular the destination address of received packets. The TTL may be
+used to distinguish between sent and received packets: it is 255 for sent
+packets and 128 for received ones. Currently IPv4 only.
 
 The default value is: "".
 

@@ -1,7 +1,7 @@
 # Eclipse Cyclone DDS Module Layout
 
 Cyclone DDS is made up of multiple modules, each of which provides a certain
-set of functionality, either private, public or a combination therof. Since
+set of functionality, either private, public or a combination thereof. Since
 Cyclone DDS is a middleware product, the api is of course the most visible
 interface. Cyclone DDS uses the *dds* (not followed by an underscore) prefix
 to avoid name collisions with other code.
@@ -32,7 +32,7 @@ but does offer a neat way to separate features logically.
 > restructuring of the runtime module. The two will be merged in the not too
 > distant future.
 
-All modules are exported seperately, for convenience. e.g. the *ddsrt* module
+All modules are exported separately, for convenience. e.g. the *ddsrt* module
 offers target agnostic interfaces to create and manage threads and
 synchronization primitives, retrieve resource usage, system time, etc.
 However, all symbols not referenced by including *dds.h* or prefixed with
@@ -54,12 +54,12 @@ the target supports IPv6 addresses.
 
 
 ### Feature discovery
-Discovery of target features at compile time is lagely dynamic. Various target
+Discovery of target features at compile time is largely dynamic. Various target
 specific predefined macros determine if a feature is supported and which
 implementation is built. This is on purpose, to avoid a target specific
 include directory and an abundance of configuration header files and works
 well for most use cases. Of course, there are exceptions where the preprocessor
-requires some hints to make the right the descision. e.g. when the lwIP TCP/IP
+requires some hints to make the right decision. e.g. when the lwIP TCP/IP
 stack should be used as opposed to the native stack. The build system is
 responsible for the availability of the proper macros at compile time.
 
@@ -82,10 +82,10 @@ target architecture specific implementation.
 #### Network stack
 General purpose operating systems like Microsoft Windows and Linux come with
 a network stack, as does VxWorks. FreeRTOS, however, does not and requires a
-seperate TCP/IP stack, which is often part of the Board Support Package (BSP).
+separate TCP/IP stack, which is often part of the Board Support Package (BSP).
 But separate stacks can be used on Microsoft Windows and Linux too. e.g. the
 network stack in Tizen RT is based on lwIP, but the platform uses the Linux
-kernel. Wheter or not lwIP must be used cannot be determined automatically and
+kernel. Whether or not lwIP must be used cannot be determined automatically and
 the build system must hint which implementation is to be used.
 
 
@@ -158,7 +158,7 @@ directory.
 
 ### Development guidelines
 * Be pragmatic. Use ifdefs (only) where it makes sense. Do not ifdef if target
-  implementations are completely different. Add a seperate implementation. If
+  implementations are completely different. Add a separate implementation. If
   there are only minor differences, as is typically the case between unices,
   use an ifdef.
 * Header and source files are not prefixed. Instead they reside in a directory
