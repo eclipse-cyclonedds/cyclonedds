@@ -2250,7 +2250,6 @@ static bool q_omg_security_register_remote_writer_match(struct proxy_writer *pwr
   struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   struct proxypp_pp_match *proxypp_match;
-  struct rd_pwr_match *match;
   bool send_tokens = false;
   bool allowed = false;
 
@@ -2258,7 +2257,7 @@ static bool q_omg_security_register_remote_writer_match(struct proxy_writer *pwr
     return false;
 
   ddsrt_mutex_lock(&rd->e.lock);
-  if ((match = ddsrt_avl_lookup (&rd_writers_treedef, &rd->writers, &pwr->e.guid)) != NULL)
+  if (ddsrt_avl_lookup (&rd_writers_treedef, &rd->writers, &pwr->e.guid) != NULL)
     allowed = true;
   else if (rd->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER)
   {
@@ -2584,7 +2583,6 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
   struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   struct proxypp_pp_match *proxypp_match;
-  struct wr_prd_match *match;
   bool send_tokens = false;
   bool allowed = false;
 
@@ -2592,7 +2590,7 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
     return false;
 
   ddsrt_mutex_lock(&wr->e.lock);
-  if ((match = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
+  if (ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &prd->e.guid) != NULL)
     allowed = true;
   else if (wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER || !wr->sec_attr->attr.is_submessage_protected)
   {

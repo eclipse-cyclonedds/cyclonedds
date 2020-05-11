@@ -477,11 +477,11 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
     }
   }
 
-  if ((rc = set_rcvbuf (gv, sock, &gv->config.socket_min_rcvbuf_size)) != DDS_RETCODE_OK)
+  if (set_rcvbuf (gv, sock, &gv->config.socket_min_rcvbuf_size) != DDS_RETCODE_OK)
     goto fail_w_socket;
-  if ((rc = set_sndbuf (gv, sock, gv->config.socket_min_sndbuf_size)) != DDS_RETCODE_OK)
+  if (set_sndbuf (gv, sock, gv->config.socket_min_sndbuf_size) != DDS_RETCODE_OK)
     goto fail_w_socket;
-  if (gv->config.dontRoute && (rc = set_dont_route (gv, sock, ipv6)) != DDS_RETCODE_OK)
+  if (gv->config.dontRoute && set_dont_route (gv, sock, ipv6) != DDS_RETCODE_OK)
     goto fail_w_socket;
 
   if ((rc = ddsrt_bind (sock, &socketname.a, ddsrt_sockaddr_get_size (&socketname.a))) != DDS_RETCODE_OK)

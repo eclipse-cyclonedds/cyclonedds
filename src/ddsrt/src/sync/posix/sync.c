@@ -159,22 +159,18 @@ ddsrt_cond_broadcast (ddsrt_cond_t *cond)
 void
 ddsrt_rwlock_init (ddsrt_rwlock_t *rwlock)
 {
-  int err = 0;
-
   assert(rwlock != NULL);
 
   /* process-shared attribute is set to PTHREAD_PROCESS_PRIVATE by default */
-  if ((err = pthread_rwlock_init(&rwlock->rwlock, NULL)) != 0)
+  if (pthread_rwlock_init(&rwlock->rwlock, NULL) != 0)
     abort();
 }
 
 void
 ddsrt_rwlock_destroy (ddsrt_rwlock_t *rwlock)
 {
-  int err;
-
   assert(rwlock != NULL);
-  if ((err = pthread_rwlock_destroy (&rwlock->rwlock)) != 0)
+  if (pthread_rwlock_destroy (&rwlock->rwlock) != 0)
     abort();
 }
 

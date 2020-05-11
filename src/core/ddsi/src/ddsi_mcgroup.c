@@ -203,7 +203,7 @@ static int joinleave_mcgroups (const struct ddsi_domaingv *gv, ddsi_tran_conn_t 
         {
           if (gv->recvips_mode == RECVIPS_MODE_ALL || interface_in_recvips_p (gv->recvips, &gv->interfaces[i]))
           {
-            if ((rc = joinleave_mcgroup (conn, join, srcloc, mcloc, &gv->interfaces[i])) < 0)
+            if (joinleave_mcgroup (conn, join, srcloc, mcloc, &gv->interfaces[i]) < 0)
               fails++;
             else
               oks++;
