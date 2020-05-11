@@ -90,6 +90,7 @@ typedef enum dds_status_id {
   DDS_PUBLICATION_MATCHED_STATUS_ID,
   DDS_SUBSCRIPTION_MATCHED_STATUS_ID
 } dds_status_id_t;
+#define DDS_STATUS_ID_MAX (DDS_SUBSCRIPTION_MATCHED_STATUS_ID)
 
 /** Another topic exists with the same name but with different characteristics. */
 #define DDS_INCONSISTENT_TOPIC_STATUS          (1u << DDS_INCONSISTENT_TOPIC_STATUS_ID)
