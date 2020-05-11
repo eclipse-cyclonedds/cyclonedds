@@ -213,6 +213,7 @@ static struct ddsi_serdata *serdata_pserop_from_sample (const struct ddsi_sertop
     const size_t size4 = (size + 3) & ~(size_t)3;
     struct ddsi_serdata_pserop *d = serdata_pserop_new (tp, kind, size4, &header);
     assert (tp->ops_key == NULL || (size >= 16 && tp->memsize >= 16));
+    assert (d->data != NULL); // clang static analyzer
     memcpy (d->data, data, size);
     memset (d->data + size, 0, size4 - size);
     d->pos = (uint32_t) size;
