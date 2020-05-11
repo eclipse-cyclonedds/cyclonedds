@@ -4774,21 +4774,21 @@ void handshake_end_cb(struct ddsi_handshake *handshake, struct participant *pp, 
   }
 }
 
-static int proxy_participant_check_security_info(struct ddsi_domaingv *gv, struct proxy_participant *proxypp)
+static bool proxy_participant_has_pp_match(struct ddsi_domaingv *gv, struct proxy_participant *proxypp)
 {
-  int r = 0;
+  bool match = false;
   struct participant *pp;
   struct entidx_enum_participant est;
 
   entidx_enum_participant_init (&est, gv->entity_index);
-  while (((pp = entidx_enum_participant_next (&est)) != NULL) && (r == 0)) {
-    if (q_omg_is_similar_participant_security_info(pp, proxypp)) {
-      r = 1;
-      break;
-    }
+  while ((pp = entidx_enum_participant_next (&est)) != NULL && !match)
+  {
+    /* remote secure pp can possibly match with local non-secured pp in case allow-unauthenticated pp
+       is enabled in the remote pp's security settings */
+    match = !q_omg_participant_is_secure (pp) || q_omg_is_similar_participant_security_info (pp, proxypp);
   }
-  entidx_enum_participant_fini(&est);
-  return r;
+  entidx_enum_participant_fini (&est);
+  return match;
 }
 
 static void proxy_participant_create_handshakes(struct ddsi_domaingv *gv, struct proxy_participant *proxypp)
@@ -4955,9 +4955,9 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
   {
     q_omg_security_init_remote_participant (proxypp);
     /* check if the proxy participant has a match with a local participant */
-    if (!proxy_participant_check_security_info (gv, proxypp))
+    if (!proxy_participant_has_pp_match (gv, proxypp))
     {
- //     GVWARNING ("Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
+      GVWARNING ("Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
       free_proxy_participant (proxypp);
       return;
     }
