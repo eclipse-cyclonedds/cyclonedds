@@ -267,8 +267,7 @@ void dds_write_flush (dds_entity_t writer)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
   dds_writer *wr;
-  dds_return_t rc;
-  if ((rc = dds_writer_lock (writer, &wr)) == DDS_RETCODE_OK)
+  if (dds_writer_lock (writer, &wr) == DDS_RETCODE_OK)
   {
     thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
     nn_xpack_send (wr->m_xp, true);

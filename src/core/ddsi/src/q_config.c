@@ -2246,14 +2246,13 @@ static int set_defaults (struct cfgst *cfgst, void *parent, int isattr, struct c
   int ok = 1;
   for (const struct cfgelem *ce = cfgelem; ce && ce->name; ce++)
   {
-    struct cfgst_node *n;
     struct cfgst_nodekey key;
     key.e = ce;
     key.p = parent;
     cfgst_push (cfgst, isattr, ce, parent);
     if (ce->multiplicity <= 1)
     {
-      if ((n = ddsrt_avl_lookup (&cfgst_found_treedef, &cfgst->found, &key)) == NULL)
+      if (ddsrt_avl_lookup (&cfgst_found_treedef, &cfgst->found, &key) == NULL)
       {
         if (ce->update)
         {
