@@ -83,7 +83,7 @@ struct receiver_specific_mac
 struct encrypted_data
 {
   uint32_t length;
-  unsigned char data[1];
+  unsigned char data[];
 };
 
 static void reset_exception(DDS_Security_SecurityException *ex)

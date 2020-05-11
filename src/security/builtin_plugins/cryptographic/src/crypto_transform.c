@@ -59,7 +59,7 @@ struct crypto_header
 struct crypto_contents
 {
   uint32_t _length;
-  unsigned char _data[1];
+  unsigned char _data[];
 };
 
 struct crypto_contents_ref
@@ -71,7 +71,7 @@ struct crypto_contents_ref
 struct receiver_specific_mac_seq
 {
   uint32_t _length;
-  struct receiver_specific_mac _buffer[1];
+  struct receiver_specific_mac _buffer[];
 };
 
 struct crypto_footer
@@ -83,7 +83,7 @@ struct crypto_footer
 struct encrypted_data
 {
   uint32_t length;
-  unsigned char data[1];
+  unsigned char data[];
 };
 
 /*

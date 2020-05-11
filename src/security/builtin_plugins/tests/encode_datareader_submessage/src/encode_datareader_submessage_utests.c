@@ -77,7 +77,7 @@ struct receiver_specific_mac
 struct encrypted_data
 {
   uint32_t length;
-  unsigned char data[1];
+  unsigned char data[];
 };
 
 struct seq_number
