@@ -538,3 +538,37 @@ const char * bpk_to_str(DDS_Security_BasicProtectionKind bpk)
   assert (false);
   return NULL;
 }
+
+DDS_Security_DatawriterCryptoHandle get_builtin_writer_crypto_handle(dds_entity_t participant, unsigned entityid)
+{
+  DDS_Security_DatawriterCryptoHandle crypto_handle;
+  struct dds_entity *pp_entity;
+  struct participant *pp;
+  struct writer *wr;
+  CU_ASSERT_EQUAL_FATAL(dds_entity_pin(participant, &pp_entity), 0);
+  thread_state_awake(lookup_thread_state(), &pp_entity->m_domain->gv);
+  pp = entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
+  wr = get_builtin_writer(pp, entityid);
+  CU_ASSERT_FATAL(wr != NULL);
+  assert(wr != NULL); /* for Clang's static analyzer */
+  crypto_handle = wr->sec_attr->crypto_handle;
+  thread_state_asleep(lookup_thread_state());
+  dds_entity_unpin(pp_entity);
+  return crypto_handle;
+}
+
+DDS_Security_DatawriterCryptoHandle get_writer_crypto_handle(dds_entity_t writer)
+{
+  DDS_Security_DatawriterCryptoHandle crypto_handle;
+  struct dds_entity *wr_entity;
+  struct writer *wr;
+  CU_ASSERT_EQUAL_FATAL(dds_entity_pin(writer, &wr_entity), 0);
+  thread_state_awake(lookup_thread_state(), &wr_entity->m_domain->gv);
+  wr = entidx_lookup_writer_guid(wr_entity->m_domain->gv.entity_index, &wr_entity->m_guid);
+  CU_ASSERT_FATAL(wr != NULL);
+  assert(wr != NULL); /* for Clang's static analyzer */
+  crypto_handle = wr->sec_attr->crypto_handle;
+  thread_state_asleep(lookup_thread_state());
+  dds_entity_unpin(wr_entity);
+  return crypto_handle;
+}

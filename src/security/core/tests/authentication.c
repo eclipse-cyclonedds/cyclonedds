@@ -20,6 +20,7 @@
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/io.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -65,7 +66,7 @@ static const char *config =
     "      <Library finalizeFunction=\"finalize_access_control\" initFunction=\"init_access_control\"/>"
     "      <Governance><![CDATA[${GOVERNANCE_CONFIG}]]></Governance>"
     "      <PermissionsCA>file:" COMMON_ETC_PATH("default_permissions_ca.pem") "</PermissionsCA>"
-    "      <Permissions><![CDATA[${PERM_CONFIG}]]></Permissions>"
+    "      <Permissions><![CDATA[${PERMISSIONS_CONFIG}]]></Permissions>"
     "    </AccessControl>"
     "    <Cryptographic>"
     "      <Library finalizeFunction=\"finalize_crypto\" initFunction=\"init_crypto\"/>"
@@ -73,10 +74,21 @@ static const char *config =
     "  </DDSSecurity>"
     "</Domain>";
 
+static const char *config_non_secure =
+    "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}"
+    "<Domain id=\"any\">"
+    "  <Discovery>"
+    "    <ExternalDomainId>0</ExternalDomainId>"
+    "    <Tag>\\${CYCLONEDDS_PID}</Tag>"
+    "  </Discovery>"
+    "</Domain>";
+
+
 #define DDS_DOMAINID1 0
 #define DDS_DOMAINID2 1
 
 #define DEF_PERM_CONF "file:" COMMON_ETC_PATH("default_permissions.p7s")
+#define DEF_GOV_CONF "file:" COMMON_ETC_PATH("default_governance.p7s")
 
 static dds_entity_t g_domain1;
 static dds_entity_t g_participant1;
@@ -92,56 +104,48 @@ static dds_entity_t g_rd;
 
 static uint32_t g_topic_nr = 0;
 
-static void authentication_init(
-    const char * id1_cert, const char * id1_key, const char * id1_ca,
-    const char * id2_cert, const char * id2_key, const char * id2_ca,
-    const char * trusted_ca_dir, const char * perm_config,
-    bool exp_pp1_fail, bool exp_pp2_fail)
+static void init_domain_pp (bool pp_secure, bool exp_pp_fail,
+    dds_domainid_t domain_id, const char *id_cert, const char * id_key, const char * id_ca, const char * gov_config, const char * perm_config, const char * trusted_ca_dir,
+    dds_entity_t *domain, dds_entity_t *pp)
 {
-  if (perm_config == NULL)
-    perm_config = DEF_PERM_CONF;
-
-  char * gov_topic_rule = get_governance_topic_rule ("*", false, false, true, true, "NONE", "NONE");
-  char * gov_config_signed = get_governance_config (false, false, NULL, NULL, NULL, gov_topic_rule, true);
-
-  struct kvp config_vars1[] = {
-    { "TEST_IDENTITY_CERTIFICATE", id1_cert, 1 },
-    { "TEST_IDENTITY_PRIVATE_KEY", id1_key, 1 },
-    { "TEST_IDENTITY_CA_CERTIFICATE", id1_ca, 1 },
-    { "TRUSTED_CA_DIR", trusted_ca_dir, 3 },
-    { "PERM_CONFIG", perm_config, 1 },
-    { "GOVERNANCE_CONFIG", gov_config_signed, 1 },
-    { NULL, NULL, 0 }
-  };
-
-  struct kvp config_vars2[] = {
-    { "TEST_IDENTITY_CERTIFICATE", id2_cert, 1 },
-    { "TEST_IDENTITY_PRIVATE_KEY", id2_key, 1 },
-    { "TEST_IDENTITY_CA_CERTIFICATE", id2_ca, 1 },
-    { "TRUSTED_CA_DIR", trusted_ca_dir, 3 },
-    { "PERM_CONFIG", perm_config, 1 },
-    { "GOVERNANCE_CONFIG", gov_config_signed, 1 },
-    { NULL, NULL, 0 }
-  };
-
-  char *conf1 = ddsrt_expand_vars_sh (config, &expand_lookup_vars_env, config_vars1);
-  char *conf2 = ddsrt_expand_vars_sh (config, &expand_lookup_vars_env, config_vars2);
-  CU_ASSERT_EQUAL_FATAL (expand_lookup_unmatched (config_vars1), 0);
-  CU_ASSERT_EQUAL_FATAL (expand_lookup_unmatched (config_vars2), 0);
-  g_domain1 = dds_create_domain (DDS_DOMAINID1, conf1);
-  g_domain2 = dds_create_domain (DDS_DOMAINID2, conf2);
-  g_participant1 = dds_create_participant (DDS_DOMAINID1, NULL, NULL);
-  g_participant2 = dds_create_participant (DDS_DOMAINID2, NULL, NULL);
-  CU_ASSERT_EQUAL_FATAL (exp_pp1_fail, g_participant1 <= 0);
-  CU_ASSERT_EQUAL_FATAL (exp_pp2_fail, g_participant2 <= 0);
-
-  ddsrt_free (gov_config_signed);
-  ddsrt_free (gov_topic_rule);
-  ddsrt_free (conf1);
-  ddsrt_free (conf2);
+  char *conf;
+  if (pp_secure)
+  {
+    struct kvp config_vars[] =
+    {
+      { "TEST_IDENTITY_CERTIFICATE", id_cert, 1 },
+      { "TEST_IDENTITY_PRIVATE_KEY", id_key, 1 },
+      { "TEST_IDENTITY_CA_CERTIFICATE", id_ca, 1 },
+      { "TRUSTED_CA_DIR", trusted_ca_dir, 3 },
+      { "PERMISSIONS_CONFIG", perm_config, 1 },
+      { "GOVERNANCE_CONFIG", gov_config, 1 },
+      { NULL, NULL, 0 }
+    };
+    conf = ddsrt_expand_vars_sh (config, &expand_lookup_vars_env, config_vars);
+    CU_ASSERT_EQUAL_FATAL (expand_lookup_unmatched (config_vars), 0);
+  }
+  else
+  {
+    struct kvp config_vars[] = { { NULL, NULL, 0 } };
+    conf = ddsrt_expand_vars_sh (config_non_secure, &expand_lookup_vars_env, config_vars);
+    CU_ASSERT_EQUAL_FATAL (expand_lookup_unmatched (config_vars), 0);
+  }
+  *domain = dds_create_domain (domain_id, conf);
+  *pp = dds_create_participant (domain_id, NULL, NULL);
+  CU_ASSERT_EQUAL_FATAL (exp_pp_fail, *pp <= 0);
+  ddsrt_free (conf);
 }
 
-static void authentication_fini(bool delete_pp1, bool delete_pp2)
+static void authentication_init(
+    bool pp1_secure, const char * id1_cert, const char * id1_key, const char * id1_ca, bool exp_pp1_fail, const char * gov_conf1, const char * perm_conf1,
+    bool pp2_secure, const char * id2_cert, const char * id2_key, const char * id2_ca, bool exp_pp2_fail, const char * gov_conf2, const char * perm_conf2,
+    const char * trusted_ca_dir)
+{
+  init_domain_pp (pp1_secure, exp_pp1_fail, DDS_DOMAINID1, id1_cert, id1_key, id1_ca, gov_conf1, perm_conf1, trusted_ca_dir, &g_domain1, &g_participant1);
+  init_domain_pp (pp2_secure, exp_pp2_fail, DDS_DOMAINID2, id2_cert, id2_key, id2_ca, gov_conf2, perm_conf2, trusted_ca_dir, &g_domain2, &g_participant2);
+}
+
+static void authentication_fini(bool delete_pp1, bool delete_pp2, void * res[], size_t nres)
 {
   if (delete_pp1)
     CU_ASSERT_EQUAL_FATAL (dds_delete (g_participant1), DDS_RETCODE_OK);
@@ -149,6 +153,11 @@ static void authentication_fini(bool delete_pp1, bool delete_pp2)
     CU_ASSERT_EQUAL_FATAL (dds_delete (g_participant2), DDS_RETCODE_OK);
   CU_ASSERT_EQUAL_FATAL (dds_delete (g_domain1), DDS_RETCODE_OK);
   CU_ASSERT_EQUAL_FATAL (dds_delete (g_domain2), DDS_RETCODE_OK);
+  if (res != NULL)
+  {
+    for (size_t i = 0; i < nres; i++)
+      ddsrt_free (res[i]);
+  }
 }
 
 #define FM_CA "error: unable to get local issuer certificate"
@@ -185,7 +194,10 @@ CU_Theory((const char * test_descr, const char * id2, const char *key2, const ch
   struct Handshake *hs_list;
   int nhs;
   print_test_msg ("running test id_ca_certs: %s\n", test_descr);
-  authentication_init (ID1, ID1K, CA1, id2, key2, ca2, NULL, NULL, exp_fail_pp1, exp_fail_pp2);
+  authentication_init (
+      true, ID1, ID1K, CA1, exp_fail_pp1, DEF_GOV_CONF, DEF_PERM_CONF,
+      true, id2, key2, ca2, exp_fail_pp2, DEF_GOV_CONF, DEF_PERM_CONF,
+      NULL);
 
   // Domain 1
   validate_handshake (DDS_DOMAINID1, false, NULL, &hs_list, &nhs, DDS_SECS(2));
@@ -199,7 +211,7 @@ CU_Theory((const char * test_descr, const char * id2, const char *key2, const ch
     validate_handshake_result (&hs_list[n], exp_fail_hs_req, fail_hs_req_msg, exp_fail_hs_reply, fail_hs_reply_msg);
   handshake_list_fini (hs_list, nhs);
 
-  authentication_fini (!exp_fail_pp1, !exp_fail_pp2);
+  authentication_fini (!exp_fail_pp1, !exp_fail_pp2, NULL, 0);
 }
 
 CU_TheoryDataPoints(ddssec_authentication, trusted_ca_dir) = {
@@ -209,13 +221,16 @@ CU_TheoryDataPoints(ddssec_authentication, trusted_ca_dir) = {
 CU_Theory((const char * ca_dir, bool exp_fail), ddssec_authentication, trusted_ca_dir)
 {
   print_test_msg ("Testing custom CA dir: %s\n", ca_dir);
-  authentication_init (ID1, ID1K, CA1, ID1, ID1K, CA1, ca_dir, NULL, exp_fail, exp_fail);
+  authentication_init (
+      true, ID1, ID1K, CA1, exp_fail, DEF_GOV_CONF, DEF_PERM_CONF,
+      true, ID1, ID1K, CA1, exp_fail, DEF_GOV_CONF, DEF_PERM_CONF,
+      ca_dir);
   if (!exp_fail)
   {
     validate_handshake_nofail (DDS_DOMAINID1, DDS_SECS (2));
     validate_handshake_nofail (DDS_DOMAINID2, DDS_SECS (2));
   }
-  authentication_fini (!exp_fail, !exp_fail);
+  authentication_fini (!exp_fail, !exp_fail, NULL, 0);
 }
 
 #define S(n) (n)
@@ -267,7 +282,10 @@ CU_Theory(
     get_permissions_default_grant ("id1", id1_subj, topic_name),
     get_permissions_default_grant ("id2", id2_subj, topic_name) };
   char * perm_config = get_permissions_config (grants, 2, true);
-  authentication_init (id1, ID1K, ca, id2, ID1K, ca, NULL, perm_config, id1_local_fail, id2_local_fail);
+  authentication_init (
+    true, id1, ID1K, ca, id1_local_fail, DEF_GOV_CONF, perm_config,
+    true, id2, ID1K, ca, id2_local_fail, DEF_GOV_CONF, perm_config,
+    NULL);
   validate_handshake (DDS_DOMAINID1, id1_local_fail, NULL, NULL, NULL, DDS_SECS(2));
   validate_handshake (DDS_DOMAINID2, id2_local_fail, NULL, NULL, NULL, DDS_SECS(2));
   if (write_read_dur > 0)
@@ -276,17 +294,51 @@ CU_Theory(
     sync_writer_to_readers(g_participant1, g_wr, 1, DDS_SECS(2));
     write_read_for (g_wr, g_participant2, g_rd, DDS_MSECS (write_read_dur), false, exp_read_fail);
   }
-  authentication_fini (!id1_local_fail, !id2_local_fail);
-  ddsrt_free (grants[0]);
-  ddsrt_free (grants[1]);
-  ddsrt_free (perm_config);
-  ddsrt_free (ca);
-  ddsrt_free (id1_subj);
-  ddsrt_free (id2_subj);
-  ddsrt_free (id1);
-  ddsrt_free (id2);
+  authentication_fini (!id1_local_fail, !id2_local_fail, (void * []){ grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 8);
 }
 #undef D
 #undef H
 #undef M
+
+
+CU_Test(ddssec_authentication, unauthenticated_pp)
+{
+  char topic_name_secure[100];
+  char topic_name_plain[100];
+  create_topic_name ("ddssec_authentication_secure_", g_topic_nr++, topic_name_secure, sizeof (topic_name_secure));
+  create_topic_name ("ddssec_authentication_plain_", g_topic_nr++, topic_name_plain, sizeof (topic_name_plain));
+
+  /* create ca and id1 cert that will not expire during this test */
+  char *ca, *id1, *id1_subj;
+  ca = generate_ca ("ca1", TEST_IDENTITY_CA1_PRIVATE_KEY, 0, 3600);
+  id1 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id1", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id1_subj);
+
+  char * grants[] = { get_permissions_default_grant ("id1", id1_subj, topic_name_secure) };
+  char * perm_config = get_permissions_config (grants, 1, true);
+
+  char * topic_rule_sec = get_governance_topic_rule (topic_name_secure, true, true, true, true, PK_E, BPK_N);
+  char * topic_rule_plain = get_governance_topic_rule (topic_name_plain, false, false, false, false, PK_N, BPK_N);
+  char * gov_topic_rules;
+  ddsrt_asprintf(&gov_topic_rules, "%s%s", topic_rule_sec, topic_rule_plain);
+  char * gov_config = get_governance_config (true, true, PK_N, PK_N, PK_N, gov_topic_rules, true);
+
+  authentication_init (
+    true, id1, TEST_IDENTITY1_PRIVATE_KEY, ca, false, gov_config, perm_config,
+    false, NULL, NULL, NULL, false, NULL, NULL,
+    NULL);
+
+  print_test_msg ("writing sample for plain topic\n");
+  dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
+  rd_wr_init (g_participant1, &pub, &pub_tp, &wr, g_participant2, &sub, &sub_tp, &rd, topic_name_plain);
+  sync_writer_to_readers(g_participant1, wr, 1, DDS_SECS(5));
+  write_read_for (wr, g_participant2, rd, DDS_MSECS (10), false, false);
+
+  print_test_msg ("writing sample for secured topic\n");
+  dds_entity_t spub, ssub, spub_tp, ssub_tp, swr, srd;
+  rd_wr_init (g_participant1, &spub, &spub_tp, &swr, g_participant2, &ssub, &ssub_tp, &srd, topic_name_secure);
+  sync_writer_to_readers(g_participant1, swr, 0, DDS_SECS(2));
+  write_read_for (swr, g_participant2, srd, DDS_MSECS (10), false, true);
+
+  authentication_fini (true, true, (void * []) { gov_config, gov_topic_rules, topic_rule_sec, topic_rule_plain, grants[0], perm_config, ca, id1_subj, id1 }, 9);
+}
 
