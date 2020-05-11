@@ -1469,7 +1469,7 @@ bool q_omg_security_check_create_writer(struct participant *pp, uint32_t domain_
 
   result = sc->access_control_context->check_create_datawriter(sc->access_control_context, pp->sec_attr->permissions_handle, (DDS_Security_DomainId)domain_id, topic_name, &security_qos, &partitions, NULL, &exception);
   if (!result)
-    handle_not_allowed(pp->e.gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, topic_name, "Local topic permission denied");
+    handle_not_allowed(pp->e.gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, topic_name, "Writer is not permitted");
 
   q_omg_shallow_free_security_qos(&security_qos);
   g_omg_shallow_free_StringSeq(&partitions.name);
@@ -3340,7 +3340,7 @@ static bool decode_payload (const struct ddsi_domaingv *gv, struct nn_rsample_in
   if (!q_omg_security_decode_serialized_payload (sampleinfo->pwr, payloadp, *payloadsz, &dst_buf, &dst_len))
   {
     GVTRACE ("decode_payload: failed to decrypt data from "PGUIDFMT"\n", PGUID (sampleinfo->pwr->e.guid));
-    return true;
+    return false;
   }
 
   /* Expect result to always fit into the original buffer. */
