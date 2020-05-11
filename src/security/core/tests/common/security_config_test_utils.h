@@ -26,9 +26,9 @@ const char * expand_lookup_vars_env (const char *name, void * data);
 int32_t expand_lookup_unmatched (const struct kvp * lookup_table);
 
 char * get_governance_topic_rule (const char * topic_expr, bool discovery_protection, bool liveliness_protection,
-    bool read_ac, bool write_ac, const char * metadata_protection_kind, const char * data_protection_kind);
-char * get_governance_config (bool allow_unauth_pp, bool enable_join_ac, const char * discovery_protection_kind, const char * liveliness_protection_kind,
-    const char * rtps_protection_kind, const char * topic_rules, bool add_prefix);
+    bool read_ac, bool write_ac, DDS_Security_ProtectionKind metadata_protection_kind, DDS_Security_BasicProtectionKind data_protection_kind);
+char * get_governance_config (bool allow_unauth_pp, bool enable_join_ac, DDS_Security_ProtectionKind discovery_protection_kind, DDS_Security_ProtectionKind liveliness_protection_kind,
+    DDS_Security_ProtectionKind rtps_protection_kind, const char * topic_rules, bool add_prefix);
 
 char * get_permissions_rules (const char * domain_id, const char * allow_pub_topic, const char * allow_sub_topic,
     const char * deny_pub_topic, const char * deny_sub_topic);

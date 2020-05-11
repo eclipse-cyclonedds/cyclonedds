@@ -26,6 +26,9 @@
 #define BPK_S DDS_SECURITY_BASICPROTECTION_KIND_SIGN
 #define BPK_E DDS_SECURITY_BASICPROTECTION_KIND_ENCRYPT
 
+#define PF_F "file:"
+#define PF_D "data:,"
+
 #define MAX_LOCAL_IDENTITIES 8
 #define MAX_REMOTE_IDENTITIES 8
 #define MAX_HANDSHAKES 32
@@ -82,5 +85,7 @@ void write_read_for (dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_d
 struct dds_security_cryptography_impl * get_crypto_context (dds_entity_t participant);
 const char * pk_to_str (DDS_Security_ProtectionKind pk);
 const char * bpk_to_str (DDS_Security_BasicProtectionKind bpk);
+DDS_Security_DatawriterCryptoHandle get_builtin_writer_crypto_handle(dds_entity_t participant, unsigned entityid);
+DDS_Security_DatawriterCryptoHandle get_writer_crypto_handle(dds_entity_t writer);
 
 #endif /* SECURITY_CORE_TEST_UTILS_H_ */

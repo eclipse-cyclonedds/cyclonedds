@@ -245,7 +245,7 @@ static void print_config_vars(struct kvp *vars)
 }
 
 char * get_governance_topic_rule(const char * topic_expr, bool discovery_protection, bool liveliness_protection,
-    bool read_ac, bool write_ac, const char * metadata_protection_kind, const char * data_protection_kind)
+    bool read_ac, bool write_ac, DDS_Security_ProtectionKind metadata_protection_kind, DDS_Security_BasicProtectionKind data_protection_kind)
 {
   struct kvp vars[] = {
     { "TOPIC_EXPRESSION", topic_expr != NULL ? topic_expr : "*", 1 },
@@ -253,23 +253,23 @@ char * get_governance_topic_rule(const char * topic_expr, bool discovery_protect
     { "ENABLE_LIVELINESS_PROTECTION", liveliness_protection ? "true" : "false", 1 },
     { "ENABLE_READ_AC", read_ac ? "true" : "false", 1 },
     { "ENABLE_WRITE_AC", write_ac ? "true" : "false", 1 },
-    { "METADATA_PROTECTION_KIND", metadata_protection_kind != NULL ? metadata_protection_kind : "NONE", 1 },
-    { "DATA_PROTECTION_KIND", data_protection_kind != NULL ? data_protection_kind : "NONE", 1 },
+    { "METADATA_PROTECTION_KIND", pk_to_str (metadata_protection_kind), 1 },
+    { "DATA_PROTECTION_KIND", bpk_to_str (data_protection_kind), 1 },
     { NULL, NULL, 0 }
   };
   return ddsrt_expand_vars (topic_rule, &expand_lookup_vars, vars);
 }
 
-char * get_governance_config (bool allow_unauth_pp, bool enable_join_ac, const char * discovery_protection_kind, const char * liveliness_protection_kind,
-    const char * rtps_protection_kind, const char * topic_rules, bool add_prefix)
+char * get_governance_config (bool allow_unauth_pp, bool enable_join_ac, DDS_Security_ProtectionKind discovery_protection_kind, DDS_Security_ProtectionKind liveliness_protection_kind,
+    DDS_Security_ProtectionKind rtps_protection_kind, const char * topic_rules, bool add_prefix)
 {
   struct kvp vars[] = {
     { "ALLOW_UNAUTH_PP", allow_unauth_pp ? "true" : "false", 1 },
     { "ENABLE_JOIN_AC", enable_join_ac ? "true" : "false", 1 },
-    { "DISCOVERY_PROTECTION_KIND", discovery_protection_kind != NULL ? discovery_protection_kind : "NONE", 1 },
-    { "LIVELINESS_PROTECTION_KIND", liveliness_protection_kind != NULL ? liveliness_protection_kind : "NONE", 1 },
-    { "RTPS_PROTECTION_KIND", rtps_protection_kind != NULL ? rtps_protection_kind : "NONE", 1 },
-    { "TOPIC_RULES", topic_rules != NULL ? topic_rules : get_governance_topic_rule (NULL, false, false, false, false, NULL, NULL), 1 },
+    { "DISCOVERY_PROTECTION_KIND", pk_to_str (discovery_protection_kind), 1 },
+    { "LIVELINESS_PROTECTION_KIND", pk_to_str (liveliness_protection_kind), 1 },
+    { "RTPS_PROTECTION_KIND", pk_to_str (rtps_protection_kind), 1 },
+    { "TOPIC_RULES", topic_rules != NULL ? topic_rules : get_governance_topic_rule (NULL, false, false, false, false, PK_N, BPK_N), 1 },
     { NULL, NULL, 0 }
   };
   char * config = ddsrt_expand_vars (governance_xml, &expand_lookup_vars, vars);

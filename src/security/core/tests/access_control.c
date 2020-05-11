@@ -23,8 +23,6 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -71,9 +69,6 @@ static const char *config =
 
 #define MAX_DOMAINS 10
 #define DDS_DOMAINID 0
-
-#define PF_F "file:"
-#define PF_D "data:,"
 
 static dds_entity_t g_domain[MAX_DOMAINS];
 static dds_entity_t g_participant[MAX_DOMAINS];
@@ -124,41 +119,6 @@ static void access_control_fini(size_t n, void * res[], size_t nres)
       ddsrt_free (res[i]);
   }
 }
-
-static DDS_Security_DatawriterCryptoHandle get_builtin_writer_crypto_handle(dds_entity_t participant, unsigned entityid)
-{
-  DDS_Security_DatawriterCryptoHandle crypto_handle;
-  struct dds_entity *pp_entity;
-  struct participant *pp;
-  struct writer *wr;
-  CU_ASSERT_EQUAL_FATAL(dds_entity_pin(participant, &pp_entity), 0);
-  thread_state_awake(lookup_thread_state(), &pp_entity->m_domain->gv);
-  pp = entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
-  wr = get_builtin_writer(pp, entityid);
-  CU_ASSERT_FATAL(wr != NULL);
-  assert(wr != NULL); /* for Clang's static analyzer */
-  crypto_handle = wr->sec_attr->crypto_handle;
-  thread_state_asleep(lookup_thread_state());
-  dds_entity_unpin(pp_entity);
-  return crypto_handle;
-}
-
-// static DDS_Security_DatawriterCryptoHandle get_writer_crypto_handle(dds_entity_t writer)
-// {
-//   DDS_Security_DatawriterCryptoHandle crypto_handle;
-//   struct dds_entity *wr_entity;
-//   struct writer *wr;
-//   CU_ASSERT_EQUAL_FATAL(dds_entity_pin(writer, &wr_entity), 0);
-//   thread_state_awake(lookup_thread_state(), &wr_entity->m_domain->gv);
-//   wr = entidx_lookup_writer_guid(wr_entity->m_domain->gv.entity_index, &wr_entity->m_guid);
-//   CU_ASSERT_FATAL(wr != NULL);
-//   assert(wr != NULL); /* for Clang's static analyzer */
-//   crypto_handle = wr->sec_attr->crypto_handle;
-//   thread_state_asleep(lookup_thread_state());
-//   dds_entity_unpin(wr_entity);
-//   return crypto_handle;
-// }
-
 
 #define GOV_F PF_F COMMON_ETC_PATH("default_governance.p7s")
 #define GOV_FNE PF_F COMMON_ETC_PATH("default_governance_non_existing.p7s")
@@ -469,8 +429,8 @@ CU_Theory(
     bool discovery_protection = (i == 0);
     print_test_msg ("running test access_control_hooks: %s with discovery protection %s\n", init_fn, discovery_protection ? "enabled" : "disabled");
 
-    char * gov_topic_rule = get_governance_topic_rule ("*", discovery_protection, false, true, true, NULL, NULL);
-    char * gov_config = get_governance_config (false, true, "ENCRYPT", NULL, NULL, gov_topic_rule, true);
+    char * gov_topic_rule = get_governance_topic_rule ("*", discovery_protection, false, true, true, PK_N, BPK_N);
+    char * gov_config = get_governance_config (false, true, PK_E, PK_N, PK_N, gov_topic_rule, true);
 
     const char * def_perm = PF_F COMMON_ETC_PATH("default_permissions.p7s");
     const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
@@ -556,9 +516,9 @@ CU_Theory(
     get_permissions_grant ("id2", id2_subj, now, now + DDS_SECS(3600), rules2_xml, NULL) };
   char * perm_config = get_permissions_config (grants, 2, true);
 
-  char * gov_topic_rule = get_governance_topic_rule ("*", false, false, true, true, "NONE", "NONE");
-  char * gov_config_pp1 = get_governance_config (false, join_ac_pp1, NULL, NULL, NULL, gov_topic_rule, true);
-  char * gov_config_pp2 = get_governance_config (false, join_ac_pp2, NULL, NULL, NULL, gov_topic_rule, true);
+  char * gov_topic_rule = get_governance_topic_rule ("*", false, false, true, true, PK_N, BPK_N);
+  char * gov_config_pp1 = get_governance_config (false, join_ac_pp1, PK_N, PK_N, PK_N, gov_topic_rule, true);
+  char * gov_config_pp2 = get_governance_config (false, join_ac_pp2, PK_N, PK_N, PK_N, gov_topic_rule, true);
   const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
 
   access_control_init (
@@ -624,10 +584,10 @@ static void test_discovery_liveliness_protection(enum test_discovery_liveliness 
     get_permissions_default_grant ("id2", id2_subj, topic_name) };
   char * perm_config = get_permissions_config (grants, 2, true);
 
-  char * gov_topic_rule1 = get_governance_topic_rule (topic_name, dp && enable_protection_pp1, lp && enable_protection_pp1, true, true, "ENCRYPT", "NONE");
-  char * gov_topic_rule2 = get_governance_topic_rule (topic_name, dp && enable_protection_pp2, lp && enable_protection_pp2, true, true, "ENCRYPT", "NONE");
-  char * gov_config1 = get_governance_config (false, true, dp ? pk_to_str (protection_kind_pp1) : NULL, lp ? pk_to_str (protection_kind_pp1) : NULL, "ENCRYPT", gov_topic_rule1, true);
-  char * gov_config2 = get_governance_config (false, true, dp ? pk_to_str (protection_kind_pp2) : NULL, lp ? pk_to_str (protection_kind_pp2) : NULL, "ENCRYPT", gov_topic_rule2, true);
+  char * gov_topic_rule1 = get_governance_topic_rule (topic_name, dp && enable_protection_pp1, lp && enable_protection_pp1, true, true, PK_E, BPK_N);
+  char * gov_topic_rule2 = get_governance_topic_rule (topic_name, dp && enable_protection_pp2, lp && enable_protection_pp2, true, true, PK_E, BPK_N);
+  char * gov_config1 = get_governance_config (false, true, dp ? protection_kind_pp1 : PK_N, lp ? protection_kind_pp1 : PK_N, PK_E, gov_topic_rule1, true);
+  char * gov_config2 = get_governance_config (false, true, dp ? protection_kind_pp2 : PK_N, lp ? protection_kind_pp2 : PK_N, PK_E, gov_topic_rule2, true);
   const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
 
   access_control_init (
@@ -705,10 +665,10 @@ static void test_encoding_mismatch(
     get_permissions_default_grant ("id2", id2_subj, topic_name) };
   char * perm_config = get_permissions_config (grants, 2, true);
 
-  char * gov_topic_rule1 = get_governance_topic_rule (topic_name, true, true, true, true, pk_to_str (metadata_pk1), bpk_to_str (payload_pk1));
-  char * gov_topic_rule2 = get_governance_topic_rule (topic_name, true, true, true, true, pk_to_str (metadata_pk2), bpk_to_str (payload_pk2));
-  char * gov_config1 = get_governance_config (false, true, pk_to_str (discovery_pk1), pk_to_str (liveliness_pk1), pk_to_str (rtps_pk1), gov_topic_rule1, true);
-  char * gov_config2 = get_governance_config (false, true, pk_to_str (discovery_pk2), pk_to_str (liveliness_pk2), pk_to_str (rtps_pk2), gov_topic_rule2, true);
+  char * gov_topic_rule1 = get_governance_topic_rule (topic_name, true, true, true, true, metadata_pk1, payload_pk1);
+  char * gov_topic_rule2 = get_governance_topic_rule (topic_name, true, true, true, true, metadata_pk2, payload_pk2);
+  char * gov_config1 = get_governance_config (false, true, discovery_pk1, liveliness_pk1, rtps_pk1, gov_topic_rule1, true);
+  char * gov_config2 = get_governance_config (false, true, discovery_pk2, liveliness_pk2, rtps_pk2, gov_topic_rule2, true);
   const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
 
   access_control_init (
@@ -802,8 +762,8 @@ static void test_readwrite_protection (
     get_permissions_grant ("id2", id2_subj, now, now + DDS_SECS(3600), rules_xml, default_policy) };
   char * perm_config = get_permissions_config (grants, 2, true);
 
-  char * gov_topic_rule = get_governance_topic_rule (topic_name, false, false, read_ac, write_ac, pk_to_str (PK_E), bpk_to_str (BPK_E));
-  char * gov_config = get_governance_config (false, true, NULL, NULL, NULL, gov_topic_rule, true);
+  char * gov_topic_rule = get_governance_topic_rule (topic_name, false, false, read_ac, write_ac, PK_E, BPK_E);
+  char * gov_config = get_governance_config (false, true, PK_N, PK_N, PK_N, gov_topic_rule, true);
   const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
 
   access_control_init (
