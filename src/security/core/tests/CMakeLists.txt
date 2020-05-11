@@ -79,6 +79,7 @@ if(ENABLE_SSL)
     "authentication.c"
     "access_control.c"
     "config.c"
+    "crypto.c"
     "handshake.c"
     "plugin_loading.c"
     "secure_communication.c"

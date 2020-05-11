@@ -62,15 +62,13 @@ SECURITY_EXPORT void set_protection_kinds(
   DDS_Security_ProtectionKind rtps_protection_kind,
   DDS_Security_ProtectionKind metadata_protection_kind,
   DDS_Security_BasicProtectionKind payload_protection_kind);
-
 SECURITY_EXPORT void set_encrypted_secret(struct dds_security_cryptography_impl * impl, const char * secret);
-
 SECURITY_EXPORT void set_disc_protection_kinds(
   struct dds_security_cryptography_impl * impl,
   DDS_Security_ProtectionKind disc_protection_kind,
   DDS_Security_ProtectionKind liveliness_protection_kind);
-
 SECURITY_EXPORT void set_entity_data_secret(struct dds_security_cryptography_impl * impl, const char * pp_secret, const char * groupdata_secret, const char * ep_secret);
+SECURITY_EXPORT void set_force_plain_data(struct dds_security_cryptography_impl * impl, DDS_Security_DatawriterCryptoHandle wr_handle, bool plain_rtps, bool plain_submsg, bool plain_payload);
 
 SECURITY_EXPORT const char *get_crypto_token_type_str (enum crypto_tokens_type type);
 SECURITY_EXPORT struct ddsrt_circlist * get_crypto_tokens (struct dds_security_cryptography_impl * impl);
@@ -92,5 +90,9 @@ SECURITY_EXPORT int finalize_test_cryptography_wrapped(void *context);
 /* Init in store-token mode (stores all exchanged security tokens) */
 SECURITY_EXPORT int32_t init_test_cryptography_store_tokens(const char *argument, void **context, struct ddsi_domaingv *gv);
 SECURITY_EXPORT int32_t finalize_test_cryptography_store_tokens(void *context);
+
+/* Init in plain-data mode (force plain data for payload, submsg and/or rtps) */
+SECURITY_EXPORT int init_test_cryptography_plain_data(const char *argument, void **context, struct ddsi_domaingv *gv);
+SECURITY_EXPORT int finalize_test_cryptography_plain_data(void *context);
 
 #endif /* SECURITY_CORE_TEST_CRYPTO_WRAPPER_H_ */
