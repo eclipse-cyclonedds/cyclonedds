@@ -5,4 +5,4 @@ ADD . /cyclonedds
 
 WORKDIR /cyclonedds
 
-RUN ./scripts/build.sh
+RUN ./scripts/build.sh clean
