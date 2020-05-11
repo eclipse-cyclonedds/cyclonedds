@@ -485,22 +485,15 @@ bool q_omg_security_is_remote_rtps_protected(const struct proxy_participant *pro
 void set_proxy_participant_security_info(struct proxy_participant *proxypp, const ddsi_plist_t *plist);
 
 /**
- * @brief Check if the participant and the proxy participant
- *        have compatible security info settings.
+ * @brief Determine if the messages, related to the given remote
+ * entity, are RTPS protected or not.
  *
- * Associated with a secure participant is the ParticipantSecurityInfo parameter.
- * This parameter contains the setting of the security attributes and the associated
- * plugin security attributes of the secure participant.
- * This function will check if the received ParticipantSecurityInfo parameter is
- * compatible with the local ParticipantSecurityInfo parameter.
- *
- * @param[in] pp      The participant.
- * @param[in] proxypp The proxy participant.
+ * @param[in] pp       The participant.
+ * @param[in] entityid ID of the entity to check.
  *
  * @returns bool
- * @retval true   The participant and the proxy participant have compatible
- *                security info settings.
- * @retval false  Otherwise.
+ * @retval true   The entity messages are RTPS protected.
+ * @retval false  The entity messages are not RTPS protected.
  */
 bool q_omg_security_is_local_rtps_protected(const struct participant *pp, ddsi_entityid_t entityid);
 
