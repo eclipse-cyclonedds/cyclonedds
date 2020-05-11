@@ -33,7 +33,8 @@ enum crypto_plugin_mode {
   PLUGIN_MODE_ALL_OK,
   PLUGIN_MODE_MISSING_FUNC,
   PLUGIN_MODE_WRAPPED,
-  PLUGIN_MODE_TOKEN_LOG
+  PLUGIN_MODE_TOKEN_LOG,
+  PLUGIN_MODE_PLAIN_DATA
 };
 
 struct dds_security_crypto_key_exchange_impl {
@@ -76,6 +77,10 @@ struct dds_security_cryptography_impl {
   struct ddsrt_circlist token_data_list;
   ddsrt_mutex_t encode_decode_log_lock;
   struct ddsrt_circlist encode_decode_log;
+  bool force_plain_rtps;
+  bool force_plain_submsg;
+  bool force_plain_payload;
+  DDS_Security_DatawriterCryptoHandle force_plain_sender_handle;
 };
 
 static DDS_Security_ParticipantCryptoHandle g_local_participant_handle = 0;
@@ -118,6 +123,16 @@ void set_entity_data_secret(struct dds_security_cryptography_impl * impl, const 
   impl->pp_secret = pp_secret;
   impl->groupdata_secret = groupdata_secret;
   impl->ep_secret = ep_secret;
+}
+
+void set_force_plain_data(struct dds_security_cryptography_impl * impl, DDS_Security_DatawriterCryptoHandle handle, bool plain_rtps, bool plain_submsg, bool plain_payload)
+{
+  assert (impl);
+  assert (impl->mode == PLUGIN_MODE_PLAIN_DATA);
+  impl->force_plain_rtps = plain_rtps;
+  impl->force_plain_submsg = plain_submsg;
+  impl->force_plain_payload = plain_payload;
+  impl->force_plain_sender_handle = handle;
 }
 
 static bool check_crypto_tokens(const DDS_Security_DataHolderSeq *tokens)
@@ -371,6 +386,20 @@ static bool expect_encrypted_buffer (DDS_Security_ProtectionKind pk)
   return pk == DDS_SECURITY_PROTECTION_KIND_ENCRYPT || pk == DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION;
 }
 
+static void copy_octetseq(DDS_Security_OctetSeq *encoded_submsg, const DDS_Security_OctetSeq *plain_submsg)
+{
+  encoded_submsg->_length = encoded_submsg->_maximum = plain_submsg->_length;
+  if (plain_submsg->_length > 0)
+  {
+    encoded_submsg->_buffer = ddsrt_malloc(encoded_submsg->_length);
+    memcpy(encoded_submsg->_buffer, plain_submsg->_buffer, encoded_submsg->_length);
+  }
+  else
+  {
+    encoded_submsg->_buffer = NULL;
+  }
+}
+
 /**
  * Crypto key exchange
  */
@@ -386,6 +415,7 @@ static DDS_Security_boolean create_local_participant_crypto_tokens(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
     {
       DDS_Security_boolean ret = impl->instance->create_local_participant_crypto_tokens (impl->instance, local_participant_crypto_tokens,
         local_participant_crypto, remote_participant_crypto, ex);
@@ -410,6 +440,7 @@ static DDS_Security_boolean set_remote_participant_crypto_tokens(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
     {
       DDS_Security_boolean ret = impl->instance->set_remote_participant_crypto_tokens (impl->instance, check_handle (local_participant_crypto),
         check_handle (remote_participant_crypto), remote_participant_tokens, ex);
@@ -434,6 +465,7 @@ static DDS_Security_boolean create_local_datawriter_crypto_tokens(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
     {
       DDS_Security_boolean ret = impl->instance->create_local_datawriter_crypto_tokens (impl->instance, local_datawriter_crypto_tokens,
         check_handle (local_datawriter_crypto), check_handle (remote_datareader_crypto), ex);
@@ -458,6 +490,7 @@ static DDS_Security_boolean set_remote_datawriter_crypto_tokens(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
     {
       DDS_Security_boolean ret = impl->instance->set_remote_datawriter_crypto_tokens (impl->instance, check_handle (local_datareader_crypto),
         check_handle (remote_datawriter_crypto), remote_datawriter_tokens, ex);
@@ -482,6 +515,7 @@ static DDS_Security_boolean create_local_datareader_crypto_tokens(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
     {
       DDS_Security_boolean ret = impl->instance->create_local_datareader_crypto_tokens (impl->instance, local_datareader_cryto_tokens,
         check_handle (local_datareader_crypto), check_handle (remote_datawriter_crypto), ex);
@@ -506,6 +540,7 @@ static DDS_Security_boolean set_remote_datareader_crypto_tokens(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
     {
       DDS_Security_boolean ret = impl->instance->set_remote_datareader_crypto_tokens (impl->instance, check_handle (local_datawriter_crypto),
         check_handle (remote_datareader_crypto), remote_datareader_tokens, ex);
@@ -528,6 +563,7 @@ static DDS_Security_boolean return_crypto_tokens(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
       return impl->instance->return_crypto_tokens (impl->instance, crypto_tokens, ex);
     default:
       return true;
@@ -550,6 +586,7 @@ static DDS_Security_ParticipantCryptoHandle register_local_participant(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
       return check_handle (impl->instance->register_local_participant (impl->instance, check_handle (participant_identity),
         check_handle (participant_permissions), participant_properties, participant_security_attributes, ex));
     default:
@@ -570,6 +607,7 @@ static DDS_Security_ParticipantCryptoHandle register_matched_remote_participant(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
       return check_handle (impl->instance->register_matched_remote_participant (impl->instance, local_participant_crypto_handle,
         remote_participant_identity, remote_participant_permissions, shared_secret, ex));
     default:
@@ -589,6 +627,7 @@ static DDS_Security_DatawriterCryptoHandle register_local_datawriter(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
       return check_handle (impl->instance->register_local_datawriter (impl->instance, check_handle (participant_crypto),
         datawriter_properties, datawriter_security_attributes, ex));
     default:
@@ -609,6 +648,7 @@ static DDS_Security_DatareaderCryptoHandle register_matched_remote_datareader(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
       return check_handle (impl->instance->register_matched_remote_datareader (impl->instance, check_handle (local_datawriter_crypto_handle),
         check_handle (remote_participant_crypto), check_handle (shared_secret), relay_only, ex));
     default:
@@ -628,6 +668,7 @@ static DDS_Security_DatareaderCryptoHandle register_local_datareader(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
       return check_handle (impl->instance->register_local_datareader (impl->instance, check_handle (participant_crypto),
         datareader_properties, datareader_security_attributes, ex));
     default:
@@ -647,6 +688,7 @@ static DDS_Security_DatawriterCryptoHandle register_matched_remote_datawriter(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
       return check_handle (impl->instance->register_matched_remote_datawriter (impl->instance, check_handle (local_datareader_crypto_handle),
         check_handle (remote_participant_crypt), shared_secret, ex));
     default:
@@ -664,6 +706,7 @@ static DDS_Security_boolean unregister_participant(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
       return impl->instance->unregister_participant (impl->instance, check_handle (participant_crypto_handle), ex);
     default:
       return true;
@@ -680,6 +723,7 @@ static DDS_Security_boolean unregister_datawriter(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
       return impl->instance->unregister_datawriter (impl->instance, check_handle (datawriter_crypto_handle), ex);
     default:
       return true;
@@ -696,6 +740,7 @@ static DDS_Security_boolean unregister_datareader(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
       return impl->instance->unregister_datareader (impl->instance, check_handle (datareader_crypto_handle), ex);
     default:
       return true;
@@ -716,6 +761,13 @@ static DDS_Security_boolean encode_serialized_payload(
   struct dds_security_crypto_transform_impl *impl = (struct dds_security_crypto_transform_impl *)instance;
   switch (impl->parent->mode)
   {
+    case PLUGIN_MODE_PLAIN_DATA:
+      if (impl->parent->force_plain_payload && impl->parent->force_plain_sender_handle == sending_datawriter_crypto)
+      {
+        copy_octetseq (encoded_buffer, plain_buffer);
+        return true;
+      }
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
     {
@@ -771,6 +823,15 @@ static DDS_Security_boolean encode_datawriter_submessage(
   struct dds_security_crypto_transform_impl *impl = (struct dds_security_crypto_transform_impl *)instance;
   switch (impl->parent->mode)
   {
+    case PLUGIN_MODE_PLAIN_DATA:
+      if (impl->parent->force_plain_submsg && impl->parent->force_plain_sender_handle == sending_datawriter_crypto)
+      {
+        copy_octetseq (encoded_rtps_submessage, plain_rtps_submessage);
+        assert (receiving_datareader_crypto_list->_length <= INT32_MAX);
+        *receiving_datareader_crypto_list_index = (int32_t) receiving_datareader_crypto_list->_length;
+        return true;
+      }
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
       log_encode_decode (impl->parent, ENCODE_DATAWRITER_SUBMESSAGE, sending_datawriter_crypto);
       /* fall-through */
@@ -821,6 +882,13 @@ static DDS_Security_boolean encode_datareader_submessage(
   struct dds_security_crypto_transform_impl *impl = (struct dds_security_crypto_transform_impl *)instance;
   switch (impl->parent->mode)
   {
+    case PLUGIN_MODE_PLAIN_DATA:
+      if (impl->parent->force_plain_submsg && impl->parent->force_plain_sender_handle == sending_datareader_crypto)
+      {
+        copy_octetseq (encoded_rtps_submessage, plain_rtps_submessage);
+        return true;
+      }
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
       log_encode_decode (impl->parent, ENCODE_DATAREADER_SUBMESSAGE, sending_datareader_crypto);
       /* fall-through */
@@ -846,6 +914,15 @@ static DDS_Security_boolean encode_rtps_message(
   struct dds_security_crypto_transform_impl *impl = (struct dds_security_crypto_transform_impl *)instance;
   switch (impl->parent->mode)
   {
+    case PLUGIN_MODE_PLAIN_DATA:
+      if (impl->parent->force_plain_rtps)
+      {
+        copy_octetseq (encoded_rtps_message, plain_rtps_message);
+        assert (receiving_participant_crypto_list->_length <= INT32_MAX);
+        *receiving_participant_crypto_list_index = (int32_t) receiving_participant_crypto_list->_length;
+        return true;
+      }
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
       if (!impl->instance->encode_rtps_message (impl->instance, encoded_rtps_message,
@@ -880,6 +957,7 @@ static DDS_Security_boolean decode_rtps_message(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
       return impl->instance->decode_rtps_message (impl->instance, plain_buffer, encoded_buffer,
           check_handle (receiving_participant_crypto), check_handle (sending_participant_crypto), ex);
     default:
@@ -902,6 +980,7 @@ static DDS_Security_boolean preprocess_secure_submsg(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
       return impl->instance->preprocess_secure_submsg (impl->instance, datawriter_crypto, datareader_crypto,
         secure_submessage_category, encoded_rtps_submessage, check_handle (receiving_participant_crypto), check_handle (sending_participant_crypto), ex);
     default:
@@ -920,6 +999,7 @@ static DDS_Security_boolean decode_datawriter_submessage(
   struct dds_security_crypto_transform_impl *impl = (struct dds_security_crypto_transform_impl *)instance;
   switch (impl->parent->mode)
   {
+    case PLUGIN_MODE_PLAIN_DATA:
     case PLUGIN_MODE_WRAPPED:
       log_encode_decode (impl->parent, DECODE_DATAWRITER_SUBMESSAGE, receiving_datareader_crypto);
       /* fall-through */
@@ -942,6 +1022,7 @@ static DDS_Security_boolean decode_datareader_submessage(
   struct dds_security_crypto_transform_impl *impl = (struct dds_security_crypto_transform_impl *)instance;
   switch (impl->parent->mode)
   {
+    case PLUGIN_MODE_PLAIN_DATA:
     case PLUGIN_MODE_WRAPPED:
       log_encode_decode (impl->parent, DECODE_DATAREADER_SUBMESSAGE, receiving_datawriter_crypto);
       /* fall-through */
@@ -967,6 +1048,7 @@ static DDS_Security_boolean decode_serialized_payload(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_TOKEN_LOG:
+    case PLUGIN_MODE_PLAIN_DATA:
       return impl->instance->decode_serialized_payload(impl->instance, plain_buffer, encoded_buffer,
           inline_qos, check_handle (receiving_datareader_crypto), check_handle (sending_datawriter_crypto), ex);
     default:
@@ -1075,22 +1157,14 @@ int finalize_test_cryptography_missing_func(void *context)
   return finalize_test_cryptography_common(impl, false);
 }
 
-int init_test_cryptography_wrapped(const char *argument, void **context, struct ddsi_domaingv *gv)
+static void init_encode_decode_log(struct dds_security_cryptography_impl *impl)
 {
-  struct dds_security_cryptography_impl *impl = init_test_cryptography_common(argument, true, gv);
-  if (!impl)
-    return DDS_SECURITY_FAILED;
-  impl->mode = PLUGIN_MODE_WRAPPED;
   ddsrt_mutex_init (&impl->encode_decode_log_lock);
   ddsrt_circlist_init (&impl->encode_decode_log);
-  *context = impl;
-  return DDS_SECURITY_SUCCESS;
 }
 
-int finalize_test_cryptography_wrapped(void *context)
+static void fini_encode_decode_log(struct dds_security_cryptography_impl *impl)
 {
-  struct dds_security_cryptography_impl* impl = (struct dds_security_cryptography_impl*) context;
-  assert(impl->mode == PLUGIN_MODE_WRAPPED);
   ddsrt_mutex_lock (&impl->encode_decode_log_lock);
   while (!ddsrt_circlist_isempty (&impl->encode_decode_log))
   {
@@ -1100,6 +1174,24 @@ int finalize_test_cryptography_wrapped(void *context)
   }
   ddsrt_mutex_unlock (&impl->encode_decode_log_lock);
   ddsrt_mutex_destroy (&impl->encode_decode_log_lock);
+}
+
+int init_test_cryptography_wrapped(const char *argument, void **context, struct ddsi_domaingv *gv)
+{
+  struct dds_security_cryptography_impl *impl = init_test_cryptography_common(argument, true, gv);
+  if (!impl)
+    return DDS_SECURITY_FAILED;
+  impl->mode = PLUGIN_MODE_WRAPPED;
+  init_encode_decode_log(impl);
+  *context = impl;
+  return DDS_SECURITY_SUCCESS;
+}
+
+int finalize_test_cryptography_wrapped(void *context)
+{
+  struct dds_security_cryptography_impl* impl = (struct dds_security_cryptography_impl*) context;
+  assert(impl->mode == PLUGIN_MODE_WRAPPED);
+  fini_encode_decode_log(impl);
   return finalize_test_cryptography_common(impl, true);
 }
 
@@ -1138,6 +1230,25 @@ int32_t finalize_test_cryptography_store_tokens(void *context)
   /* don't detroy g_print_token_lock as this will result in multiple
      calls to mutex_destroy for this lock in case of multiple domains */
 
+  return finalize_test_cryptography_common(impl, true);
+}
+
+int init_test_cryptography_plain_data(const char *argument, void **context, struct ddsi_domaingv *gv)
+{
+  struct dds_security_cryptography_impl *impl = init_test_cryptography_common(argument, true, gv);
+  if (!impl)
+    return DDS_SECURITY_FAILED;
+  impl->mode = PLUGIN_MODE_PLAIN_DATA;
+  init_encode_decode_log(impl);
+  *context = impl;
+  return DDS_SECURITY_SUCCESS;
+}
+
+int finalize_test_cryptography_plain_data(void *context)
+{
+  struct dds_security_cryptography_impl* impl = (struct dds_security_cryptography_impl*) context;
+  assert(impl->mode == PLUGIN_MODE_PLAIN_DATA);
+  fini_encode_decode_log(impl);
   return finalize_test_cryptography_common(impl, true);
 }
 
