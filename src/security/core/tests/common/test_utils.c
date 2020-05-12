@@ -495,23 +495,24 @@ void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_du
   CU_ASSERT_EQUAL_FATAL (read_fail, exp_read_fail);
 }
 
-struct dds_security_cryptography_impl * get_crypto_context(dds_entity_t participant)
-{
-  struct dds_entity *pp_entity = NULL;
-  struct participant *pp;
-  struct dds_security_cryptography_impl *context;
-  dds_return_t ret;
+#define GET_SECURITY_PLUGIN_CONTEXT(name_) \
+  struct dds_security_##name_##_impl * get_##name_##_context(dds_entity_t participant) \
+  { \
+    struct dds_entity *pp_entity = NULL; \
+    dds_return_t ret = dds_entity_lock (participant, DDS_KIND_PARTICIPANT, &pp_entity); \
+    CU_ASSERT_EQUAL_FATAL (ret, 0); \
+    thread_state_awake (lookup_thread_state(), &pp_entity->m_domain->gv); \
+    struct participant *pp = entidx_lookup_participant_guid (pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid); \
+    CU_ASSERT_FATAL (pp != NULL); \
+    struct dds_security_##name_##_impl *context = (struct dds_security_##name_##_impl *) q_omg_participant_get_##name_ (pp); \
+    thread_state_asleep (lookup_thread_state ()); \
+    dds_entity_unlock (pp_entity); \
+    return context; \
+  }
 
-  ret = dds_entity_lock (participant, DDS_KIND_PARTICIPANT, &pp_entity);
-  CU_ASSERT_EQUAL_FATAL (ret, 0);
-  thread_state_awake (lookup_thread_state(), &pp_entity->m_domain->gv);
-  pp = entidx_lookup_participant_guid (pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
-  CU_ASSERT_FATAL (pp != NULL);
-  context = (struct dds_security_cryptography_impl *) q_omg_participant_get_cryptography (pp);
-  thread_state_asleep (lookup_thread_state ());
-  dds_entity_unlock (pp_entity);
-  return context;
-}
+GET_SECURITY_PLUGIN_CONTEXT(access_control)
+GET_SECURITY_PLUGIN_CONTEXT(authentication)
+GET_SECURITY_PLUGIN_CONTEXT(cryptography)
 
 const char * pk_to_str(DDS_Security_ProtectionKind pk)
 {

@@ -20,6 +20,10 @@
    mode. This prefix is used to exclude built-in topics from being disallowed. */
 #define AC_WRAPPER_TOPIC_PREFIX "ddssec_access_control_"
 
+struct dds_security_access_control_impl;
+
+SECURITY_EXPORT bool check_returns (struct dds_security_access_control_impl * impl);
+
 /* Init in all-ok mode: all functions return success without calling the actual plugin */
 SECURITY_EXPORT int init_test_access_control_all_ok(const char *argument, void **context, struct ddsi_domaingv *gv);
 SECURITY_EXPORT int finalize_test_access_control_all_ok(void *context);
@@ -48,5 +52,10 @@ INIT_NOT_ALLOWED_DECL(remote_reader_relay_only)
 INIT_NOT_ALLOWED_DECL(remote_permissions_not_allowed)
 
 SECURITY_EXPORT int finalize_test_access_control_not_allowed(void *context);
+
+/* Init in attribute get and return logging mode */
+SECURITY_EXPORT int init_test_access_control_check_returns(const char *argument, void **context, struct ddsi_domaingv *gv);
+SECURITY_EXPORT int finalize_test_access_control_check_returns(void *context);
+
 
 #endif /* SECURITY_CORE_TEST_ACCESS_CONTROL_WRAPPER_H_ */

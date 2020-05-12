@@ -119,7 +119,7 @@ static dds_entity_t create_pp (dds_domainid_t domain_id, const struct domain_sec
   dds_entity_t pp = dds_create_participant (domain_id, qos, NULL);
   CU_ASSERT_FATAL (pp > 0);
   dds_delete_qos (qos);
-  struct dds_security_cryptography_impl * crypto_context = get_crypto_context (pp);
+  struct dds_security_cryptography_impl * crypto_context = get_cryptography_context (pp);
   CU_ASSERT_FATAL (crypto_context != NULL);
   assert (set_crypto_params);
   set_crypto_params (crypto_context, domain_config);

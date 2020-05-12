@@ -613,7 +613,7 @@ static void test_discovery_liveliness_protection(enum test_discovery_liveliness 
   print_test_msg ("crypto handle for %s: %ld\n", builtin_wr_descr, secure_pub_wr_handle);
   CU_ASSERT_EQUAL_FATAL (exp_secure_pub_wr_handle, secure_pub_wr_handle != 0);
 
-  struct dds_security_cryptography_impl * crypto_context_pub = get_crypto_context (g_participant[0]);
+  struct dds_security_cryptography_impl * crypto_context_pub = get_cryptography_context (g_participant[0]);
   CU_ASSERT_FATAL (crypto_context_pub != NULL);
 
   struct crypto_encode_decode_data *log = get_encode_decode_log (crypto_context_pub, ENCODE_DATAWRITER_SUBMESSAGE, secure_pub_wr_handle);
@@ -813,4 +813,47 @@ CU_Test(ddssec_access_control, readwrite_protection, .timeout=60)
                 test_readwrite_protection (allow_pub, allow_sub, deny_pub, deny_sub, write_ac, read_ac,
                   exp_pp_fail, exp_tp_fail, exp_wr_fail, exp_pp_fail, exp_tp_fail, exp_rd_fail, exp_sync_fail, default_deny ? "DENY" : "ALLOW");
               }
+}
+
+
+CU_Test(ddssec_access_control, check_returns)
+{
+  char topic_name[100];
+  create_topic_name ("ddssec_access_control_", g_topic_nr++, topic_name, sizeof (topic_name));
+
+  char *ca, *id1, *id2, *id1_subj, *id2_subj;
+  ca = generate_ca ("ca1", TEST_IDENTITY_CA1_PRIVATE_KEY, 0, 3600);
+  id1 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id1", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id1_subj);
+  id2 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id2", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id2_subj);
+
+  char * grants[] = {
+    get_permissions_default_grant ("id1", id1_subj, topic_name),
+    get_permissions_default_grant ("id2", id2_subj, topic_name) };
+  char * perm_config = get_permissions_config (grants, 2, true);
+
+  char * gov_topic_rule = get_governance_topic_rule (NULL, true, true, true, true, PK_E, BPK_E);
+  char * gov_config = get_governance_config (false, true, PK_E, PK_E, PK_E, gov_topic_rule, true);
+  const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
+
+  access_control_init (
+      2,
+      (const char *[]) { id1, id2 },
+      (const char *[]) { TEST_IDENTITY1_PRIVATE_KEY, TEST_IDENTITY1_PRIVATE_KEY },
+      (const char *[]) { ca, ca },
+      (bool []) { false, false },
+      (const char *[]) { "init_test_access_control_check_returns", "init_test_access_control_wrapped" },
+      (const char *[]) { "finalize_test_access_control_check_returns", "finalize_test_access_control_wrapped" },
+      (bool []) { true, true }, (const char *[]) { gov_config, gov_config },
+      (bool []) { true, true }, (const char *[]) { perm_config, perm_config },
+      (bool []) { true, true }, (const char *[]) { def_perm_ca, def_perm_ca });
+
+  dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
+  rd_wr_init (g_participant[0], &pub, &pub_tp, &wr, g_participant[1], &sub, &sub_tp, &rd, topic_name);
+  sync_writer_to_readers (g_participant[0], wr, 1, DDS_SECS (1));
+  sync_reader_to_writers (g_participant[1], rd, 1, DDS_SECS (1));
+
+  struct dds_security_access_control_impl * ac_context = get_access_control_context (g_participant[0]);
+  CU_ASSERT_FATAL (check_returns (ac_context));
+
+  access_control_fini (2, (void * []) { gov_config, gov_topic_rule, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 10);
 }
