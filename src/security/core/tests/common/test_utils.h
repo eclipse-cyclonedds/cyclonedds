@@ -71,6 +71,7 @@ char *create_topic_name (const char *prefix, uint32_t nr, char *name, size_t siz
 void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_count, dds_duration_t timeout);
 void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_count, dds_duration_t timeout);
 bool reader_wait_for_data (dds_entity_t pp, dds_entity_t rd, dds_duration_t dur);
+dds_qos_t * get_default_test_qos (void);
 void rd_wr_init (
     dds_entity_t pp_wr, dds_entity_t *pub, dds_entity_t *pub_tp, dds_entity_t *wr,
     dds_entity_t pp_rd, dds_entity_t *sub, dds_entity_t *sub_tp, dds_entity_t *rd,

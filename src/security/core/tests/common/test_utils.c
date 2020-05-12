@@ -398,6 +398,16 @@ bool reader_wait_for_data (dds_entity_t pp, dds_entity_t rd, dds_duration_t dur)
   return ret > 0;
 }
 
+dds_qos_t * get_default_test_qos (void)
+{
+  dds_qos_t * qos = dds_create_qos ();
+  CU_ASSERT_FATAL (qos != NULL);
+  dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, -1);
+  dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
+  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
+  return qos;
+}
+
 void rd_wr_init_fail(
     dds_entity_t pp_wr, dds_entity_t *pub, dds_entity_t *pub_tp, dds_entity_t *wr,
     dds_entity_t pp_rd, dds_entity_t *sub, dds_entity_t *sub_tp, dds_entity_t *rd,
@@ -405,12 +415,7 @@ void rd_wr_init_fail(
     bool exp_pubtp_fail, bool exp_wr_fail,
     bool exp_subtp_fail, bool exp_rd_fail)
 {
-  dds_qos_t * qos = dds_create_qos ();
-  CU_ASSERT_FATAL (qos != NULL);
-  dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, -1);
-  dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
-  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
-
+  dds_qos_t * qos = get_default_test_qos ();
   *pub = dds_create_publisher (pp_wr, NULL, NULL);
   CU_ASSERT_FATAL (*pub > 0);
   *sub = dds_create_subscriber (pp_rd, NULL, NULL);
