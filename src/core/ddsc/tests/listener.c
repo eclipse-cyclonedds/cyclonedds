@@ -286,16 +286,33 @@ CU_Test (ddsc_listener, matched)
   dotest ("sm r pm w' ?pm w' ?sm r");
 
   // Disconnect + reconnect; "deaf P" means the disconnect is asymmetrical: P no longer observes P'
-  // but P' still observes P.  If r did not ACK the data before losing connectivity, w' will hold
+  // but P' still observes P.  If r did not ack the data before losing connectivity, w' will hold
   // the data and it will be re-delivered after reconnecting, depending on QoS settings (the "..."
   // allows for extra samples) and whether the instance was taken or not
   //
-  // the uncertainty also means we don't really know how many "data available" events there will be
-  // and the "sleep 0.3" simply gives it a bit more time after the first event
+  // If r did ack the data, w will drop it and it can't be delivered.  If there is another r'' that
+  // did not ack, r will still not get the data because the writer determines that it was ack'd
+  // already and it won't retransmit.
+  // FIXME: this differs from what the spec says should happen, maybe it should be changed?
+  // (It is a fall-out from changes to make sure a volatile reader doesn't get historical data, but
+  // it could be handled differently.)
+  //
+  // Waiting for an acknowledgement therefore makes sense (and in the other runs, a 0.3s sleep
+  // kind-a solves the problem of not known exactly how many events there will be: it means at
+  // least one event has been observed, and behaviour of Cyclone in a simple case like this means
+  // the full retransmit request will be replied to with a single packet, and that therefore the
+  // likelihood of the retransmitted data arriving within a window of 0.3s is very high.  (Where
+  // 0.3s is an attempt to pick a duration on the long side of what's needed and short enough not
+  // to delay things much.)
+  dotest ("sm da r pm w' ?sm r ?pm w' ;" // matched reader/writer pair
+          " wr w' 1   ; ?da r take{(1,0,0)} r ?ack w' ;" // wait-for-acks => writer drops data
+          " deaf P    ; ?sm(1,0,0,-1,w') r ?da r take{d1} r ; wr w' 2 ;" // write lost on "wire"
+          " hearing P ; ?sm(2,1,1,1,w') r  ?da r sleep 0.3 take{(2,0,0)} r ; ?!pm");
   dotest ("sm da r pm w' ; ?sm r ?pm w' ;"
-          " wr w' 1 ; ?da r take{(1,0,0)} r sleep 1;"
-          " deaf P ; ?sm(1,0,0,-1,w') r ?da r take{d1} r ; wr w' 2 ;"
-          " hearing P ; ?sm(2,1,1,1,w') r ?da r sleep 0.3 take{(2,0,0),...} r ; ?!pm");
+          " r'' ?pm w' deaf P'' ;" // with second reader: reader is deaf so won't ACK
+          " wr w' 1   ; ?da r take{(1,0,0)} r ?ack(r) w' ;" // wait for ack from r' (not r'')
+          " deaf P    ; ?sm(1,0,0,-1,w') r ?da r take{d1} r ; wr w' 2 ;" // write lost on "wire"
+          " hearing P ; ?sm(2,1,1,1,w') r  ?da r sleep 0.3 take{(2,0,0)} r ; ?!pm");
   // same without taking the "dispose" after disconnect
   // sample 1 will be delivered anew
   dotest ("sm da r pm w' ; ?sm r ?pm w' ; wr w' 1 ; ?da r take{(1,0,0)} r ;"
