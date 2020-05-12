@@ -25,6 +25,8 @@
 
 #include "dds__types.h"
 #include "dds__entity.h"
+#include "dds__writer.h"
+#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/ddsi_entity_index.h"
@@ -1502,46 +1504,106 @@ static void checklistener (struct oneliner_ctx *ctx, int ll, int ent, struct one
     testfail (ctx, "listener %s: status mask not cleared", lldesc[ll].name);
 }
 
-static void dochecklistener (struct oneliner_ctx *ctx)
+static void dowaitforack (struct oneliner_ctx *ctx)
 {
-  const bool expectclear = nexttok_if (&ctx->l, '!');
-  const int ll = parse_listener (ctx);
-  if (ll < 0)
-    error (ctx, "check listener: requires listener name");
-  else if (expectclear)
+  dds_return_t ret;
+  int ent, ent1 = -1;
+  union { dds_guid_t x; ddsi_guid_t i; } rdguid;
+  if (*ctx->l.inp == '(') // reader present
   {
-    printf ("listener %s: check not called", lldesc[ll].name);
-    fflush (stdout);
-    ddsrt_mutex_lock (&ctx->g_mutex);
-    bool ret = true;
-    for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
-    {
-      printf (" cb_called %"PRIu32" %s\n", ctx->cb[i].cb_called[lldesc[ll].id], ctx->cb[i].cb_called[lldesc[ll].id] == 0 ? "ok" : "fail");
-      if (ctx->cb[i].cb_called[lldesc[ll].id] != 0)
-        ret = false;
-    }
-    ddsrt_mutex_unlock (&ctx->g_mutex);
-    if (!ret)
-      testfail (ctx, "callback %s invoked unexpectedly", lldesc[ll].name);
+    nexttok (&ctx->l, NULL);
+    if ((ent1 = parse_entity (ctx)) < 0)
+      error (ctx, "wait for ack: expecting entity");
+    if ((ent1 % 9) < 3 || (ent1 % 9) > 5 || ctx->es[ent1] == 0)
+      error (ctx, "wait for ack: expecting existing reader as argument");
+    if ((ret = dds_get_guid (ctx->es[ent1], &rdguid.x)) != 0)
+      error_dds (ctx, ret, "wait for ack: failed to get GUID for reader %"PRId32, ctx->es[ent1]);
+    rdguid.i = nn_ntoh_guid (rdguid.i);
+    if (!nexttok_if (&ctx->l, ')'))
+      error (ctx, "wait for ack: expecting ')'");
+  }
+  if ((ent = parse_entity (ctx)) < 0)
+    error (ctx, "wait for ack: expecting writer");
+  if (ent1 >= 0 && ent / 9 == ent1 / 9)
+    error (ctx, "wait for ack: reader and writer must be in different domains");
+  if (ctx->es[ent] == 0)
+    make_entity (ctx, ent, NULL);
+  printf ("wait for ack %"PRId32" reader %"PRId32"\n", ctx->es[ent], ent1 < 0 ? 0 : ctx->es[ent1]);
+
+  // without a reader argument a simple dds_wait_for_acks (ctx->es[ent], DDS_SECS (5)) suffices
+  struct dds_entity *x;
+  if ((ret = dds_entity_pin (ctx->es[ent], &x)) < 0)
+    error_dds (ctx, ret, "wait for ack: pin entity failed %"PRId32, ctx->es[ent]);
+  if (dds_entity_kind (x) != DDS_KIND_WRITER)
+    error_dds (ctx, ret, "wait for ack: %"PRId32" is not a writer", ctx->es[ent]);
+  else
+    ret = dds__writer_wait_for_acks ((struct dds_writer *) x, (ent1 < 0) ? NULL : &rdguid.i, dds_time () + DDS_SECS (5));
+  dds_entity_unpin (x);
+  if (ret != 0)
+  {
+    if (ret == DDS_RETCODE_TIMEOUT)
+      testfail (ctx, "wait for acks timed out on entity %"PRId32, ctx->es[ent]);
+    else
+      error_dds (ctx, ret, "wait for acks failed on entity %"PRId32, ctx->es[ent]);
+  }
+}
+
+static void dowaitfornolistener (struct oneliner_ctx *ctx, int ll)
+{
+  printf ("listener %s: check not called", lldesc[ll].name);
+  fflush (stdout);
+  ddsrt_mutex_lock (&ctx->g_mutex);
+  bool ret = true;
+  for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
+  {
+    printf (" %"PRIu32, ctx->cb[i].cb_called[lldesc[ll].id]);
+    if (ctx->cb[i].cb_called[lldesc[ll].id] != 0)
+      ret = false;
+  }
+  printf (" (%s)\n", ret ? "ok" : "fail");
+  ddsrt_mutex_unlock (&ctx->g_mutex);
+  if (!ret)
+    testfail (ctx, "callback %s invoked unexpectedly", lldesc[ll].name);
+}
+
+static void dowaitforlistener (struct oneliner_ctx *ctx, int ll)
+{
+  struct oneliner_lex l1 = ctx->l;
+  // no whitespace between name and args
+  const bool have_args = (*ctx->l.inp == '(');
+  if (have_args)
+  {
+    // skip args: we need the entity before we can interpret them
+    int tok;
+    while ((tok = nexttok (&ctx->l, NULL)) != EOF && tok != ')')
+      ;
+  }
+  const int ent = parse_entity (ctx);
+  if (ent < 0)
+    error (ctx, "check listener: requires an entity");
+  if (ctx->es[ent] == 0)
+    setlistener (ctx, NULL, ll, ent);
+  checklistener (ctx, ll, ent, have_args ? &l1 : NULL);
+}
+
+static void dowait (struct oneliner_ctx *ctx)
+{
+  union oneliner_tokval tokval;
+  if (peektok (&ctx->l, &tokval) == TOK_NAME && strcmp (tokval.n, "ack") == 0)
+  {
+    nexttok (&ctx->l, NULL);
+    dowaitforack (ctx);
   }
   else
   {
-    struct oneliner_lex l1 = ctx->l;
-    // no whitespace between name and args
-    const bool have_args = (*ctx->l.inp == '(');
-    if (have_args)
-    {
-      // skip args: we need the entity before we can interpret them
-      int tok;
-      while ((tok = nexttok (&ctx->l, NULL)) != EOF && tok != ')')
-        ;
-    }
-    const int ent = parse_entity (ctx);
-    if (ent < 0)
-      error (ctx, "check listener: requires an entity");
-    if (ctx->es[ent] == 0)
-      setlistener (ctx, NULL, ll, ent);
-    checklistener (ctx, ll, ent, have_args ? &l1 : NULL);
+    const bool expectclear = nexttok_if (&ctx->l, '!');
+    const int ll = parse_listener (ctx);
+    if (ll < 0)
+      error (ctx, "check listener: requires listener name");
+    if (expectclear)
+      dowaitfornolistener (ctx, ll);
+    else
+      dowaitforlistener (ctx, ll);
   }
 }
 
@@ -1628,7 +1690,7 @@ static void dispatchcmd (struct oneliner_ctx *ctx)
     void (*fn) (struct oneliner_ctx *ct);
   } cs[] = {
     { "-",          dodelete },
-    { "?",          dochecklistener },
+    { "?",          dowait },
     { "wr",         dowr },
     { "wrdisp",     dowrdisp },
     { "disp",       dodisp },
@@ -1744,7 +1806,7 @@ int test_oneliner_fini (struct oneliner_ctx *ctx)
       setresult (ctx, ret, "terminate: reset listener failed on %"PRId32, ctx->es[i]);
   if (ctx->result == 0)
   {
-    printf ("\n");
+    printf ("\n-- dumping content of readers after failure --\n");
     for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
     {
       for (int j = 3; j <= 5; j++)
