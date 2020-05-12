@@ -857,3 +857,60 @@ CU_Test(ddssec_access_control, check_returns)
 
   access_control_fini (2, (void * []) { gov_config, gov_topic_rule, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 10);
 }
+
+
+CU_Test(ddssec_access_control, denied_topic)
+{
+  char topic_name[100], denied_topic_name[100];
+  create_topic_name ("ddssec_access_control_", g_topic_nr++, topic_name, sizeof (topic_name));
+  create_topic_name ("ddssec_access_control_", g_topic_nr++, denied_topic_name, sizeof (denied_topic_name));
+
+  char *ca, *id1, *id2, *id1_subj, *id2_subj;
+  ca = generate_ca ("ca1", TEST_IDENTITY_CA1_PRIVATE_KEY, 0, 3600);
+  id1 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id1", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id1_subj);
+  id2 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id2", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id2_subj);
+
+   dds_time_t now = dds_time ();
+  char * sub_rules_xml = get_permissions_rules (NULL, NULL, NULL, denied_topic_name, denied_topic_name);
+  char * grants_pub[] = { get_permissions_grant ("id1", id1_subj, now, now + DDS_SECS(3600), NULL, "ALLOW") };
+  char * grants_sub[] = { get_permissions_grant ("id2", id2_subj, now, now + DDS_SECS(3600), sub_rules_xml, "ALLOW") };
+  char * perm_config_pub = get_permissions_config (grants_pub, 1, true);
+  char * perm_config_sub = get_permissions_config (grants_sub, 1, true);
+
+  char * gov_topic_rule = get_governance_topic_rule (NULL, true, true, true, true, PK_E, BPK_E);
+  char * gov_config = get_governance_config (false, true, PK_E, PK_E, PK_E, gov_topic_rule, true);
+  const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
+
+  access_control_init (
+      2,
+      (const char *[]) { id1, id2 },
+      (const char *[]) { TEST_IDENTITY1_PRIVATE_KEY, TEST_IDENTITY1_PRIVATE_KEY },
+      (const char *[]) { ca, ca },
+      (bool []) { false, false },
+      NULL, NULL,
+      (bool []) { true, true }, (const char *[]) { gov_config, gov_config },
+      (bool []) { true, true }, (const char *[]) { perm_config_pub, perm_config_sub },
+      (bool []) { true, true }, (const char *[]) { def_perm_ca, def_perm_ca });
+
+  dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
+  rd_wr_init (g_participant[0], &pub, &pub_tp, &wr, g_participant[1], &sub, &sub_tp, &rd, topic_name);
+  sync_writer_to_readers (g_participant[0], wr, 1, DDS_SECS (1));
+  sync_reader_to_writers (g_participant[1], rd, 1, DDS_SECS (1));
+
+  /* Create a topic that is denied in the subscriber pp security config */
+  dds_entity_t denied_pub_tp = dds_create_topic (g_participant[0], &SecurityCoreTests_Type1_desc, denied_topic_name, NULL, NULL);
+  CU_ASSERT_FATAL (denied_pub_tp > 0);
+  dds_qos_t * qos = get_default_test_qos ();
+  dds_entity_t denied_tp_wr = dds_create_writer (pub, denied_pub_tp, qos, NULL);
+  CU_ASSERT_FATAL (denied_tp_wr > 0);
+
+  /* Check that creating denied topic for subscriber fails */
+  dds_entity_t denied_sub_tp = dds_create_topic (g_participant[1], &SecurityCoreTests_Type1_desc, denied_topic_name, NULL, NULL);
+  CU_ASSERT_FATAL (denied_sub_tp == DDS_RETCODE_NOT_ALLOWED_BY_SECURITY);
+
+  /* Check if communication for allowed topic is still working */
+  write_read_for (wr, g_participant[1], rd, DDS_MSECS (10), false, false);
+
+  dds_delete_qos (qos);
+  access_control_fini (2, (void * []) { gov_config, gov_topic_rule, sub_rules_xml, grants_pub[0], grants_sub[0], perm_config_pub, perm_config_sub, ca, id1_subj, id2_subj, id1, id2 }, 12);
+}
