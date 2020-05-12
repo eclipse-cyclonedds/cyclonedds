@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "dds/dds.h"
+#include "dds/ddsrt/circlist.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/string.h"
@@ -27,7 +28,8 @@ enum ac_plugin_mode {
   PLUGIN_MODE_ALL_OK,
   PLUGIN_MODE_WRAPPED,
   PLUGIN_MODE_NOT_ALLOWED,
-  PLUGIN_MODE_MISSING_FUNC
+  PLUGIN_MODE_MISSING_FUNC,
+  PLUGIN_MODE_CHECK_RETURNS,
 };
 
 enum ac_plugin_not_allowed {
@@ -56,6 +58,12 @@ enum ac_plugin_not_allowed {
 #define NOT_ALLOWED_REMOTE_READER_RELAY_ONLY      (1u << NOT_ALLOWED_ID_REMOTE_READER_RELAY_ONLY)
 #define NOT_ALLOWED_REMOTE_PERM                   (1u << NOT_ALLOWED_ID_REMOTE_PERM)
 
+struct returns_log_data {
+  struct ddsrt_circlist_elem e;
+  void * obj;
+};
+
+
 /**
  * Implementation structure for storing encapsulated members of the instance
  * while giving only the interface definition to user
@@ -65,7 +73,74 @@ struct dds_security_access_control_impl {
   dds_security_access_control *instance;
   enum ac_plugin_mode mode;
   uint32_t not_allowed_mask;
+  ddsrt_mutex_t returns_log_lock;
+  struct ddsrt_circlist returns_log;
+  bool invalid_return;
 };
+
+
+static void init_returns_log(struct dds_security_access_control_impl *impl)
+{
+  ddsrt_mutex_init (&impl->returns_log_lock);
+  ddsrt_circlist_init (&impl->returns_log);
+}
+
+static void fini_returns_log(struct dds_security_access_control_impl *impl)
+{
+  ddsrt_mutex_lock (&impl->returns_log_lock);
+  while (!ddsrt_circlist_isempty (&impl->returns_log))
+  {
+    struct ddsrt_circlist_elem *list_elem = ddsrt_circlist_oldest (&impl->returns_log);
+    ddsrt_circlist_remove (&impl->returns_log, list_elem);
+    ddsrt_free (list_elem);
+  }
+  ddsrt_mutex_unlock (&impl->returns_log_lock);
+  ddsrt_mutex_destroy (&impl->returns_log_lock);
+}
+
+static void register_return_obj (struct dds_security_access_control_impl * impl, void * obj)
+{
+  assert(impl->mode == PLUGIN_MODE_CHECK_RETURNS);
+  ddsrt_mutex_lock (&impl->returns_log_lock);
+  struct returns_log_data * attr_data = ddsrt_malloc (sizeof (*attr_data));
+  attr_data->obj = obj;
+  ddsrt_circlist_append(&impl->returns_log, &attr_data->e);
+  printf("log obj %p\n", obj);
+  ddsrt_mutex_unlock (&impl->returns_log_lock);
+}
+
+static void unregister_return_obj (struct dds_security_access_control_impl * impl, void * obj)
+{
+  assert(impl->mode == PLUGIN_MODE_CHECK_RETURNS);
+  ddsrt_mutex_lock (&impl->returns_log_lock);
+  struct ddsrt_circlist_elem *elem0 = ddsrt_circlist_oldest (&impl->returns_log), *elem = elem0;
+  while (elem != NULL)
+  {
+    struct returns_log_data *data = DDSRT_FROM_CIRCLIST (struct returns_log_data, e, elem);
+    if (data->obj == obj)
+    {
+      ddsrt_circlist_remove (&impl->returns_log, elem);
+      ddsrt_mutex_unlock (&impl->returns_log_lock);
+      ddsrt_free (elem);
+      printf("return obj %p\n", obj);
+      return;
+    }
+    elem = elem->next;
+    if (elem == elem0)
+      break;
+  }
+  impl->invalid_return = true;
+  ddsrt_mutex_unlock (&impl->returns_log_lock);
+}
+
+bool check_returns (struct dds_security_access_control_impl * impl)
+{
+  assert(impl->mode == PLUGIN_MODE_CHECK_RETURNS);
+  ddsrt_mutex_lock (&impl->returns_log_lock);
+  bool result = impl->invalid_return || !ddsrt_circlist_isempty (&impl->returns_log);
+  ddsrt_mutex_unlock (&impl->returns_log_lock);
+  return result;
+}
 
 static DDS_Security_PermissionsHandle validate_local_permissions(
     dds_security_access_control *instance,
@@ -87,7 +162,13 @@ static DDS_Security_PermissionsHandle validate_local_permissions(
       }
       /* fall through */
     case PLUGIN_MODE_WRAPPED:
-      return impl->instance->validate_local_permissions(impl->instance, auth_plugin, identity, domain_id, participant_qos, ex);
+    case PLUGIN_MODE_CHECK_RETURNS:
+    {
+      DDS_Security_PermissionsHandle handle = impl->instance->validate_local_permissions(impl->instance, auth_plugin, identity, domain_id, participant_qos, ex);
+      if (impl->mode == PLUGIN_MODE_CHECK_RETURNS)
+          register_return_obj (impl, (void *) handle);
+      return handle;
+    }
 
     default:
       return 1;
@@ -115,8 +196,14 @@ static DDS_Security_PermissionsHandle validate_remote_permissions(
       }
       /* fall through */
     case PLUGIN_MODE_WRAPPED:
-      return impl->instance->validate_remote_permissions(impl->instance, auth_plugin, local_identity_handle, remote_identity_handle,
+    case PLUGIN_MODE_CHECK_RETURNS:
+    {
+      DDS_Security_PermissionsHandle handle = impl->instance->validate_remote_permissions(impl->instance, auth_plugin, local_identity_handle, remote_identity_handle,
         remote_permissions_token, remote_credential_token, ex);
+      if (impl->mode == PLUGIN_MODE_CHECK_RETURNS)
+          register_return_obj (impl, (void *) handle);
+      return handle;
+    }
 
     default:
       return 0;
@@ -142,6 +229,7 @@ static DDS_Security_boolean check_create_participant(
       }
       /* fall through */
     case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_CHECK_RETURNS:
       return impl->instance->check_create_participant(impl->instance, permissions_handle, domain_id, participant_qos, ex);
 
     default:
@@ -174,6 +262,7 @@ static DDS_Security_boolean check_create_datawriter(
       }
       /* fall through */
     case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_CHECK_RETURNS:
       return impl->instance->check_create_datawriter(impl->instance, permissions_handle, domain_id, topic_name, writer_qos, partition, data_tag, ex);
 
     default:
@@ -203,6 +292,7 @@ static DDS_Security_boolean check_create_datareader(
       }
       /* fall through */
     case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_CHECK_RETURNS:
       return impl->instance->check_create_datareader(impl->instance, permissions_handle, domain_id, topic_name, reader_qos, partition, data_tag, ex);
 
     default:
@@ -230,6 +320,7 @@ static DDS_Security_boolean check_create_topic(
       }
       /* fall through */
     case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_CHECK_RETURNS:
       return impl->instance->check_create_topic(impl->instance, permissions_handle, domain_id, topic_name, qos, ex);
 
     default:
@@ -249,6 +340,7 @@ static DDS_Security_boolean check_local_datawriter_register_instance(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
+    case PLUGIN_MODE_CHECK_RETURNS:
       return impl->instance->check_local_datawriter_register_instance(impl->instance, permissions_handle, writer, key, ex);
 
     default:
@@ -268,6 +360,7 @@ static DDS_Security_boolean check_local_datawriter_dispose_instance(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
+    case PLUGIN_MODE_CHECK_RETURNS:
       return impl->instance->check_local_datawriter_dispose_instance(impl->instance, permissions_handle, writer, key, ex);
 
     default:
@@ -294,6 +387,7 @@ static DDS_Security_boolean check_remote_participant(
       }
       /* fall through */
     case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_CHECK_RETURNS:
       return impl->instance->check_remote_participant(impl->instance, permissions_handle, domain_id, participant_data, ex);
 
     default:
@@ -320,6 +414,7 @@ static DDS_Security_boolean check_remote_datawriter(
       }
       /* fall through */
     case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_CHECK_RETURNS:
       return impl->instance->check_remote_datawriter(impl->instance, permissions_handle, domain_id, publication_data, ex);
 
     default:
@@ -350,6 +445,7 @@ static DDS_Security_boolean check_remote_datareader(
       }
       /* fall through */
     case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_CHECK_RETURNS:
     {
       bool ret;
       if ((ret = impl->instance->check_remote_datareader(impl->instance, permissions_handle, domain_id, subscription_data, relay_only, ex)))
@@ -389,6 +485,7 @@ static DDS_Security_boolean check_remote_topic(
       }
       /* fall through */
     case PLUGIN_MODE_WRAPPED:
+    case PLUGIN_MODE_CHECK_RETURNS:
       return impl->instance->check_remote_topic(impl->instance, permissions_handle, domain_id, topic_data, ex);
 
     default:
@@ -409,6 +506,7 @@ static DDS_Security_boolean check_local_datawriter_match(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
+    case PLUGIN_MODE_CHECK_RETURNS:
       return impl->instance->check_local_datawriter_match(impl->instance, writer_permissions_handle, reader_permissions_handle, publication_data, subscription_data, ex);
 
     default:
@@ -429,6 +527,7 @@ static DDS_Security_boolean check_local_datareader_match(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
+    case PLUGIN_MODE_CHECK_RETURNS:
       return impl->instance->check_local_datareader_match(impl->instance, reader_permissions_handle, writer_permissions_handle, subscription_data, publication_data, ex);
 
     default:
@@ -450,6 +549,7 @@ static DDS_Security_boolean check_remote_datawriter_register_instance(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
+    case PLUGIN_MODE_CHECK_RETURNS:
       return impl->instance->check_remote_datawriter_register_instance(impl->instance, permissions_handle, reader, publication_handle, key, instance_handle, ex);
 
     default:
@@ -470,6 +570,7 @@ static DDS_Security_boolean check_remote_datawriter_dispose_instance(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
+    case PLUGIN_MODE_CHECK_RETURNS:
       return impl->instance->check_remote_datawriter_dispose_instance(impl->instance, permissions_handle, reader, publication_handle, key, ex);
 
     default:
@@ -486,6 +587,9 @@ static DDS_Security_boolean get_permissions_token(
   struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
   switch (impl->mode)
   {
+    case PLUGIN_MODE_CHECK_RETURNS:
+      register_return_obj (impl, (void*) permissions_token);
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
       return impl->instance->get_permissions_token(impl->instance, permissions_token, handle, ex);
@@ -506,6 +610,9 @@ static DDS_Security_boolean get_permissions_credential_token(
   struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
   switch (impl->mode)
   {
+    case PLUGIN_MODE_CHECK_RETURNS:
+      register_return_obj (impl, (void*) permissions_credential_token);
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
       return impl->instance->get_permissions_credential_token(impl->instance, permissions_credential_token, handle, ex);
@@ -525,6 +632,7 @@ static DDS_Security_boolean set_listener(
   {
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
+    case PLUGIN_MODE_CHECK_RETURNS:
       return impl->instance->set_listener (impl->instance, listener, ex);
 
     default:
@@ -540,6 +648,9 @@ static DDS_Security_boolean return_permissions_token(
   struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
   switch (impl->mode)
   {
+    case PLUGIN_MODE_CHECK_RETURNS:
+      unregister_return_obj (impl, (void*) token);
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
       return impl->instance->return_permissions_token (impl->instance, token, ex);
@@ -558,6 +669,9 @@ static DDS_Security_boolean return_permissions_credential_token(
   struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
   switch (impl->mode)
   {
+    case PLUGIN_MODE_CHECK_RETURNS:
+      unregister_return_obj (impl, (void*) permissions_credential_token);
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
       return impl->instance->return_permissions_credential_token(impl->instance, permissions_credential_token, ex);
@@ -576,6 +690,9 @@ static DDS_Security_boolean get_participant_sec_attributes(
   struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
   switch (impl->mode)
   {
+    case PLUGIN_MODE_CHECK_RETURNS:
+      register_return_obj (impl, (void*) attributes);
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
       return impl->instance->get_participant_sec_attributes(impl->instance, permissions_handle, attributes, ex);
@@ -595,6 +712,9 @@ static DDS_Security_boolean get_topic_sec_attributes(
   struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
   switch (impl->mode)
   {
+    case PLUGIN_MODE_CHECK_RETURNS:
+      register_return_obj (impl, (void*) attributes);
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
       return impl->instance->get_topic_sec_attributes(impl->instance, permissions_handle, topic_name, attributes, ex);
@@ -616,6 +736,9 @@ static DDS_Security_boolean get_datawriter_sec_attributes(
   struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
   switch (impl->mode)
   {
+    case PLUGIN_MODE_CHECK_RETURNS:
+      register_return_obj (impl, (void*) attributes);
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
       return impl->instance->get_datawriter_sec_attributes(impl->instance, permissions_handle, topic_name, partition, data_tag, attributes, ex);
@@ -637,6 +760,9 @@ static DDS_Security_boolean get_datareader_sec_attributes(
   struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
   switch (impl->mode)
   {
+    case PLUGIN_MODE_CHECK_RETURNS:
+      register_return_obj (impl, (void*) attributes);
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
       return impl->instance->get_datareader_sec_attributes(impl->instance, permissions_handle, topic_name, partition, data_tag, attributes, ex);
@@ -654,6 +780,9 @@ static DDS_Security_boolean return_participant_sec_attributes(
   struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
   switch (impl->mode)
   {
+    case PLUGIN_MODE_CHECK_RETURNS:
+      unregister_return_obj (impl, (void*) attributes);
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
       return impl->instance->return_participant_sec_attributes(impl->instance, attributes, ex);
@@ -671,6 +800,9 @@ static DDS_Security_boolean return_topic_sec_attributes(
   struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
   switch (impl->mode)
   {
+    case PLUGIN_MODE_CHECK_RETURNS:
+      unregister_return_obj (impl, (void*) attributes);
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
       return impl->instance->return_topic_sec_attributes(impl->instance, attributes, ex);
@@ -688,6 +820,9 @@ static DDS_Security_boolean return_datawriter_sec_attributes(
   struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
   switch (impl->mode)
   {
+    case PLUGIN_MODE_CHECK_RETURNS:
+      unregister_return_obj (impl, (void*) attributes);
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
       return impl->instance->return_datawriter_sec_attributes(impl->instance, attributes, ex);
@@ -705,6 +840,9 @@ static DDS_Security_boolean return_datareader_sec_attributes(
   struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
   switch (impl->mode)
   {
+    case PLUGIN_MODE_CHECK_RETURNS:
+      unregister_return_obj (impl, (void*) attributes);
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
       return impl->instance->return_datareader_sec_attributes(impl->instance, attributes, ex);
@@ -722,6 +860,9 @@ static DDS_Security_boolean return_permissions_handle(
   struct dds_security_access_control_impl *impl = (struct dds_security_access_control_impl *)instance;
   switch (impl->mode)
   {
+    case PLUGIN_MODE_CHECK_RETURNS:
+      unregister_return_obj (impl, (void*) permissions_handle);
+      /* fall through */
     case PLUGIN_MODE_WRAPPED:
     case PLUGIN_MODE_NOT_ALLOWED:
       return impl->instance->return_permissions_handle(impl->instance, permissions_handle, ex);
@@ -861,5 +1002,24 @@ int finalize_test_access_control_not_allowed(void *context)
 {
   struct dds_security_access_control_impl* impl = (struct dds_security_access_control_impl*) context;
   assert(impl->mode == PLUGIN_MODE_NOT_ALLOWED);
+  return finalize_test_access_control_common(impl, true);
+}
+
+int init_test_access_control_check_returns(const char *argument, void **context, struct ddsi_domaingv *gv)
+{
+  struct dds_security_access_control_impl *impl = init_test_access_control_common(argument, true, gv);
+  if (!impl)
+    return DDS_SECURITY_FAILED;
+  impl->mode = PLUGIN_MODE_CHECK_RETURNS;
+  init_returns_log (impl);
+  *context = impl;
+  return DDS_SECURITY_SUCCESS;
+}
+
+int finalize_test_access_control_check_returns(void *context)
+{
+  struct dds_security_access_control_impl* impl = (struct dds_security_access_control_impl*) context;
+  assert(impl->mode == PLUGIN_MODE_CHECK_RETURNS);
+  fini_returns_log (impl);
   return finalize_test_access_control_common(impl, true);
 }

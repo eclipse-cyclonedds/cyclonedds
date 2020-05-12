@@ -143,11 +143,11 @@ CU_Test(ddssec_handshake, check_tokens)
   write_read_for (g_wr, g_participant2, g_rd, DDS_MSECS (100), false, false);
 
   // Get subscriber and publisher crypto tokens
-  struct dds_security_cryptography_impl * crypto_context_pub = get_crypto_context (g_participant1);
+  struct dds_security_cryptography_impl * crypto_context_pub = get_cryptography_context (g_participant1);
   CU_ASSERT_FATAL (crypto_context_pub != NULL);
   struct ddsrt_circlist *pub_tokens = get_crypto_tokens (crypto_context_pub);
 
-  struct dds_security_cryptography_impl * crypto_context_sub = get_crypto_context (g_participant2);
+  struct dds_security_cryptography_impl * crypto_context_sub = get_cryptography_context (g_participant2);
   CU_ASSERT_FATAL (crypto_context_sub != NULL);
   struct ddsrt_circlist *sub_tokens = get_crypto_tokens (crypto_context_sub);
 

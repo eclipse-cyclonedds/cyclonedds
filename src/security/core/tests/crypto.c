@@ -156,7 +156,7 @@ CU_Theory((const char * test_descr, DDS_Security_BasicProtectionKind payload_pk,
 
   /* set forced plain data for payload/submsg/rtps */
   DDS_Security_DatawriterCryptoHandle wr_handle = get_writer_crypto_handle (wr);
-  struct dds_security_cryptography_impl * crypto_impl = get_crypto_context (g_participant1);
+  struct dds_security_cryptography_impl * crypto_impl = get_cryptography_context (g_participant1);
   set_force_plain_data (crypto_impl, wr_handle, rtps_pk != PK_N, submsg_pk != PK_N, payload_pk != BPK_N);
 
   /* sync and write/take sample */
