@@ -45,7 +45,7 @@ linux_gcc8: &linux_gcc8
     apt:
       update: true
       sources: [ ubuntu-toolchain-r-test ]
-      packages: [ gcc-8 g++-8 ]
+      packages: [ gcc-8, g++-8, trang ]
   before_install:
     - eval "export CC=gcc-8"
     - eval "export CXX=g++-8"
@@ -61,6 +61,7 @@ linux_clang: &linux_clang
   addons:
     apt:
       update: true
+      packages: [ trang ]
   before_install:
     - eval "export CC=clang"
     - eval "export CXX=clang++"
@@ -74,7 +75,7 @@ osx_xcode: &osx_xcode
   compiler: clang
   addons:
     homebrew:
-      packages: [ python3 ]
+      packages: [ python3, trang ]
   before_install:
     - eval "export CC=clang"
     - eval "export CXX=clang++"
@@ -88,7 +89,7 @@ osx_xcode9: &osx_xcode9
   osx_image: xcode9
   addons:
     homebrew:
-      packages: [ python3 ]
+      packages: [ python3, trang ]
       # Homebrew must be updated before packages can be installed on outdated
       # macOS images. The update process unfortunately takes a VERY long time
       # and can even cause Travis to terminate the build. Travis caching is
@@ -197,6 +198,7 @@ script:
   - mkdir build
   - cd build
   - conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ..
+  - which trang && BUILD_SCHEMA=1 || BUILD_SCHEMA=0
   - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
           -DCMAKE_INSTALL_PREFIX=${INSTALLPREFIX}
           -DUSE_SANITIZER=${ASAN}
@@ -205,9 +207,11 @@ script:
           -DENABLE_LIFESPAN=${LIFESPAN}
           -DENABLE_DEADLINE_MISSED=${DEADLINE}
           -DBUILD_TESTING=on
+          -DBUILD_SCHEMA=${BUILD_SCHEMA}
           -DWERROR=on
           -G "${GENERATOR}" ..
-  - case "${GENERATOR}" in
+  - |
+    case "${GENERATOR}" in
       "Unix Makefiles")
         ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- -j 4
         ;;
@@ -219,14 +223,20 @@ script:
         ;;
     esac
   - CYCLONEDDS_URI='<CycloneDDS><Domain><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks><LivelinessMonitoring>true</LivelinessMonitoring></Internal><Tracing><Verbosity>config</Verbosity><OutputFile>stderr</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 4 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${BUILD_TYPE}
-  - if [ "${ASAN}" = "none" ]; then
+  - |
+    if [ "${ASAN}" = "none" ]; then
       ${SHELL} ../src/tools/ddsperf/sanity.bash;
     fi
-  - if [ "${ASAN}" != "none" ]; then
+  - |
+    if [ "${ASAN}" != "none" ]; then
       CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
       CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
     fi
   - cd ..
+  - |
+    if [ ${BUILD_SCHEMA} ]; then
+      git diff --exit-code; # check that no files (e.g. generated schemas) are changed
+    fi
   - mkdir helloworld_build
   - cd helloworld_build
   - cmake -DCMAKE_PREFIX_PATH=${INSTALLPREFIX}

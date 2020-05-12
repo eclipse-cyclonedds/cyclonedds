@@ -319,7 +319,7 @@ function(sphinx_add_docs _target)
   endif()
 
   add_custom_target(
-    ${_target}
+    ${_target} ALL
     COMMAND ${SPHINX_BUILD_EXECUTABLE}
               -b ${_builder}
               -d "${CMAKE_CURRENT_BINARY_DIR}/${_target}.cache/_doctrees"

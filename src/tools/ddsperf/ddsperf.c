@@ -283,7 +283,7 @@ struct ppant {
   ddsrt_avl_node_t avlnode;     /* embedded AVL node for handle index */
   ddsrt_fibheap_node_t fhnode;  /* prio queue for timeout handling */
   dds_instance_handle_t handle; /* participant instance handle */
-  dds_builtintopic_guid_t guid; /* participant GUID */
+  dds_guid_t guid;              /* participant GUID */
   char *hostname;               /* hostname is taken from user_data QoS */
   uint32_t pid;                 /* pid is also taken from user_data QoS */
   dds_time_t tdisc;             /* time at which it was discovered */
@@ -357,7 +357,7 @@ static void error3 (const char *fmt, ...)
   verrorx (3, fmt, ap);
 }
 
-static char *make_guidstr (struct guidstr *buf, const dds_builtintopic_guid_t *guid)
+static char *make_guidstr (struct guidstr *buf, const dds_guid_t *guid)
 {
   snprintf (buf->str, sizeof (buf->str), "%02x%02x%02x%02x_%02x%02x%02x%02x_%02x%02x%02x%02x_%02x%02x%02x%02x",
             guid->v[0], guid->v[1], guid->v[2], guid->v[3],

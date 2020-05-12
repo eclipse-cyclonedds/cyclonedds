@@ -10,7 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 cmake_minimum_required(VERSION 3.7)
-project(CycloneDDS VERSION 0.5.0)
+project(CycloneDDS VERSION 0.7.0)
 
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
@@ -205,6 +205,9 @@ set(MEMORYCHECK_COMMAND_OPTIONS "--track-origins=yes --leak-check=full --trace-c
 option(BUILD_TESTING "Build the testing tree." OFF)
 include(CTest)
 
+option(BUILD_DOCS "Build documentation." OFF)
+option(BUILD_SCHEMA "Build generated schema for configuration options." OFF)
+
 # Build all executables and libraries into the top-level /bin and /lib folders.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
@@ -215,7 +218,7 @@ if(BUILD_IDLC)
   add_subdirectory(examples)
 endif()
 
-option(BUILD_DOCS "Build documentation." OFF)
+
 add_subdirectory(docs)
 
 # Pull-in CPack and support for generating <Package>Config.cmake and packages.

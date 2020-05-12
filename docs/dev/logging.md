@@ -66,7 +66,7 @@ priority member that is passed to the handler consists of the priority,
 e.g. error, info, etc and (if it's a trace message) the category.
 
 To be specific. The last four bits of the 32-bit integer contain the priority.
-The other bits implicity indicate it's a trace message and are reserved to
+The other bits implicitly indicate it's a trace message and are reserved to
 specify the category to which a message belongs.
 
 ```C
@@ -89,7 +89,7 @@ the internal log and trace functions depends on it. The user is strongly
 discouraged to enable all categories and filter messages in the registered
 handler, because of the performance impact!
 
-> Tests have shown performance to decrease by roughly 5% if the descision on
+> Tests have shown performance to decrease by roughly 5% if the decision on
 > whether or not to write the message is done outside the function. The reason
 > obviously not being the *if*-statement, but the creation of the stack frame.
 
@@ -143,7 +143,7 @@ that can print to the native log api offered by a target. e.g.
  * Use the name of the parameter as it appears in the documentation for that 
    language binding to reference a parameter where applicable.
  * Use the same formatting style as other messages in the same module.
-   * e.g. use "could not ..." or "failed to ..." consitently.
+   * e.g. use "could not ..." or "failed to ..." consistently.
  * Avoid duplicate reports as much as possible. 
    e.g. if a problem is reported in a lower layer, do not report it again when 
    the error is propagated.
@@ -173,7 +173,7 @@ that can print to the native log api offered by a target. e.g.
 
 * Cyclone assumes files can always be written. For a number of supported
   targets, e.g. FreeRTOS and VxWorks, this is often not the case. Also,
-  filling the memory with log files is proably undesirable.
+  filling the memory with log files is probably undesirable.
 
 * Cyclone (except for DDSI) does not support log categories to selectively
   enable/disable messages that the user is interested in. Causing trace logs

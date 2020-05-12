@@ -56,7 +56,7 @@ su - travis
 5. Install The [Conan C/C++ Package Manager](https://conan.io).
 
  ```
-$ pip intall conan --upgrade --user
+$ pip install conan --upgrade --user
 $ conan user
 ```
 
