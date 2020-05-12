@@ -655,7 +655,7 @@ seqno_t writer_max_drop_seq (const struct writer *wr);
 int writer_must_have_hb_scheduled (const struct writer *wr, const struct whc_state *whcst);
 void writer_set_retransmitting (struct writer *wr);
 void writer_clear_retransmitting (struct writer *wr);
-dds_return_t writer_wait_for_acks (struct writer *wr, dds_time_t abstimeout);
+dds_return_t writer_wait_for_acks (struct writer *wr, const ddsi_guid_t *rdguid, dds_time_t abstimeout);
 
 dds_return_t unblock_throttled_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
 dds_return_t delete_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);

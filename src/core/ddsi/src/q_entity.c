@@ -3969,16 +3969,30 @@ dds_return_t unblock_throttled_writer (struct ddsi_domaingv *gv, const struct dd
   return 0;
 }
 
-dds_return_t writer_wait_for_acks (struct writer *wr, dds_time_t abstimeout)
+dds_return_t writer_wait_for_acks (struct writer *wr, const ddsi_guid_t *rdguid, dds_time_t abstimeout)
 {
   dds_return_t rc;
   seqno_t ref_seq;
   ddsrt_mutex_lock (&wr->e.lock);
   ref_seq = wr->seq;
-  while (wr->state == WRST_OPERATIONAL && ref_seq > writer_max_drop_seq (wr))
-    if (!ddsrt_cond_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
-      break;
-  rc = (ref_seq <= writer_max_drop_seq (wr)) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
+  if (rdguid == NULL)
+  {
+    while (wr->state == WRST_OPERATIONAL && ref_seq > writer_max_drop_seq (wr))
+      if (!ddsrt_cond_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
+        break;
+    rc = (ref_seq <= writer_max_drop_seq (wr)) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
+  }
+  else
+  {
+    struct wr_prd_match *m = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, rdguid);
+    while (wr->state == WRST_OPERATIONAL && m && ref_seq > m->seq)
+    {
+      if (!ddsrt_cond_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
+        break;
+      m = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, rdguid);
+    }
+    rc = (m == NULL || ref_seq <= m->seq) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
+  }
   ddsrt_mutex_unlock (&wr->e.lock);
   return rc;
 }
