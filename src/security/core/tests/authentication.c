@@ -183,7 +183,9 @@ CU_TheoryDataPoints(ddssec_authentication, id_ca_certs) = {
 };
 #undef FM_CA
 #undef FM_INVK
-
+/* Test the security handshake result in test-cases using identity CA's that match and do not
+   match (i.e. a different CA that was not used for creating the identity) the identities used
+   in the participants security configuration. */
 CU_Theory((const char * test_descr, const char * id2, const char *key2, const char *ca2,
     bool exp_fail_pp1, bool exp_fail_pp2,
     bool exp_fail_local, const char * fail_local_msg,
@@ -218,6 +220,8 @@ CU_TheoryDataPoints(ddssec_authentication, trusted_ca_dir) = {
     CU_DataPoints(const char *, "",    ".",   "/nonexisting", NULL),
     CU_DataPoints(bool,         false, false, true,           false)
 };
+/* Test correct and incorrect values for the trusted CA directory in the
+   authentication plugin configuration */
 CU_Theory((const char * ca_dir, bool exp_fail), ddssec_authentication, trusted_ca_dir)
 {
   print_test_msg ("Testing custom CA dir: %s\n", ca_dir);
@@ -259,6 +263,9 @@ CU_TheoryDataPoints(ddssec_authentication, expired_cert) = {
     CU_DataPoints(uint32_t,  1,     0,     0,     0,     1,     0,     1,     10000 ),  /* write/read data during x ms */
     CU_DataPoints(bool,      false, false, false, false, false, false, false, true  ),  /* expect read data failure */
 };
+/* Test the security handshake result and check communication for scenarios using
+   valid identities, identities that are expired and identities that are not yet valid.
+   A test case using an identity that expires during the test is also included. */
 CU_Theory(
   (const char * test_descr, int32_t ca_not_before, int32_t ca_not_after,
     int32_t id1_not_before, int32_t id1_not_after, bool id1_local_fail,
@@ -300,7 +307,10 @@ CU_Theory(
 #undef H
 #undef M
 
-
+/* Test communication for a non-secure participant with a secure participant that
+   allows unauthenticated nodes in its governance configuration. Samples for a secured
+   topic should not be received by a reader in the non-secure participant; samples for
+   a non-secure topic should. */
 CU_Test(ddssec_authentication, unauthenticated_pp)
 {
   char topic_name_secure[100];

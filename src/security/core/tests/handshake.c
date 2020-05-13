@@ -105,6 +105,8 @@ static void handshake_fini(void)
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 }
 
+/* Happy-day test for the security handshake, that tests succesfull handshake for
+   two participants using the same typical security settings. */
 CU_Test(ddssec_handshake, happy_day)
 {
   struct Handshake *hs_list;
@@ -129,6 +131,9 @@ CU_Test(ddssec_handshake, happy_day)
   handshake_fini ();
 }
 
+/* This test checks that all tokens that are sent to a remote participant are received
+   correctly by that participant and the token-data stored in the remote participant
+   is equal to the data in the token that was sent. */
 CU_Test(ddssec_handshake, check_tokens)
 {
   handshake_init (
