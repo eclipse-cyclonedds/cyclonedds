@@ -297,12 +297,7 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
       id, pk, ca_list, exp_fail, NULL, NULL,
       incl_el, gov, incl_el, perm_conf, incl_el, perm_ca);
 
-  dds_qos_t * qos = dds_create_qos ();
-  CU_ASSERT_FATAL (qos != NULL);
-  dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, -1);
-  dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
-  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
-
+  dds_qos_t * qos = get_default_test_qos ();
   dds_entity_t rd[N_RD];
   for (int i = 0; i < N_RD; i++)
   {
@@ -312,7 +307,7 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
     CU_ASSERT_FATAL (sub_tp > 0);
     rd[i] = dds_create_reader (sub, sub_tp, qos, NULL);
     CU_ASSERT_FATAL (rd[i] > 0);
-    dds_set_status_mask (rd[i], DDS_DATA_AVAILABLE_STATUS);
+    dds_set_status_mask (rd[i], DDS_SUBSCRIPTION_MATCHED_STATUS);
   }
 
   dds_entity_t wr[N_WR];
@@ -328,6 +323,11 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
     sync_writer_to_readers (g_participant[i + N_RD], wr[i], N_RD, DDS_SECS(2));
   }
   dds_delete_qos (qos);
+  for (int i = 0; i < N_RD; i++)
+  {
+    sync_reader_to_writers (g_participant[i], rd[i], N_WR, DDS_SECS (2));
+    dds_set_status_mask (rd[i], DDS_DATA_AVAILABLE_STATUS);
+  }
 
   SecurityCoreTests_Type1 sample = { 1, 1 };
   SecurityCoreTests_Type1 rd_sample;
