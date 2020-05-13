@@ -387,6 +387,8 @@ static void test_payload_secret(DDS_Security_ProtectionKind rtps_pk, DDS_Securit
   ddsrt_free (sample.text);
 }
 
+/* Test communication between 2 nodes for all combinations of RTPS, metadata (submsg)
+   and payload protection kinds using a single reader and writer */
 CU_Test(ddssec_secure_communication, protection_kinds, .timeout = 120)
 {
   DDS_Security_ProtectionKind rtps_pk[] = { PK_N, PK_S, PK_E };
@@ -404,6 +406,8 @@ CU_Test(ddssec_secure_communication, protection_kinds, .timeout = 120)
   }
 }
 
+/* Test communication between 2 nodes for all combinations of discovery and
+   liveliness protection kinds using a single reader and writer */
 CU_Test(ddssec_secure_communication, discovery_liveliness_protection, .timeout = 60)
 {
   DDS_Security_ProtectionKind discovery_pk[] = { PK_N, PK_S, PK_E };
@@ -417,6 +421,8 @@ CU_Test(ddssec_secure_communication, discovery_liveliness_protection, .timeout =
   }
 }
 
+/* Test that a specific character sequence from the plain data does not appear in
+   encrypted payload, submessage or rtps message when protection kind is ENCRYPT*/
 CU_Test(ddssec_secure_communication, check_encrypted_secret, .timeout = 60)
 {
   DDS_Security_ProtectionKind rtps_pk[] = { PK_N, PK_E, PK_EOA };
@@ -434,6 +440,8 @@ CU_Test(ddssec_secure_communication, check_encrypted_secret, .timeout = 60)
   }
 }
 
+/* Test communication with specific combinations payload and submsg protection
+   kinds for 1-3 domains, 1-3 participants per domain and 1-3 readers per participant */
 CU_TheoryDataPoints(ddssec_secure_communication, multiple_readers) = {
     CU_DataPoints(size_t, 1, 1, 1, 3), /* number of domains */
     CU_DataPoints(size_t, 1, 3, 1, 3), /* number of participants per domain */
@@ -452,6 +460,9 @@ CU_Theory((size_t n_dom, size_t n_pp, size_t n_rd), ddssec_secure_communication,
   }
 }
 
+/* Test communication with specific combinations payload and submsg protection
+   kinds for 1-2 domains, 1-3 participants per domain, 1-3 readers per participant
+   and 1-3 writers per participant */
 CU_TheoryDataPoints(ddssec_secure_communication, multiple_readers_writers) = {
     CU_DataPoints(size_t, 1, 1, 2), /* number of reader domains */
     CU_DataPoints(size_t, 1, 3, 3), /* number of readers per domain */

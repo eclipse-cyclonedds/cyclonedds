@@ -153,6 +153,10 @@ CU_TheoryDataPoints(ddssec_access_control, config_parameters_file) = {
     CU_DataPoints(bool,         true,   true,     true,    true,     true,   true,   true,  true,   true,  true,   true,   false,  false, false),   // include empty config elements
     CU_DataPoints(bool,         false,  true,     true,    true,     true,   true,   true,  true,   false, true,   false,  true,   true,  true)     // expect failure
 };
+/* Testing configuration parameters for the access control security plugin,
+   using configuration from file. The test cases include using non-existing
+   files, empty configuration files, mixing configudation from file and inline
+   in the cyclone XML configuration. */
 CU_Theory((const char * test_descr, const char * gov, const char * perm, const char * ca, bool incl_empty_els, bool exp_fail),
     ddssec_access_control, config_parameters_file)
 {
@@ -198,6 +202,9 @@ CU_TheoryDataPoints(ddssec_access_control, permissions_expiry) = {
 #undef D
 #undef H
 #undef M
+/* Testing expiry of the (signed) permissions XML. Test cases include using
+   permissions config that is valid for 1 minute, was valid in the past minute,
+   expires before data is written, expires during writing data. */
 CU_Theory(
   (const char * test_descr,
     int32_t perm1_not_before, int32_t perm1_not_after, int32_t perm2_not_before, int32_t perm2_not_after,
@@ -254,6 +261,9 @@ CU_Theory(
 #define N_WR 3
 #define N_NODES (N_RD + N_WR)
 #define PERM_EXP_BASE 3
+/* Tests permissions configuration expiry using multiple writers, to validate
+   that a reader still received data from writers that still have valid
+   permissions config */
 CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
 {
   char topic_name[100];
@@ -419,7 +429,10 @@ CU_TheoryDataPoints(ddssec_access_control, hooks) = {
     CU_DataPoints(bool, na,    na,    na,    false, na,    true,  true,  true,  true,  false, false),  // exp_rd_wr_sync_fail
 };
 #undef na
-
+/* Test that the security implementation in DDSI is correctly handling denial of
+   creating enities, e.g. local participant not allowed, local writer not allowed,
+   remote topic not allowed, etc. This test is initializing the wrapper plugin in a
+   not-allowed mode to force denial of a specified entity. */
 CU_Theory(
   (const char * init_fn, bool exp_pp_fail, bool exp_local_topic_fail, bool exp_remote_topic_fail, bool exp_wr_fail, bool exp_rd_fail, bool exp_wr_rd_sync_fail, bool exp_rd_wr_sync_fail),
   ddssec_access_control, hooks, .timeout=60)
@@ -493,6 +506,8 @@ CU_TheoryDataPoints(ddssec_access_control, join_access_control) = {
     CU_DataPoints(bool, false, false, false, na,    na),   /* expect handshake failure */
 };
 #undef na
+/* Testing handshake result using join access control setting enabled/disabled and
+   valid/invalid permissions for 2 participants. */
 CU_Theory(
   (const char * test_descr, bool join_ac_pp1, bool join_ac_pp2, bool perm_inv_pp1, bool perm_inv_pp2, bool exp_pp1_fail, bool exp_pp2_fail, bool exp_hs_fail),
   ddssec_access_control, join_access_control, .timeout=30)
@@ -627,7 +642,9 @@ static void test_discovery_liveliness_protection(enum test_discovery_liveliness 
 
   access_control_fini (2, (void * []) { gov_config1, gov_config2, gov_topic_rule1, gov_topic_rule2, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 12);
 }
-
+/* Testing discovery and liveliness protection by checking that encode_datawriter_submessage
+   is called for SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER and/or P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER
+   depending on the discovery and liveliness protection settings in security configuration. */
 CU_Theory(
   (const char * test_descr, bool enable_discovery_protection_pp1, bool enable_discovery_protection_pp2,
     DDS_Security_ProtectionKind discovery_protection_kind_pp1, DDS_Security_ProtectionKind discovery_protection_kind_pp2,
@@ -697,6 +714,9 @@ static void test_encoding_mismatch(
   access_control_fini (2, (void * []) { gov_config1, gov_config2, gov_topic_rule1, gov_topic_rule2, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 12);
 }
 
+/* Testing handshake result for any combination of protection kind values for rtps, discovery,
+   liveliness, metadata (submsg) and payload encoding. In all cases where there is an encoding
+   mismatch, the security handshake is expect to fail */
 static DDS_Security_ProtectionKind pk[] = { PK_N, PK_S, PK_E, PK_SOA, PK_EOA };
 static DDS_Security_BasicProtectionKind bpk[] = { BPK_N, BPK_S, BPK_E };
 
@@ -787,7 +807,9 @@ static void test_readwrite_protection (
 
   access_control_fini (2, (void * []) { gov_config, gov_topic_rule, rules_xml, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 11);
 }
-
+/* Test read/write access control by running test cases with different combinations
+   of allow and deny rules for publishing and subscribing on a topic, and check correct
+   working of the default policy. */
 CU_Test(ddssec_access_control, readwrite_protection, .timeout=60)
 {
   for (int allow_pub = 0; allow_pub <= 1; allow_pub++)
@@ -815,7 +837,8 @@ CU_Test(ddssec_access_control, readwrite_protection, .timeout=60)
               }
 }
 
-
+/* Test that all attributes and token retrieved from the access control plugin
+   are correctly returned. */
 CU_Test(ddssec_access_control, check_returns)
 {
   char topic_name[100];
@@ -858,7 +881,8 @@ CU_Test(ddssec_access_control, check_returns)
   access_control_fini (2, (void * []) { gov_config, gov_topic_rule, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 10);
 }
 
-
+/* Check that communication for a topic that is allowed in the permissions config
+   keeps working in case the publisher also creates a writer for a non-allowed topic */
 CU_Test(ddssec_access_control, denied_topic)
 {
   char topic_name[100], denied_topic_name[100];

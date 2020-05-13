@@ -125,6 +125,10 @@ CU_TheoryDataPoints(ddssec_crypto, inject_plain_data) = {
     CU_DataPoints(DDS_Security_ProtectionKind,      PK_N,  PK_N,  PK_E,  PK_S,  PK_N,  PK_N),   /* submessage protection */
     CU_DataPoints(DDS_Security_ProtectionKind,      PK_N,  PK_N,  PK_N,  PK_N,  PK_E,  PK_S),   /* rtps protection */
 };
+/* This test validates that non-encrypted data will not be received by a reader that has protection
+   enabled for rtps/submsg/payload. The test uses a crypto plugin wrapper mode that force the plugin
+   to write plain data in the encoded output buffer to DDSI, ignoring the security attributes for the
+   reader and writer. */
 CU_Theory((const char * test_descr, DDS_Security_BasicProtectionKind payload_pk, DDS_Security_ProtectionKind submsg_pk, DDS_Security_ProtectionKind rtps_pk),
   ddssec_crypto, inject_plain_data, .timeout=30)
 {
