@@ -1396,12 +1396,18 @@ static bool is_topic_discovery_protected(DDS_Security_PermissionsHandle permissi
 {
   DDS_Security_TopicSecurityAttributes attributes = {0,0,0,0};
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+  bool result = false;
 
   if (access_control->get_topic_sec_attributes(access_control, permission_handle, topic_name, &attributes, &exception))
-    return attributes.is_discovery_protected;
+  {
+    result = attributes.is_discovery_protected;
+    access_control->return_topic_sec_attributes(access_control, &attributes, &exception);
+  }
   else
+  {
     DDS_Security_Exception_reset(&exception);
-  return false;
+  }
+  return result;
 }
 
 static void handle_not_allowed(
