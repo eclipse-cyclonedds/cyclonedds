@@ -18,7 +18,7 @@
 #include "dds/security/dds_security_api_defs.h"
 #include "dds/security/cryptography_wrapper_export.h"
 
-#define CRYPTO_TOKEN_MAXLEN 10
+#define CRYPTO_TOKEN_MAXCOUNT 10
 #define CRYPTO_TOKEN_SIZE 256
 
 struct dds_security_cryptography_impl;
@@ -39,8 +39,8 @@ struct crypto_token_data {
   DDS_Security_ParticipantCryptoHandle local_handle;
   DDS_Security_ParticipantCryptoHandle remote_handle;
   uint32_t n_tokens;
-  unsigned char data[CRYPTO_TOKEN_MAXLEN][CRYPTO_TOKEN_SIZE];
-  size_t data_len[CRYPTO_TOKEN_MAXLEN];
+  unsigned char data[CRYPTO_TOKEN_MAXCOUNT][CRYPTO_TOKEN_SIZE];
+  size_t data_len[CRYPTO_TOKEN_MAXCOUNT];
 };
 
 enum crypto_encode_decode_fn {

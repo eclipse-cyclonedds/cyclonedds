@@ -195,7 +195,7 @@ static void add_tokens (struct ddsrt_circlist *list, enum crypto_tokens_type typ
   token_data->local_handle = lch;
   token_data->remote_handle = rch;
   token_data->n_tokens = tokens->_length;
-  assert (tokens->_length <= CRYPTO_TOKEN_MAXLEN);
+  assert (tokens->_length <= CRYPTO_TOKEN_MAXCOUNT);
   for (uint32_t i = 0; i < tokens->_length; i++)
   {
     size_t len = tokens->_buffer[i].binary_properties._buffer[0].value._length;
@@ -235,16 +235,14 @@ struct ddsrt_circlist * get_crypto_tokens (struct dds_security_cryptography_impl
   }
 
   struct ddsrt_circlist_elem *elem0 = ddsrt_circlist_oldest (&impl->token_data_list), *elem = elem0;
-  while (elem != NULL)
+  do
   {
     struct crypto_token_data *elem_data = DDSRT_FROM_CIRCLIST (struct crypto_token_data, e, elem);
     struct crypto_token_data *token_data = ddsrt_malloc (sizeof (*token_data));
     memcpy (token_data, elem_data, sizeof (*token_data));
     ddsrt_circlist_append (tokens, &token_data->e);
     elem = elem->next;
-    if (elem == elem0)
-      break;
-  }
+  } while (elem != elem0);
   ddsrt_mutex_unlock (&impl->token_data_lock);
 
   return tokens;
@@ -260,7 +258,7 @@ struct crypto_token_data * find_crypto_token (struct dds_security_cryptography_i
     return NULL;
   }
   struct ddsrt_circlist_elem *elem0 = ddsrt_circlist_oldest (&impl->token_data_list), *elem = elem0;
-  while (elem != NULL)
+  do
   {
     struct crypto_token_data *elem_data = DDSRT_FROM_CIRCLIST (struct crypto_token_data, e, elem);
     if (elem_data->type == type)
@@ -277,9 +275,7 @@ struct crypto_token_data * find_crypto_token (struct dds_security_cryptography_i
       }
     }
     elem = elem->next;
-    if (elem == elem0)
-      break;
-  }
+  } while (elem != elem0);
   ddsrt_mutex_unlock (&impl->token_data_lock);
   return NULL;
 }
@@ -290,7 +286,7 @@ static void log_encode_decode (struct dds_security_cryptography_impl * impl, enu
   if (!ddsrt_circlist_isempty (&impl->encode_decode_log))
   {
     struct ddsrt_circlist_elem *elem0 = ddsrt_circlist_oldest (&impl->encode_decode_log), *elem = elem0;
-    while (elem != NULL)
+    do
     {
       struct crypto_encode_decode_data *data = DDSRT_FROM_CIRCLIST (struct crypto_encode_decode_data, e, elem);
       if (data->function == function && data->handle == handle)
@@ -300,9 +296,7 @@ static void log_encode_decode (struct dds_security_cryptography_impl * impl, enu
         return;
       }
       elem = elem->next;
-      if (elem == elem0)
-        break;
-    }
+    } while (elem != elem0);
   }
   /* add new entry */
   struct crypto_encode_decode_data *new_data = ddsrt_malloc (sizeof (*new_data));
@@ -319,7 +313,7 @@ struct crypto_encode_decode_data * get_encode_decode_log (struct dds_security_cr
   if (!ddsrt_circlist_isempty (&impl->encode_decode_log))
   {
     struct ddsrt_circlist_elem *elem0 = ddsrt_circlist_oldest (&impl->encode_decode_log), *elem = elem0;
-    while (elem != NULL)
+    do
     {
       struct crypto_encode_decode_data *data = DDSRT_FROM_CIRCLIST (struct crypto_encode_decode_data, e, elem);
       if (data->function == function && data->handle == handle)
@@ -330,9 +324,7 @@ struct crypto_encode_decode_data * get_encode_decode_log (struct dds_security_cr
         return result;
       }
       elem = elem->next;
-      if (elem == elem0)
-        break;
-    }
+    } while (elem != elem0);
   }
   ddsrt_mutex_unlock (&impl->encode_decode_log_lock);
   return NULL;
