@@ -842,7 +842,7 @@ static bool delete_pp_by_handle (DDS_Security_Handle handle, expired_pp_check_fn
   {
     if (q_omg_participant_is_secure (pp) && expired_pp_check_fn (pp, handle))
     {
-      delete_participant (gv, &pp->e.guid);
+      (void) delete_participant (gv, &pp->e.guid);
       result = true;
     }
   }

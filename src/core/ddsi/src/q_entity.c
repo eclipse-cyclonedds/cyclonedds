@@ -1308,14 +1308,19 @@ dds_return_t delete_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
 {
   struct participant *pp;
   GVLOGDISC ("delete_participant("PGUIDFMT")\n", PGUID (*ppguid));
+  ddsrt_mutex_lock (&gv->lock);
   if ((pp = entidx_lookup_participant_guid (gv->entity_index, ppguid)) == NULL)
+  {
+    ddsrt_mutex_unlock (&gv->lock);
     return DDS_RETCODE_BAD_PARAMETER;
+  }
   builtintopic_write (gv->builtin_topic_interface, &pp->e, ddsrt_time_wallclock(), false);
   remember_deleted_participant_guid (gv->deleted_participants, &pp->e.guid);
 #ifdef DDSI_INCLUDE_SECURITY
   disconnect_participant_secure (pp);
 #endif
   entidx_remove_participant_guid (gv->entity_index, pp);
+  ddsrt_mutex_unlock (&gv->lock);
   gcreq_participant (pp);
   return 0;
 }
