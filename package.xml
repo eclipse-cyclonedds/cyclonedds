@@ -6,6 +6,7 @@
     <description>Eclipse Cyclone DDS is a very performant and robust open-source DDS implementation. Cyclone DDS is developed completely in the open as an Eclipse IoT project.</description>
     <maintainer email="cyclonedds-dev@eclipse.org">Eclipse Foundation, Inc.</maintainer>
     <license>Eclipse Public License 2.0</license>
+    <license>Eclipse Distribution License 1.0</license>
 
     <url type="website">https://projects.eclipse.org/projects/iot.cyclonedds</url>
     <url type="bugtracker">https://github.com/eclipse-cyclonedds/cyclonedds/issues</url>
