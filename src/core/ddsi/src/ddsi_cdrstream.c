@@ -364,7 +364,8 @@ static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_
         break;
       }
       case DDS_OP_JSR: {
-        dds_stream_countops1 (ops + DDS_OP_JUMP (insn), ops_end);
+        if (DDS_OP_JUMP (insn) > 0)
+          dds_stream_countops1 (ops + DDS_OP_JUMP (insn), ops_end);
         ops++;
         break;
       }
