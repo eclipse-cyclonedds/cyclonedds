@@ -46,6 +46,12 @@ struct message_queue {
     struct message *tail;
 };
 
+enum take_message_result {
+  TAKE_MESSAGE_OK, /* message found */
+  TAKE_MESSAGE_TIMEOUT_EMPTY, /* no message found, queue is empty */
+  TAKE_MESSAGE_TIMEOUT_NONEMPTY /* no message found, queue is not empty */
+};
+
 struct dds_security_authentication_impl;
 
 void insert_message(struct message_queue *queue, struct message *msg);
@@ -56,7 +62,7 @@ void delete_message(struct message *msg);
 void init_message_queue(struct message_queue *queue);
 void deinit_message_queue(struct message_queue *queue);
 int message_matched(struct message *msg, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle);
-struct message * take_message(struct message_queue *queue, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle, dds_duration_t timeout);
+enum take_message_result take_message(struct message_queue *queue, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle, dds_time_t abstimeout, struct message **msg);
 
 
 #endif /* SECURITY_CORE_PLUGIN_WRAPPER_MSG_Q_H_ */

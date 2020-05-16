@@ -149,58 +149,92 @@ static int find_handshake (DDS_Security_HandshakeHandle handle)
   return -1;
 }
 
-static void handle_process_message (dds_domainid_t domain_id, DDS_Security_IdentityHandle handshake, dds_duration_t timeout)
+static void handle_process_message (dds_domainid_t domain_id, DDS_Security_IdentityHandle handshake, dds_time_t abstimeout)
 {
   struct message *msg;
-  if ((msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_PROCESS_HANDSHAKE, 0, 0, handshake, timeout)))
+  switch (test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_PROCESS_HANDSHAKE, 0, 0, handshake, abstimeout, &msg))
   {
-    int idx;
-    if ((idx = find_handshake (msg->hsHandle)) >= 0)
-    {
-      print_test_msg ("set handshake %"PRId64" final result to '%s' (errmsg: %s)\n", msg->hsHandle, get_validation_result_str (msg->result), msg->err_msg);
-      handshakeList[idx].finalResult = msg->result;
-      handshakeList[idx].err_msg = ddsrt_strdup (msg->err_msg);
+    case TAKE_MESSAGE_OK: {
+      int idx;
+      if ((idx = find_handshake (msg->hsHandle)) >= 0)
+      {
+        print_test_msg ("set handshake %"PRId64" final result to '%s' (errmsg: %s)\n", msg->hsHandle, get_validation_result_str (msg->result), msg->err_msg);
+        handshakeList[idx].finalResult = msg->result;
+        handshakeList[idx].err_msg = ddsrt_strdup (msg->err_msg);
+      }
+      test_authentication_plugin_release_msg (msg);
+      break;
     }
-    test_authentication_plugin_release_msg (msg);
+    case TAKE_MESSAGE_TIMEOUT_EMPTY: {
+      print_test_msg ("handle_process_message: timed out on empty queue\n");
+      break;
+    }
+    case TAKE_MESSAGE_TIMEOUT_NONEMPTY: {
+      print_test_msg ("handle_process_message: timed out on non-empty queue\n");
+      break;
+    }
   }
 }
 
-static void handle_begin_handshake_request (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, dds_duration_t timeout)
+static void handle_begin_handshake_request (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, dds_time_t abstimeout)
 {
   struct message *msg;
   print_test_msg ("handle begin handshake request %"PRId64"<->%"PRId64"\n", lid, rid);
-  if ((msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REQUEST, lid, rid, 0, timeout)))
+  switch (test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REQUEST, lid, rid, 0, abstimeout, &msg))
   {
-    hs->handle = msg->hsHandle;
-    hs->handshakeResult = msg->result;
-    if (msg->result != DDS_SECURITY_VALIDATION_FAILED)
-      handle_process_message (domain_id, msg->hsHandle, timeout);
-    else
-      hs->err_msg = ddsrt_strdup (msg->err_msg);
-    test_authentication_plugin_release_msg (msg);
+    case TAKE_MESSAGE_OK: {
+      hs->handle = msg->hsHandle;
+      hs->handshakeResult = msg->result;
+      if (msg->result != DDS_SECURITY_VALIDATION_FAILED)
+        handle_process_message (domain_id, msg->hsHandle, abstimeout);
+      else
+        hs->err_msg = ddsrt_strdup (msg->err_msg);
+      test_authentication_plugin_release_msg (msg);
+      break;
+    }
+    case TAKE_MESSAGE_TIMEOUT_EMPTY: {
+      print_test_msg ("handle_begin_handshake_request: timed out on empty queue\n");
+      break;
+    }
+    case TAKE_MESSAGE_TIMEOUT_NONEMPTY: {
+      print_test_msg ("handle_begin_handshake_request: timed out on non-empty queue\n");
+      break;
+    }
   }
 }
 
-static void handle_begin_handshake_reply (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, dds_duration_t timeout)
+static void handle_begin_handshake_reply (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, dds_time_t abstimeout)
 {
   struct message *msg;
   print_test_msg ("handle begin handshake reply %"PRId64"<->%"PRId64"\n", lid, rid);
-  if ((msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REPLY, lid, rid, 0, timeout)))
+  switch (test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_BEGIN_HANDSHAKE_REPLY, lid, rid, 0, abstimeout, &msg))
   {
-    hs->handle = msg->hsHandle;
-    hs->handshakeResult = msg->result;
-    if (msg->result != DDS_SECURITY_VALIDATION_FAILED)
-      handle_process_message (domain_id, msg->hsHandle, timeout);
-    else
-      hs->err_msg = ddsrt_strdup (msg->err_msg);
-    test_authentication_plugin_release_msg (msg);
+    case TAKE_MESSAGE_OK: {
+      hs->handle = msg->hsHandle;
+      hs->handshakeResult = msg->result;
+      if (msg->result != DDS_SECURITY_VALIDATION_FAILED)
+        handle_process_message (domain_id, msg->hsHandle, abstimeout);
+      else
+        hs->err_msg = ddsrt_strdup (msg->err_msg);
+      test_authentication_plugin_release_msg (msg);
+      break;
+    }
+    case TAKE_MESSAGE_TIMEOUT_EMPTY: {
+      print_test_msg ("handle_begin_handshake_reply: timed out on empty queue\n");
+      break;
+    }
+    case TAKE_MESSAGE_TIMEOUT_NONEMPTY: {
+      print_test_msg ("handle_begin_handshake_reply: timed out on non-empty queue\n");
+      break;
+    }
   }
 }
 
-static void handle_validate_remote_identity (dds_domainid_t domain_id, DDS_Security_IdentityHandle lid, int count, dds_duration_t timeout)
+static void handle_validate_remote_identity (dds_domainid_t domain_id, DDS_Security_IdentityHandle lid, int count, dds_time_t abstimeout)
 {
+  enum take_message_result res = TAKE_MESSAGE_OK;
   struct message *msg;
-  while (count-- > 0 && (msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_VALIDATE_REMOTE_IDENTITY, lid, 0, 0, timeout)))
+  while (count-- > 0 && (res = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_VALIDATE_REMOTE_IDENTITY, lid, 0, 0, abstimeout, &msg)) == TAKE_MESSAGE_OK)
   {
     struct Handshake *hs;
     add_remote_identity (msg->ridHandle, &msg->rguid);
@@ -208,12 +242,12 @@ static void handle_validate_remote_identity (dds_domainid_t domain_id, DDS_Secur
     if (msg->result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_REQUEST)
     {
       hs->node_type = HSN_REQUESTER;
-      handle_begin_handshake_request (domain_id, hs, lid, msg->ridHandle, timeout);
+      handle_begin_handshake_request (domain_id, hs, lid, msg->ridHandle, abstimeout);
     }
     else if (msg->result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE)
     {
       hs->node_type = HSN_REPLIER;
-      handle_begin_handshake_reply (domain_id, hs, lid, msg->ridHandle, timeout);
+      handle_begin_handshake_reply (domain_id, hs, lid, msg->ridHandle, abstimeout);
     }
     else
     {
@@ -221,11 +255,34 @@ static void handle_validate_remote_identity (dds_domainid_t domain_id, DDS_Secur
     }
     test_authentication_plugin_release_msg (msg);
   }
+
+  switch (res)
+  {
+    case TAKE_MESSAGE_OK:
+      break;
+    case TAKE_MESSAGE_TIMEOUT_EMPTY:
+      print_test_msg ("handle_validate_remote_identity: timed out on empty queue\n");
+      break;
+    case TAKE_MESSAGE_TIMEOUT_NONEMPTY:
+      print_test_msg ("handle_validate_remote_identity: timed out on non-empty queue\n");
+      break;
+  }
 }
 
-static void handle_validate_local_identity (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, dds_duration_t timeout)
+static void handle_validate_local_identity (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, dds_time_t abstimeout)
 {
- struct message *msg = test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_VALIDATE_LOCAL_IDENTITY, 0, 0, 0, timeout);
+  struct message *msg;
+  switch (test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_VALIDATE_LOCAL_IDENTITY, 0, 0, 0, abstimeout, &msg))
+  {
+    case TAKE_MESSAGE_OK:
+      break;
+    case TAKE_MESSAGE_TIMEOUT_EMPTY:
+      print_test_msg ("handle_validate_local_identity: timed out on empty queue\n");
+      break;
+    case TAKE_MESSAGE_TIMEOUT_NONEMPTY:
+      print_test_msg ("handle_validate_local_identity: timed out on non-empty queue\n");
+      break;
+  }
   CU_ASSERT_FATAL (msg != NULL);
   CU_ASSERT_FATAL ((msg->result == DDS_SECURITY_VALIDATION_OK) != exp_localid_fail);
   if (exp_localid_fail && exp_localid_msg)
@@ -234,12 +291,15 @@ static void handle_validate_local_identity (dds_domainid_t domain_id, bool exp_l
     CU_ASSERT_FATAL (msg->err_msg && strstr (msg->err_msg, exp_localid_msg) != NULL);
   }
   else
+  {
     add_local_identity (msg->lidHandle, &msg->lguid);
+  }
   test_authentication_plugin_release_msg (msg);
 }
 
 void validate_handshake (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, struct Handshake *hs_list[], int *nhs, dds_duration_t timeout)
 {
+  dds_time_t abstimeout = dds_time() + timeout;
   clear_stores ();
 
   if (nhs)
@@ -247,10 +307,10 @@ void validate_handshake (dds_domainid_t domain_id, bool exp_localid_fail, const 
   if (hs_list)
     *hs_list = NULL;
 
-  handle_validate_local_identity (domain_id, exp_localid_fail, exp_localid_msg, timeout);
+  handle_validate_local_identity (domain_id, exp_localid_fail, exp_localid_msg, abstimeout);
   if (!exp_localid_fail)
   {
-    handle_validate_remote_identity (domain_id, localIdentityList[0].handle, 1, timeout);
+    handle_validate_remote_identity (domain_id, localIdentityList[0].handle, 1, abstimeout);
     for (int n = 0; n < numHandshake; n++)
     {
       struct Handshake *hs = &handshakeList[n];
