@@ -82,9 +82,6 @@ inline void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x) {
   __sync_fetch_and_add (&x->v, 1);
 }
 #endif
-inline void ddsrt_atomic_incptr (volatile ddsrt_atomic_uintptr_t *x) {
-  __sync_fetch_and_add (&x->v, 1);
-}
 inline uint32_t ddsrt_atomic_inc32_ov (volatile ddsrt_atomic_uint32_t *x) {
   return __sync_fetch_and_add (&x->v, 1);
 }
@@ -96,9 +93,6 @@ inline uint64_t ddsrt_atomic_inc64_nv (volatile ddsrt_atomic_uint64_t *x) {
   return __sync_add_and_fetch (&x->v, 1);
 }
 #endif
-inline uintptr_t ddsrt_atomic_incptr_nv (volatile ddsrt_atomic_uintptr_t *x) {
-  return __sync_add_and_fetch (&x->v, 1);
-}
 
 /* DEC */
 
@@ -110,9 +104,6 @@ inline void ddsrt_atomic_dec64 (volatile ddsrt_atomic_uint64_t *x) {
   __sync_fetch_and_sub (&x->v, 1);
 }
 #endif
-inline void ddsrt_atomic_decptr (volatile ddsrt_atomic_uintptr_t *x) {
-  __sync_fetch_and_sub (&x->v, 1);
-}
 inline uint32_t ddsrt_atomic_dec32_nv (volatile ddsrt_atomic_uint32_t *x) {
   return __sync_sub_and_fetch (&x->v, 1);
 }
@@ -121,9 +112,6 @@ inline uint64_t ddsrt_atomic_dec64_nv (volatile ddsrt_atomic_uint64_t *x) {
   return __sync_sub_and_fetch (&x->v, 1);
 }
 #endif
-inline uintptr_t ddsrt_atomic_decptr_nv (volatile ddsrt_atomic_uintptr_t *x) {
-  return __sync_sub_and_fetch (&x->v, 1);
-}
 inline uint32_t ddsrt_atomic_dec32_ov (volatile ddsrt_atomic_uint32_t *x) {
   return __sync_fetch_and_sub (&x->v, 1);
 }
@@ -132,9 +120,6 @@ inline uint64_t ddsrt_atomic_dec64_ov (volatile ddsrt_atomic_uint64_t *x) {
   return __sync_fetch_and_sub (&x->v, 1);
 }
 #endif
-inline uintptr_t ddsrt_atomic_decptr_ov (volatile ddsrt_atomic_uintptr_t *x) {
-  return __sync_fetch_and_sub (&x->v, 1);
-}
 
 /* ADD */
 
@@ -146,12 +131,6 @@ inline void ddsrt_atomic_add64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   __sync_fetch_and_add (&x->v, v);
 }
 #endif
-inline void ddsrt_atomic_addptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  __sync_fetch_and_add (&x->v, v);
-}
-inline void ddsrt_atomic_addvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
-  ddsrt_atomic_addptr ((volatile ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
-}
 inline uint32_t ddsrt_atomic_add32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_fetch_and_add (&x->v, v);
 }
@@ -163,12 +142,6 @@ inline uint64_t ddsrt_atomic_add64_nv (volatile ddsrt_atomic_uint64_t *x, uint64
   return __sync_add_and_fetch (&x->v, v);
 }
 #endif
-inline uintptr_t ddsrt_atomic_addptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_add_and_fetch (&x->v, v);
-}
-inline void *ddsrt_atomic_addvoidp_nv (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
-  return (void *) ddsrt_atomic_addptr_nv ((volatile ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
-}
 
 /* SUB */
 
@@ -180,12 +153,6 @@ inline void ddsrt_atomic_sub64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   __sync_fetch_and_sub (&x->v, v);
 }
 #endif
-inline void ddsrt_atomic_subptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  __sync_fetch_and_sub (&x->v, v);
-}
-inline void ddsrt_atomic_subvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
-  ddsrt_atomic_subptr ((volatile ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
-}
 inline uint32_t ddsrt_atomic_sub32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_fetch_and_sub (&x->v, v);
 }
@@ -197,12 +164,6 @@ inline uint64_t ddsrt_atomic_sub64_nv (volatile ddsrt_atomic_uint64_t *x, uint64
   return __sync_sub_and_fetch (&x->v, v);
 }
 #endif
-inline uintptr_t ddsrt_atomic_subptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_sub_and_fetch (&x->v, v);
-}
-inline void *ddsrt_atomic_subvoidp_nv (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
-  return (void *) ddsrt_atomic_subptr_nv ((volatile ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
-}
 
 /* AND */
 
@@ -214,9 +175,6 @@ inline void ddsrt_atomic_and64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   __sync_fetch_and_and (&x->v, v);
 }
 #endif
-inline void ddsrt_atomic_andptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  __sync_fetch_and_and (&x->v, v);
-}
 inline uint32_t ddsrt_atomic_and32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_fetch_and_and (&x->v, v);
 }
@@ -225,9 +183,6 @@ inline uint64_t ddsrt_atomic_and64_ov (volatile ddsrt_atomic_uint64_t *x, uint64
   return __sync_fetch_and_and (&x->v, v);
 }
 #endif
-inline uintptr_t ddsrt_atomic_andptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_fetch_and_and (&x->v, v);
-}
 inline uint32_t ddsrt_atomic_and32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_and_and_fetch (&x->v, v);
 }
@@ -236,9 +191,6 @@ inline uint64_t ddsrt_atomic_and64_nv (volatile ddsrt_atomic_uint64_t *x, uint64
   return __sync_and_and_fetch (&x->v, v);
 }
 #endif
-inline uintptr_t ddsrt_atomic_andptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_and_and_fetch (&x->v, v);
-}
 
 /* OR */
 
@@ -250,9 +202,6 @@ inline void ddsrt_atomic_or64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   __sync_fetch_and_or (&x->v, v);
 }
 #endif
-inline void ddsrt_atomic_orptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  __sync_fetch_and_or (&x->v, v);
-}
 inline uint32_t ddsrt_atomic_or32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_fetch_and_or (&x->v, v);
 }
@@ -261,9 +210,6 @@ inline uint64_t ddsrt_atomic_or64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_
   return __sync_fetch_and_or (&x->v, v);
 }
 #endif
-inline uintptr_t ddsrt_atomic_orptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_fetch_and_or (&x->v, v);
-}
 inline uint32_t ddsrt_atomic_or32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_or_and_fetch (&x->v, v);
 }
@@ -272,9 +218,6 @@ inline uint64_t ddsrt_atomic_or64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_
   return __sync_or_and_fetch (&x->v, v);
 }
 #endif
-inline uintptr_t ddsrt_atomic_orptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_or_and_fetch (&x->v, v);
-}
 
 /* CAS */
 

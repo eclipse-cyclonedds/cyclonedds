@@ -37,9 +37,6 @@ inline void ddsrt_atomic_inc32 (volatile ddsrt_atomic_uint32_t *x) {
 inline void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x) {
   atomic_inc_64 (&x->v);
 }
-inline void ddsrt_atomic_incptr (volatile ddsrt_atomic_uintptr_t *x) {
-  atomic_inc_ulong (&x->v);
-}
 inline uint32_t ddsrt_atomic_inc32_ov (volatile ddsrt_atomic_uint32_t *x) {
   uint32_t oldval, newval;
   do { oldval = x->v; newval = oldval + 1; } while (atomic_cas_32 (&x->v, oldval, newval) != oldval);
@@ -51,9 +48,6 @@ inline uint32_t ddsrt_atomic_inc32_nv (volatile ddsrt_atomic_uint32_t *x) {
 inline uint64_t ddsrt_atomic_inc64_nv (volatile ddsrt_atomic_uint64_t *x) {
   return atomic_inc_64_nv (&x->v);
 }
-inline uintptr_t ddsrt_atomic_incptr_nv (volatile ddsrt_atomic_uintptr_t *x) {
-  return atomic_inc_ulong_nv (&x->v);
-}
 
 /* DEC */
 
@@ -63,17 +57,11 @@ inline void ddsrt_atomic_dec32 (volatile ddsrt_atomic_uint32_t *x) {
 inline void ddsrt_atomic_dec64 (volatile ddsrt_atomic_uint64_t *x) {
   atomic_dec_64 (&x->v);
 }
-inline void ddsrt_atomic_decptr (volatile ddsrt_atomic_uintptr_t *x) {
-  atomic_dec_ulong (&x->v);
-}
 inline uint32_t ddsrt_atomic_dec32_nv (volatile ddsrt_atomic_uint32_t *x) {
   return atomic_dec_32_nv (&x->v);
 }
 inline uint64_t ddsrt_atomic_dec64_nv (volatile ddsrt_atomic_uint64_t *x) {
   return atomic_dec_64_nv (&x->v);
-}
-inline uintptr_t ddsrt_atomic_decptr_nv (volatile ddsrt_atomic_uintptr_t *x) {
-  return atomic_dec_ulong_nv (&x->v);
 }
 inline uint32_t ddsrt_atomic_dec32_ov (volatile ddsrt_atomic_uint32_t *x) {
   uint32_t oldval, newval;
@@ -82,11 +70,6 @@ inline uint32_t ddsrt_atomic_dec32_ov (volatile ddsrt_atomic_uint32_t *x) {
 }
 inline uint64_t ddsrt_atomic_dec64_ov (volatile ddsrt_atomic_uint64_t *x) {
   uint64_t oldval, newval;
-  do { oldval = x->v; newval = oldval - 1; } while (atomic_cas_64 (&x->v, oldval, newval) != oldval);
-  return oldval;
-}
-inline uintptr_t ddsrt_atomic_decptr_ov (volatile ddsrt_atomic_uintptr_t *x) {
-  uintptr_t oldval, newval;
   do { oldval = x->v; newval = oldval - 1; } while (atomic_cas_64 (&x->v, oldval, newval) != oldval);
   return oldval;
 }
@@ -99,12 +82,6 @@ inline void ddsrt_atomic_add32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
 inline void ddsrt_atomic_add64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   atomic_add_64 (&x->v, v);
 }
-inline void ddsrt_atomic_addptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  atomic_add_long (&x->v, v);
-}
-inline void ddsrt_atomic_addvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
-  atomic_add_ptr (&x->v, v);
-}
 inline uint32_t ddsrt_atomic_add32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return atomic_add_32_nv (&x->v, v) - v;
 }
@@ -113,12 +90,6 @@ inline uint32_t ddsrt_atomic_add32_nv (volatile ddsrt_atomic_uint32_t *x, uint32
 }
 inline uint64_t ddsrt_atomic_add64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   return atomic_add_64_nv (&x->v, v);
-}
-inline uintptr_t ddsrt_atomic_addptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return atomic_add_long_nv (&x->v, v);
-}
-inline void *ddsrt_atomic_addvoidp_nv (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
-  return atomic_add_ptr_nv (&x->v, v);
 }
 
 /* SUB */
@@ -129,12 +100,6 @@ inline void ddsrt_atomic_sub32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
 inline void ddsrt_atomic_sub64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   atomic_add_64 (&x->v, -v);
 }
-inline void ddsrt_atomic_subptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  atomic_add_long (&x->v, -v);
-}
-inline void ddsrt_atomic_subvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
-  atomic_add_ptr (&x->v, -v);
-}
 inline uint32_t ddsrt_atomic_sub32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return atomic_add_32_nv (&x->v, -v) + v;
 }
@@ -144,12 +109,6 @@ inline uint32_t ddsrt_atomic_sub32_nv (volatile ddsrt_atomic_uint32_t *x, uint32
 inline uint64_t ddsrt_atomic_sub64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   return atomic_add_64_nv (&x->v, -v);
 }
-inline uintptr_t ddsrt_atomic_subptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return atomic_add_long_nv (&x->v, -v);
-}
-inline void *ddsrt_atomic_subvoidp_nv (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
-  return atomic_add_ptr_nv (&x->v, -v);
-}
 
 /* AND */
 
@@ -158,9 +117,6 @@ inline void ddsrt_atomic_and32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
 }
 inline void ddsrt_atomic_and64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   atomic_and_64 (&x->v, v);
-}
-inline void ddsrt_atomic_andptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  atomic_and_ulong (&x->v, v);
 }
 inline uint32_t ddsrt_atomic_and32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   uint32_t oldval, newval;
@@ -172,19 +128,11 @@ inline uint64_t ddsrt_atomic_and64_ov (volatile ddsrt_atomic_uint64_t *x, uint64
   do { oldval = x->v; newval = oldval & v; } while (atomic_cas_64 (&x->v, oldval, newval) != oldval);
   return oldval;
 }
-inline uintptr_t ddsrt_atomic_andptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  uintptr_t oldval, newval;
-  do { oldval = x->v; newval = oldval & v; } while (atomic_cas_ulong (&x->v, oldval, newval) != oldval);
-  return oldval;
-}
 inline uint32_t ddsrt_atomic_and32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return atomic_and_32_nv (&x->v, v);
 }
 inline uint64_t ddsrt_atomic_and64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   return atomic_and_64_nv (&x->v, v);
-}
-inline uintptr_t ddsrt_atomic_andptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return atomic_and_ulong_nv (&x->v, v);
 }
 
 /* OR */
@@ -194,9 +142,6 @@ inline void ddsrt_atomic_or32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
 }
 inline void ddsrt_atomic_or64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   atomic_or_64 (&x->v, v);
-}
-inline void ddsrt_atomic_orptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  atomic_or_ulong (&x->v, v);
 }
 inline uint32_t ddsrt_atomic_or32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   uint32_t oldval, newval;
@@ -208,19 +153,11 @@ inline uint64_t ddsrt_atomic_or64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_
   do { oldval = x->v; newval = oldval | v; } while (atomic_cas_64 (&x->v, oldval, newval) != oldval);
   return oldval;
 }
-inline uintptr_t ddsrt_atomic_orptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  uintptr_t oldval, newval;
-  do { oldval = x->v; newval = oldval | v; } while (atomic_cas_ulong (&x->v, oldval, newval) != oldval);
-  return oldval;
-}
 inline uint32_t ddsrt_atomic_or32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return atomic_or_32_nv (&x->v, v);
 }
 inline uint64_t ddsrt_atomic_or64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   return atomic_or_64_nv (&x->v, v);
-}
-inline uintptr_t ddsrt_atomic_orptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return atomic_or_ulong_nv (&x->v, v);
 }
 
 /* CAS */
