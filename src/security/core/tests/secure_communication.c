@@ -254,7 +254,7 @@ static void test_write_read(struct domain_sec_config *domain_config,
       for (size_t w = 0; w < n_writers; w++)
       {
         size_t wr_index = pp_index * n_writers + w;
-        sync_writer_to_readers (g_pub_participants[pp_index], writers[wr_index], (uint32_t)(n_sub_domains * n_sub_participants * n_readers), DDS_SECS(2));
+        sync_writer_to_readers (g_pub_participants[pp_index], writers[wr_index], (uint32_t)(n_sub_domains * n_sub_participants * n_readers), DDS_SECS(5));
         sample.id = (int32_t) wr_index;
         printf("writer %"PRId32" writing sample %d\n", writers[wr_index], sample.id);
         ret = dds_write (writers[wr_index], &sample);
