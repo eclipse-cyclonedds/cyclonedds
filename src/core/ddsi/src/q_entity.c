@@ -750,7 +750,7 @@ static void participant_add_wr_lease_locked (struct participant * pp, const stru
   minl_prev = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
   ddsrt_fibheap_insert (&lease_fhdef_pp, &pp->leaseheap_man, wr->lease);
   minl_new = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
-  /* if inserted lease is new shortest lease */
+  /* ensure pp->minl_man is equivalent to min(leaseheap_man) */
   if (minl_prev != minl_new)
   {
     ddsrt_etime_t texp = ddsrt_etime_add_duration (ddsrt_time_elapsed (), minl_new->tdur);
@@ -770,21 +770,23 @@ static void participant_add_wr_lease_locked (struct participant * pp, const stru
 
 static void participant_remove_wr_lease_locked (struct participant * pp, struct writer * wr)
 {
-  struct lease *minl;
+  struct lease *minl_prev;
+  struct lease *minl_new;
 
   assert (wr->lease != NULL);
   assert (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
-  minl = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
+  minl_prev = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
   ddsrt_fibheap_delete (&lease_fhdef_pp, &pp->leaseheap_man, wr->lease);
-  /* if writer with min lease is removed: update participant lease to use new minimal duration */
-  if (wr->lease == minl)
+  minl_new = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
+  /* ensure pp->minl_man is equivalent to min(leaseheap_man) */
+  if (minl_prev != minl_new)
   {
-    if ((minl = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man)) != NULL)
+    if (minl_new != NULL)
     {
-      dds_duration_t trem = minl->tdur - wr->lease->tdur;
+      dds_duration_t trem = minl_new->tdur - minl_prev->tdur;
       assert (trem >= 0);
       ddsrt_etime_t texp = ddsrt_etime_add_duration (ddsrt_time_elapsed(), trem);
-      struct lease *lnew = lease_new (texp, minl->tdur, minl->entity);
+      struct lease *lnew = lease_new (texp, minl_new->tdur, minl_new->entity);
       participant_replace_minl (pp, lnew);
       lease_register (lnew);
     }
@@ -4692,7 +4694,7 @@ static void proxy_participant_add_pwr_lease_locked (struct proxy_participant * p
   minl_prev = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
   ddsrt_fibheap_insert (&lease_fhdef_pp, lh, pwr->lease);
   minl_new = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
-  /* if inserted lease is new shortest lease */
+  /* ensure proxypp->minl_man/minl_auto is equivalent to min(leaseheap_man/auto) */
   if (proxypp->owns_lease && minl_prev != minl_new)
   {
     ddsrt_etime_t texp = ddsrt_etime_add_duration (ddsrt_time_elapsed (), minl_new->tdur);
@@ -4713,24 +4715,26 @@ static void proxy_participant_add_pwr_lease_locked (struct proxy_participant * p
 
 static void proxy_participant_remove_pwr_lease_locked (struct proxy_participant * proxypp, struct proxy_writer * pwr)
 {
-  struct lease *minl;
+  struct lease *minl_prev;
+  struct lease *minl_new;
   bool manbypp;
   ddsrt_fibheap_t *lh;
 
   assert (pwr->lease != NULL);
   manbypp = (pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
   lh = manbypp ? &proxypp->leaseheap_man : &proxypp->leaseheap_auto;
-  minl = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
+  minl_prev = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
   ddsrt_fibheap_delete (&lease_fhdef_pp, lh, pwr->lease);
-  /* if pwr with min lease is removed: update proxypp lease to use new minimal duration */
-  if (proxypp->owns_lease && pwr->lease == minl)
+  minl_new = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
+  /* ensure proxypp->minl_man/minl_auto is equivalent to min(leaseheap_man/auto) */
+  if (proxypp->owns_lease && minl_prev != minl_new)
   {
-    if ((minl = ddsrt_fibheap_min (&lease_fhdef_pp, lh)) != NULL)
+    if (minl_new != NULL)
     {
-      dds_duration_t trem = minl->tdur - pwr->lease->tdur;
+      dds_duration_t trem = minl_new->tdur - minl_prev->tdur;
       assert (trem >= 0);
       ddsrt_etime_t texp = ddsrt_etime_add_duration (ddsrt_time_elapsed(), trem);
-      struct lease *lnew = lease_new (texp, minl->tdur, minl->entity);
+      struct lease *lnew = lease_new (texp, minl_new->tdur, minl_new->entity);
       proxy_participant_replace_minl (proxypp, manbypp, lnew);
       lease_register (lnew);
     }
