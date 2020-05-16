@@ -764,28 +764,17 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, dds
 
   maybe_add_pp_as_meta_to_as_disc (gv, as_meta);
 
-  new_proxy_participant
-  (
-    gv,
-    &datap->participant_guid,
-    builtin_endpoint_set,
-    &privileged_pp_guid,
-    as_default,
-    as_meta,
-    datap,
-    lease_duration,
-    rst->vendor,
-    custom_flags,
-    timestamp,
-    seq
-  );
-
-  /* Force transmission of SPDP messages - we're not very careful
-     in avoiding the processing of SPDP packets addressed to others
-     so filter here */
+  if (!new_proxy_participant (gv, &datap->participant_guid, builtin_endpoint_set, &privileged_pp_guid, as_default, as_meta, datap, lease_duration, rst->vendor, custom_flags, timestamp, seq))
   {
-    int have_dst =
-      (rst->dst_guid_prefix.u[0] != 0 || rst->dst_guid_prefix.u[1] != 0 || rst->dst_guid_prefix.u[2] != 0);
+    /* If no proxy participant was created, don't respond */
+    return 0;
+  }
+  else
+  {
+    /* Force transmission of SPDP messages - we're not very careful
+       in avoiding the processing of SPDP packets addressed to others
+       so filter here */
+    int have_dst = (rst->dst_guid_prefix.u[0] != 0 || rst->dst_guid_prefix.u[1] != 0 || rst->dst_guid_prefix.u[2] != 0);
     if (!have_dst)
     {
       GVLOGDISC ("broadcasted SPDP packet -> answering");
@@ -795,27 +784,27 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, dds
     {
       GVLOGDISC ("directed SPDP packet -> not responding\n");
     }
-  }
 
-  if (custom_flags & CF_PARTICIPANT_IS_DDSI2)
-  {
-    /* If we just discovered DDSI2, make sure any existing
-       participants served by it are made dependent on it */
-    make_participants_dependent_on_ddsi2 (gv, &datap->participant_guid, timestamp);
-  }
-  else if (privileged_pp_guid.prefix.u[0] || privileged_pp_guid.prefix.u[1] || privileged_pp_guid.prefix.u[2])
-  {
-    /* If we just created a participant dependent on DDSI2, make sure
-       DDSI2 still exists.  There is a risk of racing the lease expiry
-       of DDSI2. */
-    if (entidx_lookup_proxy_participant_guid (gv->entity_index, &privileged_pp_guid) == NULL)
+    if (custom_flags & CF_PARTICIPANT_IS_DDSI2)
     {
-      GVLOGDISC ("make_participants_dependent_on_ddsi2: ddsi2 "PGUIDFMT" is no more, delete "PGUIDFMT"\n",
-                 PGUID (privileged_pp_guid), PGUID (datap->participant_guid));
-      delete_proxy_participant_by_guid (gv, &datap->participant_guid, timestamp, 1);
+      /* If we just discovered DDSI2, make sure any existing
+         participants served by it are made dependent on it */
+      make_participants_dependent_on_ddsi2 (gv, &datap->participant_guid, timestamp);
     }
+    else if (privileged_pp_guid.prefix.u[0] || privileged_pp_guid.prefix.u[1] || privileged_pp_guid.prefix.u[2])
+    {
+      /* If we just created a participant dependent on DDSI2, make sure
+         DDSI2 still exists.  There is a risk of racing the lease expiry
+         of DDSI2. */
+      if (entidx_lookup_proxy_participant_guid (gv->entity_index, &privileged_pp_guid) == NULL)
+      {
+        GVLOGDISC ("make_participants_dependent_on_ddsi2: ddsi2 "PGUIDFMT" is no more, delete "PGUIDFMT"\n",
+                   PGUID (privileged_pp_guid), PGUID (datap->participant_guid));
+        delete_proxy_participant_by_guid (gv, &datap->participant_guid, timestamp, 1);
+      }
+    }
+    return 1;
   }
-  return 1;
 }
 
 static void handle_SPDP (const struct receiver_state *rst, ddsi_entityid_t pwr_entityid, seqno_t seq, const struct ddsi_serdata *serdata)
@@ -1102,7 +1091,7 @@ static struct proxy_participant *implicitly_create_proxypp (struct ddsi_domaingv
        doing anything about (1).  That means we fall back to the legacy mode of locally generating
        GIDs but leaving the system id unchanged if the remote is OSPL.  */
     actual_vendorid = (datap->present & PP_VENDORID) ?  datap->vendorid : vendorid;
-    new_proxy_participant(gv, ppguid, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, DDS_INFINITY, actual_vendorid, CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
+    (void) new_proxy_participant(gv, ppguid, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, DDS_INFINITY, actual_vendorid, CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
   }
   else if (ppguid->prefix.u[0] == src_guid_prefix->u[0] && vendor_is_eclipse_or_opensplice (vendorid))
   {
