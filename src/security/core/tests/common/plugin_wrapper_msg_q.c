@@ -95,25 +95,26 @@ int message_matched(struct message *msg, message_kind_t kind, DDS_Security_Ident
     (!hsHandle || msg->hsHandle == hsHandle);
 }
 
-struct message * take_message(struct message_queue *queue, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle, dds_duration_t timeout)
+enum take_message_result take_message(struct message_queue *queue, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle, dds_time_t abstimeout, struct message **msg)
 {
-  struct message *msg = NULL, *cur, *prev;
-  int r = 1;
+  struct message *cur, *prev;
+  enum take_message_result ret = TAKE_MESSAGE_OK;
+  *msg = NULL;
   ddsrt_mutex_lock(&queue->lock);
   do
   {
     cur = queue->head;
     prev = NULL;
-    while (cur && !msg)
+    while (cur && *msg == NULL)
     {
       if (message_matched(cur, kind, lidHandle, ridHandle, hsHandle))
       {
-        msg = cur;
+        *msg = cur;
         if (prev)
-          prev->next = msg->next;
+          prev->next = cur->next;
         else
-          queue->head = msg->next;
-        if (queue->tail == msg)
+          queue->head = cur->next;
+        if (queue->tail == cur)
           queue->tail = prev;
       }
       else
@@ -122,13 +123,13 @@ struct message * take_message(struct message_queue *queue, message_kind_t kind, 
         cur = cur->next;
       }
     }
-    if (!msg)
+    if (*msg == NULL)
     {
-      if (!ddsrt_cond_waitfor(&queue->cond, &queue->lock, timeout))
-        r = 0;
+      if (!ddsrt_cond_waituntil(&queue->cond, &queue->lock, abstimeout))
+        ret = queue->head ? TAKE_MESSAGE_TIMEOUT_NONEMPTY : TAKE_MESSAGE_TIMEOUT_EMPTY;
     }
-  } while (r && !msg);
+  } while (ret == TAKE_MESSAGE_OK && *msg == NULL);
 
   ddsrt_mutex_unlock(&queue->lock);
-  return msg;
+  return ret;
 }

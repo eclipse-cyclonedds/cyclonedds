@@ -700,7 +700,7 @@ static void test_encoding_mismatch(
 
   struct Handshake *hs_list;
   int nhs;
-  validate_handshake (DDS_DOMAINID, false, NULL, &hs_list, &nhs, DDS_MSECS(500));
+  validate_handshake (DDS_DOMAINID, false, NULL, &hs_list, &nhs, DDS_SECS(2));
   CU_ASSERT_EQUAL_FATAL (exp_hs_fail, nhs < 1);
   handshake_list_fini (hs_list, nhs);
 
@@ -799,7 +799,7 @@ static void test_readwrite_protection (
   if (!exp_pub_pp_fail && !exp_sub_pp_fail)
   {
     dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
-    validate_handshake_nofail (DDS_DOMAINID, DDS_MSECS(500));
+    validate_handshake_nofail (DDS_DOMAINID, DDS_SECS(2));
     rd_wr_init_fail (g_participant[0], &pub, &pub_tp, &wr, g_participant[1], &sub, &sub_tp, &rd, topic_name, exp_pub_tp_fail, exp_wr_fail, exp_sub_tp_fail, exp_rd_fail);
     if (!exp_pub_tp_fail && !exp_wr_fail && !exp_sub_tp_fail && !exp_rd_fail)
       sync_writer_to_readers (g_participant[0], wr, exp_sync_fail ? 0 : 1, DDS_SECS(1));

@@ -446,11 +446,11 @@ static struct dds_security_authentication_impl * get_impl_for_domain(dds_domaini
   return NULL;
 }
 
-struct message * test_authentication_plugin_take_msg(dds_domainid_t domain_id, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle, dds_duration_t timeout)
+enum take_message_result test_authentication_plugin_take_msg(dds_domainid_t domain_id, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle, dds_time_t abstimeout, struct message **msg)
 {
   struct dds_security_authentication_impl *impl = get_impl_for_domain(domain_id);
   assert(impl);
-  return take_message(&impl->msg_queue, kind, lidHandle, ridHandle, hsHandle, timeout);
+  return take_message(&impl->msg_queue, kind, lidHandle, ridHandle, hsHandle, abstimeout, msg);
 }
 
 void test_authentication_plugin_release_msg(struct message *msg)

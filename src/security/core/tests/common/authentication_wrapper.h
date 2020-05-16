@@ -33,7 +33,7 @@ SECURITY_EXPORT int finalize_test_authentication_missing_func(void *context);
 SECURITY_EXPORT int init_test_authentication_init_error(const char *argument, void **context, struct ddsi_domaingv *gv);
 SECURITY_EXPORT int finalize_test_authentication_init_error(void *context);
 
-SECURITY_EXPORT struct message * test_authentication_plugin_take_msg(dds_domainid_t domain_id, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle, dds_duration_t timeout);
+SECURITY_EXPORT enum take_message_result test_authentication_plugin_take_msg(dds_domainid_t domain_id, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle, dds_time_t abstimeout, struct message **msg);
 SECURITY_EXPORT void test_authentication_plugin_release_msg(struct message *msg);
 
 #endif /* SECURITY_CORE_TEST_AUTHENTICATION_WRAPPER_H_ */
