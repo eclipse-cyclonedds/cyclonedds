@@ -390,6 +390,7 @@ void handshake_list_fini (struct Handshake *hs_list, int nhs)
 
 void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_count, dds_duration_t timeout)
 {
+  dds_time_t abstimeout = dds_time() + timeout;
   dds_attach_t triggered;
   dds_entity_t ws = dds_create_waitset (pp_wr);
   CU_ASSERT_FATAL (ws > 0);
@@ -399,7 +400,7 @@ void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_c
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   while (true)
   {
-    ret = dds_waitset_wait (ws, &triggered, 1, timeout);
+    ret = dds_waitset_wait_until (ws, &triggered, 1, abstimeout);
     CU_ASSERT_EQUAL_FATAL (exp_count > 0, ret >= 1);
     if (exp_count > 0)
       CU_ASSERT_EQUAL_FATAL (wr, (dds_entity_t)(intptr_t) triggered);
@@ -414,6 +415,7 @@ void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_c
 
 void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_count, dds_duration_t timeout)
 {
+  dds_time_t abstimeout = dds_time() + timeout;
   dds_attach_t triggered;
   dds_entity_t ws = dds_create_waitset (pp_rd);
   CU_ASSERT_FATAL (ws > 0);
@@ -423,7 +425,7 @@ void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_c
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   while (true)
   {
-    ret = dds_waitset_wait (ws, &triggered, 1, timeout);
+    ret = dds_waitset_wait_until (ws, &triggered, 1, abstimeout);
     CU_ASSERT_EQUAL_FATAL (exp_count > 0, ret >= 1);
     if (exp_count > 0)
       CU_ASSERT_EQUAL_FATAL (rd, (dds_entity_t)(intptr_t) triggered);
