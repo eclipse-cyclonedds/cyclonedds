@@ -106,11 +106,8 @@ CU_Test(ddsrt_atomics, increment)
 #if DDSRT_HAVE_ATOMIC64
   volatile ddsrt_atomic_uint64_t uint64 = DDSRT_ATOMIC_UINT64_INIT(0);
 #endif
-  volatile ddsrt_atomic_uintptr_t uintptr = DDSRT_ATOMIC_UINTPTR_INIT(0);
   _osuint32 = 0;
   _osuint64 = 0;
-  _osaddress = 0;
-  _osvoidp = (uintptr_t *)0;
 
   /* Test os_inc32 */
   ddsrt_atomic_inc32 (&uint32);
@@ -122,10 +119,6 @@ CU_Test(ddsrt_atomics, increment)
   CU_ASSERT (ddsrt_atomic_ld64 (&uint64) == 1);
 #endif
 
-  /* Test os_incptr */
-  ddsrt_atomic_incptr (&uintptr);
-  CU_ASSERT (ddsrt_atomic_ldptr (&uintptr) == 1);
-
   /* Test ddsrt_atomic_inc32_nv */
   ddsrt_atomic_st32 (&uint32, _osuint32);
   CU_ASSERT (ddsrt_atomic_inc32_nv (&uint32) == 1);
@@ -135,10 +128,6 @@ CU_Test(ddsrt_atomics, increment)
   ddsrt_atomic_st64 (&uint64, _osuint64);
   CU_ASSERT (ddsrt_atomic_inc64_nv (&uint64) == 1);
 #endif
-
-  /* Test ddsrt_atomic_incptr_nv */
-  ddsrt_atomic_stptr (&uintptr, _osaddress);
-  CU_ASSERT (ddsrt_atomic_incptr_nv(&uintptr) == 1);
 }
 
 CU_Test(ddsrt_atomics, decrement)
@@ -147,11 +136,8 @@ CU_Test(ddsrt_atomics, decrement)
 #if DDSRT_HAVE_ATOMIC64
   volatile ddsrt_atomic_uint64_t uint64 = DDSRT_ATOMIC_UINT64_INIT(1);
 #endif
-  volatile ddsrt_atomic_uintptr_t uintptr = DDSRT_ATOMIC_UINTPTR_INIT(1);
   _osuint32 = 1;
   _osuint64 = 1;
-  _osaddress = 1;
-  _osvoidp = (uintptr_t *)1;
 
   /* Test ddsrt_atomic_dec32 */
   ddsrt_atomic_dec32 (&uint32);
@@ -163,10 +149,6 @@ CU_Test(ddsrt_atomics, decrement)
   CU_ASSERT (ddsrt_atomic_ld64 (&uint64) == 0);
 #endif
 
-  /* Test ddsrt_atomic_decptr */
-  ddsrt_atomic_decptr (&uintptr);
-  CU_ASSERT (ddsrt_atomic_ldptr (&uintptr) == 0);
-
   /* Test ddsrt_atomic_dec32_nv */
   ddsrt_atomic_st32 (&uint32, _osuint32);
   CU_ASSERT (ddsrt_atomic_dec32_nv (&uint32) == 0);
@@ -176,10 +158,6 @@ CU_Test(ddsrt_atomics, decrement)
   ddsrt_atomic_st64 (&uint64, _osuint64);
   CU_ASSERT (ddsrt_atomic_dec64_nv (&uint64) == 0);
 #endif
-
-  /* Test ddsrt_atomic_decptr_nv */
-  ddsrt_atomic_stptr (&uintptr, _osaddress);
-  CU_ASSERT (ddsrt_atomic_decptr_nv(&uintptr) == 0);
 }
 
 CU_Test(ddsrt_atomics, add)
@@ -188,12 +166,8 @@ CU_Test(ddsrt_atomics, add)
 #if DDSRT_HAVE_ATOMIC64
   volatile ddsrt_atomic_uint64_t uint64 = DDSRT_ATOMIC_UINT64_INIT(1);
 #endif
-  volatile ddsrt_atomic_uintptr_t uintptr = DDSRT_ATOMIC_UINTPTR_INIT(1);
-  volatile ddsrt_atomic_voidp_t uintvoidp = DDSRT_ATOMIC_VOIDP_INIT((uintptr_t)1);
   _osuint32 = 2;
   _osuint64 = 2;
-  _osaddress = 2;
-  _ptrdiff = 2;
 
   /* Test ddsrt_atomic_add32 */
   ddsrt_atomic_add32 (&uint32, _osuint32);
@@ -205,14 +179,6 @@ CU_Test(ddsrt_atomics, add)
   CU_ASSERT (ddsrt_atomic_ld64 (&uint64) == 3);
 #endif
 
-  /* Test ddsrt_atomic_addptr */
-  ddsrt_atomic_addptr (&uintptr, _osaddress);
-  CU_ASSERT (ddsrt_atomic_ldptr (&uintptr) == 3);
-
-  /* Test ddsrt_atomic_addvoidp */
-  ddsrt_atomic_addvoidp (&uintvoidp, _ptrdiff);
-  CU_ASSERT (ddsrt_atomic_ldvoidp (&uintvoidp) == (uintptr_t*)3);
-
   /* Test ddsrt_atomic_add32_nv */
   ddsrt_atomic_st32 (&uint32, 1);
   CU_ASSERT (ddsrt_atomic_add32_nv (&uint32, _osuint32) == 3);
@@ -222,14 +188,6 @@ CU_Test(ddsrt_atomics, add)
   ddsrt_atomic_st64 (&uint64, 1);
   CU_ASSERT (ddsrt_atomic_add64_nv (&uint64, _osuint64) == 3);
 #endif
-
-  /* Test ddsrt_atomic_addptr_nv */
-  ddsrt_atomic_stptr (&uintptr, 1);
-  CU_ASSERT (ddsrt_atomic_addptr_nv (&uintptr, _osaddress) == 3);
-
-  /* Test ddsrt_atomic_addvoidp_nv */
-  ddsrt_atomic_stvoidp (&uintvoidp, (uintptr_t*)1);
-  CU_ASSERT (ddsrt_atomic_addvoidp_nv (&uintvoidp, _ptrdiff) == (uintptr_t*)3);
 }
 
 CU_Test(ddsrt_atomics, subtract)
@@ -238,12 +196,8 @@ CU_Test(ddsrt_atomics, subtract)
 #if DDSRT_HAVE_ATOMIC64
   volatile ddsrt_atomic_uint64_t uint64 = DDSRT_ATOMIC_UINT64_INIT(5);
 #endif
-  volatile ddsrt_atomic_uintptr_t uintptr = DDSRT_ATOMIC_UINTPTR_INIT(5);
-  volatile ddsrt_atomic_voidp_t uintvoidp = DDSRT_ATOMIC_VOIDP_INIT((uintptr_t)5);
   _osuint32 = 2;
   _osuint64 = 2;
-  _osaddress = 2;
-  _ptrdiff = 2;
 
   /* Test ddsrt_atomic_sub32 */
   ddsrt_atomic_sub32 (&uint32, _osuint32);
@@ -255,14 +209,6 @@ CU_Test(ddsrt_atomics, subtract)
   CU_ASSERT (ddsrt_atomic_ld64 (&uint64) == 3);
 #endif
 
-  /* Test ddsrt_atomic_subptr */
-  ddsrt_atomic_subptr (&uintptr, _osaddress);
-  CU_ASSERT (ddsrt_atomic_ldptr (&uintptr) == 3);
-
-  /* Test ddsrt_atomic_subvoidp */
-  ddsrt_atomic_subvoidp (&uintvoidp, _ptrdiff);
-  CU_ASSERT (ddsrt_atomic_ldvoidp (&uintvoidp) == (uintptr_t*)3);
-
   /* Test ddsrt_atomic_sub32_nv */
   ddsrt_atomic_st32 (&uint32, 5);
   CU_ASSERT (ddsrt_atomic_sub32_nv (&uint32, _osuint32) == 3);
@@ -272,14 +218,6 @@ CU_Test(ddsrt_atomics, subtract)
   ddsrt_atomic_st64 (&uint64, 5);
   CU_ASSERT (ddsrt_atomic_sub64_nv (&uint64, _osuint64) == 3);
 #endif
-
-  /* Test ddsrt_atomic_subptr_nv */
-  ddsrt_atomic_stptr (&uintptr, 5);
-  CU_ASSERT (ddsrt_atomic_subptr_nv (&uintptr, _osaddress) == 3);
-
-  /* Test ddsrt_atomic_subvoidp_nv */
-  ddsrt_atomic_stvoidp (&uintvoidp, (uintptr_t*)5);
-  CU_ASSERT (ddsrt_atomic_subvoidp_nv (&uintvoidp, _ptrdiff) == (void *)3);
 }
 
 CU_Test(ddsrt_atomics, and)
@@ -295,10 +233,8 @@ CU_Test(ddsrt_atomics, and)
 #if DDSRT_HAVE_ATOMIC64
   volatile ddsrt_atomic_uint64_t uint64 = DDSRT_ATOMIC_UINT64_INIT(150);
 #endif
-  volatile ddsrt_atomic_uintptr_t uintptr = DDSRT_ATOMIC_UINTPTR_INIT(150);
   _osuint32 = 500;
   _osuint64 = 500;
-  _osaddress = 500;
 
   /* Test ddsrt_atomic_and32 */
   ddsrt_atomic_and32 (&uint32, _osuint32);
@@ -310,10 +246,6 @@ CU_Test(ddsrt_atomics, and)
   CU_ASSERT (ddsrt_atomic_ld64 (&uint64) == 148);
 #endif
 
-  /* Test ddsrt_atomic_andptr */
-  ddsrt_atomic_andptr (&uintptr, _osaddress);
-  CU_ASSERT (ddsrt_atomic_ldptr (&uintptr) == 148);
-
   /* Test ddsrt_atomic_and32_ov */
   CU_ASSERT (ddsrt_atomic_and32_ov (&uint32, _osuint32) == 148);
 
@@ -322,9 +254,6 @@ CU_Test(ddsrt_atomics, and)
   CU_ASSERT (ddsrt_atomic_and64_ov (&uint64, _osuint64) == 148);
 #endif
 
-  /* Test ddsrt_atomic_andptr_ov */
-  CU_ASSERT (ddsrt_atomic_andptr_ov (&uintptr, _osaddress) == 148);
-
   /* Test ddsrt_atomic_and32_nv */
   CU_ASSERT (ddsrt_atomic_and32_nv (&uint32, _osuint32) == 148);
 
@@ -332,9 +261,6 @@ CU_Test(ddsrt_atomics, and)
 #if DDSRT_HAVE_ATOMIC64
   CU_ASSERT (ddsrt_atomic_and64_nv (&uint64, _osuint64) == 148);
  #endif
-
-  /* Test ddsrt_atomic_andptr_nv */
-  CU_ASSERT (ddsrt_atomic_andptr_nv (&uintptr, _osaddress) == 148);
 }
 
 CU_Test(ddsrt_atomics, or)
@@ -350,10 +276,8 @@ CU_Test(ddsrt_atomics, or)
 #if DDSRT_HAVE_ATOMIC64
   volatile ddsrt_atomic_uint64_t uint64 = DDSRT_ATOMIC_UINT64_INIT(150);
 #endif
-  volatile ddsrt_atomic_uintptr_t uintptr = DDSRT_ATOMIC_UINTPTR_INIT(150);
   _osuint32 = 500;
   _osuint64 = 500;
-  _osaddress = 500;
 
   /* Test ddsrt_atomic_or32 */
   ddsrt_atomic_or32 (&uint32, _osuint32);
@@ -365,10 +289,6 @@ CU_Test(ddsrt_atomics, or)
   CU_ASSERT (ddsrt_atomic_ld64 (&uint64) == 502);
 #endif
 
-  /* Test ddsrt_atomic_orptr */
-  ddsrt_atomic_orptr (&uintptr, _osaddress);
-  CU_ASSERT (ddsrt_atomic_ldptr (&uintptr) == 502);
-
   /* Test ddsrt_atomic_or32_ov */
   CU_ASSERT (ddsrt_atomic_or32_ov (&uint32, _osuint32) == 502);
 
@@ -377,9 +297,6 @@ CU_Test(ddsrt_atomics, or)
   CU_ASSERT (ddsrt_atomic_or64_ov (&uint64, _osuint64) == 502);
 #endif
 
-  /* Test ddsrt_atomic_orptr_ov */
-  CU_ASSERT (ddsrt_atomic_orptr_ov (&uintptr, _osaddress) == 502);
-
   /* Test ddsrt_atomic_or32_nv */
   CU_ASSERT (ddsrt_atomic_or32_nv (&uint32, _osuint32) == 502);
 
@@ -387,7 +304,4 @@ CU_Test(ddsrt_atomics, or)
 #if DDSRT_HAVE_ATOMIC64
   CU_ASSERT (ddsrt_atomic_or64_nv (&uint64, _osuint64) == 502);
 #endif
-
-  /* Test ddsrt_atomic_orptr_nv */
-  CU_ASSERT (ddsrt_atomic_orptr_nv (&uintptr, _osaddress) == 502);
 }
