@@ -4872,7 +4872,7 @@ static void free_proxy_participant(struct proxy_participant *proxypp)
   ddsrt_free (proxypp);
 }
 
-void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const ddsi_plist_t *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq)
+bool new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const ddsi_plist_t *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq)
 {
   /* No locking => iff all participants use unique guids, and sedp
      runs on a single thread, it can't go wrong. FIXME, maybe? The
@@ -4978,7 +4978,7 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
     {
       GVWARNING ("Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
       free_proxy_participant (proxypp);
-      return;
+      return false;
     }
   }
 #endif
@@ -5004,6 +5004,7 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
     proxy_participant_create_handshakes (gv, proxypp);
   }
 #endif
+  return true;
 }
 
 int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp)
