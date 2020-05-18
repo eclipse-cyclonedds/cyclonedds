@@ -1388,20 +1388,30 @@ static int if_network_partition (struct cfgst *cfgst, void *parent, struct cfgel
   if (new == NULL)
     return -1;
   new->address_string = NULL;
+  new->as = NULL;
+  new->name = NULL;
+  new->partitionId = 0;
+  new->connected = 0;
   return 0;
 }
 
 static int if_ignored_partition (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
+  struct config_ignoredpartition_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (if_common (cfgst, parent, cfgelem, sizeof (struct config_ignoredpartition_listelem)) == NULL)
     return -1;
+  new->DCPSPartitionTopic = NULL;
   return 0;
 }
 
 static int if_partition_mapping (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  if (if_common (cfgst, parent, cfgelem, sizeof (struct config_partitionmapping_listelem)) == NULL)
+  struct config_partitionmapping_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
+  if (new == NULL)
     return -1;
+  new->DCPSPartitionTopic = NULL;
+  new->networkPartition = NULL;
+  new->partition = NULL;
   return 0;
 }
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
@@ -2937,6 +2947,7 @@ struct cfgst *config_init (const char *config, struct config *cfg, uint32_t domi
 
   /* Compatibility settings of IPv6, TCP -- a bit too complicated for
      the poor framework */
+  if (ok)
   {
     int ok1 = 1;
     switch (cfgst->cfg->transport_selector)
@@ -2946,7 +2957,7 @@ struct cfgst *config_init (const char *config, struct config *cfg, uint32_t domi
           cfgst->cfg->transport_selector = (cfgst->cfg->compat_use_ipv6 == BOOLDEF_TRUE) ? TRANS_TCP6 : TRANS_TCP;
         else
           cfgst->cfg->transport_selector = (cfgst->cfg->compat_use_ipv6 == BOOLDEF_TRUE) ? TRANS_UDP6 : TRANS_UDP;
-            break;
+        break;
       case TRANS_TCP:
         ok1 = !(cfgst->cfg->compat_tcp_enable == BOOLDEF_FALSE || cfgst->cfg->compat_use_ipv6 == BOOLDEF_TRUE);
         break;
@@ -2973,14 +2984,18 @@ struct cfgst *config_init (const char *config, struct config *cfg, uint32_t domi
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   /* Default channel gets set outside set_defaults -- a bit too
      complicated for the poor framework */
-  if (set_default_channel (cfgst->cfg) < 0)
-    ok = 0;
-  if (cfgst->cfg->channels && sort_channels_check_nodups (cfgst->cfg) < 0)
-    ok = 0;
+  if (ok)
+  {
+    if (set_default_channel (cfgst->cfg) < 0)
+      ok = 0;
+    if (cfgst->cfg->channels && sort_channels_check_nodups (cfgst->cfg) < 0)
+      ok = 0;
+  }
 #endif
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   /* Assign network partition ids */
+  if (ok)
   {
     struct config_networkpartition_listelem *p = cfgst->cfg->networkPartitions;
     cfgst->cfg->nof_networkPartitions = 0;
@@ -2994,6 +3009,7 @@ struct cfgst *config_init (const char *config, struct config *cfg, uint32_t domi
 
   /* Create links from the partitionmappings to the network partitions
      and signal errors if partitions do not exist */
+  if (ok)
   {
     struct config_partitionmapping_listelem * m = cfgst->cfg->partitionMappings;
     while (m)
