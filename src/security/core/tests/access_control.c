@@ -257,13 +257,12 @@ CU_Theory(
 }
 
 
-#define N_RD 1 // N_RD > 1 not yet implemented
 #define N_WR 3
-#define N_NODES (N_RD + N_WR)
-#define PERM_EXP_BASE 3
+#define N_NODES (1 + N_WR)
+#define PERM_EXP_BASE 2
+#define PERM_EXP_INCR 2
 /* Tests permissions configuration expiry using multiple writers, to validate
-   that a reader still received data from writers that still have valid
-   permissions config */
+   that a reader keeps receiving data from writers that have valid permissions config */
 CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
 {
   char topic_name[100];
@@ -290,10 +289,10 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
     gov[i] = PF_F COMMON_ETC_PATH ("default_governance.p7s");
     perm_ca[i] = PF_F COMMON_ETC_PATH ("default_permissions_ca.pem");
     incl_el[i] = true;
-    dds_duration_t v = DDS_SECS(i < N_RD ? 3600 : PERM_EXP_BASE + 2 * i); /* readers should not expire */
+    dds_duration_t v = DDS_SECS(i == 0 ? 3600 : PERM_EXP_BASE + PERM_EXP_INCR * i); /* reader should not expire */
     dds_time_t t_exp = ddsrt_time_add_duration (t_perm, v);
-    if (i >= N_RD)
-      print_test_msg ("w[%d] grant expires at %d.%06d\n", i - N_RD, (int32_t) (t_exp / DDS_NSECS_IN_SEC), (int32_t) (t_exp % DDS_NSECS_IN_SEC) / 1000);
+    if (i >= 1)
+      print_test_msg ("w[%d] grant expires at %d.%06d\n", i - 1, (int32_t) (t_exp / DDS_NSECS_IN_SEC), (int32_t) (t_exp % DDS_NSECS_IN_SEC) / 1000);
     grants[i] = get_permissions_grant (id_name, id_subj[i], t_perm, t_exp, rules_xml, NULL);
     ddsrt_free (id_name);
   }
@@ -307,104 +306,94 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
       id, pk, ca_list, exp_fail, NULL, NULL,
       incl_el, gov, incl_el, perm_conf, incl_el, perm_ca);
 
-  dds_qos_t * qos = get_default_test_qos ();
-  dds_entity_t rd[N_RD];
-  for (int i = 0; i < N_RD; i++)
-  {
-    dds_entity_t sub = dds_create_subscriber (g_participant[i], NULL, NULL);
-    CU_ASSERT_FATAL (sub > 0);
-    dds_entity_t sub_tp = dds_create_topic (g_participant[i], &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
-    CU_ASSERT_FATAL (sub_tp > 0);
-    rd[i] = dds_create_reader (sub, sub_tp, qos, NULL);
-    CU_ASSERT_FATAL (rd[i] > 0);
-    dds_set_status_mask (rd[i], DDS_SUBSCRIPTION_MATCHED_STATUS);
-  }
+  // create 1 reader
+  dds_qos_t * rdqos = get_default_test_qos ();
+  dds_entity_t sub = dds_create_subscriber (g_participant[0], NULL, NULL);
+  CU_ASSERT_FATAL (sub > 0);
+  dds_entity_t sub_tp = dds_create_topic (g_participant[0], &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
+  CU_ASSERT_FATAL (sub_tp > 0);
+  dds_entity_t rd = dds_create_reader (sub, sub_tp, rdqos, NULL);
+  CU_ASSERT_FATAL (rd > 0);
+  dds_set_status_mask (rd, DDS_SUBSCRIPTION_MATCHED_STATUS);
+  dds_delete_qos (rdqos);
 
+  // create N_WR writers
+  dds_qos_t * wrqos = get_default_test_qos ();
   dds_entity_t wr[N_WR];
   for (int i = 0; i < N_WR; i++)
   {
-    dds_entity_t pub = dds_create_publisher (g_participant[i + N_RD], NULL, NULL);
+    dds_entity_t pub = dds_create_publisher (g_participant[i + 1], NULL, NULL);
     CU_ASSERT_FATAL (pub > 0);
-    dds_entity_t pub_tp = dds_create_topic (g_participant[i + N_RD], &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
+    dds_entity_t pub_tp = dds_create_topic (g_participant[i + 1], &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
     CU_ASSERT_FATAL (pub_tp > 0);
-    wr[i] = dds_create_writer (pub, pub_tp, qos, NULL);
+    wr[i] = dds_create_writer (pub, pub_tp, wrqos, NULL);
     CU_ASSERT_FATAL (wr[i] > 0);
     dds_set_status_mask (wr[i], DDS_PUBLICATION_MATCHED_STATUS);
-    sync_writer_to_readers (g_participant[i + N_RD], wr[i], N_RD, DDS_SECS(2));
+    sync_writer_to_readers (g_participant[i + 1], wr[i], 1, DDS_SECS(2));
   }
-  dds_delete_qos (qos);
-  for (int i = 0; i < N_RD; i++)
-  {
-    sync_reader_to_writers (g_participant[i], rd[i], N_WR, DDS_SECS (2));
-    dds_set_status_mask (rd[i], DDS_DATA_AVAILABLE_STATUS);
-  }
+  dds_delete_qos (wrqos);
 
+  sync_reader_to_writers (g_participant[0], rd, N_WR, DDS_SECS (2));
+
+  // write data
   SecurityCoreTests_Type1 sample = { 1, 1 };
-  SecurityCoreTests_Type1 rd_sample;
-  void * samples[] = { &rd_sample };
-  dds_sample_info_t info[1];
   dds_return_t ret;
+  dds_entity_t ws = dds_create_waitset (g_participant[0]);
+  dds_entity_t gcond = dds_create_guardcondition (g_participant[0]);
+  dds_set_guardcondition (gcond, false);
+  dds_waitset_attach (ws, gcond, 0);
 
+  dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
   for (int run = 0; run < N_WR; run++)
   {
-    // sleep until 1s after next writer pp permission expires
-    dds_duration_t delay = DDS_SECS (PERM_EXP_BASE + 2 * run + 1) - (dds_time () - t_perm);
-    if (delay > 0)
-      dds_sleepfor (delay);
-
+    // wait until 1s after next writer pp permission expires
+    dds_waitset_wait_until (ws, NULL, 0, t_perm + DDS_SECS (PERM_EXP_BASE + PERM_EXP_INCR * run + 1));
     print_test_msg ("run %d\n", run);
-
-    for (int w = run; w < N_WR; w++)
+    for (int w = 0; w < N_WR; w++)
     {
       sample.id = w;
       ret = dds_write (wr[w], &sample);
-      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
       print_test_msg ("write %d\n", w);
+      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
     }
-
-    // Expect reader to receive data from writers with non-expired permissions
-    int n_samples = 0, n_invalid = 0, n_wait = 0;
-    while (n_samples + n_invalid < N_WR && n_wait < 5)
-    {
-      ret = dds_take (rd[0], samples, info, 1, 1);
-      CU_ASSERT_FATAL (ret >= 0);
-      if (ret == 0)
-      {
-        reader_wait_for_data (g_participant[0], rd[0], DDS_MSECS (200));
-        print_test_msg ("wait for data\n");
-        n_wait++;
-      }
-      else if (info[0].instance_state == DDS_IST_ALIVE)
-      {
-        print_test_msg ("recv sample %d\n", rd_sample.id);
-        n_samples++;
-      }
-      else
-      {
-        print_test_msg ("recv inv sample\n");
-        n_invalid++;
-      }
-    }
-    CU_ASSERT_EQUAL (n_samples, N_WR - run);
-    CU_ASSERT (n_invalid <= run);
   }
 
-  access_control_fini (N_NODES, NULL, 0);
+  // wait until last pp's permissions are expired
+  dds_waitset_wait_until (ws, NULL, 0, t_perm + DDS_SECS (PERM_EXP_BASE + PERM_EXP_INCR * N_WR + 1));
 
+  // check received data
+  SecurityCoreTests_Type1 * data = ddsrt_calloc (N_WR, sizeof (*data));
+  dds_sample_info_t rd_info[N_WR];
+  static void * rd_samples[N_WR];
+  for (int i = 0; i < N_WR; i++)
+    rd_samples[i] = &data[i];
+
+  for (int w = 0; w < N_WR; w++)
+  {
+    sample.id = w;
+    dds_instance_handle_t ih = dds_lookup_instance(rd, &sample);
+    CU_ASSERT_NOT_EQUAL_FATAL(ih, DDS_HANDLE_NIL);
+    ret = dds_take_instance (rd, rd_samples, rd_info, N_WR, N_WR, ih);
+    print_test_msg ("samples from writer %d: %d\n", w, ret);
+    CU_ASSERT_EQUAL_FATAL (ret, w + 1);
+    print_test_msg ("writer %d instance state: %d\n", w, rd_info[w].instance_state);
+    CU_ASSERT_EQUAL_FATAL (rd_info[w].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
+    print_test_msg ("writer %d valid data: %d\n", w, rd_info[w].valid_data);
+    CU_ASSERT_EQUAL_FATAL (rd_info[w].valid_data, true);
+  }
+
+  access_control_fini (N_NODES, (void * []) { ca, rules_xml, perm_config_str, data }, 4);
   for (int i = 0; i < N_NODES; i++)
   {
     ddsrt_free (grants[i]);
     ddsrt_free (id_subj[i]);
     ddsrt_free ((char *)id[i]);
   }
-  ddsrt_free (ca);
-  ddsrt_free (rules_xml);
-  ddsrt_free (perm_config_str);
 }
-#undef N_RD
 #undef N_WR
 #undef N_NODES
 #undef PERM_EXP_BASE
+#undef PERM_EXP_INCR
 
 #define na false
 CU_TheoryDataPoints(ddssec_access_control, hooks) = {
