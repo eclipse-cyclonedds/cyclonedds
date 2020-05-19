@@ -12,7 +12,7 @@
 
 idlc_generate(ddsperf_types ddsperf_types.idl)
 add_executable(ddsperf ddsperf.c cputime.c cputime.h netload.c netload.h)
-target_link_libraries(ddsperf ddsperf_types ddsc)
+target_link_libraries(ddsperf ddsperf_types ddsc pthread)
 
 if(WIN32)
   target_compile_definitions(ddsperf PRIVATE _CRT_SECURE_NO_WARNINGS)
