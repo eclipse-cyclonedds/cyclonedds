@@ -46,11 +46,11 @@ if(BUILD_DOCS)
     docs
     BREATHE_PROJECTS ddsc_api_docs
     BUILDER html
-    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/manual")
   add_dependencies(docs options_doc)
 
   install(
-    DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/docs"
     DESTINATION "${CMAKE_INSTALL_DOCDIR}/manual"
     COMPONENT dev)
 endif()

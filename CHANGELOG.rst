@@ -2,11 +2,27 @@
 Changelog for Eclipse Cyclone DDS
 =================================
 
-`Unreleased <https://github.com/eclipse-cyclonedds/cyclonedds/compare/0.5.1...master>`_
+`Unreleased <https://github.com/eclipse-cyclonedds/cyclonedds/compare/0.6.0...master>`_
 ---------------------------------------------------------------------------------------
+
+`V0.6.0 (2020-05-21) <https://github.com/eclipse-cyclonedds/cyclonedds/compare/V0.5.0...0.6.0>`_
+-----------------------------------------------------------------------------------------------
+
+* Support for mixed-language programming by supporting multiple (de)serializers for a single topic in a single process. This way, a program that consists of, say, C and C++ can use a different representation of the data in C than in C++. Before, all readers/writers in the process would be forced to use the same representation (or perform an additional copy). Currently C is still the only natively supported language, but one can use an evolving-but-reasonable-stable interface to implement different mappings.
+* Improved QoS support: full support for deadline, lifespan and liveliness. The first is for generating notifications when a configured instance update rate is not achieved, the second for automatically removing stale samples, the third for different modes of monitoring the liveliness of peers.
+* Improved scalability in matching readers and writers. Before it used to try matching a new local or remote reader or writer with all known local & remote entities, now only with the right group with the correct topic name.
+* Improved tracing: discovery data is now printed properly and user samples have more type information allowing floating-point and signed numbers to be traced in a more readable form.
+* Extension of platform support
+  * Known to work on FreeBSD, CheriBSD
+  * Known to work with the musl C library
+* Windows-specific changes
+  * Fixes multicasts to addresses also used by non-Cyclone processes (caused by accidentally linking with an old sockets library)
+  * Correct handling of non-English network interface names
 
 `0.5.1 (2020-03-11) <https://github.com/eclipse-cyclonedds/cyclonedds/compare/V0.5.0...0.5.1>`_
 -----------------------------------------------------------------------------------------------
+
+An interim tag for the benefit of ROS2
 
 * Enable QOS features: liveliness, lifespan, deadline
 * Fix issues on Windows where multicast data was not received

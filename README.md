@@ -1,7 +1,7 @@
 # Eclipse Cyclone DDS
 
 Eclipse Cyclone DDS is a very performant and robust open-source DDS implementation.  Cyclone DDS is developed completely in the open as an Eclipse IoT project
-(see [eclipse-cyclone-dds](https://projects.eclipse.org/projects/iot.cyclonedds)).
+(see [eclipse-cyclone-dds](https://projects.eclipse.org/projects/iot.cyclonedds)) with a growing list of [adopters](https://iot.eclipse.org/adopters/?#iot.cyclonedds) (if you're one of them, please add your [logo](https://github.com/EclipseFdn/iot.eclipse.org/issues/new?template=adopter_request.md)).  It is a tier-1 middleware for the Robot Operating System [ROS 2](https://index.ros.org/doc/ros2/).
 
 * [Getting Started](#getting-started)
 * [Performance](#performance)
@@ -11,8 +11,7 @@ Eclipse Cyclone DDS is a very performant and robust open-source DDS implementati
 
 ## Building Eclipse Cyclone DDS
 
-In order to build Cyclone DDS you need a Linux, Mac or Windows 10 machine (or, with some caveats, an
-OpenIndiana one or a Solaris 2.6 one) with the following installed on your host:
+In order to build Cyclone DDS you need a Linux, Mac or Windows 10 machine (or, with some caveats, a *BSD, OpenIndiana or a Solaris 2.6 one) with the following installed on your host:
 
   * C compiler (most commonly GCC on Linux, Visual Studio on Windows, Xcode on macOS);
   * GIT version control system;
@@ -28,11 +27,11 @@ installed, and the rest should already be there.  On Windows, installing chocola
 install git cmake openjdk maven`` should get you a long way.  On macOS, ``brew install maven cmake``
 and downloading and installing the JDK is easiest.
 
-The Java-based components are the preprocessor and a configurator tool.  The run-time
+The only Java-based component is the IDL preprocessor.  The run-time
 libraries are pure C code, so there is no need to have Java available on "target"
 machines.  If desired, it is possible to do a build without Java or Maven installed by
 defining ``BUILD_IDLC=NO``, but that effectively only gets you the core library.  For the
-current [ROS2 RMW layer](https://github.com/ros2/rmw_cyclonedds), that is sufficient.
+current [ROS 2 RMW layer](https://github.com/ros2/rmw_cyclonedds), that is sufficient.
 
 To obtain Eclipse Cyclone DDS, do
 
@@ -250,3 +249,5 @@ Background information on configuring Cyclone DDS can be found
 * "Eclipse Cyclone DDS" and "Cyclone DDS" are trademarks of the Eclipse Foundation.
 
 * "DDS" is a trademark of the Object Management Group, Inc.
+
+* "ROS" is a trademark of Open Source Robotics Foundation, Inc.
