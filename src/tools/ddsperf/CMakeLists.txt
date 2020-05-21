@@ -12,7 +12,14 @@
 
 idlc_generate(ddsperf_types ddsperf_types.idl)
 add_executable(ddsperf ddsperf.c cputime.c cputime.h netload.c netload.h)
-target_link_libraries(ddsperf ddsperf_types ddsc pthread)
+
+if(NOT WITH_FREERTOS)
+  set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+  find_package(Threads REQUIRED)
+  target_link_libraries(ddsperf ddsperf_types ddsc Threads::Threads)
+elseif()
+  target_link_libraries(ddsperf ddsperf_types ddsc)
+endif()
 
 if(WIN32)
   target_compile_definitions(ddsperf PRIVATE _CRT_SECURE_NO_WARNINGS)

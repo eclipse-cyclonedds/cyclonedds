@@ -10,7 +10,14 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 add_executable(pubsub pubsub.c common.c testtype.c porting.c)
-target_link_libraries(pubsub ddsc pthread)
+
+if(NOT WITH_FREERTOS)
+  set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+  find_package(Threads REQUIRED)
+  target_link_libraries(pubsub ddsc Threads::Threads)
+elseif()
+  target_link_libraries(pubsub ddsc)
+endif()
 
 if(WIN32)
   target_compile_definitions(pubsub PRIVATE _CRT_SECURE_NO_WARNINGS)

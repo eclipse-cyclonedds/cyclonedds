@@ -10,7 +10,14 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 add_executable(ddsls ddsls.c)
-target_link_libraries(ddsls ddsc pthread)
+
+if(NOT WITH_FREERTOS)
+  set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+  find_package(Threads REQUIRED)
+  target_link_libraries(ddsls PUBLIC ddsc Threads::Threads)
+elseif()
+  target_link_libraries(ddsls ddsc)
+endif()
 
 install(
   TARGETS ddsls
