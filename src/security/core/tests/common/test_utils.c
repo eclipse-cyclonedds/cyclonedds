@@ -501,6 +501,9 @@ void rd_wr_init_fail(
       goto fail;
     dds_set_status_mask (*rd, DDS_SUBSCRIPTION_MATCHED_STATUS);
   }
+  dds_delete_qos (qos);
+  return;
+
 fail:
   dds_delete_qos (qos);
 }

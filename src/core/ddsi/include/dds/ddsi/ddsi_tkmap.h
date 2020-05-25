@@ -36,6 +36,7 @@ DDS_EXPORT void ddsi_tkmap_free (struct ddsi_tkmap *tkmap);
 DDS_EXPORT void ddsi_tkmap_instance_ref (struct ddsi_tkmap_instance *tk);
 DDS_EXPORT uint64_t ddsi_tkmap_lookup (struct ddsi_tkmap *tkmap, const struct ddsi_serdata *serdata);
 DDS_EXPORT struct ddsi_tkmap_instance * ddsi_tkmap_find(struct ddsi_tkmap *map, struct ddsi_serdata *sd, const bool create);
+DDS_EXPORT struct ddsi_tkmap_instance * ddsi_tkmap_find_with_iid(struct ddsi_tkmap *map, struct ddsi_serdata *sd, const uint64_t iid, const bool create);
 DDS_EXPORT struct ddsi_tkmap_instance * ddsi_tkmap_find_by_id (struct ddsi_tkmap *map, uint64_t iid);
 DDS_EXPORT struct ddsi_tkmap_instance * ddsi_tkmap_lookup_instance_ref (struct ddsi_tkmap *map, struct ddsi_serdata * sd);
 DDS_EXPORT void ddsi_tkmap_instance_unref (struct ddsi_tkmap *map, struct ddsi_tkmap_instance *tk);

@@ -224,28 +224,18 @@ dds_builtintopic_endpoint_t;
 */
 
 /**
- * @brief Enable entity.
+ * @brief Enable an entity.
  *
- * @note Delayed entity enabling is not supported yet (CHAM-96).
+ * Entities can be created in an enabled  or disabled state.
+ * Enabled entities are immediately activated at creation time, and
+ * their immutable QoS settings cannot be changed.
+ * Disabled entities are not yet activated at creation time,
+ * so it is still possible to change their immutable QoS settings.
  *
- * This operation enables the dds_entity_t. Created dds_entity_t objects can start in
- * either an enabled or disabled state. This is controlled by the value of the
- * entityfactory policy on the corresponding parent entity for the given
- * entity. Enabled entities are immediately activated at creation time meaning
- * all their immutable QoS settings can no longer be changed. Disabled Entities are not
- * yet activated, so it is still possible to change their immutable QoS settings. However,
- * once activated the immutable QoS settings can no longer be changed.
- * Creating disabled entities can make sense when the creator of the DDS_Entity
- * does not yet know which QoS settings to apply, thus allowing another piece of code
- * to set the QoS later on.
- *
- * The default setting of DDS_EntityFactoryQosPolicy is such that, by default,
- * entities are created in an enabled state so that it is not necessary to explicitly call
- * dds_enable on newly-created entities.
- *
- * The dds_enable operation produces the same results no matter how
- * many times it is performed. Calling dds_enable on an already
- * enabled DDS_Entity returns DDS_RETCODE_OK and has no effect.
+ * Typically, subscribers, publishers, readers and writers can be created in a disabled state.
+ * This is controlled by the value of the DDS_EntityFactoryQosPolicy of the parent
+ * of the entity. The default setting of DDS_EntityFactoryQosPolicy is such that
+ * entities are created in an enabled state.
  *
  * If an Entity has not yet been enabled, the only operations that can be invoked
  * on it are: the ones to set, get or copy the QosPolicy settings, the ones that set
@@ -253,16 +243,30 @@ dds_builtintopic_endpoint_t;
  * operation (although the status of a disabled entity never changes). Other operations
  * will return the error DDS_RETCODE_NOT_ENABLED.
  *
- * Entities created with a parent that is disabled, are created disabled regardless of
- * the setting of the entityfactory policy.
- *
- * If the entityfactory policy has autoenable_created_entities
- * set to TRUE, the dds_enable operation on the parent will
- * automatically enable all child entities created with the parent.
- *
  * The Listeners associated with an Entity are not called until the
  * Entity is enabled. Conditions associated with an Entity that
  * is not enabled are "inactive", that is, have a trigger_value which is FALSE.
+ *
+ * Entities created with a parent that is disabled, are created disabled regardless of
+ * the setting of the DDS_EntityFactoryQosPolicy.
+ *
+ * Calling dds_enable() on a disabled DDS_Entity enables the DDS_Entity only if its
+ * parent entity is enabled. When the DDS Entity is enabled, the dds_enable() operation
+ * will also automatically enable all child entities of the DDS_Entity that have been
+ * created when the DDS_EntityFactoryQosPolicy of the DDS_Entity has
+ * autoenable_created_entities set to TRUE. For example, if a disabled subscriber
+ * which has its autoenable_created_entities set to TRUE is used to create 3 readers,
+ * then these 3 readers will be enabled automatically as soon as the subscriber is
+ * enabled.
+ *
+ * The dds_enable() operation will return DDS_RETCODE_OK if an entity and all its
+ * autoenabled children have been enabled successfully. In case one or more of
+ * its autoenabled children could not be enabled, an error code is returned.
+ * It is the responsibility of the application to find out which of the children
+ * code were enabled, and which not enabled.
+ *
+ * Calling dds_enable() on an already enabled DDS_Entity returns DDS_RETCODE_OK and
+ * has no effect.
  *
  * @param[in]  entity  The entity to enable.
  *
@@ -279,6 +283,8 @@ dds_builtintopic_endpoint_t;
  *             The entity has already been deleted.
  * @retval DDS_RETCODE_PRECONDITION_NOT_MET
  *             The parent of the given Entity is not enabled.
+ * @retval DDS_RETCODE_NOT_ALLOWED_BY_SECURITY
+ *             The security plugin prevents enabling of the Entity.
  */
 DDS_EXPORT dds_return_t
 dds_enable(dds_entity_t entity);
@@ -1521,6 +1527,16 @@ dds_wait_for_acks(dds_entity_t publisher_or_writer, dds_duration_t timeout);
  *            A valid reader handle.
  * @retval DDS_RETCODE_ERROR
  *            An internal error occurred.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *            The provided entity is not a participant or subscriber.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *            One of the given arguments is not valid.
+ * @retval DDS_RETCODE_INCONSISTENT_POLICY
+ *            The provided qos is not allowed.
+ * @retval DDS_RETCODE_NOT_ALLOWED_BY_SECURITY
+ *            The security plugin prevents creation of the reader.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES
+ *            There are not enough resources available to create the reader.
  */
 /* TODO: Complete list of error codes */
 DDS_EXPORT dds_entity_t
@@ -1593,9 +1609,21 @@ dds_reader_wait_for_historical_data(
  * @returns A valid writer handle or an error code.
  *
  * @returns >0
- *              A valid writer handle.
+ *            A valid writer handle.
  * @returns DDS_RETCODE_ERROR
- *              An internal error occurred.
+ *            An internal error occurred.
+ * @retval DDS_RETCODE_ERROR
+ *            An internal error occurred.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *            The provided entity is not a participant or subscriber.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *            One of the given arguments is not valid.
+ * @retval DDS_RETCODE_INCONSISTENT_POLICY
+ *            The provided qos is not allowed.
+ * @retval DDS_RETCODE_NOT_ALLOWED_BY_SECURITY
+ *            The security plugin prevents creation of the writer.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES
+ *            There are not enough resources available to create the writer.
  */
 /* TODO: Complete list of error codes */
 DDS_EXPORT dds_entity_t

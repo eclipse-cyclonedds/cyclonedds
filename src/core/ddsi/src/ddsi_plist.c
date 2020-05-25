@@ -3165,7 +3165,7 @@ void ddsi_plist_init_default_participant (ddsi_plist_t *plist)
   ddsi_plist_init_empty (plist);
 
   plist->qos.present |= QP_ADLINK_ENTITY_FACTORY;
-  plist->qos.entity_factory.autoenable_created_entities = 0;
+  plist->qos.entity_factory.autoenable_created_entities = 1;
 
   plist->qos.present |= QP_USER_DATA;
   plist->qos.user_data.length = 0;
