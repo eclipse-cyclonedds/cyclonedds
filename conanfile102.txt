@@ -1,0 +1,6 @@
+[requires]
+cunit/2.1-3@bincrafters/stable
+OpenSSL/1.0.2@conan/stable
+
+[generators]
+cmake

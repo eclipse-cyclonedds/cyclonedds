@@ -148,6 +148,8 @@ jobs:
     - <<: *linux_gcc8
       env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_gcc8
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Unix Makefiles", CONANFILE=conanfile102.txt ]
+    - <<: *linux_gcc8
       env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_gcc8
       env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=NO, SECURITY=YES, LIFESPAN=NO, DEADLINE=NO, GENERATOR="Unix Makefiles" ]
@@ -167,7 +169,7 @@ jobs:
     - <<: *osx_xcode
       env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Unix Makefiles" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Visual Studio 15 2017" ]
+      env: [ ARCH=x86, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Visual Studio 15 2017", CONANFILE=conanfile102.txt ]
     - <<: *windows_vs2017
       env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
     - <<: *windows_vs2017
@@ -197,7 +199,7 @@ script:
   - INSTALLPREFIX="$(pwd)/install"
   - mkdir build
   - cd build
-  - conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ..
+  - conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ../${CONANFILE:-conanfile.txt}
   - which trang && BUILD_SCHEMA=1 || BUILD_SCHEMA=0
   - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
           -DCMAKE_INSTALL_PREFIX=${INSTALLPREFIX}
