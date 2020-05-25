@@ -13,28 +13,6 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <string.h>
-#include <openssl/bn.h>
-#include <openssl/asn1.h>
-#include <openssl/x509.h>
-#include <openssl/x509_vfy.h>
-#include <openssl/pem.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#if OPENSLL_VERSION_NUMBER >= 0x10002000L
-#define AUTH_INCLUDE_EC
-#include <openssl/ec.h>
-#endif
-#include <openssl/rand.h>
-
-/* There is a problem when compiling on windows w.r.t. X509_NAME.
- * The windows api already defines the type X509_NAME which
- * conficts with some openssl versions. The workaround is to
- * undef the openssl X509_NAME
- */
-#ifdef _WIN32
-#undef X509_NAME
-#endif
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/atomics.h"
@@ -43,26 +21,18 @@
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/security/dds_security_api.h"
+#include "dds/security/dds_security_api_types.h"
 #include "dds/security/core/dds_security_timed_cb.h"
 #include "dds/security/core/dds_security_utils.h"
-#include "dds/security/dds_security_api.h"
-#include "dds/security/dds_security_api_types.h"
 #include "dds/security/core/shared_secret.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/core/dds_security_serialize.h"
+#include "dds/security/openssl_support.h"
 #include "auth_utils.h"
 #include "authentication.h"
 
 #ifndef EVP_PKEY_id
 #define EVP_PKEY_id(k) ((k)->type)
-#endif
-
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L && OPENSSL_VERSION_NUMBER < 0x10100000L
-#define REMOVE_THREAD_STATE() ERR_remove_thread_state(NULL);
-#elif OPENSSL_VERSION_NUMBER < 0x10000000L
-#define REMOVE_THREAD_STATE() ERR_remove_state(0);
-#else
-#define REMOVE_THREAD_STATE()
 #endif
 
 #define HANDSHAKE_SIGNATURE_CONTENT_SIZE 6
@@ -2276,12 +2246,7 @@ int32_t init_authentication(const char *argument, void **context, struct ddsi_do
   else
     authentication->include_optional = true;
 
-  OpenSSL_add_all_algorithms();
-  OpenSSL_add_all_ciphers();
-  OpenSSL_add_all_digests();
-  ERR_load_BIO_strings();
-  ERR_load_crypto_strings();
-
+  dds_openssl_init ();
   *context = authentication;
   return 0;
 }
@@ -2308,11 +2273,5 @@ int32_t finalize_authentication(void *instance)
     ddsrt_mutex_destroy(&authentication->lock);
     ddsrt_free((dds_security_authentication_impl *)instance);
   }
-
-  RAND_cleanup();
-  EVP_cleanup();
-  CRYPTO_cleanup_all_ex_data();
-  REMOVE_THREAD_STATE();
-  ERR_free_strings();
   return 0;
 }

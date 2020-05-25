@@ -11,11 +11,7 @@
  */
 #include <assert.h>
 #include <string.h>
-#include <openssl/rand.h>
-#include <openssl/sha.h>
-#include <openssl/hmac.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
+
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
@@ -25,6 +21,7 @@
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/core/shared_secret.h"
+#include "dds/security/openssl_support.h"
 #include "crypto_defs.h"
 #include "crypto_utils.h"
 #include "crypto_cipher.h"

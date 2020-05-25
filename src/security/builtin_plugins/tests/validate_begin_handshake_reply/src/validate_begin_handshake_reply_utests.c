@@ -1,35 +1,19 @@
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
 
-
-
-
-/* CUnit includes. */
-
-
-/* Test helper includes. */
-#include "common/src/loader.h"
-#include "config_env.h"
-
-/* Private header include */
-#include <openssl/opensslv.h>
-#include <openssl/sha.h>
-#include <openssl/x509.h>
-#include <openssl/pem.h>
-#include <openssl/asn1.h>
-#include <openssl/err.h>
-
-#include "dds/security/dds_security_api.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/string.h"
+#include "dds/ddsrt/bswap.h"
+#include "dds/ddsrt/environ.h"
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/dds_security_api.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/string.h"
-#include <stdio.h>
-#include <string.h>
-#include "dds/ddsrt/bswap.h"
-#include "dds/ddsrt/environ.h"
+#include "dds/security/openssl_support.h"
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
-#include "assert.h"
+#include "common/src/loader.h"
+#include "config_env.h"
 
 static const char * AUTH_PROTOCOL_CLASS_ID          = "DDS:Auth:PKI-DH:1.0";
 static const char * PERM_ACCESS_CLASS_ID            = "DDS:Access:Permissions:1.0";

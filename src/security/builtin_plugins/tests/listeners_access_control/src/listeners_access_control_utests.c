@@ -10,12 +10,6 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
-#include <openssl/pkcs7.h>
-#include <openssl/pem.h>
 
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
@@ -25,18 +19,11 @@
 #include "dds/ddsrt/types.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
+#include "dds/security/openssl_support.h"
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
 #include "config_env.h"
-
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L && OPENSSL_VERSION_NUMBER < 0x10100000L
-#define REMOVE_THREAD_STATE() ERR_remove_thread_state(NULL);
-#elif OPENSSL_VERSION_NUMBER < 0x10000000L
-#define REMOVE_THREAD_STATE() ERR_remove_state(0);
-#else
-#define REMOVE_THREAD_STATE()
-#endif
 
 static const char *ACCESS_PERMISSIONS_TOKEN_ID = "DDS:Access:Permissions:1.0";
 static const char *AUTH_PROTOCOL_CLASS_ID = "DDS:Auth:PKI-DH:1.0";
@@ -549,8 +536,7 @@ CU_Init(ddssec_builtin_listeners_access_control)
   } else {
     set_path_to_etc_dir();
     set_path_build_dir();
-    OpenSSL_add_all_algorithms();
-    ERR_load_crypto_strings();
+    dds_openssl_init ();
   }
 
   return res;
@@ -560,11 +546,6 @@ CU_Clean(ddssec_builtin_listeners_access_control)
 {
   unload_plugins(plugins);
   ddsrt_free(g_path_to_etc_dir);
-  EVP_cleanup();
-  CRYPTO_cleanup_all_ex_data();
-  REMOVE_THREAD_STATE();
-  ERR_free_strings();
-
   return 0;
 }
 

@@ -15,15 +15,7 @@
 
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_serialize.h"
-
-#include <openssl/bn.h>
-#include <openssl/asn1.h>
-#include <openssl/x509.h>
-#include <openssl/x509_vfy.h>
-#include <openssl/pem.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
+#include "dds/security/openssl_support.h"
 
 const BIGNUM *
 dh_get_public_key(

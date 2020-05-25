@@ -13,8 +13,7 @@
 
 #include <assert.h>
 #include <string.h>
-#include <openssl/x509.h>
-#include <openssl/err.h>
+
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/string.h"
@@ -24,18 +23,11 @@
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/core/dds_security_timed_cb.h"
+#include "dds/security/openssl_support.h"
 #include "access_control.h"
 #include "access_control_utils.h"
 #include "access_control_objects.h"
 #include "access_control_parser.h"
-
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L && OPENSSL_VERSION_NUMBER < 0x10100000L
-#define REMOVE_THREAD_STATE() ERR_remove_thread_state(NULL);
-#elif OPENSSL_VERSION_NUMBER < 0x10000000L
-#define REMOVE_THREAD_STATE() ERR_remove_state(0);
-#else
-#define REMOVE_THREAD_STATE()
-#endif
 
 static const char *ACCESS_CONTROL_PROTOCOL_CLASS = "DDS:Access";
 static const unsigned ACCESS_CONTROL_PROTOCOL_VERSION_MAJOR = 1;
@@ -1522,12 +1514,7 @@ int init_access_control(const char *argument, void **context, struct ddsi_domain
 #endif
   access_control->remote_permissions = access_control_table_new();
 
-  OpenSSL_add_all_algorithms();
-  OpenSSL_add_all_ciphers();
-  OpenSSL_add_all_digests();
-  ERR_load_BIO_strings();
-  ERR_load_crypto_strings();
-
+  dds_openssl_init ();
   *context = access_control;
   return 0;
 }
@@ -2473,9 +2460,5 @@ int finalize_access_control(void *context)
     ddsrt_mutex_destroy(&access_control->lock);
     ddsrt_free(access_control);
   }
-  EVP_cleanup();
-  CRYPTO_cleanup_all_ex_data();
-  REMOVE_THREAD_STATE();
-  ERR_free_strings();
   return 0;
 }

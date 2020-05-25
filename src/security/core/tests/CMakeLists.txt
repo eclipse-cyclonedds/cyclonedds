@@ -102,6 +102,12 @@ target_include_directories(
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/include>"
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsc/src>"
  )
+if(ENABLE_SSL)
+  target_include_directories(
+    cunit_security_core PRIVATE
+      "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_openssl,INTERFACE_INCLUDE_DIRECTORIES>>"
+  )
+endif()
 
 set(common_etc_dir "${CMAKE_CURRENT_SOURCE_DIR}/common/etc")
 set(plugin_wrapper_lib_dir "${CMAKE_CURRENT_BINARY_DIR}")
@@ -111,5 +117,6 @@ target_link_libraries(cunit_security_core PRIVATE ddsc security_api SecurityCore
 if(ENABLE_SSL)
   target_link_libraries(cunit_security_core PRIVATE dds_security_auth dds_security_ac dds_security_crypto dds_security_access_control_wrapper dds_security_authentication_wrapper dds_security_cryptography_wrapper)
   target_link_libraries(cunit_security_core PRIVATE OpenSSL::SSL)
+  target_link_libraries(cunit_security_core PRIVATE security_openssl)
 endif()
 target_include_directories(cunit_security_core PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")

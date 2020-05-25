@@ -12,10 +12,10 @@
 #ifndef ACCESS_CONTROL_UTILS_H
 #define ACCESS_CONTROL_UTILS_H
 
-#include <openssl/x509.h>
 #include "dds/ddsrt/types.h"
-#include "dds/security/dds_security_api.h"
 #include "dds/security/export.h"
+#include "dds/security/dds_security_api.h"
+#include "dds/security/openssl_support.h"
 
 #define DDS_ACCESS_CONTROL_PLUGIN_CONTEXT "Access Control"
 

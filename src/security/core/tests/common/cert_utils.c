@@ -12,15 +12,10 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <openssl/asn1.h>
-#include <openssl/bio.h>
-#include <openssl/conf.h>
-#include <openssl/err.h>
-#include <openssl/pem.h>
-#include <openssl/x509.h>
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
+#include "dds/security/openssl_support.h"
 #include "CUnit/Test.h"
 #include "cert_utils.h"
 

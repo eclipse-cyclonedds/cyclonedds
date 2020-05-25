@@ -10,10 +10,10 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
+
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/types.h"
+#include "dds/security/openssl_support.h"
 #include "crypto_defs.h"
 #include "crypto_utils.h"
 #include "crypto_cipher.h"
