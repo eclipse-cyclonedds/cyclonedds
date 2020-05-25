@@ -14,11 +14,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <openssl/x509.h>
-#include <openssl/pkcs7.h>
-#include <openssl/pem.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
+
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/string.h"
@@ -26,6 +22,7 @@
 #include "dds/ddsrt/types.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
+#include "dds/security/openssl_support.h"
 #include "access_control_utils.h"
 
 #define SEQ_ERR -1

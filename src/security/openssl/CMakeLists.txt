@@ -1,5 +1,5 @@
 #
-# Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
+# Copyright(c) 2020 ADLINK Technology Limited and others
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License v. 2.0 which is available at
@@ -9,14 +9,13 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-cmake_minimum_required(VERSION 3.7)
 
-if(ENABLE_SECURITY)
-  add_subdirectory(api)
-  add_subdirectory(core)
+add_library(security_openssl INTERFACE)
 
-  if(ENABLE_SSL)
-    add_subdirectory(openssl)
-    add_subdirectory(builtin_plugins)
-  endif()
-endif()
+target_sources(security_openssl INTERFACE
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/openssl_support.c")
+
+target_include_directories(
+  security_openssl INTERFACE
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+)

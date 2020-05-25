@@ -1,36 +1,20 @@
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
 
-
-/* CUnit includes. */
-#include "common/src/handshake_helper.h"
-
-/* Test helper includes. */
-#include "common/src/loader.h"
-
-/* Private header include */
-#include "dds/security/dds_security_api.h"
-#include "dds/security/core/dds_security_serialize.h"
-#include "dds/security/core/dds_security_utils.h"
-#include "dds/security/dds_security_api.h"
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include <stdio.h>
-#include <string.h>
 #include "dds/ddsrt/environ.h"
+#include "dds/security/dds_security_api.h"
+#include "dds/security/core/dds_security_serialize.h"
+#include "dds/security/core/dds_security_utils.h"
+#include "dds/security/openssl_support.h"
+#include "common/src/handshake_helper.h"
+#include "common/src/loader.h"
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
-#include "assert.h"
-
-#include <openssl/opensslv.h>
-#include <openssl/sha.h>
-#include <openssl/x509.h>
-#include <openssl/pem.h>
-#include <config_env.h>
-
-
-#include "dds/security/core/dds_security_serialize.h"
-#include "dds/security/dds_security_api.h"
-#include "dds/security/core/dds_security_utils.h"
+#include "config_env.h"
 
 #define HANDSHAKE_SIGNATURE_SIZE 6
 
@@ -1003,6 +987,7 @@ release_remote_identities(void)
 CU_Init(ddssec_builtin_process_handshake)
 {
     int result = 0;
+    dds_openssl_init ();
 
     /* Only need the authentication plugin. */
     plugins = load_plugins(NULL   /* Access Control */,

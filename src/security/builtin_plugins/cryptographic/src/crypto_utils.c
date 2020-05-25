@@ -11,16 +11,14 @@
  */
 #include <assert.h>
 #include <string.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
-#include <openssl/hmac.h>
-#include <openssl/rand.h>
+
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/types.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
+#include "dds/security/openssl_support.h"
 #include "crypto_defs.h"
 #include "crypto_utils.h"
 

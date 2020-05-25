@@ -16,7 +16,8 @@
 
 
 #include "dds/security/dds_security_api.h"
-#include <openssl/opensslv.h>
+#include "dds/security/openssl_support.h"
+
 #include <dds/ddsrt/heap.h>
 #include <dds/ddsrt/string.h>
 #include <config_env.h>

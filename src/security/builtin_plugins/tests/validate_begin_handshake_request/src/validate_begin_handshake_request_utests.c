@@ -22,6 +22,10 @@
 
 /* Private header include */
 
+#ifdef _WIN32
+/* supposedly WinSock2 must be included before openssl 1.0.2 headers otherwise winsock will be used */
+#include <WinSock2.h>
+#endif
 #include <openssl/opensslv.h>
 
 static const char * AUTH_PROTOCOL_CLASS_ID          = "DDS:Auth:PKI-DH:1.0";

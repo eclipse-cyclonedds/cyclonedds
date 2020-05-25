@@ -10,32 +10,23 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 
-/* CUnit includes. */
-
-#include "CUnit/CUnit.h"
-#include "CUnit/Test.h"
-#include "assert.h"
-/* Test helper includes. */
-#include "common/src/loader.h"
-#include "common/src/handshake_helper.h"
-
-#include "dds/security/dds_security_api.h"
-#include <openssl/opensslv.h>
-#include <openssl/sha.h>
-#include <openssl/x509.h>
-#include <openssl/pem.h>
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
 
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/heap.h"
-#include <stdio.h>
-#include <string.h>
 #include "dds/ddsrt/environ.h"
-
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/misc.h"
-#include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/dds_security_api.h"
+#include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/core/dds_security_utils.h"
+#include "dds/security/openssl_support.h"
+#include "CUnit/CUnit.h"
+#include "CUnit/Test.h"
+#include "common/src/loader.h"
+#include "common/src/handshake_helper.h"
 
 #define HANDSHAKE_SIGNATURE_SIZE 6
 
@@ -884,6 +875,7 @@ release_remote_identities(void)
 CU_Init(ddssec_builtin_get_authenticated_peer_credential)
 {
     int result = 0;
+    dds_openssl_init ();
 
     /* Only need the authentication plugin. */
     g_plugins = load_plugins(NULL   /* Access Control */,

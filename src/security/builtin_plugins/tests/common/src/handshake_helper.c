@@ -9,31 +9,21 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "handshake_helper.h"
-#include "dds/security/core/dds_security_serialize.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/heap.h"
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
+
+#include "dds/ddsrt/string.h"
+#include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/environ.h"
-#include "CUnit/CUnit.h"
-#include "CUnit/Test.h"
-#include "assert.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/security/core/shared_secret.h"
-
-#if OPENSSL_VERSION_NUMBER >= 0x1000200fL
-#define AUTH_INCLUDE_EC
-#include <openssl/ec.h>
-#include <dds/security/core/dds_security_utils.h>
-
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-#define AUTH_INCLUDE_DH_ACCESSORS
-#endif
-#else
-#error "version not found"
-#endif
-
+#include "dds/security/openssl_support.h"
+#include "dds/security/core/dds_security_serialize.h"
+#include "dds/security/core/dds_security_utils.h"
+#include "CUnit/CUnit.h"
+#include "CUnit/Test.h"
+#include "handshake_helper.h"
 
 const BIGNUM *
 dh_get_public_key(

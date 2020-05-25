@@ -13,19 +13,14 @@
 #include <assert.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <stdio.h>
+
+#include "dds/ddsrt/string.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/ddsrt/heap.h"
-#include "stdlib.h"
-#include "stdarg.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/misc.h"
-
-#ifdef DDSI_INCLUDE_SSL
-#include <openssl/bio.h>
-#include <openssl/err.h>
-#endif
 
 DDS_Security_BinaryProperty_t *
 DDS_Security_BinaryProperty_alloc (void)
@@ -804,40 +799,6 @@ void DDS_Security_Exception_set (DDS_Security_SecurityException *ex, const char 
   DDS_Security_Exception_vset (ex, context, code, minor_code, fmt, args1);
   va_end(args1);
 }
-
-#ifdef DDSI_INCLUDE_SSL
-DDS_EXPORT void
-DDS_Security_Exception_set_with_openssl_error(
-    DDS_Security_SecurityException *ex,
-    const char *context,
-    int code,
-    int minor_code,
-    const char *error_area)
-{
-    BIO *bio;
-    assert(context);
-    assert(error_area);
-    assert(ex);
-    DDSRT_UNUSED_ARG(context);
-
-    if ((bio = BIO_new(BIO_s_mem()))) {
-        ERR_print_errors(bio);
-        char *buf = NULL;
-        size_t len = (size_t)BIO_get_mem_data(bio, &buf);
-        size_t exception_msg_len = len + strlen(error_area) + 1;
-        char *str = ddsrt_malloc(exception_msg_len);
-        ddsrt_strlcpy(str, error_area, exception_msg_len);
-        memcpy(str + strlen(error_area), buf, len);
-        str[exception_msg_len - 1] = '\0';
-        ex->message = str;
-        ex->code = code;
-        ex->minor_code = minor_code;
-        BIO_free(bio);
-    } else {
-        DDS_Security_Exception_set(ex, context, code, minor_code, "BIO_new failed");
-    }
-}
-#endif
 
 void
 DDS_Security_Exception_reset(

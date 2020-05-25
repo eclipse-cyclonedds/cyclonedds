@@ -13,6 +13,13 @@
 #ifndef AUTH_UTILS_H
 #define AUTH_UTILS_H
 
+#ifdef _WIN32
+/* supposedly WinSock2 must be included before openssl 1.0.2 headers otherwise winsock will be used */
+#include <WinSock2.h>
+#endif
+#include <openssl/x509.h>
+#include <openssl/evp.h>
+
 #include "dds/security/dds_security_api.h"
 #include "dds/ddsrt/time.h"
 

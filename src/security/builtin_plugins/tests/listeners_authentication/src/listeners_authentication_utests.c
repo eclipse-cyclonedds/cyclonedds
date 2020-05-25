@@ -2,49 +2,23 @@
  *  @brief Unit tests for qos APIs
  *
  */
-/* CUnit includes. */
-#include "CUnit/CUnit.h"
-#include "CUnit/Test.h"
-
 #include <assert.h>
 
-/* Test helper includes. */
-#include "common/src/loader.h"
-
-#include "config_env.h"
-
 #include "dds/ddsrt/time.h"
-#include "dds/security/dds_security_api.h"
-#include "dds/security/dds_security_api_authentication.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/io.h"
+#include "dds/security/dds_security_api.h"
+#include "dds/security/dds_security_api_authentication.h"
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/core/dds_security_utils.h"
-
-#include <openssl/pem.h>
-#include <openssl/pkcs7.h>
-#include <openssl/err.h>
-#include <openssl/bio.h>
-#include <openssl/x509v3.h>
-#include <openssl/opensslv.h>
-#include <openssl/sha.h>
-#include <openssl/x509.h>
-#include <openssl/pem.h>
-
-
-#if OPENSSL_VERSION_NUMBER >= 0x1000200fL
-#define AUTH_INCLUDE_EC
-#include <openssl/ec.h>
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-#define AUTH_INCLUDE_DH_ACCESSORS
-#endif
-#else
-#error "version not found"
-#endif
-
+#include "dds/security/openssl_support.h"
+#include "CUnit/CUnit.h"
+#include "CUnit/Test.h"
+#include "common/src/loader.h"
+#include "config_env.h"
 
 static const char * ACCESS_PERMISSIONS_TOKEN_ID     = "DDS:Access:Permissions:1.0";
 static const char * AUTH_PROTOCOL_CLASS_ID          = "DDS:Auth:PKI-DH:1.0";
@@ -1119,6 +1093,7 @@ get_dh_public_key_ecdh(
 CU_Init(ddssec_builtin_listeners_auth)
 {
     int res = 0;
+    dds_openssl_init ();
 
     plugins = load_plugins(&access_control   /* Access Control */,
                            &auth  /* Authentication */,
@@ -1146,11 +1121,7 @@ CU_Init(ddssec_builtin_listeners_auth)
         res = -1;
     }
 
-    /* Openssl init */
-    OpenSSL_add_all_algorithms();
-    ERR_load_BIO_strings();
-    ERR_load_crypto_strings();
-
+    dds_openssl_init ();
     return res;
 }
 
@@ -1168,9 +1139,6 @@ CU_Clean(ddssec_builtin_listeners_auth)
     unload_plugins(plugins);
 
     ddsrt_free(path_to_etc_dir);
-    EVP_cleanup();
-    CRYPTO_cleanup_all_ex_data();
-    ERR_free_strings();
     return 0;
 }
 

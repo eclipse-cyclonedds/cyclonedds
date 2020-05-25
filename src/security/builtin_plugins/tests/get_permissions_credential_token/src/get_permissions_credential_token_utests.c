@@ -11,10 +11,6 @@
  */
 #include <assert.h>
 #include <string.h>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
 
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
@@ -23,6 +19,7 @@
 #include "dds/ddsrt/types.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
+#include "dds/security/openssl_support.h"
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
 #include "common/src/loader.h"

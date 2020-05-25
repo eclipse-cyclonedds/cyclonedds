@@ -12,14 +12,14 @@
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
+
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/types.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
+#include "dds/security/openssl_support.h"
 #include "cryptography.h"
 #include "crypto_cipher.h"
 #include "crypto_defs.h"
@@ -33,14 +33,6 @@
 #define INFO_SRC_SIZE 24
 #define INFO_SRC_HDR_SIZE 8
 #define RTPS_HEADER_SIZE 20
-
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L && OPENSSL_VERSION_NUMBER < 0x10100000L
-#define REMOVE_THREAD_STATE() ERR_remove_thread_state(NULL);
-#elif OPENSSL_VERSION_NUMBER < 0x10000000L
-#define REMOVE_THREAD_STATE() ERR_remove_state(0);
-#else
-#define REMOVE_THREAD_STATE()
-#endif
 
 struct submsg_header
 {
@@ -2444,23 +2436,12 @@ dds_security_crypto_transform__alloc(
   instance->base.decode_datareader_submessage = &decode_datareader_submessage;
   instance->base.decode_serialized_payload = &decode_serialized_payload;
 
-  OpenSSL_add_all_algorithms();
-  OpenSSL_add_all_ciphers();
-  OpenSSL_add_all_digests();
-  ERR_load_BIO_strings();
-  ERR_load_crypto_strings();
-
+  dds_openssl_init ();
   return (dds_security_crypto_transform *)instance;
 }
 
 void dds_security_crypto_transform__dealloc(
     dds_security_crypto_transform *instance)
 {
-  RAND_cleanup();
-  EVP_cleanup();
-  CRYPTO_cleanup_all_ex_data();
-  REMOVE_THREAD_STATE();
-  ERR_free_strings();
-
   ddsrt_free((dds_security_crypto_transform_impl *)instance);
 }

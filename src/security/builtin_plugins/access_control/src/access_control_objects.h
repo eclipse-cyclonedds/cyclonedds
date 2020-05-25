@@ -12,10 +12,10 @@
 #ifndef ACCESS_CONTROL_OBJECTS_H
 #define ACCESS_CONTROL_OBJECTS_H
 
-#include <openssl/x509.h>
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/types.h"
 #include "dds/security/dds_security_api.h"
+#include "dds/security/openssl_support.h"
 
 #define ACCESS_CONTROL_OBJECT(o)            ((AccessControlObject *)(o))
 #define ACCESS_CONTROL_OBJECT_HANDLE(o)     ((o) ? ACCESS_CONTROL_OBJECT(o)->handle : DDS_SECURITY_HANDLE_NIL)

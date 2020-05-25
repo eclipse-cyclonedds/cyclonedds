@@ -12,12 +12,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <openssl/asn1.h>
-#include <openssl/bio.h>
-#include <openssl/conf.h>
-#include <openssl/err.h>
-#include <openssl/pem.h>
-#include <openssl/x509.h>
 
 #include "CUnit/Test.h"
 #include "dds/dds.h"
@@ -26,6 +20,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/io.h"
+#include "dds/security/openssl_support.h"
 #include "common/config_env.h"
 #include "common/test_utils.h"
 #include "security_config_test_utils.h"
@@ -160,6 +155,8 @@ static char * get_xml_datetime(dds_time_t t, char * buf, size_t len)
 
 static char * smime_sign(char * ca_cert_path, char * ca_priv_key_path, const char * data)
 {
+  dds_openssl_init ();
+
   // Read CA certificate
   BIO *ca_cert_bio = BIO_new (BIO_s_file ());
   if (BIO_read_filename (ca_cert_bio, ca_cert_path) <= 0)

@@ -12,24 +12,7 @@
 
 #include <assert.h>
 #include <string.h>
-#include <openssl/bn.h>
-#include <openssl/asn1.h>
-#include <openssl/x509.h>
-#include <openssl/x509_vfy.h>
-#include <openssl/pem.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/rand.h>
-#if OPENSSL_VERSION_NUMBER >= 0x1000200fL
-#define AUTH_INCLUDE_EC
-#include <openssl/ec.h>
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-#define AUTH_INCLUDE_DH_ACCESSORS
-#endif
-#else
-#error "OpenSSL version is not supported"
-#endif
+
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/filesystem.h"
@@ -40,16 +23,8 @@
 #include "dds/ddsrt/io.h"
 #include "dds/security/dds_security_api_defs.h"
 #include "dds/security/core/dds_security_utils.h"
+#include "dds/security/openssl_support.h"
 #include "auth_utils.h"
-
-/* There is a problem when compiling on windows w.r.t. X509_NAME.
- * The windows api already defines the type X509_NAME which
- * conficts with some openssl versions. The workaround is to
- * undef the openssl X509_NAME
- */
-#ifdef _WIN32
-#undef X509_NAME
-#endif
 
 #define MAX_TRUSTED_CA 100
 
@@ -151,8 +126,10 @@ static DDS_Security_ValidationResult_t check_key_type_and_size(EVP_PKEY *key, in
     }
     if (isPrivate)
     {
-      RSA *rsaKey = EVP_PKEY_get0_RSA(key);
-      if (rsaKey && RSA_check_key(rsaKey) != 1)
+      RSA *rsaKey = EVP_PKEY_get1_RSA(key);
+      const bool fail = (rsaKey && RSA_check_key(rsaKey) != 1);
+      RSA_free(rsaKey);
+      if (fail)
       {
         DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "RSA key not correct : ");
         return DDS_SECURITY_VALIDATION_FAILED;
@@ -166,8 +143,10 @@ static DDS_Security_ValidationResult_t check_key_type_and_size(EVP_PKEY *key, in
       DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "EC %s has unsupported key size (%d)", sub, EVP_PKEY_bits(key));
       return DDS_SECURITY_VALIDATION_FAILED;
     }
-    EC_KEY *ecKey = EVP_PKEY_get0_EC_KEY(key);
-    if (ecKey && EC_KEY_check_key(ecKey) != 1)
+    EC_KEY *ecKey = EVP_PKEY_get1_EC_KEY(key);
+    const bool fail = (ecKey && EC_KEY_check_key(ecKey) != 1);
+    EC_KEY_free(ecKey);
+    if (fail)
     {
       DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "EC key not correct : ");
       return DDS_SECURITY_VALIDATION_FAILED;

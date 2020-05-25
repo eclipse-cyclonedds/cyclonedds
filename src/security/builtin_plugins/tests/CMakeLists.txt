@@ -63,29 +63,22 @@ add_cunit_executable(cunit_security_plugins ${security_auth_test_sources} ${secu
 
 target_include_directories(
   cunit_security_plugins PRIVATE
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../access_control/src/>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../cryptographic/src/>"
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
   "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>"
   "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_core,INTERFACE_INCLUDE_DIRECTORIES>>"
+  "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_openssl,INTERFACE_INCLUDE_DIRECTORIES>>"
   "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
 )
 target_link_libraries(cunit_security_plugins PRIVATE ddsc security_api dds_security_ac dds_security_crypto)
+target_link_libraries(cunit_security_plugins PRIVATE security_openssl)
 target_link_libraries(cunit_security_plugins PRIVATE OpenSSL::SSL)
 if(CMAKE_GENERATOR MATCHES "Visual Studio")
   set_target_properties(cunit_security_plugins PROPERTIES LINK_FLAGS "/ignore:4099")
 endif()
-
-target_include_directories(
-  cunit_security_plugins PRIVATE
-      "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../access_control/src/>"
-      "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../cryptographic/src/>"
-      "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>"
-      "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_core,INTERFACE_INCLUDE_DIRECTORIES>>"
-      "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>"
-      "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>"
-      "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
-)
 
 set(CUnit_builtin_plugins_tests_dir "${CMAKE_CURRENT_LIST_DIR}")
 set(CUnit_build_dir "${CMAKE_CURRENT_BINARY_DIR}")
