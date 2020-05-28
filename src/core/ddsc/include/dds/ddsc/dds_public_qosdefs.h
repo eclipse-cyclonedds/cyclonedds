@@ -52,6 +52,7 @@ typedef enum dds_qos_policy_id {
   DDS_LIFESPAN_QOS_POLICY_ID,
   DDS_DURABILITYSERVICE_QOS_POLICY_ID,
   DDS_PROPERTY_QOS_POLICY_ID,
+  DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID,
 } dds_qos_policy_id_t;
 
 /* QoS structure is opaque */
@@ -126,6 +127,13 @@ typedef enum dds_ignorelocal_kind
     DDS_IGNORELOCAL_PROCESS
 }
 dds_ignorelocal_kind_t;
+
+typedef enum dds_type_consistency_kind
+{
+    DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION,
+    DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION
+}
+dds_type_consistency_kind_t;
 
 #if defined (__cplusplus)
 }

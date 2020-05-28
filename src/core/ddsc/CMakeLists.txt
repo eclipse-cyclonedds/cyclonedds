@@ -39,7 +39,7 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_whc.c
     dds_whc_builtintopic.c
     dds_serdata_builtintopic.c
-    dds_sertopic_builtintopic.c
+    dds_sertype_builtintopic.c
 )
 
 PREPEND(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/dds>$<INSTALL_INTERFACE:include/dds>"

@@ -320,7 +320,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
 
 static int write_and_fini_plist (struct writer *wr, ddsi_plist_t *ps, bool alive)
 {
-  struct ddsi_serdata *serdata = ddsi_serdata_from_sample (wr->topic, alive ? SDK_DATA : SDK_KEY, ps);
+  struct ddsi_serdata *serdata = ddsi_serdata_from_sample (wr->type, alive ? SDK_DATA : SDK_KEY, ps);
   ddsi_plist_fini (ps);
   serdata->statusinfo = alive ? 0 : (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER);
   serdata->timestamp = ddsrt_time_wallclock ();
@@ -889,7 +889,11 @@ static int sedp_write_endpoint
 (
    struct writer *wr, int alive, const ddsi_guid_t *epguid,
    const struct entity_common *common, const struct endpoint_common *epcommon,
-   const dds_qos_t *xqos, struct addrset *as, nn_security_info_t *security)
+   const dds_qos_t *xqos, struct addrset *as, nn_security_info_t *security
+#ifdef DDS_HAS_TYPE_DISCOVERY
+   , type_identifier_t *type_id
+#endif
+)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   const dds_qos_t *defqos = is_writer_entityid (epguid->entityid) ? &gv->default_xqos_wr : &gv->default_xqos_rd;
@@ -967,6 +971,12 @@ static int sedp_write_endpoint
       arg.ps = &ps;
       addrset_forall (as, add_locator_to_ps, &arg);
     }
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    ps.qos.present |= QP_CYCLONE_TYPE_INFORMATION;
+    ps.qos.type_information.length = sizeof (*type_id);
+    ps.qos.type_information.value = ddsrt_memdup (&type_id->hash, ps.qos.type_information.length);
+#endif
   }
 
   if (xqos)
@@ -1001,7 +1011,11 @@ int sedp_write_writer (struct writer *wr)
       security = &tmp;
     }
 #endif
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    return sedp_write_endpoint (sedp_wr, 1, &wr->e.guid, &wr->e, &wr->c, wr->xqos, as, security, &wr->c.type_id);
+#else
     return sedp_write_endpoint (sedp_wr, 1, &wr->e.guid, &wr->e, &wr->c, wr->xqos, as, security);
+#endif
   }
   return 0;
 }
@@ -1025,7 +1039,11 @@ int sedp_write_reader (struct reader *rd)
       security = &tmp;
     }
 #endif
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    return sedp_write_endpoint (sedp_wr, 1, &rd->e.guid, &rd->e, &rd->c, rd->xqos, as, security, &rd->c.type_id);
+#else
     return sedp_write_endpoint (sedp_wr, 1, &rd->e.guid, &rd->e, &rd->c, rd->xqos, as, security);
+#endif
   }
   return 0;
 }
@@ -1036,7 +1054,11 @@ int sedp_dispose_unregister_writer (struct writer *wr)
   {
     unsigned entityid = determine_publication_writer(wr);
     struct writer *sedp_wr = get_sedp_writer (wr->c.pp, entityid);
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    return sedp_write_endpoint (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL, NULL, NULL);
+#else
     return sedp_write_endpoint (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL, NULL);
+#endif
   }
   return 0;
 }
@@ -1047,7 +1069,11 @@ int sedp_dispose_unregister_reader (struct reader *rd)
   {
     unsigned entityid = determine_subscription_writer(rd);
     struct writer *sedp_wr = get_sedp_writer (rd->c.pp, entityid);
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    return sedp_write_endpoint (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL, NULL, NULL);
+#else
     return sedp_write_endpoint (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL, NULL);
+#endif
   }
   return 0;
 }
@@ -1213,6 +1239,14 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, dd
               ? "(default)" : xqos->partition.strs[0]),
              ((xqos->present & QP_PARTITION) && xqos->partition.n > 1) ? "+" : "",
              xqos->topic_name, xqos->type_name);
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  type_identifier_t type_id;
+  if ((xqos->present & QP_CYCLONE_TYPE_INFORMATION) && xqos->type_information.length == sizeof (type_id.hash))
+  {
+    memcpy (type_id.hash, xqos->type_information.value, sizeof (type_id.hash));
+    GVLOGDISC (" type-hash "PTYPEIDFMT, PTYPEID(type_id));
+  }
+#endif
 
   if (! is_writer && (datap->present & PP_EXPECTS_INLINE_QOS) && datap->expects_inline_qos)
   {
@@ -1378,6 +1412,22 @@ static void handle_SEDP (const struct receiver_state *rst, seqno_t seq, struct d
   }
 }
 
+#ifdef DDS_HAS_TYPE_DISCOVERY
+static void handle_typelookup (const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, struct ddsi_serdata *serdata)
+{
+  if (!(serdata->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER)))
+  {
+    struct ddsi_domaingv * const gv = rst->gv;
+    if (wr_entity_id.u == NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER)
+      ddsi_tl_handle_request (gv, serdata);
+    else if (wr_entity_id.u == NN_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER)
+      ddsi_tl_handle_reply (gv, serdata);
+    else
+      assert (false);
+  }
+}
+#endif
+
 /******************************************************************************
  *****************************************************************************/
 
@@ -1464,48 +1514,56 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     goto done_upd_deliv;
   }
 
-  /* proxy writers don't reference a topic object, SPDP doesn't have matched readers
+  /* proxy writers don't reference a type object, SPDP doesn't have matched readers
      but all the GUIDs are known, so be practical and map that */
-  const struct ddsi_sertopic *topic;
+  const struct ddsi_sertype *type;
   switch (srcguid.entityid.u)
   {
     case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
-      topic = gv->spdp_topic;
+      type = gv->spdp_type;
       break;
     case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER:
-      topic = gv->sedp_writer_topic;
+      type = gv->sedp_writer_type;
       break;
     case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER:
-      topic = gv->sedp_reader_topic;
+      type = gv->sedp_reader_type;
       break;
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
-      topic = gv->pmd_topic;
+      type = gv->pmd_type;
       break;
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    case NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER:
+      type = gv->tl_svc_request_type;
+      break;
+    case NN_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER:
+      type = gv->tl_svc_reply_type;
+      break;
+#endif
 #ifdef DDS_HAS_SECURITY
     case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
-      topic = gv->spdp_secure_topic;
+      type = gv->spdp_secure_type;
       break;
     case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER:
-      topic = gv->sedp_writer_secure_topic;
+      type = gv->sedp_writer_secure_type;
       break;
     case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER:
-      topic = gv->sedp_reader_secure_topic;
+      type = gv->sedp_reader_secure_type;
       break;
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
-      topic = gv->pmd_secure_topic;
+      type = gv->pmd_secure_type;
       break;
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER:
-      topic = gv->pgm_stateless_topic;
+      type = gv->pgm_stateless_type;
       break;
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER:
-      topic = gv->pgm_volatile_topic;
+      type = gv->pgm_volatile_type;
       break;
 #endif
     default:
-      topic = NULL;
+      type = NULL;
       break;
   }
-  if (topic == NULL)
+  if (type == NULL)
   {
     /* unrecognized source entity id => ignore */
     goto done_upd_deliv;
@@ -1513,11 +1571,11 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
 
   struct ddsi_serdata *d;
   if (data_smhdr_flags & DATA_FLAG_DATAFLAG)
-    d = ddsi_serdata_from_ser (topic, SDK_DATA, fragchain, sampleinfo->size);
+    d = ddsi_serdata_from_ser (type, SDK_DATA, fragchain, sampleinfo->size);
   else if (data_smhdr_flags & DATA_FLAG_KEYFLAG)
-    d = ddsi_serdata_from_ser (topic, SDK_KEY, fragchain, sampleinfo->size);
+    d = ddsi_serdata_from_ser (type, SDK_KEY, fragchain, sampleinfo->size);
   else if ((qos.present & PP_KEYHASH) && !DDSI_SC_STRICT_P(gv->config))
-    d = ddsi_serdata_from_keyhash (topic, &qos.keyhash);
+    d = ddsi_serdata_from_keyhash (type, &qos.keyhash);
   else
   {
     GVLOGDISC ("data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRId64": missing payload\n",
@@ -1555,7 +1613,8 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
     GVTRACE ("data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRId64": ST%x %s/%s:%s%s\n",
              sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
-             PGUID (guid), sampleinfo->seq, statusinfo, d->topic->name, d->topic->type_name,
+             PGUID (guid), sampleinfo->seq, statusinfo,
+             pwr ? pwr->c.xqos->topic_name : "", d->type->type_name,
              tmp, res < sizeof (tmp) - 1 ? "" : "(trunc)");
   }
 
@@ -1572,10 +1631,15 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
       handle_SEDP (sampleinfo->rst, sampleinfo->seq, d);
       break;
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
-    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER: {
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
       handle_pmd_message (sampleinfo->rst, d);
       break;
-    }
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    case NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER:
+    case NN_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER:
+      handle_typelookup (sampleinfo->rst, srcguid.entityid, d);
+      break;
+#endif
 #ifdef DDS_HAS_SECURITY
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER:
       handle_auth_handshake_message(sampleinfo->rst, srcguid.entityid, d);

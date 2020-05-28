@@ -910,7 +910,7 @@ static bool resend_spdp_sample_by_guid_key (struct writer *wr, const ddsi_guid_t
   ddsi_plist_init_empty (&ps);
   ps.present |= PP_PARTICIPANT_GUID;
   ps.participant_guid = *guid;
-  struct ddsi_serdata *sd = ddsi_serdata_from_sample (gv->spdp_topic, SDK_KEY, &ps);
+  struct ddsi_serdata *sd = ddsi_serdata_from_sample (gv->spdp_type, SDK_KEY, &ps);
   ddsi_plist_fini (&ps);
   struct whc_borrowed_sample sample;
 

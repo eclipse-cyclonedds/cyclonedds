@@ -9,43 +9,51 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDS__SERDATA_BUILTINTOPIC_H
-#define DDS__SERDATA_BUILTINTOPIC_H
+#ifndef DDS__SERDATA_BUILTINTYPE_H
+#define DDS__SERDATA_BUILTINTYPE_H
 
 #include "dds/dds.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_sertype.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-struct ddsi_serdata_builtintopic {
-  struct ddsi_serdata c;
-  ddsi_guid_t key;
-  dds_instance_handle_t pphandle;
-  dds_qos_t xqos;
-};
-
-enum ddsi_sertopic_builtintopic_type {
+enum ddsi_sertype_builtintopic_entity_kind {
   DSBT_PARTICIPANT,
   DSBT_READER,
   DSBT_WRITER
 };
 
-struct ddsi_sertopic_builtintopic {
-  struct ddsi_sertopic c;
-  enum ddsi_sertopic_builtintopic_type type;
+struct ddsi_serdata_builtintopic {
+  struct ddsi_serdata c;
+  enum ddsi_sertype_builtintopic_entity_kind entity_kind;
+  ddsi_guid_t key;
+  dds_instance_handle_t pphandle;
+  dds_qos_t xqos;
 };
 
-extern const struct ddsi_sertopic_ops ddsi_sertopic_ops_builtintopic;
+struct ddsi_serdata_builtintopic_endpoint {
+  struct ddsi_serdata_builtintopic common;
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  type_identifier_t type_id;
+#endif
+};
+
+struct ddsi_sertype_builtintopic {
+  struct ddsi_sertype c;
+  enum ddsi_sertype_builtintopic_entity_kind entity_kind;
+};
+
+extern const struct ddsi_sertype_ops ddsi_sertype_ops_builtintopic;
 extern const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic;
 
-struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic_type type, const char *name, const char *typename);
+struct ddsi_sertype *new_sertype_builtintopic (struct ddsi_domaingv *gv, enum ddsi_sertype_builtintopic_entity_kind entity_kind, const char *typename);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif
+#endif /* DDS__SERDATA_BUILTINTYPE_H */

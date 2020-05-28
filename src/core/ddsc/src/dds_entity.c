@@ -679,7 +679,7 @@ dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
     }
 
     dds_reset_qos (qos);
-    ddsi_xqos_mergein_missing (qos, entity_qos, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
+    ddsi_xqos_mergein_missing (qos, entity_qos, ~(QP_TOPIC_NAME | QP_TYPE_NAME | QP_CYCLONE_TYPE_INFORMATION));
     ret = DDS_RETCODE_OK;
   }
   dds_entity_unlock(e);

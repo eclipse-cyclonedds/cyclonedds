@@ -47,7 +47,7 @@ static void serdata_plist_free (struct ddsi_serdata *dcmn)
   ddsrt_free (d);
 }
 
-static struct ddsi_serdata_plist *serdata_plist_new (const struct ddsi_sertopic_plist *tp, enum ddsi_serdata_kind kind, size_t size, const void *cdr_header)
+static struct ddsi_serdata_plist *serdata_plist_new (const struct ddsi_sertype_plist *tp, enum ddsi_serdata_kind kind, size_t size, const void *cdr_header)
 {
   /* FIXME: check whether this really is the correct maximum: offsets are relative
      to the CDR header, but there are also some places that use a serdata as-if it
@@ -77,7 +77,7 @@ static struct ddsi_serdata_plist *serdata_plist_new (const struct ddsi_sertopic_
   return d;
 }
 
-static struct ddsi_serdata *serdata_plist_fix (const struct ddsi_sertopic_plist *tp, struct ddsi_serdata_plist *d)
+static struct ddsi_serdata *serdata_plist_fix (const struct ddsi_sertype_plist *tp, struct ddsi_serdata_plist *d)
 {
   assert (tp->keyparam != PID_SENTINEL);
   void *needlep;
@@ -98,9 +98,9 @@ static struct ddsi_serdata *serdata_plist_fix (const struct ddsi_sertopic_plist 
   return &d->c;
 }
 
-static struct ddsi_serdata *serdata_plist_from_ser (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+static struct ddsi_serdata *serdata_plist_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
 {
-  const struct ddsi_sertopic_plist *tp = (const struct ddsi_sertopic_plist *) tpcmn;
+  const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *) tpcmn;
   struct ddsi_serdata_plist *d = serdata_plist_new (tp, kind, size, NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain)));
   if (d == NULL)
     return NULL;
@@ -125,9 +125,9 @@ static struct ddsi_serdata *serdata_plist_from_ser (const struct ddsi_sertopic *
   return serdata_plist_fix (tp, d);
 }
 
-static struct ddsi_serdata *serdata_plist_from_ser_iov (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
+static struct ddsi_serdata *serdata_plist_from_ser_iov (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
 {
-  const struct ddsi_sertopic_plist *tp = (const struct ddsi_sertopic_plist *) tpcmn;
+  const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *) tpcmn;
   assert (niov >= 1);
   struct ddsi_serdata_plist *d = serdata_plist_new (tp, kind, size, iov[0].iov_base);
   if (d == NULL)
@@ -142,9 +142,9 @@ static struct ddsi_serdata *serdata_plist_from_ser_iov (const struct ddsi_sertop
   return serdata_plist_fix (tp, d);
 }
 
-static struct ddsi_serdata *serdata_plist_from_keyhash (const struct ddsi_sertopic *tpcmn, const ddsi_keyhash_t *keyhash)
+static struct ddsi_serdata *serdata_plist_from_keyhash (const struct ddsi_sertype *tpcmn, const ddsi_keyhash_t *keyhash)
 {
-  const struct ddsi_sertopic_plist *tp = (const struct ddsi_sertopic_plist *) tpcmn;
+  const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *) tpcmn;
   const struct { uint16_t identifier, options; nn_parameter_t par; ddsi_keyhash_t kh; nn_parameter_t sentinel; } in = {
     .identifier = PL_CDR_BE,
     .options = 0,
@@ -162,10 +162,10 @@ static struct ddsi_serdata *serdata_plist_from_keyhash (const struct ddsi_sertop
   return serdata_plist_from_ser_iov (tpcmn, SDK_KEY, 1, &iov, sizeof (in) - 4);
 }
 
-static bool serdata_plist_topicless_to_sample (const struct ddsi_sertopic *topic_common, const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
+static bool serdata_plist_untyped_to_sample (const struct ddsi_sertype *tpcmn, const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
 {
   const struct ddsi_serdata_plist *d = (const struct ddsi_serdata_plist *)serdata_common;
-  const struct ddsi_sertopic_plist *tp = (const struct ddsi_sertopic_plist *) topic_common;
+  const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *)tpcmn;
   struct ddsi_domaingv * const gv = tp->c.gv;
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   ddsi_plist_src_t src = {
@@ -188,7 +188,7 @@ static bool serdata_plist_topicless_to_sample (const struct ddsi_sertopic *topic
 static bool serdata_plist_to_sample (const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
 {
   /* the "plist" topics only differ in the parameter that is used as the key value */
-  return serdata_plist_topicless_to_sample (serdata_common->topic, serdata_common, sample, bufptr, buflim);
+  return serdata_plist_untyped_to_sample (serdata_common->type, serdata_common, sample, bufptr, buflim);
 }
 
 static void serdata_plist_to_ser (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, void *buf)
@@ -211,9 +211,9 @@ static void serdata_plist_to_ser_unref (struct ddsi_serdata *serdata_common, con
   ddsi_serdata_unref (serdata_common);
 }
 
-static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
+static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
 {
-  const struct ddsi_sertopic_plist *tp = (const struct ddsi_sertopic_plist *)tpcmn;
+  const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *)tpcmn;
   const struct { uint16_t identifier, options; } header = { tp->native_encoding_identifier, 0 };
   const ddsi_guid_t nullguid = { .prefix = { .u = { 0,0,0 } }, .entityid = { .u = 0 } };
 
@@ -242,14 +242,14 @@ static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertopi
   return d;
 }
 
-static struct ddsi_serdata *serdata_plist_to_topicless (const struct ddsi_serdata *serdata_common)
+static struct ddsi_serdata *serdata_plist_to_untyped (const struct ddsi_serdata *serdata_common)
 {
   const struct ddsi_serdata_plist *d = (const struct ddsi_serdata_plist *) serdata_common;
-  const struct ddsi_sertopic_plist *tp = (const struct ddsi_sertopic_plist *) d->c.topic;
+  const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *) d->c.type;
   ddsrt_iovec_t iov = { .iov_base = (char *) &d->identifier, .iov_len = 4 + d->pos };
   struct ddsi_serdata *dcmn_tl = serdata_plist_from_ser_iov (&tp->c, SDK_KEY, 1, &iov, d->pos);
   assert (dcmn_tl != NULL);
-  dcmn_tl->topic = NULL;
+  dcmn_tl->type = NULL;
   return dcmn_tl;
 }
 
@@ -267,10 +267,10 @@ static void serdata_plist_get_keyhash (const struct ddsi_serdata *serdata_common
   }
 }
 
-static size_t serdata_plist_print_plist (const struct ddsi_sertopic *sertopic_common, const struct ddsi_serdata *serdata_common, char *buf, size_t size)
+static size_t serdata_plist_print_plist (const struct ddsi_sertype *sertype_common, const struct ddsi_serdata *serdata_common, char *buf, size_t size)
 {
   const struct ddsi_serdata_plist *d = (const struct ddsi_serdata_plist *) serdata_common;
-  const struct ddsi_sertopic_plist *tp = (const struct ddsi_sertopic_plist *) sertopic_common;
+  const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *) sertype_common;
   ddsi_plist_src_t src = {
     .buf = (const unsigned char *) d->data,
     .bufsz = d->pos,
@@ -304,8 +304,8 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_plist = {
   .to_sample = serdata_plist_to_sample,
   .to_ser_ref = serdata_plist_to_ser_ref,
   .to_ser_unref = serdata_plist_to_ser_unref,
-  .to_topicless = serdata_plist_to_topicless,
-  .topicless_to_sample = serdata_plist_topicless_to_sample,
+  .to_untyped = serdata_plist_to_untyped,
+  .untyped_to_sample = serdata_plist_untyped_to_sample,
   .print = serdata_plist_print_plist,
   .get_keyhash = serdata_plist_get_keyhash
 };

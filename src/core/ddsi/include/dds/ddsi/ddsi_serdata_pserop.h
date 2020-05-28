@@ -13,7 +13,7 @@
 #define DDSI_SERDATA_PSEROP_H
 
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_plist_generic.h"
 
 #include "dds/dds.h"
@@ -58,8 +58,8 @@ struct ddsi_serdata_pserop {
 #undef DDSI_SERDATA_PSEROP_POSTPAD
 #undef DDSI_SERDATA_PSEROP_PREPAD
 
-struct ddsi_sertopic_pserop {
-  struct ddsi_sertopic c;
+struct ddsi_sertype_pserop {
+  struct ddsi_sertype c;
   uint16_t native_encoding_identifier; /* CDR_(LE|BE) */
   size_t memsize;
   size_t nops;
@@ -68,7 +68,7 @@ struct ddsi_sertopic_pserop {
   const enum pserop *ops_key; /* NULL <=> no key; != NULL <=> 16-byte key at offset 0 */
 };
 
-extern DDS_EXPORT const struct ddsi_sertopic_ops ddsi_sertopic_ops_pserop;
+extern DDS_EXPORT const struct ddsi_sertype_ops ddsi_sertype_ops_pserop;
 extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_pserop;
 
 #if defined (__cplusplus)

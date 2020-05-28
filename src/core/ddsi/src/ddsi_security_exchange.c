@@ -63,7 +63,7 @@ bool write_auth_handshake_message(const struct participant *pp, const struct pro
     nn_participant_generic_message_init(&pmg, &wr->e.guid, seq, &proxypp->e.guid, NULL, NULL, DDS_SECURITY_AUTH_HANDSHAKE, mdata, related_message_id);
   }
 
-  serdata = ddsi_serdata_from_sample (wr->topic, SDK_DATA, &pmg);
+  serdata = ddsi_serdata_from_sample (wr->type, SDK_DATA, &pmg);
   serdata->timestamp = ddsrt_time_wallclock ();
   result = enqueue_sample_wrlock_held (wr, seq, NULL, serdata, prd, 1) == 0;
   ddsi_serdata_unref (serdata);
@@ -82,8 +82,8 @@ void auth_get_serialized_participant_data(struct participant *pp, ddsi_octetseq_
   char *payload;
   mpayload = nn_xmsg_new (pp->e.gv->xmsgpool, &pp->e.guid, pp, 0, NN_XMSG_KIND_DATA);
   get_participant_builtin_topic_data (pp, &ps, &locs);
-  ddsi_plist_addtomsg_bo (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0, true);
-  nn_xmsg_addpar_sentinel_bo (mpayload, true);
+  ddsi_plist_addtomsg_bo (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0, DDSRT_BOSEL_BE);
+  nn_xmsg_addpar_sentinel_bo (mpayload, DDSRT_BOSEL_BE);
   ddsi_plist_fini (&ps);
   payload = nn_xmsg_payload (&sz, mpayload);
   seq->length = (uint32_t) sz;
@@ -170,7 +170,7 @@ static bool write_crypto_exchange_message(const struct participant *pp, const dd
 
   /* Get serialized message. */
   nn_participant_generic_message_init(&pmg, &wr->e.guid, seq, dst_pguid, dst_eguid, src_eguid, classid, tokens, NULL);
-  serdata = ddsi_serdata_from_sample (wr->topic, SDK_DATA, &pmg);
+  serdata = ddsi_serdata_from_sample (wr->type, SDK_DATA, &pmg);
   serdata->timestamp = ddsrt_time_wallclock ();
   tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
   r = write_sample_p2p_wrlock_held(wr, seq, NULL, serdata, tk, prd);

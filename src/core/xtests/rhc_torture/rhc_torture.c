@@ -47,7 +47,7 @@
 
 static ddsrt_prng_t prng;
 
-static struct ddsi_sertopic *mdtopic;
+static struct ddsi_sertype *mdtype;
 static struct thread_state1 *mainthread;
 static dds_time_t tref_dds;
 static uint32_t seq;
@@ -92,7 +92,7 @@ static int64_t dds_time_uniq (void)
 static struct ddsi_serdata *mksample (int32_t keyval, unsigned statusinfo)
 {
   RhcTypes_T d = { keyval, "A", (int32_t) ++seq, 0, "B" };
-  struct ddsi_serdata *sd = ddsi_serdata_from_sample (mdtopic, SDK_DATA, &d);
+  struct ddsi_serdata *sd = ddsi_serdata_from_sample (mdtype, SDK_DATA, &d);
   sd->statusinfo = statusinfo;
   sd->timestamp.v = dds_time_uniq ();
   return sd;
@@ -101,7 +101,7 @@ static struct ddsi_serdata *mksample (int32_t keyval, unsigned statusinfo)
 static struct ddsi_serdata *mkkeysample (int32_t keyval, unsigned statusinfo)
 {
   RhcTypes_T d = { keyval, "A", 0, 0, "B" };
-  struct ddsi_serdata *sd = ddsi_serdata_from_sample (mdtopic, SDK_KEY, &d);
+  struct ddsi_serdata *sd = ddsi_serdata_from_sample (mdtype, SDK_KEY, &d);
   sd->statusinfo = statusinfo;
   sd->timestamp.v = dds_time_uniq ();
   return sd;
@@ -148,7 +148,7 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct pro
       printf ("STORE %c%c %16"PRIx64" %16"PRIx64" %2"PRId32" %6s %s\n", si_u, si_d, iid, wr->e.iid, d.k, "_", buf);
     else
       printf ("STORE %c%c %16"PRIx64" %16"PRIx64" %2"PRId32" %6"PRIu32" %s\n", si_u, si_d, iid, wr->e.iid, d.k, d.x, buf);
-    ddsi_sertopic_free_sample (sd->topic, &d, DDS_FREE_CONTENTS);
+    ddsi_sertype_free_sample (sd->type, &d, DDS_FREE_CONTENTS);
   }
   pwr_info.auto_dispose = wr->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
   pwr_info.guid = wr->e.guid;
@@ -202,7 +202,7 @@ static struct dds_rhc *mkrhc (struct ddsi_domaingv *gv, dds_reader *rd, dds_hist
   rqos.destination_order.kind = dok;
   ddsi_xqos_mergein_missing (&rqos, &gv->default_xqos_rd, ~(uint64_t)0);
   thread_state_awake_domain_ok (lookup_thread_state ());
-  rhc = dds_rhc_default_new_xchecks (rd, gv, mdtopic, true);
+  rhc = dds_rhc_default_new_xchecks (rd, gv, mdtype, true);
   dds_rhc_set_qos(rhc, &rqos);
   thread_state_asleep (lookup_thread_state ());
   return rhc;
@@ -935,7 +935,7 @@ int main (int argc, char **argv)
   {
     struct dds_topic *x;
     if (dds_topic_pin (tp, &x) < 0) abort();
-    mdtopic = ddsi_sertopic_ref (x->m_stopic);
+    mdtype = ddsi_sertype_ref (x->m_stype);
     dds_topic_unpin (x);
   }
 
@@ -1108,7 +1108,7 @@ int main (int argc, char **argv)
   for (size_t i = 0; i < sizeof (rres_iseq) / sizeof (rres_iseq[0]); i++)
     RhcTypes_T_free (&rres_mseq[i], DDS_FREE_CONTENTS);
 
-  ddsi_sertopic_unref (mdtopic);
+  ddsi_sertype_unref (mdtype);
   dds_delete(pp);
   return 0;
 }

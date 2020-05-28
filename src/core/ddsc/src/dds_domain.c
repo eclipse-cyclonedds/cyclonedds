@@ -414,3 +414,79 @@ void dds_write_set_batch (bool enable)
   ddsrt_mutex_unlock (&dds_global.m_mutex);
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
 }
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+
+dds_return_t dds_domain_resolve_type (dds_entity_t entity, unsigned char *type_identifier, size_t type_identifier_sz, dds_duration_t timeout, struct ddsi_sertype **sertype)
+{
+  struct dds_entity *e;
+  type_identifier_t type_id;
+  dds_return_t rc;
+
+  if (type_identifier == NULL || type_identifier_sz != sizeof (type_id) || sertype == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  if ((rc = dds_entity_pin (entity, &e)) < 0)
+    return rc;
+  if (e->m_domain == NULL)
+  {
+    rc = DDS_RETCODE_ILLEGAL_OPERATION;
+    goto failed;
+  }
+
+  struct ddsi_domaingv *gv = &e->m_domain->gv;
+  memcpy (&type_id.hash, type_identifier, sizeof (type_id));
+  ddsrt_mutex_lock (&gv->tl_admin_lock);
+  struct tl_meta *tlm = ddsi_tl_meta_lookup_locked (gv, &type_id);
+  if (tlm == NULL)
+  {
+    ddsrt_mutex_unlock (&gv->tl_admin_lock);
+    rc = DDS_RETCODE_PRECONDITION_NOT_MET;
+    goto failed;
+  }
+  if (tlm->state == TL_META_RESOLVED)
+  {
+    *sertype = ddsi_sertype_ref (tlm->sertype);
+    ddsrt_mutex_unlock (&gv->tl_admin_lock);
+  }
+  else
+  {
+    ddsrt_mutex_unlock (&gv->tl_admin_lock);
+    if (!ddsi_tl_request_type (gv, &type_id))
+    {
+      rc = DDS_RETCODE_PRECONDITION_NOT_MET;
+      goto failed;
+    }
+
+    const dds_time_t tnow = dds_time ();
+    const dds_time_t abstimeout = (DDS_INFINITY - timeout <= tnow) ? DDS_NEVER : (tnow + timeout);
+    *sertype = NULL;
+    ddsrt_mutex_lock (&gv->tl_admin_lock);
+    // type may already be resolved at this point, which means we
+    // shouldn't wait for the condition to be triggered
+    if (tlm->state == TL_META_RESOLVED)
+      *sertype = ddsi_sertype_ref (tlm->sertype);
+    while (*sertype == NULL && dds_time () < abstimeout)
+    {
+      if (ddsrt_cond_waituntil (&gv->tl_resolved_cond, &gv->tl_admin_lock, abstimeout))
+      {
+        if (tlm->state == TL_META_RESOLVED)
+          *sertype = ddsi_sertype_ref (tlm->sertype);
+      }
+    }
+    ddsrt_mutex_unlock (&gv->tl_admin_lock);
+    if (*sertype == NULL)
+    {
+      rc = DDS_RETCODE_TIMEOUT;
+      goto failed;
+    }
+  }
+  dds_entity_unpin (e);
+  return DDS_RETCODE_OK;
+
+failed:
+  dds_entity_unpin (e);
+  assert (rc != DDS_RETCODE_OK);
+  return rc;
+}
+#endif /* DDS_HAS_TYPE_DISCOVERY */
