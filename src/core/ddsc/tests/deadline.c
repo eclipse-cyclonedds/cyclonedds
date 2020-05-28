@@ -41,45 +41,11 @@ static dds_entity_t g_remote_participant = 0;
 static dds_entity_t g_remote_subscriber  = 0;
 static dds_entity_t g_remote_topic       = 0;
 
-static void sync_reader_writer(dds_entity_t participant, dds_entity_t reader, dds_entity_t writer)
-{
-  dds_attach_t triggered;
-  dds_return_t ret;
-  dds_entity_t waitset_rd = dds_create_waitset(participant);
-  CU_ASSERT_FATAL(waitset_rd > 0);
-  dds_entity_t waitset_wr = dds_create_waitset(g_participant);
-  CU_ASSERT_FATAL(waitset_wr > 0);
-
-  /* Sync reader to writer. */
-  ret = dds_set_status_mask(reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-  ret = dds_waitset_attach(waitset_rd, reader, reader);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-  ret = dds_waitset_wait(waitset_rd, &triggered, 1, DDS_SECS(1));
-  CU_ASSERT_EQUAL_FATAL(ret, 1);
-  CU_ASSERT_EQUAL_FATAL(reader, (dds_entity_t)(intptr_t)triggered);
-  ret = dds_waitset_detach(waitset_rd, reader);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-  dds_delete(waitset_rd);
-
-  /* Sync writer to reader. */
-  ret = dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-  ret = dds_waitset_attach(waitset_wr, writer, writer);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-  ret = dds_waitset_wait(waitset_wr, &triggered, 1, DDS_SECS(1));
-  CU_ASSERT_EQUAL_FATAL(ret, 1);
-  CU_ASSERT_EQUAL_FATAL(writer, (dds_entity_t)(intptr_t)triggered);
-  ret = dds_waitset_detach(waitset_wr, writer);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-  dds_delete(waitset_wr);
-}
-
 static dds_entity_t create_and_sync_reader(dds_entity_t participant, dds_entity_t subscriber, dds_entity_t topic, dds_qos_t *qos, dds_entity_t writer)
 {
   dds_entity_t reader = dds_create_reader(subscriber, topic, qos, NULL);
   CU_ASSERT_FATAL(reader > 0);
-  sync_reader_writer (participant, reader, writer);
+  sync_reader_writer (participant, reader, g_participant, writer);
   dds_return_t ret = dds_set_status_mask(reader, DDS_REQUESTED_DEADLINE_MISSED_STATUS);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
   return reader;

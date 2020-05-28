@@ -63,6 +63,7 @@ set(ddsc_test_sources
     "test_util.c"
     "test_util.h"
     "test_common.h"
+    "test_common.c"
     "test_oneliner.c"
     "test_oneliner.h")
 
@@ -73,6 +74,11 @@ endif()
 if(ENABLE_DEADLINE_MISSED)
   list(APPEND ddsc_test_sources "deadline.c")
 endif()
+
+if(ENABLE_TYPE_DISCOVERY)
+  list(APPEND ddsc_test_sources "typelookup.c")
+endif()
+
 
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
 target_include_directories(

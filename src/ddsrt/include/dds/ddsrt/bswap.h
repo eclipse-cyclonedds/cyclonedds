@@ -21,6 +21,12 @@
 extern "C" {
 #endif
 
+enum ddsrt_byte_order_selector {
+  DDSRT_BOSEL_NATIVE,
+  DDSRT_BOSEL_BE,
+  DDSRT_BOSEL_LE,
+};
+
 inline uint16_t ddsrt_bswap2u (uint16_t x)
 {
   return (uint16_t) ((x >> 8) | (x << 8));
@@ -60,6 +66,12 @@ inline int64_t ddsrt_bswap8 (int64_t x)
 #define ddsrt_toBE4u(x) ddsrt_bswap4u (x)
 #define ddsrt_toBE8(x) ddsrt_bswap8 (x)
 #define ddsrt_toBE8u(x) ddsrt_bswap8u (x)
+#define ddsrt_toBO2(bo, x) ((bo) == DDSRT_BOSEL_BE ? ddsrt_bswap2 (x) : (x))
+#define ddsrt_toBO2u(bo, x) ((bo) == DDSRT_BOSEL_BE ? ddsrt_bswap2u (x) : (x))
+#define ddsrt_toBO4(bo, x) ((bo) == DDSRT_BOSEL_BE ? ddsrt_bswap4 (x) : (x))
+#define ddsrt_toBO4u(bo, x) ((bo) == DDSRT_BOSEL_BE ? ddsrt_bswap4u (x) : (x))
+#define ddsrt_toBO8(bo, x) ((bo) == DDSRT_BOSEL_BE ? ddsrt_bswap8 (x) : (x))
+#define ddsrt_toBO8u(bo, x) ((bo) == DDSRT_BOSEL_BE ? ddsrt_bswap8u (x) : (x))
 #define ddsrt_fromBE2(x) ddsrt_bswap2 (x)
 #define ddsrt_fromBE2u(x) ddsrt_bswap2u (x)
 #define ddsrt_fromBE4(x) ddsrt_bswap4 (x)
@@ -72,6 +84,12 @@ inline int64_t ddsrt_bswap8 (int64_t x)
 #define ddsrt_toBE4u(x) (x)
 #define ddsrt_toBE8(x) (x)
 #define ddsrt_toBE8u(x) (x)
+#define ddsrt_toBO2(bo, x) ((bo) == DDSRT_BOSEL_LE ? ddsrt_bswap2 (x) : (x))
+#define ddsrt_toBO2u(bo, x) ((bo) == DDSRT_BOSEL_LE ? ddsrt_bswap2u (x) : (x))
+#define ddsrt_toBO4(bo, x) ((bo) == DDSRT_BOSEL_LE ? ddsrt_bswap4 (x) : (x))
+#define ddsrt_toBO4u(bo, x) ((bo) == DDSRT_BOSEL_LE ? ddsrt_bswap4u (x) : (x))
+#define ddsrt_toBO8(bo, x) ((bo) == DDSRT_BOSEL_LE ? ddsrt_bswap8 (x) : (x))
+#define ddsrt_toBO8u(bo, x) ((bo) == DDSRT_BOSEL_LE ? ddsrt_bswap8u (x) : (x))
 #define ddsrt_fromBE2(x) (x)
 #define ddsrt_fromBE2u(x) (x)
 #define ddsrt_fromBE4(x) (x)

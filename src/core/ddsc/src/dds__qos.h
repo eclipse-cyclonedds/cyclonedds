@@ -36,7 +36,8 @@ extern "C" {
    QP_OWNERSHIP | QP_LIVELINESS | QP_TIME_BASED_FILTER |                \
    QP_RELIABILITY | QP_DESTINATION_ORDER | QP_HISTORY |                 \
    QP_RESOURCE_LIMITS | QP_ADLINK_READER_DATA_LIFECYCLE |               \
-   QP_CYCLONE_IGNORELOCAL | QP_PROPERTY_LIST)
+   QP_CYCLONE_IGNORELOCAL | QP_PROPERTY_LIST |                          \
+   QP_TYPE_CONSISTENCY_ENFORCEMENT)
 
 #define DDS_SUBSCRIBER_QOS_MASK                                         \
   (QP_PARTITION | QP_PRESENTATION | QP_GROUP_DATA |                     \

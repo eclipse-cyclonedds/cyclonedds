@@ -59,17 +59,21 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic)
     return DDS_RETCODE_ILLEGAL_OPERATION;
   }
 
-  struct ddsi_sertopic *sertopic;
+  char *topic_name;
+  struct ddsi_sertype *sertype;
   switch (topic)
   {
     case DDS_BUILTIN_TOPIC_DCPSPARTICIPANT:
-      sertopic = e->m_domain->builtin_participant_topic;
+      topic_name = DDS_BUILTIN_TOPIC_PARTICIPANT_NAME;
+      sertype = e->m_domain->builtin_participant_type;
       break;
     case DDS_BUILTIN_TOPIC_DCPSPUBLICATION:
-      sertopic = e->m_domain->builtin_writer_topic;
+      topic_name = DDS_BUILTIN_TOPIC_PUBLICATION_NAME;
+      sertype = e->m_domain->builtin_writer_type;
       break;
     case DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION:
-      sertopic = e->m_domain->builtin_reader_topic;
+      topic_name = DDS_BUILTIN_TOPIC_SUBSCRIPTION_NAME;
+      sertype = e->m_domain->builtin_reader_type;
       break;
     default:
       assert (0);
@@ -78,11 +82,11 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic)
   }
 
   dds_qos_t *qos = dds__create_builtin_qos ();
-  if ((tp = dds_create_topic_impl (par->m_entity.m_hdllink.hdl, &sertopic, qos, NULL, NULL)) > 0)
+  if ((tp = dds_create_topic_impl (par->m_entity.m_hdllink.hdl, topic_name, true, &sertype, qos, NULL, NULL)) > 0)
   {
-    /* keep ownership for built-in sertopics because there are re-used, lifetime for these
-       sertopics is bound to domain */
-    ddsi_sertopic_ref (sertopic);
+    /* keep ownership for built-in sertypes because there are re-used, lifetime for these
+       sertypes is bound to domain */
+    ddsi_sertype_ref (sertype);
   }
   dds_delete_qos (qos);
   dds_entity_unpin (e);
@@ -129,9 +133,13 @@ bool dds__validate_builtin_reader_qos (const dds_domain *dom, dds_entity_t topic
        the full QoS object ...  Here the two have the same topic by construction
        so ignoring them in the comparison makes things work.  The discrepancy
        should be addressed one day. */
-    const uint64_t qmask = ~(QP_TOPIC_NAME | QP_TYPE_NAME);
+    const uint64_t qmask = ~(QP_TOPIC_NAME | QP_TYPE_NAME | QP_CYCLONE_TYPE_INFORMATION);
     dds_qos_policy_id_t dummy;
-    return qos_match_mask_p (qos, bwr->wr.xqos, qmask, &dummy) && !qos_has_resource_limits (qos);
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    return qos_match_mask_p (bwr->wr.e.gv, qos, bwr->wr.xqos, qmask, &dummy, NULL, NULL, NULL, NULL) && !qos_has_resource_limits (qos);
+#else
+    return qos_match_mask_p (bwr->wr.e.gv, qos, bwr->wr.xqos, qmask, &dummy) && !qos_has_resource_limits (qos);
+#endif
   }
 }
 
@@ -163,10 +171,10 @@ dds_entity_t dds__get_builtin_subscriber (dds_entity_t e)
   return sub;
 }
 
-static bool dds__builtin_is_builtintopic (const struct ddsi_sertopic *tp, void *vdomain)
+static bool dds__builtin_is_builtintopic (const struct ddsi_sertype *tp, void *vdomain)
 {
   (void) vdomain;
-  return tp->ops == &ddsi_sertopic_ops_builtintopic;
+  return tp->ops == &ddsi_sertype_ops_builtintopic;
 }
 
 static bool dds__builtin_is_visible (const ddsi_guid_t *guid, nn_vendorid_t vendorid, void *vdomain)
@@ -188,7 +196,7 @@ static struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct dd
      of the topic, not the actual topic; also, this is called early in the initialisation of the entity with
      this GUID, which simply causes serdata_from_keyhash to create a key-only serdata because the key lookup
      fails. */
-  sd = ddsi_serdata_from_keyhash (domain->builtin_participant_topic, &x.keyhash);
+  sd = ddsi_serdata_from_keyhash (domain->builtin_participant_type, &x.keyhash);
   tk = ddsi_tkmap_find (domain->gv.m_tkmap, sd, true);
   ddsi_serdata_unref (sd);
   return tk;
@@ -198,27 +206,27 @@ struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, dd
 {
   /* initialize to avoid gcc warning ultimately caused by C's horrible type system */
   struct dds_domain *dom = e->gv->builtin_topic_interface->arg;
-  struct ddsi_sertopic *topic = NULL;
+  struct ddsi_sertype *type = NULL;
   struct ddsi_serdata *serdata;
   union { ddsi_guid_t guid; struct ddsi_keyhash keyhash; } x;
   switch (e->kind)
   {
     case EK_PARTICIPANT:
     case EK_PROXY_PARTICIPANT:
-      topic = dom->builtin_participant_topic;
+      type = dom->builtin_participant_type;
       break;
     case EK_WRITER:
     case EK_PROXY_WRITER:
-      topic = dom->builtin_writer_topic;
+      type = dom->builtin_writer_type;
       break;
     case EK_READER:
     case EK_PROXY_READER:
-      topic = dom->builtin_reader_topic;
+      type = dom->builtin_reader_type;
       break;
   }
-  assert (topic != NULL);
+  assert (type != NULL);
   x.guid = nn_hton_guid (e->guid);
-  serdata = ddsi_serdata_from_keyhash (topic, &x.keyhash);
+  serdata = ddsi_serdata_from_keyhash (type, &x.keyhash);
   serdata->timestamp = timestamp;
   serdata->statusinfo = alive ? 0 : NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
   return serdata;
@@ -252,11 +260,11 @@ static void dds__builtin_write (const struct entity_common *e, ddsrt_wctime_t ti
   }
 }
 
-static void unref_builtin_topics (struct dds_domain *dom)
+static void unref_builtin_types (struct dds_domain *dom)
 {
-  ddsi_sertopic_unref (dom->builtin_participant_topic);
-  ddsi_sertopic_unref (dom->builtin_reader_topic);
-  ddsi_sertopic_unref (dom->builtin_writer_topic);
+  ddsi_sertype_unref (dom->builtin_participant_type);
+  ddsi_sertype_unref (dom->builtin_reader_type);
+  ddsi_sertype_unref (dom->builtin_writer_type);
 }
 
 void dds__builtin_init (struct dds_domain *dom)
@@ -270,29 +278,29 @@ void dds__builtin_init (struct dds_domain *dom)
   dom->btif.builtintopic_write = dds__builtin_write;
   dom->gv.builtin_topic_interface = &dom->btif;
 
-  dom->builtin_participant_topic = new_sertopic_builtintopic (DSBT_PARTICIPANT, "DCPSParticipant", "org::eclipse::cyclonedds::builtin::DCPSParticipant");
-  dom->builtin_reader_topic = new_sertopic_builtintopic (DSBT_READER, "DCPSSubscription", "org::eclipse::cyclonedds::builtin::DCPSSubscription");
-  dom->builtin_writer_topic = new_sertopic_builtintopic (DSBT_WRITER, "DCPSPublication", "org::eclipse::cyclonedds::builtin::DCPSPublication");
+  dom->builtin_participant_type = new_sertype_builtintopic (&dom->gv, DSBT_PARTICIPANT, "org::eclipse::cyclonedds::builtin::DCPSParticipant");
+  dom->builtin_reader_type = new_sertype_builtintopic (&dom->gv, DSBT_READER, "org::eclipse::cyclonedds::builtin::DCPSSubscription");
+  dom->builtin_writer_type = new_sertype_builtintopic (&dom->gv, DSBT_WRITER, "org::eclipse::cyclonedds::builtin::DCPSPublication");
 
-  ddsrt_mutex_lock (&dom->gv.sertopics_lock);
-  ddsi_sertopic_register_locked (&dom->gv, dom->builtin_participant_topic);
-  ddsi_sertopic_register_locked (&dom->gv, dom->builtin_reader_topic);
-  ddsi_sertopic_register_locked (&dom->gv, dom->builtin_writer_topic);
-  ddsrt_mutex_unlock (&dom->gv.sertopics_lock);
+  ddsrt_mutex_lock (&dom->gv.sertypes_lock);
+  ddsi_sertype_register_locked (dom->builtin_participant_type);
+  ddsi_sertype_register_locked (dom->builtin_reader_type);
+  ddsi_sertype_register_locked (dom->builtin_writer_type);
+  ddsrt_mutex_unlock (&dom->gv.sertypes_lock);
 
   thread_state_awake (lookup_thread_state (), &dom->gv);
   const struct entity_index *gh = dom->gv.entity_index;
-  dom->builtintopic_writer_participant = new_local_orphan_writer (&dom->gv, to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER), dom->builtin_participant_topic, qos, builtintopic_whc_new (DSBT_PARTICIPANT, gh));
-  dom->builtintopic_writer_publications = new_local_orphan_writer (&dom->gv, to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER), dom->builtin_writer_topic, qos, builtintopic_whc_new (DSBT_WRITER, gh));
-  dom->builtintopic_writer_subscriptions = new_local_orphan_writer (&dom->gv, to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER), dom->builtin_reader_topic, qos, builtintopic_whc_new (DSBT_READER, gh));
+  dom->builtintopic_writer_participant = new_local_orphan_writer (&dom->gv, to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER), DDS_BUILTIN_TOPIC_PARTICIPANT_NAME, dom->builtin_participant_type, qos, builtintopic_whc_new (DSBT_PARTICIPANT, gh));
+  dom->builtintopic_writer_publications = new_local_orphan_writer (&dom->gv, to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER), DDS_BUILTIN_TOPIC_PUBLICATION_NAME, dom->builtin_writer_type, qos, builtintopic_whc_new (DSBT_WRITER, gh));
+  dom->builtintopic_writer_subscriptions = new_local_orphan_writer (&dom->gv, to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER), DDS_BUILTIN_TOPIC_SUBSCRIPTION_NAME, dom->builtin_reader_type, qos, builtintopic_whc_new (DSBT_READER, gh));
   thread_state_asleep (lookup_thread_state ());
 
   dds_delete_qos (qos);
 
-  /* ddsi_sertopic_init initializes the refcount to 1 and dds_sertopic_register_locked increments
+  /* ddsi_sertype_init initializes the refcount to 1 and dds_sertopic_register_locked increments
      it.  All "real" references (such as readers and writers) are also accounted for in the
      reference count, so we have an excess reference here. */
-  unref_builtin_topics (dom);
+  unref_builtin_types (dom);
 }
 
 void dds__builtin_fini (struct dds_domain *dom)
@@ -303,5 +311,5 @@ void dds__builtin_fini (struct dds_domain *dom)
   delete_local_orphan_writer (dom->builtintopic_writer_publications);
   delete_local_orphan_writer (dom->builtintopic_writer_subscriptions);
   thread_state_asleep (lookup_thread_state ());
-  unref_builtin_topics (dom);
+  unref_builtin_types (dom);
 }

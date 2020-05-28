@@ -39,7 +39,7 @@ struct dds_readcond;
 struct dds_guardcond;
 struct dds_statuscond;
 
-struct ddsi_sertopic;
+struct ddsi_sertype;
 struct ddsi_rhc;
 
 typedef uint16_t status_mask_t;
@@ -228,9 +228,9 @@ typedef struct dds_domain {
   dds_domainid_t m_id;
   struct cfgst *cfgst; // NULL if config initializer provided
 
-  struct ddsi_sertopic *builtin_participant_topic;
-  struct ddsi_sertopic *builtin_reader_topic;
-  struct ddsi_sertopic *builtin_writer_topic;
+  struct ddsi_sertype *builtin_participant_type;
+  struct ddsi_sertype *builtin_reader_type;
+  struct ddsi_sertype *builtin_writer_type;
 
   struct local_orphan_writer *builtintopic_writer_participant;
   struct local_orphan_writer *builtintopic_writer_publications;
@@ -308,14 +308,11 @@ typedef struct dds_writer {
 
 typedef struct dds_topic {
   struct dds_entity m_entity;
-  struct ddsi_sertopic *m_stopic;
+  char *m_name;
+  struct ddsi_sertype *m_stype;
   struct dds_ktopic *m_ktopic; /* refc'd, constant */
-
   struct dds_topic_filter m_filter;
-
-  /* Status metrics */
-
-  dds_inconsistent_topic_status_t m_inconsistent_topic_status;
+  dds_inconsistent_topic_status_t m_inconsistent_topic_status; /* Status metrics */
 } dds_topic;
 
 typedef uint32_t dds_querycond_mask_t;

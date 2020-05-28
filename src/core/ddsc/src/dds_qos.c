@@ -121,7 +121,7 @@ bool dds_qos_equal (const dds_qos_t * __restrict a, const dds_qos_t * __restrict
   else if (a == NULL || b == NULL)
     return false;
   else
-    return ddsi_xqos_delta (a, b, ~(uint64_t)0) == 0;
+    return ddsi_xqos_delta (a, b, ~(QP_CYCLONE_TYPE_INFORMATION)) == 0;
 }
 
 void dds_qset_userdata (dds_qos_t * __restrict qos, const void * __restrict value, size_t sz)
@@ -441,6 +441,20 @@ void dds_qset_bprop (dds_qos_t * __restrict qos, const char * name, const void *
   }
 }
 
+void dds_qset_type_consistency (dds_qos_t * __restrict qos, dds_type_consistency_kind_t kind,
+  bool ignore_sequence_bounds, bool ignore_string_bounds, bool ignore_member_names, bool prevent_type_widening, bool force_type_validation)
+{
+  if (qos == NULL)
+    return;
+  qos->type_consistency.kind = kind;
+  qos->type_consistency.ignore_sequence_bounds = ignore_sequence_bounds;
+  qos->type_consistency.ignore_string_bounds = ignore_string_bounds;
+  qos->type_consistency.ignore_member_names = ignore_member_names;
+  qos->type_consistency.prevent_type_widening = prevent_type_widening;
+  qos->type_consistency.force_type_validation = force_type_validation;
+  qos->present |= QP_TYPE_CONSISTENCY_ENFORCEMENT;
+}
+
 bool dds_qget_userdata (const dds_qos_t * __restrict qos, void **value, size_t *sz)
 {
   if (qos == NULL || !(qos->present & QP_USER_DATA))
@@ -733,4 +747,24 @@ bool dds_qget_bprop (const dds_qos_t * __restrict qos, const char * name, void *
       *sz = 0;
   }
   return found;
+}
+
+bool dds_qget_type_consistency (const dds_qos_t * __restrict qos, dds_type_consistency_kind_t *kind,
+  bool *ignore_sequence_bounds, bool *ignore_string_bounds, bool *ignore_member_names, bool *prevent_type_widening, bool *force_type_validation)
+{
+  if (qos == NULL || !(qos->present & QP_TYPE_CONSISTENCY_ENFORCEMENT))
+    return false;
+  if (kind)
+    *kind = qos->type_consistency.kind;
+  if (ignore_sequence_bounds)
+    *ignore_sequence_bounds = qos->type_consistency.ignore_sequence_bounds;
+  if (ignore_string_bounds)
+    *ignore_string_bounds = qos->type_consistency.ignore_string_bounds;
+  if (ignore_member_names)
+    *ignore_member_names = qos->type_consistency.ignore_member_names;
+  if (prevent_type_widening)
+    *prevent_type_widening = qos->type_consistency.prevent_type_widening;
+  if (force_type_validation)
+    *force_type_validation = qos->type_consistency.force_type_validation;
+  return true;
 }

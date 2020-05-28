@@ -33,7 +33,7 @@
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
 #define DDS_CONFIG_NO_PORT_GAIN "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
-#define DDS_CONFIG_NO_PORT_GAIN_LOG "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Tracing><OutputFile>cyclonedds_multi_sertopic_tests.${CYCLONEDDS_DOMAIN_ID}.${CYCLONEDDS_PID}.log</OutputFile><Verbosity>finest</Verbosity></Tracing><Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
+#define DDS_CONFIG_NO_PORT_GAIN_LOG "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Tracing><OutputFile>cyclonedds_multi_sertype_tests.${CYCLONEDDS_DOMAIN_ID}.${CYCLONEDDS_PID}.log</OutputFile><Verbosity>finest</Verbosity></Tracing><Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
 
 /* IDL preprocessing is not really friendly towards creating multiple descriptors
    for the same type name with different definitions, so we do it by hand. */
@@ -76,9 +76,9 @@ static const dds_topic_descriptor_t type_seq_desc =
 {
   .m_size = sizeof (struct type_seq),
   .m_align = sizeof (void *),
-  .m_flagset = DDS_TOPIC_NO_OPTIMIZE,
+  .m_flagset = DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_DISABLE_TYPECHECK,
   .m_nkeys = 0,
-  .m_typename = "multi_sertopic_type",
+  .m_typename = "multi_sertype_type",
   .m_keys = NULL,
   .m_nops = 2,
   .m_ops = (const uint32_t[]) {
@@ -92,9 +92,9 @@ static const dds_topic_descriptor_t type_ary_desc =
 {
   .m_size = sizeof (struct type_ary),
   .m_align = 4u,
-  .m_flagset = DDS_TOPIC_NO_OPTIMIZE,
+  .m_flagset = DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_DISABLE_TYPECHECK,
   .m_nkeys = 0,
-  .m_typename = "multi_sertopic_type",
+  .m_typename = "multi_sertype_type",
   .m_keys = NULL,
   .m_nops = 2,
   .m_ops = (const uint32_t[]) {
@@ -108,9 +108,9 @@ static const dds_topic_descriptor_t type_uni_desc =
 {
   .m_size = sizeof (struct type_uni),
   .m_align = sizeof (void *),
-  .m_flagset = DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_CONTAINS_UNION,
+  .m_flagset = DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_CONTAINS_UNION | DDS_TOPIC_DISABLE_TYPECHECK,
   .m_nkeys = 0,
-  .m_typename = "multi_sertopic_type",
+  .m_typename = "multi_sertype_type",
   .m_keys = NULL,
   .m_nops = 8,
   .m_ops = (const uint32_t[]) {
@@ -129,8 +129,8 @@ static const dds_topic_descriptor_t type_uni_desc =
   .m_meta = "" /* this is on its way out anyway */
 };
 
-/* The slow delivery path has a switchover at 4 sertopics (well, today it has ...) so it is better to
-   to test with > 4 different sertopics.  That path (again, today) iterates over GUIDs in increasing
+/* The slow delivery path has a switchover at 4 sertypes (well, today it has ...) so it is better to
+   to test with > 4 different sertypes.  That path (again, today) iterates over GUIDs in increasing
    order, and as all readers are created in the participant and the entity ids are strictly
    monotonically increasing for the first ~ 16M entities (again, today), creating additional
    readers for these topics at the end means that "ary2" is the one that ends up in > 4 case.
@@ -139,9 +139,9 @@ static const dds_topic_descriptor_t type_ary1_desc =
 {
   .m_size = sizeof (struct type_ary),
   .m_align = 1u,
-  .m_flagset = DDS_TOPIC_NO_OPTIMIZE,
+  .m_flagset = DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_DISABLE_TYPECHECK,
   .m_nkeys = 0,
-  .m_typename = "multi_sertopic_type",
+  .m_typename = "multi_sertype_type",
   .m_keys = NULL,
   .m_nops = 2,
   .m_ops = (const uint32_t[]) {
@@ -155,9 +155,9 @@ static const dds_topic_descriptor_t type_ary2_desc =
 {
   .m_size = sizeof (struct type_ary),
   .m_align = 2u,
-  .m_flagset = DDS_TOPIC_NO_OPTIMIZE,
+  .m_flagset = DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_DISABLE_TYPECHECK,
   .m_nkeys = 0,
-  .m_typename = "multi_sertopic_type",
+  .m_typename = "multi_sertype_type",
   .m_keys = NULL,
   .m_nops = 2,
   .m_ops = (const uint32_t[]) {
@@ -175,7 +175,7 @@ static dds_entity_t g_sub_domain = 0;
 static dds_entity_t g_sub_participant = 0;
 static dds_entity_t g_sub_subscriber = 0;
 
-static void multi_sertopic_init (void)
+static void multi_sertype_init (void)
 {
   /* Domains for pub and sub use a different domain id, but the portgain setting
    * in configuration is 0, so that both domains will map to the same port number.
@@ -198,7 +198,7 @@ static void multi_sertopic_init (void)
   CU_ASSERT_FATAL (g_sub_subscriber > 0);
 }
 
-static void multi_sertopic_fini (void)
+static void multi_sertype_fini (void)
 {
   dds_delete (g_sub_subscriber);
   dds_delete (g_pub_publisher);
@@ -304,20 +304,20 @@ static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, siz
   CU_ASSERT_FATAL (wrcount == nwr);
 }
 
-static struct ddsi_sertopic *get_sertopic_from_reader (dds_entity_t reader)
+static struct ddsi_sertype *get_sertype_from_reader (dds_entity_t reader)
 {
   /* not refcounting the sertopic: so this presumes it is kept alive for other reasons */
   dds_return_t rc;
   struct dds_entity *x;
   struct dds_reader *rd;
-  struct ddsi_sertopic *sertopic;
+  struct ddsi_sertype *sertype;
   rc = dds_entity_pin (reader, &x);
   CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
   CU_ASSERT_FATAL (dds_entity_kind (x) == DDS_KIND_READER);
   rd = (struct dds_reader *) x;
-  sertopic = rd->m_topic->m_stopic;
+  sertype = rd->m_topic->m_stype;
   dds_entity_unpin (x);
-  return sertopic;
+  return sertype;
 }
 
 static void logsink (void *arg, const dds_log_data_t *msg)
@@ -328,13 +328,13 @@ static void logsink (void *arg, const dds_log_data_t *msg)
     ddsrt_atomic_inc32 (deser_fail);
 }
 
-enum multi_sertopic_mode {
+enum multi_sertype_mode {
   MSM_FASTPATH,
   MSM_SLOWPATH,
   MSM_TRANSLOCAL
 };
 
-static const char *multi_sertopic_modestr (enum multi_sertopic_mode mode)
+static const char *multi_sertype_modestr (enum multi_sertype_mode mode)
 {
   switch (mode)
   {
@@ -369,7 +369,7 @@ static void create_readers (dds_entity_t pp_sub, size_t nrds, dds_entity_t *rds,
   }
 }
 
-static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, enum multi_sertopic_mode mode)
+static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, enum multi_sertype_mode mode)
 {
 #define SEQ_IDX 0
 #define ARY_IDX 1
@@ -386,7 +386,7 @@ static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, 
   dds_qos_t *qos;
   dds_return_t rc;
 
-  printf ("multi_sertopic: %s %s\n", (pp_pub == pp_sub) ? "local" : "remote", multi_sertopic_modestr (mode));
+  printf ("multi_sertype: %s %s\n", (pp_pub == pp_sub) ? "local" : "remote", multi_sertype_modestr (mode));
 
   /* Transient-local mode is for checking the local historical data delivery path (for remote, there
      is nothing special about it), and knowing it is local means we don't have to wait for historical
@@ -401,13 +401,14 @@ static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, 
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
   dds_qset_destination_order (qos, DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP);
   dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, 0);
+  dds_qset_type_consistency (qos, DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION, false, false, false, false, false);
   if (mode == MSM_TRANSLOCAL)
   {
     dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
     dds_qset_durability_service (qos, 0, DDS_HISTORY_KEEP_ALL, 0, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
   }
 
-  create_unique_topic_name ("ddsc_multi_sertopic_lease_duration_zero", name, sizeof name);
+  create_unique_topic_name ("ddsc_multi_sertype_lease_duration_zero", name, sizeof name);
 
   for (size_t i = 0; i < sizeof (pub_topics) / sizeof (pub_topics[0]); i++)
   {
@@ -597,7 +598,7 @@ static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, 
         if (!si.valid_data)
           continue;
         printf ("recv: reader %zu %"PRId64"\n", i, si.source_timestamp);
-        CU_ASSERT_FATAL (sample->topic == get_sertopic_from_reader (readers[i]));
+        CU_ASSERT_FATAL (sample->type == get_sertype_from_reader (readers[i]));
         ddsi_serdata_unref (sample);
         nseen++;
       }
@@ -621,27 +622,27 @@ static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, 
   dds_set_log_sink (0, NULL);
 }
 
-CU_Test(ddsc_multi_sertopic, local, .init = multi_sertopic_init, .fini = multi_sertopic_fini)
+CU_Test(ddsc_multi_sertype, local, .init = multi_sertype_init, .fini = multi_sertype_fini)
 {
-  ddsc_multi_sertopic_impl (g_pub_participant, g_pub_participant, MSM_FASTPATH);
+  ddsc_multi_sertype_impl (g_pub_participant, g_pub_participant, MSM_FASTPATH);
 }
 
-CU_Test(ddsc_multi_sertopic, remote, .init = multi_sertopic_init, .fini = multi_sertopic_fini)
+CU_Test(ddsc_multi_sertype, remote, .init = multi_sertype_init, .fini = multi_sertype_fini)
 {
-  ddsc_multi_sertopic_impl (g_pub_participant, g_sub_participant, MSM_FASTPATH);
+  ddsc_multi_sertype_impl (g_pub_participant, g_sub_participant, MSM_FASTPATH);
 }
 
-CU_Test(ddsc_multi_sertopic, local_slowpath, .init = multi_sertopic_init, .fini = multi_sertopic_fini)
+CU_Test(ddsc_multi_sertype, local_slowpath, .init = multi_sertype_init, .fini = multi_sertype_fini)
 {
-  ddsc_multi_sertopic_impl (g_pub_participant, g_pub_participant, MSM_SLOWPATH);
+  ddsc_multi_sertype_impl (g_pub_participant, g_pub_participant, MSM_SLOWPATH);
 }
 
-CU_Test(ddsc_multi_sertopic, remote_slowpath, .init = multi_sertopic_init, .fini = multi_sertopic_fini)
+CU_Test(ddsc_multi_sertype, remote_slowpath, .init = multi_sertype_init, .fini = multi_sertype_fini)
 {
-  ddsc_multi_sertopic_impl (g_pub_participant, g_sub_participant, MSM_SLOWPATH);
+  ddsc_multi_sertype_impl (g_pub_participant, g_sub_participant, MSM_SLOWPATH);
 }
 
-CU_Test(ddsc_multi_sertopic, transient_local, .init = multi_sertopic_init, .fini = multi_sertopic_fini)
+CU_Test(ddsc_multi_sertype, transient_local, .init = multi_sertype_init, .fini = multi_sertype_fini)
 {
-  ddsc_multi_sertopic_impl (g_pub_participant, g_pub_participant, MSM_TRANSLOCAL);
+  ddsc_multi_sertype_impl (g_pub_participant, g_pub_participant, MSM_TRANSLOCAL);
 }

@@ -114,26 +114,26 @@ static struct reader *writer_next_in_sync_reader (struct entity_index *entity_in
 }
 
 struct local_sourceinfo {
-  const struct ddsi_sertopic *src_topic;
+  const struct ddsi_sertype *src_type;
   struct ddsi_serdata *src_payload;
   struct ddsi_tkmap_instance *src_tk;
   ddsrt_mtime_t timeout;
 };
 
-static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, struct ddsi_domaingv *gv, struct ddsi_sertopic const * const topic, void *vsourceinfo)
+static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, struct ddsi_domaingv *gv, struct ddsi_sertype const * const type, void *vsourceinfo)
 {
   struct local_sourceinfo *si = vsourceinfo;
-  struct ddsi_serdata *d = ddsi_serdata_ref_as_topic (topic, si->src_payload);
+  struct ddsi_serdata *d = ddsi_serdata_ref_as_type (type, si->src_payload);
   if (d == NULL)
   {
-    DDS_CWARNING (&gv->logconfig, "local: deserialization %s/%s failed in topic type conversion\n", topic->name, topic->type_name);
+    DDS_CWARNING (&gv->logconfig, "local: deserialization %s failed in type conversion\n", type->type_name);
     return NULL;
   }
-  if (topic != si->src_topic)
+  if (type != si->src_type)
     *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, d);
   else
   {
-    // if the topic is the same, we can avoid the lookup
+    // if the type is the same, we can avoid the lookup
     ddsi_tkmap_instance_ref (si->src_tk);
     *tk = si->src_tk;
   }
@@ -168,7 +168,7 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
     .on_failure_fastpath = local_on_delivery_failure_fastpath
   };
   struct local_sourceinfo sourceinfo = {
-    .src_topic = wr->topic,
+    .src_type = wr->type,
     .src_payload = payload,
     .src_tk = tk,
     .timeout = { 0 },
@@ -224,7 +224,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
 
   /* Serialize and write data or key */
-  if ((d = ddsi_serdata_from_sample (ddsi_wr->topic, writekey ? SDK_KEY : SDK_DATA, data)) == NULL)
+  if ((d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data)) == NULL)
     ret = DDS_RETCODE_BAD_PARAMETER;
   else
   {

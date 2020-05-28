@@ -279,10 +279,7 @@ MPT_ProcessEntry (rw_publisher,
             ddsi_xqos_log (DDS_LC_ERROR, &logcfg, ep->qos); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
           }
           MPT_ASSERT (delta == 0, "writer %zu %zu matched reader QoS mismatch\n", i, j);
-          dds_delete_qos (ep->qos);
-          dds_free (ep->topic_name);
-          dds_free (ep->type_name);
-          dds_free (ep);
+          dds_builtintopic_free_endpoint (ep);
           chk[i][j] = true;
           nchk++;
         }
@@ -430,10 +427,7 @@ MPT_ProcessEntry (rw_subscriber,
             ddsi_xqos_log (DDS_LC_ERROR, &logcfg, ep->qos); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
           }
           MPT_ASSERT (delta == 0, "reader %zu %zu matched writer QoS mismatch\n", i, j);
-          dds_delete_qos (ep->qos);
-          dds_free (ep->topic_name);
-          dds_free (ep->type_name);
-          dds_free (ep);
+          dds_builtintopic_free_endpoint (ep);
           chk[i][j] = true;
           nchk++;
         }

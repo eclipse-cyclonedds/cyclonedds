@@ -19,7 +19,6 @@
 #include "dds__querycond.h"
 #include "dds__readcond.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_sertopic.h"
 
 dds_entity_t dds_create_querycondition (dds_entity_t reader, uint32_t mask, dds_querycondition_filter_fn filter)
 {

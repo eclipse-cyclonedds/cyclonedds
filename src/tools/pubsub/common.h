@@ -43,6 +43,7 @@
 #define DDS_SHARE_QOS_POLICY_NAME                               "Share"
 #define DDS_SCHEDULING_QOS_POLICY_NAME                          "Scheduling"
 #define DDS_PROPERTY_QOS_POLICY_NAME                            "Property"
+#define DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_NAME        "TypeConsistencyEnforcement"
 
 #define DDS_SUBSCRIPTIONKEY_QOS_POLICY_ID                       24
 #define DDS_VIEWKEY_QOS_POLICY_ID                               25

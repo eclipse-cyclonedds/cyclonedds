@@ -15,7 +15,7 @@
 #include "dds/ddsi/q_protocol.h" /* for nn_parameterid_t */
 #include "dds/ddsi/ddsi_keyhash.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_sertype.h"
 
 #include "dds/dds.h"
 
@@ -60,13 +60,13 @@ struct ddsi_serdata_plist {
 #undef DDSI_SERDATA_PLIST_POSTPAD
 #undef DDSI_SERDATA_PLIST_PREPAD
 
-struct ddsi_sertopic_plist {
-  struct ddsi_sertopic c;
+struct ddsi_sertype_plist {
+  struct ddsi_sertype c;
   uint16_t native_encoding_identifier; /* PL_CDR_(LE|BE) */
   nn_parameterid_t keyparam;
 };
 
-extern DDS_EXPORT const struct ddsi_sertopic_ops ddsi_sertopic_ops_plist;
+extern DDS_EXPORT const struct ddsi_sertype_ops ddsi_sertype_ops_plist;
 extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_plist;
 
 #if defined (__cplusplus)

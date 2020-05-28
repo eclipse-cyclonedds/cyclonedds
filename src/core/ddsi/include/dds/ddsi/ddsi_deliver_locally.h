@@ -26,7 +26,7 @@ extern "C" {
 
 struct ddsi_domaingv;
 struct ddsi_tkmap_instance;
-struct ddsi_sertopic;
+struct ddsi_sertype;
 struct ddsi_serdata;
 struct entity_index;
 struct reader;
@@ -34,7 +34,7 @@ struct entity_common;
 struct ddsi_writer_info;
 struct local_reader_ary;
 
-typedef struct ddsi_serdata * (*deliver_locally_makesample_t) (struct ddsi_tkmap_instance **tk, struct ddsi_domaingv *gv, struct ddsi_sertopic const * const topic, void *vsourceinfo);
+typedef struct ddsi_serdata * (*deliver_locally_makesample_t) (struct ddsi_tkmap_instance **tk, struct ddsi_domaingv *gv, struct ddsi_sertype const * const type, void *vsourceinfo);
 typedef struct reader * (*deliver_locally_first_reader_t) (struct entity_index *entity_index, struct entity_common *source_entity, ddsrt_avl_iter_t *it);
 typedef struct reader * (*deliver_locally_next_reader_t) (struct entity_index *entity_index, ddsrt_avl_iter_t *it);
 

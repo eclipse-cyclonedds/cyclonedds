@@ -17,7 +17,7 @@
 #include <stdbool.h>
 
 #include "dds/export.h"
-
+#include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/retcode.h"
 
@@ -37,7 +37,7 @@ enum pserop {
   XD, XDx2, /* duration, 1 .. 2 in a row */
   Xl,       /* int64_t */
   Xo, Xox2, /* octet, 1 .. 2 in a row */
-  Xb, Xbx2, /* boolean, 1 .. 2 in a row */
+  Xb, Xbx2, Xbx3, Xbx4, Xbx5, /* boolean, 1 .. 5 in a row */
   XbCOND, /* boolean: compare to ignore remainder if false (for use_... flags) */
   XbPROP, /* boolean: omit in serialized form; skip serialization if false; always true on deserialize */
   XG, /* GUID */
@@ -47,7 +47,10 @@ enum pserop {
 } ddsrt_attribute_packed;
 
 DDS_EXPORT void plist_fini_generic (void * __restrict dst, const enum pserop *desc, bool aliased);
+DDS_EXPORT void plist_ser_generic_size_embeddable (size_t *dstoff, const void *src, size_t srcoff, const enum pserop * __restrict desc);
 DDS_EXPORT dds_return_t plist_deser_generic (void * __restrict dst, const void * __restrict src, size_t srcsize, bool bswap, const enum pserop * __restrict desc);
+DDS_EXPORT dds_return_t plist_deser_generic_srcoff (void * __restrict dst, const void * __restrict src, size_t srcsize, size_t *srcoff, bool bswap, const enum pserop * __restrict desc);
+DDS_EXPORT dds_return_t plist_ser_generic_embeddable (char * const data, size_t *dstoff, const void *src, size_t srcoff, const enum pserop * __restrict desc, enum ddsrt_byte_order_selector bo);
 DDS_EXPORT dds_return_t plist_ser_generic (void **dst, size_t *dstsize, const void *src, const enum pserop * __restrict desc);
 DDS_EXPORT dds_return_t plist_ser_generic_be (void **dst, size_t *dstsize, const void *src, const enum pserop * __restrict desc);
 DDS_EXPORT dds_return_t plist_unalias_generic (void * __restrict dst, const enum pserop * __restrict desc);

@@ -33,10 +33,10 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_serdata_default.c
     ddsi_serdata_pserop.c
     ddsi_serdata_plist.c
-    ddsi_sertopic.c
-    ddsi_sertopic_default.c
-    ddsi_sertopic_pserop.c
-    ddsi_sertopic_plist.c
+    ddsi_sertype.c
+    ddsi_sertype_default.c
+    ddsi_sertype_pserop.c
+    ddsi_sertype_plist.c
     ddsi_statistics.c
     ddsi_iid.c
     ddsi_tkmap.c
@@ -81,9 +81,13 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
 if(ENABLE_LIFESPAN)
   list(APPEND srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/ddsi_lifespan.c")
 endif()
-
 if(ENABLE_DEADLINE_MISSED)
   list(APPEND srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/ddsi_deadline.c")
+endif()
+if(ENABLE_TYPE_DISCOVERY)
+  list(APPEND srcs_ddsi
+  "${CMAKE_CURRENT_LIST_DIR}/src/ddsi_typeid.c"
+  "${CMAKE_CURRENT_LIST_DIR}/src/ddsi_typelookup.c")
 endif()
 
 # The includes should reside close to the code. As long as that's not the case,
@@ -101,9 +105,9 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_security_util.h
     ddsi_security_omg.h
     ddsi_portmapping.h
-    ddsi_handshake.h    
+    ddsi_handshake.h
     ddsi_serdata.h
-    ddsi_sertopic.h
+    ddsi_sertype.h
     ddsi_serdata_default.h
     ddsi_serdata_pserop.h
     ddsi_serdata_plist.h
@@ -165,6 +169,11 @@ if(ENABLE_LIFESPAN)
 endif()
 if(ENABLE_DEADLINE_MISSED)
   list(APPEND hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/ddsi_deadline.h")
+endif()
+if(ENABLE_TYPE_DISCOVERY)
+  list(APPEND hdrs_private_ddsi
+    "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/ddsi_typeid.h"
+    "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/ddsi_typelookup.h")
 endif()
 
 target_sources(ddsc

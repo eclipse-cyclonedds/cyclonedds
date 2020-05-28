@@ -52,10 +52,15 @@ extern "C" {
 
 struct dds_rhc;
 struct ddsi_plist;
-struct ddsi_sertopic;
+struct ddsi_sertype;
 struct ddsi_serdata;
 
 #define DDS_MIN_PSEUDO_HANDLE ((dds_entity_t) 0x7fff0000)
+
+/** Indicates that the library uses ddsi_sertype (as a replacement for ddsi_sertopic). If sertype
+ *  is used, the function dds_create_topic_generic requires a topic name parameter, as this field
+ *  is not included in ddsi_sertype. */
+#define DDS_HAS_DDSI_SERTYPE 1
 
 /* @defgroup builtintopic_constants Convenience constants for referring to builtin topics
  *
@@ -1076,19 +1081,20 @@ dds_create_topic(
 /**
  * @brief Creates a new topic with provided type handling.
  *
- * The type name for the topic is taken from the provided "sertopic" object. Topic
+ * The name for the type is taken from the provided "sertype" object. Type
  * matching is done on a combination of topic name and type name. Each successful
  * call to dds_create_topic creates a new topic entity sharing the same QoS
  * settings with all other topics of the same name.
  *
  * In case this function returns a valid handle, the ownership of the provided
- * sertopic is handed over to Cyclone. On return, the caller gets in the sertopic parameter a
- * pointer to the sertopic that is actually used by the topic. This can be the provided sertopic
- * (if this sertopic was not yet known in the domain), or a sertopic thas was
+ * sertype is handed over to Cyclone. On return, the caller gets in the sertype parameter a
+ * pointer to the sertype that is actually used by the topic. This can be the provided sertype
+ * (if this sertype was not yet known in the domain), or a sertype thas was
  * already known in the domain.
  *
  * @param[in]     participant  Participant on which to create the topic.
- * @param[in,out] sertopic     Internal description of the topic type (includes name). On return, the sertopic parameter is set to the actual sertopic that is used by the topic.
+ * @param[in]     name         Topic name
+ * @param[in,out] sertype      Internal description of the type . On return, the sertype parameter is set to the actual sertype that is used by the topic.
  * @param[in]     qos          QoS to set on the new topic (can be NULL).
  * @param[in]     listener     Any listener functions associated with the new topic (can be NULL).
  * @param[in]     sedp_plist   Topic description to be published as part of discovery (if NULL, not published).
@@ -1104,13 +1110,14 @@ dds_create_topic(
  * @retval DDS_RETCODE_INCONSISTENT_POLICY
  *             QoS mismatch between qos and an existing topic's QoS.
  * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             Mismatch between type name in sertopic and pre-existing
+ *             Mismatch between type name in sertype and pre-existing
  *             topic's type name.
  */
 DDS_EXPORT dds_entity_t
 dds_create_topic_generic (
   dds_entity_t participant,
-  struct ddsi_sertopic **sertopic,
+  const char *name,
+  struct ddsi_sertype **sertype,
   const dds_qos_t *qos,
   const dds_listener_t *listener,
   const struct ddsi_plist *sedp_plist);
@@ -1118,7 +1125,8 @@ dds_create_topic_generic (
 DDS_DEPRECATED_EXPORT dds_entity_t
 dds_create_topic_arbitrary (
   dds_entity_t participant,
-  struct ddsi_sertopic *sertopic,
+  const char *name,
+  struct ddsi_sertype *sertype,
   const dds_qos_t *qos,
   const dds_listener_t *listener,
   const struct ddsi_plist *sedp_plist);
@@ -3541,7 +3549,7 @@ dds_get_matched_subscriptions (
  * readers matched with the specified writer, returning a freshly
  * allocated sample of the DCPSSubscription built-in topic if found,
  * and NULL if not.  The caller is responsible for freeing the
- * memory allocated.
+ * memory allocated, e.g. using dds_builtintopic_free_endpoint.
  *
  * This operation is similar to performing a read of the given
  * instance handle on a reader of the DCPSSubscription built-in
@@ -3608,7 +3616,7 @@ dds_get_matched_publications (
  * writers matched with the specified reader, returning a freshly
  * allocated sample of the DCPSPublication built-in topic if found,
  * and NULL if not.  The caller is responsible for freeing the
- * memory allocated.
+ * memory allocated, e.g. using dds_builtintopic_free_endpoint.
  *
  * This operation is similar to performing a read of the given
  * instance handle on a reader of the DCPSPublication built-in
@@ -3631,6 +3639,50 @@ DDS_EXPORT dds_builtintopic_endpoint_t *
 dds_get_matched_publication_data (
   dds_entity_t reader,
   dds_instance_handle_t ih);
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+/**
+ * @brief Gets the type identifier from endpoint information that was
+ * retrieved by dds_get_matched_subscription_data or
+ * dds_get_matched_publication_data
+ *
+ * @param[in] builtintopic_endpoint  The builtintopic endpoint struct
+ * @param[out] type_identifier       Buffer that will be allocated for the type identifier. Needs to be freed by the caller of this function.
+ * @param[out] size                  Number of bytes in type_identifier buffer
+ */
+DDS_EXPORT dds_return_t
+dds_builtintopic_get_endpoint_typeid (
+  dds_builtintopic_endpoint_t * builtintopic_endpoint,
+  unsigned char **type_identifier,
+  size_t *size);
+#endif
+
+/**
+ * @brief Free the endpoint information that was retrieved by
+ * dds_get_matched_subscription_data or dds_get_matched_publication_data
+ *
+ * This operation deallocates the memory of the fields in a
+ * dds_builtintopic_endpoint_t struct and deallocates the
+ * struct itself.
+ *
+ * @param[in] builtintopic_endpoint  The builtintopic endpoint struct
+ */
+DDS_EXPORT void
+dds_builtintopic_free_endpoint (
+  dds_builtintopic_endpoint_t * builtintopic_endpoint);
+
+/**
+ * @brief Free the provided participant information
+ *
+ * This operation deallocates the memory of the fields in a
+ * dds_builtintopic_participant_t struct and deallocates the
+ * struct itself.
+ *
+ * @param[in] builtintopic_participant  The builtintopic participant struct
+ */
+DDS_EXPORT void
+dds_builtintopic_free_participant (
+  dds_builtintopic_participant_t * builtintopic_participant);
 
 /**
  * @brief This operation manually asserts the liveliness of a writer
@@ -3688,6 +3740,48 @@ dds_domain_set_deafmute (
   bool deaf,
   bool mute,
   dds_duration_t reset_after);
+
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+
+/**
+ * @brief This function resolves the type information for the provided
+ * type identifier.
+ *
+ * @param[in]   entity              A domain entity or an entity bound to a domain, such
+ *                                  as a participant, reader or writer.
+ * @param[in]   type_identifier     Type identifier data
+ * @param[in]   type_identifier_sz  Length of the type identifier data
+ * @param[in]   timeout             Timeout for waiting for requested type information to be available
+ * @param[out]  sertype             The type information, or NULL if the type could not be resolved
+ *
+ * @remark The resulting type from the sertype out parameter is
+ * refcounted and needs to be dereferenced at some point. This
+ * can be done by creating a topic using dds_create_topic_generic,
+ * which takes over the ownership of the type or alternatively by
+ * using ddsi_sertype_unref to release the reference.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The operation was successful.
+ * @retval DDS_BAD_PARAMETER
+ *             The entity parameter is not a valid parameter, the type_identifier is not provided or
+ *             its length is incorrect, or the sertype out parameter is NULL
+ * @retval DDS_RETCODE_NOT_FOUND
+ *             A type with the provided type_identifier was not found
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+*/
+DDS_EXPORT dds_return_t
+dds_domain_resolve_type (
+  dds_entity_t entity,
+  unsigned char *type_identifier,
+  size_t type_identifier_sz,
+  dds_duration_t timeout,
+  struct ddsi_sertype **sertype);
+
+#endif /* DDS_HAS_TYPE_DISCOVERY */
 
 #if defined (__cplusplus)
 }

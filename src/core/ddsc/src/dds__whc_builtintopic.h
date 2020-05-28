@@ -19,7 +19,7 @@
 extern "C" {
 #endif
 
-struct whc *builtintopic_whc_new (enum ddsi_sertopic_builtintopic_type type, const struct entity_index *entidx);
+struct whc *builtintopic_whc_new (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const struct entity_index *entidx);
 
 #if defined (__cplusplus)
 }

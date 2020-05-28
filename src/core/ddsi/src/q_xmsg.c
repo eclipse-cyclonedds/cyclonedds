@@ -864,31 +864,27 @@ void nn_xmsg_setwriterseq_fragid (struct nn_xmsg *msg, const ddsi_guid_t *wrguid
   msg->kindspecific.data.wrfragid = wrfragid;
 }
 
-void *nn_xmsg_addpar_bo (struct nn_xmsg *m, nn_parameterid_t pid, size_t len, bool be)
+void *nn_xmsg_addpar_bo (struct nn_xmsg *m, nn_parameterid_t pid, size_t len, enum ddsrt_byte_order_selector bo)
 {
-#define BO2U(x)  (be ? ddsrt_toBE2u((x)) : (x))
-
   const size_t len4 = (len + 3) & ~(size_t)3; /* must alloc a multiple of 4 */
   nn_parameter_t *phdr;
   char *p;
   assert (len4 < UINT16_MAX); /* FIXME: return error */
   m->have_params = 1;
   phdr = nn_xmsg_append (m, NULL, sizeof (nn_parameter_t) + len4);
-  phdr->parameterid = BO2U(pid);
-  phdr->length = BO2U((uint16_t) len4);
+  phdr->parameterid = ddsrt_toBO2u(bo, pid);
+  phdr->length = ddsrt_toBO2u(bo, (uint16_t) len4);
   p = (char *) (phdr + 1);
   /* zero out padding bytes added to satisfy parameter alignment: this way
      valgrind can tell us where we forgot to initialize something */
   while (len < len4)
     p[len++] = 0;
   return p;
-
-#undef BO2U
 }
 
 void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len)
 {
-  return nn_xmsg_addpar_bo(m, pid, len, false);
+  return nn_xmsg_addpar_bo(m, pid, len, DDSRT_BOSEL_NATIVE);
 }
 
 void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serdata, bool force_md5)
@@ -927,9 +923,9 @@ void nn_xmsg_addpar_sentinel (struct nn_xmsg * m)
   nn_xmsg_addpar (m, PID_SENTINEL, 0);
 }
 
-void nn_xmsg_addpar_sentinel_bo (struct nn_xmsg * m, bool be)
+void nn_xmsg_addpar_sentinel_bo (struct nn_xmsg * m, enum ddsrt_byte_order_selector bo)
 {
-  nn_xmsg_addpar_bo (m, PID_SENTINEL, 0, be);
+  nn_xmsg_addpar_bo (m, PID_SENTINEL, 0, bo);
 }
 
 int nn_xmsg_addpar_sentinel_ifparam (struct nn_xmsg * m)

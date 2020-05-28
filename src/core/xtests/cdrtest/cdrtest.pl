@@ -66,7 +66,7 @@ print CYC <<EOF;
 int main()
 {
   unsigned char garbage[1000];
-  struct ddsi_sertopic_default ddd;
+  struct ddsi_sertype_default ddd;
   uint32_t deser_garbage = 0;
   memset (&ddd, 0, sizeof (ddd));
   dds_istream_t is;
@@ -116,14 +116,14 @@ EOF
   ;
   print CYC gencmp ($t);
   print CYC <<EOF;
-  ddd.type = (struct ddsi_sertopic_default_desc) {
-    .m_size = $t->[1]_desc.m_size,
-    .m_align = $t->[1]_desc.m_align,
-    .m_flagset = $t->[1]_desc.m_flagset,
-    .m_nkeys = 0,
-    .m_keys = NULL,
-    .m_nops = dds_stream_countops ($t->[1]_desc.m_ops),
-    .m_ops = (uint32_t *) $t->[1]_desc.m_ops
+  ddd.type = (struct ddsi_sertype_default_desc) {
+    .size = $t->[1]_desc.m_size,
+    .align = $t->[1]_desc.m_align,
+    .flagset = $t->[1]_desc.m_flagset,
+    .keys.nkeys = 0,
+    .keys.keys = NULL,
+    .ops.nops = dds_stream_countops ($t->[1]_desc.m_ops),
+    .ops.ops = (uint32_t *) $t->[1]_desc.m_ops
   };
   for (uint32_t i = 0; i < 1000; i++) {
     for (size_t j = 0; j < sizeof (garbage); j++)

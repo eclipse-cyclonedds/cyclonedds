@@ -50,6 +50,7 @@
 #include "dds/ddsi/q_init.h"
 #include "dds/ddsi/ddsi_threadmon.h"
 #include "dds/ddsi/ddsi_pmd.h"
+#include "dds/ddsi/ddsi_typelookup.h"
 
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_udp.h"
@@ -138,7 +139,7 @@ static void make_builtin_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
   q->durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
 }
 
-#ifdef DDS_HAS_SECURITY
+#if defined (DDS_HAS_TYPE_DISCOVERY) || defined (DDS_HAS_SECURITY)
 static void make_builtin_volatile_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
 {
   ddsi_xqos_copy (q, template);
@@ -147,7 +148,9 @@ static void make_builtin_volatile_endpoint_xqos (dds_qos_t *q, const dds_qos_t *
   q->durability.kind = DDS_DURABILITY_VOLATILE;
   q->history.kind = DDS_HISTORY_KEEP_ALL;
 }
+#endif
 
+#ifdef DDS_HAS_SECURITY
 static void add_property_to_xqos(dds_qos_t *q, const char *name, const char *value)
 {
   assert(!(q->present & QP_PROPERTY_LIST));
@@ -800,80 +803,91 @@ static void wait_for_receive_threads (struct ddsi_domaingv *gv)
   }
 }
 
-static struct ddsi_sertopic *make_special_topic_pserop (const char *name, const char *typename, size_t memsize, size_t nops, const enum pserop *ops, size_t nops_key, const enum pserop *ops_key)
+static struct ddsi_sertype *make_special_type_pserop (struct ddsi_domaingv *gv, const char *typename, size_t memsize, size_t nops, const enum pserop *ops, size_t nops_key, const enum pserop *ops_key)
 {
-  struct ddsi_sertopic_pserop *st = ddsrt_malloc (sizeof (*st));
+  struct ddsi_sertype_pserop *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
-  ddsi_sertopic_init (&st->c, name, typename, &ddsi_sertopic_ops_pserop, &ddsi_serdata_ops_pserop, nops_key == 0);
+  ddsi_sertype_init (gv, &st->c, typename, &ddsi_sertype_ops_pserop, &ddsi_serdata_ops_pserop, nops_key == 0);
   st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? CDR_LE : CDR_BE;
   st->memsize = memsize;
   st->nops = nops;
   st->ops = ops;
   st->nops_key = nops_key;
   st->ops_key = ops_key;
-  return (struct ddsi_sertopic *) st;
+  return (struct ddsi_sertype *) st;
 }
 
-static struct ddsi_sertopic *make_special_topic_plist (const char *name, const char *typename, nn_parameterid_t keyparam)
+static struct ddsi_sertype *make_special_type_plist (struct ddsi_domaingv *gv, const char *typename, nn_parameterid_t keyparam)
 {
-  struct ddsi_sertopic_plist *st = ddsrt_malloc (sizeof (*st));
+  struct ddsi_sertype_plist *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
-  ddsi_sertopic_init (&st->c, name, typename, &ddsi_sertopic_ops_plist, &ddsi_serdata_ops_plist, false);
+  ddsi_sertype_init (gv, &st->c, typename, &ddsi_sertype_ops_plist, &ddsi_serdata_ops_plist, false);
   st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? PL_CDR_LE : PL_CDR_BE;
   st->keyparam = keyparam;
-  return (struct ddsi_sertopic *) st;
+  return (struct ddsi_sertype *) st;
 }
 
-static void free_special_topics (struct ddsi_domaingv *gv)
+static void free_special_types (struct ddsi_domaingv *gv)
 {
 #ifdef DDS_HAS_SECURITY
-  ddsi_sertopic_unref (gv->pgm_volatile_topic);
-  ddsi_sertopic_unref (gv->pgm_stateless_topic);
-  ddsi_sertopic_unref (gv->pmd_secure_topic);
-  ddsi_sertopic_unref (gv->spdp_secure_topic);
-  ddsi_sertopic_unref (gv->sedp_reader_secure_topic);
-  ddsi_sertopic_unref (gv->sedp_writer_secure_topic);
+  ddsi_sertype_unref (gv->pgm_volatile_type);
+  ddsi_sertype_unref (gv->pgm_stateless_type);
+  ddsi_sertype_unref (gv->pmd_secure_type);
+  ddsi_sertype_unref (gv->spdp_secure_type);
+  ddsi_sertype_unref (gv->sedp_reader_secure_type);
+  ddsi_sertype_unref (gv->sedp_writer_secure_type);
 #endif
-  ddsi_sertopic_unref (gv->pmd_topic);
-  ddsi_sertopic_unref (gv->spdp_topic);
-  ddsi_sertopic_unref (gv->sedp_reader_topic);
-  ddsi_sertopic_unref (gv->sedp_writer_topic);
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  ddsi_sertype_unref (gv->tl_svc_request_type);
+  ddsi_sertype_unref (gv->tl_svc_reply_type);
+#endif
+  ddsi_sertype_unref (gv->pmd_type);
+  ddsi_sertype_unref (gv->spdp_type);
+  ddsi_sertype_unref (gv->sedp_reader_type);
+  ddsi_sertype_unref (gv->sedp_writer_type);
 }
 
-static void make_special_topics (struct ddsi_domaingv *gv)
+static void make_special_types (struct ddsi_domaingv *gv)
 {
-  gv->spdp_topic = make_special_topic_plist ("DCPSParticipant", "ParticipantBuiltinTopicData", PID_PARTICIPANT_GUID);
-  gv->sedp_reader_topic = make_special_topic_plist ("DCPSSubscription", "SubscriptionBuiltinTopicData", PID_ENDPOINT_GUID);
-  gv->sedp_writer_topic = make_special_topic_plist ("DCPSPublication", "PublicationBuiltinTopicData", PID_ENDPOINT_GUID);
-  gv->pmd_topic = make_special_topic_pserop ("DCPSParticipantMessage", "ParticipantMessageData", sizeof (ParticipantMessageData_t), participant_message_data_nops, participant_message_data_ops, participant_message_data_nops_key, participant_message_data_ops_key);
-
+  gv->spdp_type = make_special_type_plist (gv, "ParticipantBuiltinTopicData", PID_PARTICIPANT_GUID);
+  gv->sedp_reader_type = make_special_type_plist (gv, "SubscriptionBuiltinTopicData", PID_ENDPOINT_GUID);
+  gv->sedp_writer_type = make_special_type_plist (gv, "PublicationBuiltinTopicData", PID_ENDPOINT_GUID);
+  gv->pmd_type = make_special_type_pserop (gv, "ParticipantMessageData", sizeof (ParticipantMessageData_t), participant_message_data_nops, participant_message_data_ops, participant_message_data_nops_key, participant_message_data_ops_key);
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  gv->tl_svc_request_type = make_special_type_pserop (gv, "TypeLookup_Request", sizeof (type_lookup_request_t), typelookup_service_request_nops, typelookup_service_request_ops, 0, NULL);
+  gv->tl_svc_reply_type = make_special_type_pserop (gv, "TypeLookup_Reply", sizeof (type_lookup_reply_t), typelookup_service_reply_nops, typelookup_service_reply_ops, 0, NULL);
+#endif
 #ifdef DDS_HAS_SECURITY
-  gv->spdp_secure_topic = make_special_topic_plist ("DCPSParticipantsSecure", "ParticipantBuiltinTopicDataSecure", PID_PARTICIPANT_GUID);
-  gv->sedp_reader_secure_topic = make_special_topic_plist ("DCPSSubscriptionsSecure", "SubscriptionBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
-  gv->sedp_writer_secure_topic = make_special_topic_plist ("DCPSPublicationsSecure", "PublicationBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
-  gv->pmd_secure_topic = make_special_topic_pserop ("DCPSParticipantMessageSecure", "ParticipantMessageDataSecure", sizeof (ParticipantMessageData_t), participant_message_data_nops, participant_message_data_ops, participant_message_data_nops_key, participant_message_data_ops_key);
-  gv->pgm_stateless_topic = make_special_topic_pserop ("DCPSParticipantStatelessMessage", "ParticipantStatelessMessage", sizeof (nn_participant_generic_message_t), pserop_participant_generic_message_nops, pserop_participant_generic_message, 0, NULL);
-  gv->pgm_volatile_topic = make_special_topic_pserop ("DCPSParticipantVolatileMessageSecure", "ParticipantVolatileMessageSecure", sizeof (nn_participant_generic_message_t), pserop_participant_generic_message_nops, pserop_participant_generic_message, 0, NULL);
+  gv->spdp_secure_type = make_special_type_plist (gv, "ParticipantBuiltinTopicDataSecure", PID_PARTICIPANT_GUID);
+  gv->sedp_reader_secure_type = make_special_type_plist (gv, "SubscriptionBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
+  gv->sedp_writer_secure_type = make_special_type_plist (gv, "PublicationBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
+  gv->pmd_secure_type = make_special_type_pserop (gv, "ParticipantMessageDataSecure", sizeof (ParticipantMessageData_t), participant_message_data_nops, participant_message_data_ops, participant_message_data_nops_key, participant_message_data_ops_key);
+  gv->pgm_stateless_type = make_special_type_pserop (gv, "ParticipantStatelessMessage", sizeof (nn_participant_generic_message_t), pserop_participant_generic_message_nops, pserop_participant_generic_message, 0, NULL);
+  gv->pgm_volatile_type = make_special_type_pserop (gv, "ParticipantVolatileMessageSecure", sizeof (nn_participant_generic_message_t), pserop_participant_generic_message_nops, pserop_participant_generic_message, 0, NULL);
 #endif
 
-  ddsrt_mutex_lock (&gv->sertopics_lock);
-  ddsi_sertopic_register_locked (gv, gv->spdp_topic);
-  ddsi_sertopic_register_locked (gv, gv->sedp_reader_topic);
-  ddsi_sertopic_register_locked (gv, gv->sedp_writer_topic);
-  ddsi_sertopic_register_locked (gv, gv->pmd_topic);
-#ifdef DDS_HAS_SECURITY
-  ddsi_sertopic_register_locked (gv, gv->spdp_secure_topic);
-  ddsi_sertopic_register_locked (gv, gv->sedp_reader_secure_topic);
-  ddsi_sertopic_register_locked (gv, gv->sedp_writer_secure_topic);
-  ddsi_sertopic_register_locked (gv, gv->pmd_secure_topic);
-  ddsi_sertopic_register_locked (gv, gv->pgm_stateless_topic);
-  ddsi_sertopic_register_locked (gv, gv->pgm_volatile_topic);
+  ddsrt_mutex_lock (&gv->sertypes_lock);
+  ddsi_sertype_register_locked (gv->spdp_type);
+  ddsi_sertype_register_locked (gv->sedp_reader_type);
+  ddsi_sertype_register_locked (gv->sedp_writer_type);
+  ddsi_sertype_register_locked (gv->pmd_type);
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  ddsi_sertype_register_locked (gv->tl_svc_request_type);
+  ddsi_sertype_register_locked (gv->tl_svc_reply_type);
 #endif
-  ddsrt_mutex_unlock (&gv->sertopics_lock);
+#ifdef DDS_HAS_SECURITY
+  ddsi_sertype_register_locked (gv->spdp_secure_type);
+  ddsi_sertype_register_locked (gv->sedp_reader_secure_type);
+  ddsi_sertype_register_locked (gv->sedp_writer_secure_type);
+  ddsi_sertype_register_locked (gv->pmd_secure_type);
+  ddsi_sertype_register_locked (gv->pgm_stateless_type);
+  ddsi_sertype_register_locked (gv->pgm_volatile_type);
+#endif
+  ddsrt_mutex_unlock (&gv->sertypes_lock);
 
   /* register increments refcount (which is reasonable), but at some point
      one needs to get rid of that reference */
-  free_special_topics (gv);
+  free_special_types (gv);
 }
 
 static bool use_multiple_receive_threads (const struct ddsi_config *cfg)
@@ -986,15 +1000,27 @@ fail:
   return -1;
 }
 
-static int ddsi_sertopic_equal_wrap (const void *a, const void *b)
+static int ddsi_sertype_equal_wrap (const void *a, const void *b)
 {
-  return ddsi_sertopic_equal (a, b);
+  return ddsi_sertype_equal (a, b);
 }
 
-static uint32_t ddsi_sertopic_hash_wrap (const void *tp)
+static uint32_t ddsi_sertype_hash_wrap (const void *tp)
 {
-  return ddsi_sertopic_hash (tp);
+  return ddsi_sertype_hash (tp);
 }
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+static int tl_meta_equal_wrap (const void *tlm_a, const void *tlm_b)
+{
+  return ddsi_tl_meta_equal (tlm_a, tlm_b);
+}
+
+static uint32_t tl_meta_hash_wrap (const void *tlm)
+{
+  return ddsi_tl_meta_hash (tlm);
+}
+#endif
 
 static void reset_deaf_mute (struct xevent *xev, void *varg, UNUSED_ARG (ddsrt_mtime_t tnow))
 {
@@ -1207,9 +1233,13 @@ int rtps_init (struct ddsi_domaingv *gv)
   assert (gv->spdp_endpoint_xqos.reliability.kind == DDS_RELIABILITY_BEST_EFFORT);
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_rd, &gv->default_xqos_rd);
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_wr, &gv->default_xqos_wr);
-#ifdef DDS_HAS_SECURITY
+#ifdef DDS_HAS_TYPE_DISCOVERY
   make_builtin_volatile_endpoint_xqos(&gv->builtin_volatile_xqos_rd, &gv->default_xqos_rd);
   make_builtin_volatile_endpoint_xqos(&gv->builtin_volatile_xqos_wr, &gv->default_xqos_wr);
+#endif
+#ifdef DDS_HAS_SECURITY
+  make_builtin_volatile_endpoint_xqos(&gv->builtin_secure_volatile_xqos_rd, &gv->default_xqos_rd);
+  make_builtin_volatile_endpoint_xqos(&gv->builtin_secure_volatile_xqos_wr, &gv->default_xqos_wr);
   ddsi_xqos_copy (&gv->builtin_stateless_xqos_rd, &gv->default_xqos_rd);
   ddsi_xqos_copy (&gv->builtin_stateless_xqos_wr, &gv->default_xqos_wr);
   gv->builtin_stateless_xqos_wr.reliability.kind = DDS_RELIABILITY_BEST_EFFORT;
@@ -1217,13 +1247,19 @@ int rtps_init (struct ddsi_domaingv *gv)
 
   /* Setting these properties allows the CryptoKeyFactory to recognize
    * the entities (see DDS Security spec chapter 8.8.8.1). */
-  add_property_to_xqos(&gv->builtin_volatile_xqos_rd, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureReader");
-  add_property_to_xqos(&gv->builtin_volatile_xqos_wr, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureWriter");
+  add_property_to_xqos(&gv->builtin_secure_volatile_xqos_rd, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureReader");
+  add_property_to_xqos(&gv->builtin_secure_volatile_xqos_wr, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureWriter");
 #endif
 
-  ddsrt_mutex_init (&gv->sertopics_lock);
-  gv->sertopics = ddsrt_hh_new (1, ddsi_sertopic_hash_wrap, ddsi_sertopic_equal_wrap);
-  make_special_topics (gv);
+  ddsrt_mutex_init (&gv->sertypes_lock);
+  gv->sertypes = ddsrt_hh_new (1, ddsi_sertype_hash_wrap, ddsi_sertype_equal_wrap);
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  ddsrt_mutex_init (&gv->tl_admin_lock);
+  ddsrt_cond_init (&gv->tl_resolved_cond);
+  gv->tl_admin = ddsrt_hh_new (1, tl_meta_hash_wrap, tl_meta_equal_wrap);
+#endif
+  make_special_types (gv);
 
   ddsrt_mutex_init (&gv->participant_set_lock);
   ddsrt_cond_init (&gv->participant_set_cond);
@@ -1572,18 +1608,27 @@ err_unicast_sockets:
   lease_management_term (gv);
   ddsrt_cond_destroy (&gv->participant_set_cond);
   ddsrt_mutex_destroy (&gv->participant_set_lock);
-  free_special_topics (gv);
+  free_special_types (gv);
 #ifndef NDEBUG
   {
     struct ddsrt_hh_iter it;
-    assert (ddsrt_hh_iter_first (gv->sertopics, &it) == NULL);
+    assert (ddsrt_hh_iter_first (gv->sertypes, &it) == NULL);
   }
 #endif
-  ddsrt_hh_free (gv->sertopics);
-  ddsrt_mutex_destroy (&gv->sertopics_lock);
+  ddsrt_hh_free (gv->sertypes);
+  ddsrt_mutex_destroy (&gv->sertypes_lock);
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  ddsrt_hh_free (gv->tl_admin);
+  ddsrt_mutex_destroy (&gv->tl_admin_lock);
+  ddsrt_cond_destroy (&gv->tl_resolved_cond);
+#endif
 #ifdef DDS_HAS_SECURITY
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_rd);
+  ddsi_xqos_fini (&gv->builtin_secure_volatile_xqos_wr);
+  ddsi_xqos_fini (&gv->builtin_secure_volatile_xqos_rd);
+#endif
+#ifdef DDS_HAS_TYPE_DISCOVERY
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_rd);
 #endif
@@ -1919,21 +1964,34 @@ void rtps_fini (struct ddsi_domaingv *gv)
   lease_management_term (gv);
   ddsrt_mutex_destroy (&gv->participant_set_lock);
   ddsrt_cond_destroy (&gv->participant_set_cond);
-  free_special_topics (gv);
+  free_special_types (gv);
 
 #ifndef NDEBUG
   {
     struct ddsrt_hh_iter it;
-    assert (ddsrt_hh_iter_first (gv->sertopics, &it) == NULL);
+    assert (ddsrt_hh_iter_first (gv->sertypes, &it) == NULL);
   }
 #endif
-  ddsrt_hh_free (gv->sertopics);
-  ddsrt_mutex_destroy (&gv->sertopics_lock);
-
+  ddsrt_hh_free (gv->sertypes);
+  ddsrt_mutex_destroy (&gv->sertypes_lock);
+#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifndef NDEBUG
+  {
+    struct ddsrt_hh_iter it;
+    assert (ddsrt_hh_iter_first (gv->tl_admin, &it) == NULL);
+  }
+#endif
+  ddsrt_hh_free (gv->tl_admin);
+  ddsrt_mutex_destroy (&gv->tl_admin_lock);
+#endif
 #ifdef DDS_HAS_SECURITY
   q_omg_security_free (gv);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_rd);
+  ddsi_xqos_fini (&gv->builtin_secure_volatile_xqos_wr);
+  ddsi_xqos_fini (&gv->builtin_secure_volatile_xqos_rd);
+#endif
+#ifdef DDS_HAS_TYPE_DISCOVERY
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_rd);
 #endif

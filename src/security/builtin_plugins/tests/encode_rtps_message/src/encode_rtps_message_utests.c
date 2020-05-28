@@ -596,25 +596,28 @@ static void set_remote_participant_protection_kind(DDS_Security_ParticipantCrypt
   paricipant_crypto_impl->rtps_protection_kind = protection_kind;
 }
 
-static void initialize_rtps_message(DDS_Security_OctetSeq *submsg, bool be)
+static unsigned char submsg_header_endianness_flag (enum ddsrt_byte_order_selector bo)
+{
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
+  return (unsigned char) ((bo == DDSRT_BOSEL_BE) ? 0 : SMFLAG_ENDIANNESS);
+#else
+  return (unsigned char) ((bo == DDSRT_BO_LE) ? SMFLAG_ENDIANNESS : 0);
+#endif
+}
+
+static void initialize_rtps_message(DDS_Security_OctetSeq *submsg, enum ddsrt_byte_order_selector bo)
 {
   size_t length = strlen(sample_test_data) + 1;
   struct submsg_header *header;
-  int swap;
   unsigned char *buffer, *ptr;
-
-  if (be)
-    swap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
-  else
-    swap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
 
   buffer = ddsrt_malloc(length + 20 + sizeof(struct submsg_header));
   memcpy(buffer, RTPS_HEADER, 20);
 
   header = (struct submsg_header *)(buffer + 20);
   header->id = 0x15;
-  header->flags = be ? 0x00 : 0x01;
-  header->length = swap ? ddsrt_bswap2u((uint16_t) length) : (uint16_t) length;
+  header->flags = submsg_header_endianness_flag(bo);
+  header->length = ddsrt_toBO2u(bo, (uint16_t) length);
 
   ptr = (unsigned char *)(header + 1);
   memcpy((char *)ptr, sample_test_data, length);
@@ -789,7 +792,7 @@ static void encode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
 
   register_local_participant(&attributes, &properties);
 
-  initialize_rtps_message(&plain_buffer, false);
+  initialize_rtps_message(&plain_buffer, DDSRT_BOSEL_NATIVE);
 
   session_keys = get_local_participant_session(local_particpant_crypto);
 
@@ -929,7 +932,7 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
 
   register_local_participant(&attributes, &properties);
 
-  initialize_rtps_message(&plain_buffer, false);
+  initialize_rtps_message(&plain_buffer, DDSRT_BOSEL_NATIVE);
 
   CU_ASSERT_FATAL(local_particpant_crypto != 0);
 
@@ -1075,7 +1078,7 @@ CU_Test(ddssec_builtin_encode_rtps_message, invalid_args, .init = suite_encode_r
 
   register_local_participant(&attributes, &properties);
 
-  initialize_rtps_message(&plain_buffer, false);
+  initialize_rtps_message(&plain_buffer, DDSRT_BOSEL_NATIVE);
   memset(&empty_reader_list, 0, sizeof(empty_reader_list));
 
   CU_ASSERT_FATAL(local_particpant_crypto != 0);
