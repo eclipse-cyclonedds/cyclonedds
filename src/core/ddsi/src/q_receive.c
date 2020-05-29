@@ -1579,7 +1579,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
       qxev_msg (wr->evq, m);
     }
   }
-  if (seq < writer_read_seq_xmit (wr))
+  if (seq <= writer_read_seq_xmit (wr))
   {
     /* Not everything was retransmitted yet, so force a heartbeat out
        to give the reader a chance to nack the rest and make sure
