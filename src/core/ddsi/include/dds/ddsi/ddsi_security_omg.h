@@ -1290,6 +1290,7 @@ inline bool q_omg_reader_is_submessage_protected(UNUSED_ARG(const struct reader 
 
 inline bool q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp), UNUSED_ARG(bool *relay_only))
 {
+  *relay_only = false;
   return true;
 }
 
