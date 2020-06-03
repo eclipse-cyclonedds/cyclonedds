@@ -1184,7 +1184,9 @@ int rtps_init (struct ddsi_domaingv *gv)
   ddsi_xqos_init_default_subscriber (&gv->default_xqos_sub);
   ddsi_xqos_init_default_publisher (&gv->default_xqos_pub);
   ddsi_xqos_copy (&gv->spdp_endpoint_xqos, &gv->default_xqos_rd);
+  ddsi_xqos_mergein_missing (&gv->spdp_endpoint_xqos, &gv->default_xqos_wr, ~(uint64_t)0);
   gv->spdp_endpoint_xqos.durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
+  assert (gv->spdp_endpoint_xqos.reliability.kind == DDS_RELIABILITY_BEST_EFFORT);
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_rd, &gv->default_xqos_rd);
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_wr, &gv->default_xqos_wr);
 #ifdef DDSI_INCLUDE_SECURITY
