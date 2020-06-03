@@ -1741,6 +1741,7 @@ static const struct piddesc_index piddesc_vendor_index[] = {
    table too small or too large */
 static const struct piddesc *piddesc_unalias[18 + SECURITY_PROC_ARRAY_SIZE];
 static const struct piddesc *piddesc_fini[18 + SECURITY_PROC_ARRAY_SIZE];
+static uint64_t plist_fini_mask, qos_fini_mask;
 static ddsrt_once_t table_init_control = DDSRT_ONCE_INIT;
 
 static size_t pid_to_index (nn_parameterid_t pid)
@@ -1836,6 +1837,10 @@ static void ddsi_plist_init_tables_real (void)
       {
         assert (fini_index < sizeof (piddesc_fini) / sizeof (piddesc_fini[0]));
         piddesc_fini[fini_index++] = &table[j];
+        if (table[j].flags & PDF_QOS)
+          qos_fini_mask |= table[j].present_flag;
+        else
+          plist_fini_mask |= table[j].present_flag;
       }
     }
   }
@@ -1876,12 +1881,16 @@ static void plist_or_xqos_fini (void * __restrict dst, size_t shift, uint64_t pm
   if (shift > 0)
   {
     dds_qos_t *qos = dst;
+    if ((qos->present & qos_fini_mask) == 0)
+      return;
     pfs = (struct flagset) { NULL, NULL, 0 };
     qfs = (struct flagset) { .present = &qos->present, .aliased = &qos->aliased };
   }
   else
   {
     ddsi_plist_t *plist = dst;
+    if ((plist->present & plist_fini_mask) == 0 && (plist->qos.present & qos_fini_mask) == 0)
+      return;
     pfs = (struct flagset) { .present = &plist->present, .aliased = &plist->aliased };
     qfs = (struct flagset) { .present = &plist->qos.present, .aliased = &plist->qos.aliased };
   }
