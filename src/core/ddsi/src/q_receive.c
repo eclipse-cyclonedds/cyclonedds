@@ -312,7 +312,7 @@ static int set_sampleinfo_bswap (struct nn_rsample_info *sampleinfo, struct CDRH
   return 1;
 }
 
-static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, Data_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp, uint32_t *payloadsz)
+static int valid_Data (const struct receiver_state *rst, Data_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp, uint32_t *payloadsz)
 {
   /* on success: sampleinfo->{seq,rst,statusinfo,bswap,complex_qos} all set */
   ddsi_guid_t pwr_guid;
@@ -373,7 +373,7 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
     src.factory = NULL;
     src.logconfig = &rst->gv->logconfig;
     /* just a quick scan, gathering only what we _really_ need */
-    if ((ptr = ddsi_plist_quickscan (sampleinfo, rmsg, &src)) == NULL)
+    if ((ptr = ddsi_plist_quickscan (sampleinfo, &src)) == NULL)
       return 0;
   }
   else
@@ -403,7 +403,7 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
   return 1;
 }
 
-static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rmsg, DataFrag_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp, uint32_t *payloadsz)
+static int valid_DataFrag (const struct receiver_state *rst, DataFrag_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp, uint32_t *payloadsz)
 {
   ddsi_guid_t pwr_guid;
   unsigned char *ptr;
@@ -475,7 +475,7 @@ static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rms
     src.factory = NULL;
     src.logconfig = &rst->gv->logconfig;
     /* just a quick scan, gathering only what we _really_ need */
-    if ((ptr = ddsi_plist_quickscan (sampleinfo, rmsg, &src)) == NULL)
+    if ((ptr = ddsi_plist_quickscan (sampleinfo, &src)) == NULL)
       return 0;
   }
   else
@@ -2961,7 +2961,7 @@ static int handle_submsg_sequence
           unsigned char *datap;
           size_t submsg_len = submsg_size;
           /* valid_DataFrag does not validate the payload */
-          if (!valid_DataFrag (rst, rmsg, &sm->datafrag, submsg_size, byteswap, &sampleinfo, &datap, &datasz))
+          if (!valid_DataFrag (rst, &sm->datafrag, submsg_size, byteswap, &sampleinfo, &datap, &datasz))
             goto malformed;
           /* This only decodes the payload when needed (possibly reducing the submsg size). */
           if (!decode_DataFrag (rst->gv, &sampleinfo, datap, datasz, &submsg_len))
@@ -2986,7 +2986,7 @@ static int handle_submsg_sequence
           uint32_t datasz = 0;
           size_t submsg_len = submsg_size;
           /* valid_Data does not validate the payload */
-          if (!valid_Data (rst, rmsg, &sm->data, submsg_size, byteswap, &sampleinfo, &datap, &datasz))
+          if (!valid_Data (rst, &sm->data, submsg_size, byteswap, &sampleinfo, &datap, &datasz))
             goto malformed;
           /* This only decodes the payload when needed (possibly reducing the submsg size). */
           if (!decode_Data (rst->gv, &sampleinfo, datap, datasz, &submsg_len))

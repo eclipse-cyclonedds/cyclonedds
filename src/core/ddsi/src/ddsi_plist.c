@@ -2923,13 +2923,12 @@ dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint1
   return DDS_RETCODE_BAD_PARAMETER;
 }
 
-unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const struct nn_rmsg *rmsg, const ddsi_plist_src_t *src)
+unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_plist_src_t *src)
 {
   /* Sets a few fields in dest, returns address of first byte
      following parameter list, or NULL on error.  Most errors will go
      undetected, unlike ddsi_plist_init_frommsg(). */
   const unsigned char *pl;
-  (void)rmsg;
   dest->statusinfo = 0;
   dest->complex_qos = 0;
   switch (src->encoding)
