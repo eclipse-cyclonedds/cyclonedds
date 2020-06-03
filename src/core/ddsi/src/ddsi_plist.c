@@ -1912,8 +1912,6 @@ static void plist_or_xqos_fini (void * __restrict dst, size_t shift, uint64_t pm
         entry->op.f.fini (dst, &dstoff, fs, entry->present_flag);
     }
   }
-  if (pfs.present) { *pfs.present &= ~pmask; *pfs.aliased &= ~pmask; }
-  *qfs.present &= ~qmask; *qfs.aliased &= ~qmask;
 }
 
 static void plist_or_xqos_unalias (void * __restrict dst, size_t shift)
@@ -2069,11 +2067,20 @@ static void plist_or_xqos_addtomsg (struct nn_xmsg *xmsg, const void * __restric
 void ddsi_plist_fini (ddsi_plist_t *plist)
 {
   plist_or_xqos_fini (plist, 0, ~(uint64_t)0, ~(uint64_t)0);
+#ifndef NDEBUG
+  memset (plist, 0x55, sizeof (*plist));
+  plist->present = plist->aliased = ~(uint64_t)0;
+  plist->qos.present = plist->qos.aliased = ~(uint64_t)0;
+#endif
 }
 
 void ddsi_plist_fini_mask (ddsi_plist_t *plist, uint64_t pmask, uint64_t qmask)
 {
   plist_or_xqos_fini (plist, 0, pmask, qmask);
+  plist->present &= ~pmask;
+  plist->aliased &= ~pmask;
+  plist->qos.present &= ~qmask;
+  plist->qos.aliased &= ~qmask;
 }
 
 void ddsi_plist_unalias (ddsi_plist_t *plist)
@@ -2668,7 +2675,7 @@ ddsi_plist_t *ddsi_plist_dup (const ddsi_plist_t *src)
 void ddsi_plist_init_empty (ddsi_plist_t *dest)
 {
 #ifndef NDEBUG
-  memset (dest, 0, sizeof (*dest));
+  memset (dest, 0x55, sizeof (*dest));
 #endif
   dest->present = dest->aliased = 0;
   ddsi_xqos_init_empty (&dest->qos);
@@ -3010,7 +3017,7 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const struct 
 void ddsi_xqos_init_empty (dds_qos_t *dest)
 {
 #ifndef NDEBUG
-  memset (dest, 0, sizeof (*dest));
+  memset (dest, 0x55, sizeof (*dest));
 #endif
   dest->present = dest->aliased = 0;
 }
@@ -3214,11 +3221,17 @@ void ddsi_xqos_copy (dds_qos_t *dst, const dds_qos_t *src)
 void ddsi_xqos_fini (dds_qos_t *xqos)
 {
   plist_or_xqos_fini (xqos, offsetof (ddsi_plist_t, qos), ~(uint64_t)0, ~(uint64_t)0);
+#ifndef NDEBUG
+  memset (xqos, 0x55, sizeof (*xqos));
+  xqos->present = xqos->aliased = ~(uint64_t)0;
+#endif
 }
 
 void ddsi_xqos_fini_mask (dds_qos_t *xqos, uint64_t mask)
 {
   plist_or_xqos_fini (xqos, offsetof (ddsi_plist_t, qos), ~(uint64_t)0, mask);
+  xqos->present &= ~mask;
+  xqos->aliased &= ~mask;
 }
 
 void ddsi_xqos_unalias (dds_qos_t *xqos)
