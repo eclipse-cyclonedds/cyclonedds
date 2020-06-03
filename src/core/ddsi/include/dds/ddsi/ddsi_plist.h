@@ -306,11 +306,9 @@ DDS_EXPORT void ddsi_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const ddsi
 DDS_EXPORT void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const ddsi_plist_t *plist);
 DDS_EXPORT size_t ddsi_plist_print (char * __restrict buf, size_t bufsize, const ddsi_plist_t *plist);
 
-struct nn_rmsg;
 struct nn_rsample_info;
-struct nn_rdata;
 
-DDS_EXPORT unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const struct nn_rmsg *rmsg, const ddsi_plist_src_t *src);
+DDS_EXPORT unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_plist_src_t *src);
 DDS_EXPORT dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint16_t encoding, nn_parameterid_t needle, void **needlep, size_t *needlesz);
 
 #if defined (__cplusplus)
