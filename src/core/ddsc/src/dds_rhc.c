@@ -22,6 +22,7 @@ extern inline void dds_rhc_set_qos (struct dds_rhc *rhc, const struct dds_qos *q
 extern inline void dds_rhc_free (struct dds_rhc *rhc);
 extern inline int dds_rhc_read (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond);
 extern inline int dds_rhc_take (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond);
+extern inline int dds_rhc_readcdr (struct dds_rhc *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle);
 extern inline int dds_rhc_takecdr (struct dds_rhc *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle);
 extern inline bool dds_rhc_add_readcondition (struct dds_rhc *rhc, struct dds_readcond *cond);
 extern inline void dds_rhc_remove_readcondition (struct dds_rhc *rhc, struct dds_readcond *cond);

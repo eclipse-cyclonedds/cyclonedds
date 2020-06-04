@@ -34,7 +34,7 @@ static void lifespan_rhc_node_exp (struct xevent *xev, void *varg, ddsrt_mtime_t
 
 
 /* Gets the sample from the fibheap in lifespan admin that was expired first. If no more
- * expired samples exist in the fibheap, the expiry time (nn_mtime_t) for the next sample to
+ * expired samples exist in the fibheap, the expiry time (ddsrt_mtime_t) for the next sample to
  * expire is returned. If the fibheap contains no more samples, DDSRT_MTIME_NEVER is returned */
 ddsrt_mtime_t lifespan_next_expired_locked (const struct lifespan_adm *lifespan_adm, ddsrt_mtime_t tnow, void **sample)
 {

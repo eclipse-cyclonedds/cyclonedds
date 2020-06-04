@@ -24,7 +24,7 @@ isenvvar(const char *name)
 }
 
 dds_return_t
-ddsrt_getenv(const char *name, char **value)
+ddsrt_getenv(const char *name, const char **value)
 {
   char *env;
 

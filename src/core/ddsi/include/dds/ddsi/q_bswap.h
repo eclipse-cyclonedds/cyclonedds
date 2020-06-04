@@ -33,8 +33,8 @@ ddsi_guid_prefix_t nn_hton_guid_prefix (ddsi_guid_prefix_t p);
 ddsi_guid_prefix_t nn_ntoh_guid_prefix (ddsi_guid_prefix_t p);
 ddsi_entityid_t nn_hton_entityid (ddsi_entityid_t e);
 ddsi_entityid_t nn_ntoh_entityid (ddsi_entityid_t e);
-ddsi_guid_t nn_hton_guid (ddsi_guid_t g);
-ddsi_guid_t nn_ntoh_guid (ddsi_guid_t g);
+DDS_EXPORT ddsi_guid_t nn_hton_guid (ddsi_guid_t g);
+DDS_EXPORT ddsi_guid_t nn_ntoh_guid (ddsi_guid_t g);
 
 void bswap_sequence_number_set_hdr (nn_sequence_number_set_header_t *snset);
 void bswap_sequence_number_set_bitmap (nn_sequence_number_set_header_t *snset, uint32_t *bits);

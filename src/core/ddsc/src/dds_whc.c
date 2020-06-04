@@ -849,7 +849,7 @@ static void whc_delete_one_intv (struct whc_impl *whc, struct whc_intvnode **p_i
     assert (new_intv->min < new_intv->maxp1);
 
     /* insert new node & continue the loop with intv set to the
-     new interval */
+    new interval */
     if (ddsrt_avl_lookup_ipath (&whc_seq_treedef, &whc->seq, &new_intv->min, &path) != NULL)
       assert (0);
     ddsrt_avl_insert_ipath (&whc_seq_treedef, &whc->seq, new_intv, &path);

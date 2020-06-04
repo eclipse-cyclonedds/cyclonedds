@@ -225,6 +225,13 @@ enum dds_stream_typecode_subtype {
 #define DDS_OP_FLAG_KEY 0x01 /* key field: applicable to {1,2,4,8}BY, STR, BST, ARR-of-{1,2,4,8}BY */
 #define DDS_OP_FLAG_DEF 0x02 /* union has a default case (for DDS_OP_ADR | DDS_OP_TYPE_UNI) */
 
+/* For a union: (1) the discriminator may be a key field; (2) there may be a default value;
+   and (3) the discriminator can be an integral type (or enumerated - here treated as equivalent).
+   What it can't be is a floating-point type. So DEF and FP need never be set at the same time.
+   There are only a few flag bits, so saving one is not such a bad idea. */
+#define DDS_OP_FLAG_FP  0x02 /* floating-point: applicable to {4,8}BY and arrays, sequences of them */
+#define DDS_OP_FLAG_SGN 0x04 /* signed: applicable to {1,2,4,8}BY and arrays, sequences of them */
+
 /**
  * Description : Enable or disable write batching. Overrides default configuration
  * setting for write batching (Internal/WriteBatch).

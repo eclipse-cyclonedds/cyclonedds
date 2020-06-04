@@ -111,7 +111,7 @@ CU_Test(ddsc_participant, create_with_conf_no_env) {
     ddsrt_setenv(DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", CONFIG_ENV_SIMPLE_UDP);
     ddsrt_setenv("MAX_PARTICIPANTS", CONFIG_ENV_MAX_PARTICIPANTS);
 
-    char * env_uri = NULL;
+    const char * env_uri = NULL;
     ddsrt_getenv(DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", &env_uri);
     CU_ASSERT_PTR_NOT_EQUAL_FATAL(env_uri, NULL);
 

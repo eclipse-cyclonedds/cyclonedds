@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+#include <string.h>
 #include <math.h>
 
 #include "dds/ddsrt/heap.h"
@@ -31,10 +32,12 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_hbcontrol.h"
+#include "dds/ddsi/q_receive.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 
 #include "dds/ddsi/sysdeps.h"
 #include "dds__whc.h"
@@ -141,7 +144,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   assert (wr->reliable);
   assert (hbansreq >= 0);
 
-  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
+  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
     /* out of memory at worst slows down traffic */
     return NULL;
 
@@ -217,6 +220,13 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
     nn_xmsg_setencoderid (msg, wr->partition_id);
 #endif
     add_Heartbeat (msg, wr, whcst, hbansreq, 0, prd_guid->entityid, issync);
+  }
+
+  /* It is possible that the encoding removed the submessage(s). */
+  if (nn_xmsg_size(msg) == 0)
+  {
+    nn_xmsg_free (msg);
+    msg = NULL;
   }
 
   writer_hbcontrol_note_hb (wr, tnow, hbansreq);
@@ -308,11 +318,52 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
             (hbc->tsched.v == DDS_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
             ddsrt_avl_is_empty (&wr->readers) ? -1 : root_rdmatch (wr)->min_seq,
             ddsrt_avl_is_empty (&wr->readers) || root_rdmatch (wr)->all_have_replied_to_hb ? "" : "!",
-            whcst->max_seq, writer_read_seq_xmit (wr));
+            whcst->max_seq, writer_read_seq_xmit(wr));
   }
 
   return msg;
 }
+
+#ifdef DDSI_INCLUDE_SECURITY
+struct nn_xmsg *writer_hbcontrol_p2p(struct writer *wr, const struct whc_state *whcst, int hbansreq, struct proxy_reader *prd)
+{
+  struct ddsi_domaingv const * const gv = wr->e.gv;
+  struct nn_xmsg *msg;
+
+  ASSERT_MUTEX_HELD (&wr->e.lock);
+  assert (wr->reliable);
+
+  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
+    return NULL;
+
+  ETRACE (wr, "writer_hbcontrol_p2p: wr "PGUIDFMT" unicasting to prd "PGUIDFMT" ", PGUID (wr->e.guid), PGUID (prd->e.guid));
+  ETRACE (wr, "(rel-prd %d seq-eq-max %d seq %"PRId64" maxseq %"PRId64")\n",
+      wr->num_reliable_readers,
+      ddsrt_avl_is_empty (&wr->readers) ? -1 : root_rdmatch (wr)->num_reliable_readers_where_seq_equals_max,
+      wr->seq,
+      ddsrt_avl_is_empty (&wr->readers) ? (int64_t) -1 : root_rdmatch (wr)->max_seq);
+
+  /* set the destination explicitly to the unicast destination and the fourth
+     param of add_Heartbeat needs to be the guid of the reader */
+  if (nn_xmsg_setdstPRD (msg, prd) < 0)
+  {
+    nn_xmsg_free (msg);
+    return NULL;
+  }
+#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+  nn_xmsg_setencoderid (msg, wr->partition_id);
+#endif
+  add_Heartbeat (msg, wr, whcst, hbansreq, 0, prd->e.guid.entityid, 1);
+
+  if (nn_xmsg_size(msg) == 0)
+  {
+    nn_xmsg_free (msg);
+    msg = NULL;
+  }
+
+  return msg;
+}
+#endif
 
 void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, int hbliveliness, ddsi_entityid_t dst, int issync)
 {
@@ -383,6 +434,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
   hb->count = ++wr->hbcount;
 
   nn_xmsg_submsg_setnext (msg, sm_marker);
+  encode_datawriter_submsg(msg, sm_marker, wr);
 }
 
 static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct nn_xmsg **pmsg)
@@ -415,7 +467,7 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
   /* INFO_TS: 12 bytes, Data_t: 24 bytes, expected inline QoS: 32 => should be single chunk */
-  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (Data_t) + expected_inline_qos_size, NN_XMSG_KIND_DATA)) == NULL)
+  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTimestamp_t) + sizeof (Data_t) + expected_inline_qos_size, NN_XMSG_KIND_DATA)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -441,7 +493,7 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
 
   /* Adding parameters means potential reallocing, so sm, ddcmn now likely become invalid */
   if (wr->include_keyhash)
-    nn_xmsg_addpar_keyhash (*pmsg, serdata);
+    nn_xmsg_addpar_keyhash (*pmsg, serdata, wr->force_md5_keyhash);
   if (serdata->statusinfo)
     nn_xmsg_addpar_statusinfo (*pmsg, serdata->statusinfo);
   if (nn_xmsg_addpar_sentinel_ifparam (*pmsg) > 0)
@@ -452,9 +504,9 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
 
 #if TEST_KEYHASH
   if (serdata->kind != SDK_KEY || !wr->include_keyhash)
-    nn_xmsg_serdata (*pmsg, serdata, 0, ddsi_serdata_size (serdata));
+    nn_xmsg_serdata (*pmsg, serdata, 0, ddsi_serdata_size (serdata), wr);
 #else
-  nn_xmsg_serdata (*pmsg, serdata, 0, ddsi_serdata_size (serdata));
+  nn_xmsg_serdata (*pmsg, serdata, 0, ddsi_serdata_size (serdata), wr);
 #endif
   nn_xmsg_submsg_setnext (*pmsg, sm_marker);
   return 0;
@@ -501,7 +553,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
   fragging = (gv->config.fragment_size < size);
 
   /* INFO_TS: 12 bytes, DataFrag_t: 36 bytes, expected inline QoS: 32 => should be single chunk */
-  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (DataFrag_t) + expected_inline_qos_size, xmsg_kind)) == NULL)
+  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTimestamp_t) + sizeof (DataFrag_t) + expected_inline_qos_size, xmsg_kind)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -608,7 +660,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
     /* Adding parameters means potential reallocing, so sm, ddcmn now likely become invalid */
     if (wr->include_keyhash)
     {
-      nn_xmsg_addpar_keyhash (*pmsg, serdata);
+      nn_xmsg_addpar_keyhash (*pmsg, serdata, wr->force_md5_keyhash);
     }
     if (serdata->statusinfo)
     {
@@ -622,13 +674,22 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
     }
   }
 
-  nn_xmsg_serdata (*pmsg, serdata, fragstart, fraglen);
+  nn_xmsg_serdata (*pmsg, serdata, fragstart, fraglen, wr);
   nn_xmsg_submsg_setnext (*pmsg, sm_marker);
 #if 0
   GVTRACE ("queue data%s "PGUIDFMT" #%lld/%u[%u..%u)\n",
            fragging ? "frag" : "", PGUID (wr->e.guid),
            seq, fragnum+1, fragstart, fragstart + fraglen);
 #endif
+
+  encode_datawriter_submsg(*pmsg, sm_marker, wr);
+
+  /* It is possible that the encoding removed the submessage.
+   * If there is no content, free the message. */
+  if (nn_xmsg_size(*pmsg) == 0) {
+      nn_xmsg_free (*pmsg);
+      *pmsg = NULL;
+  }
 
   return ret;
 }
@@ -639,7 +700,7 @@ static void create_HeartbeatFrag (struct writer *wr, seqno_t seq, unsigned fragn
   struct nn_xmsg_marker sm_marker;
   HeartbeatFrag_t *hbf;
   ASSERT_MUTEX_HELD (&wr->e.lock);
-  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (HeartbeatFrag_t), NN_XMSG_KIND_CONTROL)) == NULL)
+  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (HeartbeatFrag_t), NN_XMSG_KIND_CONTROL)) == NULL)
     return; /* ignore out-of-memory: HeartbeatFrag is only advisory anyway */
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   nn_xmsg_setencoderid (*pmsg, wr->partition_id);
@@ -668,6 +729,15 @@ static void create_HeartbeatFrag (struct writer *wr, seqno_t seq, unsigned fragn
   hbf->count = ++wr->hbfragcount;
 
   nn_xmsg_submsg_setnext (*pmsg, sm_marker);
+  encode_datawriter_submsg(*pmsg, sm_marker, wr);
+
+  /* It is possible that the encoding removed the submessage.
+   * If there is no content, free the message. */
+  if (nn_xmsg_size(*pmsg) == 0)
+  {
+    nn_xmsg_free(*pmsg);
+    *pmsg = NULL;
+  }
 }
 
 dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_guid *wr_guid, struct nn_xpack *xp)
@@ -690,7 +760,7 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
   else if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC && wr->lease != NULL)
     lease_renew (wr->lease, ddsrt_time_elapsed());
 
-  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
+  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   ddsrt_mutex_lock (&wr->e.lock);
   nn_xmsg_setdstN (msg, wr->as, wr->as_group);
@@ -796,7 +866,7 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, 
   assert((wr->heartbeat_xevent != NULL) == (whcst != NULL));
 
   sz = ddsi_serdata_size (serdata);
-  if (sz > gv->config.fragment_size || !isnew || plist != NULL || prd != NULL)
+  if (sz > gv->config.fragment_size || !isnew || plist != NULL || prd != NULL || q_omg_writer_is_submessage_protected(wr))
   {
     uint32_t nfrags;
     ddsrt_mutex_unlock (&wr->e.lock);
@@ -896,8 +966,6 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
   {
     char ppbuf[1024];
     int tmp;
-    const char *tname = wr->topic ? wr->topic->name : "(null)";
-    const char *ttname = wr->topic ? wr->topic->type_name : "(null)";
     ppbuf[0] = '\0';
     tmp = sizeof (ppbuf) - 1;
     if (wr->e.gv->logconfig.c.mask & DDS_LC_CONTENT)
@@ -905,7 +973,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
     ETRACE (wr, "write_sample "PGUIDFMT" #%"PRId64, PGUID (wr->e.guid), seq);
     if (plist != 0 && (plist->present & PP_COHERENT_SET))
       ETRACE (wr, " C#%"PRId64"", fromSN (plist->coherent_set_seqno));
-    ETRACE (wr, ": ST%"PRIu32" %s/%s:%s%s\n", serdata->statusinfo, tname, ttname, ppbuf, tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
+    ETRACE (wr, ": ST%"PRIu32" %s/%s:%s%s\n", serdata->statusinfo, wr->topic->name, wr->topic->type_name, ppbuf, tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
   }
 
   assert (wr->reliable || have_reliable_subs (wr) == 0);
@@ -945,7 +1013,9 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
   }
 
 #ifndef NDEBUG
-  if (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER && !is_local_orphan_endpoint (&wr->e))
+  if (((wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER) ||
+       (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER)) &&
+       !is_local_orphan_endpoint (&wr->e))
   {
     struct whc_state whcst;
     whc_get_state(wr->whc, &whcst);
@@ -1083,6 +1153,74 @@ static int maybe_grow_whc (struct writer *wr)
   return 0;
 }
 
+int write_sample_p2p_wrlock_held(struct writer *wr, seqno_t seq, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, struct proxy_reader *prd)
+{
+  struct ddsi_domaingv * const gv = wr->e.gv;
+  int r = 0;
+  ddsrt_mtime_t tnow;
+  int rexmit = 1;
+  struct wr_prd_match *wprd = NULL;
+  seqno_t gseq;
+  struct nn_xmsg *gap = NULL;
+
+  tnow = ddsrt_time_monotonic ();
+  serdata->twrite = tnow;
+  serdata->timestamp = ddsrt_time_wallclock ();
+
+
+  if (prd->filter)
+  {
+    if ((wprd = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
+    {
+      if (wprd->seq == MAX_SEQ_NUMBER)
+        goto prd_is_deleting;
+
+      rexmit = prd->filter(wr, prd, serdata);
+      /* determine if gap has to added */
+      if (rexmit)
+      {
+        struct nn_gap_info gi;
+
+        GVLOG (DDS_LC_DISCOVERY, "send filtered "PGUIDFMT" last_seq=%"PRIu64" seq=%"PRIu64"\n", PGUID (wr->e.guid), wprd->seq, seq);
+
+        nn_gap_info_init(&gi);
+        for (gseq = wprd->seq + 1; gseq < seq; gseq++)
+        {
+          struct whc_borrowed_sample sample;
+          if (whc_borrow_sample (wr->whc, seq, &sample))
+          {
+            if (prd->filter(wr, prd, sample.serdata) == 0)
+            {
+              nn_gap_info_update(wr->e.gv, &gi, gseq);
+            }
+            whc_return_sample (wr->whc, &sample, false);
+          }
+        }
+        gap = nn_gap_info_create_gap(wr, prd, &gi);
+      }
+      wprd->last_seq = seq;
+    }
+  }
+
+  if ((r = insert_sample_in_whc (wr, seq, plist, serdata, tk)) >= 0)
+  {
+    enqueue_sample_wrlock_held (wr, seq, plist, serdata, prd, 1);
+
+    if (gap)
+      qxev_msg (wr->evq, gap);
+
+    if (wr->heartbeat_xevent)
+      writer_hbcontrol_note_asyncwrite(wr, tnow);
+  }
+  else if (gap)
+  {
+    nn_xmsg_free (gap);
+  }
+
+prd_is_deleting:
+  return r;
+}
+
 static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int end_of_txn, int gc_allowed)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
@@ -1099,13 +1237,11 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
   {
     char ppbuf[1024];
     int tmp;
-    const char *tname = wr->topic ? wr->topic->name : "(null)";
-    const char *ttname = wr->topic ? wr->topic->type_name : "(null)";
     ppbuf[0] = '\0';
     tmp = sizeof (ppbuf) - 1;
     GVWARNING ("dropping oversize (%"PRIu32" > %"PRIu32") sample from local writer "PGUIDFMT" %s/%s:%s%s\n",
                ddsi_serdata_size (serdata), gv->config.max_sample_size,
-               PGUID (wr->e.guid), tname, ttname, ppbuf,
+               PGUID (wr->e.guid), wr->topic->name, wr->topic->type_name, ppbuf,
                tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
     r = DDS_RETCODE_BAD_PARAMETER;
     goto drop;

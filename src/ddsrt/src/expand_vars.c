@@ -15,13 +15,13 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/expand_vars.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/process.h"
 
-typedef char * (*expand_fn)(const char *src0, uint32_t domid);
+typedef char * (*expand_fn)(const char *src0, expand_lookup_fn lookup, void * data);
 
 static void expand_append (char **dst, size_t *sz, size_t *pos, char c)
 {
@@ -33,46 +33,33 @@ static void expand_append (char **dst, size_t *sz, size_t *pos, char c)
     (*pos)++;
 }
 
-static char *expand_env (const char *name, char op, const char *alt, expand_fn expand, uint32_t domid)
+static char *expand_var (const char *name, char op, const char *alt, expand_fn expand, expand_lookup_fn lookup, void * data)
 {
-    char idstr[20];
-    char *env = NULL;
-    dds_return_t ret;
-
-    if ((ret = ddsrt_getenv (name, &env)) == DDS_RETCODE_OK) {
-        /* ok */
-    } else if (strcmp (name, "$") == 0 || strcmp (name, "CYCLONEDDS_PID") == 0) {
-        (void) snprintf (idstr, sizeof (idstr), "%"PRIdPID, ddsrt_getpid ());
-        env = idstr;
-    } else if (strcmp (name, "CYCLONEDDS_DOMAIN_ID") == 0 && domid != UINT32_MAX) {
-        (void) snprintf (idstr, sizeof (idstr), "%"PRIu32, domid);
-        env = idstr;
-    }
-
+    const char *val = lookup (name, data);
     switch (op)
     {
         case 0:
-            return ddsrt_strdup (env ? env : "");
+            return ddsrt_strdup (val ? val : "");
         case '-':
-            return env && *env ? ddsrt_strdup (env) : expand (alt, domid);
+            return val && *val ? ddsrt_strdup (val) : expand (alt, lookup, data);
         case '?':
-            if (env && *env) {
-                return ddsrt_strdup (env);
+            if (val && *val) {
+                return ddsrt_strdup (val);
             } else {
-                char *altx = expand (alt, domid);
-                DDS_ILOG (DDS_LC_ERROR, domid, "%s: %s\n", name, altx);
+                char *altx = expand (alt, lookup, data);
+                DDS_LOG (DDS_LC_ERROR, "%s: %s\n", name, altx);
                 ddsrt_free (altx);
                 return NULL;
             }
         case '+':
-            return env && *env ? expand (alt, domid) : ddsrt_strdup ("");
+            return val && *val ? expand (alt, lookup, data) : ddsrt_strdup ("");
         default:
             abort ();
             return NULL;
     }
 }
 
-static char *expand_envbrace (const char **src, expand_fn expand, uint32_t domid)
+static char *expand_varbrace (const char **src, expand_fn expand, expand_lookup_fn lookup, void * data)
 {
     const char *start = *src + 1;
     char *name, *x;
@@ -89,7 +76,7 @@ static char *expand_envbrace (const char **src, expand_fn expand, uint32_t domid
     name[*src - start] = 0;
     if (**src == '}') {
         (*src)++;
-        x = expand_env (name, 0, NULL, expand, domid);
+        x = expand_var (name, 0, NULL, expand, lookup, data);
         ddsrt_free (name);
         return x;
     } else {
@@ -133,7 +120,7 @@ static char *expand_envbrace (const char **src, expand_fn expand, uint32_t domid
         memcpy (alt, altstart, (size_t) (*src - altstart));
         alt[*src - altstart] = 0;
         (*src)++;
-        x = expand_env (name, op, alt, expand, domid);
+        x = expand_var (name, op, alt, expand, lookup, data);
         ddsrt_free (alt);
         ddsrt_free (name);
         return x;
@@ -143,7 +130,7 @@ err:
     return NULL;
 }
 
-static char *expand_envsimple (const char **src, expand_fn expand, uint32_t domid)
+static char *expand_varsimple (const char **src, expand_fn expand, expand_lookup_fn lookup, void * data)
 {
     const char *start = *src;
     char *name, *x;
@@ -154,22 +141,22 @@ static char *expand_envsimple (const char **src, expand_fn expand, uint32_t domi
     name = ddsrt_malloc ((size_t) (*src - start) + 1);
     memcpy (name, start, (size_t) (*src - start));
     name[*src - start] = 0;
-    x = expand_env (name, 0, NULL, expand, domid);
+    x = expand_var (name, 0, NULL, expand, lookup, data);
     ddsrt_free (name);
     return x;
 }
 
-static char *expand_envchar (const char **src, expand_fn expand, uint32_t domid)
+static char *expand_varchar (const char **src, expand_fn expand, expand_lookup_fn lookup, void * data)
 {
     char name[2];
     assert (**src);
     name[0] = **src;
     name[1] = 0;
     (*src)++;
-    return expand_env (name, 0, NULL, expand, domid);
+    return expand_var (name, 0, NULL, expand, lookup, data);
 }
 
-char *ddsrt_expand_envvars_sh (const char *src0, uint32_t domid)
+char *ddsrt_expand_vars_sh (const char *src0, expand_lookup_fn lookup, void * data)
 {
     /* Expands $X, ${X}, ${X:-Y}, ${X:+Y}, ${X:?Y} forms; $ and \ can be escaped with \ */
     const char *src = src0;
@@ -192,11 +179,11 @@ char *ddsrt_expand_envvars_sh (const char *src0, uint32_t domid)
                 ddsrt_free(dst);
                 return NULL;
             } else if (*src == '{') {
-                x = expand_envbrace (&src, &ddsrt_expand_envvars_sh, domid);
+                x = expand_varbrace (&src, &ddsrt_expand_vars_sh, lookup, data);
             } else if (isalnum ((unsigned char) *src) || *src == '_') {
-                x = expand_envsimple (&src, &ddsrt_expand_envvars_sh, domid);
+                x = expand_varsimple (&src, &ddsrt_expand_vars_sh, lookup, data);
             } else {
-                x = expand_envchar (&src, &ddsrt_expand_envvars_sh, domid);
+                x = expand_varchar (&src, &ddsrt_expand_vars_sh, lookup, data);
             }
             if (x == NULL) {
                 ddsrt_free(dst);
@@ -215,7 +202,7 @@ char *ddsrt_expand_envvars_sh (const char *src0, uint32_t domid)
     return dst;
 }
 
-char *ddsrt_expand_envvars (const char *src0, uint32_t domid)
+char *ddsrt_expand_vars (const char *src0, expand_lookup_fn lookup, void * data)
 {
     /* Expands ${X}, ${X:-Y}, ${X:+Y}, ${X:?Y} forms, but not $X */
     const char *src = src0;
@@ -225,7 +212,7 @@ char *ddsrt_expand_envvars (const char *src0, uint32_t domid)
         if (*src == '$' && *(src + 1) == '{') {
             char *x, *xp;
             src++;
-            x = expand_envbrace (&src, &ddsrt_expand_envvars, domid);
+            x = expand_varbrace (&src, &ddsrt_expand_vars, lookup, data);
             if (x == NULL) {
                 ddsrt_free(dst);
                 return NULL;
@@ -242,3 +229,4 @@ char *ddsrt_expand_envvars (const char *src0, uint32_t domid)
     expand_append (&dst, &sz, &pos, 0);
     return dst;
 }
+

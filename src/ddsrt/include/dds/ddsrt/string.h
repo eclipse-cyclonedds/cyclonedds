@@ -176,6 +176,25 @@ ddsrt_strerror_r(
     char *buf,
     size_t buflen);
 
+/**
+ * @brief Replace substring of null terminated string
+ *
+ * @param[in]   str     pointer to string
+ * @param[in]   srch    non-empty string to replace
+ * @param[in]   subst   string to substitute character "srch" with
+ * @param[in]   max     maximum number of times to replace search, or 0 for unlimited
+ *
+ * @returns Pointer to newly allocated string with max occurrences of srch replaced, or
+ * NULL on allocation failure or if srch is an empty string.
+ */
+DDS_EXPORT char *
+ddsrt_str_replace(
+    const char *str,
+    const char *srch,
+    const char *subst,
+    size_t max)
+ddsrt_nonnull_all;
+
 #if defined (__cplusplus)
 }
 #endif

@@ -35,7 +35,10 @@ unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr);
 int WildcardOverlap(char * p1, char * p2);
 #endif
 
-int ddsi2_patmatch (const char *pat, const char *str);
+DDS_EXPORT bool guid_prefix_zero (const ddsi_guid_prefix_t *a);
+DDS_EXPORT int guid_prefix_eq (const ddsi_guid_prefix_t *a, const ddsi_guid_prefix_t *b);
+DDS_EXPORT int guid_eq (const struct ddsi_guid *a, const struct ddsi_guid *b);
+DDS_EXPORT int ddsi2_patmatch (const char *pat, const char *str);
 
 #if defined (__cplusplus)
 }

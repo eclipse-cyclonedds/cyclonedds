@@ -126,14 +126,16 @@ static void from_entity_pwr (struct ddsi_serdata_builtintopic *d, const struct p
   assert (d->xqos.present & QP_TYPE_NAME);
 }
 
-static struct ddsi_serdata *ddsi_serdata_builtin_from_keyhash (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
+static struct ddsi_serdata *ddsi_serdata_builtin_from_keyhash (const struct ddsi_sertopic *tpcmn, const ddsi_keyhash_t *keyhash)
 {
   /* FIXME: not quite elegant to manage the creation of a serdata for a built-in topic via this function, but I also find it quite unelegant to let from_sample read straight from the underlying internal entity, and to_sample convert to the external format ... I could claim the internal entity is the "serialised form", but that forces wrapping it in a fragchain in one way or another, which, though possible, is also a bit lacking in elegance. */
   const struct ddsi_sertopic_builtintopic *tp = (const struct ddsi_sertopic_builtintopic *)tpcmn;
-  /* keyhash must in host format (which the GUIDs always are internally) */
-  struct entity_common *entity = entidx_lookup_guid_untyped (tp->c.gv->entity_index, (const ddsi_guid_t *) keyhash->value);
-  struct ddsi_serdata_builtintopic *d = serdata_builtin_new(tp, entity ? SDK_DATA : SDK_KEY);
-  memcpy (&d->key, keyhash->value, sizeof (d->key));
+  union { ddsi_guid_t guid; ddsi_keyhash_t keyhash; } x;
+  x.keyhash = *keyhash;
+  x.guid = nn_ntoh_guid (x.guid);
+  struct entity_common *entity = entidx_lookup_guid_untyped (tp->c.gv->entity_index, &x.guid);
+  struct ddsi_serdata_builtintopic *d = serdata_builtin_new (tp, entity ? SDK_DATA : SDK_KEY);
+  d->key = x.guid;
   if (entity)
   {
     ddsrt_mutex_lock (&entity->qos_lock);
@@ -167,6 +169,41 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_keyhash (const struct ddsi
     ddsrt_mutex_unlock (&entity->qos_lock);
   }
   return fix_serdata_builtin(d, tp->c.serdata_basehash);
+}
+
+static struct ddsi_serdata *ddsi_serdata_builtin_from_sample (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
+{
+  const struct ddsi_sertopic_builtintopic *tp = (const struct ddsi_sertopic_builtintopic *)tpcmn;
+  union {
+    dds_guid_t extguid;
+    ddsi_keyhash_t keyhash;
+  } x;
+
+  /* no-one should be trying to convert user-provided data into a built-in topic sample, but converting
+     a key is something that can be necessary, e.g., dds_lookup_instance depends on it */
+  if (kind != SDK_KEY)
+    return NULL;
+
+  /* memset x (even though it is entirely superfluous) so we can leave out a default case from the
+     switch (ensuring at least some compilers will warn when more types are added) without getting
+     warnings from any compiler */
+  memset (&x, 0, sizeof (x));
+  switch (tp->type)
+  {
+    case DSBT_PARTICIPANT: {
+      const dds_builtintopic_participant_t *s = sample;
+      x.extguid = s->key;
+      break;
+    }
+    case DSBT_READER:
+    case DSBT_WRITER: {
+      const dds_builtintopic_endpoint_t *s = sample;
+      x.extguid = s->key;
+      break;
+    }
+  }
+
+  return ddsi_serdata_from_keyhash (tpcmn, &x.keyhash);
 }
 
 static struct ddsi_serdata *serdata_builtin_to_topicless (const struct ddsi_serdata *serdata_common)
@@ -289,12 +326,13 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic = {
   .from_ser = 0,
   .from_ser_iov = 0,
   .from_keyhash = ddsi_serdata_builtin_from_keyhash,
-  .from_sample = 0,
+  .from_sample = ddsi_serdata_builtin_from_sample,
   .to_ser = serdata_builtin_to_ser,
   .to_sample = serdata_builtin_to_sample,
   .to_ser_ref = serdata_builtin_to_ser_ref,
   .to_ser_unref = serdata_builtin_to_ser_unref,
   .to_topicless = serdata_builtin_to_topicless,
   .topicless_to_sample = serdata_builtin_topicless_to_sample,
-  .print = serdata_builtin_topic_print
+  .print = serdata_builtin_topic_print,
+  .get_keyhash = 0
 };

@@ -15,7 +15,9 @@
 #include <string.h>
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/types.h"
 
 int
 ddsrt_strcasecmp(
@@ -161,4 +163,42 @@ ddsrt_strdup(
   assert(str != NULL);
 
   return ddsrt_memdup(str, strlen(str) + 1);
+}
+
+char *
+ddsrt_str_replace(
+    const char *str,
+    const char *srch,
+    const char *subst,
+    size_t max)
+{
+  const size_t lsrch = strlen(srch);
+  if (lsrch == 0) /* empty search string is treated as failure */
+    return NULL;
+
+  const size_t lsubst = strlen(subst);
+  const size_t lstr = strlen(str);
+  const char *cur = str;
+  char *res;
+  size_t cnt;
+
+  if (max == 0)
+    max = SIZE_MAX;
+  for (cnt = 0; (cur = strstr(cur, srch)) != NULL && cnt < max; cnt++)
+    cur += lsrch;
+  if ((res = ddsrt_malloc(lstr + cnt * (lsubst - lsrch) + 1)) == NULL)
+    return NULL;
+  char *tmp = res;
+  cur = str;
+  while (cnt--)
+  {
+    const char *found = strstr(cur, srch);
+    const size_t skip = (size_t)(found - cur);
+    memcpy(tmp, cur, skip);
+    memcpy(tmp + skip, subst, lsubst);
+    tmp += skip + lsubst;
+    cur += skip + lsrch;
+  }
+  memcpy(tmp, cur, lstr - (size_t) (cur - str) + 1);
+  return res;
 }

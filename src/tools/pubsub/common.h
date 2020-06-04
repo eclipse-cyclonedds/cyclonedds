@@ -42,12 +42,13 @@
 #define DDS_READERLIFESPAN_QOS_POLICY_NAME                      "ReaderLifespan"
 #define DDS_SHARE_QOS_POLICY_NAME                               "Share"
 #define DDS_SCHEDULING_QOS_POLICY_NAME                          "Scheduling"
+#define DDS_PROPERTY_QOS_POLICY_NAME                            "Property"
 
-#define DDS_SUBSCRIPTIONKEY_QOS_POLICY_ID                       23
-#define DDS_VIEWKEY_QOS_POLICY_ID                               24
-#define DDS_READERLIFESPAN_QOS_POLICY_ID                        25
-#define DDS_SHARE_QOS_POLICY_ID                                 26
-#define DDS_SCHEDULING_QOS_POLICY_ID                            27
+#define DDS_SUBSCRIPTIONKEY_QOS_POLICY_ID                       24
+#define DDS_VIEWKEY_QOS_POLICY_ID                               25
+#define DDS_READERLIFESPAN_QOS_POLICY_ID                        26
+#define DDS_SHARE_QOS_POLICY_ID                                 27
+#define DDS_SCHEDULING_QOS_POLICY_ID                            28
 
 extern dds_entity_t dp;
 extern const dds_topic_descriptor_t *ts_KeyedSeq;

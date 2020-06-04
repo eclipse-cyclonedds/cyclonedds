@@ -55,7 +55,7 @@
 #define MAX_SAMPLES                 21
 
 #define RDR_NOT_READ_CNT            11
-#define RDR_INV_READ_CNT             1
+#define RDR_INV_READ_CNT             2
 int rdr_expected_long_2[RDR_NOT_READ_CNT] = { 0, 1, 2, 6, 7, 9, 11, 13, 14, 16, 19 };
 
 /* Because we only read one sample at a time, only the first sample of an instance

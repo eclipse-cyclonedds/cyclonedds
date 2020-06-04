@@ -894,6 +894,7 @@ int main (int argc, char **argv)
   uint32_t states_seen[2 * 2 * 3][2] = {{ 0 }};
   unsigned seed = 0;
   bool print = false;
+  int xchecks = 1;
   int first = 0, count = 10000;
 
   ddsrt_mutex_init (&wait_gc_cycle_lock);
@@ -909,9 +910,20 @@ int main (int argc, char **argv)
     count = atoi (argv[3]);
   if (argc > 4)
     print = (atoi (argv[4]) != 0);
+  if (argc > 5)
+    xchecks = atoi (argv[4]);
 
-  printf ("prng seed %u first %d count %d print %d\n", seed, first, count, print);
+  printf ("prng seed %u first %d count %d print %d xchecks %d\n", seed, first, count, print, xchecks);
   ddsrt_prng_init_simple (&prng, seed);
+
+  if (xchecks != 0)
+  {
+    struct ddsi_domaingv *gv = get_gv (pp);
+    if (xchecks > 0)
+      gv->config.enabled_xchecks = ~0u;
+    else
+      gv->config.enabled_xchecks = 0u;
+  }
 
   memset (rres_mseq, 0, sizeof (rres_mseq));
   for (size_t i = 0; i < sizeof (rres_iseq) / sizeof(rres_iseq[0]); i++)
@@ -935,6 +947,7 @@ int main (int argc, char **argv)
       printf ("************* 0 *************\n");
     struct dds_rhc *rhc = mkrhc (gv, NULL, DDS_HISTORY_KEEP_LAST, 1, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
     struct proxy_writer *wr0 = mkwr (gv, 1);
+    struct proxy_writer *wr1 = mkwr (gv, 1);
     uint64_t iid0, iid1, iid_t;
     iid0 = store (tkmap, rhc, wr0, mksample (0, 0), print, false);
     iid1 = store (tkmap, rhc, wr0, mksample (1, NN_STATUSINFO_DISPOSE), print, false);
@@ -944,17 +957,38 @@ int main (int argc, char **argv)
       { 0, 0, 0, 0, 0, 0, 0, 0 }
     };
     rdall (rhc, c0, print, states_seen);
-    iid_t = store (tkmap, rhc, wr0, mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+    /* write instance 0 with 2nd writer to have 2 live writers */
+    iid_t = store (tkmap, rhc, wr1, mksample (0, 0), print, false);
     assert (iid_t == iid0);
-    (void)iid0;
-    (void)iid_t;
     const struct check c1[] = {
-      { "ROU", iid0, wr0->e.iid, 0,0, 1, 0,1 },
-      { "NOU", iid0, 0, 0,0, 0, 0,0 },
+      { "NOA", iid0, wr1->e.iid, 0,0, 1, 0,3 },
       { "ROD", iid1, wr0->e.iid, 0,0, 1, 1,2 },
       { 0, 0, 0, 0, 0, 0, 0, 0 }
     };
     rdall (rhc, c1, print, states_seen);
+    /* unregister instance 0 with wr0 - autodispose, but 2nd writer keeps it alive, no visible change */
+    iid_t = store (tkmap, rhc, wr0, mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+    assert (iid_t == iid0);
+    const struct check c2[] = {
+      { "ROA", iid0, wr1->e.iid, 0,0, 1, 0,3 },
+      { "ROD", iid1, wr0->e.iid, 0,0, 1, 1,2 },
+      { 0, 0, 0, 0, 0, 0, 0, 0 }
+    };
+    rdall (rhc, c2, print, states_seen);
+    /* unregistering instance 0 again should be a no-op because wr0 no longer has it registered */
+    iid_t = store (tkmap, rhc, wr0, mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+    assert (iid_t == iid0);
+    rdall (rhc, c2, print, states_seen);
+    /* unregistering instance 0 with wr1 - autodispose, no live writers -> dispose */
+    iid_t = store (tkmap, rhc, wr1, mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+    assert (iid_t == iid0);
+    const struct check c3[] = {
+      { "ROD", iid0, wr1->e.iid, 0,0, 1, 0,3 },
+      { "NOD", iid0, 0, 0,0, 0, 0,0 },
+      { "ROD", iid1, wr0->e.iid, 0,0, 1, 1,2 },
+      { 0, 0, 0, 0, 0, 0, 0, 0 }
+    };
+    rdall (rhc, c3, print, states_seen);
     thread_state_awake_domain_ok (lookup_thread_state ());
     struct ddsi_writer_info wr0_info;
     wr0_info.auto_dispose = wr0->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
@@ -966,16 +1000,18 @@ int main (int argc, char **argv)
 #endif
     dds_rhc_unregister_wr (rhc, &wr0_info);
     thread_state_asleep (lookup_thread_state ());
-    const struct check c2[] = {
-      { "ROU", iid0, wr0->e.iid, 0,0, 1, 0,1 },
-      { "ROU", iid0, 0, 0,0, 0, 0,0 },
+    const struct check c4[] = {
+      { "ROD", iid0, wr1->e.iid, 0,0, 1, 0,3 },
+      { "ROD", iid0, 0, 0,0, 0, 0,0 },
       { "ROD", iid1, wr0->e.iid, 0,0, 1, 1,2 },
-      { "NOD", iid1, 0, 0,0, 0, 1,0 },
+      // { "NOD", iid1, 0, 0,0, 0, 1,0 }, doesn't exist because it is already disposed
       { 0, 0, 0, 0, 0, 0, 0, 0 }
     };
-    tkall (rhc, c2, print, states_seen);
+    tkall (rhc, c4, print, states_seen);
     frhc (rhc);
     fwr (wr0);
+    fwr (wr1);
+    (void)iid_t;
   }
 
   if (1 >= first)

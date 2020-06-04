@@ -1,0 +1,95 @@
+MIME-Version: 1.0
+Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----E9994989EF5BC12DCCE6563CF088037D"
+
+This is an S/MIME signed message
+
+------E9994989EF5BC12DCCE6563CF088037D
+Content-Type: text/plain
+
+<?xml version="1.0" encoding="utf-8"?>
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://www.omg.org/spec/DDS-SECURITY/20170901/omg_shared_ca_permissions.xsd">
+    <permissions>
+        <grant name="OpenSplicePermissions">
+            <subject_name>/O=Internet Widgits Pty Ltd/ST=Some-State/C=NL/CN=CHAM500 cert</subject_name>
+            <validity>
+                <!-- Format is CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm] in GMT -->
+                <not_before>2015-09-15T01:00:00</not_before>
+            </validity>
+            <allow_rule>
+                <domains>
+                    <id_range>
+                        <min>0</min>
+                        <max>230</max>
+                    </id_range>
+                </domains>
+                <publish>
+                    <topics>
+                        <topic>K*</topic>
+                        <topic>*OldMessage</topic>
+                        <topic>OldMessanger</topic>
+                        <topic>NewMessage</topic>
+                    </topics>
+        <partitions>
+      <partition>Apart</partition>
+      <partition>Bpa?t*</partition>
+        </partitions>
+                </publish>
+                <subscribe>
+                    <topics>
+                        <topic>K*</topic>
+                        <topic>*OldMessage</topic>
+                        <topic>OldMessanger</topic>
+                        <topic>NewMessage</topic>
+                    </topics>
+                </subscribe>
+            </allow_rule>
+
+            <default>ALLOW</default>
+        </grant>
+    </permissions>
+</dds>
+
+------E9994989EF5BC12DCCE6563CF088037D
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="smime.p7s"
+
+MIIGXgYJKoZIhvcNAQcCoIIGTzCCBksCAQExDzANBglghkgBZQMEAgEFADALBgkq
+hkiG9w0BBwGgggORMIIDjTCCAnWgAwIBAgIJANsr3sm0NrypMA0GCSqGSIb3DQEB
+CwUAMFwxCzAJBgNVBAYTAk5MMRMwEQYDVQQIDApTb21lLVN0YXRlMR8wHQYDVQQK
+DBZBRExJTksgVGVjaG5vbG9jeSBJbmMuMRcwFQYDVQQDDA5hZGxpbmt0ZWNoLmNv
+bTAgFw0xODA3MzAxMjQ1NTVaGA8yMTE4MDcwNjEyNDU1NVowXDELMAkGA1UEBhMC
+TkwxEzARBgNVBAgMClNvbWUtU3RhdGUxHzAdBgNVBAoMFkFETElOSyBUZWNobm9s
+b2N5IEluYy4xFzAVBgNVBAMMDmFkbGlua3RlY2guY29tMIIBIjANBgkqhkiG9w0B
+AQEFAAOCAQ8AMIIBCgKCAQEAu7jfnJ0wYVuXgG+PgNawdN38+dRpa8jceqi+blID
+ehV6XCxrnGXusTCDuFmo7HMOBVMVNDXlcBWgoGd+u5EultnOEiIeGTgtHc1O6V9w
+icp3BGSpZZax/TcONjMVORaqHCADbQ2J8wsz1FHxuKDwX6BJElYOlK77lb/x3yLs
+DFFC+a0qn2RFh37rcWBRAHy8VEASXKZElT9ZmfKd+KUq34KojhNJ4DepKStTq074
+BRDXVivx+wVD951LFNPiQXq+mgHcLj1k37KlZflTFhdP5oEMtATNsXNJPHlEymiy
+SogRWAmKhysLQudukHfNKN+r0FEQMk/hzpYcFeZSOvbfNQIDAQABo1AwTjAdBgNV
+HQ4EFgQURWMbWvBKZwJvRV1/tyc1R82k0+gwHwYDVR0jBBgwFoAURWMbWvBKZwJv
+RV1/tyc1R82k0+gwDAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAkPF+
+ysVtvHnk2hpu9yNDLCJ96ZzIoKOyY7uRj4ovzlAHFdpNOJQdcJihTmN8i7Trht9X
+Vh0rGoR/6nHzo3TIeiogRC80RlDtuA3PF2dDQBMVDStlZMTZPb693hfjdAjhyyw9
+yghhKHHqNDvSsAL0KfBqjG4yGfGpJylYXIT5fWuKlo/ln/yyPa5s54T5XDo+CMbt
+lLX3QnwVOmaRyzylPiTcPCDIkdLBdXmlfyJcmW6fWa6kPx+35MOxPsXZbujCo+42
++OyLqcH1rKT6XhcshjXBEf+kdgUfSClrM1pNRWsw2ChIYim0F+nry5JFy0Y+8Hbb
+6SDB340BFmtgDHbFHTGCApEwggKNAgEBMGkwXDELMAkGA1UEBhMCTkwxEzARBgNV
+BAgMClNvbWUtU3RhdGUxHzAdBgNVBAoMFkFETElOSyBUZWNobm9sb2N5IEluYy4x
+FzAVBgNVBAMMDmFkbGlua3RlY2guY29tAgkA2yveybQ2vKkwDQYJYIZIAWUDBAIB
+BQCggfowGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcN
+MTkwMzI5MTMwODAzWjAvBgkqhkiG9w0BCQQxIgQgVn6yZWB0OOqW+6/ubhU1M4pT
+tL+lh8qj9izsf/c3gKMwgY4GCSqGSIb3DQEJDzGBgDB+MAsGCWCGSAFlAwQBKjAI
+BgYqhQMCAgkwCAYGKoUDAgIVMAsGCWCGSAFlAwQBFjALBglghkgBZQMEAQIwCgYI
+KoZIhvcNAwcwDgYIKoZIhvcNAwICAgCAMA0GCCqGSIb3DQMCAgFAMAcGBSsOAwIH
+MA0GCCqGSIb3DQMCAgEoMA0GCSqGSIb3DQEBAQUABIIBAKhwx+Ew2m6lHQxL0I0K
+Z0fdN8+19XGKYPWNuGwDR5MYpMX5jin/w/FgzeG5gSHqB51PRLJjH81incNVcRCf
+bRKvwOv8b4J8D14ZG28SoNCsKejbXccFuA967ir+GHYrh0V9ikM/TwPuhosxclM5
+hZQuvRKig6Fum+PmGO7sLNyIPB1ODE8gbz0IiY9l6Zlp0xEe/+4YYpBL+GKamnlS
+boRrfgGaTaWWi9EnjZWmJkFBO9vC08XZQ1akCubC0G8Kki0X3ZXJVXkX3AxjvZJY
+XDdstpKWbfqlWzkYlJSI/I96BO2ZXY7nnsQU+8tvPV/6k6BaC80m0FhoTQJfDdLR
+WnA=
+
+------E9994989EF5BC12DCCE6563CF088037D--
+

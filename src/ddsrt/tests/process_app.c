@@ -57,7 +57,7 @@ static int test_pid(void)
 static int test_env(void)
 {
   int ret = TEST_EXIT_FAILURE;
-  char *envptr = NULL;
+  const char *envptr = NULL;
   if (ddsrt_getenv(TEST_ENV_VAR_NAME, &envptr) == DDS_RETCODE_OK) {
     printf(" Process: env %s=%s.\n", TEST_ENV_VAR_NAME, envptr);
     if (strcmp(envptr, TEST_ENV_VAR_VALUE) == 0) {

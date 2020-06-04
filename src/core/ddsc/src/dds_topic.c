@@ -32,6 +32,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 #include "dds__serdata_builtintopic.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_topic)
@@ -246,6 +247,7 @@ static dds_return_t lookup_and_check_ktopic (struct dds_ktopic **ktp_out, dds_pa
 
 static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct dds_ktopic *ktp, bool implicit, struct ddsi_sertopic *sertopic_registered, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
 {
+  (void) sedp_plist;
   dds_entity_t hdl;
   dds_topic *tp = dds_alloc (sizeof (*tp));
   hdl = dds_entity_init (&tp->m_entity, &pp->m_entity, DDS_KIND_TOPIC, implicit, NULL, listener, DDS_TOPIC_STATUS_MASK);
@@ -253,30 +255,11 @@ static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct d
   dds_entity_register_child (&pp->m_entity, &tp->m_entity);
   tp->m_ktopic = ktp;
   tp->m_stopic = sertopic_registered;
-
-  /* Publish Topic */
-  if (sedp_plist)
-  {
-    struct participant *ddsi_pp;
-    ddsi_plist_t plist;
-
-    thread_state_awake (lookup_thread_state (), &pp->m_entity.m_domain->gv);
-    ddsi_pp = entidx_lookup_participant_guid (pp->m_entity.m_domain->gv.entity_index, &pp->m_entity.m_guid);
-    assert (ddsi_pp);
-
-    ddsi_plist_init_empty (&plist);
-    ddsi_plist_mergein_missing (&plist, sedp_plist, ~(uint64_t)0, ~(uint64_t)0);
-    ddsi_xqos_mergein_missing (&plist.qos, ktp->qos, ~(uint64_t)0);
-    sedp_write_topic (ddsi_pp, &plist);
-    ddsi_plist_fini (&plist);
-    thread_state_asleep (lookup_thread_state ());
-  }
-
   dds_entity_init_complete (&tp->m_entity);
   return hdl;
 }
 
-dds_entity_t dds_create_topic_generic (dds_entity_t participant, struct ddsi_sertopic **sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
+dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertopic **sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
 {
   dds_return_t rc;
   dds_participant *pp;
@@ -315,10 +298,12 @@ dds_entity_t dds_create_topic_generic (dds_entity_t participant, struct ddsi_ser
    * reliable ... (and keep behaviour unchanged) */
   struct ddsi_domaingv * const gv = &pp->m_entity.m_domain->gv;
   if ((rc = ddsi_xqos_valid (&gv->logconfig, new_qos)) != DDS_RETCODE_OK)
+    goto error;
+
+  if (!q_omg_security_check_create_topic (&pp->m_entity.m_domain->gv, &pp->m_entity.m_guid, (*sertopic)->name, new_qos))
   {
-    dds_delete_qos (new_qos);
-    dds_entity_unpin (&pp->m_entity);
-    return rc;
+    rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+    goto error;
   }
 
   /* See if we're allowed to create the topic; ktp is returned pinned & locked
@@ -331,9 +316,8 @@ dds_entity_t dds_create_topic_generic (dds_entity_t participant, struct ddsi_ser
   if ((rc = lookup_and_check_ktopic (&ktp, pp, (*sertopic)->name, (*sertopic)->type_name, new_qos)) != DDS_RETCODE_OK)
   {
     GVTRACE ("dds_create_topic_generic: failed after compatibility check: %s\n", dds_strretcode (rc));
-    dds_participant_unlock (pp);
-    dds_delete_qos (new_qos);
-    return rc;
+    ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
+    goto error;
   }
 
   /* Create a ktopic if it doesn't exist yet, else reference existing one and delete the
@@ -375,13 +359,31 @@ dds_entity_t dds_create_topic_generic (dds_entity_t participant, struct ddsi_ser
   hdl = create_topic_pp_locked (pp, ktp, (sertopic_registered->ops == &ddsi_sertopic_ops_builtintopic), sertopic_registered, listener, sedp_plist);
   ddsi_sertopic_unref (*sertopic);
   *sertopic = sertopic_registered;
-  dds_participant_unlock (pp);
+  ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
+  dds_entity_unpin (&pp->m_entity);
   GVTRACE ("dds_create_topic_generic: new topic %"PRId32"\n", hdl);
   return hdl;
+
+ error:
+  dds_entity_unpin (&pp->m_entity);
+  dds_delete_qos (new_qos);
+  return rc;
+}
+
+dds_entity_t dds_create_topic_generic (dds_entity_t participant, struct ddsi_sertopic **sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
+{
+  if (sertopic == NULL || *sertopic == NULL || (*sertopic)->name == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  if (!strncmp((*sertopic)->name, "DCPS", 4))
+    return DDS_RETCODE_BAD_PARAMETER;
+  return dds_create_topic_impl (participant, sertopic, qos, listener, sedp_plist);
 }
 
 dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
 {
+  if (sertopic == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
   dds_entity_t ret;
   struct ddsi_sertopic *st = sertopic;
   ddsi_sertopic_ref (st);

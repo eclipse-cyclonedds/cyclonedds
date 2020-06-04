@@ -140,10 +140,19 @@ ddsrt_nonnull((1,2,3,4));
 /**
  * @brief Retrieve integer representation of the given thread id.
  *
- * @returns The integer representation of the given thread.
+ * @returns The integer representation of the current thread.
  */
 DDS_EXPORT ddsrt_tid_t
 ddsrt_gettid(void);
+
+/**
+ * @brief Retrieve integer representation of the given thread id.
+ *
+ * @returns The integer representation of the given thread.
+ */
+DDS_EXPORT ddsrt_tid_t
+ddsrt_gettid_for_thread( ddsrt_thread_t thread);
+
 
 /**
  * @brief Return thread ID of the calling thread.

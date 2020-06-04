@@ -118,6 +118,7 @@ list(APPEND headers
   "${include_path}/dds/ddsrt/mh3.h"
   "${include_path}/dds/ddsrt/io.h"
   "${include_path}/dds/ddsrt/process.h"
+  "${include_path}/dds/ddsrt/dynlib.h"
   "${include_path}/dds/ddsrt/strtod.h"
   "${include_path}/dds/ddsrt/strtol.h"
   "${include_path}/dds/ddsrt/types.h"
@@ -134,7 +135,8 @@ list(APPEND sources
   "${source_path}/strtol.c"
   "${source_path}/mh3.c"
   "${source_path}/avl.c"
-  "${source_path}/expand_envvars.c"
+  "${source_path}/environ.c"
+  "${source_path}/expand_vars.c"
   "${source_path}/fibheap.c"
   "${source_path}/hopscotch.c"
   "${source_path}/thread_pool.c"
@@ -152,7 +154,7 @@ list(APPEND sources
 # network stack. In order to mix-and-match various compilers, architectures,
 # operating systems, etc input from the build system is required.
 foreach(feature atomics cdtors environ heap ifaddrs random rusage
-                sockets string sync threads time md5 process netstat)
+        sockets string sync threads time md5 process netstat dynlib filesystem)
   if(EXISTS "${include_path}/dds/ddsrt/${feature}.h")
     list(APPEND headers "${include_path}/dds/ddsrt/${feature}.h")
     file(GLOB_RECURSE
@@ -237,6 +239,7 @@ if(NOT WITH_FREERTOS)
   set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
   find_package(Threads REQUIRED)
   target_link_libraries(ddsrt INTERFACE Threads::Threads)
+  target_link_libraries(ddsrt INTERFACE ${CMAKE_DL_LIBS})
 endif()
 
 if(WIN32)

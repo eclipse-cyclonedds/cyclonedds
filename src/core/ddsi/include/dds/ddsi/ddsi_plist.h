@@ -14,6 +14,7 @@
 
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/ddsi_xqos.h"
+#include "dds/ddsi/ddsi_keyhash.h"
 #include "dds/ddsi/ddsi_tran.h" /* FIXME: eliminate */
 
 #if defined (__cplusplus)
@@ -51,11 +52,15 @@ extern "C" {
 #ifdef DDSI_INCLUDE_SSM
 #define PP_READER_FAVOURS_SSM                   ((uint64_t)1 << 29)
 #endif
+#define PP_DOMAIN_ID                            ((uint64_t)1 << 30)
+#define PP_DOMAIN_TAG                           ((uint64_t)1 << 31)
 /* Security extensions. */
-#define PP_IDENTITY_TOKEN                       ((uint64_t)1 << 30)
-#define PP_PERMISSIONS_TOKEN                    ((uint64_t)1 << 31)
-#define PP_DOMAIN_ID                            ((uint64_t)1 << 32)
-#define PP_DOMAIN_TAG                           ((uint64_t)1 << 33)
+#define PP_IDENTITY_TOKEN                       ((uint64_t)1 << 32)
+#define PP_PERMISSIONS_TOKEN                    ((uint64_t)1 << 33)
+#define PP_ENDPOINT_SECURITY_INFO               ((uint64_t)1 << 34)
+#define PP_PARTICIPANT_SECURITY_INFO            ((uint64_t)1 << 35)
+#define PP_IDENTITY_STATUS_TOKEN                ((uint64_t)1 << 36)
+#define PP_DATA_TAGS                            ((uint64_t)1 << 37)
 /* Set for unrecognized parameters that are in the reserved space or
    in our own vendor-specific space that have the
    PID_UNRECOGNIZED_INCOMPATIBLE_FLAG set (see DDSI 2.1 9.6.2.2.1) */
@@ -93,15 +98,77 @@ typedef uint32_t nn_ipv4address_t;
 
 typedef uint32_t nn_port_t;
 
-typedef struct nn_keyhash {
-  unsigned char value[16];
-} nn_keyhash_t;
+#ifdef DDSI_INCLUDE_SECURITY
+typedef struct nn_tag {
+  char *name;
+  char *value;
+} nn_tag_t;
 
+typedef struct nn_tagseq {
+  uint32_t n;
+  nn_tag_t *tags;
+} nn_tagseq_t;
+
+typedef struct nn_datatags {
+  nn_tagseq_t tags;
+} nn_datatags_t;
+#endif
 
 #ifdef DDSI_INCLUDE_SSM
 typedef struct nn_reader_favours_ssm {
   uint32_t state; /* default is false */
 } nn_reader_favours_ssm_t;
+#endif
+
+#ifdef DDSI_INCLUDE_SECURITY
+typedef struct nn_dataholder
+{
+  char *class_id;
+  dds_propertyseq_t properties;
+  dds_binarypropertyseq_t binary_properties;
+} nn_dataholder_t;
+
+typedef struct nn_dataholderseq {
+  uint32_t n;
+  nn_dataholder_t *tags;
+} nn_dataholderseq_t;
+
+typedef nn_dataholder_t nn_token_t;
+
+/* Used for both nn_participant_security_info and nn_endpoint_security_info. */
+typedef struct nn_security_info
+{
+  uint32_t security_attributes;
+  uint32_t plugin_security_attributes;
+} nn_security_info_t;
+
+#define NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_READ_PROTECTED                         (1u <<  0)
+#define NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_WRITE_PROTECTED                        (1u <<  1)
+#define NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED                    (1u <<  2)
+#define NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED                   (1u <<  3)
+#define NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_PAYLOAD_PROTECTED                      (1u <<  4)
+#define NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_PROTECTED                          (1u <<  5)
+#define NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED                   (1u <<  6)
+#define NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID                                  (1u << 31)
+
+#define NN_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED            (1u <<  0)
+#define NN_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_PAYLOAD_ENCRYPTED               (1u <<  1)
+#define NN_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ORIGIN_AUTHENTICATED (1u <<  2)
+
+#define NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PROTECTED                      (1u <<  0)
+#define NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED                 (1u <<  1)
+#define NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED                (1u <<  2)
+#define NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID                               (1u << 31)
+
+#define NN_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_ENCRYPTED               (1u <<  0)
+#define NN_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_ENCRYPTED          (1u <<  1)
+#define NN_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_ENCRYPTED         (1u <<  2)
+#define NN_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_AUTHENTICATED           (1u <<  3)
+#define NN_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_AUTHENTICATED      (1u <<  4)
+#define NN_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_AUTHENTICATED     (1u <<  5)
+#else
+struct nn_security_info;
+typedef struct nn_security_info nn_security_info_t;
 #endif
 
 typedef struct nn_adlink_participant_version_info
@@ -142,11 +209,19 @@ typedef struct ddsi_plist {
   uint32_t builtin_endpoint_set;
   /* int type_max_size_serialized; */
   char *entity_name;
-  nn_keyhash_t keyhash;
+  ddsi_keyhash_t keyhash;
   uint32_t statusinfo;
   nn_adlink_participant_version_info_t adlink_participant_version_info;
   char *type_description;
   nn_sequence_number_t coherent_set_seqno;
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_token_t identity_token;
+  nn_token_t permissions_token;
+  nn_security_info_t endpoint_security_info;
+  nn_security_info_t participant_security_info;
+  nn_token_t identity_status_token;
+  nn_datatags_t data_tags;
+#endif
 #ifdef DDSI_INCLUDE_SSM
   nn_reader_favours_ssm_t reader_favours_ssm;
 #endif
@@ -225,6 +300,7 @@ DDS_EXPORT void ddsi_plist_fini (ddsi_plist_t *ps);
 DDS_EXPORT void ddsi_plist_fini_mask (ddsi_plist_t *plist, uint64_t pmask, uint64_t qmask);
 DDS_EXPORT void ddsi_plist_unalias (ddsi_plist_t *plist);
 DDS_EXPORT void ddsi_plist_addtomsg (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
+DDS_EXPORT void ddsi_plist_addtomsg_bo (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, bool be);
 DDS_EXPORT void ddsi_plist_init_default_participant (ddsi_plist_t *plist);
 DDS_EXPORT void ddsi_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const ddsi_plist_t *x, const ddsi_plist_t *y, uint64_t pmask, uint64_t qmask);
 DDS_EXPORT void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const ddsi_plist_t *plist);
@@ -235,7 +311,7 @@ struct nn_rsample_info;
 struct nn_rdata;
 
 DDS_EXPORT unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const struct nn_rmsg *rmsg, const ddsi_plist_src_t *src);
-DDS_EXPORT const unsigned char *ddsi_plist_findparam_native_unchecked (const void *src, nn_parameterid_t pid);
+DDS_EXPORT dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint16_t encoding, nn_parameterid_t needle, void **needlep, size_t *needlesz);
 
 #if defined (__cplusplus)
 }

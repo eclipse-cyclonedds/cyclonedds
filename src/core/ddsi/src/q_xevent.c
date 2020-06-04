@@ -39,6 +39,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_pmd.h"
 #include "dds__whc.h"
@@ -102,7 +103,9 @@ enum xeventkind_nt
 {
   XEVK_MSG,
   XEVK_MSG_REXMIT,
-  XEVK_ENTITYID
+  XEVK_MSG_REXMIT_NOMERGE,
+  XEVK_ENTITYID,
+  XEVK_NT_CALLBACK
 };
 
 struct untimed_listelem {
@@ -124,11 +127,15 @@ struct xevent_nt
       struct nn_xmsg *msg;
       size_t queued_rexmit_bytes;
       ddsrt_avl_node_t msg_avlnode;
-    } msg_rexmit;
+    } msg_rexmit; /* and msg_rexmit_nomerge */
     struct {
       /* xmsg is self-contained / relies on reference counts */
       struct nn_xmsg *msg;
     } entityid;
+    struct {
+      void (*cb) (void *arg);
+      void *arg;
+    } callback;
   } u;
 };
 
@@ -172,7 +179,7 @@ static void update_rexmit_counts (struct xeventq *evq, struct xevent_nt *ev)
 #if 0
   EVQTRACE ("ZZZ(%p,%"PRIuSIZE")", (void *) ev, ev->u.msg_rexmit.queued_rexmit_bytes);
 #endif
-  assert (ev->kind == XEVK_MSG_REXMIT);
+  assert (ev->kind == XEVK_MSG_REXMIT || ev->kind == XEVK_MSG_REXMIT_NOMERGE);
   assert (ev->u.msg_rexmit.queued_rexmit_bytes <= evq->queued_rexmit_bytes);
   assert (evq->queued_rexmit_msgs > 0);
   evq->queued_rexmit_bytes -= ev->u.msg_rexmit.queued_rexmit_bytes;
@@ -184,7 +191,7 @@ static void trace_msg (struct xeventq *evq, const char *func, const struct nn_xm
 {
   if (dds_get_log_mask() & DDS_LC_TRACE)
   {
-    nn_guid_t wrguid;
+    ddsi_guid_t wrguid;
     seqno_t wrseq;
     nn_fragment_number_t wrfragid;
     nn_xmsg_guid_seq_fragid (m, &wrguid, &wrseq, &wrfragid);
@@ -199,9 +206,20 @@ static void trace_msg (UNUSED_ARG (struct xeventq *evq), UNUSED_ARG (const char 
 
 static struct xevent_nt *lookup_msg (struct xeventq *evq, struct nn_xmsg *msg)
 {
-  assert (nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT);
-  trace_msg (evq, "lookup-msg", msg);
-  return ddsrt_avl_lookup (&msg_xevents_treedef, &evq->msg_xevents, msg);
+  switch (nn_xmsg_kind (msg))
+  {
+    case NN_XMSG_KIND_CONTROL:
+    case NN_XMSG_KIND_DATA:
+      assert (0);
+      return NULL;
+    case NN_XMSG_KIND_DATA_REXMIT:
+      trace_msg (evq, "lookup-msg", msg);
+      return ddsrt_avl_lookup (&msg_xevents_treedef, &evq->msg_xevents, msg);
+    case NN_XMSG_KIND_DATA_REXMIT_NOMERGE:
+      return NULL;
+  }
+  assert (0);
+  return NULL;
 }
 
 static void remember_msg (struct xeventq *evq, struct xevent_nt *ev)
@@ -601,7 +619,96 @@ static void handle_xevk_entityid (struct nn_xpack *xp, struct xevent_nt *ev)
   nn_xpack_addmsg (xp, ev->u.entityid.msg, 0);
 }
 
-static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt_mtime_t tnow /* monotonic */)
+#ifdef DDSI_INCLUDE_SECURITY
+static int send_heartbeat_to_all_readers_check_and_sched (struct xevent *ev, struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, ddsrt_mtime_t *t_next)
+{
+  int send;
+  if (!writer_must_have_hb_scheduled (wr, whcst))
+  {
+    wr->hbcontrol.tsched = DDSRT_MTIME_NEVER;
+    send = -1;
+  }
+  else if (!writer_hbcontrol_must_send (wr, whcst, tnow))
+  {
+    wr->hbcontrol.tsched = ddsrt_mtime_add_duration (tnow, writer_hbcontrol_intv (wr, whcst, tnow));
+    send = -1;
+  }
+  else
+  {
+    const int hbansreq = writer_hbcontrol_ack_required (wr, whcst, tnow);
+    wr->hbcontrol.tsched = ddsrt_mtime_add_duration (tnow, writer_hbcontrol_intv (wr, whcst, tnow));
+    send = hbansreq;
+  }
+
+  resched_xevent_if_earlier (ev, wr->hbcontrol.tsched);
+  *t_next = wr->hbcontrol.tsched;
+  return send;
+}
+
+static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *ev, struct writer *wr, ddsrt_mtime_t tnow)
+{
+  struct whc_state whcst;
+  ddsrt_mtime_t t_next;
+  unsigned count = 0;
+
+  ddsrt_mutex_lock (&wr->e.lock);
+
+  whc_get_state(wr->whc, &whcst);
+  const int hbansreq = send_heartbeat_to_all_readers_check_and_sched (ev, wr, &whcst, tnow, &t_next);
+  if (hbansreq >= 0)
+  {
+    struct wr_prd_match *m;
+    struct ddsi_guid last_guid = { .prefix = {.u = {0,0,0}}, .entityid = {0} };
+
+    while ((m = ddsrt_avl_lookup_succ (&wr_readers_treedef, &wr->readers, &last_guid)) != NULL)
+    {
+      last_guid = m->prd_guid;
+      if (m->seq < m->last_seq)
+      {
+        struct proxy_reader *prd;
+
+        prd = entidx_lookup_proxy_reader_guid(wr->e.gv->entity_index, &m->prd_guid);
+        if (prd)
+        {
+          ETRACE (wr, " heartbeat(wr "PGUIDFMT" rd "PGUIDFMT" %s) send, resched in %g s (min-ack %"PRId64", avail-seq %"PRId64")\n",
+              PGUID (wr->e.guid),
+              PGUID (m->prd_guid),
+              hbansreq ? "" : " final",
+              (double)(t_next.v - tnow.v) / 1e9,
+              m->seq,
+              m->last_seq);
+
+          struct nn_xmsg *msg = writer_hbcontrol_p2p(wr, &whcst, hbansreq, prd);
+          if (msg != NULL)
+          {
+            ddsrt_mutex_unlock (&wr->e.lock);
+            nn_xpack_addmsg (xp, msg, 0);
+            ddsrt_mutex_lock (&wr->e.lock);
+          }
+          count++;
+        }
+      }
+    }
+  }
+
+  if (count == 0)
+  {
+    ETRACE (wr, "heartbeat(wr "PGUIDFMT") suppressed, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRId64", xmit %"PRId64")\n",
+        PGUID (wr->e.guid),
+        (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
+        ddsrt_avl_is_empty (&wr->readers) ? (int64_t) -1 : ((struct wr_prd_match *) ddsrt_avl_root (&wr_readers_treedef, &wr->readers))->min_seq,
+        ddsrt_avl_is_empty (&wr->readers) || ((struct wr_prd_match *) ddsrt_avl_root (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
+        whcst.max_seq,
+        writer_read_seq_xmit(wr));
+  }
+
+  ddsrt_mutex_unlock (&wr->e.lock);
+}
+
+
+#endif
+
+static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt_mtime_t tnow)
 {
   struct ddsi_domaingv const * const gv = ev->evq->gv;
   struct nn_xmsg *msg;
@@ -615,6 +722,14 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
     GVTRACE("heartbeat(wr "PGUIDFMT") writer gone\n", PGUID (ev->u.heartbeat.wr_guid));
     return;
   }
+
+#ifdef DDSI_INCLUDE_SECURITY
+  if (wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
+  {
+    send_heartbeat_to_all_readers(xp, ev, wr, tnow);
+    return;
+  }
+#endif
 
   ddsrt_mutex_lock (&wr->e.lock);
   assert (wr->reliable);
@@ -723,7 +838,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
   AckNack_t *an;
   struct nn_xmsg_marker sm_marker;
   uint32_t i, numbits;
-  seqno_t base;
+  seqno_t base, last_seq;
 
   DDSRT_STATIC_ASSERT ((NN_FRAGMENT_NUMBER_SET_MAX_BITS % 32) == 0);
   struct {
@@ -738,7 +853,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
 
   /* if in sync, look at proxy writer status, else look at
      proxy-writer--reader match status */
-  if (rwn->in_sync != PRMSS_OUT_OF_SYNC)
+  if (rwn->in_sync != PRMSS_OUT_OF_SYNC && !rwn->filtered)
   {
     reorder = pwr->reorder;
     if (!pwr->e.gv->config.late_ack_mode)
@@ -756,6 +871,11 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
     bitmap_base = nn_reorder_next_seq (reorder);
   }
 
+  if (rwn->filtered)
+    last_seq = rwn->last_seq;
+  else
+    last_seq = pwr->last_seq;
+
   an = nn_xmsg_append (msg, &sm_marker, ACKNACK_SIZE_MAX);
   nn_xmsg_submsg_init (msg, sm_marker, SMID_ACKNACK);
   an->readerId = nn_hton_entityid (rwn->rd_guid.entityid);
@@ -763,7 +883,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
 
   /* Make bitmap; note that we've made sure to have room for the
      maximum bitmap size. */
-  numbits = nn_reorder_nackmap (reorder, bitmap_base, pwr->last_seq, &an->readerSNState, an->bits, max_numbits, notail);
+  numbits = nn_reorder_nackmap (reorder, bitmap_base, last_seq, &an->readerSNState, an->bits, max_numbits, notail);
   base = fromSN (an->readerSNState.bitmap_base);
 
   /* Scan through bitmap, cutting it off at the first missing sample
@@ -776,7 +896,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
     nackfrag_seq = base + i;
     if (!nn_bitset_isset (numbits, an->bits, i))
       continue;
-    if (nackfrag_seq == pwr->last_seq)
+    if (nackfrag_seq == last_seq)
       fragnum = pwr->last_fragnum;
     else
       fragnum = UINT32_MAX;
@@ -800,7 +920,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
   *nack_seq = (numbits > 0) ? base + numbits : 0;
   if (!pwr->have_seen_heartbeat) {
     /* We must have seen a heartbeat for us to consider setting FINAL */
-  } else if (*nack_seq && base + numbits <= pwr->last_seq) {
+  } else if (*nack_seq && base + numbits <= last_seq) {
     /* If it's a NACK and it doesn't cover samples all the way up to
        the highest known sequence number, there's some reason to expect
        we may to do another round.  For which we need a Heartbeat.
@@ -828,6 +948,9 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
             base, an->readerSNState.numbits);
     for (uint32_t ui = 0; ui != an->readerSNState.numbits; ui++)
       ETRACE (pwr, "%c", nn_bitset_isset (numbits, an->bits, ui) ? '1' : '0');
+
+    /* Encode the sub-message when needed. */
+    encode_datareader_submsg(msg, sm_marker, pwr, &rwn->rd_guid);
   }
 
   if (nackfrag_numbits > 0)
@@ -858,12 +981,15 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
       for (uint32_t ui = 0; ui != nf->fragmentNumberState.numbits; ui++)
         ETRACE (pwr, "%c", nn_bitset_isset (nf->fragmentNumberState.numbits, nf->bits, ui) ? '1' : '0');
     }
+
+    /* Encode the sub-message when needed. */
+    encode_datareader_submsg(msg, sm_marker, pwr, &rwn->rd_guid);
   }
 
   ETRACE (pwr, "\n");
 }
 
-static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent *ev, ddsrt_mtime_t tnow)
+static void handle_xevk_acknack (struct nn_xpack *xp, struct xevent *ev, ddsrt_mtime_t tnow)
 {
   /* FIXME: ought to keep track of which NACKs are being generated in
      response to a Heartbeat.  There is no point in having multiple
@@ -894,10 +1020,20 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
 
   if (addrset_any_uc (pwr->c.as, &loc) || addrset_any_mc (pwr->c.as, &loc))
   {
+    struct participant *pp = NULL;
     seqno_t nack_seq;
-    if ((msg = nn_xmsg_new (gv->xmsgpool, &ev->u.acknack.rd_guid.prefix, ACKNACK_SIZE_MAX, NN_XMSG_KIND_CONTROL)) == NULL)
+
+    if (q_omg_proxy_participant_is_secure(pwr->c.proxypp))
+    {
+      struct reader *rd = entidx_lookup_reader_guid(pwr->e.gv->entity_index, &ev->u.acknack.rd_guid);
+
+      if (rd)
+        pp = rd->c.pp;
+    }
+
+    if ((msg = nn_xmsg_new (gv->xmsgpool, &ev->u.acknack.rd_guid, pp, ACKNACK_SIZE_MAX, NN_XMSG_KIND_CONTROL)) == NULL)
       goto outofmem;
-    nn_xmsg_setdst1 (msg, &ev->u.acknack.pwr_guid.prefix, &loc);
+    nn_xmsg_setdst1 (gv, msg, &ev->u.acknack.pwr_guid.prefix, &loc);
     if (gv->config.meas_hb_to_ack_latency && rwn->hb_timestamp.v)
     {
       /* If HB->ACK latency measurement is enabled, and we have a
@@ -909,7 +1045,13 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
       rwn->hb_timestamp.v = 0;
     }
     add_AckNack (msg, pwr, rwn, &nack_seq);
-    if (nack_seq)
+    if (nn_xmsg_size(msg) == 0)
+    {
+      /* No AckNack added. */
+      nn_xmsg_free(msg);
+      msg = NULL;
+    }
+    else if (nack_seq)
     {
       rwn->t_last_nack = tnow;
       rwn->seq_last_nack = nack_seq;
@@ -971,15 +1113,9 @@ static bool resend_spdp_sample_by_guid_key (struct writer *wr, const ddsi_guid_t
   ddsi_plist_init_empty (&ps);
   ps.present |= PP_PARTICIPANT_GUID;
   ps.participant_guid = *guid;
-  struct nn_xmsg *mpayload = nn_xmsg_new (gv->xmsgpool, &guid->prefix, 0, NN_XMSG_KIND_DATA);
-  ddsi_plist_addtomsg (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0);
-  nn_xmsg_addpar_sentinel (mpayload);
+  struct ddsi_serdata *sd = ddsi_serdata_from_sample (gv->spdp_topic, SDK_KEY, &ps);
   ddsi_plist_fini (&ps);
-  struct ddsi_plist_sample plist_sample;
-  nn_xmsg_payload_to_plistsample (&plist_sample, PID_PARTICIPANT_GUID, mpayload);
-  struct ddsi_serdata *sd = ddsi_serdata_from_sample (gv->plist_topic, SDK_KEY, &plist_sample);
   struct whc_borrowed_sample sample;
-  nn_xmsg_free (mpayload);
 
   ddsrt_mutex_lock (&wr->e.lock);
   sample_found = whc_borrow_sample_key (wr->whc, sd, &sample);
@@ -1208,10 +1344,14 @@ static void handle_individual_xevent_nt (struct xevent_nt *xev, struct nn_xpack 
       handle_xevk_msg (xp, xev);
       break;
     case XEVK_MSG_REXMIT:
+    case XEVK_MSG_REXMIT_NOMERGE:
       handle_xevk_msg_rexmit (xp, xev);
       break;
     case XEVK_ENTITYID:
       handle_xevk_entityid (xp, xev);
+      break;
+    case XEVK_NT_CALLBACK:
+      xev->u.callback.cb (xev->u.callback.arg);
       break;
   }
   ddsrt_free (xev);
@@ -1369,7 +1509,19 @@ void qxev_msg (struct xeventq *evq, struct nn_xmsg *msg)
   ddsrt_mutex_unlock (&evq->lock);
 }
 
-void qxev_prd_entityid (struct proxy_reader *prd, ddsi_guid_prefix_t *id)
+void qxev_nt_callback (struct xeventq *evq, void (*cb) (void *arg), void *arg)
+{
+  struct xevent_nt *ev;
+  assert (evq);
+  ddsrt_mutex_lock (&evq->lock);
+  ev = qxev_common_nt (evq, XEVK_NT_CALLBACK);
+  ev->u.callback.cb = cb;
+  ev->u.callback.arg = arg;
+  qxev_insert_nt (ev);
+  ddsrt_mutex_unlock (&evq->lock);
+}
+
+void qxev_prd_entityid (struct proxy_reader *prd, const ddsi_guid_t *guid)
 {
   struct ddsi_domaingv * const gv = prd->e.gv;
   struct nn_xmsg *msg;
@@ -1379,10 +1531,10 @@ void qxev_prd_entityid (struct proxy_reader *prd, ddsi_guid_prefix_t *id)
 
   if (! gv->xevents->tev_conn->m_connless)
   {
-    msg = nn_xmsg_new (gv->xmsgpool, id, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
+    msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
     if (nn_xmsg_setdstPRD (msg, prd) == 0)
     {
-      GVTRACE ("  qxev_prd_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (*id));
+      GVTRACE ("  qxev_prd_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
       nn_xmsg_add_entityid (msg);
       ddsrt_mutex_lock (&gv->xevents->lock);
       ev = qxev_common_nt (gv->xevents, XEVK_ENTITYID);
@@ -1397,7 +1549,7 @@ void qxev_prd_entityid (struct proxy_reader *prd, ddsi_guid_prefix_t *id)
   }
 }
 
-void qxev_pwr_entityid (struct proxy_writer *pwr, ddsi_guid_prefix_t *id)
+void qxev_pwr_entityid (struct proxy_writer *pwr, const ddsi_guid_t *guid)
 {
   struct ddsi_domaingv * const gv = pwr->e.gv;
   struct nn_xmsg *msg;
@@ -1407,10 +1559,10 @@ void qxev_pwr_entityid (struct proxy_writer *pwr, ddsi_guid_prefix_t *id)
 
   if (! pwr->evq->tev_conn->m_connless)
   {
-    msg = nn_xmsg_new (gv->xmsgpool, id, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
+    msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
     if (nn_xmsg_setdstPWR (msg, pwr) == 0)
     {
-      GVTRACE ("  qxev_pwr_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (*id));
+      GVTRACE ("  qxev_pwr_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
       nn_xmsg_add_entityid (msg);
       ddsrt_mutex_lock (&pwr->evq->lock);
       ev = qxev_common_nt (pwr->evq, XEVK_ENTITYID);
@@ -1432,7 +1584,7 @@ int qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg *msg, int f
   struct xevent_nt *ev;
 
   assert (evq);
-  assert (nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT);
+  assert (nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT || nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT_NOMERGE);
   ddsrt_mutex_lock (&evq->lock);
   if ((ev = lookup_msg (evq, msg)) != NULL && nn_xmsg_merge_rexmit_destinations_wrlock_held (gv, ev->u.msg_rexmit.msg, msg))
   {
@@ -1456,7 +1608,9 @@ int qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg *msg, int f
   }
   else
   {
-    ev = qxev_common_nt (evq, XEVK_MSG_REXMIT);
+    const enum xeventkind_nt kind =
+      (nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT) ? XEVK_MSG_REXMIT : XEVK_MSG_REXMIT_NOMERGE;
+    ev = qxev_common_nt (evq, kind);
     ev->u.msg_rexmit.msg = msg;
     ev->u.msg_rexmit.queued_rexmit_bytes = msg_size;
     evq->queued_rexmit_bytes += msg_size;

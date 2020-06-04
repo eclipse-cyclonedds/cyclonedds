@@ -348,6 +348,14 @@ ddsrt_gettid(void)
   return tid;
 }
 
+ddsrt_tid_t
+ddsrt_gettid_for_thread( ddsrt_thread_t thread)
+{
+  return (ddsrt_tid_t) thread.v;
+
+}
+
+
 ddsrt_thread_t
 ddsrt_thread_self(void)
 {

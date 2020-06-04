@@ -125,6 +125,7 @@ static void deadline_init(void)
   dds_qset_history(g_qos, DDS_HISTORY_KEEP_ALL, DDS_LENGTH_UNLIMITED);
   dds_qset_durability(g_qos, DDS_DURABILITY_TRANSIENT_LOCAL);
   dds_qset_reliability(g_qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
+  dds_qset_writer_data_lifecycle(g_qos, false);
 }
 
 static void deadline_fini(void)
@@ -422,7 +423,10 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
         n_dispose++;
       }
     }
-    n_alive = n_inst - n_dispose - n_unreg;
+    /* FIXME: should unregistered instances cause deadline expirations? I do think so
+       and that is what it actually implemented
+       if they shouldn't: n_alive = n_inst - n_dispose - n_unreg */
+    n_alive = n_inst - n_dispose;
 
     /* Sleep deadline_dur + 50% and check missed deadline count */
     sleepfor(3 * deadline_dur / 2);
