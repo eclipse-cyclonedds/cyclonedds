@@ -2274,6 +2274,34 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
   }
 }
 
+static void deliver_historical_data (const struct writer *wr, const struct reader *rd)
+{
+  struct ddsi_domaingv * const gv = wr->e.gv;
+  struct ddsi_tkmap * const tkmap = gv->m_tkmap;
+  struct whc_sample_iter it;
+  struct whc_borrowed_sample sample;
+  /* FIXME: should limit ourselves to what it is available because of durability history, not writer history */
+  whc_sample_iter_init (wr->whc, &it);
+  while (whc_sample_iter_borrow_next (&it, &sample))
+  {
+    struct ddsi_serdata *payload;
+    if ((payload = ddsi_serdata_ref_as_topic (rd->topic, sample.serdata)) == NULL)
+    {
+      GVWARNING ("local: deserialization of %s/%s as %s/%s failed in topic type conversion\n",
+                 wr->topic->name, wr->topic->type_name, rd->topic->name, rd->topic->type_name);
+    }
+    else
+    {
+      struct ddsi_writer_info wrinfo;
+      struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (tkmap, payload);
+      ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, payload->statusinfo);
+      (void) ddsi_rhc_store (rd->rhc, &wrinfo, payload, tk);
+      ddsi_tkmap_instance_unref (tkmap, tk);
+      ddsi_serdata_unref (payload);
+    }
+  }
+}
+
 static void writer_add_local_connection (struct writer *wr, struct reader *rd)
 {
   struct wr_rd_match *m = ddsrt_malloc (sizeof (*m));
@@ -2296,26 +2324,9 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
   local_reader_ary_insert (&wr->rdary, rd);
 
   /* Store available data into the late joining reader when it is reliable (we don't do
-     historical data for best-effort data over the wire, so also not locally).
-     FIXME: should limit ourselves to what it is available because of durability history,
-     not writer history */
+     historical data for best-effort data over the wire, so also not locally). */
   if (rd->xqos->reliability.kind > DDS_RELIABILITY_BEST_EFFORT && rd->xqos->durability.kind > DDS_DURABILITY_VOLATILE)
-  {
-    struct ddsi_tkmap *tkmap = rd->e.gv->m_tkmap;
-    struct whc_sample_iter it;
-    struct whc_borrowed_sample sample;
-    whc_sample_iter_init(wr->whc, &it);
-    while (whc_sample_iter_borrow_next(&it, &sample))
-    {
-      struct ddsi_writer_info wrinfo;
-      struct ddsi_serdata *payload = sample.serdata;
-      /* FIXME: whc has tk reference in its index nodes, which is what we really should be iterating over anyway, and so we don't really have to look them up anymore */
-      struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (tkmap, payload);
-      ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, sample.serdata->statusinfo);
-      (void) ddsi_rhc_store (rd->rhc, &wrinfo, payload, tk);
-      ddsi_tkmap_instance_unref (tkmap, tk);
-    }
-  }
+    deliver_historical_data (wr, rd);
 
   ddsrt_mutex_unlock (&wr->e.lock);
 

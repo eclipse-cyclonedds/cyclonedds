@@ -96,37 +96,21 @@ struct local_sourceinfo {
 static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, struct ddsi_domaingv *gv, struct ddsi_sertopic const * const topic, void *vsourceinfo)
 {
   struct local_sourceinfo *si = vsourceinfo;
-  if (topic == si->src_topic)
+  struct ddsi_serdata *d = ddsi_serdata_ref_as_topic (topic, si->src_payload);
+  if (d == NULL)
   {
-    *tk = si->src_tk;
-    /* FIXME: see if this pair of refc increments can't be avoided
-       They're needed because free_sample_after_delivery will always be called, but
-       in the common case of a local writer and a single sertopic, make_sample doesn't
-       actually create a sample, and so free_sample_after_delivery doesn't actually
-       have to free anything */
-    ddsi_tkmap_instance_ref (si->src_tk);
-    return ddsi_serdata_ref (si->src_payload);
+    DDS_CWARNING (&gv->logconfig, "local: deserialization %s/%s failed in topic type conversion\n", topic->name, topic->type_name);
+    return NULL;
   }
+  if (topic != si->src_topic)
+    *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, d);
   else
   {
-    /* ouch ... convert a serdata from one sertopic to another ... */
-    ddsrt_iovec_t iov;
-    uint32_t size = ddsi_serdata_size (si->src_payload);
-    (void) ddsi_serdata_to_ser_ref (si->src_payload, 0, size, &iov);
-    struct ddsi_serdata *d = ddsi_serdata_from_ser_iov (topic, si->src_payload->kind, 1, &iov, size);
-    ddsi_serdata_to_ser_unref (si->src_payload, &iov);
-    if (d)
-    {
-      d->statusinfo = si->src_payload->statusinfo;
-      d->timestamp = si->src_payload->timestamp;
-      *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, d);
-    }
-    else
-    {
-      DDS_CWARNING (&gv->logconfig, "local: deserialization %s/%s failed in topic type conversion\n", topic->name, topic->type_name);
-    }
-    return d;
+    // if the topic is the same, we can avoid the lookup
+    ddsi_tkmap_instance_ref (si->src_tk);
+    *tk = si->src_tk;
   }
+  return d;
 }
 
 static dds_return_t local_on_delivery_failure_fastpath (struct entity_common *source_entity, bool source_entity_locked, struct local_reader_ary *fastpath_rdary, void *vsourceinfo)

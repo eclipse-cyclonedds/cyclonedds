@@ -32,6 +32,27 @@ void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertopic *tp, 
   ddsrt_atomic_st32 (&d->refc, 1);
 }
 
+struct ddsi_serdata *ddsi_serdata_ref_as_topic (const struct ddsi_sertopic *topic, struct ddsi_serdata *serdata)
+{
+  if (serdata->topic == topic)
+    return ddsi_serdata_ref (serdata);
+  else
+  {
+    /* ouch ... convert a serdata from one sertopic to another ... */
+    struct ddsi_serdata *converted;
+    ddsrt_iovec_t iov;
+    uint32_t size = ddsi_serdata_size (serdata);
+    (void) ddsi_serdata_to_ser_ref (serdata, 0, size, &iov);
+    if ((converted = ddsi_serdata_from_ser_iov (topic, serdata->kind, 1, &iov, size)) != NULL)
+    {
+      converted->statusinfo = serdata->statusinfo;
+      converted->timestamp = serdata->timestamp;
+    }
+    ddsi_serdata_to_ser_unref (serdata, &iov);
+    return converted;
+  }
+}
+
 extern inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const);
 extern inline void ddsi_serdata_unref (struct ddsi_serdata *serdata);
 extern inline uint32_t ddsi_serdata_size (const struct ddsi_serdata *d);

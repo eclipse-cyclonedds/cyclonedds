@@ -163,6 +163,22 @@ struct ddsi_serdata_ops {
 
 DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertopic *tp, enum ddsi_serdata_kind kind);
 
+/**
+ * @brief Return a reference to a serdata with possible topic conversion
+ *
+ * If `serdata` is of topic `topic`, this increments the reference count and returns
+ * `serdata`.  Otherwise, it constructs a new one from the serialised representation of
+ * `serdata`.  This can fail, in which case it returns NULL.
+ *
+ * @param[in] topic    sertopic the returned serdata must have
+ * @param[in] serdata  source sample (untouched except for the reference count and/or
+ *   extracting the serialised representation)
+ * @returns A reference to a serdata that is equivalent to the input with the correct
+ *   topic, or a null pointer on failure.  The reference must be released with @ref
+ *   ddsi_serdata_unref.
+ */
+DDS_EXPORT struct ddsi_serdata *ddsi_serdata_ref_as_topic (const struct ddsi_sertopic *topic, struct ddsi_serdata *serdata);
+
 DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const) {
   struct ddsi_serdata *serdata = (struct ddsi_serdata *)serdata_const;
   ddsrt_atomic_inc32 (&serdata->refc);
