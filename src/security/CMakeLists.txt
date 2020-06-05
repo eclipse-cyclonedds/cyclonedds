@@ -15,7 +15,7 @@ if(ENABLE_SECURITY)
   add_subdirectory(api)
   add_subdirectory(core)
 
-  if(ENABLE_SSL)
+  if(ENABLE_SSL AND OPENSSL_FOUND)
     add_subdirectory(openssl)
     add_subdirectory(builtin_plugins)
   endif()
