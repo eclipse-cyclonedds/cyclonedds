@@ -67,7 +67,7 @@ set(security_core_test_sources
     "security_utils.c"
 )
 
-if(ENABLE_SSL)
+if(ENABLE_SSL AND OPENSSL_FOUND)
   add_wrapper(access_control dds_security_ac)
   add_wrapper(authentication dds_security_auth)
   add_wrapper(cryptography dds_security_crypto)
@@ -102,7 +102,7 @@ target_include_directories(
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/include>"
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsc/src>"
  )
-if(ENABLE_SSL)
+if(ENABLE_SSL AND OPENSSL_FOUND)
   target_include_directories(
     cunit_security_core PRIVATE
       "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_openssl,INTERFACE_INCLUDE_DIRECTORIES>>"
@@ -114,7 +114,7 @@ set(plugin_wrapper_lib_dir "${CMAKE_CURRENT_BINARY_DIR}")
 configure_file("common/config_env.h.in" "common/config_env.h")
 
 target_link_libraries(cunit_security_core PRIVATE ddsc security_api SecurityCoreTests)
-if(ENABLE_SSL)
+if(ENABLE_SSL AND OPENSSL_FOUND)
   target_link_libraries(cunit_security_core PRIVATE dds_security_auth dds_security_ac dds_security_crypto dds_security_access_control_wrapper dds_security_authentication_wrapper dds_security_cryptography_wrapper)
   target_link_libraries(cunit_security_core PRIVATE OpenSSL::SSL)
   target_link_libraries(cunit_security_core PRIVATE security_openssl)
