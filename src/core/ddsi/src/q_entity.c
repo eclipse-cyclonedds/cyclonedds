@@ -4578,10 +4578,10 @@ static void create_proxy_builtin_endpoints(
       {
 #ifdef DDSI_INCLUDE_SSM
         const int ssm = addrset_contains_ssm (gv, proxypp->as_meta);
-#else
-        const int ssm = 0;
-#endif
         new_proxy_reader (gv, ppguid, &guid1, proxypp->as_meta, &plist_rd, timestamp, 0, ssm);
+#else
+        new_proxy_reader (gv, ppguid, &guid1, proxypp->as_meta, &plist_rd, timestamp, 0);
+#endif
       }
     }
   }
