@@ -656,18 +656,18 @@ DDS_Security_ValidationResult_t validate_local_identity(dds_security_authenticat
     DDS_Security_GUID_t *adjusted_participant_guid, const DDS_Security_DomainId domain_id, const DDS_Security_Qos *participant_qos,
     const DDS_Security_GUID_t *candidate_participant_guid, DDS_Security_SecurityException *ex)
 {
+  if (!instance || !local_identity_handle || !adjusted_participant_guid || !participant_qos || !candidate_participant_guid)
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "validate_local_identity: Invalid parameter provided");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
   dds_security_authentication_impl *implementation = (dds_security_authentication_impl *)instance;
   LocalIdentityInfo *identity;
   char *identityCertPEM, *identityCaPEM, *privateKeyPEM, *password, *trusted_ca_dir;
   X509 *identityCert, *identityCA;
   EVP_PKEY *privateKey;
   dds_time_t certExpiry = DDS_TIME_INVALID;
-
-  if (!instance || !local_identity_handle || !adjusted_participant_guid || !participant_qos || !candidate_participant_guid)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "validate_local_identity: Invalid parameter provided");
-    goto err_bad_param;
-  }
 
   if (!(identityCertPEM = DDS_Security_Property_get_value(&participant_qos->property.value, PROPERTY_IDENTITY_CERT)))
   {
@@ -776,22 +776,21 @@ err_no_private_key:
 err_no_identity_ca:
   ddsrt_free(identityCertPEM);
 err_no_identity_cert:
-err_bad_param:
   return DDS_SECURITY_VALIDATION_FAILED;
 }
 
 DDS_Security_boolean get_identity_token(dds_security_authentication *instance, DDS_Security_IdentityToken *identity_token, const DDS_Security_IdentityHandle handle, DDS_Security_SecurityException *ex)
 {
+  if (!instance || !identity_token)
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "get_identity_token: Invalid parameter provided");
+    return false;
+  }
+
   dds_security_authentication_impl *impl = (dds_security_authentication_impl *)instance;
   SecurityObject *obj;
   LocalIdentityInfo *identity;
   char *snCert, *snCA;
-
-  if (!instance || !identity_token)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "get_identity_token: Invalid parameter provided");
-    goto err_bad_param;
-  }
   memset(identity_token, 0, sizeof(*identity_token));
 
   ddsrt_mutex_lock(&impl->lock);
@@ -821,7 +820,6 @@ DDS_Security_boolean get_identity_token(dds_security_authentication *instance, D
   identity_token->properties._buffer[3].value = ddsrt_strdup(get_authentication_algo(get_authentication_algo_kind(identity->identityCA)));
 
   ddsrt_mutex_unlock(&impl->lock);
-
   return true;
 
 err_sn_ca:
@@ -829,7 +827,6 @@ err_sn_ca:
 err_sn_cert:
 err_inv_handle:
   ddsrt_mutex_unlock(&impl->lock);
-err_bad_param:
   return false;
 }
 
@@ -845,27 +842,25 @@ DDS_Security_boolean get_identity_status_token(dds_security_authentication *inst
 DDS_Security_boolean set_permissions_credential_and_token(dds_security_authentication *instance, const DDS_Security_IdentityHandle handle,
     const DDS_Security_PermissionsCredentialToken *permissions_credential, const DDS_Security_PermissionsToken *permissions_token, DDS_Security_SecurityException *ex)
 {
-  dds_security_authentication_impl *impl = (dds_security_authentication_impl *)instance;
-  LocalIdentityInfo *identity;
-
   if (!instance || handle == DDS_SECURITY_HANDLE_NIL || !permissions_credential || !permissions_token)
   {
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "get_identity_token: Invalid parameter provided");
     return false;
   }
-
   if (!permissions_credential->class_id || strcmp(permissions_credential->class_id, ACCESS_PERMISSIONS_CREDENTIAL_TOKEN_ID) != 0)
   {
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "get_identity_token: Invalid parameter provided");
     return false;
   }
-
   if (permissions_credential->properties._length == 0 || permissions_credential->properties._buffer[0].name == NULL
       || strcmp(permissions_credential->properties._buffer[0].name, ACCESS_PROPERTY_PERMISSION_DOCUMENT) != 0)
   {
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "get_identity_token: Invalid parameter provided");
     return false;
   }
+
+  dds_security_authentication_impl *impl = (dds_security_authentication_impl *)instance;
+  LocalIdentityInfo *identity;
 
   ddsrt_mutex_lock(&impl->lock);
   identity = (LocalIdentityInfo *)security_object_find(impl->objectHash, handle);
@@ -877,7 +872,6 @@ DDS_Security_boolean set_permissions_credential_and_token(dds_security_authentic
   }
   identity->permissionsDocument = ddsrt_strdup(permissions_credential->properties._buffer[0].value ? permissions_credential->properties._buffer[0].value : "");
   ddsrt_mutex_unlock(&impl->lock);
-
   return true;
 }
 
@@ -987,18 +981,18 @@ DDS_Security_ValidationResult_t validate_remote_identity(dds_security_authentica
     DDS_Security_AuthRequestMessageToken *local_auth_request_token, const DDS_Security_AuthRequestMessageToken *remote_auth_request_token, const DDS_Security_IdentityHandle local_identity_handle,
     const DDS_Security_IdentityToken *remote_identity_token, const DDS_Security_GUID_t *remote_participant_guid, DDS_Security_SecurityException *ex)
 {
+  if (!instance || !remote_identity_handle || !local_auth_request_token || !remote_identity_token || !remote_participant_guid)
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "validate_remote_identity: Invalid parameter provided");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
   dds_security_authentication_impl *impl = (dds_security_authentication_impl *)instance;
   SecurityObject *obj;
   LocalIdentityInfo *localIdent;
   RemoteIdentityInfo *remoteIdent;
   IdentityRelation *relation;
   AuthenticationChallenge *lchallenge = NULL, *rchallenge = NULL;
-
-  if (!instance || !remote_identity_handle || !local_auth_request_token || !remote_identity_token || !remote_participant_guid)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "validate_remote_identity: Invalid parameter provided");
-    goto err_bad_param;
-  }
 
   ddsrt_mutex_lock(&impl->lock);
   obj = security_object_find(impl->objectHash, local_identity_handle);
@@ -1080,7 +1074,6 @@ err_inv_auth_req_token:
 err_remote_identity_token:
 err_inv_handle:
   ddsrt_mutex_unlock(&impl->lock);
-err_bad_param:
   return DDS_SECURITY_VALIDATION_FAILED;
 }
 
@@ -1088,6 +1081,12 @@ DDS_Security_ValidationResult_t begin_handshake_request(dds_security_authenticat
     DDS_Security_HandshakeMessageToken *handshake_message, const DDS_Security_IdentityHandle initiator_identity_handle, const DDS_Security_IdentityHandle replier_identity_handle,
     const DDS_Security_OctetSeq *serialized_local_participant_data, DDS_Security_SecurityException *ex)
 {
+  if (!instance || !handshake_handle || !handshake_message || !serialized_local_participant_data)
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_request: Invalid parameter provided");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
   dds_security_authentication_impl *impl = (dds_security_authentication_impl *)instance;
   HandshakeInfo *handshake = NULL;
   IdentityRelation *relation = NULL;
@@ -1099,12 +1098,6 @@ DDS_Security_ValidationResult_t begin_handshake_request(dds_security_authenticat
   uint32_t certDataSize, dhPubKeyDataSize;
   uint32_t tokcount = impl->include_optional ? 8 : 7;
   int created = 0;
-
-  if (!instance || !handshake_handle || !handshake_message || !serialized_local_participant_data)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_request: Invalid parameter provided");
-    goto err_bad_param;
-  }
 
   ddsrt_mutex_lock(&impl->lock);
 
@@ -1206,7 +1199,6 @@ err_alloc_cid:
   ddsrt_free(certData);
 err_inv_handle:
   ddsrt_mutex_unlock(&impl->lock);
-err_bad_param:
   return DDS_SECURITY_VALIDATION_FAILED;
 }
 
@@ -1591,6 +1583,17 @@ DDS_Security_ValidationResult_t begin_handshake_reply(dds_security_authenticatio
     const DDS_Security_IdentityHandle initiator_identity_handle, const DDS_Security_IdentityHandle replier_identity_handle,
     const DDS_Security_OctetSeq *serialized_local_participant_data, DDS_Security_SecurityException *ex)
 {
+  if (!instance || !handshake_handle || !handshake_message_out || !handshake_message_in || !serialized_local_participant_data)
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: Invalid parameter provided");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+  if (serialized_local_participant_data->_length == 0 || serialized_local_participant_data->_buffer == NULL)
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: Invalid parameter provided");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
   dds_security_authentication_impl *impl = (dds_security_authentication_impl *)instance;
   HandshakeInfo *handshake = NULL;
   IdentityRelation *relation = NULL;
@@ -1602,18 +1605,6 @@ DDS_Security_ValidationResult_t begin_handshake_reply(dds_security_authenticatio
   uint32_t certDataSize, dhPubKeyDataSize;
   uint32_t tokcount = impl->include_optional ? 12 : 9;
   int created = 0;
-
-  if (!instance || !handshake_handle || !handshake_message_out || !handshake_message_in || !serialized_local_participant_data)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: Invalid parameter provided");
-    goto err_bad_param;
-  }
-
-  if (serialized_local_participant_data->_length == 0 || serialized_local_participant_data->_buffer == NULL)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "begin_handshake_reply: Invalid parameter provided");
-    goto err_bad_param;
-  }
 
   ddsrt_mutex_lock(&impl->lock);
 
@@ -1746,7 +1737,6 @@ err_inv_token:
   }
 err_inv_handle:
   ddsrt_mutex_unlock(&impl->lock);
-err_bad_param:
   return DDS_SECURITY_VALIDATION_FAILED;
 }
 
@@ -1805,6 +1795,12 @@ fail_ctx_new:
 DDS_Security_ValidationResult_t process_handshake(dds_security_authentication *instance, DDS_Security_HandshakeMessageToken *handshake_message_out,
     const DDS_Security_HandshakeMessageToken *handshake_message_in, const DDS_Security_HandshakeHandle handshake_handle, DDS_Security_SecurityException *ex)
 {
+  if (!instance || !handshake_handle || !handshake_message_out || !handshake_message_in)
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: Invalid parameter provided");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
   DDS_Security_ValidationResult_t hs_result = DDS_SECURITY_VALIDATION_OK;
   dds_security_authentication_impl *impl = (dds_security_authentication_impl *)instance;
   HandshakeInfo *handshake = NULL;
@@ -1813,13 +1809,6 @@ DDS_Security_ValidationResult_t process_handshake(dds_security_authentication *i
   DDS_Security_BinaryProperty_t *dh1_gen = NULL, *dh2_gen = NULL;
   const uint32_t tsz = impl->include_optional ? 7 : 3;
   DDS_Security_octet *challenge1_ref_for_shared_secret, *challenge2_ref_for_shared_secret;
-
-  /* validate provided arguments */
-  if (!instance || !handshake_handle || !handshake_message_out || !handshake_message_in)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "process_handshake: Invalid parameter provided");
-    goto err_bad_param;
-  }
 
   memset(handshake_message_out, 0, sizeof(DDS_Security_HandshakeMessageToken));
 
@@ -1962,14 +1951,14 @@ err_bad_param:
 
 DDS_Security_SharedSecretHandle get_shared_secret(dds_security_authentication *instance, const DDS_Security_HandshakeHandle handshake_handle, DDS_Security_SecurityException *ex)
 {
-  dds_security_authentication_impl *impl = (dds_security_authentication_impl *)instance;
-  SecurityObject *obj;
-
   if (!instance || !handshake_handle)
   {
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "return_handshake_handle: Invalid parameter provided");
-    goto err_bad_param;
+    return DDS_SECURITY_HANDLE_NIL;
   }
+
+  dds_security_authentication_impl *impl = (dds_security_authentication_impl *)instance;
+  SecurityObject *obj;
   ddsrt_mutex_lock(&impl->lock);
   obj = security_object_find(impl->objectHash, handshake_handle);
   if (!obj || !security_object_valid(obj, SECURITY_OBJECT_KIND_HANDSHAKE))
@@ -1982,25 +1971,24 @@ DDS_Security_SharedSecretHandle get_shared_secret(dds_security_authentication *i
 
 err_invalid_handle:
   ddsrt_mutex_unlock(&impl->lock);
-err_bad_param:
   return DDS_SECURITY_HANDLE_NIL;
 }
 
 DDS_Security_boolean get_authenticated_peer_credential_token(dds_security_authentication *instance, DDS_Security_AuthenticatedPeerCredentialToken *peer_credential_token,
     const DDS_Security_HandshakeHandle handshake_handle, DDS_Security_SecurityException *ex)
 {
+  if (!instance || !handshake_handle || !peer_credential_token)
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_PARAMETER_CODE, 0, DDS_SECURITY_ERR_INVALID_PARAMETER_MESSAGE);
+    return false;
+  }
+
   dds_security_authentication_impl *impl = (dds_security_authentication_impl *)instance;
   HandshakeInfo *handshake = NULL;
   X509 *identity_cert;
   char *permissions_doc;
   unsigned char *cert_data;
   uint32_t cert_data_size;
-
-  if (!instance || !handshake_handle || !peer_credential_token)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_PARAMETER_CODE, 0, DDS_SECURITY_ERR_INVALID_PARAMETER_MESSAGE);
-    return false;
-  }
 
   ddsrt_mutex_lock(&impl->lock);
 
@@ -2086,14 +2074,13 @@ DDS_Security_boolean return_authenticated_peer_credential_token(dds_security_aut
 
 DDS_Security_boolean return_handshake_handle(dds_security_authentication *instance, const DDS_Security_HandshakeHandle handshake_handle, DDS_Security_SecurityException *ex)
 {
-  dds_security_authentication_impl *impl = (dds_security_authentication_impl *)instance;
-
   if (!instance || !handshake_handle)
   {
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "return_handshake_handle: Invalid parameter provided");
-    goto err_bad_param;
+    return false;
   }
 
+  dds_security_authentication_impl *impl = (dds_security_authentication_impl *)instance;
   ddsrt_mutex_lock(&impl->lock);
   SecurityObject *obj = security_object_find(impl->objectHash, handshake_handle);
   if (!obj || !security_object_valid(obj, SECURITY_OBJECT_KIND_HANDSHAKE))
@@ -2110,7 +2097,6 @@ DDS_Security_boolean return_handshake_handle(dds_security_authentication *instan
 
 err_invalid_handle:
   ddsrt_mutex_unlock(&impl->lock);
-err_bad_param:
   return false;
 }
 
@@ -2155,16 +2141,16 @@ static void invalidate_remote_related_objects(dds_security_authentication_impl *
 
 DDS_Security_boolean return_identity_handle(dds_security_authentication *instance, const DDS_Security_IdentityHandle identity_handle, DDS_Security_SecurityException *ex)
 {
+  if (!instance || !identity_handle)
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "return_identity_handle: Invalid parameter provided");
+    return false;
+  }
+
   dds_security_authentication_impl *impl = (dds_security_authentication_impl *)instance;
   SecurityObject *obj;
   LocalIdentityInfo *localIdent;
   RemoteIdentityInfo *remoteIdent;
-
-  if (!instance || !identity_handle)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "return_identity_handle: Invalid parameter provided");
-    goto err_bad_param;
-  }
 
   /* Currently the implementation of the handle does not provide information about the kind of handle. In this case a valid handle could refer to a LocalIdentityObject or a RemoteIdentityObject */
   ddsrt_mutex_lock(&impl->lock);
@@ -2197,7 +2183,6 @@ DDS_Security_boolean return_identity_handle(dds_security_authentication *instanc
 
 failed:
   ddsrt_mutex_unlock(&impl->lock);
-err_bad_param:
   return false;
 }
 
