@@ -514,9 +514,13 @@ static void decode_datareader_submessage_not_signed(
   DDS_Security_PropertySeq datareader_properties;
 
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
+  assert(crypto->crypto_transform != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform->encode_datareader_submessage != NULL);
+  assert(crypto->crypto_transform->encode_datareader_submessage != 0);
   CU_ASSERT_FATAL(crypto->crypto_transform->decode_datareader_submessage != NULL);
+  assert(crypto->crypto_transform->decode_datareader_submessage != 0);
 
   initialize_data_submessage(&plain_buffer);
 
@@ -647,9 +651,13 @@ static void decode_datareader_submessage_signed(
   DDS_Security_PropertySeq datareader_properties;
 
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
+  assert(crypto->crypto_transform != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform->encode_datareader_submessage != NULL);
+  assert(crypto->crypto_transform->encode_datareader_submessage != 0);
   CU_ASSERT_FATAL(crypto->crypto_transform->decode_datareader_submessage != NULL);
+  assert(crypto->crypto_transform->decode_datareader_submessage != 0);
 
   initialize_data_submessage(&plain_buffer);
 
@@ -802,9 +810,13 @@ CU_Test(ddssec_builtin_decode_datareader_submessage, invalid_args, .init = suite
   DDS_Security_PropertySeq datareader_properties;
 
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
+  assert(crypto->crypto_transform != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform->encode_datareader_submessage != NULL);
+  assert(crypto->crypto_transform->encode_datareader_submessage != 0);
   CU_ASSERT_FATAL(crypto->crypto_transform->decode_datareader_submessage != NULL);
+  assert(crypto->crypto_transform->decode_datareader_submessage != 0);
 
   initialize_data_submessage(&plain_buffer);
 
@@ -1028,9 +1040,13 @@ CU_Test(ddssec_builtin_decode_datareader_submessage, invalid_data, .init = suite
   DDS_Security_PropertySeq datareader_properties;
 
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
+  assert(crypto->crypto_transform != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform->encode_datareader_submessage != NULL);
+  assert(crypto->crypto_transform->encode_datareader_submessage != 0);
   CU_ASSERT_FATAL(crypto->crypto_transform->decode_datareader_submessage != NULL);
+  assert(crypto->crypto_transform->decode_datareader_submessage != 0);
 
   initialize_data_submessage(&plain_buffer);
 
@@ -1617,9 +1633,13 @@ CU_Test(ddssec_builtin_decode_datareader_submessage, volatile_sec, .init = suite
   DDS_Security_OctetSeq decoded_buffer = {0, 0, NULL};
 
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
+  assert(crypto->crypto_transform != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform->encode_datareader_submessage != NULL);
+  assert(crypto->crypto_transform->encode_datareader_submessage != 0);
   CU_ASSERT_FATAL(crypto->crypto_transform->decode_datareader_submessage != NULL);
+  assert(crypto->crypto_transform->decode_datareader_submessage != 0);
 
   initialize_data_submessage(&plain_buffer);
 

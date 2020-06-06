@@ -284,6 +284,7 @@ static void handle_validate_local_identity (dds_domainid_t domain_id, bool exp_l
       break;
   }
   CU_ASSERT_FATAL (msg != NULL);
+  assert (msg != NULL);
   CU_ASSERT_FATAL ((msg->result == DDS_SECURITY_VALIDATION_OK) != exp_localid_fail);
   if (exp_localid_fail && exp_localid_msg)
   {

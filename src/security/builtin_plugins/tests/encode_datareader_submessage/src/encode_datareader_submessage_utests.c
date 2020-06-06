@@ -792,8 +792,11 @@ static void encode_datareader_submessage_not_signed(uint32_t transformation_kind
   bool is_encrypted;
 
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
+  assert(crypto->crypto_transform != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform->encode_datareader_submessage != NULL);
+  assert(crypto->crypto_transform->encode_datareader_submessage != 0);
 
   is_encrypted = (transformation_kind == CRYPTO_TRANSFORMATION_KIND_AES128_GCM || transformation_kind == CRYPTO_TRANSFORMATION_KIND_AES256_GCM);
 
@@ -935,8 +938,11 @@ static void encode_datareader_submessage_sign(uint32_t transformation_kind)
   bool is_encrypted;
 
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
+  assert(crypto->crypto_transform != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform->encode_datareader_submessage != NULL);
+  assert(crypto->crypto_transform->encode_datareader_submessage != 0);
 
   if (transformation_kind == CRYPTO_TRANSFORMATION_KIND_AES128_GCM || transformation_kind == CRYPTO_TRANSFORMATION_KIND_AES256_GCM)
   {
@@ -1088,8 +1094,11 @@ CU_Test(ddssec_builtin_encode_datareader_submessage, invalid_args, .init = suite
   DDS_Security_EndpointSecurityAttributes datareader_security_attributes;
 
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
+  assert(crypto->crypto_transform != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform->encode_datareader_submessage != NULL);
+  assert(crypto->crypto_transform->encode_datareader_submessage != 0);
 
   prepare_endpoint_security_attributes_and_properties(&datareader_security_attributes, &datareader_properties, CRYPTO_TRANSFORMATION_KIND_AES256_GCM, true);
 

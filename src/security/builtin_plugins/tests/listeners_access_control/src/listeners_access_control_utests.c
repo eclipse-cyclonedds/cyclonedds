@@ -587,10 +587,13 @@ CU_Test(ddssec_builtin_listeners_access_control, local_2secs)
   CU_ASSERT_FATAL(valid == DDS_SECURITY_ERR_OK_CODE);
 
   /* Check if we actually have validate_remote_permissions function. */
-  CU_ASSERT_FATAL(access_control != NULL);
   CU_ASSERT_FATAL(local_identity_handle != DDS_SECURITY_HANDLE_NIL);
+  CU_ASSERT_FATAL(access_control != NULL);
+  assert(access_control != NULL);
   CU_ASSERT_FATAL(access_control->validate_remote_permissions != NULL);
+  assert(access_control->validate_remote_permissions != 0);
   CU_ASSERT_FATAL(access_control->return_permissions_handle != NULL);
+  assert(access_control->return_permissions_handle != 0);
 
   fill_permissions_token(&permissions_token);
   r = fill_peer_credential_token(&credential_token, 1);

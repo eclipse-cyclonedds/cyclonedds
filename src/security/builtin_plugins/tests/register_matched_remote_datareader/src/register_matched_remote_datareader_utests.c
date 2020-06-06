@@ -179,8 +179,11 @@ CU_Test(ddssec_builtin_register_remote_datareader, happy_day, .init = suite_regi
 
   /* Check if we actually have the function. */
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
+  assert(crypto->crypto_key_factory != NULL);
   CU_ASSERT_FATAL(crypto->crypto_key_factory->register_matched_remote_datareader != NULL);
+  assert(crypto->crypto_key_factory->register_matched_remote_datareader != 0);
 
   register_local_regular();
 
@@ -286,8 +289,11 @@ CU_Test(ddssec_builtin_register_remote_datareader, with_origin_authentication, .
 
   /* Check if we actually have the function. */
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
+  assert(crypto->crypto_key_factory != NULL);
   CU_ASSERT_FATAL(crypto->crypto_key_factory->register_matched_remote_datareader != NULL);
+  assert(crypto->crypto_key_factory->register_matched_remote_datareader != 0);
   register_local_regular();
 
   /*set writer protection kind */
@@ -342,8 +348,11 @@ CU_Test(ddssec_builtin_register_remote_datareader, invalid_participant, .init = 
 
   /* Check if we actually have the function. */
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
+  assert(crypto->crypto_key_factory != NULL);
   CU_ASSERT_FATAL(crypto->crypto_key_factory->register_matched_remote_datareader != NULL);
+  assert(crypto->crypto_key_factory->register_matched_remote_datareader != 0);
 
   register_local_regular();
 
@@ -372,8 +381,11 @@ CU_Test(ddssec_builtin_register_remote_datareader, invalid_writer_properties, .i
 
   /* Check if we actually have the function. */
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
+  assert(crypto->crypto_key_factory != NULL);
   CU_ASSERT_FATAL(crypto->crypto_key_factory->register_matched_remote_datareader != NULL);
+  assert(crypto->crypto_key_factory->register_matched_remote_datareader != 0);
   register_local_regular();
 
   /* Now call the function. */

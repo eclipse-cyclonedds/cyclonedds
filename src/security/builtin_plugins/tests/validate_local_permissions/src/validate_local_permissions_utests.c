@@ -258,7 +258,10 @@ static DDS_Security_IdentityHandle create_local_identity(DDS_Security_Qos *parti
   DDS_Security_GuidPrefix_t prefix = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb};
   DDS_Security_EntityId_t entityId = {{0xb0, 0xb1, 0xb2}, 0x1};
 
+  CU_ASSERT_FATAL(g_auth != NULL);
+  assert(g_auth != NULL);
   CU_ASSERT_FATAL(g_auth->validate_local_identity != NULL);
+  assert(g_auth->validate_local_identity != 0);
 
   memset(&local_participant_guid, 0, sizeof(local_participant_guid));
   memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -435,9 +438,13 @@ static DDS_Security_IdentityHandle test_setup(DDS_Security_Qos *participant_qos)
   if (g_plugins)
   {
     CU_ASSERT_FATAL(g_auth != NULL);
+    assert(g_auth != NULL);
     CU_ASSERT_FATAL(g_access_control != NULL);
+    assert(g_access_control != NULL);
     CU_ASSERT_FATAL(g_access_control->validate_local_permissions != NULL);
+    assert(g_access_control->validate_local_permissions != 0);
     CU_ASSERT_FATAL(g_access_control->return_permissions_handle != NULL);
+    assert(g_access_control->return_permissions_handle != 0);
 
     local_id_hdl = create_local_identity(participant_qos);
   }
