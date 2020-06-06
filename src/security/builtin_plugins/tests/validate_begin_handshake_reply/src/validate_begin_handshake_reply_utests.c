@@ -1170,7 +1170,7 @@ validate_handshake_token(
         CU_FAIL("HandshakeMessageToken incorrect property 'c.id' not found");
     } else if (!valid_c_id_property(&identity_certificate[6], &property->value)) {
         CU_FAIL("HandshakeMessageToken incorrect property 'c.id' value is invalid");
-    } else if ((property = find_binary_property(token, "c.pdata")) == NULL) {
+    } else if (find_binary_property(token, "c.pdata") == NULL) {
         CU_FAIL("HandshakeMessageToken incorrect property 'c.pdata' not found");
     } else if ((property = find_binary_property(token, "c.dsign_algo")) == NULL) {
         CU_FAIL("HandshakeMessageToken incorrect property 'c.dsign_algo' not found");
@@ -1180,13 +1180,13 @@ validate_handshake_token(
         CU_FAIL("HandshakeMessageToken incorrect property 'c.kagree_algo' not found");
     } else if (!valid_string_value(AUTH_KAGREE_ALGO_RSA_NAME, &property->value)) {
         CU_FAIL("HandshakeMessageToken incorrect property 'c.kagree_algo' incorrect value");
-    } else if ((property = find_binary_property(token, "hash_c2")) == NULL) {
+    } else if (find_binary_property(token, "hash_c2") == NULL) {
          CU_FAIL("HandshakeMessageToken incorrect property 'hash_c2' not found");
-    } else if ((property = find_binary_property(token, "dh2")) == NULL) {
+    } else if (find_binary_property(token, "dh2") == NULL) {
         CU_FAIL("HandshakeMessageToken incorrect property 'dh2' not found");
-    } else if ((property = find_binary_property(token, "hash_c1")) == NULL) {
+    } else if (find_binary_property(token, "hash_c1") == NULL) {
         CU_FAIL("HandshakeMessageToken incorrect property 'hash_c1' not found");
-    } else if ((property = find_binary_property(token, "dh1")) == NULL) {
+    } else if (find_binary_property(token, "dh1") == NULL) {
         CU_FAIL("HandshakeMessageToken incorrect property 'dh1' not found");
     } else if ((property = find_binary_property(token, "challenge1")) == NULL) {
         CU_FAIL("HandshakeMessageToken incorrect property 'challenge1' not found");
@@ -1213,11 +1213,12 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply, happy_day,  .init = init_
     DDS_Security_boolean success;
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
-
+    assert (auth->begin_handshake_reply != 0);
 
     fill_handshake_message_token_default(&handshake_token_in, remote_participant_data1, challenge2->value._buffer, challenge2->value._length);
 
@@ -1264,10 +1265,12 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,future_challenge,  .init =
     DDS_Security_boolean success;
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
+    assert (auth->begin_handshake_reply != NULL);
 
     fill_handshake_message_token_default(&handshake_token_in, remote_participant_data2, challenge2->value._buffer, challenge2->value._length);
 
@@ -1316,10 +1319,12 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_arguments,  .init 
     DDS_Security_OctetSeq serdata = DDS_SECURITY_SEQUENCE_INIT;
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
+    assert (auth->begin_handshake_reply != 0);
 
     fill_handshake_message_token_default(&handshake_token_in, remote_participant_data1, challenge1->value._buffer, challenge1->value._length);
 
@@ -1462,10 +1467,12 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_certificate,  .ini
     DDS_Security_SecurityException exception = {NULL, 0, 0};
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
+    assert (auth->begin_handshake_reply != 0);
 
     fill_handshake_message_token(
             &handshake_token_in, remote_participant_data1, unrelated_identity,
@@ -1531,10 +1538,12 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_participant_data ,
     DDS_Security_BinaryProperty_t *property;
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
+    assert (auth->begin_handshake_reply != 0);
 
     fill_handshake_message_token(
             &handshake_token_in, remote_participant_data3, remote_identity_certificate,
@@ -1608,10 +1617,12 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_dsign_algo ,  .ini
     DDS_Security_SecurityException exception = {NULL, 0, 0};
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
+    assert (auth->begin_handshake_reply != 0);
 
     fill_handshake_message_token(
             &handshake_token_in, remote_participant_data1, remote_identity_certificate,
@@ -1677,10 +1688,12 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_kagree_algo ,  .in
     DDS_Security_SecurityException exception = {NULL, 0, 0};
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
+    assert (auth->begin_handshake_reply != 0);
 
     fill_handshake_message_token(
             &handshake_token_in, remote_participant_data1, remote_identity_certificate,
@@ -1746,10 +1759,12 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_diffie_hellman ,  
     DDS_Security_SecurityException exception = {NULL, 0, 0};
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
+    assert (auth->begin_handshake_reply != 0);
 
     fill_handshake_message_token(
             &handshake_token_in, remote_participant_data1, remote_identity_certificate,
@@ -1815,10 +1830,12 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_challenge ,  .init
     DDS_Security_SecurityException exception = {NULL, 0, 0};
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
+    assert (auth->begin_handshake_reply != 0);
 
     fill_handshake_message_token_default(&handshake_token_in, remote_participant_data2, challenge2->value._buffer, challenge2->value._length);
 
@@ -1904,10 +1921,12 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,return_handle,  .init = in
     DDS_Security_boolean success;
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
+    assert (auth->begin_handshake_reply != 0);
 
     fill_handshake_message_token_default(&handshake_token_in, remote_participant_data1, challenge2->value._buffer, challenge2->value._length);
 
@@ -1969,11 +1988,12 @@ CU_Test(validate_begin_handshake_reply,extended_certificate_check,  .init = init
     CU_ASSERT_FATAL( !validate_remote_identities( remote_identity_trusted ) );
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
-
+    assert (auth->begin_handshake_reply != 0);
 
     fill_handshake_message_token(
                     &handshake_token_in, remote_participant_data1, remote_identity_trusted,
@@ -2018,11 +2038,12 @@ CU_Test(validate_begin_handshake_reply,extended_certificate_check,  .init = init
     CU_ASSERT_FATAL( !validate_remote_identities( remote_identity_untrusted ) );
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
-
+    assert (auth->begin_handshake_reply != 0);
 
     fill_handshake_message_token(
                     &handshake_token_in, remote_participant_data1, remote_identity_untrusted,
@@ -2057,11 +2078,12 @@ CU_Test(validate_begin_handshake_reply,extended_certificate_check,  .init = init
     CU_ASSERT_FATAL( !validate_remote_identities( remote_identity_trusted_expired ) );
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
-
+    assert (auth->begin_handshake_reply != 0);
 
     fill_handshake_message_token(
                     &handshake_token_in, remote_participant_data1, remote_identity_trusted_expired,

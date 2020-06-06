@@ -570,8 +570,11 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_args, .init = suite_de
   size_t length;
 
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
+  assert(crypto->crypto_transform != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform->encode_serialized_payload != NULL);
+  assert(crypto->crypto_transform->encode_serialized_payload != 0);
 
   memset(&extra_inline_qos, 0, sizeof(extra_inline_qos));
   memset(&empty_buffer, 0, sizeof(empty_buffer));
@@ -795,8 +798,11 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
   unsigned char *contents = NULL;
 
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
+  assert(crypto->crypto_transform != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform->encode_serialized_payload != NULL);
+  assert(crypto->crypto_transform->encode_serialized_payload != 0);
 
   memset(&extra_inline_qos, 0, sizeof(extra_inline_qos));
 

@@ -74,6 +74,10 @@ static DDS_Security_ValidationResult_t test_validate_local_identity_all_ok(
       identity_certificate = participant_qos->property.value._buffer[i].value;
   }
 
+  assert(identity_certificate != NULL);
+  assert(identity_ca != NULL);
+  assert(private_key != NULL);
+
   if (strcmp(identity_certificate, test_identity_certificate))
   {
     printf("identity received=%s\n", identity_certificate);

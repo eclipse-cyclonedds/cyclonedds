@@ -564,6 +564,7 @@ crypto_decrypt_data(
 static session_key_material * get_local_participant_session(DDS_Security_ParticipantCryptoHandle participant_crypto)
 {
   local_participant_crypto *participant_crypto_impl = (local_participant_crypto *)participant_crypto;
+  assert(participant_crypto_impl);
   return participant_crypto_impl->session;
 }
 
@@ -767,8 +768,11 @@ static void encode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
   DDS_Security_PropertySeq properties;
 
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
+  assert(crypto->crypto_transform != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform->encode_rtps_message != NULL);
+  assert(crypto->crypto_transform->encode_rtps_message != 0);
 
   prepare_participant_security_attributes_and_properties(&attributes, &properties, transformation_kind, false);
 
@@ -904,8 +908,11 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
   size_t i;
 
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
+  assert(crypto->crypto_transform != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform->encode_rtps_message != NULL);
+  assert(crypto->crypto_transform->encode_rtps_message != 0);
 
   prepare_participant_security_attributes_and_properties(&attributes, &properties, transformation_kind, true);
 

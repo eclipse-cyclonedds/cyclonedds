@@ -449,8 +449,11 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, writer_happy_day, .init = suite
     DDS_Security_OctetSeq message;
 
     CU_ASSERT_FATAL (crypto != NULL);
+    assert(crypto != NULL);
     CU_ASSERT_FATAL (crypto->crypto_transform != NULL);
+    assert(crypto->crypto_transform != NULL);
     CU_ASSERT_FATAL (crypto->crypto_transform->preprocess_secure_submsg != NULL);
+    assert(crypto->crypto_transform->preprocess_secure_submsg != 0);
 
     create_encoded_submsg(&message, writer_key_message.sender_key_id, writer_key_message.transformation_kind, VALID_SMID_SEC_PREFIX, false);
 
@@ -515,8 +518,11 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, reader_happy_day, .init = suite
     DDS_Security_OctetSeq message;
 
     CU_ASSERT_FATAL (crypto != NULL);
-    CU_ASSERT_FATAL (crypto ->crypto_transform!= NULL);
-    CU_ASSERT_FATAL (crypto ->crypto_transform->preprocess_secure_submsg != NULL);
+    assert(crypto != NULL);
+    CU_ASSERT_FATAL (crypto->crypto_transform != NULL);
+    assert(crypto->crypto_transform != NULL);
+    CU_ASSERT_FATAL (crypto->crypto_transform->preprocess_secure_submsg != NULL);
+    assert(crypto->crypto_transform->preprocess_secure_submsg != 0);
 
     create_encoded_submsg(&message, reader_key_message.sender_key_id, reader_key_message.transformation_kind, VALID_SMID_SEC_PREFIX, false);
 
@@ -578,8 +584,11 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, invalid_args, .init = suite_pre
     DDS_Security_OctetSeq message;
 
     CU_ASSERT_FATAL (crypto != NULL);
-    CU_ASSERT_FATAL (crypto ->crypto_transform!= NULL);
-    CU_ASSERT_FATAL (crypto ->crypto_transform->preprocess_secure_submsg != NULL);
+    assert(crypto != NULL);
+    CU_ASSERT_FATAL (crypto->crypto_transform != NULL);
+    assert(crypto->crypto_transform != NULL);
+    CU_ASSERT_FATAL (crypto->crypto_transform->preprocess_secure_submsg != NULL);
+    assert(crypto->crypto_transform->preprocess_secure_submsg != 0);
 
     create_encoded_submsg(&message, writer_key_message.sender_key_id, reader_key_message.transformation_kind, VALID_SMID_SEC_PREFIX, false);
 
@@ -731,8 +740,11 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, invalid_message, .init = suite_
     DDS_Security_OctetSeq message;
 
     CU_ASSERT_FATAL (crypto != NULL);
-    CU_ASSERT_FATAL (crypto ->crypto_transform!= NULL);
-    CU_ASSERT_FATAL (crypto ->crypto_transform->preprocess_secure_submsg != NULL);
+    assert(crypto != NULL);
+    CU_ASSERT_FATAL (crypto->crypto_transform != NULL);
+    assert(crypto->crypto_transform != NULL);
+    CU_ASSERT_FATAL (crypto->crypto_transform->preprocess_secure_submsg != NULL);
+    assert(crypto->crypto_transform->preprocess_secure_submsg != 0);
 
     /* unknown key id */
     create_encoded_submsg(&message, writer_key_payload.sender_key_id, writer_key_payload.transformation_kind, VALID_SMID_SEC_PREFIX, false);
@@ -826,8 +838,11 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, volatile_secure, .init = suite_
     DDS_Security_OctetSeq message;
 
     CU_ASSERT_FATAL (crypto != NULL);
+    assert(crypto != NULL);
     CU_ASSERT_FATAL (crypto->crypto_transform != NULL);
+    assert(crypto->crypto_transform != NULL);
     CU_ASSERT_FATAL (crypto->crypto_transform->preprocess_secure_submsg != NULL);
+    assert(crypto->crypto_transform->preprocess_secure_submsg != 0);
 
     datareader_properties._length = datareader_properties._maximum = 1;
     datareader_properties._buffer = DDS_Security_PropertySeq_allocbuf(1);

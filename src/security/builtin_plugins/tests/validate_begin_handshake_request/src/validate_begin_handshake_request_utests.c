@@ -543,7 +543,7 @@ validate_handshake_token(
         CU_FAIL("HandshakeMessageToken incorrect property 'c.id' not found");
     } else if (!valid_c_id_property(&identity_certificate[6], &property->value)) {
         CU_FAIL("HandshakeMessageToken incorrect property 'c.id' value is invalid");
-    } else if ((property = find_binary_property(token, "c.pdata")) == NULL) {
+    } else if (find_binary_property(token, "c.pdata") == NULL) {
         CU_FAIL("HandshakeMessageToken incorrect property 'c.pdata' not found");
     } else if ((property = find_binary_property(token, "c.dsign_algo")) == NULL) {
         CU_FAIL("HandshakeMessageToken incorrect property 'c.dsign_algo' not found");
@@ -553,9 +553,9 @@ validate_handshake_token(
         CU_FAIL("HandshakeMessageToken incorrect property 'c.kagree_algo' not found");
     } else if (!valid_string_value(AUTH_KAGREE_ALGO_ECDH_NAME, &property->value)) {
         CU_FAIL("HandshakeMessageToken incorrect property 'c.kagree_algo' incorrect value");
-    } else if ((property = find_binary_property(token, "hash_c1")) == NULL) {
+    } else if (find_binary_property(token, "hash_c1") == NULL) {
         CU_FAIL("HandshakeMessageToken incorrect property 'hash_c1' not found");
-    } else if ((property = find_binary_property(token, "dh1")) == NULL) {
+    } else if (find_binary_property(token, "dh1") == NULL) {
         CU_FAIL("HandshakeMessageToken incorrect property 'dh1' not found");
     } else if ((property = find_binary_property(token, "challenge1")) == NULL) {
         CU_FAIL("HandshakeMessageToken incorrect property 'challenge1' not found");
@@ -580,10 +580,12 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,happy_day_challenge)
     DDS_Security_boolean success;
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_request != NULL);
+    assert (auth->begin_handshake_request != 0);
 
     fill_local_participant_data(&local_participant_data, 82);
 
@@ -629,10 +631,12 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,happy_day_future_challen
     DDS_Security_boolean success;
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_request != NULL);
+    assert (auth->begin_handshake_request != 0);
 
     fill_local_participant_data(&local_participant_data, 82);
 
@@ -678,10 +682,12 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,invalid_arguments)
     DDS_Security_OctetSeq local_participant_data;
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_request != NULL);
+    assert (auth->begin_handshake_request != 0);
 
     fill_local_participant_data(&local_participant_data, 82);
 
@@ -783,10 +789,12 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,return_handle)
     DDS_Security_boolean success;
 
     CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
     CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT_FATAL (auth->begin_handshake_request != NULL);
+    assert (auth->begin_handshake_request != 0);
 
     fill_local_participant_data(&local_participant_data, 82);
 

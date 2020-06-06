@@ -204,8 +204,11 @@ CU_Test(ddssec_builtin_register_local_datareader, builtin_endpoint, .init = suit
 
   /* Check if we actually have the function. */
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
+  assert(crypto->crypto_key_factory != NULL);
   CU_ASSERT_FATAL(crypto->crypto_key_factory->register_local_datareader != NULL);
+  assert(crypto->crypto_key_factory->register_local_datareader != 0);
 
   datareader_properties._buffer = DDS_Security_PropertySeq_allocbuf(1);
   datareader_properties._length = datareader_properties._maximum = 1;
@@ -255,8 +258,11 @@ CU_Test(ddssec_builtin_register_local_datareader, special_endpoint_name, .init =
 
   /* Check if we actually have the function. */
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
+  assert(crypto->crypto_key_factory != NULL);
   CU_ASSERT_FATAL(crypto->crypto_key_factory->register_local_datareader != NULL);
+  assert(crypto->crypto_key_factory->register_local_datareader != 0);
 
   /*set special endpoint name*/
   datareader_properties._buffer = DDS_Security_PropertySeq_allocbuf(1);
@@ -297,8 +303,11 @@ CU_Test(ddssec_builtin_register_local_datareader, invalid_participant, .init = s
 
   /* Check if we actually have the function. */
   CU_ASSERT_FATAL(crypto != NULL);
+  assert(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
+  assert(crypto->crypto_key_factory != NULL);
   CU_ASSERT_FATAL(crypto->crypto_key_factory->register_local_datareader != NULL);
+  assert(crypto->crypto_key_factory->register_local_datareader != 0);
 
   memset(&exception, 0, sizeof(DDS_Security_SecurityException));
   memset(&datareader_properties, 0, sizeof(datareader_properties));

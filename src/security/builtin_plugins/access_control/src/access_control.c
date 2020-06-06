@@ -508,7 +508,6 @@ check_remote_participant(dds_security_access_control *instance,
 {
   dds_security_access_control_impl *ac = (dds_security_access_control_impl *)instance;
   remote_participant_access_rights *remote_rights = NULL;
-  DDS_Security_boolean isValid = false;
   DDS_Security_ParticipantSecurityAttributes participantSecurityAttributes;
   DDS_Security_PermissionsHandle local_permissions_handle;
   DDS_Security_string class_id_remote_str;
@@ -530,7 +529,7 @@ check_remote_participant(dds_security_access_control *instance,
 
   /* The local rights pointer is actually the local permissions handle. */
   local_permissions_handle = ACCESS_CONTROL_OBJECT_HANDLE(remote_rights->local_rights);
-  if ((isValid = get_participant_sec_attributes(instance, local_permissions_handle, &participantSecurityAttributes, ex)) == false)
+  if (!get_participant_sec_attributes(instance, local_permissions_handle, &participantSecurityAttributes, ex))
     goto exit;
   if (participantSecurityAttributes.is_access_protected == false)
   {
