@@ -328,13 +328,12 @@ MPT_ProcessEntry (rw_publisher,
 
 static void wait_for_done (dds_entity_t rd, const char *userdata)
 {
-  int32_t n;
   void *raw = NULL;
   dds_sample_info_t si;
   bool done = false;
   while (!done)
   {
-    while (!done && (n = dds_take (rd, &raw, &si, 1, 1)) == 1)
+    while (!done && dds_take (rd, &raw, &si, 1, 1) == 1)
     {
       const dds_builtintopic_participant_t *sample = raw;
       void *ud = NULL;
