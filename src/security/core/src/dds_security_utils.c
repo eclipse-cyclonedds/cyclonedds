@@ -782,7 +782,7 @@ void DDS_Security_Exception_vset (DDS_Security_SecurityException *ex, const char
     }
   }
 
-  va_end(args1);
+  va_end(args2);
 
   ex->message = str;
   ex->code = code;
