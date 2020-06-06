@@ -562,7 +562,7 @@ static uint32_t pubthread (void *varg)
 {
   int result;
   dds_instance_handle_t *ihs;
-  dds_time_t ntot = 0, tfirst, tfirst0;
+  dds_time_t ntot = 0, tfirst;
   union data data;
   uint64_t timeouts = 0;
   void *baggage = NULL;
@@ -584,7 +584,7 @@ static uint32_t pubthread (void *varg)
   }
   data.seq_keyval.keyval = 0;
 
-  tfirst0 = tfirst = dds_time();
+  tfirst = dds_time();
 
   uint32_t bi = 0;
   while (!ddsrt_atomic_ld32 (&termflag))
@@ -623,7 +623,7 @@ static uint32_t pubthread (void *varg)
       if (++bi == burstsize)
       {
         /* FIXME: should average rate over a short-ish period, rather than over the entire run */
-        while (((double) (ntot / burstsize) / ((double) (t - tfirst0) / 1e9 + 5e-3)) > pub_rate && !ddsrt_atomic_ld32 (&termflag))
+        while (((double) (ntot / burstsize) / ((double) (t - tfirst) / 1e9 + 5e-3)) > pub_rate && !ddsrt_atomic_ld32 (&termflag))
         {
           /* FIXME: flushing manually because batching is not yet implemented properly */
           dds_write_flush (wr_data);
