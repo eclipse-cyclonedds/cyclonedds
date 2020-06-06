@@ -1235,14 +1235,13 @@ create_asymmetrical_signature_for_test(
         goto err_sign;
     }
 
-    //*signature = ddsrt_malloc(sizeof(unsigned char) * (*signatureLen));
-    *signature = OPENSSL_malloc(*signatureLen);
+    *signature = ddsrt_malloc(*signatureLen);
     if (EVP_DigestSignFinal(mdctx, *signature, signatureLen) != 1) {
         char *msg = get_openssl_error_message_for_test();
         result = DDS_SECURITY_VALIDATION_FAILED;
         DDS_Security_Exception_set(ex, "Authentication", DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "Failed to finalize signing context: %s", msg);
         ddsrt_free(msg);
-        ddsrt_free(signature);
+        ddsrt_free(*signature);
     }
 
 err_sign:
@@ -1777,12 +1776,13 @@ fill_handshake_message_token(
             {
                 printf("Exception: %s\n", exception.message);
             }
-            CU_ASSERT_FATAL (rc == DDS_SECURITY_VALIDATION_OK);
-            assert(rc == DDS_SECURITY_VALIDATION_OK); // for Clang's static analyzer
-
-            set_binary_property_value(signature, "signature", sign, (uint32_t)signlen);
-
-            ddsrt_free(sign);
+            else
+            {
+                CU_ASSERT_FATAL (rc == DDS_SECURITY_VALIDATION_OK);
+                assert(rc == DDS_SECURITY_VALIDATION_OK); // for Clang's static analyzer
+                set_binary_property_value(signature, "signature", sign, (uint32_t)signlen);
+                ddsrt_free(sign);
+            }
             EVP_PKEY_free(private_key_x509);
             BIO_free(bio);
         }
@@ -1865,9 +1865,11 @@ fill_handshake_message_token(
             {
                 printf("Exception: %s\n", exception.message);
             }
-            set_binary_property_value(signature, "signature", sign, (uint32_t)signlen);
-
-            ddsrt_free(sign);
+            else
+            {
+                set_binary_property_value(signature, "signature", sign, (uint32_t)signlen);
+                ddsrt_free(sign);
+            }
             EVP_PKEY_free(private_key_x509);
             BIO_free(bio);
         }

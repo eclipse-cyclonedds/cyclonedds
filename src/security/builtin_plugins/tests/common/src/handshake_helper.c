@@ -157,8 +157,7 @@ screate_asymmetrical_signature_for_test(
         goto err_sign;
     }
 
-    //*signature = ddsrt_malloc(sizeof(unsigned char) * (*signatureLen));
-    *signature = OPENSSL_malloc(*signatureLen);
+    *signature = ddsrt_malloc(*signatureLen);
     if (EVP_DigestSignFinal(mdctx, *signature, signatureLen) != 1) {
         char *msg = get_openssl_error_message_for_test();
         result = DDS_SECURITY_VALIDATION_FAILED;
@@ -550,14 +549,13 @@ create_asymmetrical_signature_for_test(
         goto err_sign;
     }
 
-    //*signature = os_malloc(sizeof(unsigned char) * (*signatureLen));
-    *signature = OPENSSL_malloc(*signatureLen);
+    *signature = ddsrt_malloc(*signatureLen);
     if (EVP_DigestSignFinal(mdctx, *signature, signatureLen) != 1) {
         char *msg = get_openssl_error_message_for_test();
         result = DDS_SECURITY_VALIDATION_FAILED;
         DDS_Security_Exception_set(ex, "Authentication", DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "Failed to finalize signing context: %s", msg);
         ddsrt_free(msg);
-        ddsrt_free(signature);
+        ddsrt_free(*signature);
     }
 
     err_sign:

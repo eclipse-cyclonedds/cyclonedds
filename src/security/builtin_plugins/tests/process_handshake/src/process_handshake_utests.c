@@ -1360,9 +1360,11 @@ fill_handshake_message_token(
             {
                 printf("Exception: %s\n", exception.message);
             }
-            set_binary_property_value(signature, "signature", sign, (uint32_t ) signlen);
-
-            ddsrt_free(sign);
+            else
+            {
+                set_binary_property_value(signature, "signature", sign, (uint32_t ) signlen);
+                ddsrt_free(sign);
+            }
             EVP_PKEY_free(private_key_x509);
             BIO_free(bio);
         }
@@ -1445,9 +1447,11 @@ fill_handshake_message_token(
             {
                 printf("Exception: %s\n", exception.message);
             }
-            set_binary_property_value(signature, "signature", sign, (uint32_t) signlen);
-
-            ddsrt_free(sign);
+            else
+            {
+                set_binary_property_value(signature, "signature", sign, (uint32_t) signlen);
+                ddsrt_free(sign);
+            }
             EVP_PKEY_free(private_key_x509);
             BIO_free(bio);
         }
