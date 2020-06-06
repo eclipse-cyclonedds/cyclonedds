@@ -405,7 +405,7 @@ static void suite_decode_serialized_payload_fini(void)
   deallocate_shared_secret();
 }
 
-static bool split_encoded_data(unsigned char *data, size_t size, struct crypto_header **header, unsigned char **contents, uint32_t *length, struct crypto_footer **footer)
+static bool split_encoded_data(unsigned char *data, size_t size, struct crypto_header **header, unsigned char **contents, size_t *length, struct crypto_footer **footer)
 {
   unsigned char *ptr;
 
@@ -845,7 +845,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
 
   reset_exception(&exception);
 
-  result = split_encoded_data(encoded_buffer._buffer, encoded_buffer._length, &header, &contents, (uint32_t *) &length, &footer);
+  result = split_encoded_data(encoded_buffer._buffer, encoded_buffer._length, &header, &contents, &length, &footer);
   CU_ASSERT_FATAL(result);
   assert(result); // for Clang's static analyzer
 
