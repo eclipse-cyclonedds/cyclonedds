@@ -18,6 +18,14 @@
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/attributes.h"
 
+#if !DDSRT_WITH_FREERTOS
+#define DDSRT_HAVE_DYNLIB (1)
+#else
+#define DDSRT_HAVE_DYNLIB (0)
+#endif
+
+#if DDSRT_HAVE_DYNLIB
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -139,5 +147,7 @@ ddsrt_dlerror(
 #if defined (__cplusplus)
 }
 #endif
+
+#endif /* DDSRT_HAVE_DYNLIB */
 
 #endif /* DDSRT_LIBRARY_H */
