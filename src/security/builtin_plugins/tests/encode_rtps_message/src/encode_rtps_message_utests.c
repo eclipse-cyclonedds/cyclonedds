@@ -238,7 +238,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   prefix = (struct submsg_header *)ptr;
 
-  if (prefix->id != SMID_SRTPS_PREFIX_KIND)
+  if (prefix->id != SMID_SRTPS_PREFIX)
   {
     printf("check_encoded_data: prefix incorrect smid 0x%x02\n", prefix->id);
     goto fail_prefix;
@@ -280,7 +280,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
   if (encrypted)
   {
     body = (struct submsg_header *)ptr;
-    if (body->id != SMID_SEC_BODY_KIND)
+    if (body->id != SMID_SEC_BODY)
     {
       printf("check_encoded_data: submessage SEC_BODY missing\n");
       goto fail_body;
@@ -308,7 +308,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
   else
   {
     body = (struct submsg_header *)(ptr + 24); /* header after info_src */
-    if (body->id == SMID_SEC_BODY_KIND)
+    if (body->id == SMID_SEC_BODY)
     {
       printf("check_encoded_data: submessage SEC_BODY not expected\n");
       goto fail_body;
@@ -338,7 +338,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   postfix = (struct submsg_header *)ptr;
 
-  if (postfix->id != SMID_SRTPS_POSTFIX_KIND)
+  if (postfix->id != SMID_SRTPS_POSTFIX)
   {
     printf("check_encoded_data: postfix invalid smid\n");
     goto fail_postfix;

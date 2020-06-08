@@ -319,7 +319,7 @@ static bool read_prefix(unsigned char **ptr, uint32_t *remain)
 
   prefix = (struct submsg_header *)(*ptr);
 
-  if (prefix->id != SMID_SEC_PREFIX_KIND)
+  if (prefix->id != SMID_SEC_PREFIX)
   {
     printf("check_encoded_data: prefix incorrect smid 0x%x02\n", prefix->id);
     return false;
@@ -385,7 +385,7 @@ static bool read_body(DDS_Security_OctetSeq *contents, bool encrypted, unsigned 
   {
     struct encrypted_data *enc;
 
-    if (body->id != SMID_SEC_BODY_KIND)
+    if (body->id != SMID_SEC_BODY)
     {
       printf("check_encoded_data: submessage SEC_BODY missing\n");
       return false;
@@ -398,7 +398,7 @@ static bool read_body(DDS_Security_OctetSeq *contents, bool encrypted, unsigned 
   }
   else
   {
-    if (body->id == SMID_SEC_BODY_KIND)
+    if (body->id == SMID_SEC_BODY)
     {
       printf("check_encoded_data: submessage SEC_BODY not expected\n");
       return false;
@@ -427,7 +427,7 @@ static bool read_postfix(unsigned char **ptr,uint32_t *remain)
 
   postfix = (struct submsg_header *)(*ptr);
 
-  if (postfix->id != SMID_SEC_POSTFIX_KIND)
+  if (postfix->id != SMID_SEC_POSTFIX)
   {
     printf("check_encoded_data: postfix invalid smid\n");
     return false;
