@@ -117,9 +117,9 @@ static void deallocate_shared_secret(void)
   ddsrt_free(shared_secret_handle_impl);
 }
 
-static void print_octets(const char *msg, const unsigned char *data, uint32_t sz)
+static void print_octets(const char *msg, const unsigned char *data, size_t sz)
 {
-  uint32_t i;
+  size_t i;
   printf("%s: ", msg);
   for (i = 0; i < sz; i++)
   {
@@ -445,6 +445,55 @@ static struct crypto_footer * get_crypto_footer(unsigned char *data)
   return (struct crypto_footer *)(submsg + 1);
 }
 
+static bool check_decoded_rtps_message(const DDS_Security_OctetSeq *decoded, const DDS_Security_OctetSeq *orig)
+{
+  unsigned char *d_ptr, *o_ptr;
+  size_t d_len = decoded->_length;
+  size_t o_len = orig->_length;
+  InfoSRC_t *info_src;
+
+  if (d_len < RTPS_MESSAGE_HEADER_SIZE)
+  {
+    CU_FAIL("decoded message does not start with an RTPS header");
+    return false;
+  }
+
+  if (memcmp(decoded->_buffer, orig->_buffer, RTPS_MESSAGE_HEADER_SIZE) != 0)
+  {
+    CU_FAIL("decoded message does not start with an RTPS header");
+    return false;
+  }
+  d_ptr = decoded->_buffer + RTPS_MESSAGE_HEADER_SIZE;
+  o_ptr = orig->_buffer + RTPS_MESSAGE_HEADER_SIZE;
+  d_len -= RTPS_MESSAGE_HEADER_SIZE;
+  o_len -= RTPS_MESSAGE_HEADER_SIZE;
+
+  if (d_len < sizeof(InfoSRC_t))
+  {
+    CU_FAIL("decoded message does not start with an InfoSRC submessage");
+    return false;
+  }
+
+  info_src = (InfoSRC_t *)d_ptr;
+  d_ptr += info_src->smhdr.octetsToNextHeader + RTPS_SUBMESSAGE_HEADER_SIZE;
+  d_len -= info_src->smhdr.octetsToNextHeader + RTPS_SUBMESSAGE_HEADER_SIZE;
+
+  if (d_len != o_len)
+  {
+    CU_FAIL("decoded message has not the expected size");
+    return false;
+  }
+
+  if (memcmp(d_ptr, o_ptr, o_len) != 0)
+  {
+    CU_FAIL("decode submessage is not equal to original");
+    print_octets("decoded", d_ptr, d_len);
+    print_octets("orig   ", o_ptr, o_len);
+    return false;
+  }
+  return true;
+}
+
 static void decode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKind_Enum transformation_kind, uint32_t key_size)
 {
   DDS_Security_boolean result;
@@ -528,16 +577,9 @@ static void decode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
   CU_ASSERT_FATAL(result);
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
-  CU_ASSERT_FATAL(decoded_buffer._length == plain_buffer._length);
-
   reset_exception(&exception);
 
-  if (memcmp(decoded_buffer._buffer, plain_buffer._buffer, plain_buffer._length) != 0)
-  {
-    CU_FAIL("decode submessage is not equal to original");
-    print_octets("decoded_buffer", decoded_buffer._buffer, plain_buffer._length);
-    print_octets("plain_buffer", plain_buffer._buffer, plain_buffer._length);
-  }
+  (void)check_decoded_rtps_message(&decoded_buffer, &plain_buffer);
 
   unregister_remote_participant_of_participantB(remote_particpantA_crypto);
   unregister_remote_participants();
@@ -671,14 +713,8 @@ static void decode_rtps_message_authenticated(DDS_Security_CryptoTransformKind_E
     CU_ASSERT_FATAL(result);
     CU_ASSERT(exception.code == 0);
     CU_ASSERT(exception.message == NULL);
-    CU_ASSERT_FATAL(decoded_buffer._length == plain_buffer._length);
 
-    if (memcmp(decoded_buffer._buffer, plain_buffer._buffer, plain_buffer._length) != 0)
-    {
-      CU_FAIL("decode submessage is not equal to original");
-      print_octets("decoded_buffer", decoded_buffer._buffer, plain_buffer._length);
-      print_octets("plain_buffer", plain_buffer._buffer, plain_buffer._length);
-    }
+    (void)check_decoded_rtps_message(&decoded_buffer, &plain_buffer);
 
     reset_exception(&exception);
     DDS_Security_OctetSeq_deinit((&decoded_buffer));

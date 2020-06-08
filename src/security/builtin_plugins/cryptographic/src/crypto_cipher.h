@@ -36,27 +36,13 @@
  * @param[in]     session_key   The session key used to encode the provided data
  * @param[in]     key_size      The size of the session key (128 or 256 bit)
  * @param[in]     iv            The init vector used by the encoding
- * @param[in]     data          The data to be encoded
- * @param[in]     data_len      The size of the data to be encoded
- * @param[in]     aad           The additional data not be encoded but only used in the computation of the mac
- * @param[in]     aad_len       The size of the additional data
- * @param[in,out] encrypted     The buffer to hold on return the encoded data
- * @param[in,out] encrypted_len The size of the encrypted data buffer
+ * @param[in]     num_inp       The number of input data segments
+ * @param[in]     inpdata       The input data segments
+ * @param[in,out] outpdata      The output data segment
  * @param[in,out] tag           Contains on return the mac value calculated over the provided data
  * @param[in,out] ex            Security exception (optional)
  */
-bool crypto_cipher_encrypt_data(
-    const crypto_session_key_t *session_key,
-    uint32_t key_size,
-    const unsigned char *iv,
-    const unsigned char *data,
-    uint32_t data_len,
-    const unsigned char *aad,
-    uint32_t aad_len,
-    unsigned char *encrypted,
-    uint32_t *encrypted_len,
-    crypto_hmac_t *tag,
-    DDS_Security_SecurityException *ex);
+bool crypto_cipher_encrypt_data(const crypto_session_key_t *session_key, uint32_t key_size, const struct init_vector *iv, const size_t num_inp, const crypto_data_t *inpdata, crypto_data_t *outpdata, crypto_hmac_t *tag, DDS_Security_SecurityException *ex);
 
 /**
  * @brief Decodes the provided data using the session key and key_size
@@ -75,25 +61,12 @@ bool crypto_cipher_encrypt_data(
  *
  * @param[in]     session       Contains the session key and key size used of the decoding
  * @param[in]     iv            The init vector used by the decoding
- * @param[in]     encrypted     The encoded data
- * @param[in]     encrypted_len The size of the encoded data
- * @param[in]     aad           The not encoded data used in the verification of the provided mac
- * @param[in]     aad_len       The size of the additional data
- * @param[in,out] data          The buffer to hold on return the decoded data
- * @param[in,out] data_len      The size of the decoded data buffer
+ * @param[in]     num_inp       The number of input data segments
+ * @param[in]     inpdata       The input data segments
+ * @param[in,out] outpdata      The output data segment
  * @param[in,out] tag           The mac value which has to be verified
  * @param[in,out] ex            Security exception (optional)
  */
-bool crypto_cipher_decrypt_data(
-    const remote_session_info *session,
-    const unsigned char *iv,
-    const unsigned char *encrypted,
-    uint32_t encrypted_len,
-    const unsigned char *aad,
-    uint32_t aad_len,
-    unsigned char *data,
-    uint32_t *data_len,
-    crypto_hmac_t *tag,
-    DDS_Security_SecurityException *ex);
+bool crypto_cipher_decrypt_data(const remote_session_info *session, const struct init_vector *iv, const size_t num_inp, const crypto_data_t *inpdata, crypto_data_t *outpdata, crypto_hmac_t *tag, DDS_Security_SecurityException *ex);
 
 #endif /* CRYPTO_CIPHER_H */

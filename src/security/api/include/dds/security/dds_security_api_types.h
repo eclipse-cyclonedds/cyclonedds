@@ -72,6 +72,7 @@ typedef DDS_Security_long_long DDS_Security_InstanceHandle;
 typedef DDS_Security_long_long DDS_Security_HandshakeHandle;
 typedef DDS_Security_long_long DDS_Security_SharedSecretHandle;
 typedef DDS_Security_long_long DDS_Security_PermissionsHandle;
+typedef DDS_Security_long_long DDS_Security_CryptoHandle;
 typedef DDS_Security_long_long DDS_Security_ParticipantCryptoHandle;
 typedef DDS_Security_long_long DDS_Security_DatawriterCryptoHandle;
 typedef DDS_Security_long_long DDS_Security_DatareaderCryptoHandle;
@@ -87,6 +88,7 @@ typedef DDS_Security_unsigned_long DDS_Security_BuiltinTopicKey_t[3];
 typedef DDS_Security_octet DDS_Security_GuidPrefix_t[12];
 
 /* Sequences */
+typedef DDS_Security_LongLongSeq DDS_Security_CryptoHandleSeq;
 typedef DDS_Security_LongLongSeq DDS_Security_ParticipantCryptoHandleSeq;
 typedef DDS_Security_LongLongSeq DDS_Security_DatawriterCryptoHandleSeq;
 typedef DDS_Security_LongLongSeq DDS_Security_DatareaderCryptoHandleSeq;

@@ -25,17 +25,9 @@
 
 #define CRYPTO_SESSION_ID_SIZE 4
 #define CRYPTO_INIT_VECTOR_SUFFIX_SIZE 8
+#define CRYPTO_INIT_VECTOR_SIZE (CRYPTO_SESSION_ID_SIZE + CRYPTO_INIT_VECTOR_SUFFIX_SIZE)
 #define CRYPTO_CIPHER_BLOCK_SIZE 16
 
-typedef enum SecureSubmsgKind_t
-{
-  SMID_SEC_BODY_KIND = 0x30,
-  SMID_SEC_PREFIX_KIND = 0x31,
-  SMID_SEC_POSTFIX_KIND = 0x32,
-  SMID_SRTPS_PREFIX_KIND = 0x33,
-  SMID_SRTPS_POSTFIX_KIND = 0x34,
-  SMID_SRTPS_INFO_SRC_KIND = 0x0c
-} SecureSubmsgKind_t;
 
 typedef struct crypto_session_key_t
 {
@@ -113,10 +105,19 @@ typedef enum RTPS_Message_Type
   RTPS_Message_Type_SRTPS_POSTFIX = 0x34
 } RTPS_Message_Type;
 
+struct init_vector {
+  unsigned char u[CRYPTO_INIT_VECTOR_SIZE];
+};
+
 struct receiver_specific_mac
 {
   DDS_Security_CryptoTransformKeyId receiver_mac_key_id;
   crypto_hmac_t receiver_mac;
 };
+
+typedef struct crypto_data {
+  unsigned char *base;
+  size_t length;
+} crypto_data_t;
 
 #endif /* CRYPTO_DEFS_H */
