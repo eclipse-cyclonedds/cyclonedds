@@ -114,6 +114,8 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_cdrstream.h
     ddsi_time.h
     ddsi_ownip.h
+    ddsi_cfgunits.h
+    ddsi_cfgelems.h
     q_addrset.h
     q_bitset.h
     q_bswap.h
