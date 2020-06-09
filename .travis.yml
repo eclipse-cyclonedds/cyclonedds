@@ -45,7 +45,7 @@ linux_gcc8: &linux_gcc8
     apt:
       update: true
       sources: [ ubuntu-toolchain-r-test ]
-      packages: [ gcc-8, g++-8, trang ]
+      packages: [ gcc-8, g++-8 ]
   before_install:
     - eval "export CC=gcc-8"
     - eval "export CXX=g++-8"
@@ -61,7 +61,7 @@ linux_clang: &linux_clang
   addons:
     apt:
       update: true
-      packages: [ trang ]
+      packages: [ ]
   before_install:
     - eval "export CC=clang"
     - eval "export CXX=clang++"
@@ -75,7 +75,7 @@ osx_xcode: &osx_xcode
   compiler: clang
   addons:
     homebrew:
-      packages: [ python3, trang ]
+      packages: [ python3 ]
   before_install:
     - eval "export CC=clang"
     - eval "export CXX=clang++"
@@ -184,7 +184,6 @@ script:
   - mkdir build
   - cd build
   - conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ../${CONANFILE:-conanfile.txt}
-  - which trang && BUILD_SCHEMA=1 || BUILD_SCHEMA=0
   - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
           -DCMAKE_INSTALL_PREFIX=${INSTALLPREFIX}
           -DUSE_SANITIZER=${ASAN}
@@ -193,7 +192,7 @@ script:
           -DENABLE_LIFESPAN=${LIFESPAN}
           -DENABLE_DEADLINE_MISSED=${DEADLINE}
           -DBUILD_TESTING=on
-          -DBUILD_SCHEMA=${BUILD_SCHEMA}
+          -DBUILD_SCHEMA=on
           -DWERROR=on
           -G "${GENERATOR}" ..
   - |
@@ -218,11 +217,15 @@ script:
       CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
       CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
     fi
-  - cd ..
   - |
-    if [ ${BUILD_SCHEMA} ]; then
-      git diff --exit-code; # check that no files (e.g. generated schemas) are changed
+    if [ "${SSL}" = "YES" ] && [ "${SECURITY}" = "YES" ]; then
+      cmake --build . --config ${BUILD_TYPE} --target schema && \
+      cmake --build . --config ${BUILD_TYPE} --target options_doc && \
+      diff --strip-trailing-cr ../etc/cyclonedds.rnc docs/cyclonedds.rnc && \
+      diff --strip-trailing-cr ../etc/cyclonedds.xsd docs/cyclonedds.xsd && \
+      diff --strip-trailing-cr ../docs/manual/options.md docs/manual/options.md
     fi
+  - cd ..
   - mkdir helloworld_build
   - cd helloworld_build
   - cmake -DCMAKE_PREFIX_PATH=${INSTALLPREFIX}

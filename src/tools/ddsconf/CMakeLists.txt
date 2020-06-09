@@ -1,5 +1,5 @@
 #
-# Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
+# Copyright(c) 2020 ADLINK Technology Limited and others
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License v. 2.0 which is available at
@@ -9,10 +9,9 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-set(CMAKE_INSTALL_TOOLSDIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/tools")
-add_subdirectory(pubsub)
-add_subdirectory(ddsls)
-add_subdirectory(ddsconf)
-if(BUILD_IDLC)
-  add_subdirectory(ddsperf)
-endif()
+add_executable(ddsconf ddsconf.c rnc.c md.c xsd.c)
+target_link_libraries(ddsconf PRIVATE ddsc)
+target_include_directories(ddsconf
+  PRIVATE
+    $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsc,INCLUDE_DIRECTORIES>>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
