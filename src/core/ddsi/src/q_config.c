@@ -1223,9 +1223,9 @@ static void pf_allow_multicast(struct cfgst *cfgst, void *parent, struct cfgelem
 {
   uint32_t *p = cfg_address (cfgst, parent, cfgelem);
   if (*p == AMC_DEFAULT)
-  {
     cfg_logelem (cfgst, sources, "default");
-  }
+  else if (*p == 0)
+    cfg_logelem (cfgst, sources, "false");
   else
   {
     do_print_uint32_bitset (cfgst, *p, sizeof (allow_multicast_codes) / sizeof (*allow_multicast_codes), allow_multicast_names, allow_multicast_codes, sources, "");
