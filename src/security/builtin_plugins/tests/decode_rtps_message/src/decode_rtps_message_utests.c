@@ -756,7 +756,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_args, .init = suite_decode_r
   DDS_Security_SecurityException exception = {NULL, 0, 0};
   DDS_Security_DatareaderCryptoHandleSeq reader_list;
   DDS_Security_OctetSeq plain_buffer = {0, 0, NULL};
-  DDS_Security_OctetSeq empty_buffer = {0, 0, NULL};
+//  DDS_Security_OctetSeq empty_buffer = {0, 0, NULL};
   DDS_Security_OctetSeq encoded_buffer = {0, 0, NULL};
   DDS_Security_OctetSeq decoded_buffer = {0, 0, NULL};
   int32_t index;
@@ -809,66 +809,6 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_args, .init = suite_decode_r
   CU_ASSERT_FATAL(result);
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
-
-  reset_exception(&exception);
-
-  /* decoded buffer NULL */
-  result = crypto->crypto_transform->decode_rtps_message(
-      crypto->crypto_transform,
-      NULL,
-      &encoded_buffer,
-      local_participantB_crypto,
-      remote_particpantA_crypto,
-      &exception);
-
-  if (!result)
-  {
-    printf("decode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* encoded buffer NULL */
-  result = crypto->crypto_transform->decode_rtps_message(
-      crypto->crypto_transform,
-      &decoded_buffer,
-      NULL,
-      local_participantB_crypto,
-      remote_particpantA_crypto,
-      &exception);
-
-  if (!result)
-  {
-    printf("decode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* empty encoded buffer */
-  result = crypto->crypto_transform->decode_rtps_message(
-      crypto->crypto_transform,
-      &decoded_buffer,
-      &empty_buffer,
-      local_participantB_crypto,
-      remote_particpantA_crypto,
-      &exception);
-
-  if (!result)
-  {
-    printf("decode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
 
   reset_exception(&exception);
 

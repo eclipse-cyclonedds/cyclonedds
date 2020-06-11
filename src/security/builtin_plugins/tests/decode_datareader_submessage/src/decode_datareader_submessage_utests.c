@@ -864,66 +864,6 @@ CU_Test(ddssec_builtin_decode_datareader_submessage, invalid_args, .init = suite
 
   reset_exception(&exception);
 
-  /* decoded buffer NULL */
-  result = crypto->crypto_transform->decode_datareader_submessage(
-      crypto->crypto_transform,
-      NULL,
-      &encoded_buffer,
-      local_writer_crypto,
-      remote_reader_crypto,
-      &exception);
-
-  if (!result)
-  {
-    printf("decode_datareader_submessage: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* encoded buffer NULL */
-  result = crypto->crypto_transform->decode_datareader_submessage(
-      crypto->crypto_transform,
-      &decoded_buffer,
-      NULL,
-      local_writer_crypto,
-      remote_reader_crypto,
-      &exception);
-
-  if (!result)
-  {
-    printf("decode_datareader_submessage: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* empty encoded buffer */
-  result = crypto->crypto_transform->decode_datareader_submessage(
-      crypto->crypto_transform,
-      &decoded_buffer,
-      &empty_buffer,
-      local_writer_crypto,
-      remote_reader_crypto,
-      &exception);
-
-  if (!result)
-  {
-    printf("decode_datareader_submessage: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
   /* local writer crypto 0 */
   result = crypto->crypto_transform->decode_datareader_submessage(
       crypto->crypto_transform,

@@ -619,7 +619,7 @@ encode_serialized_payload(
     DDS_Security_SecurityException *ex)
 {
   dds_security_crypto_transform_impl *impl = (dds_security_crypto_transform_impl *)instance;
-  dds_security_crypto_key_factory *factory;
+  dds_security_crypto_key_factory *factory = cryptography_get_crypto_key_factory(impl->crypto);
   crypto_data_t plain_data;
   session_key_material *session;
   struct crypto_prefix *prefix;
@@ -632,25 +632,13 @@ encode_serialized_payload(
 
   DDSRT_UNUSED_ARG(extra_inline_qos);
 
-//  memset(hmac.data, 0, sizeof(crypto_hmac_t));
-
-  if (!instance || !encoded_buffer || !plain_buffer || plain_buffer->_length == 0 || writer_id == 0)
-  {
-    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
-        "encode_serialized_payload: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
-    goto fail_inv_arg;
-  }
-
-  /* check if the payload is aligned on a 4 byte boundary */
-  if ((plain_buffer->_length % 4) != 0)
-  {
-    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_DATA_NOT_ALIGNED_CODE, 0,
-        "encode_serialized_payload: " DDS_SECURITY_ERR_INVALID_CRYPTO_DATA_NOT_ALIGNED_MESSAGE);
-    goto fail_inv_arg;
-  }
+  assert(encoded_buffer);
+  assert(plain_buffer);
+  assert(plain_buffer->_length);
+  assert(writer_id != 0);
+  assert((plain_buffer->_length % 4) == 0);
 
   /* Retrieve key material from sending_datawriter_crypto from factory */
-  factory = cryptography_get_crypto_key_factory(impl->crypto);
   if (!crypto_factory_get_writer_key_material(factory, writer_id, 0, true, &session, NULL, ex))
     goto fail_inv_arg;
 
@@ -1045,39 +1033,16 @@ encode_datawriter_submessage(
     DDS_Security_SecurityException *ex)
 {
   dds_security_crypto_transform_impl *impl = (dds_security_crypto_transform_impl *)instance;
-  dds_security_crypto_key_factory *factory;
+  dds_security_crypto_key_factory *factory = cryptography_get_crypto_key_factory(impl->crypto);
   DDS_Security_boolean result = false;
 
-  /* check arguments */
-  if (!instance || !encoded_submsg || (writer_crypto == 0) || !reader_crypto_list ||
-      (reader_crypto_list->_length == 0) || (reader_crypto_list->_length > INT32_MAX) ||
-      !index || ((*index) >= (int32_t)reader_crypto_list->_length))
-  {
-    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
-        "encode_datawriter_submessage: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
-    goto enc_dw_submsg_inv_args;
-  }
-
-  if (*index == 0)
-  {
-    if (!plain_submsg || (plain_submsg->_length == 0))
-    {
-      DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
-          "encode_datawriter_submessage: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
-      goto enc_dw_submsg_inv_args;
-    }
-  }
-  else
-  {
-    if (encoded_submsg->_length == 0)
-    {
-      DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
-          "encode_datawriter_submessage: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
-      goto enc_dw_submsg_inv_args;
-    }
-  }
-
-  factory = cryptography_get_crypto_key_factory(impl->crypto);
+  assert(encoded_submsg);
+  assert(writer_crypto != 0);
+  assert(reader_crypto_list && reader_crypto_list->_length > 0);
+  assert(index);
+  assert(*index < (int32_t)reader_crypto_list->_length);
+  assert((plain_submsg && plain_submsg->_length > 0) || *index > 0);
+  assert(encoded_submsg->_length > 0 || *index == 0);
 
   if (*index == 0)
   {
@@ -1100,7 +1065,6 @@ encode_datawriter_submessage(
     }
   }
 
-enc_dw_submsg_inv_args:
   return result;
 }
 
@@ -1114,23 +1078,14 @@ encode_datareader_submessage(
     DDS_Security_SecurityException *ex)
 {
   dds_security_crypto_transform_impl *impl = (dds_security_crypto_transform_impl *)instance;
-  dds_security_crypto_key_factory *factory;
+  dds_security_crypto_key_factory *factory = cryptography_get_crypto_key_factory(impl->crypto);
   DDS_Security_DatawriterCryptoHandle writer_crypto = 0;
   session_key_material *session = NULL;
   DDS_Security_ProtectionKind protection_kind;
   DDS_Security_boolean result = false;
 
-  /* check arguments */
-  if (!instance || !encoded_submsg || (reader_crypto == 0) ||
-      !plain_submsg || (plain_submsg->_length == 0) ||
-      !writer_crypto_list || (writer_crypto_list->_length == 0))
-  {
-    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
-        "encode_datawriter_submessage: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
-    return false;
-  }
-
-  factory = cryptography_get_crypto_key_factory(impl->crypto);
+  assert(encoded_submsg);
+  assert(plain_submsg && plain_submsg->_length > 0 && plain_submsg->_buffer);
 
   if (writer_crypto_list->_length > 0)
     writer_crypto = writer_crypto_list->_buffer[0];
@@ -1372,74 +1327,43 @@ enc_rtps_inv_keymat:
 
 static DDS_Security_boolean
 encode_rtps_message(dds_security_crypto_transform *instance,
-                    DDS_Security_OctetSeq *encoded_rtps_message,
-                    const DDS_Security_OctetSeq *plain_rtps_message,
-                    const DDS_Security_ParticipantCryptoHandle sending_participant_crypto,
-                    const DDS_Security_ParticipantCryptoHandleSeq *receiving_participant_crypto_list,
-                    int32_t *receiving_participant_crypto_list_index,
+                    DDS_Security_OctetSeq *encoded_message,
+                    const DDS_Security_OctetSeq *plain_message,
+                    const DDS_Security_ParticipantCryptoHandle remote_crypto,
+                    const DDS_Security_ParticipantCryptoHandleSeq *local_crypto_list,
+                    int32_t *index,
                     DDS_Security_SecurityException *ex)
 {
   dds_security_crypto_transform_impl *impl = (dds_security_crypto_transform_impl *)instance;
-  dds_security_crypto_key_factory *factory;
-  DDS_Security_ParticipantCryptoHandle remote_id;
+  dds_security_crypto_key_factory *factory = cryptography_get_crypto_key_factory(impl->crypto);
+  DDS_Security_ParticipantCryptoHandle remote_id = 0;
   DDS_Security_boolean result = false;
 
-  /* check arguments */
-  if (!instance || !encoded_rtps_message || sending_participant_crypto == 0 || !receiving_participant_crypto_list ||
-      !receiving_participant_crypto_list_index || receiving_participant_crypto_list->_length == 0 ||
-      (*receiving_participant_crypto_list_index) > (int32_t)receiving_participant_crypto_list->_length ||
-      receiving_participant_crypto_list->_length > INT32_MAX)
-  {
-    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
-        "encode_rtps_message: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
-    goto enc_rtps_inv_arg;
-  }
-
-  if (*receiving_participant_crypto_list_index == 0)
-  {
-    if (!plain_rtps_message || plain_rtps_message->_length == 0 || !plain_rtps_message->_buffer)
-    {
-      DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
-          "encode_rtps_message: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
-      goto enc_rtps_inv_arg;
-    }
-  }
-  else
-  {
-    if (encoded_rtps_message->_length == 0)
-    {
-      DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
-          "encode_rtps_message: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
-      goto enc_rtps_inv_arg;
-    }
-  }
-
-  factory = cryptography_get_crypto_key_factory(impl->crypto);
+  assert(encoded_message);
+  assert((plain_message && plain_message->_length > 0 && plain_message->_buffer) || *index > 0);
+  assert(encoded_message->_length > 0 || *index == 0);
 
   /* get remote participant handle */
-  remote_id = receiving_participant_crypto_list->_buffer[*receiving_participant_crypto_list_index];
+  if (local_crypto_list->_length > 0)
+    remote_id = local_crypto_list->_buffer[*index];
 
   /* When the receiving_participant_crypto_list_index is 0 then retrieve the key material of the writer */
-  if (*receiving_participant_crypto_list_index == 0)
-  {
-    result = encode_rtps_message_encrypt (factory, encoded_rtps_message, plain_rtps_message, sending_participant_crypto,
-        receiving_participant_crypto_list, receiving_participant_crypto_list_index, remote_id, ex);
-  }
+  if (*index == 0)
+    result = encode_rtps_message_encrypt (factory, encoded_message, plain_message, remote_crypto, local_crypto_list, index, remote_id, ex);
   else
   {
     crypto_buffer_t buffer;
 
-    crypto_buffer_from_seq(&buffer, encoded_rtps_message);
+    crypto_buffer_from_seq(&buffer, encoded_message);
     /* When the receiving_participant_crypto_list_index is not 0 then add a signature for the specific reader */
-    result = add_receiver_specific_mac(factory, &buffer, sending_participant_crypto, remote_id, ex);
+    result = add_receiver_specific_mac(factory, &buffer, remote_crypto, remote_id, ex);
     if (result)
     {
-       (*receiving_participant_crypto_list_index)++;
-       crypto_buffer_to_seq(&buffer, encoded_rtps_message);
+       (*index)++;
+       crypto_buffer_to_seq(&buffer, encoded_message);
     }
   }
 
-enc_rtps_inv_arg:
   return result;
 }
 
@@ -1447,8 +1371,8 @@ static DDS_Security_boolean
 decode_rtps_message(dds_security_crypto_transform *instance,
                     DDS_Security_OctetSeq *plain_buffer,
                     const DDS_Security_OctetSeq *encoded_buffer,
-                    const DDS_Security_ParticipantCryptoHandle receiving_participant_crypto,
-                    const DDS_Security_ParticipantCryptoHandle sending_participant_crypto,
+                    const DDS_Security_ParticipantCryptoHandle receiving_crypto,
+                    const DDS_Security_ParticipantCryptoHandle sending_crypto,
                     DDS_Security_SecurityException *ex)
 {
   dds_security_crypto_transform_impl *impl = (dds_security_crypto_transform_impl *)instance;
@@ -1457,7 +1381,7 @@ decode_rtps_message(dds_security_crypto_transform *instance,
   struct encrypted_state estate;
   unsigned char *buffer = NULL;
   size_t buflen;
-  crypto_data_t encoded_data;
+  crypto_data_t encoded_data = { .base = encoded_buffer->_buffer, .length = encoded_buffer->_length };
   crypto_data_t decoded_body;
   static const char *context = "decode_rtps_message";
   participant_key_material *pp_key_material;
@@ -1465,17 +1389,8 @@ decode_rtps_message(dds_security_crypto_transform *instance,
   DDS_Security_ProtectionKind remote_protection_kind;
   DDS_Security_boolean result = false;
 
-  /* check arguments */
-  if (!instance || !encoded_buffer || sending_participant_crypto == 0 || receiving_participant_crypto == 0 ||
-      encoded_buffer->_length == 0 || !encoded_buffer->_buffer || !plain_buffer)
-  {
-    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
-        "decode_rtps_message: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
-    return false;
-  }
-
-  encoded_data.base = encoded_buffer->_buffer;
-  encoded_data.length = encoded_buffer->_length;
+  assert(encoded_buffer->_length > 0);
+  assert(plain_buffer);
 
   /* split the encoded submessage in the corresponding parts */
   if (!split_encoded_rtps_message(&encoded_data, &estate))
@@ -1486,7 +1401,7 @@ decode_rtps_message(dds_security_crypto_transform *instance,
   }
 
   /* Retrieve key material from sending_participant_crypto and receiving_participant_crypto from factory */
-  if (!crypto_factory_get_participant_crypto_tokens(factory, receiving_participant_crypto, sending_participant_crypto, &pp_key_material, &remote_key_material, &remote_protection_kind, ex))
+  if (!crypto_factory_get_participant_crypto_tokens(factory, receiving_crypto, sending_crypto, &pp_key_material, &remote_key_material, &remote_protection_kind, ex))
     return false;
   else if (remote_key_material == NULL)
   {
@@ -1496,7 +1411,7 @@ decode_rtps_message(dds_security_crypto_transform *instance,
 
   if (has_origin_authentication(remote_protection_kind))
   { /* default governance value */
-    if (!check_reader_specific_mac(factory, &estate.prefix, &estate.postfix, CRYPTO_OBJECT_KIND_REMOTE_CRYPTO, sending_participant_crypto, context, ex))
+    if (!check_reader_specific_mac(factory, &estate.prefix, &estate.postfix, CRYPTO_OBJECT_KIND_REMOTE_CRYPTO, sending_crypto, context, ex))
       goto fail_reader_mac;
   }
 
@@ -1572,12 +1487,12 @@ fail_reader_mac:
 static DDS_Security_boolean
 preprocess_secure_submsg(
     dds_security_crypto_transform *instance,
-    DDS_Security_DatawriterCryptoHandle *datawriter_crypto,
-    DDS_Security_DatareaderCryptoHandle *datareader_crypto,
-    DDS_Security_SecureSubmessageCategory_t *secure_submessage_category,
-    const DDS_Security_OctetSeq *encoded_rtps_submessage,
-    const DDS_Security_ParticipantCryptoHandle receiving_participant_crypto,
-    const DDS_Security_ParticipantCryptoHandle sending_participant_crypto,
+    DDS_Security_DatawriterCryptoHandle *writer_crypto,
+    DDS_Security_DatareaderCryptoHandle *reader_crypto,
+    DDS_Security_SecureSubmessageCategory_t *category,
+    const DDS_Security_OctetSeq *encoded_submessage,
+    const DDS_Security_ParticipantCryptoHandle receiving_crypto,
+    const DDS_Security_ParticipantCryptoHandle sending_crypto,
     DDS_Security_SecurityException *ex)
 {
   dds_security_crypto_transform_impl *impl = (dds_security_crypto_transform_impl *)instance;
@@ -1587,15 +1502,12 @@ preprocess_secure_submsg(
   DDS_Security_boolean result;
   struct secure_prefix prefix;
 
-  if (!instance || !datawriter_crypto || !datareader_crypto || sending_participant_crypto == 0 ||
-      !secure_submessage_category || !encoded_rtps_submessage || encoded_rtps_submessage->_length == 0)
-  {
-    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
-        "preprocess_secure_submsg: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
-    return false;
-  }
+  assert(writer_crypto);
+  assert(reader_crypto);
+  assert(category);
+  assert(encoded_submessage && encoded_submessage->_length > 0);
 
-  if (!get_secure_prefix(encoded_rtps_submessage, &prefix))
+  if (!get_secure_prefix(encoded_submessage, &prefix))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
         "preprocess_secure_submsg: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
@@ -1604,20 +1516,20 @@ preprocess_secure_submsg(
 
   /* Lookup the end point information associated with the transform id */
   result = crypto_factory_get_endpoint_relation(
-      factory, receiving_participant_crypto, sending_participant_crypto,
-      prefix.transform_id, &remote_handle, &local_handle, secure_submessage_category, ex);
+      factory, receiving_crypto, sending_crypto,
+      prefix.transform_id, &remote_handle, &local_handle, category, ex);
 
   if (result)
   {
-    if (*secure_submessage_category == DDS_SECURITY_DATAWRITER_SUBMESSAGE)
+    if (*category == DDS_SECURITY_DATAWRITER_SUBMESSAGE)
     {
-      *datawriter_crypto = (DDS_Security_DatawriterCryptoHandle)remote_handle;
-      *datareader_crypto = (DDS_Security_DatareaderCryptoHandle)local_handle;
+      *writer_crypto = (DDS_Security_DatawriterCryptoHandle)remote_handle;
+      *reader_crypto = (DDS_Security_DatareaderCryptoHandle)local_handle;
     }
     else
     {
-      *datareader_crypto = (DDS_Security_DatareaderCryptoHandle)remote_handle;
-      *datawriter_crypto = (DDS_Security_DatawriterCryptoHandle)local_handle;
+      *reader_crypto = (DDS_Security_DatareaderCryptoHandle)remote_handle;
+      *writer_crypto = (DDS_Security_DatawriterCryptoHandle)local_handle;
     }
   }
 
@@ -1642,14 +1554,8 @@ decode_submessage(
   remote_session_info remote_session;
   struct encrypted_state est;
 
-  /* check arguments */
-  if (local_crypto == 0 || remote_crypto == 0 || !encoded_submsg ||
-      encoded_submsg->_length == 0 || !encoded_submsg->_buffer || !plain_submsg)
-  {
-    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
-        "%s: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE, context);
-    return false;
-  }
+  assert(encoded_submsg && encoded_submsg->_length > 0 && encoded_submsg->_buffer);
+  assert(plain_submsg);
 
   /* split the encoded submessage in the corresponding parts */
   if (!split_encoded_submessage(encoded_submsg, &est))
@@ -1780,62 +1686,50 @@ decode_serialized_payload(
     DDS_Security_SecurityException *ex)
 {
   dds_security_crypto_transform_impl *impl = (dds_security_crypto_transform_impl *)instance;
-  dds_security_crypto_key_factory *factory;
+  dds_security_crypto_key_factory *factory = cryptography_get_crypto_key_factory(impl->crypto);
   crypto_data_t plain_data;
   DDS_Security_BasicProtectionKind basic_protection_kind;
   master_key_material *writer_master_key;
   remote_session_info remote_session;
   struct encrypted_state estate;
+  DDS_Security_boolean result = false;
 
   DDSRT_UNUSED_ARG(inline_qos);
 
-  if (!instance || !encoded_buffer || !plain_buffer || reader_id == 0 || writer_id == 0)
-  {
-    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
-        "decode_serialized_payload: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
-    goto fail_prepare;
-  }
-
-  if ((plain_buffer->_buffer != NULL) || (plain_buffer->_length != 0))
-  {
-    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
-        "decode_serialized_payload: given plain_buffer not empty");
-    goto fail_prepare;
-  }
-
-  /* Retrieve key material from sending_datawriter_crypto from factory */
-  factory = cryptography_get_crypto_key_factory(impl->crypto);
+  assert(encoded_buffer && encoded_buffer->_buffer && encoded_buffer->_length > 0);
+  assert(plain_buffer);
 
   /* determine CryptoHeader, CryptoContent and CryptoFooter*/
   if (!split_encoded_serialized_payload(encoded_buffer, &estate))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
         "decode_serialized_payload: Invalid syntax of encoded payload");
-    goto fail_prepare;
+    return false;
   }
 
   if (estate.postfix.length != 0)
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
         "decode_serialized_payload: Received specific_macs");
-    goto fail_prepare;
+    return false;
   }
 
+  /* Retrieve key material from sending_datawriter_crypto from factory */
   if (!crypto_factory_get_remote_writer_key_material(factory, reader_id, writer_id, estate.prefix.transform_id, &writer_master_key, NULL, &basic_protection_kind, ex))
-    goto fail_prepare;
+    return false;
+
+  plain_data.base = ddsrt_malloc(estate.body.data.length);
+  plain_data.length = estate.body.data.length;
 
   /* calculate the session key */
   if (!initialize_remote_session_info(&remote_session, &estate.prefix, writer_master_key->master_salt, writer_master_key->master_sender_key, writer_master_key->transformation_kind, ex))
     goto fail_decrypt;
 
-  plain_data.base = ddsrt_malloc(estate.body.data.length);
-  plain_data.length = estate.body.data.length;
-
   /*
-     * Depending on encryption, the payload part between Header and Footer is
-     * either CryptoContent or the original plain payload.
-     * See spec: 9.5.3.3.4.4 Result from encode_serialized_payload
-     */
+   * Depending on encryption, the payload part between Header and Footer is
+   * either CryptoContent or the original plain payload.
+   * See spec: 9.5.3.3.4.4 Result from encode_serialized_payload
+   */
   if (is_encryption_required(estate.prefix.transform_kind))
   {
     /* Is encryption expected? */
@@ -1860,9 +1754,7 @@ decode_serialized_payload(
     }
     /* When the CryptoHeader indicates that authentication is performed then calculate the HMAC */
     if (!crypto_cipher_decrypt_data(&remote_session, &estate.prefix.iv, 1, &estate.body.data, NULL, &estate.postfix.common_mac, ex))
-    {
       goto fail_decrypt;
-    }
     memcpy(plain_data.base, estate.body.data.base,  estate.body.data.length);
   }
   else
@@ -1875,14 +1767,12 @@ decode_serialized_payload(
   plain_buffer->_buffer = plain_data.base;
   plain_buffer->_length = plain_buffer->_maximum = (uint32_t)plain_data.length;
 
-  CRYPTO_OBJECT_RELEASE(writer_master_key);
-  return true;
+  result =  true;
 
 fail_decrypt:
-  ddsrt_free(plain_data.base);
+  if (!result) ddsrt_free(plain_data.base);
   CRYPTO_OBJECT_RELEASE(writer_master_key);
-fail_prepare:
-  return false;
+  return result;
 }
 
 dds_security_crypto_transform *
