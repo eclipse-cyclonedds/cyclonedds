@@ -933,8 +933,14 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
       struct whc_borrowed_sample sample;
       if (seqbase + i >= min_seq_to_rexmit && whc_borrow_sample (wr->whc, seq, &sample))
       {
-        if (!wr->retransmitting && sample.unacked)
-          writer_set_retransmitting (wr);
+        if (sample.unacked)
+        {
+          // Let requests for retransmitting unacked data keep the heartbeat rate up
+          // otherwise very large messages can cause it drop and slow down recovery.
+          wr->hbcontrol.hbs_since_last_write = 0;
+          if (!wr->retransmitting)
+            writer_set_retransmitting (wr);
+        }
 
         if (rst->gv->config.retransmit_merging != REXMIT_MERGE_NEVER && rn->assumed_in_sync && !prd->filter)
         {
@@ -1557,6 +1563,12 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
         else
           enqueued = qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0);
       }
+    }
+    if (sample.unacked)
+    {
+      // Let requests for retransmitting unacked data keep the heartbeat rate up
+      // otherwise, very large messages can cause it drop and slow down recovery.
+      wr->hbcontrol.hbs_since_last_write = 0;
     }
     whc_return_sample (wr->whc, &sample, false);
   }
