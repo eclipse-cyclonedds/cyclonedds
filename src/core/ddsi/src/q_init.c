@@ -1010,6 +1010,22 @@ void ddsi_set_deafmute (struct ddsi_domaingv *gv, bool deaf, bool mute, int64_t 
   GVLOGDISC ("\n");
 }
 
+static void free_conns (struct ddsi_domaingv *gv)
+{
+  // Depending on settings, various "conn"s can alias others, this makes sure we free each one only once
+  // FIXME: perhaps store them in a table instead?
+  ddsi_tran_conn_t cs[] = { gv->xmit_conn, gv->disc_conn_mc, gv->data_conn_mc, gv->disc_conn_uc, gv->data_conn_uc };
+  for (size_t i = 0; i < sizeof (cs) / sizeof (cs[0]); i++)
+  {
+    if (cs[i] == NULL)
+      continue;
+    for (size_t j = i + 1; j < sizeof (cs) / sizeof (cs[0]); j++)
+      if (cs[i] == cs[j])
+        cs[j] = NULL;
+    ddsi_conn_free (cs[i]);
+  }
+}
+
 int rtps_init (struct ddsi_domaingv *gv)
 {
   uint32_t port_disc_uc = 0;
@@ -1390,7 +1406,10 @@ int rtps_init (struct ddsi_domaingv *gv)
     }
   }
 
-  /* Create shared transmit connection */
+  /* Create shared transmit connection -- FIXME: no longer needed, but can't do the testing right now */
+  if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
+    gv->xmit_conn = gv->data_conn_uc;
+  else
   {
     const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_XMIT, .m_diffserv = 0 };
     dds_return_t rc;
@@ -1534,18 +1553,9 @@ err_post_omg_security_init:
 #endif
 #endif
 err_mc_conn:
-  if (gv->xmit_conn)
-    ddsi_conn_free (gv->xmit_conn);
-  if (gv->disc_conn_mc)
-    ddsi_conn_free (gv->disc_conn_mc);
-  if (gv->data_conn_mc && gv->data_conn_mc != gv->disc_conn_mc)
-    ddsi_conn_free (gv->data_conn_mc);
+  free_conns (gv);
   if (gv->pcap_fp)
     ddsrt_mutex_destroy (&gv->pcap_lock);
-  if (gv->disc_conn_uc != gv->disc_conn_mc)
-    ddsi_conn_free (gv->disc_conn_uc);
-  if (gv->data_conn_uc != gv->disc_conn_uc)
-    ddsi_conn_free (gv->data_conn_uc);
   free_group_membership (gv->mship);
 err_unicast_sockets:
   ddsi_tkmap_free (gv->m_tkmap);
@@ -1876,16 +1886,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
   ddsrt_thread_pool_free (gv->thread_pool);
 
   (void) joinleave_spdp_defmcip (gv, 0);
-
-  ddsi_conn_free (gv->xmit_conn);
-  ddsi_conn_free (gv->disc_conn_mc);
-  if (gv->data_conn_mc != gv->disc_conn_mc)
-    ddsi_conn_free (gv->data_conn_mc);
-  if (gv->disc_conn_uc != gv->disc_conn_mc)
-    ddsi_conn_free (gv->disc_conn_uc);
-  if (gv->data_conn_uc != gv->disc_conn_uc)
-    ddsi_conn_free (gv->data_conn_uc);
-
+  free_conns (gv);
   free_group_membership(gv->mship);
   ddsi_tran_factories_fini (gv);
 
