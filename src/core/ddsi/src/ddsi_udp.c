@@ -457,6 +457,11 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
       ipv6 = true;
       if (bind_to_any)
         socketname.a6.sin6_addr = ddsrt_in6addr_any;
+      if (IN6_IS_ADDR_LINKLOCAL (&socketname.a6.sin6_addr))
+      {
+        // A hack that only works if there is only a single interface in use
+        socketname.a6.sin6_scope_id = gv->interfaceNo;
+      }
       break;
 #endif
     default:
