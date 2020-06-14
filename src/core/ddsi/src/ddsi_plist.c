@@ -2332,20 +2332,18 @@ static dds_return_t add_locator (nn_locators_t *ls, uint64_t *present, uint64_t 
   return 0;
 }
 
-static int locator_address_prefix12_zero (const nn_locator_t *loc)
+static int locator_address_prefix_zero (const nn_locator_t *loc, size_t prefixlen)
 {
-  /* loc has has 32 bit ints preceding the address, hence address is
-     4-byte aligned; reading char* as unsigneds isn't illegal type
-     punning */
-  const uint32_t *u = (const uint32_t *) loc->address;
-  return (u[0] == 0 && u[1] == 0 && u[2] == 0);
+  assert (prefixlen <= sizeof (loc->address));
+  for (size_t i = 0; i < prefixlen; i++)
+    if (loc->address[i] != 0)
+      return 0;
+  return 1;
 }
 
 static int locator_address_zero (const nn_locator_t *loc)
 {
-  /* see locator_address_prefix12_zero */
-  const uint32_t *u = (const uint32_t *) loc->address;
-  return (u[0] == 0 && u[1] == 0 && u[2] == 0 && u[3] == 0);
+  return locator_address_prefix_zero (loc, sizeof (loc->address));
 }
 
 static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t wanted, uint64_t fl, const struct dd *dd, const struct ddsi_tran_factory *factory)
@@ -2367,26 +2365,34 @@ static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t w
   {
     case NN_LOCATOR_KIND_UDPv4:
     case NN_LOCATOR_KIND_TCPv4:
-      if (loc.port <= 0 || loc.port > 65535)
+      if (!ddsi_factory_supports (factory, loc.kind))
+        return 0;
+      if (!ddsi_is_valid_port (factory, loc.port))
         return DDS_RETCODE_BAD_PARAMETER;
-      if (!locator_address_prefix12_zero (&loc))
+      if (!locator_address_prefix_zero (&loc, 12))
         return DDS_RETCODE_BAD_PARAMETER;
       break;
     case NN_LOCATOR_KIND_UDPv6:
     case NN_LOCATOR_KIND_TCPv6:
-      if (loc.port <= 0 || loc.port > 65535)
-        return DDS_RETCODE_BAD_PARAMETER;
-      break;
-    case NN_LOCATOR_KIND_UDPv4MCGEN: {
-      const nn_udpv4mcgen_address_t *x = (const nn_udpv4mcgen_address_t *) loc.address;
-      if (!ddsi_factory_supports (factory, NN_LOCATOR_KIND_UDPv4))
+      if (!ddsi_factory_supports (factory, loc.kind))
         return 0;
-      if (loc.port <= 0 || loc.port > 65536)
-        return DDS_RETCODE_BAD_PARAMETER;
-      if ((uint32_t) x->base + x->count >= 28 || x->count == 0 || x->idx >= x->count)
+      if (!ddsi_is_valid_port (factory, loc.port))
         return DDS_RETCODE_BAD_PARAMETER;
       break;
-    }
+    case NN_LOCATOR_KIND_UDPv4MCGEN:
+      if (!vendor_is_eclipse (dd->vendorid))
+        return 0;
+      else
+      {
+        const nn_udpv4mcgen_address_t *x = (const nn_udpv4mcgen_address_t *) loc.address;
+        if (!ddsi_factory_supports (factory, NN_LOCATOR_KIND_UDPv4))
+          return 0;
+        if (!ddsi_is_valid_port (factory, loc.port))
+          return DDS_RETCODE_BAD_PARAMETER;
+        if ((uint32_t) x->base + x->count >= 28 || x->count == 0 || x->idx >= x->count)
+          return DDS_RETCODE_BAD_PARAMETER;
+      }
+      break;
     case NN_LOCATOR_KIND_INVALID:
       if (!locator_address_zero (&loc))
         return DDS_RETCODE_BAD_PARAMETER;
@@ -2397,6 +2403,19 @@ static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t w
     case NN_LOCATOR_KIND_RESERVED:
       /* silently drop "reserved" locators. */
       return 0;
+    case NN_LOCATOR_KIND_RAWETH:
+      if (!vendor_is_eclipse (dd->vendorid))
+        return 0;
+      else
+      {
+        if (!ddsi_factory_supports (factory, NN_LOCATOR_KIND_RAWETH))
+          return 0;
+        if (!ddsi_is_valid_port (factory, loc.port))
+          return DDS_RETCODE_BAD_PARAMETER;
+        if (!locator_address_prefix_zero (&loc, 10))
+          return DDS_RETCODE_BAD_PARAMETER;
+      }
+      break;
     default:
       return 0;
   }
