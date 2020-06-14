@@ -44,86 +44,46 @@ static int compare_locators_vwrap (const void *va, const void *vb);
 static const ddsrt_avl_ctreedef_t addrset_treedef =
   DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct addrset_node, avlnode), offsetof (struct addrset_node, loc), compare_locators_vwrap, 0);
 
-static int add_addresses_to_addrset_1 (const struct ddsi_domaingv *gv, struct addrset *as, const char *ip, int port_mode, const char *msgtag, int req_mc, int mcgen_base, int mcgen_count, int mcgen_idx)
+static int add_addresses_to_addrset_1 (const struct ddsi_domaingv *gv, struct addrset *as, nn_locator_t *loc, int port_mode, const char *msgtag)
 {
   char buf[DDSI_LOCSTRLEN];
-  nn_locator_t loc;
+  int32_t maxidx;
 
-  switch (ddsi_locator_from_string(gv, &loc, ip, gv->m_factory))
+  // check whether port number, address type and mode make sense, and prepare the
+  // locator by patching the first port number to use if none is given
+  if (loc->port != NN_LOCATOR_PORT_INVALID)
   {
-    case AFSR_OK:
-      break;
-    case AFSR_INVALID:
-      GVERROR ("%s: %s: not a valid address\n", msgtag, ip);
+    if (port_mode >= 0 && loc->port != (uint32_t) port_mode)
+    {
+      GVERROR ("%s: %s: port mismatch (expecting no port or %d)\n", msgtag, ddsi_locator_to_string (buf, sizeof(buf), loc), port_mode);
       return -1;
-    case AFSR_UNKNOWN:
-      GVERROR ("%s: %s: unknown address\n", msgtag, ip);
-      return -1;
-    case AFSR_MISMATCH:
-      GVERROR ("%s: %s: address family mismatch\n", msgtag, ip);
-      return -1;
+    }
+    maxidx = 0;
   }
-
-  if (req_mc && !ddsi_is_mcaddr (gv, &loc))
+  else if (port_mode >= 0)
   {
-    GVERROR ("%s: %s: not a multicast address\n", msgtag, ip);
-    return -1;
+    loc->port = (uint32_t) port_mode;
+    maxidx = 0;
   }
-
-  if (mcgen_base == -1 && mcgen_count == -1 && mcgen_idx == -1)
-    ;
-  else if (loc.kind == NN_LOCATOR_KIND_UDPv4 && ddsi_is_mcaddr(gv, &loc) && mcgen_base >= 0 && mcgen_count > 0 && mcgen_base + mcgen_count < 28 && mcgen_idx >= 0 && mcgen_idx < mcgen_count)
+  else if (ddsi_is_mcaddr (gv, loc))
   {
-    nn_udpv4mcgen_address_t x;
-    memset(&x, 0, sizeof(x));
-    memcpy(&x.ipv4, loc.address + 12, 4);
-    x.base = (unsigned char) mcgen_base;
-    x.count = (unsigned char) mcgen_count;
-    x.idx = (unsigned char) mcgen_idx;
-    memset(loc.address, 0, sizeof(loc.address));
-    memcpy(loc.address, &x, sizeof(x));
-    loc.kind = NN_LOCATOR_KIND_UDPv4MCGEN;
+    loc->port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
+    maxidx = 0;
   }
   else
   {
-    GVERROR ("%s: %s,%d,%d,%d: IPv4 multicast address generator invalid or out of place\n",
-             msgtag, ip, mcgen_base, mcgen_count, mcgen_idx);
-    return -1;
+    loc->port = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, 0);
+    maxidx = gv->config.maxAutoParticipantIndex;
   }
 
-  if (port_mode >= 0)
+  GVLOG (DDS_LC_CONFIG, "%s: add %s", msgtag, ddsi_locator_to_string (buf, sizeof (buf), loc));
+  add_to_addrset (gv, as, loc);
+  for (int32_t i = 1; i < maxidx; i++)
   {
-    loc.port = (unsigned) port_mode;
-    GVLOG (DDS_LC_CONFIG, "%s: add %s", msgtag, ddsi_locator_to_string(buf, sizeof(buf), &loc));
-    add_to_addrset (gv, as, &loc);
+    loc->port = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, i);
+    GVLOG (DDS_LC_CONFIG, ", :%"PRIu32, loc->port);
+    add_to_addrset (gv, as, loc);
   }
-  else
-  {
-    GVLOG (DDS_LC_CONFIG, "%s: add ", msgtag);
-    if (!ddsi_is_mcaddr (gv, &loc))
-    {
-      assert (gv->config.maxAutoParticipantIndex >= 0);
-      for (int32_t i = 0; i <= gv->config.maxAutoParticipantIndex; i++)
-      {
-        loc.port = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, i);
-        if (i == 0)
-          GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(buf, sizeof(buf), &loc));
-        else
-          GVLOG (DDS_LC_CONFIG, ", :%"PRIu32, loc.port);
-        add_to_addrset (gv, as, &loc);
-      }
-    }
-    else
-    {
-      if (port_mode == -1)
-        loc.port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
-      else
-        loc.port = (uint32_t) port_mode;
-      GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(buf, sizeof(buf), &loc));
-      add_to_addrset (gv, as, &loc);
-    }
-  }
-
   GVLOG (DDS_LC_CONFIG, "\n");
   return 0;
 }
@@ -134,50 +94,43 @@ int add_addresses_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as
      port_mode >= 0 => always set port to port_mode
   */
   DDSRT_WARNING_MSVC_OFF(4996);
-  char *addrs_copy, *ip, *cursor, *a;
+  char *addrs_copy, *cursor, *a;
   int retval = -1;
   addrs_copy = ddsrt_strdup (addrs);
-  ip = ddsrt_malloc (strlen (addrs) + 1);
   cursor = addrs_copy;
   while ((a = ddsrt_strsep (&cursor, ",")) != NULL)
   {
-    int port = 0, pos;
-    int mcgen_base = -1, mcgen_count = -1, mcgen_idx = -1;
-    if (gv->config.transport_selector == TRANS_UDP || gv->config.transport_selector == TRANS_TCP)
+    nn_locator_t loc;
+    char buf[DDSI_LOCSTRLEN];
+
+    switch (ddsi_locator_from_string (gv, &loc, a, gv->m_factory))
     {
-      if (port_mode == -1 && sscanf (a, "%[^:]:%d%n", ip, &port, &pos) == 2 && a[pos] == 0)
-        ; /* XYZ:PORT */
-      else if (sscanf (a, "%[^;];%d;%d;%d%n", ip, &mcgen_base, &mcgen_count, &mcgen_idx, &pos) == 4 && a[pos] == 0)
-        port = port_mode; /* XYZ;BASE;COUNT;IDX for IPv4 MC address generators */
-      else if (sscanf (a, "%[^:]%n", ip, &pos) == 1 && a[pos] == 0)
-        port = port_mode; /* XYZ */
-      else { /* XY:Z -- illegal, but conversion routine should flag it */
-        strcpy (ip, a);
-        port = 0;
-      }
-    }
-    else
-    {
-      if (port_mode == -1 && sscanf (a, "[%[^]]]:%d%n", ip, &port, &pos) == 2 && a[pos] == 0)
-        ; /* [XYZ]:PORT */
-      else if (sscanf (a, "[%[^]]]%n", ip, &pos) == 1 && a[pos] == 0)
-        port = port_mode; /* [XYZ] */
-      else { /* XYZ -- let conversion routines handle errors */
-        strcpy (ip, a);
-        port = 0;
-      }
+      case AFSR_OK:
+        break;
+      case AFSR_INVALID:
+        GVERROR ("%s: %s: not a valid address\n", msgtag, a);
+        goto error;
+      case AFSR_UNKNOWN:
+        GVERROR ("%s: %s: unknown address\n", msgtag, a);
+        goto error;
+      case AFSR_MISMATCH:
+        GVERROR ("%s: %s: address family mismatch\n", msgtag, a);
+        goto error;
     }
 
-    if ((port > 0 && port <= 65535) || (port_mode == -1 && port == -1)) {
-      if (add_addresses_to_addrset_1 (gv, as, ip, port, msgtag, req_mc, mcgen_base, mcgen_count, mcgen_idx) < 0)
-        goto error;
-    } else {
-      GVERROR ("%s: %s: port %d invalid\n", msgtag, a, port);
+    if (req_mc && !ddsi_is_mcaddr (gv, &loc))
+    {
+      GVERROR ("%s: %s: not a multicast address\n", msgtag, ddsi_locator_to_string_no_port (buf, sizeof(buf), &loc));
+      goto error;
+    }
+
+    if (add_addresses_to_addrset_1 (gv, as, &loc, port_mode, msgtag) < 0)
+    {
+      goto error;
     }
   }
   retval = 0;
  error:
-  ddsrt_free (ip);
   ddsrt_free (addrs_copy);
   return retval;
   DDSRT_WARNING_MSVC_ON(4996);

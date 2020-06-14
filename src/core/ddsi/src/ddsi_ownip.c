@@ -274,7 +274,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
     if (i < gv->n_interfaces)
       selected_idx = i;
     else
-      GVERROR ("%s: does not match an available interface\n", gv->config.networkAddressString);
+      GVERROR ("%s: does not match an available interface supporting %s\n", gv->config.networkAddressString, gv->m_factory->m_typename);
   }
 
   if (selected_idx < 0)
