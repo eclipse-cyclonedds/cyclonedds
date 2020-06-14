@@ -1525,6 +1525,14 @@ int rtps_init (struct ddsi_domaingv *gv)
     qxev_callback (gv->xevents, reset_deaf_mute_time, reset_deaf_mute, gv);
   return 0;
 
+#if 0
+#ifdef DDSI_INCLUDE_SECURITY
+err_post_omg_security_init:
+  q_omg_security_stop (gv); // should be a no-op as it starts lazily
+  q_omg_security_deinit(gv->security_context);
+  q_omg_security_free (gv);
+#endif
+#endif
 err_mc_conn:
   if (gv->xmit_conn)
     ddsi_conn_free (gv->xmit_conn);
@@ -1562,9 +1570,6 @@ err_unicast_sockets:
   ddsrt_hh_free (gv->sertopics);
   ddsrt_mutex_destroy (&gv->sertopics_lock);
 #ifdef DDSI_INCLUDE_SECURITY
-  q_omg_security_stop (gv); // should be a no-op as it starts lazily
-  q_omg_security_deinit(gv->security_context);
-  q_omg_security_free (gv);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_rd);
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_wr);
