@@ -16,6 +16,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/sockets.h"
+#include "dds/ddsrt/string.h"
 #include "ddsi_eth.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_udp.h"
@@ -174,7 +175,8 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn_cmn, const nn_locator_
   }
   else if (rc != DDS_RETCODE_OK && rc != DDS_RETCODE_NOT_ALLOWED && rc != DDS_RETCODE_NO_CONNECTION)
   {
-    GVERROR ("ddsi_udp_conn_write failed with retcode %"PRId32"\n", rc);
+    char locbuf[DDSI_LOCSTRLEN];
+    GVERROR ("ddsi_udp_conn_write to %s failed with retcode %"PRId32"\n", ddsi_locator_to_string (locbuf, sizeof (locbuf), dst), rc);
   }
   return (rc == DDS_RETCODE_OK) ? ret : -1;
 }
@@ -699,9 +701,61 @@ static int ddsi_udp_is_ssm_mcaddr (const ddsi_tran_factory_t tran, const nn_loca
 }
 #endif
 
+static enum ddsi_locator_from_string_result mcgen_address_from_string (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str)
+{
+  // check for UDPv4MCGEN string, be lazy and refuse to recognize as a MCGEN form if there's anything "wrong" with it
+  DDSRT_WARNING_MSVC_OFF(4996);
+  char ipstr[280];
+  unsigned base, count, idx;
+  int ipstrlen, pos;
+  if (strlen (str) + 10 >= sizeof (ipstr)) // + 6 for appending a port
+    return AFSR_INVALID;
+  else if (sscanf (str, "%255[^;]%n;%u;%u;%u%n", ipstr, &ipstrlen, &base, &count, &idx, &pos) != 4)
+    return AFSR_INVALID;
+  else if (str[pos] != 0 && str[pos] != ':')
+    return AFSR_INVALID;
+  else if (!(count > 0 && base < 28 && count < 28 && base + count < 28 && idx < count))
+    return AFSR_INVALID;
+  if (str[pos] == ':')
+  {
+    unsigned port;
+    int pos2;
+    if (sscanf (str + pos, ":%u%n", &port, &pos2) != 1 || str[pos + pos2] != 0)
+      return AFSR_INVALID;
+    // append port to IP component so that ddsi_ipaddr_from_string can do all of the work
+    // except for filling the specials
+    assert (ipstrlen >= 0 && (size_t) ipstrlen < sizeof (ipstr));
+    assert (pos2 >= 0 && (size_t) pos2 < sizeof (ipstr) - (size_t) ipstrlen);
+    ddsrt_strlcpy (ipstr + ipstrlen, str + pos, sizeof (ipstr) - (size_t) ipstrlen);
+  }
+
+  enum ddsi_locator_from_string_result res = ddsi_ipaddr_from_string (tran, loc, ipstr, tran->m_kind);
+  if (res != AFSR_OK)
+    return res;
+  assert (loc->kind == NN_LOCATOR_KIND_UDPv4);
+  if (!ddsi_udp_is_mcaddr (tran, loc))
+    return AFSR_INVALID;
+
+  nn_udpv4mcgen_address_t x;
+  DDSRT_STATIC_ASSERT (sizeof (x) <= sizeof (loc->address));
+  memset (&x, 0, sizeof(x));
+  memcpy (&x.ipv4, loc->address + 12, 4);
+  x.base = (unsigned char) base;
+  x.count = (unsigned char) count;
+  x.idx = (unsigned char) idx;
+  memset (loc->address, 0, sizeof (loc->address));
+  memcpy (loc->address, &x, sizeof (x));
+  loc->kind = NN_LOCATOR_KIND_UDPv4MCGEN;
+  return AFSR_OK;
+  DDSRT_WARNING_MSVC_ON(4996);
+}
+
 static enum ddsi_locator_from_string_result ddsi_udp_address_from_string (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str)
 {
-  return ddsi_ipaddr_from_string (tran, loc, str, tran->m_kind);
+  if (tran->m_kind == TRANS_UDP && mcgen_address_from_string (tran, loc, str) == AFSR_OK)
+    return AFSR_OK;
+  else
+    return ddsi_ipaddr_from_string (tran, loc, str, tran->m_kind);
 }
 
 static char *ddsi_udp_locator_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)

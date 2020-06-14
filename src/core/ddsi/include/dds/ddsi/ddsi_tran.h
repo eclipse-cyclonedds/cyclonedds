@@ -203,8 +203,8 @@ struct ddsi_tran_qos
 
 void ddsi_tran_factories_fini (struct ddsi_domaingv *gv);
 void ddsi_factory_add (struct ddsi_domaingv *gv, ddsi_tran_factory_t factory);
-void ddsi_factory_free (ddsi_tran_factory_t factory);
-ddsi_tran_factory_t ddsi_factory_find (const struct ddsi_domaingv *gv, const char * type);
+DDS_EXPORT void ddsi_factory_free (ddsi_tran_factory_t factory);
+DDS_EXPORT ddsi_tran_factory_t ddsi_factory_find (const struct ddsi_domaingv *gv, const char * type);
 ddsi_tran_factory_t ddsi_factory_find_supported_kind (const struct ddsi_domaingv *gv, int32_t kind);
 void ddsi_factory_conn_init (const struct ddsi_tran_factory *factory, ddsi_tran_conn_t conn);
 
@@ -261,7 +261,7 @@ int ddsi_is_mcaddr (const struct ddsi_domaingv *gv, const nn_locator_t *loc);
 int ddsi_is_ssm_mcaddr (const struct ddsi_domaingv *gv, const nn_locator_t *loc);
 enum ddsi_nearby_address_result ddsi_is_nearby_address (const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface *interf);
 
-enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi_domaingv *gv, nn_locator_t *loc, const char *str, ddsi_tran_factory_t default_factory);
+DDS_EXPORT enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi_domaingv *gv, nn_locator_t *loc, const char *str, ddsi_tran_factory_t default_factory);
 
 /*  8 for transport/
     1 for [
