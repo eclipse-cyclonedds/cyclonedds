@@ -293,7 +293,7 @@ identifier                [a-zA-Z_][a-zA-Z0-9_]*
       yyterminate();
     }
 
-    yylval->literal.flags = DDSTS_ULONGLONG;
+    yylval->literal.flags = DDSTS_INT64 | DDSTS_UNSIGNED;
     yylval->literal.value.ullng = ullng;
     return IDL_T_INTEGER_LITERAL;
   }
