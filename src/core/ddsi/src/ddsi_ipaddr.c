@@ -75,7 +75,7 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const nn_locator_
   return DNAR_DISTANT;
 }
 
-enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str, int32_t kind)
+enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (const struct ddsi_tran_factory *tran, nn_locator_t *loc, const char *str, int32_t kind)
 {
   DDSRT_WARNING_MSVC_OFF(4996);
   char copy[264];

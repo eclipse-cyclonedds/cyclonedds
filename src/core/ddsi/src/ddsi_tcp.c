@@ -1114,19 +1114,19 @@ static void ddsi_tcp_release_factory (struct ddsi_tran_factory *fact_cmn)
   ddsrt_free (fact);
 }
 
-static enum ddsi_locator_from_string_result ddsi_tcp_address_from_string (ddsi_tran_factory_t fact, nn_locator_t *loc, const char *str)
+static enum ddsi_locator_from_string_result ddsi_tcp_address_from_string (const struct ddsi_tran_factory *fact, nn_locator_t *loc, const char *str)
 {
   return ddsi_ipaddr_from_string(fact, loc, str, fact->m_kind);
 }
 
-static int ddsi_tcp_is_mcaddr (const ddsi_tran_factory_t tran, const nn_locator_t *loc)
+static int ddsi_tcp_is_mcaddr (const struct ddsi_tran_factory *tran, const nn_locator_t *loc)
 {
   (void) tran;
   (void) loc;
   return 0;
 }
 
-static int ddsi_tcp_is_ssm_mcaddr (const ddsi_tran_factory_t tran, const nn_locator_t *loc)
+static int ddsi_tcp_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const nn_locator_t *loc)
 {
   (void) tran;
   (void) loc;
@@ -1138,7 +1138,7 @@ static enum ddsi_nearby_address_result ddsi_tcp_is_nearby_address (const nn_loca
   return ddsi_ipaddr_is_nearby_address(loc, ownloc, ninterf, interf);
 }
 
-static int ddsi_tcp_is_valid_port (ddsi_tran_factory_t fact, uint32_t port)
+static int ddsi_tcp_is_valid_port (const struct ddsi_tran_factory *fact, uint32_t port)
 {
   (void) fact;
   return (port <= 65535);

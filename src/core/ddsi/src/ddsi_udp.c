@@ -658,7 +658,7 @@ static void ddsi_udp_release_conn (ddsi_tran_conn_t conn_cmn)
   ddsrt_free (conn_cmn);
 }
 
-static int ddsi_udp_is_mcaddr (const ddsi_tran_factory_t tran, const nn_locator_t *loc)
+static int ddsi_udp_is_mcaddr (const struct ddsi_tran_factory *tran, const nn_locator_t *loc)
 {
   (void) tran;
   switch (loc->kind)
@@ -684,7 +684,7 @@ static int ddsi_udp_is_mcaddr (const ddsi_tran_factory_t tran, const nn_locator_
 }
 
 #ifdef DDSI_INCLUDE_SSM
-static int ddsi_udp_is_ssm_mcaddr (const ddsi_tran_factory_t tran, const nn_locator_t *loc)
+static int ddsi_udp_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const nn_locator_t *loc)
 {
   (void) tran;
   switch (loc->kind)
@@ -706,7 +706,7 @@ static int ddsi_udp_is_ssm_mcaddr (const ddsi_tran_factory_t tran, const nn_loca
 }
 #endif
 
-static enum ddsi_locator_from_string_result mcgen_address_from_string (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str)
+static enum ddsi_locator_from_string_result mcgen_address_from_string (const struct ddsi_tran_factory *tran, nn_locator_t *loc, const char *str)
 {
   // check for UDPv4MCGEN string, be lazy and refuse to recognize as a MCGEN form if there's anything "wrong" with it
   DDSRT_WARNING_MSVC_OFF(4996);
@@ -755,7 +755,7 @@ static enum ddsi_locator_from_string_result mcgen_address_from_string (ddsi_tran
   DDSRT_WARNING_MSVC_ON(4996);
 }
 
-static enum ddsi_locator_from_string_result ddsi_udp_address_from_string (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str)
+static enum ddsi_locator_from_string_result ddsi_udp_address_from_string (const struct ddsi_tran_factory *tran, nn_locator_t *loc, const char *str)
 {
   if (tran->m_kind == TRANS_UDP && mcgen_address_from_string (tran, loc, str) == AFSR_OK)
     return AFSR_OK;
@@ -798,7 +798,7 @@ static void ddsi_udp_fini (ddsi_tran_factory_t fact)
   ddsrt_free (fact);
 }
 
-static int ddsi_udp_is_valid_port (ddsi_tran_factory_t fact, uint32_t port)
+static int ddsi_udp_is_valid_port (const struct ddsi_tran_factory *fact, uint32_t port)
 {
   (void) fact;
   return (port <= 65535);
