@@ -87,7 +87,7 @@ static bool new_sequence(ddsts_context_t *context, ddsts_type_t *element_type, u
 
 extern bool ddsts_new_sequence(ddsts_context_t *context, ddsts_type_t *base, ddsts_literal_t *size, ddsts_type_t **result)
 {
-  assert(size->flags == DDSTS_ULONGLONG);
+  assert(size->flags == (DDSTS_INT64 | DDSTS_UNSIGNED));
   return new_sequence(context, base, size->value.ullng, result);
 }
 
@@ -111,7 +111,7 @@ static bool new_string(ddsts_context_t *context, ddsts_flags_t flags, unsigned l
 
 extern bool ddsts_new_string(ddsts_context_t *context, ddsts_literal_t *size, ddsts_type_t **result)
 {
-  assert(size->flags == DDSTS_ULONGLONG);
+  assert(size->flags == (DDSTS_INT64 | DDSTS_UNSIGNED));
   return new_string(context, DDSTS_STRING, size->value.ullng, result);
 }
 
@@ -122,20 +122,20 @@ extern bool ddsts_new_string_unbound(ddsts_context_t *context, ddsts_type_t **re
 
 extern bool ddsts_new_wide_string(ddsts_context_t *context, ddsts_literal_t *size, ddsts_type_t **result)
 {
-  assert(size->flags == DDSTS_ULONGLONG);
-  return new_string(context, DDSTS_WIDE_STRING, size->value.ullng, result);
+  assert(size->flags == (DDSTS_INT64 | DDSTS_UNSIGNED));
+  return new_string(context, DDSTS_STRING | DDSTS_WIDE, size->value.ullng, result);
 }
 
 extern bool ddsts_new_wide_string_unbound(ddsts_context_t *context, ddsts_type_t **result)
 {
-  return new_string(context, DDSTS_WIDE_STRING, 0ULL, result);
+  return new_string(context, DDSTS_STRING | DDSTS_WIDE, 0ULL, result);
 }
 
 extern bool ddsts_new_fixed_pt(ddsts_context_t *context, ddsts_literal_t *digits, ddsts_literal_t *fraction_digits, ddsts_type_t **result)
 {
   assert(context != NULL);
-  assert(digits->flags == DDSTS_ULONGLONG);
-  assert(fraction_digits->flags == DDSTS_ULONGLONG);
+  assert(digits->flags == (DDSTS_INT64 | DDSTS_UNSIGNED));
+  assert(fraction_digits->flags == (DDSTS_INT64 | DDSTS_UNSIGNED));
   ddsts_type_t *fixed_pt;
   dds_return_t rc = ddsts_create_fixed_pt(digits->value.ullng, fraction_digits->value.ullng, &fixed_pt);
   if (rc != DDS_RETCODE_OK) {
@@ -160,7 +160,7 @@ static bool new_map(ddsts_context_t *context, ddsts_type_t *key_type, ddsts_type
 
 extern bool ddsts_new_map(ddsts_context_t *context, ddsts_type_t *key_type, ddsts_type_t *value_type, ddsts_literal_t *size, ddsts_type_t **result)
 {
-  assert(size->flags == DDSTS_ULONGLONG);
+  assert(size->flags == (DDSTS_INT64 | DDSTS_UNSIGNED));
   return new_map(context, key_type, value_type, size->value.ullng, result);
 }
 
@@ -629,34 +629,34 @@ extern bool ddsts_union_set_switch_type(ddsts_context_t *context, ddsts_flags_t 
 static const char* name_of_type(ddsts_flags_t flags)
 {
   switch(flags) {
-    case DDSTS_SHORT:          return "short"; break;
-    case DDSTS_LONG:           return "long"; break;
-    case DDSTS_LONGLONG:       return "long long"; break;
-    case DDSTS_USHORT:         return "unsigned short"; break;
-    case DDSTS_ULONG:          return "unsigned long"; break;
-    case DDSTS_ULONGLONG:      return "unsigned long long"; break;
-    case DDSTS_CHAR:           return "char"; break;
-    case DDSTS_WIDE_CHAR:      return "wide char"; break;
-    case DDSTS_BOOLEAN:        return "boolean"; break;
-    case DDSTS_OCTET:          return "octet"; break;
-    case DDSTS_INT8:           return "int8"; break;
-    case DDSTS_UINT8:          return "uint8"; break;
-    case DDSTS_FLOAT:          return "float"; break;
-    case DDSTS_DOUBLE:         return "double"; break;
-    case DDSTS_LONGDOUBLE:     return "long double"; break;
-    case DDSTS_FIXED_PT_CONST: return "fixed point const"; break;
-    case DDSTS_ANY:            return "any";
-    case DDSTS_SEQUENCE:       return "sequence";
-    case DDSTS_ARRAY:          return "array";
-    case DDSTS_STRING:         return "string";
-    case DDSTS_WIDE_STRING:    return "wide string";
-    case DDSTS_FIXED_PT:       return "fixed point";
-    case DDSTS_MAP:            return "map";
-    case DDSTS_MODULE:         return "module";
-    case DDSTS_FORWARD_STRUCT: return "forward struct";
-    case DDSTS_STRUCT:         return "struct";
-    case DDSTS_FORWARD_UNION:  return "forward union";
-    case DDSTS_UNION:          return "union";
+    case DDSTS_INT16:                       return "short"; break;
+    case DDSTS_INT32:                       return "long"; break;
+    case DDSTS_INT64:                       return "long long"; break;
+    case DDSTS_INT16 | DDSTS_UNSIGNED:      return "unsigned short"; break;
+    case DDSTS_INT32 | DDSTS_UNSIGNED:      return "unsigned long"; break;
+    case DDSTS_INT64 | DDSTS_UNSIGNED:      return "unsigned long long"; break;
+    case DDSTS_CHAR:                        return "char"; break;
+    case DDSTS_CHAR | DDSTS_WIDE:           return "wide char"; break;
+    case DDSTS_BOOLEAN:                     return "boolean"; break;
+    case DDSTS_OCTET:                       return "octet"; break;
+    case DDSTS_INT8:                        return "int8"; break;
+    case DDSTS_INT8 | DDSTS_UNSIGNED:       return "uint8"; break;
+    case DDSTS_FLOAT:                       return "float"; break;
+    case DDSTS_DOUBLE:                      return "double"; break;
+    case DDSTS_LONGDOUBLE:                  return "long double"; break;
+    case DDSTS_FIXED_PT_CONST:              return "fixed point const"; break;
+    case DDSTS_ANY:                         return "any";
+    case DDSTS_SEQUENCE:                    return "sequence";
+    case DDSTS_ARRAY:                       return "array";
+    case DDSTS_STRING:                      return "string";
+    case DDSTS_STRING | DDSTS_WIDE:         return "wide string";
+    case DDSTS_FIXED_PT:                    return "fixed point";
+    case DDSTS_MAP:                         return "map";
+    case DDSTS_MODULE:                      return "module";
+    case DDSTS_FORWARD_STRUCT:              return "forward struct";
+    case DDSTS_STRUCT:                      return "struct";
+    case DDSTS_FORWARD_UNION:               return "forward union";
+    case DDSTS_UNION:                       return "union";
     default:
       assert(0);
       break;
@@ -667,19 +667,19 @@ static const char* name_of_type(ddsts_flags_t flags)
 static dds_return_t cast_value_to_type(ddsts_literal_t *value, ddsts_flags_t flags, ddsts_literal_t *cast_type)
 {
   switch (value->flags) {
-    case DDSTS_ULONGLONG:
+    case DDSTS_INT64 | DDSTS_UNSIGNED:
       switch (flags) {
         case DDSTS_OCTET:
-        case DDSTS_UINT8:
-        case DDSTS_USHORT:
-        case DDSTS_ULONG:
-        case DDSTS_ULONGLONG:
+        case DDSTS_INT8 | DDSTS_UNSIGNED:
+        case DDSTS_INT16 | DDSTS_UNSIGNED:
+        case DDSTS_INT32 | DDSTS_UNSIGNED:
+        case DDSTS_INT64 | DDSTS_UNSIGNED:
           cast_type->value.ullng = value->value.ullng;
           cast_type->flags = flags;
           return DDS_RETCODE_OK;
         case DDSTS_INT8:
-        case DDSTS_SHORT:
-        case DDSTS_LONG:
+        case DDSTS_INT16:
+        case DDSTS_INT32:
           cast_type->value.llng = (signed long long)value->value.ullng;
           cast_type->flags = flags;
           return DDS_RETCODE_OK;
@@ -701,15 +701,15 @@ static bool equal_values(ddsts_literal_t *a, ddsts_literal_t *b)
   assert(a->flags == b->flags);
   switch (a->flags) {
     case DDSTS_OCTET:
-    case DDSTS_UINT8:
-    case DDSTS_USHORT:
-    case DDSTS_ULONG:
-    case DDSTS_ULONGLONG:
+    case DDSTS_INT8 | DDSTS_UNSIGNED:
+    case DDSTS_INT16 | DDSTS_UNSIGNED:
+    case DDSTS_INT32 | DDSTS_UNSIGNED:
+    case DDSTS_INT64 | DDSTS_UNSIGNED:
       return a->value.ullng == b->value.ullng;
       break;
     case DDSTS_INT8:
-    case DDSTS_SHORT:
-    case DDSTS_LONG:
+    case DDSTS_INT16:
+    case DDSTS_INT32:
       return a->value.llng == b->value.llng;
       break;
     default:
@@ -833,11 +833,9 @@ static bool keyable_type(ddsts_type_t *type)
     return false;
   }
   if (   DDSTS_IS_TYPE(type,
-                       DDSTS_SHORT | DDSTS_LONG | DDSTS_LONGLONG |
-                       DDSTS_USHORT | DDSTS_ULONG | DDSTS_ULONGLONG |
+                       DDSTS_INT16 | DDSTS_INT32 | DDSTS_INT64 |
                        DDSTS_CHAR | DDSTS_BOOLEAN | DDSTS_OCTET |
-                       DDSTS_INT8 | DDSTS_UINT8 |
-                       DDSTS_FLOAT | DDSTS_DOUBLE)
+                       DDSTS_INT8 | DDSTS_FLOAT | DDSTS_DOUBLE)
       || (DDSTS_IS_TYPE(type, DDSTS_STRING) && !is_array)) {
     return true;
   }
@@ -936,7 +934,7 @@ extern bool ddsts_add_declarator(ddsts_context_t *context, ddsts_identifier_t na
 extern bool ddsts_add_array_size(ddsts_context_t *context, ddsts_literal_t *value)
 {
   assert(context != NULL);
-  assert(value->flags == DDSTS_ULONGLONG);
+  assert(value->flags == (DDSTS_INT64 | DDSTS_UNSIGNED));
   array_size_t **ref_array_size = &context->array_sizes;
   while (*ref_array_size != NULL) {
     ref_array_size = &(*ref_array_size)->next;
