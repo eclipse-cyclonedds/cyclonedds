@@ -38,6 +38,9 @@ ENDFUNCTION(PREPEND)
 
 # Set module path before defining project so platform files will work.
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
+if(CMAKE_VERSION VERSION_LESS_EQUAL 3.12)
+  set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_CURRENT_LIST_DIR}/cmake/Modules/Override")
+endif()
 set(PROJECT_NAME_FULL "Eclipse Cyclone DDS")
 
 # Set some convenience variants of the project-name
