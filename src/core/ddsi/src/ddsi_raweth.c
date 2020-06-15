@@ -291,14 +291,14 @@ static void ddsi_raweth_release_conn (ddsi_tran_conn_t conn)
   ddsrt_free (conn);
 }
 
-static int ddsi_raweth_is_mcaddr (const ddsi_tran_factory_t tran, const nn_locator_t *loc)
+static int ddsi_raweth_is_mcaddr (const struct ddsi_tran_factory *tran, const nn_locator_t *loc)
 {
   (void) tran;
   assert (loc->kind == NN_LOCATOR_KIND_RAWETH);
   return (loc->address[10] & 1);
 }
 
-static int ddsi_raweth_is_ssm_mcaddr (const ddsi_tran_factory_t tran, const nn_locator_t *loc)
+static int ddsi_raweth_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const nn_locator_t *loc)
 {
   (void) tran;
   (void) loc;
@@ -314,7 +314,7 @@ static enum ddsi_nearby_address_result ddsi_raweth_is_nearby_address (const nn_l
   return DNAR_LOCAL;
 }
 
-static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str)
+static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (const struct ddsi_tran_factory *tran, nn_locator_t *loc, const char *str)
 {
   int i = 0;
   (void)tran;
@@ -356,7 +356,7 @@ static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t fact, enum tran
   return ddsrt_getifaddrs(ifs, afs);
 }
 
-static int ddsi_raweth_is_valid_port (ddsi_tran_factory_t fact, uint32_t port)
+static int ddsi_raweth_is_valid_port (const struct ddsi_tran_factory *fact, uint32_t port)
 {
   (void) fact;
   return (port >= 1 && port <= 65535);

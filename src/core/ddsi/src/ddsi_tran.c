@@ -22,11 +22,11 @@
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 
-extern inline uint32_t ddsi_conn_type (ddsi_tran_conn_t conn);
-extern inline uint32_t ddsi_conn_port (ddsi_tran_conn_t conn);
+extern inline uint32_t ddsi_conn_type (const struct ddsi_tran_conn *conn);
+extern inline uint32_t ddsi_conn_port (const struct ddsi_tran_conn *conn);
 extern inline dds_return_t ddsi_factory_create_listener (ddsi_tran_listener_t *listener, ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos);
 extern inline bool ddsi_factory_supports (const struct ddsi_tran_factory *factory, int32_t kind);
-extern inline int ddsi_is_valid_port (ddsi_tran_factory_t factory, uint32_t port);
+extern inline int ddsi_is_valid_port (const struct ddsi_tran_factory *factory, uint32_t port);
 extern inline ddsrt_socket_t ddsi_conn_handle (ddsi_tran_conn_t conn);
 extern inline int ddsi_conn_locator (ddsi_tran_conn_t conn, nn_locator_t * loc);
 extern inline ddsrt_socket_t ddsi_tran_handle (ddsi_tran_base_t base);
