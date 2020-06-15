@@ -548,19 +548,19 @@ static dds_return_t write_header_struct_member(ddsts_call_path_t *path, void *co
   }
 
   switch (DDSTS_TYPE_OF(type)) {
-    case DDSTS_SHORT:      output(((output_context_t*)context)->ostream, "int16_t $D", 'D', decl_name, '\0'); break;
-    case DDSTS_LONG:       output(((output_context_t*)context)->ostream, "int32_t $D", 'D', decl_name, '\0'); break;
-    case DDSTS_LONGLONG:   output(((output_context_t*)context)->ostream, "int64_t $D", 'D', decl_name, '\0'); break;
-    case DDSTS_USHORT:     output(((output_context_t*)context)->ostream, "uint16_t $D", 'D', decl_name, '\0'); break;
-    case DDSTS_ULONG:      output(((output_context_t*)context)->ostream, "uint32_t $D", 'D', decl_name, '\0'); break;
-    case DDSTS_ULONGLONG:  output(((output_context_t*)context)->ostream, "uint64_t $D", 'D', decl_name, '\0'); break;
-    case DDSTS_CHAR:       output(((output_context_t*)context)->ostream, "char $D", 'D', decl_name, '\0'); break;
-    case DDSTS_BOOLEAN:    output(((output_context_t*)context)->ostream, "bool $D", 'D', decl_name, '\0'); break;
-    case DDSTS_OCTET:      output(((output_context_t*)context)->ostream, "uint8_t $D", 'D', decl_name, '\0'); break;
-    case DDSTS_INT8:       output(((output_context_t*)context)->ostream, "int8_t $D", 'D', decl_name, '\0'); break;
-    case DDSTS_UINT8:      output(((output_context_t*)context)->ostream, "uint8_t $D", 'D', decl_name, '\0'); break;
-    case DDSTS_FLOAT:      output(((output_context_t*)context)->ostream, "float $D", 'D', decl_name, '\0'); break;
-    case DDSTS_DOUBLE:     output(((output_context_t*)context)->ostream, "double $D", 'D', decl_name, '\0'); break;
+    case DDSTS_INT16:                   output(((output_context_t*)context)->ostream, "int16_t $D", 'D', decl_name, '\0'); break;
+    case DDSTS_INT32:                   output(((output_context_t*)context)->ostream, "int32_t $D", 'D', decl_name, '\0'); break;
+    case DDSTS_INT64:                   output(((output_context_t*)context)->ostream, "int64_t $D", 'D', decl_name, '\0'); break;
+    case DDSTS_INT16 | DDSTS_UNSIGNED:  output(((output_context_t*)context)->ostream, "uint16_t $D", 'D', decl_name, '\0'); break;
+    case DDSTS_INT32 | DDSTS_UNSIGNED:  output(((output_context_t*)context)->ostream, "uint32_t $D", 'D', decl_name, '\0'); break;
+    case DDSTS_INT64 | DDSTS_UNSIGNED:  output(((output_context_t*)context)->ostream, "uint64_t $D", 'D', decl_name, '\0'); break;
+    case DDSTS_CHAR:                    output(((output_context_t*)context)->ostream, "char $D", 'D', decl_name, '\0'); break;
+    case DDSTS_BOOLEAN:                 output(((output_context_t*)context)->ostream, "bool $D", 'D', decl_name, '\0'); break;
+    case DDSTS_OCTET:                   output(((output_context_t*)context)->ostream, "uint8_t $D", 'D', decl_name, '\0'); break;
+    case DDSTS_INT8:                    output(((output_context_t*)context)->ostream, "int8_t $D", 'D', decl_name, '\0'); break;
+    case DDSTS_INT8 | DDSTS_UNSIGNED:   output(((output_context_t*)context)->ostream, "uint8_t $D", 'D', decl_name, '\0'); break;
+    case DDSTS_FLOAT:                   output(((output_context_t*)context)->ostream, "float $D", 'D', decl_name, '\0'); break;
+    case DDSTS_DOUBLE:                  output(((output_context_t*)context)->ostream, "double $D", 'D', decl_name, '\0'); break;
     case DDSTS_STRING: {
       if (type->string.max > 0) {
         char size_string[30];
@@ -1038,20 +1038,16 @@ static dds_return_t generate_op_codes_seq_element(ddsts_call_path_t *path, ddsts
   ddsts_ostream_t *ostream = ((op_codes_context_t*)context)->output_context.ostream;
   ddsts_type_t *type = path->type;
 
-  switch (DDSTS_TYPE_OF(type)) {
-    case DDSTS_SHORT:     return generate_op_codes_sequence(declaration, DDS_OP_TYPE_2BY, context); break;
-    case DDSTS_LONG:      return generate_op_codes_sequence(declaration, DDS_OP_TYPE_4BY, context); break;
-    case DDSTS_LONGLONG:  return generate_op_codes_sequence(declaration, DDS_OP_TYPE_8BY, context); break;
-    case DDSTS_USHORT:    return generate_op_codes_sequence(declaration, DDS_OP_TYPE_2BY, context); break;
-    case DDSTS_ULONG:     return generate_op_codes_sequence(declaration, DDS_OP_TYPE_4BY, context); break;
-    case DDSTS_ULONGLONG: return generate_op_codes_sequence(declaration, DDS_OP_TYPE_8BY, context); break;
-    case DDSTS_CHAR:      return generate_op_codes_sequence(declaration, DDS_OP_TYPE_1BY, context); break;
-    case DDSTS_BOOLEAN:   return generate_op_codes_sequence(declaration, DDS_OP_TYPE_1BY, context); break;
-    case DDSTS_OCTET:     return generate_op_codes_sequence(declaration, DDS_OP_TYPE_1BY, context); break;
-    case DDSTS_INT8:      return generate_op_codes_sequence(declaration, DDS_OP_TYPE_1BY, context); break;
-    case DDSTS_UINT8:     return generate_op_codes_sequence(declaration, DDS_OP_TYPE_1BY, context); break;
-    case DDSTS_FLOAT:     return generate_op_codes_sequence(declaration, DDS_OP_TYPE_4BY, context); break;
-    case DDSTS_DOUBLE:    return generate_op_codes_sequence(declaration, DDS_OP_TYPE_8BY, context); break;
+  switch (DDSTS_TYPE_OF_IGNORE_SIGN(type)) {
+    case DDSTS_INT16:   return generate_op_codes_sequence(declaration, DDS_OP_TYPE_2BY, context); break;
+    case DDSTS_INT32:   return generate_op_codes_sequence(declaration, DDS_OP_TYPE_4BY, context); break;
+    case DDSTS_INT64:   return generate_op_codes_sequence(declaration, DDS_OP_TYPE_8BY, context); break;
+    case DDSTS_CHAR:    return generate_op_codes_sequence(declaration, DDS_OP_TYPE_1BY, context); break;
+    case DDSTS_BOOLEAN: return generate_op_codes_sequence(declaration, DDS_OP_TYPE_1BY, context); break;
+    case DDSTS_OCTET:   return generate_op_codes_sequence(declaration, DDS_OP_TYPE_1BY, context); break;
+    case DDSTS_INT8:    return generate_op_codes_sequence(declaration, DDS_OP_TYPE_1BY, context); break;
+    case DDSTS_FLOAT:   return generate_op_codes_sequence(declaration, DDS_OP_TYPE_4BY, context); break;
+    case DDSTS_DOUBLE:  return generate_op_codes_sequence(declaration, DDS_OP_TYPE_8BY, context); break;
     case DDSTS_STRING: {
       if (type->string.max > 0) {
         ddsts_ostream_puts(ostream, "  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_BST,");
@@ -1217,9 +1213,8 @@ static dds_return_t generate_op_codes_declaration(ddsts_call_path_t *path, void 
         element_type = element_type->array.element_type;
       }
       if (DDSTS_IS_TYPE(element_type,
-                        DDSTS_SHORT | DDSTS_LONG | DDSTS_LONGLONG |
-                        DDSTS_USHORT | DDSTS_ULONG | DDSTS_ULONGLONG |
-                        DDSTS_CHAR | DDSTS_BOOLEAN | DDSTS_OCTET | DDSTS_UINT8 |
+                        DDSTS_INT16 | DDSTS_INT32 | DDSTS_INT64 |
+                        DDSTS_CHAR | DDSTS_BOOLEAN | DDSTS_OCTET | DDSTS_INT8 |
                         DDSTS_FLOAT | DDSTS_DOUBLE | DDSTS_SEQUENCE | DDSTS_STRING |
                         DDSTS_STRUCT | DDSTS_FORWARD_STRUCT)) {
         type = element_type;
@@ -1229,18 +1224,14 @@ static dds_return_t generate_op_codes_declaration(ddsts_call_path_t *path, void 
         array_size = 0ULL;
       }
     }
-    switch (DDSTS_TYPE_OF(type)) {
-      case DDSTS_SHORT:     return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_2BY, array_size, context); break;
-      case DDSTS_LONG:      return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_4BY, array_size, context); break;
-      case DDSTS_LONGLONG:  return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_8BY, array_size, context); break;
-      case DDSTS_USHORT:    return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_2BY, array_size, context); break;
-      case DDSTS_ULONG:     return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_4BY, array_size, context); break;
-      case DDSTS_ULONGLONG: return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_8BY, array_size, context); break;
+    switch (DDSTS_TYPE_OF_IGNORE_SIGN(type)) {
+      case DDSTS_INT16:     return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_2BY, array_size, context); break;
+      case DDSTS_INT32:     return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_4BY, array_size, context); break;
+      case DDSTS_INT64:     return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_8BY, array_size, context); break;
       case DDSTS_CHAR:      return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_1BY, array_size, context); break;
       case DDSTS_BOOLEAN:   return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_1BY, array_size, context); break;
       case DDSTS_OCTET:     return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_1BY, array_size, context); break;
       case DDSTS_INT8:      return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_1BY, array_size, context); break;
-      case DDSTS_UINT8:     return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_1BY, array_size, context); break;
       case DDSTS_FLOAT:     return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_4BY, array_size, context); break;
       case DDSTS_DOUBLE:    return generate_op_codes_simple_type(declaration, DDS_OP_TYPE_8BY, array_size, context); break;
       case DDSTS_STRING:
@@ -1429,20 +1420,20 @@ static dds_return_t write_meta_data_type_spec(ddsts_call_path_t *path, void *con
 {
   ddsts_type_t *type = path->type;
   switch (DDSTS_TYPE_OF(type)) {
-    case DDSTS_SHORT:      output(((output_context_t*)context)->ostream, "<Short/>", '\0'); break;
-    case DDSTS_LONG:       output(((output_context_t*)context)->ostream, "<Long/>", '\0'); break;
-    case DDSTS_LONGLONG:   output(((output_context_t*)context)->ostream, "<LongLong/>", '\0'); break;
-    case DDSTS_USHORT:     output(((output_context_t*)context)->ostream, "<UShort/>", '\0'); break;
-    case DDSTS_ULONG:      output(((output_context_t*)context)->ostream, "<ULong/>", '\0'); break;
-    case DDSTS_ULONGLONG:  output(((output_context_t*)context)->ostream, "<ULongLong/>", '\0'); break;
-    case DDSTS_CHAR:       output(((output_context_t*)context)->ostream, "<Char/>", '\0'); break;
-    case DDSTS_BOOLEAN:    output(((output_context_t*)context)->ostream, "<Boolean/>", '\0'); break;
-    case DDSTS_OCTET:      output(((output_context_t*)context)->ostream, "<Octet/>", '\0'); break;
-    case DDSTS_INT8:       output(((output_context_t*)context)->ostream, "<Int8/>", '\0'); break;
-    case DDSTS_UINT8:      output(((output_context_t*)context)->ostream, "<UInt8/>", '\0'); break;
-    case DDSTS_FLOAT:      output(((output_context_t*)context)->ostream, "<Float/>", '\0'); break;
-    case DDSTS_DOUBLE:     output(((output_context_t*)context)->ostream, "<Double/>", '\0'); break;
-    case DDSTS_LONGDOUBLE: output(((output_context_t*)context)->ostream, "<LongDouble/>", '\0'); break;
+    case DDSTS_INT16:                   output(((output_context_t*)context)->ostream, "<Short/>", '\0'); break;
+    case DDSTS_INT32:                   output(((output_context_t*)context)->ostream, "<Long/>", '\0'); break;
+    case DDSTS_INT64:                   output(((output_context_t*)context)->ostream, "<LongLong/>", '\0'); break;
+    case DDSTS_INT16 | DDSTS_UNSIGNED:  output(((output_context_t*)context)->ostream, "<UShort/>", '\0'); break;
+    case DDSTS_INT32 | DDSTS_UNSIGNED:  output(((output_context_t*)context)->ostream, "<ULong/>", '\0'); break;
+    case DDSTS_INT64 | DDSTS_UNSIGNED:  output(((output_context_t*)context)->ostream, "<ULongLong/>", '\0'); break;
+    case DDSTS_CHAR:                    output(((output_context_t*)context)->ostream, "<Char/>", '\0'); break;
+    case DDSTS_BOOLEAN:                 output(((output_context_t*)context)->ostream, "<Boolean/>", '\0'); break;
+    case DDSTS_OCTET:                   output(((output_context_t*)context)->ostream, "<Octet/>", '\0'); break;
+    case DDSTS_INT8:                    output(((output_context_t*)context)->ostream, "<Int8/>", '\0'); break;
+    case DDSTS_INT8 | DDSTS_UNSIGNED:   output(((output_context_t*)context)->ostream, "<UInt8/>", '\0'); break;
+    case DDSTS_FLOAT:                   output(((output_context_t*)context)->ostream, "<Float/>", '\0'); break;
+    case DDSTS_DOUBLE:                  output(((output_context_t*)context)->ostream, "<Double/>", '\0'); break;
+    case DDSTS_LONGDOUBLE:              output(((output_context_t*)context)->ostream, "<LongDouble/>", '\0'); break;
     case DDSTS_STRING: {
       if (type->string.max > 0ULL) {
         char size_string[30];
@@ -1643,19 +1634,15 @@ static alignment_t *max_alignment(alignment_t *a, alignment_t *b)
 
 static alignment_t *ddsts_type_alignment(ddsts_type_t *type)
 {
-  switch (DDSTS_TYPE_OF(type)) {
+  switch (DDSTS_TYPE_OF_IGNORE_SIGN(type)) {
     case DDSTS_CHAR:       return ALIGNMENT_ONE; break;
     case DDSTS_OCTET:      return ALIGNMENT_ONE; break;
     case DDSTS_INT8:       return ALIGNMENT_ONE; break;
-    case DDSTS_UINT8:      return ALIGNMENT_ONE; break;
     case DDSTS_BOOLEAN:    return ALIGNMENT_BOOL; break;
-    case DDSTS_SHORT:      return ALIGNMENT_TWO; break;
-    case DDSTS_USHORT:     return ALIGNMENT_TWO; break;
-    case DDSTS_LONG:       return ALIGNMENT_FOUR; break;
-    case DDSTS_ULONG:      return ALIGNMENT_FOUR; break;
+    case DDSTS_INT16:      return ALIGNMENT_TWO; break;
+    case DDSTS_INT32:      return ALIGNMENT_FOUR; break;
     case DDSTS_FLOAT:      return ALIGNMENT_FOUR; break;
-    case DDSTS_LONGLONG:   return ALIGNMENT_EIGHT; break;
-    case DDSTS_ULONGLONG:  return ALIGNMENT_EIGHT; break;
+    case DDSTS_INT64:      return ALIGNMENT_EIGHT; break;
     case DDSTS_DOUBLE:     return ALIGNMENT_EIGHT; break;
     case DDSTS_SEQUENCE:   return ALIGNMENT_PTR; break;
     case DDSTS_MAP:        return ALIGNMENT_PTR; break;
@@ -1680,11 +1667,11 @@ static alignment_t *ddsts_type_alignment(ddsts_type_t *type)
         return ddsts_type_alignment(type->forward.definition);
       }
       break;
-    case DDSTS_WIDE_CHAR:
+    case DDSTS_CHAR | DDSTS_WIDE:
     case DDSTS_LONGDOUBLE:
     case DDSTS_FIXED_PT_CONST:
     case DDSTS_ANY:
-    case DDSTS_WIDE_STRING:
+    case DDSTS_STRING | DDSTS_WIDE:
     case DDSTS_FIXED_PT:
       /* not supported */
       return ALIGNMENT_ONE;
@@ -1775,24 +1762,20 @@ static dds_return_t collect_key_properties(ddsts_call_path_t *path, void *contex
     size *= type->array.size;
     type = type->array.element_type;
   }
-  switch (DDSTS_TYPE_OF(type)) {
+  switch (DDSTS_TYPE_OF_IGNORE_SIGN(type)) {
     case DDSTS_CHAR:
     case DDSTS_BOOLEAN:
     case DDSTS_OCTET:
     case DDSTS_INT8:
-    case DDSTS_UINT8:
       break;
-    case DDSTS_SHORT:
-    case DDSTS_USHORT:
+    case DDSTS_INT16:
       size *= 2ULL;
       break;
-    case DDSTS_LONG:
-    case DDSTS_ULONG:
+    case DDSTS_INT32:
     case DDSTS_FLOAT:
       size *= 4ULL;
       break;
-    case DDSTS_LONGLONG:
-    case DDSTS_ULONGLONG:
+    case DDSTS_INT64:
     case DDSTS_DOUBLE:
       size *= 8ULL;
       break;

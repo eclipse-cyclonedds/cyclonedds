@@ -357,22 +357,22 @@ integer_type:
   ;
 
 signed_int:
-    "short" { $$ = DDSTS_SHORT; }
-  | "long" { $$ = DDSTS_LONG; }
-  | "long" "long" { $$ = DDSTS_LONGLONG; }
+    "short" { $$ = DDSTS_INT16; }
+  | "long" { $$ = DDSTS_INT32; }
+  | "long" "long" { $$ = DDSTS_INT64; }
   ;
 
 unsigned_int:
-    "unsigned" "short" { $$ = DDSTS_USHORT; }
-  | "unsigned" "long" { $$ = DDSTS_ULONG; }
-  | "unsigned" "long" "long" { $$ = DDSTS_ULONGLONG; }
+    "unsigned" "short" { $$ = DDSTS_INT16 | DDSTS_UNSIGNED; }
+  | "unsigned" "long" { $$ = DDSTS_INT32 | DDSTS_UNSIGNED; }
+  | "unsigned" "long" "long" { $$ = DDSTS_INT64 | DDSTS_UNSIGNED; }
   ;
 
 char_type:
     "char" { $$ = DDSTS_CHAR; };
 
 wide_char_type:
-    "wchar" { $$ = DDSTS_WIDE_CHAR; };
+    "wchar" { $$ = DDSTS_CHAR | DDSTS_WIDE; };
 
 boolean_type:
     "boolean" { $$ = DDSTS_BOOLEAN; };
@@ -684,13 +684,13 @@ unsigned_int:
   ;
 
 signed_tiny_int: "int8" { $$ = DDSTS_INT8; };
-unsigned_tiny_int: "uint8" { $$ = DDSTS_UINT8; };
-signed_short_int: "int16" { $$ = DDSTS_SHORT; };
-signed_long_int: "int32" { $$ = DDSTS_LONG; };
-signed_longlong_int: "int64" { $$ = DDSTS_LONGLONG; };
-unsigned_short_int: "uint16" { $$ = DDSTS_USHORT; };
-unsigned_long_int: "uint32" { $$ = DDSTS_ULONG; };
-unsigned_longlong_int: "uint64" { $$ = DDSTS_ULONGLONG; };
+unsigned_tiny_int: "uint8" { $$ = DDSTS_INT8 | DDSTS_UNSIGNED; };
+signed_short_int: "int16" { $$ = DDSTS_INT16; };
+signed_long_int: "int32" { $$ = DDSTS_INT32; };
+signed_longlong_int: "int64" { $$ = DDSTS_INT64; };
+unsigned_short_int: "uint16" { $$ = DDSTS_INT16 | DDSTS_UNSIGNED; };
+unsigned_long_int: "uint32" { $$ = DDSTS_INT32 | DDSTS_UNSIGNED; };
+unsigned_longlong_int: "uint64" { $$ = DDSTS_INT64 | DDSTS_UNSIGNED; };
 
 /* From Building Block Anonymous Types: */
 type_spec: template_type_spec ;
