@@ -19,7 +19,7 @@
 
 void ddsts_free_literal(ddsts_literal_t *literal)
 {
-  if (literal->flags == DDSTS_STRING || literal->flags == DDSTS_WIDE_STRING) {
+  if (literal->flags & DDSTS_STRING) {
     ddsrt_free(literal->value.str);
   }
 }
