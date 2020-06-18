@@ -245,7 +245,7 @@ CU_Test(parser, types)
 CU_Test(parser, union)
 {
   ddsts_type_t *root_type = NULL;
-  CU_ASSERT_FATAL(ddsts_idl_parse_string("union a switch(short) { case 0: short b; case 1: case 4: octet c; default: char d; };", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT_FATAL(idl_parse_string("union a switch(short) { case 0: short b; case 1: case 4: octet c; default: char d; };", &root_type) == DDS_RETCODE_OK);
   CU_ASSERT(test_type(root_type, DDSTS_MODULE, NULL, NULL, true));
   CU_ASSERT(root_type->module.previous == NULL);
     ddsts_type_t *union_s = root_type->module.members.first;
@@ -283,7 +283,7 @@ CU_Test(parser, union)
         case_type = union_case->declaration.decl_type;
         CU_ASSERT(test_type(case_type, DDSTS_CHAR, NULL, union_case, true));
   ddsts_free_type(root_type);
-  CU_ASSERT_FATAL(ddsts_idl_parse_string("union u switch(short) { case 0: short b;}; struct s{u a;};", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT_FATAL(idl_parse_string("union u switch(short) { case 0: short b;}; struct s{u a;};", &root_type) == DDS_RETCODE_OK);
   CU_ASSERT(test_type(root_type, DDSTS_MODULE, NULL, NULL, true));
   CU_ASSERT(root_type->module.previous == NULL);
     ddsts_type_t *union_u = root_type->module.members.first;
