@@ -41,6 +41,7 @@ bool ddsts_new_map(ddsts_context_t *context, ddsts_type_t *key_type, ddsts_type_
 bool ddsts_new_map_unbound(ddsts_context_t *context, ddsts_type_t *key_type, ddsts_type_t *value_type, ddsts_type_t **result);
 bool ddsts_new_scoped_name(ddsts_context_t *context, ddsts_scoped_name_t* prev, bool top, ddsts_identifier_t name, ddsts_scoped_name_t **result);
 bool ddsts_get_type_from_scoped_name(ddsts_context_t *context, ddsts_scoped_name_t *scoped_name, ddsts_type_t **result);
+bool ddsts_get_base_type_from_scoped_name(ddsts_context_t *context, ddsts_scoped_name_t *scoped_name, ddsts_flags_t *result);
 void ddsts_free_scoped_name(ddsts_scoped_name_t *scoped_name);
 
 bool ddsts_module_open(ddsts_context_t *context, ddsts_identifier_t name);
@@ -53,6 +54,14 @@ bool ddsts_add_struct_member(ddsts_context_t *context, ddsts_type_t **ref_type);
 void ddsts_struct_member_close(ddsts_context_t *context);
 void ddsts_struct_close(ddsts_context_t *context, ddsts_type_t **result);
 void ddsts_struct_empty_close(ddsts_context_t *context, ddsts_type_t **result);
+
+bool ddsts_add_union_forward(ddsts_context_t *context, ddsts_identifier_t name);
+bool ddsts_add_union_open(ddsts_context_t *context, ddsts_identifier_t name);
+bool ddsts_union_set_switch_type(ddsts_context_t *context, ddsts_flags_t base_type);
+bool ddsts_union_add_case_label(ddsts_context_t *context, ddsts_literal_t *value);
+bool ddsts_union_add_case_default(ddsts_context_t *context);
+bool ddsts_union_add_element(ddsts_context_t *context, ddsts_type_t **type);
+void ddsts_union_close(ddsts_context_t *context);
 
 bool ddsts_add_declarator(ddsts_context_t *context, ddsts_identifier_t name);
 

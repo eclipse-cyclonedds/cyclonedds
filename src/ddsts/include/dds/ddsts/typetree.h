@@ -17,9 +17,10 @@
 #include "dds/ddsrt/retcode.h"
 #include "dds/export.h"
 
-#define DDSTS_TYPE(X)                  (1L<<(X))
+#define DDSTS_TYPE(X)                  (1ULL<<(X))
+#define DDSTS_NOTYPE                   (0ULL)
 
-#define DDSTS_BASIC_TYPES              ((1L<<(16+1)-1L)
+#define DDSTS_BASIC_TYPES              ((1ULL<<(16+1))-1ULL)
 #define DDSTS_SHORT                    DDSTS_TYPE(0)
 #define DDSTS_LONG                     DDSTS_TYPE(1)
 #define DDSTS_LONGLONG                 DDSTS_TYPE(2)
@@ -45,22 +46,25 @@
 #define DDSTS_FIXED_PT                 DDSTS_TYPE(21)
 #define DDSTS_MAP                      DDSTS_TYPE(22)
 
-#define DDSTS_DEFINITIONS              (((1L<<(26-23+1))-1L)<<23)
 #define DDSTS_MODULE                   DDSTS_TYPE(23)
 #define DDSTS_FORWARD_STRUCT           DDSTS_TYPE(24)
 #define DDSTS_STRUCT                   DDSTS_TYPE(25)
 #define DDSTS_DECLARATION              DDSTS_TYPE(26)
+#define DDSTS_FORWARD_UNION            DDSTS_TYPE(27)
+#define DDSTS_UNION                    DDSTS_TYPE(28)
+#define DDSTS_UNION_CASE               DDSTS_TYPE(29)
+#define DDSTS_DEFINITIONS              (DDSTS_MODULE | DDSTS_FORWARD_STRUCT | DDSTS_STRUCT | DDSTS_FORWARD_UNION | DDSTS_UNION)
 
-#define DDSTS_TYPES                    ((1L<<(26+1))-1L)
+#define DDSTS_TYPES                    ((1ULL<<(29+1))-1ULL)
 #define DDSTS_TYPE_OF(O)               ((O)->type.flags & DDSTS_TYPES)
 #define DDSTS_IS_TYPE(O,T)             ((DDSTS_TYPE_OF(O) & (T)) != 0)
 #define DDSTS_IS_DEFINITION(O)         ((DDSTS_DEFINITIONS & (O)->type.flags) != 0)
 
-#define DDSTS_UNBOUND                  (1L<<27)
+#define DDSTS_UNBOUND                  (1ULL<<30)
 #define DDSTS_IS_UNBOUND(O)            (((O)->type.flags & DDSTS_UNBOUND) != 0)
 
-#define DDSTS_REFERENCE_1              (1L<<28)
-#define DDSTS_REFERENCE_2              (1L<<29)
+#define DDSTS_REFERENCE_1              (1ULL<<31)
+#define DDSTS_REFERENCE_2              (1ULL<<32)
 
 typedef char *ddsts_identifier_t;
 
@@ -72,7 +76,7 @@ typedef char *ddsts_identifier_t;
  * IDL elements, such as the constant definition and the case labels.
  */
 
-typedef uint32_t ddsts_flags_t;
+typedef uint64_t ddsts_flags_t;
 
 typedef struct {
   ddsts_flags_t flags; /* flags defining the kind of the literal */
@@ -429,6 +433,88 @@ ddsts_create_declaration(ddsts_identifier_t name, ddsts_type_t *decl_type, ddsts
 DDS_EXPORT dds_return_t
 ddsts_declaration_set_type(ddsts_type_t *declaration, ddsts_type_t *type);
 
+/**
+ * @brief Creates a ddsts_forward_t struct for a union forward declaration.
+ *
+ * @param[in]   name    A non-NULL pointer to a string. If the function
+ *                      returns success, the string should be considered as
+ *                      owned by the created ddsts_forward_t struct.
+ * @param[out]  result  Pointer to the created ddsts_forward_t struct.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ */
+DDS_EXPORT dds_return_t
+ddsts_create_union_forward_dcl(ddsts_identifier_t name, ddsts_type_t **result);
+
+/* Union declaration (union_def)
+ */
+typedef struct {
+  ddsts_typespec_t type;
+  ddsts_flags_t switch_type;
+  ddsts_type_list_t cases;
+} ddsts_union_t;
+
+typedef struct ddsts_union_case_label ddsts_union_case_label_t;
+typedef struct {
+  ddsts_declaration_t decl;
+  ddsts_union_case_label_t *labels;
+  bool default_label;
+} ddsts_union_case_t;
+
+struct ddsts_union_case_label {
+  ddsts_literal_t value;
+  ddsts_union_case_label_t *next;
+};
+
+/**
+ * @brief Create a ddsts_union_t with no cases.
+ *
+ * @param[in]   name         A non-NULL pointer to a string. If the function
+ *                           returns success, the string should be considered as
+ *                           owned by the created ddsts_struct_t struct.
+ * @param[in]   switch_type  Flags indication switch type.
+ * @param[out]  result       Pointer to the created ddsts_struct_t struct.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ */
+DDS_EXPORT dds_return_t
+ddsts_create_union(ddsts_identifier_t name, ddsts_flags_t switch_type, ddsts_type_t **result);
+
+/**
+ * @brief Adds a case at the end of the cases of a ddsts_union_t struct.
+ *
+ * @param[in,out] union_def      A non-NULL pointer to a ddsts_union_t struct.
+ * @param[in]     labels         A pointer to the case labels. If the function
+ *                               returns success, the labels should be considered
+ *                               as owned by the created union case.
+ * @param[in]     default_label  A boolean indicating if the default value is
+ *                               included in the case.
+ * @param[out]    result         Pointer to the created ddsts_struct_t struct.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ */
+DDS_EXPORT dds_return_t
+ddsts_union_add_case(ddsts_type_t *union_def, ddsts_union_case_label_t *labels, bool default_label, ddsts_type_t **result);
+
+DDS_EXPORT void
+ddsts_free_union_case_labels(ddsts_union_case_label_t *labels);
+
+/**
+ * @brief Sets the name and the type on a union case
+ *
+ * @param[in,out] union_case   A non-NULL pointer to the union case.
+ * @param[in]     name         A non-NULL pointer to a string. If the function
+ *                             returns success, the string should be considered as
+ *                             owned by the created ddsts_struct_t struct.
+ * @param[in]     type         A non-NULL pointer to the type of the case.
+ *                             If the type was not yet owned, and the
+ *                             function returns, it will be owned by the created
+ *                             union case.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ */
+DDS_EXPORT dds_return_t
+ddsts_union_case_set_decl(ddsts_type_t *union_case, ddsts_identifier_t name, ddsts_type_t *type);
 
 /* The union of all type specs */
 union ddsts_type {
@@ -443,6 +529,8 @@ union ddsts_type {
   ddsts_forward_t forward;
   ddsts_struct_t struct_def;
   ddsts_declaration_t declaration;
+  ddsts_union_t union_def;
+  ddsts_union_case_t union_case;
 };
 
 /* Utility functions */

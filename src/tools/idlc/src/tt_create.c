@@ -50,6 +50,8 @@ struct ddsts_context {
   ddsts_type_t *root_type;
   ddsts_type_t *cur_type;
   ddsts_type_t *type_for_declarator;
+  ddsts_union_case_label_t *union_case_labels;
+  bool union_case_default_label;
   array_size_t *array_sizes;
   annotations_stack_t *annotations_stack;
   pragma_arg_t *pragma_args;
@@ -258,6 +260,20 @@ extern bool ddsts_get_type_from_scoped_name(ddsts_context_t *context, ddsts_scop
   return true;
 }
 
+extern bool ddsts_get_base_type_from_scoped_name(ddsts_context_t *context, ddsts_scoped_name_t *scoped_name, ddsts_flags_t *result)
+{
+  ddsts_type_t *type = NULL;
+  if (!ddsts_get_type_from_scoped_name(context, scoped_name, &type)) {
+    return false;
+  }
+  assert(type != NULL);
+  if ((DDSTS_TYPE_OF(type) & DDSTS_BASIC_TYPES) == 0) {
+    return false;
+  }
+  *result = DDSTS_TYPE_OF(type);
+  return true;
+}
+
 static void scoped_name_dds_error(ddsts_scoped_name_t *scoped_name)
 {
   if (scoped_name == NULL) {
@@ -324,6 +340,8 @@ extern ddsts_context_t* ddsts_create_context(void)
   }
   context->root_type = module;
   context->cur_type = context->root_type;
+  context->union_case_labels = NULL;
+  context->union_case_default_label = false;
   context->type_for_declarator = NULL;
   context->array_sizes = NULL;
   context->annotations_stack = NULL;
@@ -396,6 +414,7 @@ extern void ddsts_free_context(ddsts_context_t *context)
 {
   assert(context != NULL);
   ddsts_context_close_member(context);
+  ddsts_free_union_case_labels(context->union_case_labels);
   ddsts_free_type(context->root_type);
   while (context->annotations_stack != NULL) {
     context_free_annotations(context);
@@ -548,6 +567,231 @@ extern void ddsts_struct_empty_close(ddsts_context_t *context, ddsts_type_t **re
   context->cur_type = context->cur_type->type.parent;
 }
 
+extern bool ddsts_add_union_forward(ddsts_context_t *context, ddsts_identifier_t name)
+{
+  assert(cur_scope_is_definition_type(context, DDSTS_MODULE));
+  assert(context->dangling_identifier == name);
+  ddsts_type_t *forward_dcl;
+  dds_return_t rc = ddsts_create_union_forward_dcl(name, &forward_dcl);
+  if (rc != DDS_RETCODE_OK) {
+    context->retcode = rc;
+    return false;
+  }
+  context->dangling_identifier = NULL;
+  ddsts_module_add_member(context->cur_type, forward_dcl);
+  return true;
+}
+
+extern bool ddsts_add_union_open(ddsts_context_t *context, ddsts_identifier_t name)
+{
+  assert(   cur_scope_is_definition_type(context, DDSTS_MODULE)
+         || cur_scope_is_definition_type(context, DDSTS_STRUCT));
+  assert(context->dangling_identifier == name);
+  context->dangling_identifier = NULL;
+  ddsts_type_t *new_union;
+  dds_return_t rc = ddsts_create_union(name, DDSTS_NOTYPE, &new_union);
+  if (rc != DDS_RETCODE_OK) {
+    context->retcode = rc;
+    return false;
+  }
+  context->dangling_identifier = NULL;
+  if (DDSTS_IS_TYPE(context->cur_type, DDSTS_MODULE)) {
+    ddsts_module_add_member(context->cur_type, new_union);
+  }
+  else {
+    ddsts_struct_add_member(context->cur_type, new_union);
+  }
+  context->cur_type = new_union;
+  if (!context_push_annotations_stack(context)) {
+    return false;
+  }
+  return true;
+}
+
+extern bool ddsts_union_set_switch_type(ddsts_context_t *context, ddsts_flags_t base_type)
+{
+  assert(cur_scope_is_definition_type(context, DDSTS_UNION));
+  context->cur_type->union_def.switch_type = base_type;
+  return true;
+}
+
+static const char* name_of_type(ddsts_flags_t flags)
+{
+  switch(flags) {
+    case DDSTS_SHORT:          return "short"; break;
+    case DDSTS_LONG:           return "long"; break;
+    case DDSTS_LONGLONG:       return "long long"; break;
+    case DDSTS_USHORT:         return "unsigned short"; break;
+    case DDSTS_ULONG:          return "unsigned long"; break;
+    case DDSTS_ULONGLONG:      return "unsigned long long"; break;
+    case DDSTS_CHAR:           return "char"; break;
+    case DDSTS_WIDE_CHAR:      return "wide char"; break;
+    case DDSTS_BOOLEAN:        return "boolean"; break;
+    case DDSTS_OCTET:          return "octet"; break;
+    case DDSTS_INT8:           return "int8"; break;
+    case DDSTS_UINT8:          return "uint8"; break;
+    case DDSTS_FLOAT:          return "float"; break;
+    case DDSTS_DOUBLE:         return "double"; break;
+    case DDSTS_LONGDOUBLE:     return "long double"; break;
+    case DDSTS_FIXED_PT_CONST: return "fixed point const"; break;
+    case DDSTS_ANY:            return "any";
+    case DDSTS_SEQUENCE:       return "sequence";
+    case DDSTS_ARRAY:          return "array";
+    case DDSTS_STRING:         return "string";
+    case DDSTS_WIDE_STRING:    return "wide string";
+    case DDSTS_FIXED_PT:       return "fixed point";
+    case DDSTS_MAP:            return "map";
+    case DDSTS_MODULE:         return "module";
+    case DDSTS_FORWARD_STRUCT: return "forward struct";
+    case DDSTS_STRUCT:         return "struct";
+    case DDSTS_FORWARD_UNION:  return "forward union";
+    case DDSTS_UNION:          return "union";
+    default:
+      assert(0);
+      break;
+  }
+  return "";
+}
+
+static dds_return_t cast_value_to_type(ddsts_literal_t *value, ddsts_flags_t flags, ddsts_literal_t *cast_type)
+{
+  switch (value->flags) {
+    case DDSTS_ULONGLONG:
+      switch (flags) {
+        case DDSTS_OCTET:
+        case DDSTS_UINT8:
+        case DDSTS_USHORT:
+        case DDSTS_ULONG:
+        case DDSTS_ULONGLONG:
+          cast_type->value.ullng = value->value.ullng;
+          cast_type->flags = flags;
+          return DDS_RETCODE_OK;
+        case DDSTS_INT8:
+        case DDSTS_SHORT:
+        case DDSTS_LONG:
+          cast_type->value.llng = (signed long long)value->value.ullng;
+          cast_type->flags = flags;
+          return DDS_RETCODE_OK;
+        default:
+          DDS_ERROR("Cannot cast unsigned long long to %s\n", name_of_type(flags));
+          return DDS_RETCODE_ERROR;
+          break;
+      }
+      break;
+    default:
+      assert(0);
+      break;
+  }
+  return DDS_RETCODE_ERROR;
+}
+
+static bool equal_values(ddsts_literal_t *a, ddsts_literal_t *b)
+{
+  assert(a->flags == b->flags);
+  switch (a->flags) {
+    case DDSTS_OCTET:
+    case DDSTS_UINT8:
+    case DDSTS_USHORT:
+    case DDSTS_ULONG:
+    case DDSTS_ULONGLONG:
+      return a->value.ullng == b->value.ullng;
+      break;
+    case DDSTS_INT8:
+    case DDSTS_SHORT:
+    case DDSTS_LONG:
+      return a->value.llng == b->value.llng;
+      break;
+    default:
+      assert(0);
+      break;
+  }
+  return false;
+}
+
+extern bool ddsts_union_add_case_label(ddsts_context_t *context, ddsts_literal_t *value)
+{
+  assert(cur_scope_is_definition_type(context, DDSTS_UNION));
+  ddsts_literal_t casted_value;
+  dds_return_t rc = cast_value_to_type(value, context->cur_type->union_def.switch_type, &casted_value);
+  if (rc != DDS_RETCODE_OK) {
+    context->retcode = rc;
+    return false;
+  }
+  for (ddsts_type_t *cases = context->cur_type->union_def.cases.first; cases != NULL; cases = cases->type.next) {
+    for (ddsts_union_case_label_t *label = cases->union_case.labels; label != NULL; label = label->next) {
+      if (equal_values(&label->value, &casted_value)) {
+        DDS_ERROR("Same case label used in more than one case.\n");
+        context->retcode = DDS_RETCODE_ERROR;
+        return false;
+      }
+    }
+  } 
+  if (context->union_case_default_label) {
+    DDS_WARNING("Case label in combination with default is not usefull.\n");
+  }
+  ddsts_union_case_label_t **ref_label = &context->union_case_labels;
+  while (*ref_label != NULL) {
+    if (equal_values(&(*ref_label)->value, &casted_value)) {
+      DDS_WARNING("Label value in case is repeated. It is ignored.\n");
+      return true;
+    }
+    ref_label = &(*ref_label)->next;
+  }
+  *ref_label = (ddsts_union_case_label_t*)ddsrt_malloc(sizeof(ddsts_union_case_label_t));
+  if (*ref_label == NULL) {
+    context->retcode = DDS_RETCODE_OUT_OF_RESOURCES;
+    return false;
+  }
+  (*ref_label)->value = casted_value;
+  (*ref_label)->next = NULL;
+  return true;
+}
+
+extern bool ddsts_union_add_case_default(ddsts_context_t *context)
+{
+  for (ddsts_type_t *cases = context->cur_type->union_def.cases.first; cases != NULL; cases = cases->type.next) {
+    if (cases->union_case.default_label) {
+      DDS_ERROR("More than one default case is not allowed.\n");
+      context->retcode = DDS_RETCODE_ERROR;
+      return false;
+    }
+  }
+  if (context->union_case_default_label) {
+    DDS_WARNING("Default is repeated.\n");
+  }
+  if (context->union_case_labels != NULL) {
+    DDS_WARNING("Case label in combination with default is not usefull.\n");
+  }
+  context->union_case_default_label = true;
+  return true;
+}
+
+extern bool ddsts_union_add_element(ddsts_context_t *context, ddsts_type_t **type)
+{
+  assert(cur_scope_is_definition_type(context, DDSTS_UNION));
+  ddsts_type_t *union_case;
+  dds_return_t rc = ddsts_union_add_case(context->cur_type, context->union_case_labels, context->union_case_default_label, &union_case);
+  if (rc != DDS_RETCODE_OK) {
+    ddsts_free_union_case_labels(context->union_case_labels);
+    context->union_case_labels = NULL;
+    context->union_case_default_label = false;
+    return false;
+  }
+  context->type_for_declarator = *type;
+  *type = NULL;
+  context->cur_type = union_case;
+  context->union_case_labels = NULL;
+  context->union_case_default_label = false;
+  return true;
+}
+
+extern void ddsts_union_close(ddsts_context_t *context)
+{
+  assert(cur_scope_is_definition_type(context, DDSTS_UNION));
+  context->cur_type = context->cur_type->type.parent;
+  context_pop_annotations_stack(context);
+}
+
 static ddsts_type_t *create_array_type(array_size_t *array_size, ddsts_type_t *type)
 {
   if (array_size == NULL) {
@@ -658,6 +902,20 @@ extern bool ddsts_add_declarator(ddsts_context_t *context, ddsts_identifier_t na
       }
     }
 
+    return true;
+  }
+  else if (DDSTS_IS_TYPE(context->cur_type, DDSTS_UNION_CASE)) {
+    assert(context->type_for_declarator != NULL);
+    ddsts_type_t* type = create_array_type(context->array_sizes, context->type_for_declarator);
+    if (type == NULL) {
+      ddsts_context_free_array_sizes(context);
+      context->retcode = DDS_RETCODE_OUT_OF_RESOURCES;
+      return false;
+    }
+    ddsts_context_free_array_sizes(context);
+    context->dangling_identifier = NULL;
+    ddsts_union_case_set_decl(context->cur_type, name, type);
+    context->cur_type = context->cur_type->type.parent;
     return true;
   }
   assert(false);
