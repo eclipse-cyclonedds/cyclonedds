@@ -16,7 +16,7 @@
 
 #include "dds/ddsrt/log.h"
 #include "dds/ddsts/typetree.h"
-#include "parser.h"
+#include "idl.h"
 #include "gen_c99.h"
 
 static void
@@ -34,7 +34,7 @@ main(int argc, char *argv[])
   }
 
   ddsts_type_t *root_type = NULL;
-  if (ddsts_idl_parse_file(argv[1], &root_type) != DDS_RETCODE_OK) {
+  if (idl_parse_file(argv[1], &root_type) != DDS_RETCODE_OK) {
     return EXIT_FAILURE;
   }
 
