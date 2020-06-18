@@ -366,7 +366,7 @@ extern int      in_define;          /* In #define line              */
 extern int      in_getarg;          /* Collecting arguments of macro*/
 extern int      in_include;         /* In #include line             */
 extern int      in_if;              /* In #if and non-skipped expr. */
-ssize_t         macro_line;         /* Line number of macro call    */
+extern ssize_t  macro_line;         /* Line number of macro call    */
 extern char *   macro_name;         /* Currently expanding macro    */
 extern int      openum;             /* Number of operator or punct. */
 extern IFINFO *     ifptr;          /* -> current ifstack item      */
