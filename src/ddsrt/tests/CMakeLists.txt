@@ -15,6 +15,7 @@ include(GenerateDummyExportHeader)
 list(APPEND sources
   "atomics.c"
   "environ.c"
+  "event.c"
   "heap.c"
   "ifaddrs.c"
   "sync.c"
