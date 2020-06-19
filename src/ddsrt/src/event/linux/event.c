@@ -14,25 +14,21 @@
 #include <sys/select.h>
 #include <unistd.h>
 
-/*posix implementation of ddsrt_make_pipe*/
 long int ddsrt_make_pipe(ddsrt_socket_t tomake[2]) {
-	return pipe(tomake);
+  return pipe(tomake);
 }
 
-/*posix implementation of ddsrt_close_pipe*/
 void ddsrt_close_pipe(ddsrt_socket_t toclose[2]) {
-	close(toclose[0]);
-	close(toclose[1]);
+  close(toclose[0]);
+  close(toclose[1]);
 }
 
-/*posix implementation of ddsrt_push_pipe*/
-long int ddsrt_push_pipe(ddsrt_socket_t p) {
-	char dummy = 0x0;
-	return write(p, &dummy, sizeof(dummy));
+long int ddsrt_push_pipe(ddsrt_socket_t p[2]) {
+  char dummy = 0x0;
+  return write(p[1], &dummy, sizeof(dummy));
 }
 
-/*posix implementation of ddsrt_pull_pipe*/
-long int ddsrt_pull_pipe(ddsrt_socket_t p) {
-	char buf = 0x0;
-	return read(p, &buf, sizeof(buf));
+long int ddsrt_pull_pipe(ddsrt_socket_t p[2]) {
+  char buf = 0x0;
+  return read(p[0], &buf, sizeof(buf));
 }

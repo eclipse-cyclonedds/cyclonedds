@@ -19,40 +19,38 @@ extern "C" {
 #endif
 
 /**
-* Creates a pipe and stores the result in tomake.
+* @brief Creates a pipe and stores the result in tomake.
 *
-* tomake: array for sockets describing the pipe
-* 
-* returns:
-*		-1: something went wrong
-*		0: success
+* @param tomake array for sockets describing the pipe
+*
+* @returns	-1: something went wrong, 0: success
 */
 long int ddsrt_make_pipe(ddsrt_socket_t tomake[2]);
 
 /**
-* Closes a pipe.
+* @brief Closes a pipe.
 *
-* tomake: array for sockets describing the pipe
+* @param tomake array for sockets describing the pipe
 */
 void ddsrt_close_pipe(ddsrt_socket_t toclose[2]);
 
 /**
-* Pushes a null byte to a socket.
+* @brief Pushes a null byte to a socket.
 *
-* p: the socket to push to
+* @param p the socket to push to
 *
-* returns:
+* @returns 
 */
-long int ddsrt_push_pipe(ddsrt_socket_t p);
+long int ddsrt_push_pipe(ddsrt_socket_t p[2]);
 
 /**
-* Pulls one byte from a socket.
+* @brief Pulls one byte from a socket.
 *
-* p: the socket to pull from
+* @param p the socket to pull from
 *
-* returns:
+* @returns 
 */
-long int ddsrt_pull_pipe(ddsrt_socket_t p);
+long int ddsrt_pull_pipe(ddsrt_socket_t p[2]);
 
 #if defined (__cplusplus)
 }
