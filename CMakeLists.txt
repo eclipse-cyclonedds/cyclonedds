@@ -11,6 +11,10 @@
 #
 cmake_minimum_required(VERSION 3.7)
 project(CycloneDDS VERSION 0.7.0 LANGUAGES C)
+if(CMAKE_VERSION VERSION_LESS 3.12)
+  # GENERATE_EXPORT_HEADER requires a C++ compiler up to version 3.12
+  enable_language(CXX)
+endif()
 
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
