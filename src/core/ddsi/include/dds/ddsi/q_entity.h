@@ -131,9 +131,10 @@ struct wr_prd_match {
   seqno_t last_seq; /* highest seq send to this reader used when filter is applied */
   int32_t num_reliable_readers_where_seq_equals_max;
   ddsi_guid_t arbitrary_unacked_reader;
-  nn_count_t next_acknack; /* next acceptable acknack sequence number */
-  nn_count_t next_nackfrag; /* next acceptable nackfrag sequence number */
+  nn_count_t prev_acknack; /* latest accepted acknack sequence number */
+  nn_count_t prev_nackfrag; /* latest accepted nackfrag sequence number */
   ddsrt_etime_t t_acknack_accepted; /* (local) time an acknack was last accepted */
+  ddsrt_etime_t t_nackfrag_accepted; /* (local) time a nackfrag was last accepted */
   struct nn_lat_estim hb_to_ack_latency;
   ddsrt_wctime_t hb_to_ack_latency_tlastlog;
   uint32_t non_responsive_count;
@@ -154,7 +155,7 @@ struct pwr_rd_match {
   ddsi_guid_t rd_guid;
   ddsrt_mtime_t tcreate;
   nn_count_t count; /* most recent acknack sequence number */
-  nn_count_t next_heartbeat; /* next acceptable heartbeat (see also add_proxy_writer_to_reader) */
+  nn_count_t prev_heartbeat; /* latest accepted heartbeat (see also add_proxy_writer_to_reader) */
   ddsrt_wctime_t hb_timestamp; /* time of most recent heartbeat that rescheduled the ack event */
   ddsrt_etime_t t_heartbeat_accepted; /* (local) time a heartbeat was last accepted */
   ddsrt_mtime_t t_last_nack; /* (local) time we last sent a NACK */  /* FIXME: probably elapsed time is better */

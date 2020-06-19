@@ -2102,14 +2102,14 @@ static void update_reader_init_acknack_count (const ddsrt_log_cfg_t *logcfg, con
 
   /* Update the initial acknack sequence number for the reader.  See
      also reader_add_connection(). */
-  DDS_CLOG (DDS_LC_DISCOVERY, logcfg, "update_reader_init_acknack_count ("PGUIDFMT", %"PRId32"): ", PGUID (*rd_guid), count);
+  DDS_CLOG (DDS_LC_DISCOVERY, logcfg, "update_reader_init_acknack_count ("PGUIDFMT", %"PRIu32"): ", PGUID (*rd_guid), count);
   if ((rd = entidx_lookup_reader_guid (entidx, rd_guid)) != NULL)
   {
     ddsrt_mutex_lock (&rd->e.lock);
-    DDS_CLOG (DDS_LC_DISCOVERY, logcfg, "%"PRId32" -> ", rd->init_acknack_count);
+    DDS_CLOG (DDS_LC_DISCOVERY, logcfg, "%"PRIu32" -> ", rd->init_acknack_count);
     if (count > rd->init_acknack_count)
       rd->init_acknack_count = count;
-    DDS_CLOG (DDS_LC_DISCOVERY, logcfg, "%"PRId32"\n", count);
+    DDS_CLOG (DDS_LC_DISCOVERY, logcfg, "%"PRIu32"\n", count);
     ddsrt_mutex_unlock (&rd->e.lock);
   }
   else
@@ -2208,11 +2208,12 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
     pretend_everything_acked = 0;
   }
   ddsrt_mutex_unlock (&prd->e.lock);
-  m->next_acknack = DDSI_COUNT_MIN;
-  m->next_nackfrag = DDSI_COUNT_MIN;
+  m->prev_acknack = 0;
+  m->prev_nackfrag = 0;
   nn_lat_estim_init (&m->hb_to_ack_latency);
   m->hb_to_ack_latency_tlastlog = ddsrt_time_wallclock ();
   m->t_acknack_accepted.v = 0;
+  m->t_nackfrag_accepted.v = 0;
 
   ddsrt_mutex_lock (&wr->e.lock);
   if (pretend_everything_acked)
@@ -2364,7 +2365,7 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
      writer will always see monotonically increasing sequence numbers
      from one particular reader.  This is then used for the
      pwr_rd_match initialization */
-  ELOGDISC (rd, "  reader "PGUIDFMT" init_acknack_count = %"PRId32"\n",
+  ELOGDISC (rd, "  reader "PGUIDFMT" init_acknack_count = %"PRIu32"\n",
             PGUID (rd->e.guid), rd->init_acknack_count);
   *init_count = rd->init_acknack_count;
 
@@ -2494,7 +2495,7 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
      If we don't mind those extra AckNacks, we could track the count
      at the proxy-writer and simply treat all incoming heartbeats as
      undirected. */
-  m->next_heartbeat = DDSI_COUNT_MIN;
+  m->prev_heartbeat = 0;
   m->hb_timestamp.v = 0;
   m->t_heartbeat_accepted.v = 0;
   m->t_last_nack.v = 0;
@@ -3578,9 +3579,9 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->seq = 0;
   wr->cs_seq = 0;
   ddsrt_atomic_st64 (&wr->seq_xmit, (uint64_t) 0);
-  wr->hbcount = 0;
+  wr->hbcount = 1;
   wr->state = WRST_OPERATIONAL;
-  wr->hbfragcount = 0;
+  wr->hbfragcount = 1;
   writer_hbcontrol_init (&wr->hbcontrol);
   wr->throttling = 0;
   wr->retransmitting = 0;
@@ -4288,7 +4289,7 @@ static dds_return_t new_reader_guid
   rd->topic = ddsi_sertopic_ref (topic);
   rd->ddsi2direct_cb = 0;
   rd->ddsi2direct_cbarg = 0;
-  rd->init_acknack_count = 0;
+  rd->init_acknack_count = 1;
   rd->num_writers = 0;
 #ifdef DDSI_INCLUDE_SSM
   rd->favours_ssm = 0;
@@ -5436,8 +5437,8 @@ int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
   pwr->n_reliable_readers = 0;
   pwr->n_readers_out_of_sync = 0;
   pwr->last_seq = 0;
-  pwr->last_fragnum = ~0u;
-  pwr->nackfragcount = 0;
+  pwr->last_fragnum = UINT32_MAX;
+  pwr->nackfragcount = 1;
   pwr->last_fragnum_reset = 0;
   pwr->alive = 1;
   pwr->alive_vclock = 0;

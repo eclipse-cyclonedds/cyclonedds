@@ -152,7 +152,7 @@ static int valid_AckNack (const struct receiver_state *rst, AckNack_t *msg, size
   if (byteswap)
   {
     bswap_sequence_number_set_bitmap (&msg->readerSNState, msg->bits);
-    *count = ddsrt_bswap4 (*count);
+    *count = ddsrt_bswap4u (*count);
   }
   return 1;
 }
@@ -221,7 +221,7 @@ static int valid_Heartbeat (Heartbeat_t *msg, size_t size, int byteswap)
   {
     bswapSN (&msg->firstSN);
     bswapSN (&msg->lastSN);
-    msg->count = ddsrt_bswap4 (msg->count);
+    msg->count = ddsrt_bswap4u (msg->count);
   }
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
@@ -239,7 +239,7 @@ static int valid_HeartbeatFrag (HeartbeatFrag_t *msg, size_t size, int byteswap)
   {
     bswapSN (&msg->writerSN);
     msg->lastFragmentNum = ddsrt_bswap4u (msg->lastFragmentNum);
-    msg->count = ddsrt_bswap4 (msg->count);
+    msg->count = ddsrt_bswap4u (msg->count);
   }
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
@@ -274,7 +274,7 @@ static int valid_NackFrag (NackFrag_t *msg, size_t size, int byteswap)
   if (byteswap)
   {
     bswap_fragment_number_set_bitmap (&msg->fragmentNumberState, msg->bits);
-    *count = ddsrt_bswap4 (*count);
+    *count = ddsrt_bswap4u (*count);
   }
   return 1;
 }
@@ -577,7 +577,7 @@ static int acknack_is_nack (const AckNack_t *msg)
   return x != 0;
 }
 
-static int accept_ack_or_hb_w_timeout (nn_count_t new_count, nn_count_t *exp_count, ddsrt_etime_t tnow, ddsrt_etime_t *t_last_accepted, int force_accept)
+static int accept_ack_or_hb_w_timeout (nn_count_t new_count, nn_count_t *prev_count, ddsrt_etime_t tnow, ddsrt_etime_t *t_last_accepted, int force_accept)
 {
   /* AckNacks and Heartbeats with a sequence number (called "count"
      for some reason) equal to or less than the highest one received
@@ -590,17 +590,22 @@ static int accept_ack_or_hb_w_timeout (nn_count_t new_count, nn_count_t *exp_cou
      8.4.15.7 says: "New HEARTBEATS should have Counts greater than
      all older HEARTBEATs. Then, received HEARTBEATs with Counts not
      greater than any previously received can be ignored."  But it
-     isn't clear whether that is about connections or entities, and
-     besides there is an issue with the wrap around after 2**31-1.
+     isn't clear whether that is about connections or entities.
+
+     The type is defined in the spec as signed but without limiting
+     them to, e.g., positive numbers.  Instead of implementing them as
+     spec'd, we implement it as unsigned to avoid integer overflow (and
+     the consequence undefined behaviour).  Serial number arithmetic
+     deals with the wrap-around after 2**31-1.
 
      This combined procedure should give the best of all worlds, and
      is not more expensive in the common case. */
   const int64_t timeout = DDS_SECS (2);
 
-  if (new_count < *exp_count && tnow.v - t_last_accepted->v < timeout && !force_accept)
+  if ((int32_t) (new_count - *prev_count) <= 0 && tnow.v - t_last_accepted->v < timeout && !force_accept)
     return 0;
 
-  *exp_count = new_count + 1;
+  *prev_count = new_count;
   *t_last_accepted = tnow;
   return 1;
 }
@@ -772,7 +777,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
     rn->rexmit_requests++;
   }
 
-  if (!accept_ack_or_hb_w_timeout (*countp, &rn->next_acknack, tnow, &rn->t_acknack_accepted, is_preemptive_ack))
+  if (!accept_ack_or_hb_w_timeout (*countp, &rn->prev_acknack, tnow, &rn->t_acknack_accepted, is_preemptive_ack))
   {
     RSTTRACE (" ["PGUIDFMT" -> "PGUIDFMT"])", PGUID (src), PGUID (dst));
     goto out;
@@ -1100,7 +1105,7 @@ static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct hand
   ASSERT_MUTEX_HELD (&pwr->e.lock);
 
   /* Not supposed to respond to repeats and old heartbeats. */
-  if (!accept_ack_or_hb_w_timeout (msg->count, &wn->next_heartbeat, arg->tnow, &wn->t_heartbeat_accepted, 0))
+  if (!accept_ack_or_hb_w_timeout (msg->count, &wn->prev_heartbeat, arg->tnow, &wn->t_heartbeat_accepted, 0))
   {
     RSTTRACE (" ("PGUIDFMT")", PGUID (wn->rd_guid));
     return;
@@ -1528,12 +1533,11 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
   }
 
   /* Ignore old NackFrags (see also handle_AckNack) */
-  if (*countp < rn->next_nackfrag)
+  if (!accept_ack_or_hb_w_timeout (*countp, &rn->prev_nackfrag, tnow, &rn->t_nackfrag_accepted, false))
   {
     RSTTRACE (" ["PGUIDFMT" -> "PGUIDFMT"]", PGUID (src), PGUID (dst));
     goto out;
   }
-  rn->next_nackfrag = *countp + 1;
   RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"", PGUID (src), PGUID (dst));
 
   /* Resend the requested fragments if we still have the sample, send
