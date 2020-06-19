@@ -431,7 +431,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
   hb->firstSN = toSN (min);
   hb->lastSN = toSN (max);
 
-  hb->count = ++wr->hbcount;
+  hb->count = wr->hbcount++;
 
   nn_xmsg_submsg_setnext (msg, sm_marker);
   encode_datawriter_submsg(msg, sm_marker, wr);
@@ -726,7 +726,7 @@ static void create_HeartbeatFrag (struct writer *wr, seqno_t seq, unsigned fragn
   hbf->writerSN = toSN (seq);
   hbf->lastFragmentNum = fragnum + 1; /* network format is 1 based */
 
-  hbf->count = ++wr->hbfragcount;
+  hbf->count = wr->hbfragcount++;
 
   nn_xmsg_submsg_setnext (*pmsg, sm_marker);
   encode_datawriter_submsg(*pmsg, sm_marker, wr);

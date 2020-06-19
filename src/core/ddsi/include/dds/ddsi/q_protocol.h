@@ -55,9 +55,7 @@ typedef struct nn_fragment_number_set_header {
 #define NN_FRAGMENT_NUMBER_SET_MAX_BITS (256u)
 #define NN_FRAGMENT_NUMBER_SET_BITS_SIZE(numbits) ((unsigned) (4 * (((numbits) + 31) / 32)))
 #define NN_FRAGMENT_NUMBER_SET_SIZE(numbits) (sizeof (nn_fragment_number_set_header_t) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits))
-typedef int32_t nn_count_t;
-#define DDSI_COUNT_MIN (-2147483647 - 1)
-#define DDSI_COUNT_MAX (2147483647)
+typedef uint32_t nn_count_t;
 /* address field in locator maintained in network byte order, the rest in host */
 typedef struct {
   const struct ddsi_tran_factory *tran;
