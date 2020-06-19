@@ -943,11 +943,14 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
     nn_xmsg_shrink (msg, sm_marker, ACKNACK_SIZE (an->readerSNState.numbits));
     nn_xmsg_submsg_setnext (msg, sm_marker);
 
-    ETRACE (pwr, "acknack "PGUIDFMT" -> "PGUIDFMT": #%"PRId32":%"PRId64"/%"PRIu32":",
-            PGUID (rwn->rd_guid), PGUID (pwr->e.guid), rwn->count,
-            base, an->readerSNState.numbits);
-    for (uint32_t ui = 0; ui != an->readerSNState.numbits; ui++)
-      ETRACE (pwr, "%c", nn_bitset_isset (numbits, an->bits, ui) ? '1' : '0');
+    if (pwr->e.gv->logconfig.c.mask & DDS_LC_TRACE)
+    {
+      ETRACE (pwr, "acknack "PGUIDFMT" -> "PGUIDFMT": #%"PRIu32":%"PRId64"/%"PRIu32":",
+              PGUID (rwn->rd_guid), PGUID (pwr->e.guid), rwn->count,
+              base, an->readerSNState.numbits);
+      for (uint32_t ui = 0; ui != an->readerSNState.numbits; ui++)
+        ETRACE (pwr, "%c", nn_bitset_isset (numbits, an->bits, ui) ? '1' : '0');
+    }
 
     /* Encode the sub-message when needed. */
     encode_datareader_submsg(msg, sm_marker, pwr, &rwn->rd_guid);
@@ -977,7 +980,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
       *countp = ++pwr->nackfragcount;
       nn_xmsg_submsg_setnext (msg, sm_marker);
 
-      ETRACE (pwr, " + nackfrag #%"PRId32":%"PRId64"/%u/%"PRIu32":", *countp, fromSN (nf->writerSN), nf->fragmentNumberState.bitmap_base, nf->fragmentNumberState.numbits);
+      ETRACE (pwr, " + nackfrag #%"PRIu32":%"PRId64"/%u/%"PRIu32":", *countp, fromSN (nf->writerSN), nf->fragmentNumberState.bitmap_base, nf->fragmentNumberState.numbits);
       for (uint32_t ui = 0; ui != nf->fragmentNumberState.numbits; ui++)
         ETRACE (pwr, "%c", nn_bitset_isset (nf->fragmentNumberState.numbits, nf->bits, ui) ? '1' : '0');
     }
