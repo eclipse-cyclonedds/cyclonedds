@@ -87,7 +87,7 @@ static bool new_sequence(ddsts_context_t *context, ddsts_type_t *element_type, u
 
 extern bool ddsts_new_sequence(ddsts_context_t *context, ddsts_type_t *base, ddsts_literal_t *size, ddsts_type_t **result)
 {
-  assert(size->flags == DDSTS_INT64 | DDSTS_UNSIGNED);
+  assert(size->flags == (DDSTS_INT64 | DDSTS_UNSIGNED));
   return new_sequence(context, base, size->value.ullng, result);
 }
 
@@ -111,7 +111,7 @@ static bool new_string(ddsts_context_t *context, ddsts_flags_t flags, unsigned l
 
 extern bool ddsts_new_string(ddsts_context_t *context, ddsts_literal_t *size, ddsts_type_t **result)
 {
-  assert(size->flags == DDSTS_INT64 | DDSTS_UNSIGNED);
+  assert(size->flags == (DDSTS_INT64 | DDSTS_UNSIGNED));
   return new_string(context, DDSTS_STRING, size->value.ullng, result);
 }
 
@@ -122,7 +122,7 @@ extern bool ddsts_new_string_unbound(ddsts_context_t *context, ddsts_type_t **re
 
 extern bool ddsts_new_wide_string(ddsts_context_t *context, ddsts_literal_t *size, ddsts_type_t **result)
 {
-  assert(size->flags == DDSTS_INT64 | DDSTS_UNSIGNED);
+  assert(size->flags == (DDSTS_INT64 | DDSTS_UNSIGNED));
   return new_string(context, DDSTS_STRING | DDSTS_WIDE, size->value.ullng, result);
 }
 
@@ -134,8 +134,8 @@ extern bool ddsts_new_wide_string_unbound(ddsts_context_t *context, ddsts_type_t
 extern bool ddsts_new_fixed_pt(ddsts_context_t *context, ddsts_literal_t *digits, ddsts_literal_t *fraction_digits, ddsts_type_t **result)
 {
   assert(context != NULL);
-  assert(digits->flags == DDSTS_INT64 | DDSTS_UNSIGNED);
-  assert(fraction_digits->flags == DDSTS_INT64 | DDSTS_UNSIGNED);
+  assert(digits->flags == (DDSTS_INT64 | DDSTS_UNSIGNED));
+  assert(fraction_digits->flags == (DDSTS_INT64 | DDSTS_UNSIGNED));
   ddsts_type_t *fixed_pt;
   dds_return_t rc = ddsts_create_fixed_pt(digits->value.ullng, fraction_digits->value.ullng, &fixed_pt);
   if (rc != DDS_RETCODE_OK) {
@@ -160,7 +160,7 @@ static bool new_map(ddsts_context_t *context, ddsts_type_t *key_type, ddsts_type
 
 extern bool ddsts_new_map(ddsts_context_t *context, ddsts_type_t *key_type, ddsts_type_t *value_type, ddsts_literal_t *size, ddsts_type_t **result)
 {
-  assert(size->flags == DDSTS_INT64 | DDSTS_UNSIGNED);
+  assert(size->flags == (DDSTS_INT64 | DDSTS_UNSIGNED));
   return new_map(context, key_type, value_type, size->value.ullng, result);
 }
 
@@ -934,7 +934,7 @@ extern bool ddsts_add_declarator(ddsts_context_t *context, ddsts_identifier_t na
 extern bool ddsts_add_array_size(ddsts_context_t *context, ddsts_literal_t *value)
 {
   assert(context != NULL);
-  assert(value->flags == DDSTS_INT64 | DDSTS_UNSIGNED);
+  assert(value->flags == (DDSTS_INT64 | DDSTS_UNSIGNED));
   array_size_t **ref_array_size = &context->array_sizes;
   while (*ref_array_size != NULL) {
     ref_array_size = &(*ref_array_size)->next;
