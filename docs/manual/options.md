@@ -640,7 +640,7 @@ This setting limits the maximum number of bytes queued for retransmission. The d
 
 The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
-The default value is: "50 kB".
+The default value is: "512 kB".
 
 
 #### //CycloneDDS/Domain/Internal/MaxQueuedRexmitMessages

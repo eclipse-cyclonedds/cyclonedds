@@ -739,7 +739,7 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;This setting limits the maximum number of bytes queued for retransmission. The default value of 0 is unlimited unless an AuxiliaryBandwidthLimit has been set, in which case it becomes NackDelay * AuxiliaryBandwidthLimit. It must be large enough to contain the largest sample that may need to be retransmitted.&lt;/p&gt;
 &lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
-&lt;p&gt;The default value is: "50 kB".&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The default value is: "512 kB".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="MaxQueuedRexmitMessages" type="xs:integer">
