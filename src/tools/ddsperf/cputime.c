@@ -41,7 +41,6 @@ bool print_cputime (const struct CPUStats *s, const char *prefix, bool print_hos
   {
     char line[512];
     size_t pos = 0;
-    assert (is_fresh || !print_host);
     pos += (size_t) snprintf (line + pos, sizeof (line) - pos, "%s", prefix);
     if (!is_fresh)
       pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " (stale)");
