@@ -1140,7 +1140,7 @@ static struct cfgelem internal_cfgelems[] = {
       "<p>This element allows configuring the base interval for sending "
       "writer heartbeats and the bounds within which it can vary.</p>"),
     UNIT("duration_inf")),
-  STRING("MaxQueuedRexmitBytes", NULL, 1, "50 kB",
+  STRING("MaxQueuedRexmitBytes", NULL, 1, "512 kB",
     MEMBER(max_queued_rexmit_bytes),
     FUNCTIONS(0, uf_memsize, 0, pf_memsize),
     DESCRIPTION(

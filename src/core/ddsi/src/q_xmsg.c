@@ -492,7 +492,7 @@ int nn_xmsg_compare_fragid (const struct nn_xmsg *a, const struct nn_xmsg *b)
 
 size_t nn_xmsg_size (const struct nn_xmsg *m)
 {
-  return m->sz;
+  return m->sz + (m->refd_payload ? (size_t) m->refd_payload_iov.iov_len : 0);
 }
 
 enum nn_xmsg_kind nn_xmsg_kind (const struct nn_xmsg *m)
