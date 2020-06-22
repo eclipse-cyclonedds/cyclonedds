@@ -247,7 +247,7 @@ typedef struct AckNack {
 DDSRT_WARNING_MSVC_ON(4200)
 #define ACKNACK_FLAG_FINAL 0x02u
 #define ACKNACK_SIZE(numbits) (offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits) + 4)
-#define ACKNACK_SIZE_MAX ACKNACK_SIZE (256u)
+#define ACKNACK_SIZE_MAX ACKNACK_SIZE (NN_SEQUENCE_NUMBER_SET_MAX_BITS)
 
 DDSRT_WARNING_MSVC_OFF(4200)
 typedef struct Gap {
@@ -260,7 +260,7 @@ typedef struct Gap {
 } Gap_t;
 DDSRT_WARNING_MSVC_ON(4200)
 #define GAP_SIZE(numbits) (offsetof (Gap_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits))
-#define GAP_SIZE_MAX GAP_SIZE (256u)
+#define GAP_SIZE_MAX GAP_SIZE (NN_SEQUENCE_NUMBER_SET_MAX_BITS)
 
 typedef struct InfoTS {
   SubmessageHeader_t smhdr;
@@ -300,7 +300,7 @@ typedef struct NackFrag {
 } NackFrag_t;
 DDSRT_WARNING_MSVC_ON(4200)
 #define NACKFRAG_SIZE(numbits) (offsetof (NackFrag_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits) + 4)
-#define NACKFRAG_SIZE_MAX NACKFRAG_SIZE (256u)
+#define NACKFRAG_SIZE_MAX NACKFRAG_SIZE (NN_FRAGMENT_NUMBER_SET_MAX_BITS)
 
 typedef union Submessage {
   SubmessageHeader_t smhdr;

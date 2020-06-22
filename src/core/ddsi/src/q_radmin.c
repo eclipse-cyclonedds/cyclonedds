@@ -1443,7 +1443,7 @@ void nn_defrag_notegap (struct nn_defrag *defrag, seqno_t min, seqno_t maxp1)
   defrag->max_sample = ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree);
 }
 
-int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct nn_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz)
+enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct nn_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz)
 {
   struct nn_rsample *s;
   struct nn_defrag_iv *iv;
@@ -1455,7 +1455,7 @@ int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnu
     if (maxfragnum == UINT32_MAX)
     {
       /* If neither the caller nor the defragmenter knows anything about the sample, say so */
-      return -1;
+      return DEFRAG_NACKMAP_UNKNOWN_SAMPLE;
     }
     else
     {
@@ -1468,7 +1468,7 @@ int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnu
         map->numbits = maxfragnum + 1;
       map->bitmap_base = 0;
       nn_bitset_one (map->numbits, mapbits);
-      return (int) map->numbits;
+      return DEFRAG_NACKMAP_FRAGMENTS_MISSING;
     }
   }
 
@@ -1505,7 +1505,9 @@ int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnu
     /* if all data is available, iv == liv and map_end <
        map->bitmap_base, but there is nothing to request in that
        case. */
-    map->numbits = (map_end < map->bitmap_base) ? 0 : map_end - map->bitmap_base + 1;
+    if (map_end < map->bitmap_base)
+      return DEFRAG_NACKMAP_ALL_ADVERTISED_FRAGMENTS_KNOWN;
+    map->numbits = map_end - map->bitmap_base + 1;
     iv = ddsrt_avl_find_succ (&rsample_defrag_fragtree_treedef, &s->u.defrag.fragtree, iv);
   }
 
@@ -1544,7 +1546,7 @@ int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnu
     unsigned x = (unsigned) (i - map->bitmap_base);
     nn_bitset_set (map->numbits, mapbits, x);
   }
-  return (int) map->numbits;
+  return DEFRAG_NACKMAP_FRAGMENTS_MISSING;
 }
 
 /* There is only one defrag per proxy writer. However for the Volatile Secure writer a filter
@@ -2308,7 +2310,7 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
   }
 }
 
-int nn_reorder_wantsample (struct nn_reorder *reorder, seqno_t seq)
+int nn_reorder_wantsample (const struct nn_reorder *reorder, seqno_t seq)
 {
   struct nn_rsample *s;
   if (seq < reorder->next_seq)
@@ -2320,7 +2322,7 @@ int nn_reorder_wantsample (struct nn_reorder *reorder, seqno_t seq)
   return (s == NULL || s->u.reorder.maxp1 <= seq);
 }
 
-unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t maxseq, struct nn_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail)
+unsigned nn_reorder_nackmap (const struct nn_reorder *reorder, seqno_t base, seqno_t maxseq, struct nn_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail)
 {
   struct nn_rsample *iv;
   seqno_t i;

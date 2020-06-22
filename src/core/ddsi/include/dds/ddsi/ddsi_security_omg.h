@@ -947,7 +947,7 @@ bool decode_DataFrag(const struct ddsi_domaingv *gv, struct nn_rsample_info *sam
  * @param[in]     pwr       Writer for which the message is intended.
  * @param[in]     rd_guid   Origin reader guid.
  */
-void encode_datareader_submsg(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, struct proxy_writer *pwr, const struct ddsi_guid *rd_guid);
+void encode_datareader_submsg(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, const struct proxy_writer *pwr, const struct ddsi_guid *rd_guid);
 
 /**
  * @brief Encode datawriter submessage when necessary.
@@ -1332,7 +1332,7 @@ inline void
 encode_datareader_submsg(
   UNUSED_ARG(struct nn_xmsg *msg),
   UNUSED_ARG(struct nn_xmsg_marker sm_marker),
-  UNUSED_ARG(struct proxy_writer *pwr),
+  UNUSED_ARG(const struct proxy_writer *pwr),
   UNUSED_ARG(const struct ddsi_guid *rd_guid))
 {
 }

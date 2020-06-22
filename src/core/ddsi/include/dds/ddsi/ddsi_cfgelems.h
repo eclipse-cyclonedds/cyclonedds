@@ -840,7 +840,7 @@ static struct cfgelem internal_watermarks_cfgelems[] = {
       "expressed in bytes. A suspended writer resumes transmitting when its "
       "Cyclone DDS WHC shrinks to this size.</p>"),
     UNIT("memsize")),
-  STRING("WhcHigh", NULL, 1, "100 kB",
+  STRING("WhcHigh", NULL, 1, "500 kB",
     MEMBER(whc_highwater_mark),
     FUNCTIONS(0, uf_memsize, 0, pf_memsize),
     DESCRIPTION(
@@ -1194,7 +1194,7 @@ static struct cfgelem internal_cfgelems[] = {
       "operating system by default creates a larger buffer, it is left "
       "unchanged.</p>"),
     UNIT("memsize")),
-  STRING("NackDelay", NULL, 1, "10 ms",
+  STRING("NackDelay", NULL, 1, "100 ms",
     MEMBER(nack_delay),
     FUNCTIONS(0, uf_duration_ms_1hr, 0, pf_duration),
     DESCRIPTION(
@@ -1203,6 +1203,13 @@ static struct cfgelem internal_cfgelems[] = {
       "requires an answer). However, no NACK is sent if a NACK had been "
       "scheduled already for a response earlier than the delay requests: "
       "then that NACK will incorporate the latest information.</p>"),
+    UNIT("duration")),
+  STRING("AckDelay", NULL, 1, "10 ms",
+    MEMBER(ack_delay),
+    FUNCTIONS(0, uf_duration_ms_1hr, 0, pf_duration),
+    DESCRIPTION(
+      "<p>This setting controls the delay between sending identical "
+      "acknowledgements.</p>"),
     UNIT("duration")),
   STRING("AutoReschedNackDelay", NULL, 1, "1 s",
     MEMBER(auto_resched_nack_delay),

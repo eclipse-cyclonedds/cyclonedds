@@ -472,6 +472,7 @@ CycloneDDS configuration</xs:documentation>
     <xs:complexType>
       <xs:all>
         <xs:element minOccurs="0" ref="config:AccelerateRexmitBlockSize"/>
+        <xs:element minOccurs="0" ref="config:AckDelay"/>
         <xs:element minOccurs="0" ref="config:AssumeMulticastCapable"/>
         <xs:element minOccurs="0" ref="config:AutoReschedNackDelay"/>
         <xs:element minOccurs="0" ref="config:BuiltinEndpointSet"/>
@@ -525,6 +526,14 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;Proxy readers that are assumed to sill be retrieving historical data get this many samples retransmitted when they NACK something, even if some of these samples have sequence numbers outside the set covered by the NACK.&lt;/p&gt;
 &lt;p&gt;The default value is: "0".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="AckDelay" type="config:duration">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This setting controls the delay between sending identical acknowledgements.&lt;/p&gt;
+&lt;p&gt;The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
+&lt;p&gt;The default value is: "10 ms".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="AssumeMulticastCapable" type="xs:string">
@@ -820,7 +829,7 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;This setting controls the delay between receipt of a HEARTBEAT indicating missing samples and a NACK (ignored when the HEARTBEAT requires an answer). However, no NACK is sent if a NACK had been scheduled already for a response earlier than the delay requests: then that NACK will incorporate the latest information.&lt;/p&gt;
 &lt;p&gt;The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
-&lt;p&gt;The default value is: "10 ms".&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The default value is: "100 ms".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="PreEmptiveAckDelay" type="config:duration">
@@ -1010,7 +1019,7 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;This element sets the maximum allowed high-water mark for the Cyclone DDS WHCs, expressed in bytes. A writer is suspended when the WHC reaches this size.&lt;/p&gt;
 &lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
-&lt;p&gt;The default value is: "100 kB".&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The default value is: "500 kB".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="WhcHighInit" type="config:memsize">
