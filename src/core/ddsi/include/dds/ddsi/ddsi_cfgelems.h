@@ -153,7 +153,7 @@ static struct cfgelem general_cfgelems[] = {
       "communications, but if a node runs only a single Cyclone DDS service "
       "and does not host any other DDSI-capable programs, it should be set "
       "to \"false\" for improved performance.</p>")),
-  STRING("MaxMessageSize", NULL, 1, "4096 B",
+  STRING("MaxMessageSize", NULL, 1, "14720 B",
     MEMBER(max_msg_size),
     FUNCTIONS(0, uf_memsize, 0, pf_memsize),
     DESCRIPTION(
@@ -163,9 +163,19 @@ static struct cfgelem general_cfgelems[] = {
       "(especially for very low values of MaxMessageSize) larger payloads "
       "may sporadically be observed (currently up to 1192 B).</p>\n"
       "<p>On some networks it may be necessary to set this item to keep the "
-      "packetsize below the MTU to prevent IP fragmentation. In those cases, "
-      "it is generally advisable to also consider reducing "
-      "Internal/FragmentSize.</p>"),
+      "packetsize below the MTU to prevent IP fragmentation.</p>"),
+    UNIT("memsize")),
+  STRING("MaxRexmitMessageSize", NULL, 1, "1456 B",
+    MEMBER(max_rexmit_msg_size),
+    FUNCTIONS(0, uf_memsize, 0, pf_memsize),
+    DESCRIPTION(
+      "<p>This element specifies the maximum size of the UDP payload that "
+      "Cyclone DDS will generate for a retransmit. Cyclone DDS will try to "
+      "maintain this limit within the bounds of the DDSI specification, which "
+      "means that in some cases (especially for very low values) larger payloads "
+      "may sporadically be observed (currently up to 1192 B).</p>\n"
+      "<p>On some networks it may be necessary to set this item to keep the "
+      "packetsize below the MTU to prevent IP fragmentation.</p>"),
     UNIT("memsize")),
   STRING("FragmentSize", NULL, 1, "1344 B",
     MEMBER(fragment_size),
@@ -856,6 +866,29 @@ static struct cfgelem internal_watermarks_cfgelems[] = {
   END_MARKER
 };
 
+static struct cfgelem internal_burstsize_cfgelems[] = {
+  STRING("MaxRexmit", NULL, 1, "1 MiB",
+    MEMBER(max_rexmit_burst_size),
+    FUNCTIONS(0, uf_memsize, 0, pf_memsize),
+    DESCRIPTION(
+      "<p>This element specifies the amount of data to be retransmitted in "
+      "response to one NACK.</p>"),
+    UNIT("memsize")),
+  STRING("MaxInitTransmit", NULL, 1, "4294967295",
+    MEMBER(init_transmit_extra_pct),
+    FUNCTIONS(0, uf_uint, 0, pf_uint),
+    DESCRIPTION(
+      "<p>This element specifies how much more than the (presumed or discovered) "
+      "receive buffer size may be sent when transmitting a sample for the first "
+      "time, expressed as a percentage; the remainder will then be handled via "
+      "retransmits. Usually the receivers can keep up with transmitter, at least "
+      "on average, and so generally it is better to hope for the best and recover. "
+      "Besides, the retransmits will be unicast, and so any multicast advantage "
+      "will be lost as well.</p>"),
+    UNIT("memsize")),
+  END_MARKER
+};
+
 static struct cfgelem control_topic_cfgattrs[] = {
   BOOL(DEPRECATED("Enable"), NULL, 1, "false",
     MEMBER(enable_control_topic),
@@ -1369,6 +1402,10 @@ static struct cfgelem internal_cfgelems[] = {
     NOMEMBER,
     NOFUNCTIONS,
     DESCRIPTION("<p>Watermarks for flow-control.</p>")),
+  GROUP("BurstSize", internal_burstsize_cfgelems, NULL, 1,
+    NOMEMBER,
+    NOFUNCTIONS,
+    DESCRIPTION("<p>Setting for controlling the size of transmit bursts.</p>")),
   LIST("EnableExpensiveChecks", NULL, 1, "",
     MEMBER(enabled_xchecks),
     FUNCTIONS(0, uf_xcheck, 0, pf_xcheck),

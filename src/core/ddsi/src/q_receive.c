@@ -921,7 +921,8 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   nn_gap_info_init(&gi);
   const bool gap_for_already_acked = vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind == DDS_DURABILITY_VOLATILE && seqbase <= rn->seq;
   const seqno_t min_seq_to_rexmit = gap_for_already_acked ? rn->seq + 1 : 0;
-  for (uint32_t i = 0; i < numbits && seqbase + i <= seq_xmit && enqueued; i++)
+  uint32_t limit = wr->rexmit_burst_size_limit;
+  for (uint32_t i = 0; i < numbits && seqbase + i <= seq_xmit && enqueued && limit > 0; i++)
   {
     /* Accelerated schedule may run ahead of sequence number set
        contained in the acknack, and assumes all messages beyond the
@@ -949,6 +950,13 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
               max_seq_in_reply = seqbase + i;
               msgs_sent++;
               sample.last_rexmit_ts = tstamp;
+              // FIXME: now enqueue_sample_wrlock_held limits retransmit requests of a large sample to 1 fragment
+              // thus we can easily figure out how much was sent, but we shouldn't have that knowledge here:
+              // it should return how much it queued instead
+              uint32_t sent = ddsi_serdata_size (sample.serdata);
+              if (sent > wr->e.gv->config.fragment_size)
+                sent = wr->e.gv->config.fragment_size;
+              limit = (sent > limit) ? 0 : limit - sent;
             }
           }
           else
@@ -972,6 +980,13 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
               max_seq_in_reply = seqbase + i;
               msgs_sent++;
               sample.rexmit_count++;
+              // FIXME: now enqueue_sample_wrlock_held limits retransmit requests of a large sample to 1 fragment
+              // thus we can easily figure out how much was sent, but we shouldn't have that knowledge here:
+              // it should return how much it queued instead
+              uint32_t sent = ddsi_serdata_size (sample.serdata);
+              if (sent > wr->e.gv->config.fragment_size)
+                sent = wr->e.gv->config.fragment_size;
+              limit = (sent > limit) ? 0 : limit - sent;
             }
           }
         }
@@ -1544,18 +1559,21 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
      a Gap if we don't have them anymore. */
   if (whc_borrow_sample (wr->whc, seq, &sample))
   {
-    const unsigned base = msg->fragmentNumberState.bitmap_base - 1;
-    int enqueued = 1;
+    const uint32_t base = msg->fragmentNumberState.bitmap_base - 1;
+    assert (wr->rexmit_burst_size_limit <= UINT32_MAX - UINT16_MAX);
+    uint32_t nfrags_lim = (wr->rexmit_burst_size_limit + wr->e.gv->config.fragment_size - 1) / wr->e.gv->config.fragment_size;
     RSTTRACE (" scheduling requested frags ...\n");
-    for (uint32_t i = 0; i < msg->fragmentNumberState.numbits && enqueued; i++)
+    for (uint32_t i = 0; i < msg->fragmentNumberState.numbits && nfrags_lim > 0; i++)
     {
       if (nn_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i))
       {
         struct nn_xmsg *reply;
-        if (create_fragment_message (wr, seq, sample.plist, sample.serdata, base + i, prd, &reply, 0) < 0)
-          enqueued = 0;
+        if (create_fragment_message (wr, seq, sample.plist, sample.serdata, base + i, 1, prd, &reply, 0, 0) < 0)
+          nfrags_lim = 0;
+        else if (!qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0))
+          nfrags_lim = 0;
         else
-          enqueued = qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0);
+          nfrags_lim--;
       }
     }
     whc_return_sample (wr->whc, &sample, false);
