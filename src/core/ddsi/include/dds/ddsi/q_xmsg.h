@@ -66,8 +66,8 @@ bool nn_xmsg_getdst1prefix (struct nn_xmsg *m, ddsi_guid_prefix_t *gp);
 /* For sending to a particular proxy reader; this is a convenience
    routine that extracts a suitable address from the proxy reader's
    address sets and calls setdst1. */
-dds_return_t nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd);
-dds_return_t nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr);
+void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd);
+void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr);
 
 /* For sending to all in the address set AS -- typically, the writer's
    address set to multicast to all matched readers */
