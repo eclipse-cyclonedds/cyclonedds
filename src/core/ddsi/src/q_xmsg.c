@@ -760,31 +760,20 @@ bool nn_xmsg_getdst1prefix (struct nn_xmsg *m, ddsi_guid_prefix_t *gp)
   return false;
 }
 
-dds_return_t nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
+void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
 {
   nn_locator_t loc;
-  if (addrset_any_uc (prd->c.as, &loc) || addrset_any_mc (prd->c.as, &loc))
-  {
-    nn_xmsg_setdst1 (prd->e.gv, m, &prd->e.guid.prefix, &loc);
-    return 0;
-  }
-  else
-  {
-    DDS_CWARNING (&prd->e.gv->logconfig, "nn_xmsg_setdstPRD: no address for "PGUIDFMT"", PGUID (prd->e.guid));
-    return DDS_RETCODE_PRECONDITION_NOT_MET;
-  }
+  // only accepting endpoints that have an address
+  addrset_any_uc_else_mc_nofail (prd->c.as, &loc);
+  nn_xmsg_setdst1 (prd->e.gv, m, &prd->e.guid.prefix, &loc);
 }
 
-dds_return_t nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
+void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
 {
   nn_locator_t loc;
-  if (addrset_any_uc (pwr->c.as, &loc) || addrset_any_mc (pwr->c.as, &loc))
-  {
-    nn_xmsg_setdst1 (pwr->e.gv, m, &pwr->e.guid.prefix, &loc);
-    return 0;
-  }
-  DDS_CWARNING (&pwr->e.gv->logconfig, "nn_xmsg_setdstPRD: no address for "PGUIDFMT, PGUID (pwr->e.guid));
-  return DDS_RETCODE_PRECONDITION_NOT_MET;
+  // only accepting endpoints that have an address
+  addrset_any_uc_else_mc_nofail (pwr->c.as, &loc);
+  nn_xmsg_setdst1 (pwr->e.gv, m, &pwr->e.guid.prefix, &loc);
 }
 
 void nn_xmsg_setdstN (struct nn_xmsg *m, struct addrset *as, struct addrset *as_group)

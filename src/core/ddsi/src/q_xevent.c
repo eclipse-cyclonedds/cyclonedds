@@ -1535,20 +1535,14 @@ void qxev_prd_entityid (struct proxy_reader *prd, const ddsi_guid_t *guid)
   if (! gv->xevents->tev_conn->m_connless)
   {
     msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
-    if (nn_xmsg_setdstPRD (msg, prd) == 0)
-    {
-      GVTRACE ("  qxev_prd_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
-      nn_xmsg_add_entityid (msg);
-      ddsrt_mutex_lock (&gv->xevents->lock);
-      ev = qxev_common_nt (gv->xevents, XEVK_ENTITYID);
-      ev->u.entityid.msg = msg;
-      qxev_insert_nt (ev);
-      ddsrt_mutex_unlock (&gv->xevents->lock);
-    }
-    else
-    {
-      nn_xmsg_free (msg);
-    }
+    nn_xmsg_setdstPRD (msg, prd);
+    GVTRACE ("  qxev_prd_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
+    nn_xmsg_add_entityid (msg);
+    ddsrt_mutex_lock (&gv->xevents->lock);
+    ev = qxev_common_nt (gv->xevents, XEVK_ENTITYID);
+    ev->u.entityid.msg = msg;
+    qxev_insert_nt (ev);
+    ddsrt_mutex_unlock (&gv->xevents->lock);
   }
 }
 
@@ -1563,20 +1557,14 @@ void qxev_pwr_entityid (struct proxy_writer *pwr, const ddsi_guid_t *guid)
   if (! pwr->evq->tev_conn->m_connless)
   {
     msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
-    if (nn_xmsg_setdstPWR (msg, pwr) == 0)
-    {
-      GVTRACE ("  qxev_pwr_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
-      nn_xmsg_add_entityid (msg);
-      ddsrt_mutex_lock (&pwr->evq->lock);
-      ev = qxev_common_nt (pwr->evq, XEVK_ENTITYID);
-      ev->u.entityid.msg = msg;
-      qxev_insert_nt (ev);
-      ddsrt_mutex_unlock (&pwr->evq->lock);
-    }
-    else
-    {
-      nn_xmsg_free (msg);
-    }
+    nn_xmsg_setdstPWR (msg, pwr);
+    GVTRACE ("  qxev_pwr_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
+    nn_xmsg_add_entityid (msg);
+    ddsrt_mutex_lock (&pwr->evq->lock);
+    ev = qxev_common_nt (pwr->evq, XEVK_ENTITYID);
+    ev->u.entityid.msg = msg;
+    qxev_insert_nt (ev);
+    ddsrt_mutex_unlock (&pwr->evq->lock);
   }
 }
 

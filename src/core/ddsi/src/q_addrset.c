@@ -444,6 +444,23 @@ int addrset_any_mc (const struct addrset *as, nn_locator_t *dst)
   }
 }
 
+void addrset_any_uc_else_mc_nofail (const struct addrset *as, nn_locator_t *dst)
+{
+  LOCK (as);
+  if (!ddsrt_avl_cis_empty (&as->ucaddrs))
+  {
+    const struct addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->ucaddrs);
+    *dst = n->loc;
+  }
+  else
+  {
+    assert (!ddsrt_avl_cis_empty (&as->mcaddrs));
+    const struct addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->mcaddrs);
+    *dst = n->loc;
+  }
+  UNLOCK (as);
+}
+
 struct addrset_forall_helper_arg
 {
   addrset_forall_fun_t f;

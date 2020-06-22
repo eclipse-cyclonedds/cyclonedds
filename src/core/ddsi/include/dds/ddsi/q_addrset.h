@@ -58,6 +58,7 @@ int addrset_empty_mc (const struct addrset *as);
 int addrset_empty (const struct addrset *as);
 int addrset_any_uc (const struct addrset *as, nn_locator_t *dst);
 int addrset_any_mc (const struct addrset *as, nn_locator_t *dst);
+void addrset_any_uc_else_mc_nofail (const struct addrset *as, nn_locator_t *dst);
 
 /* Keeps AS locked */
 int addrset_forone (struct addrset *as, addrset_forone_fun_t f, void *arg);

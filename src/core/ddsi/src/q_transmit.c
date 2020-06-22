@@ -211,11 +211,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
     }
     /* set the destination explicitly to the unicast destination and the fourth
        param of add_Heartbeat needs to be the guid of the reader */
-    if (nn_xmsg_setdstPRD (msg, prd) < 0)
-    {
-      nn_xmsg_free (msg);
-      return NULL;
-    }
+    nn_xmsg_setdstPRD (msg, prd);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
     nn_xmsg_setencoderid (msg, wr->partition_id);
 #endif
@@ -345,11 +341,7 @@ struct nn_xmsg *writer_hbcontrol_p2p(struct writer *wr, const struct whc_state *
 
   /* set the destination explicitly to the unicast destination and the fourth
      param of add_Heartbeat needs to be the guid of the reader */
-  if (nn_xmsg_setdstPRD (msg, prd) < 0)
-  {
-    nn_xmsg_free (msg);
-    return NULL;
-  }
+  nn_xmsg_setdstPRD (msg, prd);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   nn_xmsg_setencoderid (msg, wr->partition_id);
 #endif
@@ -563,12 +555,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
 
   if (prd)
   {
-    if (nn_xmsg_setdstPRD (*pmsg, prd) < 0)
-    {
-      nn_xmsg_free (*pmsg);
-      *pmsg = NULL;
-      return DDS_RETCODE_PRECONDITION_NOT_MET;
-    }
+    nn_xmsg_setdstPRD (*pmsg, prd);
     /* retransmits: latency budget doesn't apply */
   }
   else
@@ -699,19 +686,9 @@ static void create_HeartbeatFrag (struct writer *wr, seqno_t seq, unsigned fragn
   nn_xmsg_setencoderid (*pmsg, wr->partition_id);
 #endif
   if (prd)
-  {
-    if (nn_xmsg_setdstPRD (*pmsg, prd) < 0)
-    {
-      /* HeartbeatFrag is only advisory anyway */
-      nn_xmsg_free (*pmsg);
-      *pmsg = NULL;
-      return;
-    }
-  }
+    nn_xmsg_setdstPRD (*pmsg, prd);
   else
-  {
     nn_xmsg_setdstN (*pmsg, wr->as, wr->as_group);
-  }
   hbf = nn_xmsg_append (*pmsg, &sm_marker, sizeof (HeartbeatFrag_t));
   nn_xmsg_submsg_init (*pmsg, sm_marker, SMID_HEARTBEAT_FRAG);
   hbf->readerId = nn_hton_entityid (prd ? prd->e.guid.entityid : to_entityid (NN_ENTITYID_UNKNOWN));
