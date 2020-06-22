@@ -380,6 +380,7 @@ struct proxy_participant
   struct proxy_endpoint_common *endpoints; /* all proxy endpoints can be reached from here */
   ddsrt_avl_tree_t groups; /* table of all groups (publisher, subscriber), see struct proxy_group */
   seqno_t seq; /* sequence number of most recent SPDP message */
+  uint32_t receive_buffer_size; /* assumed size of receive buffer, used to limit bursts involving this proxypp */
   unsigned implicitly_created : 1; /* participants are implicitly created for Cloud/Fog discovered endpoints */
   unsigned is_ddsi2_pp: 1; /* if this is the federation-leader on the remote node */
   unsigned minimal_bes_mode: 1;
@@ -470,6 +471,7 @@ struct proxy_reader {
   unsigned favours_ssm: 1; /* iff 1, this proxy reader favours SSM when available */
 #endif
   ddsrt_avl_tree_t writers; /* matching LOCAL writers */
+  uint32_t receive_buffer_size; /* assumed receive buffer size inherited from proxypp */
   filter_fn_t filter;
 };
 

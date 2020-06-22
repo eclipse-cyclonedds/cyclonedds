@@ -287,6 +287,16 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
     ETRACE (pp, "spdp_write("PGUIDFMT") - internals: %s\n", PGUID (pp->e.guid), dst->adlink_participant_version_info.internals);
   }
 
+  /* Add Cyclone specific information */
+  {
+    const uint32_t bufsz = ddsi_receive_buffer_size (pp->e.gv->m_factory);
+    if (bufsz > 0)
+    {
+      dst->present |= PP_CYCLONE_RECEIVE_BUFFER_SIZE;
+      dst->cyclone_receive_buffer_size = bufsz;
+    }
+  }
+
 #ifdef DDSI_INCLUDE_SECURITY
   /* Add Security specific information. */
   if (q_omg_get_participant_security_info(pp, &(dst->participant_security_info))) {

@@ -4933,6 +4933,15 @@ bool new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
     proxypp->minimal_bes_mode = 0;
   proxypp->implicitly_created = ((custom_flags & CF_IMPLICITLY_CREATED_PROXYPP) != 0);
   proxypp->proxypp_have_spdp = ((custom_flags & CF_PROXYPP_NO_SPDP) == 0);
+  if (plist->present & PP_CYCLONE_RECEIVE_BUFFER_SIZE)
+    proxypp->receive_buffer_size = plist->cyclone_receive_buffer_size;
+  else /* default to what we use */
+    proxypp->receive_buffer_size = ddsi_receive_buffer_size (gv->m_factory);
+  if (proxypp->receive_buffer_size < 131072)
+  {
+    /* if we don't know anything, or if it is implausibly tiny, use 128kB */
+    proxypp->receive_buffer_size = 131072;
+  }
 
   {
     struct proxy_participant *privpp;
@@ -5793,6 +5802,7 @@ int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
   prd->favours_ssm = (favours_ssm && gv->config.allowMulticast & AMC_SSM) ? 1 : 0;
 #endif
   prd->is_fict_trans_reader = 0;
+  prd->receive_buffer_size = proxypp->receive_buffer_size;
 
   ddsrt_avl_init (&prd_writers_treedef, &prd->writers);
 
