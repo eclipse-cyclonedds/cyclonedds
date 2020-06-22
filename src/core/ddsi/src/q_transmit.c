@@ -541,7 +541,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
-  if (fragnum * gv->config.fragment_size >= size && size > 0)
+  if (fragnum * (uint32_t) gv->config.fragment_size >= size && size > 0)
   {
     /* This is the first chance to detect an attempt at retransmitting
        an non-existent fragment, which a malicious (or buggy) remote
@@ -617,20 +617,20 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
 
     frag->fragmentStartingNum = fragnum + 1;
     frag->fragmentsInSubmessage = 1;
-    frag->fragmentSize = (unsigned short) gv->config.fragment_size;
-    frag->sampleSize = (uint32_t)size;
 
-    fragstart = fragnum * gv->config.fragment_size;
 #if MULTIPLE_FRAGS_IN_SUBMSG /* ugly hack for testing only */
     if (fragstart + gv->config.fragment_size < ddsi_serdata_size (serdata) &&
         fragstart + 2 * gv->config.fragment_size >= ddsi_serdata_size (serdata))
       frag->fragmentsInSubmessage++;
     ret = frag->fragmentsInSubmessage;
 #endif
+    frag->fragmentSize = gv->config.fragment_size;
+    frag->sampleSize = (uint32_t) size;
 
-    fraglen = gv->config.fragment_size * frag->fragmentsInSubmessage;
+    fragstart = fragnum * (uint32_t) gv->config.fragment_size;
+    fraglen = (uint32_t) gv->config.fragment_size * (uint32_t) frag->fragmentsInSubmessage;
     if (fragstart + fraglen > size)
-      fraglen = (uint32_t)(size - fragstart);
+      fraglen = (uint32_t) (size - fragstart);
     ddcmn->octetsToInlineQos = (unsigned short) ((char*) (frag+1) - ((char*) &ddcmn->octetsToInlineQos + 2));
 
     if (wr->reliable && (!isnew || fragstart + fraglen == ddsi_serdata_size (serdata)))

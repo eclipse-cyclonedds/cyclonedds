@@ -167,9 +167,9 @@ static struct cfgelem general_cfgelems[] = {
       "it is generally advisable to also consider reducing "
       "Internal/FragmentSize.</p>"),
     UNIT("memsize")),
-  STRING("FragmentSize", NULL, 1, "1280 B",
+  STRING("FragmentSize", NULL, 1, "1344 B",
     MEMBER(fragment_size),
-    FUNCTIONS(0, uf_memsize, 0, pf_memsize),
+    FUNCTIONS(0, uf_memsize16, 0, pf_memsize16),
     DESCRIPTION(
       "<p>This element specifies the size of DDSI sample fragments generated "
       "by Cyclone DDS. Samples larger than FragmentSize are fragmented into "

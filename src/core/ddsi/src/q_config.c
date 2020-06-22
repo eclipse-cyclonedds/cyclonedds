@@ -164,6 +164,7 @@ DU(natint_255);
 DUPF(participantIndex);
 DU(dyn_port);
 DUPF(memsize);
+DUPF(memsize16);
 DU(duration_inf);
 DU(duration_ms_1hr);
 DU(duration_ms_1s);
@@ -1092,8 +1093,26 @@ static enum update_result uf_memsize (struct cfgst *cfgst, void *parent, struct 
 
 static void pf_memsize (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
-  int const * const elem = cfg_address (cfgst, parent, cfgelem);
-  pf_int64_unit (cfgst, *elem, sources, unittab_memsize, "B");
+  uint32_t const * const elem = cfg_address (cfgst, parent, cfgelem);
+  pf_int64_unit (cfgst, (int64_t) *elem, sources, unittab_memsize, "B");
+}
+
+static enum update_result uf_memsize16 (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  int64_t size = 0;
+  if (uf_natint64_unit (cfgst, &size, value, unittab_memsize, 1, 0, UINT16_MAX) != URES_SUCCESS)
+    return URES_ERROR;
+  else {
+    uint16_t * const elem = cfg_address (cfgst, parent, cfgelem);
+    *elem = (uint16_t) size;
+    return URES_SUCCESS;
+  }
+}
+
+static void pf_memsize16 (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  uint16_t const * const elem = cfg_address (cfgst, parent, cfgelem);
+  pf_int64_unit (cfgst, (int64_t) *elem, sources, unittab_memsize, "B");
 }
 
 static enum update_result uf_tracingOutputFileName (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
