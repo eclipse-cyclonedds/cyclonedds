@@ -362,6 +362,12 @@ static int ddsi_raweth_is_valid_port (const struct ddsi_tran_factory *fact, uint
   return (port >= 1 && port <= 65535);
 }
 
+static uint32_t ddsi_raweth_receive_buffer_size (const struct ddsi_tran_factory *fact)
+{
+  (void) fact;
+  return 0;
+}
+
 int ddsi_raweth_init (struct ddsi_domaingv *gv)
 {
   struct ddsi_tran_factory *fact = ddsrt_malloc (sizeof (*fact));
@@ -384,6 +390,7 @@ int ddsi_raweth_init (struct ddsi_domaingv *gv)
   fact->m_locator_to_string_fn = ddsi_raweth_to_string;
   fact->m_enumerate_interfaces_fn = ddsi_raweth_enumerate_interfaces;
   fact->m_is_valid_port_fn = ddsi_raweth_is_valid_port;
+  fact->m_receive_buffer_size_fn = ddsi_raweth_receive_buffer_size;
   ddsi_factory_add (gv, fact);
   GVLOG (DDS_LC_CONFIG, "raweth initialized\n");
   return 0;

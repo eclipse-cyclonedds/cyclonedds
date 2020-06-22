@@ -446,8 +446,10 @@ typedef union Submessage {
 #define PID_ADLINK_ENDPOINT_GID                 (PID_VENDORSPECIFIC_FLAG | 0x14u)
 #define PID_ADLINK_GROUP_GID                    (PID_VENDORSPECIFIC_FLAG | 0x15u)
 #define PID_ADLINK_EOTINFO                      (PID_VENDORSPECIFIC_FLAG | 0x16u)
-#define PID_ADLINK_PART_CERT_NAME               (PID_VENDORSPECIFIC_FLAG | 0x17u);
-#define PID_ADLINK_LAN_CERT_NAME                (PID_VENDORSPECIFIC_FLAG | 0x18u);
+#define PID_ADLINK_PART_CERT_NAME               (PID_VENDORSPECIFIC_FLAG | 0x17u)
+#define PID_ADLINK_LAN_CERT_NAME                (PID_VENDORSPECIFIC_FLAG | 0x18u)
+
+#define PID_CYCLONE_RECEIVE_BUFFER_SIZE         (PID_VENDORSPECIFIC_FLAG | 0x19u)
 
 #if defined (__cplusplus)
 }

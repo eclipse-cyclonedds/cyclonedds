@@ -71,6 +71,7 @@ typedef int (*ddsi_tran_leave_mc_fn_t) (ddsi_tran_conn_t, const nn_locator_t *sr
 typedef int (*ddsi_is_mcaddr_fn_t) (const struct ddsi_tran_factory *tran, const nn_locator_t *loc);
 typedef int (*ddsi_is_ssm_mcaddr_fn_t) (const struct ddsi_tran_factory *tran, const nn_locator_t *loc);
 typedef int (*ddsi_is_valid_port_fn_t) (const struct ddsi_tran_factory *tran, uint32_t port);
+typedef uint32_t (*ddsi_receive_buffer_size_fn_t) (const struct ddsi_tran_factory *fact);
 
 enum ddsi_nearby_address_result {
   DNAR_DISTANT,
@@ -174,6 +175,7 @@ struct ddsi_tran_factory
   ddsi_locator_to_string_fn_t m_locator_to_string_fn;
   ddsi_enumerate_interfaces_fn_t m_enumerate_interfaces_fn;
   ddsi_is_valid_port_fn_t m_is_valid_port_fn;
+  ddsi_receive_buffer_size_fn_t m_receive_buffer_size_fn;
 
   /* Data */
 
@@ -213,6 +215,9 @@ inline bool ddsi_factory_supports (const struct ddsi_tran_factory *factory, int3
 }
 inline int ddsi_is_valid_port (const struct ddsi_tran_factory *factory, uint32_t port) {
   return factory->m_is_valid_port_fn (factory, port);
+}
+inline uint32_t ddsi_receive_buffer_size (const struct ddsi_tran_factory *factory) {
+  return factory->m_receive_buffer_size_fn (factory);
 }
 inline dds_return_t ddsi_factory_create_conn (ddsi_tran_conn_t *conn, ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos) {
   *conn = NULL;
