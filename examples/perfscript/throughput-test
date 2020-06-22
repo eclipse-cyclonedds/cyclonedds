@@ -1,7 +1,7 @@
 #!/bin/bash
 
 export nwif=eth0
-bandwidth=1e9
+bandwidth=""
 remotedir="$PWD"
 provision=false
 asynclist="sync async"
@@ -10,15 +10,19 @@ sizelist="0 20 50 100 200 500 1000 2000 5000 10000 20000 50000 100000 200000 500
 timeout=30
 loopback=true
 resultdir="throughput-result"
+force=false
+netstats=false
 
 usage () {
     cat >&2 <<EOF
 usage: $0 [OPTIONS] user@remote [user@remote...]
 
 OPTIONS
-  -i IF        use network interface IF (default: $nwif)
+  -i IF        use network interface IF (default: $nwif) local
+  -I IF        use network interface IF remotely (default: same as local)
   -b 100|1000|B  network bandwidth (100Mbps/1000Gbps or B bits/sec) for
-               calculating load % given load in bytes/second (default: 1000)
+               calculating load % given load in bytes/second (default:
+               report Mb/s)
   -d DIR       use DIR on remote (default: PWD)
   -p           provision required binaries in DIR (default: $provision)
                first ssh's in to try mkdir -p DIR, then follows up with scp
@@ -31,6 +35,8 @@ OPTIONS
                if SIZELIST is empty, it uses ddsperf's OU topic instead
   -l LOOPBACK  enable/disable multicast loopback (true/false, default: $loopback)
   -o DIR       store results in dir (default: $resultdir)
+  -f           "force": first do "rm -rf" of output dir, then create it
+  -X           run ping to first remote; on macOS: log interface stats
 
 Local host runs "ddsperf" in subscriber mode, first remote runs it publisher
 mode, further remotes also run subcribers.  It assumes these are available in
@@ -40,13 +46,15 @@ EOF
     exit 1
 }
 
-while getopts "i:b:d:pa:m:s:t:o:l:" opt ; do
+while getopts "fi:I:b:d:pa:m:s:t:o:l:X" opt ; do
     case $opt in
+        f) force=true ;;
         i) nwif="$OPTARG" ;;
+        I) rnwif="$OPTARG" ;;
         b) case "$OPTARG" in
-               100) bandwidth=1e8 ;;
-               1000) bandwidth=1e9 ;;
-               *) bandwidth="$OPTARG" ;;
+               100) bandwidth=:1e8 ;;
+               1000) bandwidth=:1e9 ;;
+               *) bandwidth="${OPTARG:+:}$OPTARG" ;;
            esac ;;
         d) remotedir="$OPTARG" ;;
         p) provision=true ;;
@@ -56,36 +64,32 @@ while getopts "i:b:d:pa:m:s:t:o:l:" opt ; do
         l) loopback="OPTARG" ;;
         t) timeout="$OPTARG" ;;
         o) resultdir="$OPTARG" ;;
+        X) netstats=true ;;
         h) usage ;;
     esac
 done
 shift $((OPTIND-1))
 if [ $# -lt 1 ] ; then usage ; fi
-pubremote=$1
-shift
 
+[ -z "$rnwif" ] && rnwif=$nwif
 cfg=cdds-simple.xml
 cat >$cfg <<EOF
 <CycloneDDS>
-  <Domain>
-    <Id>17</Id>
+  <Domain id="17">
+    <General>
+      <NetworkInterfaceAddress>\${nwif}</NetworkInterfaceAddress>
+      <EnableMulticastLoopback>$loopback</EnableMulticastLoopback>
+    </General>
+    <Internal>
+      <SynchronousDeliveryPriorityThreshold>\${async:-0}</SynchronousDeliveryPriorityThreshold>
+      <LeaseDuration>2s</LeaseDuration>
+    </Internal>
+    <Tracing>
+      <Verbosity>fine</Verbosity>
+      <Category>\${trace}</Category>
+      <OutputFile>\${logdir}/cdds.log</OutputFile>
+    </Tracing>
   </Domain>
-  <General>
-    <NetworkInterfaceAddress>$nwif</NetworkInterfaceAddress>
-    <EnableMulticastLoopback>$loopback</EnableMulticastLoopback>
-    <MaxMessageSize>65500B</MaxMessageSize>
-    <FragmentSize>4000B</FragmentSize>
-  </General>
-  <Internal>
-    <Watermarks>
-      <WhcHigh>500kB</WhcHigh>
-    </Watermarks>
-    <SynchronousDeliveryPriorityThreshold>\${async:-0}</SynchronousDeliveryPriorityThreshold>
-    <LeaseDuration>3s</LeaseDuration>
-  </Internal>
-  <Tracing>
-    <Verbosity>config</Verbosity>
-  </Tracing>
 </CycloneDDS>
 EOF
 
@@ -94,11 +98,20 @@ if [ ! -x bin/ddsperf ] ; then
     exit 1
 fi
 
+if [ ! -d $resultdir ] ; then
+    mkdir $resultdir
+elif $force ; then
+    rm -rf $resultdir
+    mkdir $resultdir
+elif [ `ls $resultdir | wc -l` -gt 0 ] ; then
+    echo "output directory $resultdir is non-empty" >&2
+    exit 1
+fi
 [ -d $resultdir ] || { echo "output directory $resultdir doesn't exist" >&2 ; exit 1 ; }
 
 if $provision ; then
     echo "provisioning ..."
-    for r in $pubremote "$@" ; do
+    for r in "$@" ; do
         ssh $r mkdir -p $remotedir $remotedir/bin $remotedir/lib
         scp lib/libddsc.so.0 $r:$remotedir/lib
         scp bin/ddsperf $r:$remotedir/bin
@@ -109,7 +122,7 @@ topic=KS
 [ -z "$sizelist" ] && topic=OU
 
 export CYCLONEDDS_URI=file://$PWD/$cfg
-for r in $pubremote "$@" ; do
+for r in "$@" ; do
     scp $cfg $r:$remotedir || { echo "failed to copy $cfg to $remote:$PWD" >&2 ; exit 1 ; }
 done
 
@@ -123,45 +136,70 @@ for async_mode in $asynclist ; do
     for sub_mode in $modelist ; do
         echo "======== ASYNC $async MODE $sub_mode ========="
         
-        cat > run-publisher.tmp <<EOF
+        subpids=""
+        cat > run-subscriber.tmp <<EOF
 export CYCLONEDDS_URI=file://$remotedir/$cfg
 export async=$async
+export nwif=$rnwif
+export logdir=.
+#export trace=trace,-content
 cd $remotedir
-for size in ${sizelist:-0} ; do
-  echo "size \$size"
-  bin/ddsperf -D $timeout -T $topic pub size \$size > pub.log
-  sleep 5
-done
-wait
+#/usr/sbin/tcpdump -c 20000 -s 0 -w /tmp/x.pcap -i eth0 -Z erik 'udp[8:4]=0x52545053' & tcpdumppid=\$!
+bin/ddsperf -1 -d $rnwif$bandwidth -c -T $topic sub $sub_mode > sub.log & pid=\$!
+echo \$pid > throughput-test-sub-\$pid.pid
+wait \$pid
+#kill -INT \$tcpdumppid
 EOF
-        scp run-publisher.tmp $pubremote:$remotedir || { echo "failed to copy $cfg to $remote:$PWD" >&2 ; exit 2 ; }
-        killremotesubs=""
-        if [ $# -gt 0 ] ; then
-            cat > run-subscriber.tmp <<EOF
-export CYCLONEDDS_URI=file://$remotedir/$cfg
-export async=$async
-cd $remotedir
-nohup bin/ddsperf -T $topic sub $sub_mode > /dev/null &
-echo \$!
-EOF
-            for r in "$@" ; do
-                scp run-subscriber.tmp $r:$remotedir
-                rsubpid=`ssh $r ". $remotedir/run-subscriber.tmp"`
-                killremotesubs="$killremotesubs ssh $r kill -9 $rsubpid &"
-            done
-        fi
+        for r in "$@" ; do
+            scp run-subscriber.tmp $r:$remotedir
+            ssh $r ". $remotedir/run-subscriber.tmp" & subpids="$subpids $!"
+        done
 
         outdir=$resultdir/$async_mode-$sub_mode
         mkdir $outdir
+        rm -f $outdir/pub.log
+        export logdir=$outdir
+        if $netstats ; then
+            ping `echo $1 | sed -e 's/.*@//'` > $outdir/ping.log & netstats_pids=$!
+            if [ "`uname -s`" = "Darwin" ] ; then
+                rm -f $outdir/netstat.log
+                bash -c "while true ; do /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I >> $outdir/netstat.log ; sleep 1; done" & netstats_pids="$netstats_pids $!"
+            fi
+        fi
+        for size in ${sizelist:-0} ; do
+            echo "size $size"
+            #export trace=trace,-content
+            bin/ddsperf -Q minmatch:$# -Q initwait:3 \
+                        -c -d $nwif$bandwidth \
+                        -D $timeout -T $topic \
+                        pub size $size | \
+                tee -a $outdir/pub.log
+        done
 
-        bin/ddsperf -d $nwif:$bandwidth -c -T $topic sub $sub_mode > $outdir/sub.log & spid=$!
-        tail -f $outdir/sub.log & xpid=$!
-        ssh $pubremote ". $remotedir/run-publisher.tmp"
-        kill $spid
-        eval $killremotesubs
-        sleep 1
-        kill $xpid
+        if $netstats ; then
+            kill $netstats_pids
+        fi
+        for r in "$@" ; do
+            ssh $r "kill -9 \`cat $remotedir/throughput-test-sub-*.pid\` ; rm $remotedir/throughput-test-sub-*.pid"
+        done
         wait
-        scp $pubremote:$remotedir/pub.log $outdir
+        for r in "$@" ; do
+            scp $r:$remotedir/sub.log $outdir/sub-$r.log
+        done
+
+        # write a summary, one line per second
+        # col 0: raw network receive bandwidth (Mb/s)
+        # col 1: appl receive bandwidth, 1s trailing average (Mb/s)
+        # col 2: appl receive bandwidth, 10s trailing average (Mb/s)
+        # (this assumes the network interface name is eth, en, or lo, optionally followed by a 0)
+        perl -ne 'if(/size \d+ total.* (\d+\.\d+) Mb\/s.* (\d+\.\d+) Mb\/s/){$r=$1;$r10=$2;}if(/(?:eth|en|lo)0?: xmit.*? recv (\d+\.\d+)/){printf "%f %f %f\n", $1, $r, $r10;}' $outdir/sub-$1.log > $resultdir/summary-$async_mode-$sub_mode.txt
+        perl -ne 'print "$1 $2\n" if /^(\d+)\s+(\d+)(\s+\d+)$/' $outdir/pub.log > $resultdir/rexmit-bytes.txt
+        perl -ne 'print "$1 $2\n" if /^DISCARDED\s+(\d+)\s+(\d+)$/' $outdir/sub-$1.log > $resultdir/discarded.txt
+        if $netstats ; then
+            perl -ne 'print "$1\n" if /time=([0-9.]+)/' $outdir/ping.log > $resultdir/lat.log
+            if [ "`uname -s`" = "Darwin" ] ; then
+                perl -ne 'if(/CtlRSSI:\s*(-?\d+)/){$rssi=$1;}if(/CtlNoise:\s*(-?\d+)/){$noise=$1;}if(/maxRate:\s*(\d+)/){$max=$1;}if(/lastTxRate:\s*(\d+)/){$lasttx=$1;print "$max $lasttx $rssi $noise\n"}' $outdir/netstat.log > $resultdir/net.log
+            fi
+        fi
     done
 done
