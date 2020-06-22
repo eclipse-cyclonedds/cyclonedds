@@ -220,6 +220,7 @@ struct nn_xpack
     } all;
   } dstaddr;
 
+  bool includes_rexmit;
   struct nn_xmsg_chain included_msgs;
 
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
@@ -1145,6 +1146,7 @@ static void nn_xpack_reinit (struct nn_xpack *xp)
   xp->niov = 0;
   xp->call_flags = 0;
   xp->msg_len.length = 0;
+  xp->includes_rexmit = false;
   xp->included_msgs.latest = NULL;
   xp->maxdelay = DDS_INFINITY;
 #ifdef DDSI_INCLUDE_SECURITY
@@ -1535,9 +1537,24 @@ static int addressing_info_eq_onesidederr (const struct nn_xpack *xp, const stru
   return 0;
 }
 
+static int nn_xmsg_is_rexmit (const struct nn_xmsg *m)
+{
+  switch (m->kind)
+  {
+    case NN_XMSG_KIND_DATA:
+    case NN_XMSG_KIND_CONTROL:
+      return 0;
+    case NN_XMSG_KIND_DATA_REXMIT:
+    case NN_XMSG_KIND_DATA_REXMIT_NOMERGE:
+      return 1;
+  }
+  return 0;
+}
+
 static int nn_xpack_mayaddmsg (const struct nn_xpack *xp, const struct nn_xmsg *m, const uint32_t flags)
 {
-  unsigned max_msg_size = xp->gv->config.max_msg_size;
+  const bool rexmit = xp->includes_rexmit || nn_xmsg_is_rexmit (m);
+  const unsigned max_msg_size = rexmit ? xp->gv->config.max_rexmit_msg_size : xp->gv->config.max_msg_size;
   unsigned payload_size;
 
   if (xp->niov == 0)
@@ -1758,10 +1775,12 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   xp->msg_len.length = (uint32_t) sz;
   xp->niov = niov;
 
-  if (xpo_niov > 0 && sz > xp->gv->config.max_msg_size)
+  const bool rexmit = xp->includes_rexmit || nn_xmsg_is_rexmit (m);
+  const unsigned max_msg_size = rexmit ? xp->gv->config.max_rexmit_msg_size : xp->gv->config.max_msg_size;
+  if (xpo_niov > 0 && sz > max_msg_size)
   {
     GVTRACE (" => now niov %d sz %"PRIuSIZE" > max_msg_size %"PRIu32", nn_xpack_send niov %d sz %"PRIu32" now\n",
-             (int) niov, sz, gv->config.max_msg_size, (int) xpo_niov, xpo_sz);
+             (int) niov, sz, max_msg_size, (int) xpo_niov, xpo_sz);
     xp->msg_len.length = xpo_sz;
     xp->niov = xpo_niov;
     nn_xpack_send (xp, false);
@@ -1770,6 +1789,15 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   else
   {
     xp->call_flags = flags;
+    switch (m->kind)
+    {
+      case NN_XMSG_KIND_DATA:
+      case NN_XMSG_KIND_CONTROL:
+        break;
+      case NN_XMSG_KIND_DATA_REXMIT:
+      case NN_XMSG_KIND_DATA_REXMIT_NOMERGE:
+        xp->includes_rexmit = true;
+    }
     nn_xmsg_chain_add (&xp->included_msgs, m);
     GVTRACE (" => now niov %d sz %"PRIuSIZE"\n", (int) niov, sz);
   }

@@ -301,6 +301,8 @@ struct writer
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
   ddsrt_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
   ddsrt_etime_t t_whc_high_upd; /* time "whc_high" was last updated for controlled ramp-up of throughput */
+  uint32_t init_burst_size_limit; /* derived from reader's receive_buffer_size */
+  uint32_t rexmit_burst_size_limit; /* derived from reader's receive_buffer_size */
   uint32_t num_readers; /* total number of matching PROXY readers */
   int32_t num_reliable_readers; /* number of matching reliable PROXY readers */
   ddsrt_avl_tree_t readers; /* all matching PROXY readers, see struct wr_prd_match */

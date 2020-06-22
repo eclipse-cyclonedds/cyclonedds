@@ -264,6 +264,9 @@ struct config
 
   uint16_t fragment_size;
   uint32_t max_msg_size;
+  uint32_t max_rexmit_msg_size;
+  uint32_t init_transmit_extra_pct;
+  uint32_t max_rexmit_burst_size;
 
   int publish_uc_locators; /* Publish discovery unicast locators */
   int enable_uc_locators; /* If false, don't even try to create a unicast socket */

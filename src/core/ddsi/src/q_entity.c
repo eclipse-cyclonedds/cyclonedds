@@ -1454,7 +1454,7 @@ static int rebuild_compare_locs(const void *va, const void *vb)
   }
 }
 
-static struct addrset *rebuild_make_all_addrs (int *nreaders, struct writer *wr)
+static struct addrset *rebuild_make_all_addrs (int *nreaders, struct writer *wr, uint32_t *min_receive_buffer_size)
 {
   struct addrset *all_addrs = new_addrset();
   struct entity_index *gh = wr->e.gv->entity_index;
@@ -1471,6 +1471,8 @@ static struct addrset *rebuild_make_all_addrs (int *nreaders, struct writer *wr)
     if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
       continue;
     (*nreaders)++;
+    if (prd->receive_buffer_size < *min_receive_buffer_size)
+      *min_receive_buffer_size = prd->receive_buffer_size;
     copy_addrset_into_addrset(wr->e.gv, all_addrs, prd->c.as);
   }
   if (addrset_empty(all_addrs) || *nreaders == 0)
@@ -1677,7 +1679,7 @@ static void rebuild_drop(int locidx, int nreaders, int nlocs, int *locs_nrds, in
   }
 }
 
-static void rebuild_writer_addrset_setcover(struct addrset *newas, struct writer *wr)
+static void rebuild_writer_addrset_setcover(struct addrset *newas, struct writer *wr, uint32_t *min_receive_buffer_size)
 {
   bool prefer_multicast = wr->e.gv->config.prefer_multicast;
   struct addrset *all_addrs;
@@ -1686,7 +1688,7 @@ static void rebuild_writer_addrset_setcover(struct addrset *newas, struct writer
   int *locs_nrds;
   int8_t *covered;
   int best;
-  if ((all_addrs = rebuild_make_all_addrs(&nreaders, wr)) == NULL)
+  if ((all_addrs = rebuild_make_all_addrs(&nreaders, wr, min_receive_buffer_size)) == NULL)
     return;
   nn_log_addrset(wr->e.gv, DDS_LC_DISCOVERY, "setcover: all_addrs", all_addrs);
   ELOGDISC (wr, "\n");
@@ -1715,12 +1717,39 @@ static void rebuild_writer_addrset (struct writer *wr)
   /* FIXME way too inefficient in this form */
   struct addrset *newas = new_addrset ();
   struct addrset *oldas = wr->as;
+  uint32_t min_receive_buffer_size = UINT32_MAX;
 
   /* only one operation at a time */
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
   /* compute new addrset */
-  rebuild_writer_addrset_setcover(newas, wr);
+  rebuild_writer_addrset_setcover(newas, wr, &min_receive_buffer_size);
+
+  /* Modifying burst size limit here is a bit of a hack; but anyway ...
+     try to limit bursts of retransmits to 67% of the smallest receive
+     buffer, and those of initial transmissions to that + overshoot%.
+     It is usually best to send the full sample initially, always:
+     - if the receivers manage to keep up somewhat, sending it in one
+       go and then recovering anything lost is way faster then sending
+       only small batches
+     - the way things are now: the retransmits will be sent unicast,
+       so if there are multiple receivers, that'll blow up things by
+       a non-trivial amount */
+  wr->rexmit_burst_size_limit = min_receive_buffer_size - min_receive_buffer_size / 3;
+  if (wr->rexmit_burst_size_limit < 1024)
+    wr->rexmit_burst_size_limit = 1024;
+  if (wr->rexmit_burst_size_limit > wr->e.gv->config.max_rexmit_burst_size)
+    wr->rexmit_burst_size_limit = wr->e.gv->config.max_rexmit_burst_size;
+  if (wr->rexmit_burst_size_limit > UINT32_MAX - UINT16_MAX)
+    wr->rexmit_burst_size_limit = UINT32_MAX - UINT16_MAX;
+
+  const uint64_t limit64 = (uint64_t) wr->e.gv->config.init_transmit_extra_pct * (uint64_t) min_receive_buffer_size / 100;
+  if (limit64 > UINT32_MAX - UINT16_MAX)
+    wr->init_burst_size_limit = UINT32_MAX - UINT16_MAX;
+  else if (limit64 < wr->rexmit_burst_size_limit)
+    wr->init_burst_size_limit = wr->rexmit_burst_size_limit;
+  else
+    wr->init_burst_size_limit = (uint32_t) limit64;
 
   /* swap in new address set; this simple procedure is ok as long as
      wr->as is never accessed without the wr->e.lock held */
@@ -1729,7 +1758,7 @@ static void rebuild_writer_addrset (struct writer *wr)
 
   ELOGDISC (wr, "rebuild_writer_addrset("PGUIDFMT"):", PGUID (wr->e.guid));
   nn_log_addrset(wr->e.gv, DDS_LC_DISCOVERY, "", wr->as);
-  ELOGDISC (wr, "\n");
+  ELOGDISC (wr, " (burst size %"PRIu32" rexmit %"PRIu32")\n", wr->init_burst_size_limit, wr->rexmit_burst_size_limit);
 }
 
 void rebuild_or_clear_writer_addrsets (struct ddsi_domaingv *gv, int rebuild)
@@ -3598,6 +3627,8 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->force_md5_keyhash = 0;
   wr->alive = 1;
   wr->alive_vclock = 0;
+  wr->init_burst_size_limit = UINT32_MAX - UINT16_MAX;
+  wr->rexmit_burst_size_limit = UINT32_MAX - UINT16_MAX;
 
   wr->status_cb = status_cb;
   wr->status_cb_entity = status_entity;

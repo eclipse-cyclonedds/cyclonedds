@@ -1125,11 +1125,11 @@ static bool resend_spdp_sample_by_guid_key (struct writer *wr, const ddsi_guid_t
   if (sample_found)
   {
     /* Claiming it is new rather than a retransmit so that the rexmit
-     limiting won't kick in.  It is best-effort and therefore the
-     updating of the last transmitted sequence number won't take
-     place anyway.  Nor is it necessary to fiddle with heartbeat
-     control stuff. */
-    enqueue_sample_wrlock_held (wr, sample.seq, sample.plist, sample.serdata, prd, 1);
+       limiting won't kick in.  It is best-effort and therefore the
+       updating of the last transmitted sequence number won't take
+       place anyway.  Nor is it necessary to fiddle with heartbeat
+       control stuff. */
+    enqueue_spdp_sample_wrlock_held (wr, sample.seq, sample.serdata, prd);
     whc_return_sample(wr->whc, &sample, false);
   }
   ddsrt_mutex_unlock (&wr->e.lock);
