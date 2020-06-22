@@ -129,7 +129,7 @@ struct wr_prd_match {
   seqno_t max_seq; /* sort-of highest ack'd seq nr in subtree (see augment function) */
   seqno_t seq; /* highest acknowledged seq nr */
   seqno_t last_seq; /* highest seq send to this reader used when filter is applied */
-  int32_t num_reliable_readers_where_seq_equals_max;
+  uint32_t num_reliable_readers_where_seq_equals_max;
   ddsi_guid_t arbitrary_unacked_reader;
   nn_count_t prev_acknack; /* latest accepted acknack sequence number */
   nn_count_t prev_nackfrag; /* latest accepted nackfrag sequence number */
@@ -150,6 +150,13 @@ enum pwr_rd_match_syncstate {
   PRMSS_OUT_OF_SYNC /* not in sync with proxy writer */
 };
 
+struct last_nack_summary {
+  seqno_t seq_end_p1; /* last seq for which we requested a retransmit */
+  seqno_t seq_base;
+  uint32_t frag_end_p1; /* last fragnum of seq_last_nack for which requested a retransmit */
+  uint32_t frag_base;
+};
+
 struct pwr_rd_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t rd_guid;
@@ -158,12 +165,18 @@ struct pwr_rd_match {
   nn_count_t prev_heartbeat; /* latest accepted heartbeat (see also add_proxy_writer_to_reader) */
   ddsrt_wctime_t hb_timestamp; /* time of most recent heartbeat that rescheduled the ack event */
   ddsrt_etime_t t_heartbeat_accepted; /* (local) time a heartbeat was last accepted */
-  ddsrt_mtime_t t_last_nack; /* (local) time we last sent a NACK */  /* FIXME: probably elapsed time is better */
-  seqno_t seq_last_nack; /* last seq for which we requested a retransmit */
+  ddsrt_mtime_t t_last_nack; /* (local) time we last sent a NACK */
+  ddsrt_mtime_t t_last_ack; /* (local) time we last sent any ACKNACK */
   seqno_t last_seq; /* last known sequence number from this writer */
+  struct last_nack_summary last_nack;
   struct xevent *acknack_xevent; /* entry in xevent queue for sending acknacks */
   enum pwr_rd_match_syncstate in_sync; /* whether in sync with the proxy writer */
-  unsigned filtered:1;
+  unsigned ack_requested : 1; /* set on receipt of HEARTBEAT with FINAL clear, cleared on sending an ACKNACK */
+  unsigned heartbeat_since_ack : 1; /* set when a HEARTBEAT has been received since the last ACKNACK */
+  unsigned heartbeatfrag_since_ack : 1; /* set when a HEARTBEATFRAG has been received since the last ACKNACK */
+  unsigned directed_heartbeat : 1; /* set on receipt of a directed heartbeat, cleared on sending an ACKNACK */
+  unsigned nack_sent_on_nackdelay : 1; /* set when the most recent NACK sent was because of the NackDelay  */
+  unsigned filtered : 1;
   union {
     struct {
       seqno_t end_of_tl_seq; /* when seq >= end_of_tl_seq, it's in sync, =0 when not tl */
@@ -304,7 +317,7 @@ struct writer
   uint32_t init_burst_size_limit; /* derived from reader's receive_buffer_size */
   uint32_t rexmit_burst_size_limit; /* derived from reader's receive_buffer_size */
   uint32_t num_readers; /* total number of matching PROXY readers */
-  int32_t num_reliable_readers; /* number of matching reliable PROXY readers */
+  uint32_t num_reliable_readers; /* number of matching reliable PROXY readers */
   ddsrt_avl_tree_t readers; /* all matching PROXY readers, see struct wr_prd_match */
   ddsrt_avl_tree_t local_readers; /* all matching LOCAL readers, see struct wr_rd_match */
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -438,10 +451,9 @@ struct proxy_writer {
   int32_t n_reliable_readers; /* number of those that are reliable */
   int32_t n_readers_out_of_sync; /* number of those that require special handling (accepting historical data, waiting for historical data set to become complete) */
   seqno_t last_seq; /* highest known seq published by the writer, not last delivered */
-  uint32_t last_fragnum; /* last known frag for last_seq, or ~0u if last_seq not partial */
+  uint32_t last_fragnum; /* last known frag for last_seq, or UINT32_MAX if last_seq not partial */
   nn_count_t nackfragcount; /* last nackfrag seq number */
   ddsrt_atomic_uint32_t next_deliv_seq_lowword; /* lower 32-bits for next sequence number that will be delivered; for generating acks; 32-bit so atomic reads on all supported platforms */
-  unsigned last_fragnum_reset: 1; /* iff set, heartbeat advertising last_seq as highest seq resets last_fragnum */
   unsigned deliver_synchronously: 1; /* iff 1, delivery happens straight from receive thread for non-historical data; else through delivery queue "dqueue" */
   unsigned have_seen_heartbeat: 1; /* iff 1, we have received at least on heartbeat from this proxy writer */
   unsigned local_matching_inprogress: 1; /* iff 1, we are still busy matching local readers; this is so we don't deliver incoming data to some but not all readers initially */

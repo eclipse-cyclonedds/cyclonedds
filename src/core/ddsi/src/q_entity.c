@@ -2528,9 +2528,18 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   m->hb_timestamp.v = 0;
   m->t_heartbeat_accepted.v = 0;
   m->t_last_nack.v = 0;
-  m->seq_last_nack = 0;
+  m->t_last_ack.v = 0;
+  m->last_nack.seq_end_p1 = 0;
+  m->last_nack.seq_base = 0;
+  m->last_nack.frag_end_p1 = 0;
+  m->last_nack.frag_base = 0;
   m->last_seq = 0;
   m->filtered = 0;
+  m->ack_requested = 0;
+  m->heartbeat_since_ack = 0;
+  m->heartbeatfrag_since_ack = 0;
+  m->directed_heartbeat = 0;
+  m->nack_sent_on_nackdelay = 0;
 
 #ifdef DDSI_INCLUDE_SECURITY
   m->crypto_handle = crypto_handle;
@@ -3411,7 +3420,7 @@ static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vr
     /* seq < max cannot be true for a best-effort reader or a demoted */
     n->arbitrary_unacked_reader = n->prd_guid;
   }
-  else if (n->is_reliable && (n->seq == MAX_SEQ_NUMBER || !n->has_replied_to_hb))
+  else if (n->is_reliable && (n->seq == MAX_SEQ_NUMBER || n->seq == 0 || !n->has_replied_to_hb))
   {
     /* demoted readers and reliable readers that have not yet replied to a heartbeat are candidates */
     n->arbitrary_unacked_reader = n->prd_guid;
@@ -5479,7 +5488,6 @@ int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
   pwr->last_seq = 0;
   pwr->last_fragnum = UINT32_MAX;
   pwr->nackfragcount = 1;
-  pwr->last_fragnum_reset = 0;
   pwr->alive = 1;
   pwr->alive_vclock = 0;
   pwr->filtered = 0;

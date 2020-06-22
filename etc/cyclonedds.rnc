@@ -298,6 +298,13 @@ CycloneDDS configuration""" ] ]
           xsd:integer
         }?
         & [ a:documentation [ xml:lang="en" """
+<p>This setting controls the delay between sending identical acknowledgements.</p>
+<p>The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.</p>
+<p>The default value is: "10 ms".</p>""" ] ]
+        element AckDelay {
+          duration
+        }?
+        & [ a:documentation [ xml:lang="en" """
 <p>This element controls which network interfaces are assumed to be capable of multicasting even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). It is a comma-separated lists of patterns (with ? and * wildcards) against which the interface names are matched.</p>
 <p>The default value is: "".</p>""" ] ]
         element AssumeMulticastCapable {
@@ -511,7 +518,7 @@ CycloneDDS configuration""" ] ]
         & [ a:documentation [ xml:lang="en" """
 <p>This setting controls the delay between receipt of a HEARTBEAT indicating missing samples and a NACK (ignored when the HEARTBEAT requires an answer). However, no NACK is sent if a NACK had been scheduled already for a response earlier than the delay requests: then that NACK will incorporate the latest information.</p>
 <p>The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.</p>
-<p>The default value is: "10 ms".</p>""" ] ]
+<p>The default value is: "100 ms".</p>""" ] ]
         element NackDelay {
           duration
         }?
@@ -650,7 +657,7 @@ CycloneDDS configuration""" ] ]
           & [ a:documentation [ xml:lang="en" """
 <p>This element sets the maximum allowed high-water mark for the Cyclone DDS WHCs, expressed in bytes. A writer is suspended when the WHC reaches this size.</p>
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
-<p>The default value is: "100 kB".</p>""" ] ]
+<p>The default value is: "500 kB".</p>""" ] ]
           element WhcHigh {
             memsize
           }?
