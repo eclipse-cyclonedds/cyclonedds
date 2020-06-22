@@ -647,14 +647,6 @@ struct nn_xmsg * nn_gap_info_create_gap(struct writer *wr, struct proxy_reader *
   if (gi->gapstart <= 0)
     return NULL;
 
-  if (gi->gapnumbits == 0)
-  {
-    /* Avoid sending an invalid bitset */
-    gi->gapnumbits = 1;
-    nn_bitset_set (gi->gapnumbits, gi->gapbits, 0);
-    gi->gapend--;
-  }
-
   m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
