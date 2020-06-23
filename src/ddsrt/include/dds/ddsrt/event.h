@@ -12,6 +12,8 @@
 #ifndef DDSRT_EVENT_H
 #define DDSRT_EVENT_H
 
+#include "dds/ddsrt/retcode.h"
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -40,17 +42,21 @@ enum ddsrt_monitorable_event {
   ddsrt_monitorable_event_error = 0x80000000
 };
 
+#define DDSRT_EVENT_MONITORABLE_MAX_BYTES sizeof(void*)
+
 /**
 * @brief ddsrt_event struct definition
 *
+* Maximum size of the monitorable to be stored is determined by the macro DDSRT_EVENT_MONITORABLE_MAX_BYTES
+*
 * mon_type: type of monitorable for events
-* mon_ptr: pointer to stored value of monitorable
+* mon_bytes: array for stored value of monitorable
 * mon_sz: number of bytes stored by mon_ptr
 * evt_type: type of event, composited from ddsrt_monitorable_event
 */
 struct ddsrt_event {
-  enum ddsrt_monitorable   mon_type;
-  void* mon_ptr;
+  enum ddsrt_monitorable  mon_type;
+  char                    mon_bytes[DDSRT_EVENT_MONITORABLE_MAX_BYTES];
   unsigned int            mon_sz;
   int                     evt_type;
 };
@@ -67,9 +73,9 @@ typedef struct ddsrt_event ddsrt_event_t;
 * @param mon_sz number of bytes of monitorable
 * @param evt_type type of event
 *
-* @returns pointer to the event if created succesfully, NULL otherwise
+* @returns event with members set to the appropriate values
 */
-ddsrt_event_t* ddsrt_event_create(enum ddsrt_monitorable mon_type, void* ptr_to_mon, unsigned int mon_sz, int evt_type);
+ddsrt_event_t ddsrt_event_create(enum ddsrt_monitorable mon_type, const void* ptr_to_mon, unsigned int mon_sz, int evt_type);
 
 /**
 * @brief shorthand version of ddsrt_event_create
@@ -77,25 +83,6 @@ ddsrt_event_t* ddsrt_event_create(enum ddsrt_monitorable mon_type, void* ptr_to_
 * In this case you can just supply a type, and it copies the contents of the correct size
 */
 #define ddsrt_event_create_val(mtp,val,etp) ddsrt_event_create(mtp,&val,sizeof(val),etp)
-
-/**
-* @brief ddsrt_event copy function
-*
-* Copies the contents of src to dst, will reassign memory for mon_ptr if necessary.
-*
-* @param dst destination to copy to
-* @param src source to copy from
-*/
-void ddsrt_event_copy(ddsrt_event_t* dst, ddsrt_event_t* src);
-
-/**
-* @brief ddsrt_event cleanup function
-*
-* Will deassign all memory associated with the event.
-*
-* @param evt the event to clean
-*/
-void ddsrt_event_destroy(ddsrt_event_t* evt);
 
 /** 
 * @brief Forward declaration of the ddsrt_monitor structure, implementation will happen for each supported architecture.
@@ -107,6 +94,7 @@ typedef struct ddsrt_monitor ddsrt_monitor_t;
 *
 * Will create containers for events and triggers.
 * Will create method for early triggering.
+* Will create any additional real estate for platform specific implementations.
 *
 * @param cap initial capacity of the monitor
 * @param fixedsize whether the capacity of the monitor can be expanded
@@ -135,7 +123,7 @@ void ddsrt_monitor_destroy(ddsrt_monitor_t* mon);
 *
 * @returns the number of triggers stored if succesful, -1 otherwise
 */
-int ddsrt_monitor_register_trigger(ddsrt_monitor_t* mon, ddsrt_event_t* evt);
+int ddsrt_monitor_register_trigger(ddsrt_monitor_t* mon, ddsrt_event_t evt);
 
 /**
 * @brief Event trigger deregistration function.
@@ -146,9 +134,9 @@ int ddsrt_monitor_register_trigger(ddsrt_monitor_t* mon, ddsrt_event_t* evt);
 * @param mon the monitor to remove from
 * @param evt the event to remove
 *
-* @returns the number of triggers stored if succesful, -1 otherwise
+* @returns the number of triggers stored
 */
-int ddsrt_monitor_deregister_trigger(ddsrt_monitor_t* mon, ddsrt_event_t* evt);
+int ddsrt_monitor_deregister_trigger(ddsrt_monitor_t* mon, ddsrt_event_t evt);
 
 /**
 * @brief Wait trigger function for monitor.
@@ -172,13 +160,14 @@ int ddsrt_monitor_start_wait(ddsrt_monitor_t* mon, int milliseconds);
 *
 * @returns 0: in case of success, -1: om case of error
 */
-int ddsrt_monitor_interrupt_wait(ddsrt_monitor_t* mon);
+dds_return_t ddsrt_monitor_interrupt_wait(ddsrt_monitor_t* mon);
 
 /**
 * @brief Monitor event retrieval function.
 *
 * Retrieves a stored event from the event buffer, returns NULL if there are no more events to retrieve.
 * This pointer will no longer be safe/valid after calling ddsrt_monitor_start_wait again.
+* The monitor remains the owner of the pointer.
 *
 * @param mon the monitor to retrieve the event from
 *

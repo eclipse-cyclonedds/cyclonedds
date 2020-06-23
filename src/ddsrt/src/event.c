@@ -9,13 +9,65 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/event.h"
-#include "dds/ddsrt/event_pipe.h"
+#include "dds/ddsrt/sockets.h"
+#include "dds/ddsrt/log.h"
+
+#ifdef  __VXWORKS__
+#include <pipeDrv.h>
+#include <ioLib.h>
+#include <string.h>
+#include <selectLib.h>
+#define OSPL_PIPENAMESIZE 26
+#endif
+
+#define MODE_KQUEUE 1
+#define MODE_SELECT 2
+#define MODE_WFMEVS 3
+#define MODE_EPOLL 4
+
+#if defined __APPLE__
+#define MODE_SEL MODE_KQUEUE
+#elif defined WINCE
+#define MODE_SEL MODE_WFMEVS
+#else
+#define MODE_SEL MODE_SELECT
+#endif
+
+#if MODE_SEL == MODE_KQUEUE
+#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/fcntl.h>
+#include <sys/types.h>
+#include <sys/event.h>
+#include <sys/time.h>
+#elif MODE_SEL == MODE_SELECT
+
+#if !_WIN32 && !LWIP_SOCKET
+
+#ifndef __VXWORKS__
+#include <sys/fcntl.h>
+#endif /* __VXWORKS__ */
+
+#ifndef _WRS_KERNEL
+#include <sys/select.h>
+#endif
+
+#ifdef __sun
+#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
+#endif
+
+#endif
+
+#endif
 
  /**
  * @brief ddsrt_event creation function
@@ -25,63 +77,21 @@
  * @param mon_sz size in bytes of object being monitored
  * @param evt_type type of event being monitored for
  *
- * @returns pointer to the created struct, NULL otherwise
+ * @returns the created struct
  */
-ddsrt_event_t* ddsrt_event_create(enum ddsrt_monitorable mon_type, void* ptr_to_mon, unsigned int mon_sz, int evt_type) {
-  if (0 == mon_sz ||
-    sizeof(void*) < mon_sz) return NULL;
-  if (NULL == ptr_to_mon &&
-    ddsrt_monitorable_unset != mon_type) return NULL;
+ddsrt_event_t ddsrt_event_create(enum ddsrt_monitorable mon_type, const void* ptr_to_mon, unsigned int mon_sz, int evt_type) {
+  ddsrt_event_t returnval;
+  /*boundary check for storage size*/
+  assert(0 != mon_sz &&
+          DDSRT_EVENT_MONITORABLE_MAX_BYTES >= mon_sz);
 
-  ddsrt_event_t* returnptr = ddsrt_malloc(sizeof(ddsrt_event_t));
-  if (NULL == returnptr) return NULL;
+  returnval.mon_type = mon_type;
+  returnval.evt_type = evt_type;
+  returnval.mon_sz = mon_sz;
+  if (NULL != ptr_to_mon) memcpy(returnval.mon_bytes, ptr_to_mon, mon_sz);
+  else memset(returnval.mon_bytes, 0x0, mon_sz);
 
-  void* tmpptr = ddsrt_malloc(8);
-  if (NULL == tmpptr) {
-    free(returnptr);
-    return NULL;
-  }
-
-  if (NULL != ptr_to_mon) memcpy(tmpptr, ptr_to_mon, mon_sz);
-  else memset(tmpptr, 0x0, mon_sz);
-
-  returnptr->mon_type = mon_type;
-  returnptr->evt_type = evt_type;
-  returnptr->mon_ptr = tmpptr;
-  returnptr->mon_sz = mon_sz;
-
-  return returnptr;
-}
-
-/**
-* @brief ddsrt_event copy function
-*
-* Will also reassign memory for monitorable storage if it cannot contain the new information.
-*
-* @param dst destination to copy to
-* @param src source to copy from
-*/
-void ddsrt_event_copy(ddsrt_event_t* dst, ddsrt_event_t* src) {
-  dst->mon_type = src->mon_type;
-  dst->evt_type = src->evt_type;
-  if (dst->mon_sz < src->mon_sz) {
-    free(dst->mon_ptr);
-    dst->mon_ptr = ddsrt_malloc(src->mon_sz);
-  }
-  dst->mon_sz = src->mon_sz;
-  memcpy(dst->mon_ptr, src->mon_ptr, dst->mon_sz);
-}
-
-/**
-* @brief ddsrt_event cleanup function
-*
-* Will also free the memory for monitorable storage.
-*
-* @param evt event to clean up
-*/
-void ddsrt_event_destroy(ddsrt_event_t* evt) {
-  free(evt->mon_ptr);
-  free(evt);
+  return returnval;
 }
 
 /**
@@ -91,13 +101,13 @@ void ddsrt_event_destroy(ddsrt_event_t* evt) {
 * Adding events will make use of the pre-assigned events.
 * If the container can be expanded, adding events will cause a doubling of the size when nevents == cevents.
 *
-* events: array of pointers to stored events
+* events: array of stored events
 * nevents: currently stored number of events
 * cevents: current capacity for events
 * fixedsize: whether the container can be expanded after creation
 */
 struct event_container {
-  ddsrt_event_t**     events;   /*events container*/
+  ddsrt_event_t*      events;   /*events container*/
   int                 nevents;    /*number of events stored*/
   int                 cevents;    /*capacity for events at this moment*/
   int                 fixedsize;  /*whether the size of the container can be modified*/
@@ -114,23 +124,14 @@ struct event_container {
 * @returns pointer to the constructed container in case of success, NULL otherwise
 */
 static struct event_container* event_container_create(int cap, int fixedsize) {
-  if (cap <= 0) return NULL;
-  ddsrt_event_t** tempptr = ddsrt_malloc(sizeof(ddsrt_event_t*) * ((unsigned int)cap));
-  if (NULL == tempptr) return NULL;
+  assert(cap > 0);
 
   struct event_container* returnptr = ddsrt_malloc(sizeof(struct event_container));
-  if (NULL == returnptr) {
-    free(tempptr);
-    return NULL;
-  }
-
   returnptr->cevents = cap;
   returnptr->nevents = 0;
-  returnptr->events = tempptr;
+  returnptr->events = ddsrt_malloc(sizeof(ddsrt_event_t) * ((unsigned int)cap));
+  memset(returnptr->events, 0x0, sizeof(ddsrt_event_t) * ((unsigned int)cap));
   returnptr->fixedsize = fixedsize;
-
-  /*fill the events container with pre-made events*/
-  for (int i = 0; i < returnptr->cevents; i++) returnptr->events[i] = ddsrt_event_create(ddsrt_monitorable_unset, NULL, sizeof(void*), ddsrt_monitorable_event_unset);
 
   return returnptr;
 }
@@ -143,14 +144,10 @@ static struct event_container* event_container_create(int cap, int fixedsize) {
 * @param cont container to be destroyed
 */
 static void event_container_destroy(struct event_container* cont) {
-  if (NULL == cont) return;
+  assert(NULL != cont);
 
-  if (NULL != cont->events) {
-    for (int i = 0; i < cont->cevents; i++) {
-      if (NULL != cont->events[i]) ddsrt_event_destroy(cont->events[i]);
-    }
+  if (NULL != cont->events)
     free(cont->events);
-  }
   free(cont);
 }
 
@@ -162,53 +159,49 @@ static void event_container_destroy(struct event_container* cont) {
 * @param cont container the events is to be added to
 * @param evt the event to add
 *
-* @returns NULL: something went wrong, i.e.: full container that cennot be expanded further, pointer to the event added
+* @returns NULL: something went wrong, i.e.: full container that cennot be expanded further, pointer to the event added otherwise
 */
-static ddsrt_event_t* event_container_push_event(struct event_container* cont, ddsrt_event_t* evt) {
-  if (NULL == cont) return NULL;
+static ddsrt_event_t* event_container_push_event(struct event_container* cont, ddsrt_event_t evt) {
+  assert(NULL != cont);
 
   /*container is full*/
   if (cont->cevents == cont->nevents) {
     /*cannot modify container size*/
-    if (0 != cont->fixedsize) return NULL;
-
-    /*enlarge container*/
-    int newcap = cont->cevents * 2;
+    if (0 != cont->fixedsize)
+      return NULL;
 
     /*create and fill new array*/
-    ddsrt_event_t** newarray = ddsrt_malloc(sizeof(ddsrt_event_t*) * ((unsigned int)newcap));
-    if (NULL == newarray) return NULL;
+    ddsrt_event_t* newarray = ddsrt_malloc(sizeof(ddsrt_event_t) * ((unsigned int)cont->cevents*2));
 
-    memcpy(newarray, cont->events, sizeof(ddsrt_event_t*) * ((unsigned int)cont->cevents));
-    for (int i = 0; i < cont->cevents; i++) newarray[i + cont->cevents] = ddsrt_event_create(ddsrt_monitorable_unset, NULL, sizeof(void*), ddsrt_monitorable_event_unset);
+    memcpy(newarray, cont->events, sizeof(ddsrt_event_t) * (unsigned)cont->cevents);
+    memset(newarray + cont->cevents, 0x0, sizeof(ddsrt_event_t) * (unsigned)cont->cevents);
 
     /*assignment and cleanup*/
     free(cont->events);
     cont->events = newarray;
-    cont->cevents = newcap;
+    cont->cevents*=2;
   }
 
   /*add the ddsrt_event to the end of the queue*/
-  ddsrt_event_t* evtptr = cont->events[cont->nevents++];
-  ddsrt_event_copy(evtptr, evt);
-
-  return evtptr;
+  cont->events[cont->nevents] = evt;
+  return &(cont->events[cont->nevents++]);
 }
 
 /**
 * @brief Removes the last event from the container and returns a pointer to it.
 *
-* This pointer is no longer safe after another call to push_event, or changing nevents.
+* This pointer is no longer safe after another call to push_event, or expanding the container.
 *
 * @param cont container to take the event from
 *
-* @returns NULL: something went wrong, pointer to the event otherwise
+* @returns NULL: container is empty, pointer to the last event otherwise
 */
 static ddsrt_event_t* event_container_pop_event(struct event_container* cont) {
-  if (NULL == cont ||
-    cont->nevents == 0) return NULL;
+  assert(NULL != cont);
+  if (cont->nevents == 0)
+    return NULL;
 
-  return cont->events[--cont->nevents];
+  return &(cont->events[--cont->nevents]);
 }
 
 /**
@@ -217,50 +210,53 @@ static ddsrt_event_t* event_container_pop_event(struct event_container* cont) {
 * @param cont container to add to
 * @param evt event to add
 *
-* @returns NULL: something went wrong, pointer to the monitorable otherwise
+* @returns 0: something went wrong
+*          1: added a new entry
+*          2: modified an existing entry
 */
-static ddsrt_event_t* event_container_register_monitorable(struct event_container* cont, ddsrt_event_t* evt) {
-  if (NULL == cont) return NULL;
+static int event_container_register_monitorable(struct event_container* cont, ddsrt_event_t evt) {
+  assert(NULL != cont);
 
   for (int i = 0; i < cont->nevents; i++) {
-    ddsrt_event_t* tmpptr = cont->events[i];
-    if (tmpptr->mon_type == evt->mon_type &&
-      tmpptr->mon_sz == evt->mon_sz &&
-      0 == memcmp(tmpptr->mon_ptr, evt->mon_ptr, evt->mon_sz)) {
-      tmpptr->evt_type |= evt->evt_type;
-      return tmpptr;
+    ddsrt_event_t* tmpptr = &(cont->events[i]);
+    if (tmpptr->mon_type == evt.mon_type &&
+        tmpptr->mon_sz == evt.mon_sz &&
+        0 == memcmp(tmpptr->mon_bytes, evt.mon_bytes, evt.mon_sz)) {
+      tmpptr->evt_type |= evt.evt_type;
+      return 2;
     }
   }
 
-  return event_container_push_event(cont, evt);
+  if (NULL != event_container_push_event(cont, evt)) return 1;
+  return 0;
 }
 
 /**
 * @brief Removes the properties of the event from any monitorable already stored, and removes the trigger if no events are left on the monitorable.
 *
-* @param cont container to add to
-* @param evt event to add
+* @param cont container to modify
+* @param evt event to modify
 *
-* @returns -1: something went wrong, otherwise number of entries in the container
+* @returns modified number of entries in the container
 */
-static int event_container_deregister_monitorable(struct event_container* cont, ddsrt_event_t* evt) {
-  if (NULL == cont) return -1;
+static int event_container_deregister_monitorable(struct event_container* cont, ddsrt_event_t evt) {
+  assert(NULL != cont);
 
   for (int i = 0; i < cont->nevents; i++) {
-    ddsrt_event_t* tmpptr = cont->events[i];
-    if (tmpptr->mon_type == evt->mon_type &&
-      tmpptr->mon_sz == evt->mon_sz &&
-      0 == memcmp(tmpptr->mon_ptr, evt->mon_ptr, evt->mon_sz)) {
-      tmpptr->evt_type &= !(evt->evt_type);
-      if (0x0 == tmpptr->evt_type) {
-        cont->events[i] = cont->events[--cont->nevents];
-        cont->events[cont->nevents] = tmpptr;
+    ddsrt_event_t* evtptr = &(cont->events[i]);
+    if (evtptr->mon_type == evt.mon_type &&
+        evtptr->mon_sz == evt.mon_sz &&
+        0 == memcmp(evtptr->mon_bytes, evt.mon_bytes, evt.mon_sz)) {
+      evtptr->evt_type &= !(evt.evt_type);
+      if (0x0 == evtptr->evt_type) {
+        memmove(evtptr, evtptr + 1, (unsigned)(cont->nevents - i - 1)*sizeof(ddsrt_event_t));
+        cont->nevents--;
       }
-      break;
+      return 1;
     }
   }
 
-  return cont->nevents;
+  return 0;
 }
 
 /**
@@ -275,23 +271,215 @@ struct ddsrt_monitor {
   struct event_container* events;        /*container for triggered events*/
   struct event_container* triggers;      /*container for administered triggers*/
 
-  fd_set                  rfds;           /*set of fds for reading data*/
-  ddsrt_socket_t          triggerfds[2];  /*fds for external triggering*/
+  ddsrt_socket_t          triggerfds[2];    /*fds for external triggering*/
+  int                     pollinstance;     /*polling instance, in case select is not used*/
+  int                     unchangedsincelast; /*is set to 1 when the trigger configuration has not changed since the last call to ddsrt_monitor_start_wait*/
+#if MODE_SEL == MODE_KQUEUE
+  kevent* kevents_waiting;                  /*events we were waiting for being triggered*/
+  kevent* kevents_triggered;                /*events that have been triggered*/
+  int nkevents;                             /*number of triggers we are waiting on*/
+#elif MODE_SEL == MODE_WFMEVS
+  WSAEVENT wevents_waiting[MAXIMUM_WAIT_OBJECTS];         /* events associated with sockets */
+  int nwevents;                                           /* number of events waiting for trigger (excluding trigger)*/
+#elif MODE_SEL == MODE_EPOLL
+#elif MODE_SEL == MODE_SELECT
+  fd_set                  rfds;             /*set of fds for reading data*/
+#endif
 };
 
-ddsrt_monitor_t* ddsrt_monitor_create(int cap, int fixedsize) {
-  if (cap <= 0) return NULL;
+/**
+ * @brief closes the "pipe" p
+ * 
+ * dependant on the platform will close the pipe itself or the sockets representing the pipe
+ * 
+ * @param p array of two ddsrt_socket_t's representing the pipe
+ */
+static void closepipe(ddsrt_socket_t p[2]) {
+#if defined(__VXWORKS__) && defined(__RTP__)
+  /*vxworks type pipe*/
+  char nameBuf[OSPL_PIPENAMESIZE];
+  ioctl(mon->triggerfds[0], FIOGETNAME, &nameBuf);
+#endif
+#if (defined _WIN32 || defined(_WIN64))
+  /*windows type socket*/
+  closesocket(p[0]);
+  closesocket(p[1]);
+#elif !defined(LWIP_SOCKET)
+  /*linux type pipe*/
+  close(p[0]);
+  close(p[1]);
+#endif
+#if defined(__VXWORKS__) && defined(__RTP__)
+  pipeDevDelete((char*)&nameBuf, 0);
+#endif
+}
 
-  //try to establish pipe
-  ddsrt_socket_t tmpsockets[2];
-  if (0 != ddsrt_make_pipe(tmpsockets)) return NULL;
+/**
+ * @brief reads a single byte from the "pipe" p
+ *
+ * @param p array of two ddsrt socket_t's representing the pipe
+ */
+static int readpipe(ddsrt_socket_t p[2]) {
+  int n1;
+  char buf;
+#if defined(LWIP_SOCKET)
+  return -1;
+#elif (defined _WIN32 || defined(_WIN64))
+  /*socket type*/
+  n1 = recv(p[0], &buf, 1, 0);
+#else
+  /*pipe type*/
+  n1 = (int)read(p[0], &buf, 1);
+#endif
+  if (n1 != 1) {
+    DDS_WARNING("ddsrt_monitor: read failed on trigger pipe\n");
+    return -1;
+  }
+  return 0;
+}
+
+ddsrt_monitor_t* ddsrt_monitor_create(int cap, int fixedsize) {
+  assert(cap > 0);
+
+  ddsrt_socket_t temppipe[2] = { -1,-1 };
+
+  int pipe_result = 0;
+  /*try to establish trigger functionality*/
+#if (defined _WIN32 || defined(_WIN64))
+  /*windows type socket*/
+  struct sockaddr_in addr;
+  socklen_t asize = sizeof(addr);
+  ddsrt_socket_t listener = socket(AF_INET, SOCK_STREAM, 0);
+  ddsrt_socket_t s1 = socket(AF_INET, SOCK_STREAM, 0);
+  ddsrt_socket_t s2 = DDSRT_INVALID_SOCKET;
+
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  addr.sin_port = 0;
+  if (bind(listener, (struct sockaddr*)&addr, sizeof(addr)) == -1 ||
+    getsockname(listener, (struct sockaddr*)&addr, &asize) == -1 ||
+    listen(listener, 1) == -1 ||
+    connect(s1, (struct sockaddr*)&addr, sizeof(addr)) == -1 ||
+    (s2 = accept(listener, 0, 0)) == -1) {
+    closesocket(s1);
+    closesocket(s2);
+    pipe_result = -1;
+  }
+  else {
+    /* Equivalent to FD_CLOEXEC */
+    SetHandleInformation((HANDLE)s1, HANDLE_FLAG_INHERIT, 0);
+    SetHandleInformation((HANDLE)s2, HANDLE_FLAG_INHERIT, 0);
+    temppipe[0] = s1;
+    temppipe[1] = s2;
+  }
+  closesocket(listener);
+#elif defined(__VXWORKS__)
+  /*vxworks type pipe*/
+  char pipename[OSPL_PIPENAMESIZE];
+  int pipecount = 0;
+  do {
+    snprintf((char*)&pipename, sizeof(pipename), "/pipe/ospl%d", pipecount++);
+  } while ((pipe_result = pipeDevCreate((char*)&pipename, 1, 1)) == -1 &&
+    os_getErrno() == EINVAL);
+  if (pipe_result != -1) {
+    temppipe[0] = open((char*)&pipename, O_RDWR, 0644);
+    temppipe[1] = open((char*)&pipename, O_RDWR, 0644);
+  }
+  /*the pipe was succesfully created, but one of the sockets on either end was not*/
+  if (-1 != pipe_result &&
+    (-1 == temppipe[0] || -1 == temppipe[1])) {
+    pipeDevDelete(pipename, 0);
+    if (-1 != temppipe[0])
+      close(temppipe[0]);
+    if (-1 != temppipe[1])
+      close(temppipe[1]);
+    pipe_result = -1;
+  }
+#elif !defined(LWIP_SOCKET)
+  /*linux type pipe*/
+  pipe_result = pipe(temppipe);
+  (void)fcntl(ws->pipe[0], F_SETFD, fcntl(ws->pipe[0], F_GETFD) | FD_CLOEXEC);
+  (void)fcntl(ws->pipe[1], F_SETFD, fcntl(ws->pipe[1], F_GETFD) | FD_CLOEXEC);
+#endif
+
+  if (-1 == pipe_result) {
+    DDS_WARNING("ddsrt_monitor: failure creating trigger pipe\n");
+    return NULL;
+  }
+
+  int pollresult = 0;
+#if MODE_SEL == MODE_KQUEUE
+  /*create kqueue*/
+  int kq = kqueue();
+  if (kq != -1) {
+    pollresult = fcntl(kq, F_SETFD, fcntl(kq, F_GETFD) | FD_CLOEXEC);
+    if (pollresult == -1) {
+      close(kq);
+    }
+    else {
+      /*register trigger*/
+      kevent kev;
+      EV_SET(&kev, temppipe[0], EVFILT_READ, EV_ADD, 0, 0, 0);
+
+      if ((pollresult = kevent(kq, &kev, 1, NULL, 0, NULL)) == -1) {
+        DDS_WARNING("ddsrt_monitor: kqueue wait interrupt event registration failure\n");
+        close(kq);
+      }
+      else {
+        pollresult = kq;
+      }
+    }
+  }
+  else {
+    pollresult = -1;
+  }
+#elif MODE_SEL == MODE_WFMEVS
+  cap = MAXIMUM_WAIT_OBJECTS - 1;
+  fixedsize = 1;
+  WSAEVENT ev;
+  if ((ev = WSACreateEvent()) == WSA_INVALID_EVENT) {
+    pollresult = -1;
+  }
+  else if (SOCKET_ERROR == WSAEventSelect(temppipe[0], ev, FD_READ)) {
+    WSACloseEvent(ev);
+    pollresult = -1;
+  }
+#elif MODE_SEL == MODE_EPOLL
+  cap = 127;
+  fixedsize = 1;
+#elif MODE_SEL == MODE_SELECT
+#if !defined(_WIN32)
+  cap = FD_SETSIZE - 1;
+  fixedsize = 1;
+#endif
+#endif
+  if (-1 == pollresult) {
+    DDS_WARNING("ddsrt_monitor: failure creating polling instance\n");
+    closepipe(temppipe);
+    return NULL;
+  }
 
   /*create space*/
   ddsrt_monitor_t* returnptr = ddsrt_malloc(sizeof(ddsrt_monitor_t));
   returnptr->events = event_container_create(cap, fixedsize);
   returnptr->triggers = event_container_create(cap, fixedsize);
-  returnptr->triggerfds[0] = tmpsockets[0];
-  returnptr->triggerfds[1] = tmpsockets[1];
+  returnptr->triggerfds[0] = temppipe[0];
+  returnptr->triggerfds[1] = temppipe[1];
+  returnptr->pollinstance = pollresult;
+  returnptr->unchangedsincelast = 0;
+#if MODE_SEL == MODE_KQUEUE
+  returnptr->kevent_waiting = NULL;
+  returnptr->kevents_triggered = NULL;
+  returnptr->kevents = 0;
+#elif MODE_SEL == MODE_WFMEVS
+  returnptr->wevents_waiting[0] = ev;
+  for (int i = 0; i < MAXIMUM_WAIT_OBJECTS-1; i++) {
+    returnptr->wevents_waiting[i+1] = WSACreateEvent();
+    /*check for errors?*/
+  }
+  returnptr->nwevents = 0;
+#elif MODE_SEL == MODE_EPOLL
+#endif
 
   return returnptr;
 }
@@ -300,8 +488,22 @@ void ddsrt_monitor_destroy(ddsrt_monitor_t* mon) {
   if (NULL == mon) return;
   event_container_destroy(mon->events);
   event_container_destroy(mon->triggers);
-  ddsrt_close_pipe(mon->triggerfds);
+  
+#if MODE_SEL == MODE_KQUEUE
+  close(mon->pollinstance);
+  if (NULL != mon->kevents_waiting)
+    free(mon->kevents_waiting);
+  if (NULL != mon->kevents_triggered)
+    free(mon->kevents_triggered);
+#elif MODE_SEL == MODE_WFMEVS
+  for (int i = 0; i < mon->nwevents; i++)
+    WSACloseEvent(mon->wevents_waiting[i]);
+#elif MODE_SEL == MODE_EPOLL
+#endif
 
+  /*cleaning up trigger functionality*/
+  closepipe(mon->triggerfds);
+  
   free(mon);
 }
 
@@ -309,64 +511,205 @@ ddsrt_event_t* ddsrt_monitor_pop_event(ddsrt_monitor_t* mon) {
   return event_container_pop_event(mon->events);
 }
 
-int ddsrt_monitor_register_trigger(ddsrt_monitor_t* mon, ddsrt_event_t* evt) {
-  if (NULL == event_container_register_monitorable(mon->triggers, evt)) return -1;
-
+int ddsrt_monitor_register_trigger(ddsrt_monitor_t* mon, ddsrt_event_t evt) {
+  if (0 == event_container_register_monitorable(mon->triggers, evt)) return -1;
+  mon->unchangedsincelast = 0;
   return mon->triggers->nevents;
 }
 
-int ddsrt_monitor_deregister_trigger(ddsrt_monitor_t* mon, ddsrt_event_t* evt) {
-  return event_container_deregister_monitorable(mon->triggers, evt);
+int ddsrt_monitor_deregister_trigger(ddsrt_monitor_t* mon, ddsrt_event_t evt) {
+  if (0 != event_container_deregister_monitorable(mon->triggers, evt)) {
+    mon->unchangedsincelast = 0;
+  }
+  return mon->triggers->nevents;
 }
 
 int ddsrt_monitor_start_wait(ddsrt_monitor_t* mon, int milliseconds) {
-  if (NULL == mon) return -1;
+  assert(NULL != mon);
 
+#if MODE_SEL == MODE_KQUEUE
+  /*kqueue (apple) type */
+  if (0 == mon->unchangedsincelast) {
+    /*deregister old events*/
+    for (int i = 0; i < mon->nkevents; i++) {
+      kevent* kev = &(mon->kevents_waiting[i]);
+      EV_SET(&kev, kev->ident, kev->filter, EV_DELETE, 0, 0, 0);
+    }
+
+    if (kevent(mon->pollinstance, mon->kevents_waiting, mon->kevents, NULL, 0, NULL) == -1)
+      abort();
+
+    /*resize storage if needed*/
+    if (mon->nkevents < mon->triggers->nevents+1) {
+      if (NULL != mon->kevents_waiting)
+        free(mon->kevents_waiting);
+      if (NULL != mon->kevents_triggered)
+        free(mon->kevents_triggered);
+      mon->nkevents = mon->triggers->nevents+1;  /*+1 because of the pipe trigger event*/
+      mon->kevents_waiting = ddsrt_malloc(sizeof(kevent) * mon->nkevents);
+      mon->kevents_triggered = ddsrt_malloc(sizeof(kevent) * mon->nkevents);
+    }
+
+    /*register new events*/
+    for (int i = 0; i < mon->triggers->nevents; i++) {
+      ddsrt_event_t* evtptr = mon->triggers->events[i];
+      if (evtptr->mon_type != ddsrt_monitorable_socket ||
+          evtptr->evt_type != ddsrt_monitorable_event_data_in)
+        continue;
+
+      ddsrt_socket_t s = *(ddsrt_socket_t*)evtptr->mon_ptr;
+      if (evtptr->evt_type & ddsrt_monitorable_event_data_in)
+        EV_SET(mon->kevents_waiting + i,
+          *(ddsrt_socket*)mon->triggers->events[i].monptr,
+          EVFILT_READ, EV_ADD, 0, 0, 0);
+    }
+    if (-1 == kevent(mon->pollinstance, mon->kevents_waiting, mon->nkevents, NULL, 0, NULL)) {
+      DDS_WARNING("ddsrt_monitor: kqueue event registration failure\n");
+      abort();
+    }
+    mon->unchangedsincelast = 1;
+  }
+
+  /*start wait*/
+  struct timespec tmout = {milliseconds/1000,     /* waittime (seconds) */
+                           milliseconds*1000000}; /* waittime (nanoseconds) */
+  int nevs = kevent(mon->pollinstance, NULL, 0, mon->kevents_triggered, mon->nkevents+1, &tmout);
+
+  /*process events*/
+  for (int i = 0; i < nevs; i++) {
+    ddsrt_socket_t s = mon->kevents_triggered[i].ident;
+    if (s == mon->triggerfds[0]) {
+      /*no event generated from writes to the trigger pipe*/
+      if (-1 == readpipe(mon->triggerfds))
+        return -1;
+      continue;
+    }
+    event_container_push_event(mon->events, ddsrt_event_create_val(ddsrt_monitorable_socket, s, ddsrt_monitorable_event_data_in));
+  }
+#elif MODE_SEL == MODE_WFMEVS
+  /*deregister old events*/
+  if (0 == mon->unchangedsincelast) {
+    for (int i = 0; i < mon->nwevents; i++) {
+      if (!WSACloseEvent(mon->wevents_waiting[i + 1])) {
+        //DDS_WARNING("ddsrt_monitor: WSACloseEvent %x failed, error %d\n", mon->wevents_waiting[i+1], os_getErrno());
+        return -1;
+      }
+    }
+    mon->nwevents = 0;
+
+    /*register new events*/
+    for (int i = 0; i < mon->triggers->nevents; i++) {
+      ddsrt_event_t evt = mon->triggers->events[i];
+      if (evt.mon_type != ddsrt_monitorable_socket ||
+          evt.evt_type != ddsrt_monitorable_event_data_in)
+        continue;
+
+      ddsrt_socket_t s = *(ddsrt_socket_t*)evt.mon_bytes;
+      if (SOCKET_ERROR == WSAEventSelect(s, mon->wevents_waiting[mon->nwevents + 1], FD_READ)) {
+        WSACloseEvent(mon->wevents_waiting[mon->nwevents + 1]);
+        return -1;
+      }
+      else {
+        mon->nwevents++;
+      }
+    }
+    mon->unchangedsincelast = 1;
+  }
+  else {
+    for (int i = 0; i < mon->nwevents + 1; i++)
+      WSAResetEvent(mon->wevents_waiting[i]);
+  }
+
+  unsigned idx;
+  if ((idx = WSAWaitForMultipleEvents(mon->nwevents+1, mon->wevents_waiting, FALSE, milliseconds, FALSE)) == WSA_WAIT_FAILED) {
+    //DDS_WARNING("ddsrt_monitor: WSAWaitForMultipleEvents failed, error %d\n", os_getErrno());
+    return -1;
+  }
+
+  if (idx >= WSA_WAIT_EVENT_0 && idx < WSA_WAIT_EVENT_0 + MAXIMUM_WAIT_OBJECTS) {
+    idx -= WSA_WAIT_EVENT_0;
+    if (idx == 0) {
+      if (-1 == readpipe(mon->triggerfds))
+        return -1;
+    }
+    else {
+      event_container_push_event(mon->events, mon->triggers->events[idx-1]);
+    }
+  }
+  else {
+    /*something else was returned from WSAWaitForMultipleEvents*/
+  }
+
+#elif MODE_SEL == MODE_EPOLL
+#elif MODE_SEL == MODE_SELECT
+  /*select type*/
   fd_set* rfds = &(mon->rfds);
   FD_ZERO(rfds);
 
+#if !defined(LWIP_SOCKET)
+  /*skip for lwip*/
   FD_SET(mon->triggerfds[0], rfds);
+#endif
   ddsrt_socket_t maxfd = mon->triggerfds[0];
   for (int i = 0; i < mon->triggers->nevents; i++) {
-    ddsrt_event_t* evtptr = mon->triggers->events[i];
-    if (evtptr->mon_type != ddsrt_monitorable_socket) continue;
-    ddsrt_socket_t s = *(ddsrt_socket_t*)evtptr->mon_ptr;
-    if (evtptr->evt_type & ddsrt_monitorable_event_data_in) {
+    ddsrt_event_t evt = mon->triggers->events[i];
+    if (evt.mon_type != ddsrt_monitorable_socket)
+      continue;
+
+    ddsrt_socket_t s = *(ddsrt_socket_t*)evt.mon_bytes;
+    if (evt.evt_type & ddsrt_monitorable_event_data_in) {
       FD_SET(s, rfds);
-      if (s > maxfd) maxfd = s;
+      if (s > maxfd)
+        maxfd = s;
     }
   }
 
   int ready = -1;
   dds_return_t retval = ddsrt_select(maxfd + 1, rfds, NULL, NULL, (dds_duration_t)milliseconds * 1000000, &ready);
 
-  if (retval == DDS_RETCODE_OK ||
-    retval == DDS_RETCODE_TIMEOUT) {
+  if (DDS_RETCODE_OK == retval ||
+      DDS_RETCODE_TIMEOUT == retval) {
+#if !defined(LWIP_SOCKET)
+    /*skip for lwip*/
     if (FD_ISSET(mon->triggerfds[0], rfds)) {
-      ddsrt_pull_pipe(mon->triggerfds);
+      readpipe(mon->triggerfds);
     }
-
+#endif
     for (int i = 0; i < mon->triggers->nevents; i++) {
-      ddsrt_event_t* evtptr = mon->triggers->events[i];
-      if (evtptr->mon_type != ddsrt_monitorable_socket) continue;
-      ddsrt_socket_t s = *(ddsrt_socket_t*)evtptr->mon_ptr;
-      if (FD_ISSET(s, rfds)) {
-        event_container_push_event(mon->events, evtptr);
-      }
-    }
-  }
-  else {
-    //something else happened
-  }
+      ddsrt_event_t evt = mon->triggers->events[i];
+      if (evt.mon_type != ddsrt_monitorable_socket)
+        continue;
 
+      ddsrt_socket_t s = *(ddsrt_socket_t*)evt.mon_bytes;
+      if (FD_ISSET(s, rfds))
+        event_container_push_event(mon->events, evt);
+    }
+  } else {
+    /*something else happened*/
+  }
+#endif
   return mon->events->nevents;
 }
 
-int ddsrt_monitor_interrupt_wait(ddsrt_monitor_t* mon) {
-  if (NULL == mon) return -1;
+dds_return_t ddsrt_monitor_interrupt_wait(ddsrt_monitor_t* mon) {
+  if (NULL == mon)
+    return DDS_RETCODE_ERROR;
 
-  /*write to triggerfds*/
-  ddsrt_push_pipe(mon->triggerfds);
+  dds_return_t returnval = DDS_RETCODE_OK;
+  char dummy = 0;
+  /*which trigger functionality is available*/
+#if (defined _WIN32 || defined(_WIN64))
+  /*windows type socket*/
+  if (0 != send(mon->triggerfds[1], &dummy, sizeof(dummy), 0))
+    returnval = DDS_RETCODE_ERROR;
+#elif defined(LWIP_SOCKET)
+  /*lwip stack: trigger not available*/
+  returnval = DDS_RETCODE_UNSUPPORTED;
+#else
+  /*linux type pipe*/
+  if (0 != write(mon->triggerfds[1], &dummy, sizeof(dummy)))
+    returnval = DDS_RETCODE_ERROR;
+#endif
 
-  return 0;
+  return returnval;
 }
