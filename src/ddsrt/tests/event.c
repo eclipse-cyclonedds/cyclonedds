@@ -98,7 +98,7 @@ long int pull_pipe(ddsrt_socket_t p[2]) {
 }
 
 void ddsrt_sleep(int microsecs) {
-  usleep(microsecs);
+  usleep((unsigned)microsecs);
 }
 #endif
 
@@ -154,57 +154,54 @@ CU_Test(ddsrt_event, evt_implicit) {
 }
 
 CU_Test(ddsrt_event, monitor_register) {
-  const int startsize = 8;
-  ddsrt_monitor_t* mon_nonfixedsize = ddsrt_monitor_create(startsize, 0), /*monitor of non-fixed size*/
-    * mon_fixedsize = ddsrt_monitor_create(startsize, 1); /*monitor of fixed size*/
-  for (int i = 0; i < startsize + 1; i++) {
+  ddsrt_monitor_t* mon = ddsrt_monitor_create();
+  const size_t cap = ddsrt_monitor_capacity(mon);
+  for (unsigned int i = 0; i < cap+1; i++) {
     ddsrt_event_t evt = ddsrt_event_create_val(ddsrt_monitorable_pipe, i, ddsrt_monitorable_event_connect);
 
     /*writing triggers to monitorables*/
-    int nfx = ddsrt_monitor_register_trigger(mon_nonfixedsize, evt);
-    CU_ASSERT(nfx == i + 1);
-
-    int fx = ddsrt_monitor_register_trigger(mon_fixedsize, evt);
-    if (i < startsize) {
-      CU_ASSERT(fx == i + 1);
+    int n = ddsrt_monitor_register_trigger(mon, evt);
+    if (i < cap-1) {
+      CU_ASSERT_EQUAL(n,i + 2);
     }
     else {
-      CU_ASSERT(fx == -1);
+      CU_ASSERT_EQUAL(n,-1);
     }
 
     /*adding to existing monitorables*/
     evt.evt_type = ddsrt_monitorable_event_disconnect;
-
-    nfx = ddsrt_monitor_register_trigger(mon_nonfixedsize, evt);
-    CU_ASSERT(nfx == i + 1);
-
-    fx = ddsrt_monitor_register_trigger(mon_fixedsize, evt);
-    if (i < startsize) {
-      CU_ASSERT(fx == i + 1);
+    n = ddsrt_monitor_register_trigger(mon, evt);
+    if (i < cap-1) {
+      CU_ASSERT_EQUAL(n, i + 2);
     }
     else {
-      CU_ASSERT(fx == -1);
+      CU_ASSERT_EQUAL(n, -1);
     }
   }
 
-  for (int i = 0; i < startsize + 1; i++) {
-    ddsrt_event_t evt = ddsrt_event_create_val(ddsrt_monitorable_pipe, i, ddsrt_monitorable_event_disconnect | ddsrt_monitorable_event_connect);
+  for (unsigned int i = 0; i < cap+1; i++) {
+    ddsrt_event_t evt = ddsrt_event_create_val(ddsrt_monitorable_pipe, i, ddsrt_monitorable_event_disconnect);
 
     /*removing from monitorables*/
-    int nfx = ddsrt_monitor_deregister_trigger(mon_nonfixedsize, evt);
-    CU_ASSERT(nfx == startsize - i);
-
-    int fx = ddsrt_monitor_deregister_trigger(mon_fixedsize, evt);
-    if (i < startsize) {
-      CU_ASSERT(fx == startsize - i - 1);
+    size_t n = ddsrt_monitor_deregister_trigger(mon, evt);
+    if (i < cap-1) {
+      CU_ASSERT_EQUAL(n, cap - i);
     }
     else {
-      CU_ASSERT(fx == 0);
+      CU_ASSERT_EQUAL(n, 1);
+    }
+
+    evt.evt_type = ddsrt_monitorable_event_connect;
+    n = ddsrt_monitor_deregister_trigger(mon, evt);
+    if (i < cap-1) {
+      CU_ASSERT_EQUAL(n, cap - i - 1);
+    }
+    else {
+      CU_ASSERT_EQUAL(n, 1);
     }
   }
 
-  ddsrt_monitor_destroy(mon_nonfixedsize);
-  ddsrt_monitor_destroy(mon_fixedsize);
+  ddsrt_monitor_destroy(mon);
 
   CU_PASS("monitor_register");
 }
@@ -239,7 +236,7 @@ CU_Test(ddsrt_event, monitor_trigger) {
   ddsrt_socket_t p[2];
   CU_ASSERT_EQUAL_FATAL(make_pipe(p), 0);
 
-  ddsrt_monitor_t* mon = ddsrt_monitor_create(128, 0);
+  ddsrt_monitor_t* mon = ddsrt_monitor_create();
 
   ddsrt_event_t evtin = ddsrt_event_create_val(ddsrt_monitorable_socket, p[0], ddsrt_monitorable_event_data_in);
   ddsrt_monitor_register_trigger(mon, evtin);
@@ -287,7 +284,7 @@ CU_Test(ddsrt_event, monitor_interrupt) {
   ddsrt_socket_t p[2];
   CU_ASSERT_EQUAL_FATAL(make_pipe(p), 0);
 
-  ddsrt_monitor_t* mon = ddsrt_monitor_create(128, 0);
+  ddsrt_monitor_t* mon = ddsrt_monitor_create();
 
   ddsrt_monitor_register_trigger(mon, ddsrt_event_create_val(ddsrt_monitorable_socket, p[0], ddsrt_monitorable_event_data_in));
 

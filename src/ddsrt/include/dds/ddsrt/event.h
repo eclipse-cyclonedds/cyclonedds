@@ -12,6 +12,7 @@
 #ifndef DDSRT_EVENT_H
 #define DDSRT_EVENT_H
 
+#include <stdlib.h>
 #include "dds/ddsrt/retcode.h"
 
 #if defined (__cplusplus)
@@ -25,8 +26,7 @@ enum ddsrt_monitorable {
   ddsrt_monitorable_unset,
   ddsrt_monitorable_socket,
   ddsrt_monitorable_file,
-  ddsrt_monitorable_pipe/*,
-  ddsrt_monitorable_volatile*/
+  ddsrt_monitorable_pipe
 };
 
 /**
@@ -49,15 +49,15 @@ enum ddsrt_monitorable_event {
 *
 * Maximum size of the monitorable to be stored is determined by the macro DDSRT_EVENT_MONITORABLE_MAX_BYTES
 *
-* mon_type: type of monitorable for events
-* mon_bytes: array for stored value of monitorable
-* mon_sz: number of bytes stored by mon_ptr
-* evt_type: type of event, composited from ddsrt_monitorable_event
+* mon_type:   type of monitorable for events
+* mon_bytes:  array for stored value of monitorable
+* mon_sz:     number of bytes stored by mon_ptr
+* evt_type:   type of event, composited from ddsrt_monitorable_event
 */
 struct ddsrt_event {
   enum ddsrt_monitorable  mon_type;
   char                    mon_bytes[DDSRT_EVENT_MONITORABLE_MAX_BYTES];
-  unsigned int            mon_sz;
+  size_t                  mon_sz;
   int                     evt_type;
 };
 
@@ -68,14 +68,14 @@ typedef struct ddsrt_event ddsrt_event_t;
 *
 * Will set the appropriate fields and create storage of mon_sz bytes, which are copied from ptr_to_mon
 *
-* @param mon_type type of monitorable to set
-* @param ptr_to_mon pointer to monitorable to set
-* @param mon_sz number of bytes of monitorable
-* @param evt_type type of event
+* @param mon_type     type of monitorable to set
+* @param ptr_to_mon   pointer to monitorable to set
+* @param mon_sz       number of bytes of monitorable
+* @param evt_type     type of event
 *
 * @returns event with members set to the appropriate values
 */
-ddsrt_event_t ddsrt_event_create(enum ddsrt_monitorable mon_type, const void* ptr_to_mon, unsigned int mon_sz, int evt_type);
+ddsrt_event_t ddsrt_event_create(enum ddsrt_monitorable mon_type, const void* ptr_to_mon, size_t mon_sz, int evt_type);
 
 /**
 * @brief shorthand version of ddsrt_event_create
@@ -96,12 +96,10 @@ typedef struct ddsrt_monitor ddsrt_monitor_t;
 * Will create method for early triggering.
 * Will create any additional real estate for platform specific implementations.
 *
-* @param cap initial capacity of the monitor
-* @param fixedsize whether the capacity of the monitor can be expanded
-*
-* @returns NULL: something went wrong, i.e.: capacity <= 0, pointer to the instance otherwise
+* @returns NULL: something went wrong, i.e.: could not create trigger instance
+                 pointer to the instance otherwise
 */
-ddsrt_monitor_t* ddsrt_monitor_create(int cap, int fixedfize);
+ddsrt_monitor_t* ddsrt_monitor_create(void);
 
 /**
 * @brief ddsrt_monitor destruction function
@@ -111,6 +109,13 @@ ddsrt_monitor_t* ddsrt_monitor_create(int cap, int fixedfize);
 * @param mon the monitor to clean up
 */
 void ddsrt_monitor_destroy(ddsrt_monitor_t* mon);
+
+/**
+ * @brief returns the capacity for triggers of the monitor
+ *
+ * @returns the maximum number of triggers that can be stored by the monitor, including the interrupt trigger (if any)
+ */
+size_t ddsrt_monitor_capacity(ddsrt_monitor_t* mon);
 
 /**
 * @brief Event trigger registration function.
@@ -136,7 +141,7 @@ int ddsrt_monitor_register_trigger(ddsrt_monitor_t* mon, ddsrt_event_t evt);
 *
 * @returns the number of triggers stored
 */
-int ddsrt_monitor_deregister_trigger(ddsrt_monitor_t* mon, ddsrt_event_t evt);
+size_t ddsrt_monitor_deregister_trigger(ddsrt_monitor_t* mon, ddsrt_event_t evt);
 
 /**
 * @brief Wait trigger function for monitor.
