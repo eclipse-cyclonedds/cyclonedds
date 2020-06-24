@@ -62,25 +62,26 @@ struct ddsrt_event {
 typedef struct ddsrt_event ddsrt_event_t;
 
 /**
-* @brief ddsrt_event creation function
+* @brief ddsrt_event initialization function
 *
 * Will set the appropriate fields and create storage of mon_sz bytes, which are copied from ptr_to_mon
 *
+* @param evt          pointer to the event to initialize
 * @param mon_type     type of monitorable to set
 * @param ptr_to_mon   pointer to monitorable to set
 * @param mon_sz       number of bytes of monitorable
 * @param evt_type     type of event
 *
-* @returns event with members set to the appropriate values
+* @returns whether the initialization was done succesfully
 */
-ddsrt_event_t ddsrt_event_create(enum ddsrt_monitorable mon_type, const void* ptr_to_mon, size_t mon_sz, int evt_type);
+dds_return_t ddsrt_event_init(ddsrt_event_t *evt, enum ddsrt_monitorable mon_type, const void* ptr_to_mon, size_t mon_sz, int evt_type);
 
 /**
 * @brief shorthand version of ddsrt_event_create
 * 
 * In this case you can just supply a type, and it copies the contents of the correct size
 */
-#define ddsrt_event_create_val(mtp,val,etp) ddsrt_event_create(mtp,&val,sizeof(val),etp)
+#define ddsrt_event_init_val(evt,mtp,val,etp) ddsrt_event_init(evt,mtp,&val,sizeof(val),etp)
 
 /** 
 * @brief Forward declaration of the ddsrt_monitor structure, implementation will happen for each supported architecture.

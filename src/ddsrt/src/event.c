@@ -76,29 +76,18 @@
 #error "no mode selected"
 #endif
 
- /**
- * @brief ddsrt_event creation function
- *
- * @param mon_type type of object being monitored
- * @param ptr_to_mon pointer to object being monitored
- * @param mon_sz size in bytes of object being monitored
- * @param evt_type type of event being monitored for
- *
- * @returns the created struct
- */
-ddsrt_event_t ddsrt_event_create(enum ddsrt_monitorable mon_type, const void* ptr_to_mon, size_t mon_sz, int evt_type) {
-  ddsrt_event_t returnval;
+dds_return_t ddsrt_event_init(ddsrt_event_t *evt, enum ddsrt_monitorable mon_type, const void* ptr_to_mon, size_t mon_sz, int evt_type) {
   /*boundary check for storage size*/
-  assert(0 != mon_sz &&
-          DDSRT_EVENT_MONITORABLE_MAX_BYTES >= mon_sz);
+  if (0 == mon_sz ||
+    DDSRT_EVENT_MONITORABLE_MAX_BYTES < mon_sz) return DDS_RETCODE_ERROR;
 
-  returnval.mon_type = mon_type;
-  returnval.evt_type = evt_type;
-  returnval.mon_sz = mon_sz;
-  if (NULL != ptr_to_mon) memcpy(returnval.mon_bytes, ptr_to_mon, mon_sz);
-  else memset(returnval.mon_bytes, 0x0, mon_sz);
+  evt->mon_type = mon_type;
+  evt->evt_type = evt_type;
+  evt->mon_sz = mon_sz;
+  if (NULL != ptr_to_mon) memcpy(evt->mon_bytes, ptr_to_mon, mon_sz);
+  else memset(evt->mon_bytes, 0x0, mon_sz);
 
-  return returnval;
+  return DDS_RETCODE_OK;
 }
 
 /**
@@ -382,7 +371,9 @@ ddsrt_monitor_t* ddsrt_monitor_create(void) {
   returnptr->unchangedsincelast = 0;
 #if !defined(LWIP_SOCKET)
   /*register pipe trigger*/
-  ddsrt_monitor_register_trigger(returnptr, ddsrt_event_create_val(ddsrt_monitorable_socket, returnptr->triggerfds[0], DDSRT_MONITORABLE_EVENT_DATA_IN));
+  ddsrt_event_t evt;
+  ddsrt_event_init_val(&evt,ddsrt_monitorable_socket, returnptr->triggerfds[0], DDSRT_MONITORABLE_EVENT_DATA_IN);
+  ddsrt_monitor_register_trigger(returnptr, evt);
 #endif
 
 #if MODE_SEL == MODE_KQUEUE

@@ -115,8 +115,9 @@ CU_Clean(ddsrt_event) {
 
 CU_Test(ddsrt_event, evt_create) {
   int fd = 123456;
-  ddsrt_event_t evt1 = ddsrt_event_create(ddsrt_monitorable_unset, (void*)0x0, sizeof(long int), DDSRT_MONITORABLE_EVENT_UNSET),
-    evt2 = ddsrt_event_create(ddsrt_monitorable_file, &fd, sizeof(fd), DDSRT_MONITORABLE_EVENT_CONNECT);
+  ddsrt_event_t evt1, evt2;
+  ddsrt_event_init(&evt1,ddsrt_monitorable_unset, (void*)0x0, sizeof(long int), DDSRT_MONITORABLE_EVENT_UNSET),
+  ddsrt_event_init(&evt2,ddsrt_monitorable_file, &fd, sizeof(fd), DDSRT_MONITORABLE_EVENT_CONNECT);
 
   CU_ASSERT_EQUAL_FATAL(evt1.mon_type, ddsrt_monitorable_unset);
   CU_ASSERT_EQUAL_FATAL(evt1.mon_sz, sizeof(long int));
@@ -136,8 +137,9 @@ CU_Test(ddsrt_event, evt_implicit) {
   long long int fd1 = 123456;
   int fd2 = 654321;
 
-  ddsrt_event_t evt1 = ddsrt_event_create_val(ddsrt_monitorable_pipe, fd1, DDSRT_MONITORABLE_EVENT_CONNECT),
-    evt2 = ddsrt_event_create_val(ddsrt_monitorable_socket, fd2, DDSRT_MONITORABLE_EVENT_DISCONNECT);
+  ddsrt_event_t evt1, evt2;
+  ddsrt_event_init_val(&evt1,ddsrt_monitorable_pipe, fd1, DDSRT_MONITORABLE_EVENT_CONNECT),
+  ddsrt_event_init_val(&evt2,ddsrt_monitorable_socket, fd2, DDSRT_MONITORABLE_EVENT_DISCONNECT);
 
   CU_ASSERT_EQUAL_FATAL(evt1.mon_type, ddsrt_monitorable_pipe);
   CU_ASSERT_EQUAL_FATAL(evt1.mon_sz, sizeof(long long int));
@@ -157,7 +159,8 @@ CU_Test(ddsrt_event, monitor_register) {
   ddsrt_monitor_t* mon = ddsrt_monitor_create();
   const size_t cap = ddsrt_monitor_capacity(mon);
   for (unsigned int i = 0; i < cap+1; i++) {
-    ddsrt_event_t evt = ddsrt_event_create_val(ddsrt_monitorable_pipe, i, DDSRT_MONITORABLE_EVENT_CONNECT);
+    ddsrt_event_t evt;
+    ddsrt_event_init_val(&evt,ddsrt_monitorable_pipe, i, DDSRT_MONITORABLE_EVENT_CONNECT);
 
     /*writing triggers to monitorables*/
     int n = ddsrt_monitor_register_trigger(mon, evt);
@@ -180,7 +183,8 @@ CU_Test(ddsrt_event, monitor_register) {
   }
 
   for (unsigned int i = 0; i < cap+1; i++) {
-    ddsrt_event_t evt = ddsrt_event_create_val(ddsrt_monitorable_pipe, i, DDSRT_MONITORABLE_EVENT_DISCONNECT);
+    ddsrt_event_t evt;
+    ddsrt_event_init_val(&evt,ddsrt_monitorable_pipe, i, DDSRT_MONITORABLE_EVENT_DISCONNECT);
 
     /*removing from monitorables*/
     size_t n = ddsrt_monitor_deregister_trigger(mon, evt);
@@ -238,7 +242,8 @@ CU_Test(ddsrt_event, monitor_trigger) {
 
   ddsrt_monitor_t* mon = ddsrt_monitor_create();
 
-  ddsrt_event_t evtin = ddsrt_event_create_val(ddsrt_monitorable_socket, p[0], DDSRT_MONITORABLE_EVENT_DATA_IN);
+  ddsrt_event_t evtin;
+  ddsrt_event_init_val(&evtin, ddsrt_monitorable_socket, p[0], DDSRT_MONITORABLE_EVENT_DATA_IN);
   ddsrt_monitor_register_trigger(mon, evtin);
 
   dds_return_t ret1 = DDS_RETCODE_OK, ret2 = DDS_RETCODE_OK;
@@ -286,7 +291,9 @@ CU_Test(ddsrt_event, monitor_interrupt) {
 
   ddsrt_monitor_t* mon = ddsrt_monitor_create();
 
-  ddsrt_monitor_register_trigger(mon, ddsrt_event_create_val(ddsrt_monitorable_socket, p[0], DDSRT_MONITORABLE_EVENT_DATA_IN));
+  ddsrt_event_t evt;
+  ddsrt_event_init_val(&evt, ddsrt_monitorable_socket, p[0], DDSRT_MONITORABLE_EVENT_DATA_IN);
+  ddsrt_monitor_register_trigger(mon, evt);
 
   dds_return_t ret1 = DDS_RETCODE_OK, ret2 = DDS_RETCODE_OK, ret3 = DDS_RETCODE_OK;
   ddsrt_thread_t thr1, thr2, thr3;
