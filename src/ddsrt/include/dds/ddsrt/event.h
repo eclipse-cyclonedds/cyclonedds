@@ -32,15 +32,13 @@ enum ddsrt_monitorable {
 /**
 * Currently supported types of events.
 */
-enum ddsrt_monitorable_event {
-  ddsrt_monitorable_event_unset = 0x00000000,
-  ddsrt_monitorable_event_data_in = 0x00000001,
-  ddsrt_monitorable_event_data_out = 0x00000002,
-  ddsrt_monitorable_event_connect = 0x0000004,
-  ddsrt_monitorable_event_disconnect = 0x00000008,
-  ddsrt_monitorable_event_timeout = 0x00000010,
-  ddsrt_monitorable_event_error = 0x80000000
-};
+#define DDSRT_MONITORABLE_EVENT_UNSET 0x00000000
+#define DDSRT_MONITORABLE_EVENT_DATA_IN 0x00000001
+#define DDSRT_MONITORABLE_EVENT_DATA_OUT 0x00000002
+#define DDSRT_MONITORABLE_EVENT_CONNECT 0x0000004
+#define DDSRT_MONITORABLE_EVENT_DISCONNECT 0x00000008
+#define DDSRT_MONITORABLE_EVENT_TIMEOUT 0x00000010
+#define DDSRT_MONITORABLE_EVENT_ERROR 0x80000000
 
 #define DDSRT_EVENT_MONITORABLE_MAX_BYTES sizeof(void*)
 
