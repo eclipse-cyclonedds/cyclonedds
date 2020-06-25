@@ -65,6 +65,11 @@ add_cunit_executable(cunit_security_plugins
   ${security_crypto_test_sources}
   ${CYCLONEDDS_OPENSSL_APPLINK})
 
+# applink.c triggers the dreaded This function or variable may be unsafe
+if(NOT "${CYCLONEDDS_OPENSSL_APPLINK}" STREQUAL "")
+  set_source_files_properties("${CYCLONEDDS_OPENSSL_APPLINK}" PROPERTIES COMPILE_FLAGS "-D_CRT_SECURE_NO_WARNINGS")
+endif()
+
 target_include_directories(
   cunit_security_plugins PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../access_control/src/>"
