@@ -59,7 +59,11 @@ set(security_crypto_test_sources
     "set_remote_participant_crypto_tokens/src/set_remote_participant_crypto_tokens_utests.c"
 )
 
-add_cunit_executable(cunit_security_plugins ${security_auth_test_sources} ${security_ac_test_sources} ${security_crypto_test_sources})
+add_cunit_executable(cunit_security_plugins
+  ${security_auth_test_sources}
+  ${security_ac_test_sources}
+  ${security_crypto_test_sources}
+  ${CYCLONEDDS_OPENSSL_APPLINK})
 
 target_include_directories(
   cunit_security_plugins PRIVATE

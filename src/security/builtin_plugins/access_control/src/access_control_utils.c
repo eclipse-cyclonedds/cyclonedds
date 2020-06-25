@@ -29,56 +29,112 @@
 #define SEQ_NOMATCH 0
 #define SEQ_MATCH 1
 
+static bool load_X509_certificate_from_bio (BIO *bio, X509 **x509Cert, DDS_Security_SecurityException *ex)
+{
+  assert(x509Cert);
+  if (!(*x509Cert = PEM_read_bio_X509(bio, NULL, NULL, NULL)))
+  {
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CERTIFICATE_CODE, 0, DDS_SECURITY_ERR_INVALID_CERTICICATE_MESSAGE ": ");
+    return false;
+  }
+  return true;
+}
+
+static BIO *load_file_into_BIO (const char *filename, DDS_Security_SecurityException *ex)
+{
+  // File BIOs exist so one doesn't have to do all this, but it requires an application
+  // on Windows that linked OpenSSL via a DLL to incorporate OpenSSL's applink.c, and
+  // that is too onerous a requirement.
+  BIO *bio;
+  FILE *fp;
+  size_t remain, n;
+  char tmp[512];
+
+  // One can fopen() a directory, after which the calls to fread() fail and the function
+  // sets an error code different from the expected one in `ex`.  This check solves that,
+  // and given that it gets us the size, we can use that afterward to limit how much we
+  // try to read.
+  if ((remain = ac_regular_file_size(filename)) == 0)
+  {
+    DDS_Security_Exception_set (ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_FILE_PATH_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_file_into_BIO: " DDS_SECURITY_ERR_INVALID_FILE_PATH_MESSAGE, filename);
+    return NULL;
+  }
+
+  if ((bio = BIO_new (BIO_s_mem ())) == NULL)
+  {
+    DDS_Security_Exception_set_with_openssl_error (ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_ALLOCATION_FAILED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_file_into_BIO: BIO_new_mem (BIO_s_mem ()): ");
+    return NULL;
+  }
+
+  DDSRT_WARNING_MSVC_OFF(4996);
+  if ((fp = fopen(filename, "r")) == NULL)
+  {
+    DDS_Security_Exception_set (ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_FILE_PATH_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_file_into_BIO: " DDS_SECURITY_ERR_INVALID_FILE_PATH_MESSAGE, filename);
+    goto err_fopen;
+  }
+  DDSRT_WARNING_MSVC_ON(4996);
+
+  // Try reading before testing remain: that way the EOF flag will always get set
+  // if indeed we do read to the end of the file
+  while ((n = fread (tmp, 1, sizeof (tmp), fp)) > 0 && remain > 0)
+  {
+    if (!BIO_write (bio, tmp, (int) n))
+    {
+      DDS_Security_Exception_set_with_openssl_error (ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_X509_certificate_from_file: failed to append data to BIO: ");
+      goto err_bio_write;
+    }
+    // protect against truncation while reading
+    remain -= (n <= remain) ? n : remain;
+  }
+  if (!feof (fp))
+  {
+    DDS_Security_Exception_set (ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_X509_certificate_from_file: read from file failed");
+    goto err_fread;
+  }
+  fclose (fp);
+  return bio;
+
+ err_fread:
+ err_bio_write:
+  fclose (fp);
+ err_fopen:
+  BIO_free (bio);
+  return NULL;
+}
+
 bool ac_X509_certificate_from_data(const char *data, int len, X509 **x509Cert, DDS_Security_SecurityException *ex)
 {
   BIO *bio;
   assert(data);
   assert(len >= 0);
   assert(x509Cert);
-
-  /* load certificate in buffer */
-  if ((bio = BIO_new_mem_buf((void *)data, len)) == NULL)
+  if (!(bio = BIO_new_mem_buf((void *)data, len)))
   {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_ALLOCATION_FAILED_CODE, 0, DDS_SECURITY_ERR_ALLOCATION_FAILED_MESSAGE ": ");
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "BIO_new_mem_buf failed: ");
     return false;
   }
-  if ((*x509Cert = PEM_read_bio_X509(bio, NULL, NULL, NULL)) == NULL)
+  else
   {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CERTIFICATE_CODE, 0, DDS_SECURITY_ERR_INVALID_CERTICICATE_MESSAGE ": ");
+    const bool result = load_X509_certificate_from_bio (bio, x509Cert, ex);
     BIO_free(bio);
-    return false;
+    return result;
   }
-  BIO_free(bio);
-  return true;
 }
 
-static bool X509_certificate_from_file(const char *filename, X509 **x509Cert, DDS_Security_SecurityException *ex)
+static bool ac_X509_certificate_from_file(const char *filename, X509 **x509Cert, DDS_Security_SecurityException *ex)
 {
-  DDSRT_WARNING_MSVC_OFF(4996);
-  FILE *fp;
   assert(filename);
   assert(x509Cert);
 
-  /* Check if this is a valid file by getting its size. */
-  if (ac_regular_file_size(filename) == 0)
-  {
-    DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_FILE_PATH_CODE, 0, DDS_SECURITY_ERR_INVALID_FILE_PATH_MESSAGE, filename);
+  BIO *bio;
+  if ((bio = load_file_into_BIO (filename, ex)) == NULL)
     return false;
-  }
-  if ((fp = fopen(filename, "r")) == NULL)
+  else
   {
-    DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_FILE_PATH_CODE, 0, DDS_SECURITY_ERR_INVALID_FILE_PATH_MESSAGE, filename);
-    return false;
+    const bool result = load_X509_certificate_from_bio (bio, x509Cert, ex);
+    BIO_free(bio);
+    return result;
   }
-  if ((*x509Cert = PEM_read_X509(fp, NULL, NULL, NULL)) == NULL)
-  {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CERTIFICATE_CODE, 0, DDS_SECURITY_ERR_INVALID_CERTICICATE_MESSAGE ": ");
-    fclose(fp);
-    return false;
-  }
-  fclose(fp);
-  return true;
-  DDSRT_WARNING_MSVC_ON(4996);
 }
 
 bool ac_X509_certificate_read(const char *data, X509 **x509Cert, DDS_Security_SecurityException *ex)
@@ -91,7 +147,7 @@ bool ac_X509_certificate_read(const char *data, X509 **x509Cert, DDS_Security_Se
   switch (DDS_Security_get_conf_item_type(data, &contents))
   {
   case DDS_SECURITY_CONFIG_ITEM_PREFIX_FILE:
-    result = X509_certificate_from_file(contents, x509Cert, ex);
+    result = ac_X509_certificate_from_file(contents, x509Cert, ex);
     break;
   case DDS_SECURITY_CONFIG_ITEM_PREFIX_DATA:
     result = ac_X509_certificate_from_data(contents, (int)strlen(contents), x509Cert, ex);

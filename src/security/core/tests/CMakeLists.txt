@@ -83,7 +83,7 @@ if(ENABLE_SSL AND OPENSSL_FOUND)
     "handshake.c"
     "plugin_loading.c"
     "secure_communication.c"
-  )
+    ${CYCLONEDDS_OPENSSL_APPLINK})
 endif()
 
 add_cunit_executable(cunit_security_core ${security_core_test_sources})
