@@ -45,22 +45,22 @@ printtype(
   (void)units;
   if (strcmp(elem->meta.type, "string") == 0) {
     if (elem->meta.unit != NULL) {
-      print(out, cols, "%s%s\n", amp[(flags & FLAG_AMP)], elem->meta.unit);
+      printspc(out, cols, "%s%s\n", amp[(flags & FLAG_AMP)], elem->meta.unit);
     } else {
-      print(out, cols, "%stext\n", amp[(flags & FLAG_AMP)]);
+      printspc(out, cols, "%stext\n", amp[(flags & FLAG_AMP)]);
     }
   } else if (strcmp(elem->meta.type, "bool") == 0) {
-    print(out, cols, "%sxsd:boolean\n", amp[(flags & FLAG_AMP)]);
+    printspc(out, cols, "%sxsd:boolean\n", amp[(flags & FLAG_AMP)]);
   } else if (strcmp(elem->meta.type, "int") == 0) {
-    print(out, cols, "%sxsd:integer\n", amp[(flags & FLAG_AMP)]);
+    printspc(out, cols, "%sxsd:integer\n", amp[(flags & FLAG_AMP)]);
   } else if (strcmp(elem->meta.type, "enum") == 0) {
     assert(elem->meta.pattern != NULL);
-    print(out, cols, "%s%s\n", amp[(flags & FLAG_AMP)], elem->meta.pattern);
+    printspc(out, cols, "%s%s\n", amp[(flags & FLAG_AMP)], elem->meta.pattern);
   } else if (strcmp(elem->meta.type, "list") == 0) {
     assert(elem->meta.pattern != NULL);
-    print(out, cols, "%sxsd:token { pattern = \"%s\" }\n", amp[(flags & FLAG_AMP)], elem->meta.pattern);
+    printspc(out, cols, "%sxsd:token { pattern = \"%s\" }\n", amp[(flags & FLAG_AMP)], elem->meta.pattern);
   } else {
-    print(out, cols, "%sempty\n", amp[(flags & FLAG_AMP)]);
+    printspc(out, cols, "%sempty\n", amp[(flags & FLAG_AMP)]);
   }
 }
 
@@ -74,14 +74,14 @@ printattr(
 {
   assert(!ismoved(elem) && !isdeprecated(elem));
   if (elem->description != NULL) {
-    print(out, cols, docfmt, amp[(flags & FLAG_AMP)]);
+    printspc(out, cols, docfmt, amp[(flags & FLAG_AMP)]);
     fputs(elem->meta.description, out);
-    print(out, 0, "\"\"\" ] ]\n");
+    printspc(out, 0, "\"\"\" ] ]\n");
     flags &= ~FLAG_AMP;
   }
-  print(out, cols, attrfmt, amp[(flags & FLAG_AMP)], name(elem));
+  printspc(out, cols, attrfmt, amp[(flags & FLAG_AMP)], name(elem));
   printtype(out, cols+2, flags, elem, units);
-  print(out, cols, "}%s\n", suffix(elem));
+  printspc(out, cols, "}%s\n", suffix(elem));
 }
 
 static void printelem(
@@ -96,12 +96,12 @@ static void printelem(
   assert(!ismoved(elem) && !isdeprecated(elem));
 
   if (elem->description != NULL) {
-    print(out, cols, docfmt, amp[(flags & FLAG_AMP)]);
+    printspc(out, cols, docfmt, amp[(flags & FLAG_AMP)]);
     fputs(elem->meta.description, out);
-    print(out, 0, "\"\"\" ] ]\n");
+    printspc(out, 0, "\"\"\" ] ]\n");
     flags &= ~FLAG_AMP;
   }
-  print(out, cols, elemfmt, amp[(flags & FLAG_AMP)], name(elem));
+  printspc(out, cols, elemfmt, amp[(flags & FLAG_AMP)], name(elem));
   flags &= ~FLAG_AMP;
   ce = firstelem(elem->attributes);
   while (ce) {
@@ -123,7 +123,7 @@ static void printelem(
   {
     printtype(out, cols+2, flags, elem, units);
   }
-  print(out, cols, "}%s\n", (flags & FLAG_ROOT) ? "" : suffix(elem));
+  printspc(out, cols, "}%s\n", (flags & FLAG_ROOT) ? "" : suffix(elem));
 }
 
 static int initrnc(struct cfgelem *elem, const struct cfgunit *units)
@@ -149,15 +149,15 @@ int printrnc(FILE *out, struct cfgelem *elem, const struct cfgunit *units)
 {
   if (initrnc(elem, units) == -1)
     return -1;
-  print(out, 0, "default namespace = \"%s\"\n", url());
-  print(out, 0, "namespace a = \"http://relaxng.org/ns/compatibility/annotations/1.0\"\n");
-  print(out, 0, "grammar {\n");
-  print(out, 0, "  start =\n");
+  printspc(out, 0, "default namespace = \"%s\"\n", url());
+  printspc(out, 0, "namespace a = \"http://relaxng.org/ns/compatibility/annotations/1.0\"\n");
+  printspc(out, 0, "grammar {\n");
+  printspc(out, 0, "  start =\n");
   printelem(out, 2, FLAG_ROOT, elem, units);
   for(const struct cfgunit *cu = units; cu->name; cu++) {
     static const char *fmt = "  %s = xsd:token { pattern = \"%s\" }\n";
-    print(out, 0, fmt, cu->name, cu->pattern);
+    printspc(out, 0, fmt, cu->name, cu->pattern);
   }
-  print(out, 0, "}\n");
+  printspc(out, 0, "}\n");
   return 0;
 }

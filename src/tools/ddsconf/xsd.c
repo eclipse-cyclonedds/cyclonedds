@@ -64,11 +64,11 @@ printdesc(
   if (!elem->description)
     return;
   assert(elem->meta.description);
-  print(out, cols+0, "<xs:annotation>\n");
-  print(out, cols+2, "<xs:documentation>\n");
+  printspc(out, cols+0, "<xs:annotation>\n");
+  printspc(out, cols+2, "<xs:documentation>\n");
   fputs(elem->meta.description, out);
   fputs("</xs:documentation>\n", out);
-  print(out, cols+0, "</xs:annotation>\n");
+  printspc(out, cols+0, "</xs:annotation>\n");
 }
 
 static void
@@ -81,13 +81,13 @@ printenum(
 {
   (void)flags;
   (void)units;
-  print(out, cols+0, "<xs:simpleType>\n");
-  print(out, cols+2, "<xs:restriction base=\"xs:token\">\n");
+  printspc(out, cols+0, "<xs:simpleType>\n");
+  printspc(out, cols+2, "<xs:restriction base=\"xs:token\">\n");
   for(const char **v = elem->meta.values; v && *v; v++) {
-    print(out, cols+4, "<xs:enumeration value=\"%s\"/>\n", *v);
+    printspc(out, cols+4, "<xs:enumeration value=\"%s\"/>\n", *v);
   }
-  print(out, cols+2, "</xs:restriction>\n");
-  print(out, cols+0, "</xs:simpleType>\n");
+  printspc(out, cols+2, "</xs:restriction>\n");
+  printspc(out, cols+0, "</xs:simpleType>\n");
 }
 
 static void
@@ -100,11 +100,11 @@ printlist(
 {
   (void)flags;
   (void)units;
-  print(out, cols+0, "<xs:simpleType>\n");
-  print(out, cols+2, "<xs:restriction base=\"xs:token\">\n");
-  print(out, cols+4, "<xs:pattern value=\"%s\"/>\n", elem->meta.pattern);
-  print(out, cols+2, "</xs:restriction>\n");
-  print(out, cols+0, "</xs:simpleType>\n");
+  printspc(out, cols+0, "<xs:simpleType>\n");
+  printspc(out, cols+2, "<xs:restriction base=\"xs:token\">\n");
+  printspc(out, cols+4, "<xs:pattern value=\"%s\"/>\n", elem->meta.pattern);
+  printspc(out, cols+2, "</xs:restriction>\n");
+  printspc(out, cols+0, "</xs:simpleType>\n");
 }
 
 static void
@@ -135,9 +135,9 @@ printattr(
   if (minimum(elem))
     snprintf(type, sizeof(type), " use=\"required\"");
 
-  print(out, cols, fmt, name(elem), type, required);
+  printspc(out, cols, fmt, name(elem), type, required);
   printdesc(out, cols+2, flags, elem, units);
-  print(out, cols, "</xs:attribute>\n");
+  printspc(out, cols, "</xs:attribute>\n");
 }
 
 static void printelem(
@@ -167,7 +167,7 @@ printref(
       snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"unbounded\" ");
     else if (!(flags & FLAG_NOMAX) && maximum(elem) != 1)
       snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"%d\" ", maximum(elem));
-    print(out, cols, fmt, minattr, maxattr, schema(), name(elem));
+    printspc(out, cols, fmt, minattr, maxattr, schema(), name(elem));
   }
 }
 
@@ -193,17 +193,17 @@ printcomplextype(
       snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"%d\" ", maximum(elem));
   }
 
-  print(out, cols, "<xs:element %s%sname=\"%s\">\n", minattr, maxattr, name(elem));
+  printspc(out, cols, "<xs:element %s%sname=\"%s\">\n", minattr, maxattr, name(elem));
   printdesc(out, cols+2, flags, elem, units);
 
   flags &= ~(FLAG_NOMIN | FLAG_NOMAX);
   if (!haschildren(elem) && !hasattributes(elem)) {
     /* special case, group has only deprecated children and/or attributes */
-    print(out, cols+2, "<xs:complexType/>\n");
+    printspc(out, cols+2, "<xs:complexType/>\n");
   } else {
     int cnt;
     unsigned int ofst = 0;
-    print(out, cols+2, "<xs:complexType>\n");
+    printspc(out, cols+2, "<xs:complexType>\n");
 
     if ((cnt = haschildren(elem))) {
       const char *cont = NULL;
@@ -268,18 +268,18 @@ printcomplextype(
         }
       }
 
-      print(out, cols+4, "<xs:%s%s%s>\n", cont, minattr, maxattr);
+      printspc(out, cols+4, "<xs:%s%s%s>\n", cont, minattr, maxattr);
       ce = firstelem(elem->children);
       while (ce) {
         printref(out, cols+6, flags, ce, units);
         ce = nextelem(elem->children, ce);
       }
-      print(out, cols+4, "</xs:%s>\n", cont);
+      printspc(out, cols+4, "</xs:%s>\n", cont);
     } else if (!isgroup(elem) && (!isstring(elem) || elem->meta.unit)) {
       ofst = 4;
-      print(out, cols+4, "<xs:simpleContent>\n");
+      printspc(out, cols+4, "<xs:simpleContent>\n");
       if (isenum(elem) || islist(elem)) {
-        print(out, cols+6, "<xs:restriction base=\"xs:anyType\">\n");
+        printspc(out, cols+6, "<xs:restriction base=\"xs:anyType\">\n");
         if (isenum(elem))
           printenum(out, cols+8, flags, elem, units);
         else
@@ -287,9 +287,9 @@ printcomplextype(
       } else {
         const char extfmt[] = "<xs:extension base=\"%s:%s\">\n";
         if (elem->meta.unit)
-          print(out, cols+6, extfmt, schema(), elem->meta.unit);
+          printspc(out, cols+6, extfmt, schema(), elem->meta.unit);
         else
-          print(out, cols+6, extfmt, "xs", isbuiltintype(elem));
+          printspc(out, cols+6, extfmt, "xs", isbuiltintype(elem));
       }
     }
     flags &= ~(FLAG_NOMIN | FLAG_NOMAX);
@@ -303,14 +303,14 @@ printcomplextype(
     }
     if (!isgroup(elem) && (!isstring(elem) || elem->meta.unit)) {
       if (isenum(elem) || islist(elem))
-        print(out, cols+6, "</xs:restriction>\n");
+        printspc(out, cols+6, "</xs:restriction>\n");
       else
-        print(out, cols+6, "</xs:extension>\n");
-      print(out, cols+4, "</xs:simpleContent>\n");
+        printspc(out, cols+6, "</xs:extension>\n");
+      printspc(out, cols+4, "</xs:simpleContent>\n");
     }
-    print(out, cols+2, "</xs:complexType>\n");
+    printspc(out, cols+2, "</xs:complexType>\n");
   }
-  print(out, cols, "</xs:element>\n");
+  printspc(out, cols, "</xs:element>\n");
 }
 
 static void
@@ -339,11 +339,11 @@ printsimpletype(
   }
 
   if (!(type = isbuiltintype(elem)))
-    print(out, cols, fmt, min, max, name(elem));
+    printspc(out, cols, fmt, min, max, name(elem));
   else if (elem->meta.unit)
-    print(out, cols, builtinfmt, min, max, name(elem), schema(), elem->meta.unit);
+    printspc(out, cols, builtinfmt, min, max, name(elem), schema(), elem->meta.unit);
   else
-    print(out, cols, builtinfmt, min, max, name(elem), "xs", type);
+    printspc(out, cols, builtinfmt, min, max, name(elem), "xs", type);
   printdesc(out, cols+2, flags, elem, units);
 
   if (isenum(elem))
@@ -351,7 +351,7 @@ printsimpletype(
   else if (islist(elem))
     printlist(out, cols+2, flags, elem, units);
 
-  print(out, cols, "</xs:element>\n");
+  printspc(out, cols, "</xs:element>\n");
 }
 
 static void
@@ -410,18 +410,18 @@ int printxsd(FILE *out, struct cfgelem *elem, const struct cfgunit *units)
 {
   if (initxsd(elem, units) == -1)
     return -1;
-  print(out, 0, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-  print(out, 0, "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" "
+  printspc(out, 0, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+  printspc(out, 0, "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" "
     "elementFormDefault=\"qualified\" targetNamespace=\"%s\" xmlns:%s=\"%s\">\n",
     url(), schema(), url());
   printelem(out, 2, FLAG_EXPAND, elem, units);
   for (const struct cfgunit *cu = units; cu->name; cu++) {
-    print(out, 2, "<xs:simpleType name=\"%s\">\n", cu->name);
-    print(out, 4, "<xs:restriction base=\"xs:token\">\n");
-    print(out, 6, "<xs:pattern value=\"%s\"/>\n", cu->pattern);
-    print(out, 4, "</xs:restriction>\n");
-    print(out, 2, "</xs:simpleType>\n");
+    printspc(out, 2, "<xs:simpleType name=\"%s\">\n", cu->name);
+    printspc(out, 4, "<xs:restriction base=\"xs:token\">\n");
+    printspc(out, 6, "<xs:pattern value=\"%s\"/>\n", cu->pattern);
+    printspc(out, 4, "</xs:restriction>\n");
+    printspc(out, 2, "</xs:simpleType>\n");
   }
-  print(out, 0, "</xs:schema>\n");
+  printspc(out, 0, "</xs:schema>\n");
   return 0;
 }
