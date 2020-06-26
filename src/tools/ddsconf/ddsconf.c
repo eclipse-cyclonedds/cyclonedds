@@ -50,10 +50,12 @@
 #define RANGE(str) .range = str
 #define UNIT(str) .unit = str
 #define VALUES(...) .values = (const char *[]){ __VA_ARGS__, NULL }
+#define MAXIMUM(num) .force_maximum = 1, .maximum = num
+#define MINIMUM(num) .force_minimum = 1, .minimum = num
 
 #define NOMEMBER /* drop */
 #define NOFUNCTIONS /* drop */
-#define NOMETADATA { NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL }
+#define NOMETADATA { NULL, NULL, NULL, NULL, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL }
 #define END_MARKER { NULL, NULL, NULL, 0, NULL, NULL, NOMETADATA }
 
 #define ELEMENT(name, elems, attrs, multip, dflt, desc, ...) \
@@ -76,8 +78,8 @@
   EXPAND(ELEMENT, (name, NULL, attrs, multip, dflt, desc, .type = "string", __VA_ARGS__))
 #define LIST(name, attrs, multip, dflt, ofst, funcs, desc, ...) \
   EXPAND(ELEMENT, (name, NULL, attrs, multip, dflt, desc, .type = "list", __VA_ARGS__))
-#define GROUP(name, elems, attrs, multip, ofst, funcs, desc) \
-  EXPAND(ELEMENT, (name, elems, attrs, multip, NULL, desc, .type = "group"))
+#define GROUP(name, elems, attrs, multip, ofst, funcs, desc, ...) \
+  EXPAND(ELEMENT, (name, elems, attrs, multip, NULL, desc, .type = "group", __VA_ARGS__))
 
 #include "dds/ddsi/ddsi_cfgelems.h"
 /* undefine element macros */
@@ -89,6 +91,8 @@
 #undef RANGE
 #undef UNIT
 #undef VALUES
+#undef MAXIMUM
+#undef MINIMUM
 #undef NOMEMBER
 #undef NOFUNCTIONS
 #undef NOMETADATA
@@ -228,27 +232,35 @@ int islist(const struct cfgelem *elem)
 
 int minimum(const struct cfgelem *elem)
 {
-  switch (elem->multiplicity) {
-    case 0: /* special case, treat as-if 1 */
-    case 1: /* required if there is no default */
-      if (isgroup(elem))
+  if (elem->meta.force_minimum) {
+    return elem->meta.minimum;
+  } else {
+    switch (elem->multiplicity) {
+      case 0: /* special case, treat as-if 1 */
+      case 1: /* required if there is no default */
+        if (isgroup(elem))
+          return 0;
+        return (!elem->value);
+      default:
         return 0;
-      return (!elem->value);
-    default:
-      return 0;
+    }
   }
 }
 
 int maximum(const struct cfgelem *elem)
 {
-  switch (elem->multiplicity) {
-    case INT_MAX:
-      return 0;
-    case 0:
-    case 1:
-      return 1;
-    default:
-      return elem->multiplicity;
+  if (elem->meta.force_maximum) {
+    return elem->meta.maximum;
+  } else {
+    switch (elem->multiplicity) {
+      case INT_MAX:
+        return 0;
+      case 0:
+      case 1:
+        return 1;
+      default:
+        return elem->multiplicity;
+    }
   }
 }
 

@@ -101,7 +101,7 @@ CycloneDDS configuration""" ] ]
                 text
               }
             }*
-          }?
+          }*
           & [ a:documentation [ xml:lang="en" """
 <p>This element statically configures an addresses for discovery.</p>""" ] ]
           element Peer {
@@ -983,7 +983,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
             }?
           }?
         }?
-      }*
+      }?
       & [ a:documentation [ xml:lang="en" """
 <p>The Sizing element specifies a variety of configuration settings dealing with expected system sizes, buffer sizes, &c.</p>""" ] ]
       element Sizing {

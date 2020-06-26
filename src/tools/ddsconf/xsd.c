@@ -165,7 +165,7 @@ printref(
       snprintf(minattr, sizeof(minattr), "minOccurs=\"%d\" ", minimum(elem));
     if (!(flags & FLAG_NOMAX) && maximum(elem) == 0)
       snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"unbounded\" ");
-    else if (!(FLAG_NOMAX) && maximum(elem) != 1)
+    else if (!(flags & FLAG_NOMAX) && maximum(elem) != 1)
       snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"%d\" ", maximum(elem));
     print(out, cols, fmt, minattr, maxattr, schema(), name(elem));
   }
@@ -185,11 +185,11 @@ printcomplextype(
   assert(!ismoved(elem) && !isdeprecated(elem));
 
   if (flags & FLAG_REFERENCE) {
-    if (minimum(elem) != 1)
+    if (!(flags & FLAG_NOMIN) && minimum(elem) != 1)
       snprintf(minattr, sizeof(minattr), "minOccurs=\"%d\" ", minimum(elem));
-    if (maximum(elem) == 0)
+    if (!(flags & FLAG_NOMAX) && maximum(elem) == 0)
       snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"unbounded\" ");
-    else if (maximum(elem) != 1)
+    else if (!(flags & FLAG_NOMAX) && maximum(elem) != 1)
       snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"%d\" ", maximum(elem));
   }
 
@@ -208,58 +208,63 @@ printcomplextype(
     if ((cnt = haschildren(elem))) {
       const char *cont = NULL;
       struct cfgelem *ce;
-      int min[2], max[2], eq[2] = { 1, 1 };
+      int min[3], max[3];
+      int mineq, maxeq;
       assert(isgroup(elem));
 
       minattr[0] = '\0';
       maxattr[0] = '\0';
 
       if (cnt == 1) {
-        /* minOccurs and maxOccurs placed in element */
         cont = "sequence";
       } else {
         assert(cnt > 1);
         ce = firstelem(elem->children);
-        assert(ce);
-        min[0] = min[1] = minimum(ce);
-        max[0] = max[1] = maximum(ce);
+        min[0] = min[1] = min[2] = minimum(ce);
+        max[0] = max[1] = max[2] = maximum(ce);
         assert(min[1] <= max[1] || max[1] == 0);
+        mineq = maxeq = 1;
         ce = nextelem(elem->children, ce);
         assert(ce);
         while (ce) {
           min[1] = minimum(ce);
           max[1] = maximum(ce);
           assert(min[1] <= max[1] || max[1] == 0);
+          min[2] += minimum(ce);
+          max[2] += maximum(ce);
           if (min[1] != min[0]) {
-            eq[0] = 0;
-            if (min[1] < min[0])
+            mineq = 0;
+            if (min[1] > min[0])
               min[0] = min[1];
           }
           if (max[1] != max[0]) {
-            eq[1] = 0;
+            maxeq = 0;
             if ((max[0] != 0 && max[1] > max[0]) || max[1] == 0)
               max[0] = max[1];
           }
           ce = nextelem(elem->children, ce);
         }
-        if (min[0] > 1 || max[0] != 1 /* unbounded or >1 */) {
-          cont = "choice";
-          if (eq[0]) {
-            if (min[0] != 1)
-              snprintf(minattr, sizeof(minattr), " minOccurs=\"%d\"", min[0]);
-            flags |= FLAG_NOMIN;
-          }
-          if (eq[1]) {
-            if (max[0] == 0)
-              snprintf(maxattr, sizeof(maxattr), " maxOccurs=\"unbounded\"");
-            else if (max[0] != 1)
-              snprintf(maxattr, sizeof(maxattr), " maxOccurs=\"%d\"", max[0]);
-            flags |= FLAG_NOMAX;
-          }
-        } else {
+        /* xsd generation becomes significantly more difficult if the minimum
+           number of occurences for an element is more non-zero and the
+           maximum number of occurences of it (or one of its siblings) is more
+           than one, but that is not likely to occur */
+        if (min[0] <= 1 && max[0] == 1) {
           /* any order, each zero or one time */
-          /* minOccurs placed in element maxOccurs always one */
           cont = "all";
+        } else {
+          cont = "choice";
+          if (min[0] == 0)
+            snprintf(minattr, sizeof(minattr), " minOccurs=\"0\"");
+          else if (min[0] != 1) /* incorrect, but make the most of it */
+            snprintf(minattr, sizeof(minattr), " minOccurs=\"%d\"", min[2]);
+          if (max[0] == 0)
+            snprintf(maxattr, sizeof(maxattr), " maxOccurs=\"unbounded\"");
+          else if (max[0] != 1)
+            snprintf(maxattr, sizeof(maxattr), " maxOccurs=\"%d\"", max[2]);
+          if (mineq)
+            flags |= FLAG_NOMIN;
+          if (maxeq)
+            flags |= FLAG_NOMAX;
         }
       }
 
@@ -270,7 +275,6 @@ printcomplextype(
         ce = nextelem(elem->children, ce);
       }
       print(out, cols+4, "</xs:%s>\n", cont);
-      flags &= ~(FLAG_NOMIN | FLAG_NOMAX);
     } else if (!isgroup(elem) && (!isstring(elem) || elem->meta.unit)) {
       ofst = 4;
       print(out, cols+4, "<xs:simpleContent>\n");
@@ -288,6 +292,7 @@ printcomplextype(
           print(out, cols+6, extfmt, "xs", isbuiltintype(elem));
       }
     }
+    flags &= ~(FLAG_NOMIN | FLAG_NOMAX);
     if (hasattributes(elem)) {
       struct cfgelem *ce;
       ce = firstelem(elem->attributes);
@@ -417,6 +422,6 @@ int printxsd(FILE *out, struct cfgelem *elem, const struct cfgunit *units)
     print(out, 4, "</xs:restriction>\n");
     print(out, 2, "</xs:simpleType>\n");
   }
-  print(out, 0, "</xs:schema>");
+  print(out, 0, "</xs:schema>\n");
   return 0;
 }
