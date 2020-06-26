@@ -192,7 +192,6 @@ script:
           -DENABLE_LIFESPAN=${LIFESPAN}
           -DENABLE_DEADLINE_MISSED=${DEADLINE}
           -DBUILD_TESTING=on
-          -DBUILD_SCHEMA=on
           -DWERROR=on
           -G "${GENERATOR}" ..
   - |
@@ -219,8 +218,6 @@ script:
     fi
   - |
     if [ "${SSL}" = "YES" ] && [ "${SECURITY}" = "YES" ]; then
-      cmake --build . --config ${BUILD_TYPE} --target schema && \
-      cmake --build . --config ${BUILD_TYPE} --target options_doc && \
       diff --strip-trailing-cr ../etc/cyclonedds.rnc docs/cyclonedds.rnc && \
       diff --strip-trailing-cr ../etc/cyclonedds.xsd docs/cyclonedds.xsd && \
       diff --strip-trailing-cr ../docs/manual/options.md docs/manual/options.md

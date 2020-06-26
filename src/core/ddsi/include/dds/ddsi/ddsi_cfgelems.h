@@ -1626,7 +1626,9 @@ static struct cfgelem discovery_peers_cfgelems[] = {
       "<p>This element statically configures a fault tolerant group of "
       "addresses for discovery. Each member of the group is tried in "
       "sequence until one succeeds.</p>"
-    )),
+    ),
+    MAXIMUM(0)), /* Group element can occur more than once, but 1 is required
+                    because of the way its processed (for now) */
   END_MARKER
 };
 
@@ -1849,7 +1851,9 @@ static struct cfgelem domain_cfgelems[] = {
     DESCRIPTION(
       "<p>This element is used to configure Cyclone DDS with the DDS Security "
       "specification plugins and settings.</p>"
-    )),
+    ),
+    MAXIMUM(1)), /* Security must occur at most once, but INT_MAX is required
+                    because of the way its processed (for now) */
 #endif
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   GROUP("Partitioning", partitioning_cfgelems, NULL, 1,

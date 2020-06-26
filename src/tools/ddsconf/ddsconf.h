@@ -31,6 +31,8 @@ struct cfgmeta {
   char *pattern;
   char *description;
   unsigned int flags;
+  const int force_maximum, maximum;
+  const int force_minimum, minimum;
   const char *type;
   const char *unit;
   const char *range;

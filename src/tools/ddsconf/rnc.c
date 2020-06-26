@@ -158,6 +158,6 @@ int printrnc(FILE *out, struct cfgelem *elem, const struct cfgunit *units)
     static const char *fmt = "  %s = xsd:token { pattern = \"%s\" }\n";
     print(out, 0, fmt, cu->name, cu->pattern);
   }
-  print(out, 0, "}");
+  print(out, 0, "}\n");
   return 0;
 }

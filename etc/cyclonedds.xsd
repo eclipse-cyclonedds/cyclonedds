@@ -17,17 +17,17 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The General element specifying Domain related settings.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
-      <xs:choice minOccurs="0">
-        <xs:element ref="config:Compatibility"/>
-        <xs:element ref="config:Discovery"/>
-        <xs:element ref="config:General"/>
-        <xs:element ref="config:Internal"/>
-        <xs:element ref="config:Partitioning"/>
-        <xs:element ref="config:SSL"/>
-        <xs:element maxOccurs="unbounded" ref="config:Security"/>
-        <xs:element ref="config:Sizing"/>
-        <xs:element ref="config:TCP"/>
-        <xs:element ref="config:ThreadPool"/>
+      <xs:all>
+        <xs:element minOccurs="0" ref="config:Compatibility"/>
+        <xs:element minOccurs="0" ref="config:Discovery"/>
+        <xs:element minOccurs="0" ref="config:General"/>
+        <xs:element minOccurs="0" ref="config:Internal"/>
+        <xs:element minOccurs="0" ref="config:Partitioning"/>
+        <xs:element minOccurs="0" ref="config:SSL"/>
+        <xs:element minOccurs="0" ref="config:Security"/>
+        <xs:element minOccurs="0" ref="config:Sizing"/>
+        <xs:element minOccurs="0" ref="config:TCP"/>
+        <xs:element minOccurs="0" ref="config:ThreadPool"/>
         <xs:element minOccurs="0" name="Threads">
           <xs:annotation>
             <xs:documentation>
@@ -39,8 +39,8 @@ CycloneDDS configuration</xs:documentation>
             </xs:sequence>
           </xs:complexType>
         </xs:element>
-        <xs:element ref="config:Tracing"/>
-      </xs:choice>
+        <xs:element minOccurs="0" ref="config:Tracing"/>
+      </xs:all>
       <xs:attribute name="Id">
         <xs:annotation>
           <xs:documentation>
@@ -179,9 +179,9 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;This element statically configures addresses for discovery.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
-      <xs:choice minOccurs="0">
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
         <xs:element ref="config:Group"/>
-        <xs:element maxOccurs="unbounded" ref="config:Peer"/>
+        <xs:element ref="config:Peer"/>
       </xs:choice>
     </xs:complexType>
   </xs:element>

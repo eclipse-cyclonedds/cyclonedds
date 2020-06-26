@@ -230,6 +230,8 @@ DI(if_omg_security);
 #define RANGE(...) /* drop */
 #define UNIT(...) /* drop */
 #define VALUES(...) /* drop */
+#define MAXIMUM(...) /* drop */
+#define MINIMUM(...) /* drop */
 
 #define NOMEMBER 0, 0
 #define NOFUNCTIONS 0, 0, 0, 0
@@ -269,6 +271,12 @@ static const struct cfgelem root_cfgelem = {
 #undef MEMBER
 #undef MEMBEROF
 #undef FUNCTIONS
+#undef DESCRIPTION
+#undef RANGE
+#undef UNIT
+#undef VALUES
+#undef MAXIMUM
+#undef MINIMUM
 #undef NOMEMBER
 #undef NOFUNCTIONS
 #undef NODATA
