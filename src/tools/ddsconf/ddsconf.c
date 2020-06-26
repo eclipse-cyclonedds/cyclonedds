@@ -121,7 +121,7 @@ const char *name(const struct cfgelem *elem)
 
 static char spaces[32];
 
-void print(FILE *out, unsigned int cols, const char *fmt, ...)
+void printspc(FILE *out, unsigned int cols, const char *fmt, ...)
 {
   va_list ap;
   assert((size_t)cols < sizeof(spaces));

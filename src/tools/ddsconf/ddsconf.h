@@ -76,7 +76,7 @@ int hasattributes(const struct cfgelem *elem);
 struct cfgelem *firstelem(const struct cfgelem *list);
 struct cfgelem *nextelem(const struct cfgelem *list, const struct cfgelem *elem);
 const struct cfgunit *findunit(const struct cfgunit *units, const char *name);
-void print(FILE *out, unsigned int cols, const char *fmt, ...);
+void printspc(FILE *out, unsigned int cols, const char *fmt, ...);
 int printrnc(FILE *out, struct cfgelem *elem, const struct cfgunit *units);
 int printxsd(FILE *out, struct cfgelem *elem, const struct cfgunit *units);
 int printmd(FILE *out, struct cfgelem *elem, const struct cfgunit *units);
