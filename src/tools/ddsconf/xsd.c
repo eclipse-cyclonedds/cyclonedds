@@ -163,7 +163,7 @@ printref(
     const char fmt[] = "<xs:element %s%sref=\"%s:%s\"/>\n";
     if (!(flags & FLAG_NOMIN) && minimum(elem) != 1)
       snprintf(minattr, sizeof(minattr), "minOccurs=\"%d\" ", minimum(elem));
-    if (!(flags & FLAG_NOMAX) &&maximum(elem) == 0)
+    if (!(flags & FLAG_NOMAX) && maximum(elem) == 0)
       snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"unbounded\" ");
     else if (!(FLAG_NOMAX) && maximum(elem) != 1)
       snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"%d\" ", maximum(elem));
@@ -220,6 +220,7 @@ printcomplextype(
       } else {
         assert(cnt > 1);
         ce = firstelem(elem->children);
+        assert(ce);
         min[0] = min[1] = minimum(ce);
         max[0] = max[1] = maximum(ce);
         assert(min[1] <= max[1] || max[1] == 0);
