@@ -28,9 +28,11 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds__builtin.h"
+#include "dds__statistics.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
+#include "dds/ddsi/ddsi_statistics.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
 
@@ -349,12 +351,35 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
   ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 }
 
+static const struct dds_stat_keyvalue_descriptor dds_reader_statistics_kv[] = {
+  { "discarded_bytes", DDS_STAT_KIND_UINT64 }
+};
+
+static const struct dds_stat_descriptor dds_reader_statistics_desc = {
+  .count = sizeof (dds_reader_statistics_kv) / sizeof (dds_reader_statistics_kv[0]),
+  .kv = dds_reader_statistics_kv
+};
+
+static struct dds_statistics *dds_reader_create_statistics (const struct dds_entity *entity)
+{
+  return dds_alloc_statistics (entity, &dds_reader_statistics_desc);
+}
+
+static void dds_reader_refresh_statistics (const struct dds_entity *entity, struct dds_statistics *stat)
+{
+  const struct dds_reader *rd = (const struct dds_reader *) entity;
+  if (rd->m_rd)
+    ddsi_get_reader_stats (rd->m_rd, &stat->kv[0].u.u64);
+}
+
 const struct dds_entity_deriver dds_entity_deriver_reader = {
   .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_reader_close,
   .delete = dds_reader_delete,
   .set_qos = dds_reader_qos_set,
-  .validate_status = dds_reader_status_validate
+  .validate_status = dds_reader_status_validate,
+  .create_statistics = dds_reader_create_statistics,
+  .refresh_statistics = dds_reader_refresh_statistics
 };
 
 static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)

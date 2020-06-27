@@ -1035,8 +1035,9 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
      writer. */
   struct ddsi_domaingv const * const gv = wr->e.gv;
   dds_return_t result = DDS_RETCODE_OK;
-  ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
-  const ddsrt_mtime_t abstimeout = ddsrt_mtime_add_duration (tnow, wr->xqos->reliability.max_blocking_time);
+  const ddsrt_mtime_t throttle_start = ddsrt_time_monotonic ();
+  const ddsrt_mtime_t abstimeout = ddsrt_mtime_add_duration (throttle_start, wr->xqos->reliability.max_blocking_time);
+  ddsrt_mtime_t tnow = throttle_start;
   struct whc_state whcst;
   whc_get_state (wr->whc, &whcst);
 
@@ -1090,6 +1091,7 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
   }
 
   wr->throttling--;
+  wr->time_throttled += (uint64_t) (ddsrt_time_monotonic().v - throttle_start.v);
   if (wr->state != WRST_OPERATIONAL)
   {
     /* gc_delete_writer may be waiting */

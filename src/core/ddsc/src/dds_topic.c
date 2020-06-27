@@ -191,7 +191,9 @@ const struct dds_entity_deriver dds_entity_deriver_topic = {
   .close = dds_entity_deriver_dummy_close,
   .delete = dds_topic_delete,
   .set_qos = dds_topic_qos_set,
-  .validate_status = dds_topic_status_validate
+  .validate_status = dds_topic_status_validate,
+  .create_statistics = dds_entity_deriver_dummy_create_statistics,
+  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
 };
 
 /**

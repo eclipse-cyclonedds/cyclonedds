@@ -43,7 +43,9 @@ const struct dds_entity_deriver dds_entity_deriver_publisher = {
   .close = dds_entity_deriver_dummy_close,
   .delete = dds_entity_deriver_dummy_delete,
   .set_qos = dds_publisher_qos_set,
-  .validate_status = dds_publisher_status_validate
+  .validate_status = dds_publisher_status_validate,
+  .create_statistics = dds_entity_deriver_dummy_create_statistics,
+  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
 };
 
 dds_entity_t dds__create_publisher_l (dds_participant *par, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener)

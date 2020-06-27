@@ -862,6 +862,7 @@ struct nn_defrag {
   uint32_t n_samples;
   uint32_t max_samples;
   enum nn_defrag_drop_mode drop_mode;
+  uint64_t discarded_bytes;
   const struct ddsrt_log_cfg *logcfg;
   bool trace;
 };
@@ -897,9 +898,15 @@ struct nn_defrag *nn_defrag_new (const struct ddsrt_log_cfg *logcfg, enum nn_def
   d->max_samples = max_samples;
   d->n_samples = 0;
   d->max_sample = NULL;
+  d->discarded_bytes = 0;
   d->logcfg = logcfg;
   d->trace = (logcfg->c.mask & DDS_LC_RADMIN) != 0;
   return d;
+}
+
+void nn_defrag_stats (struct nn_defrag *defrag, uint64_t *discarded_bytes)
+{
+  *discarded_bytes = defrag->discarded_bytes;
 }
 
 void nn_fragchain_adjust_refcount (struct nn_rdata *frag, int adjust)
@@ -1156,7 +1163,7 @@ static void rsample_convert_defrag_to_reorder (struct nn_rsample *sample)
   sample->u.reorder.n_samples = 1;
 }
 
-static struct nn_rsample *defrag_add_fragment (const struct nn_defrag *defrag, struct nn_rsample *sample, struct nn_rdata *rdata, const struct nn_rsample_info *sampleinfo)
+static struct nn_rsample *defrag_add_fragment (struct nn_defrag *defrag, struct nn_rsample *sample, struct nn_rdata *rdata, const struct nn_rsample_info *sampleinfo)
 {
   struct nn_rsample_defrag *dfsample = &sample->u.defrag;
   struct nn_defrag_iv *predeq, *succ;
@@ -1202,6 +1209,7 @@ static struct nn_rsample *defrag_add_fragment (const struct nn_defrag *defrag, s
     /* new is contained in predeq, discard new; rdata did not cause
        completion of a sample */
     TRACE (defrag, "  new contained in predeq\n");
+    defrag->discarded_bytes += maxp1 - min;
     return NULL;
   }
   else if (min <= predeq->maxp1)
@@ -1654,6 +1662,7 @@ struct nn_reorder {
   enum nn_reorder_mode mode;
   uint32_t max_samples;
   uint32_t n_samples;
+  uint64_t discarded_bytes;
   const struct ddsrt_log_cfg *logcfg;
   bool late_ack_mode;
   bool trace;
@@ -1673,10 +1682,16 @@ struct nn_reorder *nn_reorder_new (const struct ddsrt_log_cfg *logcfg, enum nn_r
   r->mode = mode;
   r->max_samples = max_samples;
   r->n_samples = 0;
+  r->discarded_bytes = 0;
   r->late_ack_mode = late_ack_mode;
   r->logcfg = logcfg;
   r->trace = (logcfg->c.mask & DDS_LC_RADMIN) != 0;
   return r;
+}
+
+void nn_reorder_stats (struct nn_reorder *reorder, uint64_t *discarded_bytes)
+{
+  *discarded_bytes = reorder->discarded_bytes;
 }
 
 void nn_fragchain_unref (struct nn_rdata *frag)
@@ -1844,6 +1859,7 @@ static void delete_last_sample (struct nn_reorder *reorder)
     /* Last sample is in an interval of its own - delete it, and
        recalc max_sampleiv. */
     TRACE (reorder, "  delete_last_sample: in singleton interval\n");
+    reorder->discarded_bytes += last->sc.first->sampleinfo->size;
     fragchain = last->sc.first->fragchain;
     ddsrt_avl_delete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, reorder->max_sampleiv);
     reorder->max_sampleiv = ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
@@ -1867,6 +1883,7 @@ static void delete_last_sample (struct nn_reorder *reorder)
       pe = e;
       e = e->next;
     } while (e != last->sc.last);
+    reorder->discarded_bytes += e->sampleinfo->size;
     fragchain = e->fragchain;
     pe->next = NULL;
     assert (pe->sampleinfo->seq + 1 < last->maxp1);
@@ -1928,6 +1945,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     if (delivery_queue_full_p)
     {
       TRACE (reorder, "  discarding deliverable sample: delivery queue is full\n");
+      reorder->discarded_bytes += s->sc.first->sampleinfo->size;
       return NN_REORDER_REJECT;
     }
 
@@ -1960,6 +1978,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     /* we've moved beyond this one: discard it; no need to adjust
        n_samples */
     TRACE (reorder, "  discard: too old\n");
+    reorder->discarded_bytes += s->sc.first->sampleinfo->size;
     return NN_REORDER_TOO_OLD; /* don't want refcount increment */
   }
   else if (ddsrt_avl_is_empty (&reorder->sampleivtree))
@@ -1972,6 +1991,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     if (reorder->max_samples == 0)
     {
       TRACE (reorder, "  NOT - max_samples hit\n");
+      reorder->discarded_bytes += s->sc.first->sampleinfo->size;
       return NN_REORDER_REJECT;
     }
     else
@@ -1988,6 +2008,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     {
       /* growing last inteval will not be accepted when this flag is set */
       TRACE (reorder, "  discarding sample: only accepting delayed samples due to backlog in delivery queue\n");
+      reorder->discarded_bytes += s->sc.first->sampleinfo->size;
       return NN_REORDER_REJECT;
     }
 
@@ -2001,6 +2022,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     else
     {
       TRACE (reorder, "  discarding sample: max_samples reached and sample at end\n");
+      reorder->discarded_bytes += s->sc.first->sampleinfo->size;
       return NN_REORDER_REJECT;
     }
   }
@@ -2010,6 +2032,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     {
       /* new interval at the end will not be accepted when this flag is set */
       TRACE (reorder, "  discarding sample: only accepting delayed samples due to backlog in delivery queue\n");
+      reorder->discarded_bytes += s->sc.first->sampleinfo->size;
       return NN_REORDER_REJECT;
     }
     if (reorder->n_samples < reorder->max_samples)
@@ -2022,6 +2045,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     else
     {
       TRACE (reorder, "  discarding sample: max_samples reached and sample at end\n");
+      reorder->discarded_bytes += s->sc.first->sampleinfo->size;
       return NN_REORDER_REJECT;
     }
   }
@@ -2040,6 +2064,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     if (reorder->late_ack_mode && delivery_queue_full_p)
     {
       TRACE (reorder, "  discarding sample: delivery queue full\n");
+      reorder->discarded_bytes += s->sc.first->sampleinfo->size;
       return NN_REORDER_REJECT;
     }
 
@@ -2053,6 +2078,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     {
       /* contained in predeq */
       TRACE (reorder, "  discard: contained in predeq\n");
+      reorder->discarded_bytes += s->sc.first->sampleinfo->size;
       return NN_REORDER_REJECT;
     }
 

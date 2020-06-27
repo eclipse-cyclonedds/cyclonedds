@@ -106,6 +106,8 @@ typedef struct dds_entity_deriver {
   dds_return_t (*delete) (struct dds_entity *e) ddsrt_nonnull_all;
   dds_return_t (*set_qos) (struct dds_entity *e, const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
   dds_return_t (*validate_status) (uint32_t mask);
+  struct dds_statistics * (*create_statistics) (const struct dds_entity *e);
+  void (*refresh_statistics) (const struct dds_entity *e, struct dds_statistics *s);
 } dds_entity_deriver;
 
 struct dds_waitset;
@@ -178,6 +180,8 @@ void dds_entity_deriver_dummy_close (struct dds_entity *e);
 dds_return_t dds_entity_deriver_dummy_delete (struct dds_entity *e);
 dds_return_t dds_entity_deriver_dummy_set_qos (struct dds_entity *e, const dds_qos_t *qos, bool enabled);
 dds_return_t dds_entity_deriver_dummy_validate_status (uint32_t mask);
+struct dds_statistics *dds_entity_deriver_dummy_create_statistics (const struct dds_entity *e);
+void dds_entity_deriver_dummy_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s);
 
 inline void dds_entity_deriver_interrupt (struct dds_entity *e) {
   (dds_entity_deriver_table[e->m_kind]->interrupt) (e);
@@ -199,6 +203,12 @@ inline bool dds_entity_supports_set_qos (struct dds_entity *e) {
 }
 inline bool dds_entity_supports_validate_status (struct dds_entity *e) {
   return dds_entity_deriver_table[e->m_kind]->validate_status != dds_entity_deriver_dummy_validate_status;
+}
+inline struct dds_statistics *dds_entity_deriver_create_statistics (const struct dds_entity *e) {
+  return dds_entity_deriver_table[e->m_kind]->create_statistics (e);
+}
+inline void dds_entity_deriver_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s) {
+  dds_entity_deriver_table[e->m_kind]->refresh_statistics (e, s);
 }
 
 typedef struct dds_cyclonedds_entity {
