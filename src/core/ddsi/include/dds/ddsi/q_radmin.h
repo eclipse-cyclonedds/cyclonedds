@@ -255,6 +255,9 @@ void nn_dqueue_enqueue_callback (struct nn_dqueue *q, nn_dqueue_callback_t cb, v
 int  nn_dqueue_is_full (struct nn_dqueue *q);
 void nn_dqueue_wait_until_empty_if_full (struct nn_dqueue *q);
 
+void nn_defrag_stats (struct nn_defrag *defrag, uint64_t *discarded_bytes);
+void nn_reorder_stats (struct nn_reorder *reorder, uint64_t *discarded_bytes);
+
 #if defined (__cplusplus)
 }
 #endif

@@ -156,6 +156,8 @@ struct xeventq {
   ddsrt_cond_t cond;
   ddsi_tran_conn_t tev_conn;
   uint32_t auxiliary_bandwidth_limit;
+
+  size_t cum_rexmit_bytes;
 };
 
 static uint32_t xevent_thread (struct xeventq *xevq);
@@ -185,6 +187,7 @@ static void update_rexmit_counts (struct xeventq *evq, struct xevent_nt *ev)
   assert (evq->queued_rexmit_msgs > 0);
   evq->queued_rexmit_bytes -= ev->u.msg_rexmit.queued_rexmit_bytes;
   evq->queued_rexmit_msgs--;
+  evq->cum_rexmit_bytes += ev->u.msg_rexmit.queued_rexmit_bytes;
 }
 
 #if 0
@@ -526,6 +529,8 @@ struct xeventq * xeventq_new
   evq->gv = conn->m_base.gv;
   ddsrt_mutex_init (&evq->lock);
   ddsrt_cond_init (&evq->cond);
+
+  evq->cum_rexmit_bytes = 0;
   return evq;
 }
 

@@ -62,6 +62,12 @@ dds_return_t dds_entity_deriver_dummy_set_qos (struct dds_entity *e, const dds_q
 dds_return_t dds_entity_deriver_dummy_validate_status (uint32_t mask) {
   (void) mask; return DDS_RETCODE_ILLEGAL_OPERATION;
 }
+struct dds_statistics *dds_entity_deriver_dummy_create_statistics (const struct dds_entity *e) {
+  (void) e; return NULL;
+}
+void dds_entity_deriver_dummy_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s) {
+  (void) e; (void) s;
+}
 
 extern inline void dds_entity_deriver_interrupt (struct dds_entity *e);
 extern inline void dds_entity_deriver_close (struct dds_entity *e);
@@ -70,6 +76,8 @@ extern inline dds_return_t dds_entity_deriver_set_qos (struct dds_entity *e, con
 extern inline dds_return_t dds_entity_deriver_validate_status (struct dds_entity *e, uint32_t mask);
 extern inline bool dds_entity_supports_set_qos (struct dds_entity *e);
 extern inline bool dds_entity_supports_validate_status (struct dds_entity *e);
+extern inline struct dds_statistics *dds_entity_deriver_create_statistics (const struct dds_entity *e);
+extern inline void dds_entity_deriver_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s);
 
 static int compare_instance_handle (const void *va, const void *vb)
 {

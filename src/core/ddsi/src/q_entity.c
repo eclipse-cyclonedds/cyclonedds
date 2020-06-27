@@ -3494,6 +3494,7 @@ void writer_set_retransmitting (struct writer *wr)
 {
   assert (!wr->retransmitting);
   wr->retransmitting = 1;
+  wr->t_rexmit_start = ddsrt_time_elapsed();
   if (wr->e.gv->config.whc_adaptive && wr->whc_high > wr->whc_low)
   {
     uint32_t m = 8 * wr->whc_high / 10;
@@ -3505,6 +3506,7 @@ void writer_clear_retransmitting (struct writer *wr)
 {
   wr->retransmitting = 0;
   wr->t_whc_high_upd = wr->t_rexmit_end = ddsrt_time_elapsed();
+  wr->time_retransmit += (uint64_t) (wr->t_rexmit_end.v - wr->t_rexmit_start.v);
   ddsrt_cond_broadcast (&wr->throttle_cond);
 }
 
@@ -3624,6 +3626,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->throttling = 0;
   wr->retransmitting = 0;
   wr->t_rexmit_end.v = 0;
+  wr->t_rexmit_start.v = 0;
   wr->t_whc_high_upd.v = 0;
   wr->num_readers = 0;
   wr->num_reliable_readers = 0;
@@ -3633,6 +3636,9 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->throttle_tracing = 0;
   wr->rexmit_count = 0;
   wr->rexmit_lost_count = 0;
+  wr->rexmit_bytes = 0;
+  wr->time_throttled = 0;
+  wr->time_retransmit = 0;
   wr->force_md5_keyhash = 0;
   wr->alive = 1;
   wr->alive_vclock = 0;

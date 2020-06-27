@@ -30,6 +30,8 @@
 #include "dds__qos.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
+#include "dds__statistics.h"
+#include "dds/ddsi/ddsi_statistics.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_writer)
 
@@ -252,12 +254,38 @@ static dds_return_t dds_writer_qos_set (dds_entity *e, const dds_qos_t *qos, boo
   return DDS_RETCODE_OK;
 }
 
+static const struct dds_stat_keyvalue_descriptor dds_writer_statistics_kv[] = {
+  { "rexmit_bytes", DDS_STAT_KIND_UINT64 },
+  { "throttle_count", DDS_STAT_KIND_UINT32 },
+  { "time_throttle", DDS_STAT_KIND_UINT64 },
+  { "time_rexmit", DDS_STAT_KIND_UINT64 }
+};
+
+static const struct dds_stat_descriptor dds_writer_statistics_desc = {
+  .count = sizeof (dds_writer_statistics_kv) / sizeof (dds_writer_statistics_kv[0]),
+  .kv = dds_writer_statistics_kv
+};
+
+static struct dds_statistics *dds_writer_create_statistics (const struct dds_entity *entity)
+{
+  return dds_alloc_statistics (entity, &dds_writer_statistics_desc);
+}
+
+static void dds_writer_refresh_statistics (const struct dds_entity *entity, struct dds_statistics *stat)
+{
+  const struct dds_writer *wr = (const struct dds_writer *) entity;
+  if (wr->m_wr)
+    ddsi_get_writer_stats (wr->m_wr, &stat->kv[0].u.u64, &stat->kv[1].u.u32, &stat->kv[2].u.u64, &stat->kv[3].u.u64);
+}
+
 const struct dds_entity_deriver dds_entity_deriver_writer = {
   .interrupt = dds_writer_interrupt,
   .close = dds_writer_close,
   .delete = dds_writer_delete,
   .set_qos = dds_writer_qos_set,
-  .validate_status = dds_writer_status_validate
+  .validate_status = dds_writer_status_validate,
+  .create_statistics = dds_writer_create_statistics,
+  .refresh_statistics = dds_writer_refresh_statistics
 };
 
 dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)

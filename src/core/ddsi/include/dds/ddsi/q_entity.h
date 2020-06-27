@@ -312,6 +312,7 @@ struct writer
   struct ldur_fhnode *lease_duration; /* fibheap node to keep lease duration for this writer, NULL in case of automatic liveliness with inifite duration  */
   struct whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
+  ddsrt_etime_t t_rexmit_start;
   ddsrt_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
   ddsrt_etime_t t_whc_high_upd; /* time "whc_high" was last updated for controlled ramp-up of throughput */
   uint32_t init_burst_size_limit; /* derived from reader's receive_buffer_size */
@@ -329,6 +330,9 @@ struct writer
   uint32_t throttle_tracing;
   uint32_t rexmit_count; /* cum samples retransmitted (counting events; 1 sample can be counted many times) */
   uint32_t rexmit_lost_count; /* cum samples lost but retransmit requested (also counting events) */
+  uint64_t rexmit_bytes; /* cum bytes queued for retransmit */
+  uint64_t time_throttled; /* cum time in throttled state */
+  uint64_t time_retransmit; /* cum time in retransmitting state */
   struct xeventq *evq; /* timed event queue to be used by this writer */
   struct local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
   struct lease *lease; /* for liveliness administration (writer can only become inactive when using manual liveliness) */
@@ -758,7 +762,6 @@ void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_
 
 void connect_writer_with_proxy_reader_secure(struct writer *wr, struct proxy_reader *prd, ddsrt_mtime_t tnow, int64_t crypto_handle);
 void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_writer *pwr, ddsrt_mtime_t tnow, int64_t crypto_handle);
-
 
 struct ddsi_writer_info;
 DDS_EXPORT void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo);

@@ -34,7 +34,9 @@ const struct dds_entity_deriver dds_entity_deriver_readcondition = {
   .close = dds_entity_deriver_dummy_close,
   .delete = dds_readcond_delete,
   .set_qos = dds_entity_deriver_dummy_set_qos,
-  .validate_status = dds_entity_deriver_dummy_validate_status
+  .validate_status = dds_entity_deriver_dummy_validate_status,
+  .create_statistics = dds_entity_deriver_dummy_create_statistics,
+  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
 };
 
 dds_readcond *dds_create_readcond (dds_reader *rd, dds_entity_kind_t kind, uint32_t mask, dds_querycondition_filter_fn filter)

@@ -25,6 +25,7 @@
 #endif
 
 #include "dds/dds.h"
+#include "dds/ddsc/dds_statistics.h"
 #include "ddsperf_types.h"
 
 #include "dds/ddsrt/process.h"
@@ -95,6 +96,9 @@ static enum submode pingpongmode = SM_LISTENER;
 
 /* Whether to show "sub" stats every second even when nothing happens */
 static bool substat_every_second = false;
+
+/* Whether to show extended statistics (currently just rexmit info) */
+static bool extended_stats = false;
 
 /* Size of the sequence in KeyedSeq type in bytes */
 static uint32_t baggagesize = 0;
@@ -1367,7 +1371,17 @@ static int cmp_uint64 (const void *va, const void *vb)
   return (*a == *b) ? 0 : (*a < *b) ? -1 : 1;
 }
 
-static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, struct record_cputime_state *cputime_state, struct record_netload_state *netload_state)
+struct dds_stats {
+  struct dds_statistics *pubstat;
+  const struct dds_stat_keyvalue *rexmit_bytes;
+  const struct dds_stat_keyvalue *time_throttle;
+  const struct dds_stat_keyvalue *time_rexmit;
+  const struct dds_stat_keyvalue *throttle_count;
+  struct dds_statistics *substat;
+  const struct dds_stat_keyvalue *discarded_bytes;
+};
+
+static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, struct record_cputime_state *cputime_state, struct record_netload_state *netload_state, struct dds_stats *stats)
 {
   char prefix[128];
   const double ts = (double) (tnow - tref) / 1e9;
@@ -1501,6 +1515,14 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
 
   if (output)
     record_netload (netload_state, prefix, tnow);
+
+  if (extended_stats && output && stats)
+  {
+    (void) dds_refresh_statistics (stats->substat);
+    (void) dds_refresh_statistics (stats->pubstat);
+    printf ("%s discarded %"PRIu64" rexmit %"PRIu64" Trexmit %"PRIu64" Tthrottle %"PRIu64" Nthrottle %"PRIu32"\n", prefix, stats->discarded_bytes->u.u64, stats->rexmit_bytes->u.u64, stats->time_rexmit->u.u64, stats->time_throttle->u.u64, stats->throttle_count->u.u32);
+  }
+
   fflush (stdout);
   return output;
 }
@@ -1554,7 +1576,7 @@ static void sigxfsz_handler (int sig __attribute__ ((unused)))
     if (write (2, msg, sizeof (msg) - 1) < 0) {
       /* may not ignore return value according to Linux/gcc */
     }
-    print_stats (0, tnow, tnow - DDS_SECS (1), NULL, NULL);
+    print_stats (0, tnow, tnow - DDS_SECS (1), NULL, NULL, NULL);
     kill (getpid (), 9);
   }
 }
@@ -1611,6 +1633,7 @@ OPTIONS:\n\
                       anything.)\n\
   -1                  print \"sub\" stats every second, even when there is\n\
                       data\n\
+  -X                  output extended statistics\n\
   -i ID               use domain ID instead of the default domain\n\
 \n\
 MODE... is zero or more of:\n\
@@ -1920,7 +1943,7 @@ int main (int argc, char *argv[])
 
   argv0 = argv[0];
 
-  while ((opt = getopt (argc, argv, "1cd:D:i:n:k:uLK:T:Q:R:h")) != EOF)
+  while ((opt = getopt (argc, argv, "1cd:D:i:n:k:uLK:T:Q:R:Xh")) != EOF)
   {
     int pos;
     switch (opt)
@@ -1976,6 +1999,7 @@ int main (int argc, char *argv[])
         }
         break;
       }
+      case 'X': extended_stats = true; break;
       case 'R': {
         tref = 0;
         if (sscanf (optarg, "%"SCNd64"%n", &tref, &pos) != 1 || optarg[pos] != 0)
@@ -2272,6 +2296,35 @@ int main (int argc, char *argv[])
   struct record_cputime_state *cputime_state;
   cputime_state = record_cputime_new (wr_stat);
 
+  struct dds_stats stats;
+  const struct dds_stat_keyvalue dummy_u64 = { .name = "", .kind = DDS_STAT_KIND_UINT64, .u.u64 = 0 };
+  const struct dds_stat_keyvalue dummy_u32 = { .name = "", .kind = DDS_STAT_KIND_UINT32, .u.u32 = 0 };
+  stats.substat = dds_create_statistics (rd_data);
+  stats.discarded_bytes = dds_lookup_statistic (stats.substat, "discarded_bytes");
+  stats.pubstat = dds_create_statistics (wr_data);
+  stats.rexmit_bytes = dds_lookup_statistic (stats.pubstat, "rexmit_bytes");
+  stats.time_rexmit = dds_lookup_statistic (stats.pubstat, "time_rexmit");
+  stats.time_throttle = dds_lookup_statistic (stats.pubstat, "time_throttle");
+  stats.throttle_count = dds_lookup_statistic (stats.pubstat, "throttle_count");
+  if (stats.discarded_bytes == NULL)
+    stats.discarded_bytes = &dummy_u64;
+  if (stats.rexmit_bytes == NULL)
+    stats.rexmit_bytes = &dummy_u64;
+  if (stats.time_rexmit == NULL)
+    stats.time_rexmit = &dummy_u64;
+  if (stats.time_throttle == NULL)
+    stats.time_throttle = &dummy_u64;
+  if (stats.throttle_count == NULL)
+    stats.throttle_count = &dummy_u32;
+  if (stats.discarded_bytes->kind != DDS_STAT_KIND_UINT64 ||
+      stats.rexmit_bytes->kind != DDS_STAT_KIND_UINT64 ||
+      stats.time_rexmit->kind != DDS_STAT_KIND_UINT64 ||
+      stats.time_throttle->kind != DDS_STAT_KIND_UINT64 ||
+      stats.throttle_count->kind != DDS_STAT_KIND_UINT32)
+  {
+    abort ();
+  }
+
   /* I hate Unix signals in multi-threaded processes ... */
 #ifdef _WIN32
   signal (SIGINT, signal_handler);
@@ -2364,7 +2417,7 @@ int main (int argc, char *argv[])
     if (tnext <= tnow)
     {
       bool output;
-      output = print_stats (tref, tnow, tlast, cputime_state, netload_state);
+      output = print_stats (tref, tnow, tlast, cputime_state, netload_state, &stats);
       tlast = tnow;
       if (tnow > tnext + DDS_MSECS (500))
         tnext = tnow + DDS_SECS (1);
@@ -2386,6 +2439,9 @@ int main (int argc, char *argv[])
       maybe_send_new_ping (tnow, &tnextping);
     }
   }
+
+  dds_delete_statistics (stats.pubstat);
+  dds_delete_statistics (stats.substat);
   record_netload_free (netload_state);
   record_cputime_free (cputime_state);
 

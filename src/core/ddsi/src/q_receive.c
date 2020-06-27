@@ -985,6 +985,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
               uint32_t sent = ddsi_serdata_size (sample.serdata);
               if (sent > wr->e.gv->config.fragment_size)
                 sent = wr->e.gv->config.fragment_size;
+              wr->rexmit_bytes += sent;
               limit = (sent > limit) ? 0 : limit - sent;
             }
           }
@@ -1015,6 +1016,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
               uint32_t sent = ddsi_serdata_size (sample.serdata);
               if (sent > wr->e.gv->config.fragment_size)
                 sent = wr->e.gv->config.fragment_size;
+              wr->rexmit_bytes += sent;
               limit = (sent > limit) ? 0 : limit - sent;
             }
           }
@@ -1612,6 +1614,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
         {
           sent = true;
           nfrags_lim--;
+          wr->rexmit_bytes += wr->e.gv->config.fragment_size;
         }
       }
     }
