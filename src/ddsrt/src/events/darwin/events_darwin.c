@@ -16,7 +16,7 @@
 #include <sys/time.h>
 #include <stdio.h>
 #include <unistd.h>
-
+#include <fcntl.h>
 
 #include "dds/ddsrt/events/darwin.h"
 #include "dds/ddsrt/events.h"
@@ -39,7 +39,7 @@ struct ddsrt_event_queue {
   size_t                  cevents;  /**< capacity of triggered events stored*/
   size_t                  ievents;  /**< current iterator for getting the next triggered event*/
   int                     kq;       /**< kevent polling instance*/
-  kevent*                 kevents;  /**< array which kevent uses to write back to, has identical size as this->events*/
+  struct kevent*          kevents;  /**< array which kevent uses to write back to, has identical size as this->events*/
   ddsrt_mutex_t           lock;     /**< for keeping adds/deletes from occurring simultaneously */
 #if !defined(LWIP_SOCKET)
   ddsrt_socket_t          interrupt[2]; /**< pipe for interrupting waits*/
@@ -73,13 +73,13 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
   if (-1 == pipe(queue->interrupt))
     return DDS_RETCODE_ERROR;
   /*register interrupt event*/
-  kevent kev;
+  struct kevent kev;
   EV_SET(&kev, queue->interrupt[0], EVFILT_READ, EV_ADD, 0, 0, 0);
-  assert(kevent(kq, &kev, 1, NULL, 0, NULL) != -1);
+  assert(kevent(queue->kq, &kev, 1, NULL, 0, NULL) != -1);
 #endif /* !LWIP_SOCKET */
 
   /*create kevents array*/
-  queue->kevents = ddsrt_malloc(sizeof(kevent) * queue->cevents);
+  queue->kevents = ddsrt_malloc(sizeof(struct kevent) * queue->cevents);
   assert(queue->kevents);
 
   return DDS_RETCODE_OK;
@@ -97,16 +97,16 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
 static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) {
   assert(queue);
   /*deregister all currently stored triggers from kqueue*/
-  kevent kev;
+  struct kevent kev;
   for (unsigned int i = 0; i < queue->nevents; i++) {
     ddsrt_event_t* evt = queue->events[i];
     if (evt->flags & DDSRT_EVENT_FLAG_READ)
       EV_SET(&kev, evt->data.socket, EVFILT_READ, EV_DELETE, 0, 0, evt);
-    assert(kevent(kq, &kev, 1, NULL, 0, NULL) != -1);
+    assert(kevent(queue->kq, &kev, 1, NULL, 0, NULL) != -1);
   }
 #if !defined(LWIP_SOCKET)
-  if (evt->flags & DDSRT_EVENT_FLAG_READ)
-    EV_SET(&kev, interrupt[0], EVFILT_READ, EV_DELETE, 0, 0, 0);
+  EV_SET(&kev, queue->interrupt[0], EVFILT_READ, EV_DELETE, 0, 0, 0);
+  assert(kevent(queue->kq, &kev, 1, NULL, 0, NULL) != -1);
   close(queue->interrupt[0]);
   close(queue->interrupt[1]);
 #endif /* !LWIP_SOCKET */
@@ -150,14 +150,14 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     ddsrt_atomic_st32(&queue->events[i]->triggered, DDSRT_EVENT_FLAG_UNSET);
   ddsrt_mutex_unlock(&queue->lock);
 
-  struct timespec tmout = { milliseconds / 1000,     /* waittime (seconds) */
-                           milliseconds * 1000000 }; /* waittime (nanoseconds) */
-  int nevs = kevent(queue->kq, NULL, 0, queue->kevents, queue->nevents, &tmout);
+  struct timespec tmout = { reltime / 1000000000,     /* waittime (seconds) */
+                            reltime % 1000000000 }; /* waittime (nanoseconds) */
+  int nevs = kevent(queue->kq, NULL, 0, queue->kevents, (int)queue->nevents, &tmout);
   ddsrt_mutex_lock(&queue->lock);
   for (int i = 0; i < nevs; i++) {
     ddsrt_event_t* evt = queue->kevents[i].udata;
     if (NULL != evt) {
-      ddsrt_atomic_st32(evt->triggered, DDSRT_EVENT_FLAG_READ);
+      ddsrt_atomic_st32(&evt->triggered, DDSRT_EVENT_FLAG_READ);
     }
     else {
 #if !defined(LWIP_SOCKET)
@@ -179,16 +179,16 @@ dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* ev
   ddsrt_mutex_lock(&queue->lock);
   if (queue->nevents == queue->cevents) {
     queue->cevents += EVENTS_CONTAINER_DELTA;
-    ddsrt_realloc(queue->events, queue->events, sizeof(ddsrt_event_t*) * queue->cevents);
-    ddsrt_realloc(queue->kevents, queue->kevents, sizeof(kevent) * queue->cevents);
+    ddsrt_realloc(queue->events, sizeof(ddsrt_event_t*) * queue->cevents);
+    ddsrt_realloc(queue->kevents, sizeof(struct kevent) * queue->cevents);
   }
   queue->events[queue->nevents++] = evt;
   ddsrt_mutex_unlock(&queue->lock);
 
   /*register to queue->kq*/
-  kevent kev;
+  struct kevent kev;
   EV_SET(&kev, evt->data.socket.sock, EVFILT_READ, EV_ADD, 0, 0, evt);
-  assert(kevent(kq, &kev, 1, NULL, 0, NULL) != -1);
+  assert(kevent(queue->kq, &kev, 1, NULL, 0, NULL) != -1);
 
   return DDS_RETCODE_OK;
 }
@@ -207,9 +207,9 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
   for (unsigned int i = 0; i < queue->nevents; i++) {
     if (queue->events[i] == evt) {
       /*deregister from queue->kq*/
-      kevent kev;
+      struct kevent kev;
       EV_SET(&kev, evt->data.socket.sock, EVFILT_READ, EV_DELETE, 0, 0, evt);
-      assert(kevent(kq, &kev, 1, NULL, 0, NULL) != -1);
+      assert(kevent(queue->kq, &kev, 1, NULL, 0, NULL) != -1);
 
       memmove(queue->events + i, queue->events + i + 1, (queue->nevents - i - 1) * sizeof(ddsrt_event_t*));
       if (queue->ievents > i)
