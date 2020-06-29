@@ -212,9 +212,11 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     if (FD_ISSET(queue->interrupt[0], rfds)) {
       char buf = 0x0;
 #if defined(_WIN32)
-      recv(queue->interrupt[0], &buf, 1, 0);
+      if (1 != recv(queue->interrupt[0], &buf, 1, 0))
+        return DDS_RETCODE_ERROR;
 #else
-      read(queue->interrupt[0], &buf, 1);
+      if (1 != read(queue->interrupt[0], &buf, 1))
+        return DDS_RETCODE_ERROR;
 #endif  /* _WIN32 */
     }
 #endif  /* !LWIP_SOCKET */
@@ -244,10 +246,10 @@ dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue) {
 #if !defined(LWIP_SOCKET)
   char buf = 0;
 #if defined(_WIN32)
-  if (-1 == send(queue->interrupt[1], &buf, 1, 0))
+  if (1 != send(queue->interrupt[1], &buf, 1, 0))
     return DDS_RETCODE_ERROR;
 #else
-  if (-1 == write(queue->interrupt[1], &buf, 1))
+  if (1 != write(queue->interrupt[1], &buf, 1))
     return DDS_RETCODE_ERROR;
 #endif /* _WIN32 */
 
