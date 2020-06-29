@@ -37,7 +37,7 @@ struct ddsrt_event_queue {
   ddsrt_mutex_t           lock;     /**< for add/delete */
 #if !defined(LWIP_SOCKET)
   ddsrt_socket_t          interrupt[2]; /**< pipe for interrupting waits*/
-#endif
+#endif /* !LWIP_SOCKET */
 };
 
 /**
@@ -56,7 +56,7 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
   queue->events = ddsrt_malloc(sizeof(ddsrt_event_t*) * queue->cevents);
   assert(queue->events);
   ddsrt_mutex_init(&queue->lock);
-#if (defined _WIN32 || defined(_WIN64))
+#if defined(_WIN32)
   /*windows type sockets*/
   struct sockaddr_in addr;
   socklen_t asize = sizeof(addr);
@@ -103,7 +103,7 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
 #elif !defined(LWIP_SOCKET)
   /*simple linux type pipe*/
   if (pipe(queue->interrupt) == -1) return DDS_RETCODE_ERROR;
-#endif
+#endif /* _WIN32, __VXWORKS__, !LWIP_SOCKET*/
   return DDS_RETCODE_OK;
 }
 
@@ -120,21 +120,25 @@ static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) {
   assert(queue);
   ddsrt_mutex_destroy(&queue->lock); 
 #if !defined(LWIP_SOCKET)
+
 #if defined(__VXWORKS__) && defined(__RTP__)
   char nameBuf[OSPL_PIPENAMESIZE];
   ioctl(queue->interrupt[0], FIOGETNAME, &nameBuf);
-#endif
-#if (defined _WIN32 || defined(_WIN64))
+#endif /*__VXWORKS__ && __RTP__*/
+
+#if defined(_WIN32)
   closesocket(queue->interrupt[0]);
   closesocket(queue->interrupt[1]);
 #else
   close(queue->interrupt[0]);
   close(queue->interrupt[1]);
-#endif
+#endif  /* _WIN32 */
+
 #if defined(__VXWORKS__) && defined(__RTP__)
   pipeDevDelete((char*)&nameBuf, 0);
-#endif
-#endif
+#endif /* __VXWORKS__ && __RTP__ */
+
+#endif /* !LWIP_SOCKET */
   ddsrt_free(queue->events);
   return DDS_RETCODE_OK;
 }
@@ -171,7 +175,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   FD_ZERO(rfds);
 #if !defined(LWIP_SOCKET)
   FD_SET(queue->interrupt[0],rfds);
-#endif
+#endif /* !LWIP_SOCKET */
 
   /*add events to queue->rfds*/
   ddsrt_socket_t maxfd = 0;
@@ -195,6 +199,18 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 
   if (DDS_RETCODE_OK == retval ||
     DDS_RETCODE_TIMEOUT == retval) {
+
+#if !defined(LWIP_SOCKET)
+    /*read the data from the interrupt socket (if any)*/
+    if (FD_ISSET(queue->interrupt[0], rfds)) {
+      char buf = 0x0;
+#if defined(_WIN32)
+      recv(queue->interrupt[0], &buf, 1, 0);
+#else
+      read(queue->interrupt[0], &buf, 1);
+#endif  /* _WIN32 */
+    }
+#endif  /* !LWIP_SOCKET */
 
     /*check queue->rfds for set items*/
     ddsrt_mutex_lock(&queue->lock);
@@ -220,12 +236,15 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue) {
 #if !defined(LWIP_SOCKET)
   char buf = 0;
-#if (defined _WIN32 || defined(_WIN64))
-  send(queue->interrupt[1], &buf, 1, 0);
+#if defined(_WIN32)
+  if (-1 == send(queue->interrupt[1], &buf, 1, 0))
+    return DDS_RETCODE_ERROR;
 #else
-  write(queue->interrupt[1], &buf, 1);
-#endif
-#endif
+  if (-1 == write(queue->interrupt[1], &buf, 1))
+    return DDS_RETCODE_ERROR;
+#endif /* _WIN32 */
+
+#endif /* !LWIP_SOCKET */
   return DDS_RETCODE_OK;
 }
 

@@ -35,7 +35,7 @@ CU_Clean(ddsrt_event) {
 }
 
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 void ddsrt_sleep(int microsecs) {
   Sleep(microsecs / 1000);
 }
@@ -46,7 +46,7 @@ static void ddsrt_sleep(int microsecs) {
 #endif
 
 static dds_return_t ddsrt_pipe_create(ddsrt_socket_t p[2]) {
-#if (defined _WIN32 || defined(_WIN64))
+#if defined(_WIN32)
   /*windows type sockets*/
   struct sockaddr_in addr;
   socklen_t asize = sizeof(addr);
@@ -118,7 +118,7 @@ static dds_return_t ddsrt_pipe_destroy(ddsrt_socket_t p[2]) {
 }
 
 static dds_return_t ddsrt_pipe_push(ddsrt_socket_t p[2]) {
-  char buf;
+  char buf = 0x0;
 #if defined(LWIP_SOCKET)
   return DDS_RETCODE_OK
 #elif (defined _WIN32 || defined(_WIN64))

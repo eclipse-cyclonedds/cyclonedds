@@ -63,7 +63,7 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
   kevent kev;
   EV_SET(&kev, queue->interrupt[0], EVFILT_READ, EV_ADD, 0, 0, 0);
   assert(kevent(kq, &kev, 1, NULL, 0, NULL) != -1);
-#endif
+#endif /* !LWIP_SOCKET */
 
   /*create kevents array*/
   queue->kevents = ddsrt_malloc(sizeof(kevent) * queue->cevents);
@@ -96,7 +96,7 @@ static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) {
     EV_SET(&kev, interrupt[0], EVFILT_READ, EV_DELETE, 0, 0, 0);
   close(queue->interrupt[0]);
   close(queue->interrupt[1]);
-#endif
+#endif /* !LWIP_SOCKET */
   close(queue->kq);
 
   ddsrt_mutex_destroy(&queue->lock);
@@ -150,7 +150,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 #if !defined(LWIP_SOCKET)
       char buf;
       read(queue->interrupt[0], &buf, 0);
-#endif
+#endif /* !LWIP_SOCKET */
     }
   }
   ddsrt_mutex_unlock(&queue->lock);
@@ -184,8 +184,8 @@ dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue) {
   char buf = 0;
   if (-1 == write(queue->interrupt[1], &buf, 1))
     return DDS_RETCODE_ERROR;
-#endif
-  return DDS_RETURN_OK;
+#endif /* !LWIP_SOCKET */
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt) {
