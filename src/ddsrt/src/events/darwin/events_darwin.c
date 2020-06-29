@@ -12,6 +12,11 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/event.h>
+#include <sys/time.h>
+#include <stdio.h>
+#include <unistd.h>
+
 
 #include "dds/ddsrt/events/darwin.h"
 #include "dds/ddsrt/events.h"
