@@ -28,6 +28,13 @@
 
 #define EVENTS_CONTAINER_DELTA 8
 
+/**
+* @brief Posix implementation of ddsrt_event_queue.
+*
+* This implementation uses the ddsrt_select function to set the rfds set of file descriptors 
+* for sockets which have data available for reading. If this not implemented under the light-
+* weight IP stack, then interuption of a wait using a trigger on a self socket.
+*/
 struct ddsrt_event_queue {
   ddsrt_event_t**         events;  /**< container for administered events*/
   size_t                  nevents;  /**< number of administered events stored*/
@@ -45,7 +52,7 @@ struct ddsrt_event_queue {
 *
 * Will set the counters to 0 and create the containers for triggers and additional necessary ones.
 *
-* @param[in] queue The queue to initialize.
+* @param[out] queue The queue to initialize.
 *
 * @returns DDS_RETCODE_OK if everything went OK.
 */
@@ -112,7 +119,7 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
 *
 * Will free created containers and do any additional cleanup of things created in ddsrt_event_queue_init.
 *
-* @param queue The queue to finish.
+* @param[out] queue The queue to finish.
 *
 * @returns DDS_RETCODE_OK if everything went OK.
 */

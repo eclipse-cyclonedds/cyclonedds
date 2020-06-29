@@ -20,6 +20,14 @@
 
 #define EVENTS_CONTAINER_DELTA 8
 
+ /**
+ * @brief Darwin (Apple) implementation of ddsrt_event_queue.
+ *
+ * This implementation uses a kqueue for monitoring a set of filedescriptors for events.
+ * Using the kevent call, the kernel can be told to add/modify fd's on its list for monitoring
+ * or to wait for events on the monitored fd's. Interrupts of waits are done through writes
+ * to an internal pipe.
+ */
 struct ddsrt_event_queue {
   ddsrt_event_t**         events;   /**< container for triggered events*/
   size_t                  nevents;  /**< number of triggered events stored*/
@@ -27,7 +35,7 @@ struct ddsrt_event_queue {
   size_t                  ievents;  /**< current iterator for getting the next triggered event*/
   int                     kq;       /**< kevent polling instance*/
   kevent*                 kevents;  /**< array which kevent uses to write back to, has identical size as this->events*/
-  ddsrt_mutex_t           lock;     /**< for add/delete */
+  ddsrt_mutex_t           lock;     /**< for keeping adds/deletes from occurring simultaneously */
 #if !defined(LWIP_SOCKET)
   ddsrt_socket_t          interrupt[2]; /**< pipe for interrupting waits*/
 #endif
@@ -38,7 +46,7 @@ struct ddsrt_event_queue {
 *
 * Will set the counters to 0 and create the containers for triggers and additional necessary ones.
 *
-* @param[in] queue The queue to initialize.
+* @param[out] queue The queue to initialize.
 *
 * @returns DDS_RETCODE_OK if everything went OK.
 */
@@ -77,7 +85,7 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
 *
 * Will free created containers and do any additional cleanup of things created in ddsrt_event_queue_init.
 *
-* @param queue The queue to finish.
+* @param[out] queue The queue to finish.
 *
 * @returns DDS_RETCODE_OK if everything went OK.
 */

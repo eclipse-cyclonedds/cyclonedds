@@ -82,15 +82,13 @@ extern "C" {
   /**
   * @brief Initializes an existing event to indicate a socket.
   *
-  * @param ev Pointer to the event to initialize.
-  * @param sock Socket to initialize the event with.
-  * @param flags Flags to set for the event.
+  * @param[out] ev Pointer to the event to initialize.
+  * @param[in] sock Socket to initialize the event with.
+  * @param[in] flags Flags to set for the event.
   *
   * @returns DDS_RETCODE_OK if everything went OK.
   */
   dds_return_t ddsrt_event_socket_init(ddsrt_event_t* ev, ddsrt_socket_t sock, uint32_t flags);
-
-  dds_return_t ddsrt_event_fini(ddsrt_event_t* ev);
 
   /**
   * @brief Event queue creation function.
@@ -104,7 +102,7 @@ extern "C" {
   *
   * Will finish the event queue first, then free the memory of the queue.
   *
-  * @param queue The queue to clean up.
+  * @param[out] queue The queue to clean up.
   *
   * @returns DDS_RETCODE_OK if everything went OK.
   */
@@ -113,7 +111,7 @@ extern "C" {
   /**
   * @brief Getter for the number of stored events.
   *
-  * @param queue The queue to get the number of events of.
+  * @param[in] queue The queue to get the number of events of.
   *
   * @returns The number of events stored by the queue.
   */
@@ -122,8 +120,8 @@ extern "C" {
   /**
   * @brief Triggers a wait for events for the queue.
   *
-  * @param queue The queue to trigger.
-  * @param reltime The maximum amount of time to wait.
+  * @param[out] queue The queue to trigger.
+  * @param[in] reltime The maximum amount of time to wait.
   *
   * @returns DDS_RETCODE_OK if everything went OK.
   */
@@ -132,7 +130,7 @@ extern "C" {
   /**
   * @brief Interrupts a triggered wait of a queue.
   *
-  * @param queue The queue to interrupt.
+  * @param[out] queue The queue to interrupt.
   *
   * @returns DDS_RETCODE_OK if everything went OK.
   */
@@ -143,8 +141,8 @@ extern "C" {
   * 
   * This event will be stored by the queue, any additional actions such as registration to other services will also be done.
   *
-  * @param queue The queue to add the event to.
-  * @param evt Pointer to the event to add.
+  * @param[out] queue The queue to add the event to.
+  * @param[in] evt Pointer to the event to add.
   *
   * @returns DDS_RETCODE_OK if everything went OK.
   */
@@ -155,8 +153,8 @@ extern "C" {
   *
   * This event will be removed from the queue, any additional actions such as deregistration from other services will also be done.
   *
-  * @param queue The queue to remove the event from.
-  * @param evt Pointer to the event to remove.
+  * @param[out] queue The queue to remove the event from.
+  * @param[in] evt Pointer to the event to remove.
   *
   * @returns DDS_RETCODE_OK if everything went OK.
   */
@@ -169,7 +167,7 @@ extern "C" {
   * Successive calls to this function will start from the previously used point.
   * Will be reset after a call to ddsrt_event_queue_wait.
   *
-  * @param queue The queue to retrieve.
+  * @param[out] queue The queue to retrieve.
   *
   * @returns Pointer to the event which has a trigger flag set, NULL if none has this flag set.
   */
