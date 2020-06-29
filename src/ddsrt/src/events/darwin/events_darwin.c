@@ -101,7 +101,7 @@ static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) {
   for (unsigned int i = 0; i < queue->nevents; i++) {
     ddsrt_event_t* evt = queue->events[i];
     if (evt->flags & DDSRT_EVENT_FLAG_READ)
-      EV_SET(&kev, evt->data.socket, EVFILT_READ, EV_DELETE, 0, 0, evt);
+      EV_SET(&kev, evt->data.socket.sock, EVFILT_READ, EV_DELETE, 0, 0, evt);
     assert(kevent(queue->kq, &kev, 1, NULL, 0, NULL) != -1);
   }
 #if !defined(LWIP_SOCKET)
@@ -228,7 +228,7 @@ ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue) {
   ddsrt_mutex_lock(&queue->lock);
   while (queue->ievents < queue->nevents) {
     ddsrt_event_t* evt = queue->events[queue->ievents++];
-    if (DDSRT_EVENT_FLAG_UNSET != evt->triggered)
+    if (DDSRT_EVENT_FLAG_UNSET != ddsrt_atomic_ld32(&evt->triggered))
       ptr = evt;
   }
   ddsrt_mutex_unlock(&queue->lock);
