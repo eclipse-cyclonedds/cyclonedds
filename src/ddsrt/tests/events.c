@@ -211,18 +211,7 @@ static uint32_t interrupt_func(void* arg) {
   return 0;
 }
 
-CU_Test(ddsrt_event, queue_wait) {
-  ddsrt_event_queue_t* q = ddsrt_event_queue_create();
-
-  /*create socket*/
-  ddsrt_socket_t p[2];
-  CU_ASSERT_EQUAL_FATAL(DDS_RETCODE_OK, ddsrt_pipe_create(p));
-
-  /*create event for socket*/
-  ddsrt_event_t evt;
-  ddsrt_event_socket_init(&evt, p[0], DDSRT_EVENT_FLAG_READ);
-  ddsrt_event_queue_add(q, &evt);
-
+static void test_write(ddsrt_event_queue_t* q, ddsrt_socket_t* p, ddsrt_event_t* evt) {
   ddsrt_thread_t thr1, thr2;
   uint32_t res1 = 0, res2 = 0;
 
@@ -231,6 +220,7 @@ CU_Test(ddsrt_event, queue_wait) {
   attr.schedClass = DDSRT_SCHED_DEFAULT;
   attr.schedPriority = 0;
 
+  /*create thread which waits for event and one which writes to p*/
   dds_return_t ret1 = ddsrt_thread_create(&thr1, "reader", &attr, &wait_func, q);
   dds_return_t ret2 = ddsrt_thread_create(&thr2, "writer", &attr, &write_func, p);
 
@@ -244,17 +234,54 @@ CU_Test(ddsrt_event, queue_wait) {
     CU_ASSERT_EQUAL(ret2, DDS_RETCODE_OK);
   }
 
-  /*check for triggered event on socket*/
+  /*check for triggered event on p*/
   ddsrt_event_t* evtout = ddsrt_event_queue_next(q);
-  CU_ASSERT_PTR_NOT_EQUAL_FATAL(evtout, NULL);
-  CU_ASSERT_EQUAL(evtout->type, ddsrt_event_type_socket);
-  CU_ASSERT_EQUAL(ddsrt_atomic_ld32(&evtout->triggered), DDSRT_EVENT_FLAG_READ);
-  CU_ASSERT_EQUAL(evtout->data.socket.sock, p[0]);
+  CU_ASSERT_PTR_EQUAL_FATAL(evtout, evt);
+  if (NULL != evtout)
+    CU_ASSERT_EQUAL(ddsrt_atomic_ld32(&evtout->triggered), DDSRT_EVENT_FLAG_READ);
 
-  /*read data from the pipe*/
+  /*read data from p*/
   CU_ASSERT_EQUAL_FATAL(DDS_RETCODE_OK, ddsrt_pipe_pull(p));
+}
+
+CU_Test(ddsrt_event, queue_wait) {
+  ddsrt_event_queue_t* q = ddsrt_event_queue_create();
+
+  /*create pipe p*/
+  ddsrt_socket_t p[2];
+  CU_ASSERT_EQUAL_FATAL(DDS_RETCODE_OK, ddsrt_pipe_create(p));
+
+  /*create event for p*/
+  ddsrt_event_t evt;
+  ddsrt_event_socket_init(&evt, p[0], DDSRT_EVENT_FLAG_READ);
+  ddsrt_event_queue_add(q, &evt);
+
+  /*single pipe generating events*/
+
+  /*check whether writing to p generates the correct event*/
+  test_write(q, p, &evt);
+
+  /*create pipe p2*/
+  ddsrt_socket_t p2[2];
+  CU_ASSERT_EQUAL_FATAL(DDS_RETCODE_OK, ddsrt_pipe_create(p2));
+
+  /*create event for p2*/
+  ddsrt_event_t evt2;
+  ddsrt_event_socket_init(&evt2, p2[0], DDSRT_EVENT_FLAG_READ);
+  ddsrt_event_queue_add(q, &evt2);
+
+  /*two pipes generating events*/
+  test_write(q, p2, &evt2);
+  test_write(q, p, &evt);
+
+  /*remove one pipe from the queue, check that this no longer generates events,
+  * but that the remaining one still does*/
+  ddsrt_event_queue_remove(q,&evt);
+  test_write(q, p, NULL);
+  test_write(q, p2, &evt2);
 
   ddsrt_pipe_destroy(p);
+  ddsrt_pipe_destroy(p2);
   ddsrt_event_queue_destroy(q);
   CU_PASS("queue_wait");
 }
@@ -262,11 +289,11 @@ CU_Test(ddsrt_event, queue_wait) {
 CU_Test(ddsrt_event, queue_signal) {
   ddsrt_event_queue_t* q = ddsrt_event_queue_create();
 
-  /*create socket*/
+  /*create pipe p*/
   ddsrt_socket_t p[2];
   CU_ASSERT_EQUAL_FATAL(DDS_RETCODE_OK, ddsrt_pipe_create(p));
 
-  /*create event for socket*/
+  /*create event for p*/
   ddsrt_event_t evt;
   ddsrt_event_socket_init(&evt, p[0], DDSRT_EVENT_FLAG_READ);
   ddsrt_event_queue_add(q, &evt);
@@ -302,7 +329,7 @@ CU_Test(ddsrt_event, queue_signal) {
   ddsrt_event_t* evtout = ddsrt_event_queue_next(q);
   CU_ASSERT_PTR_EQUAL_FATAL(evtout, NULL);
 
-  /*read data from the pipe*/
+  /*read data from p*/
   CU_ASSERT_EQUAL_FATAL(DDS_RETCODE_OK, ddsrt_pipe_pull(p));
 
   ddsrt_pipe_destroy(p);
