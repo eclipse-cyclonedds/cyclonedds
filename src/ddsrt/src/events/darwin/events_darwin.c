@@ -70,8 +70,16 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
   assert(queue->events);
 
 #if !defined(LWIP_SOCKET)
-  if (-1 == pipe(queue->interrupt))
+  if (-1 == pipe(queue->interrupt)) {
+    close(queue->kq);
     return DDS_RETCODE_ERROR;
+  } else if (-1 == fcntl(queue->interrupt[0], F_SETFD, fcntl(queue->interrupt[0], F_GETFD) | FD_CLOEXEC) ||
+             -1 == fcntl(queue->interrupt[1], F_SETFD, fcntl(queue->interrupt[1], F_GETFD) | FD_CLOEXEC)) {
+    close(queue->interrupt[0]);
+    close(queue->interrupt[1]);
+    close(queue->kq);
+    return DDS_RETCODE_ERROR;
+  }
   /*register interrupt event*/
   struct kevent kev;
   EV_SET(&kev, queue->interrupt[0], EVFILT_READ, EV_ADD, 0, 0, 0);
@@ -96,17 +104,7 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
 */
 static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) {
   assert(queue);
-  /*deregister all currently stored triggers from kqueue*/
-  struct kevent kev;
-  for (unsigned int i = 0; i < queue->nevents; i++) {
-    ddsrt_event_t* evt = queue->events[i];
-    if (evt->flags & DDSRT_EVENT_FLAG_READ)
-      EV_SET(&kev, evt->data.socket.sock, EVFILT_READ, EV_DELETE, 0, 0, evt);
-    assert(kevent(queue->kq, &kev, 1, NULL, 0, NULL) != -1);
-  }
 #if !defined(LWIP_SOCKET)
-  EV_SET(&kev, queue->interrupt[0], EVFILT_READ, EV_DELETE, 0, 0, 0);
-  assert(kevent(queue->kq, &kev, 1, NULL, 0, NULL) != -1);
   close(queue->interrupt[0]);
   close(queue->interrupt[1]);
 #endif /* !LWIP_SOCKET */
@@ -143,10 +141,12 @@ size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue) {
 dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t reltime) {
   assert(queue);
 
+  dds_return_t ret = DDS_RETCODE_OK;
+
   /*reset triggered status*/
   ddsrt_mutex_lock(&queue->lock);
   queue->ievents = 0;
-  for (unsigned int i = 0; i < queue->nevents; queue++)
+  for (unsigned int i = 0; i < queue->nevents; i++)
     ddsrt_atomic_st32(&queue->events[i]->triggered, DDSRT_EVENT_FLAG_UNSET);
   ddsrt_mutex_unlock(&queue->lock);
 
@@ -162,14 +162,14 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     else {
 #if !defined(LWIP_SOCKET)
       char buf;
-      if (1 != read(queue->interrupt[0], &buf, 0))
-        return DDS_RETCODE_ERROR;
+      if (1 != read(queue->interrupt[0], &buf, 1))
+  	ret = DDS_RETCODE_ERROR;
 #endif /* !LWIP_SOCKET */
     }
   }
   ddsrt_mutex_unlock(&queue->lock);
 
-  return DDS_RETCODE_OK;
+  return ret;
 }
 
 dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt) {

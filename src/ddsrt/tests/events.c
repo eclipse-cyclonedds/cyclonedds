@@ -173,19 +173,30 @@ CU_Test(ddsrt_event, queue_create) {
 CU_Test(ddsrt_event, queue_add_event) {
   ddsrt_event_queue_t* q = ddsrt_event_queue_create();
 
-  ddsrt_socket_t sock = 123;
+  ddsrt_socket_t p1[2];
+  ddsrt_socket_t p2[2];
+  ddsrt_socket_t p3[2];
+  ddsrt_pipe_create(p1);
+  ddsrt_pipe_create(p2);
+  ddsrt_pipe_create(p3);
+  
   uint32_t flags = DDSRT_EVENT_FLAG_READ;
 
   ddsrt_event_t evt;
-  CU_ASSERT_EQUAL(DDS_RETCODE_OK,ddsrt_event_socket_init(&evt,sock,flags));
+  CU_ASSERT_EQUAL(DDS_RETCODE_OK,ddsrt_event_socket_init(&evt,p1[0],flags));
   CU_ASSERT_EQUAL(DDS_RETCODE_OK, ddsrt_event_queue_add(q, &evt));
   CU_ASSERT_EQUAL(1, ddsrt_event_queue_nevents(q));
+  CU_ASSERT_EQUAL(DDS_RETCODE_OK,ddsrt_event_socket_init(&evt,p2[0],flags));
   CU_ASSERT_EQUAL(DDS_RETCODE_OK, ddsrt_event_queue_add(q, &evt));
   CU_ASSERT_EQUAL(2, ddsrt_event_queue_nevents(q));
+  CU_ASSERT_EQUAL(DDS_RETCODE_OK,ddsrt_event_socket_init(&evt,p3[0],flags));
   CU_ASSERT_EQUAL(DDS_RETCODE_OK, ddsrt_event_queue_add(q, &evt));
   CU_ASSERT_EQUAL(3, ddsrt_event_queue_nevents(q));
 
   CU_ASSERT_EQUAL(DDS_RETCODE_OK, ddsrt_event_queue_destroy(q));
+  ddsrt_pipe_destroy(p1);
+  ddsrt_pipe_destroy(p2);
+  ddsrt_pipe_destroy(p3);
   CU_PASS("queue_add_event");
 }
 
