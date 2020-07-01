@@ -53,12 +53,14 @@ struct ddsrt_event_queue
 *
 * Will set the counters to 0 and create the containers for triggers and additional necessary ones.
 *
-* @param[out] queue The queue to initialize.
+* @param[inout] queue The queue to initialize.
 *
 * @returns DDS_RETCODE_OK if everything went OK.
 */
 static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
 {
+  assert(queue);
+
   queue->nevents = 0;
   queue->cevents = 8;
   queue->ievents = 0;
@@ -126,13 +128,14 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
 *
 * Will free created containers and do any additional cleanup of things created in ddsrt_event_queue_init.
 *
-* @param[out] queue The queue to finish.
+* @param[inout] queue The queue to finish.
 *
 * @returns DDS_RETCODE_OK if everything went OK.
 */
 static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) \
 {
   assert(queue);
+
   ddsrt_mutex_destroy(&queue->lock); 
 #if !defined(LWIP_SOCKET)
 
@@ -176,6 +179,7 @@ dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue)
 
 size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue)
 {
+  assert(queue);
   return queue->nevents;
 }
 
@@ -261,6 +265,8 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 
 dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
 {
+  assert(queue);
+
 #if !defined(LWIP_SOCKET)
   char buf = 0;
 #if defined(_WIN32)
@@ -295,6 +301,9 @@ dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* ev
 
 dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
+  assert(queue);
+  assert(evt);
+
   ddsrt_mutex_lock(&queue->lock);
   for (size_t i = 0; i < queue->nevents; i++)
   {
@@ -313,6 +322,8 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
 
 ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue)
 {
+  assert(queue);
+
   ddsrt_event_t* ptr = NULL;
   ddsrt_mutex_lock(&queue->lock);
   while (queue->ievents < queue->nevents)

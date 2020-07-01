@@ -50,12 +50,17 @@ struct ddsrt_event_queue
 *
 * Will set the counters to 0 and create the containers for triggers and additional necessary ones.
 *
-* @param[out] queue The queue to initialize.
+* @param[inout] queue The queue to initialize.
 *
-* @returns DDS_RETCODE_OK if everything went OK.
+* @retval DDS_RETCODE_OK
+* The queue was initialized succesfully.
+* @retval DDS_RETCODE_ERROR
+* In the following cases: Kevent instance could not be initialized correctly. The interrupt pipe could be initialized correctly.
 */
 static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
 {
+  assert(queue);
+
   queue->nevents = 0;
   queue->cevents = 8;
   queue->ievents = 0;
@@ -99,9 +104,10 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
 *
 * Will free created containers and do any additional cleanup of things created in ddsrt_event_queue_init.
 *
-* @param[out] queue The queue to finish.
+* @param[inout] queue The queue to finish.
 *
-* @returns DDS_RETCODE_OK if everything went OK.
+* @retval DDS_RETCODE_OK
+* In all cases.
 */
 static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
 {
@@ -134,6 +140,7 @@ dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue)
 
 size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue)
 {
+  assert(queue);
   size_t ret;
   ddsrt_mutex_lock(&queue->lock);
   ret = queue->nevents;
@@ -201,6 +208,8 @@ dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* ev
 
 dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
 {
+  assert(queue);
+
   char buf = 0;
   if (1 != write(queue->interrupt[1], &buf, 1))
     return DDS_RETCODE_ERROR;
@@ -209,6 +218,9 @@ dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
 
 dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
+  assert(queue);
+
+  dds_return_t ret = DDS_RETCODE_ALREADY_DELETED;
   ddsrt_mutex_lock(&queue->lock);
   for (size_t i = 0; i < queue->nevents; i++)
   {
@@ -223,16 +235,19 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
       if (queue->ievents > i)
         queue->ievents--;
       queue->nevents--;
+      ret = DDS_RETCODE_OK
       break;
     }
   }
   ddsrt_mutex_unlock(&queue->lock);
 
-  return DDS_RETCODE_OK;
+  return ret;
 }
 
 ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue)
 {
+  assert(queue);
+
   ddsrt_event_t* ptr = NULL;
   ddsrt_mutex_lock(&queue->lock);
   while (queue->ievents < queue->nevents)
