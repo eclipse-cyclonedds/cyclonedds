@@ -50,14 +50,13 @@ extern "C" {
   /**
   * @brief Describes the type of object being monitored for events.
   */
-  enum ddsrt_event_type {
-    ddsrt_event_type_unset, /**< unitialized state*/
-    ddsrt_event_type_socket /**< indicating a socket type connection*/
+ typedef enum ddsrt_event_type {
+    DDSRT_EVENT_TYPE_UNSET, /**< unitialized state*/
+    DDSRT_EVENT_TYPE_SOCKET /**< indicating a socket type connection*/
     /*,
-    ddsrt_event_type_file,
-    ddsrt_event_type_ifaddr*/
-  };
-  typedef enum ddsrt_event_type ddsrt_event_type_t;
+    DDSRT_EVENT_TYPE_FILE,
+    DDSRT_EVENT_TYPE_IFADDR*/
+  } ddsrt_event_type_t;
 
   /**
   * @brief Structure containing the information of which object is being watched.
@@ -100,13 +99,13 @@ extern "C" {
   /**
   * @brief Cleans up an event queue.
   *
-  * Will finish the event queue first, then free the memory of the queue.
+  * Will close/free any resources managed by the event_queue (if any), then free the memory of the queue.
   *
   * @param[out] queue The queue to clean up.
   *
   * @returns DDS_RETCODE_OK if everything went OK.
   */
-  dds_return_t ddsrt_event_queue_destroy(ddsrt_event_queue_t* queue);
+  dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue);
 
   /**
   * @brief Getter for the number of stored events.

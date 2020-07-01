@@ -123,7 +123,7 @@ ddsrt_event_queue_t* ddsrt_event_queue_create(void) {
   return returnptr;
 }
 
-dds_return_t ddsrt_event_queue_destroy(ddsrt_event_queue_t* queue) {
+dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue) {
   assert(queue);
   ddsrt_event_queue_fini(queue);
   ddsrt_free(queue);

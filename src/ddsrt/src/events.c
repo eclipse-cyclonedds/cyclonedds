@@ -16,7 +16,7 @@
 dds_return_t ddsrt_event_socket_init(ddsrt_event_t* ev, ddsrt_socket_t sock, uint32_t flags) {
   assert(ev);
   assert(sock);
-  ev->type = ddsrt_event_type_socket;
+  ev->type = DDSRT_EVENT_TYPE_SOCKET;
   ev->flags = flags;
   ev->data.socket.sock = sock;
   ddsrt_atomic_st32(&ev->triggered, DDSRT_EVENT_FLAG_UNSET);

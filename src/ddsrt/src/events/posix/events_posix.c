@@ -157,7 +157,7 @@ ddsrt_event_queue_t* ddsrt_event_queue_create(void) {
   return returnptr;
 }
 
-dds_return_t ddsrt_event_queue_destroy(ddsrt_event_queue_t* queue) {
+dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue) {
   assert(queue);
   ddsrt_event_queue_fini(queue);
   ddsrt_free(queue);
@@ -188,7 +188,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   ddsrt_socket_t maxfd = 0;
   for (size_t i = 0; i < queue->nevents; i++) {
     ddsrt_event_t *evt = queue->events[i];
-    if (evt->type != ddsrt_event_type_socket)
+    if (evt->type != DDSRT_EVENT_TYPE_SOCKET)
       continue;
 
     ddsrt_socket_t s = evt->data.socket.sock;
@@ -225,7 +225,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     ddsrt_mutex_lock(&queue->lock);
     for (size_t i = 0; i < queue->nevents; i++) {
       ddsrt_event_t *evt = queue->events[i];
-      if (evt->type != ddsrt_event_type_socket)
+      if (evt->type != DDSRT_EVENT_TYPE_SOCKET)
         continue;
 
       ddsrt_socket_t s = evt->data.socket.sock;
