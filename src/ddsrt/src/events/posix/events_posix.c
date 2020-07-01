@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2006 to 2020 ADLINK Technology Limited and others
+ * Copyright(c) 2020 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -302,7 +302,7 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
     {
       memmove(queue->events + i, queue->events + i + 1, (queue->nevents - i - 1)*sizeof(ddsrt_event_t*));
       if (queue->ievents > i)
-          queue->ievents--;
+        queue->ievents--;
       queue->nevents--;
       break;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2006 to 2020 ADLINK Technology Limited and others
+ * Copyright(c) 2020 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -42,9 +42,7 @@ struct ddsrt_event_queue
   int                     kq;       /**< kevent polling instance*/
   struct kevent*          kevents;  /**< array which kevent uses to write back to, has identical size as this->events*/
   ddsrt_mutex_t           lock;     /**< for keeping adds/deletes from occurring simultaneously */
-#if !defined(LWIP_SOCKET)
-  ddsrt_socket_t          interrupt[2]; /**< pipe for interrupting waits*/
-#endif
+  int                     interrupt[2]; /**< pipe for interrupting waits*/
 };
 
 /**
@@ -71,7 +69,6 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
   queue->events = ddsrt_malloc(sizeof(ddsrt_event_t*) * queue->cevents);
   assert(queue->events);
 
-#if !defined(LWIP_SOCKET)
   if (-1 == pipe(queue->interrupt))
   {
     close(queue->kq);
@@ -89,7 +86,6 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
   struct kevent kev;
   EV_SET(&kev, queue->interrupt[0], EVFILT_READ, EV_ADD, 0, 0, 0);
   assert(kevent(queue->kq, &kev, 1, NULL, 0, NULL) != -1);
-#endif /* !LWIP_SOCKET */
 
   /*create kevents array*/
   queue->kevents = ddsrt_malloc(sizeof(struct kevent) * queue->cevents);
@@ -110,10 +106,8 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
 static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
 {
   assert(queue);
-#if !defined(LWIP_SOCKET)
   close(queue->interrupt[0]);
   close(queue->interrupt[1]);
-#endif /* !LWIP_SOCKET */
   close(queue->kq);
 
   ddsrt_mutex_destroy(&queue->lock);
@@ -156,7 +150,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   /*reset triggered status*/
   ddsrt_mutex_lock(&queue->lock);
   queue->ievents = 0;
-  for (unsigned int i = 0; i < queue->nevents; i++)
+  for (size_t i = 0; i < queue->nevents; i++)
     ddsrt_atomic_st32(&queue->events[i]->triggered, DDSRT_EVENT_FLAG_UNSET);
   ddsrt_mutex_unlock(&queue->lock);
 
@@ -172,11 +166,9 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     }
     else
     {
-#if !defined(LWIP_SOCKET)
       char buf;
       if (1 != read(queue->interrupt[0], &buf, 1))
   	    ret = DDS_RETCODE_ERROR;
-#endif /* !LWIP_SOCKET */
     }
   }
   ddsrt_mutex_unlock(&queue->lock);
@@ -209,18 +201,16 @@ dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* ev
 
 dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
 {
-#if !defined(LWIP_SOCKET)
   char buf = 0;
   if (1 != write(queue->interrupt[1], &buf, 1))
     return DDS_RETCODE_ERROR;
-#endif /* !LWIP_SOCKET */
   return DDS_RETCODE_OK;
 }
 
 dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
   ddsrt_mutex_lock(&queue->lock);
-  for (unsigned int i = 0; i < queue->nevents; i++)
+  for (size_t i = 0; i < queue->nevents; i++)
   {
     if (queue->events[i] == evt)
     {
@@ -248,8 +238,10 @@ ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue)
   while (queue->ievents < queue->nevents)
   {
     ddsrt_event_t* evt = queue->events[queue->ievents++];
-    if (DDSRT_EVENT_FLAG_UNSET != ddsrt_atomic_ld32(&evt->triggered))
+    if (DDSRT_EVENT_FLAG_UNSET != ddsrt_atomic_ld32(&evt->triggered)) {
       ptr = evt;
+      break;
+    }
   }
   ddsrt_mutex_unlock(&queue->lock);
   return ptr;
