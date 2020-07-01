@@ -33,7 +33,8 @@
  * or to wait for events on the monitored fd's. Interrupts of waits are done through writes
  * to an internal pipe.
  */
-struct ddsrt_event_queue {
+struct ddsrt_event_queue
+{
   ddsrt_event_t**         events;   /**< container for triggered events*/
   size_t                  nevents;  /**< number of triggered events stored*/
   size_t                  cevents;  /**< capacity of triggered events stored*/
@@ -55,7 +56,8 @@ struct ddsrt_event_queue {
 *
 * @returns DDS_RETCODE_OK if everything went OK.
 */
-static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
+static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
+{
   queue->nevents = 0;
   queue->cevents = 8;
   queue->ievents = 0;
@@ -70,11 +72,14 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
   assert(queue->events);
 
 #if !defined(LWIP_SOCKET)
-  if (-1 == pipe(queue->interrupt)) {
+  if (-1 == pipe(queue->interrupt))
+  {
     close(queue->kq);
     return DDS_RETCODE_ERROR;
-  } else if (-1 == fcntl(queue->interrupt[0], F_SETFD, fcntl(queue->interrupt[0], F_GETFD) | FD_CLOEXEC) ||
-             -1 == fcntl(queue->interrupt[1], F_SETFD, fcntl(queue->interrupt[1], F_GETFD) | FD_CLOEXEC)) {
+  }
+  else if (-1 == fcntl(queue->interrupt[0], F_SETFD, fcntl(queue->interrupt[0], F_GETFD) | FD_CLOEXEC) ||
+           -1 == fcntl(queue->interrupt[1], F_SETFD, fcntl(queue->interrupt[1], F_GETFD) | FD_CLOEXEC))
+  {
     close(queue->interrupt[0]);
     close(queue->interrupt[1]);
     close(queue->kq);
@@ -102,7 +107,8 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
 *
 * @returns DDS_RETCODE_OK if everything went OK.
 */
-static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) {
+static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
+{
   assert(queue);
 #if !defined(LWIP_SOCKET)
   close(queue->interrupt[0]);
@@ -116,21 +122,24 @@ static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) {
   return DDS_RETCODE_OK;
 }
 
-ddsrt_event_queue_t* ddsrt_event_queue_create(void) {
+ddsrt_event_queue_t* ddsrt_event_queue_create(void)
+{
   ddsrt_event_queue_t* returnptr = ddsrt_malloc(sizeof(ddsrt_event_queue_t));
   assert(returnptr);
   ddsrt_event_queue_init(returnptr);
   return returnptr;
 }
 
-dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue) {
+dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue)
+{
   assert(queue);
   ddsrt_event_queue_fini(queue);
   ddsrt_free(queue);
   return DDS_RETCODE_OK;
 }
 
-size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue) {
+size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue)
+{
   size_t ret;
   ddsrt_mutex_lock(&queue->lock);
   ret = queue->nevents;
@@ -138,7 +147,8 @@ size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue) {
   return ret;
 }
 
-dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t reltime) {
+dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t reltime)
+{
   assert(queue);
 
   dds_return_t ret = DDS_RETCODE_OK;
@@ -156,14 +166,16 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   ddsrt_mutex_lock(&queue->lock);
   for (int i = 0; i < nevs; i++) {
     ddsrt_event_t* evt = queue->kevents[i].udata;
-    if (NULL != evt) {
+    if (NULL != evt)
+    {
       ddsrt_atomic_st32(&evt->triggered, DDSRT_EVENT_FLAG_READ);
     }
-    else {
+    else
+    {
 #if !defined(LWIP_SOCKET)
       char buf;
       if (1 != read(queue->interrupt[0], &buf, 1))
-  	ret = DDS_RETCODE_ERROR;
+  	    ret = DDS_RETCODE_ERROR;
 #endif /* !LWIP_SOCKET */
     }
   }
@@ -172,12 +184,14 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   return ret;
 }
 
-dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt) {
+dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
+{
   assert(queue);
   assert(evt);
 
   ddsrt_mutex_lock(&queue->lock);
-  if (queue->nevents == queue->cevents) {
+  if (queue->nevents == queue->cevents)
+  {
     queue->cevents += EVENTS_CONTAINER_DELTA;
     ddsrt_realloc(queue->events, sizeof(ddsrt_event_t*) * queue->cevents);
     ddsrt_realloc(queue->kevents, sizeof(struct kevent) * queue->cevents);
@@ -193,7 +207,8 @@ dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* ev
   return DDS_RETCODE_OK;
 }
 
-dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue) {
+dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
+{
 #if !defined(LWIP_SOCKET)
   char buf = 0;
   if (1 != write(queue->interrupt[1], &buf, 1))
@@ -202,10 +217,13 @@ dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue) {
   return DDS_RETCODE_OK;
 }
 
-dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt) {
+dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
+{
   ddsrt_mutex_lock(&queue->lock);
-  for (unsigned int i = 0; i < queue->nevents; i++) {
-    if (queue->events[i] == evt) {
+  for (unsigned int i = 0; i < queue->nevents; i++)
+  {
+    if (queue->events[i] == evt)
+    {
       /*deregister from queue->kq*/
       struct kevent kev;
       EV_SET(&kev, evt->data.socket.sock, EVFILT_READ, EV_DELETE, 0, 0, evt);
@@ -223,10 +241,12 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
   return DDS_RETCODE_OK;
 }
 
-ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue) {
+ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue)
+{
   ddsrt_event_t* ptr = NULL;
   ddsrt_mutex_lock(&queue->lock);
-  while (queue->ievents < queue->nevents) {
+  while (queue->ievents < queue->nevents)
+  {
     ddsrt_event_t* evt = queue->events[queue->ievents++];
     if (DDSRT_EVENT_FLAG_UNSET != ddsrt_atomic_ld32(&evt->triggered))
       ptr = evt;

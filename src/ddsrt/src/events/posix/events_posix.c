@@ -35,7 +35,8 @@
 * for sockets which have data available for reading. If this not implemented under the light-
 * weight IP stack, then interuption of a wait using a trigger on a self socket.
 */
-struct ddsrt_event_queue {
+struct ddsrt_event_queue
+{
   ddsrt_event_t**         events;  /**< container for administered events*/
   size_t                  nevents;  /**< number of administered events stored*/
   size_t                  cevents;  /**< capacity of administered events stored*/
@@ -56,7 +57,8 @@ struct ddsrt_event_queue {
 *
 * @returns DDS_RETCODE_OK if everything went OK.
 */
-static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
+static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
+{
   queue->nevents = 0;
   queue->cevents = 8;
   queue->ievents = 0;
@@ -78,7 +80,8 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
     getsockname(listener, (struct sockaddr*)&addr, &asize) == -1 ||
     listen(listener, 1) == -1 ||
     connect(queue->interrupt[0], (struct sockaddr*)&addr, sizeof(addr)) == -1 ||
-    (queue->interrupt[1] = accept(listener, 0, 0)) == -1) {
+    (queue->interrupt[1] = accept(listener, 0, 0)) == -1)
+  {
     closesocket(queue->interrupt[0]);
     closesocket(queue->interrupt[1]);
     return DDS_RETCODE_ERROR;
@@ -90,16 +93,19 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
   char pipename[OSPL_PIPENAMESIZE];
   int pipecount = 0;
   int pipe_result = 0;
-  do {
+  do
+  {
     snprintf((char*)&pipename, sizeof(pipename), "/pipe/ospl%d", pipecount++);
-  } while ((pipe_result = pipeDevCreate((char*)&pipename, 1, 1)) == -1 &&
+  }
+  while ((pipe_result = pipeDevCreate((char*)&pipename, 1, 1)) == -1 &&
     os_getErrno() == EINVAL);
   if (pipe_result != -1)
     return DDS_RETCODE_ERROR;
   queue->interrupt[0] = open((char*)&pipename, O_RDWR, 0644);
   queue->interrupt[1] = open((char*)&pipename, O_RDWR, 0644);
   /*the pipe was succesfully created, but one of the sockets on either end was not*/
-  if (-1 == queue->interrupt[0] || -1 == p[1]) {
+  if (-1 == queue->interrupt[0] || -1 == p[1])
+  {
     pipeDevDelete(pipename, 0);
     if (-1 != queue->interrupt[0])
       close(queue->interrupt[0]);
@@ -109,7 +115,8 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
   }
 #elif !defined(LWIP_SOCKET)
   /*simple linux type pipe*/
-  if (pipe(queue->interrupt) == -1) return DDS_RETCODE_ERROR;
+  if (pipe(queue->interrupt) == -1)
+    return DDS_RETCODE_ERROR;
 #endif /* _WIN32, __VXWORKS__, !LWIP_SOCKET*/
   return DDS_RETCODE_OK;
 }
@@ -123,7 +130,8 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) {
 *
 * @returns DDS_RETCODE_OK if everything went OK.
 */
-static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) {
+static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) \
+{
   assert(queue);
   ddsrt_mutex_destroy(&queue->lock); 
 #if !defined(LWIP_SOCKET)
@@ -150,25 +158,29 @@ static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) {
   return DDS_RETCODE_OK;
 }
 
-ddsrt_event_queue_t* ddsrt_event_queue_create(void) {
+ddsrt_event_queue_t* ddsrt_event_queue_create(void)
+{
   ddsrt_event_queue_t* returnptr = ddsrt_malloc(sizeof(ddsrt_event_queue_t));
   assert(returnptr);
   ddsrt_event_queue_init(returnptr);
   return returnptr;
 }
 
-dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue) {
+dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue)
+{
   assert(queue);
   ddsrt_event_queue_fini(queue);
   ddsrt_free(queue);
   return DDS_RETCODE_OK;
 }
 
-size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue) {
+size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue)
+{
   return queue->nevents;
 }
 
-dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t reltime) {
+dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t reltime)
+{
   assert(queue);
   
   /*reset triggered status*/
@@ -186,13 +198,15 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 
   /*add events to queue->rfds*/
   ddsrt_socket_t maxfd = 0;
-  for (size_t i = 0; i < queue->nevents; i++) {
+  for (size_t i = 0; i < queue->nevents; i++)
+  {
     ddsrt_event_t *evt = queue->events[i];
     if (evt->type != DDSRT_EVENT_TYPE_SOCKET)
       continue;
 
     ddsrt_socket_t s = evt->data.socket.sock;
-    if (evt->flags & DDSRT_EVENT_FLAG_READ) {
+    if (evt->flags & DDSRT_EVENT_FLAG_READ)
+    {
       FD_SET(s, rfds);
       if (s > maxfd)
         maxfd = s;
@@ -205,7 +219,8 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   dds_return_t retval = ddsrt_select(maxfd + 1, rfds, NULL, NULL, reltime, &ready);
 
   if (DDS_RETCODE_OK == retval ||
-    DDS_RETCODE_TIMEOUT == retval) {
+      DDS_RETCODE_TIMEOUT == retval)
+  {
 
 #if !defined(LWIP_SOCKET)
     /*read the data from the interrupt socket (if any)*/
@@ -223,7 +238,8 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 
     /*check queue->rfds for set items*/
     ddsrt_mutex_lock(&queue->lock);
-    for (size_t i = 0; i < queue->nevents; i++) {
+    for (size_t i = 0; i < queue->nevents; i++)
+    {
       ddsrt_event_t *evt = queue->events[i];
       if (evt->type != DDSRT_EVENT_TYPE_SOCKET)
         continue;
@@ -234,7 +250,8 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     }
     ddsrt_mutex_unlock(&queue->lock);
   }
-  else {
+  else
+  {
     /*something else happened*/
     return DDS_RETCODE_ERROR;
   }
@@ -242,7 +259,8 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   return DDS_RETCODE_OK;
 }
 
-dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue) {
+dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
+{
 #if !defined(LWIP_SOCKET)
   char buf = 0;
 #if defined(_WIN32)
@@ -257,12 +275,14 @@ dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue) {
   return DDS_RETCODE_OK;
 }
 
-dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt) {
+dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
+{
   assert(queue);
   assert(evt);
 
   ddsrt_mutex_lock(&queue->lock);
-  if (queue->nevents == queue->cevents) {
+  if (queue->nevents == queue->cevents)
+  {
     queue->cevents += EVENTS_CONTAINER_DELTA;
     ddsrt_realloc(queue->events, sizeof(ddsrt_event_t*) * queue->cevents);
   }
@@ -273,10 +293,13 @@ dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* ev
   return DDS_RETCODE_OK;
 }
 
-dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt) {
+dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
+{
   ddsrt_mutex_lock(&queue->lock);
-  for (size_t i = 0; i < queue->nevents; i++) {
-    if (queue->events[i] == evt) {
+  for (size_t i = 0; i < queue->nevents; i++)
+  {
+    if (queue->events[i] == evt)
+    {
       memmove(queue->events + i, queue->events + i + 1, (queue->nevents - i - 1)*sizeof(ddsrt_event_t*));
       if (queue->ievents > i)
           queue->ievents--;
@@ -288,10 +311,12 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
   return DDS_RETCODE_OK;
 }
 
-ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue) {
+ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue)
+{
   ddsrt_event_t* ptr = NULL;
   ddsrt_mutex_lock(&queue->lock);
-  while (queue->ievents < queue->nevents) {
+  while (queue->ievents < queue->nevents)
+  {
     ddsrt_event_t* evt = queue->events[queue->ievents++];
     if (DDSRT_EVENT_FLAG_UNSET != ddsrt_atomic_ld32(&evt->triggered))
       ptr = evt;

@@ -24,28 +24,33 @@
 #define OSPL_PIPENAMESIZE 26
 #endif
 
-CU_Init(ddsrt_event) {
+CU_Init(ddsrt_event)
+{
   ddsrt_init();
   return 0;
 }
 
-CU_Clean(ddsrt_event) {
+CU_Clean(ddsrt_event)
+{
   ddsrt_fini();
   return 0;
 }
 
 
 #if defined(_WIN32)
-void ddsrt_sleep(int microsecs) {
+void ddsrt_sleep(int microsecs)
+{
   Sleep(microsecs / 1000);
 }
 #else
-static void ddsrt_sleep(int microsecs) {
+static void ddsrt_sleep(int microsecs)
+{
   usleep((unsigned)microsecs);
 }
 #endif
 
-static dds_return_t ddsrt_pipe_create(ddsrt_socket_t p[2]) {
+static dds_return_t ddsrt_pipe_create(ddsrt_socket_t p[2])
+{
 #if defined(_WIN32)
   /*windows type sockets*/
   struct sockaddr_in addr;
@@ -61,7 +66,8 @@ static dds_return_t ddsrt_pipe_create(ddsrt_socket_t p[2]) {
     getsockname(listener, (struct sockaddr*)&addr, &asize) == -1 ||
     listen(listener, 1) == -1 ||
     connect(p[0], (struct sockaddr*)&addr, sizeof(addr)) == -1 ||
-    (p[1] = accept(listener, 0, 0)) == -1) {
+    (p[1] = accept(listener, 0, 0)) == -1)
+  {
     closesocket(p[0]);
     closesocket(p[1]);
     return DDS_RETCODE_ERROR;
@@ -73,7 +79,8 @@ static dds_return_t ddsrt_pipe_create(ddsrt_socket_t p[2]) {
   char pipename[OSPL_PIPENAMESIZE];
   int pipecount = 0;
   int pipe_result = 0;
-  do {
+  do
+  {
     snprintf((char*)&pipename, sizeof(pipename), "/pipe/ospl%d", pipecount++);
   } while ((pipe_result = pipeDevCreate((char*)&pipename, 1, 1)) == -1 &&
     os_getErrno() == EINVAL);
@@ -82,7 +89,8 @@ static dds_return_t ddsrt_pipe_create(ddsrt_socket_t p[2]) {
   p[0] = open((char*)&pipename, O_RDWR, 0644);
   p[1] = open((char*)&pipename, O_RDWR, 0644);
   /*the pipe was succesfully created, but one of the sockets on either end was not*/
-  if (-1 == p[0] || -1 == p[1]) {
+  if (-1 == p[0] || -1 == p[1])
+  {
     pipeDevDelete(pipename, 0);
     if (-1 != p[0])
       close(p[0]);
@@ -92,12 +100,14 @@ static dds_return_t ddsrt_pipe_create(ddsrt_socket_t p[2]) {
   }
 #elif !defined(LWIP_SOCKET)
   /*simple linux type pipe*/
-  if (pipe(p) == -1) return DDS_RETCODE_ERROR;
+  if (pipe(p) == -1)
+    return DDS_RETCODE_ERROR;
 #endif
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t ddsrt_pipe_destroy(ddsrt_socket_t p[2]) {
+static dds_return_t ddsrt_pipe_destroy(ddsrt_socket_t p[2])
+{
 #if !defined(LWIP_SOCKET)
 #if defined(__VXWORKS__) && defined(__RTP__)
   char nameBuf[OSPL_PIPENAMESIZE];
@@ -117,7 +127,8 @@ static dds_return_t ddsrt_pipe_destroy(ddsrt_socket_t p[2]) {
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t ddsrt_pipe_push(ddsrt_socket_t p[2]) {
+static dds_return_t ddsrt_pipe_push(ddsrt_socket_t p[2])
+{
   char buf = 0x0;
 #if defined(LWIP_SOCKET)
   return DDS_RETCODE_OK;
@@ -131,7 +142,8 @@ static dds_return_t ddsrt_pipe_push(ddsrt_socket_t p[2]) {
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t ddsrt_pipe_pull(ddsrt_socket_t p[2]) {
+static dds_return_t ddsrt_pipe_pull(ddsrt_socket_t p[2])
+{
   char buf;
 #if defined(LWIP_SOCKET)
   return DDS_RETCODE_OK;
@@ -147,7 +159,8 @@ static dds_return_t ddsrt_pipe_pull(ddsrt_socket_t p[2]) {
 
 
 
-CU_Test(ddsrt_event, event_create) {
+CU_Test(ddsrt_event, event_create)
+{
   ddsrt_socket_t sock = 123;
   uint32_t flags = DDSRT_EVENT_FLAG_READ;
   ddsrt_event_t evt;
@@ -160,7 +173,8 @@ CU_Test(ddsrt_event, event_create) {
   CU_PASS("event_create");
 }
 
-CU_Test(ddsrt_event, queue_create) {
+CU_Test(ddsrt_event, queue_create)
+{
   ddsrt_event_queue_t* q = ddsrt_event_queue_create();
   
   CU_ASSERT_PTR_NOT_EQUAL(q, NULL);
@@ -170,7 +184,8 @@ CU_Test(ddsrt_event, queue_create) {
   CU_PASS("queue_create");
 }
 
-CU_Test(ddsrt_event, queue_add_event) {
+CU_Test(ddsrt_event, queue_add_event)
+{
   ddsrt_event_queue_t* q = ddsrt_event_queue_create();
 
   ddsrt_socket_t p1[2];
@@ -200,14 +215,16 @@ CU_Test(ddsrt_event, queue_add_event) {
   CU_PASS("queue_add_event");
 }
 
-static uint32_t wait_func(void* arg) {
+static uint32_t wait_func(void* arg)
+{
   printf("starting wait for event\n");
   CU_ASSERT_EQUAL(DDS_RETCODE_OK, ddsrt_event_queue_wait((ddsrt_event_queue_t*)arg, (dds_duration_t)5e8));
   printf("done with wait for event\n");
   return 0;
 }
 
-static uint32_t write_func(void* arg) {
+static uint32_t write_func(void* arg)
+{
   ddsrt_socket_t* p = (ddsrt_socket_t*)arg;
   printf("starting wait for send to %d\n", (int)p[1]);
   ddsrt_sleep(250000);
@@ -217,7 +234,8 @@ static uint32_t write_func(void* arg) {
   return 0;
 }
 
-static uint32_t interrupt_func(void* arg) {
+static uint32_t interrupt_func(void* arg)
+{
   printf("starting wait for interrupt\n");
   ddsrt_sleep(125000);
   printf("interrupting\n");
@@ -226,7 +244,8 @@ static uint32_t interrupt_func(void* arg) {
   return 0;
 }
 
-static void test_write(ddsrt_event_queue_t* q, ddsrt_socket_t* p, ddsrt_event_t* evt) {
+static void test_write(ddsrt_event_queue_t* q, ddsrt_socket_t* p, ddsrt_event_t* evt)
+{
   ddsrt_thread_t thr1, thr2;
   uint32_t res1 = 0, res2 = 0;
 
@@ -239,12 +258,14 @@ static void test_write(ddsrt_event_queue_t* q, ddsrt_socket_t* p, ddsrt_event_t*
   dds_return_t ret1 = ddsrt_thread_create(&thr1, "reader", &attr, &wait_func, q);
   dds_return_t ret2 = ddsrt_thread_create(&thr2, "writer", &attr, &write_func, p);
 
-  if (ret1 == DDS_RETCODE_OK) {
+  if (ret1 == DDS_RETCODE_OK)
+  {
     ret1 = ddsrt_thread_join(thr1, &res1);
     CU_ASSERT_EQUAL(ret1, DDS_RETCODE_OK);
   }
 
-  if (ret2 == DDS_RETCODE_OK) {
+  if (ret2 == DDS_RETCODE_OK)
+  {
     ret2 = ddsrt_thread_join(thr2, &res2);
     CU_ASSERT_EQUAL(ret2, DDS_RETCODE_OK);
   }
@@ -259,7 +280,8 @@ static void test_write(ddsrt_event_queue_t* q, ddsrt_socket_t* p, ddsrt_event_t*
   CU_ASSERT_EQUAL_FATAL(DDS_RETCODE_OK, ddsrt_pipe_pull(p));
 }
 
-CU_Test(ddsrt_event, queue_wait) {
+CU_Test(ddsrt_event, queue_wait)
+{
   ddsrt_event_queue_t* q = ddsrt_event_queue_create();
 
   /*create pipe p*/
@@ -301,7 +323,8 @@ CU_Test(ddsrt_event, queue_wait) {
   CU_PASS("queue_wait");
 }
 
-CU_Test(ddsrt_event, queue_signal) {
+CU_Test(ddsrt_event, queue_signal)
+{
   ddsrt_event_queue_t* q = ddsrt_event_queue_create();
 
   /*create pipe p*/
@@ -325,17 +348,20 @@ CU_Test(ddsrt_event, queue_signal) {
   dds_return_t ret2 = ddsrt_thread_create(&thr2, "writer", &attr, &write_func, p);
   dds_return_t ret3 = ddsrt_thread_create(&thr3, "interrupter", &attr, &interrupt_func, q);
 
-  if (ret1 == DDS_RETCODE_OK) {
+  if (ret1 == DDS_RETCODE_OK)
+  {
     ret1 = ddsrt_thread_join(thr1, &res1);
     CU_ASSERT_EQUAL(ret1, DDS_RETCODE_OK);
   }
 
-  if (ret2 == DDS_RETCODE_OK) {
+  if (ret2 == DDS_RETCODE_OK)
+  {
     ret2 = ddsrt_thread_join(thr2, &res2);
     CU_ASSERT_EQUAL(ret2, DDS_RETCODE_OK);
   }
 
-  if (ret3 == DDS_RETCODE_OK) {
+  if (ret3 == DDS_RETCODE_OK)
+  {
     ret3 = ddsrt_thread_join(thr3, &res3);
     CU_ASSERT_EQUAL(ret3, DDS_RETCODE_OK);
   }
