@@ -3462,15 +3462,15 @@ seqno_t writer_max_drop_seq (const struct writer *wr)
 
 int writer_must_have_hb_scheduled (const struct writer *wr, const struct whc_state *whcst)
 {
-  if (ddsrt_avl_is_empty (&wr->readers) || whcst->max_seq < 0)
+  if (ddsrt_avl_is_empty (&wr->readers))
   {
     /* Can't transmit a valid heartbeat if there is no data; and it
        wouldn't actually be sent anywhere if there are no readers, so
        there is little point in processing the xevent all the time.
 
        Note that add_msg_to_whc and add_proxy_reader_to_writer will
-       perform a reschedule. 8.4.2.2.3: need not (can't, really!) send
-       a heartbeat if no data is available. */
+       perform a reschedule.  Since DDSI 2.3, we can send valid
+       heartbeats in the absence of data. */
     return 0;
   }
   else if (!((const struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb)
