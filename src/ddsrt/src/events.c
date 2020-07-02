@@ -15,8 +15,6 @@
 
 dds_return_t ddsrt_event_socket_init(ddsrt_event_t* ev, ddsrt_socket_t sock, uint32_t flags) 
 {
-  assert(ev);
-  assert(sock);
   ev->type = DDSRT_EVENT_TYPE_SOCKET;
   ev->flags = flags;
   ev->data.socket.sock = sock;

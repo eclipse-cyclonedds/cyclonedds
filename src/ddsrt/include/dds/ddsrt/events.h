@@ -15,6 +15,8 @@
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/atomics.h"
+#include "dds/ddsrt/attributes.h"
+#include "dds/export.h"
 
 #if __APPLE__
 #include "dds/ddsrt/events/kqueue.h"
@@ -91,7 +93,7 @@ extern "C" {
   * @retval DDS_RETCODE_OK
   *             In all cases.
   */
-  dds_return_t ddsrt_event_socket_init(ddsrt_event_t* ev, ddsrt_socket_t sock, uint32_t flags);
+  DDS_EXPORT dds_return_t ddsrt_event_socket_init(ddsrt_event_t* ev, ddsrt_socket_t sock, uint32_t flags) ddsrt_nonnull((1));
 
   /**
   * @brief Event queue creation function.
@@ -103,7 +105,7 @@ extern "C" {
   * @returns !NULL The event queue that was created.
   * @returns NULL Event queue could not be created succesfully.
   */
-  ddsrt_event_queue_t* ddsrt_event_queue_create(void);
+  DDS_EXPORT ddsrt_event_queue_t* ddsrt_event_queue_create(void);
 
   /**
   * @brief Cleans up an event queue.
@@ -115,7 +117,7 @@ extern "C" {
   * @retval DDS_RETCODE_OK
   *             In all cases.
   */
-  dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue);
+  DDS_EXPORT dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
 
   /**
   * @brief Getter for the number of stored events.
@@ -126,7 +128,7 @@ extern "C" {
   *
   * @returns The number of events stored by the queue.
   */
-  size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue);
+  DDS_EXPORT size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
 
   /**
   * @brief Triggers a wait for events for the queue.
@@ -143,7 +145,7 @@ extern "C" {
   * @retval DDS_RETCODE_ERROR
   *             An error occurred: the interrupt socket/pipe could not be read succesfully, or the select/kevent function did not complete succesfully.
   */
-  dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t reltime);
+  DDS_EXPORT dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t reltime) ddsrt_nonnull_all;
 
   /**
   * @brief Interrupts a triggered wait of a queue.
@@ -157,7 +159,7 @@ extern "C" {
   * @retval DDS_RETCODE_ERROR
   *             The signal could not be written to the pipe/socket correctly.
   */
-  dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue);
+  DDS_EXPORT dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
 
   /**
   * @brief Adds an event to the queue.
@@ -170,7 +172,7 @@ extern "C" {
   * @retval DDS_RETCODE_OK
   *             In all cases.
   */
-  dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt);
+  DDS_EXPORT dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt) ddsrt_nonnull_all;
 
   /**
   * @brief Removes an event from the queue.
@@ -185,7 +187,7 @@ extern "C" {
   * @retval DDS_RETCODE_ALREADY_DELETED
   *             No event matching the supplied pointer could be found, and was therefore not removed.
   */
-  dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt);
+  DDS_EXPORT dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt) ddsrt_nonnull_all;
 
   /**
   * @brief Gets the next triggered events from the queue.
@@ -198,7 +200,7 @@ extern "C" {
   *
   * @returns Pointer to the event which has a trigger flag set, NULL if none of the stored events has this flag set.
   */
-  ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue);
+  DDS_EXPORT ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
 
 #if defined (__cplusplus)
 }

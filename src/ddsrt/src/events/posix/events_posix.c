@@ -61,10 +61,10 @@ struct ddsrt_event_queue
 * @retval DDS_RETCODE_ERROR
 *             The interrupt pipe/socket could not be created.
 */
-static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
-{
-  assert(queue);
+static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
 
+dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
+{
   queue->nevents = 0;
   queue->cevents = 8;
   queue->ievents = 0;
@@ -137,10 +137,10 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
 * @retval DDS_RETCODE_OK
 *             In all cases.
 */
-static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) \
-{
-  assert(queue);
+static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
 
+dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
+{
   ddsrt_mutex_destroy(&queue->lock); 
 #if !defined(LWIP_SOCKET)
 
@@ -176,7 +176,6 @@ ddsrt_event_queue_t* ddsrt_event_queue_create(void)
 
 dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue)
 {
-  assert(queue);
   ddsrt_event_queue_fini(queue);
   ddsrt_free(queue);
   return DDS_RETCODE_OK;
@@ -184,14 +183,11 @@ dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue)
 
 size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue)
 {
-  assert(queue);
   return queue->nevents;
 }
 
 dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t reltime)
 {
-  assert(queue);
-  
   /*reset triggered status*/
   ddsrt_mutex_lock(&queue->lock);
   queue->ievents = 0;
@@ -270,8 +266,6 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 
 dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
 {
-  assert(queue);
-
 #if !defined(LWIP_SOCKET)
   char buf = 0;
 #if defined(_WIN32)
@@ -288,9 +282,6 @@ dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
 
 dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
-  assert(queue);
-  assert(evt);
-
   ddsrt_mutex_lock(&queue->lock);
   if (queue->nevents == queue->cevents)
   {
@@ -306,9 +297,7 @@ dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* ev
 
 dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
-  assert(queue);
-  assert(evt);
-
+  dds_return_t ret = DDS_RETCODE_ALREADY_DELETED;
   ddsrt_mutex_lock(&queue->lock);
   for (size_t i = 0; i < queue->nevents; i++)
   {
@@ -317,18 +306,17 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
       memmove(queue->events + i, queue->events + i + 1, (queue->nevents - i - 1)*sizeof(ddsrt_event_t*));
       if (queue->ievents > i)
         queue->ievents--;
+      ret = DDS_RETCODE_OK;
       queue->nevents--;
       break;
     }
   }
   ddsrt_mutex_unlock(&queue->lock);
-  return DDS_RETCODE_OK;
+  return ret;
 }
 
 ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue)
 {
-  assert(queue);
-
   ddsrt_event_t* ptr = NULL;
   ddsrt_mutex_lock(&queue->lock);
   while (queue->ievents < queue->nevents)

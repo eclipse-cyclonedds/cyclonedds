@@ -58,10 +58,10 @@ struct ddsrt_event_queue
 * @retval DDS_RETCODE_ERROR
 *             Kevent instance or interrupt pipe could not be initialized correctly.
 */
-static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
-{
-  assert(queue);
+static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
 
+dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
+{
   queue->nevents = 0;
   queue->cevents = 8;
   queue->ievents = 0;
@@ -110,9 +110,10 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
 * @retval DDS_RETCODE_OK
 *             In all cases.
 */
-static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
+static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
+
+dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
 {
-  assert(queue);
   close(queue->interrupt[0]);
   close(queue->interrupt[1]);
   close(queue->kq);
@@ -133,7 +134,6 @@ ddsrt_event_queue_t* ddsrt_event_queue_create(void)
 
 dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue)
 {
-  assert(queue);
   ddsrt_event_queue_fini(queue);
   ddsrt_free(queue);
   return DDS_RETCODE_OK;
@@ -141,7 +141,6 @@ dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue)
 
 size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue)
 {
-  assert(queue);
   size_t ret;
   ddsrt_mutex_lock(&queue->lock);
   ret = queue->nevents;
@@ -151,8 +150,6 @@ size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue)
 
 dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t reltime)
 {
-  assert(queue);
-
   dds_return_t ret = DDS_RETCODE_OK;
 
   /*reset triggered status*/
@@ -162,8 +159,8 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     ddsrt_atomic_st32(&queue->events[i]->triggered, DDSRT_EVENT_FLAG_UNSET);
   ddsrt_mutex_unlock(&queue->lock);
 
-  struct timespec tmout = { reltime / 1000000000,     /* waittime (seconds) */
-                            reltime % 1000000000 }; /* waittime (nanoseconds) */
+  struct timespec tmout = { reltime / DDS_NSECS_IN_SEC ,
+                            reltime % DDS_NSECS_IN_SEC };
   int nevs = kevent(queue->kq, NULL, 0, queue->kevents, (int)queue->nevents, &tmout);
   ddsrt_mutex_lock(&queue->lock);
   for (int i = 0; i < nevs; i++) {
@@ -186,9 +183,6 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 
 dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
-  assert(queue);
-  assert(evt);
-
   ddsrt_mutex_lock(&queue->lock);
   if (queue->nevents == queue->cevents)
   {
@@ -209,8 +203,6 @@ dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* ev
 
 dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
 {
-  assert(queue);
-
   char buf = 0;
   if (1 != write(queue->interrupt[1], &buf, 1))
     return DDS_RETCODE_ERROR;
@@ -219,8 +211,6 @@ dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
 
 dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
-  assert(queue);
-
   dds_return_t ret = DDS_RETCODE_ALREADY_DELETED;
   ddsrt_mutex_lock(&queue->lock);
   for (size_t i = 0; i < queue->nevents; i++)
@@ -247,8 +237,6 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
 
 ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue)
 {
-  assert(queue);
-
   ddsrt_event_t* ptr = NULL;
   ddsrt_mutex_lock(&queue->lock);
   while (queue->ievents < queue->nevents)
