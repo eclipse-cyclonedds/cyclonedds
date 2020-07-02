@@ -51,7 +51,7 @@ extern "C" {
   * @brief Describes the type of object being monitored for events.
   */
  typedef enum ddsrt_event_type {
-    DDSRT_EVENT_TYPE_UNSET, /**< unitialized state*/
+    DDSRT_EVENT_TYPE_UNSET, /**< uninitialized state*/
     DDSRT_EVENT_TYPE_SOCKET /**< indicating a socket type connection*/
     /*,
     DDSRT_EVENT_TYPE_FILE,
@@ -81,18 +81,27 @@ extern "C" {
   /**
   * @brief Initializes an existing event to indicate a socket.
   *
+  * This function will set the type to be DDSRT_EVENT_TYPE_SOCKET, the triggered status to DDSRT_EVENT_FLAG_UNSET and
+  * the flags and socket fields to the values supplied.
+  *
   * @param[inout] ev Pointer to the event to initialize.
   * @param[in] sock Socket to initialize the event with.
   * @param[in] flags Flags to set for the event.
+  *
   * @retval DDS_RETCODE_OK
-  * In all cases.
+  *             In all cases.
   */
   dds_return_t ddsrt_event_socket_init(ddsrt_event_t* ev, ddsrt_socket_t sock, uint32_t flags);
 
   /**
   * @brief Event queue creation function.
   *
-  * @returns Pointer to the created queue.
+  * This function will attempt to reserve memory for the event queue and open any necessary additional resources, i.e.:
+  * - a pipe for interrupting its own wait state
+  * - an instance to a kernel event monitor (in the case of BSD operating systems)
+  *
+  * @returns !NULL The event queue that was created.
+  * @returns NULL Event queue could not be created succesfully.
   */
   ddsrt_event_queue_t* ddsrt_event_queue_create(void);
 
@@ -104,12 +113,14 @@ extern "C" {
   * @param[inout] queue The queue to clean up.
   *
   * @retval DDS_RETCODE_OK
-  * In all cases.
+  *             In all cases.
   */
   dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue);
 
   /**
   * @brief Getter for the number of stored events.
+  *
+  * The number of stored events does not have to equal the current capacity of the instance.
   *
   * @param[inout] queue The queue to get the number of events of.
   *
@@ -120,25 +131,31 @@ extern "C" {
   /**
   * @brief Triggers a wait for events for the queue.
   *
+  * After calling this function the queue will go over the events it has to monitor and unset all triggered statuses.
+  * The event queue will wait for a maximum of reltime forany of the monitored quantities to change state.
+  * For the events which have changed state, the triggered status will be set.
+  *
   * @param[inout] queue The queue to trigger.
   * @param[in] reltime The maximum amount of time to wait.
   *
   * @retval DDS_RETCODE_OK
-  * The wait was concluded succesfully: either the timeout was reached, or data was received on one of the monitored sockets or the interrupt was signalled.
+  *             The wait was concluded succesfully: either the timeout was reached, or data was received on one of the monitored sockets or the interrupt was signalled.
   * @retval DDS_RETCODE_ERROR
-  * An error occurred: the interrupt socket/pipe could not be read succesfully, or the select/kevent function did not complete succesfully.
+  *             An error occurred: the interrupt socket/pipe could not be read succesfully, or the select/kevent function did not complete succesfully.
   */
   dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t reltime);
 
   /**
   * @brief Interrupts a triggered wait of a queue.
   *
+  * This function is used to stop a ddsrt_event_queue_wait before it would have returned on its own accord.
+  *
   * @param[inout] queue The queue to interrupt.
   *
   * @retval DDS_RETCODE_OK
-  * The signal was given succesfully.
+  *             The signal was given succesfully.
   * @retval DDS_RETCODE_ERROR
-  * The signal could not be written to the pipe/socket correctly.
+  *             The signal could not be written to the pipe/socket correctly.
   */
   dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue);
 
@@ -151,7 +168,7 @@ extern "C" {
   * @param[inout] evt Pointer to the event to add.
   *
   * @retval DDS_RETCODE_OK
-  * In all cases.
+  *             In all cases.
   */
   dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt);
 
@@ -163,10 +180,10 @@ extern "C" {
   * @param[inout] queue The queue to remove the event from.
   * @param[inout] evt Pointer to the event to remove.
   *
-  * @returns DDS_RETCODE_OK 
-  * The event was succesfully removed from the queue.
+  * @retval DDS_RETCODE_OK
+  *             The event was succesfully removed from the queue.
   * @retval DDS_RETCODE_ALREADY_DELETED
-  * No event matching the supplied pointer could be found, and was therefore not removed.
+  *             No event matching the supplied pointer could be found, and was therefore not removed.
   */
   dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt);
 

@@ -48,14 +48,15 @@ struct ddsrt_event_queue
 /**
 * @brief Initializes an event queue.
 *
-* Will set the counters to 0 and create the containers for triggers and additional necessary ones.
+* Will set the counters to 0 and create the containers for triggers and kevents.
+* Will create a kevent kernel event instance and open the interrupt pipe.
 *
 * @param[inout] queue The queue to initialize.
 *
 * @retval DDS_RETCODE_OK
-* The queue was initialized succesfully.
+*             The queue was initialized succesfully.
 * @retval DDS_RETCODE_ERROR
-* In the following cases: Kevent instance could not be initialized correctly. The interrupt pipe could be initialized correctly.
+*             Kevent instance or interrupt pipe could not be initialized correctly.
 */
 static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
 {
@@ -102,12 +103,12 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
 /**
 * @brief Finishes an event queue.
 *
-* Will free created containers and do any additional cleanup of things created in ddsrt_event_queue_init.
+* Will free created containers and close interrupt pipe and kernel event monitor.
 *
 * @param[inout] queue The queue to finish.
 *
 * @retval DDS_RETCODE_OK
-* In all cases.
+*             In all cases.
 */
 static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
 {
