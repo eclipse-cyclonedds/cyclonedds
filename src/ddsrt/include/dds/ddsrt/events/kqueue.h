@@ -10,8 +10,8 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 
-#ifndef DDSRT_EVENTS_DARWIN_H
-#define DDSRT_EVENTS_DARWIN_H
+#ifndef DDSRT_EVENTS_KQUEUE_H
+#define DDSRT_EVENTS_KQUEUE_H
 
 #if defined (__cplusplus)
 extern "C" {
@@ -20,4 +20,4 @@ extern "C" {
 #if defined (__cplusplus)
 }
 #endif
-#endif /* DDSRT_EVENTS_DARWIN_H */
+#endif /* DDSRT_EVENTS_KQUEUE_H */

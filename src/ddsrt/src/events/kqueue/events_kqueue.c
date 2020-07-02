@@ -18,7 +18,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "dds/ddsrt/events/darwin.h"
+#include "dds/ddsrt/events/kqueue.h"
 #include "dds/ddsrt/events.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
@@ -236,7 +236,7 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
       if (queue->ievents > i)
         queue->ievents--;
       queue->nevents--;
-      ret = DDS_RETCODE_OK
+      ret = DDS_RETCODE_OK;
       break;
     }
   }

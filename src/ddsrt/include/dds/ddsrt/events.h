@@ -17,7 +17,7 @@
 #include "dds/ddsrt/atomics.h"
 
 #if __APPLE__
-#include "dds/ddsrt/events/darwin.h"
+#include "dds/ddsrt/events/kqueue.h"
 #else
 #include "dds/ddsrt/events/posix.h"
 #endif
