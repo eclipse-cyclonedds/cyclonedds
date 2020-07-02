@@ -14,38 +14,11 @@
 
 #include "dds/ddsi/ddsi_tran.h"
 
-#ifdef DDSI_INCLUDE_SSL
-
-#include "dds/ddsi/ddsi_ssl.h"
-
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-struct ddsi_ssl_plugins
-{
-  bool (*init) (struct ddsi_domaingv *gv);
-  void (*fini) (void);
-  void (*ssl_free) (SSL *ssl);
-  void (*bio_vfree) (BIO *bio);
-  ssize_t (*read) (SSL *ssl, void *buf, size_t len, dds_return_t *err);
-  ssize_t (*write) (SSL *ssl, const void *msg, size_t len, dds_return_t *err);
-  SSL * (*connect) (const struct ddsi_domaingv *gv, ddsrt_socket_t sock);
-  BIO * (*listen) (ddsrt_socket_t sock);
-  SSL * (*accept) (const struct ddsi_domaingv *gv, BIO *bio, ddsrt_socket_t *sock);
-};
-
-#if defined (__cplusplus)
-}
-#endif
-
-#endif /* DDSI_INCLUDE_SSL */
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-int ddsi_tcp_init (struct ddsi_domaingv *gv);
+DDS_EXPORT int ddsi_tcp_init (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)
 }
