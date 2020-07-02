@@ -84,7 +84,7 @@ extern "C" {
   * This function will set the type to be DDSRT_EVENT_TYPE_SOCKET, the triggered status to DDSRT_EVENT_FLAG_UNSET and
   * the flags and socket fields to the values supplied.
   *
-  * @param[inout] ev Pointer to the event to initialize.
+  * @param[in,out] ev Pointer to the event to initialize.
   * @param[in] sock Socket to initialize the event with.
   * @param[in] flags Flags to set for the event.
   *
@@ -110,7 +110,7 @@ extern "C" {
   *
   * Will close/free any resources managed by the event_queue (if any), then free the memory of the queue.
   *
-  * @param[inout] queue The queue to clean up.
+  * @param[in,out] queue The queue to clean up.
   *
   * @retval DDS_RETCODE_OK
   *             In all cases.
@@ -122,7 +122,7 @@ extern "C" {
   *
   * The number of stored events does not have to equal the current capacity of the instance.
   *
-  * @param[inout] queue The queue to get the number of events of.
+  * @param[in,out] queue The queue to get the number of events of.
   *
   * @returns The number of events stored by the queue.
   */
@@ -135,7 +135,7 @@ extern "C" {
   * The event queue will wait for a maximum of reltime forany of the monitored quantities to change state.
   * For the events which have changed state, the triggered status will be set.
   *
-  * @param[inout] queue The queue to trigger.
+  * @param[in,out] queue The queue to trigger.
   * @param[in] reltime The maximum amount of time to wait.
   *
   * @retval DDS_RETCODE_OK
@@ -150,7 +150,7 @@ extern "C" {
   *
   * This function is used to stop a ddsrt_event_queue_wait before it would have returned on its own accord.
   *
-  * @param[inout] queue The queue to interrupt.
+  * @param[in,out] queue The queue to interrupt.
   *
   * @retval DDS_RETCODE_OK
   *             The signal was given succesfully.
@@ -164,8 +164,8 @@ extern "C" {
   * 
   * This event will be stored by the queue, any additional actions such as registration to other services will also be done.
   *
-  * @param[inout] queue The queue to add the event to.
-  * @param[inout] evt Pointer to the event to add.
+  * @param[in,out] queue The queue to add the event to.
+  * @param[in,out] evt Pointer to the event to add.
   *
   * @retval DDS_RETCODE_OK
   *             In all cases.
@@ -177,8 +177,8 @@ extern "C" {
   *
   * This event will be removed from the queue, any additional actions such as deregistration from other services will also be done.
   *
-  * @param[inout] queue The queue to remove the event from.
-  * @param[inout] evt Pointer to the event to remove.
+  * @param[in,out] queue The queue to remove the event from.
+  * @param[in,out] evt Pointer to the event to remove.
   *
   * @retval DDS_RETCODE_OK
   *             The event was succesfully removed from the queue.
@@ -194,7 +194,7 @@ extern "C" {
   * Successive calls to this function will start from the previously used point.
   * Will be reset after a call to ddsrt_event_queue_wait.
   *
-  * @param[inout] queue The queue to retrieve.
+  * @param[in,out] queue The queue to retrieve.
   *
   * @returns Pointer to the event which has a trigger flag set, NULL if none of the stored events has this flag set.
   */

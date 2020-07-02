@@ -54,7 +54,7 @@ struct ddsrt_event_queue
 * Will set the counters to 0 and create the containers for triggers and additional necessary ones.
 * Will attempt open the interrupt pipe/socket.
 *
-* @param[inout] queue The queue to initialize.
+* @param[in,out] queue The queue to initialize.
 *
 * @retval DDS_RETCODE_OK
 *             The event queue was initialized succesfully.
@@ -132,7 +132,7 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
 *
 * Will free created containers and close the interrupt pipe/socket.
 *
-* @param[inout] queue The queue to finish.
+* @param[in,out] queue The queue to finish.
 *
 * @retval DDS_RETCODE_OK
 *             In all cases.
