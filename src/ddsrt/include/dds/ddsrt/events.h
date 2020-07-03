@@ -18,7 +18,7 @@
 #include "dds/ddsrt/attributes.h"
 #include "dds/export.h"
 
-#if __APPLE__
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #include "dds/ddsrt/events/kqueue.h"
 #else
 #include "dds/ddsrt/events/posix.h"
