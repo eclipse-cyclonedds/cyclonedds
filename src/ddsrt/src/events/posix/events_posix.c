@@ -17,6 +17,7 @@
 #include "dds/ddsrt/events.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/log.h"
 
 #ifdef __VXWORKS__
 #include <pipeDrv.h>
@@ -59,6 +60,7 @@ struct ddsrt_event_queue
 * @retval DDS_RETCODE_OK
 *             The event queue was initialized succesfully.
 * @retval DDS_RETCODE_ERROR
+*             There was an issue with reserving memory for the event queue.
 *             The interrupt pipe/socket could not be created.
 */
 static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
@@ -66,11 +68,11 @@ static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) ddsrt_non
 dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
 {
   queue->nevents = 0;
-  queue->cevents = 8;
+  queue->cevents = EVENTS_CONTAINER_DELTA;
   queue->ievents = 0;
   queue->events = ddsrt_malloc(sizeof(ddsrt_event_t*) * queue->cevents);
-  assert(queue->events);
-  ddsrt_mutex_init(&queue->lock);
+  if (NULL == queue->events)
+    return DDS_RETCODE_ERROR;
 #if defined(_WIN32)
   /*windows type sockets*/
   struct sockaddr_in addr;
@@ -83,15 +85,12 @@ dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
   addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
   addr.sin_port = 0;
   if (bind(listener, (struct sockaddr*)&addr, sizeof(addr)) == -1 ||
-    getsockname(listener, (struct sockaddr*)&addr, &asize) == -1 ||
-    listen(listener, 1) == -1 ||
-    connect(queue->interrupt[0], (struct sockaddr*)&addr, sizeof(addr)) == -1 ||
-    (queue->interrupt[1] = accept(listener, 0, 0)) == -1)
-  {
-    closesocket(queue->interrupt[0]);
-    closesocket(queue->interrupt[1]);
-    return DDS_RETCODE_ERROR;
-  }
+      getsockname(listener, (struct sockaddr*)&addr, &asize) == -1 ||
+      listen(listener, 1) == -1 ||
+      connect(queue->interrupt[0], (struct sockaddr*)&addr, sizeof(addr)) == -1 ||
+      (queue->interrupt[1] = accept(listener, 0, 0)) == -1)
+    goto pipe_cleanup;
+  closesocket(listener);
   SetHandleInformation((HANDLE)queue->interrupt[0], HANDLE_FLAG_INHERIT, 0);
   SetHandleInformation((HANDLE)queue->interrupt[1], HANDLE_FLAG_INHERIT, 0);
 #elif defined(__VXWORKS__)  
@@ -106,25 +105,38 @@ dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
   while ((pipe_result = pipeDevCreate((char*)&pipename, 1, 1)) == -1 &&
     os_getErrno() == EINVAL);
   if (pipe_result != -1)
-    return DDS_RETCODE_ERROR;
+    goto alloc_cleanup;
   queue->interrupt[0] = open((char*)&pipename, O_RDWR, 0644);
   queue->interrupt[1] = open((char*)&pipename, O_RDWR, 0644);
   /*the pipe was succesfully created, but one of the sockets on either end was not*/
-  if (-1 == queue->interrupt[0] || -1 == p[1])
-  {
-    pipeDevDelete(pipename, 0);
-    if (-1 != queue->interrupt[0])
-      close(queue->interrupt[0]);
-    if (-1 != queue->interrupt[1])
-      close(queue->interrupt[1]);
-    return DDS_RETCODE_ERROR;
-  }
+  if (-1 == queue->interrupt[0] || -1 == queue->interrupt[1])
+    goto pipe_cleanup;
 #elif !defined(LWIP_SOCKET)
   /*simple linux type pipe*/
   if (pipe(queue->interrupt) == -1)
-    return DDS_RETCODE_ERROR;
+    goto alloc_cleanup;
 #endif /* _WIN32, __VXWORKS__, !LWIP_SOCKET*/
+  ddsrt_mutex_init(&queue->lock);
   return DDS_RETCODE_OK;
+
+pipe_cleanup:
+#if defined(_WIN32)
+  closesocket(listener);
+  closesocket(queue->interrupt[0]);
+  closesocket(queue->interrupt[1]);
+#elif defined(__VXWORKS__)
+  pipeDevDelete(pipename, 0);
+  if (-1 != queue->interrupt[0])
+    close(queue->interrupt[0]);
+  if (-1 != queue->interrupt[1])
+    close(queue->interrupt[1]);
+#elif !defined(LWIP_SOCKET)
+  close(queue->interrupt[0]);
+  close(queue->interrupt[1]);
+#endif /* _WIN32, __VXWORKS__, !LWIP_SOCKET*/
+alloc_cleanup:
+  ddsrt_free(queue->events);
+  return DDS_RETCODE_ERROR;
 }
 
 /**
@@ -170,7 +182,10 @@ ddsrt_event_queue_t* ddsrt_event_queue_create(void)
 {
   ddsrt_event_queue_t* returnptr = ddsrt_malloc(sizeof(ddsrt_event_queue_t));
   assert(returnptr);
-  ddsrt_event_queue_init(returnptr);
+  if (DDS_RETCODE_OK != ddsrt_event_queue_init(returnptr)) {
+    ddsrt_free(returnptr);
+    returnptr = NULL;
+  }
   return returnptr;
 }
 
@@ -231,13 +246,17 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     /*read the data from the interrupt socket (if any)*/
     if (FD_ISSET(queue->interrupt[0], rfds)) {
       char buf = 0x0;
+      int n = 0;
 #if defined(_WIN32)
-      if (1 != recv(queue->interrupt[0], &buf, 1, 0))
-        return DDS_RETCODE_ERROR;
+      n = recv(queue->interrupt[0], &buf, 1, 0);
 #else
-      if (1 != read(queue->interrupt[0], &buf, 1))
-        return DDS_RETCODE_ERROR;
+      n = (int)read(queue->interrupt[0], &buf, 1);
 #endif  /* _WIN32 */
+      if (n != 1)
+      {
+        DDS_WARNING("ddsrt_event_queue: read failed on trigger pipe\n");
+        assert(0);
+      }
     }
 #endif  /* !LWIP_SOCKET */
 
@@ -267,16 +286,20 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
 {
 #if !defined(LWIP_SOCKET)
-  char buf = 0;
+  char buf = 0x0;
+  int n = 0;
 #if defined(_WIN32)
-  if (1 != send(queue->interrupt[1], &buf, 1, 0))
-    return DDS_RETCODE_ERROR;
+  n = send(queue->interrupt[1], &buf, 1, 0);
 #else
-  if (1 != write(queue->interrupt[1], &buf, 1))
-    return DDS_RETCODE_ERROR;
-#endif /* _WIN32 */
-
+  n = (int)write(queue->interrupt[1], &buf, 1);
+#endif  /* _WIN32 */
+  if (n != 1)
+  {
+    DDS_WARNING("ddsrt_event_queue: read failed on trigger pipe\n");
+    assert(0);
+  }
 #endif /* !LWIP_SOCKET */
+
   return DDS_RETCODE_OK;
 }
 
