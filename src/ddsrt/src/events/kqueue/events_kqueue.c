@@ -22,6 +22,7 @@
 #include "dds/ddsrt/events.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/log.h"
 
 #define EVENTS_CONTAINER_DELTA 8
 
@@ -56,48 +57,59 @@ struct ddsrt_event_queue
 * @retval DDS_RETCODE_OK
 *             The queue was initialized succesfully.
 * @retval DDS_RETCODE_ERROR
-*             Kevent instance or interrupt pipe could not be initialized correctly.
+*             - There was an issue with reserving memory for the (k)event queue.
+*             - Kevent instance or interrupt pipe could not be initialized correctly.
 */
 static dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
 
 dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
 {
   queue->nevents = 0;
-  queue->cevents = 8;
+  queue->cevents = EVENTS_CONTAINER_DELTA;
   queue->ievents = 0;
-  ddsrt_mutex_init(&queue->lock);
-
-  /*create kevent polling instance */
-  queue->kq = kqueue();
-  assert(queue->kq != -1);
-  assert(fcntl(queue->kq, F_SETFD, fcntl(queue->kq, F_GETFD) | FD_CLOEXEC) != -1);
-
-  queue->events = ddsrt_malloc(sizeof(ddsrt_event_t*) * queue->cevents);
-  assert(queue->events);
-
-  if (-1 == pipe(queue->interrupt))
-  {
-    close(queue->kq);
-    return DDS_RETCODE_ERROR;
-  }
-  else if (-1 == fcntl(queue->interrupt[0], F_SETFD, fcntl(queue->interrupt[0], F_GETFD) | FD_CLOEXEC) ||
-           -1 == fcntl(queue->interrupt[1], F_SETFD, fcntl(queue->interrupt[1], F_GETFD) | FD_CLOEXEC))
-  {
-    close(queue->interrupt[0]);
-    close(queue->interrupt[1]);
-    close(queue->kq);
-    return DDS_RETCODE_ERROR;
-  }
-  /*register interrupt event*/
-  struct kevent kev;
-  EV_SET(&kev, queue->interrupt[0], EVFILT_READ, EV_ADD, 0, 0, 0);
-  assert(kevent(queue->kq, &kev, 1, NULL, 0, NULL) != -1);
 
   /*create kevents array*/
   queue->kevents = ddsrt_malloc(sizeof(struct kevent) * queue->cevents);
-  assert(queue->kevents);
+  if (NULL == queue->kevents)
+    goto alloc0_fail;
+
+  /*create events array*/
+  queue->events = ddsrt_malloc(sizeof(ddsrt_event_t*) * queue->cevents);
+  if (NULL == queue->events)
+    goto alloc1_fail;
+
+  /*create kevent polling instance */
+  if (-1 == (queue->kq = kqueue()))
+    goto alloc1_fail;
+  else if (-1 == fcntl(queue->kq, F_SETFD, fcntl(queue->kq, F_GETFD) | FD_CLOEXEC))
+    goto pipe0_fail;
+  /*create interrupt pipe */
+  else if (-1 == pipe(queue->interrupt))
+    goto pipe0_fail;
+  else if (-1 == fcntl(queue->interrupt[0], F_SETFD, fcntl(queue->interrupt[0], F_GETFD) | FD_CLOEXEC) ||
+           -1 == fcntl(queue->interrupt[1], F_SETFD, fcntl(queue->interrupt[1], F_GETFD) | FD_CLOEXEC))
+    goto pipe1_fail;
+
+  /*register interrupt event*/
+  struct kevent kev;
+  EV_SET(&kev, queue->interrupt[0], EVFILT_READ, EV_ADD, 0, 0, 0);
+  if (-1 == kevent(queue->kq, &kev, 1, NULL, 0, NULL))
+    goto pipe1_fail;
+
+  ddsrt_mutex_init(&queue->lock);
 
   return DDS_RETCODE_OK;
+
+pipe1_fail:
+  close(queue->interrupt[0]);
+  close(queue->interrupt[1]);
+pipe0_fail:
+  close(queue->kq);
+alloc1_fail:
+  ddsrt_free(queue->kevents);
+alloc0_fail:
+  ddsrt_free(queue->events);
+  return DDS_RETCODE_ERROR;
 }
 
 /**
@@ -128,7 +140,10 @@ ddsrt_event_queue_t* ddsrt_event_queue_create(void)
 {
   ddsrt_event_queue_t* returnptr = ddsrt_malloc(sizeof(ddsrt_event_queue_t));
   assert(returnptr);
-  ddsrt_event_queue_init(returnptr);
+  if (DDS_RETCODE_OK != ddsrt_event_queue_init(returnptr)) {
+    ddsrt_free(returnptr);
+    returnptr = NULL;
+  }
   return returnptr;
 }
 
