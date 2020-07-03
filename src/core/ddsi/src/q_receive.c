@@ -724,7 +724,6 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   ddsi_guid_t src, dst;
   seqno_t seqbase;
   seqno_t seq_xmit;
-  seqno_t max_seq_available;
   nn_count_t *countp;
   struct nn_gap_info gi;
   int accelerate_rexmit = 0;
@@ -1054,13 +1053,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
 
   wr->rexmit_count += msgs_sent;
   wr->rexmit_lost_count += msgs_lost;
-  /* If rexmits and/or a gap message were sent, and if the last
-     sequence number that we're informing the NACK'ing peer about is
-     less than the last sequence number transmitted by the writer,
-     tell the peer to acknowledge quickly. Not sure if that helps, but
-     it might ... [NB writer->seq is the last msg sent so far] */
-  max_seq_available = (prd->filter ? rn->last_seq : seq_xmit);
-  if (msgs_sent && max_seq_in_reply < max_seq_available)
+  if (msgs_sent)
   {
     RSTTRACE (" rexmit#%"PRIu32" maxseq:%"PRId64"<%"PRId64"<=%"PRId64"", msgs_sent, max_seq_in_reply, seq_xmit, wr->seq);
 
