@@ -113,7 +113,7 @@ static dds_return_t ddsrt_pipe_destroy(ddsrt_socket_t p[2])
   char nameBuf[OSPL_PIPENAMESIZE];
   ioctl(p[0], FIOGETNAME, &nameBuf);
 #endif
-#if (defined _WIN32 || defined(_WIN64))
+#if defined (_WIN32)
   closesocket(p[0]);
   closesocket(p[1]);
 #else
@@ -132,7 +132,7 @@ static dds_return_t ddsrt_pipe_push(ddsrt_socket_t p[2])
   char buf = 0x0;
 #if defined(LWIP_SOCKET)
   return DDS_RETCODE_OK;
-#elif (defined _WIN32 || defined(_WIN64))
+#elif defined (_WIN32)
   if (1 != send(p[1], &buf, 1, 0))
     return DDS_RETCODE_ERROR;
 #else
@@ -147,7 +147,7 @@ static dds_return_t ddsrt_pipe_pull(ddsrt_socket_t p[2])
   char buf;
 #if defined(LWIP_SOCKET)
   return DDS_RETCODE_OK;
-#elif (defined _WIN32 || defined(_WIN64))
+#elif defined (_WIN32)
   if (1 != recv(p[0], &buf, 1, 0))
     return DDS_RETCODE_ERROR;
 #else
