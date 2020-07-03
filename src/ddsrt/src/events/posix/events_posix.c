@@ -132,7 +132,7 @@ pipe_cleanup:
 #endif /* _WIN32, __VXWORKS__*/
 
 #if !defined(_WIN32)
-  alloc_cleanup:
+alloc_cleanup:
   ddsrt_free(queue->events);
 #endif /* ! WIN32*/
   return DDS_RETCODE_ERROR;
@@ -144,13 +144,10 @@ pipe_cleanup:
 * Will free created containers and close the interrupt pipe/socket.
 *
 * @param[in,out] queue The queue to finish.
-*
-* @retval DDS_RETCODE_OK
-*             In all cases.
 */
-static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
+static void ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
 
-dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
+void ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
 {
   ddsrt_mutex_destroy(&queue->lock); 
 #if !defined(LWIP_SOCKET)
@@ -174,7 +171,6 @@ dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
 
 #endif /* !LWIP_SOCKET */
   ddsrt_free(queue->events);
-  return DDS_RETCODE_OK;
 }
 
 ddsrt_event_queue_t* ddsrt_event_queue_create(void)
@@ -188,11 +184,10 @@ ddsrt_event_queue_t* ddsrt_event_queue_create(void)
   return returnptr;
 }
 
-dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue)
+void ddsrt_event_queue_delete(ddsrt_event_queue_t* queue)
 {
   ddsrt_event_queue_fini(queue);
   ddsrt_free(queue);
-  return DDS_RETCODE_OK;
 }
 
 size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue)
@@ -295,14 +290,14 @@ dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
   if (n != 1)
   {
     DDS_WARNING("ddsrt_event_queue: read failed on trigger pipe\n");
-    assert(0);
+    return DDS_RETCODE_ERROR;
   }
 #endif /* !LWIP_SOCKET */
 
   return DDS_RETCODE_OK;
 }
 
-dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
+void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
   ddsrt_mutex_lock(&queue->lock);
   if (queue->nevents == queue->cevents)
@@ -313,8 +308,6 @@ dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* ev
   
   queue->events[queue->nevents++] = evt;
   ddsrt_mutex_unlock(&queue->lock);
-  
-  return DDS_RETCODE_OK;
 }
 
 dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)

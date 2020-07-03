@@ -119,13 +119,10 @@ alloc0_fail:
 * Will free created containers and close interrupt pipe and kernel event monitor.
 *
 * @param[in,out] queue The queue to finish.
-*
-* @retval DDS_RETCODE_OK
-*             In all cases.
 */
-static dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
+static void ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
 
-dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
+void ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
 {
   close(queue->interrupt[0]);
   close(queue->interrupt[1]);
@@ -134,7 +131,6 @@ dds_return_t ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
   ddsrt_mutex_destroy(&queue->lock);
   ddsrt_free(queue->events);
   ddsrt_free(queue->kevents);
-  return DDS_RETCODE_OK;
 }
 
 ddsrt_event_queue_t* ddsrt_event_queue_create(void)
@@ -148,11 +144,10 @@ ddsrt_event_queue_t* ddsrt_event_queue_create(void)
   return returnptr;
 }
 
-dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue)
+void ddsrt_event_queue_delete(ddsrt_event_queue_t* queue)
 {
   ddsrt_event_queue_fini(queue);
   ddsrt_free(queue);
-  return DDS_RETCODE_OK;
 }
 
 size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue)
@@ -197,7 +192,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   return ret;
 }
 
-dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
+void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
   ddsrt_mutex_lock(&queue->lock);
   if (queue->nevents == queue->cevents)
@@ -213,8 +208,6 @@ dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* ev
   struct kevent kev;
   EV_SET(&kev, evt->data.socket.sock, EVFILT_READ, EV_ADD, 0, 0, evt);
   assert(kevent(queue->kq, &kev, 1, NULL, 0, NULL) != -1);
-
-  return DDS_RETCODE_OK;
 }
 
 dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)

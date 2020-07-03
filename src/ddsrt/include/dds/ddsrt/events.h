@@ -89,11 +89,8 @@ extern "C" {
   * @param[in,out] ev Pointer to the event to initialize.
   * @param[in] sock Socket to initialize the event with.
   * @param[in] flags Flags to set for the event.
-  *
-  * @retval DDS_RETCODE_OK
-  *             In all cases.
   */
-  DDS_EXPORT dds_return_t ddsrt_event_socket_init(ddsrt_event_t* ev, ddsrt_socket_t sock, uint32_t flags) ddsrt_nonnull((1));
+  DDS_EXPORT void ddsrt_event_socket_init(ddsrt_event_t* ev, ddsrt_socket_t sock, uint32_t flags) ddsrt_nonnull((1));
 
   /**
   * @brief Event queue creation function.
@@ -102,8 +99,7 @@ extern "C" {
   * - a pipe for interrupting its own wait state
   * - an instance to a kernel event monitor (in the case of BSD operating systems)
   *
-  * @returns !NULL The event queue that was created.
-  * @returns NULL Event queue could not be created succesfully.
+  * @returns Pointer to the event queue that was created, NULL if a failure occurred.
   */
   DDS_EXPORT ddsrt_event_queue_t* ddsrt_event_queue_create(void);
 
@@ -113,11 +109,8 @@ extern "C" {
   * Will close/free any resources managed by the event_queue (if any), then free the memory of the queue.
   *
   * @param[in,out] queue The queue to clean up.
-  *
-  * @retval DDS_RETCODE_OK
-  *             In all cases.
   */
-  DDS_EXPORT dds_return_t ddsrt_event_queue_delete(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
+  DDS_EXPORT void ddsrt_event_queue_delete(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
 
   /**
   * @brief Getter for the number of stored events.
@@ -168,11 +161,8 @@ extern "C" {
   *
   * @param[in,out] queue The queue to add the event to.
   * @param[in,out] evt Pointer to the event to add.
-  *
-  * @retval DDS_RETCODE_OK
-  *             In all cases.
   */
-  DDS_EXPORT dds_return_t ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt) ddsrt_nonnull_all;
+  DDS_EXPORT void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt) ddsrt_nonnull_all;
 
   /**
   * @brief Removes an event from the queue.
