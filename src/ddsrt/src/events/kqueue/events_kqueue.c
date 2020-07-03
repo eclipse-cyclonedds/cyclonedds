@@ -80,7 +80,7 @@ dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
 
   /*create kevent polling instance */
   if (-1 == (queue->kq = kqueue()))
-    goto alloc1_fail;
+    goto kq_fail;
   else if (-1 == fcntl(queue->kq, F_SETFD, fcntl(queue->kq, F_GETFD) | FD_CLOEXEC))
     goto pipe0_fail;
   /*create interrupt pipe */
@@ -105,10 +105,11 @@ pipe1_fail:
   close(queue->interrupt[1]);
 pipe0_fail:
   close(queue->kq);
-alloc1_fail:
+kq_fail:
   ddsrt_free(queue->kevents);
-alloc0_fail:
+alloc1_fail:
   ddsrt_free(queue->events);
+alloc0_fail:
   return DDS_RETCODE_ERROR;
 }
 

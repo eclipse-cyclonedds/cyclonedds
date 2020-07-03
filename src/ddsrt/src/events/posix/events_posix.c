@@ -119,23 +119,22 @@ dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
   ddsrt_mutex_init(&queue->lock);
   return DDS_RETCODE_OK;
 
-pipe_cleanup:
 #if defined(_WIN32)
+pipe_cleanup:
   closesocket(listener);
   closesocket(queue->interrupt[0]);
   closesocket(queue->interrupt[1]);
 #elif defined(__VXWORKS__)
+pipe_cleanup:
   pipeDevDelete(pipename, 0);
   if (-1 != queue->interrupt[0])
     close(queue->interrupt[0]);
-  if (-1 != queue->interrupt[1])
-    close(queue->interrupt[1]);
-#elif !defined(LWIP_SOCKET)
-  close(queue->interrupt[0]);
-  close(queue->interrupt[1]);
-#endif /* _WIN32, __VXWORKS__, !LWIP_SOCKET*/
-alloc_cleanup:
+#endif /* _WIN32, __VXWORKS__*/
+
+#if !defined(_WIN32)
+  alloc_cleanup:
   ddsrt_free(queue->events);
+#endif /* ! WIN32*/
   return DDS_RETCODE_ERROR;
 }
 
