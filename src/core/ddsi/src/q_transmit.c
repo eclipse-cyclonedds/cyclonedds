@@ -86,10 +86,10 @@ int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *
   int64_t ret = gv->config.const_hb_intv_sched;
   size_t n_unacked;
 
-  if (hbc->hbs_since_last_write > 2)
+  if (hbc->hbs_since_last_write > 5)
   {
-    unsigned cnt = hbc->hbs_since_last_write;
-    while (cnt-- > 2 && 2 * ret < gv->config.const_hb_intv_sched_max)
+    unsigned cnt = (hbc->hbs_since_last_write - 5) / 2;
+    while (cnt-- != 0 && 2 * ret < gv->config.const_hb_intv_sched_max)
       ret *= 2;
   }
 
