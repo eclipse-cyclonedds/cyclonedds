@@ -58,7 +58,8 @@ set(ddsc_test_sources
     "write.c"
     "write_various_types.c"
     "writer.c"
-    "test_common.c"
+    "test_util.c"
+    "test_util.h"
     "test_common.h"
     "test_oneliner.c"
     "test_oneliner.h")
@@ -92,3 +93,16 @@ set_tests_properties(
 		ENVIRONMENT "${CUnit_ddsc_config_simple_udp_env}")
 
 configure_file("config_env.h.in" "config_env.h" @ONLY)
+
+add_executable(oneliner
+  "oneliner.c"
+  "test_oneliner.c"
+  "test_oneliner.h"
+  "test_util.c"
+  "test_util.h")
+target_include_directories(
+  oneliner PRIVATE
+  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
+target_link_libraries(oneliner PRIVATE RoundTrip Space ddsc)
