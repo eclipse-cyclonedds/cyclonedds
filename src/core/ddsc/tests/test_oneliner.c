@@ -13,6 +13,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 #include <setjmp.h>
 
 #include "dds/dds.h"
@@ -31,8 +32,11 @@
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 
-#include "test_common.h"
+#include "test_util.h"
 #include "test_oneliner.h"
+
+#include "Space.h"
+#include "RoundTrip.h"
 
 #define MAXDOMS (sizeof (((struct oneliner_ctx){.result=0}).doms) / sizeof (((struct oneliner_ctx){.result=0}).doms[0]))
 
