@@ -3641,6 +3641,10 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->time_retransmit = 0;
   wr->force_md5_keyhash = 0;
   wr->alive = 1;
+  wr->test_ignore_acknack = 0;
+  wr->test_suppress_retransmit = 0;
+  wr->test_suppress_heartbeat = 0;
+  wr->test_drop_outgoing_data = 0;
   wr->alive_vclock = 0;
   wr->init_burst_size_limit = UINT32_MAX - UINT16_MAX;
   wr->rexmit_burst_size_limit = UINT32_MAX - UINT16_MAX;

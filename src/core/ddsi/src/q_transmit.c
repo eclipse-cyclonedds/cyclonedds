@@ -1292,6 +1292,17 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
       ddsrt_free (plist);
     }
   }
+  else if (wr->test_drop_outgoing_data)
+  {
+    GVTRACE ("test_drop_outgoing_data");
+    writer_update_seq_xmit (wr, seq);
+    ddsrt_mutex_unlock (&wr->e.lock);
+    if (plist != NULL)
+    {
+      ddsi_plist_fini (plist);
+      ddsrt_free (plist);
+    }
+  }
   else if (addrset_empty (wr->as) && (wr->as_group == NULL || addrset_empty (wr->as_group)))
   {
     /* No network destination, so no point in doing all the work involved
