@@ -785,6 +785,12 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   }
 
   ddsrt_mutex_lock (&wr->e.lock);
+  if (wr->test_ignore_acknack)
+  {
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" test_ignore_acknack)", PGUID (src), PGUID (dst));
+    goto out;
+  }
+
   if ((rn = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &src)) == NULL)
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a connection)", PGUID (src), PGUID (dst));
@@ -944,6 +950,11 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
      hasn't been transmitted ever, the initial transmit should solve
      that issue; if it has, then the timing is terribly unlucky, but
      a future request'll fix it. */
+  if (wr->test_suppress_retransmit && numbits > 0)
+  {
+    RSTTRACE (" test_suppress_retransmit");
+    numbits = 0;
+  }
   enqueued = 1;
   seq_xmit = writer_read_seq_xmit (wr);
   nn_gap_info_init(&gi);

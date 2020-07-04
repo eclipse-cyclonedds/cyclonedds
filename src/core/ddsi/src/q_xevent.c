@@ -778,7 +778,13 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
      and we certainly don't want to hold the lock during that time. */
   if (msg)
   {
-    nn_xpack_addmsg (xp, msg, 0);
+    if (!wr->test_suppress_heartbeat)
+      nn_xpack_addmsg (xp, msg, 0);
+    else
+    {
+      GVTRACE ("test_suppress_heartbeat\n");
+      nn_xmsg_free (msg);
+    }
   }
 }
 

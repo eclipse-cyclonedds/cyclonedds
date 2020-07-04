@@ -300,6 +300,10 @@ struct writer
   unsigned force_md5_keyhash: 1; /* iff 1, when keyhash has to be hashed, no matter the size */
   unsigned retransmitting: 1; /* iff 1, this writer is currently retransmitting */
   unsigned alive: 1; /* iff 1, the writer is alive (lease for this writer is not expired); field may be modified only when holding both wr->e.lock and wr->c.pp->e.lock */
+  unsigned test_ignore_acknack : 1; /* iff 1, the writer ignores all arriving ACKNACK messages */
+  unsigned test_suppress_retransmit : 1; /* iff 1, the writer does not respond to retransmit requests */
+  unsigned test_suppress_heartbeat : 1; /* iff 1, the writer suppresses all periodic heartbeats */
+  unsigned test_drop_outgoing_data : 1; /* iff 1, the writer drops outgoing data, forcing the readers to request a retransmit */
 #ifdef DDSI_INCLUDE_SSM
   unsigned supports_ssm: 1;
   struct addrset *ssm_as;
