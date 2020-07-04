@@ -162,6 +162,15 @@
  *                       expiry and reconnection (like forcibly deleting a proxy
  *                       participant or triggering the publication of SPDP packets).
  *
+ *               | setflags(FLAGS) ENTITY-NAME
+ *
+ *                       Sets test flags on the specified entity (and clears any not
+ *                       listed).  Currently only on writers:
+ *                         a   ignore ACKNACK messages
+ *                         r   ignore retransmit requests
+ *                         h   suppress periodic heartbeats
+ *                         d   drop outgoing data
+ *
  * WRITE-LIKE  ::= wr    write
  *               | wrdisp  write-dispose
  *               | disp  dispose

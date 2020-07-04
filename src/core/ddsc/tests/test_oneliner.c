@@ -1683,6 +1683,48 @@ static void dosleep (struct oneliner_ctx *ctx)
   dds_sleepfor (ctx->l.v.d);
 }
 
+static void dosetflags (struct oneliner_ctx *ctx)
+{
+  dds_return_t ret;
+  entname_t name;
+  int ent;
+  int tok;
+  union oneliner_tokval flagstok;
+  if ((tok = nexttok (&ctx->l, NULL)) != '(')
+    error (ctx, "setflags: args required");
+  if ((tok = nexttok (&ctx->l, &flagstok)) == TOK_NAME)
+    tok = nexttok (&ctx->l, NULL);
+  else
+    flagstok.n[0] = 0;
+  if (tok != ')')
+    error (ctx, "setflags: invalid argument");
+  if ((ent = parse_entity (ctx)) < 0)
+    error (ctx, "setflags: requires writer");
+  if (ctx->es[ent] == 0)
+    make_entity (ctx, ent, NULL);
+  printf ("setflags(%s): %s\n", flagstok.n, getentname (&name, ent));
+
+  dds_entity *xwr;
+  if ((ret = dds_entity_pin (ctx->es[ent], &xwr)) < 0)
+    error_dds (ctx, ret, "setflags: pin writer failed %"PRId32, ctx->es[ent]);
+  if (xwr->m_kind != DDS_KIND_WRITER)
+  {
+    dds_entity_unpin (xwr);
+    error (ctx, "setflags: entity is not a writer");
+  }
+  dds_writer *wr = (dds_writer *) xwr;
+  if (strspn (flagstok.n, "arhd") != strlen (flagstok.n))
+  {
+    dds_entity_unpin (xwr);
+    error (ctx, "setflags: unknown flags");
+  }
+  wr->m_wr->test_ignore_acknack = (strchr (flagstok.n, 'a') != NULL);
+  wr->m_wr->test_suppress_retransmit = (strchr (flagstok.n, 'r') != NULL);
+  wr->m_wr->test_suppress_heartbeat = (strchr (flagstok.n, 'h') != NULL);
+  wr->m_wr->test_drop_outgoing_data = (strchr (flagstok.n, 'd') != NULL);
+  dds_entity_unpin (xwr);
+}
+
 static void dispatchcmd (struct oneliner_ctx *ctx)
 {
   static const struct {
@@ -1703,7 +1745,8 @@ static void dispatchcmd (struct oneliner_ctx *ctx)
     { "read",       doread },
     { "deaf",       dodeaf },
     { "hearing",    dohearing },
-    { "sleep",      dosleep }
+    { "sleep",      dosleep },
+    { "setflags",   dosetflags }
   };
   size_t i;
   if (ctx->l.tok > 0)
