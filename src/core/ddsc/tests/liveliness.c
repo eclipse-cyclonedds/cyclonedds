@@ -233,7 +233,7 @@ CU_Theory((dds_liveliness_kind_t kind, uint32_t ldur, double mult), ddsc_livelin
  */
 CU_TheoryDataPoints(ddsc_liveliness, expire_liveliness_kinds) = {
     CU_DataPoints(uint32_t, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200), /* lease duration for initial test run (increased for each retry when test fails) */
-    CU_DataPoints(double,   0.3, 0.3, 0.3, 0.3, 0.3, 0.3,   2,   2,   2,   2,   2,   2,   2,   2,   2), /* delay (n times lease duration) */
+    CU_DataPoints(double,   0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1), /* delay (n times lease duration) */
     CU_DataPoints(uint32_t,   1,   0,   2,   0,   1,   0,   0,   1,   1,   2,   0,   5,   0,  15,  15), /* number of writers with automatic liveliness */
     CU_DataPoints(uint32_t,   1,   1,   2,   2,   0,   0,   0,   1,   0,   2,   2,   5,  10,   0,  15), /* number of writers with manual-by-participant liveliness */
     CU_DataPoints(uint32_t,   1,   1,   2,   2,   1,   1,   1,   1,   0,   1,   1,   2,   5,   0,  10), /* number of writers with manual-by-topic liveliness */
@@ -257,7 +257,7 @@ static void test_expire_liveliness_kinds(uint32_t ldur, double mult, uint32_t wr
   do
   {
     tstart = dds_time();
-    printf("%d.%06d running test: lease duration %d, delay %f, auto/man-by-part/man-by-topic %u/%u/%u\n, %s reader",
+    printf("%d.%06d running test: lease duration %d, delay %f, auto/man-by-part/man-by-topic %u/%u/%u\n, %s reader\n",
            (int32_t)(tstart / DDS_NSECS_IN_SEC), (int32_t)(tstart % DDS_NSECS_IN_SEC) / 1000,
            ldur, mult, wr_cnt_auto, wr_cnt_man_pp, wr_cnt_man_tp, remote_reader ? "remote" : "local");
 
@@ -326,18 +326,19 @@ static void test_expire_liveliness_kinds(uint32_t ldur, double mult, uint32_t wr
              (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000, stopped);
 
       size_t exp_stopped = mult < 1 ? 0 : (wr_cnt_man_pp + wr_cnt_man_tp);
-      if (stopped != exp_stopped)
-      {
-        ldur *= 10 / (run + 1);
-        printf("%d.%06d incorrect number of stopped writers\n",
-               (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000);
-      }
+      size_t exp_alive = mult < 1 ? wr_cnt : wr_cnt_auto;
+      CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status(reader, &lstatus), DDS_RETCODE_OK);
+      printf("%d.%06d writers alive: %u (exp: %u) not-alive: %u (exp %u)\n",
+             (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000,
+             lstatus.alive_count, (unsigned) exp_alive,
+             lstatus.not_alive_count, (unsigned) exp_stopped);
+      if (stopped == exp_stopped && lstatus.alive_count == exp_alive)
+        test_finished = true;
       else
       {
-        /* check alive count */
-        CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status(reader, &lstatus), DDS_RETCODE_OK);
-        CU_ASSERT_EQUAL(lstatus.alive_count, mult < 1 ? wr_cnt : wr_cnt_auto);
-        test_finished = true;
+        ldur *= 10 / (run + 1);
+        printf("%d.%06d incorrect number of stopped/alive writers\n",
+               (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000);
       }
     }
 
