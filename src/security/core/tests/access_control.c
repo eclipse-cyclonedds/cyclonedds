@@ -249,7 +249,7 @@ CU_Theory(
     dds_entity_t pub, sub;
     dds_entity_t topic0, topic1;
     rd_wr_init (g_participant[0], &pub, &topic0, &wr, g_participant[1], &sub, &topic1, &rd, topic_name);
-    sync_writer_to_readers(g_participant[0], wr, 1, DDS_SECS(2));
+    sync_writer_to_readers(g_participant[0], wr, 1, dds_time() + DDS_SECS(2));
     write_read_for (wr, g_participant[1], rd, DDS_MSECS (write_read_dur), false, exp_read_fail);
   }
 
@@ -259,7 +259,7 @@ CU_Theory(
 
 #define N_WR 3
 #define N_NODES (1 + N_WR)
-#define PERM_EXP_BASE 2
+#define PERM_EXP_BASE 3
 #define PERM_EXP_INCR 2
 /* Tests permissions configuration expiry using multiple writers, to validate
    that a reader keeps receiving data from writers that have valid permissions config */
@@ -329,11 +329,14 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
     wr[i] = dds_create_writer (pub, pub_tp, wrqos, NULL);
     CU_ASSERT_FATAL (wr[i] > 0);
     dds_set_status_mask (wr[i], DDS_PUBLICATION_MATCHED_STATUS);
-    sync_writer_to_readers (g_participant[i + 1], wr[i], 1, DDS_SECS(2));
   }
   dds_delete_qos (wrqos);
 
-  sync_reader_to_writers (g_participant[0], rd, N_WR, DDS_SECS (2));
+  // match deadline follows from expiration times
+  const dds_time_t sync_abstimeout = t_perm + DDS_SECS (PERM_EXP_BASE + 1);
+  for (int i = 0; i < N_WR; i++)
+    sync_writer_to_readers (g_participant[i + 1], wr[i], 1, sync_abstimeout);
+  sync_reader_to_writers (g_participant[0], rd, N_WR, sync_abstimeout);
 
   // write data
   SecurityCoreTests_Type1 sample = { 1, 1 };
@@ -450,6 +453,8 @@ CU_Theory(
 
     if (!exp_pp_fail)
     {
+      const dds_time_t sync_abstimeout = dds_time () + DDS_SECS (2);
+
       dds_entity_t lwr = 0, rwr = 0, lrd = 0, rrd = 0;
       dds_entity_t ltopic[2], rtopic[2];
       dds_entity_t lpub, lsub, rpub, rsub;
@@ -461,8 +466,6 @@ CU_Theory(
         g_participant[0], &lpub, &ltopic[0], &lwr,
         g_participant[1], &rsub, &rtopic[0], &rrd,
         topic_name, exp_local_topic_fail, exp_wr_fail, exp_remote_topic_fail, false);
-      if (!exp_local_topic_fail && !exp_remote_topic_fail && !exp_wr_fail)
-        sync_writer_to_readers (g_participant[0], lwr, exp_wr_rd_sync_fail ? 0 : 1, DDS_SECS(2));
 
       // Local reader, remote writer
       create_topic_name (AC_WRAPPER_TOPIC_PREFIX, g_topic_nr++, topic_name, sizeof (topic_name));
@@ -470,8 +473,11 @@ CU_Theory(
         g_participant[1], &rpub, &rtopic[1], &rwr,
         g_participant[0], &lsub, &ltopic[1], &lrd,
         topic_name, exp_remote_topic_fail, false, exp_local_topic_fail, exp_rd_fail);
+
+      if (!exp_local_topic_fail && !exp_remote_topic_fail && !exp_wr_fail)
+        sync_writer_to_readers (g_participant[0], lwr, exp_wr_rd_sync_fail ? 0 : 1, sync_abstimeout);
       if (!exp_local_topic_fail && !exp_remote_topic_fail && !exp_rd_fail)
-        sync_reader_to_writers (g_participant[0], lrd, exp_rd_wr_sync_fail ? 0 : 1, DDS_SECS(1));
+        sync_reader_to_writers (g_participant[0], lrd, exp_rd_wr_sync_fail ? 0 : 1, sync_abstimeout);
     }
 
     access_control_fini (2, (void * []) { gov_topic_rule, gov_config }, 2);
@@ -607,7 +613,7 @@ static void test_discovery_liveliness_protection(enum test_discovery_liveliness 
 
   dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
   rd_wr_init (g_participant[0], &pub, &pub_tp, &wr, g_participant[1], &sub, &sub_tp, &rd, topic_name);
-  sync_writer_to_readers (g_participant[0], wr, exp_rd_wr_match_fail ? 0 : 1, DDS_SECS(2));
+  sync_writer_to_readers (g_participant[0], wr, exp_rd_wr_match_fail ? 0 : 1, dds_time() + DDS_SECS(2));
   if (!exp_rd_wr_match_fail)
     write_read_for (wr, g_participant[1], rd, DDS_MSECS (100), false, false);
 
@@ -697,7 +703,7 @@ static void test_encoding_mismatch(
   {
     dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
     rd_wr_init (g_participant[0], &pub, &pub_tp, &wr, g_participant[1], &sub, &sub_tp, &rd, topic_name);
-    sync_writer_to_readers (g_participant[0], wr, exp_rd_wr_fail ? 0 : 1, DDS_SECS(1));
+    sync_writer_to_readers (g_participant[0], wr, exp_rd_wr_fail ? 0 : 1, dds_time() + DDS_SECS(1));
   }
 
   access_control_fini (2, (void * []) { gov_config1, gov_config2, gov_topic_rule1, gov_topic_rule2, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 12);
@@ -791,7 +797,7 @@ static void test_readwrite_protection (
     validate_handshake_nofail (DDS_DOMAINID, DDS_SECS(2));
     rd_wr_init_fail (g_participant[0], &pub, &pub_tp, &wr, g_participant[1], &sub, &sub_tp, &rd, topic_name, exp_pub_tp_fail, exp_wr_fail, exp_sub_tp_fail, exp_rd_fail);
     if (!exp_pub_tp_fail && !exp_wr_fail && !exp_sub_tp_fail && !exp_rd_fail)
-      sync_writer_to_readers (g_participant[0], wr, exp_sync_fail ? 0 : 1, DDS_SECS(1));
+      sync_writer_to_readers (g_participant[0], wr, exp_sync_fail ? 0 : 1, dds_time() + DDS_SECS(1));
   }
 
   access_control_fini (2, (void * []) { gov_config, gov_topic_rule, rules_xml, grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 11);
@@ -863,8 +869,10 @@ CU_Test(ddssec_access_control, denied_topic)
 
   dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
   rd_wr_init (g_participant[0], &pub, &pub_tp, &wr, g_participant[1], &sub, &sub_tp, &rd, topic_name);
-  sync_writer_to_readers (g_participant[0], wr, 1, DDS_SECS (1));
-  sync_reader_to_writers (g_participant[1], rd, 1, DDS_SECS (1));
+
+  const dds_time_t sync_abstimeout = dds_time () + DDS_SECS (2);
+  sync_writer_to_readers (g_participant[0], wr, 1, sync_abstimeout);
+  sync_reader_to_writers (g_participant[1], rd, 1, sync_abstimeout);
 
   /* Create a topic that is denied in the subscriber pp security config */
   dds_entity_t denied_pub_tp = dds_create_topic (g_participant[0], &SecurityCoreTests_Type1_desc, denied_topic_name, NULL, NULL);
