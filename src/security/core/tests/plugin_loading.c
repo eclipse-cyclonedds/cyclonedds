@@ -72,7 +72,7 @@ CU_Test(ddssec_security_plugin_loading, all_ok, .init = ddsrt_init, .fini = ddsr
       "    <Tag>${CYCLONEDDS_PID}</Tag>"
       "  </Discovery>"
       "  <Tracing><Verbosity>finest</></>"
-      "  <DDSSecurity>"
+      "  <Security>"
       "    <Authentication>"
       "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
       "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -90,7 +90,7 @@ CU_Test(ddssec_security_plugin_loading, all_ok, .init = ddsrt_init, .fini = ddsr
       "      <PermissionsCA></PermissionsCA>"
       "      <Permissions></Permissions>"
       "    </AccessControl>"
-      "  </DDSSecurity>"
+      "  </Security>"
       "</Domain>";
 
   set_logger_exp(log_expected);
@@ -119,7 +119,7 @@ CU_Test(ddssec_security_plugin_loading, missing_finalize, .init = ddsrt_init, .f
       "    <Tag>${CYCLONEDDS_PID}</Tag>"
       "  </Discovery>"
       "  <Tracing><Verbosity>warning</></>"
-      "  <DDSSecurity>"
+      "  <Security>"
       "    <Authentication>"
       "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_NON_EXISTING_FUNC\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
       "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -137,7 +137,7 @@ CU_Test(ddssec_security_plugin_loading, missing_finalize, .init = ddsrt_init, .f
       "      <PermissionsCA></PermissionsCA>"
       "      <Permissions></Permissions>"
       "    </AccessControl>"
-      "  </DDSSecurity>"
+      "  </Security>"
       "</Domain>";
 
   set_logger_exp(log_expected);
@@ -165,7 +165,7 @@ CU_Test(ddssec_security_plugin_loading, authentication_missing_function, .init =
       "    <Tag>${CYCLONEDDS_PID}</Tag>"
       "  </Discovery>"
       "  <Tracing><Verbosity>warning</></>"
-      "  <DDSSecurity>"
+      "  <Security>"
       "    <Authentication>"
       "      <Library initFunction=\"init_test_authentication_missing_func\" finalizeFunction=\"finalize_test_authentication_missing_func\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
       "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -183,7 +183,7 @@ CU_Test(ddssec_security_plugin_loading, authentication_missing_function, .init =
       "      <PermissionsCA></PermissionsCA>"
       "      <Permissions></Permissions>"
       "    </AccessControl>"
-      "  </DDSSecurity>"
+      "  </Security>"
       "</Domain>";
 
   set_logger_exp(log_expected);
@@ -211,7 +211,7 @@ CU_Test(ddssec_security_plugin_loading, access_control_missing_function, .init =
       "    <Tag>${CYCLONEDDS_PID}</Tag>"
       "  </Discovery>"
       "  <Tracing><Verbosity>warning</></>"
-      "  <DDSSecurity>"
+      "  <Security>"
       "    <Authentication>"
       "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
       "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -229,7 +229,7 @@ CU_Test(ddssec_security_plugin_loading, access_control_missing_function, .init =
       "      <PermissionsCA></PermissionsCA>"
       "      <Permissions></Permissions>"
       "    </AccessControl>"
-      "  </DDSSecurity>"
+      "  </Security>"
       "</Domain>";
 
   set_logger_exp(log_expected);
@@ -257,7 +257,7 @@ CU_Test(ddssec_security_plugin_loading, cryptography_missing_function, .init = d
       "    <Tag>${CYCLONEDDS_PID}</Tag>"
       "  </Discovery>"
       "  <Tracing><Verbosity>warning</></>"
-      "  <DDSSecurity>"
+      "  <Security>"
       "    <Authentication>"
       "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
       "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -275,7 +275,7 @@ CU_Test(ddssec_security_plugin_loading, cryptography_missing_function, .init = d
       "      <PermissionsCA></PermissionsCA>"
       "      <Permissions></Permissions>"
       "    </AccessControl>"
-      "  </DDSSecurity>"
+      "  </Security>"
       "</Domain>";
 
   set_logger_exp(log_expected);
@@ -306,7 +306,7 @@ CU_Test(ddssec_security_plugin_loading, no_library_in_path, .init = ddsrt_init, 
       "    <Tag>${CYCLONEDDS_PID}</Tag>"
       "  </Discovery>"
       "  <Tracing><Verbosity>warning</></>"
-      "  <DDSSecurity>"
+      "  <Security>"
       "    <Authentication>"
       "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper_INVALID") "\"/>"
       "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -324,7 +324,7 @@ CU_Test(ddssec_security_plugin_loading, no_library_in_path, .init = ddsrt_init, 
       "      <PermissionsCA></PermissionsCA>"
       "      <Permissions></Permissions>"
       "    </AccessControl>"
-      "  </DDSSecurity>"
+      "  </Security>"
       "</Domain>";
 
   set_logger_exp(log_expected);
@@ -353,7 +353,7 @@ CU_Test(ddssec_security_plugin_loading, init_error, .init = ddsrt_init, .fini = 
       "    <Tag>${CYCLONEDDS_PID}</Tag>"
       "  </Discovery>"
       "  <Tracing><Verbosity>warning</></>"
-      "  <DDSSecurity>"
+      "  <Security>"
       "    <Authentication>"
       "      <Library initFunction=\"init_test_authentication_init_error\" finalizeFunction=\"finalize_test_authentication_init_error\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
       "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -371,7 +371,7 @@ CU_Test(ddssec_security_plugin_loading, init_error, .init = ddsrt_init, .fini = 
       "      <PermissionsCA></PermissionsCA>"
       "      <Permissions></Permissions>"
       "    </AccessControl>"
-      "  </DDSSecurity>"
+      "  </Security>"
       "</Domain>";
 
   set_logger_exp(log_expected);
@@ -590,7 +590,7 @@ CU_Test(ddssec_security_plugin_loading, multiple_domains_different_config, .init
       "    <Tag>${CYCLONEDDS_PID}</Tag>"
       "  </Discovery>"
       "  <Tracing><Verbosity>finest</></>"
-      "  <DDSSecurity>"
+      "  <Security>"
       "    <Authentication>"
       "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
       "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -608,14 +608,14 @@ CU_Test(ddssec_security_plugin_loading, multiple_domains_different_config, .init
       "      <PermissionsCA></PermissionsCA>"
       "      <Permissions></Permissions>"
       "    </AccessControl>"
-      "  </DDSSecurity>"
+      "  </Security>"
       "</Domain>"
       "<Domain id=\"2\">"
       "  <Tracing><Verbosity>finest</></>"
       "  <Discovery>"
       "    <Tag>${CYCLONEDDS_PID}</Tag>"
       "  </Discovery>"
-      "  <DDSSecurity>"
+      "  <Security>"
       "    <Authentication>"
       "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
       "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -633,7 +633,7 @@ CU_Test(ddssec_security_plugin_loading, multiple_domains_different_config, .init
       "      <PermissionsCA></PermissionsCA>"
       "      <Permissions></Permissions>"
       "    </AccessControl>"
-      "  </DDSSecurity>"
+      "  </Security>"
       "</Domain>";
 
   set_logger_exp(log_expected);

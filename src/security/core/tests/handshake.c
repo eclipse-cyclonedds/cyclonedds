@@ -43,7 +43,7 @@ static const char *config =
     "    <ExternalDomainId>0</ExternalDomainId>"
     "    <Tag>\\${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library initFunction=\"${AUTH_INIT}\" finalizeFunction=\"${AUTH_FINI}\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate>data:,"TEST_IDENTITY1_CERTIFICATE"</IdentityCertificate>"
@@ -59,7 +59,7 @@ static const char *config =
     "    <Cryptographic>"
     "      <Library initFunction=\"${CRYPTO_INIT}\" finalizeFunction=\"${CRYPTO_FINI}\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
     "    </Cryptographic>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
 #define DDS_DOMAINID1 0

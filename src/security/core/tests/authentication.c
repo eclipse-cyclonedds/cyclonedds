@@ -54,7 +54,7 @@ static const char *config =
     "    <ExternalDomainId>0</ExternalDomainId>"
     "    <Tag>\\${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library finalizeFunction=\"finalize_test_authentication_wrapped\" initFunction=\"init_test_authentication_wrapped\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate>data:,${TEST_IDENTITY_CERTIFICATE}</IdentityCertificate>"
@@ -71,7 +71,7 @@ static const char *config =
     "    <Cryptographic>"
     "      <Library finalizeFunction=\"finalize_crypto\" initFunction=\"init_crypto\"/>"
     "    </Cryptographic>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
 static const char *config_non_secure =

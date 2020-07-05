@@ -111,7 +111,7 @@ CU_Test(ddssec_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>config</></>"
-    "  <DDSSecurity />"
+    "  <Security />"
     "</Domain>";
 
   set_logger_exp(log_expected);
@@ -161,14 +161,14 @@ CU_Test(ddssec_config, missing, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate></IdentityCertificate>"
     "      <PrivateKey></PrivateKey>"
     "      <Password>testtext_Password_testtext</Password>"
     "    </Authentication>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
   set_logger_exp(log_expected);
@@ -216,7 +216,7 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -234,7 +234,7 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
     "      <Permissions>file:Permissions.p7s</Permissions>"
     "    </AccessControl>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
   set_logger_exp(log_expected);
@@ -287,7 +287,7 @@ CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -303,7 +303,7 @@ CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
     "      <Permissions>file:Permissions.p7s</Permissions>"
     "    </AccessControl>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
   set_logger_exp(log_expected);
@@ -355,7 +355,7 @@ CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -373,7 +373,7 @@ CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
     "      <Permissions>file:Permissions.p7s</Permissions>"
     "    </AccessControl>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
   set_logger_exp(log_expected);
@@ -506,7 +506,7 @@ CU_Test(ddssec_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
     "      <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE_DUMMY"</IdentityCA>"
@@ -517,7 +517,7 @@ CU_Test(ddssec_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
     "      <Permissions>file:Permissions.p7s</Permissions>"
     "    </AccessControl>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
   CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
@@ -569,7 +569,7 @@ CU_Test(ddssec_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -587,7 +587,7 @@ CU_Test(ddssec_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
     "      <Permissions>file:Permissions.p7s</Permissions>"
     "    </AccessControl>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
   CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
@@ -639,7 +639,7 @@ CU_Test(ddssec_config, qos_invalid, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
     "      <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE_DUMMY"</IdentityCA>"
@@ -650,7 +650,7 @@ CU_Test(ddssec_config, qos_invalid, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
     "      <Permissions>file:Permissions.p7s</Permissions>"
     "    </AccessControl>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
   set_logger_exp(log_expected);

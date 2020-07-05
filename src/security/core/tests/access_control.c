@@ -48,7 +48,7 @@ static const char *config =
     "    <ExternalDomainId>0</ExternalDomainId>"
     "    <Tag>\\${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library finalizeFunction=\"finalize_test_authentication_wrapped\" initFunction=\"init_test_authentication_wrapped\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate>data:,${TEST_IDENTITY_CERTIFICATE}</IdentityCertificate>"
@@ -64,7 +64,7 @@ static const char *config =
     "    <Cryptographic>"
     "      <Library initFunction=\"${CRYPTO_INIT:-init_test_cryptography_wrapped}\" finalizeFunction=\"${CRYPTO_INIT:-finalize_test_cryptography_wrapped}\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
     "    </Cryptographic>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
 #define MAX_DOMAINS 10
