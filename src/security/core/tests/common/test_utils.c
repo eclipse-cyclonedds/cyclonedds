@@ -389,9 +389,8 @@ void handshake_list_fini (struct Handshake *hs_list, int nhs)
   }
 }
 
-void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_count, dds_duration_t timeout)
+void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_count, dds_time_t abstimeout)
 {
-  dds_time_t abstimeout = dds_time() + timeout;
   dds_attach_t triggered;
   dds_entity_t ws = dds_create_waitset (pp_wr);
   CU_ASSERT_FATAL (ws > 0);
@@ -414,9 +413,8 @@ void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_c
   CU_ASSERT_EQUAL_FATAL (pub_matched.total_count, exp_count);
 }
 
-void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_count, dds_duration_t timeout)
+void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_count, dds_time_t abstimeout)
 {
-  dds_time_t abstimeout = dds_time() + timeout;
   dds_attach_t triggered;
   dds_entity_t ws = dds_create_waitset (pp_rd);
   CU_ASSERT_FATAL (ws > 0);

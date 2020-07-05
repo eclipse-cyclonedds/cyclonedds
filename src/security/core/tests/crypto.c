@@ -164,7 +164,7 @@ CU_Theory((const char * test_descr, DDS_Security_BasicProtectionKind payload_pk,
   set_force_plain_data (crypto_impl, wr_handle, rtps_pk != PK_N, submsg_pk != PK_N, payload_pk != BPK_N);
 
   /* sync and write/take sample */
-  sync_writer_to_readers (g_participant1, wr, 1, DDS_SECS (2));
+  sync_writer_to_readers (g_participant1, wr, 1, dds_time() + DDS_SECS (2));
   write_read_for (wr, g_participant2, rd, DDS_MSECS (10), false, true);
 
   /* reset forced plain data */
