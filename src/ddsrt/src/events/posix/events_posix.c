@@ -300,6 +300,15 @@ dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
 void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
   ddsrt_mutex_lock(&queue->lock);
+  for (size_t i = 0; i < queue->nevents; i++)
+  {
+    if (queue->events[i] == evt)
+    {
+      ddsrt_mutex_unlock(&queue->lock);
+      return;
+    }
+  }
+
   if (queue->nevents == queue->cevents)
   {
     queue->cevents += EVENTS_CONTAINER_DELTA;

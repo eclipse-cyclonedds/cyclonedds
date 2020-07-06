@@ -277,6 +277,15 @@ void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
     }
   }
 
+  for (size_t i = 0; i < queue->nnewevents; i++)
+  {
+    if (queue->newevents[i].external == evt)
+    {
+      ddsrt_mutex_unlock(&queue->lock);
+      return;
+    }
+  }
+
   if (queue->nnewevents == queue->cnewevents)
   {
     queue->cnewevents += EVENTS_CONTAINER_DELTA;

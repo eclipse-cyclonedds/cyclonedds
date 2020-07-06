@@ -210,6 +210,14 @@ CU_Test(ddsrt_event, queue_add_remove_event)
   ddsrt_event_queue_add(q, &evt3);
   CU_ASSERT_EQUAL(3, ddsrt_event_queue_nevents(q));
 
+  //adding events which are already present in the queue
+  ddsrt_event_queue_add(q, &evt1);
+  CU_ASSERT_EQUAL(3, ddsrt_event_queue_nevents(q));
+  ddsrt_event_queue_add(q, &evt2);
+  CU_ASSERT_EQUAL(3, ddsrt_event_queue_nevents(q));
+  ddsrt_event_queue_add(q, &evt3);
+  CU_ASSERT_EQUAL(3, ddsrt_event_queue_nevents(q));
+
   //removing events
   ddsrt_event_queue_remove(q, &evt3);
   CU_ASSERT_EQUAL(2, ddsrt_event_queue_nevents(q));
