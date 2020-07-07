@@ -264,32 +264,15 @@ static uint32_t interrupt_func(void* arg)
 
 static void test_write(ddsrt_event_queue_t* q, ddsrt_socket_t* p, ddsrt_event_t* evt)
 {
-  ddsrt_thread_t thr1, thr2;
-  uint32_t res1 = 0, res2 = 0;
-
-  ddsrt_threadattr_t attr;
-  ddsrt_threadattr_init(&attr);
-  attr.schedClass = DDSRT_SCHED_DEFAULT;
-  attr.schedPriority = 0;
-
-  /*create thread which waits for event and one which writes to p*/
-  dds_return_t ret1 = ddsrt_thread_create(&thr1, "reader", &attr, &wait_func, q);
-  dds_return_t ret2 = ddsrt_thread_create(&thr2, "writer", &attr, &write_func, p);
-
-  if (ret1 == DDS_RETCODE_OK)
-  {
-    ret1 = ddsrt_thread_join(thr1, &res1);
-    CU_ASSERT_EQUAL(ret1, DDS_RETCODE_OK);
-  }
-
-  if (ret2 == DDS_RETCODE_OK)
-  {
-    ret2 = ddsrt_thread_join(thr2, &res2);
-    CU_ASSERT_EQUAL(ret2, DDS_RETCODE_OK);
-  }
+  printf("starting wait for write to: %d\n", p[1]);
+  CU_ASSERT_EQUAL(DDS_RETCODE_OK, ddsrt_pipe_push(p));
+  printf("finished write to: %d, starting queue wait\n", p[1]);
+  CU_ASSERT_EQUAL(DDS_RETCODE_OK, ddsrt_event_queue_wait(q, 5*DDS_NSECS_IN_SEC));
+  printf("finished wait\n");
 
   /*check for triggered event on p*/
   ddsrt_event_t* evtout = ddsrt_event_queue_next(q);
+  printf("event returned: %p, to check: %p\n",evtout,evt);
   CU_ASSERT_PTR_EQUAL_FATAL(evtout, evt);
   if (NULL != evtout)
     CU_ASSERT_EQUAL(ddsrt_atomic_ld32(&evtout->triggered), DDSRT_EVENT_FLAG_READ);
