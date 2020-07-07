@@ -264,9 +264,9 @@ static uint32_t interrupt_func(void* arg)
 
 static void test_write(ddsrt_event_queue_t* q, ddsrt_socket_t* p, ddsrt_event_t* evt)
 {
-  printf("starting wait for write to: %d\n", p[1]);
+  printf("starting wait for write to: %d\n", (int)p[1]);
   CU_ASSERT_EQUAL(DDS_RETCODE_OK, ddsrt_pipe_push(p));
-  printf("finished write to: %d, starting queue wait\n", p[1]);
+  printf("finished write to: %d, starting queue wait\n", (int)p[1]);
   CU_ASSERT_EQUAL(DDS_RETCODE_OK, ddsrt_event_queue_wait(q, 5*DDS_NSECS_IN_SEC));
   printf("finished wait\n");
 
