@@ -130,7 +130,7 @@ void ddsi_conn_free (ddsi_tran_conn_t conn)
             switch (conn->m_base.gv->recv_threads[i].arg.mode)
             {
               case RTM_MANY:
-                os_sockWaitsetRemove (conn->m_base.gv->recv_threads[i].arg.u.many.ws, conn);
+                ddsrt_event_queue_remove(conn->m_base.gv->recv_threads[i].arg.u.many.eq, &conn->m_event);
                 break;
               case RTM_SINGLE:
                 if (conn->m_base.gv->recv_threads[i].arg.u.single.conn == conn)

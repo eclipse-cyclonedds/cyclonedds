@@ -289,8 +289,9 @@ static void ddsi_tcp_conn_connect (ddsi_tcp_conn_t conn, const ddsrt_msghdr_t * 
 
   assert (conn->m_base.m_base.gv->n_recv_threads > 0);
   assert (conn->m_base.m_base.gv->recv_threads[0].arg.mode == RTM_MANY);
-  os_sockWaitsetAdd (conn->m_base.m_base.gv->recv_threads[0].arg.u.many.ws, &conn->m_base);
-  os_sockWaitsetTrigger (conn->m_base.m_base.gv->recv_threads[0].arg.u.many.ws);
+  ddsrt_event_socket_init(&conn->m_base.m_event, ddsi_conn_handle(&conn->m_base), DDSRT_EVENT_FLAG_READ);
+  ddsrt_event_queue_add(conn->m_base.m_base.gv->recv_threads[0].arg.u.many.eq ,&conn->m_base.m_event);
+  ddsrt_event_queue_signal(conn->m_base.m_base.gv->recv_threads[0].arg.u.many.eq);
   return;
 
 fail_w_socket:

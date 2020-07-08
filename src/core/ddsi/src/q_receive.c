@@ -3115,14 +3115,15 @@ uint32_t listen_thread (struct ddsi_tran_listener *listener)
     conn = ddsi_listener_accept (listener);
     if (conn)
     {
-      os_sockWaitsetAdd (gv->recv_threads[0].arg.u.many.ws, conn);
-      os_sockWaitsetTrigger (gv->recv_threads[0].arg.u.many.ws);
+      ddsrt_event_socket_init(&conn->m_event, ddsi_conn_handle(conn), DDSRT_EVENT_FLAG_READ);
+      ddsrt_event_queue_add(gv->recv_threads[0].arg.u.many.eq, &conn->m_event);
+      ddsrt_event_queue_signal (gv->recv_threads[0].arg.u.many.eq);
     }
   }
   return 0;
 }
 
-static int recv_thread_waitset_add_conn (os_sockWaitset ws, ddsi_tran_conn_t conn)
+static int recv_thread_waitset_add_conn (ddsrt_event_queue_t *eq, ddsi_tran_conn_t conn)
 {
   if (conn == NULL)
     return 0;
@@ -3132,7 +3133,8 @@ static int recv_thread_waitset_add_conn (os_sockWaitset ws, ddsi_tran_conn_t con
     for (uint32_t i = 0; i < gv->n_recv_threads; i++)
       if (gv->recv_threads[i].arg.mode == RTM_SINGLE && gv->recv_threads[i].arg.u.single.conn == conn)
         return 0;
-    return os_sockWaitsetAdd (ws, conn);
+    ddsrt_event_socket_init(&conn->m_event, ddsi_conn_handle(conn), DDSRT_EVENT_FLAG_READ);
+    return ddsrt_event_queue_add(eq, &conn->m_event);
   }
 }
 
@@ -3156,8 +3158,8 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
         break;
       }
       case RTM_MANY: {
-        GVTRACE ("trigger_recv_threads: %d many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.ws);
-        os_sockWaitsetTrigger (gv->recv_threads[i].arg.u.many.ws);
+        GVTRACE ("trigger_recv_threads: %d many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.eq);
+        ddsrt_event_queue_signal (gv->recv_threads[i].arg.u.many.eq);
         break;
       }
     }
@@ -3170,7 +3172,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
   struct recv_thread_arg *recv_thread_arg = vrecv_thread_arg;
   struct ddsi_domaingv * const gv = recv_thread_arg->gv;
   struct nn_rbufpool *rbpool = recv_thread_arg->rbpool;
-  os_sockWaitset waitset = recv_thread_arg->mode == RTM_MANY ? recv_thread_arg->u.many.ws : NULL;
+  ddsrt_event_queue_t* waitset = recv_thread_arg->mode == RTM_MANY ? recv_thread_arg->u.many.eq : NULL;
   ddsrt_mtime_t next_thread_cputime = { 0 };
 
   nn_rbufpool_setowner (rbpool, ddsrt_thread_self ());
@@ -3187,7 +3189,6 @@ uint32_t recv_thread (void *vrecv_thread_arg)
   {
     struct local_participant_set lps;
     unsigned num_fixed = 0, num_fixed_uc = 0;
-    os_sockWaitsetCtx ctx;
     local_participant_set_init (&lps, &gv->participant_set_generation);
     if (gv->m_factory->m_connless)
     {
@@ -3225,25 +3226,37 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         /* first rebuild local participant set - unless someone's toggling "deafness", this
          only happens when the participant set has changed, so might as well rebuild it */
         rebuild_local_participant_set (ts1, gv, &lps);
-        os_sockWaitsetPurge (waitset, num_fixed);
+        ddsrt_event_queue_trim (waitset, num_fixed);
         for (uint32_t i = 0; i < lps.nps; i++)
         {
           if (lps.ps[i].m_conn)
-            os_sockWaitsetAdd (waitset, lps.ps[i].m_conn);
+          {
+            ddsrt_event_socket_init (&lps.ps[i].m_conn->m_event, ddsi_conn_handle(lps.ps[i].m_conn), DDSRT_EVENT_FLAG_READ);
+            ddsrt_event_queue_add (waitset, &lps.ps[i].m_conn->m_event);
+          }
         }
       }
 
-      if ((ctx = os_sockWaitsetWait (waitset)) != NULL)
+      if (DDS_RETCODE_OK == ddsrt_event_queue_wait (waitset,DDS_INFINITY))
       {
-        int idx;
         ddsi_tran_conn_t conn;
-        while ((idx = os_sockWaitsetNextEvent (ctx, &conn)) >= 0)
+        ddsrt_event_t* evt;
+        while ((evt = ddsrt_event_queue_next (waitset)) != NULL)
         {
+          if (0x0 == (ddsrt_atomic_ld32(&evt->triggered) & DDSRT_EVENT_FLAG_READ) ||
+              DDSRT_EVENT_TYPE_SOCKET != evt->type) continue;
+          uintptr_t tmp = (uintptr_t)evt - offsetof(struct ddsi_tran_conn, m_event);
+          conn = (ddsi_tran_conn_t)tmp;
           const ddsi_guid_prefix_t *guid_prefix;
-          if (((unsigned)idx < num_fixed) || gv->config.many_sockets_mode != MSM_MANY_UNICAST)
+          if (gv->config.many_sockets_mode != MSM_MANY_UNICAST)
+          {
             guid_prefix = NULL;
+          }
           else
-            guid_prefix = &lps.ps[(unsigned)idx - num_fixed].guid_prefix;
+          {
+            tmp = tmp - offsetof(struct local_participant_desc, m_conn) + offsetof(struct local_participant_desc, guid_prefix);
+            guid_prefix = (ddsi_guid_prefix_t*)tmp;
+          }
           /* Process message and clean out connection if failed or closed */
           if (!do_packet (ts1, gv, conn, guid_prefix, rbpool) && !conn->m_connless)
             ddsi_conn_free (conn);
