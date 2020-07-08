@@ -19,14 +19,6 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/log.h"
 
-#ifdef __VXWORKS__
-#include <pipeDrv.h>
-#include <ioLib.h>
-#include <string.h>
-#include <selectLib.h>
-#define OSPL_PIPENAMESIZE 26
-#endif
-
 #define EVENTS_CONTAINER_DELTA 8
 
 /**
@@ -93,29 +85,11 @@ dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
   closesocket(listener);
   SetHandleInformation((HANDLE)queue->interrupt[0], HANDLE_FLAG_INHERIT, 0);
   SetHandleInformation((HANDLE)queue->interrupt[1], HANDLE_FLAG_INHERIT, 0);
-#elif defined(__VXWORKS__)  
-  /*vxworks type pipe*/
-  char pipename[OSPL_PIPENAMESIZE];
-  int pipecount = 0;
-  int pipe_result = 0;
-  do
-  {
-    snprintf((char*)&pipename, sizeof(pipename), "/pipe/ospl%d", pipecount++);
-  }
-  while ((pipe_result = pipeDevCreate((char*)&pipename, 1, 1)) == -1 &&
-    os_getErrno() == EINVAL);
-  if (pipe_result != -1)
-    goto alloc_cleanup;
-  queue->interrupt[0] = open((char*)&pipename, O_RDWR, 0644);
-  queue->interrupt[1] = open((char*)&pipename, O_RDWR, 0644);
-  /*the pipe was succesfully created, but one of the sockets on either end was not*/
-  if (-1 == queue->interrupt[0] || -1 == queue->interrupt[1])
-    goto pipe_cleanup;
 #elif !defined(LWIP_SOCKET)
   /*simple linux type pipe*/
   if (pipe(queue->interrupt) == -1)
     goto alloc_cleanup;
-#endif /* _WIN32, __VXWORKS__, !LWIP_SOCKET*/
+#endif /* _WIN32 || !LWIP_SOCKET*/
   ddsrt_mutex_init(&queue->lock);
   return DDS_RETCODE_OK;
 
@@ -124,17 +98,10 @@ pipe_cleanup:
   closesocket(listener);
   closesocket(queue->interrupt[0]);
   closesocket(queue->interrupt[1]);
-#elif defined(__VXWORKS__)
-pipe_cleanup:
-  pipeDevDelete(pipename, 0);
-  if (-1 != queue->interrupt[0])
-    close(queue->interrupt[0]);
-#endif /* _WIN32, __VXWORKS__*/
-
-#if !defined(_WIN32)
+#elif !defined(LWIP_SOCKET)
 alloc_cleanup:
+#endif /* _WIN32 || !LWIP_SOCKET*/
   ddsrt_free(queue->events);
-#endif /* ! WIN32*/
   return DDS_RETCODE_ERROR;
 }
 
@@ -149,27 +116,14 @@ static void ddsrt_event_queue_fini(ddsrt_event_queue_t* queue) ddsrt_nonnull_all
 
 void ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
 {
-  ddsrt_mutex_destroy(&queue->lock); 
-#if !defined(LWIP_SOCKET)
-
-#if defined(__VXWORKS__) && defined(__RTP__)
-  char nameBuf[OSPL_PIPENAMESIZE];
-  ioctl(queue->interrupt[0], FIOGETNAME, &nameBuf);
-#endif /*__VXWORKS__ && __RTP__*/
-
 #if defined(_WIN32)
   closesocket(queue->interrupt[0]);
   closesocket(queue->interrupt[1]);
-#else
+#elif !defined(LWIP_SOCKET)
   close(queue->interrupt[0]);
   close(queue->interrupt[1]);
-#endif  /* _WIN32 */
-
-#if defined(__VXWORKS__) && defined(__RTP__)
-  pipeDevDelete((char*)&nameBuf, 0);
-#endif /* __VXWORKS__ && __RTP__ */
-
-#endif /* !LWIP_SOCKET */
+#endif  /* _WIN32 || !LWIP_SOCKET */
+  ddsrt_mutex_destroy(&queue->lock);
   ddsrt_free(queue->events);
 }
 
@@ -358,7 +312,10 @@ ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue)
   {
     ddsrt_event_t* evt = queue->events[queue->ievents++];
     if (DDSRT_EVENT_FLAG_UNSET != ddsrt_atomic_ld32(&evt->triggered))
+    {
       ptr = evt;
+      break;
+    }
   }
   ddsrt_mutex_unlock(&queue->lock);
   return ptr;
