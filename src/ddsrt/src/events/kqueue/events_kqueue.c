@@ -265,7 +265,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   return ret;
 }
 
-void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
+int ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
   ddsrt_mutex_lock(&queue->lock);
   for (size_t i = 0; i < queue->nevents; i++)
@@ -273,7 +273,7 @@ void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
     if (queue->events[i].external == evt)
     {
       ddsrt_mutex_unlock(&queue->lock);
-      return;
+      return 0;
     }
   }
 
@@ -282,7 +282,7 @@ void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
     if (queue->newevents[i].external == evt)
     {
       ddsrt_mutex_unlock(&queue->lock);
-      return;
+      return 0;
     }
   }
 
@@ -295,6 +295,20 @@ void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
   qe->status = EVENT_STATUS_UNREGISTERED;
   qe->external = evt;
   EV_SET(&qe->internal, evt->data.socket.sock, EVFILT_READ, EV_ADD, 0, 0, 0);
+  ddsrt_mutex_unlock(&queue->lock);
+  return 1;
+}
+
+void ddsrt_event_queue_trim(ddsrt_event_queue_t* queue, size_t entries)
+{
+  ddsrt_mutex_lock(&queue->lock);
+  for (size_t i = entries; i < queue->nevents; i++)
+    queue->events[i].status = DEREGISTERED;
+
+  if (queue->nevents + queue->nnewevents <= entries)
+    queue->nnewevents = 0;
+  else
+    queue->nnewevents = entries - queue->nevents;
   ddsrt_mutex_unlock(&queue->lock);
 }
 

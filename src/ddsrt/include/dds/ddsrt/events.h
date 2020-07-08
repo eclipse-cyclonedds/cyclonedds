@@ -161,8 +161,19 @@ extern "C" {
   *
   * @param[in,out] queue The queue to add the event to.
   * @param[in,out] evt Pointer to the event to add.
+  *
+  * @retval >=0 The number of events added to the queue.
+  * @retval < 0 The event could not be added to the queue.
   */
-  DDS_EXPORT void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt) ddsrt_nonnull_all;
+  DDS_EXPORT int ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt) ddsrt_nonnull_all;
+
+  /**
+  * @brief Trims the queue to a maximum size.
+  *
+  * @param[in,out] queue The queue to trim to size.
+  * @param[in] entries The maximum size the queue will be trimmed to.
+  */
+  DDS_EXPORT void ddsrt_event_queue_trim(ddsrt_event_queue_t* queue, size_t entries) ddsrt_nonnull((1));
 
   /**
   * @brief Removes an event from the queue.

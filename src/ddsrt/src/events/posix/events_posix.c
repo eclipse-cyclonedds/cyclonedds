@@ -206,12 +206,13 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   /*zero all fds*/
   fd_set* rfds = &queue->rfds;
   FD_ZERO(rfds);
+  ddsrt_socket_t maxfd = 0;
 #if !defined(LWIP_SOCKET)
   FD_SET(queue->interrupt[0],rfds);
+  maxfd = queue->interrupt[0];
 #endif /* !LWIP_SOCKET */
 
   /*add events to queue->rfds*/
-  ddsrt_socket_t maxfd = 0;
   for (size_t i = 0; i < queue->nevents; i++)
   {
     ddsrt_event_t *evt = queue->events[i];
@@ -238,7 +239,8 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 
 #if !defined(LWIP_SOCKET)
     /*read the data from the interrupt socket (if any)*/
-    if (FD_ISSET(queue->interrupt[0], rfds)) {
+    if (FD_ISSET(queue->interrupt[0], rfds))
+    {
       char buf = 0x0;
       int n = 0;
 #if defined(_WIN32)
@@ -297,7 +299,7 @@ dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
   return DDS_RETCODE_OK;
 }
 
-void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
+int ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
   ddsrt_mutex_lock(&queue->lock);
   for (size_t i = 0; i < queue->nevents; i++)
@@ -305,7 +307,7 @@ void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
     if (queue->events[i] == evt)
     {
       ddsrt_mutex_unlock(&queue->lock);
-      return;
+      return 0;
     }
   }
 
@@ -316,6 +318,15 @@ void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
   }
   
   queue->events[queue->nevents++] = evt;
+  ddsrt_mutex_unlock(&queue->lock);
+  return 1;
+}
+
+void ddsrt_event_queue_trim(ddsrt_event_queue_t* queue, size_t entries)
+{
+  ddsrt_mutex_lock(&queue->lock);
+  if (entries < queue->nevents)
+    queue->nevents = entries;
   ddsrt_mutex_unlock(&queue->lock);
 }
 
