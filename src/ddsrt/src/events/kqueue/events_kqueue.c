@@ -303,7 +303,7 @@ void ddsrt_event_queue_trim(ddsrt_event_queue_t* queue, size_t entries)
 {
   ddsrt_mutex_lock(&queue->lock);
   for (size_t i = entries; i < queue->nevents; i++)
-    queue->events[i].status = DEREGISTERED;
+    queue->events[i].status = EVENT_STATUS_DEREGISTERED;
 
   if (queue->nevents + queue->nnewevents <= entries)
     queue->nnewevents = 0;
