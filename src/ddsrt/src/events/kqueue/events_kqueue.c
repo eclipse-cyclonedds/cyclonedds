@@ -174,15 +174,6 @@ void ddsrt_event_queue_delete(ddsrt_event_queue_t* queue)
   ddsrt_free(queue);
 }
 
-size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue)
-{
-  size_t ret;
-  ddsrt_mutex_lock(&queue->lock);
-  ret = queue->nevents + queue->nnewevents - queue->ndeleted;
-  ddsrt_mutex_unlock(&queue->lock);
-  return ret;
-}
-
 dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t reltime)
 {
   dds_return_t ret = DDS_RETCODE_OK;

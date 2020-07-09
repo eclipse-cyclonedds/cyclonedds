@@ -170,7 +170,6 @@ CU_Test(ddsrt_event, queue_create)
   ddsrt_event_queue_t* q = ddsrt_event_queue_create();
   
   CU_ASSERT_PTR_NOT_EQUAL(q, NULL);
-  CU_ASSERT_EQUAL(0,ddsrt_event_queue_nevents(q));
   ddsrt_event_queue_delete(q);
 
   CU_PASS("queue_create");
@@ -195,28 +194,22 @@ CU_Test(ddsrt_event, queue_add_remove_event)
   ddsrt_event_socket_init(&evt3, p3[0], flags);
 
   //adding events
-  ddsrt_event_queue_add(q, &evt1);
-  CU_ASSERT_EQUAL(1, ddsrt_event_queue_nevents(q));
-  ddsrt_event_queue_add(q, &evt2);
-  CU_ASSERT_EQUAL(2, ddsrt_event_queue_nevents(q));
-  ddsrt_event_queue_add(q, &evt3);
-  CU_ASSERT_EQUAL(3, ddsrt_event_queue_nevents(q));
+  CU_ASSERT_EQUAL(1, ddsrt_event_queue_add(q, &evt1));
+  CU_ASSERT_EQUAL(1, ddsrt_event_queue_add(q, &evt2));
+  CU_ASSERT_EQUAL(1, ddsrt_event_queue_add(q, &evt3));
 
   //adding events which are already present in the queue
-  ddsrt_event_queue_add(q, &evt1);
-  CU_ASSERT_EQUAL(3, ddsrt_event_queue_nevents(q));
-  ddsrt_event_queue_add(q, &evt2);
-  CU_ASSERT_EQUAL(3, ddsrt_event_queue_nevents(q));
-  ddsrt_event_queue_add(q, &evt3);
-  CU_ASSERT_EQUAL(3, ddsrt_event_queue_nevents(q));
+  CU_ASSERT_EQUAL(0, ddsrt_event_queue_add(q, &evt1));
+  CU_ASSERT_EQUAL(0, ddsrt_event_queue_add(q, &evt2));
+  CU_ASSERT_EQUAL(0, ddsrt_event_queue_add(q, &evt3));
 
   //removing events
-  ddsrt_event_queue_remove(q, &evt3);
-  CU_ASSERT_EQUAL(2, ddsrt_event_queue_nevents(q));
-  ddsrt_event_queue_remove(q, &evt2);
-  CU_ASSERT_EQUAL(1, ddsrt_event_queue_nevents(q));
-  ddsrt_event_queue_remove(q, &evt1);
-  CU_ASSERT_EQUAL(0, ddsrt_event_queue_nevents(q));
+  CU_ASSERT_EQUAL(DDS_RETCODE_OK, ddsrt_event_queue_remove(q, &evt3));
+  CU_ASSERT_EQUAL(DDS_RETCODE_ALREADY_DELETED, ddsrt_event_queue_remove(q, &evt3));
+  CU_ASSERT_EQUAL(DDS_RETCODE_OK, ddsrt_event_queue_remove(q, &evt2));
+  CU_ASSERT_EQUAL(DDS_RETCODE_ALREADY_DELETED, ddsrt_event_queue_remove(q, &evt2));
+  CU_ASSERT_EQUAL(DDS_RETCODE_OK, ddsrt_event_queue_remove(q, &evt1));
+  CU_ASSERT_EQUAL(DDS_RETCODE_ALREADY_DELETED, ddsrt_event_queue_remove(q, &evt1));
 
   ddsrt_event_queue_delete(q);
   ddsrt_pipe_destroy(p1);

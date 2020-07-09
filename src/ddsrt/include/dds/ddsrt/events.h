@@ -113,17 +113,6 @@ extern "C" {
   DDS_EXPORT void ddsrt_event_queue_delete(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
 
   /**
-  * @brief Getter for the number of stored events.
-  *
-  * The number of stored events does not have to equal the current capacity of the instance.
-  *
-  * @param[in,out] queue The queue to get the number of events of.
-  *
-  * @returns The number of events stored by the queue.
-  */
-  DDS_EXPORT size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
-
-  /**
   * @brief Triggers a wait for events for the queue.
   *
   * After calling this function the queue will go over the events it has to monitor and unset all triggered statuses.

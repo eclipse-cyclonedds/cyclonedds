@@ -143,11 +143,6 @@ void ddsrt_event_queue_delete(ddsrt_event_queue_t* queue)
   ddsrt_free(queue);
 }
 
-size_t ddsrt_event_queue_nevents(ddsrt_event_queue_t* queue)
-{
-  return queue->nevents;
-}
-
 dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t reltime)
 {
   /*reset triggered status*/
