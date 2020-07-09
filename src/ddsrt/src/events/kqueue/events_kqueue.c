@@ -54,7 +54,6 @@ struct ddsrt_event_queue
   size_t                  nevents;  /**< number of events stored*/
   size_t                  cevents;  /**< capacity of events stored*/
   size_t                  ievents;  /**< current iterator for getting the next triggered event*/
-  size_t                  ndeleted; /**< number of events monitored by kevent deleted since last call to wait function*/
   queued_event_t*         newevents;  /**< container for modified events*/
   size_t                  nnewevents; /**< number of new events added since last call to wait function*/
   size_t                  cnewevents; /**< capacity for new events*/
@@ -85,7 +84,6 @@ dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
   queue->nevents = 0;
   queue->cevents = EVENTS_CONTAINER_DELTA;
   queue->ievents = 0;
-  queue->ndeleted = 0;
   queue->nnewevents = 0;
   queue->cnewevents = EVENTS_CONTAINER_DELTA;
 
@@ -197,7 +195,6 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
       i++;
     }
   }
-  queue->ndeleted = 0;
 
   /*resize queue->events & queue->kevents*/
   if (queue->cevents < queue->nevents + queue->nnewevents)
@@ -307,13 +304,38 @@ int ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 void ddsrt_event_queue_trim(ddsrt_event_queue_t* queue, size_t entries)
 {
   ddsrt_mutex_lock(&queue->lock);
-  for (size_t i = entries; i < queue->nevents; i++)
-    queue->events[i].status = EVENT_STATUS_DEREGISTERED;
+  
+  close(queue->kq);
+  struct kevent kev;
+  EV_SET(&kev, queue->interrupt[0], EVFILT_READ, EV_ADD, 0, 0, 0);
 
-  if (queue->nevents + queue->nnewevents <= entries)
-    queue->nnewevents = 0;
+  if (-1 == (queue->kq = kqueue()) ||
+      -1 == kevent(queue->kq, &kev, 1, NULL, 0, NULL))
+    abort();
+
+  size_t i = 0;
+  while (i < entries && i < queue->nevents)
+  {
+    if (EVENT_STATUS_DEREGISTERED == queue->events[i].status)
+      queue->events[i] = queue->events[--queue->nevents];
+    else
+      i++;
+  }
+  
+  for (i = 0; i < entries && i < queue->nevents; i++)
+    queue->events[i].status = EVENT_STATUS_UNREGISTERED;
+  queue->ievents = queue->nevents;
+
+  if (entries > queue->nevents)
+  {
+    if (entries < queue->nnewevents + queue->nevents)
+      queue->nnewevents = entries - queue->nevents;
+  }
   else
-    queue->nnewevents = entries - queue->nevents;
+  {
+    queue->nevents = entries;
+  }
+
   ddsrt_mutex_unlock(&queue->lock);
 }
 
@@ -337,7 +359,6 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
     if (qe->external == evt &&
         qe->status != EVENT_STATUS_DEREGISTERED)
     {
-      queue->ndeleted++;
       qe->status = EVENT_STATUS_DEREGISTERED;
       ret = DDS_RETCODE_OK;
       break;
