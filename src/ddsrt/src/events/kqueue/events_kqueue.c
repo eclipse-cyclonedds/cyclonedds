@@ -241,7 +241,6 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 
   struct timespec tmout, *ptmout = NULL;
   if (DDS_INFINITY != reltime &&
-      DDS_NEVER != reltime &&
       DDS_DURATION_INVALID != reltime)
   {
     tmout.tv_sec = reltime / DDS_NSECS_IN_SEC;
