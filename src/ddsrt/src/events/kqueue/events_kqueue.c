@@ -41,7 +41,7 @@ struct queued_event {
 typedef struct queued_event queued_event_t;
 
  /**
- * @brief Darwin (Apple) implementation of ddsrt_event_queue.
+ * @brief kevent (Apple & FreeBSD) implementation of ddsrt_event_queue.
  *
  * This implementation uses a kqueue for monitoring a set of filedescriptors for events.
  * Using the kevent call, the kernel can be told to add/modify fd's on its list for monitoring
@@ -161,7 +161,6 @@ void ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
 ddsrt_event_queue_t* ddsrt_event_queue_create(void)
 {
   ddsrt_event_queue_t* returnptr = ddsrt_malloc(sizeof(ddsrt_event_queue_t));
-  assert(returnptr);
   if (DDS_RETCODE_OK != ddsrt_event_queue_init(returnptr)) {
     ddsrt_free(returnptr);
     returnptr = NULL;
@@ -214,7 +213,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   if (queue->cevents < queue->nevents + queue->nnewevents)
   {
     queue->cevents = queue->nevents + queue->nnewevents + EVENTS_CONTAINER_DELTA;
-    queue->events = ddsrt_realloc(queue->events, sizeof(queued_event_t*) * queue->cevents);
+    queue->events = ddsrt_realloc(queue->events, sizeof(queued_event_t) * queue->cevents);
     queue->kevents = ddsrt_realloc(queue->kevents, sizeof(struct kevent) * queue->cevents);
   }
 
@@ -249,7 +248,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     queued_event_t* qe = queue->kevents[j].udata;
     /*check for presence of evt in list?*/
     if (NULL != qe &&
-        EVENT_STATUS_DEREGISTERED != qe->status)
+        EVENT_STATUS_REGISTERED == qe->status)
     {
       ddsrt_atomic_st32(&qe->external->triggered, DDSRT_EVENT_FLAG_READ);
     }
