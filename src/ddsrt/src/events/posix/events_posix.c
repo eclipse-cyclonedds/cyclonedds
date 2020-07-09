@@ -130,7 +130,6 @@ void ddsrt_event_queue_fini(ddsrt_event_queue_t* queue)
 ddsrt_event_queue_t* ddsrt_event_queue_create(void)
 {
   ddsrt_event_queue_t* returnptr = ddsrt_malloc(sizeof(ddsrt_event_queue_t));
-  assert(returnptr);
   if (DDS_RETCODE_OK != ddsrt_event_queue_init(returnptr)) {
     ddsrt_free(returnptr);
     returnptr = NULL;

@@ -16,14 +16,6 @@
 #include "dds/ddsrt/events.h"
 #include "dds/ddsrt/threads.h"
 
-#ifdef __VXWORKS__
-#include <pipeDrv.h>
-#include <ioLib.h>
-#include <string.h>
-#include <selectLib.h>
-#define OSPL_PIPENAMESIZE 26
-#endif
-
 CU_Init(ddsrt_event)
 {
   ddsrt_init();
