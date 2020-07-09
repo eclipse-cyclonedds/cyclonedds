@@ -188,7 +188,6 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   dds_return_t ret = DDS_RETCODE_OK;
 
   ddsrt_mutex_lock(&queue->lock);
-  queue->ievents = 0;
 
   /*remove deregistered events*/
   size_t i = 0;
@@ -220,6 +219,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   /*move new events into queue->events*/
   for (i = 0; i < queue->nnewevents; i++)
     queue->events[queue->nevents++] = queue->newevents[i];
+  queue->ievents = queue->nevents;
   queue->nnewevents = 0;
 
   /*register/modify events to kevent*/
@@ -239,10 +239,22 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     ddsrt_atomic_st32(&(queue->events[i].external->triggered), DDSRT_EVENT_FLAG_UNSET);
   ddsrt_mutex_unlock(&queue->lock);
 
-  struct timespec tmout = { reltime / DDS_NSECS_IN_SEC ,
-                            reltime % DDS_NSECS_IN_SEC };
-  int nevs = kevent(queue->kq, NULL, 0, queue->kevents, (int)queue->nevents, &tmout);
+  struct timespec tmout, *ptmout = NULL;
+  if (DDS_INFINITY != reltime &&
+      DDS_NEVER != reltime &&
+      DDS_DURATION_INVALID != reltime)
+  {
+    tmout.tv_sec = reltime / DDS_NSECS_IN_SEC;
+    tmout.tv_nsec = reltime % DDS_NSECS_IN_SEC;
+    ptmout = &tmout;
+  }
+
+  int nevs = kevent(queue->kq, NULL, 0, queue->kevents, (int)queue->nevents, ptmout);
+  if (nevs < 0)
+    ret = DDS_RETCODE_ERROR;
+
   ddsrt_mutex_lock(&queue->lock);
+  queue->ievents = 0;
   for (int j = 0; j < nevs; j++)
   {
     queued_event_t* qe = queue->kevents[j].udata;
@@ -256,7 +268,11 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     {
       char buf = 0x0;
       if (1 != read(queue->interrupt[0], &buf, 1))
-  	    ret = DDS_RETCODE_ERROR;
+      {
+        ret = DDS_RETCODE_ERROR;
+        DDS_WARNING("ddsrt_event_queue: read failed on trigger pipe\n");
+        assert(0);
+      }
     }
   }
   ddsrt_mutex_unlock(&queue->lock);
