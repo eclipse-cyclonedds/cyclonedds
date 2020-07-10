@@ -536,6 +536,7 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
   conn->m_base.m_write_fn = ddsi_udp_conn_write;
   conn->m_base.m_disable_multiplexing_fn = ddsi_udp_disable_multiplexing;
   conn->m_base.m_locator_fn = ddsi_udp_conn_locator;
+  ddsrt_event_socket_init(&conn->m_base.m_event, ddsi_conn_handle(&conn->m_base), DDSRT_EVENT_FLAG_READ);
 
   GVTRACE ("ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n", purpose_str, conn->m_sock, conn->m_base.m_base.m_port);
   *conn_out = &conn->m_base;

@@ -3115,7 +3115,6 @@ uint32_t listen_thread (struct ddsi_tran_listener *listener)
     conn = ddsi_listener_accept (listener);
     if (conn)
     {
-      ddsrt_event_socket_init(&conn->m_event, ddsi_conn_handle(conn), DDSRT_EVENT_FLAG_READ);
       ddsrt_event_queue_add(gv->recv_threads[0].arg.u.many.eq, &conn->m_event);
       ddsrt_event_queue_signal (gv->recv_threads[0].arg.u.many.eq);
     }
@@ -3133,7 +3132,6 @@ static int recv_thread_waitset_add_conn (ddsrt_event_queue_t *eq, ddsi_tran_conn
     for (uint32_t i = 0; i < gv->n_recv_threads; i++)
       if (gv->recv_threads[i].arg.mode == RTM_SINGLE && gv->recv_threads[i].arg.u.single.conn == conn)
         return 0;
-    ddsrt_event_socket_init(&conn->m_event, ddsi_conn_handle(conn), DDSRT_EVENT_FLAG_READ);
     return ddsrt_event_queue_add(eq, &conn->m_event);
   }
 }
@@ -3230,10 +3228,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         for (uint32_t i = 0; i < lps.nps; i++)
         {
           if (lps.ps[i].m_conn)
-          {
-            ddsrt_event_socket_init (&lps.ps[i].m_conn->m_event, ddsi_conn_handle(lps.ps[i].m_conn), DDSRT_EVENT_FLAG_READ);
             ddsrt_event_queue_add (waitset, &lps.ps[i].m_conn->m_event);
-          }
         }
       }
 

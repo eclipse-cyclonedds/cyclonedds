@@ -228,6 +228,7 @@ static dds_return_t ddsi_raweth_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tr
   uc->m_base.m_read_fn = ddsi_raweth_conn_read;
   uc->m_base.m_write_fn = ddsi_raweth_conn_write;
   uc->m_base.m_disable_multiplexing_fn = 0;
+  ddsrt_event_socket_init(&uc->m_base.m_event, ddsi_conn_handle(&uc->m_base), DDSRT_EVENT_FLAG_READ);
 
   DDS_CTRACE (&fact->gv->logconfig, "ddsi_raweth_create_conn %s socket %d port %u\n", mcast ? "multicast" : "unicast", uc->m_sock, uc->m_base.m_base.m_port);
   *conn_out = &uc->m_base;
