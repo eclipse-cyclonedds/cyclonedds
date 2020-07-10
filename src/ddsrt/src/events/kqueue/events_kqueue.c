@@ -61,6 +61,7 @@ struct ddsrt_event_queue
   struct kevent*          kevents;  /**< array which kevent uses to write back to, has identical size as this->events*/
   ddsrt_mutex_t           lock;     /**< for keeping adds/deletes from occurring simultaneously */
   int                     interrupt[2]; /**< pipe for interrupting waits*/
+  int                     modified; /**< whether the events administered has been modified since the previous call to wait*/
 };
 
 /**
@@ -86,6 +87,7 @@ dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
   queue->ievents = 0;
   queue->nnewevents = 0;
   queue->cnewevents = EVENTS_CONTAINER_DELTA;
+  queue->modified = 0;
 
   /*create kevents array*/
   queue->kevents = ddsrt_malloc(sizeof(struct kevent) * queue->cevents);
@@ -178,48 +180,52 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 
   ddsrt_mutex_lock(&queue->lock);
 
-  /*remove deregistered events*/
   size_t i = 0;
-  while (i < queue->nevents)
+  if (0 != queue->modified)
   {
-    queued_event_t* qe = &(queue->events[i]);
-    if (EVENT_STATUS_DEREGISTERED == qe->status)
+    /*remove deregistered events*/
+    while (i < queue->nevents)
     {
-      /*remove the deregistered event*/
-      qe->internal.flags = EV_DELETE;
-      assert(kevent(queue->kq, &qe->internal, 1, NULL, 0, NULL) != -1);
-      *qe = queue->events[--queue->nevents];
+      queued_event_t* qe = &(queue->events[i]);
+      if (EVENT_STATUS_DEREGISTERED == qe->status)
+      {
+        /*remove the deregistered event*/
+        qe->internal.flags = EV_DELETE;
+        assert(kevent(queue->kq, &qe->internal, 1, NULL, 0, NULL) != -1);
+        *qe = queue->events[--queue->nevents];
+      }
+      else
+      {
+        i++;
+      }
     }
-    else
+
+    /*resize queue->events & queue->kevents*/
+    if (queue->cevents < queue->nevents + queue->nnewevents)
     {
-      i++;
+      queue->cevents = queue->nevents + queue->nnewevents + EVENTS_CONTAINER_DELTA;
+      queue->events = ddsrt_realloc(queue->events, sizeof(queued_event_t) * queue->cevents);
+      queue->kevents = ddsrt_realloc(queue->kevents, sizeof(struct kevent) * queue->cevents);
     }
-  }
 
-  /*resize queue->events & queue->kevents*/
-  if (queue->cevents < queue->nevents + queue->nnewevents)
-  {
-    queue->cevents = queue->nevents + queue->nnewevents + EVENTS_CONTAINER_DELTA;
-    queue->events = ddsrt_realloc(queue->events, sizeof(queued_event_t) * queue->cevents);
-    queue->kevents = ddsrt_realloc(queue->kevents, sizeof(struct kevent) * queue->cevents);
-  }
+    /*move new events into queue->events*/
+    for (i = 0; i < queue->nnewevents; i++)
+      queue->events[queue->nevents++] = queue->newevents[i];
+    queue->ievents = queue->nevents;
+    queue->nnewevents = 0;
 
-  /*move new events into queue->events*/
-  for (i = 0; i < queue->nnewevents; i++)
-    queue->events[queue->nevents++] = queue->newevents[i];
-  queue->ievents = queue->nevents;
-  queue->nnewevents = 0;
-
-  /*register/modify events to kevent*/
-  for (i = 0; i < queue->nevents; i++)
-  {
-    queued_event_t* qe = &(queue->events[i]);
-    if (EVENT_STATUS_REGISTERED == qe->status &&
+    /*register/modify events to kevent*/
+    for (i = 0; i < queue->nevents; i++)
+    {
+      queued_event_t* qe = &(queue->events[i]);
+      if (EVENT_STATUS_REGISTERED == qe->status &&
         qe == qe->internal.udata)
-      continue;
-    qe->status = EVENT_STATUS_REGISTERED;
-    qe->internal.udata = qe;
-    assert(kevent(queue->kq, &qe->internal, 1, NULL, 0, NULL) != -1);
+        continue;
+      qe->status = EVENT_STATUS_REGISTERED;
+      qe->internal.udata = qe;
+      assert(kevent(queue->kq, &qe->internal, 1, NULL, 0, NULL) != -1);
+    }
+    queue->modified = 0;
   }
 
   /*unset triggered status*/
@@ -297,6 +303,7 @@ int ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
   qe->status = EVENT_STATUS_UNREGISTERED;
   qe->external = evt;
   EV_SET(&qe->internal, evt->data.socket.sock, EVFILT_READ, EV_ADD, 0, 0, 0);
+  queue->modified = 1;
   ddsrt_mutex_unlock(&queue->lock);
   return 1;
 }
@@ -335,6 +342,7 @@ void ddsrt_event_queue_trim(ddsrt_event_queue_t* queue, size_t entries)
   {
     queue->nevents = entries;
   }
+  queue->modified = 1;
 
   ddsrt_mutex_unlock(&queue->lock);
 }
@@ -361,6 +369,7 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
     {
       qe->status = EVENT_STATUS_DEREGISTERED;
       ret = DDS_RETCODE_OK;
+      queue->modified = 1;
       break;
     }
   }
@@ -372,6 +381,7 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
     {
       queue->newevents[i] = queue->newevents[--queue->nnewevents];
       ret = DDS_RETCODE_OK;
+      queue->modified = 1;
       break;
     }
   }
