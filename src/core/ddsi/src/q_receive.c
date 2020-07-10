@@ -3240,18 +3240,13 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         {
           if (0x0 == (ddsrt_atomic_ld32(&evt->triggered) & DDSRT_EVENT_FLAG_READ) ||
               DDSRT_EVENT_TYPE_SOCKET != evt->type) continue;
-          uintptr_t tmp = (uintptr_t)evt - offsetof(struct ddsi_tran_conn, m_event);
-          conn = (ddsi_tran_conn_t)tmp;
+          conn = ddsi_conn_from_event(evt);
           const ddsi_guid_prefix_t *guid_prefix;
+
           if (gv->config.many_sockets_mode != MSM_MANY_UNICAST)
-          {
             guid_prefix = NULL;
-          }
           else
-          {
-            tmp = tmp - offsetof(struct local_participant_desc, m_conn) + offsetof(struct local_participant_desc, guid_prefix);
-            guid_prefix = (ddsi_guid_prefix_t*)tmp;
-          }
+            guid_prefix = (ddsi_guid_prefix_t*)((uintptr_t)conn - offsetof(struct local_participant_desc, m_conn) + offsetof(struct local_participant_desc, guid_prefix));
           /* Process message and clean out connection if failed or closed */
           if (!do_packet (ts1, gv, conn, guid_prefix, rbpool) && !conn->m_connless)
             ddsi_conn_free (conn);
