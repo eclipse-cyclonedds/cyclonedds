@@ -298,7 +298,7 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
   return ret;
 }
 
-ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue)
+ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue, size_t* idx)
 {
   ddsrt_event_t* ptr = NULL;
   ddsrt_mutex_lock(&queue->lock);
@@ -307,6 +307,7 @@ ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue)
     ddsrt_event_t* evt = queue->events[queue->ievents++];
     if (DDSRT_EVENT_FLAG_UNSET != ddsrt_atomic_ld32(&evt->triggered))
     {
+      *idx = queue->ievents-1;
       ptr = evt;
       break;
     }

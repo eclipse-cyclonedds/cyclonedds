@@ -190,7 +190,7 @@ extern "C" {
   *
   * @returns Pointer to the event which has a trigger flag set, NULL if none of the stored events has this flag set.
   */
-  DDS_EXPORT ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
+  DDS_EXPORT ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue, size_t* idx) ddsrt_nonnull_all;
 
 #if defined (__cplusplus)
 }

@@ -3186,7 +3186,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
   else
   {
     struct local_participant_set lps;
-    unsigned num_fixed = 0, num_fixed_uc = 0;
+    size_t num_fixed = 0, num_fixed_uc = 0;
     local_participant_set_init (&lps, &gv->participant_set_generation);
     if (gv->m_factory->m_connless)
     {
@@ -3234,16 +3234,15 @@ uint32_t recv_thread (void *vrecv_thread_arg)
 
       if (DDS_RETCODE_OK == ddsrt_event_queue_wait (waitset,DDS_INFINITY))
       {
-        ddsi_tran_conn_t conn;
         ddsrt_event_t* evt;
-        while ((evt = ddsrt_event_queue_next (waitset)) != NULL)
+        size_t idx;
+        while ((evt = ddsrt_event_queue_next (waitset, &idx)) != NULL)
         {
           if (0x0 == (ddsrt_atomic_ld32(&evt->triggered) & DDSRT_EVENT_FLAG_READ) ||
               DDSRT_EVENT_TYPE_SOCKET != evt->type) continue;
-          conn = ddsi_conn_from_event(evt);
+          ddsi_tran_conn_t conn = ddsi_conn_from_event(evt);
           const ddsi_guid_prefix_t *guid_prefix;
-
-          if (gv->config.many_sockets_mode != MSM_MANY_UNICAST)
+          if (idx < num_fixed || gv->config.many_sockets_mode != MSM_MANY_UNICAST)
             guid_prefix = NULL;
           else
             guid_prefix = (ddsi_guid_prefix_t*)((uintptr_t)conn - offsetof(struct local_participant_desc, m_conn) + offsetof(struct local_participant_desc, guid_prefix));
