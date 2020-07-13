@@ -237,9 +237,9 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     ddsrt_atomic_st32(&(queue->events[i].external->triggered), DDSRT_EVENT_FLAG_UNSET);
   ddsrt_mutex_unlock(&queue->lock);
 
+  assert(DDS_DURATION_INVALID != reltime);
   struct timespec tmout, *ptmout = NULL;
-  if (DDS_INFINITY != reltime &&
-      DDS_DURATION_INVALID != reltime)
+  if (DDS_INFINITY != reltime)
   {
     tmout.tv_sec = reltime / DDS_NSECS_IN_SEC;
     tmout.tv_nsec = reltime % DDS_NSECS_IN_SEC;

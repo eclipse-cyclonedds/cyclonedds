@@ -190,6 +190,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   ddsrt_mutex_unlock(&queue->lock);
 
   /*start wait*/
+  assert(DDS_DURATION_INVALID != reltime);
   int ready = -1;
   dds_return_t retval = ddsrt_select(maxfd + 1, rfds, NULL, NULL, reltime, &ready);
 
