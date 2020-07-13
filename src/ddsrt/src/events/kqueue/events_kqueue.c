@@ -25,6 +25,8 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/log.h"
 
+#define _unused(x) ((void)(x))
+
 #define EVENTS_CONTAINER_DELTA 8
 
 typedef enum event_status {
@@ -198,6 +200,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
           qe->internal.flags = EV_DELETE;
           int result = kevent(queue->kq, &qe->internal, 1, NULL, 0, NULL);
           assert(result != -1);
+          _unused(result);
           *qe = queue->events[--queue->nevents];
         }
       }
@@ -232,6 +235,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
       qe->internal.udata = qe;
       int result = kevent(queue->kq, &qe->internal, 1, NULL, 0, NULL);
       assert(result != -1);
+      _unused(result);
     }
     queue->modified = 0;
   }
