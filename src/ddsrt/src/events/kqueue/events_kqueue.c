@@ -191,7 +191,8 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
       {
         /*remove the deregistered event*/
         qe->internal.flags = EV_DELETE;
-        assert(kevent(queue->kq, &qe->internal, 1, NULL, 0, NULL) != -1);
+        int result = kevent(queue->kq, &qe->internal, 1, NULL, 0, NULL);
+        assert(result != -1);
         *qe = queue->events[--queue->nevents];
       }
       else
@@ -223,7 +224,8 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
         continue;
       qe->status = EVENT_STATUS_REGISTERED;
       qe->internal.udata = qe;
-      assert(kevent(queue->kq, &qe->internal, 1, NULL, 0, NULL) != -1);
+      int result = kevent(queue->kq, &qe->internal, 1, NULL, 0, NULL);
+      assert(result != -1);
     }
     queue->modified = 0;
   }
