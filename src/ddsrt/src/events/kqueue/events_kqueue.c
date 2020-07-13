@@ -37,6 +37,7 @@ struct queued_event {
   ddsrt_event_t *external;
   struct kevent internal;
   event_status_t status;
+  ddsrt_event_type_t evt_type;
 };
 
 typedef struct queued_event queued_event_t;
@@ -192,10 +193,13 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
       if (EVENT_STATUS_DEREGISTERED == qe->status)
       {
         /*remove the deregistered event*/
-        qe->internal.flags = EV_DELETE;
-        int result = kevent(queue->kq, &qe->internal, 1, NULL, 0, NULL);
-        assert(result != -1);
-        *qe = queue->events[--queue->nevents];
+        if (DDSRT_EVENT_TYPE_SOCKET == qe->evt_type)
+        {
+          qe->internal.flags = EV_DELETE;
+          int result = kevent(queue->kq, &qe->internal, 1, NULL, 0, NULL);
+          assert(result != -1);
+          *qe = queue->events[--queue->nevents];
+        }
       }
       else
       {
@@ -221,8 +225,8 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     for (i = 0; i < queue->nevents; i++)
     {
       queued_event_t* qe = &(queue->events[i]);
-      if (EVENT_STATUS_REGISTERED == qe->status &&
-        qe == qe->internal.udata)
+      if ((DDSRT_EVENT_TYPE_SOCKET != qe->evt_type) ||
+          (EVENT_STATUS_REGISTERED == qe->status && qe == qe->internal.udata))
         continue;
       qe->status = EVENT_STATUS_REGISTERED;
       qe->internal.udata = qe;
@@ -307,7 +311,9 @@ int ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
   queued_event_t* qe = &(queue->newevents[queue->nnewevents++]);
   qe->status = EVENT_STATUS_UNREGISTERED;
   qe->external = evt;
-  EV_SET(&qe->internal, evt->u.socket.sock, EVFILT_READ, EV_ADD, 0, 0, 0);
+  qe->evt_type = evt->type;
+  if (DDSRT_EVENT_TYPE_SOCKET == qe->evt_type)
+    EV_SET(&qe->internal, evt->u.socket.sock, EVFILT_READ, EV_ADD, 0, 0, 0);
   queue->modified = 1;
   ddsrt_mutex_unlock(&queue->lock);
   return 1;
