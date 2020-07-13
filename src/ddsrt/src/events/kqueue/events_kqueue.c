@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #include "dds/ddsrt/events/kqueue.h"
 #include "dds/ddsrt/events.h"
@@ -109,7 +110,8 @@ dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
   else if (-1 == pipe(queue->interrupt))
     goto pipe0_fail;
   else if (-1 == fcntl(queue->interrupt[0], F_SETFD, fcntl(queue->interrupt[0], F_GETFD) | FD_CLOEXEC) ||
-           -1 == fcntl(queue->interrupt[1], F_SETFD, fcntl(queue->interrupt[1], F_GETFD) | FD_CLOEXEC))
+           -1 == fcntl(queue->interrupt[1], F_SETFD, fcntl(queue->interrupt[1], F_GETFD) | FD_CLOEXEC) ||
+           0 > fcntl(queue->interrupt[0], F_SETFL, O_NONBLOCK))
     goto pipe1_fail;
 
   /*register interrupt event*/
@@ -262,7 +264,8 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     else
     {
       char buf = 0x0;
-      if (1 != read(queue->interrupt[0], &buf, 1))
+      int n = (int)read(queue->interrupt[0], &buf, 1);
+      if (1 != n && !(-1 == n && EAGAIN == errno))
       {
         ret = DDS_RETCODE_ERROR;
         DDS_WARNING("ddsrt_event_queue: read failed on trigger pipe\n");

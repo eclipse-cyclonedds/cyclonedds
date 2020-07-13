@@ -12,6 +12,8 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include "dds/ddsrt/events/posix.h"
 #include "dds/ddsrt/events.h"
@@ -81,7 +83,10 @@ dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
       listen(listener, 1) == -1 ||
       connect(queue->interrupt[0], (struct sockaddr*)&addr, sizeof(addr)) == -1 ||
       (queue->interrupt[1] = accept(listener, 0, 0)) == -1)
-    goto pipe_cleanup;
+    goto pipe_cleanup_windows;
+  u_long iMode = 1;
+  if (ioctlsocket(queue->interrupt[0], FIONBIO, &iMode) != NO_ERROR)
+    goto pipe_cleanup_windows;
   closesocket(listener);
   SetHandleInformation((HANDLE)queue->interrupt[0], HANDLE_FLAG_INHERIT, 0);
   SetHandleInformation((HANDLE)queue->interrupt[1], HANDLE_FLAG_INHERIT, 0);
@@ -89,18 +94,25 @@ dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
   /*simple linux type pipe*/
   if (pipe(queue->interrupt) == -1)
     goto alloc_cleanup;
+  if (fcntl(queue->interrupt[0], F_SETFL, O_NONBLOCK) < 0)
+    goto pipe_cleanup_posix;
 #endif /* _WIN32 || !LWIP_SOCKET*/
   ddsrt_mutex_init(&queue->lock);
   return DDS_RETCODE_OK;
 
 #if defined(_WIN32)
-pipe_cleanup:
+pipe_cleanup_windows:
   closesocket(listener);
   closesocket(queue->interrupt[0]);
   closesocket(queue->interrupt[1]);
 #elif !defined(LWIP_SOCKET)
+pipe_cleanup_posix:
+  close(queue->interrupt[0]);
+  close(queue->interrupt[1]);
 alloc_cleanup:
 #endif /* _WIN32 || !LWIP_SOCKET*/
+  queue->interrupt[0] = -1;
+  queue->interrupt[1] = -1;
   ddsrt_free(queue->events);
   return DDS_RETCODE_ERROR;
 }
@@ -193,8 +205,12 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
       int n = 0;
 #if defined(_WIN32)
       n = recv(queue->interrupt[0], &buf, 1, 0);
+      if (SOCKET_ERROR == n && WSAGetLastError() == WSAEWOULDBLOCK)
+        n = 1;
 #else
       n = (int)read(queue->interrupt[0], &buf, 1);
+      if (-1 == n && EAGAIN == errno)
+        n = 1;
 #endif  /* _WIN32 */
       if (n != 1)
       {
