@@ -160,7 +160,7 @@ CU_Test(ddsrt_event, event_create)
   CU_ASSERT_EQUAL(evt.flags, DDSRT_EVENT_FLAG_READ);
   CU_ASSERT_EQUAL(ddsrt_atomic_ld32(&evt.triggered), DDSRT_EVENT_FLAG_UNSET);
   CU_ASSERT_EQUAL(evt.type, DDSRT_EVENT_TYPE_SOCKET);
-  CU_ASSERT_EQUAL(evt.data.socket.sock, sock);
+  CU_ASSERT_EQUAL(evt.u.socket.sock, sock);
 
   CU_PASS("event_create");
 }

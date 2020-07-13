@@ -302,7 +302,7 @@ int ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
   queued_event_t* qe = &(queue->newevents[queue->nnewevents++]);
   qe->status = EVENT_STATUS_UNREGISTERED;
   qe->external = evt;
-  EV_SET(&qe->internal, evt->data.socket.sock, EVFILT_READ, EV_ADD, 0, 0, 0);
+  EV_SET(&qe->internal, evt->u.socket.sock, EVFILT_READ, EV_ADD, 0, 0, 0);
   queue->modified = 1;
   ddsrt_mutex_unlock(&queue->lock);
   return 1;

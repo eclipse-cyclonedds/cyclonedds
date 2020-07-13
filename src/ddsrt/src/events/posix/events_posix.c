@@ -167,7 +167,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     if (evt->type != DDSRT_EVENT_TYPE_SOCKET)
       continue;
 
-    ddsrt_socket_t s = evt->data.socket.sock;
+    ddsrt_socket_t s = evt->u.socket.sock;
     if (evt->flags & DDSRT_EVENT_FLAG_READ)
     {
       FD_SET(s, rfds);
@@ -213,7 +213,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
       if (evt->type != DDSRT_EVENT_TYPE_SOCKET)
         continue;
 
-      ddsrt_socket_t s = evt->data.socket.sock;
+      ddsrt_socket_t s = evt->u.socket.sock;
       if (FD_ISSET(s, rfds))
         ddsrt_atomic_st32(&evt->triggered, DDSRT_EVENT_FLAG_READ);
     }
