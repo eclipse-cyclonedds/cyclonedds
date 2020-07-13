@@ -147,7 +147,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 {
   /*reset triggered status*/
   ddsrt_mutex_lock(&queue->lock);
-  queue->ievents = INT64_MAX;
+  queue->ievents = SIZE_MAX;
   for (size_t i = 0; i < queue->nevents; i++)
     ddsrt_atomic_st32(&queue->events[i]->triggered, DDSRT_EVENT_FLAG_UNSET);
 
@@ -282,7 +282,7 @@ void ddsrt_event_queue_filter(ddsrt_event_queue_t* queue, uint32_t include)
     if (((*qe)->flags & include) == 0x0)
       *qe = queue->events[--queue->nevents];
   }
-  queue->ievents = INT64_MAX;
+  queue->ievents = SIZE_MAX;
 
   ddsrt_mutex_unlock(&queue->lock);
 }
@@ -296,7 +296,7 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
     if (queue->events[i] == evt)
     {
       queue->events[i] = queue->events[--queue->nevents];
-      queue->ievents = INT64_MAX;
+      queue->ievents = SIZE_MAX;
       ret = DDS_RETCODE_OK;
       break;
     }

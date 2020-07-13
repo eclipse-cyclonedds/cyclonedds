@@ -211,7 +211,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
     /*move new events into queue->events*/
     for (i = 0; i < queue->nnewevents; i++)
       queue->events[queue->nevents++] = queue->newevents[i];
-    queue->ievents = INT64_MAX;
+    queue->ievents = SIZE_MAX;
     queue->nnewevents = 0;
 
     /*register/modify events to kevent*/
@@ -329,7 +329,7 @@ void ddsrt_event_queue_filter(ddsrt_event_queue_t* queue, uint32_t include)
     else
       qe->status = EVENT_STATUS_UNREGISTERED;
   }
-  queue->ievents = INT64_MAX;
+  queue->ievents = SIZE_MAX;
 
   i = 0;
   while (i < queue->nnewevents)
@@ -366,6 +366,7 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
       qe->status = EVENT_STATUS_DEREGISTERED;
       ret = DDS_RETCODE_OK;
       queue->modified = 1;
+      queue->ievents = SIZE_MAX;
       break;
     }
   }
@@ -378,6 +379,7 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
       queue->newevents[i] = queue->newevents[--queue->nnewevents];
       ret = DDS_RETCODE_OK;
       queue->modified = 1;
+      queue->ievents = SIZE_MAX;
       break;
     }
   }
