@@ -47,6 +47,18 @@ extern "C" {
 //#define DDSRT_EVENT_FLAG_TIMEOUT (1u<<4)
   /**< notification of ip address change on the resource*/
 //#define DDSRT_EVENT_FLAG_IP_CHANGE (1u<<5)  
+  /**< user custom flag 0*/
+#define DDSRT_EVENT_FLAG_USER_0 (1u<<31) 
+  /**< user custom flag 1*/
+#define DDSRT_EVENT_FLAG_USER_1 (1u<<30) 
+  /**< user custom flag 2*/
+#define DDSRT_EVENT_FLAG_USER_2 (1u<<29) 
+  /**< user custom flag 3*/
+#define DDSRT_EVENT_FLAG_USER_3 (1u<<28) 
+  /**< user custom flag 4*/
+#define DDSRT_EVENT_FLAG_USER_4 (1u<<27) 
+  /**< user custom flag 5*/
+#define DDSRT_EVENT_FLAG_USER_5 (1u<<26) 
 ///@}
 
   /**
@@ -157,12 +169,14 @@ extern "C" {
   DDS_EXPORT int ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt) ddsrt_nonnull_all;
 
   /**
-  * @brief Trims the queue to a maximum size.
+  * @brief Filters events from the queue.
   *
-  * @param[in,out] queue The queue to trim to size.
-  * @param[in] entries The maximum size the queue will be trimmed to.
+  * Will remove all events from the queue which do not have one of the bits of include set in flags.
+  *
+  * @param[in,out] queue The queue to filter for events.
+  * @param[in] include Events with one or more the flag bits set to this will remain in the queue.
   */
-  DDS_EXPORT void ddsrt_event_queue_trim(ddsrt_event_queue_t* queue, size_t entries) ddsrt_nonnull((1));
+  DDS_EXPORT void ddsrt_event_queue_filter(ddsrt_event_queue_t* queue, uint32_t include) ddsrt_nonnull((1));
 
   /**
   * @brief Removes an event from the queue.
@@ -190,7 +204,7 @@ extern "C" {
   *
   * @returns Pointer to the event which has a trigger flag set, NULL if none of the stored events has this flag set.
   */
-  DDS_EXPORT ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue, size_t* idx) ddsrt_nonnull_all;
+  DDS_EXPORT ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
 
 #if defined (__cplusplus)
 }

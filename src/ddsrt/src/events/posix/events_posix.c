@@ -147,7 +147,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 {
   /*reset triggered status*/
   ddsrt_mutex_lock(&queue->lock);
-  queue->ievents = 0;
+  queue->ievents = INT64_MAX;
   for (size_t i = 0; i < queue->nevents; i++)
     ddsrt_atomic_st32(&queue->events[i]->triggered, DDSRT_EVENT_FLAG_UNSET);
 
@@ -206,6 +206,7 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
 
     /*check queue->rfds for set items*/
     ddsrt_mutex_lock(&queue->lock);
+    queue->ievents = 0;
     for (size_t i = 0; i < queue->nevents; i++)
     {
       ddsrt_event_t *evt = queue->events[i];
@@ -270,11 +271,19 @@ int ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
   return 1;
 }
 
-void ddsrt_event_queue_trim(ddsrt_event_queue_t* queue, size_t entries)
+void ddsrt_event_queue_filter(ddsrt_event_queue_t* queue, uint32_t include)
 {
   ddsrt_mutex_lock(&queue->lock);
-  if (entries < queue->nevents)
-    queue->nevents = entries;
+
+  size_t i = 0;
+  while (i < queue->nevents)
+  {
+    ddsrt_event_t** qe = queue->events + i++;
+    if (((*qe)->flags & include) == 0x0)
+      *qe = queue->events[--queue->nevents];
+  }
+  queue->ievents = INT64_MAX;
+
   ddsrt_mutex_unlock(&queue->lock);
 }
 
@@ -286,11 +295,9 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
   {
     if (queue->events[i] == evt)
     {
-      memmove(queue->events + i, queue->events + i + 1, (queue->nevents - i - 1)*sizeof(ddsrt_event_t*));
-      if (queue->ievents > i)
-        queue->ievents--;
+      queue->events[i] = queue->events[--queue->nevents];
+      queue->ievents = INT64_MAX;
       ret = DDS_RETCODE_OK;
-      queue->nevents--;
       break;
     }
   }
@@ -298,7 +305,7 @@ dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t*
   return ret;
 }
 
-ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue, size_t* idx)
+ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue)
 {
   ddsrt_event_t* ptr = NULL;
   ddsrt_mutex_lock(&queue->lock);
@@ -307,7 +314,6 @@ ddsrt_event_t* ddsrt_event_queue_next(ddsrt_event_queue_t* queue, size_t* idx)
     ddsrt_event_t* evt = queue->events[queue->ievents++];
     if (DDSRT_EVENT_FLAG_UNSET != ddsrt_atomic_ld32(&evt->triggered))
     {
-      *idx = queue->ievents-1;
       ptr = evt;
       break;
     }

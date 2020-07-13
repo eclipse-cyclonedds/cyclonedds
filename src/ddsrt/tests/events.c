@@ -256,8 +256,7 @@ static void test_write(ddsrt_event_queue_t* q, ddsrt_socket_t* p, ddsrt_event_t*
   printf("finished wait\n");
 
   /*check for triggered event on p*/
-  size_t idx;
-  ddsrt_event_t* evtout = ddsrt_event_queue_next(q,&idx);
+  ddsrt_event_t* evtout = ddsrt_event_queue_next(q);
   printf("event returned: %p, to check: %p\n",evtout,evt);
   CU_ASSERT_PTR_EQUAL_FATAL(evtout, evt);
   if (NULL != evtout)
@@ -354,8 +353,7 @@ CU_Test(ddsrt_event, queue_signal)
   }
 
   /*check for triggered event on socket*/
-  size_t idx;
-  ddsrt_event_t* evtout = ddsrt_event_queue_next(q,&idx);
+  ddsrt_event_t* evtout = ddsrt_event_queue_next(q);
   CU_ASSERT_PTR_EQUAL_FATAL(evtout, NULL);
 
   /*read data from p*/

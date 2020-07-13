@@ -3132,6 +3132,7 @@ static int recv_thread_waitset_add_conn (ddsrt_event_queue_t *eq, ddsi_tran_conn
     for (uint32_t i = 0; i < gv->n_recv_threads; i++)
       if (gv->recv_threads[i].arg.mode == RTM_SINGLE && gv->recv_threads[i].arg.u.single.conn == conn)
         return 0;
+    conn->m_event.flags |= DDSRT_EVENT_FLAG_USER_0;
     return ddsrt_event_queue_add(eq, &conn->m_event);
   }
 }
@@ -3186,24 +3187,17 @@ uint32_t recv_thread (void *vrecv_thread_arg)
   else
   {
     struct local_participant_set lps;
-    size_t num_fixed = 0, num_fixed_uc = 0;
     local_participant_set_init (&lps, &gv->participant_set_generation);
     if (gv->m_factory->m_connless)
     {
-      int rc;
-      if ((rc = recv_thread_waitset_add_conn (waitset, gv->disc_conn_uc)) < 0)
+      if (recv_thread_waitset_add_conn (waitset, gv->disc_conn_uc) < 0)
         DDS_FATAL("recv_thread: failed to add disc_conn_uc to waitset\n");
-      num_fixed_uc += (unsigned)rc;
-      if ((rc = recv_thread_waitset_add_conn (waitset, gv->data_conn_uc)) < 0)
+      if (recv_thread_waitset_add_conn (waitset, gv->data_conn_uc) < 0)
         DDS_FATAL("recv_thread: failed to add data_conn_uc to waitset\n");
-      num_fixed_uc += (unsigned)rc;
-      num_fixed += num_fixed_uc;
-      if ((rc = recv_thread_waitset_add_conn (waitset, gv->disc_conn_mc)) < 0)
+      if (recv_thread_waitset_add_conn (waitset, gv->disc_conn_mc) < 0)
         DDS_FATAL("recv_thread: failed to add disc_conn_mc to waitset\n");
-      num_fixed += (unsigned)rc;
-      if ((rc = recv_thread_waitset_add_conn (waitset, gv->data_conn_mc)) < 0)
+      if (recv_thread_waitset_add_conn (waitset, gv->data_conn_mc) < 0)
         DDS_FATAL("recv_thread: failed to add data_conn_mc to waitset\n");
-      num_fixed += (unsigned)rc;
     }
 
     while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing))
@@ -3224,7 +3218,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         /* first rebuild local participant set - unless someone's toggling "deafness", this
          only happens when the participant set has changed, so might as well rebuild it */
         rebuild_local_participant_set (ts1, gv, &lps);
-        ddsrt_event_queue_trim (waitset, num_fixed);
+        ddsrt_event_queue_filter (waitset, DDSRT_EVENT_FLAG_USER_0);
         for (uint32_t i = 0; i < lps.nps; i++)
         {
           if (lps.ps[i].m_conn)
@@ -3235,14 +3229,13 @@ uint32_t recv_thread (void *vrecv_thread_arg)
       if (DDS_RETCODE_OK == ddsrt_event_queue_wait (waitset,DDS_INFINITY))
       {
         ddsrt_event_t* evt;
-        size_t idx;
-        while ((evt = ddsrt_event_queue_next (waitset, &idx)) != NULL)
+        while ((evt = ddsrt_event_queue_next (waitset)) != NULL)
         {
           if (0x0 == (ddsrt_atomic_ld32(&evt->triggered) & DDSRT_EVENT_FLAG_READ) ||
               DDSRT_EVENT_TYPE_SOCKET != evt->type) continue;
           ddsi_tran_conn_t conn = ddsi_conn_from_event(evt);
           const ddsi_guid_prefix_t *guid_prefix;
-          if (idx < num_fixed || gv->config.many_sockets_mode != MSM_MANY_UNICAST)
+          if (evt->flags & DDSRT_EVENT_FLAG_USER_0 || gv->config.many_sockets_mode != MSM_MANY_UNICAST)
             guid_prefix = NULL;
           else
             guid_prefix = (ddsi_guid_prefix_t*)((uintptr_t)conn - offsetof(struct local_participant_desc, m_conn) + offsetof(struct local_participant_desc, guid_prefix));
