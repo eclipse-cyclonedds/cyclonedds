@@ -2979,18 +2979,10 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
   return (sz > 0);
 }
 
-struct local_participant_desc
-{
-  ddsi_tran_conn_t m_conn;
-  ddsi_guid_prefix_t guid_prefix;
-};
-
 static int local_participant_cmp (const void *va, const void *vb)
 {
-  const struct local_participant_desc *a = va;
-  const struct local_participant_desc *b = vb;
-  ddsrt_socket_t h1 = ddsi_conn_handle (a->m_conn);
-  ddsrt_socket_t h2 = ddsi_conn_handle (b->m_conn);
+  ddsrt_socket_t h1 = ddsi_conn_handle ((const ddsi_tran_conn_t)va);
+  ddsrt_socket_t h2 = ddsi_conn_handle ((const ddsi_tran_conn_t)vb);
   return (h1 == h2) ? 0 : (h1 < h2) ? -1 : 1;
 }
 
@@ -3020,7 +3012,7 @@ static size_t dedup_sorted_array (void *base, size_t nel, size_t width, int (*co
 }
 
 struct local_participant_set {
-  struct local_participant_desc *ps;
+  ddsi_tran_conn_t *ps;
   uint32_t nps;
   uint32_t gen;
 };
@@ -3068,8 +3060,8 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
     }
     else
     {
-      lps->ps[lps->nps].m_conn = pp->m_conn;
-      lps->ps[lps->nps].guid_prefix = pp->e.guid.prefix;
+      lps->ps[lps->nps] = pp->m_conn;
+      lps->ps[lps->nps]->m_guid_prefix = &(pp->e.guid.prefix);
       GVTRACE ("  pp "PGUIDFMT" handle %"PRIdSOCK"\n", PGUID (pp->e.guid), ddsi_conn_handle (pp->m_conn));
       lps->nps++;
     }
@@ -3122,19 +3114,17 @@ uint32_t listen_thread (struct ddsi_tran_listener *listener)
   return 0;
 }
 
-static int recv_thread_waitset_add_conn (ddsrt_event_queue_t *eq, ddsi_tran_conn_t conn)
+static void recv_thread_waitset_add_conn (ddsrt_event_queue_t *eq, ddsi_tran_conn_t conn)
 {
   if (conn == NULL)
-    return 0;
-  else
-  {
-    struct ddsi_domaingv *gv = conn->m_base.gv;
-    for (uint32_t i = 0; i < gv->n_recv_threads; i++)
-      if (gv->recv_threads[i].arg.mode == RTM_SINGLE && gv->recv_threads[i].arg.u.single.conn == conn)
-        return 0;
-    conn->m_event.flags |= DDSRT_EVENT_FLAG_USER_0;
-    return ddsrt_event_queue_add(eq, &conn->m_event);
-  }
+    return;
+  
+  struct ddsi_domaingv *gv = conn->m_base.gv;
+  for (uint32_t i = 0; i < gv->n_recv_threads; i++)
+    if (gv->recv_threads[i].arg.mode == RTM_SINGLE && gv->recv_threads[i].arg.u.single.conn == conn)
+      return;
+  conn->m_guid_prefix = NULL;
+  ddsrt_event_queue_add(eq, &conn->m_event);
 }
 
 void trigger_recv_threads (const struct ddsi_domaingv *gv)
@@ -3165,6 +3155,17 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
   }
 }
 
+static void register_uc_mc (struct ddsi_domaingv* gv, ddsrt_event_queue_t* eq)
+{
+  if (gv->m_factory->m_connless)
+  {
+    recv_thread_waitset_add_conn(eq, gv->disc_conn_uc);
+    recv_thread_waitset_add_conn(eq, gv->data_conn_uc);
+    recv_thread_waitset_add_conn(eq, gv->disc_conn_mc);
+    recv_thread_waitset_add_conn(eq, gv->data_conn_mc);
+  }
+}
+
 uint32_t recv_thread (void *vrecv_thread_arg)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
@@ -3188,17 +3189,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
   {
     struct local_participant_set lps;
     local_participant_set_init (&lps, &gv->participant_set_generation);
-    if (gv->m_factory->m_connless)
-    {
-      if (recv_thread_waitset_add_conn (waitset, gv->disc_conn_uc) < 0)
-        DDS_FATAL("recv_thread: failed to add disc_conn_uc to waitset\n");
-      if (recv_thread_waitset_add_conn (waitset, gv->data_conn_uc) < 0)
-        DDS_FATAL("recv_thread: failed to add data_conn_uc to waitset\n");
-      if (recv_thread_waitset_add_conn (waitset, gv->disc_conn_mc) < 0)
-        DDS_FATAL("recv_thread: failed to add disc_conn_mc to waitset\n");
-      if (recv_thread_waitset_add_conn (waitset, gv->data_conn_mc) < 0)
-        DDS_FATAL("recv_thread: failed to add data_conn_mc to waitset\n");
-    }
+    register_uc_mc (gv, waitset);
 
     while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing))
     {
@@ -3218,11 +3209,12 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         /* first rebuild local participant set - unless someone's toggling "deafness", this
          only happens when the participant set has changed, so might as well rebuild it */
         rebuild_local_participant_set (ts1, gv, &lps);
-        ddsrt_event_queue_filter (waitset, DDSRT_EVENT_FLAG_USER_0);
+        ddsrt_event_queue_clear(waitset);
+        register_uc_mc(gv, waitset);
         for (uint32_t i = 0; i < lps.nps; i++)
         {
-          if (lps.ps[i].m_conn)
-            ddsrt_event_queue_add (waitset, &lps.ps[i].m_conn->m_event);
+          if (lps.ps[i])
+            ddsrt_event_queue_add (waitset, &lps.ps[i]->m_event);
         }
       }
 
@@ -3232,15 +3224,11 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         while ((evt = ddsrt_event_queue_next (waitset)) != NULL)
         {
           if (0x0 == (ddsrt_atomic_ld32(&evt->triggered) & DDSRT_EVENT_FLAG_READ) ||
-              DDSRT_EVENT_TYPE_SOCKET != evt->type) continue;
+              DDSRT_EVENT_TYPE_SOCKET != evt->type)
+            continue;
           ddsi_tran_conn_t conn = ddsi_conn_from_event(evt);
-          const ddsi_guid_prefix_t *guid_prefix;
-          if (evt->flags & DDSRT_EVENT_FLAG_USER_0 || gv->config.many_sockets_mode != MSM_MANY_UNICAST)
-            guid_prefix = NULL;
-          else
-            guid_prefix = (ddsi_guid_prefix_t*)((uintptr_t)conn - offsetof(struct local_participant_desc, m_conn) + offsetof(struct local_participant_desc, guid_prefix));
           /* Process message and clean out connection if failed or closed */
-          if (!do_packet (ts1, gv, conn, guid_prefix, rbpool) && !conn->m_connless)
+          if (!do_packet (ts1, gv, conn, conn->m_guid_prefix, rbpool) && !conn->m_connless)
             ddsi_conn_free (conn);
         }
       }

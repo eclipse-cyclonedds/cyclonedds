@@ -91,6 +91,15 @@ extern "C" {
   typedef struct ddsrt_event ddsrt_event_t;
 
   typedef struct ddsrt_event_queue ddsrt_event_queue_t;
+
+  /**
+  * @brief Nulls an existing event.
+  *
+  * Sets the type to DDSRT_EVENT_TYPE_UNSET, the flags, triggered and all bytes of u to 0x0.
+  *
+  * @param[in,out] ev Pointer to the event to initialize.
+  */
+  DDS_EXPORT void ddsrt_event_socket_null(ddsrt_event_t* ev) ddsrt_nonnull_all;
   
   /**
   * @brief Initializes an existing event to indicate a socket.
@@ -177,6 +186,13 @@ extern "C" {
   * @param[in] include Events with one or more the flag bits set to this will remain in the queue.
   */
   DDS_EXPORT void ddsrt_event_queue_filter(ddsrt_event_queue_t* queue, uint32_t include) ddsrt_nonnull((1));
+
+  /**
+  * @brief Removes all registered events from the queue.
+  *
+  * @param[in,out] queue The queue to clear of events.
+  */
+  DDS_EXPORT void ddsrt_event_queue_clear(ddsrt_event_queue_t* queue) ddsrt_nonnull_all;
 
   /**
   * @brief Removes an event from the queue.

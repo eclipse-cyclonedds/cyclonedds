@@ -165,6 +165,8 @@ void ddsi_factory_conn_init (const struct ddsi_tran_factory *factory, ddsi_tran_
   conn->m_stream = factory->m_stream;
   conn->m_factory = (struct ddsi_tran_factory *) factory;
   conn->m_base.gv = factory->gv;
+  ddsrt_event_socket_null(&conn->m_event);
+  conn->m_guid_prefix = NULL;
 }
 
 void ddsi_conn_disable_multiplexing (ddsi_tran_conn_t conn)

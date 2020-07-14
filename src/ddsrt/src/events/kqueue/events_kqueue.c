@@ -358,6 +358,20 @@ void ddsrt_event_queue_filter(ddsrt_event_queue_t* queue, uint32_t include)
   ddsrt_mutex_unlock(&queue->lock);
 }
 
+void ddsrt_event_queue_clear(ddsrt_event_queue_t* queue)
+{
+  ddsrt_mutex_lock(&queue->lock);
+
+  for (size_t i = 0; i < queue->nevents; i++)
+    queue->events[i].status = EVENT_STATUS_DEREGISTERED;
+
+  queue->nnewevents = 0;
+  queue->ievents = SIZE_MAX;
+  queue->modified = 1;
+
+  ddsrt_mutex_unlock(&queue->lock);
+}
+
 dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
 {
   char buf = 0x0;

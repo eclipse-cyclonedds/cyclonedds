@@ -304,6 +304,16 @@ void ddsrt_event_queue_filter(ddsrt_event_queue_t* queue, uint32_t include)
   ddsrt_mutex_unlock(&queue->lock);
 }
 
+void ddsrt_event_queue_clear(ddsrt_event_queue_t* queue)
+{
+  ddsrt_mutex_lock(&queue->lock);
+
+  queue->nevents = 0;
+  queue->ievents = SIZE_MAX;
+
+  ddsrt_mutex_unlock(&queue->lock);
+}
+
 dds_return_t ddsrt_event_queue_remove(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
   dds_return_t ret = DDS_RETCODE_ALREADY_DELETED;
