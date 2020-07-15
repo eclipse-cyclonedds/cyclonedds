@@ -286,26 +286,9 @@ dds_return_t ddsrt_event_queue_wait(ddsrt_event_queue_t* queue, dds_duration_t r
   return ret;
 }
 
-int ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
+void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
   ddsrt_mutex_lock(&queue->lock);
-  for (size_t i = 0; i < queue->nevents; i++)
-  {
-    if (queue->events[i].external == evt)
-    {
-      ddsrt_mutex_unlock(&queue->lock);
-      return 0;
-    }
-  }
-
-  for (size_t i = 0; i < queue->nnewevents; i++)
-  {
-    if (queue->newevents[i].external == evt)
-    {
-      ddsrt_mutex_unlock(&queue->lock);
-      return 0;
-    }
-  }
 
   if (queue->nnewevents == queue->cnewevents)
   {
@@ -320,7 +303,6 @@ int ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
     EV_SET(&qe->internal, evt->u.socket.sock, EVFILT_READ, EV_ADD, 0, 0, 0);
   queue->modified = 1;
   ddsrt_mutex_unlock(&queue->lock);
-  return 1;
 }
 
 void ddsrt_event_queue_filter(ddsrt_event_queue_t* queue, uint32_t include)

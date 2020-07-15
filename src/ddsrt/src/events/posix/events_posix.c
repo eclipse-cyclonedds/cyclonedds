@@ -265,17 +265,9 @@ dds_return_t ddsrt_event_queue_signal(ddsrt_event_queue_t* queue)
   return DDS_RETCODE_OK;
 }
 
-int ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
+void ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
 {
   ddsrt_mutex_lock(&queue->lock);
-  for (size_t i = 0; i < queue->nevents; i++)
-  {
-    if (queue->events[i] == evt)
-    {
-      ddsrt_mutex_unlock(&queue->lock);
-      return 0;
-    }
-  }
 
   if (queue->nevents == queue->cevents)
   {
@@ -285,7 +277,6 @@ int ddsrt_event_queue_add(ddsrt_event_queue_t* queue, ddsrt_event_t* evt)
   
   queue->events[queue->nevents++] = evt;
   ddsrt_mutex_unlock(&queue->lock);
-  return 1;
 }
 
 void ddsrt_event_queue_filter(ddsrt_event_queue_t* queue, uint32_t include)

@@ -194,14 +194,9 @@ CU_Test(ddsrt_event, queue_add_remove_event)
   ddsrt_event_socket_init(&evt3, p3[0], flags);
 
   //adding events
-  CU_ASSERT_EQUAL(1, ddsrt_event_queue_add(q, &evt1));
-  CU_ASSERT_EQUAL(1, ddsrt_event_queue_add(q, &evt2));
-  CU_ASSERT_EQUAL(1, ddsrt_event_queue_add(q, &evt3));
-
-  //adding events which are already present in the queue
-  CU_ASSERT_EQUAL(0, ddsrt_event_queue_add(q, &evt1));
-  CU_ASSERT_EQUAL(0, ddsrt_event_queue_add(q, &evt2));
-  CU_ASSERT_EQUAL(0, ddsrt_event_queue_add(q, &evt3));
+  ddsrt_event_queue_add(q, &evt1);
+  ddsrt_event_queue_add(q, &evt2);
+  ddsrt_event_queue_add(q, &evt3);
 
   //removing events
   CU_ASSERT_EQUAL(DDS_RETCODE_OK, ddsrt_event_queue_remove(q, &evt3));
