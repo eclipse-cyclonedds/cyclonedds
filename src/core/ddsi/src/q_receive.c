@@ -3224,9 +3224,9 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         while ((evt = ddsrt_event_queue_next (waitset)) != NULL)
         {
           if (0x0 == (ddsrt_atomic_ld32(&evt->triggered) & DDSRT_EVENT_FLAG_READ) ||
-              DDSRT_EVENT_TYPE_SOCKET != evt->type)
+              DDSRT_EVENT_TYPE_SOCKET != evt->type || NULL == evt->parent)
             continue;
-          ddsi_tran_conn_t conn = ddsi_conn_from_event(evt);
+          ddsi_tran_conn_t conn = evt->parent;
           /* Process message and clean out connection if failed or closed */
           if (!do_packet (ts1, gv, conn, conn->m_guid_prefix, rbpool) && !conn->m_connless)
             ddsi_conn_free (conn);

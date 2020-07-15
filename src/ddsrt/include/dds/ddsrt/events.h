@@ -86,6 +86,7 @@ extern "C" {
       /*struct ddsrt_event_file file;  this is for future expansion to be able to register events on files*/
       /*struct ddsrt_event_ifaddr ifaddr; this is for future expansion to be able to register IP address changes*/
     } u; /**< Container for the object being watched.*/
+    void* parent; /**< Pointer to parent object, if any.*/
   };
 
   typedef struct ddsrt_event ddsrt_event_t;

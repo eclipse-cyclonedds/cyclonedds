@@ -924,6 +924,7 @@ static void ddsi_tcp_base_init (const struct ddsi_tran_factory_tcp *fact, struct
   base->m_disable_multiplexing_fn = 0;
   base->m_locator_fn = ddsi_tcp_locator;
   ddsrt_event_socket_init(&base->m_event, ddsi_conn_handle(base), DDSRT_EVENT_FLAG_READ);
+  base->m_event.parent = base;
 }
 
 static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, ddsrt_socket_t sock, bool server, struct sockaddr * peer)

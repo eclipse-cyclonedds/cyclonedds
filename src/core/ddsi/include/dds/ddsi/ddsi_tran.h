@@ -252,9 +252,6 @@ inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, 
 inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc) {
   return conn->m_closed ? -1 : conn->m_read_fn (conn, buf, len, allow_spurious, srcloc);
 }
-inline ddsi_tran_conn_t ddsi_conn_from_event (ddsrt_event_t *evt) {
-  return (ddsi_tran_conn_t)((uintptr_t)evt - offsetof(struct ddsi_tran_conn, m_event));
-}
 bool ddsi_conn_peer_locator (ddsi_tran_conn_t conn, nn_locator_t * loc);
 void ddsi_conn_disable_multiplexing (ddsi_tran_conn_t conn);
 void ddsi_conn_add_ref (ddsi_tran_conn_t conn);
