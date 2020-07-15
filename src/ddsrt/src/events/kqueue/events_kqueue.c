@@ -114,7 +114,7 @@ dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
     goto pipe0_fail;
   else if (-1 == fcntl(queue->interrupt[0], F_SETFD, fcntl(queue->interrupt[0], F_GETFD) | FD_CLOEXEC) ||
            -1 == fcntl(queue->interrupt[1], F_SETFD, fcntl(queue->interrupt[1], F_GETFD) | FD_CLOEXEC) ||
-           0 > fcntl(queue->interrupt[0], F_SETFL, O_NONBLOCK))
+           -1 == fcntl(queue->interrupt[0], F_SETFL, O_NONBLOCK))
     goto pipe1_fail;
 
   /*register interrupt event*/

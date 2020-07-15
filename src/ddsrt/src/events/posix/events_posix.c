@@ -94,7 +94,7 @@ dds_return_t ddsrt_event_queue_init(ddsrt_event_queue_t* queue)
   /*simple linux type pipe*/
   if (pipe(queue->interrupt) == -1)
     goto alloc_cleanup;
-  if (fcntl(queue->interrupt[0], F_SETFL, O_NONBLOCK) < 0)
+  if (-1 == fcntl(queue->interrupt[0], F_SETFL, O_NONBLOCK))
     goto pipe_cleanup_posix;
 #endif /* _WIN32 || !LWIP_SOCKET*/
   ddsrt_mutex_init(&queue->lock);
