@@ -1694,7 +1694,7 @@ static void dosetflags (struct oneliner_ctx *ctx)
   int ent;
   int tok;
   union oneliner_tokval flagstok;
-  if ((tok = nexttok (&ctx->l, NULL)) != '(')
+  if (nexttok (&ctx->l, NULL) != '(')
     error (ctx, "setflags: args required");
   if ((tok = nexttok (&ctx->l, &flagstok)) == TOK_NAME)
     tok = nexttok (&ctx->l, NULL);
