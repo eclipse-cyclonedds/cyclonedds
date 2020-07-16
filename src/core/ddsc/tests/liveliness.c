@@ -208,9 +208,9 @@ static void test_pmd_count(dds_liveliness_kind_t kind, uint32_t ldur, double mul
   /* End-start should be mult - 1 under ideal circumstances, but consider the test successful
 	   when at least 50% of the expected PMD's was sent. This checks that the frequency for sending
 	   PMDs was increased when the writer was added. */
-  CU_ASSERT_FATAL(end_seqno - start_seqno >= (kind == DDS_LIVELINESS_AUTOMATIC ? (50 * (mult - 1)) / 100 : 0))
+  CU_ASSERT_FATAL((double) (end_seqno - start_seqno) >= (kind == DDS_LIVELINESS_AUTOMATIC ? (50 * (mult - 1)) / 100 : 0))
   if (kind != DDS_LIVELINESS_AUTOMATIC)
-    CU_ASSERT_FATAL(get_pmd_seqno(g_pub_participant) - start_seqno < mult)
+    CU_ASSERT_FATAL((double) (get_pmd_seqno(g_pub_participant) - start_seqno) < mult)
 
   /* cleanup */
   if (remote_reader)
@@ -299,7 +299,7 @@ static void test_expire_liveliness_kinds(uint32_t ldur, double mult, uint32_t wr
     dds_delete_qos(wqos_man_tp);
 
     t = dds_time();
-    if (t - tstart > DDS_MSECS(0.5 * ldur))
+    if (t - tstart > DDS_MSECS(ldur) / 2)
     {
       ldur *= 10 / (run + 1);
       printf("%d.%06d failed to create writers in time\n",
@@ -784,7 +784,7 @@ static void test_assert_liveliness(uint32_t wr_cnt_auto, uint32_t wr_cnt_man_pp,
     for (size_t n = 0; n < wr_cnt_man_tp; n++)
       add_and_check_writer(DDS_LIVELINESS_MANUAL_BY_TOPIC, DDS_MSECS(ldur), &writers[wr_cnt++], pub_topic, reader, remote_reader);
     t = dds_time();
-    if (t - tstart > DDS_MSECS(0.5 * ldur))
+    if (t - tstart > DDS_MSECS(ldur) / 2)
     {
       ldur *= 10 / (run + 1);
       printf("%d.%06d failed to create writers with non-automatic liveliness kind in time\n",
