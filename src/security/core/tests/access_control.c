@@ -257,6 +257,13 @@ CU_Theory(
 }
 
 
+static dds_time_t ceiling_sec (dds_time_t t)
+{
+  const dds_time_t s = DDS_SECS (1);
+  const dds_time_t t1 = t + s-1;
+  return t1 - (t1 % s);
+}
+
 #define N_WR 3
 #define N_NODES (1 + N_WR)
 #define PERM_EXP_BASE 3
@@ -268,7 +275,8 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
   char topic_name[100];
   create_topic_name ("ddssec_access_control_", g_topic_nr++, topic_name, sizeof (topic_name));
 
-  dds_time_t t_perm = dds_time ();
+  const dds_time_t t_perm = dds_time ();
+  dds_time_t t_exp_wr[N_WR];
   char *ca = generate_ca ("ca1", TEST_IDENTITY_CA1_PRIVATE_KEY, 0, 3600);
   char *rules_xml = get_permissions_rules (NULL, topic_name, topic_name, NULL, NULL);
 
@@ -289,10 +297,14 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
     gov[i] = PF_F COMMON_ETC_PATH ("default_governance.p7s");
     perm_ca[i] = PF_F COMMON_ETC_PATH ("default_permissions_ca.pem");
     incl_el[i] = true;
-    dds_duration_t v = DDS_SECS(i == 0 ? 3600 : PERM_EXP_BASE + PERM_EXP_INCR * i); /* reader should not expire */
-    dds_time_t t_exp = ddsrt_time_add_duration (t_perm, v);
+    const dds_duration_t v = DDS_SECS(i == 0 ? 3600 : PERM_EXP_BASE + PERM_EXP_INCR * i); /* reader should not expire */
+    assert ((v % DDS_SECS(1)) == 0);
+    const dds_time_t t_exp = ddsrt_time_add_duration (ceiling_sec (t_perm), v);
     if (i >= 1)
+    {
       print_test_msg ("w[%d] grant expires at %d.%06d\n", i - 1, (int32_t) (t_exp / DDS_NSECS_IN_SEC), (int32_t) (t_exp % DDS_NSECS_IN_SEC) / 1000);
+      t_exp_wr[i - 1] = t_exp;
+    }
     grants[i] = get_permissions_grant (id_name, id_subj[i], t_perm, t_exp, rules_xml, NULL);
     ddsrt_free (id_name);
   }
@@ -332,8 +344,8 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
   }
   dds_delete_qos (wrqos);
 
-  // match deadline follows from expiration times
-  const dds_time_t sync_abstimeout = t_perm + DDS_SECS (PERM_EXP_BASE + 1);
+  // deadline matches planned start of first run
+  const dds_time_t sync_abstimeout = t_exp_wr[0] - DDS_SECS(1);
   for (int i = 0; i < N_WR; i++)
     sync_writer_to_readers (g_participant[i + 1], wr[i], 1, sync_abstimeout);
   sync_reader_to_writers (g_participant[0], rd, N_WR, sync_abstimeout);
@@ -349,8 +361,8 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
   dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
   for (int run = 0; run < N_WR; run++)
   {
-    // wait until 1s after next writer pp permission expires
-    dds_waitset_wait_until (ws, NULL, 0, t_perm + DDS_SECS (PERM_EXP_BASE + PERM_EXP_INCR * run + 1));
+    // wait until 1s before the next permission expiry
+    dds_waitset_wait_until (ws, NULL, 0, t_exp_wr[run] - DDS_SECS (1));
     print_test_msg ("run %d\n", run);
     for (int w = 0; w < N_WR; w++)
     {
@@ -361,8 +373,10 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
     }
   }
 
-  // wait until last pp's permissions are expired
-  dds_waitset_wait_until (ws, NULL, 0, t_perm + DDS_SECS (PERM_EXP_BASE + PERM_EXP_INCR * N_WR + 1));
+  // wait until last pp's permissions are expired, with a
+  // bit of margin for the expiration to be handled by the
+  // reader domain
+  dds_waitset_wait_until (ws, NULL, 0, t_exp_wr[N_WR - 1] + DDS_SECS (1));
 
   // check received data
   SecurityCoreTests_Type1 * data = ddsrt_calloc (N_WR, sizeof (*data));
