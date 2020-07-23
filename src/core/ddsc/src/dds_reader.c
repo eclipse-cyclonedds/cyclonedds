@@ -174,6 +174,137 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
   ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 }
 
+static void update_requested_deadline_missed (struct dds_requested_deadline_missed_status * __restrict st, struct dds_requested_deadline_missed_status * __restrict lst, const status_cb_data_t *data)
+{
+  st->last_instance_handle = data->handle;
+  st->total_count++;
+  // always incrementing st->total_count_change, then copying into *lst is
+  // a bit more than minimal work, but this guarantees the correct value
+  // also when enabling a listeners after some events have occurred
+  //
+  // (same line of reasoning for all of them)
+  st->total_count_change++;
+  if (lst != NULL)
+  {
+    *lst = *st;
+    st->total_count_change = 0;
+  }
+}
+
+static void update_requested_incompatible_qos (struct dds_requested_incompatible_qos_status * __restrict st, struct dds_requested_incompatible_qos_status * __restrict lst, const status_cb_data_t *data)
+{
+  st->last_policy_id = data->extra;
+  st->total_count++;
+  st->total_count_change++;
+  if (lst != NULL)
+  {
+    *lst = *st;
+    st->total_count_change = 0;
+  }
+}
+
+static void update_sample_lost (struct dds_sample_lost_status * __restrict st, struct dds_sample_lost_status * __restrict lst, const status_cb_data_t *data)
+{
+  (void) data;
+  st->total_count++;
+  st->total_count_change++;
+  if (lst != NULL)
+  {
+    *lst = *st;
+    st->total_count_change = 0;
+  }
+}
+
+static void update_sample_rejected (struct dds_sample_rejected_status * __restrict st, struct dds_sample_rejected_status * __restrict lst, const status_cb_data_t *data)
+{
+  st->last_reason = data->extra;
+  st->last_instance_handle = data->handle;
+  st->total_count++;
+  st->total_count_change++;
+  if (lst != NULL)
+  {
+    *lst = *st;
+    st->total_count_change = 0;
+  }
+}
+
+static void update_liveliness_changed (struct dds_liveliness_changed_status * __restrict st, struct dds_liveliness_changed_status * __restrict lst, const status_cb_data_t *data)
+{
+  DDSRT_STATIC_ASSERT ((uint32_t) LIVELINESS_CHANGED_ADD_ALIVE == 0 &&
+                       LIVELINESS_CHANGED_ADD_ALIVE < LIVELINESS_CHANGED_ADD_NOT_ALIVE &&
+                       LIVELINESS_CHANGED_ADD_NOT_ALIVE < LIVELINESS_CHANGED_REMOVE_NOT_ALIVE &&
+                       LIVELINESS_CHANGED_REMOVE_NOT_ALIVE < LIVELINESS_CHANGED_REMOVE_ALIVE &&
+                       LIVELINESS_CHANGED_REMOVE_ALIVE < LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE &&
+                       LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE < LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE &&
+                       (uint32_t) LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE < UINT32_MAX);
+  assert (data->extra <= (uint32_t) LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE);
+  st->last_publication_handle = data->handle;
+  switch ((enum liveliness_changed_data_extra) data->extra)
+  {
+    case LIVELINESS_CHANGED_ADD_ALIVE:
+      st->alive_count++;
+      st->alive_count_change++;
+      break;
+    case LIVELINESS_CHANGED_ADD_NOT_ALIVE:
+      st->not_alive_count++;
+      st->not_alive_count_change++;
+      break;
+    case LIVELINESS_CHANGED_REMOVE_NOT_ALIVE:
+      st->not_alive_count--;
+      st->not_alive_count_change--;
+      break;
+    case LIVELINESS_CHANGED_REMOVE_ALIVE:
+      st->alive_count--;
+      st->alive_count_change--;
+      break;
+    case LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE:
+      st->alive_count--;
+      st->alive_count_change--;
+      st->not_alive_count++;
+      st->not_alive_count_change++;
+      break;
+    case LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE:
+      st->not_alive_count--;
+      st->not_alive_count_change--;
+      st->alive_count++;
+      st->alive_count_change++;
+      break;
+  }
+  if (lst != NULL)
+  {
+    *lst = *st;
+    st->alive_count_change = 0;
+    st->not_alive_count_change = 0;
+  }
+}
+
+static void update_subscription_matched (struct dds_subscription_matched_status * __restrict st, struct dds_subscription_matched_status * __restrict lst, const status_cb_data_t *data)
+{
+  st->last_publication_handle = data->handle;
+  if (data->add) {
+    st->total_count++;
+    st->current_count++;
+    st->total_count_change++;
+    st->current_count_change++;
+  } else {
+    st->current_count--;
+    st->current_count_change--;
+  }
+  if (lst != NULL)
+  {
+    *lst = *st;
+    st->total_count_change = 0;
+    st->current_count_change = 0;
+  }
+}
+
+STATUS_CB_IMPL (reader, requested_deadline_missed, REQUESTED_DEADLINE_MISSED)
+STATUS_CB_IMPL (reader, requested_incompatible_qos, REQUESTED_INCOMPATIBLE_QOS)
+STATUS_CB_IMPL (reader, sample_lost, SAMPLE_LOST)
+STATUS_CB_IMPL (reader, sample_rejected, SAMPLE_REJECTED)
+STATUS_CB_IMPL (reader, liveliness_changed, LIVELINESS_CHANGED)
+STATUS_CB_IMPL (reader, subscription_matched, SUBSCRIPTION_MATCHED)
+
 void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
 {
   dds_reader * const rd = ventity;
@@ -190,15 +321,6 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
     return;
   }
 
-  struct dds_listener const * const lst = &rd->m_entity.m_listener;
-  enum dds_status_id status_id = (enum dds_status_id) data->raw_status_id;
-  bool invoke = false;
-  void *vst = NULL;
-  int32_t *reset[2] = { NULL, NULL };
-
-  /* DATA_AVAILABLE is handled by dds_reader_data_available_cb */
-  assert (status_id != DDS_DATA_AVAILABLE_STATUS_ID);
-
   /* Serialize listener invocations -- it is somewhat sad to do this,
      but then it may also be unreasonable to expect the application to
      handle concurrent invocations of a single listener.  The benefit
@@ -212,108 +334,28 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
   while (rd->m_entity.m_cb_count > 0)
     ddsrt_cond_wait (&rd->m_entity.m_observers_cond, &rd->m_entity.m_observers_lock);
 
-  /* Update status metrics. */
-  switch (status_id) {
-    case DDS_REQUESTED_DEADLINE_MISSED_STATUS_ID: {
-      struct dds_requested_deadline_missed_status * const st = vst = &rd->m_requested_deadline_missed_status;
-      st->last_instance_handle = data->handle;
-      st->total_count++;
-      st->total_count_change++;
-      invoke = (lst->on_requested_deadline_missed != 0);
-      reset[0] = &st->total_count_change;
+  const enum dds_status_id status_id = (enum dds_status_id) data->raw_status_id;
+  const bool enabled = (ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask) & ((1u << status_id) << SAM_ENABLED_SHIFT)) != 0;
+  switch (status_id)
+  {
+    case DDS_REQUESTED_DEADLINE_MISSED_STATUS_ID:
+      status_cb_requested_deadline_missed (rd, data, enabled);
       break;
-    }
-    case DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS_ID: {
-      struct dds_requested_incompatible_qos_status * const st = vst = &rd->m_requested_incompatible_qos_status;
-      st->total_count++;
-      st->total_count_change++;
-      st->last_policy_id = data->extra;
-      invoke = (lst->on_requested_incompatible_qos != 0);
-      reset[0] = &st->total_count_change;
+    case DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS_ID:
+      status_cb_requested_incompatible_qos (rd, data, enabled);
       break;
-    }
-    case DDS_SAMPLE_LOST_STATUS_ID: {
-      struct dds_sample_lost_status * const st = vst = &rd->m_sample_lost_status;
-      st->total_count++;
-      st->total_count_change++;
-      invoke = (lst->on_sample_lost != 0);
-      reset[0] = &st->total_count_change;
+    case DDS_SAMPLE_LOST_STATUS_ID:
+      status_cb_sample_lost (rd, data, enabled);
       break;
-    }
-    case DDS_SAMPLE_REJECTED_STATUS_ID: {
-      struct dds_sample_rejected_status * const st = vst = &rd->m_sample_rejected_status;
-      st->total_count++;
-      st->total_count_change++;
-      st->last_reason = data->extra;
-      st->last_instance_handle = data->handle;
-      invoke = (lst->on_sample_rejected != 0);
-      reset[0] = &st->total_count_change;
+    case DDS_SAMPLE_REJECTED_STATUS_ID:
+      status_cb_sample_rejected (rd, data, enabled);
       break;
-    }
-    case DDS_LIVELINESS_CHANGED_STATUS_ID: {
-      struct dds_liveliness_changed_status * const st = vst = &rd->m_liveliness_changed_status;
-      DDSRT_STATIC_ASSERT ((uint32_t) LIVELINESS_CHANGED_ADD_ALIVE == 0 &&
-                           LIVELINESS_CHANGED_ADD_ALIVE < LIVELINESS_CHANGED_ADD_NOT_ALIVE &&
-                           LIVELINESS_CHANGED_ADD_NOT_ALIVE < LIVELINESS_CHANGED_REMOVE_NOT_ALIVE &&
-                           LIVELINESS_CHANGED_REMOVE_NOT_ALIVE < LIVELINESS_CHANGED_REMOVE_ALIVE &&
-                           LIVELINESS_CHANGED_REMOVE_ALIVE < LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE &&
-                           LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE < LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE &&
-                           (uint32_t) LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE < UINT32_MAX);
-      assert (data->extra <= (uint32_t) LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE);
-      switch ((enum liveliness_changed_data_extra) data->extra)
-      {
-        case LIVELINESS_CHANGED_ADD_ALIVE:
-          st->alive_count++;
-          st->alive_count_change++;
-          break;
-        case LIVELINESS_CHANGED_ADD_NOT_ALIVE:
-          st->not_alive_count++;
-          st->not_alive_count_change++;
-          break;
-        case LIVELINESS_CHANGED_REMOVE_NOT_ALIVE:
-          st->not_alive_count--;
-          st->not_alive_count_change--;
-          break;
-        case LIVELINESS_CHANGED_REMOVE_ALIVE:
-          st->alive_count--;
-          st->alive_count_change--;
-          break;
-        case LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE:
-          st->alive_count--;
-          st->alive_count_change--;
-          st->not_alive_count++;
-          st->not_alive_count_change++;
-          break;
-        case LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE:
-          st->not_alive_count--;
-          st->not_alive_count_change--;
-          st->alive_count++;
-          st->alive_count_change++;
-          break;
-      }
-      st->last_publication_handle = data->handle;
-      invoke = (lst->on_liveliness_changed != 0);
-      reset[0] = &st->alive_count_change;
-      reset[1] = &st->not_alive_count_change;
+    case DDS_LIVELINESS_CHANGED_STATUS_ID:
+      status_cb_liveliness_changed (rd, data, enabled);
       break;
-    }
-    case DDS_SUBSCRIPTION_MATCHED_STATUS_ID: {
-      struct dds_subscription_matched_status * const st = vst = &rd->m_subscription_matched_status;
-      if (data->add) {
-        st->total_count++;
-        st->total_count_change++;
-        st->current_count++;
-        st->current_count_change++;
-      } else {
-        st->current_count--;
-        st->current_count_change--;
-      }
-      st->last_publication_handle = data->handle;
-      invoke = (lst->on_subscription_matched != 0);
-      reset[0] = &st->total_count_change;
-      reset[1] = &st->current_count_change;
+    case DDS_SUBSCRIPTION_MATCHED_STATUS_ID:
+      status_cb_subscription_matched (rd, data, enabled);
       break;
-    }
     case DDS_DATA_ON_READERS_STATUS_ID:
     case DDS_DATA_AVAILABLE_STATUS_ID:
     case DDS_INCONSISTENT_TOPIC_STATUS_ID:
@@ -322,29 +364,6 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
     case DDS_OFFERED_DEADLINE_MISSED_STATUS_ID:
     case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID:
       assert (0);
-  }
-
-  const uint32_t enabled = (ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask) & ((1u << status_id) << SAM_ENABLED_SHIFT));
-  if (!enabled)
-  {
-    /* Don't invoke listeners or set status flag if masked */
-  }
-  else if (invoke)
-  {
-    rd->m_entity.m_cb_pending_count++;
-    rd->m_entity.m_cb_count++;
-    ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
-    dds_entity_invoke_listener (&rd->m_entity, status_id, vst);
-    ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
-    rd->m_entity.m_cb_count--;
-    rd->m_entity.m_cb_pending_count--;
-    *reset[0] = 0;
-    if (reset[1])
-      *reset[1] = 0;
-  }
-  else
-  {
-    dds_entity_status_set (&rd->m_entity, (status_mask_t) (1u << status_id));
   }
 
   ddsrt_cond_broadcast (&rd->m_entity.m_observers_cond);
