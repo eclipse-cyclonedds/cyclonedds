@@ -28,6 +28,7 @@ set(ddsc_test_sources
     "entity_hierarchy.c"
     "entity_status.c"
     "err.c"
+    "filter.c"
     "instance_get_key.c"
     "instance_handle.c"
     "listener.c"

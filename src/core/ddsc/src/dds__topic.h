@@ -28,17 +28,6 @@ DDS_EXPORT void dds_topic_unpin (struct dds_topic *tp) ddsrt_nonnull_all;
 DDS_EXPORT void dds_topic_defer_set_qos (struct dds_topic *tp) ddsrt_nonnull_all;
 DDS_EXPORT void dds_topic_allow_set_qos (struct dds_topic *tp) ddsrt_nonnull_all;
 
-#ifndef DDS_TOPIC_INTERN_FILTER_FN_DEFINED
-#define DDS_TOPIC_INTERN_FILTER_FN_DEFINED
-typedef bool (*dds_topic_intern_filter_fn) (const void * sample, void *ctx);
-#endif
-
-DDS_EXPORT void dds_topic_set_filter_with_ctx
-  (dds_entity_t topic, dds_topic_intern_filter_fn filter, void *ctx);
-
-DDS_EXPORT dds_topic_intern_filter_fn dds_topic_get_filter_with_ctx
-  (dds_entity_t topic);
-
 DDS_EXPORT dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertopic **sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist);
 
 #if defined (__cplusplus)

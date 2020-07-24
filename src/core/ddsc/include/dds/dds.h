@@ -1142,31 +1142,83 @@ dds_get_type_name(dds_entity_t topic, char *name, size_t size);
 
 /** Topic filter function */
 typedef bool (*dds_topic_filter_fn) (const void * sample);
+typedef bool (*dds_topic_filter_arg_fn) (const void * sample, void * arg);
 
 /**
- * @brief Sets a filter on a topic.
+ * @brief Sets a filter on a topic. To be replaced by proper filtering on readers,
+ * no guarantee that this will be maintained for backwards compatibility.
+ *
+ * Not thread-safe with respect to data being read/written using readers/writers
+ * using this topic.  Be sure to create a topic entity specific to the reader you
+ * want to filter, then set the filter function, and only then create the reader.
+ * And don't change it unless you know there are no concurrent writes.
  *
  * @param[in]  topic   The topic on which the content filter is set.
  * @param[in]  filter  The filter function used to filter topic samples.
  */
-DDS_EXPORT void
+DDS_DEPRECATED_EXPORT void
 dds_set_topic_filter(dds_entity_t topic, dds_topic_filter_fn filter);
 
 DDS_DEPRECATED_EXPORT void
 dds_topic_set_filter(dds_entity_t topic, dds_topic_filter_fn filter);
 
 /**
- * @brief Gets the filter for a topic.
+ * @brief Sets a filter and filter argument on a topic. To be replaced by proper
+ * filtering on readers, no guarantee that this will be maintained for backwards
+ * compatibility.
+ *
+ * Not thread-safe with respect to data being read/written using readers/writers
+ * using this topic.  Be sure to create a topic entity specific to the reader you
+ * want to filter, then set the filter function, and only then create the reader.
+ * And don't change it unless you know there are no concurrent writes.
+ *
+ * @param[in]  topic   The topic on which the content filter is set.
+ * @param[in]  filter  The filter function used to filter topic samples.
+ * @param[in]  arg     Argument for the filter function.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK  Filter set successfully
+ * @retval DDS_RETCODE_BAD_PARAMETER  The topic handle is invalid
+*/
+DDS_EXPORT dds_return_t
+dds_set_topic_filter_and_arg(
+  dds_entity_t topic,
+  dds_topic_filter_arg_fn filter,
+  void *arg);
+
+/**
+ * @brief Gets the filter for a topic. To be replaced by proper filtering on readers,
+ * no guarantee that this will be maintained for backwards compatibility.
  *
  * @param[in]  topic  The topic from which to get the filter.
  *
- * @returns The topic filter.
+ * @returns The topic filter, or 0 when not set or set using
+ *          dds_set_topic_filter_and_arg.
  */
-DDS_EXPORT dds_topic_filter_fn
+DDS_DEPRECATED_EXPORT dds_topic_filter_fn
 dds_get_topic_filter(dds_entity_t topic);
 
 DDS_DEPRECATED_EXPORT dds_topic_filter_fn
 dds_topic_get_filter(dds_entity_t topic);
+
+/**
+ * @brief Gets the filter for a topic. To be replaced by proper filtering on readers,
+ * no guarantee that this will be maintained for backwards compatibility.
+ *
+ * @param[in]  topic  The topic from which to get the filter.
+ * @param[out] fn     The topic filter function (fn may be NULL).
+ * @param[out] arg    Filter function argument (arg may be NULL).
+ *
+ * @retval DDS_RETCODE_OK  Filter set successfully
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET  Filter was set with dds_set_topic_filter
+ * @retval DDS_RETCODE_BAD_PARAMETER  The topic handle is invalid
+ */
+DDS_EXPORT dds_return_t
+dds_get_topic_filter_and_arg (
+  dds_entity_t topic,
+  dds_topic_filter_arg_fn *fn,
+  void **arg);
 
 /**
  * @brief Creates a new instance of a DDS subscriber

@@ -306,17 +306,12 @@ typedef struct dds_writer {
   dds_publication_matched_status_t m_publication_matched_status;
 } dds_writer;
 
-#ifndef DDS_TOPIC_INTERN_FILTER_FN_DEFINED
-#define DDS_TOPIC_INTERN_FILTER_FN_DEFINED
-typedef bool (*dds_topic_intern_filter_fn) (const void * sample, void *ctx);
-#endif
-
 typedef struct dds_topic {
   struct dds_entity m_entity;
   struct ddsi_sertopic *m_stopic;
   struct dds_ktopic *m_ktopic; /* refc'd, constant */
 
-  dds_topic_intern_filter_fn filter_fn;
+  dds_topic_filter_arg_fn filter_fn;
   void *filter_ctx;
 
   /* Status metrics */
