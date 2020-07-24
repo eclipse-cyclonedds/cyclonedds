@@ -144,6 +144,10 @@
  *                                   "i" for instances, "spi" for samples per instance)
  *                         sm        see pm
  *
+ *                       A * can be substituted for any argument to indicate the value
+ *                       doesn't matter.  (The value does get printed, so it can be a
+ *                       handy way to get quickly check the actual value in some cases).
+ *
  *               | ?!LISTENER
  *
  *                       (Not listener) tests that LISTENER has not been invoked since
@@ -170,6 +174,12 @@
  *                         r   ignore retransmit requests
  *                         h   suppress periodic heartbeats
  *                         d   drop outgoing data
+ *
+ *               | status LISTENER(ARGS) ENTITY-NAME
+ *
+ *                       Compare the result of dds_get_L_status against ARGS for the
+ *                       specified entity, where L is corresponds to the event named by
+ *                       LISTENER.  "da" and "dor" events are not allowed.
  *
  * WRITE-LIKE  ::= wr    write
  *               | wrdisp  write-dispose
