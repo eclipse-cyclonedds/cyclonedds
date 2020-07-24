@@ -13,6 +13,7 @@
 #include <string.h>
 #include <ctype.h>
 
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
@@ -500,69 +501,87 @@ dds_entity_t dds_find_topic (dds_entity_t participant, const char *name)
   return DDS_RETCODE_PRECONDITION_NOT_MET;
 }
 
-static bool dds_topic_chaining_filter (const void *sample, void *ctx)
-{
-  dds_topic_filter_fn realf = (dds_topic_filter_fn) ctx;
-  return realf (sample);
-}
-
-static void dds_topic_mod_filter (dds_entity_t topic, dds_topic_intern_filter_fn *filter, void **ctx, bool set)
+dds_return_t dds_set_topic_filter_and_arg (dds_entity_t topic, dds_topic_filter_arg_fn filter, void *arg)
 {
   dds_topic *t;
-  if (dds_topic_lock (topic, &t) == DDS_RETCODE_OK)
-  {
-    if (set) {
-      t->filter_fn = *filter;
-      t->filter_ctx = *ctx;
-    } else {
-      *filter = t->filter_fn;
-      *ctx = t->filter_ctx;
-    }
-    dds_topic_unlock (t);
-  }
-  else
-  {
-    *filter = 0;
-    *ctx = NULL;
-  }
+  dds_return_t rc;
+  if ((rc = dds_topic_lock (topic, &t)) != DDS_RETCODE_OK)
+    return rc;
+  t->filter_fn = filter;
+  t->filter_ctx = arg;
+  dds_topic_unlock (t);
+  return DDS_RETCODE_OK;
+}
+
+static bool topic_filter_no_arg_wrapper (const void *sample, void *arg)
+{
+  dds_topic_filter_fn f = (dds_topic_filter_fn) arg;
+  return f (sample);
+}
+
+static void dds_set_topic_filter_deprecated (dds_entity_t topic, dds_topic_filter_fn filter)
+{
+  dds_topic *t;
+  if (dds_topic_lock (topic, &t))
+    return;
+  t->filter_fn = topic_filter_no_arg_wrapper;
+  // function <-> data pointer conversion guaranteed to work on POSIX, Windows
+  // this being a deprecated interface, there's seems to be little point in
+  // make it fully portable
+  t->filter_ctx = (void *) filter;
+  dds_topic_unlock (t);
 }
 
 void dds_set_topic_filter (dds_entity_t topic, dds_topic_filter_fn filter)
 {
-  dds_topic_intern_filter_fn chaining = dds_topic_chaining_filter;
-  void *realf = (void *) filter;
-  dds_topic_mod_filter (topic, &chaining, &realf, true);
+  dds_set_topic_filter_deprecated (topic, filter);
 }
 
 void dds_topic_set_filter (dds_entity_t topic, dds_topic_filter_fn filter)
 {
-  dds_set_topic_filter (topic, filter);
+  dds_set_topic_filter_deprecated (topic, filter);
+}
+
+dds_return_t dds_get_topic_filter_and_arg (dds_entity_t topic, dds_topic_filter_arg_fn *fn, void **arg)
+{
+  dds_return_t rc;
+  dds_topic *t;
+  if ((rc = dds_topic_lock (topic, &t)) != DDS_RETCODE_OK)
+    return rc;
+  if (t->filter_fn == topic_filter_no_arg_wrapper)
+    rc = DDS_RETCODE_PRECONDITION_NOT_MET;
+  else
+  {
+    if (fn)
+      *fn = t->filter_fn;
+    if (arg)
+      *arg = t->filter_ctx;
+  }
+  dds_topic_unlock (t);
+  return rc;
+}
+
+static dds_topic_filter_fn dds_get_topic_filter_deprecated (dds_entity_t topic)
+{
+  dds_topic *t;
+  dds_topic_filter_fn f = 0;
+  if (dds_topic_lock (topic, &t) == DDS_RETCODE_OK)
+  {
+    if (t->filter_fn == topic_filter_no_arg_wrapper)
+      f = (dds_topic_filter_fn) t->filter_ctx;
+    dds_topic_unlock (t);
+  }
+  return f;
 }
 
 dds_topic_filter_fn dds_get_topic_filter (dds_entity_t topic)
 {
-  dds_topic_intern_filter_fn filter;
-  void *ctx;
-  dds_topic_mod_filter (topic, &filter, &ctx, false);
-  return (filter == dds_topic_chaining_filter) ? (dds_topic_filter_fn) ctx : 0;
+  return dds_get_topic_filter_deprecated (topic);
 }
 
 dds_topic_filter_fn dds_topic_get_filter (dds_entity_t topic)
 {
-  return dds_get_topic_filter (topic);
-}
-
-void dds_topic_set_filter_with_ctx (dds_entity_t topic, dds_topic_intern_filter_fn filter, void *ctx)
-{
-  dds_topic_mod_filter (topic, &filter, &ctx, true);
-}
-
-dds_topic_intern_filter_fn dds_topic_get_filter_with_ctx (dds_entity_t topic)
-{
-  dds_topic_intern_filter_fn filter;
-  void *ctx;
-  dds_topic_mod_filter (topic, &filter, &ctx, false);
-  return (filter == dds_topic_chaining_filter) ? 0 : filter;
+  return dds_get_topic_filter_deprecated (topic);
 }
 
 dds_return_t dds_get_name (dds_entity_t topic, char *name, size_t size)
