@@ -142,10 +142,10 @@ dds_security_fsm_dispatch(struct dds_security_fsm *fsm, int32_t event_id, bool p
  *
  * @param fsm       The state machine
  *
- * @return          The current state of the given state machine
+ * @return          true iff fsm not in initial or final state
  */
-DDS_EXPORT const dds_security_fsm_state*
-dds_security_fsm_current_state(struct dds_security_fsm *fsm);
+DDS_EXPORT bool
+dds_security_fsm_running(struct dds_security_fsm *fsm);
 
 /**
  * Stops the state machine.
