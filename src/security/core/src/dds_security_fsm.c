@@ -363,17 +363,13 @@ void dds_security_fsm_dispatch (struct dds_security_fsm *fsm, int32_t event_id, 
   ddsrt_mutex_unlock (&fsm->control->lock);
 }
 
-const dds_security_fsm_state * dds_security_fsm_current_state (struct dds_security_fsm *fsm)
+bool dds_security_fsm_running (struct dds_security_fsm *fsm)
 {
-  const dds_security_fsm_state *state;
-
   assert(fsm);
-
   ddsrt_mutex_lock (&fsm->control->lock);
-  state = fsm->current;
+  const bool running = (fsm->current != NULL || fsm->busy);
   ddsrt_mutex_unlock (&fsm->control->lock);
-
-  return state;
+  return running;
 }
 
 void dds_security_fsm_set_debug (struct dds_security_fsm *fsm, dds_security_fsm_debug func)
