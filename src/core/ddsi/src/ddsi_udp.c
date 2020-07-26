@@ -318,7 +318,7 @@ static dds_return_t set_rcvbuf (struct ddsi_domaingv const * const gv, ddsrt_soc
 
 static dds_return_t set_sndbuf (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, uint32_t min_size)
 {
-  unsigned size;
+  uint32_t size;
   socklen_t optlen = (socklen_t) sizeof(size);
   dds_return_t rc;
 
@@ -339,10 +339,29 @@ static dds_return_t set_sndbuf (struct ddsi_domaingv const * const gv, ddsrt_soc
   {
     /* make sure the send buffersize is at least the minimum required */
     size = min_size;
-    if ((rc = ddsrt_setsockopt (sock, SOL_SOCKET, SO_SNDBUF, &size, sizeof (size))) != DDS_RETCODE_OK)
+    (void) ddsrt_setsockopt (sock, SOL_SOCKET, SO_SNDBUF, &size, sizeof (size));
+
+    /* We don't check the return code from setsockopt, because some O/Ss tend
+       to silently cap the buffer size.  The only way to make sure is to read
+       the option value back and check it is now set correctly. */
+    if ((rc = ddsrt_getsockopt (sock, SOL_SOCKET, SO_SNDBUF, &size, &optlen)) != DDS_RETCODE_OK)
     {
-      GVERROR ("ddsi_udp_create_conn: set SO_SNDBUF failed: %s\n", dds_strretcode (rc));
+      GVERROR ("ddsi_udp_create_conn: get SO_SNDBUF failed: %s\n", dds_strretcode (rc));
       return rc;
+    }
+
+    if (size >= min_size)
+    {
+      GVLOG (DDS_LC_CONFIG, "socket send buffer size set to %"PRIu32" bytes\n", size);
+    }
+    else
+    {
+      /* If the configuration states it must be >= X, then error out if the
+         kernel doesn't give us at least X */
+      GVLOG (DDS_LC_CONFIG | DDS_LC_ERROR,
+             "failed to increase socket send buffer size to %"PRIu32" bytes, maximum is %"PRIu32" bytes\n",
+             min_size, size);
+      rc = DDS_RETCODE_NOT_ENOUGH_SPACE;
     }
   }
 
