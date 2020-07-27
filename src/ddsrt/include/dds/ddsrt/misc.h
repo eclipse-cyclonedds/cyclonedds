@@ -73,6 +73,22 @@ extern "C" {
  */
 #define DDSRT_UNUSED_ARG(a) (void)(a)
 
+/**
+ * @brief Macro to disable warnings for calling deprecated interfaces
+ */
+#define DDSRT_WARNING_DEPRECATED_OFF \
+  DDSRT_WARNING_CLANG_OFF(deprecated-declarations) \
+  DDSRT_WARNING_GNUC_OFF(deprecated-declarations) \
+  DDSRT_WARNING_MSVC_OFF(4996)
+
+/**
+ * @brief Macro to enable warnings for calling deprecated interfaces
+ */
+#define DDSRT_WARNING_DEPRECATED_ON \
+  DDSRT_WARNING_CLANG_ON(deprecated-declarations) \
+  DDSRT_WARNING_GNUC_ON(deprecated-declarations) \
+  DDSRT_WARNING_MSVC_ON(4996)
+
 #if defined (__cplusplus)
 }
 #endif
