@@ -165,7 +165,7 @@ static uint32_t ping_timeouts = 0;
    final RSS sample: final one must be <=
    init * (1 + rss_factor/100) + rss_term  */
 static bool rss_check = false;
-static double rss_factor = 0;
+static double rss_factor = 1;
 static double rss_term = 0;
 
 /* Minimum number of samples, minimum number of roundtrips to
@@ -1612,7 +1612,7 @@ OPTIONS:\n\
                       bandwidth BW in bits/s (e.g., eth0:1e9)\n\
   -D DUR              run for at most DUR seconds\n\
   -Q KEY:VAL          set success criteria\n\
-                        rss:X%%       max allowed increase in RSS, in %%\n\
+                        rss:X%%        max allowed increase in RSS, in %%\n\
                         rss:X         max allowed increase in RSS, in MB\n\
                         samples:N     min received messages by \"sub\"\n\
                         roundtrips:N  min roundtrips for \"pong\"\n\
