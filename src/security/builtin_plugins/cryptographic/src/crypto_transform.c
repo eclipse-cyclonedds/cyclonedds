@@ -930,8 +930,9 @@ add_reader_specific_mac(
     else
     {
       uint32_t key_id = ddsrt_toBE4u(key_material->receiver_specific_key_id);
-      memcpy(footer->receiver_specific_macs._buffer[index].receiver_mac.data, hmac.data, CRYPTO_HMAC_SIZE);
-      memcpy(footer->receiver_specific_macs._buffer[index].receiver_mac_key_id, &key_id, sizeof(key_id));
+      struct receiver_specific_mac *rcvmac = footer->receiver_specific_macs._buffer + index;
+      memcpy(rcvmac->receiver_mac.data, hmac.data, CRYPTO_HMAC_SIZE);
+      memcpy(rcvmac->receiver_mac_key_id, &key_id, sizeof(key_id));
       footer->receiver_specific_macs._length = ddsrt_toBE4u(++index);
     }
   }
@@ -1014,8 +1015,9 @@ add_receiver_specific_mac(
     else
     {
       uint32_t key_id = ddsrt_toBE4u(pp_key_material->local_P2P_key_material->receiver_specific_key_id);
-      memcpy(footer->receiver_specific_macs._buffer[index].receiver_mac.data, hmac.data, CRYPTO_HMAC_SIZE);
-      memcpy(footer->receiver_specific_macs._buffer[index].receiver_mac_key_id, &key_id, sizeof(key_id));
+      struct receiver_specific_mac *rcvmac = footer->receiver_specific_macs._buffer + index;
+      memcpy(rcvmac->receiver_mac.data, hmac.data, CRYPTO_HMAC_SIZE);
+      memcpy(rcvmac->receiver_mac_key_id, &key_id, sizeof(key_id));
       footer->receiver_specific_macs._length = ddsrt_toBE4u(++index);
     }
   }
