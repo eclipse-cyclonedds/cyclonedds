@@ -22,10 +22,9 @@
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/io.h"
-#include "dds/ddsrt/log.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsts/typetree.h"
 #include "dds/ddsrt/misc.h"
+#include "dds/ddsts/typetree.h"
 
 #include "idl.h"
 #include "mcpp_lib.h"
@@ -35,7 +34,8 @@
 #define IDLC_PREPROCESS (1<<0)
 #define IDLC_COMPILE (1<<1)
 #define IDLC_DEBUG_PREPROCESSOR (1<<2)
-#define IDLC_DEBUG_PARSER (1<<3)
+#define IDLC_DEBUG_PROCESSOR (1<<3)
+/* FIXME: make more granular. e.g. parsser, directive parser, scaner, etc */
 
 typedef struct {
   char *file; /* path of input file or "-" for STDIN */
@@ -47,9 +47,9 @@ typedef struct {
 } idlc_options_t;
 
 /* mcpp does not accept userdata */
+static int32_t retcode = 0;
 static idlc_options_t opts;
-static idl_parser_t *parser = NULL;
-static ddsts_type_t *root = NULL;
+static idl_processor_t proc;
 
 static int idlc_putc(int chr, OUTDEST od);
 static int idlc_puts(const char *str, OUTDEST od)
@@ -57,29 +57,73 @@ static int idlc_puts(const char *str, OUTDEST od)
 static int idlc_printf(OUTDEST od, const char *str, ...)
   ddsrt_nonnull((2))
   ddsrt_attribute_format((printf, 2, 3));
-static dds_return_t idlc_parse(void);
+static int32_t idlc_parse(ddsts_type_t **typeptr);
+
+#define CHUNK (4096)
+
+static int idlc_putn(const char *str, size_t len)
+{
+  assert(proc.state & IDL_WRITE);
+
+  /* tokenize to free up space */
+  if ((proc.buffer.size - proc.buffer.used) <= len) {
+    if ((retcode = idl_parse(&proc)) == IDL_NEED_REFILL)
+      retcode = 0;
+    /* move non-tokenized data to start of buffer */
+    proc.buffer.used =
+      (uintptr_t)proc.scanner.limit - (uintptr_t)proc.scanner.cursor;
+    memmove(proc.buffer.data, proc.scanner.cursor, proc.buffer.used);
+    proc.scanner.cursor = proc.buffer.data;
+    proc.scanner.limit = proc.scanner.cursor + proc.buffer.used;
+  }
+
+  if (retcode != 0)
+    return -1;
+
+  /* expand buffer if necessary */
+  if ((proc.buffer.size - proc.buffer.used) <= len) {
+    size_t size = proc.buffer.size + (((len / CHUNK) + 1) * CHUNK);
+    char *buf = ddsrt_realloc(proc.buffer.data, size + 2 /* '\0' + '\0' */);
+    if (buf == NULL) {
+      retcode = IDL_MEMORY_EXHAUSTED;
+      return -1;
+    }
+    /* update scanner location */
+    proc.scanner.cursor = buf + (proc.scanner.cursor - proc.buffer.data);
+    proc.scanner.limit = proc.scanner.cursor + proc.buffer.used;
+    /* update input buffer */
+    proc.buffer.data = buf;
+    proc.buffer.size = size;
+  }
+
+  /* write to buffer */
+  memcpy(proc.buffer.data + proc.buffer.used, str, len);
+  proc.buffer.used += len;
+  assert(proc.buffer.used <= proc.buffer.size);
+  /* update scanner location */
+  proc.scanner.limit = proc.buffer.data + proc.buffer.used;
+
+  return 0;
+}
 
 static int idlc_putc(int chr, OUTDEST od)
 {
-  int ret = 1;
+  int ret = -1;
   char str[2] = { (char)chr, '\0' };
 
   switch (od) {
   case OUT:
-    if (!(opts.flags & IDLC_COMPILE)) {
+    if (!(opts.flags & IDLC_COMPILE))
       ret = printf("%c", chr);
-    } else {
-      assert(parser != NULL);
-      ret = idl_puts(parser, str, 1);
-    }
+    else
+      ret = idlc_putn(str, 1);
     break;
   case ERR:
-    DDS_ERROR("%c", chr);
+    ret = fprintf(stderr, "%c", chr);
     break;
   case DBG:
-    if (opts.flags & IDLC_DEBUG_PREPROCESSOR) {
+    if (opts.flags & IDLC_DEBUG_PREPROCESSOR)
       ret = fprintf(stderr, "%c", chr);
-    }
     break;
   default:
     assert(0);
@@ -100,20 +144,17 @@ static int idlc_puts(const char *str, OUTDEST od)
 
   switch (od) {
   case OUT:
-    if (!(opts.flags & IDLC_COMPILE)) {
+    if (!(opts.flags & IDLC_COMPILE))
       ret = printf("%s", str);
-    } else {
-      assert(parser != NULL);
-      ret = idl_puts(parser, str, len);
-    }
+    else
+      ret = idlc_putn(str, len);
     break;
   case ERR:
-    DDS_ERROR("%s", str);
+    ret = fprintf(stderr, "%s", str);
     break;
   case DBG:
-    if (opts.flags & IDLC_DEBUG_PREPROCESSOR) {
+    if (opts.flags & IDLC_DEBUG_PREPROCESSOR)
       ret = fprintf(stderr, "%s", str);
-    }
     break;
   default:
     assert(0);
@@ -134,27 +175,24 @@ static int idlc_printf(OUTDEST od, const char *fmt, ...)
 
   va_start(ap, fmt);
   if ((len = ddsrt_vasprintf(&str, fmt, ap)) < 0) { /* FIXME: optimize */
-    ddsts_context_set_retcode(parser->context, DDS_RETCODE_OUT_OF_RESOURCES);
+    retcode = IDL_MEMORY_EXHAUSTED;
     return -1;
   }
   va_end(ap);
 
   switch (od) {
   case OUT:
-    if (!(opts.flags & IDLC_COMPILE)) {
+    if (!(opts.flags & IDLC_COMPILE))
       ret = printf("%s", str);
-    } else {
-      assert(parser != NULL);
-      ret = idl_puts(parser, str, (size_t)len);
-    }
+    else
+      ret = idlc_putn(str, (size_t)len);
     break;
   case ERR:
-    DDS_ERROR("%s", str);
+    ret = fprintf(stderr, "%s", str);
     break;
   case DBG:
-    if (opts.flags & IDLC_DEBUG_PREPROCESSOR) {
+    if (opts.flags & IDLC_DEBUG_PREPROCESSOR)
       ret = fprintf(stderr, "%s", str);
-    }
     break;
   default:
     assert(0);
@@ -166,25 +204,30 @@ static int idlc_printf(OUTDEST od, const char *fmt, ...)
   return ret < 0 ? -1 : ret;
 }
 
-dds_return_t idlc_parse(void)
+int32_t idlc_parse(ddsts_type_t **typeptr)
 {
-  dds_return_t rc = DDS_RETCODE_OK;
+  int32_t ret = 0;
 
   if(opts.flags & IDLC_COMPILE) {
-    if ((parser = idl_create_parser()) == NULL) {
-      return DDS_RETCODE_OUT_OF_RESOURCES;
-    }
+    if ((ret = idl_processor_init(&proc)) != 0)
+      return ret;
+    assert(opts.file);
+    if (strcmp(opts.file, "-") != 0)
+      proc.scanner.position.file = (const char *)opts.file;
+    proc.scanner.position.line = 1;
+    proc.scanner.position.column = 1;
   }
 
   if (opts.flags & IDLC_PREPROCESS) {
+    proc.flags |= IDL_WRITE;
     mcpp_set_out_func(&idlc_putc, &idlc_puts, &idlc_printf);
     if (mcpp_lib_main(opts.argc, opts.argv) == 0) {
-      assert(!(opts.flags & IDLC_COMPILE) ||
-             ddsts_context_get_retcode(parser->context) == DDS_RETCODE_OK);
+      assert(!(opts.flags & IDLC_COMPILE) || retcode == 0);
     } else if (opts.flags & IDLC_COMPILE) {
-      assert(ddsts_context_get_retcode(parser->context) != DDS_RETCODE_OK);
-      rc = ddsts_context_get_retcode(parser->context);
+      assert(retcode != 0);
+      ret = retcode;
     }
+    proc.flags &= ~IDL_WRITE;
   } else {
     FILE *fin;
     char buf[1024];
@@ -202,37 +245,36 @@ dds_return_t idlc_parse(void)
     if (fin == NULL) {
       switch (errno) {
         case ENOMEM:
-          rc = DDS_RETCODE_OUT_OF_RESOURCES;
+          ret = IDL_MEMORY_EXHAUSTED;
           break;
         default:
-          rc = DDS_RETCODE_ERROR;
+          ret = IDL_READ_ERROR;
           break;
       }
     } else {
       while ((nrd = fread(buf, sizeof(buf), 1, fin)) > 0) {
-        if ((nwr = idl_puts(parser, buf, nrd)) == -1) {
-          rc = ddsts_context_get_retcode(parser->context);
-          assert(rc != DDS_RETCODE_OK);
+        if ((nwr = idlc_putn(buf, nrd)) == -1) {
+          ret = retcode;
+          assert(ret != 0);
         }
         assert(nrd == (size_t)nwr);
       }
     }
 
-    if (fin != stdin) {
+    if (fin != stdin)
       fclose(fin);
-    }
   }
 
-  if (rc == DDS_RETCODE_OK && (opts.flags & IDLC_COMPILE)) {
-    rc = idl_scan(parser);
-    if (rc == DDS_RETCODE_OK) {
-      root = ddsts_context_take_root_type(parser->context);
-    }
+  if (ret == 0 && (opts.flags & IDLC_COMPILE)) {
+    ret = idl_parse(&proc);
+    assert(ret != IDL_NEED_REFILL);
+    if (ret == 0)
+      *typeptr = ddsts_context_take_root_type(proc.context);
   }
 
-  idl_destroy_parser(parser);
+  idl_processor_fini(&proc);
 
-  return rc;
+  return ret;
 }
 
 static void
@@ -272,7 +314,8 @@ int main(int argc, char *argv[])
 {
   int opt;
   char *prog = argv[0];
-  dds_return_t rc;
+  int32_t ret;
+  ddsts_type_t *root = NULL;
 
   /* determine basename */
   for (char *sep = argv[0]; *sep; sep++) {
@@ -287,7 +330,7 @@ int main(int argc, char *argv[])
   opts.argc = 0;
   opts.argv = ddsrt_calloc((unsigned int)argc + 6, sizeof(char *));
   if (opts.argv == NULL) {
-    return -1;
+    return EXIT_FAILURE;
   }
 
   opts.argv[opts.argc++] = argv[0];
@@ -309,7 +352,7 @@ int main(int argc, char *argv[])
             if (ddsrt_strcasecmp(tok, "preprocessor") == 0) {
               opts.flags |= IDLC_DEBUG_PREPROCESSOR;
             } else if (ddsrt_strcasecmp(tok, "parser") == 0) {
-              opts.flags |= IDLC_DEBUG_PARSER;
+              opts.flags |= IDLC_DEBUG_PROCESSOR;
             }
           }
         }
@@ -324,7 +367,7 @@ int main(int argc, char *argv[])
         break;
       case 'h':
         help(prog);
-        exit(0);
+        exit(EXIT_SUCCESS);
       case 'I':
         opts.argv[opts.argc++] = "-I";
         opts.argv[opts.argc++] = optarg;
@@ -338,10 +381,10 @@ int main(int argc, char *argv[])
         break;
       case 'v':
         version(prog);
-        exit(0);
+        exit(EXIT_SUCCESS);
       case '?':
         usage(prog);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
   }
 
@@ -354,7 +397,7 @@ int main(int argc, char *argv[])
 
   opts.argv[opts.argc++] = opts.file;
 
-  if ((rc = idlc_parse()) == DDS_RETCODE_OK && (opts.flags & IDLC_COMPILE)) {
+  if ((ret = idlc_parse(&root)) == 0 && (opts.flags & IDLC_COMPILE)) {
     assert(root != NULL);
     assert(ddsrt_strcasecmp(opts.lang, "c") == 0);
     ddsts_generate_C99(opts.file, root);

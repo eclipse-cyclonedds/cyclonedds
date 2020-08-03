@@ -21,7 +21,7 @@
 static bool test_parse_gen_C99(const char *input, const char *str)
 {
   ddsts_type_t *root_type = NULL;
-  if (idl_parse(input, &root_type) != DDS_RETCODE_OK) {
+  if (idl_parse_string(input, &root_type) != DDS_RETCODE_OK) {
     return false;
   }
 
@@ -41,7 +41,7 @@ static bool test_parse_gen_C99(const char *input, const char *str)
 static bool test_parse_gen_C99_descr(const char *input, const char *name, const char *align, const char *flags)
 {
   ddsts_type_t *root_type = NULL;
-  if (idl_parse(input, &root_type) != DDS_RETCODE_OK) {
+  if (idl_parse_string(input, &root_type) != DDS_RETCODE_OK) {
     return false;
   }
 
@@ -71,7 +71,7 @@ static bool test_parse_gen_C99_descr(const char *input, const char *name, const 
   return true;
 }
 
-CU_Test(gen_c99, module)
+CU_Test(idlc_gen_c99, module)
 {
   CU_ASSERT(test_parse_gen_C99("module a { struct e{@key char c;};};",
     "typedef struct a_e\n{\n  char c;\n} a_e;"));
@@ -85,7 +85,7 @@ CU_Test(gen_c99, module)
   CU_ASSERT(test_parse_gen_C99("module x  {module a { struct e{char c;};}; };", "typedef struct x_a_e\n{\n  char c;\n} x_a_e;"));
 }
 
-CU_Test(gen_c99, base_types)
+CU_Test(idlc_gen_c99, base_types)
 {
   CU_ASSERT(test_parse_gen_C99("struct s {@key char c;};","typedef struct s\n{\n  char c;\n} s;"));
   CU_ASSERT(test_parse_gen_C99("struct s {@key char c;};","DDS_OP_ADR | DDS_OP_TYPE_1BY | DDS_OP_FLAG_KEY, offsetof (s, c),\n"));
@@ -172,7 +172,7 @@ CU_Test(gen_c99, base_types)
   CU_ASSERT(test_parse_gen_C99("struct s {fixed<5,3> c; @key char x;};","typedef struct s\n{\n  // type not supported: c;\n  char x;\n} s;"));
 }
 
-CU_Test(gen_c99, sequence)
+CU_Test(idlc_gen_c99, sequence)
 {
   /* sequence of short */
   CU_ASSERT(test_parse_gen_C99("struct s {@key char k;sequence<short> c;};","typedef struct s\n{\n  char k;\n  dds_sequence_t c;\n} s;"));
@@ -231,7 +231,7 @@ CU_Test(gen_c99, sequence)
   CU_ASSERT(test_parse_gen_C99("struct s {map<short,char,5> c;};","typedef struct s\n{\n  // type not supported: c;\n} s;"));
 }
 
-CU_Test(gen_c99, string)
+CU_Test(idlc_gen_c99, string)
 {
   CU_ASSERT(test_parse_gen_C99("struct s {string c;};","typedef struct s\n{\n  char * c;\n} s;"));
   CU_ASSERT(test_parse_gen_C99("struct s {@key char k;string c;};","DDS_OP_ADR | DDS_OP_TYPE_STR, offsetof (s, c),\n"));
@@ -248,7 +248,7 @@ CU_Test(gen_c99, string)
   CU_ASSERT(test_parse_gen_C99("struct s {wstring<9> c;};","typedef struct s\n{\n  // type not supported: c;\n} s;"));
 }
 
-CU_Test(gen_c99, structs)
+CU_Test(idlc_gen_c99, structs)
 {
   /* struct with two key fields */
   CU_ASSERT(test_parse_gen_C99("struct s {@key char c,b;};","typedef struct s\n{\n  char c;\n  char b;\n} s;"));
@@ -279,7 +279,7 @@ CU_Test(gen_c99, structs)
   CU_ASSERT(test_parse_gen_C99_descr("module a{struct x{char c;};};module b{struct y{a::x d;char k;};\n#pragma keylist y k\n};","b_y","1u","DDS_TOPIC_FIXED_KEY"));
 }
 
-CU_Test(gen_c99, array)
+CU_Test(idlc_gen_c99, array)
 {
   CU_ASSERT(test_parse_gen_C99("struct x{char a[10][3];};",
     "typedef struct x\n{\n  char a[10][3];\n} x;"));
@@ -323,7 +323,7 @@ CU_Test(gen_c99, array)
   CU_ASSERT(test_parse_gen_C99_descr("struct x{char a[17];};\n#pragma keylist x a\n","x","1u","0u"));
 }
 
-CU_Test(gen_c99, recursive)
+CU_Test(idlc_gen_c99, recursive)
 {
   CU_ASSERT(test_parse_gen_C99("struct x{sequence<x> a;};",
     "typedef struct x_a_seq\n{\n  uint32_t _maximum;\n  uint32_t _length;\n  x *_buffer;\n  bool _release;\n} x_a_seq;"));
@@ -354,5 +354,4 @@ CU_Test(gen_c99, recursive)
   CU_ASSERT(test_parse_gen_C99_descr("struct a; struct b{sequence<a> as;}; struct a{@key char k;sequence<b> bs;};",
     "a","sizeof (char *)","DDS_TOPIC_FIXED_KEY | DDS_TOPIC_NO_OPTIMIZE"));
 }
-
 
