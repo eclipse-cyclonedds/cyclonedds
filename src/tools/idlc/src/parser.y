@@ -1,6 +1,5 @@
 /*
- * Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
- * Copyright(c) 2019 Jeroen Koekkoek
+ * Copyright(c) 2006 to 2020 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -29,27 +28,31 @@ _Pragma("GCC diagnostic ignored \"-Wmissing-prototypes\"")
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsts/typetree.h"
+
+#include "idl.h"
+#include "tt_create.h"
+
+#if defined(__GNUC__)
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wconversion\"")
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wsign-conversion\"")
+#endif
+
+static void yyerror(idl_location_t *loc, idl_processor_t *proc, const char *);
 %}
 
 %code provides {
-#include <stdarg.h>
-
-#define YY_DECL \
-  int idl_yylex(YYSTYPE *yylval_param, YYLTYPE *yylloc_param, idl_parser_t *parser, yyscan_t yyscanner)
-
-extern YY_DECL;
-
-#define yyerror idl_yyerror
-void idl_yyerror(YYLTYPE *yylloc, idl_parser_t *parser, const char *fmt, ...);
-#define yywarning idl_yywarning
-void idl_yywarning(YYLTYPE *yylloc, idl_parser_t *parser, const char *fmt, ...);
-#define yystrtok idl_yystrtok
-int idl_yystrtok(const char *str, bool nc);
+int idl_istoken(const char *str, int nc);
 }
 
 %code requires {
-#include "idl.h"
-#include "tt_create.h"
+
+/* convenience macro to complement YYABORT */
+#define ABORT(proc, loc, ...) \
+  do { idl_error(proc, loc, __VA_ARGS__); YYABORT; } while(0)
+#define EXHAUSTED \
+  do { goto yyexhaustedlab; } while (0)
 
 /* Make yytoknum available */
 #define YYPRINT(A,B,C) YYUSE(A)
@@ -64,26 +67,26 @@ typedef struct idl_location YYLTYPE;
 #define YYLLOC_DEFAULT(Cur, Rhs, N) \
   do { \
     if (N) { \
-      (Cur).first_file = YYRHSLOC(Rhs, 1).first_file; \
-      (Cur).first_line = YYRHSLOC(Rhs, 1).first_line; \
-      (Cur).first_column = YYRHSLOC(Rhs, 1).first_column; \
+      (Cur).first.file = YYRHSLOC(Rhs, 1).first.file; \
+      (Cur).first.line = YYRHSLOC(Rhs, 1).first.line; \
+      (Cur).first.column = YYRHSLOC(Rhs, 1).first.column; \
     } else { \
-      (Cur).first_file = YYRHSLOC(Rhs, 0).last_file; \
-      (Cur).first_line = YYRHSLOC(Rhs, 0).last_line; \
-      (Cur).first_column = YYRHSLOC(Rhs, 0).last_column; \
+      (Cur).first.file = YYRHSLOC(Rhs, 0).last.file; \
+      (Cur).first.line = YYRHSLOC(Rhs, 0).last.line; \
+      (Cur).first.column = YYRHSLOC(Rhs, 0).last.column; \
     } \
-    (Cur).last_line = YYRHSLOC(Rhs, N).last_line; \
-    (Cur).last_column = YYRHSLOC(Rhs, N).last_column; \
+    (Cur).last.line = YYRHSLOC(Rhs, N).last.line; \
+    (Cur).last.column = YYRHSLOC(Rhs, N).last.column; \
   } while (0)
 
 #define YYLLOC_INITIAL(Cur, File) \
   do { \
-    (Cur).first_file = NULL; \
-    (Cur).first_line = 0; \
-    (Cur).first_column = 0; \
-    (Cur).last_file = (File); \
-    (Cur).last_line = 1; \
-    (Cur).last_column = 1; \
+    (Cur).first.file = NULL; \
+    (Cur).first.line = 0; \
+    (Cur).first.column = 0; \
+    (Cur).last.file = (File); \
+    (Cur).last.line = 1; \
+    (Cur).last.column = 1; \
   } while (0);
 }
 
@@ -91,31 +94,36 @@ typedef struct idl_location YYLTYPE;
   ddsts_flags_t base_type_flags;
   ddsts_type_t *type_ptr;
   ddsts_literal_t literal;
-  ddsts_identifier_t identifier;
   ddsts_scoped_name_t *scoped_name;
+  ddsts_identifier_t identifier;
+  char *str;
+  long long llng;
+  unsigned long long ullng;
 }
 
-%define api.pure full
+%define api.pure true
 %define api.prefix {idl_yy}
 %define api.push-pull push
 %define parse.trace
 
 %locations
 
-%param { idl_parser_t *parser }
-%initial-action { YYLLOC_INITIAL(@$, parser->files ? parser->files->name : NULL); }
+%param { idl_processor_t *proc }
+%initial-action { YYLLOC_INITIAL(@$, proc->files ? proc->files->name : NULL); }
 
 
 %token-table
 
 %start specification
 
-%token <identifier>
-  IDL_T_IDENTIFIER
-  IDL_T_NOWS_IDENTIFIER
+%token IDL_TOKEN_LINE_COMMENT
+%token IDL_TOKEN_COMMENT
 
-%token <literal>
-  IDL_T_INTEGER_LITERAL
+%token <str> IDL_TOKEN_PP_NUMBER
+%token <str> IDL_TOKEN_IDENTIFIER
+%token <str> IDL_TOKEN_CHAR_LITERAL
+%token <str> IDL_TOKEN_STRING_LITERAL
+%token <ullng> IDL_TOKEN_INTEGER_LITERAL
 
 %type <base_type_flags>
   base_type_spec
@@ -168,68 +176,62 @@ typedef struct idl_location YYLTYPE;
   simple_declarator
   identifier
 
-/* standardized annotations */
-%token IDL_T_AT "@"
+%token IDL_TOKEN_AT "@"
 
 /* scope operators, see idl.l for details */
-%token IDL_T_SCOPE
-%token IDL_T_SCOPE_L
-%token IDL_T_SCOPE_R
-%token IDL_T_SCOPE_LR
+%token IDL_TOKEN_SCOPE
+%token IDL_TOKEN_SCOPE_L
+%token IDL_TOKEN_SCOPE_R
+%token IDL_TOKEN_SCOPE_LR
 
 /* keywords */
-%token IDL_T_MODULE "module"
-%token IDL_T_CONST "const"
-%token IDL_T_NATIVE "native"
-%token IDL_T_STRUCT "struct"
-%token IDL_T_TYPEDEF "typedef"
-%token IDL_T_UNION "union"
-%token IDL_T_SWITCH "switch"
-%token IDL_T_CASE "case"
-%token IDL_T_DEFAULT "default"
-%token IDL_T_ENUM "enum"
-%token IDL_T_UNSIGNED "unsigned"
-%token IDL_T_FIXED "fixed"
-%token IDL_T_SEQUENCE "sequence"
-%token IDL_T_STRING "string"
-%token IDL_T_WSTRING "wstring"
+%token IDL_TOKEN_MODULE "module"
+%token IDL_TOKEN_CONST "const"
+%token IDL_TOKEN_NATIVE "native"
+%token IDL_TOKEN_STRUCT "struct"
+%token IDL_TOKEN_TYPEDEF "typedef"
+%token IDL_TOKEN_UNION "union"
+%token IDL_TOKEN_SWITCH "switch"
+%token IDL_TOKEN_CASE "case"
+%token IDL_TOKEN_DEFAULT "default"
+%token IDL_TOKEN_ENUM "enum"
+%token IDL_TOKEN_UNSIGNED "unsigned"
+%token IDL_TOKEN_FIXED "fixed"
+%token IDL_TOKEN_SEQUENCE "sequence"
+%token IDL_TOKEN_STRING "string"
+%token IDL_TOKEN_WSTRING "wstring"
 
-%token IDL_T_FLOAT "float"
-%token IDL_T_DOUBLE "double"
-%token IDL_T_SHORT "short"
-%token IDL_T_LONG "long"
-%token IDL_T_CHAR "char"
-%token IDL_T_WCHAR "wchar"
-%token IDL_T_BOOLEAN "boolean"
-%token IDL_T_OCTET "octet"
-%token IDL_T_ANY "any"
+%token IDL_TOKEN_FLOAT "float"
+%token IDL_TOKEN_DOUBLE "double"
+%token IDL_TOKEN_SHORT "short"
+%token IDL_TOKEN_LONG "long"
+%token IDL_TOKEN_CHAR "char"
+%token IDL_TOKEN_WCHAR "wchar"
+%token IDL_TOKEN_BOOLEAN "boolean"
+%token IDL_TOKEN_OCTET "octet"
+%token IDL_TOKEN_ANY "any"
 
-%token IDL_T_MAP "map"
-%token IDL_T_BITSET "bitset"
-%token IDL_T_BITFIELD "bitfield"
-%token IDL_T_BITMASK "bitmask"
+%token IDL_TOKEN_MAP "map"
+%token IDL_TOKEN_BITSET "bitset"
+%token IDL_TOKEN_BITFIELD "bitfield"
+%token IDL_TOKEN_BITMASK "bitmask"
 
-%token IDL_T_INT8 "int8"
-%token IDL_T_INT16 "int16"
-%token IDL_T_INT32 "int32"
-%token IDL_T_INT64 "int64"
-%token IDL_T_UINT8 "uint8"
-%token IDL_T_UINT16 "uint16"
-%token IDL_T_UINT32 "uint32"
-%token IDL_T_UINT64 "uint64"
-
-%token IDL_T_DOUBLE_COLON "::"
-
-%token IDL_T_END 0 "end of file"
+%token IDL_TOKEN_INT8 "int8"
+%token IDL_TOKEN_INT16 "int16"
+%token IDL_TOKEN_INT32 "int32"
+%token IDL_TOKEN_INT64 "int64"
+%token IDL_TOKEN_UINT8 "uint8"
+%token IDL_TOKEN_UINT16 "uint16"
+%token IDL_TOKEN_UINT32 "uint32"
+%token IDL_TOKEN_UINT64 "uint64"
 
 %%
-
 
 /* Constant Declaration */
 
 specification:
-    definitions IDL_T_END
-    { ddsts_accept(parser->context); YYACCEPT; }
+    definitions
+    { ddsts_accept(proc->context); YYACCEPT; }
   ;
 
 definitions:
@@ -245,58 +247,58 @@ definition:
 module_dcl:
     "module" identifier
       {
-        if (!ddsts_module_open(parser->context, $2)) {
-          YYABORT;
+        if (!ddsts_module_open(proc->context, $2)) {
+          EXHAUSTED;
         }
       }
     '{' definitions '}'
-      { ddsts_module_close(parser->context); };
+      { ddsts_module_close(proc->context); };
 
 at_scoped_name:
     identifier
       {
-        if (!ddsts_new_scoped_name(parser->context, 0, false, $1, &($$))) {
-          YYABORT;
+        if (!ddsts_new_scoped_name(proc->context, 0, false, $1, &($$))) {
+          EXHAUSTED;
         }
       }
-  | IDL_T_SCOPE_R identifier
+  | IDL_TOKEN_SCOPE_R identifier
       {
-        if (!ddsts_new_scoped_name(parser->context, 0, true, $2, &($$))) {
-          YYABORT;
+        if (!ddsts_new_scoped_name(proc->context, 0, true, $2, &($$))) {
+          EXHAUSTED;
         }
       }
-  | at_scoped_name IDL_T_SCOPE_LR identifier
+  | at_scoped_name IDL_TOKEN_SCOPE_LR identifier
       {
-        if (!ddsts_new_scoped_name(parser->context, $1, false, $3, &($$))) {
-          YYABORT;
+        if (!ddsts_new_scoped_name(proc->context, $1, false, $3, &($$))) {
+          EXHAUSTED;
         }
       }
   ;
 
 scope:
-    IDL_T_SCOPE
-  | IDL_T_SCOPE_L
-  | IDL_T_SCOPE_R
-  | IDL_T_SCOPE_LR
+    IDL_TOKEN_SCOPE
+  | IDL_TOKEN_SCOPE_L
+  | IDL_TOKEN_SCOPE_R
+  | IDL_TOKEN_SCOPE_LR
   ;
 
 scoped_name:
     identifier
       {
-        if (!ddsts_new_scoped_name(parser->context, 0, false, $1, &($$))) {
-          YYABORT;
+        if (!ddsts_new_scoped_name(proc->context, 0, false, $1, &($$))) {
+          EXHAUSTED;
         }
       }
   | scope identifier
       {
-        if (!ddsts_new_scoped_name(parser->context, 0, true, $2, &($$))) {
-          YYABORT;
+        if (!ddsts_new_scoped_name(proc->context, 0, true, $2, &($$))) {
+          EXHAUSTED;
         }
       }
   | scoped_name scope identifier
       {
-        if (!ddsts_new_scoped_name(parser->context, $1, false, $3, &($$))) {
-          YYABORT;
+        if (!ddsts_new_scoped_name(proc->context, $1, false, $3, &($$))) {
+          EXHAUSTED;
         }
       }
   ;
@@ -307,7 +309,8 @@ const_expr:
       { $$ = $2; };
 
 literal:
-    IDL_T_INTEGER_LITERAL
+    IDL_TOKEN_INTEGER_LITERAL
+    { $$.flags = DDSTS_INT64 | DDSTS_UNSIGNED; $$.value.ullng = $1; }
   ;
 
 positive_int_const:
@@ -324,16 +327,18 @@ type_spec:
 simple_type_spec:
     base_type_spec
       {
-        if (!ddsts_new_base_type(parser->context, $1, &($$))) {
-          YYABORT;
+        if (!ddsts_new_base_type(proc->context, $1, &($$))) {
+          EXHAUSTED;
         }
       }
   | scoped_name
-      {
-        if (!ddsts_get_type_from_scoped_name(parser->context, $1, &($$))) {
-          YYABORT;
-        }
+    {
+      ddsts_type_t *type = NULL;
+      if (!ddsts_get_type_from_scoped_name(proc->context, $1, &type)) {
+        ABORT(proc, &@1, "scoped name cannot be resolved");
       }
+      $$ = type;
+    }
   ;
 
 base_type_spec:
@@ -391,14 +396,14 @@ template_type_spec:
 sequence_type:
     "sequence" '<' type_spec ',' positive_int_const '>'
       {
-        if (!ddsts_new_sequence(parser->context, $3, &($5), &($$))) {
-          YYABORT;
+        if (!ddsts_new_sequence(proc->context, $3, &($5), &($$))) {
+          EXHAUSTED;
         }
       }
   | "sequence" '<' type_spec '>'
       {
-        if (!ddsts_new_sequence_unbound(parser->context, $3, &($$))) {
-          YYABORT;
+        if (!ddsts_new_sequence_unbound(proc->context, $3, &($$))) {
+          EXHAUSTED;
         }
       }
   ;
@@ -406,14 +411,14 @@ sequence_type:
 string_type:
     "string" '<' positive_int_const '>'
       {
-        if (!ddsts_new_string(parser->context, &($3), &($$))) {
-          YYABORT;
+        if (!ddsts_new_string(proc->context, &($3), &($$))) {
+          EXHAUSTED;
         }
       }
   | "string"
       {
-        if (!ddsts_new_string_unbound(parser->context, &($$))) {
-          YYABORT;
+        if (!ddsts_new_string_unbound(proc->context, &($$))) {
+          EXHAUSTED;
         }
       }
   ;
@@ -421,14 +426,14 @@ string_type:
 wide_string_type:
     "wstring" '<' positive_int_const '>'
       {
-        if (!ddsts_new_wide_string(parser->context, &($3), &($$))) {
-          YYABORT;
+        if (!ddsts_new_wide_string(proc->context, &($3), &($$))) {
+          EXHAUSTED;
         }
       }
   | "wstring"
       {
-        if (!ddsts_new_wide_string_unbound(parser->context, &($$))) {
-          YYABORT;
+        if (!ddsts_new_wide_string_unbound(proc->context, &($$))) {
+          EXHAUSTED;
         }
       }
   ;
@@ -436,8 +441,8 @@ wide_string_type:
 fixed_pt_type:
     "fixed" '<' positive_int_const ',' positive_int_const '>'
       {
-        if (!ddsts_new_fixed_pt(parser->context, &($3), &($5), &($$))) {
-          YYABORT;
+        if (!ddsts_new_fixed_pt(proc->context, &($3), &($5), &($$))) {
+          EXHAUSTED;
         }
       }
   ;
@@ -446,12 +451,12 @@ fixed_pt_type:
 struct_type:
     "struct" '{'
       {
-        if (!ddsts_add_struct_open(parser->context, NULL)) {
-          YYABORT;
+        if (!ddsts_add_struct_open(proc->context, NULL)) {
+          EXHAUSTED;
         }
       }
     members '}'
-      { ddsts_struct_close(parser->context, &($$)); }
+      { ddsts_struct_close(proc->context, &($$)); }
   ;
 
 constr_type_dcl:
@@ -467,12 +472,12 @@ struct_dcl:
 struct_def:
     "struct" identifier '{'
       {
-        if (!ddsts_add_struct_open(parser->context, $2)) {
-          YYABORT;
+        if (!ddsts_add_struct_open(proc->context, $2)) {
+          EXHAUSTED;
         }
       }
     members '}'
-      { ddsts_struct_close(parser->context, &($$)); }
+      { ddsts_struct_close(proc->context, &($$)); }
   ;
 members:
     member members
@@ -482,30 +487,32 @@ members:
 member:
     annotation_appls type_spec
       {
-        if (!ddsts_add_struct_member(parser->context, &($2))) {
-          YYABORT;
+        if (!ddsts_add_struct_member(proc->context, &($2))) {
+          ABORT(proc, &@2, "forward struct used as type for member declaration");
         }
       }
     declarators ';'
-      { ddsts_struct_member_close(parser->context); }
+      {
+        ddsts_struct_member_close(proc->context);
+      }
   | type_spec
       {
-        if (!ddsts_add_struct_member(parser->context, &($1))) {
-          YYABORT;
+        if (!ddsts_add_struct_member(proc->context, &($1))) {
+          ABORT(proc, &@1, "forward struct used as type for member declaration");
         }
       }
     declarators ';'
-      { ddsts_struct_member_close(parser->context); }
+      { ddsts_struct_member_close(proc->context); }
 /* Embedded struct extension: */
-  | struct_def { ddsts_add_struct_member(parser->context, &($1)); }
+  | struct_def { ddsts_add_struct_member(proc->context, &($1)); }
     declarators ';'
   ;
 
 struct_forward_dcl:
     "struct" identifier
       {
-        if (!ddsts_add_struct_forward(parser->context, $2)) {
-          YYABORT;
+        if (!ddsts_add_struct_forward(proc->context, $2)) {
+          EXHAUSTED;
         }
       };
 
@@ -517,29 +524,35 @@ union_dcl:
 union_def:
     "union" identifier
        {
-         if (!ddsts_add_union_open(parser->context, $2)) {
-           YYABORT ;
+         if (!ddsts_add_union_open(proc->context, $2)) {
+           EXHAUSTED;
          }
        }
     "switch" '(' switch_type_spec ')'
        {
-         if (!ddsts_union_set_switch_type(parser->context, $6)) {
-           YYABORT ;
+         if (!ddsts_union_set_switch_type(proc->context, $6)) {
+           EXHAUSTED;
          }
        }
     '{' switch_body '}'
-       { ddsts_union_close(parser->context); }
+       { ddsts_union_close(proc->context); }
   ;
+
 switch_type_spec:
     integer_type
   | char_type
   | boolean_type
   | scoped_name
-      {
-        if (!ddsts_get_base_type_from_scoped_name(parser->context, $1, &($$))) {
-          YYABORT;
-        }
+    {
+      ddsts_type_t *type = NULL;
+      if (!ddsts_get_type_from_scoped_name(proc->context, $1, &type)) {
+        ABORT(proc, &@1, "scoped name cannot be resolved");
       }
+      if (!(DDSTS_TYPE_OF(type) & DDSTS_BASIC_TYPES)) {
+        ABORT(proc, &@1, "scoped name does not resolve to a basic type");
+      }
+      $$ = DDSTS_TYPE_OF(type);
+    }
   ;
 
 switch_body: cases ;
@@ -560,14 +573,19 @@ case_labels:
 case_label:
     "case" const_expr ':'
       {
-        if (!ddsts_union_add_case_label(parser->context, &($2))) {
-          YYABORT;
+        switch (ddsts_union_add_case_label(proc->context, &($2))) {
+          case DDS_RETCODE_OUT_OF_RESOURCES:
+            EXHAUSTED;
+          case DDS_RETCODE_OK:
+            break;
+          default:
+            YYABORT;
         }
       }
   | "default" ':'
       {
-        if (!ddsts_union_add_case_default(parser->context)) {
-          YYABORT;
+        if (!ddsts_union_add_case_default(proc->context)) {
+          EXHAUSTED;
         }
       }
   ;
@@ -575,8 +593,8 @@ case_label:
 element_spec:
     type_spec
       {
-        if (!ddsts_union_add_element(parser->context, &($1))) {
-          YYABORT;
+        if (!ddsts_union_add_element(proc->context, &($1))) {
+          EXHAUSTED;
         }
       }
     declarator
@@ -585,8 +603,8 @@ element_spec:
 union_forward_dcl:
     "union" identifier
       {
-        if (!ddsts_add_union_forward(parser->context, $2)) {
-          YYABORT;
+        if (!ddsts_add_union_forward(proc->context, $2)) {
+          EXHAUSTED;
         }
       }
   ;
@@ -594,8 +612,13 @@ union_forward_dcl:
 array_declarator:
     identifier fixed_array_sizes
       {
-        if (!ddsts_add_declarator(parser->context, $1)) {
-          YYABORT;
+        switch (ddsts_add_declarator(proc->context, $1)) {
+          case DDS_RETCODE_OUT_OF_RESOURCES:
+            EXHAUSTED;
+          case DDS_RETCODE_OK:
+            break;
+          default:
+            YYABORT;
         }
       }
   ;
@@ -608,8 +631,8 @@ fixed_array_sizes:
 fixed_array_size:
     '[' positive_int_const ']'
       {
-        if (!ddsts_add_array_size(parser->context, &($2))) {
-          YYABORT;
+        if (!ddsts_add_array_size(proc->context, &($2))) {
+          EXHAUSTED;
         }
       }
   ;
@@ -624,8 +647,13 @@ declarators:
 declarator:
     simple_declarator
       {
-        if (!ddsts_add_declarator(parser->context, $1)) {
-          YYABORT;
+        switch (ddsts_add_declarator(proc->context, $1)) {
+          case DDS_RETCODE_OUT_OF_RESOURCES:
+            EXHAUSTED;
+          case DDS_RETCODE_OK:
+            break;
+          default:
+            YYABORT;
         }
       };
 
@@ -634,20 +662,20 @@ declarator:
 struct_def:
     "struct" identifier ':' scoped_name '{'
       {
-        if (!ddsts_add_struct_extension_open(parser->context, $2, $4)) {
-          YYABORT;
+        if (!ddsts_add_struct_extension_open(proc->context, $2, $4)) {
+          EXHAUSTED;
         }
       }
     members '}'
-      { ddsts_struct_close(parser->context, &($$)); }
+      { ddsts_struct_close(proc->context, &($$)); }
   | "struct" identifier '{'
       {
-        if (!ddsts_add_struct_open(parser->context, $2)) {
-          YYABORT;
+        if (!ddsts_add_struct_open(proc->context, $2)) {
+          EXHAUSTED;
         }
       }
     '}'
-      { ddsts_struct_empty_close(parser->context, &($$)); }
+      { ddsts_struct_empty_close(proc->context, &($$)); }
   ;
 
 template_type_spec:
@@ -657,14 +685,14 @@ template_type_spec:
 map_type:
     "map" '<' type_spec ',' type_spec ',' positive_int_const '>'
       {
-        if (!ddsts_new_map(parser->context, $3, $5, &($7), &($$))) {
-          YYABORT;
+        if (!ddsts_new_map(proc->context, $3, $5, &($7), &($$))) {
+          EXHAUSTED;
         }
       }
   | "map" '<' type_spec ',' type_spec '>'
       {
-        if (!ddsts_new_map_unbound(parser->context, $3, $5, &($$))) {
-          YYABORT;
+        if (!ddsts_new_map_unbound(proc->context, $3, $5, &($$))) {
+          EXHAUSTED;
         }
       }
   ;
@@ -707,69 +735,40 @@ annotation_appls:
 annotation_appl:
     "@" at_scoped_name
     {
-      if (!ddsts_add_annotation(parser->context, $2)) {
-        YYABORT;
+      if (!ddsts_add_annotation(proc->context, $2)) {
+        EXHAUSTED;
       }
     }
   ;
 
 identifier:
-    IDL_T_IDENTIFIER
+    IDL_TOKEN_IDENTIFIER
       {
         size_t off = 0;
         if ($1[0] == '_') {
           off = 1;
-        } else if (yystrtok($1, 1) != -1) {
-          yyerror(&yylloc, parser, "identifier '%s' collides with a keyword", $1);
-          YYABORT;
+        } else if (idl_istoken($1, 1)) {
+          ABORT(proc, &@1, "identifier '%s' collides with a keyword", $1);
         }
-        if (!ddsts_context_copy_identifier(parser->context, $1 + off, &($$))) {
-          YYABORT;
+        if (!ddsts_context_copy_identifier(proc->context, $1 + off, &($$))) {
+          EXHAUSTED;
         }
       };
 
 %%
 
-void idl_yyerror(
-  YYLTYPE *yylloc, idl_parser_t *parser, const char *fmt, ...)
+#if defined(__GNUC__)
+_Pragma("GCC diagnostic pop")
+_Pragma("GCC diagnostic pop")
+#endif
+
+static void
+yyerror(idl_location_t *loc, idl_processor_t *proc, const char *str)
 {
-  dds_return_t rc;
-  va_list ap;
-
-  DDSRT_UNUSED_ARG(parser);
-  rc = ddsts_context_get_retcode(parser->context);
-  if (rc == DDS_RETCODE_OK) {
-    if (strcmp(fmt, "memory exhausted") == 0) {
-      ddsts_context_set_retcode(parser->context, DDS_RETCODE_OUT_OF_RESOURCES);
-    } else {
-      ddsts_context_set_retcode(parser->context, DDS_RETCODE_BAD_SYNTAX);
-    }
-  }
-
-  fprintf(stderr, "%s at %d.%d: ", yylloc->first_file, yylloc->first_line, yylloc->first_column);
-  va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
-  va_end(ap);
-  fprintf(stderr, "\n");
+  idl_error(proc, loc, str);
 }
 
-void idl_yywarning(
-  YYLTYPE *yylloc, idl_parser_t *parser, const char *fmt, ...)
-{
-  va_list ap;
-
-  assert(yylloc != NULL);
-  (void)parser;
-  assert(fmt != NULL);
-
-  fprintf(stderr, "%s at %d.%d: ", yylloc->first_file, yylloc->first_line, yylloc->first_column);
-  va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
-  va_end(ap);
-  fprintf(stderr, "\n");
-}
-
-int idl_yystrtok(const char *str, bool nc)
+int32_t idl_istoken(const char *str, int nc)
 {
   size_t i, n;
   int(*cmp)(const char *s1, const char *s2, size_t n);
@@ -787,5 +786,5 @@ int idl_yystrtok(const char *str, bool nc)
     }
   }
 
-  return -1;
+  return 0;
 }

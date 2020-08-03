@@ -18,145 +18,220 @@
 #include <stdbool.h>
 
 #include "idl.h"
-#include "idl.y.h"
-/* disable inclusion of unistd.h in the flex generated header file, as
-   %nounistd only disables inclusion in the generated source file. */
-#define YY_NO_UNISTD_H
-#include "idl.l.h"
+#include "parser.h"
 #include "tt_create.h"
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/io.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsts/typetree.h"
 
-idl_parser_t *idl_create_parser(void)
+int32_t idl_processor_init(idl_processor_t *proc)
 {
-  idl_parser_t *parser;
-
-  if ((parser = ddsrt_calloc(1, sizeof(*parser))) != NULL &&
-      (parser->context = ddsts_create_context()) != NULL &&
-      (idl_yylex_init(&parser->yylstate)) == 0 &&
-      (parser->yypstate = (void *)idl_yypstate_new()) != NULL)
-  {
-    return parser;
+  memset(proc, 0, sizeof(*proc));
+  if (!(proc->context = ddsts_create_context())) {
+    return IDL_MEMORY_EXHAUSTED;
+  } else if (!(proc->parser.yypstate = (void *)idl_yypstate_new())) {
+    ddsts_free_context(proc->context);
+    return IDL_MEMORY_EXHAUSTED;
   }
 
-  idl_destroy_parser(parser);
-  return NULL;
+  return 0;
 }
 
-void idl_destroy_parser(idl_parser_t *parser)
+void idl_processor_fini(idl_processor_t *proc)
 {
-  if (parser != NULL) {
+  if (proc) {
     idl_file_t *file, *next;
 
-    if (parser->yypstate != NULL) {
-      idl_yypstate_delete((idl_yypstate *)parser->yypstate);
-    }
-    if (parser->yylstate != NULL) {
-      idl_yylex_destroy((yyscan_t)parser->yylstate);
-    }
-    if (parser->context != NULL) {
-      ddsts_free_context(parser->context);
-    }
-
-    for (file = parser->files; file != NULL; file = next) {
-      next = file->next;
-      if (file->name != NULL) {
-        ddsrt_free(file->name);
+    if (proc->parser.yypstate)
+      idl_yypstate_delete((idl_yypstate *)proc->parser.yypstate);
+    if (proc->context)
+      ddsts_free_context(proc->context);
+    if (proc->directive) {
+      switch (proc->directive->type) {
+        case IDL_LINE: {
+          idl_line_t *dir = (idl_line_t *)proc->directive;
+          ddsrt_free(dir->file);
+        } break;
+        case IDL_KEYLIST: {
+          idl_keylist_t *dir = (idl_keylist_t *)proc->directive;
+          ddsrt_free(dir->data_type);
+          for (char **keys = dir->keys; keys && *keys; keys++)
+            ddsrt_free(*keys);
+          ddsrt_free(dir->keys);
+        } break;
+        default:
+          break;
       }
+      ddsrt_free(proc->directive);
+    }
+    for (file = proc->files; file; file = next) {
+      next = file->next;
+      if (file->name)
+        ddsrt_free(file->name);
       ddsrt_free(file);
     }
 
-    if (parser->buffer.data != NULL) {
-      ddsrt_free(parser->buffer.data);
-    }
-
-    ddsrt_free(parser);
+    if (proc->buffer.data)
+      ddsrt_free(proc->buffer.data);
   }
 }
 
-dds_return_t idl_scan_token(idl_parser_t *parser)
+static void
+idl_log(
+  idl_processor_t *proc, uint32_t prio, idl_location_t *loc, const char *fmt, va_list ap)
 {
-  dds_return_t ret = 1;
+  char buf[1024];
+  int cnt;
+  size_t off;
+
+  (void)proc;
+  (void)prio;
+  if (loc->first.file)
+    cnt = snprintf(
+      buf, sizeof(buf)-1, "%s:%u:%u: ", loc->first.file, loc->first.line, loc->first.column);
+  else
+    cnt = snprintf(
+      buf, sizeof(buf)-1, "%u:%u: ", loc->first.line, loc->first.column);
+
+  if (cnt == -1)
+    return;
+
+  off = (size_t)cnt;
+  cnt = vsnprintf(buf+off, sizeof(buf)-off, fmt, ap);
+
+  if (cnt == -1)
+    return;
+
+  fprintf(stderr, "%s\n", buf);
+}
+
+void
+idl_verror(
+  idl_processor_t *proc, idl_location_t *loc, const char *fmt, va_list ap)
+{
+  idl_log(proc, DDS_LC_ERROR, loc, fmt, ap);
+}
+
+void
+idl_error(
+  idl_processor_t *proc, idl_location_t *loc, const char *fmt, ...)
+{
+  va_list ap;
+
+  va_start(ap, fmt);
+  idl_log(proc, DDS_LC_ERROR, loc, fmt, ap);
+  va_end(ap);
+}
+
+void
+idl_warning(
+  idl_processor_t *proc, idl_location_t *loc, const char *fmt, ...)
+{
+  va_list ap;
+
+  va_start(ap, fmt);
+  idl_log(proc, DDS_LC_WARNING, loc, fmt, ap);
+  va_end(ap);
+}
+
+int32_t idl_parse_code(idl_processor_t *proc, idl_token_t *tok)
+{
   YYSTYPE yylval;
-  int tok;
 
-  assert(parser != NULL);
-  memset(&yylval, 0, sizeof(yylval));
-
-  if ((tok = idl_yylex(&yylval, &parser->location, parser, parser->yylstate)) == '\n') {
-    /* ignore whitespace */
-    parser->buffer.lines--;
-  } else {
-    if (tok == 0) {
-      /* 0 (YY_NULL) is returned by flex to indicate it is finished. e.g. on
-         end-of-file and yyterminate */
-      ret = ddsts_context_get_retcode(parser->context);
-      if (ret != DDS_RETCODE_OK) {
-        return ret;
-      }
-    }
-    int yystate = idl_yypush_parse(parser->yypstate, tok, &yylval, &parser->location, parser);
-    if (tok == IDL_T_IDENTIFIER) {
-      ddsrt_free(yylval.identifier);
-    }
-    switch (yystate) {
-    case 0:
-      ret = ddsts_context_get_retcode(parser->context);
+  /* prepare Bison yylval */
+  switch (tok->code) {
+    case IDL_TOKEN_IDENTIFIER:
+    case IDL_TOKEN_CHAR_LITERAL:
+    case IDL_TOKEN_STRING_LITERAL:
+      yylval.str = tok->value.str;
       break;
-    case 1:
-      ret = ddsts_context_get_retcode(parser->context);
-      if (ret == DDS_RETCODE_OK)
-        ret = DDS_RETCODE_BAD_SYNTAX;
+    case IDL_TOKEN_INTEGER_LITERAL:
+      yylval.ullng = tok->value.ullng;
       break;
-    case 2:
-      return DDS_RETCODE_OUT_OF_RESOURCES;
     default:
-      assert(yystate == YYPUSH_MORE);
+      memset(&yylval, 0, sizeof(yylval));
       break;
+  }
+
+  switch (idl_yypush_parse(
+    proc->parser.yypstate, tok->code, &yylval, &tok->location, proc))
+  {
+    case YYPUSH_MORE:
+      return IDL_PUSH_MORE;
+    case 1: /* parse error */
+      return IDL_PARSE_ERROR;
+    case 2: /* out of memory */
+      return IDL_MEMORY_EXHAUSTED;
+    default:
+      break;
+  }
+
+  return 0;
+}
+
+int32_t idl_parse(idl_processor_t *proc)
+{
+  int32_t code;
+  idl_token_t tok;
+  memset(&tok, 0, sizeof(tok));
+
+  do {
+    if ((code = idl_scan(proc, &tok)) < 0)
+      break;
+    if ((unsigned)proc->state & (unsigned)IDL_SCAN_DIRECTIVE)
+      code = idl_parse_directive(proc, &tok);
+    else if (code != '\n')
+      code = idl_parse_code(proc, &tok);
+    else
+      code = 0;
+    /* free memory associated with token value */
+    switch (tok.code) {
+      case '\n':
+        proc->state = IDL_SCAN;
+        break;
+      case IDL_TOKEN_IDENTIFIER:
+      case IDL_TOKEN_CHAR_LITERAL:
+      case IDL_TOKEN_STRING_LITERAL:
+      case IDL_TOKEN_PP_NUMBER:
+        if (tok.value.str)
+          ddsrt_free(tok.value.str);
+        break;
+      default:
+        break;
     }
-  }
-  return ret;
+  } while (tok.code != '\0' && (code == 0 || code == IDL_PUSH_MORE));
+
+  return code;
 }
 
-dds_return_t idl_scan(idl_parser_t *parser)
+int32_t
+idl_parse_string(const char *str, ddsts_type_t **typeptr)
 {
-  dds_return_t rc;
-
-  assert(parser != NULL);
-  while ((rc = idl_scan_token(parser)) == 1) { /* scan tokens */ }
-  if (rc == DDS_RETCODE_OK) {
-    assert(parser->buffer.lines == 0);
-  }
-
-  return rc;
-}
-
-dds_return_t idl_parse(const char *str, ddsts_type_t **typeptr)
-{
-  dds_return_t rc;
-  idl_parser_t *pars;
+  int32_t ret;
+  idl_processor_t proc;
 
   assert(str != NULL);
   assert(typeptr != NULL);
 
-  if ((pars = idl_create_parser()) == NULL) {
-    return DDS_RETCODE_OUT_OF_RESOURCES;
-  }
+  if ((ret = idl_processor_init(&proc)) != 0)
+    return ret;
 
-  if (idl_puts(pars, str, strlen(str)) != -1) {
-    if ((rc = idl_scan(pars)) == DDS_RETCODE_OK) {
-      *typeptr = ddsts_context_take_root_type(pars->context);
-    }
-  } else {
-    rc = ddsts_context_get_retcode(pars->context);
-    assert(rc != DDS_RETCODE_OK);
-  }
+  proc.buffer.data = (char *)str;
+  proc.buffer.size = proc.buffer.used = strlen(str);
+  proc.scanner.cursor = proc.buffer.data;
+  proc.scanner.limit = proc.buffer.data + proc.buffer.used;
+  proc.scanner.position.line = 1;
+  proc.scanner.position.column = 1;
 
-  idl_destroy_parser(pars);
+  if ((ret = idl_parse(&proc)) == 0)
+    *typeptr = ddsts_context_take_root_type(proc.context);
 
-  return rc;
+  proc.buffer.data = NULL;
+
+  idl_processor_fini(&proc);
+
+  return ret;
 }
