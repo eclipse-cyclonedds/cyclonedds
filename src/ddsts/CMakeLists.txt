@@ -12,32 +12,14 @@
 
 include(GenerateExportHeader)
 
-PREPEND(srcs_ddsts "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    typetree.c
-    type_walk.c)
-set(headers
-    "include/dds/ddsts/typetree.h")
-
-add_library(ddsts SHARED ${srcs_ddsts})
-
-generate_export_header(
-    ddsts
-    BASE_NAME
-      dds
-    EXPORT_FILE_NAME
-      "${CMAKE_CURRENT_BINARY_DIR}/include/dds/export.h"
-)
+add_library(ddsts SHARED src/typetree.c src/type_walk.c)
 
 target_include_directories(
   ddsts
-  PUBLIC
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-  PRIVATE
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
-    "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>")
+    PUBLIC
+      "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+      "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
 
-target_link_libraries(
-  ddsts
-  PRIVATE
-    ddsc
-)
+generate_export_header(ddsts EXPORT_FILE_NAME include/dds/ddsts/export.h)
+
+target_link_libraries(ddsts PUBLIC ddsc)

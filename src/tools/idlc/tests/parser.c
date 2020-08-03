@@ -27,7 +27,7 @@ static bool test_type(ddsts_type_t *type, ddsts_flags_t flags, const char *name,
 static void test_basic_type(const char *idl, ddsts_flags_t flags)
 {
   ddsts_type_t *root_type = NULL;
-  CU_ASSERT(idl_parse(idl, &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string(idl, &root_type) == DDS_RETCODE_OK);
   CU_ASSERT(test_type(root_type, DDSTS_MODULE, NULL, NULL, true));
   CU_ASSERT(root_type->module.previous == NULL);
     ddsts_type_t *struct_s = root_type->module.members.first;
@@ -40,7 +40,7 @@ static void test_basic_type(const char *idl, ddsts_flags_t flags)
   ddsts_free_type(root_type);
 }
 
-CU_Test(parser, basic_types)
+CU_Test(idlc_parser, basic_types)
 {
   test_basic_type("struct s{boolean c;};", DDSTS_BOOLEAN);
   test_basic_type("struct s{char c;};", DDSTS_CHAR);
@@ -65,10 +65,10 @@ CU_Test(parser, basic_types)
   test_basic_type("struct s{long double c;};", DDSTS_LONGDOUBLE);
 }
 
-CU_Test(parser, one_module1)
+CU_Test(idlc_parser, one_module1)
 {
   ddsts_type_t *root_type = NULL;
-  CU_ASSERT(idl_parse("module a{ struct s{char c;};};", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string("module a{ struct s{char c;};};", &root_type) == DDS_RETCODE_OK);
   CU_ASSERT(test_type(root_type, DDSTS_MODULE, NULL, NULL, true));
   CU_ASSERT(root_type->module.previous == NULL);
     ddsts_type_t *module_a = root_type->module.members.first;
@@ -84,10 +84,10 @@ CU_Test(parser, one_module1)
   ddsts_free_type(root_type);
 }
 
-CU_Test(parser, reopen_module)
+CU_Test(idlc_parser, reopen_module)
 {
   ddsts_type_t *root_type = NULL;
-  CU_ASSERT(idl_parse("module a{ struct s{char c;};}; module a { struct t{char x;};};", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string("module a{ struct s{char c;};}; module a { struct t{char x;};};", &root_type) == DDS_RETCODE_OK);
   CU_ASSERT(test_type(root_type, DDSTS_MODULE, NULL, NULL, true));
   CU_ASSERT(root_type->module.previous == NULL);
     ddsts_type_t *module_a = root_type->module.members.first;
@@ -117,10 +117,10 @@ CU_Test(parser, reopen_module)
   ddsts_free_type(root_type);
 }
 
-CU_Test(parser, scoped_name)
+CU_Test(idlc_parser, scoped_name)
 {
   ddsts_type_t *root_type = NULL;
-  CU_ASSERT(idl_parse("module a{ struct s{char c;};}; module b { struct t{a::s x;};};", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string("module a{ struct s{char c;};}; module b { struct t{a::s x;};};", &root_type) == DDS_RETCODE_OK);
   CU_ASSERT(test_type(root_type, DDSTS_MODULE, NULL, NULL, true));
   CU_ASSERT(root_type->module.previous == NULL);
     ddsts_type_t *module_a = root_type->module.members.first;
@@ -146,10 +146,10 @@ CU_Test(parser, scoped_name)
   ddsts_free_type(root_type);
 }
 
-CU_Test(parser, comma)
+CU_Test(idlc_parser, comma)
 {
   ddsts_type_t *root_type = NULL;
-  CU_ASSERT(idl_parse("struct s{char a, b;};", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string("struct s{char a, b;};", &root_type) == DDS_RETCODE_OK);
   CU_ASSERT(test_type(root_type, DDSTS_MODULE, NULL, NULL, true));
   CU_ASSERT(root_type->module.previous == NULL);
     ddsts_type_t *struct_s = root_type->module.members.first;
@@ -165,10 +165,10 @@ CU_Test(parser, comma)
   ddsts_free_type(root_type);
 }
 
-CU_Test(parser, types)
+CU_Test(idlc_parser, types)
 {
   ddsts_type_t *root_type = NULL;
-  CU_ASSERT(idl_parse("struct s{sequence<char> us; sequence<char,8> bs; string ust; string<7> bst; wstring uwst; wstring<6> bwst; fixed<5,3> fp; map<short,char> um; map<short,char,5> bm;};", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string("struct s{sequence<char> us; sequence<char,8> bs; string ust; string<7> bst; wstring uwst; wstring<6> bwst; fixed<5,3> fp; map<short,char> um; map<short,char,5> bm;};", &root_type) == DDS_RETCODE_OK);
   CU_ASSERT(test_type(root_type, DDSTS_MODULE, NULL, NULL, true));
   CU_ASSERT(root_type->module.previous == NULL);
     ddsts_type_t *struct_s = root_type->module.members.first;
@@ -242,10 +242,10 @@ CU_Test(parser, types)
   ddsts_free_type(root_type);
 }
 
-CU_Test(parser, union)
+CU_Test(idlc_parser, union)
 {
   ddsts_type_t *root_type = NULL;
-  CU_ASSERT_FATAL(idl_parse("union a switch(short) { case 0: short b; case 1: case 4: octet c; default: char d; };", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT_FATAL(idl_parse_string("union a switch(short) { case 0: short b; case 1: case 4: octet c; default: char d; };", &root_type) == DDS_RETCODE_OK);
   CU_ASSERT(test_type(root_type, DDSTS_MODULE, NULL, NULL, true));
   CU_ASSERT(root_type->module.previous == NULL);
     ddsts_type_t *union_s = root_type->module.members.first;
@@ -283,7 +283,7 @@ CU_Test(parser, union)
         case_type = union_case->declaration.decl_type;
         CU_ASSERT(test_type(case_type, DDSTS_CHAR, NULL, union_case, true));
   ddsts_free_type(root_type);
-  CU_ASSERT_FATAL(idl_parse("union u switch(short) { case 0: short b;}; struct s{u a;};", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT_FATAL(idl_parse_string("union u switch(short) { case 0: short b;}; struct s{u a;};", &root_type) == DDS_RETCODE_OK);
   CU_ASSERT(test_type(root_type, DDSTS_MODULE, NULL, NULL, true));
   CU_ASSERT(root_type->module.previous == NULL);
     ddsts_type_t *union_u = root_type->module.members.first;
@@ -308,10 +308,10 @@ CU_Test(parser, union)
   ddsts_free_type(root_type);
 }
 
-CU_Test(parser, array)
+CU_Test(idlc_parser, array)
 {
   ddsts_type_t *root_type = NULL;
-  CU_ASSERT(idl_parse("struct s{short a[3], b[4][5]; sequence<char> s[6];};", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string("struct s{short a[3], b[4][5]; sequence<char> s[6];};", &root_type) == DDS_RETCODE_OK);
   CU_ASSERT(test_type(root_type, DDSTS_MODULE, NULL, NULL, true));
   CU_ASSERT(root_type->module.previous == NULL);
     ddsts_type_t *struct_s = root_type->module.members.first;
@@ -349,7 +349,7 @@ CU_Test(parser, array)
 static void test_topic_keys(const char *idl, const char *keystr)
 {
   ddsts_type_t *root_type = NULL;
-  CU_ASSERT(idl_parse(idl, &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string(idl, &root_type) == DDS_RETCODE_OK);
   CU_ASSERT(test_type(root_type, DDSTS_MODULE, NULL, NULL, true));
   CU_ASSERT(root_type->module.previous == NULL);
     ddsts_type_t *struct_s = root_type->module.members.first;
@@ -373,7 +373,7 @@ static void test_topic_keys(const char *idl, const char *keystr)
   ddsts_free_type(root_type);
 }
 
-CU_Test(parser, topic_keys)
+CU_Test(idlc_parser, topic_keys)
 {
   test_topic_keys("struct s{ @key char a; char b;};", "a");
   test_topic_keys("struct s{ char a; @key char b;};", "b");
@@ -383,7 +383,7 @@ CU_Test(parser, topic_keys)
   test_topic_keys("struct s{ char a; char b;};\n#pragma keylist s a b\n", "ab");
   test_topic_keys("struct s{ char a; char b;};\n#pragma keylist s b a\n", "ba");
   ddsts_type_t *root_type = NULL;
-  CU_ASSERT(idl_parse("module a{ struct s{char c;};}; module b { struct t{@key ::a::s x;};};", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string("module a{ struct s{char c;};}; module b { struct t{@key ::a::s x;};};", &root_type) == DDS_RETCODE_OK);
   CU_ASSERT(test_type(root_type, DDSTS_MODULE, NULL, NULL, true));
     ddsts_type_t *module_a = root_type->module.members.first;
     CU_ASSERT(test_type(module_a, DDSTS_MODULE, "a", root_type, false));
@@ -396,7 +396,7 @@ CU_Test(parser, topic_keys)
       CU_ASSERT(strcmp(struct_t->struct_def.keys->member->type.name, "x") == 0);
   ddsts_free_type(root_type);
   root_type = NULL;
-  CU_ASSERT(idl_parse("struct s{@key struct{char x;} a;};", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string("struct s{@key struct{char x;} a;};", &root_type) == DDS_RETCODE_OK);
   /* verify that the @key is applied to 'a' and not to 'x': */
   CU_ASSERT(test_type(root_type, DDSTS_MODULE, NULL, NULL, true));
     ddsts_type_t *struct_s = root_type->module.members.first;
@@ -411,113 +411,113 @@ CU_Test(parser, topic_keys)
   ddsts_free_type(root_type);
 }
 
-CU_Test(parser, errors)
+CU_Test(idlc_parser, errors)
 {
   /* The purpose of these tests is also to verify that all memory is freed correctly */
   ddsts_type_t *root_type = NULL;
   CU_ASSERT(root_type == NULL);
-  CU_ASSERT(idl_parse("xyz", &root_type) == DDS_RETCODE_BAD_SYNTAX);
+  CU_ASSERT(idl_parse_string("xyz", &root_type) == IDL_PARSE_ERROR);
   CU_ASSERT(root_type == NULL);
-  CU_ASSERT(idl_parse("struct s{char a[3][4];};", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string("struct s{char a[3][4];};", &root_type) == 0);
   ddsts_free_type(root_type);
   root_type = NULL;
-  CU_ASSERT(idl_parse("struct s{char a[3][4];}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
+  CU_ASSERT(idl_parse_string("struct s{char a[3][4];}", &root_type) == IDL_PARSE_ERROR);
   CU_ASSERT(root_type == NULL);
-  CU_ASSERT(idl_parse("struct s{char a[3][4];", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{char a[3][4]", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{char a[3][4", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{char a[3][", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{char a[3]", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{char a[3", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{char a[", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{char a;", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{char", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{sequence<char> seqa;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{sequence<char> seqa", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{sequence<char>", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{sequence<char", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{sequence<", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{sequence", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char,char> m;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char,char> m;", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char,char> m", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char,char> ", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char,char", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char,", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char,char> m;};!", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char,char> m;}!;", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char,char> m;!};", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char,char> m!;};", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char,char> !m;};", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char,char>! m;};", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char,char!> m;};", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char,!char> m;};", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{map<char!,char> m;};", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct v{char c;};struct s{v", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct v{char c;};struct s{sequence<v>", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct v{char c;};struct s{sequence<v", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct v{char c;};struct s{map<v,v", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2: case 4: short s; default: long x;!}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2: case 4: short s; default: long x!;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2: case 4: short s; default: long !x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2: case 4: short s; default: lo!ng x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2: case 4: short s; default:! long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2: case 4: short s; default!: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2: case 4: short s; defa!ult: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2: case 4: short s;! default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2: case 4: short s!; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2: case 4: short! s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2: case 4:! short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2: case! 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2:! case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 2!: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case! 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v;! case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v!; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char! v; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1:! char v; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1!: char v; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case! 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) {! case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short)! { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short!) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(sh!ort) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(!short) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch!(short) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u sw!itch(short) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u! switch(short) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union! u switch(short) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("union u switch(short) { case 1: char v; case 4: case 1: short s; default: long x;};", &root_type) == DDS_RETCODE_ERROR);
-  CU_ASSERT(idl_parse("struct s{@key string a[4];};", &root_type) == DDS_RETCODE_ERROR);
-  CU_ASSERT(idl_parse("struct s{@key sequence<char> a;};", &root_type) == DDS_RETCODE_ERROR);
-  CU_ASSERT(idl_parse("struct s{@key struct{sequence<char> cs;} a;};", &root_type) == DDS_RETCODE_ERROR);
-  CU_ASSERT(idl_parse("struct s{@key @key char c;};", &root_type) == DDS_RETCODE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{char a[3][4];", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{char a[3][4]", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{char a[3][4", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{char a[3][", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{char a[3]", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{char a[3", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{char a[", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{char a;", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{char", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{sequence<char> seqa;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{sequence<char> seqa", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{sequence<char>", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{sequence<char", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{sequence<", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{sequence", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char,char> m;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char,char> m;", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char,char> m", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char,char> ", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char,char", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char,", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char,char> m;};!", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char,char> m;}!;", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char,char> m;!};", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char,char> m!;};", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char,char> !m;};", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char,char>! m;};", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char,char!> m;};", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char,!char> m;};", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{map<char!,char> m;};", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct v{char c;};struct s{v", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct v{char c;};struct s{sequence<v>", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct v{char c;};struct s{sequence<v", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct v{char c;};struct s{map<v,v", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2: case 4: short s; default: long x;!}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2: case 4: short s; default: long x!;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2: case 4: short s; default: long !x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2: case 4: short s; default: lo!ng x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2: case 4: short s; default:! long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2: case 4: short s; default!: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2: case 4: short s; defa!ult: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2: case 4: short s;! default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2: case 4: short s!; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2: case 4: short! s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2: case 4:! short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2: case! 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2:! case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 2!: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case! 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v;! case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v!; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char! v; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1:! char v; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1!: char v; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case! 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) {! case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short)! { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short!) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(sh!ort) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(!short) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch!(short) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u sw!itch(short) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u! switch(short) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union! u switch(short) { case 1: char v; case 2: case 4: short s; default: long x;}", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("union u switch(short) { case 1: char v; case 4: case 1: short s; default: long x;};", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{@key string a[4];};", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{@key sequence<char> a;};", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{@key struct{sequence<char> cs;} a;};", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{@key @key char c;};", &root_type) == IDL_PARSE_ERROR);
   /* Unsupported pragma directives are ignored */
-  CU_ASSERT(idl_parse("struct s{char c;};\n#pragma keylis\n", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string("struct s{char c;};\n#pragma keylis\n", &root_type) == IDL_PARSE_ERROR);
   ddsts_free_type(root_type);
   root_type = NULL;
-  CU_ASSERT(idl_parse("struct s{char c;};\n#pragma keylist\n", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("struct s{char c;};\n#pragma keylist v\n", &root_type) == DDS_RETCODE_ERROR);
-  CU_ASSERT(idl_parse("struct s{char c;};\n#pragma keylist s\n", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string("struct s{char c;};\n#pragma keylist\n", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{char c;};\n#pragma keylist v\n", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{char c;};\n#pragma keylist s\n", &root_type) == 0);
   ddsts_free_type(root_type);
   root_type = NULL;
-  CU_ASSERT(idl_parse("struct s{char c;};\n#pragma keylist s v\n", &root_type) == DDS_RETCODE_ERROR);
-  CU_ASSERT(idl_parse("struct s{char c;};\n#pragma keylist s c c\n", &root_type) == DDS_RETCODE_ERROR);
-  CU_ASSERT(idl_parse("struct s{@key char c; char d;};\n#pragma keylist s d\n", &root_type) == DDS_RETCODE_ERROR);
-  CU_ASSERT(idl_parse("module a{ struct s{char c;};}; module b { struct t{@ key a::s x;};};", &root_type) == DDS_RETCODE_BAD_SYNTAX);
-  CU_ASSERT(idl_parse("module a{ struct s{char c;};}; module b { struct t{@key a ::s x;};};", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string("struct s{char c;};\n#pragma keylist s v\n", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{char c;};\n#pragma keylist s c c\n", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("struct s{@key char c; char d;};\n#pragma keylist s d\n", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("module a{ struct s{char c;};}; module b { struct t{@ key a::s x;};};", &root_type) == IDL_PARSE_ERROR);
+  CU_ASSERT(idl_parse_string("module a{ struct s{char c;};}; module b { struct t{@key a ::s x;};};", &root_type) == 0);
   ddsts_free_type(root_type);
   root_type = NULL;
-  CU_ASSERT(idl_parse("module a{ struct s{char c;};}; module b { struct t{@key a:: s x;};};", &root_type) == DDS_RETCODE_OK);
+  CU_ASSERT(idl_parse_string("module a{ struct s{char c;};}; module b { struct t{@key a:: s x;};};", &root_type) == 0);
   ddsts_free_type(root_type);
   root_type = NULL;
-  CU_ASSERT(idl_parse("struct v;struct s{v a;};struct v{char x;};", &root_type) == DDS_RETCODE_ERROR);
+  CU_ASSERT(idl_parse_string("struct v;struct s{v a;};struct v{char x;};", &root_type) == IDL_PARSE_ERROR);
 }
 
