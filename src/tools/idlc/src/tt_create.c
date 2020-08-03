@@ -232,7 +232,7 @@ static bool resolve_scoped_name(ddsts_context_t *context, ddsts_scoped_name_t *s
     }
   }
   /* Could not resolve scoped name */
-  DDS_ERROR("Could not resolve scoped name\n");
+  //DDS_ERROR("Could not resolve scoped name\n");
   *result = NULL;
   return false;
 }
@@ -528,6 +528,7 @@ extern bool ddsts_add_struct_extension_open(ddsts_context_t *context, ddsts_iden
   /* find super */
   ddsts_type_t *definition;
   if (!resolve_scoped_name(context, scoped_name, &definition)) {
+    DDS_ERROR("Could not resolve scoped name\n");
     ddsts_free_scoped_name(scoped_name);
     return false;
   }
@@ -546,7 +547,7 @@ extern bool ddsts_add_struct_member(ddsts_context_t *context, ddsts_type_t **ref
   ddsts_type_t *type = *ref_type;
   if (DDSTS_IS_TYPE(type, DDSTS_FORWARD_STRUCT)) {
     if (type->forward.definition == NULL) {
-      DDS_ERROR("Cannot use forward struct as type for member declaration\n");
+      //DDS_ERROR("Cannot use forward struct as type for member declaration\n");
       context->semantic_error = true;
       return false;
     }
@@ -719,43 +720,40 @@ static bool equal_values(ddsts_literal_t *a, ddsts_literal_t *b)
   return false;
 }
 
-extern bool ddsts_union_add_case_label(ddsts_context_t *context, ddsts_literal_t *value)
+extern dds_return_t ddsts_union_add_case_label(ddsts_context_t *context, ddsts_literal_t *value)
 {
   assert(cur_scope_is_definition_type(context, DDSTS_UNION));
   ddsts_literal_t casted_value;
   dds_return_t rc = cast_value_to_type(value, context->cur_type->union_def.switch_type, &casted_value);
   if (rc != DDS_RETCODE_OK) {
-    context->retcode = rc;
-    return false;
+    return context->retcode = rc;
   }
   for (ddsts_type_t *cases = context->cur_type->union_def.cases.first; cases != NULL; cases = cases->type.next) {
     for (ddsts_union_case_label_t *label = cases->union_case.labels; label != NULL; label = label->next) {
       if (equal_values(&label->value, &casted_value)) {
         DDS_ERROR("Same case label used in more than one case.\n");
-        context->retcode = DDS_RETCODE_ERROR;
-        return false;
+        return context->retcode = DDS_RETCODE_ERROR;
       }
     }
   } 
   if (context->union_case_default_label) {
-    DDS_WARNING("Case label in combination with default is not usefull.\n");
+    DDS_WARNING("Case label in combination with default is not useful.\n");
   }
   ddsts_union_case_label_t **ref_label = &context->union_case_labels;
   while (*ref_label != NULL) {
     if (equal_values(&(*ref_label)->value, &casted_value)) {
       DDS_WARNING("Label value in case is repeated. It is ignored.\n");
-      return true;
+      return DDS_RETCODE_OK;
     }
     ref_label = &(*ref_label)->next;
   }
   *ref_label = (ddsts_union_case_label_t*)ddsrt_malloc(sizeof(ddsts_union_case_label_t));
   if (*ref_label == NULL) {
-    context->retcode = DDS_RETCODE_OUT_OF_RESOURCES;
-    return false;
+    return context->retcode = DDS_RETCODE_OUT_OF_RESOURCES;
   }
   (*ref_label)->value = casted_value;
   (*ref_label)->next = NULL;
-  return true;
+  return DDS_RETCODE_OK;
 }
 
 extern bool ddsts_union_add_case_default(ddsts_context_t *context)
@@ -855,7 +853,7 @@ static bool keyable_type(ddsts_type_t *type)
   return false;
 }
 
-extern bool ddsts_add_declarator(ddsts_context_t *context, ddsts_identifier_t name)
+extern dds_return_t ddsts_add_declarator(ddsts_context_t *context, ddsts_identifier_t name)
 {
   assert(context != NULL);
   assert(context->dangling_identifier == name);
@@ -866,16 +864,14 @@ extern bool ddsts_add_declarator(ddsts_context_t *context, ddsts_identifier_t na
     rc = ddsts_create_declaration(name, NULL, &decl);
     if (rc != DDS_RETCODE_OK) {
       ddsts_context_free_array_sizes(context);
-      context->retcode = rc;
-      return false;
+      return context->retcode = rc;
     }
     context->dangling_identifier = NULL;
     ddsts_type_t* type = create_array_type(context->array_sizes, context->type_for_declarator);
     if (type == NULL) {
       ddsts_context_free_array_sizes(context);
       ddsts_free_type(decl);
-      context->retcode = DDS_RETCODE_OUT_OF_RESOURCES;
-      return false;
+      return context->retcode = DDS_RETCODE_OUT_OF_RESOURCES;
     }
     ddsts_context_free_array_sizes(context);
     ddsts_declaration_set_type(decl, type);
@@ -890,45 +886,47 @@ extern bool ddsts_add_declarator(ddsts_context_t *context, ddsts_identifier_t na
         if (keyable_type(type)) {
           rc = ddsts_struct_add_key(context->cur_type, decl);
           if (rc == DDS_RETCODE_ERROR) {
+            /* FIXME: does not return an error, so warning instead? */
             DDS_ERROR("Field '%s' already defined as key\n", name);
             context->semantic_error = true;
+            return DDS_RETCODE_ERROR;
           }
           else if (rc != DDS_RETCODE_OK) {
             ddsts_context_free_array_sizes(context);
-            context->retcode = rc;
-            return false;
+            return context->retcode = rc;
           }
         }
         else {
           DDS_ERROR("Type of '%s' is not valid for key\n", name);
           context->semantic_error = true;
+          return DDS_RETCODE_ERROR;
         }
       }
       else {
         DDS_ERROR("Unsupported annotation '");
         scoped_name_dds_error(annotation->scoped_name);
         DDS_ERROR("' is ignored\n");
+        return DDS_RETCODE_ERROR;
       }
     }
 
-    return true;
+    return DDS_RETCODE_OK;
   }
   else if (DDSTS_IS_TYPE(context->cur_type, DDSTS_UNION_CASE)) {
     assert(context->type_for_declarator != NULL);
     ddsts_type_t* type = create_array_type(context->array_sizes, context->type_for_declarator);
     if (type == NULL) {
       ddsts_context_free_array_sizes(context);
-      context->retcode = DDS_RETCODE_OUT_OF_RESOURCES;
-      return false;
+      return context->retcode = DDS_RETCODE_OUT_OF_RESOURCES;
     }
     ddsts_context_free_array_sizes(context);
     context->dangling_identifier = NULL;
     ddsts_union_case_set_decl(context->cur_type, name, type);
     context->cur_type = context->cur_type->type.parent;
-    return true;
+    return DDS_RETCODE_OK;
   }
   assert(false);
-  return false;
+  return DDS_RETCODE_ERROR;
 }
 
 extern bool ddsts_add_array_size(ddsts_context_t *context, ddsts_literal_t *value)
@@ -978,24 +976,31 @@ void ddsts_pragma_open(ddsts_context_t *context)
 
 bool ddsts_pragma_add_identifier(ddsts_context_t *context, ddsts_identifier_t name)
 {
+  ddsts_identifier_t copy;
   assert(context != NULL);
 
   pragma_arg_t **ref_pragma_arg = &context->pragma_args;
   while (*ref_pragma_arg != NULL) {
     ref_pragma_arg = &(*ref_pragma_arg)->next;
   }
+  copy = ddsrt_strdup(name);
+  if (copy == NULL) {
+    context->retcode = DDS_RETCODE_OUT_OF_RESOURCES;
+    return false;
+  }
   (*ref_pragma_arg) = (pragma_arg_t*)ddsrt_malloc(sizeof(pragma_arg_t));
   if ((*ref_pragma_arg) == NULL) {
+    ddsrt_free(copy);
     context->retcode = DDS_RETCODE_OUT_OF_RESOURCES;
     return false;
   }
   context->dangling_identifier = NULL;
-  (*ref_pragma_arg)->arg = name;
+  (*ref_pragma_arg)->arg = copy;
   (*ref_pragma_arg)->next = NULL;
   return true;
 }
 
-bool ddsts_pragma_close(ddsts_context_t *context)
+dds_return_t ddsts_pragma_close(ddsts_context_t *context)
 {
   assert(context != NULL);
   assert(context->cur_type != NULL);
@@ -1021,14 +1026,14 @@ bool ddsts_pragma_close(ddsts_context_t *context)
     DDS_ERROR("Struct '%s' for keylist pragma is undefined here\n", pragma_arg->arg);
     context->semantic_error = true;
     context_free_pragma_args(context);
-    return true;
+    return DDS_RETCODE_ERROR;
   }
   /* The '@key' and '#pragma keylist' may not be mixed */
   if (struct_def->struct_def.keys != NULL) {
     DDS_ERROR("Cannot use keylist pragma for struct '%s' in combination with @key annotation\n", pragma_arg->arg);
     context->semantic_error = true;
     context_free_pragma_args(context);
-    return true;
+    return DDS_RETCODE_ERROR;
   }
 
   for (pragma_arg = pragma_arg->next; pragma_arg != NULL; pragma_arg = pragma_arg->next) {
@@ -1043,27 +1048,30 @@ bool ddsts_pragma_close(ddsts_context_t *context)
     if (declaration == NULL) {
       DDS_ERROR("Member '%s' in struct '%s' for keylist pragma is undefined\n", pragma_arg->arg, struct_def->type.name);
       context->semantic_error = true;
+      return DDS_RETCODE_ERROR;
     }
     else if (keyable_type(declaration->declaration.decl_type)) {
       dds_return_t rc = ddsts_struct_add_key(struct_def, declaration);
       if (rc == DDS_RETCODE_ERROR) {
         DDS_ERROR("Field '%s' already defined as key\n", pragma_arg->arg);
         context->semantic_error = true;
+        return rc;
       }
       else if (rc != DDS_RETCODE_OK) {
         context->retcode = rc;
         context_free_pragma_args(context);
-        return false;
+        return rc;
       }
     }
     else {
       DDS_ERROR("Type of '%s' is not valid for key\n", pragma_arg->arg);
       context->semantic_error = true;
+      return DDS_RETCODE_ERROR;
     }
   }
 
   context_free_pragma_args(context);
-  return true;
+  return DDS_RETCODE_OK;
 }
 
 extern void ddsts_accept(ddsts_context_t *context)

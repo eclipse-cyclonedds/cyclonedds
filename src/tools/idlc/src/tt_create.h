@@ -59,12 +59,12 @@ void ddsts_struct_empty_close(ddsts_context_t *context, ddsts_type_t **result);
 bool ddsts_add_union_forward(ddsts_context_t *context, ddsts_identifier_t name);
 bool ddsts_add_union_open(ddsts_context_t *context, ddsts_identifier_t name);
 bool ddsts_union_set_switch_type(ddsts_context_t *context, ddsts_flags_t base_type);
-bool ddsts_union_add_case_label(ddsts_context_t *context, ddsts_literal_t *value);
+dds_return_t ddsts_union_add_case_label(ddsts_context_t *context, ddsts_literal_t *value);
 bool ddsts_union_add_case_default(ddsts_context_t *context);
 bool ddsts_union_add_element(ddsts_context_t *context, ddsts_type_t **type);
 void ddsts_union_close(ddsts_context_t *context);
 
-bool ddsts_add_declarator(ddsts_context_t *context, ddsts_identifier_t name);
+dds_return_t ddsts_add_declarator(ddsts_context_t *context, ddsts_identifier_t name);
 
 bool ddsts_add_array_size(ddsts_context_t *context, ddsts_literal_t *value);
 
@@ -72,7 +72,7 @@ bool ddsts_add_annotation(ddsts_context_t *context, ddsts_scoped_name_t* scoped_
 
 void ddsts_pragma_open(ddsts_context_t *context);
 bool ddsts_pragma_add_identifier(ddsts_context_t *context, ddsts_identifier_t name);
-bool ddsts_pragma_close(ddsts_context_t *context);
+dds_return_t ddsts_pragma_close(ddsts_context_t *context);
 
 void ddsts_accept(ddsts_context_t *context);
 

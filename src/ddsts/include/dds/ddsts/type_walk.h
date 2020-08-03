@@ -14,11 +14,11 @@
 #define DDSTS_TYPE_WALK_H
 
 #include "dds/ddsrt/retcode.h"
-#include "dds/export.h"
+#include "dds/ddsts/export.h"
 
 typedef dds_return_t (*ddsts_walk_call_func_t)(ddsts_call_path_t *path, void *context);
 
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_walk(ddsts_call_path_t *path, ddsts_flags_t visit, ddsts_flags_t call, ddsts_walk_call_func_t func, void *context);
 
 #endif /* DDSTS_TYPE_WALK_H */
