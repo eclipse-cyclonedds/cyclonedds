@@ -14,8 +14,9 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "dds/ddsts/export.h"
 #include "dds/ddsrt/retcode.h"
-#include "dds/export.h"
 
 #define DDSTS_TYPE(X)                  (1ULL<<(X))
 #define DDSTS_NOTYPE                   (0ULL)
@@ -90,7 +91,7 @@ typedef struct {
   } value;
 } ddsts_literal_t;
 
-DDS_EXPORT void ddsts_free_literal(ddsts_literal_t *literal);
+DDSTS_EXPORT void ddsts_free_literal(ddsts_literal_t *literal);
 
 
 /**
@@ -110,7 +111,7 @@ typedef union ddsts_type ddsts_type_t;
  * @returns A dds_return_t indicating success or failure. Returns failure
  * when the type is part of another type.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_free_type(ddsts_type_t *type);
 
 typedef struct ddsts_typespec ddsts_typespec_t;
@@ -140,7 +141,7 @@ typedef struct {
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_create_base_type(ddsts_flags_t flags, ddsts_type_t **result);
 
 /* Sequence type (sequence_type) */
@@ -164,7 +165,7 @@ typedef struct {
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_create_sequence(ddsts_type_t *element_type, unsigned long long max, ddsts_type_t **result);
 
 /* Array type */
@@ -187,7 +188,7 @@ typedef struct {
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_create_array(ddsts_type_t *element_type, unsigned long long size, ddsts_type_t **result);
 
 /**
@@ -202,7 +203,7 @@ ddsts_create_array(ddsts_type_t *element_type, unsigned long long size, ddsts_ty
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_array_set_element_type(ddsts_type_t *array, ddsts_type_t *element_type);
 
 /* (Wide) string type (string_type, wide_string_type) */
@@ -222,7 +223,7 @@ typedef struct {
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_create_string(ddsts_flags_t flags, unsigned long long max, ddsts_type_t **result);
 
 /* Fixed point type (fixed_pt_type) */
@@ -243,7 +244,7 @@ typedef struct {
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_create_fixed_pt(unsigned long long digits, unsigned long long fraction_digits, ddsts_type_t **result);
 
 /* Map type (map_type) */
@@ -270,7 +271,7 @@ typedef struct {
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_create_map(ddsts_type_t *key_type, ddsts_type_t *value_type, unsigned long long max, ddsts_type_t **result);
 
 /* Module declaration (module_dcl)
@@ -292,7 +293,7 @@ struct ddsts_module {
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_create_module(ddsts_identifier_t name, ddsts_type_t **result);
 
 /**
@@ -311,7 +312,7 @@ ddsts_create_module(ddsts_identifier_t name, ddsts_type_t **result);
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_module_add_member(ddsts_type_t *module, ddsts_type_t *member);
 
 /* Forward declaration */
@@ -334,7 +335,7 @@ typedef struct {
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_create_struct_forward_dcl(ddsts_identifier_t name, ddsts_type_t **result);
 
 /* Struct declaration (struct_def)
@@ -362,7 +363,7 @@ struct ddsts_struct_key {
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_create_struct(ddsts_identifier_t name, ddsts_type_t **result);
 
 /**
@@ -375,7 +376,7 @@ ddsts_create_struct(ddsts_identifier_t name, ddsts_type_t **result);
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_struct_add_member(ddsts_type_t *struct_def, ddsts_type_t *member);
 
 /**
@@ -390,7 +391,7 @@ ddsts_struct_add_member(ddsts_type_t *struct_def, ddsts_type_t *member);
  * keys of struct_def. DDS_RETCODE_ERROR is returned when the member is
  * already included as a key.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_struct_add_key(ddsts_type_t *struct_def, ddsts_type_t *member);
 
 /* Declaration
@@ -414,7 +415,7 @@ typedef struct {
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_create_declaration(ddsts_identifier_t name, ddsts_type_t *decl_type, ddsts_type_t **result);
 
 /**
@@ -429,7 +430,7 @@ ddsts_create_declaration(ddsts_identifier_t name, ddsts_type_t *decl_type, ddsts
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_declaration_set_type(ddsts_type_t *declaration, ddsts_type_t *type);
 
 /**
@@ -442,7 +443,7 @@ ddsts_declaration_set_type(ddsts_type_t *declaration, ddsts_type_t *type);
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_create_union_forward_dcl(ddsts_identifier_t name, ddsts_type_t **result);
 
 /* Union declaration (union_def)
@@ -476,7 +477,7 @@ struct ddsts_union_case_label {
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_create_union(ddsts_identifier_t name, ddsts_flags_t switch_type, ddsts_type_t **result);
 
 /**
@@ -492,10 +493,10 @@ ddsts_create_union(ddsts_identifier_t name, ddsts_flags_t switch_type, ddsts_typ
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_union_add_case(ddsts_type_t *union_def, ddsts_union_case_label_t *labels, bool default_label, ddsts_type_t **result);
 
-DDS_EXPORT void
+DDSTS_EXPORT void
 ddsts_free_union_case_labels(ddsts_union_case_label_t *labels);
 
 /**
@@ -512,7 +513,7 @@ ddsts_free_union_case_labels(ddsts_union_case_label_t *labels);
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_union_case_set_decl(ddsts_type_t *union_case, ddsts_identifier_t name, ddsts_type_t *type);
 
 /* The union of all type specs */
@@ -555,7 +556,7 @@ struct ddsts_call_path {
  *
  * @returns A dds_return_t indication success or failure.
  */
-DDS_EXPORT dds_return_t
+DDSTS_EXPORT dds_return_t
 ddsts_declaration_is_key(ddsts_call_path_t *path, bool *is_key);
 
 #endif /* DDS_TYPE_TYPETREE_H */
