@@ -2185,7 +2185,7 @@ static char *   expand_prestd(
     char    macrobuf[ NMACWORK + IDMAX];    /* Buffer for rescan_pre()      */
     char *  mac_end = &macrobuf[ NMACWORK]; /* End of macrobuf[]    */
     char *  out_p;                          /* Pointer into out[]   */
-    char *  mp = macrobuf;                  /* Pointer into macrobuf*/
+    char *  mp;                             /* Pointer into macrobuf*/
     size_t  len;                            /* Length of a token    */
     int     token_type;                     /* Type of token        */
     int     c;
@@ -2204,6 +2204,7 @@ static char *   expand_prestd(
         goto  err_end;
     }
 
+    mp = macrobuf;
     while ((c = get_ch()) != CHAR_EOF && infile->fp == NULL) {
                             /* While the input stream is a macro    */
         while (c == ' ' || c == '\t') {     /* Output the spaces    */
