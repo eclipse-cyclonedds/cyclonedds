@@ -37,6 +37,20 @@ submit_to_coverity_scan: &submit_to_coverity_scan
                "https://scan.coverity.com/builds";
   fi
 
+# Coverity doesn't support gcc 10 yet
+coverity: &coverity
+  os: linux
+  dist: bionic
+  compiler: gcc
+  before_install:
+    - eval "export CC=gcc CXX=g++"
+    - eval "export COV_COMPTYPE=gcc COV_PLATFORM=linux64"
+    - eval "export BUILD_TOOL_OPTIONS='-j 4'"
+    - eval "export GENERATOR='Unix Makefiles'"
+  install:
+    - *install_coverity
+    - pip install conan --upgrade --user
+
 ubuntu1804_gcc10: &ubuntu1804_gcc10
   os: linux
   dist: bionic
@@ -53,7 +67,6 @@ ubuntu1804_gcc10: &ubuntu1804_gcc10
     - eval "export BUILD_TOOL_OPTIONS='-j 4'"
     - eval "export GENERATOR='Unix Makefiles'"
   install:
-    - *install_coverity
     - pip install conan --upgrade --user
 
 ubuntu1804_clang10: &ubuntu1804_clang10
@@ -142,7 +155,7 @@ windows1809_vs2017: &windows1809_vs2017
 
 jobs:
   include:
-    - <<: *ubuntu1804_gcc10
+    - <<: *coverity
       env: [ ARCH=x86_64, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, COVERITY_SCAN=true ]
       if: type = cron
     - <<: *ubuntu1804_gcc10
