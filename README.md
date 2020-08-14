@@ -7,6 +7,9 @@ Eclipse Cyclone DDS is a very performant and robust open-source DDS implementati
 * [Performance](#performance)
 * [Configuration](#configuration)
 
+[![Build Status](https://travis-ci.com/eclipse-cyclonedds/cyclonedds.svg?branch=master)](https://travis-ci.com/eclipse-cyclonedds/cyclonedds)
+[![Coverity Status](https://scan.coverity.com/projects/19078/badge.svg)](https://scan.coverity.com/projects/eclipse-cyclonedds-cyclonedds)
+
 # Getting Started
 
 ## Building Eclipse Cyclone DDS
