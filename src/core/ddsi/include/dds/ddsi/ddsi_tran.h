@@ -34,12 +34,6 @@ struct ddsi_domaingv;
 
 #define DDSI_TRAN_ON_CONNECT 0x0001
 
-#if DDSRT_HAVE_IPV6 == 1
-# define DDSI_LOCATORSTRLEN INET6_ADDRSTRLEN_EXTENDED
-#else
-# define DDSI_LOCATORSTRLEN INET_ADDRSTRLEN_EXTENDED
-#endif
-
 /* Core types */
 
 typedef struct ddsi_tran_base * ddsi_tran_base_t;
@@ -68,6 +62,7 @@ typedef void (*ddsi_tran_unblock_listener_fn_t) (ddsi_tran_listener_t);
 typedef void (*ddsi_tran_release_listener_fn_t) (ddsi_tran_listener_t);
 typedef int (*ddsi_tran_join_mc_fn_t) (ddsi_tran_conn_t, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip, const struct nn_interface *interf);
 typedef int (*ddsi_tran_leave_mc_fn_t) (ddsi_tran_conn_t, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip, const struct nn_interface *interf);
+typedef int (*ddsi_is_loopbackaddr_fn_t) (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc);
 typedef int (*ddsi_is_mcaddr_fn_t) (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc);
 typedef int (*ddsi_is_ssm_mcaddr_fn_t) (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc);
 typedef int (*ddsi_is_valid_port_fn_t) (const struct ddsi_tran_factory *tran, uint32_t port);
@@ -75,11 +70,10 @@ typedef uint32_t (*ddsi_receive_buffer_size_fn_t) (const struct ddsi_tran_factor
 
 enum ddsi_nearby_address_result {
   DNAR_DISTANT,
-  DNAR_LOCAL,
-  DNAR_SAME
+  DNAR_LOCAL
 };
 
-typedef enum ddsi_nearby_address_result (*ddsi_is_nearby_address_fn_t) (const ddsi_locator_t *loc, const ddsi_locator_t *ownloc, size_t ninterf, const struct nn_interface *interf);
+typedef enum ddsi_nearby_address_result (*ddsi_is_nearby_address_fn_t) (const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface *interf, size_t *interf_idx);
 
 enum ddsi_locator_from_string_result {
   AFSR_OK,      /* conversion succeeded */
@@ -167,6 +161,7 @@ struct ddsi_tran_factory
   ddsi_tran_free_fn_t m_free_fn;
   ddsi_tran_join_mc_fn_t m_join_mc_fn;
   ddsi_tran_leave_mc_fn_t m_leave_mc_fn;
+  ddsi_is_loopbackaddr_fn_t m_is_loopbackaddr_fn;
   ddsi_is_mcaddr_fn_t m_is_mcaddr_fn;
   ddsi_is_ssm_mcaddr_fn_t m_is_ssm_mcaddr_fn;
   ddsi_is_nearby_address_fn_t m_is_nearby_address_fn;
@@ -183,6 +178,8 @@ struct ddsi_tran_factory
   const char *m_default_spdp_address;
   bool m_connless;
   bool m_stream;
+  bool m_ignore;
+  bool m_adv_spdp;
   struct ddsi_domaingv *gv;
 
   /* Relationships */
@@ -200,6 +197,7 @@ struct ddsi_tran_qos
 {
   enum ddsi_tran_qos_purpose m_purpose;
   int m_diffserv;
+  struct nn_interface *m_interface; // only for purpose = XMIT
 };
 
 void ddsi_tran_factories_fini (struct ddsi_domaingv *gv);
@@ -220,6 +218,8 @@ inline uint32_t ddsi_receive_buffer_size (const struct ddsi_tran_factory *factor
 }
 inline dds_return_t ddsi_factory_create_conn (ddsi_tran_conn_t *conn, ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos) {
   *conn = NULL;
+  if ((qos->m_interface != NULL) != (qos->m_purpose == DDSI_TRAN_QOS_XMIT))
+    return DDS_RETCODE_BAD_PARAMETER;
   if (!ddsi_is_valid_port (factory, port))
     return DDS_RETCODE_BAD_PARAMETER;
   return factory->m_create_conn_fn (conn, factory, port, qos);
@@ -261,9 +261,10 @@ int ddsi_conn_join_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcip, const
 int ddsi_conn_leave_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip, const struct nn_interface *interf);
 void ddsi_conn_transfer_group_membership (ddsi_tran_conn_t conn, ddsi_tran_conn_t newconn);
 int ddsi_conn_rejoin_transferred_mcgroups (ddsi_tran_conn_t conn);
+int ddsi_is_loopbackaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc);
 int ddsi_is_mcaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc);
 int ddsi_is_ssm_mcaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc);
-enum ddsi_nearby_address_result ddsi_is_nearby_address (const ddsi_locator_t *loc, const ddsi_locator_t *ownloc, size_t ninterf, const struct nn_interface *interf);
+enum ddsi_nearby_address_result ddsi_is_nearby_address (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface *interf, size_t *interf_idx);
 
 DDS_EXPORT enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, const char *str, ddsi_tran_factory_t default_factory);
 
@@ -272,11 +273,12 @@ DDS_EXPORT enum ddsi_locator_from_string_result ddsi_locator_from_string (const 
    48 for IPv6 hex digits (3*16) + separators
     2 for ]:
    10 for port (DDSI loc has signed 32-bit)
+   11 for @ifindex
     1 for terminator
    --
-   70
+   81
 */
-#define DDSI_LOCSTRLEN 70
+#define DDSI_LOCSTRLEN 81
 
 char *ddsi_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc);
 char *ddsi_locator_to_string_no_port (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc);

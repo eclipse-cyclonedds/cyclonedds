@@ -33,15 +33,10 @@ struct xevent;
 struct xeventq;
 struct proxy_writer;
 struct proxy_reader;
+struct ddsi_domaingv;
 struct nn_xmsg;
 
-DDS_EXPORT struct xeventq *xeventq_new
-(
-  struct ddsi_tran_conn * conn,
-  size_t max_queued_rexmit_bytes,
-  size_t max_queued_rexmit_msgs,
-  uint32_t auxiliary_bandwidth_limit
-);
+DDS_EXPORT struct xeventq *xeventq_new (struct ddsi_domaingv *gv, size_t max_queued_rexmit_bytes, size_t max_queued_rexmit_msgs, uint32_t auxiliary_bandwidth_limit);
 
 /* xeventq_free calls callback handlers with t = NEVER, at which point they are required to free
    whatever memory is claimed for the argument and call delete_xevent. */

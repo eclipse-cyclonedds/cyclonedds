@@ -143,8 +143,14 @@ int compare_locators (const ddsi_locator_t *a, const ddsi_locator_t *b)
     return (int) (a->kind - b->kind);
   else if ((c = memcmp (a->address, b->address, sizeof (a->address))) != 0)
     return c;
-  else
+  else if (a->port != b->port)
     return (int) (a->port - b->port);
+  else
+  {
+    const uintptr_t ac = (uintptr_t) a->conn;
+    const uintptr_t bc = (uintptr_t) b->conn;
+    return (ac == bc) ? 0 : (ac < bc) ? -1 : 1;
+  }
 }
 
 static int compare_locators_vwrap (const void *va, const void *vb)
@@ -185,6 +191,7 @@ void unref_addrset (struct addrset *as)
 void set_unspec_locator (ddsi_locator_t *loc)
 {
   loc->tran = NULL;
+  loc->conn = NULL;
   loc->kind = NN_LOCATOR_KIND_INVALID;
   loc->port = NN_LOCATOR_PORT_INVALID;
   memset (loc->address, 0, sizeof (loc->address));
@@ -262,20 +269,58 @@ int addrset_purge (struct addrset *as)
   return 0;
 }
 
+static void add_to_addrset_hasconn (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_locator_t *loc)
+{
+  assert (!is_unspec_locator (loc));
+  assert (loc->conn != NULL);
+  ddsrt_avl_ipath_t path;
+  ddsrt_avl_ctree_t *tree = ddsi_is_mcaddr (gv, loc) ? &as->mcaddrs : &as->ucaddrs;
+  LOCK (as);
+  if (ddsrt_avl_clookup_ipath (&addrset_treedef, tree, loc, &path) == NULL)
+  {
+    struct addrset_node *n = ddsrt_malloc (sizeof (*n));
+    n->loc = *loc;
+    ddsrt_avl_cinsert_ipath (&addrset_treedef, tree, n, &path);
+  }
+  UNLOCK (as);
+}
+
 void add_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_locator_t *loc)
 {
-  if (!is_unspec_locator (loc))
+  if (is_unspec_locator (loc))
+    return;
+
+  if (loc->conn != NULL)
+    add_to_addrset_hasconn (gv, as, loc);
+  else
   {
-    ddsrt_avl_ipath_t path;
-    ddsrt_avl_ctree_t *tree = ddsi_is_mcaddr (gv, loc) ? &as->mcaddrs : &as->ucaddrs;
-    LOCK (as);
-    if (ddsrt_avl_clookup_ipath (&addrset_treedef, tree, loc, &path) == NULL)
+    if (ddsi_is_mcaddr (gv, loc))
     {
-      struct addrset_node *n = ddsrt_malloc (sizeof (*n));
-      n->loc = *loc;
-      ddsrt_avl_cinsert_ipath (&addrset_treedef, tree, n, &path);
+      // multicast: use all transmit connections where locator kind fits
+      for (int i = 0; i < gv->n_interfaces; i++)
+      {
+        ddsi_locator_t tmp = *loc;
+        tmp.tran = gv->xmit_conns[i]->m_factory;
+        tmp.conn = gv->xmit_conns[i];
+        if (ddsi_factory_supports (tmp.tran, loc->kind))
+          add_to_addrset_hasconn (gv, as, &tmp);
+      }
     }
-    UNLOCK (as);
+    else
+    {
+      // unicast: assume the kernel knows how to route it from any connection
+      ddsi_locator_t tmp = *loc;
+      for (int i = 0; i < gv->n_interfaces; i++)
+      {
+        if (ddsi_factory_supports (tmp.tran, loc->kind))
+        {
+          tmp.tran = gv->xmit_conns[0]->m_factory;
+          tmp.conn = gv->xmit_conns[0];
+          add_to_addrset_hasconn (gv, as, &tmp);
+          break;
+        }
+      }
+    }
   }
 }
 
@@ -491,6 +536,40 @@ size_t addrset_forall_count (struct addrset *as, addrset_forall_fun_t f, void *a
 void addrset_forall (struct addrset *as, addrset_forall_fun_t f, void *arg)
 {
   (void) addrset_forall_count (as, f, arg);
+}
+
+size_t addrset_forall_uc_else_mc_count (struct addrset *as, addrset_forall_fun_t f, void *arg)
+{
+  struct addrset_forall_helper_arg arg1;
+  size_t count;
+  arg1.f = f;
+  arg1.arg = arg;
+  LOCK (as);
+  if (!ddsrt_avl_cis_empty (&as->ucaddrs))
+  {
+    ddsrt_avl_cwalk (&addrset_treedef, &as->ucaddrs, addrset_forall_helper, &arg1);
+    count = ddsrt_avl_ccount (&as->ucaddrs);
+  }
+  else
+  {
+    ddsrt_avl_cwalk (&addrset_treedef, &as->mcaddrs, addrset_forall_helper, &arg1);
+    count = ddsrt_avl_ccount (&as->mcaddrs);
+  }
+  UNLOCK (as);
+  return count;
+}
+
+size_t addrset_forall_mc_count (struct addrset *as, addrset_forall_fun_t f, void *arg)
+{
+  struct addrset_forall_helper_arg arg1;
+  size_t count;
+  arg1.f = f;
+  arg1.arg = arg;
+  LOCK (as);
+  ddsrt_avl_cwalk (&addrset_treedef, &as->mcaddrs, addrset_forall_helper, &arg1);
+  count = ddsrt_avl_ccount (&as->mcaddrs);
+  UNLOCK (as);
+  return count;
 }
 
 int addrset_forone (struct addrset *as, addrset_forone_fun_t f, void *arg)

@@ -147,7 +147,8 @@ struct ddsi_domaingv {
      The only work around is to use a separate socket for sending.  It is
      rather sad that Cyclone needs to work around the bugs of the others,
      but it seems the only way to get the users what they expect. */
-  struct ddsi_tran_conn * xmit_conn;
+#define MAX_XMIT_CONNS 4
+  struct ddsi_tran_conn * xmit_conns[MAX_XMIT_CONNS];
 
   /* TCP listener */
   struct ddsi_tran_listener * listener;
@@ -178,12 +179,9 @@ struct ddsi_domaingv {
      by privileged_pp_lock */
   struct ddsi_guid ppguid_base;
 
-  /* number of up, non-loopback, IPv4/IPv6 interfaces, the index of
-     the selected/preferred one, and the discovered interfaces. */
+  /* number of selected interfaces. */
   int n_interfaces;
-  int selected_interface;
-  struct nn_interface interfaces[MAX_INTERFACES];
-
+  struct nn_interface interfaces[MAX_XMIT_CONNS];
 #if DDSRT_HAVE_IPV6
   /* whether we're using an IPv6 link-local address (and therefore
      only listening to multicasts on that interface) */
@@ -197,11 +195,8 @@ struct ddsi_domaingv {
   struct config_in_addr_node *recvips;
   ddsi_locator_t extmask;
 
-  ddsi_locator_t ownloc;
+  // extloc: if not UNSPEC, overrides advertised address
   ddsi_locator_t extloc;
-
-  /* InterfaceNo that the OwnIP is tied to */
-  unsigned interfaceNo;
 
   /* Locators */
 

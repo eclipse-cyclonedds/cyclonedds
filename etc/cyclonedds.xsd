@@ -315,6 +315,7 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:MulticastTimeToLive"/>
         <xs:element minOccurs="0" ref="config:NetworkInterfaceAddress"/>
         <xs:element minOccurs="0" ref="config:PreferMulticast"/>
+        <xs:element minOccurs="0" ref="config:RedundantNetworking"/>
         <xs:element minOccurs="0" ref="config:Transport"/>
         <xs:element minOccurs="0" ref="config:UseIPv6"/>
       </xs:all>
@@ -427,6 +428,13 @@ CycloneDDS configuration</xs:documentation>
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;When false (default) Cyclone DDS uses unicast for data whenever there a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast address is available.&lt;/p&gt;
+&lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="RedundantNetworking" type="xs:boolean">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;When enabled, use selected network interfaces in parallel for redundancy.&lt;/p&gt;
 &lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>

@@ -16,14 +16,13 @@
 
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsi/q_protocol.h" /* for, e.g., SubmessageKind_t */
-#include "dds/ddsi/ddsi_xqos.h" /* for, e.g., octetseq, stringseq */
+//#include "dds/ddsi/ddsi_xqos.h" /* for, e.g., octetseq, stringseq */
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/features.h"
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_keyhash.h"
 #endif
-
 
 #if defined (__cplusplus)
 extern "C" {
@@ -165,7 +164,7 @@ int nn_xmsg_addpar_sentinel_ifparam (struct nn_xmsg *m);
 
 /* XPACK */
 
-struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool async_mode);
+struct nn_xpack * nn_xpack_new (struct ddsi_domaingv *gv, uint32_t bw_limit, bool async_mode);
 void nn_xpack_free (struct nn_xpack *xp);
 void nn_xpack_send (struct nn_xpack *xp, bool immediately /* unused */);
 int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flags);

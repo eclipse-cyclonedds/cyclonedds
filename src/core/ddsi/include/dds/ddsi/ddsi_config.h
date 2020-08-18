@@ -384,6 +384,7 @@ struct ddsi_config
 
   int use_multicast_if_mreqn;
   struct ddsi_config_prune_deleted_ppant prune_deleted_ppant;
+  int redundant_networking;
 
 #ifdef DDS_HAS_SECURITY
   struct ddsi_config_omg_security_listelem *omg_security_configuration;

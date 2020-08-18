@@ -3485,7 +3485,8 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
         iov.iov_base = &dummy;
         iov.iov_len = 1;
         GVTRACE ("trigger_recv_threads: %"PRIu32" single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
-        ddsi_conn_write (gv->xmit_conn, dst, 1, &iov, 0);
+        // all sockets listen on at least the interfaces used for transmitting (at least for now)
+        ddsi_conn_write (gv->xmit_conns[0], dst, 1, &iov, 0);
         break;
       }
       case RTM_MANY: {

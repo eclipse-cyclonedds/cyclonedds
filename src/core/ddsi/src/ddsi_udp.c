@@ -44,6 +44,7 @@ typedef struct ddsi_udp_conn {
   WSAEVENT m_sockEvent;
 #endif
   int m_diffserv;
+  uint32_t m_ifindex;
 } *ddsi_udp_conn_t;
 
 typedef struct ddsi_udp_tran_factory {
@@ -219,9 +220,11 @@ static int ddsi_udp_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t con
   int ret = -1;
   if (conn->m_sock != DDSRT_INVALID_SOCKET)
   {
+    loc->tran = fact;
+    loc->conn = NULL;
     loc->kind = fact->m_kind;
     loc->port = conn->m_base.m_base.m_port;
-    memcpy (loc->address, conn->m_base.m_base.gv->extloc.address, sizeof (loc->address));
+    memcpy (loc->address, conn->m_base.m_base.gv->interfaces[0].loc.address, sizeof (loc->address));
     ret = 0;
   }
   return ret;
@@ -369,11 +372,11 @@ static dds_return_t set_sndbuf (struct ddsi_domaingv const * const gv, ddsrt_soc
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock)
+static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv const * const gv, struct nn_interface const * const intf, ddsrt_socket_t sock)
 {
   /* Function is a never-called no-op if IPv6 is not supported to keep the call-site a bit cleaner  */
 #if DDSRT_HAVE_IPV6
-  const unsigned ifno = gv->interfaceNo;
+  const unsigned ifno = intf->if_index;
   const unsigned ttl = (unsigned) gv->config.multicast_ttl;
   const unsigned loop = (unsigned) !!gv->config.enableMulticastLoopback;
   dds_return_t rc;
@@ -396,7 +399,7 @@ static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv const * c
 #endif
 }
 
-static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock)
+static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const * const gv, struct nn_interface const * const intf, ddsrt_socket_t sock)
 {
 #if (defined(__linux) || defined(__APPLE__)) && !LWIP_SOCKET
   if (gv->config.use_multicast_if_mreqn)
@@ -406,22 +409,24 @@ static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const 
     /* looks like imr_multiaddr is not relevant, not sure about imr_address */
     mreqn.imr_multiaddr.s_addr = htonl (INADDR_ANY);
     if (gv->config.use_multicast_if_mreqn > 1)
-      memcpy (&mreqn.imr_address.s_addr, gv->ownloc.address + 12, 4);
+      memcpy (&mreqn.imr_address.s_addr, intf->loc.address + 12, 4);
     else
       mreqn.imr_address.s_addr = htonl (INADDR_ANY);
-    mreqn.imr_ifindex = (int) gv->interfaceNo;
+    mreqn.imr_ifindex = (int) intf->if_index;
     return ddsrt_setsockopt (sock, IPPROTO_IP, IP_MULTICAST_IF, &mreqn, sizeof (mreqn));
   }
+#else
+  (void) gv;
 #endif
-  return ddsrt_setsockopt (sock, IPPROTO_IP, IP_MULTICAST_IF, gv->ownloc.address + 12, 4);
+  return ddsrt_setsockopt (sock, IPPROTO_IP, IP_MULTICAST_IF, intf->loc.address + 12, 4);
 }
 
-static dds_return_t set_mc_options_transmit_ipv4 (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock)
+static dds_return_t set_mc_options_transmit_ipv4 (struct ddsi_domaingv const * const gv, struct nn_interface const * const intf, ddsrt_socket_t sock)
 {
   const unsigned char ttl = (unsigned char) gv->config.multicast_ttl;
   const unsigned char loop = (unsigned char) !!gv->config.enableMulticastLoopback;
   dds_return_t rc;
-  if ((rc = set_mc_options_transmit_ipv4_if (gv, sock)) != DDS_RETCODE_OK) {
+  if ((rc = set_mc_options_transmit_ipv4_if (gv, intf, sock)) != DDS_RETCODE_OK) {
     GVERROR ("ddsi_udp_create_conn: set IP_MULTICAST_IF failed: %s\n", dds_strretcode (rc));
     return rc;
   }
@@ -440,6 +445,8 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
 {
   struct ddsi_udp_tran_factory *fact = (struct ddsi_udp_tran_factory *) fact_cmn;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
+  //
+  struct nn_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
   const int one = 1;
 
   dds_return_t rc;
@@ -468,7 +475,7 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
   assert (purpose_str != NULL);
 
   union addr socketname;
-  ddsi_locator_t ownloc_w_port = gv->ownloc;
+  ddsi_locator_t ownloc_w_port = intf->loc;
   assert (ownloc_w_port.port == NN_LOCATOR_PORT_INVALID);
   if (port) {
     /* PORT_INVALID maps to 0 in ipaddr_from_loc */
@@ -486,11 +493,8 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
       ipv6 = true;
       if (bind_to_any)
         socketname.a6.sin6_addr = ddsrt_in6addr_any;
-      if (IN6_IS_ADDR_LINKLOCAL (&socketname.a6.sin6_addr))
-      {
-        // A hack that only works if there is only a single interface in use
-        socketname.a6.sin6_scope_id = gv->interfaceNo;
-      }
+      else if (intf->link_local)
+        socketname.a6.sin6_scope_id = intf->if_index;
       break;
 #endif
     default:
@@ -537,7 +541,7 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
     if (!reuse_addr && rc == DDS_RETCODE_PRECONDITION_NOT_MET)
       goto fail_addrinuse;
 
-    char buf[DDSI_LOCATORSTRLEN];
+    char buf[DDSI_LOCSTRLEN];
     if (bind_to_any)
       snprintf (buf, sizeof (buf), "ANY:%"PRIu32, port);
     else
@@ -547,7 +551,7 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
     goto fail_w_socket;
   }
 
-  rc = ipv6 ? set_mc_options_transmit_ipv6 (gv, sock) : set_mc_options_transmit_ipv4 (gv, sock);
+  rc = ipv6 ? set_mc_options_transmit_ipv6 (gv, intf, sock) : set_mc_options_transmit_ipv4 (gv, intf, sock);
   if (rc != DDS_RETCODE_OK)
     goto fail_w_socket;
 
@@ -567,6 +571,7 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
 
   conn->m_sock = sock;
   conn->m_diffserv = qos->m_diffserv;
+  conn->m_ifindex = intf->if_index;
 #if defined _WIN32 && !defined WINCE
   conn->m_sockEvent = WSACreateEvent ();
   WSAEventSelect (conn->m_sock, conn->m_sockEvent, FD_WRITE);
@@ -697,6 +702,29 @@ static void ddsi_udp_release_conn (ddsi_tran_conn_t conn_cmn)
   ddsrt_free (conn_cmn);
 }
 
+static int ddsi_udp_is_loopbackaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
+{
+  (void) tran;
+  switch (loc->kind)
+  {
+    case NN_LOCATOR_KIND_UDPv4: {
+      return loc->address[12] == 127;
+    }
+    case NN_LOCATOR_KIND_UDPv4MCGEN: {
+      return false;
+    }
+#if DDSRT_HAVE_IPV6
+    case NN_LOCATOR_KIND_UDPv6: {
+      const struct in6_addr *ipv6 = (const struct in6_addr *) loc->address;
+      return IN6_IS_ADDR_LOOPBACK (ipv6);
+    }
+#endif
+    default: {
+      return 0;
+    }
+  }
+}
+
 static int ddsi_udp_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
 {
   (void) tran;
@@ -805,7 +833,8 @@ static enum ddsi_locator_from_string_result ddsi_udp_address_from_string (const 
 static char *ddsi_udp_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port)
 {
   if (loc->kind != NN_LOCATOR_KIND_UDPv4MCGEN) {
-    return ddsi_ipaddr_to_string(dst, sizeof_dst, loc, with_port);
+    uint32_t ifindex = loc->conn ? ((ddsi_udp_conn_t) loc->conn)->m_ifindex : UINT32_MAX;
+    return ddsi_ipaddr_to_string(dst, sizeof_dst, loc, with_port, ifindex);
   } else {
     struct sockaddr_in src;
     nn_udpv4mcgen_address_t mcgen;
@@ -860,11 +889,13 @@ int ddsi_udp_init (struct ddsi_domaingv*gv)
   fact->fact.m_typename = "udp";
   fact->fact.m_default_spdp_address = "udp/239.255.0.1";
   fact->fact.m_connless = true;
+  fact->fact.m_adv_spdp = true;
   fact->fact.m_supports_fn = ddsi_udp_supports;
   fact->fact.m_create_conn_fn = ddsi_udp_create_conn;
   fact->fact.m_release_conn_fn = ddsi_udp_release_conn;
   fact->fact.m_join_mc_fn = ddsi_udp_join_mc;
   fact->fact.m_leave_mc_fn = ddsi_udp_leave_mc;
+  fact->fact.m_is_loopbackaddr_fn = ddsi_udp_is_loopbackaddr;
   fact->fact.m_is_mcaddr_fn = ddsi_udp_is_mcaddr;
 #ifdef DDS_HAS_SSM
   fact->fact.m_is_ssm_mcaddr_fn = ddsi_udp_is_ssm_mcaddr;

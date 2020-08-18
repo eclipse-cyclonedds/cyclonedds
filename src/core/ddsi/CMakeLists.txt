@@ -23,6 +23,7 @@ set(srcs_ddsi
   ddsi_tran.c
   ddsi_udp.c
   ddsi_raweth.c
+  ddsi_vnet.c
   ddsi_ipaddr.c
   ddsi_mcgroup.c
   ddsi_security_util.c
@@ -54,6 +55,7 @@ set(srcs_ddsi
   ddsi_ownip.c
   ddsi_acknack.c
   ddsi_list_genptr.c
+  ddsi_wraddrset.c
   q_addrset.c
   q_bitset_inlines.c
   q_bswap.c
@@ -86,6 +88,7 @@ set(hdrs_private_ddsi
   ddsi_tran.h
   ddsi_udp.h
   ddsi_raweth.h
+  ddsi_vnet.h
   ddsi_ipaddr.h
   ddsi_locator.h
   ddsi_mcgroup.h
@@ -124,6 +127,7 @@ set(hdrs_private_ddsi
   ddsi_acknack.h
   ddsi_list_tmpl.h
   ddsi_list_genptr.h
+  ddsi_wraddrset.h
   q_addrset.h
   q_bitset.h
   q_bswap.h

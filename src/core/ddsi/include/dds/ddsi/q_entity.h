@@ -444,6 +444,7 @@ struct proxy_participant
   unsigned deleting: 1;
   unsigned proxypp_have_spdp: 1;
   unsigned owns_lease: 1;
+  unsigned redundant_networking: 1; /* 1 iff requests receiving data on all advertised interfaces */
 #ifdef DDS_HAS_SECURITY
   nn_security_info_t security_info;
   struct proxy_participant_sec_attributes *sec_attr;
@@ -518,6 +519,7 @@ struct proxy_writer {
   unsigned local_matching_inprogress: 1; /* iff 1, we are still busy matching local readers; this is so we don't deliver incoming data to some but not all readers initially */
   unsigned alive: 1; /* iff 1, the proxy writer is alive (lease for this proxy writer is not expired); field may be modified only when holding both pwr->e.lock and pwr->c.proxypp->e.lock */
   unsigned filtered: 1; /* iff 1, builtin proxy writer uses content filter, which affects heartbeats and gaps. */
+  unsigned redundant_networking: 1; /* 1 iff requests receiving data on all advertised interfaces */
 #ifdef DDS_HAS_SSM
   unsigned supports_ssm: 1; /* iff 1, this proxy writer supports SSM */
 #endif
@@ -541,6 +543,7 @@ struct proxy_reader {
   unsigned deleting: 1; /* set when being deleted */
   unsigned is_fict_trans_reader: 1; /* only true when it is certain that is a fictitious transient data reader (affects built-in topic generation) */
   unsigned requests_keyhash: 1; /* 1 iff this reader would like to receive keyhashes */
+  unsigned redundant_networking: 1; /* 1 iff requests receiving data on all advertised interfaces */
 #ifdef DDS_HAS_SSM
   unsigned favours_ssm: 1; /* iff 1, this proxy reader favours SSM when available */
 #endif

@@ -282,6 +282,12 @@ CycloneDDS configuration""" ] ]
           xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
+<p>When enabled, use selected network interfaces in parallel for redundancy.</p>
+<p>The default value is: "false".</p>""" ] ]
+        element RedundantNetworking {
+          xsd:boolean
+        }?
+        & [ a:documentation [ xml:lang="en" """
 <p>This element allows selecting the transport to be used (udp, udp6, tcp, tcp6, raweth)</p>
 <p>The default value is: "default".</p>""" ] ]
         element Transport {

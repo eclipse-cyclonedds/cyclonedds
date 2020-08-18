@@ -476,7 +476,7 @@ static bool print_locator (char * __restrict *buf, size_t * __restrict bufsize, 
   prtf (buf, bufsize, "{");
   for (const struct nn_locators_one *l = x->first; l != NULL; l = l->next)
   {
-    char tmp[DDSI_LOCATORSTRLEN];
+    char tmp[DDSI_LOCSTRLEN];
     ddsi_locator_to_string (tmp, sizeof (tmp), &l->loc);
     prtf (buf, bufsize, "%s%s", sep, tmp);
     sep = ",";
@@ -1772,6 +1772,7 @@ static const struct piddesc piddesc_eclipse[] = {
   PP  (ADLINK_TYPE_DESCRIPTION,          type_description, XS),
   PP  (CYCLONE_RECEIVE_BUFFER_SIZE,      cyclone_receive_buffer_size, Xu),
   PP  (CYCLONE_REQUESTS_KEYHASH,         cyclone_requests_keyhash, Xb),
+  PP  (CYCLONE_REDUNDANT_NETWORKING,     cyclone_redundant_networking, Xb),
   { PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
 };
 
@@ -1842,7 +1843,7 @@ struct piddesc_index {
 #endif
 
 static const struct piddesc *piddesc_omg_index[DEFAULT_OMG_PIDS_ARRAY_SIZE + SECURITY_OMG_PIDS_ARRAY_SIZE];
-static const struct piddesc *piddesc_eclipse_index[29];
+static const struct piddesc *piddesc_eclipse_index[30];
 static const struct piddesc *piddesc_adlink_index[19];
 
 #define INDEX_ANY(vendorid_, tab_) [vendorid_] = { \
@@ -2494,23 +2495,22 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
     loc.kind = ddsrt_bswap4 (loc.kind);
     loc.port = ddsrt_bswap4u (loc.port);
   }
+  
+  ddsi_tran_factory_t fact = ddsi_factory_find_supported_kind (factory->gv, loc.kind);
+  if (fact == NULL || fact->m_ignore)
+    return DOLOC_IGNORED;
+  if (!ddsi_is_valid_port (fact, loc.port))
+    return DOLOC_INVALID;
+
   switch (loc.kind)
   {
     case NN_LOCATOR_KIND_UDPv4:
     case NN_LOCATOR_KIND_TCPv4:
-      if (!ddsi_factory_supports (factory, loc.kind))
-        return DOLOC_IGNORED;
-      if (!ddsi_is_valid_port (factory, loc.port))
-        return DOLOC_INVALID;
       if (!locator_address_prefix_zero (&loc, 12))
         return DOLOC_INVALID;
       break;
     case NN_LOCATOR_KIND_UDPv6:
     case NN_LOCATOR_KIND_TCPv6:
-      if (!ddsi_factory_supports (factory, loc.kind))
-        return DOLOC_IGNORED;
-      if (!ddsi_is_valid_port (factory, loc.port))
-        return DOLOC_INVALID;
       break;
     case NN_LOCATOR_KIND_UDPv4MCGEN:
       if (!vendor_is_eclipse (dd->vendorid))
@@ -2518,10 +2518,8 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
       else
       {
         const nn_udpv4mcgen_address_t *x = (const nn_udpv4mcgen_address_t *) loc.address;
-        if (!ddsi_factory_supports (factory, NN_LOCATOR_KIND_UDPv4))
+        if (!ddsi_factory_supports (fact, NN_LOCATOR_KIND_UDPv4))
           return DOLOC_IGNORED;
-        if (!ddsi_is_valid_port (factory, loc.port))
-          return DOLOC_INVALID;
         if ((uint32_t) x->base + x->count >= 28 || x->count == 0 || x->idx >= x->count)
           return DOLOC_INVALID;
       }
@@ -2546,8 +2544,6 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
         return DOLOC_IGNORED;
       else
       {
-        if (!ddsi_factory_supports (factory, NN_LOCATOR_KIND_RAWETH))
-          return DOLOC_IGNORED;
         if (!ddsi_is_valid_port (factory, loc.port))
           return DOLOC_INVALID;
         if (!locator_address_prefix_zero (&loc, 10))
@@ -2558,7 +2554,9 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
       return DOLOC_IGNORED;
   }
 
-  loc.tran = ddsi_factory_supports (factory, loc.kind) ? factory : NULL;
+  // FIXME: "factory->gv": yuck
+  loc.tran = fact;
+  loc.conn = NULL;
   add_locator (ls, present, wanted, fl, &loc);
   return DOLOC_ACCEPTED;
 }

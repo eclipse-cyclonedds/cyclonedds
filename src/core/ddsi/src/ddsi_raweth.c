@@ -181,6 +181,8 @@ static dds_return_t ddsi_raweth_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tr
   ddsi_raweth_conn_t uc = NULL;
   struct sockaddr_ll addr;
   bool mcast = (qos->m_purpose == DDSI_TRAN_QOS_RECV_MC);
+  struct ddsi_domaingv const * const gv = fact->gv;
+  struct nn_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
 
   /* If port is zero, need to create dynamic port */
 
@@ -200,7 +202,7 @@ static dds_return_t ddsi_raweth_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tr
   memset(&addr, 0, sizeof(addr));
   addr.sll_family = AF_PACKET;
   addr.sll_protocol = htons((uint16_t)port);
-  addr.sll_ifindex = (int)fact->gv->interfaceNo;
+  addr.sll_ifindex = (int)intf->if_index;
   addr.sll_pkttype = PACKET_HOST | PACKET_BROADCAST | PACKET_MULTICAST;
   rc = ddsrt_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
   if (rc != DDS_RETCODE_OK)
@@ -291,6 +293,13 @@ static void ddsi_raweth_release_conn (ddsi_tran_conn_t conn)
   ddsrt_free (conn);
 }
 
+static int ddsi_raweth_is_loopbackaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
+{
+  (void) tran;
+  (void) loc;
+  return 0;
+}
+
 static int ddsi_raweth_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
 {
   (void) tran;
@@ -305,12 +314,12 @@ static int ddsi_raweth_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, cons
   return 0;
 }
 
-static enum ddsi_nearby_address_result ddsi_raweth_is_nearby_address (const ddsi_locator_t *loc, const ddsi_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
+static enum ddsi_nearby_address_result ddsi_raweth_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface interf[], size_t *interf_idx)
 {
   (void) loc;
-  (void) ownloc;
   (void) ninterf;
   (void) interf;
+  *interf_idx = 0;
   return DNAR_LOCAL;
 }
 
@@ -377,11 +386,13 @@ int ddsi_raweth_init (struct ddsi_domaingv *gv)
   fact->m_typename = "raweth";
   fact->m_default_spdp_address = "raweth/ff:ff:ff:ff:ff:ff";
   fact->m_connless = 1;
+  fact->fact.m_adv_spdp = 1;
   fact->m_supports_fn = ddsi_raweth_supports;
   fact->m_create_conn_fn = ddsi_raweth_create_conn;
   fact->m_release_conn_fn = ddsi_raweth_release_conn;
   fact->m_join_mc_fn = ddsi_raweth_join_mc;
   fact->m_leave_mc_fn = ddsi_raweth_leave_mc;
+  fact->m_is_loopbackaddr_fn = ddsi_raweth_is_loopbackaddr;
   fact->m_is_mcaddr_fn = ddsi_raweth_is_mcaddr;
   fact->m_is_ssm_mcaddr_fn = ddsi_raweth_is_ssm_mcaddr;
   fact->m_is_nearby_address_fn = ddsi_raweth_is_nearby_address;

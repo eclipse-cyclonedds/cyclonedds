@@ -32,6 +32,8 @@ struct nn_interface {
   unsigned mc_capable: 1;
   unsigned mc_flaky: 1;
   unsigned point_to_point: 1;
+  unsigned loopback: 1;
+  unsigned link_local: 1;
   char *name;
 };
 

@@ -154,16 +154,27 @@ static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn,
 
 static int joinleave_mcgroup (ddsi_tran_conn_t conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
-  char buf[256];
-  int err;
-  DDS_CTRACE(&conn->m_base.gv->logconfig, "%s\n", make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, 0));
-  if (join)
-    err = ddsi_conn_join_mc(conn, srcloc, mcloc, interf);
+  if (interf && mcloc->kind != interf->loc.kind)
+  {
+    // quietly ignore attempts at joining/leaving multicast groups on interfaces of a different kind
+    // if interf == NULL, the user selected "any" for the interface, which means the kernel's default
+    // which means we can only hope for the best (I don't think "any" is ever, or should ever, be
+    // used).
+    return 0;
+  }
   else
-    err = ddsi_conn_leave_mc(conn, srcloc, mcloc, interf);
-  if (err)
-    DDS_CWARNING(&conn->m_base.gv->logconfig, "%s\n", make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, err));
-  return err ? -1 : 0;
+  {
+    char buf[256];
+    int err;
+    DDS_CTRACE(&conn->m_base.gv->logconfig, "%s\n", make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, 0));
+    if (join)
+      err = ddsi_conn_join_mc(conn, srcloc, mcloc, interf);
+    else
+      err = ddsi_conn_leave_mc(conn, srcloc, mcloc, interf);
+    if (err)
+      DDS_CWARNING(&conn->m_base.gv->logconfig, "%s\n", make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, err));
+    return err ? -1 : 0;
+  }
 }
 
 static int interface_in_recvips_p (const struct config_in_addr_node *recvips, const struct nn_interface *interf)
@@ -189,19 +200,15 @@ static int joinleave_mcgroups (const struct ddsi_domaingv *gv, ddsi_tran_conn_t 
       if ((rc = joinleave_mcgroup (conn, join, srcloc, mcloc, NULL)) < 0)
         return rc;
       break;
-    case RECVIPS_MODE_PREFERRED:
-      if (gv->interfaces[gv->selected_interface].mc_capable)
-        return joinleave_mcgroup (conn, join, srcloc, mcloc, &gv->interfaces[gv->selected_interface]);
-      return 0;
     case RECVIPS_MODE_ALL:
     case RECVIPS_MODE_SOME:
-    {
+    case RECVIPS_MODE_PREFERRED: {
       int i, fails = 0, oks = 0;
       for (i = 0; i < gv->n_interfaces; i++)
       {
         if (gv->interfaces[i].mc_capable)
         {
-          if (gv->recvips_mode == RECVIPS_MODE_ALL || interface_in_recvips_p (gv->recvips, &gv->interfaces[i]))
+          if (gv->recvips_mode == RECVIPS_MODE_ALL || gv->recvips_mode == RECVIPS_MODE_PREFERRED || interface_in_recvips_p (gv->recvips, &gv->interfaces[i]))
           {
             if (joinleave_mcgroup (conn, join, srcloc, mcloc, &gv->interfaces[i]) < 0)
               fails++;
@@ -217,8 +224,8 @@ static int joinleave_mcgroups (const struct ddsi_domaingv *gv, ddsi_tran_conn_t 
         else
           return -2;
       }
-    }
       break;
+    }
   }
   return 0;
 }

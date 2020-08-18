@@ -406,12 +406,11 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   bool async_mode = (wqos->latency_budget.duration > 0);
 
   /* Create writer */
-  ddsi_tran_conn_t conn = gv->xmit_conn;
   struct dds_writer * const wr = dds_alloc (sizeof (*wr));
   const dds_entity_t writer = dds_entity_init (&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, false, wqos, listener, DDS_WRITER_STATUS_MASK);
   wr->m_topic = tp;
   dds_entity_add_ref_locked (&tp->m_entity);
-  wr->m_xp = nn_xpack_new (conn, get_bandwidth_limit (wqos->transport_priority), async_mode);
+  wr->m_xp = nn_xpack_new (gv, get_bandwidth_limit (wqos->transport_priority), async_mode);
   wrinfo = whc_make_wrinfo (wr, wqos);
   wr->m_whc = whc_new (gv, wrinfo);
   whc_free_wrinfo (wrinfo);

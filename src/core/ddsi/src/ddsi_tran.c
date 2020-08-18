@@ -40,6 +40,7 @@ extern inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const ddsi_locator
 
 void ddsi_factory_add (struct ddsi_domaingv *gv, ddsi_tran_factory_t factory)
 {
+  factory->m_ignore = true; // FIXME: a bit of hack to initially ignore a factory ...
   factory->m_factory = gv->ddsi_tran_factories;
   gv->ddsi_tran_factories = factory;
 }
@@ -225,6 +226,12 @@ void ddsi_listener_free (ddsi_tran_listener_t listener)
   }
 }
 
+int ddsi_is_loopbackaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc)
+{
+  ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind (gv, loc->kind);
+  return tran ? tran->m_is_loopbackaddr_fn (tran, loc) : 0;
+}
+
 int ddsi_is_mcaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc)
 {
   ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind (gv, loc->kind);
@@ -239,12 +246,12 @@ int ddsi_is_ssm_mcaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *lo
   return 0;
 }
 
-enum ddsi_nearby_address_result ddsi_is_nearby_address (const ddsi_locator_t *loc, const ddsi_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
+enum ddsi_nearby_address_result ddsi_is_nearby_address (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface interf[], size_t *interf_idx)
 {
-  if (loc->tran != ownloc->tran || loc->kind != ownloc->kind)
+  ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind (gv, loc->kind);
+  if (tran == NULL)
     return DNAR_DISTANT;
-  else
-    return ownloc->tran->m_is_nearby_address_fn (loc, ownloc, ninterf, interf);
+  return tran->m_is_nearby_address_fn (loc, ninterf, interf, interf_idx);
 }
 
 enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, const char *str, ddsi_tran_factory_t default_factory)
@@ -289,7 +296,7 @@ char *ddsi_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t
       case NN_LOCATOR_KIND_UDPv6: {
         int pos = snprintf (dst, sizeof_dst, "%"PRId32"/", loc->kind);
         if (0 < pos && (size_t)pos < sizeof_dst)
-          (void) ddsi_ipaddr_to_string (dst + (size_t)pos, sizeof_dst - (size_t)pos, loc, 1);
+          (void) ddsi_ipaddr_to_string (dst + (size_t)pos, sizeof_dst - (size_t)pos, loc, 1, UINT32_MAX);
         break;
       }
       default: {
@@ -320,12 +327,12 @@ char *ddsi_locator_to_string_no_port (char *dst, size_t sizeof_dst, const ddsi_l
       case NN_LOCATOR_KIND_UDPv6: {
         int pos = snprintf (dst, sizeof_dst, "%"PRId32"/", loc->kind);
         if (0 < pos && (size_t)pos < sizeof_dst)
-          (void) ddsi_ipaddr_to_string (dst + (size_t)pos, sizeof_dst - (size_t)pos, loc, 0);
+          (void) ddsi_ipaddr_to_string (dst + (size_t)pos, sizeof_dst - (size_t)pos, loc, 0, UINT32_MAX);
         break;
       }
       default: {
         const unsigned char * const x = loc->address;
-        (void) snprintf (dst, sizeof_dst, "%"PRId32"/[%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x]",
+        (void) snprintf (dst, sizeof_dst, "%"PRId32"/[%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x]",
                          loc->kind, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12], x[13], x[14], x[15]);
       }
     }

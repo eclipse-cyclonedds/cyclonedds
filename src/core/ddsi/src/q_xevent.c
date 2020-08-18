@@ -154,7 +154,6 @@ struct xeventq {
   struct ddsi_domaingv *gv;
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
-  ddsi_tran_conn_t tev_conn;
   uint32_t auxiliary_bandwidth_limit;
 
   size_t cum_rexmit_bytes;
@@ -504,13 +503,7 @@ static int msg_xevents_cmp (const void *a, const void *b)
   return nn_xmsg_compare_fragid (a, b);
 }
 
-struct xeventq * xeventq_new
-(
-  ddsi_tran_conn_t conn,
-  size_t max_queued_rexmit_bytes,
-  size_t max_queued_rexmit_msgs,
-  uint32_t auxiliary_bandwidth_limit
-)
+struct xeventq * xeventq_new (struct ddsi_domaingv *gv, size_t max_queued_rexmit_bytes, size_t max_queued_rexmit_msgs, uint32_t auxiliary_bandwidth_limit)
 {
   struct xeventq *evq = ddsrt_malloc (sizeof (*evq));
   /* limit to 2GB to prevent overflow (4GB - 64kB should be ok, too) */
@@ -527,8 +520,7 @@ struct xeventq * xeventq_new
   evq->auxiliary_bandwidth_limit = auxiliary_bandwidth_limit;
   evq->queued_rexmit_bytes = 0;
   evq->queued_rexmit_msgs = 0;
-  evq->tev_conn = conn;
-  evq->gv = conn->m_base.gv;
+  evq->gv = gv;
   ddsrt_mutex_init (&evq->lock);
   ddsrt_cond_init (&evq->cond);
 
@@ -578,7 +570,7 @@ void xeventq_free (struct xeventq *evq)
     free_xevent (evq, ev);
 
   {
-    struct nn_xpack *xp = nn_xpack_new (evq->tev_conn, evq->auxiliary_bandwidth_limit, false);
+    struct nn_xpack *xp = nn_xpack_new (evq->gv, evq->auxiliary_bandwidth_limit, false);
     thread_state_awake (lookup_thread_state (), evq->gv);
     ddsrt_mutex_lock (&evq->lock);
     while (!non_timed_xmit_list_is_empty (evq))
@@ -1246,7 +1238,7 @@ static uint32_t xevent_thread (struct xeventq * xevq)
   struct nn_xpack *xp;
   ddsrt_mtime_t next_thread_cputime = { 0 };
 
-  xp = nn_xpack_new (xevq->tev_conn, xevq->auxiliary_bandwidth_limit, false);
+  xp = nn_xpack_new (xevq->gv, xevq->auxiliary_bandwidth_limit, false);
 
   ddsrt_mutex_lock (&xevq->lock);
   while (!xevq->terminate)
@@ -1328,7 +1320,7 @@ void qxev_prd_entityid (struct proxy_reader *prd, const ddsi_guid_t *guid)
 
   /* For connected transports, may need to establish and identify connection */
 
-  if (! gv->xevents->tev_conn->m_connless)
+  if (! gv->m_factory->m_connless)
   {
     msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
     nn_xmsg_setdstPRD (msg, prd);
@@ -1350,7 +1342,7 @@ void qxev_pwr_entityid (struct proxy_writer *pwr, const ddsi_guid_t *guid)
 
   /* For connected transports, may need to establish and identify connection */
 
-  if (! pwr->evq->tev_conn->m_connless)
+  if (! gv->m_factory->m_connless)
   {
     msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
     nn_xmsg_setdstPWR (msg, pwr);

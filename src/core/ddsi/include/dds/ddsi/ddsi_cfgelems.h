@@ -191,6 +191,12 @@ static struct cfgelem general_cfgelems[] = {
       "fragments of which the size is at least the minimum of 1025 and "
       "FragmentSize.</p>"),
     UNIT("memsize")),
+  BOOL("RedundantNetworking", NULL, 1, "false",
+    MEMBER(redundant_networking),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION(
+      "<p>When enabled, use selected network interfaces in parallel for "
+      "redundancy.</p>")),
   END_MARKER
 };
 
