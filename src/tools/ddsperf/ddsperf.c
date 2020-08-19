@@ -50,6 +50,9 @@
 
 #define PINGPONG_RAWSIZE 20000
 
+/* File descriptor to write ddsperf data to */
+static FILE *file = NULL;
+
 enum topicsel {
   KS,   /* KeyedSeq type: seq#, key, sequence-of-octet */
   K32,  /* Keyed32  type: seq#, key, array-of-24-octet (sizeof = 32) */
@@ -1381,12 +1384,18 @@ struct dds_stats {
   const struct dds_stat_keyvalue *discarded_bytes;
 };
 
-static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, struct record_cputime_state *cputime_state, struct record_netload_state *netload_state, struct dds_stats *stats)
+static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, struct record_cputime_state *cputime_state, struct record_netload_state *netload_state, struct dds_stats *stats, char *filename)
 {
   char prefix[128];
   const double ts = (double) (tnow - tref) / 1e9;
   bool output = false;
-  snprintf (prefix, sizeof (prefix), "[%"PRIdPID"] %.3f ", ddsrt_getpid (), ts);
+  ddsrt_pid_t pid = ddsrt_getpid ();
+  char hostname[64];
+  if (ddsrt_gethostname (hostname, sizeof (hostname)) != DDS_RETCODE_OK)
+  {
+    snprintf (hostname, sizeof (hostname), "%s", "<unknown>");
+  }
+  snprintf (prefix, sizeof (prefix), "[%"PRIdPID"] %.3f ", pid, ts);
 
   if (pub_rate > 0)
   {
@@ -1427,11 +1436,25 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
 
     if (nrecv > 0 || substat_every_second)
     {
+      if (filename != NULL)
+      {
+        if (file == NULL)
+        {
+          file = fopen(filename, "w");
+        }
+      }
       const double dt = (double) (tnow - tprev);
       printf ("%s size %"PRIu32" total %"PRIu64" lost %"PRIu64" delta %"PRIu64" lost %"PRIu64" rate %.2f kS/s %.2f Mb/s (%.2f kS/s %.2f Mb/s)\n",
               prefix, last_size, tot_nrecv, tot_nlost, nrecv, nlost,
               (double) nrecv * 1e6 / dt, (double) nrecv_bytes * 8 * 1e3 / dt,
               (double) nrecv10s * 1e6 / (10 * dt), (double) nrecv10s_bytes * 8 * 1e3 / (10 * dt));
+      if (file != NULL)
+      {
+        int64_t tsec = (int64_t)(tnow / 1000000000);
+        int64_t nsec = (int64_t)(tnow % 1000000000);
+        fprintf (file, "%"PRId64".%"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%.2f,%.2f\n",
+                 tsec, nsec / 1000, hostname, pid, ts, last_size, (double) nrecv_bytes * 8 * 1e3 / dt, (double) nrecv10s_bytes * 8 * 1e3 / (10 * dt));
+      }
       output = true;
     }
   }
@@ -1576,7 +1599,7 @@ static void sigxfsz_handler (int sig __attribute__ ((unused)))
     if (write (2, msg, sizeof (msg) - 1) < 0) {
       /* may not ignore return value according to Linux/gcc */
     }
-    print_stats (0, tnow, tnow - DDS_SECS (1), NULL, NULL, NULL);
+    print_stats (0, tnow, tnow - DDS_SECS (1), NULL, NULL, NULL, NULL);
     kill (getpid (), 9);
   }
 }
@@ -1635,6 +1658,7 @@ OPTIONS:\n\
                       data\n\
   -X                  output extended statistics\n\
   -i ID               use domain ID instead of the default domain\n\
+  -f <file>           write output to <file>\n\
 \n\
 MODE... is zero or more of:\n\
   ping [R[Hz]] [size S] [waitset|listener]\n\
@@ -1939,11 +1963,12 @@ int main (int argc, char *argv[])
   char netload_if[256];
   double netload_bw = -1;
   double rss_init = 0.0, rss_final = 0.0;
+  char filename[256] = { 0 };
   ddsrt_threadattr_init (&attr);
 
   argv0 = argv[0];
 
-  while ((opt = getopt (argc, argv, "1cd:D:i:n:k:uLK:T:Q:R:Xh")) != EOF)
+  while ((opt = getopt (argc, argv, "1cd:D:i:n:k:uLK:T:Q:R:Xhf:")) != EOF)
   {
     int pos;
     switch (opt)
@@ -1965,6 +1990,7 @@ int main (int argc, char *argv[])
       }
       case 'D': dur = atof (optarg); if (dur <= 0) dur = HUGE_VAL; break;
       case 'i': did = (dds_domainid_t) atoi (optarg); break;
+      case 'f': (void) ddsrt_strlcpy (filename, optarg, sizeof (filename)); break;
       case 'n': nkeyvals = (unsigned) atoi (optarg); break;
       case 'u': reliable = false; break;
       case 'k': histdepth = atoi (optarg); if (histdepth < 0) histdepth = 0; break;
@@ -2417,7 +2443,7 @@ int main (int argc, char *argv[])
     if (tnext <= tnow)
     {
       bool output;
-      output = print_stats (tref, tnow, tlast, cputime_state, netload_state, &stats);
+      output = print_stats (tref, tnow, tlast, cputime_state, netload_state, &stats, filename);
       tlast = tnow;
       if (tnow > tnext + DDS_MSECS (500))
         tnext = tnow + DDS_SECS (1);
@@ -2565,6 +2591,10 @@ err_minmatch_wait:
   {
     printf ("[%"PRIdPID"] error: RSS grew too much (%f -> %f)\n", ddsrt_getpid (), rss_init, rss_final);
     ok = false;
+  }
+  if (file != NULL)
+  {
+    fclose(file);
   }
   return ok ? 0 : 1;
 }
