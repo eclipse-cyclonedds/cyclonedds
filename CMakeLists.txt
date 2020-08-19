@@ -198,9 +198,7 @@ if(USE_SANITIZER)
   endforeach()
 endif()
 
-
 include(GNUInstallDirs)
-include(AnalyzeBuild)
 if(APPLE)
   set(CMAKE_INSTALL_RPATH "@loader_path/../${CMAKE_INSTALL_LIBDIR}")
 else()
