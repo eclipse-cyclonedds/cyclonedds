@@ -38,28 +38,28 @@ submit_to_coverity_scan: &submit_to_coverity_scan
     fi
 
 submit_to_codecov: &submit_to_codecov
-  - >
+  - |
     if [ "${CODECOV}" = "true" ]; then
-      query=$(curl -Gso /dev/null -w "%{url_effective}" ""
-        --data-urlencode "package=cmake-codecov.io"
-        --data-urlencode "token=${CODECOV_TOKEN}"
-        --data-urlencode "branch=${TRAVIS_BRANCH}"
-        --data-urlencode "commit=${TRAVIS_PULL_REQUEST_SHA:-$TRAVIS_COMMIT}"
-        --data-urlencode "build=${TRAVIS_JOB_NUMBER}"
-        --data-urlencode "tag=${TRAVIS_TAG}"
-        --data-urlencode "slug=${TRAVIS_REPO_SLUG}"
-        --data-urlencode "service=travis"
-        --data-urlencode "flags="
-        --data-urlencode "pr=${TRAVIS_PULL_REQUEST}"
+      query=$(curl -Gso /dev/null -w "%{url_effective}" "" \
+        --data-urlencode "package=cmake-codecov.io" \
+        --data-urlencode "token=${CODECOV_TOKEN}" \
+        --data-urlencode "branch=${TRAVIS_BRANCH}" \
+        --data-urlencode "commit=${TRAVIS_PULL_REQUEST_SHA:-$TRAVIS_COMMIT}" \
+        --data-urlencode "build=${TRAVIS_JOB_NUMBER}" \
+        --data-urlencode "tag=${TRAVIS_TAG}" \
+        --data-urlencode "slug=${TRAVIS_REPO_SLUG}" \
+        --data-urlencode "service=travis" \
+        --data-urlencode "flags=" \
+        --data-urlencode "pr=${TRAVIS_PULL_REQUEST}" \
         --data-urlencode "job=${TRAVIS_JOB_ID}" 2>/dev/null | cut -c 3- | sed -e 's/%0A//');
       cmake --build . --target codecov &&
-      curl -X POST
-        --data-binary @"codecov.tar.gz"
-        --retry 5 --retry-delay 2 --connect-timeout 2
-        -H 'Content-Type: text/plain'
-        -H 'Content-Encoding: gzip'
-        -H 'X-Content-Encoding: gzip'
-        -H 'Accept: text/plain'
+      curl -X POST \
+        --data-binary @"codecov.tar.gz" \
+        --retry 5 --retry-delay 2 --connect-timeout 2 \
+        -H 'Content-Type: text/plain' \
+        -H 'Content-Encoding: gzip' \
+        -H 'X-Content-Encoding: gzip' \
+        -H 'Accept: text/plain' \
         "https://codecov.io/upload/v2?$query";
     fi
 
