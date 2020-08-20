@@ -9,36 +9,62 @@ language: c
 # Coverity Scan quota are not checked as the Coverity enabled build must only
 # run from cron.
 install_coverity: &install_coverity
-  if [ "${COVERITY_SCAN}" = "true" ]; then
-    COV_DIR="/tmp/coverity-scan-analysis";
-    COV_ARC="/tmp/cov-analysis-${COV_PLATFORM}.tgz";
-    test ! -d "${COV_DIR}" &&
-      mkdir -p "${COV_DIR}" &&
-      curl -s -S -F project="${TRAVIS_REPO_SLUG}"
-                 -F token="${COVERITY_SCAN_TOKEN}"
-                 -o "${COV_ARC}"
-                 "https://scan.coverity.com/download/cxx/${COV_PLATFORM}" &&
-      tar -xzf "${COV_ARC}" -C "${COV_DIR}";
-    COV_ANALYSIS=$(find "${COV_DIR}" -type d -name "cov-analysis*");
-    eval "export PATH=\"${PATH}:${COV_ANALYSIS}/bin\"";
-    eval "export SCAN_BUILD=\"cov-build --dir cov-int\"";
-    cov-configure --comptype ${COV_COMPTYPE} --compiler ${CC} --template;
-  fi
+  - if [ "${COVERITY_SCAN}" = "true" ]; then
+      COV_DIR="/tmp/coverity-scan-analysis";
+      COV_ARC="/tmp/cov-analysis-${COV_PLATFORM}.tgz";
+      test ! -d "${COV_DIR}" &&
+        mkdir -p "${COV_DIR}" &&
+        curl -s -S -F project="${TRAVIS_REPO_SLUG}"
+                   -F token="${COVERITY_SCAN_TOKEN}"
+                   -o "${COV_ARC}"
+                   "https://scan.coverity.com/download/cxx/${COV_PLATFORM}" &&
+        tar -xzf "${COV_ARC}" -C "${COV_DIR}";
+      COV_ANALYSIS=$(find "${COV_DIR}" -type d -name "cov-analysis*");
+      eval "export PATH=\"${PATH}:${COV_ANALYSIS}/bin\"";
+      eval "export SCAN_BUILD=\"cov-build --dir cov-int\"";
+      cov-configure --comptype ${COV_COMPTYPE} --compiler ${CC} --template;
+    fi
 
 submit_to_coverity_scan: &submit_to_coverity_scan
-  if [ "${COVERITY_SCAN}" = "true" ]; then
-    tar -czf analysis-results.tgz cov-int &&
-    curl -s -S -F project="${TRAVIS_REPO_SLUG}"
-               -F token="${COVERITY_SCAN_TOKEN}"
-               -F file=@analysis-results.tgz
-               -F version=$(git rev-parse --short HEAD)
-               -F description="Travis CI build"
-               -F email="${COVERITY_SCAN_EMAIL:=cyclonedds-inbox@eclipse.org}"
-               "https://scan.coverity.com/builds";
-  fi
+  - if [ "${COVERITY_SCAN}" = "true" ]; then
+      tar -czf analysis-results.tgz cov-int &&
+      curl -s -S -F project="${TRAVIS_REPO_SLUG}"
+                 -F token="${COVERITY_SCAN_TOKEN}"
+                 -F file=@analysis-results.tgz
+                 -F version=$(git rev-parse --short HEAD)
+                 -F description="Travis CI build"
+                 -F email="${COVERITY_SCAN_EMAIL:=cyclonedds-inbox@eclipse.org}"
+                 "https://scan.coverity.com/builds";
+    fi
+
+submit_to_codecov: &submit_to_codecov
+  - >
+    if [ "${CODECOV}" = "true" ]; then
+      query=$(curl -Gso /dev/null -w "%{url_effective}" ""
+        --data-urlencode "package=cmake-codecov.io"
+        --data-urlencode "token=${CODECOV_TOKEN}"
+        --data-urlencode "branch=${TRAVIS_BRANCH}"
+        --data-urlencode "commit=${TRAVIS_PULL_REQUEST_SHA:-$TRAVIS_COMMIT}"
+        --data-urlencode "build=${TRAVIS_JOB_NUMBER}"
+        --data-urlencode "tag=${TRAVIS_TAG}"
+        --data-urlencode "slug=${TRAVIS_REPO_SLUG}"
+        --data-urlencode "service=travis"
+        --data-urlencode "flags="
+        --data-urlencode "pr=${TRAVIS_PULL_REQUEST}"
+        --data-urlencode "job=${TRAVIS_JOB_ID}" 2>/dev/null | cut -c 3- | sed -e 's/%0A//');
+      cmake --build . --target codecov &&
+      curl -X POST
+        --data-binary @"codecov.tar.gz"
+        --retry 5 --retry-delay 2 --connect-timeout 2
+        -H 'Content-Type: text/plain'
+        -H 'Content-Encoding: gzip'
+        -H 'X-Content-Encoding: gzip'
+        -H 'Accept: text/plain'
+        "https://codecov.io/upload/v2?$query";
+    fi
 
 # Coverity doesn't support gcc 10 yet
-coverity: &coverity
+ubuntu1804_gcc7: &ubuntu1804_gcc7
   os: linux
   dist: bionic
   compiler: gcc
@@ -155,8 +181,11 @@ windows1809_vs2017: &windows1809_vs2017
 
 jobs:
   include:
-    - <<: *coverity
+    - <<: *ubuntu1804_gcc7
       env: [ ARCH=x86_64, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, COVERITY_SCAN=true ]
+      if: type = cron
+    - <<: *ubuntu1804_gcc7
+      env: [ ARCH=x86_64, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, CODECOV=true ]
       if: type = cron
     - <<: *ubuntu1804_gcc10
       env: [ ARCH=x86_64, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES ]
@@ -217,6 +246,7 @@ script:
           -DENABLE_SECURITY=${SECURITY}
           -DENABLE_LIFESPAN=${LIFESPAN}
           -DENABLE_DEADLINE_MISSED=${DEADLINE}
+          -DENABLE_COVERAGE=${CODECOV}
           -DBUILD_TESTING=on
           -DWERROR=on
           -G "${GENERATOR}" ..
@@ -251,4 +281,4 @@ script:
 
 after_success:
   - *submit_to_coverity_scan
-
+  - *submit_to_codecov
