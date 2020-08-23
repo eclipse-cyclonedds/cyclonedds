@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.com/eclipse-cyclonedds/cyclonedds.svg?branch=master)](https://travis-ci.com/eclipse-cyclonedds/cyclonedds)
 [![Coverity Status](https://scan.coverity.com/projects/19078/badge.svg)](https://scan.coverity.com/projects/eclipse-cyclonedds-cyclonedds)
-[![codecov](https://codecov.io/gh/eclipse-cyclonedds/cyclonedds/branch/master/graph/badge.svg)](https://codecov.io/gh/eclipse-cyclonedds/cyclonedds)
+[![Codecov](https://codecov.io/gh/eclipse-cyclonedds/cyclonedds/branch/master/graphs/badge.svg?branch=master)](https://codecov.io/github/eclipse-cyclonedds/cyclonedds?branch=master)
 
 # Eclipse Cyclone DDS
 
