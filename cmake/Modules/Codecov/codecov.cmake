@@ -80,12 +80,20 @@ endfunction()
 set(project_dir "${PROJECT_ROOT}")
 set(build_dir "${CMAKE_CURRENT_BINARY_DIR}")
 
-set(network_block "\n")
+# Codecov supports .codecov.yml files to configure the service. The location
+# of the first .codecov.yml found by the bash uploader is in included in the
+# the list of files submitted to the service.
+file(GLOB_RECURSE yaml_files RELATIVE "${PROJECT_ROOT}" "${PROJECT_ROOT}/*codecov.y*ml")
+if(yaml_files)
+  list(GET yaml_files 0 yaml_file)
+endif()
+
+set(network_block "${yaml_file}\n")
 set(gcov_block "")
 set(adjustments_block "")
 
-# codecov.io uses "git ls-files" and falls back to find, but having no
-# dependencies is preferred (for now). the globbing rules are very likely to
+# Codecov uses "git ls-files" and falls back to find, but having no
+# dependencies is preferred (for now). Globbing rules are very likely to
 # produce the same result
 file(GLOB_RECURSE source_files "${PROJECT_ROOT}/*.[hH]"
                                "${PROJECT_ROOT}/*.[Cc]"
