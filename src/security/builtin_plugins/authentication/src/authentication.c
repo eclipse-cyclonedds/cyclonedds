@@ -120,6 +120,7 @@ typedef struct LocalIdentityInfo
   AuthenticationAlgoKind_t dsignAlgoKind;
   AuthenticationAlgoKind_t kagreeAlgoKind;
   char *permissionsDocument;
+  dds_security_time_event_handle_t timer;
 } LocalIdentityInfo;
 
 typedef struct RemoteIdentityInfo
@@ -133,6 +134,7 @@ typedef struct RemoteIdentityInfo
   DDS_Security_OctetSeq pdata;
   char *permissionsDocument;
   struct ddsrt_hh *linkHash; /* contains the IdentityRelation objects */
+  dds_security_time_event_handle_t timer;
 } RemoteIdentityInfo;
 
 /* This structure contains the relation between a local and a remote identity
@@ -167,8 +169,8 @@ typedef struct dds_security_authentication_impl
   ddsrt_mutex_t lock;
   struct ddsrt_hh *objectHash;
   struct ddsrt_hh *remoteGuidHash;
-  struct dds_security_timed_cb_data *timed_callbacks;
-  struct dds_security_timed_dispatcher_t *dispatcher;
+  struct dds_security_timed_dispatcher *dispatcher;
+  const dds_security_authentication_listener *listener;
   X509Seq trustedCAList;
   bool include_optional;
 } dds_security_authentication_impl;
@@ -599,28 +601,51 @@ static DDS_Security_BinaryProperty_t *hash_value_to_binary_property(const char *
   return bp;
 }
 
-static void validity_callback(struct dds_security_timed_dispatcher_t *d, dds_security_timed_cb_kind kind, void *listener, void *arg)
+static SecurityObject *get_identity_info(dds_security_authentication_impl *auth, DDS_Security_IdentityHandle handle)
 {
-  DDSRT_UNUSED_ARG(d);
-  assert(d);
+  SecurityObject *obj;
+
+  ddsrt_mutex_lock(&auth->lock);
+  if ((obj = security_object_find(auth->objectHash, handle)) != NULL)
+  {
+    if ((obj->kind != SECURITY_OBJECT_KIND_LOCAL_IDENTITY) && (obj->kind != SECURITY_OBJECT_KIND_REMOTE_IDENTITY))
+      obj = NULL;
+  }
+  ddsrt_mutex_unlock(&auth->lock);
+  return obj;
+}
+
+static void validity_callback(dds_security_time_event_handle_t timer, dds_time_t trigger_time, dds_security_timed_cb_kind_t kind, void *arg)
+{
+  DDSRT_UNUSED_ARG(timer);
+  DDSRT_UNUSED_ARG(trigger_time);
+
   assert(arg);
   validity_cb_info *info = arg;
   if (kind == DDS_SECURITY_TIMED_CB_KIND_TIMEOUT)
   {
-    assert(listener);
-    dds_security_authentication_listener *auth_listener = (dds_security_authentication_listener *)listener;
-    if (auth_listener->on_revoke_identity)
-      auth_listener->on_revoke_identity((dds_security_authentication *)info->auth, info->hdl);
+    assert(info->auth->listener);
+    SecurityObject * obj = get_identity_info(info->auth, info->hdl);
+    if (obj)
+    {
+      const dds_security_authentication_listener *auth_listener = (dds_security_authentication_listener *)info->auth->listener;
+      if (auth_listener->on_revoke_identity)
+        auth_listener->on_revoke_identity((dds_security_authentication *)info->auth, info->hdl);
+      if (obj->kind == SECURITY_OBJECT_KIND_LOCAL_IDENTITY)
+        ((LocalIdentityInfo *)obj)->timer = 0;
+      else
+        ((RemoteIdentityInfo *)obj)->timer = 0;
+    }
   }
   ddsrt_free(arg);
 }
 
-static void add_validity_end_trigger(dds_security_authentication_impl *auth, const DDS_Security_IdentityHandle identity_handle, dds_time_t end)
+static dds_security_time_event_handle_t add_validity_end_trigger(dds_security_authentication_impl *auth, const DDS_Security_IdentityHandle identity_handle, dds_time_t end)
 {
   validity_cb_info *arg = ddsrt_malloc(sizeof(validity_cb_info));
   arg->auth = auth;
   arg->hdl = identity_handle;
-  dds_security_timed_dispatcher_add(auth->timed_callbacks, auth->dispatcher, validity_callback, end, (void *)arg);
+  return dds_security_timed_dispatcher_add(auth->dispatcher, validity_callback, end, (void *)arg);
 }
 
 static DDS_Security_ValidationResult_t get_adjusted_participant_guid(X509 *cert, const DDS_Security_GUID_t *candidate, DDS_Security_GUID_t *adjusted, DDS_Security_SecurityException *ex)
@@ -751,7 +776,7 @@ DDS_Security_ValidationResult_t validate_local_identity(dds_security_authenticat
   *local_identity_handle = IDENTITY_HANDLE(identity);
 
   if (certExpiry != DDS_NEVER)
-    add_validity_end_trigger(implementation, *local_identity_handle, certExpiry);
+    identity->timer = add_validity_end_trigger(implementation, *local_identity_handle, certExpiry);
 
   ddsrt_mutex_lock(&implementation->lock);
   (void)ddsrt_hh_add(implementation->objectHash, identity);
@@ -1916,14 +1941,15 @@ DDS_Security_ValidationResult_t process_handshake(dds_security_authentication *i
 
   {
     /* setup expiry listener */
-    dds_time_t cert_exp = get_certificate_expiry(handshake->relation->remoteIdentity->identityCert);
+    RemoteIdentityInfo *remoteIdentity = handshake->relation->remoteIdentity;
+    dds_time_t cert_exp = get_certificate_expiry(remoteIdentity->identityCert);
     if (cert_exp == DDS_TIME_INVALID)
     {
       DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Expiry date of the certificate is invalid");
       goto err_invalid_expiry;
     }
-    else if (cert_exp != DDS_NEVER)
-      add_validity_end_trigger(impl, IDENTITY_HANDLE(handshake->relation->remoteIdentity), cert_exp);
+    else if (cert_exp != DDS_NEVER && remoteIdentity->timer == 0)
+      remoteIdentity->timer = add_validity_end_trigger(impl, IDENTITY_HANDLE(remoteIdentity), cert_exp);
   }
   ddsrt_mutex_unlock(&impl->lock);
 
@@ -2038,10 +2064,11 @@ DDS_Security_boolean set_listener(dds_security_authentication *instance, const d
 {
   DDSRT_UNUSED_ARG(ex);
   dds_security_authentication_impl *auth = (dds_security_authentication_impl *)instance;
+  auth->listener = listener;
   if (listener)
-    dds_security_timed_dispatcher_enable(auth->timed_callbacks, auth->dispatcher, (void *)listener);
+    dds_security_timed_dispatcher_enable(auth->dispatcher, auth->base.gv->xevents);
   else
-    dds_security_timed_dispatcher_disable(auth->timed_callbacks, auth->dispatcher);
+    dds_security_timed_dispatcher_disable(auth->dispatcher);
   return true;
 }
 
@@ -2163,12 +2190,16 @@ DDS_Security_boolean return_identity_handle(dds_security_authentication *instanc
   {
   case SECURITY_OBJECT_KIND_LOCAL_IDENTITY:
     localIdent = (LocalIdentityInfo *)obj;
+    if (localIdent->timer != 0)
+      dds_security_timed_dispatcher_remove(impl->dispatcher, localIdent->timer);
     invalidate_local_related_objects(impl, localIdent);
     (void)ddsrt_hh_remove(impl->objectHash, obj);
     security_object_free(obj);
     break;
   case SECURITY_OBJECT_KIND_REMOTE_IDENTITY:
     remoteIdent = (RemoteIdentityInfo *)obj;
+    if (remoteIdent->timer != 0)
+      dds_security_timed_dispatcher_remove(impl->dispatcher, remoteIdent->timer);
     invalidate_remote_related_objects(impl, remoteIdent);
     (void)ddsrt_hh_remove(impl->remoteGuidHash, remoteIdent);
     (void)ddsrt_hh_remove(impl->objectHash, obj);
@@ -2202,9 +2233,8 @@ int32_t init_authentication(const char *argument, void **context, struct ddsi_do
   authentication = (dds_security_authentication_impl *)ddsrt_malloc(sizeof(dds_security_authentication_impl));
   memset(authentication, 0, sizeof(dds_security_authentication_impl));
   authentication->base.gv = gv;
-  authentication->timed_callbacks = dds_security_timed_cb_new();
-  authentication->dispatcher = dds_security_timed_dispatcher_new(authentication->timed_callbacks);
-
+  authentication->listener = NULL;
+  authentication->dispatcher = dds_security_timed_dispatcher_new();
   authentication->base.validate_local_identity = &validate_local_identity;
   authentication->base.get_identity_token = &get_identity_token;
   authentication->base.get_identity_status_token = &get_identity_status_token;
@@ -2242,8 +2272,7 @@ int32_t finalize_authentication(void *instance)
   if (authentication)
   {
     ddsrt_mutex_lock(&authentication->lock);
-    dds_security_timed_dispatcher_free(authentication->timed_callbacks, authentication->dispatcher);
-    dds_security_timed_cb_free(authentication->timed_callbacks);
+    dds_security_timed_dispatcher_free(authentication->dispatcher);
     if (authentication->remoteGuidHash)
       ddsrt_hh_free(authentication->remoteGuidHash);
     if (authentication->objectHash)

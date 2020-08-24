@@ -10,6 +10,10 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/io.h"
+#include "dds/ddsi/ddsi_tran.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/q_xevent.h"
+#include "dds/ddsi/q_thread.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/dds_security_api_authentication.h"
 #include "dds/security/core/dds_security_serialize.h"
@@ -49,6 +53,8 @@ static const char * AUTH_KAGREE_ALGO_ECDH_NAME = "ECDH+prime256v1-CEUM";
 static DDS_Security_PermissionsHandle remote_permissions_handle = DDS_SECURITY_HANDLE_NIL;
 static dds_security_authentication_listener auth_listener;
 static dds_security_access_control_listener access_control_listener;
+static struct ddsi_domaingv gv;
+static struct ddsi_tran_conn connection = { .m_base.gv = &gv };
 
 #define IDENTITY_CA_FILE "Identity_CA_Cert.pem"
 #define IDENTITY_CA_KEY_FILE "Identity_CA_Private_Key.pem"
@@ -1094,11 +1100,18 @@ CU_Init(ddssec_builtin_listeners_auth)
 {
     int res = 0;
     dds_openssl_init ();
+    thread_states_init(16);
+
+    gv.xevents = xeventq_new(&connection, 0, 0, 0);
+    gv.handshake_include_optional = true;
 
     plugins = load_plugins(&access_control   /* Access Control */,
                            &auth  /* Authentication */,
-                           NULL   /* Cryptograpy    */);
+                           NULL   /* Cryptograpy    */,
+                           &gv);
+
     if (plugins) {
+        xeventq_start(gv.xevents, "TEST_EVENT_QUEUE");
         set_path_build_dir();
         res = set_path_to_etc_dir();
         if (res >= 0) {
@@ -1118,6 +1131,8 @@ CU_Init(ddssec_builtin_listeners_auth)
            invalid_dh_pub_key.data[0] = 0x08;
         }
     } else {
+        xeventq_free(gv.xevents);
+        gv.xevents = NULL;
         res = -1;
     }
 
@@ -1137,6 +1152,12 @@ CU_Clean(ddssec_builtin_listeners_auth)
         EVP_PKEY_free(dh_ecdh_key);
     }
     unload_plugins(plugins);
+
+    xeventq_stop(gv.xevents);
+    xeventq_free(gv.xevents);
+    gv.xevents = NULL;
+
+    (void)thread_states_fini();
 
     ddsrt_free(path_to_etc_dir);
     return 0;

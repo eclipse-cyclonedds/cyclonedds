@@ -155,7 +155,8 @@ static void suite_create_local_participant_crypto_tokens_init(void)
   CU_ASSERT_FATAL ((plugins = load_plugins(
                       NULL    /* Access Control */,
                       NULL    /* Authentication */,
-                      &crypto /* Cryptograpy    */)) != NULL);
+                      &crypto /* Cryptograpy    */,
+                      NULL)) != NULL);
   allocate_shared_secret();
   CU_ASSERT_EQUAL_FATAL (register_participants(), 0);
 }

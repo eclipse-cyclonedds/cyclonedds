@@ -900,7 +900,8 @@ static void init_testcase(void)
     /* Only need the authentication plugin. */
     plugins = load_plugins(NULL   /* Access Control */,
                            &auth  /* Authentication */,
-                           NULL   /* Cryptograpy    */);
+                           NULL   /* Cryptograpy    */,
+                           NULL);
 
     if (plugins) {
         res = validate_local_identity( NULL );

@@ -414,7 +414,7 @@ static void suite_get_xxx_sec_attributes_fini(void)
 static bool plugins_init(void)
 {
   /* Checking AccessControl, but needing Authentication to setup local identity. */
-  plugins = load_plugins(&access_control, &auth, NULL /* Cryptograpy */);
+  plugins = load_plugins(&access_control, &auth, NULL /* Cryptograpy */, NULL);
   return plugins ? true : false;
 }
 

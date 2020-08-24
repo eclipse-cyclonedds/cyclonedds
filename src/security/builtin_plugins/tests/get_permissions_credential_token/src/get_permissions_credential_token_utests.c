@@ -328,7 +328,7 @@ static void set_path_to_etc_dir(void)
 
 static void suite_get_permissions_credential_token_init(void)
 {
-  plugins = load_plugins(&access_control, &auth, NULL /* Cryptograpy */);
+  plugins = load_plugins(&access_control, &auth, NULL /* Cryptograpy */, NULL);
   CU_ASSERT_FATAL (plugins != NULL);
   set_path_to_etc_dir();
   local_permissions_init(0);
