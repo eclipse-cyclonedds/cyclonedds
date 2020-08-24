@@ -434,7 +434,8 @@ static DDS_Security_IdentityHandle test_setup(DDS_Security_Qos *participant_qos)
 
   g_plugins = load_plugins(&g_access_control /* Access Control */,
                            &g_auth /* Authentication */,
-                           NULL /* Cryptograpy    */);
+                           NULL /* Cryptograpy    */,
+                           NULL);
   if (g_plugins)
   {
     CU_ASSERT_FATAL(g_auth != NULL);

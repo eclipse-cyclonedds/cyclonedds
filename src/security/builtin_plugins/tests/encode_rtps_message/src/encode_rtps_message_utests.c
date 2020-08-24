@@ -699,7 +699,8 @@ static void suite_encode_rtps_message_init(void)
   CU_ASSERT_FATAL ((plugins = load_plugins(
                       NULL    /* Access Control */,
                       NULL    /* Authentication */,
-                      &crypto /* Cryptograpy    */)) != NULL);
+                      &crypto /* Cryptograpy    */,
+                      NULL)) != NULL);
 }
 
 static void suite_encode_rtps_message_fini(void)

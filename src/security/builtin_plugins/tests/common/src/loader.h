@@ -21,7 +21,8 @@ struct plugins_hdl*
 load_plugins(
         dds_security_access_control **ac,
         dds_security_authentication **auth,
-        dds_security_cryptography   **crypto);
+        dds_security_cryptography   **crypto,
+        void *args);
 
 void
 unload_plugins(

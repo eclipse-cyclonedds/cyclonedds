@@ -15,21 +15,18 @@
 
 #include "dds/export.h"
 #include "dds/ddsrt/time.h"
+#include "dds/ddsi/q_xevent.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
+typedef uint64_t dds_security_time_event_handle_t;
+
 /**
  * The dispatcher that will trigger the timed callbacks.
  */
-struct dds_security_timed_dispatcher_t;
-
-/**
- * The timed callback structure holds a list of dispatchers and manages
- * the thread that calls the dispatchers callbacks.
- */
-struct dds_security_timed_cb_data;
+struct dds_security_timed_dispatcher;
 
 /**
  * The callback is triggered by two causes:
@@ -39,8 +36,7 @@ struct dds_security_timed_cb_data;
 typedef enum {
     DDS_SECURITY_TIMED_CB_KIND_TIMEOUT,
     DDS_SECURITY_TIMED_CB_KIND_DELETE
-} dds_security_timed_cb_kind;
-
+} dds_security_timed_cb_kind_t;
 
 
 /**
@@ -52,26 +48,13 @@ typedef enum {
  * or if the related dispatcher is deleted. The latter can be used to clean up
  * possible callback resources.
  *
- * @param d             Related dispatcher.
- * @param kind          Triggered by cb timeout or dispatcher deletion.
- * @param listener      Listener that was provided when enabling the related
- *                      dispatcher (NULL with a deletion trigger).
+ * @param timer         The associated timer.
+ * @param trigger_time  The expiry time of the timer
+ * @param kind          Triggered by a timeout or a deletion.
  * @param arg           User data, provided when adding a callback to the
  *                      related dispatcher.
  */
-typedef void
-(*dds_security_timed_cb_t) (
-        struct dds_security_timed_dispatcher_t *d,
-        dds_security_timed_cb_kind kind,
-        void *listener,
-        void *arg);
-
-DDS_EXPORT struct dds_security_timed_cb_data*
-dds_security_timed_cb_new(void);
-
-DDS_EXPORT void
-dds_security_timed_cb_free(
-        struct dds_security_timed_cb_data *dl);
+typedef void (*dds_security_timed_cb_t) (dds_security_time_event_handle_t timer, dds_time_t trigger_time, dds_security_timed_cb_kind_t kind, void *arg);
 
 /**
  * Create a new dispatcher for timed callbacks.
@@ -79,9 +62,7 @@ dds_security_timed_cb_free(
  *
  * @return              New (disabled) timed callbacks dispatcher.
  */
-DDS_EXPORT struct dds_security_timed_dispatcher_t*
-dds_security_timed_dispatcher_new(
-        struct dds_security_timed_cb_data *tcb);
+DDS_EXPORT struct dds_security_timed_dispatcher * dds_security_timed_dispatcher_new(void);
 
 /**
  * Frees the given dispatcher.
@@ -92,12 +73,7 @@ dds_security_timed_dispatcher_new(
  * @param d             The dispatcher to free.
  * 
  */
-DDS_EXPORT void
-dds_security_timed_dispatcher_free(
-        struct dds_security_timed_cb_data *tcb,
-        struct dds_security_timed_dispatcher_t *d);
-
-
+DDS_EXPORT void dds_security_timed_dispatcher_free(struct dds_security_timed_dispatcher *d);
 
 /**
  * Enables a dispatcher for timed callbacks.
@@ -117,16 +93,10 @@ dds_security_timed_dispatcher_free(
  * dispatcher being possibly disabled.
  *
  * @param d             The dispatcher to enable.
- * @param listener      An object that is returned with the callback.
+ * @param evq           The event queue used to handle the timers.
  *
  */
-DDS_EXPORT void
-dds_security_timed_dispatcher_enable(
-        struct dds_security_timed_cb_data *tcb,
-        struct dds_security_timed_dispatcher_t *d,
-        void *listener);
-
-
+DDS_EXPORT void dds_security_timed_dispatcher_enable(struct dds_security_timed_dispatcher *d, struct xeventq *evq);
 
 /**
  * Disables a dispatcher for timed callbacks.
@@ -142,12 +112,7 @@ dds_security_timed_dispatcher_enable(
  * @param d             The dispatcher to disable.
  *
  */
-DDS_EXPORT void
-dds_security_timed_dispatcher_disable(
-        struct dds_security_timed_cb_data *tcb,
-        struct dds_security_timed_dispatcher_t *d);
-
-
+DDS_EXPORT void dds_security_timed_dispatcher_disable(struct dds_security_timed_dispatcher *d);
 
 /**
  * Adds a timed callback to a dispatcher.
@@ -171,14 +136,20 @@ dds_security_timed_dispatcher_disable(
  * @param trigger_time  A wall-clock time of when to trigger the callback.
  * @param arg           User data that is provided with the callback.
  *
+ * @return              The timer.
  */
-DDS_EXPORT void
-dds_security_timed_dispatcher_add(
-        struct dds_security_timed_cb_data *tcb,
-        struct dds_security_timed_dispatcher_t *d,
-        dds_security_timed_cb_t cb,
-        dds_time_t trigger_time,
-        void *arg);
+DDS_EXPORT dds_security_time_event_handle_t dds_security_timed_dispatcher_add(struct dds_security_timed_dispatcher *d, dds_security_timed_cb_t cb, dds_time_t trigger_time, void *arg);
+
+/**
+ * Removes a timer from the dispatcher.
+ *
+ * The given timer will be removed from the dispatcher and the callback
+ * associated with the timer will be called with DDS_SECURITY_TIMED_CB_KIND_DELETE.
+ *
+ * @param d             The dispatcher to add the callback to.
+ * @param timer         The timer that has to removed.
+ */
+DDS_EXPORT void dds_security_timed_dispatcher_remove(struct dds_security_timed_dispatcher *d, dds_security_time_event_handle_t timer);
 
 #if defined (__cplusplus)
 }

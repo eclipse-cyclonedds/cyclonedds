@@ -37,7 +37,8 @@ static void suite_register_matched_remote_participant_init(void)
     CU_ASSERT_FATAL ((plugins = load_plugins(
                         NULL      /* Access Control */,
                         NULL      /* Authentication */,
-                        &crypto   /* Cryptograpy    */)) != NULL);
+                        &crypto   /* Cryptograpy    */,
+                        NULL)) != NULL);
 }
 
 static void suite_register_matched_remote_participant_fini(void)

@@ -17,6 +17,9 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/types.h"
+#include "dds/ddsi/ddsi_tran.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/q_xevent.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/openssl_support.h"
@@ -48,6 +51,8 @@ static const char *PERMISSIONS_CA_CERT_FILE = "Test_Permissions_ca.pem";
 static const char *PERMISSIONS_CA_KEY_FILE = "Test_Permissions_ca_key.pem";
 static const char *PERMISSIONS_FILE = "Test_Permissions_listener.p7s";
 static dds_security_access_control_listener ac_listener;
+static struct ddsi_domaingv gv;
+static struct ddsi_tran_conn connection = { .m_base.gv = &gv };
 
 static const char *identity_certificate =
     "data:,-----BEGIN CERTIFICATE-----\n"
@@ -530,10 +535,18 @@ CU_Init(ddssec_builtin_listeners_access_control)
 {
   int res = 0;
 
-  plugins = load_plugins(&access_control, &auth, NULL /* Cryptograpy */);
+  thread_states_init(16);
+
+  gv.xevents = xeventq_new(&connection, 0, 0, 0);
+  gv.handshake_include_optional = true;
+
+  plugins = load_plugins(&access_control, &auth, NULL /* Cryptograpy */, &gv);
   if (!plugins) {
+    xeventq_free(gv.xevents);
+    gv.xevents = NULL;
     res = -1;
   } else {
+    xeventq_start(gv.xevents, "TEST_EVENT_QUEUE");
     set_path_to_etc_dir();
     set_path_build_dir();
     dds_openssl_init ();
@@ -545,6 +558,13 @@ CU_Init(ddssec_builtin_listeners_access_control)
 CU_Clean(ddssec_builtin_listeners_access_control)
 {
   unload_plugins(plugins);
+
+  xeventq_stop(gv.xevents);
+  xeventq_free(gv.xevents);
+  gv.xevents = NULL;
+
+  (void)thread_states_fini();
+
   ddsrt_free(g_path_to_etc_dir);
   return 0;
 }

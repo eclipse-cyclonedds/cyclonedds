@@ -361,7 +361,8 @@ static void suite_preprocess_secure_submsg_init (void)
     CU_ASSERT_FATAL ((plugins = load_plugins(
                             NULL      /* Access Control */,
                             NULL      /* Authentication */,
-                            &crypto   /* Cryptography   */)) != NULL);
+                            &crypto   /* Cryptography   */,
+                            NULL)) != NULL);
     CU_ASSERT_EQUAL_FATAL (register_local_participant(), 0);
     CU_ASSERT_EQUAL_FATAL (register_remote_participant(), 0);
     CU_ASSERT_EQUAL_FATAL (register_local_datawriter(), 0);

@@ -773,7 +773,17 @@ static void release_plugins (struct ddsi_domaingv *gv, dds_security_context *sc)
 
 void q_omg_security_stop (struct ddsi_domaingv *gv)
 {
+  dds_security_context *sc = gv->security_context;
+
   ddsi_handshake_admin_stop(gv);
+
+  if (sc)
+  {
+    if (sc->authentication_context)
+      sc->authentication_context->set_listener (sc->authentication_context, NULL, NULL);
+    if (sc->access_control_context)
+      sc->access_control_context->set_listener (sc->access_control_context, NULL, NULL);
+  }
 }
 
 void q_omg_security_deinit (struct dds_security_context *sc)

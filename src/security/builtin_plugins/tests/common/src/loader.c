@@ -40,7 +40,8 @@ load_plugin(
         struct plugin_info *info,
         const char *name_lib,
         const char *name_init,
-        const char *name_fini)
+        const char *name_fini,
+        void *args)
 {
     dds_return_t result;
     void *plugin = NULL;
@@ -64,7 +65,7 @@ load_plugin(
         }
 
         char * init_parameters = "";
-        (void)info->func_init(init_parameters, &plugin, NULL);
+        (void)info->func_init(init_parameters, &plugin, args);
         if (plugin) {
             info->context = plugin;
         } else {
@@ -82,7 +83,8 @@ struct plugins_hdl*
 load_plugins(
         dds_security_access_control **ac,
         dds_security_authentication **auth,
-        dds_security_cryptography   **crypto)
+        dds_security_cryptography   **crypto,
+        void *args)
 {
     struct plugins_hdl *plugins = ddsrt_malloc(sizeof(struct plugins_hdl));
     assert(plugins);
@@ -91,7 +93,8 @@ load_plugins(
         *ac = load_plugin(&(plugins->plugin_ac),
                           "dds_security_ac",
                           "init_access_control",
-                          "finalize_access_control");
+                          "finalize_access_control",
+                          args);
         if (!(*ac)) {
             goto err;
         }
@@ -101,7 +104,8 @@ load_plugins(
                             //"dds_security_auth",
                             "dds_security_auth",
                             "init_authentication",
-                            "finalize_authentication");
+                            "finalize_authentication",
+                            args);
         if (!(*auth)) {
             goto err;
         }
@@ -110,7 +114,8 @@ load_plugins(
         *crypto = load_plugin(&(plugins->plugin_crypto),
                               "dds_security_crypto",
                               "init_crypto",
-                              "finalize_crypto");
+                              "finalize_crypto",
+                              args);
         if (!(*crypto)) {
             goto err;
         }
