@@ -18,16 +18,23 @@
 #include "crypto_utils.h"
 #include "crypto_cipher.h"
 
-
-static size_t total_data_size(const size_t nun, const crypto_data_t *data)
+#ifndef NDEBUG
+static bool check_buffer_sizes(const size_t num, const crypto_data_t *inp, const crypto_data_t *outp)
 {
-  size_t i, total = 0;
+	size_t i, total = 0;
 
-  for (i = 0; i < nun; i++) {
-    total += data[i].length;
-  }
-  return total;
+	for (i = 0; i < num; i++) {
+		total += inp[i].length;
+	}
+	if (total >= INT_MAX)
+	  return false;
+
+	if (outp && outp->length != total)
+	  return false;
+
+	return true;
 }
+#endif
 
 bool crypto_cipher_encrypt_data(const crypto_session_key_t *session_key, uint32_t key_size, const struct init_vector *iv, const size_t num_inp, const crypto_data_t *inpdata, crypto_data_t *outpdata, crypto_hmac_t *tag, DDS_Security_SecurityException *ex)
 {
@@ -42,12 +49,7 @@ bool crypto_cipher_encrypt_data(const crypto_session_key_t *session_key, uint32_
   assert(num_inp > 0);
   assert(inpdata);
   assert(key_size == 128 || key_size == 256);
-
-  if (total_data_size(num_inp, inpdata) > INT_MAX)
-  {
-    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CIPHER_ERROR, 0, "EVP_EncryptUpdate to update data failed: data_len exceeds INT_MAX");
-    return false;
-  }
+  assert(check_buffer_sizes(num_inp, inpdata, outpdata));
 
   /* create the cipher context */
   if ((ctx = EVP_CIPHER_CTX_new()) == NULL)
@@ -133,6 +135,7 @@ bool crypto_cipher_decrypt_data(const remote_session_info *session, const struct
   assert(num_inp > 0);
   assert(inpdata);
   assert(session->key_size == 128 || session->key_size == 256);
+  assert(check_buffer_sizes(num_inp, inpdata, outpdata));
 
   /* create the cipher context */
   ctx = EVP_CIPHER_CTX_new();
