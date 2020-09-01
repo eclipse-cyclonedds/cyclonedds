@@ -367,7 +367,12 @@ static bool read_submsg_header(unsigned char **ptr, unsigned char *endp, uint8_t
     hdr->octetsToNextHeader = ddsrt_bswap2u(smhdr->octetsToNextHeader);
   else
     hdr->octetsToNextHeader = smhdr->octetsToNextHeader;
+
   *ptr += RTPS_SUBMESSAGE_HEADER_SIZE;
+
+  if (hdr->octetsToNextHeader > (size_t) (endp - *ptr))
+    return false;
+
   return true;
 }
 
@@ -378,8 +383,7 @@ static bool read_secure_prefix(unsigned char **ptr, unsigned char *endp, uint8_t
 
   if (!read_submsg_header(ptr, endp, smid, &smhdr, &bswap))
     return false;
-  if (smhdr.octetsToNextHeader > (size_t) (endp - *ptr))
-    return false;
+
   if (smhdr.octetsToNextHeader < sizeof(struct secure_prefix) - sizeof(uint32_t))
     return false;
 
@@ -435,8 +439,7 @@ static bool read_secure_body(unsigned char **ptr, unsigned char *endp, uint8_t s
 
   if (!read_submsg_header(ptr, endp, smid, &smhdr, &bswap))
     return false;
-  if (smhdr.octetsToNextHeader > (size_t) (endp - *ptr))
-    return false;
+
   body->id = smhdr.submessageId;
   if (smhdr.submessageId == SMID_SEC_BODY)
   {
@@ -468,8 +471,7 @@ static bool read_secure_postfix(unsigned char **ptr, unsigned char *endp, uint8_
 
   if (!read_submsg_header(ptr, endp, smid, &smhdr, &bswap))
     return false;
-  if (smhdr.octetsToNextHeader > (size_t) (endp - *ptr))
-    return false;
+
   if (smhdr.octetsToNextHeader < postfix_min_size)
     return false;
 
@@ -583,7 +585,7 @@ static bool read_secure_rtps_body(unsigned char **ptr, unsigned char *endp, DDS_
 
     *ptr += smhdr.octetsToNextHeader;
 
-    while (sizeof(smhdr) < (size_t)(endp - *ptr))
+    while (sizeof(smhdr) <= (size_t)(endp - *ptr))
     {
       if (!read_submsg_header(ptr, endp, 0, &smhdr, &bswap))
         return false;
@@ -1219,6 +1221,7 @@ static DDS_Security_boolean encode_rtps_message_encrypt (
   crypto_buffer_t buffer;
   crypto_data_t encrypted_data;
   crypto_data_t plain_data[2];
+  DDSRT_STATIC_ASSERT((sizeof(plain_data)/sizeof(plain_data[0])) == 2);
   const size_t num_segs = sizeof(plain_data)/sizeof(plain_data[0]);
   struct crypto_header *header;
   struct crypto_footer *footer;
@@ -1229,15 +1232,13 @@ static DDS_Security_boolean encode_rtps_message_encrypt (
   size_t size;
   uint32_t transform_kind, transform_id;
 
-  DDSRT_STATIC_ASSERT(num_segs == 3);
-
   size_t rtps_body_size = plain_rtps_message->_length - RTPS_MESSAGE_HEADER_SIZE;
   size_t secure_body_plain_size = rtps_body_size + INFO_SRC_SIZE;
 
   if (secure_body_plain_size > INT_MAX)
   {
-	  DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CIPHER_ERROR, 0, "encoding rtps message failed: length exceeds INT_MAX");
-	  return false;
+          DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CIPHER_ERROR, 0, "encoding rtps message failed: length exceeds INT_MAX");
+          return false;
   }
 
   /* get local crypto and session*/
