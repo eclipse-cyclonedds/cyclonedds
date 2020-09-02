@@ -13,6 +13,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <inttypes.h>
 
 #include "idl/processor.h"
 #include "idl/retcode.h"
@@ -47,9 +49,9 @@ test_unary_expr(
   fprintf(stderr, "retcode: %d\n", _ret);
   fprintf(stderr, "negative: %s, value: ", _var.negative ? "true" : "false");
   if (_var.negative)
-    fprintf(stderr, "%ld\n", _var.value.llng);
+    fprintf(stderr, "%"PRId64"\n", _var.value.llng);
   else
-    fprintf(stderr, "%lu\n", _var.value.ullng);
+    fprintf(stderr, "%"PRIu64"\n", _var.value.ullng);
 }
 
 CU_Test(idl_expression, unary_plus)
