@@ -301,16 +301,19 @@ definition:
     annotation_appls module_dcl ';'
       { if (proc->flags & IDL_FLAG_ANNOTATIONS)
           TRY(idl_annotate(proc, $2, $1));
+        idl_delete_node($1);
         $$ = $2;
       }
   | annotation_appls const_dcl ';'
       { if (proc->flags & IDL_FLAG_ANNOTATIONS)
           TRY(idl_annotate(proc, $2, $1));
+        idl_delete_node($1);
         $$ = $2;
       }
   | annotation_appls type_dcl ';'
       { if (proc->flags & IDL_FLAG_ANNOTATIONS)
           TRY(idl_annotate(proc, $2, $1));
+        idl_delete_node($1);
         $$ = $2;
       }
   ;
@@ -738,6 +741,7 @@ union_def:
       { MAKE($$, &@1.first, &@10.last, idl_create_union);
         if (proc->flags & IDL_FLAG_ANNOTATIONS)
           TRY_CATCH(idl_annotate(proc, $6, $5), idl_delete_node($$));
+        idl_delete_node($5);
         $$->identifier = $2;
         merge($$, &$$->switch_type_spec, $6);
         merge($$, &$$->cases, $9);
@@ -871,6 +875,7 @@ enumerator:
       { MAKE($$, &@2.first, &@2.last, idl_create_enumerator);
         if (proc->flags & IDL_FLAG_ANNOTATIONS)
           TRY(idl_annotate(proc, $$, $1));
+        idl_delete_node($1);
         $$->identifier = $2;
       }
   ;
