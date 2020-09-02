@@ -90,6 +90,8 @@ test_scanner(idl_processor_t *proc, idl_token_t *tokvec)
       case IDL_TOKEN_PP_NUMBER:
       case IDL_TOKEN_CHAR_LITERAL:
       case IDL_TOKEN_STRING_LITERAL:
+      case IDL_TOKEN_LINE_COMMENT:
+      case IDL_TOKEN_COMMENT:
         free(tok.value.str);
         break;
       default:

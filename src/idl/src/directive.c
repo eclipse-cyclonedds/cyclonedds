@@ -16,6 +16,11 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#if HAVE_XLOCALE_H
+# include <xlocale.h>
+#elif HAVE_LOCALE_H
+# include <locale.h>
+#endif
 #include <string.h>
 
 #if !HAVE_STRTOULL_L && HAVE__STRTOULL_L
