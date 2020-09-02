@@ -682,13 +682,13 @@ struct_header:
 
 struct_base_type:
     /* IDL 4.2 section 7.4.13 Building Block Extended Data-Types */
-    %?{ (proc->flags & IDL_FLAG_EXTENDED_DATA_TYPES) }
+//    %?{ (proc->flags & IDL_FLAG_EXTENDED_DATA_TYPES) }
     ':' scoped_name
-      { const idl_symbol_t *sym = idl_find_symbol(proc, idl_scope(proc), $3, NULL);
+      { const idl_symbol_t *sym = idl_find_symbol(proc, idl_scope(proc), $2, NULL);
         if (!sym)
-          ABORT(proc, &@3, "scoped name %s cannot be resolved", $3);
+          ABORT(proc, &@2, "scoped name %s cannot be resolved", $2);
         if (!idl_is_masked(sym->node, IDL_STRUCT) || idl_is_masked(sym->node, IDL_FORWARD))
-          ABORT(proc, &@3, "scoped name %s does not resolve to a struct", $3);
+          ABORT(proc, &@2, "scoped name %s does not resolve to a struct", $2);
         $$ = reference((idl_node_t *)sym->node);
       }
   |   { $$ = NULL; }
@@ -698,8 +698,8 @@ struct_body:
     members
       { $$ = $1; }
     /* IDL 4.2 section 7.4.13 Building Block Extended Data-Types */
-  | %?{ (proc->flags & IDL_FLAG_EXTENDED_DATA_TYPES) }
-      { $$ = NULL; }
+//  | %?{ (proc->flags & IDL_FLAG_EXTENDED_DATA_TYPES) }
+  |   { $$ = NULL; }
   ;
 
 members:
