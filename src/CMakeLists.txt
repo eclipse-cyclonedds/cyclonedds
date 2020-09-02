@@ -80,6 +80,7 @@ if(ENABLE_DEADLINE_MISSED)
 endif()
 
 add_subdirectory(ddsrt)
+add_subdirectory(idl)
 
 # some of the tests in the core rely on preprocessing IDL, so idlc has to
 # come first
@@ -92,4 +93,3 @@ add_subdirectory(tools)
 if(BUILD_TESTING AND HAVE_MULTI_PROCESS AND BUILD_IDLC)
   add_subdirectory(mpt)
 endif()
-add_subdirectory(ddsts)

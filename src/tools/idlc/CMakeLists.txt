@@ -1,5 +1,5 @@
 #
-# Copyright(c) 2006 to 2020 ADLINK Technology Limited and others
+# Copyright(c) 2020 ADLINK Technology Limited and others
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License v. 2.0 which is available at
@@ -9,27 +9,26 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-if(BUILD_TESTING)
-  add_subdirectory(tests)
+include(CheckIncludeFile)
+
+check_include_file(getopt.h HAVE_GETOPT_H)
+
+configure_file(config.h.in config.h)
+
+add_library(idldummy SHARED dummy.c)
+
+add_executable(idlc idlc.c generator.c)
+target_link_libraries(idlc PRIVATE idl idlpp ${CMAKE_DL_LIBS})
+if(NOT HAVE_GETOPT_H)
+  # use getopt.h from ddsrt
+  file(READ "${CMAKE_SOURCE_DIR}/src/ddsrt/include/getopt.h.in" getopt_h)
+  # remove occurrences of DDS_EXPORT
+  string(REGEX REPLACE "\n[ \t]*DDS_EXPORT[ \t]+" "\n" getopt_h "${getopt_h}")
+  # remove dds/* includes
+  string(REGEX REPLACE "\n[ \t]*#[ \t]*include[ \t]+[<\"]dds/[^\n]*" "" getopt_h "${getopt_h}")
+  # generate getopt.h
+  file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/getopt.h" CONTENT "${getopt_h}")
+  target_include_directories(idlc PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
+  # add getopt.c
+  target_sources(idlc PUBLIC ${CMAKE_SOURCE_DIR}/src/ddsrt/src/getopt.c)
 endif()
-
-find_package(BISON REQUIRED)
-
-bison_target(parser src/parser.y "${CMAKE_CURRENT_BINARY_DIR}/parser.c")
-
-add_library(idlc-lib STATIC
-  src/idl.c
-  src/tt_create.c
-  src/gen_c99.c
-  src/gen_ostream.c
-  src/scanner.c
-  src/directive.c
-  ${BISON_parser_OUTPUTS})
-
-target_include_directories(idlc-lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_include_directories(idlc-lib PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
-
-target_link_libraries(idlc-lib PUBLIC ddsts)
-
-add_executable(idlc "src/main.c")
-target_link_libraries(idlc PRIVATE idlc-lib idlpp)
