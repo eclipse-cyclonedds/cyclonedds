@@ -693,6 +693,7 @@ struct_base_type:
         if (!idl_is_masked(sym->node, IDL_STRUCT) || idl_is_masked(sym->node, IDL_FORWARD))
           ABORT(proc, &@2, "scoped name %s does not resolve to a struct", $2);
         $$ = reference((idl_node_t *)sym->node);
+        free($2);
       }
   |   { $$ = NULL; }
   ;
