@@ -285,6 +285,7 @@ bool idl_is_struct(const void *node)
 static void delete_struct(void *node)
 {
   idl_struct_t *n = (idl_struct_t *)node;
+  delete_node(n->base_type);
   delete_node(n->members);
   if (n->identifier)
     free(n->identifier);
