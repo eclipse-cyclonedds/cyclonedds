@@ -38,8 +38,13 @@ idl_retcode_t idl_processor_init(idl_processor_t *proc)
   if (!(yypstate = idl_yypstate_new()))
     goto fail_yypstate;
 #if HAVE_NEWLOCALE
+# if __APPLE__ || __FreeBSD__
+  if (!(locale = newlocale(LC_ALL_MASK, NULL, NULL)))
+    goto fail_locale;
+# else
   if (!(locale = newlocale(LC_ALL, "C", (locale_t)0)))
     goto fail_locale;
+# endif
 #elif HAVE__CREATE_LOCALE
   if (!(locale = _create_locale(LC_ALL, "C")))
     goto fail_locale;
