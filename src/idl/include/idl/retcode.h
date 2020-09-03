@@ -36,6 +36,8 @@ typedef int32_t idl_retcode_t;
 #define IDL_RETCODE_ILLEGAL_EXPRESSION (-6)
 /** */
 #define IDL_RETCODE_OUT_OF_RANGE (-7)
+/** */
+#define IDL_RETCODE_CANNOT_OPEN_FILE (-8)
 /** @} */
 
 #endif /* IDL_RETCODE_H */
