@@ -20,6 +20,7 @@ idlc_generate(InstanceHandleTypes InstanceHandleTypes.idl)
 set(ddsc_test_sources
     "basic.c"
     "builtin_topics.c"
+    "cdr.c"
     "config.c"
     "dispose.c"
     "domain.c"
