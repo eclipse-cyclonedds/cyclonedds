@@ -375,6 +375,11 @@ struct config
 #ifdef DDSI_INCLUDE_SECURITY
   struct config_omg_security_listelem *omg_security_configuration;
 #endif
+
+#ifdef DDSI_INCLUDE_SHM
+  int enable_shm;
+  uint32_t sub_cache_size;
+#endif
 };
 
 struct cfgst;

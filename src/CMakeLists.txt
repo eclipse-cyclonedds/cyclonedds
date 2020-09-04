@@ -79,6 +79,11 @@ if(ENABLE_DEADLINE_MISSED)
   add_definitions(-DDDSI_INCLUDE_DEADLINE_MISSED)
 endif()
 
+option(ENABLE_SHM "Enable shared memory support" ON)
+if(ENABLE_SHM)
+  add_definitions(-DDDSI_INCLUDE_SHM)
+endif()
+
 add_subdirectory(ddsrt)
 
 # some of the tests in the core rely on preprocessing IDL, so idlc has to
