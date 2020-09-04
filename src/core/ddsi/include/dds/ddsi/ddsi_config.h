@@ -373,6 +373,11 @@ struct ddsi_config
   struct ddsi_config_omg_security_listelem *omg_security_configuration;
 #endif
 
+#ifdef DDS_HAS_SHM
+  int enable_shm;
+  uint32_t sub_cache_size;
+#endif
+
 #if defined (__cplusplus)
 public:
   ddsi_config() {

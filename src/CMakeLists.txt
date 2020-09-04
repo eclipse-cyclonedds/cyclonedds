@@ -31,6 +31,7 @@ option(ENABLE_DEADLINE_MISSED "Enable Deadline Missed QoS support" ON)
 option(ENABLE_NETWORK_PARTITIONS "Enable network partition support" ON)
 option(ENABLE_SOURCE_SPECIFIC_MULTICAST "Enable support for source-specific multicast" ON)
 option(ENABLE_TYPE_DISCOVERY "Enable Type Discovery support" OFF)
+option(ENABLE_SHM "Enable shared memory support" ON)
 if(ENABLE_SECURITY)
   set(DDS_HAS_SECURITY "1")
 endif()
@@ -46,13 +47,15 @@ endif()
 if(ENABLE_SOURCE_SPECIFIC_MULTICAST)
   set(DDS_HAS_SSM "1")
 endif()
-# ones that linger in the sources
-# - DDS_HAS_BANDWIDTH_LIMITING
-# - DDS_HAS_NETWORK_CHANNELS
 if(ENABLE_TYPE_DISCOVERY)
   set(DDS_HAS_TYPE_DISCOVERY "1")
 endif()
-configure_file(features.h.in "${CMAKE_CURRENT_BINARY_DIR}/core/include/dds/features.h")
+if(ENABLE_SHM)
+  set(DDS_HAS_SHM "1")
+endif()
+# ones that linger in the sources
+# - DDS_HAS_BANDWIDTH_LIMITING
+# - DDS_HAS_NETWORK_CHANNELS
 
 # OpenSSL is huge, raising the RSS by 1MB or so, and moreover find_package(OpenSSL) causes
 # trouble on some older CMake versions that otherwise work fine, so provide an option to avoid

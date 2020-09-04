@@ -1613,6 +1613,20 @@ static struct cfgelem ssl_cfgelems[] = {
 };
 #endif
 
+#ifdef DDS_HAS_SHM
+static struct cfgelem shmem_cfgelems[] = {
+  BOOL("Enable", NULL, 1, "false",
+    MEMBER(enable_shm),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION("<p>This element allows to enable shared memory in Cyclone DDS.</p>")),
+  INT("CacheSize", NULL, 1, "0",
+    MEMBER(sub_cache_size),
+    FUNCTIONS(0, uf_natint, 0, pf_int),
+    DESCRIPTION("<p>This element decides the cache size of shared memory subscriber. Now max cache size can be 256.</p>")),
+  END_MARKER
+};
+#endif
+
 static struct cfgelem discovery_peer_cfgattrs[] = {
   STRING("Address", NULL, 1, NULL,
     MEMBEROF(ddsi_config_peer_listelem, peer),
@@ -1966,6 +1980,15 @@ static struct cfgelem domain_cfgelems[] = {
       "using SSL/TLS for DDSI over TCP.</p>"
     )),
 #endif
+#ifdef DDS_HAS_SHM
+  GROUP("SharedMemory", shmem_cfgelems, NULL, 1,
+    NOMEMBER,
+    NOFUNCTIONS,
+    DESCRIPTION(
+      "<p>The Shared Memory element allows specifying various parameters "
+      "related to using shared memory.</p>"
+    )),
+#endif
   END_MARKER
 };
 
@@ -1996,6 +2019,9 @@ static struct cfgelem root_cfgelems[] = {
 #endif
 #if DDS_HAS_SSL
   MOVED("SSL", "CycloneDDS/Domain/SSL"),
+#endif
+#ifdef DDS_HAS_SHM
+  MOVED("SharedMemory", "CycloneDDS/Domain/SharedMemory"),
 #endif
   MOVED("DDSI2E|DDSI2", "CycloneDDS/Domain"),
   END_MARKER

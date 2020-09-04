@@ -40,6 +40,11 @@ if(ENABLE_SECURITY)
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>)
 endif()
 
+if(ENABLE_SHM)
+  find_package(iceoryx_clib)
+  target_link_libraries(ddsc PRIVATE iceoryx_clib::iceoryx_clib)
+endif()
+
 include(ddsi/CMakeLists.txt)
 include(ddsc/CMakeLists.txt)
 
