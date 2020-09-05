@@ -21,6 +21,10 @@ IDL_EXPORT int idl_strcasecmp(const char *s1, const char *s2);
 
 IDL_EXPORT int idl_strncasecmp(const char *s1, const char *s2, size_t n);
 
+IDL_EXPORT char *idl_strdup(const char *str);
+
+IDL_EXPORT char *idl_strndup(const char *str, size_t len);
+
 IDL_EXPORT int idl_asprintf(char **strp, const char *fmt, ...);
 
 IDL_EXPORT int idl_vasprintf(char **strp, const char *fmt, va_list ap);
