@@ -63,6 +63,28 @@ idl_strncasecmp(
   return cr;
 }
 
+char *idl_strdup(const char *str)
+{
+#if _WIN32
+  return _strdup(str);
+#else
+  return strdup(str);
+#endif
+}
+
+char *idl_strndup(const char *str, size_t len)
+{
+  char *cpy;
+  size_t cnt = 0;
+  for (; cnt < len && str[cnt]; cnt++) ;
+  assert(cnt <= len);
+  if (!(cpy = malloc(cnt + 1)))
+    return NULL;
+  memcpy(cpy, str, len);
+  cpy[cnt] = '\0';
+  return cpy;
+}
+
 int
 idl_asprintf(
   char **strp,
