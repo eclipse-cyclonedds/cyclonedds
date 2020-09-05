@@ -15,8 +15,6 @@ check_include_file(getopt.h HAVE_GETOPT_H)
 
 configure_file(config.h.in config.h)
 
-add_library(idldummy SHARED dummy.c)
-
 add_executable(idlc idlc.c generator.c)
 target_link_libraries(idlc PRIVATE idl idlpp ${CMAKE_DL_LIBS})
 if(NOT HAVE_GETOPT_H)
