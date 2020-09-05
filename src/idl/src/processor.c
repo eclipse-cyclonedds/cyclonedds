@@ -72,8 +72,10 @@ void idl_processor_fini(idl_processor_t *proc)
       _free_locale((_locale_t)proc->locale);
 #endif
 
-    if (proc->parser.yypstate)
-      idl_yypstate_delete((idl_yypstate *)proc->parser.yypstate);
+    if (proc->parser.yypstate) {
+      idl_yypstate_delete_stack(proc->parser.yypstate);
+      idl_yypstate_delete(proc->parser.yypstate);
+    }
     if (proc->scope)
       free(proc->scope);
     /* directive */

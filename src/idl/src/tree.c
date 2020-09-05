@@ -137,7 +137,7 @@ void *idl_next(const void *node)
   if (!n)
     return NULL;
   /* declarators can have siblings */
-  if ((n->mask & (IDL_DECL)))
+  if ((n->mask & (IDL_DECL | IDL_PRAGMA)))
     return n->next;
   /* as do expressions (or constants) if specifying array sizes */
   if ((n->mask & (IDL_EXPR | IDL_CONST)) && idl_is_declarator(n->parent))
@@ -287,6 +287,7 @@ static void delete_struct(void *node)
   idl_struct_t *n = (idl_struct_t *)node;
   delete_node(n->base_type);
   delete_node(n->members);
+  delete_node(n->keylist);
   if (n->identifier)
     free(n->identifier);
   free(n);
@@ -682,7 +683,7 @@ static void delete_key(void *node)
 idl_key_t *idl_create_key(void)
 {
   return make_node(
-    sizeof(idl_key_t), IDL_KEY, 0, &delete_key);
+    sizeof(idl_key_t), IDL_PRAGMA|IDL_KEY, 0, &delete_key);
 }
 
 static void delete_data_type(void *node)

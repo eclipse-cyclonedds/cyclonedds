@@ -441,11 +441,12 @@ scan_identifier(idl_processor_t *proc, const char *cur, const char **lim)
   if (cnt < 0)
     return IDL_RETCODE_NEED_REFILL;
   /* detect if scope is attached to identifier if scanning code */
-  if (((unsigned)proc->state & (unsigned)IDL_SCAN_CODE) &&
-      (cnt = have(proc, cur, "::")) < 0)
-    return IDL_RETCODE_NEED_REFILL;
-  if (cnt > 0)
-    proc->state = IDL_SCAN_SCOPED_NAME;
+  if ((unsigned)proc->state & (unsigned)IDL_SCAN_CODE) {
+    if ((cnt = have(proc, cur, "::")) < 0)
+      return IDL_RETCODE_NEED_REFILL;
+    else if (cnt > 0)
+      proc->state = IDL_SCAN_SCOPED_NAME;
+  }
   *lim = end;
   return IDL_TOKEN_IDENTIFIER;
 }
@@ -584,7 +585,6 @@ idl_lex(idl_processor_t *proc, idl_lexeme_t *lex)
       proc->state = IDL_SCAN_CODE;
     }
   } while (code == '\0');
-
   move(proc, lim);
   lex->limit = lim;
   lex->location.last = proc->scanner.position;

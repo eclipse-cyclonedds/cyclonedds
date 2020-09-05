@@ -74,6 +74,7 @@ static void *reference(void *node);
 #include "idl/export.h"
 #include "idl/processor.h"
 IDL_EXPORT int idl_iskeyword(idl_processor_t *proc, const char *str, int nc);
+IDL_EXPORT void idl_yypstate_delete_stack(idl_yypstate *yyss);
 }
 
 %code requires {
@@ -284,7 +285,8 @@ typedef struct idl_location YYLTYPE;
 %%
 
 specification:
-    definitions
+      { *nodeptr = NULL; }
+  | definitions
       { *nodeptr = $1; }
   ;
 
@@ -1017,6 +1019,21 @@ annotation_appl_keyword_param:
 _Pragma("GCC diagnostic pop")
 _Pragma("GCC diagnostic pop")
 #endif
+
+/* copied from yyreturn in Bison generated parser */
+void idl_yypstate_delete_stack(idl_yypstate *yyps)
+{
+  if (yyps)
+    {
+      YY_STACK_PRINT (yyss, yyssp);
+      while (yyssp != yyss)
+        {
+          yydestruct ("Cleanup: popping",
+                      yystos[*yyssp], yyvsp, yylsp, NULL, NULL);
+          YYPOPSTACK (1);
+        }
+    }
+}
 
 static void
 yyerror(idl_location_t *loc, idl_processor_t *proc, idl_node_t **nodeptr, const char *str)

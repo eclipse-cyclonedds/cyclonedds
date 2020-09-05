@@ -143,7 +143,6 @@ struct idl_processor {
     IDL_SCAN_UNKNOWN_PRAGMA,
     /** scanning #pragma keylist directive */
     IDL_SCAN_KEYLIST = (IDL_SCAN_PRAGMA | 1<<4),
-    IDL_SCAN_DATA_TYPE,
     IDL_SCAN_KEY,
     /** scanning IDL code */
     IDL_SCAN_CODE = (1<<9),

@@ -57,7 +57,6 @@ static idl_node_t *root = NULL;
 static int idlc_putc(int chr, OUTDEST od);
 static int idlc_puts(const char *str, OUTDEST od);
 static int idlc_printf(OUTDEST od, const char *str, ...);
-static int32_t idlc_parse(idl_tree_t *tree);
 
 #define CHUNK (4096)
 
@@ -205,13 +204,19 @@ static int idlc_printf(OUTDEST od, const char *fmt, ...)
   return ret < 0 ? -1 : ret;
 }
 
-int32_t idlc_parse(idl_tree_t *tree)
+static int32_t idlc_parse(idl_tree_t **treeptr)
 {
+  idl_tree_t *tree;
   int32_t ret = 0;
 
+  if (!(tree = calloc(1, sizeof(*tree))))
+    return IDL_RETCODE_NO_MEMORY;
+
   if(opts.flags & IDLC_COMPILE) {
-    if ((ret = idl_processor_init(&proc)) != 0)
+    if ((ret = idl_processor_init(&proc)) != 0) {
+      free(tree);
       return ret;
+    }
     assert(opts.file);
     if (strcmp(opts.file, "-") != 0)
       proc.scanner.position.file = (const char *)opts.file;
@@ -275,6 +280,7 @@ int32_t idlc_parse(idl_tree_t *tree)
       tree->root = root;
       tree->files = proc.files;
       proc.files = NULL;
+      *treeptr = tree;
     } else {
       assert(!root);
     }
@@ -342,7 +348,7 @@ int main(int argc, char *argv[])
   int opt;
   char *prog = argv[0];
   int32_t ret;
-  idl_tree_t tree;
+  idl_tree_t *tree = NULL;
   idlc_generator_t gen;
 
   /* determine basename */
@@ -426,13 +432,13 @@ int main(int argc, char *argv[])
   opts.argv[opts.argc++] = opts.file;
 
   if ((ret = idlc_parse(&tree)) == 0 && (opts.flags & IDLC_COMPILE)) {
-    assert(tree.root);
+    assert(tree->root);
     if (idlc_load_generator(&gen, opts.lang) == -1) {
       fprintf(stderr, "cannot load backend %s\n", opts.lang);
     } else {
-      ret = gen.generate(&tree, "Hello world!\n");
+      ret = gen.generate(tree, opts.file);
     }
-    //idl_delete_tree(tree);
+    idl_delete_tree(tree);
   }
 
   free(opts.argv);
