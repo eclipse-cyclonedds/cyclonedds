@@ -1023,6 +1023,18 @@ _Pragma("GCC diagnostic pop")
 /* copied from yyreturn in Bison generated parser */
 void idl_yypstate_delete_stack(idl_yypstate *yyps)
 {
+#ifndef yyss
+# define yyss yyps->yyss
+#endif
+#ifndef yyssp
+# define yyssp yyps->yyssp
+#endif
+#ifndef yyvsp
+# define yyvsp yyps->yyvsp
+#endif
+#ifndef yylsp
+# define yylsp yyps->yylsp
+#endif
   if (yyps)
     {
       YY_STACK_PRINT (yyss, yyssp);
