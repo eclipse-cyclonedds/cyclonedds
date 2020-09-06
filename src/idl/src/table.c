@@ -34,7 +34,7 @@ idl_add_symbol(
     return NULL;
 
   if (name[0] == ':' && name[1] == ':') {
-    if (!(sym->name = strdup(name))) {
+    if (!(sym->name = idl_strdup(name))) {
       free(sym);
       return NULL;
     }
