@@ -26,6 +26,7 @@
 
 #include "idl/processor.h"
 #include "idl/parser.h" /* Bison tokens */
+#include "idl/string.h"
 #include "scanner.h"
 
 #if !HAVE_STRTOULL_L && HAVE__STRTOULL_L
@@ -666,7 +667,7 @@ tokenize(
     case IDL_TOKEN_CHAR_LITERAL:
     case IDL_TOKEN_COMMENT:
     case IDL_TOKEN_LINE_COMMENT:
-      if (str == buf && !(str = strdup(str)))
+      if (str == buf && !(str = idl_strdup(str)))
         return IDL_RETCODE_NO_MEMORY;
       tok->value.str = str;
       break;

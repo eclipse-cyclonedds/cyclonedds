@@ -518,7 +518,7 @@ boolean_literal:
 
 string_literal:
     IDL_TOKEN_STRING_LITERAL
-      { if (!($$ = strdup($1)))
+      { if (!($$ = idl_strdup($1)))
           goto yyexhaustedlab;
       }
   ;
@@ -953,7 +953,7 @@ identifier:
           off = 1;
         else if (idl_iskeyword(proc, $1, 1))
           ABORT(proc, &@1, "identifier '%s' collides with a keyword", $1);
-        if (!($$ = strdup(&$1[off])))
+        if (!($$ = idl_strdup(&$1[off])))
           goto yyexhaustedlab;
       }
   ;
