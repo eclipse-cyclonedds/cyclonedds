@@ -244,9 +244,11 @@ static int32_t idlc_parse(idl_tree_t **treeptr)
     if (strcmp(opts.file, "-") == 0) {
       fin = stdin;
     } else {
-      //DDSRT_WARNING_MSVC_OFF(4996)
+#if _WIN32
+      fopen_s(&fin, opts.file, "rb");
+#else
       fin = fopen(opts.file, "rb");
-      //DDSRT_WARNING_MSVC_ON(4996)
+#endif
     }
 
     if (fin == NULL) {
