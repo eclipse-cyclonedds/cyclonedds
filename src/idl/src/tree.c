@@ -239,6 +239,26 @@ idl_const_t *idl_create_const(void)
     sizeof(idl_const_t), IDL_DECL|IDL_CONST, 0, &delete_const);
 }
 
+bool idl_is_templ_type(const void *node)
+{
+  if (!idl_is_masked(node, IDL_TEMPL_TYPE))
+    return false;
+#ifndef NDEBUG
+  assert(idl_is_masked(node, IDL_TYPE));
+  idl_mask_t mask = ((idl_node_t *)node)->mask & ~IDL_TYPE;
+  assert(mask == IDL_STRING || mask == IDL_SEQUENCE);
+#endif
+  return true;
+}
+
+bool idl_is_sequence(const void *node)
+{
+  if (!idl_is_masked(node, IDL_SEQUENCE))
+    return false;
+  assert(idl_is_masked(node, IDL_TYPE));
+  return true;
+}
+
 static void delete_sequence(void *node)
 {
   idl_sequence_t *n = (idl_sequence_t *)node;
@@ -251,6 +271,11 @@ idl_sequence_t *idl_create_sequence(void)
 {
   return make_node(
     sizeof(idl_sequence_t), IDL_TYPE|IDL_SEQUENCE, 0, &delete_sequence);
+}
+
+bool idl_is_string(const void *node)
+{
+  return idl_is_masked(node, IDL_TYPE|IDL_STRING);
 }
 
 static void delete_string(void *node)
@@ -770,6 +795,31 @@ idl_unary_expr_t *idl_create_unary_expr(idl_mask_t mask)
 {
   return make_node(
     sizeof(idl_unary_expr_t), IDL_EXPR|IDL_UNARY_EXPR|mask, 0, &delete_unary_expr);
+}
+
+bool idl_is_base_type(const void *node)
+{
+  if (!idl_is_masked(node, IDL_BASE_TYPE) ||
+       idl_is_masked(node, IDL_CONST))
+    return false;
+#ifndef NDEBUG
+  assert(idl_is_masked(node, IDL_TYPE));
+  idl_mask_t mask = ((idl_node_t *)node)->mask & ~IDL_TYPE;
+  assert(mask == IDL_CHAR ||
+         mask == IDL_WCHAR ||
+         mask == IDL_BOOL ||
+         mask == IDL_OCTET ||
+         /* integer types */
+         mask == IDL_INT8 || mask == IDL_UINT8 ||
+         mask == IDL_INT16 || mask == IDL_UINT16 ||
+         mask == IDL_INT32 || mask == IDL_UINT32 ||
+         mask == IDL_INT64 || mask == IDL_UINT64 ||
+         /* floating point types*/
+         mask == IDL_FLOAT ||
+         mask == IDL_DOUBLE ||
+         mask == IDL_LDOUBLE);
+#endif
+  return true;
 }
 
 static void delete_base_type(void *node)
