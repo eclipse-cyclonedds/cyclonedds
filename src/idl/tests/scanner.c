@@ -16,7 +16,7 @@
 #include <inttypes.h>
 
 #include "idl/processor.h"
-#include "idl/parser.h"
+#include "parser.h"
 #include "scanner.h"
 
 #include "CUnit/Theory.h"

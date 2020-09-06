@@ -24,7 +24,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "idl/parser.h"
+#include "parser.h"
 #include "idl/processor.h"
 #include "idl/string.h"
 #include "directive.h"

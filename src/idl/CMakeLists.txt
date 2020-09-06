@@ -21,9 +21,9 @@ include(TestBigEndian)
 find_package(BISON REQUIRED)
 
 bison_target(
-  parser src/parser.y "${CMAKE_CURRENT_BINARY_DIR}/parser.c"
+  parser src/parser.y "${CMAKE_CURRENT_BINARY_DIR}/src/parser.c"
   DEFINES_FILE
-    "${CMAKE_CURRENT_BINARY_DIR}/include/idl/parser.h")
+    "${CMAKE_CURRENT_BINARY_DIR}/src/parser.h")
 
 add_library(
   idl SHARED

@@ -32,12 +32,12 @@
 #endif
 
 #include "idl/processor.h"
-#include "idl/parser.h"
 #include "idl/string.h"
 #include "directive.h"
 #include "scope.h"
 #include "table.h"
 #include "tree.h"
+#include "parser.h"
 
 static int32_t
 push_line(idl_processor_t *proc, idl_line_t *dir)
