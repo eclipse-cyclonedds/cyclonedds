@@ -34,6 +34,11 @@
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_statistics.h"
 
+#ifdef DDSI_INCLUDE_SHM
+#include "dds/ddsi/q_receive.h"
+#include "ice_clib.h"
+#endif
+
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
 
 #define DDS_READER_STATUS_MASK                                   \
@@ -67,6 +72,16 @@ static dds_return_t dds_reader_delete (dds_entity *e) ddsrt_nonnull_all;
 static dds_return_t dds_reader_delete (dds_entity *e)
 {
   dds_reader * const rd = (dds_reader *) e;
+#ifdef DDSI_INCLUDE_SHM
+  if (e->m_domain->gv.config.enable_shm)
+  {
+    DDS_CLOG (DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's subscriber\n");
+    ice_clib_unsubscribe (rd->sub);
+    ice_clib_unsetRecvHandler (rd->sub);
+    ice_clib_release_subscriber (rd->sub);
+    rd->sub = NULL;
+  }
+#endif
   dds_free (rd->m_loan);
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   dds_rhc_free (rd->m_rhc);
@@ -540,6 +555,22 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   rc = new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_stopic, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
   assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
   thread_state_asleep (lookup_thread_state ());
+
+#ifdef DDSI_INCLUDE_SHM
+  if (rd->m_entity.m_domain->gv.config.enable_shm)
+  {
+    size_t name_size;
+    rc = dds_get_name_size (topic, &name_size);
+    assert (rc == DDS_RETCODE_OK);
+    char topic_name[name_size+1];
+    rc = dds_get_name (topic, topic_name, name_size+1);
+    assert (rc == DDS_RETCODE_OK);
+    DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Reader's topic name will be DDS:Cyclone:%s\n", topic_name);
+    rd->sub = ice_clib_create_subscriber ("DDS", "Cyclone", topic_name);
+    ice_clib_setRecvHandler (rd->sub, read_callback, rd);
+    ice_clib_subscribe (rd->sub, rd->m_entity.m_domain->gv.config.sub_cache_size);
+  }
+#endif
 
   rd->m_entity.m_iid = get_entity_instance_id (&rd->m_entity.m_domain->gv, &rd->m_entity.m_guid);
   dds_entity_register_child (&sub->m_entity, &rd->m_entity);
