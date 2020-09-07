@@ -109,6 +109,10 @@ typedef struct {
 #define NN_LOCATOR_KIND_UDPv6 2
 #define NN_LOCATOR_KIND_TCPv4 4
 #define NN_LOCATOR_KIND_TCPv6 8
+#ifdef DDSI_INCLUDE_SHM
+// SHM_TODO: Check whether the address can be used or not.
+#define NN_LOCATOR_KIND_SHEM  16
+#endif
 #define NN_LOCATOR_KIND_RAWETH 0x8000 /* proposed vendor-specific */
 #define NN_LOCATOR_KIND_UDPv4MCGEN 0x4fff0000
 #define NN_LOCATOR_PORT_INVALID 0
