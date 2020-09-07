@@ -30,6 +30,7 @@
 struct dds_security_timed_dispatcher
 {
   ddsrt_mutex_t lock;
+  struct xeventq *evq;
   struct xevent *evt;
   ddsrt_avl_tree_t events;
   ddsrt_fibheap_t timers;
@@ -117,18 +118,19 @@ static void timed_event_cb (struct xevent *xev, void *arg, ddsrt_mtime_t tnow)
   ddsrt_mutex_unlock(&dispatcher->lock);
 }
 
-struct dds_security_timed_dispatcher * dds_security_timed_dispatcher_new(void)
+struct dds_security_timed_dispatcher * dds_security_timed_dispatcher_new(struct xeventq *evq)
 {
   struct dds_security_timed_dispatcher *d = ddsrt_malloc(sizeof(*d));
   ddsrt_mutex_init (&d->lock);
   ddsrt_avl_init(&timed_event_treedef, &d->events);
   ddsrt_fibheap_init(&timed_cb_queue_fhdef, &d->timers);
+  d->evq = evq;
   d->evt = NULL;
   d->next_timer = 1;
   return d;
 }
 
-void dds_security_timed_dispatcher_enable(struct dds_security_timed_dispatcher *d, struct xeventq *evq)
+void dds_security_timed_dispatcher_enable(struct dds_security_timed_dispatcher *d)
 {
   ddsrt_mutex_lock(&d->lock);
   if (d->evt == NULL)
@@ -143,7 +145,7 @@ void dds_security_timed_dispatcher_enable(struct dds_security_timed_dispatcher *
         delta = 0;
       tsched = ddsrt_mtime_add_duration(ddsrt_time_monotonic(), delta < CHECK_TIMER_INTERVAL ? delta : CHECK_TIMER_INTERVAL);
     }
-    d->evt = qxev_callback (evq, tsched, timed_event_cb, d);
+    d->evt = qxev_callback (d->evq, tsched, timed_event_cb, d);
   }
   ddsrt_mutex_unlock(&d->lock);
 }

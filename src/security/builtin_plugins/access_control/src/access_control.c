@@ -915,7 +915,7 @@ set_listener(dds_security_access_control *instance,
   dds_security_access_control_impl *ac = (dds_security_access_control_impl *)instance;
   ac->listener = listener;
   if (listener)
-    dds_security_timed_dispatcher_enable(ac->dispatcher, ac->base.gv->xevents);
+    dds_security_timed_dispatcher_enable(ac->dispatcher);
   else
     dds_security_timed_dispatcher_disable(ac->dispatcher);
 
@@ -1479,7 +1479,7 @@ int init_access_control(const char *argument, void **context, struct ddsi_domain
   memset(access_control, 0, sizeof(*access_control));
   access_control->base.gv = gv;
   access_control->listener = NULL;
-  access_control->dispatcher = dds_security_timed_dispatcher_new();
+  access_control->dispatcher = dds_security_timed_dispatcher_new(gv->xevents);
   access_control->base.validate_local_permissions = &validate_local_permissions;
   access_control->base.validate_remote_permissions = &validate_remote_permissions;
   access_control->base.check_create_participant = &check_create_participant;

@@ -17,12 +17,22 @@
 
 struct plugins_hdl;
 
+/** load some or all security plugins for testing
+
+ @param[out] ac      where to store address of loaded access control plugin, or NULL if not to be loaded
+ @param[out] auth    where to store address of loaded authentication plugin, or NULL if not to be loaded
+ @param[out] crypto  where to store address of loaded cryptography plugin, or NULL if not to be loaded
+ @param[in]  init_gv initial value for DDSI globals that plugins happen to rely on, or NULL if no special
+                     values need to be set.  "xevents" is always set in load_plugins
+
+ @returns pointer to opaque handle for unloading the plugins, or NULL on failure
+ */
 struct plugins_hdl*
 load_plugins(
         dds_security_access_control **ac,
         dds_security_authentication **auth,
         dds_security_cryptography   **crypto,
-        void *args);
+        const struct ddsi_domaingv *init_gv);
 
 void
 unload_plugins(
