@@ -49,6 +49,18 @@ enum boolean_default {
   BOOLDEF_TRUE
 };
 
+#ifdef DDSI_INCLUDE_SHM
+enum shm_loglevel {
+  SHM_OFF = 0,
+  SHM_FATAL,
+  SHM_ERROR,
+  SHM_WARN,
+  SHM_INFO,
+  SHM_DEBUG,
+  SHM_VERBOSE
+};
+#endif
+
 #define PARTICIPANT_INDEX_AUTO -1
 #define PARTICIPANT_INDEX_NONE -2
 
@@ -378,6 +390,7 @@ struct config
 
 #ifdef DDSI_INCLUDE_SHM
   int enable_shm;
+  enum shm_loglevel shm_log_lvl;
   uint32_t sub_cache_size;
 #endif
 };
