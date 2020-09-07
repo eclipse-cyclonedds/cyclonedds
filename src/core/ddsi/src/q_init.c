@@ -68,6 +68,11 @@
 
 #include "dds/ddsi/ddsi_security_omg.h"
 
+#ifdef DDSI_INCLUDE_SHM
+#include "dds/ddsrt/io.h"
+#include "ice_clib.h"
+#endif
+
 static void add_peer_addresses (const struct ddsi_domaingv *gv, struct addrset *as, const struct config_peer_listelem *list)
 {
   while (list)
@@ -1111,6 +1116,35 @@ int rtps_init (struct ddsi_domaingv *gv)
     GVLOG (DDS_LC_CONFIG, "No network interface selected\n");
     goto err_find_own_ip;
   }
+
+#ifdef DDSI_INCLUDE_SHM
+  if (gv->config.enable_shm)
+  {
+    char str[30];
+    char *sptr = str;
+    unsigned char mac_addr[6];
+    uint32_t pid = (uint32_t) ddsrt_getpid ();
+
+    ice_clib_setDebugLevel (gv->config.shm_log_lvl);
+    // SHM_TODO: Now we use pid_time, but maybe we can just use pid.
+    ddsrt_asprintf (&sptr, "/%d_%ld", pid, gv->tstart.v);
+    GVLOG (DDS_LC_SHM, "Current process name for iceoryx is %s\n", sptr);
+    ice_clib_init (sptr);
+    gv->loc_iceoryx_addr.tran = NULL;
+    gv->loc_iceoryx_addr.kind = NN_LOCATOR_KIND_SHEM;
+    gv->loc_iceoryx_addr.port = pid;
+    if (ddsrt_eth_get_mac_addr (gv->interfaces[gv->selected_interface].name, mac_addr))
+    {
+      GVLOG (DDS_LC_SHM, "Unable to get MAC address for iceoryx\n");
+      goto err_find_own_ip;
+    }
+    ddsrt_asprintf (&sptr, "%02x%02x%02x%02x%02x%02x", *mac_addr, *(mac_addr+1), *(mac_addr+2), *(mac_addr+3), *(mac_addr+4), *(mac_addr+5));
+    GVLOG (DDS_LC_SHM, "My iceoryx address: %s, Port: %d\n", sptr, pid);
+    memset ((char *) gv->loc_iceoryx_addr.address, 0, sizeof (gv->loc_iceoryx_addr.address));
+    ddsrt_strlcpy ((char *) gv->loc_iceoryx_addr.address, sptr, strlen (sptr));
+  }
+#endif
+
   if (gv->config.allowMulticast)
   {
     if (!gv->interfaces[gv->selected_interface].mc_capable)
