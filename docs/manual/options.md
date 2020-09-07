@@ -6,7 +6,7 @@ CycloneDDS configuration
 
 ## //CycloneDDS/Domain
 Attributes: [Id](#cycloneddsdomainid)
-Children: [Compatibility](#cycloneddsdomaincompatibility), [Discovery](#cycloneddsdomaindiscovery), [General](#cycloneddsdomaingeneral), [Internal](#cycloneddsdomaininternal), [Partitioning](#cycloneddsdomainpartitioning), [SSL](#cycloneddsdomainssl), [Security](#cycloneddsdomainsecurity), [Sizing](#cycloneddsdomainsizing), [TCP](#cycloneddsdomaintcp), [Threads](#cycloneddsdomainthreads), [Tracing](#cycloneddsdomaintracing)
+Children: [Compatibility](#cycloneddsdomaincompatibility), [Discovery](#cycloneddsdomaindiscovery), [General](#cycloneddsdomaingeneral), [Internal](#cycloneddsdomaininternal), [Partitioning](#cycloneddsdomainpartitioning), [SSL](#cycloneddsdomainssl), [Security](#cycloneddsdomainsecurity), [SharedMemory](#cycloneddsdomainsharedmemory), [Sizing](#cycloneddsdomainsizing), [TCP](#cycloneddsdomaintcp), [Threads](#cycloneddsdomainthreads), [Tracing](#cycloneddsdomaintracing)
 
 The General element specifying Domain related settings.
 
@@ -1455,6 +1455,51 @@ If single file is supplied, the library located by way of the current working di
 The default value is: "dds\_security\_crypto".
 
 
+### //CycloneDDS/Domain/SharedMemory
+Children: [CacheSize](#cycloneddsdomainsharedmemorycachesize), [Enable](#cycloneddsdomainsharedmemoryenable), [LogLevel](#cycloneddsdomainsharedmemoryloglevel)
+
+The Shared Memory element allows specifying various parameters related to using shared memory.
+
+
+#### //CycloneDDS/Domain/SharedMemory/CacheSize
+Integer
+
+This element decides the cache size of shared memory subscriber. Now max cache size can be 256.
+
+The default value is: "0".
+
+
+#### //CycloneDDS/Domain/SharedMemory/Enable
+Boolean
+
+This element allows to enable shared memory in Cyclone DDS.
+
+The default value is: "false".
+
+
+#### //CycloneDDS/Domain/SharedMemory/LogLevel
+One of: off, fatal, error, warn, info, debug, verbose
+
+This element decides the verbosity level of shared memory message:
+ * off: no log
+
+ * fatal: show fatal log
+
+ * error: show error log
+
+ * warn: show warn log
+
+ * info: show info log
+
+ * debug: show debug log
+
+ * verbose: show verbose log
+
+If you don't want to see any log from shared memory, use off to disable log message.
+
+The default value is: "info".
+
+
 ### //CycloneDDS/Domain/Sizing
 Children: [ReceiveBufferChunkSize](#cycloneddsdomainsizingreceivebufferchunksize), [ReceiveBufferSize](#cycloneddsdomainsizingreceivebuffersize)
 
@@ -1626,7 +1671,7 @@ The default value is: "false".
 
 #### //CycloneDDS/Domain/Tracing/Category
 One of:
-* Comma-separated list of: fatal, error, warning, info, config, discovery, data, radmin, timing, traffic, topic, tcp, plist, whc, throttle, rhc, content, trace
+* Comma-separated list of: fatal, error, warning, info, config, discovery, data, radmin, timing, traffic, topic, tcp, plist, whc, throttle, rhc, content, shm, trace
 * Or empty
 
 This element enables individual logging categories. These are enabled in addition to those enabled by Tracing/Verbosity. Recognised categories are:

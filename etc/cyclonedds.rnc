@@ -1012,6 +1012,36 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
         }?
       }?
       & [ a:documentation [ xml:lang="en" """
+<p>The Shared Memory element allows specifying various parameters related to using shared memory.</p>""" ] ]
+      element SharedMemory {
+        [ a:documentation [ xml:lang="en" """
+<p>This element decides the cache size of shared memory subscriber. Now max cache size can be 256.</p>
+<p>The default value is: "0".</p>""" ] ]
+        element CacheSize {
+          xsd:integer
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>This element allows to enable shared memory in Cyclone DDS.</p>
+<p>The default value is: "false".</p>""" ] ]
+        element Enable {
+          xsd:boolean
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>This element decides the verbosity level of shared memory message:</p>
+<ul><li><i>off</i>: no log</li>
+<li><i>fatal</i>: show fatal log</li>
+<li><i>error</i>: show error log</li>
+<li><i>warn</i>: show warn log</li>
+<li><i>info</i>: show info log</li>
+<li><i>debug</i>: show debug log</li>
+<li><i>verbose</i>: show verbose log</li>
+<p>If you don't want to see any log from shared memory, use <i>off</i> to disable log message.</p>
+<p>The default value is: "info".</p>""" ] ]
+        element LogLevel {
+          ("off"|"fatal"|"error"|"warn"|"info"|"debug"|"verbose")
+        }?
+      }?
+      & [ a:documentation [ xml:lang="en" """
 <p>The Sizing element specifies a variety of configuration settings dealing with expected system sizes, buffer sizes, &c.</p>""" ] ]
       element Sizing {
         [ a:documentation [ xml:lang="en" """
@@ -1148,7 +1178,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 <p>The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful is <i>trace</i>.</p>
 <p>The default value is: "".</p>""" ] ]
         element Category {
-          xsd:token { pattern = "((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|trace)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|trace))*)|" }
+          xsd:token { pattern = "((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|shm|trace)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|shm|trace))*)|" }
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This option specifies where the logging is printed to. Note that <i>stdout</i> and <i>stderr</i> are treated as special values, representing "standard out" and "standard error" respectively. No file is created unless logging categories are enabled using the Tracing/Verbosity or Tracing/EnabledCategory settings.</p>
