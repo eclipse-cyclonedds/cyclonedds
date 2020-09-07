@@ -27,6 +27,10 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
 
+#ifdef DDS_HAS_SHM
+#include "ice_clib.h"
+#endif
+
 dds_return_t dds_write (dds_entity_t writer, const void *data)
 {
   dds_return_t ret;
@@ -233,6 +237,37 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
                      ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
     d->timestamp.v = tstamp;
     ddsi_serdata_ref (d);
+
+#ifdef DDS_HAS_SHM
+    if (wr->m_entity.m_domain->gv.config.enable_shm && wr->m_wr->num_ice_proxy_reader)
+    {
+      struct iceoryx_header ice_hdr;
+      ddsrt_iovec_t iov;
+      uint32_t size = ddsi_serdata_size (d);
+      (void) ddsi_serdata_to_ser_ref (d, 0, size, &iov);
+      uint32_t send_size = (uint32_t) iov.iov_len;
+      char *send_ptr = iov.iov_base;
+      char *data_ptr;
+      while (1)
+      {
+        data_ptr = ice_clib_allocateChunk (wr->pub, (unsigned int) (sizeof (ice_hdr) + send_size));
+        if (data_ptr != NULL) break;
+        // SHM_TODO: Maybe there is a better way to do while unable to allocate.
+        //           BTW, how long I should sleep is also another problem.
+        dds_sleepfor (DDS_MSECS (1));
+      }
+      ice_hdr.guid = ddsi_wr->e.guid;
+      ice_hdr.tstamp = tstamp;
+      ice_hdr.data_size = send_size;
+      ice_hdr.data_kind = writekey ? SDK_KEY : SDK_DATA;
+      // SHM_TODO: Is there any way to avoid copy?
+      memcpy (data_ptr, &ice_hdr, sizeof (ice_hdr));
+      memcpy (data_ptr + sizeof (ice_hdr), send_ptr, send_size);
+      ice_clib_sendChunk (wr->pub, data_ptr);
+      ddsi_serdata_to_ser_unref (d, &iov);
+    }
+#endif
+
     tk = ddsi_tkmap_lookup_instance_ref (wr->m_entity.m_domain->gv.m_tkmap, d);
     w_rc = write_sample_gc (ts1, wr->m_xp, ddsi_wr, d, tk);
 

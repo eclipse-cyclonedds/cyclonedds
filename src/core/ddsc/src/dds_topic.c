@@ -682,7 +682,7 @@ dds_return_t dds_get_name_size (dds_entity_t topic, size_t *size)
     return DDS_RETCODE_BAD_PARAMETER;
   if ((ret = dds_topic_pin (topic, &t)) != DDS_RETCODE_OK)
     return ret;
-  *size = strlen (t->m_stopic->name);
+  *size = strlen (t->m_name);
   dds_topic_unpin (t);
   return DDS_RETCODE_OK;
 }

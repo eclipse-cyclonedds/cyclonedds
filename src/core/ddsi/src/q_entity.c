@@ -1950,6 +1950,10 @@ static void writer_drop_connection (const struct ddsi_guid *wr_guid, const struc
     struct whc_node *deferred_free_list = NULL;
     struct wr_prd_match *m;
     ddsrt_mutex_lock (&wr->e.lock);
+#ifdef DDS_HAS_SHM
+    if (prd->c.proxypp->is_iceoryx)
+      wr->num_ice_proxy_reader--;
+#endif
     if ((m = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
     {
       struct whc_state whcst;
@@ -2299,7 +2303,13 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
   m->t_nackfrag_accepted.v = 0;
 
   ddsrt_mutex_lock (&wr->e.lock);
+#ifdef DDS_HAS_SHM
+  if (prd->c.proxypp->is_iceoryx)
+    wr->num_ice_proxy_reader++;
+  if (pretend_everything_acked || prd->c.proxypp->is_iceoryx)
+#else
   if (pretend_everything_acked)
+#endif
     m->seq = MAX_SEQ_NUMBER;
   else
     m->seq = wr->seq;
@@ -3804,6 +3814,9 @@ static void new_writer_guid_common_init (struct writer *wr, const char *topic_na
   wr->sec_attr = NULL;
 #endif
 
+#ifdef DDS_HAS_SHM
+  wr->num_ice_proxy_reader = 0;
+#endif
   /* Copy QoS, merging in defaults */
 
   wr->xqos = ddsrt_malloc (sizeof (*wr->xqos));
@@ -5102,6 +5115,18 @@ static void free_proxy_participant(struct proxy_participant *proxypp)
   ddsrt_free (proxypp);
 }
 
+#ifdef DDS_HAS_SHM
+static void chk_iceoryx (const ddsi_locator_t *n, void *varg)
+{
+  struct proxy_participant *proxypp = (struct proxy_participant *) varg;
+  struct ddsi_domaingv *gv = proxypp->e.gv;
+  if (n->kind == NN_LOCATOR_KIND_SHEM && memcmp (gv->loc_iceoryx_addr.address, n->address, sizeof (gv->loc_iceoryx_addr.address)) == 0)
+  {
+    proxypp->is_iceoryx = 1;
+  }
+}
+#endif
+
 bool new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const ddsi_plist_t *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq)
 {
   /* No locking => iff all participants use unique guids, and sedp
@@ -5156,6 +5181,13 @@ bool new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
     /* if we don't know anything, or if it is implausibly tiny, use 128kB */
     proxypp->receive_buffer_size = 131072;
   }
+
+#ifdef DDS_HAS_SHM
+  proxypp->is_iceoryx = 0;
+  if (gv->config.enable_shm) {
+    addrset_forall (as_default, chk_iceoryx, proxypp);
+  }
+#endif
 
   {
     struct proxy_participant *privpp;
