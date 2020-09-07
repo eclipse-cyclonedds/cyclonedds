@@ -2398,6 +2398,11 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
           return DOLOC_INVALID;
       }
       break;
+#ifdef DDSI_INCLUDE_SHM
+    // SHM_TODO: Maybe we can check address here.
+    case NN_LOCATOR_KIND_SHEM:
+      break;
+#endif
     case NN_LOCATOR_KIND_INVALID:
       if (!locator_address_zero (&loc))
         return DOLOC_INVALID;
