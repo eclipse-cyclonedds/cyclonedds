@@ -242,3 +242,29 @@ ddsrt_getifaddrs(
 
   return err;
 }
+
+#ifdef DDS_HAS_SHM
+// Although this is not just used by iceoryx, we still put it under iceoryx temporarily.
+#ifdef __linux
+#include <linux/if_packet.h>
+#endif
+dds_return_t ddsrt_eth_get_mac_addr (char *interface_name, unsigned char *mac_addr)
+{
+    int ret = DDS_RETCODE_ERROR;
+    ddsrt_ifaddrs_t *ifa, *ifa_root = NULL;
+    int afs[] = { AF_PACKET, DDSRT_AF_TERM };
+    if (ddsrt_getifaddrs (&ifa_root, afs) < 0)
+        return ret;
+    for (ifa = ifa_root; ifa != NULL; ifa = ifa->next)
+    {
+        if (strcmp (ifa->name, interface_name) == 0)
+        {
+            memcpy (mac_addr, ((struct sockaddr_ll *)ifa->addr)->sll_addr, 6);
+            ret = DDS_RETCODE_OK;
+            break;
+        }
+    }
+    ddsrt_freeifaddrs (ifa_root);
+    return ret;
+}
+#endif

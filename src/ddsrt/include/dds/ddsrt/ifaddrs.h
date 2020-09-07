@@ -12,6 +12,7 @@
 #ifndef DDSRT_IFADDRS_H
 #define DDSRT_IFADDRS_H
 
+#include "dds/features.h"
 #include "dds/ddsrt/sockets.h"
 
 #if defined (__cplusplus)
@@ -45,6 +46,13 @@ ddsrt_getifaddrs(
 DDS_EXPORT void
 ddsrt_freeifaddrs(
   ddsrt_ifaddrs_t *ifa);
+
+#ifdef DDS_HAS_SHM
+DDS_EXPORT dds_return_t
+ddsrt_eth_get_mac_addr(
+  char *interface_name,
+  unsigned char *mac_addr);
+#endif
 
 #if defined (__cplusplus)
 }

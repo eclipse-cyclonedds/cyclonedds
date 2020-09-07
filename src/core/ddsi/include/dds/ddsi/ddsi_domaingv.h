@@ -210,6 +210,9 @@ struct ddsi_domaingv {
   ddsi_locator_t loc_meta_uc;
   ddsi_locator_t loc_default_mc;
   ddsi_locator_t loc_default_uc;
+#ifdef DDS_HAS_SHM
+  ddsi_locator_t loc_iceoryx_addr;
+#endif
 
   /*
     Initial discovery address set, and the current discovery address
