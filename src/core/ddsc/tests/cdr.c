@@ -161,7 +161,7 @@ static struct ddsi_serdata *sd_from_ser_iov (const struct ddsi_sertopic *tpcmn, 
   off += sizeof (uint32_t);
   sd->data.key = strdup_with_len (base + off, sd->keysz);
   off += sd->keysz;
-  sd->pad0 = ((off % 4) == 0) ? 0 : 4 - (off % 4);
+  sd->pad0 = (uint32_t) (((off % 4) == 0) ? 0 : 4 - (off % 4));
   off += sd->pad0;
   if (kind == SDK_DATA)
   {
@@ -170,7 +170,7 @@ static struct ddsi_serdata *sd_from_ser_iov (const struct ddsi_sertopic *tpcmn, 
     sd->data.value = strdup_with_len (base + off, sd->valuesz);
     off += sd->valuesz;
     // FIXME: not sure if this is still needed, it shouldn't be, but ...
-    sd->pad1 = ((off % 4) == 0) ? 0 : 4 - (off % 4);
+    sd->pad1 = (uint32_t) (((off % 4) == 0) ? 0 : 4 - (off % 4));
   }
   else
   {
