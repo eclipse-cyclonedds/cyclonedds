@@ -189,7 +189,7 @@ jobs:
       if: type = cron
     - <<: *ubuntu1804_gcc10
       env: [ ARCH=x86_64, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES ]
-    - <<: *ubuntu1804_gcc10
+    - <<: *ubuntu1804_gcc7
       env: [ ARCH=x86_64, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, CONANFILE=conanfile102.txt ]
     - <<: *ubuntu1804_gcc10
       env: [ ARCH=x86_64, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES ]
