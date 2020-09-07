@@ -187,6 +187,9 @@ DU(deaf_mute);
 #ifdef DDSI_INCLUDE_SSL
 DUPF(min_tls_version);
 #endif
+#ifdef DDSI_INCLUDE_SHM
+DUPF(shm_loglevel);
+#endif
 #undef DUPF
 #undef DU
 #undef PF
@@ -939,6 +942,12 @@ GENERIC_ENUM (many_sockets_mode)
 static const char *en_standards_conformance_vs[] = { "pedantic", "strict", "lax", NULL };
 static const enum nn_standards_conformance en_standards_conformance_ms[] = { NN_SC_PEDANTIC, NN_SC_STRICT, NN_SC_LAX, 0 };
 GENERIC_ENUM_CTYPE (standards_conformance, enum nn_standards_conformance)
+
+#ifdef DDSI_INCLUDE_SHM
+static const char *en_shm_loglevel_vs[] = { "off", "fatal", "error", "warn", "info", "debug", "verbose", NULL };
+static const enum shm_loglevel en_shm_loglevel_ms[] = { SHM_OFF, SHM_FATAL, SHM_ERROR, SHM_WARN, SHM_INFO, SHM_DEBUG, SHM_VERBOSE, 0 };
+GENERIC_ENUM_CTYPE (shm_loglevel, enum shm_loglevel)
+#endif
 
 /* "trace" is special: it enables (nearly) everything */
 static const char *tracemask_names[] = {
