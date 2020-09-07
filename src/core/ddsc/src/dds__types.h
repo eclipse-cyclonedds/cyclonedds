@@ -280,6 +280,9 @@ typedef struct dds_reader {
   void *m_loan;
   uint32_t m_loan_size;
   unsigned m_wrapped_sertopic : 1; /* set iff reader's topic is a wrapped ddsi_sertopic for backwards compatibility */
+#ifdef DDS_HAS_SHM
+  struct ice_subscriber *sub;
+#endif
 
   /* Status metrics */
 
@@ -298,6 +301,9 @@ typedef struct dds_writer {
   struct writer *m_wr;
   struct whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
   bool whc_batch; /* FIXME: channels + latency budget */
+#ifdef DDS_HAS_SHM
+  struct ice_publisher *pub;
+#endif
 
   /* Status metrics */
 

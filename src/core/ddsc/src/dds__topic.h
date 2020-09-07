@@ -41,6 +41,8 @@ DDS_EXPORT dds_topic_intern_filter_fn dds_topic_get_filter_with_ctx
 
 DDS_EXPORT dds_entity_t dds_create_topic_impl (dds_entity_t participant, const char *name, bool allow_dcps, struct ddsi_sertype **sertype, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist);
 
+DDS_EXPORT dds_return_t dds_get_name_size (dds_entity_t topic, size_t *size);
+
 #if defined (__cplusplus)
 }
 #endif

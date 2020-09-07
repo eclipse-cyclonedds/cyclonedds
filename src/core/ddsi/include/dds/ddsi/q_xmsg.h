@@ -48,6 +48,15 @@ enum nn_xmsg_kind {
   NN_XMSG_KIND_DATA_REXMIT_NOMERGE
 };
 
+#ifdef DDS_HAS_SHM
+struct iceoryx_header {
+   struct ddsi_guid guid;
+   dds_time_t tstamp;
+   uint32_t data_size;
+   unsigned char data_kind;
+};
+#endif
+
 /* XMSGPOOL */
 
 struct nn_xmsgpool *nn_xmsgpool_new (void);

@@ -60,6 +60,10 @@
 #include "dds/ddsi/sysdeps.h"
 #include "dds__whc.h"
 
+#ifdef DDS_HAS_SHM
+#include "ice_clib.h"
+#endif
+
 /*
 Notes:
 
@@ -3438,6 +3442,53 @@ uint32_t listen_thread (struct ddsi_tran_listener *listener)
   }
   return 0;
 }
+
+#ifdef DDS_HAS_SHM
+void read_callback (const void *chunk, void *arg)
+{
+  struct dds_reader *rd = (struct dds_reader *) arg;
+  struct iceoryx_header ice_hdr;
+  memcpy (&ice_hdr, chunk, sizeof(ice_hdr));
+  // Get proxy writer
+  thread_state_awake (lookup_thread_state (), rd->m_rd->e.gv);
+  struct proxy_writer * pwr = entidx_lookup_proxy_writer_guid (rd->m_rd->e.gv->entity_index, &ice_hdr.guid);
+  if (pwr == NULL)
+  {
+    // We should ignore chunk which does not match the pwr in receiver side.
+    // For example, intra-process has local pwr and does not need to use iceoryx, so we can ignore it.
+    DDS_CLOG (DDS_LC_SHM, &rd->m_rd->e.gv->logconfig, "pwr is NULL and we'll ignore.\n");
+    goto exit;
+  }
+
+  // Create struct ddsi_serdata
+  ddsrt_iovec_t iov;
+  iov.iov_len = ice_hdr.data_size;
+  iov.iov_base = (void *)(chunk + sizeof (ice_hdr));
+  struct ddsi_serdata *d = ddsi_serdata_from_ser_iov (rd->m_topic->m_stype, ice_hdr.data_kind, 1, &iov, ice_hdr.data_size);
+  d->timestamp.v = ice_hdr.tstamp;
+  // Get struct ddsi_tkmap_instance
+  struct ddsi_tkmap_instance *tk;
+  if ((tk = ddsi_tkmap_lookup_instance_ref (rd->m_rd->e.gv->m_tkmap, d)) == NULL)
+  {
+    DDS_CLOG (DDS_LC_SHM, &rd->m_rd->e.gv->logconfig, "ddsi_tkmap_lookup_instance_ref failed.\n");
+    goto release;
+  }
+
+  // Generate writer_info
+  struct ddsi_writer_info wrinfo;
+  ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos, d->statusinfo);
+
+  (void) ddsi_rhc_store (rd->m_rd->rhc, &wrinfo, d, tk);
+
+release:
+  if (tk)
+    ddsi_tkmap_instance_unref (rd->m_rd->e.gv->m_tkmap, tk);
+  if (d)
+    ddsi_serdata_unref (d);
+exit:
+  thread_state_asleep (lookup_thread_state ());
+}
+#endif
 
 static int recv_thread_waitset_add_conn (os_sockWaitset ws, ddsi_tran_conn_t conn)
 {

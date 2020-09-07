@@ -40,6 +40,9 @@ uint32_t recv_thread (void *vrecv_thread_arg);
 uint32_t listen_thread (struct ddsi_tran_listener * listener);
 int user_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);
 int add_Gap (struct nn_xmsg *msg, struct writer *wr, struct proxy_reader *prd, seqno_t start, seqno_t base, uint32_t numbits, const uint32_t *bits);
+#ifdef DDS_HAS_SHM
+void read_callback (const void *chunk, void *arg);
+#endif
 
 #if defined (__cplusplus)
 }
