@@ -184,6 +184,9 @@ void gendef_pf_many_sockets_mode (FILE *out, void *parent, struct cfgelem const 
 void gendef_pf_standards_conformance (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_int (out, parent, cfgelem);
 }
+void gendef_pf_shm_loglevel (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
+  gendef_pf_int (out, parent, cfgelem);
+}
 
 static void gen_defaults (FILE *out, void *parent, struct cfgelem const * const cfgelem)
 {

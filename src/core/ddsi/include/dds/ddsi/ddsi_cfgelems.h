@@ -1619,6 +1619,22 @@ static struct cfgelem shmem_cfgelems[] = {
     MEMBER(enable_shm),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION("<p>This element allows to enable shared memory in Cyclone DDS.</p>")),
+  ENUM("LogLevel", NULL, 1, "info",
+    MEMBER(shm_log_lvl),
+    FUNCTIONS(0, uf_shm_loglevel, 0, pf_shm_loglevel),
+    DESCRIPTION(
+      "<p>This element decides the verbosity level of shared memory message:</p>\n"
+      "<ul><li><i>off</i>: no log</li>\n"
+      "<li><i>fatal</i>: show fatal log</li>\n"
+      "<li><i>error</i>: show error log</li>\n"
+      "<li><i>warn</i>: show warn log</li>\n"
+      "<li><i>info</i>: show info log</li>\n"
+      "<li><i>debug</i>: show debug log</li>\n"
+      "<li><i>verbose</i>: show verbose log</li>\n"
+      "<p>If you don't want to see any log from shared memory, use <i>off</i> to disable log message.</p>"),
+    VALUES(
+      "off","fatal","error","warn","info","debug","verbose"
+    )),
   INT("CacheSize", NULL, 1, "0",
     MEMBER(sub_cache_size),
     FUNCTIONS(0, uf_natint, 0, pf_int),
