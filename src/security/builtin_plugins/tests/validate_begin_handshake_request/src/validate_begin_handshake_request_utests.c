@@ -460,7 +460,7 @@ CU_Init(ddssec_builtin_validate_begin_handshake_request)
     plugins = load_plugins(NULL   /* Access Control */,
                            &auth  /* Authentication */,
                            NULL   /* Cryptograpy    */,
-                           NULL);
+                           &(const struct ddsi_domaingv){ .handshake_include_optional = true });
     if (plugins) {
         res = validate_local_identity();
         if (res >= 0) {

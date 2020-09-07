@@ -2066,7 +2066,7 @@ DDS_Security_boolean set_listener(dds_security_authentication *instance, const d
   dds_security_authentication_impl *auth = (dds_security_authentication_impl *)instance;
   auth->listener = listener;
   if (listener)
-    dds_security_timed_dispatcher_enable(auth->dispatcher, auth->base.gv->xevents);
+    dds_security_timed_dispatcher_enable(auth->dispatcher);
   else
     dds_security_timed_dispatcher_disable(auth->dispatcher);
   return true;
@@ -2234,7 +2234,7 @@ int32_t init_authentication(const char *argument, void **context, struct ddsi_do
   memset(authentication, 0, sizeof(dds_security_authentication_impl));
   authentication->base.gv = gv;
   authentication->listener = NULL;
-  authentication->dispatcher = dds_security_timed_dispatcher_new();
+  authentication->dispatcher = dds_security_timed_dispatcher_new(gv->xevents);
   authentication->base.validate_local_identity = &validate_local_identity;
   authentication->base.get_identity_token = &get_identity_token;
   authentication->base.get_identity_status_token = &get_identity_status_token;
@@ -2256,10 +2256,7 @@ int32_t init_authentication(const char *argument, void **context, struct ddsi_do
   authentication->objectHash = ddsrt_hh_new(32, security_object_hash, security_object_equal);
   authentication->remoteGuidHash = ddsrt_hh_new(32, remote_guid_hash, remote_guid_equal);
   memset(&authentication->trustedCAList, 0, sizeof(X509Seq));
-  if (gv)
-    authentication->include_optional = gv->handshake_include_optional;
-  else
-    authentication->include_optional = true;
+  authentication->include_optional = gv->handshake_include_optional;
 
   dds_openssl_init ();
   *context = authentication;

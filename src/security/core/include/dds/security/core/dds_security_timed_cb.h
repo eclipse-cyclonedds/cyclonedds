@@ -61,8 +61,9 @@ typedef void (*dds_security_timed_cb_t) (dds_security_time_event_handle_t timer,
  * The dispatcher is not enabled (see dds_security_timed_dispatcher_enable).
  *
  * @return              New (disabled) timed callbacks dispatcher.
+ * @param evq           The event queue used to handle the timers.
  */
-DDS_EXPORT struct dds_security_timed_dispatcher * dds_security_timed_dispatcher_new(void);
+DDS_EXPORT struct dds_security_timed_dispatcher * dds_security_timed_dispatcher_new(struct xeventq *evq);
 
 /**
  * Frees the given dispatcher.
@@ -93,10 +94,9 @@ DDS_EXPORT void dds_security_timed_dispatcher_free(struct dds_security_timed_dis
  * dispatcher being possibly disabled.
  *
  * @param d             The dispatcher to enable.
- * @param evq           The event queue used to handle the timers.
  *
  */
-DDS_EXPORT void dds_security_timed_dispatcher_enable(struct dds_security_timed_dispatcher *d, struct xeventq *evq);
+DDS_EXPORT void dds_security_timed_dispatcher_enable(struct dds_security_timed_dispatcher *d);
 
 /**
  * Disables a dispatcher for timed callbacks.

@@ -9,18 +9,21 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
+#include <sys/stat.h>
 
 #include <CUnit/Test.h>
-#include <dds/ddsrt/misc.h>
-#include "loader.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/dynlib.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "sys/stat.h"
-#include "assert.h"
-#include "stdio.h"
-#include "string.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/q_xevent.h"
+#include "dds/ddsi/q_thread.h"
 #include "dds/security/core/dds_security_utils.h"
+#include "loader.h"
 
 struct plugin_info {
     void *context;
@@ -33,6 +36,9 @@ struct plugins_hdl {
     struct plugin_info plugin_ac;
     struct plugin_info plugin_auth;
     struct plugin_info plugin_crypto;
+
+    struct ddsi_domaingv gv;
+    struct ddsi_tran_conn connection;
 };
 
 static void*
@@ -84,17 +90,23 @@ load_plugins(
         dds_security_access_control **ac,
         dds_security_authentication **auth,
         dds_security_cryptography   **crypto,
-        void *args)
+        const struct ddsi_domaingv *gv_init)
 {
     struct plugins_hdl *plugins = ddsrt_malloc(sizeof(struct plugins_hdl));
     assert(plugins);
     memset(plugins, 0, sizeof(struct plugins_hdl));
+
+    if (gv_init)
+      plugins->gv = *gv_init;
+    plugins->connection.m_base.gv = &plugins->gv;
+    plugins->gv.xevents = xeventq_new (&plugins->connection, 0, 0, 0);
+
     if (ac) {
         *ac = load_plugin(&(plugins->plugin_ac),
                           "dds_security_ac",
                           "init_access_control",
                           "finalize_access_control",
-                          args);
+                          &plugins->gv);
         if (!(*ac)) {
             goto err;
         }
@@ -105,7 +117,7 @@ load_plugins(
                             "dds_security_auth",
                             "init_authentication",
                             "finalize_authentication",
-                            args);
+                            &plugins->gv);
         if (!(*auth)) {
             goto err;
         }
@@ -115,15 +127,19 @@ load_plugins(
                               "dds_security_crypto",
                               "init_crypto",
                               "finalize_crypto",
-                              args);
+                              &plugins->gv);
         if (!(*crypto)) {
             goto err;
         }
     }
+
+    thread_states_init(16);
+    xeventq_start(plugins->gv.xevents, "TEST");
     return plugins;
 
 err:
     unload_plugins(plugins);
+    xeventq_free(plugins->gv.xevents);
     return NULL;
 }
 
@@ -153,7 +169,12 @@ unload_plugins(
     unload_plugin(&(plugins->plugin_ac));
     unload_plugin(&(plugins->plugin_auth));
     unload_plugin(&(plugins->plugin_crypto));
+
+    xeventq_stop(plugins->gv.xevents);
+    xeventq_free(plugins->gv.xevents);
     ddsrt_free(plugins);
+
+    (void)thread_states_fini();
 }
 
 static size_t

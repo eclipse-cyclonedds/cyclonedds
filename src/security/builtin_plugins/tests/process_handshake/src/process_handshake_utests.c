@@ -993,7 +993,7 @@ CU_Init(ddssec_builtin_process_handshake)
     plugins = load_plugins(NULL   /* Access Control */,
                            &auth  /* Authentication */,
                            NULL   /* Cryptograpy    */,
-                           NULL);
+                           &(const struct ddsi_domaingv){ .handshake_include_optional = true });
     if (plugins) {
         result = validate_local_identity( NULL );
         if (result >= 0) {

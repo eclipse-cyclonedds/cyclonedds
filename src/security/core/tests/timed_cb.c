@@ -122,10 +122,10 @@ CU_Test(ddssec_timed_cb, simple_test, .init = setup, .fini = teardown)
 {
   static bool test_var = false;
   dds_time_t future = dds_time() + DDS_SECS(2);
-  struct dds_security_timed_dispatcher *d1 = dds_security_timed_dispatcher_new();
+  struct dds_security_timed_dispatcher *d1 = dds_security_timed_dispatcher_new(xeventq);
   CU_ASSERT_PTR_NOT_NULL_FATAL(d1);
   dds_security_timed_dispatcher_add(d1, simple_callback, future, (void *)&test_var);
-  dds_security_timed_dispatcher_enable(d1, xeventq);
+  dds_security_timed_dispatcher_enable(d1);
   CU_ASSERT_FALSE_FATAL(test_var);
   dds_sleepfor(DDS_MSECS(500));
   CU_ASSERT_FALSE_FATAL(test_var);
@@ -136,12 +136,12 @@ CU_Test(ddssec_timed_cb, simple_test, .init = setup, .fini = teardown)
 
 CU_Test(ddssec_timed_cb, simple_order, .init = setup, .fini = teardown)
 {
-  struct dds_security_timed_dispatcher *d1 = dds_security_timed_dispatcher_new();
+  struct dds_security_timed_dispatcher *d1 = dds_security_timed_dispatcher_new(xeventq);
   CU_ASSERT_PTR_NOT_NULL_FATAL(d1);
   dds_time_t future = dds_time() + DDS_MSECS(20), future2 = future;
   dds_security_timed_dispatcher_add(d1, order_callback, future, (void *)1);
   dds_security_timed_dispatcher_add(d1, order_callback, future2, (void *)2);
-  dds_security_timed_dispatcher_enable(d1, xeventq);
+  dds_security_timed_dispatcher_enable(d1);
   dds_sleepfor(DDS_MSECS(10));
   dds_security_timed_dispatcher_free(d1);
   CU_ASSERT_EQUAL_FATAL(g_order_callback[0], (void *)1);
@@ -152,10 +152,10 @@ CU_Test(ddssec_timed_cb, test_enabled_and_disabled, .init = setup, .fini = teard
 {
   static bool test_var = false;
   dds_time_t future = dds_time() + DDS_SECS(2);
-  struct dds_security_timed_dispatcher *d1 = dds_security_timed_dispatcher_new();
+  struct dds_security_timed_dispatcher *d1 = dds_security_timed_dispatcher_new(xeventq);
   CU_ASSERT_PTR_NOT_NULL_FATAL(d1);
   dds_security_timed_dispatcher_add(d1, simple_callback, future, (void *)&test_var);
-  dds_security_timed_dispatcher_enable(d1, xeventq);
+  dds_security_timed_dispatcher_enable(d1);
   CU_ASSERT_FALSE(test_var);
   dds_security_timed_dispatcher_disable(d1);
   dds_sleepfor(DDS_MSECS(500));
@@ -169,9 +169,9 @@ CU_Test(ddssec_timed_cb, simple_test_with_future, .init = setup, .fini = teardow
 {
   static bool test_var = false;
   dds_time_t now = dds_time(), future = now + DDS_SECS(2), far_future = now + DDS_SECS(10);
-  struct dds_security_timed_dispatcher *d1 = dds_security_timed_dispatcher_new();
+  struct dds_security_timed_dispatcher *d1 = dds_security_timed_dispatcher_new(xeventq);
   CU_ASSERT_PTR_NOT_NULL_FATAL(d1);
-  dds_security_timed_dispatcher_enable(d1, xeventq);
+  dds_security_timed_dispatcher_enable(d1);
   dds_security_timed_dispatcher_add(d1, simple_callback, future, (void *)&test_var);
   dds_security_timed_dispatcher_add(d1, simple_callback, far_future, (void *)&test_var);
   CU_ASSERT_FALSE_FATAL(test_var);
@@ -186,11 +186,11 @@ CU_Test(ddssec_timed_cb, test_multiple_dispatchers, .init = setup, .fini = teard
 {
   static bool test_var = false;
   dds_time_t now = dds_time(), future = now + DDS_SECS(2), far_future = now + DDS_SECS(10);
-  struct dds_security_timed_dispatcher *d1 = dds_security_timed_dispatcher_new();
-  struct dds_security_timed_dispatcher *d2 = dds_security_timed_dispatcher_new();
+  struct dds_security_timed_dispatcher *d1 = dds_security_timed_dispatcher_new(xeventq);
+  struct dds_security_timed_dispatcher *d2 = dds_security_timed_dispatcher_new(xeventq);
   CU_ASSERT_PTR_NOT_NULL_FATAL(d1);
-  dds_security_timed_dispatcher_enable(d1, xeventq);
-  dds_security_timed_dispatcher_enable(d2, xeventq);
+  dds_security_timed_dispatcher_enable(d1);
+  dds_security_timed_dispatcher_enable(d2);
   dds_security_timed_dispatcher_free(d2);
   dds_security_timed_dispatcher_add(d1, simple_callback, future, (void *)&test_var);
   dds_security_timed_dispatcher_add(d1, simple_callback, far_future, (void *)&test_var);
@@ -228,7 +228,7 @@ CU_Test(ddssec_timed_cb, test_create_dispatcher, .init = setup, .fini = teardown
   struct test_sequence_data test_seq_data = { .size = NUM_TIMERS, .index = 0, .expected = expected, .received = received };
   uint32_t i;
 
-  d = dds_security_timed_dispatcher_new();
+  d = dds_security_timed_dispatcher_new(xeventq);
   CU_ASSERT_PTR_NOT_NULL_FATAL(d);
 
   memset(received, 0, NUM_TIMERS * sizeof(struct test_data));
@@ -244,7 +244,7 @@ CU_Test(ddssec_timed_cb, test_create_dispatcher, .init = setup, .fini = teardown
   /* The sleeps are added to get the timing between 'present' and 'past' callbacks right. */
   printf("before enable\n");
   dds_sleepfor(DDS_MSECS(300));
-  dds_security_timed_dispatcher_enable(d, xeventq);
+  dds_security_timed_dispatcher_enable(d);
   dds_sleepfor(DDS_MSECS(900));
   dds_security_timed_dispatcher_disable(d);
 
@@ -326,7 +326,7 @@ CU_Test(ddssec_timed_cb, test_remove_timer, .init = setup, .fini = teardown)
   struct test_sequence_data test_seq_data = { .size = NUM_TIMERS, .index = 0, .expected = expected, .received = received };
   uint32_t i;
 
-  d = dds_security_timed_dispatcher_new();
+  d = dds_security_timed_dispatcher_new(xeventq);
   CU_ASSERT_PTR_NOT_NULL_FATAL(d);
 
   memset(received, 0, NUM_TIMERS * sizeof(struct test_data));
@@ -339,7 +339,7 @@ CU_Test(ddssec_timed_cb, test_remove_timer, .init = setup, .fini = teardown)
     expected[rank].timer = dds_security_timed_dispatcher_add(d, test_callback, expected[rank].trigger_time, (void *)&test_seq_data);
   }
 
-  dds_security_timed_dispatcher_enable(d, xeventq);
+  dds_security_timed_dispatcher_enable(d);
   dds_sleepfor(DDS_MSECS(500));
 
   dds_security_timed_dispatcher_remove(d, expected[0].timer);
