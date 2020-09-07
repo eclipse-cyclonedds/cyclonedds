@@ -33,6 +33,10 @@
 #include "dds__statistics.h"
 #include "dds/ddsi/ddsi_statistics.h"
 
+#ifdef DDSI_INCLUDE_SHM
+#include "ice_clib.h"
+#endif
+
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_writer)
 
 #define DDS_WRITER_STATUS_MASK                                   \
@@ -209,6 +213,15 @@ static dds_return_t dds_writer_delete (dds_entity *e) ddsrt_nonnull_all;
 static dds_return_t dds_writer_delete (dds_entity *e)
 {
   dds_writer * const wr = (dds_writer *) e;
+#ifdef DDSI_INCLUDE_SHM
+  if (e->m_domain->gv.config.enable_shm)
+  {
+    DDS_CLOG (DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's publisher\n");
+    ice_clib_stopOffer (wr->pub);
+    ice_clib_release_publisher (wr->pub);
+    wr->pub = NULL;
+  }
+#endif
   /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   nn_xpack_free (wr->m_xp);
@@ -386,6 +399,22 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   rc = new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
   assert(rc == DDS_RETCODE_OK);
   thread_state_asleep (lookup_thread_state ());
+
+#ifdef DDSI_INCLUDE_SHM
+  if (wr->m_entity.m_domain->gv.config.enable_shm)
+  {
+    size_t name_size;
+    rc = dds_get_name_size (topic, &name_size);
+    assert (rc == DDS_RETCODE_OK);
+    char topic_name[name_size+1];
+    rc = dds_get_name (topic, topic_name, name_size+1);
+    assert (rc == DDS_RETCODE_OK);
+    DDS_CLOG (DDS_LC_SHM, &wr->m_entity.m_domain->gv.logconfig, "Writer's topic name will be DDS:Cyclone:%s\n", topic_name);
+    // SHM_TODO: We should do error handling if there is duplicate publish topic. iceoryx doesn't support multiple pub now.
+    wr->pub = ice_clib_create_publisher ("DDS", "Cyclone", topic_name);
+    ice_clib_offer (wr->pub);
+  }
+#endif
 
   wr->m_entity.m_iid = get_entity_instance_id (&wr->m_entity.m_domain->gv, &wr->m_entity.m_guid);
   dds_entity_register_child (&pub->m_entity, &wr->m_entity);
