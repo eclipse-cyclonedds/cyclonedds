@@ -1819,7 +1819,7 @@ static struct cfgelem tracing_cfgelems[] = {
     VALUES(
       "fatal","error","warning","info","config","discovery","data","radmin",
       "timing","traffic","topic","tcp","plist","whc","throttle","rhc",
-      "content","trace"
+      "content","shm","trace"
     )),
   ENUM("Verbosity", NULL, 1, "none",
     NOMEMBER,
