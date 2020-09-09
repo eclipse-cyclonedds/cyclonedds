@@ -31,17 +31,8 @@ _Pragma("GCC diagnostic ignored \"-Wsign-conversion\"")
 #endif
 
 static void yyerror(idl_location_t *loc, idl_processor_t *proc, idl_node_t **, const char *);
-static void merge(void *parent, void *member, void *node);
-static void locate(void *node, idl_position_t *floc, idl_position_t *lloc);
 static void push(void *list, void *node);
 static void *reference(void *node);
-
-#define MAKE(lval, floc, lloc, ctor, ...) \
-  do { \
-    if (!(lval = (void*)ctor(__VA_ARGS__))) \
-      goto yyexhaustedlab; \
-    locate(lval, floc, lloc); \
-  } while (0)
 
 #define TRY_CATCH(action, catch) \
   do { \
@@ -67,6 +58,8 @@ static void *reference(void *node);
 
 #define TRY(action) \
   TRY_CATCH((action), 0)
+
+#define LOC(first, last) &(idl_location_t){ first, last }
 
 %}
 
@@ -128,8 +121,7 @@ typedef struct idl_location YYLTYPE;
   void *node;
   /* expressions */
   idl_literal_t *literal;
-  idl_binary_expr_t *binary_expr;
-  idl_unary_expr_t *unary_expr;
+  idl_const_expr_t *const_expr;
   idl_constval_t *constval;
   /* simple specifications */
   idl_mask_t kind;
@@ -137,6 +129,7 @@ typedef struct idl_location YYLTYPE;
   char *identifier;
   char *string_literal;
   /* specifications */
+  idl_type_spec_t *type_spec;
   idl_sequence_t *sequence;
   idl_string_t *string;
   /* declarations */
@@ -178,13 +171,14 @@ typedef struct idl_location YYLTYPE;
 
 %start specification
 
-%type <node> definitions definition type_dcl type_spec simple_type_spec
-             template_type_spec constr_type_dcl struct_dcl union_dcl enum_dcl
-             constr_type switch_type_spec const_expr const_type primary_expr
-             fixed_array_sizes fixed_array_size
+%type <node> definitions definition type_dcl
+             constr_type_dcl struct_dcl union_dcl enum_dcl
+%type <type_spec> type_spec simple_type_spec template_type_spec
+                  switch_type_spec const_type
 %type <constval> positive_int_const
-%type <binary_expr> or_expr xor_expr and_expr shift_expr add_expr mult_expr
-%type <unary_expr> unary_expr
+%type <const_expr> const_expr or_expr xor_expr and_expr shift_expr add_expr
+                   mult_expr unary_expr primary_expr fixed_array_sizes
+                   fixed_array_size
 %type <kind> unary_operator base_type_spec floating_pt_type integer_type
              signed_int unsigned_int char_type wide_char_type boolean_type
              octet_type
@@ -214,7 +208,7 @@ typedef struct idl_location YYLTYPE;
 
 %destructor { free($$); } <identifier> <scoped_name> <string_literal>
 
-%destructor { idl_delete_node($$); } <node> <constval> <binary_expr> <unary_expr> <literal> <sequence>
+%destructor { idl_delete_node($$); } <node> <type_spec> <constval> <const_expr> <literal> <sequence>
                                      <string> <module_dcl> <struct_dcl> <forward_dcl> <member> <union_dcl>
                                      <_case> <case_label> <enum_dcl> <enumerator> <declarator> <typedef_dcl>
                                      <const_dcl> <annotation_appl> <annotation_appl_param>
@@ -322,21 +316,14 @@ definition:
 
 module_dcl:
     module_header definitions '}'
-      { idl_exit_scope(proc, $1->identifier);
-        locate($1, &@1.first, &@3.last);
-        merge($$, &$$->definitions, $2);
-        if (!idl_add_symbol(proc, idl_scope(proc), idl_identifier($1), $1))
-          goto yyexhaustedlab;
+      { TRY(idl_finalize_module(proc, $1, LOC(@1.first, @3.last), $2));
+        $$ = $1;
       }
   ;
 
 module_header:
     "module" identifier '{'
-      { if (!idl_enter_scope(proc, $2))
-          goto yyexhaustedlab;
-        MAKE($$, &@1.first, &@2.last, idl_create_module);
-        $$->identifier = $2;
-      }
+      { TRY(idl_create_module(proc, &$$, LOC(@1.first, @2.last), $2)); }
   ;
 
 scoped_name:
@@ -364,18 +351,14 @@ scope:
 
 const_dcl:
     "const" const_type identifier '=' const_expr
-      { MAKE($$, &@1.first, &@5.last, idl_create_const);
-        $$->identifier = $3;
-        merge($$, &$$->type_spec, $2);
-        merge($$, &$$->const_expr, $5);
-      }
+      { TRY(idl_create_const(proc, &$$, LOC(@1.first, @5.last), $2, $3, $5)); }
   ;
 
 const_type:
     integer_type
-      { MAKE($$, &@1.first, &@1.last, idl_create_base_type, $1); }
+      { TRY(idl_create_base_type(proc, (idl_base_type_t **)&$$, &@1, $1)); }
   | boolean_type
-      { MAKE($$, &@1.first, &@1.last, idl_create_base_type, $1); }
+      { TRY(idl_create_base_type(proc, (idl_base_type_t **)&$$, &@1, $1)); }
   ;
 
 const_expr: or_expr { $$ = $1; } ;
@@ -383,85 +366,53 @@ const_expr: or_expr { $$ = $1; } ;
 or_expr:
     xor_expr
   | or_expr '|' xor_expr
-      { MAKE($$, &@2.first, &@2.last, idl_create_binary_expr, IDL_OR_EXPR);
-        merge($$, &$$->left, $1);
-        merge($$, &$$->right, $3);
-      }
+      { TRY(idl_create_binary_expr(proc, (idl_binary_expr_t **)&$$, LOC(@1.first, @3.last), IDL_OR_EXPR, $1, $3)); }
   ;
 
 xor_expr:
     and_expr
   | or_expr '^' and_expr
-      { MAKE($$, &@2.first, &@2.last, idl_create_binary_expr, IDL_XOR_EXPR);
-        merge($$, &$$->left, $1);
-        merge($$, &$$->right, $3);
-      }
+      { TRY(idl_create_binary_expr(proc, (idl_binary_expr_t **)&$$, LOC(@1.first, @3.last), IDL_XOR_EXPR, $1, $3)); }
   ;
 
 and_expr:
     shift_expr
   | and_expr '&' shift_expr
-      { MAKE($$, &@2.first, &@2.last, idl_create_binary_expr, IDL_AND_EXPR);
-        merge($$, &$$->left, $1);
-        merge($$, &$$->right, $3);
-      }
+      { TRY(idl_create_binary_expr(proc, (idl_binary_expr_t **)&$$, LOC(@1.first, @3.last), IDL_AND_EXPR, $1, $3)); }
   ;
 
 shift_expr:
     add_expr
   | shift_expr ">>" add_expr
-      { MAKE($$, &@2.first, &@2.last, idl_create_binary_expr, IDL_RSHIFT_EXPR);
-        merge($$, &$$->left, $1);
-        merge($$, &$$->right, $3);
-      }
+      { TRY(idl_create_binary_expr(proc, (idl_binary_expr_t **)&$$, LOC(@1.first, @3.last), IDL_RSHIFT_EXPR, $1, $3)); }
   | shift_expr "<<" add_expr
-      { MAKE($$, &@2.first, &@2.last, idl_create_binary_expr, IDL_LSHIFT_EXPR);
-        merge($$, &$$->left, $1);
-        merge($$, &$$->right, $3);
-      }
+      { TRY(idl_create_binary_expr(proc, (idl_binary_expr_t **)&$$, LOC(@1.first, @3.last), IDL_LSHIFT_EXPR, $1, $3)); }
   ;
 
 add_expr:
     mult_expr
   | add_expr '+' mult_expr
-      { MAKE($$, &@2.first, &@2.last, idl_create_binary_expr, IDL_ADD_EXPR);
-        merge($$, &$$->left, $1);
-        merge($$, &$$->right, $3);
-      }
+      { TRY(idl_create_binary_expr(proc, (idl_binary_expr_t **)&$$, LOC(@1.first, @3.last), IDL_ADD_EXPR, $1, $3)); }
   | add_expr '-' mult_expr
-      { MAKE($$, &@2.first, &@2.last, idl_create_binary_expr, IDL_SUB_EXPR);
-        merge($$, &$$->left, $1);
-        merge($$, &$$->right, $3);
-      }
+      { TRY(idl_create_binary_expr(proc, (idl_binary_expr_t **)&$$, LOC(@1.first, @3.last), IDL_SUB_EXPR, $1, $3)); }
   ;
 
 mult_expr:
     unary_expr
       { $$ = (void *)$1; }
   | mult_expr '*' unary_expr
-      { MAKE($$, &@2.first, &@2.last, idl_create_binary_expr, IDL_MULT_EXPR);
-        merge($$, &$$->left, $1);
-        merge($$, &$$->right, $3);
-      }
+      { TRY(idl_create_binary_expr(proc, (idl_binary_expr_t **)&$$, LOC(@1.first, @3.last), IDL_MULT_EXPR, $1, $3)); }
   | mult_expr '/' unary_expr
-      { MAKE($$, &@2.first, &@2.last, idl_create_binary_expr, IDL_DIV_EXPR);
-        merge($$, &$$->left, $1);
-        merge($$, &$$->right, $3);
-      }
+      { TRY(idl_create_binary_expr(proc, (idl_binary_expr_t **)&$$, LOC(@1.first, @3.last), IDL_DIV_EXPR, $1, $3)); }
   | mult_expr '%' unary_expr
-      { MAKE($$, &@2.first, &@2.last, idl_create_binary_expr, IDL_MOD_EXPR);
-        merge($$, &$$->left, $1);
-        merge($$, &$$->right, $3);
-      }
+      { TRY(idl_create_binary_expr(proc, (idl_binary_expr_t **)&$$, LOC(@1.first, @3.last), IDL_MOD_EXPR, $1, $3)); }
   ;
 
 unary_expr:
     unary_operator primary_expr
-      { MAKE($$, &@1.first, &@1.last, idl_create_unary_expr, $1);
-        merge($$, &$$->right, $2);
-      }
+      { TRY(idl_create_unary_expr(proc, (idl_unary_expr_t **)&$$, LOC(@1.first, @2.last), $1, $2)); }
   | primary_expr
-      { $$ = $1; }
+      { $$ = (idl_const_expr_t *)$1; }
   ;
 
 unary_operator:
@@ -488,7 +439,7 @@ primary_expr:
         }
       }
   | literal
-      { $$ = $1; }
+      { $$ = (idl_const_expr_t *)$1; }
   | '(' const_expr ')'
       { $$ = $2; }
   ;
@@ -551,12 +502,12 @@ type_spec:
   | template_type_spec
   /* embedded-struct-def extension */
   /* not valid in IDL >3.5 */
-  | constr_type
+  /*| constr_type */
   ;
 
 simple_type_spec:
     base_type_spec
-      { MAKE($$, &@1.first, &@1.last, idl_create_base_type, $1); }
+      { TRY(idl_create_base_type(proc, (idl_base_type_t **)&$$, &@1, $1)); }
   | scoped_name
       { const idl_symbol_t *sym;
         if (!(sym = idl_find_symbol(proc, idl_scope(proc), $1, NULL)))
@@ -623,36 +574,31 @@ octet_type:
     "octet" { $$ = IDL_OCTET; };
 
 template_type_spec:
-    sequence_type { $$ = $1; }
-  | string_type { $$ = $1; }
+    sequence_type { $$ = (idl_type_spec_t *)$1; }
+  | string_type { $$ = (idl_type_spec_t *)$1; }
   ;
 
 sequence_type:
     "sequence" '<' type_spec ',' positive_int_const '>'
-      { MAKE($$, &@1.first, &@6.last, idl_create_sequence);
-        merge($$, &$$->type_spec, $3);
-        merge($$, &$$->const_expr, $5);
-      }
+      { TRY(idl_create_sequence(proc, &$$, LOC(@1.first, @6.last), $3, $5)); }
   | "sequence" '<' type_spec '>'
-      { MAKE($$, &@1.first, &@4.last, idl_create_sequence);
-        merge($$, &$$->type_spec, $3);
-      }
+      { TRY(idl_create_sequence(proc, &$$, LOC(@1.first, @4.last), $3, NULL)); }
   ;
 
 string_type:
     "string" '<' positive_int_const '>'
-      { MAKE($$, &@1.first, &@4.last, idl_create_string);
-        merge($$, &$$->const_expr, $3);
-      }
+      { TRY(idl_create_string(proc, &$$, LOC(@1.first, @4.last), $3)); }
   | "string"
-      { MAKE($$, &@1.first, &@1.last, idl_create_string); }
+      { TRY(idl_create_string(proc, &$$, LOC(@1.first, @1.last), NULL)); }
   ;
 
-constr_type:
+  /*
+    constr_type:
     struct_def { $$ = $1; }
   | union_def { $$ = $1; }
   | enum_def { $$ = $1; }
   ;
+  */
 
 constr_type_dcl:
     struct_dcl
@@ -667,20 +613,14 @@ struct_dcl:
 
 struct_def:
     struct_header '{' struct_body '}'
-      { idl_exit_scope(proc, $1->identifier);
-        locate($1, &@1.first, &@3.last);
-        assert($3 || (proc->flags & IDL_FLAG_EXTENDED_DATA_TYPES));
-        if ($3) {
-          merge($$, &$$->members, $3);
-        }
+      { TRY(idl_finalize_struct(proc, $1, LOC(@1.first, @4.last), $3));
+        $$ = $1;
       }
   ;
 
 struct_header:
     "struct" identifier struct_base_type
-      { if (!idl_enter_scope(proc, $2))
-          goto yyexhaustedlab;
-        idl_location_t loc = { @1.first, @2.last };
+      { idl_location_t loc = { @1.first, $3 ? @3.last : @2.last };
         TRY(idl_create_struct(proc, &$$, &loc, $2, $3));
       }
   ;
@@ -719,19 +659,16 @@ members:
 
 member:
     annotation_appls type_spec declarators ';'
-      { idl_location_t location = { @2.first, @4.last };
-        TRY(idl_create_member(proc, (idl_member_t **)&$$, &location, $2, $3));
+      { TRY(idl_create_member(proc, (idl_member_t **)&$$, LOC(@2.first, @4.last), $2, $3));
         if (proc->flags & IDL_FLAG_ANNOTATIONS)
-          TRY_CATCH(idl_annotate(proc, $$, $1), idl_delete_node($$));
+          TRY_CATCH(idl_annotate(proc, $$, $1), free($$));
         idl_delete_node($1);
       }
   ;
 
 struct_forward_dcl:
     "struct" identifier
-      { MAKE($$, &@1.first, &@2.last, idl_create_forward, IDL_STRUCT);
-        $$->identifier = $2;
-      }
+      { TRY(idl_create_forward(proc, &$$, LOC(@1.first, @2.last), IDL_STRUCT, $2)); }
   ;
 
 union_dcl:
@@ -741,23 +678,20 @@ union_dcl:
 
 union_def:
     "union" identifier "switch" '(' annotation_appls switch_type_spec ')' '{' switch_body '}'
-      { MAKE($$, &@1.first, &@10.last, idl_create_union);
+      { TRY(idl_create_union(proc, &$$, LOC(@1.first, @10.last), $2, $6, $9));
         if (proc->flags & IDL_FLAG_ANNOTATIONS)
           TRY_CATCH(idl_annotate(proc, $6, $5), idl_delete_node($$));
         idl_delete_node($5);
-        $$->identifier = $2;
-        merge($$, &$$->switch_type_spec, $6);
-        merge($$, &$$->cases, $9);
       }
   ;
 
 switch_type_spec:
     integer_type
-      { MAKE($$, &@1.first, &@1.last, idl_create_base_type, $1); }
+      { TRY(idl_create_base_type(proc, (idl_base_type_t **)&$$, &@1, $1)); }
   | char_type
-      { MAKE($$, &@1.first, &@1.last, idl_create_base_type, $1); }
+      { TRY(idl_create_base_type(proc, (idl_base_type_t **)&$$, &@1, $1)); }
   | boolean_type
-      { MAKE($$, &@1.first, &@1.last, idl_create_base_type, $1); }
+      { TRY(idl_create_base_type(proc, (idl_base_type_t **)&$$, &@1, $1)); }
   | scoped_name
       { const idl_node_t *node;
         const idl_symbol_t *sym;
@@ -787,9 +721,7 @@ switch_body:
 
 case:
     case_labels element_spec ';'
-      { merge($2, &$2->case_labels, $1);
-        // FIXME: warn for and ignore duplicate labels
-        // FIXME: warn for and ignore for labels combined with default
+      { TRY(idl_finalize_case(proc, $2, &@2, $1));
         $$ = $2;
       }
   ;
@@ -805,63 +737,26 @@ case_labels:
 
 case_label:
     "case" const_expr ':'
-      { MAKE($$, &@1.first, &@2.last, idl_create_case_label);
-        merge($$, &$$->const_expr, $2);
-      }
+      { TRY(idl_create_case_label(proc, &$$, LOC(@1.first, @2.last), $2)); }
   | "default" ':'
-      { MAKE($$, &@1.first, &@1.last, idl_create_case_label); }
+      { TRY(idl_create_case_label(proc, &$$, &@1, NULL)); }
   ;
 
 element_spec:
     type_spec declarator
-      { MAKE($$, &@1.first, &@2.last, idl_create_case);
-        merge($$, &$$->type_spec, $1);
-        merge($$, &$$->declarator, $2);
-      }
+      { TRY(idl_create_case(proc, &$$, LOC(@1.first, @2.last), $1, $2)); }
   ;
 
 union_forward_dcl:
     "union" identifier
-      { MAKE($$, &@1.first, &@2.last, idl_create_forward, IDL_UNION);
-        $$->identifier = $2;
-      }
+      { TRY(idl_create_forward(proc, &$$, LOC(@1.first, @2.last), IDL_UNION, $2)); }
   ;
 
 enum_dcl: enum_def { $$ = $1; } ;
 
 enum_def:
     "enum" identifier '{' enumerators '}'
-      { MAKE($$, &@1.first, &@5.last, idl_create_enum);
-        for (idl_node_t *node = (idl_node_t *)$4; node; node = node->next) {
-          const char *scope = idl_scope(proc);
-          const char *ident = idl_identifier(node);
-
-          if (strcmp(idl_identifier(node), $2) == 0) {
-            free($$);
-            ABORT(proc, idl_location(node),
-              "Enumerator %s uses name of the enum", idl_identifier(node));
-          }
-
-          for (idl_node_t *next = node->next; next; next = next->next) {
-            if (strcmp(ident, idl_identifier(next)) == 0) {
-              free($$);
-              ABORT(proc, idl_location(next),
-                "Duplicate enumarator %s in enum %s", idl_identifier(next), $2);
-            }
-          }
-
-          if (idl_add_symbol(proc, scope, ident, node))
-            continue;
-          free($$);
-          goto yyexhaustedlab;
-        }
-        $$->identifier = $2;
-        if (!idl_add_symbol(proc, idl_scope(proc), $2, $$)) {
-          free($$);
-          goto yyexhaustedlab;
-        }
-        merge($$, &$$->enumerators, $4);
-      }
+      { TRY(idl_create_enum(proc, &$$, LOC(@1.first, @5.last), $2, $4)); }
   ;
 
 enumerators:
@@ -875,20 +770,16 @@ enumerators:
 
 enumerator:
     annotation_appls identifier
-      { MAKE($$, &@2.first, &@2.last, idl_create_enumerator);
+      { TRY(idl_create_enumerator(proc, &$$, &@2, $2));
         if (proc->flags & IDL_FLAG_ANNOTATIONS)
-          TRY(idl_annotate(proc, $$, $1));
+          TRY_CATCH(idl_annotate(proc, $$, $1), free($$));
         idl_delete_node($1);
-        $$->identifier = $2;
       }
   ;
 
 array_declarator:
     identifier fixed_array_sizes
-      { MAKE($$, &@1.first, &@2.last, idl_create_declarator);
-        $$->identifier = $1;
-        merge($$, &$$->const_expr, $2);
-      }
+      { TRY(idl_create_declarator(proc, &$$, LOC(@1.first, @2.last), $1, $2)); }
   ;
 
 fixed_array_sizes:
@@ -902,33 +793,19 @@ fixed_array_sizes:
 
 fixed_array_size:
     '[' positive_int_const ']'
-      { $$ = $2; }
+      { $$ = (idl_const_expr_t *)$2; }
   ;
 
 simple_declarator:
     identifier
-      { MAKE($$, &@1.first, &@1.last, idl_create_declarator);
-        $$->identifier = $1;
-      }
+      { TRY(idl_create_declarator(proc, &$$, &@1, $1, NULL)); }
   ;
 
 complex_declarator: array_declarator ;
 
 typedef_dcl:
     "typedef" type_spec declarators
-      { MAKE($$, &@1.first, &@3.last, idl_create_typedef);
-        for (idl_node_t *n = (idl_node_t *)$3; n; n = n->next) {
-          const char *scope = idl_scope(proc);
-          const char *identifier = ((idl_declarator_t *)n)->identifier;
-          assert(identifier);
-          if (idl_add_symbol(proc, scope, identifier, $$))
-            continue;
-          free($$);
-          goto yyexhaustedlab;
-        }
-        merge($$, &$$->type_spec, $2);
-        merge($$, &$$->declarators, $3);
-      }
+      { TRY(idl_create_typedef(proc, &$$, LOC(@1.first, @3.last), $2, $3)); }
   ;
 
 declarators:
@@ -969,10 +846,7 @@ annotation_appls:
 
 annotation_appl:
     "@" at_scoped_name annotation_appl_params
-      { idl_location_t loc = { @1.first, @2.last };
-        TRY(idl_create_annotation_appl(proc, &$$, &loc, $2, $3));
-        proc->annotation_appl_params = false;
-      }
+      { TRY(idl_create_annotation_appl(proc, &$$, LOC(@1.first, @2.last), $2, $3)); }
   ;
 
 at_scoped_name:
@@ -994,7 +868,7 @@ at_scoped_name:
 annotation_appl_params:
       { $$ = NULL; }
   | '(' { proc->annotation_appl_params = true; } const_expr ')'
-      { $$ = $3; }
+      { $$ = (idl_annotation_appl_param_t *)$3; }
   | '(' { proc->annotation_appl_params = true; } annotation_appl_keyword_params ')'
       { $$ = $3; }
   ;
@@ -1052,29 +926,6 @@ yyerror(idl_location_t *loc, idl_processor_t *proc, idl_node_t **nodeptr, const 
 {
   (void)nodeptr;
   idl_error(proc, loc, str);
-}
-
-static void merge(void *parent, void *member, void *node)
-{
-  idl_node_t *next;
-
-  assert(parent);
-  assert(member);
-  assert(node);
-
-  next = (idl_node_t *)node;
-  *(idl_node_t **)member = next;
-  for (; next; next = next->next)
-    next->parent = (idl_node_t *)parent;
-}
-
-static void locate(void *node, idl_position_t *floc, idl_position_t *lloc)
-{
-  assert(node);
-  assert(floc);
-  assert(lloc);
-  ((idl_node_t *)node)->location.first = *floc;
-  ((idl_node_t *)node)->location.last = *lloc;
 }
 
 static void push(void *list, void *node)
