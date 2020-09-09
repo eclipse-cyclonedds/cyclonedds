@@ -177,6 +177,7 @@ typedef idl_node_t idl_constr_type_spec_t;
 typedef idl_node_t idl_switch_type_spec_t;
 typedef idl_node_t idl_const_type_t;
 typedef idl_node_t idl_const_expr_t;
+typedef idl_node_t idl_primary_expr_t;
 
 typedef struct idl_binary_expr idl_binary_expr_t;
 struct idl_binary_expr {
@@ -234,13 +235,13 @@ typedef struct idl_sequence idl_sequence_t;
 struct idl_sequence {
   idl_node_t node;
   idl_simple_type_spec_t *type_spec;
-  idl_const_expr_t *const_expr;
+  uint64_t maximum; /**< maximum size of bounded sequence or 0 if unbounded */
 };
 
 typedef struct idl_string idl_string_t;
 struct idl_string {
   idl_node_t node;
-  idl_const_expr_t *const_expr;
+  uint64_t maximum; /**< maximum size of bounded string or 0 if unbounded */
 };
 
 /* annotations */

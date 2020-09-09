@@ -12,8 +12,12 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "tree.h"
+#include "scope.h"
+#include "table.h"
+
 #include "idl/processor.h"
 
 bool idl_is_type_spec(const void *node, idl_mask_t mask)
@@ -151,6 +155,7 @@ static void *
 make_node(
   size_t size,
   idl_mask_t mask,
+  idl_location_t *location,
   idl_print_t printer,
   idl_delete_t destructor)
 {
@@ -159,6 +164,7 @@ make_node(
   if ((node = calloc(1, size))) {
     node->mask = mask;
     node->printer = printer;
+    node->location = *location;
     node->destructor = destructor;
     node->references = 1;
   }
@@ -218,10 +224,45 @@ static void delete_module(void *node)
   free(n);
 }
 
-idl_module_t *idl_create_module(void)
+idl_retcode_t
+idl_finalize_module(
+  idl_processor_t *proc,
+  idl_module_t *node,
+  idl_location_t *location,
+  void *definitions)
 {
-  return make_node(
-    sizeof(idl_module_t), IDL_DECL|IDL_MODULE, 0, &delete_module);
+  idl_exit_scope(proc, node->identifier);
+  node->node.location.last = location->last;
+  if (!idl_add_symbol(proc, idl_scope(proc), node->identifier, node))
+    return IDL_RETCODE_NO_MEMORY;
+  node->definitions = definitions;
+  for (idl_node_t *n = definitions; n; n = n->next)
+    n->parent = (idl_node_t *)node;
+  return IDL_RETCODE_OK;
+}
+
+idl_retcode_t
+idl_create_module(
+  idl_processor_t *proc,
+  idl_module_t **nodeptr,
+  idl_location_t *location,
+  char *identifier)
+{
+  idl_module_t *node;
+  static const idl_mask_t mask = IDL_DECL|IDL_MODULE;
+
+  if (!(node = make_node(sizeof(*node), mask, location, 0, &delete_module))) {
+    return IDL_RETCODE_NO_MEMORY;
+  }
+  node->node.location = *location;
+  node->identifier = identifier;
+  if (!idl_enter_scope(proc, identifier)) {
+    free(node);
+    return IDL_RETCODE_NO_MEMORY;
+  }
+
+  *nodeptr = node;
+  return IDL_RETCODE_OK;
 }
 
 static void delete_const(void *node)
@@ -233,10 +274,39 @@ static void delete_const(void *node)
   free(n);
 }
 
-idl_const_t *idl_create_const(void)
+idl_retcode_t
+idl_create_const(
+  idl_processor_t *proc,
+  idl_const_t **nodeptr,
+  idl_location_t *location,
+  idl_type_spec_t *type_spec,
+  char *identifier,
+  idl_const_expr_t *const_expr)
 {
-  return make_node(
-    sizeof(idl_const_t), IDL_DECL|IDL_CONST, 0, &delete_const);
+  idl_const_t *node;
+  //idl_constval_t *constval;
+  static const idl_mask_t mask = IDL_DECL|IDL_CONST;
+
+  if (!idl_is_masked(type_spec, IDL_INTEGER_TYPE) &&
+      !idl_is_masked(type_spec, IDL_BOOL))
+  {
+    idl_error(proc, idl_location(type_spec),
+      "type specification other than integer or boolean");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+  if (!(node = make_node(sizeof(*node), mask, location, 0, &delete_const))) {
+    return IDL_RETCODE_NO_MEMORY;
+  }
+  node->node.location = *location;
+  node->identifier = identifier;
+  // FIXME: check type specification
+  node->type_spec = type_spec;
+    type_spec->parent = (idl_node_t*)node;
+  // FIXME: evaluate expression
+  node->const_expr = const_expr;
+    const_expr->parent = (idl_node_t*)node;
+  *nodeptr = node;
+  return IDL_RETCODE_OK;
 }
 
 bool idl_is_templ_type(const void *node)
@@ -261,16 +331,40 @@ bool idl_is_sequence(const void *node)
 
 static void delete_sequence(void *node)
 {
-  idl_sequence_t *n = (idl_sequence_t *)node;
-  delete_node(n->type_spec);
-  delete_node(n->const_expr);
-  free(n);
+  delete_node(node);
+  free(node);
 }
 
-idl_sequence_t *idl_create_sequence(void)
+idl_retcode_t
+idl_create_sequence(
+  idl_processor_t *proc,
+  idl_sequence_t **nodeptr,
+  idl_location_t *location,
+  idl_type_spec_t *type_spec,
+  idl_constval_t *constval)
 {
-  return make_node(
-    sizeof(idl_sequence_t), IDL_TYPE|IDL_SEQUENCE, 0, &delete_sequence);
+  idl_sequence_t *node;
+  static const idl_mask_t mask = IDL_TYPE|IDL_SEQUENCE;
+
+  (void)proc;
+  if (!(node = make_node(sizeof(*node), mask, location, 0, &delete_sequence))) {
+    return IDL_RETCODE_NO_MEMORY;
+  }
+  node->type_spec = type_spec;
+  if (!type_spec->parent) {
+    type_spec->parent = (idl_node_t *)node;
+  }
+  if (!constval) {
+    node->maximum = 0;
+  } else {
+    if (!constval->node.parent)
+      constval->node.parent = (idl_node_t *)node;
+    assert(idl_is_masked(constval, IDL_CONST|IDL_ULLONG));
+    node->maximum = constval->value.ullng;
+    delete_node(constval);
+  }
+  *nodeptr = node;
+  return IDL_RETCODE_OK;
 }
 
 bool idl_is_string(const void *node)
@@ -280,15 +374,33 @@ bool idl_is_string(const void *node)
 
 static void delete_string(void *node)
 {
-  idl_string_t *n = (idl_string_t *)node;
-  delete_node(n->const_expr);
-  free(n);
+  free(node);
 }
 
-idl_string_t *idl_create_string(void)
+idl_retcode_t
+idl_create_string(
+  idl_processor_t *proc,
+  idl_string_t **nodeptr,
+  idl_location_t *location,
+  idl_constval_t *constval)
 {
-  return make_node(
-    sizeof(idl_string_t), IDL_TYPE|IDL_STRING, 0, &delete_string);
+  idl_string_t *node;
+  static const idl_mask_t mask = IDL_TYPE|IDL_STRING;
+
+  (void)proc;
+  if (!(node = make_node(sizeof(*node), mask, location, 0, &delete_string))) {
+    return IDL_RETCODE_NO_MEMORY;
+  }
+  if (!constval) {
+    node->maximum = 0u;
+  } else {
+    assert(!constval->node.parent);
+    assert(idl_is_masked(constval, IDL_CONST|IDL_ULLONG));
+    node->maximum = constval->value.ullng;
+    delete_node(constval);
+  }
+  *nodeptr = node;
+  return IDL_RETCODE_OK;
 }
 
 bool idl_is_struct(const void *node)
@@ -319,6 +431,25 @@ static void delete_struct(void *node)
 }
 
 idl_retcode_t
+idl_finalize_struct(
+  idl_processor_t *proc,
+  idl_struct_t *node,
+  idl_location_t *location,
+  idl_member_t *members)
+{
+  idl_exit_scope(proc, node->identifier);
+  node->node.location.last = location->last;
+  if (members) {
+    node->members = members;
+    for (idl_node_t *n = (idl_node_t *)members; n; n = n->next) {
+      assert(!n->parent);
+      n->parent = (idl_node_t *)node;
+    }
+  }
+  return IDL_RETCODE_OK;
+}
+
+idl_retcode_t
 idl_create_struct(
   idl_processor_t *proc,
   idl_struct_t **nodeptr,
@@ -331,9 +462,10 @@ idl_create_struct(
 
   (void)proc;
 
-  if (!(node = make_node(sizeof(*node), mask, 0, &delete_struct)))
+  if (!idl_enter_scope(proc, identifier))
     return IDL_RETCODE_NO_MEMORY;
-  node->node.location = *location;
+  if (!(node = make_node(sizeof(*node), mask, location, 0, &delete_struct)))
+    return IDL_RETCODE_NO_MEMORY;
   node->identifier = identifier;
   node->base_type = base_type;
   *nodeptr = node;
@@ -375,9 +507,8 @@ idl_create_member(
   static const idl_mask_t mask = IDL_DECL|IDL_MEMBER;
 
   (void)proc;
-  if (!(node = make_node(sizeof(*node), mask, 0, &delete_member)))
+  if (!(node = make_node(sizeof(*node), mask, location, 0, &delete_member)))
     return IDL_RETCODE_NO_MEMORY;
-  node->node.location = *location;
 
   assert(type_spec && (type_spec->mask & IDL_TYPE));
   if (type_spec->mask & IDL_DECL) {
@@ -426,12 +557,27 @@ static void delete_forward(void *node)
   free(n);
 }
 
-idl_forward_t *idl_create_forward(idl_mask_t mask)
+idl_retcode_t
+idl_create_forward(
+  idl_processor_t *proc,
+  idl_forward_t **nodeptr,
+  idl_location_t *location,
+  idl_mask_t mask,
+  char *identifier)
 {
+  idl_forward_t *n;
+
+  (void)proc;
   assert((mask & IDL_STRUCT) == IDL_STRUCT ||
          (mask & IDL_UNION) == IDL_UNION);
-  return make_node(
-    sizeof(idl_forward_t), IDL_DECL|IDL_TYPE|IDL_FORWARD|mask, 0, &delete_forward);
+
+  mask |= IDL_DECL|IDL_TYPE|IDL_FORWARD;
+
+  if (!(n = make_node(sizeof(*n), mask, location, 0, &delete_forward)))
+    return IDL_RETCODE_NO_MEMORY;
+  n->identifier = identifier;
+  *nodeptr = n;
+  return IDL_RETCODE_OK;
 }
 
 bool idl_is_case_label(const void *node)
@@ -457,10 +603,27 @@ static void delete_case_label(void *node)
   free(n);
 }
 
-idl_case_label_t *idl_create_case_label(void)
+idl_retcode_t
+idl_create_case_label(
+  idl_processor_t *proc,
+  idl_case_label_t **nodeptr,
+  idl_location_t *location,
+  idl_const_expr_t *const_expr)
 {
-  return make_node(
-    sizeof(idl_case_label_t), IDL_DECL|IDL_CASE_LABEL, 0, &delete_case_label);
+  idl_case_label_t *node;
+  static const idl_mask_t mask = IDL_DECL|IDL_CASE_LABEL;
+
+  (void)proc;
+  node = make_node(sizeof(*node), mask, location, 0, &delete_case_label);
+  if (!node) {
+    return IDL_RETCODE_NO_MEMORY;
+  }
+  if (const_expr && !const_expr->parent) {
+    node->const_expr = const_expr;
+    const_expr->parent = (idl_node_t *)node;
+  }
+  *nodeptr = node;
+  return IDL_RETCODE_OK;
 }
 
 bool idl_is_case(const void *node)
@@ -500,10 +663,45 @@ static void delete_case(void *node)
   free(n);
 }
 
-idl_case_t *idl_create_case(void)
+idl_retcode_t
+idl_finalize_case(
+  idl_processor_t *proc,
+  idl_case_t *node,
+  idl_location_t *location,
+  idl_case_label_t *case_labels)
 {
-  return make_node(
-    sizeof(idl_case_t), IDL_DECL|IDL_CASE, 0, &delete_case);
+  (void)proc;
+  node->node.location = *location;
+  node->case_labels = case_labels;
+  for (idl_node_t *n = (idl_node_t*)case_labels; n; n = n->next)
+    n->parent = (idl_node_t*)node;
+  return IDL_RETCODE_OK;
+  // FIXME: warn for and ignore duplicate labels
+  // FIXME: warn for and ignore for labels combined with default
+}
+
+idl_retcode_t
+idl_create_case(
+  idl_processor_t *proc,
+  idl_case_t **nodeptr,
+  idl_location_t *location,
+  idl_type_spec_t *type_spec,
+  idl_declarator_t *declarator)
+{
+  idl_case_t *node;
+  static const idl_mask_t mask = IDL_DECL|IDL_CASE;
+
+  (void)proc;
+  if (!(node = make_node(sizeof(*node), mask, location, 0, &delete_case)))
+    return IDL_RETCODE_NO_MEMORY;
+  node->type_spec = type_spec;
+  if (!type_spec->parent)
+    type_spec->parent = (idl_node_t *)node;
+  node->declarator = declarator;
+  assert(!declarator->node.parent);
+  declarator->node.parent = (idl_node_t *)node;
+  *nodeptr = node;
+  return IDL_RETCODE_OK;
 }
 
 bool idl_is_union(const void *node)
@@ -533,10 +731,33 @@ static void delete_union(void *node)
   free(n);
 }
 
-idl_union_t *idl_create_union(void)
+idl_retcode_t
+idl_create_union(
+  idl_processor_t *proc,
+  idl_union_t **nodeptr,
+  idl_location_t *location,
+  char *identifier,
+  idl_switch_type_spec_t *switch_type_spec,
+  idl_case_t *cases)
 {
-  return make_node(
-    sizeof(idl_union_t), IDL_DECL|IDL_TYPE|IDL_UNION, 0, &delete_union);
+  idl_union_t *node;
+  static const idl_mask_t mask = IDL_DECL|IDL_TYPE|IDL_UNION;
+
+  (void)proc;
+  if (!(node = make_node(sizeof(*node), mask, location, 0, &delete_union)))
+    return IDL_RETCODE_NO_MEMORY;
+  node->identifier = identifier;
+  node->switch_type_spec = switch_type_spec;
+  if (!switch_type_spec->parent)
+    switch_type_spec->parent = (idl_node_t *)node;
+  assert(cases);
+  node->cases = cases;
+  for (idl_node_t *n = (idl_node_t *)cases; n; n = n->next) {
+    assert(!n->parent);
+    n->parent = (idl_node_t *)node;
+  }
+  *nodeptr = node;
+  return IDL_RETCODE_OK;
 }
 
 bool idl_is_enumerator(const void *node)
@@ -553,10 +774,23 @@ static void delete_enumerator(void *ptr)
   free(node);
 }
 
-idl_enumerator_t *idl_create_enumerator(void)
+idl_retcode_t
+idl_create_enumerator(
+  idl_processor_t *proc,
+  idl_enumerator_t **nodeptr,
+  idl_location_t *location,
+  char *identifier)
 {
-  return make_node(
-    sizeof(idl_enumerator_t), IDL_DECL|IDL_ENUMERATOR, 0, &delete_enumerator);
+  idl_enumerator_t *n;
+  static const idl_mask_t mask = IDL_DECL|IDL_ENUMERATOR;
+
+  (void)proc;
+  if (!(n = make_node(sizeof(*n), mask, location, 0, &delete_enumerator))) {
+    return IDL_RETCODE_NO_MEMORY;
+  }
+  n->identifier = identifier;
+  *nodeptr = n;
+  return IDL_RETCODE_OK;
 }
 
 bool idl_is_enum(const void *node)
@@ -574,10 +808,55 @@ static void delete_enum(void *node)
   free(n);
 }
 
-idl_enum_t *idl_create_enum(void)
+idl_retcode_t
+idl_create_enum(
+  idl_processor_t *proc,
+  idl_enum_t **nodeptr,
+  idl_location_t *location,
+  char *identifier,
+  idl_enumerator_t *enumerators)
 {
-  return make_node(
-    sizeof(idl_enum_t), IDL_DECL|IDL_TYPE|IDL_ENUM, 0, &delete_enum);
+  idl_enum_t *n;
+  static const idl_mask_t mask = IDL_DECL|IDL_TYPE|IDL_ENUM;
+
+  if (!(n = make_node(sizeof(*n), mask, location, 0, &delete_enum))) {
+    return IDL_RETCODE_NO_MEMORY;
+  }
+  n->identifier = identifier;
+  n->enumerators = enumerators;
+  assert(enumerators);
+  for (idl_node_t *n1 = (idl_node_t *)enumerators; n1; n1 = n1->next) {
+    const char *scope = idl_scope(proc);
+    const char *name = ((idl_enumerator_t *)n1)->identifier;
+    // FIXME: name clash detection must be implemented elsewhere,
+    //        preferably when adding the declaration to the scope
+    if (strcmp(name, identifier) == 0) {
+      idl_error(proc, idl_location(n1),
+        "Enumerator %s clashes with enum", name);
+      free(n);
+      return IDL_RETCODE_SEMANTIC_ERROR;
+    }
+    for (idl_node_t *n2 = n1->next; n2; n2 = n2->next) {
+      if (strcmp(name, idl_identifier(n2)) != 0)
+        continue;
+      idl_error(proc, idl_location(n2),
+        "Duplicate enumerator %s in enum %s", name, name);
+      free(n);
+      return IDL_RETCODE_SEMANTIC_ERROR;
+    }
+    if (!idl_add_symbol(proc, scope, name, n1)) {
+      free(n);
+      return IDL_RETCODE_NO_MEMORY;
+    }
+    assert(!n1->parent);
+    n1->parent = (idl_node_t *)n;
+  }
+  if (!idl_add_symbol(proc, idl_scope(proc), identifier, n)) {
+    free(n);
+    return IDL_RETCODE_NO_MEMORY;
+  }
+  *nodeptr = n;
+  return IDL_RETCODE_OK;
 }
 
 bool idl_is_typedef(const void *node)
@@ -597,10 +876,37 @@ static void delete_typedef(void *node)
   free(n);
 }
 
-idl_typedef_t *idl_create_typedef(void)
+idl_retcode_t
+idl_create_typedef(
+  idl_processor_t *proc,
+  idl_typedef_t **nodeptr,
+  idl_location_t *location,
+  idl_type_spec_t *type_spec,
+  idl_declarator_t *declarators)
 {
-  return make_node(
-    sizeof(idl_typedef_t), IDL_DECL|IDL_TYPE|IDL_TYPEDEF, 0, &delete_typedef);
+  idl_typedef_t *node;
+  static const idl_mask_t mask = IDL_DECL|IDL_TYPE|IDL_TYPEDEF;
+
+  if (!(node = make_node(sizeof(*node), mask, location, 0, &delete_typedef)))
+    return IDL_RETCODE_NO_MEMORY;
+  node->type_spec = type_spec;
+  if (!type_spec->parent)
+    type_spec->parent = (idl_node_t *)node;
+  node->declarators = declarators;
+  for (idl_node_t *n = (idl_node_t *)declarators; n; n = n->next) {
+    const char *scope = idl_scope(proc);
+    const char *identifier = ((idl_declarator_t *)n)->identifier;
+    assert(identifier);
+    if (idl_add_symbol(proc, scope, identifier, node)) {
+      assert(!n->parent);
+      n->parent = (idl_node_t *)node;
+    } else {
+      free(node);
+      return IDL_RETCODE_NO_MEMORY;
+    }
+  }
+  *nodeptr = node;
+  return IDL_RETCODE_OK;
 }
 
 bool idl_is_declarator(const void *node)
@@ -630,10 +936,32 @@ static void delete_declarator(void *node)
   free(n);
 }
 
-idl_declarator_t *idl_create_declarator(void)
+idl_retcode_t
+idl_create_declarator(
+  idl_processor_t *proc,
+  idl_declarator_t **nodeptr,
+  idl_location_t *location,
+  char *identifier,
+  idl_const_expr_t *const_expr)
 {
-  return make_node(
-    sizeof(idl_declarator_t), IDL_DECL|IDL_DECLARATOR, 0, &delete_declarator);
+  idl_declarator_t *node;
+  static const idl_mask_t mask = IDL_DECL|IDL_DECLARATOR;
+
+  (void)proc;
+  if (!(node = make_node(sizeof(*node), mask, location, 0, &delete_declarator)))
+    return IDL_RETCODE_NO_MEMORY;
+  node->identifier = identifier;
+  if (const_expr) {
+    /* const_expr might be a list */
+    node->const_expr = const_expr;
+    for (idl_node_t *n = (idl_node_t *)const_expr; n; n = n->next) {
+      assert(!n->parent);
+      assert(idl_is_masked(n, IDL_CONST));
+      n->parent = (idl_node_t *)node;
+    }
+  }
+  *nodeptr = node;
+  return IDL_RETCODE_OK;
 }
 
 static void delete_annotation_appl_param(void *node)
@@ -658,7 +986,7 @@ idl_create_annotation_appl_param(
 
   (void)proc;
   if (!(node = make_node(
-    sizeof(idl_annotation_appl_param_t), mask, 0, &delete_annotation_appl_param)))
+    sizeof(idl_annotation_appl_param_t), mask, location, 0, &delete_annotation_appl_param)))
     return IDL_RETCODE_NO_MEMORY;
   node->identifier = identifier;
   node->const_expr = const_expr;
@@ -688,11 +1016,11 @@ idl_create_annotation_appl(
   static const idl_mask_t mask = IDL_ANNOTATION_APPL;
 
   (void)proc;
-  if (!(node = make_node(sizeof(*node), mask, 0, &delete_annotation_appl)))
+  if (!(node = make_node(sizeof(*node), mask, location, 0, &delete_annotation_appl)))
     return IDL_RETCODE_NO_MEMORY;
   node->scoped_name = identifier;
   node->parameters = parameters;
-  node->node.location = *location;
+  proc->annotation_appl_params = false;
   *nodeptr = node;
   return IDL_RETCODE_OK;
 }
@@ -707,8 +1035,9 @@ static void delete_key(void *node)
 
 idl_key_t *idl_create_key(void)
 {
+  idl_location_t loc = { { NULL, 0, 0 }, { NULL, 0, 0 } };
   return make_node(
-    sizeof(idl_key_t), IDL_PRAGMA|IDL_KEY, 0, &delete_key);
+    sizeof(idl_key_t), IDL_PRAGMA|IDL_KEY, &loc, 0, &delete_key);
 }
 
 static void delete_data_type(void *node)
@@ -721,8 +1050,9 @@ static void delete_data_type(void *node)
 
 idl_data_type_t *idl_create_data_type(void)
 {
+  idl_location_t loc = { { NULL, 0, 0 }, { NULL, 0, 0 } };
   return make_node(
-    sizeof(idl_data_type_t), IDL_DATA_TYPE, 0, &delete_data_type);
+    sizeof(idl_data_type_t), IDL_DATA_TYPE, &loc, 0, &delete_data_type);
 }
 
 static void delete_keylist(void *node)
@@ -735,8 +1065,9 @@ static void delete_keylist(void *node)
 
 idl_keylist_t *idl_create_keylist(void)
 {
+  idl_location_t loc = { { NULL, 0, 0 }, { NULL, 0, 0 } };
   return make_node(
-    sizeof(idl_keylist_t), IDL_KEYLIST, 0, &delete_keylist);
+    sizeof(idl_keylist_t), IDL_KEYLIST, &loc, 0, &delete_keylist);
 }
 
 static void delete_literal(void *node)
@@ -763,7 +1094,7 @@ idl_create_literal(
          (mask & IDL_STRING) == IDL_STRING);
   (void)proc;
   if (!(node = make_node(
-    sizeof(idl_literal_t), IDL_EXPR|IDL_LITERAL|mask, 0, &delete_literal)))
+    sizeof(idl_literal_t), IDL_EXPR|IDL_LITERAL|mask, location, 0, &delete_literal)))
     return IDL_RETCODE_NO_MEMORY;
   node->node.location = *location;
   *nodeptr = node;
@@ -778,10 +1109,30 @@ static void delete_binary_expr(void *node)
   free(n);
 }
 
-idl_binary_expr_t *idl_create_binary_expr(idl_mask_t mask)
+idl_retcode_t
+idl_create_binary_expr(
+  idl_processor_t *proc,
+  idl_binary_expr_t **nodeptr,
+  idl_location_t *location,
+  idl_mask_t mask,
+  idl_const_expr_t *left,
+  idl_const_expr_t *right)
 {
-  return make_node(
-    sizeof(idl_binary_expr_t), IDL_EXPR|IDL_BINARY_EXPR|mask, 0, &delete_binary_expr);
+  idl_binary_expr_t *node;
+
+  (void)proc;
+  mask |= IDL_EXPR|IDL_BINARY_EXPR;
+  node = make_node(sizeof(*node), mask, location, 0, &delete_binary_expr);
+  if (!node)
+    return IDL_RETCODE_NO_MEMORY;
+  node->left = left;
+  if (!left->parent)
+    left->parent = (idl_node_t*)node;
+  node->right = right;
+  if (!right->parent)
+    right->parent = (idl_node_t*)node;
+  *nodeptr = node;
+  return IDL_RETCODE_OK;
 }
 
 static void delete_unary_expr(void *node)
@@ -791,10 +1142,25 @@ static void delete_unary_expr(void *node)
   free(n);
 }
 
-idl_unary_expr_t *idl_create_unary_expr(idl_mask_t mask)
+idl_retcode_t
+idl_create_unary_expr(
+  idl_processor_t *proc,
+  idl_unary_expr_t **nodeptr,
+  idl_location_t *location,
+  idl_mask_t mask,
+  idl_primary_expr_t *right)
 {
-  return make_node(
-    sizeof(idl_unary_expr_t), IDL_EXPR|IDL_UNARY_EXPR|mask, 0, &delete_unary_expr);
+  idl_unary_expr_t *node;
+
+  (void)proc;
+  mask |= IDL_EXPR|IDL_UNARY_EXPR;
+  if (!(node = make_node(sizeof(*node), mask, location, 0, &delete_unary_expr)))
+    return IDL_RETCODE_NO_MEMORY;
+  node->right = right;
+  if (!right->parent)
+    right->parent = (idl_node_t*)node;
+  *nodeptr = node;
+  return IDL_RETCODE_OK;
 }
 
 bool idl_is_base_type(const void *node)
@@ -827,9 +1193,21 @@ static void delete_base_type(void *node)
   free(node);
 }
 
-idl_base_type_t *idl_create_base_type(idl_mask_t mask)
+idl_retcode_t
+idl_create_base_type(
+  idl_processor_t *proc,
+  idl_base_type_t **nodeptr,
+  idl_location_t *location,
+  idl_mask_t mask)
 {
-  return make_node(sizeof(idl_base_type_t), IDL_TYPE|mask, 0, &delete_base_type);
+  idl_base_type_t *node;
+
+  (void)proc;
+  mask |= IDL_TYPE;
+  if (!(node = make_node(sizeof(*node), mask, location, 0, &delete_base_type)))
+    return IDL_RETCODE_NO_MEMORY;
+  *nodeptr = node;
+  return IDL_RETCODE_OK;
 }
 
 static void delete_constval(void *node)
@@ -847,12 +1225,13 @@ idl_create_constval(
   idl_location_t *location,
   idl_mask_t mask)
 {
-  idl_constval_t *n;
+  idl_constval_t *node;
+
   (void)proc;
-  if (!(n = make_node(sizeof(*n), IDL_CONST|mask, 0, &delete_constval)))
+  mask |= IDL_CONST;
+  if (!(node = make_node(sizeof(*node), mask, location, 0, &delete_constval)))
     return IDL_RETCODE_NO_MEMORY;
-  n->node.location = *location;
-  *nodeptr = n;
+  *nodeptr = node;
   return IDL_RETCODE_OK;
 }
 
