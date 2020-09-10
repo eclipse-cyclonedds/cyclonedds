@@ -226,7 +226,7 @@ static int32_t idlc_parse(idl_tree_t **treeptr)
   }
 
   if (opts.flags & IDLC_PREPROCESS) {
-    proc.flags |= IDL_WRITE;
+    proc.flags |= IDL_WRITE | IDL_FLAG_ANNOTATIONS;
     mcpp_set_out_func(&idlc_putc, &idlc_puts, &idlc_printf);
     if (mcpp_lib_main(opts.argc, opts.argv) == 0) {
       assert(!(opts.flags & IDLC_COMPILE) || retcode == 0);

@@ -285,21 +285,26 @@ annotate_key(
   idl_annotation_appl_t *annotation,
   uint32_t *seen)
 {
+  bool key = true;
+
   if (!idl_is_masked(node, IDL_MEMBER)) {
     idl_error(proc, &annotation->node.location,
       "@key can only be applied to struct member declarations");
     return IDL_RETCODE_SEMANTIC_ERROR;
   }
-  if (annotation) {
+  if (annotation->parameters) {
     if (!idl_is_masked(annotation->parameters, IDL_BOOLEAN_LITERAL)) {
       idl_error(proc, &annotation->node.location,
         "@key requires a boolean constant expression");
       return IDL_RETCODE_SEMANTIC_ERROR;
+    } else if (!((idl_literal_t *)annotation->parameters)->value.bln) {
+      key = false;
     }
   }
 
   *seen |= IDL_ANNOTATION_APPL_KEY;
-  node->mask |= IDL_KEY;
+  if (key)
+    node->mask |= IDL_KEY;
   return IDL_RETCODE_OK;
 }
 
