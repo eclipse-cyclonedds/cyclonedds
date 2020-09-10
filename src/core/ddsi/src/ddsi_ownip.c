@@ -174,7 +174,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
 
   {
     int ret;
-    ret = ddsi_enumerate_interfaces(gv->m_factory, &ifa_root);
+    ret = ddsi_enumerate_interfaces(gv->m_factory, gv->config.transport_selector, &ifa_root);
     if (ret < 0) {
       GVERROR ("ddsi_enumerate_interfaces(%s): %d\n", gv->m_factory->m_typename, ret);
       return 0;
@@ -230,8 +230,6 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
     {
       /* FIXME: weirdo warning warranted */
       ddsi_locator_t *l = &interfaces[n_interfaces].loc;
-      l->tran = NULL;
-      l->conn = NULL;
       l->kind = NN_LOCATOR_KIND_RAWETH;
       l->port = NN_LOCATOR_PORT_INVALID;
       memset(l->address, 0, 10);
@@ -240,7 +238,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
     else
 #endif
     {
-      ddsi_ipaddr_to_loc(gv->m_factory, &interfaces[n_interfaces].loc, ifa->addr, gv->m_factory->m_kind);
+      ddsi_ipaddr_to_loc(&interfaces[n_interfaces].loc, ifa->addr, gv->m_factory->m_kind);
     }
     ddsi_locator_to_string_no_port(addrbuf, sizeof(addrbuf), &interfaces[n_interfaces].loc);
     GVLOG (DDS_LC_CONFIG, " %s(", addrbuf);
@@ -311,7 +309,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
 
     if (ifa->addr->sa_family == AF_INET && ifa->netmask)
     {
-      ddsi_ipaddr_to_loc(gv->m_factory, &interfaces[n_interfaces].netmask, ifa->netmask, gv->m_factory->m_kind);
+      ddsi_ipaddr_to_loc(&interfaces[n_interfaces].netmask, ifa->netmask, gv->m_factory->m_kind);
     }
     else
     {

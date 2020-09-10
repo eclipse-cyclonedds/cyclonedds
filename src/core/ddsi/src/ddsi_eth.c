@@ -11,15 +11,18 @@
  */
 #include "ddsi_eth.h"
 #include "dds/ddsi/q_protocol.h" // for NN_LOCATOR_KIND_...
+#include "dds/ddsi/q_config.h" // for transport_selector
 
-int ddsi_eth_enumerate_interfaces (ddsi_tran_factory_t fact, ddsrt_ifaddrs_t **ifs)
+int ddsi_eth_enumerate_interfaces (ddsi_tran_factory_t fact, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **ifs)
 {
     int afs[] = { AF_INET, DDSRT_AF_TERM };
 
     (void)fact;
+    (void)transport_selector;
 
 #if DDSRT_HAVE_IPV6
-    if (fact->m_kind == NN_LOCATOR_KIND_UDPv6 || fact->m_kind == NN_LOCATOR_KIND_TCPv6)
+    if (transport_selector == DDSI_TRANS_TCP6 ||
+        transport_selector == DDSI_TRANS_UDP6)
     {
       afs[0] = AF_INET6;
     }

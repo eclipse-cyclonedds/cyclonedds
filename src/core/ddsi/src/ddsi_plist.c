@@ -2554,17 +2554,15 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
       return DOLOC_IGNORED;
   }
 
-  // FIXME: "factory->gv": yuck
-  loc.tran = fact;
-  loc.conn = NULL;
   add_locator (ls, present, wanted, fl, &loc);
   return DOLOC_ACCEPTED;
 }
 
 static void locator_from_ipv4address_port (ddsi_locator_t *loc, const nn_ipv4address_t *a, const nn_port_t *p, ddsi_tran_factory_t factory)
 {
-  loc->tran = factory;
-  loc->kind = factory->m_connless ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_TCPv4;
+  //loc->tran = factory;
+  //loc->kind = factory->m_connless ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_TCPv4;
+  (void) factory;
   loc->port = *p;
   memset (loc->address, 0, 12);
   memcpy (loc->address + 12, a, 4);

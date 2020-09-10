@@ -99,7 +99,7 @@ struct nn_xmsg {
   enum nn_xmsg_dstmode dstmode;
   union {
     struct {
-      ddsi_locator_t loc;  /* send just to this locator */
+      ddsi_xlocator_t loc;  /* send just to this locator */
     } one;
     struct {
       struct addrset *as;       /* send to all addresses in set */
@@ -165,7 +165,7 @@ struct nn_xpack
 
   union
   {
-    ddsi_locator_t loc; /* send just to this locator */
+    ddsi_xlocator_t loc; /* send just to this locator */
     struct
     {
       struct addrset *as;        /* send to all addresses in set */
@@ -709,7 +709,7 @@ static void nn_xmsg_setdst1_common (struct ddsi_domaingv *gv, struct nn_xmsg *m,
 #endif
 }
 
-void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_locator_t *loc)
+void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_xlocator_t *loc)
 {
   assert (m->dstmode == NN_XMSG_DST_UNSET);
   m->dstmode = NN_XMSG_DST_ONE;
@@ -733,7 +733,7 @@ void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
   assert (m->dstmode == NN_XMSG_DST_UNSET);
   if (!prd->redundant_networking)
   {
-    ddsi_locator_t loc;
+    ddsi_xlocator_t loc;
     addrset_any_uc_else_mc_nofail (prd->c.as, &loc);
     nn_xmsg_setdst1 (prd->e.gv, m, &prd->e.guid.prefix, &loc);
   }
@@ -754,7 +754,7 @@ void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
   assert (m->dstmode == NN_XMSG_DST_UNSET);
   if (!pwr->redundant_networking)
   {
-    ddsi_locator_t loc;
+    ddsi_xlocator_t loc;
     addrset_any_uc_else_mc_nofail (pwr->c.as, &loc);
     nn_xmsg_setdst1 (pwr->e.gv, m, &pwr->e.guid.prefix, &loc);
   }
@@ -1178,7 +1178,7 @@ void nn_xpack_free (struct nn_xpack *xp)
   ddsrt_free (xp);
 }
 
-static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const ddsi_locator_t *loc)
+static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const ddsi_xlocator_t *loc)
 {
   ssize_t ret = -1;
 
@@ -1189,7 +1189,7 @@ static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const ddsi_locator_t *lo
     ret = secure_conn_write(
                       xp->gv,
                       loc->conn,
-                      loc,
+                      &loc->loc,
                       xp->niov,
                       xp->iov,
                       xp->call_flags,
@@ -1201,13 +1201,13 @@ static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const ddsi_locator_t *lo
   else
 #endif /* DDS_HAS_SECURITY */
   {
-    ret = ddsi_conn_write (loc->conn, loc, xp->niov, xp->iov, xp->call_flags);
+    ret = ddsi_conn_write (loc->conn, &loc->loc, xp->niov, xp->iov, xp->call_flags);
   }
 
   return ret;
 }
 
-static ssize_t nn_xpack_send1 (const ddsi_locator_t *loc, void * varg)
+static ssize_t nn_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
 {
   struct nn_xpack *xp = varg;
   struct ddsi_domaingv const * const gv = xp->gv;
@@ -1216,7 +1216,7 @@ static ssize_t nn_xpack_send1 (const ddsi_locator_t *loc, void * varg)
   if (gv->logconfig.c.mask & DDS_LC_TRACE)
   {
     char buf[DDSI_LOCSTRLEN];
-    GVTRACE (" %s", ddsi_locator_to_string (buf, sizeof(buf), loc));
+    GVTRACE (" %s", ddsi_locator_to_string (buf, sizeof(buf), &loc->loc));
   }
 
   if (gv->config.xmit_lossiness > 0)
@@ -1233,7 +1233,7 @@ static ssize_t nn_xpack_send1 (const ddsi_locator_t *loc, void * varg)
 #ifdef DDS_HAS_SHM
   // SHM_TODO: We avoid sending packet while data is SHMEM.
   //           I'm not sure whether this is correct or not.
-  if (!gv->mute && loc->kind != NN_LOCATOR_KIND_SHEM)
+  if (!gv->mute && loc->loc.kind != NN_LOCATOR_KIND_SHEM)
 #else
   if (!gv->mute)
 #endif
@@ -1272,7 +1272,7 @@ static ssize_t nn_xpack_send1 (const ddsi_locator_t *loc, void * varg)
   return nbytes;
 }
 
-static void nn_xpack_send1v (const ddsi_locator_t *loc, void * varg)
+static void nn_xpack_send1v (const ddsi_xlocator_t *loc, void * varg)
 {
   (void) nn_xpack_send1 (loc, varg);
 }

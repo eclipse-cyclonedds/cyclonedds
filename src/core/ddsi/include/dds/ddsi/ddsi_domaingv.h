@@ -149,6 +149,7 @@ struct ddsi_domaingv {
      but it seems the only way to get the users what they expect. */
 #define MAX_XMIT_CONNS 4
   struct ddsi_tran_conn * xmit_conns[MAX_XMIT_CONNS];
+  ddsi_xlocator_t intf_xlocators[MAX_XMIT_CONNS];
 
   /* TCP listener */
   struct ddsi_tran_listener * listener;

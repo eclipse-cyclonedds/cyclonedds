@@ -56,24 +56,24 @@ typedef enum ddsi_sedp_kind {
   SEDP_KIND_TOPIC
 } ddsi_sedp_kind_t;
 
-static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv, uint32_t allow_multicast, struct addrset *as, const ddsi_locator_t *loc)
+static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv, uint32_t allow_multicast, struct addrset *as, const ddsi_xlocator_t *loc)
 {
 #ifdef DDS_HAS_SSM
-  if (ddsi_is_ssm_mcaddr (gv, loc))
+  if (ddsi_is_ssm_mcaddr (gv, &loc->loc))
   {
     if (!(allow_multicast & DDSI_AMC_SSM))
       return;
   }
-  else if (ddsi_is_mcaddr (gv, loc))
+  else if (ddsi_is_mcaddr (gv, &loc->loc))
   {
     if (!(allow_multicast & DDSI_AMC_ASM))
       return;
   }
 #else
-  if (ddsi_is_mcaddr (gv, loc) && !(allow_multicast & DDSI_AMC_ASM))
+  if (ddsi_is_mcaddr (gv, &loc->loc) && !(allow_multicast & AMC_ASM))
     return;
 #endif
-  add_to_addrset (gv, as, loc);
+  add_xlocator_to_addrset (gv, as, loc);
 }
 
 static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv, const nn_locators_t *uc, const nn_locators_t *mc, const ddsi_locator_t *srcloc)
@@ -90,11 +90,7 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
         a = false;
     bool b = true;
     for (struct nn_locators_one *l = uc->first; l != NULL && b; l = l->next)
-    {
-      if (l->loc.tran->m_ignore)
-        continue;
       b = ddsi_is_loopbackaddr (gv, &l->loc);
-    }
     allow_loopback = (a || b);
     //GVTRACE("allow_loopback init = %d || %d\n", a, b);
   }
@@ -103,7 +99,7 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
   // same machine, in which case loopback addresses may be picked up
   for (struct nn_locators_one *l = uc->first; l != NULL && !allow_loopback; l = l->next)
   {
-    if (l->loc.tran->m_ignore || ddsi_is_loopbackaddr (gv, &l->loc))
+    if (ddsi_is_loopbackaddr (gv, &l->loc))
       continue;
     for (int i = 0; i < gv->n_interfaces && !allow_loopback; i++)
       allow_loopback = (memcmp (l->loc.address, gv->interfaces[i].loc.address, sizeof (l->loc.address)) == 0);
@@ -121,8 +117,6 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
     }
 #endif
     // skip unrecognized ones, as well as loopback ones if not on the same host
-    if (l->loc.tran->m_ignore)
-      continue;
     if (!allow_loopback && ddsi_is_loopbackaddr (gv, &l->loc))
       continue;
 
@@ -156,9 +150,10 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
         // a directly connected interface: those will then all be possibilities
         // for transmitting multicasts (assuming capable, allowed, &c.)
         assert (interf_idx < MAX_XMIT_CONNS);
-        loc.conn = gv->xmit_conns[interf_idx];
-        loc.tran = loc.conn->m_factory;
-        add_to_addrset (gv, as, &loc);
+        add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
+          .conn = gv->xmit_conns[interf_idx],
+          .tran = gv->xmit_conns[interf_idx]->m_factory,
+          .loc = loc });
         intfs[interf_idx] = true;
         direct = true;
         break;
@@ -177,9 +172,10 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
             // do not use link-local or loopback interfaces transmit conn for distant nodes
             if (gv->interfaces[i].link_local || gv->interfaces[i].loopback)
               continue;
-            loc.conn = gv->xmit_conns[i];
-            loc.tran = loc.conn->m_factory;
-            add_to_addrset (gv, as, &loc);
+            add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
+              .conn = gv->xmit_conns[i],
+              .tran = gv->xmit_conns[i]->m_factory,
+              .loc = loc });
             break;
           }
         }
@@ -198,9 +194,10 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
     for (i = gv->n_interfaces - 1; i > 0; i--)
       if (!(gv->interfaces[i].link_local || gv->interfaces[i].loopback))
         break;
-    loc.conn = gv->xmit_conns[i];
-    loc.tran = loc.conn->m_factory;
-    add_to_addrset (gv, as, srcloc);
+    add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
+      .conn = gv->xmit_conns[i],
+      .tran = gv->xmit_conns[i]->m_factory,
+      .loc = loc });
   }
 
   if (!direct && gv->config.multicast_ttl > 1)
@@ -227,16 +224,16 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
 
   for (struct nn_locators_one *l = mc->first; l != NULL; l = l->next)
   {
-    if (l->loc.tran->m_ignore)
-      continue;
     for (int i = 0; i < gv->n_interfaces; i++)
     {
       if (intfs[i] && gv->interfaces[i].mc_capable)
       {
-        ddsi_locator_t loc = l->loc;
-        loc.conn = gv->xmit_conns[i];
-        loc.tran = loc.conn->m_factory;
-        if (ddsi_factory_supports (loc.tran, loc.kind))
+        const ddsi_xlocator_t loc = {
+          .conn = gv->xmit_conns[i],
+          .tran = gv->xmit_conns[i]->m_factory,
+          .loc = l->loc
+        };
+        if (ddsi_factory_supports (loc.tran, loc.loc.kind))
           allowmulticast_aware_add_to_addrset (gv, gv->config.allowMulticast, as, &loc);
       }
     }
@@ -255,10 +252,10 @@ static void maybe_add_pp_as_meta_to_as_disc (struct ddsi_domaingv *gv, const str
 {
   if (addrset_empty_mc (as_meta) || !(gv->config.allowMulticast & DDSI_AMC_SPDP))
   {
-    ddsi_locator_t loc;
+    ddsi_xlocator_t loc;
     if (addrset_any_uc (as_meta, &loc))
     {
-      add_to_addrset (gv, gv->as_disc, &loc);
+      add_xlocator_to_addrset (gv, gv->as_disc, &loc);
     }
   }
 }
@@ -338,7 +335,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
     {
       for (int i = 0; i < pp->e.gv->n_interfaces; i++)
       {
-        if (!pp->e.gv->interfaces[i].loc.tran->m_adv_spdp)
+        if (!pp->e.gv->xmit_conns[i]->m_factory->m_adv_spdp)
         {
           // skip any interfaces where the address kind doesn't match the selected transport
           // as a reasonablish way of not advertising iceoryx locators here
@@ -969,6 +966,11 @@ static void add_locator_to_ps (const ddsi_locator_t *loc, void *varg)
   locs->last = elem;
 }
 
+static void add_xlocator_to_ps (const ddsi_xlocator_t *loc, void *varg)
+{
+  add_locator_to_ps (&loc->loc, varg);
+}
+
 #ifdef DDS_HAS_SHM
 static void add_iox_locator_to_ps(const ddsi_locator_t* loc, struct add_locator_to_ps_arg *arg)
 {
@@ -1112,7 +1114,7 @@ static int sedp_write_endpoint_impl
     arg.gv = gv;
     arg.ps = &ps;
     if (as)
-      addrset_forall (as, add_locator_to_ps, &arg);
+      addrset_forall (as, add_xlocator_to_ps, &arg);
 
 #ifdef DDS_HAS_SHM
     if ((xqos->present & QP_SHARED_MEMORY) == QP_SHARED_MEMORY &&
@@ -1127,7 +1129,7 @@ static int sedp_write_endpoint_impl
           // FIXME: same as what SPDP uses, should be refactored, now more than ever
           for (int i = 0; i < epcommon->pp->e.gv->n_interfaces; i++)
           {
-            if (!epcommon->pp->e.gv->interfaces[i].loc.tran->m_adv_spdp)
+            if (!epcommon->pp->e.gv->xmit_conns[i]->m_factory->m_adv_spdp)
             {
               // skip any interfaces where the address kind doesn't match the selected transport
               // as a reasonablish way of not advertising iceoryx locators here

@@ -19,15 +19,19 @@ extern "C" {
 #endif
 
 struct ddsi_tran_factory;
+struct ddsi_tran_conn;
 
 /* address field in locator maintained in network byte order, the rest in host */
 typedef struct {
-  const struct ddsi_tran_factory *tran;
-  struct ddsi_tran_conn *conn;
   int32_t kind;
   uint32_t port;
   unsigned char address[16];
 } ddsi_locator_t;
+typedef struct {
+  const struct ddsi_tran_factory *tran;
+  struct ddsi_tran_conn *conn;
+  ddsi_locator_t loc;
+} ddsi_xlocator_t;
 
 #if defined (__cplusplus)
 }

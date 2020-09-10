@@ -39,10 +39,10 @@
 #define TRYLOCK(as) (ddsrt_mutex_trylock (&((struct addrset *) (as))->lock))
 #define UNLOCK(as) (ddsrt_mutex_unlock (&((struct addrset *) (as))->lock))
 
-static int compare_locators_vwrap (const void *va, const void *vb);
+static int compare_xlocators_vwrap (const void *va, const void *vb);
 
 static const ddsrt_avl_ctreedef_t addrset_treedef =
-  DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct addrset_node, avlnode), offsetof (struct addrset_node, loc), compare_locators_vwrap, 0);
+  DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct addrset_node, avlnode), offsetof (struct addrset_node, loc), compare_xlocators_vwrap, 0);
 
 static int add_addresses_to_addrset_1 (const struct ddsi_domaingv *gv, struct addrset *as, ddsi_locator_t *loc, int port_mode, const char *msgtag)
 {
@@ -77,12 +77,12 @@ static int add_addresses_to_addrset_1 (const struct ddsi_domaingv *gv, struct ad
   }
 
   GVLOG (DDS_LC_CONFIG, "%s: add %s", msgtag, ddsi_locator_to_string (buf, sizeof (buf), loc));
-  add_to_addrset (gv, as, loc);
+  add_locator_to_addrset (gv, as, loc);
   for (int32_t i = 1; i < maxidx; i++)
   {
     loc->port = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, i);
     GVLOG (DDS_LC_CONFIG, ", :%"PRIu32, loc->port);
-    add_to_addrset (gv, as, loc);
+    add_locator_to_addrset (gv, as, loc);
   }
   GVLOG (DDS_LC_CONFIG, "\n");
   return 0;
@@ -146,6 +146,15 @@ int compare_locators (const ddsi_locator_t *a, const ddsi_locator_t *b)
   else if (a->port != b->port)
     return (int) (a->port - b->port);
   else
+    return 0;
+}
+
+int compare_xlocators (const ddsi_xlocator_t *a, const ddsi_xlocator_t *b)
+{
+  int c;
+  if ((c = compare_locators (&a->loc, &b->loc)) != 0)
+    return c;
+  else
   {
     const uintptr_t ac = (uintptr_t) a->conn;
     const uintptr_t bc = (uintptr_t) b->conn;
@@ -153,9 +162,9 @@ int compare_locators (const ddsi_locator_t *a, const ddsi_locator_t *b)
   }
 }
 
-static int compare_locators_vwrap (const void *va, const void *vb)
+static int compare_xlocators_vwrap (const void *va, const void *vb)
 {
-  return compare_locators (va, vb);
+  return compare_xlocators (va, vb);
 }
 
 struct addrset *new_addrset (void)
@@ -190,11 +199,16 @@ void unref_addrset (struct addrset *as)
 
 void set_unspec_locator (ddsi_locator_t *loc)
 {
-  loc->tran = NULL;
-  loc->conn = NULL;
   loc->kind = NN_LOCATOR_KIND_INVALID;
   loc->port = NN_LOCATOR_PORT_INVALID;
   memset (loc->address, 0, sizeof (loc->address));
+}
+
+void set_unspec_xlocator (ddsi_xlocator_t *loc)
+{
+  loc->tran = NULL;
+  loc->conn = NULL;
+  set_unspec_locator (&loc->loc);
 }
 
 int is_unspec_locator (const ddsi_locator_t *loc)
@@ -205,6 +219,11 @@ int is_unspec_locator (const ddsi_locator_t *loc)
           memcmp (&zloc.address, loc->address, sizeof (zloc.address)) == 0);
 }
 
+int is_unspec_xlocator (const ddsi_xlocator_t *loc)
+{
+  return is_unspec_locator (&loc->loc);
+}
+
 #ifdef DDS_HAS_SSM
 int addrset_contains_ssm (const struct ddsi_domaingv *gv, const struct addrset *as)
 {
@@ -213,7 +232,7 @@ int addrset_contains_ssm (const struct ddsi_domaingv *gv, const struct addrset *
   LOCK (as);
   for (n = ddsrt_avl_citer_first (&addrset_treedef, &as->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
   {
-    if (ddsi_is_ssm_mcaddr (gv, &n->loc))
+    if (ddsi_is_ssm_mcaddr (gv, &n->loc.loc))
     {
       UNLOCK (as);
       return 1;
@@ -223,14 +242,14 @@ int addrset_contains_ssm (const struct ddsi_domaingv *gv, const struct addrset *
   return 0;
 }
 
-int addrset_any_ssm (const struct ddsi_domaingv *gv, const struct addrset *as, ddsi_locator_t *dst)
+int addrset_any_ssm (const struct ddsi_domaingv *gv, const struct addrset *as, ddsi_xlocator_t *dst)
 {
   struct addrset_node *n;
   ddsrt_avl_citer_t it;
   LOCK (as);
   for (n = ddsrt_avl_citer_first (&addrset_treedef, &as->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
   {
-    if (ddsi_is_ssm_mcaddr (gv, &n->loc))
+    if (ddsi_is_ssm_mcaddr (gv, &n->loc.loc))
     {
       *dst = n->loc;
       UNLOCK (as);
@@ -241,14 +260,14 @@ int addrset_any_ssm (const struct ddsi_domaingv *gv, const struct addrset *as, d
   return 0;
 }
 
-int addrset_any_non_ssm_mc (const struct ddsi_domaingv *gv, const struct addrset *as, ddsi_locator_t *dst)
+int addrset_any_non_ssm_mc (const struct ddsi_domaingv *gv, const struct addrset *as, ddsi_xlocator_t *dst)
 {
   struct addrset_node *n;
   ddsrt_avl_citer_t it;
   LOCK (as);
   for (n = ddsrt_avl_citer_first (&addrset_treedef, &as->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
   {
-    if (!ddsi_is_ssm_mcaddr (gv, &n->loc))
+    if (!ddsi_is_ssm_mcaddr (gv, &n->loc.loc))
     {
       *dst = n->loc;
       UNLOCK (as);
@@ -269,12 +288,12 @@ int addrset_purge (struct addrset *as)
   return 0;
 }
 
-static void add_to_addrset_hasconn (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_locator_t *loc)
+static void add_xlocator_to_addrset_impl (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_xlocator_t *loc)
 {
-  assert (!is_unspec_locator (loc));
+  assert (!is_unspec_locator (&loc->loc));
   assert (loc->conn != NULL);
   ddsrt_avl_ipath_t path;
-  ddsrt_avl_ctree_t *tree = ddsi_is_mcaddr (gv, loc) ? &as->mcaddrs : &as->ucaddrs;
+  ddsrt_avl_ctree_t *tree = ddsi_is_mcaddr (gv, &loc->loc) ? &as->mcaddrs : &as->ucaddrs;
   LOCK (as);
   if (ddsrt_avl_clookup_ipath (&addrset_treedef, tree, loc, &path) == NULL)
   {
@@ -285,49 +304,50 @@ static void add_to_addrset_hasconn (const struct ddsi_domaingv *gv, struct addrs
   UNLOCK (as);
 }
 
-void add_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_locator_t *loc)
+void add_xlocator_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_xlocator_t *loc)
+{
+  if (is_unspec_locator (&loc->loc))
+    return;
+  add_xlocator_to_addrset_impl (gv, as, loc);
+}
+
+void add_locator_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_locator_t *loc)
 {
   if (is_unspec_locator (loc))
     return;
-
-  if (loc->conn != NULL)
-    add_to_addrset_hasconn (gv, as, loc);
+  if (ddsi_is_mcaddr (gv, loc))
+  {
+    // multicast: use all transmit connections
+    for (int i = 0; i < gv->n_interfaces; i++)
+    {
+      if (ddsi_factory_supports (gv->xmit_conns[i]->m_factory, loc->kind))
+        add_xlocator_to_addrset_impl (gv, as, &(const ddsi_xlocator_t) {
+          .tran = gv->xmit_conns[i]->m_factory,
+          .conn = gv->xmit_conns[i],
+          .loc = *loc });
+    }
+  }
   else
   {
-    if (ddsi_is_mcaddr (gv, loc))
+    // unicast: assume the kernel knows how to route it from any connection
+    for (int i = 0; i < gv->n_interfaces; i++)
     {
-      // multicast: use all transmit connections where locator kind fits
-      for (int i = 0; i < gv->n_interfaces; i++)
+      if (ddsi_factory_supports (gv->xmit_conns[i]->m_factory, loc->kind))
       {
-        ddsi_locator_t tmp = *loc;
-        tmp.tran = gv->xmit_conns[i]->m_factory;
-        tmp.conn = gv->xmit_conns[i];
-        if (ddsi_factory_supports (tmp.tran, loc->kind))
-          add_to_addrset_hasconn (gv, as, &tmp);
-      }
-    }
-    else
-    {
-      // unicast: assume the kernel knows how to route it from any connection
-      ddsi_locator_t tmp = *loc;
-      for (int i = 0; i < gv->n_interfaces; i++)
-      {
-        if (ddsi_factory_supports (tmp.tran, loc->kind))
-        {
-          tmp.tran = gv->xmit_conns[0]->m_factory;
-          tmp.conn = gv->xmit_conns[0];
-          add_to_addrset_hasconn (gv, as, &tmp);
-          break;
-        }
+        add_xlocator_to_addrset_impl (gv, as, &(const ddsi_xlocator_t) {
+          .tran = gv->xmit_conns[i]->m_factory,
+          .conn = gv->xmit_conns[i],
+          .loc = *loc });
+        break;
       }
     }
   }
 }
 
-void remove_from_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_locator_t *loc)
+void remove_from_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_xlocator_t *loc)
 {
   ddsrt_avl_dpath_t path;
-  ddsrt_avl_ctree_t *tree = ddsi_is_mcaddr (gv, loc) ? &as->mcaddrs : &as->ucaddrs;
+  ddsrt_avl_ctree_t *tree = ddsi_is_mcaddr (gv, &loc->loc) ? &as->mcaddrs : &as->ucaddrs;
   struct addrset_node *n;
   LOCK (as);
   if ((n = ddsrt_avl_clookup_dpath (&addrset_treedef, tree, loc, &path)) != NULL)
@@ -344,7 +364,7 @@ void copy_addrset_into_addrset_uc (const struct ddsi_domaingv *gv, struct addrse
   ddsrt_avl_citer_t it;
   LOCK (asadd);
   for (n = ddsrt_avl_citer_first (&addrset_treedef, &asadd->ucaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
-    add_to_addrset (gv, as, &n->loc);
+    add_xlocator_to_addrset_impl (gv, as, &n->loc);
   UNLOCK (asadd);
 }
 
@@ -354,7 +374,7 @@ void copy_addrset_into_addrset_mc (const struct ddsi_domaingv *gv, struct addrse
   ddsrt_avl_citer_t it;
   LOCK (asadd);
   for (n = ddsrt_avl_citer_first (&addrset_treedef, &asadd->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
-    add_to_addrset (gv, as, &n->loc);
+    add_xlocator_to_addrset_impl (gv, as, &n->loc);
   UNLOCK (asadd);
 }
 
@@ -372,8 +392,8 @@ void copy_addrset_into_addrset_no_ssm_mc (const struct ddsi_domaingv *gv, struct
   LOCK (asadd);
   for (n = ddsrt_avl_citer_first (&addrset_treedef, &asadd->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
   {
-    if (!ddsi_is_ssm_mcaddr (gv, &n->loc))
-      add_to_addrset (gv, as, &n->loc);
+    if (!ddsi_is_ssm_mcaddr (gv, &n->loc.loc))
+      add_xlocator_to_addrset_impl (gv, as, &n->loc);
   }
   UNLOCK (asadd);
 
@@ -455,7 +475,7 @@ int addrset_empty (const struct addrset *as)
   return isempty;
 }
 
-int addrset_any_uc (const struct addrset *as, ddsi_locator_t *dst)
+int addrset_any_uc (const struct addrset *as, ddsi_xlocator_t *dst)
 {
   LOCK (as);
   if (ddsrt_avl_cis_empty (&as->ucaddrs))
@@ -472,7 +492,7 @@ int addrset_any_uc (const struct addrset *as, ddsi_locator_t *dst)
   }
 }
 
-int addrset_any_mc (const struct addrset *as, ddsi_locator_t *dst)
+int addrset_any_mc (const struct addrset *as, ddsi_xlocator_t *dst)
 {
   LOCK (as);
   if (ddsrt_avl_cis_empty (&as->mcaddrs))
@@ -489,7 +509,7 @@ int addrset_any_mc (const struct addrset *as, ddsi_locator_t *dst)
   }
 }
 
-void addrset_any_uc_else_mc_nofail (const struct addrset *as, ddsi_locator_t *dst)
+void addrset_any_uc_else_mc_nofail (const struct addrset *as, ddsi_xlocator_t *dst)
 {
   LOCK (as);
   if (!ddsrt_avl_cis_empty (&as->ucaddrs))
@@ -601,13 +621,13 @@ struct log_addrset_helper_arg
   struct ddsi_domaingv *gv;
 };
 
-static void log_addrset_helper (const ddsi_locator_t *n, void *varg)
+static void log_addrset_helper (const ddsi_xlocator_t *n, void *varg)
 {
   const struct log_addrset_helper_arg *arg = varg;
   const struct ddsi_domaingv *gv = arg->gv;
   char buf[DDSI_LOCSTRLEN];
   if (gv->logconfig.c.mask & arg->tf)
-    GVLOG (arg->tf, " %s", ddsi_locator_to_string (buf, sizeof(buf), n));
+    GVLOG (arg->tf, " %s", ddsi_xlocator_to_string (buf, sizeof(buf), n));
 }
 
 void nn_log_addrset (struct ddsi_domaingv *gv, uint32_t tf, const char *prefix, const struct addrset *as)
@@ -630,7 +650,7 @@ static int addrset_eq_onesidederr1 (const ddsrt_avl_ctree_t *at, const ddsrt_avl
   } else if (ddsrt_avl_cis_singleton (at) && ddsrt_avl_cis_singleton (bt)) {
     const struct addrset_node *a = ddsrt_avl_croot_non_empty (&addrset_treedef, at);
     const struct addrset_node *b = ddsrt_avl_croot_non_empty (&addrset_treedef, bt);
-    return compare_locators (&a->loc, &b->loc) == 0;
+    return compare_xlocators (&a->loc, &b->loc) == 0;
   } else {
     return 0;
   }

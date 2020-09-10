@@ -73,7 +73,7 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locato
   return DNAR_DISTANT;
 }
 
-enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const char *str, int32_t kind)
+enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_locator_t *loc, const char *str, int32_t kind)
 {
   DDSRT_WARNING_MSVC_OFF(4996);
   char copy[264];
@@ -185,7 +185,7 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (const struct ddsi_
     abort ();
 #endif
   }
-  ddsi_ipaddr_to_loc (tran, loc, (struct sockaddr *)&tmpaddr, kind);
+  ddsi_ipaddr_to_loc (loc, (struct sockaddr *)&tmpaddr, kind);
   return AFSR_OK;
   DDSRT_WARNING_MSVC_ON(4996);
 }
@@ -237,10 +237,8 @@ char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t 
   return dst;
 }
 
-void ddsi_ipaddr_to_loc (const struct ddsi_tran_factory *tran, ddsi_locator_t *dst, const struct sockaddr *src, int32_t kind)
+void ddsi_ipaddr_to_loc (ddsi_locator_t *dst, const struct sockaddr *src, int32_t kind)
 {
-  dst->tran = (struct ddsi_tran_factory *) tran;
-  dst->conn = NULL;
   dst->kind = kind;
   switch (src->sa_family)
   {
@@ -250,7 +248,6 @@ void ddsi_ipaddr_to_loc (const struct ddsi_tran_factory *tran, ddsi_locator_t *d
       assert (kind == NN_LOCATOR_KIND_UDPv4 || kind == NN_LOCATOR_KIND_TCPv4);
       if (x->sin_addr.s_addr == htonl (INADDR_ANY))
       {
-        dst->tran = NULL;
         dst->kind = NN_LOCATOR_KIND_INVALID;
         dst->port = NN_LOCATOR_PORT_INVALID;
         memset (dst->address, 0, sizeof (dst->address));
@@ -270,7 +267,6 @@ void ddsi_ipaddr_to_loc (const struct ddsi_tran_factory *tran, ddsi_locator_t *d
       assert (kind == NN_LOCATOR_KIND_UDPv6 || kind == NN_LOCATOR_KIND_TCPv6);
       if (IN6_IS_ADDR_UNSPECIFIED (&x->sin6_addr))
       {
-        dst->tran = NULL;
         dst->kind = NN_LOCATOR_KIND_INVALID;
         dst->port = NN_LOCATOR_PORT_INVALID;
         memset (dst->address, 0, sizeof (dst->address));
@@ -286,6 +282,13 @@ void ddsi_ipaddr_to_loc (const struct ddsi_tran_factory *tran, ddsi_locator_t *d
     default:
       DDS_FATAL("nn_address_to_loc: family %d unsupported\n", (int) src->sa_family);
   }
+}
+
+void ddsi_ipaddr_to_xloc (const struct ddsi_tran_factory *tran, ddsi_xlocator_t *dst, const struct sockaddr *src, int32_t kind)
+{
+  dst->tran = (struct ddsi_tran_factory *) tran;
+  dst->conn = NULL;
+  ddsi_ipaddr_to_loc(&dst->loc, src, kind);
 }
 
 void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const ddsi_locator_t *src)

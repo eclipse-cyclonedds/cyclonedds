@@ -37,8 +37,9 @@ typedef struct ddsi_raweth_conn {
   int m_ifindex;
 } *ddsi_raweth_conn_t;
 
-static char *ddsi_raweth_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port)
+static char *ddsi_raweth_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port)
 {
+  (void) conn;
   if (with_port)
     (void) snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
                     loc->address[10], loc->address[11], loc->address[12],
@@ -78,7 +79,6 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
   {
     if (srcloc)
     {
-      srcloc->tran = conn->m_factory;
       srcloc->kind = NN_LOCATOR_KIND_RAWETH;
       srcloc->port = ntohs (src.sll_protocol);
       memset(srcloc->address, 0, 10);
@@ -327,7 +327,6 @@ static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (con
 {
   int i = 0;
   (void)tran;
-  loc->tran = tran;
   loc->kind = NN_LOCATOR_KIND_RAWETH;
   loc->port = NN_LOCATOR_PORT_INVALID;
   memset (loc->address, 0, sizeof (loc->address));
@@ -357,10 +356,11 @@ static void ddsi_raweth_deinit(ddsi_tran_factory_t fact)
   ddsrt_free (fact);
 }
 
-static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t fact, ddsrt_ifaddrs_t **ifs)
+static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t fact, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **ifs)
 {
   int afs[] = { AF_PACKET, DDSRT_AF_TERM };
   (void)fact;
+  (void)transport_selector;
   return ddsrt_getifaddrs(ifs, afs);
 }
 

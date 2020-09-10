@@ -134,7 +134,7 @@ static weight_t weightmap_get (const struct weightmap *wm, int lidx)
 
 struct locset {
   int nlocs;
-  ddsi_locator_t locs[];
+  ddsi_xlocator_t locs[];
 };
 
 static struct locset *locset_new (int nlocs)
@@ -142,7 +142,7 @@ static struct locset *locset_new (int nlocs)
   struct locset *ls = ddsrt_malloc (sizeof (*ls) + (uint32_t) nlocs * sizeof (*ls->locs));
   ls->nlocs = nlocs;
   for (int j = 0; j < nlocs; j++)
-    set_unspec_locator (&ls->locs[j]);
+    set_unspec_xlocator (&ls->locs[j]);
   return ls;
 }
 
@@ -180,14 +180,14 @@ static struct addrset *wras_collect_all_locs (const struct writer *wr)
 }
 
 struct rebuild_flatten_locs_helper_arg {
-  ddsi_locator_t *locs;
+  ddsi_xlocator_t *locs;
   int idx;
 #ifndef NDEBUG
   int size;
 #endif
 };
 
-static void wras_flatten_locs_helper (const ddsi_locator_t *loc, void *varg)
+static void wras_flatten_locs_helper (const ddsi_xlocator_t *loc, void *varg)
 {
   struct rebuild_flatten_locs_helper_arg *arg = varg;
   assert(arg->idx < arg->size);
@@ -328,7 +328,7 @@ static weight_t calc_locator_weight (const struct cover *c, int lidx, bool prefe
   return valid_choice ? weight : INT32_MAX;
 }
 
-static bool isloopback (struct ddsi_domaingv const * const gv, const ddsi_locator_t *loc)
+static bool isloopback (struct ddsi_domaingv const * const gv, const ddsi_xlocator_t *loc)
 {
   for (int k = 0; k < gv->n_interfaces; k++)
     if (loc->conn == gv->xmit_conns[k] && gv->interfaces[k].loopback)
@@ -338,8 +338,8 @@ static bool isloopback (struct ddsi_domaingv const * const gv, const ddsi_locato
 
 static int wras_compare_by_interface (const void *va, const void *vb)
 {
-  const ddsi_locator_t *a = va;
-  const ddsi_locator_t *b = vb;
+  const ddsi_xlocator_t *a = va;
+  const ddsi_xlocator_t *b = vb;
   if ((uintptr_t) a->conn == (uintptr_t) b->conn)
     return 0;
   else if ((uintptr_t) a->conn < (uintptr_t) b->conn)
@@ -359,7 +359,7 @@ static int move_loopback_forward (struct ddsi_domaingv const * const gv, struct 
       i++;
     else
     {
-      ddsi_locator_t tmp = ls->locs[i];
+      ddsi_xlocator_t tmp = ls->locs[i];
       ls->locs[i] = ls->locs[--j];
       ls->locs[j] = tmp;
     }
@@ -369,10 +369,10 @@ static int move_loopback_forward (struct ddsi_domaingv const * const gv, struct 
   return i;
 }
 
-static bool locator_is_iceoryx (const ddsi_locator_t *l)
+static bool locator_is_iceoryx (const ddsi_xlocator_t *l)
 {
 #ifdef DDS_HAS_SHM
-  return l->kind == NN_LOCATOR_KIND_SHEM;
+  return l->loc.kind == NN_LOCATOR_KIND_SHEM;
 #else
   (void) l;
   return false;
@@ -384,7 +384,7 @@ static void wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct
   for (int j = first; j <= last; j++)
   {
     /* all addresses should be in the combined set of addresses -- FIXME: this doesn't hold if the address sets can change */
-    const ddsi_locator_t *l = bsearch (&work_locs->locs[j], locs->locs, (size_t) locs->nlocs, sizeof (*locs->locs), wras_compare_locs);
+    const ddsi_xlocator_t *l = bsearch (&work_locs->locs[j], locs->locs, (size_t) locs->nlocs, sizeof (*locs->locs), wras_compare_locs);
     cover_info_t x;
     assert (l != NULL);
     int lidx = (int) (l - locs->locs);
@@ -392,9 +392,9 @@ static void wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct
     {
       x = CI_ICEORYX;
     }
-    else if (l->kind == NN_LOCATOR_KIND_UDPv4MCGEN)
+    else if (l->loc.kind == NN_LOCATOR_KIND_UDPv4MCGEN)
     {
-      const nn_udpv4mcgen_address_t *l1 = (const nn_udpv4mcgen_address_t *) l->address;
+      const nn_udpv4mcgen_address_t *l1 = (const nn_udpv4mcgen_address_t *) l->loc.address;
       assert (l1->base + l1->idx <= 30);
       x = (cover_info_t) ((1 + l1->base + l1->idx) << CI_MULTICAST_SHIFT);
     }
@@ -403,7 +403,7 @@ static void wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct
       x = 0;
       if (j < nloopback)
         x |= CI_LOOPBACK;
-      if (ddsi_is_mcaddr (gv, l))
+      if (ddsi_is_mcaddr (gv, &l->loc))
         x |= 1 << CI_MULTICAST_SHIFT;
     }
     assert (x != 0xff);
@@ -516,7 +516,7 @@ static void wras_trace_cover (const struct ddsi_domaingv *gv, const struct locse
   for (int i = 0; i < nlocs; i++)
   {
     char buf[DDSI_LOCSTRLEN];
-    ddsi_locator_to_string (buf, sizeof(buf), &locs->locs[i]);
+    ddsi_xlocator_to_string (buf, sizeof(buf), &locs->locs[i]);
     GVLOGDISC ("  loc %2d = %-40s%11"PRId32" {", i, buf, weightmap_get (wm, i));
     for (int j = 0; j < nreaders; j++)
     {
@@ -588,12 +588,12 @@ static int wras_choose_locator (const struct ddsi_domaingv *gv, const struct loc
 
 static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *newas, int locidx, const struct locset *locs, const struct cover *covered)
 {
-  ddsi_locator_t tmploc;
+  ddsi_xlocator_t tmploc;
   char str[DDSI_LOCSTRLEN];
   const char *kindstr;
-  const ddsi_locator_t *locp;
+  const ddsi_xlocator_t *locp;
 
-  if (locs->locs[locidx].kind != NN_LOCATOR_KIND_UDPv4MCGEN)
+  if (locs->locs[locidx].loc.kind != NN_LOCATOR_KIND_UDPv4MCGEN)
   {
     locp = &locs->locs[locidx];
     kindstr = "simple";
@@ -605,9 +605,9 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *ne
     uint32_t iph, ipn;
     int i;
     tmploc = locs->locs[locidx];
-    memcpy (&l1, tmploc.address, sizeof (l1));
-    tmploc.kind = NN_LOCATOR_KIND_UDPv4;
-    memset (tmploc.address, 0, 12);
+    memcpy (&l1, tmploc.loc.address, sizeof (l1));
+    tmploc.loc.kind = NN_LOCATOR_KIND_UDPv4;
+    memset (tmploc.loc.address, 0, 12);
     iph = ntohl (l1.ipv4.s_addr);
     for (i = 0; i < nreaders; i++)
     {
@@ -616,13 +616,13 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *ne
         iph |= 1u << ((ci >> CI_MULTICAST_SHIFT) - 1);
     }
     ipn = htonl (iph);
-    memcpy (tmploc.address + 12, &ipn, 4);
+    memcpy (tmploc.loc.address + 12, &ipn, 4);
     locp = &tmploc;
     kindstr = "mcgen";
   }
 
-  GVLOGDISC ("  %s %s\n", kindstr, ddsi_locator_to_string (str, sizeof(str), locp));
-  add_to_addrset (gv, newas, locp);
+  GVLOGDISC ("  %s %s\n", kindstr, ddsi_xlocator_to_string (str, sizeof(str), locp));
+  add_xlocator_to_addrset (gv, newas, locp);
 }
 
 static void wras_drop_covered_readers (int locidx, struct weightmap *wm, struct cover *covered, bool prefer_multicast)

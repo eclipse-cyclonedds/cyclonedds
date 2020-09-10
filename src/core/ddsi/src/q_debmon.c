@@ -83,11 +83,11 @@ struct print_address_arg {
   int count;
 };
 
-static void print_address (const ddsi_locator_t *n, void *varg)
+static void print_address (const ddsi_xlocator_t *n, void *varg)
 {
   struct print_address_arg *arg = varg;
   char buf[DDSI_LOCSTRLEN];
-  arg->count += cpf (arg->conn, " %s", ddsi_locator_to_string (buf, sizeof(buf), n));
+  arg->count += cpf (arg->conn, " %s", ddsi_locator_to_string (buf, sizeof(buf), &n->loc));
 }
 
 static int print_addrset (ddsi_tran_conn_t conn, const char *prefix, struct addrset *as, const char *suffix)

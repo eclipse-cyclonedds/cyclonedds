@@ -57,7 +57,8 @@ typedef struct ddsi_udp_tran_factory {
 
 static void addr_to_loc (const struct ddsi_tran_factory *tran, ddsi_locator_t *dst, const union addr *src)
 {
-  ddsi_ipaddr_to_loc (tran, dst, &src->a, (src->a.sa_family == AF_INET) ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
+  (void) tran;
+  ddsi_ipaddr_to_loc (dst, &src->a, (src->a.sa_family == AF_INET) ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
 }
 
 static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn_cmn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
@@ -220,8 +221,8 @@ static int ddsi_udp_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t con
   int ret = -1;
   if (conn->m_sock != DDSRT_INVALID_SOCKET)
   {
-    loc->tran = fact;
-    loc->conn = NULL;
+    //loc->tran = fact;
+    //loc->conn = NULL;
     loc->kind = fact->m_kind;
     loc->port = conn->m_base.m_base.m_port;
     memcpy (loc->address, conn->m_base.m_base.gv->interfaces[0].loc.address, sizeof (loc->address));
@@ -801,7 +802,7 @@ static enum ddsi_locator_from_string_result mcgen_address_from_string (const str
     ddsrt_strlcpy (ipstr + ipstrlen, str + pos, sizeof (ipstr) - (size_t) ipstrlen);
   }
 
-  enum ddsi_locator_from_string_result res = ddsi_ipaddr_from_string (tran, loc, ipstr, tran->m_kind);
+  enum ddsi_locator_from_string_result res = ddsi_ipaddr_from_string (loc, ipstr, tran->m_kind);
   if (res != AFSR_OK)
     return res;
   assert (loc->kind == NN_LOCATOR_KIND_UDPv4);
@@ -827,13 +828,13 @@ static enum ddsi_locator_from_string_result ddsi_udp_address_from_string (const 
   if (tran->m_kind == DDSI_TRANS_UDP && mcgen_address_from_string (tran, loc, str) == AFSR_OK)
     return AFSR_OK;
   else
-    return ddsi_ipaddr_from_string (tran, loc, str, tran->m_kind);
+    return ddsi_ipaddr_from_string (loc, str, tran->m_kind);
 }
 
-static char *ddsi_udp_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port)
+static char *ddsi_udp_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port)
 {
   if (loc->kind != NN_LOCATOR_KIND_UDPv4MCGEN) {
-    uint32_t ifindex = loc->conn ? ((ddsi_udp_conn_t) loc->conn)->m_ifindex : UINT32_MAX;
+    uint32_t ifindex = conn ? ((ddsi_udp_conn_t) conn)->m_ifindex : UINT32_MAX;
     return ddsi_ipaddr_to_string(dst, sizeof_dst, loc, with_port, ifindex);
   } else {
     struct sockaddr_in src;

@@ -29,9 +29,10 @@ typedef struct ddsi_vnet_conn {
   struct nn_interface *intf;
 } *ddsi_vnet_conn_t;
 
-static char *ddsi_vnet_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port)
+static char *ddsi_vnet_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port)
 {
   // FIXME: fixme
+  (void) conn;
   if (with_port)
     (void) snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
                     loc->address[0], loc->address[1], loc->address[2],
@@ -143,9 +144,9 @@ static enum ddsi_locator_from_string_result ddsi_vnet_address_from_string (const
   return (*str == 0) ? AFSR_OK : AFSR_INVALID;
 }
 
-static int ddsi_vnet_enumerate_interfaces (ddsi_tran_factory_t fact, ddsrt_ifaddrs_t **ifs)
+static int ddsi_vnet_enumerate_interfaces (ddsi_tran_factory_t fact, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **ifs)
 {
-  (void) fact;
+  (void) fact; (void) transport_selector;
   *ifs = NULL;
   return DDS_RETCODE_UNSUPPORTED;
 }
