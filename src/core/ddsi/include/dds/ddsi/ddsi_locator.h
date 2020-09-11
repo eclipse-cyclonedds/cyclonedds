@@ -28,9 +28,8 @@ typedef struct {
   unsigned char address[16];
 } ddsi_locator_t;
 typedef struct {
-  const struct ddsi_tran_factory *tran;
+  ddsi_locator_t c;
   struct ddsi_tran_conn *conn;
-  ddsi_locator_t loc;
 } ddsi_xlocator_t;
 
 #if defined (__cplusplus)

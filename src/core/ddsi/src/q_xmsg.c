@@ -1189,7 +1189,7 @@ static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const ddsi_xlocator_t *l
     ret = secure_conn_write(
                       xp->gv,
                       loc->conn,
-                      &loc->loc,
+                      &loc->c,
                       xp->niov,
                       xp->iov,
                       xp->call_flags,
@@ -1201,7 +1201,7 @@ static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const ddsi_xlocator_t *l
   else
 #endif /* DDS_HAS_SECURITY */
   {
-    ret = ddsi_conn_write (loc->conn, &loc->loc, xp->niov, xp->iov, xp->call_flags);
+    ret = ddsi_conn_write (loc->conn, &loc->c, xp->niov, xp->iov, xp->call_flags);
   }
 
   return ret;
@@ -1216,7 +1216,7 @@ static ssize_t nn_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
   if (gv->logconfig.c.mask & DDS_LC_TRACE)
   {
     char buf[DDSI_LOCSTRLEN];
-    GVTRACE (" %s", ddsi_locator_to_string (buf, sizeof(buf), &loc->loc));
+    GVTRACE (" %s", ddsi_xlocator_to_string (buf, sizeof(buf), loc));
   }
 
   if (gv->config.xmit_lossiness > 0)
@@ -1233,7 +1233,7 @@ static ssize_t nn_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
 #ifdef DDS_HAS_SHM
   // SHM_TODO: We avoid sending packet while data is SHMEM.
   //           I'm not sure whether this is correct or not.
-  if (!gv->mute && loc->loc.kind != NN_LOCATOR_KIND_SHEM)
+  if (!gv->mute && loc->c.kind != NN_LOCATOR_KIND_SHEM)
 #else
   if (!gv->mute)
 #endif

@@ -1685,9 +1685,9 @@ static void free_rd_pwr_match (struct ddsi_domaingv *gv, const ddsi_guid_t *rd_g
 #ifdef DDS_HAS_SSM
     if (!is_unspec_xlocator (&m->ssm_mc_loc))
     {
-      assert (ddsi_is_mcaddr (gv, &m->ssm_mc_loc.loc));
+      assert (ddsi_is_mcaddr (gv, &m->ssm_mc_loc.c));
       assert (!is_unspec_xlocator (&m->ssm_src_loc));
-      if (ddsi_leave_mc (gv, gv->mship, gv->data_conn_mc, &m->ssm_src_loc.loc, &m->ssm_mc_loc.loc) < 0)
+      if (ddsi_leave_mc (gv, gv->mship, gv->data_conn_mc, &m->ssm_src_loc.c, &m->ssm_mc_loc.c) < 0)
         GVWARNING ("failed to leave network partition ssm group\n");
     }
 #endif
@@ -2299,7 +2299,7 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
       /* FIXME: for now, assume that the ports match for datasock_mc --
        't would be better to dynamically create and destroy sockets on
        an as needed basis. */
-      int ret = ddsi_join_mc (rd->e.gv, rd->e.gv->mship, rd->e.gv->data_conn_mc, &m->ssm_src_loc.loc, &m->ssm_mc_loc.loc);
+      int ret = ddsi_join_mc (rd->e.gv, rd->e.gv->mship, rd->e.gv->data_conn_mc, &m->ssm_src_loc.c, &m->ssm_mc_loc.c);
       if (ret < 0)
         ELOGDISC (rd, "  unable to join\n");
     }
@@ -3712,9 +3712,8 @@ static void new_writer_guid_common_init (struct writer *wr, const char *topic_na
     {
       if (ddsi_is_ssm_mcaddr (wr->e.gv, &wr->e.gv->loc_default_mc))
       {
-        loc.tran = wr->e.gv->m_factory; // FIXME: hack
         loc.conn = wr->e.gv->xmit_conns[0]; // FIXME: hack
-        loc.loc = wr->e.gv->loc_default_mc;
+        loc.c = wr->e.gv->loc_default_mc;
         have_loc = 1;
       }
     }
@@ -4217,11 +4216,11 @@ static void join_mcast_helper (const ddsi_xlocator_t *n, void *varg)
 {
   struct join_leave_mcast_helper_arg *arg = varg;
   struct ddsi_domaingv *gv = arg->gv;
-  if (ddsi_is_mcaddr (gv, &n->loc))
+  if (ddsi_is_mcaddr (gv, &n->c))
   {
-    if (n->loc.kind != NN_LOCATOR_KIND_UDPv4MCGEN)
+    if (n->c.kind != NN_LOCATOR_KIND_UDPv4MCGEN)
     {
-      if (ddsi_join_mc (gv, arg->gv->mship, arg->conn, NULL, &n->loc) < 0)
+      if (ddsi_join_mc (gv, arg->gv->mship, arg->conn, NULL, &n->c) < 0)
       {
         GVWARNING ("failed to join network partition multicast group\n");
       }
@@ -4229,7 +4228,7 @@ static void join_mcast_helper (const ddsi_xlocator_t *n, void *varg)
     else /* join all addresses that include this node */
     {
       {
-        ddsi_locator_t l = n->loc;
+        ddsi_locator_t l = n->c;
         nn_udpv4mcgen_address_t l1;
         uint32_t iph;
         memcpy(&l1, l.address, sizeof(l1));
@@ -4259,18 +4258,18 @@ static void leave_mcast_helper (const ddsi_xlocator_t *n, void *varg)
 {
   struct join_leave_mcast_helper_arg *arg = varg;
   struct ddsi_domaingv *gv = arg->gv;
-  if (ddsi_is_mcaddr (gv, &n->loc))
+  if (ddsi_is_mcaddr (gv, &n->c))
   {
-    if (n->loc.kind != NN_LOCATOR_KIND_UDPv4MCGEN)
+    if (n->c.kind != NN_LOCATOR_KIND_UDPv4MCGEN)
     {
-      if (ddsi_leave_mc (gv, gv->mship, arg->conn, NULL, &n->loc) < 0)
+      if (ddsi_leave_mc (gv, gv->mship, arg->conn, NULL, &n->c) < 0)
       {
         GVWARNING ("failed to leave network partition multicast group\n");
       }
     }
     else /* join all addresses that include this node */
     {
-      ddsi_locator_t l = n->loc;
+      ddsi_locator_t l = n->c;
       nn_udpv4mcgen_address_t l1;
       uint32_t iph;
       memcpy(&l1, l.address, sizeof(l1));
@@ -5121,7 +5120,7 @@ static void chk_iceoryx (const ddsi_xlocator_t *n, void *varg)
 {
   struct proxy_participant *proxypp = (struct proxy_participant *) varg;
   struct ddsi_domaingv *gv = proxypp->e.gv;
-  if (n->loc.kind == NN_LOCATOR_KIND_SHEM && memcmp (gv->loc_iceoryx_addr.address, n->loc.address, sizeof (gv->loc_iceoryx_addr.address)) == 0)
+  if (n->c.kind == NN_LOCATOR_KIND_SHEM && memcmp (gv->loc_iceoryx_addr.address, n->c.address, sizeof (gv->loc_iceoryx_addr.address)) == 0)
   {
     proxypp->is_iceoryx = 1;
   }

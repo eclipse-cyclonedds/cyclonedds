@@ -26,7 +26,6 @@
 
 typedef struct ddsi_vnet_conn {
   struct ddsi_tran_conn m_base;
-  struct nn_interface *intf;
 } *ddsi_vnet_conn_t;
 
 static char *ddsi_vnet_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port)
@@ -68,8 +67,7 @@ static dds_return_t ddsi_vnet_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran
   struct ddsi_vnet_conn *x = ddsrt_malloc (sizeof (*x));
   memset (x, 0, sizeof (*x));
   
-  x->intf = qos->m_interface;
-  ddsi_factory_conn_init (fact, &x->m_base);
+  ddsi_factory_conn_init (fact, qos->m_interface, &x->m_base);
   x->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
   x->m_base.m_base.m_multicast = false;
   x->m_base.m_base.m_handle_fn = ddsi_vnet_conn_handle;
@@ -78,7 +76,7 @@ static dds_return_t ddsi_vnet_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran
   x->m_base.m_write_fn = 0;
   x->m_base.m_disable_multiplexing_fn = 0;
 
-  DDS_CTRACE (&fact->gv->logconfig, "ddsi_vnet_create_conn intf %s kind %s\n", x->intf->name, fact->m_typename);
+  DDS_CTRACE (&fact->gv->logconfig, "ddsi_vnet_create_conn intf %s kind %s\n", x->m_base.m_interf->name, fact->m_typename);
   *conn_out = &x->m_base;
   return 0;
 }
@@ -86,7 +84,7 @@ static dds_return_t ddsi_vnet_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran
 static void ddsi_vnet_release_conn (ddsi_tran_conn_t conn)
 {
   ddsi_vnet_conn_t x = (ddsi_vnet_conn_t) conn;
-  DDS_CTRACE (&conn->m_base.gv->logconfig, "ddsi_vnet_release_conn intf %s kind %s\n", x->intf->name, x->m_base.m_factory->m_typename);
+  DDS_CTRACE (&conn->m_base.gv->logconfig, "ddsi_vnet_release_conn intf %s kind %s\n", x->m_base.m_interf->name, x->m_base.m_factory->m_typename);
   ddsrt_free (conn);
 }
 

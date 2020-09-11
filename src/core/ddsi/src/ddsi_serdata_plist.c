@@ -173,13 +173,11 @@ static bool serdata_plist_untyped_to_sample (const struct ddsi_sertype *tpcmn, c
     .buf = (const unsigned char *) d->data,
     .bufsz = d->pos,
     .encoding = d->identifier,
-    .factory = gv->m_factory,
-    .logconfig = &gv->logconfig,
     .protocol_version = d->protoversion,
     .strict = DDSI_SC_STRICT_P (gv->config),
     .vendorid = d->vendorid
   };
-  const dds_return_t rc = ddsi_plist_init_frommsg (sample, NULL, ~(uint64_t)0, ~(uint64_t)0, &src);
+  const dds_return_t rc = ddsi_plist_init_frommsg (sample, NULL, ~(uint64_t)0, ~(uint64_t)0, &src, gv);
   // FIXME: need a more informative return type
   if (rc != DDS_RETCODE_OK && rc != DDS_RETCODE_UNSUPPORTED)
     GVWARNING ("SPDP (vendor %u.%u): invalid qos/parameters\n", src.vendorid.id[0], src.vendorid.id[1]);
@@ -277,14 +275,12 @@ static size_t serdata_plist_print_plist (const struct ddsi_sertype *sertype_comm
     .buf = (const unsigned char *) d->data,
     .bufsz = d->pos,
     .encoding = d->identifier,
-    .factory = gv->m_factory,
-    .logconfig = &gv->logconfig,
     .protocol_version = d->protoversion,
     .strict = false,
     .vendorid = d->vendorid
   };
   ddsi_plist_t tmp;
-  if (ddsi_plist_init_frommsg (&tmp, NULL, ~(uint64_t)0, ~(uint64_t)0, &src) < 0)
+  if (ddsi_plist_init_frommsg (&tmp, NULL, ~(uint64_t)0, ~(uint64_t)0, &src, gv) < 0)
     return (size_t) snprintf (buf, size, "(unparseable-plist)");
   else
   {

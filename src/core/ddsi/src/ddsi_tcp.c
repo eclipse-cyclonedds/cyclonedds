@@ -106,7 +106,7 @@ static const ddsrt_avl_treedef_t ddsi_tcp_treedef = DDSRT_AVL_TREEDEF_INITIALIZE
   0
 );
 
-static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, ddsrt_socket_t, bool, struct sockaddr *);
+static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, const struct nn_interface *interf, ddsrt_socket_t, bool, struct sockaddr *);
 
 static char *sockaddr_to_string_with_port (char *dst, size_t sizeof_dst, const struct sockaddr *src)
 {
@@ -391,7 +391,7 @@ static ddsi_tcp_conn_t ddsi_tcp_cache_find (struct ddsi_tran_factory_tcp *fact, 
   }
   if (ret == NULL)
   {
-    ret = ddsi_tcp_new_conn (fact, DDSRT_INVALID_SOCKET, false, &key.m_peer_addr.a);
+    ret = ddsi_tcp_new_conn (fact, NULL, DDSRT_INVALID_SOCKET, false, &key.m_peer_addr.a);
     ddsi_tcp_cache_add (fact, ret, &path);
   }
   ddsrt_mutex_unlock (&fact->ddsi_tcp_cache_lock_g);
@@ -873,7 +873,7 @@ static ddsi_tran_conn_t ddsi_tcp_accept (ddsi_tran_listener_t listener)
     GVLOG (DDS_LC_TCP, "tcp accept new socket %"PRIdSOCK" on socket %"PRIdSOCK" from %s\n", sock, tl->m_sock, buff);
 
     (void)ddsrt_setsocknonblocking (sock, true);
-    tcp = ddsi_tcp_new_conn (fact, sock, true, &addr.a);
+    tcp = ddsi_tcp_new_conn (fact, NULL, sock, true, &addr.a);
 #ifdef DDS_HAS_SSL
     tcp->m_ssl = ssl;
 #endif
@@ -917,9 +917,9 @@ static void ddsi_tcp_conn_peer_locator (ddsi_tran_conn_t conn, ddsi_locator_t * 
   GVLOG (DDS_LC_TCP, "(tcp EP:%s)", buff);
 }
 
-static void ddsi_tcp_base_init (const struct ddsi_tran_factory_tcp *fact, struct ddsi_tran_conn *base)
+static void ddsi_tcp_base_init (const struct ddsi_tran_factory_tcp *fact, const struct nn_interface *interf, struct ddsi_tran_conn *base)
 {
-  ddsi_factory_conn_init (&fact->fact, base);
+  ddsi_factory_conn_init (&fact->fact, interf, base);
   base->m_base.m_trantype = DDSI_TRAN_CONN;
   base->m_base.m_handle_fn = ddsi_tcp_conn_handle;
   base->m_read_fn = ddsi_tcp_conn_read;
@@ -929,12 +929,12 @@ static void ddsi_tcp_base_init (const struct ddsi_tran_factory_tcp *fact, struct
   base->m_locator_fn = ddsi_tcp_locator;
 }
 
-static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, ddsrt_socket_t sock, bool server, struct sockaddr * peer)
+static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, const struct nn_interface *interf, ddsrt_socket_t sock, bool server, struct sockaddr * peer)
 {
   ddsi_tcp_conn_t conn = ddsrt_malloc (sizeof (*conn));
 
   memset (conn, 0, sizeof (*conn));
-  ddsi_tcp_base_init (fact, &conn->m_base);
+  ddsi_tcp_base_init (fact, interf, &conn->m_base);
   ddsrt_mutex_init (&conn->m_mutex);
   conn->m_sock = DDSRT_INVALID_SOCKET;
   (void)memcpy(&conn->m_peer_addr, peer, ddsrt_sockaddr_get_size(peer));
@@ -1021,10 +1021,9 @@ static void ddsi_tcp_close_conn (ddsi_tran_conn_t tc)
     sockaddr_to_string_with_port(buff, sizeof(buff), &conn->m_peer_addr.a);
     GVLOG (DDS_LC_TCP, "tcp close %s connnection on socket %"PRIdSOCK" to %s\n", conn->m_base.m_server ? "server" : "client", conn->m_sock, buff);
     (void) shutdown (conn->m_sock, 2);
-    ddsi_ipaddr_to_loc(&loc.loc, &conn->m_peer_addr.a, addrfam_to_locator_kind(conn->m_peer_addr.a.sa_family));
-    loc.loc.port = conn->m_peer_port;
+    ddsi_ipaddr_to_loc(&loc.c, &conn->m_peer_addr.a, addrfam_to_locator_kind(conn->m_peer_addr.a.sa_family));
+    loc.c.port = conn->m_peer_port;
     loc.conn = tc;
-    loc.tran = conn->m_base.m_factory;
     purge_proxy_participants (gv, &loc, conn->m_base.m_server);
   }
 }
@@ -1177,7 +1176,7 @@ static uint32_t ddsi_tcp_receive_buffer_size (const struct ddsi_tran_factory *fa
 static char *ddsi_tcp_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port)
 {
   (void) conn;
-  return ddsi_ipaddr_to_string(dst, sizeof_dst, loc, with_port, UINT32_MAX);
+  return ddsi_ipaddr_to_string(dst, sizeof_dst, loc, with_port, NULL);
 }
 
 int ddsi_tcp_init (struct ddsi_domaingv *gv)
@@ -1219,7 +1218,7 @@ int ddsi_tcp_init (struct ddsi_domaingv *gv)
 #endif
 
   memset (&fact->ddsi_tcp_conn_client, 0, sizeof (fact->ddsi_tcp_conn_client));
-  ddsi_tcp_base_init (fact, &fact->ddsi_tcp_conn_client.m_base);
+  ddsi_tcp_base_init (fact, NULL, &fact->ddsi_tcp_conn_client.m_base);
 
 #ifdef DDS_HAS_SSL
   if (gv->config.ssl_enable)

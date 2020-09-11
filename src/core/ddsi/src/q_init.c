@@ -680,20 +680,20 @@ struct joinleave_spdp_defmcip_helper_arg {
 static void joinleave_spdp_defmcip_helper (const ddsi_xlocator_t *loc, void *varg)
 {
   struct joinleave_spdp_defmcip_helper_arg *arg = varg;
-  if (!ddsi_is_mcaddr (arg->gv, &loc->loc))
+  if (!ddsi_is_mcaddr (arg->gv, &loc->c))
     return;
 #ifdef DDS_HAS_SSM
   /* Can't join SSM until we actually have a source */
-  if (ddsi_is_ssm_mcaddr (arg->gv, &loc->loc))
+  if (ddsi_is_ssm_mcaddr (arg->gv, &loc->c))
     return;
 #endif
   if (arg->dojoin) {
-    if (ddsi_join_mc (arg->gv, arg->gv->mship, arg->gv->disc_conn_mc, NULL, &loc->loc) < 0 ||
-        ddsi_join_mc (arg->gv, arg->gv->mship, arg->gv->data_conn_mc, NULL, &loc->loc) < 0)
+    if (ddsi_join_mc (arg->gv, arg->gv->mship, arg->gv->disc_conn_mc, NULL, &loc->c) < 0 ||
+        ddsi_join_mc (arg->gv, arg->gv->mship, arg->gv->data_conn_mc, NULL, &loc->c) < 0)
       arg->errcount++;
   } else {
-    if (ddsi_leave_mc (arg->gv, arg->gv->mship, arg->gv->disc_conn_mc, NULL, &loc->loc) < 0 ||
-        ddsi_leave_mc (arg->gv, arg->gv->mship, arg->gv->data_conn_mc, NULL, &loc->loc) < 0)
+    if (ddsi_leave_mc (arg->gv, arg->gv->mship, arg->gv->disc_conn_mc, NULL, &loc->c) < 0 ||
+        ddsi_leave_mc (arg->gv, arg->gv->mship, arg->gv->data_conn_mc, NULL, &loc->c) < 0)
       arg->errcount++;
   }
 }
@@ -1531,9 +1531,8 @@ int rtps_init (struct ddsi_domaingv *gv)
       if (rc != DDS_RETCODE_OK)
         goto err_mc_conn;
       GVLOG (DDS_LC_CONFIG, "interface %s: transmit port %d\n", gv->interfaces[i].name, (int) ddsi_conn_port (gv->xmit_conns[i]));
-      gv->intf_xlocators[i].tran = fact;
       gv->intf_xlocators[i].conn = gv->xmit_conns[i];
-      gv->intf_xlocators[i].loc = gv->interfaces[i].loc;
+      gv->intf_xlocators[i].c = gv->interfaces[i].loc;
     }
   }
 

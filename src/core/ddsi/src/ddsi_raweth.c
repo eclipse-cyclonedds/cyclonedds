@@ -221,7 +221,7 @@ static dds_return_t ddsi_raweth_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tr
   memset (uc, 0, sizeof (*uc));
   uc->m_sock = sock;
   uc->m_ifindex = addr.sll_ifindex;
-  ddsi_factory_conn_init (fact, &uc->m_base);
+  ddsi_factory_conn_init (fact, intf, &uc->m_base);
   uc->m_base.m_base.m_port = port;
   uc->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
   uc->m_base.m_base.m_multicast = mcast;

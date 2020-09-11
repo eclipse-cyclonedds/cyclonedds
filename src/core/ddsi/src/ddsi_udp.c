@@ -44,7 +44,6 @@ typedef struct ddsi_udp_conn {
   WSAEVENT m_sockEvent;
 #endif
   int m_diffserv;
-  uint32_t m_ifindex;
 } *ddsi_udp_conn_t;
 
 typedef struct ddsi_udp_tran_factory {
@@ -572,13 +571,12 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
 
   conn->m_sock = sock;
   conn->m_diffserv = qos->m_diffserv;
-  conn->m_ifindex = intf->if_index;
 #if defined _WIN32 && !defined WINCE
   conn->m_sockEvent = WSACreateEvent ();
   WSAEventSelect (conn->m_sock, conn->m_sockEvent, FD_WRITE);
 #endif
 
-  ddsi_factory_conn_init (&fact->fact, &conn->m_base);
+  ddsi_factory_conn_init (&fact->fact, intf, &conn->m_base);
   conn->m_base.m_base.m_port = get_socket_port (gv, sock);
   conn->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
   conn->m_base.m_base.m_multicast = (qos->m_purpose == DDSI_TRAN_QOS_RECV_MC);
@@ -834,8 +832,7 @@ static enum ddsi_locator_from_string_result ddsi_udp_address_from_string (const 
 static char *ddsi_udp_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port)
 {
   if (loc->kind != NN_LOCATOR_KIND_UDPv4MCGEN) {
-    uint32_t ifindex = conn ? ((ddsi_udp_conn_t) conn)->m_ifindex : UINT32_MAX;
-    return ddsi_ipaddr_to_string(dst, sizeof_dst, loc, with_port, ifindex);
+    return ddsi_ipaddr_to_string(dst, sizeof_dst, loc, with_port, conn ? conn->m_interf : NULL);
   } else {
     struct sockaddr_in src;
     nn_udpv4mcgen_address_t mcgen;

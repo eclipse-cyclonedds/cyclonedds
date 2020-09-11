@@ -222,17 +222,17 @@ static int wras_compare_locs (const void *va, const void *vb)
   // is to treat them the same and calculate the actual address to use
   // once we know all the readers it addresses.  So for those, erase the
   // index component before comparing.
-  const ddsi_locator_t *a = va;
-  const ddsi_locator_t *b = vb;
-  if (a->kind != b->kind || a->kind != NN_LOCATOR_KIND_UDPv4MCGEN)
-    return compare_locators (a, b);
+  const ddsi_xlocator_t *a = va;
+  const ddsi_xlocator_t *b = vb;
+  if (a->c.kind != b->c.kind || a->c.kind != NN_LOCATOR_KIND_UDPv4MCGEN)
+    return compare_xlocators (a, b);
   else
   {
-    ddsi_locator_t u = *a, v = *b;
-    nn_udpv4mcgen_address_t *u1 = (nn_udpv4mcgen_address_t *) u.address;
-    nn_udpv4mcgen_address_t *v1 = (nn_udpv4mcgen_address_t *) v.address;
+    ddsi_xlocator_t u = *a, v = *b;
+    nn_udpv4mcgen_address_t *u1 = (nn_udpv4mcgen_address_t *) u.c.address;
+    nn_udpv4mcgen_address_t *v1 = (nn_udpv4mcgen_address_t *) v.c.address;
     u1->idx = v1->idx = 0;
-    return compare_locators (&u, &v);
+    return compare_xlocators (&u, &v);
   }
 }
 
@@ -372,7 +372,7 @@ static int move_loopback_forward (struct ddsi_domaingv const * const gv, struct 
 static bool locator_is_iceoryx (const ddsi_xlocator_t *l)
 {
 #ifdef DDS_HAS_SHM
-  return l->loc.kind == NN_LOCATOR_KIND_SHEM;
+  return l->c.kind == NN_LOCATOR_KIND_SHEM;
 #else
   (void) l;
   return false;
@@ -392,9 +392,9 @@ static void wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct
     {
       x = CI_ICEORYX;
     }
-    else if (l->loc.kind == NN_LOCATOR_KIND_UDPv4MCGEN)
+    else if (l->c.kind == NN_LOCATOR_KIND_UDPv4MCGEN)
     {
-      const nn_udpv4mcgen_address_t *l1 = (const nn_udpv4mcgen_address_t *) l->loc.address;
+      const nn_udpv4mcgen_address_t *l1 = (const nn_udpv4mcgen_address_t *) l->c.address;
       assert (l1->base + l1->idx <= 30);
       x = (cover_info_t) ((1 + l1->base + l1->idx) << CI_MULTICAST_SHIFT);
     }
@@ -403,9 +403,11 @@ static void wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct
       x = 0;
       if (j < nloopback)
         x |= CI_LOOPBACK;
-      if (ddsi_is_mcaddr (gv, &l->loc))
+      if (ddsi_is_mcaddr (gv, &l->c))
         x |= 1 << CI_MULTICAST_SHIFT;
     }
+    char buf[200];
+    GVTRACE ("rdidx %u lidx %s %u -> %x\n", rdidx, ddsi_xlocator_to_string(buf, sizeof(buf), &work_locs->locs[j]), lidx, x);
     assert (x != 0xff);
     assert (cover_get (cov, rdidx, lidx) == 0xff);
     cover_set (cov, rdidx, lidx, x);
@@ -593,7 +595,7 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *ne
   const char *kindstr;
   const ddsi_xlocator_t *locp;
 
-  if (locs->locs[locidx].loc.kind != NN_LOCATOR_KIND_UDPv4MCGEN)
+  if (locs->locs[locidx].c.kind != NN_LOCATOR_KIND_UDPv4MCGEN)
   {
     locp = &locs->locs[locidx];
     kindstr = "simple";
@@ -605,9 +607,9 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *ne
     uint32_t iph, ipn;
     int i;
     tmploc = locs->locs[locidx];
-    memcpy (&l1, tmploc.loc.address, sizeof (l1));
-    tmploc.loc.kind = NN_LOCATOR_KIND_UDPv4;
-    memset (tmploc.loc.address, 0, 12);
+    memcpy (&l1, tmploc.c.address, sizeof (l1));
+    tmploc.c.kind = NN_LOCATOR_KIND_UDPv4;
+    memset (tmploc.c.address, 0, 12);
     iph = ntohl (l1.ipv4.s_addr);
     for (i = 0; i < nreaders; i++)
     {
@@ -616,7 +618,7 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *ne
         iph |= 1u << ((ci >> CI_MULTICAST_SHIFT) - 1);
     }
     ipn = htonl (iph);
-    memcpy (tmploc.loc.address + 12, &ipn, 4);
+    memcpy (tmploc.c.address + 12, &ipn, 4);
     locp = &tmploc;
     kindstr = "mcgen";
   }

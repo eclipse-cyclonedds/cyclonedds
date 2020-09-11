@@ -126,6 +126,7 @@ struct ddsi_tran_conn
 
   /* Relationships */
 
+  const struct nn_interface *m_interf;
   ddsi_tran_factory_t m_factory;
   ddsi_tran_listener_t m_listener;
   ddsi_tran_conn_t m_conn;
@@ -206,7 +207,7 @@ void ddsi_factory_add (struct ddsi_domaingv *gv, ddsi_tran_factory_t factory);
 DDS_EXPORT void ddsi_factory_free (ddsi_tran_factory_t factory);
 DDS_EXPORT ddsi_tran_factory_t ddsi_factory_find (const struct ddsi_domaingv *gv, const char * type);
 ddsi_tran_factory_t ddsi_factory_find_supported_kind (const struct ddsi_domaingv *gv, int32_t kind);
-void ddsi_factory_conn_init (const struct ddsi_tran_factory *factory, ddsi_tran_conn_t conn);
+void ddsi_factory_conn_init (const struct ddsi_tran_factory *factory, const struct nn_interface *interf, ddsi_tran_conn_t conn);
 
 inline bool ddsi_factory_supports (const struct ddsi_tran_factory *factory, int32_t kind) {
   return factory->m_supports_fn (factory, kind);

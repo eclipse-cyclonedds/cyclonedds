@@ -190,7 +190,7 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_locator_t *lo
   DDSRT_WARNING_MSVC_ON(4996);
 }
 
-char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port, uint32_t ifindex)
+char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port, const struct nn_interface *interf)
 {
   assert (sizeof_dst > 1);
   if (loc->kind == NN_LOCATOR_KIND_INVALID)
@@ -231,8 +231,8 @@ char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t 
     }
     if (cnt >= 0)
       pos += (size_t) cnt;
-    if (ifindex != UINT32_MAX && pos < sizeof_dst)
-      snprintf (dst + pos, sizeof_dst - pos, "@%"PRIu32, ifindex);
+    if (interf && pos < sizeof_dst)
+      snprintf (dst + pos, sizeof_dst - pos, "@%"PRIu32, interf->if_index);
   }
   return dst;
 }
@@ -286,9 +286,9 @@ void ddsi_ipaddr_to_loc (ddsi_locator_t *dst, const struct sockaddr *src, int32_
 
 void ddsi_ipaddr_to_xloc (const struct ddsi_tran_factory *tran, ddsi_xlocator_t *dst, const struct sockaddr *src, int32_t kind)
 {
-  dst->tran = (struct ddsi_tran_factory *) tran;
+  (void) tran;
   dst->conn = NULL;
-  ddsi_ipaddr_to_loc(&dst->loc, src, kind);
+  ddsi_ipaddr_to_loc(&dst->c, src, kind);
 }
 
 void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const ddsi_locator_t *src)
