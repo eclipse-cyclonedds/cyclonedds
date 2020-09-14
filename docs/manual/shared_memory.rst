@@ -87,6 +87,26 @@ You can compare the result between native Cyclone DDS and Cyclone DDS with share
 Note that you can't run "ddsperf sub" before "ddsperf pub".
 It's related to mulitple publishers issue, and you can refer to the `Limitations`_.
 
+***********
+Performance
+***********
+
+Here is the performance test to compare the throughput between Cyclone DDS and Cyclone DDS with shared memory.
+
+* Platform: `ADLINK ROScube-I <https://www.adlinktech.com/Products/ROS2_Solution/ROS2_Controller/ROScube-I?Lang=en#tab-24647>`_
+
+  - CPU: Intel(R) Core(TM) i5-8400H CPU @ 2.50GHz
+  - Memory: 16G
+
+* OS: Ubuntu 18.04
+* Test tools: `ddsperf <https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/src/tools/ddsperf>`_
+
+.. image:: _static/pictures/shm_performance.png
+  :width: 400
+
+The result is based on default configuration and Cyclone DDS release build.
+You can see that the throughput becomes much better as payload size increases.
+
 *************
 To developers
 *************
