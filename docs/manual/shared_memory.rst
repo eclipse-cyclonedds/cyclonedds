@@ -27,7 +27,7 @@ Here we use colcon to build the project, including iceoryx, Cyclone DDS, and ice
 
   mkdir -p ~/cyclone_iceoryx_ws/src
   cd ~/cyclone_iceoryx_ws/src
-  git clone https://github.com/Adlink-ROS/cyclonedds.git -b support_iceoryx
+  git clone https://github.com/eclipse-cyclonedds/cyclonedds.git -b iceoryx
   git clone https://github.com/Adlink-ROS/iceoryx.git -b used_by_cyclone
   git clone https://github.com/Adlink-ROS/iceoryx_clib.git
   cd ~/cyclone_iceoryx_ws
@@ -50,7 +50,7 @@ Save the following xml as cyclonedds.xml.
 .. code-block:: xml
 
   <?xml version="1.0" encoding="UTF-8" ?>
-  <CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd">
+  <CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/iceoryx/etc/cyclonedds.xsd">
       <Domain id="any">
           <SharedMemory>
               <Enable>true</Enable>
@@ -134,7 +134,7 @@ Here is some tips for you to get started.
   .. code-block:: xml
   
     <?xml version="1.0" encoding="UTF-8" ?>
-    <CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd">
+    <CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/iceoryx/etc/cyclonedds.xsd">
         <Domain id="any">
             <Tracing>
                 <Category>shm</Category>
