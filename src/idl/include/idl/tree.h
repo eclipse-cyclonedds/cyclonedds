@@ -23,6 +23,10 @@
 #include "idl/export.h"
 #include "idl/retcode.h"
 
+struct idl_scope;
+struct idl_name;
+struct idl_scoped_name;
+
 typedef struct idl_file idl_file_t;
 struct idl_file {
   idl_file_t *next;
@@ -59,9 +63,12 @@ struct idl_location {
     has been enabled, using @hashid. */
 #define IDL_ID (1llu<<34)                                      /* IDL_MEMBER */
 /* pragmas */
+#if 0
+/* FIXME: pragmas, at least keylist, is not a node! */
 #define IDL_PRAGMA (1llu<<33)
 #define   IDL_KEYLIST (IDL_PRAGMA | 1llu)
 #define   IDL_DATA_TYPE (IDL_PRAGMA | 2llu)
+#endif
 /* expressions */
 #define IDL_EXPR (1llu<<32)
 #define IDL_BINARY_EXPR (1llu<<31)                              /* IDL_EXPR */
@@ -149,7 +156,6 @@ typedef void(*idl_delete_t)(void *node);
 typedef uint64_t idl_mask_t;
 
 typedef struct idl_annotation_appl idl_annotation_appl_t;
-typedef struct idl_keylist idl_keylist_t;
 typedef struct idl_node idl_node_t;
 struct idl_node {
   idl_mask_t mask; /**< node type, e.g. integer literal, struct, etc */
@@ -157,6 +163,7 @@ struct idl_node {
   int16_t references; /**< number of references to node */
   idl_location_t location;
   idl_annotation_appl_t *annotations;
+  const struct idl_scope *scope;
   idl_node_t *parent; /**< pointer to parent node */
   idl_node_t *previous, *next; /**< pointers to sibling nodes */
   idl_print_t printer;
@@ -213,11 +220,16 @@ typedef struct idl_constval idl_constval_t;
 struct idl_constval {
   idl_node_t node;
   union {
-    uint8_t oct;
-    int32_t lng;
-    uint32_t ulng;
-    int64_t llng;
-    uint64_t ullng;
+    bool bln;
+    char chr;
+    int8_t int8;
+    uint8_t uint8, oct;
+    int16_t int16, shrt;
+    uint16_t uint16, ushrt;
+    int32_t int32, lng;
+    uint32_t uint32, ulng;
+    int64_t int64, llng;
+    uint64_t uint64, ullng;
     float flt;
     double dbl;
     long double ldbl;
@@ -248,40 +260,22 @@ struct idl_string {
 typedef struct idl_annotation_appl_param idl_annotation_appl_param_t;
 struct idl_annotation_appl_param {
   idl_node_t node;
-  char *identifier;
+  struct idl_name *name;
   idl_const_expr_t *const_expr;
 };
 
 struct idl_annotation_appl {
   idl_node_t node;
-  char *scoped_name;
+  struct idl_scoped_name *scoped_name;
   /* FIXME: either an expression or a list of parameters, needs work */
   idl_annotation_appl_param_t *parameters;
-};
-
-typedef struct idl_data_type idl_data_type_t;
-struct idl_data_type {
-  idl_node_t node;
-  char *identifier;
-};
-
-typedef struct idl_key idl_key_t;
-struct idl_key {
-  idl_node_t node;
-  char *identifier;
-};
-
-struct idl_keylist {
-  idl_node_t node;
-  idl_data_type_t *data_type;
-  idl_key_t *keys;
 };
 
 typedef struct idl_const idl_const_t;
 struct idl_const {
   idl_node_t node;
   idl_const_type_t *type_spec;
-  char *identifier;
+  struct idl_name *name;
   idl_const_expr_t *const_expr;
 };
 
@@ -289,14 +283,14 @@ struct idl_const {
 typedef struct idl_module idl_module_t;
 struct idl_module {
   idl_node_t node;
-  char *identifier;
+  struct idl_name *name;
   idl_definition_t *definitions;
 };
 
 typedef struct idl_declarator idl_declarator_t;
 struct idl_declarator {
   idl_node_t node;
-  char *identifier;
+  struct idl_name *name;
   idl_const_expr_t *const_expr; /**< array sizes */
 };
 
@@ -340,9 +334,8 @@ typedef struct idl_struct idl_struct_t;
 struct idl_struct {
   idl_node_t node;
   idl_struct_t *base_type; /**< Base type extended by struct (optional) */
-  char *identifier;
+  struct idl_name *name;
   idl_member_t *members;
-  idl_keylist_t *keylist;
   idl_autoid_t autoid;
   idl_extensibility_t extensibility;
 };
@@ -364,7 +357,7 @@ struct idl_case {
 typedef struct idl_union idl_union_t;
 struct idl_union {
   idl_node_t node;
-  char *identifier;
+  struct idl_name *name;
   idl_switch_type_spec_t *switch_type_spec;
   idl_case_t *cases;
 };
@@ -372,21 +365,21 @@ struct idl_union {
 typedef struct idl_enumerator idl_enumerator_t;
 struct idl_enumerator {
   idl_node_t node;
-  char *identifier;
-  uint32_t value; /* FIXME: for @value */
+  struct idl_name *name;
+  uint32_t value;
 };
 
 typedef struct idl_enum idl_enum_t;
 struct idl_enum {
   idl_node_t node;
-  char *identifier;
+  struct idl_name *name;
   idl_enumerator_t *enumerators;
 };
 
 typedef struct idl_forward idl_forward_t;
 struct idl_forward {
   idl_node_t node;
-  char *identifier;
+  struct idl_name *name;
   idl_constr_type_spec_t *constr_type; /**< union or struct declaration */
 };
 
@@ -418,11 +411,11 @@ IDL_EXPORT bool idl_is_base_type(const void *node);
 
 IDL_EXPORT bool idl_is_masked(const void *node, idl_mask_t mask);
 IDL_EXPORT const char *idl_identifier(const void *node);
-IDL_EXPORT const char *idl_label(const void *node);
 IDL_EXPORT const idl_location_t *idl_location(const void *node);
 IDL_EXPORT void *idl_parent(const void *node);
 IDL_EXPORT void *idl_previous(const void *node);
 IDL_EXPORT void *idl_next(const void *node);
+IDL_EXPORT void *idl_unalias(const void *node);
 
 IDL_EXPORT idl_retcode_t
 idl_parse_string(const char *str, uint32_t flags, idl_tree_t **treeptr);

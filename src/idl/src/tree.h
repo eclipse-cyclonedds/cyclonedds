@@ -20,6 +20,17 @@ idl_annotate(
   void *node,
   idl_annotation_appl_t *annotations);
 
+void *idl_reference(void *node);
+
+idl_retcode_t
+idl_create_node(
+  idl_processor_t *proc,
+  void *nodeptr,
+  size_t size,
+  idl_mask_t mask,
+  const idl_location_t *location,
+  idl_delete_t destructor);
+
 idl_retcode_t
 idl_finalize_module(
   idl_processor_t *proc,
@@ -32,7 +43,7 @@ idl_create_module(
   idl_processor_t *proc,
   idl_module_t **nodeptr,
   idl_location_t *location,
-  char *identifier);
+  idl_name_t *name);
 
 idl_retcode_t
 idl_create_const(
@@ -40,7 +51,7 @@ idl_create_const(
   idl_const_t **nodeptr,
   idl_location_t *location,
   idl_type_spec_t *type_spec,
-  char *identifier,
+  idl_name_t *name,
   idl_const_expr_t *const_expr);
 
 idl_retcode_t
@@ -70,8 +81,8 @@ idl_create_struct(
   idl_processor_t *proc,
   idl_struct_t **nodeptr,
   idl_location_t *location,
-  char *identifier,
-  idl_struct_t *base_type);
+  idl_name_t *name,
+  idl_inherit_spec_t *inherit_spec);
 
 idl_retcode_t
 idl_create_member(
@@ -87,7 +98,7 @@ idl_create_forward(
   idl_forward_t **nodeptr,
   idl_location_t *location,
   idl_mask_t mask,
-  char *identifier);
+  idl_name_t *name);
 
 idl_retcode_t
 idl_create_case_label(
@@ -112,27 +123,33 @@ idl_create_case(
   idl_declarator_t *declarator);
 
 idl_retcode_t
+idl_finalize_union(
+  idl_processor_t *proc,
+  idl_union_t *node,
+  idl_location_t *location,
+  idl_case_t *cases);
+
+idl_retcode_t
 idl_create_union(
   idl_processor_t *proc,
   idl_union_t **nodeptr,
   idl_location_t *location,
-  char *identifier,
-  idl_switch_type_spec_t *switch_type_spec,
-  idl_case_t *cases);
+  idl_name_t *name,
+  idl_switch_type_spec_t *switch_type_spec);
 
 idl_retcode_t
 idl_create_enumerator(
   idl_processor_t *proc,
   idl_enumerator_t **nodeptr,
   idl_location_t *location,
-  char *identifier);
+  idl_name_t *name);
 
 idl_retcode_t
 idl_create_enum(
   idl_processor_t *proc,
   idl_enum_t **nodeptr,
   idl_location_t *location,
-  char *identifier,
+  idl_name_t *name,
   idl_enumerator_t *enumerators);
 
 idl_retcode_t
@@ -148,7 +165,7 @@ idl_create_declarator(
   idl_processor_t *proc,
   idl_declarator_t **nodeptr,
   idl_location_t *location,
-  char *identifier,
+  idl_name_t *name,
   idl_const_expr_t *const_expr);
 
 idl_retcode_t
@@ -156,7 +173,7 @@ idl_create_annotation_appl(
   idl_processor_t *proc,
   idl_annotation_appl_t **nodeptr,
   idl_location_t *location,
-  char *identifier,
+  idl_scoped_name_t *name,
   void *parameters);
 
 idl_retcode_t
@@ -164,14 +181,8 @@ idl_create_annotation_appl_param(
   idl_processor_t *proc,
   idl_annotation_appl_param_t **nodeptr,
   idl_location_t *location,
-  char *identifier,
+  idl_name_t *name,
   idl_const_expr_t *parameters);
-
-idl_data_type_t *idl_create_data_type(void);
-
-idl_key_t *idl_create_key(void);
-
-idl_keylist_t *idl_create_keylist(void);
 
 idl_retcode_t
 idl_create_literal(
@@ -208,7 +219,7 @@ idl_retcode_t
 idl_create_constval(
   idl_processor_t *proc,
   idl_constval_t **nodeptr,
-  idl_location_t *location,
+  const idl_location_t *location,
   idl_mask_t mask);
 
 /** @private */

@@ -55,7 +55,7 @@ CU_Test(idl_typedef, simple_declarator)
   CU_ASSERT_PTR_NULL(idl_previous(d));
   CU_ASSERT_PTR_NULL(idl_next(d));
   CU_ASSERT_PTR_EQUAL(idl_parent(d), t);
-  CU_ASSERT_STRING_EQUAL(d->identifier, "foo");
+  CU_ASSERT_STRING_EQUAL(idl_identifier(d), "foo");
   CU_ASSERT_PTR_NULL(d->const_expr);
   idl_delete_tree(tree);
 }
@@ -81,22 +81,22 @@ CU_Test(idl_typedef, simple_declarators)
   CU_ASSERT_FATAL(idl_is_declarator(d));
   CU_ASSERT_PTR_NULL(idl_previous(d));
   CU_ASSERT_PTR_EQUAL(idl_parent(d), t);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(d->identifier);
-  CU_ASSERT_STRING_EQUAL(d->identifier, "foo");
+  CU_ASSERT_PTR_NOT_NULL_FATAL(idl_identifier(d));
+  CU_ASSERT_STRING_EQUAL(idl_identifier(d), "foo");
   CU_ASSERT_PTR_NULL(d->const_expr);
   d = idl_next(d);
   CU_ASSERT_PTR_NOT_NULL_FATAL(d);
   CU_ASSERT_FATAL(idl_is_declarator(d));
   CU_ASSERT_PTR_EQUAL(idl_parent(d), t);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(d->identifier);
-  CU_ASSERT_STRING_EQUAL(d->identifier, "bar");
+  CU_ASSERT_PTR_NOT_NULL_FATAL(idl_identifier(d));
+  CU_ASSERT_STRING_EQUAL(idl_identifier(d), "bar");
   CU_ASSERT_PTR_NULL(d->const_expr);
   d = idl_next(d);
   CU_ASSERT_PTR_NOT_NULL_FATAL(d);
   CU_ASSERT_FATAL(idl_is_declarator(d));
   CU_ASSERT_PTR_EQUAL(idl_parent(d), t);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(d->identifier);
-  CU_ASSERT_STRING_EQUAL(d->identifier, "baz");
+  CU_ASSERT_PTR_NOT_NULL_FATAL(idl_identifier(d));
+  CU_ASSERT_STRING_EQUAL(idl_identifier(d), "baz");
   CU_ASSERT_PTR_NULL(d->const_expr);
   CU_ASSERT_PTR_NULL(idl_next(d));
   idl_delete_tree(tree);
@@ -105,3 +105,28 @@ CU_Test(idl_typedef, simple_declarators)
 // x. typedef with complex declarator
 // x. typedef with more than one complex declarator
 // x. typedef to typedef
+
+CU_Test(idl_typedef, sequence)
+{
+  idl_retcode_t ret;
+  idl_tree_t *tree;
+  idl_typedef_t *t;
+  idl_struct_t *s;
+  idl_member_t *m;
+
+  const char str[] = "typedef sequence<long> t; struct s { t m; };";
+  ret = idl_parse_string(str, 0u, &tree);
+  CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
+  CU_ASSERT_PTR_NOT_NULL_FATAL(tree);
+  t = (idl_typedef_t *)tree->root;
+  CU_ASSERT_PTR_NOT_NULL_FATAL(t);
+  CU_ASSERT_FATAL(idl_is_typedef(t));
+  s = idl_next(t);
+  CU_ASSERT_PTR_NOT_NULL_FATAL(s);
+  CU_ASSERT_FATAL(idl_is_struct(s));
+  m = s->members;
+  CU_ASSERT_PTR_NOT_NULL_FATAL(m);
+  CU_ASSERT_FATAL(idl_is_member(m));
+  CU_ASSERT_PTR_EQUAL(m->type_spec, t);
+  idl_delete_tree(tree);
+}

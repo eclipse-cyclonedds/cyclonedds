@@ -68,14 +68,14 @@ CU_Test(idl_pragma, keylist)
   m = (idl_member_t *)s->members;
   CU_ASSERT_FATAL(idl_is_member(m));
   CU_ASSERT_PTR_NOT_NULL_FATAL(m->declarators);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(m->declarators->identifier);
-  CU_ASSERT_STRING_EQUAL(m->declarators->identifier, "c");
+  CU_ASSERT_PTR_NOT_NULL_FATAL(idl_identifier(m->declarators));
+  CU_ASSERT_STRING_EQUAL(idl_identifier(m->declarators), "c");
   CU_ASSERT(idl_is_masked(m, IDL_KEY));
   m = idl_next(m);
   CU_ASSERT_FATAL(idl_is_member(m));
   CU_ASSERT_PTR_NOT_NULL_FATAL(m->declarators);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(m->declarators->identifier);
-  CU_ASSERT_STRING_EQUAL(m->declarators->identifier, "l");
+  CU_ASSERT_PTR_NOT_NULL_FATAL(idl_identifier(m->declarators));
+  CU_ASSERT_STRING_EQUAL(idl_identifier(m->declarators), "l");
   CU_ASSERT(!idl_is_masked(m, IDL_KEY));
   idl_delete_tree(tree);
 }

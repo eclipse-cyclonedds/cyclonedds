@@ -30,10 +30,23 @@
 #include "directive.h"
 #include "scanner.h"
 #include "tree.h"
+#include "scope.h"
 
 idl_retcode_t idl_processor_init(idl_processor_t *proc)
 {
+  idl_name_t *name;
+  idl_scope_t *scope;
+  idl_entry_t *entry;
   void *yypstate, *locale;
+
+  name = calloc(1, sizeof(*name));
+  name->identifier = idl_strdup("<GLOBAL>");
+  entry = calloc(1, sizeof(*entry));
+  entry->type = IDL_SCOPE;
+  entry->name = name;
+  scope = calloc(1, sizeof(*scope));
+  scope->name = entry->name;
+  scope->table.first = scope->table.last = entry;
 
   if (!(yypstate = idl_yypstate_new()))
     goto fail_yypstate;
@@ -53,6 +66,7 @@ idl_retcode_t idl_processor_init(idl_processor_t *proc)
   memset(proc, 0, sizeof(*proc));
   proc->locale = locale;
   proc->parser.yypstate = yypstate;
+  proc->global_scope = proc->scope = scope;
 
   return IDL_RETCODE_OK;
 fail_locale:
@@ -76,12 +90,8 @@ void idl_processor_fini(idl_processor_t *proc)
       idl_yypstate_delete_stack(proc->parser.yypstate);
       idl_yypstate_delete(proc->parser.yypstate);
     }
-    if (proc->scope)
-      free(proc->scope);
     /* directive */
     if (proc->directive) {
-      if (proc->directive->type == IDL_PRAGMA_KEYLIST)
-        idl_delete_node(((idl_pragma_keylist_t *)proc->directive)->keylist);
       free(proc->directive);
     }
     /* files */
@@ -95,15 +105,7 @@ void idl_processor_fini(idl_processor_t *proc)
       }
     }
     /* symbol table */
-    if (proc->table.first) {
-      idl_symbol_t *symbol, *next;
-      for (symbol = proc->table.first; symbol; symbol = next) {
-        next = symbol->next;
-        if (symbol->name)
-          free(symbol->name);
-        free(symbol);
-      }
-    }
+    idl_delete_scope(proc->global_scope);
     if (proc->buffer.data)
       free(proc->buffer.data);
   }

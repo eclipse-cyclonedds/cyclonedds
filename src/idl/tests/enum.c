@@ -82,8 +82,8 @@ CU_Test(idl_enum, single_enumerator)
   CU_ASSERT_FATAL(idl_is_enum(e));
   er = (idl_enumerator_t *)e->enumerators;
   CU_ASSERT_FATAL(idl_is_enumerator(er));
-  CU_ASSERT_PTR_NOT_NULL_FATAL(er->identifier);
-  CU_ASSERT_STRING_EQUAL(er->identifier, "bar");
+  CU_ASSERT_PTR_NOT_NULL_FATAL(idl_identifier(er));
+  CU_ASSERT_STRING_EQUAL(idl_identifier(er), "bar");
   CU_ASSERT_PTR_EQUAL(idl_parent(er), e);
   idl_delete_tree(tree);
 }
@@ -103,13 +103,13 @@ CU_Test(idl_enum, multiple_enumerators)
   CU_ASSERT_FATAL(idl_is_enum(e));
   er = (idl_enumerator_t *)e->enumerators;
   CU_ASSERT_FATAL(idl_is_enumerator(er));
-  CU_ASSERT_PTR_NOT_NULL_FATAL(er->identifier);
-  CU_ASSERT_STRING_EQUAL(er->identifier, "bar");
+  CU_ASSERT_PTR_NOT_NULL_FATAL(idl_identifier(er));
+  CU_ASSERT_STRING_EQUAL(idl_identifier(er), "bar");
   CU_ASSERT_PTR_EQUAL(idl_parent(er), e);
   er = idl_next(er);
   CU_ASSERT_FATAL(idl_is_enumerator(er));
-  CU_ASSERT_PTR_NOT_NULL_FATAL(er->identifier);
-  CU_ASSERT_STRING_EQUAL(er->identifier, "baz");
+  CU_ASSERT_PTR_NOT_NULL_FATAL(idl_identifier(er));
+  CU_ASSERT_STRING_EQUAL(idl_identifier(er), "baz");
   CU_ASSERT_PTR_EQUAL(idl_parent(er), e);
   idl_delete_tree(tree);
 }

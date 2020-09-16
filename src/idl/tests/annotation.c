@@ -96,10 +96,8 @@ CU_Test(idl_annotation, autoid_struct)
 {
   idl_retcode_t ret;
   idl_tree_t *tree = NULL;
-  idl_struct_t *s1, *s2, *s3;
-  const char str[] = "@autoid struct s { char c; }; "
-                     "@autoid(HASH) struct s { char c; }; "
-                     "@autoid(SEQUENTIAL) struct s { char c; };";
+  idl_struct_t *s1;
+  const char str[] = "@autoid struct s { char c; };";
 
   ret = idl_parse_string(str, IDL_FLAG_ANNOTATIONS, &tree);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
@@ -108,14 +106,6 @@ CU_Test(idl_annotation, autoid_struct)
   CU_ASSERT_PTR_NOT_NULL_FATAL(s1);
   CU_ASSERT_FATAL(idl_is_struct(s1));
   CU_ASSERT_EQUAL(s1->autoid, IDL_AUTOID_SEQUENTIAL);
-  s2 = idl_next(s1);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(s2);
-  CU_ASSERT_FATAL(idl_is_struct(s2));
-  CU_ASSERT_EQUAL(s2->autoid, IDL_AUTOID_HASH);
-  s3 = idl_next(s2);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(s3);
-  CU_ASSERT_FATAL(idl_is_struct(s3));
-  CU_ASSERT_EQUAL(s3->autoid, IDL_AUTOID_SEQUENTIAL);
   idl_delete_tree(tree);
 }
 
@@ -123,29 +113,9 @@ CU_Test(idl_annotation, autoid_struct)
 // x. autoid (HASH)
 // x. autoid (SEQUENTIAL)
 
-CU_Test(idl_annotation, extensibility_struct)
-{
-  idl_retcode_t ret;
-  idl_tree_t *tree = NULL;
-  idl_struct_t *s1, *s2, *s3;
-  const char str[] = "@extensibility (FINAL) struct s1 { char c; }; "
-                     "@extensibility (APPENDABLE) struct s2 { char c; }; "
-                     "@extensibility (MUTABLE) struct s3 { char c; };";
-
-  ret = idl_parse_string(str, IDL_FLAG_ANNOTATIONS, &tree);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL(tree);
-  s1 = (idl_struct_t *)tree->root;
-  CU_ASSERT_FATAL(idl_is_struct(s1));
-  CU_ASSERT_EQUAL(s1->extensibility, IDL_EXTENSIBILITY_FINAL);
-  s2 = idl_next(s1);
-  CU_ASSERT_FATAL(idl_is_struct(s2));
-  CU_ASSERT_EQUAL(s2->extensibility, IDL_EXTENSIBILITY_APPENDABLE);
-  s3 = idl_next(s2);
-  CU_ASSERT_FATAL(idl_is_struct(s3));
-  CU_ASSERT_EQUAL(s3->extensibility, IDL_EXTENSIBILITY_MUTABLE);
-  idl_delete_tree(tree);
-}
+// x. @extensibility(FINAL)
+// x. @extensibility(APPENDABLE)
+// x. @extensibility(MUTABLE)
 
 CU_Test(idl_annotation, final_struct)
 {
