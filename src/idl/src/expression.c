@@ -720,12 +720,16 @@ idl_evaluate(
         "Cannot evaluate '%s' as enumerator", "<foobar>");
       return IDL_RETCODE_SEMANTIC_ERROR;
     }
-    *((idl_node_t **)nodeptr) = idl_reference(expr);
+    *((idl_node_t **)nodeptr) = expr;
     return IDL_RETCODE_OK;
   } else if (type == IDL_OCTET || (type & IDL_INTEGER_TYPE) == IDL_INTEGER_TYPE) {
-    return eval_int(proc, nodeptr, expr, type);
+    if ((ret = eval_int(proc, nodeptr, expr, type)) == IDL_RETCODE_OK)
+      idl_delete_node(expr);
+    return ret;
   } else if ((type & IDL_FLOATING_PT_TYPE) == IDL_FLOATING_PT_TYPE) {
-    return eval_float(proc, nodeptr, expr, type);
+    if ((ret = eval_float(proc, nodeptr, expr, type)) == IDL_RETCODE_OK)
+      idl_delete_node(expr);
+    return ret;
   }
 
   ret = idl_create_constval(proc, &constval, idl_location(expr), type);
@@ -749,6 +753,7 @@ idl_evaluate(
     assert(0);
   }
 
+  idl_delete_node(expr);
   *nodeptr = (idl_node_t *)constval;
   return IDL_RETCODE_OK;
 err_eval:
