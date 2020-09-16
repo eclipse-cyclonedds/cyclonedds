@@ -827,7 +827,7 @@ identifier:
           ERROR(proc, &@1, "Identifier '%s' collides with a keyword", $1);
         //if (!($$ = idl_strdup($1)))
         //  EXHAUSTED;
-        TRY(idl_create_name(proc, &$$, &@1, idl_strdup($1)));
+        TRY(idl_create_name(proc, &$$, &@1, idl_strdup($1+($1[0] == '_'))));
       }
   ;
 

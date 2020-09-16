@@ -902,9 +902,6 @@ idl_finalize_union(
               "Enumerator of different enum type");
             return IDL_RETCODE_SEMANTIC_ERROR;
           }
-          constval->node.references--;
-        } else {
-          idl_delete_node(cl->const_expr);
         }
         cl->const_expr = (idl_node_t*)constval;
         if (!idl_scope(constval))
@@ -1171,7 +1168,7 @@ idl_create_declarator(
   node->name = name;
   if (const_expr) {
     node->const_expr = const_expr;
-    for (idl_node_t *n = (idl_node_t*)node; n; n = n->next) {
+    for (idl_node_t *n = (idl_node_t*)const_expr; n; n = n->next) {
       assert(!n->parent);
       assert(idl_is_masked(n, IDL_CONST|IDL_ULLONG));
       n->parent = (idl_node_t*)node;
