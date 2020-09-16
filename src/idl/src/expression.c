@@ -709,8 +709,8 @@ idl_evaluate(
   idl_retcode_t ret;
   idl_constval_t *constval;
 
-  assert(type & IDL_BASE_TYPE);
-  type &= (IDL_BASE_TYPE | (IDL_BASE_TYPE - 1));
+  assert(type & (IDL_BASE_TYPE|IDL_ENUMERATOR));
+  type &= (IDL_ENUMERATOR|IDL_BASE_TYPE | (IDL_BASE_TYPE - 1));
 
   /* enumerators are referenced */
   if (type == IDL_ENUMERATOR) {

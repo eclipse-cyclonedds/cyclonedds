@@ -95,6 +95,41 @@ CU_Test(idl_union, single_default_case)
 // x. union with multile labels for branch
 // x. union with enumeration A and an enumerator from enumeration B
 
+CU_Test(idl_union, enumerator_switch_type)
+{
+  idl_retcode_t ret;
+  idl_tree_t *tree = NULL;
+  idl_enum_t *e;
+  idl_enumerator_t *el;
+  idl_union_t *u;
+  idl_case_t *c;
+  const char *str;
+
+  str = "enum Color { Red, Yellow, Blue };\n"
+        "union u switch(Color) { case Red: char c; default: long l; };";
+
+  ret = idl_parse_string(str, 0u, &tree);
+  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  CU_ASSERT_PTR_NOT_NULL(tree);
+  e = (idl_enum_t *)tree->root;
+  CU_ASSERT_FATAL(idl_is_enum(e));
+  el = e->enumerators;
+  CU_ASSERT_FATAL(idl_is_enumerator(el));
+  CU_ASSERT_STRING_EQUAL(idl_identifier(el), "Red");
+  el = idl_next(el);
+  CU_ASSERT_FATAL(idl_is_enumerator(el));
+  CU_ASSERT_STRING_EQUAL(idl_identifier(el), "Yellow");
+  el = idl_next(el);
+  CU_ASSERT_FATAL(idl_is_enumerator(el));
+  CU_ASSERT_STRING_EQUAL(idl_identifier(el), "Blue");
+  u = (idl_union_t *)idl_next(e);
+  CU_ASSERT_FATAL(idl_is_union(u));
+  c = u->cases;
+  CU_ASSERT_FATAL(idl_is_case(c));
+  CU_ASSERT((uintptr_t)c->case_labels->const_expr == (uintptr_t)e->enumerators);
+  idl_delete_tree(tree);
+}
+
 /* the type for the union discriminator must be an integer, char, boolean,
    enumeration, or a reference to one of these */
 #define M(name, definitions) "module " name " { " definitions " };"

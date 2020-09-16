@@ -698,7 +698,8 @@ switch_type_spec:
         idl_entry_t *entry;
         TRY(idl_resolve(proc, &entry, $1));
         node = idl_unalias(entry ? entry->node : NULL);
-        if (!idl_is_masked(node, IDL_BASE_TYPE) ||
+        if (!(idl_is_masked(node, IDL_ENUM) ||
+              idl_is_masked(node, IDL_BASE_TYPE)) ||
              idl_is_masked(node, IDL_FLOATING_PT_TYPE))
         {
           static const char fmt[] =
