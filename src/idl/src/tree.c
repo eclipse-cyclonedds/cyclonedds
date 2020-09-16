@@ -859,7 +859,7 @@ idl_finalize_union(
 
   switch_type_spec = idl_unalias(node->switch_type_spec);
   assert(switch_type_spec);
-  if (idl_is_masked(switch_type_spec, IDL_ENUMERATOR)) {
+  if (idl_is_masked(switch_type_spec, IDL_ENUM)) {
     mask = IDL_ENUMERATOR;
   } else {
     assert(idl_is_masked(switch_type_spec, IDL_BASE_TYPE) &&
