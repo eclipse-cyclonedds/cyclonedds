@@ -31,7 +31,6 @@ add_library(
     src/directive.c
     src/processor.c
     src/tree.c
-    src/table.c
     src/string.c
     src/expression.c
     src/scope.c

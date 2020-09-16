@@ -23,6 +23,7 @@
 #include "idl/export.h"
 #include "idl/retcode.h"
 #include "idl/tree.h"
+#include "idl/scope.h"
 
 /** @private */
 typedef struct idl_buffer idl_buffer_t;
@@ -56,7 +57,7 @@ struct idl_token {
 /** @private */
 typedef struct idl_directive idl_directive_t;
 struct idl_directive {
-  enum { IDL_LINE, IDL_PRAGMA_KEYLIST } type;
+  enum { IDL_LINE } type;
 };
 
 /** @private */
@@ -66,13 +67,6 @@ struct idl_line {
   uint32_t line;
   char *file;
   bool extra_tokens;
-};
-
-/** @private */
-typedef struct idl_pragma_keylist idl_pragma_keylist_t;
-struct idl_pragma_keylist {
-  idl_directive_t directive;
-  idl_keylist_t *keylist;
 };
 
 /**
@@ -154,17 +148,8 @@ struct idl_processor {
   idl_file_t *files; /**< list of encountered files */
   idl_directive_t *directive;
   idl_buffer_t buffer; /**< dynamically sized input buffer */
-  /* FIXME: Hack to support things like e.g. SEQUENCE and HASH for @autoid and
-            FINAL, APPENDABLE and MUTABLE for @extensibility. */
-  bool annotation_appl_params;
   void *locale;
-  char *scope;
-  struct {
-    /* symbol table is a flat list of encountered declarations registered by
-       the parser in order of appearance. multiple entries with the same name
-       can exist, e.g. in the case of forward declarations */
-    idl_symbol_t *first, *last;
-  } table; /**< list of encountered declarations */
+  idl_scope_t *global_scope, *scope;
   struct {
     const char *cursor;
     const char *limit;

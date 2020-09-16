@@ -35,7 +35,7 @@ test_base_type(const char *str, uint32_t flags, int32_t retcode, idl_mask_t mask
   CU_ASSERT_PTR_NOT_NULL(node);
   if (!node)
     goto bail;
-  CU_ASSERT_EQUAL(node->mask, IDL_DECL | IDL_TYPE | IDL_STRUCT);
+  CU_ASSERT_EQUAL(node->mask, IDL_DECL | IDL_TYPE | IDL_CONSTR_TYPE | IDL_STRUCT);
   if (node->mask == (IDL_DECL | IDL_TYPE | IDL_STRUCT)) {
     idl_member_t *member = ((idl_struct_t *)node)->members;
     CU_ASSERT_PTR_NOT_NULL(member);
@@ -49,10 +49,11 @@ test_base_type(const char *str, uint32_t flags, int32_t retcode, idl_mask_t mask
     CU_ASSERT_PTR_NOT_NULL(member->declarators);
     if (!member->declarators)
       goto bail;
-    CU_ASSERT_PTR_NOT_NULL(member->declarators->identifier);
-    if (!member->declarators->identifier)
+    CU_ASSERT_PTR_NOT_NULL(member->declarators->name);
+    CU_ASSERT_PTR_NOT_NULL(member->declarators->name->identifier);
+    if (!member->declarators->name || !member->declarators->name->identifier)
       goto bail;
-    CU_ASSERT_STRING_EQUAL(member->declarators->identifier, "c");
+    CU_ASSERT_STRING_EQUAL(member->declarators->name->identifier, "c");
   }
 
 bail:

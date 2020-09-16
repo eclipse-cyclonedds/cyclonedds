@@ -19,9 +19,8 @@
 #include "idl/string.h"
 #include "idl/processor.h"
 #include "expression.h"
-#include "table.h"
-#include "tree.h"
 #include "scope.h"
+#include "tree.h"
 
 #if defined(__GNUC__)
 _Pragma("GCC diagnostic push")
@@ -32,7 +31,6 @@ _Pragma("GCC diagnostic ignored \"-Wsign-conversion\"")
 
 static void yyerror(idl_location_t *loc, idl_processor_t *proc, idl_node_t **, const char *);
 static void push(void *list, void *node);
-static void *reference(void *node);
 
 #define TRY_CATCH(action, catch) \
   do { \
@@ -72,8 +70,13 @@ IDL_EXPORT void idl_yypstate_delete_stack(idl_yypstate *yyss);
 
 %code requires {
 #include "idl/processor.h"
-/* convenience macro to complement YYABORT */
-#define ABORT(proc, loc, ...) \
+/* convenience macros to complement YYABORT */
+#define EXHAUSTED \
+  do { \
+    yylen = 0; \
+    goto yyexhaustedlab; \
+  } while(0)
+#define ERROR(proc, loc, ...) \
   do { \
     idl_error(proc, loc, __VA_ARGS__); \
     yylen = 0; /* pop right-hand side tokens */ \
@@ -125,8 +128,9 @@ typedef struct idl_location YYLTYPE;
   idl_constval_t *constval;
   /* simple specifications */
   idl_mask_t kind;
-  char *scoped_name;
-  char *identifier;
+  idl_name_t *name;
+  idl_scoped_name_t *scoped_name;
+  idl_inherit_spec_t *inherit_spec;
   char *string_literal;
   /* specifications */
   idl_type_spec_t *type_spec;
@@ -164,7 +168,6 @@ typedef struct idl_location YYLTYPE;
 
 %param { idl_processor_t *proc }
 %param { idl_node_t **nodeptr }
-%initial-action { YYLLOC_INITIAL(@$, proc->files ? proc->files->name : NULL); }
 
 
 %token-table
@@ -183,16 +186,17 @@ typedef struct idl_location YYLTYPE;
              signed_int unsigned_int char_type wide_char_type boolean_type
              octet_type
 %type <literal> literal boolean_literal
-%type <identifier> identifier
+%type <name> identifier
 %type <scoped_name> scoped_name at_scoped_name
+%type <inherit_spec> struct_inherit_spec
 %type <string_literal> string_literal
 %type <sequence> sequence_type
 %type <string> string_type
 %type <module_dcl> module_dcl module_header
-%type <struct_dcl> struct_def struct_header struct_base_type
+%type <struct_dcl> struct_def struct_header
 %type <forward_dcl> struct_forward_dcl union_forward_dcl
 %type <member> members member struct_body
-%type <union_dcl> union_def
+%type <union_dcl> union_def union_header
 %type <_case> switch_body case element_spec
 %type <case_label> case_labels case_label
 %type <enum_dcl> enum_def
@@ -206,7 +210,13 @@ typedef struct idl_location YYLTYPE;
                               annotation_appl_keyword_param
                               annotation_appl_keyword_params
 
-%destructor { free($$); } <identifier> <scoped_name> <string_literal>
+%destructor { free($$); } <string_literal>
+
+%destructor { idl_delete_name($$); } <name>
+
+%destructor { idl_delete_scoped_name($$); } <scoped_name>
+
+%destructor { idl_delete_inherit_spec($$); } <inherit_spec>
 
 %destructor { idl_delete_node($$); } <node> <type_spec> <constval> <const_expr> <literal> <sequence>
                                      <string> <module_dcl> <struct_dcl> <forward_dcl> <member> <union_dcl>
@@ -297,19 +307,16 @@ definition:
     annotation_appls module_dcl ';'
       { if (proc->flags & IDL_FLAG_ANNOTATIONS)
           TRY(idl_annotate(proc, $2, $1));
-        idl_delete_node($1);
         $$ = $2;
       }
   | annotation_appls const_dcl ';'
       { if (proc->flags & IDL_FLAG_ANNOTATIONS)
           TRY(idl_annotate(proc, $2, $1));
-        idl_delete_node($1);
         $$ = $2;
       }
   | annotation_appls type_dcl ';'
       { if (proc->flags & IDL_FLAG_ANNOTATIONS)
           TRY(idl_annotate(proc, $2, $1));
-        idl_delete_node($1);
         $$ = $2;
       }
   ;
@@ -328,17 +335,12 @@ module_header:
 
 scoped_name:
     identifier
-      { $$ = $1; }
+      { TRY(idl_create_scoped_name(proc, &$$, &@1, $1, false)); }
   | scope identifier
-      { if (idl_asprintf(&$$, "::%s", $2) == -1)
-          goto yyexhaustedlab;
-        free($2);
-      }
+      { TRY(idl_create_scoped_name(proc, &$$, LOC(@1.first, @2.last), $2, true)); }
   | scoped_name scope identifier
-      { if (idl_asprintf(&$$, "%s::%s", $1, $3) == -1)
-          goto yyexhaustedlab;
-        free($1);
-        free($3);
+      { TRY(idl_append_to_scoped_name(proc, $1, $3));
+        $$ = $1;
       }
   ;
 
@@ -423,20 +425,19 @@ unary_operator:
 
 primary_expr:
     scoped_name
-      { const idl_symbol_t *sym;
-        sym = idl_find_symbol(proc, NULL, $1, NULL);
-        if (!sym && proc->annotation_appl_params) {
-          TRY(idl_create_literal(proc, (idl_literal_t**)&$$, &@1, IDL_STRING));
-          ((idl_literal_t *)$$)->value.str = $1;
-        } else {
-          if (!sym)
-            ABORT(proc, &@1, "scoped name %s cannot be resolved", $1);
-          if (sym->node->mask != (IDL_DECL | IDL_CONST) &&
-              sym->node->mask != (IDL_DECL | IDL_ENUMERATOR))
-            ABORT(proc, &@1, "scoped name %s does not resolve to a constant", $1);
-          $$ = reference((void *)sym->node);
-          free($1);
+      { idl_node_t *node;
+        idl_entry_t *entry;
+        TRY(idl_resolve(proc, &entry, $1));
+        node = idl_unalias(entry ? entry->node : NULL);
+        if (!idl_is_masked(node, IDL_DECL|IDL_CONST) &&
+            !idl_is_masked(node, IDL_DECL|IDL_ENUMERATOR))
+        {
+          static const char errfmt[] =
+            "Scoped name '%s' does not resolve to a constant";
+          ERROR(proc, &@1, errfmt, $1->flat);
         }
+        idl_delete_scoped_name($1);
+        $$ = idl_reference((idl_node_t*)entry->node);
       }
   | literal
       { $$ = (idl_const_expr_t *)$1; }
@@ -470,29 +471,17 @@ boolean_literal:
 string_literal:
     IDL_TOKEN_STRING_LITERAL
       { if (!($$ = idl_strdup($1)))
-          goto yyexhaustedlab;
+          EXHAUSTED;
       }
   ;
 
 positive_int_const:
     const_expr
-      { idl_intval_t intval;
-        if (idl_eval_int_expr(proc, &intval, $1, IDL_LLONG) != 0)
-          YYABORT;
-        if (intval.negative)
-          ABORT(proc, idl_location($1), "size must be greater than zero");
-        TRY(idl_create_constval(proc, &$$, &@1, IDL_ULLONG));
-        $$->value.ullng = intval.value.ullng;
-        idl_delete_node($1);
-      }
+      { TRY(idl_evaluate(proc, (idl_node_t **)&$$, $1, IDL_ULLONG)); }
   ;
 
 type_dcl:
-    constr_type_dcl
-      { if (!idl_add_symbol(proc, idl_scope(proc), idl_identifier($1), $1))
-          goto yyexhaustedlab;
-        $$ = $1;
-      }
+    constr_type_dcl { $$ = $1; }
   | typedef_dcl { $$ = $1; }
   ;
 
@@ -509,13 +498,15 @@ simple_type_spec:
     base_type_spec
       { TRY(idl_create_base_type(proc, (idl_base_type_t **)&$$, &@1, $1)); }
   | scoped_name
-      { const idl_symbol_t *sym;
-        if (!(sym = idl_find_symbol(proc, idl_scope(proc), $1, NULL)))
-          ABORT(proc, &@1, "scoped name %s cannot be resolved", $1);
-        if (!(sym->node->mask & IDL_TYPE))
-          ABORT(proc, &@1, "scoped name %s does not resolve to a type", $1);
-        $$ = reference((void *)sym->node);
-        free($1);
+      { idl_entry_t *entry;
+        TRY(idl_resolve(proc, &entry, $1));
+        if (!entry || !idl_is_masked(entry->node, IDL_TYPE)) {
+          static const char errfmt[] =
+            "Scoped name '%s' does not resolve to a type";
+          ERROR(proc, &@1, errfmt, $1->flat);
+        }
+        idl_delete_scoped_name($1);
+        $$ = idl_reference((idl_node_t*)entry->node);
       }
   ;
 
@@ -619,25 +610,30 @@ struct_def:
   ;
 
 struct_header:
-    "struct" identifier struct_base_type
+    "struct" identifier struct_inherit_spec
       { idl_location_t loc = { @1.first, $3 ? @3.last : @2.last };
         TRY(idl_create_struct(proc, &$$, &loc, $2, $3));
       }
   ;
 
-struct_base_type:
+struct_inherit_spec:
+      { $$ = NULL; }
     /* IDL 4.2 section 7.4.13 Building Block Extended Data-Types */
-//    %?{ (proc->flags & IDL_FLAG_EXTENDED_DATA_TYPES) }
-    ':' scoped_name
-      { const idl_symbol_t *sym = idl_find_symbol(proc, idl_scope(proc), $2, NULL);
-        if (!sym)
-          ABORT(proc, &@2, "scoped name %s cannot be resolved", $2);
-        if (!idl_is_masked(sym->node, IDL_STRUCT) || idl_is_masked(sym->node, IDL_FORWARD))
-          ABORT(proc, &@2, "scoped name %s does not resolve to a struct", $2);
-        $$ = reference((idl_node_t *)sym->node);
-        free($2);
+    /* %?{ (proc->flags & IDL_FLAG_EXTENDED_DATA_TYPES) } */
+  | ':' scoped_name
+      { idl_node_t *node;
+        idl_entry_t *entry;
+        TRY(idl_resolve(proc, &entry, $2));
+        node = idl_unalias(entry->node);
+        if (!idl_is_masked(node, IDL_STRUCT) ||
+             idl_is_masked(node, IDL_FORWARD))
+        {
+          static const char errfmt[] =
+            "Scoped name '%s' does not resolve to a struct";
+          ERROR(proc, &@2, errfmt, $2->flat);
+        }
+        TRY(idl_create_inherit_spec(proc, &$$, $2, entry->scope));
       }
-  |   { $$ = NULL; }
   ;
 
 struct_body:
@@ -662,7 +658,6 @@ member:
       { TRY(idl_create_member(proc, (idl_member_t **)&$$, LOC(@2.first, @4.last), $2, $3));
         if (proc->flags & IDL_FLAG_ANNOTATIONS)
           TRY_CATCH(idl_annotate(proc, $$, $1), free($$));
-        idl_delete_node($1);
       }
   ;
 
@@ -677,11 +672,17 @@ union_dcl:
   ;
 
 union_def:
-    "union" identifier "switch" '(' annotation_appls switch_type_spec ')' '{' switch_body '}'
-      { TRY(idl_create_union(proc, &$$, LOC(@1.first, @10.last), $2, $6, $9));
+    union_header '{' switch_body '}'
+      { TRY(idl_finalize_union(proc, $1, LOC(@1.first, @4.last), $3));
+        $$ = $1;
+      }
+  ;
+
+union_header:
+    "union" identifier "switch" '(' annotation_appls switch_type_spec ')'
+      { TRY(idl_create_union(proc, &$$, LOC(@1.first, @7.last), $2, $6));
         if (proc->flags & IDL_FLAG_ANNOTATIONS)
           TRY_CATCH(idl_annotate(proc, $6, $5), idl_delete_node($$));
-        idl_delete_node($5);
       }
   ;
 
@@ -693,20 +694,19 @@ switch_type_spec:
   | boolean_type
       { TRY(idl_create_base_type(proc, (idl_base_type_t **)&$$, &@1, $1)); }
   | scoped_name
-      { const idl_node_t *node;
-        const idl_symbol_t *sym;
-        if (!(sym = idl_find_symbol(proc, idl_scope(proc), $1, NULL)))
-          ABORT(proc, &@1, "scoped name %s cannot be resolved", $1);
-        node = sym->node;
-        while (idl_is_typedef(node))
-          node = ((idl_typedef_t *)node)->type_spec;
-        if (!idl_is_type_spec(node, IDL_INTEGER_TYPE) &&
-            !idl_is_type_spec(node, IDL_CHAR) &&
-            !idl_is_type_spec(node, IDL_BOOL) &&
-            !idl_is_type_spec(node, IDL_ENUM))
-          ABORT(proc, &@1, "scoped name %s does not resolve to a valid switch type", $1);
-        $$ = reference((void *)sym->node);
-        free($1);
+      { idl_node_t *node;
+        idl_entry_t *entry;
+        TRY(idl_resolve(proc, &entry, $1));
+        node = idl_unalias(entry ? entry->node : NULL);
+        if (!idl_is_masked(node, IDL_BASE_TYPE) ||
+             idl_is_masked(node, IDL_FLOATING_PT_TYPE))
+        {
+          static const char fmt[] =
+            "Scoped name '%s' does not resolve to a valid switch type";
+          ERROR(proc, &@1, fmt, $1->flat);
+        }
+        idl_delete_scoped_name($1);
+        $$ = idl_reference((idl_node_t*)entry->node);
       }
   ;
 
@@ -773,7 +773,6 @@ enumerator:
       { TRY(idl_create_enumerator(proc, &$$, &@2, $2));
         if (proc->flags & IDL_FLAG_ANNOTATIONS)
           TRY_CATCH(idl_annotate(proc, $$, $1), free($$));
-        idl_delete_node($1);
       }
   ;
 
@@ -824,14 +823,11 @@ declarator:
 
 identifier:
     IDL_TOKEN_IDENTIFIER
-      {
-        size_t off = 0;
-        if ($1[0] == '_')
-          off = 1;
-        else if (idl_iskeyword(proc, $1, 1))
-          ABORT(proc, &@1, "identifier '%s' collides with a keyword", $1);
-        if (!($$ = idl_strdup(&$1[off])))
-          goto yyexhaustedlab;
+      { if ($1[0] != '_' && idl_iskeyword(proc, $1, 1))
+          ERROR(proc, &@1, "Identifier '%s' collides with a keyword", $1);
+        //if (!($$ = idl_strdup($1)))
+        //  EXHAUSTED;
+        TRY(idl_create_name(proc, &$$, &@1, idl_strdup($1)));
       }
   ;
 
@@ -851,26 +847,21 @@ annotation_appl:
 
 at_scoped_name:
     identifier
-      { $$ = $1; }
+      { TRY(idl_create_scoped_name(proc, &$$, &@1, $1, false)); }
   | IDL_TOKEN_SCOPE_R identifier
-      { if (idl_asprintf(&$$, "::%s", $2) == -1)
-          goto yyexhaustedlab;
-        free($2);
-      }
+      { TRY(idl_create_scoped_name(proc, &$$, LOC(@1.first, @2.last), $2, true)); }
   | at_scoped_name IDL_TOKEN_SCOPE_LR identifier
-      { if (idl_asprintf(&$$, "%s::%s", $1, $3) == -1)
-          goto yyexhaustedlab;
-        free($1);
-        free($3);
+      { TRY(idl_append_to_scoped_name(proc, $1, $3));
+        $$ = $1;
       }
   ;
 
 annotation_appl_params:
       { $$ = NULL; }
-  | '(' { proc->annotation_appl_params = true; } const_expr ')'
-      { $$ = (idl_annotation_appl_param_t *)$3; }
-  | '(' { proc->annotation_appl_params = true; } annotation_appl_keyword_params ')'
-      { $$ = $3; }
+  | '(' const_expr ')'
+      { $$ = (idl_annotation_appl_param_t *)$2; }
+  | '(' annotation_appl_keyword_params ')'
+      { $$ = $2; }
   ;
 
 annotation_appl_keyword_params:
@@ -938,14 +929,6 @@ static void push(void *list, void *node)
   for (last = (idl_node_t *)list; last->next; last = last->next) ;
   last->next = (idl_node_t *)node;
   ((idl_node_t *)node)->previous = last;
-}
-
-static void *reference(void *node)
-{
-  assert(node);
-  assert(!((idl_node_t *)node)->deleted);
-  ((idl_node_t *)node)->references++;
-  return node;
 }
 
 int32_t idl_iskeyword(idl_processor_t *proc, const char *str, int nc)

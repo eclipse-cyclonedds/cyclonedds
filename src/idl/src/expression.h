@@ -15,7 +15,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "idl/export.h"
+#include "idl/processor.h"
 
 /** @private */
 typedef struct idl_intval idl_intval_t;
@@ -26,6 +26,16 @@ struct idl_intval {
     uint64_t ullng;
   } value;
 };
+
+/** @private */
+typedef long double idl_floatval_t;
+
+IDL_EXPORT idl_retcode_t
+idl_evaluate(
+  idl_processor_t *proc,
+  idl_node_t **nodeptr,
+  idl_const_expr_t *expr,
+  idl_mask_t type);
 
 /** @private */
 IDL_EXPORT idl_retcode_t

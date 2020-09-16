@@ -60,7 +60,7 @@ annotate_hashid(
   /* member ID must be computed from the member name if the annotation is used
      without any parameter or with the empty string as a parameter */
   if (!name || strcmp(name, "") == 0)
-    name = ((idl_member_t *)node)->declarators->identifier;
+    name = ((idl_member_t *)node)->declarators->name->identifier;
 
   *seen |= IDL_ANNOTATION_APPL_HASHID;
   ((idl_member_t *)node)->node.mask |= IDL_ID;
@@ -342,12 +342,13 @@ idl_annotate(
   for (idl_annotation_appl_t *n = annotations; n && ret == IDL_RETCODE_OK; n = (idl_annotation_appl_t*)n->node.next) {
     unsigned i;
     for (i = 0; builtin_annotations[i].name; i++) {
-      if (strcmp(n->scoped_name, builtin_annotations[i].name) == 0) {
+      if (strcmp(n->scoped_name->flat, builtin_annotations[i].name) == 0) {
         ret = builtin_annotations[i].annotate(proc, node, n, &seen);
         break;
       }
     }
   }
-
+  if (ret == IDL_RETCODE_OK)
+    idl_delete_node(annotations);
   return ret;
 }

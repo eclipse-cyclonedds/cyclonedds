@@ -38,19 +38,19 @@ CU_Test(idl_union, single_case)
   idl_union_t *u;
   idl_case_t *c;
 
-  const char str[] = "union u switch(char) { case 1: char c; };";
+  const char str[] = "union u switch(long) { case 1: char c; };";
   ret = idl_parse_string(str, 0u, &tree);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   u = (idl_union_t *)tree->root;
   CU_ASSERT_FATAL(idl_is_union(u));
-  CU_ASSERT(idl_is_type_spec(u->switch_type_spec, IDL_CHAR));
+  CU_ASSERT(idl_is_type_spec(u->switch_type_spec, IDL_LONG));
   c = (idl_case_t *)u->cases;
   CU_ASSERT_FATAL(idl_is_case(c));
   CU_ASSERT_PTR_EQUAL(idl_parent(c), u);
   CU_ASSERT(idl_is_case_label(c->case_labels));
   CU_ASSERT(idl_is_type_spec(c->type_spec, IDL_CHAR));
   CU_ASSERT_FATAL(idl_is_declarator(c->declarator));
-  CU_ASSERT_STRING_EQUAL(c->declarator->identifier, "c");
+  CU_ASSERT_STRING_EQUAL(idl_identifier(c->declarator), "c");
   c = idl_next(c);
   CU_ASSERT_PTR_NULL(c);
   idl_delete_tree(tree);
@@ -75,7 +75,7 @@ CU_Test(idl_union, single_default_case)
   CU_ASSERT(idl_is_default_case(c));
   CU_ASSERT(idl_is_type_spec(c->type_spec, IDL_CHAR));
   CU_ASSERT_FATAL(idl_is_declarator(c->declarator));
-  CU_ASSERT_STRING_EQUAL(c->declarator->identifier, "c");
+  CU_ASSERT_STRING_EQUAL(idl_identifier(c->declarator), "c");
   c = idl_next(c);
   CU_ASSERT_PTR_NULL(c);
   idl_delete_tree(tree);
@@ -153,14 +153,10 @@ CU_Test(idl_union, typedef_switch_types)
 
 CU_TheoryDataPoints(idl_union, bad_switch_types) = {
   CU_DataPoints(const char *,
-    U("octet"),
-    T("octet", "baz") U("baz"),
     S("baz") U("baz"),
     U("baz"),
-    M("foo", T("octet", "baz")) M("bar", U("foo::baz"))),
+    M("foo", T("float", "baz")) M("bar", U("foo::baz"))),
   CU_DataPoints(idl_retcode_t,
-    IDL_RETCODE_SYNTAX_ERROR,
-    IDL_RETCODE_SEMANTIC_ERROR,
     IDL_RETCODE_SEMANTIC_ERROR,
     IDL_RETCODE_SEMANTIC_ERROR,
     IDL_RETCODE_SEMANTIC_ERROR)
