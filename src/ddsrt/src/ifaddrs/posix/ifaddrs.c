@@ -104,8 +104,10 @@ static enum ddsrt_iftype guess_iftype (const struct ifaddrs *sys_ifa)
     switch (IFM_TYPE (ifmr.ifm_active))
     {
       case IFM_ETHER:
+#if !defined __FreeBSD__
       case IFM_TOKEN:
       case IFM_FDDI:
+#endif
         type = DDSRT_IFTYPE_WIRED;
         break;
       case IFM_IEEE80211:
