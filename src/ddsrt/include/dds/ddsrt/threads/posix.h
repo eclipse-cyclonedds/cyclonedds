@@ -36,8 +36,8 @@ typedef long int ddsrt_thread_list_id_t;
 /* __linux */
 #elif defined(__FreeBSD__) && (__FreeBSD_version >= 900031)
 /* FreeBSD >= 9.0 */
-typedef int ddsrt_tid_t;
-#define PRIdTID "d"
+typedef unsigned long ddsrt_tid_t;
+#define PRIdTID "lu"
 /* __FreeBSD__ */
 #elif defined(__APPLE__) && !(defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && \
                                       __MAC_OS_X_VERSION_MIN_REQUIRED < 1060)
