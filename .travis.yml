@@ -114,9 +114,9 @@ ubuntu1804_clang10: &ubuntu1804_clang10
   install:
     - pip install conan --upgrade --user
 
-macos1015_xcode11_6: &macos1015_xcode11_6
+macos1015_xcode11_5: &macos1015_xcode11_5
   os: osx
-  osx_image: xcode11.6
+  osx_image: xcode11.5
   compiler: clang
   addons:
     homebrew:
@@ -201,11 +201,11 @@ jobs:
       env: [ ARCH=x86_64, SANITIZER=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=NO, LIFESPAN=YES, DEADLINE=YES ]
     - <<: *ubuntu1804_clang10
       env: [ ARCH=x86_64, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES ]
-    - <<: *macos1015_xcode11_6
+    - <<: *macos1015_xcode11_5
       env: [ ARCH=x86_64, BUILD_TYPE=Release, SSL=NO, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, MACOSX_DEPLOYMENT_TARGET=10.12 ]
-    - <<: *macos1015_xcode11_6
+    - <<: *macos1015_xcode11_5
       env: [ ARCH=x86_64, SANITIZER=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES ]
-    - <<: *macos1015_xcode11_6
+    - <<: *macos1015_xcode11_5
       env: [ ARCH=x86_64, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES ]
     - <<: *windows1809_vs2017
       env: [ ARCH=x86, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, CONANFILE=conanfile102.txt ]
