@@ -744,11 +744,12 @@ idl_evaluate(
     }
     constval->value.chr = 'a';//((idl_literal_t *)expr)->value.chr;
   } else if (type == IDL_BOOL) {
-    if (expr->mask != IDL_BOOLEAN_LITERAL) {
+    if (expr->mask != (IDL_BOOLEAN_LITERAL | IDL_EXPR)) {
       idl_error(proc, idl_location(expr),
         "Cannot evaluate '%s' as boolean expression", "<foobar>");
       goto err_eval;
     }
+    constval->value.bln = ((idl_literal_t *) expr)->value.bln;
   } else {
     assert(0);
   }
