@@ -166,7 +166,7 @@ static int get_locator (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, con
 
 static void maybe_add_pp_as_meta_to_as_disc (struct ddsi_domaingv *gv, const struct addrset *as_meta)
 {
-  if (addrset_empty_mc (as_meta) || !(gv->config.allowMulticast & AMC_SPDP))
+  if (addrset_empty_mc (as_meta) || !(gv->config.allowMulticast & DDSI_AMC_SPDP))
   {
     ddsi_locator_t loc;
     if (addrset_any_uc (as_meta, &loc))
@@ -238,11 +238,11 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
        it means the writers will publish to address and the readers
        favour SSM. */
     if (ddsi_is_ssm_mcaddr (pp->e.gv, &pp->e.gv->loc_default_mc))
-      include = (pp->e.gv->config.allowMulticast & AMC_SSM) != 0;
+      include = (pp->e.gv->config.allowMulticast & DDSI_AMC_SSM) != 0;
     else
-      include = (pp->e.gv->config.allowMulticast & AMC_ASM) != 0;
+      include = (pp->e.gv->config.allowMulticast & DDSI_AMC_ASM) != 0;
 #else
-    if (pp->e.gv->config.allowMulticast & AMC_ASM)
+    if (pp->e.gv->config.allowMulticast & DDSI_AMC_ASM)
       include = 1;
 #endif
     if (include)
@@ -478,16 +478,16 @@ static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv,
 #if DDSI_INCLUDE_SSM
   if (ddsi_is_ssm_mcaddr (gv, loc))
   {
-    if (!(allow_multicast & AMC_SSM))
+    if (!(allow_multicast & DDSI_AMC_SSM))
       return;
   }
   else if (ddsi_is_mcaddr (gv, loc))
   {
-    if (!(allow_multicast & AMC_ASM))
+    if (!(allow_multicast & DDSI_AMC_ASM))
       return;
   }
 #else
-  if (ddsi_is_mcaddr (gv, loc) && !(allow_multicast & AMC_ASM))
+  if (ddsi_is_mcaddr (gv, loc) && !(allow_multicast & DDSI_AMC_ASM))
     return;
 #endif
   add_to_addrset (gv, as, loc);

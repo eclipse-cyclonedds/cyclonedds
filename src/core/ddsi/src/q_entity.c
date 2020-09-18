@@ -3702,7 +3702,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
      to advertise. */
   wr->supports_ssm = 0;
   wr->ssm_as = NULL;
-  if (wr->e.gv->config.allowMulticast & AMC_SSM)
+  if (wr->e.gv->config.allowMulticast & DDSI_AMC_SSM)
   {
     ddsi_locator_t loc;
     int have_loc = 0;
@@ -4365,7 +4365,7 @@ static dds_return_t new_reader_guid
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   rd->as = new_addrset ();
-  if (pp->e.gv->config.allowMulticast & ~AMC_SPDP)
+  if (pp->e.gv->config.allowMulticast & ~DDSI_AMC_SPDP)
   {
     /* compile address set from the mapped network partitions */
     for (uint32_t i = 0; i < rd->xqos->partition.n; i++)
@@ -4375,7 +4375,7 @@ static dds_return_t new_reader_guid
       {
 #ifdef DDSI_INCLUDE_SSM
         copy_addrset_into_addrset_no_ssm (pp->e.gv, rd->as, pas);
-        if (addrset_contains_ssm (pp->e.gv, pas) && rd->e.gv->config.allowMulticast & AMC_SSM)
+        if (addrset_contains_ssm (pp->e.gv, pas) && rd->e.gv->config.allowMulticast & DDSI_AMC_SSM)
           rd->favours_ssm = 1;
 #else
         copy_addrset_into_addrset (pp->e.gv, rd->as, pas);
@@ -4406,7 +4406,7 @@ static dds_return_t new_reader_guid
       /* Note: SSM requires NETWORK_PARTITIONS; if network partitions
          do not override the default, we should check whether the
          default is an SSM address. */
-      if (ddsi_is_ssm_mcaddr (pp->e.gv, &pp->e.gv->loc_default_mc) && pp->e.gv->config.allowMulticast & AMC_SSM)
+      if (ddsi_is_ssm_mcaddr (pp->e.gv, &pp->e.gv->loc_default_mc) && pp->e.gv->config.allowMulticast & DDSI_AMC_SSM)
         rd->favours_ssm = 1;
     }
 #endif
@@ -5518,7 +5518,7 @@ int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
   pwr->have_seen_heartbeat = !isreliable;
   pwr->local_matching_inprogress = 1;
 #ifdef DDSI_INCLUDE_SSM
-  pwr->supports_ssm = (addrset_contains_ssm (gv, as) && gv->config.allowMulticast & AMC_SSM) ? 1 : 0;
+  pwr->supports_ssm = (addrset_contains_ssm (gv, as) && gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
 #endif
 
   assert (pwr->c.xqos->present & QP_LIVELINESS);
@@ -5602,7 +5602,7 @@ void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset 
     if (! addrset_eq_onesidederr (pwr->c.as, as))
     {
 #ifdef DDSI_INCLUDE_SSM
-      pwr->supports_ssm = (addrset_contains_ssm (pwr->e.gv, as) && pwr->e.gv->config.allowMulticast & AMC_SSM) ? 1 : 0;
+      pwr->supports_ssm = (addrset_contains_ssm (pwr->e.gv, as) && pwr->e.gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
 #endif
       unref_addrset (pwr->c.as);
       ref_addrset (as);
@@ -5846,7 +5846,7 @@ int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
 
   prd->deleting = 0;
 #ifdef DDSI_INCLUDE_SSM
-  prd->favours_ssm = (favours_ssm && gv->config.allowMulticast & AMC_SSM) ? 1 : 0;
+  prd->favours_ssm = (favours_ssm && gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
 #endif
   prd->is_fict_trans_reader = 0;
   prd->receive_buffer_size = proxypp->receive_buffer_size;
