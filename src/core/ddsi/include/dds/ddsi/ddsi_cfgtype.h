@@ -38,10 +38,10 @@ enum ddsi_besmode {
   DDSI_BESMODE_MINIMAL
 };
 
-enum retransmit_merging {
-  REXMIT_MERGE_NEVER,
-  REXMIT_MERGE_ADAPTIVE,
-  REXMIT_MERGE_ALWAYS
+enum ddsi_retransmit_merging {
+  DDSI_REXMIT_MERGE_NEVER,
+  DDSI_REXMIT_MERGE_ADAPTIVE,
+  DDSI_REXMIT_MERGE_ALWAYS
 };
 
 enum boolean_default {
@@ -247,7 +247,7 @@ struct config
   int64_t const_hb_intv_sched_min;
   int64_t const_hb_intv_sched_max;
   int64_t const_hb_intv_min;
-  enum retransmit_merging retransmit_merging;
+  enum ddsi_retransmit_merging retransmit_merging;
   int64_t retransmit_merging_period;
   int squash_participants;
   int liveliness_monitoring;
