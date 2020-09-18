@@ -22,7 +22,7 @@
 #include "dds/ddsi/q_rtps.h"
 #include "CUnit/Theory.h"
 
-static bool prefix_zero (const nn_locator_t *loc, size_t n)
+static bool prefix_zero (const ddsi_locator_t *loc, size_t n)
 {
   assert (n <= sizeof (loc->address));
   for (size_t i = 0; i < n; i++)
@@ -31,12 +31,12 @@ static bool prefix_zero (const nn_locator_t *loc, size_t n)
   return true;
 }
 
-static bool check_ipv4_address (const nn_locator_t *loc, const uint8_t x[4])
+static bool check_ipv4_address (const ddsi_locator_t *loc, const uint8_t x[4])
 {
   return prefix_zero (loc, 12) && memcmp (loc->address + 12, x, 4) == 0;
 }
 
-static bool check_ipv64_address (const nn_locator_t *loc, const uint8_t x[4])
+static bool check_ipv64_address (const ddsi_locator_t *loc, const uint8_t x[4])
 {
   return prefix_zero (loc, 10) && loc->address[10] == 0xff && loc->address[11] == 0xff && memcmp (loc->address + 12, x, 4) == 0;
 }
@@ -71,7 +71,7 @@ CU_Test (ddsi_locator_from_string, bogusproto)
 {
   struct ddsi_domaingv gv;
   struct ddsi_tran_factory * const fact = init (&gv, TRANS_UDP);
-  nn_locator_t loc;
+  ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   res = ddsi_locator_from_string (&gv, &loc, "bogusproto/xyz", fact);
   CU_ASSERT_FATAL (res == AFSR_UNKNOWN);
@@ -90,7 +90,7 @@ CU_Theory ((enum transport_selector tr), ddsi_locator_from_string, ipv4_invalid)
 {
   struct ddsi_domaingv gv;
   struct ddsi_tran_factory * const fact = init (&gv, tr);
-  nn_locator_t loc;
+  ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   char astr[40];
   snprintf (astr, sizeof (astr), "%s/", fact->m_typename);
@@ -127,7 +127,7 @@ CU_Theory ((enum transport_selector tr), ddsi_locator_from_string, ipv4)
 {
   struct ddsi_domaingv gv;
   struct ddsi_tran_factory * const fact = init (&gv, tr);
-  nn_locator_t loc;
+  ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   char astr[40];
 
@@ -195,7 +195,7 @@ CU_Test (ddsi_locator_from_string, ipv4_cross1)
 {
   struct ddsi_domaingv gv;
   struct ddsi_tran_factory * const fact = init (&gv, TRANS_UDP);
-  nn_locator_t loc;
+  ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   res = ddsi_locator_from_string (&gv, &loc, "tcp/1.2.3.4:1234", fact);
   CU_ASSERT_FATAL (res == AFSR_OK);
@@ -210,7 +210,7 @@ CU_Test (ddsi_locator_from_string, ipv4_cross2)
 {
   struct ddsi_domaingv gv;
   struct ddsi_tran_factory * const fact = init (&gv, TRANS_TCP);
-  nn_locator_t loc;
+  ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   res = ddsi_locator_from_string (&gv, &loc, "udp/1.2.3.4:1234", fact);
   CU_ASSERT_FATAL (res == AFSR_OK);
@@ -225,7 +225,7 @@ CU_Test (ddsi_locator_from_string, udpv4mcgen)
 {
   struct ddsi_domaingv gv;
   struct ddsi_tran_factory * const fact = init (&gv, TRANS_UDP);
-  nn_locator_t loc;
+  ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   res = ddsi_locator_from_string (&gv, &loc, "239.255.0.1;4;8;1:1234", fact);
   CU_ASSERT_FATAL (res == AFSR_OK);
@@ -260,7 +260,7 @@ CU_Theory ((enum transport_selector tr), ddsi_locator_from_string, ipv6_invalid)
 #if DDSRT_HAVE_IPV6
   struct ddsi_domaingv gv;
   struct ddsi_tran_factory * const fact = init (&gv, tr);
-  nn_locator_t loc;
+  ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   char astr[40];
   snprintf (astr, sizeof (astr), "%s/", fact->m_typename);
@@ -304,7 +304,7 @@ CU_Theory ((enum transport_selector tr), ddsi_locator_from_string, ipv6)
 #if DDSRT_HAVE_IPV6
   struct ddsi_domaingv gv;
   struct ddsi_tran_factory * const fact = init (&gv, tr);
-  nn_locator_t loc;
+  ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   char astr[40];
 

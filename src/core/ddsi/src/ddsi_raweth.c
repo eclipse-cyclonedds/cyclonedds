@@ -37,7 +37,7 @@ typedef struct ddsi_raweth_conn {
   int m_ifindex;
 } *ddsi_raweth_conn_t;
 
-static char *ddsi_raweth_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)
+static char *ddsi_raweth_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port)
 {
   if (with_port)
     (void) snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
@@ -50,7 +50,7 @@ static char *ddsi_raweth_to_string (char *dst, size_t sizeof_dst, const nn_locat
   return dst;
 }
 
-static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc)
+static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
 {
   dds_return_t rc;
   ssize_t ret = 0;
@@ -108,7 +108,7 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
   return ret;
 }
 
-static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
+static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
   dds_return_t rc;
@@ -159,7 +159,7 @@ static bool ddsi_raweth_supports (const struct ddsi_tran_factory *fact, int32_t 
   return (kind == NN_LOCATOR_KIND_RAWETH);
 }
 
-static int ddsi_raweth_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t base, nn_locator_t *loc)
+static int ddsi_raweth_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t base, ddsi_locator_t *loc)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) base;
   int ret = -1;
@@ -234,7 +234,7 @@ static dds_return_t ddsi_raweth_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tr
   return DDS_RETCODE_OK;
 }
 
-static int isbroadcast(const nn_locator_t *loc)
+static int isbroadcast(const ddsi_locator_t *loc)
 {
   int i;
   for(i = 0; i < 6; i++)
@@ -243,7 +243,7 @@ static int isbroadcast(const nn_locator_t *loc)
   return 1;
 }
 
-static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const nn_locator_t *mcloc, const struct nn_interface *interf)
+static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   int rc;
   struct packet_mreq mreq;
@@ -255,7 +255,7 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const nn_loca
   return (rc == DDS_RETCODE_OK) ? 0 : rc;
 }
 
-static int ddsi_raweth_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
+static int ddsi_raweth_join_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   if (isbroadcast(mcloc))
     return 0;
@@ -267,7 +267,7 @@ static int ddsi_raweth_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srclo
   }
 }
 
-static int ddsi_raweth_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
+static int ddsi_raweth_leave_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   if (isbroadcast(mcloc))
     return 0;
@@ -291,21 +291,21 @@ static void ddsi_raweth_release_conn (ddsi_tran_conn_t conn)
   ddsrt_free (conn);
 }
 
-static int ddsi_raweth_is_mcaddr (const struct ddsi_tran_factory *tran, const nn_locator_t *loc)
+static int ddsi_raweth_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
 {
   (void) tran;
   assert (loc->kind == NN_LOCATOR_KIND_RAWETH);
   return (loc->address[10] & 1);
 }
 
-static int ddsi_raweth_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const nn_locator_t *loc)
+static int ddsi_raweth_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
 {
   (void) tran;
   (void) loc;
   return 0;
 }
 
-static enum ddsi_nearby_address_result ddsi_raweth_is_nearby_address (const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
+static enum ddsi_nearby_address_result ddsi_raweth_is_nearby_address (const ddsi_locator_t *loc, const ddsi_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
 {
   (void) loc;
   (void) ownloc;
@@ -314,7 +314,7 @@ static enum ddsi_nearby_address_result ddsi_raweth_is_nearby_address (const nn_l
   return DNAR_LOCAL;
 }
 
-static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (const struct ddsi_tran_factory *tran, nn_locator_t *loc, const char *str)
+static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const char *str)
 {
   int i = 0;
   (void)tran;

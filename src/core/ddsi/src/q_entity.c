@@ -1424,14 +1424,14 @@ dds_duration_t pp_get_pmd_interval (struct participant *pp)
    very similar that co-locating them eases editing and checking. */
 
 struct rebuild_flatten_locs_arg {
-  nn_locator_t *locs;
+  ddsi_locator_t *locs;
   int idx;
 #ifndef NDEBUG
   int size;
 #endif
 };
 
-static void rebuild_flatten_locs(const nn_locator_t *loc, void *varg)
+static void rebuild_flatten_locs(const ddsi_locator_t *loc, void *varg)
 {
   struct rebuild_flatten_locs_arg *arg = varg;
   assert(arg->idx < arg->size);
@@ -1440,13 +1440,13 @@ static void rebuild_flatten_locs(const nn_locator_t *loc, void *varg)
 
 static int rebuild_compare_locs(const void *va, const void *vb)
 {
-  const nn_locator_t *a = va;
-  const nn_locator_t *b = vb;
+  const ddsi_locator_t *a = va;
+  const ddsi_locator_t *b = vb;
   if (a->kind != b->kind || a->kind != NN_LOCATOR_KIND_UDPv4MCGEN)
     return compare_locators(a, b);
   else
   {
-    nn_locator_t u = *a, v = *b;
+    ddsi_locator_t u = *a, v = *b;
     nn_udpv4mcgen_address_t *u1 = (nn_udpv4mcgen_address_t *) u.address;
     nn_udpv4mcgen_address_t *v1 = (nn_udpv4mcgen_address_t *) v.address;
     u1->idx = v1->idx = 0;
@@ -1486,12 +1486,12 @@ static struct addrset *rebuild_make_all_addrs (int *nreaders, struct writer *wr,
   }
 }
 
-static void rebuild_make_locs(const struct ddsrt_log_cfg *logcfg, int *p_nlocs, nn_locator_t **p_locs, struct addrset *all_addrs)
+static void rebuild_make_locs(const struct ddsrt_log_cfg *logcfg, int *p_nlocs, ddsi_locator_t **p_locs, struct addrset *all_addrs)
 {
   struct rebuild_flatten_locs_arg flarg;
   int nlocs;
   int i, j;
-  nn_locator_t *locs;
+  ddsi_locator_t *locs;
   nlocs = (int)addrset_count(all_addrs);
   locs = ddsrt_malloc((size_t)nlocs * sizeof(*locs));
   flarg.locs = locs;
@@ -1516,7 +1516,7 @@ static void rebuild_make_locs(const struct ddsrt_log_cfg *logcfg, int *p_nlocs, 
   *p_locs = locs;
 }
 
-static void rebuild_make_covered(int8_t **covered, const struct writer *wr, int *nreaders, int nlocs, const nn_locator_t *locs)
+static void rebuild_make_covered(int8_t **covered, const struct writer *wr, int *nreaders, int nlocs, const ddsi_locator_t *locs)
 {
   struct rebuild_flatten_locs_arg flarg;
   struct entity_index *gh = wr->e.gv->entity_index;
@@ -1549,7 +1549,7 @@ static void rebuild_make_covered(int8_t **covered, const struct writer *wr, int 
       for (j = 0; j < flarg.idx; j++)
       {
         /* all addresses should be in the combined set of addresses -- FIXME: this doesn't hold if the address sets can change */
-        const nn_locator_t *l = bsearch(&flarg.locs[j], locs, (size_t) nlocs, sizeof(*locs), rebuild_compare_locs);
+        const ddsi_locator_t *l = bsearch(&flarg.locs[j], locs, (size_t) nlocs, sizeof(*locs), rebuild_compare_locs);
         int lidx;
         int8_t x;
         assert(l != NULL);
@@ -1591,7 +1591,7 @@ static void rebuild_make_locs_nrds(int **locs_nrds, int nreaders, int nlocs, con
   *locs_nrds = ln;
 }
 
-static void rebuild_trace_covered(const struct ddsi_domaingv *gv, int nreaders, int nlocs, const nn_locator_t *locs, const int *locs_nrds, const int8_t *covered)
+static void rebuild_trace_covered(const struct ddsi_domaingv *gv, int nreaders, int nlocs, const ddsi_locator_t *locs, const int *locs_nrds, const int8_t *covered)
 {
   int i, j;
   for (i = 0; i < nlocs; i++)
@@ -1608,7 +1608,7 @@ static void rebuild_trace_covered(const struct ddsi_domaingv *gv, int nreaders, 
   }
 }
 
-static int rebuild_select(const struct ddsi_domaingv *gv, int nlocs, const nn_locator_t *locs, const int *locs_nrds, bool prefer_multicast)
+static int rebuild_select(const struct ddsi_domaingv *gv, int nlocs, const ddsi_locator_t *locs, const int *locs_nrds, bool prefer_multicast)
 {
   int i, j;
   if (nlocs == 0)
@@ -1631,7 +1631,7 @@ static int rebuild_select(const struct ddsi_domaingv *gv, int nlocs, const nn_lo
   return (locs_nrds[j] > 0) ? j : -1;
 }
 
-static void rebuild_add(const struct ddsi_domaingv *gv, struct addrset *newas, int locidx, int nreaders, int nlocs, const nn_locator_t *locs, const int8_t *covered)
+static void rebuild_add(const struct ddsi_domaingv *gv, struct addrset *newas, int locidx, int nreaders, int nlocs, const ddsi_locator_t *locs, const int8_t *covered)
 {
   char str[DDSI_LOCATORSTRLEN];
   if (locs[locidx].kind != NN_LOCATOR_KIND_UDPv4MCGEN)
@@ -1642,7 +1642,7 @@ static void rebuild_add(const struct ddsi_domaingv *gv, struct addrset *newas, i
   }
   else /* convert MC gen to the correct multicast address */
   {
-    nn_locator_t l = locs[locidx];
+    ddsi_locator_t l = locs[locidx];
     nn_udpv4mcgen_address_t l1;
     uint32_t iph, ipn;
     int i;
@@ -1684,7 +1684,7 @@ static void rebuild_writer_addrset_setcover(struct addrset *newas, struct writer
   bool prefer_multicast = wr->e.gv->config.prefer_multicast;
   struct addrset *all_addrs;
   int nreaders, nlocs;
-  nn_locator_t *locs;
+  ddsi_locator_t *locs;
   int *locs_nrds;
   int8_t *covered;
   int best;
@@ -3704,7 +3704,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->ssm_as = NULL;
   if (wr->e.gv->config.allowMulticast & AMC_SSM)
   {
-    nn_locator_t loc;
+    ddsi_locator_t loc;
     int have_loc = 0;
     if (wr->partition_id == 0)
     {
@@ -4196,7 +4196,7 @@ struct join_leave_mcast_helper_arg {
   struct ddsi_domaingv *gv;
 };
 
-static void join_mcast_helper (const nn_locator_t *n, void *varg)
+static void join_mcast_helper (const ddsi_locator_t *n, void *varg)
 {
   struct join_leave_mcast_helper_arg *arg = varg;
   struct ddsi_domaingv *gv = arg->gv;
@@ -4212,7 +4212,7 @@ static void join_mcast_helper (const nn_locator_t *n, void *varg)
     else /* join all addresses that include this node */
     {
       {
-        nn_locator_t l = *n;
+        ddsi_locator_t l = *n;
         nn_udpv4mcgen_address_t l1;
         uint32_t iph;
         memcpy(&l1, l.address, sizeof(l1));
@@ -4238,7 +4238,7 @@ static void join_mcast_helper (const nn_locator_t *n, void *varg)
   }
 }
 
-static void leave_mcast_helper (const nn_locator_t *n, void *varg)
+static void leave_mcast_helper (const ddsi_locator_t *n, void *varg)
 {
   struct join_leave_mcast_helper_arg *arg = varg;
   struct ddsi_domaingv *gv = arg->gv;
@@ -4254,7 +4254,7 @@ static void leave_mcast_helper (const nn_locator_t *n, void *varg)
     else /* join all addresses that include this node */
     {
       {
-        nn_locator_t l = *n;
+        ddsi_locator_t l = *n;
         nn_udpv4mcgen_address_t l1;
         uint32_t iph;
         memcpy(&l1, l.address, sizeof(l1));
@@ -5333,18 +5333,18 @@ static void downgrade_to_nonsecure(struct proxy_participant *proxypp)
 
 typedef struct proxy_purge_data {
   struct proxy_participant *proxypp;
-  const nn_locator_t *loc;
+  const ddsi_locator_t *loc;
   ddsrt_wctime_t timestamp;
 } *proxy_purge_data_t;
 
-static void purge_helper (const nn_locator_t *n, void * varg)
+static void purge_helper (const ddsi_locator_t *n, void * varg)
 {
   proxy_purge_data_t data = (proxy_purge_data_t) varg;
   if (compare_locators (n, data->loc) == 0)
     delete_proxy_participant_by_guid (data->proxypp->e.gv, &data->proxypp->e.guid, data->timestamp, 1);
 }
 
-void purge_proxy_participants (struct ddsi_domaingv *gv, const nn_locator_t *loc, bool delete_from_as_disc)
+void purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_locator_t *loc, bool delete_from_as_disc)
 {
   /* FIXME: check whether addr:port can't be reused for a new connection by the time we get here. */
   /* NOTE: This function exists for the sole purpose of cleaning up after closing a TCP connection in ddsi_tcp_close_conn and the state of the calling thread could be anything at this point. Because of that we do the unspeakable and toggle the thread state conditionally. We can't afford to have it in "asleep", as that causes a race with the garbage collector. */

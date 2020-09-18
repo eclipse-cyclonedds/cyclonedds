@@ -110,7 +110,7 @@ static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, dd
 
 static char *sockaddr_to_string_with_port (struct ddsi_tran_factory_tcp *fact, char *dst, size_t sizeof_dst, const struct sockaddr *src)
 {
-  nn_locator_t loc;
+  ddsi_locator_t loc;
   ddsi_ipaddr_to_loc(&fact->fact, &loc, src, src->sa_family == AF_INET ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6);
   ddsi_locator_to_string(dst, sizeof_dst, &loc);
   return dst;
@@ -454,7 +454,7 @@ static int32_t addrfam_to_locator_kind (int af)
   return (af == AF_INET) ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6;
 }
 
-static ssize_t ddsi_tcp_conn_read (ddsi_tran_conn_t conn, unsigned char *buf, size_t len, bool allow_spurious, nn_locator_t *srcloc)
+static ssize_t ddsi_tcp_conn_read (ddsi_tran_conn_t conn, unsigned char *buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) conn->m_factory;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
@@ -592,7 +592,7 @@ static void set_msghdr_iov (ddsrt_msghdr_t *mhdr, ddsrt_iovec_t *iov, size_t iov
   mhdr->msg_iovlen = (ddsrt_msg_iovlen_t)iovlen;
 }
 
-static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
+static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) base->m_factory;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
@@ -779,7 +779,7 @@ static bool ddsi_tcp_supports (const struct ddsi_tran_factory *fact_cmn, int32_t
   return kind == fact_cmn->m_kind;
 }
 
-static int ddsi_tcp_locator (struct ddsi_tran_factory *fact_cmn, ddsi_tran_base_t base, nn_locator_t *loc)
+static int ddsi_tcp_locator (struct ddsi_tran_factory *fact_cmn, ddsi_tran_base_t base, ddsi_locator_t *loc)
 {
   loc->tran = fact_cmn;
   loc->kind = fact_cmn->m_kind;
@@ -898,12 +898,12 @@ static ddsrt_socket_t ddsi_tcp_listener_handle (ddsi_tran_base_t base)
   caller (supporting call back over NAT).
 */
 
-static void addr_to_loc (const struct ddsi_tran_factory *fact, nn_locator_t *loc, const union addr *addr)
+static void addr_to_loc (const struct ddsi_tran_factory *fact, ddsi_locator_t *loc, const union addr *addr)
 {
   ddsi_ipaddr_to_loc (fact, loc, &addr->a, addrfam_to_locator_kind (addr->a.sa_family));
 }
 
-static void ddsi_tcp_conn_peer_locator (ddsi_tran_conn_t conn, nn_locator_t * loc)
+static void ddsi_tcp_conn_peer_locator (ddsi_tran_conn_t conn, ddsi_locator_t * loc)
 {
   struct ddsi_domaingv const * const gv = conn->m_base.gv;
   char buff[DDSI_LOCSTRLEN];
@@ -1013,7 +1013,7 @@ static void ddsi_tcp_close_conn (ddsi_tran_conn_t tc)
   if (tc != &fact_tcp->ddsi_tcp_conn_client.m_base)
   {
     char buff[DDSI_LOCSTRLEN];
-    nn_locator_t loc;
+    ddsi_locator_t loc;
     ddsi_tcp_conn_t conn = (ddsi_tcp_conn_t) tc;
     sockaddr_to_string_with_port(fact_tcp, buff, sizeof(buff), &conn->m_peer_addr.a);
     GVLOG (DDS_LC_TCP, "tcp close %s connnection on socket %"PRIdSOCK" to %s\n", conn->m_base.m_server ? "server" : "client", conn->m_sock, buff);
@@ -1114,26 +1114,26 @@ static void ddsi_tcp_release_factory (struct ddsi_tran_factory *fact_cmn)
   ddsrt_free (fact);
 }
 
-static enum ddsi_locator_from_string_result ddsi_tcp_address_from_string (const struct ddsi_tran_factory *fact, nn_locator_t *loc, const char *str)
+static enum ddsi_locator_from_string_result ddsi_tcp_address_from_string (const struct ddsi_tran_factory *fact, ddsi_locator_t *loc, const char *str)
 {
   return ddsi_ipaddr_from_string(fact, loc, str, fact->m_kind);
 }
 
-static int ddsi_tcp_is_mcaddr (const struct ddsi_tran_factory *tran, const nn_locator_t *loc)
+static int ddsi_tcp_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
 {
   (void) tran;
   (void) loc;
   return 0;
 }
 
-static int ddsi_tcp_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const nn_locator_t *loc)
+static int ddsi_tcp_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
 {
   (void) tran;
   (void) loc;
   return 0;
 }
 
-static enum ddsi_nearby_address_result ddsi_tcp_is_nearby_address (const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
+static enum ddsi_nearby_address_result ddsi_tcp_is_nearby_address (const ddsi_locator_t *loc, const ddsi_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
 {
   return ddsi_ipaddr_is_nearby_address(loc, ownloc, ninterf, interf);
 }

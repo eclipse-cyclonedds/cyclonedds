@@ -50,10 +50,10 @@
 #include "dds/ddsi/ddsi_security_exchange.h"
 #endif
 
-static int get_locator (const struct ddsi_domaingv *gv, nn_locator_t *loc, const nn_locators_t *locs, int uc_same_subnet)
+static int get_locator (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, const nn_locators_t *locs, int uc_same_subnet)
 {
   struct nn_locators_one *l;
-  nn_locator_t first, samenet;
+  ddsi_locator_t first, samenet;
   int first_set = 0, samenet_set = 0;
   memset (&first, 0, sizeof (first));
   memset (&samenet, 0, sizeof (samenet));
@@ -168,7 +168,7 @@ static void maybe_add_pp_as_meta_to_as_disc (struct ddsi_domaingv *gv, const str
 {
   if (addrset_empty_mc (as_meta) || !(gv->config.allowMulticast & AMC_SPDP))
   {
-    nn_locator_t loc;
+    ddsi_locator_t loc;
     if (addrset_any_uc (as_meta, &loc))
     {
       add_to_addrset (gv, gv->as_disc, &loc);
@@ -473,7 +473,7 @@ static int handle_SPDP_dead (const struct receiver_state *rst, ddsi_entityid_t p
   return 1;
 }
 
-static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv, uint32_t allow_multicast, struct addrset *as, const nn_locator_t *loc)
+static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv, uint32_t allow_multicast, struct addrset *as, const ddsi_locator_t *loc)
 {
 #if DDSI_INCLUDE_SSM
   if (ddsi_is_ssm_mcaddr (gv, loc))
@@ -716,7 +716,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, dds
 
   /* Choose locators */
   {
-    nn_locator_t loc;
+    ddsi_locator_t loc;
     int uc_same_subnet;
 
     as_default = new_addrset ();
@@ -847,7 +847,7 @@ struct add_locator_to_ps_arg {
   ddsi_plist_t *ps;
 };
 
-static void add_locator_to_ps (const nn_locator_t *loc, void *varg)
+static void add_locator_to_ps (const ddsi_locator_t *loc, void *varg)
 {
   struct add_locator_to_ps_arg *arg = varg;
   struct nn_locators_one *elem = ddsrt_malloc (sizeof (struct nn_locators_one));
@@ -1255,7 +1255,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, dd
   }
 
   {
-    nn_locator_t loc;
+    ddsi_locator_t loc;
     as = new_addrset ();
     if (!gv->config.tcp_use_peeraddr_for_unicast && (datap->present & PP_UNICAST_LOCATOR) && get_locator (gv, &loc, &datap->unicast_locators, 0))
       add_to_addrset (gv, as, &loc);

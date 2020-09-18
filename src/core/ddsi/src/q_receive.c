@@ -2840,7 +2840,7 @@ static int handle_submsg_sequence
   struct thread_state1 * const ts1,
   struct ddsi_domaingv *gv,
   ddsi_tran_conn_t conn,
-  const nn_locator_t *srcloc,
+  const ddsi_locator_t *srcloc,
   ddsrt_wctime_t tnowWC,
   ddsrt_etime_t tnowE,
   const ddsi_guid_prefix_t * const src_prefix,
@@ -3188,7 +3188,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
   unsigned char * buff;
   size_t buff_len = maxsz;
   Header_t * hdr;
-  nn_locator_t srcloc;
+  ddsi_locator_t srcloc;
 
   if (rmsg == NULL)
   {
@@ -3471,7 +3471,7 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
       case RTM_SINGLE: {
         char buf[DDSI_LOCSTRLEN];
         char dummy = 0;
-        const nn_locator_t *dst = gv->recv_threads[i].arg.u.single.loc;
+        const ddsi_locator_t *dst = gv->recv_threads[i].arg.u.single.loc;
         ddsrt_iovec_t iov;
         iov.iov_base = &dummy;
         iov.iov_len = 1;

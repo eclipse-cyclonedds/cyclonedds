@@ -98,8 +98,8 @@ struct rd_pwr_match {
   unsigned pwr_alive: 1; /* tracks pwr's alive state */
   uint32_t pwr_alive_vclock; /* used to ensure progress */
 #ifdef DDSI_INCLUDE_SSM
-  nn_locator_t ssm_mc_loc;
-  nn_locator_t ssm_src_loc;
+  ddsi_locator_t ssm_mc_loc;
+  ddsi_locator_t ssm_src_loc;
 #endif
 #ifdef DDSI_INCLUDE_SECURITY
   int64_t crypto_handle;
@@ -237,7 +237,7 @@ struct participant
   struct ddsi_plist *plist; /* settings/QoS for this participant */
   struct xevent *spdp_xevent; /* timed event for periodically publishing SPDP */
   struct xevent *pmd_update_xevent; /* timed event for periodically publishing ParticipantMessageData */
-  nn_locator_t m_locator;
+  ddsi_locator_t m_locator;
   ddsi_tran_conn_t m_conn;
   struct avail_entityid_set avail_entityids; /* available entity ids [e.lock] */
   ddsrt_mutex_t refc_lock;
@@ -727,7 +727,7 @@ int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, se
 int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp);
 void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct lease *newlease);
 
-void purge_proxy_participants (struct ddsi_domaingv *gv, const nn_locator_t *loc, bool delete_from_as_disc);
+void purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_locator_t *loc, bool delete_from_as_disc);
 
 
 /* To create a new proxy writer or reader; the proxy participant is

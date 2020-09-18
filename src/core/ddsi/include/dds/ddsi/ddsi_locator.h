@@ -26,7 +26,7 @@ typedef struct {
   uint32_t port;
   unsigned char address[16];
   const struct ddsi_tran_factory *tran; // its days are numbered, just not in this PR yet
-} nn_locator_t;
+} ddsi_locator_t;
 
 #if defined (__cplusplus)
 }

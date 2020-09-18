@@ -102,7 +102,7 @@ struct nn_xmsg {
   enum nn_xmsg_dstmode dstmode;
   union {
     struct {
-      nn_locator_t loc;  /* send just to this locator */
+      ddsi_locator_t loc;  /* send just to this locator */
     } one;
     struct {
       struct addrset *as;       /* send to all addresses in set */
@@ -212,7 +212,7 @@ struct nn_xpack
 
   union
   {
-    nn_locator_t loc; /* send just to this locator */
+    ddsi_locator_t loc; /* send just to this locator */
     struct
     {
       struct addrset *as;        /* send to all addresses in set */
@@ -726,7 +726,7 @@ void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t of
   }
 }
 
-void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const nn_locator_t *loc)
+void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_locator_t *loc)
 {
   assert (m->dstmode == NN_XMSG_DST_UNSET);
   m->dstmode = NN_XMSG_DST_ONE;
@@ -762,7 +762,7 @@ bool nn_xmsg_getdst1prefix (struct nn_xmsg *m, ddsi_guid_prefix_t *gp)
 
 void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
 {
-  nn_locator_t loc;
+  ddsi_locator_t loc;
   // only accepting endpoints that have an address
   addrset_any_uc_else_mc_nofail (prd->c.as, &loc);
   nn_xmsg_setdst1 (prd->e.gv, m, &prd->e.guid.prefix, &loc);
@@ -770,7 +770,7 @@ void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
 
 void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
 {
-  nn_locator_t loc;
+  ddsi_locator_t loc;
   // only accepting endpoints that have an address
   addrset_any_uc_else_mc_nofail (pwr->c.as, &loc);
   nn_xmsg_setdst1 (pwr->e.gv, m, &pwr->e.guid.prefix, &loc);
@@ -1200,7 +1200,7 @@ void nn_xpack_free (struct nn_xpack *xp)
   ddsrt_free (xp);
 }
 
-static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const nn_locator_t *loc)
+static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const ddsi_locator_t *loc)
 {
   ssize_t ret = -1;
 
@@ -1229,7 +1229,7 @@ static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const nn_locator_t *loc)
   return ret;
 }
 
-static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
+static ssize_t nn_xpack_send1 (const ddsi_locator_t *loc, void * varg)
 {
   struct nn_xpack *xp = varg;
   struct ddsi_domaingv const * const gv = xp->gv;
@@ -1289,13 +1289,13 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
   return nbytes;
 }
 
-static void nn_xpack_send1v (const nn_locator_t *loc, void * varg)
+static void nn_xpack_send1v (const ddsi_locator_t *loc, void * varg)
 {
   (void) nn_xpack_send1 (loc, varg);
 }
 
 typedef struct nn_xpack_send1_thread_arg {
-  const nn_locator_t *loc;
+  const ddsi_locator_t *loc;
   struct nn_xpack *xp;
 } *nn_xpack_send1_thread_arg_t;
 
@@ -1310,7 +1310,7 @@ static void nn_xpack_send1_thread (void * varg)
   ddsrt_free (varg);
 }
 
-static void nn_xpack_send1_threaded (const nn_locator_t *loc, void * varg)
+static void nn_xpack_send1_threaded (const ddsi_locator_t *loc, void * varg)
 {
   nn_xpack_send1_thread_arg_t arg = ddsrt_malloc (sizeof (*arg));
   arg->xp = (struct nn_xpack *) varg;
