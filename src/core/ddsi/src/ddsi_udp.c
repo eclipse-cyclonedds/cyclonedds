@@ -54,12 +54,12 @@ typedef struct ddsi_udp_tran_factory {
   ddsrt_atomic_uint32_t receive_buf_size;
 } *ddsi_udp_tran_factory_t;
 
-static void addr_to_loc (const struct ddsi_tran_factory *tran, nn_locator_t *dst, const union addr *src)
+static void addr_to_loc (const struct ddsi_tran_factory *tran, ddsi_locator_t *dst, const union addr *src)
 {
   ddsi_ipaddr_to_loc (tran, dst, &src->a, (src->a.sa_family == AF_INET) ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
 }
 
-static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn_cmn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc)
+static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn_cmn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
@@ -113,7 +113,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn_cmn, unsigned char * bu
     if ((size_t) ret > len || trunc_flag)
     {
       char addrbuf[DDSI_LOCSTRLEN];
-      nn_locator_t tmp;
+      ddsi_locator_t tmp;
       addr_to_loc (conn->m_base.m_factory, &tmp, &src);
       ddsi_locator_to_string (addrbuf, sizeof (addrbuf), &tmp);
       GVWARNING ("%s => %d truncated to %d\n", addrbuf, (int) ret, (int) len);
@@ -133,7 +133,7 @@ static void set_msghdr_iov (ddsrt_msghdr_t *mhdr, const ddsrt_iovec_t *iov, size
   mhdr->msg_iovlen = (ddsrt_msg_iovlen_t) iovlen;
 }
 
-static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn_cmn, const nn_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
+static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
@@ -213,7 +213,7 @@ static bool ddsi_udp_supports (const struct ddsi_tran_factory *fact, int32_t kin
   return kind == fact->m_kind || (kind == NN_LOCATOR_KIND_UDPv4MCGEN && fact->m_kind == NN_LOCATOR_KIND_UDPv4);
 }
 
-static int ddsi_udp_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t conn_cmn, nn_locator_t *loc)
+static int ddsi_udp_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t conn_cmn, ddsi_locator_t *loc)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   int ret = -1;
@@ -468,7 +468,7 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
   assert (purpose_str != NULL);
 
   union addr socketname;
-  nn_locator_t ownloc_w_port = gv->ownloc;
+  ddsi_locator_t ownloc_w_port = gv->ownloc;
   assert (ownloc_w_port.port == NN_LOCATOR_PORT_INVALID);
   if (port) {
     /* PORT_INVALID maps to 0 in ipaddr_from_loc */
@@ -597,7 +597,7 @@ fail_addrinuse:
   return DDS_RETCODE_PRECONDITION_NOT_MET;
 }
 
-static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const nn_locator_t *mcloc, const struct nn_interface *interf)
+static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   dds_return_t rc;
   union addr mcip;
@@ -626,7 +626,7 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const nn_loca
 }
 
 #ifdef DDSI_INCLUDE_SSM
-static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
+static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   dds_return_t rc;
   union addr mcip, srcip;
@@ -659,7 +659,7 @@ static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const nn_loca
 }
 #endif
 
-static int ddsi_udp_join_mc (ddsi_tran_conn_t conn_cmn, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
+static int ddsi_udp_join_mc (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   (void) srcloc;
@@ -671,7 +671,7 @@ static int ddsi_udp_join_mc (ddsi_tran_conn_t conn_cmn, const nn_locator_t *srcl
     return joinleave_asm_mcgroup (conn->m_sock, 1, mcloc, interf);
 }
 
-static int ddsi_udp_leave_mc (ddsi_tran_conn_t conn_cmn, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
+static int ddsi_udp_leave_mc (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   (void) srcloc;
@@ -697,7 +697,7 @@ static void ddsi_udp_release_conn (ddsi_tran_conn_t conn_cmn)
   ddsrt_free (conn_cmn);
 }
 
-static int ddsi_udp_is_mcaddr (const struct ddsi_tran_factory *tran, const nn_locator_t *loc)
+static int ddsi_udp_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
 {
   (void) tran;
   switch (loc->kind)
@@ -723,7 +723,7 @@ static int ddsi_udp_is_mcaddr (const struct ddsi_tran_factory *tran, const nn_lo
 }
 
 #ifdef DDSI_INCLUDE_SSM
-static int ddsi_udp_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const nn_locator_t *loc)
+static int ddsi_udp_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
 {
   (void) tran;
   switch (loc->kind)
@@ -745,7 +745,7 @@ static int ddsi_udp_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const n
 }
 #endif
 
-static enum ddsi_locator_from_string_result mcgen_address_from_string (const struct ddsi_tran_factory *tran, nn_locator_t *loc, const char *str)
+static enum ddsi_locator_from_string_result mcgen_address_from_string (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const char *str)
 {
   // check for UDPv4MCGEN string, be lazy and refuse to recognize as a MCGEN form if there's anything "wrong" with it
   DDSRT_WARNING_MSVC_OFF(4996);
@@ -794,7 +794,7 @@ static enum ddsi_locator_from_string_result mcgen_address_from_string (const str
   DDSRT_WARNING_MSVC_ON(4996);
 }
 
-static enum ddsi_locator_from_string_result ddsi_udp_address_from_string (const struct ddsi_tran_factory *tran, nn_locator_t *loc, const char *str)
+static enum ddsi_locator_from_string_result ddsi_udp_address_from_string (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const char *str)
 {
   if (tran->m_kind == TRANS_UDP && mcgen_address_from_string (tran, loc, str) == AFSR_OK)
     return AFSR_OK;
@@ -802,7 +802,7 @@ static enum ddsi_locator_from_string_result ddsi_udp_address_from_string (const 
     return ddsi_ipaddr_from_string (tran, loc, str, tran->m_kind);
 }
 
-static char *ddsi_udp_locator_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)
+static char *ddsi_udp_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port)
 {
   if (loc->kind != NN_LOCATOR_KIND_UDPv4MCGEN) {
     return ddsi_ipaddr_to_string(dst, sizeof_dst, loc, with_port);

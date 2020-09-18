@@ -29,14 +29,14 @@ extern inline bool ddsi_factory_supports (const struct ddsi_tran_factory *factor
 extern inline int ddsi_is_valid_port (const struct ddsi_tran_factory *factory, uint32_t port);
 extern inline uint32_t ddsi_receive_buffer_size (const struct ddsi_tran_factory *factory);
 extern inline ddsrt_socket_t ddsi_conn_handle (ddsi_tran_conn_t conn);
-extern inline int ddsi_conn_locator (ddsi_tran_conn_t conn, nn_locator_t * loc);
+extern inline int ddsi_conn_locator (ddsi_tran_conn_t conn, ddsi_locator_t * loc);
 extern inline ddsrt_socket_t ddsi_tran_handle (ddsi_tran_base_t base);
 extern inline dds_return_t ddsi_factory_create_conn (ddsi_tran_conn_t *conn, ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos);
-extern inline int ddsi_listener_locator (ddsi_tran_listener_t listener, nn_locator_t * loc);
+extern inline int ddsi_listener_locator (ddsi_tran_listener_t listener, ddsi_locator_t * loc);
 extern inline int ddsi_listener_listen (ddsi_tran_listener_t listener);
 extern inline ddsi_tran_conn_t ddsi_listener_accept (ddsi_tran_listener_t listener);
-extern inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc);
-extern inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags);
+extern inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc);
+extern inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags);
 
 void ddsi_factory_add (struct ddsi_domaingv *gv, ddsi_tran_factory_t factory)
 {
@@ -173,7 +173,7 @@ void ddsi_conn_disable_multiplexing (ddsi_tran_conn_t conn)
     (conn->m_disable_multiplexing_fn) (conn);
 }
 
-bool ddsi_conn_peer_locator (ddsi_tran_conn_t conn, nn_locator_t * loc)
+bool ddsi_conn_peer_locator (ddsi_tran_conn_t conn, ddsi_locator_t * loc)
 {
   if (conn->m_peer_locator_fn)
   {
@@ -183,12 +183,12 @@ bool ddsi_conn_peer_locator (ddsi_tran_conn_t conn, nn_locator_t * loc)
   return false;
 }
 
-int ddsi_conn_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
+int ddsi_conn_join_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   return conn->m_factory->m_join_mc_fn (conn, srcloc, mcloc, interf);
 }
 
-int ddsi_conn_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
+int ddsi_conn_leave_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   return conn->m_factory->m_leave_mc_fn (conn, srcloc, mcloc, interf);
 }
@@ -225,13 +225,13 @@ void ddsi_listener_free (ddsi_tran_listener_t listener)
   }
 }
 
-int ddsi_is_mcaddr (const struct ddsi_domaingv *gv, const nn_locator_t *loc)
+int ddsi_is_mcaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc)
 {
   ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind (gv, loc->kind);
   return tran ? tran->m_is_mcaddr_fn (tran, loc) : 0;
 }
 
-int ddsi_is_ssm_mcaddr (const struct ddsi_domaingv *gv, const nn_locator_t *loc)
+int ddsi_is_ssm_mcaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc)
 {
   ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind(gv, loc->kind);
   if (tran && tran->m_is_ssm_mcaddr_fn != 0)
@@ -239,7 +239,7 @@ int ddsi_is_ssm_mcaddr (const struct ddsi_domaingv *gv, const nn_locator_t *loc)
   return 0;
 }
 
-enum ddsi_nearby_address_result ddsi_is_nearby_address (const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
+enum ddsi_nearby_address_result ddsi_is_nearby_address (const ddsi_locator_t *loc, const ddsi_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
 {
   if (loc->tran != ownloc->tran || loc->kind != ownloc->kind)
     return DNAR_DISTANT;
@@ -247,7 +247,7 @@ enum ddsi_nearby_address_result ddsi_is_nearby_address (const nn_locator_t *loc,
     return ownloc->tran->m_is_nearby_address_fn (loc, ownloc, ninterf, interf);
 }
 
-enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi_domaingv *gv, nn_locator_t *loc, const char *str, ddsi_tran_factory_t default_factory)
+enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, const char *str, ddsi_tran_factory_t default_factory)
 {
   const char *sep = strchr(str, '/');
   ddsi_tran_factory_t tran;
@@ -268,7 +268,7 @@ enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi
   return tran->m_locator_from_string_fn (tran, loc, sep ? sep + 1 : str);
 }
 
-char *ddsi_locator_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *loc)
+char *ddsi_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc)
 {
   /* FIXME: should add a "factory" for INVALID locators */
   if (loc->kind == NN_LOCATOR_KIND_INVALID) {
@@ -303,7 +303,7 @@ char *ddsi_locator_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *
   return dst;
 }
 
-char *ddsi_locator_to_string_no_port (char *dst, size_t sizeof_dst, const nn_locator_t *loc)
+char *ddsi_locator_to_string_no_port (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc)
 {
   if (loc->kind == NN_LOCATOR_KIND_INVALID) {
     (void) snprintf (dst, sizeof_dst, "invalid/0");

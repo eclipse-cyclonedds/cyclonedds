@@ -210,7 +210,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
       int i, have_selected = 0, have_others = 0;
       for (i = 0; gv->config.networkRecvAddressStrings[i] != NULL; i++)
       {
-        nn_locator_t loc;
+        ddsi_locator_t loc;
         if (ddsi_locator_from_string(gv, &loc, gv->config.networkRecvAddressStrings[i], gv->m_factory) != AFSR_OK)
         {
           GVERROR ("%s: not a valid address in DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses\n", gv->config.networkRecvAddressStrings[i]);
@@ -235,7 +235,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
       gv->recvips_mode = RECVIPS_MODE_SOME;
       for (i = 0; gv->config.networkRecvAddressStrings[i] != NULL; i++)
       {
-        nn_locator_t loc;
+        ddsi_locator_t loc;
         if (ddsi_locator_from_string(gv, &loc, gv->config.networkRecvAddressStrings[i], gv->m_factory) != AFSR_OK)
         {
           GVERROR ("%s: not a valid address in DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses\n", gv->config.networkRecvAddressStrings[i]);
@@ -267,7 +267,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
  *   return -1 : ddsi is unicast, but 'mc' indicates it expects multicast
  *   return  0 : ddsi is multicast, but 'mc' indicates it expects unicast
  * The return 0 means that the possible changes in 'loc' can be ignored. */
-static int string_to_default_locator (const struct ddsi_domaingv *gv, nn_locator_t *loc, const char *string, uint32_t port, int mc, const char *tag)
+static int string_to_default_locator (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, const char *string, uint32_t port, int mc, const char *tag)
 {
   if (strspn (string, " \t") == strlen (string))
   {
@@ -355,7 +355,7 @@ static int set_default_mc_address (struct ddsi_domaingv *gv)
 
 static int set_ext_address_and_mask (struct ddsi_domaingv *gv)
 {
-  nn_locator_t loc;
+  ddsi_locator_t loc;
   int rc;
 
   if (!gv->config.externalAddressString)
@@ -647,7 +647,7 @@ struct joinleave_spdp_defmcip_helper_arg {
   int dojoin;
 };
 
-static void joinleave_spdp_defmcip_helper (const nn_locator_t *loc, void *varg)
+static void joinleave_spdp_defmcip_helper (const ddsi_locator_t *loc, void *varg)
 {
   struct joinleave_spdp_defmcip_helper_arg *arg = varg;
   if (!ddsi_is_mcaddr (arg->gv, loc))

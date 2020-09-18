@@ -116,7 +116,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
     if (ifa->addr->sa_family == AF_PACKET)
     {
       /* FIXME: weirdo warning warranted */
-      nn_locator_t *l = &gv->interfaces[gv->n_interfaces].loc;
+      ddsi_locator_t *l = &gv->interfaces[gv->n_interfaces].loc;
       l->kind = NN_LOCATOR_KIND_RAWETH;
       l->port = NN_LOCATOR_PORT_INVALID;
       memset(l->address, 0, 10);
@@ -231,7 +231,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
   }
   else
   {
-    nn_locator_t req;
+    ddsi_locator_t req;
     /* Presumably an interface name */
     for (i = 0; i < gv->n_interfaces; i++)
     {

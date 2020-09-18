@@ -86,7 +86,7 @@ extern "C" {
    the same thing. */
 struct nn_locators_one {
   struct nn_locators_one *next;
-  nn_locator_t loc;
+  ddsi_locator_t loc;
 };
 
 typedef struct nn_locators {

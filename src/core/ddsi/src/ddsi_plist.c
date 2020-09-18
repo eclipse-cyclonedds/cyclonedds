@@ -2311,7 +2311,7 @@ static dds_return_t validate_durability_service_qospolicy_acceptzero (const dds_
   return 0;
 }
 
-static void add_locator (nn_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const nn_locator_t *loc)
+static void add_locator (nn_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const ddsi_locator_t *loc)
 {
   if (wanted & fl)
   {
@@ -2337,7 +2337,7 @@ static void add_locator (nn_locators_t *ls, uint64_t present, uint64_t wanted, u
   }
 }
 
-static bool locator_address_prefix_zero (const nn_locator_t *loc, size_t prefixlen)
+static bool locator_address_prefix_zero (const ddsi_locator_t *loc, size_t prefixlen)
 {
   assert (prefixlen <= sizeof (loc->address));
   for (size_t i = 0; i < prefixlen; i++)
@@ -2346,14 +2346,14 @@ static bool locator_address_prefix_zero (const nn_locator_t *loc, size_t prefixl
   return true;
 }
 
-static bool locator_address_zero (const nn_locator_t *loc)
+static bool locator_address_zero (const ddsi_locator_t *loc)
 {
   return locator_address_prefix_zero (loc, sizeof (loc->address));
 }
 
 static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const struct dd *dd, const struct ddsi_tran_factory *factory)
 {
-  nn_locator_t loc;
+  ddsi_locator_t loc;
 
   if (dd->bufsz < 24)
     return DOLOC_INVALID;
@@ -2430,7 +2430,7 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
   return DOLOC_ACCEPTED;
 }
 
-static void locator_from_ipv4address_port (nn_locator_t *loc, const nn_ipv4address_t *a, const nn_port_t *p, ddsi_tran_factory_t factory)
+static void locator_from_ipv4address_port (ddsi_locator_t *loc, const nn_ipv4address_t *a, const nn_port_t *p, ddsi_tran_factory_t factory)
 {
   loc->tran = factory;
   loc->kind = factory->m_connless ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_TCPv4;
@@ -2494,7 +2494,7 @@ static dds_return_t do_ipv4address (ddsi_plist_t *dest, nn_ipaddress_params_tmp_
     /* If port already known, add corresponding locator and discard
        both address & port from the set of present plist: this
        allows adding another pair. */
-    nn_locator_t loc;
+    ddsi_locator_t loc;
     locator_from_ipv4address_port (&loc, a, p, factory);
     add_locator (ls, dest->present, wanted, fldest, &loc);
     dest_tmp->present &= ~(fl_tmp | fl1_tmp);
@@ -2549,7 +2549,7 @@ static dds_return_t do_port (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest
     /* If port already known, add corresponding locator and discard
        both address & port from the set of present plist: this
        allows adding another pair. */
-    nn_locator_t loc;
+    ddsi_locator_t loc;
     locator_from_ipv4address_port (&loc, a, p, factory);
     add_locator (ls, dest->present, wanted, fldest, &loc);
     dest_tmp->present &= ~(fl_tmp | fl1_tmp);

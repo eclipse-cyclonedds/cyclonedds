@@ -60,7 +60,7 @@ static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...) ddsrt_attribute_for
 
 static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...)
 {
-  nn_locator_t loc;
+  ddsi_locator_t loc;
   if (!ddsi_conn_peer_locator (conn, &loc))
     return 0;
   else
@@ -83,7 +83,7 @@ struct print_address_arg {
   int count;
 };
 
-static void print_address (const nn_locator_t *n, void *varg)
+static void print_address (const ddsi_locator_t *n, void *varg)
 {
   struct print_address_arg *arg = varg;
   char buf[DDSI_LOCSTRLEN];
@@ -376,7 +376,7 @@ struct debug_monitor *new_debug_monitor (struct ddsi_domaingv *gv, int32_t port)
   }
 
   {
-    nn_locator_t loc;
+    ddsi_locator_t loc;
     char buf[DDSI_LOCSTRLEN];
     (void) ddsi_listener_locator(dm->servsock, &loc);
     GVLOG (DDS_LC_CONFIG, "debmon at %s\n", ddsi_locator_to_string (buf, sizeof(buf), &loc));

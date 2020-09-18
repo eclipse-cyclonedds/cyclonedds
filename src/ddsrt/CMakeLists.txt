@@ -118,6 +118,7 @@ list(APPEND headers
   "${include_path}/dds/ddsrt/mh3.h"
   "${include_path}/dds/ddsrt/io.h"
   "${include_path}/dds/ddsrt/process.h"
+  "${include_path}/dds/ddsrt/sched.h"
   "${include_path}/dds/ddsrt/strtod.h"
   "${include_path}/dds/ddsrt/strtol.h"
   "${include_path}/dds/ddsrt/types.h"
