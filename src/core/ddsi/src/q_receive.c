@@ -138,7 +138,7 @@ static int valid_AckNack (const struct receiver_state *rst, AckNack_t *msg, size
   {
     /* FastRTPS, Connext send invalid pre-emptive ACKs -- patch the message to
        make it well-formed and process it as normal */
-    if (! NN_STRICT_P (rst->gv->config) &&
+    if (! DDSI_SC_STRICT_P (rst->gv->config) &&
         (fromSN (msg->readerSNState.bitmap_base) == 0 && msg->readerSNState.numbits == 0) &&
         (vendor_is_eprosima (rst->vendor) || vendor_is_rti (rst->vendor)))
       msg->readerSNState.bitmap_base = toSN (1);
@@ -427,7 +427,7 @@ static int valid_DataFrag (const struct receiver_state *rst, DataFrag_t *msg, si
   pwr_guid.prefix = rst->src_guid_prefix;
   pwr_guid.entityid = msg->x.writerId;
 
-  if (NN_STRICT_P (rst->gv->config) && msg->fragmentSize <= 1024 && msg->fragmentSize < rst->gv->config.fragment_size)
+  if (DDSI_SC_STRICT_P (rst->gv->config) && msg->fragmentSize <= 1024 && msg->fragmentSize < rst->gv->config.fragment_size)
   {
     /* Spec says fragments must > 1kB; not allowing 1024 bytes is IMHO
        totally ridiculous; and I really don't care how small the
@@ -438,7 +438,7 @@ static int valid_DataFrag (const struct receiver_state *rst, DataFrag_t *msg, si
   }
   if (msg->fragmentSize == 0 || msg->fragmentStartingNum == 0 || msg->fragmentsInSubmessage == 0)
     return 0;
-  if (NN_STRICT_P (rst->gv->config) && msg->fragmentSize >= msg->sampleSize)
+  if (DDSI_SC_STRICT_P (rst->gv->config) && msg->fragmentSize >= msg->sampleSize)
     /* may not fragment if not needed -- but I don't care */
     return 0;
   if ((msg->fragmentStartingNum + msg->fragmentsInSubmessage - 2) * msg->fragmentSize >= msg->sampleSize)
@@ -1988,7 +1988,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   {
     /* RTI always tries to make us survive on the keyhash. RTI must
        mend its ways. */
-    if (NN_STRICT_P (gv->config))
+    if (DDSI_SC_STRICT_P (gv->config))
       failmsg = "no content";
     else if (!(qos->present & PP_KEYHASH))
       failmsg = "qos present but without keyhash";
@@ -2170,7 +2170,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     src.encoding = (msg->smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
     src.buf = NN_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
-    src.strict = NN_STRICT_P (gv->config);
+    src.strict = DDSI_SC_STRICT_P (gv->config);
     src.factory = gv->m_factory;
     src.logconfig = &gv->logconfig;
     if ((plist_ret = ddsi_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET, 0, &src)) < 0)
@@ -3273,7 +3273,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
       if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
         GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
                  PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor);
-      if (NN_PEDANTIC_P (gv->config))
+      if (DDSI_SC_PEDANTIC_P (gv->config))
         malformed_packet_received_nosubmsg (gv, buff, sz, "header", hdr->vendorid);
     }
     else

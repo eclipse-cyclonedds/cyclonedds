@@ -937,8 +937,8 @@ static const enum many_sockets_mode en_many_sockets_mode_ms[] = {
 GENERIC_ENUM (many_sockets_mode)
 
 static const char *en_standards_conformance_vs[] = { "pedantic", "strict", "lax", NULL };
-static const enum nn_standards_conformance en_standards_conformance_ms[] = { NN_SC_PEDANTIC, NN_SC_STRICT, NN_SC_LAX, 0 };
-GENERIC_ENUM_CTYPE (standards_conformance, enum nn_standards_conformance)
+static const enum ddsi_standards_conformance en_standards_conformance_ms[] = { DDSI_SC_PEDANTIC, DDSI_SC_STRICT, DDSI_SC_LAX, 0 };
+GENERIC_ENUM_CTYPE (standards_conformance, enum ddsi_standards_conformance)
 
 /* "trace" is special: it enables (nearly) everything */
 static const char *tracemask_names[] = {

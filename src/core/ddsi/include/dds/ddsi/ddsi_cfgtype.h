@@ -23,14 +23,14 @@
 extern "C" {
 #endif
 
-enum nn_standards_conformance {
-  NN_SC_PEDANTIC,
-  NN_SC_STRICT,
-  NN_SC_LAX
+enum ddsi_standards_conformance {
+  DDSI_SC_PEDANTIC,
+  DDSI_SC_STRICT,
+  DDSI_SC_LAX
 };
 
-#define NN_PEDANTIC_P(config) ((config).standards_conformance <= NN_SC_PEDANTIC)
-#define NN_STRICT_P(config) ((config).standards_conformance <= NN_SC_STRICT)
+#define DDSI_SC_PEDANTIC_P(config) ((config).standards_conformance <= DDSI_SC_PEDANTIC)
+#define DDSI_SC_STRICT_P(config) ((config).standards_conformance <= DDSI_SC_STRICT)
 
 enum besmode {
   BESMODE_FULL,
@@ -356,7 +356,7 @@ struct config
   uint32_t max_sample_size;
 
   /* compability options */
-  enum nn_standards_conformance standards_conformance;
+  enum ddsi_standards_conformance standards_conformance;
   int explicitly_publish_qos_set_to_default;
   enum many_sockets_mode many_sockets_mode;
   int assume_rti_has_pmd_endpoints;

@@ -1441,7 +1441,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     src.encoding = (msg->smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
     src.buf = NN_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
-    src.strict = NN_STRICT_P (gv->config);
+    src.strict = DDSI_SC_STRICT_P (gv->config);
     src.factory = gv->m_factory;
     src.logconfig = &gv->logconfig;
     if ((plist_ret = ddsi_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH, 0, &src)) < 0)
@@ -1516,7 +1516,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     d = ddsi_serdata_from_ser (topic, SDK_DATA, fragchain, sampleinfo->size);
   else if (data_smhdr_flags & DATA_FLAG_KEYFLAG)
     d = ddsi_serdata_from_ser (topic, SDK_KEY, fragchain, sampleinfo->size);
-  else if ((qos.present & PP_KEYHASH) && !NN_STRICT_P(gv->config))
+  else if ((qos.present & PP_KEYHASH) && !DDSI_SC_STRICT_P(gv->config))
     d = ddsi_serdata_from_keyhash (topic, &qos.keyhash);
   else
   {
