@@ -149,10 +149,10 @@ enum ddsi_transport_selector {
   DDSI_TRANS_RAWETH
 };
 
-enum many_sockets_mode {
-  MSM_NO_UNICAST,
-  MSM_SINGLE_UNICAST,
-  MSM_MANY_UNICAST
+enum ddsi_many_sockets_mode {
+  DDSI_MSM_NO_UNICAST,
+  DDSI_MSM_SINGLE_UNICAST,
+  DDSI_MSM_MANY_UNICAST
 };
 
 #ifdef DDSI_INCLUDE_SECURITY
@@ -351,7 +351,7 @@ struct config
   /* compability options */
   enum ddsi_standards_conformance standards_conformance;
   int explicitly_publish_qos_set_to_default;
-  enum many_sockets_mode many_sockets_mode;
+  enum ddsi_many_sockets_mode many_sockets_mode;
   int assume_rti_has_pmd_endpoints;
 
   struct ddsi_portmapping ports;

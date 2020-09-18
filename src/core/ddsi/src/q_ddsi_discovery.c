@@ -212,7 +212,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
   locs->def_uni_loc_one.next = NULL;
   locs->meta_uni_loc_one.next = NULL;
 
-  if (pp->e.gv->config.many_sockets_mode == MSM_MANY_UNICAST)
+  if (pp->e.gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
   {
     locs->def_uni_loc_one.loc = pp->m_locator;
     locs->meta_uni_loc_one.loc = pp->m_locator;

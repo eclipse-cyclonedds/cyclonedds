@@ -3528,7 +3528,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
     {
       int rebuildws = 0;
       LOG_THREAD_CPUTIME (&gv->logconfig, next_thread_cputime);
-      if (gv->config.many_sockets_mode != MSM_MANY_UNICAST)
+      if (gv->config.many_sockets_mode != DDSI_MSM_MANY_UNICAST)
       {
         /* no other sockets to check */
       }
@@ -3537,7 +3537,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         rebuildws = 1;
       }
 
-      if (rebuildws && waitset && gv->config.many_sockets_mode == MSM_MANY_UNICAST)
+      if (rebuildws && waitset && gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
       {
         /* first rebuild local participant set - unless someone's toggling "deafness", this
          only happens when the participant set has changed, so might as well rebuild it */
@@ -3557,7 +3557,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         while ((idx = os_sockWaitsetNextEvent (ctx, &conn)) >= 0)
         {
           const ddsi_guid_prefix_t *guid_prefix;
-          if (((unsigned)idx < num_fixed) || gv->config.many_sockets_mode != MSM_MANY_UNICAST)
+          if (((unsigned)idx < num_fixed) || gv->config.many_sockets_mode != DDSI_MSM_MANY_UNICAST)
             guid_prefix = NULL;
           else
             guid_prefix = &lps.ps[(unsigned)idx - num_fixed].guid_prefix;
