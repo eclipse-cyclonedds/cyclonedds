@@ -90,7 +90,7 @@ static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint3
 
   if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
   {
-    assert (ppid == PARTICIPANT_INDEX_NONE);
+    assert (ppid == DDSI_PARTICIPANT_INDEX_NONE);
     *pdata = *pdisc = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, ppid);
     if (gv->config.allowMulticast)
     {
@@ -494,9 +494,9 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
   {
     char message[256];
     int32_t ppidx;
-    if (gv->config.participantIndex >= 0 || gv->config.participantIndex == PARTICIPANT_INDEX_NONE)
+    if (gv->config.participantIndex >= 0 || gv->config.participantIndex == DDSI_PARTICIPANT_INDEX_NONE)
       ppidx = gv->config.participantIndex;
-    else if (gv->config.participantIndex == PARTICIPANT_INDEX_AUTO)
+    else if (gv->config.participantIndex == DDSI_PARTICIPANT_INDEX_AUTO)
       ppidx = gv->config.maxAutoParticipantIndex;
     else
     {
@@ -1097,7 +1097,7 @@ int rtps_init (struct ddsi_domaingv *gv)
     case TRANS_RAWETH:
       gv->config.publish_uc_locators = 1;
       gv->config.enable_uc_locators = 0;
-      gv->config.participantIndex = PARTICIPANT_INDEX_NONE;
+      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_NONE;
       gv->config.many_sockets_mode = MSM_NO_UNICAST;
       if (ddsi_raweth_init (gv) < 0)
         goto err_udp_tcp_init;
@@ -1120,7 +1120,7 @@ int rtps_init (struct ddsi_domaingv *gv)
       /* ensure discovery can work: firstly, that the process will be reachable on a "well-known" port
          number, and secondly, that the local interface's IP address gets added to the discovery
          address set */
-      gv->config.participantIndex = PARTICIPANT_INDEX_AUTO;
+      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
       mc_available = false;
     }
     else if (gv->config.allowMulticast & AMC_DEFAULT)
@@ -1275,7 +1275,7 @@ int rtps_init (struct ddsi_domaingv *gv)
 
   if (gv->m_factory->m_connless)
   {
-    if (gv->config.participantIndex >= 0 || gv->config.participantIndex == PARTICIPANT_INDEX_NONE)
+    if (gv->config.participantIndex >= 0 || gv->config.participantIndex == DDSI_PARTICIPANT_INDEX_NONE)
     {
       enum make_uc_sockets_ret musret = make_uc_sockets (gv, &port_disc_uc, &port_data_uc, gv->config.participantIndex);
       switch (musret)
@@ -1294,7 +1294,7 @@ int rtps_init (struct ddsi_domaingv *gv)
           goto err_unicast_sockets;
       }
     }
-    else if (gv->config.participantIndex == PARTICIPANT_INDEX_AUTO)
+    else if (gv->config.participantIndex == DDSI_PARTICIPANT_INDEX_AUTO)
     {
       /* try to find a free one, and update gv->config.participantIndex */
       enum make_uc_sockets_ret musret = MUSRET_PORTS_IN_USE;

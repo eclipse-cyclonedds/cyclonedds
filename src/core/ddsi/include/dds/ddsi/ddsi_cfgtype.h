@@ -50,8 +50,8 @@ enum ddsi_boolean_default {
   DDSI_BOOLDEF_TRUE
 };
 
-#define PARTICIPANT_INDEX_AUTO -1
-#define PARTICIPANT_INDEX_NONE -2
+#define DDSI_PARTICIPANT_INDEX_AUTO -1
+#define DDSI_PARTICIPANT_INDEX_NONE -2
 
 /* config_listelem must be an overlay for all used listelem types */
 struct config_listelem {

@@ -1464,10 +1464,10 @@ static enum update_result uf_participantIndex (struct cfgst *cfgst, void *parent
 {
   int * const elem = cfg_address (cfgst, parent, cfgelem);
   if (ddsrt_strcasecmp (value, "auto") == 0) {
-    *elem = PARTICIPANT_INDEX_AUTO;
+    *elem = DDSI_PARTICIPANT_INDEX_AUTO;
     return URES_SUCCESS;
   } else if (ddsrt_strcasecmp (value, "none") == 0) {
-    *elem = PARTICIPANT_INDEX_NONE;
+    *elem = DDSI_PARTICIPANT_INDEX_NONE;
     return URES_SUCCESS;
   } else {
     return uf_int_min_max (cfgst, parent, cfgelem, first, value, 0, 120);
@@ -1479,10 +1479,10 @@ static void pf_participantIndex (struct cfgst *cfgst, void *parent, struct cfgel
   int const * const p = cfg_address (cfgst, parent, cfgelem);
   switch (*p)
   {
-    case PARTICIPANT_INDEX_NONE:
+    case DDSI_PARTICIPANT_INDEX_NONE:
       cfg_logelem (cfgst, sources, "none");
       break;
-    case PARTICIPANT_INDEX_AUTO:
+    case DDSI_PARTICIPANT_INDEX_AUTO:
       cfg_logelem (cfgst, sources, "auto");
       break;
     default:
