@@ -192,7 +192,7 @@ struct ddsi_config_omg_security_listelem {
 #endif /* DDSI_INCLUDE_SECURITY */
 
 #ifdef DDSI_INCLUDE_SSL
-struct ssl_min_version {
+struct ddsi_config_ssl_min_version {
   int major;
   int minor;
 };
@@ -282,7 +282,7 @@ struct config
   char * ssl_rand_file;
   char * ssl_key_pass;
   char * ssl_ciphers;
-  struct ssl_min_version ssl_min_version;
+  struct ddsi_config_ssl_min_version ssl_min_version;
 #endif
 
   /* Thread pool configuration */

@@ -1012,11 +1012,11 @@ static enum update_result uf_min_tls_version (struct cfgst *cfgst, UNUSED_ARG (v
   static const char *vs[] = {
     "1.2", "1.3", NULL
   };
-  static const struct ssl_min_version ms[] = {
+  static const struct ddsi_config_ssl_min_version ms[] = {
     {1,2}, {1,3}, {0,0}
   };
   const int idx = list_index (vs, value);
-  struct ssl_min_version * const elem = cfg_address (cfgst, parent, cfgelem);
+  struct ddsi_config_ssl_min_version * const elem = cfg_address (cfgst, parent, cfgelem);
   assert (sizeof (vs) / sizeof (*vs) == sizeof (ms) / sizeof (*ms));
   if (idx < 0)
     return cfg_error(cfgst, "'%s': undefined value", value);
@@ -1026,7 +1026,7 @@ static enum update_result uf_min_tls_version (struct cfgst *cfgst, UNUSED_ARG (v
 
 static void pf_min_tls_version (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
-  struct ssl_min_version * const p = cfg_address (cfgst, parent, cfgelem);
+  struct ddsi_config_ssl_min_version * const p = cfg_address (cfgst, parent, cfgelem);
   cfg_logelem (cfgst, sources, "%d.%d", p->major, p->minor);
 }
 #endif
