@@ -1260,7 +1260,7 @@ static void pf_allow_multicast(struct cfgst *cfgst, void *parent, struct cfgelem
 static enum update_result uf_maybe_int32 (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
   DDSRT_WARNING_MSVC_OFF(4996);
-  struct config_maybe_int32 * const elem = cfg_address (cfgst, parent, cfgelem);
+  struct ddsi_config_maybe_int32 * const elem = cfg_address (cfgst, parent, cfgelem);
   int pos;
   if (ddsrt_strcasecmp (value, "default") == 0) {
     elem->isdefault = 1;
@@ -1277,7 +1277,7 @@ static enum update_result uf_maybe_int32 (struct cfgst *cfgst, void *parent, str
 
 static void pf_maybe_int32 (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
-  struct config_maybe_int32 const * const p = cfg_address (cfgst, parent, cfgelem);
+  struct ddsi_config_maybe_int32 const * const p = cfg_address (cfgst, parent, cfgelem);
   if (p->isdefault)
     cfg_logelem (cfgst, sources, "default");
   else
@@ -1286,7 +1286,7 @@ static void pf_maybe_int32 (struct cfgst *cfgst, void *parent, struct cfgelem co
 
 static enum update_result uf_maybe_memsize (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
-  struct config_maybe_uint32 * const elem = cfg_address (cfgst, parent, cfgelem);
+  struct ddsi_config_maybe_uint32 * const elem = cfg_address (cfgst, parent, cfgelem);
   int64_t size = 0;
   if (ddsrt_strcasecmp (value, "default") == 0) {
     elem->isdefault = 1;
@@ -1303,7 +1303,7 @@ static enum update_result uf_maybe_memsize (struct cfgst *cfgst, void *parent, s
 
 static void pf_maybe_memsize (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
-  struct config_maybe_uint32 const * const p = cfg_address (cfgst, parent, cfgelem);
+  struct ddsi_config_maybe_uint32 const * const p = cfg_address (cfgst, parent, cfgelem);
   if (p->isdefault)
     cfg_logelem (cfgst, sources, "default");
   else
