@@ -88,7 +88,7 @@ static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint3
 {
   dds_return_t rc;
 
-  if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
+  if (gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST)
   {
     assert (ppid == DDSI_PARTICIPANT_INDEX_NONE);
     *pdata = *pdisc = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, ppid);
@@ -521,7 +521,7 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
     goto err_config_late_error;
   }
 
-  if (gv->config.besmode == DDSI_BESMODE_MINIMAL && gv->config.many_sockets_mode == MSM_MANY_UNICAST)
+  if (gv->config.besmode == DDSI_BESMODE_MINIMAL && gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
   {
     /* These two are incompatible because minimal bes mode can result
        in implicitly creating proxy participants inheriting the
@@ -535,7 +535,7 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
 
   /* Dependencies between default values is not handled
    automatically by the gv->config processing (yet) */
-  if (gv->config.many_sockets_mode == MSM_MANY_UNICAST)
+  if (gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
   {
     if (gv->config.max_participants == 0)
       gv->config.max_participants = 100;
@@ -705,7 +705,7 @@ int create_multicast_sockets (struct ddsi_domaingv *gv)
   }
   if (ddsi_factory_create_conn (&disc, gv->m_factory, port, &qos) != DDS_RETCODE_OK)
     goto err_disc;
-  if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
+  if (gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST)
   {
     /* FIXME: not quite logical to tie this to "no unicast" */
     data = disc;
@@ -907,11 +907,11 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
     gv->recv_threads[i].arg.u.single.conn = NULL;
   }
 
-  /* First thread always uses a waitset and gobbles up all sockets not handled by dedicated threads - FIXME: MSM_NO_UNICAST mode with UDP probably doesn't even need this one to use a waitset */
+  /* First thread always uses a waitset and gobbles up all sockets not handled by dedicated threads - FIXME: DDSI_MSM_NO_UNICAST mode with UDP probably doesn't even need this one to use a waitset */
   gv->n_recv_threads = 1;
   gv->recv_threads[0].name = "recv";
   gv->recv_threads[0].arg.mode = RTM_MANY;
-  if (gv->m_factory->m_connless && gv->config.many_sockets_mode != MSM_NO_UNICAST && multi_recv_thr)
+  if (gv->m_factory->m_connless && gv->config.many_sockets_mode != DDSI_MSM_NO_UNICAST && multi_recv_thr)
   {
     if (ddsi_is_mcaddr (gv, &gv->loc_default_mc) && !ddsi_is_ssm_mcaddr (gv, &gv->loc_default_mc) && (gv->config.allowMulticast & DDSI_AMC_ASM))
     {
@@ -923,7 +923,7 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
       ddsi_conn_disable_multiplexing (gv->data_conn_mc);
       gv->n_recv_threads++;
     }
-    if (gv->config.many_sockets_mode == MSM_SINGLE_UNICAST)
+    if (gv->config.many_sockets_mode == DDSI_MSM_SINGLE_UNICAST)
     {
       /* No per-participant sockets => handle data unicasts on a separate thread as well */
       gv->recv_threads[gv->n_recv_threads].name = "recvUC";
@@ -1088,7 +1088,7 @@ int rtps_init (struct ddsi_domaingv *gv)
       gv->config.publish_uc_locators = (gv->config.tcp_port != -1);
       gv->config.enable_uc_locators = 1;
       /* TCP affects what features are supported/required */
-      gv->config.many_sockets_mode = MSM_SINGLE_UNICAST;
+      gv->config.many_sockets_mode = DDSI_MSM_SINGLE_UNICAST;
       gv->config.allowMulticast = DDSI_AMC_FALSE;
       if (ddsi_tcp_init (gv) < 0)
         goto err_udp_tcp_init;
@@ -1098,7 +1098,7 @@ int rtps_init (struct ddsi_domaingv *gv)
       gv->config.publish_uc_locators = 1;
       gv->config.enable_uc_locators = 0;
       gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_NONE;
-      gv->config.many_sockets_mode = MSM_NO_UNICAST;
+      gv->config.many_sockets_mode = DDSI_MSM_NO_UNICAST;
       if (ddsi_raweth_init (gv) < 0)
         goto err_udp_tcp_init;
       gv->m_factory = ddsi_factory_find (gv, "raweth");
@@ -1350,7 +1350,7 @@ int rtps_init (struct ddsi_domaingv *gv)
 
   if (gv->m_factory->m_connless)
   {
-    if (!(gv->config.many_sockets_mode == MSM_NO_UNICAST && gv->config.allowMulticast))
+    if (!(gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST && gv->config.allowMulticast))
       GVLOG (DDS_LC_CONFIG, "Unicast Ports: discovery %"PRIu32" data %"PRIu32"\n", ddsi_conn_port (gv->disc_conn_uc), ddsi_conn_port (gv->data_conn_uc));
 
     if (gv->config.allowMulticast)
@@ -1358,7 +1358,7 @@ int rtps_init (struct ddsi_domaingv *gv)
       if (!create_multicast_sockets (gv))
         goto err_mc_conn;
 
-      if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
+      if (gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST)
       {
         gv->data_conn_uc = gv->data_conn_mc;
         gv->disc_conn_uc = gv->disc_conn_mc;
@@ -1407,7 +1407,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   }
 
   /* Create shared transmit connection -- FIXME: no longer needed, but can't do the testing right now */
-  if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
+  if (gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST)
     gv->xmit_conn = gv->data_conn_uc;
   else
   {

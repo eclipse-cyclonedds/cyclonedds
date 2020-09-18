@@ -895,7 +895,7 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   if (entidx_lookup_participant_guid (gv->entity_index, ppguid) != NULL)
     return DDS_RETCODE_PRECONDITION_NOT_MET;
 
-  if (gv->config.many_sockets_mode != MSM_MANY_UNICAST)
+  if (gv->config.many_sockets_mode != DDSI_MSM_MANY_UNICAST)
     ppconn = NULL;
   else
   {
@@ -974,7 +974,7 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   }
 
   pp->m_conn = ppconn;
-  if (gv->config.many_sockets_mode == MSM_MANY_UNICAST)
+  if (gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
     ddsi_conn_locator (pp->m_conn, &pp->m_locator);
 
   ddsrt_fibheap_init (&lease_fhdef_pp, &pp->leaseheap_man);
@@ -1041,7 +1041,7 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
      necessary. Must do in this order, or the receive thread won't
      find the new participant */
 
-  if (gv->config.many_sockets_mode == MSM_MANY_UNICAST)
+  if (gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
   {
     ddsrt_atomic_fence ();
     ddsrt_atomic_inc32 (&gv->participant_set_generation);
@@ -1271,7 +1271,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
     if (--pp->e.gv->nparticipants == 0)
       ddsrt_cond_broadcast (&pp->e.gv->participant_set_cond);
     ddsrt_mutex_unlock (&pp->e.gv->participant_set_lock);
-    if (pp->e.gv->config.many_sockets_mode == MSM_MANY_UNICAST)
+    if (pp->e.gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
     {
       ddsrt_atomic_fence_rel ();
       ddsrt_atomic_inc32 (&pp->e.gv->participant_set_generation);

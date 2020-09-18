@@ -930,9 +930,9 @@ GENERIC_ENUM_CTYPE (transport_selector, enum ddsi_transport_selector)
 /* by putting the  "true" and "false" aliases at the end, they won't come out of the
    generic printing function */
 static const char *en_many_sockets_mode_vs[] = { "single", "none", "many", "false", "true", NULL };
-static const enum many_sockets_mode en_many_sockets_mode_ms[] = {
-  MSM_SINGLE_UNICAST, MSM_NO_UNICAST, MSM_MANY_UNICAST, MSM_SINGLE_UNICAST, MSM_MANY_UNICAST, 0 };
-GENERIC_ENUM (many_sockets_mode)
+static const enum ddsi_many_sockets_mode en_many_sockets_mode_ms[] = {
+  DDSI_MSM_SINGLE_UNICAST, DDSI_MSM_NO_UNICAST, DDSI_MSM_MANY_UNICAST, DDSI_MSM_SINGLE_UNICAST, DDSI_MSM_MANY_UNICAST, 0 };
+GENERIC_ENUM_CTYPE (many_sockets_mode, enum ddsi_many_sockets_mode)
 
 static const char *en_standards_conformance_vs[] = { "pedantic", "strict", "lax", NULL };
 static const enum ddsi_standards_conformance en_standards_conformance_ms[] = { DDSI_SC_PEDANTIC, DDSI_SC_STRICT, DDSI_SC_LAX, 0 };
