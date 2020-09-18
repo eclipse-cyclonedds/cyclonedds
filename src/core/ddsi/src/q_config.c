@@ -632,8 +632,8 @@ static void *cfg_deref_address (UNUSED_ARG (struct cfgst *cfgst), void *parent, 
 
 static void *if_common (UNUSED_ARG (struct cfgst *cfgst), void *parent, struct cfgelem const * const cfgelem, unsigned size)
 {
-  struct config_listelem **current = (struct config_listelem **) ((char *) parent + cfgelem->elem_offset);
-  struct config_listelem *new = ddsrt_malloc (size);
+  struct ddsi_config_listelem **current = (struct ddsi_config_listelem **) ((char *) parent + cfgelem->elem_offset);
+  struct ddsi_config_listelem *new = ddsrt_malloc (size);
   new->next = *current;
   *current = new;
   return new;
@@ -641,7 +641,7 @@ static void *if_common (UNUSED_ARG (struct cfgst *cfgst), void *parent, struct c
 
 static int if_thread_properties (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  struct config_thread_properties_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
+  struct ddsi_config_thread_properties_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
   new->name = NULL;
@@ -651,7 +651,7 @@ static int if_thread_properties (struct cfgst *cfgst, void *parent, struct cfgel
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
 static int if_channel(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  struct config_channel_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
+  struct ddsi_config_channel_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
   new->name = NULL;
@@ -667,7 +667,7 @@ static int if_channel(struct cfgst *cfgst, void *parent, struct cfgelem const * 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 static int if_network_partition (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  struct config_networkpartition_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
+  struct ddsi_config_networkpartition_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
   new->address_string = NULL;
@@ -678,8 +678,8 @@ static int if_network_partition (struct cfgst *cfgst, void *parent, struct cfgel
 
 static int if_ignored_partition (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  struct config_ignoredpartition_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
-  if (if_common (cfgst, parent, cfgelem, sizeof (struct config_ignoredpartition_listelem)) == NULL)
+  struct ddsi_config_ignoredpartition_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
+  if (if_common (cfgst, parent, cfgelem, sizeof (struct ddsi_config_ignoredpartition_listelem)) == NULL)
     return -1;
   new->DCPSPartitionTopic = NULL;
   return 0;
@@ -687,7 +687,7 @@ static int if_ignored_partition (struct cfgst *cfgst, void *parent, struct cfgel
 
 static int if_partition_mapping (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  struct config_partitionmapping_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
+  struct ddsi_config_partitionmapping_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
   new->DCPSPartitionTopic = NULL;
@@ -699,7 +699,7 @@ static int if_partition_mapping (struct cfgst *cfgst, void *parent, struct cfgel
 
 static int if_peer (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  struct config_peer_listelem *new = if_common (cfgst, parent, cfgelem, sizeof (struct config_peer_listelem));
+  struct ddsi_config_peer_listelem *new = if_common (cfgst, parent, cfgelem, sizeof (*new));
   if (new == NULL)
     return -1;
   new->peer = NULL;
@@ -709,7 +709,7 @@ static int if_peer (struct cfgst *cfgst, void *parent, struct cfgelem const * co
 #ifdef DDSI_INCLUDE_SECURITY
 static int if_omg_security (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  struct config_omg_security_listelem *new = if_common (cfgst, parent, cfgelem, sizeof (struct config_omg_security_listelem));
+  struct ddsi_config_omg_security_listelem *new = if_common (cfgst, parent, cfgelem, sizeof (*new));
   if (new == NULL)
     return -1;
   memset(&new->cfg, 0, sizeof(new->cfg));
@@ -1610,7 +1610,7 @@ static void print_configitems (struct cfgst *cfgst, void *parent, int isattr, st
     }
     else
     {
-      struct config_listelem *p = cfg_deref_address (cfgst, parent, ce);
+      struct ddsi_config_listelem *p = cfg_deref_address (cfgst, parent, ce);
       while (p)
       {
         cfgst_push (cfgst, 0, NULL, NULL);
@@ -1645,9 +1645,9 @@ static void free_all_elements (struct cfgst *cfgst, void *parent, struct cfgelem
       if (ce->attributes)
         free_all_elements (cfgst, parent, ce->attributes);
     } else {
-      struct config_listelem *p = cfg_deref_address (cfgst, parent, ce);
+      struct ddsi_config_listelem *p = cfg_deref_address (cfgst, parent, ce);
       while (p) {
-        struct config_listelem *p1 = p->next;
+        struct ddsi_config_listelem *p1 = p->next;
         if (ce->attributes)
           free_all_elements (cfgst, p, ce->attributes);
         if (ce->children)
@@ -1686,9 +1686,9 @@ static void free_configured_element (struct cfgst *cfgst, void *parent, struct c
     /* FIXME: this used to require free_all_elements because there would be no record stored for
        configuration elements within lists, but with that changed, I think this can now just use
        free_configured_elements */
-    struct config_listelem *p = cfg_deref_address (cfgst, parent, ce);
+    struct ddsi_config_listelem *p = cfg_deref_address (cfgst, parent, ce);
     while (p) {
-      struct config_listelem * const p1 = p->next;
+      struct ddsi_config_listelem * const p1 = p->next;
       if (ce->attributes)
         free_all_elements (cfgst, p, ce->attributes);
       if (ce->children)
@@ -2044,7 +2044,7 @@ static int set_default_channel (struct config *cfg)
   if (cfg->channels == NULL)
   {
     /* create one default channel if none configured */
-    struct config_channel_listelem *c;
+    struct ddsi_config_channel_listelem *c;
     if ((c = ddsrt_malloc (sizeof (*c))) == NULL)
       return ERR_OUT_OF_MEMORY;
     c->next = NULL;
@@ -2068,8 +2068,8 @@ static int set_default_channel (struct config *cfg)
 
 static int sort_channels_cmp (const void *va, const void *vb)
 {
-  const struct config_channel_listelem * const *a = va;
-  const struct config_channel_listelem * const *b = vb;
+  const struct ddsi_config_channel_listelem * const *a = va;
+  const struct ddsi_config_channel_listelem * const *b = vb;
   return ((*a)->priority == (*b)->priority) ? 0 : ((*a)->priority < (*b)->priority) ? -1 : 1;
 }
 
@@ -2079,7 +2079,7 @@ static int sort_channels_check_nodups (struct config *cfg, uint32_t domid)
      are sorted on descending priority.  While we do retain the list
      structure, sorting is much easier in an array, and hence we
      convert back and forth. */
-  struct config_channel_listelem **ary, *c;
+  struct ddsi_config_channel_listelem **ary, *c;
   uint32_t i, n;
   int result;
 
@@ -2297,10 +2297,10 @@ struct cfgst *config_init (const char *config, struct config *cfg, uint32_t domi
      and signal errors if partitions do not exist */
   if (ok)
   {
-    struct config_partitionmapping_listelem * m = cfgst->cfg->partitionMappings;
+    struct ddsi_config_partitionmapping_listelem * m = cfgst->cfg->partitionMappings;
     while (m)
     {
-      struct config_networkpartition_listelem * p = cfgst->cfg->networkPartitions;
+      struct ddsi_config_networkpartition_listelem * p = cfgst->cfg->networkPartitions;
       while (p && ddsrt_strcasecmp(m->networkPartition, p->name) != 0)
         p = p->next;
       if (p)
@@ -2369,10 +2369,10 @@ static char *get_partition_search_pattern (const char *partition, const char *to
   return pt;
 }
 
-struct config_partitionmapping_listelem *find_partitionmapping (const struct config *cfg, const char *partition, const char *topic)
+struct ddsi_config_partitionmapping_listelem *find_partitionmapping (const struct config *cfg, const char *partition, const char *topic)
 {
   char *pt = get_partition_search_pattern (partition, topic);
-  struct config_partitionmapping_listelem *pm;
+  struct ddsi_config_partitionmapping_listelem *pm;
   for (pm = cfg->partitionMappings; pm; pm = pm->next)
     if (WildcardOverlap (pt, pm->DCPSPartitionTopic))
       break;
@@ -2383,7 +2383,7 @@ struct config_partitionmapping_listelem *find_partitionmapping (const struct con
 int is_ignored_partition (const struct config *cfg, const char *partition, const char *topic)
 {
   char *pt = get_partition_search_pattern (partition, topic);
-  struct config_ignoredpartition_listelem *ip;
+  struct ddsi_config_ignoredpartition_listelem *ip;
   for (ip = cfg->ignoredPartitions; ip; ip = ip->next)
     if (WildcardOverlap(pt, ip->DCPSPartitionTopic))
       break;
@@ -2393,9 +2393,9 @@ int is_ignored_partition (const struct config *cfg, const char *partition, const
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-struct config_channel_listelem *find_channel (const struct config *cfg, nn_transport_priority_qospolicy_t transport_priority)
+struct ddsi_config_channel_listelem *find_channel (const struct config *cfg, nn_transport_priority_qospolicy_t transport_priority)
 {
-  struct config_channel_listelem *c;
+  struct ddsi_config_channel_listelem *c;
   /* Channel selection is to use the channel with the lowest priority
      not less than transport_priority, or else the one with the
      highest priority. */

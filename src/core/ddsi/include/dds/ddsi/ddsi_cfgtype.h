@@ -53,35 +53,35 @@ enum ddsi_boolean_default {
 #define DDSI_PARTICIPANT_INDEX_AUTO -1
 #define DDSI_PARTICIPANT_INDEX_NONE -2
 
-/* config_listelem must be an overlay for all used listelem types */
-struct config_listelem {
-  struct config_listelem *next;
+/* ddsi_config_listelem must be an overlay for all used listelem types */
+struct ddsi_config_listelem {
+  struct ddsi_config_listelem *next;
 };
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-struct config_networkpartition_listelem {
-  struct config_networkpartition_listelem *next;
+struct ddsi_config_networkpartition_listelem {
+  struct ddsi_config_networkpartition_listelem *next;
   char *name;
   char *address_string;
   struct addrset *as;
 };
 
-struct config_ignoredpartition_listelem {
-  struct config_ignoredpartition_listelem *next;
+struct ddsi_config_ignoredpartition_listelem {
+  struct ddsi_config_ignoredpartition_listelem *next;
   char *DCPSPartitionTopic;
 };
 
-struct config_partitionmapping_listelem {
-  struct config_partitionmapping_listelem *next;
+struct ddsi_config_partitionmapping_listelem {
+  struct ddsi_config_partitionmapping_listelem *next;
   char *networkPartition;
   char *DCPSPartitionTopic;
-  struct config_networkpartition_listelem *partition;
+  struct ddsi_config_networkpartition_listelem *partition;
 };
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-struct config_channel_listelem {
-  struct config_channel_listelem *next;
+struct ddsi_config_channel_listelem {
+  struct ddsi_config_channel_listelem *next;
   char   *name;
   int    priority;
   int64_t resolution;
@@ -113,17 +113,17 @@ struct config_maybe_int64 {
   int64_t value;
 };
 
-struct config_thread_properties_listelem {
-  struct config_thread_properties_listelem *next;
+struct ddsi_config_thread_properties_listelem {
+  struct ddsi_config_thread_properties_listelem *next;
   char *name;
   ddsrt_sched_t sched_class;
   struct config_maybe_int32 sched_priority;
   struct config_maybe_uint32 stack_size;
 };
 
-struct config_peer_listelem
+struct ddsi_config_peer_listelem
 {
-  struct config_peer_listelem *next;
+  struct ddsi_config_peer_listelem *next;
   char *peer;
 };
 
@@ -190,8 +190,8 @@ typedef struct omg_security_configuration_type {
   plugin_library_properties_type cryptography_plugin;
 } omg_security_configuration_type;
 
-struct config_omg_security_listelem {
-  struct config_omg_security_listelem *next;
+struct ddsi_config_omg_security_listelem {
+  struct ddsi_config_omg_security_listelem *next;
   omg_security_configuration_type cfg;
 };
 #endif /* DDSI_INCLUDE_SECURITY */
@@ -296,18 +296,18 @@ struct config
   uint32_t tp_max_threads;
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-  struct config_channel_listelem *channels;
-  struct config_channel_listelem *max_channel; /* channel with highest prio; always computed */
+  struct ddsi_config_channel_listelem *channels;
+  struct ddsi_config_channel_listelem *max_channel; /* channel with highest prio; always computed */
 #endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  struct config_networkpartition_listelem *networkPartitions;
+  struct ddsi_config_networkpartition_listelem *networkPartitions;
   unsigned nof_networkPartitions;
-  struct config_ignoredpartition_listelem *ignoredPartitions;
-  struct config_partitionmapping_listelem *partitionMappings;
+  struct ddsi_config_ignoredpartition_listelem *ignoredPartitions;
+  struct ddsi_config_partitionmapping_listelem *partitionMappings;
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
-  struct config_peer_listelem *peers;
-  struct config_peer_listelem *peers_group;
-  struct config_thread_properties_listelem *thread_properties;
+  struct ddsi_config_peer_listelem *peers;
+  struct ddsi_config_peer_listelem *peers_group;
+  struct ddsi_config_thread_properties_listelem *thread_properties;
 
   /* debug/test/undoc features: */
   int xmit_lossiness;           /**<< fraction of packets to drop on xmit, in units of 1e-3 */
@@ -372,7 +372,7 @@ struct config
   struct prune_deleted_ppant prune_deleted_ppant;
 
 #ifdef DDSI_INCLUDE_SECURITY
-  struct config_omg_security_listelem *omg_security_configuration;
+  struct ddsi_config_omg_security_listelem *omg_security_configuration;
 #endif
 };
 

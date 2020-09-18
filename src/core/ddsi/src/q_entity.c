@@ -3343,9 +3343,9 @@ static int set_topic_type_name (dds_qos_t *xqos, const struct ddsi_sertopic * to
 /* WRITER ----------------------------------------------------------- */
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-static const struct config_networkpartition_listelem *get_partition_from_mapping (const struct ddsrt_log_cfg *logcfg, const struct config *config, const char *partition, const char *topic)
+static const struct ddsi_config_networkpartition_listelem *get_partition_from_mapping (const struct ddsrt_log_cfg *logcfg, const struct config *config, const char *partition, const char *topic)
 {
-  struct config_partitionmapping_listelem *pm;
+  struct ddsi_config_partitionmapping_listelem *pm;
   if ((pm = find_partitionmapping (config, partition, topic)) == NULL)
     return 0;
   else
@@ -3736,7 +3736,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   if (!is_builtin_entityid (wr->e.guid.entityid, ownvendorid))
   {
-    struct config_channel_listelem *channel = find_channel (&wr->e.gv->config, wr->xqos->transport_priority);
+    struct ddsi_config_channel_listelem *channel = find_channel (&wr->e.gv->config, wr->xqos->transport_priority);
     ELOGDISC (wr, "writer "PGUIDFMT": transport priority %d => channel '%s' priority %d\n",
               PGUID (wr->e.guid), wr->xqos->transport_priority.value, channel->name, channel->priority);
     wr->evq = channel->evq ? channel->evq : wr->e.gv->xevents;
@@ -4177,7 +4177,7 @@ dds_return_t delete_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *gu
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 static struct addrset *get_as_from_mapping (const struct ddsi_domaingv *gv, const char *partition, const char *topic)
 {
-  struct config_partitionmapping_listelem *pm;
+  struct ddsi_config_partitionmapping_listelem *pm;
   struct addrset *as = new_addrset ();
   if ((pm = find_partitionmapping (&gv->config, partition, topic)) != NULL)
   {
