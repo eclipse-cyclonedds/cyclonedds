@@ -21,7 +21,7 @@ static bool get_port_int (uint32_t *port, const struct ddsi_portmapping *map, en
   uint32_t off = UINT32_MAX, ppidx = UINT32_MAX;
 
   assert (domain_id != UINT32_MAX);
-  assert (participant_index >= 0 || participant_index == PARTICIPANT_INDEX_NONE);
+  assert (participant_index >= 0 || participant_index == DDSI_PARTICIPANT_INDEX_NONE);
 
   switch (which)
   {
@@ -36,7 +36,7 @@ static bool get_port_int (uint32_t *port, const struct ddsi_portmapping *map, en
       ppidx = 0;
       break;
     case DDSI_PORT_UNI_DISC:
-      if (participant_index == PARTICIPANT_INDEX_NONE)
+      if (participant_index == DDSI_PARTICIPANT_INDEX_NONE)
       {
         /* participant index "none" means unicast ports get chosen by the transport */
         *port = 0;
@@ -46,7 +46,7 @@ static bool get_port_int (uint32_t *port, const struct ddsi_portmapping *map, en
       ppidx = (uint32_t) participant_index;
       break;
     case DDSI_PORT_UNI_DATA:
-      if (participant_index == PARTICIPANT_INDEX_NONE)
+      if (participant_index == DDSI_PARTICIPANT_INDEX_NONE)
       {
         /* participant index "none" means unicast ports get chosen by the transport */
         *port = 0;
