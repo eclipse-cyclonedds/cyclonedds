@@ -796,7 +796,7 @@ static enum ddsi_locator_from_string_result mcgen_address_from_string (const str
 
 static enum ddsi_locator_from_string_result ddsi_udp_address_from_string (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const char *str)
 {
-  if (tran->m_kind == TRANS_UDP && mcgen_address_from_string (tran, loc, str) == AFSR_OK)
+  if (tran->m_kind == DDSI_TRANS_UDP && mcgen_address_from_string (tran, loc, str) == AFSR_OK)
     return AFSR_OK;
   else
     return ddsi_ipaddr_from_string (tran, loc, str, tran->m_kind);
@@ -876,7 +876,7 @@ int ddsi_udp_init (struct ddsi_domaingv*gv)
   fact->fact.m_is_valid_port_fn = ddsi_udp_is_valid_port;
   fact->fact.m_receive_buffer_size_fn = ddsi_udp_receive_buffer_size;
 #if DDSRT_HAVE_IPV6
-  if (gv->config.transport_selector == TRANS_UDP6)
+  if (gv->config.transport_selector == DDSI_TRANS_UDP6)
   {
     fact->fact.m_kind = NN_LOCATOR_KIND_UDPv6;
     fact->fact.m_typename = "udp6";

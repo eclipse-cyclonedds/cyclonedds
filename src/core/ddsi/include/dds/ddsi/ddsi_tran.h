@@ -92,7 +92,7 @@ typedef enum ddsi_locator_from_string_result (*ddsi_locator_from_string_fn_t) (c
 
 typedef char * (*ddsi_locator_to_string_fn_t) (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port);
 
-typedef int (*ddsi_enumerate_interfaces_fn_t) (ddsi_tran_factory_t tran, enum transport_selector transport_selector, ddsrt_ifaddrs_t **interfs);
+typedef int (*ddsi_enumerate_interfaces_fn_t) (ddsi_tran_factory_t tran, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **interfs);
 
 /* Data types */
 struct ddsi_domaingv;
@@ -282,7 +282,7 @@ DDS_EXPORT enum ddsi_locator_from_string_result ddsi_locator_from_string (const 
 char *ddsi_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc);
 char *ddsi_locator_to_string_no_port (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc);
 
-int ddsi_enumerate_interfaces (ddsi_tran_factory_t factory, enum transport_selector transport_selector, ddsrt_ifaddrs_t **interfs);
+int ddsi_enumerate_interfaces (ddsi_tran_factory_t factory, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **interfs);
 
 inline int ddsi_listener_locator (ddsi_tran_listener_t listener, ddsi_locator_t *loc) {
   return listener->m_locator_fn (listener->m_factory, &listener->m_base, loc);

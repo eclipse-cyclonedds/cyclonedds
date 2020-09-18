@@ -41,7 +41,7 @@ static bool check_ipv64_address (const ddsi_locator_t *loc, const uint8_t x[4])
   return prefix_zero (loc, 10) && loc->address[10] == 0xff && loc->address[11] == 0xff && memcmp (loc->address + 12, x, 4) == 0;
 }
 
-static struct ddsi_tran_factory *init (struct ddsi_domaingv *gv, enum transport_selector tr)
+static struct ddsi_tran_factory *init (struct ddsi_domaingv *gv, enum ddsi_transport_selector tr)
 {
   memset (gv, 0, sizeof (*gv));
   gv->config.transport_selector = tr;
@@ -49,10 +49,10 @@ static struct ddsi_tran_factory *init (struct ddsi_domaingv *gv, enum transport_
   ddsi_tcp_init (gv);
   switch (tr)
   {
-    case TRANS_UDP: return ddsi_factory_find (gv, "udp");
-    case TRANS_TCP: return ddsi_factory_find (gv, "tcp");
-    case TRANS_UDP6: return ddsi_factory_find (gv, "udp6");
-    case TRANS_TCP6: return ddsi_factory_find (gv, "tcp6");
+    case DDSI_TRANS_UDP: return ddsi_factory_find (gv, "udp");
+    case DDSI_TRANS_TCP: return ddsi_factory_find (gv, "tcp");
+    case DDSI_TRANS_UDP6: return ddsi_factory_find (gv, "udp6");
+    case DDSI_TRANS_TCP6: return ddsi_factory_find (gv, "tcp6");
     default: return NULL;
   }
 }
@@ -70,7 +70,7 @@ static void fini (struct ddsi_domaingv *gv)
 CU_Test (ddsi_locator_from_string, bogusproto)
 {
   struct ddsi_domaingv gv;
-  struct ddsi_tran_factory * const fact = init (&gv, TRANS_UDP);
+  struct ddsi_tran_factory * const fact = init (&gv, DDSI_TRANS_UDP);
   ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   res = ddsi_locator_from_string (&gv, &loc, "bogusproto/xyz", fact);
@@ -83,10 +83,10 @@ CU_Test (ddsi_locator_from_string, bogusproto)
 }
 
 CU_TheoryDataPoints(ddsi_locator_from_string, ipv4_invalid) = {
-  CU_DataPoints(enum transport_selector, TRANS_UDP, TRANS_TCP)
+  CU_DataPoints(enum ddsi_transport_selector, DDSI_TRANS_UDP, DDSI_TRANS_TCP)
 };
 
-CU_Theory ((enum transport_selector tr), ddsi_locator_from_string, ipv4_invalid)
+CU_Theory ((enum ddsi_transport_selector tr), ddsi_locator_from_string, ipv4_invalid)
 {
   struct ddsi_domaingv gv;
   struct ddsi_tran_factory * const fact = init (&gv, tr);
@@ -120,10 +120,10 @@ CU_Theory ((enum transport_selector tr), ddsi_locator_from_string, ipv4_invalid)
 }
 
 CU_TheoryDataPoints(ddsi_locator_from_string, ipv4) = {
-  CU_DataPoints(enum transport_selector, TRANS_UDP, TRANS_TCP)
+  CU_DataPoints(enum ddsi_transport_selector, DDSI_TRANS_UDP, DDSI_TRANS_TCP)
 };
 
-CU_Theory ((enum transport_selector tr), ddsi_locator_from_string, ipv4)
+CU_Theory ((enum ddsi_transport_selector tr), ddsi_locator_from_string, ipv4)
 {
   struct ddsi_domaingv gv;
   struct ddsi_tran_factory * const fact = init (&gv, tr);
@@ -194,7 +194,7 @@ CU_Theory ((enum transport_selector tr), ddsi_locator_from_string, ipv4)
 CU_Test (ddsi_locator_from_string, ipv4_cross1)
 {
   struct ddsi_domaingv gv;
-  struct ddsi_tran_factory * const fact = init (&gv, TRANS_UDP);
+  struct ddsi_tran_factory * const fact = init (&gv, DDSI_TRANS_UDP);
   ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   res = ddsi_locator_from_string (&gv, &loc, "tcp/1.2.3.4:1234", fact);
@@ -209,7 +209,7 @@ CU_Test (ddsi_locator_from_string, ipv4_cross1)
 CU_Test (ddsi_locator_from_string, ipv4_cross2)
 {
   struct ddsi_domaingv gv;
-  struct ddsi_tran_factory * const fact = init (&gv, TRANS_TCP);
+  struct ddsi_tran_factory * const fact = init (&gv, DDSI_TRANS_TCP);
   ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   res = ddsi_locator_from_string (&gv, &loc, "udp/1.2.3.4:1234", fact);
@@ -224,7 +224,7 @@ CU_Test (ddsi_locator_from_string, ipv4_cross2)
 CU_Test (ddsi_locator_from_string, udpv4mcgen)
 {
   struct ddsi_domaingv gv;
-  struct ddsi_tran_factory * const fact = init (&gv, TRANS_UDP);
+  struct ddsi_tran_factory * const fact = init (&gv, DDSI_TRANS_UDP);
   ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   res = ddsi_locator_from_string (&gv, &loc, "239.255.0.1;4;8;1:1234", fact);
@@ -252,10 +252,10 @@ CU_Test (ddsi_locator_from_string, udpv4mcgen)
 }
 
 CU_TheoryDataPoints(ddsi_locator_from_string, ipv6_invalid) = {
-  CU_DataPoints(enum transport_selector, TRANS_UDP6, TRANS_TCP6)
+  CU_DataPoints(enum ddsi_transport_selector, DDSI_TRANS_UDP6, DDSI_TRANS_TCP6)
 };
 
-CU_Theory ((enum transport_selector tr), ddsi_locator_from_string, ipv6_invalid)
+CU_Theory ((enum ddsi_transport_selector tr), ddsi_locator_from_string, ipv6_invalid)
 {
 #if DDSRT_HAVE_IPV6
   struct ddsi_domaingv gv;
@@ -296,10 +296,10 @@ CU_Theory ((enum transport_selector tr), ddsi_locator_from_string, ipv6_invalid)
 }
 
 CU_TheoryDataPoints(ddsi_locator_from_string, ipv6) = {
-  CU_DataPoints(enum transport_selector, TRANS_UDP6, TRANS_TCP6)
+  CU_DataPoints(enum ddsi_transport_selector, DDSI_TRANS_UDP6, DDSI_TRANS_TCP6)
 };
 
-CU_Theory ((enum transport_selector tr), ddsi_locator_from_string, ipv6)
+CU_Theory ((enum ddsi_transport_selector tr), ddsi_locator_from_string, ipv6)
 {
 #if DDSRT_HAVE_IPV6
   struct ddsi_domaingv gv;

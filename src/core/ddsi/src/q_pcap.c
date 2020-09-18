@@ -128,7 +128,7 @@ static uint16_t calc_ipv4_checksum (const uint16_t *x)
 
 void write_pcap_received (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const struct sockaddr_storage *src, const struct sockaddr_storage *dst, unsigned char *buf, size_t sz)
 {
-  if (gv->config.transport_selector == TRANS_UDP)
+  if (gv->config.transport_selector == DDSI_TRANS_UDP)
   {
     pcaprec_hdr_t pcap_hdr;
     union {
@@ -161,7 +161,7 @@ void write_pcap_received (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const
 
 void write_pcap_sent (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const struct sockaddr_storage *src, const ddsrt_msghdr_t *hdr, size_t sz)
 {
-  if (gv->config.transport_selector == TRANS_UDP)
+  if (gv->config.transport_selector == DDSI_TRANS_UDP)
   {
     pcaprec_hdr_t pcap_hdr;
     union {

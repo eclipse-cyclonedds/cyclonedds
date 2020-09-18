@@ -376,7 +376,7 @@ static int set_ext_address_and_mask (struct ddsi_domaingv *gv)
     gv->extmask.kind = NN_LOCATOR_KIND_INVALID;
     gv->extmask.port = NN_LOCATOR_PORT_INVALID;
   }
-  else if (gv->config.transport_selector != TRANS_UDP)
+  else if (gv->config.transport_selector != DDSI_TRANS_UDP)
   {
     GVERROR ("external network masks only supported in IPv4 mode\n");
     return -1;
@@ -584,7 +584,7 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
       num_channels++;
       num_channel_threads += 2; /* xmit and dqueue */
 
-      if (gv->config.transport_selector != TRANS_UDP && chptr->diffserv_field != 0)
+      if (gv->config.transport_selector != DDSI_TRANS_UDP && chptr->diffserv_field != 0)
       {
         DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "channel %s specifies IPv4 DiffServ settings which is incompatible with IPv6 use\n", chptr->name);
         error = 1;
@@ -1073,18 +1073,18 @@ int rtps_init (struct ddsi_domaingv *gv)
   /* Initialize UDP or TCP transport and resolve factory */
   switch (gv->config.transport_selector)
   {
-    case TRANS_DEFAULT:
+    case DDSI_TRANS_DEFAULT:
       assert(0);
-    case TRANS_UDP:
-    case TRANS_UDP6:
+    case DDSI_TRANS_UDP:
+    case DDSI_TRANS_UDP6:
       gv->config.publish_uc_locators = 1;
       gv->config.enable_uc_locators = 1;
       if (ddsi_udp_init (gv) < 0)
         goto err_udp_tcp_init;
-      gv->m_factory = ddsi_factory_find (gv, gv->config.transport_selector == TRANS_UDP ? "udp" : "udp6");
+      gv->m_factory = ddsi_factory_find (gv, gv->config.transport_selector == DDSI_TRANS_UDP ? "udp" : "udp6");
       break;
-    case TRANS_TCP:
-    case TRANS_TCP6:
+    case DDSI_TRANS_TCP:
+    case DDSI_TRANS_TCP6:
       gv->config.publish_uc_locators = (gv->config.tcp_port != -1);
       gv->config.enable_uc_locators = 1;
       /* TCP affects what features are supported/required */
@@ -1092,9 +1092,9 @@ int rtps_init (struct ddsi_domaingv *gv)
       gv->config.allowMulticast = DDSI_AMC_FALSE;
       if (ddsi_tcp_init (gv) < 0)
         goto err_udp_tcp_init;
-      gv->m_factory = ddsi_factory_find (gv, gv->config.transport_selector == TRANS_TCP ? "tcp" : "tcp6");
+      gv->m_factory = ddsi_factory_find (gv, gv->config.transport_selector == DDSI_TRANS_TCP ? "tcp" : "tcp6");
       break;
-    case TRANS_RAWETH:
+    case DDSI_TRANS_RAWETH:
       gv->config.publish_uc_locators = 1;
       gv->config.enable_uc_locators = 0;
       gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_NONE;
