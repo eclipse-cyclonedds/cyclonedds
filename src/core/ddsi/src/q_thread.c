@@ -246,7 +246,7 @@ static uint32_t create_thread_wrapper (void *ptr)
   return ret;
 }
 
-const struct ddsi_config_thread_properties_listelem *lookup_thread_properties (const struct config *config, const char *name)
+const struct ddsi_config_thread_properties_listelem *lookup_thread_properties (const struct ddsi_config *config, const char *name)
 {
   const struct ddsi_config_thread_properties_listelem *e;
   for (e = config->thread_properties; e != NULL; e = e->next)

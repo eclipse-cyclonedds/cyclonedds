@@ -92,7 +92,7 @@ enum implicit_toplevel {
 
 struct cfgst {
   ddsrt_avl_tree_t found;
-  struct config *cfg;
+  struct ddsi_config *cfg;
   const struct ddsrt_log_cfg *logcfg; /* for LOG_LC_CONFIG */
   /* error flag set so that we can continue parsing for some errors and still fail properly */
   int error;
@@ -224,7 +224,7 @@ DI(if_omg_security);
   }
 
 #define DEPRECATED(name) "|" name
-#define MEMBER(name) 0, ((int) offsetof (struct config, name))
+#define MEMBER(name) 0, ((int) offsetof (struct ddsi_config, name))
 #define MEMBEROF(parent, name) 1, ((int) offsetof (struct parent, name))
 #define FUNCTIONS(init, update, free, print) init, update, free, print
 #define DESCRIPTION(...) /* drop */
@@ -1115,7 +1115,7 @@ static void pf_memsize16 (struct cfgst *cfgst, void *parent, struct cfgelem cons
 
 static enum update_result uf_tracingOutputFileName (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
 {
-  struct config * const cfg = cfgst->cfg;
+  struct ddsi_config * const cfg = cfgst->cfg;
   cfg->tracefile = ddsrt_strdup (value);
   return URES_SUCCESS;
 }
@@ -2143,7 +2143,7 @@ static FILE *config_open_file (char *tok, char **cursor, uint32_t domid)
   return fp;
 }
 
-struct cfgst *config_init (const char *config, struct config *cfg, uint32_t domid)
+struct cfgst *config_init (const char *config, struct ddsi_config *cfg, uint32_t domid)
 {
   int ok = 1;
   struct cfgst *cfgst;
@@ -2369,7 +2369,7 @@ static char *get_partition_search_pattern (const char *partition, const char *to
   return pt;
 }
 
-struct ddsi_config_partitionmapping_listelem *find_partitionmapping (const struct config *cfg, const char *partition, const char *topic)
+struct ddsi_config_partitionmapping_listelem *find_partitionmapping (const struct ddsi_config *cfg, const char *partition, const char *topic)
 {
   char *pt = get_partition_search_pattern (partition, topic);
   struct ddsi_config_partitionmapping_listelem *pm;
@@ -2380,7 +2380,7 @@ struct ddsi_config_partitionmapping_listelem *find_partitionmapping (const struc
   return pm;
 }
 
-int is_ignored_partition (const struct config *cfg, const char *partition, const char *topic)
+int is_ignored_partition (const struct ddsi_config *cfg, const char *partition, const char *topic)
 {
   char *pt = get_partition_search_pattern (partition, topic);
   struct ddsi_config_ignoredpartition_listelem *ip;

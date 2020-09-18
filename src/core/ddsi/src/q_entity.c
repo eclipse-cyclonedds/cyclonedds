@@ -3343,7 +3343,7 @@ static int set_topic_type_name (dds_qos_t *xqos, const struct ddsi_sertopic * to
 /* WRITER ----------------------------------------------------------- */
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-static const struct ddsi_config_networkpartition_listelem *get_partition_from_mapping (const struct ddsrt_log_cfg *logcfg, const struct config *config, const char *partition, const char *topic)
+static const struct ddsi_config_networkpartition_listelem *get_partition_from_mapping (const struct ddsrt_log_cfg *logcfg, const struct ddsi_config *config, const char *partition, const char *topic)
 {
   struct ddsi_config_partitionmapping_listelem *pm;
   if ((pm = find_partitionmapping (config, partition, topic)) == NULL)

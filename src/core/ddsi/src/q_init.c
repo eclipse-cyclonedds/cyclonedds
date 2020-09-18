@@ -867,7 +867,7 @@ static void make_special_topics (struct ddsi_domaingv *gv)
   free_special_topics (gv);
 }
 
-static bool use_multiple_receive_threads (const struct config *cfg)
+static bool use_multiple_receive_threads (const struct ddsi_config *cfg)
 {
   /* Under some unknown circumstances Windows (at least Windows 10) exhibits
      the interesting behaviour of losing its ability to let us send packets
