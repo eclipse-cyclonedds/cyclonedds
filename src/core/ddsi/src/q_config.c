@@ -986,7 +986,7 @@ static const char *xcheck_names[] = {
   "whc", "rhc", "all", NULL
 };
 static const uint32_t xcheck_codes[] = {
-  DDS_XCHECK_WHC, DDS_XCHECK_RHC, ~(uint32_t) 0
+  DDSI_XCHECK_WHC, DDSI_XCHECK_RHC, ~(uint32_t) 0
 };
 
 static enum update_result uf_xcheck (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
