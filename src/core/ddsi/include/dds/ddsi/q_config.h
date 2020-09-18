@@ -14,7 +14,8 @@
 
 #include <stdio.h>
 
-#include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/sched.h"
+#include "dds/ddsrt/attributes.h"
 #include "dds/ddsi/ddsi_portmapping.h"
 #include "dds/ddsi/ddsi_locator.h"
 
