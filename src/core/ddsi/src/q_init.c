@@ -521,7 +521,7 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
     goto err_config_late_error;
   }
 
-  if (gv->config.besmode == BESMODE_MINIMAL && gv->config.many_sockets_mode == MSM_MANY_UNICAST)
+  if (gv->config.besmode == DDSI_BESMODE_MINIMAL && gv->config.many_sockets_mode == MSM_MANY_UNICAST)
   {
     /* These two are incompatible because minimal bes mode can result
        in implicitly creating proxy participants inheriting the

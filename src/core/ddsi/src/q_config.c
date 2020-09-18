@@ -914,8 +914,8 @@ static const enum boolean_default en_boolean_default_ms[] = { BOOLDEF_DEFAULT, B
 GENERIC_ENUM (boolean_default)
 
 static const char *en_besmode_vs[] = { "full", "writers", "minimal", NULL };
-static const enum besmode en_besmode_ms[] = { BESMODE_FULL, BESMODE_WRITERS, BESMODE_MINIMAL, 0 };
-GENERIC_ENUM (besmode)
+static const enum ddsi_besmode en_besmode_ms[] = { DDSI_BESMODE_FULL, DDSI_BESMODE_WRITERS, DDSI_BESMODE_MINIMAL, 0 };
+GENERIC_ENUM_CTYPE (besmode, enum ddsi_besmode)
 
 static const char *en_retransmit_merging_vs[] = { "never", "adaptive", "always", NULL };
 static const enum retransmit_merging en_retransmit_merging_ms[] = { REXMIT_MERGE_NEVER, REXMIT_MERGE_ADAPTIVE, REXMIT_MERGE_ALWAYS, 0 };
