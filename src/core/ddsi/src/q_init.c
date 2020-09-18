@@ -676,9 +676,9 @@ int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin)
   arg.gv = gv;
   arg.errcount = 0;
   arg.dojoin = dojoin;
-  if (gv->config.allowMulticast & AMC_SPDP)
+  if (gv->config.allowMulticast & DDSI_AMC_SPDP)
     add_to_addrset (gv, as, &gv->loc_spdp_mc);
-  if (gv->config.allowMulticast & ~AMC_SPDP)
+  if (gv->config.allowMulticast & ~DDSI_AMC_SPDP)
     add_to_addrset (gv, as, &gv->loc_default_mc);
   addrset_forall (as, joinleave_spdp_defmcip_helper, &arg);
   unref_addrset (as);
@@ -913,7 +913,7 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
   gv->recv_threads[0].arg.mode = RTM_MANY;
   if (gv->m_factory->m_connless && gv->config.many_sockets_mode != MSM_NO_UNICAST && multi_recv_thr)
   {
-    if (ddsi_is_mcaddr (gv, &gv->loc_default_mc) && !ddsi_is_ssm_mcaddr (gv, &gv->loc_default_mc) && (gv->config.allowMulticast & AMC_ASM))
+    if (ddsi_is_mcaddr (gv, &gv->loc_default_mc) && !ddsi_is_ssm_mcaddr (gv, &gv->loc_default_mc) && (gv->config.allowMulticast & DDSI_AMC_ASM))
     {
       /* Multicast enabled, but it isn't an SSM address => handle data multicasts on a separate thread (the trouble with SSM addresses is that we only join matching writers, which our own sockets typically would not be) */
       gv->recv_threads[gv->n_recv_threads].name = "recvMC";
@@ -1089,7 +1089,7 @@ int rtps_init (struct ddsi_domaingv *gv)
       gv->config.enable_uc_locators = 1;
       /* TCP affects what features are supported/required */
       gv->config.many_sockets_mode = MSM_SINGLE_UNICAST;
-      gv->config.allowMulticast = AMC_FALSE;
+      gv->config.allowMulticast = DDSI_AMC_FALSE;
       if (ddsi_tcp_init (gv) < 0)
         goto err_udp_tcp_init;
       gv->m_factory = ddsi_factory_find (gv, gv->config.transport_selector == TRANS_TCP ? "tcp" : "tcp6");
@@ -1116,32 +1116,32 @@ int rtps_init (struct ddsi_domaingv *gv)
     if (!gv->interfaces[gv->selected_interface].mc_capable)
     {
       GVWARNING ("selected interface \"%s\" is not multicast-capable: disabling multicast\n", gv->interfaces[gv->selected_interface].name);
-      gv->config.allowMulticast = AMC_FALSE;
+      gv->config.allowMulticast = DDSI_AMC_FALSE;
       /* ensure discovery can work: firstly, that the process will be reachable on a "well-known" port
          number, and secondly, that the local interface's IP address gets added to the discovery
          address set */
       gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
       mc_available = false;
     }
-    else if (gv->config.allowMulticast & AMC_DEFAULT)
+    else if (gv->config.allowMulticast & DDSI_AMC_DEFAULT)
     {
       /* default is dependent on network interface type: if multicast is believed to be flaky,
          use multicast only for SPDP packets */
-      assert ((gv->config.allowMulticast & ~AMC_DEFAULT) == 0);
+      assert ((gv->config.allowMulticast & ~DDSI_AMC_DEFAULT) == 0);
       if (gv->interfaces[gv->selected_interface].mc_flaky)
       {
-        gv->config.allowMulticast = AMC_SPDP;
+        gv->config.allowMulticast = DDSI_AMC_SPDP;
         GVLOG (DDS_LC_CONFIG, "presumed flaky multicast, use for SPDP only\n");
       }
       else
       {
         GVLOG (DDS_LC_CONFIG, "presumed robust multicast support, use for everything\n");
-        gv->config.allowMulticast = AMC_TRUE;
+        gv->config.allowMulticast = DDSI_AMC_TRUE;
       }
     }
   }
 
-  assert ((gv->config.allowMulticast & AMC_DEFAULT) == 0);
+  assert ((gv->config.allowMulticast & DDSI_AMC_DEFAULT) == 0);
   if (set_recvips (gv) < 0)
     goto err_set_recvips;
   if (set_spdp_address (gv) < 0)
@@ -1494,7 +1494,7 @@ int rtps_init (struct ddsi_domaingv *gv)
 #endif
 
   gv->as_disc = new_addrset ();
-  if (gv->config.allowMulticast & AMC_SPDP)
+  if (gv->config.allowMulticast & DDSI_AMC_SPDP)
     add_to_addrset (gv, gv->as_disc, &gv->loc_spdp_mc);
   /* If multicast was enabled but not available, always add the local interface to the discovery address set.
      Conversion via string and add_peer_addresses has the benefit that the port number expansion happens

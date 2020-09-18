@@ -128,16 +128,16 @@ struct ddsi_config_prune_deleted_ppant {
 };
 
 /* allow multicast bits (default depends on network type): */
-#define AMC_FALSE 0u
-#define AMC_SPDP 1u
-#define AMC_ASM 2u
+#define DDSI_AMC_FALSE 0u
+#define DDSI_AMC_SPDP 1u
+#define DDSI_AMC_ASM 2u
 #ifdef DDSI_INCLUDE_SSM
-#define AMC_SSM 4u
-#define AMC_TRUE (AMC_SPDP | AMC_ASM | AMC_SSM)
+#define DDSI_AMC_SSM 4u
+#define DDSI_AMC_TRUE (DDSI_AMC_SPDP | DDSI_AMC_ASM | DDSI_AMC_SSM)
 #else
-#define AMC_TRUE (AMC_SPDP | AMC_ASM)
+#define DDSI_AMC_TRUE (DDSI_AMC_SPDP | DDSI_AMC_ASM)
 #endif
-#define AMC_DEFAULT 0x80000000u
+#define DDSI_AMC_DEFAULT 0x80000000u
 
 /* FIXME: this should be fully dynamic ... but this is easier for a quick hack */
 enum transport_selector {

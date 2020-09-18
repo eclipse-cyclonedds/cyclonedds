@@ -1223,10 +1223,10 @@ static void ff_networkAddresses (struct cfgst *cfgst, void *parent, struct cfgel
 
 #ifdef DDSI_INCLUDE_SSM
 static const char *allow_multicast_names[] = { "false", "spdp", "asm", "ssm", "true", NULL };
-static const uint32_t allow_multicast_codes[] = { AMC_FALSE, AMC_SPDP, AMC_ASM, AMC_SSM, AMC_TRUE };
+static const uint32_t allow_multicast_codes[] = { DDSI_AMC_FALSE, DDSI_AMC_SPDP, DDSI_AMC_ASM, DDSI_AMC_SSM, DDSI_AMC_TRUE };
 #else
 static const char *allow_multicast_names[] = { "false", "spdp", "asm", "true", NULL };
-static const uint32_t allow_multicast_codes[] = { AMC_FALSE, AMC_SPDP, AMC_ASM, AMC_TRUE };
+static const uint32_t allow_multicast_codes[] = { DDSI_AMC_FALSE, DDSI_AMC_SPDP, DDSI_AMC_ASM, DDSI_AMC_TRUE };
 #endif
 
 static enum update_result uf_allow_multicast (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
@@ -1234,7 +1234,7 @@ static enum update_result uf_allow_multicast (struct cfgst *cfgst, void *parent,
   uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
   if (ddsrt_strcasecmp (value, "default") == 0)
   {
-    *elem = AMC_DEFAULT;
+    *elem = DDSI_AMC_DEFAULT;
     return URES_SUCCESS;
   }
   else
@@ -1247,7 +1247,7 @@ static enum update_result uf_allow_multicast (struct cfgst *cfgst, void *parent,
 static void pf_allow_multicast(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
   uint32_t *p = cfg_address (cfgst, parent, cfgelem);
-  if (*p == AMC_DEFAULT)
+  if (*p == DDSI_AMC_DEFAULT)
     cfg_logelem (cfgst, sources, "default");
   else if (*p == 0)
     cfg_logelem (cfgst, sources, "false");
