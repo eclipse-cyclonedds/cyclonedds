@@ -882,11 +882,11 @@ static bool use_multiple_receive_threads (const struct config *cfg)
 #endif
   switch (cfg->multiple_recv_threads)
   {
-    case BOOLDEF_FALSE:
+    case DDSI_BOOLDEF_FALSE:
       return false;
-    case BOOLDEF_TRUE:
+    case DDSI_BOOLDEF_TRUE:
       return true;
-    case BOOLDEF_DEFAULT:
+    case DDSI_BOOLDEF_DEFAULT:
       return def;
   }
   assert (0);

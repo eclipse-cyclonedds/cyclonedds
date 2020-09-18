@@ -910,8 +910,8 @@ static const int en_boolean_ms[] = { 0, 1, 0 };
 GENERIC_ENUM_CTYPE (boolean, int)
 
 static const char *en_boolean_default_vs[] = { "default", "false", "true", NULL };
-static const enum boolean_default en_boolean_default_ms[] = { BOOLDEF_DEFAULT, BOOLDEF_FALSE, BOOLDEF_TRUE, 0 };
-GENERIC_ENUM (boolean_default)
+static const enum ddsi_boolean_default en_boolean_default_ms[] = { DDSI_BOOLDEF_DEFAULT, DDSI_BOOLDEF_FALSE, DDSI_BOOLDEF_TRUE, 0 };
+GENERIC_ENUM_CTYPE (boolean_default, enum ddsi_boolean_default)
 
 static const char *en_besmode_vs[] = { "full", "writers", "minimal", NULL };
 static const enum ddsi_besmode en_besmode_ms[] = { DDSI_BESMODE_FULL, DDSI_BESMODE_WRITERS, DDSI_BESMODE_MINIMAL, 0 };
@@ -2254,32 +2254,32 @@ struct cfgst *config_init (const char *config, struct config *cfg, uint32_t domi
     switch (cfgst->cfg->transport_selector)
     {
       case TRANS_DEFAULT:
-        if (cfgst->cfg->compat_tcp_enable == BOOLDEF_TRUE)
-          cfgst->cfg->transport_selector = (cfgst->cfg->compat_use_ipv6 == BOOLDEF_TRUE) ? TRANS_TCP6 : TRANS_TCP;
+        if (cfgst->cfg->compat_tcp_enable == DDSI_BOOLDEF_TRUE)
+          cfgst->cfg->transport_selector = (cfgst->cfg->compat_use_ipv6 == DDSI_BOOLDEF_TRUE) ? TRANS_TCP6 : TRANS_TCP;
         else
-          cfgst->cfg->transport_selector = (cfgst->cfg->compat_use_ipv6 == BOOLDEF_TRUE) ? TRANS_UDP6 : TRANS_UDP;
+          cfgst->cfg->transport_selector = (cfgst->cfg->compat_use_ipv6 == DDSI_BOOLDEF_TRUE) ? TRANS_UDP6 : TRANS_UDP;
         break;
       case TRANS_TCP:
-        ok1 = !(cfgst->cfg->compat_tcp_enable == BOOLDEF_FALSE || cfgst->cfg->compat_use_ipv6 == BOOLDEF_TRUE);
+        ok1 = !(cfgst->cfg->compat_tcp_enable == DDSI_BOOLDEF_FALSE || cfgst->cfg->compat_use_ipv6 == DDSI_BOOLDEF_TRUE);
         break;
       case TRANS_TCP6:
-        ok1 = !(cfgst->cfg->compat_tcp_enable == BOOLDEF_FALSE || cfgst->cfg->compat_use_ipv6 == BOOLDEF_FALSE);
+        ok1 = !(cfgst->cfg->compat_tcp_enable == DDSI_BOOLDEF_FALSE || cfgst->cfg->compat_use_ipv6 == DDSI_BOOLDEF_FALSE);
         break;
       case TRANS_UDP:
-        ok1 = !(cfgst->cfg->compat_tcp_enable == BOOLDEF_TRUE || cfgst->cfg->compat_use_ipv6 == BOOLDEF_TRUE);
+        ok1 = !(cfgst->cfg->compat_tcp_enable == DDSI_BOOLDEF_TRUE || cfgst->cfg->compat_use_ipv6 == DDSI_BOOLDEF_TRUE);
         break;
       case TRANS_UDP6:
-        ok1 = !(cfgst->cfg->compat_tcp_enable == BOOLDEF_TRUE || cfgst->cfg->compat_use_ipv6 == BOOLDEF_FALSE);
+        ok1 = !(cfgst->cfg->compat_tcp_enable == DDSI_BOOLDEF_TRUE || cfgst->cfg->compat_use_ipv6 == DDSI_BOOLDEF_FALSE);
         break;
       case TRANS_RAWETH:
-        ok1 = !(cfgst->cfg->compat_tcp_enable == BOOLDEF_TRUE || cfgst->cfg->compat_use_ipv6 == BOOLDEF_TRUE);
+        ok1 = !(cfgst->cfg->compat_tcp_enable == DDSI_BOOLDEF_TRUE || cfgst->cfg->compat_use_ipv6 == DDSI_BOOLDEF_TRUE);
         break;
     }
     if (!ok1)
       DDS_ILOG (DDS_LC_ERROR, domid, "config: invalid combination of Transport, IPv6, TCP\n");
     ok = ok && ok1;
-    cfgst->cfg->compat_use_ipv6 = (cfgst->cfg->transport_selector == TRANS_UDP6 || cfgst->cfg->transport_selector == TRANS_TCP6) ? BOOLDEF_TRUE : BOOLDEF_FALSE;
-    cfgst->cfg->compat_tcp_enable = (cfgst->cfg->transport_selector == TRANS_TCP || cfgst->cfg->transport_selector == TRANS_TCP6) ? BOOLDEF_TRUE : BOOLDEF_FALSE;
+    cfgst->cfg->compat_use_ipv6 = (cfgst->cfg->transport_selector == TRANS_UDP6 || cfgst->cfg->transport_selector == TRANS_TCP6) ? DDSI_BOOLDEF_TRUE : DDSI_BOOLDEF_FALSE;
+    cfgst->cfg->compat_tcp_enable = (cfgst->cfg->transport_selector == TRANS_TCP || cfgst->cfg->transport_selector == TRANS_TCP6) ? DDSI_BOOLDEF_TRUE : DDSI_BOOLDEF_FALSE;
   }
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
