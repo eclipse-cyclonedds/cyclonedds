@@ -272,7 +272,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
       NN_ADLINK_FL_DDSI2_PARTICIPANT_FLAG |
       NN_ADLINK_FL_PTBES_FIXED_0 |
       NN_ADLINK_FL_SUPPORTS_STATUSINFOX;
-    if (pp->e.gv->config.besmode == BESMODE_MINIMAL)
+    if (pp->e.gv->config.besmode == DDSI_BESMODE_MINIMAL)
       dst->adlink_participant_version_info.flags |= NN_ADLINK_FL_MINIMAL_BES_MODE;
     ddsrt_mutex_lock (&pp->e.gv->privileged_pp_lock);
     if (pp->is_ddsi2_pp)

@@ -32,10 +32,10 @@ enum ddsi_standards_conformance {
 #define DDSI_SC_PEDANTIC_P(config) ((config).standards_conformance <= DDSI_SC_PEDANTIC)
 #define DDSI_SC_STRICT_P(config) ((config).standards_conformance <= DDSI_SC_STRICT)
 
-enum besmode {
-  BESMODE_FULL,
-  BESMODE_WRITERS,
-  BESMODE_MINIMAL
+enum ddsi_besmode {
+  DDSI_BESMODE_FULL,
+  DDSI_BESMODE_WRITERS,
+  DDSI_BESMODE_MINIMAL
 };
 
 enum retransmit_merging {
@@ -315,7 +315,7 @@ struct config
   int xmit_lossiness;           /**<< fraction of packets to drop on xmit, in units of 1e-3 */
   uint32_t rmsg_chunk_size;          /**<< size of a chunk in the receive buffer */
   uint32_t rbuf_size;                /* << size of a single receiver buffer */
-  enum besmode besmode;
+  enum ddsi_besmode besmode;
   int meas_hb_to_ack_latency;
   int unicast_response_to_spdp_messages;
   int synchronous_delivery_priority_threshold;
