@@ -3308,7 +3308,7 @@ static void fill_property(dds_property_t *prop, const char *name, const char *va
  * plugins to get their proper settings. If security properties are already present in
  * the QoS, the settings from configuration are ignored.
  */
-void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security_configuration_type *cfg)
+void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct ddsi_config_omg_security *cfg)
 {
   assert(cfg != NULL);
 

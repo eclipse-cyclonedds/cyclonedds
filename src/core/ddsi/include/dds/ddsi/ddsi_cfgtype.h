@@ -156,38 +156,38 @@ enum ddsi_many_sockets_mode {
 };
 
 #ifdef DDSI_INCLUDE_SECURITY
-typedef struct plugin_library_properties_type{
+struct ddsi_plugin_library_properties {
   char *library_path;
   char *library_init;
   char *library_finalize;
-} plugin_library_properties_type;
+};
 
-typedef struct authentication_properties_type{
+struct ddsi_authentication_properties {
   char *identity_certificate;
   char *identity_ca;
   char *private_key;
   char *password;
   char *trusted_ca_dir;
   int include_optional_fields;
-} authentication_properties_type;
+};
 
-typedef struct access_control_properties_type{
+struct ddsi_access_control_properties {
   char *permissions;
   char *permissions_ca;
   char *governance;
-} access_control_properties_type;
+};
 
-typedef struct omg_security_configuration_type {
-  authentication_properties_type authentication_properties;
-  access_control_properties_type access_control_properties;
-  plugin_library_properties_type authentication_plugin;
-  plugin_library_properties_type access_control_plugin;
-  plugin_library_properties_type cryptography_plugin;
-} omg_security_configuration_type;
+struct ddsi_config_omg_security {
+  struct ddsi_authentication_properties authentication_properties;
+  struct ddsi_access_control_properties access_control_properties;
+  struct ddsi_plugin_library_properties authentication_plugin;
+  struct ddsi_plugin_library_properties access_control_plugin;
+  struct ddsi_plugin_library_properties cryptography_plugin;
+};
 
 struct ddsi_config_omg_security_listelem {
   struct ddsi_config_omg_security_listelem *next;
-  omg_security_configuration_type cfg;
+  struct ddsi_config_omg_security cfg;
 };
 #endif /* DDSI_INCLUDE_SECURITY */
 
