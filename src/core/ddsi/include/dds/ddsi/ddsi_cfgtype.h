@@ -64,8 +64,6 @@ struct config_networkpartition_listelem {
   char *name;
   char *address_string;
   struct addrset *as;
-  int connected;
-  uint32_t partitionId;
 };
 
 struct config_ignoredpartition_listelem {

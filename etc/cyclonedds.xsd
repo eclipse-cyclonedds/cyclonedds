@@ -1118,13 +1118,6 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default value is: "".&lt;/p&gt;</xs:documentation>
         </xs:annotation>
       </xs:attribute>
-      <xs:attribute name="Connected" type="xs:boolean">
-        <xs:annotation>
-          <xs:documentation>
-&lt;p&gt;This attribute is a placeholder.&lt;/p&gt;
-&lt;p&gt;The default value is: "true".&lt;/p&gt;</xs:documentation>
-        </xs:annotation>
-      </xs:attribute>
       <xs:attribute name="Name" use="required">
         <xs:annotation>
           <xs:documentation>

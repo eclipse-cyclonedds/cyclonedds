@@ -673,8 +673,6 @@ static int if_network_partition (struct cfgst *cfgst, void *parent, struct cfgel
   new->address_string = NULL;
   new->as = NULL;
   new->name = NULL;
-  new->partitionId = 0;
-  new->connected = 0;
   return 0;
 }
 
@@ -2295,19 +2293,6 @@ struct cfgst *config_init (const char *config, struct config *cfg, uint32_t domi
 #endif
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  /* Assign network partition ids */
-  if (ok)
-  {
-    struct config_networkpartition_listelem *p = cfgst->cfg->networkPartitions;
-    cfgst->cfg->nof_networkPartitions = 0;
-    while (p)
-    {
-      cfgst->cfg->nof_networkPartitions++;
-      p->partitionId = cfgst->cfg->nof_networkPartitions; /* starting at 1 */
-      p = p->next;
-    }
-  }
-
   /* Create links from the partitionmappings to the network partitions
      and signal errors if partitions do not exist */
   if (ok)
@@ -2393,15 +2378,6 @@ struct config_partitionmapping_listelem *find_partitionmapping (const struct con
       break;
   ddsrt_free (pt);
   return pm;
-}
-
-struct config_networkpartition_listelem *find_networkpartition_by_id (const struct config *cfg, uint32_t id)
-{
-  struct config_networkpartition_listelem *np;
-  for (np = cfg->networkPartitions; np; np = np->next)
-    if (np->partitionId == id)
-      return np;
-  return 0;
 }
 
 int is_ignored_partition (const struct config *cfg, const char *partition, const char *topic)

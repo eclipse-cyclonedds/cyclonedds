@@ -632,10 +632,6 @@ struct nn_xmsg * nn_gap_info_create_gap(struct writer *wr, struct proxy_reader *
 
   m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  nn_xmsg_setencoderid (m, wr->partition_id);
-#endif
-
   nn_xmsg_setdstPRD (m, prd);
   add_Gap (m, wr, prd, gi->gapstart, gi->gapend, gi->gapnumbits, gi->gapbits);
   if (nn_xmsg_size(m) == 0)
@@ -1635,9 +1631,6 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
     struct nn_xmsg *m;
     RSTTRACE (" msg not available: scheduling Gap\n");
     m = nn_xmsg_new (rst->gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-    nn_xmsg_setencoderid (m, wr->partition_id);
-#endif
     nn_xmsg_setdstPRD (m, prd);
     /* length-1 bitmap with the bit clear avoids the illegal case of a length-0 bitmap */
     add_Gap (m, wr, prd, seq, seq+1, 0, &zero);

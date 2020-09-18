@@ -79,9 +79,6 @@ struct nn_xmsg {
   nn_msg_sec_info_t sec_info;
 #endif
   int64_t maxdelay;
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  uint32_t encoderid;
-#endif
 
   /* Backref for late updating of available sequence numbers, and
      merging of retransmits. */
@@ -298,9 +295,6 @@ static void nn_xmsg_reinit (struct nn_xmsg *m, enum nn_xmsg_kind kind)
   m->sec_info.use_rtps_encoding = 0;
   m->sec_info.src_pp_handle = 0;
   m->sec_info.dst_pp_handle = 0;
-#endif
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  m->encoderid = 0;
 #endif
   memset (&m->kindspecific, 0, sizeof (m->kindspecific));
 }
@@ -904,15 +898,6 @@ int nn_xmsg_setmaxdelay (struct nn_xmsg *msg, int64_t maxdelay)
   msg->maxdelay = maxdelay;
   return 0;
 }
-
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-int nn_xmsg_setencoderid (struct nn_xmsg *msg, uint32_t encoderid)
-{
-  assert (msg->encoderid == 0);
-  msg->encoderid = encoderid;
-  return 0;
-}
-#endif
 
 void nn_xmsg_setwriterseq (struct nn_xmsg *msg, const ddsi_guid_t *wrguid, seqno_t wrseq)
 {
@@ -1568,12 +1553,6 @@ static int nn_xpack_mayaddmsg (const struct nn_xpack *xp, const struct nn_xmsg *
     return 0;
   }
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  /* Don't mix up xmsg for different encoders */
-  if (xp->encoderId != m->encoderid)
-    return 0;
-#endif
-
 #ifdef DDSI_INCLUDE_SECURITY
   /* Don't mix up encoded and plain rtps messages */
   if (xp->sec_info.use_rtps_encoding != m->sec_info.use_rtps_encoding)
@@ -1671,9 +1650,6 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
 
 #ifdef DDSI_INCLUDE_SECURITY
     xp->sec_info = m->sec_info;
-#endif
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-    xp->encoderId = m->encoderid;
 #endif
     xp->last_src = &xp->hdr.guid_prefix;
     xp->last_dst = NULL;

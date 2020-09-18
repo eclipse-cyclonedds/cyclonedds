@@ -31,7 +31,6 @@ void config_fini (struct cfgst *cfgst);
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 struct config_partitionmapping_listelem *find_partitionmapping (const struct config *cfg, const char *partition, const char *topic);
-struct config_networkpartition_listelem *find_networkpartition_by_id (const struct config *cfg, uint32_t id);
 int is_ignored_partition (const struct config *cfg, const char *partition, const char *topic);
 #endif
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
