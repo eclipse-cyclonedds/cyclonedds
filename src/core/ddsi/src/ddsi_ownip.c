@@ -33,7 +33,7 @@
 #include "dds/ddsi/ddsi_ipaddr.h"
 #include "dds/ddsrt/avl.h"
 
-static int multicast_override(const char *ifname, const struct config *config)
+static int multicast_override(const char *ifname, const struct ddsi_config *config)
 {
   char *copy = ddsrt_strdup (config->assumeMulticastCapable), *cursor = copy, *tok;
   int match = 0;

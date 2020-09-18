@@ -202,7 +202,7 @@ struct ddsi_config_ssl_min_version {
 #define DDS_XCHECK_WHC 1u
 #define DDS_XCHECK_RHC 2u
 
-struct config
+struct ddsi_config
 {
   int valid;
   uint32_t tracemask;
@@ -371,7 +371,7 @@ struct config
 #endif
 };
 
-DDS_EXPORT void ddsi_config_init_default (struct config *cfg, uint32_t domid);
+DDS_EXPORT void ddsi_config_init_default (struct ddsi_config *cfg, uint32_t domid);
 
 #if defined (__cplusplus)
 }

@@ -91,7 +91,7 @@ struct ddsi_domaingv {
   volatile int mute;
 
   struct ddsrt_log_cfg logconfig;
-  struct config config;
+  struct ddsi_config config;
 
   struct ddsi_tkmap * m_tkmap;
 

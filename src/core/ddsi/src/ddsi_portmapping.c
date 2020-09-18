@@ -92,7 +92,7 @@ static const char *portname (enum ddsi_port which)
   return n;
 }
 
-bool ddsi_valid_portmapping (const struct config *config, int32_t participant_index, char *msg, size_t msgsize)
+bool ddsi_valid_portmapping (const struct ddsi_config *config, int32_t participant_index, char *msg, size_t msgsize)
 {
   DDSRT_STATIC_ASSERT (DDSI_PORT_MULTI_DISC >= 0 &&
                        DDSI_PORT_MULTI_DISC + 1 == DDSI_PORT_MULTI_DATA &&
@@ -117,7 +117,7 @@ bool ddsi_valid_portmapping (const struct config *config, int32_t participant_in
   return ok;
 }
 
-uint32_t ddsi_get_port (const struct config *config, enum ddsi_port which, int32_t participant_index)
+uint32_t ddsi_get_port (const struct ddsi_config *config, enum ddsi_port which, int32_t participant_index)
 {
   /* Not supposed to come here if port mapping is invalid */
   uint32_t port;
