@@ -88,6 +88,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_udp.h
     ddsi_raweth.h
     ddsi_ipaddr.h
+    ddsi_locator.h
     ddsi_mcgroup.h
     ddsi_plist_generic.h
     ddsi_security_util.h
