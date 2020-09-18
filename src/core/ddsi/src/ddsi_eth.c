@@ -11,7 +11,7 @@
  */
 #include "ddsi_eth.h"
 
-int ddsi_eth_enumerate_interfaces (ddsi_tran_factory_t fact, enum transport_selector transport_selector, ddsrt_ifaddrs_t **ifs)
+int ddsi_eth_enumerate_interfaces (ddsi_tran_factory_t fact, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **ifs)
 {
     int afs[] = { AF_INET, DDSRT_AF_TERM };
 
@@ -19,8 +19,8 @@ int ddsi_eth_enumerate_interfaces (ddsi_tran_factory_t fact, enum transport_sele
     (void)transport_selector;
 
 #if DDSRT_HAVE_IPV6
-    if (transport_selector == TRANS_TCP6 ||
-        transport_selector == TRANS_UDP6)
+    if (transport_selector == DDSI_TRANS_TCP6 ||
+        transport_selector == DDSI_TRANS_UDP6)
     {
       afs[0] = AF_INET6;
     }

@@ -1179,7 +1179,7 @@ int ddsi_tcp_init (struct ddsi_domaingv *gv)
   ddsi_factory_add (gv, &fact->fact);
 
 #if DDSRT_HAVE_IPV6
-  if (gv->config.transport_selector == TRANS_TCP6)
+  if (gv->config.transport_selector == DDSI_TRANS_TCP6)
   {
     fact->fact.m_kind = NN_LOCATOR_KIND_TCPv6;
     fact->fact.m_typename = "tcp6";

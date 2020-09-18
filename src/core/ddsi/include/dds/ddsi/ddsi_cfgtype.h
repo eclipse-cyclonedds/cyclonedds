@@ -140,13 +140,13 @@ struct ddsi_config_prune_deleted_ppant {
 #define DDSI_AMC_DEFAULT 0x80000000u
 
 /* FIXME: this should be fully dynamic ... but this is easier for a quick hack */
-enum transport_selector {
-  TRANS_DEFAULT, /* actually UDP, but this is so we can tell what has been set */
-  TRANS_UDP,
-  TRANS_UDP6,
-  TRANS_TCP,
-  TRANS_TCP6,
-  TRANS_RAWETH
+enum ddsi_transport_selector {
+  DDSI_TRANS_DEFAULT, /* actually UDP, but this is so we can tell what has been set */
+  DDSI_TRANS_UDP,
+  DDSI_TRANS_UDP6,
+  DDSI_TRANS_TCP,
+  DDSI_TRANS_TCP6,
+  DDSI_TRANS_RAWETH
 };
 
 enum many_sockets_mode {
@@ -220,7 +220,7 @@ struct config
   int tracingAppendToFile;
   uint32_t allowMulticast;
   int prefer_multicast;
-  enum transport_selector transport_selector;
+  enum ddsi_transport_selector transport_selector;
   enum ddsi_boolean_default compat_use_ipv6;
   enum ddsi_boolean_default compat_tcp_enable;
   int dontRoute;
