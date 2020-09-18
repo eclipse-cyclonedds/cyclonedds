@@ -124,8 +124,8 @@ extern ddsrt_thread_local struct thread_state1 *tsd_thread_state;
 DDS_EXPORT void thread_states_init (unsigned maxthreads);
 DDS_EXPORT bool thread_states_fini (void);
 
-DDS_EXPORT const struct config_thread_properties_listelem *lookup_thread_properties (const struct config *config, const char *name);
-DDS_EXPORT dds_return_t create_thread_with_properties (struct thread_state1 **ts1, struct config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg);
+DDS_EXPORT const struct ddsi_config_thread_properties_listelem *lookup_thread_properties (const struct config *config, const char *name);
+DDS_EXPORT dds_return_t create_thread_with_properties (struct thread_state1 **ts1, struct ddsi_config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg);
 DDS_EXPORT dds_return_t create_thread (struct thread_state1 **ts, const struct ddsi_domaingv *gv, const char *name, uint32_t (*f) (void *arg), void *arg);
 DDS_EXPORT struct thread_state1 *lookup_thread_state_real (void);
 DDS_EXPORT dds_return_t join_thread (struct thread_state1 *ts1);

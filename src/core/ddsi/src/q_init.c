@@ -68,7 +68,7 @@
 
 #include "dds/ddsi/ddsi_security_omg.h"
 
-static void add_peer_addresses (const struct ddsi_domaingv *gv, struct addrset *as, const struct config_peer_listelem *list)
+static void add_peer_addresses (const struct ddsi_domaingv *gv, struct addrset *as, const struct ddsi_config_peer_listelem *list)
 {
   while (list)
   {
@@ -392,7 +392,7 @@ static int set_ext_address_and_mask (struct ddsi_domaingv *gv)
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
 static int known_channel_p (const struct ddsi_domaingv *gv, const char *name)
 {
-  const struct config_channel_listelem *c;
+  const struct ddsi_config_channel_listelem *c;
   for (c = gv->config.channels; c; c = c->next)
     if (strcmp (name, c->name) == 0)
       return 1;
@@ -408,7 +408,7 @@ static int check_thread_properties (const struct ddsi_domaingv *gv)
 #else
   static const char *fixed[] = { "recv", "tev", "gc", "lease", "dq.builtins", "xmit.user", "dq.user", "debmon", "fsm", NULL };
 #endif
-  const struct config_thread_properties_listelem *e;
+  const struct ddsi_config_thread_properties_listelem *e;
   int ok = 1, i;
   for (e = gv->config.thread_properties; e; e = e->next)
   {
@@ -572,7 +572,7 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
      determine the correct number of threads.  Also fix fields if
      at default, and check for some known IPv4/IPv6
      "compatibility" issues */
-    struct config_channel_listelem *chptr = gv->config.channels;
+    struct ddsi_config_channel_listelem *chptr = gv->config.channels;
     int error = 0;
 
     while (chptr)
@@ -1171,7 +1171,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   /* Convert address sets in partition mappings from string to address sets */
   {
     const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DATA, 0);
-    struct config_networkpartition_listelem *np;
+    struct ddsi_config_networkpartition_listelem *np;
     for (np = gv->config.networkPartitions; np; np = np->next)
     {
       static const char msgtag_fixed[] = ": partition address";
@@ -1420,7 +1420,7 @@ int rtps_init (struct ddsi_domaingv *gv)
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   {
-    struct config_channel_listelem *chptr = gv->config.channels;
+    struct ddsi_config_channel_listelem *chptr = gv->config.channels;
     while (chptr)
     {
       size_t slen = strlen (chptr->name) + 5;
@@ -1501,7 +1501,7 @@ int rtps_init (struct ddsi_domaingv *gv)
      automatically. */
   if (!mc_available)
   {
-    struct config_peer_listelem peer_local;
+    struct ddsi_config_peer_listelem peer_local;
     char local_addr[DDSI_LOCSTRLEN];
     ddsi_locator_to_string_no_port (local_addr, sizeof (local_addr), &gv->interfaces[gv->selected_interface].loc);
     peer_local.next = NULL;
@@ -1534,7 +1534,7 @@ int rtps_init (struct ddsi_domaingv *gv)
 
   gv->builtins_dqueue = nn_dqueue_new ("builtins", gv, gv->config.delivery_queue_maxsamples, builtins_dqueue_handler, NULL);
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-  for (struct config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
+  for (struct ddsi_config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
     chptr->dqueue = nn_dqueue_new (chptr->name, &gv->config, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
 #else
   gv->user_dqueue = nn_dqueue_new ("user", gv, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
@@ -1601,7 +1601,7 @@ err_unicast_sockets:
   nn_xmsgpool_free (gv->xmsgpool);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 err_network_partition_addrset:
-  for (struct config_networkpartition_listelem *np = gv->config.networkPartitions; np; np = np->next)
+  for (struct ddsi_config_networkpartition_listelem *np = gv->config.networkPartitions; np; np = np->next)
     unref_addrset (np->as);
 #endif
 err_set_ext_address:
@@ -1623,9 +1623,9 @@ err_udp_tcp_init:
 }
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-static void stop_all_xeventq_upto (struct config_channel_listelem *chptr)
+static void stop_all_xeventq_upto (struct ddsi_config_channel_listelem *chptr)
 {
-  for (struct config_channel_listelem *chptr1 = gv->config.channels; chptr1 != chptr; chptr1 = chptr1->next)
+  for (struct ddsi_config_channel_listelem *chptr1 = gv->config.channels; chptr1 != chptr; chptr1 = chptr1->next)
     if (chptr1->evq)
       xeventq_stop (chptr1->evq);
 }
@@ -1636,7 +1636,7 @@ int rtps_start (struct ddsi_domaingv *gv)
   if (xeventq_start (gv->xevents, NULL) < 0)
     return -1;
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-  for (struct config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
+  for (struct ddsi_config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
   {
     if (chptr->evq)
     {
@@ -1702,7 +1702,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
   struct thread_state1 * const ts1 = lookup_thread_state ();
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-  struct config_channel_listelem * chptr;
+  struct ddsi_config_channel_listelem * chptr;
 #endif
 
   if (gv->debmon)
@@ -1897,7 +1897,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
   }
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  for (struct config_networkpartition_listelem *np = gv->config.networkPartitions; np; np = np->next)
+  for (struct ddsi_config_networkpartition_listelem *np = gv->config.networkPartitions; np; np = np->next)
     unref_addrset (np->as);
 #endif
   unref_addrset (gv->as_disc);

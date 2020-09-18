@@ -30,7 +30,7 @@ void config_free_source_info (struct cfgst *cfgst);
 void config_fini (struct cfgst *cfgst);
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-struct config_partitionmapping_listelem *find_partitionmapping (const struct config *cfg, const char *partition, const char *topic);
+struct ddsi_config_partitionmapping_listelem *find_partitionmapping (const struct config *cfg, const char *partition, const char *topic);
 int is_ignored_partition (const struct config *cfg, const char *partition, const char *topic);
 #endif
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
