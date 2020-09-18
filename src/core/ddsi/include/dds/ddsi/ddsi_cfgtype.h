@@ -122,7 +122,7 @@ struct ddsi_config_peer_listelem
   char *peer;
 };
 
-struct prune_deleted_ppant {
+struct ddsi_config_prune_deleted_ppant {
   int64_t delay;
   int enforce_delay;
 };
@@ -364,7 +364,7 @@ struct config
   int64_t initial_deaf_mute_reset;
 
   int use_multicast_if_mreqn;
-  struct prune_deleted_ppant prune_deleted_ppant;
+  struct ddsi_config_prune_deleted_ppant prune_deleted_ppant;
 
 #ifdef DDSI_INCLUDE_SECURITY
   struct ddsi_config_omg_security_listelem *omg_security_configuration;
