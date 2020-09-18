@@ -976,7 +976,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
         if (!wr->retransmitting && sample.unacked)
           writer_set_retransmitting (wr);
 
-        if (rst->gv->config.retransmit_merging != REXMIT_MERGE_NEVER && rn->assumed_in_sync && !prd->filter)
+        if (rst->gv->config.retransmit_merging != DDSI_REXMIT_MERGE_NEVER && rn->assumed_in_sync && !prd->filter)
         {
           /* send retransmit to all receivers, but skip if recently done */
           ddsrt_mtime_t tstamp = ddsrt_time_monotonic ();

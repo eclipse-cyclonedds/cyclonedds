@@ -2208,7 +2208,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
   int pretend_everything_acked;
   m->prd_guid = prd->e.guid;
   m->is_reliable = (prd->c.xqos->reliability.kind > DDS_RELIABILITY_BEST_EFFORT);
-  m->assumed_in_sync = (wr->e.gv->config.retransmit_merging == REXMIT_MERGE_ALWAYS);
+  m->assumed_in_sync = (wr->e.gv->config.retransmit_merging == DDSI_REXMIT_MERGE_ALWAYS);
   m->has_replied_to_hb = !m->is_reliable;
   m->all_have_replied_to_hb = 0;
   m->non_responsive_count = 0;

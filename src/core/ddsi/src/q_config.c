@@ -918,8 +918,8 @@ static const enum ddsi_besmode en_besmode_ms[] = { DDSI_BESMODE_FULL, DDSI_BESMO
 GENERIC_ENUM_CTYPE (besmode, enum ddsi_besmode)
 
 static const char *en_retransmit_merging_vs[] = { "never", "adaptive", "always", NULL };
-static const enum retransmit_merging en_retransmit_merging_ms[] = { REXMIT_MERGE_NEVER, REXMIT_MERGE_ADAPTIVE, REXMIT_MERGE_ALWAYS, 0 };
-GENERIC_ENUM (retransmit_merging)
+static const enum ddsi_retransmit_merging en_retransmit_merging_ms[] = { DDSI_REXMIT_MERGE_NEVER, DDSI_REXMIT_MERGE_ADAPTIVE, DDSI_REXMIT_MERGE_ALWAYS, 0 };
+GENERIC_ENUM_CTYPE (retransmit_merging, enum ddsi_retransmit_merging)
 
 static const char *en_sched_class_vs[] = { "realtime", "timeshare", "default", NULL };
 static const ddsrt_sched_t en_sched_class_ms[] = { DDSRT_SCHED_REALTIME, DDSRT_SCHED_TIMESHARE, DDSRT_SCHED_DEFAULT, 0 };
