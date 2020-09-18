@@ -252,10 +252,18 @@ idl_declare(
     /* identifiers that differ only in case collide, and will yield a
        compilation error under certain circumstances */
     if (idl_strcasecmp(name->identifier, e->name->identifier) == 0) {
-      if (e->node && e->type == IDL_DECL && type == IDL_REFERENCE && idl_scope(e->node) == proc->scope) {
-        if (entryp)
-          *entryp = e;
-        return IDL_RETCODE_OK;
+      entry = e;
+      switch (e->type) {
+        case IDL_REFERENCE:
+          if (type == IDL_REFERENCE || type == IDL_INSTANCE)
+            goto ok;
+          break;
+        case IDL_DECLARATION:
+          if (type == IDL_REFERENCE)
+            goto ok;
+          break;
+        default:
+          break;
       }
       idl_error(proc, idl_location(node),
         "Declaration '%s' collides with declaration '%s'",
@@ -285,6 +293,7 @@ idl_declare(
     proc->scope->table.last = proc->scope->table.first = entry;
   }
 
+ok:
   if (entryp)
     *entryp = entry;
   return IDL_RETCODE_OK;
@@ -332,7 +341,7 @@ idl_resolve(
   for (size_t i=0; i < scoped_name->path.length && scope;) {
     const char *identifier = scoped_name->path.names[i]->identifier;
     entry = idl_find(proc, scope, scoped_name->path.names[i]);
-    if (entry) {
+    if (entry && entry->type != IDL_REFERENCE) {
       /* identifiers are case insensitive. however, all references to a
          definition must use the same case as the defining occurence */
       if (strcmp(identifier, entry->name->identifier) != 0) {
