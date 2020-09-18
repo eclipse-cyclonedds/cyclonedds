@@ -13,6 +13,7 @@
 #define DDSI_ENTITY_INDEX_H
 
 #include "dds/ddsrt/hopscotch.h"
+#include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_entity.h"
 
 #if defined (__cplusplus)

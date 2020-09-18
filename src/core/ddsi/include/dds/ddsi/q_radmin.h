@@ -12,8 +12,11 @@
 #ifndef NN_RADMIN_H
 #define NN_RADMIN_H
 
+#include <stddef.h>
+
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_tran.h"
 
 #if defined (__cplusplus)

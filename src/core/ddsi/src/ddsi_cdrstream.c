@@ -16,6 +16,7 @@
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_cdrstream.h"

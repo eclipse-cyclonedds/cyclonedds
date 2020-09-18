@@ -12,11 +12,11 @@
 #ifndef NN_CONFIG_H
 #define NN_CONFIG_H
 
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/ddsi_xqos.h"
-#include "dds/ddsi/q_feature_check.h"
+#include <stdio.h>
+
+#include "dds/ddsrt/threads.h"
 #include "dds/ddsi/ddsi_portmapping.h"
+#include "dds/ddsi/ddsi_locator.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -378,6 +378,7 @@ struct config
 };
 
 struct cfgst;
+struct ddsrt_log_cfg;
 
 struct cfgst *config_init (const char *config, struct config *cfg, uint32_t domid) ddsrt_nonnull((1,2));
 void config_print_cfgst (struct cfgst *cfgst, const struct ddsrt_log_cfg *logcfg);

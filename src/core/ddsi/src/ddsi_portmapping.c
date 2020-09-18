@@ -10,6 +10,9 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+#include <inttypes.h>
+
+#include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_portmapping.h"
 #include "dds/ddsi/q_config.h"
 

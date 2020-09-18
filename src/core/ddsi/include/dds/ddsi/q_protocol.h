@@ -18,6 +18,7 @@
 
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/ddsi_time.h"
+#include "dds/ddsi/ddsi_locator.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -56,13 +57,6 @@ typedef struct nn_fragment_number_set_header {
 #define NN_FRAGMENT_NUMBER_SET_BITS_SIZE(numbits) ((unsigned) (4 * (((numbits) + 31) / 32)))
 #define NN_FRAGMENT_NUMBER_SET_SIZE(numbits) (sizeof (nn_fragment_number_set_header_t) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits))
 typedef uint32_t nn_count_t;
-/* address field in locator maintained in network byte order, the rest in host */
-typedef struct {
-  const struct ddsi_tran_factory *tran;
-  int32_t kind;
-  uint32_t port;
-  unsigned char address[16];
-} nn_locator_t;
 
 #define NN_STATUSINFO_DISPOSE      0x1u
 #define NN_STATUSINFO_UNREGISTER   0x2u
