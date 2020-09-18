@@ -207,7 +207,6 @@ struct ddsi_config
   int valid;
   uint32_t tracemask;
   uint32_t enabled_xchecks;
-  char *servicename;
   char *pcap_file;
 
   char *networkAddressString;
@@ -216,7 +215,6 @@ struct ddsi_config
   char *externalMaskString;
   FILE *tracefp;
   char *tracefile;
-  int tracingTimestamps;
   int tracingAppendToFile;
   uint32_t allowMulticast;
   int prefer_multicast;
