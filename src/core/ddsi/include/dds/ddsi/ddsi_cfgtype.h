@@ -44,10 +44,10 @@ enum ddsi_retransmit_merging {
   DDSI_REXMIT_MERGE_ALWAYS
 };
 
-enum boolean_default {
-  BOOLDEF_DEFAULT,
-  BOOLDEF_FALSE,
-  BOOLDEF_TRUE
+enum ddsi_boolean_default {
+  DDSI_BOOLDEF_DEFAULT,
+  DDSI_BOOLDEF_FALSE,
+  DDSI_BOOLDEF_TRUE
 };
 
 #define PARTICIPANT_INDEX_AUTO -1
@@ -228,8 +228,8 @@ struct config
   uint32_t allowMulticast;
   int prefer_multicast;
   enum transport_selector transport_selector;
-  enum boolean_default compat_use_ipv6;
-  enum boolean_default compat_tcp_enable;
+  enum ddsi_boolean_default compat_use_ipv6;
+  enum ddsi_boolean_default compat_tcp_enable;
   int dontRoute;
   int enableMulticastLoopback;
   uint32_t domainId;
@@ -255,7 +255,7 @@ struct config
   int64_t liveliness_monitoring_interval;
   int prioritize_retransmit;
   int xpack_send_async;
-  enum boolean_default multiple_recv_threads;
+  enum ddsi_boolean_default multiple_recv_threads;
   unsigned recv_thread_stop_maxretries;
 
   unsigned primary_reorder_maxsamples;
