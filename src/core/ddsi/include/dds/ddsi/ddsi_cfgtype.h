@@ -98,27 +98,22 @@ struct ddsi_config_channel_listelem {
 };
 #endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
 
-struct config_maybe_int32 {
+struct ddsi_config_maybe_int32 {
   int isdefault;
   int32_t value;
 };
 
-struct config_maybe_uint32 {
+struct ddsi_config_maybe_uint32 {
   int isdefault;
   uint32_t value;
-};
-
-struct config_maybe_int64 {
-  int isdefault;
-  int64_t value;
 };
 
 struct ddsi_config_thread_properties_listelem {
   struct ddsi_config_thread_properties_listelem *next;
   char *name;
   ddsrt_sched_t sched_class;
-  struct config_maybe_int32 sched_priority;
-  struct config_maybe_uint32 stack_size;
+  struct ddsi_config_maybe_int32 sched_priority;
+  struct ddsi_config_maybe_uint32 stack_size;
 };
 
 struct ddsi_config_peer_listelem
@@ -231,7 +226,7 @@ struct config
   int dontRoute;
   int enableMulticastLoopback;
   uint32_t domainId;
-  struct config_maybe_uint32 extDomainId; // domain id advertised in discovery
+  struct ddsi_config_maybe_uint32 extDomainId; // domain id advertised in discovery
   char *domainTag;
   int participantIndex;
   int maxAutoParticipantIndex;
@@ -324,7 +319,7 @@ struct config
   int whc_batch;
   uint32_t whc_lowwater_mark;
   uint32_t whc_highwater_mark;
-  struct config_maybe_uint32 whc_init_highwater_mark;
+  struct ddsi_config_maybe_uint32 whc_init_highwater_mark;
   int whc_adaptive;
 
   unsigned defrag_unreliable_maxsamples;
@@ -334,7 +329,7 @@ struct config
   uint32_t max_participants;
   int64_t writer_linger_duration;
   int multicast_ttl;
-  struct config_maybe_uint32 socket_min_rcvbuf_size;
+  struct ddsi_config_maybe_uint32 socket_min_rcvbuf_size;
   uint32_t socket_min_sndbuf_size;
   int64_t ack_delay;
   int64_t nack_delay;
