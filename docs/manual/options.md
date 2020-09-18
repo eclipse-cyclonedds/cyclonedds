@@ -1008,7 +1008,7 @@ The NetworkPartitions element specifies the Cyclone DDS network partitions.
 
 
 ##### //CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition
-Attributes: [Address](#cycloneddsdomainpartitioningnetworkpartitionsnetworkpartitionaddress), [Connected](#cycloneddsdomainpartitioningnetworkpartitionsnetworkpartitionconnected), [Name](#cycloneddsdomainpartitioningnetworkpartitionsnetworkpartitionname)
+Attributes: [Address](#cycloneddsdomainpartitioningnetworkpartitionsnetworkpartitionaddress), [Name](#cycloneddsdomainpartitioningnetworkpartitionsnetworkpartitionname)
 
 Text
 
@@ -1023,14 +1023,6 @@ Text
 This attribute specifies the multicast addresses associated with the network partition as a comma-separated list. Readers matching this network partition (cf. Partitioning/PartitionMappings) will listen for multicasts on all of these addresses and advertise them in the discovery protocol. The writers will select the most suitable address from the addresses advertised by the readers.
 
 The default value is: "".
-
-
-##### //CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Connected]
-Boolean
-
-This attribute is a placeholder.
-
-The default value is: "true".
 
 
 ##### //CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Name]

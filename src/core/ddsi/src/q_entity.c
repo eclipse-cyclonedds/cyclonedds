@@ -3343,7 +3343,7 @@ static int set_topic_type_name (dds_qos_t *xqos, const struct ddsi_sertopic * to
 /* WRITER ----------------------------------------------------------- */
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-static uint32_t get_partitionid_from_mapping (const struct ddsrt_log_cfg *logcfg, const struct config *config, const char *partition, const char *topic)
+static const struct config_networkpartition_listelem *get_partition_from_mapping (const struct ddsrt_log_cfg *logcfg, const struct config *config, const char *partition, const char *topic)
 {
   struct config_partitionmapping_listelem *pm;
   if ((pm = find_partitionmapping (config, partition, topic)) == NULL)
@@ -3351,7 +3351,7 @@ static uint32_t get_partitionid_from_mapping (const struct ddsrt_log_cfg *logcfg
   else
   {
     DDS_CLOG (DDS_LC_DISCOVERY, logcfg, "matched writer for topic \"%s\" in partition \"%s\" to networkPartition \"%s\"\n", topic, partition, pm->networkPartition);
-    return pm->partition->partitionId;
+    return pm->partition;
   }
 }
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
@@ -3690,9 +3690,9 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
      partitions that match multiple network partitions.  From a safety
      point of view a wierd configuration. Here we chose the first one
      that we find */
-  wr->partition_id = 0;
-  for (uint32_t i = 0; i < wr->xqos->partition.n && wr->partition_id == 0; i++)
-    wr->partition_id = get_partitionid_from_mapping (&wr->e.gv->logconfig, &wr->e.gv->config, wr->xqos->partition.strs[i], wr->xqos->topic_name);
+  wr->network_partition = NULL;
+  for (uint32_t i = 0; i < wr->xqos->partition.n && wr->network_partition == NULL; i++)
+    wr->network_partition = get_partition_from_mapping (&wr->e.gv->logconfig, &wr->e.gv->config, wr->xqos->partition.strs[i], wr->xqos->topic_name);
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
 
 #ifdef DDSI_INCLUDE_SSM
@@ -3706,7 +3706,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   {
     ddsi_locator_t loc;
     int have_loc = 0;
-    if (wr->partition_id == 0)
+    if (wr->network_partition == NULL)
     {
       if (ddsi_is_ssm_mcaddr (wr->e.gv, &wr->e.gv->loc_default_mc))
       {
@@ -3716,9 +3716,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
     }
     else
     {
-      const struct config_networkpartition_listelem *np = find_networkpartition_by_id (&wr->e.gv->config, wr->partition_id);
-      assert (np);
-      if (addrset_any_ssm (wr->e.gv, np->as, &loc))
+      if (addrset_any_ssm (wr->e.gv, wr->network_partition->as, &loc))
         have_loc = 1;
     }
     if (have_loc)

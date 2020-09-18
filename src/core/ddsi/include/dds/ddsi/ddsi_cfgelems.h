@@ -491,10 +491,6 @@ static struct cfgelem networkpartition_cfgattrs[] = {
       "listen for multicasts on all of these addresses and advertise them "
       "in the discovery protocol. The writers will select the most suitable "
       "address from the addresses advertised by the readers.</p>")),
-  BOOL("Connected", NULL, 1, "true",
-    MEMBEROF(config_networkpartition_listelem, connected),
-    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
-    DESCRIPTION("<p>This attribute is a placeholder.</p>")),
   END_MARKER
 };
 

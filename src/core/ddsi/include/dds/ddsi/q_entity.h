@@ -326,7 +326,7 @@ struct writer
   ddsrt_avl_tree_t readers; /* all matching PROXY readers, see struct wr_prd_match */
   ddsrt_avl_tree_t local_readers; /* all matching LOCAL readers, see struct wr_rd_match */
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  uint32_t partition_id;
+  const struct config_networkpartition_listelem *network_partition;
 #endif
   uint32_t num_acks_received; /* cum received ACKNACKs with no request for retransmission */
   uint32_t num_nacks_received; /* cum received ACKNACKs that did request retransmission */

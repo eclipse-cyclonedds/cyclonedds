@@ -722,12 +722,6 @@ CycloneDDS configuration""" ] ]
               text
             }
             & [ a:documentation [ xml:lang="en" """
-<p>This attribute is a placeholder.</p>
-<p>The default value is: "true".</p>""" ] ]
-            attribute Connected {
-              xsd:boolean
-            }?
-            & [ a:documentation [ xml:lang="en" """
 <p>This attribute specifies the name of this Cyclone DDS network partition. Two network partitions cannot have the same name.</p>
 <p>The default value is: "".</p>""" ] ]
             attribute Name {
