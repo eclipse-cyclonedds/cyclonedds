@@ -453,7 +453,7 @@ struct whc *whc_new (struct ddsi_domaingv *gv, const struct whc_writer_info *wri
   whc = ddsrt_malloc (sizeof (*whc));
   whc->common.ops = &whc_ops;
   ddsrt_mutex_init (&whc->lock);
-  whc->xchecks = (gv->config.enabled_xchecks & DDS_XCHECK_WHC) != 0;
+  whc->xchecks = (gv->config.enabled_xchecks & DDSI_XCHECK_WHC) != 0;
   whc->gv = gv;
   whc->tkmap = gv->m_tkmap;
   memcpy (&whc->wrinfo, wrinfo, sizeof (*wrinfo));

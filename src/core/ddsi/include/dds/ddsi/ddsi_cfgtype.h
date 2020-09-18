@@ -199,8 +199,8 @@ struct ddsi_config_ssl_min_version {
 #endif
 
 /* Expensive checks (compiled in when NDEBUG not defined, enabled only if flag set in xchecks) */
-#define DDS_XCHECK_WHC 1u
-#define DDS_XCHECK_RHC 2u
+#define DDSI_XCHECK_WHC 1u
+#define DDSI_XCHECK_RHC 2u
 
 struct ddsi_config
 {
