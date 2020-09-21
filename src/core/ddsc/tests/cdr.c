@@ -14,7 +14,10 @@
 
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/bswap.h"
+#include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/static_assert.h"
 
 #include "dds/dds.h"
 #include "dds/ddsi/ddsi_serdata.h"
@@ -120,7 +123,7 @@ static uint32_t sd_get_size (const struct ddsi_serdata *dcmn)
 {
   // FIXME: 4 is DDSI CDR header size and shouldn't be included here; same is true for pad1
   const struct sd *d = (const struct sd *) dcmn;
-  return 4 + d->keysz + d->pad0 + d->valuesz + d->pad1;
+  return 4 + 4 + d->keysz + d->pad0 + (dcmn->kind == SDK_DATA ? 4 + d->valuesz + d->pad1 : 0);
 }
 
 static bool sd_eqkey (const struct ddsi_serdata *acmn, const struct ddsi_serdata *bcmn)
@@ -271,9 +274,10 @@ static struct ddsi_serdata *sd_to_ser_ref (const struct ddsi_serdata *serdata_co
     off += sizeof (uint32_t);
     memcpy (base + off, sd->data.value, sd->valuesz);
     off += sd->valuesz;
-    for (uint32_t i = 0; i < sd->pad0; i++)
+    for (uint32_t i = 0; i < sd->pad1; i++)
       base[off++] = 0;
   }
+  assert (4 + off == ref->iov_len);
   return (struct ddsi_serdata *) &sd->c;
 }
 
@@ -373,18 +377,48 @@ CU_Test(ddsc_cdr, basic)
   dds_return_t rc;
   char topicname[100];
 
-  const dds_entity_t pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-  CU_ASSERT_FATAL (pp > 0);
+  /* Domains for pub and sub use a different domain id, but the portgain setting
+   * in configuration is 0, so that both domains will map to the same port number.
+   * This allows to create two domains in a single test process. */
+  const char *config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>";
+  char *conf_pub = ddsrt_expand_envvars (config, 0);
+  char *conf_sub = ddsrt_expand_envvars (config, 1);
+  const dds_entity_t pub_dom = dds_create_domain (0, conf_pub);
+  CU_ASSERT_FATAL (pub_dom > 0);
+  const dds_entity_t sub_dom = dds_create_domain (1, conf_sub);
+  CU_ASSERT_FATAL (sub_dom > 0);
+  ddsrt_free (conf_pub);
+  ddsrt_free (conf_sub);
+
+  const dds_entity_t pub_pp = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_FATAL (pub_pp > 0);
+  const dds_entity_t sub_pp = dds_create_participant (1, NULL, NULL);
+  CU_ASSERT_FATAL (sub_pp > 0);
+
+  dds_qos_t *qos = dds_create_qos ();
+  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, 0);
 
   create_unique_topic_name ("ddsc_cdr_basic", topicname, sizeof topicname);
-  struct ddsi_sertopic *st = make_sertopic (topicname, "x");
-  const dds_entity_t tp = dds_create_topic_generic (pp, &st, NULL, NULL, NULL);
-  CU_ASSERT_FATAL (tp > 0);
+  struct ddsi_sertopic *pub_st = make_sertopic (topicname, "x");
+  const dds_entity_t pub_tp = dds_create_topic_generic (pub_pp, &pub_st, qos, NULL, NULL);
+  CU_ASSERT_FATAL (pub_tp > 0);
 
-  const dds_entity_t wr = dds_create_writer (pp, tp, NULL, NULL);
+  struct ddsi_sertopic *sub_st = make_sertopic (topicname, "x");
+  const dds_entity_t sub_tp = dds_create_topic_generic (sub_pp, &sub_st, qos, NULL, NULL);
+  CU_ASSERT_FATAL (sub_tp > 0);
+
+  dds_delete_qos (qos);
+
+  const dds_entity_t wr = dds_create_writer (pub_pp, pub_tp, NULL, NULL);
   CU_ASSERT_FATAL (wr > 0);
-  const dds_entity_t rd = dds_create_reader (pp, tp, NULL, NULL);
+  const dds_entity_t rd = dds_create_reader (sub_pp, sub_tp, NULL, NULL);
   CU_ASSERT_FATAL (rd > 0);
+
+  // wait for writer to match reader; it is safe to write data once that happened
+  dds_publication_matched_status_t pm;
+  while ((rc = dds_get_publication_matched_status (wr, &pm)) == 0 && pm.current_count != 1)
+    dds_sleepfor (DDS_MSECS (10));
+  CU_ASSERT_FATAL (rc == 0);
 
   // regular write (from_sample(DATA) + to_topicless)
   struct sampletype xs[] = {
@@ -400,20 +434,36 @@ CU_Test(ddsc_cdr, basic)
     }
   }
 
+  // once acknowledged, it is available for reading - FIXME: still only true for synchronous delivery mode
+  rc = dds_wait_for_acks (wr, DDS_SECS (5));
+  CU_ASSERT_FATAL (rc == 0);
+
   // read them back (to_sample(DATA))
-  // note: order of instances is not guaranteed, this just happens to work in this particular case
+  // note: order of instances is not guaranteed, hence the "expected" mask
   {
     struct sampletype s = { .key = NULL, .value = NULL };
     void *raw = &s;
     dds_sample_info_t si;
+    uint32_t seen = 0;
     for (size_t i = 0; i < sizeof (xs) / sizeof (xs[0]); i++)
     {
       rc = dds_read_mask (rd, &raw, &si, 1, 1, DDS_NOT_READ_SAMPLE_STATE);
       CU_ASSERT_FATAL (rc == 1);
       CU_ASSERT_FATAL (si.valid_data);
-      CU_ASSERT_STRING_EQUAL_FATAL (s.key, xs[i].key);
-      CU_ASSERT_STRING_EQUAL_FATAL (s.value, xs[i].value);
+      size_t j;
+      for (j = 0; j < sizeof (xs) / sizeof (xs[0]); j++)
+      {
+        DDSRT_STATIC_ASSERT(sizeof (xs) / sizeof (xs[0]) < 32);
+        if (seen & ((uint32_t)1 << j))
+          continue;
+        if (strcmp (s.key, xs[j].key) == 0)
+          break;
+      }
+      CU_ASSERT_FATAL (j < sizeof (xs) / sizeof (xs[0]));
+      CU_ASSERT_STRING_EQUAL_FATAL (s.value, xs[j].value);
+      seen |= (uint32_t)1 << j;
     }
+    CU_ASSERT_FATAL (seen == ((uint32_t)1 << (sizeof (xs) / sizeof (xs[0]))) - 1);
     rc = dds_read_mask (rd, &raw, &si, 1, 1, DDS_NOT_READ_SAMPLE_STATE);
     CU_ASSERT_FATAL (rc == 0);
     dds_free (s.key);
@@ -421,26 +471,40 @@ CU_Test(ddsc_cdr, basic)
   }
 
   // read them back while letting the memory for samples be allocated
-  // note: order of instances is not guaranteed, this just happens to work in this particular case
+  // note: order of instances is not guaranteed
   {
     void *raw[sizeof (xs) / sizeof (xs[0])] = { NULL };
     dds_sample_info_t si[sizeof (xs) / sizeof (xs[0])];
     rc = dds_read_mask (rd, raw, si, sizeof (xs) / sizeof (xs[0]), sizeof (xs) / sizeof (xs[0]), DDS_ANY_SAMPLE_STATE);
     CU_ASSERT_FATAL (rc == (int32_t) sizeof (xs) / sizeof (xs[0]));
+    uint32_t seen = 0;
     for (size_t i = 0; i < sizeof (xs) / sizeof (xs[0]); i++)
     {
       struct sampletype *s = raw[i];
       CU_ASSERT_FATAL (si[i].valid_data);
       CU_ASSERT_FATAL (si[i].sample_state == DDS_READ_SAMPLE_STATE);
-      CU_ASSERT_STRING_EQUAL_FATAL (s->key, xs[i].key);
-      CU_ASSERT_STRING_EQUAL_FATAL (s->value, xs[i].value);
+      size_t j;
+      for (j = 0; j < sizeof (xs) / sizeof (xs[0]); j++)
+      {
+        DDSRT_STATIC_ASSERT(sizeof (xs) / sizeof (xs[0]) < 32);
+        if (seen & ((uint32_t)1 << j))
+          continue;
+        if (strcmp (s->key, xs[j].key) == 0)
+          break;
+      }
+      CU_ASSERT_FATAL (j < sizeof (xs) / sizeof (xs[0]));
+      CU_ASSERT_STRING_EQUAL_FATAL (s->value, xs[j].value);
+      seen |= (uint32_t)1 << j;
     }
+    CU_ASSERT_FATAL (seen == ((uint32_t)1 << (sizeof (xs) / sizeof (xs[0]))) - 1);
     rc = dds_return_loan (rd, raw, rc);
     CU_ASSERT_FATAL (rc == 0);
   }
 
   // unregister (from_sample(KEY))
   rc = dds_unregister_instance (wr, &xs[0]);
+  CU_ASSERT_FATAL (rc == 0);
+  rc = dds_wait_for_acks (wr, DDS_SECS (5));
   CU_ASSERT_FATAL (rc == 0);
 
   // read the resulting invalid sample (topicless_to_sample)
@@ -461,42 +525,72 @@ CU_Test(ddsc_cdr, basic)
     dds_sample_info_t si[sizeof (xs) / sizeof (xs[0]) + 1];
     rc = dds_takecdr (rd, serdata, sizeof (xs) / sizeof (xs[0]) + 1, si, DDS_ANY_STATE);
     CU_ASSERT_FATAL (rc == (int32_t) sizeof (xs) / sizeof (xs[0]) + 1);
-    CU_ASSERT_FATAL (!si[1].valid_data);
-    ddsi_serdata_unref (serdata[1]);
-
-    for (size_t i = 0; i < sizeof (xs) / sizeof (xs[0]); i++)
+    uint32_t seen = 0;
+    for (size_t i = 0; i < sizeof (xs) / sizeof (xs[0]) + 1; i++)
     {
+      if (!si[i].valid_data)
+      {
+        ddsi_serdata_unref (serdata[i]);
+        continue;
+      }
+
       // we know them to be of our own implementation!
-      const size_t ii = (i == 0) ? 0 : i + 1; // fixup for invalid sample
-      struct sd *sd = (struct sd *) serdata[ii];
-      CU_ASSERT_FATAL (si[ii].valid_data);
-      CU_ASSERT_STRING_EQUAL_FATAL (sd->data.key, xs[i].key);
-      CU_ASSERT_STRING_EQUAL_FATAL (sd->data.value, xs[i].value);
+      struct sd *sd = (struct sd *) serdata[i];
+      CU_ASSERT_FATAL (si[i].valid_data);
+      size_t j;
+      for (j = 0; j < sizeof (xs) / sizeof (xs[0]); j++)
+      {
+        DDSRT_STATIC_ASSERT(sizeof (xs) / sizeof (xs[0]) < 32);
+        if (seen & ((uint32_t)1 << j))
+          continue;
+        if (strcmp (sd->data.key, xs[j].key) == 0)
+          break;
+      }
+      CU_ASSERT_FATAL (j < sizeof (xs) / sizeof (xs[0]));
+      CU_ASSERT_STRING_EQUAL_FATAL (sd->data.value, xs[j].value);
+      seen |= (uint32_t)1 << j;
 
       // FIXME: dds_writecdr overwrites the timestamp (it shouldn't, but we'll survive)
       // dds_writecdr takes ownership of serdata
-      rc = dds_writecdr (wr, serdata[ii]);
+      rc = dds_writecdr (wr, serdata[i]);
       CU_ASSERT_FATAL (rc == 0);
     }
+    CU_ASSERT_FATAL (seen == ((uint32_t)1 << (sizeof (xs) / sizeof (xs[0]))) - 1);
+    rc = dds_wait_for_acks (wr, DDS_SECS (5));
+    CU_ASSERT_FATAL (rc == 0);
   }
 
-  // read them back again the regular way
+  // read them back again the regular way, rewriting caused the invalid sample to disappear
   {
     void *raw[sizeof (xs) / sizeof (xs[0])] = { NULL };
     dds_sample_info_t si[sizeof (xs) / sizeof (xs[0])];
     rc = dds_read_mask (rd, raw, si, sizeof (xs) / sizeof (xs[0]), sizeof (xs) / sizeof (xs[0]), DDS_ANY_SAMPLE_STATE);
     CU_ASSERT_FATAL (rc == (int32_t) sizeof (xs) / sizeof (xs[0]));
+    uint32_t seen = 0;
     for (size_t i = 0; i < sizeof (xs) / sizeof (xs[0]); i++)
     {
       struct sampletype *s = raw[i];
       CU_ASSERT_FATAL (si[i].valid_data);
-      CU_ASSERT_STRING_EQUAL_FATAL (s->key, xs[i].key);
-      CU_ASSERT_STRING_EQUAL_FATAL (s->value, xs[i].value);
+      size_t j;
+      for (j = 0; j < sizeof (xs) / sizeof (xs[0]); j++)
+      {
+        DDSRT_STATIC_ASSERT(sizeof (xs) / sizeof (xs[0]) < 32);
+        if (seen & ((uint32_t)1 << j))
+          continue;
+        if (strcmp (s->key, xs[j].key) == 0)
+          break;
+      }
+      CU_ASSERT_FATAL (j < sizeof (xs) / sizeof (xs[0]));
+      CU_ASSERT_STRING_EQUAL_FATAL (s->value, xs[j].value);
+      seen |= (uint32_t)1 << j;
     }
+    CU_ASSERT_FATAL (seen == ((uint32_t)1 << (sizeof (xs) / sizeof (xs[0]))) - 1);
     rc = dds_return_loan (rd, raw, rc);
     CU_ASSERT_FATAL (rc == 0);
   }
 
-  rc = dds_delete (pp);
+  rc = dds_delete (sub_dom);
+  CU_ASSERT_FATAL (rc == 0);
+  rc = dds_delete (pub_dom);
   CU_ASSERT_FATAL (rc == 0);
 }
