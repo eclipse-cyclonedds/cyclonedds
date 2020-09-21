@@ -26,7 +26,13 @@ if(NOT HAVE_GETOPT_H)
   string(REGEX REPLACE "\n[ \t]*#[ \t]*include[ \t]+[<\"]dds/[^\n]*" "" getopt_h "${getopt_h}")
   # generate getopt.h
   file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/getopt.h" CONTENT "${getopt_h}")
-  target_include_directories(idlc PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
+  target_include_directories(idlc PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
   # add getopt.c
-  target_sources(idlc PUBLIC ${CMAKE_SOURCE_DIR}/src/ddsrt/src/getopt.c)
+  target_sources(idlc PRIVATE ${CMAKE_SOURCE_DIR}/src/ddsrt/src/getopt.c)
 endif()
+
+install(
+  TARGETS idlc
+  EXPORT "${CMAKE_PROJECT_NAME}"
+  DESTINATION "${CMAKE_INSTALL_BINDIR}"
+  COMPONENT dev)
