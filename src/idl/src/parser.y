@@ -27,6 +27,8 @@ _Pragma("GCC diagnostic push")
 _Pragma("GCC diagnostic ignored \"-Wconversion\"")
 _Pragma("GCC diagnostic push")
 _Pragma("GCC diagnostic ignored \"-Wsign-conversion\"")
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wmissing-prototypes\"")
 #endif
 
 static void yyerror(idl_location_t *loc, idl_processor_t *proc, idl_node_t **, const char *);
@@ -882,6 +884,7 @@ annotation_appl_keyword_param:
 %%
 
 #if defined(__GNUC__)
+_Pragma("GCC diagnostic pop")
 _Pragma("GCC diagnostic pop")
 _Pragma("GCC diagnostic pop")
 #endif
