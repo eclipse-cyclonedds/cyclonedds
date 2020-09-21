@@ -92,7 +92,27 @@ void idl_processor_fini(idl_processor_t *proc)
     }
     /* directive */
     if (proc->directive) {
-      free(proc->directive);
+      if (proc->directive->mask & IDL_LINE) {
+        idl_line_t *line = (idl_line_t *)proc->directive;
+        if (line->line) {
+          free(line->line);
+        }
+        if (line->file) {
+          assert(line->file->node.mask & IDL_STRING);
+          if (line->file->value.str)
+            free(line->file->value.str);
+          free(line->file);
+        }
+        free(line);
+      } else {
+        assert(proc->directive->mask & IDL_KEYLIST);
+        idl_keylist_t *keylist = (idl_keylist_t *)proc->directive;
+        idl_delete_name(keylist->data_type);
+        for (size_t i=0; keylist->keys && keylist->keys[i]; i++)
+          idl_delete_name(keylist->keys[i]);
+        free(keylist->keys);
+        free(keylist);
+      }
     }
     /* files */
     if (proc->files) {

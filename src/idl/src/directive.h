@@ -12,6 +12,23 @@
 #ifndef DIRECTIVE_H
 #define DIRECTIVE_H
 
+#include <stdbool.h>
+
+typedef struct idl_line idl_line_t;
+struct idl_line {
+  idl_symbol_t symbol;
+  idl_literal_t *line;
+  idl_literal_t *file;
+  bool extra_tokens;
+};
+
+typedef struct idl_keylist idl_keylist_t;
+struct idl_keylist {
+  idl_symbol_t symbol;
+  idl_name_t *data_type;
+  idl_name_t **keys;
+};
+
 idl_retcode_t idl_parse_directive(idl_processor_t *proc, idl_token_t *tok);
 
 #endif /* DIRECTIVE_H */

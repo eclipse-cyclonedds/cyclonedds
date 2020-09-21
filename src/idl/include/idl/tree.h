@@ -58,17 +58,16 @@ struct idl_location {
    on when applying a visitor pattern. */
 
 /** Member is (part of) the key */
-#define IDL_KEY (1llu<<35)                        /* IDL_PRAGMA / IDL_MEMBER */
+#define IDL_KEY (1llu<<37)                        /* IDL_PRAGMA / IDL_MEMBER */
 /** Identifier has been assigned (and set) using either @id or, if DDS-XTypes
     has been enabled, using @hashid. */
-#define IDL_ID (1llu<<34)                                      /* IDL_MEMBER */
-/* pragmas */
-#if 0
-/* FIXME: pragmas, at least keylist, is not a node! */
+#define IDL_ID (1llu<<36)                                      /* IDL_MEMBER */
+/* directives */
+#define IDL_DIRECTIVE (1llu<<35)
+#define IDL_LINE (1llu<<34)
 #define IDL_PRAGMA (1llu<<33)
 #define   IDL_KEYLIST (IDL_PRAGMA | 1llu)
 #define   IDL_DATA_TYPE (IDL_PRAGMA | 2llu)
-#endif
 /* expressions */
 #define IDL_EXPR (1llu<<32)
 #define IDL_BINARY_EXPR (1llu<<31)                              /* IDL_EXPR */
