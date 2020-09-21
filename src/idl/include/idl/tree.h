@@ -359,6 +359,7 @@ struct idl_union {
   struct idl_name *name;
   idl_switch_type_spec_t *switch_type_spec;
   idl_case_t *cases;
+  idl_extensibility_t extensibility;
 };
 
 typedef struct idl_enumerator idl_enumerator_t;
@@ -373,6 +374,7 @@ struct idl_enum {
   idl_node_t node;
   struct idl_name *name;
   idl_enumerator_t *enumerators;
+  idl_extensibility_t extensibility;
 };
 
 typedef struct idl_forward idl_forward_t;
