@@ -54,20 +54,6 @@ struct idl_token {
   idl_location_t location;
 };
 
-/** @private */
-typedef struct idl_directive idl_directive_t;
-struct idl_directive {
-  enum { IDL_LINE } type;
-};
-
-/** @private */
-typedef struct idl_line idl_line_t;
-struct idl_line {
-  idl_directive_t directive;
-  uint32_t line;
-  char *file;
-  bool extra_tokens;
-};
 
 /**
  * @name IDL_processor_options
@@ -111,12 +97,10 @@ struct idl_line {
 #endif
 /** @} */
 
-
 typedef struct idl_symbol idl_symbol_t;
 struct idl_symbol {
-  idl_symbol_t *next;
-  char *name; /**< scoped name, e.g. ::foo::bar */
-  const idl_node_t *node;
+  idl_mask_t mask;
+  idl_location_t location;
 };
 
 /** @private */
@@ -146,7 +130,7 @@ struct idl_processor {
     IDL_EOF = (1<<10)
   } state; /**< processor state */
   idl_file_t *files; /**< list of encountered files */
-  idl_directive_t *directive;
+  idl_symbol_t *directive;
   idl_buffer_t buffer; /**< dynamically sized input buffer */
   void *locale;
   idl_scope_t *global_scope, *scope;

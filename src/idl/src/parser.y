@@ -901,7 +901,7 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps)
 #ifndef yylsp
 # define yylsp yyps->yylsp
 #endif
-  if (yyps)
+  if (yyps && !yyps->yynew)
     {
       YY_STACK_PRINT (yyss, yyssp);
       while (yyssp != yyss)
