@@ -211,10 +211,6 @@ annotate_final(
     idl_error(proc, idl_location(annotation),
       "@final conflicts with earlier extensibility annotation");
     return IDL_RETCODE_SEMANTIC_ERROR;
-  } else if (!idl_is_masked(node, IDL_STRUCT)) {
-    idl_error(proc, idl_location(annotation),
-      "@final can only be applied to struct declarations");
-    return IDL_RETCODE_SEMANTIC_ERROR;
   } else if (annotation->parameters) {
     idl_error(proc, idl_location(annotation->parameters),
       "@final does not take any parameters");
@@ -222,7 +218,18 @@ annotate_final(
   }
 
   *seen |= IDL_ANNOTATION_APPL_FINAL;
-  ((idl_struct_t*)node)->extensibility = IDL_EXTENSIBILITY_FINAL;
+
+  if (idl_is_masked(node, IDL_ENUM)) {
+    ((idl_enum_t*)node)->extensibility = IDL_EXTENSIBILITY_FINAL;
+  } else if (idl_is_masked(node, IDL_UNION)) {
+    ((idl_union_t*)node)->extensibility = IDL_EXTENSIBILITY_FINAL;
+  } else if (idl_is_masked(node, IDL_STRUCT)) {
+    ((idl_struct_t*)node)->extensibility = IDL_EXTENSIBILITY_FINAL;
+  } else {
+    idl_error(proc, idl_location(annotation),
+      "@final can only be applied to struct declarations");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
   return IDL_RETCODE_OK;
 }
 
@@ -237,10 +244,6 @@ annotate_appendable(
     idl_error(proc, idl_location(annotation),
       "@appendable conflicts with earlier extensibility annotation");
     return IDL_RETCODE_SEMANTIC_ERROR;
-  } else if (!idl_is_masked(node, IDL_STRUCT)) {
-    idl_error(proc, idl_location(annotation),
-      "@appendable can only be applied to struct declarations");
-    return IDL_RETCODE_SEMANTIC_ERROR;
   } else if (annotation->parameters) {
     idl_error(proc, idl_location(annotation->parameters),
       "@appendable does not take any parameters");
@@ -248,7 +251,19 @@ annotate_appendable(
   }
 
   *seen |= IDL_ANNOTATION_APPL_APPENDABLE;
-  ((idl_struct_t*)node)->extensibility = IDL_EXTENSIBILITY_APPENDABLE;
+
+  if (idl_is_masked(node, IDL_ENUM)) {
+    ((idl_enum_t*)node)->extensibility = IDL_EXTENSIBILITY_APPENDABLE;
+  } else if (idl_is_masked(node, IDL_UNION)) {
+    ((idl_union_t*)node)->extensibility = IDL_EXTENSIBILITY_APPENDABLE;
+  } else if (idl_is_masked(node, IDL_STRUCT)) {
+    ((idl_struct_t*)node)->extensibility = IDL_EXTENSIBILITY_APPENDABLE;
+  } else {
+    idl_error(proc, idl_location(annotation),
+      "@appendable can only be applied to constructed types");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
   return IDL_RETCODE_OK;
 }
 
@@ -263,10 +278,6 @@ annotate_mutable(
     idl_error(proc, idl_location(annotation),
       "@mutable conflicts with earlier extensibility annotation");
     return IDL_RETCODE_SEMANTIC_ERROR;
-  } else if (!idl_is_masked(node, IDL_STRUCT)) {
-    idl_error(proc, idl_location(annotation),
-      "@mutable can only be applied to struct declarations");
-    return IDL_RETCODE_SEMANTIC_ERROR;
   } else if (annotation->parameters) {
     idl_error(proc, idl_location(annotation->parameters),
       "@mutable does not take any parameters");
@@ -274,7 +285,19 @@ annotate_mutable(
   }
 
   *seen |= IDL_ANNOTATION_APPL_MUTABLE;
-  ((idl_struct_t*)node)->extensibility = IDL_EXTENSIBILITY_MUTABLE;
+
+  if (idl_is_masked(node, IDL_ENUM)) {
+    ((idl_enum_t*)node)->extensibility = IDL_EXTENSIBILITY_MUTABLE;
+  } else if (idl_is_masked(node, IDL_UNION)) {
+    ((idl_union_t*)node)->extensibility = IDL_EXTENSIBILITY_MUTABLE;
+  } else if (idl_is_masked(node, IDL_STRUCT)) {
+    ((idl_struct_t*)node)->extensibility = IDL_EXTENSIBILITY_MUTABLE;
+  } else {
+    idl_error(proc, idl_location(annotation),
+      "@mutable can only be applied to constructed types");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
   return IDL_RETCODE_OK;
 }
 
