@@ -43,6 +43,8 @@ struct ddsi_serdata {
   ddsrt_mtime_t twrite; /* write time, not source timestamp, set post-throttling */
 };
 
+typedef struct ddsi_serdata ddsi_serdata_t;
+
 /* Serialised size of sample inclusive of DDSI encoding header
    - uint32_t because the protocol can't handle samples larger than 4GB anyway
    - FIXME: get the encoding header out of the serialised data */
