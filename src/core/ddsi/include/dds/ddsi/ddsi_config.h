@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_CFGTYPE_H
-#define DDSI_CFGTYPE_H
+#ifndef DDSI_CONFIG_H
+#define DDSI_CONFIG_H
 
 #include <stdio.h>
 
@@ -369,10 +369,15 @@ struct ddsi_config
 #endif
 };
 
-DDS_EXPORT void ddsi_config_init_default (struct ddsi_config *cfg, uint32_t domid);
+/**
+ * @brief Default-initialize a configuration (unstable)
+ *
+ * @param[out]  cfg The configuration struct to be initialized.
+ */
+DDS_EXPORT void ddsi_config_init_default (struct ddsi_config *cfg);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* DDSI_CFGTYPE_H */
+#endif /* DDSI_CONFIG_H */

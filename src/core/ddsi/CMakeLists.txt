@@ -120,7 +120,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_ownip.h
     ddsi_cfgunits.h
     ddsi_cfgelems.h
-    ddsi_cfgtype.h
+    ddsi_config.h
     ddsi_acknack.h
     q_addrset.h
     q_bitset.h

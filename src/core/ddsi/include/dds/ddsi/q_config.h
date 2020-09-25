@@ -15,7 +15,7 @@
 #include <stdio.h>
 
 #include "dds/ddsrt/attributes.h"
-#include "dds/ddsi/ddsi_cfgtype.h"
+#include "dds/ddsi/ddsi_config.h"
 
 #if defined (__cplusplus)
 extern "C" {
