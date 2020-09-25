@@ -23,6 +23,15 @@
 extern "C" {
 #endif
 
+struct ddsi_config;
+
+/**
+ * @brief Default-initialize a configuration (unstable)
+ *
+ * @param[out]  cfg The configuration struct to be initialized.
+ */
+DDS_EXPORT void ddsi_config_init_default (struct ddsi_config *cfg);
+
 enum ddsi_standards_conformance {
   DDSI_SC_PEDANTIC,
   DDSI_SC_STRICT,
@@ -367,14 +376,14 @@ struct ddsi_config
 #ifdef DDSI_INCLUDE_SECURITY
   struct ddsi_config_omg_security_listelem *omg_security_configuration;
 #endif
-};
 
-/**
- * @brief Default-initialize a configuration (unstable)
- *
- * @param[out]  cfg The configuration struct to be initialized.
- */
-DDS_EXPORT void ddsi_config_init_default (struct ddsi_config *cfg);
+#if defined (__cplusplus)
+public:
+  ddsi_config() {
+    ddsi_config_init_default (this);
+  }
+#endif
+};
 
 #if defined (__cplusplus)
 }
