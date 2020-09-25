@@ -29,14 +29,6 @@ void config_print_cfgst (struct cfgst *cfgst, const struct ddsrt_log_cfg *logcfg
 void config_free_source_info (struct cfgst *cfgst);
 void config_fini (struct cfgst *cfgst);
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-struct ddsi_config_partitionmapping_listelem *find_partitionmapping (const struct ddsi_config *cfg, const char *partition, const char *topic);
-int is_ignored_partition (const struct ddsi_config *cfg, const char *partition, const char *topic);
-#endif
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-struct config_channel_listelem *find_channel (const struct config *cfg, nn_transport_priority_qospolicy_t transport_priority);
-#endif
-
 #if defined (__cplusplus)
 }
 #endif
