@@ -837,6 +837,39 @@ dds_create_participant(
 DDS_EXPORT dds_entity_t
 dds_create_domain(const dds_domainid_t domain, const char *config);
 
+struct ddsi_config;
+/**
+ * @brief Creates a domain with a given configuration, specified as an
+ * initializer (unstable interface)
+ *
+ * To explicitly create a domain based on a configuration passed as a raw
+ * initializer rather than as an XML string. This allows bypassing the XML
+ * parsing, but tightly couples the initializing to implementation.  See
+ * dds/ddsi/ddsi_config.h:ddsi_config_init_default for a way to initialize
+ * the default configuration.
+ *
+ * It will not be created if a domain with the given domain id already exists.
+ * This could have been created implicitly by a dds_create_participant().
+ *
+ * Please be aware that the given domain_id always takes precedence over the
+ * configuration.
+ *
+ * @param[in]  domain The domain to be created. DEFAULT_DOMAIN is not allowed.
+ * @param[in]  config A configuration initializer.  The lifetime of any pointers
+ *             in config must be at least that of the lifetime of the domain.
+ *
+ * @returns A valid entity handle or an error code.
+ *
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Illegal value for domain id or the config parameter is NULL.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             The domain already existed and cannot be created again.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ */
+DDS_EXPORT dds_entity_t
+dds_create_domain_with_rawconfig(const dds_domainid_t domain, const struct ddsi_config *config);
+
 /**
  * @brief Get entity parent.
  *
