@@ -9,6 +9,13 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
+set(defconfig_src "${CMAKE_CURRENT_BINARY_DIR}/defconfig.c")
+
+add_custom_command(
+  OUTPUT ${defconfig_src}
+  COMMAND gendefconfig ${defconfig_src}
+  DEPENDS gendefconfig)
+
 PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_eth.c
     ddsi_ssl.c
@@ -162,6 +169,8 @@ endif()
 
 target_sources(ddsc
   PRIVATE ${srcs_ddsi} ${hdrs_private_ddsi})
+target_sources(ddsc
+  PRIVATE ${defconfig_src})
 
 if(ENABLE_SECURITY)
   PREPEND(security_srcs "${CMAKE_CURRENT_LIST_DIR}/src"
