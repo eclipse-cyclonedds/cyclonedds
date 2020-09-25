@@ -631,10 +631,20 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
   }
 #endif
 
-  /* Now the per-thread-log-buffers are set up, so print the configuration.  After this there
-     is no value to the source information for the various configuration elements, so free those. */
-  config_print_cfgst (cfgst, &gv->logconfig);
-  config_free_source_info (cfgst);
+  /* Now the per-thread-log-buffers are set up, so print the configuration.  Note that configurations
+     passed in as initializers don't have associated parsing state and source information.
+
+     After this there is no value to the source information for the various configuration elements, so
+     free those. */
+  if (cfgst != NULL)
+  {
+    config_print_cfgst (cfgst, &gv->logconfig);
+    config_free_source_info (cfgst);
+  }
+  else
+  {
+    config_print_rawconfig (&gv->config, &gv->logconfig);
+  }
   return 0;
 
 err_config_late_error:

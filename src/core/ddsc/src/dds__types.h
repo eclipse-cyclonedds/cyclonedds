@@ -226,7 +226,7 @@ typedef struct dds_domain {
 
   ddsrt_avl_node_t m_node; /* for dds_global.m_domains */
   dds_domainid_t m_id;
-  struct cfgst *cfgst;
+  struct cfgst *cfgst; // NULL if config initializer provided
 
   struct ddsi_sertopic *builtin_participant_topic;
   struct ddsi_sertopic *builtin_reader_topic;

@@ -2337,6 +2337,17 @@ void config_print_cfgst (struct cfgst *cfgst, const struct ddsrt_log_cfg *logcfg
   print_configitems (cfgst, cfgst->cfg, 0, root_cfgelems, 0);
 }
 
+void config_print_rawconfig (const struct ddsi_config *cfg, const struct ddsrt_log_cfg *logcfg)
+{
+  struct cfgst cfgst = {
+    .cfg = (struct ddsi_config *) cfg,
+    .found = { .root = NULL },
+    .logcfg = logcfg,
+    .path_depth = 0
+  };
+  print_configitems (&cfgst, (void *) cfg, 0, root_cfgelems, 0);
+}
+
 void config_free_source_info (struct cfgst *cfgst)
 {
   assert (!cfgst->error);
