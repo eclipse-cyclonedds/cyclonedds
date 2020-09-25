@@ -16,7 +16,14 @@ add_executable(gendefconfig
 
 target_link_libraries(gendefconfig ddsrt)
 
+# Windows wants its pound of flesh ...
+generate_dummy_export_header(
+  gendefconfig
+  BASE_NAME dds
+  EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/export.h")
+
 target_include_directories(gendefconfig
   PRIVATE
+  "${CMAKE_CURRENT_BINARY_DIR}/include"
   $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsc,INCLUDE_DIRECTORIES>>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)

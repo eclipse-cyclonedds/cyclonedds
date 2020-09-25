@@ -7,6 +7,7 @@
 #include <inttypes.h>
 
 #include "dds/ddsrt/static_assert.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsi/q_config.h"
 
 struct cfgmeta {
@@ -333,7 +334,9 @@ int main (int argc, char **argv)
     return 1;
   }
 
+  DDSRT_WARNING_MSVC_OFF(4996);
   FILE *fp = (argc == 1) ? stdout : fopen (argv[1], "w");
+  DDSRT_WARNING_MSVC_ON(4996);
   if (fp == NULL)
   {
     fprintf (stderr, "Failed to create output file\n");
