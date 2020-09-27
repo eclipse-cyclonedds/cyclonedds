@@ -1,11 +1,11 @@
 .. _`Shared Memory`:
 
 #############
-Shared Memory
+Shared Memory via iceoryx
 #############
 
-The documentation is to describe the Proof of Concepts detail of supporting shared memory in Cyclone DDS.
-The shared memory implementation is based on `Eclipse iceoryx <https://projects.eclipse.org/proposals/eclipse-iceoryx>`_.
+The documentation is to describe the details of supporting shared memory in Cyclone DDS.
+The shared memory implementation is based on `Eclipse iceoryx <https://projects.eclipse.org/proposals/eclipse-iceoryx>`_. It is planned to merge this and add "zero-copy" API support.
 
 *****
 Build
