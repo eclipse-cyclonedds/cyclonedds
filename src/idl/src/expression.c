@@ -645,11 +645,11 @@ eval_int(
   } else {
     uint64_t max = 0;
     switch (type) {
-      case IDL_OCTET:
       case IDL_INT8:
         max = INT8_MAX;
         constval->value.int8 = (int8_t)intval.value.ullng;
         break;
+      case IDL_OCTET:
       case IDL_UINT8:
         max = UINT8_MAX;
         constval->value.uint8 = (uint8_t)intval.value.ullng;
@@ -690,7 +690,7 @@ eval_int(
     if (intval.value.ullng > max) {
       idl_delete_node(constval);
       idl_error(proc, idl_location(expr),
-        "Value is too large to '%s'", "");
+        "Value is too large for '%s'", "<type>");
       return IDL_RETCODE_SEMANTIC_ERROR;
     }
   }
