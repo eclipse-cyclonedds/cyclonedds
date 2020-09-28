@@ -743,7 +743,7 @@ switch_type_spec:
         node = idl_unalias(entry ? entry->node : NULL);
         if (!(idl_is_masked(node, IDL_ENUM) ||
               idl_is_masked(node, IDL_BASE_TYPE)) ||
-             idl_is_masked(node, IDL_FLOATING_PT_TYPE))
+              idl_is_masked(node, IDL_FLOATING_PT_TYPE))
         {
           static const char fmt[] =
             "Scoped name '%s' does not resolve to a valid switch type";

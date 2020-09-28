@@ -179,7 +179,7 @@ idl_create_scope(
   scope->type = type;
   if (proc)
     scope->parent = (const idl_scope_t *)proc->scope;
-  scope->name = (const idl_name_t *)&entry->name;
+  scope->name = (const idl_name_t *)entry->name;
   scope->table.first = scope->table.last = entry;
   scope->inherit_spec = NULL;
 

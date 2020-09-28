@@ -85,7 +85,7 @@ test_scanner(idl_processor_t *proc, idl_token_t *tokvec)
   for (int i = 0; tokvec[i].code >= 0; i++) {
     code = idl_scan(proc, &tok);
     if (code < 0) {
-      CU_FAIL();
+      CU_FAIL("unexpected return code");
       break;
     }
     assert_token(&tok, &tokvec[i]);
