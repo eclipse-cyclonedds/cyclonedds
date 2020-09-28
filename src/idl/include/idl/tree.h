@@ -203,6 +203,7 @@ struct idl_literal {
   idl_node_t node;
   union {
     bool bln;
+    char chr;
     uint64_t ullng;
     double dbl;
     long double ldbl;

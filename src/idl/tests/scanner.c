@@ -84,11 +84,14 @@ test_scanner(idl_processor_t *proc, idl_token_t *tokvec)
 
   for (int i = 0; tokvec[i].code >= 0; i++) {
     code = idl_scan(proc, &tok);
+    if (code < 0) {
+      CU_FAIL();
+      break;
+    }
     assert_token(&tok, &tokvec[i]);
     switch (code) {
       case IDL_TOKEN_IDENTIFIER:
       case IDL_TOKEN_PP_NUMBER:
-      case IDL_TOKEN_CHAR_LITERAL:
       case IDL_TOKEN_STRING_LITERAL:
       case IDL_TOKEN_LINE_COMMENT:
       case IDL_TOKEN_COMMENT:
@@ -118,9 +121,9 @@ test(const char *str, idl_token_t *tokvec)
 }
 
 #define C(c, fl, fc, ll, lc) \
-  { c, { c }, { { NULL, fl, fc }, { NULL, ll, lc } } }
+  { c, { .chr = 0 }, { { NULL, fl, fc }, { NULL, ll, lc } } }
 #define T(c, fl, fc, ll, lc) \
-  { c, { c }, { { NULL, fl, fc }, { NULL, ll, lc } } }
+  { c, { .chr = 0 }, { { NULL, fl, fc }, { NULL, ll, lc } } }
 #define T_STR(c, s, fl, fc, ll, lc) \
   { c, { .str = s }, { { NULL, fl, fc }, { NULL, ll, lc } } }
 #define T_ULLNG(c, n, fl, fc, ll, lc) \
@@ -192,10 +195,10 @@ CU_Test(idl_scanner, comment_wrp_cseq_ident)
 
 /* char literal */
 CU_Test(idl_scanner, char_literal)
-{ test("\'foo\'", TOKVEC( TCL(1,1,1,6), T0(1,6) )); }
+{ test("\'f\'", TOKVEC( TCL(1,1,1,4), T0(1,4) )); }
 
 CU_Test(idl_scanner, char_literal_wrp_cseq)
-{ test("\'foo\\\n\'\\\n", TOKVEC( TCL(1,1,2,2), T0(3,1) )); }
+{ test("\'\\n\\\n\'\\\n", TOKVEC( TCL(1,1,2,2), T0(3,1) )); }
 
 /* string literal */
 CU_Test(idl_scanner, string_literal)

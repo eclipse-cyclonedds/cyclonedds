@@ -200,13 +200,18 @@ idl_parse_code(idl_processor_t *proc, idl_token_t *tok, idl_node_t **nodeptr)
 
   /* prepare Bison yylval */
   switch (tok->code) {
-    case IDL_TOKEN_IDENTIFIER:
     case IDL_TOKEN_CHAR_LITERAL:
+      yylval.chr = tok->value.chr;
+      break;
+    case IDL_TOKEN_IDENTIFIER:
     case IDL_TOKEN_STRING_LITERAL:
       yylval.str = tok->value.str;
       break;
     case IDL_TOKEN_INTEGER_LITERAL:
       yylval.ullng = tok->value.ullng;
+      break;
+    case IDL_TOKEN_FLOATING_PT_LITERAL:
+      yylval.ldbl = tok->value.ldbl;
       break;
     default:
       memset(&yylval, 0, sizeof(yylval));

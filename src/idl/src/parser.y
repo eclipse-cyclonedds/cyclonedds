@@ -157,6 +157,7 @@ typedef struct idl_location YYLTYPE;
   idl_annotation_appl_param_t *annotation_appl_param;
 
   char *str;
+  char chr;
   unsigned long long ullng;
   long double ldbl;
 }
@@ -231,7 +232,7 @@ typedef struct idl_location YYLTYPE;
 %token IDL_TOKEN_COMMENT
 %token <str> IDL_TOKEN_PP_NUMBER
 %token <str> IDL_TOKEN_IDENTIFIER
-%token <str> IDL_TOKEN_CHAR_LITERAL
+%token <chr> IDL_TOKEN_CHAR_LITERAL
 %token <str> IDL_TOKEN_STRING_LITERAL
 %token <ullng> IDL_TOKEN_INTEGER_LITERAL
 %token <ldbl> IDL_TOKEN_FLOATING_PT_LITERAL
@@ -361,8 +362,31 @@ const_dcl:
 const_type:
     integer_type
       { TRY(idl_create_base_type(proc, (idl_base_type_t **)&$$, &@1, $1)); }
+  | floating_pt_type
+      { TRY(idl_create_base_type(proc, (idl_base_type_t **)&$$, &@1, $1)); }
+  | char_type
+      { TRY(idl_create_base_type(proc, (idl_base_type_t **)&$$, &@1, $1)); }
   | boolean_type
       { TRY(idl_create_base_type(proc, (idl_base_type_t **)&$$, &@1, $1)); }
+  | octet_type
+      { TRY(idl_create_base_type(proc, (idl_base_type_t **)&$$, &@1, $1)); }
+  | string_type
+      { $$ = (idl_type_spec_t *)$1; }
+  | scoped_name
+      { idl_node_t *node;
+        idl_entry_t *entry;
+        TRY(idl_resolve(proc, &entry, $1));
+        node = idl_unalias(entry ? entry->node : NULL);
+        if (!idl_is_masked(node, IDL_DECL|IDL_BASE_TYPE) &&
+            !idl_is_masked(node, IDL_DECL|IDL_ENUM))
+        {
+          static const char errfmt[] =
+            "Scoped name '%s' does not resolve to a valid constant type";
+          ERROR(proc, &@1, errfmt, $1->flat);
+        }
+        idl_delete_scoped_name($1);
+        $$ = idl_reference((idl_node_t*)entry->node);
+      }
   ;
 
 const_expr: or_expr { $$ = $1; } ;
@@ -452,6 +476,15 @@ literal:
       { TRY(idl_create_literal(proc, &$$, &@1, IDL_ULLONG));
         $$->value.ullng = $1;
       }
+  | IDL_TOKEN_FLOATING_PT_LITERAL
+      { TRY(idl_create_literal(proc, &$$, &@1, IDL_LDOUBLE));
+        $$->value.ldbl = $1;
+      }
+  | IDL_TOKEN_CHAR_LITERAL
+      { TRY(idl_create_literal(proc, &$$, &@1, IDL_CHAR));
+        fprintf(stderr, "char literal: '%c'\n", $1);
+        $$->value.chr = $1;
+      }
   | boolean_literal
   | string_literal
       { TRY(idl_create_literal(proc, &$$, &@1, IDL_STRING));
@@ -474,6 +507,16 @@ string_literal:
     IDL_TOKEN_STRING_LITERAL
       { if (!($$ = idl_strdup($1)))
           EXHAUSTED;
+      }
+  | string_literal IDL_TOKEN_STRING_LITERAL
+      { /* adjacent string literals are concatenated */
+        size_t n1, n2;
+        n1 = strlen($1);
+        n2 = strlen($2);
+        if (!($$ = realloc($1, n1+n2+1)))
+          EXHAUSTED;
+        memmove($$+n1, $2, n2);
+        $$[n1+n2] = '\0';
       }
   ;
 
