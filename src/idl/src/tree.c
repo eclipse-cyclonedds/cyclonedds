@@ -243,9 +243,19 @@ idl_finalize_module(
 {
   idl_exit_scope(proc);
   node->node.location.last = location->last;
-  for (idl_node_t *n = definitions; n; n = n->next) {
-    n->parent = (idl_node_t *)node;
+
+  /* modules can be reopened and are passed if only one definitions exists */
+  if (((idl_node_t *)definitions)->parent) {
+    assert(idl_is_masked(definitions, IDL_MODULE));
+    return IDL_RETCODE_OK;
   }
+
+  /* ignore definitions that were in the list already (reopened modules) */
+  for (idl_node_t *n = definitions; n; n = n->next) {
+    assert(!n->parent);
+    n->parent = (idl_node_t*)node;
+  }
+
   if (node->definitions) {
     idl_node_t *last = node->definitions;
     for (last = node->definitions; last->next; last = last->next) ;
