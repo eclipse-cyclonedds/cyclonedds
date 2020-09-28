@@ -940,18 +940,77 @@ static bool add_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst, 
   return true;
 }
 
-static bool content_filter_accepts (const dds_reader *reader, const struct ddsi_serdata *sample)
+static void content_filter_make_sampleinfo (struct dds_sample_info *si, const struct ddsi_serdata *sample, const struct rhc_instance *inst, uint64_t wr_iid, uint64_t iid)
+{
+  si->sample_state = DDS_SST_NOT_READ;
+  si->publication_handle = wr_iid;
+  si->source_timestamp = sample->timestamp.v;
+  si->sample_rank = 0;
+  si->generation_rank = 0;
+  si->absolute_generation_rank = 0;
+  si->valid_data = true;
+  if (inst)
+  {
+    si->view_state = inst->isnew ? DDS_VST_NEW : DDS_VST_OLD;
+    si->instance_state = inst->isdisposed ? DDS_IST_NOT_ALIVE_DISPOSED : (inst->wrcount == 0) ? DDS_IST_NOT_ALIVE_NO_WRITERS : DDS_IST_ALIVE;
+    si->instance_handle = inst->iid;
+    si->disposed_generation_count = inst->disposed_gen;
+    si->no_writers_generation_count = inst->no_writers_gen;
+  }
+  else
+  {
+    si->view_state = DDS_VST_NEW;
+    si->instance_state = DDS_IST_ALIVE;
+    si->instance_handle = iid;
+    si->disposed_generation_count = 0;
+    si->no_writers_generation_count = 0;
+  }
+}
+
+static bool content_filter_accepts (const dds_reader *reader, const struct ddsi_serdata *sample, const struct rhc_instance *inst, uint64_t wr_iid, uint64_t iid)
 {
   bool ret = true;
   if (reader)
   {
     const struct dds_topic *tp = reader->m_topic;
-    if (tp->filter_fn)
+    switch (tp->m_filter.mode)
     {
-      char *tmp = ddsi_sertopic_alloc_sample (tp->m_stopic);
-      ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
-      ret = (tp->filter_fn) (tmp, tp->filter_ctx);
-      ddsi_sertopic_free_sample (tp->m_stopic, tmp, DDS_FREE_ALL);
+      case DDS_TOPIC_FILTER_NONE:
+        ret = true;
+        break;
+      case DDS_TOPIC_FILTER_SAMPLEINFO_ARG: {
+        struct dds_sample_info si;
+        content_filter_make_sampleinfo (&si, sample, inst, wr_iid, iid);
+        ret = tp->m_filter.f.sampleinfo_arg (&si, tp->m_filter.arg);
+        break;
+      }
+      case DDS_TOPIC_FILTER_SAMPLE:
+      case DDS_TOPIC_FILTER_SAMPLE_ARG:
+      case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
+        char *tmp;
+        tmp = ddsi_sertopic_alloc_sample (tp->m_stopic);
+        ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
+        switch (tp->m_filter.mode)
+        {
+          case DDS_TOPIC_FILTER_NONE:
+          case DDS_TOPIC_FILTER_SAMPLEINFO_ARG:
+            assert (0);
+          case DDS_TOPIC_FILTER_SAMPLE:
+            ret = (tp->m_filter.f.sample) (tmp);
+            break;
+          case DDS_TOPIC_FILTER_SAMPLE_ARG:
+            ret = (tp->m_filter.f.sample_arg) (tmp, tp->m_filter.arg);
+            break;
+          case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
+            struct dds_sample_info si;
+            content_filter_make_sampleinfo (&si, sample, inst, wr_iid, iid);
+            ret = tp->m_filter.f.sample_sampleinfo_arg (tmp, &si, tp->m_filter.arg);
+            break;
+          }
+        }
+        ddsi_sertopic_free_sample (tp->m_stopic, tmp, DDS_FREE_ALL);
+        break;
+      }
     }
   }
   return ret;
@@ -996,7 +1055,7 @@ static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct 
       return 0;
     }
   }
-  if (has_data && !content_filter_accepts (rhc->reader, sample))
+  if (has_data && !content_filter_accepts (rhc->reader, sample, inst, wrinfo->iid, inst->iid))
   {
     return 0;
   }
@@ -1379,7 +1438,7 @@ static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst
      attribute (rather than a key), an empty instance should be
      instantiated. */
 
-  if (has_data && !content_filter_accepts (rhc->reader, sample))
+  if (has_data && !content_filter_accepts (rhc->reader, sample, NULL, wrinfo->iid, tk->m_iid))
   {
     return RHC_FILTERED;
   }

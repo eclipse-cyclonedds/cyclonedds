@@ -169,9 +169,31 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     return DDS_RETCODE_BAD_PARAMETER;
 
   /* Check for topic filter */
-  if (wr->m_topic->filter_fn && !writekey)
-    if (! wr->m_topic->filter_fn (data, wr->m_topic->filter_ctx))
-      return DDS_RETCODE_OK;
+  if (!writekey && wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
+  {
+    const struct dds_topic_filter *f = &wr->m_topic->m_filter;
+    switch (f->mode)
+    {
+      case DDS_TOPIC_FILTER_NONE:
+      case DDS_TOPIC_FILTER_SAMPLEINFO_ARG:
+        break;
+      case DDS_TOPIC_FILTER_SAMPLE:
+        if (!f->f.sample (data))
+          return DDS_RETCODE_OK;
+        break;
+      case DDS_TOPIC_FILTER_SAMPLE_ARG:
+        if (!f->f.sample_arg (data, f->arg))
+          return DDS_RETCODE_OK;
+        break;
+      case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
+        struct dds_sample_info si;
+        memset (&si, 0, sizeof (si));
+        if (!f->f.sample_sampleinfo_arg (data, &si, f->arg))
+          return DDS_RETCODE_OK;
+        break;
+      }
+    }
+  }
 
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
 
@@ -238,7 +260,7 @@ dds_return_t dds_writecdr_impl_lowlevel (struct writer *ddsi_wr, struct nn_xpack
 
 dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_serdata *d, dds_time_t tstamp, dds_write_action action)
 {
-  if (wr->m_topic->filter_fn)
+  if (wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
     abort ();
   /* Set if disposing or unregistering */
   d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |

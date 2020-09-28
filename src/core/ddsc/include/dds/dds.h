@@ -1173,9 +1173,57 @@ dds_get_name(dds_entity_t topic, char *name, size_t size);
 DDS_EXPORT dds_return_t
 dds_get_type_name(dds_entity_t topic, char *name, size_t size);
 
-/** Topic filter function */
-typedef bool (*dds_topic_filter_fn) (const void * sample);
-typedef bool (*dds_topic_filter_arg_fn) (const void * sample, void * arg);
+/** Topic filter functions, as with the setters/getters: no guarantee that any
+    of this will be maintained for backwards compatibility.
+
+    Sampleinfo is all zero when filtering in a write call (i.e., writer created
+    using a filtered topic, which one perhaps shouldn't be doing), otherwise it
+    has as much filled in correctly as is possible given the context and the rest
+    fixed:
+    - sample_state         DDS_SST_NOT_READ;
+    - publication_handle   set to writer's instance handle
+    - source_timestamp     set to source timestamp of sample
+    - ranks                0
+    - valid_data           true
+    - instance_handle      set to instance handle of existing instance if the
+                           sample matches an existing instance, otherwise to what
+                           the instance handle will be if it passes the filter
+    - view_state           set to instance view state if sample being filtered
+                           matches an existing instance, NEW if not
+    - instance_state       set to instance state if sample being filtered
+                           matches an existing instance, NEW if not
+    - generation counts    set to instance's generation counts if the sample
+                           matches an existing instance instance, 0 if not */
+typedef bool (*dds_topic_filter_sample_fn) (const void * sample);
+typedef bool (*dds_topic_filter_sample_arg_fn) (const void * sample, void * arg);
+typedef bool (*dds_topic_filter_sampleinfo_arg_fn) (const dds_sample_info_t * sampleinfo, void * arg);
+typedef bool (*dds_topic_filter_sample_sampleinfo_arg_fn) (const void * sample, const dds_sample_info_t * sampleinfo, void * arg);
+typedef dds_topic_filter_sample_fn dds_topic_filter_fn;
+typedef dds_topic_filter_sample_arg_fn dds_topic_filter_arg_fn;
+
+/** Topic filter mode; no guarantee of backwards compatibility */
+enum dds_topic_filter_mode {
+  DDS_TOPIC_FILTER_NONE,
+  DDS_TOPIC_FILTER_SAMPLE,
+  DDS_TOPIC_FILTER_SAMPLE_ARG,
+  DDS_TOPIC_FILTER_SAMPLEINFO_ARG,
+  DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG,
+};
+
+/** Union of all filter function types; no guarantee of backwards compatibility */
+union dds_topic_filter_function_union {
+  dds_topic_filter_sample_fn sample;
+  dds_topic_filter_sample_arg_fn sample_arg;
+  dds_topic_filter_sampleinfo_arg_fn sampleinfo_arg;
+  dds_topic_filter_sample_sampleinfo_arg_fn sample_sampleinfo_arg;
+};
+
+/** Filter description: mode, function pointer, argument; no guarantee of backwards compatibility */
+struct dds_topic_filter {
+  enum dds_topic_filter_mode mode;
+  union dds_topic_filter_function_union f;
+  void *arg;
+};
 
 /**
  * @brief Sets a filter on a topic. To be replaced by proper filtering on readers,
@@ -1221,13 +1269,35 @@ dds_set_topic_filter_and_arg(
   void *arg);
 
 /**
+ * @brief Sets a filter and filter argument on a topic. To be replaced by proper
+ * filtering on readers, no guarantee that this will be maintained for backwards
+ * compatibility.
+ *
+ * Not thread-safe with respect to data being read/written using readers/writers
+ * using this topic.  Be sure to create a topic entity specific to the reader you
+ * want to filter, then set the filter function, and only then create the reader.
+ * And don't change it unless you know there are no concurrent writes.
+ *
+ * @param[in]  topic   The topic on which the content filter is set.
+ * @param[in]  filter  The filter specification.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK  Filter set successfully
+ * @retval DDS_RETCODE_BAD_PARAMETER  The topic handle is invalid
+*/
+DDS_EXPORT dds_return_t
+dds_set_topic_filter_extended(
+  dds_entity_t topic,
+  const struct dds_topic_filter *filter);
+
+/**
  * @brief Gets the filter for a topic. To be replaced by proper filtering on readers,
  * no guarantee that this will be maintained for backwards compatibility.
  *
  * @param[in]  topic  The topic from which to get the filter.
  *
- * @returns The topic filter, or 0 when not set or set using
- *          dds_set_topic_filter_and_arg.
+ * @returns The topic filter, or 0 when of type other than "sample".
  */
 DDS_DEPRECATED_EXPORT dds_topic_filter_fn
 dds_get_topic_filter(dds_entity_t topic);
@@ -1244,7 +1314,7 @@ dds_topic_get_filter(dds_entity_t topic);
  * @param[out] arg    Filter function argument (arg may be NULL).
  *
  * @retval DDS_RETCODE_OK  Filter set successfully
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET  Filter was set with dds_set_topic_filter
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET  Filter is not of "none" or "sample_arg"
  * @retval DDS_RETCODE_BAD_PARAMETER  The topic handle is invalid
  */
 DDS_EXPORT dds_return_t
@@ -1252,6 +1322,21 @@ dds_get_topic_filter_and_arg (
   dds_entity_t topic,
   dds_topic_filter_arg_fn *fn,
   void **arg);
+
+/**
+ * @brief Gets the filter for a topic. To be replaced by proper filtering on readers,
+ * no guarantee that this will be maintained for backwards compatibility.
+ *
+ * @param[in]  topic  The topic from which to get the filter.
+ * @param[out] filter The topic filter specification.
+ *
+ * @retval DDS_RETCODE_OK  Filter set successfully
+ * @retval DDS_RETCODE_BAD_PARAMETER  The topic handle is invalid
+ */
+DDS_EXPORT dds_return_t
+dds_get_topic_filter_extended (
+  dds_entity_t topic,
+  struct dds_topic_filter *filter);
 
 /**
  * @brief Creates a new instance of a DDS subscriber

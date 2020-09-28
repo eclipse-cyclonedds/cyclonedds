@@ -311,8 +311,7 @@ typedef struct dds_topic {
   struct ddsi_sertopic *m_stopic;
   struct dds_ktopic *m_ktopic; /* refc'd, constant */
 
-  dds_topic_filter_arg_fn filter_fn;
-  void *filter_ctx;
+  struct dds_topic_filter m_filter;
 
   /* Status metrics */
 
