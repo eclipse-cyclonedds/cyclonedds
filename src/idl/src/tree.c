@@ -293,6 +293,7 @@ idl_create_module(
         assert(entry->scope);
         idl_enter_scope(proc, entry->scope);
         *nodep = idl_reference((void*)entry->node);
+        idl_delete_name(name);
         return IDL_RETCODE_OK;
       }
     }
@@ -324,6 +325,7 @@ static void delete_const(void *node)
 {
   idl_const_t *n = (idl_const_t *)node;
   idl_delete_node(n->const_expr);
+  idl_delete_node(n->type_spec);
   idl_delete_name(n->name);
   free(n);
 }
