@@ -276,34 +276,65 @@ scan_comment(idl_processor_t *proc, const char *cur, const char **lim)
   return IDL_RETCODE_SYNTAX_ERROR;
 }
 
-static int
-scan_quoted_literal(
-  idl_processor_t *proc, const char *cur, const char **lim, int quot)
+static int32_t
+scan_char_literal(idl_processor_t *proc, const char *cur, const char **lim)
 {
-  int cnt, esc = 0;
-  int code = quot == '"' ? IDL_TOKEN_STRING_LITERAL : IDL_TOKEN_CHAR_LITERAL;
-  const char *type = quot == '"' ? "string" : "char";
+  int cnt = 0, esc = 0;
+  size_t pos = 0;
+  const size_t max = 5; /* \uhhhh */
 
-  while ((cur = next(proc, cur)) < proc->scanner.limit) {
-    if (esc) {
+  for (; pos < max && (cur = next(proc, cur)) < proc->scanner.limit; pos++) {
+    if (esc)
       esc = 0;
-    } else {
-      if (*cur == '\\') {
-        esc = 1;
-      } else if (*cur == quot) {
-        *lim = cur + 1;
-        return code;
-      } else if ((cnt = have_newline(proc, cur))) {
-        break;
-      }
-    }
+    else if (*cur == '\\')
+      esc = 1;
+    else if (*cur == '\'')
+      break;
+    else if ((cnt = have_newline(proc, cur)))
+      break;
   }
 
-  if (need_refill(proc, cur))
+  if (cnt < 0) {
     return IDL_RETCODE_NEED_REFILL;
-  *lim = cur;
-  error(proc, cur, "unterminated %s literal", type);
-  return IDL_RETCODE_SYNTAX_ERROR;
+  } else if (cnt > 0) {
+    error(proc, cur, "unterminated character constant");
+    return IDL_RETCODE_SYNTAX_ERROR;
+  } else if (pos > max) {
+    error(proc, cur, "invalid character constant");
+    return IDL_RETCODE_SYNTAX_ERROR;
+  }
+
+  assert(*cur == '\'');
+  *lim = cur + 1;
+  return IDL_TOKEN_CHAR_LITERAL;
+}
+
+static int32_t
+scan_string_literal(idl_processor_t *proc, const char *cur, const char **lim)
+{
+  int cnt = 0, esc = 0;
+
+  while ((cur = next(proc, cur)) < proc->scanner.limit) {
+    if (esc)
+      esc = 0;
+    else if (*cur == '\\')
+      esc = 1;
+    else if (*cur == '\"')
+      break;
+    else if ((cnt = have_newline(proc, cur)))
+      break;
+  }
+
+  if (cnt < 0) {
+    return IDL_RETCODE_NEED_REFILL;
+  } else if (cnt > 0) {
+    error(proc, cur, "unterminated string literal");
+    return IDL_RETCODE_SYNTAX_ERROR;
+  }
+
+  assert(*cur == '\"');
+  *lim = cur + 1;
+  return IDL_TOKEN_STRING_LITERAL;
 }
 
 static int
@@ -529,8 +560,10 @@ idl_lex(idl_processor_t *proc, idl_lexeme_t *lex)
       code = scan_comment(proc, cur, &lim);
     } else if (have(proc, cur, "//") > 0) {
       code = scan_line_comment(proc, cur, &lim);
-    } else if (chr == '\'' || chr == '\"') {
-      code = scan_quoted_literal(proc, cur, &lim, chr);
+    } else if (chr == '\'') {
+      code = scan_char_literal(proc, cur, &lim);
+    } else if (chr == '\"') {
+      code = scan_string_literal(proc, cur, &lim);
     } else if ((cnt = have_newline(proc, cur)) > 0) {
       lim = cur + cnt;
       code = '\n';
@@ -596,21 +629,100 @@ idl_lex(idl_processor_t *proc, idl_lexeme_t *lex)
   return code;
 }
 
+static int idl_isdigit(int chr, int base)
+{
+  int num = -1;
+  assert(base > 0 && base < 36);
+  if (chr >= '0' && chr <= '9')
+    num = chr - '0';
+  else if (chr >= 'a' && chr <= 'z')
+    num = chr - 'a';
+  else if (chr >= 'A' && chr <= 'Z')
+    num = chr - 'A';
+  return num != -1 && num < base ? num : -1;
+}
+
+static idl_retcode_t
+unescape(
+  idl_processor_t *proc, idl_lexeme_t *lex, char *str, size_t *len)
+{
+  size_t pos=0;
+  static const char seq[][2] = {
+    {'n','\n'}, /* newline */
+    {'t','\t'}, /* horizontal tab */
+    {'v','\v'}, /* vertical tab */
+    {'b','\b'}, /* backspace */
+    {'r','\r'}, /* carriage return */
+    {'f','\f'}, /* form feed */
+    {'a','\a'}, /* alert */
+    {'\\', '\\'}, /* backslash */
+    {'?', '\?'}, /* question mark */
+    {'\'', '\''}, /* single quote */
+    {'\"', '\"'}, /* double quote */
+    {'\0', '\0'} /* terminator */
+  };
+
+  for (size_t i=0; i < *len;) {
+    if (str[i] == '\\') {
+      i++;
+      if (idl_isdigit(str[i], 8) != -1) {
+        int c = 0;
+        for (size_t j=0; j < 3 && idl_isdigit(str[i], 8) != -1; j++)
+          c = (c*8) + idl_isdigit(str[i++], 8);
+        str[pos++] = (char)c;
+      } else if (str[i] == 'x' || str[i] == 'X') {
+        int c = 0;
+        i++;
+        if (idl_isdigit(str[i], 16) != -1) {
+          c = (c*16) + idl_isdigit(str[i++], 16);
+          if (idl_isdigit(str[i], 16) != -1)
+            c = (c*16) + idl_isdigit(str[i++], 16);
+          str[pos++] = (char)c;
+        } else {
+          idl_error(proc, &lex->location,
+            "\\x used with no following hex digits");
+          return IDL_RETCODE_SYNTAX_ERROR;
+        }
+      } else {
+        size_t j;
+        for (j=0; seq[j][0] && seq[j][0] != str[i]; j++) ;
+        if (seq[j][0]) {
+          str[pos++] = seq[j][1];
+        } else {
+          str[pos++] = str[i];
+          idl_warning(proc, &lex->location,
+            "unknown escape sequence '\\%c'", str[i]);
+        }
+        i++;
+      }
+    } else if (pos != i) {
+      str[pos++] = str[i++];
+    } else {
+      pos = ++i;
+    }
+  }
+
+  assert(pos <= *len);
+  str[(*len = pos)] = '\0';
+  return IDL_RETCODE_OK;
+}
+
 static idl_retcode_t
 tokenize(
   idl_processor_t *proc, idl_lexeme_t *lex, int32_t code, idl_token_t *tok)
 {
-  int cnt, quot = '\'';
+  int cnt;
   char buf[32], *str = buf;
-  size_t len, pos = 0;
+  size_t len = 0, pos = 0;
+  idl_retcode_t ret;
 
+  /* short-circuit if token is a single character */
   if (code < 256) {
-    /* short circuit if token is a single character */
     tok->code = code;
     tok->location = lex->location;
-    tok->value.chr = code;
     return code;
   }
+
   len = (size_t)((uintptr_t)lex->limit - (uintptr_t)lex->marker);
   if (len >= sizeof(buf) && !(str = malloc(len + 1)))
     return IDL_RETCODE_NO_MEMORY;
@@ -630,21 +742,24 @@ tokenize(
 
   switch (code) {
     case IDL_TOKEN_IDENTIFIER:
-      /* preprocessor identifiers are different from idl identifiers */
+      /* preprocessor identifiers are not IDL identifiers */
       if ((unsigned)proc->state & (unsigned)IDL_SCAN_DIRECTIVE)
         break;
       code = idl_iskeyword(proc, str, 0);
       if (code == 0)
         code = IDL_TOKEN_IDENTIFIER;
       break;
-    case IDL_TOKEN_STRING_LITERAL:
-      quot = '\"';
-      /* fall through */
     case IDL_TOKEN_CHAR_LITERAL:
-      assert(str[0] == quot);
-      len -= 1 + (size_t)(str[len - 1] == quot);
+    case IDL_TOKEN_STRING_LITERAL:
+      assert((str[0] == '\'' || str[0] == '"'));
+      len -= 1 + (size_t)(str[len - 1] == str[0]);
       memmove(str, str + 1, len);
       str[len] = '\0';
+      if ((ret = unescape(proc, lex, str, &len)) != IDL_RETCODE_OK) {
+        if (str != buf)
+          free(str);
+        return ret;
+      }
       break;
     case IDL_TOKEN_INTEGER_LITERAL: {
       char *end = NULL;
@@ -664,13 +779,21 @@ tokenize(
     case IDL_TOKEN_IDENTIFIER:
     case IDL_TOKEN_PP_NUMBER:
     case IDL_TOKEN_STRING_LITERAL:
-    case IDL_TOKEN_CHAR_LITERAL:
     case IDL_TOKEN_COMMENT:
     case IDL_TOKEN_LINE_COMMENT:
       if (str == buf && !(str = idl_strdup(str)))
         return IDL_RETCODE_NO_MEMORY;
       tok->value.str = str;
       break;
+    case IDL_TOKEN_CHAR_LITERAL:
+      if (len != 1) {
+        idl_error(proc, &lex->location, "invalid character constant");
+        if (str != buf)
+          free(str);
+        return IDL_RETCODE_SYNTAX_ERROR;
+      }
+      tok->value.chr = *str;
+      /* fall through */
     default:
       if (str != buf)
         free(str);
@@ -679,7 +802,7 @@ tokenize(
 
   tok->code = code;
   tok->location = lex->location;
-  return tok->code;
+  return code;
 }
 
 idl_retcode_t
