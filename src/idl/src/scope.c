@@ -352,7 +352,7 @@ idl_resolve(
       }
       if (i == 0)
         node = (idl_node_t*)entry->node;
-      scope = entry->scope;
+      scope = entry->type == IDL_SCOPE ? scope : entry->scope;
       i++;
     } else if (scoped_name->absolute || i != 0) {
       idl_error(proc, &scoped_name->location,
