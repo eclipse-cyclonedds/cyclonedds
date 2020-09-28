@@ -32,7 +32,7 @@ _Pragma("GCC diagnostic ignored \"-Wmissing-prototypes\"")
 #endif
 
 static void yyerror(idl_location_t *loc, idl_processor_t *proc, idl_node_t **, const char *);
-static void push(void *list, void *node);
+static void *push(void *list, void *node);
 
 #define TRY_CATCH(action, catch) \
   do { \
@@ -301,9 +301,7 @@ definitions:
     definition
       { $$ = $1; }
   | definitions definition
-      { push($1, $2);
-        $$ = $1;
-      }
+      { $$ = push($1, $2); }
   ;
 
 definition:
@@ -966,16 +964,33 @@ yyerror(idl_location_t *loc, idl_processor_t *proc, idl_node_t **nodeptr, const 
   idl_error(proc, loc, str);
 }
 
-static void push(void *list, void *node)
+static void *push(void *list, void *node)
 {
   idl_node_t *last;
 
   assert(list);
   assert(node);
 
-  for (last = (idl_node_t *)list; last->next; last = last->next) ;
-  last->next = (idl_node_t *)node;
+  /* modules can be reopened, do not push them again */
+  if (node == list || ((idl_node_t *)node)->parent) {
+    idl_is_masked(node, IDL_MODULE);
+    return list;
+  }
+  /* reopened module may have been the first node */
+  if (((idl_node_t *)list)->parent) {
+    idl_is_masked(node, IDL_MODULE);
+    return node;
+  }
+
+  for (last = list; last->next; last = last->next) {
+    if (last == node) {
+      assert(idl_is_masked(node, IDL_MODULE));
+      return list;
+    }
+  }
+  last->next = node;
   ((idl_node_t *)node)->previous = last;
+  return list;
 }
 
 int32_t idl_iskeyword(idl_processor_t *proc, const char *str, int nc)
