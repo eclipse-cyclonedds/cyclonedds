@@ -501,35 +501,70 @@ dds_entity_t dds_find_topic (dds_entity_t participant, const char *name)
   return DDS_RETCODE_PRECONDITION_NOT_MET;
 }
 
-dds_return_t dds_set_topic_filter_and_arg (dds_entity_t topic, dds_topic_filter_arg_fn filter, void *arg)
+dds_return_t dds_set_topic_filter_extended (dds_entity_t topic, const struct dds_topic_filter *filter)
 {
+  struct dds_topic_filter f;
   dds_topic *t;
   dds_return_t rc;
+
+  if (filter == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  f = *filter;
+
+  {
+    bool valid = false;
+    switch (f.mode)
+    {
+      case DDS_TOPIC_FILTER_NONE:
+        // treat function and argument as don't cares on input if mode = NONE, but
+        // do make them null pointers in the internal representation
+        f.f.sample = 0;
+        f.arg = NULL;
+        valid = true;
+        break;
+      case DDS_TOPIC_FILTER_SAMPLE:
+        f.arg = NULL;
+        /* falls through */
+      case DDS_TOPIC_FILTER_SAMPLEINFO_ARG:
+      case DDS_TOPIC_FILTER_SAMPLE_ARG:
+      case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG:
+        // can safely use any of the function pointers
+        valid = (filter->f.sample != 0);
+        break;
+    }
+    if (!valid)
+    {
+      // only possible if the caller passed garbage in the mode argument
+      return DDS_RETCODE_BAD_PARAMETER;
+    }
+  }
+
   if ((rc = dds_topic_lock (topic, &t)) != DDS_RETCODE_OK)
     return rc;
-  t->filter_fn = filter;
-  t->filter_ctx = arg;
+  t->m_filter = f;
   dds_topic_unlock (t);
   return DDS_RETCODE_OK;
 }
 
-static bool topic_filter_no_arg_wrapper (const void *sample, void *arg)
+dds_return_t dds_set_topic_filter_and_arg (dds_entity_t topic, dds_topic_filter_arg_fn filter, void *arg)
 {
-  dds_topic_filter_fn f = (dds_topic_filter_fn) arg;
-  return f (sample);
+  struct dds_topic_filter f = {
+    .mode = filter ? DDS_TOPIC_FILTER_SAMPLE_ARG : DDS_TOPIC_FILTER_NONE,
+    .arg = arg,
+    .f = { .sample_arg = filter }
+  };
+  return dds_set_topic_filter_extended (topic, &f);
 }
 
 static void dds_set_topic_filter_deprecated (dds_entity_t topic, dds_topic_filter_fn filter)
 {
-  dds_topic *t;
-  if (dds_topic_lock (topic, &t))
-    return;
-  t->filter_fn = topic_filter_no_arg_wrapper;
-  // function <-> data pointer conversion guaranteed to work on POSIX, Windows
-  // this being a deprecated interface, there's seems to be little point in
-  // make it fully portable
-  t->filter_ctx = (void *) filter;
-  dds_topic_unlock (t);
+  struct dds_topic_filter f = {
+    .mode = filter ? DDS_TOPIC_FILTER_SAMPLE : DDS_TOPIC_FILTER_NONE,
+    .arg = NULL,
+    .f = { .sample = filter }
+  };
+  (void) dds_set_topic_filter_extended (topic, &f);
 }
 
 void dds_set_topic_filter (dds_entity_t topic, dds_topic_filter_fn filter)
@@ -542,36 +577,51 @@ void dds_topic_set_filter (dds_entity_t topic, dds_topic_filter_fn filter)
   dds_set_topic_filter_deprecated (topic, filter);
 }
 
-dds_return_t dds_get_topic_filter_and_arg (dds_entity_t topic, dds_topic_filter_arg_fn *fn, void **arg)
+dds_return_t dds_get_topic_filter_extended (dds_entity_t topic, struct dds_topic_filter *filter)
 {
   dds_return_t rc;
   dds_topic *t;
+  if (filter == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
   if ((rc = dds_topic_lock (topic, &t)) != DDS_RETCODE_OK)
     return rc;
-  if (t->filter_fn == topic_filter_no_arg_wrapper)
-    rc = DDS_RETCODE_PRECONDITION_NOT_MET;
-  else
-  {
-    if (fn)
-      *fn = t->filter_fn;
-    if (arg)
-      *arg = t->filter_ctx;
-  }
+  *filter = t->m_filter;
   dds_topic_unlock (t);
+  return rc;
+}
+
+dds_return_t dds_get_topic_filter_and_arg (dds_entity_t topic, dds_topic_filter_arg_fn *fn, void **arg)
+{
+  struct dds_topic_filter f;
+  dds_return_t rc;
+  if ((rc = dds_get_topic_filter_extended (topic, &f)) != DDS_RETCODE_OK)
+    return rc;
+  switch (f.mode)
+  {
+    case DDS_TOPIC_FILTER_NONE:
+      assert (f.f.sample_arg == 0);
+      /* fall through */
+    case DDS_TOPIC_FILTER_SAMPLE_ARG:
+      if (fn)
+        *fn = f.f.sample_arg;
+      if (arg)
+        *arg = f.arg;
+      break;
+    case DDS_TOPIC_FILTER_SAMPLE:
+    case DDS_TOPIC_FILTER_SAMPLEINFO_ARG:
+    case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG:
+      rc = DDS_RETCODE_PRECONDITION_NOT_MET;
+      break;
+  }
   return rc;
 }
 
 static dds_topic_filter_fn dds_get_topic_filter_deprecated (dds_entity_t topic)
 {
-  dds_topic *t;
-  dds_topic_filter_fn f = 0;
-  if (dds_topic_lock (topic, &t) == DDS_RETCODE_OK)
-  {
-    if (t->filter_fn == topic_filter_no_arg_wrapper)
-      f = (dds_topic_filter_fn) t->filter_ctx;
-    dds_topic_unlock (t);
-  }
-  return f;
+  struct dds_topic_filter f;
+  if (dds_get_topic_filter_extended (topic, &f) != DDS_RETCODE_OK)
+    return 0;
+  return (f.mode == DDS_TOPIC_FILTER_SAMPLE) ? f.f.sample : 0;
 }
 
 dds_topic_filter_fn dds_get_topic_filter (dds_entity_t topic)
