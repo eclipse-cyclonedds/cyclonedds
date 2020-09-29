@@ -24,6 +24,9 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/misc.h"
 
+/* ddsi_config.h provides the definition of "struct ddsi_config", which is needed for the offsetof macro */
+#include "dds/ddsi/ddsi_config.h"
+
 #include "ddsconf.h"
 
 
@@ -43,9 +46,15 @@
 
 /* configuration elements */
 #define DEPRECATED(name) "|" name
-#define MEMBER(name) /* drop */
-#define MEMBEROF(parent,name) /* drop */
-#define FUNCTIONS(...) /* drop */
+#define MEMBER(name) offsetof (struct ddsi_config, name), #name
+#define MEMBEROF(parent,name) 0, NULL /* default config for doesn't contain lists, so these aren't needed */
+/* renaming print functions to use prefix gendef_pf so that the symbols are different from those in q_config.c
+   (they have file-local scope, so this isn't required, but I am guessing it will be less confusing in the long
+   run, even if it means that 0/NULL will get translated to gendef_0/gendef_NULL, which then need additional
+   macros to convert them back to 0 ... */
+#define gendef_0 0
+#define gendef_NULL 0
+#define FUNCTIONS(if, uf, ff, pf) gendef_##pf
 #define DESCRIPTION(str) .description = str
 #define RANGE(str) .range = str
 #define UNIT(str) .unit = str
@@ -53,33 +62,33 @@
 #define MAXIMUM(num) .force_maximum = 1, .maximum = num
 #define MINIMUM(num) .force_minimum = 1, .minimum = num
 
-#define NOMEMBER /* drop */
-#define NOFUNCTIONS /* drop */
+#define NOMEMBER 0, NULL
+#define NOFUNCTIONS 0
 #define NOMETADATA { NULL, NULL, NULL, NULL, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL }
-#define END_MARKER { NULL, NULL, NULL, 0, NULL, NULL, NOMETADATA }
+#define END_MARKER { NULL, NULL, NULL, 0, NULL, 0, NULL, 0, NULL, NOMETADATA }
 
-#define ELEMENT(name, elems, attrs, multip, dflt, desc, ...) \
-  { name, elems, attrs, multip, dflt, desc, { __VA_ARGS__ } }
+#define ELEMENT(name, elems, attrs, multip, dflt, ofst, mname, funcs, desc, ...) \
+  { name, elems, attrs, multip, dflt, ofst, mname, funcs, desc, { __VA_ARGS__ } }
 
 #define MOVED(name, whereto) \
-  { ">" name, NULL, NULL, 0, whereto, NULL, NOMETADATA }
+  { ">" name, NULL, NULL, 0, whereto, 0, NULL, 0, NULL, NOMETADATA }
 
 #define EXPAND(macro, args) macro args /* Visual Studio */
 
 #define NOP(name) \
-  EXPAND(ELEMENT, (name, NULL, NULL, 1, NULL, NULL, .type = "nop"))
+  EXPAND(ELEMENT, (name, NULL, NULL, 1, NULL, 0, NULL, 0, NULL, .type = "nop"))
 #define BOOL(name, attrs, multip, dflt, ofst, funcs, desc, ...) \
-  EXPAND(ELEMENT, (name, NULL, attrs, multip, dflt, desc, .type = "bool", __VA_ARGS__))
+  EXPAND(ELEMENT, (name, NULL, attrs, multip, dflt, ofst, funcs, desc, .type = "bool", __VA_ARGS__))
 #define INT(name, attrs, multip, dflt, ofst, funcs, desc, ...) \
-  EXPAND(ELEMENT, (name, NULL, attrs, multip, dflt, desc, .type = "int", __VA_ARGS__))
+  EXPAND(ELEMENT, (name, NULL, attrs, multip, dflt, ofst, funcs, desc, .type = "int", __VA_ARGS__))
 #define ENUM(name, attrs, multip, dflt, ofst, funcs, desc, ...) \
-  EXPAND(ELEMENT, (name, NULL, attrs, multip, dflt, desc, .type = "enum", __VA_ARGS__))
+  EXPAND(ELEMENT, (name, NULL, attrs, multip, dflt, ofst, funcs, desc, .type = "enum", __VA_ARGS__))
 #define STRING(name, attrs, multip, dflt, ofst, funcs, desc, ...) \
-  EXPAND(ELEMENT, (name, NULL, attrs, multip, dflt, desc, .type = "string", __VA_ARGS__))
+  EXPAND(ELEMENT, (name, NULL, attrs, multip, dflt, ofst, funcs, desc, .type = "string", __VA_ARGS__))
 #define LIST(name, attrs, multip, dflt, ofst, funcs, desc, ...) \
-  EXPAND(ELEMENT, (name, NULL, attrs, multip, dflt, desc, .type = "list", __VA_ARGS__))
+  EXPAND(ELEMENT, (name, NULL, attrs, multip, dflt, ofst, funcs, desc, .type = "list", __VA_ARGS__))
 #define GROUP(name, elems, attrs, multip, ofst, funcs, desc, ...) \
-  EXPAND(ELEMENT, (name, elems, attrs, multip, NULL, desc, .type = "group", __VA_ARGS__))
+  EXPAND(ELEMENT, (name, elems, attrs, multip, NULL, ofst, funcs, desc, .type = "group", __VA_ARGS__))
 
 #include "dds/ddsi/ddsi_cfgelems.h"
 /* undefine element macros */
@@ -595,7 +604,7 @@ int main(int argc, char *argv[])
   int code = EXIT_FAILURE;
   FILE *out = NULL;
   const char *file = "-";
-  enum { rnc, xsd, md } format = rnc;
+  enum { rnc, xsd, md, defconfig } format = rnc;
 
   while ((opt = getopt(argc, argv, "f:o:h")) != -1) {
     switch (opt) {
@@ -606,6 +615,8 @@ int main(int argc, char *argv[])
           format = xsd;
         } else if (strcmp(optarg, "md") == 0) {
           format = md;
+        } else if (strcmp(optarg, "defconfig") == 0) {
+          format = defconfig;
         } else {
           fprintf(stderr, "illegal output format: %s\n", optarg);
           usage(argv[0]);
@@ -652,6 +663,10 @@ int main(int argc, char *argv[])
       break;
     case md:
       if (printmd(out, cyclonedds_root_cfgelems, cfgunits) == 0)
+        code = EXIT_SUCCESS;
+      break;
+    case defconfig:
+      if (printdefconfig(out, cyclonedds_root_cfgelems) == 0)
         code = EXIT_SUCCESS;
       break;
   }

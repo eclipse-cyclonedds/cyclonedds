@@ -13,8 +13,8 @@ set(defconfig_src "${CMAKE_CURRENT_BINARY_DIR}/defconfig.c")
 
 add_custom_command(
   OUTPUT ${defconfig_src}
-  COMMAND gendefconfig ${defconfig_src}
-  DEPENDS gendefconfig)
+  COMMAND ddsconf -f defconfig -o ${defconfig_src}
+  DEPENDS ddsconf)
 
 PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_eth.c
