@@ -20,11 +20,17 @@ while (<>) {
              subcpu => 0, subrecv => 0,
              pubcpu => 0, pubrecv => 0);
   } elsif (s/^(\@[^:]+:\d+\s+)?rss:(\d+\.\d+)([kM])B//) {
+    next unless %meas;
     my $side = defined $1 ? "pub" : "sub";
     $meas{"${side}rss"}  = $2 / ($3 eq "k" ? 1024.0 : 1);
     $meas{"${side}cpu"}  = cpuload (($side eq "pub") ? "pub" : "dq.user", $_);
     $meas{"${side}recv"} = cpuload ("recvUC", $_);
   } elsif (/xmit\s+(\d+)%\s+recv\s+(\d+)%/) {
+    next unless %meas;
+    $meas{rawxmitbw} = $1 * 1e3 / 100; # assume GbE
+    $meas{rawrecvbw} = $2 * 1e3 / 100;
+  } elsif (/xmit\s+([0-9.]+)\s+Mb\/s\s+recv\s+([0-9.]+)\s+Mb\/s/) {
+    next unless %meas;
     $meas{rawxmitbw} = $1;
     $meas{rawrecvbw} = $2;
   }
