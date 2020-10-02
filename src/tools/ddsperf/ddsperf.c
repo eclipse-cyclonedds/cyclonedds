@@ -587,18 +587,27 @@ static uint32_t pubthread (void *varg)
 
   baggage = init_sample (&data, 0);
   ihs = malloc (nkeyvals * sizeof (dds_instance_handle_t));
-  for (unsigned k = 0; k < nkeyvals; k++)
+  if (!register_instances)
   {
-    data.seq_keyval.keyval = (int32_t) k;
-    if (register_instances)
-      dds_register_instance (wr_data, &ihs[k], &data);
-    else
+    for (unsigned k = 0; k < nkeyvals; k++)
       ihs[k] = 0;
   }
+  else
+  {
+    for (unsigned k = 0; k < nkeyvals; k++)
+    {
+      data.seq_keyval.keyval = (int32_t) k;
+      if ((result = dds_register_instance (wr_data, &ihs[k], &data)) != DDS_RETCODE_OK)
+      {
+        printf ("dds_register_instance failed: %d\n", result);
+        fflush (stdout);
+        exit (2);
+      }
+    }
+  }
+
   data.seq_keyval.keyval = 0;
-
   tfirst = dds_time();
-
   uint32_t bi = 0;
   while (!ddsrt_atomic_ld32 (&termflag))
   {
