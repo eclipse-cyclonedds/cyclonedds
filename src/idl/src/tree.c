@@ -79,6 +79,8 @@ const char *idl_identifier(const void *node)
     return ((const idl_declarator_t *)node)->name->identifier;
   if (idl_is_forward(node))
     return ((const idl_forward_t *)node)->name->identifier;
+  if (idl_is_const(node))
+    return ((const idl_const_t *)node)->name->identifier;
   return NULL;
 }
 
@@ -1380,6 +1382,22 @@ bool idl_is_base_type(const void *node)
          mask == IDL_DOUBLE ||
          mask == IDL_LDOUBLE);
 #endif
+  return true;
+}
+
+bool idl_is_const(const void *node)
+{
+  if (!idl_is_masked(node, IDL_CONST))
+  {
+    return false;
+#ifndef NDEBUG
+  }
+  else
+  {
+    const idl_const_type_t * const_type = ((const idl_const_t *) node)->type_spec;
+    assert(idl_is_base_type(const_type) || idl_is_string(const_type) || idl_is_enumerator(const_type));
+#endif
+  }
   return true;
 }
 

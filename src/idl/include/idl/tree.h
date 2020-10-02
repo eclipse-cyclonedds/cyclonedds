@@ -410,6 +410,7 @@ IDL_EXPORT bool idl_is_templ_type(const void *node);
 IDL_EXPORT bool idl_is_sequence(const void *node);
 IDL_EXPORT bool idl_is_string(const void *node);
 IDL_EXPORT bool idl_is_base_type(const void *node);
+IDL_EXPORT bool idl_is_const(const void *node);
 
 IDL_EXPORT bool idl_is_masked(const void *node, idl_mask_t mask);
 IDL_EXPORT const char *idl_identifier(const void *node);
