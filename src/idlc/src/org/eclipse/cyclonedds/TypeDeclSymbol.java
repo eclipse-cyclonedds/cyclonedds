@@ -27,7 +27,21 @@ public class TypeDeclSymbol extends TypeDefSymbol
   )
   {
     super (name);
-    def = definition.getText ();
+    if (definition.simple_type_spec () != null)
+    {
+      def = definition.getText ();
+    }
+    else
+    {
+      IDLParser.Constr_type_specContext cts = (IDLParser.Constr_type_specContext) definition.constr_type_spec ();
+      if (cts.struct_type () != null) {
+        def = cts.struct_type ().ID ().getText ();
+      } else if (cts.union_type () != null) {
+        def = cts.union_type ().ID ().getText ();
+      } else {
+        def = cts.enum_type ().ID ().getText ();
+      }
+    }
     this.isint = isint;
     this.isnonint = isnonint;
   }
