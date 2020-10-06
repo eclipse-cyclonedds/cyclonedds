@@ -291,8 +291,8 @@ static dds_return_t create_thread_int (struct thread_state1 **ts1_out, const str
   ddsrt_threadattr_init (&tattr);
   if (tprops != NULL)
   {
-    if (!tprops->sched_priority.isdefault)
-      tattr.schedPriority = tprops->sched_priority.value;
+    if (!tprops->schedule_priority.isdefault)
+      tattr.schedPriority = tprops->schedule_priority.value;
     tattr.schedClass = tprops->sched_class; /* explicit default value in the enum */
     if (!tprops->stack_size.isdefault)
       tattr.stackSize = tprops->stack_size.value;

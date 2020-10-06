@@ -121,7 +121,7 @@ struct ddsi_config_thread_properties_listelem {
   struct ddsi_config_thread_properties_listelem *next;
   char *name;
   ddsrt_sched_t sched_class;
-  struct ddsi_config_maybe_int32 sched_priority;
+  struct ddsi_config_maybe_int32 schedule_priority;
   struct ddsi_config_maybe_uint32 stack_size;
 };
 
