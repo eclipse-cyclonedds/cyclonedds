@@ -685,7 +685,7 @@ static struct cfgelem thread_properties_sched_cfgelems[] = {
       "able to assign some of the privileged scheduling classes.</p>"),
     VALUES("realtime","timeshare","default")),
   STRING("Priority", NULL, 1, "default",
-    MEMBEROF(ddsi_config_thread_properties_listelem, sched_priority),
+    MEMBEROF(ddsi_config_thread_properties_listelem, schedule_priority),
     FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
     DESCRIPTION(
       "<p>This element specifies the thread priority (decimal integer or "
