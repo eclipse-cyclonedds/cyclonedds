@@ -136,7 +136,7 @@ public class GenSymbolTable extends org.eclipse.cyclonedds.parser.IDLBaseVisitor
             while (stype_or_typedef instanceof TypeDeclSymbol)
             {
               TypeDeclSymbol td = (TypeDeclSymbol)stype_or_typedef;
-              stype_or_typedef = stresolve (td.definition(), td.isRelative());
+              stype_or_typedef = params.symtab.resolve (td.isRelative() ? td.name() : null, td.definition());
             }
             stype = (StructSymbol) stype_or_typedef;
           }
