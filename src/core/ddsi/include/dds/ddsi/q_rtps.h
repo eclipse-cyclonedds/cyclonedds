@@ -74,6 +74,13 @@ typedef int64_t seqno_t;
 #define NN_ENTITYID_KIND_WRITER_NO_KEY 0x03
 #define NN_ENTITYID_KIND_READER_NO_KEY 0x04
 #define NN_ENTITYID_KIND_READER_WITH_KEY 0x07
+/* Entity kind topic is not defined in the RTPS spec, so the following two
+   should to be used as vendor specific entities using NN_ENTITYID_SOURCE_VENDOR.
+   Two entity kinds for built-in and user topics are required, because the
+   vendor and built-in flags cannot be combined. */
+#define NN_ENTITYID_KIND_CYCLONE_TOPIC_BUILTIN 0x0c
+#define NN_ENTITYID_KIND_CYCLONE_TOPIC_USER 0x0d
+
 #define NN_ENTITYID_ALLOCSTEP 0x100
 
 struct cfgst;

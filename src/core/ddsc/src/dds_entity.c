@@ -1247,7 +1247,8 @@ dds_return_t dds_get_guid (dds_entity_t entity, dds_guid_t *guid)
   {
     case DDS_KIND_PARTICIPANT:
     case DDS_KIND_READER:
-    case DDS_KIND_WRITER: {
+    case DDS_KIND_WRITER:
+    case DDS_KIND_TOPIC: {
       DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
       ddsi_guid_t tmp = nn_ntoh_guid (e->m_guid);
       memcpy (guid, &tmp, sizeof (*guid));

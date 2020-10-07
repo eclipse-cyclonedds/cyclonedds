@@ -141,21 +141,16 @@ check_default_qos_of_builtin_entity(dds_entity_t entity, bool isread)
 
 CU_Test(ddsc_builtin_topics, availability_builtin_topics, .init = setup, .fini = teardown)
 {
-/* FIXME: Successful lookup doesn't rhyme with them not being returned when looking at the children of the participant ... */
   dds_entity_t topic;
 
-  topic = dds_find_topic(g_participant, "DCPSParticipant");
-  CU_ASSERT_FATAL(topic < 0);
-  //dds_delete(topic);
-  topic = dds_find_topic(g_participant, "DCPSTopic");
-  CU_ASSERT_FATAL(topic < 0);
-  //dds_delete(topic);
-  topic = dds_find_topic(g_participant, "DCPSSubscription");
-  CU_ASSERT_FATAL(topic < 0);
-  //dds_delete(topic);
-  topic = dds_find_topic(g_participant, "DCPSPublication");
-  CU_ASSERT_FATAL(topic < 0);
-  //dds_delete(topic);
+  topic = dds_find_topic_scoped (DDS_FIND_SCOPE_PARTICIPANT, g_participant, "DCPSParticipant", 0);
+  CU_ASSERT_EQUAL_FATAL (topic, 0);
+  topic = dds_find_topic_scoped (DDS_FIND_SCOPE_PARTICIPANT, g_participant, "DCPSTopic", 0);
+  CU_ASSERT_EQUAL_FATAL (topic, 0);
+  topic = dds_find_topic_scoped (DDS_FIND_SCOPE_PARTICIPANT, g_participant, "DCPSSubscription", 0);
+  CU_ASSERT_EQUAL_FATAL (topic, 0);
+  topic = dds_find_topic_scoped (DDS_FIND_SCOPE_PARTICIPANT, g_participant, "DCPSPublication", 0);
+  CU_ASSERT_EQUAL_FATAL (topic, 0);
 }
 
 CU_Test(ddsc_builtin_topics, read_publication_data, .init = setup, .fini = teardown)
@@ -228,23 +223,26 @@ CU_Test(ddsc_builtin_topics, read_participant_data, .init = setup, .fini = teard
 
 CU_Test(ddsc_builtin_topics, read_topic_data, .init = setup, .fini = teardown)
 {
-#if 0 /* disabled pending CHAM-347 */
-  dds_entity_t reader;
-  dds_return_t ret;
-  DDS_TopicBuiltinTopicData *data;
-  void * samples[MAX_SAMPLES];
-
-  reader = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  const char *exp[] = { "RoundTrip", "DCPSPublication", "DCPSSubscription", "DCPSTopic" };
+  unsigned seen = 0;
+  dds_entity_t reader = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
   CU_ASSERT_FATAL(reader > 0);
-
-  samples[0] = NULL;
-  ret = dds_read(reader, samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-  CU_ASSERT_FATAL(ret > 0);
-
-  data = (DDS_TopicBuiltinTopicData *)samples;
-  CU_ASSERT_STRING_EQUAL_FATAL(data->name, "DCPSSubscription");
+  void * samples[MAX_SAMPLES] = { NULL };
+  dds_return_t ret = dds_read(reader, samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
+  CU_ASSERT_FATAL(ret >= 0);
+  for (int i = 0; i < ret; i++)
+  {
+    dds_builtintopic_topic_t *data = samples[i];
+    for (size_t j = 0; j < sizeof (exp) / sizeof (exp[0]); j++)
+    {
+      if (strcmp (data->topic_name, exp[j]) == 0)
+        seen |= 1u << j;
+    }
+  }
+  CU_ASSERT_FATAL(seen == 1); // built-in topics should not be reported as DCPSTopic samples
   dds_return_loan(reader, samples, ret);
-#endif
+#endif /* DDS_HAS_TOPIC_DISCOVERY */
 }
 
 CU_Test(ddsc_builtin_topics, same_subscriber, .init = setup, .fini = teardown)
@@ -258,10 +256,8 @@ CU_Test(ddsc_builtin_topics, same_subscriber, .init = setup, .fini = teardown)
   dds_entity_t participant_rdr;
   dds_entity_t participant_subscriber;
 
-#if 0
   dds_entity_t topic_rdr;
   dds_entity_t topic_subscriber;
-#endif
 
   subscription_rdr = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL);
   CU_ASSERT_FATAL(subscription_rdr > 0);
@@ -282,13 +278,15 @@ CU_Test(ddsc_builtin_topics, same_subscriber, .init = setup, .fini = teardown)
 
   CU_ASSERT_FATAL(publication_subscriber == participant_subscriber);
 
-#if 0
   topic_rdr = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
+#ifdef DDS_HAS_TOPIC_DISCOVERY
   CU_ASSERT_FATAL(topic_rdr > 0);
   topic_subscriber = dds_get_parent(topic_rdr);
   CU_ASSERT_FATAL(topic_subscriber > 0);
-
   CU_ASSERT_FATAL(participant_subscriber == topic_subscriber);
+#else
+  (void) topic_subscriber;
+  CU_ASSERT_EQUAL_FATAL(topic_rdr, DDS_RETCODE_UNSUPPORTED);
 #endif
 }
 

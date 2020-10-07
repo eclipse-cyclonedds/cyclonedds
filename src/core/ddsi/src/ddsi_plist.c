@@ -1760,6 +1760,9 @@ static const struct piddesc piddesc_eclipse[] = {
 #ifdef DDS_HAS_TYPE_DISCOVERY
   QP  (CYCLONE_TYPE_INFORMATION,         type_information, XO),
 #endif
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  PP  (CYCLONE_TOPIC_GUID,               topic_guid, XG),
+#endif
   PP  (ADLINK_PARTICIPANT_VERSION_INFO,  adlink_participant_version_info, Xux5, XS),
   PP  (ADLINK_TYPE_DESCRIPTION,          type_description, XS),
   PP  (CYCLONE_RECEIVE_BUFFER_SIZE,      cyclone_receive_buffer_size, Xu),
@@ -1833,7 +1836,9 @@ struct piddesc_index {
 #endif
 
 static const struct piddesc *piddesc_omg_index[DEFAULT_OMG_PIDS_ARRAY_SIZE + SECURITY_OMG_PIDS_ARRAY_SIZE];
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+static const struct piddesc *piddesc_eclipse_index[28];
+#elif DDS_HAS_TYPE_DISCOVERY
 static const struct piddesc *piddesc_eclipse_index[27];
 #else
 static const struct piddesc *piddesc_eclipse_index[26];

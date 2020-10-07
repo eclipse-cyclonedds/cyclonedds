@@ -123,34 +123,37 @@ static endpoint_info_t * find_typeid_match (dds_entity_t participant, dds_entity
     int n = dds_take (reader, ptrs, info, sizeof (ptrs) / sizeof (ptrs[0]), sizeof (ptrs) / sizeof (ptrs[0]));
     for (int i = 0; i < n && result == NULL; i++)
     {
-      dds_builtintopic_endpoint_t *data = ptrs[i];
-      size_t type_identifier_sz;
-      unsigned char *type_identifier;
-      dds_return_t ret = dds_builtintopic_get_endpoint_typeid (data, &type_identifier, &type_identifier_sz);
-      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-      if (info[i].valid_data && type_identifier != NULL)
+      if (info[i].valid_data)
       {
-        type_identifier_t t = { .hash = { 0 } };
-        CU_ASSERT_EQUAL_FATAL (type_identifier_sz, sizeof (type_identifier_t));
-        memcpy (&t, type_identifier, type_identifier_sz);
-        print_ep (&data->key);
-        printf (" type: "PTYPEIDFMT, PTYPEID (t));
-        if (ddsi_typeid_equal (&t, type_id) && !strcmp (data->topic_name, match_topic))
+        dds_builtintopic_endpoint_t *data = ptrs[i];
+        size_t type_identifier_sz;
+        unsigned char *type_identifier;
+        dds_return_t ret = dds_builtintopic_get_endpoint_typeid (data, &type_identifier, &type_identifier_sz);
+        CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+        if (type_identifier != NULL)
         {
-          printf(" match");
-          // copy data from sample to our own struct
-          result = ddsrt_malloc (sizeof (*result));
-          result->topic_name = ddsrt_strdup (data->topic_name);
-          result->type_name = ddsrt_strdup (data->type_name);
+          type_identifier_t t = { .hash = { 0 } };
+          CU_ASSERT_EQUAL_FATAL (type_identifier_sz, sizeof (type_identifier_t));
+          memcpy (&t, type_identifier, type_identifier_sz);
+          print_ep (&data->key);
+          printf (" type: "PTYPEIDFMT, PTYPEID (t));
+          if (ddsi_typeid_equal (&t, type_id) && !strcmp (data->topic_name, match_topic))
+          {
+            printf(" match");
+            // copy data from sample to our own struct
+            result = ddsrt_malloc (sizeof (*result));
+            result->topic_name = ddsrt_strdup (data->topic_name);
+            result->type_name = ddsrt_strdup (data->type_name);
+          }
+          printf("\n");
         }
-        printf("\n");
+        else
+        {
+          print_ep (&data->key);
+          printf (" no type\n");
+        }
+        ddsrt_free (type_identifier);
       }
-      else
-      {
-        print_ep (&data->key);
-        printf (" no type\n");
-      }
-      ddsrt_free (type_identifier);
     }
     if (n > 0)
     {

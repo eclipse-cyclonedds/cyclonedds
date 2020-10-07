@@ -55,6 +55,7 @@ set(ddsc_test_sources
     "take_instance.c"
     "time.c"
     "topic.c"
+    "topic_find_local.c"
     "transientlocal.c"
     "types.c"
     "unregister.c"
@@ -85,6 +86,11 @@ if(ENABLE_TYPE_DISCOVERY)
   list(APPEND ddsc_test_sources "typelookup.c")
 endif()
 
+if(ENABLE_TOPIC_DISCOVERY)
+  list(APPEND ddsc_test_sources
+    "topic_discovery.c"
+    "topic_find_global.c")
+endif()
 
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
 target_include_directories(

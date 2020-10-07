@@ -19,6 +19,7 @@ extern "C" {
 #endif
 
 struct participant;
+struct topic;
 struct writer;
 struct reader;
 struct nn_rsample_info;
@@ -34,6 +35,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
 int spdp_write (struct participant *pp);
 int spdp_dispose_unregister (struct participant *pp);
 
+int sedp_write_topic (struct topic *tp, bool alive);
 int sedp_write_writer (struct writer *wr);
 int sedp_write_reader (struct reader *rd);
 int sedp_dispose_unregister_writer (struct writer *wr);

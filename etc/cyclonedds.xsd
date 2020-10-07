@@ -111,6 +111,7 @@ CycloneDDS configuration</xs:documentation>
       <xs:all>
         <xs:element minOccurs="0" ref="config:DSGracePeriod"/>
         <xs:element minOccurs="0" ref="config:DefaultMulticastAddress"/>
+        <xs:element minOccurs="0" ref="config:EnableTopicDiscoveryEndpoints"/>
         <xs:element minOccurs="0" ref="config:ExternalDomainId"/>
         <xs:element minOccurs="0" ref="config:MaxAutoParticipantIndex"/>
         <xs:element minOccurs="0" ref="config:ParticipantIndex"/>
@@ -135,6 +136,13 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;This element specifies the default multicast address for all traffic other than participant discovery packets. It defaults to Discovery/SPDPMulticastAddress.&lt;/p&gt;
 &lt;p&gt;The default value is: "auto".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="EnableTopicDiscoveryEndpoints" type="xs:boolean">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element controls whether the built-in endpoints for topic discovery are created and used to exchange topic discovery information.&lt;/p&gt;
+&lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="ExternalDomainId" type="xs:string">
