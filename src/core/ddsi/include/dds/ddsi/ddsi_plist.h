@@ -64,6 +64,7 @@ extern "C" {
 #define PP_IDENTITY_STATUS_TOKEN                ((uint64_t)1 << 36)
 #define PP_DATA_TAGS                            ((uint64_t)1 << 37)
 #define PP_CYCLONE_RECEIVE_BUFFER_SIZE          ((uint64_t)1 << 38)
+#define PP_CYCLONE_TOPIC_GUID                   ((uint64_t)1 << 39)
 
 /* Set for unrecognized parameters that are in the reserved space or
    in our own vendor-specific space that have the
@@ -206,6 +207,7 @@ typedef struct ddsi_plist {
   ddsi_guid_t participant_guid;
   ddsi_guid_t endpoint_guid;
   ddsi_guid_t group_guid;
+  ddsi_guid_t topic_guid;
 #if 0 /* reserved, rather than NIY */
   nn_entityid_t participant_entityid;
   nn_entityid_t group_entityid;
