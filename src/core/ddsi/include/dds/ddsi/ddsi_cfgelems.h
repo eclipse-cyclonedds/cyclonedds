@@ -1611,22 +1611,6 @@ static struct cfgelem ssl_cfgelems[] = {
 };
 #endif
 
-static struct cfgelem tp_cfgelems[] = {
-  BOOL("Enable", NULL, 1, "false",
-    MEMBER(tp_enable),
-    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
-    DESCRIPTION("<p>Enable optional use of a thread pool.</p>")),
-  INT("Threads", NULL, 1, "4",
-    MEMBER(tp_threads),
-    FUNCTIONS(0, uf_natint, 0, pf_int),
-    DESCRIPTION("<p>Initial number of threads in the thread pool.</p>")),
-  INT("ThreadMax", NULL, 1, "8",
-    MEMBER(tp_max_threads),
-    FUNCTIONS(0, uf_natint, 0, pf_int),
-    DESCRIPTION("<p>Maximum number of threads in the thread pool.</p>")),
-  END_MARKER
-};
-
 static struct cfgelem discovery_peer_cfgattrs[] = {
   STRING("Address", NULL, 1, NULL,
     MEMBEROF(ddsi_config_peer_listelem, peer),
@@ -1970,14 +1954,6 @@ static struct cfgelem domain_cfgelems[] = {
     DESCRIPTION(
       "<p>The TCP element allows specifying various parameters related to "
       "running DDSI over TCP.</p>"
-    )),
-  GROUP("ThreadPool", tp_cfgelems, NULL, 1,
-    NOMEMBER,
-    NOFUNCTIONS,
-    DESCRIPTION(
-      "<p>The ThreadPool element allows specifying various parameters "
-      "related to using a thread pool to send DDSI messages to multiple "
-      "unicast addresses (TCP or UDP).</p>"
     )),
 #ifdef DDSI_INCLUDE_SSL
   GROUP("SSL", ssl_cfgelems, NULL, 1,

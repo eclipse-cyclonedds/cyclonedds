@@ -24,7 +24,6 @@
 #include "dds/ddsrt/random.h"
 
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsrt/thread_pool.h"
 
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/ddsi_xqos.h"
@@ -143,51 +142,6 @@ struct nn_bw_limiter {
 };
 #endif
 
-///////////////////////////
-typedef struct {
-  ddsrt_mutex_t mtx;
-  uint32_t value;
-  ddsrt_cond_t cv;
-} ddsi_sem_t;
-
-static dds_return_t
-ddsi_sem_init (ddsi_sem_t *sem, uint32_t value)
-{
-  sem->value = value;
-  ddsrt_mutex_init (&sem->mtx);
-  ddsrt_cond_init (&sem->cv);
-  return DDS_RETCODE_OK;
-}
-
-static dds_return_t
-ddsi_sem_destroy (ddsi_sem_t *sem)
-{
-  ddsrt_cond_destroy (&sem->cv);
-  ddsrt_mutex_destroy (&sem->mtx);
-  return DDS_RETCODE_OK;
-}
-
-static dds_return_t
-ddsi_sem_post (ddsi_sem_t *sem)
-{
-  ddsrt_mutex_lock (&sem->mtx);
-  if (sem->value++ == 0)
-    ddsrt_cond_signal (&sem->cv);
-  ddsrt_mutex_unlock (&sem->mtx);
-  return DDS_RETCODE_OK;
-}
-
-static dds_return_t
-ddsi_sem_wait (ddsi_sem_t *sem)
-{
-  ddsrt_mutex_lock (&sem->mtx);
-  while (sem->value == 0)
-    ddsrt_cond_wait (&sem->cv, &sem->mtx);
-  ddsrt_mutex_unlock (&sem->mtx);
-  return DDS_RETCODE_OK;
-}
-///////////////////////////
-
 struct nn_xpack
 {
   struct nn_xpack *sendq_next;
@@ -201,7 +155,6 @@ struct nn_xpack
   ddsrt_atomic_uint32_t calls;
   uint32_t call_flags;
   ddsi_tran_conn_t conn;
-  ddsi_sem_t sem;
   size_t niov;
   ddsrt_iovec_t *iov;
   enum nn_xmsg_dstmode dstmode;
@@ -1164,9 +1117,6 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
   xp->conn = conn;
   nn_xpack_reinit (xp);
 
-  if (xp->gv->thread_pool)
-    ddsi_sem_init (&xp->sem, 0);
-
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
   nn_bw_limit_init (&xp->limiter, bw_limit);
 #else
@@ -1179,8 +1129,6 @@ void nn_xpack_free (struct nn_xpack *xp)
 {
   assert (xp->niov == 0);
   assert (xp->included_msgs.latest == NULL);
-  if (xp->gv->thread_pool)
-    ddsi_sem_destroy (&xp->sem);
   ddsrt_free (xp->iov);
   ddsrt_free (xp);
 }
@@ -1279,31 +1227,6 @@ static void nn_xpack_send1v (const ddsi_locator_t *loc, void * varg)
   (void) nn_xpack_send1 (loc, varg);
 }
 
-typedef struct nn_xpack_send1_thread_arg {
-  const ddsi_locator_t *loc;
-  struct nn_xpack *xp;
-} *nn_xpack_send1_thread_arg_t;
-
-static void nn_xpack_send1_thread (void * varg)
-{
-  nn_xpack_send1_thread_arg_t arg = varg;
-  (void) nn_xpack_send1 (arg->loc, arg->xp);
-  if (ddsrt_atomic_dec32_ov (&arg->xp->calls) == 1)
-  {
-    ddsi_sem_post (&arg->xp->sem);
-  }
-  ddsrt_free (varg);
-}
-
-static void nn_xpack_send1_threaded (const ddsi_locator_t *loc, void * varg)
-{
-  nn_xpack_send1_thread_arg_t arg = ddsrt_malloc (sizeof (*arg));
-  arg->xp = (struct nn_xpack *) varg;
-  arg->loc = loc;
-  ddsrt_atomic_inc32 (&arg->xp->calls);
-  ddsrt_thread_pool_submit (arg->xp->gv->thread_pool, nn_xpack_send1_thread, arg);
-}
-
 static void nn_xpack_send_real (struct nn_xpack *xp)
 {
   struct ddsi_domaingv const * const gv = xp->gv;
@@ -1342,21 +1265,7 @@ static void nn_xpack_send_real (struct nn_xpack *xp)
     calls = 0;
     if (xp->dstaddr.all.as)
     {
-      if (xp->gv->thread_pool == NULL)
-      {
-        calls = addrset_forall_count (xp->dstaddr.all.as, nn_xpack_send1v, xp);
-      }
-      else
-      {
-        ddsrt_atomic_st32 (&xp->calls, 1);
-        calls = addrset_forall_count (xp->dstaddr.all.as, nn_xpack_send1_threaded, xp);
-        /* Wait for the thread pool to complete the write; if we're the one
-           decrementing "calls" to 0, all of the work has been completed and
-           none of the threads will be posting; else some thread will be
-           posting it and we had better wait for it */
-        if (ddsrt_atomic_dec32_ov (&xp->calls) != 1)
-          ddsi_sem_wait (&xp->sem);
-      }
+      calls = addrset_forall_count (xp->dstaddr.all.as, nn_xpack_send1v, xp);
       unref_addrset (xp->dstaddr.all.as);
     }
 

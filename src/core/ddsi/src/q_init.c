@@ -20,7 +20,6 @@
 #include "dds/ddsrt/sync.h"
 
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsrt/thread_pool.h"
 
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_rtps.h"
@@ -1053,7 +1052,6 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->data_conn_mc = NULL;
   gv->xmit_conn = NULL;
   gv->listener = NULL;
-  gv->thread_pool = NULL;
   gv->debmon = NULL;
 
   /* Print start time for referencing relative times in the remainder of the DDS_LOG. */
@@ -1072,12 +1070,6 @@ int rtps_init (struct ddsi_domaingv *gv)
   {
     GVLOG (DDS_LC_CONFIG | DDS_LC_DISCOVERY, "DEAFMUTE initial deaf=%d mute=%d reset after %"PRId64"d ns\n", gv->deaf, gv->mute, gv->config.initial_deaf_mute_reset);
     reset_deaf_mute_time = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), gv->config.initial_deaf_mute_reset);
-  }
-
-  /* Initialize thread pool */
-  if (gv->config.tp_enable)
-  {
-    gv->thread_pool = ddsrt_thread_pool_new (gv->config.tp_threads, gv->config.tp_max_threads, 0, NULL);
   }
 
   /* Initialize UDP or TCP transport and resolve factory */
@@ -1627,8 +1619,6 @@ err_find_own_ip:
     ddsrt_free (gv->interfaces[i].name);
   ddsi_tran_factories_fini (gv);
 err_udp_tcp_init:
-  if (gv->config.tp_enable)
-    ddsrt_thread_pool_free (gv->thread_pool);
   return -1;
 }
 
@@ -1892,8 +1882,6 @@ void rtps_fini (struct ddsi_domaingv *gv)
     chptr = chptr->next;
   }
 #endif
-
-  ddsrt_thread_pool_free (gv->thread_pool);
 
   (void) joinleave_spdp_defmcip (gv, 0);
   free_conns (gv);

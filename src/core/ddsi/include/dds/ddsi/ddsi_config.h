@@ -292,11 +292,6 @@ struct ddsi_config
   struct ddsi_config_ssl_min_version ssl_min_version;
 #endif
 
-  /* Thread pool configuration */
-  int tp_enable;
-  uint32_t tp_threads;
-  uint32_t tp_max_threads;
-
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   struct ddsi_config_channel_listelem *channels;
   struct ddsi_config_channel_listelem *max_channel; /* channel with highest prio; always computed */

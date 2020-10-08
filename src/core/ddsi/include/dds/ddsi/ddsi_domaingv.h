@@ -43,7 +43,6 @@ struct lease;
 struct ddsi_tran_conn;
 struct ddsi_tran_listener;
 struct ddsi_tran_factory;
-struct ddsrt_thread_pool_s;
 struct debug_monitor;
 struct ddsi_tkmap;
 struct dds_security_context;
@@ -150,9 +149,6 @@ struct ddsi_domaingv {
 
   /* TCP listener */
   struct ddsi_tran_listener * listener;
-
-  /* Thread pool */
-  struct ddsrt_thread_pool_s * thread_pool;
 
   /* In many sockets mode, the receive threads maintain a local array
      with participant GUIDs and sockets, participant_set_generation is
