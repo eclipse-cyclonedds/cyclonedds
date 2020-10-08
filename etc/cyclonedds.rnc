@@ -1072,28 +1072,6 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
         }?
       }?
       & [ a:documentation [ xml:lang="en" """
-<p>The ThreadPool element allows specifying various parameters related to using a thread pool to send DDSI messages to multiple unicast addresses (TCP or UDP).</p>""" ] ]
-      element ThreadPool {
-        [ a:documentation [ xml:lang="en" """
-<p>Enable optional use of a thread pool.</p>
-<p>The default value is: "false".</p>""" ] ]
-        element Enable {
-          xsd:boolean
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>Maximum number of threads in the thread pool.</p>
-<p>The default value is: "8".</p>""" ] ]
-        element ThreadMax {
-          xsd:integer
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>Initial number of threads in the thread pool.</p>
-<p>The default value is: "4".</p>""" ] ]
-        element Threads {
-          xsd:integer
-        }?
-      }?
-      & [ a:documentation [ xml:lang="en" """
 <p>This element is used to set thread properties.</p>""" ] ]
       element Threads {
         [ a:documentation [ xml:lang="en" """
