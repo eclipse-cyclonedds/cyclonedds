@@ -6,7 +6,7 @@ CycloneDDS configuration
 
 ## //CycloneDDS/Domain
 Attributes: [Id](#cycloneddsdomainid)
-Children: [Compatibility](#cycloneddsdomaincompatibility), [Discovery](#cycloneddsdomaindiscovery), [General](#cycloneddsdomaingeneral), [Internal](#cycloneddsdomaininternal), [Partitioning](#cycloneddsdomainpartitioning), [SSL](#cycloneddsdomainssl), [Security](#cycloneddsdomainsecurity), [Sizing](#cycloneddsdomainsizing), [TCP](#cycloneddsdomaintcp), [ThreadPool](#cycloneddsdomainthreadpool), [Threads](#cycloneddsdomainthreads), [Tracing](#cycloneddsdomaintracing)
+Children: [Compatibility](#cycloneddsdomaincompatibility), [Discovery](#cycloneddsdomaindiscovery), [General](#cycloneddsdomaingeneral), [Internal](#cycloneddsdomaininternal), [Partitioning](#cycloneddsdomainpartitioning), [SSL](#cycloneddsdomainssl), [Security](#cycloneddsdomainsecurity), [Sizing](#cycloneddsdomainsizing), [TCP](#cycloneddsdomaintcp), [Threads](#cycloneddsdomainthreads), [Tracing](#cycloneddsdomaintracing)
 
 The General element specifying Domain related settings.
 
@@ -1537,36 +1537,6 @@ This element specifies the timeout for blocking TCP write operations. If this ti
 The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.
 
 The default value is: "2 s".
-
-
-### //CycloneDDS/Domain/ThreadPool
-Children: [Enable](#cycloneddsdomainthreadpoolenable), [ThreadMax](#cycloneddsdomainthreadpoolthreadmax), [Threads](#cycloneddsdomainthreadpoolthreads)
-
-The ThreadPool element allows specifying various parameters related to using a thread pool to send DDSI messages to multiple unicast addresses (TCP or UDP).
-
-
-#### //CycloneDDS/Domain/ThreadPool/Enable
-Boolean
-
-Enable optional use of a thread pool.
-
-The default value is: "false".
-
-
-#### //CycloneDDS/Domain/ThreadPool/ThreadMax
-Integer
-
-Maximum number of threads in the thread pool.
-
-The default value is: "8".
-
-
-#### //CycloneDDS/Domain/ThreadPool/Threads
-Integer
-
-Initial number of threads in the thread pool.
-
-The default value is: "4".
 
 
 ### //CycloneDDS/Domain/Threads

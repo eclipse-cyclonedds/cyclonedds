@@ -27,18 +27,7 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:Security"/>
         <xs:element minOccurs="0" ref="config:Sizing"/>
         <xs:element minOccurs="0" ref="config:TCP"/>
-        <xs:element minOccurs="0" ref="config:ThreadPool"/>
-        <xs:element minOccurs="0" name="Threads">
-          <xs:annotation>
-            <xs:documentation>
-&lt;p&gt;This element is used to set thread properties.&lt;/p&gt;</xs:documentation>
-          </xs:annotation>
-          <xs:complexType>
-            <xs:sequence>
-              <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:Thread"/>
-            </xs:sequence>
-          </xs:complexType>
-        </xs:element>
+        <xs:element minOccurs="0" ref="config:Threads"/>
         <xs:element minOccurs="0" ref="config:Tracing"/>
       </xs:all>
       <xs:attribute name="Id">
@@ -1604,37 +1593,16 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
 &lt;p&gt;The default value is: "2 s".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="ThreadPool">
+  <xs:element name="Threads">
     <xs:annotation>
       <xs:documentation>
-&lt;p&gt;The ThreadPool element allows specifying various parameters related to using a thread pool to send DDSI messages to multiple unicast addresses (TCP or UDP).&lt;/p&gt;</xs:documentation>
+&lt;p&gt;This element is used to set thread properties.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
-      <xs:all>
-        <xs:element minOccurs="0" name="Enable" type="xs:boolean">
-          <xs:annotation>
-            <xs:documentation>
-&lt;p&gt;Enable optional use of a thread pool.&lt;/p&gt;
-&lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
-          </xs:annotation>
-        </xs:element>
-        <xs:element minOccurs="0" ref="config:ThreadMax"/>
-        <xs:element minOccurs="0" name="Threads" type="xs:integer">
-          <xs:annotation>
-            <xs:documentation>
-&lt;p&gt;Initial number of threads in the thread pool.&lt;/p&gt;
-&lt;p&gt;The default value is: "4".&lt;/p&gt;</xs:documentation>
-          </xs:annotation>
-        </xs:element>
-      </xs:all>
+      <xs:sequence>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:Thread"/>
+      </xs:sequence>
     </xs:complexType>
-  </xs:element>
-  <xs:element name="ThreadMax" type="xs:integer">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;Maximum number of threads in the thread pool.&lt;/p&gt;
-&lt;p&gt;The default value is: "8".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
   </xs:element>
   <xs:element name="Thread">
     <xs:annotation>
