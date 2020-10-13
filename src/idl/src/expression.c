@@ -737,14 +737,14 @@ idl_evaluate(
     goto err_alloc;
 
   if (type == IDL_CHAR) {
-    if (expr->mask != IDL_CHAR_LITERAL) {
+    if (expr->mask != (IDL_CHAR_LITERAL|IDL_EXPR)) {
       idl_error(proc, idl_location(expr),
         "Cannot evaluate '%s' as character expression", "<foobar>");
       goto err_eval;
     }
-    constval->value.chr = 'a';//((idl_literal_t *)expr)->value.chr;
+    constval->value.chr = ((idl_literal_t *)expr)->value.chr;
   } else if (type == IDL_BOOL) {
-    if (expr->mask != (IDL_BOOLEAN_LITERAL | IDL_EXPR)) {
+    if (expr->mask != (IDL_BOOLEAN_LITERAL|IDL_EXPR)) {
       idl_error(proc, idl_location(expr),
         "Cannot evaluate '%s' as boolean expression", "<foobar>");
       goto err_eval;

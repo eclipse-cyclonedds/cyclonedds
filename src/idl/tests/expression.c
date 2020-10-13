@@ -108,6 +108,26 @@ CU_Test(idl_expression, unary_not_minus)
   test_unary_expr(&expr1, IDL_RETCODE_OK, &var);
 }
 
+CU_Test(idl_expression, const_char)
+{
+  idl_retcode_t ret;
+  idl_tree_t *tree = NULL;
+  idl_const_t *c;
+  idl_constval_t *v;
+
+  const char idl[] = "const char c = 'f';";
+
+  ret = idl_parse_string(idl, 0u, &tree);
+  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  CU_ASSERT_PTR_NOT_NULL_FATAL(tree);
+  c = (idl_const_t *)tree->root;
+  CU_ASSERT_FATAL(idl_is_const(c));
+  v = (idl_constval_t *)c->const_expr;
+  CU_ASSERT_FATAL(idl_is_masked(v, IDL_CONST|IDL_CHAR));
+  CU_ASSERT_EQUAL(v->value.chr, 'f');
+  idl_delete_tree(tree);
+}
+
 CU_Test(idl_expression, const_string)
 {
   idl_retcode_t ret;
