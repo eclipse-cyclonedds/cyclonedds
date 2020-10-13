@@ -480,7 +480,6 @@ literal:
       }
   | IDL_TOKEN_CHAR_LITERAL
       { TRY(idl_create_literal(proc, &$$, &@1, IDL_CHAR));
-        fprintf(stderr, "char literal: '%c'\n", $1);
         $$->value.chr = $1;
       }
   | boolean_literal

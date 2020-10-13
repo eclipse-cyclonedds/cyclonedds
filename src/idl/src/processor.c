@@ -266,7 +266,6 @@ idl_parse(idl_processor_t *proc, idl_node_t **nodeptr)
         proc->state = IDL_SCAN;
         break;
       case IDL_TOKEN_IDENTIFIER:
-      case IDL_TOKEN_CHAR_LITERAL:
       case IDL_TOKEN_STRING_LITERAL:
       case IDL_TOKEN_PP_NUMBER:
       case IDL_TOKEN_COMMENT:
