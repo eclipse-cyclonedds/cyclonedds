@@ -348,7 +348,8 @@ idl_create_const(
   static const idl_mask_t mask = IDL_DECL|IDL_CONST;
 
   assert(idl_is_masked(type_spec, IDL_BASE_TYPE) ||
-         idl_is_masked(type_spec, IDL_ENUM));
+         idl_is_masked(type_spec, IDL_ENUM) ||
+         idl_is_masked(type_spec, IDL_STRING));
 
   ret = idl_create_node(proc, &node, size, mask, location, &delete_const);
   if (ret != IDL_RETCODE_OK)

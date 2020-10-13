@@ -709,8 +709,8 @@ idl_evaluate(
   idl_retcode_t ret;
   idl_constval_t *constval;
 
-  assert(type & (IDL_BASE_TYPE|IDL_ENUMERATOR));
-  type &= (IDL_ENUMERATOR|IDL_BASE_TYPE | (IDL_BASE_TYPE - 1));
+  assert(type & (IDL_BASE_TYPE|IDL_ENUMERATOR|IDL_STRING));
+  type &= (IDL_STRING|IDL_ENUMERATOR|IDL_BASE_TYPE | (IDL_BASE_TYPE - 1));
 
   /* enumerators are referenced */
   if (type == IDL_ENUMERATOR) {
@@ -749,7 +749,15 @@ idl_evaluate(
         "Cannot evaluate '%s' as boolean expression", "<foobar>");
       goto err_eval;
     }
-    constval->value.bln = ((idl_literal_t *) expr)->value.bln;
+    constval->value.bln = ((idl_literal_t *)expr)->value.bln;
+  } else if (type == IDL_STRING) {
+    if (expr->mask != (IDL_STRING_LITERAL|IDL_EXPR)) {
+      idl_error(proc, idl_location(expr),
+        "Cannot evaluate '%s' as string expression", "<foobar>");
+      goto err_eval;
+    }
+    constval->value.str = ((idl_literal_t *)expr)->value.str;
+    ((idl_literal_t *)expr)->value.str = NULL;
   } else {
     assert(0);
   }
