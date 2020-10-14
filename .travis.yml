@@ -95,6 +95,24 @@ ubuntu1804_gcc10: &ubuntu1804_gcc10
   install:
     - pip install conan --upgrade --user
 
+ubuntu1804_shm_gcc10: &ubuntu1804_shm_gcc10
+  os: linux
+  dist: bionic
+  compiler: gcc
+  addons:
+    apt:
+      update: true
+      sources:
+        - sourceline: 'ppa:ubuntu-toolchain-r/test'
+      packages: [ gcc-10 g++-10 libacl1-dev libncurses5-dev pkg-config ]
+  before_install:
+    - eval "export CC=gcc-10 CXX=g++-10"
+    - eval "export COV_COMPTYPE=gcc COV_PLATFORM=linux64"
+    - eval "export BUILD_TOOL_OPTIONS='-j 4'"
+    - eval "export GENERATOR='Unix Makefiles'"
+  install:
+    - pip install conan --upgrade --user
+
 ubuntu1804_clang10: &ubuntu1804_clang10
   os: linux
   dist: bionic
@@ -195,6 +213,8 @@ jobs:
       env: [ ARCH=x86_64, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, SHM=NO ]
     - <<: *ubuntu1804_gcc10
       env: [ ARCH=x86_64, BUILD_TYPE=Debug, SSL=NO, SECURITY=YES, LIFESPAN=NO, DEADLINE=NO, SHM=NO ]
+    - <<: *ubuntu1804_shm_gcc10
+      env: [ ARCH=x86_64, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, SHM=YES ]
     - <<: *ubuntu1804_clang10
       env: [ ARCH=x86_64, SANITIZER=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, SHM=NO ]
     - <<: *ubuntu1804_clang10
@@ -235,6 +255,22 @@ before_script:
 #     code has been vetted, the test has been run a great many times (with the odd
 #     failure), and so we now simply skip the test to avoid the spurious failures.
 script:
+  - if [ "${SHM}" = "YES" ]; then
+      mkdir dependencies ;
+      cd dependencies ;
+      git clone https://github.com/Adlink-ROS/iceoryx.git -b used_by_cyclone ;
+      git clone https://github.com/Adlink-ROS/iceoryx_clib.git ;
+      cd iceoryx ;
+      cmake -Bbuild -Hiceoryx_meta -DTOML_CONFIG=ON -DCMAKE_INSTALL_PREFIX=$(pwd)/install ;
+      cmake --build build ;
+      cmake --build build --target install ;
+      cd ../iceoryx_clib ;
+      cmake -Bbuild -H. -DCMAKE_PREFIX_PATH=$(pwd)/../iceoryx/install -DCMAKE_INSTALL_PREFIX=$(pwd)/install ;
+      cmake --build build ;
+      cmake --build build --target install ;
+      cd ../.. ;
+      export CMAKE_PREFIX_PATH=$(pwd)/dependencies/iceoryx_clib/install ;
+    fi
   - INSTALLPREFIX="$(pwd)/install"
   - mkdir build
   - cd build
@@ -263,7 +299,7 @@ script:
       CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
     fi
   - |
-    if [ "${SSL}" = "YES" ] && [ "${SECURITY}" = "YES" ]; then
+    if [ "${SSL}" = "YES" ] && [ "${SECURITY}" = "YES" && [ "${SHM}" = "YES" ] ]; then
       diff --strip-trailing-cr ../etc/cyclonedds.rnc docs/cyclonedds.rnc && \
       diff --strip-trailing-cr ../etc/cyclonedds.xsd docs/cyclonedds.xsd && \
       diff --strip-trailing-cr ../docs/manual/options.md docs/manual/options.md
