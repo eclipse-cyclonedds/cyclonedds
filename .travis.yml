@@ -269,7 +269,8 @@ script:
       cmake --build build ;
       cmake --build build --target install ;
       cd ../.. ;
-      export CMAKE_PREFIX_PATH=$(pwd)/dependencies/iceoryx_clib/install ;
+      ICEORYX_PATH=$(pwd)/dependencies/iceoryx_clib/install ;
+      export CMAKE_PREFIX_PATH=${ICEORYX_PATH} ;
     fi
   - INSTALLPREFIX="$(pwd)/install"
   - mkdir build
@@ -307,6 +308,9 @@ script:
   - cd ..
   - mkdir helloworld_build
   - cd helloworld_build
+  - if [ "${SHM}" = "YES" ]; then
+      export LD_LIBRARY_PATH=${ICEORYX_PATH}/lib ;
+    fi
   - cmake -DCMAKE_PREFIX_PATH=${INSTALLPREFIX}
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
           ${CMAKE_C_FLAGS}
