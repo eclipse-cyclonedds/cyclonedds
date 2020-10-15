@@ -981,12 +981,13 @@ static void *push(void *list, void *node)
     return node;
   }
 
-  for (last = list; last->next; last = last->next) {
-    if (last == node) {
-      assert(idl_is_masked(node, IDL_MODULE));
-      return list;
-    }
+  for (last = list; last != node && last->next; last = last->next) ;
+
+  if (last == node) {
+    assert(idl_is_masked(node, IDL_MODULE));
+    return list;
   }
+
   last->next = node;
   ((idl_node_t *)node)->previous = last;
   return list;
