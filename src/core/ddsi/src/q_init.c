@@ -1125,7 +1125,7 @@ int rtps_init (struct ddsi_domaingv *gv)
     unsigned char mac_addr[6];
     uint32_t pid = (uint32_t) ddsrt_getpid ();
 
-    ice_clib_setDebugLevel (gv->config.shm_log_lvl);
+    ice_clib_setDebugLevel ((enum DebugLevel) gv->config.shm_log_lvl);
     // SHM_TODO: Now we use pid_time, but maybe we can just use pid.
     ddsrt_asprintf (&sptr, "/%d_%ld", pid, gv->tstart.v);
     GVLOG (DDS_LC_SHM, "Current process name for iceoryx is %s\n", sptr);
