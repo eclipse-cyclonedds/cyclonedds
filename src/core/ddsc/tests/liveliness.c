@@ -67,10 +67,6 @@ static void liveliness_init(void)
 
 static void liveliness_fini(void)
 {
-  dds_delete(g_sub_subscriber);
-  dds_delete(g_pub_publisher);
-  dds_delete(g_sub_participant);
-  dds_delete(g_pub_participant);
   dds_delete(g_sub_domain);
   dds_delete(g_pub_domain);
 }
@@ -208,9 +204,9 @@ static void test_pmd_count(dds_liveliness_kind_t kind, uint32_t ldur, double mul
   /* End-start should be mult - 1 under ideal circumstances, but consider the test successful
 	   when at least 50% of the expected PMD's was sent. This checks that the frequency for sending
 	   PMDs was increased when the writer was added. */
-  CU_ASSERT_FATAL(end_seqno - start_seqno >= (kind == DDS_LIVELINESS_AUTOMATIC ? (50 * (mult - 1)) / 100 : 0))
+  CU_ASSERT_FATAL((double) (end_seqno - start_seqno) >= (kind == DDS_LIVELINESS_AUTOMATIC ? (50 * (mult - 1)) / 100 : 0))
   if (kind != DDS_LIVELINESS_AUTOMATIC)
-    CU_ASSERT_FATAL(get_pmd_seqno(g_pub_participant) - start_seqno < mult)
+    CU_ASSERT_FATAL((double) (get_pmd_seqno(g_pub_participant) - start_seqno) < mult)
 
   /* cleanup */
   if (remote_reader)
@@ -233,7 +229,7 @@ CU_Theory((dds_liveliness_kind_t kind, uint32_t ldur, double mult), ddsc_livelin
  */
 CU_TheoryDataPoints(ddsc_liveliness, expire_liveliness_kinds) = {
     CU_DataPoints(uint32_t, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200), /* lease duration for initial test run (increased for each retry when test fails) */
-    CU_DataPoints(double,   0.3, 0.3, 0.3, 0.3, 0.3, 0.3,   2,   2,   2,   2,   2,   2,   2,   2,   2), /* delay (n times lease duration) */
+    CU_DataPoints(double,   0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1), /* delay (n times lease duration) */
     CU_DataPoints(uint32_t,   1,   0,   2,   0,   1,   0,   0,   1,   1,   2,   0,   5,   0,  15,  15), /* number of writers with automatic liveliness */
     CU_DataPoints(uint32_t,   1,   1,   2,   2,   0,   0,   0,   1,   0,   2,   2,   5,  10,   0,  15), /* number of writers with manual-by-participant liveliness */
     CU_DataPoints(uint32_t,   1,   1,   2,   2,   1,   1,   1,   1,   0,   1,   1,   2,   5,   0,  10), /* number of writers with manual-by-topic liveliness */
@@ -257,7 +253,7 @@ static void test_expire_liveliness_kinds(uint32_t ldur, double mult, uint32_t wr
   do
   {
     tstart = dds_time();
-    printf("%d.%06d running test: lease duration %d, delay %f, auto/man-by-part/man-by-topic %u/%u/%u\n, %s reader",
+    printf("%d.%06d running test: lease duration %d, delay %f, auto/man-by-part/man-by-topic %u/%u/%u\n, %s reader\n",
            (int32_t)(tstart / DDS_NSECS_IN_SEC), (int32_t)(tstart % DDS_NSECS_IN_SEC) / 1000,
            ldur, mult, wr_cnt_auto, wr_cnt_man_pp, wr_cnt_man_tp, remote_reader ? "remote" : "local");
 
@@ -299,7 +295,7 @@ static void test_expire_liveliness_kinds(uint32_t ldur, double mult, uint32_t wr
     dds_delete_qos(wqos_man_tp);
 
     t = dds_time();
-    if (t - tstart > DDS_MSECS(0.5 * ldur))
+    if (t - tstart > DDS_MSECS(ldur) / 2)
     {
       ldur *= 10 / (run + 1);
       printf("%d.%06d failed to create writers in time\n",
@@ -326,18 +322,19 @@ static void test_expire_liveliness_kinds(uint32_t ldur, double mult, uint32_t wr
              (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000, stopped);
 
       size_t exp_stopped = mult < 1 ? 0 : (wr_cnt_man_pp + wr_cnt_man_tp);
-      if (stopped != exp_stopped)
-      {
-        ldur *= 10 / (run + 1);
-        printf("%d.%06d incorrect number of stopped writers\n",
-               (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000);
-      }
+      size_t exp_alive = mult < 1 ? wr_cnt : wr_cnt_auto;
+      CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status(reader, &lstatus), DDS_RETCODE_OK);
+      printf("%d.%06d writers alive: %u (exp: %u) not-alive: %u (exp %u)\n",
+             (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000,
+             lstatus.alive_count, (unsigned) exp_alive,
+             lstatus.not_alive_count, (unsigned) exp_stopped);
+      if (stopped == exp_stopped && lstatus.alive_count == exp_alive)
+        test_finished = true;
       else
       {
-        /* check alive count */
-        CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status(reader, &lstatus), DDS_RETCODE_OK);
-        CU_ASSERT_EQUAL(lstatus.alive_count, mult < 1 ? wr_cnt : wr_cnt_auto);
-        test_finished = true;
+        ldur *= 10 / (run + 1);
+        printf("%d.%06d incorrect number of stopped/alive writers\n",
+               (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000);
       }
     }
 
@@ -783,7 +780,7 @@ static void test_assert_liveliness(uint32_t wr_cnt_auto, uint32_t wr_cnt_man_pp,
     for (size_t n = 0; n < wr_cnt_man_tp; n++)
       add_and_check_writer(DDS_LIVELINESS_MANUAL_BY_TOPIC, DDS_MSECS(ldur), &writers[wr_cnt++], pub_topic, reader, remote_reader);
     t = dds_time();
-    if (t - tstart > DDS_MSECS(0.5 * ldur))
+    if (t - tstart > DDS_MSECS(ldur) / 2)
     {
       ldur *= 10 / (run + 1);
       printf("%d.%06d failed to create writers with non-automatic liveliness kind in time\n",
@@ -977,31 +974,17 @@ static unsigned get_and_check_status (dds_entity_t reader, dds_entity_t writer_a
   return result;
 }
 
-static void lease_duration_zero_or_one_impl (dds_duration_t sleep, dds_liveliness_kind_t lkind, dds_duration_t ldur, bool remote_reader)
+static void setup_reader_zero_or_one (dds_entity_t *reader, dds_entity_t *writer_active, dds_entity_t *waitset, dds_liveliness_kind_t lkind, dds_duration_t ldur, bool remote_reader, struct liveliness_changed_state *listener_state)
 {
-  const uint32_t nsamples = (sleep <= DDS_MSECS(10)) ? 50 : 5;
   dds_entity_t pub_topic;
   dds_entity_t sub_topic = 0;
-  dds_entity_t reader;
-  dds_entity_t writer_active; /* writing */
   dds_entity_t writer_inactive; /* not writing, liveliness should still toggle */
-  dds_entity_t waitset;
-  dds_listener_t *listener;
   dds_qos_t *qos;
   dds_return_t rc;
-  struct dds_liveliness_changed_status lstatus;
   char name[100];
-  Space_Type1 sample = {1, 0, 0};
-  struct liveliness_changed_state listener_state = {
-    .weirdness = false,
-    .w0_handle = 0,
-    .w0_alive = 0,
-    .w0_not_alive = 0,
-  };
-  ddsrt_mutex_init (&listener_state.lock);
 
-  waitset = dds_create_waitset(DDS_CYCLONEDDS_HANDLE);
-  CU_ASSERT_FATAL(waitset > 0);
+  *waitset = dds_create_waitset(DDS_CYCLONEDDS_HANDLE);
+  CU_ASSERT_FATAL(*waitset > 0);
 
   qos = dds_create_qos();
   CU_ASSERT_FATAL(qos != NULL);
@@ -1019,22 +1002,22 @@ static void lease_duration_zero_or_one_impl (dds_duration_t sleep, dds_livelines
 
   /* reader liveliness is always automatic/infinity */
   dds_qset_liveliness(qos, DDS_LIVELINESS_AUTOMATIC, DDS_INFINITY);
-  reader = dds_create_reader(remote_reader ? g_sub_participant : g_pub_participant, remote_reader ? sub_topic : pub_topic, qos, NULL);
-  CU_ASSERT_FATAL(reader > 0);
-  rc = dds_set_status_mask(reader, DDS_LIVELINESS_CHANGED_STATUS | DDS_SUBSCRIPTION_MATCHED_STATUS | DDS_DATA_AVAILABLE_STATUS);
+  *reader = dds_create_reader(remote_reader ? g_sub_participant : g_pub_participant, remote_reader ? sub_topic : pub_topic, qos, NULL);
+  CU_ASSERT_FATAL(*reader > 0);
+  rc = dds_set_status_mask(*reader, DDS_LIVELINESS_CHANGED_STATUS | DDS_SUBSCRIPTION_MATCHED_STATUS | DDS_DATA_AVAILABLE_STATUS);
   CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
-  rc = dds_waitset_attach(waitset, reader, reader);
+  rc = dds_waitset_attach(*waitset, *reader, *reader);
   CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
 
   /* writer liveliness varies */
   dds_qset_liveliness(qos, lkind, ldur);
-  writer_active = dds_create_writer(g_pub_participant, pub_topic, qos, NULL);
-  CU_ASSERT_FATAL(writer_active > 0);
+  *writer_active = dds_create_writer(g_pub_participant, pub_topic, qos, NULL);
+  CU_ASSERT_FATAL(*writer_active > 0);
   writer_inactive = dds_create_writer(g_pub_participant, pub_topic, qos, NULL);
   CU_ASSERT_FATAL(writer_inactive > 0);
-  rc = dds_set_status_mask(writer_active, DDS_PUBLICATION_MATCHED_STATUS);
+  rc = dds_set_status_mask(*writer_active, DDS_PUBLICATION_MATCHED_STATUS);
   CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
-  rc = dds_waitset_attach(waitset, writer_active, writer_active);
+  rc = dds_waitset_attach(*waitset, *writer_active, *writer_active);
   CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
 
   dds_delete_qos(qos);
@@ -1045,32 +1028,80 @@ static void lease_duration_zero_or_one_impl (dds_duration_t sleep, dds_livelines
   bool initial_sample_written = false, initial_sample_received = false;
   do
   {
-    status = get_and_check_status (reader, writer_active);
+    status = get_and_check_status (*reader, *writer_active);
     if (status & STATUS_DATA)
       initial_sample_received = true;
     if (status & STATUS_SYNCED && !initial_sample_written)
     {
-      rc = dds_write(writer_active, &sample);
+      Space_Type1 sample = {1, 0, 0};
+      rc = dds_write(*writer_active, &sample);
       CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
       initial_sample_written = true;
     }
     if (status & STATUS_SYNCED && initial_sample_received)
       break;
 
-    rc = dds_waitset_wait(waitset, NULL, 0, DDS_SECS(5));
+    rc = dds_waitset_wait(*waitset, NULL, 0, DDS_SECS(5));
     if (rc < 1)
     {
-      get_and_check_status (reader, writer_active);
+      get_and_check_status (*reader, *writer_active);
       CU_ASSERT_FATAL(rc >= 1);
     }
   } while (1);
 
   /* switch to using a listener: those allow us to observe all events */
-  listener = dds_create_listener (&listener_state);
+  dds_listener_t *listener;
+  listener = dds_create_listener (listener_state);
   dds_lset_liveliness_changed(listener, liveliness_changed_listener);
-  rc = dds_set_listener (reader, listener);
+  rc = dds_set_listener (*reader, listener);
   CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
   dds_delete_listener (listener);
+}
+
+static void wait_for_notalive (dds_entity_t reader, struct liveliness_changed_state *listener_state)
+{
+  struct dds_liveliness_changed_status lstatus;
+  int retries = 100;
+  dds_return_t rc;
+  rc = dds_get_liveliness_changed_status(reader, &lstatus);
+  CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
+  printf("early liveliness changed status: alive %"PRId32" not-alive %"PRId32"\n", lstatus.alive_count, lstatus.not_alive_count);
+
+  ddsrt_mutex_lock (&listener_state->lock);
+  printf("early w0 %"PRIx64" alive %"PRId32" not-alive %"PRId32"\n", listener_state->w0_handle, listener_state->w0_alive, listener_state->w0_not_alive);
+  CU_ASSERT_FATAL(!listener_state->weirdness);
+  CU_ASSERT_FATAL(listener_state->w0_handle != 0);
+  while (listener_state->w0_not_alive < listener_state->w0_alive && retries-- > 0)
+  {
+    ddsrt_mutex_unlock(&listener_state->lock);
+    dds_sleepfor(DDS_MSECS(10));
+    rc = dds_get_liveliness_changed_status(reader, &lstatus);
+    CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
+    ddsrt_mutex_lock(&listener_state->lock);
+  }
+
+  printf("late liveliness changed status: alive %"PRId32" not-alive %"PRId32"\n", lstatus.alive_count, lstatus.not_alive_count);
+  printf("final w0 %"PRIx64" alive %"PRId32" not-alive %"PRId32"\n", listener_state->w0_handle, listener_state->w0_alive, listener_state->w0_not_alive);
+  CU_ASSERT_FATAL(listener_state->w0_alive == listener_state->w0_not_alive);
+  ddsrt_mutex_unlock(&listener_state->lock);
+}
+
+static void lease_duration_zero_or_one_impl (dds_duration_t sleep, dds_liveliness_kind_t lkind, dds_duration_t ldur, bool remote_reader)
+{
+  const uint32_t nsamples = (sleep <= DDS_MSECS(10)) ? 50 : 5;
+  dds_entity_t reader;
+  dds_entity_t writer_active;
+  dds_entity_t waitset;
+  dds_return_t rc;
+  Space_Type1 sample = {1, 0, 0};
+  struct liveliness_changed_state listener_state = {
+    .weirdness = false,
+    .w0_handle = 0,
+    .w0_alive = 0,
+    .w0_not_alive = 0,
+  };
+  ddsrt_mutex_init (&listener_state.lock);
+  setup_reader_zero_or_one (&reader, &writer_active, &waitset, lkind, ldur, remote_reader, &listener_state);
 
   /* write as fast as possible - we don't expect this to cause the writers
      to gain and lose liveliness once for each sample, but it should have
@@ -1101,28 +1132,9 @@ static void lease_duration_zero_or_one_impl (dds_duration_t sleep, dds_livelines
   CU_ASSERT_FATAL(cnt == nsamples + 1);
 
   /* transition to not alive is not necessarily immediate */
+  wait_for_notalive (reader, &listener_state);
+
   {
-    int retries = 100;
-    rc = dds_get_liveliness_changed_status(reader, &lstatus);
-    CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
-    printf("early liveliness changed status: alive %"PRId32" not-alive %"PRId32"\n", lstatus.alive_count, lstatus.not_alive_count);
-
-    ddsrt_mutex_lock (&listener_state.lock);
-    printf("early w0 %"PRIx64" alive %"PRId32" not-alive %"PRId32"\n", listener_state.w0_handle, listener_state.w0_alive, listener_state.w0_not_alive);
-    CU_ASSERT_FATAL(!listener_state.weirdness);
-    CU_ASSERT_FATAL(listener_state.w0_handle != 0);
-    while (listener_state.w0_not_alive < listener_state.w0_alive && retries-- > 0)
-    {
-      ddsrt_mutex_unlock(&listener_state.lock);
-      dds_sleepfor(DDS_MSECS(10));
-      rc = dds_get_liveliness_changed_status(reader, &lstatus);
-      CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
-      ddsrt_mutex_lock(&listener_state.lock);
-    }
-
-    printf("late liveliness changed status: alive %"PRId32" not-alive %"PRId32"\n", lstatus.alive_count, lstatus.not_alive_count);
-    printf("final w0 %"PRIx64" alive %"PRId32" not-alive %"PRId32"\n", listener_state.w0_handle, listener_state.w0_alive, listener_state.w0_not_alive);
-    CU_ASSERT_FATAL(listener_state.w0_alive == listener_state.w0_not_alive);
     uint32_t exp_alive;
     if (sleep == 0)
       exp_alive = 1; /* if not sleeping, it's ok if the transition happens only once */
@@ -1130,28 +1142,15 @@ static void lease_duration_zero_or_one_impl (dds_duration_t sleep, dds_livelines
       exp_alive = nsamples / 3; /* if sleeping briefly, expect the a good number of writes to toggle liveliness */
     else
       exp_alive = nsamples - nsamples / 5; /* if sleeping, expect the vast majority (80%) of the writes to toggle liveliness */
+    ddsrt_mutex_lock(&listener_state.lock);
     printf("check w0_alive %d >= %d\n", listener_state.w0_alive, exp_alive);
     CU_ASSERT_FATAL(listener_state.w0_alive >= exp_alive);
     ddsrt_mutex_unlock(&listener_state.lock);
   }
 
-  /* cleanup */
   rc = dds_delete(waitset);
   CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
-  rc = dds_delete(reader);
-  CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
-  rc = dds_delete(writer_active);
-  CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
-  rc = dds_delete(writer_inactive);
-  CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
-  if (remote_reader)
-  {
-    rc = dds_delete(sub_topic);
-    CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
-  }
-  rc = dds_delete(pub_topic);
-  CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
-
+  dds_set_listener (reader, NULL); // listener must not be invoked anymore
   ddsrt_mutex_destroy(&listener_state.lock);
 }
 
@@ -1180,4 +1179,81 @@ CU_Test(ddsc_liveliness, lease_duration_zero_or_one, .init = liveliness_init, .f
       }
     }
   }
+}
+
+struct getstatus_thread_arg {
+  dds_entity_t rd;
+  ddsrt_atomic_uint32_t stop;
+};
+
+static uint32_t getstatus_thread (void *varg)
+{
+  struct getstatus_thread_arg *arg = varg;
+  while (!ddsrt_atomic_ld32 (&arg->stop))
+  {
+    dds_liveliness_changed_status_t s;
+    dds_return_t rc;
+    rc = dds_get_liveliness_changed_status (arg->rd, &s);
+    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    /* change counts must be 0 because the listener gets invoked all the time */
+    if (s.alive_count_change != 0 || s.not_alive_count_change != 0)
+    {
+      ddsrt_atomic_st32 (&arg->stop, 1);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+CU_Test(ddsc_liveliness, listener_vs_getstatus, .init = liveliness_init, .fini = liveliness_fini, .timeout = 30)
+{
+  dds_entity_t reader;
+  dds_entity_t writer_active;
+  dds_entity_t waitset;
+  dds_return_t rc;
+  Space_Type1 sample = {1, 0, 0};
+  struct liveliness_changed_state listener_state = {
+    .weirdness = false,
+    .w0_handle = 0,
+    .w0_alive = 0,
+    .w0_not_alive = 0,
+  };
+  ddsrt_mutex_init (&listener_state.lock);
+  setup_reader_zero_or_one (&reader, &writer_active, &waitset, DDS_LIVELINESS_MANUAL_BY_TOPIC, 1, false, &listener_state);
+
+  /* start a thread that continually calls dds_get_liveliness_changed_status: that resets
+     the change counters, but that activity should not be visible in the listener argument */
+  ddsrt_thread_t tid;
+  ddsrt_threadattr_t tattr;
+  ddsrt_threadattr_init(&tattr);
+  struct getstatus_thread_arg targ = { .rd = reader, .stop = DDSRT_ATOMIC_UINT32_INIT (0) };
+  rc = ddsrt_thread_create(&tid, "getstatus", &tattr, getstatus_thread, &targ);
+  CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
+
+  /* write as fast as possible - we don't expect this to cause the writers
+     to gain and lose liveliness once for each sample, but it should have
+     become alive at least once and fall back to not alive afterward */
+  dds_time_t tnow = dds_time ();
+  const dds_time_t tend = tnow + DDS_SECS(3);
+  while (tnow < tend && !ddsrt_atomic_ld32 (&targ.stop))
+  {
+    rc = dds_write(writer_active, &sample);
+    CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
+    tnow = dds_time ();
+  }
+
+  ddsrt_atomic_st32 (&targ.stop, 1);
+  uint32_t get_status_ok;
+  rc = ddsrt_thread_join (tid, &get_status_ok);
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  CU_ASSERT_FATAL (get_status_ok != 0);
+
+  /* transition to not alive is not necessarily immediate */
+  wait_for_notalive (reader, &listener_state);
+
+  rc = dds_delete(waitset);
+  CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
+
+  dds_set_listener (reader, NULL); // listener must not be invoked anymore
+  ddsrt_mutex_destroy(&listener_state.lock);
 }

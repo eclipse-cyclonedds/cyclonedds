@@ -1,0 +1,219 @@
+MIME-Version: 1.0
+Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----3EE420429594FF1492D49B1EEBFBAF0E"
+
+This is an S/MIME signed message
+
+------3EE420429594FF1492D49B1EEBFBAF0E
+Content-Type: text/plain
+
+<?xml version="1.0" encoding="utf-8"?>
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://www.omg.org/spec/DDS-SECURITY/20170901/omg_shared_ca_permissions.xsd">
+    <permissions>
+        <grant name="OpenSplicePermissions">
+            <subject_name>CN=CHAM500 cert,O=Internet Widgits Pty Ltd,ST=Some-State,C=NL</subject_name>
+            <validity>
+                <!-- Format is CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm] in GMT -->
+                <not_before>2015-09-15T01:00:00</not_before>
+                <not_after>2115-09-15T01:00:00</not_after>
+            </validity>
+            <allow_rule>
+                <domains>
+                    <id_range>
+                        <min>0</min>
+                        <max>230</max>
+                    </id_range>
+                </domains>
+                <ufo>
+                    <topics>
+                        <topic>K*</topic>
+                        <topic>*OldMessage</topic>
+                        <topic>OldMessanger</topic>
+                        <topic>NewMessage</topic>
+                    </topics>
+		    <partitions>
+			<partition>Apart</partition>
+			<partition>Bpa?t*</partition>
+		    </partitions>
+                </ufo>
+                <subscribe>
+                    <topics>
+                        <topic>K*</topic>
+                        <topic>*OldMessage</topic>
+                        <topic>OldMessanger</topic>
+                        <topic>NewMessage</topic>
+                    </topics>
+		    <partitions>
+			<partition>Apart</partition>
+			<partition>Bpa?t*</partition>
+		    </partitions>
+                </subscribe>
+            </allow_rule>
+            <deny_rule>
+                <domains>
+                    <id_range>
+                        <min>0</min>
+                        <max>230</max>
+                    </id_range>
+                </domains>
+                <publish>
+                    <topics>
+                        <topic>P*</topic>
+                        <topic>*WrongMessage</topic>
+                        <topic>FakeMessanger</topic>
+                        <topic>ChangedMessage</topic>
+                    </topics>
+		    <partitions>
+			<partition>Apart</partition>
+			<partition>Bpa?t*</partition>
+		    </partitions>
+                </publish>
+                <subscribe>
+                    <topics>
+                        <topic>P*</topic>
+                        <topic>*WrongMessage</topic>
+                        <topic>FakeMessanger</topic>
+                        <topic>ChangedMessage</topic>
+                    </topics>
+		    <partitions>
+			<partition>Apart</partition>
+			<partition>Bpa?t*</partition>
+		    </partitions>
+                </subscribe>
+            </deny_rule>
+
+            <default>DENY</default>
+        </grant>
+        <grant name="SpareNodeOpenSplicePermissions">
+            <subject_name>CN=CHAM500 cert,O=Internet Widgits Pty Ltd,ST=Some-State,C=NL</subject_name>
+            <validity>
+                <!-- Format is CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm] in GMT -->
+                <not_before>2015-09-15T01:00:00</not_before>
+                <not_after>2115-09-15T01:00:00</not_after>
+            </validity>
+            <allow_rule>
+                <domains>
+                <!-- All domains -->
+                 <id>20</id>
+                 <id>30</id>
+                 <id_range>
+                     <min>0</min>
+                     <max>23</max>
+                 </id_range>
+                 <id_range>
+                     <min>100</min>
+                     <max>120</max>
+                 </id_range>
+                 <id>200</id>
+               </domains>
+                <publish>
+                    <topics>
+                        <topic>K*</topic>
+                        <topic>*OldMessage</topic>
+                        <topic>OldMessanger</topic>
+                        <topic>NewMessage</topic>
+                    </topics>
+		    <partitions>
+			<partition>Apart</partition>
+			<partition>Bpa?t*</partition>
+		    </partitions>
+                </publish>
+                <subscribe>
+                    <topics>
+                        <topic>K*</topic>
+                        <topic>*OldMessage</topic>
+                        <topic>OldMessanger</topic>
+                        <topic>NewMessage</topic>
+                    </topics>
+		    <partitions>
+			<partition>Apart</partition>
+			<partition>Bpa?t*</partition>
+		    </partitions>
+                </subscribe>
+            </allow_rule>
+            <deny_rule>
+                <domains>
+                 <id_range>
+                     <min>0</min>
+                     <max>23</max>
+                 </id_range>
+                 <id_range>
+                     <min>100</min>
+                     <max>120</max>
+                 </id_range>
+                 <id>200</id>
+                </domains>
+                <publish>
+                    <topics>
+                        <topic>P*</topic>
+                        <topic>*WrongMessage</topic>
+                        <topic>FakeMessanger</topic>
+                        <topic>ChangedMessage</topic>
+                    </topics>
+		    <partitions>
+			<partition>Apart</partition>
+			<partition>Bpa?t*</partition>
+		    </partitions>
+                </publish>
+                <subscribe>
+                    <topics>
+                        <topic>P*</topic>
+                        <topic>*WrongMessage</topic>
+                        <topic>FakeMessanger</topic>
+                        <topic>ChangedMessage</topic>
+                    </topics>
+		    <partitions>
+			<partition>Apart</partition>
+			<partition>Bpa?t*</partition>
+		    </partitions>
+                </subscribe>
+            </deny_rule>
+
+            <default>DENY</default>
+        </grant>
+    </permissions>
+</dds>
+
+------3EE420429594FF1492D49B1EEBFBAF0E
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="smime.p7s"
+
+MIIGXgYJKoZIhvcNAQcCoIIGTzCCBksCAQExDzANBglghkgBZQMEAgEFADALBgkq
+hkiG9w0BBwGgggORMIIDjTCCAnWgAwIBAgIJANsr3sm0NrypMA0GCSqGSIb3DQEB
+CwUAMFwxCzAJBgNVBAYTAk5MMRMwEQYDVQQIDApTb21lLVN0YXRlMR8wHQYDVQQK
+DBZBRExJTksgVGVjaG5vbG9jeSBJbmMuMRcwFQYDVQQDDA5hZGxpbmt0ZWNoLmNv
+bTAgFw0xODA3MzAxMjQ1NTVaGA8yMTE4MDcwNjEyNDU1NVowXDELMAkGA1UEBhMC
+TkwxEzARBgNVBAgMClNvbWUtU3RhdGUxHzAdBgNVBAoMFkFETElOSyBUZWNobm9s
+b2N5IEluYy4xFzAVBgNVBAMMDmFkbGlua3RlY2guY29tMIIBIjANBgkqhkiG9w0B
+AQEFAAOCAQ8AMIIBCgKCAQEAu7jfnJ0wYVuXgG+PgNawdN38+dRpa8jceqi+blID
+ehV6XCxrnGXusTCDuFmo7HMOBVMVNDXlcBWgoGd+u5EultnOEiIeGTgtHc1O6V9w
+icp3BGSpZZax/TcONjMVORaqHCADbQ2J8wsz1FHxuKDwX6BJElYOlK77lb/x3yLs
+DFFC+a0qn2RFh37rcWBRAHy8VEASXKZElT9ZmfKd+KUq34KojhNJ4DepKStTq074
+BRDXVivx+wVD951LFNPiQXq+mgHcLj1k37KlZflTFhdP5oEMtATNsXNJPHlEymiy
+SogRWAmKhysLQudukHfNKN+r0FEQMk/hzpYcFeZSOvbfNQIDAQABo1AwTjAdBgNV
+HQ4EFgQURWMbWvBKZwJvRV1/tyc1R82k0+gwHwYDVR0jBBgwFoAURWMbWvBKZwJv
+RV1/tyc1R82k0+gwDAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAkPF+
+ysVtvHnk2hpu9yNDLCJ96ZzIoKOyY7uRj4ovzlAHFdpNOJQdcJihTmN8i7Trht9X
+Vh0rGoR/6nHzo3TIeiogRC80RlDtuA3PF2dDQBMVDStlZMTZPb693hfjdAjhyyw9
+yghhKHHqNDvSsAL0KfBqjG4yGfGpJylYXIT5fWuKlo/ln/yyPa5s54T5XDo+CMbt
+lLX3QnwVOmaRyzylPiTcPCDIkdLBdXmlfyJcmW6fWa6kPx+35MOxPsXZbujCo+42
++OyLqcH1rKT6XhcshjXBEf+kdgUfSClrM1pNRWsw2ChIYim0F+nry5JFy0Y+8Hbb
+6SDB340BFmtgDHbFHTGCApEwggKNAgEBMGkwXDELMAkGA1UEBhMCTkwxEzARBgNV
+BAgMClNvbWUtU3RhdGUxHzAdBgNVBAoMFkFETElOSyBUZWNobm9sb2N5IEluYy4x
+FzAVBgNVBAMMDmFkbGlua3RlY2guY29tAgkA2yveybQ2vKkwDQYJYIZIAWUDBAIB
+BQCggfowGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcN
+MTkwMzI5MTMwODAzWjAvBgkqhkiG9w0BCQQxIgQgk4Y6Rw4+DVfETNs8Ddv6rnhK
+w7EwwZ9nE7SiujxSsDEwgY4GCSqGSIb3DQEJDzGBgDB+MAsGCWCGSAFlAwQBKjAI
+BgYqhQMCAgkwCAYGKoUDAgIVMAsGCWCGSAFlAwQBFjALBglghkgBZQMEAQIwCgYI
+KoZIhvcNAwcwDgYIKoZIhvcNAwICAgCAMA0GCCqGSIb3DQMCAgFAMAcGBSsOAwIH
+MA0GCCqGSIb3DQMCAgEoMA0GCSqGSIb3DQEBAQUABIIBAGkiiP+V49XZIwqbpqwN
+RHv0tn06/BAuRGNybse1GkVzlNmuwbGObUUpKtKh4VxN8XuTfH5uuLEqftN2LvGG
+zEiyosHX0gjsX6hihqoIcbfdsKpxd/OPCr/iNdOKWCSyV0aqaP3fc9Y2L1xVdXfn
+avjfd8wief+ERfwKlsbHYsgh6/zwhVeMt2mzr8T0c+ICC99+XXmSvpnGJ89amYub
+NnQwdxTp4PBQhudXixG3LrZ1CZafoLRz+x9vEIVF9oFyy7kMkeFtjd7aXc346Ama
+djOu1LtzvWZKOMeGYVaSiQMl4HhpOh/embx+AClH/Hf1o7AA+ivF8vZgUDAAK2GD
+rx8=
+
+------3EE420429594FF1492D49B1EEBFBAF0E--
+

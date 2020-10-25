@@ -47,15 +47,23 @@ void record_netload (struct record_netload_state *st, const char *prefix, dds_ti
       if (st->data_valid)
       {
         /* interface speeds are in bits/s, so convert bytes to bits */
-        const double dx = 8 * (double) (x.obytes - st->obytes);
-        const double dr = 8 * (double) (x.ibytes - st->ibytes);
         const double dt = (double) (tnow - st->tprev) / 1e9;
-        const double dxpct = 100.0 * dx / dt / st->bw;
-        const double drpct = 100.0 * dr / dt / st->bw;
-        if (dxpct >= 0.5 || drpct >= 0.5)
+        const double dx = 8 * (double) (x.obytes - st->obytes) / dt;
+        const double dr = 8 * (double) (x.ibytes - st->ibytes) / dt;
+        if (st->bw > 0)
         {
-          printf ("%s %s: xmit %.0f%% recv %.0f%% [%"PRIu64" %"PRIu64"]\n",
-                  prefix, st->name, dxpct, drpct, x.obytes, x.ibytes);
+          const double dxpct = 100.0 * dx / st->bw;
+          const double drpct = 100.0 * dr / st->bw;
+          if (dxpct >= 0.5 || drpct >= 0.5)
+          {
+            printf ("%s %s: xmit %.0f%% recv %.0f%% [%"PRIu64" %"PRIu64"]\n",
+                    prefix, st->name, dxpct, drpct, x.obytes, x.ibytes);
+          }
+        }
+        else if (dx >= 1e5 || dr >= 1e5) // 100kb/s is arbitrary
+        {
+          printf ("%s %s: xmit %.2f Mb/s recv %.2f Mb/s [%"PRIu64" %"PRIu64"]\n",
+                  prefix, st->name, dx / 1e6, dr / 1e6, x.obytes, x.ibytes);
         }
       }
       st->obytes = x.obytes;

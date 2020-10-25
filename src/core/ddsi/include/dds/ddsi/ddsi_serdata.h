@@ -14,13 +14,13 @@
 
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_keyhash.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
 struct nn_rdata;
-struct nn_keyhash;
 
 enum ddsi_serdata_kind {
   SDK_EMPTY,
@@ -64,7 +64,7 @@ typedef struct ddsi_serdata * (*ddsi_serdata_from_ser_t) (const struct ddsi_sert
 typedef struct ddsi_serdata * (*ddsi_serdata_from_ser_iov_t) (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size);
 
 /* Construct a serdata from a keyhash (an SDK_KEY by definition) */
-typedef struct ddsi_serdata * (*ddsi_serdata_from_keyhash_t) (const struct ddsi_sertopic *topic, const struct nn_keyhash *keyhash);
+typedef struct ddsi_serdata * (*ddsi_serdata_from_keyhash_t) (const struct ddsi_sertopic *topic, const struct ddsi_keyhash *keyhash);
 
 /* Construct a serdata from an application sample
    - "kind" is KEY or DATA depending on the operation invoked by the application;
@@ -134,7 +134,10 @@ typedef bool (*ddsi_serdata_eqkey_t) (const struct ddsi_serdata *a, const struct
      returning bufsize-1) if it had to truncate) */
 typedef size_t (*ddsi_serdata_print_t) (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, char *buf, size_t size);
 
-#define DDSI_SERDATA_HAS_FROM_SER_IOV 1
+/* Add keyhash (from serdata) to buffer (forcing md5 when necessary).
+   - key needs to be set within serdata (can already be md5)
+   - buf needs to be at least 16 bytes large */
+typedef void (*ddsi_serdata_get_keyhash_t) (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5);
 
 struct ddsi_serdata_ops {
   ddsi_serdata_eqkey_t eqkey;
@@ -151,11 +154,30 @@ struct ddsi_serdata_ops {
   ddsi_serdata_topicless_to_sample_t topicless_to_sample;
   ddsi_serdata_free_t free;
   ddsi_serdata_print_t print;
+  ddsi_serdata_get_keyhash_t get_keyhash;
 };
 
 #define DDSI_SERDATA_HAS_PRINT 1
+#define DDSI_SERDATA_HAS_FROM_SER_IOV 1
+#define DDSI_SERDATA_HAS_GET_KEYHASH 1
 
 DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertopic *tp, enum ddsi_serdata_kind kind);
+
+/**
+ * @brief Return a reference to a serdata with possible topic conversion
+ *
+ * If `serdata` is of topic `topic`, this increments the reference count and returns
+ * `serdata`.  Otherwise, it constructs a new one from the serialised representation of
+ * `serdata`.  This can fail, in which case it returns NULL.
+ *
+ * @param[in] topic    sertopic the returned serdata must have
+ * @param[in] serdata  source sample (untouched except for the reference count and/or
+ *   extracting the serialised representation)
+ * @returns A reference to a serdata that is equivalent to the input with the correct
+ *   topic, or a null pointer on failure.  The reference must be released with @ref
+ *   ddsi_serdata_unref.
+ */
+DDS_EXPORT struct ddsi_serdata *ddsi_serdata_ref_as_topic (const struct ddsi_sertopic *topic, struct ddsi_serdata *serdata);
 
 DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const) {
   struct ddsi_serdata *serdata = (struct ddsi_serdata *)serdata_const;
@@ -180,7 +202,7 @@ DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_ser_iov (const struct d
   return topic->serdata_ops->from_ser_iov (topic, kind, niov, iov, size);
 }
 
-DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_keyhash (const struct ddsi_sertopic *topic, const struct nn_keyhash *keyhash) {
+DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_keyhash (const struct ddsi_sertopic *topic, const struct ddsi_keyhash *keyhash) {
   return topic->serdata_ops->from_keyhash (topic, keyhash);
 }
 
@@ -228,6 +250,10 @@ DDS_EXPORT inline bool ddsi_serdata_print_topicless (const struct ddsi_sertopic 
     buf[0] = 0;
     return 0;
   }
+}
+
+DDS_EXPORT inline void ddsi_serdata_get_keyhash (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5) {
+  d->ops->get_keyhash (d, buf, force_md5);
 }
 
 #if defined (__cplusplus)

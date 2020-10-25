@@ -14,6 +14,7 @@
 #include "dds/ddsi/ddsi_pmd.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_serdata_pserop.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_entity.h"
@@ -30,20 +31,13 @@
 
 #include "dds/ddsi/sysdeps.h"
 
-static void debug_print_rawdata (const struct ddsi_domaingv *gv, const char *msg, const void *data, size_t len)
-{
-  const unsigned char *c = data;
-  size_t i;
-  GVTRACE ("%s<", msg);
-  for (i = 0; i < len; i++)
-  {
-    if (32 < c[i] && c[i] <= 127)
-      GVTRACE ("%s%c", (i > 0 && (i%4) == 0) ? " " : "", c[i]);
-    else
-      GVTRACE ("%s\\x%02x", (i > 0 && (i%4) == 0) ? " " : "", c[i]);
-  }
-  GVTRACE (">");
-}
+/* note: treating guid prefix + kind as if it were a GUID because that matches
+   the octet-sequence/sequence-of-uint32 distinction between the specified wire
+   representation and the internal representation */
+const enum pserop participant_message_data_ops[] = { XG, XO, XSTOP };
+size_t participant_message_data_nops = sizeof (participant_message_data_ops) / sizeof (participant_message_data_ops[0]);
+const enum pserop participant_message_data_ops_key[] = { XG, XSTOP };
+size_t participant_message_data_nops_key = sizeof (participant_message_data_ops_key) / sizeof (participant_message_data_ops_key[0]);
 
 void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind)
 {
@@ -67,10 +61,8 @@ void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, s
 #define PMD_DATA_LENGTH 1
   struct ddsi_domaingv * const gv = pp->e.gv;
   struct writer *wr;
-  union {
-    ParticipantMessageData_t pmd;
-    char pad[offsetof (ParticipantMessageData_t, value) + PMD_DATA_LENGTH];
-  } u;
+  unsigned char data[PMD_DATA_LENGTH] = { 0 };
+  ParticipantMessageData_t pmd;
   struct ddsi_serdata *serdata;
   struct ddsi_tkmap_instance *tk;
 
@@ -80,18 +72,11 @@ void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, s
     return;
   }
 
-  u.pmd.participantGuidPrefix = nn_hton_guid_prefix (pp->e.guid.prefix);
-  u.pmd.kind = ddsrt_toBE4u (pmd_kind);
-  u.pmd.length = PMD_DATA_LENGTH;
-  memset (u.pmd.value, 0, u.pmd.length);
-
-  struct ddsi_rawcdr_sample raw = {
-    .blob = &u,
-    .size = offsetof (ParticipantMessageData_t, value) + PMD_DATA_LENGTH,
-    .key = &u.pmd,
-    .keysize = 16
-  };
-  serdata = ddsi_serdata_from_sample (gv->rawcdr_topic, SDK_DATA, &raw);
+  pmd.participantGuidPrefix = pp->e.guid.prefix;
+  pmd.kind = pmd_kind;
+  pmd.value.length = (uint32_t) sizeof (data);
+  pmd.value.value = data;
+  serdata = ddsi_serdata_from_sample (gv->pmd_topic, SDK_DATA, &pmd);
   serdata->timestamp = ddsrt_time_wallclock ();
 
   tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
@@ -100,66 +85,44 @@ void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, s
 #undef PMD_DATA_LENGTH
 }
 
-void handle_pmd_message (const struct receiver_state *rst, ddsrt_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len)
+void handle_pmd_message (const struct receiver_state *rst, struct ddsi_serdata *sample_common)
 {
-  const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
-  const int bswap = (data->identifier == CDR_LE) ^ (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
+  /* use sample with knowledge of internal representation: there's a deserialized sample inside already */
+  const struct ddsi_serdata_pserop *sample = (const struct ddsi_serdata_pserop *) sample_common;
   struct proxy_participant *proxypp;
   ddsi_guid_t ppguid;
   struct lease *l;
-  RSTTRACE (" PMD ST%x", statusinfo);
-  if (data->identifier != CDR_LE && data->identifier != CDR_BE)
+  RSTTRACE (" PMD ST%x", sample->c.statusinfo);
+  switch (sample->c.statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
   {
-    RSTTRACE (" PMD data->identifier %u !?\n", ntohs (data->identifier));
-    return;
-  }
-
-  switch (statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
-  {
-    case 0:
-      if (offsetof (ParticipantMessageData_t, value) > len - sizeof (struct CDRHeader))
-        debug_print_rawdata (rst->gv, " SHORT1", data, len);
-      else
+    case 0: {
+      const ParticipantMessageData_t *pmd = sample->sample;
+      RSTTRACE (" pp %"PRIx32":%"PRIx32":%"PRIx32" kind %"PRIu32" data %"PRIu32, PGUIDPREFIX (pmd->participantGuidPrefix), pmd->kind, pmd->value.length);
+      ppguid.prefix = pmd->participantGuidPrefix;
+      ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
+      if ((proxypp = entidx_lookup_proxy_participant_guid (rst->gv->entity_index, &ppguid)) == NULL)
+        RSTTRACE (" PPunknown");
+      else if (pmd->kind == PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE &&
+               (l = ddsrt_atomic_ldvoidp (&proxypp->minl_man)) != NULL)
       {
-        const ParticipantMessageData_t *pmd = (ParticipantMessageData_t *) (data + 1);
-        ddsi_guid_prefix_t p = nn_ntoh_guid_prefix (pmd->participantGuidPrefix);
-        uint32_t kind = ntohl (pmd->kind);
-        uint32_t length = bswap ? ddsrt_bswap4u (pmd->length) : pmd->length;
-        RSTTRACE (" pp %"PRIx32":%"PRIx32":%"PRIx32" kind %u data %u", p.u[0], p.u[1], p.u[2], kind, length);
-        if (len - sizeof (struct CDRHeader) - offsetof (ParticipantMessageData_t, value) < length)
-          debug_print_rawdata (rst->gv, " SHORT2", pmd->value, len - sizeof (struct CDRHeader) - offsetof (ParticipantMessageData_t, value));
-        else
-          debug_print_rawdata (rst->gv, "", pmd->value, length);
-        ppguid.prefix = p;
-        ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
-        if ((proxypp = entidx_lookup_proxy_participant_guid (rst->gv->entity_index, &ppguid)) == NULL)
-          RSTTRACE (" PPunknown");
-        else if (kind == PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE &&
-                 (l = ddsrt_atomic_ldvoidp (&proxypp->minl_man)) != NULL)
-        {
-          /* Renew lease for entity with shortest manual-by-participant lease */
-          lease_renew (l, ddsrt_time_elapsed ());
-        }
+        /* Renew lease for entity with shortest manual-by-participant lease */
+        lease_renew (l, ddsrt_time_elapsed ());
       }
       break;
+    }
 
     case NN_STATUSINFO_DISPOSE:
     case NN_STATUSINFO_UNREGISTER:
-    case NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER:
-      /* Serialized key; BE or LE doesn't matter as both fields are
-         defined as octets.  */
-      if (len < sizeof (struct CDRHeader) + sizeof (ddsi_guid_prefix_t))
-        debug_print_rawdata (rst->gv, " SHORT3", data, len);
+    case NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER: {
+      const ParticipantMessageData_t *pmd = sample->sample;
+      ppguid.prefix = pmd->participantGuidPrefix;
+      ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
+      if (delete_proxy_participant_by_guid (rst->gv, &ppguid, sample->c.timestamp, 0) < 0)
+        RSTTRACE (" unknown");
       else
-      {
-        ppguid.prefix = nn_ntoh_guid_prefix (*((ddsi_guid_prefix_t *) (data + 1)));
-        ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
-        if (delete_proxy_participant_by_guid (rst->gv, &ppguid, timestamp, 0) < 0)
-          RSTTRACE (" unknown");
-        else
-          RSTTRACE (" delete");
-      }
+        RSTTRACE (" delete");
       break;
+    }
   }
   RSTTRACE ("\n");
 }

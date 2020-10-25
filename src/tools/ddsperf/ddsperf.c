@@ -25,6 +25,7 @@
 #endif
 
 #include "dds/dds.h"
+#include "dds/ddsc/dds_statistics.h"
 #include "ddsperf_types.h"
 
 #include "dds/ddsrt/process.h"
@@ -93,6 +94,12 @@ static enum topicsel topicsel = KS;
 static enum submode submode = SM_LISTENER;
 static enum submode pingpongmode = SM_LISTENER;
 
+/* Whether to show "sub" stats every second even when nothing happens */
+static bool substat_every_second = false;
+
+/* Whether to show extended statistics (currently just rexmit info) */
+static bool extended_stats = false;
+
 /* Size of the sequence in KeyedSeq type in bytes */
 static uint32_t baggagesize = 0;
 
@@ -104,6 +111,9 @@ static double dur = HUGE_VAL;
 
 /* Minimum number of peers (if not met, exit status is 1) */
 static uint32_t minmatch = 0;
+
+/* Wait this long for MINMATCH peers before starting */
+static double initmaxwait = 0;
 
 /* Maximum time it may take to discover all MINMATCH peers */
 static double maxwait = HUGE_VAL;
@@ -155,7 +165,7 @@ static uint32_t ping_timeouts = 0;
    final RSS sample: final one must be <=
    init * (1 + rss_factor/100) + rss_term  */
 static bool rss_check = false;
-static double rss_factor = 0;
+static double rss_factor = 1;
 static double rss_term = 0;
 
 /* Minimum number of samples, minimum number of roundtrips to
@@ -189,9 +199,12 @@ struct eseq_stat {
   uint32_t last_size;
 
   /* stats printer state */
-  uint64_t nrecv_ref;
-  uint64_t nlost_ref;
-  uint64_t nrecv_bytes_ref;
+  struct {
+    uint64_t nrecv;
+    uint64_t nlost;
+    uint64_t nrecv_bytes;
+  } ref[10];
+  unsigned refidx;
 };
 
 struct eseq_admin {
@@ -562,7 +575,7 @@ static uint32_t pubthread (void *varg)
 {
   int result;
   dds_instance_handle_t *ihs;
-  dds_time_t ntot = 0, tfirst, tfirst0;
+  dds_time_t ntot = 0, tfirst;
   union data data;
   uint64_t timeouts = 0;
   void *baggage = NULL;
@@ -574,18 +587,27 @@ static uint32_t pubthread (void *varg)
 
   baggage = init_sample (&data, 0);
   ihs = malloc (nkeyvals * sizeof (dds_instance_handle_t));
-  for (unsigned k = 0; k < nkeyvals; k++)
+  if (!register_instances)
   {
-    data.seq_keyval.keyval = (int32_t) k;
-    if (register_instances)
-      dds_register_instance (wr_data, &ihs[k], &data);
-    else
+    for (unsigned k = 0; k < nkeyvals; k++)
       ihs[k] = 0;
   }
+  else
+  {
+    for (unsigned k = 0; k < nkeyvals; k++)
+    {
+      data.seq_keyval.keyval = (int32_t) k;
+      if ((result = dds_register_instance (wr_data, &ihs[k], &data)) != DDS_RETCODE_OK)
+      {
+        printf ("dds_register_instance failed: %d\n", result);
+        fflush (stdout);
+        exit (2);
+      }
+    }
+  }
+
   data.seq_keyval.keyval = 0;
-
-  tfirst0 = tfirst = dds_time();
-
+  tfirst = dds_time();
   uint32_t bi = 0;
   while (!ddsrt_atomic_ld32 (&termflag))
   {
@@ -623,7 +645,7 @@ static uint32_t pubthread (void *varg)
       if (++bi == burstsize)
       {
         /* FIXME: should average rate over a short-ish period, rather than over the entire run */
-        while (((double) (ntot / burstsize) / ((double) (t - tfirst0) / 1e9 + 5e-3)) > pub_rate && !ddsrt_atomic_ld32 (&termflag))
+        while (((double) (ntot / burstsize) / ((double) (t - tfirst) / 1e9 + 5e-3)) > pub_rate && !ddsrt_atomic_ld32 (&termflag))
         {
           /* FIXME: flushing manually because batching is not yet implemented properly */
           dds_write_flush (wr_data);
@@ -1358,7 +1380,17 @@ static int cmp_uint64 (const void *va, const void *vb)
   return (*a == *b) ? 0 : (*a < *b) ? -1 : 1;
 }
 
-static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, struct record_cputime_state *cputime_state, struct record_netload_state *netload_state)
+struct dds_stats {
+  struct dds_statistics *pubstat;
+  const struct dds_stat_keyvalue *rexmit_bytes;
+  const struct dds_stat_keyvalue *time_throttle;
+  const struct dds_stat_keyvalue *time_rexmit;
+  const struct dds_stat_keyvalue *throttle_count;
+  struct dds_statistics *substat;
+  const struct dds_stat_keyvalue *discarded_bytes;
+};
+
+static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, struct record_cputime_state *cputime_state, struct record_netload_state *netload_state, struct dds_stats *stats)
 {
   char prefix[128];
   const double ts = (double) (tnow - tref) / 1e9;
@@ -1376,30 +1408,39 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
   if (submode != SM_NONE)
   {
     struct eseq_admin * const ea = &eseq_admin;
-    uint64_t tot_nrecv = 0, tot_nlost = 0, nrecv = 0, nrecv_bytes = 0, nlost = 0;
+    uint64_t tot_nrecv = 0, tot_nlost = 0, nlost = 0;
+    uint64_t nrecv = 0, nrecv_bytes = 0;
+    uint64_t nrecv10s = 0, nrecv10s_bytes = 0;
     uint32_t last_size = 0;
     ddsrt_mutex_lock (&ea->lock);
     for (uint32_t i = 0; i < ea->nph; i++)
     {
       struct eseq_stat * const x = &ea->stats[i];
+      unsigned refidx1s = (x->refidx == 0) ? (unsigned) (sizeof (x->ref) / sizeof (x->ref[0]) - 1) : (x->refidx - 1);
+      unsigned refidx10s = x->refidx;
       tot_nrecv += x->nrecv;
       tot_nlost += x->nlost;
-      nrecv += x->nrecv - x->nrecv_ref;
-      nlost += x->nlost - x->nlost_ref;
-      nrecv_bytes += x->nrecv_bytes - x->nrecv_bytes_ref;
+      nrecv += x->nrecv - x->ref[refidx1s].nrecv;
+      nlost += x->nlost - x->ref[refidx1s].nlost;
+      nrecv_bytes += x->nrecv_bytes - x->ref[refidx1s].nrecv_bytes;
+      nrecv10s += x->nrecv - x->ref[refidx10s].nrecv;
+      nrecv10s_bytes += x->nrecv_bytes - x->ref[refidx10s].nrecv_bytes;
       last_size = x->last_size;
-      x->nrecv_ref = x->nrecv;
-      x->nlost_ref = x->nlost;
-      x->nrecv_bytes_ref = x->nrecv_bytes;
+      x->ref[x->refidx].nrecv = x->nrecv;
+      x->ref[x->refidx].nlost = x->nlost;
+      x->ref[x->refidx].nrecv_bytes = x->nrecv_bytes;
+      if (++x->refidx == (unsigned) (sizeof (x->ref) / sizeof (x->ref[0])))
+        x->refidx = 0;
     }
     ddsrt_mutex_unlock (&ea->lock);
 
-    if (nrecv > 0)
+    if (nrecv > 0 || substat_every_second)
     {
       const double dt = (double) (tnow - tprev);
-      printf ("%s size %"PRIu32" total %"PRIu64" lost %"PRIu64" delta %"PRIu64" lost %"PRIu64" rate %.2f kS/s %.2f Mb/s\n",
+      printf ("%s size %"PRIu32" total %"PRIu64" lost %"PRIu64" delta %"PRIu64" lost %"PRIu64" rate %.2f kS/s %.2f Mb/s (%.2f kS/s %.2f Mb/s)\n",
               prefix, last_size, tot_nrecv, tot_nlost, nrecv, nlost,
-              (double) nrecv * 1e6 / dt, (double) nrecv_bytes * 8 * 1e3 / dt);
+              (double) nrecv * 1e6 / dt, (double) nrecv_bytes * 8 * 1e3 / dt,
+              (double) nrecv10s * 1e6 / (10 * dt), (double) nrecv10s_bytes * 8 * 1e3 / (10 * dt));
       output = true;
     }
   }
@@ -1483,6 +1524,14 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
 
   if (output)
     record_netload (netload_state, prefix, tnow);
+
+  if (extended_stats && output && stats)
+  {
+    (void) dds_refresh_statistics (stats->substat);
+    (void) dds_refresh_statistics (stats->pubstat);
+    printf ("%s discarded %"PRIu64" rexmit %"PRIu64" Trexmit %"PRIu64" Tthrottle %"PRIu64" Nthrottle %"PRIu32"\n", prefix, stats->discarded_bytes->u.u64, stats->rexmit_bytes->u.u64, stats->time_rexmit->u.u64, stats->time_throttle->u.u64, stats->throttle_count->u.u32);
+  }
+
   fflush (stdout);
   return output;
 }
@@ -1536,7 +1585,7 @@ static void sigxfsz_handler (int sig __attribute__ ((unused)))
     if (write (2, msg, sizeof (msg) - 1) < 0) {
       /* may not ignore return value according to Linux/gcc */
     }
-    print_stats (0, tnow, tnow - DDS_SECS (1), NULL, NULL);
+    print_stats (0, tnow, tnow - DDS_SECS (1), NULL, NULL, NULL);
     kill (getpid (), 9);
   }
 }
@@ -1572,15 +1621,28 @@ OPTIONS:\n\
                       bandwidth BW in bits/s (e.g., eth0:1e9)\n\
   -D DUR              run for at most DUR seconds\n\
   -Q KEY:VAL          set success criteria\n\
-                        rss:X%%       max allowed increase in RSS, in %%\n\
+                        rss:X%%        max allowed increase in RSS, in %%\n\
                         rss:X         max allowed increase in RSS, in MB\n\
                         samples:N     min received messages by \"sub\"\n\
                         roundtrips:N  min roundtrips for \"pong\"\n\
                         minmatch:N    require >= N matching participants\n\
+                        initwait:DUR  wait for those participants before\n\
+                                      starting, abort if not within DUR\n\
+                                      seconds\n\
                         maxwait:DUR   require those participants to match\n\
                                       within DUR seconds\n\
   -R TREF             timestamps in the output relative to TREF instead of\n\
                       process start\n\
+  -W DUR              wait at most DUR seconds for the minimum required\n\
+                      number of matching participants (set by -Qminmatch:N)\n\
+                      to show up before starting reading/writing data,\n\
+                      terminate with an error otherwise.  (This differs\n\
+                      from -Qmaxwait:DUR because that doesn't delay starting\n\
+                      and doesn't terminate the process before doing\n\
+                      anything.)\n\
+  -1                  print \"sub\" stats every second, even when there is\n\
+                      data\n\
+  -X                  output extended statistics\n\
   -i ID               use domain ID instead of the default domain\n\
 \n\
 MODE... is zero or more of:\n\
@@ -1884,24 +1946,30 @@ int main (int argc, char *argv[])
   ddsrt_thread_t sigtid;
 #endif
   char netload_if[256];
-  double netload_bw = 0;
+  double netload_bw = -1;
+  double rss_init = 0.0, rss_final = 0.0;
   ddsrt_threadattr_init (&attr);
 
   argv0 = argv[0];
 
-  while ((opt = getopt (argc, argv, "cd:D:i:n:k:uLK:T:Q:R:h")) != EOF)
+  while ((opt = getopt (argc, argv, "1cd:D:i:n:k:uLK:T:Q:R:Xh")) != EOF)
   {
     int pos;
     switch (opt)
     {
+      case '1': substat_every_second = true; break;
       case 'c': collect_stats = true; break;
       case 'd': {
         char *col;
         (void) ddsrt_strlcpy (netload_if, optarg, sizeof (netload_if));
-        if ((col = strrchr (netload_if, ':')) == NULL || col == netload_if ||
-            (sscanf (col+1, "%lf%n", &netload_bw, &pos) != 1 || (col+1)[pos] != 0))
-          error3 ("-d %s: expected DEVICE:BANDWIDTH\n", optarg);
-        *col = 0;
+        if ((col = strrchr (netload_if, ':')) == NULL)
+          netload_bw = 0;
+        else
+        {
+          if (col == netload_if || (sscanf (col+1, "%lf%n", &netload_bw, &pos) != 1 || (col+1)[pos] != 0))
+            error3 ("-d %s: expected DEVICE:BANDWIDTH\n", optarg);
+          *col = 0;
+        }
         break;
       }
       case 'D': dur = atof (optarg); if (dur <= 0) dur = HUGE_VAL; break;
@@ -1931,6 +1999,8 @@ int main (int argc, char *argv[])
           min_roundtrips = (uint64_t) n;
         } else if (sscanf (optarg, "maxwait:%lf%n", &maxwait, &pos) == 1 && optarg[pos] == 0) {
           maxwait = (maxwait <= 0) ? HUGE_VAL : maxwait;
+        } else if (sscanf (optarg, "initwait:%lf%n", &initmaxwait, &pos) == 1 && optarg[pos] == 0) {
+          initmaxwait = (initmaxwait <= 0) ? 0 : initmaxwait;
         } else if (sscanf (optarg, "minmatch:%lu%n", &n, &pos) == 1 && optarg[pos] == 0) {
           minmatch = (uint32_t) n;
         } else {
@@ -1938,6 +2008,7 @@ int main (int argc, char *argv[])
         }
         break;
       }
+      case 'X': extended_stats = true; break;
       case 'R': {
         tref = 0;
         if (sscanf (optarg, "%"SCNd64"%n", &tref, &pos) != 1 || optarg[pos] != 0)
@@ -1972,7 +2043,7 @@ int main (int argc, char *argv[])
     baggagesize -= 12;
 
   struct record_netload_state *netload_state;
-  if (netload_bw <= 0)
+  if (netload_bw < 0)
     netload_state = NULL;
   else if ((netload_state = record_netload_new (netload_if, netload_bw)) == NULL)
     error3 ("can't get network utilization information for device %s\n", netload_if);
@@ -2036,7 +2107,7 @@ int main (int argc, char *argv[])
     snprintf (tpname_ping, sizeof (tpname_ping), "DDSPerf%cPing%s", reliable ? 'R' : 'U', tp_suf);
     snprintf (tpname_pong, sizeof (tpname_pong), "DDSPerf%cPong%s", reliable ? 'R' : 'U', tp_suf);
     qos = dds_create_qos ();
-    dds_qset_reliability (qos, reliable ? DDS_RELIABILITY_RELIABLE : DDS_RELIABILITY_BEST_EFFORT, DDS_SECS (1));
+    dds_qset_reliability (qos, reliable ? DDS_RELIABILITY_RELIABLE : DDS_RELIABILITY_BEST_EFFORT, DDS_SECS (10));
     if ((tp_data = dds_create_topic (dp, tp_desc, tpname_data, qos, NULL)) < 0)
       error2 ("dds_create_topic(%s) failed: %d\n", tpname_data, (int) tp_data);
     if ((tp_ping = dds_create_topic (dp, tp_desc, tpname_ping, qos, NULL)) < 0)
@@ -2157,20 +2228,6 @@ int main (int argc, char *argv[])
   if ((rc = dds_waitset_attach (ws, termcond, 0)) < 0)
     error2 ("dds_waitset_attach(main, termcond) failed: %d\n", (int) rc);
 
-  /* I hate Unix signals in multi-threaded processes ... */
-#ifdef _WIN32
-  signal (SIGINT, signal_handler);
-#elif !DDSRT_WITH_FREERTOS
-  sigemptyset (&sigset);
-  sigaddset (&sigset, SIGINT);
-  sigaddset (&sigset, SIGTERM);
-  sigprocmask (SIG_BLOCK, &sigset, &osigset);
-  ddsrt_thread_create (&sigtid, "sigthread", &attr, sigthread, &sigset);
-#if defined __APPLE__ || defined __linux
-  signal (SIGXFSZ, sigxfsz_handler);
-#endif
-#endif
-
   /* Make publisher & subscriber thread arguments and start the threads we
      need (so what if we allocate memory for reading data even if we don't
      have a reader or will never really be receiving data) */
@@ -2191,6 +2248,34 @@ int main (int argc, char *argv[])
   memset (&subtid, 0, sizeof (subtid));
   memset (&subpingtid, 0, sizeof (subpingtid));
   memset (&subpongtid, 0, sizeof (subpongtid));
+
+  /* Just before starting the threads but after setting everything up, wait for
+     the required number of peers, if requested to do so */
+  if (initmaxwait > 0)
+  {
+    dds_time_t tnow = dds_time ();
+    const dds_time_t tendwait = tnow + (dds_duration_t) (initmaxwait * 1e9);
+    ddsrt_mutex_lock (&disc_lock);
+    while (matchcount < minmatch && tnow < tendwait)
+    {
+      ddsrt_mutex_unlock (&disc_lock);
+      dds_sleepfor (DDS_MSECS (100));
+      ddsrt_mutex_lock (&disc_lock);
+      tnow = dds_time ();
+    }
+    const bool ok = (matchcount >= minmatch);
+    if (!ok)
+    {
+      /* set minmatch to an impossible value to avoid a match occurring between now and
+         the determining of the exit status from causing a successful return */
+      minmatch = UINT32_MAX;
+    }
+    ddsrt_mutex_unlock (&disc_lock);
+    if (!ok)
+      goto err_minmatch_wait;
+    dds_sleepfor (DDS_MSECS (100));
+  }
+
   if (pub_rate > 0)
     ddsrt_thread_create (&pubtid, "pub", &attr, pubthread, NULL);
   if (subthread_func != 0)
@@ -2220,6 +2305,50 @@ int main (int argc, char *argv[])
   struct record_cputime_state *cputime_state;
   cputime_state = record_cputime_new (wr_stat);
 
+  struct dds_stats stats;
+  const struct dds_stat_keyvalue dummy_u64 = { .name = "", .kind = DDS_STAT_KIND_UINT64, .u.u64 = 0 };
+  const struct dds_stat_keyvalue dummy_u32 = { .name = "", .kind = DDS_STAT_KIND_UINT32, .u.u32 = 0 };
+  stats.substat = dds_create_statistics (rd_data);
+  stats.discarded_bytes = dds_lookup_statistic (stats.substat, "discarded_bytes");
+  stats.pubstat = dds_create_statistics (wr_data);
+  stats.rexmit_bytes = dds_lookup_statistic (stats.pubstat, "rexmit_bytes");
+  stats.time_rexmit = dds_lookup_statistic (stats.pubstat, "time_rexmit");
+  stats.time_throttle = dds_lookup_statistic (stats.pubstat, "time_throttle");
+  stats.throttle_count = dds_lookup_statistic (stats.pubstat, "throttle_count");
+  if (stats.discarded_bytes == NULL)
+    stats.discarded_bytes = &dummy_u64;
+  if (stats.rexmit_bytes == NULL)
+    stats.rexmit_bytes = &dummy_u64;
+  if (stats.time_rexmit == NULL)
+    stats.time_rexmit = &dummy_u64;
+  if (stats.time_throttle == NULL)
+    stats.time_throttle = &dummy_u64;
+  if (stats.throttle_count == NULL)
+    stats.throttle_count = &dummy_u32;
+  if (stats.discarded_bytes->kind != DDS_STAT_KIND_UINT64 ||
+      stats.rexmit_bytes->kind != DDS_STAT_KIND_UINT64 ||
+      stats.time_rexmit->kind != DDS_STAT_KIND_UINT64 ||
+      stats.time_throttle->kind != DDS_STAT_KIND_UINT64 ||
+      stats.throttle_count->kind != DDS_STAT_KIND_UINT32)
+  {
+    abort ();
+  }
+
+  /* I hate Unix signals in multi-threaded processes ... */
+#ifdef _WIN32
+  signal (SIGINT, signal_handler);
+#elif !DDSRT_WITH_FREERTOS
+  sigemptyset (&sigset);
+  sigaddset (&sigset, SIGHUP);
+  sigaddset (&sigset, SIGINT);
+  sigaddset (&sigset, SIGTERM);
+  sigprocmask (SIG_BLOCK, &sigset, &osigset);
+  ddsrt_thread_create (&sigtid, "sigthread", &attr, sigthread, &sigset);
+#if defined __APPLE__ || defined __linux
+  signal (SIGXFSZ, sigxfsz_handler);
+#endif
+#endif
+
   /* Run until time limit reached or a signal received.  (The time calculations
      ignore the possibility of overflow around the year 2260.) */
   dds_time_t tnow = dds_time ();
@@ -2231,7 +2360,6 @@ int main (int argc, char *argv[])
   dds_time_t tnext = tstart + DDS_SECS (1);
   dds_time_t tlast = tstart;
   dds_time_t tnextping = (ping_intv == DDS_INFINITY) ? DDS_NEVER : (ping_intv == 0) ? tstart + DDS_SECS (1) : tstart + ping_intv;
-  double rss_init = 0.0, rss_final = 0.0;
   while (!ddsrt_atomic_ld32 (&termflag) && tnow < tstop)
   {
     dds_time_t twakeup = DDS_NEVER;
@@ -2298,7 +2426,7 @@ int main (int argc, char *argv[])
     if (tnext <= tnow)
     {
       bool output;
-      output = print_stats (tref, tnow, tlast, cputime_state, netload_state);
+      output = print_stats (tref, tnow, tlast, cputime_state, netload_state, &stats);
       tlast = tnow;
       if (tnow > tnext + DDS_MSECS (500))
         tnext = tnow + DDS_SECS (1);
@@ -2320,6 +2448,9 @@ int main (int argc, char *argv[])
       maybe_send_new_ping (tnow, &tnextping);
     }
   }
+
+  dds_delete_statistics (stats.pubstat);
+  dds_delete_statistics (stats.substat);
   record_netload_free (netload_state);
   record_cputime_free (cputime_state);
 
@@ -2350,6 +2481,7 @@ int main (int argc, char *argv[])
     ddsrt_thread_join (subpongtid, NULL);
   }
 
+err_minmatch_wait:
   /* stop the listeners before deleting the readers: otherwise they may
      still try to access a reader that has already become inaccessible
      (not quite good, but ...) */
@@ -2420,7 +2552,7 @@ int main (int argc, char *argv[])
 
   if (matchcount < minmatch)
   {
-    printf ("[%"PRIdPID"] error: too few matching participants (%"PRIu32" instead of %"PRIu32")\n", ddsrt_getpid (), matchcount, minmatch);
+    printf ("[%"PRIdPID"] error: too few matching participants (%"PRIu32")\n", ddsrt_getpid (), matchcount);
     ok = false;
   }
   if (nlost > 0 && (reliable && histdepth == 0))

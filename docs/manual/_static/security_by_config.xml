@@ -1,0 +1,19 @@
+<Domain id="any">
+  <DDSSecurity>
+    <Authentication>
+      <Library initFunction="init_authentication" finalizeFunction="finalize_authentication" path="dds_security_auth"/>
+      <IdentityCA>file:/path/to/example_id_ca_cert.pem</IdentityCA>
+      <IdentityCertificate>file:/path/to/example_alice_cert.pem</IdentityCertificate>
+      <PrivateKey>file:/path/to/example_alice_priv_key.pem</PrivateKey>
+    </Authentication>
+    <Cryptographic>
+      <Library initFunction="init_crypto" finalizeFunction="finalize_crypto" path="dds_security_crypto"/>
+    </Cryptographic>
+    <AccessControl>
+      <Library initFunction="init_access_control" finalizeFunction="finalize_access_control" path="dds_security_ac"/>
+      <PermissionsCA>file:/path/to/example_perm_ca_cert.pem</PermissionsCA>
+      <Governance>file:/path/to/example_governance.p7s</Governance>
+      <Permissions>file:/path/to/example_permissions.p7s</Permissions>
+    </AccessControl>
+  </DDSSecurity>
+</Domain>

@@ -18,10 +18,9 @@
 #include "CUnit/Test.h"
 #include "CUnit/Theory.h"
 
+#include "test_util.h"
+
 #include "Space.h"
 #include "RoundTrip.h"
-
-/* Get unique g_topic name on each invocation. */
-char *create_unique_topic_name (const char *prefix, char *name, size_t size);
 
 #endif /* _TEST_COMMON_H_ */

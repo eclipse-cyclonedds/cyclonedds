@@ -70,20 +70,6 @@ static int entity_guid_eq_wrapper (const void *a, const void *b)
   return entity_guid_eq (a, b);
 }
 
-static int all_entities_compare_isbuiltin (const struct entity_common *e, nn_vendorid_t vendor)
-{
-  const unsigned char *guid_bytes = (const unsigned char *) &e->guid;
-  if (guid_bytes[0] != 0 && guid_bytes[0] != 0xff)
-    return is_builtin_endpoint (e->guid.entityid, vendor);
-  else
-  {
-    for (size_t i = 1; i < sizeof (e->guid); i++)
-      if (guid_bytes[i] != guid_bytes[0])
-        return is_builtin_endpoint (e->guid.entityid, vendor) && !is_local_orphan_endpoint (e);
-    return 0;
-  }
-}
-
 static int all_entities_compare (const void *va, const void *vb)
 {
   const struct entity_common *a = va;
@@ -104,28 +90,20 @@ static int all_entities_compare (const void *va, const void *vb)
     case EK_WRITER: {
       const struct writer *wra = va;
       const struct writer *wrb = vb;
-      if (!all_entities_compare_isbuiltin (a, NN_VENDORID_ECLIPSE)) {
-        assert ((wra->xqos->present & QP_TOPIC_NAME) && wra->xqos->topic_name);
-        tp_a = wra->xqos->topic_name;
-      }
-      if (!all_entities_compare_isbuiltin (b, NN_VENDORID_ECLIPSE)) {
-        assert ((wrb->xqos->present & QP_TOPIC_NAME) && wrb->xqos->topic_name);
-        tp_b = wrb->xqos->topic_name;
-      }
+      assert ((wra->xqos->present & QP_TOPIC_NAME) && wra->xqos->topic_name);
+      assert ((wrb->xqos->present & QP_TOPIC_NAME) && wrb->xqos->topic_name);
+      tp_a = wra->xqos->topic_name;
+      tp_b = wrb->xqos->topic_name;
       break;
     }
 
     case EK_READER: {
       const struct reader *rda = va;
       const struct reader *rdb = vb;
-      if (!all_entities_compare_isbuiltin (a, NN_VENDORID_ECLIPSE)) {
-        assert ((rda->xqos->present & QP_TOPIC_NAME) && rda->xqos->topic_name);
-        tp_a = rda->xqos->topic_name;
-      }
-      if (!all_entities_compare_isbuiltin (b, NN_VENDORID_ECLIPSE)) {
-        assert ((rdb->xqos->present & QP_TOPIC_NAME) && rdb->xqos->topic_name);
-        tp_b = rdb->xqos->topic_name;
-      }
+      assert ((rda->xqos->present & QP_TOPIC_NAME) && rda->xqos->topic_name);
+      assert ((rdb->xqos->present & QP_TOPIC_NAME) && rdb->xqos->topic_name);
+      tp_a = rda->xqos->topic_name;
+      tp_b = rdb->xqos->topic_name;
       break;
     }
 
@@ -133,14 +111,11 @@ static int all_entities_compare (const void *va, const void *vb)
     case EK_PROXY_READER: {
       const struct generic_proxy_endpoint *ga = va;
       const struct generic_proxy_endpoint *gb = vb;
-      if (!all_entities_compare_isbuiltin (a, ga->c.vendor)) {
-        assert ((ga->c.xqos->present & QP_TOPIC_NAME) && ga->c.xqos->topic_name);
+      /* built-in reader/writer proxies don't have topic name set */
+      if (ga->c.xqos->present & QP_TOPIC_NAME)
         tp_a = ga->c.xqos->topic_name;
-      }
-      if (!all_entities_compare_isbuiltin (b, gb->c.vendor)) {
-        assert ((gb->c.xqos->present & QP_TOPIC_NAME) && gb->c.xqos->topic_name);
+      if (gb->c.xqos->present & QP_TOPIC_NAME)
         tp_b = gb->c.xqos->topic_name;
-      }
       break;
     }
   }
@@ -434,6 +409,18 @@ void entidx_enum_init_topic (struct entidx_enum *st, const struct entity_index *
   assert (kind == EK_READER || kind == EK_WRITER || kind == EK_PROXY_READER || kind == EK_PROXY_WRITER);
   struct match_entities_range_key min;
   match_endpoint_range (kind, topic, &min, max);
+  entidx_enum_init_minmax_int (st, ei, &min);
+  if (st->cur && all_entities_compare (st->cur, &max->entity) > 0)
+    st->cur = NULL;
+}
+
+void entidx_enum_init_topic_w_prefix (struct entidx_enum *st, const struct entity_index *ei, enum entity_kind kind, const char *topic, const ddsi_guid_prefix_t *prefix, struct match_entities_range_key *max)
+{
+  assert (kind == EK_READER || kind == EK_WRITER || kind == EK_PROXY_READER || kind == EK_PROXY_WRITER);
+  struct match_entities_range_key min;
+  match_endpoint_range (kind, topic, &min, max);
+  min.entity.e.guid.prefix = *prefix;
+  max->entity.e.guid.prefix = *prefix;
   entidx_enum_init_minmax_int (st, ei, &min);
   if (st->cur && all_entities_compare (st->cur, &max->entity) > 0)
     st->cur = NULL;

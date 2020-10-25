@@ -18,6 +18,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_plist_generic.h"
 
 #include "dds/dds.h"
 
@@ -46,6 +47,7 @@ typedef struct dds_keyhash {
   unsigned char m_hash [16]; /* Key hash value. Also possibly key. Suitably aligned for accessing as uint32_t's */
   unsigned m_set : 1;        /* has it been initialised? */
   unsigned m_iskey : 1;      /* m_hash is key value */
+  unsigned m_keysize : 5;    /* size of the key within the hash buffer */
 } dds_keyhash_t;
 
 /* Debug builds may want to keep some additional state */
@@ -135,8 +137,6 @@ extern DDS_EXPORT const struct ddsi_sertopic_ops ddsi_sertopic_ops_default;
 
 extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_cdr;
 extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey;
-extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_plist;
-extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_rawcdr;
 
 struct serdatapool * ddsi_serdatapool_new (void);
 void ddsi_serdatapool_free (struct serdatapool * pool);

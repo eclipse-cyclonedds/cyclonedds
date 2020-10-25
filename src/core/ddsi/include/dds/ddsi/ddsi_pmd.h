@@ -12,7 +12,12 @@
 #ifndef DDSI_PMD_H
 #define DDSI_PMD_H
 
+#include <stdint.h>
 #include "dds/ddsrt/time.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_plist_generic.h"
+#include "dds/ddsi/ddsi_guid.h"
+#include "dds/ddsi/ddsi_xqos.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -25,9 +30,20 @@ struct nn_xpack;
 struct participant;
 struct receiver_state;
 
+typedef struct ParticipantMessageData {
+  ddsi_guid_prefix_t participantGuidPrefix;
+  uint32_t kind; /* really 4 octets */
+  ddsi_octetseq_t value;
+} ParticipantMessageData_t;
+
+extern const enum pserop participant_message_data_ops[];
+extern size_t participant_message_data_nops;
+extern const enum pserop participant_message_data_ops_key[];
+extern size_t participant_message_data_nops_key;
+
 void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind);
 void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, struct participant *pp, unsigned pmd_kind);
-void handle_pmd_message (const struct receiver_state *rst, ddsrt_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len);
+void handle_pmd_message (const struct receiver_state *rst, struct ddsi_serdata *sample_common);
 
 #if defined (__cplusplus)
 }

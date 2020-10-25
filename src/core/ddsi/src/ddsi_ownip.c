@@ -33,7 +33,7 @@
 #include "dds/ddsi/ddsi_ipaddr.h"
 #include "dds/ddsrt/avl.h"
 
-static int multicast_override(const char *ifname, const struct config *config)
+static int multicast_override(const char *ifname, const struct ddsi_config *config)
 {
   char *copy = ddsrt_strdup (config->assumeMulticastCapable), *cursor = copy, *tok;
   int match = 0;
@@ -103,10 +103,10 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
     switch (ifa->type)
     {
       case DDSRT_IFTYPE_WIFI:
-        DDS_LOG(DDS_LC_CONFIG, " wireless");
+        GVLOG (DDS_LC_CONFIG, " wireless");
         break;
       case DDSRT_IFTYPE_WIRED:
-        DDS_LOG(DDS_LC_CONFIG, " wired");
+        GVLOG (DDS_LC_CONFIG, " wired");
         break;
       case DDSRT_IFTYPE_UNKNOWN:
         break;
@@ -116,7 +116,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
     if (ifa->addr->sa_family == AF_PACKET)
     {
       /* FIXME: weirdo warning warranted */
-      nn_locator_t *l = &gv->interfaces[gv->n_interfaces].loc;
+      ddsi_locator_t *l = &gv->interfaces[gv->n_interfaces].loc;
       l->kind = NN_LOCATOR_KIND_RAWETH;
       l->port = NN_LOCATOR_PORT_INVALID;
       memset(l->address, 0, 10);
@@ -231,7 +231,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
   }
   else
   {
-    nn_locator_t req;
+    ddsi_locator_t req;
     /* Presumably an interface name */
     for (i = 0; i < gv->n_interfaces; i++)
     {
@@ -274,7 +274,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
     if (i < gv->n_interfaces)
       selected_idx = i;
     else
-      GVERROR ("%s: does not match an available interface\n", gv->config.networkAddressString);
+      GVERROR ("%s: does not match an available interface supporting %s\n", gv->config.networkAddressString, gv->m_factory->m_typename);
   }
 
   if (selected_idx < 0)

@@ -43,12 +43,14 @@ struct lease;
 struct ddsi_tran_conn;
 struct ddsi_tran_listener;
 struct ddsi_tran_factory;
-struct ddsrt_thread_pool_s;
 struct debug_monitor;
 struct ddsi_tkmap;
+struct dds_security_context;
+struct dds_security_match_index;
+struct ddsi_hsadmin;
 
 typedef struct config_in_addr_node {
-   nn_locator_t loc;
+   ddsi_locator_t loc;
    struct config_in_addr_node *next;
 } config_in_addr_node;
 
@@ -71,7 +73,7 @@ struct recv_thread_arg {
   struct ddsi_domaingv *gv;
   union {
     struct {
-      const nn_locator_t *loc;
+      const ddsi_locator_t *loc;
       struct ddsi_tran_conn *conn;
     } single;
     struct {
@@ -88,7 +90,7 @@ struct ddsi_domaingv {
   volatile int mute;
 
   struct ddsrt_log_cfg logconfig;
-  struct config config;
+  struct ddsi_config config;
 
   struct ddsi_tkmap * m_tkmap;
 
@@ -148,9 +150,6 @@ struct ddsi_domaingv {
   /* TCP listener */
   struct ddsi_tran_listener * listener;
 
-  /* Thread pool */
-  struct ddsrt_thread_pool_s * thread_pool;
-
   /* In many sockets mode, the receive threads maintain a local array
      with participant GUIDs and sockets, participant_set_generation is
      used to notify them. */
@@ -194,21 +193,21 @@ struct ddsi_domaingv {
      a NAT may be advertised), and the DDSI multi-cast address. */
   enum recvips_mode recvips_mode;
   struct config_in_addr_node *recvips;
-  nn_locator_t extmask;
+  ddsi_locator_t extmask;
 
-  nn_locator_t ownloc;
-  nn_locator_t extloc;
+  ddsi_locator_t ownloc;
+  ddsi_locator_t extloc;
 
   /* InterfaceNo that the OwnIP is tied to */
   unsigned interfaceNo;
 
   /* Locators */
 
-  nn_locator_t loc_spdp_mc;
-  nn_locator_t loc_meta_mc;
-  nn_locator_t loc_meta_uc;
-  nn_locator_t loc_default_mc;
-  nn_locator_t loc_default_uc;
+  ddsi_locator_t loc_spdp_mc;
+  ddsi_locator_t loc_meta_mc;
+  ddsi_locator_t loc_meta_uc;
+  ddsi_locator_t loc_default_mc;
+  ddsi_locator_t loc_default_uc;
 
   /*
     Initial discovery address set, and the current discovery address
@@ -258,6 +257,12 @@ struct ddsi_domaingv {
   dds_qos_t spdp_endpoint_xqos;
   dds_qos_t builtin_endpoint_xqos_rd;
   dds_qos_t builtin_endpoint_xqos_wr;
+#ifdef DDSI_INCLUDE_SECURITY
+  dds_qos_t builtin_volatile_xqos_rd;
+  dds_qos_t builtin_volatile_xqos_wr;
+  dds_qos_t builtin_stateless_xqos_rd;
+  dds_qos_t builtin_stateless_xqos_wr;
+#endif
 
   /* SPDP packets get very special treatment (they're the only packets
      we accept from writers we don't know) and have their very own
@@ -285,8 +290,18 @@ struct ddsi_domaingv {
      transmit queue*/
   struct serdatapool *serpool;
   struct nn_xmsgpool *xmsgpool;
-  struct ddsi_sertopic *plist_topic; /* used for all discovery data */
-  struct ddsi_sertopic *rawcdr_topic; /* used for participant message data */
+  struct ddsi_sertopic *spdp_topic; /* key = participant GUID */
+  struct ddsi_sertopic *sedp_reader_topic; /* key = endpoint GUID */
+  struct ddsi_sertopic *sedp_writer_topic; /* key = endpoint GUID */
+  struct ddsi_sertopic *pmd_topic; /* participant message data */
+#ifdef DDSI_INCLUDE_SECURITY
+  struct ddsi_sertopic *spdp_secure_topic; /* key = participant GUID */
+  struct ddsi_sertopic *sedp_reader_secure_topic; /* key = endpoint GUID */
+  struct ddsi_sertopic *sedp_writer_secure_topic; /* key = endpoint GUID */
+  struct ddsi_sertopic *pmd_secure_topic; /* participant message data */
+  struct ddsi_sertopic *pgm_stateless_topic; /* participant generic message */
+  struct ddsi_sertopic *pgm_volatile_topic; /* participant generic message */
+#endif
 
   ddsrt_mutex_t sendq_lock;
   ddsrt_cond_t sendq_cond;
@@ -306,6 +321,14 @@ struct ddsi_domaingv {
 
   ddsrt_mutex_t sertopics_lock;
   struct ddsrt_hh *sertopics;
+
+  /* security globals */
+#ifdef DDSI_INCLUDE_SECURITY
+  struct dds_security_context *security_context;
+  struct ddsi_hsadmin *hsadmin;
+  bool handshake_include_optional;
+#endif
+
 };
 
 #if defined (__cplusplus)

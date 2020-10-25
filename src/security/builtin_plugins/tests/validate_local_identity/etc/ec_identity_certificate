@@ -1,0 +1,50 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 4096 (0x1000)
+    Signature Algorithm: ecdsa-with-SHA256
+        Issuer: C=NL, ST=Some-State, O=ADLINK Technology B.V., CN=CHAM_570 CA certificate
+        Validity
+            Not Before: Feb 18 10:52:41 2019 GMT
+            Not After : Jul  6 10:52:41 2046 GMT
+        Subject: C=NL, ST=Some-State, O=ADLINK Technology B.V., CN=CHAM_570 Identity certificate
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub: 
+                    04:9d:b5:7b:f5:fe:63:da:24:e4:0c:26:c5:32:55:
+                    55:b3:7f:7a:60:ea:0d:56:2c:0a:85:e0:5b:85:5a:
+                    01:1b:69:fc:23:79:98:33:d6:60:d5:d9:ab:1e:1d:
+                    7a:1e:c2:5f:ad:30:9b:73:45:40:39:d9:07:f7:59:
+                    8d:44:f6:6b:e3
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+        X509v3 extensions:
+            X509v3 Basic Constraints: 
+                CA:false
+            Netscape Comment: 
+                OpenSSL Generated Certificate
+            X509v3 Subject Key Identifier: 
+                C6:68:7E:D7:20:B3:51:4B:D4:50:54:26:12:86:BE:9B:EA:55:A1:EA
+            X509v3 Authority Key Identifier: 
+                keyid:75:2E:5A:BD:CE:B4:6B:4C:92:D2:BD:42:72:92:4B:27:71:9F:87:B0
+
+    Signature Algorithm: ecdsa-with-SHA256
+         30:45:02:21:00:b2:a7:be:fb:0b:d4:e2:87:b0:2c:c9:b8:fa:
+         10:b0:18:4b:dc:6a:bc:58:55:e8:22:46:93:d8:b1:5b:50:17:
+         77:02:20:2a:cf:42:10:fc:7e:02:39:37:44:4a:cf:9b:a3:9a:
+         55:cb:15:2d:12:86:06:7e:d4:b8:24:7a:57:13:48:b5:69
+-----BEGIN CERTIFICATE-----
+MIICOzCCAeGgAwIBAgICEAAwCgYIKoZIzj0EAwIwZTELMAkGA1UEBhMCTkwxEzAR
+BgNVBAgMClNvbWUtU3RhdGUxHzAdBgNVBAoMFkFETElOSyBUZWNobm9sb2d5IEIu
+Vi4xIDAeBgNVBAMMF0NIQU1fNTcwIENBIGNlcnRpZmljYXRlMB4XDTE5MDIxODEw
+NTI0MVoXDTQ2MDcwNjEwNTI0MVowazELMAkGA1UEBhMCTkwxEzARBgNVBAgMClNv
+bWUtU3RhdGUxHzAdBgNVBAoMFkFETElOSyBUZWNobm9sb2d5IEIuVi4xJjAkBgNV
+BAMMHUNIQU1fNTcwIElkZW50aXR5IGNlcnRpZmljYXRlMFkwEwYHKoZIzj0CAQYI
+KoZIzj0DAQcDQgAEnbV79f5j2iTkDCbFMlVVs396YOoNViwKheBbhVoBG2n8I3mY
+M9Zg1dmrHh16HsJfrTCbc0VAOdkH91mNRPZr46N7MHkwCQYDVR0TBAIwADAsBglg
+hkgBhvhCAQ0EHxYdT3BlblNTTCBHZW5lcmF0ZWQgQ2VydGlmaWNhdGUwHQYDVR0O
+BBYEFMZoftcgs1FL1FBUJhKGvpvqVaHqMB8GA1UdIwQYMBaAFHUuWr3OtGtMktK9
+QnKSSydxn4ewMAoGCCqGSM49BAMCA0gAMEUCIQCyp777C9Tih7Asybj6ELAYS9xq
+vFhV6CJGk9ixW1AXdwIgKs9CEPx+Ajk3RErPm6OaVcsVLRKGBn7UuCR6VxNItWk=
+-----END CERTIFICATE-----

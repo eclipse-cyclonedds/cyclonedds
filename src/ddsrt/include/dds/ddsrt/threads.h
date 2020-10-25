@@ -24,6 +24,7 @@
 #include "dds/export.h"
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/retcode.h"
+#include "dds/ddsrt/sched.h"
 
 #if DDSRT_WITH_FREERTOS
 #include "dds/ddsrt/threads/freertos.h"
@@ -58,32 +59,6 @@ extern "C" {
  * @brief Definition for a thread routine invoked on thread create.
  */
 typedef uint32_t (*ddsrt_thread_routine_t)(void*);
-
-/**
- * @brief Thread scheduling classes
- * @{
- */
-typedef enum {
-  /** Schedule processes and threads according a platform default.
-   *  DDSRT_SCHED_REALTIME for timesharing platforms and
-   *  DDSRT_SCHED_TIMESHARE for realtime platforms
-   */
-  DDSRT_SCHED_DEFAULT,
-  /** Schedule processes and threads on realtime basis,
-   *  on most platforms implying:
-   *  - Fixed Priority
-   *  - Preemption
-   *  - Either "First In First Out" or "Round Robin"
-   */
-  DDSRT_SCHED_REALTIME,
-  /** Schedule processes and threads on timesharing basis,
-    *  on most platforms implying:
-    *  - Dynamic Priority to guarantee fair share
-    *  - Preemption
-    */
-  DDSRT_SCHED_TIMESHARE
-} ddsrt_sched_t;
-/** @} */
 
 /**
  * @brief Definition of the thread attributes
@@ -140,10 +115,19 @@ ddsrt_nonnull((1,2,3,4));
 /**
  * @brief Retrieve integer representation of the given thread id.
  *
- * @returns The integer representation of the given thread.
+ * @returns The integer representation of the current thread.
  */
 DDS_EXPORT ddsrt_tid_t
 ddsrt_gettid(void);
+
+/**
+ * @brief Retrieve integer representation of the given thread id.
+ *
+ * @returns The integer representation of the given thread.
+ */
+DDS_EXPORT ddsrt_tid_t
+ddsrt_gettid_for_thread( ddsrt_thread_t thread);
+
 
 /**
  * @brief Return thread ID of the calling thread.

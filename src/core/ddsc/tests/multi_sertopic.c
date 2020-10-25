@@ -328,7 +328,48 @@ static void logsink (void *arg, const dds_log_data_t *msg)
     ddsrt_atomic_inc32 (deser_fail);
 }
 
-static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, bool fastpath)
+enum multi_sertopic_mode {
+  MSM_FASTPATH,
+  MSM_SLOWPATH,
+  MSM_TRANSLOCAL
+};
+
+static const char *multi_sertopic_modestr (enum multi_sertopic_mode mode)
+{
+  switch (mode)
+  {
+    case MSM_FASTPATH: return "fastpath";
+    case MSM_SLOWPATH: return "slowpath";
+    case MSM_TRANSLOCAL: return "transient-local";
+  }
+  return "?";
+}
+
+static void create_readers (dds_entity_t pp_sub, size_t nrds, dds_entity_t *rds, size_t ntps, const dds_entity_t *tps, const dds_qos_t *qos, dds_entity_t waitset)
+{
+  assert (nrds >= ntps && (nrds % ntps) == 0);
+  for (size_t i = 0; i < ntps; i++)
+  {
+    rds[i] = dds_create_reader (pp_sub, tps[i], qos, NULL);
+    CU_ASSERT_FATAL (rds[i] > 0);
+  }
+  for (size_t i = ntps; i < nrds; i++)
+  {
+    rds[i] = dds_create_reader (pp_sub, tps[(i - ntps) / (nrds / ntps - 1)], qos, NULL);
+    CU_ASSERT_FATAL (rds[i] > 0);
+  }
+
+  for (size_t i = 0; i < nrds; i++)
+  {
+    dds_return_t rc;
+    rc = dds_set_status_mask (rds[i], DDS_SUBSCRIPTION_MATCHED_STATUS | DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    rc = dds_waitset_attach (waitset, rds[i], (dds_attach_t)i);
+    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  }
+}
+
+static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, enum multi_sertopic_mode mode)
 {
 #define SEQ_IDX 0
 #define ARY_IDX 1
@@ -345,7 +386,12 @@ static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, 
   dds_qos_t *qos;
   dds_return_t rc;
 
-  printf ("multi_sertopic: %s %s\n", (pp_pub == pp_sub) ? "local" : "remote", fastpath ? "fastpath" : "slowpath");
+  printf ("multi_sertopic: %s %s\n", (pp_pub == pp_sub) ? "local" : "remote", multi_sertopic_modestr (mode));
+
+  /* Transient-local mode is for checking the local historical data delivery path (for remote, there
+     is nothing special about it), and knowing it is local means we don't have to wait for historical
+     data to arrive.  So check. */
+  assert (pp_pub == pp_sub || mode != MSM_TRANSLOCAL);
 
   waitset = dds_create_waitset (DDS_CYCLONEDDS_HANDLE);
   CU_ASSERT_FATAL (waitset > 0);
@@ -353,8 +399,13 @@ static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, 
   qos = dds_create_qos ();
   CU_ASSERT_FATAL (qos != NULL);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
-  dds_qset_destination_order (qos, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
+  dds_qset_destination_order (qos, DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP);
   dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, 0);
+  if (mode == MSM_TRANSLOCAL)
+  {
+    dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
+    dds_qset_durability_service (qos, 0, DDS_HISTORY_KEEP_ALL, 0, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
+  }
 
   create_unique_topic_name ("ddsc_multi_sertopic_lease_duration_zero", name, sizeof name);
 
@@ -373,56 +424,37 @@ static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, 
     sub_topics[i] = dds_create_topic (pp_sub, descs[i], name, qos, NULL);
     CU_ASSERT_FATAL (sub_topics[i] > 0);
   }
-  DDSRT_STATIC_ASSERT (sizeof (readers) >= sizeof (sub_topics));
-  DDSRT_STATIC_ASSERT ((sizeof (readers) % sizeof (sub_topics)) == 0);
-  for (size_t i = 0; i < sizeof (sub_topics) / sizeof (sub_topics[0]); i++)
-  {
-    readers[i] = dds_create_reader (pp_sub, sub_topics[i], qos, NULL);
-    CU_ASSERT_FATAL (readers[i] > 0);
-  }
-  for (size_t i = sizeof (sub_topics) / sizeof (sub_topics[0]); i < sizeof (readers) / sizeof (readers[0]); i++)
-  {
-    const size_t nrd = sizeof (readers) / sizeof (readers[0]);
-    const size_t ntp = sizeof (sub_topics) / sizeof (sub_topics[0]);
-    readers[i] = dds_create_reader (pp_sub, sub_topics[(i - ntp) / (nrd / ntp - 1)], qos, NULL);
-    CU_ASSERT_FATAL (readers[i] > 0);
-  }
 
-  dds_delete_qos (qos);
+  if (mode != MSM_TRANSLOCAL)
+  {
+    create_readers (pp_sub, sizeof (readers) / sizeof (readers[0]), readers, sizeof (sub_topics) / sizeof (sub_topics[0]), sub_topics, qos, waitset);
 
-  /* wait for discovery to complete */
-  for (size_t i = 0; i < sizeof (writers) / sizeof (writers[0]); i++)
-  {
-    rc = dds_set_status_mask (writers[i], DDS_PUBLICATION_MATCHED_STATUS);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
-    rc = dds_waitset_attach (waitset, writers[i], -(dds_attach_t)i - 1);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
-  }
-  for (size_t i = 0; i < sizeof (readers) / sizeof (readers[0]); i++)
-  {
-    rc = dds_set_status_mask (readers[i], DDS_SUBSCRIPTION_MATCHED_STATUS | DDS_DATA_AVAILABLE_STATUS);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
-    rc = dds_waitset_attach (waitset, readers[i], (dds_attach_t)i);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
-  }
+    for (size_t i = 0; i < sizeof (writers) / sizeof (writers[0]); i++)
+    {
+      rc = dds_set_status_mask (writers[i], DDS_PUBLICATION_MATCHED_STATUS);
+      CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+      rc = dds_waitset_attach (waitset, writers[i], -(dds_attach_t)i - 1);
+      CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    }
 
-  printf ("wait for discovery, fastpath_ok; delete & recreate readers\n");
-  while (!(get_and_check_writer_status (sizeof (writers) / sizeof (writers[0]), writers, sizeof (readers) / sizeof (readers[0])) &&
-           get_and_check_reader_status (sizeof (readers) / sizeof (readers[0]), readers, sizeof (writers) / sizeof (writers[0]))))
-  {
-    rc = dds_waitset_wait (waitset, NULL, 0, DDS_SECS(5));
-    CU_ASSERT_FATAL (rc >= 1);
-  }
+    printf ("wait for discovery, fastpath_ok; delete & recreate readers\n");
+    while (!(get_and_check_writer_status (sizeof (writers) / sizeof (writers[0]), writers, sizeof (readers) / sizeof (readers[0])) &&
+             get_and_check_reader_status (sizeof (readers) / sizeof (readers[0]), readers, sizeof (writers) / sizeof (writers[0]))))
+    {
+      rc = dds_waitset_wait (waitset, NULL, 0, DDS_SECS(5));
+      CU_ASSERT_FATAL (rc >= 1);
+    }
 
-  /* we want to check both the fast path and the slow path ... so first wait
-   for it to be set on all (proxy) writers, then possibly reset it */
-  for (size_t i = 0; i < sizeof (readers) / sizeof (readers[0]); i++)
-    waitfor_or_reset_fastpath (readers[i], true, sizeof (writers) / sizeof (writers[0]));
-  if (!fastpath)
-  {
-    printf ("clear fastpath_ok\n");
+    /* we want to check both the fast path and the slow path ... so first wait
+       for it to be set on all (proxy) writers, then possibly reset it */
     for (size_t i = 0; i < sizeof (readers) / sizeof (readers[0]); i++)
-      waitfor_or_reset_fastpath (readers[i], false, sizeof (writers) / sizeof (writers[0]));
+      waitfor_or_reset_fastpath (readers[i], true, sizeof (writers) / sizeof (writers[0]));
+    if (mode == MSM_SLOWPATH)
+    {
+      printf ("clear fastpath_ok\n");
+      for (size_t i = 0; i < sizeof (readers) / sizeof (readers[0]); i++)
+        waitfor_or_reset_fastpath (readers[i], false, sizeof (writers) / sizeof (writers[0]));
+    }
   }
 
   /* check the log output for deserialization failures */
@@ -465,6 +497,11 @@ static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, 
     CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
   }
 
+  if (mode == MSM_TRANSLOCAL)
+  {
+    create_readers (pp_sub, sizeof (readers) / sizeof (readers[0]), readers, sizeof (sub_topics) / sizeof (sub_topics[0]), sub_topics, qos, waitset);
+  }
+
   /* All readers should have received three samples, and those that are of type seq
      should have received one extra (whereas the others should cause deserialization
      failure warnings) */
@@ -472,8 +509,14 @@ static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, 
   const size_t nexp = ((sizeof (writers) / sizeof (writers[0])) *
                          (sizeof (readers) / sizeof (readers[0])) +
                          ((sizeof (readers) / sizeof (readers[0])) / (sizeof (sub_topics) / sizeof (sub_topics[0]))));
-  /* expecting exactly as many deserialization failures as there are topics other than seq */
-  const size_t nexp_fail = sizeof (sub_topics) / sizeof (sub_topics[0]) - 1;
+  /* For the volatile case, expecting exactly as many deserialization failures as there
+     are topics other than seq because the conversion is done only once for each topic,
+     even if there are multiple readers.  For transient-local data, the data set is
+     converted for each new reader (of a different topic) and there will therefore be more
+     conversion failures. */
+  const size_t nexp_fail =
+    (sizeof (sub_topics) / sizeof (sub_topics[0]) - 1) *
+    (mode != MSM_TRANSLOCAL ? 1 : (sizeof (readers) / sizeof (readers[0])) / (sizeof (sub_topics) / sizeof (sub_topics[0])));
   uint32_t nseen = 0;
   while (nseen < nexp)
   {
@@ -572,6 +615,7 @@ static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, 
   /* deleting the waitset is important: it is bound to the library rather than to
      a domain and consequently won't be deleted simply because all domains are */
   rc = dds_delete (waitset);
+  dds_delete_qos (qos);
 
   CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
   dds_set_log_sink (0, NULL);
@@ -579,20 +623,25 @@ static void ddsc_multi_sertopic_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, 
 
 CU_Test(ddsc_multi_sertopic, local, .init = multi_sertopic_init, .fini = multi_sertopic_fini)
 {
-  ddsc_multi_sertopic_impl (g_pub_participant, g_pub_participant, true);
+  ddsc_multi_sertopic_impl (g_pub_participant, g_pub_participant, MSM_FASTPATH);
 }
 
 CU_Test(ddsc_multi_sertopic, remote, .init = multi_sertopic_init, .fini = multi_sertopic_fini)
 {
-  ddsc_multi_sertopic_impl (g_pub_participant, g_sub_participant, true);
+  ddsc_multi_sertopic_impl (g_pub_participant, g_sub_participant, MSM_FASTPATH);
 }
 
 CU_Test(ddsc_multi_sertopic, local_slowpath, .init = multi_sertopic_init, .fini = multi_sertopic_fini)
 {
-  ddsc_multi_sertopic_impl (g_pub_participant, g_pub_participant, false);
+  ddsc_multi_sertopic_impl (g_pub_participant, g_pub_participant, MSM_SLOWPATH);
 }
 
 CU_Test(ddsc_multi_sertopic, remote_slowpath, .init = multi_sertopic_init, .fini = multi_sertopic_fini)
 {
-  ddsc_multi_sertopic_impl (g_pub_participant, g_sub_participant, false);
+  ddsc_multi_sertopic_impl (g_pub_participant, g_sub_participant, MSM_SLOWPATH);
+}
+
+CU_Test(ddsc_multi_sertopic, transient_local, .init = multi_sertopic_init, .fini = multi_sertopic_fini)
+{
+  ddsc_multi_sertopic_impl (g_pub_participant, g_pub_participant, MSM_TRANSLOCAL);
 }

@@ -90,8 +90,7 @@ void dds_listener_copy(dds_listener_t * __restrict dst, const dds_listener_t * _
 static bool dds_combine_listener_merge (uint32_t inherited, void (*dst)(void), void (*src)(void))
 {
   (void)inherited;
-  (void)src;
-  return dst == 0;
+  return dst == 0 && src != 0;
 }
 
 static bool dds_combine_listener_override_inherited (uint32_t inherited, void (*dst)(void), void (*src)(void))

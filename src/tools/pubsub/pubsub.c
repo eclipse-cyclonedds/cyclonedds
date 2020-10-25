@@ -894,6 +894,7 @@ static const char *policystr(uint32_t id) {
     case DDS_READERLIFESPAN_QOS_POLICY_ID: return DDS_READERLIFESPAN_QOS_POLICY_NAME;
     case DDS_SHARE_QOS_POLICY_ID: return DDS_SHARE_QOS_POLICY_NAME;
     case DDS_SCHEDULING_QOS_POLICY_ID: return DDS_SCHEDULING_QOS_POLICY_NAME;
+    case DDS_PROPERTY_QOS_POLICY_ID: return DDS_PROPERTY_QOS_POLICY_NAME;
     default: return "?";
     }
 }
@@ -1068,7 +1069,7 @@ static void pub_do_auto(const struct writerspec *spec) {
     for (k = 0; (uint32_t) k < nkeyvals; k++) {
         d.seq_keyval.keyval = k;
         if(spec->register_instances) {
-            dds_register_instance(spec->wr, &handle[k], &d);
+            (void) dds_register_instance(spec->wr, &handle[k], &d);
         }
     }
 
@@ -1979,7 +1980,7 @@ static char *read_line_from_textfile(FILE *fp) {
         str[n++] = (char)c;
     }
     if (c != EOF || n > 0) {
-        if (n == sz) str = dds_realloc(str, sz += 1);
+        if (n == sz) str = dds_realloc(str, sz + 1);
         str[n] = 0;
     } else if (ferror(fp)) {
         error_exit("error reading file, errno = %d\n", errno);

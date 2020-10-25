@@ -28,8 +28,8 @@ struct ddsi_domaingv; /* FIXME: make a special for the lease admin */
 struct lease {
   ddsrt_fibheap_node_t heapnode;
   ddsrt_fibheap_node_t pp_heapnode;
-  ddsrt_etime_t tsched;            /* access guarded by leaseheap_lock */
-  ddsrt_atomic_uint64_t tend;   /* really an nn_etime_t */
+  ddsrt_etime_t tsched;         /* access guarded by leaseheap_lock */
+  ddsrt_atomic_uint64_t tend;   /* really an ddsrt_etime_t */
   dds_duration_t tdur;          /* constant (renew depends on it) */
   struct entity_common *entity; /* constant */
 };

@@ -12,6 +12,7 @@
 #ifndef DDSRT_XMLPARSER_H
 #define DDSRT_XMLPARSER_H
 
+#include <stdio.h>
 #include <stdint.h>
 
 #include "dds/export.h"

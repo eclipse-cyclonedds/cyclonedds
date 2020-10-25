@@ -23,6 +23,11 @@
 #include "dds/export.h"
 #include "dds/ddsc/dds_public_qosdefs.h"
 
+/* Whether or not the "property list" QoS setting is supported in this version.  If it is,
+   the "dds.sec." properties are treated specially, preventing the accidental creation of
+   an non-secure participant by an implementation built without support for DDS Security. */
+#define DDS_HAS_PROPERTY_LIST_QOS 1
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -382,6 +387,72 @@ dds_qset_ignorelocal (
   dds_ignorelocal_kind_t ignore);
 
 /**
+ * @brief Stores a property with the provided name and string value in a qos structure.
+ *
+ * In the case a property with the provided name already exists in the qos structure,
+ * the value for this entry is overwritten with the provided string value. If more than
+ * one property with the provided name exists, only the value of the first of these
+ * properties is updated.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the property
+ * @param[in] name - Pointer to name of the property
+ * @param[in] value - Pointer to a (null-terminated) string that will be stored
+ */
+DDS_EXPORT void
+dds_qset_prop (
+  dds_qos_t * __restrict qos,
+  const char * name,
+  const char * value);
+
+/**
+ * @brief Removes the property with the provided name from a qos structure.
+ *
+ * In case more than one property exists with this name, only the first property
+ * is removed.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that contains the property
+ * @param[in] name - Pointer to name of the property
+ */
+DDS_EXPORT void
+dds_qunset_prop (
+  dds_qos_t * __restrict qos,
+  const char * name);
+
+/**
+ * @brief Stores the provided binary data as a property in a qos structure
+ *
+ * In the case a property with the provided name already exists in the qos structure,
+ * the value for this entry is overwritten with the provided data. If more than one
+ * property with the provided name exists, only the value of the first of these
+ * properties is updated.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the property
+ * @param[in] name - Pointer to name of the property
+ * @param[in] value - Pointer to data to be stored in the property
+ * @param[in] sz - Size of the data
+ */
+DDS_EXPORT void
+dds_qset_bprop (
+  dds_qos_t * __restrict qos,
+  const char * name,
+  const void * value,
+  const size_t sz);
+
+/**
+ * @brief Removes the binary property with the provided name from a qos structure.
+ *
+ * In case more than one binary property exists with this name, only the first binary
+ * property is removed.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that contains the binary property
+ * @param[in] name - Pointer to name of the property
+ */
+DDS_EXPORT void
+dds_qunset_bprop (
+  dds_qos_t * __restrict qos,
+  const char * name);
+
+/**
  * @brief Get the userdata from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -681,6 +752,74 @@ DDS_EXPORT bool
 dds_qget_ignorelocal (
   const dds_qos_t * __restrict qos,
   dds_ignorelocal_kind_t *ignore);
+
+/**
+ * @brief Gets the names of the properties from a qos structure.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that contains properties
+ * @param[in,out] n - Pointer to number of property names that are returned (optional)
+ * @param[in,out] names - Pointer that will store the string(s) containing property name(s) (optional). This function will allocate the memory for the list of names and for the strings containing the names; the caller gets ownership of the allocated memory
+ *
+ * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object
+ */
+DDS_EXPORT bool
+dds_qget_propnames (
+  const dds_qos_t * __restrict qos,
+  uint32_t * n,
+  char *** names);
+
+/**
+ * @brief Get the value of the property with the provided name from a qos structure.
+ *
+ * In case more than one property exists with this name, the value for the first
+ * property with this name will be returned.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that contains the property
+ * @param[in] name - Pointer to name of the property
+ * @param[in,out] value - Pointer to a string that will store the value of the property. The memory for storing the string value will be allocated by this function and the caller gets ownership of the allocated memory
+ *
+ * @returns - false iff any of the arguments is invalid, the qos is not present in the qos object or there was no property found with the provided name
+ */
+DDS_EXPORT bool
+dds_qget_prop (
+  const dds_qos_t * __restrict qos,
+  const char * name,
+  char ** value);
+
+/**
+ * @brief Gets the names of the binary properties from a qos structure.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that contains binary properties
+ * @param[in,out] n - Pointer to number of binary property names that are returned (optional)
+ * @param[in,out] names - Pointer that will store the string(s) containing binary property name(s) (optional). This function will allocate the memory for the list of names and for the strings containing the names; the caller gets ownership of the allocated memory
+ *
+ * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object
+ */
+DDS_EXPORT bool
+dds_qget_bpropnames (
+  const dds_qos_t * __restrict qos,
+  uint32_t * n,
+  char *** names);
+
+/**
+ * @brief Get the value of the binary property with the provided name from a qos structure.
+ *
+ * In case more than one binary property exists with this name, the value for the first
+ * binary property with this name will be returned.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that contains the property
+ * @param[in] name - Pointer to name of the binary property
+ * @param[in,out] value - Pointer to a buffer that will store the value of the property. If sz = 0 then a NULL pointer. The memory for storing the value will be allocated by this function and the caller gets ownership of the allocated memory
+ * @param[in,out] sz - Pointer that will store the size of the returned buffer.
+ *
+ * @returns - false iff any of the arguments is invalid, the qos is not present in the qos object or there was no binary property found with the provided name
+ */
+DDS_EXPORT bool
+dds_qget_bprop (
+  const dds_qos_t * __restrict qos,
+  const char * name,
+  void ** value,
+  size_t * sz);
 
 #if defined (__cplusplus)
 }

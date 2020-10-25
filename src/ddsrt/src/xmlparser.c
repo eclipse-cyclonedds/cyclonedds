@@ -27,8 +27,11 @@
 #define TOK_CLOSE_TAG -5
 #define TOK_SHORTHAND_CLOSE_TAG -6
 #define TOK_ERROR -7
+#define TOK_CDATA -8
 
 #define NOMARKER (~(size_t)0)
+
+static const char *cdata_magic = "<![CDATA[";
 
 struct ddsrt_xmlp_state {
     size_t cbufp; /* current position in cbuf */
@@ -476,16 +479,15 @@ static int next_token_tag_withoutclose (struct ddsrt_xmlp_state *st, char **payl
     }
 }
 
-static int next_token_string (struct ddsrt_xmlp_state *st, char **payload)
+static int next_token_string (struct ddsrt_xmlp_state *st, char **payload, const char *endm)
 {
-    /* pre: peek_char(st) == ('"' or '\'') */
-    int endm = next_char (st);
-    while (peek_char (st) != endm && peek_char (st) != TOK_EOF) {
+    /* positioned at first character of string */
+    while (!peek_chars (st, endm, 0) && peek_char (st) != TOK_EOF) {
         if (append_to_payload (st, next_char (st), 0) < 0) {
             return TOK_ERROR;
         }
     }
-    if (next_char (st) != endm) {
+    if (!peek_chars (st, endm, 1)) {
         discard_payload (st);
         return TOK_ERROR;
     } else if (save_payload (payload, st, 0) < 0) {
@@ -559,6 +561,8 @@ static int next_token (struct ddsrt_xmlp_state *st, char **payload)
         } else if (peek_chars (st, "<?", 1)) {
             processing_instruction (st, "?>");
             return next_token (st, payload);
+        } else if (peek_chars (st, cdata_magic, 0)) {
+            tok = TOK_CDATA;
         } else if (peek_chars (st, "<!", 1)) {
             processing_instruction (st, ">");
             return next_token (st, payload);
@@ -567,7 +571,17 @@ static int next_token (struct ddsrt_xmlp_state *st, char **payload)
             if (n == '<') {
                 tok = next_token_tag_withoutclose (st, payload);
             } else if (n == '"' || n == '\'') {
-                tok = next_token_string (st, payload);
+                const unsigned char c = (unsigned char) next_char (st);
+                const unsigned char endm[2] = { c, 0 };
+                tok = next_token_string (st, payload, (const char *) endm);
+            } else if (n == 0xe2 && (peek_chars (st, "\xe2\x80\x9c", 0) || peek_chars (st, "\xe2\x80\x98", 0))) {
+                /* allow fancy unicode quotes (U+201c .. U+201d and U+2018 ... U+2019) in
+                   UTF-8 representation because email clients like to rewrite plain ones,
+                   and this has caused people trouble several times already */
+                (void) next_char (st); (void) next_char (st);
+                const unsigned char c = (unsigned char) next_char (st);
+                const unsigned char endm[4] = { 0xe2, 0x80, (unsigned char) (c + 1), 0 };
+                tok = next_token_string (st, payload, (const char *) endm);
             } else if (qq_isidentfirst (n)) {
                 tok = next_token_ident (st, payload);
             } else if (peek_chars (st, "/>", 1)) {
@@ -652,7 +666,6 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
                 }
             } else {
                 /* text */
-                static const char *cdata_magic = "<![CDATA[";
                 char *content;
                 int cmt = 0;
                 rewind_to_input_marker (st);

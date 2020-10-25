@@ -43,7 +43,9 @@ const struct dds_entity_deriver dds_entity_deriver_publisher = {
   .close = dds_entity_deriver_dummy_close,
   .delete = dds_entity_deriver_dummy_delete,
   .set_qos = dds_publisher_qos_set,
-  .validate_status = dds_publisher_status_validate
+  .validate_status = dds_publisher_status_validate,
+  .create_statistics = dds_entity_deriver_dummy_create_statistics,
+  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
 };
 
 dds_entity_t dds__create_publisher_l (dds_participant *par, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener)
@@ -114,7 +116,7 @@ dds_return_t dds_wait_for_acks (dds_entity_t publisher_or_writer, dds_duration_t
       return DDS_RETCODE_UNSUPPORTED;
 
     case DDS_KIND_WRITER:
-      ret = dds__writer_wait_for_acks ((struct dds_writer *) p_or_w_ent, abstimeout);
+      ret = dds__writer_wait_for_acks ((struct dds_writer *) p_or_w_ent, NULL, abstimeout);
       dds_entity_unpin (p_or_w_ent);
       return ret;
 

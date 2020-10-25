@@ -13,6 +13,7 @@
 #define DDSI_ENTITY_INDEX_H
 
 #include "dds/ddsrt/hopscotch.h"
+#include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_entity.h"
 
 #if defined (__cplusplus)
@@ -112,6 +113,7 @@ struct entidx_enum_proxy_reader { struct entidx_enum st; };
 
 void entidx_enum_init (struct entidx_enum *st, const struct entity_index *ei, enum entity_kind kind) ddsrt_nonnull_all;
 void entidx_enum_init_topic (struct entidx_enum *st, const struct entity_index *gh, enum entity_kind kind, const char *topic, struct match_entities_range_key *max) ddsrt_nonnull_all;
+void entidx_enum_init_topic_w_prefix (struct entidx_enum *st, const struct entity_index *ei, enum entity_kind kind, const char *topic, const ddsi_guid_prefix_t *prefix, struct match_entities_range_key *max) ddsrt_nonnull_all;
 void *entidx_enum_next_max (struct entidx_enum *st, const struct match_entities_range_key *max) ddsrt_nonnull_all;
 void *entidx_enum_next (struct entidx_enum *st) ddsrt_nonnull_all;
 void entidx_enum_fini (struct entidx_enum *st) ddsrt_nonnull_all;

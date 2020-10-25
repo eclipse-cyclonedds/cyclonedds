@@ -1,0 +1,87 @@
+MIME-Version: 1.0
+Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----7FBACED8776E5A4CF7612C83F9C33E17"
+
+This is an S/MIME signed message
+
+------7FBACED8776E5A4CF7612C83F9C33E17
+Content-Type: text/plain
+
+<?xml version="1.0" encoding="utf-8"?>
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://www.omg.org/spec/DDS-SECURITY/20170901/omg_shared_ca_permissions.xsd">
+    <permissions>
+        <grant name="OpenSplicePermissions">
+            <subject_name>/C=NL/ST=Some-State/O=ADLINK Technolocy Inc./CN=adlinktech.com</subject_name>
+            <validity>
+                <!-- Format is CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm] in GMT -->
+                <not_before>2015-09-15T01:00:00</not_before>
+                <not_after>2115-09-15T01:00:00</not_after>
+            </validity>
+            <allow_rule>
+                <domains>
+                    <id_range>
+                        <min>0</min>
+                        <max>230</max>
+                    </id_range>
+                </domains>
+                <publish>
+                    <topics>
+                        <topic>*</topic>
+                    </topics>
+                </publish>
+                <subscribe>
+                    <topics>
+                        <topic>*</topic>
+                    </topics>
+                </subscribe>
+            </allow_rule>
+            <default>DENY</default>
+        </grant>
+    </permissions>
+</dds>
+
+------7FBACED8776E5A4CF7612C83F9C33E17
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="smime.p7s"
+
+MIIGywYJKoZIhvcNAQcCoIIGvDCCBrgCAQExDzANBglghkgBZQMEAgEFADALBgkq
+hkiG9w0BBwGgggPKMIIDxjCCAq4CCQCBuTktP0h8BDANBgkqhkiG9w0BAQsFADCB
+pDEWMBQGA1UEBwwNTG9jYWxpdHkgTmFtZTEhMB8GA1UECwwYT3JnYW5pemF0aW9u
+YWwgVW5pdCBOYW1lMRwwGgYJKoZIhvcNAQkBFg1FbWFpbCBBZGRyZXNzMQswCQYD
+VQQGEwJVUzELMAkGA1UECAwCTkoxGjAYBgNVBAoMEUV4YW1wbGUgU2lnbmVyIENB
+MRMwEQYDVQQDDApFeGFtcGxlIENBMB4XDTE4MDgxNTA4NTE0MVoXDTQzMDgwOTA4
+NTE0MVowgaQxFjAUBgNVBAcMDUxvY2FsaXR5IE5hbWUxITAfBgNVBAsMGE9yZ2Fu
+aXphdGlvbmFsIFVuaXQgTmFtZTEcMBoGCSqGSIb3DQEJARYNRW1haWwgQWRkcmVz
+czELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAk5KMRowGAYDVQQKDBFFeGFtcGxlIFNp
+Z25lciBDQTETMBEGA1UEAwwKRXhhbXBsZSBDQTCCASIwDQYJKoZIhvcNAQEBBQAD
+ggEPADCCAQoCggEBALStAQ0yjM2qAWwsOXdX3hiyoZ6DDHWOTNI5LoCZGaN9rUZe
+MY0waSxWNQ0ruURgZISeOFkdQTAE81Em+UaZI+MZvfYcEcSlVtF6yve/WnIzRYWu
+f917moMCAInktfch4E6mskr4h7n+9sEz+3GsQS8SQRtwUe+PiXzjZrqHSbLC4Kn3
+/b8Mt+Ww3a4FyjHDZQJZsGSvrScr0Gq3xeKfMwb+KYNEnmh0o4os0gEGA4KUR+/1
+YDl1NmxQnm/AIMqwJzeaezBoMn0Nsi+OlAms85imGURNj9BCEJZBWwuuNL5ECDAq
+WLOM3AKUsApVgtGd8/OLWW1RwYkW8uqTtkIR87MCAwEAATANBgkqhkiG9w0BAQsF
+AAOCAQEAokKC77/kvxlObLSwkT5+7+S+DeznLBRiGVEh8+9PQw1q91sjiOZWf0e3
+T3XPH7CR/NDYoQJkrsqzIwKYrj41z/1jAs+HkH45NpTFiGlUFXNs5iwNh4RUqgf4
+e78Mge4q7pHMFzWTEwEn4DJMGcDDjLW1kN8GobGwHR7O0MpAJKrqcBSo+SPomnQv
+TgiEMQ+Vlz0EJx6JPsq8c7HrxlSdeDAAWIOww/wcGyzlpYEoyz6voSSfdhMt5iy5
+k5BvhBJnTiJTasCHy9KRuis/6qpTZKEj0d7J7LAqpGh8oRIphMwCbFYQT0QBgV6p
+gM8Ufss/RZ6CshMNxz7KtIYpvmxPPTGCAsUwggLBAgEBMIGyMIGkMRYwFAYDVQQH
+DA1Mb2NhbGl0eSBOYW1lMSEwHwYDVQQLDBhPcmdhbml6YXRpb25hbCBVbml0IE5h
+bWUxHDAaBgkqhkiG9w0BCQEWDUVtYWlsIEFkZHJlc3MxCzAJBgNVBAYTAlVTMQsw
+CQYDVQQIDAJOSjEaMBgGA1UECgwRRXhhbXBsZSBTaWduZXIgQ0ExEzARBgNVBAMM
+CkV4YW1wbGUgQ0ECCQCBuTktP0h8BDANBglghkgBZQMEAgEFAKCB5DAYBgkqhkiG
+9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0xODA5MTMwOTIzMDNa
+MC8GCSqGSIb3DQEJBDEiBCCvP08gFBO7651mPPDFQ2suhL+eprGCGuRLXmiBmdvx
+ITB5BgkqhkiG9w0BCQ8xbDBqMAsGCWCGSAFlAwQBKjALBglghkgBZQMEARYwCwYJ
+YIZIAWUDBAECMAoGCCqGSIb3DQMHMA4GCCqGSIb3DQMCAgIAgDANBggqhkiG9w0D
+AgIBQDAHBgUrDgMCBzANBggqhkiG9w0DAgIBKDANBgkqhkiG9w0BAQEFAASCAQB/
+4EQel+0LsmiNFCUjWM68u4ZvPtFBpeDe456DJuG6QR0LIzW42U7N4P2ZTIqjpGZx
+YekBCNdkiVy6ER5IA4WfcKd6zXZEuXVxkMrGpJlqGdd+IdZpTsrBygGZJS4vMUfD
+/6ty6OycET88RmJIu4V/TM3yLVKzHuj6TxCXb4OIYx8g3mdXUwUrp6DGgqggRSPJ
+tatbpnqGZGcvty8MusXVnjnEwUWnJ/jojypY3MyL4MTbjufjv0K6NKQ3RzoLssot
+SLq0YDLwvX/s9sLXDCedAwFXBS/6Qv56v0M2x4o8e3Eul7gGTMuCd/dJ0BhF8CW+
+IGxR5I3xXssh/AuWRRtV
+
+------7FBACED8776E5A4CF7612C83F9C33E17--
+

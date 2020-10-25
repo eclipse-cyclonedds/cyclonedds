@@ -1,0 +1,199 @@
+MIME-Version: 1.0
+Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----988CFBB47A225358D7A5B33A4CA9AD64"
+
+This is an S/MIME signed message
+
+------988CFBB47A225358D7A5B33A4CA9AD64
+Content-Type: text/plain
+
+<?xml version="1.0" encoding="utf-8"?>
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://www.omg.org/spec/DDS-SECURITY/20170901/omg_shared_ca_governance.xsd">
+    <domain_access_rules>
+        <domain_rule>
+            <!-- No access control by any topic and participant is access protected -->
+            <domains>
+                <id>1</id>
+            </domains>
+            <allow_unauthenticated_participants>1</allow_unauthenticated_participants>
+            <rtps_protection_kind>NONE</rtps_protection_kind>
+            <discovery_protection_kind>SIGN</discovery_protection_kind>
+            <liveliness_protection_kind>ENCRYPT</liveliness_protection_kind>
+            <!--  Only and any authenticated DomainParticipant should be allowed to join the domain and
+                  see the discovery data without checking access control  -->
+            <enable_join_access_control>TRUE</enable_join_access_control>
+
+            <topic_access_rules>
+                <topic_rule>
+                    <enable_liveliness_protection>FALSE</enable_liveliness_protection>
+                    <data_protection_kind>ENCRYPT</data_protection_kind>
+                    <enable_discovery_protection>TRUE</enable_discovery_protection>
+                    <metadata_protection_kind>SIGN</metadata_protection_kind>
+                    <topic_expression>Topic1</topic_expression>
+                    <!-- The read access to all topics should be open to all. -->
+                    <enable_read_access_control>true</enable_read_access_control>
+                    <!-- The write access to all topics should be open to all. -->
+                    <enable_write_access_control>true</enable_write_access_control>
+                </topic_rule>
+                <topic_rule>
+                    <enable_liveliness_protection>FALSE</enable_liveliness_protection>
+                    <data_protection_kind>ENCRYPT</data_protection_kind>
+                    <enable_discovery_protection>TRUE</enable_discovery_protection>
+                    <metadata_protection_kind>SIGN</metadata_protection_kind>
+                    <topic_expression>Topic2</topic_expression>
+                    <!-- The read access to all topics should be open to all. -->
+                    <enable_read_access_control>true</enable_read_access_control>
+                    <!-- The write access to all topics should be open to all. -->
+                    <enable_write_access_control>true</enable_write_access_control>
+                </topic_rule>
+            </topic_access_rules>
+        </domain_rule>
+        <domain_rule>
+            <!-- No write access control by one topic -->
+            <domains>
+                <id>2</id>
+            </domains>
+            <allow_unauthenticated_participants>1</allow_unauthenticated_participants>
+            <rtps_protection_kind>NONE</rtps_protection_kind>
+            <discovery_protection_kind>SIGN</discovery_protection_kind>
+            <liveliness_protection_kind>ENCRYPT</liveliness_protection_kind>
+            <!--  Only and any authenticated DomainParticipant should be allowed to join the domain and
+                  see the discovery data without checking access control  -->
+            <enable_join_access_control>TRUE</enable_join_access_control>
+
+            <topic_access_rules>
+                <topic_rule>
+                    <enable_liveliness_protection>FALSE</enable_liveliness_protection>
+                    <data_protection_kind>ENCRYPT</data_protection_kind>
+                    <enable_discovery_protection>TRUE</enable_discovery_protection>
+                    <metadata_protection_kind>SIGN</metadata_protection_kind>
+                    <topic_expression>Topic1</topic_expression>
+                    <!-- The read access to all topics should be open to all. -->
+                    <enable_read_access_control>true</enable_read_access_control>
+                    <!-- The write access to all topics should be open to all. -->
+                    <enable_write_access_control>false</enable_write_access_control>
+                </topic_rule>
+                <topic_rule>
+                    <enable_liveliness_protection>FALSE</enable_liveliness_protection>
+                    <data_protection_kind>ENCRYPT</data_protection_kind>
+                    <enable_discovery_protection>TRUE</enable_discovery_protection>
+                    <metadata_protection_kind>SIGN</metadata_protection_kind>
+                    <topic_expression>Topic2</topic_expression>
+                    <!-- The read access to all topics should be open to all. -->
+                    <enable_read_access_control>true</enable_read_access_control>
+                    <!-- The write access to all topics should be open to all. -->
+                    <enable_write_access_control>true</enable_write_access_control>
+                </topic_rule>
+            </topic_access_rules>
+        </domain_rule> 
+        <domain_rule>
+            <!-- No write and read access control by all topic -->
+            <domains>
+                <id>3</id>
+            </domains>
+            <allow_unauthenticated_participants>1</allow_unauthenticated_participants>
+            <rtps_protection_kind>NONE</rtps_protection_kind>
+            <discovery_protection_kind>SIGN</discovery_protection_kind>
+            <liveliness_protection_kind>ENCRYPT</liveliness_protection_kind>
+            <!--  Only and any authenticated DomainParticipant should be allowed to join the domain and
+                  see the discovery data without checking access control  -->
+            <enable_join_access_control>TRUE</enable_join_access_control>
+
+            <topic_access_rules>
+                <topic_rule>
+                    <enable_liveliness_protection>FALSE</enable_liveliness_protection>
+                    <data_protection_kind>ENCRYPT</data_protection_kind>
+                    <enable_discovery_protection>TRUE</enable_discovery_protection>
+                    <metadata_protection_kind>SIGN</metadata_protection_kind>
+                    <topic_expression>Topic1</topic_expression>
+                    <!-- The read access to all topics should be open to all. -->
+                    <enable_read_access_control>false</enable_read_access_control>
+                    <!-- The write access to all topics should be open to all. -->
+                    <enable_write_access_control>false</enable_write_access_control>
+                </topic_rule>
+                <topic_rule>
+                    <enable_liveliness_protection>FALSE</enable_liveliness_protection>
+                    <data_protection_kind>ENCRYPT</data_protection_kind>
+                    <enable_discovery_protection>TRUE</enable_discovery_protection>
+                    <metadata_protection_kind>SIGN</metadata_protection_kind>
+                    <topic_expression>Topic2</topic_expression>
+                    <!-- The read access to all topics should be open to all. -->
+                    <enable_read_access_control>false</enable_read_access_control>
+                    <!-- The write access to all topics should be open to all. -->
+                    <enable_write_access_control>false</enable_write_access_control>
+                </topic_rule>
+            </topic_access_rules>
+        </domain_rule>                  
+        <domain_rule>
+            <!-- Participant is access protected -->
+            <domains>
+                <id>4</id>
+            </domains>
+            <allow_unauthenticated_participants>1</allow_unauthenticated_participants>
+            <rtps_protection_kind>NONE</rtps_protection_kind>
+            <discovery_protection_kind>SIGN</discovery_protection_kind>
+            <liveliness_protection_kind>ENCRYPT</liveliness_protection_kind>
+            <!--  Only and any authenticated DomainParticipant should be allowed to join the domain and
+                  see the discovery data without checking access control  -->
+            <enable_join_access_control>FALSE</enable_join_access_control>
+
+            <topic_access_rules>
+                <topic_rule>
+                    <enable_liveliness_protection>FALSE</enable_liveliness_protection>
+                    <data_protection_kind>ENCRYPT</data_protection_kind>
+                    <enable_discovery_protection>TRUE</enable_discovery_protection>
+                    <metadata_protection_kind>SIGN</metadata_protection_kind>
+                    <topic_expression>Topic1</topic_expression>
+                    <!-- The read access to all topics should be open to all. -->
+                    <enable_read_access_control>true</enable_read_access_control>
+                    <!-- The write access to all topics should be open to all. -->
+                    <enable_write_access_control>true</enable_write_access_control>
+                </topic_rule>
+            </topic_access_rules>
+        </domain_rule>
+    </domain_access_rules>
+</dds>
+
+------988CFBB47A225358D7A5B33A4CA9AD64
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="smime.p7s"
+
+MIIGXgYJKoZIhvcNAQcCoIIGTzCCBksCAQExDzANBglghkgBZQMEAgEFADALBgkq
+hkiG9w0BBwGgggORMIIDjTCCAnWgAwIBAgIJANsr3sm0NrypMA0GCSqGSIb3DQEB
+CwUAMFwxCzAJBgNVBAYTAk5MMRMwEQYDVQQIDApTb21lLVN0YXRlMR8wHQYDVQQK
+DBZBRExJTksgVGVjaG5vbG9jeSBJbmMuMRcwFQYDVQQDDA5hZGxpbmt0ZWNoLmNv
+bTAgFw0xODA3MzAxMjQ1NTVaGA8yMTE4MDcwNjEyNDU1NVowXDELMAkGA1UEBhMC
+TkwxEzARBgNVBAgMClNvbWUtU3RhdGUxHzAdBgNVBAoMFkFETElOSyBUZWNobm9s
+b2N5IEluYy4xFzAVBgNVBAMMDmFkbGlua3RlY2guY29tMIIBIjANBgkqhkiG9w0B
+AQEFAAOCAQ8AMIIBCgKCAQEAu7jfnJ0wYVuXgG+PgNawdN38+dRpa8jceqi+blID
+ehV6XCxrnGXusTCDuFmo7HMOBVMVNDXlcBWgoGd+u5EultnOEiIeGTgtHc1O6V9w
+icp3BGSpZZax/TcONjMVORaqHCADbQ2J8wsz1FHxuKDwX6BJElYOlK77lb/x3yLs
+DFFC+a0qn2RFh37rcWBRAHy8VEASXKZElT9ZmfKd+KUq34KojhNJ4DepKStTq074
+BRDXVivx+wVD951LFNPiQXq+mgHcLj1k37KlZflTFhdP5oEMtATNsXNJPHlEymiy
+SogRWAmKhysLQudukHfNKN+r0FEQMk/hzpYcFeZSOvbfNQIDAQABo1AwTjAdBgNV
+HQ4EFgQURWMbWvBKZwJvRV1/tyc1R82k0+gwHwYDVR0jBBgwFoAURWMbWvBKZwJv
+RV1/tyc1R82k0+gwDAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAkPF+
+ysVtvHnk2hpu9yNDLCJ96ZzIoKOyY7uRj4ovzlAHFdpNOJQdcJihTmN8i7Trht9X
+Vh0rGoR/6nHzo3TIeiogRC80RlDtuA3PF2dDQBMVDStlZMTZPb693hfjdAjhyyw9
+yghhKHHqNDvSsAL0KfBqjG4yGfGpJylYXIT5fWuKlo/ln/yyPa5s54T5XDo+CMbt
+lLX3QnwVOmaRyzylPiTcPCDIkdLBdXmlfyJcmW6fWa6kPx+35MOxPsXZbujCo+42
++OyLqcH1rKT6XhcshjXBEf+kdgUfSClrM1pNRWsw2ChIYim0F+nry5JFy0Y+8Hbb
+6SDB340BFmtgDHbFHTGCApEwggKNAgEBMGkwXDELMAkGA1UEBhMCTkwxEzARBgNV
+BAgMClNvbWUtU3RhdGUxHzAdBgNVBAoMFkFETElOSyBUZWNobm9sb2N5IEluYy4x
+FzAVBgNVBAMMDmFkbGlua3RlY2guY29tAgkA2yveybQ2vKkwDQYJYIZIAWUDBAIB
+BQCggfowGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcN
+MTkwMzI5MTMwODAyWjAvBgkqhkiG9w0BCQQxIgQg9ZheySVcKVr9eNKQTeuBdR0z
+Cbgnm4HbSvO8/V0a7CAwgY4GCSqGSIb3DQEJDzGBgDB+MAsGCWCGSAFlAwQBKjAI
+BgYqhQMCAgkwCAYGKoUDAgIVMAsGCWCGSAFlAwQBFjALBglghkgBZQMEAQIwCgYI
+KoZIhvcNAwcwDgYIKoZIhvcNAwICAgCAMA0GCCqGSIb3DQMCAgFAMAcGBSsOAwIH
+MA0GCCqGSIb3DQMCAgEoMA0GCSqGSIb3DQEBAQUABIIBACn66JQOghwlIQUMDQ0s
+vMCGMl7OcZtxDdNQ2BYajufv+JGaf46xP6TWk4+c+bDq+9XTDFoTr/KY2XP7vKVD
+RSAm9nlqChzzsKF/7yYdzOP8hILF644PT837mP+E5ss4EYPoPByQLVPWr1B52xWB
+N/kixmZcMxe4btXqE8LGlSsPNioniZsDBRlDOcdFjxTL/3Ksgv6fX2gSEJgYVBH/
+xZ+Cpf4TsdtVDrQwUynck1+BogRtcofnkBFuKozqzwvzDQoLfW2fMnct5Jd7KPwM
+6kN/bRvOEMGYTKYRgfJVdM4rZqbfdRlVnCj+pza4dIHmf5BDSOlsbRqWyJPRmQ8S
+JkM=
+
+------988CFBB47A225358D7A5B33A4CA9AD64--
+

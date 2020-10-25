@@ -9,6 +9,13 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
+set(defconfig_src "${CMAKE_CURRENT_BINARY_DIR}/defconfig.c")
+
+add_custom_command(
+  OUTPUT ${defconfig_src}
+  COMMAND ddsconf -f defconfig -o ${defconfig_src}
+  DEPENDS ddsconf)
+
 PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_eth.c
     ddsi_ssl.c
@@ -18,11 +25,19 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_raweth.c
     ddsi_ipaddr.c
     ddsi_mcgroup.c
+    ddsi_security_util.c
+    ddsi_security_omg.c
     ddsi_portmapping.c
+    ddsi_handshake.c
     ddsi_serdata.c
     ddsi_serdata_default.c
+    ddsi_serdata_pserop.c
+    ddsi_serdata_plist.c
     ddsi_sertopic.c
     ddsi_sertopic_default.c
+    ddsi_sertopic_pserop.c
+    ddsi_sertopic_plist.c
+    ddsi_statistics.c
     ddsi_iid.c
     ddsi_tkmap.c
     ddsi_vendor.c
@@ -36,6 +51,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_cdrstream.c
     ddsi_time.c
     ddsi_ownip.c
+    ddsi_acknack.c
     q_addrset.c
     q_bitset_inlines.c
     q_bswap.c
@@ -79,12 +95,19 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_udp.h
     ddsi_raweth.h
     ddsi_ipaddr.h
+    ddsi_locator.h
     ddsi_mcgroup.h
     ddsi_plist_generic.h
+    ddsi_security_util.h
+    ddsi_security_omg.h
     ddsi_portmapping.h
+    ddsi_handshake.h    
     ddsi_serdata.h
     ddsi_sertopic.h
     ddsi_serdata_default.h
+    ddsi_serdata_pserop.h
+    ddsi_serdata_plist.h
+    ddsi_statistics.h
     ddsi_iid.h
     ddsi_tkmap.h
     ddsi_vendor.h
@@ -92,6 +115,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_builtin_topic_if.h
     ddsi_rhc.h
     ddsi_guid.h
+    ddsi_keyhash.h
     ddsi_entity_index.h
     ddsi_deadline.h
     ddsi_deliver_locally.h
@@ -101,6 +125,10 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_cdrstream.h
     ddsi_time.h
     ddsi_ownip.h
+    ddsi_cfgunits.h
+    ddsi_cfgelems.h
+    ddsi_config.h
+    ddsi_acknack.h
     q_addrset.h
     q_bitset.h
     q_bswap.h
@@ -141,6 +169,21 @@ endif()
 
 target_sources(ddsc
   PRIVATE ${srcs_ddsi} ${hdrs_private_ddsi})
+target_sources(ddsc
+  PRIVATE ${defconfig_src})
+
+if(ENABLE_SECURITY)
+  PREPEND(security_srcs "${CMAKE_CURRENT_LIST_DIR}/src"
+          ddsi_security_msg.c
+          ddsi_security_exchange.c)
+
+  PREPEND(security_hdrs "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
+          ddsi_security_msg.h
+	  ddsi_security_exchange.h)
+
+  target_sources(ddsc
+    PRIVATE ${security_srcs} ${security_hdrs})
+endif()
 
 target_include_directories(ddsc
   PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")

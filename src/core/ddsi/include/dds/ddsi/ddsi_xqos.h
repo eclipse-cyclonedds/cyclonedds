@@ -304,24 +304,246 @@ struct dds_qos {
 
 struct nn_xmsg;
 
+/**
+ * @brief Initialize a new empty dds_qos_t as an empty object
+ *
+ * In principle, this only clears the "present" and "aliased" bitmasks.  A debug build
+ * additionally initializes all other bytes to 0x55.
+ *
+ * @param[out] xqos  qos object to be initialized.
+ */
 DDS_EXPORT void ddsi_xqos_init_empty (dds_qos_t *xqos);
+
+/**
+ * @brief Initialize xqos to match default QoS settings for a reader
+ *
+ * @param[out] xqos    qos object to contain the default settings.
+ */
 DDS_EXPORT void ddsi_xqos_init_default_reader (dds_qos_t *xqos);
+
+/**
+ * @brief Initialize xqos to match default QoS settings for a writer
+ *
+ * @param[out] xqos    qos object to contain the default settings.
+ */
 DDS_EXPORT void ddsi_xqos_init_default_writer (dds_qos_t *xqos);
+
+/**
+ * @brief Initialize xqos to match default QoS settings for a non-autodispose writer
+ *
+ * The default writer QoS has "auto dispose unregistered instances" set to true, and
+ * opinions differ about what the correct behaviour is, but the setting doesn't really
+ * make any sense if it is treated as a macro on the writing such, such that each
+ * "unregister" call also performs a dispose.  Cyclone DDS implements the interpretation
+ * that matches the name (whenever no registrations are left, make it disposed), which is
+ * a refinement of OpenSplice's interpretation (whenever an unregister event occurs, make
+ * it disposed).  All these differences originate in the DCPS spec not being clear enough
+ * and the complicating factor is that the two different interpretations existed before
+ * the introduction of the DDSI specification, and yet the DDSI specification doesn't
+ * provide a standard way of discovering the setting for remote writers.
+ *
+ * Cyclone DDS uses the same vendor-specific extension as OpenSplice for communicating it,
+ * and uses a different default for different implementations.  So this is the default
+ * used for the "RTI interpretation".
+ *
+ * @param[out] xqos    qos object to contain the default settings.
+ */
 DDS_EXPORT void ddsi_xqos_init_default_writer_noautodispose (dds_qos_t *xqos);
+
+/**
+ * @brief Initialize xqos to match default QoS settings for a subscriber
+ *
+ * @param[out] xqos    qos object to contain the default settings.
+ */
 DDS_EXPORT void ddsi_xqos_init_default_subscriber (dds_qos_t *xqos);
+
+/**
+ * @brief Initialize xqos to match default QoS settings for a publisher
+ *
+ * @param[out] xqos    qos object to contain the default settings.
+ */
 DDS_EXPORT void ddsi_xqos_init_default_publisher (dds_qos_t *xqos);
+
+/**
+ * @brief Initialize xqos to match default QoS settings for a topic
+ *
+ * @param[out] xqos    qos object to contain the default settings.
+ */
 DDS_EXPORT void ddsi_xqos_init_default_topic (dds_qos_t *xqos);
+
+/**
+ * @brief Copy "src" to "dst"
+ *
+ * @param[out]    dst     destination, any contents are overwritten
+ * @param[in]     src     source dds_qos_t
+ */
 DDS_EXPORT void ddsi_xqos_copy (dds_qos_t *dst, const dds_qos_t *src);
+
+/**
+ * @brief Replace any memory "xqos" aliases by copies it owns
+ *
+ * A dds_qos_t may can reference other memory without owning it.  This functions allows
+ * one to replace any such aliased memory by copies, allowing one to free the original
+ * copy.
+ *
+ * @param[in,out] xqos   qos object for which to replace all aliased memory by owned
+ *                       copies
+ */
 DDS_EXPORT void ddsi_xqos_unalias (dds_qos_t *xqos);
+
+/**
+ * @brief Free memory owned by "xqos"
+ *
+ * A dds_qos_t may own other allocated blocks of memory, depending on which fields are
+ * set, their types and whether they are marked as "aliased".  This function releases any
+ * such memory owned by "xqos", but not "xqos" itself.  Afterward, the content of "xqos"
+ * is undefined and must not be used again without initialising it.
+ *
+ * @param[in] xqos   dds_qos_t for which to free memory
+ */
 DDS_EXPORT void ddsi_xqos_fini (dds_qos_t *xqos);
+
+/**
+ * @brief Free memory owned by "xqos" for a subset of the entries
+ *
+ * A dds_qos_t may own other allocated blocks of memory, depending on which fields are
+ * set, their types and whether they are marked as "aliased".  This function releases any
+ * such memory owned by "xqos" for entries included in "mask".  The "present" and
+ * "aliased" bits are cleared accordingly.
+ *
+ * @param[in,out] xqos   dds_qos_t for which to free memory
+ * @param[in]     mask   entries to free (if QP_X is set, free X if present)
+ */
 DDS_EXPORT void ddsi_xqos_fini_mask (dds_qos_t *xqos, uint64_t mask);
+
+/**
+ * @brief Check whether xqos is valid according to the validation rules in the spec
+ *
+ * The checks concern the values for the individual fields as well as a few combinations
+ * of fields.  Only those that are set are checked (the defaults are all valid anyway),
+ * and where a combination of fields must be checked and some but not all fields are
+ * specified, it uses the defaults for the missing ones.
+ *
+ * Invalid values get logged as category "plist" according to the specified logging
+ * configuration.
+ *
+ * @param[in] logcfg  logging configuration
+ * @param[in] xqos    qos object to check
+ *
+ * @returns DDS_RETCODE_OK or DDS_RETCODE_BAD_PARAMETER
+ */
 DDS_EXPORT dds_return_t ddsi_xqos_valid (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
+
+/**
+ * @brief Extend "a" with selected entries present in "b"
+ *
+ * This copies into "a" any entries present in "b" that are included in "mask" and missing
+ * in "a".  It doesn't touch any entries already present in "a".  Calling this on an empty
+ * "a" with all bits set in "mask" is equivalent to copying "b" into "a"; calling this
+ * with "mask" 0 copies nothing.
+ *
+ * @param[in,out] a       dds_qos_t to be extended
+ * @param[in]     b       dds_qos_t from which to copy entries
+ * @param[in]     mask    which to include (if QP_X is set, include X)
+ */
 DDS_EXPORT void ddsi_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
+
+/**
+ * @brief Determine the set of entries in which "x" differs from "y"
+ *
+ * This computes the entries set in "x" but not set in "y", not set in "x" but set in "y",
+ * or set in both "x" and "y" but to a different value.  It returns this set reduced to
+ * only those included in "mask", that is, if bit X is clear in "mask", bit X will be
+ * clear in the result.
+ *
+ * @param[in]  a         one of the two plists to compare
+ * @param[in]  b         other plist to compare
+ * @param[in]  mask      subset of entries to be compared
+ *
+ * @returns Bitmask of differences
+ */
 DDS_EXPORT uint64_t ddsi_xqos_delta (const dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
+
+/**
+ * @brief Add selected entries in "xqos" to a message in native endianness.
+ *
+ * This functions appends to "xqos" a serialized copy of the the entries selected by
+ * "wanted" and present in "xqos".  Each copy is preceded by a 4-byte header with a
+ * parameter id and length (conform the PL_CDR representation).  It does *not* add a
+ * sentinel to allow adding additional data to the parameter list.  A sentinel can be
+ * added using `nn_xmsg_addpar_sentinel`.
+ *
+ * @param[in,out] m        message to append the parameters to
+ * @param[in]     xqos     source
+ * @param[in]     wanted   subset to be added (if QP_X is set, add X if present)
+ */
 DDS_EXPORT void ddsi_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, uint64_t wanted);
+
+/**
+ * @brief Formats xqos using `ddsi_xqos_print` and writes it to the trace.
+ *
+ * @param[in] cat        log category to use
+ * @param[in] logcfg     logging configuration
+ * @param[in] xqos       qos object to be logged
+ */
 DDS_EXPORT void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
+
+/**
+ * @brief Formats xqos into a buffer
+ *
+ * The representation is somewhat cryptic as all enumerated types are dumped as numbers
+ * and timestamps are durations as nanoseconds with "infinite" represented as
+ * 9223372036854775807 (INT64_MAX).
+ *
+ * @param[out] buf       buffer to store the formatted representation in
+ * @param[in]  bufsize   size of buffer, if > 0, there will be a terminating 0 in buf on
+ *                       return
+ * @param[in]  xqos      parameter list to be formatted as a string
+ *
+ * @returns number of bytes written to buf, excluding a terminating 0.
+ */
 DDS_EXPORT size_t ddsi_xqos_print (char * __restrict buf, size_t bufsize, const dds_qos_t *xqos);
+
+/**
+ * @brief Duplicate "src"
+ *
+ * @param[in]  src       dds_qos_t to be duplicated
+ *
+ * @returns a new (allocated using ddsrt_malloc) dds_qos_t containing a copy of "src".
+ */
 DDS_EXPORT dds_qos_t *ddsi_xqos_dup (const dds_qos_t *src);
+
+/**
+ * @brief Check if "xqos" includes properties with a name starting with "nameprefix"
+ *
+ * That is, if xqos.present has QP_PROPERTY_LIST set, and at least one of them has a name
+ * starting with "nameprefix".
+ *
+ * @param[in]  xqos        qos object to check
+ * @param[in]  nameprefix  prefix to check for
+ *
+ * @returns true iff xqos contains a matching property
+ */
+DDS_EXPORT bool ddsi_xqos_has_prop_prefix (const dds_qos_t *xqos, const char *nameprefix);
+
+/**
+ * @brief Lookup property "name" in "xqos" and return a pointer to its value
+ *
+ * The value pointer is left unchanged if the property doesn't exist.  The returned
+ * address points into the memory owned by the QoS object and must not be freed.
+ *
+ * @param[in]  xqos        qos object to check
+ * @param[in]  name        name to look for
+ * @param[out] value       pointer to set to the value of the property if it exists
+ *
+ * @returns true iff xqos contains the property
+ */
+DDS_EXPORT bool ddsi_xqos_find_prop (const dds_qos_t *xqos, const char *name, const char **value);
+
+#ifdef DDSI_INCLUDE_SECURITY
+struct ddsi_config_omg_security;
+DDS_EXPORT void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct ddsi_config_omg_security *cfg);
+#endif
 
 #if defined (__cplusplus)
 }

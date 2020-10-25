@@ -421,6 +421,10 @@ static ddsrt_mtime_t whc_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
 struct whc_writer_info *whc_make_wrinfo (struct dds_writer *wr, const dds_qos_t *qos)
 {
   struct whc_writer_info *wrinfo = ddsrt_malloc (sizeof (*wrinfo));
+  assert (qos->present & QP_HISTORY);
+  assert (qos->present & QP_DEADLINE);
+  assert (qos->present & QP_DURABILITY);
+  assert (qos->present & QP_DURABILITY_SERVICE);
   wrinfo->writer = wr;
   wrinfo->is_transient_local = (qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
   wrinfo->has_deadline = (qos->deadline.deadline != DDS_INFINITY);
@@ -449,7 +453,7 @@ struct whc *whc_new (struct ddsi_domaingv *gv, const struct whc_writer_info *wri
   whc = ddsrt_malloc (sizeof (*whc));
   whc->common.ops = &whc_ops;
   ddsrt_mutex_init (&whc->lock);
-  whc->xchecks = (gv->config.enabled_xchecks & DDS_XCHECK_WHC) != 0;
+  whc->xchecks = (gv->config.enabled_xchecks & DDSI_XCHECK_WHC) != 0;
   whc->gv = gv;
   whc->tkmap = gv->m_tkmap;
   memcpy (&whc->wrinfo, wrinfo, sizeof (*wrinfo));
@@ -849,7 +853,7 @@ static void whc_delete_one_intv (struct whc_impl *whc, struct whc_intvnode **p_i
     assert (new_intv->min < new_intv->maxp1);
 
     /* insert new node & continue the loop with intv set to the
-     new interval */
+    new interval */
     if (ddsrt_avl_lookup_ipath (&whc_seq_treedef, &whc->seq, &new_intv->min, &path) != NULL)
       assert (0);
     ddsrt_avl_insert_ipath (&whc_seq_treedef, &whc->seq, new_intv, &path);

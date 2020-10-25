@@ -215,10 +215,6 @@ static void vlog1 (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t 
      used with the global one. */
   assert (domid == cfg->c.domid || cfg == &logconfig);
 
-  if (*fmt == 0) {
-    return;
-  }
-
   lb = &log_buffer;
 
   /* Thread-local buffer is always initialized with all zeroes. The pos
@@ -227,6 +223,20 @@ static void vlog1 (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t 
     lb->pos = BUF_OFFSET;
     lb->buf[lb->pos] = 0;
   }
+
+  /* drop any prefix of new lines if there is current no data in the buffer:
+     there are some tricky problems in tracing some details depending on
+     enabled categories (like which subset of discovery related data gets
+     traced), and it sometimes helps to be able to trace just a newline
+     knowing it won't have any effect if nothing is buffered */
+  if (lb->pos == BUF_OFFSET) {
+    while (*fmt == '\n')
+      fmt++;
+  }
+  if (*fmt == 0) {
+    return;
+  }
+
   nrem = sizeof (lb->buf) - lb->pos;
   if (nrem > 0) {
     n = vsnprintf (lb->buf + lb->pos, nrem, fmt, ap);

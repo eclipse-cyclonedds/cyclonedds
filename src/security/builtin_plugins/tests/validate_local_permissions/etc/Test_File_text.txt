@@ -1,0 +1,3 @@
+This is just a file to see how the Security Plugin
+reacts when it receives a file that doesn't contain
+expected content, but just some text.

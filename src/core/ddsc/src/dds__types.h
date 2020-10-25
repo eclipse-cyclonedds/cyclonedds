@@ -106,6 +106,8 @@ typedef struct dds_entity_deriver {
   dds_return_t (*delete) (struct dds_entity *e) ddsrt_nonnull_all;
   dds_return_t (*set_qos) (struct dds_entity *e, const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
   dds_return_t (*validate_status) (uint32_t mask);
+  struct dds_statistics * (*create_statistics) (const struct dds_entity *e);
+  void (*refresh_statistics) (const struct dds_entity *e, struct dds_statistics *s);
 } dds_entity_deriver;
 
 struct dds_waitset;
@@ -178,6 +180,8 @@ void dds_entity_deriver_dummy_close (struct dds_entity *e);
 dds_return_t dds_entity_deriver_dummy_delete (struct dds_entity *e);
 dds_return_t dds_entity_deriver_dummy_set_qos (struct dds_entity *e, const dds_qos_t *qos, bool enabled);
 dds_return_t dds_entity_deriver_dummy_validate_status (uint32_t mask);
+struct dds_statistics *dds_entity_deriver_dummy_create_statistics (const struct dds_entity *e);
+void dds_entity_deriver_dummy_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s);
 
 inline void dds_entity_deriver_interrupt (struct dds_entity *e) {
   (dds_entity_deriver_table[e->m_kind]->interrupt) (e);
@@ -200,6 +204,12 @@ inline bool dds_entity_supports_set_qos (struct dds_entity *e) {
 inline bool dds_entity_supports_validate_status (struct dds_entity *e) {
   return dds_entity_deriver_table[e->m_kind]->validate_status != dds_entity_deriver_dummy_validate_status;
 }
+inline struct dds_statistics *dds_entity_deriver_create_statistics (const struct dds_entity *e) {
+  return dds_entity_deriver_table[e->m_kind]->create_statistics (e);
+}
+inline void dds_entity_deriver_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s) {
+  dds_entity_deriver_table[e->m_kind]->refresh_statistics (e, s);
+}
 
 typedef struct dds_cyclonedds_entity {
   struct dds_entity m_entity;
@@ -216,7 +226,7 @@ typedef struct dds_domain {
 
   ddsrt_avl_node_t m_node; /* for dds_global.m_domains */
   dds_domainid_t m_id;
-  struct cfgst *cfgst;
+  struct cfgst *cfgst; // NULL if config initializer provided
 
   struct ddsi_sertopic *builtin_participant_topic;
   struct ddsi_sertopic *builtin_reader_topic;
@@ -296,18 +306,12 @@ typedef struct dds_writer {
   dds_publication_matched_status_t m_publication_matched_status;
 } dds_writer;
 
-#ifndef DDS_TOPIC_INTERN_FILTER_FN_DEFINED
-#define DDS_TOPIC_INTERN_FILTER_FN_DEFINED
-typedef bool (*dds_topic_intern_filter_fn) (const void * sample, void *ctx);
-#endif
-
 typedef struct dds_topic {
   struct dds_entity m_entity;
   struct ddsi_sertopic *m_stopic;
   struct dds_ktopic *m_ktopic; /* refc'd, constant */
 
-  dds_topic_intern_filter_fn filter_fn;
-  void *filter_ctx;
+  struct dds_topic_filter m_filter;
 
   /* Status metrics */
 

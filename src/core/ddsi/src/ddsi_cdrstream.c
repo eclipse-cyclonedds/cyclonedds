@@ -16,6 +16,7 @@
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
@@ -364,7 +365,8 @@ static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_
         break;
       }
       case DDS_OP_JSR: {
-        dds_stream_countops1 (ops + DDS_OP_JUMP (insn), ops_end);
+        if (DDS_OP_JUMP (insn) > 0)
+          dds_stream_countops1 (ops + DDS_OP_JUMP (insn), ops_end);
         ops++;
         break;
       }
@@ -1909,7 +1911,10 @@ void dds_stream_extract_keyhash (dds_istream_t * __restrict is, dds_keyhash_t * 
   const struct ddsi_sertopic_default_desc *desc = &topic->type;
   kh->m_set = 1;
   if (desc->m_nkeys == 0)
+  {
     kh->m_iskey = 1;
+    kh->m_keysize = 0;
+  }
   else if (desc->m_flagset & DDS_TOPIC_FIXED_KEY)
   {
     dds_ostreamBE_t os;
@@ -1922,12 +1927,14 @@ void dds_stream_extract_keyhash (dds_istream_t * __restrict is, dds_keyhash_t * 
     else
       dds_stream_extract_keyBE_from_data (is, &os, topic);
     assert (os.x.m_index <= 16);
+    kh->m_keysize = (unsigned)os.x.m_index & 0x1f;
   }
   else
   {
     dds_ostreamBE_t os;
     ddsrt_md5_state_t md5st;
     kh->m_iskey = 0;
+    kh->m_keysize = 16;
     dds_ostreamBE_init (&os, 0);
     if (just_key)
       dds_stream_extract_keyBE_from_key (is, &os, topic);
@@ -1990,14 +1997,42 @@ static size_t isprint_runlen (const unsigned char *s, size_t n)
   return m;
 }
 
-static bool prtf_simple (char * __restrict *buf, size_t * __restrict bufsize, dds_istream_t * __restrict is, enum dds_stream_typecode type)
+static bool prtf_simple (char * __restrict *buf, size_t * __restrict bufsize, dds_istream_t * __restrict is, enum dds_stream_typecode type, unsigned flags)
 {
   switch (type)
   {
-    case DDS_OP_VAL_1BY: return prtf (buf, bufsize, "%"PRIu8, dds_is_get1 (is));
-    case DDS_OP_VAL_2BY: return prtf (buf, bufsize, "%"PRIu16, dds_is_get2 (is));
-    case DDS_OP_VAL_4BY: return prtf (buf, bufsize, "%"PRIu32, dds_is_get4 (is));
-    case DDS_OP_VAL_8BY: return prtf (buf, bufsize, "%"PRIu64, dds_is_get8 (is));
+    case DDS_OP_VAL_1BY: {
+      const union { int8_t s; uint8_t u; } x = { .u = dds_is_get1 (is) };
+      if (flags & DDS_OP_FLAG_SGN)
+        return prtf (buf, bufsize, "%"PRId8, x.s);
+      else
+        return prtf (buf, bufsize, "%"PRIu8, x.u);
+    }
+    case DDS_OP_VAL_2BY: {
+      const union { int16_t s; uint16_t u; } x = { .u = dds_is_get2 (is) };
+      if (flags & DDS_OP_FLAG_SGN)
+        return prtf (buf, bufsize, "%"PRId16, x.s);
+      else
+        return prtf (buf, bufsize, "%"PRIu16, x.u);
+    }
+    case DDS_OP_VAL_4BY: {
+      const union { int32_t s; uint32_t u; float f; } x = { .u = dds_is_get4 (is) };
+      if (flags & DDS_OP_FLAG_FP)
+        return prtf (buf, bufsize, "%g", x.f);
+      else if (flags & DDS_OP_FLAG_SGN)
+        return prtf (buf, bufsize, "%"PRId32, x.s);
+      else
+        return prtf (buf, bufsize, "%"PRIu32, x.u);
+    }
+    case DDS_OP_VAL_8BY: {
+      const union { int64_t s; uint64_t u; double f; } x = { .u = dds_is_get8 (is) };
+      if (flags & DDS_OP_FLAG_FP)
+        return prtf (buf, bufsize, "%g", x.f);
+      else if (flags & DDS_OP_FLAG_SGN)
+        return prtf (buf, bufsize, "%"PRId64, x.s);
+      else
+        return prtf (buf, bufsize, "%"PRIu64, x.u);
+    }
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: return prtf_str (buf, bufsize, is);
     case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
       abort ();
@@ -2005,7 +2040,7 @@ static bool prtf_simple (char * __restrict *buf, size_t * __restrict bufsize, dd
   return false;
 }
 
-static bool prtf_simple_array (char * __restrict *buf, size_t * __restrict bufsize, dds_istream_t * __restrict is, uint32_t num, enum dds_stream_typecode type)
+static bool prtf_simple_array (char * __restrict *buf, size_t * __restrict bufsize, dds_istream_t * __restrict is, uint32_t num, enum dds_stream_typecode type, unsigned flags)
 {
   bool cont = prtf (buf, bufsize, "{");
   switch (type)
@@ -2028,7 +2063,7 @@ static bool prtf_simple_array (char * __restrict *buf, size_t * __restrict bufsi
         {
           if (i != 0)
             (void) prtf (buf, bufsize, ",");
-          cont = prtf_simple (buf, bufsize, is, type);
+          cont = prtf_simple (buf, bufsize, is, type, flags);
           i++;
         }
       }
@@ -2040,7 +2075,7 @@ static bool prtf_simple_array (char * __restrict *buf, size_t * __restrict bufsi
       {
         if (i != 0)
           (void) prtf (buf, bufsize, ",");
-        cont = prtf_simple (buf, bufsize, is, type);
+        cont = prtf_simple (buf, bufsize, is, type, flags);
       }
       break;
     default:
@@ -2065,10 +2100,10 @@ static const uint32_t *prtf_seq (char * __restrict *buf, size_t *bufsize, dds_is
   switch (subtype)
   {
     case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-      (void) prtf_simple_array (buf, bufsize, is, num, subtype);
+      (void) prtf_simple_array (buf, bufsize, is, num, subtype, DDS_OP_FLAGS (insn));
       return ops + 2;
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
-      (void) prtf_simple_array (buf, bufsize, is, num, subtype);
+      (void) prtf_simple_array (buf, bufsize, is, num, subtype, DDS_OP_FLAGS (insn));
       return ops + (subtype == DDS_OP_VAL_STR ? 2 : 3);
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       const uint32_t jmp = DDS_OP_ADR_JMP (ops[3]);
@@ -2093,10 +2128,10 @@ static const uint32_t *prtf_arr (char * __restrict *buf, size_t *bufsize, dds_is
   switch (subtype)
   {
     case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-      (void) prtf_simple_array (buf, bufsize, is, num, subtype);
+      (void) prtf_simple_array (buf, bufsize, is, num, subtype, DDS_OP_FLAGS (insn));
       return ops + 3;
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
-      (void) prtf_simple_array (buf, bufsize, is, num, subtype);
+      (void) prtf_simple_array (buf, bufsize, is, num, subtype, DDS_OP_FLAGS (insn));
       return ops + (subtype == DDS_OP_VAL_STR ? 3 : 5);
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[3]);
@@ -2127,7 +2162,7 @@ static const uint32_t *prtf_uni (char * __restrict *buf, size_t *bufsize, dds_is
     {
       case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
       case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
-        (void) prtf_simple (buf, bufsize, is, valtype);
+        (void) prtf_simple (buf, bufsize, is, valtype, DDS_OP_FLAGS (jeq_op[0]));
         break;
       case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
         (void) dds_stream_print_sample1 (buf, bufsize, is, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), valtype == DDS_OP_VAL_STU);
@@ -2156,11 +2191,11 @@ static bool dds_stream_print_sample1 (char * __restrict *buf, size_t * __restric
         {
           case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
           case DDS_OP_VAL_STR:
-            cont = prtf_simple (buf, bufsize, is, DDS_OP_TYPE (insn));
+            cont = prtf_simple (buf, bufsize, is, DDS_OP_TYPE (insn), DDS_OP_FLAGS (insn));
             ops += 2;
             break;
           case DDS_OP_VAL_BST:
-            cont = prtf_simple (buf, bufsize, is, DDS_OP_TYPE (insn));
+            cont = prtf_simple (buf, bufsize, is, DDS_OP_TYPE (insn), DDS_OP_FLAGS (insn));
             ops += 3;
             break;
           case DDS_OP_VAL_SEQ:
@@ -2212,10 +2247,10 @@ size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct ddsi_se
     {
       case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
       case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
-        cont = prtf_simple (&buf, &bufsize, is, DDS_OP_TYPE (*op));
+        cont = prtf_simple (&buf, &bufsize, is, DDS_OP_TYPE (*op), DDS_OP_FLAGS (*op));
         break;
       case DDS_OP_VAL_ARR:
-        cont = prtf_simple_array (&buf, &bufsize, is, op[2], DDS_OP_SUBTYPE (*op));
+        cont = prtf_simple_array (&buf, &bufsize, is, op[2], DDS_OP_SUBTYPE (*op), DDS_OP_FLAGS (*op));
         break;
       case DDS_OP_VAL_SEQ: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
         abort ();
