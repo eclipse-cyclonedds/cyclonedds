@@ -369,7 +369,7 @@ CycloneDDS configuration""" ] ]
           xsd:integer
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element controls the Maximum size of a delivery queue, expressed in samples. Once a delivery queue is full, incoming samples destined for that queue are dropped until space becomes available again.</p>
+<p>This element controls the maximum size of a delivery queue, expressed in samples. Once a delivery queue is full, incoming samples destined for that queue are dropped until space becomes available again.</p>
 <p>The default value is: "256".</p>""" ] ]
         element DeliveryQueueMaxSamples {
           xsd:integer
