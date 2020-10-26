@@ -519,7 +519,7 @@ The default value is: "4".
 #### //CycloneDDS/Domain/Internal/DeliveryQueueMaxSamples
 Integer
 
-This element controls the Maximum size of a delivery queue, expressed in samples. Once a delivery queue is full, incoming samples destined for that queue are dropped until space becomes available again.
+This element controls the maximum size of a delivery queue, expressed in samples. Once a delivery queue is full, incoming samples destined for that queue are dropped until space becomes available again.
 
 The default value is: "256".
 

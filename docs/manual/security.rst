@@ -511,7 +511,7 @@ certificate):
   openssl req -x509 -key example_id_ca_priv_key.pem -out example_id_ca_cert.pem -days 3650 -subj "/C=NL/ST=OV/L=Locality Name/OU=Example OU/O=Example ID CA Organization/CN=Example ID CA/emailAddress=authority@cycloneddssecurity.adlinktech.com"
 
 We repeat these steps for generating the private key of the permissions CA (used for
-signing the AccessControl configiguration files):
+signing the AccessControl configuration files):
 
 .. code-block:: bash
 

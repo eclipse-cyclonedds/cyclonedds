@@ -607,7 +607,7 @@ static struct cfgelem channel_cfgelems[] = {
       "and directly related data, for this channel. Bandwidth limiting uses "
       "a leaky bucket scheme. The default value \"inf\" means Cyclone DDS imposes "
       "no limitation, the underlying operating system and hardware will "
-      "likely limit the maimum transmit rate.</p>")
+      "likely limit the maximum transmit rate.</p>")
     UNIT("bandwidth")),
   STRING("AuxiliaryBandwidthLimit", NULL, 1, "inf",
     MEMBEROF(ddsi_config_channel_listelem, auxiliary_bandwidth_limit),
@@ -998,7 +998,7 @@ static struct cfgelem internal_cfgelems[] = {
     MEMBER(delivery_queue_maxsamples),
     FUNCTIONS(0, uf_uint, 0, pf_uint),
     DESCRIPTION(
-      "<p>This element controls the Maximum size of a delivery queue, "
+      "<p>This element controls the maximum size of a delivery queue, "
       "expressed in samples. Once a delivery queue is full, incoming samples "
       "destined for that queue are dropped until space becomes available "
       "again.</p>")),
@@ -1245,7 +1245,7 @@ static struct cfgelem internal_cfgelems[] = {
       "channel has elected to share this global AuxiliaryBandwidthLimit. "
       "Bandwidth limiting uses a leaky bucket scheme. The default value "
       "\"inf\" means Cyclone DDS imposes no limitation, the underlying operating "
-      "system and hardware will likely limit the maimum transmit rate.</p>"
+      "system and hardware will likely limit the maximum transmit rate.</p>"
     )),
 #endif
   INT("DDSI2DirectMaxThreads", NULL, 1, "1",
