@@ -96,6 +96,15 @@ if(WIN32 AND NOT UNIX)
 
   set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${__arch}")
   set(CPACK_PACKAGE_INSTALL_DIRECTORY "${PROJECT_NAME_FULL}")
+  set(PACKAGING_MODULE_DIR "${PROJECT_SOURCE_DIR}/cmake/Modules/Packaging")
+  set(CPACK_WIX_UI_REF "CustomUI_InstallDir")
+  set(CPACK_WIX_PATCH_FILE "${PACKAGING_MODULE_DIR}/Wix/env.xml")
+  set(CPACK_WIX_EXTRA_SOURCES "${PACKAGING_MODULE_DIR}/Wix/PathDlg.wxs"
+                              "${PACKAGING_MODULE_DIR}/Wix/DialogOrder.wxs")
+  set(CPACK_WIX_CMAKE_PACKAGE_REGISTRY "${PROJECT_NAME}")
+  set(CPACK_WIX_PRODUCT_ICON "${PACKAGING_MODULE_DIR}/Wix/CycloneDDS_icon.ico")
+  set(CPACK_WIX_UI_BANNER "${PACKAGING_MODULE_DIR}/Wix/CycloneDDS_banner.png")
+  set(CPACK_WIX_UI_DIALOG "${PACKAGING_MODULE_DIR}/Wix/CycloneDDS_dialog.png")
 
   include(InstallRequiredSystemLibraries)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")

@@ -11,6 +11,9 @@
 #
 cmake_minimum_required(VERSION 3.7)
 project(CycloneDDS VERSION 0.7.0 LANGUAGES C)
+# when updating the version number also generate a new GUID
+set(CPACK_WIX_UPGRADE_GUID "761CDD60-B738-4748-AD9D-2B5E9FF76A34")
+
 if(CMAKE_VERSION VERSION_LESS 3.12)
   # GENERATE_EXPORT_HEADER requires a C++ compiler up to version 3.12
   enable_language(CXX)
