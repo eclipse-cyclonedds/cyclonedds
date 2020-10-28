@@ -1650,7 +1650,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   xp->niov = niov;
 
   const bool rexmit = xp->includes_rexmit || nn_xmsg_is_rexmit (m);
-  const unsigned max_msg_size = rexmit ? xp->gv->config.max_rexmit_msg_size : xp->gv->config.max_msg_size;
+  const uint32_t max_msg_size = rexmit ? xp->gv->config.max_rexmit_msg_size : xp->gv->config.max_msg_size;
   if (xpo_niov > 0 && sz > max_msg_size)
   {
     GVTRACE (" => now niov %d sz %"PRIuSIZE" > max_msg_size %"PRIu32", nn_xpack_send niov %d sz %"PRIu32" now\n",

@@ -27,8 +27,8 @@ struct proxy_reader;
 struct nn_gap_info {
   int64_t gapstart;
   int64_t gapend;
-  unsigned gapnumbits;
-  unsigned gapbits[256 / 32];
+  uint32_t gapnumbits;
+  uint32_t gapbits[256 / 32];
 };
 
 void nn_gap_info_init(struct nn_gap_info *gi);
