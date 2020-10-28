@@ -1577,7 +1577,7 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
   dds_entity *triggers[MAX_FAST_TRIGGERS];
   size_t ntriggers;
 
-  TRACE ("rhc_store %"PRIx64",%"PRIx64" si %x has_data %d:", tk->m_iid, wr_iid, statusinfo, has_data);
+  TRACE ("rhc_store %"PRIx64",%"PRIx64" si %"PRIx32" has_data %d:", tk->m_iid, wr_iid, statusinfo, has_data);
   if (!has_data && statusinfo == 0)
   {
     /* Write with nothing but a key -- I guess that would be a
@@ -2214,7 +2214,7 @@ static int32_t read_w_qminv (struct dds_rhc_default * __restrict rhc, bool lock,
     ddsrt_mutex_lock (&rhc->lock);
   }
 
-  TRACE ("read_w_qminv(%p,%p,%p,%"PRId32",%x,%"PRIx64",%p) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n",
+  TRACE ("read_w_qminv(%p,%p,%p,%"PRId32",%"PRIx32",%"PRIx64",%p) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n",
     (void *) rhc, (void *) values, (void *) info_seq, max_samples, qminv, handle, (void *) cond,
     rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
     rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples, rhc->n_invsamples,
@@ -2260,7 +2260,7 @@ static int32_t take_w_qminv (struct dds_rhc_default * __restrict rhc, bool lock,
     ddsrt_mutex_lock (&rhc->lock);
   }
 
-  TRACE ("take_w_qminv(%p,%p,%p,%"PRId32",%x,%"PRIx64",%p) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n",
+  TRACE ("take_w_qminv(%p,%p,%p,%"PRId32",%"PRIx32",%"PRIx64",%p) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n",
     (void*) rhc, (void*) values, (void*) info_seq, max_samples, qminv, handle, (void *) cond,
     rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
     rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples,

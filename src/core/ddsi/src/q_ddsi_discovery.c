@@ -653,7 +653,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, dds
   /* Make sure we don't create any security builtin endpoint when it's considered unsecure. */
   if (!is_secure)
     builtin_endpoint_set &= NN_BES_MASK_NON_SECURITY;
-  GVLOGDISC ("SPDP ST0 "PGUIDFMT" bes %x%s NEW", PGUID (datap->participant_guid), builtin_endpoint_set, is_secure ? " (secure)" : "");
+  GVLOGDISC ("SPDP ST0 "PGUIDFMT" bes %"PRIx32"%s NEW", PGUID (datap->participant_guid), builtin_endpoint_set, is_secure ? " (secure)" : "");
 
   if (datap->present & PP_PARTICIPANT_LEASE_DURATION)
   {
@@ -670,7 +670,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, dds
         (datap->adlink_participant_version_info.flags & NN_ADLINK_FL_PARTICIPANT_IS_DDSI2))
       custom_flags |= CF_PARTICIPANT_IS_DDSI2;
 
-    GVLOGDISC (" (0x%08x-0x%08x-0x%08x-0x%08x-0x%08x %s)",
+    GVLOGDISC (" (0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32" %s)",
                datap->adlink_participant_version_info.version,
                datap->adlink_participant_version_info.flags,
                datap->adlink_participant_version_info.unused[0],
@@ -1362,7 +1362,7 @@ static void handle_SEDP (const struct receiver_state *rst, seqno_t seq, struct d
   if (ddsi_serdata_to_sample (serdata, &decoded_data, NULL, NULL))
   {
     struct ddsi_domaingv * const gv = rst->gv;
-    GVLOGDISC ("SEDP ST%x", serdata->statusinfo);
+    GVLOGDISC ("SEDP ST%"PRIx32, serdata->statusinfo);
     switch (serdata->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
     {
       case 0:

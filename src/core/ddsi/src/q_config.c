@@ -1281,7 +1281,7 @@ static void pf_maybe_int32 (struct cfgst *cfgst, void *parent, struct cfgelem co
   if (p->isdefault)
     cfg_logelem (cfgst, sources, "default");
   else
-    cfg_logelem (cfgst, sources, "%d", p->value);
+    cfg_logelem (cfgst, sources, "%"PRId32, p->value);
 }
 
 static enum update_result uf_maybe_memsize (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
@@ -1371,7 +1371,7 @@ static enum update_result uf_uint (struct cfgst *cfgst, void *parent, struct cfg
 static void pf_uint (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
   uint32_t const * const p = cfg_address (cfgst, parent, cfgelem);
-  cfg_logelem (cfgst, sources, "%u", *p);
+  cfg_logelem (cfgst, sources, "%"PRIu32, *p);
 }
 
 static enum update_result uf_duration_gen (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, const char *value, int64_t def_mult, int64_t min_ns, int64_t max_ns)

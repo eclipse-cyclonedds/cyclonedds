@@ -641,9 +641,8 @@ struct nn_xmsg * nn_gap_info_create_gap(struct writer *wr, struct proxy_reader *
   }
   else
   {
-    unsigned i;
-    ETRACE (wr, " FXGAP%"PRId64"..%"PRId64"/%d:", gi->gapstart, gi->gapend, gi->gapnumbits);
-    for (i = 0; i < gi->gapnumbits; i++)
+    ETRACE (wr, " FXGAP%"PRId64"..%"PRId64"/%"PRIu32":", gi->gapstart, gi->gapend, gi->gapnumbits);
+    for (uint32_t i = 0; i < gi->gapnumbits; i++)
       ETRACE (wr, "%c", nn_bitset_isset (gi->gapnumbits, gi->gapbits, i) ? '1' : '0');
   }
 
@@ -2033,7 +2032,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
       if (gv->logconfig.c.mask & DDS_LC_CONTENT)
         res = ddsi_serdata_print (sample, tmp, sizeof (tmp));
       if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
-      GVTRACE ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": ST%x %s/%s:%s%s",
+      GVTRACE ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": ST%"PRIx32" %s/%s:%s%s",
                sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
                PGUID (guid), sampleinfo->seq, statusinfo, topic->name, topic->type_name,
                tmp, res < sizeof (tmp) - 1 ? "" : "(trunc)");
@@ -3417,7 +3416,7 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
     qsort (lps->ps, lps->nps, sizeof (*lps->ps), local_participant_cmp);
     lps->nps = (unsigned) dedup_sorted_array (lps->ps, lps->nps, sizeof (*lps->ps), local_participant_cmp);
   }
-  GVTRACE ("  nparticipants %u\n", lps->nps);
+  GVTRACE ("  nparticipants %"PRIu32"\n", lps->nps);
 }
 
 uint32_t listen_thread (struct ddsi_tran_listener *listener)
@@ -3468,12 +3467,12 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
         ddsrt_iovec_t iov;
         iov.iov_base = &dummy;
         iov.iov_len = 1;
-        GVTRACE ("trigger_recv_threads: %d single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
+        GVTRACE ("trigger_recv_threads: %"PRIu32" single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
         ddsi_conn_write (gv->xmit_conn, dst, 1, &iov, 0);
         break;
       }
       case RTM_MANY: {
-        GVTRACE ("trigger_recv_threads: %d many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.ws);
+        GVTRACE ("trigger_recv_threads: %"PRIu32" many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.ws);
         os_sockWaitsetTrigger (gv->recv_threads[i].arg.u.many.ws);
         break;
       }

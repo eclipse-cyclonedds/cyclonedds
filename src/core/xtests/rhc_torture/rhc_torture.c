@@ -311,7 +311,7 @@ static void print_seq (int n, const dds_sample_info_t *iseq, const RhcTypes_T *m
   }
 }
 
-static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct check *chk, bool print, int max, const char *opname, int (*op) (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond), uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])
+static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct check *chk, bool print, int max, const char *opname, int32_t (*op) (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond), uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])
 {
   int cnt;
 

@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "dds/ddsrt/heap.h"
 
 static const size_t ofst = sizeof(size_t);
 
