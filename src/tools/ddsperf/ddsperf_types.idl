@@ -45,6 +45,7 @@ struct KeyedSeq
 struct CPUStatThread
 {
   string name;
+  unsigned long tid;
   long u_pct;
   long s_pct;
 };

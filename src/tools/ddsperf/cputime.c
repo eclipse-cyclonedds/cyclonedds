@@ -27,47 +27,24 @@
 #include "cputime.h"
 #include "ddsperf_types.h"
 
-static void print_one (char *line, size_t sz, size_t *pos, const char *name, double du, double ds)
+static void print_one (FILE *fp, char *line, size_t sz, size_t *pos, const char *name, double du, double ds)
 {
   if (*pos < sz)
-    *pos += (size_t) snprintf (line + *pos, sz - *pos, " %s:%.0f%%+%.0f%%", name, 100.0 * du, 100.0 * ds);
+  {
+    if (fp == NULL)
+    {
+      *pos += (size_t) snprintf (line + *pos, sz - *pos, " %s:%.0f%%+%.0f%%", name, 100.0 * du, 100.0 * ds);
+    }
+    else
+    {
+      *pos += (size_t) snprintf (line + *pos, sz - *pos, ",%s,%.0f,%.0f", name, 100.0 * du, 100.0 * ds);
+    }
+  }
 }
 
-bool print_cputime (const struct CPUStats *s, const char *prefix, bool print_host, bool is_fresh)
+static void print_one_empty_entry (char *line, size_t sz, size_t *pos)
 {
-  if (!s->some_above)
-    return false;
-  else
-  {
-    char line[512];
-    size_t pos = 0;
-    pos += (size_t) snprintf (line + pos, sizeof (line) - pos, "%s", prefix);
-    if (!is_fresh)
-      pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " (stale)");
-    if (print_host)
-    {
-      int n = (int) strlen (s->hostname);
-      if (n > 100) n = 100;
-      pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " @%*.*s:%"PRIu32, n, n, s->hostname, s->pid);
-    }
-    if (s->maxrss > 1048576)
-      pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " rss:%.1fMB", s->maxrss / 1048576.0);
-    else if (s->maxrss > 1024)
-      pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " rss:%.0fkB", s->maxrss / 1024.0);
-    else {
-      /* non-sensical value -- presumably maxrss is not available */
-    }
-    pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " vcsw:%"PRIu32" ivcsw:%"PRIu32, s->vcsw, s->ivcsw);
-    const size_t init_pos = pos;
-    for (uint32_t i = 0; i < s->cpu._length; i++)
-    {
-      struct CPUStatThread * const thr = &s->cpu._buffer[i];
-      print_one (line, sizeof (line), &pos, thr->name, thr->u_pct / 100.0, thr->s_pct / 100.0);
-    }
-    if (pos > init_pos)
-      puts (line);
-    return true;
-  }
+  *pos += (size_t) snprintf (line + *pos, sz - *pos, ",,,");
 }
 
 #if DDSRT_HAVE_RUSAGE && DDSRT_HAVE_THREAD_LIST
@@ -113,10 +90,12 @@ static bool above_threshold (double *max, double *du_skip, double *ds_skip, doub
   }
 }
 
-bool record_cputime (struct record_cputime_state *state, const char *prefix, dds_time_t tnow)
+bool record_cputime (FILE *fp, struct record_cputime_state *state, const char *prefix, dds_time_t tnow)
 {
   if (state == NULL)
+  {
     return false;
+  }
 
   ddsrt_rusage_t usage;
   if (ddsrt_getrusage (DDSRT_RUSAGE_SELF, &usage) < 0)
@@ -165,6 +144,7 @@ bool record_cputime (struct record_cputime_state *state, const char *prefix, dds
 
       struct CPUStatThread * const x = &state->s.cpu._buffer[state->s.cpu._length++];
       x->name = thr->name;
+      x->tid = (uint32_t) thr->tid;
       x->u_pct = (int) (100.0 * du + 0.5);
       x->s_pct = (int) (100.0 * ds + 0.5);
     }
@@ -180,7 +160,7 @@ bool record_cputime (struct record_cputime_state *state, const char *prefix, dds
   state->tprev = tnow;
   state->s.some_above = some_above;
   (void) dds_write (state->wr, &state->s);
-  return print_cputime (&state->s, prefix, false, true);
+  return print_cputime (fp, &state->s, state, prefix, false, true);
 }
 
 double record_cputime_read_rss (const struct record_cputime_state *state)
@@ -272,3 +252,82 @@ void record_cputime_free (struct record_cputime_state *state)
 }
 
 #endif
+
+bool print_cputime (FILE *fp, const struct CPUStats *s, struct record_cputime_state *state, const char *prefix, bool print_host, bool is_fresh)
+{
+  (void) state;
+  if (!s->some_above)
+  {
+    if (fp != NULL)
+    {
+      fprintf (fp, "\n");
+      fflush (fp);
+    }
+    return false;
+  }
+  else
+  {
+    char line[512];
+    char line_fp[512];
+    size_t pos = 0;
+    size_t pos_fp = 0;
+    pos += (size_t) snprintf (line + pos, sizeof (line) - pos, "%s", prefix);
+    if (!is_fresh)
+      pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " (stale)");
+    if (print_host)
+    {
+      int n = (int) strlen (s->hostname);
+      if (n > 100) n = 100;
+      pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " @%*.*s:%"PRIu32, n, n, s->hostname, s->pid);
+      if (fp != NULL) pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp, ",@%*.*s:%"PRIu32, n, n, s->hostname, s->pid);
+    }
+    if (s->maxrss > 1048576)
+    {
+      pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " rss:%.1fMB", s->maxrss / 1048576.0);
+      if (fp != NULL) pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp, ",%.0f", s->maxrss);
+    }
+    else if (s->maxrss > 1024)
+    {
+      pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " rss:%.0fkB", s->maxrss / 1024.0);
+      if (fp != NULL) pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp, ",%.0f", s->maxrss);
+    }
+    else {
+      /* non-sensical value -- presumably maxrss is not available */
+    }
+    pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " vcsw:%"PRIu32" ivcsw:%"PRIu32, s->vcsw, s->ivcsw);
+    if (fp != NULL)
+      pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp, ",%"PRIu32",%"PRIu32",%d,%d", s->vcsw, s->ivcsw, (int)s->cpu._maximum, (int)s->cpu._length);
+
+    const size_t init_pos = pos;
+
+    for (uint32_t i = 0; i < state->nthreads; i++)
+    {
+      struct record_cputime_state_thr * const thr_i = &state->threads[i];
+      bool found = false;
+      for (uint32_t j = 0; j < s->cpu._length; j++)
+      {
+        struct CPUStatThread * const thr_j = &s->cpu._buffer[j];
+        if (thr_j->tid == thr_i->tid)
+        {
+          print_one (NULL, line, sizeof (line), &pos, thr_j->name, thr_j->u_pct / 100.0, thr_j->s_pct / 100.0);
+          print_one (fp, line_fp, sizeof (line_fp), &pos_fp, thr_j->name, thr_j->u_pct / 100.0, thr_j->s_pct / 100.0);
+	  found = true;
+	  break;
+	}
+      }
+      if (!found)
+        print_one_empty_entry (line_fp, sizeof (line_fp), &pos_fp);
+    }
+
+    if (pos > init_pos)
+    {
+      puts (line);
+      if (fp != NULL)
+      {
+        fprintf (fp, "%s\n", line_fp);
+	fflush (fp);
+      }
+    }
+    return true;
+  }
+}

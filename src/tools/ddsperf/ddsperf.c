@@ -51,7 +51,7 @@
 #define PINGPONG_RAWSIZE 20000
 
 /* File descriptor to write ddsperf data to */
-static FILE *file = NULL;
+static FILE *csv_file = NULL;
 
 enum topicsel {
   KS,   /* KeyedSeq type: seq#, key, sequence-of-octet */
@@ -1384,11 +1384,13 @@ struct dds_stats {
   const struct dds_stat_keyvalue *discarded_bytes;
 };
 
-static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, struct record_cputime_state *cputime_state, struct record_netload_state *netload_state, struct dds_stats *stats, char *filename)
+static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, struct record_cputime_state *cputime_state, struct record_netload_state *netload_state, struct dds_stats *stats)
 {
   char prefix[128];
   const double ts = (double) (tnow - tref) / 1e9;
   bool output = false;
+  bool output_netload = false;
+  bool printed_throughput = false;
   ddsrt_pid_t pid = ddsrt_getpid ();
   char hostname[64];
   if (ddsrt_gethostname (hostname, sizeof (hostname)) != DDS_RETCODE_OK)
@@ -1436,24 +1438,21 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
 
     if (nrecv > 0 || substat_every_second)
     {
-      if (filename != NULL)
-      {
-        if (file == NULL)
-        {
-          file = fopen(filename, "w");
-        }
-      }
       const double dt = (double) (tnow - tprev);
-      printf ("%s size %"PRIu32" total %"PRIu64" lost %"PRIu64" delta %"PRIu64" lost %"PRIu64" rate %.2f kS/s %.2f Mb/s (%.2f kS/s %.2f Mb/s)\n",
+      printf ("%s size %"PRIu32" total %"PRIu64" lost %"PRIu64" delta %"PRIu64" lost %"PRIu64" rate %.2f kS/s %.2f Mb/s (%.2f kS/s %.2f Mb/s)",
               prefix, last_size, tot_nrecv, tot_nlost, nrecv, nlost,
               (double) nrecv * 1e6 / dt, (double) nrecv_bytes * 8 * 1e3 / dt,
               (double) nrecv10s * 1e6 / (10 * dt), (double) nrecv10s_bytes * 8 * 1e3 / (10 * dt));
-      if (file != NULL)
+      if (csv_file != NULL)
       {
         int64_t tsec = (int64_t)(tnow / 1000000000);
         int64_t nsec = (int64_t)(tnow % 1000000000);
-        fprintf (file, "%"PRId64".%"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%.2f,%.2f\n",
-                 tsec, nsec / 1000, hostname, pid, ts, last_size, (double) nrecv_bytes * 8 * 1e3 / dt, (double) nrecv10s_bytes * 8 * 1e3 / (10 * dt));
+        fprintf (csv_file, "%"PRId64".%06"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%.2f,%.2f",
+                 tsec, nsec / 1000, hostname, pid, ts, last_size, tot_nrecv, tot_nlost, nrecv, nlost,
+                 (double) nrecv_bytes * 8 * 1e3 / dt, (double) nrecv10s_bytes * 8 * 1e3 / (10 * dt)
+        );
+        fflush (csv_file);
+        printed_throughput = true;
       }
       output = true;
     }
@@ -1494,7 +1493,22 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
               (double) y.raw[rawcnt - (rawcnt + 99) / 100] / 1e3,
               (double) y.max / 1e3,
               y.cnt);
-      output = true;
+      if (csv_file != NULL)
+      {
+        int64_t tsec = (int64_t)(tnow / 1000000000);
+        int64_t nsec = (int64_t)(tnow % 1000000000);
+        fprintf (csv_file, "%"PRId64".%06"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%"PRIu32"",
+                 tsec, nsec / 1000, pp->hostname, pp->pid, ts, topic_payload_size (topicsel, baggagesize),
+                 (double) y.sum / (double) y.cnt / 1e3,
+                 (double) y.min / 1e3,
+                 (double) y.raw[rawcnt - (rawcnt + 1) / 2] / 1e3,
+                 (double) y.raw[rawcnt - (rawcnt + 9) / 10] / 1e3,
+                 (double) y.raw[rawcnt - (rawcnt + 99) / 100] / 1e3,
+                 (double) y.max / 1e3,
+                 y.cnt);
+        fflush (csv_file);
+      }
+      output_netload = true;
     }
     newraw = y.raw;
 
@@ -1503,8 +1517,11 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
   ddsrt_mutex_unlock (&pongstat_lock);
   free (newraw);
 
-  if (record_cputime (cputime_state, prefix, tnow))
-    output = true;
+  if (printed_throughput == true)
+  {
+    if (record_cputime (csv_file, cputime_state, prefix, tnow))
+      output = true;
+  }
 
   if (rd_stat)
   {
@@ -1521,7 +1538,7 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
     {
       for (int32_t i = 0; i < n; i++)
         if (si[i].valid_data && si[i].sample_state == DDS_SST_NOT_READ)
-          if (print_cputime (raw[i], prefix, true, true))
+          if (print_cputime (NULL, raw[i], cputime_state, prefix, true, true))
             output = true;
       dds_return_loan (rd_stat, raw, n);
     }
@@ -1529,21 +1546,21 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
     {
       for (int32_t i = 0; i < n; i++)
         if (si[i].valid_data)
-          if (print_cputime (raw[i], prefix, true, si[i].sample_state == DDS_SST_NOT_READ))
+          if (print_cputime (NULL, raw[i], cputime_state, prefix, true, si[i].sample_state == DDS_SST_NOT_READ))
             output = true;
       dds_return_loan (rd_stat, raw, n);
     }
 #undef MAXS
   }
 
-  if (output)
-    record_netload (netload_state, prefix, tnow);
+  if (output_netload)
+    record_netload (csv_file, netload_state, prefix, tnow);
 
   if (extended_stats && output && stats)
   {
     (void) dds_refresh_statistics (stats->substat);
     (void) dds_refresh_statistics (stats->pubstat);
-    printf ("%s discarded %"PRIu64" rexmit %"PRIu64" Trexmit %"PRIu64" Tthrottle %"PRIu64" Nthrottle %"PRIu32"\n", prefix, stats->discarded_bytes->u.u64, stats->rexmit_bytes->u.u64, stats->time_rexmit->u.u64, stats->time_throttle->u.u64, stats->throttle_count->u.u32);
+    printf ("%s discarded %"PRIu64""/*" acks %"PRIu32""*//*" nacks %"PRIu32""*/" rexmit %"PRIu64" Trexmit %"PRIu64" Tthrottle %"PRIu64" Nthrottle %"PRIu32"\n", prefix, stats->discarded_bytes->u.u64/*, stats->num_acks_received->u.u32*//*, stats->num_nacks_received->u.u32*/, stats->rexmit_bytes->u.u64, stats->time_rexmit->u.u64, stats->time_throttle->u.u64, stats->throttle_count->u.u32);
   }
 
   fflush (stdout);
@@ -1599,7 +1616,7 @@ static void sigxfsz_handler (int sig __attribute__ ((unused)))
     if (write (2, msg, sizeof (msg) - 1) < 0) {
       /* may not ignore return value according to Linux/gcc */
     }
-    print_stats (0, tnow, tnow - DDS_SECS (1), NULL, NULL, NULL, NULL);
+    print_stats (0, tnow, tnow - DDS_SECS (1), NULL, NULL, NULL);
     kill (getpid (), 9);
   }
 }
@@ -1963,7 +1980,6 @@ int main (int argc, char *argv[])
   char netload_if[256];
   double netload_bw = -1;
   double rss_init = 0.0, rss_final = 0.0;
-  char filename[256] = { 0 };
   ddsrt_threadattr_init (&attr);
 
   argv0 = argv[0];
@@ -1990,7 +2006,7 @@ int main (int argc, char *argv[])
       }
       case 'D': dur = atof (optarg); if (dur <= 0) dur = HUGE_VAL; break;
       case 'i': did = (dds_domainid_t) atoi (optarg); break;
-      case 'f': (void) ddsrt_strlcpy (filename, optarg, sizeof (filename)); break;
+      case 'f': csv_file = fopen(optarg, "w"); break;
       case 'n': nkeyvals = (unsigned) atoi (optarg); break;
       case 'u': reliable = false; break;
       case 'k': histdepth = atoi (optarg); if (histdepth < 0) histdepth = 0; break;
@@ -2062,7 +2078,7 @@ int main (int argc, char *argv[])
   struct record_netload_state *netload_state;
   if (netload_bw < 0)
     netload_state = NULL;
-  else if ((netload_state = record_netload_new (netload_if, netload_bw)) == NULL)
+  else if ((netload_state = record_netload_new (csv_file, netload_if, netload_bw)) == NULL)
     error3 ("can't get network utilization information for device %s\n", netload_if);
 
   ddsrt_avl_init (&ppants_td, &ppants);
@@ -2443,7 +2459,7 @@ int main (int argc, char *argv[])
     if (tnext <= tnow)
     {
       bool output;
-      output = print_stats (tref, tnow, tlast, cputime_state, netload_state, &stats, filename);
+      output = print_stats (tref, tnow, tlast, cputime_state, netload_state, &stats);
       tlast = tnow;
       if (tnow > tnext + DDS_MSECS (500))
         tnext = tnow + DDS_SECS (1);
@@ -2592,9 +2608,9 @@ err_minmatch_wait:
     printf ("[%"PRIdPID"] error: RSS grew too much (%f -> %f)\n", ddsrt_getpid (), rss_init, rss_final);
     ok = false;
   }
-  if (file != NULL)
+  if (csv_file != NULL)
   {
-    fclose(file);
+    fclose(csv_file);
   }
   return ok ? 0 : 1;
 }
