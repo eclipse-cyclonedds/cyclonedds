@@ -202,8 +202,10 @@ static struct ddsi_serdata *sd_from_keyhash (const struct ddsi_sertopic *tpcmn, 
 static struct ddsi_serdata *sd_from_sample (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
 {
   const struct stp *tp = (const struct stp *) tpcmn;
-  struct sd *sd = malloc (sizeof (*sd));
   const struct sampletype *s = sample;
+  if (s->key == NULL || (kind == SDK_DATA && s->value == NULL))
+    return NULL;
+  struct sd *sd = malloc (sizeof (*sd));
   ddsi_serdata_init (&sd->c, &tp->c, kind);
   sd->keysz = (uint32_t) strlen (s->key) + 1;
   sd->data.key = strdup_with_len (s->key, sd->keysz);
@@ -499,4 +501,58 @@ CU_Test(ddsc_cdr, basic)
 
   rc = dds_delete (pp);
   CU_ASSERT_FATAL (rc == 0);
+}
+
+CU_Test(ddsc_cdr, invalid_data)
+{
+  dds_return_t rc;
+  char topicname[100];
+
+  const dds_entity_t pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_FATAL (pp > 0);
+
+  create_unique_topic_name ("ddsc_cdr_invalid_data", topicname, sizeof topicname);
+  struct ddsi_sertopic *st = make_sertopic (topicname, "x");
+  const dds_entity_t tp = dds_create_topic_generic (pp, &st, NULL, NULL, NULL);
+  CU_ASSERT_FATAL (tp > 0);
+
+  const dds_entity_t wr = dds_create_writer (pp, tp, NULL, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+
+  rc = dds_write (wr, &((struct sampletype){ .key = NULL, .value = NULL }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+  rc = dds_write (wr, &((struct sampletype){ .key = "x", .value = NULL }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+  rc = dds_write (wr, &((struct sampletype){ .key = NULL, .value = "x" }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+
+  rc = dds_writedispose (wr, &((struct sampletype){ .key = NULL, .value = NULL }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+  rc = dds_writedispose (wr, &((struct sampletype){ .key = "x", .value = NULL }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+  rc = dds_writedispose (wr, &((struct sampletype){ .key = NULL, .value = "x" }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+
+  rc = dds_dispose (wr, &((struct sampletype){ .key = NULL, .value = NULL }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+  rc = dds_dispose (wr, &((struct sampletype){ .key = "x", .value = NULL }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  rc = dds_dispose (wr, &((struct sampletype){ .key = NULL, .value = "x" }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+
+  dds_instance_handle_t ih;
+  rc = dds_register_instance (wr, &ih, &((struct sampletype){ .key = NULL, .value = NULL }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+  rc = dds_register_instance (wr, &ih, &((struct sampletype){ .key = "x", .value = NULL }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  CU_ASSERT_FATAL (ih != 0);
+  rc = dds_register_instance (wr, &ih, &((struct sampletype){ .key = NULL, .value = "x" }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+
+  rc = dds_unregister_instance (wr, &((struct sampletype){ .key = NULL, .value = NULL }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+  rc = dds_unregister_instance (wr, &((struct sampletype){ .key = "x", .value = NULL }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  rc = dds_unregister_instance (wr, &((struct sampletype){ .key = NULL, .value = "x" }));
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
 }
