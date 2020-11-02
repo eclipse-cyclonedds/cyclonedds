@@ -187,7 +187,6 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   struct thread_state1 * const ts1 = lookup_thread_state ();
   const bool writekey = action & DDS_WR_KEY_BIT;
   struct writer *ddsi_wr = wr->m_wr;
-  struct ddsi_tkmap_instance *tk;
   struct ddsi_serdata *d;
   dds_return_t ret = DDS_RETCODE_OK;
   int w_rc;
@@ -225,30 +224,35 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
 
   /* Serialize and write data or key */
-  d = ddsi_serdata_from_sample (ddsi_wr->topic, writekey ? SDK_KEY : SDK_DATA, data);
-  d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
-                   ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
-  d->timestamp.v = tstamp;
-  ddsi_serdata_ref (d);
-  tk = ddsi_tkmap_lookup_instance_ref (wr->m_entity.m_domain->gv.m_tkmap, d);
-  w_rc = write_sample_gc (ts1, wr->m_xp, ddsi_wr, d, tk);
+  if ((d = ddsi_serdata_from_sample (ddsi_wr->topic, writekey ? SDK_KEY : SDK_DATA, data)) == NULL)
+    ret = DDS_RETCODE_BAD_PARAMETER;
+  else
+  {
+    struct ddsi_tkmap_instance *tk;
+    d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
+                     ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
+    d->timestamp.v = tstamp;
+    ddsi_serdata_ref (d);
+    tk = ddsi_tkmap_lookup_instance_ref (wr->m_entity.m_domain->gv.m_tkmap, d);
+    w_rc = write_sample_gc (ts1, wr->m_xp, ddsi_wr, d, tk);
 
-  if (w_rc >= 0) {
-    /* Flush out write unless configured to batch */
-    if (!wr->whc_batch)
-      nn_xpack_send (wr->m_xp, false);
-    ret = DDS_RETCODE_OK;
-  } else if (w_rc == DDS_RETCODE_TIMEOUT) {
-    ret = DDS_RETCODE_TIMEOUT;
-  } else if (w_rc == DDS_RETCODE_BAD_PARAMETER) {
-    ret = DDS_RETCODE_ERROR;
-  } else {
-    ret = DDS_RETCODE_ERROR;
+    if (w_rc >= 0) {
+      /* Flush out write unless configured to batch */
+      if (!wr->whc_batch)
+        nn_xpack_send (wr->m_xp, false);
+      ret = DDS_RETCODE_OK;
+    } else if (w_rc == DDS_RETCODE_TIMEOUT) {
+      ret = DDS_RETCODE_TIMEOUT;
+    } else if (w_rc == DDS_RETCODE_BAD_PARAMETER) {
+      ret = DDS_RETCODE_ERROR;
+    } else {
+      ret = DDS_RETCODE_ERROR;
+    }
+    if (ret == DDS_RETCODE_OK)
+      ret = deliver_locally (ddsi_wr, d, tk);
+    ddsi_serdata_unref (d);
+    ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
   }
-  if (ret == DDS_RETCODE_OK)
-    ret = deliver_locally (ddsi_wr, d, tk);
-  ddsi_serdata_unref (d);
-  ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
   thread_state_asleep (ts1);
   return ret;
 }
