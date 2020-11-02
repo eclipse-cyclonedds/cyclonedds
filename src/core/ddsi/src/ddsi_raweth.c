@@ -348,11 +348,10 @@ static void ddsi_raweth_deinit(ddsi_tran_factory_t fact)
   ddsrt_free (fact);
 }
 
-static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t fact, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **ifs)
+static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t fact, ddsrt_ifaddrs_t **ifs)
 {
   int afs[] = { AF_PACKET, DDSRT_AF_TERM };
   (void)fact;
-  (void)transport_selector;
   return ddsrt_getifaddrs(ifs, afs);
 }
 

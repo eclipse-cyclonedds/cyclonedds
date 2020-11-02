@@ -12,7 +12,8 @@
 #ifndef DDSI_SERDATA_H
 #define DDSI_SERDATA_H
 
-#include "dds/ddsrt/sockets.h"
+#include "dds/ddsrt/time.h"
+#include "dds/ddsrt/iovec.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/ddsi_keyhash.h"
 

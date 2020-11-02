@@ -24,6 +24,8 @@
 #include <sys/select.h>
 #endif
 
+#include "dds/ddsrt/iovec.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -65,14 +67,6 @@ typedef int ddsrt_socket_t;
 # define DDSRT_HAVE_INET_PTON   1
 #endif /* LWIP_SOCKET */
 
-typedef struct iovec ddsrt_iovec_t;
-typedef size_t ddsrt_iov_len_t;
-
-#if defined(__linux) && !LWIP_SOCKET
-typedef size_t ddsrt_msg_iovlen_t;
-#else /* POSIX says int (which macOS, FreeBSD, Solaris do) */
-typedef int ddsrt_msg_iovlen_t;
-#endif
 typedef struct msghdr ddsrt_msghdr_t;
 
 #if (defined(__sun) && !defined(_XPG4_2)) || \
