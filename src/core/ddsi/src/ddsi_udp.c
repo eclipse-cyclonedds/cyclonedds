@@ -362,7 +362,7 @@ static dds_return_t set_sndbuf (struct ddsi_domaingv const * const gv, ddsrt_soc
       GVLOG (DDS_LC_CONFIG | DDS_LC_ERROR,
              "failed to increase socket send buffer size to %"PRIu32" bytes, maximum is %"PRIu32" bytes\n",
              min_size, size);
-      rc = DDS_RETCODE_NOT_ENOUGH_SPACE;
+      return DDS_RETCODE_NOT_ENOUGH_SPACE;
     }
   }
 
