@@ -317,6 +317,7 @@ static void logsink (void *varg, const dds_log_data_t *msg)
     // do by rewriting the {0} to {}
     char *p = strchr (arg->buf[arg->size], '{');
     CU_ASSERT_FATAL (p != NULL);
+    assert (p != NULL); // Clang static analyzer
     p++;
     CU_ASSERT_FATAL (strcmp (p, "}\n") == 0 || strcmp (p, "0}\n") == 0);
     if (*p == '0')
