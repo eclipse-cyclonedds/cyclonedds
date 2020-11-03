@@ -27,7 +27,7 @@ do { \
   if (var == NULL) { \
     char err[256]; \
     r = ddsrt_dlerror(err, sizeof(err)); \
-    CU_ASSERT_EQUAL_FATAL(r, DDS_RETCODE_OK); \
+    CU_ASSERT_FATAL(r > 0); \
     printf("\n%s", err); \
     CU_FAIL_FATAL(msg); \
   } \
@@ -91,7 +91,7 @@ CU_Test(ddsrt_library, dlopen_unknown)
   CU_ASSERT_PTR_NULL_FATAL(l);
 
   r = ddsrt_dlerror(buffer, sizeof(buffer));
-  CU_ASSERT_EQUAL_FATAL(r, DDS_RETCODE_OK);
+  CU_ASSERT_FATAL(r > 0);
   printf("\n%s", buffer);
 }
 
@@ -132,7 +132,7 @@ CU_Test(ddsrt_library, dlsym_unknown)
   CU_ASSERT_PTR_NULL_FATAL(f);
 
   r = ddsrt_dlerror(buffer, sizeof(buffer));
-  CU_ASSERT_EQUAL_FATAL(r, DDS_RETCODE_OK);
+  CU_ASSERT_FATAL(r > 0);
   printf("\n%s", buffer);
 
   r = ddsrt_dlclose(l);
