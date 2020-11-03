@@ -406,6 +406,12 @@ cipher_sign_data(
       goto fail_encrypt;
     }
   }
+  else
+  {
+    assert (0);
+    goto fail_encrypt;
+  }
+
 
   /* Initialise key and IV */
   if (!EVP_EncryptInit_ex(ctx, NULL, NULL, session_key, iv))
@@ -485,6 +491,11 @@ crypto_decrypt_data(
         ERR_print_errors_fp(stderr);
         result = false;
       }
+    }
+    else
+    {
+      assert (0);
+      result = false;
     }
   }
 

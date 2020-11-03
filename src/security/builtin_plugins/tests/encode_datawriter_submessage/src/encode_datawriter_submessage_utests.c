@@ -546,108 +546,87 @@ fail_ctx_new:
 
 static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Security_CryptoTransformKind transformation_kind, master_key_material *key_material, DDS_Security_OctetSeq *encrypted, DDS_Security_OctetSeq *decoded, unsigned char *tag)
 {
-  bool result = true;
   EVP_CIPHER_CTX *ctx;
   crypto_session_key_t session_key;
   uint32_t key_size = crypto_get_key_size(CRYPTO_TRANSFORM_KIND(transformation_kind));
+  assert (key_size);
   int len = 0;
+
+  if (!key_size)
+    return false;
 
   if (!crypto_calculate_session_key_test(&session_key, session_id, key_material->master_salt, key_material->master_sender_key, key_material->transformation_kind))
     return false;
 
   /* create the cipher context */
   ctx = EVP_CIPHER_CTX_new();
-  if (ctx)
+  if (!ctx)
   {
-    if (key_size == 128)
-    {
-      if (!EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL))
-      {
-        ERR_print_errors_fp(stderr);
-        result = false;
-      }
-    }
-    else if (key_size == 256)
-    {
-      if (!EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL))
-      {
-        ERR_print_errors_fp(stderr);
-        result = false;
-      }
-    }
+    ERR_print_errors_fp(stderr);
+    return false;
   }
 
-  if (result)
+  if (key_size == 128 && !EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL))
   {
-    if (!EVP_DecryptInit_ex(ctx, NULL, NULL, session_key.data, iv))
+    ERR_print_errors_fp(stderr);
+    goto err;
+  }
+  if (key_size == 256 && !EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL))
+  {
+    ERR_print_errors_fp(stderr);
+    goto err;
+  }
+  if (!EVP_DecryptInit_ex(ctx, NULL, NULL, session_key.data, iv))
+  {
+    ERR_print_errors_fp(stderr);
+    goto err;
+  }
+
+  if (decoded)
+  {
+    if (!EVP_DecryptUpdate(ctx, decoded->_buffer, &len, encrypted->_buffer, (int)encrypted->_length))
     {
       ERR_print_errors_fp(stderr);
-      result = false;
+      goto err;
     }
+    decoded->_length = (uint32_t) len;
+  }
+  else if (!EVP_DecryptUpdate(ctx, NULL, &len, encrypted->_buffer, (int) encrypted->_length))
+  {
+    ERR_print_errors_fp(stderr);
+    goto err;
   }
 
-  if (result)
+  if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, CRYPTO_HMAC_SIZE, tag))
   {
-    if (decoded)
-    {
-      if (EVP_DecryptUpdate(ctx, decoded->_buffer, &len, encrypted->_buffer, (int)encrypted->_length))
-      {
-        decoded->_length = (uint32_t) len;
-      }
-      else
-      {
-        ERR_print_errors_fp(stderr);
-        result = false;
-      }
-    }
-    else
-    {
-      if (!EVP_DecryptUpdate(ctx, NULL, &len, encrypted->_buffer, (int) encrypted->_length))
-      {
-        ERR_print_errors_fp(stderr);
-        result = false;
-      }
-    }
+    ERR_print_errors_fp(stderr);
+    goto err;
   }
 
-  if (result)
+  if (decoded)
   {
-    if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, CRYPTO_HMAC_SIZE, tag))
+    if (!EVP_DecryptFinal_ex(ctx, decoded->_buffer + len, &len))
     {
       ERR_print_errors_fp(stderr);
-      result = false;
+      goto err;
     }
+    decoded->_length += (uint32_t) len;
   }
-
-  if (result)
+  else
   {
-    if (decoded)
+    unsigned char temp[32];
+    if (!EVP_DecryptFinal_ex(ctx, temp, &len))
     {
-      if (EVP_DecryptFinal_ex(ctx, decoded->_buffer + len, &len))
-      {
-        decoded->_length += (uint32_t) len;
-      }
-      else
-      {
-        ERR_print_errors_fp(stderr);
-        result = false;
-      }
-    }
-    else
-    {
-      unsigned char temp[32];
-      if (!EVP_DecryptFinal_ex(ctx, temp, &len))
-      {
-        ERR_print_errors_fp(stderr);
-        result = false;
-      }
+      ERR_print_errors_fp(stderr);
+      goto err;
     }
   }
+  EVP_CIPHER_CTX_free(ctx);
+  return true;
 
-  if (ctx)
-    EVP_CIPHER_CTX_free(ctx);
-
-  return result;
+err:
+  EVP_CIPHER_CTX_free(ctx);
+  return false;
 }
 
 static session_key_material * get_datawriter_session(DDS_Security_DatawriterCryptoHandle writer_crypto)
