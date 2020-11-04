@@ -1958,7 +1958,8 @@ dds_write_flush(dds_entity_t writer);
  * @brief Write a serialized value of a data instance
  *
  * This call causes the writer to write the serialized value that is provided
- * in the serdata argument.
+ * in the serdata argument.  Timestamp and statusinfo fields are set to the
+ * current time and 0 (indicating a regular write), respectively.
  *
  * @param[in]  writer The writer entity.
  * @param[in]  serdata Serialized value to be written.
@@ -1980,6 +1981,33 @@ dds_write_flush(dds_entity_t writer);
  */
 DDS_EXPORT dds_return_t
 dds_writecdr(dds_entity_t writer, struct ddsi_serdata *serdata);
+
+/**
+ * @brief Write a serialized value of a data instance
+ *
+ * This call causes the writer to write the serialized value that is provided
+ * in the serdata argument.  Timestamp and statusinfo are used as is.
+ *
+ * @param[in]  writer The writer entity.
+ * @param[in]  serdata Serialized value to be written.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The writer successfully wrote the serialized value.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval DDS_RETCODE_TIMEOUT
+ *             The writer failed to write the serialized value reliably within the specified max_blocking_time.
+ */
+DDS_EXPORT dds_return_t
+dds_forwardcdr(dds_entity_t writer, struct ddsi_serdata *serdata);
 
 /**
  * @brief Write the value of a data instance along with the source timestamp passed.
