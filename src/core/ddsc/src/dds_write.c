@@ -52,7 +52,34 @@ dds_return_t dds_writecdr (dds_entity_t writer, struct ddsi_serdata *serdata)
 
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
-  ret = dds_writecdr_impl (wr, serdata, dds_time (), 0);
+  if (wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
+  {
+    dds_writer_unlock (wr);
+    return DDS_RETCODE_ERROR;
+  }
+  serdata->statusinfo = 0;
+  serdata->timestamp.v = dds_time ();
+  ret = dds_writecdr_impl (wr->m_wr, wr->m_xp, serdata, !wr->whc_batch);
+  dds_writer_unlock (wr);
+  return ret;
+}
+
+dds_return_t dds_forwardcdr (dds_entity_t writer, struct ddsi_serdata *serdata)
+{
+  dds_return_t ret;
+  dds_writer *wr;
+
+  if (serdata == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
+    return ret;
+  if (wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
+  {
+    dds_writer_unlock (wr);
+    return DDS_RETCODE_ERROR;
+  }
+  ret = dds_writecdr_impl (wr->m_wr, wr->m_xp, serdata, !wr->whc_batch);
   dds_writer_unlock (wr);
   return ret;
 }
@@ -226,7 +253,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   return ret;
 }
 
-dds_return_t dds_writecdr_impl_lowlevel (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *d, bool flush)
+dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *d, bool flush)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
   struct ddsi_tkmap_instance * tk;
@@ -256,17 +283,6 @@ dds_return_t dds_writecdr_impl_lowlevel (struct writer *ddsi_wr, struct nn_xpack
   ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
   thread_state_asleep (ts1);
   return ret;
-}
-
-dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_serdata *d, dds_time_t tstamp, dds_write_action action)
-{
-  if (wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
-    abort ();
-  /* Set if disposing or unregistering */
-  d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
-                   ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
-  d->timestamp.v = tstamp;
-  return dds_writecdr_impl_lowlevel (wr->m_wr, wr->m_xp, d, !wr->whc_batch);
 }
 
 void dds_write_flush (dds_entity_t writer)

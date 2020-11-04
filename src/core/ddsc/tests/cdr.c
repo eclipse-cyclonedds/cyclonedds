@@ -500,3 +500,67 @@ CU_Test(ddsc_cdr, basic)
   rc = dds_delete (pp);
   CU_ASSERT_FATAL (rc == 0);
 }
+
+CU_Test(ddsc_cdr, forward)
+{
+  dds_return_t rc;
+  char topicname[100];
+
+  const dds_entity_t pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_FATAL (pp > 0);
+
+  create_unique_topic_name ("ddsc_cdr_basic", topicname, sizeof topicname);
+  struct ddsi_sertopic *st = make_sertopic (topicname, "x");
+  const dds_entity_t tp = dds_create_topic_generic (pp, &st, NULL, NULL, NULL);
+  CU_ASSERT_FATAL (tp > 0);
+
+  const dds_entity_t wr = dds_create_writer (pp, tp, NULL, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  const dds_entity_t rd = dds_create_reader (pp, tp, NULL, NULL);
+  CU_ASSERT_FATAL (rd > 0);
+
+  // write & writedispose
+  struct sampletype xs = { .key = "aap", .value = "banaan" };
+  rc = dds_write (wr, &xs);
+  CU_ASSERT_FATAL (rc == 0);
+
+  // take the serdata's out (+1 for the invalid sample)
+  struct ddsi_serdata *serdata;
+  dds_sample_info_t si0, si1;
+
+  rc = dds_takecdr (rd, &serdata, 1, &si0, DDS_ANY_STATE);
+  CU_ASSERT_FATAL (rc == 1);
+  CU_ASSERT_FATAL (si0.valid_data);
+  CU_ASSERT_FATAL (si0.instance_state == DDS_ALIVE_INSTANCE_STATE);
+
+  rc = dds_forwardcdr (wr, serdata);
+  CU_ASSERT_FATAL (rc == 0);
+
+  rc = dds_takecdr (rd, &serdata, 1, &si1, DDS_ANY_STATE);
+  CU_ASSERT_FATAL (rc == 1);
+  CU_ASSERT_FATAL (si1.valid_data == si0.valid_data);
+  CU_ASSERT_FATAL (si1.instance_state == si0.instance_state);
+  CU_ASSERT_FATAL (si1.source_timestamp == si0.source_timestamp);
+  ddsi_serdata_unref (serdata);
+
+  rc = dds_writedispose (wr, &xs);
+  CU_ASSERT_FATAL (rc == 0);
+
+  rc = dds_takecdr (rd, &serdata, 1, &si0, DDS_ANY_STATE);
+  CU_ASSERT_FATAL (rc == 1);
+  CU_ASSERT_FATAL (si0.valid_data);
+  CU_ASSERT_FATAL (si0.instance_state == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
+
+  rc = dds_forwardcdr (wr, serdata);
+  CU_ASSERT_FATAL (rc == 0);
+
+  rc = dds_takecdr (rd, &serdata, 1, &si1, DDS_ANY_STATE);
+  CU_ASSERT_FATAL (rc == 1);
+  CU_ASSERT_FATAL (si1.valid_data == si0.valid_data);
+  CU_ASSERT_FATAL (si1.instance_state == si0.instance_state);
+  CU_ASSERT_FATAL (si1.source_timestamp == si0.source_timestamp);
+  ddsi_serdata_unref (serdata);
+
+  rc = dds_delete (pp);
+  CU_ASSERT_FATAL (rc == 0);
+}
