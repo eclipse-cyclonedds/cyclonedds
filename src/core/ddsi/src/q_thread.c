@@ -246,9 +246,9 @@ static uint32_t create_thread_wrapper (void *ptr)
   return ret;
 }
 
-const struct config_thread_properties_listelem *lookup_thread_properties (const struct config *config, const char *name)
+const struct ddsi_config_thread_properties_listelem *lookup_thread_properties (const struct ddsi_config *config, const char *name)
 {
-  const struct config_thread_properties_listelem *e;
+  const struct ddsi_config_thread_properties_listelem *e;
   for (e = config->thread_properties; e != NULL; e = e->next)
     if (strcmp (e->name, name) == 0)
       break;
@@ -276,7 +276,7 @@ static struct thread_state1 *init_thread_state (const char *tname, const struct 
   return ts1;
 }
 
-static dds_return_t create_thread_int (struct thread_state1 **ts1_out, const struct ddsi_domaingv *gv, struct config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg)
+static dds_return_t create_thread_int (struct thread_state1 **ts1_out, const struct ddsi_domaingv *gv, struct ddsi_config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg)
 {
   ddsrt_threadattr_t tattr;
   struct thread_state1 *ts1;
@@ -291,8 +291,8 @@ static dds_return_t create_thread_int (struct thread_state1 **ts1_out, const str
   ddsrt_threadattr_init (&tattr);
   if (tprops != NULL)
   {
-    if (!tprops->sched_priority.isdefault)
-      tattr.schedPriority = tprops->sched_priority.value;
+    if (!tprops->schedule_priority.isdefault)
+      tattr.schedPriority = tprops->schedule_priority.value;
     tattr.schedClass = tprops->sched_class; /* explicit default value in the enum */
     if (!tprops->stack_size.isdefault)
       tattr.stackSize = tprops->stack_size.value;
@@ -317,14 +317,14 @@ fatal:
   return DDS_RETCODE_ERROR;
 }
 
-dds_return_t create_thread_with_properties (struct thread_state1 **ts1, struct config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg)
+dds_return_t create_thread_with_properties (struct thread_state1 **ts1, struct ddsi_config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg)
 {
   return create_thread_int (ts1, NULL, tprops, name, f, arg);
 }
 
 dds_return_t create_thread (struct thread_state1 **ts1, const struct ddsi_domaingv *gv, const char *name, uint32_t (*f) (void *arg), void *arg)
 {
-  struct config_thread_properties_listelem const * const tprops = lookup_thread_properties (&gv->config, name);
+  struct ddsi_config_thread_properties_listelem const * const tprops = lookup_thread_properties (&gv->config, name);
   return create_thread_int (ts1, gv, tprops, name, f, arg);
 }
 

@@ -369,7 +369,7 @@ CycloneDDS configuration""" ] ]
           xsd:integer
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element controls the Maximum size of a delivery queue, expressed in samples. Once a delivery queue is full, incoming samples destined for that queue are dropped until space becomes available again.</p>
+<p>This element controls the maximum size of a delivery queue, expressed in samples. Once a delivery queue is full, incoming samples destined for that queue are dropped until space becomes available again.</p>
 <p>The default value is: "256".</p>""" ] ]
         element DeliveryQueueMaxSamples {
           xsd:integer
@@ -722,12 +722,6 @@ CycloneDDS configuration""" ] ]
               text
             }
             & [ a:documentation [ xml:lang="en" """
-<p>This attribute is a placeholder.</p>
-<p>The default value is: "true".</p>""" ] ]
-            attribute Connected {
-              xsd:boolean
-            }?
-            & [ a:documentation [ xml:lang="en" """
 <p>This attribute specifies the name of this Cyclone DDS network partition. Two network partitions cannot have the same name.</p>
 <p>The default value is: "".</p>""" ] ]
             attribute Name {
@@ -1075,28 +1069,6 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 <p>The default value is: "2 s".</p>""" ] ]
         element WriteTimeout {
           duration
-        }?
-      }?
-      & [ a:documentation [ xml:lang="en" """
-<p>The ThreadPool element allows specifying various parameters related to using a thread pool to send DDSI messages to multiple unicast addresses (TCP or UDP).</p>""" ] ]
-      element ThreadPool {
-        [ a:documentation [ xml:lang="en" """
-<p>Enable optional use of a thread pool.</p>
-<p>The default value is: "false".</p>""" ] ]
-        element Enable {
-          xsd:boolean
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>Maximum number of threads in the thread pool.</p>
-<p>The default value is: "8".</p>""" ] ]
-        element ThreadMax {
-          xsd:integer
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>Initial number of threads in the thread pool.</p>
-<p>The default value is: "4".</p>""" ] ]
-        element Threads {
-          xsd:integer
         }?
       }?
       & [ a:documentation [ xml:lang="en" """

@@ -43,6 +43,7 @@ endif()
 include(ddsi/CMakeLists.txt)
 include(ddsc/CMakeLists.txt)
 
+add_coverage(ddsc)
 target_link_libraries(ddsc PRIVATE ddsrt)
 target_compile_definitions(
   ddsc PUBLIC

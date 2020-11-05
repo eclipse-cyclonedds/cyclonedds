@@ -1,0 +1,8 @@
+ignore:
+  - src/core/ddsc/tests/*.c
+  - src/core/ddsi/tests/*.c
+  - src/security/core/tests/*.c
+  - src/security/core/tests/**/*.c
+  - src/security/builtin_plugins/tests/*.c
+  - src/security/builtin_plugins/tests/**/*.c
+  - src/ddsrt/tests/*.c

@@ -13,6 +13,44 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+struct cfgelem;
+
+void gendef_pf_nop (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_uint16 (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_int32 (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_uint32 (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_int64 (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_maybe_int32 (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_maybe_uint32 (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+#ifdef DDSI_INCLUDE_SSL
+void gendef_pf_min_tls_version (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+#endif
+void gendef_pf_string (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_networkAddresses (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_tracemask (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_xcheck (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+void gendef_pf_bandwidth (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+#endif
+void gendef_pf_memsize (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_memsize16 (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_networkAddress (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_allow_multicast(FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_maybe_memsize (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_int (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_uint (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_duration (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_domainId(FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_participantIndex (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_boolean (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_boolean_default (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_besmode (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_retransmit_merging (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_sched_class (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_transport_selector (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_many_sockets_mode (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_standards_conformance (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+
 struct cfgunit {
   const char *name;
   const char *description;
@@ -45,6 +83,9 @@ struct cfgelem {
   struct cfgelem *attributes;
   int multiplicity;
   const char *value;
+  size_t elem_offset;
+  const char *membername;
+  void (*defconfig_print) (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
   const char *description;
   struct cfgmeta meta;
 };
@@ -80,3 +121,4 @@ void printspc(FILE *out, unsigned int cols, const char *fmt, ...);
 int printrnc(FILE *out, struct cfgelem *elem, const struct cfgunit *units);
 int printxsd(FILE *out, struct cfgelem *elem, const struct cfgunit *units);
 int printmd(FILE *out, struct cfgelem *elem, const struct cfgunit *units);
+int printdefconfig(FILE *out, struct cfgelem *elem);

@@ -34,7 +34,7 @@ typedef long int ddsrt_tid_t;
 #define PRIdTID "ld"
 typedef long int ddsrt_thread_list_id_t;
 /* __linux */
-#elif defined(__FreeBSD__) && (__FreeBSD_version >= 900031)
+#elif defined(__FreeBSD__) && (__FreeBSD__ >= 9)
 /* FreeBSD >= 9.0 */
 typedef int ddsrt_tid_t;
 #define PRIdTID "d"

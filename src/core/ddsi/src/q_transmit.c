@@ -194,9 +194,6 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   if (prd_guid == NULL)
   {
     nn_xmsg_setdstN (msg, wr->as, wr->as_group);
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-    nn_xmsg_setencoderid (msg, wr->partition_id);
-#endif
     add_Heartbeat (msg, wr, whcst, hbansreq, 0, to_entityid (NN_ENTITYID_UNKNOWN), issync);
   }
   else
@@ -211,9 +208,6 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
     /* set the destination explicitly to the unicast destination and the fourth
        param of add_Heartbeat needs to be the guid of the reader */
     nn_xmsg_setdstPRD (msg, prd);
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-    nn_xmsg_setencoderid (msg, wr->partition_id);
-#endif
     // send to all readers in the participant: whether or not the entityid is set affects
     // the retransmit requests
     add_Heartbeat (msg, wr, whcst, hbansreq, 0, to_entityid (NN_ENTITYID_UNKNOWN), issync);
@@ -343,9 +337,6 @@ struct nn_xmsg *writer_hbcontrol_p2p(struct writer *wr, const struct whc_state *
   /* set the destination explicitly to the unicast destination and the fourth
      param of add_Heartbeat needs to be the guid of the reader */
   nn_xmsg_setdstPRD (msg, prd);
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  nn_xmsg_setencoderid (msg, wr->partition_id);
-#endif
   add_Heartbeat (msg, wr, whcst, hbansreq, 0, prd->e.guid.entityid, 1);
 
   if (nn_xmsg_size(msg) == 0)
@@ -463,11 +454,6 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
   if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTimestamp_t) + sizeof (Data_t) + expected_inline_qos_size, NN_XMSG_KIND_DATA)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  /* use the partition_id from the writer to select the proper encoder */
-  nn_xmsg_setencoderid (*pmsg, wr->partition_id);
-#endif
-
   nn_xmsg_setdstN (*pmsg, wr->as, wr->as_group);
   nn_xmsg_setmaxdelay (*pmsg, wr->xqos->latency_budget.duration);
   nn_xmsg_add_timestamp (*pmsg, serdata->timestamp);
@@ -548,11 +534,6 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
   /* INFO_TS: 12 bytes, DataFrag_t: 36 bytes, expected inline QoS: 32 => should be single chunk */
   if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTimestamp_t) + sizeof (DataFrag_t) + expected_inline_qos_size, xmsg_kind)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
-
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  /* use the partition_id from the writer to select the proper encoder */
-  nn_xmsg_setencoderid (*pmsg, wr->partition_id);
-#endif
 
   if (prd)
   {
@@ -683,9 +664,6 @@ static void create_HeartbeatFrag (struct writer *wr, seqno_t seq, unsigned fragn
   ASSERT_MUTEX_HELD (&wr->e.lock);
   if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (HeartbeatFrag_t), NN_XMSG_KIND_CONTROL)) == NULL)
     return; /* ignore out-of-memory: HeartbeatFrag is only advisory anyway */
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  nn_xmsg_setencoderid (*pmsg, wr->partition_id);
-#endif
   if (prd)
     nn_xmsg_setdstPRD (*pmsg, prd);
   else
@@ -735,9 +713,6 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
     return DDS_RETCODE_OUT_OF_RESOURCES;
   ddsrt_mutex_lock (&wr->e.lock);
   nn_xmsg_setdstN (msg, wr->as, wr->as_group);
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  nn_xmsg_setencoderid (msg, wr->partition_id);
-#endif
   whc_get_state (wr->whc, &whcst);
   add_Heartbeat (msg, wr, &whcst, 0, 1, to_entityid (NN_ENTITYID_UNKNOWN), 1);
   ddsrt_mutex_unlock (&wr->e.lock);

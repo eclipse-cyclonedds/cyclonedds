@@ -592,7 +592,7 @@ struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_dom
 
 struct dds_rhc *dds_rhc_default_new (dds_reader *reader, const struct ddsi_sertopic *topic)
 {
-  return dds_rhc_default_new_xchecks (reader, &reader->m_entity.m_domain->gv, topic, (reader->m_entity.m_domain->gv.config.enabled_xchecks & DDS_XCHECK_RHC) != 0);
+  return dds_rhc_default_new_xchecks (reader, &reader->m_entity.m_domain->gv, topic, (reader->m_entity.m_domain->gv.config.enabled_xchecks & DDSI_XCHECK_RHC) != 0);
 }
 
 static dds_return_t dds_rhc_default_associate (struct dds_rhc *rhc, dds_reader *reader, const struct ddsi_sertopic *topic, struct ddsi_tkmap *tkmap)
@@ -940,18 +940,77 @@ static bool add_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst, 
   return true;
 }
 
-static bool content_filter_accepts (const dds_reader *reader, const struct ddsi_serdata *sample)
+static void content_filter_make_sampleinfo (struct dds_sample_info *si, const struct ddsi_serdata *sample, const struct rhc_instance *inst, uint64_t wr_iid, uint64_t iid)
+{
+  si->sample_state = DDS_SST_NOT_READ;
+  si->publication_handle = wr_iid;
+  si->source_timestamp = sample->timestamp.v;
+  si->sample_rank = 0;
+  si->generation_rank = 0;
+  si->absolute_generation_rank = 0;
+  si->valid_data = true;
+  if (inst)
+  {
+    si->view_state = inst->isnew ? DDS_VST_NEW : DDS_VST_OLD;
+    si->instance_state = inst->isdisposed ? DDS_IST_NOT_ALIVE_DISPOSED : (inst->wrcount == 0) ? DDS_IST_NOT_ALIVE_NO_WRITERS : DDS_IST_ALIVE;
+    si->instance_handle = inst->iid;
+    si->disposed_generation_count = inst->disposed_gen;
+    si->no_writers_generation_count = inst->no_writers_gen;
+  }
+  else
+  {
+    si->view_state = DDS_VST_NEW;
+    si->instance_state = DDS_IST_ALIVE;
+    si->instance_handle = iid;
+    si->disposed_generation_count = 0;
+    si->no_writers_generation_count = 0;
+  }
+}
+
+static bool content_filter_accepts (const dds_reader *reader, const struct ddsi_serdata *sample, const struct rhc_instance *inst, uint64_t wr_iid, uint64_t iid)
 {
   bool ret = true;
   if (reader)
   {
     const struct dds_topic *tp = reader->m_topic;
-    if (tp->filter_fn)
+    switch (tp->m_filter.mode)
     {
-      char *tmp = ddsi_sertopic_alloc_sample (tp->m_stopic);
-      ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
-      ret = (tp->filter_fn) (tmp, tp->filter_ctx);
-      ddsi_sertopic_free_sample (tp->m_stopic, tmp, DDS_FREE_ALL);
+      case DDS_TOPIC_FILTER_NONE:
+        ret = true;
+        break;
+      case DDS_TOPIC_FILTER_SAMPLEINFO_ARG: {
+        struct dds_sample_info si;
+        content_filter_make_sampleinfo (&si, sample, inst, wr_iid, iid);
+        ret = tp->m_filter.f.sampleinfo_arg (&si, tp->m_filter.arg);
+        break;
+      }
+      case DDS_TOPIC_FILTER_SAMPLE:
+      case DDS_TOPIC_FILTER_SAMPLE_ARG:
+      case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
+        char *tmp;
+        tmp = ddsi_sertopic_alloc_sample (tp->m_stopic);
+        ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
+        switch (tp->m_filter.mode)
+        {
+          case DDS_TOPIC_FILTER_NONE:
+          case DDS_TOPIC_FILTER_SAMPLEINFO_ARG:
+            assert (0);
+          case DDS_TOPIC_FILTER_SAMPLE:
+            ret = (tp->m_filter.f.sample) (tmp);
+            break;
+          case DDS_TOPIC_FILTER_SAMPLE_ARG:
+            ret = (tp->m_filter.f.sample_arg) (tmp, tp->m_filter.arg);
+            break;
+          case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
+            struct dds_sample_info si;
+            content_filter_make_sampleinfo (&si, sample, inst, wr_iid, iid);
+            ret = tp->m_filter.f.sample_sampleinfo_arg (tmp, &si, tp->m_filter.arg);
+            break;
+          }
+        }
+        ddsi_sertopic_free_sample (tp->m_stopic, tmp, DDS_FREE_ALL);
+        break;
+      }
     }
   }
   return ret;
@@ -996,7 +1055,7 @@ static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct 
       return 0;
     }
   }
-  if (has_data && !content_filter_accepts (rhc->reader, sample))
+  if (has_data && !content_filter_accepts (rhc->reader, sample, inst, wrinfo->iid, inst->iid))
   {
     return 0;
   }
@@ -1379,7 +1438,7 @@ static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst
      attribute (rather than a key), an empty instance should be
      instantiated. */
 
-  if (has_data && !content_filter_accepts (rhc->reader, sample))
+  if (has_data && !content_filter_accepts (rhc->reader, sample, NULL, wrinfo->iid, tk->m_iid))
   {
     return RHC_FILTERED;
   }
@@ -1518,7 +1577,7 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
   dds_entity *triggers[MAX_FAST_TRIGGERS];
   size_t ntriggers;
 
-  TRACE ("rhc_store %"PRIx64",%"PRIx64" si %x has_data %d:", tk->m_iid, wr_iid, statusinfo, has_data);
+  TRACE ("rhc_store %"PRIx64",%"PRIx64" si %"PRIx32" has_data %d:", tk->m_iid, wr_iid, statusinfo, has_data);
   if (!has_data && statusinfo == 0)
   {
     /* Write with nothing but a key -- I guess that would be a
@@ -2155,7 +2214,7 @@ static int32_t read_w_qminv (struct dds_rhc_default * __restrict rhc, bool lock,
     ddsrt_mutex_lock (&rhc->lock);
   }
 
-  TRACE ("read_w_qminv(%p,%p,%p,%"PRId32",%x,%"PRIx64",%p) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n",
+  TRACE ("read_w_qminv(%p,%p,%p,%"PRId32",%"PRIx32",%"PRIx64",%p) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n",
     (void *) rhc, (void *) values, (void *) info_seq, max_samples, qminv, handle, (void *) cond,
     rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
     rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples, rhc->n_invsamples,
@@ -2201,7 +2260,7 @@ static int32_t take_w_qminv (struct dds_rhc_default * __restrict rhc, bool lock,
     ddsrt_mutex_lock (&rhc->lock);
   }
 
-  TRACE ("take_w_qminv(%p,%p,%p,%"PRId32",%x,%"PRIx64",%p) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n",
+  TRACE ("take_w_qminv(%p,%p,%p,%"PRId32",%"PRIx32",%"PRIx64",%p) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n",
     (void*) rhc, (void*) values, (void*) info_seq, max_samples, qminv, handle, (void *) cond,
     rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
     rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples,

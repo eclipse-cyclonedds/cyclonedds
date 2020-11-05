@@ -33,7 +33,7 @@
 #include "dds/ddsi/ddsi_ipaddr.h"
 #include "dds/ddsrt/avl.h"
 
-static int multicast_override(const char *ifname, const struct config *config)
+static int multicast_override(const char *ifname, const struct ddsi_config *config)
 {
   char *copy = ddsrt_strdup (config->assumeMulticastCapable), *cursor = copy, *tok;
   int match = 0;
@@ -71,7 +71,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
 
   {
     int ret;
-    ret = ddsi_enumerate_interfaces(gv->m_factory, gv->config.transport_selector, &ifa_root);
+    ret = ddsi_enumerate_interfaces(gv->m_factory, &ifa_root);
     if (ret < 0) {
       GVERROR ("ddsi_enumerate_interfaces(%s): %d\n", gv->m_factory->m_typename, ret);
       return 0;
@@ -116,7 +116,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
     if (ifa->addr->sa_family == AF_PACKET)
     {
       /* FIXME: weirdo warning warranted */
-      nn_locator_t *l = &gv->interfaces[gv->n_interfaces].loc;
+      ddsi_locator_t *l = &gv->interfaces[gv->n_interfaces].loc;
       l->kind = NN_LOCATOR_KIND_RAWETH;
       l->port = NN_LOCATOR_PORT_INVALID;
       memset(l->address, 0, 10);
@@ -231,7 +231,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
   }
   else
   {
-    nn_locator_t req;
+    ddsi_locator_t req;
     /* Presumably an interface name */
     for (i = 0; i < gv->n_interfaces; i++)
     {

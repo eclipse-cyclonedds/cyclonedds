@@ -248,7 +248,7 @@ static void dds__builtin_write (const struct entity_common *e, ddsrt_wctime_t ti
         bwr = dom->builtintopic_writer_subscriptions;
         break;
     }
-    dds_writecdr_impl_lowlevel (&bwr->wr, NULL, serdata, true);
+    dds_writecdr_impl (&bwr->wr, NULL, serdata, true);
   }
 }
 

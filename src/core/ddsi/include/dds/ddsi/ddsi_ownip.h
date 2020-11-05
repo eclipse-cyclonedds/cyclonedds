@@ -16,7 +16,7 @@
 
 #include "dds/ddsrt/ifaddrs.h"
 #include "dds/ddsrt/sockets.h"
-#include "dds/ddsi/q_protocol.h" /* for nn_locator_t */
+#include "dds/ddsi/ddsi_locator.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -26,8 +26,8 @@ struct ddsi_domaingv;
 
 #define MAX_INTERFACES 128
 struct nn_interface {
-  nn_locator_t loc;
-  nn_locator_t netmask;
+  ddsi_locator_t loc;
+  ddsi_locator_t netmask;
   uint32_t if_index;
   unsigned mc_capable: 1;
   unsigned mc_flaky: 1;

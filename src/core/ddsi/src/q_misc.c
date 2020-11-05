@@ -11,10 +11,12 @@
  */
 #include <string.h>
 
-#include "dds/ddsi/q_misc.h"
-
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/heap.h"
+
 #include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_misc.h"
 
 extern inline seqno_t fromSN (const nn_sequence_number_t sn);
 extern inline nn_sequence_number_t toSN (seqno_t n);
@@ -104,3 +106,54 @@ int ddsi2_patmatch (const char *pat, const char *str)
   }
   return *str == 0;
 }
+
+#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+static char *get_partition_search_pattern (const char *partition, const char *topic)
+{
+  size_t sz = strlen (partition) + strlen (topic) + 2;
+  char *pt = ddsrt_malloc (sz);
+  (void) snprintf (pt, sz, "%s.%s", partition, topic);
+  return pt;
+}
+
+struct ddsi_config_partitionmapping_listelem *find_partitionmapping (const struct ddsi_config *cfg, const char *partition, const char *topic)
+{
+  char *pt = get_partition_search_pattern (partition, topic);
+  struct ddsi_config_partitionmapping_listelem *pm;
+  for (pm = cfg->partitionMappings; pm; pm = pm->next)
+    if (WildcardOverlap (pt, pm->DCPSPartitionTopic))
+      break;
+  ddsrt_free (pt);
+  return pm;
+}
+
+int is_ignored_partition (const struct ddsi_config *cfg, const char *partition, const char *topic)
+{
+  char *pt = get_partition_search_pattern (partition, topic);
+  struct ddsi_config_ignoredpartition_listelem *ip;
+  for (ip = cfg->ignoredPartitions; ip; ip = ip->next)
+    if (WildcardOverlap(pt, ip->DCPSPartitionTopic))
+      break;
+  ddsrt_free (pt);
+  return ip != NULL;
+}
+#endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
+
+#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+struct ddsi_config_channel_listelem *find_channel (const struct config *cfg, nn_transport_priority_qospolicy_t transport_priority)
+{
+  struct ddsi_config_channel_listelem *c;
+  /* Channel selection is to use the channel with the lowest priority
+     not less than transport_priority, or else the one with the
+     highest priority. */
+  assert(cfg->channels != NULL);
+  assert(cfg->max_channel != NULL);
+  for (c = cfg->channels; c; c = c->next)
+  {
+    assert(c->next == NULL || c->next->priority > c->priority);
+    if (transport_priority.value <= c->priority)
+      return c;
+  }
+  return cfg->max_channel;
+}
+#endif /* DDSI_INCLUDE_NETWORK_CHANNELS */

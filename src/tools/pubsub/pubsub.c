@@ -1069,7 +1069,7 @@ static void pub_do_auto(const struct writerspec *spec) {
     for (k = 0; (uint32_t) k < nkeyvals; k++) {
         d.seq_keyval.keyval = k;
         if(spec->register_instances) {
-            dds_register_instance(spec->wr, &handle[k], &d);
+            (void) dds_register_instance(spec->wr, &handle[k], &d);
         }
     }
 

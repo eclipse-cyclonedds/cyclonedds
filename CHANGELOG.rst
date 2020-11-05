@@ -2,8 +2,29 @@
 Changelog for Eclipse Cyclone DDS
 =================================
 
-`Unreleased <https://github.com/eclipse-cyclonedds/cyclonedds/compare/0.6.0...master>`_
+`Unreleased <https://github.com/eclipse-cyclonedds/cyclonedds/compare/0.7.0...master>`_
 ---------------------------------------------------------------------------------------
+
+`V0.7.0 (2020-08-06) <https://github.com/eclipse-cyclonedds/cyclonedds/compare/V0.6.0...0.7.0>`_
+-----------------------------------------------------------------------------------------------
+
+This release brings support for the DDS Security 1.1 specification:authentication, access control and encryption. It also provides significant performance improvements with large samples, by better scheduling of retransmit requests and by avoiding the occasional excessive latency caused by dropping the heartbeat rate too soon.
+
+One can choose to build Cyclone DDS without support for DDS Security if one wants to reduce the size of the resulting library. The default plug-ins are built only if security is enabled and OpenSSL is available, as those are implemented using the cryptographic operations and I/O primitives for handling certificates and exchanging keys that OpenSSL provides. If one chooses to exclude security support from the build, setting any security related property or adding it to the configuration files will result in participant creation failing with a "precondition not met" error.
+
+A lot of effort has gone into testing and checking that malformed or unexpected messages are handled correctly, that message authentication codes are checked and that no data never goes out unencrypted by accident. Still, it is only prudent to assume the existence of vulnerabilities.
+
+Noteworthy bug fixes:
+
+* DATA_AVAILABLE was not always triggered when by a dispose and sometimes triggered in the absence of an observable state change (arrival of a dispose for an already-disposed instance where the dispose had not yet been read);
+* Restores functionality of the "raw ethernet" mode as well as IPv6 with link-local addresses, both accidentally broken in 0.6.0;
+* Fixes a crash in processing endpoint discovery data containing unrecognised locator kinds;
+* Fixes type conversion for local historical data (e.g., mixed use of ROS 2 C/C++ type supports in combination with transient-local endpoints within a single process);
+* Fixes a use-after-free of "lease" objects with manual-by-topic writers;
+* Mark instance as "alive" in the reader history and generate an invalid sample to notify the application even if the sample itself is dropped because the same or a later one is present already (e.g., on reconnecting to a transient-local writer);
+* Fix a crash when doing an instance lookup on a built-in topic using the key value;
+* No longer auto-dispose instances as soon as some registered writer disappears, instead do it only when all of them have unregistered it;
+* Fix performance of read_instance and take_instance by performing a proper instance lookup.
 
 `V0.6.0 (2020-05-21) <https://github.com/eclipse-cyclonedds/cyclonedds/compare/V0.5.0...0.6.0>`_
 -----------------------------------------------------------------------------------------------

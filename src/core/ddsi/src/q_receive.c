@@ -138,7 +138,7 @@ static int valid_AckNack (const struct receiver_state *rst, AckNack_t *msg, size
   {
     /* FastRTPS, Connext send invalid pre-emptive ACKs -- patch the message to
        make it well-formed and process it as normal */
-    if (! NN_STRICT_P (rst->gv->config) &&
+    if (! DDSI_SC_STRICT_P (rst->gv->config) &&
         (fromSN (msg->readerSNState.bitmap_base) == 0 && msg->readerSNState.numbits == 0) &&
         (vendor_is_eprosima (rst->vendor) || vendor_is_rti (rst->vendor)))
       msg->readerSNState.bitmap_base = toSN (1);
@@ -427,7 +427,7 @@ static int valid_DataFrag (const struct receiver_state *rst, DataFrag_t *msg, si
   pwr_guid.prefix = rst->src_guid_prefix;
   pwr_guid.entityid = msg->x.writerId;
 
-  if (NN_STRICT_P (rst->gv->config) && msg->fragmentSize <= 1024 && msg->fragmentSize < rst->gv->config.fragment_size)
+  if (DDSI_SC_STRICT_P (rst->gv->config) && msg->fragmentSize <= 1024 && msg->fragmentSize < rst->gv->config.fragment_size)
   {
     /* Spec says fragments must > 1kB; not allowing 1024 bytes is IMHO
        totally ridiculous; and I really don't care how small the
@@ -438,7 +438,7 @@ static int valid_DataFrag (const struct receiver_state *rst, DataFrag_t *msg, si
   }
   if (msg->fragmentSize == 0 || msg->fragmentStartingNum == 0 || msg->fragmentsInSubmessage == 0)
     return 0;
-  if (NN_STRICT_P (rst->gv->config) && msg->fragmentSize >= msg->sampleSize)
+  if (DDSI_SC_STRICT_P (rst->gv->config) && msg->fragmentSize >= msg->sampleSize)
     /* may not fragment if not needed -- but I don't care */
     return 0;
   if ((msg->fragmentStartingNum + msg->fragmentsInSubmessage - 2) * msg->fragmentSize >= msg->sampleSize)
@@ -632,10 +632,6 @@ struct nn_xmsg * nn_gap_info_create_gap(struct writer *wr, struct proxy_reader *
 
   m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  nn_xmsg_setencoderid (m, wr->partition_id);
-#endif
-
   nn_xmsg_setdstPRD (m, prd);
   add_Gap (m, wr, prd, gi->gapstart, gi->gapend, gi->gapnumbits, gi->gapbits);
   if (nn_xmsg_size(m) == 0)
@@ -645,9 +641,8 @@ struct nn_xmsg * nn_gap_info_create_gap(struct writer *wr, struct proxy_reader *
   }
   else
   {
-    unsigned i;
-    ETRACE (wr, " FXGAP%"PRId64"..%"PRId64"/%d:", gi->gapstart, gi->gapend, gi->gapnumbits);
-    for (i = 0; i < gi->gapnumbits; i++)
+    ETRACE (wr, " FXGAP%"PRId64"..%"PRId64"/%"PRIu32":", gi->gapstart, gi->gapend, gi->gapnumbits);
+    for (uint32_t i = 0; i < gi->gapnumbits; i++)
       ETRACE (wr, "%c", nn_bitset_isset (gi->gapnumbits, gi->gapbits, i) ? '1' : '0');
   }
 
@@ -976,7 +971,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
         if (!wr->retransmitting && sample.unacked)
           writer_set_retransmitting (wr);
 
-        if (rst->gv->config.retransmit_merging != REXMIT_MERGE_NEVER && rn->assumed_in_sync && !prd->filter)
+        if (rst->gv->config.retransmit_merging != DDSI_REXMIT_MERGE_NEVER && rn->assumed_in_sync && !prd->filter)
         {
           /* send retransmit to all receivers, but skip if recently done */
           ddsrt_mtime_t tstamp = ddsrt_time_monotonic ();
@@ -1635,9 +1630,6 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
     struct nn_xmsg *m;
     RSTTRACE (" msg not available: scheduling Gap\n");
     m = nn_xmsg_new (rst->gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-    nn_xmsg_setencoderid (m, wr->partition_id);
-#endif
     nn_xmsg_setdstPRD (m, prd);
     /* length-1 bitmap with the bit clear avoids the illegal case of a length-0 bitmap */
     add_Gap (m, wr, prd, seq, seq+1, 0, &zero);
@@ -1988,7 +1980,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   {
     /* RTI always tries to make us survive on the keyhash. RTI must
        mend its ways. */
-    if (NN_STRICT_P (gv->config))
+    if (DDSI_SC_STRICT_P (gv->config))
       failmsg = "no content";
     else if (!(qos->present & PP_KEYHASH))
       failmsg = "qos present but without keyhash";
@@ -2040,7 +2032,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
       if (gv->logconfig.c.mask & DDS_LC_CONTENT)
         res = ddsi_serdata_print (sample, tmp, sizeof (tmp));
       if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
-      GVTRACE ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": ST%x %s/%s:%s%s",
+      GVTRACE ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": ST%"PRIx32" %s/%s:%s%s",
                sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
                PGUID (guid), sampleinfo->seq, statusinfo, topic->name, topic->type_name,
                tmp, res < sizeof (tmp) - 1 ? "" : "(trunc)");
@@ -2170,7 +2162,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     src.encoding = (msg->smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
     src.buf = NN_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
-    src.strict = NN_STRICT_P (gv->config);
+    src.strict = DDSI_SC_STRICT_P (gv->config);
     src.factory = gv->m_factory;
     src.logconfig = &gv->logconfig;
     if ((plist_ret = ddsi_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET, 0, &src)) < 0)
@@ -2840,7 +2832,7 @@ static int handle_submsg_sequence
   struct thread_state1 * const ts1,
   struct ddsi_domaingv *gv,
   ddsi_tran_conn_t conn,
-  const nn_locator_t *srcloc,
+  const ddsi_locator_t *srcloc,
   ddsrt_wctime_t tnowWC,
   ddsrt_etime_t tnowE,
   const ddsi_guid_prefix_t * const src_prefix,
@@ -3188,7 +3180,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
   unsigned char * buff;
   size_t buff_len = maxsz;
   Header_t * hdr;
-  nn_locator_t srcloc;
+  ddsi_locator_t srcloc;
 
   if (rmsg == NULL)
   {
@@ -3273,7 +3265,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
       if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
         GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
                  PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor);
-      if (NN_PEDANTIC_P (gv->config))
+      if (DDSI_SC_PEDANTIC_P (gv->config))
         malformed_packet_received_nosubmsg (gv, buff, sz, "header", hdr->vendorid);
     }
     else
@@ -3424,7 +3416,7 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
     qsort (lps->ps, lps->nps, sizeof (*lps->ps), local_participant_cmp);
     lps->nps = (unsigned) dedup_sorted_array (lps->ps, lps->nps, sizeof (*lps->ps), local_participant_cmp);
   }
-  GVTRACE ("  nparticipants %u\n", lps->nps);
+  GVTRACE ("  nparticipants %"PRIu32"\n", lps->nps);
 }
 
 uint32_t listen_thread (struct ddsi_tran_listener *listener)
@@ -3471,16 +3463,16 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
       case RTM_SINGLE: {
         char buf[DDSI_LOCSTRLEN];
         char dummy = 0;
-        const nn_locator_t *dst = gv->recv_threads[i].arg.u.single.loc;
+        const ddsi_locator_t *dst = gv->recv_threads[i].arg.u.single.loc;
         ddsrt_iovec_t iov;
         iov.iov_base = &dummy;
         iov.iov_len = 1;
-        GVTRACE ("trigger_recv_threads: %d single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
+        GVTRACE ("trigger_recv_threads: %"PRIu32" single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
         ddsi_conn_write (gv->xmit_conn, dst, 1, &iov, 0);
         break;
       }
       case RTM_MANY: {
-        GVTRACE ("trigger_recv_threads: %d many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.ws);
+        GVTRACE ("trigger_recv_threads: %"PRIu32" many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.ws);
         os_sockWaitsetTrigger (gv->recv_threads[i].arg.u.many.ws);
         break;
       }
@@ -3535,7 +3527,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
     {
       int rebuildws = 0;
       LOG_THREAD_CPUTIME (&gv->logconfig, next_thread_cputime);
-      if (gv->config.many_sockets_mode != MSM_MANY_UNICAST)
+      if (gv->config.many_sockets_mode != DDSI_MSM_MANY_UNICAST)
       {
         /* no other sockets to check */
       }
@@ -3544,7 +3536,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         rebuildws = 1;
       }
 
-      if (rebuildws && waitset && gv->config.many_sockets_mode == MSM_MANY_UNICAST)
+      if (rebuildws && waitset && gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
       {
         /* first rebuild local participant set - unless someone's toggling "deafness", this
          only happens when the participant set has changed, so might as well rebuild it */
@@ -3564,7 +3556,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         while ((idx = os_sockWaitsetNextEvent (ctx, &conn)) >= 0)
         {
           const ddsi_guid_prefix_t *guid_prefix;
-          if (((unsigned)idx < num_fixed) || gv->config.many_sockets_mode != MSM_MANY_UNICAST)
+          if (((unsigned)idx < num_fixed) || gv->config.many_sockets_mode != DDSI_MSM_MANY_UNICAST)
             guid_prefix = NULL;
           else
             guid_prefix = &lps.ps[(unsigned)idx - num_fixed].guid_prefix;

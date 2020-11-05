@@ -121,23 +121,24 @@ ddsrt_dlsym(
 /**
  * @brief Get the most recent library related error.
  *
- * The function ddsrt_dlerror() will return the most recent error of the operating system
- * in human readable form.
+ * The function ddsrt_dlerror() will return the most recent error of a
+ * call to ddsrt_dlopen, ddsrt_dlclose, ddsrt_dlsym in human readable form.
  *
  * If no error was found, it's either due to the fact that there
  * actually was no error since init or last ddsrt_dlerror() call,
  * or due to an unknown unrelated error.
  *
- * As error reporting function can be used for different purposes, dssrt_dlerror
- * function should be called immediately after calling ddsrt_dlopen or ddsrt_dlsym
- * function.
+ * @param[out]  buf      Buffer to store the error message
+ * @param[in]   buflen   The length of the provided buffer (must be > 0).
  *
- * @returns A dds_return_t indicating success or failure.
+ * @returns A dds_return_t indicating success (>0) or failure.
  *
- * @retval DDS_RETCODE_OK
- *             Most recent library related error returned.
- * @retval DDS_RETCODE_NOT_FOUND
- *             No library related error found.
+ * @retval >0
+ *             The length of the returned error message
+ * @retval 0
+ *             No dynamic library loading related error present
+ * @retval DDS_RETCODE_NOT_ENOUGH_SPACE
+ *             Buffer is not large enough to hold the error message
  */
 DDS_EXPORT dds_return_t
 ddsrt_dlerror(

@@ -253,6 +253,7 @@ bool record_cputime (struct record_cputime_state *state, const char *prefix, dds
   (void) state;
   (void) prefix;
   (void) tnow;
+  return false;
 }
 
 double record_cputime_read_rss (const struct record_cputime_state *state)
@@ -264,6 +265,7 @@ double record_cputime_read_rss (const struct record_cputime_state *state)
 struct record_cputime_state *record_cputime_new (dds_entity_t wr)
 {
   (void) wr;
+  return NULL;
 }
 
 void record_cputime_free (struct record_cputime_state *state)
