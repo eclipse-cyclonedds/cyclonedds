@@ -17,6 +17,8 @@
 
 #if defined (__cplusplus)
 extern "C" {
+DDSRT_WARNING_GNUC_OFF(old-style-cast)
+DDSRT_WARNING_CLANG_OFF(old-style-cast)
 #endif
 
 #if ( DDSRT_HAVE_ATOMIC64 && __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16) || \
@@ -290,6 +292,8 @@ inline void ddsrt_atomic_fence_rel (void) {
 }
 
 #if defined (__cplusplus)
+DDSRT_WARNING_CLANG_ON(old-style-cast)
+DDSRT_WARNING_GNUC_ON(old-style-cast)
 }
 #endif
 

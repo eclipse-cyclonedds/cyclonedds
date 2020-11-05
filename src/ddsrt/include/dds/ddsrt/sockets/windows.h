@@ -3,6 +3,7 @@
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include "dds/ddsrt/iovec.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -27,14 +28,6 @@ typedef SOCKET ddsrt_socket_t;
 #endif
 
 #define IFF_POINTOPOINT IFF_POINTTOPOINT
-
-typedef unsigned ddsrt_iov_len_t;
-typedef struct ddsrt_iovec {
-  ddsrt_iov_len_t iov_len;
-  void *iov_base;
-} ddsrt_iovec_t;
-
-typedef DWORD ddsrt_msg_iovlen_t;
 
 typedef struct ddsrt_msghdr {
   void *msg_name;

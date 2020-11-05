@@ -12,7 +12,9 @@
 #ifndef DDSI_SERDATA_H
 #define DDSI_SERDATA_H
 
-#include "dds/ddsrt/sockets.h"
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/time.h"
+#include "dds/ddsrt/iovec.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/ddsi_keyhash.h"
 
@@ -180,7 +182,15 @@ DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_ser
 DDS_EXPORT struct ddsi_serdata *ddsi_serdata_ref_as_topic (const struct ddsi_sertopic *topic, struct ddsi_serdata *serdata);
 
 DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const) {
+#if defined (__cplusplus)
+  DDSRT_WARNING_GNUC_OFF(old-style-cast)
+  DDSRT_WARNING_CLANG_OFF(old-style-cast)
+#endif
   struct ddsi_serdata *serdata = (struct ddsi_serdata *)serdata_const;
+#if defined (__cplusplus)
+  DDSRT_WARNING_CLANG_ON(old-style-cast)
+  DDSRT_WARNING_GNUC_ON(old-style-cast)
+#endif
   ddsrt_atomic_inc32 (&serdata->refc);
   return serdata;
 }
