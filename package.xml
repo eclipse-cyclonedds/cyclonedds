@@ -14,7 +14,7 @@
 
     <buildtool_depend>cmake</buildtool_depend>
 
-    <depend>openssl</depend>
+    <depend>libssl-dev</depend>
     <test_depend>libcunit-dev</test_depend>
 
     <doc_depend>doxygen</doc_depend>
