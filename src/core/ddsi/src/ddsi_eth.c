@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "ddsi_eth.h"
+#include "dds/ddsi/q_protocol.h" // for NN_LOCATOR_KIND_...
 
 int ddsi_eth_enumerate_interfaces (ddsi_tran_factory_t fact, ddsrt_ifaddrs_t **ifs)
 {
@@ -18,7 +19,7 @@ int ddsi_eth_enumerate_interfaces (ddsi_tran_factory_t fact, ddsrt_ifaddrs_t **i
     (void)fact;
 
 #if DDSRT_HAVE_IPV6
-    if (fact->m_kind == DDSI_TRANS_TCP6 || fact->m_kind == DDSI_TRANS_UDP6)
+    if (fact->m_kind == NN_LOCATOR_KIND_UDPv6 || fact->m_kind == NN_LOCATOR_KIND_TCPv6)
     {
       afs[0] = AF_INET6;
     }

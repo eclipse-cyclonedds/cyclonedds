@@ -59,34 +59,34 @@ inline bool vendor_is_eclipse (nn_vendorid_t vendor) {
   return vendor_equals (vendor, x);
 }
 inline bool vendor_is_rti (nn_vendorid_t vendor) {
-  const nn_vendorid_t x = NN_VENDORID (RTI);
+  const nn_vendorid_t x = NN_VENDORID_INIT (RTI);
   return vendor_equals (vendor, x);
 }
 inline bool vendor_is_opensplice (nn_vendorid_t vendor) {
-  const nn_vendorid_t x = NN_VENDORID (ADLINK_OSPL);
+  const nn_vendorid_t x = NN_VENDORID_INIT (ADLINK_OSPL);
   return vendor_equals (vendor, x);
 }
 inline bool vendor_is_twinoaks (nn_vendorid_t vendor) {
-  const nn_vendorid_t x = NN_VENDORID (TWINOAKS);
+  const nn_vendorid_t x = NN_VENDORID_INIT (TWINOAKS);
   return vendor_equals (vendor, x);
 }
 inline bool vendor_is_eprosima (nn_vendorid_t vendor) {
-  const nn_vendorid_t x = NN_VENDORID (EPROSIMA);
+  const nn_vendorid_t x = NN_VENDORID_INIT (EPROSIMA);
   return vendor_equals (vendor, x);
 }
 inline bool vendor_is_cloud (nn_vendorid_t vendor) {
-  const nn_vendorid_t x = NN_VENDORID (ADLINK_CLOUD);
+  const nn_vendorid_t x = NN_VENDORID_INIT (ADLINK_CLOUD);
   return vendor_equals (vendor, x);
 }
 inline bool vendor_is_eclipse_or_opensplice (nn_vendorid_t vendor) {
   return vendor_is_eclipse (vendor) | vendor_is_opensplice (vendor);
 }
 inline bool vendor_is_adlink (nn_vendorid_t vendor) {
-  const nn_vendorid_t a = NN_VENDORID (ADLINK_OSPL);
-  const nn_vendorid_t b = NN_VENDORID (ADLINK_LITE);
-  const nn_vendorid_t c = NN_VENDORID (ADLINK_GATEWAY);
-  const nn_vendorid_t d = NN_VENDORID (ADLINK_JAVA);
-  const nn_vendorid_t e = NN_VENDORID (ADLINK_CLOUD);
+  const nn_vendorid_t a = NN_VENDORID_INIT (ADLINK_OSPL);
+  const nn_vendorid_t b = NN_VENDORID_INIT (ADLINK_LITE);
+  const nn_vendorid_t c = NN_VENDORID_INIT (ADLINK_GATEWAY);
+  const nn_vendorid_t d = NN_VENDORID_INIT (ADLINK_JAVA);
+  const nn_vendorid_t e = NN_VENDORID_INIT (ADLINK_CLOUD);
   return (vendor_equals (vendor, a) ||
           vendor_equals (vendor, b) ||
           vendor_equals (vendor, c) ||
