@@ -75,7 +75,7 @@ endif()
 # 3.12. At the time of this writing most long-term stable distributions still
 # ship an older version, so an interface library with public sources is used
 # as a workaround for now.
-add_library(ddsrt INTERFACE)
+add_library(ddsrt INTERFACE IMPORTED GLOBAL)
 
 foreach(opt WITH_LWIP WITH_DNS WITH_FREERTOS)
   if(${opt})

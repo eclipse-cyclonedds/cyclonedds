@@ -37,15 +37,13 @@ install(
         "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Version.cmake"
   DESTINATION "${CMAKE_INSTALL_CMAKEDIR}" COMPONENT dev)
 
-if((NOT DEFINED BUILD_SHARED_LIBS) OR BUILD_SHARED_LIBS)
-  # Generates <Package>Targets.cmake file included by <Package>Config.cmake.
-  # The files are placed in CMakeFiles/Export in the build tree.
-  install(
-    EXPORT "${PROJECT_NAME}"
-    FILE "${PROJECT_NAME}Targets.cmake"
-    NAMESPACE "${PROJECT_NAME}::"
-    DESTINATION "${CMAKE_INSTALL_CMAKEDIR}" COMPONENT dev)
-endif()
+# Generates <Package>Targets.cmake file included by <Package>Config.cmake.
+# The files are placed in CMakeFiles/Export in the build tree.
+install(
+  EXPORT "${PROJECT_NAME}"
+  FILE "${PROJECT_NAME}Targets.cmake"
+  NAMESPACE "${PROJECT_NAME}::"
+  DESTINATION "${CMAKE_INSTALL_CMAKEDIR}" COMPONENT dev)
 
 
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})

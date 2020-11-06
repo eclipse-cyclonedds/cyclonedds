@@ -33,7 +33,7 @@ if(NOT WIN32)
   set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC" )
 endif()
 
-add_library(security_core INTERFACE)
+add_library(security_core INTERFACE IMPORTED GLOBAL)
 
 target_sources(security_core INTERFACE ${srcs_security_core})
 
