@@ -24,7 +24,6 @@
 #include "dds/ddsrt/random.h"
 
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsrt/thread_pool.h"
 
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/ddsi_xqos.h"
@@ -79,9 +78,6 @@ struct nn_xmsg {
   nn_msg_sec_info_t sec_info;
 #endif
   int64_t maxdelay;
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  uint32_t encoderid;
-#endif
 
   /* Backref for late updating of available sequence numbers, and
      merging of retransmits. */
@@ -102,7 +98,7 @@ struct nn_xmsg {
   enum nn_xmsg_dstmode dstmode;
   union {
     struct {
-      nn_locator_t loc;  /* send just to this locator */
+      ddsi_locator_t loc;  /* send just to this locator */
     } one;
     struct {
       struct addrset *as;       /* send to all addresses in set */
@@ -146,51 +142,6 @@ struct nn_bw_limiter {
 };
 #endif
 
-///////////////////////////
-typedef struct {
-  ddsrt_mutex_t mtx;
-  uint32_t value;
-  ddsrt_cond_t cv;
-} ddsi_sem_t;
-
-static dds_return_t
-ddsi_sem_init (ddsi_sem_t *sem, uint32_t value)
-{
-  sem->value = value;
-  ddsrt_mutex_init (&sem->mtx);
-  ddsrt_cond_init (&sem->cv);
-  return DDS_RETCODE_OK;
-}
-
-static dds_return_t
-ddsi_sem_destroy (ddsi_sem_t *sem)
-{
-  ddsrt_cond_destroy (&sem->cv);
-  ddsrt_mutex_destroy (&sem->mtx);
-  return DDS_RETCODE_OK;
-}
-
-static dds_return_t
-ddsi_sem_post (ddsi_sem_t *sem)
-{
-  ddsrt_mutex_lock (&sem->mtx);
-  if (sem->value++ == 0)
-    ddsrt_cond_signal (&sem->cv);
-  ddsrt_mutex_unlock (&sem->mtx);
-  return DDS_RETCODE_OK;
-}
-
-static dds_return_t
-ddsi_sem_wait (ddsi_sem_t *sem)
-{
-  ddsrt_mutex_lock (&sem->mtx);
-  while (sem->value == 0)
-    ddsrt_cond_wait (&sem->cv, &sem->mtx);
-  ddsrt_mutex_unlock (&sem->mtx);
-  return DDS_RETCODE_OK;
-}
-///////////////////////////
-
 struct nn_xpack
 {
   struct nn_xpack *sendq_next;
@@ -204,7 +155,6 @@ struct nn_xpack
   ddsrt_atomic_uint32_t calls;
   uint32_t call_flags;
   ddsi_tran_conn_t conn;
-  ddsi_sem_t sem;
   size_t niov;
   ddsrt_iovec_t *iov;
   enum nn_xmsg_dstmode dstmode;
@@ -212,7 +162,7 @@ struct nn_xpack
 
   union
   {
-    nn_locator_t loc; /* send just to this locator */
+    ddsi_locator_t loc; /* send just to this locator */
     struct
     {
       struct addrset *as;        /* send to all addresses in set */
@@ -220,6 +170,7 @@ struct nn_xpack
     } all;
   } dstaddr;
 
+  bool includes_rexmit;
   struct nn_xmsg_chain included_msgs;
 
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
@@ -297,9 +248,6 @@ static void nn_xmsg_reinit (struct nn_xmsg *m, enum nn_xmsg_kind kind)
   m->sec_info.use_rtps_encoding = 0;
   m->sec_info.src_pp_handle = 0;
   m->sec_info.dst_pp_handle = 0;
-#endif
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  m->encoderid = 0;
 #endif
   memset (&m->kindspecific, 0, sizeof (m->kindspecific));
 }
@@ -491,7 +439,7 @@ int nn_xmsg_compare_fragid (const struct nn_xmsg *a, const struct nn_xmsg *b)
 
 size_t nn_xmsg_size (const struct nn_xmsg *m)
 {
-  return m->sz;
+  return m->sz + (m->refd_payload ? (size_t) m->refd_payload_iov.iov_len : 0);
 }
 
 enum nn_xmsg_kind nn_xmsg_kind (const struct nn_xmsg *m)
@@ -725,7 +673,7 @@ void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t of
   }
 }
 
-void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const nn_locator_t *loc)
+void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_locator_t *loc)
 {
   assert (m->dstmode == NN_XMSG_DST_UNSET);
   m->dstmode = NN_XMSG_DST_ONE;
@@ -759,31 +707,20 @@ bool nn_xmsg_getdst1prefix (struct nn_xmsg *m, ddsi_guid_prefix_t *gp)
   return false;
 }
 
-dds_return_t nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
+void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
 {
-  nn_locator_t loc;
-  if (addrset_any_uc (prd->c.as, &loc) || addrset_any_mc (prd->c.as, &loc))
-  {
-    nn_xmsg_setdst1 (prd->e.gv, m, &prd->e.guid.prefix, &loc);
-    return 0;
-  }
-  else
-  {
-    DDS_CWARNING (&prd->e.gv->logconfig, "nn_xmsg_setdstPRD: no address for "PGUIDFMT"", PGUID (prd->e.guid));
-    return DDS_RETCODE_PRECONDITION_NOT_MET;
-  }
+  ddsi_locator_t loc;
+  // only accepting endpoints that have an address
+  addrset_any_uc_else_mc_nofail (prd->c.as, &loc);
+  nn_xmsg_setdst1 (prd->e.gv, m, &prd->e.guid.prefix, &loc);
 }
 
-dds_return_t nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
+void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
 {
-  nn_locator_t loc;
-  if (addrset_any_uc (pwr->c.as, &loc) || addrset_any_mc (pwr->c.as, &loc))
-  {
-    nn_xmsg_setdst1 (pwr->e.gv, m, &pwr->e.guid.prefix, &loc);
-    return 0;
-  }
-  DDS_CWARNING (&pwr->e.gv->logconfig, "nn_xmsg_setdstPRD: no address for "PGUIDFMT, PGUID (pwr->e.guid));
-  return DDS_RETCODE_PRECONDITION_NOT_MET;
+  ddsi_locator_t loc;
+  // only accepting endpoints that have an address
+  addrset_any_uc_else_mc_nofail (pwr->c.as, &loc);
+  nn_xmsg_setdst1 (pwr->e.gv, m, &pwr->e.guid.prefix, &loc);
 }
 
 void nn_xmsg_setdstN (struct nn_xmsg *m, struct addrset *as, struct addrset *as_group)
@@ -914,15 +851,6 @@ int nn_xmsg_setmaxdelay (struct nn_xmsg *msg, int64_t maxdelay)
   msg->maxdelay = maxdelay;
   return 0;
 }
-
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-int nn_xmsg_setencoderid (struct nn_xmsg *msg, uint32_t encoderid)
-{
-  assert (msg->encoderid == 0);
-  msg->encoderid = encoderid;
-  return 0;
-}
-#endif
 
 void nn_xmsg_setwriterseq (struct nn_xmsg *msg, const ddsi_guid_t *wrguid, seqno_t wrseq)
 {
@@ -1145,6 +1073,7 @@ static void nn_xpack_reinit (struct nn_xpack *xp)
   xp->niov = 0;
   xp->call_flags = 0;
   xp->msg_len.length = 0;
+  xp->includes_rexmit = false;
   xp->included_msgs.latest = NULL;
   xp->maxdelay = DDS_INFINITY;
 #ifdef DDSI_INCLUDE_SECURITY
@@ -1188,9 +1117,6 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
   xp->conn = conn;
   nn_xpack_reinit (xp);
 
-  if (xp->gv->thread_pool)
-    ddsi_sem_init (&xp->sem, 0);
-
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
   nn_bw_limit_init (&xp->limiter, bw_limit);
 #else
@@ -1203,13 +1129,11 @@ void nn_xpack_free (struct nn_xpack *xp)
 {
   assert (xp->niov == 0);
   assert (xp->included_msgs.latest == NULL);
-  if (xp->gv->thread_pool)
-    ddsi_sem_destroy (&xp->sem);
   ddsrt_free (xp->iov);
   ddsrt_free (xp);
 }
 
-static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const nn_locator_t *loc)
+static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const ddsi_locator_t *loc)
 {
   ssize_t ret = -1;
 
@@ -1238,7 +1162,7 @@ static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const nn_locator_t *loc)
   return ret;
 }
 
-static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
+static ssize_t nn_xpack_send1 (const ddsi_locator_t *loc, void * varg)
 {
   struct nn_xpack *xp = varg;
   struct ddsi_domaingv const * const gv = xp->gv;
@@ -1298,34 +1222,9 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
   return nbytes;
 }
 
-static void nn_xpack_send1v (const nn_locator_t *loc, void * varg)
+static void nn_xpack_send1v (const ddsi_locator_t *loc, void * varg)
 {
   (void) nn_xpack_send1 (loc, varg);
-}
-
-typedef struct nn_xpack_send1_thread_arg {
-  const nn_locator_t *loc;
-  struct nn_xpack *xp;
-} *nn_xpack_send1_thread_arg_t;
-
-static void nn_xpack_send1_thread (void * varg)
-{
-  nn_xpack_send1_thread_arg_t arg = varg;
-  (void) nn_xpack_send1 (arg->loc, arg->xp);
-  if (ddsrt_atomic_dec32_ov (&arg->xp->calls) == 1)
-  {
-    ddsi_sem_post (&arg->xp->sem);
-  }
-  ddsrt_free (varg);
-}
-
-static void nn_xpack_send1_threaded (const nn_locator_t *loc, void * varg)
-{
-  nn_xpack_send1_thread_arg_t arg = ddsrt_malloc (sizeof (*arg));
-  arg->xp = (struct nn_xpack *) varg;
-  arg->loc = loc;
-  ddsrt_atomic_inc32 (&arg->xp->calls);
-  ddsrt_thread_pool_submit (arg->xp->gv->thread_pool, nn_xpack_send1_thread, arg);
 }
 
 static void nn_xpack_send_real (struct nn_xpack *xp)
@@ -1366,21 +1265,7 @@ static void nn_xpack_send_real (struct nn_xpack *xp)
     calls = 0;
     if (xp->dstaddr.all.as)
     {
-      if (xp->gv->thread_pool == NULL)
-      {
-        calls = addrset_forall_count (xp->dstaddr.all.as, nn_xpack_send1v, xp);
-      }
-      else
-      {
-        ddsrt_atomic_st32 (&xp->calls, 1);
-        calls = addrset_forall_count (xp->dstaddr.all.as, nn_xpack_send1_threaded, xp);
-        /* Wait for the thread pool to complete the write; if we're the one
-           decrementing "calls" to 0, all of the work has been completed and
-           none of the threads will be posting; else some thread will be
-           posting it and we had better wait for it */
-        if (ddsrt_atomic_dec32_ov (&xp->calls) != 1)
-          ddsi_sem_wait (&xp->sem);
-      }
+      calls = addrset_forall_count (xp->dstaddr.all.as, nn_xpack_send1v, xp);
       unref_addrset (xp->dstaddr.all.as);
     }
 
@@ -1535,9 +1420,24 @@ static int addressing_info_eq_onesidederr (const struct nn_xpack *xp, const stru
   return 0;
 }
 
+static int nn_xmsg_is_rexmit (const struct nn_xmsg *m)
+{
+  switch (m->kind)
+  {
+    case NN_XMSG_KIND_DATA:
+    case NN_XMSG_KIND_CONTROL:
+      return 0;
+    case NN_XMSG_KIND_DATA_REXMIT:
+    case NN_XMSG_KIND_DATA_REXMIT_NOMERGE:
+      return 1;
+  }
+  return 0;
+}
+
 static int nn_xpack_mayaddmsg (const struct nn_xpack *xp, const struct nn_xmsg *m, const uint32_t flags)
 {
-  unsigned max_msg_size = xp->gv->config.max_msg_size;
+  const bool rexmit = xp->includes_rexmit || nn_xmsg_is_rexmit (m);
+  const unsigned max_msg_size = rexmit ? xp->gv->config.max_rexmit_msg_size : xp->gv->config.max_msg_size;
   unsigned payload_size;
 
   if (xp->niov == 0)
@@ -1561,12 +1461,6 @@ static int nn_xpack_mayaddmsg (const struct nn_xpack *xp, const struct nn_xmsg *
   {
     return 0;
   }
-
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  /* Don't mix up xmsg for different encoders */
-  if (xp->encoderId != m->encoderid)
-    return 0;
-#endif
 
 #ifdef DDSI_INCLUDE_SECURITY
   /* Don't mix up encoded and plain rtps messages */
@@ -1666,9 +1560,6 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
 #ifdef DDSI_INCLUDE_SECURITY
     xp->sec_info = m->sec_info;
 #endif
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-    xp->encoderId = m->encoderid;
-#endif
     xp->last_src = &xp->hdr.guid_prefix;
     xp->last_dst = NULL;
   }
@@ -1758,10 +1649,12 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   xp->msg_len.length = (uint32_t) sz;
   xp->niov = niov;
 
-  if (xpo_niov > 0 && sz > xp->gv->config.max_msg_size)
+  const bool rexmit = xp->includes_rexmit || nn_xmsg_is_rexmit (m);
+  const uint32_t max_msg_size = rexmit ? xp->gv->config.max_rexmit_msg_size : xp->gv->config.max_msg_size;
+  if (xpo_niov > 0 && sz > max_msg_size)
   {
     GVTRACE (" => now niov %d sz %"PRIuSIZE" > max_msg_size %"PRIu32", nn_xpack_send niov %d sz %"PRIu32" now\n",
-             (int) niov, sz, gv->config.max_msg_size, (int) xpo_niov, xpo_sz);
+             (int) niov, sz, max_msg_size, (int) xpo_niov, xpo_sz);
     xp->msg_len.length = xpo_sz;
     xp->niov = xpo_niov;
     nn_xpack_send (xp, false);
@@ -1770,6 +1663,15 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   else
   {
     xp->call_flags = flags;
+    switch (m->kind)
+    {
+      case NN_XMSG_KIND_DATA:
+      case NN_XMSG_KIND_CONTROL:
+        break;
+      case NN_XMSG_KIND_DATA_REXMIT:
+      case NN_XMSG_KIND_DATA_REXMIT_NOMERGE:
+        xp->includes_rexmit = true;
+    }
     nn_xmsg_chain_add (&xp->included_msgs, m);
     GVTRACE (" => now niov %d sz %"PRIuSIZE"\n", (int) niov, sz);
   }

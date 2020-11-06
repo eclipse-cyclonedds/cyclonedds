@@ -117,12 +117,18 @@ struct piddesc {
   dds_return_t (*deser_validate_xform) (void * __restrict dst, const struct dd * __restrict dd);
 };
 
+enum do_locator_result {
+  DOLOC_ACCEPTED,
+  DOLOC_IGNORED,
+  DOLOC_INVALID
+};
+
 static dds_return_t validate_history_qospolicy (const dds_history_qospolicy_t *q);
 static dds_return_t validate_resource_limits_qospolicy (const dds_resource_limits_qospolicy_t *q);
 static dds_return_t validate_history_and_resource_limits (const dds_history_qospolicy_t *qh, const dds_resource_limits_qospolicy_t *qr);
 static dds_return_t validate_external_duration (const ddsi_duration_t *d);
 static dds_return_t validate_durability_service_qospolicy_acceptzero (const dds_durability_service_qospolicy_t *q, bool acceptzero);
-static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t wanted, uint64_t fl, const struct dd *dd, const struct ddsi_tran_factory *factory);
+static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const struct dd *dd, const struct ddsi_tran_factory *factory);
 static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict);
 static int partitions_equal (const void *srca, const void *srcb, size_t off);
 static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict);
@@ -368,7 +374,7 @@ static dds_return_t deser_locator (void * __restrict dst, size_t * __restrict ds
   struct dd tmpdd = *dd;
   tmpdd.buf += *srcoff;
   tmpdd.bufsz -= *srcoff;
-  if (do_locator (x, flagset->present, flagset->wanted, flag, &tmpdd, dd->factory) < 0)
+  if (do_locator (x, *flagset->present, flagset->wanted, flag, &tmpdd, dd->factory) < 0)
     return DDS_RETCODE_BAD_PARAMETER;
   *srcoff += 24;
   *dstoff += sizeof (*x);
@@ -1640,6 +1646,7 @@ static const struct piddesc piddesc_eclipse[] = {
     { .desc = { XE2, XSTOP } }, 0 },
   PP  (ADLINK_PARTICIPANT_VERSION_INFO,  adlink_participant_version_info, Xux5, XS),
   PP  (ADLINK_TYPE_DESCRIPTION,          type_description, XS),
+  PP  (CYCLONE_RECEIVE_BUFFER_SIZE,      cyclone_receive_buffer_size, Xu),
   { PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
 };
 
@@ -1714,7 +1721,7 @@ struct piddesc_index {
 #endif
 
 static const struct piddesc *piddesc_omg_index[DEFAULT_OMG_PIDS_ARRAY_SIZE + SECURITY_OMG_PIDS_ARRAY_SIZE];
-static const struct piddesc *piddesc_eclipse_index[19];
+static const struct piddesc *piddesc_eclipse_index[26];
 static const struct piddesc *piddesc_adlink_index[19];
 
 #define INDEX_ANY(vendorid_, tab_) [vendorid_] = { \
@@ -2304,12 +2311,12 @@ static dds_return_t validate_durability_service_qospolicy_acceptzero (const dds_
   return 0;
 }
 
-static dds_return_t add_locator (nn_locators_t *ls, uint64_t *present, uint64_t wanted, uint64_t fl, const nn_locator_t *loc)
+static void add_locator (nn_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const ddsi_locator_t *loc)
 {
   if (wanted & fl)
   {
     struct nn_locators_one *nloc;
-    if (!(*present & fl))
+    if (!(present & fl))
     {
       ls->n = 0;
       ls->first = NULL;
@@ -2327,33 +2334,29 @@ static dds_return_t add_locator (nn_locators_t *ls, uint64_t *present, uint64_t 
     }
     ls->last = nloc;
     ls->n++;
-    *present |= fl;
   }
-  return 0;
 }
 
-static int locator_address_prefix12_zero (const nn_locator_t *loc)
+static bool locator_address_prefix_zero (const ddsi_locator_t *loc, size_t prefixlen)
 {
-  /* loc has has 32 bit ints preceding the address, hence address is
-     4-byte aligned; reading char* as unsigneds isn't illegal type
-     punning */
-  const uint32_t *u = (const uint32_t *) loc->address;
-  return (u[0] == 0 && u[1] == 0 && u[2] == 0);
+  assert (prefixlen <= sizeof (loc->address));
+  for (size_t i = 0; i < prefixlen; i++)
+    if (loc->address[i] != 0)
+      return false;
+  return true;
 }
 
-static int locator_address_zero (const nn_locator_t *loc)
+static bool locator_address_zero (const ddsi_locator_t *loc)
 {
-  /* see locator_address_prefix12_zero */
-  const uint32_t *u = (const uint32_t *) loc->address;
-  return (u[0] == 0 && u[1] == 0 && u[2] == 0 && u[3] == 0);
+  return locator_address_prefix_zero (loc, sizeof (loc->address));
 }
 
-static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t wanted, uint64_t fl, const struct dd *dd, const struct ddsi_tran_factory *factory)
+static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const struct dd *dd, const struct ddsi_tran_factory *factory)
 {
-  nn_locator_t loc;
+  ddsi_locator_t loc;
 
   if (dd->bufsz < 24)
-    return DDS_RETCODE_BAD_PARAMETER;
+    return DOLOC_INVALID;
 
   memcpy (&loc.kind, dd->buf, 4);
   memcpy (&loc.port, dd->buf + 4, 4);
@@ -2367,45 +2370,67 @@ static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t w
   {
     case NN_LOCATOR_KIND_UDPv4:
     case NN_LOCATOR_KIND_TCPv4:
-      if (loc.port <= 0 || loc.port > 65535)
-        return DDS_RETCODE_BAD_PARAMETER;
-      if (!locator_address_prefix12_zero (&loc))
-        return DDS_RETCODE_BAD_PARAMETER;
+      if (!ddsi_factory_supports (factory, loc.kind))
+        return DOLOC_IGNORED;
+      if (!ddsi_is_valid_port (factory, loc.port))
+        return DOLOC_INVALID;
+      if (!locator_address_prefix_zero (&loc, 12))
+        return DOLOC_INVALID;
       break;
     case NN_LOCATOR_KIND_UDPv6:
     case NN_LOCATOR_KIND_TCPv6:
-      if (loc.port <= 0 || loc.port > 65535)
-        return DDS_RETCODE_BAD_PARAMETER;
+      if (!ddsi_factory_supports (factory, loc.kind))
+        return DOLOC_IGNORED;
+      if (!ddsi_is_valid_port (factory, loc.port))
+        return DOLOC_INVALID;
       break;
-    case NN_LOCATOR_KIND_UDPv4MCGEN: {
-      const nn_udpv4mcgen_address_t *x = (const nn_udpv4mcgen_address_t *) loc.address;
-      if (!ddsi_factory_supports (factory, NN_LOCATOR_KIND_UDPv4))
-        return 0;
-      if (loc.port <= 0 || loc.port > 65536)
-        return DDS_RETCODE_BAD_PARAMETER;
-      if ((uint32_t) x->base + x->count >= 28 || x->count == 0 || x->idx >= x->count)
-        return DDS_RETCODE_BAD_PARAMETER;
+    case NN_LOCATOR_KIND_UDPv4MCGEN:
+      if (!vendor_is_eclipse (dd->vendorid))
+        return DOLOC_IGNORED;
+      else
+      {
+        const nn_udpv4mcgen_address_t *x = (const nn_udpv4mcgen_address_t *) loc.address;
+        if (!ddsi_factory_supports (factory, NN_LOCATOR_KIND_UDPv4))
+          return DOLOC_IGNORED;
+        if (!ddsi_is_valid_port (factory, loc.port))
+          return DOLOC_INVALID;
+        if ((uint32_t) x->base + x->count >= 28 || x->count == 0 || x->idx >= x->count)
+          return DOLOC_INVALID;
+      }
       break;
-    }
     case NN_LOCATOR_KIND_INVALID:
       if (!locator_address_zero (&loc))
-        return DDS_RETCODE_BAD_PARAMETER;
+        return DOLOC_INVALID;
       if (loc.port != 0)
-        return DDS_RETCODE_BAD_PARAMETER;
+        return DOLOC_INVALID;
       /* silently drop correctly formatted "invalid" locators. */
-      return 0;
+      return DOLOC_IGNORED;
     case NN_LOCATOR_KIND_RESERVED:
       /* silently drop "reserved" locators. */
-      return 0;
+      return DOLOC_IGNORED;
+    case NN_LOCATOR_KIND_RAWETH:
+      if (!vendor_is_eclipse (dd->vendorid))
+        return DOLOC_IGNORED;
+      else
+      {
+        if (!ddsi_factory_supports (factory, NN_LOCATOR_KIND_RAWETH))
+          return DOLOC_IGNORED;
+        if (!ddsi_is_valid_port (factory, loc.port))
+          return DOLOC_INVALID;
+        if (!locator_address_prefix_zero (&loc, 10))
+          return DOLOC_INVALID;
+      }
+      break;
     default:
-      return 0;
+      return DOLOC_IGNORED;
   }
 
   loc.tran = ddsi_factory_supports (factory, loc.kind) ? factory : NULL;
-  return add_locator (ls, present, wanted, fl, &loc);
+  add_locator (ls, present, wanted, fl, &loc);
+  return DOLOC_ACCEPTED;
 }
 
-static void locator_from_ipv4address_port (nn_locator_t *loc, const nn_ipv4address_t *a, const nn_port_t *p, ddsi_tran_factory_t factory)
+static void locator_from_ipv4address_port (ddsi_locator_t *loc, const nn_ipv4address_t *a, const nn_port_t *p, ddsi_tran_factory_t factory)
 {
   loc->tran = factory;
   loc->kind = factory->m_connless ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_TCPv4;
@@ -2454,7 +2479,7 @@ static dds_return_t do_ipv4address (ddsi_plist_t *dest, nn_ipaddress_params_tmp_
       ls = &dest->metatraffic_multicast_locators;
       break;
     default:
-      abort ();
+      return DDS_RETCODE_BAD_PARAMETER;
   }
   memcpy (a, dd->buf, sizeof (*a));
   dest_tmp->present |= fl_tmp;
@@ -2469,16 +2494,13 @@ static dds_return_t do_ipv4address (ddsi_plist_t *dest, nn_ipaddress_params_tmp_
     /* If port already known, add corresponding locator and discard
        both address & port from the set of present plist: this
        allows adding another pair. */
-
-    nn_locator_t loc;
+    ddsi_locator_t loc;
     locator_from_ipv4address_port (&loc, a, p, factory);
+    add_locator (ls, dest->present, wanted, fldest, &loc);
     dest_tmp->present &= ~(fl_tmp | fl1_tmp);
-    return add_locator (ls, &dest->present, wanted, fldest, &loc);
+    dest->present |= fldest;
   }
-  else
-  {
-    return 0;
-  }
+  return 0;
 }
 
 static dds_return_t do_port (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd, ddsi_tran_factory_t factory)
@@ -2514,7 +2536,7 @@ static dds_return_t do_port (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest
       ls = &dest->metatraffic_multicast_locators;
       break;
     default:
-      abort ();
+      return DDS_RETCODE_BAD_PARAMETER;
   }
   memcpy (p, dd->buf, sizeof (*p));
   if (dd->bswap)
@@ -2527,15 +2549,13 @@ static dds_return_t do_port (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest
     /* If port already known, add corresponding locator and discard
        both address & port from the set of present plist: this
        allows adding another pair. */
-    nn_locator_t loc;
+    ddsi_locator_t loc;
     locator_from_ipv4address_port (&loc, a, p, factory);
+    add_locator (ls, dest->present, wanted, fldest, &loc);
     dest_tmp->present &= ~(fl_tmp | fl1_tmp);
-    return add_locator (ls, &dest->present, wanted, fldest, &loc);
+    dest->present |= fldest;
   }
-  else
-  {
-    return 0;
-  }
+  return 0;
 }
 
 static dds_return_t return_unrecognized_pid (ddsi_plist_t *plist, nn_parameterid_t pid)
@@ -3288,7 +3308,7 @@ static void fill_property(dds_property_t *prop, const char *name, const char *va
  * plugins to get their proper settings. If security properties are already present in
  * the QoS, the settings from configuration are ignored.
  */
-void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security_configuration_type *cfg)
+void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct ddsi_config_omg_security *cfg)
 {
   assert(cfg != NULL);
 

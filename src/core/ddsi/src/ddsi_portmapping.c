@@ -10,6 +10,9 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+#include <inttypes.h>
+
+#include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_portmapping.h"
 #include "dds/ddsi/q_config.h"
 
@@ -18,7 +21,7 @@ static bool get_port_int (uint32_t *port, const struct ddsi_portmapping *map, en
   uint32_t off = UINT32_MAX, ppidx = UINT32_MAX;
 
   assert (domain_id != UINT32_MAX);
-  assert (participant_index >= 0 || participant_index == PARTICIPANT_INDEX_NONE);
+  assert (participant_index >= 0 || participant_index == DDSI_PARTICIPANT_INDEX_NONE);
 
   switch (which)
   {
@@ -33,7 +36,7 @@ static bool get_port_int (uint32_t *port, const struct ddsi_portmapping *map, en
       ppidx = 0;
       break;
     case DDSI_PORT_UNI_DISC:
-      if (participant_index == PARTICIPANT_INDEX_NONE)
+      if (participant_index == DDSI_PARTICIPANT_INDEX_NONE)
       {
         /* participant index "none" means unicast ports get chosen by the transport */
         *port = 0;
@@ -43,7 +46,7 @@ static bool get_port_int (uint32_t *port, const struct ddsi_portmapping *map, en
       ppidx = (uint32_t) participant_index;
       break;
     case DDSI_PORT_UNI_DATA:
-      if (participant_index == PARTICIPANT_INDEX_NONE)
+      if (participant_index == DDSI_PARTICIPANT_INDEX_NONE)
       {
         /* participant index "none" means unicast ports get chosen by the transport */
         *port = 0;
@@ -89,7 +92,7 @@ static const char *portname (enum ddsi_port which)
   return n;
 }
 
-bool ddsi_valid_portmapping (const struct config *config, int32_t participant_index, char *msg, size_t msgsize)
+bool ddsi_valid_portmapping (const struct ddsi_config *config, int32_t participant_index, char *msg, size_t msgsize)
 {
   DDSRT_STATIC_ASSERT (DDSI_PORT_MULTI_DISC >= 0 &&
                        DDSI_PORT_MULTI_DISC + 1 == DDSI_PORT_MULTI_DATA &&
@@ -114,7 +117,7 @@ bool ddsi_valid_portmapping (const struct config *config, int32_t participant_in
   return ok;
 }
 
-uint32_t ddsi_get_port (const struct config *config, enum ddsi_port which, int32_t participant_index)
+uint32_t ddsi_get_port (const struct ddsi_config *config, enum ddsi_port which, int32_t participant_index)
 {
   /* Not supposed to come here if port mapping is invalid */
   uint32_t port;

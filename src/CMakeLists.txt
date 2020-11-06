@@ -25,6 +25,9 @@ endif()
 #
 # which caters both for those who prefer #ifdef DDS_HAS_SECURITY and for those who prefer
 # #if DDS_HAS_SECURITY.
+option(ENABLE_SECURITY "Enable OMG DDS Security support" ON)
+option(ENABLE_LIFESPAN "Enable Lifespan QoS support" ON)
+option(ENABLE_DEADLINE_MISSED "Enable Deadline Missed QoS support" ON)
 if(ENABLE_SECURITY)
   set(DDS_HAS_SECURITY "1")
 endif()
@@ -62,19 +65,16 @@ if(ENABLE_SSL)
 endif()
 
 # Support the OMG DDS Security within ddsc adds quite a bit of code.
-option(ENABLE_SECURITY "Enable OMG DDS Security support" ON)
 if(NOT ENABLE_SECURITY)
   message(STATUS "Building without OMG DDS Security support")
 else()
   add_definitions(-DDDSI_INCLUDE_SECURITY)
 endif()
 
-option(ENABLE_LIFESPAN "Enable Lifespan QoS support" ON)
 if(ENABLE_LIFESPAN)
   add_definitions(-DDDSI_INCLUDE_LIFESPAN)
 endif()
 
-option(ENABLE_DEADLINE_MISSED "Enable Deadline Missed QoS support" ON)
 if(ENABLE_DEADLINE_MISSED)
   add_definitions(-DDDSI_INCLUDE_DEADLINE_MISSED)
 endif()

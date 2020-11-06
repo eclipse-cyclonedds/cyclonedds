@@ -116,7 +116,7 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
       {
         tmdom->msgpos +=
           (size_t) snprintf (tmdom->msg + tmdom->msgpos, sizeof (tmdom->msg) - tmdom->msgpos,
-                             " %u(%s):%c:%"PRIx32"->%"PRIx32, i, thread_states.ts[i].name, alive ? 'a' : 'd', sl->av_ary[i].vt, vt);
+                             " %"PRIu32"(%s):%c:%"PRIx32"->%"PRIx32, i, thread_states.ts[i].name, alive ? 'a' : 'd', sl->av_ary[i].vt, vt);
       }
 
       sl->av_ary[i].vt = vt;

@@ -68,8 +68,8 @@ void validate_handshake_nofail (dds_domainid_t domain_id, dds_duration_t timeout
 void validate_handshake_result (struct Handshake *hs, bool exp_fail_hs_req, const char * fail_hs_req_msg, bool exp_fail_hs_reply, const char * fail_hs_reply_msg);
 void handshake_list_fini (struct Handshake *hs_list, int nhs);
 char *create_topic_name (const char *prefix, uint32_t nr, char *name, size_t size);
-void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_count, dds_duration_t timeout);
-void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_count, dds_duration_t timeout);
+void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_count, dds_time_t abstimeout);
+void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_count, dds_time_t abstimeout);
 bool reader_wait_for_data (dds_entity_t pp, dds_entity_t rd, dds_duration_t dur);
 dds_qos_t * get_default_test_qos (void);
 void rd_wr_init (

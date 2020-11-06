@@ -19,6 +19,14 @@
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/time.h"
 
+#if !DDSRT_WITH_FREERTOS
+#define DDSRT_HAVE_FILESYSTEM (1)
+#else
+#define DDSRT_HAVE_FILESYSTEM (0)
+#endif
+
+#if DDSRT_HAVE_FILESYSTEM
+
 #if _WIN32
 #include "dds/ddsrt/filesystem/windows.h"
 #else
@@ -119,5 +127,7 @@ DDS_EXPORT const char* ddsrt_file_sep(void);
 #if defined (__cplusplus)
 }
 #endif
+
+#endif // DDRT_HAVE_FILESYSTEM
 
 #endif // FILESYSTEM_H

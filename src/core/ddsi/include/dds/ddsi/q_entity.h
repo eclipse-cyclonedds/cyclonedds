@@ -98,8 +98,8 @@ struct rd_pwr_match {
   unsigned pwr_alive: 1; /* tracks pwr's alive state */
   uint32_t pwr_alive_vclock; /* used to ensure progress */
 #ifdef DDSI_INCLUDE_SSM
-  nn_locator_t ssm_mc_loc;
-  nn_locator_t ssm_src_loc;
+  ddsi_locator_t ssm_mc_loc;
+  ddsi_locator_t ssm_src_loc;
 #endif
 #ifdef DDSI_INCLUDE_SECURITY
   int64_t crypto_handle;
@@ -129,11 +129,12 @@ struct wr_prd_match {
   seqno_t max_seq; /* sort-of highest ack'd seq nr in subtree (see augment function) */
   seqno_t seq; /* highest acknowledged seq nr */
   seqno_t last_seq; /* highest seq send to this reader used when filter is applied */
-  int32_t num_reliable_readers_where_seq_equals_max;
+  uint32_t num_reliable_readers_where_seq_equals_max;
   ddsi_guid_t arbitrary_unacked_reader;
-  nn_count_t next_acknack; /* next acceptable acknack sequence number */
-  nn_count_t next_nackfrag; /* next acceptable nackfrag sequence number */
+  nn_count_t prev_acknack; /* latest accepted acknack sequence number */
+  nn_count_t prev_nackfrag; /* latest accepted nackfrag sequence number */
   ddsrt_etime_t t_acknack_accepted; /* (local) time an acknack was last accepted */
+  ddsrt_etime_t t_nackfrag_accepted; /* (local) time a nackfrag was last accepted */
   struct nn_lat_estim hb_to_ack_latency;
   ddsrt_wctime_t hb_to_ack_latency_tlastlog;
   uint32_t non_responsive_count;
@@ -149,20 +150,33 @@ enum pwr_rd_match_syncstate {
   PRMSS_OUT_OF_SYNC /* not in sync with proxy writer */
 };
 
+struct last_nack_summary {
+  seqno_t seq_end_p1; /* last seq for which we requested a retransmit */
+  seqno_t seq_base;
+  uint32_t frag_end_p1; /* last fragnum of seq_last_nack for which requested a retransmit */
+  uint32_t frag_base;
+};
+
 struct pwr_rd_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t rd_guid;
   ddsrt_mtime_t tcreate;
   nn_count_t count; /* most recent acknack sequence number */
-  nn_count_t next_heartbeat; /* next acceptable heartbeat (see also add_proxy_writer_to_reader) */
+  nn_count_t prev_heartbeat; /* latest accepted heartbeat (see also add_proxy_writer_to_reader) */
   ddsrt_wctime_t hb_timestamp; /* time of most recent heartbeat that rescheduled the ack event */
   ddsrt_etime_t t_heartbeat_accepted; /* (local) time a heartbeat was last accepted */
-  ddsrt_mtime_t t_last_nack; /* (local) time we last sent a NACK */  /* FIXME: probably elapsed time is better */
-  seqno_t seq_last_nack; /* last seq for which we requested a retransmit */
+  ddsrt_mtime_t t_last_nack; /* (local) time we last sent a NACK */
+  ddsrt_mtime_t t_last_ack; /* (local) time we last sent any ACKNACK */
   seqno_t last_seq; /* last known sequence number from this writer */
+  struct last_nack_summary last_nack;
   struct xevent *acknack_xevent; /* entry in xevent queue for sending acknacks */
   enum pwr_rd_match_syncstate in_sync; /* whether in sync with the proxy writer */
-  unsigned filtered:1;
+  unsigned ack_requested : 1; /* set on receipt of HEARTBEAT with FINAL clear, cleared on sending an ACKNACK */
+  unsigned heartbeat_since_ack : 1; /* set when a HEARTBEAT has been received since the last ACKNACK */
+  unsigned heartbeatfrag_since_ack : 1; /* set when a HEARTBEATFRAG has been received since the last ACKNACK */
+  unsigned directed_heartbeat : 1; /* set on receipt of a directed heartbeat, cleared on sending an ACKNACK */
+  unsigned nack_sent_on_nackdelay : 1; /* set when the most recent NACK sent was because of the NackDelay  */
+  unsigned filtered : 1;
   union {
     struct {
       seqno_t end_of_tl_seq; /* when seq >= end_of_tl_seq, it's in sync, =0 when not tl */
@@ -223,7 +237,7 @@ struct participant
   struct ddsi_plist *plist; /* settings/QoS for this participant */
   struct xevent *spdp_xevent; /* timed event for periodically publishing SPDP */
   struct xevent *pmd_update_xevent; /* timed event for periodically publishing ParticipantMessageData */
-  nn_locator_t m_locator;
+  ddsi_locator_t m_locator;
   ddsi_tran_conn_t m_conn;
   struct avail_entityid_set avail_entityids; /* available entity ids [e.lock] */
   ddsrt_mutex_t refc_lock;
@@ -286,6 +300,10 @@ struct writer
   unsigned force_md5_keyhash: 1; /* iff 1, when keyhash has to be hashed, no matter the size */
   unsigned retransmitting: 1; /* iff 1, this writer is currently retransmitting */
   unsigned alive: 1; /* iff 1, the writer is alive (lease for this writer is not expired); field may be modified only when holding both wr->e.lock and wr->c.pp->e.lock */
+  unsigned test_ignore_acknack : 1; /* iff 1, the writer ignores all arriving ACKNACK messages */
+  unsigned test_suppress_retransmit : 1; /* iff 1, the writer does not respond to retransmit requests */
+  unsigned test_suppress_heartbeat : 1; /* iff 1, the writer suppresses all periodic heartbeats */
+  unsigned test_drop_outgoing_data : 1; /* iff 1, the writer drops outgoing data, forcing the readers to request a retransmit */
 #ifdef DDSI_INCLUDE_SSM
   unsigned supports_ssm: 1;
   struct addrset *ssm_as;
@@ -298,14 +316,17 @@ struct writer
   struct ldur_fhnode *lease_duration; /* fibheap node to keep lease duration for this writer, NULL in case of automatic liveliness with inifite duration  */
   struct whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
+  ddsrt_etime_t t_rexmit_start;
   ddsrt_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
   ddsrt_etime_t t_whc_high_upd; /* time "whc_high" was last updated for controlled ramp-up of throughput */
+  uint32_t init_burst_size_limit; /* derived from reader's receive_buffer_size */
+  uint32_t rexmit_burst_size_limit; /* derived from reader's receive_buffer_size */
   uint32_t num_readers; /* total number of matching PROXY readers */
-  int32_t num_reliable_readers; /* number of matching reliable PROXY readers */
+  uint32_t num_reliable_readers; /* number of matching reliable PROXY readers */
   ddsrt_avl_tree_t readers; /* all matching PROXY readers, see struct wr_prd_match */
   ddsrt_avl_tree_t local_readers; /* all matching LOCAL readers, see struct wr_rd_match */
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  uint32_t partition_id;
+  const struct ddsi_config_networkpartition_listelem *network_partition;
 #endif
   uint32_t num_acks_received; /* cum received ACKNACKs with no request for retransmission */
   uint32_t num_nacks_received; /* cum received ACKNACKs that did request retransmission */
@@ -313,6 +334,9 @@ struct writer
   uint32_t throttle_tracing;
   uint32_t rexmit_count; /* cum samples retransmitted (counting events; 1 sample can be counted many times) */
   uint32_t rexmit_lost_count; /* cum samples lost but retransmit requested (also counting events) */
+  uint64_t rexmit_bytes; /* cum bytes queued for retransmit */
+  uint64_t time_throttled; /* cum time in throttled state */
+  uint64_t time_retransmit; /* cum time in retransmitting state */
   struct xeventq *evq; /* timed event queue to be used by this writer */
   struct local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
   struct lease *lease; /* for liveliness administration (writer can only become inactive when using manual liveliness) */
@@ -379,6 +403,7 @@ struct proxy_participant
   struct proxy_endpoint_common *endpoints; /* all proxy endpoints can be reached from here */
   ddsrt_avl_tree_t groups; /* table of all groups (publisher, subscriber), see struct proxy_group */
   seqno_t seq; /* sequence number of most recent SPDP message */
+  uint32_t receive_buffer_size; /* assumed size of receive buffer, used to limit bursts involving this proxypp */
   unsigned implicitly_created : 1; /* participants are implicitly created for Cloud/Fog discovered endpoints */
   unsigned is_ddsi2_pp: 1; /* if this is the federation-leader on the remote node */
   unsigned minimal_bes_mode: 1;
@@ -434,10 +459,9 @@ struct proxy_writer {
   int32_t n_reliable_readers; /* number of those that are reliable */
   int32_t n_readers_out_of_sync; /* number of those that require special handling (accepting historical data, waiting for historical data set to become complete) */
   seqno_t last_seq; /* highest known seq published by the writer, not last delivered */
-  uint32_t last_fragnum; /* last known frag for last_seq, or ~0u if last_seq not partial */
+  uint32_t last_fragnum; /* last known frag for last_seq, or UINT32_MAX if last_seq not partial */
   nn_count_t nackfragcount; /* last nackfrag seq number */
   ddsrt_atomic_uint32_t next_deliv_seq_lowword; /* lower 32-bits for next sequence number that will be delivered; for generating acks; 32-bit so atomic reads on all supported platforms */
-  unsigned last_fragnum_reset: 1; /* iff set, heartbeat advertising last_seq as highest seq resets last_fragnum */
   unsigned deliver_synchronously: 1; /* iff 1, delivery happens straight from receive thread for non-historical data; else through delivery queue "dqueue" */
   unsigned have_seen_heartbeat: 1; /* iff 1, we have received at least on heartbeat from this proxy writer */
   unsigned local_matching_inprogress: 1; /* iff 1, we are still busy matching local readers; this is so we don't deliver incoming data to some but not all readers initially */
@@ -469,6 +493,7 @@ struct proxy_reader {
   unsigned favours_ssm: 1; /* iff 1, this proxy reader favours SSM when available */
 #endif
   ddsrt_avl_tree_t writers; /* matching LOCAL writers */
+  uint32_t receive_buffer_size; /* assumed receive buffer size inherited from proxypp */
   filter_fn_t filter;
 };
 
@@ -702,7 +727,7 @@ int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, se
 int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp);
 void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct lease *newlease);
 
-void purge_proxy_participants (struct ddsi_domaingv *gv, const nn_locator_t *loc, bool delete_from_as_disc);
+void purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_locator_t *loc, bool delete_from_as_disc);
 
 
 /* To create a new proxy writer or reader; the proxy participant is
@@ -741,7 +766,6 @@ void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_
 
 void connect_writer_with_proxy_reader_secure(struct writer *wr, struct proxy_reader *prd, ddsrt_mtime_t tnow, int64_t crypto_handle);
 void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_writer *pwr, ddsrt_mtime_t tnow, int64_t crypto_handle);
-
 
 struct ddsi_writer_info;
 DDS_EXPORT void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo);

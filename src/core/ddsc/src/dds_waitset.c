@@ -136,7 +136,9 @@ const struct dds_entity_deriver dds_entity_deriver_waitset = {
   .close = dds_waitset_close,
   .delete = dds_waitset_delete,
   .set_qos = dds_entity_deriver_dummy_set_qos,
-  .validate_status = dds_entity_deriver_dummy_validate_status
+  .validate_status = dds_entity_deriver_dummy_validate_status,
+  .create_statistics = dds_entity_deriver_dummy_create_statistics,
+  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
 };
 
 dds_entity_t dds_create_waitset (dds_entity_t owner)

@@ -37,10 +37,10 @@ struct ddsi_portmapping {
   uint32_t d3;
 };
 
-struct config;
+struct ddsi_config;
 
-bool ddsi_valid_portmapping (const struct config *config, int32_t participant_index, char *msg, size_t msgsize);
-uint32_t ddsi_get_port (const struct config *config, enum ddsi_port which, int32_t participant_index);
+bool ddsi_valid_portmapping (const struct ddsi_config *config, int32_t participant_index, char *msg, size_t msgsize);
+uint32_t ddsi_get_port (const struct ddsi_config *config, enum ddsi_port which, int32_t participant_index);
 
 #if defined (__cplusplus)
 }

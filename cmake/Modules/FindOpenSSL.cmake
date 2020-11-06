@@ -32,3 +32,11 @@ else()
   endif()
 endif()
 
+# OpenSSL DLL on Windows: use of BIO_s_fd and BIO_s_file (directly or indirectly) requires
+# the executable to incorporate OpenSSL applink.c.  CMake 18 adds support for handling
+# this as part of the OpenSSL package, but we can't require such a new CMake version.
+if(OPENSSL_FOUND AND EXISTS "${OPENSSL_INCLUDE_DIR}/openssl/applink.c")
+  set(CYCLONEDDS_OPENSSL_APPLINK "${OPENSSL_INCLUDE_DIR}/openssl/applink.c")
+else()
+  set(CYCLONEDDS_OPENSSL_APPLINK "")
+endif()

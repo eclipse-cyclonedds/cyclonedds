@@ -60,7 +60,7 @@ static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...) ddsrt_attribute_for
 
 static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...)
 {
-  nn_locator_t loc;
+  ddsi_locator_t loc;
   if (!ddsi_conn_peer_locator (conn, &loc))
     return 0;
   else
@@ -83,7 +83,7 @@ struct print_address_arg {
   int count;
 };
 
-static void print_address (const nn_locator_t *n, void *varg)
+static void print_address (const ddsi_locator_t *n, void *varg)
 {
   struct print_address_arg *arg = varg;
   char buf[DDSI_LOCSTRLEN];
@@ -275,8 +275,8 @@ static int print_proxy_participants (struct thread_state1 * const ts1, struct dd
         x += cpf (conn, "    last_seq %"PRId64" last_fragnum %"PRIu32"\n", w->last_seq, w->last_fragnum);
         for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &w->readers, &rdit); m; m = ddsrt_avl_iter_next (&rdit))
         {
-          x += cpf (conn, "    rd "PGUIDFMT" (nack %"PRId64" %"PRId64")\n",
-                    PGUID (m->rd_guid), m->seq_last_nack, m->t_last_nack.v);
+          x += cpf (conn, "    rd "PGUIDFMT" (nack %"PRId64" frag %"PRIu32" %"PRId64")\n",
+                    PGUID (m->rd_guid), m->last_nack.seq_end_p1, m->last_nack.frag_end_p1, m->t_last_nack.v);
           switch (m->in_sync)
           {
             case PRMSS_SYNC:
@@ -376,7 +376,7 @@ struct debug_monitor *new_debug_monitor (struct ddsi_domaingv *gv, int32_t port)
   }
 
   {
-    nn_locator_t loc;
+    ddsi_locator_t loc;
     char buf[DDSI_LOCSTRLEN];
     (void) ddsi_listener_locator(dm->servsock, &loc);
     GVLOG (DDS_LC_CONFIG, "debmon at %s\n", ddsi_locator_to_string (buf, sizeof(buf), &loc));

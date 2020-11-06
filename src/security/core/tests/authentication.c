@@ -54,7 +54,7 @@ static const char *config =
     "    <ExternalDomainId>0</ExternalDomainId>"
     "    <Tag>\\${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library finalizeFunction=\"finalize_test_authentication_wrapped\" initFunction=\"init_test_authentication_wrapped\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate>data:,${TEST_IDENTITY_CERTIFICATE}</IdentityCertificate>"
@@ -71,7 +71,7 @@ static const char *config =
     "    <Cryptographic>"
     "      <Library finalizeFunction=\"finalize_crypto\" initFunction=\"init_crypto\"/>"
     "    </Cryptographic>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
 static const char *config_non_secure =
@@ -298,7 +298,7 @@ CU_Theory(
   if (write_read_dur > 0)
   {
     rd_wr_init (g_participant1, &g_pub, &g_pub_tp, &g_wr, g_participant2, &g_sub, &g_sub_tp, &g_rd, topic_name);
-    sync_writer_to_readers(g_participant1, g_wr, 1, DDS_SECS(2));
+    sync_writer_to_readers(g_participant1, g_wr, 1, dds_time() + DDS_SECS(2));
     write_read_for (g_wr, g_participant2, g_rd, DDS_MSECS (write_read_dur), false, exp_read_fail);
   }
   authentication_fini (!id1_local_fail, !id2_local_fail, (void * []){ grants[0], grants[1], perm_config, ca, id1_subj, id2_subj, id1, id2 }, 8);
@@ -340,13 +340,13 @@ CU_Test(ddssec_authentication, unauthenticated_pp)
   print_test_msg ("writing sample for plain topic\n");
   dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
   rd_wr_init (g_participant1, &pub, &pub_tp, &wr, g_participant2, &sub, &sub_tp, &rd, topic_name_plain);
-  sync_writer_to_readers(g_participant1, wr, 1, DDS_SECS(5));
+  sync_writer_to_readers(g_participant1, wr, 1, dds_time() + DDS_SECS(5));
   write_read_for (wr, g_participant2, rd, DDS_MSECS (10), false, false);
 
   print_test_msg ("writing sample for secured topic\n");
   dds_entity_t spub, ssub, spub_tp, ssub_tp, swr, srd;
   rd_wr_init (g_participant1, &spub, &spub_tp, &swr, g_participant2, &ssub, &ssub_tp, &srd, topic_name_secure);
-  sync_writer_to_readers(g_participant1, swr, 0, DDS_SECS(2));
+  sync_writer_to_readers(g_participant1, swr, 0, dds_time() + DDS_SECS(2));
   write_read_for (swr, g_participant2, srd, DDS_MSECS (10), false, true);
 
   authentication_fini (true, true, (void * []) { gov_config, gov_topic_rules, topic_rule_sec, topic_rule_plain, grants[0], perm_config, ca, id1_subj, id1 }, 9);

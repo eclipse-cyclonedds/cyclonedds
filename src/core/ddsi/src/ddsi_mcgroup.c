@@ -26,8 +26,8 @@
 struct nn_group_membership_node {
   ddsrt_avl_node_t avlnode;
   ddsi_tran_conn_t conn;
-  nn_locator_t srcloc;
-  nn_locator_t mcloc;
+  ddsi_locator_t srcloc;
+  ddsi_locator_t mcloc;
   unsigned count;
 };
 
@@ -36,7 +36,7 @@ struct nn_group_membership {
   ddsrt_avl_tree_t mships;
 };
 
-static int locator_compare_no_port (const nn_locator_t *as, const nn_locator_t *bs)
+static int locator_compare_no_port (const ddsi_locator_t *as, const ddsi_locator_t *bs)
 {
   if (as->kind != bs->kind)
     return (as->kind < bs->kind) ? -1 : 1;
@@ -78,7 +78,7 @@ void free_group_membership (struct nn_group_membership *mship)
   ddsrt_free (mship);
 }
 
-static int reg_group_membership (struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
+static int reg_group_membership (struct nn_group_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
 {
   struct nn_group_membership_node key, *n;
   ddsrt_avl_ipath_t ip;
@@ -104,7 +104,7 @@ static int reg_group_membership (struct nn_group_membership *mship, ddsi_tran_co
   return isnew;
 }
 
-static int unreg_group_membership (struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
+static int unreg_group_membership (struct nn_group_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
 {
   struct nn_group_membership_node key, *n;
   ddsrt_avl_dpath_t dp;
@@ -129,7 +129,7 @@ static int unreg_group_membership (struct nn_group_membership *mship, ddsi_tran_
   return mustdel;
 }
 
-static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn, int join, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf, int err)
+static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf, int err)
 {
   char mcstr[DDSI_LOCSTRLEN], interfstr[DDSI_LOCSTRLEN];
   char srcstr[DDSI_LOCSTRLEN] = { '*', '\0' };
@@ -152,7 +152,7 @@ static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn,
   return buf;
 }
 
-static int joinleave_mcgroup (ddsi_tran_conn_t conn, int join, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
+static int joinleave_mcgroup (ddsi_tran_conn_t conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   char buf[256];
   int err;
@@ -177,7 +177,7 @@ static int interface_in_recvips_p (const struct config_in_addr_node *recvips, co
   return 0;
 }
 
-static int joinleave_mcgroups (const struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, int join, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
+static int joinleave_mcgroups (const struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
 {
   int rc;
   switch (gv->recvips_mode)
@@ -223,7 +223,7 @@ static int joinleave_mcgroups (const struct ddsi_domaingv *gv, ddsi_tran_conn_t 
   return 0;
 }
 
-int ddsi_join_mc (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
+int ddsi_join_mc (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
 {
   /* FIXME: gv to be reduced; perhaps mship, recvips, interfaces, ownloc should be combined into a single struct */
   int ret;
@@ -242,7 +242,7 @@ int ddsi_join_mc (const struct ddsi_domaingv *gv, struct nn_group_membership *ms
   return ret;
 }
 
-int ddsi_leave_mc (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
+int ddsi_leave_mc (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
 {
   int ret;
   ddsrt_mutex_lock (&mship->lock);

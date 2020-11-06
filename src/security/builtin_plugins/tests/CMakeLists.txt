@@ -59,7 +59,17 @@ set(security_crypto_test_sources
     "set_remote_participant_crypto_tokens/src/set_remote_participant_crypto_tokens_utests.c"
 )
 
-add_cunit_executable(cunit_security_plugins ${security_auth_test_sources} ${security_ac_test_sources} ${security_crypto_test_sources})
+add_cunit_executable(cunit_security_plugins
+  ${security_auth_test_sources}
+  ${security_ac_test_sources}
+  ${security_crypto_test_sources}
+  ${CYCLONEDDS_OPENSSL_APPLINK})
+add_coverage(cunit_security_plugins)
+
+# applink.c triggers the dreaded This function or variable may be unsafe
+if(NOT "${CYCLONEDDS_OPENSSL_APPLINK}" STREQUAL "")
+  set_source_files_properties("${CYCLONEDDS_OPENSSL_APPLINK}" PROPERTIES COMPILE_FLAGS "-D_CRT_SECURE_NO_WARNINGS")
+endif()
 
 target_include_directories(
   cunit_security_plugins PRIVATE

@@ -108,7 +108,6 @@ list(APPEND headers
   "${include_path}/dds/ddsrt/avl.h"
   "${include_path}/dds/ddsrt/fibheap.h"
   "${include_path}/dds/ddsrt/hopscotch.h"
-  "${include_path}/dds/ddsrt/thread_pool.h"
   "${include_path}/dds/ddsrt/log.h"
   "${include_path}/dds/ddsrt/retcode.h"
   "${include_path}/dds/ddsrt/attributes.h"
@@ -118,7 +117,7 @@ list(APPEND headers
   "${include_path}/dds/ddsrt/mh3.h"
   "${include_path}/dds/ddsrt/io.h"
   "${include_path}/dds/ddsrt/process.h"
-  "${include_path}/dds/ddsrt/dynlib.h"
+  "${include_path}/dds/ddsrt/sched.h"
   "${include_path}/dds/ddsrt/strtod.h"
   "${include_path}/dds/ddsrt/strtol.h"
   "${include_path}/dds/ddsrt/types.h"
@@ -139,7 +138,6 @@ list(APPEND sources
   "${source_path}/expand_vars.c"
   "${source_path}/fibheap.c"
   "${source_path}/hopscotch.c"
-  "${source_path}/thread_pool.c"
   "${source_path}/xmlparser.c"
   "${source_path}/circlist.c")
 

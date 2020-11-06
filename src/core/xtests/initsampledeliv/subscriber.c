@@ -169,7 +169,7 @@ int main (int argc, char ** argv)
   }
   if (tldepth == 0 || endmsg == 0)
     oops ();
-  for (int i = 0; i < 2; i++)
+  for (int32_t i = 0; i < 2; i++)
   {
     if (rd[i] == 0)
       continue;
@@ -187,7 +187,7 @@ int main (int argc, char ** argv)
       /* allow the rare cases where an additional sample was received for volatile data
          (for t-l data, the publisher waits to give so the subscriber can get the data
          in time */
-      printf ("reader %d: first seq %d but refseq %d\n", i, (int) firstmsg[i], refseq);
+      printf ("reader %"PRId32": first seq %"PRId32" but refseq %"PRId32"\n", i, firstmsg[i], refseq);
       oops ();
     }
   }

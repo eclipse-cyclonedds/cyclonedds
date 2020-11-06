@@ -60,14 +60,14 @@ void nn_xmsgpool_free (struct nn_xmsgpool *pool);
 struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_t *src_guid, struct participant *pp, size_t expected_size, enum nn_xmsg_kind kind);
 
 /* For sending to a particular destination (participant) */
-void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const nn_locator_t *addr);
+void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_locator_t *addr);
 bool nn_xmsg_getdst1prefix (struct nn_xmsg *m, ddsi_guid_prefix_t *gp);
 
 /* For sending to a particular proxy reader; this is a convenience
    routine that extracts a suitable address from the proxy reader's
    address sets and calls setdst1. */
-dds_return_t nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd);
-dds_return_t nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr);
+void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd);
+void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr);
 
 /* For sending to all in the address set AS -- typically, the writer's
    address set to multicast to all matched readers */

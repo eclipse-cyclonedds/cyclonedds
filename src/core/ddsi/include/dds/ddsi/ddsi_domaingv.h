@@ -43,7 +43,6 @@ struct lease;
 struct ddsi_tran_conn;
 struct ddsi_tran_listener;
 struct ddsi_tran_factory;
-struct ddsrt_thread_pool_s;
 struct debug_monitor;
 struct ddsi_tkmap;
 struct dds_security_context;
@@ -51,7 +50,7 @@ struct dds_security_match_index;
 struct ddsi_hsadmin;
 
 typedef struct config_in_addr_node {
-   nn_locator_t loc;
+   ddsi_locator_t loc;
    struct config_in_addr_node *next;
 } config_in_addr_node;
 
@@ -74,7 +73,7 @@ struct recv_thread_arg {
   struct ddsi_domaingv *gv;
   union {
     struct {
-      const nn_locator_t *loc;
+      const ddsi_locator_t *loc;
       struct ddsi_tran_conn *conn;
     } single;
     struct {
@@ -91,7 +90,7 @@ struct ddsi_domaingv {
   volatile int mute;
 
   struct ddsrt_log_cfg logconfig;
-  struct config config;
+  struct ddsi_config config;
 
   struct ddsi_tkmap * m_tkmap;
 
@@ -151,9 +150,6 @@ struct ddsi_domaingv {
   /* TCP listener */
   struct ddsi_tran_listener * listener;
 
-  /* Thread pool */
-  struct ddsrt_thread_pool_s * thread_pool;
-
   /* In many sockets mode, the receive threads maintain a local array
      with participant GUIDs and sockets, participant_set_generation is
      used to notify them. */
@@ -197,21 +193,21 @@ struct ddsi_domaingv {
      a NAT may be advertised), and the DDSI multi-cast address. */
   enum recvips_mode recvips_mode;
   struct config_in_addr_node *recvips;
-  nn_locator_t extmask;
+  ddsi_locator_t extmask;
 
-  nn_locator_t ownloc;
-  nn_locator_t extloc;
+  ddsi_locator_t ownloc;
+  ddsi_locator_t extloc;
 
   /* InterfaceNo that the OwnIP is tied to */
   unsigned interfaceNo;
 
   /* Locators */
 
-  nn_locator_t loc_spdp_mc;
-  nn_locator_t loc_meta_mc;
-  nn_locator_t loc_meta_uc;
-  nn_locator_t loc_default_mc;
-  nn_locator_t loc_default_uc;
+  ddsi_locator_t loc_spdp_mc;
+  ddsi_locator_t loc_meta_mc;
+  ddsi_locator_t loc_meta_uc;
+  ddsi_locator_t loc_default_mc;
+  ddsi_locator_t loc_default_uc;
 
   /*
     Initial discovery address set, and the current discovery address

@@ -189,25 +189,15 @@ DDS_Security_ValidationResult_t check_certificate_expiry(const X509 *cert, DDS_S
   return DDS_SECURITY_VALIDATION_OK;
 }
 
-DDS_Security_ValidationResult_t load_X509_certificate_from_data(const char *data, int len, X509 **x509Cert, DDS_Security_SecurityException *ex)
+static DDS_Security_ValidationResult_t load_X509_certificate_from_bio (BIO *bio, X509 **x509Cert, DDS_Security_SecurityException *ex)
 {
-  BIO *bio;
-  assert(data);
-  assert(len >= 0);
   assert(x509Cert);
 
-  if (!(bio = BIO_new_mem_buf((void *)data, len)))
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "BIO_new_mem_buf failed");
-    return DDS_SECURITY_VALIDATION_FAILED;
-  }
   if (!(*x509Cert = PEM_read_bio_X509(bio, NULL, NULL, NULL)))
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to parse certificate: ");
-    BIO_free(bio);
     return DDS_SECURITY_VALIDATION_FAILED;
   }
-  BIO_free(bio);
 
   if (get_authentication_algo_kind(*x509Cert) == AUTH_ALGO_KIND_UNKNOWN)
   {
@@ -219,36 +209,114 @@ DDS_Security_ValidationResult_t load_X509_certificate_from_data(const char *data
   return DDS_SECURITY_VALIDATION_OK;
 }
 
+static BIO *load_file_into_BIO (const char *filename, DDS_Security_SecurityException *ex)
+{
+  // File BIOs exist so one doesn't have to do all this, but it requires an application
+  // on Windows that linked OpenSSL via a DLL to incorporate OpenSSL's applink.c, and
+  // that is too onerous a requirement.
+  BIO *bio;
+  FILE *fp;
+  size_t n;
+  char tmp[512];
+
+  if ((bio = BIO_new (BIO_s_mem ())) == NULL)
+  {
+    DDS_Security_Exception_set (ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_file_into_BIO: BIO_new_mem (BIO_s_mem ())");
+    goto err_bio_new;
+  }
+
+  DDSRT_WARNING_MSVC_OFF(4996);
+  if ((fp = fopen(filename, "r")) == NULL)
+  {
+    DDS_Security_Exception_set (ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_FILE_PATH_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_file_into_BIO: " DDS_SECURITY_ERR_INVALID_FILE_PATH_MESSAGE, filename);
+    goto err_fopen;
+  }
+  DDSRT_WARNING_MSVC_ON(4996);
+
+  // Seek to end, get position and go back.  It'll choke on a file of a couple GB, but at
+  // least one won't be able to pass it a socket and keep streaming data in until it
+  // explodes.
+  if (fseek (fp, 0, SEEK_END) != 0)
+  {
+    DDS_Security_Exception_set (ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_file_into_BIO: seek to end failed");
+    goto err_get_length;
+  }
+  long max = ftell (fp);
+  if (max < 0 || (unsigned long) max > SIZE_MAX)
+  {
+    DDS_Security_Exception_set (ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_file_into_BIO: ftell failed");
+    goto err_get_length;
+  }
+  if (fseek (fp, 0, SEEK_SET) != 0)
+  {
+    DDS_Security_Exception_set (ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_file_into_BIO: seek to begin failed");
+    goto err_get_length;
+  }
+
+  // Try reading before testing remain: that way the EOF flag will always get set
+  // if indeed we do read to the end of the file
+  size_t remain = (size_t) max;
+  while ((n = fread (tmp, 1, sizeof (tmp), fp)) > 0 && remain > 0)
+  {
+    if (!BIO_write (bio, tmp, (int) n))
+    {
+      DDS_Security_Exception_set (ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_X509_certificate_from_file: failed to append data to BIO");
+      goto err_bio_write;
+    }
+    // protect against truncation while reading
+    remain -= (n <= remain) ? n : remain;
+  }
+  if (!feof (fp))
+  {
+    DDS_Security_Exception_set (ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_X509_certificate_from_file: read from failed");
+    goto err_fread;
+  }
+  fclose (fp);
+  return bio;
+
+ err_fread:
+ err_bio_write:
+ err_get_length:
+  fclose (fp);
+ err_fopen:
+  BIO_free (bio);
+ err_bio_new:
+  return NULL;
+}
+
+DDS_Security_ValidationResult_t load_X509_certificate_from_data(const char *data, int len, X509 **x509Cert, DDS_Security_SecurityException *ex)
+{
+  BIO *bio;
+  assert(data);
+  assert(len >= 0);
+  assert(x509Cert);
+  if (!(bio = BIO_new_mem_buf((void *)data, len)))
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "BIO_new_mem_buf failed");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+  else
+  {
+    const DDS_Security_ValidationResult_t result = load_X509_certificate_from_bio (bio, x509Cert, ex);
+    BIO_free(bio);
+    return result;
+  }
+}
+
 DDS_Security_ValidationResult_t load_X509_certificate_from_file(const char *filename, X509 **x509Cert, DDS_Security_SecurityException *ex)
 {
   assert(filename);
   assert(x509Cert);
 
-  DDSRT_WARNING_MSVC_OFF(4996);
-  FILE *file_ptr = fopen(filename, "r");
-  DDSRT_WARNING_MSVC_ON(4996);
-
-  if (file_ptr == NULL)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_FILE_PATH_CODE, DDS_SECURITY_VALIDATION_FAILED, DDS_SECURITY_ERR_INVALID_FILE_PATH_MESSAGE, filename);
+  BIO *bio;
+  if ((bio = load_file_into_BIO (filename, ex)) == NULL)
     return DDS_SECURITY_VALIDATION_FAILED;
-  }
-  if (!(*x509Cert = PEM_read_X509(file_ptr, NULL, NULL, NULL)))
+  else
   {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to parse certificate: ");
-    (void)fclose(file_ptr);
-    return DDS_SECURITY_VALIDATION_FAILED;
+    const DDS_Security_ValidationResult_t result = load_X509_certificate_from_bio (bio, x509Cert, ex);
+    BIO_free(bio);
+    return result;
   }
-  (void)fclose(file_ptr);
-
-  if (get_authentication_algo_kind(*x509Cert) == AUTH_ALGO_KIND_UNKNOWN)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CERT_AUTH_ALGO_KIND_UNKNOWN_CODE, DDS_SECURITY_VALIDATION_FAILED, DDS_SECURITY_ERR_CERT_AUTH_ALGO_KIND_UNKNOWN_MESSAGE);
-    X509_free(*x509Cert);
-    return DDS_SECURITY_VALIDATION_FAILED;
-  }
-
-  return DDS_SECURITY_VALIDATION_OK;
 }
 
 static DDS_Security_ValidationResult_t load_private_key_from_data(const char *data, const char *password, EVP_PKEY **privateKey, DDS_Security_SecurityException *ex)
@@ -275,27 +343,23 @@ static DDS_Security_ValidationResult_t load_private_key_from_data(const char *da
 
 static DDS_Security_ValidationResult_t load_private_key_from_file(const char *filepath, const char *password, EVP_PKEY **privateKey, DDS_Security_SecurityException *ex)
 {
-  FILE *file_ptr;
   assert(filepath);
   assert(privateKey);
 
-  DDSRT_WARNING_MSVC_OFF(4996);
-  file_ptr = fopen(filepath, "r");
-  DDSRT_WARNING_MSVC_ON(4996);
-  if (file_ptr == NULL)
-  {
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_FILE_PATH_CODE, DDS_SECURITY_VALIDATION_FAILED, DDS_SECURITY_ERR_INVALID_FILE_PATH_MESSAGE, filepath);
+  BIO *bio;
+  if ((bio = load_file_into_BIO (filepath, ex)) == NULL)
     return DDS_SECURITY_VALIDATION_FAILED;
-  }
-  if (!(*privateKey = PEM_read_PrivateKey(file_ptr, NULL, NULL, (void *)(password ? password : ""))))
+  else if (!(*privateKey = PEM_read_bio_PrivateKey(bio, NULL, NULL, (void *)(password ? password : ""))))
   {
+    BIO_free (bio);
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to parse certificate: ");
-    (void)fclose(file_ptr);
     return DDS_SECURITY_VALIDATION_FAILED;
   }
-
-  (void)fclose(file_ptr);
-  return DDS_SECURITY_VALIDATION_OK;
+  else
+  {
+    BIO_free(bio);
+    return DDS_SECURITY_VALIDATION_OK;
+  }
 }
 
 /*
@@ -655,15 +719,33 @@ static DDS_Security_ValidationResult_t dh_public_key_to_oct_modp(EVP_PKEY *pkey,
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to get DH key from PKEY: ");
     return DDS_SECURITY_VALIDATION_FAILED;
   }
-  if (!(asn1int = BN_to_ASN1_INTEGER(dh_get_public_key(dhkey), NULL)))
+  if (!(asn1int = BN_to_ASN1_INTEGER (dh_get_public_key(dhkey), NULL)))
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to convert DH key to ASN1 integer: ");
     DH_free(dhkey);
     return DDS_SECURITY_VALIDATION_FAILED;
   }
-  *length = (uint32_t)i2d_ASN1_INTEGER(asn1int, buffer);
-  ASN1_INTEGER_free(asn1int);
-  DH_free(dhkey);
+
+  int i2dlen = i2d_ASN1_INTEGER (asn1int, NULL);
+  if (i2dlen <= 0)
+  {
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to convert DH key to ASN1 integer: ");
+    DH_free(dhkey);
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  *length = (uint32_t) i2dlen;
+  if ((*buffer = ddsrt_malloc (*length)) == NULL)
+  {
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to convert DH key to ASN1 integer: ");
+    DH_free(dhkey);
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  unsigned char *buffer_arg = *buffer;
+  (void) i2d_ASN1_INTEGER (asn1int, &buffer_arg);
+  ASN1_INTEGER_free (asn1int);
+  DH_free (dhkey);
   return DDS_SECURITY_VALIDATION_OK;
 }
 

@@ -36,7 +36,9 @@ const struct dds_entity_deriver dds_entity_deriver_domain = {
   .close = dds_entity_deriver_dummy_close,
   .delete = dds_domain_free,
   .set_qos = dds_entity_deriver_dummy_set_qos,
-  .validate_status = dds_entity_deriver_dummy_validate_status
+  .validate_status = dds_entity_deriver_dummy_validate_status,
+  .create_statistics = dds_entity_deriver_dummy_create_statistics,
+  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
 };
 
 static int dds_domain_compare (const void *va, const void *vb)
@@ -49,7 +51,15 @@ static int dds_domain_compare (const void *va, const void *vb)
 static const ddsrt_avl_treedef_t dds_domaintree_def = DDSRT_AVL_TREEDEF_INITIALIZER (
   offsetof (dds_domain, m_node), offsetof (dds_domain, m_id), dds_domain_compare, 0);
 
-static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_id, const char *config, bool implicit)
+struct config_source {
+  enum { CFGKIND_XML, CFGKIND_RAW } kind;
+  union {
+    const char *xml;
+    const struct ddsi_config *raw;
+  } u;
+};
+
+static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_id, const struct config_source *config, bool implicit)
 {
   dds_entity_t domh;
   uint32_t len;
@@ -83,16 +93,26 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
         legacy form, domain id must be the first element in the file with
         a value (if nothing has been set previously, it a warning is good
         enough) */
-
-  domain->cfgst = config_init (config, &domain->gv.config, domain_id);
-  if (domain->cfgst == NULL)
+  switch (config->kind)
   {
-    DDS_ILOG (DDS_LC_CONFIG, domain_id, "Failed to parse configuration\n");
-    domh = DDS_RETCODE_ERROR;
-    goto fail_config;
-  }
+    case CFGKIND_RAW:
+      domain->cfgst = NULL;
+      memcpy (&domain->gv.config, config->u.raw, sizeof (domain->gv.config));
+      if (domain_id != DDS_DOMAIN_DEFAULT)
+        domain->gv.config.domainId = domain_id;
+      break;
 
-  assert (domain_id == DDS_DOMAIN_DEFAULT || domain_id == domain->gv.config.domainId);
+    case CFGKIND_XML:
+      domain->cfgst = config_init (config->u.xml, &domain->gv.config, domain_id);
+      if (domain->cfgst == NULL)
+      {
+        DDS_ILOG (DDS_LC_CONFIG, domain_id, "Failed to parse configuration\n");
+        domh = DDS_RETCODE_ERROR;
+        goto fail_config;
+      }
+      assert (domain_id == DDS_DOMAIN_DEFAULT || domain_id == domain->gv.config.domainId);
+      break;
+  }
   domain->m_id = domain->gv.config.domainId;
 
   if (rtps_config_prep (&domain->gv, domain->cfgst) != 0)
@@ -169,7 +189,8 @@ fail_threadmon_new:
   rtps_fini (&domain->gv);
 fail_rtps_init:
 fail_rtps_config:
-  config_fini (domain->cfgst);
+  if (domain->cfgst)
+    config_fini (domain->cfgst);
 fail_config:
   dds_handle_delete (&domain->m_entity.m_hdllink);
   return domh;
@@ -180,7 +201,7 @@ dds_domain *dds_domain_find_locked (dds_domainid_t id)
   return ddsrt_avl_lookup (&dds_domaintree_def, &dds_global.m_domains, &id);
 }
 
-dds_entity_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t id, bool implicit, const char *config)
+static dds_entity_t dds_domain_create_internal_xml_or_raw (dds_domain **domain_out, dds_domainid_t id, bool implicit, const struct config_source *config)
 {
   struct dds_domain *dom;
   dds_entity_t domh = DDS_RETCODE_ERROR;
@@ -237,7 +258,13 @@ dds_entity_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t
   return domh;
 }
 
-dds_entity_t dds_create_domain (const dds_domainid_t domain, const char *config)
+dds_entity_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t id, bool implicit, const char *config_xml)
+{
+  const struct config_source config = { .kind = CFGKIND_XML, .u = { .xml = config_xml } };
+  return dds_domain_create_internal_xml_or_raw (domain_out, id, implicit, &config);
+}
+
+dds_entity_t dds_create_domain (const dds_domainid_t domain, const char *config_xml)
 {
   dds_domain *dom;
   dds_entity_t ret;
@@ -245,14 +272,35 @@ dds_entity_t dds_create_domain (const dds_domainid_t domain, const char *config)
   if (domain == DDS_DOMAIN_DEFAULT)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if (config == NULL)
-    config = "";
+  if (config_xml == NULL)
+    config_xml = "";
 
   /* Make sure DDS instance is initialized. */
   if ((ret = dds_init ()) < 0)
     return ret;
 
-  ret = dds_domain_create_internal (&dom, domain, false, config);
+  const struct config_source config = { .kind = CFGKIND_XML, .u = { .xml = config_xml } };
+  ret = dds_domain_create_internal_xml_or_raw (&dom, domain, false, &config);
+  dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
+  return ret;
+}
+
+dds_entity_t dds_create_domain_with_rawconfig (const dds_domainid_t domain, const struct ddsi_config *config_raw)
+{
+  dds_domain *dom;
+  dds_entity_t ret;
+
+  if (domain == DDS_DOMAIN_DEFAULT)
+    return DDS_RETCODE_BAD_PARAMETER;
+  if (config_raw == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  /* Make sure DDS instance is initialized. */
+  if ((ret = dds_init ()) < 0)
+    return ret;
+
+  const struct config_source config = { .kind = CFGKIND_RAW, .u = { .raw = config_raw } };
+  ret = dds_domain_create_internal_xml_or_raw (&dom, domain, false, &config);
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
   return ret;
 }
@@ -279,7 +327,8 @@ static dds_return_t dds_domain_free (dds_entity *vdomain)
 
   ddsrt_avl_delete (&dds_domaintree_def, &dds_global.m_domains, domain);
   dds_entity_final_deinit_before_free (vdomain);
-  config_fini (domain->cfgst);
+  if (domain->cfgst)
+    config_fini (domain->cfgst);
   dds_free (vdomain);
   ddsrt_cond_broadcast (&dds_global.m_cond);
   ddsrt_mutex_unlock (&dds_global.m_mutex);

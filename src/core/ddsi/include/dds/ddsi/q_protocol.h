@@ -18,6 +18,7 @@
 
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/ddsi_time.h"
+#include "dds/ddsi/ddsi_locator.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -55,16 +56,7 @@ typedef struct nn_fragment_number_set_header {
 #define NN_FRAGMENT_NUMBER_SET_MAX_BITS (256u)
 #define NN_FRAGMENT_NUMBER_SET_BITS_SIZE(numbits) ((unsigned) (4 * (((numbits) + 31) / 32)))
 #define NN_FRAGMENT_NUMBER_SET_SIZE(numbits) (sizeof (nn_fragment_number_set_header_t) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits))
-typedef int32_t nn_count_t;
-#define DDSI_COUNT_MIN (-2147483647 - 1)
-#define DDSI_COUNT_MAX (2147483647)
-/* address field in locator maintained in network byte order, the rest in host */
-typedef struct {
-  const struct ddsi_tran_factory *tran;
-  int32_t kind;
-  uint32_t port;
-  unsigned char address[16];
-} nn_locator_t;
+typedef uint32_t nn_count_t;
 
 #define NN_STATUSINFO_DISPOSE      0x1u
 #define NN_STATUSINFO_UNREGISTER   0x2u
@@ -249,7 +241,7 @@ typedef struct AckNack {
 DDSRT_WARNING_MSVC_ON(4200)
 #define ACKNACK_FLAG_FINAL 0x02u
 #define ACKNACK_SIZE(numbits) (offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits) + 4)
-#define ACKNACK_SIZE_MAX ACKNACK_SIZE (256u)
+#define ACKNACK_SIZE_MAX ACKNACK_SIZE (NN_SEQUENCE_NUMBER_SET_MAX_BITS)
 
 DDSRT_WARNING_MSVC_OFF(4200)
 typedef struct Gap {
@@ -262,7 +254,7 @@ typedef struct Gap {
 } Gap_t;
 DDSRT_WARNING_MSVC_ON(4200)
 #define GAP_SIZE(numbits) (offsetof (Gap_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits))
-#define GAP_SIZE_MAX GAP_SIZE (256u)
+#define GAP_SIZE_MAX GAP_SIZE (NN_SEQUENCE_NUMBER_SET_MAX_BITS)
 
 typedef struct InfoTS {
   SubmessageHeader_t smhdr;
@@ -302,7 +294,7 @@ typedef struct NackFrag {
 } NackFrag_t;
 DDSRT_WARNING_MSVC_ON(4200)
 #define NACKFRAG_SIZE(numbits) (offsetof (NackFrag_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits) + 4)
-#define NACKFRAG_SIZE_MAX NACKFRAG_SIZE (256u)
+#define NACKFRAG_SIZE_MAX NACKFRAG_SIZE (NN_FRAGMENT_NUMBER_SET_MAX_BITS)
 
 typedef union Submessage {
   SubmessageHeader_t smhdr;
@@ -448,8 +440,10 @@ typedef union Submessage {
 #define PID_ADLINK_ENDPOINT_GID                 (PID_VENDORSPECIFIC_FLAG | 0x14u)
 #define PID_ADLINK_GROUP_GID                    (PID_VENDORSPECIFIC_FLAG | 0x15u)
 #define PID_ADLINK_EOTINFO                      (PID_VENDORSPECIFIC_FLAG | 0x16u)
-#define PID_ADLINK_PART_CERT_NAME               (PID_VENDORSPECIFIC_FLAG | 0x17u);
-#define PID_ADLINK_LAN_CERT_NAME                (PID_VENDORSPECIFIC_FLAG | 0x18u);
+#define PID_ADLINK_PART_CERT_NAME               (PID_VENDORSPECIFIC_FLAG | 0x17u)
+#define PID_ADLINK_LAN_CERT_NAME                (PID_VENDORSPECIFIC_FLAG | 0x18u)
+
+#define PID_CYCLONE_RECEIVE_BUFFER_SIZE         (PID_VENDORSPECIFIC_FLAG | 0x19u)
 
 #if defined (__cplusplus)
 }

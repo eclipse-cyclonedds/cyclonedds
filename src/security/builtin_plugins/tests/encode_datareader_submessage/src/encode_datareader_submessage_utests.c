@@ -478,6 +478,12 @@ static bool cipher_sign_data(const unsigned char *session_key, uint32_t key_size
       goto fail_encrypt;
     }
   }
+  else
+  {
+    assert (0);
+    goto fail_encrypt;
+  }
+
 
   /* Initialise key and IV */
   if (!EVP_EncryptInit_ex(ctx, NULL, NULL, session_key, iv))
@@ -546,6 +552,11 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
         ERR_print_errors_fp(stderr);
         result = false;
       }
+    }
+    else
+    {
+      assert (0);
+      return false;
     }
   }
 

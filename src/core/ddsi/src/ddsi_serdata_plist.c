@@ -175,7 +175,7 @@ static bool serdata_plist_topicless_to_sample (const struct ddsi_sertopic *topic
     .factory = gv->m_factory,
     .logconfig = &gv->logconfig,
     .protocol_version = d->protoversion,
-    .strict = NN_STRICT_P (gv->config),
+    .strict = DDSI_SC_STRICT_P (gv->config),
     .vendorid = d->vendorid
   };
   const dds_return_t rc = ddsi_plist_init_frommsg (sample, NULL, ~(uint64_t)0, ~(uint64_t)0, &src);

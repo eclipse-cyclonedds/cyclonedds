@@ -40,6 +40,7 @@ if(WITH_FREERTOS)
 endif()
 
 add_cunit_executable(cunit_ddsrt ${sources})
+add_coverage(cunit_ddsrt)
 target_link_libraries(
   cunit_ddsrt PRIVATE ddsrt)
 target_include_directories(

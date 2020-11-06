@@ -1,0 +1,285 @@
+#!/bin/bash
+
+shopt -s extglob
+
+if [ "`uname -s`" = "Darwin" ] ; then
+    export nwif=en0
+    libsuffix=.0.dylib
+else
+    export nwif=eth0
+    libsuffix=.so.0
+fi
+bandwidth=""
+remotedir="$PWD"
+provision=false
+asynclist="sync async"
+modelist="listener polling waitset"
+modelistdefault=true
+sizelist="0 20 50 100 200 500 1000 2000 5000 10000 20000 50000 100000 200000 500000 1000000"
+timeout=30
+loopback=true
+resultdir="throughput-result"
+resultdirdefault=true
+force=false
+netstats=false
+watermarks=""
+remotes=""
+
+operation=throughput
+
+usage () {
+    cat >&2 <<EOF
+usage: $0 [OPTIONS] user@remote [user@remote...]
+
+OPTIONS
+  -i IF        use network interface IF (default: $nwif) local
+  -I IF        use network interface IF remotely (default: same as local)
+  -b 100|1000|B  network bandwidth (100Mbps/1000Gbps or B bits/sec) for
+               calculating load % given load in bytes/second (default:
+               report Mb/s)
+  -d DIR       use DIR on remote (default: PWD)
+  -p           provision required binaries in DIR (default: $provision)
+               first ssh's in to try mkdir -p DIR, then follows up with scp
+  -t DUR       run for DUR seconds per size (default $timeout)
+  -a ASYNCLIST run for delivery async settings ASYNCLIST (default:
+               "$asynclist")
+  -m MODELIST  run with subscriber mode settings MODELIST (default: 
+               "$modelist")
+  -s SIZELIST  run for sizes in SIZELIST (default: "$sizelist")
+               if SIZELIST is empty, it uses ddsperf's OU topic instead
+  -l LOOPBACK  enable/disable multicast loopback (true/false, default: $loopback)
+  -o DIR       store results in dir (default: $resultdir)
+  -O OPER      operation: \"throughput\" or \"latency\" (default: $operation)
+  -f           "force": first do "rm -rf" of output dir, then create it
+  -W           set high water mark to 100kB
+  -X           run ping to first remote; on macOS: log interface stats
+
+Local host runs "ddsperf" in subscriber mode, first remote runs it publisher
+mode, further remotes also run subcribers.  It assumes these are available in
+DIR/bin.  It also assumes that ssh user@remote works without requiring a
+password.
+EOF
+    exit 1
+}
+
+dokill () {
+    [ -n "$netstats_pids" ] && kill $netstats_pids
+    for r in $remotes ; do
+        ssh $r "kill -9 \`cat $remotedir/$operation-test-$remote_oper-*.pid\` ; rm $remotedir/$operation-test-$remote_oper-*.pid"
+    done
+}
+
+dokill_and_exit () {
+    dokill
+    exit 1
+}
+
+while getopts "fi:I:b:d:pa:m:s:t:o:O:l:WX" opt ; do
+    case $opt in
+        f) force=true ;;
+        i) nwif="$OPTARG" ;;
+        I) rnwif="$OPTARG" ;;
+        b) case "$OPTARG" in
+               100) bandwidth=:1e8 ;;
+               1000) bandwidth=:1e9 ;;
+               *) bandwidth="${OPTARG:+:}$OPTARG" ;;
+           esac ;;
+        d) remotedir="$OPTARG" ;;
+        p) provision=true ;;
+        a) asynclist="$OPTARG" ;;
+        m) modelist="$OPTARG" ; modelistdefault=false ;;
+        s) sizelist="$OPTARG" ;;
+        l) loopback="OPTARG" ;;
+        t) timeout="$OPTARG" ;;
+        o) resultdir="$OPTARG" ; resultdirdefault=false ;;
+        O) operation="$OPTARG" ;;
+        W) watermarks="<Watermarks><WhcHigh>100kB</WhcHigh></Watermarks>" ;;
+        X) netstats=true ;;
+        h) usage ;;
+    esac
+done
+shift $((OPTIND-1))
+if [ $# -lt 1 ] ; then usage ; fi
+remotes="$@"
+
+case "$operation" in
+    throughput)
+        local_oper="pub"
+        remote_oper="sub"
+        allowedmodes="@(listener|polling|waitset)"
+        ;;
+    latency)
+        local_oper="ping"
+        remote_oper="pong"
+        allowedmodes="@(listener|waitset)"
+        if $modelistdefault ; then modelist="listener waitset" ; fi
+        if $resultdirdefault ; then resultdir="latency-result" ; fi
+        ;;
+    *) echo "unsupported test operation: $operation" >&2 ; exit 1 ;;
+esac
+for m in $modelist ; do
+    case $m in
+        $allowedmodes) ;;
+        *) echo "unsupported mode \"$m\" for operation \"$operation\"" >&2 ; exit 1 ;;
+    esac
+done
+for a in $asynclist ; do
+    case $a in
+        sync|async) ;;
+        *) echo "unsupported sync/async \"$a\" for operation \"$operation\"" >&2 ; exit 1 ;;
+    esac
+done
+
+[ -z "$rnwif" ] && rnwif=$nwif
+cfg=cdds-simple.xml
+cat >$cfg <<EOF
+<CycloneDDS>
+  <Domain id="17">
+    <General>
+      <NetworkInterfaceAddress>\${nwif}</NetworkInterfaceAddress>
+      <EnableMulticastLoopback>$loopback</EnableMulticastLoopback>
+    </General>
+    <Internal>
+      <SynchronousDeliveryPriorityThreshold>\${async:-0}</SynchronousDeliveryPriorityThreshold>
+      <LeaseDuration>2s</LeaseDuration>
+      $watermarks
+    </Internal>
+    <Tracing>
+      <Verbosity>fine</Verbosity>
+      <Category>\${trace}</Category>
+      <OutputFile>\${logdir}/cdds.log</OutputFile>
+    </Tracing>
+  </Domain>
+</CycloneDDS>
+EOF
+
+localbindir=""
+locallibdir=""
+for x in "" /Release /RelWithDebInfo bin/Debug ; do
+    if [ -x bin$x/ddsperf -a -f lib$x/libddsc$libsuffix ] ; then
+        localbindir=bin$x
+        locallibdir=lib$x
+        break
+    fi
+done
+if [ -z "$localbindir" -o -z "$locallibdir" ] ; then
+    echo "ddsperf or libddsc$libsuffix not found on the local machine" >&2
+    exit 1
+fi
+
+if [ ! -d $resultdir ] ; then
+    mkdir $resultdir
+elif $force ; then
+    rm -rf $resultdir
+    mkdir $resultdir
+elif [ `ls $resultdir | wc -l` -gt 0 ] ; then
+    echo "output directory $resultdir is non-empty" >&2
+    exit 1
+fi
+[ -d $resultdir ] || { echo "output directory $resultdir doesn't exist" >&2 ; exit 1 ; }
+
+if $provision ; then
+    echo "provisioning ..."
+    for r in $remotes ; do
+        ssh $r mkdir -p $remotedir $remotedir/bin $remotedir/lib
+        scp $locallibdir/libddsc$libsuffix $r:$remotedir/lib
+        scp $localbindir/ddsperf $r:$remotedir/bin
+    done
+fi
+
+topic=KS
+[ -z "$sizelist" ] && topic=OU
+
+export CYCLONEDDS_URI=file://$PWD/$cfg
+for r in $remotes ; do
+    scp $cfg $r:$remotedir || { echo "failed to copy $cfg to $remote:$PWD" >&2 ; exit 1 ; }
+done
+
+for async_mode in $asynclist ; do
+    case "$async_mode" in
+        sync) async=0 ;;
+        async) async=1 ;;
+        *) echo "$async_mode: invalid setting for ASYNC" >&2 ; continue ;;
+    esac
+    export async
+    for sub_mode in $modelist ; do
+        echo "======== ASYNC $async MODE $sub_mode ========="
+        
+        subpids=""
+        netstat_pids=""
+        trap dokill_and_exit SIGINT
+        cat > run-remote.tmp <<EOF
+export CYCLONEDDS_URI=file://$remotedir/$cfg
+export async=$async
+export nwif=$rnwif
+export logdir=.
+#export trace=trace,-content
+cd $remotedir
+remotebindir=""
+for x in "" /Release /RelWithDebInfo bin/Debug ; do
+    if [ -x bin\$x/ddsperf ] ; then
+        remotebindir=bin\$x
+        break
+    fi
+done
+if [ -z "\$remotebindir" ] ; then
+    echo "ddsperf not found on remote machine" >&2
+    exit 1
+fi
+#/usr/sbin/tcpdump -c 20000 -s 0 -w /tmp/x.pcap -i eth0 -Z erik 'udp[8:4]=0x52545053' & tcpdumppid=\$!
+#/usr/sbin/tcpdump -c 20000 -s 0 -w /tmp/x.pcap -i eth0 -Z erik 'udp' & tcpdumppid=\$!
+\$remotebindir/ddsperf -1 -X -d $rnwif$bandwidth -c -T $topic $remote_oper $sub_mode > $remote_oper.log & pid=\$!
+echo \$pid > $operation-test-$remote_oper-\$pid.pid
+wait \$pid
+[ -n "\$tcpdumppid" ] && kill -INT \$tcpdumppid
+EOF
+        for r in $remotes ; do
+            scp run-remote.tmp $r:$remotedir
+            ssh $r ". $remotedir/run-remote.tmp" & subpids="$subpids $!"
+        done
+
+        outdir=$resultdir/$async_mode-$sub_mode
+        mkdir $outdir
+        rm -f $outdir/$local_oper.log
+        export logdir=$outdir
+        if $netstats ; then
+            ping `echo $1 | sed -e 's/.*@//'` > $outdir/icmpping.log & netstats_pids=$!
+            if [ "`uname -s`" = "Darwin" ] ; then
+                rm -f $outdir/netstat.log
+                bash -c "while true ; do /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I >> $outdir/netstat.log ; sleep 1; done" & netstats_pids="$netstats_pids $!"
+            fi
+        fi
+        for size in ${sizelist:-0} ; do
+            echo "size $size"
+            #export trace=trace,-content
+            $localbindir/ddsperf -Q minmatch:$# -Q initwait:3 \
+                        -X -c -d $nwif$bandwidth \
+                        -D $timeout -T $topic \
+                        $local_oper size $size | \
+                tee -a $outdir/$local_oper.log
+        done
+
+        dokill
+        wait
+        for r in $remotes ; do
+            scp $r:$remotedir/$remote_oper.log $outdir/$remote_oper-$r.log
+        done
+
+        if [ $operation = "throughput" ] ; then
+            # write a summary, one line per second
+            # col 0: raw network receive bandwidth (Mb/s)
+            # col 1: appl receive bandwidth, 1s trailing average (Mb/s)
+            # col 2: appl receive bandwidth, 10s trailing average (Mb/s)
+            # (this assumes the network interface name is eth, en, or lo, optionally followed by a 0)
+            perl -ne 'if(/size \d+ total.* (\d+\.\d+) Mb\/s.* (\d+\.\d+) Mb\/s/){$r=$1;$r10=$2;}if(/(?:eth|en|lo)0?: xmit.*? recv (\d+\.\d+)/){$rnet=$1;}if(/discarded\s+(\d+)/){printf "%f %f %f %u\n", $rnet, $r, $r10, $1;}' $outdir/sub-$1.log > $resultdir/summary-$async_mode-$sub_mode.txt
+            perl -ne 'if(/(?:eth|en|lo)0?: xmit (\d+\.\d+) Mb\/s/){printf "%f\n", $1}' $outdir/pub.log > $resultdir/net-xmit-bytes.txt
+            perl -ne 'print "$1 $2 $3 $4 $5\n" if /^(\d+)\s+(\d+)(\s+\d+)$/ || /^\[\d+\]\s+(\d+\.\d+)\s+discarded\s+\d+\s+rexmit\s+(\d+)\s+[A-Za-z_ ]+(\d+)[A-Za-z_ ]+(\d+)[A-Za-z_ ]+(\d+)$/' $outdir/pub.log > $resultdir/rexmit-bytes.txt
+            if $netstats ; then
+                perl -ne 'print "$1\n" if /time=([0-9.]+)/' $outdir/icmpping.log > $resultdir/lat.log
+                if [ "`uname -s`" = "Darwin" ] ; then
+                    perl -ne 'if(/CtlRSSI:\s*(-?\d+)/){$rssi=$1;}if(/CtlNoise:\s*(-?\d+)/){$noise=$1;}if(/maxRate:\s*(\d+)/){$max=$1;}if(/lastTxRate:\s*(\d+)/){$lasttx=$1;print "$max $lasttx $rssi $noise\n"}' $outdir/netstat.log > $resultdir/net.log
+                fi
+            fi
+        fi
+    done
+done

@@ -50,6 +50,7 @@ struct dds_security_fsm
   struct dds_security_fsm *next_fsm;
   struct dds_security_fsm *prev_fsm;
   bool deleting;
+  bool busy;
   struct dds_security_fsm_control *control;
   const dds_security_fsm_transition *transitions;
   uint32_t size;
@@ -245,6 +246,7 @@ static void fsm_state_change (struct dds_security_fsm_control *control, struct f
       fsm->current = fsm->transitions[i].end;
       set_state_timer (fsm);
 
+      fsm->busy = true;
       ddsrt_mutex_unlock (&control->lock);
 
       if (fsm->transitions[i].func)
@@ -253,6 +255,8 @@ static void fsm_state_change (struct dds_security_fsm_control *control, struct f
         fsm->current->func (fsm, fsm->arg);
 
       ddsrt_mutex_lock (&control->lock);
+      fsm->busy = false;
+
       if (!fsm->deleting)
         fsm_check_auto_state_change (fsm);
       else
@@ -359,17 +363,13 @@ void dds_security_fsm_dispatch (struct dds_security_fsm *fsm, int32_t event_id, 
   ddsrt_mutex_unlock (&fsm->control->lock);
 }
 
-const dds_security_fsm_state * dds_security_fsm_current_state (struct dds_security_fsm *fsm)
+bool dds_security_fsm_running (struct dds_security_fsm *fsm)
 {
-  const dds_security_fsm_state *state;
-
   assert(fsm);
-
   ddsrt_mutex_lock (&fsm->control->lock);
-  state = fsm->current;
+  const bool running = (fsm->current != NULL || fsm->busy);
   ddsrt_mutex_unlock (&fsm->control->lock);
-
-  return state;
+  return running;
 }
 
 void dds_security_fsm_set_debug (struct dds_security_fsm *fsm, dds_security_fsm_debug func)
@@ -447,6 +447,7 @@ struct dds_security_fsm * dds_security_fsm_create (struct dds_security_fsm_contr
     fsm->overall_timeout_event.endtime = DDS_NEVER;
     fsm->overall_timeout_event.fsm = fsm;
     fsm->deleting = false;
+    fsm->busy = false;
     fsm->next_fsm = NULL;
     fsm->prev_fsm = NULL;
     fsm->control = control;
@@ -490,6 +491,8 @@ static void fsm_delete (struct dds_security_fsm_control *control, struct dds_sec
 {
   remove_fsm_from_list (control, fsm);
   fsm_deactivate (control, fsm);
+  while (fsm->busy)
+    ddsrt_cond_wait (&control->cond, &control->lock);
   ddsrt_free(fsm);
 }
 

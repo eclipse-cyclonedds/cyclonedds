@@ -30,6 +30,8 @@
 #include "dds__qos.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
+#include "dds__statistics.h"
+#include "dds/ddsi/ddsi_statistics.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_writer)
 
@@ -44,12 +46,71 @@ static dds_return_t dds_writer_status_validate (uint32_t mask)
   return (mask & ~DDS_WRITER_STATUS_MASK) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK;
 }
 
-/*
-  Handler function for all write related status callbacks. May trigger status
-  condition or call listener on writer. Each entity has a mask of
-  supported status types. According to DDS specification, if listener is called
-  then status conditions is not triggered.
-*/
+static void update_offered_deadline_missed (struct dds_offered_deadline_missed_status * __restrict st, struct dds_offered_deadline_missed_status * __restrict lst, const status_cb_data_t *data)
+{
+  st->last_instance_handle = data->handle;
+  st->total_count++;
+  // always incrementing st->total_count_change, then copying into *lst is
+  // a bit more than minimal work, but this guarantees the correct value
+  // also when enabling a listeners after some events have occurred
+  //
+  // (same line of reasoning for all of them)
+  st->total_count_change++;
+  if (lst != NULL)
+  {
+    *lst = *st;
+    st->total_count_change = 0;
+  }
+}
+
+static void update_offered_incompatible_qos (struct dds_offered_incompatible_qos_status * __restrict st, struct dds_offered_incompatible_qos_status * __restrict lst, const status_cb_data_t *data)
+{
+  st->last_policy_id = data->extra;
+  st->total_count++;
+  st->total_count_change++;
+  if (lst != NULL)
+  {
+    *lst = *st;
+    st->total_count_change = 0;
+  }
+}
+
+static void update_liveliness_lost (struct dds_liveliness_lost_status * __restrict st, struct dds_liveliness_lost_status * __restrict lst, const status_cb_data_t *data)
+{
+  (void) data;
+  st->total_count++;
+  st->total_count_change++;
+  if (lst != NULL)
+  {
+    *lst = *st;
+    st->total_count_change = 0;
+  }
+}
+
+static void update_publication_matched (struct dds_publication_matched_status * __restrict st, struct dds_publication_matched_status * __restrict lst, const status_cb_data_t *data)
+{
+  st->last_subscription_handle = data->handle;
+  if (data->add) {
+    st->total_count++;
+    st->current_count++;
+    st->total_count_change++;
+    st->current_count_change++;
+  } else {
+    st->current_count--;
+    st->current_count_change--;
+  }
+  if (lst != NULL)
+  {
+    *lst = *st;
+    st->total_count_change = 0;
+    st->current_count_change = 0;
+  }
+}
+
+STATUS_CB_IMPL (writer, offered_deadline_missed, OFFERED_DEADLINE_MISSED)
+STATUS_CB_IMPL (writer, offered_incompatible_qos, OFFERED_INCOMPATIBLE_QOS)
+STATUS_CB_IMPL (writer, liveliness_lost, LIVELINESS_LOST)
+STATUS_CB_IMPL (writer, publication_matched, PUBLICATION_MATCHED)
 
 void dds_writer_status_cb (void *entity, const struct status_cb_data *data)
 {
@@ -67,67 +128,27 @@ void dds_writer_status_cb (void *entity, const struct status_cb_data *data)
     return;
   }
 
-  struct dds_listener const * const lst = &wr->m_entity.m_listener;
-  enum dds_status_id status_id = (enum dds_status_id) data->raw_status_id;
-  bool invoke = false;
-  void *vst = NULL;
-  int32_t *reset[2] = { NULL, NULL };
-
   /* FIXME: why wait if no listener is set? */
   ddsrt_mutex_lock (&wr->m_entity.m_observers_lock);
   while (wr->m_entity.m_cb_count > 0)
     ddsrt_cond_wait (&wr->m_entity.m_observers_cond, &wr->m_entity.m_observers_lock);
 
-  /* Reset the status for possible Listener call.
-   * When a listener is not called, the status will be set (again). */
-  dds_entity_status_reset (&wr->m_entity, (status_mask_t) (1u << status_id));
-
-  /* Update status metrics. */
+  const enum dds_status_id status_id = (enum dds_status_id) data->raw_status_id;
+  const bool enabled = (ddsrt_atomic_ld32 (&wr->m_entity.m_status.m_status_and_mask) & ((1u << status_id) << SAM_ENABLED_SHIFT)) != 0;
   switch (status_id)
   {
-    case DDS_OFFERED_DEADLINE_MISSED_STATUS_ID: {
-      struct dds_offered_deadline_missed_status * const st = vst = &wr->m_offered_deadline_missed_status;
-      st->total_count++;
-      st->total_count_change++;
-      st->last_instance_handle = data->handle;
-      invoke = (lst->on_offered_deadline_missed != 0);
-      reset[0] = &st->total_count_change;
+    case DDS_OFFERED_DEADLINE_MISSED_STATUS_ID:
+      status_cb_offered_deadline_missed (wr, data, enabled);
       break;
-    }
-    case DDS_LIVELINESS_LOST_STATUS_ID: {
-      struct dds_liveliness_lost_status * const st = vst = &wr->m_liveliness_lost_status;
-      st->total_count++;
-      st->total_count_change++;
-      invoke = (lst->on_liveliness_lost != 0);
-      reset[0] = &st->total_count_change;
+    case DDS_LIVELINESS_LOST_STATUS_ID:
+      status_cb_liveliness_lost (wr, data, enabled);
       break;
-    }
-    case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID: {
-      struct dds_offered_incompatible_qos_status * const st = vst = &wr->m_offered_incompatible_qos_status;
-      st->total_count++;
-      st->total_count_change++;
-      st->last_policy_id = data->extra;
-      invoke = (lst->on_offered_incompatible_qos != 0);
-      reset[0] = &st->total_count_change;
+    case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID:
+      status_cb_offered_incompatible_qos (wr, data, enabled);
       break;
-    }
-    case DDS_PUBLICATION_MATCHED_STATUS_ID: {
-      struct dds_publication_matched_status * const st = vst = &wr->m_publication_matched_status;
-      if (data->add) {
-        st->total_count++;
-        st->total_count_change++;
-        st->current_count++;
-        st->current_count_change++;
-      } else {
-        st->current_count--;
-        st->current_count_change--;
-      }
-      wr->m_publication_matched_status.last_subscription_handle = data->handle;
-      invoke = (lst->on_publication_matched != 0);
-      reset[0] = &st->total_count_change;
-      reset[1] = &st->current_count_change;
+    case DDS_PUBLICATION_MATCHED_STATUS_ID:
+      status_cb_publication_matched (wr, data, enabled);
       break;
-    }
     case DDS_DATA_AVAILABLE_STATUS_ID:
     case DDS_INCONSISTENT_TOPIC_STATUS_ID:
     case DDS_SAMPLE_LOST_STATUS_ID:
@@ -140,29 +161,6 @@ void dds_writer_status_cb (void *entity, const struct status_cb_data *data)
       assert (0);
   }
 
-  const uint32_t enabled = (ddsrt_atomic_ld32 (&wr->m_entity.m_status.m_status_and_mask) & ((1u << status_id) << SAM_ENABLED_SHIFT));
-  if (enabled == 0)
-  {
-    /* Don't invoke listeners or set status flag if masked */
-  }
-  else if (invoke)
-  {
-    wr->m_entity.m_cb_pending_count++;
-    wr->m_entity.m_cb_count++;
-    ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
-    dds_entity_invoke_listener (&wr->m_entity, status_id, vst);
-    ddsrt_mutex_lock (&wr->m_entity.m_observers_lock);
-    wr->m_entity.m_cb_count--;
-    wr->m_entity.m_cb_pending_count--;
-    *reset[0] = 0;
-    if (reset[1])
-      *reset[1] = 0;
-  }
-  else
-  {
-    dds_entity_status_set (&wr->m_entity, (status_mask_t) (1u << status_id));
-  }
-
   ddsrt_cond_broadcast (&wr->m_entity.m_observers_cond);
   ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
 }
@@ -170,7 +168,7 @@ void dds_writer_status_cb (void *entity, const struct status_cb_data *data)
 static uint32_t get_bandwidth_limit (dds_transport_priority_qospolicy_t transport_priority)
 {
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-  struct config_channel_listelem *channel = find_channel (&config, transport_priority);
+  struct ddsi_config_channel_listelem *channel = find_channel (&config, transport_priority);
   return channel->data_bandwidth_limit;
 #else
   (void) transport_priority;
@@ -252,12 +250,38 @@ static dds_return_t dds_writer_qos_set (dds_entity *e, const dds_qos_t *qos, boo
   return DDS_RETCODE_OK;
 }
 
+static const struct dds_stat_keyvalue_descriptor dds_writer_statistics_kv[] = {
+  { "rexmit_bytes", DDS_STAT_KIND_UINT64 },
+  { "throttle_count", DDS_STAT_KIND_UINT32 },
+  { "time_throttle", DDS_STAT_KIND_UINT64 },
+  { "time_rexmit", DDS_STAT_KIND_UINT64 }
+};
+
+static const struct dds_stat_descriptor dds_writer_statistics_desc = {
+  .count = sizeof (dds_writer_statistics_kv) / sizeof (dds_writer_statistics_kv[0]),
+  .kv = dds_writer_statistics_kv
+};
+
+static struct dds_statistics *dds_writer_create_statistics (const struct dds_entity *entity)
+{
+  return dds_alloc_statistics (entity, &dds_writer_statistics_desc);
+}
+
+static void dds_writer_refresh_statistics (const struct dds_entity *entity, struct dds_statistics *stat)
+{
+  const struct dds_writer *wr = (const struct dds_writer *) entity;
+  if (wr->m_wr)
+    ddsi_get_writer_stats (wr->m_wr, &stat->kv[0].u.u64, &stat->kv[1].u.u32, &stat->kv[2].u.u64, &stat->kv[3].u.u64);
+}
+
 const struct dds_entity_deriver dds_entity_deriver_writer = {
   .interrupt = dds_writer_interrupt,
   .close = dds_writer_close,
   .delete = dds_writer_delete,
   .set_qos = dds_writer_qos_set,
-  .validate_status = dds_writer_status_validate
+  .validate_status = dds_writer_status_validate,
+  .create_statistics = dds_writer_create_statistics,
+  .refresh_statistics = dds_writer_refresh_statistics
 };
 
 dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)

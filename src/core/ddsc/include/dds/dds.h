@@ -837,6 +837,39 @@ dds_create_participant(
 DDS_EXPORT dds_entity_t
 dds_create_domain(const dds_domainid_t domain, const char *config);
 
+struct ddsi_config;
+/**
+ * @brief Creates a domain with a given configuration, specified as an
+ * initializer (unstable interface)
+ *
+ * To explicitly create a domain based on a configuration passed as a raw
+ * initializer rather than as an XML string. This allows bypassing the XML
+ * parsing, but tightly couples the initializing to implementation.  See
+ * dds/ddsi/ddsi_config.h:ddsi_config_init_default for a way to initialize
+ * the default configuration.
+ *
+ * It will not be created if a domain with the given domain id already exists.
+ * This could have been created implicitly by a dds_create_participant().
+ *
+ * Please be aware that the given domain_id always takes precedence over the
+ * configuration.
+ *
+ * @param[in]  domain The domain to be created. DEFAULT_DOMAIN is not allowed.
+ * @param[in]  config A configuration initializer.  The lifetime of any pointers
+ *             in config must be at least that of the lifetime of the domain.
+ *
+ * @returns A valid entity handle or an error code.
+ *
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Illegal value for domain id or the config parameter is NULL.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             The domain already existed and cannot be created again.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ */
+DDS_EXPORT dds_entity_t
+dds_create_domain_with_rawconfig(const dds_domainid_t domain, const struct ddsi_config *config);
+
 /**
  * @brief Get entity parent.
  *
@@ -1140,33 +1173,170 @@ dds_get_name(dds_entity_t topic, char *name, size_t size);
 DDS_EXPORT dds_return_t
 dds_get_type_name(dds_entity_t topic, char *name, size_t size);
 
-/** Topic filter function */
-typedef bool (*dds_topic_filter_fn) (const void * sample);
+/** Topic filter functions, as with the setters/getters: no guarantee that any
+    of this will be maintained for backwards compatibility.
+
+    Sampleinfo is all zero when filtering in a write call (i.e., writer created
+    using a filtered topic, which one perhaps shouldn't be doing), otherwise it
+    has as much filled in correctly as is possible given the context and the rest
+    fixed:
+    - sample_state         DDS_SST_NOT_READ;
+    - publication_handle   set to writer's instance handle
+    - source_timestamp     set to source timestamp of sample
+    - ranks                0
+    - valid_data           true
+    - instance_handle      set to instance handle of existing instance if the
+                           sample matches an existing instance, otherwise to what
+                           the instance handle will be if it passes the filter
+    - view_state           set to instance view state if sample being filtered
+                           matches an existing instance, NEW if not
+    - instance_state       set to instance state if sample being filtered
+                           matches an existing instance, NEW if not
+    - generation counts    set to instance's generation counts if the sample
+                           matches an existing instance instance, 0 if not */
+typedef bool (*dds_topic_filter_sample_fn) (const void * sample);
+typedef bool (*dds_topic_filter_sample_arg_fn) (const void * sample, void * arg);
+typedef bool (*dds_topic_filter_sampleinfo_arg_fn) (const dds_sample_info_t * sampleinfo, void * arg);
+typedef bool (*dds_topic_filter_sample_sampleinfo_arg_fn) (const void * sample, const dds_sample_info_t * sampleinfo, void * arg);
+typedef dds_topic_filter_sample_fn dds_topic_filter_fn;
+typedef dds_topic_filter_sample_arg_fn dds_topic_filter_arg_fn;
+
+/** Topic filter mode; no guarantee of backwards compatibility */
+enum dds_topic_filter_mode {
+  DDS_TOPIC_FILTER_NONE,
+  DDS_TOPIC_FILTER_SAMPLE,
+  DDS_TOPIC_FILTER_SAMPLE_ARG,
+  DDS_TOPIC_FILTER_SAMPLEINFO_ARG,
+  DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG,
+};
+
+/** Union of all filter function types; no guarantee of backwards compatibility */
+union dds_topic_filter_function_union {
+  dds_topic_filter_sample_fn sample;
+  dds_topic_filter_sample_arg_fn sample_arg;
+  dds_topic_filter_sampleinfo_arg_fn sampleinfo_arg;
+  dds_topic_filter_sample_sampleinfo_arg_fn sample_sampleinfo_arg;
+};
+
+/** Filter description: mode, function pointer, argument; no guarantee of backwards compatibility */
+struct dds_topic_filter {
+  enum dds_topic_filter_mode mode;
+  union dds_topic_filter_function_union f;
+  void *arg;
+};
 
 /**
- * @brief Sets a filter on a topic.
+ * @brief Sets a filter on a topic. To be replaced by proper filtering on readers,
+ * no guarantee that this will be maintained for backwards compatibility.
+ *
+ * Not thread-safe with respect to data being read/written using readers/writers
+ * using this topic.  Be sure to create a topic entity specific to the reader you
+ * want to filter, then set the filter function, and only then create the reader.
+ * And don't change it unless you know there are no concurrent writes.
  *
  * @param[in]  topic   The topic on which the content filter is set.
  * @param[in]  filter  The filter function used to filter topic samples.
  */
-DDS_EXPORT void
+DDS_DEPRECATED_EXPORT void
 dds_set_topic_filter(dds_entity_t topic, dds_topic_filter_fn filter);
 
 DDS_DEPRECATED_EXPORT void
 dds_topic_set_filter(dds_entity_t topic, dds_topic_filter_fn filter);
 
 /**
- * @brief Gets the filter for a topic.
+ * @brief Sets a filter and filter argument on a topic. To be replaced by proper
+ * filtering on readers, no guarantee that this will be maintained for backwards
+ * compatibility.
+ *
+ * Not thread-safe with respect to data being read/written using readers/writers
+ * using this topic.  Be sure to create a topic entity specific to the reader you
+ * want to filter, then set the filter function, and only then create the reader.
+ * And don't change it unless you know there are no concurrent writes.
+ *
+ * @param[in]  topic   The topic on which the content filter is set.
+ * @param[in]  filter  The filter function used to filter topic samples.
+ * @param[in]  arg     Argument for the filter function.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK  Filter set successfully
+ * @retval DDS_RETCODE_BAD_PARAMETER  The topic handle is invalid
+*/
+DDS_EXPORT dds_return_t
+dds_set_topic_filter_and_arg(
+  dds_entity_t topic,
+  dds_topic_filter_arg_fn filter,
+  void *arg);
+
+/**
+ * @brief Sets a filter and filter argument on a topic. To be replaced by proper
+ * filtering on readers, no guarantee that this will be maintained for backwards
+ * compatibility.
+ *
+ * Not thread-safe with respect to data being read/written using readers/writers
+ * using this topic.  Be sure to create a topic entity specific to the reader you
+ * want to filter, then set the filter function, and only then create the reader.
+ * And don't change it unless you know there are no concurrent writes.
+ *
+ * @param[in]  topic   The topic on which the content filter is set.
+ * @param[in]  filter  The filter specification.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK  Filter set successfully
+ * @retval DDS_RETCODE_BAD_PARAMETER  The topic handle is invalid
+*/
+DDS_EXPORT dds_return_t
+dds_set_topic_filter_extended(
+  dds_entity_t topic,
+  const struct dds_topic_filter *filter);
+
+/**
+ * @brief Gets the filter for a topic. To be replaced by proper filtering on readers,
+ * no guarantee that this will be maintained for backwards compatibility.
  *
  * @param[in]  topic  The topic from which to get the filter.
  *
- * @returns The topic filter.
+ * @returns The topic filter, or 0 when of type other than "sample".
  */
-DDS_EXPORT dds_topic_filter_fn
+DDS_DEPRECATED_EXPORT dds_topic_filter_fn
 dds_get_topic_filter(dds_entity_t topic);
 
 DDS_DEPRECATED_EXPORT dds_topic_filter_fn
 dds_topic_get_filter(dds_entity_t topic);
+
+/**
+ * @brief Gets the filter for a topic. To be replaced by proper filtering on readers,
+ * no guarantee that this will be maintained for backwards compatibility.
+ *
+ * @param[in]  topic  The topic from which to get the filter.
+ * @param[out] fn     The topic filter function (fn may be NULL).
+ * @param[out] arg    Filter function argument (arg may be NULL).
+ *
+ * @retval DDS_RETCODE_OK  Filter set successfully
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET  Filter is not of "none" or "sample_arg"
+ * @retval DDS_RETCODE_BAD_PARAMETER  The topic handle is invalid
+ */
+DDS_EXPORT dds_return_t
+dds_get_topic_filter_and_arg (
+  dds_entity_t topic,
+  dds_topic_filter_arg_fn *fn,
+  void **arg);
+
+/**
+ * @brief Gets the filter for a topic. To be replaced by proper filtering on readers,
+ * no guarantee that this will be maintained for backwards compatibility.
+ *
+ * @param[in]  topic  The topic from which to get the filter.
+ * @param[out] filter The topic filter specification.
+ *
+ * @retval DDS_RETCODE_OK  Filter set successfully
+ * @retval DDS_RETCODE_BAD_PARAMETER  The topic handle is invalid
+ */
+DDS_EXPORT dds_return_t
+dds_get_topic_filter_extended (
+  dds_entity_t topic,
+  struct dds_topic_filter *filter);
 
 /**
  * @brief Creates a new instance of a DDS subscriber
@@ -1788,7 +1958,8 @@ dds_write_flush(dds_entity_t writer);
  * @brief Write a serialized value of a data instance
  *
  * This call causes the writer to write the serialized value that is provided
- * in the serdata argument.
+ * in the serdata argument.  Timestamp and statusinfo fields are set to the
+ * current time and 0 (indicating a regular write), respectively.
  *
  * @param[in]  writer The writer entity.
  * @param[in]  serdata Serialized value to be written.
@@ -1810,6 +1981,33 @@ dds_write_flush(dds_entity_t writer);
  */
 DDS_EXPORT dds_return_t
 dds_writecdr(dds_entity_t writer, struct ddsi_serdata *serdata);
+
+/**
+ * @brief Write a serialized value of a data instance
+ *
+ * This call causes the writer to write the serialized value that is provided
+ * in the serdata argument.  Timestamp and statusinfo are used as is.
+ *
+ * @param[in]  writer The writer entity.
+ * @param[in]  serdata Serialized value to be written.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The writer successfully wrote the serialized value.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval DDS_RETCODE_TIMEOUT
+ *             The writer failed to write the serialized value reliably within the specified max_blocking_time.
+ */
+DDS_EXPORT dds_return_t
+dds_forwardcdr(dds_entity_t writer, struct ddsi_serdata *serdata);
 
 /**
  * @brief Write the value of a data instance along with the source timestamp passed.

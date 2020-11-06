@@ -38,6 +38,7 @@ if(CMAKE_GENERATOR MATCHES "Visual Studio")
   set_target_properties(dds_security_auth PROPERTIES LINK_FLAGS "/ignore:4099")
 endif()
 target_sources(dds_security_auth PRIVATE ${srcs_authentication})
+add_coverage(dds_security_auth)
 target_include_directories(dds_security_auth
     PUBLIC
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>"

@@ -99,9 +99,9 @@ CU_Test(ddssec_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
 {
   dds_entity_t domain;
   const char *log_expected[] = {
-    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCertificate/#text: element missing in configuration*",
-    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCA/#text: element missing in configuration*",
-    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/PrivateKey/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/Security/Authentication/IdentityCertificate/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/Security/Authentication/IdentityCA/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/Security/Authentication/PrivateKey/#text: element missing in configuration*",
     NULL
   };
 
@@ -111,7 +111,7 @@ CU_Test(ddssec_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>config</></>"
-    "  <DDSSecurity />"
+    "  <Security />"
     "</Domain>";
 
   set_logger_exp(log_expected);
@@ -148,9 +148,9 @@ CU_Test(ddssec_config, missing, .init = ddsrt_init, .fini = ddsrt_fini)
 {
   dds_entity_t domain;
   const char *log_expected[] = {
-    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCertificate/#text: element missing in configuration*",
-    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCA/#text: element missing in configuration*",
-    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/PrivateKey/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/Security/Authentication/IdentityCertificate/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/Security/Authentication/IdentityCA/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/Security/Authentication/PrivateKey/#text: element missing in configuration*",
     NULL
   };
 
@@ -161,14 +161,14 @@ CU_Test(ddssec_config, missing, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate></IdentityCertificate>"
     "      <PrivateKey></PrivateKey>"
     "      <Password>testtext_Password_testtext</Password>"
     "    </Authentication>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
   set_logger_exp(log_expected);
@@ -185,26 +185,26 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   const char *log_expected[] = {
-    "config: Domain/DDSSecurity/Authentication/Library/#text: "WRAPPERLIB_PATH("dds_security_authentication_wrapper")"*",
-    "config: Domain/DDSSecurity/Authentication/Library[@path]: "WRAPPERLIB_PATH("dds_security_authentication_wrapper")"*",
-    "config: Domain/DDSSecurity/Authentication/Library[@initFunction]: init_test_authentication_all_ok*",
-    "config: Domain/DDSSecurity/Authentication/Library[@finalizeFunction]: finalize_test_authentication_all_ok*",
-    "config: Domain/DDSSecurity/Authentication/IdentityCertificate/#text: "TEST_IDENTITY_CERTIFICATE_DUMMY"*",
-    "config: Domain/DDSSecurity/Authentication/IdentityCA/#text: "TEST_IDENTITY_CA_CERTIFICATE_DUMMY"*",
-    "config: Domain/DDSSecurity/Authentication/PrivateKey/#text: "TEST_IDENTITY_PRIVATE_KEY_DUMMY"*",
-    "config: Domain/DDSSecurity/Authentication/Password/#text: testtext_Password_testtext*",
-    "config: Domain/DDSSecurity/Authentication/TrustedCADirectory/#text: testtext_Dir_testtext*",
-    "config: Domain/DDSSecurity/AccessControl/Library/#text: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
-    "config: Domain/DDSSecurity/AccessControl/Library[@path]: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
-    "config: Domain/DDSSecurity/AccessControl/Library[@initFunction]: init_test_access_control_all_ok*",
-    "config: Domain/DDSSecurity/AccessControl/Library[@finalizeFunction]: finalize_test_access_control_all_ok*",
-    "config: Domain/DDSSecurity/AccessControl/PermissionsCA/#text: file:Permissions_CA.pem*",
-    "config: Domain/DDSSecurity/AccessControl/Governance/#text: file:Governance.p7s*",
-    "config: Domain/DDSSecurity/AccessControl/Permissions/#text: file:Permissions.p7s*",
-    "config: Domain/DDSSecurity/Cryptographic/Library/#text: "WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"*",
-    "config: Domain/DDSSecurity/Cryptographic/Library[@path]: "WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"*",
-    "config: Domain/DDSSecurity/Cryptographic/Library[@initFunction]: init_test_cryptography_all_ok*",
-    "config: Domain/DDSSecurity/Cryptographic/Library[@finalizeFunction]: finalize_test_cryptography_all_ok*",
+    "config: Domain/Security/Authentication/Library/#text: "WRAPPERLIB_PATH("dds_security_authentication_wrapper")"*",
+    "config: Domain/Security/Authentication/Library[@path]: "WRAPPERLIB_PATH("dds_security_authentication_wrapper")"*",
+    "config: Domain/Security/Authentication/Library[@initFunction]: init_test_authentication_all_ok*",
+    "config: Domain/Security/Authentication/Library[@finalizeFunction]: finalize_test_authentication_all_ok*",
+    "config: Domain/Security/Authentication/IdentityCertificate/#text: "TEST_IDENTITY_CERTIFICATE_DUMMY"*",
+    "config: Domain/Security/Authentication/IdentityCA/#text: "TEST_IDENTITY_CA_CERTIFICATE_DUMMY"*",
+    "config: Domain/Security/Authentication/PrivateKey/#text: "TEST_IDENTITY_PRIVATE_KEY_DUMMY"*",
+    "config: Domain/Security/Authentication/Password/#text: testtext_Password_testtext*",
+    "config: Domain/Security/Authentication/TrustedCADirectory/#text: testtext_Dir_testtext*",
+    "config: Domain/Security/AccessControl/Library/#text: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
+    "config: Domain/Security/AccessControl/Library[@path]: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
+    "config: Domain/Security/AccessControl/Library[@initFunction]: init_test_access_control_all_ok*",
+    "config: Domain/Security/AccessControl/Library[@finalizeFunction]: finalize_test_access_control_all_ok*",
+    "config: Domain/Security/AccessControl/PermissionsCA/#text: file:Permissions_CA.pem*",
+    "config: Domain/Security/AccessControl/Governance/#text: file:Governance.p7s*",
+    "config: Domain/Security/AccessControl/Permissions/#text: file:Permissions.p7s*",
+    "config: Domain/Security/Cryptographic/Library/#text: "WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"*",
+    "config: Domain/Security/Cryptographic/Library[@path]: "WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"*",
+    "config: Domain/Security/Cryptographic/Library[@initFunction]: init_test_cryptography_all_ok*",
+    "config: Domain/Security/Cryptographic/Library[@finalizeFunction]: finalize_test_cryptography_all_ok*",
     /* The config should have been parsed into the participant QoS. */
     PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"testtext_Dir_testtext\"", ""),
     NULL
@@ -216,7 +216,7 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -234,7 +234,7 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
     "      <Permissions>file:Permissions.p7s</Permissions>"
     "    </AccessControl>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
   set_logger_exp(log_expected);
@@ -256,26 +256,26 @@ CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   const char *log_expected[] = {
-    "config: Domain/DDSSecurity/Authentication/Library/#text: "WRAPPERLIB_PATH("dds_security_authentication_wrapper")"*",
-    "config: Domain/DDSSecurity/Authentication/Library[@path]: "WRAPPERLIB_PATH("dds_security_authentication_wrapper")"*",
-    "config: Domain/DDSSecurity/Authentication/Library[@initFunction]: init_test_authentication_all_ok*",
-    "config: Domain/DDSSecurity/Authentication/Library[@finalizeFunction]: finalize_test_authentication_all_ok*",
-    "config: Domain/DDSSecurity/Authentication/IdentityCertificate/#text: "TEST_IDENTITY_CERTIFICATE_DUMMY"*",
-    "config: Domain/DDSSecurity/Authentication/IdentityCA/#text: "TEST_IDENTITY_CA_CERTIFICATE_DUMMY"*",
-    "config: Domain/DDSSecurity/Authentication/PrivateKey/#text: "TEST_IDENTITY_PRIVATE_KEY_DUMMY"*",
-    "config: Domain/DDSSecurity/Authentication/Password/#text:  {}*",
-    "config: Domain/DDSSecurity/Authentication/TrustedCADirectory/#text:  {}*",
-    "config: Domain/DDSSecurity/AccessControl/Library/#text: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
-    "config: Domain/DDSSecurity/AccessControl/Library[@path]: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
-    "config: Domain/DDSSecurity/AccessControl/Library[@initFunction]: init_test_access_control_all_ok*",
-    "config: Domain/DDSSecurity/AccessControl/Library[@finalizeFunction]: finalize_test_access_control_all_ok*",
-    "config: Domain/DDSSecurity/AccessControl/PermissionsCA/#text: file:Permissions_CA.pem*",
-    "config: Domain/DDSSecurity/AccessControl/Governance/#text: file:Governance.p7s*",
-    "config: Domain/DDSSecurity/AccessControl/Permissions/#text: file:Permissions.p7s*",
-    "config: Domain/DDSSecurity/Cryptographic/Library/#text: "WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"*",
-    "config: Domain/DDSSecurity/Cryptographic/Library[@path]: "WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"*",
-    "config: Domain/DDSSecurity/Cryptographic/Library[@initFunction]: init_test_cryptography_all_ok*",
-    "config: Domain/DDSSecurity/Cryptographic/Library[@finalizeFunction]: finalize_test_cryptography_all_ok*",
+    "config: Domain/Security/Authentication/Library/#text: "WRAPPERLIB_PATH("dds_security_authentication_wrapper")"*",
+    "config: Domain/Security/Authentication/Library[@path]: "WRAPPERLIB_PATH("dds_security_authentication_wrapper")"*",
+    "config: Domain/Security/Authentication/Library[@initFunction]: init_test_authentication_all_ok*",
+    "config: Domain/Security/Authentication/Library[@finalizeFunction]: finalize_test_authentication_all_ok*",
+    "config: Domain/Security/Authentication/IdentityCertificate/#text: "TEST_IDENTITY_CERTIFICATE_DUMMY"*",
+    "config: Domain/Security/Authentication/IdentityCA/#text: "TEST_IDENTITY_CA_CERTIFICATE_DUMMY"*",
+    "config: Domain/Security/Authentication/PrivateKey/#text: "TEST_IDENTITY_PRIVATE_KEY_DUMMY"*",
+    "config: Domain/Security/Authentication/Password/#text:  {}*",
+    "config: Domain/Security/Authentication/TrustedCADirectory/#text:  {}*",
+    "config: Domain/Security/AccessControl/Library/#text: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
+    "config: Domain/Security/AccessControl/Library[@path]: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
+    "config: Domain/Security/AccessControl/Library[@initFunction]: init_test_access_control_all_ok*",
+    "config: Domain/Security/AccessControl/Library[@finalizeFunction]: finalize_test_access_control_all_ok*",
+    "config: Domain/Security/AccessControl/PermissionsCA/#text: file:Permissions_CA.pem*",
+    "config: Domain/Security/AccessControl/Governance/#text: file:Governance.p7s*",
+    "config: Domain/Security/AccessControl/Permissions/#text: file:Permissions.p7s*",
+    "config: Domain/Security/Cryptographic/Library/#text: "WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"*",
+    "config: Domain/Security/Cryptographic/Library[@path]: "WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"*",
+    "config: Domain/Security/Cryptographic/Library[@initFunction]: init_test_cryptography_all_ok*",
+    "config: Domain/Security/Cryptographic/Library[@finalizeFunction]: finalize_test_cryptography_all_ok*",
     /* The config should have been parsed into the participant QoS. */
     PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"\",0:\"dds.sec.auth.trusted_ca_dir\":\"\"", ""),
     NULL
@@ -287,7 +287,7 @@ CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -303,7 +303,7 @@ CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
     "      <Permissions>file:Permissions.p7s</Permissions>"
     "    </AccessControl>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
   set_logger_exp(log_expected);
@@ -324,26 +324,26 @@ CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   const char *log_expected[] = {
-    "config: Domain/DDSSecurity/Authentication/Library/#text: "WRAPPERLIB_PATH("dds_security_authentication_wrapper")"*",
-    "config: Domain/DDSSecurity/Authentication/Library[@path]: "WRAPPERLIB_PATH("dds_security_authentication_wrapper")"*",
-    "config: Domain/DDSSecurity/Authentication/Library[@initFunction]: init_test_authentication_all_ok*",
-    "config: Domain/DDSSecurity/Authentication/Library[@finalizeFunction]: finalize_test_authentication_all_ok*",
-    "config: Domain/DDSSecurity/Authentication/IdentityCertificate/#text: "TEST_IDENTITY_CERTIFICATE_DUMMY"*",
-    "config: Domain/DDSSecurity/Authentication/IdentityCA/#text: "TEST_IDENTITY_CA_CERTIFICATE_DUMMY"*",
-    "config: Domain/DDSSecurity/Authentication/PrivateKey/#text: "TEST_IDENTITY_PRIVATE_KEY_DUMMY"*",
-    "config: Domain/DDSSecurity/Authentication/Password/#text: testtext_Password_testtext*",
-    "config: Domain/DDSSecurity/Authentication/TrustedCADirectory/#text: testtext_Dir_testtext*",
-    "config: Domain/DDSSecurity/AccessControl/Library/#text: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
-    "config: Domain/DDSSecurity/AccessControl/Library[@path]: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
-    "config: Domain/DDSSecurity/AccessControl/Library[@initFunction]: init_test_access_control_all_ok*",
-    "config: Domain/DDSSecurity/AccessControl/Library[@finalizeFunction]: finalize_test_access_control_all_ok*",
-    "config: Domain/DDSSecurity/AccessControl/PermissionsCA/#text: file:Permissions_CA.pem*",
-    "config: Domain/DDSSecurity/AccessControl/Governance/#text: file:Governance.p7s*",
-    "config: Domain/DDSSecurity/AccessControl/Permissions/#text: file:Permissions.p7s*",
-    "config: Domain/DDSSecurity/Cryptographic/Library/#text: "WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"*",
-    "config: Domain/DDSSecurity/Cryptographic/Library[@path]: "WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"*",
-    "config: Domain/DDSSecurity/Cryptographic/Library[@initFunction]: init_test_cryptography_all_ok*",
-    "config: Domain/DDSSecurity/Cryptographic/Library[@finalizeFunction]: finalize_test_cryptography_all_ok*",
+    "config: Domain/Security/Authentication/Library/#text: "WRAPPERLIB_PATH("dds_security_authentication_wrapper")"*",
+    "config: Domain/Security/Authentication/Library[@path]: "WRAPPERLIB_PATH("dds_security_authentication_wrapper")"*",
+    "config: Domain/Security/Authentication/Library[@initFunction]: init_test_authentication_all_ok*",
+    "config: Domain/Security/Authentication/Library[@finalizeFunction]: finalize_test_authentication_all_ok*",
+    "config: Domain/Security/Authentication/IdentityCertificate/#text: "TEST_IDENTITY_CERTIFICATE_DUMMY"*",
+    "config: Domain/Security/Authentication/IdentityCA/#text: "TEST_IDENTITY_CA_CERTIFICATE_DUMMY"*",
+    "config: Domain/Security/Authentication/PrivateKey/#text: "TEST_IDENTITY_PRIVATE_KEY_DUMMY"*",
+    "config: Domain/Security/Authentication/Password/#text: testtext_Password_testtext*",
+    "config: Domain/Security/Authentication/TrustedCADirectory/#text: testtext_Dir_testtext*",
+    "config: Domain/Security/AccessControl/Library/#text: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
+    "config: Domain/Security/AccessControl/Library[@path]: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
+    "config: Domain/Security/AccessControl/Library[@initFunction]: init_test_access_control_all_ok*",
+    "config: Domain/Security/AccessControl/Library[@finalizeFunction]: finalize_test_access_control_all_ok*",
+    "config: Domain/Security/AccessControl/PermissionsCA/#text: file:Permissions_CA.pem*",
+    "config: Domain/Security/AccessControl/Governance/#text: file:Governance.p7s*",
+    "config: Domain/Security/AccessControl/Permissions/#text: file:Permissions.p7s*",
+    "config: Domain/Security/Cryptographic/Library/#text: "WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"*",
+    "config: Domain/Security/Cryptographic/Library[@path]: "WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"*",
+    "config: Domain/Security/Cryptographic/Library[@initFunction]: init_test_cryptography_all_ok*",
+    "config: Domain/Security/Cryptographic/Library[@finalizeFunction]: finalize_test_cryptography_all_ok*",
     /* The config should have been parsed into the participant QoS. */
     PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"testtext_Dir_testtext\"", ""),
     NULL
@@ -355,7 +355,7 @@ CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -373,7 +373,7 @@ CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
     "      <Permissions>file:Permissions.p7s</Permissions>"
     "    </AccessControl>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
   set_logger_exp(log_expected);
@@ -506,7 +506,7 @@ CU_Test(ddssec_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
     "      <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE_DUMMY"</IdentityCA>"
@@ -517,7 +517,7 @@ CU_Test(ddssec_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
     "      <Permissions>file:Permissions.p7s</Permissions>"
     "    </AccessControl>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
   CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
@@ -569,7 +569,7 @@ CU_Test(ddssec_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library initFunction=\"init_test_authentication_all_ok\" finalizeFunction=\"finalize_test_authentication_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
     "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
@@ -587,7 +587,7 @@ CU_Test(ddssec_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
     "      <Permissions>file:Permissions.p7s</Permissions>"
     "    </AccessControl>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
   CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
@@ -639,7 +639,7 @@ CU_Test(ddssec_config, qos_invalid, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <Tag>${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
     "  <Tracing><Verbosity>finest</></>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_DUMMY"</IdentityCertificate>"
     "      <IdentityCA>"TEST_IDENTITY_CA_CERTIFICATE_DUMMY"</IdentityCA>"
@@ -650,7 +650,7 @@ CU_Test(ddssec_config, qos_invalid, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
     "      <Permissions>file:Permissions.p7s</Permissions>"
     "    </AccessControl>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
   set_logger_exp(log_expected);

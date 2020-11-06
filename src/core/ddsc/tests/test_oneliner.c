@@ -13,6 +13,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 #include <setjmp.h>
 
 #include "dds/dds.h"
@@ -31,8 +32,11 @@
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 
-#include "test_common.h"
+#include "test_util.h"
 #include "test_oneliner.h"
+
+#include "Space.h"
+#include "RoundTrip.h"
 
 #define MAXDOMS (sizeof (((struct oneliner_ctx){.result=0}).doms) / sizeof (((struct oneliner_ctx){.result=0}).doms[0]))
 
@@ -209,7 +213,7 @@ static dds_return_t check_status_change_fields_are_0 (int ll, dds_entity_t ent)
     const char *d = lldesc[ll].desc;
     void *status = malloc (lldesc[ll].size);
     dds_return_t ret;
-    if ((ret = get_status (ll, ent, status)) <= 0)
+    if ((ret = get_status (ll, ent, status)) < 0)
     {
       free (status);
       return ret;
@@ -1358,64 +1362,82 @@ static int checkstatus (struct oneliner_ctx *ctx, int ll, int ent, struct onelin
   {
     const void *p = advance (status, &off, *d);
     int i;
-    switch (*d)
+    if (peektok (argl, NULL) == '*')
     {
-      case 'n':
-        if (!nexttok_int (argl, &i) || i < 0)
-          return setresult (ctx, -1, "checkstatus: field %d expecting non-negative integer", field);
-        printf ("%s%"PRIu32" %d", sep, *(uint32_t *)p, i); fflush (stdout);
-        if (*(uint32_t *)p != (uint32_t)i)
-          return setresult (ctx, 0, "checkstatus: field %d has actual %"PRIu32" expected %d", field, *(uint32_t *)p, i);
-        break;
-      case 'c':
-        if (!nexttok_int (argl, &i))
-          return setresult (ctx, -1, "checkstatus: field %d expecting integer", field);
-        printf ("%s%"PRId32" %d", sep, *(int32_t *)p, i); fflush (stdout);
-        if (*(int32_t *)p != i)
-          return setresult (ctx, 0, "checkstatus: field %d has actual %"PRId32" expected %d", field, *(int32_t *)p, i);
-        break;
-      case 'P':
-        if (nexttok (argl, NULL) != TOK_NAME)
-          return setresult (ctx, -1, "checkstatus: field %d expecting policy name", field);
-        size_t polidx;
-        for (polidx = 0; polidx < sizeof (qostab) / sizeof (qostab[0]); polidx++)
-          if (strcmp (argl->v.n, qostab[polidx].abbrev) == 0)
-            break;
-        if (polidx == sizeof (qostab) / sizeof (qostab[0]))
-          return setresult (ctx, -1, "checkstatus: field %d expecting policy name", field);
-        printf ("%s%"PRIu32" %"PRIu32, sep, *(uint32_t *)p, (uint32_t) qostab[polidx].id); fflush (stdout);
-        if (*(uint32_t *)p != (uint32_t) qostab[polidx].id)
-          return setresult (ctx, 0, "checkstatus: field %d has actual %"PRIu32" expected %d", field, *(uint32_t *)p, (int) qostab[polidx].id);
-        break;
-      case 'R':
-        if (nexttok (argl, NULL) != TOK_NAME)
-          return setresult (ctx, -1, "checkstatus: field %d expecting reason", field);
-        if (strcmp (argl->v.n, "i") == 0) i = (int) DDS_REJECTED_BY_INSTANCES_LIMIT;
-        else if (strcmp (argl->v.n, "s") == 0) i = (int) DDS_REJECTED_BY_SAMPLES_LIMIT;
-        else if (strcmp (argl->v.n, "spi") == 0) i = (int) DDS_REJECTED_BY_SAMPLES_PER_INSTANCE_LIMIT;
-        else return setresult (ctx, -1, "checkstatus: field %d expecting reason", field);
-        printf ("%s%d %d", sep, (int) *(dds_sample_rejected_status_kind *)p, i); fflush (stdout);
-        if (*(dds_sample_rejected_status_kind *)p != (dds_sample_rejected_status_kind) i)
-          return setresult (ctx, 0, "checkstatus: field %d has actual %d expected %d", field, (int) (*(dds_sample_rejected_status_kind *)p), i);
-        break;
-      case 'I': // instance handle is too complicated
-        break;
-      case 'E': {
-        int ent1 = -1;
-        dds_instance_handle_t esi1 = 0;
-        if (nexttok_if (argl, '*'))
-          ent1 = -1;
-        else if ((ent1 = parse_entity1 (argl, NULL)) < 0)
-          return setresult (ctx, -1, "checkstatus: field %d expecting * or entity name", field);
-        else if ((esi1 = lookup_insthandle (ctx, ent, ent1)) == 0)
-          return setresult (ctx, -1, "checkstatus: field %d instance handle lookup failed", field);
-        printf ("%s%"PRIx64" %"PRIx64, sep, *(dds_instance_handle_t *)p, esi1); fflush (stdout);
-        if (ent1 >= 0 && *(dds_instance_handle_t *)p != esi1)
-          return setresult (ctx, 0, "checkstatus: field %d has actual %"PRIx64" expected %"PRIx64, field, *(dds_instance_handle_t *)p, esi1);
-        break;
+      (void) nexttok (argl, NULL);
+      switch (*d)
+      {
+        case 'n': printf ("%s%"PRIu32, sep, *(uint32_t *)p); break;
+        case 'c': printf ("%s%"PRId32, sep, *(int32_t *)p); break;
+        case 'P': printf ("%s%"PRIu32, sep, *(uint32_t *)p); break;
+        case 'R': printf ("%s%d", sep, (int) *(dds_sample_rejected_status_kind *)p); break;
+        case 'I': break; // instance handle is too complicated
+        case 'E': printf ("%s%"PRIx64, sep, *(dds_instance_handle_t *)p); break;
+        default: return DDS_RETCODE_BAD_PARAMETER;
       }
-      default:
-        return DDS_RETCODE_BAD_PARAMETER;
+      printf (" *"); fflush (stdout);
+    }
+    else
+    {
+      switch (*d)
+      {
+        case 'n':
+          if (!nexttok_int (argl, &i) || i < 0)
+            return setresult (ctx, -1, "checkstatus: field %d expecting non-negative integer", field);
+          printf ("%s%"PRIu32" %d", sep, *(uint32_t *)p, i); fflush (stdout);
+          if (*(uint32_t *)p != (uint32_t)i)
+            return setresult (ctx, 0, "checkstatus: field %d has actual %"PRIu32" expected %d", field, *(uint32_t *)p, i);
+          break;
+        case 'c':
+          if (!nexttok_int (argl, &i))
+            return setresult (ctx, -1, "checkstatus: field %d expecting integer", field);
+          printf ("%s%"PRId32" %d", sep, *(int32_t *)p, i); fflush (stdout);
+          if (*(int32_t *)p != i)
+            return setresult (ctx, 0, "checkstatus: field %d has actual %"PRId32" expected %d", field, *(int32_t *)p, i);
+          break;
+        case 'P':
+          if (nexttok (argl, NULL) != TOK_NAME)
+            return setresult (ctx, -1, "checkstatus: field %d expecting policy name", field);
+          size_t polidx;
+          for (polidx = 0; polidx < sizeof (qostab) / sizeof (qostab[0]); polidx++)
+            if (strcmp (argl->v.n, qostab[polidx].abbrev) == 0)
+              break;
+          if (polidx == sizeof (qostab) / sizeof (qostab[0]))
+            return setresult (ctx, -1, "checkstatus: field %d expecting policy name", field);
+          printf ("%s%"PRIu32" %"PRIu32, sep, *(uint32_t *)p, (uint32_t) qostab[polidx].id); fflush (stdout);
+          if (*(uint32_t *)p != (uint32_t) qostab[polidx].id)
+            return setresult (ctx, 0, "checkstatus: field %d has actual %"PRIu32" expected %d", field, *(uint32_t *)p, (int) qostab[polidx].id);
+          break;
+        case 'R':
+          if (nexttok (argl, NULL) != TOK_NAME)
+            return setresult (ctx, -1, "checkstatus: field %d expecting reason", field);
+          if (strcmp (argl->v.n, "i") == 0) i = (int) DDS_REJECTED_BY_INSTANCES_LIMIT;
+          else if (strcmp (argl->v.n, "s") == 0) i = (int) DDS_REJECTED_BY_SAMPLES_LIMIT;
+          else if (strcmp (argl->v.n, "spi") == 0) i = (int) DDS_REJECTED_BY_SAMPLES_PER_INSTANCE_LIMIT;
+          else return setresult (ctx, -1, "checkstatus: field %d expecting reason", field);
+          printf ("%s%d %d", sep, (int) *(dds_sample_rejected_status_kind *)p, i); fflush (stdout);
+          if (*(dds_sample_rejected_status_kind *)p != (dds_sample_rejected_status_kind) i)
+            return setresult (ctx, 0, "checkstatus: field %d has actual %d expected %d", field, (int) (*(dds_sample_rejected_status_kind *)p), i);
+          break;
+        case 'I': // instance handle is too complicated
+          break;
+        case 'E': {
+          int ent1 = -1;
+          dds_instance_handle_t esi1 = 0;
+          if (nexttok_if (argl, '*'))
+            ent1 = -1;
+          else if ((ent1 = parse_entity1 (argl, NULL)) < 0)
+            return setresult (ctx, -1, "checkstatus: field %d expecting * or entity name", field);
+          else if ((esi1 = lookup_insthandle (ctx, ent, ent1)) == 0)
+            return setresult (ctx, -1, "checkstatus: field %d instance handle lookup failed", field);
+          printf ("%s%"PRIx64" %"PRIx64, sep, *(dds_instance_handle_t *)p, esi1); fflush (stdout);
+          if (ent1 >= 0 && *(dds_instance_handle_t *)p != esi1)
+            return setresult (ctx, 0, "checkstatus: field %d has actual %"PRIx64" expected %"PRIx64, field, *(dds_instance_handle_t *)p, esi1);
+          break;
+        }
+        default:
+          return DDS_RETCODE_BAD_PARAMETER;
+      }
     }
     sep = ", ";
     if (*d != 'I')
@@ -1683,6 +1705,85 @@ static void dosleep (struct oneliner_ctx *ctx)
   dds_sleepfor (ctx->l.v.d);
 }
 
+static void dosetflags (struct oneliner_ctx *ctx)
+{
+  dds_return_t ret;
+  entname_t name;
+  int ent;
+  int tok;
+  union oneliner_tokval flagstok;
+  if (nexttok (&ctx->l, NULL) != '(')
+    error (ctx, "setflags: args required");
+  if ((tok = nexttok (&ctx->l, &flagstok)) == TOK_NAME)
+    tok = nexttok (&ctx->l, NULL);
+  else
+    flagstok.n[0] = 0;
+  if (tok != ')')
+    error (ctx, "setflags: invalid argument");
+  if ((ent = parse_entity (ctx)) < 0)
+    error (ctx, "setflags: requires writer");
+  if (ctx->es[ent] == 0)
+    make_entity (ctx, ent, NULL);
+  printf ("setflags(%s): %s\n", flagstok.n, getentname (&name, ent));
+
+  dds_entity *xwr;
+  if ((ret = dds_entity_pin (ctx->es[ent], &xwr)) < 0)
+    error_dds (ctx, ret, "setflags: pin writer failed %"PRId32, ctx->es[ent]);
+  if (xwr->m_kind != DDS_KIND_WRITER)
+  {
+    dds_entity_unpin (xwr);
+    error (ctx, "setflags: entity is not a writer");
+  }
+  dds_writer *wr = (dds_writer *) xwr;
+  if (strspn (flagstok.n, "arhd") != strlen (flagstok.n))
+  {
+    dds_entity_unpin (xwr);
+    error (ctx, "setflags: unknown flags");
+  }
+  wr->m_wr->test_ignore_acknack = (strchr (flagstok.n, 'a') != NULL);
+  wr->m_wr->test_suppress_retransmit = (strchr (flagstok.n, 'r') != NULL);
+  wr->m_wr->test_suppress_heartbeat = (strchr (flagstok.n, 'h') != NULL);
+  wr->m_wr->test_drop_outgoing_data = (strchr (flagstok.n, 'd') != NULL);
+  dds_entity_unpin (xwr);
+}
+
+static void docheckstatus (struct oneliner_ctx *ctx)
+{
+  const int ll = parse_listener (ctx);
+  if (ll < 0)
+    error (ctx, "checkstatus: requires listener name");
+  if (lldesc[ll].cb_status_off == 0)
+    error (ctx, "checkstatus: listener %s has no status", lldesc[ll].name);
+  struct oneliner_lex l1 = ctx->l;
+  if (*ctx->l.inp != '(')
+    error (ctx, "checkstatus: missing arguments");
+  int tok;
+  while ((tok = nexttok (&ctx->l, NULL)) != EOF && tok != ')')
+    ;
+  const int ent = parse_entity (ctx);
+  if (ent < 0)
+    error (ctx, "check listener: requires an entity");
+  if (ctx->es[ent] == 0)
+    make_entity (ctx, ent, NULL);
+  entname_t name;
+  printf ("status(%s %s): ", lldesc[ll].name, getentname (&name, ent));
+
+  void *status = malloc (lldesc[ll].size);
+  dds_return_t ret;
+  if ((ret = get_status (ll, ctx->es[ent], status)) < 0)
+  {
+    free (status);
+    error_dds (ctx, ret, "get_status failed");
+  }
+  if (checkstatus (ctx, ll, ent, &l1, status) <= 0)
+  {
+    free (status);
+    longjmp (ctx->jb, 1);
+  }
+  free (status);
+  printf ("\n");
+}
+
 static void dispatchcmd (struct oneliner_ctx *ctx)
 {
   static const struct {
@@ -1691,6 +1792,7 @@ static void dispatchcmd (struct oneliner_ctx *ctx)
   } cs[] = {
     { "-",          dodelete },
     { "?",          dowait },
+    { "status",     docheckstatus },
     { "wr",         dowr },
     { "wrdisp",     dowrdisp },
     { "disp",       dodisp },
@@ -1703,7 +1805,8 @@ static void dispatchcmd (struct oneliner_ctx *ctx)
     { "read",       doread },
     { "deaf",       dodeaf },
     { "hearing",    dohearing },
-    { "sleep",      dosleep }
+    { "sleep",      dosleep },
+    { "setflags",   dosetflags }
   };
   size_t i;
   if (ctx->l.tok > 0)

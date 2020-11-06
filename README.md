@@ -1,3 +1,7 @@
+[![Build Status](https://travis-ci.com/eclipse-cyclonedds/cyclonedds.svg?branch=master)](https://travis-ci.com/eclipse-cyclonedds/cyclonedds)
+[![Coverity Status](https://scan.coverity.com/projects/19078/badge.svg)](https://scan.coverity.com/projects/eclipse-cyclonedds-cyclonedds)
+[![Codecov](https://codecov.io/gh/eclipse-cyclonedds/cyclonedds/branch/master/graphs/badge.svg?branch=master)](https://codecov.io/github/eclipse-cyclonedds/cyclonedds?branch=master)
+
 # Eclipse Cyclone DDS
 
 Eclipse Cyclone DDS is a very performant and robust open-source DDS implementation.  Cyclone DDS is developed completely in the open as an Eclipse IoT project

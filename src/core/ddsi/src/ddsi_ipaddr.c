@@ -54,7 +54,7 @@ int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr
   return eq;
 }
 
-enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
+enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locator_t *loc, const ddsi_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
 {
   struct sockaddr_storage tmp, iftmp, nmtmp, ownip;
   size_t i;
@@ -75,8 +75,10 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const nn_locator_
   return DNAR_DISTANT;
 }
 
-enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str, int32_t kind)
+enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const char *str, int32_t kind)
 {
+  DDSRT_WARNING_MSVC_OFF(4996);
+  char copy[264];
   int af = AF_INET;
   struct sockaddr_storage tmpaddr;
 
@@ -94,31 +96,104 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_tran_factory_
       return AFSR_MISMATCH;
   }
 
-  (void)tran;
-  if (ddsrt_sockaddrfromstr(af, str, (struct sockaddr *) &tmpaddr) != 0) {
-#if DDSRT_HAVE_DNS
-      /* Not a valid IP address. User may have specified a hostname instead. */
-      ddsrt_hostent_t *hent = NULL;
-      if (ddsrt_gethostbyname(str, af, &hent) != 0) {
-          return AFSR_UNKNOWN;
-      }
-      memcpy(&tmpaddr, &hent->addrs[0], sizeof(hent->addrs[0]));
-      ddsrt_free (hent);
-#else
+  // IPv6: we format numeric ones surrounded by brackets and we want to
+  // parse port numbers, so a copy is the most pragamatic approach. POSIX
+  // hostnames seem to be limited to 255 characters, add a port of max 5
+  // digits and a colon, and so 262 should be enough.  (Numerical addresses
+  // add a few other characters, but even so this ought to be plenty.)
+  const size_t len = strlen(str);
+  if (len == 0 || len >= sizeof(copy))
+    return AFSR_INVALID;
+  memcpy(copy, str, len + 1);
+  char *ipstr = copy;
+  char *portstr = strrchr(copy, ':');
+  if (af == AF_INET6 && portstr != strchr(copy, ':') && ipstr[0] != '[')
+  {
+    // IPv6 numerical addresses contain colons, so if there are multiple
+    // colons, we require disambiguation by enclosing the IP part in
+    // brackets and hence consider "portstr" only if the first character
+    // is '['
+    portstr = NULL;
+  }
+  uint16_t port = 0;
+  if (portstr) {
+    unsigned tmpport;
+    int pos;
+    if (sscanf (portstr + 1, "%u%n", &tmpport, &pos) == 1 && portstr[1 + pos] == 0)
+    {
+      if (tmpport < 1 || tmpport > 65535)
+        return AFSR_INVALID;
+      *portstr = 0;
+      port = (uint16_t) tmpport;
+    }
+    else if (af == AF_INET)
+    {
+      // no colons in IPv4 addresses
       return AFSR_INVALID;
+    }
+    else
+    {
+      // allow for IPv6 address embedding IPv4 ones, like ff02::ffff:239.255.0.1
+      portstr = NULL;
+    }
+  }
+
+#if DDSRT_HAVE_IPV6
+  if (af == AF_INET6)
+  {
+    if (copy[0] == '[') {
+      // strip brackets: last character before the port must be a ']',
+      // in the absence of a port, the last character in the string.
+      ipstr = copy + 1;
+      if (portstr == NULL) {
+        if (copy[len - 1] != ']')
+          return AFSR_INVALID;
+        copy[len - 1] = 0;
+      } else {
+        assert (portstr > copy);
+        if (portstr[-1] != ']')
+          return AFSR_INVALID;
+        portstr[-1] = 0;
+      }
+    }
+  }
+#endif
+
+  if (ddsrt_sockaddrfromstr(af, ipstr, (struct sockaddr *) &tmpaddr) != 0) {
+#if DDSRT_HAVE_DNS
+    /* Not a valid IP address. User may have specified a hostname instead. */
+    ddsrt_hostent_t *hent = NULL;
+    if (ddsrt_gethostbyname(ipstr, af, &hent) != 0) {
+      return AFSR_UNKNOWN;
+    }
+    memcpy(&tmpaddr, &hent->addrs[0], sizeof(hent->addrs[0]));
+    ddsrt_free (hent);
+#else
+    return AFSR_INVALID;
 #endif
   }
+  // patch in port (sin_port/sin6_port is undefined at this point and must always be set
+  // before calling ddsi_ipaddr_to_loc
   if (tmpaddr.ss_family != af) {
     return AFSR_MISMATCH;
+  } else if (af == AF_INET) {
+    struct sockaddr_in *x = (struct sockaddr_in *) &tmpaddr;
+    x->sin_port = htons (port);
+  } else {
+#if DDSRT_HAVE_IPV6
+    assert (af == AF_INET6);
+    struct sockaddr_in6 *x = (struct sockaddr_in6 *) &tmpaddr;
+    x->sin6_port = htons (port);
+#else
+    abort ();
+#endif
   }
   ddsi_ipaddr_to_loc (tran, loc, (struct sockaddr *)&tmpaddr, kind);
-  /* This is just an address, so there is no valid value for port, other than INVALID.
-     Without a guarantee that tmpaddr has port 0, best is to set it explicitly here */
-  loc->port = NN_LOCATOR_PORT_INVALID;
   return AFSR_OK;
+  DDSRT_WARNING_MSVC_ON(4996);
 }
 
-char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)
+char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port)
 {
   assert (sizeof_dst > 1);
   if (loc->kind == NN_LOCATOR_KIND_INVALID)
@@ -160,7 +235,7 @@ char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *l
   return dst;
 }
 
-void ddsi_ipaddr_to_loc (const struct ddsi_tran_factory *tran, nn_locator_t *dst, const struct sockaddr *src, int32_t kind)
+void ddsi_ipaddr_to_loc (const struct ddsi_tran_factory *tran, ddsi_locator_t *dst, const struct sockaddr *src, int32_t kind)
 {
   dst->tran = (struct ddsi_tran_factory *) tran;
   dst->kind = kind;
@@ -210,7 +285,7 @@ void ddsi_ipaddr_to_loc (const struct ddsi_tran_factory *tran, nn_locator_t *dst
   }
 }
 
-void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const nn_locator_t *src)
+void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const ddsi_locator_t *src)
 {
   memset (dst, 0, sizeof (*dst));
   switch (src->kind)

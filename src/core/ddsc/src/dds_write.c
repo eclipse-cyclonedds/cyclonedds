@@ -52,7 +52,34 @@ dds_return_t dds_writecdr (dds_entity_t writer, struct ddsi_serdata *serdata)
 
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
-  ret = dds_writecdr_impl (wr, serdata, dds_time (), 0);
+  if (wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
+  {
+    dds_writer_unlock (wr);
+    return DDS_RETCODE_ERROR;
+  }
+  serdata->statusinfo = 0;
+  serdata->timestamp.v = dds_time ();
+  ret = dds_writecdr_impl (wr->m_wr, wr->m_xp, serdata, !wr->whc_batch);
+  dds_writer_unlock (wr);
+  return ret;
+}
+
+dds_return_t dds_forwardcdr (dds_entity_t writer, struct ddsi_serdata *serdata)
+{
+  dds_return_t ret;
+  dds_writer *wr;
+
+  if (serdata == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
+    return ret;
+  if (wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
+  {
+    dds_writer_unlock (wr);
+    return DDS_RETCODE_ERROR;
+  }
+  ret = dds_writecdr_impl (wr->m_wr, wr->m_xp, serdata, !wr->whc_batch);
   dds_writer_unlock (wr);
   return ret;
 }
@@ -160,7 +187,6 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   struct thread_state1 * const ts1 = lookup_thread_state ();
   const bool writekey = action & DDS_WR_KEY_BIT;
   struct writer *ddsi_wr = wr->m_wr;
-  struct ddsi_tkmap_instance *tk;
   struct ddsi_serdata *d;
   dds_return_t ret = DDS_RETCODE_OK;
   int w_rc;
@@ -169,42 +195,69 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     return DDS_RETCODE_BAD_PARAMETER;
 
   /* Check for topic filter */
-  if (wr->m_topic->filter_fn && !writekey)
-    if (! wr->m_topic->filter_fn (data, wr->m_topic->filter_ctx))
-      return DDS_RETCODE_OK;
+  if (!writekey && wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
+  {
+    const struct dds_topic_filter *f = &wr->m_topic->m_filter;
+    switch (f->mode)
+    {
+      case DDS_TOPIC_FILTER_NONE:
+      case DDS_TOPIC_FILTER_SAMPLEINFO_ARG:
+        break;
+      case DDS_TOPIC_FILTER_SAMPLE:
+        if (!f->f.sample (data))
+          return DDS_RETCODE_OK;
+        break;
+      case DDS_TOPIC_FILTER_SAMPLE_ARG:
+        if (!f->f.sample_arg (data, f->arg))
+          return DDS_RETCODE_OK;
+        break;
+      case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
+        struct dds_sample_info si;
+        memset (&si, 0, sizeof (si));
+        if (!f->f.sample_sampleinfo_arg (data, &si, f->arg))
+          return DDS_RETCODE_OK;
+        break;
+      }
+    }
+  }
 
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
 
   /* Serialize and write data or key */
-  d = ddsi_serdata_from_sample (ddsi_wr->topic, writekey ? SDK_KEY : SDK_DATA, data);
-  d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
-                   ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
-  d->timestamp.v = tstamp;
-  ddsi_serdata_ref (d);
-  tk = ddsi_tkmap_lookup_instance_ref (wr->m_entity.m_domain->gv.m_tkmap, d);
-  w_rc = write_sample_gc (ts1, wr->m_xp, ddsi_wr, d, tk);
+  if ((d = ddsi_serdata_from_sample (ddsi_wr->topic, writekey ? SDK_KEY : SDK_DATA, data)) == NULL)
+    ret = DDS_RETCODE_BAD_PARAMETER;
+  else
+  {
+    struct ddsi_tkmap_instance *tk;
+    d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
+                     ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
+    d->timestamp.v = tstamp;
+    ddsi_serdata_ref (d);
+    tk = ddsi_tkmap_lookup_instance_ref (wr->m_entity.m_domain->gv.m_tkmap, d);
+    w_rc = write_sample_gc (ts1, wr->m_xp, ddsi_wr, d, tk);
 
-  if (w_rc >= 0) {
-    /* Flush out write unless configured to batch */
-    if (!wr->whc_batch)
-      nn_xpack_send (wr->m_xp, false);
-    ret = DDS_RETCODE_OK;
-  } else if (w_rc == DDS_RETCODE_TIMEOUT) {
-    ret = DDS_RETCODE_TIMEOUT;
-  } else if (w_rc == DDS_RETCODE_BAD_PARAMETER) {
-    ret = DDS_RETCODE_ERROR;
-  } else {
-    ret = DDS_RETCODE_ERROR;
+    if (w_rc >= 0) {
+      /* Flush out write unless configured to batch */
+      if (!wr->whc_batch)
+        nn_xpack_send (wr->m_xp, false);
+      ret = DDS_RETCODE_OK;
+    } else if (w_rc == DDS_RETCODE_TIMEOUT) {
+      ret = DDS_RETCODE_TIMEOUT;
+    } else if (w_rc == DDS_RETCODE_BAD_PARAMETER) {
+      ret = DDS_RETCODE_ERROR;
+    } else {
+      ret = DDS_RETCODE_ERROR;
+    }
+    if (ret == DDS_RETCODE_OK)
+      ret = deliver_locally (ddsi_wr, d, tk);
+    ddsi_serdata_unref (d);
+    ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
   }
-  if (ret == DDS_RETCODE_OK)
-    ret = deliver_locally (ddsi_wr, d, tk);
-  ddsi_serdata_unref (d);
-  ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
   thread_state_asleep (ts1);
   return ret;
 }
 
-dds_return_t dds_writecdr_impl_lowlevel (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *d, bool flush)
+dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *d, bool flush)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
   struct ddsi_tkmap_instance * tk;
@@ -234,17 +287,6 @@ dds_return_t dds_writecdr_impl_lowlevel (struct writer *ddsi_wr, struct nn_xpack
   ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
   thread_state_asleep (ts1);
   return ret;
-}
-
-dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_serdata *d, dds_time_t tstamp, dds_write_action action)
-{
-  if (wr->m_topic->filter_fn)
-    abort ();
-  /* Set if disposing or unregistering */
-  d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
-                   ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
-  d->timestamp.v = tstamp;
-  return dds_writecdr_impl_lowlevel (wr->m_wr, wr->m_xp, d, !wr->whc_batch);
 }
 
 void dds_write_flush (dds_entity_t writer)

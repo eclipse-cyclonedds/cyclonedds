@@ -13,7 +13,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
-#include "test_common.h"
+#include "test_util.h"
 
 char *create_unique_topic_name (const char *prefix, char *name, size_t size)
 {

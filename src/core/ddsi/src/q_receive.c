@@ -55,6 +55,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_serdata_default.h" /* FIXME: get rid of this */
 #include "dds/ddsi/ddsi_security_omg.h"
+#include "dds/ddsi/ddsi_acknack.h"
 
 #include "dds/ddsi/sysdeps.h"
 #include "dds__whc.h"
@@ -137,7 +138,7 @@ static int valid_AckNack (const struct receiver_state *rst, AckNack_t *msg, size
   {
     /* FastRTPS, Connext send invalid pre-emptive ACKs -- patch the message to
        make it well-formed and process it as normal */
-    if (! NN_STRICT_P (rst->gv->config) &&
+    if (! DDSI_SC_STRICT_P (rst->gv->config) &&
         (fromSN (msg->readerSNState.bitmap_base) == 0 && msg->readerSNState.numbits == 0) &&
         (vendor_is_eprosima (rst->vendor) || vendor_is_rti (rst->vendor)))
       msg->readerSNState.bitmap_base = toSN (1);
@@ -152,7 +153,7 @@ static int valid_AckNack (const struct receiver_state *rst, AckNack_t *msg, size
   if (byteswap)
   {
     bswap_sequence_number_set_bitmap (&msg->readerSNState, msg->bits);
-    *count = ddsrt_bswap4 (*count);
+    *count = ddsrt_bswap4u (*count);
   }
   return 1;
 }
@@ -221,7 +222,7 @@ static int valid_Heartbeat (Heartbeat_t *msg, size_t size, int byteswap)
   {
     bswapSN (&msg->firstSN);
     bswapSN (&msg->lastSN);
-    msg->count = ddsrt_bswap4 (msg->count);
+    msg->count = ddsrt_bswap4u (msg->count);
   }
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
@@ -239,7 +240,7 @@ static int valid_HeartbeatFrag (HeartbeatFrag_t *msg, size_t size, int byteswap)
   {
     bswapSN (&msg->writerSN);
     msg->lastFragmentNum = ddsrt_bswap4u (msg->lastFragmentNum);
-    msg->count = ddsrt_bswap4 (msg->count);
+    msg->count = ddsrt_bswap4u (msg->count);
   }
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
@@ -274,7 +275,7 @@ static int valid_NackFrag (NackFrag_t *msg, size_t size, int byteswap)
   if (byteswap)
   {
     bswap_fragment_number_set_bitmap (&msg->fragmentNumberState, msg->bits);
-    *count = ddsrt_bswap4 (*count);
+    *count = ddsrt_bswap4u (*count);
   }
   return 1;
 }
@@ -426,7 +427,7 @@ static int valid_DataFrag (const struct receiver_state *rst, DataFrag_t *msg, si
   pwr_guid.prefix = rst->src_guid_prefix;
   pwr_guid.entityid = msg->x.writerId;
 
-  if (NN_STRICT_P (rst->gv->config) && msg->fragmentSize <= 1024 && msg->fragmentSize < rst->gv->config.fragment_size)
+  if (DDSI_SC_STRICT_P (rst->gv->config) && msg->fragmentSize <= 1024 && msg->fragmentSize < rst->gv->config.fragment_size)
   {
     /* Spec says fragments must > 1kB; not allowing 1024 bytes is IMHO
        totally ridiculous; and I really don't care how small the
@@ -437,7 +438,7 @@ static int valid_DataFrag (const struct receiver_state *rst, DataFrag_t *msg, si
   }
   if (msg->fragmentSize == 0 || msg->fragmentStartingNum == 0 || msg->fragmentsInSubmessage == 0)
     return 0;
-  if (NN_STRICT_P (rst->gv->config) && msg->fragmentSize >= msg->sampleSize)
+  if (DDSI_SC_STRICT_P (rst->gv->config) && msg->fragmentSize >= msg->sampleSize)
     /* may not fragment if not needed -- but I don't care */
     return 0;
   if ((msg->fragmentStartingNum + msg->fragmentsInSubmessage - 2) * msg->fragmentSize >= msg->sampleSize)
@@ -525,28 +526,6 @@ int add_Gap (struct nn_xmsg *msg, struct writer *wr, struct proxy_reader *prd, s
   return 0;
 }
 
-static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *whcst, struct proxy_reader *prd, int hbansreq)
-{
-  struct nn_xmsg *m;
-
-  ASSERT_MUTEX_HELD (&wr->e.lock);
-  assert (wr->reliable);
-
-  m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
-  if (nn_xmsg_setdstPRD (m, prd) < 0)
-  {
-    /* If we don't have an address, give up immediately */
-    nn_xmsg_free (m);
-    return;
-  }
-
-  /* Send a Heartbeat just to this peer */
-  add_Heartbeat (m, wr, whcst, hbansreq, 0, prd->e.guid.entityid, 0);
-  ETRACE (wr, "force_heartbeat_to_peer: "PGUIDFMT" -> "PGUIDFMT" - queue for transmit\n",
-          PGUID (wr->e.guid), PGUID (prd->e.guid));
-  qxev_msg (wr->evq, m);
-}
-
 static seqno_t grow_gap_to_next_seq (const struct writer *wr, seqno_t seq)
 {
   seqno_t next_seq = whc_next_seq (wr->whc, seq - 1);
@@ -577,7 +556,7 @@ static int acknack_is_nack (const AckNack_t *msg)
   return x != 0;
 }
 
-static int accept_ack_or_hb_w_timeout (nn_count_t new_count, nn_count_t *exp_count, ddsrt_etime_t tnow, ddsrt_etime_t *t_last_accepted, int force_accept)
+static int accept_ack_or_hb_w_timeout (nn_count_t new_count, nn_count_t *prev_count, ddsrt_etime_t tnow, ddsrt_etime_t *t_last_accepted, int force_accept)
 {
   /* AckNacks and Heartbeats with a sequence number (called "count"
      for some reason) equal to or less than the highest one received
@@ -590,17 +569,26 @@ static int accept_ack_or_hb_w_timeout (nn_count_t new_count, nn_count_t *exp_cou
      8.4.15.7 says: "New HEARTBEATS should have Counts greater than
      all older HEARTBEATs. Then, received HEARTBEATs with Counts not
      greater than any previously received can be ignored."  But it
-     isn't clear whether that is about connections or entities, and
-     besides there is an issue with the wrap around after 2**31-1.
+     isn't clear whether that is about connections or entities.
+
+     The type is defined in the spec as signed but without limiting
+     them to, e.g., positive numbers.  Instead of implementing them as
+     spec'd, we implement it as unsigned to avoid integer overflow (and
+     the consequence undefined behaviour).  Serial number arithmetic
+     deals with the wrap-around after 2**31-1.
+
+     Cyclone pre-emptive heartbeats have "count" bitmap_base = 1, NACK
+     nothing, have count set to 0.  They're never sent more often than
+     once per second, so the 500ms timeout allows them to pass through.
 
      This combined procedure should give the best of all worlds, and
      is not more expensive in the common case. */
-  const int64_t timeout = DDS_SECS (2);
+  const int64_t timeout = DDS_MSECS (500);
 
-  if (new_count < *exp_count && tnow.v - t_last_accepted->v < timeout && !force_accept)
+  if ((int32_t) (new_count - *prev_count) <= 0 && tnow.v - t_last_accepted->v < timeout && !force_accept)
     return 0;
 
-  *exp_count = new_count + 1;
+  *prev_count = new_count;
   *t_last_accepted = tnow;
   return 1;
 }
@@ -642,46 +630,87 @@ struct nn_xmsg * nn_gap_info_create_gap(struct writer *wr, struct proxy_reader *
   if (gi->gapstart <= 0)
     return NULL;
 
-  if (gi->gapnumbits == 0)
-  {
-    /* Avoid sending an invalid bitset */
-    gi->gapnumbits = 1;
-    nn_bitset_set (gi->gapnumbits, gi->gapbits, 0);
-    gi->gapend--;
-  }
-
   m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  nn_xmsg_setencoderid (m, wr->partition_id);
-#endif
-
-  if (nn_xmsg_setdstPRD (m, prd) < 0)
+  nn_xmsg_setdstPRD (m, prd);
+  add_Gap (m, wr, prd, gi->gapstart, gi->gapend, gi->gapnumbits, gi->gapbits);
+  if (nn_xmsg_size(m) == 0)
   {
     nn_xmsg_free (m);
     m = NULL;
   }
   else
   {
-    add_Gap (m, wr, prd, gi->gapstart, gi->gapend, gi->gapnumbits, gi->gapbits);
-    if (nn_xmsg_size(m) == 0)
-    {
-      nn_xmsg_free (m);
-      m = NULL;
-    }
-    else
-    {
-      unsigned i;
-      ETRACE (wr, " FXGAP%"PRId64"..%"PRId64"/%d:", gi->gapstart, gi->gapend, gi->gapnumbits);
-      for (i = 0; i < gi->gapnumbits; i++)
-        ETRACE (wr, "%c", nn_bitset_isset (gi->gapnumbits, gi->gapbits, i) ? '1' : '0');
-    }
+    ETRACE (wr, " FXGAP%"PRId64"..%"PRId64"/%"PRIu32":", gi->gapstart, gi->gapend, gi->gapnumbits);
+    for (uint32_t i = 0; i < gi->gapnumbits; i++)
+      ETRACE (wr, "%c", nn_bitset_isset (gi->gapnumbits, gi->gapbits, i) ? '1' : '0');
   }
 
   return m;
 }
 
-static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const AckNack_t *msg, ddsrt_wctime_t timestamp, SubmessageKind_t prev_smid)
+struct defer_hb_state {
+  struct nn_xmsg *m;
+  struct xeventq *evq;
+  int hbansreq;
+  uint64_t wr_iid;
+  uint64_t prd_iid;
+};
+
+static void defer_heartbeat_to_peer (struct writer *wr, const struct whc_state *whcst, struct proxy_reader *prd, int hbansreq, struct defer_hb_state *defer_hb_state)
+{
+  ETRACE (wr, "defer_heartbeat_to_peer: "PGUIDFMT" -> "PGUIDFMT" - queue for transmit\n", PGUID (wr->e.guid), PGUID (prd->e.guid));
+
+  if (defer_hb_state->m != NULL)
+  {
+    if (wr->e.iid == defer_hb_state->wr_iid && prd->e.iid == defer_hb_state->prd_iid)
+    {
+      if (hbansreq <= defer_hb_state->hbansreq)
+        return;
+      else
+        nn_xmsg_free (defer_hb_state->m);
+    }
+    else
+    {
+      qxev_msg (wr->evq, defer_hb_state->m);
+    }
+  }
+
+  ASSERT_MUTEX_HELD (&wr->e.lock);
+  assert (wr->reliable);
+
+  defer_hb_state->m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
+  nn_xmsg_setdstPRD (defer_hb_state->m, prd);
+  add_Heartbeat (defer_hb_state->m, wr, whcst, hbansreq, 0, prd->e.guid.entityid, 0);
+  defer_hb_state->evq = wr->evq;
+  defer_hb_state->hbansreq = hbansreq;
+  defer_hb_state->wr_iid = wr->e.iid;
+  defer_hb_state->prd_iid = prd->e.iid;
+}
+
+static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *whcst, struct proxy_reader *prd, int hbansreq, struct defer_hb_state *defer_hb_state)
+{
+  defer_heartbeat_to_peer (wr, whcst, prd, hbansreq, defer_hb_state);
+  qxev_msg (wr->evq, defer_hb_state->m);
+  defer_hb_state->m = NULL;
+}
+
+static void defer_hb_state_init (struct defer_hb_state *defer_hb_state)
+{
+  defer_hb_state->m = NULL;
+}
+
+static void defer_hb_state_fini (struct ddsi_domaingv * const gv, struct defer_hb_state *defer_hb_state)
+{
+  if (defer_hb_state->m)
+  {
+    GVTRACE ("send_deferred_heartbeat: %"PRIx64" -> %"PRIx64" - queue for transmit\n", defer_hb_state->wr_iid, defer_hb_state->prd_iid);
+    qxev_msg (defer_hb_state->evq, defer_hb_state->m);
+    defer_hb_state->m = NULL;
+  }
+}
+
+static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const AckNack_t *msg, ddsrt_wctime_t timestamp, SubmessageKind_t prev_smid, struct defer_hb_state *defer_hb_state)
 {
   struct proxy_reader *prd;
   struct wr_prd_match *rn;
@@ -690,7 +719,6 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   ddsi_guid_t src, dst;
   seqno_t seqbase;
   seqno_t seq_xmit;
-  seqno_t max_seq_available;
   nn_count_t *countp;
   struct nn_gap_info gi;
   int accelerate_rexmit = 0;
@@ -752,6 +780,12 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   }
 
   ddsrt_mutex_lock (&wr->e.lock);
+  if (wr->test_ignore_acknack)
+  {
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" test_ignore_acknack)", PGUID (src), PGUID (dst));
+    goto out;
+  }
+
   if ((rn = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &src)) == NULL)
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a connection)", PGUID (src), PGUID (dst));
@@ -763,7 +797,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
      relevant to setting "has_replied_to_hb" and "assumed_in_sync". */
   is_pure_ack = !acknack_is_nack (msg);
   is_pure_nonhist_ack = is_pure_ack && seqbase - 1 >= rn->seq;
-  is_preemptive_ack = seqbase <= 1 && is_pure_ack;
+  is_preemptive_ack = seqbase < 1 || (seqbase == 1 && *countp == 0);
 
   wr->num_acks_received++;
   if (!is_pure_ack)
@@ -772,7 +806,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
     rn->rexmit_requests++;
   }
 
-  if (!accept_ack_or_hb_w_timeout (*countp, &rn->next_acknack, tnow, &rn->t_acknack_accepted, is_preemptive_ack))
+  if (!accept_ack_or_hb_w_timeout (*countp, &rn->prev_acknack, tnow, &rn->t_acknack_accepted, is_preemptive_ack))
   {
     RSTTRACE (" ["PGUIDFMT" -> "PGUIDFMT"])", PGUID (src), PGUID (dst));
     goto out;
@@ -845,7 +879,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   msgs_sent = 0;
   msgs_lost = 0;
   max_seq_in_reply = 0;
-  if (!rn->has_replied_to_hb && seqbase > 1 && is_pure_nonhist_ack)
+  if (!rn->has_replied_to_hb && is_pure_nonhist_ack)
   {
     RSTTRACE (" setting-has-replied-to-hb");
     rn->has_replied_to_hb = 1;
@@ -865,13 +899,13 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
     if (WHCST_ISEMPTY(&whcst))
     {
       RSTTRACE (" whc-empty ");
-      force_heartbeat_to_peer (wr, &whcst, prd, 0);
+      force_heartbeat_to_peer (wr, &whcst, prd, 1, defer_hb_state);
       hb_sent_in_response = 1;
     }
     else
     {
       RSTTRACE (" rebase ");
-      force_heartbeat_to_peer (wr, &whcst, prd, 0);
+      force_heartbeat_to_peer (wr, &whcst, prd, 1, defer_hb_state);
       hb_sent_in_response = 1;
       numbits = rst->gv->config.accelerate_rexmit_block_size;
       seqbase = whcst.min_seq;
@@ -911,12 +945,18 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
      hasn't been transmitted ever, the initial transmit should solve
      that issue; if it has, then the timing is terribly unlucky, but
      a future request'll fix it. */
+  if (wr->test_suppress_retransmit && numbits > 0)
+  {
+    RSTTRACE (" test_suppress_retransmit");
+    numbits = 0;
+  }
   enqueued = 1;
   seq_xmit = writer_read_seq_xmit (wr);
   nn_gap_info_init(&gi);
   const bool gap_for_already_acked = vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind == DDS_DURABILITY_VOLATILE && seqbase <= rn->seq;
   const seqno_t min_seq_to_rexmit = gap_for_already_acked ? rn->seq + 1 : 0;
-  for (uint32_t i = 0; i < numbits && seqbase + i <= seq_xmit && enqueued; i++)
+  uint32_t limit = wr->rexmit_burst_size_limit;
+  for (uint32_t i = 0; i < numbits && seqbase + i <= seq_xmit && enqueued && limit > 0; i++)
   {
     /* Accelerated schedule may run ahead of sequence number set
        contained in the acknack, and assumes all messages beyond the
@@ -931,7 +971,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
         if (!wr->retransmitting && sample.unacked)
           writer_set_retransmitting (wr);
 
-        if (rst->gv->config.retransmit_merging != REXMIT_MERGE_NEVER && rn->assumed_in_sync && !prd->filter)
+        if (rst->gv->config.retransmit_merging != DDSI_REXMIT_MERGE_NEVER && rn->assumed_in_sync && !prd->filter)
         {
           /* send retransmit to all receivers, but skip if recently done */
           ddsrt_mtime_t tstamp = ddsrt_time_monotonic ();
@@ -944,6 +984,14 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
               max_seq_in_reply = seqbase + i;
               msgs_sent++;
               sample.last_rexmit_ts = tstamp;
+              // FIXME: now enqueue_sample_wrlock_held limits retransmit requests of a large sample to 1 fragment
+              // thus we can easily figure out how much was sent, but we shouldn't have that knowledge here:
+              // it should return how much it queued instead
+              uint32_t sent = ddsi_serdata_size (sample.serdata);
+              if (sent > wr->e.gv->config.fragment_size)
+                sent = wr->e.gv->config.fragment_size;
+              wr->rexmit_bytes += sent;
+              limit = (sent > limit) ? 0 : limit - sent;
             }
           }
           else
@@ -967,6 +1015,14 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
               max_seq_in_reply = seqbase + i;
               msgs_sent++;
               sample.rexmit_count++;
+              // FIXME: now enqueue_sample_wrlock_held limits retransmit requests of a large sample to 1 fragment
+              // thus we can easily figure out how much was sent, but we shouldn't have that knowledge here:
+              // it should return how much it queued instead
+              uint32_t sent = ddsi_serdata_size (sample.serdata);
+              if (sent > wr->e.gv->config.fragment_size)
+                sent = wr->e.gv->config.fragment_size;
+              wr->rexmit_bytes += sent;
+              limit = (sent > limit) ? 0 : limit - sent;
             }
           }
         }
@@ -1003,16 +1059,11 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
 
   wr->rexmit_count += msgs_sent;
   wr->rexmit_lost_count += msgs_lost;
-  /* If rexmits and/or a gap message were sent, and if the last
-     sequence number that we're informing the NACK'ing peer about is
-     less than the last sequence number transmitted by the writer,
-     tell the peer to acknowledge quickly. Not sure if that helps, but
-     it might ... [NB writer->seq is the last msg sent so far] */
-  max_seq_available = (prd->filter ? rn->last_seq : seq_xmit);
-  if (msgs_sent && max_seq_in_reply < max_seq_available)
+  if (msgs_sent)
   {
     RSTTRACE (" rexmit#%"PRIu32" maxseq:%"PRId64"<%"PRId64"<=%"PRId64"", msgs_sent, max_seq_in_reply, seq_xmit, wr->seq);
-    force_heartbeat_to_peer (wr, &whcst, prd, 1);
+
+    defer_heartbeat_to_peer (wr, &whcst, prd, 1, defer_hb_state);
     hb_sent_in_response = 1;
 
     /* The primary purpose of hbcontrol_note_asyncwrite is to ensure
@@ -1025,7 +1076,9 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   /* If "final" flag not set, we must respond with a heartbeat. Do it
      now if we haven't done so already */
   if (!(msg->smhdr.flags & ACKNACK_FLAG_FINAL) && !hb_sent_in_response)
-    force_heartbeat_to_peer (wr, &whcst, prd, 0);
+  {
+    defer_heartbeat_to_peer (wr, &whcst, prd, 0, defer_hb_state);
+  }
   RSTTRACE (")");
  out:
   ddsrt_mutex_unlock (&wr->e.lock);
@@ -1088,6 +1141,7 @@ struct handle_Heartbeat_helper_arg {
   ddsrt_wctime_t timestamp;
   ddsrt_etime_t tnow;
   ddsrt_mtime_t tnow_mt;
+  bool directed_heartbeat;
 };
 
 static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct handle_Heartbeat_helper_arg * const arg)
@@ -1095,62 +1149,38 @@ static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct hand
   struct receiver_state * const rst = arg->rst;
   Heartbeat_t const * const msg = arg->msg;
   struct proxy_writer * const pwr = arg->pwr;
-  seqno_t refseq, last_seq;
 
   ASSERT_MUTEX_HELD (&pwr->e.lock);
 
-  /* Not supposed to respond to repeats and old heartbeats. */
-  if (!accept_ack_or_hb_w_timeout (msg->count, &wn->next_heartbeat, arg->tnow, &wn->t_heartbeat_accepted, 0))
+  if (wn->acknack_xevent == NULL)
+  {
+    // Ignore best-effort readers
+    return;
+  }
+
+  if (!accept_ack_or_hb_w_timeout (msg->count, &wn->prev_heartbeat, arg->tnow, &wn->t_heartbeat_accepted, 0))
   {
     RSTTRACE (" ("PGUIDFMT")", PGUID (wn->rd_guid));
     return;
   }
 
-  /* Reference sequence number for determining whether or not to
-     Ack/Nack unfortunately depends on whether the reader is in
-     sync. */
-  if (wn->in_sync != PRMSS_OUT_OF_SYNC && !wn->filtered)
-    refseq = nn_reorder_next_seq (pwr->reorder) - 1;
-  else
-    refseq = nn_reorder_next_seq (wn->u.not_in_sync.reorder) - 1;
-  RSTTRACE (" "PGUIDFMT"@%"PRId64"%s", PGUID (wn->rd_guid), refseq, (wn->in_sync == PRMSS_SYNC) ? "(sync)" : (wn->in_sync == PRMSS_TLCATCHUP) ? "(tlcatchup)" : "");
-
-  /* Reschedule AckNack transmit if deemed appropriate; unreliable
-     readers have acknack_xevent == NULL and can't do this.
-
-     There is no real need to send a nack from each reader that is in
-     sync -- indeed, we could simply ignore the destination address in
-     the messages we receive and only ever nack each sequence number
-     once, regardless of which readers care about it. */
-  if (wn->acknack_xevent)
+  if (rst->gv->logconfig.c.mask & DDS_LC_TRACE)
   {
-    ddsrt_mtime_t tsched = DDSRT_MTIME_NEVER;
-
-    if (wn->filtered)
-      last_seq = wn->last_seq;
+    seqno_t refseq;
+    if (wn->in_sync != PRMSS_OUT_OF_SYNC && !wn->filtered)
+      refseq = nn_reorder_next_seq (pwr->reorder);
     else
-      last_seq = pwr->last_seq;
-    if (last_seq > refseq)
-    {
-      RSTTRACE ("/NAK");
-      if (arg->tnow_mt.v >= wn->t_last_nack.v + rst->gv->config.nack_delay || refseq >= wn->seq_last_nack)
-        tsched = arg->tnow_mt;
-      else
-      {
-        tsched.v = arg->tnow_mt.v + rst->gv->config.nack_delay;
-        RSTTRACE ("d");
-      }
-    }
-    else if (!(msg->smhdr.flags & HEARTBEAT_FLAG_FINAL))
-    {
-      tsched = arg->tnow_mt;
-    }
-    if (resched_xevent_if_earlier (wn->acknack_xevent, tsched))
-    {
-      if (rst->gv->config.meas_hb_to_ack_latency && arg->timestamp.v)
-        wn->hb_timestamp = arg->timestamp;
-    }
+      refseq = nn_reorder_next_seq (wn->u.not_in_sync.reorder);
+    RSTTRACE (" "PGUIDFMT"@%"PRId64"%s", PGUID (wn->rd_guid), refseq - 1, (wn->in_sync == PRMSS_SYNC) ? "(sync)" : (wn->in_sync == PRMSS_TLCATCHUP) ? "(tlcatchup)" : "");
   }
+
+  wn->heartbeat_since_ack = 1;
+  if (!(msg->smhdr.flags & HEARTBEAT_FLAG_FINAL))
+    wn->ack_requested = 1;
+  if (arg->directed_heartbeat)
+    wn->directed_heartbeat = 1;
+
+  sched_acknack_if_needed (wn->acknack_xevent, pwr, wn, arg->tnow_mt, true);
 }
 
 static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const Heartbeat_t *msg, ddsrt_wctime_t timestamp, SubmessageKind_t prev_smid)
@@ -1239,18 +1269,11 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
   if (lastseq > pwr->last_seq)
   {
     pwr->last_seq = lastseq;
-    pwr->last_fragnum = ~0u;
-    pwr->last_fragnum_reset = 0;
+    pwr->last_fragnum = UINT32_MAX;
   }
-  else if (pwr->last_fragnum != ~0u && lastseq == pwr->last_seq)
+  else if (pwr->last_fragnum != UINT32_MAX && lastseq == pwr->last_seq)
   {
-    if (!pwr->last_fragnum_reset)
-      pwr->last_fragnum_reset = 1;
-    else
-    {
-      pwr->last_fragnum = ~0u;
-      pwr->last_fragnum_reset = 0;
-    }
+    pwr->last_fragnum = UINT32_MAX;
   }
 
   nn_defrag_notegap (pwr->defrag, 1, firstseq);
@@ -1338,6 +1361,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
   arg.timestamp = timestamp;
   arg.tnow = tnow;
   arg.tnow_mt = ddsrt_time_monotonic ();
+  arg.directed_heartbeat = (dst.entityid.u != NN_ENTITYID_UNKNOWN && vendor_is_eclipse (rst->vendor));
   handle_forall_destinations (&dst, pwr, (ddsrt_avl_walk_t) handle_Heartbeat_helper, &arg);
   RSTTRACE (")");
 
@@ -1357,6 +1381,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
   src.entityid = msg->writerId;
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->readerId;
+  const bool directed_heartbeat = (dst.entityid.u != NN_ENTITYID_UNKNOWN && vendor_is_eclipse (rst->vendor));
 
   RSTTRACE ("HEARTBEATFRAG(#%"PRId32":%"PRId64"/[1,%u]", msg->count, seq, fragnum+1);
   if (!rst->forme)
@@ -1387,12 +1412,16 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
   {
     pwr->last_seq = seq;
     pwr->last_fragnum = fragnum;
-    pwr->last_fragnum_reset = 0;
   }
   else if (seq == pwr->last_seq && fragnum > pwr->last_fragnum)
   {
     pwr->last_fragnum = fragnum;
-    pwr->last_fragnum_reset = 0;
+  }
+
+  if (!pwr->have_seen_heartbeat)
+  {
+    ddsrt_mutex_unlock(&pwr->e.lock);
+    return 1;
   }
 
   /* Defragmenting happens at the proxy writer, readers have nothing
@@ -1408,33 +1437,59 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
 
     if (nn_reorder_wantsample (pwr->reorder, seq))
     {
-      /* Pick an arbitrary reliable reader's guid for the response --
-         assuming a reliable writer -> unreliable reader is rare, and
-         so scanning the readers is acceptable if the first guess
-         fails */
-      m = ddsrt_avl_root_non_empty (&pwr_readers_treedef, &pwr->readers);
-      if (m->acknack_xevent == NULL)
+      if (directed_heartbeat)
       {
-        m = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers);
-        while (m && m->acknack_xevent == NULL)
-          m = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, m);
+        /* Cyclone currently only ever sends a HEARTBEAT(FRAG) with the
+           destination entity id set AFTER retransmitting any samples
+           that reader requested.  So it makes sense to only interpret
+           those for that reader, and to suppress the NackDelay in a
+           response to it.  But it better be a reliable reader! */
+        m = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &dst);
+        if (m && m->acknack_xevent == NULL)
+          m = NULL;
+      }
+      else
+      {
+        /* Pick an arbitrary reliable reader's guid for the response --
+           assuming a reliable writer -> unreliable reader is rare, and
+           so scanning the readers is acceptable if the first guess
+           fails */
+        m = ddsrt_avl_root_non_empty (&pwr_readers_treedef, &pwr->readers);
+        if (m->acknack_xevent == NULL)
+        {
+          m = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers);
+          while (m && m->acknack_xevent == NULL)
+            m = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, m);
+        }
       }
     }
     else if (seq < nn_reorder_next_seq (pwr->reorder))
     {
-      /* Check out-of-sync readers -- should add a bit to cheaply test
-         whether there are any (usually there aren't) */
-      m = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers);
-      while (m)
+      if (directed_heartbeat)
       {
-        if ((m->in_sync == PRMSS_OUT_OF_SYNC) && m->acknack_xevent != NULL && nn_reorder_wantsample (m->u.not_in_sync.reorder, seq))
+        m = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &dst);
+        if (m && !(m->in_sync == PRMSS_OUT_OF_SYNC && m->acknack_xevent != NULL && nn_reorder_wantsample (m->u.not_in_sync.reorder, seq)))
         {
-          /* If reader is out-of-sync, and reader is realiable, and
+          /* Ignore if reader is happy or not best-effort */
+          m = NULL;
+        }
+      }
+      else
+      {
+        /* Check out-of-sync readers -- should add a bit to cheaply test
+         whether there are any (usually there aren't) */
+        m = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers);
+        while (m)
+        {
+          if (m->in_sync == PRMSS_OUT_OF_SYNC && m->acknack_xevent != NULL && nn_reorder_wantsample (m->u.not_in_sync.reorder, seq))
+          {
+            /* If reader is out-of-sync, and reader is realiable, and
              reader still wants this particular sample, then use this
              reader to decide which fragments to nack */
-          break;
+            break;
+          }
+          m = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, m);
         }
-        m = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, m);
       }
     }
 
@@ -1442,19 +1497,20 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
       RSTTRACE (" no interested reliable readers");
     else
     {
-      /* Check if we are missing something */
+      if (directed_heartbeat)
+        m->directed_heartbeat = 1;
+      m->heartbeatfrag_since_ack = 1;
+
       DDSRT_STATIC_ASSERT ((NN_FRAGMENT_NUMBER_SET_MAX_BITS % 32) == 0);
       struct {
         struct nn_fragment_number_set_header set;
         uint32_t bits[NN_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
       } nackfrag;
-      if (nn_defrag_nackmap (pwr->defrag, seq, fragnum, &nackfrag.set, nackfrag.bits, NN_FRAGMENT_NUMBER_SET_MAX_BITS) > 0)
+      const seqno_t last_seq = m->filtered ? m->last_seq : pwr->last_seq;
+      if (seq == last_seq && nn_defrag_nackmap (pwr->defrag, seq, fragnum, &nackfrag.set, nackfrag.bits, NN_FRAGMENT_NUMBER_SET_MAX_BITS) == DEFRAG_NACKMAP_FRAGMENTS_MISSING)
       {
-        /* Yes we are (note that this potentially also happens for
-           samples we no longer care about) */
-        int64_t delay = rst->gv->config.nack_delay;
-        RSTTRACE ("/nackfrag");
-        (void) resched_xevent_if_earlier (m->acknack_xevent, ddsrt_mtime_add_duration (ddsrt_time_monotonic(), delay));
+        // don't rush it ...
+        resched_xevent_if_earlier (m->acknack_xevent, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), pwr->e.gv->config.nack_delay));
       }
     }
   }
@@ -1463,7 +1519,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
   return 1;
 }
 
-static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, const NackFrag_t *msg, SubmessageKind_t prev_smid)
+static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, const NackFrag_t *msg, SubmessageKind_t prev_smid, struct defer_hb_state *defer_hb_state)
 {
   struct proxy_reader *prd;
   struct wr_prd_match *rn;
@@ -1528,31 +1584,43 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
   }
 
   /* Ignore old NackFrags (see also handle_AckNack) */
-  if (*countp < rn->next_nackfrag)
+  if (!accept_ack_or_hb_w_timeout (*countp, &rn->prev_nackfrag, tnow, &rn->t_nackfrag_accepted, false))
   {
     RSTTRACE (" ["PGUIDFMT" -> "PGUIDFMT"]", PGUID (src), PGUID (dst));
     goto out;
   }
-  rn->next_nackfrag = *countp + 1;
   RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"", PGUID (src), PGUID (dst));
 
   /* Resend the requested fragments if we still have the sample, send
      a Gap if we don't have them anymore. */
   if (whc_borrow_sample (wr->whc, seq, &sample))
   {
-    const unsigned base = msg->fragmentNumberState.bitmap_base - 1;
-    int enqueued = 1;
+    const uint32_t base = msg->fragmentNumberState.bitmap_base - 1;
+    assert (wr->rexmit_burst_size_limit <= UINT32_MAX - UINT16_MAX);
+    uint32_t nfrags_lim = (wr->rexmit_burst_size_limit + wr->e.gv->config.fragment_size - 1) / wr->e.gv->config.fragment_size;
+    bool sent = false;
     RSTTRACE (" scheduling requested frags ...\n");
-    for (uint32_t i = 0; i < msg->fragmentNumberState.numbits && enqueued; i++)
+    for (uint32_t i = 0; i < msg->fragmentNumberState.numbits && nfrags_lim > 0; i++)
     {
       if (nn_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i))
       {
         struct nn_xmsg *reply;
-        if (create_fragment_message (wr, seq, sample.plist, sample.serdata, base + i, prd, &reply, 0) < 0)
-          enqueued = 0;
+        if (create_fragment_message (wr, seq, sample.plist, sample.serdata, base + i, 1, prd, &reply, 0, 0) < 0)
+          nfrags_lim = 0;
+        else if (!qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0))
+          nfrags_lim = 0;
         else
-          enqueued = qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0);
+        {
+          sent = true;
+          nfrags_lim--;
+          wr->rexmit_bytes += wr->e.gv->config.fragment_size;
+        }
       }
+    }
+    if (sent && sample.unacked)
+    {
+      if (!wr->retransmitting)
+        writer_set_retransmitting (wr);
     }
     whc_return_sample (wr->whc, &sample, false);
   }
@@ -1562,27 +1630,19 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
     struct nn_xmsg *m;
     RSTTRACE (" msg not available: scheduling Gap\n");
     m = nn_xmsg_new (rst->gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-    nn_xmsg_setencoderid (m, wr->partition_id);
-#endif
-    if (nn_xmsg_setdstPRD (m, prd) < 0)
-      nn_xmsg_free (m);
-    else
-    {
-      /* length-1 bitmap with the bit clear avoids the illegal case of a
-       length-0 bitmap */
-      add_Gap (m, wr, prd, seq, seq+1, 1, &zero);
-      qxev_msg (wr->evq, m);
-    }
+    nn_xmsg_setdstPRD (m, prd);
+    /* length-1 bitmap with the bit clear avoids the illegal case of a length-0 bitmap */
+    add_Gap (m, wr, prd, seq, seq+1, 0, &zero);
+    qxev_msg (wr->evq, m);
   }
-  if (seq < writer_read_seq_xmit (wr))
+  if (seq <= writer_read_seq_xmit (wr))
   {
     /* Not everything was retransmitted yet, so force a heartbeat out
        to give the reader a chance to nack the rest and make sure
        hearbeats will go out at a reasonably high rate for a while */
     struct whc_state whcst;
     whc_get_state(wr->whc, &whcst);
-    force_heartbeat_to_peer (wr, &whcst, prd, 1);
+    defer_heartbeat_to_peer (wr, &whcst, prd, 1, defer_hb_state);
     writer_hbcontrol_note_asyncwrite (wr, ddsrt_time_monotonic ());
   }
 
@@ -1833,8 +1893,7 @@ static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn
   if (listbase + last_included_rel > pwr->last_seq)
   {
     pwr->last_seq = listbase + last_included_rel;
-    pwr->last_fragnum = ~0u;
-    pwr->last_fragnum_reset = 0;
+    pwr->last_fragnum = UINT32_MAX;
   }
 
   if (wn && wn->filtered)
@@ -1921,7 +1980,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   {
     /* RTI always tries to make us survive on the keyhash. RTI must
        mend its ways. */
-    if (NN_STRICT_P (gv->config))
+    if (DDSI_SC_STRICT_P (gv->config))
       failmsg = "no content";
     else if (!(qos->present & PP_KEYHASH))
       failmsg = "qos present but without keyhash";
@@ -1973,7 +2032,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
       if (gv->logconfig.c.mask & DDS_LC_CONTENT)
         res = ddsi_serdata_print (sample, tmp, sizeof (tmp));
       if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
-      GVTRACE ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": ST%x %s/%s:%s%s",
+      GVTRACE ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": ST%"PRIx32" %s/%s:%s%s",
                sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
                PGUID (guid), sampleinfo->seq, statusinfo, topic->name, topic->type_name,
                tmp, res < sizeof (tmp) - 1 ? "" : "(trunc)");
@@ -2103,7 +2162,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     src.encoding = (msg->smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
     src.buf = NN_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
-    src.strict = NN_STRICT_P (gv->config);
+    src.strict = DDSI_SC_STRICT_P (gv->config);
     src.factory = gv->m_factory;
     src.logconfig = &gv->logconfig;
     if ((plist_ret = ddsi_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET, 0, &src)) < 0)
@@ -2186,7 +2245,7 @@ static void clean_defrag (struct proxy_writer *pwr)
 }
 
 static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const Data_DataFrag_common_t *msg, const struct nn_rsample_info *sampleinfo,
-    uint32_t fragnum, struct nn_rdata *rdata, struct nn_dqueue **deferred_wakeup, bool renew_manbypp_lease)
+    uint32_t max_fragnum_in_msg, struct nn_rdata *rdata, struct nn_dqueue **deferred_wakeup, bool renew_manbypp_lease)
 {
   struct proxy_writer *pwr;
   struct nn_rsample *rsample;
@@ -2259,13 +2318,11 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
   if (sampleinfo->seq > pwr->last_seq)
   {
     pwr->last_seq = sampleinfo->seq;
-    pwr->last_fragnum = fragnum;
-    pwr->last_fragnum_reset = 0;
+    pwr->last_fragnum = max_fragnum_in_msg;
   }
-  else if (sampleinfo->seq == pwr->last_seq && fragnum > pwr->last_fragnum)
+  else if (sampleinfo->seq == pwr->last_seq && max_fragnum_in_msg > pwr->last_fragnum)
   {
-    pwr->last_fragnum = fragnum;
-    pwr->last_fragnum_reset = 0;
+    pwr->last_fragnum = max_fragnum_in_msg;
   }
 
   clean_defrag (pwr);
@@ -2537,12 +2594,12 @@ static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct n
           renew_manbypp_lease = false;
         /* fall through */
         default:
-          handle_regular (rst, tnow, rmsg, &msg->x, sampleinfo, ~0u, rdata, deferred_wakeup, renew_manbypp_lease);
+          handle_regular (rst, tnow, rmsg, &msg->x, sampleinfo, UINT32_MAX, rdata, deferred_wakeup, renew_manbypp_lease);
       }
     }
     else
     {
-      handle_regular (rst, tnow, rmsg, &msg->x, sampleinfo, ~0u, rdata, deferred_wakeup, true);
+      handle_regular (rst, tnow, rmsg, &msg->x, sampleinfo, UINT32_MAX, rdata, deferred_wakeup, true);
     }
   }
   RSTTRACE (")");
@@ -2775,7 +2832,7 @@ static int handle_submsg_sequence
   struct thread_state1 * const ts1,
   struct ddsi_domaingv *gv,
   ddsi_tran_conn_t conn,
-  const nn_locator_t *srcloc,
+  const ddsi_locator_t *srcloc,
   ddsrt_wctime_t tnowWC,
   ddsrt_etime_t tnowE,
   const ddsi_guid_prefix_t * const src_prefix,
@@ -2797,6 +2854,7 @@ static int handle_submsg_sequence
   unsigned char * end = msg + len;
   struct nn_dqueue *deferred_wakeup = NULL;
   SubmessageKind_t prev_smid = SMID_PAD;
+  struct defer_hb_state defer_hb_state;
 
   /* Receiver state is dynamically allocated with lifetime bound to
      the message.  Updates cause a new copy to be created if the
@@ -2826,6 +2884,7 @@ static int handle_submsg_sequence
   rst_live = 0;
   ts_for_latmeas = 0;
   timestamp = DDSRT_WCTIME_INVALID;
+  defer_hb_state_init (&defer_hb_state);
 
   assert (thread_is_asleep ());
   thread_state_awake_fixed_domain (ts1);
@@ -2880,7 +2939,7 @@ static int handle_submsg_sequence
         state = "parse:acknack";
         if (!valid_AckNack (rst, &sm->acknack, submsg_size, byteswap))
           goto malformed;
-        handle_AckNack (rst, tnowE, &sm->acknack, ts_for_latmeas ? timestamp : DDSRT_WCTIME_INVALID, prev_smid);
+        handle_AckNack (rst, tnowE, &sm->acknack, ts_for_latmeas ? timestamp : DDSRT_WCTIME_INVALID, prev_smid, &defer_hb_state);
         ts_for_latmeas = 0;
         break;
       case SMID_HEARTBEAT:
@@ -2943,7 +3002,7 @@ static int handle_submsg_sequence
         state = "parse:nackfrag";
         if (!valid_NackFrag (&sm->nackfrag, submsg_size, byteswap))
           goto malformed;
-        handle_NackFrag (rst, tnowE, &sm->nackfrag, prev_smid);
+        handle_NackFrag (rst, tnowE, &sm->nackfrag, prev_smid, &defer_hb_state);
         ts_for_latmeas = 0;
         break;
       case SMID_HEARTBEAT_FRAG:
@@ -3092,6 +3151,7 @@ static int handle_submsg_sequence
   }
   thread_state_asleep (ts1);
   assert (thread_is_asleep ());
+  defer_hb_state_fini (gv, &defer_hb_state);
   if (deferred_wakeup)
     dd_dqueue_enqueue_trigger (deferred_wakeup);
   return 0;
@@ -3102,6 +3162,7 @@ malformed:
 malformed_asleep:
   assert (thread_is_asleep ());
   malformed_packet_received (rst->gv, msg, submsg, len, state, state_smkind, hdr->vendorid);
+  defer_hb_state_fini (gv, &defer_hb_state);
   if (deferred_wakeup)
     dd_dqueue_enqueue_trigger (deferred_wakeup);
   return -1;
@@ -3119,7 +3180,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
   unsigned char * buff;
   size_t buff_len = maxsz;
   Header_t * hdr;
-  nn_locator_t srcloc;
+  ddsi_locator_t srcloc;
 
   if (rmsg == NULL)
   {
@@ -3204,7 +3265,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
       if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
         GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
                  PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor);
-      if (NN_PEDANTIC_P (gv->config))
+      if (DDSI_SC_PEDANTIC_P (gv->config))
         malformed_packet_received_nosubmsg (gv, buff, sz, "header", hdr->vendorid);
     }
     else
@@ -3355,7 +3416,7 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
     qsort (lps->ps, lps->nps, sizeof (*lps->ps), local_participant_cmp);
     lps->nps = (unsigned) dedup_sorted_array (lps->ps, lps->nps, sizeof (*lps->ps), local_participant_cmp);
   }
-  GVTRACE ("  nparticipants %u\n", lps->nps);
+  GVTRACE ("  nparticipants %"PRIu32"\n", lps->nps);
 }
 
 uint32_t listen_thread (struct ddsi_tran_listener *listener)
@@ -3402,16 +3463,16 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
       case RTM_SINGLE: {
         char buf[DDSI_LOCSTRLEN];
         char dummy = 0;
-        const nn_locator_t *dst = gv->recv_threads[i].arg.u.single.loc;
+        const ddsi_locator_t *dst = gv->recv_threads[i].arg.u.single.loc;
         ddsrt_iovec_t iov;
         iov.iov_base = &dummy;
         iov.iov_len = 1;
-        GVTRACE ("trigger_recv_threads: %d single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
+        GVTRACE ("trigger_recv_threads: %"PRIu32" single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
         ddsi_conn_write (gv->xmit_conn, dst, 1, &iov, 0);
         break;
       }
       case RTM_MANY: {
-        GVTRACE ("trigger_recv_threads: %d many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.ws);
+        GVTRACE ("trigger_recv_threads: %"PRIu32" many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.ws);
         os_sockWaitsetTrigger (gv->recv_threads[i].arg.u.many.ws);
         break;
       }
@@ -3466,7 +3527,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
     {
       int rebuildws = 0;
       LOG_THREAD_CPUTIME (&gv->logconfig, next_thread_cputime);
-      if (gv->config.many_sockets_mode != MSM_MANY_UNICAST)
+      if (gv->config.many_sockets_mode != DDSI_MSM_MANY_UNICAST)
       {
         /* no other sockets to check */
       }
@@ -3475,7 +3536,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         rebuildws = 1;
       }
 
-      if (rebuildws && waitset && gv->config.many_sockets_mode == MSM_MANY_UNICAST)
+      if (rebuildws && waitset && gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
       {
         /* first rebuild local participant set - unless someone's toggling "deafness", this
          only happens when the participant set has changed, so might as well rebuild it */
@@ -3495,7 +3556,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         while ((idx = os_sockWaitsetNextEvent (ctx, &conn)) >= 0)
         {
           const ddsi_guid_prefix_t *guid_prefix;
-          if (((unsigned)idx < num_fixed) || gv->config.many_sockets_mode != MSM_MANY_UNICAST)
+          if (((unsigned)idx < num_fixed) || gv->config.many_sockets_mode != DDSI_MSM_MANY_UNICAST)
             guid_prefix = NULL;
           else
             guid_prefix = &lps.ps[(unsigned)idx - num_fixed].guid_prefix;

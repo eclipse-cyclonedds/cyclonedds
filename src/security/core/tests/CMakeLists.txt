@@ -83,10 +83,15 @@ if(ENABLE_SSL AND OPENSSL_FOUND)
     "handshake.c"
     "plugin_loading.c"
     "secure_communication.c"
-  )
+    ${CYCLONEDDS_OPENSSL_APPLINK})
+  # applink.c triggers the dreaded This function or variable may be unsafe
+  if(NOT "${CYCLONEDDS_OPENSSL_APPLINK}" STREQUAL "")
+    set_source_files_properties("${CYCLONEDDS_OPENSSL_APPLINK}" PROPERTIES COMPILE_FLAGS "-D_CRT_SECURE_NO_WARNINGS")
+  endif()
 endif()
 
 add_cunit_executable(cunit_security_core ${security_core_test_sources})
+add_coverage(cunit_security_core)
 if(CMAKE_GENERATOR MATCHES "Visual Studio")
   set_target_properties(cunit_security_core PROPERTIES LINK_FLAGS "/ignore:4099")
 endif()

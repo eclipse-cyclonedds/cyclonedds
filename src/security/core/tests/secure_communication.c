@@ -44,7 +44,7 @@ static const char *config =
     "    <ExternalDomainId>0</ExternalDomainId>"
     "    <Tag>\\${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
-    "  <DDSSecurity>"
+    "  <Security>"
     "    <Authentication>"
     "      <Library finalizeFunction=\"finalize_authentication\" initFunction=\"init_authentication\" />"
     "      <IdentityCertificate>data:,"TEST_IDENTITY1_CERTIFICATE"</IdentityCertificate>"
@@ -62,7 +62,7 @@ static const char *config =
     "    <Cryptographic>"
     "      <Library finalizeFunction=\"finalize_test_cryptography_wrapped\" initFunction=\"init_test_cryptography_wrapped\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
     "    </Cryptographic>"
-    "  </DDSSecurity>"
+    "  </Security>"
     "</Domain>";
 
 #define DDS_DOMAINID_PUB 0
@@ -246,6 +246,7 @@ static void test_write_read(struct domain_sec_config *domain_config,
   create_eps (&writers, &writer_topics, n_pub_domains, n_pub_participants, n_writers, name, &SecurityCoreTests_Type1_desc, g_pub_participants, qos, &dds_create_writer, DDS_PUBLICATION_MATCHED_STATUS);
   create_eps (&readers, &reader_topics, n_sub_domains, n_sub_participants, n_readers, name, &SecurityCoreTests_Type1_desc, g_sub_participants, qos, &dds_create_reader, DDS_DATA_AVAILABLE_STATUS);
 
+  const dds_time_t sync_abstimeout = dds_time() + DDS_SECS(5);
   for (size_t d = 0; d < n_pub_domains; d++)
   {
     for (size_t p = 0; p < n_pub_participants; p++)
@@ -254,7 +255,7 @@ static void test_write_read(struct domain_sec_config *domain_config,
       for (size_t w = 0; w < n_writers; w++)
       {
         size_t wr_index = pp_index * n_writers + w;
-        sync_writer_to_readers (g_pub_participants[pp_index], writers[wr_index], (uint32_t)(n_sub_domains * n_sub_participants * n_readers), DDS_SECS(5));
+        sync_writer_to_readers (g_pub_participants[pp_index], writers[wr_index], (uint32_t)(n_sub_domains * n_sub_participants * n_readers), sync_abstimeout);
         sample.id = (int32_t) wr_index;
         printf("writer %"PRId32" writing sample %d\n", writers[wr_index], sample.id);
         ret = dds_write (writers[wr_index], &sample);
@@ -365,7 +366,7 @@ static void test_payload_secret(DDS_Security_ProtectionKind rtps_pk, DDS_Securit
   create_eps (&writers, &writer_topics, 1, 1, 1, name, &SecurityCoreTests_Type2_desc, g_pub_participants, qos, &dds_create_writer, DDS_PUBLICATION_MATCHED_STATUS);
   create_eps (&readers, &reader_topics, 1, 1, 1, name, &SecurityCoreTests_Type2_desc, g_sub_participants, qos, &dds_create_reader, DDS_DATA_AVAILABLE_STATUS);
   dds_delete_qos (qos);
-  sync_writer_to_readers (g_pub_participants[0], writers[0], 1, DDS_SECS(2));
+  sync_writer_to_readers (g_pub_participants[0], writers[0], 1, dds_time() + DDS_SECS(2));
   ret = dds_write (writers[0], &sample);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 

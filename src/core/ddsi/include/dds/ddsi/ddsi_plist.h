@@ -61,6 +61,7 @@ extern "C" {
 #define PP_PARTICIPANT_SECURITY_INFO            ((uint64_t)1 << 35)
 #define PP_IDENTITY_STATUS_TOKEN                ((uint64_t)1 << 36)
 #define PP_DATA_TAGS                            ((uint64_t)1 << 37)
+#define PP_CYCLONE_RECEIVE_BUFFER_SIZE          ((uint64_t)1 << 38)
 /* Set for unrecognized parameters that are in the reserved space or
    in our own vendor-specific space that have the
    PID_UNRECOGNIZED_INCOMPATIBLE_FLAG set (see DDSI 2.1 9.6.2.2.1) */
@@ -85,7 +86,7 @@ extern "C" {
    the same thing. */
 struct nn_locators_one {
   struct nn_locators_one *next;
-  nn_locator_t loc;
+  ddsi_locator_t loc;
 };
 
 typedef struct nn_locators {
@@ -227,6 +228,7 @@ typedef struct ddsi_plist {
 #endif
   uint32_t domain_id;
   char *domain_tag;
+  uint32_t cyclone_receive_buffer_size;
 } ddsi_plist_t;
 
 

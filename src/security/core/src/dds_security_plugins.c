@@ -242,7 +242,7 @@ dds_return_t dds_security_load_security_library (const dds_security_plugin_confi
   return DDS_RETCODE_OK;
 
 library_error:
-  ddsrt_dlclose (security_plugin->lib_handle);
+  (void) ddsrt_dlclose (security_plugin->lib_handle);
   security_plugin->lib_handle = NULL;
 load_error:
   return DDS_RETCODE_ERROR;

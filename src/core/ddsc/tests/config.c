@@ -110,11 +110,11 @@ CU_Test(ddsc_security_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
      but the implementation doesn't include support for it. */
   const char *log_expected[] = {
 #ifndef DDSI_INCLUDE_SECURITY
-    "config: //CycloneDDS/Domain: DDSSecurity: unknown element*",
+    "config: //CycloneDDS/Domain: Security: unknown element*",
 #else
-    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCertificate/#text: element missing in configuration*",
-    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCA/#text: element missing in configuration*",
-    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/PrivateKey/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/Security/Authentication/IdentityCertificate/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/Security/Authentication/IdentityCA/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/Security/Authentication/PrivateKey/#text: element missing in configuration*",
 #endif
       NULL
   };
@@ -128,7 +128,7 @@ CU_Test(ddsc_security_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
 
   /* Create participant with an empty security element. */
   found = 0;
-  ddsrt_setenv(URI_VARIABLE, "<DDSSecurity/>");
+  ddsrt_setenv(URI_VARIABLE, "<Security/>");
   participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
   ddsrt_setenv(URI_VARIABLE, "");
   CU_ASSERT_FATAL(participant < 0);

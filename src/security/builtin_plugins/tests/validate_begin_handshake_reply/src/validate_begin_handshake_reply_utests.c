@@ -705,7 +705,7 @@ set_dh_public_key(
 
     *pubkey = ddsrt_malloc(*size);
     memcpy(*pubkey, buffer, *size);
-    ddsrt_free(buffer);
+    OPENSSL_free(buffer);
 
     ASN1_INTEGER_free(asn1int);
 
