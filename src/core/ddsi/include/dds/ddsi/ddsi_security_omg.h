@@ -1063,7 +1063,7 @@ ssize_t
 secure_conn_write(
     const struct ddsi_domaingv *gv,
     ddsi_tran_conn_t conn,
-    const nn_locator_t *dst,
+    const ddsi_locator_t *dst,
     size_t niov,
     const ddsrt_iovec_t *iov,
     uint32_t flags,

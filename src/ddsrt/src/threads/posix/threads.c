@@ -332,7 +332,7 @@ ddsrt_gettid(void)
 
 #if defined(__linux)
   tid = syscall(SYS_gettid);
-#elif defined(__FreeBSD__) && (__FreeBSD_version >= 900031)
+#elif defined(__FreeBSD__) && (__FreeBSD__ >= 9)
   /* FreeBSD >= 9.0 */
   tid = pthread_getthreadid_np();
 #elif defined(__APPLE__) && !(defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && \

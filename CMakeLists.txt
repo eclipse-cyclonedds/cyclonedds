@@ -198,14 +198,15 @@ if(USE_SANITIZER)
   endforeach()
 endif()
 
-
 include(GNUInstallDirs)
-include(AnalyzeBuild)
 if(APPLE)
   set(CMAKE_INSTALL_RPATH "@loader_path/../${CMAKE_INSTALL_LIBDIR}")
 else()
   set(CMAKE_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
 endif()
+
+find_package(codecov)
+include(Codecov)
 set(MEMORYCHECK_COMMAND_OPTIONS "--track-origins=yes --leak-check=full --trace-children=yes --child-silent-after-fork=yes --xml=yes --xml-file=TestResultValgrind_%p.xml --tool=memcheck --show-reachable=yes --leak-resolution=high")
 
 # By default building the testing tree is enabled by including CTest, but

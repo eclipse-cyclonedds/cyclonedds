@@ -79,7 +79,7 @@ static enum ddsrt_iftype guess_iftype (const struct ifaddrs *sys_ifa)
   fclose (fp);
   return type;
 }
-#elif defined __APPLE__ /* probably works for all BSDs */
+#elif defined __APPLE__ || defined __FreeBSD__ /* probably works for all BSDs */
 #include <sys/ioctl.h>
 #include <sys/sockio.h>
 #include <net/if.h>
@@ -104,8 +104,10 @@ static enum ddsrt_iftype guess_iftype (const struct ifaddrs *sys_ifa)
     switch (IFM_TYPE (ifmr.ifm_active))
     {
       case IFM_ETHER:
+#if !defined __FreeBSD__
       case IFM_TOKEN:
       case IFM_FDDI:
+#endif
         type = DDSRT_IFTYPE_WIRED;
         break;
       case IFM_IEEE80211:

@@ -12,9 +12,14 @@
 #ifndef NN_RADMIN_H
 #define NN_RADMIN_H
 
+#include <stddef.h>
+
+#include "dds/ddsrt/time.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/threads.h"
-#include "dds/ddsi/ddsi_tran.h"
+#include "dds/ddsrt/static_assert.h"
+#include "dds/ddsi/ddsi_locator.h"
+#include "dds/ddsi/q_rtps.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -31,6 +36,7 @@ struct nn_defrag;
 struct nn_reorder;
 struct nn_dqueue;
 struct ddsi_guid;
+struct ddsi_tran_conn;
 
 struct proxy_writer;
 
@@ -117,8 +123,8 @@ struct receiver_state {
   uint32_t rtps_encoded:1;                /* - */
   nn_vendorid_t vendor;                   /* 2 */
   nn_protocol_version_t protocol_version; /* 2 => 44/48 */
-  ddsi_tran_conn_t conn;                  /* Connection for request */
-  nn_locator_t srcloc;
+  struct ddsi_tran_conn *conn;            /* Connection for request */
+  ddsi_locator_t srcloc;
   struct ddsi_domaingv *gv;
 };
 
@@ -203,6 +209,10 @@ typedef int32_t nn_reorder_result_t;
 #define NN_REORDER_REJECT       -2 /* caller may reuse memory ("real" reject for data, "fake" for gap) */
 
 typedef void (*nn_dqueue_callback_t) (void *arg);
+
+struct ddsrt_log_cfg;
+struct nn_fragment_number_set_header;
+struct nn_sequence_number_set_header;
 
 struct nn_rbufpool *nn_rbufpool_new (const struct ddsrt_log_cfg *logcfg, uint32_t rbuf_size, uint32_t max_rmsg_size);
 void nn_rbufpool_setowner (struct nn_rbufpool *rbp, ddsrt_thread_t tid);

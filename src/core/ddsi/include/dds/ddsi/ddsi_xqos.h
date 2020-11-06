@@ -541,8 +541,8 @@ DDS_EXPORT bool ddsi_xqos_has_prop_prefix (const dds_qos_t *xqos, const char *na
 DDS_EXPORT bool ddsi_xqos_find_prop (const dds_qos_t *xqos, const char *name, const char **value);
 
 #ifdef DDSI_INCLUDE_SECURITY
-struct omg_security_configuration_type;
-DDS_EXPORT void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security_configuration_type *cfg);
+struct ddsi_config_omg_security;
+DDS_EXPORT void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct ddsi_config_omg_security *cfg);
 #endif
 
 #if defined (__cplusplus)

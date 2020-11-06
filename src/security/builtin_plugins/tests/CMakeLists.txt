@@ -64,6 +64,7 @@ add_cunit_executable(cunit_security_plugins
   ${security_ac_test_sources}
   ${security_crypto_test_sources}
   ${CYCLONEDDS_OPENSSL_APPLINK})
+add_coverage(cunit_security_plugins)
 
 # applink.c triggers the dreaded This function or variable may be unsafe
 if(NOT "${CYCLONEDDS_OPENSSL_APPLINK}" STREQUAL "")

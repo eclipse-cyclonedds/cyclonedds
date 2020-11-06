@@ -13,7 +13,7 @@ include (GenerateExportHeader)
 
 PREPEND(srcs_cryptographic "${CMAKE_CURRENT_LIST_DIR}/src"
     crypto_cipher.c
-    crypto_key_exchange
+    crypto_key_exchange.c
     crypto_key_factory.c
     crypto_objects.c
     crypto_transform.c
@@ -54,3 +54,5 @@ install(
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
 )
+
+add_coverage(dds_security_crypto)

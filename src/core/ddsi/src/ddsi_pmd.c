@@ -92,7 +92,7 @@ void handle_pmd_message (const struct receiver_state *rst, struct ddsi_serdata *
   struct proxy_participant *proxypp;
   ddsi_guid_t ppguid;
   struct lease *l;
-  RSTTRACE (" PMD ST%x", sample->c.statusinfo);
+  RSTTRACE (" PMD ST%"PRIx32, sample->c.statusinfo);
   switch (sample->c.statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
   {
     case 0: {

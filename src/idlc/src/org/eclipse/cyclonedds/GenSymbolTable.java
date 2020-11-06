@@ -132,7 +132,13 @@ public class GenSymbolTable extends org.eclipse.cyclonedds.parser.IDLBaseVisitor
           IDLParser.Scoped_nameContext snctx = mem.type_spec ().simple_type_spec ().scoped_name ();
           if (snctx != null)
           {
-            stype = (StructSymbol)stresolve (snfromctx (snctx), isRelative (snctx));
+            Symbol stype_or_typedef = stresolve (snfromctx (snctx), isRelative (snctx));
+            while (stype_or_typedef instanceof TypeDeclSymbol)
+            {
+              TypeDeclSymbol td = (TypeDeclSymbol)stype_or_typedef;
+              stype_or_typedef = params.symtab.resolve (td.isRelative() ? td.name() : null, td.definition());
+            }
+            stype = (StructSymbol) stype_or_typedef;
           }
         }
         else

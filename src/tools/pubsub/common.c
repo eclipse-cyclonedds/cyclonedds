@@ -957,7 +957,7 @@ bool dds_err_check (dds_return_t err, unsigned flags, const char * where)
     if (flags & (DDS_CHECK_REPORT | DDS_CHECK_FAIL))
     {
       char msg[DDS_ERR_MSG_MAX];
-      (void) snprintf (msg, DDS_ERR_MSG_MAX, "Error %"PRId32":M%"PRId32":%s", dds_err_file_id(err), dds_err_line(err), dds_err_str(err));
+      (void) snprintf (msg, DDS_ERR_MSG_MAX, "Error:%s", dds_err_str(err));
       if (flags & DDS_CHECK_REPORT)
       {
         printf ("%s: %s\n", where, msg);

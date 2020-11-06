@@ -54,7 +54,7 @@ int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr
   return eq;
 }
 
-enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
+enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locator_t *loc, const ddsi_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
 {
   struct sockaddr_storage tmp, iftmp, nmtmp, ownip;
   size_t i;
@@ -75,7 +75,7 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const nn_locator_
   return DNAR_DISTANT;
 }
 
-enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (const struct ddsi_tran_factory *tran, nn_locator_t *loc, const char *str, int32_t kind)
+enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const char *str, int32_t kind)
 {
   DDSRT_WARNING_MSVC_OFF(4996);
   char copy[264];
@@ -193,7 +193,7 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (const struct ddsi_
   DDSRT_WARNING_MSVC_ON(4996);
 }
 
-char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)
+char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port)
 {
   assert (sizeof_dst > 1);
   if (loc->kind == NN_LOCATOR_KIND_INVALID)
@@ -235,7 +235,7 @@ char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *l
   return dst;
 }
 
-void ddsi_ipaddr_to_loc (const struct ddsi_tran_factory *tran, nn_locator_t *dst, const struct sockaddr *src, int32_t kind)
+void ddsi_ipaddr_to_loc (const struct ddsi_tran_factory *tran, ddsi_locator_t *dst, const struct sockaddr *src, int32_t kind)
 {
   dst->tran = (struct ddsi_tran_factory *) tran;
   dst->kind = kind;
@@ -285,7 +285,7 @@ void ddsi_ipaddr_to_loc (const struct ddsi_tran_factory *tran, nn_locator_t *dst
   }
 }
 
-void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const nn_locator_t *src)
+void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const ddsi_locator_t *src)
 {
   memset (dst, 0, sizeof (*dst));
   switch (src->kind)

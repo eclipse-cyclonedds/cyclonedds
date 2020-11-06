@@ -220,6 +220,7 @@ printcomplextype(
       } else {
         assert(cnt > 1);
         ce = firstelem(elem->children);
+        assert(ce != NULL);
         min[0] = min[1] = min[2] = minimum(ce);
         max[0] = max[1] = max[2] = maximum(ce);
         assert(min[1] <= max[1] || max[1] == 0);

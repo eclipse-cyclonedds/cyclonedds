@@ -16,6 +16,9 @@
 #include "config_env.h"
 #include "dds/version.h"
 #include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/string.h"
+#include "dds/ddsi/ddsi_config.h"
 
 CU_Test(ddsc_domain, get_domainid)
 {
@@ -287,3 +290,96 @@ CU_Test(ddsc_domain_create, invalid_xml)
   domain = dds_create_domain(1, "<CycloneDDS incorrect XML");
   CU_ASSERT_FATAL(domain == DDS_RETCODE_ERROR);
 }
+
+struct logsink_arg {
+  char **buf;
+  size_t capacity;
+  size_t size;
+};
+
+static void logsink (void *varg, const dds_log_data_t *msg)
+{
+  struct logsink_arg *arg = varg;
+  // daft to use a loop here, but 'tis only a test ...
+  // msg->size doesn't include the newline at the end
+  if (strncmp (msg->message, "config: ", 8) != 0)
+    return;
+  if (arg->size == arg->capacity)
+  {
+    arg->capacity = (arg->capacity < 32) ? 32 : arg->capacity * 2;
+    arg->buf = ddsrt_realloc (arg->buf, arg->capacity * sizeof (*arg->buf));
+  }
+  arg->buf[arg->size] = ddsrt_strdup (msg->message);
+  if (strstr (arg->buf[arg->size], "Domain/Tracing/Category"))
+  {
+    // we set this one for the XML config for the purpose of this test, so the
+    // tiny difference in the source information needs to be ignored, which we
+    // do by rewriting the {0} to {}
+    char *p = strchr (arg->buf[arg->size], '{');
+    CU_ASSERT_FATAL (p != NULL);
+    p++;
+    CU_ASSERT_FATAL (strcmp (p, "}\n") == 0 || strcmp (p, "0}\n") == 0);
+    if (*p == '0')
+    {
+      *p++ = '}';
+      *p++ = '\n';
+      *p++ = 0;
+    }
+  }
+  arg->size++;
+}
+
+CU_Test(ddsc_domain_create, raw_config)
+{
+  /* Verifies that starting up with a default configuration from an initializer results
+     in the same configuration dump as starting using the (tried and tested) XML route.
+
+     There is a tiny discrepancy in the source information for the tracing flags, which
+     is dealt with by rewriting the {0} indicating it is from the first configuration
+     source to {}, indicating it is the default to match what the initializer-based
+     version prints. */
+
+  dds_entity_t domain;
+  struct logsink_arg arg_xml = { .buf = NULL, .capacity = 0, .size = 0 };
+  struct logsink_arg arg_raw = { .buf = NULL, .capacity = 0, .size = 0 };
+
+  dds_set_trace_sink (logsink, &arg_xml);
+  domain = dds_create_domain (1, "<Tracing><Category>config</Category></Tracing>");
+  CU_ASSERT_FATAL(domain > 0);
+  dds_delete (domain);
+
+  struct ddsi_config config;
+  ddsi_config_init_default (&config);
+  config.tracemask = DDS_LC_CONFIG;
+  dds_set_trace_sink (logsink, &arg_raw);
+  domain = dds_create_domain_with_rawconfig (1, &config);
+  CU_ASSERT_FATAL(domain > 0);
+  dds_delete (domain);
+
+  dds_set_log_sink (0, NULL);
+
+  {
+    size_t i = 0, j = 0;
+    while (i < arg_xml.size && j < arg_raw.size)
+    {
+      if (strcmp (arg_xml.buf[i], arg_raw.buf[j]) != 0)
+        break;
+      i++;
+      j++;
+    }
+    CU_ASSERT (i == arg_xml.size);
+    CU_ASSERT (j == arg_raw.size);
+    for (; i < arg_xml.size; i++)
+      printf ("XML: %s", arg_xml.buf[i]);
+    for (; j < arg_raw.size; j++)
+      printf ("RAW: %s", arg_xml.buf[j]);
+  }
+
+  for (size_t i = 0; i < arg_xml.size; i++)
+    ddsrt_free (arg_xml.buf[i]);
+  ddsrt_free (arg_xml.buf);
+  for (size_t i = 0; i < arg_raw.size; i++)
+    ddsrt_free (arg_raw.buf[i]);
+  ddsrt_free (arg_raw.buf);
+}
+

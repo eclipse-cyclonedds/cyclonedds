@@ -50,10 +50,10 @@
 #include "dds/ddsi/ddsi_security_exchange.h"
 #endif
 
-static int get_locator (const struct ddsi_domaingv *gv, nn_locator_t *loc, const nn_locators_t *locs, int uc_same_subnet)
+static int get_locator (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, const nn_locators_t *locs, int uc_same_subnet)
 {
   struct nn_locators_one *l;
-  nn_locator_t first, samenet;
+  ddsi_locator_t first, samenet;
   int first_set = 0, samenet_set = 0;
   memset (&first, 0, sizeof (first));
   memset (&samenet, 0, sizeof (samenet));
@@ -166,9 +166,9 @@ static int get_locator (const struct ddsi_domaingv *gv, nn_locator_t *loc, const
 
 static void maybe_add_pp_as_meta_to_as_disc (struct ddsi_domaingv *gv, const struct addrset *as_meta)
 {
-  if (addrset_empty_mc (as_meta) || !(gv->config.allowMulticast & AMC_SPDP))
+  if (addrset_empty_mc (as_meta) || !(gv->config.allowMulticast & DDSI_AMC_SPDP))
   {
-    nn_locator_t loc;
+    ddsi_locator_t loc;
     if (addrset_any_uc (as_meta, &loc))
     {
       add_to_addrset (gv, gv->as_disc, &loc);
@@ -212,7 +212,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
   locs->def_uni_loc_one.next = NULL;
   locs->meta_uni_loc_one.next = NULL;
 
-  if (pp->e.gv->config.many_sockets_mode == MSM_MANY_UNICAST)
+  if (pp->e.gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
   {
     locs->def_uni_loc_one.loc = pp->m_locator;
     locs->meta_uni_loc_one.loc = pp->m_locator;
@@ -238,11 +238,11 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
        it means the writers will publish to address and the readers
        favour SSM. */
     if (ddsi_is_ssm_mcaddr (pp->e.gv, &pp->e.gv->loc_default_mc))
-      include = (pp->e.gv->config.allowMulticast & AMC_SSM) != 0;
+      include = (pp->e.gv->config.allowMulticast & DDSI_AMC_SSM) != 0;
     else
-      include = (pp->e.gv->config.allowMulticast & AMC_ASM) != 0;
+      include = (pp->e.gv->config.allowMulticast & DDSI_AMC_ASM) != 0;
 #else
-    if (pp->e.gv->config.allowMulticast & AMC_ASM)
+    if (pp->e.gv->config.allowMulticast & DDSI_AMC_ASM)
       include = 1;
 #endif
     if (include)
@@ -272,7 +272,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
       NN_ADLINK_FL_DDSI2_PARTICIPANT_FLAG |
       NN_ADLINK_FL_PTBES_FIXED_0 |
       NN_ADLINK_FL_SUPPORTS_STATUSINFOX;
-    if (pp->e.gv->config.besmode == BESMODE_MINIMAL)
+    if (pp->e.gv->config.besmode == DDSI_BESMODE_MINIMAL)
       dst->adlink_participant_version_info.flags |= NN_ADLINK_FL_MINIMAL_BES_MODE;
     ddsrt_mutex_lock (&pp->e.gv->privileged_pp_lock);
     if (pp->is_ddsi2_pp)
@@ -473,21 +473,21 @@ static int handle_SPDP_dead (const struct receiver_state *rst, ddsi_entityid_t p
   return 1;
 }
 
-static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv, uint32_t allow_multicast, struct addrset *as, const nn_locator_t *loc)
+static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv, uint32_t allow_multicast, struct addrset *as, const ddsi_locator_t *loc)
 {
 #if DDSI_INCLUDE_SSM
   if (ddsi_is_ssm_mcaddr (gv, loc))
   {
-    if (!(allow_multicast & AMC_SSM))
+    if (!(allow_multicast & DDSI_AMC_SSM))
       return;
   }
   else if (ddsi_is_mcaddr (gv, loc))
   {
-    if (!(allow_multicast & AMC_ASM))
+    if (!(allow_multicast & DDSI_AMC_ASM))
       return;
   }
 #else
-  if (ddsi_is_mcaddr (gv, loc) && !(allow_multicast & AMC_ASM))
+  if (ddsi_is_mcaddr (gv, loc) && !(allow_multicast & DDSI_AMC_ASM))
     return;
 #endif
   add_to_addrset (gv, as, loc);
@@ -653,7 +653,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, dds
   /* Make sure we don't create any security builtin endpoint when it's considered unsecure. */
   if (!is_secure)
     builtin_endpoint_set &= NN_BES_MASK_NON_SECURITY;
-  GVLOGDISC ("SPDP ST0 "PGUIDFMT" bes %x%s NEW", PGUID (datap->participant_guid), builtin_endpoint_set, is_secure ? " (secure)" : "");
+  GVLOGDISC ("SPDP ST0 "PGUIDFMT" bes %"PRIx32"%s NEW", PGUID (datap->participant_guid), builtin_endpoint_set, is_secure ? " (secure)" : "");
 
   if (datap->present & PP_PARTICIPANT_LEASE_DURATION)
   {
@@ -670,7 +670,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, dds
         (datap->adlink_participant_version_info.flags & NN_ADLINK_FL_PARTICIPANT_IS_DDSI2))
       custom_flags |= CF_PARTICIPANT_IS_DDSI2;
 
-    GVLOGDISC (" (0x%08x-0x%08x-0x%08x-0x%08x-0x%08x %s)",
+    GVLOGDISC (" (0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32" %s)",
                datap->adlink_participant_version_info.version,
                datap->adlink_participant_version_info.flags,
                datap->adlink_participant_version_info.unused[0],
@@ -716,7 +716,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, dds
 
   /* Choose locators */
   {
-    nn_locator_t loc;
+    ddsi_locator_t loc;
     int uc_same_subnet;
 
     as_default = new_addrset ();
@@ -847,7 +847,7 @@ struct add_locator_to_ps_arg {
   ddsi_plist_t *ps;
 };
 
-static void add_locator_to_ps (const nn_locator_t *loc, void *varg)
+static void add_locator_to_ps (const ddsi_locator_t *loc, void *varg)
 {
   struct add_locator_to_ps_arg *arg = varg;
   struct nn_locators_one *elem = ddsrt_malloc (sizeof (struct nn_locators_one));
@@ -1255,7 +1255,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, dd
   }
 
   {
-    nn_locator_t loc;
+    ddsi_locator_t loc;
     as = new_addrset ();
     if (!gv->config.tcp_use_peeraddr_for_unicast && (datap->present & PP_UNICAST_LOCATOR) && get_locator (gv, &loc, &datap->unicast_locators, 0))
       add_to_addrset (gv, as, &loc);
@@ -1310,7 +1310,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, dd
         assert (!is_builtin_entityid (datap->endpoint_guid.entityid, vendorid));
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
         {
-          struct config_channel_listelem *channel = find_channel (&gv->config, xqos->transport_priority);
+          struct ddsi_config_channel_listelem *channel = find_channel (&gv->config, xqos->transport_priority);
           new_proxy_writer (&ppguid, &datap->endpoint_guid, as, datap, channel->dqueue, channel->evq ? channel->evq : gv->xevents, timestamp);
         }
 #else
@@ -1362,7 +1362,7 @@ static void handle_SEDP (const struct receiver_state *rst, seqno_t seq, struct d
   if (ddsi_serdata_to_sample (serdata, &decoded_data, NULL, NULL))
   {
     struct ddsi_domaingv * const gv = rst->gv;
-    GVLOGDISC ("SEDP ST%x", serdata->statusinfo);
+    GVLOGDISC ("SEDP ST%"PRIx32, serdata->statusinfo);
     switch (serdata->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
     {
       case 0:
@@ -1441,7 +1441,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     src.encoding = (msg->smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
     src.buf = NN_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
-    src.strict = NN_STRICT_P (gv->config);
+    src.strict = DDSI_SC_STRICT_P (gv->config);
     src.factory = gv->m_factory;
     src.logconfig = &gv->logconfig;
     if ((plist_ret = ddsi_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH, 0, &src)) < 0)
@@ -1516,7 +1516,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     d = ddsi_serdata_from_ser (topic, SDK_DATA, fragchain, sampleinfo->size);
   else if (data_smhdr_flags & DATA_FLAG_KEYFLAG)
     d = ddsi_serdata_from_ser (topic, SDK_KEY, fragchain, sampleinfo->size);
-  else if ((qos.present & PP_KEYHASH) && !NN_STRICT_P(gv->config))
+  else if ((qos.present & PP_KEYHASH) && !DDSI_SC_STRICT_P(gv->config))
     d = ddsi_serdata_from_keyhash (topic, &qos.keyhash);
   else
   {

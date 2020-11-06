@@ -37,7 +37,7 @@ struct gcreq_queue {
   struct thread_state1 *ts;
 };
 
-static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, unsigned *nivs, struct idx_vtime *ivs)
+static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, uint32_t *nivs, struct idx_vtime *ivs)
 {
   /* copy vtimes of threads, skipping those that are sleeping */
   uint32_t i, j;
