@@ -27,6 +27,10 @@
 #include "cputime.h"
 #include "ddsperf_types.h"
 
+extern bool throughput_changed;
+extern bool latency_changed;
+extern bool cputime_changed;
+
 static void print_one (FILE *fp, char *line, size_t sz, size_t *pos, const char *name, double du, double ds)
 {
   if (*pos < sz)
@@ -94,6 +98,8 @@ bool record_cputime (FILE *fp, struct record_cputime_state *state, const char *p
 {
   if (state == NULL)
   {
+    if (fp != NULL)
+      fprintf (fp, ",<state==NULL>");
     return false;
   }
 
@@ -160,7 +166,7 @@ bool record_cputime (FILE *fp, struct record_cputime_state *state, const char *p
   state->tprev = tnow;
   state->s.some_above = some_above;
   (void) dds_write (state->wr, &state->s);
-  return print_cputime (fp, &state->s, state, prefix, false, true);
+  return print_cputime (fp, &state->s, state, prefix, true, true);
 }
 
 double record_cputime_read_rss (const struct record_cputime_state *state)
@@ -255,14 +261,9 @@ void record_cputime_free (struct record_cputime_state *state)
 
 bool print_cputime (FILE *fp, const struct CPUStats *s, struct record_cputime_state *state, const char *prefix, bool print_host, bool is_fresh)
 {
-  (void) state;
+  cputime_changed = false;
   if (!s->some_above)
   {
-    if (fp != NULL)
-    {
-      fprintf (fp, "\n");
-      fflush (fp);
-    }
     return false;
   }
   else
@@ -284,21 +285,21 @@ bool print_cputime (FILE *fp, const struct CPUStats *s, struct record_cputime_st
     if (s->maxrss > 1048576)
     {
       pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " rss:%.1fMB", s->maxrss / 1048576.0);
-      if (fp != NULL) pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp, ",%.0f", s->maxrss);
     }
     else if (s->maxrss > 1024)
     {
       pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " rss:%.0fkB", s->maxrss / 1024.0);
-      if (fp != NULL) pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp, ",%.0f", s->maxrss);
     }
     else {
       /* non-sensical value -- presumably maxrss is not available */
     }
+    if (fp != NULL) pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp, ",%.0f", s->maxrss);
     pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " vcsw:%"PRIu32" ivcsw:%"PRIu32, s->vcsw, s->ivcsw);
     if (fp != NULL)
       pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp, ",%"PRIu32",%"PRIu32",%d,%d", s->vcsw, s->ivcsw, (int)s->cpu._maximum, (int)s->cpu._length);
 
     const size_t init_pos = pos;
+    const size_t init_pos_fp = pos_fp;
 
     for (uint32_t i = 0; i < state->nthreads; i++)
     {
@@ -311,9 +312,9 @@ bool print_cputime (FILE *fp, const struct CPUStats *s, struct record_cputime_st
         {
           print_one (NULL, line, sizeof (line), &pos, thr_j->name, thr_j->u_pct / 100.0, thr_j->s_pct / 100.0);
           print_one (fp, line_fp, sizeof (line_fp), &pos_fp, thr_j->name, thr_j->u_pct / 100.0, thr_j->s_pct / 100.0);
-	  found = true;
-	  break;
-	}
+          found = true;
+          break;
+        }
       }
       if (!found)
         print_one_empty_entry (line_fp, sizeof (line_fp), &pos_fp);
@@ -322,10 +323,17 @@ bool print_cputime (FILE *fp, const struct CPUStats *s, struct record_cputime_st
     if (pos > init_pos)
     {
       puts (line);
-      if (fp != NULL)
+    }
+    if (pos_fp > init_pos_fp)
+    {
+      if (throughput_changed || latency_changed)
       {
-        fprintf (fp, "%s\n", line_fp);
-	fflush (fp);
+        if (fp != NULL)
+        {
+          fprintf (fp, "%s", line_fp);
+          fflush (fp);
+          cputime_changed = true;
+        }
       }
     }
     return true;

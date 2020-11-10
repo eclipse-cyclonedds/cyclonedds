@@ -50,8 +50,18 @@
 
 #define PINGPONG_RAWSIZE 20000
 
+static bool printed_throughput_data = false;
+static bool printed_latency_data = false;
+
+bool throughput_changed = false;
+bool latency_changed = false;
+bool cputime_changed = false;
+bool netload_changed = false;
+
 /* File descriptor to write ddsperf data to */
 static FILE *csv_file = NULL;
+
+void reset_print_flags(void);
 
 enum topicsel {
   KS,   /* KeyedSeq type: seq#, key, sequence-of-octet */
@@ -692,7 +702,12 @@ static int check_eseq (struct eseq_admin *ea, uint32_t seq, uint32_t keyval, uin
       ea->eseq[i][keyval] = seq + ea->nkeys;
       ea->stats[i].nrecv++;
       ea->stats[i].nrecv_bytes += size;
-      ea->stats[i].nlost += seq - e;
+      if (seq > e)
+        ea->stats[i].nlost += seq - e;
+      else
+        ea->stats[i].nlost += e - seq;
+      if (seq != e)
+        printf ("[%"PRIdPID"] stats[%d]:{seq:%d,e:%d}\n", ddsrt_getpid (), i, (int)seq, (int)e);
       ea->stats[i].last_size = size;
       ddsrt_mutex_unlock (&ea->lock);
       return seq == e;
@@ -1390,7 +1405,6 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
   const double ts = (double) (tnow - tref) / 1e9;
   bool output = false;
   bool output_netload = false;
-  bool printed_throughput = false;
   ddsrt_pid_t pid = ddsrt_getpid ();
   char hostname[64];
   if (ddsrt_gethostname (hostname, sizeof (hostname)) != DDS_RETCODE_OK)
@@ -1409,6 +1423,7 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
 
   if (submode != SM_NONE)
   {
+    throughput_changed = false;
     struct eseq_admin * const ea = &eseq_admin;
     uint64_t tot_nrecv = 0, tot_nlost = 0, nlost = 0;
     uint64_t nrecv = 0, nrecv_bytes = 0;
@@ -1445,14 +1460,27 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
               (double) nrecv10s * 1e6 / (10 * dt), (double) nrecv10s_bytes * 8 * 1e3 / (10 * dt));
       if (csv_file != NULL)
       {
+        static bool first_line = true;
         int64_t tsec = (int64_t)(tnow / 1000000000);
         int64_t nsec = (int64_t)(tnow % 1000000000);
-        fprintf (csv_file, "%"PRId64".%06"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%.2f,%.2f",
+        reset_print_flags();
+        if (!first_line)
+        {
+          throughput_changed = false;
+          latency_changed = false;
+          cputime_changed = false;
+          netload_changed = false;
+        }
+        fprintf (csv_file, "%s%"PRId64".%06"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%.2f,%.2f",
+                 first_line ? "" : "\n",
                  tsec, nsec / 1000, hostname, pid, ts, last_size, tot_nrecv, tot_nlost, nrecv, nlost,
                  (double) nrecv_bytes * 8 * 1e3 / dt, (double) nrecv10s_bytes * 8 * 1e3 / (10 * dt)
         );
         fflush (csv_file);
-        printed_throughput = true;
+        first_line = false;
+        output_netload = true;
+        printed_throughput_data = true;
+        throughput_changed = true;
       }
       output = true;
     }
@@ -1473,6 +1501,7 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
 
     if (y.cnt > 0)
     {
+      latency_changed = false;
       const uint32_t rawcnt = (y.cnt > PINGPONG_RAWSIZE) ? PINGPONG_RAWSIZE : y.cnt;
       char ppinfo[128];
       struct ppant *pp;
@@ -1495,9 +1524,19 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
               y.cnt);
       if (csv_file != NULL)
       {
+        static bool first_line = true;
         int64_t tsec = (int64_t)(tnow / 1000000000);
         int64_t nsec = (int64_t)(tnow % 1000000000);
-        fprintf (csv_file, "%"PRId64".%06"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%"PRIu32"",
+        reset_print_flags();
+        if (!first_line)
+        {
+          throughput_changed = false;
+          latency_changed = false;
+          cputime_changed = false;
+          netload_changed = false;
+        }
+        fprintf (csv_file, "%s%"PRId64".%06"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%"PRIu32"",
+                 first_line ? "" : "\n",
                  tsec, nsec / 1000, pp->hostname, pp->pid, ts, topic_payload_size (topicsel, baggagesize),
                  (double) y.sum / (double) y.cnt / 1e3,
                  (double) y.min / 1e3,
@@ -1507,6 +1546,9 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
                  (double) y.max / 1e3,
                  y.cnt);
         fflush (csv_file);
+        printed_latency_data = true;
+        latency_changed = true;
+        first_line = false;
       }
       output_netload = true;
     }
@@ -1517,11 +1559,9 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
   ddsrt_mutex_unlock (&pongstat_lock);
   free (newraw);
 
-  if (printed_throughput == true)
-  {
+  if (printed_throughput_data || printed_latency_data)
     if (record_cputime (csv_file, cputime_state, prefix, tnow))
       output = true;
-  }
 
   if (rd_stat)
   {
@@ -1560,7 +1600,7 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
   {
     (void) dds_refresh_statistics (stats->substat);
     (void) dds_refresh_statistics (stats->pubstat);
-    printf ("%s discarded %"PRIu64""/*" acks %"PRIu32""*//*" nacks %"PRIu32""*/" rexmit %"PRIu64" Trexmit %"PRIu64" Tthrottle %"PRIu64" Nthrottle %"PRIu32"\n", prefix, stats->discarded_bytes->u.u64/*, stats->num_acks_received->u.u32*//*, stats->num_nacks_received->u.u32*/, stats->rexmit_bytes->u.u64, stats->time_rexmit->u.u64, stats->time_throttle->u.u64, stats->throttle_count->u.u32);
+    printf ("%s discarded %"PRIu64" rexmit %"PRIu64" Trexmit %"PRIu64" Tthrottle %"PRIu64" Nthrottle %"PRIu32"\n", prefix, stats->discarded_bytes->u.u64, stats->rexmit_bytes->u.u64, stats->time_rexmit->u.u64, stats->time_throttle->u.u64, stats->throttle_count->u.u32);
   }
 
   fflush (stdout);
@@ -1960,6 +2000,12 @@ static void set_mode (int xoptind, int xargc, char * const xargv[])
   {
     error3 ("%s: unrecognized argument\n", xargv[xoptind]);
   }
+}
+
+void reset_print_flags(void)
+{
+  printed_throughput_data = false;
+  printed_latency_data = false;
 }
 
 int main (int argc, char *argv[])

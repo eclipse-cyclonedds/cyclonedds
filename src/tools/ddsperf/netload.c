@@ -22,6 +22,9 @@
 
 #include "netload.h"
 
+extern bool cputime_changed;
+extern bool netload_changed;
+
 #if DDSRT_HAVE_NETSTAT
 
 struct record_netload_state {
@@ -37,6 +40,9 @@ struct record_netload_state {
 
 void record_netload (FILE *fp, struct record_netload_state *st, const char *prefix, dds_time_t tnow)
 {
+  netload_changed = false;
+  if (!cputime_changed)
+    return;
   if (st && !st->errored)
   {
     struct ddsrt_netstat x;
@@ -60,8 +66,9 @@ void record_netload (FILE *fp, struct record_netload_state *st, const char *pref
                     prefix, st->name, dxpct, drpct, x.obytes, x.ibytes);
             if (fp != NULL)
             {
-              fprintf(fp, ",%.2f,%.2f,%"PRIu64",%"PRIu64"\n", dxpct, drpct, x.obytes, x.ibytes);
+              fprintf(fp, ",%.2f,%.2f,%"PRIu64",%"PRIu64, dxpct, drpct, x.obytes, x.ibytes);
               fflush(fp);
+              netload_changed = true;
             }
           }
         }
@@ -71,8 +78,9 @@ void record_netload (FILE *fp, struct record_netload_state *st, const char *pref
                   prefix, st->name, dx / 1e6, dr / 1e6, x.obytes, x.ibytes);
           if (fp != NULL)
           {
-            fprintf(fp, ",%.2f,%.2f,%"PRIu64",%"PRIu64"\n", dx / 1e6, dr / 1e6, x.obytes, x.ibytes);
+            fprintf(fp, ",%.2f,%.2f,%"PRIu64",%"PRIu64, dx / 1e6, dr / 1e6, x.obytes, x.ibytes);
             fflush(fp);
+            netload_changed = true;
           }
         }
       }
