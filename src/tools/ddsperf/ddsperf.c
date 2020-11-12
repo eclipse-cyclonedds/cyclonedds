@@ -2656,6 +2656,7 @@ err_minmatch_wait:
   }
   if (csv_file != NULL)
   {
+    fprintf (csv_file, "\n");
     fclose(csv_file);
   }
   return ok ? 0 : 1;

@@ -308,7 +308,7 @@ bool print_cputime (FILE *fp, const struct CPUStats *s, struct record_cputime_st
       for (uint32_t j = 0; j < s->cpu._length; j++)
       {
         struct CPUStatThread * const thr_j = &s->cpu._buffer[j];
-        if (thr_j->tid == thr_i->tid)
+        if ((ddsrt_thread_list_id_t)thr_j->tid == thr_i->tid)
         {
           print_one (NULL, line, sizeof (line), &pos, thr_j->name, thr_j->u_pct / 100.0, thr_j->s_pct / 100.0);
           print_one (fp, line_fp, sizeof (line_fp), &pos_fp, thr_j->name, thr_j->u_pct / 100.0, thr_j->s_pct / 100.0);
