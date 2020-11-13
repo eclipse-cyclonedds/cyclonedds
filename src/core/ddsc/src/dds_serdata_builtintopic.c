@@ -124,7 +124,8 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_keyhash (const struct ddsi
   union { ddsi_guid_t guid; ddsi_keyhash_t keyhash; } x;
   x.keyhash = *keyhash;
   x.guid = nn_ntoh_guid (x.guid);
-  struct entity_common *entity = entidx_lookup_guid_untyped (tp->c.gv->entity_index, &x.guid);
+  struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
+  struct entity_common *entity = entidx_lookup_guid_untyped (gv->entity_index, &x.guid);
   struct ddsi_serdata_builtintopic *d = serdata_builtin_new (tp, entity != NULL ? SDK_DATA : SDK_KEY);
   d->key = x.guid;
   if (entity)

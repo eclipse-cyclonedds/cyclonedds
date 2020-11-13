@@ -31,7 +31,20 @@ enum ddsi_serdata_kind {
 };
 
 struct ddsi_serdata {
-  const struct ddsi_serdata_ops *ops; /* cached from topic->serdata_ops */
+  // Backwards compatibility support for ddsi_sertopic (which is intended to exist
+  // only for a little while, have to see how that works out ...) relies on reading
+  // and writing the first few fields of ddsi_serdata regardless of whether it is a
+  // new or an old one.
+  //
+  // At a minimum, it needs to look at "ops" for this.  Currently, because the old
+  // serdata is a prefix of the new serdata anyway, it also looks directly at "type"
+  // in dds_writecdr_impl, and elsewhere it simply timestamp and statusinfo.
+  //
+  // So don't change anything of the layout up to and including "twrite" unless
+  // checking the compatibility code in ddsi_sertopic.c, dds_writecdr_impl and
+  // dds_readcdr_impl.
+
+  const struct ddsi_serdata_ops *ops; /* cached from type->serdata_ops */
   uint32_t hash;
   ddsrt_atomic_uint32_t refc;
   enum ddsi_serdata_kind kind;
@@ -43,6 +56,11 @@ struct ddsi_serdata {
 
   /* FIXME: can I get rid of this one? */
   ddsrt_mtime_t twrite; /* write time, not source timestamp, set post-throttling */
+};
+
+struct ddsi_serdata_wrapper {
+  struct ddsi_serdata c;
+  void *compat_wrap;
 };
 
 /* Serialised size of sample inclusive of DDSI encoding header
@@ -164,6 +182,9 @@ struct ddsi_serdata_ops {
 #define DDSI_SERDATA_HAS_GET_KEYHASH 1
 
 DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertype *type, enum ddsi_serdata_kind kind);
+
+/* backwards compatibility: wrap a sertopic-derived serdata so that it may be used as a sertype-derived one; increments refcount */
+DDS_EXPORT struct ddsi_serdata *ddsi_sertopic_wrap_serdata (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, void *old);
 
 /**
  * @brief Return a reference to a serdata with possible type conversion

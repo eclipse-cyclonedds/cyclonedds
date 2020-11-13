@@ -803,11 +803,11 @@ static void wait_for_receive_threads (struct ddsi_domaingv *gv)
   }
 }
 
-static struct ddsi_sertype *make_special_type_pserop (struct ddsi_domaingv *gv, const char *typename, size_t memsize, size_t nops, const enum pserop *ops, size_t nops_key, const enum pserop *ops_key)
+static struct ddsi_sertype *make_special_type_pserop (const char *typename, size_t memsize, size_t nops, const enum pserop *ops, size_t nops_key, const enum pserop *ops_key)
 {
   struct ddsi_sertype_pserop *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
-  ddsi_sertype_init (gv, &st->c, typename, &ddsi_sertype_ops_pserop, &ddsi_serdata_ops_pserop, nops_key == 0);
+  ddsi_sertype_init (&st->c, typename, &ddsi_sertype_ops_pserop, &ddsi_serdata_ops_pserop, nops_key == 0);
   st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? CDR_LE : CDR_BE;
   st->memsize = memsize;
   st->nops = nops;
@@ -817,11 +817,11 @@ static struct ddsi_sertype *make_special_type_pserop (struct ddsi_domaingv *gv, 
   return (struct ddsi_sertype *) st;
 }
 
-static struct ddsi_sertype *make_special_type_plist (struct ddsi_domaingv *gv, const char *typename, nn_parameterid_t keyparam)
+static struct ddsi_sertype *make_special_type_plist (const char *typename, nn_parameterid_t keyparam)
 {
   struct ddsi_sertype_plist *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
-  ddsi_sertype_init (gv, &st->c, typename, &ddsi_sertype_ops_plist, &ddsi_serdata_ops_plist, false);
+  ddsi_sertype_init (&st->c, typename, &ddsi_sertype_ops_plist, &ddsi_serdata_ops_plist, false);
   st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? PL_CDR_LE : PL_CDR_BE;
   st->keyparam = keyparam;
   return (struct ddsi_sertype *) st;
@@ -849,39 +849,39 @@ static void free_special_types (struct ddsi_domaingv *gv)
 
 static void make_special_types (struct ddsi_domaingv *gv)
 {
-  gv->spdp_type = make_special_type_plist (gv, "ParticipantBuiltinTopicData", PID_PARTICIPANT_GUID);
-  gv->sedp_reader_type = make_special_type_plist (gv, "SubscriptionBuiltinTopicData", PID_ENDPOINT_GUID);
-  gv->sedp_writer_type = make_special_type_plist (gv, "PublicationBuiltinTopicData", PID_ENDPOINT_GUID);
-  gv->pmd_type = make_special_type_pserop (gv, "ParticipantMessageData", sizeof (ParticipantMessageData_t), participant_message_data_nops, participant_message_data_ops, participant_message_data_nops_key, participant_message_data_ops_key);
+  gv->spdp_type = make_special_type_plist ("ParticipantBuiltinTopicData", PID_PARTICIPANT_GUID);
+  gv->sedp_reader_type = make_special_type_plist ("SubscriptionBuiltinTopicData", PID_ENDPOINT_GUID);
+  gv->sedp_writer_type = make_special_type_plist ("PublicationBuiltinTopicData", PID_ENDPOINT_GUID);
+  gv->pmd_type = make_special_type_pserop ("ParticipantMessageData", sizeof (ParticipantMessageData_t), participant_message_data_nops, participant_message_data_ops, participant_message_data_nops_key, participant_message_data_ops_key);
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  gv->tl_svc_request_type = make_special_type_pserop (gv, "TypeLookup_Request", sizeof (type_lookup_request_t), typelookup_service_request_nops, typelookup_service_request_ops, 0, NULL);
-  gv->tl_svc_reply_type = make_special_type_pserop (gv, "TypeLookup_Reply", sizeof (type_lookup_reply_t), typelookup_service_reply_nops, typelookup_service_reply_ops, 0, NULL);
+  gv->tl_svc_request_type = make_special_type_pserop ("TypeLookup_Request", sizeof (type_lookup_request_t), typelookup_service_request_nops, typelookup_service_request_ops, 0, NULL);
+  gv->tl_svc_reply_type = make_special_type_pserop ("TypeLookup_Reply", sizeof (type_lookup_reply_t), typelookup_service_reply_nops, typelookup_service_reply_ops, 0, NULL);
 #endif
 #ifdef DDS_HAS_SECURITY
-  gv->spdp_secure_type = make_special_type_plist (gv, "ParticipantBuiltinTopicDataSecure", PID_PARTICIPANT_GUID);
-  gv->sedp_reader_secure_type = make_special_type_plist (gv, "SubscriptionBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
-  gv->sedp_writer_secure_type = make_special_type_plist (gv, "PublicationBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
-  gv->pmd_secure_type = make_special_type_pserop (gv, "ParticipantMessageDataSecure", sizeof (ParticipantMessageData_t), participant_message_data_nops, participant_message_data_ops, participant_message_data_nops_key, participant_message_data_ops_key);
-  gv->pgm_stateless_type = make_special_type_pserop (gv, "ParticipantStatelessMessage", sizeof (nn_participant_generic_message_t), pserop_participant_generic_message_nops, pserop_participant_generic_message, 0, NULL);
-  gv->pgm_volatile_type = make_special_type_pserop (gv, "ParticipantVolatileMessageSecure", sizeof (nn_participant_generic_message_t), pserop_participant_generic_message_nops, pserop_participant_generic_message, 0, NULL);
+  gv->spdp_secure_type = make_special_type_plist ("ParticipantBuiltinTopicDataSecure", PID_PARTICIPANT_GUID);
+  gv->sedp_reader_secure_type = make_special_type_plist ("SubscriptionBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
+  gv->sedp_writer_secure_type = make_special_type_plist ("PublicationBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
+  gv->pmd_secure_type = make_special_type_pserop ("ParticipantMessageDataSecure", sizeof (ParticipantMessageData_t), participant_message_data_nops, participant_message_data_ops, participant_message_data_nops_key, participant_message_data_ops_key);
+  gv->pgm_stateless_type = make_special_type_pserop ("ParticipantStatelessMessage", sizeof (nn_participant_generic_message_t), pserop_participant_generic_message_nops, pserop_participant_generic_message, 0, NULL);
+  gv->pgm_volatile_type = make_special_type_pserop ("ParticipantVolatileMessageSecure", sizeof (nn_participant_generic_message_t), pserop_participant_generic_message_nops, pserop_participant_generic_message, 0, NULL);
 #endif
 
   ddsrt_mutex_lock (&gv->sertypes_lock);
-  ddsi_sertype_register_locked (gv->spdp_type);
-  ddsi_sertype_register_locked (gv->sedp_reader_type);
-  ddsi_sertype_register_locked (gv->sedp_writer_type);
-  ddsi_sertype_register_locked (gv->pmd_type);
+  ddsi_sertype_register_locked (gv, gv->spdp_type);
+  ddsi_sertype_register_locked (gv, gv->sedp_reader_type);
+  ddsi_sertype_register_locked (gv, gv->sedp_writer_type);
+  ddsi_sertype_register_locked (gv, gv->pmd_type);
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  ddsi_sertype_register_locked (gv->tl_svc_request_type);
-  ddsi_sertype_register_locked (gv->tl_svc_reply_type);
+  ddsi_sertype_register_locked (gv, gv->tl_svc_request_type);
+  ddsi_sertype_register_locked (gv, gv->tl_svc_reply_type);
 #endif
 #ifdef DDS_HAS_SECURITY
-  ddsi_sertype_register_locked (gv->spdp_secure_type);
-  ddsi_sertype_register_locked (gv->sedp_reader_secure_type);
-  ddsi_sertype_register_locked (gv->sedp_writer_secure_type);
-  ddsi_sertype_register_locked (gv->pmd_secure_type);
-  ddsi_sertype_register_locked (gv->pgm_stateless_type);
-  ddsi_sertype_register_locked (gv->pgm_volatile_type);
+  ddsi_sertype_register_locked (gv, gv->spdp_secure_type);
+  ddsi_sertype_register_locked (gv, gv->sedp_reader_secure_type);
+  ddsi_sertype_register_locked (gv, gv->sedp_writer_secure_type);
+  ddsi_sertype_register_locked (gv, gv->pmd_secure_type);
+  ddsi_sertype_register_locked (gv, gv->pgm_stateless_type);
+  ddsi_sertype_register_locked (gv, gv->pgm_volatile_type);
 #endif
   ddsrt_mutex_unlock (&gv->sertypes_lock);
 

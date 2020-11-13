@@ -28,6 +28,7 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_sertype.h"
+#include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_plist.h"
@@ -319,8 +320,10 @@ dds_entity_t dds_create_topic_impl (dds_entity_t participant, const char *name, 
   /* See if we're allowed to create the topic; ktp is returned pinned & locked
      so we can be sure it doesn't disappear and its QoS can't change */
   GVTRACE ("dds_create_topic_generic (pp %p "PGUIDFMT" sertype %p reg?%s refc %"PRIu32" %s/%s)\n",
-           (void *) pp, PGUID (pp->m_entity.m_guid), (void *) (*sertype), (*sertype)->registered ? "yes" : "no",
-           (*sertype)->refc, name, (*sertype)->type_name);
+           (void *) pp, PGUID (pp->m_entity.m_guid), (void *) (*sertype),
+           (ddsrt_atomic_ld32 (&(*sertype)->flags_refc) & DDSI_SERTYPE_REGISTERED) ? "yes" : "no",
+           ddsrt_atomic_ld32 (&(*sertype)->flags_refc) & DDSI_SERTYPE_REFC_MASK,
+           name, (*sertype)->type_name);
   ddsrt_mutex_lock (&pp->m_entity.m_mutex);
   struct dds_ktopic *ktp;
   if ((rc = lookup_and_check_ktopic (&ktp, pp, name, (*sertype)->type_name, new_qos)) != DDS_RETCODE_OK)
@@ -358,7 +361,7 @@ dds_entity_t dds_create_topic_impl (dds_entity_t participant, const char *name, 
     else
     {
       GVTRACE ("dds_create_topic_generic: register new sertype %p\n", (void *) (*sertype));
-      ddsi_sertype_register_locked (*sertype);
+      ddsi_sertype_register_locked (gv, *sertype);
       sertype_registered = *sertype;
     }
     ddsrt_mutex_unlock (&gv->sertypes_lock);
@@ -384,21 +387,48 @@ dds_entity_t dds_create_topic_impl (dds_entity_t participant, const char *name, 
   return rc;
 }
 
-dds_entity_t dds_create_topic_generic (dds_entity_t participant, const char *name, struct ddsi_sertype **sertype, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
+dds_entity_t dds_create_topic_sertype (dds_entity_t participant, const char *name, struct ddsi_sertype **sertype, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
 {
   return dds_create_topic_impl (participant, name, false, sertype, qos, listener, sedp_plist);
 }
 
-dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, const char *name, struct ddsi_sertype *sertype, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
+dds_entity_t dds_create_topic_generic (dds_entity_t participant, struct ddsi_sertopic **sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
 {
-  if (sertype == NULL)
+  if (sertopic == NULL || *sertopic == NULL || (*sertopic)->name == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
   dds_entity_t ret;
-  struct ddsi_sertype *st = sertype;
-  ddsi_sertype_ref (st);
-  if ((ret = dds_create_topic_generic (participant, name, &st, qos, listener, sedp_plist)) < 0)
-    ddsi_sertype_unref (st);
+  struct ddsi_sertype *sertype = ddsi_sertype_from_sertopic (*sertopic);
+  ret = dds_create_topic_impl (participant, (*sertopic)->name, false, &sertype, qos, listener, sedp_plist);
+  if (ret < 0)
+  {
+    // sertype_from_sertopic incremented the refcount, so decrementing it on failure will
+    // free sertype but leave *sertopic untouched
+    ddsi_sertype_unref (sertype);
+  }
+  else
+  {
+    // sertype incremented the refcount, we still need to undo it
+    ddsi_sertopic_unref (*sertopic);
+    // we should never have a sertype that doesn't a sertopic if we started with a sertopic
+    // because the vtables are necessarily different; it may but need not be the same as
+    // *sertopic on input
+    assert (sertype->wrapped_sertopic != NULL);
+    *sertopic = sertype->wrapped_sertopic;
+  }
+  return ret;
+}
+
+dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
+{
+  if (sertopic == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  dds_entity_t ret;
+  struct ddsi_sertopic *st = sertopic;
+  ddsi_sertopic_ref (st);
+  if ((ret = dds_create_topic_generic (participant, &st, qos, listener, sedp_plist)) < 0)
+    ddsi_sertopic_unref (st);
   return ret;
 }
 
@@ -419,7 +449,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
 
   st = dds_alloc (sizeof (*st));
 
-  ddsi_sertype_init (&ppent->m_domain->gv, &st->c, desc->m_typename, &ddsi_sertype_ops_default, desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey, (desc->m_nkeys == 0));
+  ddsi_sertype_init (&st->c, desc->m_typename, &ddsi_sertype_ops_default, desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey, (desc->m_nkeys == 0));
   st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE);
   st->serpool = ppent->m_domain->gv.serpool;
   st->type.size = desc->m_size;
@@ -459,7 +489,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   }
 
   st_tmp = &st->c;
-  hdl = dds_create_topic_generic (participant, name, &st_tmp, qos, listener, &plist);
+  hdl = dds_create_topic_sertype (participant, name, &st_tmp, qos, listener, &plist);
   if (hdl < 0)
     ddsi_sertype_unref (st_tmp);
   dds_entity_unpin (ppent);
@@ -503,7 +533,7 @@ dds_entity_t dds_find_topic (dds_entity_t participant, const char *name)
     dds_entity_t hdl = create_topic_pp_locked (pp, ktp, false, name, sertype, NULL, NULL);
     dds_participant_unlock (pp);
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    ddsi_tl_meta_local_ref (sertype->gv, NULL, sertype);
+    ddsi_tl_meta_local_ref (ddsrt_atomic_ldvoidp (&sertype->gv), NULL, sertype);
 #endif
     return hdl;
   }

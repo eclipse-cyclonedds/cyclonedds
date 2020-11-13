@@ -278,14 +278,14 @@ void dds__builtin_init (struct dds_domain *dom)
   dom->btif.builtintopic_write = dds__builtin_write;
   dom->gv.builtin_topic_interface = &dom->btif;
 
-  dom->builtin_participant_type = new_sertype_builtintopic (&dom->gv, DSBT_PARTICIPANT, "org::eclipse::cyclonedds::builtin::DCPSParticipant");
-  dom->builtin_reader_type = new_sertype_builtintopic (&dom->gv, DSBT_READER, "org::eclipse::cyclonedds::builtin::DCPSSubscription");
-  dom->builtin_writer_type = new_sertype_builtintopic (&dom->gv, DSBT_WRITER, "org::eclipse::cyclonedds::builtin::DCPSPublication");
+  dom->builtin_participant_type = new_sertype_builtintopic (DSBT_PARTICIPANT, "org::eclipse::cyclonedds::builtin::DCPSParticipant");
+  dom->builtin_reader_type = new_sertype_builtintopic (DSBT_READER, "org::eclipse::cyclonedds::builtin::DCPSSubscription");
+  dom->builtin_writer_type = new_sertype_builtintopic (DSBT_WRITER, "org::eclipse::cyclonedds::builtin::DCPSPublication");
 
   ddsrt_mutex_lock (&dom->gv.sertypes_lock);
-  ddsi_sertype_register_locked (dom->builtin_participant_type);
-  ddsi_sertype_register_locked (dom->builtin_reader_type);
-  ddsi_sertype_register_locked (dom->builtin_writer_type);
+  ddsi_sertype_register_locked (&dom->gv, dom->builtin_participant_type);
+  ddsi_sertype_register_locked (&dom->gv, dom->builtin_reader_type);
+  ddsi_sertype_register_locked (&dom->gv, dom->builtin_writer_type);
   ddsrt_mutex_unlock (&dom->gv.sertypes_lock);
 
   thread_state_awake (lookup_thread_state (), &dom->gv);

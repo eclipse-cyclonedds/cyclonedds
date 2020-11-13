@@ -26,10 +26,10 @@
 
 /* FIXME: sertopic /= ddstopic so a lot of stuff needs to be moved here from dds_topic.c and the free function needs to be implemented properly */
 
-struct ddsi_sertype *new_sertype_builtintopic (struct ddsi_domaingv *gv, enum ddsi_sertype_builtintopic_entity_kind entity_kind, const char *typename)
+struct ddsi_sertype *new_sertype_builtintopic (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const char *typename)
 {
   struct ddsi_sertype_builtintopic *tp = ddsrt_malloc (sizeof (*tp));
-  ddsi_sertype_init (gv, &tp->c, typename, &ddsi_sertype_ops_builtintopic, &ddsi_serdata_ops_builtintopic, false);
+  ddsi_sertype_init (&tp->c, typename, &ddsi_sertype_ops_builtintopic, &ddsi_serdata_ops_builtintopic, false);
   tp->entity_kind = entity_kind;
   return &tp->c;
 }
@@ -154,6 +154,8 @@ static void sertype_builtin_free_samples (const struct ddsi_sertype *sertype_com
 }
 
 const struct ddsi_sertype_ops ddsi_sertype_ops_builtintopic = {
+  .version = ddsi_sertype_v0,
+  .arg = 0,
   .equal = sertype_builtin_equal,
   .hash = sertype_builtin_hash,
   .typeid_hash = sertype_builtin_typeid_hash,

@@ -54,11 +54,12 @@ struct dds_rhc;
 struct ddsi_plist;
 struct ddsi_sertype;
 struct ddsi_serdata;
+struct ddsi_sertopic; // deprecated, binary compatibility only
 
 #define DDS_MIN_PSEUDO_HANDLE ((dds_entity_t) 0x7fff0000)
 
 /** Indicates that the library uses ddsi_sertype (as a replacement for ddsi_sertopic). If sertype
- *  is used, the function dds_create_topic_generic requires a topic name parameter, as this field
+ *  is used, the function dds_create_topic_sertype requires a topic name parameter, as this field
  *  is not included in ddsi_sertype. */
 #define DDS_HAS_DDSI_SERTYPE 1
 
@@ -1076,8 +1077,7 @@ dds_create_topic(
   const dds_qos_t *qos,
   const dds_listener_t *listener);
 
-
-#define DDS_HAS_CREATE_TOPIC_GENERIC 1
+#define DDS_HAS_CREATE_TOPIC_SERTYPE 1
 /**
  * @brief Creates a new topic with provided type handling.
  *
@@ -1114,7 +1114,7 @@ dds_create_topic(
  *             topic's type name.
  */
 DDS_EXPORT dds_entity_t
-dds_create_topic_generic (
+dds_create_topic_sertype (
   dds_entity_t participant,
   const char *name,
   struct ddsi_sertype **sertype,
@@ -1122,11 +1122,53 @@ dds_create_topic_generic (
   const dds_listener_t *listener,
   const struct ddsi_plist *sedp_plist);
 
+#define DDS_HAS_CREATE_TOPIC_GENERIC 1
+/**
+ * @brief Creates a new topic with provided type handling.
+ *
+ * The name for the type is taken from the provided "sertype" object. Type
+ * matching is done on a combination of topic name and type name. Each successful
+ * call to dds_create_topic creates a new topic entity sharing the same QoS
+ * settings with all other topics of the same name.
+ *
+ * In case this function returns a valid handle, the ownership of the provided
+ * sertype is handed over to Cyclone. On return, the caller gets in the sertype parameter a
+ * pointer to the sertype that is actually used by the topic. This can be the provided sertype
+ * (if this sertype was not yet known in the domain), or a sertype thas was
+ * already known in the domain.
+ *
+ * @param[in]     participant  Participant on which to create the topic.
+ * @param[in,out] sertopic     Legacy internal description of the type. On return, the sertype parameter is set to the actual sertype that is used by the topic.
+ * @param[in]     qos          QoS to set on the new topic (can be NULL).
+ * @param[in]     listener     Any listener functions associated with the new topic (can be NULL).
+ * @param[in]     sedp_plist   Topic description to be published as part of discovery (if NULL, not published).
+ *
+ * @returns A valid, unique topic handle or an error code. Iff a valid handle, the domain takes ownership of provided serdata.
+ *
+ * @retval >=0
+ *             A valid unique topic handle.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Either participant, descriptor, name or qos is invalid.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Either participant, descriptor, name or qos is invalid.
+ * @retval DDS_RETCODE_INCONSISTENT_POLICY
+ *             QoS mismatch between qos and an existing topic's QoS.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             Mismatch between type name in sertype and pre-existing
+ *             topic's type name.
+ */
+DDS_EXPORT dds_entity_t
+dds_create_topic_generic (
+  dds_entity_t participant,
+  struct ddsi_sertopic **sertopic,
+  const dds_qos_t *qos,
+  const dds_listener_t *listener,
+  const struct ddsi_plist *sedp_plist);
+
 DDS_DEPRECATED_EXPORT dds_entity_t
 dds_create_topic_arbitrary (
   dds_entity_t participant,
-  const char *name,
-  struct ddsi_sertype *sertype,
+  struct ddsi_sertopic *sertopic,
   const dds_qos_t *qos,
   const dds_listener_t *listener,
   const struct ddsi_plist *sedp_plist);

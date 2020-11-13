@@ -28,15 +28,19 @@ struct ddsi_sertype_ops;
 struct ddsi_domaingv;
 struct type_identifier;
 
+#define DDSI_SERTYPE_REGISTERING 0x40000000u // set prior to setting gv
+#define DDSI_SERTYPE_REGISTERED  0x80000000u // set after setting gv
+#define DDSI_SERTYPE_REFC_MASK   0x0fffffffu
+
 struct ddsi_sertype {
   const struct ddsi_sertype_ops *ops;
   const struct ddsi_serdata_ops *serdata_ops;
   uint32_t serdata_basehash;
   bool typekind_no_key;
   char *type_name;
-  struct ddsi_domaingv *gv;
-  uint32_t refc; /* counts refs from entities (topic, reader, writer), not from data */
-  bool registered;
+  ddsrt_atomic_voidp_t gv; /* set during registration */
+  ddsrt_atomic_uint32_t flags_refc; /* counts refs from entities (topic, reader, writer), not from data */
+  void *wrapped_sertopic; /* void pointer because that simplifies the required type-punning */
 };
 
 /* The old and the new happen to have the same memory layout on a 64-bit machine
@@ -101,7 +105,20 @@ typedef bool (*ddsi_sertype_deserialize_t) (struct ddsi_domaingv *gv, struct dds
 /* Check if (an object of) type a is assignable from (an object of) the type b */
 typedef bool (*ddsi_sertype_assignable_from_t) (const struct ddsi_sertype *type_a, const struct ddsi_sertype *type_b);
 
+struct ddsi_sertype_v0;
+typedef void (*ddsi_sertype_v0_t) (struct ddsi_sertype_v0 *dummy);
+
+// Because Windows ... just can't get its act together ...
+#ifndef _WIN32
+DDS_EXPORT void ddsi_sertype_v0 (struct ddsi_sertype_v0 *dummy);
+#else
+#define ddsi_sertype_v0 ((ddsi_sertype_v0_t) 1)
+#endif
+
 struct ddsi_sertype_ops {
+  ddsi_sertype_v0_t version;
+  void *arg;
+
   ddsi_sertype_free_t free;
   ddsi_sertype_zero_samples_t zero_samples;
   ddsi_sertype_realloc_samples_t realloc_samples;
@@ -116,14 +133,16 @@ struct ddsi_sertype_ops {
 };
 
 struct ddsi_sertype *ddsi_sertype_lookup_locked (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype_template);
-void ddsi_sertype_register_locked (struct ddsi_sertype *sertype);
+void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype *sertype);
 
-DDS_EXPORT void ddsi_sertype_init (struct ddsi_domaingv *gv, struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, bool topickind_no_key);
+DDS_EXPORT void ddsi_sertype_init (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, bool topickind_no_key);
 DDS_EXPORT bool ddsi_sertype_deserialize (struct ddsi_domaingv *gv, struct ddsi_sertype *tp, const struct ddsi_sertype_ops *sertype_ops, size_t sz, unsigned char *serdata);
 DDS_EXPORT void ddsi_sertype_fini (struct ddsi_sertype *tp);
 DDS_EXPORT struct ddsi_sertype *ddsi_sertype_ref (const struct ddsi_sertype *tp);
-DDS_EXPORT void ddsi_sertype_unref_locked (struct ddsi_sertype *tp);
-DDS_EXPORT void ddsi_sertype_unref (struct ddsi_sertype *tp);
+
+DDS_EXPORT void ddsi_sertype_unref_locked (struct ddsi_domaingv * const gv, struct ddsi_sertype *tp); /* gv->sertypes_lock must be held */
+DDS_EXPORT void ddsi_sertype_unref (struct ddsi_sertype *tp); /* tp->gv->sertypes_lock may not be held */
+
 DDS_EXPORT uint32_t ddsi_sertype_compute_serdata_basehash (const struct ddsi_serdata_ops *ops);
 
 DDS_EXPORT bool ddsi_sertype_equal (const struct ddsi_sertype *a, const struct ddsi_sertype *b);

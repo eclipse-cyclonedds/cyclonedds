@@ -98,6 +98,8 @@ static void sertype_plist_free_samples (const struct ddsi_sertype *sertype_commo
 }
 
 const struct ddsi_sertype_ops ddsi_sertype_ops_plist = {
+  .version = ddsi_sertype_v0,
+  .arg = 0,
   .equal = sertype_plist_equal,
   .hash = sertype_plist_hash,
   .typeid_hash = sertype_plist_typeid_hash,

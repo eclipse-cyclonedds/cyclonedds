@@ -166,7 +166,7 @@ static bool serdata_plist_untyped_to_sample (const struct ddsi_sertype *tpcmn, c
 {
   const struct ddsi_serdata_plist *d = (const struct ddsi_serdata_plist *)serdata_common;
   const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *)tpcmn;
-  struct ddsi_domaingv * const gv = tp->c.gv;
+  struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   ddsi_plist_src_t src = {
     .buf = (const unsigned char *) d->data,
@@ -219,7 +219,8 @@ static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertype
 
   // FIXME: key must not require byteswapping (GUIDs are ok)
   // FIXME: rework plist stuff so it doesn't need an nn_xmsg
-  struct nn_xmsg *mpayload = nn_xmsg_new (tp->c.gv->xmsgpool, &nullguid, NULL, 0, NN_XMSG_KIND_DATA);
+  struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
+  struct nn_xmsg *mpayload = nn_xmsg_new (gv->xmsgpool, &nullguid, NULL, 0, NN_XMSG_KIND_DATA);
   memcpy (nn_xmsg_append (mpayload, NULL, 4), &header, 4);
   ddsi_plist_addtomsg (mpayload, sample, ~(uint64_t)0, ~(uint64_t)0);
   nn_xmsg_addpar_sentinel (mpayload);
@@ -271,12 +272,13 @@ static size_t serdata_plist_print_plist (const struct ddsi_sertype *sertype_comm
 {
   const struct ddsi_serdata_plist *d = (const struct ddsi_serdata_plist *) serdata_common;
   const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *) sertype_common;
+  struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
   ddsi_plist_src_t src = {
     .buf = (const unsigned char *) d->data,
     .bufsz = d->pos,
     .encoding = d->identifier,
-    .factory = tp->c.gv->m_factory,
-    .logconfig = &tp->c.gv->logconfig,
+    .factory = gv->m_factory,
+    .logconfig = &gv->logconfig,
     .protocol_version = d->protoversion,
     .strict = false,
     .vendorid = d->vendorid

@@ -254,7 +254,7 @@ CU_Test(ddsc_typelookup, api_resolve, .init = typelookup_init, .fini = typelooku
   CU_ASSERT_FATAL (sertype != NULL);
 
   /* create a topic in domain 2 with this sertype and create a reader */
-  dds_entity_t pp2_topic = dds_create_topic_generic (g_participant2, writer_ep->topic_name, &sertype, NULL, NULL, NULL);
+  dds_entity_t pp2_topic = dds_create_topic_sertype (g_participant2, writer_ep->topic_name, &sertype, NULL, NULL, NULL);
   CU_ASSERT_FATAL (pp2_topic > 0);
   dds_entity_t reader = dds_create_reader (g_participant2, pp2_topic, qos, NULL);
   CU_ASSERT_FATAL (reader > 0);
