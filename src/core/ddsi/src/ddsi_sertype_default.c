@@ -188,6 +188,8 @@ static bool sertype_default_assignable_from (const struct ddsi_sertype *type_a, 
 }
 
 const struct ddsi_sertype_ops ddsi_sertype_ops_default = {
+  .version = ddsi_sertype_v0,
+  .arg = 0,
   .equal = sertype_default_equal,
   .hash = sertype_default_hash,
   .typeid_hash = sertype_default_typeid_hash,

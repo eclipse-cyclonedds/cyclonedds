@@ -21,10 +21,19 @@
 
 #include "dds/dds.h"
 #include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_sertopic.h" // for backwards compat tests
 #include "dds/ddsi/q_radmin.h"
 #include "dds__entity.h"
 
 #include "test_common.h"
+
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
+#define NATIVE_ENCODING CDR_LE
+#elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
+#define NATIVE_ENCODING CDR_BE
+#else
+#error "DDSRT_ENDIAN neither LITTLE nor BIG"
+#endif
 
 struct sampletype {
   char *key;
@@ -35,6 +44,10 @@ struct stp {
   struct ddsi_sertype c;
 };
 
+struct stp0 {
+  struct ddsi_sertopic c;
+};
+
 static bool stp_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertype *bcmn)
 {
   // no fields in stp beyond the common ones, and those are all checked for equality before this function is called
@@ -42,7 +55,20 @@ static bool stp_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertyp
   return true;
 }
 
+static bool stp0_equal (const struct ddsi_sertopic *acmn, const struct ddsi_sertopic *bcmn)
+{
+  (void) acmn; (void) bcmn;
+  return true;
+}
+
 static uint32_t stp_hash (const struct ddsi_sertype *tpcmn)
+{
+  // nothing beyond the common fields
+  (void) tpcmn;
+  return 0;
+}
+
+static uint32_t stp0_hash (const struct ddsi_sertopic *tpcmn)
 {
   // nothing beyond the common fields
   (void) tpcmn;
@@ -56,15 +82,32 @@ static void stp_free (struct ddsi_sertype *tpcmn)
   free (stp);
 }
 
-static void stp_zero_samples (const struct ddsi_sertype *dcmn, void *samples, size_t count)
+static void stp0_free (struct ddsi_sertopic *tpcmn)
 {
-  (void) dcmn;
+  struct stp0 * const stp0 = (struct stp0 *) tpcmn;
+  ddsi_sertopic_fini (&stp0->c);
+  free (stp0);
+}
+
+static void stpx_zero_samples (void *samples, size_t count)
+{
   memset (samples, 0, count * sizeof (struct sampletype));
 }
 
-static void stp_realloc_samples (void **ptrs, const struct ddsi_sertype *dcmn, void *old, size_t oldcount, size_t count)
+static void stp_zero_samples (const struct ddsi_sertype *dcmn, void *samples, size_t count)
 {
   (void) dcmn;
+  stpx_zero_samples (samples, count);
+}
+
+static void stp0_zero_samples (const struct ddsi_sertopic *dcmn, void *samples, size_t count)
+{
+  (void) dcmn;
+  stpx_zero_samples (samples, count);
+}
+
+static void stpx_realloc_samples (void **ptrs, void *old, size_t oldcount, size_t count)
+{
   const size_t size = sizeof (struct sampletype);
   char *new = (oldcount == count) ? old : dds_realloc (old, size * count);
   if (new && count > oldcount)
@@ -76,9 +119,20 @@ static void stp_realloc_samples (void **ptrs, const struct ddsi_sertype *dcmn, v
   }
 }
 
-static void stp_free_samples (const struct ddsi_sertype *dcmn, void **ptrs, size_t count, dds_free_op_t op)
+static void stp_realloc_samples (void **ptrs, const struct ddsi_sertype *dcmn, void *old, size_t oldcount, size_t count)
 {
   (void) dcmn;
+  stpx_realloc_samples (ptrs, old, oldcount, count);
+}
+
+static void stp0_realloc_samples (void **ptrs, const struct ddsi_sertopic *dcmn, void *old, size_t oldcount, size_t count)
+{
+  (void) dcmn;
+  stpx_realloc_samples (ptrs, old, oldcount, count);
+}
+
+static void stpx_free_samples (void **ptrs, size_t count, dds_free_op_t op)
+{
   if (count == 0)
     return;
 
@@ -97,7 +151,21 @@ static void stp_free_samples (const struct ddsi_sertype *dcmn, void **ptrs, size
   }
 }
 
+static void stp_free_samples (const struct ddsi_sertype *dcmn, void **ptrs, size_t count, dds_free_op_t op)
+{
+  (void) dcmn;
+  stpx_free_samples (ptrs, count, op);
+}
+
+static void stp0_free_samples (const struct ddsi_sertopic *dcmn, void **ptrs, size_t count, dds_free_op_t op)
+{
+  (void) dcmn;
+  stpx_free_samples (ptrs, count, op);
+}
+
 static const struct ddsi_sertype_ops stp_ops = {
+  .version = ddsi_sertype_v0,
+  .arg = 0,
   .free = stp_free,
   .zero_samples = stp_zero_samples,
   .realloc_samples = stp_realloc_samples,
@@ -106,39 +174,85 @@ static const struct ddsi_sertype_ops stp_ops = {
   .hash = stp_hash
 };
 
-#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-#define NATIVE_ENCODING CDR_LE
-#elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
-#define NATIVE_ENCODING CDR_BE
-#else
-#error "DDSRT_ENDIAN neither LITTLE nor BIG"
-#endif
+static const struct ddsi_sertopic_ops stp0_ops = {
+  .free = stp0_free,
+  .zero_samples = stp0_zero_samples,
+  .realloc_samples = stp0_realloc_samples,
+  .free_samples = stp0_free_samples,
+  .equal = stp0_equal,
+  .hash = stp0_hash
+};
 
-struct sd {
-  struct ddsi_serdata c;
+struct sdx {
   struct sampletype data;
   uint32_t keysz, pad0, valuesz, pad1;
 };
 
-static uint32_t sd_get_size (const struct ddsi_serdata *dcmn)
+struct sd {
+  struct ddsi_serdata c;
+  struct sdx x;
+};
+
+struct sd0 {
+  struct ddsi_sertopic_serdata c;
+  char pad[32]; // just to get a different memory layout
+  struct sdx x;
+};
+
+static uint32_t sdx_get_size (const struct sdx *d, enum ddsi_serdata_kind kind)
 {
   // FIXME: 4 is DDSI CDR header size and shouldn't be included here; same is true for pad1
+  return 4 + 4 + d->keysz + d->pad0 + (kind == SDK_DATA ? 4 + d->valuesz + d->pad1 : 0);
+}
+
+static uint32_t sd_get_size (const struct ddsi_serdata *dcmn)
+{
   const struct sd *d = (const struct sd *) dcmn;
-  return 4 + 4 + d->keysz + d->pad0 + (dcmn->kind == SDK_DATA ? 4 + d->valuesz + d->pad1 : 0);
+  return sdx_get_size (&d->x, d->c.kind);
+}
+
+static uint32_t sd0_get_size (const struct ddsi_sertopic_serdata *dcmn)
+{
+  const struct sd0 *d = (const struct sd0 *) dcmn;
+  return sdx_get_size (&d->x, d->c.kind);
+}
+
+static bool sdx_eqkey (const struct sdx *a, const struct sdx *b)
+{
+  return a->keysz == b->keysz && memcmp (a->data.key, b->data.key, a->keysz) == 0;
 }
 
 static bool sd_eqkey (const struct ddsi_serdata *acmn, const struct ddsi_serdata *bcmn)
 {
   const struct sd *a = (const struct sd *) acmn;
   const struct sd *b = (const struct sd *) bcmn;
-  return a->keysz == b->keysz && memcmp (a->data.key, b->data.key, a->keysz) == 0;
+  return sdx_eqkey (&a->x, &b->x);
+}
+
+static bool sd0_eqkey (const struct ddsi_sertopic_serdata *acmn, const struct ddsi_sertopic_serdata *bcmn)
+{
+  const struct sd0 *a = (const struct sd0 *) acmn;
+  const struct sd0 *b = (const struct sd0 *) bcmn;
+  return sdx_eqkey (&a->x, &b->x);
+}
+
+static void sdx_free (struct sdx *d)
+{
+  free (d->data.key);
+  free (d->data.value);
 }
 
 static void sd_free (struct ddsi_serdata *dcmn)
 {
   struct sd *d = (struct sd *) dcmn;
-  free (d->data.key);
-  free (d->data.value);
+  sdx_free (&d->x);
+  free (d);
+}
+
+static void sd0_free (struct ddsi_sertopic_serdata *dcmn)
+{
+  struct sd0 *d = (struct sd0 *) dcmn;
+  sdx_free (&d->x);
   free (d);
 }
 
@@ -149,39 +263,54 @@ static char *strdup_with_len (const char *x, size_t l)
   return y;
 }
 
-static struct ddsi_serdata *sd_from_ser_iov (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
+static uint32_t sdx_from_ser_iov (struct sdx *d, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, uint32_t basehash)
 {
-  struct stp const * const stp = (const struct stp *) tpcmn;
-  struct sd *sd = malloc (sizeof (*sd));
-  ddsi_serdata_init (&sd->c, &stp->c, kind);
-  (void) size;
   // assuming not fragmented, CDR Header specifies native encoding, input is valid and all that
   // CDR encoding of strings: uint32_t length-including-terminating-0 ; blob-including-terminating-0
   assert (niov == 1);
   (void) niov;
   size_t off = 0;
   const char *base = (const char *) iov[0].iov_base + 4;
-  memcpy (&sd->keysz, base + off, sizeof (uint32_t));
+  memcpy (&d->keysz, base + off, sizeof (uint32_t));
   off += sizeof (uint32_t);
-  sd->data.key = strdup_with_len (base + off, sd->keysz);
-  off += sd->keysz;
-  sd->pad0 = (uint32_t) (((off % 4) == 0) ? 0 : 4 - (off % 4));
-  off += sd->pad0;
+  d->data.key = strdup_with_len (base + off, d->keysz);
+  off += d->keysz;
+  d->pad0 = (uint32_t) (((off % 4) == 0) ? 0 : 4 - (off % 4));
+  off += d->pad0;
   if (kind == SDK_DATA)
   {
-    memcpy (&sd->valuesz, base + off, sizeof (uint32_t));
+    memcpy (&d->valuesz, base + off, sizeof (uint32_t));
     off += sizeof (uint32_t);
-    sd->data.value = strdup_with_len (base + off, sd->valuesz);
-    off += sd->valuesz;
+    d->data.value = strdup_with_len (base + off, d->valuesz);
+    off += d->valuesz;
     // FIXME: not sure if this is still needed, it shouldn't be, but ...
-    sd->pad1 = (uint32_t) (((off % 4) == 0) ? 0 : 4 - (off % 4));
+    d->pad1 = (uint32_t) (((off % 4) == 0) ? 0 : 4 - (off % 4));
   }
   else
   {
-    sd->data.value = NULL;
-    sd->valuesz = sd->pad1 = 0;
+    d->data.value = NULL;
+    d->valuesz = d->pad1 = 0;
   }
-  sd->c.hash = ddsrt_mh3 (sd->data.key, sd->keysz, 0) ^ tpcmn->serdata_basehash;
+  return ddsrt_mh3 (d->data.key, d->keysz, 0) ^ basehash;
+}
+
+static struct ddsi_serdata *sd_from_ser_iov (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
+{
+  struct stp const * const stp = (const struct stp *) tpcmn;
+  struct sd *sd = malloc (sizeof (*sd));
+  ddsi_serdata_init (&sd->c, &stp->c, kind);
+  (void) size;
+  sd->c.hash = sdx_from_ser_iov (&sd->x, kind, niov, iov, tpcmn->serdata_basehash);
+  return &sd->c;
+}
+
+static struct ddsi_sertopic_serdata *sd0_from_ser_iov (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
+{
+  struct stp0 const * const stp = (const struct stp0 *) tpcmn;
+  struct sd0 *sd = malloc (sizeof (*sd));
+  ddsi_sertopic_serdata_init (&sd->c, &stp->c, kind);
+  (void) size;
+  sd->c.hash = sdx_from_ser_iov (&sd->x, kind, niov, iov, tpcmn->serdata_basehash);
   return &sd->c;
 }
 
@@ -195,12 +324,49 @@ static struct ddsi_serdata *sd_from_ser (const struct ddsi_sertype *tpcmn, enum 
   return sd_from_ser_iov (tpcmn, kind, 1, &iov, size);
 }
 
+static struct ddsi_sertopic_serdata *sd0_from_ser (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+{
+  assert (fragchain->nextfrag == NULL);
+  ddsrt_iovec_t iov = {
+    .iov_base = NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain)),
+    .iov_len = fragchain->maxp1 // fragchain->min = 0 for first fragment, by definition
+  };
+  return sd0_from_ser_iov (tpcmn, kind, 1, &iov, size);
+}
+
 static struct ddsi_serdata *sd_from_keyhash (const struct ddsi_sertype *tpcmn, const ddsi_keyhash_t *keyhash)
 {
   // unbounded string, therefore keyhash is MD5 and we can't extract the value
   // (don't try disposing/unregistering in RTI and expect this to accept the data)
   (void) tpcmn; (void) keyhash;
   return NULL;
+}
+
+static struct ddsi_sertopic_serdata *sd0_from_keyhash (const struct ddsi_sertopic *tpcmn, const ddsi_keyhash_t *keyhash)
+{
+  // unbounded string, therefore keyhash is MD5 and we can't extract the value
+  // (don't try disposing/unregistering in RTI and expect this to accept the data)
+  (void) tpcmn; (void) keyhash;
+  return NULL;
+}
+
+static uint32_t sdx_from_sample (struct sdx *d, enum ddsi_serdata_kind kind, const struct sampletype *s, uint32_t basehash)
+{
+  d->keysz = (uint32_t) strlen (s->key) + 1;
+  d->data.key = strdup_with_len (s->key, d->keysz);
+  d->pad0 = ((d->keysz % 4) == 0) ? 0 : 4 - (d->keysz % 4);
+  if (kind == SDK_DATA)
+  {
+    d->valuesz = (uint32_t) strlen (s->value) + 1;
+    d->data.value = strdup_with_len (s->value, d->valuesz);
+    d->pad1 = ((d->valuesz % 4) == 0) ? 0 : 4 - (d->valuesz % 4);
+  }
+  else
+  {
+    d->data.value = NULL;
+    d->valuesz = d->pad1 = 0;
+  }
+  return ddsrt_mh3 (d->data.key, d->keysz, 0) ^ basehash;
 }
 
 static struct ddsi_serdata *sd_from_sample (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
@@ -211,22 +377,30 @@ static struct ddsi_serdata *sd_from_sample (const struct ddsi_sertype *tpcmn, en
     return NULL;
   struct sd *sd = malloc (sizeof (*sd));
   ddsi_serdata_init (&sd->c, &tp->c, kind);
-  sd->keysz = (uint32_t) strlen (s->key) + 1;
-  sd->data.key = strdup_with_len (s->key, sd->keysz);
-  sd->pad0 = ((sd->keysz % 4) == 0) ? 0 : 4 - (sd->keysz % 4);
-  if (kind == SDK_DATA)
-  {
-    sd->valuesz = (uint32_t) strlen (s->value) + 1;
-    sd->data.value = strdup_with_len (s->value, sd->valuesz);
-    sd->pad1 = ((sd->valuesz % 4) == 0) ? 0 : 4 - (sd->valuesz % 4);
-  }
-  else
-  {
-    sd->data.value = NULL;
-    sd->valuesz = sd->pad1 = 0;
-  }
-  sd->c.hash = ddsrt_mh3 (sd->data.key, sd->keysz, 0) ^ tpcmn->serdata_basehash;
+  sd->c.hash = sdx_from_sample (&sd->x, kind, s, tpcmn->serdata_basehash);
   return &sd->c;
+}
+
+static struct ddsi_sertopic_serdata *sd0_from_sample (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
+{
+  const struct stp0 *tp = (const struct stp0 *) tpcmn;
+  const struct sampletype *s = sample;
+  if (s->key == NULL || (kind == SDK_DATA && s->value == NULL))
+    return NULL;
+  struct sd0 *sd = malloc (sizeof (*sd));
+  ddsi_sertopic_serdata_init (&sd->c, &tp->c, kind);
+  sd->c.hash = sdx_from_sample (&sd->x, kind, s, tpcmn->serdata_basehash);
+  return &sd->c;
+}
+
+
+static void sdx_to_untyped (struct sdx *sd_tl, const struct sdx *sd)
+{
+  sd_tl->data.key = strdup_with_len (sd->data.key, sd->keysz);
+  sd_tl->data.value = NULL;
+  sd_tl->keysz = sd->keysz;
+  sd_tl->pad0 = sd->pad0;
+  sd_tl->valuesz = sd_tl->pad1 = 0;
 }
 
 static struct ddsi_serdata *sd_to_untyped (const struct ddsi_serdata *serdata_common)
@@ -238,25 +412,34 @@ static struct ddsi_serdata *sd_to_untyped (const struct ddsi_serdata *serdata_co
   sd_tl->c.type = NULL;
   sd_tl->c.hash = sd->c.hash;
   sd_tl->c.timestamp.v = INT64_MIN;
-  sd_tl->data.key = strdup_with_len (sd->data.key, sd->keysz);
-  sd_tl->data.value = NULL;
-  sd_tl->keysz = sd->keysz;
-  sd_tl->pad0 = sd->pad0;
-  sd_tl->valuesz = sd_tl->pad1 = 0;
+  sdx_to_untyped (&sd_tl->x, &sd->x);
   return &sd_tl->c;
 }
 
-static struct ddsi_serdata *sd_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t cdr_off, size_t cdr_sz, ddsrt_iovec_t *ref)
+static struct ddsi_sertopic_serdata *sd0_to_topicless (const struct ddsi_sertopic_serdata *serdata_common)
+{
+  const struct sd0 *sd = (const struct sd0 *) serdata_common;
+  const struct stp0 *tp = (const struct stp0 *) sd->c.topic;
+  struct sd0 *sd_tl = malloc (sizeof (*sd_tl));
+  ddsi_sertopic_serdata_init (&sd_tl->c, &tp->c, SDK_KEY);
+  sd_tl->c.topic = NULL;
+  sd_tl->c.hash = sd->c.hash;
+  sd_tl->c.timestamp.v = INT64_MIN;
+  sdx_to_untyped (&sd_tl->x, &sd->x);
+  return &sd_tl->c;
+}
+
+static void sdx_to_ser_ref (const struct sdx *sd, enum ddsi_serdata_kind kind, size_t cdr_off, size_t cdr_sz, ddsrt_iovec_t *ref)
 {
   // The idea is that if the CDR is available already, one can return a reference (in which case
-  // one probably should also increment the sample's refcount).  But here we generaete the CDR
+  // one probably should also increment the sample's refcount).  But here we generate the CDR
   // on the fly
-  const struct sd *sd = (const struct sd *) serdata_common;
+  //
   // fragmented data results in calls with different offsets and limits, but can't be bothered for this test
-  assert (cdr_off == 0 && cdr_sz == sd_get_size (&sd->c));
+  assert (cdr_off == 0 && cdr_sz == sdx_get_size (sd, kind));
   (void) cdr_off;
   (void) cdr_sz;
-  ref->iov_len = sd_get_size (&sd->c);
+  ref->iov_len = sdx_get_size (sd, kind);
   ref->iov_base = malloc (ref->iov_len);
   char * const header = ref->iov_base;
   header[0] = 0;
@@ -271,7 +454,7 @@ static struct ddsi_serdata *sd_to_ser_ref (const struct ddsi_serdata *serdata_co
   off += sd->keysz;
   for (uint32_t i = 0; i < sd->pad0; i++)
     base[off++] = 0;
-  if (sd->c.kind == SDK_DATA)
+  if (kind == SDK_DATA)
   {
     memcpy (base + off, &sd->valuesz, sizeof (uint32_t));
     off += sizeof (uint32_t);
@@ -281,10 +464,36 @@ static struct ddsi_serdata *sd_to_ser_ref (const struct ddsi_serdata *serdata_co
       base[off++] = 0;
   }
   assert (4 + off == ref->iov_len);
+}
+
+static struct ddsi_serdata *sd_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t cdr_off, size_t cdr_sz, ddsrt_iovec_t *ref)
+{
+  // The idea is that if the CDR is available already, one can return a reference (in which case
+  // one probably should also increment the sample's refcount).  But here we generaete the CDR
+  // on the fly
+  const struct sd *sd = (const struct sd *) serdata_common;
+  sdx_to_ser_ref (&sd->x, sd->c.kind, cdr_off, cdr_sz, ref);
   return (struct ddsi_serdata *) &sd->c;
 }
 
+static struct ddsi_sertopic_serdata *sd0_to_ser_ref (const struct ddsi_sertopic_serdata *serdata_common, size_t cdr_off, size_t cdr_sz, ddsrt_iovec_t *ref)
+{
+  // The idea is that if the CDR is available already, one can return a reference (in which case
+  // one probably should also increment the sample's refcount).  But here we generaete the CDR
+  // on the fly
+  const struct sd0 *sd = (const struct sd0 *) serdata_common;
+  sdx_to_ser_ref (&sd->x, sd->c.kind, cdr_off, cdr_sz, ref);
+  return (struct ddsi_sertopic_serdata *) &sd->c;
+}
+
 static void sd_to_ser_unref (struct ddsi_serdata *serdata_common, const ddsrt_iovec_t *ref)
+{
+  // const "ref" is a mistake in the interface ... it is owned by this code ...
+  (void) serdata_common;
+  free ((void *) ref->iov_base);
+}
+
+static void sd0_to_ser_unref (struct ddsi_sertopic_serdata *serdata_common, const ddsrt_iovec_t *ref)
 {
   // const "ref" is a mistake in the interface ... it is owned by this code ...
   (void) serdata_common;
@@ -300,14 +509,21 @@ static void sd_to_ser (const struct ddsi_serdata *serdata_common, size_t off, si
   sd_to_ser_unref ((struct ddsi_serdata *) serdata_common, &iov);
 }
 
-static bool sd_to_sample (const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
+static void sd0_to_ser (const struct ddsi_sertopic_serdata *serdata_common, size_t off, size_t sz, void *buf)
 {
-  const struct sd *sd = (const struct sd *) serdata_common;
-  struct sampletype *s = sample;
+  // being lazy and reusing code in sd_to_ser_ref, even though here we don't have to allocate anything
+  ddsrt_iovec_t iov;
+  (void) sd0_to_ser_ref (serdata_common, off, sz, &iov);
+  memcpy (buf, iov.iov_base, iov.iov_len);
+  sd0_to_ser_unref ((struct ddsi_sertopic_serdata *) serdata_common, &iov);
+}
+
+static bool sdx_to_sample (const struct sdx *sd, enum ddsi_serdata_kind kind, struct sampletype *s, void **bufptr, void *buflim)
+{
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   s->key = dds_realloc (s->key, sd->keysz);
   memcpy (s->key, sd->data.key, sd->keysz);
-  if (sd->c.kind == SDK_DATA)
+  if (kind == SDK_DATA)
   {
     s->value = dds_realloc (s->value, sd->valuesz);
     memcpy (s->value, sd->data.value, sd->valuesz);
@@ -315,39 +531,87 @@ static bool sd_to_sample (const struct ddsi_serdata *serdata_common, void *sampl
   return true;
 }
 
-static bool sd_untyped_to_sample (const struct ddsi_sertype *topic, const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
+static bool sd_to_sample (const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
 {
-  (void) topic;
   const struct sd *sd = (const struct sd *) serdata_common;
-  struct sampletype *s = sample;
+  return sdx_to_sample (&sd->x, sd->c.kind, sample, bufptr, buflim);
+}
+
+static bool sd0_to_sample (const struct ddsi_sertopic_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
+{
+  const struct sd0 *sd = (const struct sd0 *) serdata_common;
+  return sdx_to_sample (&sd->x, sd->c.kind, sample, bufptr, buflim);
+}
+
+static bool sdx_untyped_to_sample (const struct sdx *sd, struct sampletype *s, void **bufptr, void *buflim)
+{
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   s->key = dds_realloc (s->key, sd->keysz);
   memcpy (s->key, sd->data.key, sd->keysz);
   return true;
 }
 
-static size_t sd_print (const struct ddsi_sertype *sertype_common, const struct ddsi_serdata *serdata_common, char *buf, size_t size)
+static bool sd_untyped_to_sample (const struct ddsi_sertype *topic, const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
 {
-  (void) sertype_common;
+  (void) topic;
   const struct sd *sd = (const struct sd *) serdata_common;
+  return sdx_untyped_to_sample (&sd->x, sample, bufptr, buflim);
+  return true;
+}
+
+static bool sd0_topicless_to_sample (const struct ddsi_sertopic *topic, const struct ddsi_sertopic_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
+{
+  (void) topic;
+  const struct sd0 *sd = (const struct sd0 *) serdata_common;
+  return sdx_untyped_to_sample (&sd->x, sample, bufptr, buflim);
+}
+
+
+static size_t sdx_print (const struct sdx *sd, enum ddsi_serdata_kind kind, char *buf, size_t size)
+{
   int cnt;
-  if (sd->c.kind == SDK_DATA)
+  if (kind == SDK_DATA)
     cnt = snprintf (buf, size, "%s -> %s", sd->data.key, sd->data.value);
   else
     cnt = snprintf (buf, size, "%s", sd->data.key);
   return ((size_t) cnt > size) ? size : (size_t) cnt;
 }
 
-static void sd_get_keyhash (const struct ddsi_serdata *serdata_common, struct ddsi_keyhash *buf, bool force_md5)
+static size_t sd_print (const struct ddsi_sertype *sertype_common, const struct ddsi_serdata *serdata_common, char *buf, size_t size)
+{
+  (void) sertype_common;
+  const struct sd *sd = (const struct sd *) serdata_common;
+  return sdx_print (&sd->x, sd->c.kind, buf, size);
+}
+
+static size_t sd0_print (const struct ddsi_sertopic *sertopic_common, const struct ddsi_sertopic_serdata *serdata_common, char *buf, size_t size)
+{
+  (void) sertopic_common;
+  const struct sd0 *sd = (const struct sd0 *) serdata_common;
+  return sdx_print (&sd->x, sd->c.kind, buf, size);
+}
+
+static void sdx_get_keyhash (const struct sdx *sd, struct ddsi_keyhash *buf, bool force_md5)
 {
   (void) force_md5; // unbounded string is always MD5
-  struct sd const * const sd = (const struct sd *) serdata_common;
   const uint32_t keysz_be = ddsrt_toBE4u (sd->keysz);
   ddsrt_md5_state_t md5st;
   ddsrt_md5_init (&md5st);
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &keysz_be, sizeof (keysz_be));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) sd->data.key, sd->keysz);
   ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) (buf->value));
+}
+
+static void sd_get_keyhash (const struct ddsi_serdata *serdata_common, struct ddsi_keyhash *buf, bool force_md5)
+{
+  struct sd const * const sd = (const struct sd *) serdata_common;
+  sdx_get_keyhash (&sd->x, buf, force_md5);
+}
+
+static void sd0_get_keyhash (const struct ddsi_sertopic_serdata *serdata_common, struct ddsi_keyhash *buf, bool force_md5)
+{
+  struct sd0 const * const sd = (const struct sd0 *) serdata_common;
+  sdx_get_keyhash (&sd->x, buf, force_md5);
 }
 
 static const struct ddsi_serdata_ops sd_ops = {
@@ -368,25 +632,42 @@ static const struct ddsi_serdata_ops sd_ops = {
   .get_keyhash = sd_get_keyhash
 };
 
-static struct ddsi_sertype *make_sertype (dds_entity_t pp, const char *typename)
-{
-  struct stp *stp = malloc (sizeof (*stp));
-  struct ddsi_domaingv *gv;
+static const struct ddsi_sertopic_serdata_ops sd0_ops = {
+  .get_size = sd0_get_size,
+  .eqkey = sd0_eqkey,
+  .free = sd0_free,
+  .from_ser = sd0_from_ser,
+  .from_ser_iov = sd0_from_ser_iov,
+  .from_keyhash = sd0_from_keyhash,
+  .from_sample = sd0_from_sample,
+  .to_ser = sd0_to_ser,
+  .to_sample = sd0_to_sample,
+  .to_ser_ref = sd0_to_ser_ref,
+  .to_ser_unref = sd0_to_ser_unref,
+  .to_topicless = sd0_to_topicless,
+  .topicless_to_sample = sd0_topicless_to_sample,
+  .print = sd0_print,
+  .get_keyhash = sd0_get_keyhash
+};
 
-  {
-    dds_return_t rc;
-    struct dds_entity *x;
-    rc = dds_entity_pin (pp, &x);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
-    gv = &x->m_domain->gv;
-    dds_entity_unpin (x);
-  }
+/*----------------------------------------------------------------
+ *
+ * tests parameterized with sertype/sertopic-based implementation
+ *
+ *----------------------------------------------------------------*/
 
-  ddsi_sertype_init (gv, &stp->c, typename, &stp_ops, &sd_ops, false);
-  return &stp->c;
-}
+struct tw {
+  dds_entity_t tp;
+  void *st;
+};
 
-CU_Test(ddsc_cdr, basic)
+struct ops {
+  struct tw (*make_topic) (dds_entity_t pp, const char *topicname, const char *typename, const dds_qos_t *qos);
+  void * (*make_sample) (const struct tw *tw, const struct sampletype *xs);
+  const struct sdx * (*get_sdx) (const struct ddsi_serdata *sd);
+};
+
+static void cdr_basic (struct ops const * const ops)
 {
   dds_return_t rc;
   char topicname[100];
@@ -412,20 +693,15 @@ CU_Test(ddsc_cdr, basic)
   dds_qos_t *qos = dds_create_qos ();
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, 0);
 
-  create_unique_topic_name ("ddsc_cdr_basic", topicname, sizeof topicname);
-  struct ddsi_sertype *pub_st = make_sertype (pub_pp, "x");
-  const dds_entity_t pub_tp = dds_create_topic_generic (pub_pp, topicname, &pub_st, qos, NULL, NULL);
-  CU_ASSERT_FATAL (pub_tp > 0);
-
-  struct ddsi_sertype *sub_st = make_sertype (sub_pp, "x");
-  const dds_entity_t sub_tp = dds_create_topic_generic (sub_pp, topicname, &sub_st, qos, NULL, NULL);
-  CU_ASSERT_FATAL (sub_tp > 0);
+  create_unique_topic_name ("ddsc_cdr_sertopic_basic", topicname, sizeof topicname);
+  struct tw pub_tw = ops->make_topic (pub_pp, topicname, "x", qos);
+  struct tw sub_tw = ops->make_topic (sub_pp, topicname, "x", qos);
 
   dds_delete_qos (qos);
 
-  const dds_entity_t wr = dds_create_writer (pub_pp, pub_tp, NULL, NULL);
+  const dds_entity_t wr = dds_create_writer (pub_pp, pub_tw.tp, NULL, NULL);
   CU_ASSERT_FATAL (wr > 0);
-  const dds_entity_t rd = dds_create_reader (sub_pp, sub_tp, NULL, NULL);
+  const dds_entity_t rd = dds_create_reader (sub_pp, sub_tw.tp, NULL, NULL);
   CU_ASSERT_FATAL (rd > 0);
 
   // wait for writer to match reader; it is safe to write data once that happened
@@ -521,7 +797,7 @@ CU_Test(ddsc_cdr, basic)
   rc = dds_wait_for_acks (wr, DDS_SECS (5));
   CU_ASSERT_FATAL (rc == 0);
 
-  // read the resulting invalid sample (untyped_to_sample)
+  // read the resulting invalid sample (topicless_to_sample)
   {
     struct sampletype s = { .key = NULL, .value = NULL };
     void *raw = &s;
@@ -549,7 +825,7 @@ CU_Test(ddsc_cdr, basic)
       }
 
       // we know them to be of our own implementation!
-      struct sd *sd = (struct sd *) serdata[i];
+      const struct sdx *sd = ops->get_sdx (serdata[i]);
       CU_ASSERT_FATAL (si[i].valid_data);
       size_t j;
       for (j = 0; j < sizeof (xs) / sizeof (xs[0]); j++)
@@ -609,7 +885,7 @@ CU_Test(ddsc_cdr, basic)
   CU_ASSERT_FATAL (rc == 0);
 }
 
-CU_Test(ddsc_cdr, forward)
+static void cdr_forward (struct ops const * const ops)
 {
   dds_return_t rc;
   char topicname[100];
@@ -617,14 +893,12 @@ CU_Test(ddsc_cdr, forward)
   const dds_entity_t pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_FATAL (pp > 0);
 
-  create_unique_topic_name ("ddsc_cdr_basic", topicname, sizeof topicname);
-  struct ddsi_sertype *st = make_sertype (pp, "x");
-  const dds_entity_t tp = dds_create_topic_generic (pp, topicname, &st, NULL, NULL, NULL);
-  CU_ASSERT_FATAL (tp > 0);
+  create_unique_topic_name ("ddsc_cdr_sertopic_basic", topicname, sizeof topicname);
+  struct tw tw = ops->make_topic (pp, topicname, "x", NULL);
 
-  const dds_entity_t wr = dds_create_writer (pp, tp, NULL, NULL);
+  const dds_entity_t wr = dds_create_writer (pp, tw.tp, NULL, NULL);
   CU_ASSERT_FATAL (wr > 0);
-  const dds_entity_t rd = dds_create_reader (pp, tp, NULL, NULL);
+  const dds_entity_t rd = dds_create_reader (pp, tw.tp, NULL, NULL);
   CU_ASSERT_FATAL (rd > 0);
 
   // write & writedispose
@@ -673,7 +947,7 @@ CU_Test(ddsc_cdr, forward)
   CU_ASSERT_FATAL (rc == 0);
 }
 
-CU_Test(ddsc_cdr, invalid_data)
+static void cdr_invalid_data (struct ops const * const ops)
 {
   dds_return_t rc;
   char topicname[100];
@@ -681,12 +955,10 @@ CU_Test(ddsc_cdr, invalid_data)
   const dds_entity_t pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_FATAL (pp > 0);
 
-  create_unique_topic_name ("ddsc_cdr_invalid_data", topicname, sizeof topicname);
-  struct ddsi_sertype *st = make_sertype (pp, "x");
-  const dds_entity_t tp = dds_create_topic_generic (pp, topicname, &st, NULL, NULL, NULL);
-  CU_ASSERT_FATAL (tp > 0);
+  create_unique_topic_name ("ddsc_cdr_sertopic_invalid_data", topicname, sizeof topicname);
+  struct tw tw = ops->make_topic (pp, topicname, "x", NULL);
 
-  const dds_entity_t wr = dds_create_writer (pp, tp, NULL, NULL);
+  const dds_entity_t wr = dds_create_writer (pp, tw.tp, NULL, NULL);
   CU_ASSERT_FATAL (wr > 0);
 
   rc = dds_write (wr, &((struct sampletype){ .key = NULL, .value = NULL }));
@@ -725,4 +997,185 @@ CU_Test(ddsc_cdr, invalid_data)
   CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
   rc = dds_unregister_instance (wr, &((struct sampletype){ .key = NULL, .value = "x" }));
   CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+
+  rc = dds_delete (pp);
+  CU_ASSERT_FATAL (rc == 0);
+}
+
+static void cdr_timeout (struct ops const * const ops)
+{
+  dds_return_t rc;
+  char topicname[100];
+
+  /* Domains for pub and sub use a different domain id, but the portgain setting
+   * in configuration is 0, so that both domains will map to the same port number.
+   * This allows to create two domains in a single test process. */
+  const char *config = "\
+${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
+<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>\
+<Internal>\
+  <Watermarks>\
+    <WhcHigh>0B</WhcHigh>\
+    <WhcHighInit>0B</WhcHighInit>\
+    <WhcLow>0B</WhcLow>\
+    <WhcAdaptive>false</WhcAdaptive>\
+  </Watermarks>\
+  <WriterLingerDuration>0s</WriterLingerDuration>\
+</Internal>";
+  char *conf_pub = ddsrt_expand_envvars (config, 0);
+  char *conf_sub = ddsrt_expand_envvars (config, 1);
+  const dds_entity_t pub_dom = dds_create_domain (0, conf_pub);
+  CU_ASSERT_FATAL (pub_dom > 0);
+  const dds_entity_t sub_dom = dds_create_domain (1, conf_sub);
+  CU_ASSERT_FATAL (sub_dom > 0);
+  ddsrt_free (conf_pub);
+  ddsrt_free (conf_sub);
+
+  const dds_entity_t pub_pp = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_FATAL (pub_pp > 0);
+  const dds_entity_t sub_pp = dds_create_participant (1, NULL, NULL);
+  CU_ASSERT_FATAL (sub_pp > 0);
+
+  dds_qos_t *qos = dds_create_qos ();
+  dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, 0);
+  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, 0);
+
+  create_unique_topic_name ("ddsc_cdr_sertopic_basic", topicname, sizeof topicname);
+  struct tw pub_tw = ops->make_topic (pub_pp, topicname, "x", qos);
+  struct tw sub_tw = ops->make_topic (sub_pp, topicname, "x", qos);
+
+  dds_delete_qos (qos);
+
+  const dds_entity_t wr = dds_create_writer (pub_pp, pub_tw.tp, NULL, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  const dds_entity_t rd = dds_create_reader (sub_pp, sub_tw.tp, NULL, NULL);
+  CU_ASSERT_FATAL (rd > 0);
+
+  // wait for writer to match reader; it is safe to write data once that happened
+  dds_publication_matched_status_t pm;
+  while ((rc = dds_get_publication_matched_status (wr, &pm)) == 0 && pm.current_count != 1)
+    dds_sleepfor (DDS_MSECS (10));
+  CU_ASSERT_FATAL (rc == 0);
+
+  // make writer mute: no data & heartbeats -> no ACKs, so first sample remains
+  // unacknowledged and second sample bumps into WHC limits, forcing an error path in
+  // writecdr_impl
+  dds_domain_set_deafmute (wr, false, true, DDS_INFINITY);
+
+  struct sampletype xs[] = {
+    { .key = "krab", .value = "hemocyanine" },
+    { .key = "boom", .value = "chlorofyl" }
+  };
+  for (size_t i = 0; i < sizeof (xs) / sizeof (xs[0]); i++)
+  {
+    void *sd = ops->make_sample (&pub_tw, &xs[i]);
+    CU_ASSERT_FATAL (sd != NULL);
+    rc = dds_writecdr (wr, sd);
+    if (i == 0) {
+      CU_ASSERT_FATAL (rc == 0);
+    } else {
+      CU_ASSERT_FATAL (rc == DDS_RETCODE_TIMEOUT);
+    }
+  }
+
+  dds_delete (DDS_CYCLONEDDS_HANDLE);
+}
+
+/*----------------------------------------------------------------
+ *
+ * test wrappers
+ *
+ *----------------------------------------------------------------*/
+
+static struct tw make_topic (dds_entity_t pp, const char *topicname, const char *typename, const dds_qos_t *qos)
+{
+  struct stp *stp = malloc (sizeof (*stp));
+  ddsi_sertype_init (&stp->c, typename, &stp_ops, &sd_ops, false);
+  struct ddsi_sertype *st = &stp->c;
+  dds_entity_t tp = dds_create_topic_sertype (pp, topicname, &st, qos, NULL, NULL);
+  CU_ASSERT_FATAL (tp > 0);
+  return ((struct tw) { .tp = tp, .st = st });
+}
+
+static void *make_sample (const struct tw *tw, const struct sampletype *s)
+{
+  return sd_from_sample (tw->st, SDK_DATA, s);
+}
+
+static const struct sdx *get_sdx (const struct ddsi_serdata *serdata)
+{
+  const struct sd *sd = (const struct sd *) serdata;
+  return &sd->x;
+}
+
+static struct tw make_topic0 (dds_entity_t pp, const char *topicname, const char *typename, const dds_qos_t *qos)
+{
+  struct stp0 *stp = malloc (sizeof (*stp));
+  ddsi_sertopic_init (&stp->c, topicname, typename, &stp0_ops, &sd0_ops, false);
+  struct ddsi_sertopic *st = &stp->c;
+  dds_entity_t tp = dds_create_topic_generic (pp, &st, qos, NULL, NULL);
+  CU_ASSERT_FATAL (tp > 0);
+  return ((struct tw) { .tp = tp, .st = st });
+}
+
+static void *make_sample0 (const struct tw *tw, const struct sampletype *s)
+{
+  return sd0_from_sample (tw->st, SDK_DATA, s);
+}
+
+static const struct sdx *get_sdx0 (const struct ddsi_serdata *serdata)
+{
+  const struct sd0 *sd = (const struct sd0 *) serdata;
+  return &sd->x;
+}
+
+static const struct ops gops = {
+  .make_topic = make_topic,
+  .make_sample = make_sample,
+  .get_sdx = get_sdx
+};
+static const struct ops gops0 = {
+  .make_topic = make_topic0,
+  .make_sample = make_sample0,
+  .get_sdx = get_sdx0
+};
+
+CU_Test(ddsc_cdr, basic)
+{
+  cdr_basic (&gops);
+}
+
+CU_Test(ddsc_cdr_sertopic, basic)
+{
+  cdr_basic (&gops0);
+}
+
+CU_Test(ddsc_cdr, forward)
+{
+  cdr_forward (&gops);
+}
+
+CU_Test(ddsc_cdr_sertopic, forward)
+{
+  cdr_forward (&gops0);
+}
+
+CU_Test(ddsc_cdr, invalid_data)
+{
+  cdr_invalid_data (&gops);
+}
+
+CU_Test(ddsc_cdr_sertopic, invalid_data)
+{
+  cdr_invalid_data (&gops0);
+}
+
+CU_Test(ddsc_cdr, timeout)
+{
+  cdr_timeout (&gops);
+}
+
+CU_Test(ddsc_cdr_sertopic, timeout)
+{
+  cdr_timeout (&gops0);
 }

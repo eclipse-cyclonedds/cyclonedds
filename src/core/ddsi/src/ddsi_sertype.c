@@ -30,6 +30,13 @@
 #include "dds/ddsi/ddsi_serdata_pserop.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 
+#ifndef _WIN32
+void ddsi_sertype_v0 (struct ddsi_sertype_v0 *dummy)
+{
+  (void) dummy;
+}
+#endif
+
 bool ddsi_sertype_equal (const struct ddsi_sertype *a, const struct ddsi_sertype *b)
 {
   if (strcmp (a->type_name, b->type_name) != 0)
@@ -53,18 +60,10 @@ uint32_t ddsi_sertype_hash (const struct ddsi_sertype *a)
   return h ^ a->ops->hash (a);
 }
 
-static struct ddsi_sertype *ddsi_sertype_ref_locked (const struct ddsi_sertype *sertype_const)
-{
-  struct ddsi_sertype *sertype = (struct ddsi_sertype *) sertype_const;
-  sertype->refc++;
-  return sertype;
-}
-
 struct ddsi_sertype *ddsi_sertype_ref (const struct ddsi_sertype *sertype_const)
 {
-  ddsrt_mutex_lock (&sertype_const->gv->sertypes_lock);
-  struct ddsi_sertype *sertype = ddsi_sertype_ref_locked (sertype_const);
-  ddsrt_mutex_unlock (&sertype_const->gv->sertypes_lock);
+  struct ddsi_sertype *sertype = (struct ddsi_sertype *) sertype_const;
+  ddsrt_atomic_inc32 (&sertype->flags_refc);
   return sertype;
 }
 
@@ -73,41 +72,82 @@ struct ddsi_sertype *ddsi_sertype_lookup_locked (struct ddsi_domaingv *gv, const
   struct ddsi_sertype *sertype = ddsrt_hh_lookup (gv->sertypes, sertype_template);
 #ifndef NDEBUG
   if (sertype != NULL)
-    assert (sertype->refc > 0);
+    assert ((ddsrt_atomic_ld32 (&sertype->flags_refc) & DDSI_SERTYPE_REFC_MASK) > 0);
 #endif
-  return sertype ? ddsi_sertype_ref_locked (sertype) : NULL;
+  return sertype ? ddsi_sertype_ref (sertype) : NULL;
 }
 
-void ddsi_sertype_register_locked (struct ddsi_sertype *sertype)
+void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype *sertype)
 {
-  assert (!sertype->registered);
-  (void) ddsi_sertype_ref_locked (sertype);
-  sertype->registered = true;
-  int x = ddsrt_hh_add (sertype->gv->sertypes, sertype);
+  assert (!(ddsrt_atomic_ld32 (&sertype->flags_refc) & DDSI_SERTYPE_REGISTERING));
+  assert (ddsrt_atomic_ldvoidp (&sertype->gv) == NULL);
+
+  uint32_t refc, refc1;
+  do {
+    refc = ddsrt_atomic_ld32 (&sertype->flags_refc);
+    refc1 = (refc | DDSI_SERTYPE_REGISTERING) + 1;
+  } while (!ddsrt_atomic_cas32 (&sertype->flags_refc, refc, refc1));
+  ddsrt_atomic_fence_stst ();
+  ddsrt_atomic_stvoidp (&sertype->gv, gv);
+  ddsrt_atomic_fence_stst ();
+  ddsrt_atomic_or32 (&sertype->flags_refc, DDSI_SERTYPE_REGISTERED);
+  int x = ddsrt_hh_add (gv->sertypes, sertype);
   assert (x);
   (void) x;
 }
 
-void ddsi_sertype_unref_locked (struct ddsi_sertype *sertype)
+void ddsi_sertype_unref_locked (struct ddsi_domaingv * const gv, struct ddsi_sertype *sertype)
 {
-  struct ddsi_domaingv *gv = sertype->gv;
-  if (--sertype->refc == 0)
+  const uint32_t flags_refc1 = ddsrt_atomic_dec32_nv (&sertype->flags_refc);
+  assert (!(flags_refc1 & DDSI_SERTYPE_REGISTERED) || gv == ddsrt_atomic_ldvoidp (&sertype->gv));
+  if ((flags_refc1 & DDSI_SERTYPE_REFC_MASK) == 0)
   {
-    if (sertype->registered)
-    {
+    if (flags_refc1 & DDSI_SERTYPE_REGISTERED)
       (void) ddsrt_hh_remove (gv->sertypes, sertype);
-      sertype->registered = false;
-    }
     ddsi_sertype_free (sertype);
   }
 }
 
+static void ddsi_sertype_unref_registered_unlocked (struct ddsi_sertype *sertype)
+{
+  // last reference & registered: load-load barrier to ensure loading a valid gv
+  ddsrt_atomic_fence_ldld ();
+  struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&sertype->gv);
+  assert (gv != NULL);
+  ddsrt_mutex_lock (&gv->sertypes_lock);
+  ddsi_sertype_unref_locked (gv, sertype);
+  ddsrt_mutex_unlock (&gv->sertypes_lock);
+}
+
 void ddsi_sertype_unref (struct ddsi_sertype *sertype)
 {
-  struct ddsi_domaingv *gv = sertype->gv;
-  ddsrt_mutex_lock (&gv->sertypes_lock);
-  ddsi_sertype_unref_locked (sertype);
-  ddsrt_mutex_unlock (&gv->sertypes_lock);
+  uint32_t flags_refc, flags_refc1;
+  do {
+    flags_refc = ddsrt_atomic_ld32 (&sertype->flags_refc);
+    assert ((flags_refc & DDSI_SERTYPE_REFC_MASK) >= 1);
+    flags_refc1 = flags_refc - 1;
+    if ((flags_refc & DDSI_SERTYPE_REGISTERING) && !(flags_refc & DDSI_SERTYPE_REGISTERED))
+    {
+      // while registering, there's another thread holding a reference so refcount must necessarily still be larger than 1
+      assert ((flags_refc1 & DDSI_SERTYPE_REFC_MASK) >= 1);
+    }
+    if (flags_refc & DDSI_SERTYPE_REGISTERED)
+    {
+      // registered sertypes refcounts manipulated while holding gv->sertypes_lock
+      // so that refcount -> 0 can be done atomically with removing it from gv->sertypes
+      //
+      // it can only transition to REGISTERED once, then it stays that way until it is
+      // dropped entirely
+      ddsi_sertype_unref_registered_unlocked (sertype);
+      return;
+    }
+  } while (!ddsrt_atomic_cas32 (&sertype->flags_refc, flags_refc, flags_refc1));
+  if ((flags_refc1 & DDSI_SERTYPE_REFC_MASK) == 0)
+  {
+    assert (!(flags_refc1 & DDSI_SERTYPE_REGISTERING));
+    ddsi_sertype_free (sertype);
+    return;
+  }
 }
 
 struct sertype_ser
@@ -145,7 +185,7 @@ bool ddsi_sertype_deserialize (struct ddsi_domaingv *gv, struct ddsi_sertype *tp
     return false;
   if (plist_deser_generic_srcoff (&d, serdata, sz, &srcoff, DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN, sertype_ser_ops) < 0)
     return false;
-  tp->refc = 1;
+  ddsrt_atomic_st32 (&tp->flags_refc, 1);
   tp->ops = sertype_ops;
   tp->type_name = ddsrt_strdup (d.type_name);
   tp->typekind_no_key = d.typekind_no_key;
@@ -155,26 +195,28 @@ bool ddsi_sertype_deserialize (struct ddsi_domaingv *gv, struct ddsi_sertype *tp
     return false;
   }
   tp->serdata_basehash = ddsi_sertype_compute_serdata_basehash (tp->serdata_ops);
-  tp->gv = gv;
-  tp->registered = false;
+  ddsrt_atomic_stvoidp (&tp->gv, NULL);
   return true;
 }
 
-void ddsi_sertype_init (struct ddsi_domaingv *gv, struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, bool typekind_no_key)
+void ddsi_sertype_init (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, bool typekind_no_key)
 {
-  tp->refc = 1;
+  // only one version for now
+  assert (sertype_ops->version == ddsi_sertype_v0);
+
+  ddsrt_atomic_st32 (&tp->flags_refc, 1);
   tp->type_name = ddsrt_strdup (type_name);
   tp->ops = sertype_ops;
   tp->serdata_ops = serdata_ops;
   tp->serdata_basehash = ddsi_sertype_compute_serdata_basehash (tp->serdata_ops);
   tp->typekind_no_key = typekind_no_key;
-  tp->gv = gv;
-  tp->registered = false;
+  tp->wrapped_sertopic = NULL;
+  ddsrt_atomic_stvoidp (&tp->gv, NULL);
 }
 
 void ddsi_sertype_fini (struct ddsi_sertype *tp)
 {
-  assert (tp->refc == 0);
+  assert ((ddsrt_atomic_ld32 (&tp->flags_refc) & DDSI_SERTYPE_REFC_MASK) == 0);
   ddsrt_free (tp->type_name);
 }
 

@@ -120,6 +120,8 @@ static void sertype_pserop_free_samples (const struct ddsi_sertype *sertype_comm
 }
 
 const struct ddsi_sertype_ops ddsi_sertype_ops_pserop = {
+  .version = ddsi_sertype_v0,
+  .arg = 0,
   .equal = sertype_pserop_equal,
   .hash = sertype_pserop_hash,
   .typeid_hash = sertype_pserop_typeid_hash,

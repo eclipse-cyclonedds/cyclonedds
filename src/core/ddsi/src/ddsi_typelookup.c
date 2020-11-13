@@ -462,10 +462,10 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *sample
       struct ddsi_sertype *existing_sertype = ddsi_sertype_lookup_locked (gv, &st->c);
       if (existing_sertype == NULL)
       {
-        ddsi_sertype_register_locked (&st->c);
+        ddsi_sertype_register_locked (gv, &st->c);
         sertype_new = true;
       }
-      ddsi_sertype_unref_locked (&st->c); // unref because both init_from_ser and sertype_lookup/register refcounts the type
+      ddsi_sertype_unref_locked (gv, &st->c); // unref because both init_from_ser and sertype_lookup/register refcounts the type
       ddsrt_mutex_unlock (&gv->sertypes_lock);
 
       tlm->state = TL_META_RESOLVED;

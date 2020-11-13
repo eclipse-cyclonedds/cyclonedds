@@ -50,7 +50,7 @@ struct ddsi_sertype_builtintopic {
 extern const struct ddsi_sertype_ops ddsi_sertype_ops_builtintopic;
 extern const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic;
 
-struct ddsi_sertype *new_sertype_builtintopic (struct ddsi_domaingv *gv, enum ddsi_sertype_builtintopic_entity_kind entity_kind, const char *typename);
+struct ddsi_sertype *new_sertype_builtintopic (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const char *typename);
 
 #if defined (__cplusplus)
 }
