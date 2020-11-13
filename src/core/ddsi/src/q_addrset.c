@@ -198,7 +198,7 @@ int is_unspec_locator (const ddsi_locator_t *loc)
           memcmp (&zloc.address, loc->address, sizeof (zloc.address)) == 0);
 }
 
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
 int addrset_contains_ssm (const struct ddsi_domaingv *gv, const struct addrset *as)
 {
   struct addrset_node *n;
@@ -319,7 +319,7 @@ void copy_addrset_into_addrset (const struct ddsi_domaingv *gv, struct addrset *
   copy_addrset_into_addrset_mc (gv, as, asadd);
 }
 
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
 void copy_addrset_into_addrset_no_ssm_mc (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asadd)
 {
   struct addrset_node *n;

@@ -75,7 +75,7 @@ void nn_xmsg_setdstN (struct nn_xmsg *msg, struct addrset *as, struct addrset *a
 
 int nn_xmsg_setmaxdelay (struct nn_xmsg *msg, int64_t maxdelay);
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
 int nn_xmsg_setencoderid (struct nn_xmsg *msg, uint32_t encoderid);
 #endif
 
@@ -119,7 +119,7 @@ void *nn_xmsg_submsg_from_marker (struct nn_xmsg *msg, struct nn_xmsg_marker mar
 void *nn_xmsg_append (struct nn_xmsg *m, struct nn_xmsg_marker *marker, size_t sz);
 void nn_xmsg_shrink (struct nn_xmsg *m, struct nn_xmsg_marker marker, size_t sz);
 void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t off, size_t len, struct writer *wr);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 size_t nn_xmsg_submsg_size (struct nn_xmsg *msg, struct nn_xmsg_marker marker);
 void nn_xmsg_submsg_remove (struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker);
 void nn_xmsg_submsg_replace (struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, unsigned char *new_submsg, size_t new_len);

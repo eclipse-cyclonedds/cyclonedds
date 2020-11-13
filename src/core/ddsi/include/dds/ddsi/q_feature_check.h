@@ -27,9 +27,10 @@
    - NETWORK_CHANNELS: support for multiple network channels
 
 */
+#include "dds/features.h"
 
-#ifdef DDSI_INCLUDE_SSM
-  #ifndef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_SSM
+  #ifndef DDS_HAS_NETWORK_PARTITIONS
     #error "SSM requires NETWORK_PARTITIONS"
   #endif
 
@@ -37,12 +38,12 @@
   #ifndef DDSRT_HAVE_SSM
     #error "DDSRT_HAVE_SSM should be defined"
   #elif ! DDSRT_HAVE_SSM
-    #undef DDSI_INCLUDE_SSM
+    #undef DDS_HAS_SSM
   #endif
 #endif
 
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
-  #ifndef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
+  #ifndef DDS_HAS_NETWORK_CHANNELS
     #error "BANDWIDTH_LIMITING requires NETWORK_CHANNELS"
   #endif
 #endif

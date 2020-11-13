@@ -15,7 +15,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/misc.h"
 
-#ifdef DDSI_INCLUDE_SSL
+#ifdef DDS_HAS_SSL
 
 #include <assert.h>
 #include <string.h>
@@ -414,4 +414,4 @@ void ddsi_ssl_config_plugin (struct ddsi_ssl_plugins *plugin)
   plugin->accept = ddsi_ssl_accept;
 }
 
-#endif /* DDSI_INCLUDE_SSL */
+#endif /* DDS_HAS_SSL */

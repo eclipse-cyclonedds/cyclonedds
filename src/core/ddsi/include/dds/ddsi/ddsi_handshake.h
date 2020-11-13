@@ -40,7 +40,7 @@ typedef void (*ddsi_handshake_end_cb_t)(
     struct proxy_participant *proxypp,
     enum ddsi_handshake_state result);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 
 #include "dds/ddsi/ddsi_security_msg.h"
 
@@ -182,7 +182,7 @@ void ddsi_handshake_admin_stop(struct ddsi_domaingv *gv);
  */
 void ddsi_handshake_admin_deinit(struct ddsi_domaingv *gv);
 
-#else /* DDSI_INCLUDE_SECURITY */
+#else /* DDS_HAS_SECURITY */
 
 #include "dds/ddsi/q_unused.h"
 
@@ -217,7 +217,7 @@ inline struct ddsi_handshake * ddsi_handshake_find(UNUSED_ARG(struct participant
   return NULL;
 }
 
-#endif /* DDSI_INCLUDE_SECURITY */
+#endif /* DDS_HAS_SECURITY */
 
 #if defined (__cplusplus)
 }

@@ -109,7 +109,7 @@ CU_Test(ddsc_security_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
      test this one here to be sure that it refuses to start when security is configured
      but the implementation doesn't include support for it. */
   const char *log_expected[] = {
-#ifndef DDSI_INCLUDE_SECURITY
+#ifndef DDS_HAS_SECURITY
     "config: //CycloneDDS/Domain: Security: unknown element*",
 #else
     "config: //CycloneDDS/Domain/Security/Authentication/IdentityCertificate/#text: element missing in configuration*",
@@ -136,7 +136,7 @@ CU_Test(ddsc_security_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_set_trace_sink(NULL, NULL);
 
   /* All traces should have been provided. */
-#ifndef DDSI_INCLUDE_SECURITY
+#ifndef DDS_HAS_SECURITY
   CU_ASSERT_FATAL(found == 0x1);
 #else
   CU_ASSERT_FATAL(found == 0x7);
@@ -150,7 +150,7 @@ CU_Test(ddsc_security_qos, empty, .init = ddsrt_init, .fini = ddsrt_fini)
      start when security is configured but the implementation doesn't include
      support for it. */
   const char *log_expected[] = {
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
     "new_participant(*): using security settings from QoS*",
     "new_participant(*): required security property * missing*",
 #endif
@@ -176,7 +176,7 @@ CU_Test(ddsc_security_qos, empty, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_set_trace_sink (NULL, NULL);
 
   /* All traces should have been provided. */
-#ifndef DDSI_INCLUDE_SECURITY
+#ifndef DDS_HAS_SECURITY
   CU_ASSERT_FATAL (found == 0x0);
 #else
   CU_ASSERT_FATAL (found == 0x3);

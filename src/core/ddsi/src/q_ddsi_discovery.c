@@ -46,7 +46,7 @@
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_pmd.h"
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 #include "dds/ddsi/ddsi_security_exchange.h"
 #endif
 
@@ -232,7 +232,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
   if (pp->e.gv->config.allowMulticast)
   {
     int include = 0;
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
     /* Note that if the default multicast address is an SSM address,
        we will simply advertise it. The recipients better understand
        it means the writers will publish to address and the readers
@@ -297,7 +297,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
     }
   }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   /* Add Security specific information. */
   if (q_omg_get_participant_security_info(pp, &(dst->participant_security_info))) {
     dst->present |= PP_PARTICIPANT_SECURITY_INFO;
@@ -312,7 +312,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
 
   assert (dst->qos.present == 0);
   ddsi_plist_mergein_missing (dst, pp->plist, 0, qosdiff);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   if (q_omg_participant_is_secure(pp))
     ddsi_plist_mergein_missing (dst, pp->plist, PP_IDENTITY_TOKEN | PP_PERMISSIONS_TOKEN, 0);
 #endif
@@ -475,7 +475,7 @@ static int handle_SPDP_dead (const struct receiver_state *rst, ddsi_entityid_t p
 
 static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv, uint32_t allow_multicast, struct addrset *as, const ddsi_locator_t *loc)
 {
-#if DDSI_INCLUDE_SSM
+#if DDS_HAS_SSM
   if (ddsi_is_ssm_mcaddr (gv, loc))
   {
     if (!(allow_multicast & DDSI_AMC_SSM))
@@ -907,7 +907,7 @@ static int sedp_write_endpoint
     ps.entity_name = common->name;
   }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   if (security)
   {
     ps.present |= PP_ENDPOINT_SECURITY_INFO;
@@ -939,7 +939,7 @@ static int sedp_write_endpoint
       ps.group_guid = epcommon->group_guid;
     }
 
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
     /* A bit of a hack -- the easy alternative would be to make it yet
      another parameter.  We only set "reader favours SSM" if we
      really do: no point in telling the world that everything is at
@@ -989,12 +989,12 @@ int sedp_write_writer (struct writer *wr)
     unsigned entityid = determine_publication_writer(wr);
     struct writer *sedp_wr = get_sedp_writer (wr->c.pp, entityid);
     nn_security_info_t *security = NULL;
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
     struct addrset *as = wr->ssm_as;
 #else
     struct addrset *as = NULL;
 #endif
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
     nn_security_info_t tmp;
     if (q_omg_get_writer_security_info(wr, &tmp))
     {
@@ -1013,12 +1013,12 @@ int sedp_write_reader (struct reader *rd)
     unsigned entityid = determine_subscription_writer(rd);
     struct writer *sedp_wr = get_sedp_writer (rd->c.pp, entityid);
     nn_security_info_t *security = NULL;
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
     struct addrset *as = rd->as;
 #else
     struct addrset *as = NULL;
 #endif
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
     nn_security_info_t tmp;
     if (q_omg_get_reader_security_info(rd, &tmp))
     {
@@ -1156,7 +1156,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, dd
   int reliable;
   struct addrset *as;
   int is_writer;
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   int ssm;
 #endif
 
@@ -1280,7 +1280,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, dd
   }
 
   nn_log_addrset(gv, DDS_LC_DISCOVERY, " (as", as);
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   ssm = 0;
   if (is_writer)
     ssm = addrset_contains_ssm (gv, as);
@@ -1308,7 +1308,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, dd
       {
         /* not supposed to get here for built-in ones, so can determine the channel based on the transport priority */
         assert (!is_builtin_entityid (datap->endpoint_guid.entityid, vendorid));
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
         {
           struct ddsi_config_channel_listelem *channel = find_channel (&gv->config, xqos->transport_priority);
           new_proxy_writer (&ppguid, &datap->endpoint_guid, as, datap, channel->dqueue, channel->evq ? channel->evq : gv->xevents, timestamp);
@@ -1326,7 +1326,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, dd
       }
       else
       {
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
         new_proxy_reader (gv, &ppguid, &datap->endpoint_guid, as, datap, timestamp, seq, ssm);
 #else
         new_proxy_reader (gv, &ppguid, &datap->endpoint_guid, as, datap, timestamp, seq);
@@ -1481,7 +1481,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
       topic = gv->pmd_topic;
       break;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
     case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
       topic = gv->spdp_secure_topic;
       break;
@@ -1576,7 +1576,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
       handle_pmd_message (sampleinfo->rst, d);
       break;
     }
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER:
       handle_auth_handshake_message(sampleinfo->rst, srcguid.entityid, d);
       break;

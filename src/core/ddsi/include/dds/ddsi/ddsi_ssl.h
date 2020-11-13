@@ -12,7 +12,9 @@
 #ifndef _DDSI_SSL_H_
 #define _DDSI_SSL_H_
 
-#ifdef DDSI_INCLUDE_SSL
+#include "dds/features.h"
+
+#ifdef DDS_HAS_SSL
 
 #ifdef _WIN32
 /* supposedly WinSock2 must be included before openssl headers otherwise winsock will be used */

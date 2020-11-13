@@ -1528,7 +1528,7 @@ static dds_return_t dvx_endpoint_guid (void * __restrict dst, const struct dd * 
   }
 }
 
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
 static dds_return_t dvx_reader_favours_ssm (void * __restrict dst, const struct dd * __restrict dd)
 {
   uint32_t * const favours_ssm = dst;
@@ -1585,10 +1585,10 @@ static const struct piddesc piddesc_omg[] = {
   PP  (ENTITY_NAME,                         entity_name, XS),
   PP  (KEYHASH,                             keyhash, XK),
   PPV (ENDPOINT_GUID,                       endpoint_guid, XG),
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   PPV (READER_FAVOURS_SSM,                  reader_favours_ssm, Xu),
 #endif
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   PP  (ENDPOINT_SECURITY_INFO,              endpoint_security_info, Xu, Xu),
   PP  (PARTICIPANT_SECURITY_INFO,           participant_security_info, Xu, Xu),
   PP  (IDENTITY_TOKEN,                      identity_token,        XS, XQ, XbPROP, XS, XS, XSTOP, XQ, XbPROP, XS, XO, XSTOP),
@@ -1707,12 +1707,12 @@ struct piddesc_index {
 
    FIXME: should compute them at build-time */
 #define DEFAULT_PROC_ARRAY_SIZE                20
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
 #define DEFAULT_OMG_PIDS_ARRAY_SIZE            (PID_READER_FAVOURS_SSM + 1)
 #else
 #define DEFAULT_OMG_PIDS_ARRAY_SIZE            (PID_STATUSINFO + 1)
 #endif
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 #define SECURITY_OMG_PIDS_ARRAY_SIZE           (PID_IDENTITY_STATUS_TOKEN - PID_IDENTITY_TOKEN + 1)
 #define SECURITY_PROC_ARRAY_SIZE               4
 #else
@@ -1755,7 +1755,7 @@ static size_t pid_to_index (nn_parameterid_t pid)
 {
   /* pid without flags. */
   size_t idx = (size_t)(pid & ~(PID_VENDORSPECIFIC_FLAG | PID_UNRECOGNIZED_INCOMPATIBLE_FLAG));
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   if ((idx >= PID_IDENTITY_TOKEN) && (idx <= PID_IDENTITY_STATUS_TOKEN))
   {
     /* Security PIDs start after the 'normal' PIDs. */
@@ -3295,7 +3295,7 @@ bool ddsi_xqos_find_prop (const dds_qos_t *xqos, const char *name, const char **
   return false;
 }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 static void fill_property(dds_property_t *prop, const char *name, const char *value)
 {
   prop->name = ddsrt_strdup(name);
@@ -3345,7 +3345,7 @@ void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct ddsi_confi
   if (cfg->authentication_properties.trusted_ca_dir )
     fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR, cfg->authentication_properties.trusted_ca_dir);
 }
-#endif /* DDSI_INCLUDE_SECURITY */
+#endif /* DDS_HAS_SECURITY */
 
 static int partition_is_default (const dds_partition_qospolicy_t *a)
 {

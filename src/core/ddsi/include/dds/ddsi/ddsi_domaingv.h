@@ -15,6 +15,8 @@
 #include <stdio.h>
 
 #include "dds/export.h"
+#include "dds/features.h"
+
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/sync.h"
@@ -257,7 +259,7 @@ struct ddsi_domaingv {
   dds_qos_t spdp_endpoint_xqos;
   dds_qos_t builtin_endpoint_xqos_rd;
   dds_qos_t builtin_endpoint_xqos_wr;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   dds_qos_t builtin_volatile_xqos_rd;
   dds_qos_t builtin_volatile_xqos_wr;
   dds_qos_t builtin_stateless_xqos_rd;
@@ -278,7 +280,7 @@ struct ddsi_domaingv {
 
   struct debug_monitor *debmon;
 
-#ifndef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifndef DDS_HAS_NETWORK_CHANNELS
   uint32_t networkQueueId;
   struct thread_state1 *channel_reader_ts;
 
@@ -294,7 +296,7 @@ struct ddsi_domaingv {
   struct ddsi_sertopic *sedp_reader_topic; /* key = endpoint GUID */
   struct ddsi_sertopic *sedp_writer_topic; /* key = endpoint GUID */
   struct ddsi_sertopic *pmd_topic; /* participant message data */
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   struct ddsi_sertopic *spdp_secure_topic; /* key = participant GUID */
   struct ddsi_sertopic *sedp_reader_secure_topic; /* key = endpoint GUID */
   struct ddsi_sertopic *sedp_writer_secure_topic; /* key = endpoint GUID */
@@ -323,7 +325,7 @@ struct ddsi_domaingv {
   struct ddsrt_hh *sertopics;
 
   /* security globals */
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   struct dds_security_context *security_context;
   struct ddsi_hsadmin *hsadmin;
   bool handshake_include_optional;

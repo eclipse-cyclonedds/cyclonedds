@@ -17,6 +17,7 @@
 #include <stdbool.h>
 
 #include "dds/export.h"
+#include "dds/features.h"
 
 /* DDS_EXPORT inline i.c.w. __attributes__((visibility...)) and some compilers: */
 #include "dds/ddsrt/attributes.h"
@@ -39,7 +40,7 @@ struct ddsi_writer_info
   bool auto_dispose;
   int32_t ownership_strength;
   uint64_t iid;
-#ifdef DDSI_INCLUDE_LIFESPAN
+#ifdef DDS_HAS_LIFESPAN
   ddsrt_mtime_t lifespan_exp;
 #endif
 };

@@ -167,7 +167,7 @@ void dds_writer_status_cb (void *entity, const struct status_cb_data *data)
 
 static uint32_t get_bandwidth_limit (dds_transport_priority_qospolicy_t transport_priority)
 {
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   struct ddsi_config_channel_listelem *channel = find_channel (&config, transport_priority);
   return channel->data_bandwidth_limit;
 #else
@@ -219,15 +219,15 @@ static dds_return_t dds_writer_delete (dds_entity *e)
 
 static dds_return_t validate_writer_qos (const dds_qos_t *wqos)
 {
-#ifndef DDSI_INCLUDE_LIFESPAN
+#ifndef DDS_HAS_LIFESPAN
   if (wqos != NULL && (wqos->present & QP_LIFESPAN) && wqos->lifespan.duration != DDS_INFINITY)
     return DDS_RETCODE_BAD_PARAMETER;
 #endif
-#ifndef DDSI_INCLUDE_DEADLINE_MISSED
+#ifndef DDS_HAS_DEADLINE_MISSED
   if (wqos != NULL && (wqos->present & QP_DEADLINE) && wqos->deadline.deadline != DDS_INFINITY)
     return DDS_RETCODE_BAD_PARAMETER;
 #endif
-#if defined(DDSI_INCLUDE_LIFESPAN) && defined(DDSI_INCLUDE_DEADLINE_MISSED)
+#if defined(DDS_HAS_LIFESPAN) && defined(DDS_HAS_DEADLINE_MISSED)
   DDSRT_UNUSED_ARG (wqos);
 #endif
   return DDS_RETCODE_OK;
@@ -358,7 +358,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
      the publisher lock, we can assert that the participant exists. */
   assert (pp != NULL);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   /* Check if DDS Security is enabled */
   if (q_omg_participant_is_secure (pp))
   {
@@ -397,7 +397,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   dds_publisher_unlock (pub);
   return writer;
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 err_not_allowed:
   thread_state_asleep (lookup_thread_state ());
 #endif

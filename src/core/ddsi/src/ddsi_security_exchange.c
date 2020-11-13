@@ -9,7 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifdef DDSI_INCLUDE_SECURITY
+#include "dds/features.h"
+#ifdef DDS_HAS_SECURITY
 
 #include <string.h>
 
@@ -258,4 +259,4 @@ void handle_crypto_exchange_message(const struct receiver_state *rst, struct dds
   }
 }
 
-#endif /* DDSI_INCLUDE_SECURITY */
+#endif /* DDS_HAS_SECURITY */

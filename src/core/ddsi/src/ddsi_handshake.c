@@ -9,11 +9,10 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-
+#include "dds/features.h"
 #include "dds/ddsi/ddsi_handshake.h"
 
-
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 
 #include <string.h>
 
@@ -1299,4 +1298,4 @@ extern inline void ddsi_handshake_register(UNUSED_ARG(struct participant *pp), U
 extern inline void ddsi_handshake_remove(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp), UNUSED_ARG(struct ddsi_handshake *handshake));
 extern inline struct ddsi_handshake * ddsi_handshake_find(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp));
 
-#endif /* DDSI_INCLUDE_DDS_SECURITY */
+#endif /* DDS_HAS_DDS_SECURITY */

@@ -551,7 +551,7 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
   if (rc != DDS_RETCODE_OK)
     goto fail_w_socket;
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   if (qos->m_diffserv != 0 && fact->m_kind == NN_LOCATOR_KIND_UDPv4)
   {
     if ((rc = ddsrt_setsockopt (sock, IPPROTO_IP, IP_TOS, &qos->m_diffserv, sizeof (qos->m_diffserv))) != DDS_RETCODE_OK)
@@ -625,7 +625,7 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
   return (rc == DDS_RETCODE_OK) ? 0 : -1;
 }
 
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
 static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   dds_return_t rc;
@@ -663,7 +663,7 @@ static int ddsi_udp_join_mc (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *sr
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   (void) srcloc;
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   if (srcloc)
     return joinleave_ssm_mcgroup (conn->m_sock, 1, srcloc, mcloc, interf);
   else
@@ -675,7 +675,7 @@ static int ddsi_udp_leave_mc (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *s
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   (void) srcloc;
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   if (srcloc)
     return joinleave_ssm_mcgroup (conn->m_sock, 0, srcloc, mcloc, interf);
   else
@@ -722,7 +722,7 @@ static int ddsi_udp_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_
   }
 }
 
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
 static int ddsi_udp_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
 {
   (void) tran;
@@ -866,7 +866,7 @@ int ddsi_udp_init (struct ddsi_domaingv*gv)
   fact->fact.m_join_mc_fn = ddsi_udp_join_mc;
   fact->fact.m_leave_mc_fn = ddsi_udp_leave_mc;
   fact->fact.m_is_mcaddr_fn = ddsi_udp_is_mcaddr;
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   fact->fact.m_is_ssm_mcaddr_fn = ddsi_udp_is_ssm_mcaddr;
 #endif
   fact->fact.m_is_nearby_address_fn = ddsi_ipaddr_is_nearby_address;

@@ -13,6 +13,8 @@
 #define Q_ENTITY_H
 
 #include "dds/export.h"
+#include "dds/features.h"
+
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/fibheap.h"
@@ -87,7 +89,7 @@ typedef void (*status_cb_t) (void *entity, const status_cb_data_t *data);
 struct prd_wr_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t wr_guid;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   int64_t crypto_handle;
 #endif
 };
@@ -97,11 +99,11 @@ struct rd_pwr_match {
   ddsi_guid_t pwr_guid;
   unsigned pwr_alive: 1; /* tracks pwr's alive state */
   uint32_t pwr_alive_vclock; /* used to ensure progress */
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   ddsi_locator_t ssm_mc_loc;
   ddsi_locator_t ssm_src_loc;
 #endif
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   int64_t crypto_handle;
 #endif
 };
@@ -139,7 +141,7 @@ struct wr_prd_match {
   ddsrt_wctime_t hb_to_ack_latency_tlastlog;
   uint32_t non_responsive_count;
   uint32_t rexmit_requests;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   int64_t crypto_handle;
 #endif
 };
@@ -183,7 +185,7 @@ struct pwr_rd_match {
       struct nn_reorder *reorder; /* can be done (mostly) per proxy writer, but that is harder; only when state=OUT_OF_SYNC */
     } not_in_sync;
   } u;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   int64_t crypto_handle;
 #endif
 };
@@ -247,7 +249,7 @@ struct participant
   ddsrt_fibheap_t ldur_auto_wr; /* Heap that contains lease duration for writers with automatic liveliness in this participant */
   ddsrt_atomic_voidp_t minl_man; /* clone of min(leaseheap_man) */
   ddsrt_fibheap_t leaseheap_man; /* keeps leases for this participant's writers (with liveliness manual-by-participant) */
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   struct participant_sec_attributes *sec_attr;
   nn_security_info_t security_info;
 #endif
@@ -304,7 +306,7 @@ struct writer
   unsigned test_suppress_retransmit : 1; /* iff 1, the writer does not respond to retransmit requests */
   unsigned test_suppress_heartbeat : 1; /* iff 1, the writer suppresses all periodic heartbeats */
   unsigned test_drop_outgoing_data : 1; /* iff 1, the writer drops outgoing data, forcing the readers to request a retransmit */
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   unsigned supports_ssm: 1;
   struct addrset *ssm_as;
 #endif
@@ -325,7 +327,7 @@ struct writer
   uint32_t num_reliable_readers; /* number of matching reliable PROXY readers */
   ddsrt_avl_tree_t readers; /* all matching PROXY readers, see struct wr_prd_match */
   ddsrt_avl_tree_t local_readers; /* all matching LOCAL readers, see struct wr_rd_match */
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   const struct ddsi_config_networkpartition_listelem *network_partition;
 #endif
   uint32_t num_acks_received; /* cum received ACKNACKs with no request for retransmission */
@@ -340,7 +342,7 @@ struct writer
   struct xeventq *evq; /* timed event queue to be used by this writer */
   struct local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
   struct lease *lease; /* for liveliness administration (writer can only become inactive when using manual liveliness) */
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   struct writer_sec_attributes *sec_attr;
 #endif
 };
@@ -367,11 +369,11 @@ struct reader
   struct dds_qos *xqos;
   unsigned reliable: 1; /* 1 iff reader is reliable */
   unsigned handle_as_transient_local: 1; /* 1 iff reader wants historical data from proxy writers */
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   unsigned favours_ssm: 1; /* iff 1, this reader favours SSM */
 #endif
   nn_count_t init_acknack_count; /* initial value for "count" (i.e. ACK seq num) for newly matched proxy writers */
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   struct addrset *as;
 #endif
   const struct ddsi_sertopic * topic; /* topic */
@@ -380,7 +382,7 @@ struct reader
   ddsrt_avl_tree_t local_writers; /* all matching LOCAL writers, see struct rd_wr_match */
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   struct reader_sec_attributes *sec_attr;
 #endif
 };
@@ -411,7 +413,7 @@ struct proxy_participant
   unsigned deleting: 1;
   unsigned proxypp_have_spdp: 1;
   unsigned owns_lease: 1;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   nn_security_info_t security_info;
   struct proxy_participant_sec_attributes *sec_attr;
 #endif
@@ -442,7 +444,7 @@ struct proxy_endpoint_common
   ddsi_guid_t group_guid; /* 0:0:0:0 if not available */
   nn_vendorid_t vendor; /* cached from proxypp->vendor */
   seqno_t seq; /* sequence number of most recent SEDP message */
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   nn_security_info_t security_info;
 #endif
 };
@@ -467,7 +469,7 @@ struct proxy_writer {
   unsigned local_matching_inprogress: 1; /* iff 1, we are still busy matching local readers; this is so we don't deliver incoming data to some but not all readers initially */
   unsigned alive: 1; /* iff 1, the proxy writer is alive (lease for this proxy writer is not expired); field may be modified only when holding both pwr->e.lock and pwr->c.proxypp->e.lock */
   unsigned filtered: 1; /* iff 1, builtin proxy writer uses content filter, which affects heartbeats and gaps. */
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   unsigned supports_ssm: 1; /* iff 1, this proxy writer supports SSM */
 #endif
   uint32_t alive_vclock; /* virtual clock counting transitions between alive/not-alive */
@@ -489,7 +491,7 @@ struct proxy_reader {
   struct proxy_endpoint_common c;
   unsigned deleting: 1; /* set when being deleted */
   unsigned is_fict_trans_reader: 1; /* only true when it is certain that is a fictitious transient data reader (affects built-in topic generation) */
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   unsigned favours_ssm: 1; /* iff 1, this proxy reader favours SSM when available */
 #endif
   ddsrt_avl_tree_t writers; /* matching LOCAL writers */
@@ -734,7 +736,7 @@ void purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_locator_t *l
    determined from the GUID and must exist. */
   int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, seqno_t seq);
 int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, seqno_t seq
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
                       , int favours_ssm
 #endif
                       );
