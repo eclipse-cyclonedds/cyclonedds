@@ -19,10 +19,11 @@
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#ifdef DDSI_INCLUDE_LIFESPAN
+#include "dds/features.h"
+#ifdef DDS_HAS_LIFESPAN
 #include "dds/ddsi/ddsi_lifespan.h"
 #endif
-#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+#ifdef DDS_HAS_DEADLINE_MISSED
 #include "dds/ddsi/ddsi_deadline.h"
 #endif
 #include "dds/ddsi/q_unused.h"
@@ -52,7 +53,7 @@ struct whc_node {
   unsigned borrowed: 1; /* at most one can borrow it at any time */
   ddsrt_mtime_t last_rexmit_ts;
   uint32_t rexmit_count;
-#ifdef DDSI_INCLUDE_LIFESPAN
+#ifdef DDS_HAS_LIFESPAN
   struct lifespan_fhnode lifespan; /* fibheap node for lifespan */
 #endif
   struct ddsi_serdata *serdata;
@@ -71,7 +72,7 @@ struct whc_idxnode {
   seqno_t prune_seq;
   struct ddsi_tkmap_instance *tk;
   uint32_t headidx;
-#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+#ifdef DDS_HAS_DEADLINE_MISSED
   struct deadline_elem deadline; /* list element for deadline missed */
 #endif
   struct whc_node *hist[];
@@ -115,10 +116,10 @@ struct whc_impl {
 #endif
   struct ddsrt_hh *idx_hash;
   ddsrt_avl_tree_t seq;
-#ifdef DDSI_INCLUDE_LIFESPAN
+#ifdef DDS_HAS_LIFESPAN
   struct lifespan_adm lifespan; /* Lifespan administration */
 #endif
-#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+#ifdef DDS_HAS_DEADLINE_MISSED
   struct deadline_adm deadline; /* Deadline missed administration */
 #endif
 };
@@ -375,7 +376,7 @@ static struct whc_node *whc_findkey (const struct whc_impl *whc, const struct dd
   }
 }
 
-#ifdef DDSI_INCLUDE_LIFESPAN
+#ifdef DDS_HAS_LIFESPAN
 static ddsrt_mtime_t whc_sample_expired_cb(void *hc, ddsrt_mtime_t tnow)
 {
   struct whc_impl *whc = hc;
@@ -390,7 +391,7 @@ static ddsrt_mtime_t whc_sample_expired_cb(void *hc, ddsrt_mtime_t tnow)
 }
 #endif
 
-#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+#ifdef DDS_HAS_DEADLINE_MISSED
 static ddsrt_mtime_t whc_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
 {
   struct whc_impl *whc = hc;
@@ -470,11 +471,11 @@ struct whc *whc_new (struct ddsi_domaingv *gv, const struct whc_writer_info *wri
   whc->seq_hash = ddsrt_hh_new (1, whc_node_hash, whc_node_eq);
 #endif
 
-#ifdef DDSI_INCLUDE_LIFESPAN
+#ifdef DDS_HAS_LIFESPAN
   lifespan_init (gv, &whc->lifespan, offsetof(struct whc_impl, lifespan), offsetof(struct whc_node, lifespan), whc_sample_expired_cb);
 #endif
 
-#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+#ifdef DDS_HAS_DEADLINE_MISSED
   whc->deadline.dur = (wrinfo->writer != NULL) ? wrinfo->writer->m_entity.m_qos->deadline.deadline : DDS_INFINITY;
   deadline_init (gv, &whc->deadline, offsetof(struct whc_impl, deadline), offsetof(struct whc_idxnode, deadline), whc_deadline_missed_cb);
 #endif
@@ -512,12 +513,12 @@ void whc_default_free (struct whc *whc_generic)
   struct whc_impl * const whc = (struct whc_impl *)whc_generic;
   check_whc (whc);
 
-#ifdef DDSI_INCLUDE_LIFESPAN
+#ifdef DDS_HAS_LIFESPAN
   whc_sample_expired_cb (whc, DDSRT_MTIME_NEVER);
   lifespan_fini (&whc->lifespan);
 #endif
 
-#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+#ifdef DDS_HAS_DEADLINE_MISSED
   deadline_stop (&whc->deadline);
   ddsrt_mutex_lock (&whc->lock);
   deadline_clear (&whc->deadline);
@@ -682,7 +683,7 @@ static void delete_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop
 {
   if (!ddsrt_hh_remove (whc->idx_hash, idxn))
     assert (0);
-#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+#ifdef DDS_HAS_DEADLINE_MISSED
   deadline_unregister_instance_locked (&whc->deadline, &idxn->deadline);
 #endif
   free_one_instance_from_idx (whc, max_drop_seq, idxn);
@@ -731,7 +732,7 @@ static uint32_t whc_default_downgrade_to_volatile (struct whc *whc_generic, stru
       struct whc_idxnode *idxn;
       for (idxn = ddsrt_hh_iter_first (whc->idx_hash, &it); idxn != NULL; idxn = ddsrt_hh_iter_next (&it))
       {
-#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+#ifdef DDS_HAS_DEADLINE_MISSED
         deadline_unregister_instance_locked (&whc->deadline, &idxn->deadline);
 #endif
         free_one_instance_from_idx (whc, 0, idxn);
@@ -787,7 +788,7 @@ static void whc_delete_one_intv (struct whc_impl *whc, struct whc_intvnode **p_i
     whcn->unacked = 0;
   }
 
-#ifdef DDSI_INCLUDE_LIFESPAN
+#ifdef DDS_HAS_LIFESPAN
   lifespan_unregister_sample_locked (&whc->lifespan, &whcn->lifespan);
 #endif
 
@@ -974,7 +975,7 @@ static uint32_t whc_default_remove_acked_messages_noidx (struct whc_impl *whc, s
   whc->unacked_bytes -= (size_t) (whcn->total_bytes - (*deferred_free_list)->total_bytes + (*deferred_free_list)->size);
   for (whcn = *deferred_free_list; whcn; whcn = whcn->next_seq)
   {
-#ifdef DDSI_INCLUDE_LIFESPAN
+#ifdef DDS_HAS_LIFESPAN
     lifespan_unregister_sample_locked (&whc->lifespan, &whcn->lifespan);
 #endif
     remove_whcn_from_hash (whc, whcn);
@@ -1163,7 +1164,7 @@ static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t ma
 {
   struct whc_node *newn = NULL;
 
-#ifndef DDSI_INCLUDE_LIFESPAN
+#ifndef DDS_HAS_LIFESPAN
   DDSRT_UNUSED_ARG (exp);
 #endif
 
@@ -1190,7 +1191,7 @@ static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t ma
   if (newn->unacked)
     whc->unacked_bytes += newn->size;
 
-#ifdef DDSI_INCLUDE_LIFESPAN
+#ifdef DDS_HAS_LIFESPAN
   newn->lifespan.t_expire = exp;
 #endif
 
@@ -1225,7 +1226,7 @@ static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t ma
   }
 
   whc->seq_size++;
-#ifdef DDSI_INCLUDE_LIFESPAN
+#ifdef DDS_HAS_LIFESPAN
   lifespan_register_sample_locked (&whc->lifespan, &newn->lifespan);
 #endif
   return newn;
@@ -1297,7 +1298,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
     }
     else
     {
-#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+#ifdef DDS_HAS_DEADLINE_MISSED
       deadline_renew_instance_locked (&whc->deadline, &idxn->deadline);
 #endif
       if (whc->wrinfo.idxdepth > 0)
@@ -1366,7 +1367,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
       }
       if (!ddsrt_hh_add (whc->idx_hash, idxn))
         assert (0);
-#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+#ifdef DDS_HAS_DEADLINE_MISSED
       deadline_register_instance_locked (&whc->deadline, &idxn->deadline, ddsrt_time_monotonic ());
 #endif
     }

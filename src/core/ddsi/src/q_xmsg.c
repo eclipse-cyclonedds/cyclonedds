@@ -72,7 +72,7 @@ struct nn_xmsg {
   int have_params;
   struct ddsi_serdata *refd_payload;
   ddsrt_iovec_t refd_payload_iov;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   /* Used as pointer to contain encoded payload to which iov can alias. */
   unsigned char *refd_payload_encoded;
   nn_msg_sec_info_t sec_info;
@@ -132,7 +132,7 @@ struct nn_xmsg_chain {
   struct nn_xmsg_chain_elem *latest;
 };
 
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
 #define NN_BW_UNLIMITED (0)
 
 struct nn_bw_limiter {
@@ -173,14 +173,14 @@ struct nn_xpack
   bool includes_rexmit;
   struct nn_xmsg_chain included_msgs;
 
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
   struct nn_bw_limiter limiter;
 #endif
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   uint32_t encoderId;
-#endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
-#ifdef DDSI_INCLUDE_SECURITY
+#endif /* DDS_HAS_NETWORK_PARTITIONS */
+#ifdef DDS_HAS_SECURITY
   nn_msg_sec_info_t sec_info;
 #endif
 };
@@ -243,7 +243,7 @@ static void nn_xmsg_reinit (struct nn_xmsg *m, enum nn_xmsg_kind kind)
   m->dstmode = NN_XMSG_DST_UNSET;
   m->kind = kind;
   m->maxdelay = 0;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   m->refd_payload_encoded = NULL;
   m->sec_info.use_rtps_encoding = 0;
   m->sec_info.src_pp_handle = 0;
@@ -294,7 +294,7 @@ struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_t *src_gu
     return NULL;
   m->data->src.guid_prefix = nn_hton_guid_prefix (src_guid->prefix);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   m->sec_info.use_rtps_encoding = 0;
   if (pp && q_omg_participant_is_secure(pp))
   {
@@ -322,7 +322,7 @@ void nn_xmsg_free (struct nn_xmsg *m)
   struct nn_xmsgpool *pool = m->pool;
   if (m->refd_payload)
     ddsi_serdata_to_ser_unref (m->refd_payload, &m->refd_payload_iov);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   ddsrt_free(m->refd_payload_encoded);
 #endif
   if (m->dstmode == NN_XMSG_DST_ALL)
@@ -488,7 +488,7 @@ void nn_xmsg_submsg_setnext (struct nn_xmsg *msg, struct nn_xmsg_marker marker)
     ((unsigned)(msg->data->payload + msg->sz + plsize - (char *) hdr) - RTPS_SUBMESSAGE_HEADER_SIZE);
 }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 
 size_t nn_xmsg_submsg_size (struct nn_xmsg *msg, struct nn_xmsg_marker marker)
 {
@@ -577,7 +577,7 @@ void nn_xmsg_submsg_append_refd_payload(struct nn_xmsg *msg, struct nn_xmsg_mark
   }
 }
 
-#endif /* DDSI_INCLUDE_SECURITY */
+#endif /* DDS_HAS_SECURITY */
 
 void *nn_xmsg_submsg_from_marker (struct nn_xmsg *msg, struct nn_xmsg_marker marker)
 {
@@ -653,7 +653,7 @@ void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t of
     assert (m->refd_payload == NULL);
     m->refd_payload = ddsi_serdata_to_ser_ref (serdata, off, len4, &m->refd_payload_iov);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
     assert (m->refd_payload_encoded == NULL);
     /* When encoding is necessary, m->refd_payload_encoded will be allocated
      * and m->refd_payload_iov contents will change to point to that buffer.
@@ -679,7 +679,7 @@ void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_gu
   m->dstmode = NN_XMSG_DST_ONE;
   m->dstaddr.one.loc = *loc;
   m->data->dst.guid_prefix = nn_hton_guid_prefix (*gp);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   if (m->sec_info.use_rtps_encoding && !m->sec_info.dst_pp_handle)
   {
     struct proxy_participant *proxypp;
@@ -997,7 +997,7 @@ static void nn_xmsg_chain_add (struct nn_xmsg_chain *chain, struct nn_xmsg *m)
   chain->latest = &m->link;
 }
 
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
 /* BW_LIMITER ----------------------------------------------------------
 
    Helper for XPACKS, that contain the configuration and state to handle Bandwidth limitation.*/
@@ -1059,7 +1059,7 @@ static void nn_bw_limit_init (struct nn_bw_limiter *limiter, uint32_t bandwidth_
   else
     limiter->last_update.v = 0;
 }
-#endif /* DDSI_INCLUDE_BANDWIDTH_LIMITING */
+#endif /* DDS_HAS_BANDWIDTH_LIMITING */
 
 /* XPACK ---------------------------------------------------------------
 
@@ -1076,10 +1076,10 @@ static void nn_xpack_reinit (struct nn_xpack *xp)
   xp->includes_rexmit = false;
   xp->included_msgs.latest = NULL;
   xp->maxdelay = DDS_INFINITY;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   xp->sec_info.use_rtps_encoding = 0;
 #endif
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   xp->encoderId = 0;
 #endif
   xp->packetid++;
@@ -1117,7 +1117,7 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
   xp->conn = conn;
   nn_xpack_reinit (xp);
 
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
   nn_bw_limit_init (&xp->limiter, bw_limit);
 #else
   (void) bw_limit;
@@ -1137,7 +1137,7 @@ static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const ddsi_locator_t *lo
 {
   ssize_t ret = -1;
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   /* Only encode when needed. */
   if (xp->sec_info.use_rtps_encoding)
   {
@@ -1154,7 +1154,7 @@ static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const ddsi_locator_t *lo
                       ddsi_conn_write);
   }
   else
-#endif /* DDSI_INCLUDE_SECURITY */
+#endif /* DDS_HAS_SECURITY */
   {
     ret = ddsi_conn_write (xp->conn, loc, xp->niov, xp->iov, xp->call_flags);
   }
@@ -1212,7 +1212,7 @@ static ssize_t nn_xpack_send1 (const ddsi_locator_t *loc, void * varg)
 
   xp->call_flags = 0;
 
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
   if (nbytes > 0)
   {
     nn_bw_limit_sleep_if_needed (gv, &xp->limiter, nbytes);
@@ -1462,7 +1462,7 @@ static int nn_xpack_mayaddmsg (const struct nn_xpack *xp, const struct nn_xmsg *
     return 0;
   }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   /* Don't mix up encoded and plain rtps messages */
   if (xp->sec_info.use_rtps_encoding != m->sec_info.use_rtps_encoding)
     return 0;
@@ -1557,7 +1557,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
       niov++;
     }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
     xp->sec_info = m->sec_info;
 #endif
     xp->last_src = &xp->hdr.guid_prefix;

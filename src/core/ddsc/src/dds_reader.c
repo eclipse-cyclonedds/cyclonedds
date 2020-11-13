@@ -77,7 +77,7 @@ static dds_return_t dds_reader_delete (dds_entity *e)
 
 static dds_return_t validate_reader_qos (const dds_qos_t *rqos)
 {
-#ifndef DDSI_INCLUDE_DEADLINE_MISSED
+#ifndef DDS_HAS_DEADLINE_MISSED
   if (rqos != NULL && (rqos->present & QP_DEADLINE) && rqos->deadline.deadline != DDS_INFINITY)
     return DDS_RETCODE_BAD_PARAMETER;
 #else
@@ -506,7 +506,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
      the subscriber lock, we can assert that the participant exists. */
   assert (pp != NULL);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   /* Check if DDS Security is enabled */
   if (q_omg_participant_is_secure (pp))
   {
@@ -549,7 +549,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   dds_subscriber_unlock (sub);
   return reader;
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 err_not_allowed:
   thread_state_asleep (lookup_thread_state ());
 #endif

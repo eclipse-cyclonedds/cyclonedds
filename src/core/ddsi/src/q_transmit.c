@@ -315,7 +315,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
   return msg;
 }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 struct nn_xmsg *writer_hbcontrol_p2p(struct writer *wr, const struct whc_state *whcst, int hbansreq, struct proxy_reader *prd)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
@@ -919,7 +919,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
   }
 
   assert (wr->reliable || have_reliable_subs (wr) == 0);
-#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+#ifdef DDS_HAS_DEADLINE_MISSED
   /* If deadline missed duration is not infinite, the sample is inserted in
      the whc so that the instance is created (or renewed) in the whc and the deadline
      missed event is registered. The sample is removed immediately after inserting it
@@ -930,7 +930,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
   if ((wr->reliable && have_reliable_subs (wr)) || wr_deadline || wr->handle_as_transient_local)
   {
     ddsrt_mtime_t exp = DDSRT_MTIME_NEVER;
-#ifdef DDSI_INCLUDE_LIFESPAN
+#ifdef DDS_HAS_LIFESPAN
     /* Don't set expiry for samples with flags unregister or dispose, because these are required
      * for sample lifecycle and should always be delivered to the reader so that is can clean up
      * its history cache. */
@@ -939,7 +939,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
 #endif
     res = ((insres = whc_insert (wr->whc, writer_max_drop_seq (wr), seq, exp, plist, serdata, tk)) < 0) ? insres : 1;
 
-#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+#ifdef DDS_HAS_DEADLINE_MISSED
     if (!(wr->reliable && have_reliable_subs (wr)) && !wr->handle_as_transient_local)
     {
       /* Sample was inserted only because writer has deadline, so we'll remove the sample from whc */

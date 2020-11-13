@@ -21,7 +21,7 @@
 extern inline seqno_t fromSN (const nn_sequence_number_t sn);
 extern inline nn_sequence_number_t toSN (seqno_t n);
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
 int WildcardOverlap(char * p1, char * p2)
 {
   /* both patterns are empty or contain wildcards => overlap */
@@ -107,7 +107,7 @@ int ddsi2_patmatch (const char *pat, const char *str)
   return *str == 0;
 }
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
 static char *get_partition_search_pattern (const char *partition, const char *topic)
 {
   size_t sz = strlen (partition) + strlen (topic) + 2;
@@ -137,9 +137,9 @@ int is_ignored_partition (const struct ddsi_config *cfg, const char *partition, 
   ddsrt_free (pt);
   return ip != NULL;
 }
-#endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
+#endif /* DDS_HAS_NETWORK_PARTITIONS */
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
 struct ddsi_config_channel_listelem *find_channel (const struct config *cfg, nn_transport_priority_qospolicy_t transport_priority)
 {
   struct ddsi_config_channel_listelem *c;
@@ -156,4 +156,4 @@ struct ddsi_config_channel_listelem *find_channel (const struct config *cfg, nn_
   }
   return cfg->max_channel;
 }
-#endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
+#endif /* DDS_HAS_NETWORK_CHANNELS */

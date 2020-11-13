@@ -9,7 +9,9 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifdef DDSI_INCLUDE_SECURITY
+#include "dds/features.h"
+
+#ifdef DDS_HAS_SECURITY
 
 #include <string.h>
 #include <stdarg.h>
@@ -3871,7 +3873,7 @@ void q_omg_log_endpoint_protection(struct ddsi_domaingv * const gv, const ddsi_p
   GVLOGDISC (")");
 }
 
-#else /* DDSI_INCLUDE_SECURITY */
+#else /* DDS_HAS_SECURITY */
 
 #include "dds/ddsi/ddsi_security_omg.h"
 
@@ -4011,4 +4013,4 @@ extern inline bool q_omg_is_endpoint_protected(UNUSED_ARG(const ddsi_plist_t *pl
 extern inline void q_omg_log_endpoint_protection(UNUSED_ARG(struct ddsi_domaingv * const gv), UNUSED_ARG(const ddsi_plist_t *plist));
 
 
-#endif /* DDSI_INCLUDE_SECURITY */
+#endif /* DDS_HAS_SECURITY */

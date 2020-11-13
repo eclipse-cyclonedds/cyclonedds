@@ -177,14 +177,14 @@ DUPF(retransmit_merging);
 DUPF(sched_class);
 DUPF(maybe_memsize);
 DUPF(maybe_int32);
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
 DUPF(bandwidth);
 #endif
 DUPF(domainId);
 DUPF(transport_selector);
 DUPF(many_sockets_mode);
 DU(deaf_mute);
-#ifdef DDSI_INCLUDE_SSL
+#ifdef DDS_HAS_SSL
 DUPF(min_tls_version);
 #endif
 #undef DUPF
@@ -197,17 +197,17 @@ DF(ff_networkAddresses);
 #undef DF
 
 #define DI(fname) static int fname (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
 DI(if_channel);
-#endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#endif /* DDS_HAS_NETWORK_CHANNELS */
+#ifdef DDS_HAS_NETWORK_PARTITIONS
 DI(if_network_partition);
 DI(if_ignored_partition);
 DI(if_partition_mapping);
 #endif
 DI(if_peer);
 DI(if_thread_properties);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 DI(if_omg_security);
 #endif
 #undef DI
@@ -318,7 +318,7 @@ static const struct unit unittab_memsize[] = {
   { NULL, 0 }
 };
 
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
 static const struct unit unittab_bandwidth_bps[] = {
   { "b/s", 1 },{ "bps", 1 },
   { "Kib/s", 1024 },{ "Kibps", 1024 },
@@ -648,7 +648,7 @@ static int if_thread_properties (struct cfgst *cfgst, void *parent, struct cfgel
   return 0;
 }
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
 static int if_channel(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
   struct ddsi_config_channel_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
@@ -662,9 +662,9 @@ static int if_channel(struct cfgst *cfgst, void *parent, struct cfgelem const * 
   new->transmit_conn = NULL;
   return 0;
 }
-#endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
+#endif /* DDS_HAS_NETWORK_CHANNELS */
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
 static int if_network_partition (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
   struct ddsi_config_networkpartition_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
@@ -695,7 +695,7 @@ static int if_partition_mapping (struct cfgst *cfgst, void *parent, struct cfgel
   new->partition = NULL;
   return 0;
 }
-#endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
+#endif /* DDS_HAS_NETWORK_PARTITIONS */
 
 static int if_peer (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
@@ -706,7 +706,7 @@ static int if_peer (struct cfgst *cfgst, void *parent, struct cfgelem const * co
   return 0;
 }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 static int if_omg_security (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
   struct ddsi_config_omg_security_listelem *new = if_common (cfgst, parent, cfgelem, sizeof (*new));
@@ -1006,7 +1006,7 @@ static void pf_xcheck (struct cfgst *cfgst, void *parent, struct cfgelem const *
   do_print_uint32_bitset (cfgst, *p, sizeof (xcheck_codes) / sizeof (*xcheck_codes), xcheck_names, xcheck_codes, sources, suffix);
 }
 
-#ifdef DDSI_INCLUDE_SSL
+#ifdef DDS_HAS_SSL
 static enum update_result uf_min_tls_version (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
 {
   static const char *vs[] = {
@@ -1044,7 +1044,7 @@ static void pf_string (struct cfgst *cfgst, void *parent, struct cfgelem const *
   cfg_logelem (cfgst, sources, "%s", *p ? *p : "(null)");
 }
 
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
 static enum update_result uf_bandwidth (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
   int64_t bandwidth_bps = 0;
@@ -1221,7 +1221,7 @@ static void ff_networkAddresses (struct cfgst *cfgst, void *parent, struct cfgel
   ddsrt_free (*elem);
 }
 
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
 static const char *allow_multicast_names[] = { "false", "spdp", "asm", "ssm", "true", NULL };
 static const uint32_t allow_multicast_codes[] = { DDSI_AMC_FALSE, DDSI_AMC_SPDP, DDSI_AMC_ASM, DDSI_AMC_SSM, DDSI_AMC_TRUE };
 #else
@@ -2038,7 +2038,7 @@ static int cfgst_node_cmp (const void *va, const void *vb)
   return memcmp (va, vb, sizeof (struct cfgst_nodekey));
 }
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
 static int set_default_channel (struct config *cfg)
 {
   if (cfg->channels == NULL)
@@ -2051,7 +2051,7 @@ static int set_default_channel (struct config *cfg)
     c->name = ddsrt_strdup ("user");
     c->priority = 0;
     c->resolution = DDS_MSECS (1);
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
     c->data_bandwidth_limit = 0;
     c->auxiliary_bandwidth_limit = 0;
 #endif
@@ -2116,7 +2116,7 @@ static int sort_channels_check_nodups (struct config *cfg, uint32_t domid)
   ddsrt_free (ary);
   return result;
 }
-#endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
+#endif /* DDS_HAS_NETWORK_CHANNELS */
 
 static FILE *config_open_file (char *tok, char **cursor, uint32_t domid)
 {
@@ -2280,7 +2280,7 @@ struct cfgst *config_init (const char *config, struct ddsi_config *cfg, uint32_t
     cfgst->cfg->compat_tcp_enable = (cfgst->cfg->transport_selector == DDSI_TRANS_TCP || cfgst->cfg->transport_selector == DDSI_TRANS_TCP6) ? DDSI_BOOLDEF_TRUE : DDSI_BOOLDEF_FALSE;
   }
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   /* Default channel gets set outside set_defaults -- a bit too
      complicated for the poor framework */
   if (ok)
@@ -2292,7 +2292,7 @@ struct cfgst *config_init (const char *config, struct ddsi_config *cfg, uint32_t
   }
 #endif
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   /* Create links from the partitionmappings to the network partitions
      and signal errors if partitions do not exist */
   if (ok)
@@ -2313,7 +2313,7 @@ struct cfgst *config_init (const char *config, struct ddsi_config *cfg, uint32_t
       m = m->next;
     }
   }
-#endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
+#endif /* DDS_HAS_NETWORK_PARTITIONS */
 
   if (ok)
   {
