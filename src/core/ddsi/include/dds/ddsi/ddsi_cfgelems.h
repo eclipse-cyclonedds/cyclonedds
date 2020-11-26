@@ -12,6 +12,8 @@
 #ifndef DDSI_CFGELEMS_H
 #define DDSI_CFGELEMS_H
 
+#include "dds/features.h"
+
 static struct cfgelem general_cfgelems[] = {
   STRING("NetworkInterfaceAddress", NULL, 1, "auto",
     MEMBER(networkAddressString),
@@ -192,7 +194,7 @@ static struct cfgelem general_cfgelems[] = {
   END_MARKER
 };
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 static struct cfgelem authentication_library_attributes[] = {
   STRING("path", NULL, 1, "dds_security_auth",
     MEMBEROF(ddsi_config_omg_security_listelem, cfg.authentication_plugin.library_path),
@@ -471,9 +473,9 @@ static struct cfgelem security_omg_config_elements[] = {
     )),
   END_MARKER
 };
-#endif /* DDSI_INCLUDE_SECURITY */
+#endif /* DDS_HAS_SECURITY */
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
 static struct cfgelem networkpartition_cfgattrs[] = {
   STRING("Name", NULL, 1, NULL,
     MEMBEROF(ddsi_config_networkpartition_listelem, name),
@@ -594,11 +596,11 @@ static struct cfgelem partitioning_cfgelems[] = {
     )),
   END_MARKER
 };
-#endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
+#endif /* DDS_HAS_NETWORK_PARTITIONS */
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
 static struct cfgelem channel_cfgelems[] = {
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
   STRING("DataBandwidthLimit", NULL, 1, "inf",
     MEMBEROF(ddsi_config_channel_listelem, data_bandwidth_limit),
     FUNCTIONS(0, uf_bandwidth, 0, pf_bandwidth),
@@ -672,7 +674,7 @@ static struct cfgelem channels_cfgelems[] = {
     DESCRIPTION("<p>This element defines a channel.</p>")),
   END_MARKER
 };
-#endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
+#endif /* DDS_HAS_NETWORK_CHANNELS */
 
 static struct cfgelem thread_properties_sched_cfgelems[] = {
   ENUM("Class", NULL, 1, "default",
@@ -1234,7 +1236,7 @@ static struct cfgelem internal_cfgelems[] = {
       "scheduled exactly, whereas a value of 10ms would mean that events are "
       "rounded up to the nearest 10 milliseconds.</p>"),
     UNIT("duration")),
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
   STRING("AuxiliaryBandwidthLimit", NULL, 1, "inf",
     MEMBER(auxiliary_bandwidth_limit),
     FUNCTIONS(0, uf_bandwidth, 0, pf_bandwidth),
@@ -1555,7 +1557,7 @@ static struct cfgelem tcp_cfgelems[] = {
   END_MARKER
 };
 
-#ifdef DDSI_INCLUDE_SSL
+#ifdef DDS_HAS_SSL
 static struct cfgelem ssl_cfgelems[] = {
   BOOL("Enable", NULL, 1, "false",
     MEMBER(ssl_enable),
@@ -1868,7 +1870,7 @@ static struct cfgelem domain_cfgelems[] = {
     DESCRIPTION(
       "<p>The General element specifies overall Cyclone DDS service settings.</p>"
     )),
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   GROUP("Security|DDSSecurity", security_omg_config_elements, NULL, INT_MAX,
     MEMBER(omg_security_configuration),
     FUNCTIONS(if_omg_security, 0, 0, 0),
@@ -1879,7 +1881,7 @@ static struct cfgelem domain_cfgelems[] = {
     MAXIMUM(1)), /* Security must occur at most once, but INT_MAX is required
                     because of the way its processed (for now) */
 #endif
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   GROUP("Partitioning", partitioning_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
@@ -1889,7 +1891,7 @@ static struct cfgelem domain_cfgelems[] = {
       "partitions.</p>"
     )),
 #endif
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   GROUP("Channels", channels_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
@@ -1955,7 +1957,7 @@ static struct cfgelem domain_cfgelems[] = {
       "<p>The TCP element allows specifying various parameters related to "
       "running DDSI over TCP.</p>"
     )),
-#ifdef DDSI_INCLUDE_SSL
+#ifdef DDS_HAS_SSL
   GROUP("SSL", ssl_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
@@ -1975,10 +1977,10 @@ static struct cfgelem root_cfgelems[] = {
       "<p>The General element specifying Domain related settings.</p>"
     )),
   MOVED("General", "CycloneDDS/Domain/General"),
-#if DDSI_INCLUDE_NETWORK_PARTITIONS
+#if DDS_HAS_NETWORK_PARTITIONS
   MOVED("Partitioning", "CycloneDDS/Domain/Partitioning"),
 #endif
-#if DDSI_INCLUDE_NETWORK_CHANNELS
+#if DDS_HAS_NETWORK_CHANNELS
   MOVED("Channels", "CycloneDDS/Domain/Channels"),
 #endif
   MOVED("Threads", "CycloneDDS/Domain/Threads"),
@@ -1989,10 +1991,10 @@ static struct cfgelem root_cfgelems[] = {
   MOVED("Internal|Unsupported", "CycloneDDS/Domain/Internal"),
   MOVED("TCP", "CycloneDDS/Domain/TCP"),
   MOVED("ThreadPool", "CycloneDDS/Domain/ThreadPool"),
-#if DDSI_INCLUDE_SECURITY
+#if DDS_HAS_SECURITY
   MOVED("DDSSecurity", "CycloneDDS/Domain/Security"),
 #endif
-#if DDSI_INCLUDE_SSL
+#if DDS_HAS_SSL
   MOVED("SSL", "CycloneDDS/Domain/SSL"),
 #endif
   MOVED("DDSI2E|DDSI2", "CycloneDDS/Domain"),

@@ -166,7 +166,7 @@ static int print_participants (struct thread_state1 * const ts1, struct ddsi_dom
           continue;
         ddsrt_mutex_lock (&r->e.lock);
         print_endpoint_common (conn, "rd", &r->e, &r->c, r->xqos);
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
         x += print_addrset_if_notempty (conn, "    as", r->as, "\n");
 #endif
         for (m = ddsrt_avl_iter_first (&rd_writers_treedef, &r->writers, &writ); m; m = ddsrt_avl_iter_next (&writ))

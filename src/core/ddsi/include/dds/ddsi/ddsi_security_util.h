@@ -12,7 +12,9 @@
 #ifndef DDSI_SECURITY_UTIL_H
 #define DDSI_SECURITY_UTIL_H
 
-#ifdef DDSI_INCLUDE_SECURITY
+#include "dds/features.h"
+
+#ifdef DDS_HAS_SECURITY
 
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/security/core/dds_security_utils.h"
@@ -59,6 +61,6 @@ void q_omg_shallow_free_TopicBuiltinTopicData(DDS_Security_TopicBuiltinTopicData
 #endif
 
 
-#endif /* DDSI_INCLUDE_SECURITY */
+#endif /* DDS_HAS_SECURITY */
 
 #endif /* DDSI_SECURITY_UTIL_H */

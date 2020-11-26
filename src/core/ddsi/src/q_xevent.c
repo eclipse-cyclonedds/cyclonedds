@@ -625,7 +625,7 @@ static void handle_xevk_entityid (struct nn_xpack *xp, struct xevent_nt *ev)
   nn_xpack_addmsg (xp, ev->u.entityid.msg, 0);
 }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 static int send_heartbeat_to_all_readers_check_and_sched (struct xevent *ev, struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, ddsrt_mtime_t *t_next)
 {
   int send;
@@ -710,8 +710,6 @@ static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *e
 
   ddsrt_mutex_unlock (&wr->e.lock);
 }
-
-
 #endif
 
 static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt_mtime_t tnow)
@@ -729,7 +727,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
     return;
   }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   if (wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
   {
     send_heartbeat_to_all_readers(xp, ev, wr, tnow);

@@ -49,7 +49,7 @@ extern "C" {
 #define PP_ADLINK_PARTICIPANT_VERSION_INFO      ((uint64_t)1 << 26)
 #define PP_ADLINK_TYPE_DESCRIPTION              ((uint64_t)1 << 27)
 #define PP_COHERENT_SET                         ((uint64_t)1 << 28)
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
 #define PP_READER_FAVOURS_SSM                   ((uint64_t)1 << 29)
 #endif
 #define PP_DOMAIN_ID                            ((uint64_t)1 << 30)
@@ -99,7 +99,7 @@ typedef uint32_t nn_ipv4address_t;
 
 typedef uint32_t nn_port_t;
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 typedef struct nn_tag {
   char *name;
   char *value;
@@ -115,13 +115,13 @@ typedef struct nn_datatags {
 } nn_datatags_t;
 #endif
 
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
 typedef struct nn_reader_favours_ssm {
   uint32_t state; /* default is false */
 } nn_reader_favours_ssm_t;
 #endif
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 typedef struct nn_dataholder
 {
   char *class_id;
@@ -215,7 +215,7 @@ typedef struct ddsi_plist {
   nn_adlink_participant_version_info_t adlink_participant_version_info;
   char *type_description;
   nn_sequence_number_t coherent_set_seqno;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   nn_token_t identity_token;
   nn_token_t permissions_token;
   nn_security_info_t endpoint_security_info;
@@ -223,7 +223,7 @@ typedef struct ddsi_plist {
   nn_token_t identity_status_token;
   nn_datatags_t data_tags;
 #endif
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   nn_reader_favours_ssm_t reader_favours_ssm;
 #endif
   uint32_t domain_id;

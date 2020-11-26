@@ -51,7 +51,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 #include "dds/ddsi/ddsi_security_msg.h"
 #endif
 
@@ -107,7 +107,7 @@ static struct participant *ref_participant (struct participant *pp, const struct
 static void unref_participant (struct participant *pp, const struct ddsi_guid *guid_of_refing_entity);
 static struct entity_common *entity_common_from_proxy_endpoint_common (const struct proxy_endpoint_common *c);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 static void handshake_end_cb(struct ddsi_handshake *handshake, struct participant *pp, struct proxy_participant *proxypp, enum ddsi_handshake_state result);
 static void downgrade_to_nonsecure(struct proxy_participant *proxypp);
 #endif
@@ -203,7 +203,7 @@ int is_builtin_endpoint (ddsi_entityid_t id, nn_vendorid_t vendorid)
   return is_builtin_entityid (id, vendorid) && id.u != NN_ENTITYID_PARTICIPANT;
 }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 static int is_builtin_volatile_endpoint (ddsi_entityid_t id)
 {
   switch (id.u) {
@@ -380,14 +380,14 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e)
 
 void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo)
 {
-#ifndef DDSI_INCLUDE_LIFESPAN
+#ifndef DDS_HAS_LIFESPAN
   DDSRT_UNUSED_ARG (statusinfo);
 #endif
   wrinfo->guid = e->guid;
   wrinfo->ownership_strength = xqos->ownership_strength.value;
   wrinfo->auto_dispose = xqos->writer_data_lifecycle.autodispose_unregistered_instances;
   wrinfo->iid = e->iid;
-#ifdef DDSI_INCLUDE_LIFESPAN
+#ifdef DDS_HAS_LIFESPAN
   if (xqos->lifespan.duration != DDS_INFINITY && (statusinfo & (NN_STATUSINFO_UNREGISTER | NN_STATUSINFO_DISPOSE)) == 0)
     wrinfo->lifespan_exp = ddsrt_mtime_add_duration(ddsrt_time_monotonic(), xqos->lifespan.duration);
   else
@@ -554,7 +554,7 @@ static void force_as_disc_address(struct ddsi_domaingv *gv, const ddsi_guid_t *s
   ddsrt_mutex_unlock (&wr->e.lock);
 }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 static void add_security_builtin_endpoints(struct participant *pp, ddsi_guid_t *subguid, const ddsi_guid_t *group_guid, struct ddsi_domaingv *gv, bool add_writers, bool add_readers)
 {
   if (add_writers)
@@ -675,13 +675,13 @@ static void add_builtin_endpoints(struct participant *pp, ddsi_guid_t *subguid, 
     pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER;
   }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   if (q_omg_participant_is_secure (pp))
     add_security_builtin_endpoints (pp, subguid, group_guid, gv, add_writers, add_readers);
 #endif
 }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 static void connect_participant_secure(struct ddsi_domaingv *gv, struct participant *pp)
 {
   struct proxy_participant *proxypp;
@@ -797,7 +797,7 @@ static void participant_remove_wr_lease_locked (struct participant * pp, struct 
   }
 }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 static dds_return_t check_and_load_security_config (struct ddsi_domaingv * const gv, const ddsi_guid_t *ppguid, dds_qos_t *qos)
 {
   /* If some security properties (name starts with dds.sec. conform DDS Security spec 7.2.4.1)
@@ -949,7 +949,7 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   ddsi_plist_copy (pp->plist, plist);
   ddsi_plist_mergein_missing (pp->plist, &gv->default_local_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   pp->sec_attr = NULL;
   if ((ret = check_and_load_security_config (gv, ppguid, &pp->plist->qos)) != DDS_RETCODE_OK)
     goto not_allowed;
@@ -1073,7 +1073,7 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
     pp->pmd_update_xevent = qxev_pmd_update (gv->xevents, tsched, &pp->e.guid);
   }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   if (q_omg_participant_is_secure (pp))
   {
     connect_participant_secure (gv, pp);
@@ -1281,7 +1281,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
          while longer for it to wakeup. */
       ddsi_conn_free (pp->m_conn);
     }
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
     q_omg_security_deregister_participant(pp);
 #endif
     ddsi_plist_fini (pp->plist);
@@ -1318,7 +1318,7 @@ dds_return_t delete_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
   }
   builtintopic_write (gv->builtin_topic_interface, &pp->e, ddsrt_time_wallclock(), false);
   remember_deleted_participant_guid (gv->deleted_participants, &pp->e.guid);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   disconnect_participant_secure (pp);
 #endif
   entidx_remove_participant_guid (gv->entity_index, pp);
@@ -1460,7 +1460,7 @@ static struct addrset *rebuild_make_all_addrs (int *nreaders, struct writer *wr,
   struct entity_index *gh = wr->e.gv->entity_index;
   struct wr_prd_match *m;
   ddsrt_avl_iter_t it;
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   if (wr->supports_ssm && wr->ssm_as)
     copy_addrset_into_addrset_mc (wr->e.gv, all_addrs, wr->ssm_as);
 #endif
@@ -1538,7 +1538,7 @@ static void rebuild_make_covered(int8_t **covered, const struct writer *wr, int 
     if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
       continue;
     ass[0] = prd->c.as;
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
     if (prd->favours_ssm && wr->supports_ssm)
       ass[1] = wr->ssm_as;
 #endif
@@ -1622,7 +1622,7 @@ static int rebuild_select(const struct ddsi_domaingv *gv, int nlocs, const ddsi_
     {
       if (locs_nrds[i] == 1 && !ddsi_is_mcaddr(gv, &locs[i]))
         j = i; /* prefer unicast for single nodes */
-#if DDSI_INCLUDE_SSM
+#if DDS_HAS_SSM
       else if (ddsi_is_ssm_mcaddr(gv, &locs[i]))
         j = i; /* "reader favours SSM": all else being equal, use SSM */
 #endif
@@ -1800,7 +1800,7 @@ static void free_wr_prd_match (const struct ddsi_domaingv *gv, const ddsi_guid_t
 {
   if (m)
   {
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
     q_omg_security_deregister_remote_reader_match (gv, wr_guid, m);
 #else
     (void) gv;
@@ -1815,12 +1815,12 @@ static void free_rd_pwr_match (struct ddsi_domaingv *gv, const ddsi_guid_t *rd_g
 {
   if (m)
   {
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
     q_omg_security_deregister_remote_writer_match (gv, rd_guid, m);
 #else
     (void) rd_guid;
 #endif
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
     if (!is_unspec_locator (&m->ssm_mc_loc))
     {
       assert (ddsi_is_mcaddr (gv, &m->ssm_mc_loc));
@@ -1829,7 +1829,7 @@ static void free_rd_pwr_match (struct ddsi_domaingv *gv, const ddsi_guid_t *rd_g
         GVWARNING ("failed to leave network partition ssm group\n");
     }
 #endif
-#if !(defined DDSI_INCLUDE_SECURITY || defined DDSI_INCLUDE_SSM)
+#if !(defined DDS_HAS_SECURITY || defined DDS_HAS_SSM)
     (void) gv;
 #endif
     ddsrt_free (m);
@@ -2213,7 +2213,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
   m->all_have_replied_to_hb = 0;
   m->non_responsive_count = 0;
   m->rexmit_requests = 0;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   m->crypto_handle = crypto_handle;
 #else
   DDSRT_UNUSED_ARG(crypto_handle);
@@ -2380,7 +2380,7 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
   m->pwr_guid = pwr->e.guid;
   m->pwr_alive = alive_state->alive;
   m->pwr_alive_vclock = alive_state->vclock;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   m->crypto_handle = crypto_handle;
 #else
   DDSRT_UNUSED_ARG(crypto_handle);
@@ -2414,7 +2414,7 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
     rd->num_writers++;
     ddsrt_mutex_unlock (&rd->e.lock);
 
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
     if (rd->favours_ssm && pwr->supports_ssm)
     {
       /* pwr->supports_ssm is set if addrset_contains_ssm(pwr->ssm), so
@@ -2541,7 +2541,7 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   m->directed_heartbeat = 0;
   m->nack_sent_on_nackdelay = 0;
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   m->crypto_handle = crypto_handle;
 #else
   DDSRT_UNUSED_ARG(crypto_handle);
@@ -2646,7 +2646,7 @@ static void proxy_reader_add_connection (struct proxy_reader *prd, struct writer
   ddsrt_avl_ipath_t path;
 
   m->wr_guid = wr->e.guid;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   m->crypto_handle = crypto_handle;
 #else
   DDSRT_UNUSED_ARG(crypto_handle);
@@ -3151,7 +3151,7 @@ static void match_proxy_reader_with_writers (struct proxy_reader *prd, ddsrt_mti
   generic_do_match(&prd->e, tnow, false);
 }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 
 static void match_volatile_secure_endpoints (struct participant *pp, struct proxy_participant *proxypp)
 {
@@ -3342,7 +3342,7 @@ static int set_topic_type_name (dds_qos_t *xqos, const struct ddsi_sertopic * to
 
 /* WRITER ----------------------------------------------------------- */
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
 static const struct ddsi_config_networkpartition_listelem *get_partition_from_mapping (const struct ddsrt_log_cfg *logcfg, const struct ddsi_config *config, const char *partition, const char *topic)
 {
   struct ddsi_config_partitionmapping_listelem *pm;
@@ -3354,7 +3354,7 @@ static const struct ddsi_config_networkpartition_listelem *get_partition_from_ma
     return pm->partition;
   }
 }
-#endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
+#endif /* DDS_HAS_NETWORK_PARTITIONS */
 
 static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vright)
 {
@@ -3651,7 +3651,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
 
   wr->status_cb = status_cb;
   wr->status_cb_entity = status_entity;
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   wr->sec_attr = NULL;
 #endif
 
@@ -3685,7 +3685,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->as = new_addrset ();
   wr->as_group = NULL;
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   /* This is an open issue how to encrypt mesages send for various
      partitions that match multiple network partitions.  From a safety
      point of view a wierd configuration. Here we chose the first one
@@ -3693,9 +3693,9 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->network_partition = NULL;
   for (uint32_t i = 0; i < wr->xqos->partition.n && wr->network_partition == NULL; i++)
     wr->network_partition = get_partition_from_mapping (&wr->e.gv->logconfig, &wr->e.gv->config, wr->xqos->partition.strs[i], wr->xqos->topic_name);
-#endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
+#endif /* DDS_HAS_NETWORK_PARTITIONS */
 
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   /* Writer supports SSM if it is mapped to a network partition for
      which the address set includes an SSM address.  If it supports
      SSM, it arbitrarily selects one SSM address from the address set
@@ -3733,7 +3733,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
 
   /* for non-builtin writers, select the eventqueue based on the channel it is mapped to */
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   if (!is_builtin_entityid (wr->e.guid.entityid, ownvendorid))
   {
     struct ddsi_config_channel_listelem *channel = find_channel (&wr->e.gv->config, wr->xqos->transport_priority);
@@ -3813,7 +3813,7 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_g
   endpoint_common_init (&wr->e, &wr->c, pp->e.gv, EK_WRITER, guid, group_guid, pp, onlylocal);
   new_writer_guid_common_init(wr, topic, xqos, whc, status_cb, status_entity);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   q_omg_security_register_writer(wr);
 #endif
 
@@ -3966,10 +3966,10 @@ static void gc_delete_writer (struct gcreq *gcreq)
   if (wr->status_cb)
     (wr->status_cb) (wr->status_cb_entity, NULL);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   q_omg_security_deregister_writer(wr);
 #endif
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   if (wr->ssm_as)
     unref_addrset (wr->ssm_as);
 #endif
@@ -4174,7 +4174,7 @@ dds_return_t delete_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *gu
 
 /* READER ----------------------------------------------------------- */
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
 static struct addrset *get_as_from_mapping (const struct ddsi_domaingv *gv, const char *partition, const char *topic)
 {
   struct ddsi_config_partitionmapping_listelem *pm;
@@ -4277,7 +4277,7 @@ static void leave_mcast_helper (const ddsi_locator_t *n, void *varg)
     }
   }
 }
-#endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
+#endif /* DDS_HAS_NETWORK_PARTITIONS */
 
 static dds_return_t new_reader_guid
 (
@@ -4339,10 +4339,10 @@ static dds_return_t new_reader_guid
   rd->ddsi2direct_cbarg = 0;
   rd->init_acknack_count = 1;
   rd->num_writers = 0;
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   rd->favours_ssm = 0;
 #endif
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   rd->sec_attr = NULL;
 #endif
   if (topic == NULL)
@@ -4359,11 +4359,11 @@ static dds_return_t new_reader_guid
   }
   assert (rd->xqos->present & QP_LIVELINESS);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   q_omg_security_register_reader(rd);
 #endif
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   rd->as = new_addrset ();
   if (pp->e.gv->config.allowMulticast & ~DDSI_AMC_SPDP)
   {
@@ -4373,7 +4373,7 @@ static dds_return_t new_reader_guid
       struct addrset *pas = get_as_from_mapping (pp->e.gv, rd->xqos->partition.strs[i], rd->xqos->topic_name);
       if (pas)
       {
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
         copy_addrset_into_addrset_no_ssm (pp->e.gv, rd->as, pas);
         if (addrset_contains_ssm (pp->e.gv, pas) && rd->e.gv->config.allowMulticast & DDSI_AMC_SSM)
           rd->favours_ssm = 1;
@@ -4400,7 +4400,7 @@ static dds_return_t new_reader_guid
         ELOGDISC (pp, "}\n");
       }
     }
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
     else
     {
       /* Note: SSM requires NETWORK_PARTITIONS; if network partitions
@@ -4411,7 +4411,7 @@ static dds_return_t new_reader_guid
     }
 #endif
   }
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   if (rd->favours_ssm)
     ELOGDISC (pp, "READER "PGUIDFMT" ssm=%d\n", PGUID (rd->e.guid), rd->favours_ssm);
 #endif
@@ -4476,13 +4476,13 @@ static void gc_delete_reader (struct gcreq *gcreq)
     free_rd_wr_match (m);
   }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   q_omg_security_deregister_reader(rd);
 #endif
 
   if (!is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE))
     sedp_dispose_unregister_reader (rd);
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   {
     struct join_leave_mcast_helper_arg arg;
     arg.conn = rd->e.gv->data_conn_mc;
@@ -4502,7 +4502,7 @@ static void gc_delete_reader (struct gcreq *gcreq)
 
   ddsi_xqos_fini (rd->xqos);
   ddsrt_free (rd->xqos);
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   unref_addrset (rd->as);
 #endif
 
@@ -4636,7 +4636,7 @@ static void create_proxy_builtin_endpoints(
       }
       else
       {
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
         const int ssm = addrset_contains_ssm (gv, proxypp->as_meta);
         new_proxy_reader (gv, ppguid, &guid1, proxypp->as_meta, &plist_rd, timestamp, 0, ssm);
 #else
@@ -4687,7 +4687,7 @@ static void add_proxy_builtin_endpoints(
                                  &gv->builtin_endpoint_xqos_wr,
                                  &gv->builtin_endpoint_xqos_rd);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   /* Security 'default' proxy endpoints. */
   static const struct bestab bestab_security[] = {
     LTE (PUBLICATION_MESSAGE_SECURE_ANNOUNCER, SEDP, PUBLICATIONS_SECURE_WRITER),
@@ -4805,7 +4805,7 @@ static void proxy_participant_remove_pwr_lease_locked (struct proxy_participant 
   }
 }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 
 void handshake_end_cb(struct ddsi_handshake *handshake, struct participant *pp, struct proxy_participant *proxypp, enum ddsi_handshake_state result)
 {
@@ -4924,7 +4924,7 @@ static void free_proxy_participant(struct proxy_participant *proxypp)
     lease_free (minl_auto);
     lease_free (proxypp->lease);
   }
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   disconnect_proxy_participant_secure(proxypp);
   q_omg_security_deregister_remote_participant(proxypp);
 #endif
@@ -5040,7 +5040,7 @@ bool new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
   ddsi_xqos_mergein_missing (&proxypp->plist->qos, &gv->default_plist_pp.qos, ~(uint64_t)0);
   ddsrt_avl_init (&proxypp_groups_treedef, &proxypp->groups);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   proxypp->sec_attr = NULL;
   set_proxy_participant_security_info (proxypp, plist);
   if (is_secure)
@@ -5071,7 +5071,7 @@ bool new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
     lease_register (ddsrt_atomic_ldvoidp (&proxypp->minl_auto));
   ddsrt_mutex_unlock (&proxypp->e.lock);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   if (is_secure)
   {
     proxy_participant_create_handshakes (gv, proxypp);
@@ -5274,7 +5274,7 @@ static void delete_ppt (struct proxy_participant *proxypp, ddsrt_wctime_t timest
   gcreq_proxy_participant (proxypp);
 }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 
 struct setab {
   enum entity_kind kind;
@@ -5424,7 +5424,7 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
   else
     memset (&c->group_guid, 0, sizeof (c->group_guid));
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   q_omg_get_proxy_endpoint_security_info(e, &proxypp->security_info, plist, &c->security_info);
 #endif
 
@@ -5517,7 +5517,7 @@ int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
   isreliable = (pwr->c.xqos->reliability.kind != DDS_RELIABILITY_BEST_EFFORT);
   pwr->have_seen_heartbeat = !isreliable;
   pwr->local_matching_inprogress = 1;
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   pwr->supports_ssm = (addrset_contains_ssm (gv, as) && gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
 #endif
 
@@ -5601,7 +5601,7 @@ void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset 
     pwr->c.seq = seq;
     if (! addrset_eq_onesidederr (pwr->c.as, as))
     {
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
       pwr->supports_ssm = (addrset_contains_ssm (pwr->e.gv, as) && pwr->e.gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
 #endif
       unref_addrset (pwr->c.as);
@@ -5698,7 +5698,7 @@ static void gc_delete_proxy_writer (struct gcreq *gcreq)
   local_reader_ary_fini (&pwr->rdary);
   if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
     lease_free (pwr->lease);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   q_omg_security_deregister_remote_writer(pwr);
 #endif
   proxy_endpoint_common_fini (&pwr->e, &pwr->c);
@@ -5818,7 +5818,7 @@ int proxy_writer_set_notalive (struct proxy_writer *pwr, bool notify)
 /* PROXY-READER ----------------------------------------------------- */
 
 int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const ddsi_plist_t *plist, ddsrt_wctime_t timestamp, seqno_t seq
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
                       , int favours_ssm
 #endif
                       )
@@ -5845,7 +5845,7 @@ int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
   }
 
   prd->deleting = 0;
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   prd->favours_ssm = (favours_ssm && gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
 #endif
   prd->is_fict_trans_reader = 0;
@@ -5853,7 +5853,7 @@ int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
 
   ddsrt_avl_init (&prd_writers_treedef, &prd->writers);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   if (prd->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER)
     prd->filter = volatile_secure_data_filter;
   else
@@ -5933,7 +5933,7 @@ static void gc_delete_proxy_reader (struct gcreq *gcreq)
     writer_drop_connection (&m->wr_guid, prd);
     free_prd_wr_match (m);
   }
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   q_omg_security_deregister_remote_reader(prd);
 #endif
   proxy_endpoint_common_fini (&prd->e, &prd->c);

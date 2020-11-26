@@ -21,4 +21,13 @@
 /* Whether or not support for generating "deadline missed" events is included */
 #cmakedefine DDS_HAS_DEADLINE_MISSED @DDS_HAS_DEADLINE_MISSED@
 
+/* Whether or not support for network partitions is included */
+#cmakedefine DDS_HAS_NETWORK_PARTITIONS @DDS_HAS_NETWORK_PARTITIONS@
+
+/* Whether or not support for source-specific multicast is included */
+#cmakedefine DDS_HAS_SSM @DDS_HAS_SSM@
+
+/* Whether or not features dependent on OpenSSL are included */
+#cmakedefine DDS_HAS_SSL @DDS_HAS_SSL@
+
 #endif

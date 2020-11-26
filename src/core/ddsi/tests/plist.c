@@ -16,6 +16,7 @@
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_plist.h"
+#include "dds/features.h"
 
 CU_Test (ddsi_plist, unalias_copy_merge)
 {
@@ -33,7 +34,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   p0strs[0] = p0.qos.partition.strs[0] = "aap";
   p0strs[1] = p0.qos.partition.strs[1] = "noot";
   p0strs[2] = p0.qos.partition.strs[2] = "mies";
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   p0.present |= PP_IDENTITY_TOKEN;
   p0.aliased |= PP_IDENTITY_TOKEN;
   p0.identity_token.class_id = "class_id";
@@ -54,7 +55,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   ddsi_plist_t p0alias;
   memcpy (&p0alias, &p0, sizeof (p0));
   p0alias.qos.partition.strs = ddsrt_memdup (p0alias.qos.partition.strs, p0.qos.partition.n * sizeof (*p0.qos.partition.strs));
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   p0alias.identity_token.properties.props = ddsrt_memdup (p0alias.identity_token.properties.props,
                                               p0.identity_token.properties.n * sizeof (*p0.identity_token.properties.props));
 #endif
@@ -64,7 +65,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[0], p0strs[0]);
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[1], p0strs[1]);
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[2], p0strs[2]);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[0].name,  p0strs[3]);
   CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[0].value, p0strs[4]);
   CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[1].name,  p0strs[5]);
@@ -90,7 +91,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p1.qos.partition.strs[0], p0.qos.partition.strs[0]);
   CU_ASSERT_STRING_EQUAL (p1.qos.partition.strs[1], p0.qos.partition.strs[1]);
   CU_ASSERT_STRING_EQUAL (p1.qos.partition.strs[2], p0.qos.partition.strs[2]);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   CU_ASSERT (p1.identity_token.class_id != p0.identity_token.class_id);
   CU_ASSERT_STRING_EQUAL (p1.identity_token.class_id, p0.identity_token.class_id);
   CU_ASSERT (p1.identity_token.properties.n == p0.identity_token.properties.n);
@@ -134,7 +135,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p2.qos.partition.strs[0], p0.qos.partition.strs[0]);
   CU_ASSERT_STRING_EQUAL (p2.qos.partition.strs[1], p0.qos.partition.strs[1]);
   CU_ASSERT_STRING_EQUAL (p2.qos.partition.strs[2], p0.qos.partition.strs[2]);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   CU_ASSERT (p2.identity_token.class_id != p0.identity_token.class_id);
   CU_ASSERT_STRING_EQUAL (p2.identity_token.class_id, p0.identity_token.class_id);
   CU_ASSERT (p2.identity_token.properties.n == p0.identity_token.properties.n);
@@ -169,7 +170,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[0], p0strs[0]);
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[1], p0strs[1]);
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[2], p0strs[2]);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   CU_ASSERT (p0.identity_token.properties.props[0].name  != p0strs[3]);
   CU_ASSERT (p0.identity_token.properties.props[0].value != p0strs[4]);
   CU_ASSERT (p0.identity_token.properties.props[1].name  != p0strs[5]);
@@ -201,7 +202,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p3.qos.partition.strs[0], p0.qos.partition.strs[0]);
   CU_ASSERT_STRING_EQUAL (p3.qos.partition.strs[1], p0.qos.partition.strs[1]);
   CU_ASSERT_STRING_EQUAL (p3.qos.partition.strs[2], p0.qos.partition.strs[2]);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   CU_ASSERT (p3.identity_token.class_id != p0.identity_token.class_id);
   CU_ASSERT_STRING_EQUAL (p3.identity_token.class_id, p0.identity_token.class_id);
   CU_ASSERT (p3.identity_token.properties.n == p0.identity_token.properties.n);
@@ -245,7 +246,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p4.qos.partition.strs[0], p0.qos.partition.strs[0]);
   CU_ASSERT_STRING_EQUAL (p4.qos.partition.strs[1], p0.qos.partition.strs[1]);
   CU_ASSERT_STRING_EQUAL (p4.qos.partition.strs[2], p0.qos.partition.strs[2]);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   CU_ASSERT (p4.identity_token.class_id != p0.identity_token.class_id);
   CU_ASSERT_STRING_EQUAL (p4.identity_token.class_id, p0.identity_token.class_id);
   CU_ASSERT (p4.identity_token.properties.n == p0.identity_token.properties.n);

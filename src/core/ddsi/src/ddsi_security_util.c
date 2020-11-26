@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-
-#ifdef DDSI_INCLUDE_SECURITY
+#include "dds/features.h"
+#ifdef DDS_HAS_SECURITY
 
 #include <string.h>
 #include <stdarg.h>
@@ -723,4 +723,4 @@ q_omg_shallow_free_TopicBuiltinTopicData(
 
 
 
-#endif /* DDSI_INCLUDE_SECURITY */
+#endif /* DDS_HAS_SECURITY */

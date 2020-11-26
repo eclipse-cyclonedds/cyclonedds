@@ -12,7 +12,9 @@
 #ifndef DDSI_SECURITY_MSG_H
 #define DDSI_SECURITY_MSG_H
 
-#ifdef DDSI_INCLUDE_SECURITY
+#include "dds/features.h"
+
+#ifdef DDS_HAS_SECURITY
 
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_guid.h"
