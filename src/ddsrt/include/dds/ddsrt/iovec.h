@@ -24,8 +24,12 @@ typedef unsigned long ddsrt_msg_iovlen_t;
 
 #else // _WIN32
 
+#if DDSRT_WITH_LWIP
+#include <lwip/sockets.h>
+#else
 #include <stddef.h>
 #include <sys/socket.h>
+#endif
 
 typedef struct iovec ddsrt_iovec_t;
 typedef size_t ddsrt_iov_len_t;

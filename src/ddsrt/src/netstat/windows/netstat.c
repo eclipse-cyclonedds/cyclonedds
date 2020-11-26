@@ -9,7 +9,7 @@
 #include <Windows.h>
 
 #include <ws2def.h>
-#include <ws2ipdef.h>
+#include <ws2tcpip.h>
 #include <iphlpapi.h>
 
 #include <dds/ddsrt/heap.h>

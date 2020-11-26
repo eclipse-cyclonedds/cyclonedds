@@ -28,6 +28,8 @@ endif()
 option(ENABLE_SECURITY "Enable OMG DDS Security support" ON)
 option(ENABLE_LIFESPAN "Enable Lifespan QoS support" ON)
 option(ENABLE_DEADLINE_MISSED "Enable Deadline Missed QoS support" ON)
+option(ENABLE_NETWORK_PARTITIONS "Enable network partition support" ON)
+option(ENABLE_SOURCE_SPECIFIC_MULTICAST "Enable support for source-specific multicast" ON)
 if(ENABLE_SECURITY)
   set(DDS_HAS_SECURITY "1")
 endif()
@@ -37,9 +39,15 @@ endif()
 if(ENABLE_DEADLINE_MISSED)
   set(DDS_HAS_DEADLINE_MISSED "1")
 endif()
-configure_file(features.h.in "${CMAKE_CURRENT_BINARY_DIR}/core/include/dds/features.h")
-
-add_definitions(-DDDSI_INCLUDE_NETWORK_PARTITIONS -DDDSI_INCLUDE_SSM)
+if(ENABLE_NETWORK_PARTITIONS)
+  set(DDS_HAS_NETWORK_PARTITIONS "1")
+endif()
+if(ENABLE_SOURCE_SPECIFIC_MULTICAST)
+  set(DDS_HAS_SSM "1")
+endif()
+# ones that linger in the sources
+# - DDS_HAS_BANDWIDTH_LIMITING
+# - DDS_HAS_NETWORK_CHANNELS
 
 # OpenSSL is huge, raising the RSS by 1MB or so, and moreover find_package(OpenSSL) causes
 # trouble on some older CMake versions that otherwise work fine, so provide an option to avoid
@@ -53,31 +61,21 @@ if(NOT DDSC_ENABLE_OPENSSL)
   message(ERROR "DDSC_ENABLE_OPENSSL is deprecated, please use ENABLE_SSL instead")
   set(ENABLE_SSL OFF)
 endif()
-
 if(ENABLE_SSL)
   find_package(OpenSSL)
   if(OPENSSL_FOUND)
-    add_definitions(-DDDSI_INCLUDE_SSL)
+    set(DDS_HAS_SSL "1")
     message(STATUS "Building with OpenSSL support")
   else()
     message(STATUS "Building without OpenSSL support")
   endif()
 endif()
 
-# Support the OMG DDS Security within ddsc adds quite a bit of code.
 if(NOT ENABLE_SECURITY)
   message(STATUS "Building without OMG DDS Security support")
-else()
-  add_definitions(-DDDSI_INCLUDE_SECURITY)
 endif()
 
-if(ENABLE_LIFESPAN)
-  add_definitions(-DDDSI_INCLUDE_LIFESPAN)
-endif()
-
-if(ENABLE_DEADLINE_MISSED)
-  add_definitions(-DDDSI_INCLUDE_DEADLINE_MISSED)
-endif()
+configure_file(features.h.in "${CMAKE_CURRENT_BINARY_DIR}/core/include/dds/features.h")
 
 add_subdirectory(ddsrt)
 add_subdirectory(idl)

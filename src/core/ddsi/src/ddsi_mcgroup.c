@@ -134,7 +134,7 @@ static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn,
   char mcstr[DDSI_LOCSTRLEN], interfstr[DDSI_LOCSTRLEN];
   char srcstr[DDSI_LOCSTRLEN] = { '*', '\0' };
   int n;
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   if (srcloc) {
     ddsi_locator_to_string_no_port(srcstr, sizeof(srcstr), srcloc);
   }

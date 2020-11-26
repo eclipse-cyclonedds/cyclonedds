@@ -12,7 +12,9 @@
 #ifndef DDSI_SECURITY_EXCHANGE_H
 #define DDSI_SECURITY_EXCHANGE_H
 
-#ifdef DDSI_INCLUDE_SECURITY
+#include "dds/features.h"
+
+#ifdef DDS_HAS_SECURITY
 
 #if defined (__cplusplus)
 extern "C" {
@@ -40,10 +42,10 @@ bool write_crypto_reader_tokens(const struct reader *rd, const struct proxy_writ
 }
 #endif
 
-#else /* DDSI_INCLUDE_SECURITY */
+#else /* DDS_HAS_SECURITY */
 
 #define volatile_secure_data_filter NULL
 
-#endif /* DDSI_INCLUDE_SECURITY */
+#endif /* DDS_HAS_SECURITY */
 
 #endif /* DDSI_SECURITY_EXCHANGE_H */

@@ -15,6 +15,7 @@
 #include <stdio.h>
 
 #include "dds/export.h"
+#include "dds/features.h"
 #include "dds/ddsrt/sched.h"
 #include "dds/ddsi/ddsi_portmapping.h"
 #include "dds/ddsi/ddsi_locator.h"
@@ -67,7 +68,7 @@ struct ddsi_config_listelem {
   struct ddsi_config_listelem *next;
 };
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
 struct ddsi_config_networkpartition_listelem {
   struct ddsi_config_networkpartition_listelem *next;
   char *name;
@@ -86,15 +87,15 @@ struct ddsi_config_partitionmapping_listelem {
   char *DCPSPartitionTopic;
   struct ddsi_config_networkpartition_listelem *partition;
 };
-#endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
+#endif /* DDS_HAS_NETWORK_PARTITIONS */
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
 struct ddsi_config_channel_listelem {
   struct ddsi_config_channel_listelem *next;
   char   *name;
   int    priority;
   int64_t resolution;
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
   uint32_t data_bandwidth_limit;
   uint32_t auxiliary_bandwidth_limit;
 #endif
@@ -105,7 +106,7 @@ struct ddsi_config_channel_listelem {
   uint32_t queueId; /* the index of the networkqueue serviced by this channel*/
   struct ddsi_tran_conn * transmit_conn; /* the connection used for sending data out via this channel */
 };
-#endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
+#endif /* DDS_HAS_NETWORK_CHANNELS */
 
 struct ddsi_config_maybe_int32 {
   int isdefault;
@@ -140,7 +141,7 @@ struct ddsi_config_prune_deleted_ppant {
 #define DDSI_AMC_FALSE 0u
 #define DDSI_AMC_SPDP 1u
 #define DDSI_AMC_ASM 2u
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
 #define DDSI_AMC_SSM 4u
 #define DDSI_AMC_TRUE (DDSI_AMC_SPDP | DDSI_AMC_ASM | DDSI_AMC_SSM)
 #else
@@ -164,7 +165,7 @@ enum ddsi_many_sockets_mode {
   DDSI_MSM_MANY_UNICAST
 };
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 struct ddsi_plugin_library_properties {
   char *library_path;
   char *library_init;
@@ -198,9 +199,9 @@ struct ddsi_config_omg_security_listelem {
   struct ddsi_config_omg_security_listelem *next;
   struct ddsi_config_omg_security cfg;
 };
-#endif /* DDSI_INCLUDE_SECURITY */
+#endif /* DDS_HAS_SECURITY */
 
-#ifdef DDSI_INCLUDE_SSL
+#ifdef DDS_HAS_SSL
 struct ddsi_config_ssl_min_version {
   int major;
   int minor;
@@ -279,7 +280,7 @@ struct ddsi_config
   int64_t tcp_write_timeout;
   int tcp_use_peeraddr_for_unicast;
 
-#ifdef DDSI_INCLUDE_SSL
+#ifdef DDS_HAS_SSL
   /* SSL support for TCP */
   int ssl_enable;
   int ssl_verify;
@@ -292,16 +293,16 @@ struct ddsi_config
   struct ddsi_config_ssl_min_version ssl_min_version;
 #endif
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   struct ddsi_config_channel_listelem *channels;
   struct ddsi_config_channel_listelem *max_channel; /* channel with highest prio; always computed */
-#endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#endif /* DDS_HAS_NETWORK_CHANNELS */
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   struct ddsi_config_networkpartition_listelem *networkPartitions;
   unsigned nof_networkPartitions;
   struct ddsi_config_ignoredpartition_listelem *ignoredPartitions;
   struct ddsi_config_partitionmapping_listelem *partitionMappings;
-#endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
+#endif /* DDS_HAS_NETWORK_PARTITIONS */
   struct ddsi_config_peer_listelem *peers;
   struct ddsi_config_peer_listelem *peers_group;
   struct ddsi_config_thread_properties_listelem *thread_properties;
@@ -339,7 +340,7 @@ struct ddsi_config
   int64_t schedule_time_rounding;
   int64_t auto_resched_nack_delay;
   int64_t ds_grace_period;
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
   uint32_t auxiliary_bandwidth_limit; /* bytes/second */
 #endif
   uint32_t max_queued_rexmit_bytes;
@@ -368,7 +369,7 @@ struct ddsi_config
   int use_multicast_if_mreqn;
   struct ddsi_config_prune_deleted_ppant prune_deleted_ppant;
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   struct ddsi_config_omg_security_listelem *omg_security_configuration;
 #endif
 

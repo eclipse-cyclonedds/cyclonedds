@@ -138,7 +138,7 @@ static void make_builtin_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
   q->durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
 }
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 static void make_builtin_volatile_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
 {
   ddsi_xqos_copy (q, template);
@@ -328,7 +328,7 @@ static int set_spdp_address (struct ddsi_domaingv *gv)
     rc = string_to_default_locator (gv, &gv->loc_spdp_mc, gv->m_factory->m_default_spdp_address, port, 1, "SPDP address");
     assert (rc > 0);
   }
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   if (gv->loc_spdp_mc.kind != NN_LOCATOR_KIND_INVALID && ddsi_is_ssm_mcaddr (gv, &gv->loc_spdp_mc))
   {
     GVERROR ("%s: SPDP address may not be an SSM address\n", gv->config.spdpMulticastAddressString);
@@ -388,7 +388,7 @@ static int set_ext_address_and_mask (struct ddsi_domaingv *gv)
   return 0;
 }
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
 static int known_channel_p (const struct ddsi_domaingv *gv, const char *name)
 {
   const struct ddsi_config_channel_listelem *c;
@@ -401,7 +401,7 @@ static int known_channel_p (const struct ddsi_domaingv *gv, const char *name)
 
 static int check_thread_properties (const struct ddsi_domaingv *gv)
 {
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   static const char *fixed[] = { "recv", "tev", "gc", "lease", "dq.builtins", "debmon", "fsm", NULL };
   static const char *chanprefix[] = { "xmit.", "tev.","dq.",NULL };
 #else
@@ -416,7 +416,7 @@ static int check_thread_properties (const struct ddsi_domaingv *gv)
         break;
     if (fixed[i] == NULL)
     {
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
       /* Some threads are named after the channel, with names of the form PREFIX.CHAN */
 
       for (i = 0; chanprefix[i]; i++)
@@ -433,7 +433,7 @@ static int check_thread_properties (const struct ddsi_domaingv *gv)
 #else
       DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "config: DDSI2Service/Threads/Thread[@name=\"%s\"]: unknown thread\n", e->name);
       ok = 0;
-#endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
+#endif /* DDS_HAS_NETWORK_CHANNELS */
     }
   }
   return ok;
@@ -477,7 +477,7 @@ int rtps_config_open_trace (struct ddsi_domaingv *gv)
 
 int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
 {
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   unsigned num_channels = 0;
   unsigned num_channel_threads = 0;
 #endif
@@ -541,7 +541,7 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
   }
   if (gv->config.max_queued_rexmit_bytes == 0)
   {
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
     if (gv->config.auxiliary_bandwidth_limit == 0)
       gv->config.max_queued_rexmit_bytes = 2147483647u;
     else
@@ -556,7 +556,7 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
     }
 #else
     gv->config.max_queued_rexmit_bytes = 2147483647u;
-#endif /* DDSI_INCLUDE_BANDWIDTH_LIMITING */
+#endif /* DDS_HAS_BANDWIDTH_LIMITING */
   }
 
   /* Verify thread properties refer to defined threads */
@@ -565,7 +565,7 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
     goto err_config_late_error;
   }
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   {
     /* Determine number of configured channels to be able to
      determine the correct number of threads.  Also fix fields if
@@ -590,7 +590,7 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
       }
 
       if (
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
           chptr->auxiliary_bandwidth_limit > 0 ||
 #endif
           lookup_thread_properties (thread_name))
@@ -602,7 +602,7 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
     if (error)
       goto err_config_late_error;
   }
-#endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
+#endif /* DDS_HAS_NETWORK_CHANNELS */
 
   /* Open tracing file after all possible config errors have been printed */
   if (! rtps_config_open_trace (gv))
@@ -621,7 +621,7 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
   */
 #define USER_MAX_THREADS 50
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
     const unsigned max_threads = 9 + USER_MAX_THREADS + num_channel_threads + gv->config.ddsi2direct_max_threads;
 #else
     const unsigned max_threads = 11 + USER_MAX_THREADS + gv->config.ddsi2direct_max_threads;
@@ -661,7 +661,7 @@ static void joinleave_spdp_defmcip_helper (const ddsi_locator_t *loc, void *varg
   struct joinleave_spdp_defmcip_helper_arg *arg = varg;
   if (!ddsi_is_mcaddr (arg->gv, loc))
     return;
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
   /* Can't join SSM until we actually have a source */
   if (ddsi_is_ssm_mcaddr (arg->gv, loc))
     return;
@@ -826,7 +826,7 @@ static struct ddsi_sertopic *make_special_topic_plist (const char *name, const c
 
 static void free_special_topics (struct ddsi_domaingv *gv)
 {
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   ddsi_sertopic_unref (gv->pgm_volatile_topic);
   ddsi_sertopic_unref (gv->pgm_stateless_topic);
   ddsi_sertopic_unref (gv->pmd_secure_topic);
@@ -847,7 +847,7 @@ static void make_special_topics (struct ddsi_domaingv *gv)
   gv->sedp_writer_topic = make_special_topic_plist ("DCPSPublication", "PublicationBuiltinTopicData", PID_ENDPOINT_GUID);
   gv->pmd_topic = make_special_topic_pserop ("DCPSParticipantMessage", "ParticipantMessageData", sizeof (ParticipantMessageData_t), participant_message_data_nops, participant_message_data_ops, participant_message_data_nops_key, participant_message_data_ops_key);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   gv->spdp_secure_topic = make_special_topic_plist ("DCPSParticipantsSecure", "ParticipantBuiltinTopicDataSecure", PID_PARTICIPANT_GUID);
   gv->sedp_reader_secure_topic = make_special_topic_plist ("DCPSSubscriptionsSecure", "SubscriptionBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
   gv->sedp_writer_secure_topic = make_special_topic_plist ("DCPSPublicationsSecure", "PublicationBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
@@ -861,7 +861,7 @@ static void make_special_topics (struct ddsi_domaingv *gv)
   ddsi_sertopic_register_locked (gv, gv->sedp_reader_topic);
   ddsi_sertopic_register_locked (gv, gv->sedp_writer_topic);
   ddsi_sertopic_register_locked (gv, gv->pmd_topic);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   ddsi_sertopic_register_locked (gv, gv->spdp_secure_topic);
   ddsi_sertopic_register_locked (gv, gv->sedp_reader_secure_topic);
   ddsi_sertopic_register_locked (gv, gv->sedp_writer_secure_topic);
@@ -1161,7 +1161,7 @@ int rtps_init (struct ddsi_domaingv *gv)
     GVLOG (DDS_LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extmask), gv->m_factory->m_kind != NN_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
     GVLOG (DDS_LC_CONFIG, "SPDP MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_spdp_mc));
     GVLOG (DDS_LC_CONFIG, "default MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_default_mc));
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
     GVLOG (DDS_LC_CONFIG, "SSM support included\n");
 #endif
   }
@@ -1169,7 +1169,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   if (gv->ownloc.kind != gv->extloc.kind)
     DDS_FATAL ("mismatch between network address kinds\n");
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   /* Convert address sets in partition mappings from string to address sets */
   {
     const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DATA, 0);
@@ -1207,7 +1207,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   assert (gv->spdp_endpoint_xqos.reliability.kind == DDS_RELIABILITY_BEST_EFFORT);
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_rd, &gv->default_xqos_rd);
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_wr, &gv->default_xqos_wr);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   make_builtin_volatile_endpoint_xqos(&gv->builtin_volatile_xqos_rd, &gv->default_xqos_rd);
   make_builtin_volatile_endpoint_xqos(&gv->builtin_volatile_xqos_wr, &gv->default_xqos_wr);
   ddsi_xqos_copy (&gv->builtin_stateless_xqos_rd, &gv->default_xqos_rd);
@@ -1420,7 +1420,7 @@ int rtps_init (struct ddsi_domaingv *gv)
       goto err_mc_conn;
   }
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   {
     struct ddsi_config_channel_listelem *chptr = gv->config.channels;
     while (chptr)
@@ -1448,7 +1448,7 @@ int rtps_init (struct ddsi_domaingv *gv)
       }
       GVLOG (DDS_LC_CONFIG, "channel %s: transmit port %d\n", chptr->name, (int) ddsi_tran_port (chptr->transmit_conn));
 
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
       if (chptr->auxiliary_bandwidth_limit > 0 || lookup_thread_properties (tname))
       {
         chptr->evq = xeventq_new
@@ -1475,7 +1475,7 @@ int rtps_init (struct ddsi_domaingv *gv)
       chptr = chptr->next;
     }
   }
-#endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
+#endif /* DDS_HAS_NETWORK_CHANNELS */
 
   /* Create event queues */
 
@@ -1484,14 +1484,14 @@ int rtps_init (struct ddsi_domaingv *gv)
     gv->xmit_conn,
     gv->config.max_queued_rexmit_bytes,
     gv->config.max_queued_rexmit_msgs,
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
     gv->config.auxiliary_bandwidth_limit
 #else
     0
 #endif
   );
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   q_omg_security_init(gv);
 #endif
 
@@ -1535,7 +1535,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   }
 
   gv->builtins_dqueue = nn_dqueue_new ("builtins", gv, gv->config.delivery_queue_maxsamples, builtins_dqueue_handler, NULL);
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   for (struct ddsi_config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
     chptr->dqueue = nn_dqueue_new (chptr->name, &gv->config, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
 #else
@@ -1547,7 +1547,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   return 0;
 
 #if 0
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 err_post_omg_security_init:
   q_omg_security_stop (gv); // should be a no-op as it starts lazily
   q_omg_security_deinit(gv->security_context);
@@ -1581,7 +1581,7 @@ err_unicast_sockets:
 #endif
   ddsrt_hh_free (gv->sertopics);
   ddsrt_mutex_destroy (&gv->sertopics_lock);
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_rd);
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_wr);
@@ -1601,7 +1601,7 @@ err_unicast_sockets:
 
   ddsi_serdatapool_free (gv->serpool);
   nn_xmsgpool_free (gv->xmsgpool);
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
 err_network_partition_addrset:
   for (struct ddsi_config_networkpartition_listelem *np = gv->config.networkPartitions; np; np = np->next)
     unref_addrset (np->as);
@@ -1622,7 +1622,7 @@ err_udp_tcp_init:
   return -1;
 }
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
 static void stop_all_xeventq_upto (struct ddsi_config_channel_listelem *chptr)
 {
   for (struct ddsi_config_channel_listelem *chptr1 = gv->config.channels; chptr1 != chptr; chptr1 = chptr1->next)
@@ -1635,7 +1635,7 @@ int rtps_start (struct ddsi_domaingv *gv)
 {
   if (xeventq_start (gv->xevents, NULL) < 0)
     return -1;
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   for (struct ddsi_config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
   {
     if (chptr->evq)
@@ -1652,7 +1652,7 @@ int rtps_start (struct ddsi_domaingv *gv)
 
   if (setup_and_start_recv_threads (gv) < 0)
   {
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
     stop_all_xeventq_upto (NULL);
 #endif
     xeventq_stop (gv->xevents);
@@ -1701,7 +1701,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   struct ddsi_config_channel_listelem * chptr;
 #endif
 
@@ -1723,13 +1723,13 @@ void rtps_stop (struct ddsi_domaingv *gv)
   }
 
   xeventq_stop (gv->xevents);
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   for (chptr = gv->config.channels; chptr; chptr = chptr->next)
   {
     if (chptr->evq)
       xeventq_stop (chptr->evq);
   }
-#endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
+#endif /* DDS_HAS_NETWORK_CHANNELS */
 
   /* Send a bubble through the delivery queue for built-ins, so that any
      pending proxy participant discovery is finished before we start
@@ -1811,7 +1811,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
 
   /* Stop background (handshake) processing in security implementation,
      do this only once we know no new events will be coming in. */
-#if DDSI_INCLUDE_SECURITY
+#if DDS_HAS_SECURITY
   q_omg_security_stop (gv);
 #endif
 
@@ -1844,7 +1844,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
      the expected reference counts all over the radmin thingummies. */
   nn_dqueue_free (gv->builtins_dqueue);
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   chptr = gv->config.channels;
   while (chptr)
   {
@@ -1855,7 +1855,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
   nn_dqueue_free (gv->user_dqueue);
 #endif
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   q_omg_security_deinit (gv->security_context);
 #endif
 
@@ -1867,7 +1867,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
     nn_xpack_sendq_fini (gv);
   }
 
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
   chptr = gv->config.channels;
   while (chptr)
   {
@@ -1894,7 +1894,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
     fclose (gv->pcap_fp);
   }
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   for (struct ddsi_config_networkpartition_listelem *np = gv->config.networkPartitions; np; np = np->next)
     unref_addrset (np->as);
 #endif
@@ -1930,7 +1930,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
   ddsrt_hh_free (gv->sertopics);
   ddsrt_mutex_destroy (&gv->sertopics_lock);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
   q_omg_security_free (gv);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_rd);

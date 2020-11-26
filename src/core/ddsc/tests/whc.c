@@ -257,7 +257,7 @@ CU_Test(ddsc_whc, check_end_state, .init=whc_init, .fini=whc_fini, .timeout=30)
   bool rem_rd[] = {false, true};
   int32_t n_inst[] = {1, 3};
   bool keyed[] = {false, true};
-#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+#ifdef DDS_HAS_DEADLINE_MISSED
   bool deadline[] = {false, true};
 #else
   bool deadline[] = {false};

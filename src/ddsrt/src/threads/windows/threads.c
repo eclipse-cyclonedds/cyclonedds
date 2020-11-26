@@ -299,6 +299,7 @@ ddsrt_thread_setname(
     SetThreadDescription_ptr (GetCurrentThread (), wname);
     free (wname);
   }
+#ifndef __MINGW32__
   else
   {
     THREADNAME_INFO info;
@@ -321,6 +322,7 @@ ddsrt_thread_setname(
     }
 #pragma warning(pop)
   }
+#endif
   (void)ddsrt_strlcpy (thread_name, name, sizeof (thread_name));
 }
 

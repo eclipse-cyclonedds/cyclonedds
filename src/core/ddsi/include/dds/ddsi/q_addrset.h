@@ -77,7 +77,7 @@ void set_unspec_locator (ddsi_locator_t *loc);
 struct ddsi_domaingv;
 int add_addresses_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const char *addrs, int port_mode, const char *msgtag, int req_mc);
 
-#ifdef DDSI_INCLUDE_SSM
+#ifdef DDS_HAS_SSM
 int addrset_contains_ssm (const struct ddsi_domaingv *gv, const struct addrset *as);
 int addrset_any_ssm (const struct ddsi_domaingv *gv, const struct addrset *as, ddsi_locator_t *dst);
 int addrset_any_non_ssm_mc (const struct ddsi_domaingv *gv, const struct addrset *as, ddsi_locator_t *dst);

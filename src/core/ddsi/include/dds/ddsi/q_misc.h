@@ -31,7 +31,7 @@ inline nn_sequence_number_t toSN (seqno_t n) {
 
 unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr);
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
 int WildcardOverlap(char * p1, char * p2);
 #endif
 
@@ -40,13 +40,13 @@ DDS_EXPORT int guid_prefix_eq (const ddsi_guid_prefix_t *a, const ddsi_guid_pref
 DDS_EXPORT int guid_eq (const struct ddsi_guid *a, const struct ddsi_guid *b);
 DDS_EXPORT int ddsi2_patmatch (const char *pat, const char *str);
 
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+#ifdef DDS_HAS_NETWORK_PARTITIONS
 struct ddsi_config;
 struct ddsi_config_partitionmapping_listelem;
 struct ddsi_config_partitionmapping_listelem *find_partitionmapping (const struct ddsi_config *cfg, const char *partition, const char *topic);
 int is_ignored_partition (const struct ddsi_config *cfg, const char *partition, const char *topic);
 #endif
-#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+#ifdef DDS_HAS_NETWORK_CHANNELS
 struct ddsi_config;
 struct ddsi_config_channel_listelem;
 struct ddsi_config_channel_listelem *find_channel (const struct config *cfg, nn_transport_priority_qospolicy_t transport_priority);

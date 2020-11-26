@@ -12,6 +12,8 @@
 #ifndef DDSI_OMG_SECURITY_H
 #define DDSI_OMG_SECURITY_H
 
+#include "dds/features.h"
+
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/avl.h"
 
@@ -25,7 +27,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/ddsi_xqos.h"
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 #include "dds/security/dds_security_api.h"
 #endif
 
@@ -39,7 +41,7 @@ typedef enum {
   NN_RTPS_MSG_STATE_ENCODED
 } nn_rtps_msg_state_t;
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDS_HAS_SECURITY
 
 struct ddsi_hsadmin;
 struct participant_sec_attributes;
@@ -1099,7 +1101,7 @@ void q_omg_security_free (struct ddsi_domaingv *gv);
 
 bool q_omg_is_security_loaded(  struct dds_security_context *sc );
 
-#else /* DDSI_INCLUDE_SECURITY */
+#else /* DDS_HAS_SECURITY */
 
 #include "dds/ddsi/q_unused.h"
 
@@ -1409,7 +1411,7 @@ inline void q_omg_log_endpoint_protection(UNUSED_ARG(struct ddsi_domaingv * cons
 {
 }
 
-#endif /* DDSI_INCLUDE_SECURITY */
+#endif /* DDS_HAS_SECURITY */
 
 #if defined (__cplusplus)
 }
