@@ -18,7 +18,7 @@ These packages are used by iceoryx.
 
 .. code-block:: bash
 
-  sudo apt install cmake libacl1-dev libncurses5-dev pkg-config
+  sudo apt install cmake libacl1-dev libncurses5-dev pkg-config maven
 
 Since iceoryx is C++ implementation and doesn't provide C API, we use iceoryx_clib to provide C API.
 Here we use colcon to build the project, including iceoryx, Cyclone DDS, and iceoryx_clib.
