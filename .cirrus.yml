@@ -1,0 +1,201 @@
+#
+# Copyright(c) 2020 ADLINK Technology Limited and others
+#
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License v. 2.0 which is available at
+# http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+# v. 1.0 which is available at
+# http://www.eclipse.org/org/documents/edl-v10.php.
+#
+# SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+#
+ubuntu_2004: &ubuntu_2004
+  container:
+    dockerfile: .cirrus/ubuntu2004/Dockerfile
+  env:
+    PATH: "${HOME}/.local/bin:${PATH}"
+    COV_COMPTYPE: gcc
+    COV_PLATFORM: linux64
+    GENERATOR: "Unix Makefiles"
+    BUILD_TOOL_OPTIONS: "-j 4"
+  pip_cache:
+    folder: ${HOME}/.cache/pip
+  conan_cache:
+    folder: ${HOME}/.conan/data
+  maven_cache:
+    folder: ${HOME}/.m2
+  bootstrap_script:
+    - pip3 install --user conan
+
+ubuntu_2004_gcc10: &ubuntu_2004_gcc10
+  <<: *ubuntu_2004
+  env:
+    CC: gcc-10
+
+ubuntu_2004_clang10: &ubuntu_2004_clang10
+  <<: *ubuntu_2004
+  env:
+    CC: clang-10
+
+freebsd12_clang8: &freebsd_12_clang8
+  freebsd_instance:
+    image_family: freebsd-12-1
+  env:
+    PATH: "${HOME}/.local/bin:${PATH}"
+    CC: clang
+    GENERATOR: "Unix Makefiles"
+    BUILD_TOOL_OPTIONS: "-j 4"
+  pip_cache:
+    folder: ${HOME}/.cache/pip
+  conan_cache:
+    folder: ${HOME}/.conan/data
+  maven_cache:
+    folder: ${HOME}/.m2
+  bootstrap_script:
+    - pkg update -f
+    - pkg install -y bash cmake maven openjdk11 perl5 py37-sqlite3 py37-pip
+    - pip install --user conan
+
+macos_1015_xcode11: &macos_1015_xcode11_5
+  osx_instance:
+    image: catalina-xcode-11.5
+  env:
+    PATH: "/usr/local/opt/openjdk/bin:${PATH}"
+    CC: clang
+    COV_COMPTYPE: clang
+    COV_PLATFORM: macOSX
+    GENERATOR: "Unix Makefiles"
+    BUILD_TOOL_OPTIONS: "-j 4"
+  pip_cache:
+    folder: ${HOME}/Library/Caches/pip
+  conan_cache:
+    folder: ${HOME}/.conan/data
+  maven_cache:
+    folder: ${HOME}/.m2
+  bootstrap_script:
+    - brew install bison cmake python3 maven
+    - python3 -m pip install --user conan
+    # Environment variables do not persist between scripts. Generate a proxy
+    # for Conan in /usr/local/bin/conan and forward the parameters.
+    - printf "#!/bin/bash\n$(python3 -m site --user-base)/bin/conan \"\$@\"\n" >> /usr/local/bin/conan
+    - chmod a+x /usr/local/bin/conan
+
+windows_2019_vs2019: &windows_2019_vs2019
+  windows_container:
+    dockerfile: .cirrus/windows2019/Dockerfile
+  env:
+    CIRRUS_SHELL: bash
+    COV_COMPTYPE: msvc
+    COV_PLATFORM: win64
+    BUILD_TOOL_OPTIONS: "-nologo -verbosity:minimal -maxcpucount -p:CL_MPCount=4"
+  pip_cache:
+    folder: ${LOCALAPPDATA}/pip/Cache
+  conan_cache:
+    folder: ${USERPROFILE}/.conan/data
+  maven_cache:
+    folder: ${USERPROFILE}/.m2
+  bootstrap_script:
+    - pip3 install --user conan
+
+env:
+  CYCLONEDDS_URI: '<CycloneDDS><DDSI2E><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal></DDSI2E></CycloneDDS>'
+
+task:
+  matrix:
+    - name: "Ubuntu 20.04 LTS with GCC 10 (Debug)"
+      <<: *ubuntu_2004_gcc10
+      env:
+        BUILD_TYPE: Debug
+        CONANFILE: conanfile102.txt
+    - name: "Ubuntu 20.04 LTS with GCC 10 (Release)"
+      <<: *ubuntu_2004_gcc10
+      env:
+        BUILD_TYPE: Release
+        SSL: NO
+        SECURITY: NO
+    - name: "Ubuntu 20.04 LTS with Clang 10 (Debug)"
+      <<: *ubuntu_2004_clang10
+      env:
+        SANITIZER: address
+        BUILD_TYPE: Debug
+    - name: "Ubuntu 20.04 LTS with Clang 10 (Release)"
+      <<: *ubuntu_2004_clang10
+      env:
+        BUILD_TYPE: Release
+        LIFESPAN: NO
+        DEADLINE: NO
+    - name: "macOS 10.15 with Xcode 11.5 (Debug)"
+      <<: *macos_1015_xcode11_5
+      env:
+        SANITIZER: address
+        BUILD_TYPE: Debug
+    - name: "macOS 10.15 with Xcode 11.5 (Release)"
+      <<: *macos_1015_xcode11_5
+      env:
+        BUILD_TYPE: Release
+        MACOSX_DEPLOYMENT_TARGET: 10.12
+    - name: "FreeBSD 12.1 with Clang 8 (Debug)"
+      <<: *freebsd_12_clang8
+      env:
+        SANITIZER: address
+        BUILD_TYPE: Debug
+        SSL: NO
+        SECURITY: NO
+    - name: "Windows 2019 with Visual Studio 2019 (Debug, x86)"
+      <<: *windows_2019_vs2019
+      env:
+        ARCH: x86
+        PLATFORM: -A Win32
+        GENERATOR: "Visual Studio 16 2019"
+        BUILD_TYPE: Debug
+    - name: "Windows 2019 with Visual Studio 2019 (Release, x86_64)"
+      <<: *windows_2019_vs2019
+      env:
+        PLATFORM: -A x64
+        GENERATOR: "Visual Studio 16 2019"
+        BUILD_TYPE: Release
+  install_script:
+    - mkdir build
+    - cd build
+    - conan profile new default --detect
+    - conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
+    - conan install -b missing -s arch=${ARCH:-x86_64} -s build_type=${BUILD_TYPE} ../${CONANFILE:-conanfile.txt}
+  build_script:
+    - cd build
+    - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+            -DCMAKE_INSTALL_PREFIX=$(pwd)/install
+            -DUSE_SANITIZER=${SANITIZER:-none}
+            -DENABLE_SSL=${SSL:-YES}
+            -DENABLE_SECURITY=${SECURITY:-YES}
+            -DENABLE_LIFESPAN=${LIFESPAN:-YES}
+            -DENABLE_DEADLINE_MISSED=${DEADLINE:-YES}
+            -DBUILD_TESTING=On
+            -DWERROR=on
+            -G "${GENERATOR}" ${PLATFORM} ..
+    - ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- ${BUILD_TOOL_OPTIONS}
+  test_script:
+    - cd build
+    - ctest -j 4 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${BUILD_TYPE}
+    - |
+      if [ "${BUILD_TYPE}" = "Release" ]; then
+        ../src/tools/ddsperf/sanity.bash
+      fi
+    - |
+      if [ -n "${SANITIZER}" ]; then
+        CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${SANITIZER}"
+        CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${SANITIZER}"
+      fi
+    - |
+      if [ "${SSL}" = "ON" ] && [ "${SECURITY}" = "ON" ]; then
+        diff --strip-trailing-cr ../etc/cyclonedds.rnc docs/cyclonedds.rnc && \
+        diff --strip-trailing-cr ../etc/cyclonedds.xsd docs/cyclonedds.xsd && \
+        diff --strip-trailing-cr ../docs/manual/options.md docs/manual/options.md
+      fi
+    - cd ..
+    - mkdir helloworld_build
+    - cd helloworld_build
+    - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+            -DCMAKE_PREFIX_PATH=${CIRRUS_WORKING_DIR}/build/install
+            -G "${GENERATOR}" ${PLATFORM} ..
+    - cmake --build . --config ${BUILD_TYPE}
+
