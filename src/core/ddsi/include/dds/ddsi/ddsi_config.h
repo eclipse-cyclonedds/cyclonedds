@@ -59,6 +59,18 @@ enum ddsi_boolean_default {
   DDSI_BOOLDEF_TRUE
 };
 
+#ifdef DDSI_INCLUDE_LF
+enum lf_loglevel {
+  LF_OFF = 0,
+  LF_FATAL,
+  LF_ERROR,
+  LF_WARN,
+  LF_INFO,
+  LF_DEBUG,
+  LF_VERBOSE
+};
+#endif
+
 #define DDSI_PARTICIPANT_INDEX_AUTO -1
 #define DDSI_PARTICIPANT_INDEX_NONE -2
 
@@ -370,6 +382,15 @@ struct ddsi_config
 
 #ifdef DDSI_INCLUDE_SECURITY
   struct ddsi_config_omg_security_listelem *omg_security_configuration;
+#endif
+
+#ifdef DDSI_INCLUDE_LF
+  int enable_lf;
+  int enable_txc;
+  int enable_pio;
+  int enable_rxpio;
+  enum lf_loglevel lf_log_level;
+  uint32_t lf_adapter_no;
 #endif
 
 #if defined (__cplusplus)

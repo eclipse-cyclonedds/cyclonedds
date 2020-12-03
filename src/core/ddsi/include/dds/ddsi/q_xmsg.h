@@ -47,6 +47,17 @@ enum nn_xmsg_kind {
   NN_XMSG_KIND_DATA_REXMIT_NOMERGE
 };
 
+#ifdef DDSI_INCLUDE_LF
+struct lf_header {
+  struct ddsi_guid guid;
+  dds_time_t tstamp;
+  uint32_t data_size;
+  unsigned char data_kind;
+  unsigned char more;
+  uint16_t host_id;
+};
+#endif
+
 /* XMSGPOOL */
 
 struct nn_xmsgpool *nn_xmsgpool_new (void);

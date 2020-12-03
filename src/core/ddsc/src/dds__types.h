@@ -279,6 +279,11 @@ typedef struct dds_reader {
   bool m_loan_out;
   void *m_loan;
   uint32_t m_loan_size;
+#ifdef DDSI_INCLUDE_LF
+  struct lf_group *sub;
+  char *base;
+  struct lf_rd_table *tab;
+#endif
 
   /* Status metrics */
 
@@ -297,6 +302,12 @@ typedef struct dds_writer {
   struct writer *m_wr;
   struct whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
   bool whc_batch; /* FIXME: channels + latency budget */
+#ifdef DDSI_INCLUDE_LF
+  struct lf_group *pub;
+  char *base;
+  uint32_t tx_offset;
+  uint32_t tx_limit;
+#endif
 
   /* Status metrics */
 

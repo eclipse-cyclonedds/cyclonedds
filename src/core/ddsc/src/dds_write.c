@@ -27,6 +27,10 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
 
+#ifdef DDSI_INCLUDE_LF
+#include "lf_group_lib.h"
+#endif
+
 dds_return_t dds_write (dds_entity_t writer, const void *data)
 {
   dds_return_t ret;
@@ -203,6 +207,50 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
                    ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
   d->timestamp.v = tstamp;
   ddsi_serdata_ref (d);
+
+#ifdef DDSI_INCLUDE_LF
+  if (wr->m_entity.m_domain->gv.config.enable_lf && wr->m_wr->num_lf_proxy_reader)
+  {
+    struct lf_header lf_hdr;
+    ddsrt_iovec_t iov;
+    uint32_t size = ddsi_serdata_size(d);
+    (void)ddsi_serdata_to_ser_ref(d, 0, size, &iov);
+    uint32_t send_size = (uint32_t)iov.iov_len;
+    char *send_ptr = iov.iov_base;
+    char *data_ptr;
+    int rc;
+    uint32_t frag_size, total_len, max_size;
+
+    lf_hdr.guid = ddsi_wr->e.guid;
+    lf_hdr.tstamp = tstamp;
+    lf_hdr.data_kind = writekey ? SDK_KEY : SDK_DATA;
+    lf_hdr.host_id = wr->m_entity.m_domain->gv.host_id;
+    max_size = 2048 - sizeof(lf_hdr);
+    do {
+      ddsrt_mutex_lock(&wr->m_entity.m_domain->gv.lf_tx_lock);
+      frag_size = (send_size > max_size) ? max_size : send_size;
+      total_len = frag_size + sizeof(lf_hdr);
+      if ((wr->tx_offset + total_len) > wr->tx_limit)
+        wr->tx_offset = 0;
+      data_ptr = wr->base + wr->tx_offset;
+      wr->tx_offset += ((total_len + 31) & (uint32_t)(~31));
+      lf_hdr.data_size = send_size;
+      lf_hdr.more = (send_size > frag_size) ? 1 : 0;
+      memcpy(data_ptr, &lf_hdr, sizeof(lf_hdr));
+      memcpy(data_ptr + sizeof(lf_hdr), send_ptr, total_len);
+      send_ptr += frag_size;
+      send_size -= frag_size;
+      rc = lf_put(wr->pub, data_ptr, total_len, 0);
+      ddsrt_mutex_unlock(&wr->m_entity.m_domain->gv.lf_tx_lock);
+      if (rc < 0)
+      {
+        DDS_CLOG(DDS_LC_LF,  &wr->m_entity.m_domain->gv.logconfig, "****  lf_put returned %d len %d\n", rc, total_len);
+      }
+    } while (send_size > 0);
+    ddsi_serdata_to_ser_unref(d, &iov);
+  }
+#endif
+
   tk = ddsi_tkmap_lookup_instance_ref (wr->m_entity.m_domain->gv.m_tkmap, d);
   w_rc = write_sample_gc (ts1, wr->m_xp, ddsi_wr, d, tk);
 

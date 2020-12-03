@@ -2398,6 +2398,10 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
           return DOLOC_INVALID;
       }
       break;
+#ifdef DDSI_INCLUDE_LF
+      case NN_LOCATOR_KIND_LF:
+        break;
+#endif
     case NN_LOCATOR_KIND_INVALID:
       if (!locator_address_zero (&loc))
         return DOLOC_INVALID;

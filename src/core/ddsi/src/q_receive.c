@@ -3439,6 +3439,131 @@ uint32_t listen_thread (struct ddsi_tran_listener *listener)
   return 0;
 }
 
+#ifdef DDSI_INCLUDE_LF
+struct lf_rd_entry *lf_reassemble(struct dds_reader *rd, struct lf_header *hdr,
+                                  size_t len, int origin);
+
+struct lf_rd_entry *lf_reassemble(struct dds_reader *rd, struct lf_header *hdr,
+                                  size_t len, int origin)
+{
+  struct lf_rd_entry *rde;
+  struct lf_rd_table *rdt;
+
+  if (origin > 16)
+    printf("DONF:  DEBUG DEBUG DEBUG origin is too big!!!! ******\n");
+  if (len < 2048 && rd->tab == NULL)
+    return NULL;
+  if (rd->tab == NULL)
+  {
+    rd->tab = ddsrt_malloc(sizeof(struct lf_rd_table) * 16);
+    if (!rd->tab) { DDS_CLOG(DDS_LC_LF, &rd->m_rd->e.gv->logconfig, "malloc of table failed.\n"); exit(0);}
+    memset(rd->tab, 0, sizeof(struct lf_rd_table) * 16);
+  }
+  rdt = &rd->tab[origin & 15];
+  rde = &rdt->entry[rdt->idx];
+  if (rde->base == NULL)
+  {
+    if (hdr->more == 0)
+        return NULL;
+    rde->base = ddsrt_malloc(hdr->data_size);
+    if (!rd->tab) { DDS_CLOG(DDS_LC_LF, &rd->m_rd->e.gv->logconfig, "malloc of buffer failed.\n"); exit(0);}
+    rde->size = hdr->data_size;
+    rde->offset = hdr->data_size;
+    rde->length = 0;
+  }
+  if (rde->size < hdr->data_size)
+  {
+    if (hdr->data_size < 2048 || (hdr->data_size == 2048 && hdr->more == 0))
+        return NULL;
+    ddsrt_free(rde->base);
+    rde->base = ddsrt_malloc(hdr->data_size);
+    if (!rd->tab) { DDS_CLOG(DDS_LC_LF, &rd->m_rd->e.gv->logconfig, "malloc of buffer failed.\n"); exit(0);}
+    rde->size = hdr->data_size;
+    rde->offset = hdr->data_size;
+    rde->length = 0;
+  }
+  else if (rde->offset == 0)
+    rde->offset = hdr->data_size;
+  rde->more = hdr->more;
+  /* at this point we have a buffer big enough for the entire message */
+  if (hdr->more == 0)
+  {
+    struct lf_rd_entry *next;
+    rdt->idx = (rdt->idx + 1) & 3;
+    next = &rdt->entry[rdt->idx];
+    next->offset = 0;
+    next->length = 0;
+    next->more = 0;
+  }
+  return rde;
+}
+
+void lf_read_callback(const void *chunk, void *arg, size_t length, int origin)
+{
+  struct dds_reader *rd = (struct dds_reader *)arg;
+  struct lf_header lf_hdr;
+  struct lf_rd_entry *rde;
+
+  memcpy(&lf_hdr, chunk, sizeof(lf_hdr));
+  // Get proxy writer
+  thread_state_awake(lookup_thread_state(), rd->m_rd->e.gv);
+  struct proxy_writer *pwr = entidx_lookup_proxy_writer_guid(rd->m_rd->e.gv->entity_index, &lf_hdr.guid);
+  if (pwr == NULL)
+  {
+    DDS_CLOG(DDS_LC_LF, &rd->m_rd->e.gv->logconfig, "pwr is NULL and we'll ignore.\n");
+    goto exit;
+  }
+
+  rde = lf_reassemble(rd, &lf_hdr, length, origin);
+
+  // Create struct ddsi_serdata
+  ddsrt_iovec_t iov;
+  if (rde)
+  {
+    if ((rde->offset - rde->length) != lf_hdr.data_size)
+    {
+      DDS_CLOG(DDS_LC_LF, &rd->m_rd->e.gv->logconfig, "Expected offset %ld but got %d\n", rde->size - rde->length, lf_hdr.data_size);
+      exit(9);
+    }
+    memcpy((rde->base + rde->length), (chunk + sizeof(lf_hdr)), length - sizeof(lf_hdr));
+    rde->length += (length - sizeof(lf_hdr));
+    if (lf_hdr.more)
+      goto exit;
+    iov.iov_len = rde->length;
+    iov.iov_base = rde->base;
+  }
+  else
+  {
+    iov.iov_len = lf_hdr.data_size;
+    iov.iov_base = (void *)(chunk + sizeof(lf_hdr));
+  }
+  // Create struct ddsi_serdata
+  struct ddsi_serdata *d = ddsi_serdata_from_ser_iov(rd->m_topic->m_stopic, lf_hdr.data_kind, 1, &iov, iov.iov_len);
+  d->timestamp.v = lf_hdr.tstamp;
+  // Get struct ddsi_tkmap_instance
+  struct ddsi_tkmap_instance *tk;
+  if ((tk = ddsi_tkmap_lookup_instance_ref(rd->m_rd->e.gv->m_tkmap, d)) == NULL)
+  {
+    DDS_CLOG(DDS_LC_LF, &rd->m_rd->e.gv->logconfig, "ddsi_tkmap_lookup_instance_ref failed.\n");
+    goto release;
+  }
+
+  // Generate writer_info
+  struct ddsi_writer_info wrinfo;
+  ddsi_make_writer_info(&wrinfo, &pwr->e, pwr->c.xqos, d->statusinfo);
+
+  (void)ddsi_rhc_store(rd->m_rd->rhc, &wrinfo, d, tk);
+
+release:
+  if (tk)
+    ddsi_tkmap_instance_unref(rd->m_rd->e.gv->m_tkmap, tk);
+  if (d)
+    ddsi_serdata_unref(d);
+exit:
+  thread_state_asleep(lookup_thread_state());
+}
+#endif
+
 static int recv_thread_waitset_add_conn (os_sockWaitset ws, ddsi_tran_conn_t conn)
 {
   if (conn == NULL)

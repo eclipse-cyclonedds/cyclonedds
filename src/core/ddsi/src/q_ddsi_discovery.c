@@ -63,6 +63,16 @@ static int get_locator (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, con
   {
     for (l = locs->first; l != NULL; l = l->next)
     {
+#ifdef DDSI_INCLUDE_LF
+      if (gv->config.enable_lf)
+      {
+        if (l->loc.kind == NN_LOCATOR_KIND_LF && memcmp(gv->loc_lf_addr.address, l->loc.address, sizeof(gv->loc_lf_addr.address)) == 0)
+        {
+          *loc = l->loc;
+          return 1;
+        }
+      }
+#endif
       if (l->loc.kind == NN_LOCATOR_KIND_UDPv4MCGEN)
       {
         *loc = l->loc;
@@ -203,14 +213,33 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
     dst->aliased |= PP_DOMAIN_TAG;
     dst->domain_tag = pp->e.gv->config.domainTag;
   }
-  dst->default_unicast_locators.n = 1;
-  dst->default_unicast_locators.first =
-    dst->default_unicast_locators.last = &locs->def_uni_loc_one;
-  dst->metatraffic_unicast_locators.n = 1;
-  dst->metatraffic_unicast_locators.first =
-    dst->metatraffic_unicast_locators.last = &locs->meta_uni_loc_one;
-  locs->def_uni_loc_one.next = NULL;
-  locs->meta_uni_loc_one.next = NULL;
+#ifdef DDSI_INCLUDE_LF
+  if (pp->e.gv->config.enable_lf)
+  {
+    dst->default_unicast_locators.n = 2;
+    dst->default_unicast_locators.first = &locs->def_uni_loc_one;
+    dst->default_unicast_locators.last = &locs->def_uni_loc_two;
+    dst->metatraffic_unicast_locators.n = 1;
+    dst->metatraffic_unicast_locators.first =
+      dst->metatraffic_unicast_locators.last = &locs->meta_uni_loc_one;
+    locs->def_uni_loc_one.next = &locs->def_uni_loc_two;
+    locs->meta_uni_loc_one.next = NULL;
+    locs->def_uni_loc_two.next = NULL;
+    locs->def_uni_loc_two.loc = pp->e.gv->loc_lf_addr;
+  }
+  else
+#endif /* DDSI_INCLUDE_LF */
+  {
+    dst->default_unicast_locators.n = 1;
+    dst->default_unicast_locators.first =
+      dst->default_unicast_locators.last = &locs->def_uni_loc_one;
+    dst->metatraffic_unicast_locators.n = 1;
+    dst->metatraffic_unicast_locators.first =
+      dst->metatraffic_unicast_locators.last = &locs->meta_uni_loc_one;
+    locs->def_uni_loc_one.next = NULL;
+    locs->meta_uni_loc_one.next = NULL;
+  }
+
 
   if (pp->e.gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
   {
@@ -249,16 +278,37 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
     {
       dst->present |= PP_DEFAULT_MULTICAST_LOCATOR | PP_METATRAFFIC_MULTICAST_LOCATOR;
       dst->aliased |= PP_DEFAULT_MULTICAST_LOCATOR | PP_METATRAFFIC_MULTICAST_LOCATOR;
-      dst->default_multicast_locators.n = 1;
-      dst->default_multicast_locators.first =
-      dst->default_multicast_locators.last = &locs->def_multi_loc_one;
-      dst->metatraffic_multicast_locators.n = 1;
-      dst->metatraffic_multicast_locators.first =
-      dst->metatraffic_multicast_locators.last = &locs->meta_multi_loc_one;
-      locs->def_multi_loc_one.next = NULL;
-      locs->def_multi_loc_one.loc = pp->e.gv->loc_default_mc;
-      locs->meta_multi_loc_one.next = NULL;
-      locs->meta_multi_loc_one.loc = pp->e.gv->loc_meta_mc;
+#ifdef DDSI_INCLUDE_LF
+      if (pp->e.gv->config.enable_lf)
+      {
+        dst->default_multicast_locators.n = 2;
+        dst->default_multicast_locators.first = &locs->def_multi_loc_one;
+        dst->default_multicast_locators.last = &locs->def_multi_loc_two;
+        dst->metatraffic_multicast_locators.n = 1;
+        dst->metatraffic_multicast_locators.first =
+          dst->metatraffic_multicast_locators.last = &locs->meta_multi_loc_one;
+        locs->def_multi_loc_one.next = &locs->def_multi_loc_two;
+        locs->def_multi_loc_one.loc = pp->e.gv->loc_default_mc;
+        locs->def_multi_loc_two.next = NULL;
+        locs->def_multi_loc_two.loc = pp->e.gv->loc_lf_addr;
+        locs->meta_multi_loc_one.next = NULL;
+        locs->meta_multi_loc_one.loc = pp->e.gv->loc_meta_mc;
+      }
+      else
+#endif /* DDSI_INCLUDE_LF */
+      {
+        dst->default_multicast_locators.n = 1;
+        dst->default_multicast_locators.first =
+          dst->default_multicast_locators.last = &locs->def_multi_loc_one;
+        dst->metatraffic_multicast_locators.n = 1;
+        dst->metatraffic_multicast_locators.first =
+          dst->metatraffic_multicast_locators.last = &locs->meta_multi_loc_one;
+        locs->def_multi_loc_one.next = NULL;
+        locs->def_multi_loc_one.loc = pp->e.gv->loc_default_mc;
+        locs->meta_multi_loc_one.next = NULL;
+        locs->meta_multi_loc_one.loc = pp->e.gv->loc_meta_mc;
+      }
+
     }
   }
   dst->participant_lease_duration = pp->lease_duration;

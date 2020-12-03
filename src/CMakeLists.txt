@@ -79,6 +79,11 @@ if(ENABLE_DEADLINE_MISSED)
   add_definitions(-DDDSI_INCLUDE_DEADLINE_MISSED)
 endif()
 
+option(ENABLE_LF "Enable Lightfleet group support" ON)
+if (ENABLE_LF)
+  add_definitions(-DDDSI_INCLUDE_LF)
+endif()
+
 add_subdirectory(ddsrt)
 
 # some of the tests in the core rely on preprocessing IDL, so idlc has to
