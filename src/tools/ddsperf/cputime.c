@@ -27,10 +27,6 @@
 #include "cputime.h"
 #include "ddsperf_types.h"
 
-extern bool throughput_changed;
-extern bool latency_changed;
-extern bool cputime_changed;
-
 static void print_one (FILE *fp, char *line, size_t sz, size_t *pos, const char *name, double du, double ds)
 {
   if (*pos < sz)
@@ -94,10 +90,11 @@ static bool above_threshold (double *max, double *du_skip, double *ds_skip, doub
   }
 }
 
-bool record_cputime (FILE *fp, struct record_cputime_state *state, const char *prefix, dds_time_t tnow)
+bool record_cputime (FILE *fp, struct record_cputime_state *state, const char *prefix, dds_time_t tnow, bool data_changed, bool *cputime_changed)
 {
   if (state == NULL)
   {
+    printf("%s: state==NULL\n", __func__);
     if (fp != NULL)
       fprintf (fp, ",<state==NULL>");
     return false;
@@ -120,11 +117,19 @@ bool record_cputime (FILE *fp, struct record_cputime_state *state, const char *p
   state->vcswprev = (uint32_t) usage.nvcsw;
   state->ivcswprev = (uint32_t) usage.nivcsw;
   state->s.cpu._length = 0;
+  printf("%s: state->nthreads:%d\n", __func__, (int)state->nthreads);
   for (size_t i = 0; i < state->nthreads; i++)
   {
     struct record_cputime_state_thr * const thr = &state->threads[i];
+    if (strlen(thr->name) > 0)
+    {
+      printf("%s: state->threads[%d].tid:%d", __func__, (int)i, (int)thr->tid);
+      printf(",name:%s\n", thr->name);
+    }
     if (ddsrt_getrusage_anythread (thr->tid, &usage) < 0)
+    {
       continue;
+    }
 
     const double ut = (double) usage.utime / 1e9;
     const double st = (double) usage.stime / 1e9;
@@ -142,6 +147,7 @@ bool record_cputime (FILE *fp, struct record_cputime_state *state, const char *p
       {
         if (ddsrt_thread_getname_anythread (thr->tid, thr->name, sizeof (thr->name)) < 0)
         {
+          printf("%s: state->threads[%d].tid:%d could not get thread name\n", __func__, (int)i, (int)thr->tid);
           du_skip += du;
           ds_skip += ds;
           continue;
@@ -165,8 +171,9 @@ bool record_cputime (FILE *fp, struct record_cputime_state *state, const char *p
   }
   state->tprev = tnow;
   state->s.some_above = some_above;
-  (void) dds_write (state->wr, &state->s);
-  return print_cputime (fp, &state->s, state, prefix, true, true);
+  dds_return_t ret = dds_write (state->wr, &state->s);
+  printf("%s: dds_write(0x%08x,...) returned %d\n", __func__, (int)state->wr, (int)ret);
+  return print_cputime (fp, &state->s, state, prefix, true, true, data_changed, cputime_changed, false);
 }
 
 double record_cputime_read_rss (const struct record_cputime_state *state)
@@ -179,13 +186,17 @@ struct record_cputime_state *record_cputime_new (dds_entity_t wr)
   ddsrt_thread_list_id_t tids[100];
   dds_return_t n;
   if ((n = ddsrt_thread_list (tids, sizeof (tids) / sizeof (tids[0]))) <= 0)
+  {
+    fprintf (stderr, "ddsrt_thread_list returned %d\n", n);
     return NULL;
+  }
   else if (n > (dds_return_t) (sizeof (tids) / sizeof (tids[0])))
   {
     fprintf (stderr, "way more threads than expected\n");
     return NULL;
   }
 
+  printf("%s: number of threads: %d\n", __func__, (int)n);
   struct record_cputime_state *state = malloc (sizeof (*state));
   ddsrt_rusage_t usage;
   if (ddsrt_getrusage (DDSRT_RUSAGE_SELF, &usage) < 0)
@@ -239,6 +250,7 @@ bool record_cputime (struct record_cputime_state *state, const char *prefix, dds
   (void) state;
   (void) prefix;
   (void) tnow;
+  return false;
 }
 
 double record_cputime_read_rss (const struct record_cputime_state *state)
@@ -250,6 +262,7 @@ double record_cputime_read_rss (const struct record_cputime_state *state)
 struct record_cputime_state *record_cputime_new (dds_entity_t wr)
 {
   (void) wr;
+  return NULL;
 }
 
 void record_cputime_free (struct record_cputime_state *state)
@@ -259,11 +272,12 @@ void record_cputime_free (struct record_cputime_state *state)
 
 #endif
 
-bool print_cputime (FILE *fp, const struct CPUStats *s, struct record_cputime_state *state, const char *prefix, bool print_host, bool is_fresh)
+bool print_cputime (FILE *fp, const struct CPUStats *s, struct record_cputime_state *state, const char *prefix, bool print_host, bool is_fresh, bool data_changed, bool *cputime_changed, bool read)
 {
-  cputime_changed = false;
+  *cputime_changed = false;
   if (!s->some_above)
   {
+printf("!s->some_above\n");
     return false;
   }
   else
@@ -272,15 +286,53 @@ bool print_cputime (FILE *fp, const struct CPUStats *s, struct record_cputime_st
     char line_fp[512];
     size_t pos = 0;
     size_t pos_fp = 0;
+    const size_t init_pos = pos;
+    const size_t init_pos_fp = pos_fp;
     pos += (size_t) snprintf (line + pos, sizeof (line) - pos, "%s", prefix);
     if (!is_fresh)
       pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " (stale)");
     if (print_host)
     {
+      data_changed = true;
       int n = (int) strlen (s->hostname);
       if (n > 100) n = 100;
-      pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " @%*.*s:%"PRIu32, n, n, s->hostname, s->pid);
-      if (fp != NULL) pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp, ",@%*.*s:%"PRIu32, n, n, s->hostname, s->pid);
+      pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " @%-*.*s:%"PRIu32, n, n, s->hostname, s->pid);
+      if (fp != NULL)
+      {
+        if (read)
+        {
+          dds_time_t tnow = dds_time ();
+          int64_t tsec = (int64_t)(tnow / 1000000000);
+          int64_t nsec = (int64_t)(tnow % 1000000000);
+          char hostname[64];
+          ddsrt_pid_t pid = ddsrt_getpid ();
+          if (ddsrt_gethostname (hostname, sizeof (hostname)) != DDS_RETCODE_OK)
+          {
+            snprintf (hostname, sizeof (hostname), "%s", "<unknown>");
+          }
+          pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp,
+                                       "%"PRId64".%06"PRId64",%s,%"PRIdPID",,,,,,,,,",
+                                       /* col01: epoch      */tsec, nsec / 1000,
+                                       /* col02: hostname   */hostname,
+                                       /* col03: pid        */pid
+                                       /* col04: (empty)    */
+                                       /* col05: (empty)    */
+                                       /* col06: (empty)    */
+                                       /* col07: (empty)    */
+                                       /* col08: (empty)    */
+                                       /* col09: (empty)    */
+                                       /* col10: (empty)    */
+                                       /* col11: (empty)    */
+                                       /* col12: (empty)    */);
+        }
+        pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp,
+			             ",@%-*.*s:%"PRIu32, n, n,
+                                     /* col13: hostname:pid */s->hostname, s->pid);
+      }
+      else
+      {
+        printf("%s@%d: fp==NULL!\n", __func__, __LINE__);
+      }
     }
     if (s->maxrss > 1048576)
     {
@@ -290,34 +342,62 @@ bool print_cputime (FILE *fp, const struct CPUStats *s, struct record_cputime_st
     {
       pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " rss:%.0fkB", s->maxrss / 1024.0);
     }
-    else {
+    else
+    {
       /* non-sensical value -- presumably maxrss is not available */
     }
-    if (fp != NULL) pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp, ",%.0f", s->maxrss);
+    if (fp != NULL)
+    {
+      pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp,
+		                   ",%.0f",
+                                   /* col14: maxrss    */s->maxrss);
+    }
     pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " vcsw:%"PRIu32" ivcsw:%"PRIu32, s->vcsw, s->ivcsw);
     if (fp != NULL)
-      pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp, ",%"PRIu32",%"PRIu32",%d,%d", s->vcsw, s->ivcsw, (int)s->cpu._maximum, (int)s->cpu._length);
-
-    const size_t init_pos = pos;
-    const size_t init_pos_fp = pos_fp;
-
-    for (uint32_t i = 0; i < state->nthreads; i++)
     {
-      struct record_cputime_state_thr * const thr_i = &state->threads[i];
-      bool found = false;
-      for (uint32_t j = 0; j < s->cpu._length; j++)
+      pos_fp += (size_t) snprintf (line_fp + pos_fp, sizeof (line_fp) - pos_fp,
+		                   ",%"PRIu32",%"PRIu32",%d,%d",
+                                   /* col15: vcsw        */s->vcsw,
+                                   /* col16: ivcsw       */s->ivcsw,
+                                   /* col17: cpu.maximum */(int)s->cpu._maximum,
+                                   /* col18: cpu.length  */(int)s->cpu._length);
+    }
+
+    {
+      uint32_t i = 0;
+      for (i = 0; i < state->nthreads && i < 10; i++)
       {
-        struct CPUStatThread * const thr_j = &s->cpu._buffer[j];
-        if ((ddsrt_thread_list_id_t)thr_j->tid == thr_i->tid)
+        struct record_cputime_state_thr * const thr_i = &state->threads[i];
+        bool found = false;
+        for (uint32_t j = 0; j < s->cpu._length && j < 10; j++)
         {
-          print_one (NULL, line, sizeof (line), &pos, thr_j->name, thr_j->u_pct / 100.0, thr_j->s_pct / 100.0);
-          print_one (fp, line_fp, sizeof (line_fp), &pos_fp, thr_j->name, thr_j->u_pct / 100.0, thr_j->s_pct / 100.0);
-          found = true;
-          break;
+          struct CPUStatThread * const thr_j = &s->cpu._buffer[j];
+          if ((ddsrt_thread_list_id_t)thr_j->tid == thr_i->tid)
+          {
+            print_one (NULL, line, sizeof (line), &pos, thr_j->name, thr_j->u_pct / 100.0, thr_j->s_pct / 100.0);
+            print_one (fp, line_fp, sizeof (line_fp), &pos_fp,
+                       /* col19+(j*3)  : name        */thr_j->name,
+                       /* col20+(j*3)+1: du          */thr_j->u_pct / 100.0,
+                       /* col21+(j*3)+2: ds          */thr_j->s_pct / 100.0);
+            found = true;
+            break;
+          }
+        }
+        if (!found)
+        {
+          /* col19+(j*3)  : (empty)     */
+          /* col20+(j*3)+1: (empty)     */
+          /* col21+(j*3)+2: (empty)     */
+          print_one_empty_entry (line_fp, sizeof (line_fp), &pos_fp);
         }
       }
-      if (!found)
-        print_one_empty_entry (line_fp, sizeof (line_fp), &pos_fp);
+      for (; i < 10; i++)
+      {
+          /* col19+(j*3)  : (empty)     */
+          /* col20+(j*3)+1: (empty)     */
+          /* col21+(j*3)+2: (empty)     */
+          print_one_empty_entry (line_fp, sizeof (line_fp), &pos_fp);
+      }
     }
 
     if (pos > init_pos)
@@ -326,15 +406,19 @@ bool print_cputime (FILE *fp, const struct CPUStats *s, struct record_cputime_st
     }
     if (pos_fp > init_pos_fp)
     {
-      if (throughput_changed || latency_changed)
+      if (data_changed)
       {
         if (fp != NULL)
         {
-          fprintf (fp, "%s", line_fp);
+          fprintf (fp, "%s%s", line_fp, read ? "\n" : "");
           fflush (fp);
-          cputime_changed = true;
+          *cputime_changed = true;
         }
       }
+    }
+    else
+    {
+      printf("%d<=%d\n", (int)pos_fp, (int)init_pos_fp);
     }
     return true;
   }

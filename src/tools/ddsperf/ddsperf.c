@@ -53,10 +53,10 @@
 static bool printed_throughput_data = false;
 static bool printed_latency_data = false;
 
-bool throughput_changed = false;
-bool latency_changed = false;
-bool cputime_changed = false;
-bool netload_changed = false;
+static bool throughput_changed = false;
+static bool latency_changed = false;
+static bool cputime_changed = false;
+static bool netload_changed = false;
 
 /* File descriptor to write ddsperf data to */
 static FILE *csv_file = NULL;
@@ -600,18 +600,27 @@ static uint32_t pubthread (void *varg)
 
   baggage = init_sample (&data, 0);
   ihs = malloc (nkeyvals * sizeof (dds_instance_handle_t));
-  for (unsigned k = 0; k < nkeyvals; k++)
+  if (!register_instances)
   {
-    data.seq_keyval.keyval = (int32_t) k;
-    if (register_instances)
-      dds_register_instance (wr_data, &ihs[k], &data);
-    else
+    for (unsigned k = 0; k < nkeyvals; k++)
       ihs[k] = 0;
   }
+  else
+  {
+    for (unsigned k = 0; k < nkeyvals; k++)
+    {
+      data.seq_keyval.keyval = (int32_t) k;
+      if ((result = dds_register_instance (wr_data, &ihs[k], &data)) != DDS_RETCODE_OK)
+      {
+        printf ("dds_register_instance failed: %d\n", result);
+        fflush (stdout);
+        exit (2);
+      }
+    }
+  }
+
   data.seq_keyval.keyval = 0;
-
   tfirst = dds_time();
-
   uint32_t bi = 0;
   while (!ddsrt_atomic_ld32 (&termflag))
   {
@@ -1454,7 +1463,7 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
     if (nrecv > 0 || substat_every_second)
     {
       const double dt = (double) (tnow - tprev);
-      printf ("%s size %"PRIu32" total %"PRIu64" lost %"PRIu64" delta %"PRIu64" lost %"PRIu64" rate %.2f kS/s %.2f Mb/s (%.2f kS/s %.2f Mb/s)",
+      printf ("\n%s size %"PRIu32" total %"PRIu64" lost %"PRIu64" delta %"PRIu64" lost %"PRIu64" rate %.2f kS/s %.2f Mb/s (%.2f kS/s %.2f Mb/s)",
               prefix, last_size, tot_nrecv, tot_nlost, nrecv, nlost,
               (double) nrecv * 1e6 / dt, (double) nrecv_bytes * 8 * 1e3 / dt,
               (double) nrecv10s * 1e6 / (10 * dt), (double) nrecv10s_bytes * 8 * 1e3 / (10 * dt));
@@ -1471,10 +1480,20 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
           cputime_changed = false;
           netload_changed = false;
         }
-        fprintf (csv_file, "%s%"PRId64".%06"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%.2f,%.2f",
-                 first_line ? "" : "\n",
-                 tsec, nsec / 1000, hostname, pid, ts, last_size, tot_nrecv, tot_nlost, nrecv, nlost,
-                 (double) nrecv_bytes * 8 * 1e3 / dt, (double) nrecv10s_bytes * 8 * 1e3 / (10 * dt)
+        // Throughput
+        fprintf (csv_file, "%s%"PRId64".%06"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%.2f,%.2f,", first_line ? "" : "\n",
+                 /* col01: epoch      */tsec, nsec / 1000,
+                 /* col02: hostname   */hostname,
+                 /* col03: pid        */pid,
+                 /* col04: ts         */ts,
+                 /* col05: last_size  */last_size,
+                 /* col06: tot_nrecv  */tot_nrecv,
+                 /* col07: tot_n_lost */tot_nlost,
+                 /* col08: nrecv      */nrecv,
+                 /* col09: nlost      */nlost,
+                 /* col10: Mb/s       */(double) nrecv_bytes * 8 * 1e3 / dt,
+                 /* col11: Mb/s [10s] */(double) nrecv10s_bytes * 8 * 1e3 / (10 * dt)
+                 /* col12: (dummy)    */
         );
         fflush (csv_file);
         first_line = false;
@@ -1535,16 +1554,19 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
           cputime_changed = false;
           netload_changed = false;
         }
-        fprintf (csv_file, "%s%"PRId64".%06"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%"PRIu32"",
-                 first_line ? "" : "\n",
-                 tsec, nsec / 1000, pp->hostname, pp->pid, ts, topic_payload_size (topicsel, baggagesize),
-                 (double) y.sum / (double) y.cnt / 1e3,
-                 (double) y.min / 1e3,
-                 (double) y.raw[rawcnt - (rawcnt + 1) / 2] / 1e3,
-                 (double) y.raw[rawcnt - (rawcnt + 9) / 10] / 1e3,
-                 (double) y.raw[rawcnt - (rawcnt + 99) / 100] / 1e3,
-                 (double) y.max / 1e3,
-                 y.cnt);
+        fprintf (csv_file, "%s%"PRId64".%06"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%"PRIu32, first_line ? "" : "\n",
+                 /* col01: epoch      */tsec, nsec / 1000,
+                 /* col02: hostname   */pp->hostname,
+                 /* col03: pid        */pp->pid,
+                 /* col04: ts         */ts,
+                 /* col05: last_size  */topic_payload_size (topicsel, baggagesize),
+                 /* col06: mean       */(double) y.sum / (double) y.cnt / 1e3,
+                 /* col07: min        */(double) y.min / 1e3,
+                 /* col08: 50%        */(double) y.raw[rawcnt - (rawcnt + 1) / 2] / 1e3,
+                 /* col09: 90%        */(double) y.raw[rawcnt - (rawcnt + 9) / 10] / 1e3,
+                 /* col10: 99%        */(double) y.raw[rawcnt - (rawcnt + 99) / 100] / 1e3,
+                 /* col11: max        */(double) y.max / 1e3,
+                 /* col12: cnt        */y.cnt);
         fflush (csv_file);
         printed_latency_data = true;
         latency_changed = true;
@@ -1560,8 +1582,12 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
   free (newraw);
 
   if (printed_throughput_data || printed_latency_data)
-    if (record_cputime (csv_file, cputime_state, prefix, tnow))
+  {
+    if (record_cputime (csv_file, cputime_state, prefix, tnow, throughput_changed || latency_changed, &cputime_changed))
+    {
       output = true;
+    }
+  }
 
   if (rd_stat)
   {
@@ -1577,26 +1603,46 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
     if ((n = dds_take_mask (rd_stat, raw, si, MAXS, MAXS, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE)) > 0)
     {
       for (int32_t i = 0; i < n; i++)
+      {
         if (si[i].valid_data && si[i].sample_state == DDS_SST_NOT_READ)
-          if (print_cputime (NULL, raw[i], cputime_state, prefix, true, true))
+        {
+          if (print_cputime (csv_file, raw[i], cputime_state, prefix, true, true, throughput_changed || latency_changed, &cputime_changed, true))
+          {
             output = true;
+          }
+        }
+      }
       dds_return_loan (rd_stat, raw, n);
+    }
+    else
+    {
     }
     if ((n = dds_read (rd_stat, raw, si, MAXS, MAXS)) > 0)
     {
       for (int32_t i = 0; i < n; i++)
+      {
         if (si[i].valid_data)
-          if (print_cputime (NULL, raw[i], cputime_state, prefix, true, si[i].sample_state == DDS_SST_NOT_READ))
+        {
+          if (print_cputime (csv_file, raw[i], cputime_state, prefix, true, si[i].sample_state == DDS_SST_NOT_READ, throughput_changed || latency_changed, &cputime_changed, true))
+          {
             output = true;
+          }
+        }
+      }
       dds_return_loan (rd_stat, raw, n);
+    }
+    else
+    {
     }
 #undef MAXS
   }
 
   if (output_netload)
-    record_netload (csv_file, netload_state, prefix, tnow);
+  {
+    record_netload (csv_file, netload_state, prefix, tnow, cputime_changed, &netload_changed);
+  }
 
-  if (extended_stats && output && stats)
+  if ((extended_stats && output && stats && csv_file != NULL) || (extended_stats && stats && csv_file == NULL))
   {
     (void) dds_refresh_statistics (stats->substat);
     (void) dds_refresh_statistics (stats->pubstat);
@@ -2052,7 +2098,8 @@ int main (int argc, char *argv[])
       }
       case 'D': dur = atof (optarg); if (dur <= 0) dur = HUGE_VAL; break;
       case 'i': did = (dds_domainid_t) atoi (optarg); break;
-      case 'f': csv_file = fopen(optarg, "w"); break;
+      case 'f': printf("opening file %s", optarg); csv_file = fopen(optarg, "w"); printf(", result: %p (%s)\n", csv_file, csv_file != NULL ? "succesfull" : "failed"); break;
+      //case 'f': printf("opening file %s", optarg); csv_file = fopen(optarg, "a"); printf(", result: %p (%s)\n", csv_file, csv_file != NULL ? "succesfull" : "failed"); break;
       case 'n': nkeyvals = (unsigned) atoi (optarg); break;
       case 'u': reliable = false; break;
       case 'k': histdepth = atoi (optarg); if (histdepth < 0) histdepth = 0; break;
@@ -2124,7 +2171,7 @@ int main (int argc, char *argv[])
   struct record_netload_state *netload_state;
   if (netload_bw < 0)
     netload_state = NULL;
-  else if ((netload_state = record_netload_new (csv_file, netload_if, netload_bw)) == NULL)
+  else if ((netload_state = record_netload_new (csv_file, netload_if, netload_bw, cputime_changed, &netload_changed)) == NULL)
     error3 ("can't get network utilization information for device %s\n", netload_if);
 
   ddsrt_avl_init (&ppants_td, &ppants);
@@ -2356,9 +2403,15 @@ int main (int argc, char *argv[])
   }
 
   if (pub_rate > 0)
+  {
+    printf("%s: create pub thread\n", __func__);
     ddsrt_thread_create (&pubtid, "pub", &attr, pubthread, NULL);
+  }
   if (subthread_func != 0)
+  {
+    printf("%s: create sub thread\n", __func__);
     ddsrt_thread_create (&subtid, "sub", &attr, subthread_func, &subarg_data);
+  }
   else if (submode == SM_LISTENER)
     set_data_available_listener (rd_data, "rd_data", data_available_listener, &subarg_data);
   /* Need to handle incoming "pong"s only if we can be sending "ping"s (whether that
@@ -2371,12 +2424,16 @@ int main (int argc, char *argv[])
   const bool pingpong_waitset = (ping_intv != DDS_NEVER && ignorelocal == DDS_IGNORELOCAL_NONE) || pingpongmode == SM_WAITSET;
   if (pingpong_waitset)
   {
+    printf("%s: create ping thread\n", __func__);
     ddsrt_thread_create (&subpingtid, "ping", &attr, subpingthread_waitset, &subarg_ping);
+    printf("%s: create pong thread\n", __func__);
     ddsrt_thread_create (&subpongtid, "pong", &attr, subpongthread_waitset, &subarg_pong);
   }
   else
   {
+    printf("%s: set data available listener for ping\n", __func__);
     set_data_available_listener (rd_ping, "rd_ping", ping_available_listener, &subarg_ping);
+    printf("%s: set data available listener for pong\n", __func__);
     set_data_available_listener (rd_pong, "rd_pong", pong_available_listener, &subarg_pong);
   }
 
@@ -2422,6 +2479,7 @@ int main (int argc, char *argv[])
   sigaddset (&sigset, SIGINT);
   sigaddset (&sigset, SIGTERM);
   sigprocmask (SIG_BLOCK, &sigset, &osigset);
+  printf("%s: create sig thread\n", __func__);
   ddsrt_thread_create (&sigtid, "sigthread", &attr, sigthread, &sigset);
 #if defined __APPLE__ || defined __linux
   signal (SIGXFSZ, sigxfsz_handler);

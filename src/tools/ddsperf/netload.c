@@ -22,9 +22,6 @@
 
 #include "netload.h"
 
-extern bool cputime_changed;
-extern bool netload_changed;
-
 #if DDSRT_HAVE_NETSTAT
 
 struct record_netload_state {
@@ -38,9 +35,9 @@ struct record_netload_state {
   uint64_t obytes;
 };
 
-void record_netload (FILE *fp, struct record_netload_state *st, const char *prefix, dds_time_t tnow)
+void record_netload (FILE *fp, struct record_netload_state *st, const char *prefix, dds_time_t tnow, bool cputime_changed, bool *netload_changed)
 {
-  netload_changed = false;
+  *netload_changed = false;
   if (!cputime_changed)
     return;
   if (st && !st->errored)
@@ -66,9 +63,13 @@ void record_netload (FILE *fp, struct record_netload_state *st, const char *pref
                     prefix, st->name, dxpct, drpct, x.obytes, x.ibytes);
             if (fp != NULL)
             {
-              fprintf(fp, ",%.2f,%.2f,%"PRIu64",%"PRIu64, dxpct, drpct, x.obytes, x.ibytes);
+              fprintf(fp, ",%.2f,%.2f,%"PRIu64",%"PRIu64,
+                          /* col49 : dxpct  */dxpct,
+                          /* col50 : drpct  */drpct,
+                          /* col51 : obytes */x.obytes,
+                          /* col52 : ibytes */x.ibytes);
               fflush(fp);
-              netload_changed = true;
+              *netload_changed = true;
             }
           }
         }
@@ -78,9 +79,13 @@ void record_netload (FILE *fp, struct record_netload_state *st, const char *pref
                   prefix, st->name, dx / 1e6, dr / 1e6, x.obytes, x.ibytes);
           if (fp != NULL)
           {
-            fprintf(fp, ",%.2f,%.2f,%"PRIu64",%"PRIu64, dx / 1e6, dr / 1e6, x.obytes, x.ibytes);
+            fprintf(fp, ",%.2f,%.2f,%"PRIu64",%"PRIu64,
+                        /* col49 : dxpct  */dx / 1e6,
+                        /* col50 : drpct  */dr / 1e6,
+                        /* col51 : obytes */x.obytes,
+                        /* col52 : ibytes */x.ibytes);
             fflush(fp);
-            netload_changed = true;
+            *netload_changed = true;
           }
         }
       }
@@ -92,7 +97,7 @@ void record_netload (FILE *fp, struct record_netload_state *st, const char *pref
   }
 }
 
-struct record_netload_state *record_netload_new (FILE *fp, const char *dev, double bw)
+struct record_netload_state *record_netload_new (FILE *fp, const char *dev, double bw, bool cputime_changed, bool *netload_changed)
 {
   struct record_netload_state *st = ddsrt_malloc (sizeof (*st));
   if (ddsrt_netstat_new (&st->ctrl, dev) != DDS_RETCODE_OK)
@@ -104,7 +109,7 @@ struct record_netload_state *record_netload_new (FILE *fp, const char *dev, doub
   st->bw = bw;
   st->data_valid = false;
   st->errored = false;
-  record_netload (fp, st, "", dds_time ());
+  record_netload (fp, st, "", dds_time (), cputime_changed, netload_changed);
   return st;
 }
 
