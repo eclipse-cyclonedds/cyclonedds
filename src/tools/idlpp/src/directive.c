@@ -1354,7 +1354,7 @@ DEFBUF **   look_prev(
     *cmp = -1;                              /* Initialize           */
 
     while ((dp = *prevp) != NULL) {
-        if ((*cmp = memcmp( dp->name, name, s_name)) >= 0)
+        if ((*cmp = strcmp( dp->name, name)) >= 0)
             break;
         prevp = &dp->link;
     }
