@@ -5350,7 +5350,7 @@ void purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_locator_t *l
   struct entidx_enum_proxy_participant est;
   struct proxy_purge_data data;
 
-  thread_state_awake_fixed_domain (ts1);
+  thread_state_awake (ts1, gv);
   data.loc = loc;
   data.timestamp = ddsrt_time_wallclock();
   entidx_enum_proxy_participant_init (&est, gv->entity_index);
