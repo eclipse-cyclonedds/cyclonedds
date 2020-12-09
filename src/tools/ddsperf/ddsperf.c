@@ -1463,10 +1463,19 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
     if (nrecv > 0 || substat_every_second)
     {
       const double dt = (double) (tnow - tprev);
+      //         1       2               3              4               5              6              7         8          9         10
       printf ("\n%s size %"PRIu32" total %"PRIu64" lost %"PRIu64" delta %"PRIu64" lost %"PRIu64" rate %.2f kS/s %.2f Mb/s (%.2f kS/s %.2f Mb/s)",
-              prefix, last_size, tot_nrecv, tot_nlost, nrecv, nlost,
-              (double) nrecv * 1e6 / dt, (double) nrecv_bytes * 8 * 1e3 / dt,
-              (double) nrecv10s * 1e6 / (10 * dt), (double) nrecv10s_bytes * 8 * 1e3 / (10 * dt));
+              prefix, //1
+              last_size, //2
+              tot_nrecv, //3
+              tot_nlost, //4
+              nrecv, //5
+              nlost, //6
+              (double) nrecv * 1e6 / dt, //7
+              (double) nrecv_bytes * 8 * 1e3 / dt, //8
+              (double) nrecv10s * 1e6 / (10 * dt), //9
+              (double) nrecv10s_bytes * 8 * 1e3 / (10 * dt) //10
+              );
       if (csv_file != NULL)
       {
         static bool first_line = true;
@@ -1481,20 +1490,23 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
           netload_changed = false;
         }
         // Throughput
-        fprintf (csv_file, "%s%"PRId64".%06"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%.2f,%.2f,", first_line ? "" : "\n",
+        //                    c1                    c2 c3         c4   c5        c6        c7        c8        c9        c10  c11  c12  c13
+        fprintf (csv_file, "%s%"PRId64".%06"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%.2f,%.2f,%.2f,%2f,", first_line ? "" : "\n",
                  /* col01: epoch      */tsec, nsec / 1000,
                  /* col02: hostname   */hostname,
                  /* col03: pid        */pid,
                  /* col04: ts         */ts,
-                 /* col05: last_size  */last_size,
-                 /* col06: tot_nrecv  */tot_nrecv,
-                 /* col07: tot_n_lost */tot_nlost,
-                 /* col08: nrecv      */nrecv,
-                 /* col09: nlost      */nlost,
-                 /* col10: Mb/s       */(double) nrecv_bytes * 8 * 1e3 / dt,
-                 /* col11: Mb/s [10s] */(double) nrecv10s_bytes * 8 * 1e3 / (10 * dt)
-                 /* col12: (dummy)    */
-        );
+                 /* col05: last_size  */last_size, //2
+                 /* col06: tot_nrecv  */tot_nrecv, //3
+                 /* col07: tot_n_lost */tot_nlost, //4
+                 /* col08: nrecv      */nrecv, //5
+                 /* col09: nlost      */nlost, //6
+                 /* col10: Ks/s       */(double) nrecv * 1e6 / dt, //7
+                 /* col11: Mb/s       */(double) nrecv_bytes * 8 * 1e3 / dt, //8
+                 /* col12: Ks/s [10s] */(double) nrecv10s * 1e6 / (10 * dt), //9
+                 /* col13: Mb/s [10s] */(double) nrecv10s_bytes * 8 * 1e3 / (10 * dt) //10
+                 /* col14: (empty)    */
+                 );
         fflush (csv_file);
         first_line = false;
         output_netload = true;
@@ -1532,15 +1544,19 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
       ddsrt_mutex_unlock (&disc_lock);
 
       qsort (y.raw, rawcnt, sizeof (*y.raw), cmp_uint64);
+      //       1  2       3              4          5           6           7           8          9          10
       printf ("%s %s size %"PRIu32" mean %.3fus min %.3fus 50%% %.3fus 90%% %.3fus 99%% %.3fus max %.3fus cnt %"PRIu32"\n",
-              prefix, ppinfo, topic_payload_size (topicsel, baggagesize),
-              (double) y.sum / (double) y.cnt / 1e3,
-              (double) y.min / 1e3,
-              (double) y.raw[rawcnt - (rawcnt + 1) / 2] / 1e3,
-              (double) y.raw[rawcnt - (rawcnt + 9) / 10] / 1e3,
-              (double) y.raw[rawcnt - (rawcnt + 99) / 100] / 1e3,
-              (double) y.max / 1e3,
-              y.cnt);
+              prefix, //1
+              ppinfo, //2
+              topic_payload_size (topicsel, baggagesize), //3
+              (double) y.sum / (double) y.cnt / 1e3, //4
+              (double) y.min / 1e3, //5
+              (double) y.raw[rawcnt - (rawcnt + 1) / 2] / 1e3, //6
+              (double) y.raw[rawcnt - (rawcnt + 9) / 10] / 1e3, //7
+              (double) y.raw[rawcnt - (rawcnt + 99) / 100] / 1e3, //8
+              (double) y.max / 1e3, //9
+              y.cnt //10
+              );
       if (csv_file != NULL)
       {
         static bool first_line = true;
@@ -1554,19 +1570,25 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
           cputime_changed = false;
           netload_changed = false;
         }
-        fprintf (csv_file, "%s%"PRId64".%06"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%"PRIu32, first_line ? "" : "\n",
+
+        // Latency
+        //                    c1                    c2 c3         c4   c5        c6   c7   c8   c9   c10  c11  c12
+        fprintf (csv_file, "%s%"PRId64".%06"PRId64",%s,%"PRIdPID",%.3f,%"PRIu32",%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%"PRIu32",,", first_line ? "" : "\n",
                  /* col01: epoch      */tsec, nsec / 1000,
                  /* col02: hostname   */pp->hostname,
                  /* col03: pid        */pp->pid,
                  /* col04: ts         */ts,
-                 /* col05: last_size  */topic_payload_size (topicsel, baggagesize),
-                 /* col06: mean       */(double) y.sum / (double) y.cnt / 1e3,
-                 /* col07: min        */(double) y.min / 1e3,
-                 /* col08: 50%        */(double) y.raw[rawcnt - (rawcnt + 1) / 2] / 1e3,
-                 /* col09: 90%        */(double) y.raw[rawcnt - (rawcnt + 9) / 10] / 1e3,
-                 /* col10: 99%        */(double) y.raw[rawcnt - (rawcnt + 99) / 100] / 1e3,
-                 /* col11: max        */(double) y.max / 1e3,
-                 /* col12: cnt        */y.cnt);
+                 /* col05: last_size  */topic_payload_size (topicsel, baggagesize), //3
+                 /* col06: mean       */(double) y.sum / (double) y.cnt / 1e3, //4
+                 /* col07: min        */(double) y.min / 1e3, //5
+                 /* col08: 50%        */(double) y.raw[rawcnt - (rawcnt + 1) / 2] / 1e3, //6
+                 /* col09: 90%        */(double) y.raw[rawcnt - (rawcnt + 9) / 10] / 1e3,  //7
+                 /* col10: 99%        */(double) y.raw[rawcnt - (rawcnt + 99) / 100] / 1e3, //8
+                 /* col11: max        */(double) y.max / 1e3, //9
+                 /* col12: cnt        */y.cnt //10
+                 /* col13: (empty)    */
+                 /* col14: (empty)    */
+                 );
         fflush (csv_file);
         printed_latency_data = true;
         latency_changed = true;
@@ -1582,12 +1604,8 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
   free (newraw);
 
   if (printed_throughput_data || printed_latency_data)
-  {
     if (record_cputime (csv_file, cputime_state, prefix, tnow, throughput_changed || latency_changed, &cputime_changed))
-    {
       output = true;
-    }
-  }
 
   if (rd_stat)
   {
@@ -1603,43 +1621,31 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
     if ((n = dds_take_mask (rd_stat, raw, si, MAXS, MAXS, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE)) > 0)
     {
       for (int32_t i = 0; i < n; i++)
-      {
         if (si[i].valid_data && si[i].sample_state == DDS_SST_NOT_READ)
-        {
           if (print_cputime (csv_file, raw[i], cputime_state, prefix, true, true, throughput_changed || latency_changed, &cputime_changed, true))
           {
             output = true;
+            output_netload = false;
           }
-        }
-      }
       dds_return_loan (rd_stat, raw, n);
-    }
-    else
-    {
     }
     if ((n = dds_read (rd_stat, raw, si, MAXS, MAXS)) > 0)
     {
       for (int32_t i = 0; i < n; i++)
-      {
         if (si[i].valid_data)
-        {
           if (print_cputime (csv_file, raw[i], cputime_state, prefix, true, si[i].sample_state == DDS_SST_NOT_READ, throughput_changed || latency_changed, &cputime_changed, true))
           {
             output = true;
+            output_netload = false;
           }
-        }
-      }
       dds_return_loan (rd_stat, raw, n);
-    }
-    else
-    {
     }
 #undef MAXS
   }
 
-  if (output_netload)
+  if (output)
   {
-    record_netload (csv_file, netload_state, prefix, tnow, cputime_changed, &netload_changed);
+    record_netload (output_netload ? csv_file : NULL, netload_state, prefix, tnow, cputime_changed, &netload_changed);
   }
 
   if ((extended_stats && output && stats && csv_file != NULL) || (extended_stats && stats && csv_file == NULL))
@@ -2099,7 +2105,6 @@ int main (int argc, char *argv[])
       case 'D': dur = atof (optarg); if (dur <= 0) dur = HUGE_VAL; break;
       case 'i': did = (dds_domainid_t) atoi (optarg); break;
       case 'f': printf("opening file %s", optarg); csv_file = fopen(optarg, "w"); printf(", result: %p (%s)\n", csv_file, csv_file != NULL ? "succesfull" : "failed"); break;
-      //case 'f': printf("opening file %s", optarg); csv_file = fopen(optarg, "a"); printf(", result: %p (%s)\n", csv_file, csv_file != NULL ? "succesfull" : "failed"); break;
       case 'n': nkeyvals = (unsigned) atoi (optarg); break;
       case 'u': reliable = false; break;
       case 'k': histdepth = atoi (optarg); if (histdepth < 0) histdepth = 0; break;

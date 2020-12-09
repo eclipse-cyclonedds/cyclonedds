@@ -64,10 +64,10 @@ void record_netload (FILE *fp, struct record_netload_state *st, const char *pref
             if (fp != NULL)
             {
               fprintf(fp, ",%.2f,%.2f,%"PRIu64",%"PRIu64,
-                          /* col49 : dxpct  */dxpct,
-                          /* col50 : drpct  */drpct,
-                          /* col51 : obytes */x.obytes,
-                          /* col52 : ibytes */x.ibytes);
+                          /* col50 : dxpct  */dxpct,
+                          /* col51 : drpct  */drpct,
+                          /* col52 : obytes */x.obytes,
+                          /* col53 : ibytes */x.ibytes);
               fflush(fp);
               *netload_changed = true;
             }
@@ -80,10 +80,10 @@ void record_netload (FILE *fp, struct record_netload_state *st, const char *pref
           if (fp != NULL)
           {
             fprintf(fp, ",%.2f,%.2f,%"PRIu64",%"PRIu64,
-                        /* col49 : dxpct  */dx / 1e6,
-                        /* col50 : drpct  */dr / 1e6,
-                        /* col51 : obytes */x.obytes,
-                        /* col52 : ibytes */x.ibytes);
+                        /* col50 : dxpct  */dx / 1e6,
+                        /* col51 : drpct  */dr / 1e6,
+                        /* col52 : obytes */x.obytes,
+                        /* col53 : ibytes */x.ibytes);
             fflush(fp);
             *netload_changed = true;
           }
@@ -129,7 +129,7 @@ void record_netload (struct record_netload_state *st, const char *prefix, dds_ti
 {
   (void) st;
   (void) prefix;
-  (void ) tnow;
+  (void) tnow;
 }
 
 struct record_netload_state *record_netload_new (const char *dev, double bw)
