@@ -100,21 +100,9 @@ static void *serdata_default_append (struct ddsi_serdata_default **d, size_t n)
   return p;
 }
 
-static void *serdata_default_append_aligned (struct ddsi_serdata_default **d, size_t n, size_t a)
+static void serdata_default_append_blob (struct ddsi_serdata_default **d, size_t sz, const void *data)
 {
-  size_t pos0 = (*d)->pos;
-  char *p;
-  assert (ispowerof2_size (a));
-  (*d)->pos = (uint32_t) alignup_size ((*d)->pos, a);
-  p = serdata_default_append (d, n);
-  while (pos0 < (*d)->pos)
-    (*d)->data[pos0++] = 0;
-  return p;
-}
-
-static void serdata_default_append_blob (struct ddsi_serdata_default **d, size_t align, size_t sz, const void *data)
-{
-  char *p = serdata_default_append_aligned (d, sz, align);
+  char *p = serdata_default_append (d, sz);
   memcpy (p, data, sz);
 }
 
@@ -241,7 +229,7 @@ static struct ddsi_serdata_default *serdata_default_from_ser_common (const struc
     {
       /* only copy if this fragment adds data */
       const unsigned char *payload = NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain));
-      serdata_default_append_blob (&d, 1, fragchain->maxp1 - off, payload + off - fragchain->min);
+      serdata_default_append_blob (&d, fragchain->maxp1 - off, payload + off - fragchain->min);
       off = fragchain->maxp1;
     }
     fragchain = fragchain->nextfrag;
@@ -288,9 +276,9 @@ static struct ddsi_serdata_default *serdata_default_from_ser_iov_common (const s
 
   memcpy (&d->hdr, iov[0].iov_base, sizeof (d->hdr));
   assert (d->hdr.identifier == CDR_LE || d->hdr.identifier == CDR_BE);
-  serdata_default_append_blob (&d, 1, iov[0].iov_len - 4, (const char *) iov[0].iov_base + 4);
+  serdata_default_append_blob (&d, iov[0].iov_len - 4, (const char *) iov[0].iov_base + 4);
   for (ddsrt_msg_iovlen_t i = 1; i < niov; i++)
-    serdata_default_append_blob (&d, 1, iov[i].iov_len, iov[i].iov_base);
+    serdata_default_append_blob (&d, iov[i].iov_len, iov[i].iov_base);
 
   const bool needs_bswap = (d->hdr.identifier != NATIVE_ENCODING);
   d->hdr.identifier = NATIVE_ENCODING;
@@ -360,7 +348,7 @@ static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_ser
     struct ddsi_serdata_default *d = serdata_default_new(tp, SDK_KEY);
     if (d == NULL)
       return NULL;
-    serdata_default_append_blob (&d, 1, sizeof (keyhash->value), keyhash->value);
+    serdata_default_append_blob (&d, sizeof (keyhash->value), keyhash->value);
     if (!dds_stream_normalize (d->data, d->pos, (NATIVE_ENCODING != CDR_BE), tp, true))
     {
       ddsi_serdata_unref (&d->c);
@@ -480,10 +468,10 @@ static struct ddsi_serdata *serdata_default_to_topicless (const struct ddsi_serd
   {
     assert (d->hdr.identifier == NATIVE_ENCODING);
     if (d->c.kind == SDK_KEY)
-      serdata_default_append_blob (&d_tl, 1, d->pos, d->data);
+      serdata_default_append_blob (&d_tl, d->pos, d->data);
     else if (d->keyhash.m_iskey)
     {
-      serdata_default_append_blob (&d_tl, 1, sizeof (d->keyhash.m_hash), d->keyhash.m_hash);
+      serdata_default_append_blob (&d_tl, sizeof (d->keyhash.m_hash), d->keyhash.m_hash);
 #if NATIVE_ENCODING != CDR_BE
       bool ok = dds_stream_normalize (d_tl->data, d_tl->pos, true, tp, true);
       assert (ok);
