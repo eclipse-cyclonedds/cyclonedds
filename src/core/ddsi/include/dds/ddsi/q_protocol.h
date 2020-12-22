@@ -103,7 +103,7 @@ typedef uint32_t nn_count_t;
 #define NN_LOCATOR_KIND_UDPv6 2
 #define NN_LOCATOR_KIND_TCPv4 4
 #define NN_LOCATOR_KIND_TCPv6 8
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
 #define NN_LOCATOR_KIND_LF    32
 #endif
 #define NN_LOCATOR_KIND_RAWETH 0x8000 /* proposed vendor-specific */

@@ -63,7 +63,7 @@ static int get_locator (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, con
   {
     for (l = locs->first; l != NULL; l = l->next)
     {
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
       if (gv->config.enable_lf)
       {
         if (l->loc.kind == NN_LOCATOR_KIND_LF && memcmp(gv->loc_lf_addr.address, l->loc.address, sizeof(gv->loc_lf_addr.address)) == 0)
@@ -213,7 +213,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
     dst->aliased |= PP_DOMAIN_TAG;
     dst->domain_tag = pp->e.gv->config.domainTag;
   }
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
   if (pp->e.gv->config.enable_lf)
   {
     dst->default_unicast_locators.n = 2;
@@ -228,7 +228,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
     locs->def_uni_loc_two.loc = pp->e.gv->loc_lf_addr;
   }
   else
-#endif /* DDSI_INCLUDE_LF */
+#endif /* DDSI_INCLUDE_LIGHTFLEET */
   {
     dst->default_unicast_locators.n = 1;
     dst->default_unicast_locators.first =
@@ -278,7 +278,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
     {
       dst->present |= PP_DEFAULT_MULTICAST_LOCATOR | PP_METATRAFFIC_MULTICAST_LOCATOR;
       dst->aliased |= PP_DEFAULT_MULTICAST_LOCATOR | PP_METATRAFFIC_MULTICAST_LOCATOR;
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
       if (pp->e.gv->config.enable_lf)
       {
         dst->default_multicast_locators.n = 2;
@@ -295,7 +295,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
         locs->meta_multi_loc_one.loc = pp->e.gv->loc_meta_mc;
       }
       else
-#endif /* DDSI_INCLUDE_LF */
+#endif /* DDSI_INCLUDE_LIGHTFLEET */
       {
         dst->default_multicast_locators.n = 1;
         dst->default_multicast_locators.first =

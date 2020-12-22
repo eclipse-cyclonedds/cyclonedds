@@ -67,7 +67,7 @@
 
 #include "dds/ddsi/ddsi_security_omg.h"
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
 #include "lf_group_lib.h"
 #endif
 
@@ -1117,7 +1117,7 @@ int rtps_init (struct ddsi_domaingv *gv)
     GVLOG (DDS_LC_CONFIG, "No network interface selected\n");
     goto err_find_own_ip;
   }
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
   if (gv->config.enable_lf)
   {
     uint32_t pid = (uint32_t)ddsrt_getpid();

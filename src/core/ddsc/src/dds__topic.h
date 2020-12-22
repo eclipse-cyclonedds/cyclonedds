@@ -30,7 +30,7 @@ DDS_EXPORT void dds_topic_allow_set_qos (struct dds_topic *tp) ddsrt_nonnull_all
 
 DDS_EXPORT dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertopic **sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist);
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
 DDS_EXPORT dds_return_t dds_get_name_size(dds_entity_t topic, size_t *size);
 #endif
 

@@ -634,7 +634,7 @@ dds_topic_filter_fn dds_topic_get_filter (dds_entity_t topic)
   return dds_get_topic_filter_deprecated (topic);
 }
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
 dds_return_t dds_get_name_size(dds_entity_t topic, size_t *size)
 {
   dds_topic *t;

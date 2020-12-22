@@ -1611,7 +1611,7 @@ static struct cfgelem ssl_cfgelems[] = {
 };
 #endif
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
 static struct cfgelem lf_cfgelems[] = {
   BOOL("Enable", NULL, 1, "false",
     MEMBER(enable_lf),
@@ -1629,28 +1629,14 @@ static struct cfgelem lf_cfgelems[] = {
     MEMBER(enable_rxpio),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION("<p>This element allows one to enable the use of RX PIO with Lightfleet devices.</p>")),
-#if 0
-  ENUM("LogLevel", NULL, 1, "info",
-    MEMBER(lf_log_level),
-    FUNCTIONS(0, uf_lf_loglevel, 0, pf_lf_loglevel),
-    DESCRIPTION(
-      "<p>This element specifies the verbosity level of Lightfleet messages:</p>\n"
-      "<ul><li><i>off</i>: no log</li>\n"
-      "<li><i>fatal</i>: show fatal log</li>\n"
-      "<li><i>error</i>: show error log</li>\n"
-      "<li><i>warn</i>: show warn log</li>\n"
-      "<li><i>info</i>: show info log</li>\n"
-      "<li><i>debug</i>: show debug log</li>\n"
-      "<li><i>verbose</i>: show verbose log</li>\n"
-      "<p>If you don't want to see any log from Lightfleet, use <i>off</i> to disable log messages.</p>"),
-    VALUES(
-      "off", "fatal", "error", "warn", "info", "debug", "verbose"
-    )),
-#endif
   INT("AdapterNo", NULL, 1, "0",
     MEMBER(lf_adapter_no),
     FUNCTIONS(0, uf_natint, 0, pf_int),
     DESCRIPTION("<p>This element selects the LF adapter to use when multiple are installed in a system.</p>")),
+  INT("CrossoverSize", NULL, 1, "2048",
+    MEMBER(pio_crossover_size),
+    FUNCTIONS(0, uf_natint, 0, pf_int),
+    DESCRIPTION("<p>This element tells the LF adapter to switch from PIO to DMA.</p>")),
   END_MARKER
 };
 #endif
@@ -1831,7 +1817,7 @@ static struct cfgelem tracing_cfgelems[] = {
     VALUES(
       "fatal","error","warning","info","config","discovery","data","radmin",
       "timing","traffic","topic","tcp","plist","whc","throttle","rhc",
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
       "content","lf","trace"
 #else
       "content","trace"
@@ -2012,7 +1998,7 @@ static struct cfgelem domain_cfgelems[] = {
       "using SSL/TLS for DDSI over TCP.</p>"
     )),
 #endif
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
   GROUP("Lightfleet", lf_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
@@ -2052,7 +2038,7 @@ static struct cfgelem root_cfgelems[] = {
 #if DDSI_INCLUDE_SSL
   MOVED("SSL", "CycloneDDS/Domain/SSL"),
 #endif
-#if DDSI_INCLUDE_LF
+#if DDSI_INCLUDE_LIGHTFLEET
   MOVED("Lightfleet", "CycloneDDS/Lightfleet"),
 #endif
 

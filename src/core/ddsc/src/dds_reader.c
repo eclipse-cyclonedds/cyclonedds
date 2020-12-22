@@ -34,7 +34,7 @@
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_statistics.h"
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
 #include "dds/ddsi/q_receive.h"
 #include <lf_group_lib.h>
 #include <lf_bypass.h>
@@ -70,7 +70,7 @@ static void dds_reader_close (dds_entity *e)
 
 static dds_return_t dds_reader_delete (dds_entity *e) ddsrt_nonnull_all;
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
 static dds_return_t
 lf_stop_recv(struct dds_reader *rd)
 {
@@ -94,7 +94,7 @@ static dds_return_t dds_reader_delete (dds_entity *e)
 {
   dds_reader * const rd = (dds_reader *) e;
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
   if (e->m_domain->gv.config.enable_lf)
   {
     lf_stop_recv(rd);
@@ -438,7 +438,7 @@ const struct dds_entity_deriver dds_entity_deriver_reader = {
   .refresh_statistics = dds_reader_refresh_statistics
 };
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
 static uint32_t
 recv_main(void *vgv)
 {
@@ -635,7 +635,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
   thread_state_asleep (lookup_thread_state ());
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
   if (rd->m_entity.m_domain->gv.config.enable_lf)
   {
     size_t name_size;

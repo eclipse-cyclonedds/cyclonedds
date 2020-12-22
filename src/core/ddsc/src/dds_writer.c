@@ -33,7 +33,7 @@
 #include "dds__statistics.h"
 #include "dds/ddsi/ddsi_statistics.h"
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
 #include <lf_group_lib.h>
 #endif
 
@@ -213,7 +213,7 @@ static dds_return_t dds_writer_delete (dds_entity *e) ddsrt_nonnull_all;
 static dds_return_t dds_writer_delete (dds_entity *e)
 {
   dds_writer * const wr = (dds_writer *) e;
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
   if (e->m_domain->gv.config.enable_lf)
   {
     lf_close(wr->pub);
@@ -398,7 +398,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   assert(rc == DDS_RETCODE_OK);
   thread_state_asleep (lookup_thread_state ());
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
   if (wr->m_entity.m_domain->gv.config.enable_lf)
   {
     size_t name_size;
@@ -418,13 +418,6 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     if (lf_set_priority(wr->pub, 1) < 0)
     {
       DDS_CLOG(DDS_LC_LF, &wr->m_entity.m_domain->gv.logconfig, "lf_set_priority failed.\n");
-    }
-    if (wr->m_entity.m_domain->gv.config.enable_pio)
-    {
-      if (lf_set_pio_mode(wr->pub, 1) < 0)
-      {
-        DDS_CLOG(DDS_LC_LF, &wr->m_entity.m_domain->gv.logconfig, "lf_set_pio_mode failed.\n");
-      }
     }
     if (wr->m_entity.m_domain->gv.config.enable_rxpio)
     {

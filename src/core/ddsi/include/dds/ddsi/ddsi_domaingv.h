@@ -82,7 +82,7 @@ struct recv_thread_arg {
   } u;
 };
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
 struct lf_rxlist {
   struct lf_rxlist *next;
   struct dds_reader *rd;
@@ -233,7 +233,7 @@ struct ddsi_domaingv {
   ddsi_locator_t loc_meta_uc;
   ddsi_locator_t loc_default_mc;
   ddsi_locator_t loc_default_uc;
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
   ddsi_locator_t loc_lf_addr;
 
   struct lf_adapter *adapter;

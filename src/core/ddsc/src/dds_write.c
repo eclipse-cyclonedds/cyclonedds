@@ -27,7 +27,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
 #include "lf_group_lib.h"
 #endif
 
@@ -208,19 +208,30 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   d->timestamp.v = tstamp;
   ddsi_serdata_ref (d);
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
   if (wr->m_entity.m_domain->gv.config.enable_lf && wr->m_wr->num_lf_proxy_reader)
   {
     struct lf_header lf_hdr;
     ddsrt_iovec_t iov;
     uint32_t size = ddsi_serdata_size(d);
     (void)ddsi_serdata_to_ser_ref(d, 0, size, &iov);
-    uint32_t send_size = (uint32_t)iov.iov_len;
+    size_t send_size = iov.iov_len;
     char *send_ptr = iov.iov_base;
     char *data_ptr;
     int rc;
-    uint32_t frag_size, total_len, max_size;
+    size_t frag_size, total_len, max_size;
 
+    if (!wr->check_crossover_done)
+    {
+      if (wr->m_entity.m_domain->gv.config.enable_pio && send_size <= (size_t)wr->m_entity.m_domain->gv.config.pio_crossover_size)
+      {
+        if (lf_set_pio_mode(wr->pub, 1) < 0)
+        {
+          DDS_CLOG(DDS_LC_LF, &wr->m_entity.m_domain->gv.logconfig, "lf_set_pio_mode failed.\n");
+        }
+      }
+      wr->check_crossover_done = 1;
+    }
     lf_hdr.guid = ddsi_wr->e.guid;
     lf_hdr.tstamp = tstamp;
     lf_hdr.data_kind = writekey ? SDK_KEY : SDK_DATA;
@@ -233,7 +244,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       if ((wr->tx_offset + total_len) > wr->tx_limit)
         wr->tx_offset = 0;
       data_ptr = wr->base + wr->tx_offset;
-      wr->tx_offset += ((total_len + 31) & (uint32_t)(~31));
+      wr->tx_offset += ((total_len + 31) & (size_t)(~31));
       lf_hdr.data_size = send_size;
       lf_hdr.more = (send_size > frag_size) ? 1 : 0;
       memcpy(data_ptr, &lf_hdr, sizeof(lf_hdr));
@@ -244,7 +255,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       ddsrt_mutex_unlock(&wr->m_entity.m_domain->gv.lf_tx_lock);
       if (rc < 0)
       {
-        DDS_CLOG(DDS_LC_LF,  &wr->m_entity.m_domain->gv.logconfig, "****  lf_put returned %d len %d\n", rc, total_len);
+        DDS_CLOG(DDS_LC_LF,  &wr->m_entity.m_domain->gv.logconfig, "****  lf_put returned %d len %ld\n", rc, total_len);
       }
     } while (send_size > 0);
     ddsi_serdata_to_ser_unref(d, &iov);

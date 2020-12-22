@@ -79,9 +79,13 @@ if(ENABLE_DEADLINE_MISSED)
   add_definitions(-DDDSI_INCLUDE_DEADLINE_MISSED)
 endif()
 
-option(ENABLE_LF "Enable Lightfleet group support" ON)
-if (ENABLE_LF)
-  add_definitions(-DDDSI_INCLUDE_LF)
+# Enable support for the Lightfleet Multiflo Data Distribution System, an
+# innovative highspeed interconnect with true multicast.
+# https://www.lightfleet.com
+option(ENABLE_LIGHTFLEET "Enable Lightfleet group support" OFF)
+if(ENABLE_LIGHTFLEET)
+  find_package(Lightfleet REQUIRED)
+  add_definitions(-DDDSI_INCLUDE_LIGHTFLEET)
 endif()
 
 add_subdirectory(ddsrt)

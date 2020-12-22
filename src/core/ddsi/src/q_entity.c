@@ -1896,7 +1896,7 @@ static void writer_drop_connection (const struct ddsi_guid *wr_guid, const struc
     struct whc_node *deferred_free_list = NULL;
     struct wr_prd_match *m;
     ddsrt_mutex_lock (&wr->e.lock);
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
     if (prd->c.proxypp->is_lf)
     {
       wr->num_lf_proxy_reader--;
@@ -2251,7 +2251,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
   m->t_nackfrag_accepted.v = 0;
 
   ddsrt_mutex_lock (&wr->e.lock);
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
   if (prd->c.proxypp->is_lf)
   {
     wr->num_lf_proxy_reader++;
@@ -3668,7 +3668,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
 #ifdef DDSI_INCLUDE_SECURITY
   wr->sec_attr = NULL;
 #endif
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
   wr->num_lf_proxy_reader = 0;
 #endif
 
@@ -4953,7 +4953,7 @@ static void free_proxy_participant(struct proxy_participant *proxypp)
   ddsrt_free (proxypp);
 }
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
 static void chk_lf(const ddsi_locator_t *n, void *varg)
 {
   struct proxy_participant *proxypp = (struct proxy_participant *)varg;
@@ -5020,7 +5020,7 @@ bool new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
     proxypp->receive_buffer_size = 131072;
   }
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
   proxypp->is_lf = 0;
   if (gv->config.enable_lf)
   {

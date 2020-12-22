@@ -3439,7 +3439,7 @@ uint32_t listen_thread (struct ddsi_tran_listener *listener)
   return 0;
 }
 
-#ifdef DDSI_INCLUDE_LF
+#ifdef DDSI_INCLUDE_LIGHTFLEET
 struct lf_rd_entry *lf_reassemble(struct dds_reader *rd, struct lf_header *hdr,
                                   size_t len, int origin);
 
@@ -3522,7 +3522,7 @@ void lf_read_callback(const void *chunk, void *arg, size_t length, int origin)
   {
     if ((rde->offset - rde->length) != lf_hdr.data_size)
     {
-      DDS_CLOG(DDS_LC_LF, &rd->m_rd->e.gv->logconfig, "Expected offset %ld but got %d\n", rde->size - rde->length, lf_hdr.data_size);
+      DDS_CLOG(DDS_LC_LF, &rd->m_rd->e.gv->logconfig, "Expected offset %ld but got %ld\n", rde->size - rde->length, lf_hdr.data_size);
       exit(9);
     }
     memcpy((rde->base + rde->length), (chunk + sizeof(lf_hdr)), length - sizeof(lf_hdr));
