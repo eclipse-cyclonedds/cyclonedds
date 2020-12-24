@@ -1186,7 +1186,11 @@ static ssize_t nn_xpack_send1 (const ddsi_locator_t *loc, void * varg)
     }
   }
 
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+  if (!gv->mute && loc->kind != NN_LOCATOR_KIND_LF)
+#else
   if (!gv->mute)
+#endif
   {
     nbytes = nn_xpack_send_rtps(xp, loc);
 

@@ -34,6 +34,12 @@
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_statistics.h"
 
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+#include "dds/ddsi/q_receive.h"
+#include <lf_group_lib.h>
+#include <lf_bypass.h>
+#endif
+
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
 
 #define DDS_READER_STATUS_MASK                                   \
@@ -64,9 +70,40 @@ static void dds_reader_close (dds_entity *e)
 
 static dds_return_t dds_reader_delete (dds_entity *e) ddsrt_nonnull_all;
 
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+static dds_return_t
+lf_stop_recv(struct dds_reader *rd)
+{
+  struct lf_rxlist *rxl = rd->m_entity.m_domain->gv.head;
+  int active = 0;
+
+  while (rxl) {
+    if (rxl->rd == rd)
+      rxl->rd = NULL;
+    else if (rxl->rd != NULL)
+      active += 1;
+    rxl = rxl->next;
+  }
+  if (active == 0)
+    rd->m_entity.m_domain->gv.lf_stop = 1;
+  return DDS_RETCODE_OK;
+}
+#endif
+
 static dds_return_t dds_reader_delete (dds_entity *e)
 {
   dds_reader * const rd = (dds_reader *) e;
+
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+  if (e->m_domain->gv.config.enable_lf)
+  {
+    lf_stop_recv(rd);
+    dds_sleepfor(DDS_MSECS(10));
+    lf_close(rd->sub);
+    rd->sub = NULL;
+  }
+#endif
+
   dds_free (rd->m_loan);
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   dds_rhc_free (rd->m_rhc);
@@ -401,6 +438,63 @@ const struct dds_entity_deriver dds_entity_deriver_reader = {
   .refresh_statistics = dds_reader_refresh_statistics
 };
 
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+static uint32_t
+recv_main(void *vgv)
+{
+  struct ddsi_domaingv *gv = vgv;
+  struct lf_rxlist *rxl = gv->head;
+  volatile struct lfhba_completion_record *rxc;
+
+  while (!gv->lf_stop)
+  {
+    rxl = (rxl->next == NULL) ? gv->head : rxl->next;
+    if (rxl->rd == NULL)
+      continue;
+    rxc = &rxl->rxc[rxl->rxci];
+    if (rxc->length)
+    {
+//    DDS_CLOG(DDS_LC_LF, &gv->logconfig, "received a message at index %d offset 0x%x len %d bid=0x%x origin=%d\n", rxl->rxci, rxc->offset, rxc->length, rxc->bid, rxc->src_bid);
+      lf_read_callback(rxl->rx_base + rxc->offset, rxl->rd, rxc->length, rxc->src_bid);
+      rxc->length = 0;
+      rxl->rxci = (rxl->rxci < rxl->xci_max) ? rxl->rxci + 1: 0;
+    }
+    rxc = &rxl->txc[rxl->rxci];
+    if (rxl->use_txc && rxc->length)
+    {
+      DDS_CLOG(DDS_LC_LF, &gv->logconfig, "sent a message at index %d len %d\n", rxl->txci, rxc->length);
+      lf_read_callback(rxl->tx_base + rxc->offset, rxl->rd, rxc->length, gv->host_id);
+      rxc->length = 0;
+      rxl->txci = (rxl->txci < rxl->xci_max) ? rxl->txci + 1: 0;
+    }
+  }
+  return 0;
+}
+
+static dds_return_t
+lf_start_recv(struct dds_reader *rd)
+{
+  struct lf_rxlist *rxl = dds_alloc(sizeof(*rxl));
+  dds_return_t rc = DDS_RETCODE_OK;
+
+  rxl->rd = rd;
+  rxl->rx_base = lf_split_group(rd->sub);
+  rxl->rxc = lf_enable_group_completion(rd->sub, 0, 4*1024*1024);
+  rxl->rxci = 0;
+  rxl->xci_max = ((4*1024*1024) / sizeof(struct lfhba_completion_record)) - 1;
+  rxl->use_txc = rd->m_entity.m_domain->gv.config.enable_txc;
+  rxl->txc = NULL;
+  if (rxl->use_txc)
+    rxl->txc = lf_enable_group_completion(rd->sub, 1, 4*1024*1024);
+  rxl->txci = 0;
+  rxl->next = rd->m_entity.m_domain->gv.head;
+  rd->m_entity.m_domain->gv.head = rxl;
+  if (rd->m_entity.m_domain->gv.rx_ts1 == NULL)
+    rc = create_thread(&rd->m_entity.m_domain->gv.rx_ts1, &rd->m_entity.m_domain->gv, "LFrecv", (uint32_t (*) (void *))recv_main, &rd->m_entity.m_domain->gv);
+  return rc;
+}
+#endif
+
 static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
 {
   dds_qos_t *rqos;
@@ -540,6 +634,35 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   rc = new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_stopic, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
   assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
   thread_state_asleep (lookup_thread_state ());
+
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+  if (rd->m_entity.m_domain->gv.config.enable_lf)
+  {
+    size_t name_size;
+
+    rc = dds_get_name_size(topic, &name_size);
+    assert (rc == DDS_RETCODE_OK);
+    char topic_name[name_size+1];
+    rc = dds_get_name(topic, topic_name, name_size + 1);
+    assert (rc == DDS_RETCODE_OK);
+    rd->sub = lf_open(rd->m_entity.m_domain->gv.adapter, topic_name, O_CREAT | O_RDWR, 0666, 4*1024*1024, GROUP_PLAIN);
+    if (rd->sub == NULL)
+    {
+      DDS_CLOG(DDS_LC_LF, &rd->m_entity.m_domain->gv.logconfig, "lf_open failed(%s).\n", topic_name);
+      exit(1);
+    }
+
+    if (lf_set_priority(rd->sub, 1) < 0)
+    {
+      DDS_CLOG(DDS_LC_LF, &rd->m_entity.m_domain->gv.logconfig, "lf_set_priority failed.\n");
+    }
+
+    rd->base = lf_gcm_base(rd->sub);
+    rc = lf_start_recv(rd);
+    assert (rc == DDS_RETCODE_OK);
+    lf_remove_group(rd->m_entity.m_domain->gv.adapter, topic_name);
+  }
+#endif
 
   rd->m_entity.m_iid = get_entity_instance_id (&rd->m_entity.m_domain->gv, &rd->m_entity.m_guid);
   dds_entity_register_child (&sub->m_entity, &rd->m_entity);

@@ -33,6 +33,10 @@
 #include "dds__statistics.h"
 #include "dds/ddsi/ddsi_statistics.h"
 
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+#include <lf_group_lib.h>
+#endif
+
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_writer)
 
 #define DDS_WRITER_STATUS_MASK                                   \
@@ -209,6 +213,13 @@ static dds_return_t dds_writer_delete (dds_entity *e) ddsrt_nonnull_all;
 static dds_return_t dds_writer_delete (dds_entity *e)
 {
   dds_writer * const wr = (dds_writer *) e;
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+  if (e->m_domain->gv.config.enable_lf)
+  {
+    lf_close(wr->pub);
+    wr->pub = NULL;
+  }
+#endif
   /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   nn_xpack_free (wr->m_xp);
@@ -386,6 +397,41 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   rc = new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
   assert(rc == DDS_RETCODE_OK);
   thread_state_asleep (lookup_thread_state ());
+
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+  if (wr->m_entity.m_domain->gv.config.enable_lf)
+  {
+    size_t name_size;
+    rc = dds_get_name_size(topic, &name_size);
+    assert(rc == DDS_RETCODE_OK);
+    char topic_name[name_size+1];
+    rc = dds_get_name(topic, topic_name, name_size+1);
+    assert(rc == DDS_RETCODE_OK);
+    wr->pub = lf_open(wr->m_entity.m_domain->gv.adapter,
+                      topic_name, O_CREAT | O_RDWR, 0666, 4*1024*1024,
+                      GROUP_PLAIN);
+    if (wr->pub == NULL)
+    {
+      DDS_CLOG(DDS_LC_LF, &wr->m_entity.m_domain->gv.logconfig, "lf_open failed(%s).\n", topic_name);
+      exit(1);
+    }
+    if (lf_set_priority(wr->pub, 1) < 0)
+    {
+      DDS_CLOG(DDS_LC_LF, &wr->m_entity.m_domain->gv.logconfig, "lf_set_priority failed.\n");
+    }
+    if (wr->m_entity.m_domain->gv.config.enable_rxpio)
+    {
+      if (lf_set_rx_pio_mode(wr->pub, 1) < 0)
+      {
+        DDS_CLOG(DDS_LC_LF, &wr->m_entity.m_domain->gv.logconfig, "lf_set_rx_pio_mode failed.\n");
+      }
+    }
+    wr->base = lf_gcm_base(wr->pub);
+    wr->tx_offset = 0;
+    wr->tx_limit =  4*1024*1024 - 64;
+    lf_remove_group(wr->m_entity.m_domain->gv.adapter, topic_name);
+  }
+#endif
 
   wr->m_entity.m_iid = get_entity_instance_id (&wr->m_entity.m_domain->gv, &wr->m_entity.m_guid);
   dds_entity_register_child (&pub->m_entity, &wr->m_entity);

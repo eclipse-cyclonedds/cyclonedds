@@ -372,6 +372,15 @@ struct ddsi_config
   struct ddsi_config_omg_security_listelem *omg_security_configuration;
 #endif
 
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+  int enable_lf;
+  int enable_txc;
+  int enable_pio;
+  int enable_rxpio;
+  int pio_crossover_size;
+  uint32_t lf_adapter_no;
+#endif
+
 #if defined (__cplusplus)
 public:
   ddsi_config() {

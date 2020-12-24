@@ -79,6 +79,15 @@ if(ENABLE_DEADLINE_MISSED)
   add_definitions(-DDDSI_INCLUDE_DEADLINE_MISSED)
 endif()
 
+# Enable support for the Lightfleet Multiflo Data Distribution System, an
+# innovative highspeed interconnect with true multicast.
+# https://www.lightfleet.com
+option(ENABLE_LIGHTFLEET "Enable Lightfleet group support" OFF)
+if(ENABLE_LIGHTFLEET)
+  find_package(Lightfleet REQUIRED)
+  add_definitions(-DDDSI_INCLUDE_LIGHTFLEET)
+endif()
+
 add_subdirectory(ddsrt)
 
 # some of the tests in the core rely on preprocessing IDL, so idlc has to

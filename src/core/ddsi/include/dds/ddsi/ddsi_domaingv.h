@@ -82,6 +82,31 @@ struct recv_thread_arg {
   } u;
 };
 
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+struct lf_rxlist {
+  struct lf_rxlist *next;
+  struct dds_reader *rd;
+  unsigned char *rx_base;
+  unsigned char *tx_base;
+  volatile struct lfhba_completion_record *txc;
+  volatile struct lfhba_completion_record *rxc;
+  int rxci, xci_max, use_txc, txci;
+};
+
+struct lf_rd_entry {
+  char *base;
+  size_t size;
+  size_t offset;
+  size_t length;
+  int more;
+};
+
+struct lf_rd_table {
+  struct lf_rd_entry entry[4];
+  int idx;
+};
+#endif
+
 struct deleted_participants_admin;
 
 struct ddsi_domaingv {
@@ -208,6 +233,17 @@ struct ddsi_domaingv {
   ddsi_locator_t loc_meta_uc;
   ddsi_locator_t loc_default_mc;
   ddsi_locator_t loc_default_uc;
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+  ddsi_locator_t loc_lf_addr;
+
+  struct lf_adapter *adapter;
+  int lf_stop;
+  uint16_t host_id;
+  struct thread_state1 *rx_ts1;
+  struct lf_rxlist *head;
+  ddsrt_mutex_t lf_rx_lock;
+  ddsrt_mutex_t lf_tx_lock;
+#endif
 
   /*
     Initial discovery address set, and the current discovery address

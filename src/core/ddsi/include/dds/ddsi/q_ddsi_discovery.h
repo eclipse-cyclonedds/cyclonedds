@@ -27,6 +27,9 @@ struct ddsi_plist;
 
 struct participant_builtin_topic_data_locators {
   struct nn_locators_one def_uni_loc_one, def_multi_loc_one, meta_uni_loc_one, meta_multi_loc_one;
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+  struct nn_locators_one def_uni_loc_two, def_multi_loc_two;
+#endif
 };
 
 void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plist_t *dst, struct participant_builtin_topic_data_locators *locs);

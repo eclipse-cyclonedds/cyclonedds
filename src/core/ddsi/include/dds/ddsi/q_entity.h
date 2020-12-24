@@ -343,6 +343,9 @@ struct writer
 #ifdef DDSI_INCLUDE_SECURITY
   struct writer_sec_attributes *sec_attr;
 #endif
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+  uint32_t num_lf_proxy_reader; /* the numberof Lightfleet proxy readers */
+#endif
 };
 
 inline seqno_t writer_read_seq_xmit (const struct writer *wr) {
@@ -414,6 +417,9 @@ struct proxy_participant
 #ifdef DDSI_INCLUDE_SECURITY
   nn_security_info_t security_info;
   struct proxy_participant_sec_attributes *sec_attr;
+#endif
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+  unsigned is_lf: 1;
 #endif
 };
 

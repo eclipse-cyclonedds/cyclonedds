@@ -45,6 +45,9 @@ include(ddsc/CMakeLists.txt)
 
 add_coverage(ddsc)
 target_link_libraries(ddsc PRIVATE ddsrt)
+if(ENABLE_LIGHTFLEET)
+  target_link_libraries(ddsc PRIVATE Lightfleet::lf_group)
+endif()
 target_compile_definitions(
   ddsc PUBLIC
   $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_COMPILE_DEFINITIONS>>)

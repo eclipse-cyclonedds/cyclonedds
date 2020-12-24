@@ -67,6 +67,10 @@
 
 #include "dds/ddsi/ddsi_security_omg.h"
 
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+#include "lf_group_lib.h"
+#endif
+
 static void add_peer_addresses (const struct ddsi_domaingv *gv, struct addrset *as, const struct ddsi_config_peer_listelem *list)
 {
   while (list)
@@ -1113,6 +1117,30 @@ int rtps_init (struct ddsi_domaingv *gv)
     GVLOG (DDS_LC_CONFIG, "No network interface selected\n");
     goto err_find_own_ip;
   }
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+  if (gv->config.enable_lf)
+  {
+    uint32_t pid = (uint32_t)ddsrt_getpid();
+
+    gv->loc_lf_addr.tran = NULL;
+    gv->loc_lf_addr.kind = NN_LOCATOR_KIND_LF;
+    gv->loc_lf_addr.port = pid;
+
+    memset((char *)gv->loc_lf_addr.address, 0, sizeof(gv->loc_lf_addr.address));
+    ddsrt_strlcpy((char *)gv->loc_lf_addr.address, "Lightfleet", 11);
+
+    gv->adapter = lf_adapter_open(gv->config.lf_adapter_no);
+    if (gv->adapter == NULL)
+    {
+      GVERROR("lf_adapter_open(%d) failed.\n", gv->config.lf_adapter_no);
+      exit(1);
+    }
+    ddsrt_mutex_init (&gv->lf_rx_lock);
+    ddsrt_mutex_init (&gv->lf_tx_lock);
+    gv->host_id = (uint16_t)lf_host_id(gv->adapter);
+  }
+#endif
+
   if (gv->config.allowMulticast)
   {
     if (!gv->interfaces[gv->selected_interface].mc_capable)

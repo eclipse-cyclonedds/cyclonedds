@@ -1611,6 +1611,36 @@ static struct cfgelem ssl_cfgelems[] = {
 };
 #endif
 
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+static struct cfgelem lf_cfgelems[] = {
+  BOOL("Enable", NULL, 1, "false",
+    MEMBER(enable_lf),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION("<p>This element allows one to enable Lightfleet device usage in Cyclone DDS.</p>")),
+  BOOL("Pio", NULL, 1, "false",
+    MEMBER(enable_pio),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION("<p>This element allows one to enable the use of PIO with Lightfleet devices.</p>")),
+  BOOL("Txc", NULL, 1, "false",
+    MEMBER(enable_txc),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION("<p>This element allows one to enable the use of PIO with Lightfleet devices.</p>")),
+  BOOL("RxPio", NULL, 1, "false",
+    MEMBER(enable_rxpio),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION("<p>This element allows one to enable the use of RX PIO with Lightfleet devices.</p>")),
+  INT("AdapterNo", NULL, 1, "0",
+    MEMBER(lf_adapter_no),
+    FUNCTIONS(0, uf_natint, 0, pf_int),
+    DESCRIPTION("<p>This element selects the LF adapter to use when multiple are installed in a system.</p>")),
+  INT("CrossoverSize", NULL, 1, "2048",
+    MEMBER(pio_crossover_size),
+    FUNCTIONS(0, uf_natint, 0, pf_int),
+    DESCRIPTION("<p>This element tells the LF adapter to switch from PIO to DMA.</p>")),
+  END_MARKER
+};
+#endif
+
 static struct cfgelem discovery_peer_cfgattrs[] = {
   STRING("Address", NULL, 1, NULL,
     MEMBEROF(ddsi_config_peer_listelem, peer),
@@ -1787,7 +1817,11 @@ static struct cfgelem tracing_cfgelems[] = {
     VALUES(
       "fatal","error","warning","info","config","discovery","data","radmin",
       "timing","traffic","topic","tcp","plist","whc","throttle","rhc",
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+      "content","lf","trace"
+#else
       "content","trace"
+#endif
     )),
   ENUM("Verbosity", NULL, 1, "none",
     NOMEMBER,
@@ -1964,6 +1998,15 @@ static struct cfgelem domain_cfgelems[] = {
       "using SSL/TLS for DDSI over TCP.</p>"
     )),
 #endif
+#ifdef DDSI_INCLUDE_LIGHTFLEET
+  GROUP("Lightfleet", lf_cfgelems, NULL, 1,
+    NOMEMBER,
+    NOFUNCTIONS,
+    DESCRIPTION(
+      "<p>The Lightfleet element allows specifying various parameters "
+      "related to using the Lightfleet API.</p>"
+    )),
+#endif
   END_MARKER
 };
 
@@ -1995,6 +2038,10 @@ static struct cfgelem root_cfgelems[] = {
 #if DDSI_INCLUDE_SSL
   MOVED("SSL", "CycloneDDS/Domain/SSL"),
 #endif
+#if DDSI_INCLUDE_LIGHTFLEET
+  MOVED("Lightfleet", "CycloneDDS/Lightfleet"),
+#endif
+
   MOVED("DDSI2E|DDSI2", "CycloneDDS/Domain"),
   END_MARKER
 };
