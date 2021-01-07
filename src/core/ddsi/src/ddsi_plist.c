@@ -2659,7 +2659,7 @@ static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params
     ret = entry->op.f.deser (dst, &dstoff, &flagset, entry->present_flag, dd, &srcoff);
   else
     ret = deser_generic (dst, &dstoff, &flagset, entry->present_flag, dd, &srcoff, entry->op.desc);
-  if (ret == 0 && entry->deser_validate_xform)
+  if (ret == 0 && (*flagset.present & entry->present_flag) && entry->deser_validate_xform)
     ret = entry->deser_validate_xform (dst, dd);
   if (ret < 0)
   {
