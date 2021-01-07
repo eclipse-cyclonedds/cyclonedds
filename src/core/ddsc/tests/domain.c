@@ -351,6 +351,9 @@ CU_Test(ddsc_domain_create, raw_config)
 
   struct ddsi_config config;
   ddsi_config_init_default (&config);
+  /* Default tracemask is must be checked separately because we have to overwrite it
+     to automatically check all the others */
+  CU_ASSERT(config.tracemask == 0);
   config.tracemask = DDS_LC_CONFIG;
   dds_set_trace_sink (logsink, &arg_raw);
   domain = dds_create_domain_with_rawconfig (1, &config);

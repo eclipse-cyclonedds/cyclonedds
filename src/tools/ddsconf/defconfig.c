@@ -111,10 +111,12 @@ void gendef_pf_tracemask (FILE *out, void *parent, struct cfgelem const * const 
 {
   /* tracemask is a bit bizarre: it has no member name ... all that has to do with Verbosity and Category
      existing both, and how it is output in the trace ... */
-  const uint32_t *p = cfg_address (parent, cfgelem);
   assert (cfgelem->membername == NULL);
-  if (*p != 0)
-    fprintf (out, "  cfg->tracemask = UINT32_C (%"PRIu32");\n", *p);
+  assert (cfgelem->elem_offset == 0);
+  (void) cfgelem;
+  const struct ddsi_config *cfg = parent;
+  if (cfg->tracemask != 0)
+    fprintf (out, "  cfg->tracemask = UINT32_C (%"PRIu32");\n", cfg->tracemask);
 }
 
 void gendef_pf_xcheck (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
