@@ -45,7 +45,7 @@ extern inline void thread_state_awake_fixed_domain (struct thread_state1 *ts1);
 extern inline void thread_state_awake_to_awake_no_nest (struct thread_state1 *ts1);
 
 static struct thread_state1 *init_thread_state (const char *tname, const struct ddsi_domaingv *gv, enum thread_state state);
-static void reap_thread_state (struct thread_state1 *ts1);
+static void reap_thread_state (struct thread_state1 *ts1, bool in_thread_states_fini);
 
 DDSRT_STATIC_ASSERT(THREAD_STATE_ZERO == 0 &&
                     THREAD_STATE_ZERO < THREAD_STATE_STOPPED &&
@@ -123,7 +123,7 @@ bool thread_states_fini (void)
      already, we can release all resources. */
   struct thread_state1 *ts1 = lookup_thread_state ();
   assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts1->vtime)));
-  reap_thread_state (ts1);
+  reap_thread_state (ts1, true);
   tsd_thread_state = NULL;
 
   /* Some applications threads that, at some point, required a thread state, may still be around.
@@ -188,7 +188,7 @@ static void cleanup_thread_state (void *data)
   {
     assert (ts1->state == THREAD_STATE_LAZILY_CREATED);
     assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts1->vtime)));
-    reap_thread_state (ts1);
+    reap_thread_state (ts1, false);
   }
   ddsrt_fini ();
 }
@@ -328,7 +328,7 @@ dds_return_t create_thread (struct thread_state1 **ts1, const struct ddsi_domain
   return create_thread_int (ts1, gv, tprops, name, f, arg);
 }
 
-static void reap_thread_state (struct thread_state1 *ts1)
+static void reap_thread_state (struct thread_state1 *ts1, bool in_thread_states_fini)
 {
   ddsrt_mutex_lock (&thread_states.lock);
   switch (ts1->state)
@@ -339,6 +339,24 @@ static void reap_thread_state (struct thread_state1 *ts1)
       ts1->state = THREAD_STATE_ZERO;
       break;
     case THREAD_STATE_ZERO:
+      // Trying to reap a deceased thread twice is not a good thing and it
+      // doesn't normally happen.  On Windows, however, a C++ process that
+      // has only guard conditions and waitsets alive when it leaves main
+      // may end up deleting those in a global destructor.  Those global
+      // destructors on Windows are weird: they run after all other threads
+      // have been killed by Windows and after the thread finalization
+      // routine for the calling thread has been called.
+      //
+      // That means thread_states_fini() may not see its own thread as
+      // alive anymore.  It also means that you cannot ever rely on global
+      // destructors to shut down Cyclone in Windows.
+#ifdef _WIN32
+      assert (in_thread_states_fini);
+#else
+      assert (0);
+#endif
+      (void) in_thread_states_fini;
+      break;
     case THREAD_STATE_ALIVE:
       assert (0);
   }
@@ -362,7 +380,7 @@ dds_return_t join_thread (struct thread_state1 *ts1)
   ddsrt_mutex_unlock (&thread_states.lock);
   ret = ddsrt_thread_join (ts1->tid, NULL);
   assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts1->vtime)));
-  reap_thread_state (ts1);
+  reap_thread_state (ts1, false);
   return ret;
 }
 
