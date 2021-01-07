@@ -376,7 +376,7 @@ CU_Test(ddsc_domain_create, raw_config)
     for (; i < arg_xml.size; i++)
       printf ("XML: %s", arg_xml.buf[i]);
     for (; j < arg_raw.size; j++)
-      printf ("RAW: %s", arg_xml.buf[j]);
+      printf ("RAW: %s", arg_raw.buf[j]);
   }
 
   for (size_t i = 0; i < arg_xml.size; i++)
