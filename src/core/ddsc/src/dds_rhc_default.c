@@ -150,8 +150,6 @@
    which then runs over the array of attached read conditions and updates
    the trigger. It returns whether or not a trigger changed
    from 0 to 1, as this indicates the attached waitsets must be signalled.
-   The actual signalling of the waitsets then takes places later, by calling
-   "signal_conditions" after releasing the RHC lock.
 */
 
 /* FIXME: tkmap should perhaps retain data with timestamp set to invalid
@@ -161,7 +159,6 @@
    the tkmap data. */
 
 #define MAX_ATTACHED_QUERYCONDS (CHAR_BIT * sizeof (dds_querycond_mask_t))
-#define MAX_FAST_TRIGGERS 32
 
 #define INCLUDE_TRACE 1
 #if INCLUDE_TRACE
@@ -418,7 +415,7 @@ static void get_trigger_info_cmn (struct trigger_info_cmn *info, struct rhc_inst
 static void get_trigger_info_pre (struct trigger_info_pre *info, struct rhc_instance *inst);
 static void init_trigger_info_qcond (struct trigger_info_qcond *qc);
 static void drop_instance_noupdate_no_writers (struct dds_rhc_default * __restrict rhc, struct rhc_instance * __restrict * __restrict instptr);
-static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_from_insert, const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc, const struct rhc_instance *inst, struct dds_entity *triggers[], size_t *ntriggers);
+static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_from_insert, const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc, const struct rhc_instance *inst);
 static void account_for_nonempty_to_empty_transition (struct dds_rhc_default * __restrict rhc, struct rhc_instance * __restrict * __restrict instptr, const char *__restrict traceprefix);
 #ifndef NDEBUG
 static int rhc_check_counts_locked (struct dds_rhc_default *rhc, bool check_conds, bool check_qcmask);
@@ -473,7 +470,6 @@ static void drop_expired_samples (struct dds_rhc_default *rhc, struct rhc_sample
   struct trigger_info_pre pre;
   struct trigger_info_post post;
   struct trigger_info_qcond trig_qc;
-  size_t ntriggers = SIZE_MAX;
 
   assert (!inst_is_empty (inst));
 
@@ -513,7 +509,7 @@ static void drop_expired_samples (struct dds_rhc_default *rhc, struct rhc_sample
   trig_qc.dec_conds_sample = sample->conds;
   free_sample (rhc, inst, sample);
   get_trigger_info_cmn (&post.c, inst);
-  update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst, NULL, &ntriggers);
+  update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst);
   if (inst_is_empty (inst))
     account_for_nonempty_to_empty_transition(rhc, &inst, "; ");
   TRACE (")\n");
@@ -1479,7 +1475,7 @@ static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst
   return RHC_STORED;
 }
 
-static void postprocess_instance_update (struct dds_rhc_default * __restrict rhc, struct rhc_instance * __restrict * __restrict instptr, const struct trigger_info_pre *pre, const struct trigger_info_post *post, struct trigger_info_qcond *trig_qc, dds_entity *triggers[], size_t *ntriggers)
+static void postprocess_instance_update (struct dds_rhc_default * __restrict rhc, struct rhc_instance * __restrict * __restrict instptr, const struct trigger_info_pre *pre, const struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
 {
   {
     struct rhc_instance *inst = *instptr;
@@ -1512,7 +1508,7 @@ static void postprocess_instance_update (struct dds_rhc_default * __restrict rhc
   }
 
   if (trigger_info_differs (rhc, pre, post, trig_qc))
-    update_conditions_locked (rhc, true, pre, post, trig_qc, *instptr, triggers, ntriggers);
+    update_conditions_locked (rhc, true, pre, post, trig_qc, *instptr);
 
   assert (rhc_check_counts_locked (rhc, true, true));
 }
@@ -1574,8 +1570,6 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
   rhc_store_result_t stored;
   status_cb_data_t cb_data;   /* Callback data for reader status callback */
   bool notify_data_available;
-  dds_entity *triggers[MAX_FAST_TRIGGERS];
-  size_t ntriggers;
 
   TRACE ("rhc_store %"PRIx64",%"PRIx64" si %"PRIx32" has_data %d:", tk->m_iid, wr_iid, statusinfo, has_data);
   if (!has_data && statusinfo == 0)
@@ -1591,7 +1585,6 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
   dummy_instance.iid = tk->m_iid;
   stored = RHC_FILTERED;
   cb_data.raw_status_id = -1;
-  ntriggers = 0;
 
   init_trigger_info_qcond (&trig_qc);
 
@@ -1748,7 +1741,7 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
     get_trigger_info_cmn (&post.c, inst);
   }
 
-  postprocess_instance_update (rhc, &inst, &pre, &post, &trig_qc, triggers, &ntriggers);
+  postprocess_instance_update (rhc, &inst, &pre, &post, &trig_qc);
 
 error_or_nochange:
   ddsrt_mutex_unlock (&rhc->lock);
@@ -1757,8 +1750,6 @@ error_or_nochange:
   {
     if (notify_data_available)
       dds_reader_data_available_cb (rhc->reader);
-    for (size_t i = 0; i < ntriggers; i++)
-      dds_entity_status_signal (triggers[i], 0);
     if (cb_data.raw_status_id >= 0)
       dds_reader_status_cb (&rhc->reader->m_entity, &cb_data);
   }
@@ -1787,7 +1778,6 @@ static void dds_rhc_default_unregister_wr (struct ddsi_rhc * __restrict rhc_comm
   struct rhc_instance *inst;
   struct ddsrt_hh_iter iter;
   const uint64_t wr_iid = wrinfo->iid;
-  size_t ntriggers = SIZE_MAX;
 
   ddsrt_mutex_lock (&rhc->lock);
   TRACE ("rhc_unregister_wr_iid %"PRIx64",%d:\n", wr_iid, wrinfo->auto_dispose);
@@ -1803,7 +1793,7 @@ static void dds_rhc_default_unregister_wr (struct ddsi_rhc * __restrict rhc_comm
       init_trigger_info_qcond (&trig_qc);
       TRACE ("  %"PRIx64":", inst->iid);
       dds_rhc_unregister (rhc, inst, wrinfo, inst->tstamp, &post, &trig_qc, &notify_data_available);
-      postprocess_instance_update (rhc, &inst, &pre, &post, &trig_qc, NULL, &ntriggers);
+      postprocess_instance_update (rhc, &inst, &pre, &post, &trig_qc);
       TRACE ("\n");
     }
   }
@@ -1983,8 +1973,7 @@ static bool read_sample_update_conditions (struct dds_rhc_default *rhc, struct t
   trig_qc->dec_sample_read = sample_wasread;
   trig_qc->inc_sample_read = true;
   get_trigger_info_cmn (&post->c, inst);
-  size_t ntriggers = SIZE_MAX;
-  update_conditions_locked (rhc, false, pre, post, trig_qc, inst, NULL, &ntriggers);
+  update_conditions_locked (rhc, false, pre, post, trig_qc, inst);
   trig_qc->dec_conds_sample = trig_qc->inc_conds_sample = 0;
   pre->c = post->c;
   return false;
@@ -2000,8 +1989,7 @@ static bool take_sample_update_conditions (struct dds_rhc_default *rhc, struct t
   trig_qc->dec_conds_sample = conds;
   trig_qc->dec_sample_read = sample_wasread;
   get_trigger_info_cmn (&post->c, inst);
-  size_t ntriggers = SIZE_MAX;
-  update_conditions_locked (rhc, false, pre, post, trig_qc, inst, NULL, &ntriggers);
+  update_conditions_locked (rhc, false, pre, post, trig_qc, inst);
   trig_qc->dec_conds_sample = 0;
   pre->c = post->c;
   return false;
@@ -2102,18 +2090,17 @@ static int32_t read_w_qminv_inst (struct dds_rhc_default * const __restrict rhc,
   }
   if (nread != inst_nread (inst) || inst_became_old)
   {
-    size_t ntriggers = SIZE_MAX;
     get_trigger_info_cmn (&post.c, inst);
     assert (trig_qc.dec_conds_invsample == 0);
     assert (trig_qc.dec_conds_sample == 0);
     assert (trig_qc.inc_conds_invsample == 0);
     assert (trig_qc.inc_conds_sample == 0);
-    update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst, NULL, &ntriggers);
+    update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst);
   }
   return n;
 }
 
-static int32_t take_w_qminv_inst (struct dds_rhc_default * const __restrict rhc, struct rhc_instance * __restrict * __restrict instptr, void * __restrict * __restrict values, dds_sample_info_t * __restrict info_seq, const int32_t max_samples, const uint32_t qminv, const dds_querycond_mask_t qcmask, size_t * __restrict ntriggers, read_take_to_sample_t to_sample, read_take_to_invsample_t to_invsample)
+static int32_t take_w_qminv_inst (struct dds_rhc_default * const __restrict rhc, struct rhc_instance * __restrict * __restrict instptr, void * __restrict * __restrict values, dds_sample_info_t * __restrict info_seq, const int32_t max_samples, const uint32_t qminv, const dds_querycond_mask_t qcmask, read_take_to_sample_t to_sample, read_take_to_invsample_t to_invsample)
 {
   struct rhc_instance *inst = *instptr;
   assert (max_samples > 0);
@@ -2197,7 +2184,7 @@ static int32_t take_w_qminv_inst (struct dds_rhc_default * const __restrict rhc,
     assert (trig_qc.dec_conds_sample == 0);
     assert (trig_qc.inc_conds_invsample == 0);
     assert (trig_qc.inc_conds_sample == 0);
-    update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst, NULL, ntriggers);
+    update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst);
   }
 
   if (inst_is_empty (inst))
@@ -2253,7 +2240,6 @@ static int32_t read_w_qminv (struct dds_rhc_default * __restrict rhc, bool lock,
 static int32_t take_w_qminv (struct dds_rhc_default * __restrict rhc, bool lock, void * __restrict * __restrict values, dds_sample_info_t * __restrict info_seq, int32_t max_samples, uint32_t qminv, dds_instance_handle_t handle, dds_readcond * __restrict cond, read_take_to_sample_t to_sample, read_take_to_invsample_t to_invsample)
 {
   int32_t n = 0;
-  size_t ntriggers = SIZE_MAX;
   assert (max_samples > 0);
   if (lock)
   {
@@ -2272,7 +2258,7 @@ static int32_t take_w_qminv (struct dds_rhc_default * __restrict rhc, bool lock,
     struct rhc_instance template, *inst;
     template.iid = handle;
     if ((inst = ddsrt_hh_lookup (rhc->instances, &template)) != NULL)
-      n = take_w_qminv_inst (rhc, &inst, values, info_seq, max_samples, qminv, qcmask, &ntriggers, to_sample, to_invsample);
+      n = take_w_qminv_inst (rhc, &inst, values, info_seq, max_samples, qminv, qcmask, to_sample, to_invsample);
     else
       n = DDS_RETCODE_PRECONDITION_NOT_MET;
   }
@@ -2283,7 +2269,7 @@ static int32_t take_w_qminv (struct dds_rhc_default * __restrict rhc, bool lock,
     while (n_insts-- > 0 && n < max_samples)
     {
       struct rhc_instance * const inst1 = next_nonempty_instance (inst);
-      n += take_w_qminv_inst (rhc, &inst, values + n, info_seq + n, max_samples - n, qminv, qcmask, &ntriggers, to_sample, to_invsample);
+      n += take_w_qminv_inst (rhc, &inst, values + n, info_seq + n, max_samples - n, qminv, qcmask, to_sample, to_invsample);
       inst = inst1;
     }
   }
@@ -2498,7 +2484,7 @@ static void dds_rhc_default_remove_readcondition (struct dds_rhc *rhc_common, dd
   ddsrt_mutex_unlock (&rhc->lock);
 }
 
-static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_from_insert, const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc, const struct rhc_instance *inst, struct dds_entity *triggers[], size_t *ntriggers)
+static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_from_insert, const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc, const struct rhc_instance *inst)
 {
   /* Pre: rhc->lock held; returns 1 if triggering required, else 0. */
   bool trigger = false;
@@ -2692,10 +2678,7 @@ static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_f
 
     if (trigger)
     {
-      if (*ntriggers < MAX_FAST_TRIGGERS)
-        triggers[(*ntriggers)++] = &iter->m_entity;
-      else
-        dds_entity_status_signal (&iter->m_entity, DDS_DATA_AVAILABLE_STATUS);
+      dds_entity_status_signal (&iter->m_entity, DDS_DATA_AVAILABLE_STATUS);
     }
     TRACE ("\n");
     iter = iter->m_next;
