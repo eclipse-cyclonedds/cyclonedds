@@ -19,20 +19,22 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 
-static dds_return_t dds_readcond_delete (dds_entity *e) ddsrt_nonnull_all;
+static void dds_readcond_close (dds_entity *e) ddsrt_nonnull_all;
 
-static dds_return_t dds_readcond_delete (dds_entity *e)
+static void dds_readcond_close (dds_entity *e)
 {
+  /* The RHC can call into the read condition to signal that it has been triggered, which
+     then causes the read condition to signal any attached waitsets.  It therefore has to
+     be dissociated from the RHC before any freeing takes place. */
   struct dds_reader * const rd = (struct dds_reader *) e->m_parent;
   assert (dds_entity_kind (&rd->m_entity) == DDS_KIND_READER);
   dds_rhc_remove_readcondition (rd->m_rhc, (dds_readcond *) e);
-  return DDS_RETCODE_OK;
 }
 
 const struct dds_entity_deriver dds_entity_deriver_readcondition = {
   .interrupt = dds_entity_deriver_dummy_interrupt,
-  .close = dds_entity_deriver_dummy_close,
-  .delete = dds_readcond_delete,
+  .close = dds_readcond_close,
+  .delete = dds_entity_deriver_dummy_delete,
   .set_qos = dds_entity_deriver_dummy_set_qos,
   .validate_status = dds_entity_deriver_dummy_validate_status,
   .create_statistics = dds_entity_deriver_dummy_create_statistics,
