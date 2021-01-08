@@ -1,0 +1,5 @@
+## Introduction
+
+Cyclone DDS provides a tool that measures primarily data _throughput_ and _latency_ of the cyclone-based applications within the network or within the same board, namely _ddsperf_. This tool helps also doing sanity checks to assure your configuration is correctly set up and running. This chapter describes how to use the _ddsperf_ tool and how to read and interpret its outputs and results.
+
+Besides _ddsperf_, you can also find dedicated examples in the product distribution that measures the dds system throughput and the latency with their associated codebase. You can start from the provided code and customize it to fit your scenario and exact data types. Both _ddsperf_tool and the provided examples perform the benchmarking using sequences of octets with different parameterized sizes.

@@ -1,5 +1,5 @@
 
-<div align = center> <img src="figs/Cyclone_DDS-Logo.png" width = 500 /> </div>
+<div align = center> <img src="src/figs/Cyclone_DDS-Logo.png" width = 500 /> </div>
 
 
 # **Getting Started with _Eclipse Cyclone DDS_**
@@ -11,10 +11,10 @@
     - [1.1 System requirements](#11-system-requirements)
     - [1.2 Native Installation for Linux and macOS](#12-native-installation-for-linux-and-macos)
         - [For Application Developers](#for-application-developers)
-    - [1.3 Installation from package for Linux and macOS](#13-installation-from-package-for-linux-and-macos)
+    - [1.3 Installation with product installer for Linux and macOS](#13-installation-with-product-installer-for-linux-and-macos)
     - [1.4 Native Installation for Windows](#14-native-installation-for-windows)
         - [For Application Developers](#for-application-developers-1)
-    - [1.5 Installation with product installer](#15-installation-with-product-installer)
+    - [1.5 Installation with product installer for Windows](#15-installation-with-product-installer-for-windows)
     - [1.6 Test your Installation](#16-test-your-installation)
       - [1.6.1 Environnement variable updates](#161-environnement-variable-updates)
       - [1.6.2 Running the pre-built example](#162-running-the-pre-built-example)
@@ -25,19 +25,19 @@
         - [1.8.2.1 Windows](#1821-windows)
         - [1.8.2.2 Linux and macOS](#1822-linux-and-macos)
 - [2 Building Cyclone DDS applications](#2-building-cyclone-dds-applications)
-    - [2.1 Building Your FirstExample](#21-building-your-firstexample)
-    - [2.2 Building an the HelloWorld! application with CMake](#22-building-an-the-helloworld-application-with-cmake)
-      - [2.2.1 Building the Hello World!Example](#221-building-the-hello-worldexample)
+    - [2.1 Building Your First Example](#21-building-your-first-example)
+    - [2.2 Building the HelloWorld! application with CMake](#22-building-the-helloworld-application-with-cmake)
+      - [2.2.1 Building the Hello World! Example](#221-building-the-hello-world-example)
         - [2.2.2.1 on Linux](#2221-on-linux)
         - [2.2.2.2 on Windows](#2222-on-windows)
 - [3 Hello World!, Code anatomy](#3-hello-world-code-anatomy)
     - [3.1 Data-Centric Architecture](#31-data-centric-architecture)
     - [3.2 Keys steps to build the Hello World! application](#32-keys-steps-to-build-the-hello-world-application)
-      - [3.2.1 Hello World!IDL](#321-hello-worldidl)
+      - [3.2.1 Hello World! IDL](#321-hello-world-idl)
       - [3.2.2 The IDL compiler generated files](#322-the-idl-compiler-generated-files)
     - [3.3 The Hello World! Business Logic](#33-the-hello-world-business-logic)
-      - [_3.3.1 Hello_ _World!_ Subscriber Source Code](#331-hello-world-subscriber-source-code)
-      - [_3.3.2 Hello_ _World!_ Publisher Source Code](#332-hello-world-publisher-source-code)
+      - [3.3.1 _Hello_ _World!_ Subscriber Source Code](#331-hello-world-subscriber-source-code)
+      - [3.3.2 _Hello_ _World!_ Publisher Source Code](#332-hello-world-publisher-source-code)
 - [4 Benchmarking Tools for Cyclone](#4-benchmarking-tools-for-cyclone)
     - [4.1 Introduction](#41-introduction)
     - [4.2 Testing your network configuration](#42-testing-your-network-configuration)
@@ -53,15 +53,16 @@
       - [Packaging](#packaging)
       - [5.2.2 Install Eclipse Cyclone DDS CXX](#522-install-eclipse-cyclone-dds-cxx)
       - [Building](#building-1)
-    - [5.3 Installation from package for Linux and macOS](#53-installation-from-package-for-linux-and-macos)
+        - [For Application Developers](#for-application-developers-2)
+    - [5.3 Installation with product installer for Linux and macOS](#53-installation-with-product-installer-for-linux-and-macos)
     - [5.4 Native Installation for Windows](#54-native-installation-for-windows)
       - [5.4.1 Install CXX IDL compiler](#541-install-cxx-idl-compiler)
       - [Building](#building-2)
       - [Packaging](#packaging-1)
       - [5.4.2 Install Eclipse Cyclone DDS CXX](#542-install-eclipse-cyclone-dds-cxx)
       - [Building](#building-3)
-        - [For Application Developer](#for-application-developer)
-    - [5.5 Installation from package for Windows](#55-installation-from-package-for-windows)
+        - [For Application Developers](#for-application-developers-3)
+    - [5.5 Installation with product installer for Windows](#55-installation-with-product-installer-for-windows)
     - [5.6 Test your CXX Installation for Native Installation](#56-test-your-cxx-installation-for-native-installation)
       - [5.6.1 Environnement variable updates](#561-environnement-variable-updates)
       - [5.6.2 Running the pre-built example](#562-running-the-pre-built-example)
@@ -81,8 +82,8 @@
     - [7.1.1 HelloWorld IDL](#711-helloworld-idl)
       - [7.1.2 The IDL compiler generated files](#712-the-idl-compiler-generated-files)
     - [7.2 DDS-CXX Hello World Business Logic](#72-dds-cxx-hello-world-business-logic)
-      - [7.2.1 _DDS-CXX Hello World_ Subscriber Source Code](#721-dds-cxx-hello-world-subscriber-source-code)
-      - [7.2.2 _DDS-CXX Hello World_ Publisher Source Code](#722-dds-cxx-hello-world-publisher-source-code)
+      - [7.2.1 DDS-CXX _Hello World_ Subscriber Source Code](#721-dds-cxx-hello-world-subscriber-source-code)
+      - [7.2.2 DDS-CXX _Hello World_ Publisher Source Code](#722-dds-cxx-hello-world-publisher-source-code)
 - [Appendix I Contributing to Eclipse Cyclone DDS](#appendix-i-contributing-to-eclipse-cyclone-dds)
     - [1. Linux and macOS](#1-linux-and-macos)
     - [2. Windows](#2-windows)
@@ -160,7 +161,7 @@ Note that the default build type is a release build with debug information inclu
 
 If you like to contribute to Cyclone DDS, please refer to [Appendix I Contributing to Eclipse Cyclone DDS](#appendix-i-contributing-to-eclipse-cyclone-dds).
 
-### 1.3 Installation from package for Linux and macOS
+### 1.3 Installation with product installer for Linux and macOS
 
 TBD.
 
@@ -212,7 +213,7 @@ Note that the default build type is a release build with debug information inclu
 
 If you like to contribute to Cyclone DDS, you may refer to [Contributing to Eclipse Cyclone DDS for Windows in Appendix I](#appendix-i-contributing-to-eclipse-cyclone-dds).
 
-### 1.5 Installation with product installer
+### 1.5 Installation with product installer for Windows
 
 The Cyclone DDS also provides a package installation, this is much easier than installing it from GitHub.
 
@@ -220,27 +221,27 @@ To install the Cyclone DDS from the package, you only need to follow a few simpl
 
 First, start up the installer, click 'Next'.
 
-<div align=center> <img src="figs/1.5-1.png"></div>
+<div align=center> <img src="src/figs/1.5-1.png"></div>
 
 Then, accept the terms, and click'Next'.
 
-<div align=center> <img src="figs/1.5-2.png"></div>
+<div align=center> <img src="src/figs/1.5-2.png"></div>
 
 Then is to choose whether you like to add CycloneDDS to the system PATH. It is advised to add it to the system PATH so that your application can use the related libraries directly. You can also choose whether you like to add it for the current user or for all users.
 
-<div align=center> <img src="figs/1.5-3.png"></div>
+<div align=center> <img src="src/figs/1.5-3.png"></div>
 
 Follow up, is to set up the directory in which you like to install Cyclone DDS. It is advised not to install it under the `Program File` directory, as it need administrators' permission to write to the folder.
 
-<div align=center> <img src="figs/1.5-4.png"></div>
+<div align=center> <img src="src/figs/1.5-4.png"></div>
 
 After the settings from above, you are now ready to install the CycloneDDS.
 
-<div align=center> <img src="figs/1.5-5.png"></div>
+<div align=center> <img src="src/figs/1.5-5.png"></div>
 
 Wait till the installation is finished.
 
-<div align=center> <img src="figs/1.5-6.png"></div>
+<div align=center> <img src="src/figs/1.5-6.png"></div>
 
 At this stage your installation of Cyclone DDS core, C-APIs and pre-compiler is complete. The Next section describes how to test it.
 
@@ -272,21 +273,21 @@ To run the example application, you can open two console windows and navigate to
 
 &nbsp; **Windows** HelloworldSubscriber.exe
 
-&nbsp; **Linux**./HelloworldSubscriber
+&nbsp; **Linux** ./HelloworldSubscriber
 
 and the HelloworldPublisher in the other console window by typing:
 
 &nbsp; **Windows** HelloworldPublisher.exe
 
-&nbsp; **Linux**./HelloworldPublisher
+&nbsp; **Linux** ./HelloworldPublisher
 
 The output HelloworldPublisher is captured in the screenshot below
 
-<div align=center> <img src="figs/1.6.2-1.png"></div>
+<div align=center> <img src="src/figs/1.6.2-1.png"></div>
 
 while the HelloworldSubscriber will be looking like this:
 
-<div align=center> <img src="figs/1.6.2-2.png"></div>
+<div align=center> <img src="src/figs/1.6.2-2.png"></div>
 
 Note that Cyclone's default behavior is to pick up automatically the first network interface card available on your machine and will use it to exchange the hello world message. Assure that your publisher and subscriber applications are on the same network, selecting the right interface card. This is one of the most common issue on machine configurations with multiple network interface cards.
 
@@ -324,7 +325,7 @@ under the install or build directory.
 
 On Windows, to uninstall the Cyclone DDS you can either doing it from the windows application control panned (Programs and Features in Control Panel) or using the product installer; in this case, start-up the Cyclone DDS product installer again, and select 'Remove'.
 
-<div align=center> <img src="figs/1.8.2.1.png"></div>
+<div align=center> <img src="src/figs/1.8.2.1.png"></div>
 
 ##### 1.8.2.2 Linux and macOS
 
@@ -332,7 +333,7 @@ TBD.
 
 # 2 Building Cyclone DDS applications
 
-### 2.1 Building Your FirstExample
+### 2.1 Building Your First Example
 
 To test the complete workflow of building a DDS based application a simple _Hello World!_ is used. Although this application does not reveal all the power of building a data centric application, it has the merit to introduce you to the basic steps to build a DDS application.
 
@@ -344,9 +345,9 @@ On Linux, if you have not specified an installation directory, it is advised to 
 
 Six files are available under the _Hello_ _World!_ root directory to support building the example. And for this chapter, we mainly describe the **CMakeLists.txt, HelloWorldData.idl, publisher.c,** and **subscriber.c**.
 
-### 2.2 Building an the HelloWorld! application with CMake
+### 2.2 Building the HelloWorld! application with CMake
 
-In the previous sections, building the _Hello_ _World!_ example is done by default during the Cyclone build process. However, the _Hello_ _World!_ example can alsobebuildusingthe[CMaketool](http://cmake.org/), although you can obviously build with your native compilers and preferred toolchains.
+In the previous sections, building the _Hello_ _World!_ example is done by default during the Cyclone build process. However, the _Hello_ _World!_ example can also be build using the[CMaketool](http://cmake.org/), although you can obviously build with your native compilers and preferred toolchains.
 
 [CMake](http://cmake.org/) is an open-source, cross-platform family of tools designed to build, test and package software. It is used to control the software compilation process using simple platform and compiler independent configuration files, and generate native makefiles, projects and workspaces of your development environment. CMake's main strength is build portability. The same CMake input files will build with GNU make, Visual studio 6,7,8 IDEs, borland make, nmake, and XCode etc...
 
@@ -397,13 +398,13 @@ The `idlc_generate` call makes use of the DDS IDLC-compiler how generated the he
 
 This process is depicted in the process below:
 
-<div align=center> <img src="figs/2.2-1.png"></div>
+<div align=center> <img src="src/figs/2.2-1.png"></div>
 
 The cyclone-based application executable (e.g `HelloworldPublisher`) will be built with the Cmake `target_link_libraries()` call. This call combines the `ddsc` lib, the datatype helper lib and the application code lib.
 
 Note that CMake will try to find the `CycloneDDS` CMake package in the default location, two levels above the current source directory. Every path and dependencies will be automatically set. CMake will look in the default locations for the code Cyclone DDSpackage.
 
-#### 2.2.1 Building the Hello World!Example
+#### 2.2.1 Building the Hello World! Example
 
 
 Now that CMakeLists.txt file is completed the build process can start
@@ -427,11 +428,10 @@ The real build process of the applications (**HelloworldPublisher** and **Hellow
 cmake --build .
 ```
 
-![](RackMultipart20210104-4-5d27z2_html_55ba34d72b7f729d.gif)
 
 The resulting Publisher and Subscriber applications can be found in `examples/helloworld/build`.
 
-The _Hello World!_ example can now be executed, as described in Test your installation of the previous chapter
+The _Hello World!_ example can now be executed, as described in [Test your installation](#16-test-your-installation) of the previous chapter
 
 ##### 2.2.2.2 on Windows
 
@@ -495,11 +495,11 @@ To exchange data, applications' business logic needs with Cyclone DDS to:
 
 At the application level, readers and writers do not need to be aware of each other. The reading application, hereby calls Subscriber polls the data reader periodically, until a publishing application, hereby called Publisher the required data into the share topic, namely HelloWorldData\_Msg.
 
-The data type is described using the OMG [IDL Language](http://www.omg.org/gettingstarted/omg_idl.htm)located in **HelloWorldData.idl** file. Such IDL file will be seen as the Data Model of our example.
+The data type is described using the OMG [IDL Language](http://www.omg.org/gettingstarted/omg_idl.htm) located in **HelloWorldData.idl** file. Such IDL file will be seen as the Data Model of our example.
 
 This data model will be preprocessed and compiled by Cyclone-DDS IDL-Compiler to generate a C representation of the data as described in Chapter 2. These generated source and header files will be used by the **HelloworldSubscriber.c** and **HelloworldPublishe.c** programs to share the _Hello_ _World!_ Message instance and sample.
 
-#### 3.2.1 Hello World!IDL
+#### 3.2.1 Hello World! IDL
 
 The HelloWorld data type is described in a language independent way and stored in the HelloWorldData.idl file:
 
@@ -578,7 +578,7 @@ HelloWorldData_Msg_desc
 
 Apart from the **HelloWorldData.h/c** generated files, the _Hello World!_ example also contains two application-level source files (**subscriber.c** and **publisher.c**), containing the business logic.
 
-#### _3.3.1 Hello_ _World!_ Subscriber Source Code
+#### 3.3.1 _Hello_ _World!_ Subscriber Source Code
 
 The **Subscriber.c** mainly contains the statements to wait for a _Hello World!_ message and reads it when it receives it.
 
@@ -764,7 +764,7 @@ dds_delete (participant);
 
 All the entities that are created under the participant, such as the Data Reader and Topic, are recursively deleted.
 
-#### _3.3.2 Hello_ _World!_ Publisher Source Code
+#### 3.3.2 _Hello_ _World!_ Publisher Source Code
 
 The **Publisher.c** contains the source that will write a _Hello World!_ Message.
 
@@ -933,7 +933,7 @@ In another terminal, you need to start the _ddspef_ with the **Pong** mode to ec
 ./ddsperf pong
 ```
 
-<div align=center> <img src="figs/4.2-1.png"></div>
+<div align=center> <img src="src/figs/4.2-1.png"></div>
 
 If the data is not exchanged on the network between the two ddsperf instances, it is likely that cyclone dds did not select the appropriate network card on both machines or a firewall in-between is preventing communication to happen.
 
@@ -947,7 +947,7 @@ To measure latency between two different applications, you need to run two insta
 
 The Ping Pong scenario avoids clock desynchronization issue that might occur between two machines that do not share accurately the same perception of the time in the network.
 
-<div align=center> <img src="figs/4.3-1.png"></div>
+<div align=center> <img src="src/figs/4.3-1.png"></div>
 
 To differential the two operational modes, the _ddsperf_tool can operate either in a **Ping mode** or in a **Pong mode**.
 
@@ -994,7 +994,7 @@ The output of the _ddsperf_ tool is as shown below:
 - The **mean latency** (e.g. 118.434 us)
 - As well as the latency at 50%, 90% or 99% of the time.
 
-<div align=center> <img src="figs/4.3-2.png"></div>
+<div align=center> <img src="src/figs/4.3-2.png"></div>
 
 
 1. The output for the Pong application:
@@ -1004,13 +1004,13 @@ The output of the _ddsperf_ tool is as shown below:
 - _**IVCSW**_ is the number of involuntary switches, it indicates the times when the process is pre-empted or blocked by a mutex (e.g. 6 times);
 - The percentage of time spent executing user code and the percentage of time spent executing kernel code in a specific thread (e.g. spent almost 0% of the time executing the user code and 5% executing kernel code in thread &quot;ping&quot;).
 
-<div align=center> <img src="figs/4.3-3.png"></div>
+<div align=center> <img src="src/figs/4.3-3.png"></div>
 
 ### 4.4 Measuring Throughput
 
 To measure throughput between two different applications, you need to run at least two instances of the _ddsperf_tool and instruct one of them to endorse the role of a Publisher that sends a given amount of data (a sequence of octets) at a given rate, the other instances will take the role of Subscriber applications. Please note that when your scenario involves only one subscriber, the UDP unicast mode is used. If several subscriber instances are running, the multicast will be automatically used.
 
-<div align=center> <img src="figs/4.4-1.png"></div>
+<div align=center> <img src="src/figs/4.4-1.png"></div>
 
 Two additional modes are therefore supported:
 
@@ -1058,7 +1058,7 @@ The output of the _ddsperf_ tool when measuring throughput is as shown below:
 - _**IVCSW**_ is the number of involuntary switches, it indicates the times when the process is pre-empted or blocked by a mutex (e.g. 24 times);
 - The percentage of time spent executing user code and the percentage of time spent executing kernel code in a specific thread (e.g. spent 34% of the time executing the user code and 11% executing kernel code in thread &quot;pub&quot;).
 
-<div align=center> <img src="figs/4.4-2.png"></div>
+<div align=center> <img src="src/figs/4.4-2.png"></div>
 
 1. The output for the Sub application indicates mainly:
 
@@ -1069,7 +1069,7 @@ The output of the _ddsperf_ tool when measuring throughput is as shown below:
 - The **packets lost in 1 second report period** (e.g. 0);
 - The **number of samples processed by the Sub application** in 1s (e.g. 21260 KS/s, with the unit KS/s is 1000 samples per second).
 
-<div align=center> <img src="figs/4.4-3.png"></div>
+<div align=center> <img src="src/figs/4.4-3.png"></div>
 
 ### 4.5 Measuring Throughput and Latency in a mixed scenario
 
@@ -1081,7 +1081,7 @@ The [Ping x%] switch combined with the Pub mode allows you to send a fraction of
 
 The different modes of the _ddsperf_tool are summarized in the figure below.
 
-<div align=center> <img src="figs/4.5-1.png"></div>
+<div align=center> <img src="src/figs/4.5-1.png"></div>
 
 You can get more information for the _ddsperf_ tool by using the [help] option:
 
@@ -1096,13 +1096,13 @@ Besides selecting the `mode`, you can also select the `options` to specify how t
 
 The `options` you can select are listed in the _ddsperf_ `help` menu, as shown below.
 
-<div align=center> <img src="figs/4.6-1.png"></div>
+<div align=center> <img src="src/figs/4.6-1.png"></div>
 
 # 5 Installing Eclipse Cyclone DDS – CXX
 
 Cyclone DDS – CXX is an implementation of the DDS ISO/IEC C++ PSM API, or simply put, a C++ binding for Eclipse Cyclone DDS. It is made of an IDL compiler that generates from IDL data model their C++ representation and artifacts, a software layer that map some DDS APIs on the Cyclone DDS C APIs and directly access to the cyclone kernel APIs when managing data to lower overhead.
 
-<div align=center> <img src="figs/5-1.png"></div>
+<div align=center> <img src="src/figs/5-1.png"></div>
 
 ### 5.1 System requirements
 
@@ -1214,6 +1214,8 @@ $ mkdir build
 
 Then, depending on whether you like to develop applications using Cyclone DDS CXX or contribute to it, you may follow different procedures.
 
+##### For Application Developers
+
 To build and install the required libraries needed to develop your applications using the C++ binding for Cyclone DDS, do:[^4]
 
 [^4]: For example, the `<idlpp-cxx-install-location>` and `<cyclonedds-install-location>` can be `${HOME}/idlpp-cxx/build/install and ${HOME}/cyclonedds/build/install`.
@@ -1249,7 +1251,7 @@ Note that the default build type is a release build with debug information inclu
 
 If you like to contribute to Cyclone DDS-CXX, refer to [Appendix II Contributing to Eclipse Cyclone DDS CXX](#appendix-ii-contributing-to-eclipse-cyclone-dds-cxx).
 
-### 5.3 Installation from package for Linux and macOS
+### 5.3 Installation with product installer for Linux and macOS
 
 TBD.
 
@@ -1343,7 +1345,7 @@ $ mkdir build
 
 Then, depending on whether you like to develop applications using Cyclone DDS-CXX or contribute to it, you may follow different procedures.
 
-##### For Application Developer
+##### For Application Developers
 
 To build and install the required libraries needed to develop your applications using the C++ binding for Cyclone DDS, do:[^6]
 [^6]: For example, the `<idlpp-cxx-install-location>` and `<cyclonedds-install-location>` can be `C:\idlpp-cxx\build\install` and `C:\cyclonedds\build\install`
@@ -1384,7 +1386,7 @@ Note that the default build type is a release build with debug information inclu
 
 If you like to contribute to Cyclone DDS-CXX, refer to [Contributing to Eclipse Cyclone DDS CXX for Windows in Appendix II.](#appendix-ii-contributing-to-eclipse-cyclone-dds-cxx)
 
-### 5.5 Installation from package for Windows
+### 5.5 Installation with product installer for Windows
 
 The Cyclone DDS-CXX also provides a package installation, this is much easier than installing it from GitHub.
 
@@ -1392,27 +1394,27 @@ To install the Cyclone DDS-CXX from the package, you only need to follow a few s
 
 First, start up the installer, click 'Next'.
 
-<div align=center> <img src="figs/5.5-1.png"></div>
+<div align=center> <img src="src/figs/5.5-1.png"></div>
 
 Then, agree to the terms, and click 'Next'.
 
-<div align=center> <img src="figs/5.5-2.png"></div>
+<div align=center> <img src="src/figs/5.5-2.png"></div>
 
 Choose whether you would like to add CycloneDDS-CXX to the system PATH. It is advised to add it to the system PATH . You can also choose whether you would like to add it for the current user or for all users.
 
-<div align=center> <img src="figs/5.5-3.png"></div>
+<div align=center> <img src="src/figs/5.5-3.png"></div>
 
 Select the directory in which you would like to install Cyclone DDS-CXX. Avoid installing it under the `Program File` directory, as it requires administrator privileges.
 
-<div align=center> <img src="figs/5.5-4.png"></div>
+<div align=center> <img src="src/figs/5.5-4.png"></div>
 
 After the settings from above, you are now ready to install the CycloneDDS-CXX.
 
-<div align=center> <img src="figs/5.5-5.png"></div>
+<div align=center> <img src="src/figs/5.5-5.png"></div>
 
 Wait till the installation is finished.
 
-<div align=center> <img src="figs/5.5-6.png"></div>
+<div align=center> <img src="src/figs/5.5-6.png"></div>
 
 Now the installation for Cyclone DDS is complete, to build an application using Cyclone DDS, you can check [how to build your first Cyclone DDS-CXX example](#61-building-your-first-cyclonedds-cxx-example).
 
@@ -1447,11 +1449,11 @@ And run the `ddscxxHelloworldSubscriber` in the other console window with:
 
 The output for the `ddscxxHelloworldPublihser` should look like:
 
-<div align=center> <img src="figs/5.6.2-1.png"></div>
+<div align=center> <img src="src/figs/5.6.2-1.png"></div>
 
 The output for the `ddscxxHelloworldSubscriber` should look like:
 
-<div align=center> <img src="figs/5.6.2-2.png"></div>
+<div align=center> <img src="src/figs/5.6.2-2.png"></div>
 
 For more information on how to build this application on your own and the code which has been used, refer to the [_Hello World_ Chapter.](#61-building-your-first-cyclonedds-cxx-example)
 
@@ -1469,13 +1471,12 @@ under the install or build directory.
 
 #### 5.7.2 Uninstallation for package installation
 
-####
 
 ##### 5.7.2.1 Windows
 
 To uninstall the Cyclone DDS-CXX you can either do it from Programs and Features in Control Panel or use the Cyclone DDS-CXX installer. In the latest case start Cyclone DDS-CXX package , and choose 'Remove'.
 
-<div align=center> <img src="figs/5.7.2.1-1.png"></div>
+<div align=center> <img src="src/figs/5.7.2.1-1.png"></div>
 
 ##### 5.7.2.2 Linux and macOS
 
@@ -1530,7 +1531,7 @@ To build a Cyclone DDS CXX based application with CMake, you need to link your a
 
 This process is depicted in the process below:
 
-<div align=center> <img src="figs/6.1.1-1.png"></div>
+<div align=center> <img src="src/figs/6.1.1-1.png"></div>
 
 By setting the property for the applications in Cmake `set_property()` statement, the applications will be compiled against the `C++ 11` standard.
 
@@ -1739,7 +1740,7 @@ As described earlier, the IDL compiler generates three source and four header fi
 
 Apart from the `HelloWorldData` data type files that the _DDS-CXX Hello World_ example uses to send messages, the _DDS-CXX Hello World!_ example also contains two application-level source files (**subscriber.cpp** and **publisher.cpp**), containing the business logic.
 
-#### 7.2.1 _DDS-CXX Hello World_ Subscriber Source Code
+#### 7.2.1 DDS-CXX _Hello World_ Subscriber Source Code
 
 The Subscriber.cpp file mainly contains the statements to wait for a _Hello World_ message and reads it when it receives it.
 
@@ -1996,7 +1997,7 @@ This example uses the polling mode to read or take data. Cyclone DDS offers _wai
 
 All the entities that are created under the participant, such as the Data Reader Subscriber and Topic, are automatically deleted by middleware through the scoping mechanism.
 
-#### 7.2.2 _DDS-CXX Hello World_ Publisher Source Code
+#### 7.2.2 DDS-CXX _Hello World_ Publisher Source Code
 
 The **Publisher.cpp** contains the source that will write a _Hello World_ message. From the DDS perspective, the publisher application code is almost symmetric to the subscriber one, except that you need to create respectively a Publisher and Data Writer instead of a Subscriber and Data Reader. To assure data is written only when Cyclone DDS discovers at least a matching reader, a synchronization statement is added to main thread. Synchronizing the main thread till a reader is discovered assures we can start the publisher or subscriber program in any order.
 

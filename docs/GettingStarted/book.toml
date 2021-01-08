@@ -1,0 +1,10 @@
+[book]
+title = "Cyclone Getting Started"
+author = "ADLINK"
+version = "0.1.0"
+edition = "2021"
+
+
+
+[output.html]
+git-repository-url = "https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/src/GettingStarted/src"
