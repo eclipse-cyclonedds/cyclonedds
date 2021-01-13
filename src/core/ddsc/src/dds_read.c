@@ -326,6 +326,22 @@ dds_return_t dds_read_instance_mask_wl (dds_entity_t rd_or_cnd, void **buf, dds_
   return dds_read_impl (false, rd_or_cnd, buf, maxs, maxs, si, mask, handle, lock, false);
 }
 
+dds_return_t dds_readcdr_instance (dds_entity_t rd_or_cnd, struct ddsi_serdata **buf, uint32_t maxs, dds_sample_info_t *si, dds_instance_handle_t handle, uint32_t mask)
+{
+  bool lock = true;
+
+  if (handle == DDS_HANDLE_NIL)
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+
+  if (maxs == DDS_READ_WITHOUT_LOCK)
+  {
+    lock = false;
+    /* FIXME: Fix the interface. */
+    maxs = 100;
+  }
+  return dds_readcdr_impl(false, rd_or_cnd, buf, maxs, si, mask, handle, lock);
+}
+
 dds_return_t dds_read_next (dds_entity_t reader, void **buf, dds_sample_info_t *si)
 {
   uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
@@ -463,6 +479,22 @@ dds_return_t dds_take_instance_mask_wl (dds_entity_t rd_or_cnd, void **buf, dds_
     maxs = 100;
   }
   return dds_read_impl(true, rd_or_cnd, buf, maxs, maxs, si, mask, handle, lock, false);
+}
+
+dds_return_t dds_takecdr_instance (dds_entity_t rd_or_cnd, struct ddsi_serdata **buf, uint32_t maxs, dds_sample_info_t *si, dds_instance_handle_t handle, uint32_t mask)
+{
+  bool lock = true;
+
+  if (handle == DDS_HANDLE_NIL)
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+
+  if (maxs == DDS_READ_WITHOUT_LOCK)
+  {
+    lock = false;
+    /* FIXME: Fix the interface. */
+    maxs = 100;
+  }
+  return dds_readcdr_impl(true, rd_or_cnd, buf, maxs, si, mask, handle, lock);
 }
 
 dds_return_t dds_take_next (dds_entity_t reader, void **buf, dds_sample_info_t *si)
