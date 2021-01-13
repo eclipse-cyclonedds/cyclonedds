@@ -35,8 +35,11 @@ struct record_netload_state {
   uint64_t obytes;
 };
 
-void record_netload (struct record_netload_state *st, const char *prefix, dds_time_t tnow)
+void record_netload (FILE *fp, struct record_netload_state *st, const char *prefix, dds_time_t tnow, bool cputime_changed, bool *netload_changed)
 {
+  *netload_changed = false;
+  if (!cputime_changed)
+    return;
   if (st && !st->errored)
   {
     struct ddsrt_netstat x;
@@ -54,16 +57,36 @@ void record_netload (struct record_netload_state *st, const char *prefix, dds_ti
         {
           const double dxpct = 100.0 * dx / st->bw;
           const double drpct = 100.0 * dr / st->bw;
-          if (dxpct >= 0.5 || drpct >= 0.5)
+          //if (dxpct >= 0.5 || drpct >= 0.5)
           {
-            printf ("%s %s: xmit %.0f%% recv %.0f%% [%"PRIu64" %"PRIu64"]\n",
+            printf ("%s %s: xmit %.2f%% recv %.2f%% [%"PRIu64" %"PRIu64"]\n",
                     prefix, st->name, dxpct, drpct, x.obytes, x.ibytes);
+            if (fp != NULL)
+            {
+              fprintf(fp, ",%.2f,%.2f,%"PRIu64",%"PRIu64,
+                          /* col50 : dxpct  */dxpct,
+                          /* col51 : drpct  */drpct,
+                          /* col52 : obytes */x.obytes,
+                          /* col53 : ibytes */x.ibytes);
+              fflush(fp);
+              *netload_changed = true;
+            }
           }
         }
-        else if (dx >= 1e5 || dr >= 1e5) // 100kb/s is arbitrary
+        else //if (dx >= 1e5 || dr >= 1e5) // 100kb/s is arbitrary
         {
           printf ("%s %s: xmit %.2f Mb/s recv %.2f Mb/s [%"PRIu64" %"PRIu64"]\n",
                   prefix, st->name, dx / 1e6, dr / 1e6, x.obytes, x.ibytes);
+          if (fp != NULL)
+          {
+            fprintf(fp, ",%.2f,%.2f,%"PRIu64",%"PRIu64,
+                        /* col50 : dxpct  */dx / 1e6,
+                        /* col51 : drpct  */dr / 1e6,
+                        /* col52 : obytes */x.obytes,
+                        /* col53 : ibytes */x.ibytes);
+            fflush(fp);
+            *netload_changed = true;
+          }
         }
       }
       st->obytes = x.obytes;
@@ -74,7 +97,7 @@ void record_netload (struct record_netload_state *st, const char *prefix, dds_ti
   }
 }
 
-struct record_netload_state *record_netload_new (const char *dev, double bw)
+struct record_netload_state *record_netload_new (FILE *fp, const char *dev, double bw, bool cputime_changed, bool *netload_changed)
 {
   struct record_netload_state *st = ddsrt_malloc (sizeof (*st));
   if (ddsrt_netstat_new (&st->ctrl, dev) != DDS_RETCODE_OK)
@@ -86,7 +109,7 @@ struct record_netload_state *record_netload_new (const char *dev, double bw)
   st->bw = bw;
   st->data_valid = false;
   st->errored = false;
-  record_netload (st, "", dds_time ());
+  record_netload (fp, st, "", dds_time (), cputime_changed, netload_changed);
   return st;
 }
 
@@ -106,7 +129,7 @@ void record_netload (struct record_netload_state *st, const char *prefix, dds_ti
 {
   (void) st;
   (void) prefix;
-  (void ) tnow;
+  (void) tnow;
 }
 
 struct record_netload_state *record_netload_new (const char *dev, double bw)
