@@ -1,6 +1,6 @@
 ## Installing Eclipse Cyclone DDS – CXX
 
-Cyclone DDS – CXX is an implementation of the DDS ISO/IEC C++ PSM API, or simply put, a C++ binding for Eclipse Cyclone DDS. It is made of an IDL compiler that generates from IDL data model their C++ representation and artifacts, a software layer that map some DDS APIs on the Cyclone DDS C APIs and directly access to the cyclone kernel APIs when managing data to lower overhead.
+Cyclone DDS – CXX is an implementation of the DDS ISO/IEC C++ PSM API, or simply put, a C++ binding for Eclipse Cyclone DDS. It is made of an IDL compiler that generates from IDL data model their C++ representation and artifacts, a software layer that maps some DDS APIs on the Cyclone DDS C APIs and direct access to the cyclone kernel APIs when managing data to lower overhead.
 
 <div align=center> <img src="figs/5-1.png"></div>
 

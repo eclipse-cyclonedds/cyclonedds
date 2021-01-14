@@ -2,7 +2,7 @@
 
 The **Publisher.c** contains the source that will write a _Hello World!_ Message.
 
-From the DDS perspective the publisher application code is almost symmetric to the subscriber one, except that you need to create a Data Writer instead of a Data Reader. To assure data is written only when Cyclone DDS discovers at least a matching reader, a synchronization statement is added to main thread. Synchronizing the main thread till a reader is discovered assures we can start the publisher or subscriber program in any order.
+From the DDS perspective, the publisher application code is almost symmetric to the subscriber one, except that you need to create a Data Writer instead of a Data Reader. To assure data is written only when Cyclone DDS discovers at least a matching reader, a synchronization statement is added to the main thread. Synchronizing the main thread till a reader is discovered assures we can start the publisher or subscriber program in any order.
 
 ```
 #include "ddsc/dds.h"

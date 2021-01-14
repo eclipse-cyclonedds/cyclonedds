@@ -2,7 +2,7 @@
 
 Once your Cyclone DDS installation is done successfully you may want to test if your network environment is properly set. This can be done either by running the _HelloWorld_ example or by using the _ddsperf_ tool. The Helloworld example sends in one shot a message, whereas the ddsperf tool can send continuously a stream of data at a low frequency rate for sanity checks and can therefore bypass sporadic network issues.
 
-Users that installed Cyclone DDS using the package installation procedure will find the _ddsperf_ tool pre-installed under the directory of `<cyclonedds_dir>/bin`. Users that installed Cyclone DDS through the native installation process, (from GitHub), can locate the tool in `<cyclonedds_dir>/build/bin`.
+Users that installed Cyclone DDS using the product installer will find the _ddsperf_ tool pre-installed under the directory of `<cyclonedds_dir>/bin`. Users that installed Cyclone DDS through the native installation process, (from GitHub), can locate the tool in `<cyclonedds_dir>/build/bin`.
 
 The sanity checks of your dds based system using the _ddsperf_ tool is done as follows
 ```

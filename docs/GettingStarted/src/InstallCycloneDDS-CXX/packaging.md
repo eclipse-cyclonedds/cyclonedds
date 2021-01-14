@@ -1,8 +1,8 @@
 ### Packaging
 
-To package the build, the config and build step are be a bit different froom the build process described above.
+To package the build, the config and build steps are be a bit different from the build process described above.
 
-When packing, the `-DCMAKE_INSTALL_PREFIX=<install-location>`[^1] option should be added to the configuration, and the `<install-location>` be the directory which you like to install the IDL compiler.
+When packing, the `-DCMAKE_INSTALL_PREFIX=<install-location>`[^1] option should be added to the configuration, and the `<install-location>` be the directory which the IDL compiler will be installed.
 
 
 

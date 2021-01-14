@@ -1,6 +1,6 @@
 ## DDS-CXX _Hello World_ Publisher Source Code
 
-The **Publisher.cpp** contains the source that will write a _Hello World_ message. From the DDS perspective, the publisher application code is almost symmetric to the subscriber one, except that you need to create respectively a Publisher and Data Writer instead of a Subscriber and Data Reader. To assure data is written only when Cyclone DDS discovers at least a matching reader, a synchronization statement is added to main thread. Synchronizing the main thread till a reader is discovered assures we can start the publisher or subscriber program in any order.
+The **Publisher.cpp** contains the source that will write a _Hello World_ message. From the DDS perspective, the publisher application code is almost symmetric to the subscriber one, except that you need to create respectively a Publisher and Data Writer instead of a Subscriber and Data Reader. To assure data is written only when Cyclone DDS discovers at least a matching reader, a synchronization statement is added to the main thread. Synchronizing the main thread till a reader is discovered assures we can start the publisher or subscriber program in any order.
 
 ```
 #include <cstdlib>
@@ -94,7 +94,7 @@ catch (const dds::core::Exception& e) {
 }
 ```
 
-Like with the reader in **subscriber.cpp**, we need a participant, a topic and a publisher to be able to create a writer. We also need to use the same topic name as the one specified in the subscriber.cpp.
+Like with the reader in **subscriber.cpp**, we need a participant, a topic, and a publisher to be able to create a writer. We also need to use the same topic name as the one specified in the subscriber.cpp.
 
 ```
 dds::domain::DomainParticipant participant(domain::default_id());
@@ -129,7 +129,7 @@ dds::pub::DataWriter<HelloWorldData::Msg> writer(publisher, topic);
 ```
 
 
-At regular interval we get the status change and for a matching publication. In between, the writing thread sleeps for 20 milliseconds.
+At regular intervals, we get the status change and for a matching publication. In between, the writing thread sleeps for 20 milliseconds.
 
 ```
 while (writer.publication_matched_status().current_count() == 0) {
@@ -152,7 +152,7 @@ writer.write(msg);
 ```
 
 
-After writing the data to the writer, the _DDS-CXX Hello World_ example check if there still have matching subscriber(s) available. If there is matching subscriber(s), the example waits for 50ms and start publishing the data again. If no matching subscriber is found, then the publisher program be ended.
+After writing the data to the writer, the _DDS-CXX Hello World_ example check if there still have matching subscriber(s) available. If there is a matching subscriber(s), the example waits for 50ms and start publishing the data again. If no matching subscriber is found, then the publisher program is ended.
 
 ```
 return EXIT_SUCCESS;

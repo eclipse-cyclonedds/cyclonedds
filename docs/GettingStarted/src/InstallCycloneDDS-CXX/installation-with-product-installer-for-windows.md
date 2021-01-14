@@ -1,8 +1,8 @@
 ## Installation with product installer for Windows
 
-The Cyclone DDS-CXX also provides a package installation, this is much easier than installing it from GitHub.
+The Cyclone DDS-CXX also provides a product installer, this is much easier than installing it from GitHub.
 
-To install the Cyclone DDS-CXX from the package, you only need to follow a few simple steps.
+To install the Cyclone DDS-CXX from the installer, you only need to follow a few simple steps.
 
 First, start up the installer, click 'Next'.
 

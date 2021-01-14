@@ -1,10 +1,10 @@
 ## Data-Centric Architecture
 
-In a Service-centric architecture, to interact, applications need to know the interfaces to each other to share data, share events, share commands or replies. These interfaces are modeled as sets of operations and functions that are managed in centralized repositories. This kind of architecture creates unnecessarily dependencies that ends-up creating a tightly coupled system. The centralized interface repositories are usually seen as single point of failure.
+In a Service-centric architecture, to interact, applications need to know the interfaces to each other to share data, share events, share commands, or replies. These interfaces are modeled as sets of operations and functions that are managed in centralized repositories. This kind of architecture creates unnecessarily dependencies that ends-up creating a tightly coupled system. The centralized interface repositories are usually seen as a single point of failure.
 
 In a Data-centric architecture, your design focuses on the data each application produces and decides to share rather than on the Interfaces' operations and the internal processing that produced them.
 
-A Data centric architecture creates therefore a decoupled system that focus on the data and applications states' that need to be shared rather than the applications' details. In a data centric system, data and their associated quality of services are the only contract that bounds the applications together. With DDS, the system decoupling is bi-dimensional, in Space and in Time.
+A Data-centric architecture creates therefore a decoupled system that focuses on the data and applications states' that need to be shared rather than the applications' details. In a data-centric system, data and their associated quality of services are the only contract that bounds the applications together. With DDS, the system decoupling is bi-dimensional, in Space and in Time.
 
 Space-decoupling drives from the fact that applications do not need to, neither know the identity of the Data produced (or consumers) nor their logical or their physical location in the network. Under the hood, DDS runs a Zero-configuration, interoperable discovery protocol that searches matching Data Readers and Data Writes that are interested by the same data topic.
 

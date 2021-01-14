@@ -6,5 +6,7 @@ The primary source of information is the OMG website at [http://www.omg.org](htt
 Shortly we will be providing a
 
 &nbsp; 1. Tutorial document
+
 &nbsp; 2. API reference manual
-&nbsp; 3. Deployment Guide, for now you can refer to [https://github.com/eclipse-cyclonedds/cyclonedds/blob/master/docs/manual/options.md](https://github.com/eclipse-cyclonedds/cyclonedds/blob/master/docs/manual/options.md)
+
+&nbsp; 3. Deployment Guide, for now, you can refer to [https://github.com/eclipse-cyclonedds/cyclonedds/blob/master/docs/manual/options.md](https://github.com/eclipse-cyclonedds/cyclonedds/blob/master/docs/manual/options.md)

@@ -87,7 +87,7 @@ Subscriber application basically implements the previous steps defined in sectio
 ```
 
 
-Within the subscriber code we will be mainly using the DDS API and the _`HelloWorldData_Msg`_ type. Therefore, the following header files need to included:
+Within the subscriber code, we will be mainly using the DDS API and the _`HelloWorldData_Msg`_ type. Therefore, the following header files need to be included:
 
 - The **dds.h** file give access to the DDS APIs ,
 - The **HelloWorldData.h** is specific to the data type defined in the IDL as explained earlier.
@@ -98,7 +98,7 @@ Within the subscriber code we will be mainly using the DDS API and the _`HelloWo
 ```
 
 
-With Cyclone DDS, at least three dds entities are needed to build a minimalistic application, the domain participant, the topic and the reader. A DDS Subscriber entity is implicitly created by Cyclone DDS. If needed this behavior can be overridden.
+With Cyclone DDS, at least three dds entities are needed to build a minimalistic application, the domain participant, the topic, and the reader. A DDS Subscriber entity is implicitly created by Cyclone DDS. If needed this behavior can be overridden.
 
 ```
 dds_entity_t participant; 
@@ -115,9 +115,9 @@ void *samples[MAX_SAMPLES];
 dds_sample_info_t info[MAX_SAMPLES];
 ```
 
-As the `read()` operation may return more than one data sample (in the event that several publishing applications are started simultaneously to write different message instances), an array of samplea is therefore needed.
+As the `read()` operation may return more than one data sample (in the event that several publishing applications are started simultaneously to write different message instances), an array of samples is therefore needed.
 
-In Cyclene DDS data and metadata are propagated together. The `dds_sample_info` array needs, therefore, to be declared to handle the metadata.
+In Cyclone DDS data and metadata are propagated together. The `dds_sample_info` array needs, therefore, to be declared to handle the metadata.
 
 The dds participant is always attached to a specific dds domain. In the _Hello World!_ example, it is part of the _`Default_Domain`_, the one specified in the xml deployment file (see section 1.6 for more details).
 
@@ -125,7 +125,7 @@ The dds participant is always attached to a specific dds domain. In the _Hello W
 participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
 ```
 
-Next step is to create the topic witha given name.Topics with the same data type description and with different names, are considered different topics.This means that readers or writers created for a given topic will not interfere with readers or writers created with another topic even though have the same data type.
+The next step is to create the topic witha given name. Topics with the same data type description and with different names are considered different topics. This means that readers or writers created for a given topic will not interfere with readers or writers created with another topic even though have the same data type.
 
 ```
 topic = dds_create_topic (participant, &HelloWorldData_Msg_desc, "HelloWorldData_Msg", NULL, NULL);
@@ -149,16 +149,16 @@ As in our example, we have an array of one element (`#define MAX_SAMPLES 1`.) we
 samples[0] = HelloWorldData_Msg_alloc ();
 ```
 
-At this stage we can attempt to read data by going into a polling loop that will regularly scrutinize and examine the arrival of a message.
+At this stage, we can attempt to read data by going into a polling loop that will regularly scrutinize and examine the arrival of a message.
 
 ```
 ret = dds_read (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
 ```
 
 
-The `dds_read` operation returns the number of samples equal to the parameter `MAX_SAMPLE`. If that number is exceeds 0 that means data arrived in the reader's cache.
+The `dds_read` operation returns the number of samples equal to the parameter `MAX_SAMPLE`. If that number exceeds 0 that means data arrived in the reader's cache.
 
-The Sample_info (`info`) structure will tell whether the data we are reading is _Valid_ or _Invalid_. Valid data means that it contains the payload provided by the publishing application. Invalid data means, that we are rather reading the DDS state of data Instance. The state of a data instance can be for instance _DISPOSED_ by the writer or it is _NOT\_ALIVE_ anymore, which could happen for instance the publisher application terminates while the subscriber is still active. In this case the sample will not be considered as Valid, and its sample `info[].Valid_data` field will be `False`.
+The Sample_info (`info`) structure will tell whether the data we are reading is _Valid_ or _Invalid_. Valid data means that it contains the payload provided by the publishing application. Invalid data means, that we are rather reading the DDS state of data Instance. The state of a data instance can be for instance _DISPOSED_ by the writer or it is _NOT\_ALIVE_ anymore, which could happen for instance the publisher application terminates while the subscriber is still active. In this case, the sample will not be considered as Valid, and its sample `info[].Valid_data` field will be `False`.
 
 ```
 if ((ret > 0) && (info[0].valid_data))

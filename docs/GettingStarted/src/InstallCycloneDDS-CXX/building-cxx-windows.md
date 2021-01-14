@@ -8,7 +8,7 @@ $ mkdir build
 ```
 
 
-Then, depending on whether you like to develop applications using Cyclone DDS-CXX or contribute to it, you may follow different procedures.
+Then, depending on whether you want to develop applications using Cyclone DDS-CXX or contribute to it, you may follow different procedures.
 
 For [application devleopers](InstallCycloneDDS-CXX/for-application-developers-windows.html), go to the next section;
 

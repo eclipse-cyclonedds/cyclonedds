@@ -34,7 +34,7 @@ Depending on the installation location you may need administrator privileges.
 
 At this point, you are ready to use Eclipse Cyclone DDS-CXX in your projects.
 
-Note that the default build type is a release build with debug information included (RelWithDebInfo), which is generally the most convenient type of build to use from applications because of a good mix between performance and still being able to debug things. If you rather have a Debug or pure Release build, set `CMAKE_BUILD_TYPE` accordingly.
+Note that the default build type is a release build with debug information included (RelWithDebInfo), which is generally the most convenient type of build to use from applications because of a good mix between performance and still being able to debug things. If you prefer have a Debug or pure Release build, set `CMAKE_BUILD_TYPE` accordingly.
 
 
 ---

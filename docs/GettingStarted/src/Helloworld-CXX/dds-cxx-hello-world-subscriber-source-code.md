@@ -94,7 +94,7 @@ int main() {
 ```
 
 
-Within the subscriber code we will be mainly using the DDS ISOCPP API and the `HelloWorldData::Msg` type. Therefore, the following header files need to included:
+Within the subscriber code, we will be mainly using the DDS ISOCPP API and the `HelloWorldData::Msg` type. Therefore, the following header files need to included:
 
 - The **dds.hpp** file give access to the DDS APIs,
 - The **HelloWorldData_DCPS.hpp** is specific to the data type defined in the IDL.
@@ -115,7 +115,7 @@ dds::sub::DataReader<HelloWorldData::Msg> reader(subscriber,topic);
 ```
 
 
-The Cyclone DDS-CXX API simplifies and extends the ways in which data can be read or taken. To handle the data some `LoanedSamples` are declared and created which loans samples from the Service pool. Return of the loan is implicit and managed by scoping:
+The Cyclone DDS-CXX API simplifies and extends how data can be read or taken. To handle the data some `LoanedSamples` are declared and created which loans samples from the Service pool. Return of the loan is implicit and managed by scoping:
 
 ```
 dds::sub::LoanedSamples<HelloWorldData::Msg> samples;
@@ -160,7 +160,7 @@ dds::sub::Subscriber subscriber(participant);
 ```
 
 
-The next step is to create the topic with a given name(`ddscxx_helloworld_example`)and the predefined data type(`HelloWorldData::Msg`). Topics with the same data type description and with different names, are considered different topics. This means that readers or writers created for a given topic will not interfere with readers or writers created with another topic even though the same the same data type.
+The next step is to create the topic with a given name(`ddscxx_helloworld_example`)and the predefined data type(`HelloWorldData::Msg`). Topics with the same data type description and with different names are considered different topics. This means that readers or writers created for a given topic will not interfere with readers or writers created with another topic even though the same data type.
 
 ```
 dds::topic::Topic<HelloWorldData::Msg> topic(participant,"ddscxx_helloworld_example");
@@ -182,9 +182,7 @@ dds::sub::DataReader<HelloWorldData::Msg> dr(subscriber, topic, drqos);
 ```
 
 
-To retrieve data in your application code from the data reader's cache you can either use pre-allocated
-
-a buffer to store the data or loaned it from the middleware.
+To retrieve data in your application code from the data reader's cache you can either use pre-allocated a buffer to store the data or loaned it from the middleware.
 
 If you decide to use a pre-allocated buffer to create array/vector like container. If you use the loaned buffer option, you need to be aware that these buffers are actually 'owned' by the middleware, precisely by the DataReader. The Cyclone DDS CXX API allows you also to return of the loans implicit through scoping.
 
@@ -194,7 +192,7 @@ In our example we are using the loan samples mode (`LoanedSamples`). `Samples` a
 dds::sub::LoanedSamples<HelloWorldData::Msg> samples;
 ```
 
-At this stage we can attempt to read data by going into a polling loop that will regularly scrutinize and examine the arrival of a message. Samples are removed from the reader's cache when taken with the `take()`.
+At this stage, we can attempt to read data by going into a polling loop that will regularly scrutinize and examine the arrival of a message. Samples are removed from the reader's cache when taken with the `take()`.
 
 ```
 samples = reader.take();
@@ -218,7 +216,7 @@ for (sample_iter = samples.begin();
 ```
 
 
-For each individual sample, cast and extract it user defined data (`Msg`) and metadate (`info`).
+For each individual sample, cast and extract its user defined data (`Msg`) and metadate (`info`).
 
 ```
 const HelloWorldData::Msg& msg = sample_iter->data();
@@ -251,6 +249,6 @@ else {
 ```
 
 
-This example uses the polling mode to read or take data. Cyclone DDS offers _waitSet_ and _Listener_ mechanism to notify the application that data is available in their cache, which avoid polling the cache at a regular interval. The discretion of these mechanisms is beyond the scope of this document.
+This example uses the polling mode to read or take data. Cyclone DDS offers _waitSet_ and _Listener_ mechanism to notify the application that data is available in their cache, which avoids polling the cache at a regular interval. The discretion of these mechanisms is beyond the scope of this document.
 
 All the entities that are created under the participant, such as the Data Reader Subscriber and Topic, are automatically deleted by middleware through the scoping mechanism.

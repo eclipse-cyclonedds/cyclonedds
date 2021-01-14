@@ -5,7 +5,7 @@
 
 Eclipse Cyclone DDS is a very performant and robust OMG compliant Data Distribution Service (DDS) implementation. Cyclone DDS core is implemented in C and provides C-APIs to applications. Through its Cyclonedds-cxx package, the ISO/IEC C++ 2003 language binding is supported.
 
-The first chapters detail the installation and build process of Cyclone Core, including the C-APIs. The remaining chapters details how to install the C++ support packages. Short tutorials in C and C++ are detailed to give the reader the first impression on how the DDS technology is used with Cyclone to share data.
+The first chapters detail the installation and build process of Cyclone Core, including the C-APIs. The remaining chapters details how to install the C++ support packages. Short tutorials in C and C++ are detailed to give the reader the first impression of how the DDS technology is used with Cyclone to share data.
 
 ### Chapters
 

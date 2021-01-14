@@ -43,7 +43,7 @@ As the `pub` in this example only has a size of 1k, the sub will not print out a
 
 The output of the _ddsperf_ tool when measuring throughput is as shown below:
 
-1. The output for the Pub application indicates mainly:
+1. The output for the **Pub** application indicates mainly:
 
 - _**RSS**_ is the Resident Set Size; it indicates the amount of memory is used by the process (e.g. 6.3MB used by the process id &quot;4026&quot;);
 - _**VCSW**_ is the number of voluntary switches, it indicates the times when the process waits for input or an event (e.g. 1054 times);
@@ -52,7 +52,7 @@ The output of the _ddsperf_ tool when measuring throughput is as shown below:
 
 <div align=center> <img src="figs/4.4-2.png"></div>
 
-1. The output for the Sub application indicates mainly:
+1. The output for the **Sub** application indicates mainly:
 
 - The **size of the data** involving in this test (e.g. 1024 bytes, which is the &quot;size 1k&quot; defined in the pub command)
 - The **total packets received** (e.g. 614598);

@@ -16,7 +16,7 @@ Cyclone DDS provides platform specific utilities to facilitate the data model pr
 
 This will result in new **HelloWorldData-cyclone.h, HelloWorldData-cyclone.c, HelloWorldDataSplDcps.h, HelloWorldDataSplDcps.cpp, HelloWorldData_DCPS.hpp, HelloWorldData.h** and **HelloWorldData.cpp** files that needs to be compiled and their associated object file linked with the Hello _World!_ publisher and subscriber application business logic.
 
-When using CMake to build the application, this step hidden, and will be done automatically. For building with CMake, refer to [building the _Hello World_ example.](Build-cxx-app/build-the-dds-cxx-hello-world-example.html)
+When using CMake to build the application, this step is hidden, and will be done automatically. For building with CMake, refer to [building the _Hello World_ example.](Build-cxx-app/build-the-dds-cxx-hello-world-example.html)
 
 As described earlier, the IDL compiler generates three source and four header files. **HelloWorldData-cyclone.h** and **HelloWorldData-cyclone.c** are intermediate files used by `idlpp-CXX compiler`, and has no direct use from the application developer's perspective.
 

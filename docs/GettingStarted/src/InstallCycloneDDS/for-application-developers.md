@@ -31,4 +31,4 @@ Note that the default build type is a release build with debug information inclu
 
 ---
 
-1: For example, if you like to install the libraries in the build/install directory, you may do: cmake `-DCMAKE_INSTALL_PREFIX=$PWD/install ..`
+1: For example, if you want to install the libraries in the build/install directory, you can do: cmake `-DCMAKE_INSTALL_PREFIX=$PWD/install ..`

@@ -2,7 +2,7 @@
 
 A simple _Hello World_ application is included in the Eclipse Cyclone DDSCXX, it can be used to test the installation. The _Hello World_ application is located in the `<cyclonedds-cxx-directory>\build\bin\Debug` in Windows, and in `<cyclone-cxx-directory>/build/bin` in Linux.
 
-To run the example application, open two console windows and navigate to the appropriate directory as mentioned above. Run the `ddscxxHelloworldPublisher` in one of the console windows by typing the following command:
+To run the example application, open two console windows, and navigate to the appropriate directory as mentioned above. Run the `ddscxxHelloworldPublisher` in one of the console windows by typing the following command:
 
 &nbsp;&nbsp; **Windows:** `ddscxxHelloworldPublisher.exe`
 
