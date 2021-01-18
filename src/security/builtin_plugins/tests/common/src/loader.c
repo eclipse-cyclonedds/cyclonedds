@@ -135,7 +135,7 @@ unload_plugin(
         }
         result = ddsrt_dlclose( info->lib_handle );
         if ( result != 0 ){
-          printf( "Error occured while closing the library\n");
+          printf( "Error occurred while closing the library\n");
         }
     }
 }

@@ -235,7 +235,7 @@ dds_return_t dds_security_load_security_library (const dds_security_plugin_confi
   {
     if (security_plugin->func_init (init_parameters, (void **) security_plugin_context, gv) != DDS_RETCODE_OK)
     {
-      GVERROR ("Error occured while initializing %s plugin\n", security_plugin->name);
+      GVERROR ("Error occurred while initializing %s plugin\n", security_plugin->name);
       goto library_error;
     }
   }
@@ -257,7 +257,7 @@ dds_return_t dds_security_plugin_release (const dds_security_plugin *security_pl
   /* if get error from either finalize OR close,  return error */
   if (security_plugin->func_finalize (context) != DDS_RETCODE_OK)
   {
-    DDS_ERROR("Error occured while finaizing %s plugin", security_plugin->name);
+    DDS_ERROR("Error occurred while finaizing %s plugin", security_plugin->name);
     result = DDS_RETCODE_ERROR;
   }
   if (ddsrt_dlclose (security_plugin->lib_handle) != DDS_RETCODE_OK){
