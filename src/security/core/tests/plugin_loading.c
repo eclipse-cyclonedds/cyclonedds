@@ -342,7 +342,7 @@ CU_Test(ddssec_security_plugin_loading, init_error, .init = ddsrt_init, .fini = 
 {
   dds_entity_t domain, participant;
   const char *log_expected[] = {
-      "Error occured while initializing Authentication plugin*",
+      "Error occurred while initializing Authentication plugin*",
       "Could not load Authentication plugin*",
       "Could not load security*",
       NULL};
