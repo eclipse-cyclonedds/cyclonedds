@@ -105,7 +105,7 @@ struct piddesc {
        will fit */
     const enum pserop desc[12];
     struct {
-      dds_return_t (*deser) (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff);
+      dds_return_t (*deser) (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd);
       dds_return_t (*ser) (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo);
       dds_return_t (*unalias) (void * __restrict dst, size_t * __restrict dstoff);
       dds_return_t (*fini) (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag);
@@ -287,14 +287,15 @@ static bool prtf (char * __restrict *buf, size_t * __restrict bufsize, const cha
 
 #define alignof(type_) offsetof (struct { char c; type_ d; }, d)
 
-static dds_return_t deser_reliability (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff)
+static dds_return_t deser_reliability (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd)
 {
   DDSRT_STATIC_ASSERT (DDS_EXTERNAL_RELIABILITY_BEST_EFFORT == 1 && DDS_EXTERNAL_RELIABILITY_RELIABLE == 2 &&
                        DDS_RELIABILITY_BEST_EFFORT == 0 && DDS_RELIABILITY_RELIABLE == 1);
-  dds_reliability_qospolicy_t * const x = deser_generic_dst (dst, dstoff, alignof (dds_reliability_qospolicy_t));
+  size_t srcoff = 0, dstoff = 0;
+  dds_reliability_qospolicy_t * const x = deser_generic_dst (dst, &dstoff, alignof (dds_reliability_qospolicy_t));
   uint32_t kind, mbtsec, mbtfrac;
   ddsi_duration_t mbt;
-  if (deser_uint32 (&kind, dd, srcoff) < 0 || deser_uint32 (&mbtsec, dd, srcoff) < 0 || deser_uint32 (&mbtfrac, dd, srcoff) < 0)
+  if (deser_uint32 (&kind, dd, &srcoff) < 0 || deser_uint32 (&mbtsec, dd, &srcoff) < 0 || deser_uint32 (&mbtfrac, dd, &srcoff) < 0)
     return DDS_RETCODE_BAD_PARAMETER;
   if (kind < 1 || kind > 2)
     return DDS_RETCODE_BAD_PARAMETER;
@@ -304,7 +305,6 @@ static dds_return_t deser_reliability (void * __restrict dst, size_t * __restric
     return DDS_RETCODE_BAD_PARAMETER;
   x->kind = (enum dds_reliability_kind) (kind - 1);
   x->max_blocking_time = ddsi_from_ddsi_duration (mbt);
-  *dstoff += sizeof (*x);
   *flagset->present |= flag;
   return 0;
 }
@@ -344,18 +344,17 @@ static bool print_reliability (char * __restrict *buf, size_t * __restrict bufsi
   return prtf (buf, bufsize, "%d:%"PRId64, (int) x->kind, x->max_blocking_time);
 }
 
-static dds_return_t deser_statusinfo (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff)
+static dds_return_t deser_statusinfo (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd)
 {
-  uint32_t * const x = deser_generic_dst (dst, dstoff, alignof (dds_reliability_qospolicy_t));
-  size_t srcoff1 = (*srcoff + 3) & ~(size_t)3;
+  size_t srcoff = 0, dstoff = 0;
+  uint32_t * const x = deser_generic_dst (dst, &dstoff, alignof (dds_reliability_qospolicy_t));
+  size_t srcoff1 = (srcoff + 3) & ~(size_t)3;
   if (srcoff1 + 4 > dd->bufsz)
     return DDS_RETCODE_BAD_PARAMETER;
   /* status info is always in BE format (it is an array of 4 octets according to the spec) --
      fortunately we have 4 byte alignment anyway -- and can have bits set we don't grok
      (which we discard) */
   *x = ddsrt_fromBE4u (*((uint32_t *) (dd->buf + srcoff1))) & NN_STATUSINFO_STANDARDIZED;
-  *dstoff += sizeof (*x);
-  *srcoff = srcoff1 + 4;
   *flagset->present |= flag;
   return 0;
 }
@@ -374,18 +373,19 @@ static bool print_statusinfo (char * __restrict *buf, size_t * __restrict bufsiz
   return prtf (buf, bufsize, "%"PRIx32, *x);
 }
 
-static dds_return_t deser_locator (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff)
+static dds_return_t deser_locator (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd)
 {
-  nn_locators_t * const x = deser_generic_dst (dst, dstoff, alignof (nn_locators_t));
+  size_t srcoff = 0, dstoff = 0;
+  nn_locators_t * const x = deser_generic_dst (dst, &dstoff, alignof (nn_locators_t));
   /* FIXME: don't want to modify do_locator just yet, and don't want to require that a
      locator is the only thing in the descriptor string (even though it actually always is),
      so do alignment explicitly, fake a temporary input buffer and advance the source buffer */
-  *srcoff = (*srcoff + 3) & ~(size_t)3;
-  if (*srcoff > dd->bufsz || dd->bufsz - *srcoff < 24)
+  srcoff = (srcoff + 3) & ~(size_t)3;
+  if (srcoff > dd->bufsz || dd->bufsz - srcoff < 24)
     return DDS_RETCODE_BAD_PARAMETER;
   struct dd tmpdd = *dd;
-  tmpdd.buf += *srcoff;
-  tmpdd.bufsz -= *srcoff;
+  tmpdd.buf += srcoff;
+  tmpdd.bufsz -= srcoff;
   switch (do_locator (x, *flagset->present, flagset->wanted, flag, &tmpdd, dd->factory))
   {
     case DOLOC_INVALID:
@@ -396,8 +396,6 @@ static dds_return_t deser_locator (void * __restrict dst, size_t * __restrict ds
       *flagset->present |= flag;
       break;
   }
-  *srcoff += 24;
-  *dstoff += sizeof (*x);
   return 0;
 }
 
@@ -486,18 +484,19 @@ static bool print_locator (char * __restrict *buf, size_t * __restrict bufsize, 
   return prtf (buf, bufsize, "}");
 }
 
-static dds_return_t deser_type_consistency (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff)
+static dds_return_t deser_type_consistency (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd)
 {
   DDSRT_STATIC_ASSERT (DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION == 0 && DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION == 1);
-  dds_type_consistency_enforcement_qospolicy_t * const x = deser_generic_dst (dst, dstoff, alignof (dds_type_consistency_enforcement_qospolicy_t));
+  size_t srcoff = 0, dstoff = 0;
+  dds_type_consistency_enforcement_qospolicy_t * const x = deser_generic_dst (dst, &dstoff, alignof (dds_type_consistency_enforcement_qospolicy_t));
   const uint32_t option_count = 5;
   uint16_t kind;
-  if (deser_uint16 (&kind, dd, srcoff) < 0)
+  if (deser_uint16 (&kind, dd, &srcoff) < 0)
     return DDS_RETCODE_BAD_PARAMETER;
   if (kind > DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION)
     return DDS_RETCODE_BAD_PARAMETER;
   x->kind = kind;
-  if (dd->bufsz - *srcoff < option_count)
+  if (dd->bufsz - srcoff < option_count)
   {
     /* set defaults as described in clause 7.6.3.4.1 of the xtypes spec */
     x->ignore_sequence_bounds = x->kind != DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION;
@@ -509,9 +508,9 @@ static dds_return_t deser_type_consistency (void * __restrict dst, size_t * __re
   else
   {
     for (uint32_t i = 0; i < option_count; i++)
-      if (dd->buf[*srcoff + i] > 1)
+      if (dd->buf[srcoff + i] > 1)
         return DDS_RETCODE_BAD_PARAMETER;
-    x->force_type_validation = (bool) dd->buf[*srcoff + 4];
+    x->force_type_validation = (bool) dd->buf[srcoff + 4];
     if (x->kind == DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION)
     {
       /* set values for options that do not apply (xtypes spec 7.6.3.4.1) */
@@ -522,14 +521,12 @@ static dds_return_t deser_type_consistency (void * __restrict dst, size_t * __re
     }
     else
     {
-      x->ignore_sequence_bounds = (bool) dd->buf[*srcoff + 0];
-      x->ignore_string_bounds = (bool) dd->buf[*srcoff + 1];
-      x->ignore_member_names = (bool) dd->buf[*srcoff + 2];
-      x->prevent_type_widening = (bool) dd->buf[*srcoff + 3];
+      x->ignore_sequence_bounds = (bool) dd->buf[srcoff + 0];
+      x->ignore_string_bounds = (bool) dd->buf[srcoff + 1];
+      x->ignore_member_names = (bool) dd->buf[srcoff + 2];
+      x->prevent_type_widening = (bool) dd->buf[srcoff + 3];
     }
-    *srcoff += option_count;
   }
-  *dstoff += sizeof (*x);
   *flagset->present |= flag;
   return 0;
 }
@@ -880,10 +877,11 @@ fail:
   return DDS_RETCODE_BAD_PARAMETER;
 }
 
-static dds_return_t deser_generic (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff, const enum pserop * __restrict desc)
+static dds_return_t deser_generic (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, const enum pserop * __restrict desc)
 {
+  size_t srcoff = 0, dstoff = 0;
   dds_return_t ret;
-  ret = deser_generic_r (dst, dstoff, flagset, flag, dd, srcoff, desc);
+  ret = deser_generic_r (dst, &dstoff, flagset, flag, dd, &srcoff, desc);
   if (ret != 0)
   {
     *flagset->present &= ~flag;
@@ -905,7 +903,7 @@ dds_return_t plist_deser_generic_srcoff (void * __restrict dst, const void * __r
   uint64_t present = 0, aliased = 0;
   struct flagset fs = { .present = &present, .aliased = &aliased, .wanted = 1 };
   size_t dstoff = 0;
-  return deser_generic (dst, &dstoff, &fs, 1, &dd, srcoff, desc);
+  return deser_generic_r (dst, &dstoff, &fs, 1, &dd, srcoff, desc);
 }
 
 dds_return_t plist_deser_generic (void * __restrict dst, const void * __restrict src, size_t srcsize, bool bswap, const enum pserop * __restrict desc)
@@ -2769,12 +2767,10 @@ static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params
      not worth the bother as long as such parameters don't exist. */
   dds_return_t ret;
   void * const dst = (char *) plist + entry->plist_offset;
-  size_t dstoff = 0;
-  size_t srcoff = 0;
   if (entry->flags & PDF_FUNCTION)
-    ret = entry->op.f.deser (dst, &dstoff, &flagset, entry->present_flag, dd, &srcoff);
+    ret = entry->op.f.deser (dst, &flagset, entry->present_flag, dd);
   else
-    ret = deser_generic (dst, &dstoff, &flagset, entry->present_flag, dd, &srcoff, entry->op.desc);
+    ret = deser_generic (dst, &flagset, entry->present_flag, dd, entry->op.desc);
   if (ret == 0 && (*flagset.present & entry->present_flag) && entry->deser_validate_xform)
     ret = entry->deser_validate_xform (dst, dd);
   if (ret < 0)
