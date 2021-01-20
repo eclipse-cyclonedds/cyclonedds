@@ -468,36 +468,36 @@ static void sdx_to_ser_ref (const struct sdx *sd, enum ddsi_serdata_kind kind, s
 
 static struct ddsi_serdata *sd_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t cdr_off, size_t cdr_sz, ddsrt_iovec_t *ref)
 {
-  // The idea is that if the CDR is available already, one can return a reference (in which case
-  // one probably should also increment the sample's refcount).  But here we generaete the CDR
-  // on the fly
+  // even though we generate the CDR on the fly in a separately allocated memory
+  // we still must increment the refcount of serdata_common: it is needed to
+  // invoke the matching sd_to_ser_unref
   const struct sd *sd = (const struct sd *) serdata_common;
   sdx_to_ser_ref (&sd->x, sd->c.kind, cdr_off, cdr_sz, ref);
-  return (struct ddsi_serdata *) &sd->c;
+  return ddsi_serdata_ref (&sd->c);
 }
 
 static struct ddsi_sertopic_serdata *sd0_to_ser_ref (const struct ddsi_sertopic_serdata *serdata_common, size_t cdr_off, size_t cdr_sz, ddsrt_iovec_t *ref)
 {
-  // The idea is that if the CDR is available already, one can return a reference (in which case
-  // one probably should also increment the sample's refcount).  But here we generaete the CDR
-  // on the fly
+  // even though we generate the CDR on the fly in a separately allocated memory
+  // we still must increment the refcount of serdata_common: it is needed to
+  // invoke the matching sd_to_ser_unref
   const struct sd0 *sd = (const struct sd0 *) serdata_common;
   sdx_to_ser_ref (&sd->x, sd->c.kind, cdr_off, cdr_sz, ref);
-  return (struct ddsi_sertopic_serdata *) &sd->c;
+  return ddsi_sertopic_serdata_ref (&sd->c);
 }
 
 static void sd_to_ser_unref (struct ddsi_serdata *serdata_common, const ddsrt_iovec_t *ref)
 {
   // const "ref" is a mistake in the interface ... it is owned by this code ...
-  (void) serdata_common;
   free ((void *) ref->iov_base);
+  ddsi_serdata_unref (serdata_common);
 }
 
 static void sd0_to_ser_unref (struct ddsi_sertopic_serdata *serdata_common, const ddsrt_iovec_t *ref)
 {
   // const "ref" is a mistake in the interface ... it is owned by this code ...
-  (void) serdata_common;
   free ((void *) ref->iov_base);
+  ddsi_sertopic_serdata_unref (serdata_common);
 }
 
 static void sd_to_ser (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, void *buf)
