@@ -4517,10 +4517,6 @@ static dds_return_t new_reader_guid
 #ifdef DDS_HAS_SECURITY
   rd->sec_attr = NULL;
 #endif
-  if (type == NULL)
-  {
-    assert (is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE));
-  }
   rd->status_cb = status_cb;
   rd->status_cb_entity = status_entity;
   rd->rhc = rhc;
