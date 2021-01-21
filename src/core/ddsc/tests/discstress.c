@@ -3,8 +3,6 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "mpt/mpt.h"
-
 #include "dds/dds.h"
 
 #include "dds/ddsrt/time.h"
@@ -13,18 +11,13 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/hopscotch.h"
+#include "dds/ddsrt/environ.h"
 
-#include "createwriter.h"
-#include "createwriterdata.h"
-
-void createwriter_init (void)
-{
-}
-
-void createwriter_fini (void)
-{
-}
+#include "test_common.h"
+#include "CreateWriter.h"
 
 #define N_WRITERS 3
 #define N_READERS 4
@@ -59,34 +52,35 @@ static dds_return_t get_matched_count_readers (uint32_t *count, dds_entity_t rea
   return 0;
 }
 
-MPT_ProcessEntry (createwriter_publisher,
-                  MPT_Args (dds_domainid_t domainid,
-                            const char *topic_name))
+struct thread_arg {
+  dds_domainid_t domainid;
+  const char *topicname;
+};
+
+static uint32_t createwriter_publisher (void *varg)
 {
+  struct thread_arg const * const arg = varg;
   dds_entity_t participant;
   dds_entity_t topic;
   dds_entity_t writers[N_WRITERS];
   dds_return_t rc;
   dds_qos_t *qos;
-  int id = (int) ddsrt_getpid ();
-
-  printf ("=== [Publisher(%d)] Start(%d) ...\n", id, domainid);
 
   qos = dds_create_qos ();
   dds_qset_durability (qos, DDS_DURABILITY_VOLATILE);
   dds_qset_history (qos, DDS_HISTORY_KEEP_LAST, DEPTH);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
 
-  participant = dds_create_participant (domainid, NULL, NULL);
-  MPT_ASSERT_FATAL_GT (participant, 0, "Could not create participant: %s\n", dds_strretcode(participant));
+  participant = dds_create_participant (arg->domainid, NULL, NULL);
+  CU_ASSERT_FATAL (participant > 0);
 
-  topic = dds_create_topic (participant, &DiscStress_CreateWriter_Msg_desc, topic_name, qos, NULL);
-  MPT_ASSERT_FATAL_GT (topic, 0, "Could not create topic: %s\n", dds_strretcode(topic));
+  topic = dds_create_topic (participant, &DiscStress_CreateWriter_Msg_desc, arg->topicname, qos, NULL);
+  CU_ASSERT_FATAL (topic > 0);
 
   for (int i = 0; i < N_WRITERS; i++)
   {
     writers[i] = dds_create_writer (participant, topic, qos, NULL);
-    MPT_ASSERT_FATAL_GT (writers[i], 0, "Could not create writer: %s\n", dds_strretcode (writers[i]));
+    CU_ASSERT_FATAL (writers[i] > 0);
   }
 
   /* At some point in time, all remote readers will be known, and will consequently be matched
@@ -96,7 +90,7 @@ MPT_ProcessEntry (createwriter_publisher,
      reliable transport like a local loopback).  So other than waiting for some readers to show up
      at all, there's no need to look at matching events or to use anything other than volatile,
      provided the readers accept an initial short sequence in the first batch.  */
-  printf ("=== [Publisher(%d)] Publishing while waiting for some reader ...\n", id);
+  printf ("=== Publishing while waiting for some reader ...\n");
   fflush (stdout);
   uint32_t seq = 0;
   int32_t round = -1;
@@ -110,12 +104,12 @@ MPT_ProcessEntry (createwriter_publisher,
     {
       uint32_t mc;
       rc = get_matched_count_writers (&mc, writers);
-      MPT_ASSERT_FATAL_EQ (rc, 0, "Could not get publication matched status: %s\n", dds_strretcode (rc));
+      CU_ASSERT_FATAL (rc == 0);
       matched = (mc == N_READERS * N_WRITERS);
       if (matched)
       {
-        printf ("=== [Publisher(%d)] All readers found; continuing at [%"PRIu32",%"PRIu32"] for %d rounds\n",
-                id, wrseq * N_WRITERS + 1, (wrseq + 1) * N_WRITERS, N_ROUNDS);
+        printf ("All readers found; continuing at [%"PRIu32",%"PRIu32"] for %d rounds\n",
+                wrseq * N_WRITERS + 1, (wrseq + 1) * N_WRITERS, N_ROUNDS);
         fflush (stdout);
       }
     }
@@ -129,7 +123,7 @@ MPT_ProcessEntry (createwriter_publisher,
           .round = round, .wrseq = wrseq * N_WRITERS + i + 1, .wridx = i, .histidx = j, .seq = seq
         };
         rc = dds_write (writers[i], &m);
-        MPT_ASSERT_FATAL_EQ (rc, 0, "Could not write data: %s\n", dds_strretcode (rc));
+        CU_ASSERT_FATAL (rc == 0);
         seq++;
       }
     }
@@ -142,18 +136,18 @@ MPT_ProcessEntry (createwriter_publisher,
     for (int i = 0; i < N_WRITERS; i++)
     {
       rc = dds_delete (writers[i]);
-      MPT_ASSERT_FATAL_EQ (rc, 0, "Could not delete writer: %s\n", dds_strretcode (rc));
+      CU_ASSERT_FATAL (rc == 0);
       writers[i] = dds_create_writer (participant, topic, qos, NULL);
-      MPT_ASSERT_FATAL_GT (writers[i], 0, "Could not create writer: %s\n", dds_strretcode (writers[i]));
+      CU_ASSERT_FATAL (writers[i] > 0);
     }
 
     wrseq++;
   }
 
   rc = dds_delete (participant);
-  MPT_ASSERT_EQ (rc, DDS_RETCODE_OK, "Teardown failed\n");
+  CU_ASSERT_FATAL (rc == 0);
   dds_delete_qos (qos);
-  printf ("=== [Publisher(%d)] Done\n", id);
+  return 0;
 }
 
 struct wrinfo {
@@ -197,29 +191,25 @@ static void dumplog (char logbuf[LOGDEPTH][LOGLINE], int *logidx)
  * The DiscStress_CreateWriter subscriber.
  * It waits for sample(s) and checks the content.
  */
-MPT_ProcessEntry(createwriter_subscriber,
-                 MPT_Args(dds_domainid_t domainid,
-                          const char *topic_name))
+static uint32_t createwriter_subscriber (void *varg)
 {
+  struct thread_arg const * const arg = varg;
   dds_entity_t participant;
   dds_entity_t topic;
   dds_entity_t readers[N_READERS];
   dds_return_t rc;
   dds_qos_t *qos;
-  int id = (int) ddsrt_getpid ();
-
-  printf ("--- [Subscriber(%d)] Start(%d) ...\n", id, domainid);
 
   qos = dds_create_qos ();
   dds_qset_durability (qos, DDS_DURABILITY_VOLATILE);
   dds_qset_history (qos, DDS_HISTORY_KEEP_LAST, DEPTH);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
 
-  participant = dds_create_participant (domainid, NULL, NULL);
-  MPT_ASSERT_FATAL_GT (participant, 0, "Could not create participant: %s\n", dds_strretcode(participant));
+  participant = dds_create_participant (arg->domainid, NULL, NULL);
+  CU_ASSERT_FATAL (participant > 0);
 
-  topic = dds_create_topic (participant, &DiscStress_CreateWriter_Msg_desc, topic_name, qos, NULL);
-  MPT_ASSERT_FATAL_GT (topic, 0, "Could not create topic: %s\n", dds_strretcode(topic));
+  topic = dds_create_topic (participant, &DiscStress_CreateWriter_Msg_desc, arg->topicname, qos, NULL);
+  CU_ASSERT_FATAL (topic > 0);
 
   /* Keep all history on the reader: then we should see DEPTH samples from each writer, except,
      perhaps, the very first time */
@@ -227,30 +217,30 @@ MPT_ProcessEntry(createwriter_subscriber,
   for (int i = 0; i < N_READERS; i++)
   {
     readers[i] = dds_create_reader (participant, topic, qos, NULL);
-    MPT_ASSERT_FATAL_GT (readers[i], 0, "Could not create reader: %s\n", dds_strretcode (readers[i]));
+    CU_ASSERT_FATAL (readers[i] > 0);
   }
 
-  printf ("--- [Subscriber(%d)] Waiting for some writer to match ...\n", id);
+  printf ("--- Waiting for some writer to match ...\n");
   fflush (stdout);
 
   /* Wait until we have matching writers */
   dds_entity_t ws = dds_create_waitset (participant);
-  MPT_ASSERT_FATAL_GT (ws, 0, "Could not create waitset: %s\n", dds_strretcode (ws));
+  CU_ASSERT_FATAL (ws > 0);
   for (int i = 0; i < N_READERS; i++)
   {
     rc = dds_set_status_mask (readers[i], DDS_SUBSCRIPTION_MATCHED_STATUS);
-    MPT_ASSERT_FATAL_EQ (rc, 0, "Could not set subscription matched mask: %s\n", dds_strretcode (rc));
+    CU_ASSERT_FATAL (rc == 0);
     rc = dds_waitset_attach (ws, readers[i], i);
-    MPT_ASSERT_FATAL_EQ (rc, 0, "Could not attach reader to waitset: %s\n", dds_strretcode (rc));
+    CU_ASSERT_FATAL (rc == 0);
   }
 
   {
     uint32_t mc;
     do {
       rc = get_matched_count_readers (&mc, readers);
-      MPT_ASSERT_FATAL_EQ (rc, 0, "Could not get subscription matched status: %s\n", dds_strretcode (rc));
+      CU_ASSERT_FATAL (rc == 0);
     } while (mc < N_READERS * N_WRITERS && (rc = dds_waitset_wait (ws, NULL, 0, DDS_INFINITY)) >= 0);
-    MPT_ASSERT_FATAL_GEQ (rc, 0, "Wait for writers failed: %s\n", dds_strretcode (rc));
+    CU_ASSERT_FATAL (rc >= 0);
   }
 
   /* Add DATA_AVAILABLE event; of course it would be easier to simply set it to desired value, but
@@ -259,15 +249,15 @@ MPT_ProcessEntry(createwriter_subscriber,
   {
     uint32_t mask;
     rc = dds_get_status_mask (readers[i], &mask);
-    MPT_ASSERT_FATAL_EQ (rc, 0, "Could not get status mask: %s\n", dds_strretcode (rc));
-    MPT_ASSERT_FATAL ((mask & DDS_SUBSCRIPTION_MATCHED_STATUS) != 0, "Retrieved status mask doesn't have MATCHED set\n");
+    CU_ASSERT_FATAL (rc == 0);
+    CU_ASSERT_FATAL ((mask & DDS_SUBSCRIPTION_MATCHED_STATUS) != 0);
     mask |= DDS_DATA_AVAILABLE_STATUS;
     rc = dds_set_status_mask (readers[i], mask);
-    MPT_ASSERT_FATAL_EQ (rc, 0, "Could not add data available status: %s\n", dds_strretcode (rc));
+    CU_ASSERT_FATAL (rc == 0);
   }
 
   /* Loop while we have some matching writers */
-  printf ("--- [Subscriber(%d)] Checking data ...\n", id);
+  printf ("--- Checking data ...\n");
   fflush (stdout);
   struct ddsrt_hh *wrinfo = ddsrt_hh_new (1, wrinfo_hash, wrinfo_eq);
   dds_entity_t xreader = 0;
@@ -281,7 +271,7 @@ MPT_ProcessEntry(createwriter_subscriber,
     {
       uint32_t mc;
       rc = get_matched_count_readers (&mc, readers);
-      MPT_ASSERT_FATAL_EQ (rc, 0, "Could not get subscription matched status: %s\n", dds_strretcode (rc));
+      CU_ASSERT_FATAL (rc == 0);
       matched = (mc > 0);
     }
 
@@ -299,19 +289,19 @@ MPT_ProcessEntry(createwriter_subscriber,
        The current_count == 0 case is so we do one final take after deciding to stop, just in case the
        unregisters & state change happened in between taking and checking the number of matched writers. */
     int32_t nxs = dds_waitset_wait (ws, xs, N_READERS, matched ? DDS_SECS (12) : 0);
-    MPT_ASSERT_FATAL_GEQ (nxs, 0, "Waiting for data failed: %s\n", dds_strretcode (nxs));
+    CU_ASSERT_FATAL (nxs >= 0);
     if (nxs == 0 && matched)
     {
-      printf ("--- [Subscriber(%d)] Unexpected timeout\n", id);
+      printf ("--- Unexpected timeout\n");
       for (int i = 0; i < N_READERS; i++)
       {
         dds_subscription_matched_status_t st;
         rc = dds_get_subscription_matched_status (readers[i], &st);
-        MPT_ASSERT_FATAL_EQ (rc, 0, "Could not get subscription matched status: %s\n", dds_strretcode (rc));
-        printf ("--- [Subscriber(%d)] reader %d current_count %"PRIu32"\n", id, i, st.current_count);
+        CU_ASSERT_FATAL (rc == 0);
+        printf ("--- reader %d current_count %"PRIu32"\n", i, st.current_count);
       }
       fflush (stdout);
-      MPT_ASSERT_FATAL (0, "Timed out\n");
+      CU_ASSERT_FATAL (0);
     }
 
 #define READ_LEN 3
@@ -331,15 +321,19 @@ MPT_ProcessEntry(createwriter_subscriber,
             struct wrinfo wri_key = { .wrid = s->wrseq, .rdid = (uint32_t) xs[i] };
             struct wrinfo *wri;
 
-            MPT_ASSERT_FATAL_LT (s->wridx, N_WRITERS, "Writer id out of range (%"PRIu32" %"PRIu32"\n)", s->wrseq, s->wridx);
+            CU_ASSERT_FATAL (s->wridx < N_WRITERS);
 
 #define XASSERT(cond, ...) do { if (!(cond)) { \
-dumplog (logbuf[xs[i]], &logidx[xs[i]]); \
-MPT_ASSERT (0, __VA_ARGS__); \
+  printf ("%s: %s", #__VA_ARGS__, __VA_ARGS__); \
+  fflush (stdout); \
+  dumplog (logbuf[xs[i]], &logidx[xs[i]]); \
+  CU_ASSERT (0); \
 } } while (0)
 #define XASSERT_FATAL(cond, ...) do { if (!(cond)) { \
-dumplog (logbuf[xs[i]], &logidx[xs[i]]); \
-MPT_ASSERT_FATAL (0, __VA_ARGS__); \
+  printf ("%s: %s", #__VA_ARGS__, __VA_ARGS__); \
+  fflush (stdout); \
+  dumplog (logbuf[xs[i]], &logidx[xs[i]]); \
+  CU_ASSERT_FATAL (0); \
 } } while (0)
 
             if ((wri = ddsrt_hh_lookup (wrinfo, &wri_key)) == NULL)
@@ -347,7 +341,7 @@ MPT_ASSERT_FATAL (0, __VA_ARGS__); \
               wri = malloc (sizeof (*wri));
               *wri = wri_key;
               rc = ddsrt_hh_add (wrinfo, wri);
-              MPT_ASSERT_FATAL_NEQ (rc, 0, "Both wrinfo lookup and add failed\n");
+              CU_ASSERT_FATAL (rc != 0);
             }
 
             snprintf (logbuf[xs[i]][logidx[xs[i]]], sizeof (logbuf[xs[i]][logidx[xs[i]]]),
@@ -370,28 +364,28 @@ MPT_ASSERT_FATAL (0, __VA_ARGS__); \
           }
         }
         rc = dds_return_loan (readers[xs[i]], raw, n);
-        MPT_ASSERT_FATAL_EQ (rc, 0, "Could not return loan: %s\n", dds_strretcode (rc));
+        CU_ASSERT_FATAL (rc == 0);
 
         /* Flip-flop between create & deleting a reader to ensure matching activity on the proxy
            writers, as that, too should occasionally push the delivery out of the fast path */
         if (xreader)
         {
           rc = dds_delete (xreader);
-          MPT_ASSERT_FATAL_EQ (rc, 0, "Error on deleting extra reader: %s\n", dds_strretcode (rc));
+          CU_ASSERT_FATAL (rc == 0);
           xreader = 0;
         }
         else
         {
           xreader = dds_create_reader (participant, topic, qos, NULL);
-          MPT_ASSERT_FATAL_GT (xreader, 0, "Could not create extra reader: %s\n", dds_strretcode (xreader));
+          CU_ASSERT_FATAL (xreader > 0);
         }
       }
-      MPT_ASSERT_FATAL_EQ (rc, 0, "Error on reading: %s\n", dds_strretcode (rc));
+      CU_ASSERT_FATAL (rc == 0);
     }
   }
 
   rc = dds_delete (participant);
-  MPT_ASSERT_EQ (rc, DDS_RETCODE_OK, "Teardown failed\n");
+  CU_ASSERT_FATAL(rc == 0);
   dds_delete_qos (qos);
 
   struct ddsrt_hh_iter it;
@@ -401,12 +395,60 @@ MPT_ASSERT_FATAL (0, __VA_ARGS__); \
     nwri++;
     if (wri->seen != (1u << DEPTH) - 1)
     {
-      MPT_ASSERT (0, "Some data missing at end (rd %d wr %d seen %"PRIx32")\n", wri->rdid, wri->wrid, wri->seen);
+      CU_ASSERT_FATAL (0);
     }
     /* simple iteration won't touch an object pointer twice */
     free (wri);
   }
   ddsrt_hh_free (wrinfo);
-  MPT_ASSERT (nwri >= (N_ROUNDS / 3) * N_READERS * N_WRITERS, "Less data received than expected\n");
-  printf ("--- [Subscriber(%d)] Done after %"PRIu32" sets\n", id, nwri / (N_READERS * N_WRITERS));
+  CU_ASSERT_FATAL (nwri >= (N_ROUNDS / 3) * N_READERS * N_WRITERS);
+  printf ("--- Done after %"PRIu32" sets\n", nwri / (N_READERS * N_WRITERS));
+  return 0;
+}
+
+CU_Test(ddsc_discstress, create_writer)
+{
+  /* Domains for pub and sub use a different domain id, but the portgain setting
+   * in configuration is 0, so that both domains will map to the same port number.
+   * This allows to create two domains in a single test process. */
+  const char *config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>";
+  char *pub_conf = ddsrt_expand_envvars (config, 0);
+  char *sub_conf = ddsrt_expand_envvars (config, 1);
+  const dds_entity_t pub_dom = dds_create_domain (0, pub_conf);
+  CU_ASSERT_FATAL (pub_dom > 0);
+  const dds_entity_t sub_dom = dds_create_domain (1, sub_conf);
+  CU_ASSERT_FATAL (sub_dom > 0);
+  ddsrt_free (pub_conf);
+  ddsrt_free (sub_conf);
+
+  char topicname[100];
+  create_unique_topic_name ("ddsc_discstress_create_writer", topicname, sizeof topicname);
+
+  ddsrt_threadattr_t tattr;
+  ddsrt_threadattr_init (&tattr);
+
+  ddsrt_thread_t pub_tid, sub_tid;
+  dds_return_t rc;
+
+  struct thread_arg pub_arg = {
+    .domainid = 0,
+    .topicname = topicname
+  };
+  rc = ddsrt_thread_create (&pub_tid, "pub_thread", &tattr, createwriter_publisher, &pub_arg);
+  CU_ASSERT_FATAL (rc == 0);
+
+  struct thread_arg sub_arg = {
+    .domainid = 1,
+    .topicname = topicname
+  };
+  rc = ddsrt_thread_create (&sub_tid, "sub_thread", &tattr, createwriter_subscriber, &sub_arg);
+  CU_ASSERT_FATAL (rc == 0);
+
+  ddsrt_thread_join (pub_tid, NULL);
+  ddsrt_thread_join (sub_tid, NULL);
+
+  rc = dds_delete (pub_dom);
+  CU_ASSERT_FATAL (rc == 0);
+  rc = dds_delete (sub_dom);
+  CU_ASSERT_FATAL (rc == 0);
 }
