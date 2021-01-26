@@ -406,7 +406,7 @@ static uint32_t createwriter_subscriber (void *varg)
   return 0;
 }
 
-CU_Test(ddsc_discstress, create_writer)
+CU_Test(ddsc_discstress, create_writer, .timeout = 20)
 {
   /* Domains for pub and sub use a different domain id, but the portgain setting
    * in configuration is 0, so that both domains will map to the same port number.
