@@ -102,7 +102,6 @@ endif()
 # Enable coloured ouput if Ninja is used for building
 if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang" OR
    "${CMAKE_C_COMPILER_ID}" STREQUAL "AppleClang")
-  #message(STATUS clang)
   set(wflags "-Wall"
              "-Wextra"
              "-Wconversion"
@@ -124,7 +123,6 @@ if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang" OR
     add_compile_options(-Xclang -fcolor-diagnostics)
   endif()
 elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
-  #message(STATUS gcc)
   add_compile_options(-Wall -Wextra -Wconversion -Wmissing-prototypes)
   if(${WERROR})
     add_compile_options(-Werror)
@@ -133,7 +131,6 @@ elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
     add_compile_options(-fdiagnostics-color=always)
   endif()
 elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
-  #message(STATUS msvc)
   add_compile_options(/W3)
   if(${WERROR})
     add_compile_options(/WX)
@@ -180,8 +177,20 @@ if(CMAKE_VERSION VERSION_LESS 3.13)
   endmacro()
 endif()
 
-# Make it easy to enable Clang's/gcc's analyzers
+# Make it easy to enable MSVC, Clang and 's/gcc's analyzers
+set(ANALYZER "" CACHE STRING "Enable anlyzer on the build.")
 set(USE_SANITIZER "" CACHE STRING "Sanitizers to enable on the build.")
+if(ANALYZER)
+  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "10")
+      message(STATUS "Enabling analyzer")
+      add_compile_options(-fanalyzer)
+    endif()
+  elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+    message(STATUS "Enabling analyzer")
+    add_compile_options(/analyze)
+  endif()
+endif()
 if(USE_SANITIZER)
   string(REGEX REPLACE " " "" USE_SANITIZER "${USE_SANITIZER}")
   string(REGEX REPLACE "[,;]+" ";" USE_SANITIZER "${USE_SANITIZER}")
