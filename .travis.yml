@@ -68,6 +68,10 @@ ubuntu1804_gcc7: &ubuntu1804_gcc7
   os: linux
   dist: bionic
   compiler: gcc
+  addons:
+    apt:
+      update: true
+      packages: [ python3-pip python3-setuptools ]
   before_install:
     - eval "export CC=gcc CXX=g++"
     - eval "export COV_COMPTYPE=gcc COV_PLATFORM=linux64"
@@ -75,7 +79,7 @@ ubuntu1804_gcc7: &ubuntu1804_gcc7
     - eval "export GENERATOR='Unix Makefiles'"
   install:
     - *install_coverity
-    - pip install conan --upgrade --user
+    - python3 -m pip install conan --upgrade --user
 
 ubuntu1804_gcc10: &ubuntu1804_gcc10
   os: linux
@@ -86,14 +90,14 @@ ubuntu1804_gcc10: &ubuntu1804_gcc10
       update: true
       sources:
         - sourceline: 'ppa:ubuntu-toolchain-r/test'
-      packages: [ gcc-10 g++-10 ]
+      packages: [ gcc-10 g++-10 python3-pip python3-setuptools ]
   before_install:
     - eval "export CC=gcc-10 CXX=g++-10"
     - eval "export COV_COMPTYPE=gcc COV_PLATFORM=linux64"
     - eval "export BUILD_TOOL_OPTIONS='-j 4'"
     - eval "export GENERATOR='Unix Makefiles'"
   install:
-    - pip install conan --upgrade --user
+    - python3 -m pip install conan --upgrade --user
 
 ubuntu1804_clang10: &ubuntu1804_clang10
   os: linux
@@ -105,14 +109,14 @@ ubuntu1804_clang10: &ubuntu1804_clang10
       sources:
         - sourceline: 'deb https://apt.llvm.org/bionic llvm-toolchain-bionic-10 main'
           key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
-      packages: [ clang-10 clang++-10 ]
+      packages: [ clang-10 clang++-10 python3-pip python3-setuptools ]
   before_install:
     - eval "export CC=clang-10 CXX=clang++-10"
     - eval "export COV_COMPTYPE=clang COV_PLATFORM=linux64"
     - eval "export BUILD_TOOL_OPTIONS='-j 4'"
     - eval "export GENERATOR='Unix Makefiles'"
   install:
-    - pip install conan --upgrade --user
+    - python3 -m pip install conan --upgrade --user
 
 macos1015_xcode11_5: &macos1015_xcode11_5
   os: osx
@@ -140,7 +144,7 @@ freebsd12_clang8: &freebsd12_clang8
     - eval "export BUILD_TOOL_OPTIONS='-j 4'"
     - eval "export GENERATOR='Unix Makefiles'"
   install:
-    - pip install conan --upgrade --user
+    - python3 -m pip install conan --upgrade --user
 
 windows1809_vs2017: &windows1809_vs2017
   os: windows
@@ -202,7 +206,7 @@ jobs:
     - <<: *ubuntu1804_gcc10
       env: [ ARCH=x86_64, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, TYPE_DISCOVERY=YES ]
     - <<: *ubuntu1804_gcc7
-      env: [ ARCH=x86_64, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, TYPE_DISCOVERY=YES, CONANFILE=conanfile102.txt ]
+      env: [ ARCH=x86_64, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, TYPE_DISCOVERY=YES, CONAN_OPTIONS='-o openssl_version=1.0.2' ]
     - <<: *ubuntu1804_gcc10
       env: [ ARCH=x86_64, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, TYPE_DISCOVERY=YES ]
     - <<: *ubuntu1804_gcc10
@@ -220,13 +224,17 @@ jobs:
     - <<: *macos1015_xcode11_5
       env: [ ARCH=x86_64, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, TYPE_DISCOVERY=YES ]
     - <<: *windows1809_vs2017
-      env: [ ARCH=x86, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, TYPE_DISCOVERY=YES, CONANFILE=conanfile102.txt ]
+      env: [ ARCH=x86, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, TYPE_DISCOVERY=YES, CONAN_OPTIONS='-o openssl_version=1.0.2' ]
     - <<: *windows1809_vs2017
       env: [ ARCH=x86_64, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, TYPE_DISCOVERY=YES ]
     - <<: *windows1809_vs2017
       env: [ ARCH=x86_64, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, DEADLINE=YES, TYPE_DISCOVERY=YES ]
     - <<: *freebsd12_clang8
       env: [ ARCH=x86_64, BUILD_TYPE=Debug, SSL=NO, SECURITY=NO, LIFESPAN=YES, DEADLINE=YES, TYPE_DISCOVERY=YES ]
+    - <<: *ubuntu1804_gcc10
+      env: [ CONAN_OPTIONS="" ]
+      script:
+        - conan create -tf scripts/conan/test_package . ${CONAN_OPTIONS}
 
 before_script:
   - conan profile new default --detect
@@ -252,7 +260,7 @@ script:
   - INSTALLPREFIX="$(pwd)/install"
   - mkdir build
   - cd build
-  - conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ../${CONANFILE:-conanfile.txt}
+  - conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ${CONAN_OPTIONS} ..
   - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
           -DCMAKE_INSTALL_PREFIX=${INSTALLPREFIX}
           -DUSE_SANITIZER=${SANITIZER}
