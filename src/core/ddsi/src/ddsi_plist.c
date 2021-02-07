@@ -3064,7 +3064,7 @@ dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint1
   return DDS_RETCODE_BAD_PARAMETER;
 }
 
-unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_plist_src_t *src)
+unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_keyhash_t **keyhashp, const ddsi_plist_src_t *src)
 {
   /* Sets a few fields in dest, returns address of first byte
      following parameter list, or NULL on error.  Most errors will go
@@ -3072,6 +3072,7 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_pl
   const unsigned char *pl;
   dest->statusinfo = 0;
   dest->complex_qos = 0;
+  *keyhashp = NULL;
   switch (src->encoding)
   {
     case PL_CDR_LE:
@@ -3139,6 +3140,16 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_pl
         }
         break;
       case PID_KEYHASH:
+        if (length < sizeof (ddsi_keyhash_t))
+        {
+          DDS_CTRACE (src->logconfig, "plist(vendor %u.%u): quickscan(PID_KEYHASH): buffer too small\n",
+                      src->vendorid.id[0], src->vendorid.id[1]);
+          return NULL;
+        }
+        else
+        {
+          *keyhashp = (const ddsi_keyhash_t *) pl;
+        }
         break;
       default:
         DDS_CLOG (DDS_LC_PLIST, src->logconfig, "(pid=%"PRIx16" complex_qos=1)", pid);

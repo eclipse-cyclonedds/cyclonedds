@@ -719,7 +719,7 @@ void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size)
 
 /* RDATA --------------------------------------- */
 
-struct nn_rdata *nn_rdata_new (struct nn_rmsg *rmsg, uint32_t start, uint32_t endp1, uint32_t submsg_offset, uint32_t payload_offset)
+struct nn_rdata *nn_rdata_new (struct nn_rmsg *rmsg, uint32_t start, uint32_t endp1, uint32_t submsg_offset, uint32_t payload_offset, uint32_t keyhash_offset)
 {
   struct nn_rdata *d;
   if ((d = nn_rmsg_alloc (rmsg, sizeof (*d))) == NULL)
@@ -730,6 +730,7 @@ struct nn_rdata *nn_rdata_new (struct nn_rmsg *rmsg, uint32_t start, uint32_t en
   d->maxp1 = endp1;
   d->submsg_zoff = (uint16_t) NN_OFF_TO_ZOFF (submsg_offset);
   d->payload_zoff = (uint16_t) NN_OFF_TO_ZOFF (payload_offset);
+  d->keyhash_zoff = (uint16_t) NN_OFF_TO_ZOFF (keyhash_offset);
 #ifndef NDEBUG
   ddsrt_atomic_st32 (&d->refcount_bias_added, 0);
 #endif
@@ -2196,7 +2197,7 @@ static struct nn_rsample *coalesce_intervals_touching_range (struct nn_reorder *
 struct nn_rdata *nn_rdata_newgap (struct nn_rmsg *rmsg)
 {
   struct nn_rdata *d;
-  if ((d = nn_rdata_new (rmsg, 0, 0, 0, 0)) == NULL)
+  if ((d = nn_rdata_new (rmsg, 0, 0, 0, 0, 0)) == NULL)
     return NULL;
   nn_rdata_addbias (d);
   return d;

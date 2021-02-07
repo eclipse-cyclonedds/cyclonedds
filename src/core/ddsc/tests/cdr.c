@@ -321,6 +321,13 @@ static struct ddsi_serdata *sd_from_ser (const struct ddsi_sertype *tpcmn, enum 
     .iov_base = NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain)),
     .iov_len = fragchain->maxp1 // fragchain->min = 0 for first fragment, by definition
   };
+  const ddsi_keyhash_t *kh = ddsi_serdata_keyhash_from_fragchain (fragchain);
+  CU_ASSERT_FATAL (kh != NULL);
+  printf ("kh rcv %02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x\n",
+          kh->value[0], kh->value[1], kh->value[2], kh->value[3],
+          kh->value[4], kh->value[5], kh->value[6], kh->value[7],
+          kh->value[8], kh->value[9], kh->value[10], kh->value[11],
+          kh->value[12], kh->value[13], kh->value[14], kh->value[15]);
   return sd_from_ser_iov (tpcmn, kind, 1, &iov, size);
 }
 
@@ -606,6 +613,11 @@ static void sd_get_keyhash (const struct ddsi_serdata *serdata_common, struct dd
 {
   struct sd const * const sd = (const struct sd *) serdata_common;
   sdx_get_keyhash (&sd->x, buf, force_md5);
+  printf ("kh gen %02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x\n",
+          buf->value[0], buf->value[1], buf->value[2], buf->value[3],
+          buf->value[4], buf->value[5], buf->value[6], buf->value[7],
+          buf->value[8], buf->value[9], buf->value[10], buf->value[11],
+          buf->value[12], buf->value[13], buf->value[14], buf->value[15]);
 }
 
 static void sd0_get_keyhash (const struct ddsi_sertopic_serdata *serdata_common, struct ddsi_keyhash *buf, bool force_md5)
@@ -1109,7 +1121,7 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 static struct tw make_topic (dds_entity_t pp, const char *topicname, const char *typename, const dds_qos_t *qos)
 {
   struct stp *stp = malloc (sizeof (*stp));
-  ddsi_sertype_init (&stp->c, typename, &stp_ops, &sd_ops, false);
+  ddsi_sertype_init_flags (&stp->c, typename, &stp_ops, &sd_ops, DDSI_SERTYPE_FLAG_REQUEST_KEYHASH);
   struct ddsi_sertype *st = &stp->c;
   dds_entity_t tp = dds_create_topic_sertype (pp, topicname, &st, qos, NULL, NULL);
   CU_ASSERT_FATAL (tp > 0);
