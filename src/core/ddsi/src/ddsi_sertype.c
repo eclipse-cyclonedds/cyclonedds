@@ -199,22 +199,29 @@ bool ddsi_sertype_deserialize (struct ddsi_domaingv *gv, struct ddsi_sertype *tp
   return true;
 }
 
-void ddsi_sertype_init (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, bool typekind_no_key)
+void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, uint32_t flags)
 {
   // only one version for now
   assert (sertype_ops->version == ddsi_sertype_v0);
+  assert ((flags & ~(uint32_t)DDSI_SERTYPE_FLAG_MASK) == 0);
 
   ddsrt_atomic_st32 (&tp->flags_refc, 1);
   tp->type_name = ddsrt_strdup (type_name);
   tp->ops = sertype_ops;
   tp->serdata_ops = serdata_ops;
   tp->serdata_basehash = ddsi_sertype_compute_serdata_basehash (tp->serdata_ops);
-  tp->typekind_no_key = typekind_no_key;
+  tp->typekind_no_key = (flags & DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY) ? 1 : 0;
+  tp->request_keyhash = (flags & DDSI_SERTYPE_FLAG_REQUEST_KEYHASH) ? 1 : 0;
   tp->wrapped_sertopic = NULL;
 #ifdef DDS_HAS_SHM
   tp->iox_size = 0;
 #endif
   ddsrt_atomic_stvoidp (&tp->gv, NULL);
+}
+
+void ddsi_sertype_init (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, bool typekind_no_key)
+{
+  ddsi_sertype_init_flags (tp, type_name, sertype_ops, serdata_ops, typekind_no_key ? DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY : 0);
 }
 
 void ddsi_sertype_fini (struct ddsi_sertype *tp)

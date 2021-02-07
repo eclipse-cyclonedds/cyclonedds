@@ -992,6 +992,17 @@ static int sedp_write_endpoint
       ps.group_guid = epcommon->group_guid;
     }
 
+    if (!is_writer_entityid (epguid->entityid))
+    {
+      const struct reader *rd = entidx_lookup_reader_guid (gv->entity_index, epguid);
+      assert (rd);
+      if (rd->request_keyhash)
+      {
+        ps.present |= PP_CYCLONE_REQUESTS_KEYHASH;
+        ps.cyclone_requests_keyhash = 1u;
+      }
+    }
+
 #ifdef DDS_HAS_SSM
     /* A bit of a hack -- the easy alternative would be to make it yet
      another parameter.  We only set "reader favours SSM" if we

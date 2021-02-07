@@ -1533,8 +1533,8 @@ void q_omg_security_register_writer(struct writer *wr)
     }
   }
 
-  if (wr->sec_attr->attr.is_key_protected)
-    wr->include_keyhash = 1;
+  if (wr->sec_attr->attr.is_key_protected && (wr->e.guid.entityid.u & NN_ENTITYID_KIND_MASK) == NN_ENTITYID_KIND_WRITER_WITH_KEY)
+    wr->num_readers_requesting_keyhash++;
 
 not_registered:
 no_attr:

@@ -457,6 +457,7 @@ typedef union Submessage {
 #ifdef DDS_HAS_TYPE_DISCOVERY
 #define PID_CYCLONE_TYPE_INFORMATION            (PID_VENDORSPECIFIC_FLAG | 0x1au)
 #endif
+#define PID_CYCLONE_REQUESTS_KEYHASH            (PID_VENDORSPECIFIC_FLAG | 0x1cu)
 
 /* Names of the built-in topics */
 #define DDS_BUILTIN_TOPIC_PARTICIPANT_NAME "DCPSParticipant"

@@ -471,7 +471,7 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
     nn_xmsg_setwriterseq (*pmsg, &wr->e.guid, seq);
 
   /* Adding parameters means potential reallocing, so sm, ddcmn now likely become invalid */
-  if (wr->include_keyhash)
+  if (wr->num_readers_requesting_keyhash > 0)
     nn_xmsg_addpar_keyhash (*pmsg, serdata, wr->force_md5_keyhash);
   if (serdata->statusinfo)
     nn_xmsg_addpar_statusinfo (*pmsg, serdata->statusinfo);
@@ -620,7 +620,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
   {
     int rc;
     /* Adding parameters means potential reallocing, so sm, ddcmn now likely become invalid */
-    if (wr->include_keyhash)
+    if (wr->num_readers_requesting_keyhash > 0)
     {
       nn_xmsg_addpar_keyhash (*pmsg, serdata, wr->force_md5_keyhash);
     }

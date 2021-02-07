@@ -1958,6 +1958,7 @@ static void writer_drop_connection (const struct ddsi_guid *wr_guid, const struc
       remove_acked_messages (wr, &whcst, &deferred_free_list);
       wr->num_readers--;
       wr->num_reliable_readers -= m->is_reliable;
+      wr->num_readers_requesting_keyhash -= prd->requests_keyhash ? 1 : 0;
     }
 
     ddsrt_mutex_unlock (&wr->e.lock);
@@ -2324,6 +2325,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
     rebuild_writer_addrset (wr);
     wr->num_readers++;
     wr->num_reliable_readers += m->is_reliable;
+    wr->num_readers_requesting_keyhash += prd->requests_keyhash ? 1 : 0;
     ddsrt_mutex_unlock (&wr->e.lock);
 
     if (wr->status_cb)
@@ -3783,6 +3785,7 @@ static void new_writer_guid_common_init (struct writer *wr, const char *topic_na
   wr->t_whc_high_upd.v = 0;
   wr->num_readers = 0;
   wr->num_reliable_readers = 0;
+  wr->num_readers_requesting_keyhash = 0;
   wr->num_acks_received = 0;
   wr->num_nacks_received = 0;
   wr->throttle_count = 0;
@@ -3838,7 +3841,7 @@ static void new_writer_guid_common_init (struct writer *wr, const char *topic_na
             (wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER));
   }
   wr->handle_as_transient_local = (wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
-  wr->include_keyhash =
+  wr->num_readers_requesting_keyhash +=
     wr->e.gv->config.generate_keyhash &&
     ((wr->e.guid.entityid.u & NN_ENTITYID_KIND_MASK) == NN_ENTITYID_KIND_WRITER_WITH_KEY);
   wr->type = ddsi_sertype_ref (type);
@@ -4511,6 +4514,7 @@ static dds_return_t new_reader_guid
   rd->handle_as_transient_local = (rd->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL) ||
                                   (rd->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER);
   rd->type = ddsi_sertype_ref (type);
+  rd->request_keyhash = rd->type->request_keyhash;
   rd->ddsi2direct_cb = 0;
   rd->ddsi2direct_cbarg = 0;
   rd->init_acknack_count = 1;
@@ -6057,6 +6061,7 @@ int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
 #endif
   prd->is_fict_trans_reader = 0;
   prd->receive_buffer_size = proxypp->receive_buffer_size;
+  prd->requests_keyhash = (plist->present & PP_CYCLONE_REQUESTS_KEYHASH) && plist->cyclone_requests_keyhash;
 
   ddsrt_avl_init (&prd_writers_treedef, &prd->writers);
 
