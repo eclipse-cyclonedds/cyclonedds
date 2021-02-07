@@ -201,6 +201,14 @@ struct ddsi_serdata_ops {
 
 DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertype *type, enum ddsi_serdata_kind kind);
 
+/**
+ * @brief Return a pointer to the keyhash in the message fragchain if it was present, or else NULL.
+ *
+ * @param[in] fragchain the fragchain argument passed to @ref ddsi_serdata_from_ser (the first one, not any subsequent ones)
+ * @returns A pointer to the keyhash in the message if it was present, NULL if not. The lifetime is at least that of the fragchain itself.
+ */
+DDS_EXPORT const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct nn_rdata *fragchain);
+
 /* backwards compatibility: wrap a sertopic-derived serdata so that it may be used as a sertype-derived one; increments refcount */
 DDS_EXPORT struct ddsi_serdata *ddsi_sertopic_wrap_serdata (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, void *old);
 

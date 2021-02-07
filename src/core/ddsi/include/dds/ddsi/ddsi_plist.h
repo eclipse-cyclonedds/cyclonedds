@@ -488,12 +488,13 @@ struct nn_rsample_info;
  * otherwise.
  *
  * @param[in]  src      input description (see `ddsi_plist_init_frommsg`)
+ * @param[out] keyhashp set to point to keyhash in inline QoS if present, else to NULL
  * @param[out] dest     internal sample info of which some fields will be set
  *
  * @return pointer to the first byte following the sentinel if the input is well-formed, a
  * null pointer if it is not.
 */
-DDS_EXPORT unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_plist_src_t *src);
+DDS_EXPORT unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_keyhash_t **keyhashp, const ddsi_plist_src_t *src);
 
 /**
  * @brief Locate a specific parameter in a PL_CDR-serialized parameter list

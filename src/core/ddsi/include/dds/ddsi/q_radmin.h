@@ -144,9 +144,10 @@ struct nn_rsample_info {
 struct nn_rdata {
   struct nn_rmsg *rmsg;         /* received (and refcounted) in rmsg */
   struct nn_rdata *nextfrag;    /* fragment chain */
-  uint32_t min, maxp1;         /* fragment as byte offsets */
-  uint16_t submsg_zoff;        /* offset to submessage from packet start, or 0 */
-  uint16_t payload_zoff;       /* offset to payload from packet start */
+  uint32_t min, maxp1;          /* fragment as byte offsets */
+  uint16_t submsg_zoff;         /* offset to submessage from packet start, or 0 */
+  uint16_t payload_zoff;        /* offset to payload from packet start */
+  uint16_t keyhash_zoff;        /* offset to keyhash from packet start, or 0 */
 #ifndef NDEBUG
   ddsrt_atomic_uint32_t refcount_bias_added;
 #endif
@@ -171,6 +172,7 @@ struct nn_rdata {
 #endif
 #define NN_RDATA_PAYLOAD_OFF(rdata) NN_ZOFF_TO_OFF ((rdata)->payload_zoff)
 #define NN_RDATA_SUBMSG_OFF(rdata) NN_ZOFF_TO_OFF ((rdata)->submsg_zoff)
+#define NN_RDATA_KEYHASH_OFF(rdata) NN_ZOFF_TO_OFF ((rdata)->keyhash_zoff)
 
 struct nn_rsample_chain_elem {
   /* FIXME: evidently smaller than a defrag_iv, but maybe better to
@@ -224,7 +226,7 @@ void nn_rmsg_commit (struct nn_rmsg *rmsg);
 void nn_rmsg_free (struct nn_rmsg *rmsg);
 void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size);
 
-struct nn_rdata *nn_rdata_new (struct nn_rmsg *rmsg, uint32_t start, uint32_t endp1, uint32_t submsg_offset, uint32_t payload_offset);
+struct nn_rdata *nn_rdata_new (struct nn_rmsg *rmsg, uint32_t start, uint32_t endp1, uint32_t submsg_offset, uint32_t payload_offset, uint32_t keyhash_offset);
 struct nn_rdata *nn_rdata_newgap (struct nn_rmsg *rmsg);
 void nn_fragchain_adjust_refcount (struct nn_rdata *frag, int adjust);
 void nn_fragchain_unref (struct nn_rdata *frag);
