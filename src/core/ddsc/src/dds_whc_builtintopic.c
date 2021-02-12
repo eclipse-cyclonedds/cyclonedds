@@ -27,7 +27,7 @@
 
 struct bwhc {
   struct whc common;
-  enum ddsi_sertopic_builtintopic_type type;
+  enum ddsi_sertype_builtintopic_entity_kind entity_kind;
   const struct entity_index *entidx;
 };
 
@@ -86,12 +86,12 @@ static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, str
   switch (it->st)
   {
     case BIS_INIT_LOCAL:
-      switch (whc->type) {
+      switch (whc->entity_kind) {
         case DSBT_PARTICIPANT: kind = EK_PARTICIPANT; break;
         case DSBT_WRITER:      kind = EK_WRITER; break;
         case DSBT_READER:      kind = EK_READER; break;
       }
-      assert (whc->type == DSBT_PARTICIPANT || kind != EK_PARTICIPANT);
+      assert (whc->entity_kind == DSBT_PARTICIPANT || kind != EK_PARTICIPANT);
       entidx_enum_init (&it->it, whc->entidx, kind);
       it->st = BIS_LOCAL;
       /* FALLS THROUGH */
@@ -109,7 +109,7 @@ static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, str
       }
       /* FALLS THROUGH */
     case BIS_INIT_PROXY:
-      switch (whc->type) {
+      switch (whc->entity_kind) {
         case DSBT_PARTICIPANT: kind = EK_PROXY_PARTICIPANT; break;
         case DSBT_WRITER:      kind = EK_PROXY_WRITER; break;
         case DSBT_READER:      kind = EK_PROXY_READER; break;
@@ -193,11 +193,11 @@ static const struct whc_ops bwhc_ops = {
   .free = bwhc_free
 };
 
-struct whc *builtintopic_whc_new (enum ddsi_sertopic_builtintopic_type type, const struct entity_index *entidx)
+struct whc *builtintopic_whc_new (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const struct entity_index *entidx)
 {
   struct bwhc *whc = ddsrt_malloc (sizeof (*whc));
   whc->common.ops = &bwhc_ops;
-  whc->type = type;
+  whc->entity_kind = entity_kind;
   whc->entidx = entidx;
   return (struct whc *) whc;
 }

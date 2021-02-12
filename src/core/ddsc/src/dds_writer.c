@@ -319,7 +319,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
   if ((rc = dds_topic_pin (topic, &tp)) != DDS_RETCODE_OK)
     goto err_pin_topic;
-  assert (tp->m_stopic);
+  assert (tp->m_stype);
   if (dds_entity_participant (&pub->m_entity) != dds_entity_participant (&tp->m_entity))
   {
     rc = DDS_RETCODE_BAD_PARAMETER;
@@ -363,7 +363,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   if (q_omg_participant_is_secure (pp))
   {
     /* ask to access control security plugin for create writer permissions */
-    if (!q_omg_security_check_create_writer (pp, gv->config.domainId, tp->m_stopic->name, wqos))
+    if (!q_omg_security_check_create_writer (pp, gv->config.domainId, tp->m_name, wqos))
     {
       rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
       goto err_not_allowed;
@@ -383,7 +383,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   whc_free_wrinfo (wrinfo);
   wr->whc_batch = gv->config.whc_batch;
 
-  rc = new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
+  rc = new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, wqos, wr->m_whc, dds_writer_status_cb, wr);
   assert(rc == DDS_RETCODE_OK);
   thread_state_asleep (lookup_thread_state ());
 

@@ -12,6 +12,8 @@
 #include <assert.h>
 #include <string.h>
 
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/string.h"
 #include "dds/dds.h"
 #include "dds/version.h"
 #include "dds/ddsi/q_config.h"
@@ -124,7 +126,15 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
   }
 }
 
-static dds_builtintopic_endpoint_t *make_builtintopic_endpoint (const ddsi_guid_t *guid, const ddsi_guid_t *ppguid, dds_instance_handle_t ppiid, const dds_qos_t *qos)
+static dds_builtintopic_endpoint_t *make_builtintopic_endpoint (
+    const ddsi_guid_t *guid,
+    const ddsi_guid_t *ppguid,
+    dds_instance_handle_t ppiid,
+    const dds_qos_t *qos
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    , const type_identifier_t *type_id
+#endif
+)
 {
   dds_builtintopic_endpoint_t *ep;
   ddsi_guid_t tmp;
@@ -135,9 +145,16 @@ static dds_builtintopic_endpoint_t *make_builtintopic_endpoint (const ddsi_guid_
   tmp = nn_hton_guid (*ppguid);
   memcpy (&ep->participant_key, &tmp, sizeof (ep->participant_key));
   ep->qos = dds_create_qos ();
-  ddsi_xqos_mergein_missing (ep->qos, qos, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
+  ddsi_xqos_mergein_missing (ep->qos, qos, ~(QP_TOPIC_NAME | QP_TYPE_NAME | QP_CYCLONE_TYPE_INFORMATION));
   ep->topic_name = dds_string_dup (qos->topic_name);
   ep->type_name = dds_string_dup (qos->type_name);
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  ep->qos->present |= QP_CYCLONE_TYPE_INFORMATION;
+  ep->qos->type_information.length = (uint32_t) sizeof (*type_id);
+  ep->qos->type_information.value = ddsrt_memdup (&type_id->hash, ep->qos->type_information.length);
+#endif
+
   return ep;
 }
 
@@ -162,7 +179,13 @@ dds_builtintopic_endpoint_t *dds_get_matched_subscription_data (dds_entity_t wri
       if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) != NULL)
       {
         if (prd->e.iid == ih)
+        {
+#ifdef DDS_HAS_TYPE_DISCOVERY
+          ret = make_builtintopic_endpoint (&prd->e.guid, &prd->c.proxypp->e.guid, prd->c.proxypp->e.iid, prd->c.xqos, &prd->c.type_id);
+#else
           ret = make_builtintopic_endpoint (&prd->e.guid, &prd->c.proxypp->e.guid, prd->c.proxypp->e.iid, prd->c.xqos);
+#endif
+        }
       }
     }
     for (const struct wr_rd_match *m = ddsrt_avl_iter_first (&wr_local_readers_treedef, &wr->m_wr->local_readers, &it);
@@ -173,9 +196,16 @@ dds_builtintopic_endpoint_t *dds_get_matched_subscription_data (dds_entity_t wri
       if ((rd = entidx_lookup_reader_guid (gh, &m->rd_guid)) != NULL)
       {
         if (rd->e.iid == ih)
+        {
+#ifdef DDS_HAS_TYPE_DISCOVERY
+          ret = make_builtintopic_endpoint (&rd->e.guid, &rd->c.pp->e.guid, rd->c.pp->e.iid, rd->xqos, &rd->c.type_id);
+#else
           ret = make_builtintopic_endpoint (&rd->e.guid, &rd->c.pp->e.guid, rd->c.pp->e.iid, rd->xqos);
+#endif
+        }
       }
     }
+
     ddsrt_mutex_unlock (&wr->m_wr->e.lock);
     thread_state_asleep (lookup_thread_state ());
     dds_writer_unlock (wr);
@@ -204,7 +234,13 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
       if ((pwr = entidx_lookup_proxy_writer_guid (gh, &m->pwr_guid)) != NULL)
       {
         if (pwr->e.iid == ih)
+        {
+#ifdef DDS_HAS_TYPE_DISCOVERY
+          ret = make_builtintopic_endpoint (&pwr->e.guid, &pwr->c.proxypp->e.guid, pwr->c.proxypp->e.iid, pwr->c.xqos, &pwr->c.type_id);
+#else
           ret = make_builtintopic_endpoint (&pwr->e.guid, &pwr->c.proxypp->e.guid, pwr->c.proxypp->e.iid, pwr->c.xqos);
+#endif
+        }
       }
     }
     for (const struct rd_wr_match *m = ddsrt_avl_iter_first (&rd_local_writers_treedef, &rd->m_rd->local_writers, &it);
@@ -215,7 +251,13 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
       if ((wr = entidx_lookup_writer_guid (gh, &m->wr_guid)) != NULL)
       {
         if (wr->e.iid == ih)
+        {
+#ifdef DDS_HAS_TYPE_DISCOVERY
+          ret = make_builtintopic_endpoint (&wr->e.guid, &wr->c.pp->e.guid, wr->c.pp->e.iid, wr->xqos, &wr->c.type_id);
+#else
           ret = make_builtintopic_endpoint (&wr->e.guid, &wr->c.pp->e.guid, wr->c.pp->e.iid, wr->xqos);
+#endif
+        }
       }
     }
     ddsrt_mutex_unlock (&rd->m_rd->e.lock);
@@ -223,4 +265,34 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
     dds_reader_unlock (rd);
     return ret;
   }
+}
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+dds_return_t dds_builtintopic_get_endpoint_typeid (dds_builtintopic_endpoint_t * builtintopic_endpoint, unsigned char **type_identifier, size_t *size)
+{
+  if (builtintopic_endpoint == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  *type_identifier = NULL;
+  *size = 0;
+  if ((builtintopic_endpoint->qos->present & QP_CYCLONE_TYPE_INFORMATION)
+    && (*size = builtintopic_endpoint->qos->type_information.length) > 0)
+  {
+    *type_identifier = ddsrt_memdup (builtintopic_endpoint->qos->type_information.value, *size);
+  }
+  return DDS_RETCODE_OK;
+}
+#endif
+
+void dds_builtintopic_free_endpoint (dds_builtintopic_endpoint_t * builtintopic_endpoint)
+{
+  dds_delete_qos (builtintopic_endpoint->qos);
+  ddsrt_free (builtintopic_endpoint->topic_name);
+  ddsrt_free (builtintopic_endpoint->type_name);
+  ddsrt_free (builtintopic_endpoint);
+}
+
+void dds_builtintopic_free_participant (dds_builtintopic_participant_t * builtintopic_participant)
+{
+  dds_delete_qos (builtintopic_participant->qos);
+  ddsrt_free (builtintopic_participant);
 }

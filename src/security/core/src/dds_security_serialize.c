@@ -85,6 +85,8 @@
 #define PID_DIRECTED_WRITE                      0x57u
 #define PID_ORIGINAL_WRITER_INFO                0x61u
 #define PID_ENDPOINT_GUID                       0x5au
+#define PID_TYPE_CONSISTENCY_ENFORCEMENT        0x74u
+#define PID_TYPE_INFORMATION                    0x75u
 
 /* Security related PID values. */
 #define PID_IDENTITY_TOKEN                      0x1001u

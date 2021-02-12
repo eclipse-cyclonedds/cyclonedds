@@ -36,7 +36,7 @@
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 
 #include "dds/ddsi/sysdeps.h"
@@ -915,7 +915,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
     ETRACE (wr, "write_sample "PGUIDFMT" #%"PRId64, PGUID (wr->e.guid), seq);
     if (plist != 0 && (plist->present & PP_COHERENT_SET))
       ETRACE (wr, " C#%"PRId64"", fromSN (plist->coherent_set_seqno));
-    ETRACE (wr, ": ST%"PRIu32" %s/%s:%s%s\n", serdata->statusinfo, wr->topic->name, wr->topic->type_name, ppbuf, tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
+    ETRACE (wr, ": ST%"PRIu32" %s/%s:%s%s\n", serdata->statusinfo, wr->xqos->topic_name, wr->type->type_name, ppbuf, tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
   }
 
   assert (wr->reliable || have_reliable_subs (wr) == 0);
@@ -1185,7 +1185,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
     tmp = sizeof (ppbuf) - 1;
     GVWARNING ("dropping oversize (%"PRIu32" > %"PRIu32") sample from local writer "PGUIDFMT" %s/%s:%s%s\n",
                ddsi_serdata_size (serdata), gv->config.max_sample_size,
-               PGUID (wr->e.guid), wr->topic->name, wr->topic->type_name, ppbuf,
+               PGUID (wr->e.guid), wr->xqos->topic_name, wr->type->type_name, ppbuf,
                tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
     r = DDS_RETCODE_BAD_PARAMETER;
     goto drop;

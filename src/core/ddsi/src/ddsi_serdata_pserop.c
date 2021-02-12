@@ -48,7 +48,7 @@ static bool serdata_pserop_eqkey (const struct ddsi_serdata *acmn, const struct 
 static void serdata_pserop_free (struct ddsi_serdata *dcmn)
 {
   struct ddsi_serdata_pserop *d = (struct ddsi_serdata_pserop *) dcmn;
-  const struct ddsi_sertopic_pserop *tp = (const struct ddsi_sertopic_pserop *) d->c.topic;
+  const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *) d->c.type;
   if (d->c.kind == SDK_DATA)
     plist_fini_generic (d->sample, tp->ops, true);
   if (d->sample)
@@ -56,7 +56,7 @@ static void serdata_pserop_free (struct ddsi_serdata *dcmn)
   ddsrt_free (d);
 }
 
-static struct ddsi_serdata_pserop *serdata_pserop_new (const struct ddsi_sertopic_pserop *tp, enum ddsi_serdata_kind kind, size_t size, const void *cdr_header)
+static struct ddsi_serdata_pserop *serdata_pserop_new (const struct ddsi_sertype_pserop *tp, enum ddsi_serdata_kind kind, size_t size, const void *cdr_header)
 {
   /* FIXME: check whether this really is the correct maximum: offsets are relative
      to the CDR header, but there are also some places that use a serdata as-if it
@@ -86,7 +86,7 @@ static struct ddsi_serdata_pserop *serdata_pserop_new (const struct ddsi_sertopi
   return d;
 }
 
-static struct ddsi_serdata *serdata_pserop_fix (const struct ddsi_sertopic_pserop *tp, struct ddsi_serdata_pserop *d)
+static struct ddsi_serdata *serdata_pserop_fix (const struct ddsi_sertype_pserop *tp, struct ddsi_serdata_pserop *d)
 {
   const bool needs_bswap = (d->identifier != tp->native_encoding_identifier);
   const enum pserop *ops = (d->c.kind == SDK_DATA) ? tp->ops : tp->ops_key;
@@ -109,9 +109,9 @@ static struct ddsi_serdata *serdata_pserop_fix (const struct ddsi_sertopic_psero
   return &d->c;
 }
 
-static struct ddsi_serdata *serdata_pserop_from_ser (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+static struct ddsi_serdata *serdata_pserop_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
 {
-  const struct ddsi_sertopic_pserop *tp = (const struct ddsi_sertopic_pserop *)tpcmn;
+  const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)tpcmn;
   struct ddsi_serdata_pserop *d = serdata_pserop_new (tp, kind, size, NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain)));
   uint32_t off = 4; /* must skip the CDR header */
   assert (fragchain->min == 0);
@@ -134,9 +134,9 @@ static struct ddsi_serdata *serdata_pserop_from_ser (const struct ddsi_sertopic 
   return serdata_pserop_fix (tp, d);
 }
 
-static struct ddsi_serdata *serdata_pserop_from_ser_iov (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
+static struct ddsi_serdata *serdata_pserop_from_ser_iov (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
 {
-  const struct ddsi_sertopic_pserop *tp = (const struct ddsi_sertopic_pserop *)tpcmn;
+  const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)tpcmn;
   assert (niov >= 1);
   struct ddsi_serdata_pserop *d = serdata_pserop_new (tp, kind, size, iov[0].iov_base);
   const uint16_t *hdrsrc = (uint16_t *) iov[0].iov_base;
@@ -153,7 +153,7 @@ static struct ddsi_serdata *serdata_pserop_from_ser_iov (const struct ddsi_serto
   return serdata_pserop_fix (tp, d);
 }
 
-static struct ddsi_serdata *serdata_pserop_from_keyhash (const struct ddsi_sertopic *tpcmn, const ddsi_keyhash_t *keyhash)
+static struct ddsi_serdata *serdata_pserop_from_keyhash (const struct ddsi_sertype *tpcmn, const ddsi_keyhash_t *keyhash)
 {
   const struct { uint16_t identifier, options; ddsi_keyhash_t kh; } in = { CDR_BE, 0, *keyhash };
   const ddsrt_iovec_t iov = { .iov_base = (void *) &in, .iov_len = sizeof (in) };
@@ -163,7 +163,7 @@ static struct ddsi_serdata *serdata_pserop_from_keyhash (const struct ddsi_serto
 static bool serdata_pserop_to_sample (const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
 {
   const struct ddsi_serdata_pserop *d = (const struct ddsi_serdata_pserop *)serdata_common;
-  const struct ddsi_sertopic_pserop *tp = (const struct ddsi_sertopic_pserop *) d->c.topic;
+  const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *) d->c.type;
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   if (d->c.kind == SDK_KEY)
     memcpy (sample, d->sample, 16);
@@ -198,9 +198,9 @@ static void serdata_pserop_to_ser_unref (struct ddsi_serdata *serdata_common, co
   ddsi_serdata_unref (serdata_common);
 }
 
-static struct ddsi_serdata *serdata_pserop_from_sample (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
+static struct ddsi_serdata *serdata_pserop_from_sample (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
 {
-  const struct ddsi_sertopic_pserop *tp = (const struct ddsi_sertopic_pserop *)tpcmn;
+  const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)tpcmn;
   const struct { uint16_t identifier, options; } header = { tp->native_encoding_identifier, 0 };
   if (kind == SDK_KEY && tp->ops_key == NULL)
     return serdata_pserop_fix (tp, serdata_pserop_new (tp, kind, 0, &header));
@@ -223,21 +223,21 @@ static struct ddsi_serdata *serdata_pserop_from_sample (const struct ddsi_sertop
   }
 }
 
-static struct ddsi_serdata *serdata_pserop_to_topicless (const struct ddsi_serdata *serdata_common)
+static struct ddsi_serdata *serdata_pserop_to_untyped (const struct ddsi_serdata *serdata_common)
 {
   const struct ddsi_serdata_pserop *d = (const struct ddsi_serdata_pserop *)serdata_common;
-  const struct ddsi_sertopic_pserop *tp = (const struct ddsi_sertopic_pserop *)d->c.topic;
+  const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)d->c.type;
   ddsrt_iovec_t iov = { .iov_base = (char *) &d->identifier, .iov_len = (ddsrt_iov_len_t) (4 + d->pos) };
   struct ddsi_serdata *dcmn_tl = serdata_pserop_from_ser_iov (&tp->c, SDK_KEY, 1, &iov, iov.iov_len);
   assert (dcmn_tl != NULL);
-  dcmn_tl->topic = NULL;
+  dcmn_tl->type = NULL;
   return dcmn_tl;
 }
 
-static bool serdata_pserop_topicless_to_sample (const struct ddsi_sertopic *topic_common, const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
+static bool serdata_pserop_untyped_to_sample (const struct ddsi_sertype *type_common, const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
 {
   const struct ddsi_serdata_pserop *d = (const struct ddsi_serdata_pserop *)serdata_common;
-  const struct ddsi_sertopic_pserop *tp = (const struct ddsi_sertopic_pserop *)topic_common;
+  const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)type_common;
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   if (tp->ops_key)
     memcpy (sample, d->sample, 16);
@@ -247,7 +247,7 @@ static bool serdata_pserop_topicless_to_sample (const struct ddsi_sertopic *topi
 static void serdata_pserop_get_keyhash (const struct ddsi_serdata *serdata_common, struct ddsi_keyhash *buf, bool force_md5)
 {
   const struct ddsi_serdata_pserop *d = (const struct ddsi_serdata_pserop *)serdata_common;
-  const struct ddsi_sertopic_pserop *tp = (const struct ddsi_sertopic_pserop *)d->c.topic;
+  const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)d->c.type;
   if (tp->ops_key == NULL)
     memset (buf, 0, 16);
   else
@@ -272,10 +272,10 @@ static void serdata_pserop_get_keyhash (const struct ddsi_serdata *serdata_commo
   }
 }
 
-static size_t serdata_pserop_print_pserop (const struct ddsi_sertopic *sertopic_common, const struct ddsi_serdata *serdata_common, char *buf, size_t size)
+static size_t serdata_pserop_print_pserop (const struct ddsi_sertype *sertype_common, const struct ddsi_serdata *serdata_common, char *buf, size_t size)
 {
   const struct ddsi_serdata_pserop *d = (const struct ddsi_serdata_pserop *)serdata_common;
-  const struct ddsi_sertopic_pserop *tp = (const struct ddsi_sertopic_pserop *)sertopic_common;
+  const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)sertype_common;
   return plist_print_generic (buf, size, d->sample, tp->ops);
 }
 
@@ -291,8 +291,8 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_pserop = {
   .to_sample = serdata_pserop_to_sample,
   .to_ser_ref = serdata_pserop_to_ser_ref,
   .to_ser_unref = serdata_pserop_to_ser_unref,
-  .to_topicless = serdata_pserop_to_topicless,
-  .topicless_to_sample = serdata_pserop_topicless_to_sample,
+  .to_untyped = serdata_pserop_to_untyped,
+  .untyped_to_sample = serdata_pserop_untyped_to_sample,
   .print = serdata_pserop_print_pserop,
   .get_keyhash = serdata_pserop_get_keyhash
 };

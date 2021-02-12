@@ -17,6 +17,7 @@
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/types.h"
 #include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/static_assert.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/core/dds_security_utils.h"
@@ -421,23 +422,26 @@ static void suite_decode_datawriter_submessage_fini(void)
   unload_plugins(plugins);
 }
 
-static void initialize_data_submessage(DDS_Security_OctetSeq *submsg, bool be)
+static unsigned char submsg_header_endianness_flag (enum ddsrt_byte_order_selector bo)
+{
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
+  return (unsigned char) ((bo == DDSRT_BOSEL_BE) ? 0 : SMFLAG_ENDIANNESS);
+#else
+  return (unsigned char) ((bo == DDSRT_BO_LE) ? SMFLAG_ENDIANNESS : 0);
+#endif
+}
+
+static void initialize_data_submessage(DDS_Security_OctetSeq *submsg, enum ddsrt_byte_order_selector bo)
 {
   size_t length = strlen(sample_test_data) + 1;
   struct submsg_header *header;
-  int swap;
   unsigned char *buffer, *ptr;
-
-  if (be)
-    swap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
-  else
-    swap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
 
   buffer = ddsrt_malloc(length + sizeof(struct submsg_header));
   header = (struct submsg_header *)buffer;
   header->id = 0x15;
-  header->flags = be ? 0x00 : 0x01;
-  header->length = swap ? ddsrt_bswap2u((uint16_t)length) : (uint16_t)length;
+  header->flags = submsg_header_endianness_flag(bo);
+  header->length = ddsrt_toBO2u(bo, (uint16_t)length);
   ptr = (unsigned char *)(header + 1);
 
   memcpy((char *)ptr, sample_test_data, length);
@@ -511,7 +515,7 @@ static void decode_datawriter_submessage_not_signed(DDS_Security_CryptoTransform
   prepare_endpoint_security_attributes_and_properties(&datareader_security_attributes, &datareader_properties, transformation_kind, false);
   prepare_endpoint_security_attributes_and_properties(&datawriter_security_attributes, &datawriter_properties, transformation_kind, false);
 
-  initialize_data_submessage(&plain_buffer, false);
+  initialize_data_submessage(&plain_buffer, DDSRT_BOSEL_NATIVE);
 
   local_writer_crypto = register_local_datawriter(&datawriter_security_attributes, &datawriter_properties);
   CU_ASSERT_FATAL(local_writer_crypto != 0);
@@ -648,7 +652,7 @@ static void decode_datawriter_submessage_signed(DDS_Security_CryptoTransformKind
   prepare_endpoint_security_attributes_and_properties(&datareader_security_attributes, &datareader_properties, transformation_kind, true);
   prepare_endpoint_security_attributes_and_properties(&datawriter_security_attributes, &datawriter_properties, transformation_kind, true);
 
-  initialize_data_submessage(&plain_buffer, false);
+  initialize_data_submessage(&plain_buffer, DDSRT_BOSEL_NATIVE);
 
   local_writer_crypto = register_local_datawriter(&datawriter_security_attributes, &datawriter_properties);
   CU_ASSERT_FATAL(local_writer_crypto != 0);
@@ -817,7 +821,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_args, .init = suite
   prepare_endpoint_security_attributes_and_properties(&datareader_security_attributes, &datareader_properties, CRYPTO_TRANSFORMATION_KIND_AES256_GCM, true);
   prepare_endpoint_security_attributes_and_properties(&datawriter_security_attributes, &datawriter_properties, CRYPTO_TRANSFORMATION_KIND_AES256_GCM, true);
 
-  initialize_data_submessage(&plain_buffer, false);
+  initialize_data_submessage(&plain_buffer, DDSRT_BOSEL_NATIVE);
 
   memset(&empty_buffer, 0, sizeof(empty_buffer));
 
@@ -1071,7 +1075,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
   prepare_endpoint_security_attributes_and_properties(&datareader_security_attributes, &datareader_properties, CRYPTO_TRANSFORMATION_KIND_AES256_GCM, true);
   prepare_endpoint_security_attributes_and_properties(&datawriter_security_attributes, &datawriter_properties, CRYPTO_TRANSFORMATION_KIND_AES256_GCM, true);
 
-  initialize_data_submessage(&plain_buffer, false);
+  initialize_data_submessage(&plain_buffer, DDSRT_BOSEL_NATIVE);
 
   local_writer_crypto = register_local_datawriter(&datawriter_security_attributes, &datawriter_properties);
   CU_ASSERT_FATAL(local_writer_crypto != 0);
@@ -1667,7 +1671,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, volatile_sec, .init = suite
   prepare_endpoint_security_attributes_and_properties(&datareader_security_attributes, NULL, CRYPTO_TRANSFORMATION_KIND_AES256_GCM, false);
   prepare_endpoint_security_attributes_and_properties(&datawriter_security_attributes, NULL, CRYPTO_TRANSFORMATION_KIND_AES256_GCM, false);
 
-  initialize_data_submessage(&plain_buffer, false);
+  initialize_data_submessage(&plain_buffer, DDSRT_BOSEL_NATIVE);
 
   datareader_properties._length = datareader_properties._maximum = 1;
   datareader_properties._buffer = DDS_Security_PropertySeq_allocbuf(1);

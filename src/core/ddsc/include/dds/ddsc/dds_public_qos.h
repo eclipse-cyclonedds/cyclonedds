@@ -154,7 +154,7 @@ dds_qset_durability (dds_qos_t * __restrict qos, dds_durability_kind_t kind);
 
 /**
  * @brief Set the history policy of a qos structure.
- * 
+ *
  * Note that depth is only relevant for keep last. If you want limited history for keep all, use dds_qset_resource_limits().
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -451,6 +451,28 @@ DDS_EXPORT void
 dds_qunset_bprop (
   dds_qos_t * __restrict qos,
   const char * name);
+
+/**
+ * @brief Set the type consistency enforcement policy of a qos structure
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
+ * @param[in] kind - Type consistency policy kind
+ * @param[in] ignore_sequence_bounds - Ignore sequence bounds in type assignability checking
+ * @param[in] ignore_string_bounds - Ignore string bounds in type assignability checking
+ * @param[in] ignore_member_names - Ignore member names in type assignability checking
+ * @param[in] prevent_type_widening - Prevent type widening in type assignability checking
+ * @param[in] force_type_validation - Force type validation in assignability checking
+ */
+DDS_EXPORT void
+dds_qset_type_consistency (
+  dds_qos_t * __restrict qos,
+  dds_type_consistency_kind_t kind,
+  bool ignore_sequence_bounds,
+  bool ignore_string_bounds,
+  bool ignore_member_names,
+  bool prevent_type_widening,
+  bool force_type_validation);
+
 
 /**
  * @brief Get the userdata from a qos structure
@@ -820,6 +842,29 @@ dds_qget_bprop (
   const char * name,
   void ** value,
   size_t * sz);
+
+/**
+ * @brief Get the type consistency enforcement qos policy values.
+ *
+ * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
+ * @param[in,out] kind - Pointer that will store the type consistency enforcement kind (optional)
+ * @param[in,out] ignore_sequence_bounds - Pointer that will store the boolean value for ignoring sequence bounds in type assignability checking (optional)
+ * @param[in,out] ignore_string_bounds - Pointer that will store the boolean value for ignoring string bounds in type assignability checking (optional)
+ * @param[in,out] ignore_member_names - Pointer that will store the boolean value for ignoring member names in type assignability checking (optional)
+ * @param[in,out] prevent_type_widening - Pointer that will store the boolean value to prevent type widening in type assignability checking (optional)
+ * @param[in,out] force_type_validation - Pointer that will store the boolean value to force type validation in assignability checking (optional)
+ *
+ * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object
+ */
+DDS_EXPORT bool
+dds_qget_type_consistency (
+  const dds_qos_t * __restrict qos,
+  dds_type_consistency_kind_t *kind,
+  bool *ignore_sequence_bounds,
+  bool *ignore_string_bounds,
+  bool *ignore_member_names,
+  bool *prevent_type_widening,
+  bool *force_type_validation);
 
 #if defined (__cplusplus)
 }

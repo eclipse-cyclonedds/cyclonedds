@@ -32,7 +32,6 @@ struct dds_qos;
 struct ddsi_rhc;
 struct ddsi_tkmap_instance;
 struct ddsi_serdata;
-struct ddsi_sertopic;
 
 struct ddsi_writer_info
 {

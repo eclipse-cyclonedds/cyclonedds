@@ -14,6 +14,7 @@
 
 #include <stddef.h>
 
+#include "dds/ddsrt/bswap.h"
 #include "dds/ddsi/q_protocol.h" /* for, e.g., SubmessageKind_t */
 #include "dds/ddsi/ddsi_xqos.h" /* for, e.g., octetseq, stringseq */
 #include "dds/ddsi/ddsi_tran.h"
@@ -129,12 +130,12 @@ void nn_xmsg_submsg_setnext (struct nn_xmsg *msg, struct nn_xmsg_marker marker);
 void nn_xmsg_submsg_init (struct nn_xmsg *msg, struct nn_xmsg_marker marker, SubmessageKind_t smkind);
 void nn_xmsg_add_timestamp (struct nn_xmsg *m, ddsrt_wctime_t t);
 void nn_xmsg_add_entityid (struct nn_xmsg * m);
-void *nn_xmsg_addpar_bo (struct nn_xmsg *m, nn_parameterid_t pid, size_t len, bool be);
+void *nn_xmsg_addpar_bo (struct nn_xmsg *m, nn_parameterid_t pid, size_t len, enum ddsrt_byte_order_selector bo);
 void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len);
 void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serdata, bool force_md5);
 void nn_xmsg_addpar_statusinfo (struct nn_xmsg *m, unsigned statusinfo);
 void nn_xmsg_addpar_sentinel (struct nn_xmsg *m);
-void nn_xmsg_addpar_sentinel_bo (struct nn_xmsg * m, bool be);
+void nn_xmsg_addpar_sentinel_bo (struct nn_xmsg * m, enum ddsrt_byte_order_selector bo);
 int nn_xmsg_addpar_sentinel_ifparam (struct nn_xmsg *m);
 
 /* XPACK */

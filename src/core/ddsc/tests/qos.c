@@ -117,7 +117,14 @@ struct pol_durability_service {
     int32_t max_samples_per_instance;
 };
 
-
+struct pol_type_consistency_enforcement {
+  dds_type_consistency_kind_t kind;
+  bool ignore_sequence_bounds;
+  bool ignore_string_bounds;
+  bool ignore_member_names;
+  bool prevent_type_widening;
+  bool force_type_validation;
+};
 
 static struct pol_userdata g_pol_userdata;
 static struct pol_topicdata g_pol_topicdata;
@@ -140,7 +147,7 @@ static struct pol_destination_order g_pol_destination_order;
 static struct pol_writer_data_lifecycle g_pol_writer_data_lifecycle;
 static struct pol_reader_data_lifecycle g_pol_reader_data_lifecycle;
 static struct pol_durability_service g_pol_durability_service;
-
+static struct pol_type_consistency_enforcement g_pol_type_consistency_enforcement;
 
 
 static const char* c_userdata  = "user_key";
@@ -222,6 +229,13 @@ qos_init(void)
     g_pol_durability_service.max_instances = 3;
     g_pol_durability_service.max_samples_per_instance = 4;
     g_pol_durability_service.service_cleanup_delay = 90000;
+
+    g_pol_type_consistency_enforcement.kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION;
+    g_pol_type_consistency_enforcement.ignore_sequence_bounds = true;
+    g_pol_type_consistency_enforcement.ignore_string_bounds = false;
+    g_pol_type_consistency_enforcement.ignore_member_names = true;
+    g_pol_type_consistency_enforcement.prevent_type_widening = false;
+    g_pol_type_consistency_enforcement.force_type_validation = true;
 }
 
 static void
@@ -837,4 +851,48 @@ CU_Test(ddsc_qos, property_mixed, .init=qos_init, .fini=qos_fini)
     CU_ASSERT_FATAL (!dds_qget_prop (g_qos, c_property_names[0], &value));
     CU_ASSERT_FATAL (!dds_qget_propnames (g_qos, &cnt, NULL));
     CU_ASSERT_FATAL (!dds_qget_bpropnames (g_qos, &cnt, NULL));
+}
+
+CU_Test(ddsc_qos, type_consistency, .init=qos_init, .fini=qos_fini)
+{
+    struct pol_type_consistency_enforcement p = { DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION, true, false, true, false, true };
+
+    /* NULLs shouldn't crash and be a noops. */
+    dds_qset_type_consistency(NULL,
+        g_pol_type_consistency_enforcement.kind,
+        g_pol_type_consistency_enforcement.ignore_sequence_bounds,
+        g_pol_type_consistency_enforcement.ignore_string_bounds,
+        g_pol_type_consistency_enforcement.ignore_member_names,
+        g_pol_type_consistency_enforcement.prevent_type_widening,
+        g_pol_type_consistency_enforcement.force_type_validation);
+    dds_qget_type_consistency(NULL,
+        &p.kind,
+        &p.ignore_sequence_bounds,
+        &p.ignore_string_bounds,
+        &p.ignore_member_names,
+        &p.prevent_type_widening,
+        &p.force_type_validation);
+    dds_qget_type_consistency(g_qos, NULL, NULL, NULL, NULL, NULL, NULL);
+
+    /* Getting after setting, should yield the original input. */
+    dds_qset_type_consistency(g_qos,
+        g_pol_type_consistency_enforcement.kind,
+        g_pol_type_consistency_enforcement.ignore_sequence_bounds,
+        g_pol_type_consistency_enforcement.ignore_string_bounds,
+        g_pol_type_consistency_enforcement.ignore_member_names,
+        g_pol_type_consistency_enforcement.prevent_type_widening,
+        g_pol_type_consistency_enforcement.force_type_validation);
+    dds_qget_type_consistency(g_qos,
+        &p.kind,
+        &p.ignore_sequence_bounds,
+        &p.ignore_string_bounds,
+        &p.ignore_member_names,
+        &p.prevent_type_widening,
+        &p.force_type_validation);
+    CU_ASSERT_EQUAL_FATAL(p.kind, g_pol_type_consistency_enforcement.kind);
+    CU_ASSERT_EQUAL_FATAL(p.ignore_sequence_bounds, g_pol_type_consistency_enforcement.ignore_sequence_bounds);
+    CU_ASSERT_EQUAL_FATAL(p.ignore_string_bounds, g_pol_type_consistency_enforcement.ignore_string_bounds);
+    CU_ASSERT_EQUAL_FATAL(p.ignore_member_names, g_pol_type_consistency_enforcement.ignore_member_names);
+    CU_ASSERT_EQUAL_FATAL(p.prevent_type_widening, g_pol_type_consistency_enforcement.prevent_type_widening);
+    CU_ASSERT_EQUAL_FATAL(p.force_type_validation, g_pol_type_consistency_enforcement.force_type_validation);
 }

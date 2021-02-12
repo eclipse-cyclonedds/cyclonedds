@@ -16,12 +16,15 @@ idlc_generate(Space Space.idl)
 idlc_generate(TypesArrayKey TypesArrayKey.idl)
 idlc_generate(WriteTypes WriteTypes.idl)
 idlc_generate(InstanceHandleTypes InstanceHandleTypes.idl)
+idlc_generate(RWData RWData.idl)
+idlc_generate(CreateWriter CreateWriter.idl)
 
 set(ddsc_test_sources
     "basic.c"
     "builtin_topics.c"
     "cdr.c"
     "config.c"
+    "discstress.c"
     "dispose.c"
     "domain.c"
     "domain_torture.c"
@@ -39,6 +42,7 @@ set(ddsc_test_sources
     "participant.c"
     "publisher.c"
     "qos.c"
+    "qosmatch.c"
     "querycondition.c"
     "guardcondition.c"
     "readcondition.c"
@@ -54,6 +58,7 @@ set(ddsc_test_sources
     "types.c"
     "unregister.c"
     "unsupported.c"
+    "userdata.c"
     "waitset.c"
     "waitset_torture.c"
     "whc.c"
@@ -63,6 +68,7 @@ set(ddsc_test_sources
     "test_util.c"
     "test_util.h"
     "test_common.h"
+    "test_common.c"
     "test_oneliner.c"
     "test_oneliner.h")
 
@@ -74,13 +80,19 @@ if(ENABLE_DEADLINE_MISSED)
   list(APPEND ddsc_test_sources "deadline.c")
 endif()
 
+if(ENABLE_TYPE_DISCOVERY)
+  list(APPEND ddsc_test_sources "typelookup.c")
+endif()
+
+
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
 target_include_directories(
   cunit_ddsc PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
-target_link_libraries(cunit_ddsc PRIVATE RoundTrip Space TypesArrayKey WriteTypes InstanceHandleTypes ddsc)
+target_link_libraries(cunit_ddsc PRIVATE
+  RoundTrip Space TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter ddsc)
 
 # Setup environment for config-tests
 get_test_property(CUnit_ddsc_config_simple_udp ENVIRONMENT CUnit_ddsc_config_simple_udp_env)

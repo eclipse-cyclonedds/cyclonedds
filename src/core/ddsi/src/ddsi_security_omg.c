@@ -32,7 +32,7 @@
 #include "dds/ddsi/ddsi_security_util.h"
 #include "dds/ddsi/ddsi_security_exchange.h"
 #include "dds/ddsi/ddsi_handshake.h"
-#include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsrt/sync.h"
@@ -1509,7 +1509,7 @@ void q_omg_security_register_writer(struct writer *wr)
     memset(&(partitions), 0, sizeof(DDS_Security_PartitionQosPolicy));
 
   wr->sec_attr = writer_sec_attributes_new();
-  if (!sc->access_control_context->get_datawriter_sec_attributes(sc->access_control_context, pp->sec_attr->permissions_handle, wr->topic->name, &partitions, NULL, &wr->sec_attr->attr, &exception))
+  if (!sc->access_control_context->get_datawriter_sec_attributes(sc->access_control_context, pp->sec_attr->permissions_handle, wr->xqos->topic_name, &partitions, NULL, &wr->sec_attr->attr, &exception))
   {
     EXCEPTION_ERROR(pp->e.gv, &exception, "Failed to retrieve writer security attributes");
     goto no_attr;
@@ -1625,7 +1625,7 @@ void q_omg_security_register_reader(struct reader *rd)
 
   rd->sec_attr = reader_sec_attributes_new();
 
-  if (!sc->access_control_context->get_datareader_sec_attributes(sc->access_control_context, pp->sec_attr->permissions_handle, rd->topic->name, &partitions, NULL, &rd->sec_attr->attr, &exception))
+  if (!sc->access_control_context->get_datareader_sec_attributes(sc->access_control_context, pp->sec_attr->permissions_handle, rd->xqos->topic_name, &partitions, NULL, &rd->sec_attr->attr, &exception))
   {
     EXCEPTION_ERROR(pp->e.gv, &exception, "Failed to retrieve reader security attributes");
     goto no_attr;
@@ -2814,7 +2814,7 @@ static bool q_omg_security_encode_datareader_submessage(struct reader *rd, const
   const struct dds_security_context *sc = q_omg_security_get_secure_context (rd->c.pp);
   assert (sc);
 
-  GVTRACE (" encode_datareader_submessage "PGUIDFMT" %s/%s", PGUID (rd->e.guid), rd->topic->name, rd->topic->type_name);
+  GVTRACE (" encode_datareader_submessage "PGUIDFMT" %s/%s", PGUID (rd->e.guid), rd->xqos->topic_name, rd->type->type_name);
   // FIXME: print_buf(src_buf, src_len, "q_omg_security_encode_datareader_submessage(SOURCE)");
 
   ddsrt_mutex_lock (&rd->e.lock);
@@ -2829,7 +2829,7 @@ static bool q_omg_security_encode_datareader_submessage(struct reader *rd, const
 
   if ((hdls._length = (DDS_Security_unsigned_long) idx) == 0)
   {
-    GVTRACE ("Submsg encoding failed for datareader "PGUIDFMT" %s/%s: no matching writers\n", PGUID (rd->e.guid), rd->topic->name, rd->topic->type_name);
+    GVTRACE ("Submsg encoding failed for datareader "PGUIDFMT" %s/%s: no matching writers\n", PGUID (rd->e.guid), rd->xqos->topic_name, rd->type->type_name);
     goto err_enc_drd_subm;
   }
 
@@ -2841,8 +2841,8 @@ static bool q_omg_security_encode_datareader_submessage(struct reader *rd, const
   if (!(result = sc->crypto_context->crypto_transform->encode_datareader_submessage (
       sc->crypto_context->crypto_transform, &encoded_buffer, &plain_buffer, rd->sec_attr->crypto_handle, &hdls, &ex)))
   {
-    GVWARNING ("Submsg encoding failed for datareader "PGUIDFMT" %s/%s: %s", PGUID (rd->e.guid), rd->topic->name,
-        rd->topic->type_name, ex.message ? ex.message : "Unknown error");
+    GVWARNING ("Submsg encoding failed for datareader "PGUIDFMT" %s/%s: %s", PGUID (rd->e.guid), rd->xqos->topic_name,
+        rd->type->type_name, ex.message ? ex.message : "Unknown error");
     GVTRACE ("\n");
     DDS_Security_Exception_reset (&ex);
     goto err_enc_drd_subm;
@@ -2886,7 +2886,7 @@ static bool q_omg_security_encode_datawriter_submessage (struct writer *wr, cons
   const struct dds_security_context *sc = q_omg_security_get_secure_context (wr->c.pp);
   assert (sc);
 
-  GVTRACE (" encode_datawriter_submessage "PGUIDFMT" %s/%s", PGUID (wr->e.guid), wr->topic->name, wr->topic->type_name);
+  GVTRACE (" encode_datawriter_submessage "PGUIDFMT" %s/%s", PGUID (wr->e.guid), wr->xqos->topic_name, wr->type->type_name);
 
   // FIXME: print_buf(src_buf, src_len, "q_omg_security_encode_datawriter_submessage(SOURCE)");
 
@@ -2901,7 +2901,7 @@ static bool q_omg_security_encode_datawriter_submessage (struct writer *wr, cons
   if ((hdls._length = (DDS_Security_unsigned_long) idx) == 0)
   {
     GVTRACE ("Submsg encoding failed for datawriter "PGUIDFMT" %s/%s: no matching readers\n", PGUID (wr->e.guid),
-        wr->topic->name, wr->topic->type_name);
+        wr->xqos->topic_name, wr->type->type_name);
     goto err_enc_dwr_subm;
   }
 
@@ -2925,7 +2925,7 @@ static bool q_omg_security_encode_datawriter_submessage (struct writer *wr, cons
 
   if (!result)
   {
-    GVWARNING ("Submsg encoding failed for datawriter "PGUIDFMT" %s/%s: %s", PGUID (wr->e.guid), wr->topic->name, wr->topic->type_name, ex.message ? ex.message : "Unknown error");
+    GVWARNING ("Submsg encoding failed for datawriter "PGUIDFMT" %s/%s: %s", PGUID (wr->e.guid), wr->xqos->topic_name, wr->type->type_name, ex.message ? ex.message : "Unknown error");
     GVTRACE ("\n");
     DDS_Security_Exception_reset (&ex);
     goto err_enc_dwr_subm;
@@ -3078,7 +3078,7 @@ static bool q_omg_security_encode_serialized_payload (const struct writer *wr, c
 
   // FIXME: print_buf(src_buf, src_len, "q_omg_security_encode_serialized_payload(SOURCE)");
 
-  GVTRACE (" encode_payload "PGUIDFMT" %s/%s\n", PGUID (wr->e.guid), wr->topic->name, wr->topic->type_name);
+  GVTRACE (" encode_payload "PGUIDFMT" %s/%s\n", PGUID (wr->e.guid), wr->xqos->topic_name, wr->type->type_name);
 
   memset (&extra_inline_qos, 0, sizeof (extra_inline_qos));
   memset (&encoded_buffer, 0, sizeof (encoded_buffer));

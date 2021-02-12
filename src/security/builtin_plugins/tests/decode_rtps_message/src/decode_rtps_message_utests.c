@@ -380,25 +380,28 @@ static void suite_decode_rtps_message_fini(void)
   unload_plugins(plugins);
 }
 
-static void initialize_rtps_message(DDS_Security_OctetSeq *submsg, bool be)
+static unsigned char submsg_header_endianness_flag (enum ddsrt_byte_order_selector bo)
+{
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
+  return (unsigned char) ((bo == DDSRT_BOSEL_BE) ? 0 : SMFLAG_ENDIANNESS);
+#else
+  return (unsigned char) ((bo == DDSRT_BO_LE) ? SMFLAG_ENDIANNESS : 0);
+#endif
+}
+
+static void initialize_rtps_message(DDS_Security_OctetSeq *submsg, enum ddsrt_byte_order_selector bo)
 {
   size_t length = strlen(sample_test_data) + 1;
   struct submsg_header *header;
-  int swap;
   unsigned char *buffer, *ptr;
-
-  if (be)
-    swap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
-  else
-    swap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
 
   buffer = ddsrt_malloc(length + 20 + sizeof(struct submsg_header));
   memcpy(buffer, RTPS_HEADER, 20);
 
   header = (struct submsg_header *)(buffer + 20);
   header->id = 0x15;
-  header->flags = be ? 0x00 : 0x01;
-  header->length = swap ? ddsrt_bswap2u((uint16_t)length) : (uint16_t)length;
+  header->flags = submsg_header_endianness_flag(bo);
+  header->length = ddsrt_toBO2u(bo, (uint16_t)length);
 
   ptr = (unsigned char *)(header + 1);
   memcpy((char *)ptr, sample_test_data, length);
@@ -467,7 +470,7 @@ static void decode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
   prepare_participant_security_attributes_and_properties(&attributes, &properties, transformation_kind, true);
   register_local_participants(&attributes, &properties);
 
-  initialize_rtps_message(&plain_buffer, false);
+  initialize_rtps_message(&plain_buffer, DDSRT_BOSEL_NATIVE);
 
   session_keys = get_local_participant_session(local_participantA_crypto);
   session_keys->master_key_material->transformation_kind = transformation_kind;
@@ -595,7 +598,7 @@ static void decode_rtps_message_authenticated(DDS_Security_CryptoTransformKind_E
   prepare_participant_security_attributes_and_properties(&attributes, &properties, transformation_kind, true);
   register_local_participants(&attributes, &properties);
 
-  initialize_rtps_message(&plain_buffer, false);
+  initialize_rtps_message(&plain_buffer, DDSRT_BOSEL_NATIVE);
 
   session_keys = get_local_participant_session(local_participantA_crypto);
   session_keys->master_key_material->transformation_kind = transformation_kind;
@@ -736,7 +739,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_args, .init = suite_decode_r
   prepare_participant_security_attributes_and_properties(&attributes, &properties, CRYPTO_TRANSFORMATION_KIND_AES256_GMAC, false);
   register_local_participants(&attributes, &properties);
 
-  initialize_rtps_message(&plain_buffer, false);
+  initialize_rtps_message(&plain_buffer, DDSRT_BOSEL_NATIVE);
 
   register_remote_participants(local_participantA_crypto, remote_identities, remote_cryptos);
 
@@ -947,7 +950,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
 
   prepare_participant_security_attributes_and_properties(&attributes, &properties, CRYPTO_TRANSFORMATION_KIND_AES256_GMAC, false);
   register_local_participants(&attributes, &properties);
-  initialize_rtps_message(&plain_buffer, false);
+  initialize_rtps_message(&plain_buffer, DDSRT_BOSEL_NATIVE);
 
   session_keys = get_local_participant_session(local_participantA_crypto);
   session_keys->master_key_material->transformation_kind = CRYPTO_TRANSFORMATION_KIND_AES256_GCM;

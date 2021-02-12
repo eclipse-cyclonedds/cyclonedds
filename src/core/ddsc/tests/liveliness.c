@@ -202,8 +202,8 @@ static void test_pmd_count(dds_liveliness_kind_t kind, uint32_t ldur, double mul
          start_seqno, end_seqno);
 
   /* End-start should be mult - 1 under ideal circumstances, but consider the test successful
-	   when at least 50% of the expected PMD's was sent. This checks that the frequency for sending
-	   PMDs was increased when the writer was added. */
+           when at least 50% of the expected PMD's was sent. This checks that the frequency for sending
+           PMDs was increased when the writer was added. */
   CU_ASSERT_FATAL((double) (end_seqno - start_seqno) >= (kind == DDS_LIVELINESS_AUTOMATIC ? (50 * (mult - 1)) / 100 : 0))
   if (kind != DDS_LIVELINESS_AUTOMATIC)
     CU_ASSERT_FATAL((double) (get_pmd_seqno(g_pub_participant) - start_seqno) < mult)
@@ -508,10 +508,7 @@ static void test_lease_duration_pwr(bool remote_reader)
   CU_ASSERT_FATAL(ep != NULL);
   assert(ep != NULL); /* for Clang's static analyzer */
   CU_ASSERT_EQUAL_FATAL(ep->qos->liveliness.lease_duration, DDS_MSECS(ldur));
-  dds_delete_qos(ep->qos);
-  dds_free(ep->topic_name);
-  dds_free(ep->type_name);
-  dds_free(ep);
+  dds_builtintopic_free_endpoint (ep);
 
   /* cleanup */
   dds_delete_qos(wqos);
@@ -793,7 +790,7 @@ static void test_assert_liveliness(uint32_t wr_cnt_auto, uint32_t wr_cnt_man_pp,
       CU_ASSERT_EQUAL_FATAL(lstatus.alive_count, wr_cnt_auto + wr_cnt_man_pp + wr_cnt_man_tp);
 
       /* delay for more than lease duration and assert liveliness on writers:
-			all writers (including man-by-pp) should be kept alive */
+                        all writers (including man-by-pp) should be kept alive */
       tstop = dds_time() + 4 * DDS_MSECS(ldur) / 3;
       stopped = 0;
       do
@@ -814,8 +811,8 @@ static void test_assert_liveliness(uint32_t wr_cnt_auto, uint32_t wr_cnt_man_pp,
       else
       {
         /* delay for more than lease duration and assert liveliness on participant:
-				writers with liveliness man-by-pp should be kept alive, man-by-topic writers
-				should stop */
+                                writers with liveliness man-by-pp should be kept alive, man-by-topic writers
+                                should stop */
         tstop = dds_time() + 4 * DDS_MSECS(ldur) / 3;
         stopped = 0;
         do

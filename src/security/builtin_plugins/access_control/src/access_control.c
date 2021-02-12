@@ -2408,28 +2408,30 @@ get_topic_type(
   if (strncmp(topic_name, "DCPS", 4) == 0)
   {
     /* There are a number of builtin topics starting with "DCPSParticipant" */
-    if (strncmp(&(topic_name[4]), "Participant", 11) == 0)
+    if (strncmp(&(topic_name[4]), &DDS_BUILTIN_TOPIC_PARTICIPANT_NAME[4], 11) == 0)
     {
       if (strcmp(&(topic_name[15]), "") == 0)
         type = TOPIC_TYPE_NON_SECURE_BUILTIN; /* DCPSParticipant */
-      else if (strcmp(&(topic_name[15]), "Message") == 0)
+      else if (strcmp(&(topic_name[15]), &DDS_BUILTIN_TOPIC_PARTICIPANT_MESSAGE_NAME[15]) == 0)
         type = TOPIC_TYPE_NON_SECURE_BUILTIN; /* DCPSParticipantMessage */
-      else if (strcmp(&(topic_name[15]), "MessageSecure") == 0)
+      else if (strcmp(&(topic_name[15]), &DDS_BUILTIN_TOPIC_PARTICIPANT_MESSAGE_SECURE_NAME[15]) == 0)
         type = TOPIC_TYPE_SECURE_ParticipantMessageSecure; /* DCPSParticipantMessageSecure */
-      else if (strcmp(&(topic_name[15]), "VolatileMessageSecure") == 0)
+      else if (strcmp(&(topic_name[15]), &DDS_BUILTIN_TOPIC_PARTICIPANT_VOLATILE_MESSAGE_SECURE_NAME[15]) == 0)
         type = TOPIC_TYPE_SECURE_ParticipantVolatileMessageSecure; /* DCPSParticipantVolatileMessageSecure */
-      else if (strcmp(&(topic_name[15]), "StatelessMessage") == 0)
+      else if (strcmp(&(topic_name[15]), &DDS_BUILTIN_TOPIC_PARTICIPANT_STATELESS_MESSAGE_NAME[15]) == 0)
         type = TOPIC_TYPE_SECURE_ParticipantStatelessMessage; /* DCPSParticipantStatelessMessage */
-      else if (strcmp(&(topic_name[15]), "sSecure") == 0)
+      else if (strcmp(&(topic_name[15]), &DDS_BUILTIN_TOPIC_PARTICIPANT_SECURE_NAME[15]) == 0)
         type = TOPIC_TYPE_SECURE_ParticipantsSecure; /* DCPSParticipantsSecure */
     }
-    else if (strcmp(&(topic_name[4]), "SubscriptionsSecure") == 0)
+    else if (strcmp(&(topic_name[4]), &DDS_BUILTIN_TOPIC_SUBSCRIPTION_SECURE_NAME[4]) == 0)
       type = TOPIC_TYPE_SECURE_SubscriptionsSecure; /* DCPSSubscriptionsSecure */
-    else if (strcmp(&(topic_name[4]), "PublicationsSecure") == 0)
+    else if (strcmp(&(topic_name[4]), &DDS_BUILTIN_TOPIC_PUBLICATION_SECURE_NAME[4]) == 0)
       type = TOPIC_TYPE_SECURE_PublicationsSecure; /* DCPSPublicationsSecure */
-    else if ((strcmp(&(topic_name[4]), "Topic") == 0) ||
-             (strcmp(&(topic_name[4]), "Publication") == 0) ||
-             (strcmp(&(topic_name[4]), "Subscription") == 0))
+    else if (strcmp(&(topic_name[4]), &DDS_BUILTIN_TOPIC_TOPIC_NAME[4]) == 0 ||
+             strcmp(&(topic_name[4]), &DDS_BUILTIN_TOPIC_PUBLICATION_NAME[4]) == 0 ||
+             strcmp(&(topic_name[4]), &DDS_BUILTIN_TOPIC_SUBSCRIPTION_NAME[4]) == 0 ||
+             strcmp(&(topic_name[4]), &DDS_BUILTIN_TOPIC_TYPELOOKUP_REQUEST_NAME[4]) == 0 ||
+             strcmp(&(topic_name[4]), &DDS_BUILTIN_TOPIC_TYPELOOKUP_REPLY_NAME[4]) == 0)
     {
       /* DCPSTopic        */
       /* DCPSPublication  */

@@ -111,11 +111,10 @@ static int all_entities_compare (const void *va, const void *vb)
     case EK_PROXY_READER: {
       const struct generic_proxy_endpoint *ga = va;
       const struct generic_proxy_endpoint *gb = vb;
-      /* built-in reader/writer proxies don't have topic name set */
-      if (ga->c.xqos->present & QP_TOPIC_NAME)
-        tp_a = ga->c.xqos->topic_name;
-      if (gb->c.xqos->present & QP_TOPIC_NAME)
-        tp_b = gb->c.xqos->topic_name;
+      assert ((ga->c.xqos->present & QP_TOPIC_NAME) && ga->c.xqos->topic_name);
+      assert ((gb->c.xqos->present & QP_TOPIC_NAME) && gb->c.xqos->topic_name);
+      tp_a = ga->c.xqos->topic_name;
+      tp_b = gb->c.xqos->topic_name;
       break;
     }
   }

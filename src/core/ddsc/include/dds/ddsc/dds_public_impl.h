@@ -71,6 +71,7 @@ dds_topic_descriptor_t;
 #define DDS_TOPIC_NO_OPTIMIZE 0x0001
 #define DDS_TOPIC_FIXED_KEY 0x0002
 #define DDS_TOPIC_CONTAINS_UNION 0x0004
+#define DDS_TOPIC_DISABLE_TYPECHECK 0x0008
 
 /*
   Masks for read condition, read, take: there is only one mask here,

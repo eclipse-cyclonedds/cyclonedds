@@ -34,7 +34,7 @@ static const char *xlatxsd(const char *str, const char **end)
   return sub;
 }
 
-static const char *isbuiltintype(const struct cfgelem *elem)
+static const char *isbuiltintopic(const struct cfgelem *elem)
 {
   if (strcmp(elem->meta.type, "bool") == 0) {
     return "boolean";
@@ -129,7 +129,7 @@ printattr(
   if (elem->meta.unit)
     snprintf(type, sizeof(type), " type=\"config:%s\"", elem->meta.unit);
   else if (!isstring(elem))
-    snprintf(type, sizeof(type), " type=\"xs:%s\"", isbuiltintype(elem));
+    snprintf(type, sizeof(type), " type=\"xs:%s\"", isbuiltintopic(elem));
 
   required[0] = '\0';
   if (minimum(elem))
@@ -290,7 +290,7 @@ printcomplextype(
         if (elem->meta.unit)
           printspc(out, cols+6, extfmt, schema(), elem->meta.unit);
         else
-          printspc(out, cols+6, extfmt, "xs", isbuiltintype(elem));
+          printspc(out, cols+6, extfmt, "xs", isbuiltintopic(elem));
       }
     }
     flags &= ~(FLAG_NOMIN | FLAG_NOMAX);
@@ -339,7 +339,7 @@ printsimpletype(
       snprintf(max, sizeof(max), "maxOccurs=\"%d\" ", maximum(elem));
   }
 
-  if (!(type = isbuiltintype(elem)))
+  if (!(type = isbuiltintopic(elem)))
     printspc(out, cols, fmt, min, max, name(elem));
   else if (elem->meta.unit)
     printspc(out, cols, builtinfmt, min, max, name(elem), schema(), elem->meta.unit);

@@ -187,7 +187,7 @@ retry:
     if ((tk = dds_alloc (sizeof (*tk))) == NULL)
       return NULL;
 
-    tk->m_sample = ddsi_serdata_to_topicless (sd);
+    tk->m_sample = ddsi_serdata_to_untyped (sd);
     ddsrt_atomic_st32 (&tk->m_refc, 1);
     tk->m_iid = ddsi_iid_gen ();
     if (!ddsrt_chh_add (map->m_hh, tk))

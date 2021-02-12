@@ -114,26 +114,26 @@ static struct reader *writer_next_in_sync_reader (struct entity_index *entity_in
 }
 
 struct local_sourceinfo {
-  const struct ddsi_sertopic *src_topic;
+  const struct ddsi_sertype *src_type;
   struct ddsi_serdata *src_payload;
   struct ddsi_tkmap_instance *src_tk;
   ddsrt_mtime_t timeout;
 };
 
-static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, struct ddsi_domaingv *gv, struct ddsi_sertopic const * const topic, void *vsourceinfo)
+static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, struct ddsi_domaingv *gv, struct ddsi_sertype const * const type, void *vsourceinfo)
 {
   struct local_sourceinfo *si = vsourceinfo;
-  struct ddsi_serdata *d = ddsi_serdata_ref_as_topic (topic, si->src_payload);
+  struct ddsi_serdata *d = ddsi_serdata_ref_as_type (type, si->src_payload);
   if (d == NULL)
   {
-    DDS_CWARNING (&gv->logconfig, "local: deserialization %s/%s failed in topic type conversion\n", topic->name, topic->type_name);
+    DDS_CWARNING (&gv->logconfig, "local: deserialization %s failed in type conversion\n", type->type_name);
     return NULL;
   }
-  if (topic != si->src_topic)
+  if (type != si->src_type)
     *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, d);
   else
   {
-    // if the topic is the same, we can avoid the lookup
+    // if the type is the same, we can avoid the lookup
     ddsi_tkmap_instance_ref (si->src_tk);
     *tk = si->src_tk;
   }
@@ -168,7 +168,7 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
     .on_failure_fastpath = local_on_delivery_failure_fastpath
   };
   struct local_sourceinfo sourceinfo = {
-    .src_topic = wr->topic,
+    .src_type = wr->type,
     .src_payload = payload,
     .src_tk = tk,
     .timeout = { 0 },
@@ -224,7 +224,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
 
   /* Serialize and write data or key */
-  if ((d = ddsi_serdata_from_sample (ddsi_wr->topic, writekey ? SDK_KEY : SDK_DATA, data)) == NULL)
+  if ((d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data)) == NULL)
     ret = DDS_RETCODE_BAD_PARAMETER;
   else
   {
@@ -257,33 +257,85 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   return ret;
 }
 
-dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *d, bool flush)
+dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush)
 {
+  // consumes 1 refc from dinp in all paths (weird, but ... history ...)
   struct thread_state1 * const ts1 = lookup_thread_state ();
-  struct ddsi_tkmap_instance * tk;
+  struct ddsi_tkmap_instance *tk;
+  struct ddsi_serdata *dact;
   int ret = DDS_RETCODE_OK;
   int w_rc;
 
+  if (ddsi_wr->type == dinp->type)
+  {
+    dact = dinp;
+    // dact refc: must consume 1
+    // dinp refc: must consume 0 (it is an alias of dact)
+  }
+  else if (dinp->type->ops->version == ddsi_sertype_v0)
+  {
+    // deliberately allowing mismatches between d->type and ddsi_wr->type:
+    // that way we can allow transferring data from one domain to another
+    dact = ddsi_serdata_ref_as_type (ddsi_wr->type, dinp);
+    // dact refc: must consume 1
+    // dinp refc: must consume 1 (independent of dact: types are distinct)
+  }
+  else
+  {
+    // hope for the best (the type checks/conversions were missing in the
+    // sertopic days anyway, so this is simply bug-for-bug compatibility
+    dact = ddsi_sertopic_wrap_serdata (ddsi_wr->type, dinp->kind, dinp);
+    // dact refc: must consume 1
+    // dinp refc: must consume 1
+  }
+
+  if (dact == NULL)
+  {
+    // dinp may not be NULL, so this means something bad happened
+    // still must drop a dinp reference
+    ddsi_serdata_unref (dinp);
+    return DDS_RETCODE_ERROR;
+  }
+
   thread_state_awake (ts1, ddsi_wr->e.gv);
-  ddsi_serdata_ref (d);
-  tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, d);
-  w_rc = write_sample_gc (ts1, xp, ddsi_wr, d, tk);
-  if (w_rc >= 0) {
+
+  // retain dact until after write_sample_gc so we can still pass it
+  // to deliver_locally
+  ddsi_serdata_ref (dact);
+
+  tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, dact);
+  // write_sample_gc always consumes 1 refc from dact
+  w_rc = write_sample_gc (ts1, xp, ddsi_wr, dact, tk);
+  if (w_rc >= 0)
+  {
     /* Flush out write unless configured to batch */
     if (flush && xp != NULL)
       nn_xpack_send (xp, false);
     ret = DDS_RETCODE_OK;
-  } else if (w_rc == DDS_RETCODE_TIMEOUT) {
-    ret = DDS_RETCODE_TIMEOUT;
-  } else if (w_rc == DDS_RETCODE_BAD_PARAMETER) {
-    ret = DDS_RETCODE_ERROR;
-  } else {
-    ret = DDS_RETCODE_ERROR;
+  }
+  else
+  {
+    if (w_rc == DDS_RETCODE_TIMEOUT)
+      ret = DDS_RETCODE_TIMEOUT;
+    else if (w_rc == DDS_RETCODE_BAD_PARAMETER)
+      ret = DDS_RETCODE_ERROR;
+    else
+      ret = DDS_RETCODE_ERROR;
   }
 
   if (ret == DDS_RETCODE_OK)
-    ret = deliver_locally (ddsi_wr, d, tk);
-  ddsi_serdata_unref (d);
+    ret = deliver_locally (ddsi_wr, dact, tk);
+
+  // refc management at input is such that we must still consume a dinp
+  // reference if it isn't identical to dact; doing it prior to dropping
+  // a reference to dact means we're not testing pointers to freed memory
+  // (which is undefined behaviour IIRC).
+  if (dact != dinp)
+    ddsi_serdata_unref (dinp);
+
+  // balance ddsi_serdata_ref
+  ddsi_serdata_unref (dact);
+
   ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
   thread_state_asleep (ts1);
   return ret;

@@ -19,7 +19,8 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_sertype.h"
+#include "dds/ddsi/ddsi_sertopic.h" // for extern ddsi_sertopic_serdata_ops_wrap
 
 /*
   dds_read_impl: Core read/take function. Usually maxs is size of buf and si
@@ -68,7 +69,7 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
     ddsrt_mutex_lock (&rd->m_entity.m_mutex);
     if (rd->m_loan_out)
     {
-      ddsi_sertopic_realloc_samples (buf, rd->m_topic->m_stopic, NULL, 0, maxs);
+      ddsi_sertype_realloc_samples (buf, rd->m_topic->m_stype, NULL, 0, maxs);
       nodata_cleanups = NC_FREE_BUF | NC_RESET_BUF;
     }
     else
@@ -78,18 +79,18 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
         if (rd->m_loan_size >= maxs)
         {
           /* This ensures buf is properly initialized */
-          ddsi_sertopic_realloc_samples (buf, rd->m_topic->m_stopic, rd->m_loan, rd->m_loan_size, rd->m_loan_size);
+          ddsi_sertype_realloc_samples (buf, rd->m_topic->m_stype, rd->m_loan, rd->m_loan_size, rd->m_loan_size);
         }
         else
         {
-          ddsi_sertopic_realloc_samples (buf, rd->m_topic->m_stopic, rd->m_loan, rd->m_loan_size, maxs);
+          ddsi_sertype_realloc_samples (buf, rd->m_topic->m_stype, rd->m_loan, rd->m_loan_size, maxs);
           rd->m_loan = buf[0];
           rd->m_loan_size = maxs;
         }
       }
       else
       {
-        ddsi_sertopic_realloc_samples (buf, rd->m_topic->m_stopic, NULL, 0, maxs);
+        ddsi_sertype_realloc_samples (buf, rd->m_topic->m_stype, NULL, 0, maxs);
         rd->m_loan = buf[0];
         rd->m_loan_size = maxs;
       }
@@ -121,7 +122,7 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
     if (nodata_cleanups & NC_CLEAR_LOAN_OUT)
       rd->m_loan_out = false;
     if (nodata_cleanups & NC_FREE_BUF)
-      ddsi_sertopic_free_samples (rd->m_topic->m_stopic, buf, maxs, DDS_FREE_ALL);
+      ddsi_sertype_free_samples (rd->m_topic->m_stype, buf, maxs, DDS_FREE_ALL);
     if (nodata_cleanups & NC_RESET_BUF)
       buf[0] = NULL;
     ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
@@ -175,6 +176,27 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
     ret = dds_rhc_takecdr (rd->m_rhc, lock, buf, si, maxs, mask & DDS_ANY_SAMPLE_STATE, mask & DDS_ANY_VIEW_STATE, mask & DDS_ANY_INSTANCE_STATE, hand);
   else
     ret = dds_rhc_readcdr (rd->m_rhc, lock, buf, si, maxs, mask & DDS_ANY_SAMPLE_STATE, mask & DDS_ANY_VIEW_STATE, mask & DDS_ANY_INSTANCE_STATE, hand);
+
+  if (rd->m_wrapped_sertopic)
+  {
+    for (int32_t i = 0; i < ret; i++)
+    {
+      assert (buf[i]->ops == &ddsi_sertopic_serdata_ops_wrap);
+      struct ddsi_serdata_wrapper *wrapper = (struct ddsi_serdata_wrapper *) buf[i];
+      buf[i] = ddsi_serdata_ref (wrapper->compat_wrap);
+      // Lazily setting statusinfo/timestamp in the wrapped serdata because we don't
+      // propagate it eagerly. This incurs the cost only in the rare case that an
+      // application uses readcdr/takecdr, the other would incur it always.
+      //
+      // It seems a reasonable assumption on common hardware that storing a value
+      // to memory that was there already won't allow observing a different one
+      // temporarily. I don't think C guarantees it, but I do think all modern CPUs
+      // do.
+      buf[i]->statusinfo = wrapper->c.statusinfo;
+      buf[i]->timestamp = wrapper->c.timestamp;
+      ddsi_serdata_unref (&wrapper->c);
+    }
+  }
 
   dds_entity_unpin (entity);
   thread_state_asleep (ts1);
@@ -486,7 +508,7 @@ dds_return_t dds_return_loan (dds_entity_t reader_or_condition, void **buf, int3
   }
   assert (buf[0] != NULL);
 
-  const struct ddsi_sertopic *st = rd->m_topic->m_stopic;
+  const struct ddsi_sertype *st = rd->m_topic->m_stype;
 
   /* The potentially time consuming part of what happens here (freeing samples)
      can safely be done without holding the reader lock, but that particular
@@ -498,7 +520,7 @@ dds_return_t dds_return_loan (dds_entity_t reader_or_condition, void **buf, int3
   {
     /* Not so much a loan as a buffer allocated by the middleware on behalf of the
        application.  So it really is no more than a sophisticated variant of "free". */
-    ddsi_sertopic_free_samples (st, buf, (size_t) bufsz, DDS_FREE_ALL);
+    ddsi_sertype_free_samples (st, buf, (size_t) bufsz, DDS_FREE_ALL);
     buf[0] = NULL;
   }
   else if (!rd->m_loan_out)
@@ -513,8 +535,8 @@ dds_return_t dds_return_loan (dds_entity_t reader_or_condition, void **buf, int3
     /* Free only the memory referenced from the samples, not the samples themselves.
        Zero them to guarantee the absence of dangling pointers that might cause
        trouble on a following operation.  FIXME: there's got to be a better way */
-    ddsi_sertopic_free_samples (st, buf, (size_t) bufsz, DDS_FREE_CONTENTS);
-    ddsi_sertopic_zero_samples (st, rd->m_loan, rd->m_loan_size);
+    ddsi_sertype_free_samples (st, buf, (size_t) bufsz, DDS_FREE_CONTENTS);
+    ddsi_sertype_zero_samples (st, rd->m_loan, rd->m_loan_size);
     rd->m_loan_out = false;
     buf[0] = NULL;
   }

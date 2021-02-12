@@ -389,7 +389,7 @@ ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
       freeaddrinfo(res);
     } break;
     default:
-      DDS_ERROR ("getaddrinfo returned unkown error %d\n", gai_err);
+      DDS_ERROR ("getaddrinfo returned unknown error %d\n", gai_err);
       return DDS_RETCODE_ERROR;
   }
 
