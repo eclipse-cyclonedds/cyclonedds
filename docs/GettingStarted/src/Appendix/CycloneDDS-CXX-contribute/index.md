@@ -1,6 +1,8 @@
 ## Appendix II Contributing to Eclipse Cyclone DDS-CXX
 
-We very much welcome all contributions to the project, whether that is questions, examples, bug fixes, enhancements or improvements to the documentation, or anything else. 
+We welcome all contributions to the project,including questions, examples, bug fixes, enhancements or improvements to the documentation, etc. 
+
+If you want to contribute code, it is useful to know that build configurations for Travis CI and AppVeyor are present in the repository and there is a test suite using CTest and CUnit that can be built locally. The following sections explain how to do this for the different operating systems.
 
 - [Linux and macOS](Appendix/CycloneDDS-CXX-contribute/linux-and-macos.html)
 - [Windows](Appendix/CycloneDDS-CXX-contribute/windows.html)

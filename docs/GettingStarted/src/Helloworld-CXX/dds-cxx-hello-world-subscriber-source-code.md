@@ -1,8 +1,8 @@
 ## DDS-CXX _Hello World_ Subscriber Source Code
 
-The Subscriber.cpp file mainly contains the statements to wait for a _Hello World_ message and reads it when it receives it.
+The `Subscriber.cpp` file mainly contains the statements to wait for a _Hello World_ message and reads it when it receives it.
 
-Note that, the read sematic keeps the data sample in the Data Reader cache. Subscriber application basically implements the steps defined in [section 7.1.](Helloworld-CXX/keys-steps-to-build-the-hello-world-application.html)
+**Note:** The read sematic keeps the data sample in the Data Reader cache. The Subscriber application implements the steps defined in [section 7.1.](Helloworld-CXX/keys-steps-to-build-the-hello-world-application.html)
 
 ```
 #include <cstdlib>
@@ -94,10 +94,10 @@ int main() {
 ```
 
 
-Within the subscriber code, we will be mainly using the DDS ISOCPP API and the `HelloWorldData::Msg` type. Therefore, the following header files need to included:
+Within the subscriber code, we mainly use the DDS ISOCPP API and the `HelloWorldData::Msg` type. Therefore, the following header files must be included:
 
-- The **dds.hpp** file give access to the DDS APIs,
-- The **HelloWorldData_DCPS.hpp** is specific to the data type defined in the IDL.
+- The `dds.hpp` file give access to the DDS APIs,
+- The `HelloWorldData_DCPS.hpp` is specific to the data type defined in the IDL.
 
 ```
 #include "dds/dds.hpp"
@@ -105,7 +105,7 @@ Within the subscriber code, we will be mainly using the DDS ISOCPP API and the `
 ```
 
 
-At least four dds entities are needed, the domain participant, the topic , the subscriber and the reader.
+At least four DDS entities are needed, the domain participant, the topic , the subscriber and the reader.
 
 ```
 dds::domain::DomainParticipant participant(domain::default_id());
@@ -123,7 +123,7 @@ dds::sub::LoanedSamples<HelloWorldData::Msg>::const_iterator sample_iter;
 ```
 
 
-As the `read( )/take()` operation may return more the one data sample (in the event that several publishing applications are started simultaneously to write different message instances), an iterator is rather used.
+As the `read( )/take()` operation may return more the one data sample (in the event that several publishing applications are started simultaneously to write different message instances), an iterator is used.
 
 ```
 const::HelloWorldData::Msg& msg;
@@ -144,14 +144,14 @@ catch (const dds::core::Exception& e) {
 ```
 
 
-The good practice is to surround every key verbs of the DDS APIs with `try/catch` block to precisely locate issues when they occur. In this example one block is used to facilitate the programming model of the applications and improve their source code readability.
+It is good practice to surround every key verbs of the DDS APIs with `try/catch` block to precisely locate issues when they occur. In this example one block is used to facilitate the programming model of the applications and improve their source code readability.
 
 ```
 dds::domain::DomainParticipant participant(domain::default_id());
 ```
 
 
-The dds participant is always attached to a specific dds domain. In the Hello World! example, it is part of the Default_Domain, the one specified in the xml deployment file that you have potentially be created ( i.e the one pointed `$CYCLONEDDS_URI`), please refers to section 1.6 for further details.
+The DDS participant is always attached to a specific DDS domain. In the Hello World! example, it is part of the Default_Domain, the one specified in the xml deployment file that you potentially created (i.e. the one pointing to `$CYCLONEDDS_URI`), please refer to section 1.6 for further details.
 
 Subsequently, create a subscriber attached to your participant.
 
@@ -160,7 +160,7 @@ dds::sub::Subscriber subscriber(participant);
 ```
 
 
-The next step is to create the topic with a given name(`ddscxx_helloworld_example`)and the predefined data type(`HelloWorldData::Msg`). Topics with the same data type description and with different names are considered different topics. This means that readers or writers created for a given topic will not interfere with readers or writers created with another topic even though the same data type.
+The next step is to create the topic with a given name(`ddscxx_helloworld_example`)and the predefined data type(`HelloWorldData::Msg`). Topics with the same data type description and with different names are considered different topics. This means that readers or writers created for a given topic do not interfere with readers or writers created with another topic even if they are the same data type.
 
 ```
 dds::topic::Topic<HelloWorldData::Msg> topic(participant,"ddscxx_helloworld_example");
@@ -174,7 +174,7 @@ dds::sub::DataReader<HelloWorldData::Msg> reader(subscriber, topic);
 ```
 
 
-To modify the Data Reader Default Reliability Qos to Reliable do:
+To modify the Data Reader Default Reliability Qos to Reliable:
 
 ```
 dds::sub::qos::DataReaderQos drqos = topic.qos() << dds::core::policy::Reliability::Reliable();
@@ -184,7 +184,7 @@ dds::sub::DataReader<HelloWorldData::Msg> dr(subscriber, topic, drqos);
 
 To retrieve data in your application code from the data reader's cache you can either use pre-allocated a buffer to store the data or loaned it from the middleware.
 
-If you decide to use a pre-allocated buffer to create array/vector like container. If you use the loaned buffer option, you need to be aware that these buffers are actually 'owned' by the middleware, precisely by the DataReader. The Cyclone DDS CXX API allows you also to return of the loans implicit through scoping.
+If you decide to use a pre-allocated buffer, you can create an array/vector like container. If you use the loaned buffer option, you need to be aware that these buffers are actually 'owned' by the middleware, precisely by the DataReader. The Cyclone DDS CXX API allows you to return the loans implicitly through scoping.
 
 In our example we are using the loan samples mode (`LoanedSamples`). `Samples` are an unbounded sequence of samples; the length of the sequence depends on the amount of data available in the data reader's cache.
 
@@ -192,21 +192,21 @@ In our example we are using the loan samples mode (`LoanedSamples`). `Samples` a
 dds::sub::LoanedSamples<HelloWorldData::Msg> samples;
 ```
 
-At this stage, we can attempt to read data by going into a polling loop that will regularly scrutinize and examine the arrival of a message. Samples are removed from the reader's cache when taken with the `take()`.
+At this stage, we can attempt to read data by going into a polling loop that regularly scrutinizes and examines the arrival of a message. Samples are removed from the reader's cache when taken with the `take()`.
 
 ```
 samples = reader.take();
 ```
 
 
-If you choose to read the samples with `read()`, data remains in the data reader cache. A length() of samples greater the zero indicates that the data reader cache was not empty.
+If you choose to read the samples with `read()`, data remains in the data reader cache. A length() of samples greater than zero indicates that the data reader cache was not empty.
 
 ```
 if (samples.length() > 0)
 ```
 
 
-As sequences are NOT pre-allocated by the user, buffers will be 'loaned' to him by the DataReader.
+As sequences are NOT pre-allocated by the user, buffers are 'loaned' to him by the DataReader.
 
 ```
 dds::sub::LoanedSamples<HelloWorldData::Msg>::const_iterator sample_iter;
@@ -224,7 +224,7 @@ const dds::sub::SampleInfo& info = sample_iter->info();
 ```
 
 
-The SampleInfo (`info`) will tell whether the data we are taking is _Valid_ or _Invalid_. Valid data means that it contains the payload provided by the publishing application. Invalid data means, that we are rather reading the DDS state of data Instance. The state of a data instance can be for instance `DISPOSED` by the writer or it is `NOT_ALIVE` anymore, which could happen for instance the publisher application terminates while the subscriber is still active. In this case the sample will not be considered as Valid, and its sample `info.valid()` field will be False.
+The SampleInfo (`info`) tells us whether the data we are taking is _Valid_ or _Invalid_. Valid data means that it contains the payload provided by the publishing application. Invalid data means, that we are reading the DDS state of data Instance. The state of a data instance can be `DISPOSED` by the writer or it is `NOT_ALIVE` anymore, which could happen if the publisher application terminates while the subscriber is still active. In this case the sample is not considered Valid, and its sample `info.valid()` field is False.
 
 ```
 if (info.valid())
@@ -249,6 +249,6 @@ else {
 ```
 
 
-This example uses the polling mode to read or take data. Cyclone DDS offers _waitSet_ and _Listener_ mechanism to notify the application that data is available in their cache, which avoids polling the cache at a regular interval. The discretion of these mechanisms is beyond the scope of this document.
+This example uses the polling mode to read or take data. Cyclone DDS offers _waitSet_ and _Listener_ mechanism to notify the application that data is available in their cache, which avoids polling the cache at a regular intervals. The discretion of these mechanisms is beyond the scope of this document.
 
 All the entities that are created under the participant, such as the Data Reader Subscriber and Topic, are automatically deleted by middleware through the scoping mechanism.

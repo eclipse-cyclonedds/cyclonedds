@@ -1,10 +1,10 @@
 ## _Hello World!_ Subscriber Source Code
 
-The **Subscriber.c** mainly contains the statements to wait for a _Hello World!_ message and reads it when it receives it.
+The `Subscriber.c` mainly contains the statements to wait for a _Hello World!_ message and reads it when it receives it.
 
-Not that, the Cyclone DDS read operation sematic keeps the data sample in the Data Reader cache.
+**Note:** The Cyclone DDS read operation sematic keeps the data sample in the data reader cache.
 
-Subscriber application basically implements the previous steps defined in section 3.2.
+Subscriber application implements the steps defined in section 3.2.
 
 ```
 1 #include "ddsc/dds.h"
@@ -87,10 +87,10 @@ Subscriber application basically implements the previous steps defined in sectio
 ```
 
 
-Within the subscriber code, we will be mainly using the DDS API and the _`HelloWorldData_Msg`_ type. Therefore, the following header files need to be included:
+Within the subscriber code, we mainly use the DDS API and the _`HelloWorldData_Msg`_ type. The following header files must included:
 
-- The **dds.h** file give access to the DDS APIs ,
-- The **HelloWorldData.h** is specific to the data type defined in the IDL as explained earlier.
+- The `dds.h` file to give access to the DDS APIs
+- The `HelloWorldData.h` is specific to the data type defined in the IDL
 
 ```
 #include "ddsc/dds.h"
@@ -98,7 +98,7 @@ Within the subscriber code, we will be mainly using the DDS API and the _`HelloW
 ```
 
 
-With Cyclone DDS, at least three dds entities are needed to build a minimalistic application, the domain participant, the topic, and the reader. A DDS Subscriber entity is implicitly created by Cyclone DDS. If needed this behavior can be overridden.
+With Cyclone DDS, at least three DDS entities are needed to build a minimalistic application, the domain participant, the topic, and the reader. A DDS Subscriber entity is implicitly created by Cyclone DDS. If required, this behavior can be overridden.
 
 ```
 dds_entity_t participant; 
@@ -107,7 +107,7 @@ dds_entity_t reader;
 ```
 
 
-To handle the data. some buffers are declared and created: 
+To handle the data, some buffers are declared and created: 
 
 ```
 HelloWorldData_Msg *msg; 
@@ -117,15 +117,15 @@ dds_sample_info_t info[MAX_SAMPLES];
 
 As the `read()` operation may return more than one data sample (in the event that several publishing applications are started simultaneously to write different message instances), an array of samples is therefore needed.
 
-In Cyclone DDS data and metadata are propagated together. The `dds_sample_info` array needs, therefore, to be declared to handle the metadata.
+In Cyclone DDS data and metadata are propagated together. The `dds_sample_info` array needs to be declared to handle the metadata.
 
-The dds participant is always attached to a specific dds domain. In the _Hello World!_ example, it is part of the _`Default_Domain`_, the one specified in the xml deployment file (see section 1.6 for more details).
+The DDS participant is always attached to a specific DDS domain. In the _Hello World!_ example, it is part of the _`Default_Domain`_, the one specified in the xml deployment file (see section 1.6 for more details).
 
 ```
 participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
 ```
 
-The next step is to create the topic witha given name. Topics with the same data type description and with different names are considered different topics. This means that readers or writers created for a given topic will not interfere with readers or writers created with another topic even though have the same data type.
+The next step is to create the topic witha given name. Topics with the same data type description and with different names are considered different topics. This means that readers or writers created for a given topic do not interfere with readers or writers created with another topic even if they have the same data type.
 
 ```
 topic = dds_create_topic (participant, &HelloWorldData_Msg_desc, "HelloWorldData_Msg", NULL, NULL);
@@ -143,13 +143,13 @@ dds_delete_qos(qos);
 
 The read operation expects an array of pointers to a valid memory location. This means the samples array needs initialization by pointing the void pointer within the buffer array to a valid sample memory location.
 
-As in our example, we have an array of one element (`#define MAX_SAMPLES 1`.) we only need to allocate memory for one `HelloWorldData_Msg`.
+In our example, we have an array of one element (`#define MAX_SAMPLES 1`.) we only need to allocate memory for one `HelloWorldData_Msg`.
 
 ```
 samples[0] = HelloWorldData_Msg_alloc ();
 ```
 
-At this stage, we can attempt to read data by going into a polling loop that will regularly scrutinize and examine the arrival of a message.
+At this stage, we can attempt to read data by going into a polling loop that regularly scrutinizes and examines the arrival of a message.
 
 ```
 ret = dds_read (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
@@ -158,14 +158,14 @@ ret = dds_read (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
 
 The `dds_read` operation returns the number of samples equal to the parameter `MAX_SAMPLE`. If that number exceeds 0 that means data arrived in the reader's cache.
 
-The Sample_info (`info`) structure will tell whether the data we are reading is _Valid_ or _Invalid_. Valid data means that it contains the payload provided by the publishing application. Invalid data means, that we are rather reading the DDS state of data Instance. The state of a data instance can be for instance _DISPOSED_ by the writer or it is _NOT\_ALIVE_ anymore, which could happen for instance the publisher application terminates while the subscriber is still active. In this case, the sample will not be considered as Valid, and its sample `info[].Valid_data` field will be `False`.
+The Sample_info (`info`) structure tells us whether the data we are reading is _Valid_ or _Invalid_. Valid data means that it contains the payload provided by the publishing application. Invalid data means, that we are rather reading the DDS state of data Instance. The state of a data instance can be for instance _DISPOSED_ by the writer or it is _NOT\_ALIVE_ anymore, which could happen if the publisher application terminates while the subscriber is still active. In this case, the sample is not considered as Valid, and its sample `info[].Valid_data` field is `False`.
 
 ```
 if ((ret > 0) && (info[0].valid_data))
 ```
 
 
-If data has been read, then we can cast the void pointer to the actual message data type and display the contents.
+If data is read, then we can cast the void pointer to the actual message data type and display the contents.
 
 ```
 msg = (HelloWorldData_Msg*) samples[0]; 
@@ -182,4 +182,4 @@ HelloWorldData_Msg_free (samples[0], DDS_FREE_ALL);
 dds_delete (participant);
 ```
 
-All the entities that are created under the participant, such as the Data Reader and Topic, are recursively deleted.
+All the entities that are created under the participant, such as the data reader and topic, are recursively deleted.

@@ -1,8 +1,8 @@
 ## _Hello World!_ Publisher Source Code
 
-The **Publisher.c** contains the source that will write a _Hello World!_ Message.
+The `Publisher.c` contains the source that writes a _Hello World!_ Message.
 
-From the DDS perspective, the publisher application code is almost symmetric to the subscriber one, except that you need to create a Data Writer instead of a Data Reader. To assure data is written only when Cyclone DDS discovers at least a matching reader, a synchronization statement is added to the main thread. Synchronizing the main thread till a reader is discovered assures we can start the publisher or subscriber program in any order.
+From the DDS perspective, the publisher application code is almost symmetric to the subscriber one, except that you need to create a data writer instead of a data reader. To ensure data is written only when Cyclone DDS discovers at least a matching reader, a synchronization statement is added to the main thread. Synchronizing the main thread until a reader is discovered ensures we can start the publisher or subscriber program in any order.
 
 ```
 #include "ddsc/dds.h"
@@ -69,7 +69,7 @@ int main (int argc, char ** argv)
 ```
 
 
-We will be using the DDS API and the `HelloWorldData_Msg` type to send data, we therefore need to include the appropriate header files as we did in the subscriber code.
+We are using the DDS API and the `HelloWorldData_Msg` type to send data, therefore, we need to include the appropriate header files as we did in the subscriber code.
 
 ```
 #include "ddsc/dds.h"
@@ -77,7 +77,7 @@ We will be using the DDS API and the `HelloWorldData_Msg` type to send data, we 
 ```
 
 
-Like with the reader in **subscriber.c**, we need a participant and a topic to be able to create a writer. We use also need to use the same topic name as the one specified in the **subscriber.c**. 
+Like with the reader in `subscriber.c`, we need a participant and a topic create a writer. We also need to use the same topic name as the one specified in `subscriber.c`. 
 
 ```
 dds_entity_t participant; 
@@ -90,17 +90,17 @@ topic = dds_create_topic (participant, &HelloWorldData_Msg_desc,
 writer = dds_create_writer (participant, topic, NULL, NULL);
 ```
 
-When Cyclone DDS discovers readers and writers sharing the same data type and topic name, it connects them without the application involvement. In order to write data only when a Data Readers pops up, a sort of Rendez-vous pattern is required. Such pattern can be implemented using:
+When Cyclone DDS discovers readers and writers sharing the same data type and topic name, it connects them without the application involvement. In order to write data only when a data readers appears, a rendez-vous pattern is required. Such pattern can be implemented by either:
 
-1. Wait for the publication/subscription matched events, where the Publisher waits and blocks the writing-thread until the appropriate publication matched event is raised, or
-2. Regularly, polls the publication matching status. This is the preferred option we will implement in this example. The following line of code instructs Cyclone DDS to listen on the DDS_PUBLICATION_MATCHED_STATUS:
+- Waiting for the publication/subscription matched events, where the Publisher waits and blocks the writing-thread until the appropriate publication matched event is raised, or
+- Regularly, polls the publication matching status. This is the preferred option we implement in this example. The following line of code instructs Cyclone DDS to listen on the DDS_PUBLICATION_MATCHED_STATUS:
 
 ```
 dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
 ```
 
 
-At regular interval we get the status change and for a matching publication. In between, the writing thread sleeps for a time period equal DDS_MSECS
+At regular intervals we get the status change and a matching publication. In between, the writing thread sleeps for a time period equal DDS_MSECS.
 
 ```
 while(true)
@@ -133,7 +133,7 @@ Then we can send the data instance of the keyed message.
 ret = dds_write (writer, &msg);
 ```
 
-When terminating the program, we free the DDS allocated resources by deleting the root entity of the all the others: the domain participant.
+When terminating the program, we free the DDS allocated resources by deleting the root entity of all the others: the domain participant.
 ```
 ret = dds_delete (participant);
 ```

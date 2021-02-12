@@ -1,9 +1,9 @@
-## You want to know more about DDS?
+## Want to know more about DDS?
 
 
-The primary source of information is the OMG website at [http://www.omg.org](http://www.omg.org/), specifically the [DDS Getting](http://www.omg.org/gettingstarted/omg_idl.htm)Startedpage and the [DDS specification](http://www.omg.org/spec/DDS/)itself.
+The primary source of information is the OMG website at [http://www.omg.org](http://www.omg.org/), specifically the [DDS Getting](http://www.omg.org/gettingstarted/omg_idl.htm)Startedpage and the [DDS specification](http://www.omg.org/spec/DDS/).
 
-Shortly we will be providing a
+In the future we will provide the following:
 
 &nbsp; 1. Tutorial document
 

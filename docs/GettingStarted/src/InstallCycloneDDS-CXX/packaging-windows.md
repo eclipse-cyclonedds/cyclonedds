@@ -1,14 +1,14 @@
 ### Packaging
 
-If you want to package the product, then the config and build step will be a bit different than the build process described above.
+If you want to package the product, the config and build step is different to the build process.
 
-When packing, the `-DCMAKE_INSTALL_PREFIX=<install-location>`[^1] option should be added to the configuration, and the `<install-location>` be the directory which the IDL compiler is installed.
+When packing, the `-DCMAKE_INSTALL_PREFIX=<install-location>`[^1] option should be added to the configuration, and the `<install-location>` is the directory where the IDL compiler is installed.
 
 
 
-During the build step, you have to specify that you want to build the install target as well.
+During the build step, you must also specify to build the install target.
 
-The build process should be like:
+The build process should be similar to the following:
 
 ```
 $ mkdir build
@@ -18,7 +18,7 @@ $ cmake -G "<generator-name>" <cmake-config_options> ..
 $ cmake --build . --target install
 ```
 
-After the build, required files be copied to:
+After the build, the required files are copied to:
 
 - `<idlpp-cxx-install-location>/lib`
 - `<idlpp-cxx-install-location>/share`

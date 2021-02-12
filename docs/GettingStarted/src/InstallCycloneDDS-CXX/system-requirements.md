@@ -9,4 +9,4 @@ To build the Cyclone DDS C++ binding, the following software should be installed
 - Eclipse Cyclone DDS;
 - CXX IDL compiler.
 
-The installation of [Eclipse Cyclone DDS](InstallCycloneDDS/index.html) with the C language support has been described in Chapter 1. The CXX IDL compiler is described in this chapter.
+The installation of [Eclipse Cyclone DDS](InstallCycloneDDS/index.html) with the C language support is described in Chapter 1. This chapter describes the CXX IDL compiler.

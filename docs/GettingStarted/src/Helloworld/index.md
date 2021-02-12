@@ -2,7 +2,7 @@
 
 The previous chapter described the installation process that built implicitly or explicitly the C _Hello World!_ Example. 
 
-This chapter starts by introducing the key concept of DDS and details the structural code of a simple system made by an application that publishes keyed messages and another one that subscribes and reads such data. Each message represents a data object that is uniquely identified with a unique key and a payload.
+This chapter introducesthe key concept of DDS and details the structural code of a simple system made by an application that publishes keyed messages and another one that subscribes and reads such data. Each message represents a data object that is uniquely identified with a unique key and a payload.
 
 - [Data-Centric Architecture](Helloworld/data-centric-architecture.html)
 - [Keys steps to build the Hello World! application](Helloworld/keys-steps-to-build-the-hello-world-application.html)

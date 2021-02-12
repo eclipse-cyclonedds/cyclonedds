@@ -1,6 +1,6 @@
 ## DDS-CXX _Hello World_ Publisher Source Code
 
-The **Publisher.cpp** contains the source that will write a _Hello World_ message. From the DDS perspective, the publisher application code is almost symmetric to the subscriber one, except that you need to create respectively a Publisher and Data Writer instead of a Subscriber and Data Reader. To assure data is written only when Cyclone DDS discovers at least a matching reader, a synchronization statement is added to the main thread. Synchronizing the main thread till a reader is discovered assures we can start the publisher or subscriber program in any order.
+The `Publisher.cpp` contains the source that writes a _Hello World_ message. From the DDS perspective, the publisher application code is almost symmetrical to the subscriber one, except that you need to create a Publisher and Data Writer respectively, instead of a Subscriber and Data Reader. To ensure data is only written when Cyclone DDS discovers at least a matching reader, a synchronization statement is added to the main thread. Synchronizing the main thread until a reader is discovered assures we can start the publisher or subscriber program in any order.
 
 ```
 #include <cstdlib>
@@ -74,7 +74,7 @@ int main() {
 ```
 
 
-We will be using the ISOCPP DDS API and the HelloWorldData to receive data. For that, we need to include the appropriate header files.
+We are using the ISOCPP DDS API and the HelloWorldData to receive data. For that, we need to include the appropriate header files.
 
 ```
 #include "dds/dds.hpp"
@@ -82,7 +82,7 @@ We will be using the ISOCPP DDS API and the HelloWorldData to receive data. For 
 ```
 
 
-An exception handling mechanism is used `try/catch` block is used. 
+An exception handling mechanism `try/catch` block is used. 
 
 ```
 Try {
@@ -94,7 +94,7 @@ catch (const dds::core::Exception& e) {
 }
 ```
 
-Like with the reader in **subscriber.cpp**, we need a participant, a topic, and a publisher to be able to create a writer. We also need to use the same topic name as the one specified in the subscriber.cpp.
+As with the reader in `subscriber.cpp`, we need a participant, a topic, and a publisher to be able to create a writer. We also need to use the same topic name as the one specified in the `subscriber.cpp`.
 
 ```
 dds::domain::DomainParticipant participant(domain::default_id());
@@ -110,7 +110,7 @@ dds::pub::DataWriter<HelloWorldData::Msg> writer(publisher, topic);
 ```
 
 
-To modify the Data Writer Default Reliability Qos to Reliable do:
+To modify the Data Writer Default Reliability Qos to Reliable:
 
 ```
 dds::pub::qos::DataReaderQos dwqos = topic.qos() << dds::core::policy::Reliability::Reliable();
@@ -119,10 +119,10 @@ dds::sub::DataWriter<HelloWorldData::Msg> dr(publisher, topic, dwqos);
 ```
 
 
-When Cyclone DDS discovers readers and writers sharing the same data type and topic name, it connects them without the application involvement. In order to write data only when a Data Readers pops up, a sort of Rendez-vous pattern is required. Such pattern can be implemented using:
+When Cyclone DDS discovers readers and writers sharing the same data type and topic name, it connects them without the application involvement. In order to write data only when a data reader appears, a rendez-vous pattern is required. Such pattern can be implemented by either:
 
 1. Wait for the publication/subscription matched events, where the Publisher waits and blocks the writing-thread until the appropriate publication matched event is raised, or
-2. Regularly, polls the publication matching status. This is the preferred option we will implement in this example.The following line of code instructs Cyclone DDS to listen on the `writer.publication_matched_status()`.
+2. Regularly, poll the publication matching status. This is the preferred option used in this example.The following line of code instructs Cyclone DDS to listen on the `writer.publication_matched_status()`
 
 ```
 dds::pub::DataWriter<HelloWorldData::Msg> writer(publisher, topic);
@@ -138,21 +138,21 @@ while (writer.publication_matched_status().current_count() == 0) {
 ```
 
 
-After this loop, we are sure that a matching reader has been discovered. Now, we commence the writing of the data instance. First, the data must be created and initialized
+After this loop, we are certain that a matching reader has been discovered. Now, we can commence the writing of the data instance. First, the data must be created and initialized
 
 ```
 HelloWorldData::Msg msg(1, "Hello World");
 ```
 
 
-Then we can send the data instance of the keyed message.
+Send the data instance of the keyed message.
 
 ```
 writer.write(msg);
 ```
 
 
-After writing the data to the writer, the _DDS-CXX Hello World_ example check if there still have matching subscriber(s) available. If there is a matching subscriber(s), the example waits for 50ms and start publishing the data again. If no matching subscriber is found, then the publisher program is ended.
+After writing the data to the writer, the _DDS-CXX Hello World_ example checks if there is still a matching subscriber(s) available. If there is a matching subscriber(s), the example waits for 50ms and start publishing the data again. If no matching subscriber is found, then the publisher program is ended.
 
 ```
 return EXIT_SUCCESS;

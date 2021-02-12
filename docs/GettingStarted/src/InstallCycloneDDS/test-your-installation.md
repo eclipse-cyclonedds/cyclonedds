@@ -1,7 +1,7 @@
 ## Test your Installation
 
-To test if your installation and configuration are properly done, you can use the Cyclone DDS _ddsperf_ tool (`./ddsperf sanity`) or you can use the Hello World example.
+To test if your installation and configuration are working correctly, you can use the Cyclone DDS _ddsperf_ tool (`./ddsperf sanity`) or you can use the Hello World example.
 
 To use the ddsperf tool, refer to [testing your network configuration.](Benchmarking/testing-your-network-configuration.html) 
 
-And the test using the Hello World example will be explained in this section.
+The test using the Hello World example is explained in this section.

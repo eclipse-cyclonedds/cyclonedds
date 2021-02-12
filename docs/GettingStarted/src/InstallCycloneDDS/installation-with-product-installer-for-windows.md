@@ -1,31 +1,31 @@
 ## Installation with product installer for Windows
 
-The Cyclone DDS also provides a product installer, this is much easier than installing it from GitHub.
+The Cyclone DDS also provides a product installer, this may be easier than installing it from GitHub.
 
-To install the Cyclone DDS from the installer, you only need to follow a few simple steps.
+To install the Cyclone DDS from the installer:
 
-First, start up the installer, click 'Next'.
+1. Start the installer, and click 'Next'.
 
 <div align=center> <img src="figs/1.5-1.png"></div>
 
-Then, accept the terms, and click'Next'.
+2. Accept the terms, and click'Next'.
 
 <div align=center> <img src="figs/1.5-2.png"></div>
 
-Then is to choose whether you want to add CycloneDDS to the system PATH. It is advised to add it to the system PATH so that your application can use the related libraries directly. You can also choose whether to add it for the current user or all users.
+3. Choose whether you want to add CycloneDDS to the system PATH. We recommend to add it to the system PATH so that your application can use the related libraries directly. Select whether to add it for the current user or all users and click 'Next'.
 
 <div align=center> <img src="figs/1.5-3.png"></div>
 
-Follow up, is to set up the directory to install Cyclone DDS. It is advised NOT to install it under the `Program File` directory, as it needs administrators' permission to write to the folder.
+4. Set up the directory to install Cyclone DDS. We recommend that you DO NOT install it in the `Program Files` directory, as it needs administrators' permission to write to the folder. Click 'Next'.
 
 <div align=center> <img src="figs/1.5-4.png"></div>
 
-After the settings from above, you are now ready to install the CycloneDDS.
+5. You are now ready to install the CycloneDDS, click 'Install'.
 
 <div align=center> <img src="figs/1.5-5.png"></div>
 
-Wait till the installation is finished.
+
 
 <div align=center> <img src="figs/1.5-6.png"></div>
 
-At this stage your installation of Cyclone DDS core, C-APIs and pre-compiler are complete. The next section describes how to test it.
+The installation of Cyclone DDS core, C-APIs and pre-compiler are complete. The next section describes how to test it.

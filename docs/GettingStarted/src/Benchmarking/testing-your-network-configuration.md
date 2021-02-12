@@ -1,25 +1,27 @@
 ## Testing your network configuration
 
-Once your Cyclone DDS installation is done successfully you may want to test if your network environment is properly set. This can be done either by running the _HelloWorld_ example or by using the _ddsperf_ tool. The Helloworld example sends in one shot a message, whereas the ddsperf tool can send continuously a stream of data at a low frequency rate for sanity checks and can therefore bypass sporadic network issues.
+Once your Cyclone DDS installation is successfully completed, you may want to test if your network environment is correctly set up. This can be done either by running the _HelloWorld_ example or by using the _ddsperf_ tool. The Helloworld example sends a message in one shot, whereas the ddsperf tool can send a continuous stream of data at a low frequency rate for sanity checks and can therefore bypass sporadic network issues.
 
-Users that installed Cyclone DDS using the product installer will find the _ddsperf_ tool pre-installed under the directory of `<cyclonedds_dir>/bin`. Users that installed Cyclone DDS through the native installation process, (from GitHub), can locate the tool in `<cyclonedds_dir>/build/bin`.
+If you have installed Cyclone DDS using the product installer, the _ddsperf_ tool is pre-installed within `<cyclonedds_dir>/bin`. If you have installed Cyclone DDS through the native installation process, (from GitHub), you can locate the tool within `<cyclonedds_dir>/build/bin`.
 
-The sanity checks of your dds based system using the _ddsperf_ tool is done as follows
+Complete the sanity checks of your DDS based system using the _ddsperf_ tool as follows:
+
 ```
 ./ddsperf sanity
 ```
 
-With the sanity option, one and only one data sample is sent each second (1Hz).
+With the sanity option, only one data sample is sent each second (1Hz).
 
-In another terminal, you need to start the _ddspef_ with the **Pong** mode to echo the data to the first instance of the _ddsperf_ started with the _Sanity_ option.
+In another terminal, start the _ddsperf_ with the **Pong** mode to echo the data to the first instance of the _ddsperf_ started with the _Sanity_ option.
+
 ```
 ./ddsperf pong
 ```
 
 <div align=center> <img src="figs/4.2-1.png"></div>
 
-If the data is not exchanged on the network between the two ddsperf instances, it is likely that cyclone dds did not select the appropriate network card on both machines or a firewall in-between is preventing communication to happen.
+If the data is not exchanged on the network between the two ddsperf instances, it is likely that Cyclone DDS has not selected the appropriate network card on both machines or a firewall in-between is preventing the communication.
 
-Cyclone DDS selects automatically the most available network interface. This can behavior can be overridden by changing the configuration file. (see section 1.6 for more details) .
+Cyclone DDS automatically selects the most available network interface. This behavior can be overridden by changing the configuration file. (see section 1.6 for more details) .
 
-When running the previous scenario on a local machine, this test assures the loop-back option is enabled.
+When running the previous scenario on a local machine, this test ensures the loop-back option is enabled.

@@ -1,6 +1,6 @@
 ### Building
 
-To build the CXX IDL compiler, go into the folder directory and create a "build" folder to keep all the build files.
+To build the CXX IDL compiler, go into the folder directory and create a "build" folder for all the build files.
 
 ```
 $ cd idlpp-cxx
@@ -8,7 +8,7 @@ $ mkdir build
 $ cd build
 ```
 
-Then use CMake to build the project.
+Use CMake to build the project.
 
 ```
 $ cmake <cmake-config_options> ..

@@ -1,9 +1,7 @@
 ## Uninstallation for Native Installation
 
-At this stage, you can manually remove the install and build directory. Or in Linux and macOS, do:
+At this stage, you can manually remove the install and build directory. Alternatively, in Linux and macOS, in the install or build directory, use the following command:
 
 ```
 $ rm -rf *
 ```
-
-under the install or build directory.

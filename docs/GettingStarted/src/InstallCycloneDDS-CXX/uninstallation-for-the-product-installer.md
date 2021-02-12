@@ -1,4 +1,4 @@
-## Uninstallation for package installation
+## Uninstallation for product installer
 
 If your installed the Cyclone DDS CXX in Windows, refer to [uninstallation in Windows](InstallCycloneDDS-CXX/uninstallation-windows.html)
 

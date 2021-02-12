@@ -1,6 +1,6 @@
 ## Native Installation for Windows
 
-To obtain the Eclipse Cyclone DDS, do:
+To obtain the Eclipse Cyclone DDS:
 
 ```
 $ git clone https://github.com/eclipse-cyclonedds/cyclonedds.git
