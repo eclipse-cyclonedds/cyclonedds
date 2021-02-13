@@ -76,10 +76,88 @@ static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv,
   add_xlocator_to_addrset (gv, as, loc);
 }
 
-static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv, const nn_locators_t *uc, const nn_locators_t *mc, const ddsi_locator_t *srcloc)
+typedef struct interface_set {
+  bool xs[MAX_XMIT_CONNS];
+} interface_set_t;
+
+static void interface_set_init (interface_set_t *intfs)
 {
-  bool intfs[MAX_XMIT_CONNS] = { false };
+  for (size_t i = 0; i < sizeof (intfs->xs) / sizeof (intfs->xs[0]); i++)
+    intfs->xs[i] = false;
+}
+
+static void addrset_from_locatorlists_add_one (struct ddsi_domaingv const * const gv, const ddsi_locator_t *loc, struct addrset *as, interface_set_t *intfs, bool *direct)
+{
+  size_t interf_idx;
+  switch (ddsi_is_nearby_address (gv, loc, (size_t) gv->n_interfaces, gv->interfaces, &interf_idx))
+  {
+    case DNAR_LOCAL:
+      // if it matches an interface, use that one and record that this is a
+      // directly connected interface: those will then all be possibilities
+      // for transmitting multicasts (assuming capable, allowed, &c.)
+      assert (interf_idx < MAX_XMIT_CONNS);
+      add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
+        .conn = gv->xmit_conns[interf_idx],
+        .c = *loc });
+      intfs->xs[interf_idx] = true;
+      *direct = true;
+      break;
+    case DNAR_DISTANT:
+      // If DONT_ROUTE is set and there is no matching interface, then presumably
+      // one would not be able to reach this address.
+      if (!gv->config.dontRoute)
+      {
+        // Pick the first selected interface that isn't link-local or loopback
+        // (maybe it matters, maybe not, but it doesn't make sense to assign
+        // a transmit socket for a local interface to a distant host).  If none
+        // exists, skip the address.
+        for (int i = 0; i < gv->n_interfaces; i++)
+        {
+          // do not use link-local or loopback interfaces transmit conn for distant nodes
+          if (gv->interfaces[i].link_local || gv->interfaces[i].loopback)
+            continue;
+          add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
+            .conn = gv->xmit_conns[i],
+            .c = *loc });
+          break;
+        }
+      }
+      break;
+  }
+}
+
+/** @brief Constructs a new address set from uni- and multicast locators received in SPDP or SEDP
+ *
+ * The construction process uses heuristics for determining which interfaces appear to be applicable for and uses
+ * this information to set (1) the transmit sockets and (2) choose the interfaces with which to associate multicast
+ * addresses.
+ *
+ * Loopback addresses are accepted if it can be determined that they originate on the same machine:
+ * - if all enabled interfaces are loopback interfaces, the peer must be on the same host (this ought to be cached)
+ * - if all advertised addresses are loopback addresses
+ * - if there is a non-unicast address that matches one of the (enabled) addresses of the host
+ *
+ * Unicast addresses are matched against interface addresses to determine whether the address is likely to be
+ * reachable without any routing. If so, the address is assigned to the interface and the interface is marked as
+ * "enabled" for the purposes of multicast handling. If not, it is associated with the first enabled non-loopback
+ * interface on the assumption that unicast routing works fine (but the interface is not "enabled" for multicast
+ * handling).
+ *
+ * Multicast addresses are added only for interfaces that are "enabled" based on unicast processing. If none are
+ * and the source locator matches an interface, it will enable that interface.
+ *
+ * @param[in] gv domain state, needed for interfaces, transports, tracing
+ * @param[in] uc list of advertised unicast locators
+ * @param[in] mc list of advertised multicast locators
+ * @param[in] srcloc source address for discovery packet, or "invalid"
+ * @param[in,out] inherited_intfs set of applicable interfaces, may be NULL
+ *
+ * @return new addrset, possibly empty */
+static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv, const nn_locators_t *uc, const nn_locators_t *mc, const ddsi_locator_t *srcloc, const interface_set_t *inherited_intfs)
+{
   struct addrset *as = new_addrset ();
+  interface_set_t intfs;
+  interface_set_init (&intfs);
 
   // if all interfaces are loopback, or all locators in uc are loopback, we're cool with loopback addresses
   bool allow_loopback;
@@ -89,10 +167,10 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
       if (!gv->interfaces[i].loopback)
         a = false;
     bool b = true;
+    // FIXME: what about the cases where SEDP gives just a loopback address, but the proxypp is known to be on a remote node?
     for (struct nn_locators_one *l = uc->first; l != NULL && b; l = l->next)
       b = ddsi_is_loopbackaddr (gv, &l->loc);
     allow_loopback = (a || b);
-    //GVTRACE("allow_loopback init = %d || %d\n", a, b);
   }
 
   // if any non-loopback address is identical to one of our own addresses, assume it is the
@@ -104,7 +182,7 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
     for (int i = 0; i < gv->n_interfaces && !allow_loopback; i++)
       allow_loopback = (memcmp (l->loc.address, gv->interfaces[i].loc.address, sizeof (l->loc.address)) == 0);
   }
-  //GVTRACE("allow_loopback = %d\n", allow_loopback);
+  //GVTRACE(" allow_loopback=%d\n", allow_loopback);
 
   bool direct = false;
   for (struct nn_locators_one *l = uc->first; l != NULL; l = l->next)
@@ -141,71 +219,37 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
       }
     }
 
-    size_t interf_idx;
-    switch (ddsi_is_nearby_address (gv, &loc, (size_t) gv->n_interfaces, gv->interfaces, &interf_idx))
-    {
-      case DNAR_LOCAL:
-        //GVTRACE("local %d\n", (int) interf_idx);
-        // if it matches an interface, use that one and recorded that this is
-        // a directly connected interface: those will then all be possibilities
-        // for transmitting multicasts (assuming capable, allowed, &c.)
-        assert (interf_idx < MAX_XMIT_CONNS);
-        add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
-          .conn = gv->xmit_conns[interf_idx],
-          .c = loc });
-        intfs[interf_idx] = true;
-        direct = true;
-        break;
-      case DNAR_DISTANT:
-        //GVTRACE("distant\n");
-        // If DONT_ROUTE is set and there is no matching interface, then presumably
-        // one would not be able to reach this address.
-        if (!gv->config.dontRoute)
-        {
-          // Pick the first selected interface that isn't link-local or loopback
-          // (maybe it matters, maybe not, but it doesn't make sense to assign
-          // a transmit socket for a local interface to a distant host).  If none
-          // exists, skip the address.
-          for (int i = 0; i < gv->n_interfaces; i++)
-          {
-            // do not use link-local or loopback interfaces transmit conn for distant nodes
-            if (gv->interfaces[i].link_local || gv->interfaces[i].loopback)
-              continue;
-            add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
-              .conn = gv->xmit_conns[i],
-              .c = loc });
-            break;
-          }
-        }
-        break;
-    }
+    addrset_from_locatorlists_add_one (gv, &loc, as, &intfs, &direct);
   }
 
   if (addrset_empty (as) && !is_unspec_locator (srcloc))
   {
     //GVTRACE("add srcloc\n");
     // FIXME: conn_read should provide interface information in source address
-    ddsi_locator_t loc = *srcloc;
-    int i;
-    // pick a "real" interface, or if all fails, hope for the best (this is
-    // the bit where it'd really help to have the source interface ...)
-    for (i = gv->n_interfaces - 1; i > 0; i--)
-      if (!(gv->interfaces[i].link_local || gv->interfaces[i].loopback))
-        break;
-    add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
-      .conn = gv->xmit_conns[i],
-      .c = loc });
+    //GVTRACE (" add-srcloc");
+    addrset_from_locatorlists_add_one (gv, srcloc, as, &intfs, &direct);
   }
 
-  if (!direct && gv->config.multicast_ttl > 1)
+  if (addrset_empty (as) && inherited_intfs)
+  {
+    // implies no interfaces enabled in "intfs" yet -- just use whatever
+    // we inherited for the purposes of selecting multicast addresses
+    assert (!direct);
+    for (int i = 0; i < gv->n_interfaces; i++)
+      assert (!intfs.xs[i]);
+    //GVTRACE (" using-inherited-intfs");
+    intfs = *inherited_intfs;
+  }
+  else if (!direct && gv->config.multicast_ttl > 1)
   {
     //GVTRACE("assuming multicast routing works\n");
     // if not directly connected but multicast TTL allows routing,
     // assume any non-local interface will do
+    //GVTRACE (" enabling-non-loopback/link-local");
     for (int i = 0; i < gv->n_interfaces; i++)
     {
-      assert (!intfs[i]);
-      intfs[i] = !(gv->interfaces[i].link_local || gv->interfaces[i].loopback);
+      assert (!intfs.xs[i]);
+      intfs.xs[i] = !(gv->interfaces[i].link_local || gv->interfaces[i].loopback);
     }
   }
   
@@ -223,7 +267,7 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
   {
     for (int i = 0; i < gv->n_interfaces; i++)
     {
-      if (intfs[i] && gv->interfaces[i].mc_capable)
+      if (intfs.xs[i] && gv->interfaces[i].mc_capable)
       {
         const ddsi_xlocator_t loc = {
           .conn = gv->xmit_conns[i],
@@ -819,6 +863,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
     const nn_locators_t *uc;
     const nn_locators_t *mc;
     ddsi_locator_t srcloc;
+    interface_set_t intfs;
 
     srcloc = rst->srcloc;
     uc = (datap->present & PP_DEFAULT_UNICAST_LOCATOR) ? &datap->default_unicast_locators : &emptyset;
@@ -827,7 +872,9 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
       uc = &emptyset; // force use of source locator
     else if (uc != &emptyset)
       set_unspec_locator (&srcloc); // can't always use the source address
-    as_default = addrset_from_locatorlists (gv, uc, mc, &srcloc);
+
+    interface_set_init (&intfs);
+    as_default = addrset_from_locatorlists (gv, uc, mc, &srcloc, &intfs);
 
     srcloc = rst->srcloc;
     uc = (datap->present & PP_METATRAFFIC_UNICAST_LOCATOR) ? &datap->metatraffic_unicast_locators : &emptyset;
@@ -836,7 +883,8 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
       uc = &emptyset; // force use of source locator
     else if (uc != &emptyset)
       set_unspec_locator (&srcloc); // can't always use the source address
-    as_meta = addrset_from_locatorlists (gv, uc, mc, &srcloc);
+    interface_set_init (&intfs);
+    as_meta = addrset_from_locatorlists (gv, uc, mc, &srcloc, &intfs);
 
     nn_log_addrset (gv, DDS_LC_DISCOVERY, " (data", as_default);
     nn_log_addrset (gv, DDS_LC_DISCOVERY, " meta", as_meta);
@@ -1430,6 +1478,33 @@ static bool handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_guid_t *en
 #undef E
 }
 
+struct addrset_from_locatorlists_collect_interfaces_arg {
+  const struct ddsi_domaingv *gv;
+  interface_set_t *intfs;
+};
+
+/** @brief Figure out which interfaces are touched by (extended) locator @p loc
+ *
+ * Does this by looking up the connection in @p loc in the set of transmit connections. (There's plenty of room for optimisation here.)
+ *
+ * @param[in] loc locator
+ * @param[in] varg argument pointer, must point to a struct addrset_from_locatorlists_collect_interfaces_arg
+ */
+static void addrset_from_locatorlists_collect_interfaces (const ddsi_xlocator_t *loc, void *varg)
+{
+  struct addrset_from_locatorlists_collect_interfaces_arg *arg = varg;
+  struct ddsi_domaingv const * const gv = arg->gv;
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    //GVTRACE(" {%p,%p}", loc->conn, gv->xmit_conns[i]);
+    if (loc->conn == gv->xmit_conns[i])
+    {
+      arg->intfs->xs[i] = true;
+      break;
+    }
+  }
+}
+
 static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_sedp_kind_t sedp_kind, const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, ddsrt_wctime_t timestamp)
 {
 #define E(msg, lbl) do { GVLOGDISC (msg); goto lbl; } while (0)
@@ -1534,7 +1609,15 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
       uc = &emptyset; // force use of source locator
       srcloc = rst->srcloc;
     }
-    as = addrset_from_locatorlists (gv, uc, mc, &srcloc);
+
+    // any interface that works for the participant is presumed ok
+    interface_set_t intfs;
+    interface_set_init (&intfs);
+    addrset_forall (proxypp->as_default, addrset_from_locatorlists_collect_interfaces, &(struct addrset_from_locatorlists_collect_interfaces_arg){
+      .gv = gv, .intfs = &intfs
+    });
+    //GVTRACE(" {%d%d%d%d}", intfs.xs[0], intfs.xs[1], intfs.xs[2], intfs.xs[3]);
+    as = addrset_from_locatorlists (gv, uc, mc, &srcloc, &intfs);
     // if SEDP gives:
     // - no addresses, use ppant uni- and multicast addresses
     // - only multicast, use those for multicast and use ppant address for unicast
