@@ -32,24 +32,46 @@
 // - for regular locators: 0
 // - for MCGEN locators:   bit position in address
 typedef uint8_t cover_info_t;
+typedef char rdname_t[3];
 
 struct cover {
   int nreaders;
   int nlocs;
-  char rdnames[250][3];
+  rdname_t *rdnames;
   cover_info_t m[]; // [nreaders][nlocs]
 };
 
-static struct cover *cover_new (int nreaders, int nlocs)
+static size_t cover_size (int nreaders, int nlocs)
 {
-  struct cover *c = ddsrt_malloc (sizeof (*c) + (uint32_t) nlocs * (uint32_t) nreaders * sizeof (*c->m));
-  assert (nreaders <= 250); // because of rdnames hack
+  return sizeof (struct cover) + (uint32_t) nlocs * (uint32_t) nreaders * sizeof (cover_info_t);
+}
+
+static struct cover *cover_new (int nreaders, int nlocs, bool want_rdnames)
+{
+  struct cover *c = ddsrt_malloc (cover_size (nreaders, nlocs));
   c->nreaders = nreaders;
   c->nlocs = nlocs;
+  if (want_rdnames)
+    c->rdnames = ddsrt_malloc ((size_t) nreaders * sizeof (*c->rdnames));
+  else
+    c->rdnames = NULL;
   for (int i = 0; i < nreaders; i++)
     for (int j = 0; j < nlocs; j++)
       c->m[i * nlocs + j] = 0xff;
   return c;
+}
+
+static void cover_makeroom (struct cover **c, int rdidx)
+{
+  if (rdidx == (*c)->nreaders)
+  {
+    // why 60? why not ... we only get here if the redundant networking trick is enabled
+    const int chunk = 60;
+    (*c) = ddsrt_realloc (*c, cover_size ((*c)->nreaders + chunk, (*c)->nlocs));
+    (*c)->nreaders += chunk;
+    if ((*c)->rdnames)
+      (*c)->rdnames = ddsrt_realloc ((*c)->rdnames, (size_t) (*c)->nreaders * sizeof ((*c)->rdnames));
+  }
 }
 
 static void cover_update_nreaders (struct cover *c, int nreaders)
@@ -75,6 +97,8 @@ static int cover_get_nlocs (const struct cover *c)
 
 static void cover_free (struct cover *c)
 {
+  if (c->rdnames)
+    ddsrt_free (c->rdnames);
   ddsrt_free (c);
 }
 
@@ -90,43 +114,53 @@ static cover_info_t cover_get (const struct cover *c, int rdidx, int lidx)
   return c->m[rdidx * c->nlocs + lidx];
 }
 
-typedef int32_t weight_t;
+typedef int32_t cost_t;
+typedef int32_t delta_cost_t;
 
-struct weightmap {
+typedef struct readercount_cost {
+  uint32_t nrds;
+  cost_t cost;
+} readercount_cost_t;
+
+struct costmap {
   int nlocs;
-  weight_t m[];
+  readercount_cost_t m[];
 };
 
-static struct weightmap *weightmap_new (int nlocs)
+static struct costmap *costmap_new (int nlocs)
 {
-  struct weightmap *wm = ddsrt_malloc (sizeof (*wm) + (uint32_t) nlocs * sizeof (*wm->m));
+  struct costmap *wm = ddsrt_malloc (sizeof (*wm) + (uint32_t) nlocs * sizeof (*wm->m));
   wm->nlocs = nlocs;
   for (int j = 0; j < nlocs; j++)
-    wm->m[j] = 0;
+  {
+    wm->m[j].nrds = 0;
+    wm->m[j].cost = 0;
+  }
   return wm;
 }
 
-static void weightmap_free (struct weightmap *wm)
+static void costmap_free (struct costmap *wm)
 {
   ddsrt_free (wm);
 }
 
-static void weightmap_set (struct weightmap *wm, int lidx, weight_t v)
+static void costmap_set (struct costmap *wm, int lidx, readercount_cost_t v)
 {
   assert (lidx < wm->nlocs);
   wm->m[lidx] = v;
 }
 
-#if 0
-static void weightmap_dec (struct weightmap *wm, int lidx)
+static void costmap_adjust (struct costmap *wm, int lidx, delta_cost_t v)
 {
   assert (lidx < wm->nlocs);
-  assert (wm->m[lidx] > 0);
-  wm->m[lidx]--;
+  assert (wm->m[lidx].nrds > 0);
+  if (--wm->m[lidx].nrds == 0)
+    wm->m[lidx].cost = INT32_MAX;
+  else
+    wm->m[lidx].cost += v;
 }
-#endif
 
-static weight_t weightmap_get (const struct weightmap *wm, int lidx)
+static readercount_cost_t costmap_get (const struct costmap *wm, int lidx)
 {
   assert (lidx < wm->nlocs);
   return wm->m[lidx];
@@ -170,13 +204,8 @@ static struct addrset *wras_collect_all_locs (const struct writer *wr)
     if (wr->supports_ssm && wr->ssm_as)
       copy_addrset_into_addrset_mc (wr->e.gv, all_addrs, wr->ssm_as);
 #endif
-    return all_addrs;
   }
-  else
-  {
-    unref_addrset (all_addrs);
-    return NULL;
-  }
+  return all_addrs;
 }
 
 struct rebuild_flatten_locs_helper_arg {
@@ -259,29 +288,33 @@ static struct locset *wras_calc_locators (const struct ddsrt_log_cfg *logcfg, st
 #define CI_INCLUDED        0x1 // reachable, already included in selected locators
 #define CI_NOMATCH         0x2 // not reached by this locator
 #define CI_LOOPBACK        0x4 // is a loopback locator (set for entire row)
-#define CI_MULTICAST_MASK 0xf8 // 0x8 if regular multicast, (index+1) in MCGEN
+#define CI_MULTICAST_MASK 0xf8 // 0: no, 1: ASM, 2: SSM, (index+3) if MCGEN
 #define CI_MULTICAST_SHIFT   3
+#define CI_MULTICAST_ASM          1
+#define CI_MULTICAST_SSM          2
+#define CI_MULTICAST_MCGEN_OFFSET 3
+
+static const int32_t cost_discarded = 1;
+static const int32_t cost_delivered = -1;
 
 #define CI_ICEORYX        0xfc // FIXME: this is a hack
 
-static weight_t sat_weight_add (weight_t x, int32_t a)
+static cost_t sat_cost_add (cost_t x, int32_t a)
 {
-  DDSRT_STATIC_ASSERT (sizeof (weight_t) == sizeof (int32_t));
+  DDSRT_STATIC_ASSERT (sizeof (cost_t) == sizeof (int32_t) && (cost_t) ((uint32_t)1 << 31) < 0);
   if (a >= 0)
     return (x > INT32_MAX - a) ? INT32_MAX : x + a;
   else
     return (x < INT32_MIN - a) ? INT32_MIN : x + a;
 }
 
-static weight_t calc_locator_weight (const struct cover *c, int lidx, bool prefer_multicast)
+static readercount_cost_t calc_locator_cost (const struct cover *c, int lidx, bool prefer_multicast)
 {
-  const int32_t cost_uc = prefer_multicast ? 1000000 : 2;
-  const int32_t cost_mc = prefer_multicast ? 0 : 3;
-  const int32_t cost_discarded = 1;
-  const int32_t cost_delivered = -1;
+  const int32_t cost_uc  = prefer_multicast ? 1000000 : 2;
+  const int32_t cost_mc  = prefer_multicast ? 1 : 3;
+  const int32_t cost_ssm = prefer_multicast ? 0 : 2;
   const int32_t cost_non_loopback = 2;
-  weight_t weight = 0;
-  bool valid_choice = false;
+  readercount_cost_t x = { .nrds = 0, .cost = 0 };
 
   // FIXME: should associate costs with interfaces, so that, e.g., iceoryx << loopback < GbE < WiFi without any details needed here
 
@@ -297,16 +330,18 @@ static weight_t calc_locator_weight (const struct cover *c, int lidx, bool prefe
       break;
   }
   if (rdidx == c->nreaders)
-    return INT32_MAX;
+    goto no_readers;
 
   if ((ci & ~CI_STATUS_MASK) == CI_ICEORYX)
-    weight = INT32_MIN;
+    x.cost = INT32_MIN;
   else if ((ci & CI_MULTICAST_MASK) == 0)
-    weight += cost_uc;
+    x.cost += cost_uc;
+  else if (((ci & CI_MULTICAST_MASK) >> CI_MULTICAST_SHIFT) == CI_MULTICAST_SSM)
+    x.cost += cost_ssm;
   else
-    weight += cost_mc;
+    x.cost += cost_mc;
   if (!(ci & CI_LOOPBACK))
-    weight += cost_non_loopback;
+    x.cost += cost_non_loopback;
 
   for (; rdidx < c->nreaders; rdidx++)
   {
@@ -315,17 +350,24 @@ static weight_t calc_locator_weight (const struct cover *c, int lidx, bool prefe
       continue;
 
     if ((ci & CI_STATUS_MASK) == CI_INCLUDED)
-      weight = sat_weight_add (weight, cost_discarded); // FIXME: need addressed hosts, addressed processes
+    {
+      // FIXME: need addressed hosts, addressed processes; those change when nodes come/go
+      x.cost = sat_cost_add (x.cost, cost_discarded);
+    }
     else
     {
       assert ((ci & CI_STATUS_MASK) == CI_REACHABLE);
-      weight = sat_weight_add (weight, cost_delivered);
-      valid_choice = true;
+      x.cost = sat_cost_add (x.cost, cost_delivered);
+      x.nrds++;
     }
   }
-  if (weight == INT32_MAX)
-    weight = INT32_MAX - 1;
-  return valid_choice ? weight : INT32_MAX;
+  if (x.cost == INT32_MAX)
+    x.cost = INT32_MAX - 1;
+
+no_readers:
+  if (x.nrds == 0)
+    x.cost = INT32_MAX;
+  return x;
 }
 
 static bool isloopback (struct ddsi_domaingv const * const gv, const ddsi_xlocator_t *loc)
@@ -369,6 +411,18 @@ static int move_loopback_forward (struct ddsi_domaingv const * const gv, struct 
   return i;
 }
 
+
+static unsigned multicast_indicator (struct ddsi_domaingv const * const gv, const ddsi_xlocator_t *l)
+{
+#if DDS_HAS_SSM
+  if (ddsi_is_ssm_mcaddr (gv, &l->c))
+    return CI_MULTICAST_SSM;
+#endif
+  if (ddsi_is_mcaddr (gv, &l->c))
+    return CI_MULTICAST_ASM;
+  return 0;
+}
+
 static bool locator_is_iceoryx (const ddsi_xlocator_t *l)
 {
 #ifdef DDS_HAS_SHM
@@ -379,14 +433,18 @@ static bool locator_is_iceoryx (const ddsi_xlocator_t *l)
 #endif
 }
 
-static void wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct cover *cov, const struct locset *locs, const struct locset *work_locs, int rdidx, int nloopback, int first, int last)
+static bool wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct cover *cov, const struct locset *locs, const struct locset *work_locs, int rdidx, int nloopback, int first, int last) ddsrt_attribute_warn_unused_result;
+
+static bool wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct cover *cov, const struct locset *locs, const struct locset *work_locs, int rdidx, int nloopback, int first, int last)
 {
   for (int j = first; j <= last; j++)
   {
-    /* all addresses should be in the combined set of addresses -- FIXME: this doesn't hold if the address sets can change */
+    /* all addresses should be in the combined set of addresses, unless the address sets change on the fly:
+       in that case, restart */
     const ddsi_xlocator_t *l = bsearch (&work_locs->locs[j], locs->locs, (size_t) locs->nlocs, sizeof (*locs->locs), wras_compare_locs);
+    if (l == NULL)
+      return false;
     cover_info_t x;
-    assert (l != NULL);
     int lidx = (int) (l - locs->locs);
     if (locator_is_iceoryx (l)) // FIXME: a gross hack
     {
@@ -395,16 +453,15 @@ static void wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct
     else if (l->c.kind == NN_LOCATOR_KIND_UDPv4MCGEN)
     {
       const nn_udpv4mcgen_address_t *l1 = (const nn_udpv4mcgen_address_t *) l->c.address;
-      assert (l1->base + l1->idx <= 30);
-      x = (cover_info_t) ((1 + l1->base + l1->idx) << CI_MULTICAST_SHIFT);
+      assert (l1->base + l1->idx <= 31 - CI_MULTICAST_MCGEN_OFFSET);
+      x = (cover_info_t) ((CI_MULTICAST_MCGEN_OFFSET + l1->base + l1->idx) << CI_MULTICAST_SHIFT);
     }
     else
     {
       x = 0;
       if (j < nloopback)
         x |= CI_LOOPBACK;
-      if (ddsi_is_mcaddr (gv, &l->c))
-        x |= 1 << CI_MULTICAST_SHIFT;
+      x |= (cover_info_t) (multicast_indicator (gv, l) << CI_MULTICAST_SHIFT);
     }
     char buf[200];
     GVTRACE ("rdidx %u lidx %s %u -> %x\n", rdidx, ddsi_xlocator_to_string(buf, sizeof(buf), &work_locs->locs[j]), lidx, x);
@@ -412,14 +469,20 @@ static void wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct
     assert (cover_get (cov, rdidx, lidx) == 0xff);
     cover_set (cov, rdidx, lidx, x);
   }
+  return true;
 }
 
-static struct cover *wras_calc_cover (const struct writer *wr, const struct locset *locs)
+static bool wras_calc_cover (const struct writer *wr, const struct locset *locs, struct cover **pcov) ddsrt_attribute_warn_unused_result;
+
+static bool wras_calc_cover (const struct writer *wr, const struct locset *locs, struct cover **pcov)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   struct entity_index * const gh = gv->entity_index;
   ddsrt_avl_iter_t it;
-  struct cover *cov = cover_new (3 * (int) wr->num_readers, locs->nlocs); // FIXME: *3 allows up to 3 i/f per reader for redundant networking, but should count properly
+  const bool want_rdnames = true;
+  // allocate cover matrix, it needs to be grow if there are readers requesting redundant delivery
+  // (but that's rare enough to be ok with reallocating it for now)
+  struct cover *cov = cover_new ((int) wr->num_readers, locs->nlocs, want_rdnames);
   struct locset *work_locs = locset_new (locs->nlocs);
   int rdidx = 0;
   char rdletter = 'a', rddigit = '0';
@@ -428,7 +491,6 @@ static struct cover *wras_calc_cover (const struct writer *wr, const struct locs
     struct proxy_reader *prd;
     struct addrset *ass[] = { NULL, NULL, NULL };
     bool increment_rdidx = true;
-    assert (rdidx < 3 * (int) wr->num_readers); // FIXME: *3 hack
     if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
       continue;
     ass[0] = prd->c.as;
@@ -444,21 +506,30 @@ static struct cover *wras_calc_cover (const struct writer *wr, const struct locs
       GVTRACE ("nloopback = %d, nlocs = %d, redundant_networking = %d\n", nloopback, work_locs->nlocs, prd->redundant_networking);
       if (!prd->redundant_networking || nloopback == work_locs->nlocs)
       {
+        cover_makeroom (&cov, rdidx);
         for (int j = 0; j < work_locs->nlocs; j++)
-          wras_cover_locatorset (gv, cov, locs, work_locs, rdidx, nloopback, j, j);
+        {
+          if (!wras_cover_locatorset (gv, cov, locs, work_locs, rdidx, nloopback, j, j))
+            goto addrset_changed;
+        }
       }
       else
       {
         int j = nloopback;
         while (j < work_locs->nlocs)
         {
+          cover_makeroom (&cov, rdidx);
           if (nloopback > 0)
-            wras_cover_locatorset (gv, cov, locs, work_locs, rdidx, nloopback, 0, nloopback - 1);
+          {
+            if (!wras_cover_locatorset (gv, cov, locs, work_locs, rdidx, nloopback, 0, nloopback - 1))
+              goto addrset_changed;
+          }
           int k = j + 1;
           while (k < work_locs->nlocs && work_locs->locs[j].conn == work_locs->locs[k].conn)
             k++;
           GVTRACE ("j = %d, k = %d\n", j, k);
-          wras_cover_locatorset (gv, cov, locs, work_locs, rdidx, nloopback, j, k - 1);
+          if (!wras_cover_locatorset (gv, cov, locs, work_locs, rdidx, nloopback, j, k - 1))
+            goto addrset_changed;
           j = k;
           for (int l = 0; l < cov->nlocs; l++)
             if (cover_get (cov, rdidx, l) == 0xff)
@@ -473,6 +544,7 @@ static struct cover *wras_calc_cover (const struct writer *wr, const struct locs
     }
     if (increment_rdidx)
     {
+      cover_makeroom (&cov, rdidx);
       for (int i = 0; i < cov->nlocs; i++)
         if (cover_get (cov, rdidx, i) == 0xff)
           cover_set (cov, rdidx, i, CI_NOMATCH);
@@ -488,25 +560,30 @@ static struct cover *wras_calc_cover (const struct writer *wr, const struct locs
   if (rdidx == 0)
   {
     cover_free (cov);
-    return NULL;
+    *pcov = NULL;
   }
   else
   {
     cover_update_nreaders (cov, rdidx);
-    return cov;
+    *pcov = cov;
   }
+  return true;
+
+addrset_changed:
+  cover_free (cov);
+  return false;
 }
 
-static struct weightmap *wras_calc_weightmap (const struct cover *covered, bool prefer_multicast)
+static struct costmap *wras_calc_costmap (const struct cover *covered, bool prefer_multicast)
 {
   const int nlocs = cover_get_nlocs (covered);
-  struct weightmap *wm = weightmap_new (nlocs);
+  struct costmap *wm = costmap_new (nlocs);
   for (int i = 0; i < nlocs; i++)
-    weightmap_set (wm, i, calc_locator_weight (covered, i, prefer_multicast));
+    costmap_set (wm, i, calc_locator_cost (covered, i, prefer_multicast));
   return wm;
 }
 
-static void wras_trace_cover (const struct ddsi_domaingv *gv, const struct locset *locs, const struct weightmap *wm, const struct cover *covered)
+static void wras_trace_cover (const struct ddsi_domaingv *gv, const struct locset *locs, const struct costmap *wm, const struct cover *covered)
 {
   const int nreaders = cover_get_nreaders (covered);
   const int nlocs = cover_get_nlocs (covered);
@@ -519,7 +596,7 @@ static void wras_trace_cover (const struct ddsi_domaingv *gv, const struct locse
   {
     char buf[DDSI_LOCSTRLEN];
     ddsi_xlocator_to_string (buf, sizeof(buf), &locs->locs[i]);
-    GVLOGDISC ("  loc %2d = %-40s%11"PRId32" {", i, buf, weightmap_get (wm, i));
+    GVLOGDISC ("  loc %2d = %-40s%11"PRId32" {", i, buf, costmap_get (wm, i).cost);
     for (int j = 0; j < nreaders; j++)
     {
       cover_info_t ci = cover_get (covered, j, i);
@@ -548,44 +625,26 @@ static void wras_trace_cover (const struct ddsi_domaingv *gv, const struct locse
   }
 }
 
-static int wras_choose_locator (const struct ddsi_domaingv *gv, const struct locset *locs, const struct weightmap *wm, bool prefer_multicast)
+static int wras_choose_locator (const struct locset *locs, const struct costmap *wm)
 {
-  (void) gv; (void) prefer_multicast; // FIXME: do the right thing rather ignore the warning
-#if 0
-  int i, j;
+  // general preference for unicast is by having a larger base cost for a multicast
+  // general preference for loopback is by having a cost for non-loopback interfaces
+  // prefer_multicast: done by assigning much greater cost to unicast than to multicast
+  // "reader favours SSM": slightly lower cost than ASM (it only "favours" it, after all)
   if (locs->nlocs == 0)
     return -1;
-  for (j = 0, i = 1; i < locs->nlocs; i++) {
-    const weight_t w_i = weightmap_get (wm, i);
-    const weight_t w_j = weightmap_get (wm, j);
-    if (prefer_multicast && w_i > 0 && ddsi_is_mcaddr(gv, &locs->locs[i]) && !ddsi_is_mcaddr(gv, &locs->locs[j]))
-      j = i; /* obviously first step must be to try and avoid unicast if configuration says so */
-    else if (w_i > w_j)
-      j = i; /* better coverage */
-    else if (w_i == w_j)
+  int best = 0;
+  readercount_cost_t w_best = costmap_get (wm, best);
+  for (int i = 1; i < locs->nlocs; i++)
+  {
+    const readercount_cost_t w_i = costmap_get (wm, i);
+    if (w_i.cost < w_best.cost || (w_i.cost == w_best.cost && w_i.nrds > w_best.nrds))
     {
-      if (w_i == 1 && !ddsi_is_mcaddr(gv, &locs->locs[i]))
-        j = i; /* prefer unicast for single nodes */
-#if DDS_HAS_SSM
-      else if (ddsi_is_ssm_mcaddr(gv, &locs->locs[i]))
-        j = i; /* "reader favours SSM": all else being equal, use SSM */
-#endif
+      best = i;
+      w_best = w_i;
     }
   }
-  return (weightmap_get (wm, j) > 0) ? j : -1;
-#else
-  int i, j;
-  if (locs->nlocs == 0)
-    return -1;
-  for (j = 0, i = 1; i < locs->nlocs; i++)
-  {
-    const weight_t w_i = weightmap_get (wm, i);
-    const weight_t w_j = weightmap_get (wm, j);
-    if (w_i < w_j)
-      j = i;
-  }
-  return (weightmap_get (wm, j) != INT32_MAX) ? j : -1;
-#endif
+  return (w_best.cost != INT32_MAX) ? best : -1;
 }
 
 static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *newas, int locidx, const struct locset *locs, const struct cover *covered)
@@ -615,7 +674,7 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *ne
     {
       cover_info_t ci = cover_get (covered, i, locidx);
       if ((ci & CI_STATUS_MASK) == CI_REACHABLE)
-        iph |= 1u << ((ci >> CI_MULTICAST_SHIFT) - 1);
+        iph |= 1u << ((ci >> CI_MULTICAST_SHIFT) - CI_MULTICAST_MCGEN_OFFSET);
     }
     ipn = htonl (iph);
     memcpy (tmploc.c.address + 12, &ipn, 4);
@@ -627,7 +686,7 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *ne
   add_xlocator_to_addrset (gv, newas, locp);
 }
 
-static void wras_drop_covered_readers (int locidx, struct weightmap *wm, struct cover *covered, bool prefer_multicast)
+static void wras_drop_covered_readers (int locidx, struct costmap *wm, struct cover *covered, bool prefer_multicast)
 {
   /* readers covered by this locator no longer matter */
   const int nreaders = cover_get_nreaders (covered);
@@ -640,49 +699,75 @@ static void wras_drop_covered_readers (int locidx, struct weightmap *wm, struct 
     {
       cover_info_t ci = cover_get (covered, i, j);
       if ((ci & CI_STATUS_MASK) == CI_REACHABLE)
+      {
         cover_set (covered, i, j, (cover_info_t) ((ci & ~CI_STATUS_MASK) | CI_INCLUDED));
+        // from reachable to included -> cost goes from "delivered" to "discarded"
+        costmap_adjust (wm, j, cost_discarded - cost_delivered);
+      }
     }
   }
+#ifndef NDEBUG
   for (int j = 0; j < nlocs; j++)
   {
-    weightmap_set (wm, j, calc_locator_weight (covered, j, prefer_multicast));
+    const readercount_cost_t a = costmap_get (wm, j);
+    const readercount_cost_t b = calc_locator_cost (covered, j, prefer_multicast);
+    assert (a.nrds == b.nrds);
+    assert (a.cost == b.cost);
   }
-}
-
-static void wras_setcover (struct addrset *newas, const struct writer *wr)
-{
-  struct ddsi_domaingv * const gv = wr->e.gv;
-  const bool prefer_multicast = gv->config.prefer_multicast;
-  struct addrset *all_addrs;
-  struct locset *locs;
-  struct weightmap *wm;
-  struct cover *covered;
-  int best;
-  if ((all_addrs = wras_collect_all_locs (wr)) == NULL)
-    return;
-  nn_log_addrset (gv, DDS_LC_DISCOVERY, "setcover: all_addrs", all_addrs);
-  ELOGDISC (wr, "\n");
-  locs = wras_calc_locators (&gv->logconfig, all_addrs);
-  unref_addrset (all_addrs);
-  if ((covered = wras_calc_cover (wr, locs)) == NULL)
-    goto done;
-  wm = wras_calc_weightmap (covered, prefer_multicast);
-  while ((best = wras_choose_locator (gv, locs, wm, prefer_multicast)) >= 0)
-  {
-    wras_trace_cover (gv, locs, wm, covered);
-    ELOGDISC (wr, "  best = %d\n", best);
-    wras_add_locator (gv, newas, best, locs, covered);
-    wras_drop_covered_readers (best, wm, covered, prefer_multicast);
-  }
-  weightmap_free (wm);
- done:
-  locset_free (locs);
-  cover_free (covered);
+#else
+  (void) prefer_multicast;
+#endif
 }
 
 struct addrset *compute_writer_addrset (const struct writer *wr)
 {
-  struct addrset *as = new_addrset ();
-  wras_setcover (as, wr);
-  return as;
+  struct ddsi_domaingv * const gv = wr->e.gv;
+  const bool prefer_multicast = gv->config.prefer_multicast;
+  struct locset *locs;
+  struct cover *covered;
+  struct addrset *newas;
+
+  // Gather all addresses, using an addrset means no need to worry about
+  // duplicates. If no addresses found it is trivial.
+  {
+    struct addrset *all_addrs = wras_collect_all_locs (wr);
+    if (addrset_empty (all_addrs))
+      return all_addrs;
+    nn_log_addrset (gv, DDS_LC_DISCOVERY, "setcover: all_addrs", all_addrs);
+    ELOGDISC (wr, "\n");
+    locs = wras_calc_locators (&gv->logconfig, all_addrs);
+    unref_addrset (all_addrs);
+  }
+
+  if (!wras_calc_cover (wr, locs, &covered))
+  {
+    // Addrset computation fails when some proxy reader's address can't be found in all_addrs,
+    // which means its address set changed while we were working.  In that case, the change
+    // will trigger a recalculation and we can just return the old one.
+    //
+    // FIXME: copying it is a bit excessive (a little rework and refcount manipulation suffices)
+    newas = ref_addrset (wr->as);
+  }
+  else if (covered == NULL)
+  {
+    // No readers, no need to do anything else
+    newas = new_addrset ();
+  }
+  else
+  {
+    struct costmap *wm = wras_calc_costmap (covered, prefer_multicast);
+    int best;
+    newas = new_addrset ();
+    while ((best = wras_choose_locator (locs, wm)) >= 0)
+    {
+      wras_trace_cover (gv, locs, wm, covered);
+      ELOGDISC (wr, "  best = %d\n", best);
+      wras_add_locator (gv, newas, best, locs, covered);
+      wras_drop_covered_readers (best, wm, covered, prefer_multicast);
+    }
+    costmap_free (wm);
+    cover_free (covered);
+  }
+  locset_free (locs);
+  return newas;
 }
