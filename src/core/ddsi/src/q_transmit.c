@@ -271,10 +271,12 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
   struct hbcontrol * const hbc = &wr->hbcontrol;
   uint32_t last_packetid;
   ddsrt_mtime_t tlast;
+  ddsrt_mtime_t t_of_last_hb;
   struct nn_xmsg *msg;
 
   tlast = hbc->t_of_last_write;
   last_packetid = hbc->last_packetid;
+  t_of_last_hb = hbc->t_of_last_hb;
 
   hbc->t_of_last_write = tnow;
   hbc->last_packetid = packetid;
@@ -289,12 +291,18 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
     /* So we force a heartbeat in - but we also rely on our caller to
        send the packet out */
     msg = writer_hbcontrol_create_heartbeat (wr, whcst, tnow, *hbansreq, 1);
-  } else if (last_packetid != packetid) {
+  } else if (last_packetid != packetid && tnow.v - t_of_last_hb.v > DDS_USECS (100)) {
     /* If we crossed a packet boundary since the previous write,
        piggyback a heartbeat, with *hbansreq determining whether or
        not an ACK is needed.  We don't force the packet out either:
        this is just to ensure a regular flow of ACKs for cleaning up
-       the WHC & for allowing readers to NACK missing samples. */
+       the WHC & for allowing readers to NACK missing samples.
+
+       Still rate-limit: if there are new readers that haven't sent an
+       an ACK yet, the FINAL flag will be cleared and so we get an ACK
+       storm if writing at a high rate without batching which eats up
+       a *large* amount of time because there are out-of-order readers
+       present. */
     msg = writer_hbcontrol_create_heartbeat (wr, whcst, tnow, *hbansreq, 1);
   } else {
     *hbansreq = 0;
