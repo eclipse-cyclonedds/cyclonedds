@@ -24,6 +24,7 @@ set(ddsc_test_sources
     "builtin_topics.c"
     "cdr.c"
     "config.c"
+    "data_avail_stress.c"
     "discstress.c"
     "dispose.c"
     "domain.c"
