@@ -1170,6 +1170,109 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
 }
 #endif
 
+static void free_config_networkpartition_addresses (struct ddsi_config_networkpartition_listelem *np)
+{
+  struct networkpartition_address **ps[] = {
+    &np->uc_addresses,
+    &np->asm_addresses
+#ifdef DDS_HAS_SSM
+    , &np->ssm_addresses
+#endif
+  };
+  for (size_t i = 0; i < sizeof (ps) / sizeof (ps[0]); i++)
+  {
+    while (*ps[i])
+    {
+      struct networkpartition_address *x = *ps[i];
+      *ps[i] = x->next;
+      ddsrt_free (x);
+    }
+  }
+}
+
+static int convert_network_partition_addresses (struct ddsi_domaingv *gv, uint32_t port_data_uc)
+{
+  const uint32_t port_mc = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DATA, 0);
+  struct ddsi_config_networkpartition_listelem *np;
+  int rc = 0;
+  for (np = gv->config.networkPartitions; rc >= 0 && np; np = np->next)
+  {
+    static const char msgtag_fixed[] = ": partition address";
+    size_t slen = strlen (np->name) + sizeof (msgtag_fixed);
+    char *msgtag = ddsrt_malloc (slen);
+    snprintf (msgtag, slen, "%s%s", np->name, msgtag_fixed);
+
+    struct networkpartition_address **nextp_uc = &np->uc_addresses;
+    struct networkpartition_address **nextp_asm = &np->asm_addresses;
+#ifdef DDS_HAS_SSM
+    struct networkpartition_address **nextp_ssm = &np->ssm_addresses;
+#endif
+    assert (*nextp_uc == NULL && *nextp_asm == NULL && *nextp_ssm == NULL);
+    char *copy = ddsrt_strdup (np->address_string), *cursor = copy, *tok;
+    while (rc >= 0 && (tok = ddsrt_strsep (&cursor, ",;")) != NULL)
+    {
+      if (strspn (tok, " \t") == strlen (tok))
+        continue;
+
+      ddsi_locator_t loc;
+      switch (ddsi_locator_from_string (gv, &loc, tok, gv->m_factory))
+      {
+        case AFSR_OK:       break;
+        case AFSR_INVALID:  GVERROR ("%s: %s: not a valid address\n", msgtag, tok); rc = -1; break;
+        case AFSR_UNKNOWN:  GVERROR ("%s: %s: unknown address\n", msgtag, tok); rc = -1; break;
+        case AFSR_MISMATCH: GVERROR ("%s: %s: address family mismatch\n", msgtag, tok); rc = -1; break;
+      }
+      if (loc.port != 0)
+      {
+        GVERROR ("%s: %s: no port number expected\n", msgtag, tok);
+        rc = -1;
+      }
+
+      struct networkpartition_address ***nextpp;
+      if (ddsi_is_mcaddr (gv, &loc))
+      {
+        loc.port = port_mc;
+#ifdef DDS_HAS_SSM
+        nextpp = ddsi_is_ssm_mcaddr (gv, &loc) ? &nextp_ssm : &nextp_asm;
+#else
+        nextpp = &nextp_asm;
+#endif
+      }
+      else
+      {
+        switch (ddsi_is_nearby_address (gv, &loc, (size_t) gv->n_interfaces, gv->interfaces, NULL))
+        {
+          case DNAR_LOCAL:
+            break;
+          case DNAR_DISTANT:
+            GVERROR ("%s: %s: address does not match a local interface\n", msgtag, tok);
+            rc = -1;
+            break;
+        }
+        // FIXME: it'd be nice if the one could specify a port and additional sockets would be created
+        loc.port = port_data_uc;
+        nextpp = &nextp_uc;
+      }
+      assert (nextpp && *nextpp && **nextpp);
+
+      if (rc == -1)
+        continue;
+
+      if ((**nextpp = ddsrt_malloc (sizeof (***nextpp))) == NULL)
+      {
+        rc = -1;
+        continue;
+      }
+      (**nextpp)->loc = loc;
+      (**nextpp)->next = NULL;
+      *nextpp = &(**nextpp)->next;
+    }
+    ddsrt_free (copy);
+    ddsrt_free (msgtag);
+  }
+  return rc;
+}
+
 int rtps_init (struct ddsi_domaingv *gv)
 {
   uint32_t port_disc_uc = 0;
@@ -1315,27 +1418,6 @@ int rtps_init (struct ddsi_domaingv *gv)
     GVLOG (DDS_LC_CONFIG, "SSM support included\n");
 #endif
   }
-
-#ifdef DDS_HAS_NETWORK_PARTITIONS
-  /* Convert address sets in partition mappings from string to address sets */
-  {
-    const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DATA, 0);
-    struct ddsi_config_networkpartition_listelem *np;
-    for (np = gv->config.networkPartitions; np; np = np->next)
-    {
-      static const char msgtag_fixed[] = ": partition address";
-      size_t slen = strlen (np->name) + sizeof (msgtag_fixed);
-      char * msgtag = ddsrt_malloc (slen);
-      int rc;
-      snprintf (msgtag, slen, "%s%s", np->name, msgtag_fixed);
-      np->as = new_addrset ();
-      rc = add_addresses_to_addrset (gv, np->as, np->address_string, (int) port, msgtag, 1);
-      ddsrt_free (msgtag);
-      if (rc < 0)
-        goto err_network_partition_addrset;
-    }
-  }
-#endif
 
   gv->xmsgpool = nn_xmsgpool_new ();
   gv->serpool = ddsi_serdatapool_new ();
@@ -1535,6 +1617,13 @@ int rtps_init (struct ddsi_domaingv *gv)
       gv->intf_xlocators[i].c = gv->interfaces[i].loc;
     }
   }
+
+#ifdef DDS_HAS_NETWORK_PARTITIONS
+  /* Convert address sets in partition mappings from string to address sets now that we have
+     xmit_conns filled in */
+  if (convert_network_partition_addresses (gv, port_data_uc) < 0)
+    goto err_network_partition_addrset;
+#endif
 
   if (gv->m_factory->m_connless)
   {
@@ -1736,6 +1825,11 @@ err_mc_conn:
   if (gv->pcap_fp)
     ddsrt_mutex_destroy (&gv->pcap_lock);
   free_group_membership (gv->mship);
+#ifdef DDS_HAS_NETWORK_PARTITIONS
+err_network_partition_addrset:
+  for (struct ddsi_config_networkpartition_listelem *np = gv->config.networkPartitions; np; np = np->next)
+    free_config_networkpartition_addresses (np);
+#endif
 err_unicast_sockets:
   ddsi_tkmap_free (gv->m_tkmap);
   nn_reorder_free (gv->spdp_reorder);
@@ -1793,11 +1887,6 @@ err_unicast_sockets:
 
   ddsi_serdatapool_free (gv->serpool);
   nn_xmsgpool_free (gv->xmsgpool);
-#ifdef DDS_HAS_NETWORK_PARTITIONS
-err_network_partition_addrset:
-  for (struct ddsi_config_networkpartition_listelem *np = gv->config.networkPartitions; np; np = np->next)
-    unref_addrset (np->as);
-#endif
 err_set_ext_address:
   while (gv->recvips)
   {
@@ -2105,7 +2194,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   for (struct ddsi_config_networkpartition_listelem *np = gv->config.networkPartitions; np; np = np->next)
-    unref_addrset (np->as);
+    free_config_networkpartition_addresses (np);
 #endif
   unref_addrset (gv->as_disc);
   unref_addrset (gv->as_disc_group);

@@ -397,7 +397,8 @@ struct reader
 #endif
   nn_count_t init_acknack_count; /* initial value for "count" (i.e. ACK seq num) for newly matched proxy writers */
 #ifdef DDS_HAS_NETWORK_PARTITIONS
-  struct addrset *as;
+  struct networkpartition_address *uc_as;
+  struct networkpartition_address *mc_as;
 #endif
   const struct ddsi_sertype * type; /* type of the data read by this reader */
   uint32_t num_writers; /* total number of matching PROXY writers */
