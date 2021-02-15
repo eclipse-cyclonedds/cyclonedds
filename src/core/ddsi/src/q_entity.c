@@ -3960,9 +3960,14 @@ static void new_writer_guid_common_init (struct writer *wr, const char *topic_na
      partitions that match multiple network partitions.  From a safety
      point of view a wierd configuration. Here we chose the first one
      that we find */
-  wr->network_partition = NULL;
-  for (uint32_t i = 0; i < wr->xqos->partition.n && wr->network_partition == NULL; i++)
-    wr->network_partition = get_partition_from_mapping (&wr->e.gv->logconfig, &wr->e.gv->config, wr->xqos->partition.strs[i], wr->xqos->topic_name);
+  {
+    char *ps_def = "";
+    char **ps = (wr->xqos->partition.n > 0) ? wr->xqos->partition.strs : &ps_def;
+    uint32_t nps = (wr->xqos->partition.n > 0) ? wr->xqos->partition.n : 1;
+    wr->network_partition = NULL;
+    for (uint32_t i = 0; i < nps && wr->network_partition == NULL; i++)
+      wr->network_partition = get_partition_from_mapping (&wr->e.gv->logconfig, &wr->e.gv->config, ps[i], wr->xqos->topic_name);
+  }
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
 
 #ifdef DDS_HAS_SSM
@@ -4651,9 +4656,12 @@ static dds_return_t new_reader_guid
   if (pp->e.gv->config.allowMulticast & ~DDSI_AMC_SPDP)
   {
     /* compile address set from the mapped network partitions */
-    for (uint32_t i = 0; i < rd->xqos->partition.n; i++)
+    char *ps_def = "";
+    char **ps = (rd->xqos->partition.n > 0) ? rd->xqos->partition.strs : &ps_def;
+    uint32_t nps = (rd->xqos->partition.n > 0) ? rd->xqos->partition.n : 1;
+    for (uint32_t i = 0; i < nps; i++)
     {
-      struct addrset *pas = get_as_from_mapping (pp->e.gv, rd->xqos->partition.strs[i], rd->xqos->topic_name);
+      struct addrset *pas = get_as_from_mapping (pp->e.gv, ps[i], rd->xqos->topic_name);
       if (pas)
       {
 #ifdef DDS_HAS_SSM
