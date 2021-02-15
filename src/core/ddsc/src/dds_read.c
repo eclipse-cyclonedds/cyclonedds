@@ -84,16 +84,15 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
         else
         {
           ddsi_sertype_realloc_samples (buf, rd->m_topic->m_stype, rd->m_loan, rd->m_loan_size, maxs);
-          rd->m_loan = buf[0];
           rd->m_loan_size = maxs;
         }
       }
       else
       {
         ddsi_sertype_realloc_samples (buf, rd->m_topic->m_stype, NULL, 0, maxs);
-        rd->m_loan = buf[0];
         rd->m_loan_size = maxs;
       }
+      rd->m_loan = buf[0];
       rd->m_loan_out = true;
       nodata_cleanups = NC_RESET_BUF | NC_CLEAR_LOAN_OUT;
     }
