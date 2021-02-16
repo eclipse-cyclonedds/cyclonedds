@@ -994,8 +994,8 @@ static struct cfgelem multiple_recv_threads_attrs[] = {
 };
 
 static struct cfgelem internal_cfgelems[] = {
-  MOVED("MaxMessageSize", "CycloneDDS/General/MaxMessageSize"),
-  MOVED("FragmentSize", "CycloneDDS/General/FragmentSize"),
+  MOVED("MaxMessageSize", "CycloneDDS/Domain/General/MaxMessageSize"),
+  MOVED("FragmentSize", "CycloneDDS/Domain/General/FragmentSize"),
   INT("DeliveryQueueMaxSamples", NULL, 1, "256",
     MEMBER(delivery_queue_maxsamples),
     FUNCTIONS(0, uf_uint, 0, pf_uint),
