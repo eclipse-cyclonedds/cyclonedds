@@ -590,19 +590,21 @@ static void test_create_delete_writer_stress(bool remote_reader)
       alive_writers_man++;
   }
   dds_delete_qos(wqos);
-  printf("alive_writers_auto: %d, alive_writers_man: %d\n", alive_writers_auto, alive_writers_man);
+  printf("%"PRId64" alive_writers_auto: %d, alive_writers_man: %d\n", dds_time(), alive_writers_auto, alive_writers_man);
 
   /* wait for auto liveliness writers to become alive and manual-by-pp writers to become not-alive */
   do
   {
     CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status(reader, &lstatus), DDS_RETCODE_OK);
-    printf("alive: %d, not-alive: %d\n", lstatus.alive_count, lstatus.not_alive_count);
+    printf("%"PRId64" alive: %d, not-alive: %d\n", dds_time(), lstatus.alive_count, lstatus.not_alive_count);
     dds_sleepfor(DDS_MSECS(50));
   } while (lstatus.alive_count != alive_writers_auto || lstatus.not_alive_count != alive_writers_man);
 
   /* check that counts are stable after a delay */
+  printf("%"PRId64" wait for half ldur (%"PRId64"ms)\n", dds_time(), ldur);
   dds_sleepfor(DDS_MSECS(ldur / 2));
   CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status(reader, &lstatus), DDS_RETCODE_OK);
+  printf("%"PRId64" alive: %d, not-alive: %d\n", dds_time(), lstatus.alive_count, lstatus.not_alive_count);
   CU_ASSERT_FATAL(lstatus.alive_count == alive_writers_auto && lstatus.not_alive_count == alive_writers_man);
 
   /* cleanup remaining writers */
@@ -615,7 +617,7 @@ static void test_create_delete_writer_stress(bool remote_reader)
   do
   {
     CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status(reader, &lstatus), DDS_RETCODE_OK);
-    printf("alive: %d, not: %d\n", lstatus.alive_count, lstatus.not_alive_count);
+    printf("%"PRId64" alive: %d, not: %d\n", dds_time(), lstatus.alive_count, lstatus.not_alive_count);
     dds_sleepfor(DDS_MSECS(ldur / 10));
   } while (lstatus.alive_count > 0 || lstatus.not_alive_count > 0);
   CU_ASSERT_EQUAL_FATAL(dds_waitset_detach(waitset, reader), DDS_RETCODE_OK);
