@@ -43,22 +43,23 @@
 /* Define the target system. */
 #define SYSTEM              @idlpp_system@
 
-/* Define the target compiler to INDEPENDENT to avoid target C compiler
-   specific behavior as much as possible. */
-#define COMPILER            INDEPENDENT
-
-/* Define __CYCLONEDDS__ so that sections in a file can be enabled or disabled
-   based the IDL compiler. */
-#define COMPILER_EXT        "CYCLONEDDS"
-#define COMPILER_EXT_VAL    "@idlpp_version@"
+/* Define the target compiler to GNUC to output GCC line directives, which
+   are required to construct an include stack. */
+#define COMPILER            GNUC
+/* __GNUC__ and __GNUC_MINOR__ are required if COMPILER equals GNUC. */
+#define COMPILER_EXT        "__GNUC__"
+#define COMPILER_EXT_VAL    "0"
+#define COMPILER_EXT2       "__GNUC_MINOR__"
+#define COMPILER_EXT2_VAL   "0"
 
 /* Define the output line prefix. */
-#define LINE_PREFIX         "#line "
-#define STD_LINE_PREFIX     TRUE    /* Output #line by C source format */
+#define LINE_PREFIX         "# "
+#define STD_LINE_PREFIX     FALSE    /* Output GCC line directives */
 
 /* Default path to search for included files. */
-#if 0
 #define C_INCLUDE_DIR1      "@idlpp_include_dir@"
+#ifndef INC_DIR
+# define INC_DIR C_INCLUDE_DIR1
 #endif
 
 /* Name of environment variable with paths to search for included files. */
