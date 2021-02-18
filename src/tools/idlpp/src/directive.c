@@ -365,6 +365,7 @@ ifdo:
         if (file != infile)             /* File has been included   */
             newlines = -1;
 #endif
+        /* Fall through         */
     case L_error    :
         if (standard)
             goto  skip_line;
