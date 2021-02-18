@@ -106,7 +106,8 @@
 
 static void     version( void);
                 /* Print version message            */
-static void     usage( int opt);
+static void     usage( int opt)
+        MCPP_ATTRIBUTE((noreturn));
                 /* Putout usage of MCPP             */
 static void     set_opt_list( char * optlist);
                 /* Set list of legal option chars   */
@@ -431,7 +432,9 @@ void    do_options(
     int         sflag;                      /* -S option or similar */
     int         trad;                       /* -traditional         */
     int         old_mode;                   /* backup of 'mcpp_mode'*/
+#if COMPILER != GNUC
     int         gval, sse;
+#endif
     char *      cp;
     int         i;
 #if COMPILER == GNUC
@@ -449,7 +452,9 @@ void    do_options(
     argv0 = argv[ 0];
     nflag = unset_sys_dirs = show_path = sflag = trad = FALSE;
     arch[ 0] = 0;
+#if COMPILER != GNUC
     gval = sse = 0;
+#endif
     set_cplus_dir = TRUE;
 
     /* Get current directory for -I option and #pragma once */
@@ -1350,7 +1355,7 @@ Version:
     if (sysdir < sysdir_end) {
         char **     dp = sysdir;
         if (! sys_dirp || sys_dirp == incdir)
-            sys_dirp = dp;
+            sys_dirp = (const char **)dp;
         while (dp < sysdir_end)
             set_a_dir( *dp++);
     }
@@ -2166,16 +2171,16 @@ static void put_info(
     sharp_file->line--;
 #if COMPILER == GNUC
     if (gcc_work_dir)
-        mcpp_fprintf( OUT, "%s%ld \"%s%c\"\n"
+        mcpp_fprintf( OUT, "%s%d \"%s%c\"\n"
                 , std_line_prefix ? "#line " : LINE_PREFIX
                 , 1, cur_work_dir, '/');
         /* Putout the current directory as a #line line as: */
         /* '# 1 "/abs-path/cur_dir//"'.                     */
-    mcpp_fprintf( OUT, "%s%ld \"<built-in>\"\n"
+    mcpp_fprintf( OUT, "%s%d \"<built-in>\"\n"
                 , std_line_prefix ? "#line " : LINE_PREFIX , 1);
-    mcpp_fprintf( OUT, "%s%ld \"<command line>\"\n"
+    mcpp_fprintf( OUT, "%s%d \"<command line>\"\n"
                 , std_line_prefix ? "#line " : LINE_PREFIX , 1);
-    mcpp_fprintf( OUT, "%s%ld \"%s\"%s\n"
+    mcpp_fprintf( OUT, "%s%d \"%s\"%s\n"
             , std_line_prefix ? "#line " : LINE_PREFIX, 1, cur_fullname
             , ! str_eq( cur_fullname, sharp_file->full_fname) ? " 1" : null);
             /* Suffix " 1" for the file specified by -include   */
@@ -2346,7 +2351,7 @@ static void set_a_dir(
 #if COMPILER == GNUC
         size_t  sys_pos = 0;
         if (sys_dirp)
-            sys_pos = sys_dirp - incdir;
+            sys_pos = (size_t)(sys_dirp - incdir);
 #endif
         incdir = (const char **) xrealloc( (void *) incdir
                 , sizeof (char *) * max_inc * 2);
@@ -2424,6 +2429,9 @@ static char *   norm_dir(
  */
 {
     char *  norm_name;
+#if COMPILER == GNUC
+    char *  dir = NULL;
+#endif
 
 #if COMPILER != GNUC || SYSTEM != SYS_MAC
     (void)isframework;
@@ -2433,7 +2441,6 @@ static char *   norm_dir(
     if (sysroot && sys_dirp) {
         /* Logical system root specified and dirname is system header dir   */
         char    delim[ 2] = { EOS, EOS};
-        char *  dir;
 #if SYSTEM == SYS_MAC
         if (! isframework && memcmp( dirname, "/usr/", 5) != 0)
             return  NULL;           /* /Developer/usr/lib/gcc/      */
@@ -2463,8 +2470,8 @@ static char *   norm_dir(
                     , dirname);
     }
 #if COMPILER == GNUC
-    if (sysroot && sys_dirp)
-        free( dirname);
+    if (dir)
+        free( dir);
 #endif
 
     return  norm_name;
@@ -2542,13 +2549,13 @@ static char *   norm_path(
         return  NULL;
 #if SYSTEM == SYS_MAC && COMPILER == GNUC
     if (hmap) {                         /* Dirty "header map" file  */
-        struct hmap_header_map  hmap;
+        struct hmap_header_map  hdrmap;
         size_t      cnt;
         FILE *      fp;
         fp = fopen( fname, "r");
-        cnt = fread( & hmap, sizeof (struct hmap_header_map), 1, fp);
+        cnt = fread( & hdrmap, sizeof (struct hmap_header_map), 1, fp);
         fclose( fp);
-        if (cnt == 0 || hmap.magic != HMAP_SAME_ENDIANNESS_MAGIC)
+        if (cnt == 0 || hdrmap.magic != HMAP_SAME_ENDIANNESS_MAGIC)
             return  NULL;
     }
 #else
@@ -2785,7 +2792,6 @@ static void init_gcc_macro( void)
     char *      include_dir;    /* The version-specific include directory   */
     char *      tmp;
     FILE *      fp;
-    DEFBUF *    defp;
     const char *    cp;
     char *      tp;
     int         i;
@@ -2830,10 +2836,10 @@ static void init_gcc_macro( void)
         while (fgets( lbuf, BUFSIZ, fp) != NULL) {
             unget_string( lbuf, "gcc_predefine");
             if (skip_ws() == '#'
-                && scan_token( skip_ws(), (tp = work_buf, &tp), work_end)
+                && scan_token( skip_ws(), ((void)(tp = work_buf), &tp), work_end)
                         == NAM
                     && str_eq( work_buf, "define")) {
-                defp = do_define( TRUE, nargs);     /* Ignore re-definition */
+                (void) do_define( TRUE, nargs);     /* Ignore re-definition */
             }
             skip_nl();
         }
@@ -3480,7 +3486,7 @@ static int  open_file(
             && str_case_eq( *dirp + strlen( *dirp) - 5, ".hmap")) {
         /* Search header map file for a header  */
         if (! search_header_map( *dirp, filename, dir_fname))
-            return  NULL;
+            return  FALSE;
         fname = dir_fname;                  /* Found a path-list    */
         dirp = &null;
         goto  search;
@@ -3686,7 +3692,7 @@ static char *   search_header_map(
     struct stat     stat_buf;
     FILE *          fp;
     size_t          fsize;
-    const char *    contents;
+    char *          contents;
     struct hmap_header_map *    hmap;
     struct hmap_bucket *        buckets;
     const char *    strings;
@@ -3695,7 +3701,7 @@ static char *   search_header_map(
     uint32          i;
 
     stat( hmap_file, &stat_buf);            /* Get size of the file */
-    fsize = stat_buf.st_size;
+    fsize = (size_t)stat_buf.st_size;
     contents = xmalloc( fsize + 1);
     fp = fopen( hmap_file, "r");
     fread( contents, fsize, 1, fp);     /* Read whole of the file at once   */
@@ -3712,7 +3718,7 @@ static char *   search_header_map(
             strcpy( cp, strings + buckets[ i].value.suffix);
             break;
         }
-        i = ++i & mask;
+        i = (i + 1) & mask;
     }
     free( contents);
     return  key_offs ? pathlist : NULL;
@@ -3729,7 +3735,7 @@ static unsigned hmap_hash(
     unsigned        hash_code = 0;
 
     for (sp = fname; *sp; sp++)
-        hash_code += tolower( *sp & 0xFF) * 13;
+        hash_code += (unsigned)tolower( *sp & 0xFF) * 13;
     return  hash_code;
 }
 #endif  /* COMPILER == GNUC */
@@ -4216,7 +4222,7 @@ void    do_pragma( void)
 #if COMPILER == GNUC
     /* The #pragma lines for GCC is skipped not to confuse cc1.     */
     } else if (str_eq( identifier, "GCC")) {    /* #pragma GCC *    */
-        if (scan_token( skip_ws(), (tp = work_buf, &tp), work_end) == NAM) {
+        if (scan_token( skip_ws(), ((void)(tp = work_buf), &tp), work_end) == NAM) {
             if (str_eq( identifier, "poison")
                     || str_eq( identifier, "dependency")) {
                 if (warn_level & 2)

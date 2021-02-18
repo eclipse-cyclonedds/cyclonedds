@@ -595,8 +595,10 @@ void    un_predefine(
  *      post_preproc() via putout() in some cases)
  */
 static char     output[ NMACWORK];  /* Buffer for preprocessed line */
+#if COMPILER != GNUC && COMPILER != MSC
 static char * const out_end = & output[ NWORK - 2];
                 /* Limit of output line for other than GCC and VC   */
+#endif
 static char * const out_wend = & output[ NMACWORK - 2];
                                     /* Buffer end of output line    */
 static char *       out_ptr;        /* Current pointer into output[]*/
@@ -869,7 +871,9 @@ static void putout(
  * Put out a line with or without "post-preprocessing".
  */
 {
+#if COMPILER != GNUC && COMPILER != MSC
     size_t  len;
+#endif
 
     *out_ptr++ = '\n';                      /* Put out a newline    */
     *out_ptr = EOS;
