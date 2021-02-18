@@ -30,6 +30,10 @@
 # endif /* _WIN32 */
 #endif /* LWIP_SOCKET */
 
+#if defined __APPLE__
+#include <net/if_dl.h>
+#endif
+
 extern inline struct timeval *
 ddsrt_duration_to_timeval_ceil(dds_duration_t reltime, struct timeval *tv);
 
@@ -42,6 +46,9 @@ const int afs[] = {
 #if defined(__linux) && !LWIP_SOCKET
   AF_PACKET,
 #endif /* __linux */
+#if defined(__APPLE__)
+  AF_LINK,
+#endif
 #if DDSRT_HAVE_IPV6
   AF_INET6,
 #endif /* DDSRT_HAVE_IPV6 */
@@ -68,6 +75,12 @@ ddsrt_sockaddr_get_size(const struct sockaddr *const sa)
     case AF_PACKET:
       sz = sizeof(struct sockaddr_ll);
       break;
+#elif defined __APPLE__
+    case AF_LINK:
+      sz = sizeof(struct sockaddr_dl);
+      break;
+#else
+#error
 #endif /* __linux */
     default:
       assert(sa->sa_family == AF_INET);
