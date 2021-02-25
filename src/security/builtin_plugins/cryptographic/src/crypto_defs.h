@@ -115,9 +115,18 @@ struct receiver_specific_mac
   crypto_hmac_t receiver_mac;
 };
 
-typedef struct crypto_data {
+typedef struct const_tainted_crypto_data {
+  const unsigned char *base;
+  size_t length;
+} const_tainted_crypto_data_t;
+
+typedef struct tainted_crypto_data {
   unsigned char *base;
   size_t length;
-} crypto_data_t;
+} tainted_crypto_data_t;
+
+typedef struct trusted_crypto_data {
+  tainted_crypto_data_t x;
+} trusted_crypto_data_t;
 
 #endif /* CRYPTO_DEFS_H */

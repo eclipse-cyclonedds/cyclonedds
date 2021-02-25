@@ -75,6 +75,7 @@ void dds_openssl_init (void);
 struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result);
 #endif
 
-void DDS_Security_Exception_set_with_openssl_error (DDS_Security_SecurityException *ex, const char *context, int code, int minor_code, const char *error_area);
+void DDS_Security_Exception_set_with_openssl_error (DDS_Security_SecurityException *ex, const char *context, int code, int minor_code, const char *error_area)
+  ddsrt_nonnull_all;
 
 #endif
