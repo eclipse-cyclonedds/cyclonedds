@@ -14,6 +14,7 @@
 #include "dds/dds.h"
 #include "dds/version.h"
 #include "dds/ddsrt/static_assert.h"
+#include "dds/ddsrt/heap.h"
 #include "dds__participant.h"
 #include "dds__subscriber.h"
 #include "dds__reader.h"
@@ -67,7 +68,15 @@ static dds_return_t dds_reader_delete (dds_entity *e) ddsrt_nonnull_all;
 static dds_return_t dds_reader_delete (dds_entity *e)
 {
   dds_reader * const rd = (dds_reader *) e;
-  dds_free (rd->m_loan);
+
+  if (rd->m_loan)
+  {
+    void **ptrs = ddsrt_malloc (rd->m_loan_size * sizeof (*ptrs));
+    ddsi_sertype_realloc_samples (ptrs, rd->m_topic->m_stype, rd->m_loan, rd->m_loan_size, rd->m_loan_size);
+    ddsi_sertype_free_samples (rd->m_topic->m_stype, ptrs, rd->m_loan_size, DDS_FREE_ALL);
+    ddsrt_free (ptrs);
+  }
+
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   dds_rhc_free (rd->m_rhc);
   thread_state_asleep (lookup_thread_state ());
