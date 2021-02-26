@@ -9,7 +9,7 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-idlc_generate(HelloWorldData_lib "HelloWorldData.idl")
+idlc_generate(TARGET HelloWorldData_lib FILES "HelloWorldData.idl")
 
 add_executable(HelloworldPublisher publisher.c)
 add_executable(HelloworldSubscriber subscriber.c)

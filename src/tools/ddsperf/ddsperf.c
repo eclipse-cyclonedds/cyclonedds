@@ -523,7 +523,7 @@ static void hist_print (const char *prefix, struct hist *h, dds_time_t dt, int r
     hist_reset (h);
 }
 
-static void *make_baggage (dds_sequence_t *b, uint32_t cnt)
+static void *make_baggage (dds_sequence_octet *b, uint32_t cnt)
 {
   b->_maximum = b->_length = cnt;
   if (cnt == 0)

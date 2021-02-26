@@ -9,7 +9,7 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-idlc_generate(Throughput_lib Throughput.idl)
+idlc_generate(TARGET Throughput_lib FILES Throughput.idl)
 
 add_executable(ThroughputPublisher publisher.c)
 add_executable(ThroughputSubscriber subscriber.c)

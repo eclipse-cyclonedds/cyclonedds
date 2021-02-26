@@ -44,7 +44,7 @@ $ add-apt-repository ppa:ubuntu-toolchain-r/test
 $ echo "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-6.0 main" >> /etc/apt/sources.list.d/llvm-toolchain-6.0.list
 $ wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
 $ apt-get update
-$ apt-get install gcc-8 g++-8 clang-6.0 oracle-java8-set-default maven
+$ apt-get install gcc-8 g++-8 clang-6.0 bison
 ```
 
 4. Switch to the *travis* user.

@@ -1,0 +1,31 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+#include <stdint.h>
+#include <string.h>
+
+#include "hashid.h"
+
+@MD5@ /* sources from md5.h and md5.c inserted here */
+
+uint32_t idl_hashid(const char *name)
+{
+  uint32_t id;
+
+  ddsrt_md5_state_t md5st;
+  ddsrt_md5_byte_t digest[16];
+
+  ddsrt_md5_init(&md5st);
+  ddsrt_md5_append(&md5st, (ddsrt_md5_byte_t*)name, (unsigned int)strlen(name));
+  ddsrt_md5_finish(&md5st, digest);
+  memcpy(&id, digest, sizeof(id));
+  return id & 0x0fffffffu;
+}

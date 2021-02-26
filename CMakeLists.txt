@@ -49,14 +49,7 @@ string(REPLACE " " "-" PROJECT_NAME_DASHED "${PROJECT_NAME_FULL}")
 string(TOUPPER ${PROJECT_NAME} PROJECT_NAME_CAPS)
 string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_SMALL)
 
-# By default the Java-based components get built, but make it possible to disable that: if only the
-# core library is required, there's no need to build them, and that in turn eliminates the Maven and
-# JDK dependency.
 option(BUILD_IDLC "Build IDL preprocessor" ON)
-if(BUILD_IDLC STREQUAL "AUTO")
-  find_package(Maven 3.0 QUIET)
-  set(BUILD_IDLC ${Maven_FOUND})
-endif()
 
 set(CMAKE_C_STANDARD 99)
 if(CMAKE_SYSTEM_NAME STREQUAL "VxWorks")

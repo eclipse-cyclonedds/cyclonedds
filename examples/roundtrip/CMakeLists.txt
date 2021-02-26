@@ -9,7 +9,7 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-idlc_generate(RoundTrip_lib RoundTrip.idl)
+idlc_generate(TARGET RoundTrip_lib FILES RoundTrip.idl)
 
 add_executable(RoundtripPing ping.c)
 add_executable(RoundtripPong pong.c)
