@@ -25,19 +25,11 @@ In order to build Cyclone DDS you need a Linux, Mac or Windows 10 machine (or, w
   * [OpenSSL](https://www.openssl.org/), preferably version 1.1 or later if you want to use TLS over
     TCP.  You can explicitly disable it by setting ``ENABLE_SSL=NO``, which is very useful for
     reducing the footprint or when the FindOpenSSL CMake script gives you trouble;
-  * Java JDK, version 8 or later, e.g., [OpenJDK](https://jdk.java.net/);
-  * [Apache Maven](https://maven.apache.org/download.cgi), version 3.5 or later.
+  * [Bison](https://www.gnu.org/software/bison/) parser generator.
 
-On Ubuntu ``apt install maven default-jdk`` should do the trick for getting Java and Maven
-installed, and the rest should already be there.  On Windows, installing chocolatey and ``choco
-install git cmake openjdk maven`` should get you a long way.  On macOS, ``brew install maven cmake``
-and downloading and installing the JDK is easiest.
-
-The only Java-based component is the IDL preprocessor.  The run-time
-libraries are pure C code, so there is no need to have Java available on "target"
-machines.  If desired, it is possible to do a build without Java or Maven installed by
-defining ``BUILD_IDLC=NO``, but that effectively only gets you the core library.  For the
-current [ROS 2 RMW layer](https://github.com/ros2/rmw_cyclonedds), that is sufficient.
+On Ubuntu ``apt install bison`` should do the trick for getting Bison installed, and the rest should
+already be there.  On Windows, installing chocolatey and ``choco install winflexbison3`` should get
+you a long way.  On macOS, ``brew install bison`` is easiest.
 
 To obtain Eclipse Cyclone DDS, do
 

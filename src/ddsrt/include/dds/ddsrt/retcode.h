@@ -77,8 +77,6 @@ typedef int32_t dds_return_t;
 #define DDS_RETCODE_OUT_OF_RANGE        DDS_XRETCODE(9)
 /** Not found */
 #define DDS_RETCODE_NOT_FOUND           DDS_XRETCODE(10)
-/** Syntax error */
-#define DDS_RETCODE_BAD_SYNTAX          DDS_XRETCODE(11)
 /**
  * @}
  */

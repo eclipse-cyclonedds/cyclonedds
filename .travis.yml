@@ -177,9 +177,6 @@ windows1809_vs2017: &windows1809_vs2017
       else
         eval "export GENERATOR='Visual Studio 15 2017'"
       fi
-    - JAVA_HOME=$(find "/c/Program Files/Android/jdk/" -name "*openjdk*" | sort | head -n 1)
-    - export JAVA_HOME
-    - export PATH="${PATH}:${JAVA_HOME}/bin"
   # Windows targets in Travis are still very much in beta and Python is not yet
   # available and installation of Python through Chocolaty does not work well.
   # The real fix is to wait until Python and pip are both available on the
@@ -187,7 +184,6 @@ windows1809_vs2017: &windows1809_vs2017
   # the extracted folder to the path.
   install:
     - choco install innoextract
-    - choco install maven --ignore-dependencies
     - choco install winflexbison3
     - wget -q https://dl.bintray.com/conan/installers/conan-win-64_1_34_0.exe
     - innoextract conan-win-64_1_34_0.exe

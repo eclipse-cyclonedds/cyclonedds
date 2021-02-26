@@ -11,13 +11,13 @@
 #
 include(CUnit)
 
-idlc_generate(RoundTrip RoundTrip.idl)
-idlc_generate(Space Space.idl)
-idlc_generate(TypesArrayKey TypesArrayKey.idl)
-idlc_generate(WriteTypes WriteTypes.idl)
-idlc_generate(InstanceHandleTypes InstanceHandleTypes.idl)
-idlc_generate(RWData RWData.idl)
-idlc_generate(CreateWriter CreateWriter.idl)
+idlc_generate(TARGET RoundTrip FILES RoundTrip.idl)
+idlc_generate(TARGET Space FILES Space.idl)
+idlc_generate(TARGET TypesArrayKey FILES TypesArrayKey.idl)
+idlc_generate(TARGET WriteTypes FILES WriteTypes.idl)
+idlc_generate(TARGET InstanceHandleTypes FILES InstanceHandleTypes.idl)
+idlc_generate(TARGET RWData FILES RWData.idl)
+idlc_generate(TARGET CreateWriter FILES CreateWriter.idl)
 
 set(ddsc_test_sources
     "basic.c"
