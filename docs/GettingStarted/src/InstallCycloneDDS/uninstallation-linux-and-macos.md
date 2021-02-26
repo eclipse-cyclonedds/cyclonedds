@@ -1,3 +1,0 @@
-## Linux and macOS
-
-TBD.
