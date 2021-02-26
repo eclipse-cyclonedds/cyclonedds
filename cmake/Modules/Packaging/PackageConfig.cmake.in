@@ -16,7 +16,7 @@ option("@PROJECT_NAME@_IDLC_ALWAYS" "Should we include idlc even if the user did
 
 set("@PROJECT_NAME@_idlc_FOUND" FALSE)
 if ("idlc" IN_LIST "@PROJECT_NAME@_FIND_COMPONENTS" OR "@PROJECT_NAME@_IDLC_ALWAYS")
-  include("${CMAKE_CURRENT_LIST_DIR}/idlc/IdlcGenerate.cmake" OPTIONAL RESULT_VARIABLE _IdlcGenerate)
+  include("${CMAKE_CURRENT_LIST_DIR}/idlc/Generate.cmake" OPTIONAL RESULT_VARIABLE _IdlcGenerate)
   if(NOT _IdlcGenerate STREQUAL "NOTFOUND")
     set("@PROJECT_NAME@_idlc_FOUND" TRUE)
   endif()

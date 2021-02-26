@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include <getopt.h>
+#include "getopt.h"
 
 /* ::[[ @(#) getopt.c 1.5 89/03/11 05:40:23 ]]:: */
 #ifndef LINT

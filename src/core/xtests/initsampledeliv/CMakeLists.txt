@@ -11,7 +11,7 @@
 #
 cmake_minimum_required(VERSION 3.5)
 
-idlc_generate(InitSampleDeliv_lib InitSampleDelivData.idl)
+idlc_generate(TARGET InitSampleDeliv_lib FILES InitSampleDelivData.idl)
 
 add_executable(InitSampleDelivPub publisher.c)
 add_executable(InitSampleDelivSub subscriber.c)
