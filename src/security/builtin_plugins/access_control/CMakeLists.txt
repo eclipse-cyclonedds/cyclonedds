@@ -9,16 +9,17 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-include (GenerateExportHeader)
+include(GenerateExportHeader)
 
-PREPEND(srcs_accesscontrol "${CMAKE_CURRENT_LIST_DIR}/src"
-    access_control_objects.c
-    access_control_parser.c
-    access_control_utils.c
-    access_control.c
-)
+set(sources
+  access_control_objects.c
+  access_control_parser.c
+  access_control_utils.c
+  access_control.c)
 
-add_library(dds_security_ac SHARED "")
+list(TRANSFORM sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/")
+
+add_library(dds_security_ac SHARED ${sources})
 
 generate_export_header(
     dds_security_ac
@@ -32,7 +33,6 @@ target_link_libraries(dds_security_ac PUBLIC OpenSSL::SSL)
 if(CMAKE_GENERATOR MATCHES "Visual Studio")
   set_target_properties(dds_security_ac PROPERTIES LINK_FLAGS "/ignore:4099")
 endif()
-target_sources(dds_security_ac PRIVATE ${srcs_accesscontrol})
 add_coverage(dds_security_ac)
 target_include_directories(dds_security_ac
     PUBLIC
