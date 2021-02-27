@@ -9,21 +9,20 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-include (GenerateExportHeader)
+include(GenerateExportHeader)
 
-PREPEND(srcs_authentication "${CMAKE_CURRENT_LIST_DIR}/src"
-    authentication.c
-    auth_utils.c
-)
+set(sources
+  authentication.c
+  auth_utils.c)
 
-PREPEND(hdrs_private_authentication "${CMAKE_CURRENT_LIST_DIR}/src"
-    auth_defs.h
-    authentication.h
-    auth_utils.h
-    dds_security_core_if.h
-)
+set(private_headers
+  authentication.h
+  auth_utils.h)
 
-add_library(dds_security_auth SHARED "")
+list(TRANSFORM sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/")
+list(TRANSFORM private_headers PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/")
+
+add_library(dds_security_auth SHARED ${sources} ${private_headers})
 
 generate_export_header(
         dds_security_auth
@@ -37,7 +36,7 @@ target_link_libraries(dds_security_auth PUBLIC OpenSSL::SSL)
 if(CMAKE_GENERATOR MATCHES "Visual Studio")
   set_target_properties(dds_security_auth PROPERTIES LINK_FLAGS "/ignore:4099")
 endif()
-target_sources(dds_security_auth PRIVATE ${srcs_authentication})
+
 add_coverage(dds_security_auth)
 target_include_directories(dds_security_auth
     PUBLIC
@@ -54,7 +53,4 @@ install(
   EXPORT "${PROJECT_NAME}"
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
-  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
-)
-
-
+  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib)
