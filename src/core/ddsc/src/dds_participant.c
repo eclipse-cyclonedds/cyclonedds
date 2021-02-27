@@ -104,7 +104,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   if ((ret = dds_init ()) < 0)
     goto err_dds_init;
 
-  (void) ddsrt_getenv (DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", &config);
+  (void) ddsrt_getenv ("CYCLONEDDS_URI", &config);
 
   if ((ret = dds_domain_create_internal (&dom, domain, true, config)) < 0)
     goto err_domain_create;

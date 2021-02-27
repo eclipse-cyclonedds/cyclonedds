@@ -263,6 +263,7 @@ script:
           -DENABLE_TYPE_DISCOVERY=${TYPE_DISCOVERY}
           -DENABLE_COVERAGE=${CODECOV}
           -DBUILD_TESTING=on
+          -DBUILD_EXAMPLES=on
           -DWERROR=on
           -G "${GENERATOR}" ..
   - ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- ${BUILD_TOOL_OPTIONS}

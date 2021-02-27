@@ -100,7 +100,7 @@ get_test_property(CUnit_ddsc_config_simple_udp ENVIRONMENT CUnit_ddsc_config_sim
 set(CUnit_ddsc_config_simple_udp_file "${CMAKE_CURRENT_LIST_DIR}/config_simple_udp.xml")
 set(CUnit_ddsc_config_simple_udp_uri "file://${CUnit_ddsc_config_simple_udp_file}")
 set(CUnit_ddsc_config_simple_udp_max_participants "0")
-set(CUnit_ddsc_config_simple_udp_env "${PROJECT_NAME_CAPS}_URI=${CUnit_ddsc_config_simple_udp_uri};MAX_PARTICIPANTS=${CUnit_ddsc_config_simple_udp_max_participants};${CUnit_ddsc_config_simple_udp_env}")
+set(CUnit_ddsc_config_simple_udp_env "CYCLONEDDS_URI=${CUnit_ddsc_config_simple_udp_uri};MAX_PARTICIPANTS=${CUnit_ddsc_config_simple_udp_max_participants};${CUnit_ddsc_config_simple_udp_env}")
 set_tests_properties(
 	CUnit_ddsc_config_simple_udp
 	PROPERTIES

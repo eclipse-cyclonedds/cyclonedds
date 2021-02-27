@@ -32,22 +32,8 @@ endif()
 # small mistake would run into errors.  CI builds can be configured differently.
 option(WERROR "Treat compiler warnings as errors" OFF)
 
-FUNCTION(PREPEND var prefix)
-   SET(listVar "")
-   FOREACH(f ${ARGN})
-      LIST(APPEND listVar "${prefix}/${f}")
-   ENDFOREACH(f)
-   SET(${var} "${listVar}" PARENT_SCOPE)
-ENDFUNCTION(PREPEND)
-
-# Set module path before defining project so platform files will work.
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
-set(PROJECT_NAME_FULL "Eclipse Cyclone DDS")
-
-# Set some convenience variants of the project-name
-string(REPLACE " " "-" PROJECT_NAME_DASHED "${PROJECT_NAME_FULL}")
-string(TOUPPER ${PROJECT_NAME} PROJECT_NAME_CAPS)
-string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_SMALL)
+include(Compat)
 
 option(BUILD_IDLC "Build IDL preprocessor" ON)
 
@@ -203,13 +189,6 @@ if(SANITIZER)
   endforeach()
 endif()
 
-include(GNUInstallDirs)
-if(APPLE)
-  set(CMAKE_INSTALL_RPATH "@loader_path/../${CMAKE_INSTALL_LIBDIR}")
-else()
-  set(CMAKE_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
-endif()
-
 find_package(codecov)
 include(Codecov)
 set(MEMORYCHECK_COMMAND_OPTIONS "--track-origins=yes --leak-check=full --trace-children=yes --child-silent-after-fork=yes --xml=yes --xml-file=TestResultValgrind_%p.xml --tool=memcheck --show-reachable=yes --leak-resolution=high")
@@ -218,7 +197,8 @@ set(MEMORYCHECK_COMMAND_OPTIONS "--track-origins=yes --leak-check=full --trace-c
 # since not everybody has CUnit, and because it is not strictly required to
 # build the product itself, switch to off by default.
 option(BUILD_TESTING "Build the testing tree." OFF)
-include(CTest)
+# Disable building examples by default because it is not strictly required.
+option(BUILD_EXAMPLES "Build examples." OFF)
 
 option(BUILD_DOCS "Build documentation." OFF)
 if(CMAKE_CROSSCOMPILING)
@@ -227,18 +207,53 @@ else()
   set(not_crosscompiling ON)
 endif()
 option(BUILD_SCHEMA "Build generated schema for configuration options." ${not_crosscompiling})
+
 # Build all executables and libraries into the top-level /bin and /lib folders.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
+include(CTest)
+
+if(APPLE)
+  set(CMAKE_INSTALL_RPATH "@loader_path/../${CMAKE_INSTALL_LIBDIR}")
+else()
+  set(CMAKE_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+endif()
+
+set(CMAKE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
+
+# Generate <Package>Config.cmake
+configure_package_config_file(
+  "PackageConfig.cmake.in"
+  "${PROJECT_NAME}Config.cmake"
+  INSTALL_DESTINATION "${CMAKE_INSTALL_CMAKEDIR}")
+
+# Generate <Package>Version.cmake
+write_basic_package_version_file(
+  "${PROJECT_NAME}ConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY SameMajorVersion)
+
+install(
+  FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+  DESTINATION "${CMAKE_INSTALL_CMAKEDIR}"
+  COMPONENT dev)
+
+# Generate <Package>Targets.cmake
+install(
+  EXPORT ${PROJECT_NAME}
+  FILE "${PROJECT_NAME}Targets.cmake"
+  NAMESPACE "${PROJECT_NAME}::"
+  DESTINATION "${CMAKE_INSTALL_CMAKEDIR}"
+  COMPONENT dev)
+
 add_subdirectory(src)
-if(BUILD_IDLC)
+if(BUILD_IDLC AND BUILD_EXAMPLES)
   add_subdirectory(examples)
 endif()
 
-
 add_subdirectory(docs)
-
-# Pull-in CPack and support for generating <Package>Config.cmake and packages.
-include(Packaging)

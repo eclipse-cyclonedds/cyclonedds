@@ -11,14 +11,6 @@
 #
 include (GenerateExportHeader)
 
-FUNCTION(PREPEND var prefix)
-   SET(listVar "")
-   FOREACH(f ${ARGN})
-      LIST(APPEND listVar "${prefix}/${f}")
-   ENDFOREACH(f)
-   SET(${var} "${listVar}" PARENT_SCOPE)
-ENDFUNCTION(PREPEND)
-
 if (BUILD_SHARED_LIBS OR NOT DEFINED BUILD_SHARED_LIBS)
   add_library(ddsc SHARED)
 else()

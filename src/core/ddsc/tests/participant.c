@@ -47,7 +47,7 @@ CU_Test(ddsc_participant, create_with_no_conf_no_env)
   dds_domainid_t domain_id;
   dds_domainid_t valid_domain=3;
 
-  status = ddsrt_unsetenv(DDS_PROJECT_NAME_NOSPACE_CAPS"_URI");
+  status = ddsrt_unsetenv("CYCLONEDDS_URI");
   CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
   //valid specific domain value
@@ -108,11 +108,11 @@ CU_Test(ddsc_participant, create_with_conf_no_env) {
     dds_domainid_t domain_id;
     dds_domainid_t valid_domain=3;
 
-    ddsrt_setenv(DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", CONFIG_ENV_SIMPLE_UDP);
+    ddsrt_setenv("CYCLONEDDS_URI", CONFIG_ENV_SIMPLE_UDP);
     ddsrt_setenv("MAX_PARTICIPANTS", CONFIG_ENV_MAX_PARTICIPANTS);
 
     const char * env_uri = NULL;
-    ddsrt_getenv(DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", &env_uri);
+    ddsrt_getenv("CYCLONEDDS_URI", &env_uri);
     CU_ASSERT_PTR_NOT_EQUAL_FATAL(env_uri, NULL);
 
     //valid specific domain value
