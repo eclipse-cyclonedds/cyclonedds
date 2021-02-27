@@ -9,6 +9,11 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
+if(CMAKE_CROSSCOMPILING)
+  # Do not build preprocessor if cross compiling
+  return()
+endif()
+
 include(CheckIncludeFile)
 include(CheckSymbolExists)
 include(CheckTargetCPU)
