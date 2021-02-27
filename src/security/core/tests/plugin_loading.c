@@ -20,8 +20,6 @@
 #include "common/config_env.h"
 #include "common/test_identity.h"
 
-#define MAX_PARTICIPANTS_VARIABLE "MAX_PARTICIPANTS"
-
 static uint32_t found;
 
 static const char *default_config =

@@ -11,9 +11,35 @@
 #
 set(CMAKE_INSTALL_EXAMPLESDIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/examples")
 
-add_subdirectory(helloworld)
-add_subdirectory(roundtrip)
-add_subdirectory(throughput)
+install(
+  FILES
+    helloworld/HelloWorldData.idl
+    helloworld/publisher.c
+    helloworld/subscriber.c
+    helloworld/CMakeLists.txt
+    helloworld/readme.rst
+  DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/helloworld"
+  COMPONENT dev)
+
+install(
+  FILES
+    roundtrip/RoundTrip.idl
+    roundtrip/ping.c
+    roundtrip/pong.c
+    roundtrip/CMakeLists.txt
+    roundtrip/readme.rst
+  DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/roundtrip"
+  COMPONENT dev)
+
+install(
+  FILES
+    throughput/Throughput.idl
+    throughput/publisher.c
+    throughput/subscriber.c
+    throughput/CMakeLists.txt
+    throughput/readme.rst
+  DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/throughput"
+  COMPONENT dev)
 
 if (BUILD_DOCS)
   find_package(Sphinx REQUIRED)
@@ -27,3 +53,7 @@ if (BUILD_DOCS)
     COMPONENT dev
     PATTERN "_sources" EXCLUDE)
 endif()
+
+add_subdirectory(helloworld)
+add_subdirectory(roundtrip)
+add_subdirectory(throughput)
