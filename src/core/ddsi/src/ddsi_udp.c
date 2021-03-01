@@ -453,24 +453,33 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
 
   dds_return_t rc;
   ddsrt_socket_t sock;
-  bool reuse_addr = false, bind_to_any = false, ipv6 = false;
+  bool reuse_addr = false, bind_to_any = false, ipv6 = false, set_mc_xmit_options = false;
   const char *purpose_str = NULL;
 
   switch (qos->m_purpose)
   {
-    case DDSI_TRAN_QOS_XMIT:
+    case DDSI_TRAN_QOS_XMIT_UC:
       reuse_addr = false;
       bind_to_any = false;
-      purpose_str = "transmit";
+      set_mc_xmit_options = false;
+      purpose_str = "transmit(uc)";
+      break;
+    case DDSI_TRAN_QOS_XMIT_MC:
+      reuse_addr = false;
+      bind_to_any = false;
+      set_mc_xmit_options = true;
+      purpose_str = "transmit(uc/mc)";
       break;
     case DDSI_TRAN_QOS_RECV_UC:
       reuse_addr = false;
       bind_to_any = true;
+      set_mc_xmit_options = false;
       purpose_str = "unicast";
       break;
     case DDSI_TRAN_QOS_RECV_MC:
       reuse_addr = true;
       bind_to_any = true;
+      set_mc_xmit_options = false;
       purpose_str = "multicast";
       break;
   }
@@ -553,9 +562,12 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
     goto fail_w_socket;
   }
 
-  rc = ipv6 ? set_mc_options_transmit_ipv6 (gv, intf, sock) : set_mc_options_transmit_ipv4 (gv, intf, sock);
-  if (rc != DDS_RETCODE_OK)
-    goto fail_w_socket;
+  if (set_mc_xmit_options)
+  {
+    rc = ipv6 ? set_mc_options_transmit_ipv6 (gv, intf, sock) : set_mc_options_transmit_ipv4 (gv, intf, sock);
+    if (rc != DDS_RETCODE_OK)
+      goto fail_w_socket;
+  }
 
 #ifdef DDS_HAS_NETWORK_CHANNELS
   if (qos->m_diffserv != 0 && fact->m_kind == NN_LOCATOR_KIND_UDPv4)

@@ -1648,7 +1648,11 @@ int rtps_init (struct ddsi_domaingv *gv)
     dds_return_t rc;
     for (int i = 0; i < gv->n_interfaces; i++)
     {
-      const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_XMIT, .m_diffserv = 0, .m_interface = &gv->interfaces[i] };
+      const ddsi_tran_qos_t qos = {
+        .m_purpose = (gv->config.allowMulticast ? DDSI_TRAN_QOS_XMIT_MC : DDSI_TRAN_QOS_XMIT_UC),
+        .m_diffserv = 0,
+        .m_interface = &gv->interfaces[i]
+      };
       // FIXME: looking up the factory here is a hack to support iceoryx in addition to (e.g.) UDP
       ddsi_tran_factory_t fact = ddsi_factory_find_supported_kind (gv, gv->interfaces[i].loc.kind);
       rc = ddsi_factory_create_conn (&gv->xmit_conns[i], fact, 0, &qos);
