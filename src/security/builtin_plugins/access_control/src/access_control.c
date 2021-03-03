@@ -917,7 +917,7 @@ set_listener(dds_security_access_control *instance,
   if (listener)
     dds_security_timed_dispatcher_enable(ac->dispatcher);
   else
-    dds_security_timed_dispatcher_disable(ac->dispatcher);
+    (void) dds_security_timed_dispatcher_disable(ac->dispatcher);
 
   return true;
 }
