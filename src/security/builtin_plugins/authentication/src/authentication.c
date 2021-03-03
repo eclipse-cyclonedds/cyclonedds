@@ -2068,7 +2068,7 @@ DDS_Security_boolean set_listener(dds_security_authentication *instance, const d
   if (listener)
     dds_security_timed_dispatcher_enable(auth->dispatcher);
   else
-    dds_security_timed_dispatcher_disable(auth->dispatcher);
+    (void) dds_security_timed_dispatcher_disable(auth->dispatcher);
   return true;
 }
 

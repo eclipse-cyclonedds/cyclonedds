@@ -157,7 +157,7 @@ CU_Test(ddssec_timed_cb, test_enabled_and_disabled, .init = setup, .fini = teard
   dds_security_timed_dispatcher_add(d1, simple_callback, future, (void *)&test_var);
   dds_security_timed_dispatcher_enable(d1);
   CU_ASSERT_FALSE(test_var);
-  dds_security_timed_dispatcher_disable(d1);
+  (void) dds_security_timed_dispatcher_disable(d1);
   dds_sleepfor(DDS_MSECS(500));
   CU_ASSERT_FALSE(test_var);
   dds_sleepfor(DDS_SECS(2));
@@ -246,7 +246,7 @@ CU_Test(ddssec_timed_cb, test_create_dispatcher, .init = setup, .fini = teardown
   dds_sleepfor(DDS_MSECS(300));
   dds_security_timed_dispatcher_enable(d);
   dds_sleepfor(DDS_MSECS(900));
-  dds_security_timed_dispatcher_disable(d);
+  (void) dds_security_timed_dispatcher_disable(d);
 
   if (test_seq_data.index >= test_seq_data.size)
   {

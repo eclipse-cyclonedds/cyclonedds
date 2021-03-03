@@ -109,10 +109,15 @@ DDS_EXPORT void dds_security_timed_dispatcher_enable(struct dds_security_timed_d
  * its kind is DDS_SECURITY_TIMED_CB_KIND_TIMEOUT. DDS_SECURITY_TIMED_CB_KIND_DELETE callbacks
  * will always be triggered despite the dispatcher being possibly disabled.
  *
+ * If it returns true, there will be no further callback invocations until
+ * re-enabled. If it returns false because it was called from multiple
+ * threads at the same time, this is not guaranteed.
+ *
  * @param d             The dispatcher to disable.
  *
+ * @return true if disabled, false if it was already disabled
  */
-DDS_EXPORT void dds_security_timed_dispatcher_disable(struct dds_security_timed_dispatcher *d);
+DDS_EXPORT bool dds_security_timed_dispatcher_disable(struct dds_security_timed_dispatcher *d);
 
 /**
  * Adds a timed callback to a dispatcher.
