@@ -49,7 +49,6 @@ typedef enum
 
 typedef enum
 {
-  UNKNOWN_CRITERIA,
   SUBSCRIBE_CRITERIA,
   PUBLISH_CRITERIA
 } permission_criteria_type;

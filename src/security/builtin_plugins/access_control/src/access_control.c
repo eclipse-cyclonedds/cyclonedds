@@ -99,8 +99,9 @@ static DDS_Security_boolean domainid_within_sets(struct domain_id_set *domain, i
 static DDS_Security_boolean compare_class_id_plugin_classname(DDS_Security_string class_id_1, DDS_Security_string class_id_2);
 static DDS_Security_boolean compare_class_id_major_ver(DDS_Security_string class_id_1, DDS_Security_string class_id_2);
 static dds_security_time_event_handle_t add_validity_end_trigger(dds_security_access_control_impl *ac, const DDS_Security_PermissionsHandle permissions_handle, dds_time_t end);
-static DDS_Security_boolean is_allowed_by_permissions(struct permissions_parser *permissions, int domain_id, const char *topic_name, const DDS_Security_PartitionQosPolicy *partitions,
-    const char *identity_subject_name, permission_criteria_type criteria_type, DDS_Security_SecurityException *ex);
+static bool is_participant_allowed_by_permissions (const struct permissions_parser *permissions, int domain_id, const char *identity_subject_name, DDS_Security_SecurityException *ex) ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
+static bool is_topic_allowed_by_permissions (const struct permissions_parser *permissions, int domain_id, const char *topic_name, const char *identity_subject_name, DDS_Security_SecurityException *ex) ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
+static bool is_readwrite_allowed_by_permissions (struct permissions_parser *permissions, int domain_id, const char *topic_name, const DDS_Security_PartitionQosPolicy *partitions, const char *identity_subject_name, permission_criteria_type criteria_type, DDS_Security_SecurityException *ex) ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 static void sanity_check_local_access_rights(local_participant_access_rights *rights);
 static void sanity_check_remote_access_rights(remote_participant_access_rights *rights);
 static TOPIC_TYPE get_topic_type(const char *topic_name);
@@ -292,7 +293,7 @@ check_create_participant(dds_security_access_control *instance,
   }
 
   /* Is this participant permitted? */
-  result = is_allowed_by_permissions(rights->permissions_tree, domain_id, NULL /* topic_name */, NULL /* partitions */, rights->identity_subject_name, UNKNOWN_CRITERIA, ex);
+  result = is_participant_allowed_by_permissions(rights->permissions_tree, domain_id, rights->identity_subject_name, ex);
 
 exit:
   ACCESS_CONTROL_OBJECT_RELEASE(rights);
@@ -361,7 +362,7 @@ check_create_datawriter(dds_security_access_control *instance,
   }
 
   /* Find a topic with the specified topic name in the Governance */
-  result = is_allowed_by_permissions(local_rights->permissions_tree, domain_id, topic_name, partition, local_rights->identity_subject_name, PUBLISH_CRITERIA, ex);
+  result = is_readwrite_allowed_by_permissions(local_rights->permissions_tree, domain_id, topic_name, partition, local_rights->identity_subject_name, PUBLISH_CRITERIA, ex);
 
 exit:
   ACCESS_CONTROL_OBJECT_RELEASE(local_rights);
@@ -412,7 +413,7 @@ check_create_datareader(dds_security_access_control *instance,
   }
 
   /* Find a topic with the specified topic name in the Governance */
-  result = is_allowed_by_permissions(local_rights->permissions_tree, domain_id, topic_name, partition, local_rights->identity_subject_name, SUBSCRIBE_CRITERIA, ex);
+  result = is_readwrite_allowed_by_permissions(local_rights->permissions_tree, domain_id, topic_name, partition, local_rights->identity_subject_name, SUBSCRIBE_CRITERIA, ex);
 
 exit:
   ACCESS_CONTROL_OBJECT_RELEASE(local_rights);
@@ -457,7 +458,7 @@ check_create_topic(dds_security_access_control *instance,
   }
 
   /* Find a topic with the specified topic name in the Governance */
-  result = is_allowed_by_permissions(local_rights->permissions_tree, domain_id, topic_name, NULL, local_rights->identity_subject_name, UNKNOWN_CRITERIA /* both publish and subscribe rules */, ex);
+  result = is_topic_allowed_by_permissions(local_rights->permissions_tree, domain_id, topic_name, local_rights->identity_subject_name, ex);
 
 exit:
   ACCESS_CONTROL_OBJECT_RELEASE(local_rights);
@@ -554,7 +555,7 @@ check_remote_participant(dds_security_access_control *instance,
   /* 3) If the Permissions document contains a Grant for the remote DomainParticipant and the Grant contains an allow rule on
        the DomainParticipant domain_id, then the  operation shall succeed and return true. */
   /* Iterate over the grants and rules of the remote participant */
-  result = is_allowed_by_permissions(remote_rights->permissions->permissions_tree, domain_id, NULL, NULL, remote_rights->identity_subject_name, UNKNOWN_CRITERIA, ex);
+  result = is_participant_allowed_by_permissions(remote_rights->permissions->permissions_tree, domain_id, remote_rights->identity_subject_name, ex);
 
 exit_free_classid:
   ddsrt_free(class_id_local_str);
@@ -612,8 +613,8 @@ check_remote_datawriter(dds_security_access_control *instance,
   }
 
   /* Find a topic with the specified topic name in the Governance */
-  result = is_allowed_by_permissions(remote_rights->permissions->permissions_tree, domain_id, publication_data->topic_name,
-      &(publication_data->partition), remote_rights->identity_subject_name, PUBLISH_CRITERIA, ex);
+  result = is_readwrite_allowed_by_permissions(remote_rights->permissions->permissions_tree, domain_id, publication_data->topic_name,
+      &publication_data->partition, remote_rights->identity_subject_name, PUBLISH_CRITERIA, ex);
 
 exit_free_classid:
   ddsrt_free(class_id_local_str);
@@ -676,8 +677,8 @@ check_remote_datareader(dds_security_access_control *instance,
   }
 
   /* Find a topic with the specified topic name in the Governance */
-  result = is_allowed_by_permissions(remote_rights->permissions->permissions_tree, domain_id, subscription_data->topic_name,
-      &(subscription_data->partition), remote_rights->identity_subject_name, SUBSCRIBE_CRITERIA, ex);
+  result = is_readwrite_allowed_by_permissions(remote_rights->permissions->permissions_tree, domain_id, subscription_data->topic_name,
+      &subscription_data->partition, remote_rights->identity_subject_name, SUBSCRIBE_CRITERIA, ex);
 
 exit_free_classid:
   ddsrt_free(class_id_local_str);
@@ -734,7 +735,7 @@ check_remote_topic(dds_security_access_control *instance,
     goto exit_free_classid;
   }
 
-  result = is_allowed_by_permissions(remote_rights->permissions->permissions_tree, domain_id, topic_data->name, NULL, remote_rights->identity_subject_name, UNKNOWN_CRITERIA, ex);
+  result = is_topic_allowed_by_permissions(remote_rights->permissions->permissions_tree, domain_id, topic_data->name, remote_rights->identity_subject_name, ex);
 
 exit_free_classid:
   ddsrt_free(class_id_local_str);
@@ -1148,19 +1149,21 @@ static DDS_Security_boolean
 is_partition_qos_in_criteria(
     const struct criteria *criteria,
     const DDS_Security_PartitionQosPolicy *partitions)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
+
+static DDS_Security_boolean
+is_partition_qos_in_criteria(
+    const struct criteria *criteria,
+    const DDS_Security_PartitionQosPolicy *partitions)
 {
   unsigned int partition_index = 0;
-  const char *partitionDefault[] = {""};
   const DDS_Security_PartitionQosPolicy *partitionsToCheck;
-  DDS_Security_PartitionQosPolicy defaultPartitions;
-  defaultPartitions.name._length = 1;
-  defaultPartitions.name._maximum = 1;
-  defaultPartitions.name._buffer = (char **)partitionDefault;
-
-  if (criteria == NULL)
-    return false;
-
-  if (!partitions || partitions->name._length == 0)
+  const DDS_Security_PartitionQosPolicy defaultPartitions = { .name = {
+    ._length = 1,
+    ._maximum = 1,
+    ._buffer = (char *[]) { "" }
+  } };
+  if (partitions->name._length == 0)
     partitionsToCheck = &defaultPartitions;
   else
     partitionsToCheck = partitions;
@@ -1915,102 +1918,155 @@ add_validity_end_trigger(dds_security_access_control_impl *ac,
   return dds_security_timed_dispatcher_add(ac->dispatcher, validity_callback, end, (void *)arg);
 }
 
-static DDS_Security_boolean
-is_allowed_by_permissions(struct permissions_parser *permissions,
-                          int domain_id,
-                          const char *topic_name,
-                          const DDS_Security_PartitionQosPolicy *partitions,
-                          const char *identity_subject_name,
-                          permission_criteria_type criteria_type,
-                          DDS_Security_SecurityException *ex)
+static bool is_grant_applicable (const struct grant *permissions_grant, const char *identity_subject_name)
 {
-  struct grant *permissions_grant;
-  struct allow_deny_rule *current_rule;
-  struct criteria *current_criteria;
+  return (permissions_grant->subject_name != NULL &&
+          permissions_grant->subject_name->value != NULL &&
+          strcmp (permissions_grant->subject_name->value, identity_subject_name) == 0);
+}
 
-  assert(permissions);
+static bool is_grant_valid (const struct grant *permissions_grant, DDS_Security_SecurityException *ex)
+{
+  const dds_time_t tnow = dds_time ();
+  if (tnow <= DDS_Security_parse_xml_date(permissions_grant->validity->not_before->value))
+  {
+    DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_VALIDITY_PERIOD_NOT_STARTED_CODE, 0,
+        DDS_SECURITY_ERR_VALIDITY_PERIOD_NOT_STARTED_MESSAGE, permissions_grant->subject_name->value, permissions_grant->validity->not_before->value);
+    return false;
+  }
+  if (tnow >= DDS_Security_parse_xml_date(permissions_grant->validity->not_after->value))
+  {
+    DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_VALIDITY_PERIOD_EXPIRED_CODE, 0,
+        DDS_SECURITY_ERR_VALIDITY_PERIOD_EXPIRED_MESSAGE, permissions_grant->subject_name->value, permissions_grant->validity->not_after->value);
+    return false;
+  }
+  return true;
+}
+
+static const struct grant *find_permissions_grant (const struct permissions_parser *permissions, const char *identity_subject_name, DDS_Security_SecurityException *ex)
+{
   assert(permissions->dds);
   assert(permissions->dds->permissions);
 
-  permissions_grant = permissions->dds->permissions->grant;
-
-  /* Check for a matching grant */
-  while (permissions_grant != NULL)
+  for (const struct grant *permissions_grant = permissions->dds->permissions->grant; permissions_grant; permissions_grant = (struct grant *) permissions_grant->node.next)
   {
-    /* Verify that it is within the validity date and the subject name matches */
-    if (permissions_grant->subject_name != NULL &&
-        permissions_grant->subject_name->value != NULL &&
-        strcmp(permissions_grant->subject_name->value, identity_subject_name) == 0)
+    if (is_grant_applicable (permissions_grant, identity_subject_name))
     {
-      dds_time_t tnow = dds_time();
-      if (tnow <= DDS_Security_parse_xml_date(permissions_grant->validity->not_before->value))
-      {
-        DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_VALIDITY_PERIOD_NOT_STARTED_CODE, 0,
-            DDS_SECURITY_ERR_VALIDITY_PERIOD_NOT_STARTED_MESSAGE, permissions_grant->subject_name->value, permissions_grant->validity->not_before->value);
-        return false;
-      }
-      if (tnow >= DDS_Security_parse_xml_date(permissions_grant->validity->not_after->value))
-      {
-        DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_VALIDITY_PERIOD_EXPIRED_CODE, 0,
-            DDS_SECURITY_ERR_VALIDITY_PERIOD_EXPIRED_MESSAGE, permissions_grant->subject_name->value, permissions_grant->validity->not_after->value);
-        return false;
-      }
-
-      current_rule = permissions_grant->allow_deny_rule;
-      while (current_rule != NULL)
-      {
-        /* Check if the domain matches the given ID otherwise move on */
-        if (domainid_within_sets(current_rule->domains->domain_id_set, domain_id))
-        {
-          if (topic_name == NULL)
-          {
-            if (current_rule->rule_type == ALLOW_RULE)
-              return true;
-          }
-
-          /* Check all subscribe criteria to find the topics, partition and tags */
-          current_criteria = current_rule->criteria;
-          while (current_criteria != NULL)
-          {
-            if (current_criteria->criteria_type == criteria_type || (int)criteria_type == UNKNOWN_CRITERIA)
-            {
-              if (is_topic_in_criteria(current_criteria, topic_name) && is_partition_qos_in_criteria(current_criteria, partitions))
-              {
-                if (current_rule->rule_type == ALLOW_RULE)
-                  return true;
-                if (current_rule->rule_type == DENY_RULE)
-                {
-                  DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_ACCESS_DENIED_CODE, 0, "%s found in deny_rule.", topic_name);
-                  return false;
-                }
-              }
-            }
-            current_criteria = (struct criteria *)current_criteria->node.next;
-          }
-        }
-        current_rule = (struct allow_deny_rule *)current_rule->node.next;
-      }
-
-      /* If nothing found but the grant matches, return the default value */
-      if (permissions_grant->default_action == NULL)
-      {
-        DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_ACCESS_DENIED_CODE, 0, "No rule found for %s", topic_name ? topic_name : "participant");
-        return false;
-      }
-
-      if (strcmp(permissions_grant->default_action->value, "ALLOW") != 0)
-      {
-        DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_ACCESS_DENIED_CODE, 0, "%s denied by default rule", topic_name ? topic_name : "participant");
-        return false;
-      }
-
-      return true;
+      if (is_grant_valid (permissions_grant, ex))
+        return permissions_grant;
+      else // exception set by is_grant_valid
+        return NULL;
     }
-    permissions_grant = (struct grant *)permissions_grant->node.next;
   }
-
   DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CAN_NOT_FIND_PERMISSIONS_GRANT_CODE, 0, DDS_SECURITY_ERR_CAN_NOT_FIND_PERMISSIONS_GRANT_MESSAGE);
+  return NULL;
+}
+
+static bool is_allowed_by_default_rule (const struct grant *permissions_grant, const char *topic_name, DDS_Security_SecurityException *ex)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
+
+static bool is_allowed_by_default_rule (const struct grant *permissions_grant, const char *topic_name, DDS_Security_SecurityException *ex)
+{
+  if (permissions_grant->default_action == NULL)
+  {
+    DDS_Security_Exception_set (ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_ACCESS_DENIED_CODE, 0, "No rule found for %s", topic_name);
+    return false;
+  }
+  if (strcmp (permissions_grant->default_action->value, "ALLOW") == 0)
+  {
+    return true;
+  }
+  else
+  {
+    DDS_Security_Exception_set (ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_ACCESS_DENIED_CODE, 0, "%s denied by default rule", topic_name);
+    return false;
+  }
+}
+
+static bool is_allowed_by_rule (const struct allow_deny_rule *current_rule, const char *topic_name, DDS_Security_SecurityException *ex) ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
+
+static bool is_allowed_by_rule (const struct allow_deny_rule *current_rule, const char *topic_name, DDS_Security_SecurityException *ex)
+{
+  switch (current_rule->rule_type)
+  {
+    case ALLOW_RULE:
+      return true;
+    case DENY_RULE:
+      DDS_Security_Exception_set (ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_ACCESS_DENIED_CODE, 0, "%s found in deny_rule.", topic_name);
+      break;
+  }
   return false;
+}
+
+typedef struct rule_iter {
+  const struct grant *grant;
+  int domain_id;
+  const struct allow_deny_rule *rule; // next applicable rule based on grant & domain id, or null
+} rule_iter_t;
+
+static const struct allow_deny_rule *rule_iter_next (rule_iter_t *it)
+{
+  const struct allow_deny_rule *rule = it->rule;
+  if (it->rule)
+  {
+    do {
+      it->rule = (const struct allow_deny_rule *) it->rule->node.next;
+    } while (it->rule && !domainid_within_sets (it->rule->domains->domain_id_set, it->domain_id));
+  }
+  return rule;
+}
+
+static bool rule_iter_init (rule_iter_t *it, const struct permissions_parser *permissions, int domain_id, const char *identity_subject_name, DDS_Security_SecurityException *ex)
+{
+  if ((it->grant = find_permissions_grant (permissions, identity_subject_name, ex)) == NULL)
+    return false;
+  it->domain_id = domain_id;
+  it->rule = it->grant->allow_deny_rule;
+  while (it->rule && !domainid_within_sets (it->rule->domains->domain_id_set, it->domain_id))
+    it->rule = (const struct allow_deny_rule *) it->rule->node.next;
+  return true;
+}
+
+static bool is_participant_allowed_by_permissions (const struct permissions_parser *permissions, int domain_id, const char *identity_subject_name, DDS_Security_SecurityException *ex)
+{
+  rule_iter_t it;
+  const struct allow_deny_rule *rule;
+  if (!rule_iter_init (&it, permissions, domain_id, identity_subject_name, ex))
+    return false;
+  while ((rule = rule_iter_next (&it)) != NULL)
+    if (rule->rule_type == ALLOW_RULE)
+      return true;
+  return is_allowed_by_default_rule (it.grant, "participant", ex);
+}
+
+static bool is_topic_allowed_by_permissions (const struct permissions_parser *permissions, int domain_id, const char *topic_name, const char *identity_subject_name, DDS_Security_SecurityException *ex)
+{
+  rule_iter_t it;
+  const struct allow_deny_rule *rule;
+  if (!rule_iter_init (&it, permissions, domain_id, identity_subject_name, ex))
+    return false;
+  while ((rule = rule_iter_next (&it)) != NULL)
+  {
+    for (const struct criteria *crit = rule->criteria; crit; crit = (const struct criteria *) crit->node.next)
+      if (is_topic_in_criteria (crit, topic_name))
+        return is_allowed_by_rule (rule, topic_name, ex);
+  }
+  return is_allowed_by_default_rule (it.grant, topic_name, ex);
+}
+
+static bool is_readwrite_allowed_by_permissions (struct permissions_parser *permissions, int domain_id, const char *topic_name, const DDS_Security_PartitionQosPolicy *partitions, const char *identity_subject_name, permission_criteria_type criteria_type, DDS_Security_SecurityException *ex)
+{
+  rule_iter_t it;
+  const struct allow_deny_rule *rule;
+  if (!rule_iter_init (&it, permissions, domain_id, identity_subject_name, ex))
+    return false;
+  while ((rule = rule_iter_next (&it)) != NULL)
+  {
+    for (const struct criteria *crit = rule->criteria; crit; crit = (const struct criteria *) crit->node.next)
+      if (crit->criteria_type == criteria_type && is_topic_in_criteria (crit, topic_name) && is_partition_qos_in_criteria (crit, partitions))
+        return is_allowed_by_rule (rule, topic_name, ex);
+  }
+  return is_allowed_by_default_rule (it.grant, topic_name, ex);
 }
 
 static bool
