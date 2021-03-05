@@ -60,7 +60,7 @@ char * get_openssl_error_message(void);
 /* Return the subject name of contained in a X509 certificate
  * Note that the returned string should be freed.
  */
-char * get_certificate_subject_name(X509 *cert, DDS_Security_SecurityException *ex);
+char * get_certificate_subject_name(X509 *cert, DDS_Security_SecurityException *ex) ddsrt_nonnull_all;
 
 /* Return the expiry date of contained in a X509 certificate */
 dds_time_t get_certificate_expiry(const X509 *cert);
