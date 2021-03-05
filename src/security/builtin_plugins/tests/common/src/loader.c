@@ -139,7 +139,6 @@ load_plugins(
 
 err:
     unload_plugins(plugins);
-    xeventq_free(plugins->gv.xevents);
     return NULL;
 }
 
