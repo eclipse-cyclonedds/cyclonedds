@@ -114,7 +114,8 @@ union dds_status_union {
       ddsrt_mutex_lock (&e->m_entity.m_observers_lock); \
       e->m_entity.m_cb_count--; \
       e->m_entity.m_cb_pending_count--; \
-    } else if (enabled) { \
+    } \
+    if (enabled) { \
       dds_entity_status_set (&e->m_entity, (status_mask_t) (1u << DDS_##NAME_##_STATUS_ID)); \
     } \
   }
