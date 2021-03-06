@@ -1292,6 +1292,7 @@ static void nn_xpack_send_real (struct nn_xpack *xp)
 static uint32_t nn_xpack_sendq_thread (void *vgv)
 {
   struct ddsi_domaingv *gv = vgv;
+  struct thread_state1 * const ts1 = lookup_thread_state ();
   ddsrt_mutex_lock (&gv->sendq_lock);
   while (!(gv->sendq_stop && gv->sendq_head == NULL))
   {
@@ -1306,9 +1307,11 @@ static uint32_t nn_xpack_sendq_thread (void *vgv)
       if (--gv->sendq_length == SENDQ_LW)
         ddsrt_cond_broadcast (&gv->sendq_cond);
       ddsrt_mutex_unlock (&gv->sendq_lock);
+      thread_state_awake_fixed_domain (ts1);
       nn_xpack_send_real (xp);
       nn_xpack_free (xp);
       ddsrt_mutex_lock (&gv->sendq_lock);
+      thread_state_asleep (ts1);
     }
   }
   ddsrt_mutex_unlock (&gv->sendq_lock);
@@ -1327,7 +1330,7 @@ void nn_xpack_sendq_init (struct ddsi_domaingv *gv)
 
 void nn_xpack_sendq_start (struct ddsi_domaingv *gv)
 {
-  if (create_thread (&gv->sendq_ts, gv, "sendq", nn_xpack_sendq_thread, NULL) != DDS_RETCODE_OK)
+  if (create_thread (&gv->sendq_ts, gv, "sendq", nn_xpack_sendq_thread, gv) != DDS_RETCODE_OK)
     GVERROR ("nn_xpack_sendq_start: can't create nn_xpack_sendq_thread\n");
 }
 
@@ -1356,8 +1359,13 @@ void nn_xpack_send (struct nn_xpack *xp, bool immediately)
   else
   {
     struct ddsi_domaingv * const gv = xp->gv;
+    // copy xp
     struct nn_xpack *xp1 = ddsrt_malloc (sizeof (*xp));
-    memcpy (xp1, xp, sizeof (*xp1));
+    memcpy(xp1, xp, sizeof(*xp1));
+    if (xp->iov != NULL) {
+      xp1->iov = ddsrt_malloc(xp->niov * sizeof(*xp->iov));
+      memcpy(xp1->iov, xp->iov, (xp->niov * sizeof(*xp->iov)));
+    }
     nn_xpack_reinit (xp);
     xp1->sendq_next = NULL;
     ddsrt_mutex_lock (&gv->sendq_lock);
