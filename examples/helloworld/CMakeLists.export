@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
+project(helloworld LANGUAGES C)
 
 # Find the CycloneDDS package. If it is not in a default location, try
 # finding it relative to the example where it most likely resides.
