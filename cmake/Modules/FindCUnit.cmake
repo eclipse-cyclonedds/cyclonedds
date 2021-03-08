@@ -35,10 +35,19 @@ else()
     set(CUNIT_VERSION "${CUNIT_VERSION_MAJOR}.${CUNIT_VERSION_MINOR}-${CUNIT_VERSION_PATCH}")
   endif()
 
-  if(CONAN_LIB_DIRS)
-    find_library(CUNIT_LIBRARY cunit HINTS ${CONAN_LIB_DIRS})
+  if(CONAN_LIB_DIRS_CUNIT)
+    # CUnit package in ConanCenter contains a cunit.dll.lib on Windows if
+    # shared=True. Probably a bug not to simply name it cunit.lib, but strip
+    # the last extension from each library and use it as input.
+    foreach(path ${CONAN_LIBS_CUNIT})
+      get_filename_component(name "${path}" NAME)
+      # NAME_WLE mode for get_filename_component available since CMake >= 3.14
+      string(REGEX REPLACE "\.[^\.]+$" "" name_wle "${name}")
+      list(APPEND names ${name_wle})
+    endforeach()
+    find_library(CUNIT_LIBRARY NAMES cunit ${names} HINTS ${CONAN_LIB_DIRS_CUNIT})
   else()
-    find_library(CUNIT_LIBRARY cunit)
+    find_library(CUNIT_LIBRARY NAMES cunit)
   endif()
 endif()
 
@@ -59,14 +68,29 @@ if(CUNIT_FOUND)
     get_filename_component(CUNIT_BASENAME "${CUNIT_LIBRARY}}" NAME_WE)
     get_filename_component(CUNIT_PREFIX "${CUNIT_LIBRARY_DIR}" PATH)
 
-    find_program(
-      CUNIT_DLL
-        "${CMAKE_SHARED_LIBRARY_PREFIX}${CUNIT_BASENAME}${CMAKE_SHARED_LIBRARY_SUFFIX}"
-      HINTS
-        ${CUNIT_PREFIX}
-      PATH_SUFFIXES
-        bin
-      NO_DEFAULT_PATH)
+    if(CONAN_LIB_DIRS_CUNIT)
+      # CUnit package in ConanCenter shipped cunit-1.dll on Windows with
+      # shared=True. Probably a bug. Especially since the other file was named
+      # cunit.dll.lib.
+      set(_expr "${CUNIT_PREFIX}/${CUNIT_BASENAME}*${CMAKE_SHARED_LIBRARY_SUFFIX}")
+      file(GLOB_RECURSE _paths FALSE "${_expr}")
+      foreach(_path "${CMAKE_SHARED_LIBRARY_PREFIX}${CUNIT_BASENAME}" ${_paths})
+        get_filename_component(_name "${_path}" NAME)
+        string(REGEX REPLACE "\.[^\.]+$" "" _name_wle "${_name}")
+        find_program(
+          CUNIT_DLL
+            "${_name_wle}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+          HINTS
+            "${CUNIT_PREFIX}"
+          PATH_SUFFIXES
+            bin
+          NO_DEFAULT_PATH)
+        if(CUNIT_DLL)
+          break()
+        endif()
+      endforeach()
+    endif()
+
     mark_as_advanced(CUNIT_DLL)
 
     # IMPORTANT:
