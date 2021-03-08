@@ -312,5 +312,8 @@ function(add_cunit_executable TARGET)
     ${TARGET} "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.c" ${sources})
   target_link_libraries(${TARGET} PRIVATE CUnit)
   target_include_directories(${TARGET} PRIVATE "${CUNIT_DIR}/include")
+  if(MSVC)
+    target_compile_definitions(${TARGET} PRIVATE _CRT_SECURE_NO_WARNINGS)
+  endif()
 endfunction()
 

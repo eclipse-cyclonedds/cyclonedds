@@ -9,9 +9,9 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-if(TARGET CONAN_PKG::OpenSSL)
+if(TARGET CONAN_PKG::openssl)
   add_library(OpenSSL::SSL INTERFACE IMPORTED)
-  target_link_libraries(OpenSSL::SSL INTERFACE CONAN_PKG::OpenSSL)
+  target_link_libraries(OpenSSL::SSL INTERFACE CONAN_PKG::openssl)
   set(OPENSSL_FOUND TRUE)
 else()
   # Loop over a list of possible module paths (without the current directory).
