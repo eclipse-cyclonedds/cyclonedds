@@ -346,7 +346,7 @@ DDS_Security_parse_xml_date(
 
 
 #define DDS_Security_ParticipantCryptoTokenSeq_alloc() \
-                    DDS_Security_DataHolderSeq_alloc())
+                    DDS_Security_DataHolderSeq_alloc()
 #define DDS_Security_ParticipantCryptoTokenSeq_freebuf(s) \
                     DDS_Security_DataHolderSeq_freebuf(s)
 #define DDS_Security_ParticipantCryptoTokenSeq_free(s) \
