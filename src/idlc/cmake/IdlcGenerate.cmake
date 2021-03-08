@@ -47,6 +47,12 @@ function(IDLC_GENERATE _target)
      set(IDLC_ARGS)
   endif()
 
+  set(_files)
+  foreach(FIL ${ARGN})
+    get_filename_component(ABS_FIL ${FIL} ABSOLUTE)
+    list(APPEND _files ${ABS_FIL})
+  endforeach()
+
   set(_dir "${CMAKE_CURRENT_BINARY_DIR}")
   set(_sources)
   set(_headers)
@@ -63,7 +69,7 @@ function(IDLC_GENERATE _target)
       OUTPUT   "${_source}" "${_header}"
       COMMAND  "${IDLC_DIR}/${IDLC}"
       ARGS     ${IDLC_ARGS} ${ABS_FIL}
-      DEPENDS  "${ABS_FIL}" idlc
+      DEPENDS  "${_files}" idlc
       COMMENT  "Running idlc on ${FIL}"
       VERBATIM)
   endforeach()
