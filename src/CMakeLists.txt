@@ -84,6 +84,8 @@ configure_file(features.h.in "${CMAKE_CURRENT_BINARY_DIR}/core/include/dds/featu
 
 add_subdirectory(tools)
 add_subdirectory(ddsrt)
-add_subdirectory(idl)
+if(BUILD_IDLC)
+  add_subdirectory(idl)
+endif()
 add_subdirectory(security)
 add_subdirectory(core)
