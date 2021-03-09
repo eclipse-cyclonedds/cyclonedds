@@ -18,6 +18,12 @@
 #include "dds/ddsi/q_protocol.h" /* for, e.g., SubmessageKind_t */
 #include "dds/ddsi/ddsi_xqos.h" /* for, e.g., octetseq, stringseq */
 #include "dds/ddsi/ddsi_tran.h"
+#include "dds/features.h"
+
+#ifdef DDS_HAS_SHM
+#include "dds/ddsi/ddsi_keyhash.h"
+#endif
+
 
 #if defined (__cplusplus)
 extern "C" {
@@ -54,7 +60,10 @@ struct iceoryx_header {
    dds_time_t tstamp;
    uint32_t data_size;
    unsigned char data_kind;
+   ddsi_keyhash_t keyhash;
 };
+
+typedef struct iceoryx_header iceoryx_header_t;
 #endif
 
 /* XMSGPOOL */

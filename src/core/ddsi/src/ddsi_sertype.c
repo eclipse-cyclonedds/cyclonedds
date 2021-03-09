@@ -211,6 +211,9 @@ void ddsi_sertype_init (struct ddsi_sertype *tp, const char *type_name, const st
   tp->serdata_basehash = ddsi_sertype_compute_serdata_basehash (tp->serdata_ops);
   tp->typekind_no_key = typekind_no_key;
   tp->wrapped_sertopic = NULL;
+#ifdef DDS_HAS_SHM
+  tp->iox_size = 0;
+#endif
   ddsrt_atomic_stvoidp (&tp->gv, NULL);
 }
 

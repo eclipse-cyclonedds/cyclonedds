@@ -33,10 +33,6 @@
 #include "dds__statistics.h"
 #include "dds/ddsi/ddsi_statistics.h"
 
-#ifdef DDS_HAS_SHM
-#include "ice_clib.h"
-#endif
-
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_writer)
 
 #define DDS_WRITER_STATUS_MASK                                   \
@@ -216,10 +212,9 @@ static dds_return_t dds_writer_delete (dds_entity *e)
 #ifdef DDS_HAS_SHM
   if (e->m_domain->gv.config.enable_shm)
   {
-    DDS_CLOG (DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's publisher\n");
-    ice_clib_stopOffer (wr->pub);
-    ice_clib_release_publisher (wr->pub);
-    wr->pub = NULL;
+    DDS_CLOG(DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's publisher\n");
+    iox_pub_stop_offer(wr->m_iox_pub);
+    iox_pub_deinit(wr->m_iox_pub);
   }
 #endif
   /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
@@ -403,16 +398,21 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 #ifdef DDS_HAS_SHM
   if (wr->m_entity.m_domain->gv.config.enable_shm)
   {
-    size_t name_size;
+    size_t name_size, type_name_size;
     rc = dds_get_name_size (topic, &name_size);
+    assert(rc == DDS_RETCODE_OK);
+    rc = dds_get_type_name_size (topic, &type_name_size);
     assert (rc == DDS_RETCODE_OK);
     char topic_name[name_size+1];
+    char type_name[type_name_size+1];
     rc = dds_get_name (topic, topic_name, name_size+1);
+    assert(rc == DDS_RETCODE_OK);
+    rc = dds_get_type_name (topic, type_name, type_name_size+1);
     assert (rc == DDS_RETCODE_OK);
     DDS_CLOG (DDS_LC_SHM, &wr->m_entity.m_domain->gv.logconfig, "Writer's topic name will be DDS:Cyclone:%s\n", topic_name);
     // SHM_TODO: We should do error handling if there is duplicate publish topic. iceoryx doesn't support multiple pub now.
-    wr->pub = ice_clib_create_publisher ("DDS", "Cyclone", topic_name);
-    ice_clib_offer (wr->pub);
+    wr->m_iox_pub = iox_pub_init(&wr->m_iox_pub_stor, "DDS_CYCLONE", type_name, topic_name, NULL);
+    dds_sleepfor(DDS_MSECS(10));
   }
 #endif
 

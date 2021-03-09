@@ -37,7 +37,133 @@
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/q_receive.h"
-#include "ice_clib.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "iceoryx_binding_c/wait_set.h"
+#include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/md5.h"
+
+static void iox_handle_incoming(struct dds_reader* rd)
+{
+  void* chunk = NULL;
+  while (ChunkReceiveResult_SUCCESS == iox_sub_take_chunk(rd->m_iox_sub, (const void** const)&chunk))
+  {
+    iceoryx_header_t* ice_hdr = (iceoryx_header_t*)chunk;
+    // Get proxy writer
+    thread_state_awake(lookup_thread_state(), rd->m_rd->e.gv);
+    struct proxy_writer* pwr = entidx_lookup_proxy_writer_guid(rd->m_rd->e.gv->entity_index, &ice_hdr->guid);
+    if (pwr == NULL)
+    {
+      // We should ignore chunk which does not match the pwr in receiver side.
+      // For example, intra-process has local pwr and does not need to use iceoryx, so we can ignore it.
+      DDS_CLOG(DDS_LC_SHM, &rd->m_rd->e.gv->logconfig, "pwr is NULL and we'll ignore.\n");
+      continue;
+    }
+
+    // Create struct ddsi_serdata
+    struct ddsi_serdata* d = ddsi_serdata_from_iox(rd->m_topic->m_stype, ice_hdr->data_kind, &rd->m_iox_sub, chunk);
+    //keyhash needs to be set here
+    d->timestamp.v = ice_hdr->tstamp;
+
+    // Get struct ddsi_tkmap_instance
+    struct ddsi_tkmap_instance* tk;
+    if ((tk = ddsi_tkmap_lookup_instance_ref(rd->m_rd->e.gv->m_tkmap, d)) == NULL)
+    {
+      DDS_CLOG(DDS_LC_SHM, &rd->m_rd->e.gv->logconfig, "ddsi_tkmap_lookup_instance_ref failed.\n");
+      goto release;
+    }
+
+    // Generate writer_info
+    struct ddsi_writer_info wrinfo;
+    ddsi_make_writer_info(&wrinfo, &pwr->e, pwr->c.xqos, d->statusinfo);
+
+    (void)ddsi_rhc_store(rd->m_rd->rhc, &wrinfo, d, tk);
+
+release:
+    if (tk)
+      ddsi_tkmap_instance_unref(rd->m_rd->e.gv->m_tkmap, tk);
+    if (d)
+      ddsi_serdata_unref(d);
+  }
+  thread_state_asleep(lookup_thread_state());
+}
+
+#define NUMBER_OF_EVENTS 16
+iox_ws_t iox_ws_;
+iox_ws_storage_t iox_ws_stor_;
+iox_user_trigger_t iox_sd_;
+iox_user_trigger_storage_t iox_sd_stor_;
+int n_iox_subs_ = 0;
+
+static uint32_t iox_sub_monitor_run(void *args)
+{
+  (void)args;
+  iox_event_info_t eventArray[NUMBER_OF_EVENTS];
+  uint64_t missedElements = 0U;
+  uint64_t numberOfEvents = 0U;
+  bool iox_ws_running = true;
+  uint64_t returnval = 0;
+  while (iox_ws_running)
+  {
+    numberOfEvents = iox_ws_wait(iox_ws_, eventArray, NUMBER_OF_EVENTS, &missedElements);
+    for (uint64_t i = 0U; i < numberOfEvents; ++i)
+    {
+      iox_event_info_t event = eventArray[i];
+      if (iox_event_info_does_originate_from_user_trigger(event, iox_sd_))
+      {
+        iox_ws_running = false;
+      }
+      else
+      {
+        dds_entity* eptr = NULL;
+        if (dds_entity_pin((int32_t)iox_event_info_get_event_id(event), &eptr) != DDS_RETCODE_OK)
+          //error message?
+          continue;
+
+        iox_handle_incoming((struct dds_reader*)eptr);
+
+        dds_entity_unpin(eptr);
+      }
+    }
+    returnval += numberOfEvents;
+  }
+  return (uint32_t)returnval;
+}
+
+ddsrt_thread_t thr;
+
+static void iox_sub_monitor_pop()
+{
+  if (--n_iox_subs_)
+    return;
+
+  iox_user_trigger_trigger(iox_sd_);
+
+  //join the thread
+  uint32_t res;
+  assert(ddsrt_thread_join(thr, &res) == DDS_RETCODE_OK);
+
+  //cleanup
+  iox_ws_deinit(iox_ws_);
+  iox_user_trigger_deinit(iox_sd_);
+}
+
+static void iox_sub_monitor_push()
+{
+  if (n_iox_subs_++)
+    return;
+
+  iox_ws_ = iox_ws_init(&iox_ws_stor_);
+  iox_sd_ = iox_user_trigger_init(&iox_sd_stor_);
+
+  iox_ws_attach_user_trigger_event(iox_ws_, iox_sd_, 0U, NULL);
+
+  ddsrt_threadattr_t attr;
+  ddsrt_threadattr_init(&attr);
+
+  //start the thread
+  assert(ddsrt_thread_create(&thr, "thread", &attr, &iox_sub_monitor_run, NULL) == DDS_RETCODE_OK);
+}
 #endif
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
@@ -86,10 +212,13 @@ static dds_return_t dds_reader_delete (dds_entity *e)
   if (e->m_domain->gv.config.enable_shm)
   {
     DDS_CLOG (DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's subscriber\n");
-    ice_clib_unsubscribe (rd->sub);
-    ice_clib_unsetRecvHandler (rd->sub);
-    ice_clib_release_subscriber (rd->sub);
-    rd->sub = NULL;
+    iox_sub_unsubscribe(rd->m_iox_sub);
+    iox_ws_detach_subscriber_event(iox_ws_,
+      rd->m_iox_sub,
+      SubscriberEvent_HAS_DATA);
+    iox_sub_deinit(rd->m_iox_sub);
+
+    iox_sub_monitor_pop();
   }
 #endif
 
@@ -570,16 +699,22 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 #ifdef DDS_HAS_SHM
   if (rd->m_entity.m_domain->gv.config.enable_shm)
   {
-    size_t name_size;
-    rc = dds_get_name_size (topic, &name_size);
-    assert (rc == DDS_RETCODE_OK);
-    char topic_name[name_size+1];
-    rc = dds_get_name (topic, topic_name, name_size+1);
-    assert (rc == DDS_RETCODE_OK);
+    size_t name_size, type_name_size;
+    rc = dds_get_name_size(topic, &name_size);
+    assert(rc == DDS_RETCODE_OK);
+    rc = dds_get_type_name_size(topic, &type_name_size);
+    assert(rc == DDS_RETCODE_OK);
+    char topic_name[name_size + 1];
+    char type_name[type_name_size + 1];
+    rc = dds_get_name(topic, topic_name, name_size + 1);
+    assert(rc == DDS_RETCODE_OK);
+    rc = dds_get_type_name(topic, type_name, type_name_size + 1);
+    assert(rc == DDS_RETCODE_OK);
     DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Reader's topic name will be DDS:Cyclone:%s\n", topic_name);
-    rd->sub = ice_clib_create_subscriber ("DDS", "Cyclone", topic_name);
-    ice_clib_setRecvHandler (rd->sub, read_callback, rd);
-    ice_clib_subscribe (rd->sub, rd->m_entity.m_domain->gv.config.sub_cache_size);
+    rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor, "DDS_CYCLONE", type_name, topic_name, NULL);
+    iox_sub_monitor_push();
+    iox_ws_attach_subscriber_event(iox_ws_, rd->m_iox_sub, SubscriberEvent_HAS_DATA, (uint64_t)reader, NULL);
+    dds_sleepfor(DDS_MSECS(10));
   }
 #endif
 

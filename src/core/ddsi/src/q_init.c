@@ -70,7 +70,7 @@
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsrt/io.h"
-#include "ice_clib.h"
+#include "iceoryx_binding_c/runtime.h"
 #endif
 
 static void add_peer_addresses (const struct ddsi_domaingv *gv, struct addrset *as, const struct ddsi_config_peer_listelem *list)
@@ -1153,11 +1153,11 @@ int rtps_init (struct ddsi_domaingv *gv)
     unsigned char mac_addr[6];
     uint32_t pid = (uint32_t) ddsrt_getpid ();
 
-    ice_clib_setDebugLevel (gv->config.shm_log_lvl);
     // SHM_TODO: Now we use pid_time, but maybe we can just use pid.
-    ddsrt_asprintf (&sptr, "/%d_%ld", pid, gv->tstart.v);
+    ddsrt_asprintf (&sptr, "%d_%ld", pid, gv->tstart.v);
     GVLOG (DDS_LC_SHM, "Current process name for iceoryx is %s\n", sptr);
-    ice_clib_init (sptr);
+    iox_runtime_init (sptr);
+
     gv->loc_iceoryx_addr.tran = NULL;
     gv->loc_iceoryx_addr.kind = NN_LOCATOR_KIND_SHEM;
     gv->loc_iceoryx_addr.port = pid;

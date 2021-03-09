@@ -41,8 +41,8 @@ if(ENABLE_SECURITY)
 endif()
 
 if(ENABLE_SHM)
-  find_package(iceoryx_clib)
-  target_link_libraries(ddsc PRIVATE iceoryx_clib::iceoryx_clib)
+  find_package(iceoryx_binding_c REQUIRED)
+  target_link_libraries(ddsc PUBLIC iceoryx_binding_c::iceoryx_binding_c)
 endif()
 
 include(ddsi/CMakeLists.txt)

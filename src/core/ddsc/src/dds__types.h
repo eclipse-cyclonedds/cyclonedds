@@ -22,6 +22,11 @@
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds__handles.h"
 
+#ifdef DDS_HAS_SHM
+#include "iceoryx_binding_c/subscriber.h"
+#include "iceoryx_binding_c/publisher.h"
+#endif
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -281,7 +286,8 @@ typedef struct dds_reader {
   uint32_t m_loan_size;
   unsigned m_wrapped_sertopic : 1; /* set iff reader's topic is a wrapped ddsi_sertopic for backwards compatibility */
 #ifdef DDS_HAS_SHM
-  struct ice_subscriber *sub;
+  iox_sub_storage_t m_iox_sub_stor;
+  iox_sub_t m_iox_sub;
 #endif
 
   /* Status metrics */
@@ -302,7 +308,8 @@ typedef struct dds_writer {
   struct whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
   bool whc_batch; /* FIXME: channels + latency budget */
 #ifdef DDS_HAS_SHM
-  struct ice_publisher *pub;
+  iox_pub_storage_t m_iox_pub_stor;
+  iox_pub_t m_iox_pub;
 #endif
 
   /* Status metrics */

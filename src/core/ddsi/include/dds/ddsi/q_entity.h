@@ -349,9 +349,6 @@ struct writer
 #ifdef DDS_HAS_SECURITY
   struct writer_sec_attributes *sec_attr;
 #endif
-#ifdef DDS_HAS_SHM
-  uint32_t num_ice_proxy_reader; /* The number of iceoryx proxy reader */
-#endif
 };
 
 inline seqno_t writer_read_seq_xmit (const struct writer *wr) {

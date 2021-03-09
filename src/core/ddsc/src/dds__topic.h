@@ -43,6 +43,8 @@ DDS_EXPORT dds_entity_t dds_create_topic_impl (dds_entity_t participant, const c
 
 DDS_EXPORT dds_return_t dds_get_name_size (dds_entity_t topic, size_t *size);
 
+DDS_EXPORT dds_return_t dds_get_type_name_size (dds_entity_t topic, size_t *size);
+
 #if defined (__cplusplus)
 }
 #endif

@@ -17,6 +17,7 @@
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_typeid.h"
 #include "dds/ddsc/dds_public_alloc.h"
+#include "dds/features.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -41,6 +42,9 @@ struct ddsi_sertype {
   ddsrt_atomic_voidp_t gv; /* set during registration */
   ddsrt_atomic_uint32_t flags_refc; /* counts refs from entities (topic, reader, writer), not from data */
   void *wrapped_sertopic; /* void pointer because that simplifies the required type-punning */
+#ifdef DDS_HAS_SHM
+  uint32_t iox_size;
+#endif
 };
 
 /* The old and the new happen to have the same memory layout on a 64-bit machine

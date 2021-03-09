@@ -26,6 +26,9 @@
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
+#ifdef DDS_HAS_SHM
+#include "dds/ddsi/q_xmsg.h"
+#endif
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 #define NATIVE_ENCODING CDR_LE
@@ -155,6 +158,12 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
 {
   struct ddsi_serdata_default *d = (struct ddsi_serdata_default *)dcmn;
   assert(ddsrt_atomic_ld32(&d->c.refc) == 0);
+
+#ifdef DDS_HAS_SHM
+  if (d->c.iox_chunk)
+    iox_sub_release_chunk(*(d->c.iox_subscriber), d->c.iox_chunk);
+#endif
+
   if (d->size > MAX_SIZE_FOR_POOL || !nn_freelist_push (&d->serpool->freelist, d))
     dds_free (d);
 }
@@ -409,6 +418,27 @@ static void gen_keyhash_from_sample (const struct ddsi_sertype_default *type, dd
   }
 }
 
+#ifdef DDS_HAS_SHM
+static struct ddsi_serdata* serdata_default_from_iox(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, iox_sub_t* sub, void* iox_buffer)
+{
+  iceoryx_header_t* ice_hdr = (iceoryx_header_t*)iox_buffer;
+
+  const struct ddsi_sertype_default* tp = (const struct ddsi_sertype_default*)tpcmn;
+
+  struct ddsi_serdata_default* d = serdata_default_new_size(tp, kind, ice_hdr->data_size);
+
+  d->c.iox_chunk = iox_buffer;
+  d->c.iox_subscriber = sub;
+  memcpy(d->keyhash.m_hash, ice_hdr->keyhash.value, 16);
+  d->keyhash.m_set = 1;
+  d->keyhash.m_iskey = 0;  //if set to 1, will cause issues @ serdata_default_to_untyped at the endianness swap
+  d->keyhash.m_keysize = 16;
+  fix_serdata_default(d, tpcmn->serdata_basehash);
+
+  return (struct ddsi_serdata*)d;
+}
+#endif
+
 static struct ddsi_serdata_default *serdata_default_from_sample_cdr_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
 {
   const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *)tpcmn;
@@ -525,6 +555,14 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
 {
   const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
   const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *) d->c.type;
+#ifdef DDS_HAS_SHM
+  if (d->c.iox_chunk)
+  {
+    iceoryx_header_t* hdr = (iceoryx_header_t*)d->c.iox_chunk;
+    memcpy(sample, d->c.iox_chunk + sizeof(iceoryx_header_t), hdr->data_size);
+    return true;
+  }
+#endif
   dds_istream_t is;
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   assert (d->hdr.identifier == NATIVE_ENCODING);
@@ -605,6 +643,10 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {
   .untyped_to_sample = serdata_default_untyped_to_sample_cdr,
   .print = serdata_default_print_cdr,
   .get_keyhash = serdata_default_get_keyhash
+#ifdef DDS_HAS_SHM
+  , .get_sample_size = ddsi_serdata_iox_size
+  , .from_iox_buffer = serdata_default_from_iox
+#endif
 };
 
 const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey = {
@@ -623,4 +665,8 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey = {
   .untyped_to_sample = serdata_default_untyped_to_sample_cdr_nokey,
   .print = serdata_default_print_cdr,
   .get_keyhash = serdata_default_get_keyhash
+#ifdef DDS_HAS_SHM
+  , .get_sample_size = ddsi_serdata_iox_size
+  , .from_iox_buffer = serdata_default_from_iox
+#endif
 };

@@ -17,6 +17,10 @@
 #include "dds/ddsrt/iovec.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_keyhash.h"
+#include "dds/features.h"
+#ifdef DDS_HAS_SHM
+#include "iceoryx_binding_c/subscriber.h"
+#endif
 
 #if defined (__cplusplus)
 extern "C" {
@@ -56,6 +60,11 @@ struct ddsi_serdata {
 
   /* FIXME: can I get rid of this one? */
   ddsrt_mtime_t twrite; /* write time, not source timestamp, set post-throttling */
+
+#ifdef DDS_HAS_SHM
+  void* iox_chunk;
+  iox_sub_t* iox_subscriber;
+#endif
 };
 
 struct ddsi_serdata_wrapper {
@@ -159,6 +168,11 @@ typedef size_t (*ddsi_serdata_print_t) (const struct ddsi_sertype *type, const s
    - buf needs to be at least 16 bytes large */
 typedef void (*ddsi_serdata_get_keyhash_t) (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5);
 
+#ifdef DDS_HAS_SHM
+typedef uint32_t(*ddsi_serdata_iox_size_t) (const struct ddsi_serdata* d);
+typedef struct ddsi_serdata* (*ddsi_serdata_from_iox_t) (const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, iox_sub_t *sub, void* iox_buffer);
+#endif
+
 struct ddsi_serdata_ops {
   ddsi_serdata_eqkey_t eqkey;
   ddsi_serdata_size_t get_size;
@@ -175,6 +189,10 @@ struct ddsi_serdata_ops {
   ddsi_serdata_free_t free;
   ddsi_serdata_print_t print;
   ddsi_serdata_get_keyhash_t get_keyhash;
+#ifdef DDS_HAS_SHM
+  ddsi_serdata_iox_size_t get_sample_size;
+  ddsi_serdata_from_iox_t from_iox_buffer;
+#endif
 };
 
 #define DDSI_SERDATA_HAS_PRINT 1
@@ -286,6 +304,18 @@ DDS_EXPORT inline bool ddsi_serdata_print_untyped (const struct ddsi_sertype *ty
 DDS_EXPORT inline void ddsi_serdata_get_keyhash (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5) {
   d->ops->get_keyhash (d, buf, force_md5);
 }
+
+#ifdef DDS_HAS_SHM
+DDS_EXPORT inline uint32_t ddsi_serdata_iox_size(const struct ddsi_serdata* d)
+{
+  return d->type->iox_size;
+}
+
+DDS_EXPORT inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, iox_sub_t *sub, void* iox_buffer)
+{
+  return type->serdata_ops->from_iox_buffer(type, kind, sub, iox_buffer);
+}
+#endif
 
 #if defined (__cplusplus)
 }

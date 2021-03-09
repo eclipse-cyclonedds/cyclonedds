@@ -1950,10 +1950,6 @@ static void writer_drop_connection (const struct ddsi_guid *wr_guid, const struc
     struct whc_node *deferred_free_list = NULL;
     struct wr_prd_match *m;
     ddsrt_mutex_lock (&wr->e.lock);
-#ifdef DDS_HAS_SHM
-    if (prd->c.proxypp->is_iceoryx)
-      wr->num_ice_proxy_reader--;
-#endif
     if ((m = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
     {
       struct whc_state whcst;
@@ -2304,8 +2300,6 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
 
   ddsrt_mutex_lock (&wr->e.lock);
 #ifdef DDS_HAS_SHM
-  if (prd->c.proxypp->is_iceoryx)
-    wr->num_ice_proxy_reader++;
   if (pretend_everything_acked || prd->c.proxypp->is_iceoryx)
 #else
   if (pretend_everything_acked)
@@ -3814,9 +3808,6 @@ static void new_writer_guid_common_init (struct writer *wr, const char *topic_na
   wr->sec_attr = NULL;
 #endif
 
-#ifdef DDS_HAS_SHM
-  wr->num_ice_proxy_reader = 0;
-#endif
   /* Copy QoS, merging in defaults */
 
   wr->xqos = ddsrt_malloc (sizeof (*wr->xqos));
