@@ -1194,7 +1194,7 @@ is_partition_in_criteria(
     current_partition = current_partitions->partition;
     while (current_partition != NULL)
     {
-      if (ac_fnmatch(current_partition->value, partition_name))
+      if (ac_fnmatch(current_partition->value ? current_partition->value : "", partition_name))
         return true;
       current_partition = (struct string_value *)current_partition->node.next;
     }
