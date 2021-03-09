@@ -30,6 +30,7 @@ char * get_governance_topic_rule (const char * topic_expr, bool discovery_protec
 char * get_governance_config (bool allow_unauth_pp, bool enable_join_ac, DDS_Security_ProtectionKind discovery_protection_kind, DDS_Security_ProtectionKind liveliness_protection_kind,
     DDS_Security_ProtectionKind rtps_protection_kind, const char * topic_rules, bool add_prefix);
 
+char * get_permissions_rules_w_partitions (const char * domain_id, const char * allow_pub_topic, const char * allow_sub_topic, const char ** allow_parts, const char * deny_pub_topic, const char * deny_sub_topic, const char ** deny_parts);
 char * get_permissions_rules (const char * domain_id, const char * allow_pub_topic, const char * allow_sub_topic,
     const char * deny_pub_topic, const char * deny_sub_topic);
 char * get_permissions_grant (const char * grant_name, const char * subject_name, dds_time_t not_before, dds_time_t not_after,

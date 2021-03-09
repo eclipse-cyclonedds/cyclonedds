@@ -62,13 +62,13 @@ static const char *governance_xml =
 static const char *permissions_xml_pub =
     "        <publish>"
     "          <topics><topic>${TOPIC_NAME}</topic></topics>"
-    "          <partitions><partition>*</partition></partitions>"
+    "          <partitions>${PARTITIONS:-<partition>*</partition>}</partitions>"
     "        </publish>";
 
 static const char *permissions_xml_sub =
     "        <subscribe>"
     "          <topics><topic>${TOPIC_NAME}</topic></topics>"
-    "          <partitions><partition>*</partition></partitions>"
+    "          <partitions>${PARTITIONS:-<partition>*</partition>}</partitions>"
     "        </subscribe>";
 
 static const char *permissions_xml_allow_rule =
@@ -280,13 +280,29 @@ char * get_governance_config (bool allow_unauth_pp, bool enable_join_ac, DDS_Sec
   return prefix_data (config_signed, add_prefix);
 }
 
-static char * expand_permissions_pubsub (const char * template, const char * topic_name)
+static char * expand_permissions_pubsub (const char * template, const char * topic_name, const char ** parts)
 {
-  struct kvp vars[] = {
+  char *xml_parts = NULL;
+  if (parts)
+  {
+    static const char open[] = "<partition>", close[] = "</partition>";
+    size_t len = 0;
+    for (int i = 0; parts[i]; i++)
+      len += strlen (parts[i]) + sizeof (open) + sizeof (close) - 2;
+    xml_parts = ddsrt_malloc (len + 1);
+    int pos = 0;
+    for (int i = 0; parts[i]; i++)
+      pos += snprintf (xml_parts + pos, len + 1 - (size_t) pos, "%s%s%s", open, parts[i], close);
+    assert ((size_t) pos == len);
+  }
+  struct kvp vars[3] = {
     { "TOPIC_NAME", topic_name, 1 },
+    { xml_parts ? "PARTITIONS" : NULL, xml_parts, xml_parts != NULL },
     { NULL, NULL, 0 }
   };
-  return ddsrt_expand_vars (template, &expand_lookup_vars, vars);
+  char * x = ddsrt_expand_vars (template, &expand_lookup_vars, vars);
+  ddsrt_free (xml_parts);
+  return x;
 }
 
 static char * expand_permissions_rule (const char * template, const char * domain_id, const char * pub_xml, const char * sub_xml)
@@ -300,15 +316,15 @@ static char * expand_permissions_rule (const char * template, const char * domai
   return ddsrt_expand_vars (template, &expand_lookup_vars, vars);
 }
 
-char * get_permissions_rules (const char * domain_id, const char * allow_pub_topic, const char * allow_sub_topic, const char * deny_pub_topic, const char * deny_sub_topic)
+char * get_permissions_rules_w_partitions (const char * domain_id, const char * allow_pub_topic, const char * allow_sub_topic, const char ** allow_parts, const char * deny_pub_topic, const char * deny_sub_topic, const char ** deny_parts)
 {
   char * allow_pub_xml = NULL, * allow_sub_xml = NULL, * deny_pub_xml = NULL, * deny_sub_xml = NULL;
   char * allow_rule_xml = NULL, * deny_rule_xml = NULL, * rules_xml;
 
-  if (allow_pub_topic != NULL) allow_pub_xml = expand_permissions_pubsub (permissions_xml_pub, allow_pub_topic);
-  if (allow_sub_topic != NULL) allow_sub_xml = expand_permissions_pubsub (permissions_xml_sub, allow_sub_topic);
-  if (deny_pub_topic != NULL) deny_pub_xml = expand_permissions_pubsub (permissions_xml_pub, deny_pub_topic);
-  if (deny_sub_topic != NULL) deny_sub_xml = expand_permissions_pubsub (permissions_xml_sub, deny_sub_topic);
+  if (allow_pub_topic != NULL) allow_pub_xml = expand_permissions_pubsub (permissions_xml_pub, allow_pub_topic, allow_parts);
+  if (allow_sub_topic != NULL) allow_sub_xml = expand_permissions_pubsub (permissions_xml_sub, allow_sub_topic, allow_parts);
+  if (deny_pub_topic != NULL) deny_pub_xml = expand_permissions_pubsub (permissions_xml_pub, deny_pub_topic, deny_parts);
+  if (deny_sub_topic != NULL) deny_sub_xml = expand_permissions_pubsub (permissions_xml_sub, deny_sub_topic, deny_parts);
 
   if (allow_pub_xml != NULL || allow_sub_xml != NULL)
   {
@@ -326,6 +342,11 @@ char * get_permissions_rules (const char * domain_id, const char * allow_pub_top
   if (allow_rule_xml != NULL) ddsrt_free (allow_rule_xml);
   if (deny_rule_xml != NULL) ddsrt_free (deny_rule_xml);
   return rules_xml;
+}
+
+char * get_permissions_rules (const char * domain_id, const char * allow_pub_topic, const char * allow_sub_topic, const char * deny_pub_topic, const char * deny_sub_topic)
+{
+  return get_permissions_rules_w_partitions (domain_id, allow_pub_topic, allow_sub_topic, NULL, deny_pub_topic, deny_sub_topic, NULL);
 }
 
 char * get_permissions_grant (const char * grant_name, const char * subject_name, dds_time_t not_before, dds_time_t not_after, const char * rules_xml, const char * default_policy)

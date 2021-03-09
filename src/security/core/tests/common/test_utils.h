@@ -82,6 +82,13 @@ void rd_wr_init_fail (
     const char * topic_name,
     bool exp_pubtp_fail, bool exp_wr_fail,
     bool exp_subtp_fail, bool exp_rd_fail);
+void rd_wr_init_w_partitions_fail(
+    dds_entity_t pp_wr, dds_entity_t *pub, dds_entity_t *pub_tp, dds_entity_t *wr,
+    dds_entity_t pp_rd, dds_entity_t *sub, dds_entity_t *sub_tp, dds_entity_t *rd,
+    const char * topic_name,
+    const char ** partition_names,
+    bool exp_pubtp_fail, bool exp_wr_fail,
+    bool exp_subtp_fail, bool exp_rd_fail);
 void write_read_for (dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_duration_t dur, bool exp_write_fail, bool exp_read_fail);
 const char * pk_to_str (DDS_Security_ProtectionKind pk);
 const char * bpk_to_str (DDS_Security_BasicProtectionKind bpk);
