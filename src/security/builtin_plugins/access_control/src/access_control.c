@@ -87,7 +87,7 @@ static local_participant_access_rights *find_local_rights_by_identity(dds_securi
 static remote_participant_access_rights *find_remote_rights_by_identity(dds_security_access_control_impl *ac, DDS_Security_IdentityHandle identity_handle);
 static DDS_Security_boolean domainid_within_sets(struct domain_id_set *domain, int domain_id);
 static DDS_Security_boolean is_topic_in_criteria(const struct criteria *criteria, const char *topic_name);
-static DDS_Security_boolean is_partition_qos_in_criteria(const struct criteria *criteria, const DDS_Security_PartitionQosPolicy *partitions);
+static DDS_Security_boolean is_partition_qos_in_criteria(const struct criteria *criteria, const DDS_Security_PartitionQosPolicy *partitions, permission_rule_type rule_type) ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 static DDS_Security_boolean is_partition_in_criteria(const struct criteria *criteria, const char *partition_name);
 static struct domain_rule *find_domain_rule_in_governance(struct domain_rule *rule, int domain_id);
 static DDS_Security_boolean get_participant_sec_attributes(dds_security_access_control *instance, const DDS_Security_PermissionsHandle permissions_handle,
@@ -1148,37 +1148,32 @@ compare_class_id_major_ver(DDS_Security_string classid1, DDS_Security_string cla
 static DDS_Security_boolean
 is_partition_qos_in_criteria(
     const struct criteria *criteria,
-    const DDS_Security_PartitionQosPolicy *partitions)
-  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
-
-static DDS_Security_boolean
-is_partition_qos_in_criteria(
-    const struct criteria *criteria,
-    const DDS_Security_PartitionQosPolicy *partitions)
+    const DDS_Security_PartitionQosPolicy *partitions,
+    permission_rule_type rule_type)
 {
-  unsigned int partition_index = 0;
-  const DDS_Security_PartitionQosPolicy *partitionsToCheck;
   const DDS_Security_PartitionQosPolicy defaultPartitions = { .name = {
-    ._length = 1,
-    ._maximum = 1,
-    ._buffer = (char *[]) { "" }
+    ._length = 1, ._maximum = 1, ._buffer = (char *[]) { "" }
   } };
-  if (partitions->name._length == 0)
-    partitionsToCheck = &defaultPartitions;
-  else
-    partitionsToCheck = partitions;
-
-  for (partition_index = 0; partition_index < partitionsToCheck->name._length; partition_index++)
+  const DDS_Security_PartitionQosPolicy *partitionsToCheck = (partitions->name._length == 0) ? &defaultPartitions : partitions;
+  switch (rule_type)
   {
-    if (is_partition_in_criteria(criteria, partitionsToCheck->name._buffer[partition_index]) == false)
+    case ALLOW_RULE: // allow rules: all partitions must be allowed
+      for (unsigned partition_index = 0; partition_index < partitionsToCheck->name._length; partition_index++)
+        if (!is_partition_in_criteria (criteria, partitionsToCheck->name._buffer[partition_index]))
+          return false;
+      return true;
+    case DENY_RULE: // deny rules: some partitions disallowed
+      for (unsigned partition_index = 0; partition_index < partitionsToCheck->name._length; partition_index++)
+        if (is_partition_in_criteria (criteria, partitionsToCheck->name._buffer[partition_index]))
+          return true;
       return false;
   }
-
-  return true;
+  assert (0);
+  return false;
 }
 
 static DDS_Security_boolean
-is_partition_in_criteria(
+is_partition_in_criteria (
     const struct criteria *criteria,
     const char *partition_name)
 {
@@ -1188,13 +1183,28 @@ is_partition_in_criteria(
   if (criteria == NULL || partition_name == NULL)
     return false;
 
-  current_partitions = (struct partitions *)criteria->partitions;
+  // FIXME: the spec is wrong in requiring "fnmatch" because of wildcards in partitions
+  //
+  // (naturally without specifying what options to use for "fnmatch" even though the spec it refers
+  // to for fnmatch has options ...)
+  //
+  // To match an allow rule, the set of partitions spanned by the partition set of the reader/writer
+  // should be fully contained in the set of partitions spanned by the set in the rule, but with
+  // fnmatch, "allow ?" and "read/write *" match (because "*" is a single character and hence matches
+  // the pattern "?", but it clearly can result in matching partition names that do not consist of a
+  // single character.
+  //
+  // Deny rules are similar: instead of "contained in" what matters is that the intersection of the
+  // two sets must be empty, or it must be denied.
+
+  current_partitions = (struct partitions *) criteria->partitions;
   while (current_partitions != NULL)
   {
     current_partition = current_partitions->partition;
     while (current_partition != NULL)
     {
-      if (ac_fnmatch(current_partition->value ? current_partition->value : "", partition_name))
+      // empty partition string in permission document comes out as a null pointer
+      if (ac_fnmatch (current_partition->value ? current_partition->value : "", partition_name))
         return true;
       current_partition = (struct string_value *)current_partition->node.next;
     }
@@ -2063,7 +2073,7 @@ static bool is_readwrite_allowed_by_permissions (struct permissions_parser *perm
   while ((rule = rule_iter_next (&it)) != NULL)
   {
     for (const struct criteria *crit = rule->criteria; crit; crit = (const struct criteria *) crit->node.next)
-      if (crit->criteria_type == criteria_type && is_topic_in_criteria (crit, topic_name) && is_partition_qos_in_criteria (crit, partitions))
+      if (crit->criteria_type == criteria_type && is_topic_in_criteria (crit, topic_name) && is_partition_qos_in_criteria (crit, partitions, rule->rule_type))
         return is_allowed_by_rule (rule, topic_name, ex);
   }
   return is_allowed_by_default_rule (it.grant, topic_name, ex);
