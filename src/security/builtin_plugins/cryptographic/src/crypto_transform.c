@@ -253,33 +253,6 @@ static Header_t *add_rtps_header (trusted_crypto_buffer_t *buffer, const Header_
   return dst;
 }
 
-static void *trusted_crypto_buffer_find_submessage (const trusted_crypto_buffer_t *buffer, enum SubmessageKind submessageId, size_t offset)
-{
-  assert (offset <= buffer->length);
-  const unsigned char *ptr = buffer->contents + offset;
-  while (sizeof (SubmessageHeader_t) <= (size_t) (buffer->contents + buffer->length - ptr))
-  {
-    SubmessageHeader_t * const smhdr = (SubmessageHeader_t *) ptr;
-    if (smhdr->submessageId == (uint8_t) submessageId)
-      return (void *) ptr;
-    assert ((size_t) (buffer->contents + buffer->length - ptr) >= sizeof (SubmessageHeader_t) + smhdr->octetsToNextHeader);
-    ptr += sizeof (SubmessageHeader_t) + smhdr->octetsToNextHeader;
-  }
-  return NULL;
-}
-
-static struct trusted_crypto_header *trusted_crypto_buffer_find_header (const trusted_crypto_buffer_t *buffer, enum SubmessageKind submessageId)
-{
-  assert (submessageId == SMID_SRTPS_PREFIX || submessageId == SMID_SEC_PREFIX);
-  return trusted_crypto_buffer_find_submessage (buffer, submessageId, (submessageId == SMID_SRTPS_PREFIX) ? RTPS_MESSAGE_HEADER_SIZE : 0);
-}
-
-static struct trusted_crypto_footer *trusted_crypto_buffer_find_footer (const trusted_crypto_buffer_t *buffer, enum SubmessageKind submessageId)
-{
-  assert (submessageId == SMID_SRTPS_POSTFIX || submessageId == SMID_SEC_POSTFIX);
-  return trusted_crypto_buffer_find_submessage (buffer, submessageId, (submessageId == SMID_SRTPS_POSTFIX) ? RTPS_MESSAGE_HEADER_SIZE : 0);
-}
-
 /**************************************************************************************/
 
 struct const_tainted_secure_prefix {
@@ -736,6 +709,36 @@ fail_inv_arg:
   return false;
 }
 
+static bool trusted_crypto_buffer_find_submessage_offset (const trusted_crypto_buffer_t *buffer, enum SubmessageKind submessageId, size_t *offset)
+{
+  assert (*offset <= buffer->length);
+  const unsigned char *ptr = buffer->contents + *offset;
+  unsigned char const * const endp = buffer->contents + buffer->length;
+  while (sizeof (SubmessageHeader_t) <= (size_t) (endp - ptr))
+  {
+    SubmessageHeader_t * const smhdr = (SubmessageHeader_t *) ptr;
+    if (smhdr->submessageId == (uint8_t) submessageId)
+    {
+      *offset = (size_t) (ptr - buffer->contents);
+      return true;
+    }
+    assert ((size_t) (endp - ptr) >= sizeof (SubmessageHeader_t) + smhdr->octetsToNextHeader);
+    ptr += sizeof (SubmessageHeader_t) + smhdr->octetsToNextHeader;
+  }
+  return false;
+}
+
+static bool add_specific_mac_find_offsets (trusted_crypto_buffer_t *buffer, bool is_rtps, size_t *header_offset, size_t *footer_offset)
+{
+  *header_offset = is_rtps ? RTPS_MESSAGE_HEADER_SIZE : 0;
+  if (!trusted_crypto_buffer_find_submessage_offset (buffer, is_rtps ? SMID_SRTPS_PREFIX : SMID_SEC_PREFIX, header_offset))
+    return false;
+  *footer_offset = *header_offset;
+  if (!trusted_crypto_buffer_find_submessage_offset (buffer, is_rtps ? SMID_SRTPS_POSTFIX : SMID_SEC_POSTFIX, footer_offset))
+    return false;
+  assert (*header_offset < *footer_offset && *footer_offset < buffer->length);
+  return true;
+}
 
 static bool
 add_specific_mac(
@@ -745,38 +748,45 @@ add_specific_mac(
     bool is_rtps,
     DDS_Security_SecurityException *ex)
 {
-  uint32_t index;
-  const uint8_t prefix_kind = is_rtps ? SMID_SRTPS_PREFIX : SMID_SEC_PREFIX;
-  const uint8_t postfix_kind = is_rtps ? SMID_SRTPS_POSTFIX : SMID_SEC_POSTFIX;
-  trusted_crypto_data_t data;
-  struct trusted_crypto_header *header;
-  struct trusted_crypto_footer *footer;
-  crypto_session_key_t key;
+  size_t header_offset, footer_offset;
+  if (!add_specific_mac_find_offsets (buffer, is_rtps, &header_offset, &footer_offset))
+    return false;
+
   crypto_hmac_t hmac;
+  {
+    struct trusted_crypto_header const * const h = (struct trusted_crypto_header const *) (buffer->contents + header_offset);
+    struct trusted_crypto_footer const * const f = (struct trusted_crypto_footer const *) (buffer->contents + footer_offset);
+    crypto_session_key_t key;
+    const trusted_crypto_data_t data = { {
+      .base = (unsigned char *) f->postfix.common_mac.data,
+      .length = CRYPTO_HMAC_SIZE
+    } };
+    if (!crypto_calculate_receiver_specific_key (&key, session->id, keymat->master_salt, keymat->master_receiver_specific_key, keymat->transformation_kind, ex) ||
+        !crypto_cipher_encrypt_data (&key, session->key_size, &h->prefix.iv, 1, &data, NULL, &hmac, ex))
+      return false;
+  }
 
-  trusted_crypto_buffer_append(buffer, sizeof(struct receiver_specific_mac));
+  // appending may force reallocation
+  trusted_crypto_buffer_append (buffer, sizeof (struct receiver_specific_mac));
+  struct trusted_crypto_footer * const footer = (struct trusted_crypto_footer *) (buffer->contents + footer_offset);
+  const uint32_t length = ddsrt_fromBE4u (footer->postfix.receiver_specific_macs._length);
 
-  if ((header = trusted_crypto_buffer_find_header(buffer, prefix_kind)) == NULL)
-    return false;
-  else if ((footer = trusted_crypto_buffer_find_footer(buffer, postfix_kind)) == NULL)
-    return false;
+  // Coverity gets upset by using a byteswapped value without checking it on the assumption that
+  // byteswapping implies external input ...
+  const size_t receiver_specific_macs_offset = sizeof (crypto_hmac_t) + sizeof (footer->postfix.receiver_specific_macs._length);
+  if (length > (footer->header.octetsToNextHeader - receiver_specific_macs_offset) / sizeof (struct receiver_specific_mac))
+    return false; // no worries that we already reallocated: this can't happen and it'll be freed if it does happen anyway
 
-  footer->header.octetsToNextHeader = (uint16_t)(footer->header.octetsToNextHeader + sizeof(struct receiver_specific_mac));
-  index = ddsrt_fromBE4u(footer->postfix.receiver_specific_macs._length);
-  data.x.base = footer->postfix.common_mac.data;
-  data.x.length = CRYPTO_HMAC_SIZE;
-
-  if (!crypto_calculate_receiver_specific_key(&key, session->id, keymat->master_salt, keymat->master_receiver_specific_key, keymat->transformation_kind, ex) ||
-      !crypto_cipher_encrypt_data(&key, session->key_size, &header->prefix.iv, 1, &data, NULL, &hmac, ex))
-    return false;
-
-  uint32_t key_id = ddsrt_toBE4u(keymat->receiver_specific_key_id);
-  struct trusted_crypto_postfix *postfix = &footer->postfix;
-  struct receiver_specific_mac *rcvmac = &postfix->receiver_specific_macs._buffer[index];
+  // there must now be room to append another MAC
+  assert (buffer->length - footer_offset >= sizeof (SubmessageHeader_t) + footer->header.octetsToNextHeader + sizeof (struct receiver_specific_mac));
+  DDSRT_STATIC_ASSERT (sizeof (struct receiver_specific_mac) <= UINT16_MAX);
+  // octetsToNextHeader += (uint16_t) sizeof ... triggers a conversion warning for int to uint16_t from gcc
+  footer->header.octetsToNextHeader = (uint16_t) (footer->header.octetsToNextHeader + sizeof (struct receiver_specific_mac));
+  footer->postfix.receiver_specific_macs._length = ddsrt_toBE4u (length + 1);
+  struct receiver_specific_mac * const rcvmac = &footer->postfix.receiver_specific_macs._buffer[length];
   rcvmac->receiver_mac = hmac;
-  memcpy(rcvmac->receiver_mac_key_id, &key_id, sizeof(key_id));
-  postfix->receiver_specific_macs._length = ddsrt_toBE4u(++index);
-
+  const uint32_t key_id = ddsrt_toBE4u (keymat->receiver_specific_key_id);
+  memcpy (rcvmac->receiver_mac_key_id, &key_id, sizeof(key_id));
   return true;
 }
 
