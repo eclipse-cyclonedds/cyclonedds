@@ -769,12 +769,12 @@ add_specific_mac(
   // appending may force reallocation
   trusted_crypto_buffer_append (buffer, sizeof (struct receiver_specific_mac));
   struct trusted_crypto_footer * const footer = (struct trusted_crypto_footer *) (buffer->contents + footer_offset);
-  const uint32_t index = ddsrt_fromBE4u (footer->postfix.receiver_specific_macs._length);
+  const uint32_t length = ddsrt_fromBE4u (footer->postfix.receiver_specific_macs._length);
 
   // Coverity gets upset by using a byteswapped value without checking it on the assumption that
   // byteswapping implies external input ...
-  const size_t receiver_specific_macs_offset = CRYPTO_HMAC_SIZE + 4;
-  if (index > (footer->header.octetsToNextHeader - receiver_specific_macs_offset) / sizeof (struct receiver_specific_mac))
+  const size_t receiver_specific_macs_offset = sizeof (crypto_hmac_t) + sizeof (footer->postfix.receiver_specific_macs._length);
+  if (length > (footer->header.octetsToNextHeader - receiver_specific_macs_offset) / sizeof (struct receiver_specific_mac))
     return false; // no worries that we already reallocated: this can't happen and it'll be freed if it does happen anyway
 
   // there must now be room to append another MAC
@@ -782,11 +782,11 @@ add_specific_mac(
   DDSRT_STATIC_ASSERT (sizeof (struct receiver_specific_mac) <= UINT16_MAX);
   // octetsToNextHeader += (uint16_t) sizeof ... triggers a conversion warning for int to uint16_t from gcc
   footer->header.octetsToNextHeader = (uint16_t) (footer->header.octetsToNextHeader + sizeof (struct receiver_specific_mac));
-  footer->postfix.receiver_specific_macs._length = ddsrt_toBE4u(index + 1);
-  struct receiver_specific_mac * const rcvmac = &footer->postfix.receiver_specific_macs._buffer[index];
+  footer->postfix.receiver_specific_macs._length = ddsrt_toBE4u (length + 1);
+  struct receiver_specific_mac * const rcvmac = &footer->postfix.receiver_specific_macs._buffer[length];
   rcvmac->receiver_mac = hmac;
   const uint32_t key_id = ddsrt_toBE4u (keymat->receiver_specific_key_id);
-  memcpy(rcvmac->receiver_mac_key_id, &key_id, sizeof(key_id));
+  memcpy (rcvmac->receiver_mac_key_id, &key_id, sizeof(key_id));
   return true;
 }
 
