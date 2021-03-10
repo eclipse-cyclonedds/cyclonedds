@@ -2223,8 +2223,13 @@ static void proxy_writer_drop_connection (const struct ddsi_guid *pwr_guid, stru
       /* If no reliable readers left, there is no reason to believe the heartbeats will keep
          coming and therefore reset have_seen_heartbeat so the next reader to be created
          doesn't get initialised based on stale data */
-      if (pwr->n_reliable_readers == 0)
+      const bool isreliable = (pwr->c.xqos->reliability.kind != DDS_RELIABILITY_BEST_EFFORT);
+      if (pwr->n_reliable_readers == 0 && isreliable && pwr->have_seen_heartbeat)
+      {
         pwr->have_seen_heartbeat = 0;
+        nn_defrag_notegap (pwr->defrag, 1, pwr->last_seq + 1);
+        nn_reorder_drop_upto (pwr->reorder, pwr->last_seq + 1);
+      }
       local_reader_ary_remove (&pwr->rdary, rd);
     }
     ddsrt_mutex_unlock (&pwr->e.lock);
