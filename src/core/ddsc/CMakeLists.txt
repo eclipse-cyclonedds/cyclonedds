@@ -10,7 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 
-set(srcs_ddsc
+prepend(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds_alloc.c
   dds_builtin.c
   dds_coherent.c
@@ -42,7 +42,7 @@ set(srcs_ddsc
   dds_serdata_builtintopic.c
   dds_sertype_builtintopic.c)
 
-set(hdrs_private_ddsc
+prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__alloc.h
   dds__builtin.h
   dds__domain.h
@@ -69,7 +69,7 @@ set(hdrs_private_ddsc
   dds__serdata_builtintopic.h
   dds__get_status.h)
 
-set(hdrs_public_ddsc
+prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/dds/"
   dds.h
   ddsc/dds_public_error.h
   ddsc/dds_public_impl.h
@@ -81,11 +81,6 @@ set(hdrs_public_ddsc
   ddsc/dds_rhc.h
   ddsc/dds_internal_api.h
   ddsc/dds_opcodes.h)
-
-list(TRANSFORM srcs_ddsc PREPEND "${CMAKE_CURRENT_LIST_DIR}/src/")
-list(TRANSFORM hdrs_private_ddsc PREPEND "${CMAKE_CURRENT_LIST_DIR}/src/")
-list(TRANSFORM hdrs_public_ddsc PREPEND
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/dds/")
 
 generate_export_header(
   ddsc BASE_NAME DDS EXPORT_FILE_NAME include/dds/export.h)

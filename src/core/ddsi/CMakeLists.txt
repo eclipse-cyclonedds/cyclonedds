@@ -169,8 +169,8 @@ if(ENABLE_SECURITY)
   list(APPEND hdrs_private_ddsi ddsi_security_msg.h ddsi_security_exchange.h)
 endif()
 
-list(TRANSFORM srcs_ddsi PREPEND "${CMAKE_CURRENT_LIST_DIR}/src/")
-list(TRANSFORM hdrs_private_ddsi PREPEND "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/")
+prepend(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/" ${hdrs_private_ddsi})
+prepend(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/" ${srcs_ddsi})
 
 target_sources(ddsc PRIVATE ${srcs_ddsi} ${defconfig_src} ${hdrs_private_ddsi})
 target_include_directories(ddsc PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
