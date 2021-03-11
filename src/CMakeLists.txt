@@ -16,6 +16,14 @@ if(NOT ${PROJECT_NAME} STREQUAL "CycloneDDS")
   message(FATAL_ERROR "Top-level CMakeLists.txt was moved to the top-level directory.  Please run cmake on ${dir} instead of ${CMAKE_CURRENT_LIST_DIR}")
 endif()
 
+function(PREPEND var prefix)
+  set(listVar "")
+  foreach(f ${ARGN})
+     list(APPEND listVar "${prefix}/${f}")
+  endforeach()
+  set(${var} "${listVar}" PARENT_SCOPE)
+endfunction()
+
 # Generate a header file listing compile-time options relevant to the API.  Define to
 # "1" if enabled so that the generated features.h ends up having either
 #
