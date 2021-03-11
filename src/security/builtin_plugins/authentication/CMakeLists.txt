@@ -12,15 +12,12 @@
 include(GenerateExportHeader)
 
 set(sources
-  authentication.c
-  auth_utils.c)
+  src/authentication.c
+  src/auth_utils.c)
 
 set(private_headers
-  authentication.h
-  auth_utils.h)
-
-list(TRANSFORM sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/")
-list(TRANSFORM private_headers PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/")
+  src/authentication.h
+  src/auth_utils.h)
 
 add_library(dds_security_auth SHARED ${sources} ${private_headers})
 

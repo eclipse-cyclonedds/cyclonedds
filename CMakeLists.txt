@@ -33,7 +33,6 @@ endif()
 option(WERROR "Treat compiler warnings as errors" OFF)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
-include(Compat)
 
 option(BUILD_IDLC "Build IDL preprocessor" ON)
 
@@ -151,6 +150,12 @@ if(${CMAKE_GENERATOR} STREQUAL "Xcode")
   set (CMAKE_XCODE_ATTRIBUTE_GCC_WARN_UNUSED_VARIABLE YES)
   set (CMAKE_XCODE_ATTRIBUTE_CLANG_WARN_DOCUMENTATION_COMMENTS YES)
   set (CMAKE_XCODE_ATTRIBUTE_GCC_WARN_ABOUT_MISSING_PROTOTYPES YES)
+endif()
+
+if(CMAKE_VERSION VERSION_LESS 3.13)
+  macro(add_link_options)
+    link_libraries(${ARGV})
+  endmacro()
 endif()
 
 # Make it easy to enable Clang's/gcc's analyzers

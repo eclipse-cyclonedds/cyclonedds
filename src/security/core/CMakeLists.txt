@@ -17,18 +17,6 @@ set(sources
   dds_security_fsm.c
   dds_security_timed_cb.c)
 
-set(headers
-  dds_security_serialize.h
-  dds_security_types.h
-  dds_security_utils.h
-  dds_security_plugins.h
-  dds_security_fsm.h
-  shared_secret.h
-  dds_security_timed_cb.h)
-
-list(TRANSFORM sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/")
-list(TRANSFORM headers PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/include/security/core/")
-
 if(NOT WIN32)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
@@ -36,6 +24,7 @@ endif()
 
 add_library(security_core INTERFACE)
 
+prepend(sources "${CMAKE_CURRENT_LIST_DIR}/src" ${sources})
 target_sources(security_core INTERFACE ${sources})
 
 target_include_directories(security_core

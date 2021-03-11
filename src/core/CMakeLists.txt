@@ -12,7 +12,7 @@
 include (GenerateExportHeader)
 
 if (BUILD_SHARED_LIBS OR NOT DEFINED BUILD_SHARED_LIBS)
-  add_library(ddsc SHARED)
+  add_library(ddsc SHARED "")
 else()
   add_library(ddsc)
 endif()
