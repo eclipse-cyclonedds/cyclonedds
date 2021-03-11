@@ -49,6 +49,27 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -m64")
 endif()
 
+# Homebrew
+if(APPLE)
+  # Hint Homebrew prefixes to find_* commands. Use of CMAKE_PREFIX_PATH is
+  # required because full signature mode for find_package implies Config mode.
+  find_program(brew NAMES brew)
+  if (brew)
+    foreach(formula bison)
+      execute_process(
+        COMMAND ${brew} --prefix ${formula}
+        COMMAND_ECHO STDOUT
+        OUTPUT_VARIABLE prefix
+        ERROR_QUIET)
+      string(STRIP "${prefix}" prefix)
+      if(EXISTS "${prefix}")
+        # Append to ensure user specified paths come first.
+        set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${prefix}")
+      endif()
+    endforeach()
+  endif()
+endif()
+
 # Conan
 if(EXISTS "${CMAKE_BINARY_DIR}/conanbuildinfo.cmake")
   include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
