@@ -33,7 +33,6 @@ endif()
 option(WERROR "Treat compiler warnings as errors" OFF)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
-include(Compat)
 
 option(BUILD_IDLC "Build IDL preprocessor" ON)
 

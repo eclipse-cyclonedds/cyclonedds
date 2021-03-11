@@ -12,15 +12,13 @@
 include (GenerateExportHeader)
 
 set(sources
-  crypto_cipher.c
-  crypto_key_exchange.c
-  crypto_key_factory.c
-  crypto_objects.c
-  crypto_transform.c
-  crypto_utils.c
-  cryptography.c)
-
-list(TRANSFORM sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/")
+  src/crypto_cipher.c
+  src/crypto_key_exchange.c
+  src/crypto_key_factory.c
+  src/crypto_objects.c
+  src/crypto_transform.c
+  src/crypto_utils.c
+  src/cryptography.c)
 
 add_library(dds_security_crypto SHARED ${sources})
 

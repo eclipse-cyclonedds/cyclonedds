@@ -12,12 +12,10 @@
 include(GenerateExportHeader)
 
 set(sources
-  access_control_objects.c
-  access_control_parser.c
-  access_control_utils.c
-  access_control.c)
-
-list(TRANSFORM sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/")
+  src/access_control_objects.c
+  src/access_control_parser.c
+  src/access_control_utils.c
+  src/access_control.c)
 
 add_library(dds_security_ac SHARED ${sources})
 
