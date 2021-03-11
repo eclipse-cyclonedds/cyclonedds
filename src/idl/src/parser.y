@@ -98,7 +98,7 @@ static void yyerror(idl_location_t *, idl_pstate_t *, const char *);
 #include "tree.h"
 
 /* make yytoknum available */
-#define YYPRINT(A,B,C) YYUSE(A)
+#define YYPRINT(A,B,C) (void)0
 /* use YYLTYPE definition below */
 #define IDL_YYLTYPE_IS_DECLARED
 typedef struct idl_location IDL_YYLTYPE;
