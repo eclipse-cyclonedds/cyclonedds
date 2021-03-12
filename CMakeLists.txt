@@ -58,7 +58,6 @@ if(APPLE)
     foreach(formula bison)
       execute_process(
         COMMAND ${brew} --prefix ${formula}
-        COMMAND_ECHO STDOUT
         OUTPUT_VARIABLE prefix
         ERROR_QUIET)
       string(STRIP "${prefix}" prefix)
