@@ -1352,8 +1352,8 @@ idl_finalize_union(
         ret = idl_evaluate(state, cl->const_expr, type, &literal);
         if (ret != IDL_RETCODE_OK)
           return ret;
-        if (type == IDL_ENUMERATOR) {
-          if ((uintptr_t)switch_type_spec != (uintptr_t)literal->node.parent) {
+        if (type == IDL_ENUM) {
+          if ((uintptr_t)switch_type_spec->type_spec != (uintptr_t)literal->node.parent) {
             idl_error(state, idl_location(cl),
               "Enumerator of different enum type");
             return IDL_RETCODE_SEMANTIC_ERROR;
