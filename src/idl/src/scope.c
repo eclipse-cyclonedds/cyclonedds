@@ -206,8 +206,8 @@ idl_declare(
 clash:
           idl_error(pstate, idl_location(node),
             "Declaration '%s%s' collides with earlier an declaration of '%s%s'",
-            kind == IDL_ANNOTATION ? "@" : "", name->identifier,
-            kind == IDL_ANNOTATION ? "@" : "", entry->name->identifier);
+            kind == IDL_ANNOTATION_DECLARATION ? "@" : "", name->identifier,
+            kind == IDL_ANNOTATION_DECLARATION ? "@" : "", entry->name->identifier);
           return IDL_RETCODE_SEMANTIC_ERROR;
       }
     }
