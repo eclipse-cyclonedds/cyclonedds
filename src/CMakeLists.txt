@@ -39,7 +39,12 @@ if(ENABLE_DEADLINE_MISSED)
 endif()
 configure_file(features.h.in "${CMAKE_CURRENT_BINARY_DIR}/core/include/dds/features.h")
 
-add_definitions(-DDDSI_INCLUDE_NETWORK_PARTITIONS -DDDSI_INCLUDE_SSM)
+# QNX does not support SSM 
+if (QNX) 
+  add_definitions(-DDDSI_INCLUDE_NETWORK_PARTITIONS)
+else()
+  add_definitions(-DDDSI_INCLUDE_NETWORK_PARTITIONS -DDDSI_INCLUDE_SSM)
+endif()
 
 # OpenSSL is huge, raising the RSS by 1MB or so, and moreover find_package(OpenSSL) causes
 # trouble on some older CMake versions that otherwise work fine, so provide an option to avoid
