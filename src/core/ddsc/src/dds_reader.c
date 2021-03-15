@@ -46,11 +46,12 @@
 static void iox_handle_incoming(struct dds_reader* rd)
 {
   void* chunk = NULL;
+  thread_state_awake(lookup_thread_state(), rd->m_rd->e.gv);
+
   while (ChunkReceiveResult_SUCCESS == iox_sub_take_chunk(rd->m_iox_sub, (const void** const)&chunk))
   {
     iceoryx_header_t* ice_hdr = (iceoryx_header_t*)chunk;
     // Get proxy writer
-    thread_state_awake(lookup_thread_state(), rd->m_rd->e.gv);
     struct proxy_writer* pwr = entidx_lookup_proxy_writer_guid(rd->m_rd->e.gv->entity_index, &ice_hdr->guid);
     if (pwr == NULL)
     {

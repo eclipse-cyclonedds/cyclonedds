@@ -161,7 +161,10 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
 
 #ifdef DDS_HAS_SHM
   if (d->c.iox_chunk)
+  {
     iox_sub_release_chunk(*(d->c.iox_subscriber), d->c.iox_chunk);
+    d->c.iox_chunk = NULL;
+  }
 #endif
 
   if (d->size > MAX_SIZE_FOR_POOL || !nn_freelist_push (&d->serpool->freelist, d))
