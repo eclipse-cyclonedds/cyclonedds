@@ -40,6 +40,7 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_whc_builtintopic.c
     dds_serdata_builtintopic.c
     dds_sertype_builtintopic.c
+    shm_monitor.c #TODO: conditionally include in build, need separate shm target?
 )
 
 PREPEND(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/dds>$<INSTALL_INTERFACE:include/dds>"
