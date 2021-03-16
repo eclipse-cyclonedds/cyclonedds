@@ -83,7 +83,7 @@ idl_type_t idl_type(const void *node)
   if (idl_mask(node) & IDL_DECLARATOR)
     node = idl_parent(node);
   else if (idl_mask(node) & IDL_ENUMERATOR)
-    node = idl_parent(node);
+    return IDL_ENUM;
 
   mask = idl_mask(node) & ((IDL_TYPEDEF << 1) - 1);
   switch (mask) {
@@ -2461,7 +2461,7 @@ idl_finalize_annotation_appl(
   /* constant expressions cannot be evaluated until annotations are applied
      as values for members of type any must match with the element under
      annotation */
-  if (idl_mask(parameters) & IDL_EXPRESSION) {
+  if (idl_mask(parameters) & (IDL_EXPRESSION|IDL_ENUMERATOR)) {
     idl_definition_t *definition = node->annotation->definitions;
     idl_annotation_member_t *member = NULL;
     while (definition && !member) {
@@ -2485,7 +2485,8 @@ idl_finalize_annotation_appl(
     ((idl_node_t *)parameter)->parent = (idl_node_t *)node;
     parameter->member = idl_reference_node(member);
     parameter->const_expr = parameters;
-    ((idl_node_t *)parameters)->parent = (idl_node_t *)parameter;
+    if (!idl_scope(parameters))
+      ((idl_node_t *)parameters)->parent = (idl_node_t *)parameter;
   } else if (idl_mask(parameters) & IDL_ANNOTATION_APPL_PARAM) {
     node->parameters = parameters;
     for (idl_annotation_appl_param_t *ap = parameters; ap; ap = idl_next(ap))

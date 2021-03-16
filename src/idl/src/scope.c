@@ -311,6 +311,18 @@ static int namecasecmp(const idl_name_t *n1, const idl_name_t *n2)
   return idl_strcasecmp(n1->identifier, n2->identifier);
 }
 
+static bool
+is_annotation(const idl_scope_t *scope, const idl_declaration_t *declaration)
+{
+  if (declaration->kind == IDL_ANNOTATION_DECLARATION)
+    return true;
+  if (scope->kind != IDL_ANNOTATION_SCOPE ||
+      declaration->kind != IDL_SCOPE_DECLARATION)
+    return false;
+  assert(scope->declarations.first == declaration);
+  return true;
+}
+
 const idl_declaration_t *
 idl_find(
   const idl_pstate_t *pstate,
@@ -331,7 +343,7 @@ idl_find(
   cmp = (flags & IDL_FIND_IGNORE_CASE) ? &namecasecmp : &namecmp;
 
   for (entry = scope->declarations.first; entry; entry = entry->next) {
-    if (entry->kind == IDL_ANNOTATION_DECLARATION && !(flags & IDL_FIND_ANNOTATION))
+    if (is_annotation(scope, entry) && !(flags & IDL_FIND_ANNOTATION))
       continue;
     if (cmp(name, entry->name) == 0)
       return entry;

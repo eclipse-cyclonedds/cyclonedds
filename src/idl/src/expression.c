@@ -438,14 +438,18 @@ eval_int_expr(
   idl_type_t type,
   idl_intval_t *valp)
 {
+  idl_mask_t mask;
   if (idl_mask(const_expr) & IDL_CONST)
     const_expr = ((idl_const_t *)const_expr)->const_expr;
 
-  if (idl_mask(const_expr) & IDL_BINARY_OPERATOR) {
+  mask = idl_mask(const_expr);
+  if (mask & IDL_BINARY_OPERATOR) {
     return eval_binary_int_expr(pstate, const_expr, type, valp);
-  } else if (idl_mask(const_expr) & IDL_UNARY_OPERATOR) {
+  } else if (mask & IDL_UNARY_OPERATOR) {
     return eval_unary_int_expr(pstate, const_expr, type, valp);
-  } else if (idl_mask(const_expr) & (IDL_LITERAL|IDL_OCTET|IDL_INTEGER_TYPE)) {
+  } else if ((mask & (IDL_LITERAL|IDL_OCTET)) == (IDL_LITERAL|IDL_OCTET) ||
+             (mask & (IDL_LITERAL|IDL_INTEGER_TYPE)) == (IDL_LITERAL|IDL_INTEGER_TYPE))
+  {
     *valp = intval(const_expr);
     return IDL_RETCODE_OK;
   }
@@ -471,6 +475,8 @@ eval_int(
     as = IDL_LLONG;
   if ((ret = eval_int_expr(pstate, expr, as, &val)))
     return ret;
+  if (type == IDL_ANY)
+    type = val.type;
   if (int_overflows(&val, type))
     goto overflow;
 
@@ -636,6 +642,8 @@ eval_float(
 
   if ((ret = eval_float_expr(pstate, expr, as, &val)))
     return ret;
+  if (type == IDL_ANY)
+    type = as;
   if (float_overflows(val, type))
     goto overflow;
   if ((ret = idl_create_literal(pstate, idl_location(expr), type, &literal)))
@@ -657,6 +665,19 @@ overflow:
   return IDL_RETCODE_OUT_OF_RANGE;
 }
 
+static idl_type_t figure_type(idl_const_expr_t *const_expr)
+{
+  if (idl_mask(const_expr) & IDL_CONST)
+    const_expr = ((const idl_const_t *)const_expr)->const_expr;
+
+  if (idl_mask(const_expr) & IDL_BINARY_OPERATOR)
+    return figure_type(((const idl_binary_expr_t *)const_expr)->left);
+  else if (idl_mask(const_expr) & IDL_UNARY_OPERATOR)
+    return figure_type(((const idl_unary_expr_t *)const_expr)->right);
+  else
+    return idl_type(const_expr);
+}
+
 idl_retcode_t
 idl_evaluate(
   idl_pstate_t *pstate,
@@ -666,10 +687,13 @@ idl_evaluate(
 {
   idl_retcode_t ret;
   idl_literal_t temporary, *literal = NULL;
+  idl_type_t implicit;
   static const char fmt[] = "Cannot evaluate %s as %s expression";
 
+  implicit = (type == IDL_ANY) ? figure_type(const_expr) : type;
+
   /* enumerators are referenced */
-  if (type == IDL_ENUM) {
+  if (implicit == IDL_ENUM) {
     const char *constr = idl_construct(const_expr);
     if (!(idl_mask(const_expr) & IDL_ENUMERATOR)) {
       idl_error(pstate, idl_location(const_expr), fmt, constr, "enumerator");
@@ -677,11 +701,11 @@ idl_evaluate(
     }
     *((idl_enumerator_t **)nodep) = const_expr;
     return IDL_RETCODE_OK;
-  } else if (type == IDL_OCTET || (type & IDL_INTEGER_TYPE)) {
+  } else if (implicit == IDL_OCTET || (implicit & IDL_INTEGER_TYPE)) {
     if ((ret = eval_int(pstate, const_expr, type, nodep)))
       return ret;
     goto done;
-  } else if (type & IDL_FLOATING_PT_TYPE) {
+  } else if (implicit & IDL_FLOATING_PT_TYPE) {
     if ((ret = eval_float(pstate, const_expr, type, nodep)))
       return ret;
     goto done;
@@ -692,7 +716,7 @@ idl_evaluate(
   else if (idl_is_literal(const_expr))
     literal = const_expr;
 
-  if (type == IDL_CHAR) {
+  if (implicit == IDL_CHAR) {
     if (idl_type(literal) == IDL_CHAR) {
       temporary.value.chr = literal->value.chr;
     } else {
@@ -700,7 +724,7 @@ idl_evaluate(
       idl_error(pstate, idl_location(const_expr), fmt, constr, "character");
       return IDL_RETCODE_ILLEGAL_EXPRESSION;
     }
-  } else if (type == IDL_BOOL) {
+  } else if (implicit == IDL_BOOL) {
     if (idl_type(literal) == IDL_BOOL) {
       temporary.value.bln = literal->value.bln;
     } else {
@@ -708,7 +732,7 @@ idl_evaluate(
       idl_error(pstate, idl_location(const_expr), fmt, constr, "boolean");
       return IDL_RETCODE_ILLEGAL_EXPRESSION;
     }
-  } else if (type == IDL_STRING) {
+  } else if (implicit == IDL_STRING) {
     if (idl_type(literal) == IDL_STRING) {
       if (!(temporary.value.str = idl_strdup(literal->value.str)))
         return IDL_RETCODE_NO_MEMORY;
@@ -803,6 +827,11 @@ static int64_t intmin(idl_type_t type)
 }
 
 static idl_intval_t intval(const idl_const_expr_t *const_expr)
+{
+  return idl_intval(const_expr);
+}
+
+idl_intval_t idl_intval(const idl_const_expr_t *const_expr)
 {
   idl_type_t type = idl_type(const_expr);
   const idl_literal_t *val = (idl_literal_t *)const_expr;
