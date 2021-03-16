@@ -13,6 +13,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 
 #include "idl/processor.h"
@@ -133,26 +134,50 @@ annotate_autoid(
 }
 
 static idl_retcode_t
-annotate_optional(
-  idl_pstate_t *pstate,
-  idl_annotation_appl_t *annotation_appl,
-  idl_node_t *node)
-{
-  (void)node;
-  idl_warning(pstate, idl_location(annotation_appl),
-    "@optional not supported");
-  return IDL_RETCODE_OK;
-}
-
-static idl_retcode_t
 annotate_value(
   idl_pstate_t *pstate,
   idl_annotation_appl_t *annotation_appl,
   idl_node_t *node)
 {
-  (void)node;
-  idl_warning(pstate, idl_location(annotation_appl),
-    "@value not supported");
+  idl_type_t type;
+  const idl_const_expr_t *const_expr;
+  uint32_t value;
+
+  assert(annotation_appl);
+  assert(annotation_appl->parameters);
+  const_expr = annotation_appl->parameters->const_expr;
+
+  if (!idl_is_enumerator(node)) {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@value cannot be applied to '%s' elements", idl_construct(node));
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  type = idl_type(const_expr);
+  if (type == IDL_OCTET || (type & IDL_INTEGER_TYPE)) {
+    idl_intval_t intval = idl_intval(const_expr);
+
+    if ((intval.type & IDL_UNSIGNED) && intval.value.ullng > INT32_MAX) {
+      idl_error(pstate, idl_location(annotation_appl),
+        "@value(%" PRIu64 ") cannot be applied to '%s' element",
+        intval.value.ullng, idl_construct(node));
+      return IDL_RETCODE_SEMANTIC_ERROR;
+    } else if (!(intval.type & IDL_UNSIGNED) && intval.value.llng < 0) {
+      idl_error(pstate, idl_location(annotation_appl),
+        "@value(%" PRId64 ") cannot be applied to '%s' element",
+        intval.value.llng, idl_construct(node));
+      return IDL_RETCODE_SEMANTIC_ERROR;
+    }
+
+    value = (uint32_t)intval.value.ullng;
+  } else {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@value with %s cannot be applied to '%s' element",
+      idl_construct(const_expr), idl_construct(node));
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  ((idl_enumerator_t *)node)->value = value;
   return IDL_RETCODE_OK;
 }
 
@@ -233,73 +258,6 @@ annotate_key(
     return IDL_RETCODE_SEMANTIC_ERROR;
   }
 
-  return IDL_RETCODE_OK;
-}
-
-static idl_retcode_t
-annotate_must_understand(
-  idl_pstate_t *pstate,
-  idl_annotation_appl_t *annotation_appl,
-  idl_node_t *node)
-{
-  (void)node;
-  idl_warning(pstate, idl_location(annotation_appl),
-    "@must_understand not supported");
-  return IDL_RETCODE_OK;
-}
-
-static idl_retcode_t
-annotate_default(
-  idl_pstate_t *pstate,
-  idl_annotation_appl_t *annotation_appl,
-  idl_node_t *node)
-{
-  (void)node;
-  idl_warning(pstate, idl_location(annotation_appl), "@default not supported");
-  return IDL_RETCODE_OK;
-}
-
-static idl_retcode_t
-annotate_range(
-  idl_pstate_t *pstate,
-  idl_annotation_appl_t *annotation_appl,
-  idl_node_t *node)
-{
-  (void)node;
-  idl_warning(pstate, idl_location(annotation_appl), "@range not supported");
-  return IDL_RETCODE_OK;
-}
-
-static idl_retcode_t
-annotate_min(
-  idl_pstate_t *pstate,
-  idl_annotation_appl_t *annotation_appl,
-  idl_node_t *node)
-{
-  (void)node;
-  idl_warning(pstate, idl_location(annotation_appl), "@min not supported");
-  return IDL_RETCODE_OK;
-}
-
-static idl_retcode_t
-annotate_max(
-  idl_pstate_t *pstate,
-  idl_annotation_appl_t *annotation_appl,
-  idl_node_t *node)
-{
-  (void)node;
-  idl_warning(pstate, idl_location(annotation_appl), "@max not supported");
-  return IDL_RETCODE_OK;
-}
-
-static idl_retcode_t
-annotate_unit(
-  idl_pstate_t *pstate,
-  idl_annotation_appl_t *annotation_appl,
-  idl_node_t *node)
-{
-  (void)node;
-  idl_warning(pstate, idl_location(annotation_appl), "@unit not supported");
   return IDL_RETCODE_OK;
 }
 
@@ -462,10 +420,12 @@ static const idl_builtin_annotation_t annotations[] = {
       "instructs to automatically allocate identifiers to elements that have "
       "not been assigned a 32-bit unsigned identifiers explicitly.</p>",
     .callback = &annotate_autoid },
+#if 0
   { .syntax = "@annotation optional { boolean value default TRUE; };",
     .summary =
       "<p>Set optionality on any element that makes to be optional.</p>",
     .callback = annotate_optional },
+#endif
   { .syntax = "@annotation value { any value; };",
     .summary =
       "<p>Set a constant value to any element that may be given a constant "
@@ -496,6 +456,7 @@ static const idl_builtin_annotation_t annotations[] = {
       "<p>Specify a data member is part of the key for the object whose type "
       "is the constructed data type owning this element.</p>",
     .callback = annotate_key },
+#if 0
   { .syntax = "@annotation must_understand { boolean value default TRUE; };",
     .summary =
       "<p>Specify the data member must be understood by any application "
@@ -522,6 +483,7 @@ static const idl_builtin_annotation_t annotations[] = {
     .summary =
       "<p>Specify a unit of measurement for the annotated element.</p>",
     .callback = annotate_unit },
+#endif
   { .syntax = "@annotation nested { boolean value default TRUE; };",
     .summary =
       "<p>Specify annotated element is never used as top-level object.</p>",
@@ -571,6 +533,7 @@ eval(idl_pstate_t *pstate, void *node, idl_annotation_appl_t *appls)
 {
   idl_retcode_t ret;
 
+  (void)node;
   for (idl_annotation_appl_t *a = appls; a; a = idl_next(a)) {
     assert(a->annotation);
     idl_annotation_appl_param_t *ap;
@@ -579,14 +542,7 @@ eval(idl_pstate_t *pstate, void *node, idl_annotation_appl_t *appls)
       idl_literal_t *literal = NULL;
       assert(ap->member);
       assert(ap->member->type_spec);
-      if ((type = idl_type(ap->member->type_spec)) == IDL_ANY)
-        type = idl_type(node);
-      if (!type) {
-        idl_error(pstate, idl_location(ap),
-          "@%s cannot be applied to '%s' elements",
-          idl_identifier(a->annotation), idl_construct(node));
-        return IDL_RETCODE_SEMANTIC_ERROR;
-      }
+      type = idl_type(ap->member->type_spec);
       if ((ret = idl_evaluate(pstate, ap->const_expr, type, &literal)))
         return ret;
       assert(literal);
@@ -659,9 +615,9 @@ dedup(idl_pstate_t *pstate, void *node, idl_annotation_appl_t *appls)
         idl_const_expr_t *lval, *rval;
         idl_annotation_appl_param_t *ap;
         ap = find(a, m);
-        lval = ap->const_expr ? ap->const_expr : m->const_expr;
+        lval = ap && ap->const_expr ? ap->const_expr : m->const_expr;
         ap = find(ca, m);
-        rval = ap->const_expr ? ap->const_expr : m->const_expr;
+        rval = ap && ap->const_expr ? ap->const_expr : m->const_expr;
         if (lval != rval && idl_compare(pstate, lval, rval) != 0) {
           idl_error(pstate, idl_location(ap),
             "Incompatible reapplication of @%s",

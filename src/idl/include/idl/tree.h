@@ -374,6 +374,11 @@ typedef struct idl_enumerator idl_enumerator_t;
 struct idl_enumerator {
   idl_node_t node;
   struct idl_name *name;
+  /* metadata */
+  /* an enumeration must contain no more than 2^32 enumerators and must be
+     mapped to a native data type capable of representing a maximally-sized
+     enumeration. a 32-bit integer is therefore wide enough to represent each
+     value */
   uint32_t value;
 };
 
