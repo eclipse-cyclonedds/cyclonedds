@@ -27,6 +27,10 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
 
+#ifdef DDS_HAS_SHM
+#include "dds/ddsrt/shm_sync.h"
+#endif
+
 dds_return_t dds_write (dds_entity_t writer, const void *data)
 {
   dds_return_t ret;
@@ -241,7 +245,10 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       uint32_t send_size = ddsi_serdata_iox_size (d);
       while (1)
       {
-        if (AllocationResult_SUCCESS == iox_pub_loan_chunk(wr->m_iox_pub, (void**)(&d->iox_chunk), (unsigned int)(sizeof(iceoryx_header_t) + send_size)))
+        shm_mutex_lock();
+        enum iox_AllocationResult alloc_result = iox_pub_loan_chunk(wr->m_iox_pub, (void**)(&d->iox_chunk), (unsigned int)(sizeof(iceoryx_header_t) + send_size));
+        shm_mutex_unlock();
+        if (AllocationResult_SUCCESS == alloc_result)
           break;
         // SHM_TODO: Maybe there is a better way to do while unable to allocate.
         //           BTW, how long I should sleep is also another problem.
@@ -256,7 +263,9 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
 
       // SHM_TODO: Is there any way to avoid copy?
       memcpy (d->iox_chunk + sizeof (iceoryx_header_t), data, send_size);
+      shm_mutex_lock();
       iox_pub_publish_chunk (wr->m_iox_pub, d->iox_chunk);
+      shm_mutex_unlock();
       d->iox_chunk = NULL;
     }
 #endif

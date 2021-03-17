@@ -28,6 +28,7 @@
 #include "dds/ddsi/ddsi_serdata_default.h"
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsrt/shm_sync.h"
 #endif
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
@@ -162,8 +163,10 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
 #ifdef DDS_HAS_SHM
   if (d->c.iox_chunk)
   {
+    shm_mutex_lock();
     iox_sub_release_chunk(*(d->c.iox_subscriber), d->c.iox_chunk);
     d->c.iox_chunk = NULL;
+    shm_mutex_unlock();
   }
 #endif
 

@@ -25,6 +25,7 @@
 #ifdef DDS_HAS_SHM
 #include "iceoryx_binding_c/subscriber.h"
 #include "iceoryx_binding_c/publisher.h"
+#include "dds/ddsrt/shm_sync.h"
 #endif
 
 #if defined (__cplusplus)
