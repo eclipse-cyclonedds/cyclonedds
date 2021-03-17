@@ -12,14 +12,25 @@
 
 
 #include "shm__monitor.h"
+
 #include "dds__types.h"
 #include "dds__entity.h"
+#include "dds__reader.h"
+
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_rhc.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
+static uint32_t shm_monitor_thread_main(void* arg);
+
 void shm_monitor_init(shm_monitor_t* monitor) {
+    printf("***create shm_monitor\n");
     ddsrt_mutex_init(&monitor->m_lock);
         
     monitor->m_waitset = iox_ws_init(&monitor->m_waitset_storage);
@@ -37,7 +48,7 @@ void shm_monitor_init(shm_monitor_t* monitor) {
     ddsrt_threadattr_t attr;
     ddsrt_threadattr_init (&attr);
     dds_return_t rc = ddsrt_thread_create(&monitor->m_thread, "shm_monitor_thread", 
-                                          &attr, shm_monitor_thread, monitor);
+                                          &attr, shm_monitor_thread_main, monitor);
     if(rc != DDS_RETCODE_OK) {
         monitor->m_run_state = SHM_monitor_NOT_RUNNING;
     }
@@ -59,6 +70,7 @@ void shm_monitor_destroy(shm_monitor_t* monitor) {
     iox_ws_deinit(monitor->m_waitset);
 
     ddsrt_mutex_destroy(&monitor->m_lock);
+    printf("***destroyed shm_monitor\n");
 }
 
 dds_return_t shm_monitor_wake(shm_monitor_t* monitor) {
@@ -167,8 +179,52 @@ dds_return_t shm_monitor_perform_deferred_modifications(shm_monitor_t* monitor) 
     return rc;
 }
 
+static void receive_data_wakeup_handler(struct dds_reader* rd)
+{
+  void* chunk = NULL;
+  while (ChunkReceiveResult_SUCCESS == iox_sub_take_chunk(rd->m_iox_sub, (const void** const)&chunk))
+  {
+    iceoryx_header_t* ice_hdr = (iceoryx_header_t*)chunk;
+    // Get proxy writer
+    thread_state_awake(lookup_thread_state(), rd->m_rd->e.gv);
+    struct proxy_writer* pwr = entidx_lookup_proxy_writer_guid(rd->m_rd->e.gv->entity_index, &ice_hdr->guid);
+    if (pwr == NULL)
+    {
+      // We should ignore chunk which does not match the pwr in receiver side.
+      // For example, intra-process has local pwr and does not need to use iceoryx, so we can ignore it.
+      DDS_CLOG(DDS_LC_SHM, &rd->m_rd->e.gv->logconfig, "pwr is NULL and we'll ignore.\n");
+      continue;
+    }
 
-uint32_t shm_monitor_thread(void* arg) {
+    // Create struct ddsi_serdata
+    struct ddsi_serdata* d = ddsi_serdata_from_iox(rd->m_topic->m_stype, ice_hdr->data_kind, &rd->m_iox_sub, chunk);
+    //keyhash needs to be set here
+    d->timestamp.v = ice_hdr->tstamp;
+
+    // Get struct ddsi_tkmap_instance
+    struct ddsi_tkmap_instance* tk;
+    if ((tk = ddsi_tkmap_lookup_instance_ref(rd->m_rd->e.gv->m_tkmap, d)) == NULL)
+    {
+      DDS_CLOG(DDS_LC_SHM, &rd->m_rd->e.gv->logconfig, "ddsi_tkmap_lookup_instance_ref failed.\n");
+      goto release;
+    }
+
+    // Generate writer_info
+    struct ddsi_writer_info wrinfo;
+    ddsi_make_writer_info(&wrinfo, &pwr->e, pwr->c.xqos, d->statusinfo);
+
+    (void)ddsi_rhc_store(rd->m_rd->rhc, &wrinfo, d, tk);
+
+release:
+    if (tk)
+      ddsi_tkmap_instance_unref(rd->m_rd->e.gv->m_tkmap, tk);
+    if (d)
+      ddsi_serdata_unref(d);
+  }
+  thread_state_asleep(lookup_thread_state());
+}
+
+static uint32_t shm_monitor_thread_main(void* arg) {
     shm_monitor_t* monitor = arg; 
     uint64_t number_of_missed_events = 0;
     uint64_t number_of_events = 0;
@@ -191,8 +247,8 @@ uint32_t shm_monitor_thread(void* arg) {
             if (iox_event_info_does_originate_from_user_trigger(event, monitor->m_wakeup_trigger))
             {
                 //note: having an additional trigger for termination only
-                //will cause issues with the reader_ids beyond our control 
-                //what would its id be (and not collide with a reader id/handle)
+                //will cause issues with the reader_ids beyond our control: 
+                //what would its id be (and not collide with a reader id/handle)?
                 if(monitor->m_run_state != SHM_monitor_RUN) {
                     break;
                 }
@@ -214,17 +270,13 @@ uint32_t shm_monitor_thread(void* arg) {
 
                 if(!entity) {
                     printf("pinning reader %ld failed\n", reader_id);
-                    continue; //pinning failed (?)
+                    continue; //pinning failed
                 }
 
                 dds_reader* reader = (dds_reader*) entity;
 
-                printf("reader %ld received data\n", reader_id);
-                const void* chunk;
-                while(iox_sub_take_chunk(reader->m_iox_sub, &chunk) == ChunkReceiveResult_SUCCESS) {                   
-                    //TODO: call the receive handler
-                    //read_callback(chunk, reader);
-                }
+                printf("reader %p with id %ld received data\n", reader, reader_id);
+                receive_data_wakeup_handler(reader);
 
                 dds_entity_unpin(entity);
             }
@@ -233,20 +285,22 @@ uint32_t shm_monitor_thread(void* arg) {
         //we will check for termination request and if there is none wait again
     }
 
-    printf("shm monitor thread stopped\n");
+    printf("***shm monitor thread stopped\n");
     return 0;
 }
 
-void shm_wakeup_trigger_callback(iox_user_trigger_t trigger) {    
+#if 0
+static void shm_wakeup_trigger_callback(iox_user_trigger_t trigger) {    
     printf("trigger callback %p\n", trigger);
     // we can perform custom actions here (with limitations)
 }
 
-void shm_subscriber_callback(iox_sub_t sub) {
+static void shm_subscriber_callback(iox_sub_t sub) {
     //we need to take the data here but also guarantee in a way that the reader is pinned
     //however, we have no access to the reader by only knowing the subscriber
     printf("subscriber callback %p\n", sub);
 }
+#endif
 
 
 #if defined (__cplusplus)

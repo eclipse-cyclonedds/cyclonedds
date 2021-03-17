@@ -25,6 +25,7 @@
 #ifdef DDS_HAS_SHM
 #include "iceoryx_binding_c/subscriber.h"
 #include "iceoryx_binding_c/publisher.h"
+#include "shm__monitor.h"
 #endif
 
 #if defined (__cplusplus)
@@ -231,6 +232,11 @@ typedef struct dds_domain {
 
   ddsrt_avl_node_t m_node; /* for dds_global.m_domains */
   dds_domainid_t m_id;
+
+#ifdef DDS_HAS_SHM
+  shm_monitor_t m_shm_monitor;
+#endif
+
   struct cfgst *cfgst; // NULL if config initializer provided
 
   struct ddsi_sertype *builtin_participant_type;

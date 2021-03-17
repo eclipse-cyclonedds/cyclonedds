@@ -9,13 +9,10 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-//TODO: adapt filename, reorganize structure
-//Isolate the functionality of the iceoryx waitset and an active monitor thread
-//which will later be replaced by a monitor from iceoryx.
 #ifndef _SHM_monitor_H_
 #define _SHM_monitor_H_
 
-#include "iceoryx_binding_c/binding.h"
+#include "iceoryx_binding_c/wait_set.h"
 
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/sync.h"
@@ -81,12 +78,6 @@ dds_return_t shm_monitor_deferred_attach_reader(shm_monitor_t* monitor, struct d
 dds_return_t shm_monitor_deferred_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader);
 
 dds_return_t shm_monitor_perform_deferred_modifications(shm_monitor_t* monitor);
-
-uint32_t shm_monitor_thread(void* monitor);
-
-void shm_wakeup_trigger_callback(iox_user_trigger_t trigger);
-
-void shm_subscriber_callback(iox_sub_t sub);
 
 #if defined (__cplusplus)
 }

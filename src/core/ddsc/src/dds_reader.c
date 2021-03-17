@@ -43,6 +43,8 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/md5.h"
 
+//SHM_TODO: handle this logic with the shm_monitor
+
 static void iox_handle_incoming(struct dds_reader* rd)
 {
   void* chunk = NULL;
