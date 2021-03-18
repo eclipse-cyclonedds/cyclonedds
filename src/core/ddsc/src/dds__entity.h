@@ -19,6 +19,8 @@
 extern "C" {
 #endif
 
+DDS_EXPORT dds_return_t dds_entity_autoenable_children (dds_entity *entity);
+
 DDS_EXPORT dds_entity_t
 dds_entity_init(
   dds_entity * e,
@@ -68,7 +70,7 @@ DDS_EXPORT inline dds_entity *dds_entity_from_handle_link (struct dds_handle_lin
 }
 
 DDS_EXPORT inline bool dds_entity_is_enabled (const dds_entity *e) {
-  return (e->m_flags & DDS_ENTITY_ENABLED) != 0;
+  return ((e->m_flags & DDS_ENTITY_ENABLED) != 0);
 }
 
 DDS_EXPORT void dds_entity_status_set (dds_entity *e, status_mask_t t);
@@ -176,6 +178,9 @@ dds_generic_unimplemented_operation(
         dds_entity_t handle,
         dds_entity_kind_t kind);
 
+DDS_EXPORT bool
+dds_entity_creation_allowed (
+  const dds_return_t rc);
 
 #if defined (__cplusplus)
 }

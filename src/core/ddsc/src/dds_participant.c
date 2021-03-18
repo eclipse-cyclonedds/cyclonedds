@@ -80,6 +80,17 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
   return DDS_RETCODE_OK;
 }
 
+static dds_return_t dds_participant_enable (struct dds_entity *e)
+{
+  struct dds_participant *pp = (struct dds_participant *) e;
+
+  assert (dds_entity_kind (e) == DDS_KIND_PARTICIPANT);
+
+  /* Participants are always enabled */
+  pp->m_entity.m_flags |= DDS_ENTITY_ENABLED;
+  return DDS_RETCODE_OK;
+}
+
 const struct dds_entity_deriver dds_entity_deriver_participant = {
   .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_entity_deriver_dummy_close,
@@ -87,7 +98,8 @@ const struct dds_entity_deriver dds_entity_deriver_participant = {
   .set_qos = dds_participant_qos_set,
   .validate_status = dds_participant_status_validate,
   .create_statistics = dds_entity_deriver_dummy_create_statistics,
-  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
+  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics,
+  .enable = dds_participant_enable
 };
 
 dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener)
@@ -120,8 +132,11 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   ddsi_plist_init_empty (&plist);
   dds_merge_qos (&plist.qos, new_qos);
 
+  /* Participants are always enabled because there is
+   * no factory for participants that has
+   * autoenable=false participants */
   thread_state_awake (lookup_thread_state (), &dom->gv);
-  ret = new_participant (&guid, &dom->gv, 0, &plist);
+  ret = new_participant (&guid, &dom->gv, 0, &plist, 0);
   thread_state_asleep (lookup_thread_state ());
   ddsi_plist_fini (&plist);
   if (ret < 0)
@@ -133,19 +148,19 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   pp = dds_alloc (sizeof (*pp));
   if ((ret = dds_entity_init (&pp->m_entity, &dom->m_entity, DDS_KIND_PARTICIPANT, false, new_qos, listener, DDS_PARTICIPANT_STATUS_MASK)) < 0)
     goto err_entity_init;
-
   pp->m_entity.m_guid = guid;
   pp->m_entity.m_iid = get_entity_instance_id (&dom->gv, &guid);
   pp->m_entity.m_domain = dom;
   pp->m_builtin_subscriber = 0;
   ddsrt_avl_init (&participant_ktopics_treedef, &pp->m_ktopics);
 
-  /* Add participant to extent */
-  ddsrt_mutex_lock (&dom->m_entity.m_mutex);
-  dds_entity_register_child (&dom->m_entity, &pp->m_entity);
-  ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
+  (void)dds_participant_enable(&pp->m_entity);
 
+  ddsrt_mutex_lock (&pp->m_entity.m_domain->m_entity.m_mutex);
+  dds_entity_register_child (&pp->m_entity.m_domain->m_entity, &pp->m_entity);
+  ddsrt_mutex_unlock (&pp->m_entity.m_domain->m_entity.m_mutex);
   dds_entity_init_complete (&pp->m_entity);
+
   /* drop temporary extra ref to domain, dds_init */
   dds_entity_unpin_and_drop_ref (&dom->m_entity);
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);

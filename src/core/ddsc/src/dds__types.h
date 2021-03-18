@@ -91,8 +91,10 @@ struct dds_listener {
 
 /* Entity flag values */
 
-#define DDS_ENTITY_ENABLED      ((uint32_t) 0x1) /* DDS "enabled" state */
-#define DDS_ENTITY_IMPLICIT     ((uint32_t) 0x2) /* implicit ones get deleted when the last child is deleted */
+#define DDS_ENTITY_ENABLED           ((uint32_t) 0x1) /* DDS "enabled" state */
+#define DDS_ENTITY_IMPLICIT          ((uint32_t) 0x2) /* implicit ones get deleted when the last child is deleted */
+#define DDS_ENTITY_ENABLE_ON_PARENT  ((uint32_t) 0x4) /* flag that indicates that the entity was created by a parent
+                                                         with autoenable=true while the parent was disabled */
 
 struct dds_domain;
 struct dds_entity;
@@ -108,6 +110,7 @@ typedef struct dds_entity_deriver {
   dds_return_t (*validate_status) (uint32_t mask);
   struct dds_statistics * (*create_statistics) (const struct dds_entity *e);
   void (*refresh_statistics) (const struct dds_entity *e, struct dds_statistics *s);
+  dds_return_t (*enable) (struct dds_entity *e) ddsrt_nonnull_all;
 } dds_entity_deriver;
 
 struct dds_waitset;
@@ -182,6 +185,7 @@ dds_return_t dds_entity_deriver_dummy_set_qos (struct dds_entity *e, const dds_q
 dds_return_t dds_entity_deriver_dummy_validate_status (uint32_t mask);
 struct dds_statistics *dds_entity_deriver_dummy_create_statistics (const struct dds_entity *e);
 void dds_entity_deriver_dummy_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s);
+dds_return_t dds_entity_deriver_dummy_enable (struct dds_entity *e);
 
 inline void dds_entity_deriver_interrupt (struct dds_entity *e) {
   (dds_entity_deriver_table[e->m_kind]->interrupt) (e);
@@ -209,6 +213,9 @@ inline struct dds_statistics *dds_entity_deriver_create_statistics (const struct
 }
 inline void dds_entity_deriver_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s) {
   dds_entity_deriver_table[e->m_kind]->refresh_statistics (e, s);
+}
+inline dds_return_t dds_entity_deriver_enable (struct dds_entity *e) {
+  return dds_entity_deriver_table[e->m_kind]->enable (e);
 }
 
 typedef struct dds_cyclonedds_entity {

@@ -593,12 +593,14 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e);
  * @param[in]  flags
  *               Zero or more of:
  *               - RTPS_PF_NO_BUILTIN_READERS   do not create discovery readers in new ppant
- *               - RTPS_PF_NO_BUILTIN_WRITERS   do not create discvoery writers in new ppant
+ *               - RTPS_PF_NO_BUILTIN_WRITERS   do not create discovery writers in new ppant
  *               - RTPS_PF_PRIVILEGED_PP        FIXME: figure out how to describe this ...
  *               - RTPS_PF_IS_DDSI2_PP          FIXME: OSPL holdover - there is no DDSI2E here
  *               - RTPS_PF_ONLY_LOCAL           FIXME: not used, it seems
  * @param[in]  plist
  *               Parameters/QoS for this participant
+ * @param[in]  iid
+ *               Instance id for this participant
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -610,7 +612,7 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e);
  * @retval DDS_RETCODE_OUT_OF_RESOURCES
  *               The configured maximum number of participants has been reached.
  */
-dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
+dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist, const uint64_t iid);
 
 /**
  * @brief Create a new participant in the domain.  See also new_participant_guid.
@@ -622,6 +624,8 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
  *               See new_participant_guid
  * @param[in]  plist
  *               See new_participant_guid
+ * @param[in]  iid
+ *               Participant instance id
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -634,7 +638,7 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
  * @retval DDS_RETCODE_OUT_OF_RESOURCES
  *               The configured maximum number of participants has been reached.
 */
-dds_return_t new_participant (struct ddsi_guid *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
+dds_return_t new_participant (struct ddsi_guid *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist, const uint64_t iid);
 
 /**
  * @brief Initiate the deletion of the participant:
@@ -677,8 +681,8 @@ DDS_EXPORT struct writer *get_builtin_writer (const struct participant *pp, unsi
    GUID "ppguid". May return NULL if participant unknown or
    writer/reader already known. */
 
-dds_return_t new_writer (struct writer **wr_out, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, struct participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg);
-dds_return_t new_reader (struct reader **rd_out, struct ddsi_guid *rdguid, const struct ddsi_guid *group_guid, struct participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc * rhc, status_cb_t status_cb, void *status_cb_arg);
+dds_return_t new_writer (struct writer **wr_out, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, struct participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg, const uint64_t iid);
+dds_return_t new_reader (struct reader **rd_out, struct ddsi_guid *rdguid, const struct ddsi_guid *group_guid, struct participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc * rhc, status_cb_t status_cb, void *status_cb_arg, const uint64_t iid);
 
 void update_reader_qos (struct reader *rd, const struct dds_qos *xqos);
 void update_writer_qos (struct writer *wr, const struct dds_qos *xqos);

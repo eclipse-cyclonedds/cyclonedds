@@ -267,6 +267,157 @@ CU_Test(ddsc_publisher, wait_for_acks)
   return;
 }
 
+CU_Test(ddsc_publisher, enable_by_default)
+{
+  dds_entity_t participant, publisher;
+  dds_return_t status, status1;
+  dds_qos_t *pqos, *pubqos;
+  bool autoenable;
+
+  /* create a default publisher and check that autoenable=true */
+  participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_FATAL(participant > 0);
+  pqos = dds_create_qos();
+  status = dds_get_qos(participant, pqos);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+  status = dds_qget_entity_factory(pqos, &autoenable);
+  CU_ASSERT_EQUAL_FATAL(status, true);
+  CU_ASSERT_EQUAL_FATAL(autoenable, true);
+  publisher = dds_create_publisher(participant, NULL, NULL);
+  CU_ASSERT_FATAL(publisher > 0);
+  pubqos = dds_create_qos();
+  status = dds_get_qos(publisher, pubqos);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+  status = dds_qget_entity_factory(pubqos, &autoenable);
+  CU_ASSERT_EQUAL_FATAL(status, true);
+  CU_ASSERT_EQUAL_FATAL(autoenable, true);
+  /* enabling an already enabled entity is a noop */
+  status1 = dds_enable (publisher);
+  CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_OK);
+  /* check that the publisher is really enabled
+   * by trying to set a qos that cannot be changed once
+   * the subscriber is enabled. We use the presentation qos
+   * for that purpose */
+  dds_qset_presentation(pubqos, DDS_PRESENTATION_TOPIC, true, true);
+  status = dds_set_qos(publisher, pubqos);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_IMMUTABLE_POLICY);
+  status = dds_delete (participant);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+  dds_delete_qos(pubqos);
+  dds_delete_qos(pqos);
+
+  /* create a participant with autoenable=false
+   * check that a default publisher is disabled and has autoenable=true */
+  pqos = dds_create_qos();
+  dds_qset_entity_factory(pqos, false);
+  participant = dds_create_participant (DDS_DOMAIN_DEFAULT, pqos, NULL);
+  CU_ASSERT_FATAL(participant > 0);
+  status = dds_get_qos(participant, pqos);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+  status = dds_qget_entity_factory(pqos, &autoenable);
+  CU_ASSERT_EQUAL_FATAL(status, true);
+  CU_ASSERT_EQUAL_FATAL(autoenable, false);
+  publisher = dds_create_publisher(participant, NULL, NULL);
+  CU_ASSERT_FATAL(publisher > 0);
+  pubqos = dds_create_qos();
+  status = dds_get_qos(publisher, pubqos);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+  status = dds_qget_entity_factory(pubqos, &autoenable);
+  CU_ASSERT_EQUAL_FATAL(status, true);
+  CU_ASSERT_EQUAL_FATAL(autoenable, true);
+  /* the publisher should be disabled because the participant
+   * has autoenable=false. To check that the publisher is really
+   * disabled we try to set an immutable qos. We use the presentation
+   * qos for that purpose. Setting it should succeed. */
+  dds_qset_presentation(pubqos, DDS_PRESENTATION_TOPIC, true, true);
+  status = dds_set_qos(publisher, pubqos);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+  status = dds_delete (participant);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+  dds_delete_qos(pubqos);
+  dds_delete_qos(pqos);
+}
+
+CU_Test(ddsc_publisher, disabled_publisher_enable_later)
+{
+  dds_entity_t participant, publisher;
+  dds_qos_t *pqos, *pubqos;
+  bool autoenable;
+  bool status;
+  dds_return_t ret;
+  bool c_access, o_access;
+  dds_presentation_access_scope_kind_t pr_kind;
+
+  pqos = dds_create_qos();
+  dds_qset_entity_factory(pqos, false);
+  /* create a participant with autoenable=false */
+  participant = dds_create_participant (DDS_DOMAIN_DEFAULT, pqos, NULL);
+  CU_ASSERT_FATAL(participant > 0);
+  /* create a default publisher that should be disabled */
+  publisher = dds_create_publisher(participant, NULL, NULL);
+  CU_ASSERT_FATAL(publisher > 0);
+  /* get the autoenable value for this publisher */
+  pubqos = dds_create_qos();
+  ret = dds_get_qos(publisher, pubqos);
+  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  status = dds_qget_entity_factory(pubqos, &autoenable);
+  CU_ASSERT_EQUAL_FATAL(status, true);
+  CU_ASSERT_EQUAL_FATAL(autoenable, true);
+  /* the autoenable is true, but the publisher should
+   * not be enabled because the participant was not enabled
+   * Because there is no explicit call to find out if an entity
+   * is enabled we do this by trying to set an immutable qos
+   * on the publisher. This should succeed if the publisher
+   * is not yet enabled, and fail if it is */
+  dds_qset_presentation(pubqos, DDS_PRESENTATION_GROUP, true, true);
+  ret = dds_set_qos(publisher, pubqos);
+  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  /* check that qos is really changed */
+  dds_qget_presentation(pubqos, &pr_kind,&c_access, &o_access);
+  CU_ASSERT_EQUAL_FATAL(pr_kind, DDS_PRESENTATION_GROUP);
+  CU_ASSERT_EQUAL_FATAL(c_access, true);
+  CU_ASSERT_EQUAL_FATAL(o_access, true);
+  /* now enable the publisher and try again to set the
+   * presentation qos. This should now result in IMMUTABLE_POLICY
+   * because the publisher is already enabled */
+  ret = dds_enable(publisher);
+  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  dds_qset_presentation(pubqos, DDS_PRESENTATION_INSTANCE, false, false);
+  ret = dds_set_qos(publisher, pubqos);
+  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_IMMUTABLE_POLICY);
+  /* TODO:
+   * the following operations should all be available on a
+   * disabled entity: set_qos, get_qos, get_status_condition,
+   * factory operations, get_status_changes, lookup operations
+   */
+  ret = dds_delete (participant);
+  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  dds_delete_qos(pubqos);
+  dds_delete_qos(pqos);
+}
+
+CU_Test(ddsc_publisher, delete_disabled_publisher)
+{
+  dds_entity_t participant, publisher;
+  dds_qos_t *pqos;
+  dds_return_t ret;
+
+  pqos = dds_create_qos();
+  dds_qset_entity_factory(pqos, false);
+  /* create a participant with autoenable=false */
+  participant = dds_create_participant (DDS_DOMAIN_DEFAULT, pqos, NULL);
+  CU_ASSERT_FATAL(participant > 0);
+  /* create a default publisher that should be disabled */
+  publisher = dds_create_publisher(participant, NULL, NULL);
+  CU_ASSERT_FATAL(publisher > 0);
+  /* delete the participant */
+  ret = dds_delete(publisher);
+  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  ret = dds_delete(participant);
+  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  dds_delete_qos(pqos);
+}
+
 CU_Test(ddsc_publisher, coherency)
 {
   return;

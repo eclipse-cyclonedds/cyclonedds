@@ -60,6 +60,9 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
     cond = (dds_readcond *) entity;
   }
 
+  if (!dds_entity_is_enabled (entity))
+    goto fail_enabled;
+
   thread_state_awake (ts1, &entity->m_domain->gv);
 
   /* Allocate samples if not provided (assuming all or none provided) */
@@ -134,6 +137,8 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
 #undef NC_FREE_BUF
 #undef NC_RESET_BUF
 
+fail_enabled:
+  ret = DDS_RETCODE_NOT_ENABLED;
 fail_pinned:
   dds_entity_unpin (entity);
 fail:
@@ -160,6 +165,9 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
   } else {
     rd = (dds_reader *) entity->m_parent;
   }
+
+  if (!dds_entity_is_enabled (entity))
+    goto fail_enabled;
 
   thread_state_awake (ts1, &entity->m_domain->gv);
 
@@ -200,6 +208,10 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
   dds_entity_unpin (entity);
   thread_state_asleep (ts1);
   return ret;
+
+fail_enabled:
+  dds_entity_unpin (entity);
+  return DDS_RETCODE_NOT_ENABLED;
 }
 
 dds_return_t dds_read (dds_entity_t rd_or_cnd, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs)
@@ -497,6 +509,9 @@ dds_return_t dds_return_loan (dds_entity_t reader_or_condition, void **buf, int3
     rd = (dds_reader *) entity->m_parent;
   }
 
+  if (!dds_entity_is_enabled (entity))
+    goto fail_enabled;
+
   if (bufsz <= 0)
   {
     /* No data whatsoever, or an invocation following a failed read/take call.  Read/take
@@ -542,4 +557,8 @@ dds_return_t dds_return_loan (dds_entity_t reader_or_condition, void **buf, int3
   ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
   dds_entity_unpin (entity);
   return DDS_RETCODE_OK;
+
+fail_enabled:
+  dds_entity_unpin (entity);
+  return DDS_RETCODE_NOT_ENABLED;
 }

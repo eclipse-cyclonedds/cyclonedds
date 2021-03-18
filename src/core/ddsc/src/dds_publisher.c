@@ -38,6 +38,21 @@ static dds_return_t dds_publisher_status_validate (uint32_t mask)
   return (mask & ~DDS_PUBLISHER_STATUS_MASK) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK;
 }
 
+static dds_return_t dds_publisher_enable (struct dds_entity *e)
+{
+  struct dds_publisher *pub = (struct dds_publisher *) e;
+
+  assert (dds_entity_kind (e) == DDS_KIND_PUBLISHER);
+
+  /* calling enable on an entity whose factory is not enabled
+   * returns PRECONDITION_NOT_MET */
+  if ((pub->m_entity.m_parent != NULL) && !dds_entity_is_enabled(pub->m_entity.m_parent))
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+  pub->m_entity.m_flags |= DDS_ENTITY_ENABLED;
+  /* enable the entity and all its children that were created with autoenable=true */
+  return dds_entity_autoenable_children(&pub->m_entity);
+}
+
 const struct dds_entity_deriver dds_entity_deriver_publisher = {
   .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_entity_deriver_dummy_close,
@@ -45,7 +60,8 @@ const struct dds_entity_deriver dds_entity_deriver_publisher = {
   .set_qos = dds_publisher_qos_set,
   .validate_status = dds_publisher_status_validate,
   .create_statistics = dds_entity_deriver_dummy_create_statistics,
-  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
+  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics,
+  .enable = dds_publisher_enable
 };
 
 dds_entity_t dds__create_publisher_l (dds_participant *par, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener)
@@ -54,6 +70,7 @@ dds_entity_t dds__create_publisher_l (dds_participant *par, bool implicit, const
   dds_entity_t hdl;
   dds_qos_t *new_qos;
   dds_return_t ret;
+  bool autoenable;
 
   new_qos = dds_create_qos ();
   if (qos)
@@ -65,9 +82,15 @@ dds_entity_t dds__create_publisher_l (dds_participant *par, bool implicit, const
     return ret;
   }
 
+  /* get the autoenable setting of the parent
+   * this setting determines if the entity must be enabled or not */
+  dds_qget_entity_factory(par->m_entity.m_qos, &autoenable);
+
   pub = dds_alloc (sizeof (*pub));
   hdl = dds_entity_init (&pub->m_entity, &par->m_entity, DDS_KIND_PUBLISHER, implicit, new_qos, listener, DDS_PUBLISHER_STATUS_MASK);
   pub->m_entity.m_iid = ddsi_iid_gen ();
+  if (autoenable)
+    (void)dds_publisher_enable(&pub->m_entity);
   dds_entity_register_child (&par->m_entity, &pub->m_entity);
   dds_entity_init_complete (&pub->m_entity);
   return hdl;

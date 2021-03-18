@@ -37,6 +37,21 @@ static dds_return_t dds_subscriber_status_validate (uint32_t mask)
   return (mask & ~DDS_SUBSCRIBER_STATUS_MASK) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK;
 }
 
+static dds_return_t dds_subscriber_enable (struct dds_entity *e)
+{
+  struct dds_subscriber *sub = (struct dds_subscriber *) e;
+
+  assert (dds_entity_kind (e) == DDS_KIND_SUBSCRIBER);
+
+  /* calling enable on an entity whose factory is not enabled
+   * returns PRECONDITION_NOT_MET */
+  if ((sub->m_entity.m_parent != NULL) && !dds_entity_is_enabled(sub->m_entity.m_parent))
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+  /* enable the entity and all its children that were created with autoenable=true */
+  sub->m_entity.m_flags |= DDS_ENTITY_ENABLED;
+  return dds_entity_autoenable_children(&sub->m_entity);
+}
+
 const struct dds_entity_deriver dds_entity_deriver_subscriber = {
   .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_entity_deriver_dummy_close,
@@ -44,7 +59,8 @@ const struct dds_entity_deriver dds_entity_deriver_subscriber = {
   .set_qos = dds_subscriber_qos_set,
   .validate_status = dds_subscriber_status_validate,
   .create_statistics = dds_entity_deriver_dummy_create_statistics,
-  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
+  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics,
+  .enable = dds_subscriber_enable
 };
 
 dds_entity_t dds__create_subscriber_l (dds_participant *participant, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener)
@@ -54,6 +70,7 @@ dds_entity_t dds__create_subscriber_l (dds_participant *participant, bool implic
   dds_entity_t subscriber;
   dds_return_t ret;
   dds_qos_t *new_qos;
+  bool autoenable;
 
   new_qos = dds_create_qos ();
   if (qos)
@@ -65,12 +82,26 @@ dds_entity_t dds__create_subscriber_l (dds_participant *participant, bool implic
     return ret;
   }
 
+  /* get the autoenable setting of the parent
+   * this setting determines if the entity must be enabled or not */
+  dds_qget_entity_factory(participant->m_entity.m_qos, &autoenable);
+
   sub = dds_alloc (sizeof (*sub));
-  subscriber = dds_entity_init (&sub->m_entity, &participant->m_entity, DDS_KIND_SUBSCRIBER, implicit, new_qos, listener, DDS_SUBSCRIBER_STATUS_MASK);
+  if ((subscriber = dds_entity_init (&sub->m_entity, &participant->m_entity, DDS_KIND_SUBSCRIBER, implicit, new_qos, listener, DDS_SUBSCRIBER_STATUS_MASK)) < 0)
+    goto err_entity_init;
   sub->m_entity.m_iid = ddsi_iid_gen ();
-  dds_entity_register_child (&participant->m_entity, &sub->m_entity);
+
+  if (autoenable)
+    (void)dds_subscriber_enable(&sub->m_entity);
+
+  dds_entity_register_child (sub->m_entity.m_parent, &sub->m_entity);
   dds_entity_init_complete (&sub->m_entity);
+
   return subscriber;
+
+err_entity_init:
+  dds_free(sub);
+  return DDS_HANDLE_NIL;
 }
 
 dds_entity_t dds_create_subscriber (dds_entity_t participant, const dds_qos_t *qos, const dds_listener_t *listener)

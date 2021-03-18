@@ -202,6 +202,23 @@ static struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct dd
   return tk;
 }
 
+static struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry_with_iid (const struct ddsi_guid *guid, const uint64_t iid, void *vdomain)
+{
+  struct dds_domain *domain = vdomain;
+  struct ddsi_tkmap_instance *tk;
+  struct ddsi_serdata *sd;
+  union { ddsi_guid_t guid; struct ddsi_keyhash keyhash; } x;
+  x.guid = nn_hton_guid (*guid);
+  /* any random builtin topic will do (provided it has a GUID for a key), because what matters is the "class"
+     of the topic, not the actual topic; also, this is called early in the initialisation of the entity with
+     this GUID, which simply causes serdata_from_keyhash to create a key-only serdata because the key lookup
+     fails. */
+  sd = ddsi_serdata_from_keyhash (domain->builtin_participant_type, &x.keyhash);
+  tk = ddsi_tkmap_find_with_iid (domain->gv.m_tkmap, sd, iid, true);
+  ddsi_serdata_unref (sd);
+  return tk;
+}
+
 struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, ddsrt_wctime_t timestamp, bool alive)
 {
   /* initialize to avoid gcc warning ultimately caused by C's horrible type system */
@@ -273,6 +290,7 @@ void dds__builtin_init (struct dds_domain *dom)
 
   dom->btif.arg = dom;
   dom->btif.builtintopic_get_tkmap_entry = dds__builtin_get_tkmap_entry;
+  dom->btif.builtintopic_get_tkmap_entry_with_iid = dds__builtin_get_tkmap_entry_with_iid;
   dom->btif.builtintopic_is_builtintopic = dds__builtin_is_builtintopic;
   dom->btif.builtintopic_is_visible = dds__builtin_is_visible;
   dom->btif.builtintopic_write = dds__builtin_write;

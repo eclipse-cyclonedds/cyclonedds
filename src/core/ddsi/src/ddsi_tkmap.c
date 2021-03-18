@@ -155,7 +155,7 @@ struct ddsi_tkmap_instance *ddsi_tkmap_find_by_id (struct ddsi_tkmap *map, uint6
 #define DDS_DEBUG_KEYHASH 1
 #endif
 
-struct ddsi_tkmap_instance *ddsi_tkmap_find (struct ddsi_tkmap *map, struct ddsi_serdata *sd, const bool create)
+static struct ddsi_tkmap_instance *ddsi_tkmap_find_common (struct ddsi_tkmap *map, struct ddsi_serdata *sd, const uint64_t iid, const bool create)
 {
   struct ddsi_tkmap_instance dummy;
   struct ddsi_tkmap_instance *tk;
@@ -189,7 +189,7 @@ retry:
 
     tk->m_sample = ddsi_serdata_to_untyped (sd);
     ddsrt_atomic_st32 (&tk->m_refc, 1);
-    tk->m_iid = ddsi_iid_gen ();
+    tk->m_iid = (iid == 0) ? ddsi_iid_gen() : iid;
     if (!ddsrt_chh_add (map->m_hh, tk))
     {
       /* Lost a race from another thread, retry */
@@ -198,6 +198,20 @@ retry:
       goto retry;
     }
   }
+  return tk;
+}
+
+struct ddsi_tkmap_instance *ddsi_tkmap_find (struct ddsi_tkmap *map, struct ddsi_serdata *sd, const bool create)
+{
+  return ddsi_tkmap_find_common (map, sd, 0, create);
+}
+
+struct ddsi_tkmap_instance *ddsi_tkmap_find_with_iid (struct ddsi_tkmap *map, struct ddsi_serdata *sd, const uint64_t iid, const bool create)
+{
+  struct ddsi_tkmap_instance *tk;
+
+  tk = ddsi_tkmap_find_common (map, sd, iid, create);
+  assert(!tk || (tk->m_iid == iid));
   return tk;
 }
 
