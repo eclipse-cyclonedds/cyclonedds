@@ -1146,15 +1146,16 @@ int rtps_init (struct ddsi_domaingv *gv)
   }
 
 #ifdef DDS_HAS_SHM
+  //ICEORYX_TODO: refactor this into separate function/module?
   if (gv->config.enable_shm)
   {
-    char str[30];
+    char str[128];
     char *sptr = str;
     unsigned char mac_addr[6];
     uint32_t pid = (uint32_t) ddsrt_getpid ();
 
     // SHM_TODO: Now we use pid_time, but maybe we can just use pid.
-    ddsrt_asprintf (&sptr, "%d_%ld", pid, gv->tstart.v);
+    ddsrt_asprintf (&sptr, "iceoryx_rt_%d_%ld", pid, gv->tstart.v);
     GVLOG (DDS_LC_SHM, "Current process name for iceoryx is %s\n", sptr);
     iox_runtime_init (sptr);
 
