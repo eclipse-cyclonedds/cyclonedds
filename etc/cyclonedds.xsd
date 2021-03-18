@@ -628,12 +628,13 @@ CycloneDDS configuration</xs:documentation>
 &lt;ul&gt;
 &lt;li&gt;&lt;i&gt;whc&lt;/i&gt;: writer history cache checking&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;rhc&lt;/i&gt;: reader history cache checking&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;xevent&lt;/i&gt;: xevent checking&lt;/li&gt;
 &lt;p&gt;In addition, there is the keyword &lt;i&gt;all&lt;/i&gt; that enables all checks.&lt;/p&gt;
 &lt;p&gt;The default value is: "".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:pattern value="((whc|rhc|all)(,(whc|rhc|all))*)|"/>
+        <xs:pattern value="((whc|rhc|xevent|all)(,(whc|rhc|xevent|all))*)|"/>
       </xs:restriction>
     </xs:simpleType>
   </xs:element>

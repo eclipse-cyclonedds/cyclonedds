@@ -983,10 +983,10 @@ static void pf_tracemask (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED
 }
 
 static const char *xcheck_names[] = {
-  "whc", "rhc", "all", NULL
+  "whc", "rhc", "xevent", "all", NULL
 };
 static const uint32_t xcheck_codes[] = {
-  DDSI_XCHECK_WHC, DDSI_XCHECK_RHC, ~(uint32_t) 0
+  DDSI_XCHECK_WHC, DDSI_XCHECK_RHC, DDSI_XCHECK_XEV, ~(uint32_t) 0
 };
 
 static enum update_result uf_xcheck (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)

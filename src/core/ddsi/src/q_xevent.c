@@ -300,6 +300,8 @@ static int compute_non_timed_xmit_list_size (struct xeventq *evq)
 #ifndef NDEBUG
 static int nontimed_xevent_in_queue (struct xeventq *evq, struct xevent_nt *ev)
 {
+  if (!(evq->gv->config.enabled_xchecks & DDSI_XCHECK_XEV))
+    return 0;
   struct xevent_nt *x;
   ddsrt_mutex_lock (&evq->lock);
   for (x = evq->non_timed_xmit_list_oldest; x; x = x->listnode.next)

@@ -379,10 +379,11 @@ CycloneDDS configuration""" ] ]
 <ul>
 <li><i>whc</i>: writer history cache checking</li>
 <li><i>rhc</i>: reader history cache checking</li>
+<li><i>xevent</i>: xevent checking</li>
 <p>In addition, there is the keyword <i>all</i> that enables all checks.</p>
 <p>The default value is: "".</p>""" ] ]
         element EnableExpensiveChecks {
-          xsd:token { pattern = "((whc|rhc|all)(,(whc|rhc|all))*)|" }
+          xsd:token { pattern = "((whc|rhc|xevent|all)(,(whc|rhc|xevent|all))*)|" }
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>When true, include keyhashes in outgoing data for topics with keys.</p>
