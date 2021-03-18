@@ -268,7 +268,7 @@ script:
           -DWERROR=on
           -G "${GENERATOR}" ..
   - ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- ${BUILD_TOOL_OPTIONS}
-  - CYCLONEDDS_URI='<CycloneDDS><Domain><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks><LivelinessMonitoring>true</LivelinessMonitoring></Internal><Tracing><Verbosity>config</Verbosity><OutputFile>stderr</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 4 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${BUILD_TYPE}
+  - CYCLONEDDS_URI='<CycloneDDS><Domain><Internal><EnableExpensiveChecks>rhc,whc</EnableExpensiveChecks><LivelinessMonitoring>true</LivelinessMonitoring></Internal><Tracing><Verbosity>config</Verbosity><OutputFile>stderr</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 4 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${BUILD_TYPE}
   - |
     if [ -z "${SANITIZER}" ]; then
       ${SHELL} ../src/tools/ddsperf/sanity.bash;

@@ -1420,9 +1420,10 @@ static struct cfgelem internal_cfgelems[] = {
       "<ul>\n"
       "<li><i>whc</i>: writer history cache checking</li>\n"
       "<li><i>rhc</i>: reader history cache checking</li>\n"
+      "<li><i>xevent</i>: xevent checking</li>\n"
       "<p>In addition, there is the keyword <i>all</i> that enables all "
       "checks.</p>"),
-    VALUES("whc","rhc","all")),
+    VALUES("whc","rhc","xevent","all")),
   END_MARKER
 };
 
