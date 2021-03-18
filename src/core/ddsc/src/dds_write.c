@@ -235,10 +235,13 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     ddsi_serdata_ref (d);
 
 #ifdef DDS_HAS_SHM
+    //ICEORYX_TODO: we now have serialized data in d in any case(?)
+
     if (wr->m_entity.m_domain->gv.config.enable_shm &&
         iox_pub_has_subscribers(wr->m_iox_pub))
     {
       uint32_t send_size = ddsi_serdata_iox_size (d);
+      //ICEORYX_TODO: we block here until we get a chunk ... do we want this? it can be indefinitely
       while (1)
       {
         if (AllocationResult_SUCCESS == iox_pub_loan_chunk(wr->m_iox_pub, (void**)(&d->iox_chunk), (unsigned int)(sizeof(iceoryx_header_t) + send_size)))
@@ -255,6 +258,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       ddsi_serdata_get_keyhash(d, &ice_hdr->keyhash, false);
 
       // SHM_TODO: Is there any way to avoid copy?
+      // ICEORYX_TODO: we need the loan API to avoid this and request memory directly from iceoryx 
       memcpy (d->iox_chunk + sizeof (iceoryx_header_t), data, send_size);
       iox_pub_publish_chunk (wr->m_iox_pub, d->iox_chunk);
       d->iox_chunk = NULL;

@@ -196,6 +196,9 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
       continue;
     }
 
+    //ICEORYX_TODO: we do not create a copy during this call (?)
+    //              afterwards we have the data pointer (chunk) and additional information 
+    //              such as timestamp
     // Create struct ddsi_serdata
     struct ddsi_serdata* d = ddsi_serdata_from_iox(rd->m_topic->m_stype, ice_hdr->data_kind, &rd->m_iox_sub, chunk);
     //keyhash needs to be set here

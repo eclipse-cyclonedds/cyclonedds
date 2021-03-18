@@ -160,6 +160,9 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
   assert(ddsrt_atomic_ld32(&d->c.refc) == 0);
 
 #ifdef DDS_HAS_SHM
+  //ICEORYX_TODO the chunk is released concurrently to iox_sub_take_chunk here, 
+  //                 we will need mutex protection for this call
+  //                 when is the free called exactly?
   if (d->c.iox_chunk)
     iox_sub_release_chunk(*(d->c.iox_subscriber), d->c.iox_chunk);
 #endif
@@ -427,6 +430,9 @@ static struct ddsi_serdata* serdata_default_from_iox(const struct ddsi_sertype* 
 
   struct ddsi_serdata_default* d = serdata_default_new_size(tp, kind, ice_hdr->data_size);
 
+  //ICEORYX_TODO: we do no copy here but store the pointer to the chunk
+  //              the pointer was gotten in some concurrent thread of the shm_monitor
+  //              problems may arise due to concurrent iox_release_chunk
   d->c.iox_chunk = iox_buffer;
   d->c.iox_subscriber = sub;
   memcpy(d->keyhash.m_hash, ice_hdr->keyhash.value, 16);
