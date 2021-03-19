@@ -40,7 +40,10 @@ typedef struct {
 typedef struct {
     iox_user_trigger_storage_t storage;
     struct shm_monitor* monitor;
-    void* data;
+
+    //we cannot use those in concurrent wakeups (i.e. only one user callback can be invoked per trigger)
+    void (*call) (void*);
+    void* arg;
 } iox_user_trigger_storage_extension_t;
 
 enum shm_monitor_states {
@@ -49,7 +52,7 @@ enum shm_monitor_states {
 };
 
 struct shm_monitor {
-    ddsrt_mutex_t m_lock;
+    ddsrt_mutex_t m_lock; //currently not needed but we keep it until finalized
 
     iox_listener_storage_t m_listener_storage;
     iox_listener_t m_listener;
@@ -58,9 +61,12 @@ struct shm_monitor {
     iox_user_trigger_storage_extension_t m_wakeup_trigger_storage;
     iox_user_trigger_t m_wakeup_trigger;
 
+    //TODO: atomics
     uint32_t m_number_of_attached_readers;
     uint32_t m_state;
 };
+
+//TODO: document
 
 typedef struct shm_monitor shm_monitor_t;
 
@@ -68,7 +74,9 @@ void shm_monitor_init(shm_monitor_t* monitor);
 
 void shm_monitor_destroy(shm_monitor_t* monitor);
 
-dds_return_t shm_monitor_wake(shm_monitor_t* monitor);
+dds_return_t shm_monitor_wake_and_invoke(shm_monitor_t* monitor, void (*function) (void*), void* arg);
+
+dds_return_t shm_monitor_wake_and_stop(shm_monitor_t* monitor);
 
 dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader);
 

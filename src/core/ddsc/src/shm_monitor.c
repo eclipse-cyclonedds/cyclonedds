@@ -36,12 +36,15 @@ void shm_monitor_init(shm_monitor_t* monitor) {
 
     monitor->m_listener = iox_listener_init(&monitor->m_listener_storage);
     monitor->m_wakeup_trigger = iox_user_trigger_init(&monitor->m_wakeup_trigger_storage.storage);
+    monitor->m_wakeup_trigger_storage.monitor = monitor;
     iox_listener_attach_user_trigger_event(monitor->m_listener, monitor->m_wakeup_trigger, shm_wakeup_trigger_callback);
 
     monitor->m_state = SHM_MONITOR_RUNNING;
 }
 
 void shm_monitor_destroy(shm_monitor_t* monitor) {    
+    shm_monitor_wake_and_stop(monitor); //do we need this?
+
     //note: we must ensure no readers are actively using the monitor anymore,
     //the monitor and thus the waitset is to be destroyed after all readers are destroyed
     iox_listener_deinit(monitor->m_listener);
@@ -50,7 +53,16 @@ void shm_monitor_destroy(shm_monitor_t* monitor) {
     printf("***destroyed shm_monitor\n");
 }
 
-dds_return_t shm_monitor_wake(shm_monitor_t* monitor) {
+dds_return_t shm_monitor_wake_and_invoke(shm_monitor_t* monitor, void (*function) (void*), void* arg) {
+    iox_user_trigger_storage_extension_t* storage = (iox_user_trigger_storage_extension_t*) monitor->m_wakeup_trigger;
+    storage->call = function;
+    storage->arg = arg;
+    iox_user_trigger_trigger(monitor->m_wakeup_trigger);
+    return DDS_RETCODE_OK;
+}
+
+dds_return_t shm_monitor_wake_and_stop(shm_monitor_t* monitor) {
+    monitor->m_state = SHM_MONITOR_NOT_RUNNING;
     iox_user_trigger_trigger(monitor->m_wakeup_trigger);
     return DDS_RETCODE_OK;
 }
@@ -141,7 +153,9 @@ static void shm_wakeup_trigger_callback(iox_user_trigger_t trigger) {
     printf("trigger callback %p\n", trigger);
     // we know it is actually in extended storage since we created it like this
     iox_user_trigger_storage_extension_t* storage = (iox_user_trigger_storage_extension_t*) trigger;
-    storage->monitor->m_state = SHM_MONITOR_NOT_RUNNING;
+    if(storage->monitor->m_state == SHM_MONITOR_RUNNING && storage->call) {
+        storage->call(storage->arg);
+    }
 }
 
 static void shm_subscriber_callback(iox_sub_t subscriber) {
@@ -152,7 +166,6 @@ static void shm_subscriber_callback(iox_sub_t subscriber) {
         receive_data_wakeup_handler(storage->parent_reader);
     }
 }
-
 
 #if defined (__cplusplus)
 }
