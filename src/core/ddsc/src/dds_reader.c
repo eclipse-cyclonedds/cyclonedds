@@ -723,7 +723,11 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     rc = dds_get_type_name(topic, type_name, type_name_size + 1);
     assert(rc == DDS_RETCODE_OK);
     DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Reader's topic name will be DDS:Cyclone:%s\n", topic_name);
-    rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor, "DDS_CYCLONE", type_name, topic_name, NULL);
+    iox_sub_options_t opts;
+    iox_sub_options_init(&opts);
+    opts.queueCapacity = rd->m_entity.m_domain->gv.config.sub_queue_capacity;
+    opts.historyRequest = rd->m_entity.m_domain->gv.config.sub_history_request;
+    rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor, "DDS_CYCLONE", type_name, topic_name, &opts);
     iox_sub_monitor_push();
     iox_ws_attach_subscriber_event(iox_ws_, rd->m_iox_sub, SubscriberEvent_HAS_DATA, (uint64_t)reader, NULL);
     dds_sleepfor(DDS_MSECS(10));

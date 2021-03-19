@@ -411,7 +411,10 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     assert (rc == DDS_RETCODE_OK);
     DDS_CLOG (DDS_LC_SHM, &wr->m_entity.m_domain->gv.logconfig, "Writer's topic name will be DDS:Cyclone:%s\n", topic_name);
     // SHM_TODO: We should do error handling if there is duplicate publish topic. iceoryx doesn't support multiple pub now.
-    wr->m_iox_pub = iox_pub_init(&wr->m_iox_pub_stor, "DDS_CYCLONE", type_name, topic_name, NULL);
+    iox_pub_options_t opts;
+    iox_pub_options_init(&opts);
+    opts.historyCapacity = wr->m_entity.m_domain->gv.config.pub_history_capacity;
+    wr->m_iox_pub = iox_pub_init(&wr->m_iox_pub_stor, "DDS_CYCLONE", type_name, topic_name, &opts);
     dds_sleepfor(DDS_MSECS(10));
   }
 #endif

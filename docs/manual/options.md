@@ -1456,17 +1456,33 @@ The default value is: "dds\_security\_crypto".
 
 
 ### //CycloneDDS/Domain/SharedMemory
-Children: [CacheSize](#cycloneddsdomainsharedmemorycachesize), [Enable](#cycloneddsdomainsharedmemoryenable), [LogLevel](#cycloneddsdomainsharedmemoryloglevel)
+Children: [SubQueueCapacity](#cycloneddsdomainsharedmemorysubqueuecapacity), [SubHistoryRequest](#cycloneddsdomainsharedmemorysubhistoryrequest), [PubHistoryCapacity](#cycloneddsdomainsharedmemorypubhistorycapacity), [Enable](#cycloneddsdomainsharedmemoryenable), [LogLevel](#cycloneddsdomainsharedmemoryloglevel)
 
 The Shared Memory element allows specifying various parameters related to using shared memory.
 
 
-#### //CycloneDDS/Domain/SharedMemory/CacheSize
+#### //CycloneDDS/Domain/SharedMemory/SubQueueCapacity
 Integer
 
-This element decides the cache size of shared memory subscriber. Now max cache size can be 256.
+Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue.
 
-The default value is: "0".
+The default value is: "16".
+
+
+#### //CycloneDDS/Domain/SharedMemory/SubHistoryRequest
+Integer
+
+The number of messages which will be requested from the publisher published before the subscriber was subscribed.
+
+The default value is: "16".
+
+
+#### //CycloneDDS/Domain/SharedMemory/PubHistoryCapacity
+Integer
+
+The number of messages which will be stored on the publisher for late joining subscribers, should be equal to or larger than SubHistoryRequest.
+
+The default value is: "16".
 
 
 #### //CycloneDDS/Domain/SharedMemory/Enable

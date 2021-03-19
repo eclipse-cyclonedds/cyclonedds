@@ -388,7 +388,9 @@ struct ddsi_config
 #ifdef DDS_HAS_SHM
   int enable_shm;
   enum ddsi_shm_loglevel shm_log_lvl;
-  uint32_t sub_cache_size;
+  uint32_t sub_queue_capacity;
+  uint32_t sub_history_request;
+  uint32_t pub_history_capacity;
 #endif
 
 #if defined (__cplusplus)

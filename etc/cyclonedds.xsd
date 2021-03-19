@@ -1507,7 +1507,9 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:CacheSize"/>
+        <xs:element minOccurs="0" ref="config:SubQueueCapacity"/>
+        <xs:element minOccurs="0" ref="config:SubHistoryRequest"/>
+        <xs:element minOccurs="0" ref="config:PubHistoryCapacity"/>
         <xs:element minOccurs="0" name="Enable" type="xs:boolean">
           <xs:annotation>
             <xs:documentation>
@@ -1519,11 +1521,25 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
       </xs:all>
     </xs:complexType>
   </xs:element>
-  <xs:element name="CacheSize" type="xs:integer">
+  <xs:element name="SubQueueCapacity" type="xs:integer">
     <xs:annotation>
       <xs:documentation>
-&lt;p&gt;This element decides the cache size of shared memory subscriber. Now max cache size can be 256.&lt;/p&gt;
-&lt;p&gt;The default value is: "0".&lt;/p&gt;</xs:documentation>
+&lt;p&gt;Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue.&lt;/p&gt;
+&lt;p&gt;The default value is: "16".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="SubHistoryRequest" type="xs:integer">
+    <xs:annotation>
+        <xs:documentation>
+&lt;p&gt;The number of messages which will be requested from the publisher published before the subscriber was subscribed.&lt;/p&gt;
+&lt;p&gt;The default value is: "16".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="PubHistoryCapacity" type="xs:integer">
+    <xs:annotation>
+        <xs:documentation>
+&lt;p&gt;The number of messages which will be stored on the publisher for late joining subscribers, should be equal to or larger than SubHistoryRequest.&lt;/p&gt;
+&lt;p&gt;The default value is: "16".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="LogLevel">
