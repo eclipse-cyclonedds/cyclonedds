@@ -43,7 +43,7 @@ void shm_monitor_init(shm_monitor_t* monitor) {
 }
 
 void shm_monitor_destroy(shm_monitor_t* monitor) {    
-    shm_monitor_wake_and_stop(monitor); //do we need this?
+    //shm_monitor_wake_and_disable(monitor); //do we need this?
 
     //note: we must ensure no readers are actively using the monitor anymore,
     //the monitor and thus the waitset is to be destroyed after all readers are destroyed
@@ -61,26 +61,19 @@ dds_return_t shm_monitor_wake_and_invoke(shm_monitor_t* monitor, void (*function
     return DDS_RETCODE_OK;
 }
 
-dds_return_t shm_monitor_wake_and_stop(shm_monitor_t* monitor) {
+dds_return_t shm_monitor_wake_and_disable(shm_monitor_t* monitor) {
     monitor->m_state = SHM_MONITOR_NOT_RUNNING;
     iox_user_trigger_trigger(monitor->m_wakeup_trigger);
     return DDS_RETCODE_OK;
 }
 
+dds_return_t shm_monitor_wake_and_enable(shm_monitor_t* monitor) {
+    monitor->m_state = SHM_MONITOR_RUNNING;
+    iox_user_trigger_trigger(monitor->m_wakeup_trigger);
+    return DDS_RETCODE_OK;
+}
+
 dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader) {
-    //TODO: what to use to get the handle ? Or should we pass the handle? The entity? - What is idiomatic here?
-    // dds_entity_t handle = reader->m_entity.m_hdllink.hdl;
-    // uint64_t reader_id = (uint64_t) handle;
-
-    // dds_entity_t handle = (dds_entity_t) reader_id;
-    // dds_entity* entity;            
-    // dds_entity_pin(handle, &entity);
-
-    // if(!entity) {
-    //     printf("pinning reader %ld failed\n", reader_id);
-    //     continue; //pinning failed
-    // }
-    // dds_entity_unpin(entity);
 
     if(iox_listener_attach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_HAS_DATA, shm_subscriber_callback) != ListenerResult_SUCCESS) {
         printf("error attaching reader %p\n", reader);      

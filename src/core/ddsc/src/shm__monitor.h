@@ -22,7 +22,7 @@
 extern "C" {
 #endif
 
-// TODO: the iceoryx waitset (listener) has a maximum number of events that can be registered but this can only be queried
+// ICEORYX_TODO: the iceoryx waitset (listener) has a maximum number of events that can be registered but this can only be queried
 // at runtime
 // currently it is hardcoded to be 128 events in the iceoryx C binding
 // and we need one event for the wake up trigger
@@ -51,6 +51,8 @@ enum shm_monitor_states {
     SHM_MONITOR_NOT_RUNNING = 2
 };
 
+/// @brief abstraction for monitoring the shared memory communication with an internal
+///        thread responsible for reacting on received data via shared memory
 struct shm_monitor {
     ddsrt_mutex_t m_lock; //currently not needed but we keep it until finalized
 
@@ -66,21 +68,43 @@ struct shm_monitor {
     uint32_t m_state;
 };
 
-//TODO: document
-
 typedef struct shm_monitor shm_monitor_t;
 
+/// @brief initialize the shm_monitor
+/// @param monitor self
 void shm_monitor_init(shm_monitor_t* monitor);
 
+/// @brief delete the shm_monitor
+/// @param monitor self
 void shm_monitor_destroy(shm_monitor_t* monitor);
 
+/// @brief wake up the internal listener and invoke a function in the listener thread
+/// @param monitor self
+/// @param function function to invoke
+/// @param arg generic argument for the function (lifetime must be ensured by the user)
 dds_return_t shm_monitor_wake_and_invoke(shm_monitor_t* monitor, void (*function) (void*), void* arg);
 
-dds_return_t shm_monitor_wake_and_stop(shm_monitor_t* monitor);
+/// @brief wake up the internal listener and disable execution of listener callbacks
+///        due to received data
+/// @param monitor self
+dds_return_t shm_monitor_wake_and_disable(shm_monitor_t* monitor);
 
+/// @brief wake up the internal listener and enable execution of listener callbacks
+///        due to received data
+/// @param monitor self
+dds_return_t shm_monitor_wake_and_enable(shm_monitor_t* monitor);
+
+/// @brief attach a new reader
+/// @param monitor self
+/// @param reader reader to attach
 dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader);
 
+/// @brief detach a reader
+/// @param monitor self
+/// @param reader reader to detach
 dds_return_t shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader);
+
+// ICEORYX_TODO: clarify lifetime of readers, it should be ok since they are detached in the dds_reader_delete call
 
 #if defined (__cplusplus)
 }
