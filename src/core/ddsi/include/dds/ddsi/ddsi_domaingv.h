@@ -320,6 +320,8 @@ struct ddsi_domaingv {
   struct nn_xpack *sendq_tail;
   int sendq_stop;
   struct thread_state1 *sendq_ts;
+  bool sendq_running;
+  ddsrt_mutex_t sendq_running_lock;
 
   /* File for dumping captured packets, NULL if disabled */
   FILE *pcap_fp;

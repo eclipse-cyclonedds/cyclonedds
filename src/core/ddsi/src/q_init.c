@@ -1564,11 +1564,9 @@ int rtps_init (struct ddsi_domaingv *gv)
 
   ddsrt_atomic_st32 (&gv->rtps_keepgoing, 1);
 
-  if (gv->config.xpack_send_async)
-  {
-    nn_xpack_sendq_init (gv);
-    nn_xpack_sendq_start (gv);
-  }
+  // sendq thread is started if a DW is created with non-zero latency
+  gv->sendq_running = false;
+  ddsrt_mutex_init (&gv->sendq_running_lock);
 
   gv->builtins_dqueue = nn_dqueue_new ("builtins", gv, gv->config.delivery_queue_maxsamples, builtins_dqueue_handler, NULL);
 #ifdef DDS_HAS_NETWORK_CHANNELS
@@ -1906,11 +1904,14 @@ void rtps_fini (struct ddsi_domaingv *gv)
 
   xeventq_free (gv->xevents);
 
-  if (gv->config.xpack_send_async)
+  // if sendq thread is started
+  ddsrt_mutex_lock (&gv->sendq_running_lock);
+  if (gv->sendq_running)
   {
     nn_xpack_sendq_stop (gv);
     nn_xpack_sendq_fini (gv);
   }
+  ddsrt_mutex_unlock (&gv->sendq_running_lock);
 
 #ifdef DDS_HAS_NETWORK_CHANNELS
   chptr = gv->config.channels;

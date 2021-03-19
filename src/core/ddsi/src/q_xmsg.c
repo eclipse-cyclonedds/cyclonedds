@@ -1332,6 +1332,7 @@ void nn_xpack_sendq_start (struct ddsi_domaingv *gv)
 {
   if (create_thread (&gv->sendq_ts, gv, "sendq", nn_xpack_sendq_thread, gv) != DDS_RETCODE_OK)
     GVERROR ("nn_xpack_sendq_start: can't create nn_xpack_sendq_thread\n");
+  gv->sendq_running = true;
 }
 
 void nn_xpack_sendq_stop (struct ddsi_domaingv *gv)
