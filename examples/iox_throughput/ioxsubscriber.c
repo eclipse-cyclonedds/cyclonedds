@@ -286,7 +286,7 @@ static void process_samples(dds_entity_t reader, unsigned long long maxCycles)
                 "Transfer rate: %.2lf samples/s, %.2lf Mbit/s\n",
                 deltaTime, payloadSize, total_samples, total_bytes, outOfOrder,
                 (deltaTime != 0.0) ? ((double)(total_samples - prev_samples) / deltaTime) : 0,
-                (deltaTime != 0.0) ? ((double)((total_bytes - prev_bytes) / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime) : 0);
+                (deltaTime != 0.0) ? (((double)(total_bytes - prev_bytes) / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime) : 0);
         fflush (stdout);
         cycles++;
         prev_time = time_now;
@@ -307,14 +307,14 @@ static void process_samples(dds_entity_t reader, unsigned long long maxCycles)
   printf ("\nTotal received: %llu samples, %llu bytes\n", total_samples, total_bytes);
   printf ("Out of order: %llu samples\n", outOfOrder);
   printf ("Average transfer rate: %.2lf samples/s, ", (double)total_samples / deltaTime);
-  printf ("%.2lf Mbit/s\n", (double)(total_bytes / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime);
+  printf ("%.2lf Mbit/s\n", ((double)total_bytes / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime);
   fflush (stdout);
 }
 
 static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
 {
   dds_return_t status;
-  dds_entity_t topic;
+  dds_entity_t topic = DDS_RETCODE_BAD_PARAMETER;
   dds_entity_t subscriber;
   dds_listener_t *rd_listener;
   dds_entity_t participant;
@@ -419,6 +419,8 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
     for (int i = 0; i < MAX_SAMPLES; i++)
       data[i] = ThroughputModule_DataType_1048576__alloc();
     break;
+  default:
+    assert(0);
   }
 
   if (topic < 0)

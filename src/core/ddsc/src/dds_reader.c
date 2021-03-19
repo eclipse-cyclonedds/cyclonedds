@@ -149,7 +149,9 @@ static void iox_sub_monitor_pop()
 
   //join the thread
   uint32_t res;
-  assert(ddsrt_thread_join(thr, &res) == DDS_RETCODE_OK);
+  dds_return_t rc = ddsrt_thread_join(thr, &res);
+  if (rc < 0)
+    DDS_FATAL("iox_sub_monitor_pop: %s\n", dds_strretcode(-rc));
 
   //cleanup
   iox_ws_deinit(iox_ws_);
@@ -170,7 +172,9 @@ static void iox_sub_monitor_push()
   ddsrt_threadattr_init(&attr);
 
   //start the thread
-  assert(ddsrt_thread_create(&thr, "thread", &attr, &iox_sub_monitor_run, NULL) == DDS_RETCODE_OK);
+  dds_return_t rc = ddsrt_thread_create(&thr, "thread", &attr, &iox_sub_monitor_run, NULL);
+  if (rc < 0)
+    DDS_FATAL("iox_sub_monitor_push: %s\n", dds_strretcode(-rc));
 }
 #endif
 

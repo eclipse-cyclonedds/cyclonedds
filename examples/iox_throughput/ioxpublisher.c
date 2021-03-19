@@ -111,7 +111,7 @@ int main (int argc, char **argv)
 
   /* Fill the sample payload with data */
   ThroughputModule_DataType_Base* ptr = (ThroughputModule_DataType_Base*)sample;
-  ptr->payloadsize = payloadSize - sizeof(ThroughputModule_DataType_Base);
+  ptr->payloadsize = (uint32_t)(payloadSize - sizeof(ThroughputModule_DataType_Base));
   ptr->count = 0;
   memset((char*)sample + offsetof(ThroughputModule_DataType_16, payload), 'a', ptr->payloadsize);
 
@@ -190,7 +190,7 @@ static int parse_args(
 static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
 {
   dds_entity_t participant;
-  dds_entity_t topic;
+  dds_entity_t topic = DDS_RETCODE_BAD_PARAMETER;
   dds_entity_t publisher;
   const char *pubParts[1];
   dds_qos_t *pubQos;
@@ -258,7 +258,8 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
   case 1048576:
     topic = dds_create_topic(participant, &ThroughputModule_DataType_1048576_desc, "Throughput", NULL, NULL);
     break;
-    //more
+  default:
+    assert(0);
   }
   if (topic < 0)
     DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
