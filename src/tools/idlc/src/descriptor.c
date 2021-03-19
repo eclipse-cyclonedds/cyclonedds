@@ -640,15 +640,15 @@ emit_case(
     bool simple = true;
     uint32_t off, cnt;
     uint32_t opcode = DDS_OP_JEQ;
-    const idl_case_t *_case = node;
-    const idl_case_label_t *case_label;
+    const idl_case_t *branch = node;
+    const idl_case_label_t *label;
     const idl_type_spec_t *type_spec;
     struct type *type = descriptor->types;
 
     type_spec = idl_unalias(idl_type_spec(node), 0u);
 
     /* simple elements are embedded, complex elements are not */
-    if (idl_is_array(_case->declarator)) {
+    if (idl_is_array(branch->declarator)) {
       opcode |= DDS_OP_TYPE_ARR;
       simple = false;
     } else {
@@ -657,14 +657,13 @@ emit_case(
         simple = false;
     }
 
-    if ((ret = push_field(descriptor, _case, NULL)))
+    if ((ret = push_field(descriptor, branch, NULL)))
       return ret;
-    if ((ret = push_field(descriptor, _case->declarator, NULL)))
+    if ((ret = push_field(descriptor, branch->declarator, NULL)))
       return ret;
 
     cnt = descriptor->instructions.count + (type->labels - type->label) * 3;
-    case_label = _case->case_labels;
-    for (; case_label; case_label = idl_next(case_label)) {
+    for (label = branch->labels; label; label = idl_next(label)) {
       off = type->offset + 2 + (type->label * 3);
       /* update offset to first instruction for complex cases */
       if (!simple)
@@ -673,7 +672,7 @@ emit_case(
       if ((ret = stash_opcode(descriptor, off++, opcode, 0u)))
         return ret;
       /* generate union case discriminator */
-      if ((ret = stash_constant(descriptor, off++, case_label->const_expr)))
+      if ((ret = stash_constant(descriptor, off++, label->const_expr)))
         return ret;
       /* generate union case offset */
       if ((ret = stash_offset(descriptor, off++, type->fields)))
@@ -751,8 +750,8 @@ emit_union(
       return ret;
     pop_type(descriptor);
   } else {
-    const idl_case_t *_case;
-    const idl_case_label_t *case_label;
+    const idl_case_t *branch;
+    const idl_case_label_t *label;
 
     if ((ret = push_type(descriptor, node, &type)))
       return ret;
@@ -761,10 +760,9 @@ emit_union(
 
     /* determine total number of case labels as opcodes for complex elements
        are stored after case label opcodes */
-    _case = ((const idl_union_t *)node)->cases;
-    for (; _case; _case = idl_next(_case)) {
-      case_label = _case->case_labels;
-      for (; case_label; case_label = idl_next(case_label))
+    branch = ((const idl_union_t *)node)->branches;
+    for (; branch; branch = idl_next(branch)) {
+      for (label = branch->labels; label; label = idl_next(label))
         type->labels++;
     }
 

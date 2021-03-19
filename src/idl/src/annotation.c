@@ -157,7 +157,7 @@ annotate_value(
   if (type == IDL_OCTET || (type & IDL_INTEGER_TYPE)) {
     idl_intval_t intval = idl_intval(const_expr);
 
-    if ((intval.type & IDL_UNSIGNED) && intval.value.ullng > INT32_MAX) {
+    if ((intval.type & IDL_UNSIGNED) && intval.value.ullng > UINT32_MAX) {
       idl_error(pstate, idl_location(annotation_appl),
         "@value(%" PRIu64 ") cannot be applied to '%s' element",
         intval.value.ullng, idl_construct(node));
@@ -573,7 +573,7 @@ dedup(idl_pstate_t *pstate, void *node, idl_annotation_appl_t *appls)
         nap = idl_next(cap);
         if (cap->member != ap->member)
           continue;
-        if (idl_compare(pstate, cap->const_expr, ap->const_expr) != 0) {
+        if (idl_compare(cap->const_expr, ap->const_expr) != 0) {
           idl_error(pstate, idl_location(cap),
             "Incompatible assignment of '%s' in application of @%s",
             idl_identifier(cap->member->declarator),
@@ -618,7 +618,7 @@ dedup(idl_pstate_t *pstate, void *node, idl_annotation_appl_t *appls)
         lval = ap && ap->const_expr ? ap->const_expr : m->const_expr;
         ap = find(ca, m);
         rval = ap && ap->const_expr ? ap->const_expr : m->const_expr;
-        if (lval != rval && idl_compare(pstate, lval, rval) != 0) {
+        if (lval != rval && idl_compare(lval, rval) != 0) {
           idl_error(pstate, idl_location(ap),
             "Incompatible reapplication of @%s",
             idl_identifier(a->annotation));
