@@ -29,19 +29,21 @@ extern "C" {
 #define SHM_MAX_NUMBER_OF_READERS 127
 
 struct dds_reader;
+struct shm_monitor ;
 
 typedef struct {
-    iox_sub_t subscriber;
-    struct dds_reader* parent;
-} iox_sub_extension_t;
+    iox_sub_storage_t storage;
+    struct shm_monitor* monitor;
+    struct dds_reader* parent_reader;
+} iox_sub_storage_extension_t;
 
 typedef struct {
-    iox_user_trigger_t trigger;
+    iox_user_trigger_storage_t storage;
+    struct shm_monitor* monitor;
     void* data;
-} iox_trigger_extension_t;
+} iox_user_trigger_storage_extension_t;
 
-enum shm_monitor_run_states {
-    SHM_MONITOR_STOP = 0,
+enum shm_monitor_states {
     SHM_MONITOR_RUNNING = 1,
     SHM_MONITOR_NOT_RUNNING = 2
 };
@@ -52,15 +54,12 @@ struct shm_monitor {
     iox_listener_storage_t m_listener_storage;
     iox_listener_t m_listener;
  
-    //use this if we wait but want to wake up for some reason
-    //e.g. terminate, update the waitset etc.
-    iox_user_trigger_storage_t m_wakeup_trigger_storage;
+    //use this if we wait but want to wake up for some reason e.g. terminate
+    iox_user_trigger_storage_extension_t m_wakeup_trigger_storage;
     iox_user_trigger_t m_wakeup_trigger;
 
     uint32_t m_number_of_attached_readers;
-    uint32_t m_run_state;
-
-    // ddsrt_thread_t m_thread;
+    uint32_t m_state;
 };
 
 typedef struct shm_monitor shm_monitor_t;
