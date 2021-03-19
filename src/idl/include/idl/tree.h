@@ -346,7 +346,7 @@ struct idl_case_label {
 typedef struct idl_case idl_case_t;
 struct idl_case {
   idl_node_t node;
-  idl_case_label_t *case_labels;
+  idl_case_label_t *labels;
   idl_type_spec_t *type_spec;
   idl_declarator_t *declarator;
 };
@@ -359,15 +359,27 @@ struct idl_switch_type_spec {
   idl_boolean_t key;
 };
 
+typedef struct idl_default_discriminator idl_default_discriminator_t;
+struct idl_default_discriminator {
+  enum {
+    IDL_DEFAULT_CASE, /** union has a default case specified */
+    IDL_IMPLICIT_DEFAULT, /** union has an implicit default member */
+    IDL_FIRST_DISCRIMINANT /** entire range covered, no default */
+  } condition;
+  idl_const_expr_t *const_expr;
+  const idl_case_t *branch; /** branch associated with discriminant, if any */
+};
+
 typedef struct idl_union idl_union_t;
 struct idl_union {
   idl_node_t node;
   struct idl_name *name;
   idl_switch_type_spec_t *switch_type_spec;
-  idl_case_t *cases;
+  idl_case_t *branches;
   /* metadata */
   idl_nested_t nested; /**< if type is topic (sum total of annotations) */
   idl_extensibility_t extensibility;
+  idl_default_discriminator_t default_discriminator;
 };
 
 typedef struct idl_enumerator idl_enumerator_t;

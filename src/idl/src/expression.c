@@ -984,11 +984,10 @@ __pragma(warning(pop))
 #endif
 
 idl_equality_t
-idl_compare(idl_pstate_t *pstate, const void *lhs, const void *rhs)
+idl_compare(const void *lhs, const void *rhs)
 {
   idl_type_t ltype, rtype;
 
-  (void)pstate;
   ltype = idl_type(lhs);
   rtype = idl_type(rhs);
 
