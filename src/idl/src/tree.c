@@ -1266,7 +1266,7 @@ bool idl_is_union(const void *ptr)
   /* a union must have a switch type specifier */
   assert(idl_mask(node->switch_type_spec) & IDL_SWITCH_TYPE_SPEC);
   /* a union must have at least one case */
-  assert(!node->cases || (idl_mask(node->cases) & IDL_CASE));
+  assert(!node->branches || (idl_mask(node->branches) & IDL_CASE));
   return true;
 }
 
@@ -1274,7 +1274,8 @@ static void delete_union(void *ptr)
 {
   idl_union_t *node = ptr;
   idl_delete_node(node->switch_type_spec);
-  idl_delete_node(node->cases);
+  idl_unreference_node(node->default_discriminator.const_expr);
+  idl_delete_node(node->branches);
   idl_delete_name(node->name);
   free(node);
 }
@@ -1289,7 +1290,7 @@ static void *iterate_union(const void *ptr, const void *cur)
     if (node->next)
       return node->next;
     if (idl_is_switch_type_spec(node))
-      return root->cases;
+      return root->branches;
     if (idl_is_annotation_appl(node))
       return root->switch_type_spec;
     return NULL;
@@ -1306,77 +1307,264 @@ static const char *describe_union(const void *ptr)
   return "union";
 }
 
-idl_retcode_t
-idl_finalize_union(
-  idl_pstate_t *state,
-  const idl_location_t *location,
-  idl_union_t *node,
-  idl_case_t *cases)
+static size_t maximum_labels(const idl_type_spec_t *type_spec)
 {
-  idl_retcode_t ret = IDL_RETCODE_OK;
-  idl_case_t *default_case = NULL;
-  idl_switch_type_spec_t *switch_type_spec;
   idl_type_t type;
 
-  switch_type_spec = node->switch_type_spec;
-  assert(switch_type_spec);
-  assert(idl_mask(switch_type_spec) & IDL_SWITCH_TYPE_SPEC);
-  type = idl_type(switch_type_spec->type_spec);
+  assert(type_spec);
 
-  assert(cases);
-  for (idl_case_t *c = cases; c; c = idl_next(c)) {
+  switch ((type = idl_type(type_spec))) {
+    case IDL_BOOL:
+      return 2u;
+    case IDL_CHAR:
+    case IDL_OCTET:
+    case IDL_INT8:
+    case IDL_UINT8:
+      return UINT8_MAX;
+    case IDL_WCHAR:
+    case IDL_SHORT:
+    case IDL_USHORT:
+    case IDL_INT16:
+    case IDL_UINT16:
+      return UINT16_MAX;
+    case IDL_LONG:
+    case IDL_ULONG:
+    case IDL_INT32:
+    case IDL_UINT32:
+      return UINT32_MAX;
+    case IDL_LLONG:
+    case IDL_ULLONG:
+    case IDL_INT64:
+    case IDL_UINT64:
+      return UINT64_MAX;
+    default:
+      assert(type == IDL_ENUM);
+      return idl_degree(((const idl_enum_t *)type_spec)->enumerators);
+  }
+}
+
+static int compare_label(const void *lhs, const void *rhs)
+{
+  switch (idl_compare((*(const idl_case_label_t **)lhs)->const_expr,
+                      (*(const idl_case_label_t **)rhs)->const_expr))
+  {
+    case IDL_LESS:
+      return -1;
+    case IDL_EQUAL:
+      return 0;
+    default:
+      return 1;
+  }
+}
+
+static void increment_literal(idl_literal_t *literal)
+{
+  switch (idl_type(literal)) {
+    case IDL_BOOL:
+      literal->value.bln = !literal->value.bln;
+      break;
+    case IDL_CHAR:
+      literal->value.chr++;
+      break;
+    case IDL_INT8:
+      literal->value.int8++;
+      break;
+    case IDL_OCTET:
+    case IDL_UINT8:
+      literal->value.uint8++;
+      break;
+    case IDL_SHORT:
+    case IDL_INT16:
+      literal->value.int16++;
+      break;
+    case IDL_USHORT:
+    case IDL_UINT16:
+      literal->value.uint16++;
+      break;
+    case IDL_LONG:
+    case IDL_INT32:
+      literal->value.int32++;
+      break;
+    case IDL_ULONG:
+    case IDL_UINT32:
+      literal->value.uint32++;
+      break;
+    case IDL_LLONG:
+    case IDL_INT64:
+      literal->value.int64++;
+      break;
+    case IDL_ULLONG:
+    case IDL_UINT64:
+      literal->value.uint64++;
+      break;
+    default:
+      abort();
+  }
+}
+
+idl_retcode_t
+idl_finalize_union(
+  idl_pstate_t *pstate,
+  const idl_location_t *location,
+  idl_union_t *node,
+  idl_case_t *branches)
+{
+  idl_retcode_t ret = IDL_RETCODE_OK;
+  const idl_type_spec_t *type_spec;
+  const idl_case_label_t *default_label = NULL;
+  idl_type_t type;
+  size_t cnt, len, lim;
+  idl_case_label_t **vec = NULL;
+
+  assert(node);
+  assert(node->switch_type_spec);
+  type_spec = idl_unalias(node->switch_type_spec->type_spec, 0u);
+  type = idl_type(type_spec);
+
+  cnt = len = 0;
+  lim = maximum_labels(type_spec);
+
+  assert(branches);
+  for (idl_case_t *c = branches; c; c = idl_next(c)) {
     /* iterate case labels and evaluate constant expressions */
-    idl_case_label_t *null_label = NULL;
-    /* determine if null-label is present */
-    for (idl_case_label_t *cl = c->case_labels; cl; cl = idl_next(cl)) {
-      if (!cl->const_expr) {
-        null_label = cl;
-        if (default_case) {
-          idl_error(state, idl_location(cl),
-            "error about default case!");
-          return IDL_RETCODE_SEMANTIC_ERROR;
-        } else {
-          default_case = c;
-        }
-        break;
-      }
-    }
-    /* evaluate constant expressions */
-    for (idl_case_label_t *cl = c->case_labels; cl; cl = idl_next(cl)) {
+    for (idl_case_label_t *cl = c->labels; cl; cl = idl_next(cl)) {
       if (cl->const_expr) {
-        if (null_label) {
-          idl_warning(state, idl_location(cl),
-            "Label in combination with null-label is not useful");
-        }
-        idl_literal_t *literal = NULL;
-        ret = idl_evaluate(state, cl->const_expr, type, &literal);
-        if (ret != IDL_RETCODE_OK)
+        idl_const_expr_t *const_expr = NULL;
+
+        len++; /* determine */
+        if ((ret = idl_evaluate(pstate, cl->const_expr, type, &const_expr)))
           return ret;
-        if (type == IDL_ENUM) {
-          if ((uintptr_t)switch_type_spec->type_spec != (uintptr_t)literal->node.parent) {
-            idl_error(state, idl_location(cl),
-              "Enumerator of different enum type");
+        cl->const_expr = const_expr;
+        if (idl_is_enumerator(const_expr)) {
+          assert(idl_is_enum(type_spec));
+          assert(((const idl_node_t *)const_expr)->parent);
+          if (((const idl_node_t *)const_expr)->parent != type_spec) {
+            idl_error(pstate, idl_location(cl),
+              "Label uses an enumerator of a different enumeration");
             return IDL_RETCODE_SEMANTIC_ERROR;
           }
+        } else {
+          assert(!((const idl_node_t *)const_expr)->parent);
+          ((idl_node_t *)const_expr)->parent = (idl_node_t *)cl;
         }
-        cl->const_expr = literal;
-        if (!idl_scope(literal))
-          literal->node.parent = (idl_node_t*)cl;
+      } else {
+        if (default_label) {
+          idl_error(pstate, idl_location(cl),
+            "Multiple default labels in switch statement");
+          return IDL_RETCODE_SEMANTIC_ERROR;
+        }
+        default_label = cl;
       }
     }
-    assert(!c->node.parent);
-    c->node.parent = (idl_node_t *)node;
+  }
+
+  /* sort labels to detect duplicates and optionally determine default */
+  if (!(vec = malloc(len * sizeof(*vec))))
+    return IDL_RETCODE_NO_MEMORY;
+
+  for (const idl_case_t *c = branches; c; c = idl_next(c)) {
+    for (const idl_case_label_t *cl = c->labels; cl; cl = idl_next(cl)) {
+      if (!cl->const_expr)
+        continue;
+      assert(cnt < len);
+      vec[cnt++] = (idl_case_label_t *)cl;
+    }
+  }
+
+  assert(cnt == len);
+  qsort(vec, len, sizeof(*vec), &compare_label);
+
+  for (cnt=1; cnt < len; cnt++) {
+    if (compare_label(&vec[cnt - 1], &vec[cnt]) != IDL_EQUAL)
+      continue;
+    idl_error(pstate, idl_location(vec[cnt]),
+      "Duplicate case label in switch statement");
+    goto semantic_error;
+  }
+
+  /* Java, C# and C++ map unions to a class which must provide a default
+     constructor that shall set the discriminator to the default value for
+     the discriminator type. if there is a default case, the union is
+     initialized to this default case. in case the union has an implicit
+     default member, i.e. not every permissable value of the union
+     discriminant is listed and no default case is specified, it is
+     initialized to that case. in all other cases it is initialized to the
+     first discriminant value specified in IDL. */
+
+  if (cnt == lim) {
+    /* a union type can contain a default label only where the values given to
+       the non-default labels do not cover the entire range of the union's
+       discriminant type */
+    if (default_label) {
+      idl_error(pstate, idl_location(default_label),
+        "Invalid default label in switch statement, non-default labels cover "
+        "entire range of switch type");
+      goto semantic_error;
+    }
+    node->default_discriminator.condition = IDL_FIRST_DISCRIMINANT;
+    node->default_discriminator.const_expr =
+      idl_reference_node(branches->labels->const_expr);
+    node->default_discriminator.branch = branches;
+  } else {
+    idl_const_expr_t *const_expr;
+
+    /* if a member corresponds to the default case label, its simple modifier
+       shall set the discriminant to the first available default value
+       starting from a 0 index of the discriminant type */
+    if (type == IDL_ENUM) {
+      idl_equality_t eq;
+      /* enumerators are referenced, logic is slightly different */
+      const_expr = ((const idl_enum_t *)type_spec)->enumerators;
+      for (cnt=0; const_expr && cnt < len; cnt++) {
+        eq = idl_compare(const_expr, vec[cnt]->const_expr);
+        if (eq == IDL_LESS)
+          break;
+        if (eq == IDL_EQUAL)
+          const_expr = idl_next(const_expr);
+      }
+      assert(const_expr);
+      const_expr = idl_reference_node(const_expr);
+    } else {
+      idl_equality_t eq;
+      idl_literal_t *literal = NULL;
+      if ((ret = idl_create_literal(pstate, location, type, &literal)))
+        goto no_memory;
+      memset(&literal->value, 0, sizeof(literal->value));
+      const_expr = literal;
+      for (cnt=0; cnt < lim && cnt < len; cnt++) {
+        eq = idl_compare(const_expr, vec[cnt]->const_expr);
+        if (eq == IDL_LESS)
+          break;
+        if (eq == IDL_EQUAL)
+          increment_literal(const_expr);
+      }
+      assert(cnt < lim);
+    }
+    node->default_discriminator.const_expr = const_expr;
+    if (default_label) {
+      node->default_discriminator.condition = IDL_DEFAULT_CASE;
+      node->default_discriminator.branch =
+        (const idl_case_t *)default_label->node.parent;
+    } else {
+      node->default_discriminator.condition = IDL_IMPLICIT_DEFAULT;
+      node->default_discriminator.branch = NULL;
+    }
   }
 
   node->node.symbol.location.last = location->last;
-  node->cases = cases;
+  node->branches = branches;
+  for (idl_case_t *c = node->branches; c; c = idl_next(c))
+    c->node.parent = (idl_node_t *)node;
+  idl_exit_scope(pstate);
 
-  // FIXME: for C++ the lowest value must be known. if beneficial for other
-  //        language bindings we may consider marking that value or perhaps
-  //        offer convenience functions to do so
-
-  idl_exit_scope(state);
+  free(vec);
   return IDL_RETCODE_OK;
+semantic_error:
+  free(vec);
+  return IDL_RETCODE_SEMANTIC_ERROR;
+no_memory:
+  free(vec);
+  return IDL_RETCODE_NO_MEMORY;
 }
 
 idl_retcode_t
@@ -1530,7 +1718,7 @@ bool idl_is_case(const void *ptr)
   /* a case must have a union parent */
   assert(!node->node.parent || (idl_mask(node->node.parent) & IDL_UNION));
   /* a case must have at least one case label */
-  assert(!node->case_labels || (idl_mask(node->case_labels) & IDL_CASE_LABEL));
+  assert(!node->labels || (idl_mask(node->labels) & IDL_CASE_LABEL));
   /* a case must have exactly one declarator */
   assert(idl_mask(node->declarator) & IDL_DECLARATOR);
   return true;
@@ -1541,7 +1729,7 @@ bool idl_is_default_case(const void *ptr)
   const idl_case_t *node = ptr;
   if (!(idl_mask(node) & IDL_CASE))
     return false;
-  for (const idl_case_label_t *cl = node->case_labels; cl; cl = idl_next(cl))
+  for (const idl_case_label_t *cl = node->labels; cl; cl = idl_next(cl))
     if (!cl->const_expr)
       return true;
   return false;
@@ -1551,7 +1739,7 @@ static void delete_case(void *ptr)
 {
   idl_case_t *node = ptr;
   delete_type_spec(node, node->type_spec);
-  idl_delete_node(node->case_labels);
+  idl_delete_node(node->labels);
   idl_delete_node(node->declarator);
   free(node);
 }
@@ -1569,7 +1757,7 @@ static void *iterate_case(const void *ptr, const void *cur)
       return root->declarator;
     return NULL;
   }
-  return root->case_labels;
+  return root->labels;
 }
 
 static const char *describe_case(const void *ptr)
@@ -1584,16 +1772,14 @@ idl_finalize_case(
   idl_pstate_t *state,
   const idl_location_t *location,
   idl_case_t *node,
-  idl_case_label_t *case_labels)
+  idl_case_label_t *labels)
 {
   (void)state;
   node->node.symbol.location.last = location->last;
-  node->case_labels = case_labels;
-  for (idl_node_t *n = (idl_node_t*)case_labels; n; n = n->next)
-    n->parent = (idl_node_t*)node;
+  node->labels = labels;
+  for (idl_case_label_t *cl = node->labels; cl; cl = idl_next(cl))
+    cl->node.parent = (idl_node_t*)node;
   return IDL_RETCODE_OK;
-  // FIXME: warn for and ignore duplicate labels
-  // FIXME: warn for and ignore for labels combined with default
 }
 
 idl_retcode_t
@@ -2174,7 +2360,7 @@ const_is_consistent(
     return false;
   if (!type_is_consistent(pstate, lhs->type_spec, rhs->type_spec))
     return false;
-  return idl_compare(pstate, lhs->const_expr, rhs->const_expr) == IDL_EQUAL;
+  return idl_compare(lhs->const_expr, rhs->const_expr) == IDL_EQUAL;
 }
 
 static bool
@@ -2214,7 +2400,7 @@ member_is_consistent(
     return false;
   if (!lhs->const_expr)
     return true;
-  return idl_compare(pstate, lhs->const_expr, rhs->const_expr) == IDL_EQUAL;
+  return idl_compare(lhs->const_expr, rhs->const_expr) == IDL_EQUAL;
 }
 
 static bool

@@ -25,7 +25,6 @@ enum idl_equality {
 
 IDL_EXPORT idl_equality_t
 idl_compare(
-  struct idl_pstate *pstate,
   const idl_const_expr_t *lhs,
   const idl_const_expr_t *rhs);
 
