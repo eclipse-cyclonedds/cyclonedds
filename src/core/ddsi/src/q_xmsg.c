@@ -1085,10 +1085,6 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
 {
   struct nn_xpack *xp;
 
-  /* Disallow setting async_mode if not configured to enable async mode: this way we
-     can avoid starting the async send thread altogether */
-  assert (!async_mode || conn->m_base.gv->config.xpack_send_async);
-
   xp = ddsrt_malloc (sizeof (*xp));
   memset (xp, 0, sizeof (*xp));
   xp->async_mode = async_mode;

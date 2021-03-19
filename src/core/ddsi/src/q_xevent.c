@@ -1244,7 +1244,7 @@ static uint32_t xevent_thread (struct xeventq * xevq)
   struct nn_xpack *xp;
   ddsrt_mtime_t next_thread_cputime = { 0 };
 
-  xp = nn_xpack_new (xevq->tev_conn, xevq->auxiliary_bandwidth_limit, xevq->gv->config.xpack_send_async);
+  xp = nn_xpack_new (xevq->tev_conn, xevq->auxiliary_bandwidth_limit, false);
 
   ddsrt_mutex_lock (&xevq->lock);
   while (!xevq->terminate)

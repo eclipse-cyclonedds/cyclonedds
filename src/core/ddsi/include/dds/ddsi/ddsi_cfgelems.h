@@ -1356,14 +1356,6 @@ static struct cfgelem internal_cfgelems[] = {
     MEMBER(use_multicast_if_mreqn),
     FUNCTIONS(0, uf_int, 0, pf_int),
     DESCRIPTION("<p>Do not use.</p>")),
-  BOOL("SendAsync", NULL, 1, "false",
-    MEMBER(xpack_send_async),
-    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
-    DESCRIPTION(
-      "<p>This element controls whether the actual sending of packets occurs "
-      "on the same thread that prepares them, or is done asynchronously by "
-      "another thread.</p>"
-    )),
   STRING("RediscoveryBlacklistDuration", rediscovery_blacklist_duration_attrs, 1, "0s",
     MEMBER(prune_deleted_ppant.delay),
     FUNCTIONS(0, uf_duration_inf, 0, pf_duration),

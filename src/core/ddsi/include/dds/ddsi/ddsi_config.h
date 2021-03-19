@@ -255,7 +255,6 @@ struct ddsi_config
   int noprogress_log_stacktraces;
   int64_t liveliness_monitoring_interval;
   int prioritize_retransmit;
-  int xpack_send_async;
   enum ddsi_boolean_default multiple_recv_threads;
   unsigned recv_thread_stop_maxretries;
 
