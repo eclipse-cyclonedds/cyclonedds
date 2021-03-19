@@ -85,11 +85,8 @@ static dds_return_t dds_reader_delete (dds_entity *e)
   if (e->m_domain->gv.config.enable_shm)
   {
     DDS_CLOG (DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's subscriber\n");
-    iox_sub_unsubscribe(rd->m_iox_sub);
-    //TODO: ideally we do not want to use the deferred versions but we currently need to due to
-    //      the underlying waitset not being thread-safe
-    shm_monitor_deferred_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
-    iox_sub_deinit(rd->m_iox_sub);
+    shm_monitor_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+    iox_sub_deinit(rd->m_iox_sub.subscriber);
   }
 #endif
 
@@ -582,11 +579,10 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     rc = dds_get_type_name(topic, type_name, type_name_size + 1);
     assert(rc == DDS_RETCODE_OK);
     DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Reader's topic name will be DDS:Cyclone:%s\n", topic_name);
-    rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor, "DDS_CYCLONE", type_name, topic_name, NULL);
+    rd->m_iox_sub.subscriber = iox_sub_init(&rd->m_iox_sub_stor, "DDS_CYCLONE", type_name, topic_name, NULL);
+    rd->m_iox_sub.parent = rd;
 
-    //TODO: ideally we do not want to use the deferred versions but we currently need to due to
-    //      the underlying waitset not being thread-safe
-    shm_monitor_deferred_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+    shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
     dds_sleepfor(DDS_MSECS(10));
   }
 #endif

@@ -27,47 +27,25 @@
 extern "C" {
 #endif
 
-static uint32_t shm_monitor_thread_main(void* arg);
+static void shm_wakeup_trigger_callback(iox_user_trigger_t trigger);
+static void shm_subscriber_callback(iox_sub_t sub);
 
 void shm_monitor_init(shm_monitor_t* monitor) {
     printf("***create shm_monitor\n");
     ddsrt_mutex_init(&monitor->m_lock);
-        
-    monitor->m_waitset = iox_ws_init(&monitor->m_waitset_storage);
+
     monitor->m_wakeup_trigger = iox_user_trigger_init(&monitor->m_wakeup_trigger_storage);
-    iox_ws_attach_user_trigger_event(monitor->m_waitset, monitor->m_wakeup_trigger, 0, NULL);
 
-    monitor->m_number_of_modifications_pending = 0;
-    monitor->m_number_of_attached_readers = 0;
-    for(int32_t i=0; i<SHM_MAX_NUMBER_OF_READERS; ++i) {
-        monitor->m_readers_to_attach[i] = NULL;
-        monitor->m_readers_to_detach[i] = NULL;
-    }
+    monitor->m_listener = iox_listener_init(&monitor->m_listener_storage);
+    iox_listener_attach_user_trigger_event(monitor->m_listener, monitor->m_wakeup_trigger, shm_wakeup_trigger_callback);
 
-    monitor->m_run_state = SHM_monitor_RUN;
-    ddsrt_threadattr_t attr;
-    ddsrt_threadattr_init (&attr);
-    dds_return_t rc = ddsrt_thread_create(&monitor->m_thread, "shm_monitor_thread", 
-                                          &attr, shm_monitor_thread_main, monitor);
-    if(rc != DDS_RETCODE_OK) {
-        monitor->m_run_state = SHM_monitor_NOT_RUNNING;
-    }
+    monitor->m_run_state = SHM_MONITOR_RUNNING;
 }
 
 void shm_monitor_destroy(shm_monitor_t* monitor) {    
-    if(monitor->m_run_state != SHM_monitor_NOT_RUNNING) {
-        monitor->m_run_state = SHM_monitor_STOP;
-        shm_monitor_wake(monitor);
-        uint32_t result;
-        dds_return_t rc = ddsrt_thread_join(monitor->m_thread, &result);
-
-        if(rc == DDS_RETCODE_OK) {
-            monitor->m_run_state = SHM_monitor_NOT_RUNNING;
-        }
-    }
     //note: we must ensure no readers are actively using the monitor anymore,
     //the monitor and thus the waitset is to be destroyed after all readers are destroyed
-    iox_ws_deinit(monitor->m_waitset);
+    iox_listener_deinit(monitor->m_listener);
 
     ddsrt_mutex_destroy(&monitor->m_lock);
     printf("***destroyed shm_monitor\n");
@@ -83,8 +61,8 @@ dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader
     //TODO: what to use to get the handle ? Or should we pass the handle? The entity? - What is idiomatic here?
     dds_entity_t handle = reader->m_entity.m_hdllink.hdl;
     uint64_t reader_id = (uint64_t) handle;
- 
-    if(iox_ws_attach_subscriber_event(monitor->m_waitset, reader->m_iox_sub, SubscriberEvent_HAS_DATA, reader_id, NULL) !=WaitSetResult_SUCCESS) {  
+
+    if(iox_listener_attach_subscriber_event(monitor->m_listener, reader->m_iox_sub.subscriber, SubscriberEvent_HAS_DATA, shm_subscriber_callback) != ListenerResult_SUCCESS) {  
         printf("error attaching reader %p\n", reader);      
         return DDS_RETCODE_OUT_OF_RESOURCES;
     }
@@ -95,98 +73,21 @@ dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader
 }
 
 dds_return_t shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader) {
-    iox_ws_detach_subscriber_event(monitor->m_waitset, reader->m_iox_sub, SubscriberEvent_HAS_DATA);   
+    iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub.subscriber, SubscriberEvent_HAS_DATA); 
     --monitor->m_number_of_attached_readers;
 
     printf("detached reader %p\n", reader);
     return DDS_RETCODE_OK;
 }
 
-dds_return_t shm_monitor_deferred_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader) {
-    ddsrt_mutex_lock(&monitor->m_lock);
-
-    //store the attach request
-    for(int32_t i=0; i<SHM_MAX_NUMBER_OF_READERS; ++i) {
-        if(monitor->m_readers_to_attach[i] == NULL) {
-            monitor->m_readers_to_attach[i] = reader;
-            ++monitor->m_number_of_modifications_pending;
-            shm_monitor_wake(monitor);
-
-            ddsrt_mutex_unlock(&monitor->m_lock);
-            return DDS_RETCODE_OK;
-        }
-    }
-
-    ddsrt_mutex_unlock(&monitor->m_lock);   
-    return DDS_RETCODE_OUT_OF_RESOURCES;
-}
-
-dds_return_t shm_monitor_deferred_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader) {
-    ddsrt_mutex_lock(&monitor->m_lock);
-
-    for(int32_t i=0; i<SHM_MAX_NUMBER_OF_READERS; ++i) {
-        if(monitor->m_readers_to_attach[i] == reader) {
-            monitor->m_readers_to_attach[i] = NULL;
-
-            ddsrt_mutex_unlock(&monitor->m_lock);           
-            return DDS_RETCODE_OK; //not attached yet, but we do not need to attach and then detach it
-        }
-    }
-    // it must have been already attached, store the detach request
-    for(int32_t i=0; i<SHM_MAX_NUMBER_OF_READERS; ++i) {
-        if(monitor->m_readers_to_detach[i] == NULL) {
-            monitor->m_readers_to_detach[i] = reader;
-            ++monitor->m_number_of_modifications_pending;
-            shm_monitor_wake(monitor);
-
-            ddsrt_mutex_unlock(&monitor->m_lock);
-            return DDS_RETCODE_OK;
-        }
-    }
-
-    ddsrt_mutex_unlock(&monitor->m_lock);    
-    return DDS_RETCODE_OUT_OF_RESOURCES;
-}
-
-dds_return_t shm_monitor_perform_deferred_modifications(shm_monitor_t* monitor) {
-    ddsrt_mutex_lock(&monitor->m_lock);
-    //problem: we have potential races: some of these readers may not even exist anymore
-    //         but due to limitations of the waitset we also cannot attach/detach them while waiting
-    //         (which will happen often)
-    
-    if(monitor->m_number_of_modifications_pending == 0) {
-        ddsrt_mutex_unlock(&monitor->m_lock);
-        return DDS_RETCODE_OK;
-    }
-    
-    dds_return_t rc = DDS_RETCODE_OK;
-    for(int32_t i=0; i<SHM_MAX_NUMBER_OF_READERS; ++i) {
-        if(monitor->m_readers_to_attach[i] != NULL) {
-            if(shm_monitor_attach_reader(monitor, monitor->m_readers_to_attach[i]) != DDS_RETCODE_OK) {
-                rc = DDS_RETCODE_OUT_OF_RESOURCES;
-            }
-            monitor->m_readers_to_attach[i] = NULL;
-        }
-        //note we cannot have the same pointer in attach AND detach requests (ensured by construction)
-        if(monitor->m_readers_to_detach[i] != NULL) {
-            shm_monitor_detach_reader(monitor, monitor->m_readers_to_detach[i]);
-            monitor->m_readers_to_detach[i] = NULL;
-        }
-    }
-    monitor->m_number_of_modifications_pending = 0;
-
-    ddsrt_mutex_unlock(&monitor->m_lock);
-    return rc;
-}
-
 static void receive_data_wakeup_handler(struct dds_reader* rd)
 {
   void* chunk = NULL;
-  while (ChunkReceiveResult_SUCCESS == iox_sub_take_chunk(rd->m_iox_sub, (const void** const)&chunk))
+  thread_state_awake(lookup_thread_state(), rd->m_rd->e.gv);
+  while (ChunkReceiveResult_SUCCESS == iox_sub_take_chunk(rd->m_iox_sub.subscriber, (const void** const)&chunk))
   {
     iceoryx_header_t* ice_hdr = (iceoryx_header_t*)chunk;
     // Get proxy writer
-    thread_state_awake(lookup_thread_state(), rd->m_rd->e.gv);
     struct proxy_writer* pwr = entidx_lookup_proxy_writer_guid(rd->m_rd->e.gv->entity_index, &ice_hdr->guid);
     if (pwr == NULL)
     {
@@ -200,7 +101,7 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
     //              afterwards we have the data pointer (chunk) and additional information 
     //              such as timestamp
     // Create struct ddsi_serdata
-    struct ddsi_serdata* d = ddsi_serdata_from_iox(rd->m_topic->m_stype, ice_hdr->data_kind, &rd->m_iox_sub, chunk);
+    struct ddsi_serdata* d = ddsi_serdata_from_iox(rd->m_topic->m_stype, ice_hdr->data_kind, &rd->m_iox_sub.subscriber, chunk);
     //keyhash needs to be set here
     d->timestamp.v = ice_hdr->tstamp;
 
@@ -226,7 +127,7 @@ release:
   }
   thread_state_asleep(lookup_thread_state());
 }
-
+#if 0
 static uint32_t shm_monitor_thread_main(void* arg) {
     shm_monitor_t* monitor = arg; 
     uint64_t number_of_missed_events = 0;
@@ -252,9 +153,7 @@ static uint32_t shm_monitor_thread_main(void* arg) {
                 //note: having an additional trigger for termination only
                 //will cause issues with the reader_ids beyond our control: 
                 //what would its id be (and not collide with a reader id/handle)?
-                if(monitor->m_run_state != SHM_monitor_RUN) {
-                    break;
-                }
+                
                 //TODO: I sense a subtle race here in the waitset usage (by design)
                 //      which may cause aus to miss wake ups
                 iox_user_trigger_reset_trigger(monitor->m_wakeup_trigger);
@@ -291,11 +190,10 @@ static uint32_t shm_monitor_thread_main(void* arg) {
     printf("***shm monitor thread stopped\n");
     return 0;
 }
-
-#if 0
+#endif
 static void shm_wakeup_trigger_callback(iox_user_trigger_t trigger) {    
     printf("trigger callback %p\n", trigger);
-    // we can perform custom actions here (with limitations)
+    //monitor->m_run_state != SHM_MONITOR_STOP);
 }
 
 static void shm_subscriber_callback(iox_sub_t sub) {
@@ -303,7 +201,6 @@ static void shm_subscriber_callback(iox_sub_t sub) {
     //however, we have no access to the reader by only knowing the subscriber
     printf("subscriber callback %p\n", sub);
 }
-#endif
 
 
 #if defined (__cplusplus)

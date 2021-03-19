@@ -293,7 +293,7 @@ typedef struct dds_reader {
   unsigned m_wrapped_sertopic : 1; /* set iff reader's topic is a wrapped ddsi_sertopic for backwards compatibility */
 #ifdef DDS_HAS_SHM
   iox_sub_storage_t m_iox_sub_stor;
-  iox_sub_t m_iox_sub;
+  iox_sub_extension_t m_iox_sub;
 #endif
 
   /* Status metrics */
