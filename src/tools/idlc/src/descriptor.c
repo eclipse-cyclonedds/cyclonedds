@@ -170,7 +170,7 @@ static idl_retcode_t push_type(
   assert(idl_is_struct(node) ||
          idl_is_union(node) ||
          idl_is_sequence(node) ||
-         idl_is_array(node));
+         idl_is_declarator(node));
   if (!(type = calloc(1, sizeof(*type))))
     return IDL_RETCODE_NO_MEMORY;
   type->previous = descriptor->types;
@@ -364,76 +364,13 @@ static idl_retcode_t
 stash_size(
   struct descriptor *descriptor, uint32_t index, const void *node)
 {
-  const idl_type_spec_t *type_spec;
+  const idl_type_spec_t *alias, *type_spec;
   struct instruction inst = { SIZE, { .size = { NULL } } };
 
   if (idl_is_sequence(node)) {
-    bool array;
-    type_spec = idl_unalias(idl_type_spec(node), 0u);
-    array = idl_is_array(type_spec);
     type_spec = idl_type_spec(node);
 
-    /* sequence of array */
-    if (array) {
-      char buf[1];
-      char *name;
-      const char *fmt = "[%" PRIu32 "]";
-      int cnt;
-      size_t len = 0, pos;
-      uint32_t dims;
-      const idl_literal_t *literal = NULL;
-      /* sequence of (multi-)dimensional array requires sizes in a sizeof */
-      type_spec = idl_type_spec(node);
-      for (; idl_is_alias(type_spec); type_spec = idl_type_spec(type_spec)) {
-        if (!idl_is_declarator(type_spec))
-          break;
-        literal = ((const idl_declarator_t *)type_spec)->const_expr;
-        for (; literal; literal = idl_next(literal)) {
-          assert(idl_type(literal) == IDL_ULONG);
-          cnt = idl_snprintf(buf, sizeof(buf), fmt, literal->value.uint32);
-          assert(cnt > 0);
-          len += (size_t)cnt;
-        }
-      }
-      if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
-        dims = ((const idl_string_t *)type_spec)->maximum;
-        cnt = idl_snprintf(buf, sizeof(buf), fmt, dims);
-        assert(cnt > 0);
-        len += (size_t)cnt;
-        if (!(name = AUTO(idl_strdup("char"))))
-          return IDL_RETCODE_NO_MEMORY;
-      } else if (idl_is_string(type_spec)) {
-        if (!(name = AUTO(idl_strdup("char *"))))
-          return IDL_RETCODE_NO_MEMORY;
-      } else {
-        if (!(name = AUTO(typename(type_spec))))
-          return IDL_RETCODE_NO_MEMORY;
-      }
-      len += strlen(name);
-      if (!(inst.data.size.type = malloc(len + 1)))
-        return IDL_RETCODE_NO_MEMORY;
-      pos = strlen(name);
-      memcpy(inst.data.size.type, name, pos);
-      type_spec = idl_type_spec(node);
-      for (; idl_is_alias(type_spec); type_spec = idl_type_spec(type_spec)) {
-        if (!idl_is_declarator(type_spec))
-          break;
-        literal = ((const idl_declarator_t *)type_spec)->const_expr;
-        for(; literal && pos < len; literal = idl_next(literal)) {
-          dims = literal->value.uint32;
-          cnt = idl_snprintf(inst.data.size.type+pos, (len+1)-pos, fmt, dims);
-          assert(cnt > 0);
-          pos += (size_t)cnt;
-        }
-      }
-      if (idl_is_string(node) && idl_is_bounded(node)) {
-        dims = ((const idl_string_t *)type_spec)->maximum;
-        cnt = idl_snprintf(inst.data.size.type+pos, (len+1)-pos, fmt, dims);
-        assert(cnt > 0);
-        pos += (size_t)cnt;
-      }
-      assert(pos == len && !literal);
-    } else if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
+    if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
       uint32_t dims = ((const idl_string_t *)type_spec)->maximum;
       if (idl_asprintf(&inst.data.size.type, "char[%"PRIu32"]", dims) == -1)
         goto err_type;
@@ -446,18 +383,27 @@ stash_size(
     }
   } else {
     type_spec = idl_unalias(idl_type_spec(node), 0u);
-
     assert(idl_is_array(node) || idl_is_array(type_spec));
-    type_spec = idl_unalias(type_spec, IDL_UNALIAS_IGNORE_ARRAY);
-    if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
-      uint32_t dims = ((const idl_string_t *)type_spec)->maximum;
+    alias = type_spec = idl_type_spec(node);
+    while (idl_is_alias(type_spec)) {
+      if (idl_is_array(type_spec)) {
+        type_spec = idl_type_spec(type_spec);
+        if (!idl_is_array(type_spec))
+          alias = type_spec;
+      } else {
+        type_spec = idl_type_spec(type_spec);
+      }
+    }
+
+    if (idl_is_string(alias) && idl_is_bounded(alias)) {
+      uint32_t dims = ((const idl_string_t *)alias)->maximum;
       if (idl_asprintf(&inst.data.size.type, "char[%"PRIu32"]", dims) == -1)
         goto err_type;
-    } else if (idl_is_string(type_spec)) {
+    } else if (idl_is_string(alias)) {
       if (!(inst.data.size.type = idl_strdup("char *")))
         goto err_type;
     } else {
-      if (!(inst.data.size.type = typename(type_spec)))
+      if (!(inst.data.size.type = typename(alias)))
         goto err_type;
     }
   }
