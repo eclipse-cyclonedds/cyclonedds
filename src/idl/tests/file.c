@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -47,7 +48,7 @@ CU_Clean(idl_file)
 struct scrub_test {
   const char *input;
   const char *output;
-  const char length;
+  const int8_t length;
 };
 
 const struct scrub_test tests[] = {
