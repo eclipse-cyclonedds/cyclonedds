@@ -1635,10 +1635,18 @@ static struct cfgelem shmem_cfgelems[] = {
     VALUES(
       "off","fatal","error","warn","info","debug","verbose"
     )),
-  INT("CacheSize", NULL, 1, "0",
-    MEMBER(sub_cache_size),
+  INT("SubQueueCapacity", NULL, 1, "16",
+    MEMBER(sub_queue_capacity),
     FUNCTIONS(0, uf_natint, 0, pf_int),
-    DESCRIPTION("<p>This element decides the cache size of shared memory subscriber. Now max cache size can be 256.</p>")),
+    DESCRIPTION("<p>Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue.</p>")),
+  INT("SubHistoryRequest", NULL, 1, "16",
+    MEMBER(sub_history_request),
+    FUNCTIONS(0, uf_natint, 0, pf_int),
+    DESCRIPTION("<p>The number of messages which will be requested from the publisher published before the subscriber was subscribed.</p>")),
+  INT("PubHistoryCapacity", NULL, 1, "16",
+    MEMBER(pub_history_capacity),
+    FUNCTIONS(0, uf_natint, 0, pf_int),
+    DESCRIPTION("<p>The number of messages which will be stored on the publisher for late joining subscribers, should be equal to or larger than SubHistoryRequest.</p>")),
   END_MARKER
 };
 #endif

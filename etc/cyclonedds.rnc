@@ -1015,9 +1015,21 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 <p>The Shared Memory element allows specifying various parameters related to using shared memory.</p>""" ] ]
       element SharedMemory {
         [ a:documentation [ xml:lang="en" """
-<p>This element decides the cache size of shared memory subscriber. Now max cache size can be 256.</p>
-<p>The default value is: "0".</p>""" ] ]
-        element CacheSize {
+<p>Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue.</p>
+<p>The default value is: "16".</p>""" ] ]
+        element SubQueueCapacity {
+          xsd:integer
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>The number of messages which will be requested from the publisher published before the subscriber was subscribed.</p>
+<p>The default value is: "16".</p>""" ] ]
+        element SubHistoryRequest {
+          xsd:integer
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>The number of messages which will be stored on the publisher for late joining subscribers, should be equal to or larger than SubHistoryRequest.</p>
+<p>The default value is: "16".</p>""" ] ]
+        element PubHistoryCapacity {
           xsd:integer
         }?
         & [ a:documentation [ xml:lang="en" """

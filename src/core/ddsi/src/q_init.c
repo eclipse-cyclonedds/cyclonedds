@@ -70,6 +70,7 @@
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsrt/io.h"
+#include "dds/ddsrt/shm_sync.h"
 #include "iceoryx_binding_c/runtime.h"
 #endif
 
@@ -1171,6 +1172,8 @@ int rtps_init (struct ddsi_domaingv *gv)
     GVLOG (DDS_LC_SHM, "My iceoryx address: %s, Port: %d\n", sptr, pid);
     memset ((char *) gv->loc_iceoryx_addr.address, 0, sizeof (gv->loc_iceoryx_addr.address));
     ddsrt_strlcpy ((char *) gv->loc_iceoryx_addr.address, sptr, strlen (sptr));
+
+    shm_mutex_init();
   }
 #endif
 

@@ -37,6 +37,15 @@
 
 #ifdef DDS_HAS_SHM
 #include "shm__monitor.h"
+#include "dds/ddsi/q_receive.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "iceoryx_binding_c/wait_set.h"
+#include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/shm_sync.h"
+
+
 #endif
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
@@ -579,12 +588,21 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     rc = dds_get_type_name(topic, type_name, type_name_size + 1);
     assert(rc == DDS_RETCODE_OK);
     DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Reader's topic name will be DDS:Cyclone:%s\n", topic_name);
-    rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor.storage, "DDS_CYCLONE", type_name, topic_name, NULL);
-    shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
 
+    iox_sub_options_t opts;
+    iox_sub_options_init(&opts);
+
+    opts.queueCapacity = rd->m_entity.m_domain->gv.config.sub_queue_capacity;
+    opts.historyRequest = rd->m_entity.m_domain->gv.config.sub_history_request;
+    rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor.storage, "DDS_CYCLONE", type_name, topic_name, &opts);
+    shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+    
+    // those are set once and never changed
+    // they are used to access reader and monitor from the callback when data is received
     rd->m_iox_sub_stor.monitor = &rd->m_entity.m_domain->m_shm_monitor;
     rd->m_iox_sub_stor.parent_reader = rd;
 
+    // ICEORYX TODO: di we need this sleep?
     dds_sleepfor(DDS_MSECS(10));
   }
 #endif

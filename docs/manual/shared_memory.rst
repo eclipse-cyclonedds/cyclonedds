@@ -54,7 +54,6 @@ Save the following xml as cyclonedds.xml.
       <Domain id="any">
           <SharedMemory>
               <Enable>true</Enable>
-              <CacheSize>256</CacheSize>
           </SharedMemory>
       </Domain>
   </CycloneDDS>
@@ -143,7 +142,6 @@ Here is some tips for you to get started.
             <SharedMemory>
                 <Enable>true</Enable>
                 <LogLevel>info</LogLevel>
-                <CacheSize>256</CacheSize>
             </SharedMemory>
         </Domain>
     </CycloneDDS>
