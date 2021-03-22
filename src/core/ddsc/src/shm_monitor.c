@@ -98,8 +98,16 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
   printf("***received data via iceoryx\n");
   void* chunk = NULL;
   thread_state_awake(lookup_thread_state(), rd->m_rd->e.gv);
-  while (ChunkReceiveResult_SUCCESS == iox_sub_take_chunk(rd->m_iox_sub, (const void** const)&chunk))
+
+  while (true)
   {
+    //ICEORYX_TODO mutex could be more fine grained, one per subscriber
+    shm_mutex_lock();
+    enum iox_ChunkReceiveResult take_result = iox_sub_take_chunk(rd->m_iox_sub, (const void** const)&chunk);
+    shm_mutex_unlock();
+    if (ChunkReceiveResult_SUCCESS != take_result)
+      break;
+
     iceoryx_header_t* ice_hdr = (iceoryx_header_t*)chunk;
     // Get proxy writer
     struct proxy_writer* pwr = entidx_lookup_proxy_writer_guid(rd->m_rd->e.gv->entity_index, &ice_hdr->guid);
@@ -111,9 +119,6 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
       continue;
     }
 
-    //ICEORYX_TODO: we do not create a copy during this call (?)
-    //              afterwards we have the data pointer (chunk) and additional information 
-    //              such as timestamp
     // Create struct ddsi_serdata
     struct ddsi_serdata* d = ddsi_serdata_from_iox(rd->m_topic->m_stype, ice_hdr->data_kind, &rd->m_iox_sub, chunk);
     //keyhash needs to be set here
