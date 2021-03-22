@@ -94,7 +94,7 @@ static void setup (bool remote, struct writethread_arg *wrarg)
     </Discovery>\
     <Internal>\
       <Test>\
-        <XmitLossiness>333</XmitLossiness>\
+        <XmitLossiness>100</XmitLossiness>\
       </Test>\
     </Internal>";
   char *conf_pub = ddsrt_expand_envvars (config, 0);
@@ -211,7 +211,7 @@ static void stress_data_avail_delete_reader (bool remote, int duration)
   printf ("badparam %"PRIu32"\n", ddsrt_atomic_ld32 (&lstatus.badparam));
   printf ("stop %"PRIu32"\n", ddsrt_atomic_ld32 (&wrarg.stop));
 
-  CU_ASSERT_FATAL (nreaders > 100); // sanity check
+  CU_ASSERT_FATAL (nreaders > 10); // sanity check
   CU_ASSERT_FATAL (!ddsrt_atomic_ld32 (&lstatus.error));
   CU_ASSERT_FATAL (ddsrt_atomic_ld32 (&lstatus.taken) > 100);
   CU_ASSERT_FATAL (!(ddsrt_atomic_ld32 (&wrarg.stop) & 2));
