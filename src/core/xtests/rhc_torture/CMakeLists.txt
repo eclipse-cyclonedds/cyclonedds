@@ -24,3 +24,4 @@ add_test(
   NAME rhc_torture
   COMMAND rhc_torture 314159265 0 5000 0)
 set_property(TEST rhc_torture PROPERTY TIMEOUT 20)
+set_test_library_paths(rhc_torture)
