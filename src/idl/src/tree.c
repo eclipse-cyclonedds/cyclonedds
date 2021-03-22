@@ -1959,10 +1959,15 @@ idl_create_enum(
   node->enumerators = enumerators;
   for (idl_enumerator_t *e1 = enumerators; e1; e1 = idl_next(e1), value++) {
     e1->node.parent = (idl_node_t*)node;
-    if (e1->value)
+
+    for (idl_annotation_appl_t *a = e1->node.annotations; a; a = idl_next(a)) {
+      assert(a->annotation);
+      if (strcmp(a->annotation->name->identifier, "value") != 0)
+        continue;
       value = e1->value;
-    else
-      e1->value = value;
+      break;
+    }
+    e1->value = value;
     for (idl_enumerator_t *e2 = enumerators; e2; e2 = idl_next(e2)) {
       if (e2 == e1)
         break;
