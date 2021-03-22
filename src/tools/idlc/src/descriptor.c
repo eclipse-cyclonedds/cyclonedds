@@ -364,7 +364,7 @@ static idl_retcode_t
 stash_size(
   struct descriptor *descriptor, uint32_t index, const void *node)
 {
-  const idl_type_spec_t *alias, *type_spec;
+  const idl_type_spec_t *type_spec;
   struct instruction inst = { SIZE, { .size = { NULL } } };
 
   if (idl_is_sequence(node)) {
@@ -382,28 +382,61 @@ stash_size(
         goto err_type;
     }
   } else {
-    type_spec = idl_unalias(idl_type_spec(node), 0u);
-    assert(idl_is_array(node) || idl_is_array(type_spec));
-    alias = type_spec = idl_type_spec(node);
+    const idl_type_spec_t *array = NULL;
+
+    type_spec = idl_type_spec(node);
     while (idl_is_alias(type_spec)) {
-      if (idl_is_array(type_spec)) {
-        type_spec = idl_type_spec(type_spec);
-        if (!idl_is_array(type_spec))
-          alias = type_spec;
-      } else {
-        type_spec = idl_type_spec(type_spec);
-      }
+      if (idl_is_array(type_spec))
+        array = type_spec;
+      type_spec = idl_type_spec(type_spec);
     }
 
-    if (idl_is_string(alias) && idl_is_bounded(alias)) {
-      uint32_t dims = ((const idl_string_t *)alias)->maximum;
+    if (array) {
+      type_spec = idl_type_spec(array);
+      /* sequences are special if non-implicit, because no implicit sequence
+         is generated for typedefs of a sequence with a complex declarator */
+      if (idl_is_sequence(type_spec))
+        type_spec = array;
+    } else {
+      assert(idl_is_array(node));
+      type_spec = idl_type_spec(node);
+    }
+
+    if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
+      uint32_t dims = ((const idl_string_t *)type_spec)->maximum;
       if (idl_asprintf(&inst.data.size.type, "char[%"PRIu32"]", dims) == -1)
         goto err_type;
-    } else if (idl_is_string(alias)) {
+    } else if (idl_is_string(type_spec)) {
       if (!(inst.data.size.type = idl_strdup("char *")))
         goto err_type;
+    } else if (idl_is_array(type_spec)) {
+      char *type;
+      size_t len, pos;
+      const idl_const_expr_t *const_expr;
+
+      if (!(type = typename(type_spec)))
+        goto err_type;
+
+      len = pos = strlen(type);
+      const_expr = ((const idl_declarator_t *)type_spec)->const_expr;
+      assert(const_expr);
+      for (; const_expr; const_expr = idl_next(const_expr), len += 3)
+        /* do nothing */;
+
+      inst.data.size.type = malloc(len + 1);
+      if (inst.data.size.type)
+        memcpy(inst.data.size.type, type, pos);
+      free(type);
+      if (!inst.data.size.type)
+        goto err_type;
+
+      const_expr = ((const idl_declarator_t *)type_spec)->const_expr;
+      assert(const_expr);
+      for (; const_expr; const_expr = idl_next(const_expr), pos += 3)
+        memmove(inst.data.size.type + pos, "[0]", 3);
+      inst.data.size.type[pos] = '\0';
     } else {
-      if (!(inst.data.size.type = typename(alias)))
+      if (!(inst.data.size.type = typename(type_spec)))
         goto err_type;
     }
   }
