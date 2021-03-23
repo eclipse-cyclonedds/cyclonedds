@@ -31,7 +31,6 @@ static void shm_wakeup_trigger_callback(iox_user_trigger_t trigger);
 static void shm_subscriber_callback(iox_sub_t subscriber);
 
 void shm_monitor_init(shm_monitor_t* monitor) {
-    printf("***create shm_monitor\n");
     ddsrt_mutex_init(&monitor->m_lock);
 
     monitor->m_listener = iox_listener_init(&monitor->m_listener_storage);
@@ -42,15 +41,15 @@ void shm_monitor_init(shm_monitor_t* monitor) {
     monitor->m_state = SHM_MONITOR_RUNNING;
 }
 
-void shm_monitor_destroy(shm_monitor_t* monitor) {    
-    //shm_monitor_wake_and_disable(monitor); //do we need this?
+void shm_monitor_destroy(shm_monitor_t* monitor) {
+    //note: we must ensure no readers are actively using the monitor anymore,    
+    shm_monitor_wake_and_disable(monitor);
+    while(monitor->m_state == SHM_MONITOR_RUNNING); //spin until the callback thread is no longer running
 
-    //note: we must ensure no readers are actively using the monitor anymore,
-    //the monitor and thus the waitset is to be destroyed after all readers are destroyed
+    //ICEORYX_TODO: is it ok to deinit while readers are still attached?
+    //              they should be automatically detached
     iox_listener_deinit(monitor->m_listener);
-
     ddsrt_mutex_destroy(&monitor->m_lock);
-    printf("***destroyed shm_monitor\n");
 }
 
 dds_return_t shm_monitor_wake_and_invoke(shm_monitor_t* monitor, void (*function) (void*), void* arg) {
@@ -76,26 +75,22 @@ dds_return_t shm_monitor_wake_and_enable(shm_monitor_t* monitor) {
 dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader) {
 
     if(iox_listener_attach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_HAS_DATA, shm_subscriber_callback) != ListenerResult_SUCCESS) {
-        printf("error attaching reader %p\n", reader);      
+        DDS_CLOG(DDS_LC_SHM, &reader->m_rd->e.gv->logconfig, "error attaching reader\n");    
         return DDS_RETCODE_OUT_OF_RESOURCES;
     }
     ++monitor->m_number_of_attached_readers;
 
-    printf("attached reader %p with storage %p, subscriber %p\n", reader, &reader->m_iox_sub_stor, reader->m_iox_sub);
     return DDS_RETCODE_OK;
 }
 
 dds_return_t shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader) {
     iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_HAS_DATA); 
     --monitor->m_number_of_attached_readers;
-
-    printf("detached reader %p\n", reader);
     return DDS_RETCODE_OK;
 }
 
 static void receive_data_wakeup_handler(struct dds_reader* rd)
 {
-  printf("***received data via iceoryx\n");
   void* chunk = NULL;
   thread_state_awake(lookup_thread_state(), rd->m_rd->e.gv);
 
@@ -148,7 +143,6 @@ release:
 }
 
 static void shm_wakeup_trigger_callback(iox_user_trigger_t trigger) {    
-    printf("trigger callback %p\n", trigger);
     // we know it is actually in extended storage since we created it like this
     iox_user_trigger_storage_extension_t* storage = (iox_user_trigger_storage_extension_t*) trigger;
     if(storage->monitor->m_state == SHM_MONITOR_RUNNING && storage->call) {
@@ -157,7 +151,6 @@ static void shm_wakeup_trigger_callback(iox_user_trigger_t trigger) {
 }
 
 static void shm_subscriber_callback(iox_sub_t subscriber) {
-    printf("subscriber callback %p \n", subscriber);
     // we know it is actually in extended storage since we created it like this
     iox_sub_storage_extension_t *storage = (iox_sub_storage_extension_t*) subscriber; 
     if(storage->monitor->m_state == SHM_MONITOR_RUNNING) {
