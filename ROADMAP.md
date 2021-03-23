@@ -20,7 +20,7 @@ The roadmap presented here is indicative and subject to change.
 
 ## Short-term milestones
 
-**Cyclone 0.8, Dec 2020**
+**Cyclone 0.8**
 
  * C++11 APIs (GA)
  * New APIs to access to serialized CDR data
@@ -34,7 +34,7 @@ The roadmap presented here is indicative and subject to change.
    * Formal feature list also showing test coverage
    * APIs marked stable (each API in formal feature list), evolving or experimental
 
-**Cyclone 0.9, March 2021**
+**Cyclone 0.9**
 
  * Integration of Durability Service for Transient and Persistent data
  * Shared memory transport support
@@ -46,7 +46,7 @@ The roadmap presented here is indicative and subject to change.
 
 ## Midterm milestones
 
-**Cyclone 1.0 June 2021**
+**Cyclone 1.0**
 
  * Static discovery
  * Static memory allocation
