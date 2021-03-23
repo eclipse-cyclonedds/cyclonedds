@@ -919,13 +919,12 @@ emit_array(
 
     /* short-circuit on simple types */
     if (simple) {
-      if (idl_is_bounded(type_spec)) {
-        uint32_t max = ((const idl_string_t *)type_spec)->maximum;
+      if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
         /* generate data field noop [next-insn, elem-insn] */
         if ((ret = stash_single(descriptor, nop, 0)))
           return ret;
         /* generate data field bound */
-        if ((ret = stash_single(descriptor, nop, max)))
+        if ((ret = stash_single(descriptor, nop, idl_bound(type_spec)+1)))
           return ret;
       }
       if (!idl_is_alias(node) && idl_is_struct(type->node))
@@ -989,8 +988,7 @@ emit_declarator(
       return ret;
     /* generate data field bound */
     if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
-      uint32_t max = ((const idl_string_t *)type_spec)->maximum;
-      if ((ret = stash_single(descriptor, nop, max)))
+      if ((ret = stash_single(descriptor, nop, idl_bound(type_spec)+1)))
         return ret;
     }
 
