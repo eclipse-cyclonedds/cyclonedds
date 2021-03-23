@@ -338,8 +338,9 @@ emit_typedef(
   void *user_data)
 {
   struct generator *gen = user_data;
-  const char *fmt, *spc = " ";
-  const char *name = NULL, *type = NULL;
+  char dims[32] = "";
+  const char *fmt;
+  const char *name = NULL, *type = NULL, *star = "";
   const idl_declarator_t *declarator;
   const idl_literal_t *literal;
   const idl_type_spec_t *type_spec;
@@ -348,21 +349,24 @@ emit_typedef(
   /* typedef of sequence requires a little magic */
   if (idl_is_sequence(type_spec))
     return emit_sequence_typedef(pstate, revisit, path, node, user_data);
+  if (idl_is_string(type_spec) && idl_is_bounded(type_spec))
+    idl_snprintf(dims, sizeof(dims), "[%" PRIu32 "]", idl_bound(type_spec)+1);
+  else if (idl_is_string(type_spec))
+    star = "*";
   if (!(type = AUTO(typename(type_spec))))
     return IDL_RETCODE_NO_MEMORY;
   declarator = ((const idl_typedef_t *)node)->declarators;
   for (; declarator; declarator = idl_next(declarator)) {
     if (!(name = AUTO(typename(declarator))))
       return IDL_RETCODE_NO_MEMORY;
-    fmt = "typedef %1$s %2$s";
-    if (idl_fprintf(gen->header.handle, fmt, type, name) < 0)
+    fmt = "typedef %1$s %2$s%3$s%4$s";
+    if (idl_fprintf(gen->header.handle, fmt, type, star, name, dims) < 0)
       return IDL_RETCODE_NO_MEMORY;
     literal = declarator->const_expr;
     for (; literal; literal = idl_next(literal)) {
-      fmt = "%s[%" PRIu32 "]";
-      if (idl_fprintf(gen->header.handle, fmt, spc, literal->value.uint32) < 0)
+      fmt = "[%" PRIu32 "]";
+      if (idl_fprintf(gen->header.handle, fmt, literal->value.uint32) < 0)
         return IDL_RETCODE_NO_MEMORY;
-      spc = "";
     }
     fmt = ";\n\n"
           "#define %1$s__alloc() \\\n"
