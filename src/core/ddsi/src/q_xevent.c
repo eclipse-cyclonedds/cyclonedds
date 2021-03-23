@@ -832,6 +832,7 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct proxy_
     return NULL;
   }
 
+  GVTRACE ("send pre-emptive acknack(rd "PGUIDFMT" -> pwr "PGUIDFMT")\n", PGUID (rwn->rd_guid), PGUID (pwr->e.guid));
   nn_xmsg_setdstPWR (msg, pwr);
   struct nn_xmsg_marker sm_marker;
   AckNack_t *an = nn_xmsg_append (msg, &sm_marker, ACKNACK_SIZE (0));
@@ -879,7 +880,10 @@ static void handle_xevk_acknack (struct nn_xpack *xp, struct xevent *ev, ddsrt_m
     return;
   }
 
-  if (!pwr->have_seen_heartbeat)
+  /* Keep sending pre-emptive nack until the reader has seen a directed heartbeat for
+     its match, so that the reader will properly set its initial sequence number, e.g.
+     in case of a volatile reader that joined after the writer has written any data */
+  if (!pwr->have_seen_heartbeat || (vendor_is_eclipse (pwr->c.vendor) && !rwn->has_seen_directed_heartbeat))
     msg = make_preemptive_acknack (ev, pwr, rwn, tnow);
   else if (!(rwn->heartbeat_since_ack || rwn->heartbeatfrag_since_ack))
     msg = NULL;

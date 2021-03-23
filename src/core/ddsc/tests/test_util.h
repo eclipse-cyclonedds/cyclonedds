@@ -18,7 +18,4 @@
 /* Get unique g_topic name on each invocation. */
 char *create_unique_topic_name (const char *prefix, char *name, size_t size);
 
-/* Sync the reader to the writer and writer to reader */
-void sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_entity_t participant_wr, dds_entity_t writer);
-
 #endif /* _TEST_UTIL_H_ */

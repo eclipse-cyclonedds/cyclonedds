@@ -89,17 +89,21 @@ static void maybe_set_reader_in_sync (struct proxy_writer *pwr, struct pwr_rd_ma
     case PRMSS_TLCATCHUP:
       if (last_deliv_seq >= wn->u.not_in_sync.end_of_tl_seq)
       {
+        ETRACE (pwr, " msr_in_sync("PGUIDFMT" tlcatchup to sync)\n", PGUID (wn->rd_guid));
         wn->in_sync = PRMSS_SYNC;
         if (--pwr->n_readers_out_of_sync == 0)
+        {
+          ETRACE (pwr, "pwr "PGUIDFMT" fastpath true\n", PGUID (pwr->e.guid));
           local_reader_ary_setfastpath_ok (&pwr->rdary, true);
+        }
       }
       break;
     case PRMSS_OUT_OF_SYNC:
-      if (!wn->filtered)
+      if (!wn->filtered && (!vendor_is_eclipse (pwr->c.vendor) || wn->has_seen_directed_heartbeat))
       {
         if (pwr->have_seen_heartbeat && nn_reorder_next_seq (wn->u.not_in_sync.reorder) == nn_reorder_next_seq (pwr->reorder))
         {
-          ETRACE (pwr, " msr_in_sync("PGUIDFMT" out-of-sync to tlcatchup)", PGUID (wn->rd_guid));
+          ETRACE (pwr, " msr_in_sync("PGUIDFMT" out-of-sync to tlcatchup)\n", PGUID (wn->rd_guid));
           wn->in_sync = PRMSS_TLCATCHUP;
           maybe_set_reader_in_sync (pwr, wn, last_deliv_seq);
         }
@@ -656,9 +660,9 @@ struct defer_hb_state {
   uint64_t prd_iid;
 };
 
-static void defer_heartbeat_to_peer (struct writer *wr, const struct whc_state *whcst, struct proxy_reader *prd, int hbansreq, struct defer_hb_state *defer_hb_state)
+static void defer_heartbeat_to_peer (struct writer *wr, const struct whc_state *whcst, struct proxy_reader *prd, seqno_t rd_match_seq, bool has_replied_to_hb, int hbansreq, struct defer_hb_state *defer_hb_state)
 {
-  ETRACE (wr, "defer_heartbeat_to_peer: "PGUIDFMT" -> "PGUIDFMT" - queue for transmit\n", PGUID (wr->e.guid), PGUID (prd->e.guid));
+  ETRACE (wr, "defer_heartbeat_to_peer: "PGUIDFMT" -> "PGUIDFMT" - rd-match-seq=%"PRId64" queue for transmit\n", PGUID (wr->e.guid), PGUID (prd->e.guid), rd_match_seq);
 
   if (defer_hb_state->m != NULL)
   {
@@ -680,16 +684,16 @@ static void defer_heartbeat_to_peer (struct writer *wr, const struct whc_state *
 
   defer_hb_state->m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
   nn_xmsg_setdstPRD (defer_hb_state->m, prd);
-  add_Heartbeat (defer_hb_state->m, wr, whcst, hbansreq, 0, prd->e.guid.entityid, 0);
+  add_Heartbeat (defer_hb_state->m, wr, whcst, hbansreq, 0, prd->e.guid.entityid, rd_match_seq, has_replied_to_hb, 0);
   defer_hb_state->evq = wr->evq;
   defer_hb_state->hbansreq = hbansreq;
   defer_hb_state->wr_iid = wr->e.iid;
   defer_hb_state->prd_iid = prd->e.iid;
 }
 
-static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *whcst, struct proxy_reader *prd, int hbansreq, struct defer_hb_state *defer_hb_state)
+static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *whcst, struct proxy_reader *prd, seqno_t rd_match_seq, bool has_replied_to_hb, int hbansreq, struct defer_hb_state *defer_hb_state)
 {
-  defer_heartbeat_to_peer (wr, whcst, prd, hbansreq, defer_hb_state);
+  defer_heartbeat_to_peer (wr, whcst, prd, rd_match_seq, has_replied_to_hb, hbansreq, defer_hb_state);
   qxev_msg (wr->evq, defer_hb_state->m);
   defer_hb_state->m = NULL;
 }
@@ -898,17 +902,15 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
     if (WHCST_ISEMPTY(&whcst))
     {
       RSTTRACE (" whc-empty ");
-      force_heartbeat_to_peer (wr, &whcst, prd, 1, defer_hb_state);
-      hb_sent_in_response = 1;
     }
     else
     {
       RSTTRACE (" rebase ");
-      force_heartbeat_to_peer (wr, &whcst, prd, 1, defer_hb_state);
-      hb_sent_in_response = 1;
       numbits = rst->gv->config.accelerate_rexmit_block_size;
       seqbase = whcst.min_seq;
     }
+    force_heartbeat_to_peer (wr, &whcst, prd, rn->init_seq, rn->has_replied_to_hb, 1, defer_hb_state);
+    hb_sent_in_response = 1;
   }
   else if (!rn->assumed_in_sync)
   {
@@ -1062,7 +1064,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   {
     RSTTRACE (" rexmit#%"PRIu32" maxseq:%"PRId64"<%"PRId64"<=%"PRId64"", msgs_sent, max_seq_in_reply, seq_xmit, wr->seq);
 
-    defer_heartbeat_to_peer (wr, &whcst, prd, 1, defer_hb_state);
+    defer_heartbeat_to_peer (wr, &whcst, prd, rn->init_seq, rn->has_replied_to_hb, 1, defer_hb_state);
     hb_sent_in_response = 1;
 
     /* The primary purpose of hbcontrol_note_asyncwrite is to ensure
@@ -1076,7 +1078,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
      now if we haven't done so already */
   if (!(msg->smhdr.flags & ACKNACK_FLAG_FINAL) && !hb_sent_in_response)
   {
-    defer_heartbeat_to_peer (wr, &whcst, prd, 0, defer_hb_state);
+    defer_heartbeat_to_peer (wr, &whcst, prd, rn->init_seq, rn->has_replied_to_hb, 0, defer_hb_state);
   }
   RSTTRACE (")");
  out:
@@ -1177,7 +1179,16 @@ static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct hand
   if (!(msg->smhdr.flags & HEARTBEAT_FLAG_FINAL))
     wn->ack_requested = 1;
   if (arg->directed_heartbeat)
-    wn->directed_heartbeat = 1;
+  {
+    wn->directed_heartbeat_since_ack = 1;
+    if (!wn->has_seen_directed_heartbeat)
+    {
+      wn->has_seen_directed_heartbeat = 1;
+      RSTTRACE (" seen-directed-hb");
+      if (wn->in_sync == PRMSS_OUT_OF_SYNC)
+        maybe_set_reader_in_sync (pwr, wn, nn_reorder_next_seq (wn->u.not_in_sync.reorder) - 1);
+    }
+  }
 
   sched_acknack_if_needed (wn->acknack_xevent, pwr, wn, arg->tnow_mt, true);
 }
@@ -1206,6 +1217,8 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
   src.entityid = msg->writerId;
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->readerId;
+
+  bool directed = (dst.entityid.u != NN_ENTITYID_UNKNOWN && vendor_is_eclipse (rst->vendor));
 
   RSTTRACE ("HEARTBEAT(%s%s#%"PRId32":%"PRId64"..%"PRId64" ", msg->smhdr.flags & HEARTBEAT_FLAG_FINAL ? "F" : "",
     msg->smhdr.flags & HEARTBEAT_FLAG_LIVELINESS ? "L" : "", msg->count, firstseq, lastseq);
@@ -1286,7 +1299,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
     gap = nn_rdata_newgap (rmsg);
     int filtered = 0;
 
-    if (pwr->filtered && !is_null_guid(&dst))
+    if (pwr->filtered && !is_null_guid (&dst))
     {
       for (wn = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers); wn; wn = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, wn))
       {
@@ -1310,7 +1323,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
 
     if (!filtered)
     {
-      if ((res = nn_reorder_gap (&sc, pwr->reorder, gap, 1, firstseq, &refc_adjust)) > 0)
+      if (!directed && (res = nn_reorder_gap (&sc, pwr->reorder, gap, 1, firstseq, &refc_adjust)) > 0)
       {
         if (pwr->deliver_synchronously)
           deliver_user_data_synchronously (&sc, NULL);
@@ -1319,7 +1332,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
       }
       for (wn = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers); wn; wn = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, wn))
       {
-        if (wn->in_sync != PRMSS_SYNC)
+        if ((!directed || guid_eq(&wn->rd_guid, &dst)) && wn->in_sync != PRMSS_SYNC)
         {
           seqno_t last_deliv_seq = 0;
           switch (wn->in_sync)
@@ -1331,8 +1344,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
               last_deliv_seq = nn_reorder_next_seq (pwr->reorder) - 1;
               break;
             case PRMSS_OUT_OF_SYNC: {
-              struct nn_reorder *ro = wn->u.not_in_sync.reorder;
-              if ((res = nn_reorder_gap (&sc, ro, gap, 1, firstseq, &refc_adjust)) > 0)
+              if ((res = nn_reorder_gap (&sc, wn->u.not_in_sync.reorder, gap, 1, firstseq, &refc_adjust)) > 0)
               {
                 if (pwr->deliver_synchronously)
                   deliver_user_data_synchronously (&sc, &wn->rd_guid);
@@ -1360,7 +1372,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
   arg.timestamp = timestamp;
   arg.tnow = tnow;
   arg.tnow_mt = ddsrt_time_monotonic ();
-  arg.directed_heartbeat = (dst.entityid.u != NN_ENTITYID_UNKNOWN && vendor_is_eclipse (rst->vendor));
+  arg.directed_heartbeat = directed;
   handle_forall_destinations (&dst, pwr, (ddsrt_avl_walk_t) handle_Heartbeat_helper, &arg);
   RSTTRACE (")");
 
@@ -1497,7 +1509,14 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
     else
     {
       if (directed_heartbeat)
-        m->directed_heartbeat = 1;
+      {
+        m->directed_heartbeat_since_ack = 1;
+        if (!m->has_seen_directed_heartbeat)
+        {
+          m->has_seen_directed_heartbeat = 1;
+          RSTTRACE (" seen-directed-hb-frag");
+        }
+      }
       m->heartbeatfrag_since_ack = 1;
 
       DDSRT_STATIC_ASSERT ((NN_FRAGMENT_NUMBER_SET_MAX_BITS % 32) == 0);
@@ -1641,7 +1660,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
        hearbeats will go out at a reasonably high rate for a while */
     struct whc_state whcst;
     whc_get_state(wr->whc, &whcst);
-    defer_heartbeat_to_peer (wr, &whcst, prd, 1, defer_hb_state);
+    defer_heartbeat_to_peer (wr, &whcst, prd, rn->init_seq, rn->has_replied_to_hb, 1, defer_hb_state);
     writer_hbcontrol_note_asyncwrite (wr, ddsrt_time_monotonic ());
   }
 
@@ -1707,22 +1726,51 @@ static int handle_one_gap (struct proxy_writer *pwr, struct pwr_rd_match *wn, se
   int gap_was_valuable = 0;
   ASSERT_MUTEX_HELD (&pwr->e.lock);
 
-  /* Clean up the defrag admin: no fragments of a missing sample will
-     be arriving in the future */
-  if (!(wn && wn->filtered))
+  if (wn != NULL)
   {
-    nn_defrag_notegap (pwr->defrag, a, b);
-
-    /* Primary reorder: the gap message may cause some samples to become
-     deliverable. */
-
-    if ((res = nn_reorder_gap (&sc, pwr->reorder, gap, a, b, refc_adjust)) > 0)
+    switch (wn->in_sync)
     {
-      if (pwr->deliver_synchronously)
-        deliver_user_data_synchronously (&sc, NULL);
-      else
-        nn_dqueue_enqueue (pwr->dqueue, &sc, res);
+      case PRMSS_SYNC:
+      case PRMSS_TLCATCHUP:
+        if (!wn->filtered)
+        {
+          /* Clean up the defrag admin: no fragments of a missing sample will
+            be arriving in the future */
+          nn_defrag_notegap (pwr->defrag, a, b);
+
+          /* Primary reorder: the gap message may cause some samples to become
+          deliverable. */
+          ETRACE (pwr, "reorder_gap for pwr "PGUIDFMT"\n", PGUID (pwr->e.guid));
+          if ((res = nn_reorder_gap (&sc, pwr->reorder, gap, a, b, refc_adjust)) > 0)
+          {
+            if (pwr->deliver_synchronously)
+              deliver_user_data_synchronously (&sc, NULL);
+            else
+              nn_dqueue_enqueue (pwr->dqueue, &sc, res);
+          }
+        }
+        break;
+      case PRMSS_OUT_OF_SYNC:
+        /* Out-of-sync readers never deal with samples with a sequence
+          number beyond end_of_tl_seq -- and so it needn't be bothered
+          with gaps that start beyond that number */
+        ETRACE (pwr, "reorder_gap for match %p (rd "PGUIDFMT")\n", pwr, PGUID (wn->rd_guid));
+        if ((res = nn_reorder_gap (&sc, wn->u.not_in_sync.reorder, gap, a, b, refc_adjust)) > 0)
+        {
+          if (pwr->deliver_synchronously)
+            deliver_user_data_synchronously (&sc, &wn->rd_guid);
+          else
+            nn_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, res);
+        }
+        break;
     }
+
+    /* Upon receipt of data a reader can only become in-sync if there
+       is something to deliver; for missing data, you just don't know.
+       The return value of reorder_gap _is_ sufficiently precise, but
+       why not simply check?  It isn't a very expensive test. */
+    if (wn->in_sync != PRMSS_SYNC)
+      maybe_set_reader_in_sync (pwr, wn, b - 1);
   }
 
   /* If the result was REJECT or TOO_OLD, then this gap didn't add
@@ -1732,38 +1780,6 @@ static int handle_one_gap (struct proxy_writer *pwr, struct pwr_rd_match *wn, se
   DDSRT_STATIC_ASSERT_CODE (NN_REORDER_ACCEPT == 0);
   if (res >= 0)
     gap_was_valuable = 1;
-
-  /* Out-of-sync readers never deal with samples with a sequence
-     number beyond end_of_tl_seq -- and so it needn't be bothered
-     with gaps that start beyond that number */
-  if (wn != NULL && wn->in_sync != PRMSS_SYNC)
-  {
-    switch (wn->in_sync)
-    {
-      case PRMSS_SYNC:
-        assert(0);
-        break;
-      case PRMSS_TLCATCHUP:
-        break;
-      case PRMSS_OUT_OF_SYNC:
-        if ((res = nn_reorder_gap (&sc, wn->u.not_in_sync.reorder, gap, a, b, refc_adjust)) > 0)
-        {
-          if (pwr->deliver_synchronously)
-            deliver_user_data_synchronously (&sc, &wn->rd_guid);
-          else
-            nn_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, res);
-        }
-        if (res >= 0)
-          gap_was_valuable = 1;
-        break;
-    }
-
-    /* Upon receipt of data a reader can only become in-sync if there
-       is something to deliver; for missing data, you just don't know.
-       The return value of reorder_gap _is_ sufficiently precise, but
-       why not simply check?  It isn't a very expensive test. */
-    maybe_set_reader_in_sync (pwr, wn, b-1);
-  }
 
   return gap_was_valuable;
 }

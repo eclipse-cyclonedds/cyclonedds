@@ -2289,7 +2289,10 @@ static void proxy_writer_drop_connection (const struct ddsi_guid *pwr_guid, stru
       if (m->in_sync != PRMSS_SYNC)
       {
         if (--pwr->n_readers_out_of_sync == 0)
+        {
+          ETRACE (pwr, "pwr "PGUIDFMT" fastpath true\n", PGUID (pwr->e.guid));
           local_reader_ary_setfastpath_ok (&pwr->rdary, true);
+        }
       }
       if (rd->reliable)
         pwr->n_reliable_readers--;
@@ -2381,6 +2384,10 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
     m->seq = MAX_SEQ_NUMBER;
   else
     m->seq = wr->seq;
+  if (prd->c.xqos->durability.kind == DDS_DURABILITY_VOLATILE)
+    m->init_seq = wr->seq;
+  else
+    m->init_seq = 0;
   m->last_seq = m->seq;
   if (ddsrt_avl_lookup_ipath (&wr_readers_treedef, &wr->readers, &prd->e.guid, &path))
   {
@@ -2670,7 +2677,8 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   m->ack_requested = 0;
   m->heartbeat_since_ack = 0;
   m->heartbeatfrag_since_ack = 0;
-  m->directed_heartbeat = 0;
+  m->directed_heartbeat_since_ack = 0;
+  m->has_seen_directed_heartbeat = 0;
   m->nack_sent_on_nackdelay = 0;
 
 #ifdef DDS_HAS_SECURITY
@@ -2727,6 +2735,7 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   {
     ELOGDISC (pwr, " - out-of-sync");
     pwr->n_readers_out_of_sync++;
+    ELOGDISC (pwr, " - fastpath false\n");
     local_reader_ary_setfastpath_ok (&pwr->rdary, false);
   }
   m->count = init_count;
@@ -4349,6 +4358,7 @@ dds_return_t delete_writer_nolinger_locked (struct writer *wr)
 
   ELOGDISC (wr, "delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (wr->e.guid));
   builtintopic_write_endpoint (wr->e.gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), false);
+  ELOGDISC (wr, "set fastpath false ");
   local_reader_ary_setinvalid (&wr->rdary);
   entidx_remove_writer_guid (wr->e.gv->entity_index, wr);
   writer_set_state (wr, WRST_DELETING);
@@ -6497,6 +6507,7 @@ int delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid,
      trust rdary[] anymore, which is because removing the proxy writer from the hash
      table will prevent the readers from looking up the proxy writer, and consequently
      from removing themselves from the proxy writer's rdary[]. */
+  GVLOGDISC ("set fastpath false ");
   local_reader_ary_setinvalid (&pwr->rdary);
   GVLOGDISC ("- deleting\n");
   builtintopic_write_endpoint (gv->builtin_topic_interface, &pwr->e, timestamp, false);

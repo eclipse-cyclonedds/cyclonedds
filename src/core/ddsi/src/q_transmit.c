@@ -194,7 +194,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   if (prd_guid == NULL)
   {
     nn_xmsg_setdstN (msg, wr->as, wr->as_group);
-    add_Heartbeat (msg, wr, whcst, hbansreq, 0, to_entityid (NN_ENTITYID_UNKNOWN), issync);
+    add_Heartbeat (msg, wr, whcst, hbansreq, 0, to_entityid (NN_ENTITYID_UNKNOWN), 0, true, issync);
   }
   else
   {
@@ -210,7 +210,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
     nn_xmsg_setdstPRD (msg, prd);
     // send to all readers in the participant: whether or not the entityid is set affects
     // the retransmit requests
-    add_Heartbeat (msg, wr, whcst, hbansreq, 0, to_entityid (NN_ENTITYID_UNKNOWN), issync);
+    add_Heartbeat (msg, wr, whcst, hbansreq, 0, to_entityid (NN_ENTITYID_UNKNOWN), 0, true, issync);
   }
 
   /* It is possible that the encoding removed the submessage(s). */
@@ -345,7 +345,7 @@ struct nn_xmsg *writer_hbcontrol_p2p(struct writer *wr, const struct whc_state *
   /* set the destination explicitly to the unicast destination and the fourth
      param of add_Heartbeat needs to be the guid of the reader */
   nn_xmsg_setdstPRD (msg, prd);
-  add_Heartbeat (msg, wr, whcst, hbansreq, 0, prd->e.guid.entityid, 1);
+  add_Heartbeat (msg, wr, whcst, hbansreq, 0, prd->e.guid.entityid, 0, true, 1);
 
   if (nn_xmsg_size(msg) == 0)
   {
@@ -357,7 +357,7 @@ struct nn_xmsg *writer_hbcontrol_p2p(struct writer *wr, const struct whc_state *
 }
 #endif
 
-void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, int hbliveliness, ddsi_entityid_t dst, int issync)
+void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, int hbliveliness, ddsi_entityid_t dst, seqno_t rd_match_seq, bool has_replied_to_hb, int issync)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
@@ -418,6 +418,15 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
         /* if we can generate an empty heartbeat => do so. */
         max = min - 1;
       }
+    }
+    /* In case min is <= than the sequence number at the moment of matching the
+      targeted reader, set it to that seqno + 1. This makes a volatile reader skipping
+      samples that were send before it was matched and prevents the reader from
+      sending rxmit requests for these samples. */
+    if (!has_replied_to_hb && min <= rd_match_seq)
+    {
+      GVTRACE ("min from %"PRId64" to %"PRId64, min, rd_match_seq + 1);
+      min = rd_match_seq + 1;
     }
   }
   hb->firstSN = toSN (min);
@@ -722,7 +731,7 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
   ddsrt_mutex_lock (&wr->e.lock);
   nn_xmsg_setdstN (msg, wr->as, wr->as_group);
   whc_get_state (wr->whc, &whcst);
-  add_Heartbeat (msg, wr, &whcst, 0, 1, to_entityid (NN_ENTITYID_UNKNOWN), 1);
+  add_Heartbeat (msg, wr, &whcst, 0, 1, to_entityid (NN_ENTITYID_UNKNOWN), 0, true, 1);
   ddsrt_mutex_unlock (&wr->e.lock);
   nn_xpack_addmsg (xp, msg, 0);
   nn_xpack_send (xp, true);

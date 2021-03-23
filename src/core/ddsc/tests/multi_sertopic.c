@@ -212,96 +212,30 @@ static bool get_and_check_writer_status (size_t nwr, const dds_entity_t *wrs, si
 {
   dds_return_t rc;
   struct dds_publication_matched_status x;
+  bool result = true;
   for (size_t i = 0; i < nwr; i++)
   {
     rc = dds_get_publication_matched_status (wrs[i], &x);
     CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
     if (x.current_count != nrd)
-      return false;
+      result = false;
   }
-  return true;
+  return result;
 }
 
 static bool get_and_check_reader_status (size_t nrd, const dds_entity_t *rds, size_t nwr)
 {
   dds_return_t rc;
   struct dds_subscription_matched_status x;
+  bool result = true;
   for (size_t i = 0; i < nrd; i++)
   {
     rc = dds_get_subscription_matched_status (rds[i], &x);
     CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
     if (x.current_count != nwr)
-      return false;
+      result = false;
   }
-  return true;
-}
-
-static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, size_t nwr)
-{
-  dds_return_t rc;
-  struct dds_entity *x;
-
-  rc = dds_entity_pin (rdhandle, &x);
-  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
-  CU_ASSERT_FATAL (dds_entity_kind (x) == DDS_KIND_READER);
-
-  struct reader * const rd = ((struct dds_reader *) x)->m_rd;
-  struct rd_pwr_match *m;
-  ddsi_guid_t cursor;
-  size_t wrcount = 0;
-  thread_state_awake (lookup_thread_state (), rd->e.gv);
-  ddsrt_mutex_lock (&rd->e.lock);
-
-  memset (&cursor, 0, sizeof (cursor));
-  while ((m = ddsrt_avl_lookup_succ (&rd_writers_treedef, &rd->writers, &cursor)) != NULL)
-  {
-    cursor = m->pwr_guid;
-    ddsrt_mutex_unlock (&rd->e.lock);
-    struct proxy_writer * const pwr = entidx_lookup_proxy_writer_guid (rd->e.gv->entity_index, &cursor);
-    ddsrt_mutex_lock (&pwr->rdary.rdary_lock);
-    if (!fastpath)
-      pwr->rdary.fastpath_ok = false;
-    else
-    {
-      while (!pwr->rdary.fastpath_ok)
-      {
-        ddsrt_mutex_unlock (&pwr->rdary.rdary_lock);
-        dds_sleepfor (DDS_MSECS (10));
-        ddsrt_mutex_lock (&pwr->rdary.rdary_lock);
-      }
-    }
-    wrcount++;
-    ddsrt_mutex_unlock (&pwr->rdary.rdary_lock);
-    ddsrt_mutex_lock (&rd->e.lock);
-  }
-
-  memset (&cursor, 0, sizeof (cursor));
-  while ((m = ddsrt_avl_lookup_succ (&rd_local_writers_treedef, &rd->local_writers, &cursor)) != NULL)
-  {
-    cursor = m->pwr_guid;
-    ddsrt_mutex_unlock (&rd->e.lock);
-    struct writer * const wr = entidx_lookup_writer_guid (rd->e.gv->entity_index, &cursor);
-    ddsrt_mutex_lock (&wr->rdary.rdary_lock);
-    if (!fastpath)
-      wr->rdary.fastpath_ok = fastpath;
-    else
-    {
-      while (!wr->rdary.fastpath_ok)
-      {
-        ddsrt_mutex_unlock (&wr->rdary.rdary_lock);
-        dds_sleepfor (DDS_MSECS (10));
-        ddsrt_mutex_lock (&wr->rdary.rdary_lock);
-      }
-    }
-    wrcount++;
-    ddsrt_mutex_unlock (&wr->rdary.rdary_lock);
-    ddsrt_mutex_lock (&rd->e.lock);
-  }
-  ddsrt_mutex_unlock (&rd->e.lock);
-  thread_state_asleep (lookup_thread_state ());
-  dds_entity_unpin (x);
-
-  CU_ASSERT_FATAL (wrcount == nwr);
+  return result;
 }
 
 static struct ddsi_sertype *get_sertype_from_reader (dds_entity_t reader)
@@ -439,12 +373,15 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
     }
 
     printf ("wait for discovery, fastpath_ok; delete & recreate readers\n");
-    while (!(get_and_check_writer_status (sizeof (writers) / sizeof (writers[0]), writers, sizeof (readers) / sizeof (readers[0])) &&
-             get_and_check_reader_status (sizeof (readers) / sizeof (readers[0]), readers, sizeof (writers) / sizeof (writers[0]))))
+    bool wrs = false, rds = false;
+    do
     {
       rc = dds_waitset_wait (waitset, NULL, 0, DDS_SECS(5));
       CU_ASSERT_FATAL (rc >= 1);
+      wrs = get_and_check_writer_status (sizeof (writers) / sizeof (writers[0]), writers, sizeof (readers) / sizeof (readers[0]));
+      rds = get_and_check_reader_status (sizeof (readers) / sizeof (readers[0]), readers, sizeof (writers) / sizeof (writers[0]));
     }
+    while (!wrs || !rds);
 
     /* we want to check both the fast path and the slow path ... so first wait
        for it to be set on all (proxy) writers, then possibly reset it */

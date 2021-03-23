@@ -302,7 +302,7 @@ static enum add_AckNack_result get_AckNack_info (const struct proxy_writer *pwr,
 #endif
       result = AANR_NACK;
     }
-    else if (rwn->directed_heartbeat && (!rwn->nack_sent_on_nackdelay || nackdelay_passed))
+    else if (rwn->directed_heartbeat_since_ack && (!rwn->nack_sent_on_nackdelay || nackdelay_passed))
     {
       info->nack_sent_on_nackdelay = false;
 #if ACK_REASON_IN_FLAGS
@@ -408,7 +408,7 @@ struct nn_xmsg *make_and_resched_acknack (struct xevent *ev, struct proxy_writer
   // possibility of not sending a message, but that is only in case of failures of some sort.
   // Resetting the flags and bailing out simply means we will wait until the next heartbeat to
   // do try again.
-  rwn->directed_heartbeat = 0;
+  rwn->directed_heartbeat_since_ack = 0;
   rwn->heartbeat_since_ack = 0;
   rwn->heartbeatfrag_since_ack = 0;
   rwn->nack_sent_on_nackdelay = (info.nack_sent_on_nackdelay ? 1 : 0);
