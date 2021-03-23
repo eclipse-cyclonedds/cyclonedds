@@ -40,8 +40,11 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_whc_builtintopic.c
     dds_serdata_builtintopic.c
     dds_sertype_builtintopic.c
-    shm_monitor.c #TODO: conditionally include in build, need separate shm target?
 )
+
+if (DDS_HAS_SHM)
+    list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm_monitor.c")
+endif()
 
 PREPEND(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/dds>$<INSTALL_INTERFACE:include/dds>"
     dds.h
@@ -83,6 +86,10 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__serdata_builtintopic.h
     dds__get_status.h
 )
+
+if (DDS_HAS_SHM)
+    list(APPEND hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm__monitor.h")
+endif()
 
 generate_export_header(
     ddsc
