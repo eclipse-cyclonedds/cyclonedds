@@ -166,10 +166,10 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
   //                 when is the free called exactly?
   if (d->c.iox_chunk)
   {
-    shm_mutex_lock();
+    shm_lock_iox_sub(*(d->c.iox_subscriber));
     iox_sub_release_chunk(*(d->c.iox_subscriber), d->c.iox_chunk);
     d->c.iox_chunk = NULL;
-    shm_mutex_unlock();
+    shm_unlock_iox_sub(*(d->c.iox_subscriber));
   }
 #endif
 

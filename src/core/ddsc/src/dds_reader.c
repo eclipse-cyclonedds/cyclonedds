@@ -44,8 +44,6 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/shm_sync.h"
-
-
 #endif
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
@@ -96,6 +94,7 @@ static dds_return_t dds_reader_delete (dds_entity *e)
     DDS_CLOG (DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's subscriber\n");
     shm_monitor_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
     iox_sub_deinit(rd->m_iox_sub);
+    ddsrt_mutex_destroy(&rd->m_iox_sub_stor.mutex);
   }
 #endif
 
@@ -592,6 +591,9 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     iox_sub_options_t opts;
     iox_sub_options_init(&opts);
 
+    // ICEORYX TODO: handle failure (how should the system behave if resources are insufficient?)
+    ddsrt_mutex_init(&rd->m_iox_sub_stor.mutex);
+
     opts.queueCapacity = rd->m_entity.m_domain->gv.config.sub_queue_capacity;
     opts.historyRequest = rd->m_entity.m_domain->gv.config.sub_history_request;
     rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor.storage, "DDS_CYCLONE", type_name, topic_name, &opts);
@@ -602,8 +604,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     rd->m_iox_sub_stor.monitor = &rd->m_entity.m_domain->m_shm_monitor;
     rd->m_iox_sub_stor.parent_reader = rd;
 
-    // ICEORYX TODO: di we need this sleep?
-    dds_sleepfor(DDS_MSECS(10));
+    // ICEORYX TODO: do we need this sleep?
+    // dds_sleepfor(DDS_MSECS(10));
   }
 #endif
 

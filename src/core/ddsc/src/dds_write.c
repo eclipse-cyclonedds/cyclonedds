@@ -248,6 +248,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       //ICEORYX_TODO: we block here until we get a chunk ... do we want this? it can be indefinitely
       while (1)
       {
+        //ICEORYX_TODO: could use more fine grained mutex on publisher side (per publisher)
         shm_mutex_lock();
         enum iox_AllocationResult alloc_result = iox_pub_loan_chunk(wr->m_iox_pub, (void**)(&d->iox_chunk), (unsigned int)(sizeof(iceoryx_header_t) + send_size));
         shm_mutex_unlock();

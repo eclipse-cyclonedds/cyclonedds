@@ -17,25 +17,19 @@
 
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/shm_sync.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-// ICEORYX_TODO: the iceoryx waitset (listener) has a maximum number of events that can be registered but this can only be queried
-// at runtime
+// ICEORYX_TODO: the iceoryx listener has a maximum number of subscribers that can be registered but this can only be //  queried at runtime
 // currently it is hardcoded to be 128 events in the iceoryx C binding
-// and we need one event for the wake up trigger
+// and we need one registration slot for the wake up trigger
 #define SHM_MAX_NUMBER_OF_READERS 127
 
 struct dds_reader;
 struct shm_monitor ;
-
-typedef struct {
-    iox_sub_storage_t storage;
-    struct shm_monitor* monitor;
-    struct dds_reader* parent_reader;
-} iox_sub_storage_extension_t;
 
 typedef struct {
     iox_user_trigger_storage_t storage;
@@ -47,8 +41,8 @@ typedef struct {
 } iox_user_trigger_storage_extension_t;
 
 enum shm_monitor_states {
-    SHM_MONITOR_RUNNING = 1,
-    SHM_MONITOR_NOT_RUNNING = 2
+    SHM_MONITOR_NOT_RUNNING = 0,
+    SHM_MONITOR_RUNNING = 1
 };
 
 /// @brief abstraction for monitoring the shared memory communication with an internal
