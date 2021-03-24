@@ -15,6 +15,7 @@ provision=false
 asynclist="sync async"
 modelist="listener polling waitset"
 modelistdefault=true
+rate=""
 sizelist="0 20 50 100 200 500 1000 2000 5000 10000 20000 50000 100000 200000 500000 1000000"
 timeout=30
 loopback=true
@@ -24,6 +25,7 @@ force=false
 netstats=false
 watermarks=""
 remotes=""
+security="none"
 
 operation=throughput
 
@@ -47,6 +49,20 @@ OPTIONS
                "$modelist")
   -s SIZELIST  run for sizes in SIZELIST (default: "$sizelist")
                if SIZELIST is empty, it uses ddsperf's OU topic instead
+  -R RATE      set rate to RATE (e.g., -R 100Hz) rather than run as fast
+               as possible
+  -S MODE      whether and how to configure DDS Security:
+                 none              no security (default)
+                 sign              synonym for rtps-sign
+                 encrypt           synonym for payload-encrypt
+                 rtps-sign         RTPS message signing
+                 rtps-encrypt      RTPS message encryption
+                 metadata-sign     RTPS submessage signing
+                 metadata-encrypt  RTPS submessage encryption
+                 payload-encrypt   payload encryption only
+                 *.xml             governance XML file to use
+               the various \"encrypt\" modes use AES-256
+               uses secperf directory for storing generated security config
   -l LOOPBACK  enable/disable multicast loopback (true/false, default: $loopback)
   -o DIR       store results in dir (default: $resultdir)
   -O OPER      operation: \"throughput\" or \"latency\" (default: $operation)
@@ -74,7 +90,7 @@ dokill_and_exit () {
     exit 1
 }
 
-while getopts "fi:I:b:d:pa:m:s:t:o:O:l:WX" opt ; do
+while getopts "fi:I:b:d:pa:m:s:S:t:o:O:l:R:WX" opt ; do
     case $opt in
         f) force=true ;;
         i) nwif="$OPTARG" ;;
@@ -89,10 +105,12 @@ while getopts "fi:I:b:d:pa:m:s:t:o:O:l:WX" opt ; do
         a) asynclist="$OPTARG" ;;
         m) modelist="$OPTARG" ; modelistdefault=false ;;
         s) sizelist="$OPTARG" ;;
-        l) loopback="OPTARG" ;;
+        S) security="$OPTARG" ;;
+        l) loopback="$OPTARG" ;;
         t) timeout="$OPTARG" ;;
         o) resultdir="$OPTARG" ; resultdirdefault=false ;;
         O) operation="$OPTARG" ;;
+        R) rate="$OPTARG" ;;
         W) watermarks="<Watermarks><WhcHigh>100kB</WhcHigh></Watermarks>" ;;
         X) netstats=true ;;
         h) usage ;;
@@ -101,6 +119,7 @@ done
 shift $((OPTIND-1))
 if [ $# -lt 1 ] ; then usage ; fi
 remotes="$@"
+[ -n "$security" ] || security="none"
 
 case "$operation" in
     throughput)
@@ -129,6 +148,133 @@ for a in $asynclist ; do
         *) echo "unsupported sync/async \"$a\" for operation \"$operation\"" >&2 ; exit 1 ;;
     esac
 done
+case "$security" in
+    none)
+        gensec=false
+        gensec_governance=false
+        ;;
+    sign|encrypt|rtps-sign|rtps-encrypt|metadata-sign|metadata-encrypt|payload-encrypt)
+        gensec=true
+        gensec_governance=true
+        ;;
+    *.xml)
+        cp "$security" $secdir/governance.xml || exit 1
+        gensec=true
+        gensec_governance=false
+        ;;
+    *) echo "unsupport security mode \"$security\"" >&2 ; exit 1 ;;
+esac
+
+secfiles="secperf/sloth_priv_key.pem secperf/sloth_cert.pem secperf/id_ca_cert.pem secperf/perm_ca_cert.pem secperf/governance.p7s secperf/permissions.p7s"
+if $gensec ; then
+    mkdir -p secperf || { echo "can't create secperf directory" >&2 ; exit 1 ; }
+    if [ "`uname -s`" = "Darwin" -a "`which openssl`" = /usr/bin/openssl ] ; then
+        if which brew >/dev/null 2>&1 ; then
+            openssl="`brew --prefix openssl`/bin/openssl"
+        fi
+    else
+        openssl=openssl
+    fi
+    [ -n "$openssl" ] || { echo "this needs a functioning openssl executable" 2>&1 ; exit 1 ; }
+
+    if $gensec_governance ; then
+        case $security in
+            rtps-sign|sign)
+                rtps_protection=SIGN
+                metadata_protection=NONE
+                data_protection=NONE
+                ;;
+            rtps-encrypt)
+                rtps_protection=ENCRYPT
+                metadata_protection=NONE
+                data_protection=NONE
+                ;;
+            metadata-sign)
+                rtps_protection=NONE
+                metadata_protection=SIGN
+                data_protection=NONE
+                ;;
+            metadata-encrypt)
+                rtps_protection=NONE
+                metadata_protection=ENCRYPT
+                data_protection=NONE
+                ;;
+            payload-encrypt|encrypt)
+                rtps_protection=NONE
+                metadata_protection=NONE
+                data_protection=ENCRYPT
+                ;;
+            *) exit 1 ;;
+        esac
+        cat >secperf/governance.xml <<EOF
+<?xml version="1.0" encoding=\"utf-8\"?>
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://www.omg.org/spec/DDS-SECURITY/20170901/omg_shared_ca_governance.xsd">
+  <domain_access_rules>
+    <domain_rule>
+      <domains> <id_range> <min>0</min> <max>230</max> </id_range> </domains>
+      <allow_unauthenticated_participants>false</allow_unauthenticated_participants>
+      <enable_join_access_control>true</enable_join_access_control>
+      <discovery_protection_kind>NONE</discovery_protection_kind>
+      <liveliness_protection_kind>NONE</liveliness_protection_kind>
+      <rtps_protection_kind>$rtps_protection</rtps_protection_kind>
+      <topic_access_rules>
+        <topic_rule>
+          <topic_expression>*</topic_expression>
+          <enable_discovery_protection>true</enable_discovery_protection>
+          <enable_liveliness_protection>true</enable_liveliness_protection>
+          <enable_read_access_control>true</enable_read_access_control>
+          <enable_write_access_control>true</enable_write_access_control>
+          <metadata_protection_kind>$metadata_protection</metadata_protection_kind>
+          <data_protection_kind>$data_protection</data_protection_kind>
+        </topic_rule>
+      </topic_access_rules>
+    </domain_rule>
+  </domain_access_rules>
+</dds>
+EOF
+        cat >secperf/permissions.xml <<EOF
+<?xml version="1.0" encoding="utf-8" ?>
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:noNamespaceSchemaLocation="https://www.omg.org/spec/DDS-SECURITY/20170901/omg_shared_ca_permissions.xsd">
+  <permissions>
+    <grant name="default_permissions">
+      <subject_name>emailAddress=alice@cycloneddssecurity.adlinktech.com,CN=Alice Example,O=Example Organization,OU=Organizational Unit Name,L=Locality Name,ST=OV,C=NL</subject_name>
+      <validity>
+        <!-- Format is CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm] in GMT -->
+        <not_before>2020-01-01T01:00:00</not_before>
+        <not_after>2120-01-01T01:00:00</not_after>
+      </validity>
+      <allow_rule>
+        <domains> <id_range> <min>0</min> <max>230</max> </id_range> </domains>
+        <publish>
+          <topics> <topic>*</topic> </topics>
+          <partitions> <partition>*</partition> </partitions>
+        </publish>
+        <subscribe>
+          <topics> <topic>*</topic> </topics>
+          <partitions> <partition>*</partition> </partitions>
+        </subscribe>
+      </allow_rule>
+      <default>DENY</default>
+    </grant>
+  </permissions>
+</dds>
+EOF
+
+        # generate any missing keys/certificates
+        [ -r secperf/id_ca_priv_key.pem ] || $openssl genrsa -out secperf/id_ca_priv_key.pem 2048
+        [ -r secperf/id_ca_cert.pem ] || $openssl req -x509 -key secperf/id_ca_priv_key.pem -out secperf/id_ca_cert.pem -days 3650 -subj "/C=NL/ST=OV/L=Locality Name/OU=Example OU/O=Example ID CA Organization/CN=Example ID CA/emailAddress=authority@cycloneddssecurity.adlinktech.com"
+        [ -r secperf/perm_ca_priv_key.pem ] || $openssl genrsa -out secperf/perm_ca_priv_key.pem 2048
+        [ -r secperf/perm_ca_cert.pem ] || $openssl req -x509 -key secperf/perm_ca_priv_key.pem -out secperf/perm_ca_cert.pem -days 3650 -subj "/C=NL/ST=OV/L=Locality Name/OU=Example OU/O=Example CA Organization/CN=Example Permissions CA/emailAddress=authority@cycloneddssecurity.adlinktech.com"
+        [ -r secperf/sloth_priv_key.pem ] || $openssl genrsa -out secperf/sloth_priv_key.pem 2048
+        [ -r secperf/sloth.csr ] || $openssl req -new -key secperf/sloth_priv_key.pem -out secperf/sloth.csr -subj "/C=NL/ST=OV/L=Locality Name/OU=Organizational Unit Name/O=Example Organization/CN=Alice Example/emailAddress=alice@cycloneddssecurity.adlinktech.com"
+        [ -r secperf/sloth_cert.pem ] || $openssl x509 -req -CA secperf/id_ca_cert.pem -CAkey secperf/id_ca_priv_key.pem -CAcreateserial -days 3650 -in secperf/sloth.csr -out secperf/sloth_cert.pem
+
+        # always sign permissions, governance
+        $openssl smime -sign -in secperf/permissions.xml -text -out secperf/permissions.p7s -signer secperf/perm_ca_cert.pem -inkey secperf/perm_ca_priv_key.pem
+        $openssl smime -sign -in secperf/governance.xml -text -out secperf/governance.p7s -signer secperf/perm_ca_cert.pem -inkey secperf/perm_ca_priv_key.pem
+    fi
+fi
 
 [ -z "$rnwif" ] && rnwif=$nwif
 cfg=cdds-simple.xml
@@ -138,10 +284,35 @@ cat >$cfg <<EOF
     <General>
       <NetworkInterfaceAddress>\${nwif}</NetworkInterfaceAddress>
       <EnableMulticastLoopback>$loopback</EnableMulticastLoopback>
+      <MaxMessageSize>65500B</MaxMessageSize>
     </General>
+EOF
+if [ "$security" != "none" ] ; then
+cat >>$cfg <<EOF
+    <Security>
+      <Authentication>
+        <Library initFunction="init_authentication" finalizeFunction="finalize_authentication" path="dds_security_auth"/>
+        <IdentityCA>file:\${secdir}/id_ca_cert.pem</IdentityCA>
+        <IdentityCertificate>file:\${secdir}/sloth_cert.pem</IdentityCertificate>
+        <PrivateKey>file:\${secdir}/sloth_priv_key.pem</PrivateKey>
+      </Authentication>
+      <Cryptographic>
+        <Library initFunction="init_crypto" finalizeFunction="finalize_crypto" path="dds_security_crypto"/>
+      </Cryptographic>
+      <AccessControl>
+        <Library initFunction="init_access_control" finalizeFunction="finalize_access_control" path="dds_security_ac"/>
+        <PermissionsCA>file:\${secdir}/perm_ca_cert.pem</PermissionsCA>
+        <Governance>file:\${secdir}/governance.p7s</Governance>
+        <Permissions>file:\${secdir}/permissions.p7s</Permissions>
+      </AccessControl>
+    </Security>
+EOF
+fi
+cat >>$cfg <<EOF
     <Internal>
       <SynchronousDeliveryPriorityThreshold>\${async:-0}</SynchronousDeliveryPriorityThreshold>
       <LeaseDuration>2s</LeaseDuration>
+      <MinimumSocketReceiveBufferSize>6MB</MinimumSocketReceiveBufferSize>
       $watermarks
     </Internal>
     <Tracing>
@@ -155,7 +326,7 @@ EOF
 
 localbindir=""
 locallibdir=""
-for x in "" /Release /RelWithDebInfo bin/Debug ; do
+for x in "" /Release /RelWithDebInfo /Debug ; do
     if [ -x bin$x/ddsperf -a -f lib$x/libddsc$libsuffix ] ; then
         localbindir=bin$x
         locallibdir=lib$x
@@ -186,6 +357,10 @@ if $provision ; then
         scp $localbindir/ddsperf $r:$remotedir/bin
     done
 fi
+if [ "$security" != "none" ] ; then
+    ssh $r mkdir -p $remotedir $remotedir/secperf
+    scp $secfiles $r:$remotedir/secperf
+fi
 
 topic=KS
 [ -z "$sizelist" ] && topic=OU
@@ -213,10 +388,11 @@ export CYCLONEDDS_URI=file://$remotedir/$cfg
 export async=$async
 export nwif=$rnwif
 export logdir=.
+export secdir=./secperf
 #export trace=trace,-content
 cd $remotedir
 remotebindir=""
-for x in "" /Release /RelWithDebInfo bin/Debug ; do
+for x in "" /Release /RelWithDebInfo Debug ; do
     if [ -x bin\$x/ddsperf ] ; then
         remotebindir=bin\$x
         break
@@ -228,7 +404,7 @@ if [ -z "\$remotebindir" ] ; then
 fi
 #/usr/sbin/tcpdump -c 20000 -s 0 -w /tmp/x.pcap -i eth0 -Z erik 'udp[8:4]=0x52545053' & tcpdumppid=\$!
 #/usr/sbin/tcpdump -c 20000 -s 0 -w /tmp/x.pcap -i eth0 -Z erik 'udp' & tcpdumppid=\$!
-\$remotebindir/ddsperf -1 -X -d $rnwif$bandwidth -c -T $topic $remote_oper $sub_mode > $remote_oper.log & pid=\$!
+\$remotebindir/ddsperf -1l -X -d $rnwif$bandwidth -c -T $topic $remote_oper $sub_mode > $remote_oper.log & pid=\$!
 echo \$pid > $operation-test-$remote_oper-\$pid.pid
 wait \$pid
 [ -n "\$tcpdumppid" ] && kill -INT \$tcpdumppid
@@ -242,6 +418,7 @@ EOF
         mkdir $outdir
         rm -f $outdir/$local_oper.log
         export logdir=$outdir
+        export secdir=./secperf
         if $netstats ; then
             ping `echo $1 | sed -e 's/.*@//'` > $outdir/icmpping.log & netstats_pids=$!
             if [ "`uname -s`" = "Darwin" ] ; then
@@ -255,7 +432,7 @@ EOF
             $localbindir/ddsperf -Q minmatch:$# -Q initwait:3 \
                         -X -c -d $nwif$bandwidth \
                         -D $timeout -T $topic \
-                        $local_oper size $size | \
+                        $local_oper size $size $rate | \
                 tee -a $outdir/$local_oper.log
         done
 
