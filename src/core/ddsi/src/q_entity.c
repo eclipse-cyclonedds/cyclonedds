@@ -988,6 +988,13 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   if ((ret = q_omg_security_check_create_participant (pp, gv->config.domainId)) != DDS_RETCODE_OK)
     goto not_allowed;
   *ppguid = pp->e.guid;
+  // FIXME: Adjusting the GUID and then fixing up the GUID -> iid mapping here is an ugly hack
+  if (pp->e.tk)
+  {
+    ddsi_tkmap_instance_unref (gv->m_tkmap, pp->e.tk);
+    pp->e.tk = builtintopic_get_tkmap_entry (gv->builtin_topic_interface, &pp->e.guid);
+    pp->e.iid = pp->e.tk->m_iid;
+ }
 #else
   if (ddsi_xqos_has_prop_prefix (&pp->plist->qos, "dds.sec."))
   {
