@@ -179,16 +179,37 @@ if(CMAKE_VERSION VERSION_LESS 3.13)
 endif()
 
 # Make it easy to enable MSVC, Clang's/gcc's analyzers
-option(ANALYZER "Enable analyzer on the build.")
+set(ANALYZER "" CACHE STRING "Analyzer to enable on the build.")
 if(ANALYZER)
-  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-    if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "10")
-      message(STATUS "Enabling analyzer")
-      add_compile_options(-fanalyzer)
+  # GCC and Visual Studio offer builtin analyzers. Clang supports static
+  # analysis through separate tools, e.g. Clang-Tidy, which can be used in
+  # conjunction with other compilers too. Specifying -DANALYZER=on enables
+  # the builtin analyzer for the compiler, enabling clang-tidy in case of
+  # Clang. Specifying -DANALYZER=clang-tidy always enables clang-tidy.
+  string(REPLACE " " "" ANALYZER "${ANALYZER}")
+  string(TOLOWER "${ANALYZER}" ANALYZER)
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND ANALYZER STREQUAL "on")
+    set(ANALYZER "clang-tidy")
+  endif()
+
+  if(ANALYZER STREQUAL "clang-tidy")
+    # Clang-Tidy is an extensible tool that offers more than static analysis.
+    # https://clang.llvm.org/extra/clang-tidy/checks/list.html
+    message(STATUS "Enabling analyzer: clang-tidy")
+    set(CMAKE_C_CLANG_TIDY "clang-tidy;-checks=clang-analyzer-*")
+    if(WERROR)
+      set(CMAKE_C_CLANG_TIDY "${CMAKE_C_CLANG_TIDY};--warnings-as-errors=*")
     endif()
-  elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
-    message(STATUS "Enabling analyzer")
-    add_compile_options(/analyze)
+  elseif(ANALYZER STREQUAL "on")
+    if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+      if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "10")
+        message(STATUS "Enabling analyzer: GCC")
+        add_compile_options(-fanalyzer)
+      endif()
+    elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+      message(STATUS "Enabling analyzer: MSVC")
+      add_compile_options(/analyze:stacksize 524288)
+    endif()
   endif()
 endif()
 set(SANITIZER "" CACHE STRING "Sanitizers to enable on the build.")
