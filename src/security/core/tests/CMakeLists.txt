@@ -78,6 +78,7 @@ if(ENABLE_SSL AND OPENSSL_FOUND)
     "common/cert_utils.c"
     "authentication.c"
     "access_control.c"
+    "builtintopic.c"
     "config.c"
     "crypto.c"
     "handshake.c"
