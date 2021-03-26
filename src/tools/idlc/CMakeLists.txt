@@ -11,8 +11,8 @@
 #
 if(CMAKE_CROSSCOMPILING)
   find_program(IDLC_EXECUTABLE idlc REQUIRED)
-  add_executable(idlc IMPORTED GLOBAL)
-  set_property(TARGET idlc PROPERTY IMPORTED_LOCATION ${IDLC_EXECUTABLE}})
+  add_executable(CycloneDDS::idlc IMPORTED GLOBAL)
+  set_property(TARGET CycloneDDS::idlc PROPERTY IMPORTED_LOCATION ${IDLC_EXECUTABLE})
 else()
   include(CheckIncludeFile)
 
