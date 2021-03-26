@@ -175,6 +175,7 @@ static void readcondition_init (void)
 
 static void readcondition_fini (void)
 {
+  dds_sleepfor(DDS_MSECS(10));
   dds_return_t ret = dds_delete (g_participant);
   CU_ASSERT_FATAL (ret == 0);
 }

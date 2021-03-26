@@ -397,6 +397,7 @@ CU_Test (ddsc_filter, compat)
     },
   };
   checkdata (rd, &exp, "rd");
+  dds_sleepfor(DDS_MSECS(10));
   dds_delete (dp);
 }
 

@@ -236,6 +236,7 @@ read_instance_init(void)
 static void
 read_instance_fini(void)
 {
+    dds_sleepfor(DDS_MSECS(10));
     dds_delete(g_rcond);
     dds_delete(g_qcond);
     dds_delete(g_reader);
@@ -567,6 +568,7 @@ CU_TheoryDataPoints(ddsc_read_instance, already_deleted) = {
 CU_Theory((dds_entity_t *rdr), ddsc_read_instance, already_deleted, .init=read_instance_init, .fini=read_instance_fini)
 {
     dds_return_t ret;
+    dds_sleepfor(DDS_MSECS(10));
     ret = dds_delete(*rdr);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_read_instance(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_hdl_valid);
@@ -581,6 +583,7 @@ CU_TheoryDataPoints(ddsc_read_instance_wl, already_deleted) = {
 CU_Theory((dds_entity_t *rdr), ddsc_read_instance_wl, already_deleted, .init=read_instance_init, .fini=read_instance_fini)
 {
     dds_return_t ret;
+    dds_sleepfor(DDS_MSECS(10));
     ret = dds_delete(*rdr);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_read_instance_wl(*rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid);
@@ -596,6 +599,7 @@ CU_Theory((dds_entity_t *rdr), ddsc_read_instance_mask, already_deleted, .init=r
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
+    dds_sleepfor(DDS_MSECS(10));
     ret = dds_delete(*rdr);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_read_instance_mask(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_hdl_valid, mask);
@@ -611,6 +615,7 @@ CU_Theory((dds_entity_t *rdr), ddsc_read_instance_mask_wl, already_deleted, .ini
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
+    dds_sleepfor(DDS_MSECS(10));
     ret = dds_delete(*rdr);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_read_instance_mask_wl(*rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid, mask);

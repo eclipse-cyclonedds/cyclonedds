@@ -214,6 +214,7 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
   }
 
   /* delete readers, wait until no matching reader */
+  dds_sleepfor(DDS_MSECS(10));
   if (rrd)
   {
     ret = dds_delete (reader_remote);
