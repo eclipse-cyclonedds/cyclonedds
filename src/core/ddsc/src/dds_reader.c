@@ -88,19 +88,20 @@ static dds_return_t dds_reader_delete (dds_entity *e)
     ddsrt_free (ptrs);
   }
 
+  thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
+  dds_rhc_free (rd->m_rhc);
+  thread_state_asleep (lookup_thread_state ());
+
 #ifdef DDS_HAS_SHM
   if (e->m_domain->gv.config.enable_shm)
   {
     DDS_CLOG (DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's subscriber\n");
     shm_monitor_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
     iox_sub_deinit(rd->m_iox_sub);
-    ddsrt_mutex_destroy(&rd->m_iox_sub_stor.mutex);
+    iox_sub_storage_extension_fini(&rd->m_iox_sub_stor);
   }
 #endif
 
-  thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
-  dds_rhc_free (rd->m_rhc);
-  thread_state_asleep (lookup_thread_state ());
   dds_entity_drop_ref (&rd->m_topic->m_entity);
   return DDS_RETCODE_OK;
 }
@@ -592,7 +593,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     iox_sub_options_init(&opts);
 
     // ICEORYX TODO: handle failure (how should the system behave if resources are insufficient?)
-    ddsrt_mutex_init(&rd->m_iox_sub_stor.mutex);
+    iox_sub_storage_extension_init(&rd->m_iox_sub_stor);
 
     opts.queueCapacity = rd->m_entity.m_domain->gv.config.sub_queue_capacity;
     opts.historyRequest = rd->m_entity.m_domain->gv.config.sub_history_request;
@@ -603,9 +604,6 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     // they are used to access reader and monitor from the callback when data is received
     rd->m_iox_sub_stor.monitor = &rd->m_entity.m_domain->m_shm_monitor;
     rd->m_iox_sub_stor.parent_reader = rd;
-
-    // ICEORYX TODO: do we need this sleep?
-    // dds_sleepfor(DDS_MSECS(10));
   }
 #endif
 

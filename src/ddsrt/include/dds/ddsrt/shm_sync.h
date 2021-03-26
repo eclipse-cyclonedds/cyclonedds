@@ -42,6 +42,8 @@ DDS_EXPORT void shm_mutex_lock(void);
 DDS_EXPORT void shm_mutex_unlock(void);
 
 //lock and unlock for individual subscribers
+DDS_EXPORT void iox_sub_storage_extension_init(iox_sub_storage_extension_t* storage);
+DDS_EXPORT void iox_sub_storage_extension_fini(iox_sub_storage_extension_t* storage);
 DDS_EXPORT void shm_lock_iox_sub(iox_sub_t sub);
 DDS_EXPORT void shm_unlock_iox_sub(iox_sub_t sub);
 
