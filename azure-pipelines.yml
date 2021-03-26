@@ -30,6 +30,7 @@ strategy:
       lifespan: off
       deadline: off
       type_discovery: off
+      topic_discovery: off
       sanitizer: address
       cc: gcc-10
     'Ubuntu 18.04 LTS with GCC 7 (Debug, x86_64)':
@@ -46,9 +47,10 @@ strategy:
       security: off
       sanitizer: address
       cc: clang-10
-    'Ubuntu 20.04 LTS with Clang 10 (Release, x86_64)':
+    'Ubuntu 20.04 LTS with Clang 10 (Release, x86_64, no topic discovery)':
       image: ubuntu-20.04
       build_type: Release
+      topic_discovery: off
       cc: clang-10
     'macOS 10.15 with Clang 12 (macOS 10.12, Release, x86_64)':
       image: macOS-10.15
