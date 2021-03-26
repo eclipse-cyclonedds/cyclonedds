@@ -675,7 +675,7 @@ static void cdr_basic (struct ops const * const ops)
   /* Domains for pub and sub use a different domain id, but the portgain setting
    * in configuration is 0, so that both domains will map to the same port number.
    * This allows to create two domains in a single test process. */
-  const char *config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>";
+  const char *config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery><Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>";
   char *conf_pub = ddsrt_expand_envvars (config, 0);
   char *conf_sub = ddsrt_expand_envvars (config, 1);
   const dds_entity_t pub_dom = dds_create_domain (0, conf_pub);
@@ -890,7 +890,11 @@ static void cdr_forward (struct ops const * const ops)
   dds_return_t rc;
   char topicname[100];
 
-  const dds_entity_t pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  const char* config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>";
+  char* conf = ddsrt_expand_envvars(config, 0);
+  const dds_entity_t dom = dds_create_domain(0, conf);
+
+  const dds_entity_t pp = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_FATAL (pp > 0);
 
   create_unique_topic_name ("ddsc_cdr_sertopic_basic", topicname, sizeof topicname);
@@ -943,7 +947,7 @@ static void cdr_forward (struct ops const * const ops)
   CU_ASSERT_FATAL (si1.source_timestamp == si0.source_timestamp);
   ddsi_serdata_unref (serdata);
 
-  rc = dds_delete (pp);
+  rc = dds_delete (dom);
   CU_ASSERT_FATAL (rc == 0);
 }
 
@@ -1013,6 +1017,11 @@ static void cdr_timeout (struct ops const * const ops)
   const char *config = "\
 ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 <Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>\
+<Domain id=\"any\">\
+  <SharedMemory>\
+    <Enable>false</Enable>\
+  </SharedMemory>\
+</Domain>\
 <Internal>\
   <Watermarks>\
     <WhcHigh>0B</WhcHigh>\

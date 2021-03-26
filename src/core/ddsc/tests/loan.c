@@ -43,6 +43,7 @@ static void create_entities (void)
 
 static void delete_entities (void)
 {
+  dds_sleepfor(DDS_MSECS(10));
   dds_return_t result;
   result = dds_delete (participant);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);

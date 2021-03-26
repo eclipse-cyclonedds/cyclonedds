@@ -179,6 +179,7 @@ reader_init(void)
 static void
 reader_fini(void)
 {
+    dds_sleepfor(DDS_MSECS(10));
     dds_delete_qos(g_qos);
     dds_delete_listener(g_listener);
     dds_delete(g_reader);
@@ -214,6 +215,7 @@ CU_Theory((dds_entity_t *ent, dds_qos_t **qos, dds_listener_t **listener), ddsc_
     dds_return_t ret;
     rdr = dds_create_reader(*ent, g_topic, *qos, *listener);
     CU_ASSERT_FATAL(rdr > 0);
+    dds_sleepfor(DDS_MSECS(10));
     ret = dds_delete(rdr);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 }
@@ -272,6 +274,7 @@ CU_Test(ddsc_reader_create, wrong_participant, .init=reader_init, .fini=reader_f
     CU_ASSERT_FATAL(participant2 > 0);
     dds_entity_t reader = dds_create_reader(participant2, g_topic, NULL, NULL);
     CU_ASSERT_EQUAL_FATAL(reader, DDS_RETCODE_BAD_PARAMETER);
+    dds_sleepfor(DDS_MSECS(10));
     dds_delete(participant2);
 }
 /*************************************************************************************************/
@@ -302,6 +305,8 @@ CU_Test(ddsc_reader_create, participant_mismatch)
 
     /* Expect the creation to have failed. */
     CU_ASSERT_FATAL(reader <= 0);
+
+    dds_sleepfor(DDS_MSECS(10));
 
     dds_delete(top2);
     dds_delete(sub1);
@@ -375,6 +380,7 @@ CU_Test(ddsc_read, already_deleted, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     /* Try to read with a deleted reader. */
+    dds_sleepfor(DDS_MSECS(10));
     dds_delete(g_reader);
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
     CU_ASSERT_EQUAL(ret, DDS_RETCODE_BAD_PARAMETER);
@@ -484,6 +490,7 @@ CU_Test(ddsc_read_wl, already_deleted, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     /* Try to read with a deleted reader. */
+    dds_sleepfor(DDS_MSECS(10));
     dds_delete(g_reader);
     ret = dds_read_wl(g_reader, g_loans, g_info, MAX_SAMPLES);
     CU_ASSERT_EQUAL(ret, DDS_RETCODE_BAD_PARAMETER);
@@ -610,6 +617,7 @@ CU_Test(ddsc_read_mask, already_deleted, .init=reader_init, .fini=reader_fini)
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     /* Try to read with a deleted reader. */
+    dds_sleepfor(DDS_MSECS(10));
     dds_delete(g_reader);
     ret = dds_read_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
     CU_ASSERT_EQUAL(ret, DDS_RETCODE_BAD_PARAMETER);
@@ -1157,6 +1165,7 @@ CU_Test(ddsc_read_mask_wl, already_deleted, .init=reader_init, .fini=reader_fini
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     /* Try to read with a deleted reader. */
+    dds_sleepfor(DDS_MSECS(10));
     dds_delete(g_reader);
     ret = dds_read_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
     CU_ASSERT_EQUAL(ret, DDS_RETCODE_BAD_PARAMETER);
@@ -1741,6 +1750,7 @@ CU_Test(ddsc_take, already_deleted, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     /* Try to take with a deleted reader. */
+    dds_sleepfor(DDS_MSECS(10));
     dds_delete(g_reader);
     ret = dds_take(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
     CU_ASSERT_EQUAL(ret, DDS_RETCODE_BAD_PARAMETER);
@@ -1850,6 +1860,7 @@ CU_Test(ddsc_take_wl, already_deleted, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     /* Try to read with a deleted reader. */
+    dds_sleepfor(DDS_MSECS(10));
     dds_delete(g_reader);
     ret = dds_take_wl(g_reader, g_loans, g_info, MAX_SAMPLES);
     CU_ASSERT_EQUAL(ret, DDS_RETCODE_BAD_PARAMETER);
@@ -1977,6 +1988,7 @@ CU_Test(ddsc_take_mask, already_deleted, .init=reader_init, .fini=reader_fini)
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     /* Try to read with a deleted reader. */
+    dds_sleepfor(DDS_MSECS(10));
     dds_delete(g_reader);
     ret = dds_take_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
     CU_ASSERT_EQUAL(ret, DDS_RETCODE_BAD_PARAMETER);
@@ -2581,6 +2593,8 @@ CU_Test(ddsc_take_mask, take_instance_last_sample)
     ret = samples_cnt();
     CU_ASSERT_EQUAL_FATAL(ret, 1);
 
+    dds_sleepfor(DDS_MSECS(10));
+
     /*
      * So far so good.
      * But now the problem appeared:
@@ -2657,6 +2671,7 @@ CU_Test(ddsc_take_mask_wl, already_deleted, .init=reader_init, .fini=reader_fini
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     /* Try to read with a deleted reader. */
+    dds_sleepfor(DDS_MSECS(10));
     dds_delete(g_reader);
     ret = dds_take_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
