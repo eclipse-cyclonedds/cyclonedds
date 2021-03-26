@@ -1289,13 +1289,16 @@ static uint32_t nn_xpack_sendq_thread (void *vgv)
 {
   struct ddsi_domaingv *gv = vgv;
   struct thread_state1 * const ts1 = lookup_thread_state ();
+  thread_state_awake_fixed_domain (ts1);
   ddsrt_mutex_lock (&gv->sendq_lock);
   while (!(gv->sendq_stop && gv->sendq_head == NULL))
   {
     struct nn_xpack *xp;
     if ((xp = gv->sendq_head) == NULL)
     {
-      (void) ddsrt_cond_waitfor (&gv->sendq_cond, &gv->sendq_lock, 1000000);
+      thread_state_asleep (ts1);
+      (void) ddsrt_cond_wait (&gv->sendq_cond, &gv->sendq_lock);
+      thread_state_awake_fixed_domain (ts1);
     }
     else
     {
@@ -1303,14 +1306,13 @@ static uint32_t nn_xpack_sendq_thread (void *vgv)
       if (--gv->sendq_length == SENDQ_LW)
         ddsrt_cond_broadcast (&gv->sendq_cond);
       ddsrt_mutex_unlock (&gv->sendq_lock);
-      thread_state_awake_fixed_domain (ts1);
       nn_xpack_send_real (xp);
       nn_xpack_free (xp);
       ddsrt_mutex_lock (&gv->sendq_lock);
-      thread_state_asleep (ts1);
     }
   }
   ddsrt_mutex_unlock (&gv->sendq_lock);
+  thread_state_asleep (ts1);
   return 0;
 }
 
@@ -1366,11 +1368,10 @@ void nn_xpack_send (struct nn_xpack *xp, bool immediately)
     nn_xpack_reinit (xp);
     xp1->sendq_next = NULL;
     ddsrt_mutex_lock (&gv->sendq_lock);
-    if (immediately || gv->sendq_length == SENDQ_HW)
+    if (immediately || gv->sendq_length > SENDQ_LW)
       ddsrt_cond_broadcast (&gv->sendq_cond);
     if (gv->sendq_length >= SENDQ_MAX)
     {
-      while (gv->sendq_length > SENDQ_LW)
         ddsrt_cond_wait (&gv->sendq_cond, &gv->sendq_lock);
     }
     if (gv->sendq_head)
