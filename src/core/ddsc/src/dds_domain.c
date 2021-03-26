@@ -139,12 +139,8 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   // TODO: isolate the shm runtime creation in a separate function
 
   // create the shared memory monitor based on iceoryx
-
-#ifdef DDS_HAS_SHM
-  shm_monitor_init(&domain->m_shm_monitor);
-#endif
-
-
+  if (domain->gv.config.enable_shm)
+    shm_monitor_init(&domain->m_shm_monitor);
 #endif
 
   /* Start monitoring the liveliness of threads if this is the first
@@ -333,7 +329,8 @@ static dds_return_t dds_domain_free (dds_entity *vdomain)
     ddsi_threadmon_unregister_domain (dds_global.threadmon, &domain->gv);
 
 #ifdef DDS_HAS_SHM
-  shm_monitor_destroy(&domain->m_shm_monitor);
+  if (domain->gv.config.enable_shm)
+    shm_monitor_destroy(&domain->m_shm_monitor);
 #endif
 
   rtps_fini (&domain->gv);

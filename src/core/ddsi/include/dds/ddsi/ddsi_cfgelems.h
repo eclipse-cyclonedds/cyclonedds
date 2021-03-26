@@ -1635,18 +1635,18 @@ static struct cfgelem shmem_cfgelems[] = {
     VALUES(
       "off","fatal","error","warn","info","debug","verbose"
     )),
-  INT("SubQueueCapacity", NULL, 1, "16",
+  INT("SubQueueCapacity", NULL, 1, "256",
     MEMBER(sub_queue_capacity),
     FUNCTIONS(0, uf_natint, 0, pf_int),
-    DESCRIPTION("<p>Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue.</p>")),
+    DESCRIPTION("<p>Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue. Should be a value between 1 and 256.</p>")),
   INT("SubHistoryRequest", NULL, 1, "16",
     MEMBER(sub_history_request),
     FUNCTIONS(0, uf_natint, 0, pf_int),
-    DESCRIPTION("<p>The number of messages which will be requested from the publisher published before the subscriber was subscribed.</p>")),
+    DESCRIPTION("<p>The number of messages published before subscription which will be requested by a subscriber upon subscription. Should be a value between 0 and 16.</p>")),
   INT("PubHistoryCapacity", NULL, 1, "16",
     MEMBER(pub_history_capacity),
     FUNCTIONS(0, uf_natint, 0, pf_int),
-    DESCRIPTION("<p>The number of messages which will be stored on the publisher for late joining subscribers, should be equal to or larger than SubHistoryRequest.</p>")),
+    DESCRIPTION("<p>The number of messages which will be stored on the publisher for late joining subscribers. Should be a value between 0 and 16 and be equal to or larger than SubHistoryRequest.</p>")),
   END_MARKER
 };
 #endif

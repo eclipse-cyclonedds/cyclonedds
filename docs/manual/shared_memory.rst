@@ -13,23 +13,21 @@ Build
 
 The following step is under Ubuntu 18.04, but other Linux distribution should also work, too.
 
-Before using iceoryx, there are some dependecies which should be installed.
+Before using iceoryx, there are some dependencies which should be installed.
 These packages are used by iceoryx.
 
 .. code-block:: bash
 
   sudo apt install cmake libacl1-dev libncurses5-dev pkg-config maven
 
-Since iceoryx is C++ implementation and doesn't provide C API, we use iceoryx_clib to provide C API.
-Here we use colcon to build the project, including iceoryx, Cyclone DDS, and iceoryx_clib.
+We use colcon to build iceoryx and Cyclone DDS.
 
 .. code-block:: bash
 
   mkdir -p ~/cyclone_iceoryx_ws/src
   cd ~/cyclone_iceoryx_ws/src
   git clone https://github.com/eclipse-cyclonedds/cyclonedds.git -b iceoryx
-  git clone https://github.com/Adlink-ROS/iceoryx.git -b used_by_cyclone
-  git clone https://github.com/Adlink-ROS/iceoryx_clib.git
+  git clone https://github.com/eclipse-iceoryx/iceoryx.git -b master
   cd ~/cyclone_iceoryx_ws
   colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 
@@ -54,9 +52,18 @@ Save the following xml as cyclonedds.xml.
       <Domain id="any">
           <SharedMemory>
               <Enable>true</Enable>
+              <SubQueueCapacity>256</SubQueueCapacity>
+              <SubHistoryRequest>16</SubHistoryRequest>
+              <PubHistoryCapacity>16</PubHistoryCapacity>
           </SharedMemory>
       </Domain>
   </CycloneDDS>
+
+SubQueueCapacity, SubHistoryRequest and PubHistoryCapacity can be optionally set if Shared Memory is enabled.
+SubQueueCapacity controls how many samples a reader using shared memory can hold before the least recent is discarded.
+PubHistoryCapacity defines how many samples a shared memory writer will keep to send to late-joining subscribers.
+SubHistoryRequest is the number of samples a late-joining reader will request from a writer (this can be at most 
+as many as were send and at most PubHistoryCapacity).   
 
 Now we start to run Cyclone DDS with shared memory.
 In the 1st terminal we will start RouDi.
@@ -83,36 +90,23 @@ The 3rd terminal will run "ddsperf sub".
   ddsperf sub
 
 You can compare the result between native Cyclone DDS and Cyclone DDS with shared memory.
-Note that you can't run "ddsperf sub" before "ddsperf pub".
-It's related to mulitple publishers issue, and you can refer to the `Limitations`_.
 
 ***********
 Performance
 ***********
 
-Here is the performance test to compare the throughput between Cyclone DDS and Cyclone DDS with shared memory.
+A performance improvement can be observed for sufficiently large sample sizes and data transfer on the same machine (otherwise the regular network transmission is used and their will be no performance gain).
 
-* Platform: `ADLINK ROScube-I <https://www.adlinktech.com/Products/ROS2_Solution/ROS2_Controller/ROScube-I?Lang=en#tab-24647>`_
-
-  - CPU: Intel(R) Core(TM) i5-8400H CPU @ 2.50GHz
-  - Memory: 16G
-
-* OS: Ubuntu 18.04
-* Test tools: `ddsperf <https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/src/tools/ddsperf>`_
-
-.. image:: _static/pictures/shm_performance.png
-  :width: 400
-
-The result is based on default configuration and Cyclone DDS release build.
-You can see that the throughput becomes much better as payload size increases.
+Once the loan interface is fully implemented transmission speed will be independent of the sample size when shared memory is used, i.e. take constant time.
 
 *************
 To developers
 *************
 
-The initial implementation is from `ADLINK Advanced Robotics Platform Group <https://github.com/adlink-ROS/>`_,
-but still needs feedback and improvement from community.
-It would be better if anyone also has some ideas and wants to improve it.
+The initial implementation is from `ADLINK Advanced Robotics Platform Group <https://github.com/adlink-ROS/>`_.
+Contributions were made by `Apex.AI <https://www.apex.ai/>`_ in order to integrate the latest iceoryx C-API to support zero copy  data transfer (still requires the cyclonedds loan API to be implemented).
+Further contributions and feedback from the community are very welcome.
+
 Here is some tips for you to get started.
 
 - Most of the shared memory modification is under the define "DDS_HAS_SHM".
@@ -155,17 +149,13 @@ Since the shared memory is still under POC stage, there are some limitations cur
 - Platform Support:
   Now the implementation can only run under the Linux environment.
   Since iceoryx also support MacOS and will have `Windows 10 support <https://github.com/eclipse/iceoryx/issues/33>`_ in the future,
-  the support of MacOS and Windows is necessary.
-- Multiple Publisher:
-  iceoryx hasn't supported multi-publisher yet.
-  If you have two publishers to the same topic, the second one will fail.
-  Fortunately, this feature is `ongoing <https://github.com/eclipse/iceoryx/issues/25>`_ now.
+  Support of MacOS and Windows are still work in progress.
 - QoS Support:
   The current design doesn't consider the DDS QoS support.
   The suitable kind of data sent by shared memory only needs reliable and keep last, which are already supported by iceoryx.
   However, it would be nice if Cyclone DDS with shared memory also support QoS.
 - True Zero copy:
-  In fact, the current implementation is not zero copy, and still needs to copy data from user buffer into shared memory.
+  The current implementation is not zero copy, and still needs to copy data from user buffer into shared memory.
   To achieve zero copy, users must change the API they use and put the data into shared memory from the beginning.
   Although it needs some changes on user side, it'll improve the performance.
 
@@ -173,10 +163,10 @@ Since the shared memory is still under POC stage, there are some limitations cur
 TODO List
 *********
 
-- Use C API provided by iceoryx:
-  iceoryx plans to provide `C API <https://github.com/eclipse/iceoryx/issues/252>`_.
-  We may not need extra library (iceoryx_clib) anymore after that.
 - Support DDS QoS:
   Please refer to the `Limitations`_.
 - Support true zero copy:
   Please refer to the `Limitations`_.
+- Extend configuration options for Shared Memory
+- Add data and measurements of performance improvements
+

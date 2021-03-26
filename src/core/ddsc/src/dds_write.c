@@ -239,8 +239,6 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     ddsi_serdata_ref (d);
 
 #ifdef DDS_HAS_SHM
-    //ICEORYX_TODO: we now have serialized data in d in any case(?)
-
     if (wr->m_entity.m_domain->gv.config.enable_shm &&
         iox_pub_has_subscribers(wr->m_iox_pub))
     {
@@ -248,14 +246,9 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       //ICEORYX_TODO: we block here until we get a chunk ... do we want this? it can be indefinitely
       while (1)
       {
-        //ICEORYX_TODO: could use more fine grained mutex on publisher side (per publisher)
-        shm_mutex_lock();
         enum iox_AllocationResult alloc_result = iox_pub_loan_chunk(wr->m_iox_pub, (void**)(&d->iox_chunk), (unsigned int)(sizeof(iceoryx_header_t) + send_size));
-        shm_mutex_unlock();
         if (AllocationResult_SUCCESS == alloc_result)
           break;
-        // SHM_TODO: Maybe there is a better way to do while unable to allocate.
-        //           BTW, how long I should sleep is also another problem.
         dds_sleepfor (DDS_MSECS (1));
       }
       iceoryx_header_t *ice_hdr = (iceoryx_header_t*)d->iox_chunk;
@@ -265,12 +258,9 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       ice_hdr->data_kind = writekey ? SDK_KEY : SDK_DATA;
       ddsi_serdata_get_keyhash(d, &ice_hdr->keyhash, false);
 
-      // SHM_TODO: Is there any way to avoid copy?
-      // ICEORYX_TODO: we need the loan API to avoid this and request memory directly from iceoryx 
+      // ICEORYX_TODO: we need the loan API to avoid this copy and request memory directly from iceoryx 
       memcpy (d->iox_chunk + sizeof (iceoryx_header_t), data, send_size);
-      shm_mutex_lock();
       iox_pub_publish_chunk (wr->m_iox_pub, d->iox_chunk);
-      shm_mutex_unlock();
       d->iox_chunk = NULL;
     }
 #endif
