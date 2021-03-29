@@ -266,7 +266,7 @@ ac_remote_participant_access_rights_new(
   access_control_object_init((AccessControlObject *)rights, ACCESS_CONTROL_OBJECT_KIND_REMOTE_PARTICIPANT, remote_participant_access_rights_free);
   rights->remote_identity = remote_identity;
   rights->permissions = permissions;
-  rights->permissions_expiry = permission_expiry;
+  rights->_parent.permissions_expiry = permission_expiry;
   rights->local_rights = (local_participant_access_rights *)ACCESS_CONTROL_OBJECT_KEEP(local_rights);
   if (rights->permissions)
   {

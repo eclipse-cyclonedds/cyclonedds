@@ -33,4 +33,7 @@
 /* Whether or not support for type discovery is included */
 #cmakedefine DDS_HAS_TYPE_DISCOVERY @DDS_HAS_TYPE_DISCOVERY@
 
+/* Whether or not support for topic discovery is included */
+#cmakedefine DDS_HAS_TOPIC_DISCOVERY @DDS_HAS_TOPIC_DISCOVERY@
+
 #endif

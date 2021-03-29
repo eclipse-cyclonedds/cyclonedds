@@ -32,7 +32,7 @@ add_compile_options("-I$ENV{OSPL_HOME}/src/api/dcps/sac/code")
 # that will supply a library target related the the given idl file.
 # In short, it takes the idl file, generates the source files with
 # the proper data types and compiles them into a library.
-idlc_generate(xxx_lib "xxx.idl")
+idlc_generate(TARGET xxx_lib FILES "xxx.idl")
 
 # Both executables have only one related source file.
 add_executable(xxx xxx-cyc.c)

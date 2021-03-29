@@ -503,7 +503,7 @@ DDS_Security_ValidationResult_t verify_certificate(X509 *identityCert, X509 *ide
   if (X509_verify_cert(ctx) != 1)
   {
     const char *msg = X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx));
-    char *subject = get_certificate_subject_name(identityCert, NULL);
+    char *subject = get_certificate_subject_name(identityCert, ex);
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Certificate not valid: error: %s; subject: %s", msg, subject ? subject : "[not found]");
     ddsrt_free(subject);
     goto err_ctx_init;

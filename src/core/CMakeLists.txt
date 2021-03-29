@@ -11,16 +11,8 @@
 #
 include (GenerateExportHeader)
 
-FUNCTION(PREPEND var prefix)
-   SET(listVar "")
-   FOREACH(f ${ARGN})
-      LIST(APPEND listVar "${prefix}/${f}")
-   ENDFOREACH(f)
-   SET(${var} "${listVar}" PARENT_SCOPE)
-ENDFUNCTION(PREPEND)
-
 if (BUILD_SHARED_LIBS OR NOT DEFINED BUILD_SHARED_LIBS)
-  add_library(ddsc SHARED)
+  add_library(ddsc SHARED "")
 else()
   add_library(ddsc)
 endif()
@@ -44,7 +36,7 @@ include(ddsi/CMakeLists.txt)
 include(ddsc/CMakeLists.txt)
 
 add_coverage(ddsc)
-target_link_libraries(ddsc PRIVATE ddsrt)
+target_link_libraries(ddsc PRIVATE "$<BUILD_INTERFACE:ddsrt>")
 target_compile_definitions(
   ddsc PUBLIC
   $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_COMPILE_DEFINITIONS>>)

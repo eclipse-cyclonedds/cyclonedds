@@ -11,17 +11,16 @@
 #
 include (GenerateExportHeader)
 
-PREPEND(srcs_cryptographic "${CMAKE_CURRENT_LIST_DIR}/src"
-    crypto_cipher.c
-    crypto_key_exchange.c
-    crypto_key_factory.c
-    crypto_objects.c
-    crypto_transform.c
-    crypto_utils.c
-    cryptography.c
-)
+set(sources
+  src/crypto_cipher.c
+  src/crypto_key_exchange.c
+  src/crypto_key_factory.c
+  src/crypto_objects.c
+  src/crypto_transform.c
+  src/crypto_utils.c
+  src/cryptography.c)
 
-add_library(dds_security_crypto SHARED "")
+add_library(dds_security_crypto SHARED ${sources})
 
 generate_export_header(
     dds_security_crypto
@@ -35,7 +34,6 @@ target_link_libraries(dds_security_crypto PUBLIC OpenSSL::SSL)
 if(CMAKE_GENERATOR MATCHES "Visual Studio")
   set_target_properties(dds_security_crypto PROPERTIES LINK_FLAGS "/ignore:4099")
 endif()
-target_sources(dds_security_crypto PRIVATE ${srcs_cryptographic})
 
 target_include_directories(dds_security_crypto
     PUBLIC

@@ -27,6 +27,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata_plist.h"
 #include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/q_misc.h"
 
 static uint32_t serdata_plist_get_size (const struct ddsi_serdata *dcmn)
 {
@@ -215,7 +216,6 @@ static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertype
 {
   const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *)tpcmn;
   const struct { uint16_t identifier, options; } header = { tp->native_encoding_identifier, 0 };
-  const ddsi_guid_t nullguid = { .prefix = { .u = { 0,0,0 } }, .entityid = { .u = 0 } };
 
   // FIXME: key must not require byteswapping (GUIDs are ok)
   // FIXME: rework plist stuff so it doesn't need an nn_xmsg

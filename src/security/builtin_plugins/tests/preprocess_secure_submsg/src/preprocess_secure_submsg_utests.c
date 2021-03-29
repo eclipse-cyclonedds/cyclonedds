@@ -361,7 +361,8 @@ static void suite_preprocess_secure_submsg_init (void)
     CU_ASSERT_FATAL ((plugins = load_plugins(
                             NULL      /* Access Control */,
                             NULL      /* Authentication */,
-                            &crypto   /* Cryptography   */)) != NULL);
+                            &crypto   /* Cryptography   */,
+                            NULL)) != NULL);
     CU_ASSERT_EQUAL_FATAL (register_local_participant(), 0);
     CU_ASSERT_EQUAL_FATAL (register_remote_participant(), 0);
     CU_ASSERT_EQUAL_FATAL (register_local_datawriter(), 0);
@@ -599,103 +600,6 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, invalid_args, .init = suite_pre
     assert(crypto->crypto_transform->preprocess_secure_submsg != 0);
 
     create_encoded_submsg(&message, writer_key_message.sender_key_id, reader_key_message.transformation_kind, VALID_SMID_SEC_PREFIX, DDSRT_BOSEL_NATIVE);
-
-    /* writer handle = NULL. */
-    result = crypto->crypto_transform->preprocess_secure_submsg(
-            crypto->crypto_transform,
-            NULL,
-            &reader_crypto,
-            &category,
-            &message,
-            local_participant_handle,
-            remote_participant_handle,
-            &exception);
-
-    if (!result)
-        printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
-
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
-    reset_exception(&exception);
-
-    /* reader handle = NULL. */
-    result = crypto->crypto_transform->preprocess_secure_submsg(
-                crypto->crypto_transform,
-                &writer_crypto,
-                NULL,
-                &category,
-                &message,
-                local_participant_handle,
-                remote_participant_handle,
-                &exception);
-
-    if (!result)
-        printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
-
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
-    reset_exception(&exception);
-
-    /* category = NULL */
-    result = crypto->crypto_transform->preprocess_secure_submsg(
-            crypto->crypto_transform,
-            &writer_crypto,
-            &reader_crypto,
-            NULL,
-            &message,
-            local_participant_handle,
-            remote_participant_handle,
-            &exception);
-
-    if (!result)
-        printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
-
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
-    reset_exception(&exception);
-
-    /* message = NULL */
-    result = crypto->crypto_transform->preprocess_secure_submsg(
-            crypto->crypto_transform,
-            &writer_crypto,
-            &reader_crypto,
-            &category,
-            NULL,
-            local_participant_handle,
-            remote_participant_handle,
-            &exception);
-
-    if (!result)
-        printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
-
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
-    reset_exception(&exception);
-
-    #if 0
-    /* unknown local_participant_handle */
-    result = crypto->crypto_transform->preprocess_secure_submsg(
-            crypto->crypto_transform,
-            &writer_crypto,
-            &reader_crypto,
-            &category,
-            &message,
-            1,
-            remote_participant_handle,
-            &exception);
-
-    if (!result)
-        printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
-
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
-    reset_exception(&exception);
-#endif
 
     /* remote_participant_handle = DDS_SECURITY_HANDLE_NIL */
     result = crypto->crypto_transform->preprocess_secure_submsg(

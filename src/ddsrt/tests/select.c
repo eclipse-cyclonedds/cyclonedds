@@ -198,12 +198,12 @@ CU_Test(ddsrt_select, timeout)
 
   sockets_pipe(socks);
 
-  arg.delay = DDS_MSECS(300);
+  arg.delay = DDS_MSECS(2000);
   /* Allow the delay to be off by x microseconds (arbitrarily chosen) for
      systems with a really poor clock. This test is just to get some
      confidence that time calculation is not completely broken, it is by
      no means proof that time calculation is entirely correct! */
-  arg.skew = DDS_MSECS(50);
+  arg.skew = DDS_MSECS(1000);
   arg.sock = socks[0];
 
   fprintf (stderr, "create thread\n");

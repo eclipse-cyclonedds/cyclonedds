@@ -433,7 +433,8 @@ static void suite_decode_datareader_submessage_init(void)
   CU_ASSERT_FATAL ((plugins = load_plugins(
                       NULL    /* Access Control */,
                       NULL    /* Authentication */,
-                      &crypto /* Cryptograpy    */)) != NULL);
+                      &crypto /* Cryptograpy    */,
+                      NULL)) != NULL);
 
   CU_ASSERT_EQUAL_FATAL (register_local_participant(), 0);
   CU_ASSERT_EQUAL_FATAL (register_remote_participant(), 0);
@@ -861,66 +862,6 @@ CU_Test(ddssec_builtin_decode_datareader_submessage, invalid_args, .init = suite
   CU_ASSERT_FATAL(result);
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
-
-  reset_exception(&exception);
-
-  /* decoded buffer NULL */
-  result = crypto->crypto_transform->decode_datareader_submessage(
-      crypto->crypto_transform,
-      NULL,
-      &encoded_buffer,
-      local_writer_crypto,
-      remote_reader_crypto,
-      &exception);
-
-  if (!result)
-  {
-    printf("decode_datareader_submessage: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* encoded buffer NULL */
-  result = crypto->crypto_transform->decode_datareader_submessage(
-      crypto->crypto_transform,
-      &decoded_buffer,
-      NULL,
-      local_writer_crypto,
-      remote_reader_crypto,
-      &exception);
-
-  if (!result)
-  {
-    printf("decode_datareader_submessage: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* empty encoded buffer */
-  result = crypto->crypto_transform->decode_datareader_submessage(
-      crypto->crypto_transform,
-      &decoded_buffer,
-      &empty_buffer,
-      local_writer_crypto,
-      remote_reader_crypto,
-      &exception);
-
-  if (!result)
-  {
-    printf("decode_datareader_submessage: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
 
   reset_exception(&exception);
 

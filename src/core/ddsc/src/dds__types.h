@@ -229,12 +229,18 @@ typedef struct dds_domain {
   struct cfgst *cfgst; // NULL if config initializer provided
 
   struct ddsi_sertype *builtin_participant_type;
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  struct ddsi_sertype *builtin_topic_type;
+#endif
   struct ddsi_sertype *builtin_reader_type;
   struct ddsi_sertype *builtin_writer_type;
 
   struct local_orphan_writer *builtintopic_writer_participant;
   struct local_orphan_writer *builtintopic_writer_publications;
   struct local_orphan_writer *builtintopic_writer_subscriptions;
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  struct local_orphan_writer *builtintopic_writer_topics;
+#endif
 
   struct ddsi_builtin_topic_interface btif;
   struct ddsi_domaingv gv;
@@ -247,6 +253,17 @@ typedef struct dds_subscriber {
 typedef struct dds_publisher {
   struct dds_entity m_entity;
 } dds_publisher;
+
+
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+/* type_id -> <topic guid, ddsi topic> mapping for ktopics */
+struct ktopic_type_guid {
+  type_identifier_t *type_id;
+  uint32_t refc;
+  ddsi_guid_t guid;
+  struct topic *tp;
+};
+#endif
 
 typedef struct dds_ktopic {
   /* name -> <type_name, QoS> mapping for topics, part of the participant
@@ -262,6 +279,9 @@ typedef struct dds_ktopic {
   dds_qos_t *qos;
   char *name; /* [constant] */
   char *type_name; /* [constant] */
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  struct ddsrt_hh *topic_guid_map; /* mapping of this ktopic to ddsi topics */
+#endif
 } dds_ktopic;
 
 typedef struct dds_participant {

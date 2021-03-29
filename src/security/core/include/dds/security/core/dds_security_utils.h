@@ -279,7 +279,9 @@ DDS_Security_Exception_set(
          int code,
          int minor_code,
          const char *fmt,
-         ...);
+         ...)
+  ddsrt_attribute_format((printf, 5, 6))
+  ddsrt_nonnull_all;
 
 DDS_EXPORT void
 DDS_Security_Exception_reset(
@@ -346,7 +348,7 @@ DDS_Security_parse_xml_date(
 
 
 #define DDS_Security_ParticipantCryptoTokenSeq_alloc() \
-                    DDS_Security_DataHolderSeq_alloc())
+                    DDS_Security_DataHolderSeq_alloc()
 #define DDS_Security_ParticipantCryptoTokenSeq_freebuf(s) \
                     DDS_Security_DataHolderSeq_freebuf(s)
 #define DDS_Security_ParticipantCryptoTokenSeq_free(s) \

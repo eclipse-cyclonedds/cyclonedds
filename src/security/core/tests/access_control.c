@@ -905,3 +905,96 @@ CU_Test(ddssec_access_control, denied_topic)
   dds_delete_qos (qos);
   access_control_fini (2, (void * []) { gov_config, gov_topic_rule, sub_rules_xml, grants_pub[0], grants_sub[0], perm_config_pub, perm_config_sub, ca, id1_subj, id2_subj, id1, id2 }, 12);
 }
+
+/* Check that partitons are taken into account */
+static void partition_test (const char **parts_allowed, const char **parts_denied, const char **parts_used, bool exp_deny)
+{
+  char topic_name[100];
+
+  create_topic_name ("ddssec_access_control_", g_topic_nr++, topic_name, sizeof (topic_name));
+
+  char *ca, *id1, *id2, *id1_subj, *id2_subj;
+  ca = generate_ca ("ca1", TEST_IDENTITY_CA1_PRIVATE_KEY, 0, 3600);
+  id1 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id1", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id1_subj);
+  id2 = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id2", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &id2_subj);
+
+  dds_time_t now = dds_time ();
+  char * pubsub_rules_xml = get_permissions_rules_w_partitions (NULL, topic_name, topic_name, parts_allowed, topic_name, topic_name, parts_denied);
+  char * grants_pub[] = { get_permissions_grant ("id1", id1_subj, now, now + DDS_SECS(3600), pubsub_rules_xml, "ALLOW") };
+  char * grants_sub[] = { get_permissions_grant ("id2", id2_subj, now, now + DDS_SECS(3600), pubsub_rules_xml, "ALLOW") };
+  char * perm_config_pub = get_permissions_config (grants_pub, 1, true);
+  char * perm_config_sub = get_permissions_config (grants_sub, 1, true);
+
+  char * gov_topic_rule = get_governance_topic_rule (NULL, true, true, true, true, PK_E, BPK_E);
+  char * gov_config = get_governance_config (false, true, PK_E, PK_E, PK_E, gov_topic_rule, true);
+  const char * def_perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
+
+  access_control_init (
+      2,
+      (const char *[]) { id1, id2 },
+      (const char *[]) { TEST_IDENTITY1_PRIVATE_KEY, TEST_IDENTITY1_PRIVATE_KEY },
+      (const char *[]) { ca, ca },
+      (bool []) { false, false },
+      NULL, NULL,
+      (bool []) { true, true }, (const char *[]) { gov_config, gov_config },
+      (bool []) { true, true }, (const char *[]) { perm_config_pub, perm_config_sub },
+      (bool []) { true, true }, (const char *[]) { def_perm_ca, def_perm_ca });
+
+  dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
+  rd_wr_init_w_partitions_fail (g_participant[0], &pub, &pub_tp, &wr,
+                                g_participant[1], &sub, &sub_tp, &rd,
+                                topic_name, parts_used,
+                                false, exp_deny,
+                                false, exp_deny);
+  access_control_fini (2, (void * []) { gov_config, gov_topic_rule, pubsub_rules_xml, grants_pub[0], grants_sub[0], perm_config_pub, perm_config_sub, ca, id1_subj, id2_subj, id1, id2 }, 12);
+}
+
+CU_Test(ddssec_access_control, partition)
+{
+  const struct parts {
+    const char **allow;
+    const char **deny;
+    const char **use;
+    bool exp_deny;
+  } parts[] = {
+#define PS(...) (const char *[]){__VA_ARGS__,0}
+    { NULL, PS("*"), NULL, false }, // default case
+    { PS(""), PS("*"), PS(""), false }, // default partition
+    { PS(""), PS("*"), PS("x"), true },
+    { PS("x"), PS("*"), PS("x"), false },
+    { PS("", "x"), PS("*"), PS(""), false },
+    { PS("", "x"), PS("*"), PS("x"), false },
+    { PS("", "x"), PS("*"), PS("y"), true },
+    { PS("", "x"), PS("*"), PS("", "x"), false },
+    { PS("", "x"), PS("*"), PS("x", ""), false },
+    { PS("", "x"), PS("*"), PS("x", "y"), true },
+    { PS("??"), PS("*"), PS("xy"), false },
+    { PS("??"), PS("*"), PS("x", "y"), true },
+    { PS("??"), PS("*"), PS("xy", "y"), true },
+
+    { PS("Q"), NULL, PS(""), true }, // default partition
+    { PS("Q"), PS(""), PS(""), true },
+    { PS("Q"), PS("", "x"), PS(""), true },
+    { PS("Q"), PS("", "x"), PS("x"), true },
+    { PS("Q"), PS("", "x"), PS("", "x"), true },
+    { PS("Q"), PS("", "x"), PS("x", "y"), true },
+    { PS("Q"), PS("", "x"), PS("y"), false },
+#undef PS
+  };
+  // The generated configuration has the allow rule comes first,
+  // then the deny rule and finally a default of allow
+  for (size_t i = 0; i < sizeof (parts) / sizeof (parts[0]); i++)
+  {
+    printf ("======== ALLOW:{");
+    for (int j = 0; parts[i].allow && parts[i].allow[j]; j++)
+      printf (" \"%s\"", parts[i].allow[j]);
+    printf (" } DENY:{");
+    for (int j = 0; parts[i].deny && parts[i].deny[j]; j++)
+      printf (" \"%s\"", parts[i].deny[j]);
+    printf (" } USE:{");
+    for (int j = 0; parts[i].use && parts[i].use[j]; j++)
+      printf (" \"%s\"", parts[i].use[j]);
+    printf (" } EXP_DENY: %s\n", parts[i].exp_deny ? "true" : "false");
+    partition_test (parts[i].allow, parts[i].deny, parts[i].use, parts[i].exp_deny);
+  }
+}

@@ -272,15 +272,9 @@ void *ddsrt_hh_iter_next (struct ddsrt_hh_iter * __restrict iter)
 
 /********** CONCURRENT VERSION ************/
 
-#if ! ddsrt_has_feature_thread_sanitizer
-
-#define N_BACKING_LOCKS 32
-#define N_RESIZE_LOCKS 8
-
 struct ddsrt_chh_bucket {
     ddsrt_atomic_uint32_t hopinfo;
     ddsrt_atomic_uint32_t timestamp;
-    ddsrt_atomic_uint32_t lock;
     ddsrt_atomic_voidp_t data;
 };
 
@@ -289,17 +283,11 @@ struct ddsrt_chh_bucket_array {
     struct ddsrt_chh_bucket bs[];
 };
 
-struct ddsrt_chh_backing_lock {
-    ddsrt_mutex_t lock;
-    ddsrt_cond_t cv;
-};
-
 struct ddsrt_chh {
     ddsrt_atomic_voidp_t buckets; /* struct ddsrt_chh_bucket_array * */
-    struct ddsrt_chh_backing_lock backingLocks[N_BACKING_LOCKS];
     ddsrt_hh_hash_fn hash;
     ddsrt_hh_equals_fn equals;
-    ddsrt_rwlock_t resize_locks[N_RESIZE_LOCKS];
+    ddsrt_mutex_t change_lock;
     ddsrt_hh_buckets_gc_fn gc_buckets;
     void *gc_buckets_arg;
 };
@@ -334,33 +322,16 @@ static int ddsrt_chh_init (struct ddsrt_chh *rt, uint32_t init_size, ddsrt_hh_ha
         struct ddsrt_chh_bucket *b = &buckets->bs[i];
         ddsrt_atomic_st32 (&b->hopinfo, 0);
         ddsrt_atomic_st32 (&b->timestamp, 0);
-        ddsrt_atomic_st32 (&b->lock, 0);
         ddsrt_atomic_stvoidp (&b->data, NULL);
     }
-
-    for (i = 0; i < N_BACKING_LOCKS; i++) {
-        struct ddsrt_chh_backing_lock *s = &rt->backingLocks[i];
-        ddsrt_mutex_init (&s->lock);
-        ddsrt_cond_init (&s->cv);
-    }
-    for (i = 0; i < N_RESIZE_LOCKS; i++) {
-        ddsrt_rwlock_init (&rt->resize_locks[i]);
-    }
+    ddsrt_mutex_init (&rt->change_lock);
     return 0;
 }
 
 static void ddsrt_chh_fini (struct ddsrt_chh *rt)
 {
-    int i;
     ddsrt_free (ddsrt_atomic_ldvoidp (&rt->buckets));
-    for (i = 0; i < N_BACKING_LOCKS; i++) {
-        struct ddsrt_chh_backing_lock *s = &rt->backingLocks[i];
-        ddsrt_cond_destroy (&s->cv);
-        ddsrt_mutex_destroy (&s->lock);
-    }
-    for (i = 0; i < N_RESIZE_LOCKS; i++) {
-        ddsrt_rwlock_destroy (&rt->resize_locks[i]);
-    }
+    ddsrt_mutex_destroy (&rt->change_lock);
 }
 
 struct ddsrt_chh *ddsrt_chh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets, void *gc_buckets_arg)
@@ -378,68 +349,6 @@ void ddsrt_chh_free (struct ddsrt_chh * __restrict hh)
 {
     ddsrt_chh_fini (hh);
     ddsrt_free (hh);
-}
-
-#define LOCKBIT ((uint32_t)1 << 31)
-
-static void ddsrt_chh_lock_bucket (struct ddsrt_chh *rt, uint32_t bidx)
-{
-    /* Lock: MSB <=> LOCKBIT, LSBs <=> wait count; note that
-       (o&LOCKBIT)==0 means a thread can sneak in when there are
-       already waiters, changing it to o==0 would avoid that. */
-    struct ddsrt_chh_bucket_array * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
-    struct ddsrt_chh_bucket * const b = &bsary->bs[bidx];
-    struct ddsrt_chh_backing_lock * const s = &rt->backingLocks[bidx % N_BACKING_LOCKS];
-    uint32_t o, n;
- fastpath_retry:
-    o = ddsrt_atomic_ld32 (&b->lock);
-    if ((o & LOCKBIT) == 0) {
-        n = o | LOCKBIT;
-    } else {
-        n = o + 1;
-    }
-    if (!ddsrt_atomic_cas32 (&b->lock, o, n)) {
-        goto fastpath_retry;
-    }
-    if ((o & LOCKBIT) == 0) {
-        ddsrt_atomic_fence ();
-    } else {
-        ddsrt_mutex_lock (&s->lock);
-        do {
-            while ((o = ddsrt_atomic_ld32 (&b->lock)) & LOCKBIT) {
-                ddsrt_cond_wait (&s->cv, &s->lock);
-            }
-        } while (!ddsrt_atomic_cas32 (&b->lock, o, (o - 1) | LOCKBIT));
-        ddsrt_mutex_unlock (&s->lock);
-    }
-}
-
-static void ddsrt_chh_unlock_bucket (struct ddsrt_chh *rt, uint32_t bidx)
-{
-    struct ddsrt_chh_bucket_array * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
-    struct ddsrt_chh_bucket * const b = &bsary->bs[bidx];
-    struct ddsrt_chh_backing_lock * const s = &rt->backingLocks[bidx % N_BACKING_LOCKS];
-    uint32_t o, n;
- retry:
-    o = ddsrt_atomic_ld32 (&b->lock);
-    assert (o & LOCKBIT);
-    n = o & ~LOCKBIT;
-    if (!ddsrt_atomic_cas32 (&b->lock, o, n)) {
-        goto retry;
-    }
-    if (n == 0) {
-        ddsrt_atomic_fence ();
-    } else {
-        ddsrt_mutex_lock (&s->lock);
-        /* Need to broadcast because the CV is shared by multiple buckets
-           and the kernel wakes an arbitrary thread, it may be a thread
-           waiting for another bucket's lock that gets woken up, and that
-           can result in all threads waiting with all locks unlocked.
-           Broadcast avoids that, and with significantly more CVs than
-           cores, it shouldn't happen often. */
-        ddsrt_cond_broadcast (&s->cv);
-        ddsrt_mutex_unlock (&s->lock);
-    }
 }
 
 static void *ddsrt_chh_lookup_internal (struct ddsrt_chh_bucket_array const * const bsary, ddsrt_hh_equals_fn equals, const uint32_t bucket, const void *template)
@@ -514,7 +423,6 @@ static uint32_t ddsrt_chh_find_closer_free_bucket (struct ddsrt_chh *rt, uint32_
             }
         }
         if (move_free_distance != NOT_A_BUCKET) {
-            ddsrt_chh_lock_bucket (rt, move_bucket);
             if (start_hop_info == ddsrt_atomic_ld32 (&bs[move_bucket].hopinfo))
             {
                 uint32_t new_free_bucket = (move_bucket + move_free_distance) & idxmask;
@@ -526,10 +434,8 @@ static uint32_t ddsrt_chh_find_closer_free_bucket (struct ddsrt_chh *rt, uint32_
                 ddsrt_atomic_rmw32_nonatomic (&bs[move_bucket].hopinfo, x, x & ~(1u << move_free_distance));
 
                 *free_distance -= free_dist - move_free_distance;
-                ddsrt_chh_unlock_bucket (rt, move_bucket);
                 return new_free_bucket;
             }
-            ddsrt_chh_unlock_bucket (rt, move_bucket);
         }
         move_bucket = (move_bucket + 1) & idxmask;
     }
@@ -557,7 +463,6 @@ static void ddsrt_chh_resize (struct ddsrt_chh *rt)
     for (i = 0; i < bsary1->size; i++) {
         ddsrt_atomic_st32 (&bs1[i].hopinfo, 0);
         ddsrt_atomic_st32 (&bs1[i].timestamp, 0);
-        ddsrt_atomic_st32 (&bs1[i].lock, 0);
         ddsrt_atomic_stvoidp (&bs1[i].data, NULL);
     }
     idxmask0 = bsary0->size - 1;
@@ -581,11 +486,10 @@ static void ddsrt_chh_resize (struct ddsrt_chh *rt)
     rt->gc_buckets (bsary0, rt->gc_buckets_arg);
 }
 
-int ddsrt_chh_add (struct ddsrt_chh * __restrict rt, const void * __restrict data)
+static int ddsrt_chh_add_locked (struct ddsrt_chh * __restrict rt, const void * __restrict data)
 {
     const uint32_t hash = rt->hash (data);
     uint32_t size;
-    ddsrt_rwlock_read (&rt->resize_locks[hash % N_RESIZE_LOCKS]);
 
     {
         struct ddsrt_chh_bucket_array * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
@@ -597,10 +501,7 @@ int ddsrt_chh_add (struct ddsrt_chh * __restrict rt, const void * __restrict dat
         idxmask = size - 1;
         start_bucket = hash & idxmask;
 
-        ddsrt_chh_lock_bucket (rt, start_bucket);
         if (ddsrt_chh_lookup_internal (bsary, rt->equals, start_bucket, data)) {
-            ddsrt_chh_unlock_bucket (rt, start_bucket);
-            ddsrt_rwlock_unlock (&rt->resize_locks[hash % N_RESIZE_LOCKS]);
             return 0;
         }
 
@@ -619,42 +520,30 @@ int ddsrt_chh_add (struct ddsrt_chh * __restrict rt, const void * __restrict dat
                     ddsrt_atomic_rmw32_nonatomic (&bs[start_bucket].hopinfo, x, x | (1u << free_distance));
                     ddsrt_atomic_fence ();
                     ddsrt_atomic_stvoidp (&bs[free_bucket].data, (void *) data);
-                    ddsrt_chh_unlock_bucket (rt, start_bucket);
-                    ddsrt_rwlock_unlock (&rt->resize_locks[hash % N_RESIZE_LOCKS]);
                     return 1;
                 }
                 free_bucket = ddsrt_chh_find_closer_free_bucket (rt, free_bucket, &free_distance);
                 assert (free_bucket == NOT_A_BUCKET || free_bucket <= idxmask);
             } while (free_bucket != NOT_A_BUCKET);
         }
-        ddsrt_chh_unlock_bucket (rt, start_bucket);
     }
 
-    ddsrt_rwlock_unlock (&rt->resize_locks[hash % N_RESIZE_LOCKS]);
+    ddsrt_chh_resize (rt);
+    return ddsrt_chh_add_locked (rt, data);
+}
 
-    {
-        int i;
-        struct ddsrt_chh_bucket_array *bsary1;
-        for (i = 0; i < N_RESIZE_LOCKS; i++) {
-            ddsrt_rwlock_write (&rt->resize_locks[i]);
-        }
-        /* another thread may have sneaked past and grown the hash table */
-        bsary1 = ddsrt_atomic_ldvoidp (&rt->buckets);
-        if (bsary1->size == size) {
-            ddsrt_chh_resize (rt);
-        }
-        for (i = 0; i < N_RESIZE_LOCKS; i++) {
-            ddsrt_rwlock_unlock (&rt->resize_locks[i]);
-        }
-    }
-
-    return ddsrt_chh_add (rt, data);
+int ddsrt_chh_add (struct ddsrt_chh * __restrict rt, const void * __restrict data)
+{
+    ddsrt_mutex_lock (&rt->change_lock);
+    const int ret = ddsrt_chh_add_locked (rt, data);
+    ddsrt_mutex_unlock (&rt->change_lock);
+    return ret;
 }
 
 int ddsrt_chh_remove (struct ddsrt_chh * __restrict rt, const void * __restrict template)
 {
     const uint32_t hash = rt->hash (template);
-    ddsrt_rwlock_read (&rt->resize_locks[hash % N_RESIZE_LOCKS]);
+    ddsrt_mutex_lock (&rt->change_lock);
 
     {
         struct ddsrt_chh_bucket_array * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
@@ -664,7 +553,6 @@ int ddsrt_chh_remove (struct ddsrt_chh * __restrict rt, const void * __restrict 
         const uint32_t bucket = hash & idxmask;
         uint32_t hopinfo;
         uint32_t idx;
-        ddsrt_chh_lock_bucket (rt, bucket);
         hopinfo = ddsrt_atomic_ld32 (&bs[bucket].hopinfo);
         for (idx = 0; hopinfo != 0; hopinfo >>= 1, idx++) {
             if (hopinfo & 1) {
@@ -673,16 +561,14 @@ int ddsrt_chh_remove (struct ddsrt_chh * __restrict rt, const void * __restrict 
                 if (ddsrt_chh_data_valid_p (data) && rt->equals (data, template)) {
                     ddsrt_atomic_stvoidp (&bs[bidx].data, NULL);
                     ddsrt_atomic_rmw32_nonatomic (&bs[bucket].hopinfo, x, x & ~(1u << idx));
-                    ddsrt_chh_unlock_bucket (rt, bucket);
-                    ddsrt_rwlock_unlock (&rt->resize_locks[hash % N_RESIZE_LOCKS]);
+                    ddsrt_mutex_unlock (&rt->change_lock);
                     return 1;
                 }
             }
         }
-        ddsrt_chh_unlock_bucket (rt, bucket);
     }
 
-    ddsrt_rwlock_unlock (&rt->resize_locks[hash % N_RESIZE_LOCKS]);
+    ddsrt_mutex_unlock (&rt->change_lock);
     return 0;
 }
 
@@ -720,79 +606,6 @@ void *ddsrt_chh_iter_first (struct ddsrt_chh * __restrict rt, struct ddsrt_chh_i
   it->cursor = 0;
   return ddsrt_chh_iter_next (it);
 }
-
-#else
-
-struct ddsrt_chh {
-  ddsrt_mutex_t lock;
-  struct ddsrt_hh rt;
-};
-
-struct ddsrt_chh *ddsrt_chh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc)
-{
-  struct ddsrt_chh *hh = ddsrt_malloc (sizeof (*hh));
-  (void) gc;
-  ddsrt_mutex_init (&hh->lock);
-  ddsrt_hh_init (&hh->rt, init_size, hash, equals);
-  return hh;
-}
-
-void ddsrt_chh_free (struct ddsrt_chh * __restrict hh)
-{
-  ddsrt_hh_fini (&hh->rt);
-  ddsrt_mutex_destroy (&hh->lock);
-  ddsrt_free (hh);
-}
-
-void *ddsrt_chh_lookup (struct ddsrt_chh * __restrict hh, const void * __restrict template)
-{
-  ddsrt_mutex_lock (&hh->lock);
-  void *x = ddsrt_hh_lookup (&hh->rt, template);
-  ddsrt_mutex_unlock (&hh->lock);
-  return x;
-}
-
-int ddsrt_chh_add (struct ddsrt_chh * __restrict hh, const void * __restrict data)
-{
-  ddsrt_mutex_lock (&hh->lock);
-  int x = ddsrt_hh_add (&hh->rt, data);
-  ddsrt_mutex_unlock (&hh->lock);
-  return x;
-}
-
-int ddsrt_chh_remove (struct ddsrt_chh * __restrict hh, const void * __restrict template)
-{
-  ddsrt_mutex_lock (&hh->lock);
-  int x = ddsrt_hh_remove (&hh->rt, template);
-  ddsrt_mutex_unlock (&hh->lock);
-  return x;
-}
-
-void ddsrt_chh_enum_unsafe (struct ddsrt_chh * __restrict hh, void (*f) (void *a, void *f_arg), void *f_arg)
-{
-  ddsrt_mutex_lock (&hh->lock);
-  ddsrt_hh_enum (&hh->rt, f, f_arg);
-  ddsrt_mutex_unlock (&hh->lock);
-}
-
-void *ddsrt_chh_iter_first (struct ddsrt_chh * __restrict hh, struct ddsrt_chh_iter *it)
-{
-  ddsrt_mutex_lock (&hh->lock);
-  it->chh = hh;
-  void *x = ddsrt_hh_iter_first (&hh->rt, &it->it);
-  ddsrt_mutex_unlock (&hh->lock);
-  return x;
-}
-
-void *ddsrt_chh_iter_next (struct ddsrt_chh_iter *it)
-{
-  ddsrt_mutex_lock (&it->chh->lock);
-  void *x = ddsrt_hh_iter_next (&it->it);
-  ddsrt_mutex_unlock (&it->chh->lock);
-  return x;
-}
-
-#endif
 
 /************* SEQUENTIAL VERSION WITH EMBEDDED DATA ***************/
 

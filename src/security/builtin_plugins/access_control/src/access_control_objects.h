@@ -16,6 +16,7 @@
 #include "dds/ddsrt/types.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/openssl_support.h"
+#include "dds/security/core/dds_security_timed_cb.h"
 
 #define ACCESS_CONTROL_OBJECT(o)            ((AccessControlObject *)(o))
 #define ACCESS_CONTROL_OBJECT_HANDLE(o)     ((o) ? ACCESS_CONTROL_OBJECT(o)->handle : DDS_SECURITY_HANDLE_NIL)
@@ -38,6 +39,8 @@ struct AccessControlObject {
     ddsrt_atomic_uint32_t refcount;
     AccessControlObjectKind_t kind;
     AccessControlObjectDestructor destructor;
+    dds_time_t permissions_expiry;
+    dds_security_time_event_handle_t timer;
 };
 
 typedef struct local_participant_access_rights {
@@ -50,7 +53,6 @@ typedef struct local_participant_access_rights {
     char *identity_subject_name;
     char *permissions_document;
     X509 *permissions_ca;
-    dds_time_t permissions_expiry;
 } local_participant_access_rights;
 
 
@@ -66,7 +68,6 @@ typedef struct remote_participant_access_rights {
     local_participant_access_rights *local_rights;
     remote_permissions *permissions;
     char *identity_subject_name;
-    dds_time_t permissions_expiry;
 } remote_participant_access_rights;
 
 void access_control_object_init(AccessControlObject *obj, AccessControlObjectKind_t kind, AccessControlObjectDestructor destructor);

@@ -63,7 +63,7 @@ static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, uint3
   *nivs = j;
 }
 
-static int threads_vtime_check (uint32_t *nivs, struct idx_vtime *ivs)
+static int threads_vtime_check (const struct ddsi_domaingv *gv, uint32_t *nivs, struct idx_vtime *ivs)
 {
   /* check all threads in ts have made progress those that have are
      removed from the set */
@@ -73,7 +73,7 @@ static int threads_vtime_check (uint32_t *nivs, struct idx_vtime *ivs)
     uint32_t thridx = ivs[i].idx;
     vtime_t vtime = ddsrt_atomic_ld32 (&thread_states.ts[thridx].vtime);
     assert (vtime_awake_p (ivs[i].vtime));
-    if (!vtime_gt (vtime, ivs[i].vtime))
+    if (!vtime_gt (vtime, ivs[i].vtime) && ddsrt_atomic_ldvoidp (&thread_states.ts[thridx].gv) == gv)
       ++i;
     else
     {
@@ -153,7 +153,7 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
 
     if (gcreq)
     {
-      if (!threads_vtime_check (&gcreq->nvtimes, gcreq->vtimes))
+      if (!threads_vtime_check (q->gv, &gcreq->nvtimes, gcreq->vtimes))
       {
         /* Not all threads made enough progress => gcreq is not ready
            yet => sleep for a bit and retry.  Note that we can't even

@@ -35,7 +35,7 @@ struct proxy_writer;
 struct proxy_reader;
 struct nn_xmsg;
 
-struct xeventq *xeventq_new
+DDS_EXPORT struct xeventq *xeventq_new
 (
   struct ddsi_tran_conn * conn,
   size_t max_queued_rexmit_bytes,

@@ -93,3 +93,44 @@ CU_Theory((const char *str, const char *srch, const char *subst, size_t max, con
   }
 }
 
+CU_TheoryDataPoints(ddsrt_strndup, exact_length) = {
+  CU_DataPoints(const char *, "", "a", "abcd"),
+  CU_DataPoints(const char *, "", "a", "abcd"),
+  CU_DataPoints(size_t, 0, 1, 4)
+};
+
+CU_Theory((const char *s1, const char *s2, size_t n), ddsrt_strndup, exact_length)
+{
+  char *s = ddsrt_strndup(s1, n);
+  CU_ASSERT_PTR_NOT_NULL_FATAL(s);
+  CU_ASSERT_STRING_EQUAL(s, s2);
+  ddsrt_free(s);
+}
+
+CU_TheoryDataPoints(ddsrt_strndup, too_long) = {
+  CU_DataPoints(const char *, "abcd", "abcd", "abcd"),
+  CU_DataPoints(const char *, "abc", "a", ""),
+  CU_DataPoints(size_t, 3, 1, 0)
+};
+
+CU_Theory((const char *s1, const char *s2, size_t n), ddsrt_strndup, too_long)
+{
+  char *s = ddsrt_strndup(s1, n);
+  CU_ASSERT_PTR_NOT_NULL_FATAL(s);
+  CU_ASSERT_STRING_EQUAL(s, s2);
+  ddsrt_free(s);
+}
+
+CU_TheoryDataPoints(ddsrt_strndup, too_short) = {
+  CU_DataPoints(const char *, "", "", "a", "a", "abc"),
+  CU_DataPoints(const char *, "", "", "a", "a", "abc"),
+  CU_DataPoints(size_t, 1, 2, 2, 4, 4)
+};
+
+CU_Theory((const char *s1, const char *s2, size_t n), ddsrt_strndup, too_short)
+{
+  char *s = ddsrt_strndup(s1, n);
+  CU_ASSERT_PTR_NOT_NULL_FATAL(s);
+  CU_ASSERT_STRING_EQUAL(s, s2);
+  ddsrt_free(s);
+}

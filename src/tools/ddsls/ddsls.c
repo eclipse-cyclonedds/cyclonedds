@@ -394,8 +394,17 @@ static void print_key(FILE *fp, const char *label, const dds_guid_t *key)
   fprintf(fp, "\n");
 }
 
-#if 0
-void print_dcps_topic (FILE *fp, dds_entity_t pp)
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+static void print_key_topic(FILE *fp, const char *label, const unsigned char *key)
+{
+  fprintf(fp, "%s", label);
+  for(size_t j = 0; j < sizeof (key); j++) {
+    fprintf(fp, "%s%02x", (j == 0) ? " " : ":", key[j]);
+  }
+  fprintf(fp, "\n");
+}
+
+static void print_dcps_topic (FILE *fp, dds_entity_t pp)
 {
   dds_entity_t rd = dds_create_reader (pp, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
   (void)dds_reader_wait_for_historical_data (rd, DDS_SECS (5));
@@ -410,7 +419,9 @@ void print_dcps_topic (FILE *fp, dds_entity_t pp)
     {
       dds_builtintopic_topic_t *data = ptrs[i];
       fprintf (fp,"TOPIC:\n");
-      print_key (fp, "  key =", &data->key);
+      print_key_topic (fp, "  key =", data->key.d);
+      fprintf (fp, "  name = %s\n", data->topic_name);
+      fprintf (fp, "  type name = %s\n", data->type_name);
       if (info[i].valid_data)
       {
         qp_qos (data->qos, fp);
@@ -420,7 +431,7 @@ void print_dcps_topic (FILE *fp, dds_entity_t pp)
   }
   dds_delete (rd);
 }
-#endif
+#endif /* DDS_HAS_TOPIC_DISCOVERY */
 
 static void print_dcps_participant (FILE *fp, dds_entity_t pp)
 {
@@ -497,7 +508,9 @@ static struct topictab {
   const int flag;
   void (*fun) (FILE *fp, dds_entity_t pp);
 } topictab[] = {
-  //{ "dcpstopic", DCPSTOPIC_FLAG, print_dcps_topic },
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  { "dcpstopic", DCPSTOPIC_FLAG, print_dcps_topic },
+#endif
   { "dcpsparticipant", DCPSPARTICIPANT_FLAG, print_dcps_participant },
   { "dcpssubscription", DCPSSUBSCRIPTION_FLAG, print_dcps_subscription },
   { "dcpspublication", DCPSPUBLICATION_FLAG, print_dcps_publication }

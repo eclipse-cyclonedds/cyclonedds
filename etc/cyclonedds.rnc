@@ -64,6 +64,12 @@ CycloneDDS configuration""" ] ]
           text
         }?
         & [ a:documentation [ xml:lang="en" """
+<p>This element controls whether the built-in endpoints for topic discovery are created and used to exchange topic discovery information.</p>
+<p>The default value is: "false".</p>""" ] ]
+        element EnableTopicDiscoveryEndpoints {
+          xsd:boolean
+        }?
+        & [ a:documentation [ xml:lang="en" """
 <p>An override for the domain id, to be used in discovery and for determining the port number mapping. This allows creating multiple domains in a single process while making them appear as a single domain on the network. The value "default" disables the override.</p>
 <p>The default value is: "default".</p>""" ] ]
         element ExternalDomainId {
@@ -379,10 +385,11 @@ CycloneDDS configuration""" ] ]
 <ul>
 <li><i>whc</i>: writer history cache checking</li>
 <li><i>rhc</i>: reader history cache checking</li>
+<li><i>xevent</i>: xevent checking</li>
 <p>In addition, there is the keyword <i>all</i> that enables all checks.</p>
 <p>The default value is: "".</p>""" ] ]
         element EnableExpensiveChecks {
-          xsd:token { pattern = "((whc|rhc|all)(,(whc|rhc|all))*)|" }
+          xsd:token { pattern = "((whc|rhc|xevent|all)(,(whc|rhc|xevent|all))*)|" }
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>When true, include keyhashes in outgoing data for topics with keys.</p>

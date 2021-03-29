@@ -211,6 +211,7 @@ struct ddsi_config_ssl_min_version {
 /* Expensive checks (compiled in when NDEBUG not defined, enabled only if flag set in xchecks) */
 #define DDSI_XCHECK_WHC 1u
 #define DDSI_XCHECK_RHC 2u
+#define DDSI_XCHECK_XEV 4u
 
 struct ddsi_config
 {
@@ -272,6 +273,10 @@ struct ddsi_config
 
   int publish_uc_locators; /* Publish discovery unicast locators */
   int enable_uc_locators; /* If false, don't even try to create a unicast socket */
+
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  int enable_topic_discovery_endpoints;
+#endif
 
   /* TCP transport configuration */
   int tcp_nodelay;

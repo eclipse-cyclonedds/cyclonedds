@@ -2336,6 +2336,37 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
   }
 }
 
+void nn_reorder_drop_upto (struct nn_reorder *reorder, seqno_t maxp1)
+{
+  // nn_reorder_gap returns the chain of available samples starting with the first
+  // sequence number in the gap interval and ending at the highest sequence number
+  // >= maxp1 for which all sequence numbers starting from maxp1 are present.
+  // Requiring that no samples are present beyond maxp1 means we're not dropping
+  // too much.  That's good enough for the current purpose.
+  assert (reorder->max_sampleiv == NULL || reorder->max_sampleiv->u.reorder.maxp1 <= maxp1);
+  // gap won't be stored, so can safely be stack-allocated for the purpose of calling
+  // nn_reorder_gap
+  struct nn_rdata gap = {
+    .rmsg = NULL, .nextfrag = NULL, .min = 0, .maxp1 = 0, .submsg_zoff = 0, .payload_zoff = 0
+#ifndef NDEBUG
+    , .refcount_bias_added = DDSRT_ATOMIC_UINT32_INIT (0)
+#endif
+  };
+  struct nn_rsample_chain sc;
+  int refc_adjust = 0;
+  if (nn_reorder_gap (&sc, reorder, &gap, 1, maxp1, &refc_adjust) > 0)
+  {
+    while (sc.first)
+    {
+      struct nn_rsample_chain_elem *e = sc.first;
+      sc.first = e->next;
+      nn_fragchain_unref (e->fragchain);
+    }
+  }
+  assert (refc_adjust == 0 && !ddsrt_atomic_ld32 (&gap.refcount_bias_added));
+  assert (nn_reorder_next_seq (reorder) >= maxp1);
+}
+
 int nn_reorder_wantsample (const struct nn_reorder *reorder, seqno_t seq)
 {
   struct nn_rsample *s;

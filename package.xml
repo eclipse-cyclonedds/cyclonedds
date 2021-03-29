@@ -15,6 +15,7 @@
     <buildtool_depend>cmake</buildtool_depend>
 
     <build_depend>libssl-dev</build_depend>
+    <build_depend>bison</build_depend>
 
     <exec_depend>openssl</exec_depend>
 

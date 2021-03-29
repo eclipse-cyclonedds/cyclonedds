@@ -44,6 +44,8 @@ int WildcardOverlap(char * p1, char * p2)
 }
 #endif
 
+const ddsi_guid_t nullguid = { .prefix = { .u = { 0,0,0 } }, .entityid = { .u = 0 } };
+
 bool guid_prefix_zero (const ddsi_guid_prefix_t *a)
 {
   return a->u[0] == 0 && a->u[1] == 0 && a->u[2] == 0;

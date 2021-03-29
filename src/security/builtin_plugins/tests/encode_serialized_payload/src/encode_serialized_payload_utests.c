@@ -454,7 +454,8 @@ static void suite_encode_serialized_payload_init(void)
   CU_ASSERT_FATAL ((plugins = load_plugins(
                       NULL    /* Access Control */,
                       NULL    /* Authentication */,
-                      &crypto /* Cryptograpy    */)) != NULL);
+                      &crypto /* Cryptograpy    */,
+                      NULL)) != NULL);
   CU_ASSERT_EQUAL_FATAL (register_local_participant(), 0);
   CU_ASSERT_EQUAL_FATAL (register_remote_participant(), 0);
 }
@@ -681,74 +682,13 @@ CU_Test(ddssec_builtin_encode_serialized_payload, invalid_args, .init = suite_en
   plain_buffer._buffer = DDS_Security_OctetSeq_allocbuf((uint32_t) length);
   memcpy((char *)plain_buffer._buffer, SAMPLE_TEST_DATA, length);
 
-  /* no encoded data specified */
-  result = crypto->crypto_transform->encode_serialized_payload(
-      crypto->crypto_transform,
-      NULL,
-      &extra_inline_qos,
-      &plain_buffer,
-      writer_crypto,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* no plain data specified */
-  result = crypto->crypto_transform->encode_serialized_payload(
-      crypto->crypto_transform,
-      &encoded_buffer,
-      &extra_inline_qos,
-      NULL,
-      writer_crypto,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-  unregister_local_datawriter(writer_crypto);
-
-  /* empty plain data specified */
-  result = crypto->crypto_transform->encode_serialized_payload(
-      crypto->crypto_transform,
-      &encoded_buffer,
-      &extra_inline_qos,
-      &empty_buffer,
-      writer_crypto,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
   /* unknown writer crypto handle specified */
   result = crypto->crypto_transform->encode_serialized_payload(
       crypto->crypto_transform,
       &encoded_buffer,
       &extra_inline_qos,
       &plain_buffer,
-      0,
+      1,
       &exception);
 
   if (!result)

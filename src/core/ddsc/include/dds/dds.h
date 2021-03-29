@@ -205,6 +205,19 @@ typedef struct dds_builtintopic_participant
 }
 dds_builtintopic_participant_t;
 
+typedef struct dds_builtintopic_topic_key {
+  unsigned char d[16];
+} dds_builtintopic_topic_key_t;
+
+typedef struct dds_builtintopic_topic
+{
+  dds_builtintopic_topic_key_t key;
+  char *topic_name;
+  char *type_name;
+  dds_qos_t *qos;
+}
+dds_builtintopic_topic_t;
+
 typedef struct dds_builtintopic_endpoint
 {
   dds_guid_t key;
@@ -1176,7 +1189,7 @@ dds_create_topic_arbitrary (
 /**
  * @brief Finds a named topic.
  *
- * The returned topic should be released with dds_delete.
+ * Finds a locally created topic based on the topic name.
  *
  * @param[in]  participant  The participant on which to find the topic.
  * @param[in]  name         The name of the topic to find.
@@ -1190,8 +1203,41 @@ dds_create_topic_arbitrary (
  * @retval DDS_RETCODE_PRECONDITION_NOT_MET
  *             No topic of this name existed yet in the participant
  */
-DDS_EXPORT dds_entity_t
+DDS_DEPRECATED_EXPORT dds_entity_t
 dds_find_topic(dds_entity_t participant, const char *name);
+
+/**
+ * @brief Finds a locally created or discovered remote topic by topic name
+ *
+ * Finds a locally created topic or a discovered remote topic based on the topic
+ * name. In case the topic is not found, this function will wait for
+ * the topic to become available until the provided time out.
+ *
+ * In case multiple (discovered) topics are found with the provided name,
+ * this function will return an error code. The caller can decide to
+ * read DCPSTopic data itself and select one of the topic definitions
+ * to create the topic.
+ *
+ * The returned topic should be released with dds_delete.
+ *
+ * @param[in]  scope        The scope used to find the topic
+ * @param[in]  participant  The handle of the participant the found topic will be created in
+ * @param[in]  name         The name of the topic to find.
+ * @param[in]  timeout      The timeout for waiting for the topic to become available
+ *
+ * @returns A valid topic handle or an error code.
+ *
+ * @retval >0
+ *             A valid topic handle.
+ * @retval 0
+ *             No topic of this name existed yet
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Participant handle or scope invalid
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             Multiple topics with the provided name were found.
+ */
+DDS_EXPORT dds_entity_t
+dds_find_topic_scoped (dds_find_scope_t scope, dds_entity_t participant, const char *name, dds_duration_t timeout);
 
 /**
  * @brief Returns the name of a given topic.
@@ -3054,6 +3100,54 @@ dds_readcdr(
 
 /**
  * @brief Access the collection of serialized data values (of same type) and
+ *        sample info from the data reader, readcondition or querycondition
+ *        scoped by the provided instance handle..
+ *
+ * This operation implements the same functionality as dds_read_instance_wl, except that
+ * samples are now in their serialized form. The serialized data is made available through
+ * \ref ddsi_serdata structures. Returned samples are marked as READ.
+ *
+ * Return value provides information about the number of samples read, which will
+ * be <= maxs. Based on the count, the buffer will contain serialized data to be
+ * read only when valid_data bit in sample info structure is set.
+ * The buffer required for data values, could be allocated explicitly or can
+ * use the memory from data reader to prevent copy. In the latter case, buffer and
+ * sample_info should be returned back, once it is no longer using the data.
+ *
+ * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[out] buf An array of pointers to \ref ddsi_serdata structures that contain
+ *                 the serialized data. The pointers can be NULL.
+ * @param[in]  maxs Maximum number of samples to read.
+ * @param[out] si Pointer to an array of \ref dds_sample_info_t returned for each data value.
+ * @param[in]  handle Instance handle related to the samples to read.
+ * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
+ *
+ * @returns A dds_return_t with the number of samples read or an error code.
+ *
+ * @retval >=0
+ *             Number of samples read.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             The instance handle has not been registered with this reader.
+ */
+DDS_EXPORT dds_return_t
+dds_readcdr_instance (
+    dds_entity_t reader_or_condition,
+    struct ddsi_serdata **buf,
+    uint32_t maxs,
+    dds_sample_info_t *si,
+    dds_instance_handle_t handle,
+    uint32_t mask);
+
+/**
+ * @brief Access the collection of serialized data values (of same type) and
  *        sample info from the data reader, readcondition or querycondition.
  *
  * This call accesses the serialized data from the data reader, readcondition or
@@ -3097,6 +3191,55 @@ dds_takecdr(
   uint32_t maxs,
   dds_sample_info_t *si,
   uint32_t mask);
+
+/**
+ * @brief Access the collection of serialized data values (of same type) and
+ *        sample info from the data reader, readcondition or querycondition
+ *        scoped by the provided instance handle..
+ *
+ * This operation implements the same functionality as dds_take_instance_wl, except that
+ * samples are now in their serialized form. The serialized data is made available through
+ * \ref ddsi_serdata structures. Returned samples are marked as READ.
+ *
+ * Return value provides information about the number of samples read, which will
+ * be <= maxs. Based on the count, the buffer will contain serialized data to be
+ * read only when valid_data bit in sample info structure is set.
+ * The buffer required for data values, could be allocated explicitly or can
+ * use the memory from data reader to prevent copy. In the latter case, buffer and
+ * sample_info should be returned back, once it is no longer using the data.
+ *
+ * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[out] buf An array of pointers to \ref ddsi_serdata structures that contain
+ *                 the serialized data. The pointers can be NULL.
+ * @param[in]  maxs Maximum number of samples to read.
+ * @param[out] si Pointer to an array of \ref dds_sample_info_t returned for each data value.
+ * @param[in]  handle Instance handle related to the samples to read.
+ * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
+ *
+ * @returns A dds_return_t with the number of samples read or an error code.
+ *
+ * @retval >=0
+ *             Number of samples read.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             The instance handle has not been registered with this reader.
+ */
+DDS_EXPORT dds_return_t
+dds_takecdr_instance (
+    dds_entity_t reader_or_condition,
+    struct ddsi_serdata **buf,
+    uint32_t maxs,
+    dds_sample_info_t *si,
+    dds_instance_handle_t handle,
+    uint32_t mask);
+
 
 /**
  * @brief Access the collection of data values (of same type) and sample info from the
@@ -3712,6 +3855,19 @@ dds_builtintopic_get_endpoint_typeid (
 DDS_EXPORT void
 dds_builtintopic_free_endpoint (
   dds_builtintopic_endpoint_t * builtintopic_endpoint);
+
+/**
+ * @brief Free the provided topic information
+ *
+ * This operation deallocates the memory of the fields in a
+ * dds_builtintopic_topic_t struct and deallocates the
+ * struct itself.
+ *
+ * @param[in] builtintopic_topic  The builtintopic topic struct
+ */
+DDS_EXPORT void
+dds_builtintopic_free_topic (
+  dds_builtintopic_topic_t * builtintopic_topic);
 
 /**
  * @brief Free the provided participant information
