@@ -1,20 +1,20 @@
 module ThroughputModule
 {
 
-  struct DataType_Base
-  {
-    unsigned long long count;
-    unsigned long payloadsize;
-  };
-  #pragma keylist DataType_Base
+struct DataType_Base
+{
+  unsigned long long count;
+  unsigned long payloadsize;
+};
+#pragma keylist DataType_Base
 
-  struct DataType_16
-  {
-    unsigned long long count;
-    unsigned long payloadsize;
-    octet payload[16 - 12];
-  };
-  #pragma keylist DataType_16
+struct DataType_16
+{
+  unsigned long long count;
+  unsigned long payloadsize;
+  octet payload[16 - 12];
+};
+#pragma keylist DataType_16
 
 struct DataType_32
 {

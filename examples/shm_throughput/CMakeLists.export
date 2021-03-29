@@ -19,13 +19,13 @@ find_package(CycloneDDS REQUIRED COMPONENTS idlc PATHS "${CMAKE_CURRENT_SOURCE_D
 # that will supply a library target related the the given idl file.
 # In short, it takes the idl file, generates the source files with
 # the proper data types and compiles them into a library.
-idlc_generate(IoxThroughput_lib Throughput.idl)
+idlc_generate(ShmThroughput_lib ShmThroughput.idl)
 
 # Both executables have only one related source file.
-add_executable(IoxThroughputPublisher ioxpublisher.c)
-add_executable(IoxThroughputSubscriber ioxsubscriber.c)
+add_executable(ShmThroughputPublisher shmpublisher.c)
+add_executable(ShmThroughputSubscriber shmsubscriber.c)
 
 # Both executables need to be linked to the idl data type library and
 # the ddsc API library.
-target_link_libraries(IoxThroughputPublisher IoxThroughput_lib CycloneDDS::ddsc)
-target_link_libraries(IoxThroughputSubscriber IoxThroughput_lib CycloneDDS::ddsc)
+target_link_libraries(ShmThroughputPublisher ShmThroughput_lib CycloneDDS::ddsc)
+target_link_libraries(ShmThroughputSubscriber ShmThroughput_lib CycloneDDS::ddsc)
