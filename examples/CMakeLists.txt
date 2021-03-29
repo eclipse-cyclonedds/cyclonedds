@@ -15,7 +15,7 @@ add_subdirectory(helloworld)
 add_subdirectory(roundtrip)
 add_subdirectory(throughput)
 if (ENABLE_SHM)
-  add_subdirectory(iox_throughput)
+  add_subdirectory(shm_throughput)
 endif ()
 
 if (BUILD_DOCS)

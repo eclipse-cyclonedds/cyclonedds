@@ -9,19 +9,19 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-idlc_generate(IoxThroughput_lib IoxThroughput.idl)
+idlc_generate(ShmThroughput_lib ShmThroughput.idl)
 
-add_executable(IoxThroughputPublisher ioxpublisher.c)
-add_executable(IoxThroughputSubscriber ioxsubscriber.c)
+add_executable(ShmThroughputPublisher shmpublisher.c)
+add_executable(ShmThroughputSubscriber shmsubscriber.c)
 
-target_link_libraries(IoxThroughputPublisher IoxThroughput_lib CycloneDDS::ddsc)
-target_link_libraries(IoxThroughputSubscriber IoxThroughput_lib CycloneDDS::ddsc)
+target_link_libraries(ShmThroughputPublisher ShmThroughput_lib CycloneDDS::ddsc)
+target_link_libraries(ShmThroughputSubscriber ShmThroughput_lib CycloneDDS::ddsc)
 
 install(
   FILES
-    "IoxThroughput.idl"
-    "ioxpublisher.c"
-    "ioxsubscriber.c"
+    "ShmThroughput.idl"
+    "shmpublisher.c"
+    "shmsubscriber.c"
   DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/throughput"
   COMPONENT dev)
 

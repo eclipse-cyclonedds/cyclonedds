@@ -1,5 +1,5 @@
 #include "dds/dds.h"
-#include "IoxThroughput.h"
+#include "ShmThroughput.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
