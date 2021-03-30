@@ -39,6 +39,7 @@ struct ddsi_sertype {
   uint32_t serdata_basehash;
   uint32_t typekind_no_key : 1;
   uint32_t request_keyhash : 1;
+  uint32_t fixed_size : 1;
   char *type_name;
   ddsrt_atomic_voidp_t gv; /* set during registration */
   ddsrt_atomic_uint32_t flags_refc; /* counts refs from entities (topic, reader, writer), not from data */
@@ -147,6 +148,7 @@ void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype
 
 #define DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY (1u)
 #define DDSI_SERTYPE_FLAG_REQUEST_KEYHASH  (2u)
+#define DDSI_SERTYPE_FLAG_FIXED_SIZE       (4u)
 
 #define DDSI_SERTYPE_FLAG_MASK (0x3u)
 
