@@ -52,6 +52,7 @@ if(ENABLE_TYPE_DISCOVERY)
 endif()
 if(ENABLE_SHM)
   set(DDS_HAS_SHM "1")
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/Modules/iceoryx/ ${CMAKE_BINARY_DIR}/dependencies/iceoryx/prebuild)
 endif()
 # ones that linger in the sources
 # - DDS_HAS_BANDWIDTH_LIMITING
