@@ -203,6 +203,7 @@ CU_Test(ddsc_readcondition_create, deleted_reader, .init=readcondition_init, .fi
 {
   uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
   dds_entity_t cond;
+  dds_sleepfor(DDS_MSECS(10));
   dds_delete (g_reader);
   cond = dds_create_readcondition (g_reader, mask);
   CU_ASSERT_EQUAL_FATAL (cond, DDS_RETCODE_BAD_PARAMETER);
