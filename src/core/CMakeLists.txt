@@ -42,7 +42,7 @@ endif()
 
 if(ENABLE_SHM)
   find_package(iceoryx_binding_c REQUIRED)
-  target_link_libraries(ddsc PRIVATE iceoryx_binding_c::iceoryx_binding_c)
+  target_link_libraries(ddsc PUBLIC iceoryx_binding_c::iceoryx_binding_c)
   #TODO: private linkage (c binding is also required in other module depending on ddsc)
   #target_link_libraries(ddsc PRIVATE iceoryx_binding_c::iceoryx_binding_c)
 endif()

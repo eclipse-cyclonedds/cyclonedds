@@ -11,6 +11,11 @@
 #
 @PACKAGE_INIT@
 
+if(@ENABLE_SHM@)
+  include(CMakeFindDependencyMacro)
+  find_dependency(iceoryx_binding_c)
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake")
 option("@PROJECT_NAME@_IDLC_ALWAYS" "Should we include idlc even if the user didn't request the idlc component?" ON)
 
