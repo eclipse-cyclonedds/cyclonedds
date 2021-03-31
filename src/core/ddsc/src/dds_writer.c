@@ -31,6 +31,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
 #include "dds__statistics.h"
+#include "dds__data_allocator.h"
 #include "dds/ddsi/ddsi_statistics.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_writer)
@@ -464,6 +465,39 @@ dds_entity_t dds_get_publisher (dds_entity_t writer)
     dds_entity_unpin (e);
     return pubh;
   }
+}
+
+dds_return_t dds__writer_data_allocator_init (const dds_writer *wr, dds_data_allocator_t *data_allocator)
+{
+#ifdef DDS_HAS_SHM
+  dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
+  if (wr->m_entity.m_domain->gv.config.enable_shm)
+  {
+    d->kind = DDS_IOX_ALLOCATOR_KIND_PUBLISHER;
+    d->ref.pub = wr->m_iox_pub;
+  }
+  else
+  {
+    d->kind = DDS_IOX_ALLOCATOR_KIND_NONE;
+  }
+  return DDS_RETCODE_OK;
+#else
+  (void) wr;
+  (void) data_allocator;
+  return DDS_RETCODE_OK;
+#endif
+}
+
+dds_return_t dds__writer_data_allocator_fini (const dds_writer *wr, dds_data_allocator_t *data_allocator)
+{
+#ifdef DDS_HAS_SHM
+  dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
+  d->kind = DDS_IOX_ALLOCATOR_KIND_FINI;
+#else
+  (void) data_allocator;
+#endif
+  (void) wr;
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t dds__writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t *rdguid, dds_time_t abstimeout)
