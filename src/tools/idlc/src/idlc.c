@@ -302,8 +302,8 @@ static idl_retcode_t idlc_parse(void)
     if (mcpp_lib_main(config.argc, config.argv) == 0) {
       assert(!config.compile || retcode == IDL_RETCODE_OK);
     } else if (config.compile) {
-      assert(retcode != IDL_RETCODE_OK);
-      ret = retcode;
+      /* retcode is not set on preprocessor error */
+      ret = retcode ? retcode : IDL_RETCODE_SYNTAX_ERROR;
     }
     if (pstate) {
       pstate->flags &= ~IDL_WRITE;
@@ -576,7 +576,9 @@ int main(int argc, char *argv[])
     config.file = argv[optind];
     config.argv[config.argc++] = config.file;
     if ((ret = idlc_parse())) {
-      fprintf(stderr, "Cannot parse '%s'\n", config.file);
+      /* assume other errors are reported by processor */
+      if (ret == IDL_RETCODE_NO_MEMORY)
+        fprintf(stderr, "Out of memory\n");
       goto err_parse;
     } else if (config.compile) {
       if (gen.generate)
