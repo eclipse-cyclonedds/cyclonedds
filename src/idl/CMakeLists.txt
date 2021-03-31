@@ -49,7 +49,6 @@ add_library(
     src/string.c
     src/annotation.c
     src/scope.c
-    src/hashid.c
     src/string.c
     src/tree.c
     src/visit.c
