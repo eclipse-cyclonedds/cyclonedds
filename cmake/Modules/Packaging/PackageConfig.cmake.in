@@ -11,7 +11,7 @@
 #
 @PACKAGE_INIT@
 
-if(@ENABLE_SHM@)
+if(@CYCLONE_BUILD_WITH_ICEORYX@)
   include(CMakeFindDependencyMacro)
   find_dependency(iceoryx_binding_c)
 endif()
