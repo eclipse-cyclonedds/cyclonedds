@@ -200,8 +200,7 @@ target_include_directories(ddsc
   PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
 
 
-if(ENABLE_SHM)
-  find_package(iceoryx_binding_c REQUIRED)
+if(iceoryx_binding_c_FOUND)
   target_link_libraries(ddsc INTERFACE iceoryx_binding_c::iceoryx_binding_c)
 endif()
 

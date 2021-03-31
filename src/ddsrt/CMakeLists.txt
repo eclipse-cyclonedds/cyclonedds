@@ -270,8 +270,7 @@ if(${CMAKE_C_COMPILER_ID} STREQUAL "SunPro")
   target_link_libraries(ddsrt INTERFACE socket nsl)
 endif()
 
-if(ENABLE_SHM)
-  find_package(iceoryx_binding_c REQUIRED)
+if(iceoryx_binding_c_FOUND)
   target_link_libraries(ddsrt INTERFACE iceoryx_binding_c::iceoryx_binding_c)
 endif()
 
