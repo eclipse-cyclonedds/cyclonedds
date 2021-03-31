@@ -18,9 +18,9 @@
 
     <exec_depend>openssl</exec_depend>
 
-    <build_depend condition="$ENABLE_SHM == ON">iceoryx_binding_c</build_depend>
-    <build_depend condition="$ENABLE_SHM == ON">iceoryx_posh</build_depend>
-    <build_depend condition="$ENABLE_SHM == ON">iceoryx_utils</build_depend>
+    <depend condition="$ENABLE_SHM == ON">iceoryx_binding_c</depend>
+    <depend condition="$ENABLE_SHM == ON">iceoryx_posh</depend>
+    <depend condition="$ENABLE_SHM == ON">iceoryx_utils</depend>
 
     <test_depend>libcunit-dev</test_depend>
 

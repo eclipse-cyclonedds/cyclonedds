@@ -52,8 +52,15 @@ if(ENABLE_TYPE_DISCOVERY)
 endif()
 if(ENABLE_SHM)
   set(DDS_HAS_SHM "1")
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/Modules/iceoryx/ ${CMAKE_BINARY_DIR}/dependencies/iceoryx/prebuild)
+  find_package(iceoryx_binding_c QUIET)
+  if(iceoryx_binding_c_FOUND)
+    message("Build CycloneDDS with iceoryx shared memory support")
+  else()
+    message(FATAL_ERROR "iceoryx not found, please turn off CMake Option 'ENABLE_SHM'.")
+    message(FATAL_ERROR "Alternatively, you can enable 'BUILD_ICEORYX' to download and build iceoryx with CycloneDDS.")
+  endif()
 endif()
+
 # ones that linger in the sources
 # - DDS_HAS_BANDWIDTH_LIMITING
 # - DDS_HAS_NETWORK_CHANNELS
