@@ -40,6 +40,7 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_whc_builtintopic.c
     dds_serdata_builtintopic.c
     dds_sertype_builtintopic.c
+    dds_data_allocator.c
 )
 
 if (DDS_HAS_SHM)
@@ -57,6 +58,7 @@ PREPEND(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/dd
     ddsc/dds_statistics.h
     ddsc/dds_rhc.h
     ddsc/dds_internal_api.h
+    ddsc/dds_data_allocator.h
 )
 
 PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
@@ -85,6 +87,7 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__whc_builtintopic.h
     dds__serdata_builtintopic.h
     dds__get_status.h
+    dds__data_allocator.h
 )
 
 if (DDS_HAS_SHM)
