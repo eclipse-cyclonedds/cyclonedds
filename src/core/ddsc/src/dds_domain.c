@@ -139,8 +139,10 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   // TODO: isolate the shm runtime creation in a separate function
 
   // create the shared memory monitor based on iceoryx
-  if (domain->gv.config.enable_shm)
+  if (domain->gv.config.enable_shm) 
+  {
     shm_monitor_init(&domain->m_shm_monitor);
+  }
 #endif
 
   /* Start monitoring the liveliness of threads if this is the first
