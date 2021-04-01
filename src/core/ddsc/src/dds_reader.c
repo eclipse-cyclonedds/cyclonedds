@@ -64,6 +64,15 @@ static void dds_reader_close (dds_entity *e)
   struct dds_reader * const rd = (struct dds_reader *) e;
   assert (rd->m_rd != NULL);
 
+#ifdef DDS_HAS_SHM
+  if (e->m_domain->gv.config.enable_shm)
+  {
+  //will wait for any runing callback using the iceoryx subscriber of this reader
+    shm_monitor_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+  //from now on no callbacks on this reader will run
+  }
+#endif
+
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   (void) delete_reader (&e->m_domain->gv, &e->m_guid);
   thread_state_asleep (lookup_thread_state ());
@@ -95,8 +104,9 @@ static dds_return_t dds_reader_delete (dds_entity *e)
 #ifdef DDS_HAS_SHM
   if (e->m_domain->gv.config.enable_shm)
   {
+    // deletion must happen at the very end after the reader cache is not used anymore
+    // since the mutex is needed and the data needs to be released using the iceoryx subscriber
     DDS_CLOG (DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's subscriber\n");
-    shm_monitor_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
     iox_sub_deinit(rd->m_iox_sub);
     iox_sub_storage_extension_fini(&rd->m_iox_sub_stor);
   }

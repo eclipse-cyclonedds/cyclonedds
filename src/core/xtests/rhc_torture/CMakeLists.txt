@@ -10,6 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 idlc_generate(RhcTypes RhcTypes.idl)
+include(${CMAKE_CURRENT_LIST_DIR}/../../../../cmake/Modules/CUnit.cmake)
 
 add_executable(rhc_torture rhc_torture.c)
 
