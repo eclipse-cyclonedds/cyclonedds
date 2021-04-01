@@ -72,6 +72,7 @@
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/shm_sync.h"
 #include "iceoryx_binding_c/runtime.h"
+#include "dds/ddsi/shm_init.h"
 #endif
 
 static void add_peer_addresses (const struct ddsi_domaingv *gv, struct addrset *as, const struct ddsi_config_peer_listelem *list)
@@ -1147,15 +1148,15 @@ int rtps_init (struct ddsi_domaingv *gv)
   }
 
 #ifdef DDS_HAS_SHM
-  //ICEORYX_TODO: refactor this into separate function/module?
+  //ICEORYX_TODO: refactor this into separate function/module!
   if (gv->config.enable_shm)
   {
+    shm_set_loglevel(gv->config.shm_log_lvl);
     char str[128];
     char *sptr = str;
     unsigned char mac_addr[6];
     uint32_t pid = (uint32_t) ddsrt_getpid ();
 
-    // SHM_TODO: Now we use pid_time, but maybe we can just use pid.
     ddsrt_asprintf (&sptr, "iceoryx_rt_%d_%ld", pid, gv->tstart.v);
     GVLOG (DDS_LC_SHM, "Current process name for iceoryx is %s\n", sptr);
     iox_runtime_init (sptr);
