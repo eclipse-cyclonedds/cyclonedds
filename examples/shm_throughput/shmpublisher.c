@@ -276,7 +276,10 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
   /* A DataWriter is created on the publisher. */
   dwQos = dds_create_qos ();
   dds_qset_reliability (dwQos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
-  dds_qset_history (dwQos, DDS_HISTORY_KEEP_ALL, 0);
+  dds_qset_history (dwQos, DDS_HISTORY_KEEP_LAST, 16);
+  dds_qset_deadline(dwQos, DDS_INFINITY);
+  dds_qset_durability(dwQos, DDS_DURABILITY_VOLATILE);
+  dds_qset_liveliness(dwQos, DDS_LIVELINESS_AUTOMATIC, 1e9);
   dds_qset_resource_limits (dwQos, MAX_SAMPLES, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
   *writer = dds_create_writer (publisher, topic, dwQos, NULL);
   if (*writer < 0)

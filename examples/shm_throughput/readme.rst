@@ -15,7 +15,7 @@ Throughput
 Description
 ***********
 
-The Throughput example allows the measurement of data throughput when receiving samples from a publisher.
+The Throughput example allows the measurement of data throughput when receiving samples from a publisher, with message types that are supported by shared memory.
 
 
 Design
@@ -23,8 +23,8 @@ Design
 
 It consists of 2 units:
 
-- Publisher: sends samples at a specified size and rate.
-- Subscriber: Receives samples and outputs statistics about throughput
+- ShmThroughputPublisher: sends samples at a specified size and rate.
+- ShmThroughputSubscriber: Receives samples and outputs statistics about throughput
 
 Scenario
 ********
@@ -34,7 +34,7 @@ to send data in bursts. The **publisher** will continue to send data forever unl
 
 Configurable:
 
-- payloadSize: the size of the payload in bytes
+- payloadSize: the size of the payload in bytes, these should be powers of 2 from 16 to 1048576
 - burstInterval: the time interval between each burst in ms
 - burstSize: the number of samples to send each burst
 - timeOut: the number of seconds the publisher should run for (0=infinite)
@@ -56,42 +56,43 @@ Configurable:
 - maxCycles: the number of times to output statistics before terminating
 - pollingDelay
 - partitionName: the name of the partition
+- payloadSize: the size of the message in bytes, this should be the same as that given to the publisher
 
 
 Running the example
 *******************
 
-It is recommended that you run ping and pong in separate terminals to avoid mixing the output.
+It is recommended that you run the publisher and subscriber in separate terminals to avoid mixing the output.
 
 - Open 2 terminals.
-- In the first terminal start Publisher by running publisher
+- In the first terminal start the publisher by running ShmThroughputPublisher
 
   publisher usage (parameters must be supplied in order):
-    ``./publisher [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
+    ``./ShmThroughputPublisher [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
   defaults:
-    ``./publisher 8192 0 1 0 "Throughput example"``
+    ``./ShmThroughputPublisher 8192 0 1 0 "Throughput example"``
 
-- In the second terminal start Ping by running subscriber
+- In the second terminal start the subscriber by running ShmThroughputSubscriber
 
   subscriber usage (parameters must be supplied in order):
-    ``./subscriber [maxCycles (0=infinite)] [pollingDelay (ms, 0 = event based)] [partitionName] [payloadSize (bytes]``
+    ``./ShmThroughputSubscriber [maxCycles (0=infinite)] [pollingDelay (ms, 0 = event based)] [partitionName] [payloadSize (bytes]``
   defaults:
-    ``./subscriber 0 0 "Throughput example" 8192``
+    ``./ShmThroughputSubscriber 0 0 "Throughput example" 8192``
 
 - To achieve optimal performance it is recommended to set the CPU affinity so that ping and pong run on separate CPU cores,
   and use real-time scheduling. In a Linux environment this can be achieved as follows:
 
   publisher usage:
-    ``taskset -c 0 chrt -f 80 ./publisher [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
+    ``taskset -c 0 chrt -f 80 ./ShmThroughputPublisher [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
   subscriber usage:
-    ``taskset -c 1 chrt -f 80 ./subscriber [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = event based)] [partitionName] [payloadSize (bytes]``
+    ``taskset -c 1 chrt -f 80 ./ShmThroughputSubscriber [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = event based)] [partitionName] [payloadSize (bytes]``
 
   On Windows the CPU affinity and prioritized scheduling class can be set as follows:
 
   publisher usage:
-    ``START /affinity 1 /high cmd /k "publisher.exe" [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
+    ``START /affinity 1 /high cmd /k "ShmThroughputPublisher.exe" [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
   subscriber usage:
-    ``START /affinity 2 /high cmd /k "subscriber.exe" [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = event based)] [partitionName] [payloadSize (bytes]``
+    ``START /affinity 2 /high cmd /k "ShmThroughputSubscriber.exe" [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = event based)] [partitionName] [payloadSize (bytes]``
 
 
 
