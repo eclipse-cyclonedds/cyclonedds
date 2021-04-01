@@ -187,12 +187,12 @@ static int do_take (dds_entity_t reader)
         current = store_handle (imap, ph);
         current->count = this_sample->count;
       }
-
-      if (this_sample->count != current->count)
+      else if (this_sample->count <= current->count)
       {
         outOfOrder++;
       }
-      current->count = this_sample->count + 1;
+
+      current->count = this_sample->count;
 
       /* Add the sample payload size to the total received */
 
@@ -256,6 +256,8 @@ static void process_samples(dds_entity_t reader, unsigned long long maxCycles)
   double deltaTime = 0;
   dds_time_t prev_time = 0;
   dds_time_t time_now = 0;
+  double maxsamples = 0;
+  double maxspeed = 0;
 
   while (!done && (maxCycles == 0 || cycles < maxCycles))
   {
@@ -282,12 +284,17 @@ static void process_samples(dds_entity_t reader, unsigned long long maxCycles)
 
       if (deltaTime >= 1.0 && total_samples != prev_samples)
       {
+        double cursamples = (deltaTime != 0.0) ? ((double)(total_samples - prev_samples) / deltaTime) : 0;
+        double curspeed = (deltaTime != 0.0) ? (((double)(total_bytes - prev_bytes) / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime) : 0;
         printf ("=== [Subscriber] %5.3f Payload size: %d | Total received: %llu samples, %llu bytes | Out of order: %llu samples "
                 "Transfer rate: %.2lf samples/s, %.2lf Mbit/s\n",
                 deltaTime, payloadSize, total_samples, total_bytes, outOfOrder,
-                (deltaTime != 0.0) ? ((double)(total_samples - prev_samples) / deltaTime) : 0,
-                (deltaTime != 0.0) ? (((double)(total_bytes - prev_bytes) / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime) : 0);
+                cursamples, curspeed);
         fflush (stdout);
+        if (curspeed > maxspeed)
+          maxspeed = curspeed;
+        if (cursamples > maxsamples)
+          maxsamples = cursamples;
         cycles++;
         prev_time = time_now;
         prev_bytes = total_bytes;
@@ -307,7 +314,9 @@ static void process_samples(dds_entity_t reader, unsigned long long maxCycles)
   printf ("\nTotal received: %llu samples, %llu bytes\n", total_samples, total_bytes);
   printf ("Out of order: %llu samples\n", outOfOrder);
   printf ("Average transfer rate: %.2lf samples/s, ", (double)total_samples / deltaTime);
-  printf ("%.2lf Mbit/s\n", ((double)total_bytes / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime);
+  printf ("Maximum transfer rate: %.2lf samples/s, ", maxsamples);
+  printf ("Average throughput : %.2lf Mbit/s\n", ((double)total_bytes / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime);
+  printf ("Maximum throughput : %.2lf Mbit/s\n", maxspeed);
   fflush (stdout);
 }
 
@@ -437,8 +446,11 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
 
   /* A Reader is created on the Subscriber & Topic with a modified Qos. */
 
-  dds_qset_reliability (drQos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
-  dds_qset_history (drQos, DDS_HISTORY_KEEP_ALL, 0);
+  dds_qset_reliability(drQos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
+  dds_qset_history(drQos, DDS_HISTORY_KEEP_LAST, 16);
+  dds_qset_deadline(drQos, DDS_INFINITY);
+  dds_qset_durability(drQos, DDS_DURABILITY_VOLATILE);
+  dds_qset_liveliness(drQos, DDS_LIVELINESS_AUTOMATIC, 1e9);
   dds_qset_resource_limits (drQos, maxSamples, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
 
   rd_listener = dds_create_listener(NULL);
