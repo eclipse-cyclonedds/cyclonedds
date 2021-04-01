@@ -80,7 +80,7 @@ dds_return_t shm_monitor_wake_and_enable(shm_monitor_t* monitor)
 dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader) 
 {
 
-    if(iox_listener_attach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_HAS_DATA, shm_subscriber_callback) != ListenerResult_SUCCESS) {
+    if(iox_listener_attach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberState_HAS_DATA, shm_subscriber_callback) != ListenerResult_SUCCESS) {
         DDS_CLOG(DDS_LC_SHM, &reader->m_rd->e.gv->logconfig, "error attaching reader\n");    
         return DDS_RETCODE_OUT_OF_RESOURCES;
     }
@@ -91,7 +91,7 @@ dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader
 
 dds_return_t shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader) 
 {
-    iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_HAS_DATA); 
+    iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberState_HAS_DATA); 
     --monitor->m_number_of_attached_readers;
     return DDS_RETCODE_OK;
 }
