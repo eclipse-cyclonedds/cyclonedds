@@ -294,7 +294,7 @@ static void dds__builtin_write_endpoint (const struct entity_common *e, ddsrt_wc
         abort ();
         break;
     }
-    dds_writecdr_impl (&bwr->wr, NULL, serdata, true);
+    dds_writecdr_impl (&bwr->wr, NULL, serdata, true, NULL);
   }
 }
 

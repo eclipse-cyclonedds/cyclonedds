@@ -63,7 +63,7 @@ dds_return_t dds_writecdr (dds_entity_t writer, struct ddsi_serdata *serdata)
   }
   serdata->statusinfo = 0;
   serdata->timestamp.v = dds_time ();
-  ret = dds_writecdr_impl (wr->m_wr, wr->m_xp, serdata, !wr->whc_batch);
+  ret = dds_writecdr_impl (wr->m_wr, wr->m_xp, serdata, !wr->whc_batch, wr);
   dds_writer_unlock (wr);
   return ret;
 }
@@ -83,7 +83,7 @@ dds_return_t dds_forwardcdr (dds_entity_t writer, struct ddsi_serdata *serdata)
     dds_writer_unlock (wr);
     return DDS_RETCODE_ERROR;
   }
-  ret = dds_writecdr_impl (wr->m_wr, wr->m_xp, serdata, !wr->whc_batch);
+  ret = dds_writecdr_impl (wr->m_wr, wr->m_xp, serdata, !wr->whc_batch, wr);
   dds_writer_unlock (wr);
   return ret;
 }
@@ -289,7 +289,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   return ret;
 }
 
-dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush)
+dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
 {
   // consumes 1 refc from dinp in all paths (weird, but ... history ...)
   struct thread_state1 * const ts1 = lookup_thread_state ();
@@ -334,6 +334,21 @@ dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, str
   // retain dact until after write_sample_gc so we can still pass it
   // to deliver_locally
   ddsi_serdata_ref (dact);
+
+#ifdef DDS_HAS_SHM
+  if (wr) {
+    if ((wr->m_entity.m_domain->gv.config.enable_shm && iox_pub_has_subscribers(wr->m_iox_pub)) &&
+        (dinp->iox_chunk != NULL))
+    {
+      iceoryx_header_t * ice_hdr = dinp->iox_chunk;
+      ice_hdr->guid = ddsi_wr->e.guid;
+      ice_hdr->tstamp = dinp->timestamp.v;
+      ice_hdr->data_kind = (unsigned char)dinp->kind;
+      ddsi_serdata_get_keyhash (dinp, &ice_hdr->keyhash, false);
+      iox_pub_publish_chunk (wr->m_iox_pub, ice_hdr);
+    }
+  }
+#endif
 
   tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, dact);
   // write_sample_gc always consumes 1 refc from dact

@@ -30,7 +30,7 @@ typedef enum {
 } dds_write_action;
 
 dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t tstamp, dds_write_action action);
-dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *d, bool flush);
+dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *d, bool flush, dds_writer *wr);
 
 #if defined (__cplusplus)
 }
