@@ -90,8 +90,8 @@ if(ENABLE_TYPE_DISCOVERY)
   "${CMAKE_CURRENT_LIST_DIR}/src/ddsi_typeid.c"
   "${CMAKE_CURRENT_LIST_DIR}/src/ddsi_typelookup.c")
 endif()
-if (ENABLE_SHM)
-  list(APPEND srcs_ddsi 
+if (iceoryx_binding_c_FOUND)
+  list(APPEND srcs_ddsi
   "${CMAKE_CURRENT_LIST_DIR}/src/shm_init.c")
 endif()
 
