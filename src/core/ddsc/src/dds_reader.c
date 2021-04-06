@@ -30,6 +30,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds__builtin.h"
 #include "dds__statistics.h"
+#include "dds__data_allocator.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
@@ -754,6 +755,39 @@ dds_entity_t dds_get_subscriber (dds_entity_t entity)
     dds_entity_unpin (e);
     return subh;
   }
+}
+
+dds_return_t dds__reader_data_allocator_init (const dds_reader *rd, dds_data_allocator_t *data_allocator)
+{
+#ifdef DDS_HAS_SHM
+  dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
+  if (rd->m_entity.m_domain->gv.config.enable_shm)
+  {
+    d->kind = DDS_IOX_ALLOCATOR_KIND_SUBSCRIBER;
+    d->ref.sub = rd->m_iox_sub;
+  }
+  else
+  {
+    d->kind = DDS_IOX_ALLOCATOR_KIND_NONE;
+  }
+  return DDS_RETCODE_OK;
+#else
+  (void) rd;
+  (void) data_allocator;
+  return DDS_RETCODE_OK;
+#endif
+}
+
+dds_return_t dds__reader_data_allocator_fini (const dds_reader *rd, dds_data_allocator_t *data_allocator)
+{
+#ifdef DDS_HAS_SHM
+  dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
+  d->kind = DDS_IOX_ALLOCATOR_KIND_FINI;
+#else
+  (void) data_allocator;
+#endif
+  (void) rd;
+  return DDS_RETCODE_OK;
 }
 
 /* Reset sets everything (type) 0, including the reason field, verify that 0 is correct */

@@ -63,7 +63,9 @@ extern "C" {
 #define PP_PARTICIPANT_SECURITY_INFO            ((uint64_t)1 << 35)
 #define PP_IDENTITY_STATUS_TOKEN                ((uint64_t)1 << 36)
 #define PP_DATA_TAGS                            ((uint64_t)1 << 37)
+/* Other stuff */
 #define PP_CYCLONE_RECEIVE_BUFFER_SIZE          ((uint64_t)1 << 38)
+#define PP_CYCLONE_REQUESTS_KEYHASH             ((uint64_t)1 << 39)
 
 /* Set for unrecognized parameters that are in the reserved space or
    in our own vendor-specific space that have the
@@ -232,6 +234,7 @@ typedef struct ddsi_plist {
   uint32_t domain_id;
   char *domain_tag;
   uint32_t cyclone_receive_buffer_size;
+  unsigned char cyclone_requests_keyhash;
 } ddsi_plist_t;
 
 
@@ -485,12 +488,13 @@ struct nn_rsample_info;
  * otherwise.
  *
  * @param[in]  src      input description (see `ddsi_plist_init_frommsg`)
+ * @param[out] keyhashp set to point to keyhash in inline QoS if present, else to NULL
  * @param[out] dest     internal sample info of which some fields will be set
  *
  * @return pointer to the first byte following the sentinel if the input is well-formed, a
  * null pointer if it is not.
 */
-DDS_EXPORT unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_plist_src_t *src);
+DDS_EXPORT unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_keyhash_t **keyhashp, const ddsi_plist_src_t *src);
 
 /**
  * @brief Locate a specific parameter in a PL_CDR-serialized parameter list

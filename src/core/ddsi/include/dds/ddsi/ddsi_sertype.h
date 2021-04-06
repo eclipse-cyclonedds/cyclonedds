@@ -37,7 +37,9 @@ struct ddsi_sertype {
   const struct ddsi_sertype_ops *ops;
   const struct ddsi_serdata_ops *serdata_ops;
   uint32_t serdata_basehash;
-  bool typekind_no_key;
+  uint32_t typekind_no_key : 1;
+  uint32_t request_keyhash : 1;
+  uint32_t fixed_size : 1;
   char *type_name;
   ddsrt_atomic_voidp_t gv; /* set during registration */
   ddsrt_atomic_uint32_t flags_refc; /* counts refs from entities (topic, reader, writer), not from data */
@@ -70,6 +72,11 @@ struct ddsi_sertype {
    Testing for DDSI_SERTOPIC_HAS_EQUAL_AND_HASH allows one to have a single source
    that can handle both variants, but there's no binary compatbility. */
 #define DDSI_SERTOPIC_HAS_EQUAL_AND_HASH 1
+
+/* It was a bad decision to have a boolean argument in "init" specifying whether
+   the entity kind should say "with key" or "without key".  A general "flags"
+   argument is much more flexible ... */
+#define DDSI_SERTYPE_HAS_SERTYPE_INIT_FLAGS 1
 
 /* Called to compare two sertypes for equality, if it is already known that
    type name, kind_no_Key, and operations are all the same.  (serdata_basehash
@@ -139,6 +146,13 @@ struct ddsi_sertype_ops {
 struct ddsi_sertype *ddsi_sertype_lookup_locked (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype_template);
 void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype *sertype);
 
+#define DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY (1u)
+#define DDSI_SERTYPE_FLAG_REQUEST_KEYHASH  (2u)
+#define DDSI_SERTYPE_FLAG_FIXED_SIZE       (4u)
+
+#define DDSI_SERTYPE_FLAG_MASK (0x3u)
+
+DDS_EXPORT void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, uint32_t flags);
 DDS_EXPORT void ddsi_sertype_init (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, bool topickind_no_key);
 DDS_EXPORT bool ddsi_sertype_deserialize (struct ddsi_domaingv *gv, struct ddsi_sertype *tp, const struct ddsi_sertype_ops *sertype_ops, size_t sz, unsigned char *serdata);
 DDS_EXPORT void ddsi_sertype_fini (struct ddsi_sertype *tp);

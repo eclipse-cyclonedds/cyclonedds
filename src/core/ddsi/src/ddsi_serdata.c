@@ -17,6 +17,7 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_serdata.h"
 
@@ -55,6 +56,14 @@ struct ddsi_serdata *ddsi_serdata_ref_as_type (const struct ddsi_sertype *type, 
     ddsi_serdata_to_ser_unref (serdata, &iov);
     return converted;
   }
+}
+
+const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct nn_rdata *fragchain)
+{
+  if (fragchain->keyhash_zoff == 0)
+    return NULL;
+  else
+    return (const ddsi_keyhash_t *) NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_KEYHASH_OFF (fragchain));
 }
 
 extern inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const);

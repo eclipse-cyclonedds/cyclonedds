@@ -599,12 +599,6 @@ CycloneDDS configuration""" ] ]
           xsd:integer
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element controls whether the actual sending of packets occurs on the same thread that prepares them, or is done asynchronously by another thread.</p>
-<p>The default value is: "false".</p>""" ] ]
-        element SendAsync {
-          xsd:boolean
-        }?
-        & [ a:documentation [ xml:lang="en" """
 <p>This element controls whether Cyclone DDS advertises all the domain participants it serves in DDSI (when set to <i>false</i>), or rather only one domain participant (the one corresponding to the Cyclone DDS process; when set to <i>true</i>). In the latter case Cyclone DDS becomes the virtual owner of all readers and writers of all domain participants, dramatically reducing discovery traffic (a similar effect can be obtained by setting Internal/BuiltinEndpointSet to "minimal" but with less loss of information).</p>
 <p>The default value is: "false".</p>""" ] ]
         element SquashParticipants {
