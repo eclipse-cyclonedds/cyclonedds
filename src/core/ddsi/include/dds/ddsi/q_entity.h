@@ -242,8 +242,8 @@ struct participant
   struct ddsi_plist *plist; /* settings/QoS for this participant */
   struct xevent *spdp_xevent; /* timed event for periodically publishing SPDP */
   struct xevent *pmd_update_xevent; /* timed event for periodically publishing ParticipantMessageData */
-  ddsi_locator_t m_locator;
-  ddsi_tran_conn_t m_conn;
+  ddsi_locator_t m_locator; /* this is always a unicast address, it is set if it is in the many unicast mode */
+  ddsi_tran_conn_t m_conn; /* this is connection to m_locator, if it is set, this is used */
   struct avail_entityid_set avail_entityids; /* available entity ids [e.lock] */
   ddsrt_mutex_t refc_lock;
   int32_t user_refc; /* number of non-built-in endpoints in this participant [refc_lock] */

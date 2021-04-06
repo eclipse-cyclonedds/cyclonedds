@@ -66,7 +66,7 @@ static void dds_reader_close (dds_entity *e)
   assert (rd->m_rd != NULL);
 
 #ifdef DDS_HAS_SHM
-  if (e->m_domain->gv.config.enable_shm)
+  if (rd->m_iox_sub)
   {
   //will wait for any runing callback using the iceoryx subscriber of this reader
     shm_monitor_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
