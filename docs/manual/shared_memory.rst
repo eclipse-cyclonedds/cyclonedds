@@ -63,8 +63,7 @@ Save the following xml as cyclonedds.xml.
 SubQueueCapacity, SubHistoryRequest and PubHistoryCapacity can be optionally set if Shared Memory is enabled.
 SubQueueCapacity controls how many samples a reader using shared memory can hold before the least recent is discarded.
 PubHistoryCapacity defines how many samples a shared memory writer will keep to send to late-joining subscribers.
-SubHistoryRequest is the number of samples a late-joining reader will request from a writer (this can be at most 
-as many as were send and at most PubHistoryCapacity).
+SubHistoryRequest is the number of samples a late-joining reader will request from a writer (this can only be as many as were sent and at most PubHistoryCapacity).
 
 The Loglevel controls the output of the iceoryx runtime and can be set to:
 verbose, debug, info, warn, error, fatal and off
