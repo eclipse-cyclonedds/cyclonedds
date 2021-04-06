@@ -450,7 +450,7 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
   dds_qset_history(drQos, DDS_HISTORY_KEEP_LAST, 16);
   dds_qset_deadline(drQos, DDS_INFINITY);
   dds_qset_durability(drQos, DDS_DURABILITY_VOLATILE);
-  dds_qset_liveliness(drQos, DDS_LIVELINESS_AUTOMATIC, 1e9);
+  dds_qset_liveliness(drQos, DDS_LIVELINESS_AUTOMATIC, DDS_SECS(1));
   dds_qset_resource_limits (drQos, maxSamples, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
 
   rd_listener = dds_create_listener(NULL);
