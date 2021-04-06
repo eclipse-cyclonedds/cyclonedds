@@ -1760,6 +1760,11 @@ static const struct piddesc piddesc_eclipse[] = {
 #ifdef DDS_HAS_TYPE_DISCOVERY
   QP  (CYCLONE_TYPE_INFORMATION,         type_information, XO),
 #endif
+#ifdef DDS_HAS_SHM
+    { PID_PAD, PDF_QOS, QP_SHARED_MEMORY, "CYCLONE_SHARED_MEMORY",
+    offsetof(struct ddsi_plist, qos.shared_memory), membersize(struct ddsi_plist, qos.shared_memory),
+    {.desc = { Xb, XSTOP } }, 0 },
+#endif
   PP  (ADLINK_PARTICIPANT_VERSION_INFO,  adlink_participant_version_info, Xux5, XS),
   PP  (ADLINK_TYPE_DESCRIPTION,          type_description, XS),
   PP  (CYCLONE_RECEIVE_BUFFER_SIZE,      cyclone_receive_buffer_size, Xu),

@@ -211,7 +211,7 @@ static dds_return_t dds_writer_delete (dds_entity *e)
 {
   dds_writer * const wr = (dds_writer *) e;
 #ifdef DDS_HAS_SHM
-  if (e->m_domain->gv.config.enable_shm)
+  if (wr->m_iox_pub)
   {
     DDS_CLOG(DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's publisher\n");
     iox_pub_stop_offer(wr->m_iox_pub);
@@ -292,6 +292,27 @@ const struct dds_entity_deriver dds_entity_deriver_writer = {
   .create_statistics = dds_writer_create_statistics,
   .refresh_statistics = dds_writer_refresh_statistics
 };
+
+#ifdef DDS_HAS_SHM
+#define DDS_WRITER_QOS_CHECK_FIELDS (QP_LIVELINESS|QP_DEADLINE|QP_RELIABILITY|QP_DURABILITY|QP_HISTORY)
+static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_t* qos)
+{
+  if (NULL == cfg ||
+      false == cfg->enable_shm)
+    return false;
+
+  uint32_t pub_history_cap = cfg->pub_history_capacity;
+
+  return (NULL != qos &&
+          DDS_WRITER_QOS_CHECK_FIELDS == (qos->present&DDS_WRITER_QOS_CHECK_FIELDS) &&
+          DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
+          DDS_INFINITY == qos->deadline.deadline &&
+          DDS_RELIABILITY_RELIABLE == qos->reliability.kind &&
+          DDS_DURABILITY_VOLATILE == qos->durability.kind &&
+          DDS_HISTORY_KEEP_LAST == qos->history.kind &&
+          (int)pub_history_cap >= (int)qos->history.depth);
+}
+#endif
 
 dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
 {
@@ -395,12 +416,17 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   whc_free_wrinfo (wrinfo);
   wr->whc_batch = gv->config.whc_batch;
 
+#ifdef DDS_HAS_SHM
+  wqos->shared_memory.enabled = dds_writer_support_shm(&gv->config, qos);
+  wqos->present |= QP_SHARED_MEMORY;
+#endif
+
   rc = new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, wqos, wr->m_whc, dds_writer_status_cb, wr);
   assert(rc == DDS_RETCODE_OK);
   thread_state_asleep (lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
-  if (wr->m_entity.m_domain->gv.config.enable_shm)
+  if (wqos->shared_memory.enabled)
   {
     size_t name_size, type_name_size;
     rc = dds_get_name_size (topic, &name_size);
