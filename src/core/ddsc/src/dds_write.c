@@ -239,7 +239,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     ddsi_serdata_ref (d);
 
 #ifdef DDS_HAS_SHM
-    if (wr->m_entity.m_domain->gv.config.enable_shm &&
+    if (wr->m_iox_pub &&
         iox_pub_has_subscribers(wr->m_iox_pub))
     {
       uint32_t send_size = ddsi_serdata_iox_size (d);

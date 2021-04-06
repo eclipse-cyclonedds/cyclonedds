@@ -93,7 +93,7 @@ static dds_return_t dds_reader_delete (dds_entity *e)
   thread_state_asleep (lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
-  if (e->m_domain->gv.config.enable_shm)
+  if (rd->m_iox_sub)
   {
     DDS_CLOG (DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's subscriber\n");
     shm_monitor_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
@@ -432,6 +432,27 @@ const struct dds_entity_deriver dds_entity_deriver_reader = {
   .refresh_statistics = dds_reader_refresh_statistics
 };
 
+#ifdef DDS_HAS_SHM
+#define DDS_READER_QOS_CHECK_FIELDS (QP_LIVELINESS|QP_DEADLINE|QP_RELIABILITY|QP_DURABILITY|QP_HISTORY)
+static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_t *qos)
+{
+  if (NULL == cfg ||
+      false == cfg->enable_shm)
+    return false;
+
+  uint32_t sub_history_req = cfg->sub_history_request;
+
+  return (NULL != qos &&
+    DDS_READER_QOS_CHECK_FIELDS == (qos->present & DDS_READER_QOS_CHECK_FIELDS) &&
+    DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
+    DDS_INFINITY == qos->deadline.deadline &&
+    DDS_RELIABILITY_RELIABLE == qos->reliability.kind &&
+    DDS_DURABILITY_VOLATILE == qos->durability.kind &&
+    DDS_HISTORY_KEEP_LAST == qos->history.kind &&
+    (int)sub_history_req >= (int)qos->history.depth);
+}
+#endif
+
 static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
 {
   dds_qos_t *rqos;
@@ -569,12 +590,17 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
      it; and then invoke those listeners that are in the pending set */
   dds_entity_init_complete (&rd->m_entity);
 
+#ifdef DDS_HAS_SHM
+  rqos->shared_memory.enabled = dds_reader_support_shm(&gv->config, qos);
+  rqos->present |= QP_SHARED_MEMORY;
+#endif
+
   rc = new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
   assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
   thread_state_asleep (lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
-  if (rd->m_entity.m_domain->gv.config.enable_shm)
+  if (rqos->shared_memory.enabled)
   {
     size_t name_size, type_name_size;
     rc = dds_get_name_size(topic, &name_size);
