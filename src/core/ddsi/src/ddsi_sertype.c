@@ -210,9 +210,9 @@ void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, co
   tp->ops = sertype_ops;
   tp->serdata_ops = serdata_ops;
   tp->serdata_basehash = ddsi_sertype_compute_serdata_basehash (tp->serdata_ops);
-  tp->typekind_no_key = (flags & DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY) ? 1 : 0;
-  tp->request_keyhash = (flags & DDSI_SERTYPE_FLAG_REQUEST_KEYHASH) ? 1 : 0;
-  tp->fixed_size = (flags & DDSI_SERTYPE_FLAG_FIXED_SIZE) ? 1 : 0;
+  tp->typekind_no_key = (flags & DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY) ? 1u : 0u;
+  tp->request_keyhash = (flags & DDSI_SERTYPE_FLAG_REQUEST_KEYHASH) ? 1u : 0u;
+  tp->fixed_size = (flags & DDSI_SERTYPE_FLAG_FIXED_SIZE) ? 1u : 0u;
   tp->wrapped_sertopic = NULL;
 #ifdef DDS_HAS_SHM
   tp->iox_size = 0;
