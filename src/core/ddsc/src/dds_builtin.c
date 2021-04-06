@@ -294,7 +294,7 @@ static void dds__builtin_write_endpoint (const struct entity_common *e, ddsrt_wc
         abort ();
         break;
     }
-    dds_writecdr_impl (&bwr->wr, NULL, serdata, true, NULL);
+    dds_writecdr_local_orphan_impl (bwr, NULL, serdata);
   }
 }
 
@@ -304,7 +304,7 @@ static void dds__builtin_write_topic (const struct ddsi_topic_definition *tpd, d
   struct dds_domain *dom = vdomain;
   struct local_orphan_writer *bwr = dom->builtintopic_writer_topics;
   struct ddsi_serdata *serdata = dds__builtin_make_sample_topic_impl (tpd, timestamp, alive);
-  dds_writecdr_impl (&bwr->wr, NULL, serdata, true);
+  dds_writecdr_local_orphan_impl (bwr, NULL, serdata);
 }
 #endif
 

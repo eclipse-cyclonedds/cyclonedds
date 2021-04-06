@@ -63,7 +63,7 @@ dds_return_t dds_writecdr (dds_entity_t writer, struct ddsi_serdata *serdata)
   }
   serdata->statusinfo = 0;
   serdata->timestamp.v = dds_time ();
-  ret = dds_writecdr_impl (wr->m_wr, wr->m_xp, serdata, !wr->whc_batch, wr);
+  ret = dds_writecdr_impl (wr, wr->m_xp, serdata, !wr->whc_batch);
   dds_writer_unlock (wr);
   return ret;
 }
@@ -83,7 +83,7 @@ dds_return_t dds_forwardcdr (dds_entity_t writer, struct ddsi_serdata *serdata)
     dds_writer_unlock (wr);
     return DDS_RETCODE_ERROR;
   }
-  ret = dds_writecdr_impl (wr->m_wr, wr->m_xp, serdata, !wr->whc_batch, wr);
+  ret = dds_writecdr_impl (wr, wr->m_xp, serdata, !wr->whc_batch);
   dds_writer_unlock (wr);
   return ret;
 }
@@ -289,7 +289,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   return ret;
 }
 
-dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
+static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
 {
   // consumes 1 refc from dinp in all paths (weird, but ... history ...)
   struct thread_state1 * const ts1 = lookup_thread_state ();
@@ -348,6 +348,8 @@ dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, str
       iox_pub_publish_chunk (wr->m_iox_pub, ice_hdr);
     }
   }
+#else
+  (void) wr;
 #endif
 
   tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, dact);
@@ -386,6 +388,16 @@ dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, str
   ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
   thread_state_asleep (ts1);
   return ret;
+}
+
+dds_return_t dds_writecdr_impl (dds_writer *wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush)
+{
+  return dds_writecdr_impl_common (wr->m_wr, xp, dinp, flush, wr);
+}
+
+dds_return_t dds_writecdr_local_orphan_impl (struct local_orphan_writer *lowr, struct nn_xpack *xp, struct ddsi_serdata *dinp)
+{
+  return dds_writecdr_impl_common (&lowr->wr, xp, dinp, true, NULL);
 }
 
 void dds_write_flush (dds_entity_t writer)
