@@ -85,12 +85,12 @@ static type_identifier_t *get_type_identifier(dds_entity_t entity)
   if (ec->kind == EK_PROXY_READER || ec->kind == EK_PROXY_WRITER)
   {
     struct generic_proxy_endpoint *gpe = (struct generic_proxy_endpoint *)ec;
-    tid = ddsi_typeid_dup (&gpe->c.type_id);
+    tid = ddsi_typeid_dup (&gpe->c.tlm->type_id);
   }
   else if (ec->kind == EK_READER || ec->kind == EK_WRITER)
   {
     struct generic_endpoint *ge = (struct generic_endpoint *)ec;
-    tid = ddsi_typeid_dup (&ge->c.type_id);
+    tid = ddsi_typeid_dup (&ge->c.tlm->type_id);
   }
   thread_state_asleep (lookup_thread_state ());
   dds_entity_unpin (e);

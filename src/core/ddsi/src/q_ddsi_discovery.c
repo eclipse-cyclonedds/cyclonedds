@@ -995,9 +995,12 @@ static int sedp_write_endpoint_impl
     }
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    ps.qos.present |= QP_CYCLONE_TYPE_INFORMATION;
-    ps.qos.type_information.length = sizeof (*type_id);
-    ps.qos.type_information.value = ddsrt_memdup (&type_id->hash, ps.qos.type_information.length);
+    if (type_id)
+    {
+      ps.qos.present |= QP_CYCLONE_TYPE_INFORMATION;
+      ps.qos.type_information.length = sizeof (*type_id);
+      ps.qos.type_information.value = ddsrt_memdup (&type_id->hash, ps.qos.type_information.length);
+    }
 #endif
   }
 
@@ -1049,7 +1052,7 @@ int sedp_write_topic (struct topic *tp, bool alive)
     unsigned entityid = determine_topic_writer (tp);
     struct writer *sedp_wr = get_sedp_writer (tp->pp, entityid);
     ddsrt_mutex_lock (&tp->e.qos_lock);
-    res = sedp_write_topic_impl (sedp_wr, alive, &tp->e.guid, tp->definition->xqos, &tp->definition->type_id);
+    res = sedp_write_topic_impl (sedp_wr, alive, &tp->e.guid, tp->definition->xqos, &tp->definition->tlm->type_id);
     ddsrt_mutex_unlock (&tp->e.qos_lock);
   }
   return res;
@@ -1077,7 +1080,7 @@ int sedp_write_writer (struct writer *wr)
     }
 #endif
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->e, &wr->c, wr->xqos, as, security, &wr->c.type_id);
+    return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->e, &wr->c, wr->xqos, as, security, wr->c.tlm ? &wr->c.tlm->type_id : NULL);
 #else
     return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->e, &wr->c, wr->xqos, as, security);
 #endif
@@ -1105,7 +1108,7 @@ int sedp_write_reader (struct reader *rd)
     }
 #endif
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    return sedp_write_endpoint_impl (sedp_wr, 1, &rd->e.guid, &rd->e, &rd->c, rd->xqos, as, security, &rd->c.type_id);
+    return sedp_write_endpoint_impl (sedp_wr, 1, &rd->e.guid, &rd->e, &rd->c, rd->xqos, as, security, rd->c.tlm ? &rd->c.tlm->type_id : NULL);
 #else
     return sedp_write_endpoint_impl (sedp_wr, 1, &rd->e.guid, &rd->e, &rd->c, rd->xqos, as, security);
 #endif

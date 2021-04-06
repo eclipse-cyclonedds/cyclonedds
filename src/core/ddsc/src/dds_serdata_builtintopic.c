@@ -121,7 +121,8 @@ static void from_entity_rd (struct ddsi_serdata_builtintopic_endpoint *d, const 
 {
   d->pphandle = rd->c.pp->e.iid;
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  d->type_id = rd->c.type_id;
+  if (rd->c.tlm)
+    d->type_id = rd->c.tlm->type_id;
 #endif
   from_qos (&d->common, rd->xqos);
 }
@@ -130,7 +131,8 @@ static void from_entity_wr (struct ddsi_serdata_builtintopic_endpoint *d, const 
 {
   d->pphandle = wr->c.pp->e.iid;
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  d->type_id = wr->c.type_id;
+  if (wr->c.tlm)
+    d->type_id = wr->c.tlm->type_id;
 #endif
   from_qos (&d->common, wr->xqos);
 }
@@ -139,7 +141,8 @@ static void from_proxy_endpoint_common (struct ddsi_serdata_builtintopic_endpoin
 {
   d->pphandle = pec->proxypp->e.iid;
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  d->type_id = pec->type_id;
+  if (pec->tlm)
+    d->type_id = pec->tlm->type_id;
 #endif
   from_qos (&d->common, pec->xqos);
 }
@@ -229,6 +232,8 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_sample (const struct ddsi_
       x.extguid = s->key;
       break;
     case DSBT_TOPIC:
+      /* Should not be used for topics. For topics a specific set of ddsi_serdata_ops
+         is used, with a specialized variant of this function. */
       assert (0);
       break;
     }
@@ -424,7 +429,7 @@ struct ddsi_serdata *dds_serdata_builtin_from_topic_definition (const struct dds
   memcpy (&d->common.key.raw, key, sizeof (d->common.key.raw));
   if (tpd != NULL && kind == SDK_DATA)
   {
-    d->type_id = tpd->type_id;
+    d->type_id = tpd->tlm->type_id;
     from_qos (&d->common, tpd->xqos);
   }
   return fix_serdata_builtin (&d->common, DSBT_TOPIC, tp->c.serdata_basehash);
@@ -438,6 +443,7 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_sample_topic (const struct
     return NULL;
 
   const struct ddsi_sertype_builtintopic *tp = (const struct ddsi_sertype_builtintopic *) tpcmn;
+  assert (tp->entity_kind == DSBT_TOPIC);
   struct ddsi_domaingv *gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
   const dds_builtintopic_topic_t *s = sample;
   union { ddsi_guid_t guid; dds_builtintopic_topic_key_t key; } x;

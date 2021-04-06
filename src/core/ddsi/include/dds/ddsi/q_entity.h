@@ -260,8 +260,8 @@ struct participant
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 struct ddsi_topic_definition {
-  unsigned char key[16]; /* key for this topic definition (MD5 hash of the type_id and qos */
-  type_identifier_t type_id; /* type identifier for this topic */
+  unsigned char key[16]; /* key for this topic definition (MD5 hash of the type_id and qos) */
+  struct tl_meta *tlm;
   struct dds_qos *xqos; /* contains also the topic name and type name */
   uint32_t refc;
   struct ddsi_domaingv *gv;
@@ -278,7 +278,7 @@ struct endpoint_common {
   struct participant *pp;
   ddsi_guid_t group_guid;
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  type_identifier_t type_id;
+  struct tl_meta *tlm;
 #endif
 };
 
@@ -486,7 +486,7 @@ struct proxy_endpoint_common
   nn_vendorid_t vendor; /* cached from proxypp->vendor */
   seqno_t seq; /* sequence number of most recent SEDP message */
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  type_identifier_t type_id; /* type identifier for for type used by this proxy endpoint */
+  struct tl_meta *tlm;
   const struct ddsi_sertype * type; /* sertype for data this endpoint reads/writes */
 #endif
 #ifdef DDS_HAS_SECURITY

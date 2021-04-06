@@ -98,7 +98,7 @@ struct tl_meta * ddsi_tl_meta_lookup (struct ddsi_domaingv *gv, const type_ident
   return tlm;
 }
 
-static void tlm_ref_impl (struct ddsi_domaingv *gv, const type_identifier_t *type_id, const struct ddsi_sertype *type, const ddsi_guid_t *proxy_guid)
+static struct tl_meta * tlm_ref_impl (struct ddsi_domaingv *gv, const type_identifier_t *type_id, const struct ddsi_sertype *type, const ddsi_guid_t *proxy_guid)
 {
   bool resolved = false;
   assert (type_id || type);
@@ -111,7 +111,7 @@ static void tlm_ref_impl (struct ddsi_domaingv *gv, const type_identifier_t *typ
     GVTRACE (" sertype %p", type);
     tid = ddsi_typeid_from_sertype (type);
     if (tid == NULL)
-      return;
+      return NULL;
   }
   GVTRACE (" tid "PTYPEIDFMT, PTYPEID (*tid));
 
@@ -151,18 +151,21 @@ static void tlm_ref_impl (struct ddsi_domaingv *gv, const type_identifier_t *typ
 
   if (type_id == NULL)
     ddsrt_free (tid);
+  return tlm;
 }
 
-void ddsi_tl_meta_local_ref (struct ddsi_domaingv *gv, const type_identifier_t *type_id, const struct ddsi_sertype *type)
+struct tl_meta * ddsi_tl_meta_local_ref (struct ddsi_domaingv *gv, const type_identifier_t *type_id, const struct ddsi_sertype *type)
 {
   if (type_id == NULL || !ddsi_typeid_none (type_id))
-    tlm_ref_impl (gv, type_id, type, NULL);
+    return tlm_ref_impl (gv, type_id, type, NULL);
+  return NULL;
 }
 
-void ddsi_tl_meta_proxy_ref (struct ddsi_domaingv *gv, const type_identifier_t *type_id, const ddsi_guid_t *proxy_guid)
+struct tl_meta * ddsi_tl_meta_proxy_ref (struct ddsi_domaingv *gv, const type_identifier_t *type_id, const ddsi_guid_t *proxy_guid)
 {
   if (type_id == NULL || !ddsi_typeid_none (type_id))
-    tlm_ref_impl (gv, type_id, NULL, proxy_guid);
+    return tlm_ref_impl (gv, type_id, NULL, proxy_guid);
+  return NULL;
 }
 
 static void tlm_unref_impl_locked (struct ddsi_domaingv *gv, struct tl_meta *tlm, const ddsi_guid_t *proxy_guid)
@@ -181,45 +184,42 @@ static void tlm_unref_impl_locked (struct ddsi_domaingv *gv, struct tl_meta *tlm
   }
 }
 
-static void tlm_unref_impl (struct ddsi_domaingv *gv, const type_identifier_t *type_id, const struct ddsi_sertype *type, const ddsi_guid_t *proxy_guid)
+static void tlm_unref_impl (struct ddsi_domaingv *gv, const struct tl_meta *tlm, const struct ddsi_sertype *type, const ddsi_guid_t *proxy_guid)
 {
-  assert (type_id || type);
+  assert (tlm || type);
   GVTRACE ("unref tl_meta");
-  type_identifier_t *tid;
-  if (type_id != NULL)
-    tid = (type_identifier_t *) type_id;
-  else
+  type_identifier_t *tid = NULL;
+  if (tlm == NULL)
   {
     GVTRACE (" sertype %p", type);
-    tid = ddsi_typeid_from_sertype (type);
-    if (tid == NULL)
+    if ((tid = ddsi_typeid_from_sertype (type)) == NULL)
     {
       GVTRACE (" no tid\n");
       return;
     }
+    GVTRACE (" tid "PTYPEIDFMT, PTYPEID (*tid));
   }
-  GVTRACE (" tid "PTYPEIDFMT, PTYPEID (*tid));
 
   ddsrt_mutex_lock (&gv->tl_admin_lock);
-  struct tl_meta *tlm = ddsi_tl_meta_lookup_locked (gv, tid);
-  assert (tlm != NULL);
-  tlm_unref_impl_locked (gv, tlm, proxy_guid);
+  struct tl_meta *tlm1 = tlm ? (struct tl_meta *) tlm : ddsi_tl_meta_lookup_locked (gv, tid);
+  assert (tlm1 != NULL);
+  tlm_unref_impl_locked (gv, tlm1, proxy_guid);
   ddsrt_mutex_unlock (&gv->tl_admin_lock);
-  if (type_id == NULL)
+  if (tid != NULL)
     ddsrt_free (tid);
   GVTRACE ("\n");
 }
 
-void ddsi_tl_meta_proxy_unref (struct ddsi_domaingv *gv, const type_identifier_t *type_id, const ddsi_guid_t *proxy_guid)
+void ddsi_tl_meta_proxy_unref (struct ddsi_domaingv *gv, const struct tl_meta *tlm, const ddsi_guid_t *proxy_guid)
 {
-  if (type_id == NULL || !ddsi_typeid_none (type_id))
-    tlm_unref_impl (gv, type_id, NULL, proxy_guid);
+  if (tlm != NULL)
+    tlm_unref_impl (gv, tlm, NULL, proxy_guid);
 }
 
-void ddsi_tl_meta_local_unref (struct ddsi_domaingv *gv, const type_identifier_t *type_id, const struct ddsi_sertype *type)
+void ddsi_tl_meta_local_unref (struct ddsi_domaingv *gv, const struct tl_meta *tlm, const struct ddsi_sertype *type)
 {
-  if (type_id == NULL || !ddsi_typeid_none (type_id))
-    tlm_unref_impl (gv, type_id, type, NULL);
+  if (tlm != NULL || type != NULL)
+    tlm_unref_impl (gv, tlm, type, NULL);
 }
 
 static struct writer *get_typelookup_writer (const struct ddsi_domaingv *gv, uint32_t wr_eid)
@@ -357,19 +357,17 @@ static void tlm_register_with_proxy_endpoints_locked (struct ddsi_domaingv *gv, 
        only be used when searching for topics and at that point it can easily
        be retrieved using the type identifier via a lookup in the type_lookup
        administration. */
-    if (!is_topic_entityid (guid.entityid))
+    assert (!is_topic_entityid (guid.entityid));
 #endif
+    struct entity_common *ec;
+    if ((ec = entidx_lookup_guid_untyped (gv->entity_index, &guid)) != NULL)
     {
-      struct entity_common *ec;
-      if ((ec = entidx_lookup_guid_untyped (gv->entity_index, &guid)) != NULL)
-      {
-        assert (ec->kind == EK_PROXY_READER || ec->kind == EK_PROXY_WRITER);
-        struct generic_proxy_endpoint *gpe = (struct generic_proxy_endpoint *) ec;
-        ddsrt_mutex_lock (&gpe->e.lock);
-        if (gpe->c.type == NULL)
-          gpe->c.type = ddsi_sertype_ref (tlm->sertype);
-        ddsrt_mutex_unlock (&gpe->e.lock);
-      }
+      assert (ec->kind == EK_PROXY_READER || ec->kind == EK_PROXY_WRITER);
+      struct generic_proxy_endpoint *gpe = (struct generic_proxy_endpoint *) ec;
+      ddsrt_mutex_lock (&gpe->e.lock);
+      if (gpe->c.type == NULL)
+        gpe->c.type = ddsi_sertype_ref (tlm->sertype);
+      ddsrt_mutex_unlock (&gpe->e.lock);
     }
   }
   thread_state_asleep (lookup_thread_state ());

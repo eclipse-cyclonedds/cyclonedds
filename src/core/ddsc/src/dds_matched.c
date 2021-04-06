@@ -181,7 +181,7 @@ dds_builtintopic_endpoint_t *dds_get_matched_subscription_data (dds_entity_t wri
         if (prd->e.iid == ih)
         {
 #ifdef DDS_HAS_TYPE_DISCOVERY
-          ret = make_builtintopic_endpoint (&prd->e.guid, &prd->c.proxypp->e.guid, prd->c.proxypp->e.iid, prd->c.xqos, &prd->c.type_id);
+          ret = make_builtintopic_endpoint (&prd->e.guid, &prd->c.proxypp->e.guid, prd->c.proxypp->e.iid, prd->c.xqos, prd->c.tlm ? &prd->c.tlm->type_id : NULL);
 #else
           ret = make_builtintopic_endpoint (&prd->e.guid, &prd->c.proxypp->e.guid, prd->c.proxypp->e.iid, prd->c.xqos);
 #endif
@@ -198,7 +198,7 @@ dds_builtintopic_endpoint_t *dds_get_matched_subscription_data (dds_entity_t wri
         if (rd->e.iid == ih)
         {
 #ifdef DDS_HAS_TYPE_DISCOVERY
-          ret = make_builtintopic_endpoint (&rd->e.guid, &rd->c.pp->e.guid, rd->c.pp->e.iid, rd->xqos, &rd->c.type_id);
+          ret = make_builtintopic_endpoint (&rd->e.guid, &rd->c.pp->e.guid, rd->c.pp->e.iid, rd->xqos, rd->c.tlm ? &rd->c.tlm->type_id : NULL);
 #else
           ret = make_builtintopic_endpoint (&rd->e.guid, &rd->c.pp->e.guid, rd->c.pp->e.iid, rd->xqos);
 #endif
@@ -236,7 +236,7 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
         if (pwr->e.iid == ih)
         {
 #ifdef DDS_HAS_TYPE_DISCOVERY
-          ret = make_builtintopic_endpoint (&pwr->e.guid, &pwr->c.proxypp->e.guid, pwr->c.proxypp->e.iid, pwr->c.xqos, &pwr->c.type_id);
+          ret = make_builtintopic_endpoint (&pwr->e.guid, &pwr->c.proxypp->e.guid, pwr->c.proxypp->e.iid, pwr->c.xqos, pwr->c.tlm ? &pwr->c.tlm->type_id : NULL);
 #else
           ret = make_builtintopic_endpoint (&pwr->e.guid, &pwr->c.proxypp->e.guid, pwr->c.proxypp->e.iid, pwr->c.xqos);
 #endif
@@ -253,7 +253,7 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
         if (wr->e.iid == ih)
         {
 #ifdef DDS_HAS_TYPE_DISCOVERY
-          ret = make_builtintopic_endpoint (&wr->e.guid, &wr->c.pp->e.guid, wr->c.pp->e.iid, wr->xqos, &wr->c.type_id);
+          ret = make_builtintopic_endpoint (&wr->e.guid, &wr->c.pp->e.guid, wr->c.pp->e.iid, wr->xqos, wr->c.tlm ? &wr->c.tlm->type_id : NULL);
 #else
           ret = make_builtintopic_endpoint (&wr->e.guid, &wr->c.pp->e.guid, wr->c.pp->e.iid, wr->xqos);
 #endif
