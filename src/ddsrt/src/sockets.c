@@ -79,8 +79,6 @@ ddsrt_sockaddr_get_size(const struct sockaddr *const sa)
     case AF_LINK:
       sz = sizeof(struct sockaddr_dl);
       break;
-#else
-#error
 #endif /* __linux */
     default:
       assert(sa->sa_family == AF_INET);
