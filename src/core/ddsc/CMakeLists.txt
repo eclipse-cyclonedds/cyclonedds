@@ -1,5 +1,5 @@
 #
-# Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+# Copyright(c) 2006 to 2021 ADLINK Technology Limited and others
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License v. 2.0 which is available at
@@ -9,115 +9,111 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
-    dds_alloc.c
-    dds_builtin.c
-    dds_coherent.c
-    dds_participant.c
-    dds_reader.c
-    dds_writer.c
-    dds_init.c
-    dds_publisher.c
-    dds_rhc.c
-    dds_rhc_default.c
-    dds_domain.c
-    dds_instance.c
-    dds_qos.c
-    dds_handles.c
-    dds_entity.c
-    dds_matched.c
-    dds_querycond.c
-    dds_topic.c
-    dds_listener.c
-    dds_read.c
-    dds_waitset.c
-    dds_readcond.c
-    dds_guardcond.c
-    dds_statistics.c
-    dds_subscriber.c
-    dds_write.c
-    dds_whc.c
-    dds_whc_builtintopic.c
-    dds_serdata_builtintopic.c
-    dds_sertype_builtintopic.c
-    dds_data_allocator.c
-)
+
+prepend(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
+  dds_alloc.c
+  dds_builtin.c
+  dds_coherent.c
+  dds_participant.c
+  dds_reader.c
+  dds_writer.c
+  dds_init.c
+  dds_publisher.c
+  dds_rhc.c
+  dds_rhc_default.c
+  dds_domain.c
+  dds_instance.c
+  dds_qos.c
+  dds_handles.c
+  dds_entity.c
+  dds_matched.c
+  dds_querycond.c
+  dds_topic.c
+  dds_listener.c
+  dds_read.c
+  dds_waitset.c
+  dds_readcond.c
+  dds_guardcond.c
+  dds_statistics.c
+  dds_subscriber.c
+  dds_write.c
+  dds_whc.c
+  dds_whc_builtintopic.c
+  dds_serdata_builtintopic.c
+  dds_sertype_builtintopic.c
+  dds_data_allocator.c)
 
 if (DDS_HAS_SHM)
-    list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm_monitor.c")
+  list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm_monitor.c")
 endif()
 
-PREPEND(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/dds>$<INSTALL_INTERFACE:include/dds>"
-    dds.h
-    ddsc/dds_public_error.h
-    ddsc/dds_public_impl.h
-    ddsc/dds_public_listener.h
-    ddsc/dds_public_qos.h
-    ddsc/dds_public_qosdefs.h
-    ddsc/dds_public_status.h
-    ddsc/dds_statistics.h
-    ddsc/dds_rhc.h
-    ddsc/dds_internal_api.h
-    ddsc/dds_data_allocator.h
-)
+prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
+  dds__alloc.h
+  dds__builtin.h
+  dds__domain.h
+  dds__handles.h
+  dds__entity.h
+  dds__init.h
+  dds__listener.h
+  dds__participant.h
+  dds__publisher.h
+  dds__qos.h
+  dds__querycond.h
+  dds__readcond.h
+  dds__guardcond.h
+  dds__reader.h
+  dds__rhc_default.h
+  dds__statistics.h
+  dds__subscriber.h
+  dds__topic.h
+  dds__types.h
+  dds__write.h
+  dds__writer.h
+  dds__whc.h
+  dds__whc_builtintopic.h
+  dds__serdata_builtintopic.h
+  dds__get_status.h
+  dds__data_allocator.h)
 
-PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
-    dds__alloc.h
-    dds__builtin.h
-    dds__domain.h
-    dds__handles.h
-    dds__entity.h
-    dds__init.h
-    dds__listener.h
-    dds__participant.h
-    dds__publisher.h
-    dds__qos.h
-    dds__querycond.h
-    dds__readcond.h
-    dds__guardcond.h
-    dds__reader.h
-    dds__rhc_default.h
-    dds__statistics.h
-    dds__subscriber.h
-    dds__topic.h
-    dds__types.h
-    dds__write.h
-    dds__writer.h
-    dds__whc.h
-    dds__whc_builtintopic.h
-    dds__serdata_builtintopic.h
-    dds__get_status.h
-    dds__data_allocator.h
-)
+prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/dds/"
+  dds.h
+  ddsc/dds_public_error.h
+  ddsc/dds_public_impl.h
+  ddsc/dds_public_listener.h
+  ddsc/dds_public_qos.h
+  ddsc/dds_public_qosdefs.h
+  ddsc/dds_public_status.h
+  ddsc/dds_statistics.h
+  ddsc/dds_rhc.h
+  ddsc/dds_internal_api.h
+  ddsc/dds_opcodes.h
+  ddsc/dds_data_allocator.h)
 
 if (DDS_HAS_SHM)
-    list(APPEND hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm__monitor.h")
+  list(APPEND hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm__monitor.h")
 endif()
 
 generate_export_header(
-    ddsc
-    BASE_NAME DDS
-    EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/export.h"
-)
+  ddsc BASE_NAME DDS EXPORT_FILE_NAME include/dds/export.h)
 
 target_sources(ddsc
-    PRIVATE
-        ${srcs_ddsc}
-        ${hdrs_private_ddsc}
-    PUBLIC
-        ${hdrs_public_ddsc}
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>$<INSTALL_INTERFACE:include>/dds/export.h"
+  PRIVATE
+    ${srcs_ddsc}
+    ${hdrs_private_ddsc}
+  PUBLIC
+    ${hdrs_public_ddsc}
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>$<INSTALL_INTERFACE:include>/dds/export.h"
 )
 
 target_include_directories(ddsc
-    PUBLIC
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>"
-    PRIVATE
-        "${CMAKE_CURRENT_LIST_DIR}/src"
-    INTERFACE
-        $<INSTALL_INTERFACE:include>)
+  PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>"
+  PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/src"
+  INTERFACE
+    $<INSTALL_INTERFACE:include>)
 
 install(
   DIRECTORY
@@ -130,4 +126,3 @@ install(
 if((BUILD_TESTING) AND (BUILD_IDLC) AND ((NOT DEFINED MSVC_VERSION) OR (MSVC_VERSION GREATER "1800")))
   add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/tests")
 endif()
-

@@ -880,7 +880,8 @@ CU_Init(ddssec_builtin_get_authenticated_peer_credential)
     /* Only need the authentication plugin. */
     g_plugins = load_plugins(NULL   /* Access Control */,
                              &g_auth  /* Authentication */,
-                             NULL   /* Cryptograpy    */);
+                             NULL   /* Cryptograpy    */,
+                             &(const struct ddsi_domaingv){ .handshake_include_optional = true });
     if (g_plugins) {
         result = validate_local_identity();
         if (result >= 0) {

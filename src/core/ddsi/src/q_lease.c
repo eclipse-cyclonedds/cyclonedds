@@ -294,6 +294,7 @@ int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, ddsrt_etime
         writer_set_notalive ((struct writer *) l->entity, true);
         break;
       case EK_PARTICIPANT:
+      case EK_TOPIC:
       case EK_READER:
       case EK_PROXY_READER:
         assert (false);

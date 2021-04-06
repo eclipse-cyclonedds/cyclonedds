@@ -178,7 +178,7 @@ static int wrinfo_eq (const void *va, const void *vb)
 static void dumplog (char logbuf[LOGDEPTH][LOGLINE], int *logidx)
 {
   if (logbuf[*logidx][0])
-    for (int i = 0; i < LOGDEPTH; i++)
+    for (int i = *logidx; i < LOGDEPTH; i++)
       fputs (logbuf[i], stdout);
   for (int i = 0; i < *logidx; i++)
     fputs (logbuf[i], stdout);
@@ -312,6 +312,7 @@ static uint32_t createwriter_subscriber (void *varg)
       int32_t n;
       while ((n = dds_take (readers[xs[i]], raw, si, READ_LEN, READ_LEN)) > 0)
       {
+        bool error = false;
         for (int32_t j = 0; j < n; j++)
         {
           DiscStress_CreateWriter_Msg const * const s = raw[j];
@@ -324,13 +325,14 @@ static uint32_t createwriter_subscriber (void *varg)
             CU_ASSERT_FATAL (s->wridx < N_WRITERS);
 
 #define XASSERT(cond, ...) do { if (!(cond)) { \
-  printf ("%s: %s", #__VA_ARGS__, __VA_ARGS__); \
+  printf ("%s: %s", #cond, __VA_ARGS__); \
   fflush (stdout); \
   dumplog (logbuf[xs[i]], &logidx[xs[i]]); \
+  error = true; \
   CU_ASSERT (0); \
 } } while (0)
 #define XASSERT_FATAL(cond, ...) do { if (!(cond)) { \
-  printf ("%s: %s", #__VA_ARGS__, __VA_ARGS__); \
+  printf ("%s: %s", #cond, __VA_ARGS__); \
   fflush (stdout); \
   dumplog (logbuf[xs[i]], &logidx[xs[i]]); \
   CU_ASSERT_FATAL (0); \
@@ -363,6 +365,12 @@ static uint32_t createwriter_subscriber (void *varg)
             wri->seen |= 1u << s->histidx;
           }
         }
+        if (error)
+        {
+          fflush (stdout);
+          CU_ASSERT_FATAL (0);
+        }
+
         rc = dds_return_loan (readers[xs[i]], raw, n);
         CU_ASSERT_FATAL (rc == 0);
 

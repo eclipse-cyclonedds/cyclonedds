@@ -123,34 +123,37 @@ static endpoint_info_t * find_typeid_match (dds_entity_t participant, dds_entity
     int n = dds_take (reader, ptrs, info, sizeof (ptrs) / sizeof (ptrs[0]), sizeof (ptrs) / sizeof (ptrs[0]));
     for (int i = 0; i < n && result == NULL; i++)
     {
-      dds_builtintopic_endpoint_t *data = ptrs[i];
-      size_t type_identifier_sz;
-      unsigned char *type_identifier;
-      dds_return_t ret = dds_builtintopic_get_endpoint_typeid (data, &type_identifier, &type_identifier_sz);
-      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-      if (info[i].valid_data && type_identifier != NULL)
+      if (info[i].valid_data)
       {
-        type_identifier_t t = { .hash = { 0 } };
-        CU_ASSERT_EQUAL_FATAL (type_identifier_sz, sizeof (type_identifier_t));
-        memcpy (&t, type_identifier, type_identifier_sz);
-        print_ep (&data->key);
-        printf (" type: "PTYPEIDFMT, PTYPEID (t));
-        if (ddsi_typeid_equal (&t, type_id) && !strcmp (data->topic_name, match_topic))
+        dds_builtintopic_endpoint_t *data = ptrs[i];
+        size_t type_identifier_sz;
+        unsigned char *type_identifier;
+        dds_return_t ret = dds_builtintopic_get_endpoint_typeid (data, &type_identifier, &type_identifier_sz);
+        CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+        if (type_identifier != NULL)
         {
-          printf(" match");
-          // copy data from sample to our own struct
-          result = ddsrt_malloc (sizeof (*result));
-          result->topic_name = ddsrt_strdup (data->topic_name);
-          result->type_name = ddsrt_strdup (data->type_name);
+          type_identifier_t t = { .hash = { 0 } };
+          CU_ASSERT_EQUAL_FATAL (type_identifier_sz, sizeof (type_identifier_t));
+          memcpy (&t, type_identifier, type_identifier_sz);
+          print_ep (&data->key);
+          printf (" type: "PTYPEIDFMT, PTYPEID (t));
+          if (ddsi_typeid_equal (&t, type_id) && !strcmp (data->topic_name, match_topic))
+          {
+            printf(" match");
+            // copy data from sample to our own struct
+            result = ddsrt_malloc (sizeof (*result));
+            result->topic_name = ddsrt_strdup (data->topic_name);
+            result->type_name = ddsrt_strdup (data->type_name);
+          }
+          printf("\n");
         }
-        printf("\n");
+        else
+        {
+          print_ep (&data->key);
+          printf (" no type\n");
+        }
+        ddsrt_free (type_identifier);
       }
-      else
-      {
-        print_ep (&data->key);
-        printf (" no type\n");
-      }
-      ddsrt_free (type_identifier);
     }
     if (n > 0)
     {
@@ -163,6 +166,8 @@ static endpoint_info_t * find_typeid_match (dds_entity_t participant, dds_entity
   while (result == NULL && dds_time () - t_start <= timeout);
   return result;
 }
+
+static void endpoint_info_free (endpoint_info_t *ep_info) ddsrt_nonnull_all;
 
 static void endpoint_info_free (endpoint_info_t *ep_info)
 {
@@ -212,6 +217,7 @@ CU_Test(ddsc_typelookup, basic, .init = typelookup_init, .fini = typelookup_fini
   endpoint_info_t *reader_ep = find_typeid_match (g_participant2, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, rd_type_id, topic_name_rd);
   CU_ASSERT_FATAL (writer_ep != NULL);
   CU_ASSERT_FATAL (reader_ep != NULL);
+  assert (writer_ep && reader_ep); // clang static analyzer
   endpoint_info_free (writer_ep);
   endpoint_info_free (reader_ep);
   dds_free (wr_type_id);
@@ -247,6 +253,7 @@ CU_Test(ddsc_typelookup, api_resolve, .init = typelookup_init, .fini = typelooku
   /* wait for DCPSPublication to be received */
   endpoint_info_t *writer_ep = find_typeid_match (g_participant2, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, type_id, name);
   CU_ASSERT_FATAL (writer_ep != NULL);
+  assert (writer_ep); // clang static analyzer
 
   /* check if type can be resolved */
   ret = dds_domain_resolve_type (g_participant2, type_id->hash, sizeof (type_id->hash), DDS_SECS (15), &sertype);
@@ -296,6 +303,7 @@ CU_Test(ddsc_typelookup, api_resolve_invalid, .init = typelookup_init, .fini = t
   /* wait for DCPSPublication to be received */
   endpoint_info_t *writer_ep = find_typeid_match (g_participant2, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, type_id, name);
   CU_ASSERT_FATAL (writer_ep != NULL);
+  assert (writer_ep); // clang static analyzer
 
   /* confirm that invalid type id cannot be resolved */
   type_id->hash[0]++;

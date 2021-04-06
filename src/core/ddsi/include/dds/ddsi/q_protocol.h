@@ -452,11 +452,9 @@ typedef union Submessage {
 #define PID_ADLINK_EOTINFO                      (PID_VENDORSPECIFIC_FLAG | 0x16u)
 #define PID_ADLINK_PART_CERT_NAME               (PID_VENDORSPECIFIC_FLAG | 0x17u)
 #define PID_ADLINK_LAN_CERT_NAME                (PID_VENDORSPECIFIC_FLAG | 0x18u)
-
 #define PID_CYCLONE_RECEIVE_BUFFER_SIZE         (PID_VENDORSPECIFIC_FLAG | 0x19u)
-#ifdef DDS_HAS_TYPE_DISCOVERY
 #define PID_CYCLONE_TYPE_INFORMATION            (PID_VENDORSPECIFIC_FLAG | 0x1au)
-#endif
+#define PID_CYCLONE_TOPIC_GUID                  (PID_VENDORSPECIFIC_FLAG | 0x1bu)
 #define PID_CYCLONE_REQUESTS_KEYHASH            (PID_VENDORSPECIFIC_FLAG | 0x1cu)
 
 /* Names of the built-in topics */

@@ -994,8 +994,8 @@ static struct cfgelem multiple_recv_threads_attrs[] = {
 };
 
 static struct cfgelem internal_cfgelems[] = {
-  MOVED("MaxMessageSize", "CycloneDDS/General/MaxMessageSize"),
-  MOVED("FragmentSize", "CycloneDDS/General/FragmentSize"),
+  MOVED("MaxMessageSize", "CycloneDDS/Domain/General/MaxMessageSize"),
+  MOVED("FragmentSize", "CycloneDDS/Domain/General/FragmentSize"),
   INT("DeliveryQueueMaxSamples", NULL, 1, "256",
     MEMBER(delivery_queue_maxsamples),
     FUNCTIONS(0, uf_uint, 0, pf_uint),
@@ -1412,9 +1412,10 @@ static struct cfgelem internal_cfgelems[] = {
       "<ul>\n"
       "<li><i>whc</i>: writer history cache checking</li>\n"
       "<li><i>rhc</i>: reader history cache checking</li>\n"
+      "<li><i>xevent</i>: xevent checking</li>\n"
       "<p>In addition, there is the keyword <i>all</i> that enables all "
       "checks.</p>"),
-    VALUES("whc","rhc","all")),
+    VALUES("whc","rhc","xevent","all")),
   END_MARKER
 };
 
@@ -1782,6 +1783,15 @@ static struct cfgelem discovery_cfgelems[] = {
       "specified by the DDSI 2.1 specification and rarely need to be "
       "changed.</p>"
     )),
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  BOOL("EnableTopicDiscoveryEndpoints", NULL, 0, "false",
+    MEMBER(enable_topic_discovery_endpoints),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION(
+      "<p>This element controls whether the built-in endpoints for topic "
+      "discovery are created and used to exchange topic discovery information.</p>"
+    )),
+#endif
   END_MARKER
 };
 

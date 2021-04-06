@@ -992,7 +992,8 @@ CU_Init(ddssec_builtin_process_handshake)
     /* Only need the authentication plugin. */
     plugins = load_plugins(NULL   /* Access Control */,
                            &auth  /* Authentication */,
-                           NULL   /* Cryptograpy    */);
+                           NULL   /* Cryptograpy    */,
+                           &(const struct ddsi_domaingv){ .handshake_include_optional = true });
     if (plugins) {
         result = validate_local_identity( NULL );
         if (result >= 0) {

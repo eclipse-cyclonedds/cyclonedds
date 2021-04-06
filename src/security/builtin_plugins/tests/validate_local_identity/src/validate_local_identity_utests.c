@@ -411,7 +411,8 @@ CU_Init(ddssec_builtin_validate_local_identity)
     /* Only need the authentication plugin. */
     plugins = load_plugins(NULL   /* Access Control */,
                            &auth  /* Authentication */,
-                           NULL   /* Cryptograpy    */);
+                           NULL   /* Cryptograpy    */,
+                           NULL);
     return plugins ? 0 : -1;
 }
 

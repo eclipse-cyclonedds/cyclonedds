@@ -1765,6 +1765,9 @@ static const struct piddesc piddesc_eclipse[] = {
     offsetof(struct ddsi_plist, qos.shared_memory), membersize(struct ddsi_plist, qos.shared_memory),
     {.desc = { Xb, XSTOP } }, 0 },
 #endif
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  PP  (CYCLONE_TOPIC_GUID,               topic_guid, XG),
+#endif
   PP  (ADLINK_PARTICIPANT_VERSION_INFO,  adlink_participant_version_info, Xux5, XS),
   PP  (ADLINK_TYPE_DESCRIPTION,          type_description, XS),
   PP  (CYCLONE_RECEIVE_BUFFER_SIZE,      cyclone_receive_buffer_size, Xu),

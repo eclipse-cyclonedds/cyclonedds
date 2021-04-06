@@ -319,7 +319,7 @@ static bool read_prefix(unsigned char **ptr, uint32_t *remain)
 
   prefix = (struct submsg_header *)(*ptr);
 
-  if (prefix->id != SMID_SEC_PREFIX_KIND)
+  if (prefix->id != SMID_SEC_PREFIX)
   {
     printf("check_encoded_data: prefix incorrect smid 0x%x02\n", prefix->id);
     return false;
@@ -385,7 +385,7 @@ static bool read_body(DDS_Security_OctetSeq *contents, bool encrypted, unsigned 
   {
     struct encrypted_data *enc;
 
-    if (body->id != SMID_SEC_BODY_KIND)
+    if (body->id != SMID_SEC_BODY)
     {
       printf("check_encoded_data: submessage SEC_BODY missing\n");
       return false;
@@ -398,7 +398,7 @@ static bool read_body(DDS_Security_OctetSeq *contents, bool encrypted, unsigned 
   }
   else
   {
-    if (body->id == SMID_SEC_BODY_KIND)
+    if (body->id == SMID_SEC_BODY)
     {
       printf("check_encoded_data: submessage SEC_BODY not expected\n");
       return false;
@@ -427,7 +427,7 @@ static bool read_postfix(unsigned char **ptr,uint32_t *remain)
 
   postfix = (struct submsg_header *)(*ptr);
 
-  if (postfix->id != SMID_SEC_POSTFIX_KIND)
+  if (postfix->id != SMID_SEC_POSTFIX)
   {
     printf("check_encoded_data: postfix invalid smid\n");
     return false;
@@ -738,7 +738,8 @@ static void suite_encode_datawriter_submessage_init(void)
   CU_ASSERT_FATAL ((plugins = load_plugins(
                       NULL    /* Access Control */,
                       NULL    /* Authentication */,
-                      &crypto /* Cryptograpy    */)) != NULL);
+                      &crypto /* Cryptograpy    */,
+                      NULL)) != NULL);
   CU_ASSERT_EQUAL_FATAL (register_local_participant(), 0);
   CU_ASSERT_EQUAL_FATAL (register_remote_participant(), 0);
 }
@@ -1119,69 +1120,6 @@ CU_Test(ddssec_builtin_encode_datawriter_submessage, invalid_args, .init = suite
   reader_list._buffer[0] = reader_crypto;
   index = 0;
 
-  /* encoded_buffer NULL */
-  result = crypto->crypto_transform->encode_datawriter_submessage(
-      crypto->crypto_transform,
-      NULL,
-      &plain_buffer,
-      writer_crypto,
-      &reader_list,
-      &index,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* plain_buffer NULL */
-  result = crypto->crypto_transform->encode_datawriter_submessage(
-      crypto->crypto_transform,
-      &encoded_buffer,
-      NULL,
-      writer_crypto,
-      &reader_list,
-      &index,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* writer crypto 0 */
-  result = crypto->crypto_transform->encode_datawriter_submessage(
-      crypto->crypto_transform,
-      &encoded_buffer,
-      &plain_buffer,
-      0,
-      &reader_list,
-      &index,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
   /* writer crypto unknown */
   result = crypto->crypto_transform->encode_datawriter_submessage(
       crypto->crypto_transform,
@@ -1189,48 +1127,6 @@ CU_Test(ddssec_builtin_encode_datawriter_submessage, invalid_args, .init = suite
       &plain_buffer,
       1,
       &reader_list,
-      &index,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* reader crypto list NULL*/
-  result = crypto->crypto_transform->encode_datawriter_submessage(
-      crypto->crypto_transform,
-      &encoded_buffer,
-      &plain_buffer,
-      writer_crypto,
-      NULL,
-      &index,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* empty reader crypto list */
-  result = crypto->crypto_transform->encode_datawriter_submessage(
-      crypto->crypto_transform,
-      &encoded_buffer,
-      &plain_buffer,
-      writer_crypto,
-      &empty_reader_list,
       &index,
       &exception);
 
@@ -1289,54 +1185,6 @@ CU_Test(ddssec_builtin_encode_datawriter_submessage, invalid_args, .init = suite
 
   reset_exception(&exception);
   reader_list._buffer[0] = reader_crypto;
-
-  /* index NULL*/
-  result = crypto->crypto_transform->encode_datawriter_submessage(
-      crypto->crypto_transform,
-      &encoded_buffer,
-      &plain_buffer,
-      writer_crypto,
-      &reader_list,
-      NULL,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* invalid index */
-  index = 2;
-  result = crypto->crypto_transform->encode_datawriter_submessage(
-      crypto->crypto_transform,
-      &encoded_buffer,
-      &plain_buffer,
-      writer_crypto,
-      &reader_list,
-      &index,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  unregister_datareader(reader_list._buffer[0]);
-  reader_list._buffer[0] = 0;
-
-  unregister_datawriter(writer_crypto);
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
 
   ddsrt_free(datawriter_properties._buffer[0].name);
   ddsrt_free(datawriter_properties._buffer[0].value);

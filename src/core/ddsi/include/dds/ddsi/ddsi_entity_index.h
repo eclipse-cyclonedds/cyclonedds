@@ -26,14 +26,18 @@ struct ddsi_domaingv;
 
 struct match_entities_range_key {
   union {
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+    struct topic tp;
+#endif
     struct writer wr;
     struct reader rd;
-    struct proxy_writer pwr;
-    struct proxy_reader prd;
     struct entity_common e;
     struct generic_proxy_endpoint gpe;
   } entity;
   struct dds_qos xqos;
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  struct ddsi_topic_definition tpdef;
+#endif
 };
 
 struct entidx_enum
@@ -138,6 +142,16 @@ void entidx_enum_proxy_writer_fini (struct entidx_enum_proxy_writer *st) ddsrt_n
 void entidx_enum_proxy_reader_fini (struct entidx_enum_proxy_reader *st) ddsrt_nonnull_all;
 void entidx_enum_participant_fini (struct entidx_enum_participant *st) ddsrt_nonnull_all;
 void entidx_enum_proxy_participant_fini (struct entidx_enum_proxy_participant *st) ddsrt_nonnull_all;
+
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+void entidx_insert_topic_guid (struct entity_index *ei, struct topic *tp) ddsrt_nonnull_all;
+void entidx_remove_topic_guid (struct entity_index *ei, struct topic *tp) ddsrt_nonnull_all;
+DDS_EXPORT struct topic *entidx_lookup_topic_guid (const struct entity_index *ei, const struct ddsi_guid *guid);
+struct entidx_enum_topic { struct entidx_enum st; };
+void entidx_enum_topic_init (struct entidx_enum_topic *st, const struct entity_index *ei) ddsrt_nonnull_all;
+struct topic *entidx_enum_topic_next (struct entidx_enum_topic *st) ddsrt_nonnull_all;
+void entidx_enum_topic_fini (struct entidx_enum_topic *st) ddsrt_nonnull_all;
+#endif
 
 #if defined (__cplusplus)
 }

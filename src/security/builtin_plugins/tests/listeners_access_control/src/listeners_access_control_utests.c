@@ -17,6 +17,9 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/types.h"
+#include "dds/ddsi/ddsi_tran.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/q_xevent.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/openssl_support.h"
@@ -529,8 +532,8 @@ static void set_path_build_dir(void)
 CU_Init(ddssec_builtin_listeners_access_control)
 {
   int res = 0;
-
-  plugins = load_plugins(&access_control, &auth, NULL /* Cryptograpy */);
+  plugins = load_plugins(&access_control, &auth, NULL /* Cryptograpy */,
+                         &(const struct ddsi_domaingv){ .handshake_include_optional = true });
   if (!plugins) {
     res = -1;
   } else {

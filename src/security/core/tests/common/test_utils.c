@@ -469,17 +469,25 @@ dds_qos_t * get_default_test_qos (void)
   return qos;
 }
 
-void rd_wr_init_fail(
+void rd_wr_init_w_partitions_fail(
     dds_entity_t pp_wr, dds_entity_t *pub, dds_entity_t *pub_tp, dds_entity_t *wr,
     dds_entity_t pp_rd, dds_entity_t *sub, dds_entity_t *sub_tp, dds_entity_t *rd,
     const char * topic_name,
+    const char ** partition_names,
     bool exp_pubtp_fail, bool exp_wr_fail,
     bool exp_subtp_fail, bool exp_rd_fail)
 {
   dds_qos_t * qos = get_default_test_qos ();
-  *pub = dds_create_publisher (pp_wr, NULL, NULL);
+  if (partition_names)
+  {
+    uint32_t npart = 0;
+    while (partition_names[npart] != NULL)
+      npart++;
+    dds_qset_partition (qos, npart, partition_names);
+  }
+  *pub = dds_create_publisher (pp_wr, qos, NULL);
   CU_ASSERT_FATAL (*pub > 0);
-  *sub = dds_create_subscriber (pp_rd, NULL, NULL);
+  *sub = dds_create_subscriber (pp_rd, qos, NULL);
   CU_ASSERT_FATAL (*sub > 0);
   *pub_tp = dds_create_topic (pp_wr, &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
   CU_ASSERT_EQUAL_FATAL (exp_pubtp_fail, *pub_tp <= 0);
@@ -505,12 +513,22 @@ fail:
   dds_delete_qos (qos);
 }
 
+void rd_wr_init_fail(
+    dds_entity_t pp_wr, dds_entity_t *pub, dds_entity_t *pub_tp, dds_entity_t *wr,
+    dds_entity_t pp_rd, dds_entity_t *sub, dds_entity_t *sub_tp, dds_entity_t *rd,
+    const char * topic_name,
+    bool exp_pubtp_fail, bool exp_wr_fail,
+    bool exp_subtp_fail, bool exp_rd_fail)
+{
+  rd_wr_init_w_partitions_fail (pp_wr, pub, pub_tp, wr, pp_rd, sub, sub_tp, rd, topic_name, NULL, exp_pubtp_fail, exp_wr_fail, exp_subtp_fail, exp_rd_fail);
+}
+
 void rd_wr_init(
     dds_entity_t pp_wr, dds_entity_t *pub, dds_entity_t *pub_tp, dds_entity_t *wr,
     dds_entity_t pp_rd, dds_entity_t *sub, dds_entity_t *sub_tp, dds_entity_t *rd,
     const char * topic_name)
 {
-  rd_wr_init_fail (pp_wr, pub, pub_tp, wr, pp_rd, sub, sub_tp, rd, topic_name, false, false, false, false);
+  rd_wr_init_w_partitions_fail (pp_wr, pub, pub_tp, wr, pp_rd, sub, sub_tp, rd, topic_name, NULL, false, false, false, false);
 }
 
 void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_duration_t dur, bool exp_write_fail, bool exp_read_fail)

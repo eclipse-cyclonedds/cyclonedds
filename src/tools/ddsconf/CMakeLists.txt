@@ -17,6 +17,8 @@ if(CMAKE_CROSSCOMPILING)
   add_executable(ddsconf IMPORTED GLOBAL)
   set_property(TARGET ddsconf PROPERTY IMPORTED_LOCATION ${DDSCONF_EXECUTABLE})
 else()
+  include(GenerateDummyExportHeader)
+
   add_executable(ddsconf
     ddsconf.c rnc.c md.c xsd.c defconfig.c
     ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/q_config.c

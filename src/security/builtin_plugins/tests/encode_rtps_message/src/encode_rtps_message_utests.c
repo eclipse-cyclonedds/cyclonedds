@@ -238,7 +238,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   prefix = (struct submsg_header *)ptr;
 
-  if (prefix->id != SMID_SRTPS_PREFIX_KIND)
+  if (prefix->id != SMID_SRTPS_PREFIX)
   {
     printf("check_encoded_data: prefix incorrect smid 0x%x02\n", prefix->id);
     goto fail_prefix;
@@ -280,7 +280,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
   if (encrypted)
   {
     body = (struct submsg_header *)ptr;
-    if (body->id != SMID_SEC_BODY_KIND)
+    if (body->id != SMID_SEC_BODY)
     {
       printf("check_encoded_data: submessage SEC_BODY missing\n");
       goto fail_body;
@@ -308,7 +308,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
   else
   {
     body = (struct submsg_header *)(ptr + 24); /* header after info_src */
-    if (body->id == SMID_SEC_BODY_KIND)
+    if (body->id == SMID_SEC_BODY)
     {
       printf("check_encoded_data: submessage SEC_BODY not expected\n");
       goto fail_body;
@@ -338,7 +338,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   postfix = (struct submsg_header *)ptr;
 
-  if (postfix->id != SMID_SRTPS_POSTFIX_KIND)
+  if (postfix->id != SMID_SRTPS_POSTFIX)
   {
     printf("check_encoded_data: postfix invalid smid\n");
     goto fail_postfix;
@@ -699,7 +699,8 @@ static void suite_encode_rtps_message_init(void)
   CU_ASSERT_FATAL ((plugins = load_plugins(
                       NULL    /* Access Control */,
                       NULL    /* Authentication */,
-                      &crypto /* Cryptograpy    */)) != NULL);
+                      &crypto /* Cryptograpy    */,
+                      NULL)) != NULL);
 }
 
 static void suite_encode_rtps_message_fini(void)
@@ -1099,48 +1100,6 @@ CU_Test(ddssec_builtin_encode_rtps_message, invalid_args, .init = suite_encode_r
   reader_list._buffer[0] = remote_particpant_cryptos[0];
   index = 0;
 
-  /* encoded_buffer NULL */
-  result = crypto->crypto_transform->encode_rtps_message(
-      crypto->crypto_transform,
-      NULL,
-      &plain_buffer,
-      local_particpant_crypto,
-      &reader_list,
-      &index,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* plain_buffer NULL */
-  result = crypto->crypto_transform->encode_rtps_message(
-      crypto->crypto_transform,
-      &encoded_buffer,
-      NULL,
-      local_particpant_crypto,
-      &reader_list,
-      &index,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
   /* writer crypto 0 */
   result = crypto->crypto_transform->encode_rtps_message(
       crypto->crypto_transform,
@@ -1169,48 +1128,6 @@ CU_Test(ddssec_builtin_encode_rtps_message, invalid_args, .init = suite_encode_r
       &plain_buffer,
       1,
       &reader_list,
-      &index,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* reader crypto list NULL*/
-  result = crypto->crypto_transform->encode_rtps_message(
-      crypto->crypto_transform,
-      &encoded_buffer,
-      &plain_buffer,
-      local_particpant_crypto,
-      NULL,
-      &index,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* empty reader crypto list */
-  result = crypto->crypto_transform->encode_rtps_message(
-      crypto->crypto_transform,
-      &encoded_buffer,
-      &plain_buffer,
-      local_particpant_crypto,
-      &empty_reader_list,
       &index,
       &exception);
 
@@ -1271,50 +1188,7 @@ CU_Test(ddssec_builtin_encode_rtps_message, invalid_args, .init = suite_encode_r
 
   reader_list._buffer[0] = local_particpant_crypto;
 
-  /* index NULL*/
-  result = crypto->crypto_transform->encode_rtps_message(
-      crypto->crypto_transform,
-      &encoded_buffer,
-      &plain_buffer,
-      local_particpant_crypto,
-      &reader_list,
-      NULL,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
-  reset_exception(&exception);
-
-  /* invalid index */
-  index = 2;
-  result = crypto->crypto_transform->encode_rtps_message(
-      crypto->crypto_transform,
-      &encoded_buffer,
-      &plain_buffer,
-      local_particpant_crypto,
-      &reader_list,
-      &index,
-      &exception);
-
-  if (!result)
-  {
-    printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
-  }
-
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
-
   unregister_remote_participants();
-
-  reset_exception(&exception);
 
   DDS_Security_OctetSeq_deinit((&plain_buffer));
   DDS_Security_DatareaderCryptoHandleSeq_deinit(&reader_list);

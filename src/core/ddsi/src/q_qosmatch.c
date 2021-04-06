@@ -68,6 +68,8 @@ int partitions_match_p (const dds_qos_t *a, const dds_qos_t *b)
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
 
+static bool check_assignability (struct tl_meta *rd_tlm, struct tl_meta *wr_tlm) ddsrt_nonnull_all;
+
 static bool check_assignability (struct tl_meta *rd_tlm, struct tl_meta *wr_tlm)
 {
   assert (rd_tlm->sertype != NULL);
@@ -76,28 +78,32 @@ static bool check_assignability (struct tl_meta *rd_tlm, struct tl_meta *wr_tlm)
 }
 
 static bool check_endpoint_typeid (struct ddsi_domaingv *gv, const type_identifier_t *type_id, struct tl_meta **tlm, bool *req_lookup)
+  ddsrt_nonnull((1, 2, 3));
+
+static bool check_endpoint_typeid (struct ddsi_domaingv *gv, const type_identifier_t *type_id, struct tl_meta **tlm, bool *req_lookup)
 {
   assert (tlm != NULL);
-  if (type_id != NULL && !ddsi_typeid_none (type_id))
+
+  // type_id = NULL is treated the same as type_id = 0...0, so this implies type_id may not be a null pointer
+  assert (!ddsi_typeid_none (type_id));
+
+  ddsrt_mutex_lock (&gv->tl_admin_lock);
+  /* no refcounting for returned tlm object, but its lifetime is
+     at least that of the endpoint that refers to it */
+  *tlm = ddsi_tl_meta_lookup_locked (gv, type_id);
+  assert (*tlm != NULL);
+  if ((*tlm)->state != TL_META_RESOLVED)
   {
-    ddsrt_mutex_lock (&gv->tl_admin_lock);
-    /* no refcounting for returned tlm object, but its lifetime is
-       at least that of the endpoint that refers to it */
-    *tlm = ddsi_tl_meta_lookup_locked (gv, type_id);
-    assert (*tlm != NULL);
-    if ((*tlm)->state != TL_META_RESOLVED)
-    {
-      GVTRACE ("typeid unresolved "PTYPEIDFMT"\n", PTYPEID(*type_id));
-      /* defer requesting unresolved type until after the endpoint qos lock
-         has been released, so just set a bool value indicating that a type
-         lookup is required */
-      if (req_lookup != NULL)
-        *req_lookup = true;
-      ddsrt_mutex_unlock (&gv->tl_admin_lock);
-      return false;
-    }
+    GVTRACE ("typeid unresolved "PTYPEIDFMT"\n", PTYPEID(*type_id));
+    /* defer requesting unresolved type until after the endpoint qos lock
+       has been released, so just set a bool value indicating that a type
+       lookup is required */
+    if (req_lookup != NULL)
+      *req_lookup = true;
     ddsrt_mutex_unlock (&gv->tl_admin_lock);
+    return false;
   }
+  ddsrt_mutex_unlock (&gv->tl_admin_lock);
   return true;
 }
 
@@ -137,21 +143,29 @@ bool qos_match_mask_p (
   if (wr_typeid_req_lookup != NULL)
     *wr_typeid_req_lookup = false;
 
-  if ((ddsi_typeid_none (rd_typeid) || ddsi_typeid_none (wr_typeid)) && rd_qos->type_consistency.force_type_validation)
+  if (ddsi_typeid_none (rd_typeid) || ddsi_typeid_none (wr_typeid))
   {
-    *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
-    return false;
+    // Type id missing on either or both: automatic failure if "force type validation"
+    // is set.  If it is missing for one, there is no point in requesting it for the
+    // other (it wouldn't be inspected anyway).
+    if (rd_qos->type_consistency.force_type_validation)
+    {
+      *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
+      return false;
+    }
   }
-
-  struct tl_meta *rd_tlm = NULL, *wr_tlm = NULL;
-  if (!check_endpoint_typeid (gv, rd_typeid, &rd_tlm, rd_typeid_req_lookup))
-    return false;
-  if (!check_endpoint_typeid (gv, wr_typeid, &wr_tlm, wr_typeid_req_lookup))
-    return false;
-  if (!ddsi_typeid_none (rd_typeid) && !ddsi_typeid_none (wr_typeid) && !check_assignability (rd_tlm, wr_tlm))
+  else
   {
-    *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
-    return false;
+    struct tl_meta *rd_tlm = NULL, *wr_tlm = NULL;
+    if (!check_endpoint_typeid (gv, rd_typeid, &rd_tlm, rd_typeid_req_lookup))
+      return false;
+    if (!check_endpoint_typeid (gv, wr_typeid, &wr_tlm, wr_typeid_req_lookup))
+      return false;
+    if (!check_assignability (rd_tlm, wr_tlm))
+    {
+      *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
+      return false;
+    }
   }
 #endif
 

@@ -19,311 +19,223 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/time.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/fibheap.h"
-
 
 #include "dds/security/core/dds_security_timed_cb.h"
 
+// The xevent mechanism runs on the monotonic clock, but certificate expiry
+// times are expressed in terms of wall-clock time.  The wall clock may jump
+// forward or backward, so we rather than wait until the next expiry event,
+// limit the interval between checks so that a certificate expiring because
+// the wall clock jumped forward is detected in a reasonable amount of time.
+#define CHECK_TIMER_INTERVAL DDS_SECS(300) /* 5 minutes */
 
-struct dds_security_timed_dispatcher_t
+struct dds_security_timed_dispatcher
 {
-    bool active;
-    void *listener;
-    ddsrt_fibheap_t events;
+  ddsrt_mutex_t lock;
+  struct xeventq *evq;
+  struct xevent *evt;
+  ddsrt_avl_tree_t events;
+  ddsrt_fibheap_t timers;
+  dds_security_time_event_handle_t next_timer;
 };
 
-struct list_dispatcher_t
+struct dds_security_timed_event
 {
-    struct list_dispatcher_t *next;
-    struct dds_security_timed_dispatcher_t *dispatcher;
+  ddsrt_avl_node_t avlnode;
+  ddsrt_fibheap_node_t heapnode;
+  dds_security_time_event_handle_t handle;
+  dds_security_timed_cb_t callback;
+  dds_time_t trigger_time;
+  void *arg;
 };
 
-struct event_t
-{
-    ddsrt_fibheap_node_t heapnode;
-    dds_security_timed_cb_t callback;
-    dds_time_t trigger_time;
-    void *arg;
-};
+static int compare_time_event (const void *va, const void *vb) ddsrt_nonnull_all;
+static int compare_timed_cb_trigger_time (const void *va, const void *vb) ddsrt_nonnull_all;
 
-static int compare_timed_cb_trigger_time(const void *va, const void *vb);
-static const ddsrt_fibheap_def_t timed_cb_queue_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof(struct event_t, heapnode), compare_timed_cb_trigger_time);
+static const ddsrt_avl_treedef_t timed_event_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct dds_security_timed_event, avlnode), offsetof (struct dds_security_timed_event, handle), compare_time_event, 0);
+static const ddsrt_fibheap_def_t timed_cb_queue_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER (offsetof (struct dds_security_timed_event, heapnode), compare_timed_cb_trigger_time);
 
-static int compare_timed_cb_trigger_time(const void *va, const void *vb)
+static int compare_time_event (const void *va, const void *vb)
 {
-    const struct event_t *a = va;
-    const struct event_t *b = vb;
-    return (a->trigger_time == b->trigger_time) ? 0 : (a->trigger_time < b->trigger_time) ? -1 : 1;
+  const dds_security_time_event_handle_t *ha = va;
+  const dds_security_time_event_handle_t *hb = vb;
+  return (*ha > *hb) ? 1 : (*ha < *hb) ? -1 : 0;
 }
 
-struct dds_security_timed_cb_data {
-    ddsrt_mutex_t lock;
-    ddsrt_cond_t  cond;
-    struct list_dispatcher_t *first_dispatcher_node;
-    ddsrt_thread_t thread;
-    bool terminate;
-};
-
-
-static uint32_t timed_dispatcher_thread(
-        void *tcbv)
+static int compare_timed_cb_trigger_time (const void *va, const void *vb)
 {
-    struct list_dispatcher_t *dispatcher_node;
-    struct event_t *event;
-    dds_duration_t timeout;
-    dds_duration_t remain_time;
-    struct dds_security_timed_cb_data *tcb = (struct dds_security_timed_cb_data *)tcbv;
-
-    ddsrt_mutex_lock(&tcb->lock);
-    do
-    {
-        remain_time = DDS_INFINITY;
-        for (dispatcher_node = tcb->first_dispatcher_node; dispatcher_node != NULL; dispatcher_node = dispatcher_node->next)
-        {
-            /* Just some sanity checks. */
-            assert(dispatcher_node->dispatcher);
-            if (dispatcher_node->dispatcher->active)
-            {
-                do
-                {
-                    timeout = DDS_INFINITY;
-                    event = ddsrt_fibheap_min(&timed_cb_queue_fhdef, &dispatcher_node->dispatcher->events);
-                    if (event)
-                    {
-                        /* Just some sanity checks. */
-                        assert(event->callback);
-                        /* Determine the trigger timeout of this callback. */
-                        timeout = event->trigger_time - dds_time();
-                        if (timeout <= 0)
-                        {
-                            /* Trigger callback when related dispatcher is active. */
-                            event->callback(dispatcher_node->dispatcher,
-                                            DDS_SECURITY_TIMED_CB_KIND_TIMEOUT,
-                                            dispatcher_node->dispatcher->listener,
-                                            event->arg);
-
-                            /* Remove handled event from queue, continue with next. */
-                            ddsrt_fibheap_delete(&timed_cb_queue_fhdef, &dispatcher_node->dispatcher->events, event);
-                            ddsrt_free(event);
-                        }
-                        else if (timeout < remain_time)
-                        {
-                            remain_time = timeout;
-                        }
-                    }
-                }
-                while (timeout < 0);
-            }
-        }
-        // tcb->cond condition may be triggered before this thread runs and causes
-        // this waitfor to wait infinity, hence the check of the tcb->terminate
-        if (((remain_time > 0) || (remain_time == DDS_INFINITY)) && !tcb->terminate)
-        {
-            /* Wait for new event, timeout or the end. */
-            (void)ddsrt_cond_waitfor(&tcb->cond, &tcb->lock, remain_time);
-        }
-
-    } while (!tcb->terminate);
-
-    ddsrt_mutex_unlock(&tcb->lock);
-
-    return 0;
+  const struct dds_security_timed_event *a = va;
+  const struct dds_security_timed_event *b = vb;
+  return (a->trigger_time == b->trigger_time) ? 0 : (a->trigger_time < b->trigger_time) ? -1 : 1;
 }
 
-struct dds_security_timed_cb_data*
-dds_security_timed_cb_new()
+static struct dds_security_timed_event *timed_event_new (dds_security_time_event_handle_t handle, dds_security_timed_cb_t callback, dds_time_t trigger_time, void *arg)
 {
-    struct dds_security_timed_cb_data *tcb = ddsrt_malloc(sizeof(*tcb));
-    dds_return_t osres;
-    ddsrt_threadattr_t attr;
-
-    ddsrt_mutex_init(&tcb->lock);
-    ddsrt_cond_init(&tcb->cond);
-    tcb->first_dispatcher_node = NULL;
-    tcb->terminate = false;
-
-    ddsrt_threadattr_init(&attr);
-    osres = ddsrt_thread_create(&tcb->thread, "security_dispatcher", &attr, timed_dispatcher_thread, (void*)tcb);
-    if (osres != DDS_RETCODE_OK)
-    {
-        DDS_FATAL("Cannot create thread security_dispatcher");
-    }
-
-    return tcb;
+  struct dds_security_timed_event *ev = ddsrt_malloc (sizeof (*ev));
+  ev->handle = handle;
+  ev->callback = callback;
+  ev->trigger_time = trigger_time;
+  ev->arg = arg;
+  return ev;
 }
 
-void
-dds_security_timed_cb_free(
-        struct dds_security_timed_cb_data *tcb)
+static ddsrt_mtime_t calc_tsched (const struct dds_security_timed_event *ev, dds_time_t tnow_wc)
 {
-    ddsrt_mutex_lock(&tcb->lock);
-    tcb->terminate = true;
-    ddsrt_mutex_unlock(&tcb->lock);
-    ddsrt_cond_signal(&tcb->cond);
-    ddsrt_thread_join(tcb->thread, NULL);
-
-    ddsrt_cond_destroy(&tcb->cond);
-    ddsrt_mutex_destroy(&tcb->lock);
-    ddsrt_free(tcb);
+  if (ev == NULL)
+    return DDSRT_MTIME_NEVER;
+  else if (ev->trigger_time < tnow_wc)
+    return ddsrt_time_monotonic ();
+  else
+  {
+    const dds_duration_t delta = ev->trigger_time - tnow_wc;
+    const dds_duration_t timeout = (delta < CHECK_TIMER_INTERVAL) ? delta : CHECK_TIMER_INTERVAL;
+    return ddsrt_mtime_add_duration (ddsrt_time_monotonic (), timeout);
+  }
 }
 
-
-struct dds_security_timed_dispatcher_t*
-dds_security_timed_dispatcher_new(
-        struct dds_security_timed_cb_data *tcb)
+static void timed_event_cb (struct xevent *xev, void *arg, ddsrt_mtime_t tnow)
 {
-    struct dds_security_timed_dispatcher_t *d;
-    struct list_dispatcher_t *dispatcher_node_new;
-    struct list_dispatcher_t *dispatcher_node_wrk;
+  struct dds_security_timed_dispatcher * const dispatcher = arg;
+  (void) tnow;
 
-    /* New dispatcher. */
-    d = ddsrt_malloc(sizeof(struct dds_security_timed_dispatcher_t));
-    memset(d, 0, sizeof(struct dds_security_timed_dispatcher_t));
+  ddsrt_mutex_lock (&dispatcher->lock);
+  dds_time_t tnow_wc = dds_time ();
+  struct dds_security_timed_event *ev;
+  while ((ev = ddsrt_fibheap_min (&timed_cb_queue_fhdef, &dispatcher->timers)) != NULL && ev->trigger_time < tnow_wc)
+  {
+    (void) ddsrt_fibheap_extract_min (&timed_cb_queue_fhdef, &dispatcher->timers);
+    ddsrt_avl_delete (&timed_event_treedef, &dispatcher->events, ev);
+    ddsrt_mutex_unlock (&dispatcher->lock);
 
-    ddsrt_fibheap_init(&timed_cb_queue_fhdef, &d->events);
+    ev->callback (ev->handle, ev->trigger_time, DDS_SECURITY_TIMED_CB_KIND_TIMEOUT, ev->arg);
+    ddsrt_free (ev);
 
-    dispatcher_node_new = ddsrt_malloc(sizeof(struct list_dispatcher_t));
-    memset(dispatcher_node_new, 0, sizeof(struct list_dispatcher_t));
-    dispatcher_node_new->dispatcher = d;
-
-    ddsrt_mutex_lock(&tcb->lock);
-
-    /* Append to list */
-    if (tcb->first_dispatcher_node) {
-        struct list_dispatcher_t *last = NULL;
-        for (dispatcher_node_wrk = tcb->first_dispatcher_node; dispatcher_node_wrk != NULL; dispatcher_node_wrk = dispatcher_node_wrk->next) {
-            last = dispatcher_node_wrk;
-        }
-        last->next = dispatcher_node_new;
-    } else {
-        /* This new event is the first one. */
-        tcb->first_dispatcher_node = dispatcher_node_new;
-    }
-
-    ddsrt_mutex_unlock(&tcb->lock);
-
-
-    return d;
+    ddsrt_mutex_lock (&dispatcher->lock);
+    tnow_wc = dds_time ();
+  }
+  // Note: xev may be different from dispatcher->evt if it is being
+  // disabled (in which case the latter may be a null pointer) or
+  // even a different event (in case it is already being re-enabled),
+  // and so we must use xev.
+  (void) resched_xevent_if_earlier (xev, calc_tsched (ev, tnow_wc));
+  ddsrt_mutex_unlock (&dispatcher->lock);
 }
 
-void
-dds_security_timed_dispatcher_free(
-        struct dds_security_timed_cb_data *tcb,
-        struct dds_security_timed_dispatcher_t *d)
+struct dds_security_timed_dispatcher *dds_security_timed_dispatcher_new (struct xeventq *evq)
 {
-    struct event_t *event;
-    struct list_dispatcher_t *dispatcher_node;
-    struct list_dispatcher_t *dispatcher_node_prev;
-
-    assert(d);
-
-    /* Remove related events from queue. */
-    ddsrt_mutex_lock(&tcb->lock);
-
-    while((event = ddsrt_fibheap_extract_min(&timed_cb_queue_fhdef, &d->events)) != NULL)
-    {
-        event->callback(d, DDS_SECURITY_TIMED_CB_KIND_DELETE, NULL, event->arg);
-        ddsrt_free(event);
-    }
-
-    /* Remove dispatcher from list */
-    dispatcher_node_prev = NULL;
-    for (dispatcher_node = tcb->first_dispatcher_node; dispatcher_node != NULL; dispatcher_node = dispatcher_node->next)
-    {
-        if (dispatcher_node->dispatcher == d)
-        {
-            /* remove element */
-            if (dispatcher_node_prev != NULL)
-            {
-                dispatcher_node_prev->next = dispatcher_node->next;
-            }
-            else
-            {
-                tcb->first_dispatcher_node = dispatcher_node->next;
-            }
-
-            ddsrt_free(dispatcher_node);
-            break;
-        }
-        dispatcher_node_prev = dispatcher_node;
-    }
-    /* Free this dispatcher. */
-    ddsrt_free(d);
-
-    ddsrt_mutex_unlock(&tcb->lock);
-
+  struct dds_security_timed_dispatcher *d = ddsrt_malloc (sizeof (*d));
+  ddsrt_mutex_init (&d->lock);
+  ddsrt_avl_init (&timed_event_treedef, &d->events);
+  ddsrt_fibheap_init (&timed_cb_queue_fhdef, &d->timers);
+  d->evq = evq;
+  d->evt = NULL;
+  d->next_timer = 1;
+  return d;
 }
 
-
-void
-dds_security_timed_dispatcher_enable(
-        struct dds_security_timed_cb_data *tcb,
-        struct dds_security_timed_dispatcher_t *d,
-        void *listener)
+void dds_security_timed_dispatcher_enable (struct dds_security_timed_dispatcher *d)
 {
-    assert(d);
-    assert(!(d->active));
-
-    ddsrt_mutex_lock(&tcb->lock);
-
-    /* Remember possible listener and activate. */
-    d->listener = listener;
-    d->active = true;
-
-    /* Start thread when not running, otherwise wake it up to
-     * trigger callbacks that were (possibly) previously added. */
-    ddsrt_cond_signal(&tcb->cond);
-
-    ddsrt_mutex_unlock(&tcb->lock);
+  ddsrt_mutex_lock (&d->lock);
+  if (d->evt == NULL)
+  {
+    struct dds_security_timed_event const * const ev = ddsrt_fibheap_min (&timed_cb_queue_fhdef, &d->timers);
+    d->evt = qxev_callback (d->evq, calc_tsched (ev, dds_time ()), timed_event_cb, d);
+  }
+  ddsrt_mutex_unlock (&d->lock);
 }
 
-
-void
-dds_security_timed_dispatcher_disable(
-        struct dds_security_timed_cb_data *tcb,
-        struct dds_security_timed_dispatcher_t *d)
+bool dds_security_timed_dispatcher_disable (struct dds_security_timed_dispatcher *d)
 {
-    assert(d);
-    assert(d->active);
+  // delete_xevent_callback() blocks while a possible concurrent
+  // callback invocation completes, and so disable() can't hold the
+  // dispatcher lock when it calls delete_xevent_callback().
+  //
+  // Two obvious ways of dealing with this are:
+  //
+  // - Protect the "dispatcher->evt" and the existence of a callback
+  //   event field by a separate lock, serializing enable/disable
+  //   calls but without interfering with callback execution.
+  //
+  // - Have just one lock protecting all state (including "evt"),
+  //   but call delete_xevent_callback outside it.  This means
+  //   the callbacks can execute while "evt" is a null pointer,
+  //   and that enable() can be called, installing a new callback
+  //   event while the "old" one is still executing.
+  //
+  //   It also means that for two concurrent calls to disable(),
+  //   one will reset "evt" and wait for the callback to be removed,
+  //   while the one that loses the race may return before the
+  //   callback is removed.
+  //
+  // Having multiple callback events merely leads to a minor amount
+  // of superfluous work, provided they don't depend on "evt", and
+  // the case of two concurrent calls to disable() doesn't seem to
+  // be an issue.  So the second option is sufficient.
+  struct xevent *evt;
 
-    ddsrt_mutex_lock(&tcb->lock);
+  ddsrt_mutex_lock (&d->lock);
+  evt = d->evt;
+  d->evt = NULL;
+  ddsrt_mutex_unlock (&d->lock);
 
-    /* Forget listener and deactivate. */
-    d->listener = NULL;
-    d->active = false;
-
-    ddsrt_mutex_unlock(&tcb->lock);
+  if (evt != NULL)
+    delete_xevent_callback (evt);
+  return (evt != NULL);
 }
 
-
-void
-dds_security_timed_dispatcher_add(
-        struct dds_security_timed_cb_data *tcb,
-        struct dds_security_timed_dispatcher_t *d,
-        dds_security_timed_cb_t cb,
-        dds_time_t trigger_time,
-        void *arg)
+void dds_security_timed_dispatcher_free (struct dds_security_timed_dispatcher *d)
 {
-    struct event_t *event_new;
+  struct dds_security_timed_event *ev;
 
-    assert(d);
-    assert(cb);
+  // By this time, no other thread may be referencing "d" anymore, and so there
+  // can't be any concurrent calls to enable() or disable().  Therefore, either
+  // d->evt != NULL and the callback exists, or d->evt == NULL and the callback
+  // does not exist.
+  //
+  // Thus, following the call, there will be no callback.
+  (void) dds_security_timed_dispatcher_disable (d);
 
-    /* Create event. */
-    event_new = ddsrt_malloc(sizeof(struct event_t));
-    memset(event_new, 0, sizeof(struct event_t));
-    event_new->trigger_time = trigger_time;
-    event_new->callback = cb;
-    event_new->arg = arg;
-
-    /* Insert event based on trigger_time. */
-    ddsrt_mutex_lock(&tcb->lock);
-    ddsrt_fibheap_insert(&timed_cb_queue_fhdef, &d->events, event_new);
-    ddsrt_mutex_unlock(&tcb->lock);
-
-    /* Wake up thread (if it's running). */
-    ddsrt_cond_signal(&tcb->cond);
+  while ((ev = ddsrt_fibheap_extract_min (&timed_cb_queue_fhdef, &d->timers)) != NULL)
+  {
+    ev->callback (ev->handle, ev->trigger_time, DDS_SECURITY_TIMED_CB_KIND_DELETE, ev->arg);
+    ddsrt_free (ev);
+  }
+  ddsrt_mutex_destroy (&d->lock);
+  ddsrt_free (d);
 }
 
+dds_security_time_event_handle_t dds_security_timed_dispatcher_add (struct dds_security_timed_dispatcher *d, dds_security_timed_cb_t cb, dds_time_t trigger_time, void *arg)
+{
+  ddsrt_mutex_lock (&d->lock);
+  struct dds_security_timed_event * const ev = timed_event_new (d->next_timer, cb, trigger_time, arg);
+  ddsrt_avl_insert (&timed_event_treedef, &d->events, ev);
+  ddsrt_fibheap_insert (&timed_cb_queue_fhdef, &d->timers, ev);
+  d->next_timer++;
+  if (d->evt != NULL)
+    (void) resched_xevent_if_earlier (d->evt, calc_tsched (ev, dds_time ()));
+  ddsrt_mutex_unlock (&d->lock);
+  return ev->handle;
+}
+
+void dds_security_timed_dispatcher_remove (struct dds_security_timed_dispatcher *d, dds_security_time_event_handle_t timer)
+{
+  ddsrt_avl_dpath_t dpath;
+  ddsrt_mutex_lock (&d->lock);
+  struct dds_security_timed_event * const ev = ddsrt_avl_lookup_dpath (&timed_event_treedef, &d->events, &timer, &dpath);
+  if (ev == NULL)
+  {
+    // if the timer id doesn't exist anymore, it already expired and this is a no-op
+    ddsrt_mutex_unlock (&d->lock);
+  }
+  else
+  {
+    ddsrt_avl_delete_dpath (&timed_event_treedef, &d->events, ev, &dpath);
+    ddsrt_fibheap_delete (&timed_cb_queue_fhdef, &d->timers, ev);
+    ddsrt_mutex_unlock (&d->lock);
+    ev->callback (ev->handle, ev->trigger_time, DDS_SECURITY_TIMED_CB_KIND_DELETE, ev->arg);
+    ddsrt_free (ev);
+  }
+}

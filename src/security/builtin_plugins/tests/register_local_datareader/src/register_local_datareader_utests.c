@@ -72,7 +72,8 @@ static void suite_register_local_datareader_init(void)
   CU_ASSERT_FATAL((plugins = load_plugins(
                        NULL /* Access Control */,
                        NULL /* Authentication */,
-                       &crypto /* Cryptograpy    */)) != NULL);
+                       &crypto /* Cryptograpy    */,
+                       NULL)) != NULL);
 
   /* prepare test shared secret handle */
   shared_secret_handle_impl = ddsrt_malloc(sizeof(DDS_Security_SharedSecretHandleImpl));

@@ -201,7 +201,8 @@ static void suite_set_remote_datareader_crypto_tokens_init(void)
   CU_ASSERT_FATAL ((plugins = load_plugins(
                       NULL    /* Access Control */,
                       NULL    /* Authentication */,
-                      &crypto /* Cryptograpy    */)) != NULL);
+                      &crypto /* Cryptograpy    */,
+                      NULL)) != NULL);
   CU_ASSERT_EQUAL_FATAL (register_local_participant(), 0);
   CU_ASSERT_EQUAL_FATAL (register_remote_participant(), 0);
   CU_ASSERT_EQUAL_FATAL (register_local_datawriter(), 0);

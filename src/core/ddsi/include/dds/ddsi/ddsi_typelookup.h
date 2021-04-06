@@ -25,6 +25,8 @@
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_typeid.h"
+#include "dds/ddsi/ddsi_list_tmpl.h"
+
 
 #if defined (__cplusplus)
 extern "C" {
@@ -57,17 +59,16 @@ enum tl_meta_state
   TL_META_RESOLVED
 };
 
-struct tl_meta_endpoints {
-  uint32_t count;     /* number of endpoints in eps */
-  ddsi_guid_t *eps;   /* list of endpoint guids */
-};
+#define NOARG
+DDSI_LIST_TYPES_TMPL(tlm_proxy_guid_list, ddsi_guid_t, NOARG, 32)
+#undef NOARG
 
 struct tl_meta {
   type_identifier_t type_id;            /* type identifier for this record */
   const struct ddsi_sertype *sertype;   /* sertype associated with the type identifier, NULL if type is unresolved */
   enum tl_meta_state state;             /* state of this record */
   seqno_t request_seqno;                /* sequence number of the last type lookup request message */
-  struct tl_meta_endpoints proxy_endpoints;    /* administration for proxy endpoints that are using this type */
+  struct tlm_proxy_guid_list proxy_guids; /* administration for proxy endpoints and proxy topics that are using this type */
   uint32_t refc;                        /* refcount for this record */
 };
 

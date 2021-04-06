@@ -9,24 +9,18 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-idlc_generate(ShmThroughput_lib ShmThroughput.idl)
+project(shm_throughput LANGUAGES C)
+cmake_minimum_required(VERSION 3.5)
+
+if(NOT TARGET CycloneDDS::ddsc)
+  # Find the CycloneDDS package.
+  find_package(CycloneDDS REQUIRED)
+endif()
+
+idlc_generate(TARGET ShmThroughput_lib FILES "ShmThroughput.idl")
 
 add_executable(ShmThroughputPublisher shmpublisher.c)
 add_executable(ShmThroughputSubscriber shmsubscriber.c)
 
 target_link_libraries(ShmThroughputPublisher ShmThroughput_lib CycloneDDS::ddsc)
 target_link_libraries(ShmThroughputSubscriber ShmThroughput_lib CycloneDDS::ddsc)
-
-install(
-  FILES
-    "ShmThroughput.idl"
-    "shmpublisher.c"
-    "shmsubscriber.c"
-  DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/throughput"
-  COMPONENT dev)
-
-install(
-  FILES "CMakeLists.export"
-  RENAME "CMakeLists.txt"
-  DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/throughput"
-  COMPONENT dev)
