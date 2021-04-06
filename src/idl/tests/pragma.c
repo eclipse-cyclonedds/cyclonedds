@@ -139,3 +139,19 @@ CU_Test(idl_pragma, keylist_outer_scope)
   CU_ASSERT((idl_mask(s1->keylist) & IDL_KEYLIST) != 0);
   idl_delete_pstate(pstate);
 }
+
+CU_Test(idl_pragma, unknown)
+{
+  idl_retcode_t ret;
+  idl_pstate_t *pstate = NULL;
+  idl_struct_t *s1;
+  static const char str[] = "struct s1 { char c; };\n"
+                            "#pragma foo \"bar::baz\"";
+
+  ret = parse_string(str, &pstate);
+  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  s1 = (idl_struct_t *)pstate->root;
+  CU_ASSERT_FATAL(idl_is_struct(s1));
+  idl_delete_pstate(pstate);
+}
