@@ -44,12 +44,12 @@ void shm_monitor_init(shm_monitor_t* monitor)
 
 void shm_monitor_destroy(shm_monitor_t* monitor) 
 {
-    //note: we must ensure no readers are actively using the monitor anymore,    
     shm_monitor_wake_and_disable(monitor);
-    while(monitor->m_state == SHM_MONITOR_RUNNING); //spin until callbacks are no longer processed
+    // waiting for the readers to be detached is not necessary, 
+    // they will be detached when the listener is destroyed (deinit)
+    // the deinit will wait for the internal listener thread to join,
+    // any remaining callbacks will be executed
 
-    //ICEORYX_TODO: is it ok to deinit while readers are still attached?
-    //              they should be automatically detached
     iox_listener_deinit(monitor->m_listener);
     ddsrt_mutex_destroy(&monitor->m_lock);
 }
@@ -80,7 +80,7 @@ dds_return_t shm_monitor_wake_and_enable(shm_monitor_t* monitor)
 dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader) 
 {
 
-    if(iox_listener_attach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_HAS_DATA, shm_subscriber_callback) != ListenerResult_SUCCESS) {
+    if(iox_listener_attach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_DATA_RECEIVED, shm_subscriber_callback) != ListenerResult_SUCCESS) {
         DDS_CLOG(DDS_LC_SHM, &reader->m_rd->e.gv->logconfig, "error attaching reader\n");    
         return DDS_RETCODE_OUT_OF_RESOURCES;
     }
@@ -91,7 +91,7 @@ dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader
 
 dds_return_t shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader) 
 {
-    iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_HAS_DATA); 
+    iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_DATA_RECEIVED); 
     --monitor->m_number_of_attached_readers;
     return DDS_RETCODE_OK;
 }
@@ -99,7 +99,8 @@ dds_return_t shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader
 static void receive_data_wakeup_handler(struct dds_reader* rd)
 {
   void* chunk = NULL;
-  thread_state_awake(lookup_thread_state(), rd->m_rd->e.gv);
+  struct ddsi_domaingv* gv = rd->m_rd->e.gv;
+  thread_state_awake(lookup_thread_state(), gv);
 
   while (true)
   {
@@ -112,12 +113,12 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
 
     iceoryx_header_t* ice_hdr = (iceoryx_header_t*)chunk;
     // Get proxy writer
-    struct proxy_writer* pwr = entidx_lookup_proxy_writer_guid(rd->m_rd->e.gv->entity_index, &ice_hdr->guid);
+    struct proxy_writer* pwr = entidx_lookup_proxy_writer_guid(gv->entity_index, &ice_hdr->guid);
     if (pwr == NULL)
     {
       // We should ignore chunk which does not match the pwr in receiver side.
       // For example, intra-process has local pwr and does not need to use iceoryx, so we can ignore it.
-      DDS_CLOG(DDS_LC_SHM, &rd->m_rd->e.gv->logconfig, "pwr is NULL and we'll ignore.\n");
+      DDS_CLOG(DDS_LC_SHM, &gv->logconfig, "pwr is NULL and we'll ignore.\n");
       continue;
     }
 
@@ -128,9 +129,9 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
 
     // Get struct ddsi_tkmap_instance
     struct ddsi_tkmap_instance* tk;
-    if ((tk = ddsi_tkmap_lookup_instance_ref(rd->m_rd->e.gv->m_tkmap, d)) == NULL)
+    if ((tk = ddsi_tkmap_lookup_instance_ref(gv->m_tkmap, d)) == NULL)
     {
-      DDS_CLOG(DDS_LC_SHM, &rd->m_rd->e.gv->logconfig, "ddsi_tkmap_lookup_instance_ref failed.\n");
+      DDS_CLOG(DDS_LC_SHM, &gv->logconfig, "ddsi_tkmap_lookup_instance_ref failed.\n");
       goto release;
     }
 
@@ -142,7 +143,7 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
 
 release:
     if (tk)
-      ddsi_tkmap_instance_unref(rd->m_rd->e.gv->m_tkmap, tk);
+      ddsi_tkmap_instance_unref(gv->m_tkmap, tk);
     if (d)
       ddsi_serdata_unref(d);
   }

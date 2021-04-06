@@ -150,7 +150,7 @@ void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype
 #define DDSI_SERTYPE_FLAG_REQUEST_KEYHASH  (2u)
 #define DDSI_SERTYPE_FLAG_FIXED_SIZE       (4u)
 
-#define DDSI_SERTYPE_FLAG_MASK (0x3u)
+#define DDSI_SERTYPE_FLAG_MASK (0x7u)
 
 DDS_EXPORT void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, uint32_t flags);
 DDS_EXPORT void ddsi_sertype_init (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, bool topickind_no_key);

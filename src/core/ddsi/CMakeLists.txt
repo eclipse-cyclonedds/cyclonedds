@@ -90,6 +90,10 @@ if(ENABLE_TYPE_DISCOVERY)
   "${CMAKE_CURRENT_LIST_DIR}/src/ddsi_typeid.c"
   "${CMAKE_CURRENT_LIST_DIR}/src/ddsi_typelookup.c")
 endif()
+if (ENABLE_SHM)
+  list(APPEND srcs_ddsi 
+  "${CMAKE_CURRENT_LIST_DIR}/src/shm_init.c")
+endif()
 
 # The includes should reside close to the code. As long as that's not the case,
 # pull them in from this CMakeLists.txt.
