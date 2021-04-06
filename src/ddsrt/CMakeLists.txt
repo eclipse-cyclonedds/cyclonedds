@@ -125,10 +125,6 @@ list(APPEND headers
   "${include_path}/dds/ddsrt/static_assert.h"
   "${include_path}/dds/ddsrt/circlist.h")
 
-if (DDS_HAS_SHM)
-    list(APPEND headers "${include_path}/dds/ddsrt/shm_sync.h")
-endif()
-
 list(APPEND sources
   "${source_path}/bswap.c"
   "${source_path}/io.c"
@@ -144,10 +140,6 @@ list(APPEND sources
   "${source_path}/hopscotch.c"
   "${source_path}/xmlparser.c"
   "${source_path}/circlist.c")
-
-if (DDS_HAS_SHM)
-    list(APPEND sources "${source_path}/shm_sync.c")
-endif()
 
 # Not every target offers the same set of features. For embedded targets the
 # set of features may even be different between builds. e.g. a FreeRTOS build
@@ -268,11 +260,6 @@ endif()
 
 if(${CMAKE_C_COMPILER_ID} STREQUAL "SunPro")
   target_link_libraries(ddsrt INTERFACE socket nsl)
-endif()
-
-if(ENABLE_SHM)
-  find_package(iceoryx_binding_c REQUIRED)
-  target_link_libraries(ddsrt INTERFACE iceoryx_binding_c::iceoryx_binding_c)
 endif()
 
 if(BUILD_TESTING)

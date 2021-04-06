@@ -9,17 +9,12 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSRT_SHM_SYNC_H
-#define DDSRT_SHM_SYNC_H
+#ifndef DDS_SHM__SYNC_H
+#define DDS_SHM__SYNC_H
 
 #include "dds/export.h"
 #include "iceoryx_binding_c/subscriber.h"
 #include "dds/ddsrt/sync.h"
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 
 #if defined (__cplusplus)
 extern "C" {
@@ -53,4 +48,4 @@ DDS_EXPORT void shm_unlock_iox_sub(iox_sub_t sub);
 }
 #endif
 
-#endif //DDSRT_SHM_SYNC_H
+#endif //DDS_SHM__SYNC_H

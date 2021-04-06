@@ -9,8 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/shm_sync.h"
-#include "dds/ddsrt/sync.h"
+#include "dds/ddsi/shm_sync.h"
 
 static ddsrt_mutex_t shm_mutex;
 static int shm_mutex_initialized = 0;
@@ -48,13 +47,13 @@ void iox_sub_storage_extension_fini(iox_sub_storage_extension_t* storage)
   ddsrt_mutex_destroy(&storage->mutex);
 }
 
-void shm_lock_iox_sub(iox_sub_t sub) 
+void shm_lock_iox_sub(iox_sub_t sub)
 {
     iox_sub_storage_extension_t* storage = (iox_sub_storage_extension_t*) sub;
     ddsrt_mutex_lock(&storage->mutex);
 }
 
-void shm_unlock_iox_sub(iox_sub_t sub) 
+void shm_unlock_iox_sub(iox_sub_t sub)
 {
     iox_sub_storage_extension_t* storage = (iox_sub_storage_extension_t*) sub;
     ddsrt_mutex_unlock(&storage->mutex);

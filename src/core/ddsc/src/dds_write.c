@@ -28,7 +28,7 @@
 #include "dds/ddsi/ddsi_deliver_locally.h"
 
 #ifdef DDS_HAS_SHM
-#include "dds/ddsrt/shm_sync.h"
+#include "dds/ddsi/shm_sync.h"
 #endif
 
 dds_return_t dds_write (dds_entity_t writer, const void *data)
@@ -258,7 +258,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       ice_hdr->data_kind = writekey ? SDK_KEY : SDK_DATA;
       ddsi_serdata_get_keyhash(d, &ice_hdr->keyhash, false);
 
-      // ICEORYX_TODO: we need the loan API to avoid this copy and request memory directly from iceoryx 
+      // ICEORYX_TODO: we need the loan API to avoid this copy and request memory directly from iceoryx
       memcpy (d->iox_chunk + sizeof (iceoryx_header_t), data, send_size);
       iox_pub_publish_chunk (wr->m_iox_pub, d->iox_chunk);
       d->iox_chunk = NULL;

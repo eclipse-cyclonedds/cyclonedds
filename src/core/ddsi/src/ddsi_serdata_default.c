@@ -28,7 +28,7 @@
 #include "dds/ddsi/ddsi_serdata_default.h"
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsrt/shm_sync.h"
+#include "dds/ddsi/shm_sync.h"
 #endif
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
@@ -161,7 +161,7 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
   assert(ddsrt_atomic_ld32(&d->c.refc) == 0);
 
 #ifdef DDS_HAS_SHM
-  //ICEORYX_TODO the chunk is released concurrently to iox_sub_take_chunk here, 
+  //ICEORYX_TODO the chunk is released concurrently to iox_sub_take_chunk here,
   //                 we will need mutex protection for this call
   //                 when is the free called exactly?
   if (d->c.iox_chunk)

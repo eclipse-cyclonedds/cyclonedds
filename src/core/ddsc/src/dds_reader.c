@@ -44,7 +44,7 @@
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/md5.h"
-#include "dds/ddsrt/shm_sync.h"
+#include "dds/ddsi/shm_sync.h"
 #endif
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
@@ -636,7 +636,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     opts.historyRequest = rd->m_entity.m_domain->gv.config.sub_history_request;
     rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor.storage, "DDS_CYCLONE", type_name, topic_name, &opts);
     shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
-    
+
     // those are set once and never changed
     // they are used to access reader and monitor from the callback when data is received
     rd->m_iox_sub_stor.monitor = &rd->m_entity.m_domain->m_shm_monitor;

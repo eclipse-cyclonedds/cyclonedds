@@ -70,7 +70,7 @@
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsrt/io.h"
-#include "dds/ddsrt/shm_sync.h"
+#include "dds/ddsi/shm_sync.h"
 #include "iceoryx_binding_c/runtime.h"
 #include "dds/ddsi/shm_init.h"
 #endif

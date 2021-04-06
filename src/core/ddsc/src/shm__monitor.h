@@ -17,7 +17,7 @@
 
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/shm_sync.h"
+#include "dds/ddsi/shm_sync.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -52,7 +52,7 @@ struct shm_monitor {
 
     iox_listener_storage_t m_listener_storage;
     iox_listener_t m_listener;
- 
+
     //use this if we wait but want to wake up for some reason e.g. terminate
     iox_user_trigger_storage_extension_t m_wakeup_trigger_storage;
     iox_user_trigger_t m_wakeup_trigger;

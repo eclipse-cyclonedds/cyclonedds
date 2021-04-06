@@ -65,9 +65,22 @@ if(ENABLE_TOPIC_DISCOVERY)
   endif()
   set(DDS_HAS_TOPIC_DISCOVERY "1")
 endif()
+
+option(CYCLONE_BUILD_WITH_ICEORYX "iceoryx not found by default" OFF)
 if(ENABLE_SHM)
-  set(DDS_HAS_SHM "1")
+  if(CMAKE_SYSTEM_NAME MATCHES Linux OR CMAKE_SYSTEM_NAME MATCHES Darwin)
+    message("Linux/MacOS system found, trying to find iceoryx...")
+    find_package(iceoryx_binding_c QUIET)
+    if(iceoryx_binding_c_FOUND)
+      set(CYCLONE_BUILD_WITH_ICEORYX TRUE CACHE BOOL "Iceoryx found!" FORCE)
+      set(DDS_HAS_SHM "1")
+      message("Build CycloneDDS with iceoryx shared memory support!")
+    else()
+      message("iceoryx not found, falling back to loopback communication.")
+    endif()
+  endif()
 endif()
+
 # ones that linger in the sources
 # - DDS_HAS_BANDWIDTH_LIMITING
 # - DDS_HAS_NETWORK_CHANNELS
