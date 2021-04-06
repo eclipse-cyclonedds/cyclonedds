@@ -92,6 +92,8 @@ void *dds_data_allocator_alloc (dds_data_allocator_t *data_allocator, size_t siz
         alloc_result = iox_pub_loan_chunk (d->ref.pub, &ptr, (uint32_t) size);
         return (alloc_result == AllocationResult_SUCCESS) ? ptr : NULL;
       }
+    default:
+      return NULL;
   }
 #else
   (void) data_allocator;
