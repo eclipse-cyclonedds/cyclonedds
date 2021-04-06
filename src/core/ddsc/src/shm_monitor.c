@@ -45,10 +45,10 @@ void shm_monitor_init(shm_monitor_t* monitor)
 void shm_monitor_destroy(shm_monitor_t* monitor) 
 {
     shm_monitor_wake_and_disable(monitor);
-    // waiting for the readers to be detaced is not necessary, they will be detached when the listener is destroyed
-    // but if we for some reason need this we could do it like this 
-    // while(monitor->m_state == SHM_MONITOR_RUNNING || monitor->m_number_of_attached_readers > 0);
-    while(monitor->m_state == SHM_MONITOR_RUNNING);
+    // waiting for the readers to be detached is not necessary, 
+    // they will be detached when the listener is destroyed (deinit)
+    // the deinit will wait for the internal listener thread to join,
+    // any remaining callbacks will be executed
 
     iox_listener_deinit(monitor->m_listener);
     ddsrt_mutex_destroy(&monitor->m_lock);
@@ -80,7 +80,7 @@ dds_return_t shm_monitor_wake_and_enable(shm_monitor_t* monitor)
 dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader) 
 {
 
-    if(iox_listener_attach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberState_HAS_DATA, shm_subscriber_callback) != ListenerResult_SUCCESS) {
+    if(iox_listener_attach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_DATA_RECEIVED, shm_subscriber_callback) != ListenerResult_SUCCESS) {
         DDS_CLOG(DDS_LC_SHM, &reader->m_rd->e.gv->logconfig, "error attaching reader\n");    
         return DDS_RETCODE_OUT_OF_RESOURCES;
     }
@@ -91,7 +91,7 @@ dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader
 
 dds_return_t shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader) 
 {
-    iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberState_HAS_DATA); 
+    iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_DATA_RECEIVED); 
     --monitor->m_number_of_attached_readers;
     return DDS_RETCODE_OK;
 }
