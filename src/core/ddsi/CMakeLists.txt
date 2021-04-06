@@ -205,7 +205,7 @@ target_include_directories(ddsc
 
 
 if(iceoryx_binding_c_FOUND)
-  target_link_libraries(ddsc INTERFACE iceoryx_binding_c::iceoryx_binding_c)
+  target_link_libraries(ddsc PRIVATE iceoryx_binding_c::iceoryx_binding_c)
 endif()
 
 install(

@@ -51,7 +51,7 @@ if(ENABLE_TYPE_DISCOVERY)
   set(DDS_HAS_TYPE_DISCOVERY "1")
 endif()
 
-set(CYCLONE_BUILD_WITH_ICEORYX FALSE CACHE BOOL "Iceoryx not found by default" FORCE)
+option(CYCLONE_BUILD_WITH_ICEORYX "iceoryx not found by default" OFF)
 if(ENABLE_SHM)
   if(CMAKE_SYSTEM_NAME MATCHES Linux OR CMAKE_SYSTEM_NAME MATCHES Darwin)
     message("Linux/MacOS system found, trying to find iceoryx...")
