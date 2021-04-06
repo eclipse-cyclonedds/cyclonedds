@@ -913,6 +913,7 @@ static void cdr_forward (struct ops const * const ops)
 #endif
   char* conf = ddsrt_expand_envvars(config, 0);
   const dds_entity_t dom = dds_create_domain(0, conf);
+  ddsrt_free (conf);
 
   const dds_entity_t pp = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_FATAL (pp > 0);
