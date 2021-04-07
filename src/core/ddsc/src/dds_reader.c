@@ -602,7 +602,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   dds_entity_init_complete (&rd->m_entity);
 
 #ifdef DDS_HAS_SHM
-  rqos->shared_memory.enabled = dds_reader_support_shm(&gv->config, qos);
+  rqos->shared_memory.enabled = dds_reader_support_shm(&gv->config, rqos);
   rqos->present |= QP_SHARED_MEMORY;
 #endif
 

@@ -417,7 +417,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wr->whc_batch = gv->config.whc_batch;
 
 #ifdef DDS_HAS_SHM
-  wqos->shared_memory.enabled = dds_writer_support_shm(&gv->config, qos);
+  wqos->shared_memory.enabled = dds_writer_support_shm(&gv->config, wqos);
   wqos->present |= QP_SHARED_MEMORY;
 #endif
 
