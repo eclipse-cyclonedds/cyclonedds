@@ -86,6 +86,14 @@ DDS_EXPORT void *dds_data_allocator_alloc (dds_data_allocator_t *data_allocator,
  */
 DDS_EXPORT void dds_data_allocator_free (dds_data_allocator_t *data_allocator, void *ptr);
 
+/** @brief Check if a Loan is available to reader/writer
+ *
+ * @param[in] entity the handle of the entity
+ *
+ * @returns loan available or not
+ */
+DDS_EXPORT bool is_loan_available (const dds_entity_t entity);
+
 #if defined (__cplusplus)
 }
 #endif
