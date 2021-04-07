@@ -31,11 +31,6 @@ typedef struct {
     struct dds_reader* parent_reader;
 } iox_sub_storage_extension_t;
 
-// lock and unlock global shared memory mutex
-DDS_EXPORT int shm_mutex_init(void);
-DDS_EXPORT void shm_mutex_lock(void);
-DDS_EXPORT void shm_mutex_unlock(void);
-
 //lock and unlock for individual subscribers
 DDS_EXPORT void iox_sub_storage_extension_init(iox_sub_storage_extension_t* storage);
 DDS_EXPORT void iox_sub_storage_extension_fini(iox_sub_storage_extension_t* storage);

@@ -71,7 +71,6 @@
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsrt/io.h"
-#include "dds/ddsi/shm_sync.h"
 #include "iceoryx_binding_c/runtime.h"
 #include "dds/ddsi/shm_init.h"
 #endif
@@ -1116,7 +1115,7 @@ static void free_conns (struct ddsi_domaingv *gv)
 static int iceoryx_init (struct ddsi_domaingv *gv)
 {
   shm_set_loglevel(gv->config.shm_log_lvl);
-  
+
   char *sptr;
   ddsrt_asprintf (&sptr, "iceoryx_rt_%"PRIdPID"_%"PRId64, ddsrt_getpid (), gv->tstart.v);
   GVLOG (DDS_LC_SHM, "Current process name for iceoryx is %s\n", sptr);
@@ -1153,7 +1152,7 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
   else
   {
     int if_index;
-    
+
     // Try to avoid loopback interfaces for getting a MAC address, but if all
     // we have are loopback interfaces, then it really doesn't matter.
     for (if_index = 0; if_index < gv->n_interfaces; if_index++)
@@ -1205,8 +1204,6 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
   intf->netmask.port = NN_LOCATOR_PORT_INVALID;
   memset (intf->netmask.address, 0, sizeof (intf->netmask.address) - 6);
   gv->n_interfaces++;
-
-  shm_mutex_init();
   return 0;
 }
 #endif
