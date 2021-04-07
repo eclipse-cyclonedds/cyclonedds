@@ -166,10 +166,11 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
   //                 when is the free called exactly?
   if (d->c.iox_chunk)
   {
-    shm_lock_iox_sub(*(d->c.iox_subscriber));
-    iox_sub_release_chunk(*(d->c.iox_subscriber), d->c.iox_chunk);
+    iox_sub_t *sub = d->c.iox_subscriber;
+    shm_lock_iox_sub(*sub);
+    iox_sub_release_chunk(*sub, d->c.iox_chunk);
     d->c.iox_chunk = NULL;
-    shm_unlock_iox_sub(*(d->c.iox_subscriber));
+    shm_unlock_iox_sub(*sub);
   }
 #endif
 
@@ -428,7 +429,7 @@ static void gen_keyhash_from_sample (const struct ddsi_sertype_default *type, dd
 }
 
 #ifdef DDS_HAS_SHM
-static struct ddsi_serdata* serdata_default_from_iox(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, iox_sub_t* sub, void* iox_buffer)
+static struct ddsi_serdata* serdata_default_from_iox(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer)
 {
   iceoryx_header_t* ice_hdr = (iceoryx_header_t*)iox_buffer;
 

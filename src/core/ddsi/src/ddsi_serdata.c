@@ -85,5 +85,6 @@ extern inline bool ddsi_serdata_print_untyped (const struct ddsi_sertype *type, 
 extern inline void ddsi_serdata_get_keyhash (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5);
 #ifdef DDS_HAS_SHM
 extern inline uint32_t ddsi_serdata_iox_size(const struct ddsi_serdata* d);
-extern inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, iox_sub_t *sub, void* iox_buffer);
+// sub really is an iox_sub_t *
+extern inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer);
 #endif

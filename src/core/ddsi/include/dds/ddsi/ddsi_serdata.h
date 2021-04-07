@@ -18,9 +18,6 @@
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_keyhash.h"
 #include "dds/features.h"
-#ifdef DDS_HAS_SHM
-#include "iceoryx_binding_c/subscriber.h"
-#endif
 
 #if defined (__cplusplus)
 extern "C" {
@@ -63,7 +60,7 @@ struct ddsi_serdata {
 
 #ifdef DDS_HAS_SHM
   void* iox_chunk;
-  iox_sub_t* iox_subscriber;
+  void* iox_subscriber; // actually: iox_sub_t *
 #endif
 };
 
@@ -170,7 +167,9 @@ typedef void (*ddsi_serdata_get_keyhash_t) (const struct ddsi_serdata *d, struct
 
 #ifdef DDS_HAS_SHM
 typedef uint32_t(*ddsi_serdata_iox_size_t) (const struct ddsi_serdata* d);
-typedef struct ddsi_serdata* (*ddsi_serdata_from_iox_t) (const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, iox_sub_t *sub, void* iox_buffer);
+
+// sub is really an iox_sub_t *
+typedef struct ddsi_serdata* (*ddsi_serdata_from_iox_t) (const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer);
 #endif
 
 struct ddsi_serdata_ops {
@@ -319,7 +318,7 @@ DDS_EXPORT inline uint32_t ddsi_serdata_iox_size(const struct ddsi_serdata* d)
   return d->type->iox_size;
 }
 
-DDS_EXPORT inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, iox_sub_t *sub, void* iox_buffer)
+DDS_EXPORT inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer)
 {
   return type->serdata_ops->from_iox_buffer(type, kind, sub, iox_buffer);
 }
