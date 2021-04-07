@@ -25,7 +25,6 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:Partitioning"/>
         <xs:element minOccurs="0" ref="config:SSL"/>
         <xs:element minOccurs="0" ref="config:Security"/>
-        <xs:element minOccurs="0" ref="config:SharedMemory"/>
         <xs:element minOccurs="0" ref="config:Sizing"/>
         <xs:element minOccurs="0" ref="config:TCP"/>
         <xs:element minOccurs="0" ref="config:Threads"/>
@@ -1500,74 +1499,6 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
         </xs:element>
       </xs:sequence>
     </xs:complexType>
-  </xs:element>
-  <xs:element name="SharedMemory">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;The Shared Memory element allows specifying various parameters related to using shared memory.&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-    <xs:complexType>
-      <xs:all>
-        <xs:element minOccurs="0" ref="config:SubQueueCapacity"/>
-        <xs:element minOccurs="0" ref="config:SubHistoryRequest"/>
-        <xs:element minOccurs="0" ref="config:PubHistoryCapacity"/>
-        <xs:element minOccurs="0" name="Enable" type="xs:boolean">
-          <xs:annotation>
-            <xs:documentation>
-&lt;p&gt;This element allows to enable shared memory in Cyclone DDS.&lt;/p&gt;
-&lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
-          </xs:annotation>
-        </xs:element>
-        <xs:element minOccurs="0" ref="config:LogLevel"/>
-      </xs:all>
-    </xs:complexType>
-  </xs:element>
-  <xs:element name="SubQueueCapacity" type="xs:integer">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue.&lt;/p&gt;
-&lt;p&gt;The default value is: "16".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="SubHistoryRequest" type="xs:integer">
-    <xs:annotation>
-        <xs:documentation>
-&lt;p&gt;The number of messages which will be requested from the publisher published before the subscriber was subscribed.&lt;/p&gt;
-&lt;p&gt;The default value is: "16".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="PubHistoryCapacity" type="xs:integer">
-    <xs:annotation>
-        <xs:documentation>
-&lt;p&gt;The number of messages which will be stored on the publisher for late joining subscribers, should be equal to or larger than SubHistoryRequest.&lt;/p&gt;
-&lt;p&gt;The default value is: "16".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="LogLevel">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This element decides the verbosity level of shared memory message:&lt;/p&gt;
-&lt;ul&gt;&lt;li&gt;&lt;i&gt;off&lt;/i&gt;: no log&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;fatal&lt;/i&gt;: show fatal log&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;error&lt;/i&gt;: show error log&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;warn&lt;/i&gt;: show warn log&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;info&lt;/i&gt;: show info log&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;debug&lt;/i&gt;: show debug log&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;verbose&lt;/i&gt;: show verbose log&lt;/li&gt;
-&lt;p&gt;If you don't want to see any log from shared memory, use &lt;i&gt;off&lt;/i&gt; to disable log message.&lt;/p&gt;
-&lt;p&gt;The default value is: "info".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-    <xs:simpleType>
-      <xs:restriction base="xs:token">
-        <xs:enumeration value="off"/>
-        <xs:enumeration value="fatal"/>
-        <xs:enumeration value="error"/>
-        <xs:enumeration value="warn"/>
-        <xs:enumeration value="info"/>
-        <xs:enumeration value="debug"/>
-        <xs:enumeration value="verbose"/>
-      </xs:restriction>
-    </xs:simpleType>
   </xs:element>
   <xs:element name="Sizing">
     <xs:annotation>

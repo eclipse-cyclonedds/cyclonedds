@@ -1013,48 +1013,6 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
         }?
       }?
       & [ a:documentation [ xml:lang="en" """
-<p>The Shared Memory element allows specifying various parameters related to using shared memory.</p>""" ] ]
-      element SharedMemory {
-        [ a:documentation [ xml:lang="en" """
-<p>Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue.</p>
-<p>The default value is: "16".</p>""" ] ]
-        element SubQueueCapacity {
-          xsd:integer
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>The number of messages which will be requested from the publisher published before the subscriber was subscribed.</p>
-<p>The default value is: "16".</p>""" ] ]
-        element SubHistoryRequest {
-          xsd:integer
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>The number of messages which will be stored on the publisher for late joining subscribers, should be equal to or larger than SubHistoryRequest.</p>
-<p>The default value is: "16".</p>""" ] ]
-        element PubHistoryCapacity {
-          xsd:integer
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>This element allows to enable shared memory in Cyclone DDS.</p>
-<p>The default value is: "false".</p>""" ] ]
-        element Enable {
-          xsd:boolean
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>This element decides the verbosity level of shared memory message:</p>
-<ul><li><i>off</i>: no log</li>
-<li><i>fatal</i>: show fatal log</li>
-<li><i>error</i>: show error log</li>
-<li><i>warn</i>: show warn log</li>
-<li><i>info</i>: show info log</li>
-<li><i>debug</i>: show debug log</li>
-<li><i>verbose</i>: show verbose log</li>
-<p>If you don't want to see any log from shared memory, use <i>off</i> to disable log message.</p>
-<p>The default value is: "info".</p>""" ] ]
-        element LogLevel {
-          ("off"|"fatal"|"error"|"warn"|"info"|"debug"|"verbose")
-        }?
-      }?
-      & [ a:documentation [ xml:lang="en" """
 <p>The Sizing element specifies a variety of configuration settings dealing with expected system sizes, buffer sizes, &c.</p>""" ] ]
       element Sizing {
         [ a:documentation [ xml:lang="en" """
