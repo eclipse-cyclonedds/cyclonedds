@@ -105,8 +105,6 @@ fini_entity_status(void)
     dds_waitset_detach(waitSetrd, rea);
     dds_waitset_detach(waitSetwr, wri);
 
-    dds_sleepfor(DDS_MSECS(10));
-
     dds_delete(waitSetrd);
     dds_delete(waitSetwr);
     dds_delete(wri);
@@ -151,8 +149,6 @@ CU_Test(ddsc_entity_status, publication_matched, .init=init_entity_status, .fini
      * meaning that the wait should timeout. */
     ret = dds_waitset_wait(waitSetwr, wsresults, wsresultsize, shortTimeout);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    dds_sleepfor(DDS_MSECS(10));
 
     /* Un-match the publication by deleting the reader. */
     dds_delete(rea);
@@ -303,7 +299,6 @@ CU_Test(ddsc_entity, incompatible_qos, .init=init_entity_status, .fini=fini_enti
     ret = dds_waitset_detach(waitSetrd, reader2);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
-    dds_sleepfor(DDS_MSECS(10));
     dds_delete(reader2);
 }
 
@@ -462,8 +457,6 @@ Test(ddsc_entity, inconsistent_topic)
     status = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, shortTimeout);
     CU_ASSERT_EQUAL_FATAL(status, 0);
 
-    dds_sleepfor(DDS_MSECS(10));
-
     dds_delete(top);
 }
 #endif
@@ -555,8 +548,6 @@ CU_Test(ddsc_entity, data_available, .init=init_entity_status, .fini=fini_entity
 
     ret = dds_waitset_detach(waitSetrd, rea);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-
-    dds_sleepfor(DDS_MSECS(10));
 
     dds_delete(rea);
 
@@ -667,8 +658,6 @@ CU_Test(ddsc_entity, all_data_available, .init=init_entity_status, .fini=fini_en
 
     RoundTripModule_DataType_free (&s_sample, DDS_FREE_CONTENTS);
 
-    dds_sleepfor(DDS_MSECS(10));
-
     dds_delete(reader2);
 
     /* Wait for reader to be deleted */
@@ -693,7 +682,6 @@ CU_Theory((dds_entity_t e), ddsc_get_enabled_status, bad_param, .init=init_entit
 CU_Test(ddsc_get_enabled_status, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
     uint32_t mask;
-    dds_sleepfor(DDS_MSECS(10));
     dds_delete(rea);
     ret = dds_get_status_mask(rea, &mask);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
@@ -729,8 +717,6 @@ CU_Theory((dds_entity_t e), ddsc_set_enabled_status, bad_param, .init=init_entit
 
 CU_Test(ddsc_set_enabled_status, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
-
-    dds_sleepfor(DDS_MSECS(10));
     dds_delete(rea);
     ret = dds_set_status_mask(rea, 0 /*mask*/);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
@@ -767,7 +753,6 @@ CU_Theory((dds_entity_t e), ddsc_read_status, bad_param, .init=init_entity_statu
 CU_Test(ddsc_read_status, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
     uint32_t status;
-    dds_sleepfor(DDS_MSECS(10));
     dds_delete(rea);
     ret = dds_read_status(rea, &status, 0 /*mask*/);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
@@ -819,7 +804,6 @@ CU_Theory((dds_entity_t e), ddsc_take_status, bad_param, .init=init_entity_statu
 CU_Test(ddsc_take_status, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
     uint32_t status;
-    dds_sleepfor(DDS_MSECS(10));
     dds_delete(rea);
     ret = dds_take_status(rea, &status, 0 /*mask*/);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
@@ -858,7 +842,6 @@ CU_Theory((dds_entity_t e), ddsc_get_status_changes, bad_param, .init=init_entit
 CU_Test(ddsc_get_status_changes, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
     uint32_t status;
-    dds_sleepfor(DDS_MSECS(10));
     dds_delete(rea);
     ret = dds_get_status_changes(rea, &status);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
@@ -894,7 +877,6 @@ CU_Theory((dds_entity_t e), ddsc_triggered, bad_param, .init=init_entity_status,
 
 CU_Test(ddsc_triggered, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_sleepfor(DDS_MSECS(10));
     dds_delete(rea);
     ret = dds_triggered(rea);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);

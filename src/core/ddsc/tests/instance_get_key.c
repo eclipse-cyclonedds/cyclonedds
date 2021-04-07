@@ -88,8 +88,6 @@ static void setup(void)
 /* Fixture to delete prerequisite entity */
 static void teardown(void)
 {
-    dds_sleepfor(DDS_MSECS(10));
-
     RoundTripModule_Address_free(&data, DDS_FREE_CONTENTS);
 
     dds_delete(participant);

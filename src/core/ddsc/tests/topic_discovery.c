@@ -59,7 +59,6 @@ static void topic_discovery_fini (void)
 {
   dds_delete (g_domain_remote);
   /* Add a delay so that sedp dispose messages for topics (and endpoints) are sent and processed */
-  dds_sleepfor (DDS_SECS (1));
   dds_delete (g_domain1);
 }
 

@@ -190,7 +190,6 @@ querycondition_init_deephist(void)
 static void
 querycondition_fini(void)
 {
-    dds_sleepfor(DDS_MSECS(10));
     dds_delete(g_reader);
     dds_delete(g_writer);
     dds_delete(g_waitset);
@@ -233,7 +232,6 @@ CU_Test(ddsc_querycondition_create, deleted_reader, .init=querycondition_init, .
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_entity_t cond;
-    dds_sleepfor(DDS_MSECS(10));
     dds_delete(g_reader);
     cond = dds_create_querycondition(g_reader, mask, filter_mod2);
     CU_ASSERT_EQUAL_FATAL(cond, DDS_RETCODE_BAD_PARAMETER);

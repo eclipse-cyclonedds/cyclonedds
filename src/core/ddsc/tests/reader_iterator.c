@@ -271,7 +271,6 @@ reader_iterator_init(void)
 static void
 reader_iterator_fini(void)
 {
-    dds_sleepfor(DDS_MSECS(10));
     dds_delete(g_rcond);
     dds_delete(g_qcond);
     dds_delete(g_reader);
@@ -375,7 +374,6 @@ CU_TheoryDataPoints(ddsc_read_next, already_deleted) = {
 CU_Theory((dds_entity_t *rdr), ddsc_read_next, already_deleted, .init=reader_iterator_init, .fini=reader_iterator_fini)
 {
     dds_return_t ret;
-    dds_sleepfor(DDS_MSECS(10));
     ret = dds_delete(*rdr);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_read_next(*rdr, g_samples, g_info);
@@ -492,7 +490,6 @@ CU_TheoryDataPoints(ddsc_read_next_wl, already_deleted) = {
 CU_Theory((dds_entity_t *rdr), ddsc_read_next_wl, already_deleted, .init=reader_iterator_init, .fini=reader_iterator_fini)
 {
     dds_return_t ret;
-    dds_sleepfor(DDS_MSECS(10));
     ret = dds_delete(*rdr);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_read_next_wl(*rdr, g_loans, g_info);
@@ -602,7 +599,6 @@ CU_TheoryDataPoints(ddsc_take_next, already_deleted) = {
 CU_Theory((dds_entity_t *rdr), ddsc_take_next, already_deleted, .init=reader_iterator_init, .fini=reader_iterator_fini)
 {
     dds_return_t ret;
-    dds_sleepfor(DDS_MSECS(10));
     ret = dds_delete(*rdr);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_take_next(*rdr, g_samples, g_info);
@@ -716,7 +712,6 @@ CU_TheoryDataPoints(ddsc_take_next_wl, already_deleted) = {
 CU_Theory((dds_entity_t *rdr), ddsc_take_next_wl, already_deleted, .init=reader_iterator_init, .fini=reader_iterator_fini)
 {
     dds_return_t ret;
-    dds_sleepfor(DDS_MSECS(10));
     ret = dds_delete(*rdr);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_take_next_wl(*rdr, g_loans, g_info);

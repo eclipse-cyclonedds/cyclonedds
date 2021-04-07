@@ -118,7 +118,6 @@ unregistering_init(void)
 static void
 unregistering_fini(void)
 {
-    dds_sleepfor(DDS_MSECS(10));
     dds_delete(g_reader);
     dds_delete(g_writer);
     dds_delete(g_waitset);

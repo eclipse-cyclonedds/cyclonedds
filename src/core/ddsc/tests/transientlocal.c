@@ -92,7 +92,6 @@ CU_Test(ddsc_transient_local, late_joiner)
 #endif
     CU_ASSERT_EQUAL_FATAL(ret, 4);
 
-    dds_sleepfor(DDS_MSECS(10));
     dds_delete(par);
     dds_delete_qos(qos);
 }

@@ -175,7 +175,6 @@ static void readcondition_init (void)
 
 static void readcondition_fini (void)
 {
-  dds_sleepfor(DDS_MSECS(10));
   dds_return_t ret = dds_delete (g_participant);
   CU_ASSERT_FATAL (ret == 0);
 }
@@ -203,7 +202,6 @@ CU_Test(ddsc_readcondition_create, deleted_reader, .init=readcondition_init, .fi
 {
   uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
   dds_entity_t cond;
-  dds_sleepfor(DDS_MSECS(10));
   dds_delete (g_reader);
   cond = dds_create_readcondition (g_reader, mask);
   CU_ASSERT_EQUAL_FATAL (cond, DDS_RETCODE_BAD_PARAMETER);
@@ -586,7 +584,7 @@ CU_Test(ddsc_readcondition, stress)
 
     conds[condidx] = dds_create_readcondition (rd, DDS_ANY_STATE);
     CU_ASSERT_FATAL (conds[condidx] > 0);
-    
+
     // the fact that read conditions get updated even when not attached to a waitset is
     // probably a bug, so let's attach it to a waitset for good measure
     rc = dds_waitset_attach (ws, conds[condidx], conds[condidx]);
