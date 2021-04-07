@@ -982,6 +982,7 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
 
   result = check_encoded_data(&encoded_buffer, encoded, &header, &footer, &data);
   CU_ASSERT_FATAL(result);
+  assert(footer);
 
   CU_ASSERT(header->transform_identifier.transformation_kind[3] == transformation_kind);
 

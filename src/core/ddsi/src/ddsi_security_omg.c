@@ -1562,6 +1562,7 @@ void q_omg_security_deregister_writer(struct writer *wr)
 
   if (wr->sec_attr)
   {
+    assert(sc);
     clear_pending_matches_by_local_guid(sc, &sc->security_matches, &wr->e.guid);
 
     if (wr->sec_attr->crypto_handle != DDS_SECURITY_HANDLE_NIL)
@@ -1817,6 +1818,8 @@ static void send_participant_crypto_tokens(struct participant *pp, struct proxy_
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_ParticipantCryptoTokenSeq tokens = DDS_SECURITY_SEQUENCE_INIT;
   bool r;
+
+  assert(sc);
 
   r = sc->crypto_context->crypto_key_exchange->create_local_participant_crypto_tokens(sc->crypto_context->crypto_key_exchange, &tokens, local_crypto, remote_crypto, &exception);
   if (!r)
@@ -3144,6 +3147,7 @@ static bool q_omg_security_decode_serialized_payload (struct proxy_writer *pwr, 
 
   const struct ddsi_domaingv *gv = pwr->e.gv;
   const struct dds_security_context *sc = q_omg_security_get_secure_context_from_proxypp (pwr->c.proxypp);
+  assert (gv);
   assert (sc);
 
   // FIXME: print_buf(src_buf, src_len, "q_omg_security_decode_serialized_payload(SOURCE)");
@@ -3379,6 +3383,7 @@ static bool decode_payload (const struct ddsi_domaingv *gv, struct nn_rsample_in
     return false;
   }
 
+  assert (dst_buf);
   /* Expect result to always fit into the original buffer. */
   assert (*payloadsz >= dst_len);
 
@@ -3719,25 +3724,23 @@ decode_rtps_message_awake (
 
   if (!q_omg_security_decode_rtps_message (proxypp, srcbuf, srclen, &dstbuf, &dstlen))
     return NN_RTPS_MSG_STATE_ERROR;
-  else
-  {
-    assert (dstlen <= UINT32_MAX);
+  assert (dstbuf);
+  assert (dstlen <= UINT32_MAX);
 
-    nn_rmsg_commit (*rmsg);
-    *rmsg = nn_rmsg_new (rbpool);
-    *buff = NN_RMSG_PAYLOAD (*rmsg);
+  nn_rmsg_commit (*rmsg);
+  *rmsg = nn_rmsg_new (rbpool);
+  *buff = NN_RMSG_PAYLOAD (*rmsg);
 
-    memcpy(*buff, dstbuf, dstlen);
-    nn_rmsg_setsize (*rmsg, (uint32_t) dstlen);
+  memcpy(*buff, dstbuf, dstlen);
+  nn_rmsg_setsize (*rmsg, (uint32_t) dstlen);
 
-    ddsrt_free (dstbuf);
+  ddsrt_free (dstbuf);
 
-    *hdr = (Header_t *) *buff;
-    (*hdr)->guid_prefix = nn_ntoh_guid_prefix ((*hdr)->guid_prefix);
-    *sz = (ssize_t) dstlen;
-    assert ((size_t) *sz == dstlen);
-    return NN_RTPS_MSG_STATE_ENCODED;
-  }
+  *hdr = (Header_t *) *buff;
+  (*hdr)->guid_prefix = nn_ntoh_guid_prefix ((*hdr)->guid_prefix);
+  *sz = (ssize_t) dstlen;
+  assert ((size_t) *sz == dstlen);
+  return NN_RTPS_MSG_STATE_ENCODED;
 }
 
 nn_rtps_msg_state_t

@@ -272,12 +272,22 @@ static idl_retcode_t idlc_parse(void)
       idl_delete_pstate(pstate);
       return ret;
     }
-    file = malloc(sizeof(*file));
+    if (!(file = malloc(sizeof(*file)))) {
+      idl_delete_pstate(pstate);
+      return IDL_RETCODE_NO_MEMORY;
+    }
+    if (!(file->name = idl_strdup(config.file))) {
+      free(file);
+      idl_delete_pstate(pstate);
+      return IDL_RETCODE_NO_MEMORY;
+    }
     file->next = NULL;
-    file->name = idl_strdup(config.file);
     pstate->files = file;
     pstate->paths = path;
-    source = malloc(sizeof(*source));
+    if (!(source = malloc(sizeof(*source)))) {
+      idl_delete_pstate(pstate);
+      return IDL_RETCODE_NO_MEMORY;
+    }
     source->parent = NULL;
     source->previous = source->next = NULL;
     source->includes = NULL;
@@ -549,7 +559,8 @@ int main(int argc, char *argv[])
   if (!(opts = calloc(nopts + 1, sizeof(opts[0]))))
     goto err_alloc_opts;
   memcpy(opts, compopts, ncompopts * sizeof(opts[0]));
-  memcpy(opts+ncompopts, genopts, ngenopts * sizeof(opts[0]));
+  if (ngenopts)
+    memcpy(opts+ncompopts, genopts, ngenopts * sizeof(opts[0]));
   opts[nopts] = NULL;
 
   switch (parse_options(argc, argv, opts)) {

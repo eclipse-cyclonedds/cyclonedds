@@ -370,10 +370,13 @@ AuthConfItemPrefix_t get_conf_item_type(const char *str, char **data)
 {
   const char *f = "file:", *d = "data:,", *p = "pkcs11:";
   size_t sf = strlen(f), sd = strlen(d), sp = strlen(p);
+  const char *ptr;
   assert(str);
   assert(data);
 
-  char *ptr = ddssec_strchrs(str, " \t", false);
+  for (ptr = str; *ptr == ' ' || *ptr == '\t'; ptr++)
+    /* ignore leading whitespace */;
+
   if (strncmp(ptr, f, sf) == 0)
   {
     size_t e = strncmp(ptr + sf, "//", 2) == 0 ? 2 : 0;

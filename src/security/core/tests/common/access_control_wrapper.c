@@ -959,6 +959,7 @@ int finalize_test_access_control_missing_func(void *context)
   { \
     DDSRT_UNUSED_ARG(context); \
     struct dds_security_access_control_impl *impl = init_test_access_control_common(argument, true, gv); \
+    assert(impl); \
     impl->mode = PLUGIN_MODE_NOT_ALLOWED; \
     impl->not_allowed_mask = mask_; \
     *context = impl; \

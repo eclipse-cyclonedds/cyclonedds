@@ -314,7 +314,7 @@ static uint32_t recvmsg_routine(void *ptr)
   (void)ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay, &nfds);
 
   if (ddsrt_recvmsg(arg->sock, &msg, 0, &rcvd) == DDS_RETCODE_OK) {
-    return (rcvd == sizeof(mesg) && strcmp(buf, mesg) == 0);
+    return (rcvd == sizeof(mesg) && strncmp(buf, mesg, sizeof(mesg)) == 0);
   }
 
   return 0;

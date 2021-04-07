@@ -169,6 +169,7 @@ void *ddsrt_fibheap_extract_min (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap
     /* iteratively merge roots of equal degree, completely messing up
        fh->roots, ... */
     {
+        assert(fh->roots); /* silence GCC's static analyzer */
         ddsrt_fibheap_node_t *const mark = fh->roots;
         ddsrt_fibheap_node_t *n = mark;
         do {

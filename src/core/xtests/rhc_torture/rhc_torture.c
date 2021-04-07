@@ -187,8 +187,15 @@ static struct proxy_writer *mkwr (const struct ddsi_domaingv *gv, bool auto_disp
 
 static void fwr (struct proxy_writer *wr)
 {
-  free (wr->c.xqos);
-  free (wr);
+#if defined(__GNUC__) && (__GNUC__ >= 10)
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wanalyzer-double-free\"")
+#endif
+  ddsrt_free (wr->c.xqos);
+  ddsrt_free (wr);
+#if defined(__GNUC__) && (__GNUC__ >= 10)
+_Pragma("GCC diagnostic pop")
+#endif
 }
 
 static struct dds_rhc *mkrhc (struct ddsi_domaingv *gv, dds_reader *rd, dds_history_kind_t hk, int32_t hdepth, dds_destination_order_kind_t dok)
@@ -883,7 +890,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
     dds_delete (conds[ci]);
   for (size_t i = 0; i < nrd; i++)
     dds_delete (rd[i]);
-  for (size_t i = 0; i < sizeof (wr) / sizeof (wr[0]); i++)
+  for (size_t i = 0, n = (sizeof (wr) / sizeof (wr[0])); i < n; i++)
     fwr (wr[i]);
 }
 
