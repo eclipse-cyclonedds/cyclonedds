@@ -365,8 +365,7 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
     // Currently, Iceoryx is enabled only for volatile data, so data gets stored in the WHC only
     // if remote subscribers exist, and in that case, at the moment that forces serialization of
     // the data.  So dropping iox_chunk is survivable.
-    if ((wr->m_entity.m_domain->gv.config.enable_shm && iox_pub_has_subscribers(wr->m_iox_pub)) &&
-        (dinp->iox_chunk != NULL))
+    if (wr->m_entity.m_domain->gv.config.enable_shm && dinp->iox_chunk != NULL)
     {
       iceoryx_header_t * ice_hdr = dinp->iox_chunk;
       // Local readers go through Iceoryx as well (because the Iceoryx support code doesn't exclude
