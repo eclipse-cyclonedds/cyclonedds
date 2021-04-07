@@ -199,6 +199,7 @@ linkage_ void prefix_##_iter_d_remove (struct prefix_##_iter_d *iter) \
   struct prefix_ * const list = iter->list;                           \
   struct prefix_##_node * const n = iter->node;                       \
   uint32_t j;                                                         \
+  assert(iter->node);                                                 \
   list->count--;                                                      \
   for (j = iter->idx; j > n->first; j--)                              \
     n->ary[j] = n->ary[j-1];                                          \

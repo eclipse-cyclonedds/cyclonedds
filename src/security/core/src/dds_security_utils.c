@@ -963,62 +963,32 @@ DDS_Security_get_conf_item_type(
     size_t CONFIG_FILE_PREFIX_LEN   = strlen(CONFIG_FILE_PREFIX);
     size_t CONFIG_DATA_PREFIX_LEN   = strlen(CONFIG_DATA_PREFIX);
     size_t CONFIG_PKCS11_PREFIX_LEN = strlen(CONFIG_PKCS11_PREFIX);
-    char *ptr;
 
     assert(str);
     assert(data);
-    DDSRT_UNUSED_ARG(str);
 
-    ptr = ddssec_strchrs(str, " \t", false);
+    for (; *str == ' ' || *str == '\t'; str++)
+      /* ignore leading whitespace */;
 
-    if (strncmp(ptr, CONFIG_FILE_PREFIX, CONFIG_FILE_PREFIX_LEN) == 0) {
-        const char *DOUBLE_SLASH   = "//";
+    if (strncmp(str, CONFIG_FILE_PREFIX, CONFIG_FILE_PREFIX_LEN) == 0) {
+        const char *DOUBLE_SLASH = "//";
         size_t DOUBLE_SLASH_LEN = 2;
-        if (strncmp(&(ptr[CONFIG_FILE_PREFIX_LEN]), DOUBLE_SLASH, DOUBLE_SLASH_LEN) == 0) {
-            *data = ddsrt_strdup(&(ptr[CONFIG_FILE_PREFIX_LEN + DOUBLE_SLASH_LEN]));
+        if (strncmp(&(str[CONFIG_FILE_PREFIX_LEN]), DOUBLE_SLASH, DOUBLE_SLASH_LEN) == 0) {
+            *data = ddsrt_strdup(&(str[CONFIG_FILE_PREFIX_LEN + DOUBLE_SLASH_LEN]));
         } else {
-            *data = ddsrt_strdup(&(ptr[CONFIG_FILE_PREFIX_LEN]));
+            *data = ddsrt_strdup(&(str[CONFIG_FILE_PREFIX_LEN]));
         }
         kind = DDS_SECURITY_CONFIG_ITEM_PREFIX_FILE;
-    } else if (strncmp(ptr, CONFIG_DATA_PREFIX, CONFIG_DATA_PREFIX_LEN) == 0) {
+    } else if (strncmp(str, CONFIG_DATA_PREFIX, CONFIG_DATA_PREFIX_LEN) == 0) {
         kind = DDS_SECURITY_CONFIG_ITEM_PREFIX_DATA;
-        *data = ddsrt_strdup(&(ptr[CONFIG_DATA_PREFIX_LEN]));
-    } else if (strncmp(ptr, CONFIG_PKCS11_PREFIX, CONFIG_PKCS11_PREFIX_LEN) == 0) {
+        *data = ddsrt_strdup(&(str[CONFIG_DATA_PREFIX_LEN]));
+    } else if (strncmp(str, CONFIG_PKCS11_PREFIX, CONFIG_PKCS11_PREFIX_LEN) == 0) {
         kind = DDS_SECURITY_CONFIG_ITEM_PREFIX_PKCS11;
-        *data = ddsrt_strdup(&(ptr[CONFIG_PKCS11_PREFIX_LEN]));
+        *data = ddsrt_strdup(&(str[CONFIG_PKCS11_PREFIX_LEN]));
     }
 
     return kind;
 }
-
-
-char *
-ddssec_strchrs (
-        const char *str,
-        const char *chrs,
-        bool inc)
-{
-    bool eq;
-    char *ptr = NULL;
-    size_t i, j;
-
-    assert (str != NULL);
-    assert (chrs != NULL);
-
-    for (i = 0; str[i] != '\0' && ptr == NULL; i++) {
-        for (j = 0, eq = false; chrs[j] != '\0' && eq == false; j++) {
-            if (str[i] == chrs[j]) {
-                eq = true;
-            }
-        }
-        if (eq == inc) {
-            ptr = (char *)str + i;
-        }
-    }
-
-    return ptr;
-}
-
 
 /* The result of os_fileNormalize should be freed with os_free */
 char *

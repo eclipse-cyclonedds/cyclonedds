@@ -2464,6 +2464,8 @@ static void do_msg(
             slen = 1;
         tp = arg_t[ i] = (char *) malloc( slen);
             /* Don't use xmalloc() so as not to cause infinite recursion    */
+        if (tp == NULL)
+          goto free_arg;
         if (sp == NULL || *sp == EOS) {
             *tp = EOS;
             continue;

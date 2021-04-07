@@ -102,7 +102,8 @@ char *typename(const void *node)
       const char seq[] = "sequence_";
       char dims[32] = "";
       const idl_type_spec_t *type_spec;
-      char *type, *seqtype = NULL;
+      const char *type;
+      char *name = NULL, *seqtype = NULL;
       size_t cnt = 0, len = 0, pos = 0;
 
       type_spec = idl_type_spec(node);
@@ -138,7 +139,7 @@ char *typename(const void *node)
           default:
             abort();
         }
-      else if (!(type = absolute_name(type_spec, "_")))
+      else if (!(type = name = absolute_name(type_spec, "_")))
         goto err_type;
       len = strlen(pref) + strlen(type) + strlen(dims);
       if (!(seqtype = malloc(len + (cnt * strlen(seq)) + 1)))
@@ -156,8 +157,8 @@ char *typename(const void *node)
       pos += len;
       seqtype[pos] = '\0';
 err_seqtype:
-      if (!idl_is_base_type(type_spec) && !idl_is_string(type_spec))
-        free(type);
+      if (name)
+        free(name);
 err_type:
       return seqtype;
     }

@@ -201,6 +201,7 @@ struct record_cputime_state *record_cputime_new (dds_entity_t wr)
   }
 
   struct record_cputime_state *state = malloc (sizeof (*state));
+  assert(state);
   ddsrt_rusage_t usage;
   if (ddsrt_getrusage (DDSRT_RUSAGE_SELF, &usage) < 0)
     usage.nvcsw = usage.nivcsw = 0;
