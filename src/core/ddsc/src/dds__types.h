@@ -27,6 +27,7 @@
 #include "iceoryx_binding_c/publisher.h"
 #include "shm__monitor.h"
 #include "dds/ddsi/shm_sync.h"
+#define MAX_PUB_LOANS 8
 #endif
 
 #if defined (__cplusplus)
@@ -337,6 +338,7 @@ typedef struct dds_writer {
 #ifdef DDS_HAS_SHM
   iox_pub_storage_t m_iox_pub_stor;
   iox_pub_t m_iox_pub;
+  void *m_iox_pub_loans[MAX_PUB_LOANS];
 #endif
 
   /* Status metrics */

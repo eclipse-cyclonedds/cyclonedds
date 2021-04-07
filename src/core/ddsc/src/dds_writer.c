@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+#include <string.h>
 
 #include "dds/dds.h"
 #include "dds/version.h"
@@ -445,6 +446,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     iox_pub_options_init(&opts);
     opts.historyCapacity = wr->m_entity.m_domain->gv.config.pub_history_capacity;
     wr->m_iox_pub = iox_pub_init(&wr->m_iox_pub_stor, "DDS_CYCLONE", type_name, topic_name, &opts);
+    memset(wr->m_iox_pub_loans, 0, sizeof(wr->m_iox_pub_loans));
     dds_sleepfor(DDS_MSECS(10));
   }
 #endif
