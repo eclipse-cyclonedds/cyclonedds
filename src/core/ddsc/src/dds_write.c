@@ -339,27 +339,6 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
   // to deliver_locally
   ddsi_serdata_ref (dact);
 
-  bool suppress_local_delivery = false;
-#ifdef DDS_HAS_SHM
-  if (wr && ret == DDS_RETCODE_OK) {
-    if ((wr->m_entity.m_domain->gv.config.enable_shm && iox_pub_has_subscribers(wr->m_iox_pub)) &&
-        (dinp->iox_chunk != NULL))
-    {
-      iceoryx_header_t * ice_hdr = dinp->iox_chunk;
-      // Local readers go through Iceoryx as well (because the Iceoryx support code doesn't exclude
-      // that), which means we should suppress the internal path
-      suppress_local_delivery = true;
-      ice_hdr->guid = ddsi_wr->e.guid;
-      ice_hdr->tstamp = dinp->timestamp.v;
-      ice_hdr->data_kind = (unsigned char)dinp->kind;
-      ddsi_serdata_get_keyhash (dinp, &ice_hdr->keyhash, false);
-      iox_pub_publish_chunk (wr->m_iox_pub, ice_hdr);
-    }
-  }
-#else
-  (void) wr;
-#endif
-
   tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, dact);
   // write_sample_gc always consumes 1 refc from dact
   w_rc = write_sample_gc (ts1, xp, ddsi_wr, dact, tk);
@@ -379,6 +358,34 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
     else
       ret = DDS_RETCODE_ERROR;
   }
+
+  bool suppress_local_delivery = false;
+#ifdef DDS_HAS_SHM
+  if (wr && ret == DDS_RETCODE_OK) {
+    // Currently, Iceoryx is enabled only for volatile data, so data gets stored in the WHC only
+    // if remote subscribers exist, and in that case, at the moment that forces serialization of
+    // the data.  So dropping iox_chunk is survivable.
+    if ((wr->m_entity.m_domain->gv.config.enable_shm && iox_pub_has_subscribers(wr->m_iox_pub)) &&
+        (dinp->iox_chunk != NULL))
+    {
+      iceoryx_header_t * ice_hdr = dinp->iox_chunk;
+      // Local readers go through Iceoryx as well (because the Iceoryx support code doesn't exclude
+      // that), which means we should suppress the internal path
+      suppress_local_delivery = true;
+      ice_hdr->guid = ddsi_wr->e.guid;
+      ice_hdr->tstamp = dinp->timestamp.v;
+      ice_hdr->data_kind = (unsigned char)dinp->kind;
+      ddsi_serdata_get_keyhash (dinp, &ice_hdr->keyhash, false);
+      // iox_pub_publish_chunk takes ownership, storing a null pointer here doesn't
+      // preclude the existence of race conditions on this, but it certainly improves
+      // the chances of detecting them
+      dinp->iox_chunk = NULL;
+      iox_pub_publish_chunk (wr->m_iox_pub, ice_hdr);
+    }
+  }
+#else
+  (void) wr;
+#endif
 
   if (ret == DDS_RETCODE_OK && !suppress_local_delivery)
     ret = deliver_locally (ddsi_wr, dact, tk);
