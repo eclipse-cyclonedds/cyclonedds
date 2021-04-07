@@ -1651,6 +1651,11 @@ dds_create_writer(
   const dds_qos_t *qos,
   const dds_listener_t *listener);
 
+DDS_EXPORT dds_return_t
+dds_loan_sample(
+  dds_entity_t writer,
+  void** sample);
+
 /*
   Writing data (and variants of it) is straightforward. The first set
   is equivalent to the second set with -1 passed for "timestamp",

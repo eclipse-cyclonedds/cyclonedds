@@ -31,6 +31,95 @@
 #include "dds/ddsi/shm_sync.h"
 #endif
 
+#ifdef DDS_HAS_SHM
+struct AlignIceOryxChunk_t {
+  iceoryx_header_t header;
+  uint64_t worst_case_member;
+};
+
+/* Assume worst-case 8 byte alignment for sample following the iceoryx header. */
+#define DETERMINE_ICEORYX_CHUNK_SIZE(sample_size) (uint32_t) (sizeof(iceoryx_header_t) + 8 - (sizeof(iceoryx_header_t) % 8) + sample_size)
+#define SHIFT_PAST_ICEORYX_HEADER(chunk) (void *)(((char *)chunk) + sizeof(iceoryx_header_t) + 8 - (sizeof(iceoryx_header_t) % 8))
+#define SHIFT_BACK_TO_ICEORYX_HEADER(chunk) (void *)(((char *)chunk) - sizeof(iceoryx_header_t) - 8 + (sizeof(iceoryx_header_t) % 8))
+
+static void register_pub_loan(dds_writer *wr, void *pub_loan)
+{
+  for (uint32_t i = 0; i < MAX_PUB_LOANS; ++i)
+  {
+    if (!wr->m_iox_pub_loans[i])
+    {
+      wr->m_iox_pub_loans[i] = pub_loan;
+      return;
+    }
+  }
+  /* The loan pool should be big enough to store the maximum number of open IceOryx loans.
+   * So if IceOryx grants the loan, we should be able to store it.
+   */
+  assert(false);
+}
+
+static bool deregister_pub_loan(dds_writer *wr, const void *pub_loan)
+{
+    for (uint32_t i = 0; i < MAX_PUB_LOANS; ++i)
+    {
+      if (wr->m_iox_pub_loans[i] == pub_loan)
+      {
+        wr->m_iox_pub_loans[i] = NULL;
+        return true;
+      }
+    }
+    return false;
+}
+
+static void *create_iox_chunk(dds_writer *wr)
+{
+    iceoryx_header_t *ice_hdr;
+    void *sample;
+    uint32_t sample_size = wr->m_topic->m_stype->iox_size;
+    uint32_t chunk_size = DETERMINE_ICEORYX_CHUNK_SIZE(sample_size);
+    while (1)
+    {
+      enum iox_AllocationResult alloc_result = iox_pub_loan_chunk(wr->m_iox_pub, (void **) &ice_hdr, chunk_size);
+      if (AllocationResult_SUCCESS == alloc_result)
+        break;
+      // SHM_TODO: Maybe there is a better way to do while unable to allocate.
+      //           BTW, how long I should sleep is also another problem.
+      dds_sleepfor (DDS_MSECS (1));
+    }
+    ice_hdr->data_size = sample_size;
+    sample = SHIFT_PAST_ICEORYX_HEADER(ice_hdr);
+    return sample;
+}
+#endif
+
+dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
+{
+#ifndef DDS_HAS_SHM
+  (void) writer;
+  (void) sample;
+  return DDS_RETCODE_UNSUPPORTED;
+#else
+  dds_return_t ret;
+  dds_writer *wr;
+
+  if (!sample)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
+    return ret;
+
+  if (wr->m_iox_pub)
+  {
+    *sample = create_iox_chunk(wr);
+    register_pub_loan(wr, *sample);
+  } else {
+    ret = DDS_RETCODE_UNSUPPORTED;
+  }
+  dds_writer_unlock (wr);
+  return ret;
+#endif
+}
+
 dds_return_t dds_write (dds_entity_t writer, const void *data)
 {
   dds_return_t ret;
@@ -240,32 +329,31 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
 
     bool suppress_local_delivery = false;
 #ifdef DDS_HAS_SHM
-    if (wr->m_iox_pub &&
-        iox_pub_has_subscribers(wr->m_iox_pub))
+    if (wr->m_iox_pub)
     {
-      uint32_t send_size = ddsi_serdata_iox_size (d);
-      //ICEORYX_TODO: we block here until we get a chunk ... do we want this? it can be indefinitely
-      while (1)
+      iceoryx_header_t *ice_hdr;
+
+      if (!deregister_pub_loan(wr, data))
       {
-        enum iox_AllocationResult alloc_result = iox_pub_loan_chunk(wr->m_iox_pub, (void**)(&d->iox_chunk), (unsigned int)(sizeof(iceoryx_header_t) + send_size));
-        if (AllocationResult_SUCCESS == alloc_result)
-          break;
-        dds_sleepfor (DDS_MSECS (1));
+        void *pub_loan;
+
+        pub_loan = create_iox_chunk(wr);
+        memcpy (pub_loan, data, wr->m_topic->m_stype->iox_size);
+        data = pub_loan;
       }
-      iceoryx_header_t *ice_hdr = (iceoryx_header_t*)d->iox_chunk;
+      ice_hdr = SHIFT_BACK_TO_ICEORYX_HEADER(data);
       ice_hdr->guid = ddsi_wr->e.guid;
       ice_hdr->tstamp = tstamp;
-      ice_hdr->data_size = send_size;
       ice_hdr->data_kind = writekey ? SDK_KEY : SDK_DATA;
       ddsi_serdata_get_keyhash(d, &ice_hdr->keyhash, false);
-
-      // ICEORYX_TODO: we need the loan API to avoid this copy and request memory directly from iceoryx
-      memcpy (d->iox_chunk + sizeof (iceoryx_header_t), data, send_size);
-      iox_pub_publish_chunk (wr->m_iox_pub, d->iox_chunk);
-      d->iox_chunk = NULL;
+      iox_pub_publish_chunk (wr->m_iox_pub, ice_hdr);
 
       // Iceoryx will do delivery to local subscriptions, so we suppress it here
       suppress_local_delivery = true;
+    }
+    else
+    {
+
     }
 #endif
 
