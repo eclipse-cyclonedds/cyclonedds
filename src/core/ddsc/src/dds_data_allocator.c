@@ -126,3 +126,30 @@ void dds_data_allocator_free (dds_data_allocator_t *data_allocator, void *ptr)
   ddsrt_free (ptr);
 #endif
 }
+
+bool is_loan_available(const dds_entity_t entity)
+{
+  bool ret = false;
+#ifdef DDS_HAS_SHM
+  dds_entity * e;
+
+  if (DDS_RETCODE_OK != dds_entity_pin(entity, &e)) {
+    return ret;
+  }
+
+  switch (dds_entity_kind(e)) {
+    case DDS_KIND_READER:
+      ret = ((struct dds_reader *) e)->m_entity.m_domain->gv.config.enable_shm;
+      break;
+    case DDS_KIND_WRITER:
+      ret = ((struct dds_writer *) e)->m_entity.m_domain->gv.config.enable_shm;
+      break;
+    default:
+      break;
+  }
+
+  dds_entity_unpin(e);
+#endif
+  (void) entity;
+  return ret;
+}
