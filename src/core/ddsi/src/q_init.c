@@ -1195,8 +1195,6 @@ int rtps_init (struct ddsi_domaingv *gv)
     GVLOG (DDS_LC_SHM, "My iceoryx address: %s, Port: %d\n", sptr, pid);
     memset ((char *) gv->loc_iceoryx_addr.address, 0, sizeof (gv->loc_iceoryx_addr.address));
     ddsrt_strlcpy ((char *) gv->loc_iceoryx_addr.address, sptr, strlen (sptr));
-
-    shm_mutex_init();
   }
 #endif
 

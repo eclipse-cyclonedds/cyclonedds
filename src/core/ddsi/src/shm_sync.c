@@ -11,30 +11,6 @@
  */
 #include "dds/ddsi/shm_sync.h"
 
-static ddsrt_mutex_t shm_mutex;
-static int shm_mutex_initialized = 0;
-
-int shm_mutex_init()
-{
-  if (shm_mutex_initialized)
-    return 1;
-
-  ddsrt_mutex_init(&shm_mutex);
-  shm_mutex_initialized = 1;
-
-  return 0;
-}
-
-void shm_mutex_lock(void)
-{
-  ddsrt_mutex_lock(&shm_mutex);
-}
-
-void shm_mutex_unlock(void)
-{
-  ddsrt_mutex_unlock(&shm_mutex);
-}
-
 void iox_sub_storage_extension_init(iox_sub_storage_extension_t *storage)
 {
   storage->monitor = NULL;
