@@ -24,7 +24,7 @@ extern "C" {
 #include "iceoryx_binding_c/publisher.h"
 #include "iceoryx_binding_c/subscriber.h"
 
-enum dds_iox_allocator_kind {
+typedef enum dds_iox_allocator_kind {
   DDS_IOX_ALLOCATOR_KIND_FINI,
   DDS_IOX_ALLOCATOR_KIND_NONE, /* use heap */
   DDS_IOX_ALLOCATOR_KIND_PUBLISHER,
