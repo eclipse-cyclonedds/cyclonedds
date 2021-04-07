@@ -31,6 +31,7 @@ static dds_entity_t g_topic       = 0;
 static dds_entity_t g_reader      = 0;
 static dds_entity_t g_writer      = 0;
 static dds_entity_t g_waitset     = 0;
+static dds_entity_t g_domain      = 0;
 
 static dds_time_t   g_past        = 0;
 static dds_time_t   g_present     = 0;
@@ -52,7 +53,15 @@ disposing_init(void)
     /* Use by source timestamp to be able to check the time related funtions. */
     dds_qset_destination_order(qos, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
 
-    g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+#ifdef DDS_HAS_SHM
+    const char* config = "<Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>";
+#else
+    const char* config = "";
+#endif
+    g_domain = dds_create_domain(0, config);
+    CU_ASSERT_FATAL(g_domain > 0);
+
+    g_participant = dds_create_participant(0, NULL, NULL);
     CU_ASSERT_FATAL(g_participant > 0);
 
     g_waitset = dds_create_waitset(g_participant);
@@ -124,6 +133,7 @@ disposing_fini(void)
     dds_delete(g_waitset);
     dds_delete(g_topic);
     dds_delete(g_participant);
+    dds_delete(g_domain);
 }
 
 

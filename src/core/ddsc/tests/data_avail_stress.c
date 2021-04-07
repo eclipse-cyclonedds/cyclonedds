@@ -88,7 +88,23 @@ static void setup (bool remote, struct writethread_arg *wrarg)
 {
   // Creating/deleting readers while writing becomes interesting
   // only once the network is lossy.
+#ifdef DDS_HAS_SHM
   const char *config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
+    <Discovery>\
+      <ExternalDomainId>0</ExternalDomainId>\
+    </Discovery>\
+    <Domain id=\"any\">\
+      <SharedMemory>\
+        <Enable>false</Enable>\
+      </SharedMemory>\
+    </Domain>\
+    <Internal>\
+      <Test>\
+        <XmitLossiness>100</XmitLossiness>\
+      </Test>\
+    </Internal>";
+#else
+  const char* config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
     <Discovery>\
       <ExternalDomainId>0</ExternalDomainId>\
     </Discovery>\
@@ -97,6 +113,7 @@ static void setup (bool remote, struct writethread_arg *wrarg)
         <XmitLossiness>100</XmitLossiness>\
       </Test>\
     </Internal>";
+#endif
   char *conf_pub = ddsrt_expand_envvars (config, 0);
   char *conf_sub = ddsrt_expand_envvars (config, 1);
   pub_dom = dds_create_domain (0, conf_pub);
