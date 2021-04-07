@@ -238,6 +238,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     d->timestamp.v = tstamp;
     ddsi_serdata_ref (d);
 
+    bool suppress_local_delivery = false;
 #ifdef DDS_HAS_SHM
     if (wr->m_iox_pub &&
         iox_pub_has_subscribers(wr->m_iox_pub))
@@ -262,6 +263,9 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       memcpy (d->iox_chunk + sizeof (iceoryx_header_t), data, send_size);
       iox_pub_publish_chunk (wr->m_iox_pub, d->iox_chunk);
       d->iox_chunk = NULL;
+
+      // Iceoryx will do delivery to local subscriptions, so we suppress it here
+      suppress_local_delivery = true;
     }
 #endif
 
@@ -280,7 +284,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     } else {
       ret = DDS_RETCODE_ERROR;
     }
-    if (ret == DDS_RETCODE_OK)
+    if (ret == DDS_RETCODE_OK && !suppress_local_delivery)
       ret = deliver_locally (ddsi_wr, d, tk);
     ddsi_serdata_unref (d);
     ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
@@ -335,12 +339,16 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
   // to deliver_locally
   ddsi_serdata_ref (dact);
 
+  bool suppress_local_delivery = false;
 #ifdef DDS_HAS_SHM
-  if (wr) {
+  if (wr && ret == DDS_RETCODE_OK) {
     if ((wr->m_entity.m_domain->gv.config.enable_shm && iox_pub_has_subscribers(wr->m_iox_pub)) &&
         (dinp->iox_chunk != NULL))
     {
       iceoryx_header_t * ice_hdr = dinp->iox_chunk;
+      // Local readers go through Iceoryx as well (because the Iceoryx support code doesn't exclude
+      // that), which means we should suppress the internal path
+      suppress_local_delivery = true;
       ice_hdr->guid = ddsi_wr->e.guid;
       ice_hdr->tstamp = dinp->timestamp.v;
       ice_hdr->data_kind = (unsigned char)dinp->kind;
@@ -372,7 +380,7 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
       ret = DDS_RETCODE_ERROR;
   }
 
-  if (ret == DDS_RETCODE_OK)
+  if (ret == DDS_RETCODE_OK && !suppress_local_delivery)
     ret = deliver_locally (ddsi_wr, dact, tk);
 
   // refc management at input is such that we must still consume a dinp

@@ -112,13 +112,13 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
       break;
 
     iceoryx_header_t* ice_hdr = (iceoryx_header_t*)chunk;
-    // Get proxy writer
-    struct proxy_writer* pwr = entidx_lookup_proxy_writer_guid(gv->entity_index, &ice_hdr->guid);
-    if (pwr == NULL)
+
+    // Get writer or proxy writer
+    struct entity_common * e = entidx_lookup_guid_untyped (gv->entity_index, &ice_hdr->guid);
+    if (e == NULL || (e->kind != EK_PROXY_WRITER && e->kind != EK_WRITER))
     {
-      // We should ignore chunk which does not match the pwr in receiver side.
-      // For example, intra-process has local pwr and does not need to use iceoryx, so we can ignore it.
-      DDS_CLOG(DDS_LC_SHM, &gv->logconfig, "pwr is NULL and we'll ignore.\n");
+      // Ignore that doesn't match a known writer or proxy writer
+      DDS_CLOG (DDS_LC_SHM, &gv->logconfig, "unknown source entity, ignore.\n");
       continue;
     }
 
@@ -137,8 +137,12 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
 
     // Generate writer_info
     struct ddsi_writer_info wrinfo;
-    ddsi_make_writer_info(&wrinfo, &pwr->e, pwr->c.xqos, d->statusinfo);
-
+    struct dds_qos *xqos;
+    if (e->kind == EK_PROXY_WRITER)
+      xqos = ((struct proxy_writer *) e)->c.xqos;
+    else
+      xqos = ((struct writer *) e)->xqos;
+    ddsi_make_writer_info(&wrinfo, e, xqos, d->statusinfo);
     (void)ddsi_rhc_store(rd->m_rd->rhc, &wrinfo, d, tk);
 
 release:
