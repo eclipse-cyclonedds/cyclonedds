@@ -797,7 +797,7 @@ dds_return_t dds__reader_data_allocator_init (const dds_reader *rd, dds_data_all
 {
 #ifdef DDS_HAS_SHM
   dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
-  if (rd->m_entity.m_domain->gv.config.enable_shm)
+  if (NULL != rd->m_iox_sub)
   {
     d->kind = DDS_IOX_ALLOCATOR_KIND_SUBSCRIBER;
     d->ref.sub = rd->m_iox_sub;

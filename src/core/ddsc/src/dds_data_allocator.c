@@ -139,10 +139,10 @@ bool is_loan_available(const dds_entity_t entity)
 
   switch (dds_entity_kind(e)) {
     case DDS_KIND_READER:
-      ret = ((struct dds_reader *) e)->m_entity.m_domain->gv.config.enable_shm;
+      ret = (((struct dds_reader *) e)->m_iox_sub != NULL);
       break;
     case DDS_KIND_WRITER:
-      ret = ((struct dds_writer *) e)->m_entity.m_domain->gv.config.enable_shm;
+      ret = (((struct dds_writer *) e)->m_iox_pub != NULL);
       break;
     default:
       break;
