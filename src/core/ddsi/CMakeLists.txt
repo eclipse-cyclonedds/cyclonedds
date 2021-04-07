@@ -182,10 +182,6 @@ prepend(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/" ${srcs_ddsi})
 target_sources(ddsc PRIVATE ${srcs_ddsi} ${defconfig_src} ${hdrs_private_ddsi})
 target_include_directories(ddsc PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
 
-if(iceoryx_binding_c_FOUND)
-  target_link_libraries(ddsc PRIVATE iceoryx_binding_c::iceoryx_binding_c)
-endif()
-
 install(
   DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
