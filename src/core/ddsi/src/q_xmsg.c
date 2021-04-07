@@ -1348,8 +1348,8 @@ void nn_xpack_sendq_stop (struct ddsi_domaingv *gv)
 
 void nn_xpack_sendq_fini (struct ddsi_domaingv *gv)
 {
-  assert (gv->sendq_head == NULL);
   join_thread (gv->sendq_ts);
+  assert (gv->sendq_head == NULL);
   ddsrt_cond_destroy (&gv->sendq_cond);
   ddsrt_mutex_destroy (&gv->sendq_lock);
 }
