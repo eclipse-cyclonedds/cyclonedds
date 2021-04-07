@@ -98,6 +98,11 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
+if(iceoryx_binding_c_FOUND)
+  target_include_directories(
+    cunit_ddsc PRIVATE
+    "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
+endif()
 target_link_libraries(cunit_ddsc PRIVATE
   RoundTrip Space TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter ddsc)
 
@@ -126,4 +131,11 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
+
+if(iceoryx_binding_c_FOUND)
+  target_include_directories(
+    oneliner PRIVATE
+    "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
+endif()
+
 target_link_libraries(oneliner PRIVATE RoundTrip Space ddsc)
