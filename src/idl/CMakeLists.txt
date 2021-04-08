@@ -37,6 +37,8 @@ foreach(func ddsrt_md5_init ddsrt_md5_append ddsrt_md5_finish)
 endforeach()
 
 configure_file(src/hashid.c.in ${CMAKE_CURRENT_BINARY_DIR}/hashid.c @ONLY)
+# Might not be needed in the future to declare GENERATED https://gitlab.kitware.com/cmake/cmake/-/issues/21993
+set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/hashid.c PROPERTIES GENERATED TRUE)
 
 add_library(
   idl SHARED
