@@ -37,11 +37,6 @@ struct AlignIceOryxChunk_t {
   uint64_t worst_case_member;
 };
 
-/* Assume worst-case 8 byte alignment for sample following the iceoryx header. */
-#define DETERMINE_ICEORYX_CHUNK_SIZE(sample_size) (uint32_t) (sizeof(iceoryx_header_t) + 8 - (sizeof(iceoryx_header_t) % 8) + sample_size)
-#define SHIFT_PAST_ICEORYX_HEADER(chunk) (void *)(((char *)chunk) + sizeof(iceoryx_header_t) + 8 - (sizeof(iceoryx_header_t) % 8))
-#define SHIFT_BACK_TO_ICEORYX_HEADER(chunk) (void *)(((char *)chunk) - sizeof(iceoryx_header_t) - 8 + (sizeof(iceoryx_header_t) % 8))
-
 static void register_pub_loan(dds_writer *wr, void *pub_loan)
 {
   for (uint32_t i = 0; i < MAX_PUB_LOANS; ++i)
