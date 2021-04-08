@@ -572,7 +572,7 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
   if (d->c.iox_chunk)
   {
     iceoryx_header_t* hdr = (iceoryx_header_t*)d->c.iox_chunk;
-    memcpy(sample, d->c.iox_chunk + sizeof(iceoryx_header_t), hdr->data_size);
+    memcpy(sample, SHIFT_PAST_ICEORYX_HEADER(hdr), hdr->data_size);
     return true;
   }
 #endif
