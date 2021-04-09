@@ -1767,7 +1767,7 @@ static void def_a_macro(
         cp++;
     i = *cp;
     *cp = EOS;
-    if ((defp = look_id( definition)) != NULL)      /* Pre-defined  */
+    if (look_id( definition) != NULL)               /* Pre-defined  */
         undefine( definition);
     *cp = i;
     /* Now, save the definition.    */

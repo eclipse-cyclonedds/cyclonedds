@@ -2455,6 +2455,7 @@ static void do_msg(
 
     fflush( fp_out);                /* Synchronize output and diagnostics   */
     arg_s[ 0] = arg1;  arg_s[ 1] = arg3;
+    arg_t[ 0] = NULL;  arg_t[ 1] = NULL;
 
     for (i = 0; i < 2; i++) {   /* Convert special characters to visible    */
         sp = arg_s[ i];
