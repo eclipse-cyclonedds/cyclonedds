@@ -915,9 +915,9 @@ static int  get_parm( void)
             /* Handle GCC2 variadic params like par...  */
             char *  tp = workp;
             if (mcpp_mode == STD
-                    &&(token_type = scan_token( c, &workp, work_end)) == OPE
+                    && scan_token( c, &workp, work_end) == OPE
                     && openum == OP_ELL) {
-                if ((c = skip_ws()) != ')') {
+                if (skip_ws() != ')') {
                     cerror( misplaced_ellip, NULL, 0L, NULL);
                     return  FALSE;
                 }

@@ -210,8 +210,8 @@ typedef struct sizes {
 
 typedef struct types {
     int         type;               /* This is the bits for types   */
-    char *      token_name;         /* this is the token word       */
     int         excluded;           /* but these aren't legal here. */
+    char *      token_name;         /* this is the token word       */
 } TYPES;
 
 #define ANYSIGN     (T_SIGNED | T_UNSIGNED)
@@ -223,23 +223,24 @@ typedef struct types {
 #endif
 
 static const TYPES  basic_types[] = {
-    { T_CHAR,       "char",         ANYFLOAT | ANYINT },
-    { T_SHORT,      "short",        ANYFLOAT | ANYINT },
-    { T_INT,        "int",          ANYFLOAT | T_CHAR | T_INT },
-    { T_LONG,       "long",         ANYFLOAT | ANYINT },
+    { T_CHAR,       ANYFLOAT | ANYINT,           "char" },
+    { T_SHORT,      ANYFLOAT | ANYINT,           "short" },
+    { T_INT,        ANYFLOAT | T_CHAR | T_INT,   "int" },
+    { T_LONG,       ANYFLOAT | ANYINT,           "long" },
 #if HAVE_LONG_LONG
 #if HOST_COMPILER == BORLANDC
-    { T_LONGLONG,   "__int64",      ANYFLOAT | ANYINT },
+    { T_LONGLONG,   ANYFLOAT | ANYINT,           "__int64" },
 #else
-    { T_LONGLONG,   "long long",    ANYFLOAT | ANYINT },
+    { T_LONGLONG,   ANYFLOAT | ANYINT,           "long long" },
 #endif
 #endif
-    { T_FLOAT,      "float",        ANYFLOAT | ANYINT | ANYSIGN },
-    { T_DOUBLE,     "double",       ANYFLOAT | ANYINT | ANYSIGN },
-    { T_LONGDOUBLE, "long double",  ANYFLOAT | ANYINT | ANYSIGN },
-    { T_SIGNED,     "signed",       ANYFLOAT | ANYINT | ANYSIGN },
-    { T_UNSIGNED,   "unsigned",     ANYFLOAT | ANYINT | ANYSIGN },
-    { 0,            NULL,           0 }     /* Signal end           */
+    { T_FLOAT,      ANYFLOAT | ANYINT | ANYSIGN, "float" },
+    { T_DOUBLE,     ANYFLOAT | ANYINT | ANYSIGN, "double" },
+    { T_LONGDOUBLE, ANYFLOAT | ANYINT | ANYSIGN, "long double" },
+    { T_SIGNED,     ANYFLOAT | ANYINT | ANYSIGN, "signed" },
+    { T_UNSIGNED,   ANYFLOAT | ANYINT | ANYSIGN, "unsigned" },
+    { 0,            0,                           NULL }
+                                            /* Signal end           */
 };
 
 /*
@@ -806,7 +807,7 @@ basic:
             "sizeof -- typecode:0x%x tp->token_name:\"%s\" tp->type:0x%x\n"
                     , typecode, tp->token_name, tp->type);
     }
-    return  typecode |= tp->type;           /* Or in the type bit   */
+    return  typecode | tp->type;            /* Or in the type bit   */
 }
 
 VAL_SIGN *  eval_num(
@@ -1324,7 +1325,7 @@ static VAL_SIGN *   eval_eval(
             snprintf( negate, sizeof(negate), neg_format, v3, v3);
             cwarn( negate, skip ? non_eval : NULL, 0L, NULL);
         }
-        valp->sign = sign1 = sign2 = UNSIGNED;
+        valp->sign = sign1 = UNSIGNED;
     }
     if ((op == OP_SL || op == OP_SR)
             && ((! skip && (warn_level & 1)) || (skip && (warn_level & 8)))) {
