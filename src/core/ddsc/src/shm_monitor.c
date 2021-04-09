@@ -126,6 +126,7 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
     struct ddsi_serdata* d = ddsi_serdata_from_iox(rd->m_topic->m_stype, ice_hdr->data_kind, &rd->m_iox_sub, chunk);
     //keyhash needs to be set here
     d->timestamp.v = ice_hdr->tstamp;
+    d->statusinfo = ice_hdr->statusinfo;
 
     // Get struct ddsi_tkmap_instance
     struct ddsi_tkmap_instance* tk;
