@@ -58,6 +58,7 @@ enum nn_xmsg_kind {
 struct iceoryx_header {
    struct ddsi_guid guid;
    dds_time_t tstamp;
+   uint32_t statusinfo;
    uint32_t data_size;
    unsigned char data_kind;
    ddsi_keyhash_t keyhash;
