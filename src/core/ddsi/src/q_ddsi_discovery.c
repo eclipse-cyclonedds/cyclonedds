@@ -897,20 +897,31 @@ static void add_locator_to_ps (const ddsi_locator_t *loc, void *varg)
 }
 
 #ifdef DDS_HAS_SHM
-static void add_iox_locator_to_ps(const ddsi_locator_t* loc, struct add_locator_to_ps_arg *arg)
+static void add_iox_locator_to_ps_impl(const ddsi_locator_t* loc, ddsi_plist_t* ps, unsigned present_flag)
 {
-  struct nn_locators_one* elem = ddsrt_malloc(sizeof(struct nn_locators_one));
-  struct nn_locators* locs = &arg->ps->unicast_locators;
-  unsigned present_flag = PP_UNICAST_LOCATOR;
+  struct nn_locators* locs;
+  switch (present_flag)
+  {
+  case PP_UNICAST_LOCATOR:
+    locs = &ps->unicast_locators;
+    break;
+  case PP_MULTICAST_LOCATOR:
+    locs = &ps->multicast_locators;
+    break;
+  default:
+    assert(0);
+    return;
+  }
 
+  struct nn_locators_one* elem = ddsrt_malloc(sizeof(struct nn_locators_one));
   elem->loc = *loc;
   elem->next = NULL;
 
-  if (!(arg->ps->present & present_flag))
+  if (!(ps->present & present_flag))
   {
     locs->n = 0;
     locs->first = locs->last = NULL;
-    arg->ps->present |= present_flag;
+    ps->present |= present_flag;
   }
 
   //add iceoryx to the FRONT of the list of addresses, to indicate its higher priority
@@ -920,6 +931,12 @@ static void add_iox_locator_to_ps(const ddsi_locator_t* loc, struct add_locator_
     locs->last = elem;
   locs->first = elem;
   locs->n++;
+}
+
+static void add_iox_locator_to_ps(const ddsi_locator_t* loc, struct add_locator_to_ps_arg *arg)
+{
+  add_iox_locator_to_ps_impl(loc, arg->ps, PP_UNICAST_LOCATOR);
+  add_iox_locator_to_ps_impl(loc, arg->ps, PP_MULTICAST_LOCATOR);
 }
 #endif
 

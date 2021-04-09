@@ -1185,7 +1185,7 @@ int rtps_init (struct ddsi_domaingv *gv)
 
     gv->loc_iceoryx_addr.tran = NULL;
     gv->loc_iceoryx_addr.kind = NN_LOCATOR_KIND_SHEM;
-    gv->loc_iceoryx_addr.port = pid;
+    gv->loc_iceoryx_addr.port = 0;
     if (ddsrt_eth_get_mac_addr (gv->interfaces[gv->selected_interface].name, mac_addr))
     {
       GVLOG (DDS_LC_SHM, "Unable to get MAC address for iceoryx\n");
