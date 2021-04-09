@@ -357,8 +357,7 @@ void validate_handshake_result(struct Handshake *hs, bool exp_fail_hs_req, const
       }
       else
       {
-        CU_ASSERT_FATAL (hs->err_msg != NULL);
-        CU_ASSERT_FATAL (strstr(hs->err_msg, fail_hs_req_msg) != NULL);
+        CU_ASSERT_FATAL (hs->err_msg && strstr(hs->err_msg, fail_hs_req_msg) != NULL);
       }
     }
   }
@@ -373,8 +372,7 @@ void validate_handshake_result(struct Handshake *hs, bool exp_fail_hs_req, const
       }
       else
       {
-        CU_ASSERT_FATAL (hs->err_msg != NULL);
-        CU_ASSERT_FATAL (strstr(hs->err_msg, fail_hs_reply_msg) != NULL);
+        CU_ASSERT_FATAL (hs->err_msg && strstr(hs->err_msg, fail_hs_reply_msg) != NULL);
       }
     }
   }

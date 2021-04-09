@@ -34,6 +34,7 @@ test_base_type(const char *str, uint32_t flags, int32_t retcode, idl_mask_t mask
   CU_ASSERT(ret == retcode);
   if (ret != IDL_RETCODE_OK)
     goto bail;
+  assert(pstate);
   node = pstate->root;
   CU_ASSERT_PTR_NOT_NULL(node);
   if (!node)
@@ -52,8 +53,7 @@ test_base_type(const char *str, uint32_t flags, int32_t retcode, idl_mask_t mask
     CU_ASSERT_PTR_NOT_NULL(member->declarators);
     if (!member->declarators)
       goto bail;
-    CU_ASSERT_PTR_NOT_NULL(member->declarators->name);
-    CU_ASSERT_PTR_NOT_NULL(member->declarators->name->identifier);
+    CU_ASSERT(member->declarators->name && member->declarators->name->identifier);
     if (!member->declarators->name || !member->declarators->name->identifier)
       goto bail;
     CU_ASSERT_STRING_EQUAL(member->declarators->name->identifier, "c");
@@ -124,6 +124,7 @@ CU_Test(idl_parser, embedded_module)
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   m = (idl_module_t*)pstate->root;
   CU_ASSERT_PTR_NOT_NULL_FATAL(m);
+  assert(m);
   CU_ASSERT_PTR_NULL(idl_parent(m));
   //CU_ASSERT_PTR_NULL(idl_previous(m));
   CU_ASSERT_PTR_NULL(idl_next(m));
@@ -132,6 +133,7 @@ CU_Test(idl_parser, embedded_module)
   p = (idl_node_t*)m;
   m = (idl_module_t *)m->definitions;
   CU_ASSERT_PTR_NOT_NULL_FATAL(m);
+  assert(p);
   CU_ASSERT_PTR_EQUAL(idl_parent(m), p);
   CU_ASSERT_PTR_NULL(idl_previous(m));
   CU_ASSERT_PTR_NULL(idl_next(m));
@@ -140,6 +142,7 @@ CU_Test(idl_parser, embedded_module)
   p = (idl_node_t*)m;
   s = (idl_struct_t *)m->definitions;
   CU_ASSERT_PTR_NOT_NULL_FATAL(s);
+  assert(s);
   CU_ASSERT_PTR_EQUAL(idl_parent(s), p);
   CU_ASSERT_PTR_NULL(idl_previous(s));
   CU_ASSERT_PTR_NULL(idl_next(s));
@@ -148,6 +151,7 @@ CU_Test(idl_parser, embedded_module)
   p = (idl_node_t*)s;
   sm = s->members;
   CU_ASSERT_PTR_NOT_NULL_FATAL(sm);
+  assert(sm);
   CU_ASSERT_PTR_EQUAL(idl_parent(sm), p);
   CU_ASSERT_PTR_NULL(idl_previous(sm));
   CU_ASSERT_PTR_NOT_NULL_FATAL(idl_next(sm));
@@ -180,14 +184,18 @@ CU_Test(idl_parser, struct_in_struct_same_module)
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   m = (idl_module_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_module(m));
+  assert(m);
   s1 = (idl_struct_t *)m->definitions;
   CU_ASSERT_FATAL(idl_is_struct(s1));
+  assert(s1);
   s2 = idl_next(s1);
   CU_ASSERT_FATAL(idl_is_struct(s2));
+  assert(s2);
   s = s2->members;
   CU_ASSERT_PTR_EQUAL(s->type_spec, s1);
   idl_delete_pstate(pstate);
@@ -206,6 +214,7 @@ CU_Test(idl_parser, struct_in_struct_other_module)
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL(pstate);
+  assert(pstate);
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   m1 = (idl_module_t *)pstate->root;

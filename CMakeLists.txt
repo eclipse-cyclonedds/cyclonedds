@@ -196,7 +196,7 @@ if(ANALYZER)
     # Clang-Tidy is an extensible tool that offers more than static analysis.
     # https://clang.llvm.org/extra/clang-tidy/checks/list.html
     message(STATUS "Enabling analyzer: clang-tidy")
-    set(CMAKE_C_CLANG_TIDY "clang-tidy;-checks=clang-analyzer-*")
+    set(CMAKE_C_CLANG_TIDY "clang-tidy;-checks=-*,clang-analyzer-*,-clang-analyzer-security.insecureAPI.strcpy")
     if(WERROR)
       set(CMAKE_C_CLANG_TIDY "${CMAKE_C_CLANG_TIDY};--warnings-as-errors=*")
     endif()

@@ -33,23 +33,33 @@
 # error "Thread-local storage is not supported"
 #endif
 
+#define IDLC_AUTO(str) \
+  ((idlc_auto_args__.src = (str)) \
+    ? (idlc_auto_args__.len = strlen(idlc_auto_args__.src), \
+       idlc_auto_args__.dest = alloca(idlc_auto_args__.len + 1), \
+       idlc_auto__()) \
+    : (NULL))
+
 /** @private */
-struct idlc_auto {
-  void *src;
+struct idlc_auto_args__ {
+  char *src;
   size_t len;
-  void *dest;
+  char *dest;
 };
 
-extern idlc_thread_local struct idlc_auto idlc_auto__;
+/** @private */
+extern idlc_thread_local struct idlc_auto_args__ idlc_auto_args__;
 
-#define AUTO(str) \
-  ((idlc_auto__.src = (str)) \
-    ? (idlc_auto__.len = strlen(idlc_auto__.src), \
-       idlc_auto__.dest = alloca(idlc_auto__.len + 1), \
-       memmove(idlc_auto__.dest, idlc_auto__.src, idlc_auto__.len + 1), \
-       free(idlc_auto__.src), \
-       idlc_auto__.dest) \
-    : (NULL))
+inline char *idlc_auto__(void)
+{
+  char *dest = idlc_auto_args__.dest;
+  memmove(dest, idlc_auto_args__.src, idlc_auto_args__.len + 1);
+  free(idlc_auto_args__.src);
+  idlc_auto_args__.src = NULL;
+  idlc_auto_args__.len = 0;
+  idlc_auto_args__.dest = NULL;
+  return dest;
+}
 
 struct generator {
   const char *path;

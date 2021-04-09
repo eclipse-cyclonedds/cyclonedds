@@ -43,11 +43,13 @@ CU_Test(idl_typedef, simple_declarator)
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL(pstate);
+  assert(pstate);
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   t = (idl_typedef_t *)pstate->root;
   CU_ASSERT_PTR_NOT_NULL_FATAL(t);
   CU_ASSERT_FATAL(idl_is_typedef(t));
+  assert(t);
   CU_ASSERT_PTR_NULL(idl_next(t));
   CU_ASSERT_PTR_NULL(idl_parent(t));
   CU_ASSERT_PTR_NOT_NULL(t->type_spec);
@@ -55,6 +57,7 @@ CU_Test(idl_typedef, simple_declarator)
   d = t->declarators;
   CU_ASSERT_PTR_NOT_NULL_FATAL(d);
   CU_ASSERT_FATAL(idl_is_declarator(d));
+  assert(d);
   CU_ASSERT_PTR_NULL(idl_previous(d));
   CU_ASSERT_PTR_NULL(idl_next(d));
   CU_ASSERT_PTR_EQUAL(idl_parent(d), t);
@@ -74,16 +77,19 @@ CU_Test(idl_typedef, simple_declarators)
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
   t = (idl_typedef_t *)pstate->root;
   CU_ASSERT_PTR_NOT_NULL_FATAL(t);
   CU_ASSERT_FATAL(idl_is_typedef(t));
+  assert(t);
   CU_ASSERT_PTR_NOT_NULL(t->type_spec);
   CU_ASSERT(idl_type(t->type_spec) == IDL_CHAR);
   d = t->declarators;
   CU_ASSERT_PTR_NOT_NULL_FATAL(d);
   CU_ASSERT_FATAL(idl_is_declarator(d));
+  assert(d);
   CU_ASSERT_PTR_NULL(idl_previous(d));
   CU_ASSERT_PTR_EQUAL(idl_parent(d), t);
   CU_ASSERT_PTR_NOT_NULL_FATAL(idl_identifier(d));
@@ -92,6 +98,7 @@ CU_Test(idl_typedef, simple_declarators)
   d = idl_next(d);
   CU_ASSERT_PTR_NOT_NULL_FATAL(d);
   CU_ASSERT_FATAL(idl_is_declarator(d));
+  assert(d);
   CU_ASSERT_PTR_EQUAL(idl_parent(d), t);
   CU_ASSERT_PTR_NOT_NULL_FATAL(idl_identifier(d));
   CU_ASSERT_STRING_EQUAL(idl_identifier(d), "bar");
@@ -99,6 +106,7 @@ CU_Test(idl_typedef, simple_declarators)
   d = idl_next(d);
   CU_ASSERT_PTR_NOT_NULL_FATAL(d);
   CU_ASSERT_FATAL(idl_is_declarator(d));
+  assert(d);
   CU_ASSERT_PTR_EQUAL(idl_parent(d), t);
   CU_ASSERT_PTR_NOT_NULL_FATAL(idl_identifier(d));
   CU_ASSERT_STRING_EQUAL(idl_identifier(d), "baz");
@@ -126,15 +134,18 @@ CU_Test(idl_typedef, sequence)
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   t = (idl_typedef_t *)pstate->root;
   CU_ASSERT_PTR_NOT_NULL_FATAL(t);
   CU_ASSERT_FATAL(idl_is_typedef(t));
+  assert(t);
   s = idl_next(t);
   CU_ASSERT_PTR_NOT_NULL_FATAL(s);
   CU_ASSERT_FATAL(idl_is_struct(s));
   m = s->members;
   CU_ASSERT_PTR_NOT_NULL_FATAL(m);
   CU_ASSERT_FATAL(idl_is_member(m));
+  assert(m);
   CU_ASSERT_PTR_EQUAL(m->type_spec, t->declarators);
   idl_delete_pstate(pstate);
 }
@@ -169,6 +180,7 @@ CU_Test(idl_typedef, typedef_of_typedef_sequence)
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   m1 = (idl_module_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_module(m1));
   t0 = (idl_typedef_t *)m1->definitions;

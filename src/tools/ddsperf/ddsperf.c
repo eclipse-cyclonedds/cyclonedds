@@ -2140,7 +2140,7 @@ int main (int argc, char *argv[])
     pos = (unsigned) snprintf (udata, sizeof (udata), UDATA_MAGIC"%d:%"PRIdPID":", submode != SM_NONE, ddsrt_getpid ());
     assert (pos < sizeof (udata));
     if (ddsrt_gethostname (udata + pos, sizeof (udata) - pos) != DDS_RETCODE_OK)
-      strcpy (udata + UDATA_MAGIC_SIZE, "?");
+      ddsrt_strlcpy (udata + UDATA_MAGIC_SIZE, "?", sizeof(udata) - UDATA_MAGIC_SIZE);
     dds_qset_userdata (qos, udata, strlen (udata));
   }
   if ((dp = dds_create_participant (did, qos, NULL)) < 0)

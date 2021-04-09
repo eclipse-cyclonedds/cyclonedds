@@ -26,6 +26,7 @@ CU_Test(idl_enum, no_enumerator)
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL(pstate);
+  assert(pstate);
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL(ret, IDL_RETCODE_SYNTAX_ERROR);
   CU_ASSERT_PTR_NULL(pstate->root);
@@ -41,6 +42,7 @@ CU_Test(idl_enum, duplicate_enumerators)
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL(pstate);
+  assert(pstate);
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL(ret, IDL_RETCODE_SEMANTIC_ERROR);
   CU_ASSERT_PTR_NULL(pstate->root);
@@ -56,6 +58,7 @@ CU_Test(idl_enum, enumerator_matches_enum)
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL(pstate);
+  assert(pstate);
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL(ret, IDL_RETCODE_SEMANTIC_ERROR);
   CU_ASSERT_PTR_NULL(pstate->root);
@@ -87,6 +90,7 @@ CU_Test(idl_enum, single_enumerator)
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
   e = (idl_enum_t *)pstate->root;
@@ -110,6 +114,7 @@ CU_Test(idl_enum, multiple_enumerators)
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
   e = (idl_enum_t *)pstate->root;

@@ -1136,7 +1136,7 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor)
   const char *seps[] = { ", ", ",\n  " };
   const char *sep = "  ";
 
-  if (!(type = AUTO(typename(descriptor->topic))))
+  if (!(type = IDLC_AUTO(typename(descriptor->topic))))
     return -1;
   if (idl_fprintf(fp, "static const uint32_t %s_ops [] =\n{\n", type) < 0)
     return -1;
@@ -1313,9 +1313,9 @@ static int print_descriptor(FILE *fp, struct descriptor *descriptor)
   char *name, *type;
   const char *fmt;
 
-  if (!(name = AUTO(absolute_name(descriptor->topic, "::"))))
+  if (!(name = IDLC_AUTO(absolute_name(descriptor->topic, "::"))))
     return -1;
-  if (!(type = AUTO(typename(descriptor->topic))))
+  if (!(type = IDLC_AUTO(typename(descriptor->topic))))
     return -1;
   fmt = "const dds_topic_descriptor_t %1$s_desc =\n{\n"
         "  sizeof (%1$s),\n" /* size of type */

@@ -56,11 +56,14 @@ CU_Test(idl_annotation, id_member)
   ret = parse_string(IDL_FLAG_ANNOTATIONS, str, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   s = (idl_struct_t *)pstate->root;
   CU_ASSERT_PTR_NOT_NULL_FATAL(s);
   CU_ASSERT_FATAL(idl_is_struct(s));
+  assert(s);
   c = (idl_member_t *)s->members;
   CU_ASSERT_PTR_NOT_NULL(c);
+  assert(c);
   CU_ASSERT_FATAL(idl_is_member(c));
   CU_ASSERT_EQUAL(c->id.annotation, IDL_ID);
   CU_ASSERT_EQUAL(c->id.value, 1);
@@ -83,11 +86,14 @@ CU_Test(idl_annotation, key)
   ret = parse_string(IDL_FLAG_ANNOTATIONS, str, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   s = (idl_struct_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_struct(s));
+  assert(s);
   m = (idl_member_t *)s->members;
   CU_ASSERT_FATAL(idl_is_member(m));
   CU_ASSERT_EQUAL(m->key, IDL_TRUE);
+  assert(m);
   m = idl_next(m);
   CU_ASSERT_FATAL(idl_is_member(m));
   CU_ASSERT_EQUAL(m->key, IDL_TRUE);
@@ -113,6 +119,7 @@ CU_Test(idl_annotation, nested)
   ret = parse_string(IDL_FLAG_ANNOTATIONS, str, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   s = (idl_struct_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_struct(s));
   CU_ASSERT_EQUAL(s->nested.annotation, IDL_DEFAULT_NESTED);
@@ -249,8 +256,7 @@ CU_Test(idl_annotation, redefinition)
     ret = parse_string(IDL_FLAG_ANNOTATIONS, redef[i].str, &pstate);
     CU_ASSERT_EQUAL(ret, redef[i].ret);
     if (ret == IDL_RETCODE_OK) {
-      CU_ASSERT_PTR_NOT_NULL(pstate);
-      CU_ASSERT_PTR_NOT_NULL(pstate->builtin_root);
+      CU_ASSERT(pstate && pstate->builtin_root);
     }
     idl_delete_pstate(pstate);
   }
