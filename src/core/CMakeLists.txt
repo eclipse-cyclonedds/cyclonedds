@@ -64,7 +64,7 @@ install(
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
 )
 
-if(BUILD_IDLC)
+if(BUILD_TESTING AND BUILD_IDLC)
   add_subdirectory(xtests)
 endif()
 

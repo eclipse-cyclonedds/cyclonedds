@@ -9,5 +9,6 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
+include(CUnit)
 add_subdirectory(rhc_torture)
 add_subdirectory(initsampledeliv)
