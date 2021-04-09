@@ -26,6 +26,7 @@ static void test_bad_use(const char *str)
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL(ret, IDL_RETCODE_SEMANTIC_ERROR);
   CU_ASSERT_PTR_NULL(pstate->root);
@@ -79,6 +80,7 @@ CU_Test(idl_pragma, keylist)
 
   ret = parse_string(str, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  assert(pstate);
   s1 = (idl_struct_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_struct(s1));
   CU_ASSERT((idl_mask(s1->keylist) & IDL_KEYLIST) != 0);
@@ -96,6 +98,7 @@ CU_Test(idl_pragma, keylist_nested_key)
 
   ret = parse_string(str, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  assert(pstate);
   s1 = idl_next(pstate->root);
   CU_ASSERT_FATAL(idl_is_struct(s1));
   CU_ASSERT((idl_mask(s1->keylist) & IDL_KEYLIST) != 0);
@@ -113,6 +116,7 @@ CU_Test(idl_pragma, keylist_scoped_name)
 
   ret = parse_string(str, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  assert(pstate);
   m1 = (idl_module_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_module(m1));
   s1 = (idl_struct_t *)m1->definitions;
@@ -134,6 +138,7 @@ CU_Test(idl_pragma, keylist_outer_scope)
 
   ret = parse_string(str, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  assert(pstate);
   s1 = (idl_struct_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_struct(s1));
   CU_ASSERT((idl_mask(s1->keylist) & IDL_KEYLIST) != 0);
@@ -151,6 +156,7 @@ CU_Test(idl_pragma, unknown)
   ret = parse_string(str, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   s1 = (idl_struct_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_struct(s1));
   idl_delete_pstate(pstate);

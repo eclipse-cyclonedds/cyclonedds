@@ -238,13 +238,13 @@ int_multiply(idl_intval_t *a, idl_intval_t *b, idl_intval_t *r)
       break;
     case 1:
       if (u(b) > (uint64_t)(intmin(gt) / s(a)))
-        return -1;
+        return IDL_RETCODE_OUT_OF_RANGE;
       u(r) = u(a) * u(b);
       t(r) = gt & ~1u;
       break;
     case 2:
       if (u(a) && u(a) > (uint64_t)(intmin(gt) / s(b)))
-        return -1;
+        return IDL_RETCODE_OUT_OF_RANGE;
       u(r) = u(a) * u(b);
       t(r) = gt & ~1u;
       break;
@@ -715,6 +715,7 @@ idl_evaluate(
     literal = ((idl_const_t *)const_expr)->const_expr;
   else if (idl_is_literal(const_expr))
     literal = const_expr;
+  assert(literal);
 
   if (implicit == IDL_CHAR) {
     if (idl_type(literal) == IDL_CHAR) {

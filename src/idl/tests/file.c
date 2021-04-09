@@ -134,6 +134,7 @@ CU_Test(idl_file, untaint)
 
     str = idl_strdup(tests[i].input);
     CU_ASSERT_PTR_NOT_NULL_FATAL(str);
+    assert(str);
     fprintf(stderr, "input: '%s'\n", str);
     len = idl_untaint_path(str);
     if (tests[i].length == -1) {
@@ -157,6 +158,7 @@ CU_Test(idl_file, normalize_empty)
   ret = idl_normalize_path("", &norm);
   CU_ASSERT_FATAL(ret >= 0);
   CU_ASSERT_PTR_NOT_NULL_FATAL(norm);
+  assert(prefix);
   fprintf(stderr, "path: %s\nexpect: %s\nnormalized: %s\n", prefix, prefix, norm);
   CU_ASSERT_STRING_EQUAL(norm, prefix);
   free(norm);
@@ -169,9 +171,11 @@ CU_Test(idl_file, normalize_revert)
 
   idl_asprintf(&path, "%s/..", prefix);
   CU_ASSERT_PTR_NOT_NULL_FATAL(path);
+  assert(path);
   ret = idl_normalize_path(path, &norm);
   CU_ASSERT_FATAL(ret >= 0);
   CU_ASSERT_PTR_NOT_NULL_FATAL(norm);
+  assert(norm);
   fprintf(stderr, "path: %s\n", path);
   { size_t sep = 0;
     for (size_t i=0,n=strlen(prefix); i < n; i++) {
@@ -202,6 +206,7 @@ CU_Test(idl_file, normalize_revert_too_many)
   size = steps * step;
   revert = malloc(size + 1);
   CU_ASSERT_PTR_NOT_NULL_FATAL(revert);
+  assert(revert);
   for (size_t i=0; i < steps; i++)
     memcpy(revert + (i*step), "/..", step);
   revert[size] = '\0';
@@ -311,7 +316,7 @@ CU_Test(idl_file, relative)
       fprintf(stderr, "relative: '%s'\n", rel);
     if (t[i].relpath) {
       CU_ASSERT_PTR_NOT_NULL_FATAL(rel);
-      CU_ASSERT_STRING_EQUAL(t[i].relpath, rel);
+      CU_ASSERT(rel && strcmp(t[i].relpath, rel) == 0);
     } else {
       CU_ASSERT_PTR_NULL(rel);
     }

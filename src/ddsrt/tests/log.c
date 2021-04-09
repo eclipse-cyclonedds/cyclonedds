@@ -205,6 +205,7 @@ CU_Test(dds_log, same_file, .init=setup, .fini=teardown)
   CU_ASSERT_PTR_NOT_NULL_FATAL(ptr);
   /* The message should only have been printed once, verify foobar does not
      occur again. */
+  assert(ptr);
   ptr = strstr(ptr + 1, "foobar\n");
   CU_ASSERT_PTR_NULL(ptr);
 #endif

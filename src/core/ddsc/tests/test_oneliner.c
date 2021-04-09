@@ -1077,12 +1077,12 @@ static bool parse_sample_value (struct oneliner_ctx *ctx, Space_Type1 *s, bool *
 }
 
 struct doreadlike_sample {
-  uint32_t state;
-  bool valid_data;
   dds_time_t ts;
-  int wrent;
   dds_instance_handle_t wrih;
+  uint32_t state;
+  int wrent;
   Space_Type1 data;
+  bool valid_data;
 };
 
 static bool wrname_from_pubhandle (const struct oneliner_ctx *ctx, int ent, dds_instance_handle_t pubhandle, entname_t *wrname)
