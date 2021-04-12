@@ -471,6 +471,8 @@ eval_int(
   idl_literal_t literal;
   idl_type_t as = IDL_LONG;
 
+  memset(&literal, 0, sizeof(literal));
+
   if (((unsigned)type & (unsigned)IDL_LLONG) == IDL_LLONG)
     as = IDL_LLONG;
   if ((ret = eval_int_expr(pstate, expr, as, &val)))
@@ -717,6 +719,7 @@ idl_evaluate(
     literal = const_expr;
   assert(literal);
 
+  memset(&temporary, 0, sizeof(temporary));
   if (implicit == IDL_CHAR) {
     if (idl_type(literal) == IDL_CHAR) {
       temporary.value.chr = literal->value.chr;

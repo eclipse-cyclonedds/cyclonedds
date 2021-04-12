@@ -439,7 +439,7 @@ char *create_topic_name (const char *prefix, uint32_t nr, char *name, size_t siz
 {
   ddsrt_pid_t pid = ddsrt_getpid ();
   ddsrt_tid_t tid = ddsrt_gettid ();
-  (void)snprintf(name, size, "%s%d_pid%" PRIdPID "_tid%" PRIdTID "", prefix, nr, pid, tid);
+  (void)snprintf(name, size, "%s%"PRIu32"_pid%" PRIdPID "_tid%" PRIdTID "", prefix, nr, pid, tid);
   return name;
 }
 

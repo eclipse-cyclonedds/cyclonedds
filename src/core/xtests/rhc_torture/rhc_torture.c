@@ -147,7 +147,7 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct pro
     if (sd->kind == SDK_KEY)
       printf ("STORE %c%c %16"PRIx64" %16"PRIx64" %2"PRId32" %6s %s\n", si_u, si_d, iid, wr->e.iid, d.k, "_", buf);
     else
-      printf ("STORE %c%c %16"PRIx64" %16"PRIx64" %2"PRId32" %6"PRIu32" %s\n", si_u, si_d, iid, wr->e.iid, d.k, d.x, buf);
+      printf ("STORE %c%c %16"PRIx64" %16"PRIx64" %2"PRId32" %6"PRId32" %s\n", si_u, si_d, iid, wr->e.iid, d.k, d.x, buf);
     ddsi_sertype_free_sample (sd->type, &d, DDS_FREE_CONTENTS);
   }
   pwr_info.auto_dispose = wr->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
@@ -311,7 +311,7 @@ static void print_seq (int n, const dds_sample_info_t *iseq, const RhcTypes_T *m
             si->sample_rank, si->generation_rank, si->absolute_generation_rank,
             d->k);
     if (si->valid_data)
-      printf (" %6"PRIu32, d->x);
+      printf (" %6"PRId32, d->x);
     else
       printf (" %6s", "_");
     printf (" %s\n", print_tstamp (buf, sizeof (buf), si->source_timestamp));
@@ -557,7 +557,7 @@ static void print_cond_w_addr (const char *label, dds_entity_t x)
     abort();
   assert (dds_entity_kind (e) == DDS_KIND_COND_READ || dds_entity_kind (e) == DDS_KIND_COND_QUERY);
   print_condmask (buf, sizeof (buf), (dds_readcond *) e);
-  printf ("%s: %"PRIu32" => %p %s\n", label, x, (void *) e, buf);
+  printf ("%s: %"PRId32" => %p %s\n", label, x, (void *) e, buf);
   dds_entity_unlock (e);
 }
 

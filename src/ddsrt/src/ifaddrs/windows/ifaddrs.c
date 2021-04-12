@@ -209,55 +209,53 @@ copyaddr(
   sa = (struct sockaddr *)addr->Address.lpSockaddr;
   sz = (size_t)addr->Address.iSockaddrLength;
 
-  if ((ifa = ddsrt_calloc_s(1, sizeof(*ifa))) == NULL) {
-    rc = DDS_RETCODE_OUT_OF_RESOURCES;
-  } else {
-    ifa->flags = getflags(iface);
-    ifa->type = guess_iftype(iface);
-    if ((ifa->addr = ddsrt_memdup(sa, sz)) == NULL) {
-      rc = DDS_RETCODE_OUT_OF_RESOURCES;
-    } else {
-      rc = copyname(iface->FriendlyName, &ifa->name);
-    }
+  if (!(ifa = ddsrt_calloc_s(1, sizeof(*ifa))))
+    goto err_ifa;
+  ifa->flags = getflags(iface);
+  ifa->type = guess_iftype(iface);
+  if (!(ifa->addr = ddsrt_memdup(sa, sz)))
+    goto err_ifa_addr;
+  if ((rc = copyname(iface->FriendlyName, &ifa->name)))
+    goto err_ifa_name;
 
-    if (ifa->addr->sa_family == AF_INET6) {
-      ifa->index = iface->Ipv6IfIndex;
+  if (ifa->addr->sa_family == AF_INET6) {
+    ifa->index = iface->Ipv6IfIndex;
 
-      /* Address is not in addrtable if the interface is not connected. */
-    } else if (ifa->addr->sa_family == AF_INET && (ifa->flags & IFF_UP)) {
-      DWORD i = 0;
-      struct sockaddr_in nm, bc, *sin = (struct sockaddr_in *)sa;
+    /* Address is not in addrtable if the interface is not connected. */
+  } else if (ifa->addr->sa_family == AF_INET && (ifa->flags & IFF_UP)) {
+    DWORD i = 0;
+    struct sockaddr_in nm, bc, *sin = (struct sockaddr_in *)sa;
 
-      assert(sz == sizeof(nm));
-      memset(&nm, 0, sz);
-      memset(&bc, 0, sz);
-      nm.sin_family = bc.sin_family = AF_INET;
+    assert(sz == sizeof(nm));
+    memset(&nm, 0, sz);
+    memset(&bc, 0, sz);
+    nm.sin_family = bc.sin_family = AF_INET;
 
-      for (; i < addrtable->dwNumEntries;  i++) {
-        if (sin->sin_addr.s_addr == addrtable->table[i].dwAddr) {
-          ifa->index = addrtable->table[i].dwIndex;
-          nm.sin_addr.s_addr = addrtable->table[i].dwMask;
-          bc.sin_addr.s_addr = sin->sin_addr.s_addr | ~(nm.sin_addr.s_addr);
-          break;
-        }
-      }
-
-      assert(i < addrtable->dwNumEntries);
-
-      if ((ifa->netmask = ddsrt_memdup(&nm, sz)) == NULL ||
-          (ifa->broadaddr = ddsrt_memdup(&bc, sz)) == NULL)
-      {
-        rc = DDS_RETCODE_OUT_OF_RESOURCES;
+    for (; i < addrtable->dwNumEntries;  i++) {
+      if (sin->sin_addr.s_addr == addrtable->table[i].dwAddr) {
+        ifa->index = addrtable->table[i].dwIndex;
+        nm.sin_addr.s_addr = addrtable->table[i].dwMask;
+        bc.sin_addr.s_addr = sin->sin_addr.s_addr | ~(nm.sin_addr.s_addr);
+        break;
       }
     }
+
+    assert(i < addrtable->dwNumEntries);
+    if (!(ifa->netmask = ddsrt_memdup(&nm, sz)))
+      goto err_ifa_netmask;
+    if (!(ifa->broadaddr = ddsrt_memdup(&bc, sz)))
+      goto err_ifa_broadaddr;
   }
 
-  if (rc == DDS_RETCODE_OK) {
-    *ifap = ifa;
-  } else {
-    ddsrt_freeifaddrs(ifa);
-  }
-
+  *ifap = ifa;
+  return rc;
+err_ifa:
+err_ifa_addr:
+err_ifa_netmask:
+err_ifa_broadaddr:
+  rc = DDS_RETCODE_OUT_OF_RESOURCES;
+err_ifa_name:
+  ddsrt_freeifaddrs(ifa);
   return rc;
 }
 

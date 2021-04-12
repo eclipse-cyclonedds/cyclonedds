@@ -1392,6 +1392,10 @@ generate_descriptor(
 
 err_print:
 err_emit:
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable: 6001)
+#endif
   for (size_t i=0; i < descriptor.instructions.count; i++) {
     struct instruction *inst = &descriptor.instructions.table[i];
     switch (inst->type) {
@@ -1415,5 +1419,8 @@ err_emit:
   }
   if (descriptor.instructions.table)
     free(descriptor.instructions.table);
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
   return ret;
 }

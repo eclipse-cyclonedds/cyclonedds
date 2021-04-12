@@ -1315,6 +1315,7 @@ crypto_factory_set_datawriter_crypto_tokens(
   CRYPTO_OBJECT_RELEASE(remote_writer_crypto->writer2reader_key_material[0]);
   CRYPTO_OBJECT_RELEASE(remote_writer_crypto->writer2reader_key_material[1]);
 
+  assert(writer_master_key[0]);
   remote_writer_crypto->writer2reader_key_material[0] = writer_master_key[0];
   if (writer_master_key[1])
     remote_writer_crypto->writer2reader_key_material[1] = writer_master_key[1];

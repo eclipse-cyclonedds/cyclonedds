@@ -244,10 +244,12 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
     goto fail_prefix;
   }
 
+  DDSRT_WARNING_MSVC_OFF(6326)
   if (prefix->flags & 0x01)
     swap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   else
     swap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
+  DDSRT_WARNING_MSVC_ON(6326)
 
   hlen = swap ? ddsrt_bswap2u(prefix->length) : prefix->length;
 

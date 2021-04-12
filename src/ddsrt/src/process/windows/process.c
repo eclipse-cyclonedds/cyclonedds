@@ -84,6 +84,7 @@ ddsrt_proc_create(
                             &si,                      // StartupInfo
                             &process_info);           // ProcessInformation
     if (created) {
+      CloseHandle(process_info.hThread);
       if (child_add(process_info.hProcess)) {
         *pid = process_info.dwProcessId;
         rv = DDS_RETCODE_OK;

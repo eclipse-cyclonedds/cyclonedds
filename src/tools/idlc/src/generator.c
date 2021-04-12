@@ -100,14 +100,15 @@ char *typename(const void *node)
     case IDL_STRING:   return idl_strdup("char");
     case IDL_SEQUENCE: {
       /* sequences require a little magic */
-      const char pref[] = "dds_sequence_";
-      const char seq[] = "sequence_";
-      char dims[32] = "";
+      const char *pref = "dds_sequence_";
+      const char *seq = "sequence_";
+      char dims[32];
       const idl_type_spec_t *type_spec;
       const char *type;
       char *name = NULL, *seqtype = NULL;
       size_t cnt = 0, len = 0, pos = 0;
 
+      dims[0] = '\0';
       type_spec = idl_type_spec(node);
       for (; idl_is_sequence(type_spec); type_spec = idl_type_spec(type_spec))
         cnt++;
@@ -147,6 +148,9 @@ char *typename(const void *node)
       if (!(seqtype = malloc(len + (cnt * strlen(seq)) + 1)))
         goto err_seqtype;
       len = strlen(pref);
+#if defined(_MSC_VER)
+#pragma warning(suppress: 6386)
+#endif
       memcpy(seqtype, pref, len);
       pos += len;
       for (; cnt; pos += strlen(seq), cnt--)

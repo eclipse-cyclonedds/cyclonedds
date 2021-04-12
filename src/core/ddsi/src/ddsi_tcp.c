@@ -752,10 +752,12 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const ddsi_locator_t 
 
 #ifdef DDS_HAS_SSL
   /* If allocated memory for merging original fragments into a single buffer, free it */
+  DDSRT_WARNING_MSVC_OFF(28199)
   if (msg.msg_iov == &iovec && iovec.iov_base != msgbuf)
   {
     ddsrt_free (iovec.iov_base);
   }
+  DDSRT_WARNING_MSVC_ON(28199)
 #endif
 
   ddsrt_mutex_unlock (&conn->m_mutex);

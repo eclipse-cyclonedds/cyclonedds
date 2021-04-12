@@ -41,6 +41,7 @@ typedef time_t ddsrt_tv_sec_t;
 inline struct timeval *
 ddsrt_duration_to_timeval_ceil(dds_duration_t reltime, struct timeval *tv)
 {
+  DDSRT_WARNING_MSVC_OFF(6326)
   assert(tv != NULL);
 
   if (reltime == DDS_INFINITY) {
@@ -72,6 +73,7 @@ ddsrt_duration_to_timeval_ceil(dds_duration_t reltime, struct timeval *tv)
   }
 
   return tv;
+  DDSRT_WARNING_MSVC_ON(6326)
 }
 
 #if defined(__cplusplus)
