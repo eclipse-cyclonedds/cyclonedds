@@ -63,7 +63,7 @@ static void printhead(
   (void)level;
   (void)flags;
   (void)units;
-  assert(level < sizeof(hashes));
+  assert(level < (sizeof(hashes) - 1));
   hashes[level+1] = '\0';
   fprintf(out, "%s %s\n", hashes, elem->meta.title);
   hashes[level+1] = '#';

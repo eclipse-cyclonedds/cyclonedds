@@ -3562,7 +3562,9 @@ static int32_t padding_submsg (struct ddsi_domaingv *gv, unsigned char *start, u
   SubmessageHeader_t * const padding = (SubmessageHeader_t *) start;
   padding->submessageId = SMID_PAD;
   DDSRT_STATIC_ASSERT (SMFLAG_ENDIANNESS == 1);
+  DDSRT_WARNING_MSVC_OFF(6326)
   padding->flags = (byteswap ? !(DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) : (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN));
+  DDSRT_WARNING_MSVC_ON(6326)
   padding->octetsToNextHeader = (uint16_t) (size - RTPS_SUBMESSAGE_HEADER_SIZE);
   if (byteswap)
     padding->octetsToNextHeader = ddsrt_bswap2u (padding->octetsToNextHeader);
@@ -3650,10 +3652,12 @@ bool decode_SecPrefix (const struct receiver_state *rst, unsigned char *submsg, 
   const uint8_t saved_flags = hdr->flags;
   if (byteswap)
   {
+    DDSRT_WARNING_MSVC_OFF(6326)
     if (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN)
       hdr->flags |= 0x01;
     else
       hdr->flags &= 0xFE;
+    DDSRT_WARNING_MSVC_ON(6326)
   }
   bool result = decode_SecPrefix_patched_hdr_flags (rst, submsg, submsg_size, msg_end, src_prefix, dst_prefix, byteswap);
   hdr->flags = saved_flags;

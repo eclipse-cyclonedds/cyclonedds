@@ -16,6 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sockets.h"
+#include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_ipaddr.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -101,10 +102,9 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (const struct ddsi_
   // hostnames seem to be limited to 255 characters, add a port of max 5
   // digits and a colon, and so 262 should be enough.  (Numerical addresses
   // add a few other characters, but even so this ought to be plenty.)
-  const size_t len = strlen(str);
-  if (len == 0 || len >= sizeof(copy))
+  size_t cnt = ddsrt_strlcpy(copy, str, sizeof(copy));
+  if (cnt == 0 || cnt >= sizeof(copy))
     return AFSR_INVALID;
-  memcpy(copy, str, len + 1);
   char *ipstr = copy;
   char *portstr = strrchr(copy, ':');
   if (af == AF_INET6 && portstr != strchr(copy, ':') && ipstr[0] != '[')
@@ -146,9 +146,9 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (const struct ddsi_
       // in the absence of a port, the last character in the string.
       ipstr = copy + 1;
       if (portstr == NULL) {
-        if (copy[len - 1] != ']')
+        if (copy[cnt - 1] != ']')
           return AFSR_INVALID;
-        copy[len - 1] = 0;
+        copy[cnt - 1] = 0;
       } else {
         assert (portstr > copy);
         if (portstr[-1] != ']')

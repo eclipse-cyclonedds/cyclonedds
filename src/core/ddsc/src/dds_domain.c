@@ -157,7 +157,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
 
   /* Set additional default participant properties */
 
-  char progname[50] = "UNKNOWN"; /* FIXME: once retrieving process names is back in */
+  const char *progname = "UNKNOWN"; /* FIXME: once retrieving process names is back in */
   len = (uint32_t) (strlen (progname) + 13);
   domain->gv.default_local_plist_pp.entity_name = dds_alloc (len);
   (void) snprintf (domain->gv.default_local_plist_pp.entity_name, len, "%s<%u>", progname, (unsigned) ddsrt_getpid ());

@@ -409,6 +409,7 @@ static void hist_reset (struct hist *h)
 static struct hist *hist_new (unsigned nbins, uint64_t binwidth, uint64_t bin0)
 {
   struct hist *h = malloc (sizeof (*h) + nbins * sizeof (*h->bins));
+  assert(h);
   h->nbins = nbins;
   h->binwidth = binwidth;
   h->bin0 = bin0;
@@ -543,6 +544,7 @@ static void *make_baggage (dds_sequence_octet *b, uint32_t cnt)
   else
   {
     b->_buffer = malloc (b->_maximum);
+    assert(b->_buffer);
     memset(b->_buffer, 0xee, b->_maximum);
   }
   return b->_buffer;
@@ -599,6 +601,7 @@ static uint32_t pubthread (void *varg)
 
   baggage = init_sample (&data, 0);
   ihs = malloc (nkeyvals * sizeof (dds_instance_handle_t));
+  assert(ihs);
   if (!register_instances)
   {
     for (unsigned k = 0; k < nkeyvals; k++)
@@ -807,6 +810,7 @@ static dds_instance_handle_t get_pphandle_for_pubhandle (dds_instance_handle_t p
   }
 }
 
+DDSRT_WARNING_MSVC_OFF(6308)
 static int check_eseq (struct eseq_admin *ea, uint32_t seq, uint32_t keyval, uint32_t size, const dds_instance_handle_t pubhandle, int64_t tdelta)
 {
   uint32_t *eseq;
@@ -831,15 +835,22 @@ static int check_eseq (struct eseq_admin *ea, uint32_t seq, uint32_t keyval, uin
       return seq == e;
     }
   ea->ph = realloc (ea->ph, (ea->nph + 1) * sizeof (*ea->ph));
+  assert(ea->ph);
   ea->ph[ea->nph] = pubhandle;
   ea->pph = realloc (ea->pph, (ea->nph + 1) * sizeof (*ea->pph));
+  assert(ea->pph);
   ea->pph[ea->nph] = get_pphandle_for_pubhandle (pubhandle);
   ea->eseq = realloc (ea->eseq, (ea->nph + 1) * sizeof (*ea->eseq));
+  assert(ea->eseq);
   ea->eseq[ea->nph] = malloc (ea->nkeys * sizeof (*ea->eseq[ea->nph]));
+  assert(ea->eseq[ea->nph]);
   eseq = ea->eseq[ea->nph];
+  DDSRT_WARNING_MSVC_OFF(6386)
   for (unsigned i = 0; i < ea->nkeys; i++)
     eseq[i] = seq + (i - keyval) + (i <= keyval ? ea->nkeys : 0);
+  DDSRT_WARNING_MSVC_ON(6386)
   ea->stats = realloc (ea->stats, (ea->nph + 1) * sizeof (*ea->stats));
+  assert(ea->stats);
   memset (&ea->stats[ea->nph], 0, sizeof (ea->stats[ea->nph]));
   ea->stats[ea->nph].nrecv = 1;
   ea->stats[ea->nph].nrecv_bytes = size;
@@ -853,6 +864,7 @@ static int check_eseq (struct eseq_admin *ea, uint32_t seq, uint32_t keyval, uin
   ddsrt_mutex_unlock (&ea->lock);
   return 1;
 }
+DDSRT_WARNING_MSVC_ON(6308)
 
 static bool update_roundtrip (dds_instance_handle_t pubhandle, int64_t tdelta, bool isping, uint32_t seq)
 {
@@ -875,7 +887,10 @@ static bool update_roundtrip (dds_instance_handle_t pubhandle, int64_t tdelta, b
       ddsrt_mutex_unlock (&pongstat_lock);
       return allseen;
     }
+  DDSRT_WARNING_MSVC_OFF(6308)
   pongstat = realloc (pongstat, (npongstat + 1) * sizeof (*pongstat));
+  assert(pongstat);
+  DDSRT_WARNING_MSVC_ON(6308)
   struct subthread_arg_pongstat * const x = &pongstat[npongstat];
   x->pubhandle = pubhandle;
   x->pphandle = get_pphandle_for_pubhandle (pubhandle);
@@ -912,7 +927,10 @@ static dds_entity_t get_pong_writer_locked (dds_instance_handle_t pubhandle)
       }
       else
       {
+        DDSRT_WARNING_MSVC_OFF(6308)
         pongwr = realloc (pongwr, (npongwr + 1) * sizeof (*pongwr));
+        assert(pongwr);
+        DDSRT_WARNING_MSVC_ON(6308)
         pongwr[npongwr].pubhandle = pubhandle;
         pongwr[npongwr].pphandle = pphandle;
         pongwr[npongwr].wr_pong = wr_pong;
@@ -1205,7 +1223,10 @@ static dds_entity_t create_pong_writer (dds_instance_handle_t pphandle, const st
   dds_delete_listener (listener);
 
   ddsrt_mutex_lock (&pongwr_lock);
+  DDSRT_WARNING_MSVC_OFF(6308)
   pongwr = realloc (pongwr, (npongwr + 1) * sizeof (*pongwr));
+  assert(pongwr);
+  DDSRT_WARNING_MSVC_ON(6308)
   pongwr[npongwr].pubhandle = 0;
   pongwr[npongwr].pphandle = pphandle;
   pongwr[npongwr].wr_pong = wr_pong;
@@ -1293,6 +1314,7 @@ static void participant_data_listener (dds_entity_t rd, void *arg)
         {
           size_t sz = usz - (unsigned) pos;
           char *hostname = malloc (sz);
+          assert (hostname);
           memcpy (hostname, udata + pos + 1, sz);
           ddsrt_mutex_lock (&disc_lock);
           if ((pp = ddsrt_avl_lookup_ipath (&ppants_td, &ppants, &info.instance_handle, &ipath)) != NULL)
@@ -1301,6 +1323,7 @@ static void participant_data_listener (dds_entity_t rd, void *arg)
           {
             printf ("[%"PRIdPID"] participant %s:%"PRIu32": new%s\n", ddsrt_getpid (), hostname, (uint32_t) pid, (info.instance_handle == dp_handle) ? " (self)" : "");
             pp = malloc (sizeof (*pp));
+            assert(pp);
             pp->handle = info.instance_handle;
             pp->guid = sample->key;
             pp->hostname = hostname;
@@ -1613,9 +1636,13 @@ static void subthread_arg_init (struct subthread_arg *arg, dds_entity_t rd, uint
   arg->rd = rd;
   arg->max_samples = max_samples;
   arg->mseq = malloc (arg->max_samples * sizeof (arg->mseq[0]));
+  assert(arg->mseq);
   arg->iseq = malloc (arg->max_samples * sizeof (arg->iseq[0]));
+  assert(arg->iseq);
+  DDSRT_WARNING_MSVC_OFF(6386)
   for (uint32_t i = 0; i < arg->max_samples; i++)
     arg->mseq[i] = NULL;
+  DDSRT_WARNING_MSVC_ON(6386)
 }
 
 static void subthread_arg_fini (struct subthread_arg *arg)

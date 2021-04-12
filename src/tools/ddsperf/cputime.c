@@ -210,6 +210,7 @@ struct record_cputime_state *record_cputime_new (dds_entity_t wr)
   state->vcswprev = (uint32_t) usage.nvcsw;
   state->ivcswprev = (uint32_t) usage.nivcsw;
   state->threads = malloc ((size_t) n * sizeof (*state->threads));
+  assert(state->threads);
   state->nthreads = 0;
   for (int32_t i = 0; i < n; i++)
   {
