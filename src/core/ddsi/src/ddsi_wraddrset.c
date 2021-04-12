@@ -294,7 +294,20 @@ static struct locset *wras_calc_locators (const struct ddsrt_log_cfg *logcfg, st
 #define CI_MULTICAST_SSM          2
 #define CI_MULTICAST_MCGEN_OFFSET 3
 
+// Cost associated with delivering another time to a reader that has
+// already been covered by previously selected locators
 static const int32_t cost_discarded = 1;
+
+// Cost associated with delivering another time to a reader that has
+// already been covered by a (selected) Iceoryx locator.  Currently,
+// it is quite painful when this happens because it can lead to user
+// observable stuttering
+static const int32_t cost_redundant_iceoryx = 1000000;
+
+// Cost associated with delivering data for the first time (slightly
+// negative cost makes it possible to give a slightly higher initial
+// cost to multicasts and switch over from unicast to multicast once
+// several readers can be addressed simultaneously)
 static const int32_t cost_delivered = -1;
 
 #define CI_ICEORYX        0xfc // FIXME: this is a hack
@@ -349,12 +362,16 @@ static readercount_cost_t calc_locator_cost (const struct cover *c, int lidx, bo
     if ((ci & CI_STATUS_MASK) == CI_NOMATCH)
       continue;
 
+#if 0
+    // this is nice for checking the incremental work done in wras_drop_covered_readers,
+    // but that is only possible if the cost_redundant_iceoryx == cost_discarded
     if ((ci & CI_STATUS_MASK) == CI_INCLUDED)
     {
       // FIXME: need addressed hosts, addressed processes; those change when nodes come/go
       x.cost = sat_cost_add (x.cost, cost_discarded);
     }
     else
+#endif
     {
       assert ((ci & CI_STATUS_MASK) == CI_REACHABLE);
       x.cost = sat_cost_add (x.cost, cost_delivered);
@@ -693,7 +710,8 @@ static void wras_drop_covered_readers (int locidx, struct costmap *wm, struct co
   const int nlocs = cover_get_nlocs (covered);
   for (int i = 0; i < nreaders; i++)
   {
-    if ((cover_get (covered, i, locidx) & CI_STATUS_MASK) != CI_REACHABLE)
+    const cover_info_t ci_rd_loc = cover_get (covered, i, locidx);
+    if ((ci_rd_loc & CI_STATUS_MASK) != CI_REACHABLE)
       continue;
     for (int j = 0; j < nlocs; j++)
     {
@@ -702,11 +720,15 @@ static void wras_drop_covered_readers (int locidx, struct costmap *wm, struct co
       {
         cover_set (covered, i, j, (cover_info_t) ((ci & ~CI_STATUS_MASK) | CI_INCLUDED));
         // from reachable to included -> cost goes from "delivered" to "discarded"
-        costmap_adjust (wm, j, cost_discarded - cost_delivered);
+        const int32_t cost =
+          ((ci_rd_loc & ~CI_STATUS_MASK) == CI_ICEORYX) ? cost_redundant_iceoryx : cost_discarded;
+        costmap_adjust (wm, j, cost - cost_delivered);
       }
     }
   }
-#ifndef NDEBUG
+#if 0 && !defined NDEBUG
+  // if distinguishing between consequences of delivering via multiple locators to one
+  // already covered by iceoryx, this doesn't work anymore
   for (int j = 0; j < nlocs; j++)
   {
     const readercount_cost_t a = costmap_get (wm, j);
