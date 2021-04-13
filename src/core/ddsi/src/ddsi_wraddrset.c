@@ -153,6 +153,8 @@ static void costmap_set (struct costmap *wm, int lidx, readercount_cost_t v)
 static void costmap_adjust (struct costmap *wm, int lidx, delta_cost_t v)
 {
   assert (lidx < wm->nlocs);
+  if (wm->m[lidx].cost == INT32_MAX)
+    return;
   assert (wm->m[lidx].nrds > 0);
   if (--wm->m[lidx].nrds == 0)
     wm->m[lidx].cost = INT32_MAX;
@@ -321,7 +323,7 @@ static cost_t sat_cost_add (cost_t x, int32_t a)
     return (x < INT32_MIN - a) ? INT32_MIN : x + a;
 }
 
-static readercount_cost_t calc_locator_cost (const struct cover *c, int lidx, bool prefer_multicast)
+static readercount_cost_t calc_locator_cost (const struct cover *c, int lidx, bool prefer_multicast, bool allow_shm)
 {
   const int32_t cost_uc  = prefer_multicast ? 1000000 : 2;
   const int32_t cost_mc  = prefer_multicast ? 1 : 3;
@@ -346,7 +348,12 @@ static readercount_cost_t calc_locator_cost (const struct cover *c, int lidx, bo
     goto no_readers;
 
   if ((ci & ~CI_STATUS_MASK) == CI_ICEORYX)
-    x.cost = INT32_MIN;
+  {
+    if (allow_shm)
+      x.cost = INT32_MIN;
+    else
+      goto no_readers;
+  }
   else if ((ci & CI_MULTICAST_MASK) == 0)
     x.cost += cost_uc;
   else if (((ci & CI_MULTICAST_MASK) >> CI_MULTICAST_SHIFT) == CI_MULTICAST_SSM)
@@ -591,12 +598,12 @@ addrset_changed:
   return false;
 }
 
-static struct costmap *wras_calc_costmap (const struct cover *covered, bool prefer_multicast)
+static struct costmap *wras_calc_costmap (const struct cover *covered, bool prefer_multicast, bool allow_shm)
 {
   const int nlocs = cover_get_nlocs (covered);
   struct costmap *wm = costmap_new (nlocs);
   for (int i = 0; i < nlocs; i++)
-    costmap_set (wm, i, calc_locator_cost (covered, i, prefer_multicast));
+    costmap_set (wm, i, calc_locator_cost (covered, i, prefer_multicast, allow_shm));
   return wm;
 }
 
@@ -741,7 +748,7 @@ static void wras_drop_covered_readers (int locidx, struct costmap *wm, struct co
 #endif
 }
 
-struct addrset *compute_writer_addrset (const struct writer *wr)
+struct addrset *compute_writer_addrset (const struct writer *wr, bool enable_shm)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   const bool prefer_multicast = gv->config.prefer_multicast;
@@ -777,7 +784,7 @@ struct addrset *compute_writer_addrset (const struct writer *wr)
   }
   else
   {
-    struct costmap *wm = wras_calc_costmap (covered, prefer_multicast);
+    struct costmap *wm = wras_calc_costmap (covered, prefer_multicast, enable_shm);
     int best;
     newas = new_addrset ();
     while ((best = wras_choose_locator (locs, wm)) >= 0)
