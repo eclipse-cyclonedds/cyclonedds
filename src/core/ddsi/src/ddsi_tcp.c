@@ -69,6 +69,7 @@ typedef struct ddsi_tcp_listener {
 
 struct ddsi_tran_factory_tcp {
   struct ddsi_tran_factory fact;
+  int32_t m_kind;
   ddsrt_mutex_t ddsi_tcp_cache_lock_g;
   ddsrt_avl_tree_t ddsi_tcp_cache_g;
   struct ddsi_tcp_conn ddsi_tcp_conn_client;
@@ -180,7 +181,7 @@ static dds_return_t ddsi_tcp_sock_new (struct ddsi_tran_factory_tcp * const fact
   dds_return_t rc;
 
   memset (&socketname, 0, sizeof (socketname));
-  switch (fact->fact.m_kind)
+  switch (fact->m_kind)
   {
     case NN_LOCATOR_KIND_TCPv4:
       socketname.a4.sin_family = AF_INET;
@@ -195,7 +196,7 @@ static dds_return_t ddsi_tcp_sock_new (struct ddsi_tran_factory_tcp * const fact
       break;
 #endif
     default:
-      DDS_FATAL ("ddsi_tcp_sock_new: unsupported kind %"PRId32"\n", fact->fact.m_kind);
+      DDS_FATAL ("ddsi_tcp_sock_new: unsupported kind %"PRId32"\n", fact->m_kind);
   }
   if ((rc = ddsrt_socket (sock, socketname.a.sa_family, SOCK_STREAM, 0)) != DDS_RETCODE_OK)
   {
@@ -778,14 +779,14 @@ static ddsrt_socket_t ddsi_tcp_conn_handle (ddsi_tran_base_t base)
 ddsrt_attribute_no_sanitize (("thread"))
 static bool ddsi_tcp_supports (const struct ddsi_tran_factory *fact_cmn, int32_t kind)
 {
-  return kind == fact_cmn->m_kind;
+  struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) fact_cmn;
+  return kind == fact->m_kind;
 }
 
 static int ddsi_tcp_locator (struct ddsi_tran_factory *fact_cmn, ddsi_tran_base_t base, ddsi_locator_t *loc)
 {
-  //loc->tran = fact_cmn;
-  //loc->conn = NULL;
-  loc->kind = fact_cmn->m_kind;
+  struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) fact_cmn;
+  loc->kind = fact->m_kind;
   memcpy(loc->address, base->gv->interfaces[0].loc.address, sizeof(loc->address));
   loc->port = base->m_port;
   return 0;
@@ -1117,8 +1118,9 @@ static void ddsi_tcp_release_factory (struct ddsi_tran_factory *fact_cmn)
   ddsrt_free (fact);
 }
 
-static enum ddsi_locator_from_string_result ddsi_tcp_address_from_string (const struct ddsi_tran_factory *fact, ddsi_locator_t *loc, const char *str)
+static enum ddsi_locator_from_string_result ddsi_tcp_address_from_string (const struct ddsi_tran_factory *fact_cmn, ddsi_locator_t *loc, const char *str)
 {
+  struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) fact_cmn;
   return ddsi_ipaddr_from_string(loc, str, fact->m_kind);
 }
 
@@ -1179,17 +1181,36 @@ static char *ddsi_tcp_locator_to_string (char *dst, size_t sizeof_dst, const dds
   return ddsi_ipaddr_to_string(dst, sizeof_dst, loc, with_port, NULL);
 }
 
+static int ddsi_tcp_locator_from_sockaddr (const struct ddsi_tran_factory *tran_cmn, ddsi_locator_t *loc, const struct sockaddr *sockaddr)
+{
+  struct ddsi_tran_factory_tcp * const tran = (struct ddsi_tran_factory_tcp *) tran_cmn;
+  switch (sockaddr->sa_family)
+  {
+    case AF_INET:
+      if (tran->m_kind != NN_LOCATOR_KIND_TCPv4)
+        return -1;
+      break;
+    case AF_INET6:
+      if (tran->m_kind != NN_LOCATOR_KIND_TCPv6)
+        return -1;
+      break;
+  }
+  ddsi_ipaddr_to_loc (loc, sockaddr, tran->m_kind);
+  return 0;
+}
+
 int ddsi_tcp_init (struct ddsi_domaingv *gv)
 {
   struct ddsi_tran_factory_tcp *fact = ddsrt_malloc (sizeof (*fact));
 
   memset (fact, 0, sizeof (*fact));
+  fact->m_kind = NN_LOCATOR_KIND_TCPv4;
   fact->fact.gv = gv;
-  fact->fact.m_kind = NN_LOCATOR_KIND_TCPv4;
   fact->fact.m_typename = "tcp";
+  fact->fact.m_default_spdp_address = NULL;
   fact->fact.m_stream = true;
   fact->fact.m_connless = false;
-  fact->fact.m_adv_spdp = true;
+  fact->fact.m_enable_spdp = true;
   fact->fact.m_supports_fn = ddsi_tcp_supports;
   fact->fact.m_create_listener_fn = ddsi_tcp_create_listener;
   fact->fact.m_create_conn_fn = ddsi_tcp_create_conn;
@@ -1207,15 +1228,17 @@ int ddsi_tcp_init (struct ddsi_domaingv *gv)
   fact->fact.m_is_nearby_address_fn = ddsi_tcp_is_nearby_address;
   fact->fact.m_is_valid_port_fn = ddsi_tcp_is_valid_port;
   fact->fact.m_receive_buffer_size_fn = ddsi_tcp_receive_buffer_size;
-  ddsi_factory_add (gv, &fact->fact);
+  fact->fact.m_locator_from_sockaddr_fn = ddsi_tcp_locator_from_sockaddr;
 
 #if DDSRT_HAVE_IPV6
   if (gv->config.transport_selector == DDSI_TRANS_TCP6)
   {
-    fact->fact.m_kind = NN_LOCATOR_KIND_TCPv6;
+    fact->m_kind = NN_LOCATOR_KIND_TCPv6;
     fact->fact.m_typename = "tcp6";
   }
 #endif
+
+  ddsi_factory_add (gv, &fact->fact);
 
   memset (&fact->ddsi_tcp_conn_client, 0, sizeof (fact->ddsi_tcp_conn_client));
   ddsi_tcp_base_init (fact, NULL, &fact->ddsi_tcp_conn_client.m_base);

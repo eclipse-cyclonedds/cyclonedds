@@ -328,14 +328,8 @@ static int set_spdp_address (struct ddsi_domaingv *gv)
     if ((rc = string_to_default_locator (gv, &gv->loc_spdp_mc, gv->config.spdpMulticastAddressString, port, 1, "SPDP address")) < 0)
       return rc;
   }
-  if (rc == 0 && gv->m_factory->m_connless) /* FIXME: connless the right one? */
+  if (rc == 0 && gv->m_factory->m_default_spdp_address)
   {
-    /* There isn't a standard IPv6 multicast group for DDSI. For
-       some reason, node-local multicast addresses seem to be
-       unsupported (ff01::... would be a node-local one I think), so
-       instead do link-local. I suppose we could use the hop limit
-       to make it node-local.  If other hosts reach us in some way,
-       we'll of course respond. */
     rc = string_to_default_locator (gv, &gv->loc_spdp_mc, gv->m_factory->m_default_spdp_address, port, 1, "SPDP address");
     assert (rc > 0);
   }
@@ -1138,7 +1132,7 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
   // FIXME: this can be done more elegantly when properly supporting multiple transports
   if (ddsi_vnet_init (gv, "iceoryx", NN_LOCATOR_KIND_SHEM) < 0)
     return -1;
-  ddsi_factory_find (gv, "iceoryx")->m_ignore = false;
+  ddsi_factory_find (gv, "iceoryx")->m_enable = true;
   if (gv->n_interfaces == MAX_XMIT_CONNS)
   {
     GVERROR ("maximum number of interfaces reached, can't add virtual one for iceoryx\n");
@@ -1158,11 +1152,9 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
   intf->mc_flaky = false;
   intf->name = ddsrt_strdup ("iceoryx");
   intf->point_to_point = false;
-  intf->netmask.kind = NN_LOCATOR_KIND_SHEM;
+  intf->netmask.kind = NN_LOCATOR_KIND_INVALID;
   intf->netmask.port = NN_LOCATOR_PORT_INVALID;
-  DDSRT_STATIC_ASSERT (6 < sizeof (intf->netmask.address));
-  memset (intf->netmask.address, 0xff, 6);
-  memset (intf->netmask.address + 6, 0, sizeof (intf->netmask.address) - 6);
+  memset (intf->netmask.address, 0, sizeof (intf->netmask.address) - 6);
   gv->n_interfaces++;
 
   shm_mutex_init();
@@ -1344,7 +1336,7 @@ int rtps_init (struct ddsi_domaingv *gv)
       gv->m_factory = ddsi_factory_find (gv, "raweth");
       break;
   }
-  gv->m_factory->m_ignore = false;
+  gv->m_factory->m_enable = true;
 
   if (!find_own_ip (gv, gv->config.networkAddressString))
   {
@@ -1411,7 +1403,7 @@ int rtps_init (struct ddsi_domaingv *gv)
       GVLOG (DDS_LC_CONFIG, "%s%s", (i == 0) ? "" : ", ", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->interfaces[i].loc));
     GVLOG (DDS_LC_CONFIG, "\n");
     GVLOG (DDS_LC_CONFIG, "extip: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extloc));
-    GVLOG (DDS_LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extmask), gv->m_factory->m_kind != NN_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
+    GVLOG (DDS_LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extmask), gv->extmask.kind != NN_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
     GVLOG (DDS_LC_CONFIG, "SPDP MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_spdp_mc));
     GVLOG (DDS_LC_CONFIG, "default MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_default_mc));
 #ifdef DDS_HAS_SSM

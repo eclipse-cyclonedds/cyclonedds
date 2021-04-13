@@ -85,6 +85,8 @@ enum ddsi_locator_from_string_result {
 
 typedef enum ddsi_locator_from_string_result (*ddsi_locator_from_string_fn_t) (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const char *str);
 
+typedef int (*ddsi_locator_from_sockaddr_fn_t) (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const struct sockaddr *sockaddr);
+
 typedef char * (*ddsi_locator_to_string_fn_t) (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port);
 
 typedef int (*ddsi_enumerate_interfaces_fn_t) (ddsi_tran_factory_t tran, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **interfs);
@@ -172,16 +174,38 @@ struct ddsi_tran_factory
   ddsi_enumerate_interfaces_fn_t m_enumerate_interfaces_fn;
   ddsi_is_valid_port_fn_t m_is_valid_port_fn;
   ddsi_receive_buffer_size_fn_t m_receive_buffer_size_fn;
+  ddsi_locator_from_sockaddr_fn_t m_locator_from_sockaddr_fn;
 
   /* Data */
 
-  int32_t m_kind;
+  /// Transport name, also used as prefix in string representation of locator (e.g., udp/1.2.3.4)
   const char *m_typename;
-  const char *m_default_spdp_address;
+
+  /// Whether this is a connection-oriented transport like TCP (false), where a socket communicates
+  /// with one other socket after connecting; or whether it can send to any address at any time like
+  /// UDP (true).
   bool m_connless;
+
+  /// Whether this transport deals with byte streams (TCP, true) or with datagrams (UDP, false). A
+  /// byte stream forces the upper layer to do add some framing.
   bool m_stream;
-  bool m_ignore;
-  bool m_adv_spdp;
+
+  /// Whether this transport is enabled for DDS communications. Only locators mapping handled
+  /// by enabled transports are taken into account when parsing discovery data.
+  ///
+  /// The usefulness of disabled transports is (currently) limited to running in UDP mode while using
+  /// the TCP transport code as a portable means for providing a debug interface.
+  bool m_enable;
+
+  /// Whether this transport should be included in SPDP advertisements. Not all transports are
+  /// created equally: those that only provide a representation for an integrated pub-sub messaging
+  /// system that can be used to by-pass RTPS should not by included in anything related to SPDP.
+  bool m_enable_spdp;
+
+  /// Default SPDP address for this transport (the spec only gives an UDPv4 default one), NULL if
+  /// no default address exists.
+  const char *m_default_spdp_address;
+
   struct ddsi_domaingv *gv;
 
   /* Relationships */
@@ -269,6 +293,8 @@ int ddsi_is_ssm_mcaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *lo
 enum ddsi_nearby_address_result ddsi_is_nearby_address (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface *interf, size_t *interf_idx);
 
 DDS_EXPORT enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, const char *str, ddsi_tran_factory_t default_factory);
+
+DDS_EXPORT int ddsi_locator_from_sockaddr (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const struct sockaddr *sockaddr);
 
 /*  8 for transport/
     1 for [

@@ -26,7 +26,13 @@
 
 typedef struct ddsi_vnet_conn {
   struct ddsi_tran_conn m_base;
+  int32_t m_kind;
 } *ddsi_vnet_conn_t;
+
+typedef struct ddsi_vnet_tran_factory {
+  struct ddsi_tran_factory m_base;
+  int32_t m_kind;
+} *ddsi_vnet_tran_factory_t;
 
 static char *ddsi_vnet_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port)
 {
@@ -43,8 +49,9 @@ static char *ddsi_vnet_to_string (char *dst, size_t sizeof_dst, const ddsi_locat
   return dst;
 }
 
-static bool ddsi_vnet_supports (const struct ddsi_tran_factory *fact, int32_t kind)
+static bool ddsi_vnet_supports (const struct ddsi_tran_factory *fact_cmn, int32_t kind)
 {
+  struct ddsi_vnet_tran_factory const * const fact = (const struct ddsi_vnet_tran_factory *) fact_cmn;
   return (kind == fact->m_kind);
 }
 
@@ -110,8 +117,9 @@ static enum ddsi_nearby_address_result ddsi_vnet_is_nearby_address (const ddsi_l
   return DNAR_DISTANT;
 }
 
-static enum ddsi_locator_from_string_result ddsi_vnet_address_from_string (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const char *str)
+static enum ddsi_locator_from_string_result ddsi_vnet_address_from_string (const struct ddsi_tran_factory *tran_cmn, ddsi_locator_t *loc, const char *str)
 {
+  struct ddsi_vnet_tran_factory const * const tran = (const struct ddsi_vnet_tran_factory *) tran_cmn;
   bool bracketed = false;
   int i = 0;
   loc->kind = tran->m_kind;
@@ -126,8 +134,10 @@ static enum ddsi_locator_from_string_result ddsi_vnet_address_from_string (const
   {
     unsigned o;
     int p;
+    DDSRT_WARNING_MSVC_OFF(4996);
     if (sscanf (str, "%x%n", &o, &p) != 1 || o > 255)
       return AFSR_INVALID;
+    DDSRT_WARNING_MSVC_ON(4996);
     loc->address[10 + i++] = (unsigned char) o;
     str += p;
     if (i < 6)
@@ -161,42 +171,46 @@ static uint32_t ddsi_vnet_receive_buffer_size (const struct ddsi_tran_factory *f
   return 0;
 }
 
+static int ddsi_vnet_locator_from_sockaddr (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const struct sockaddr *sockaddr)
+{
+  (void) tran; (void) loc; (void) sockaddr;
+  return -1;
+}
+
 static void ddsi_vnet_deinit (ddsi_tran_factory_t fact)
 {
   DDS_CLOG (DDS_LC_CONFIG, &fact->gv->logconfig, "vnet %s de-initialized\n", fact->m_typename);
   ddsrt_free ((char *) fact->m_typename);
-  ddsrt_free ((char *) fact->m_default_spdp_address);
   ddsrt_free (fact);
 }
 
 int ddsi_vnet_init (struct ddsi_domaingv *gv, const char *name, int32_t locator_kind)
 {
-  struct ddsi_tran_factory *fact = ddsrt_malloc (sizeof (*fact));
+  struct ddsi_vnet_tran_factory *fact = ddsrt_malloc (sizeof (*fact));
   memset (fact, 0, sizeof (*fact));
-  fact->gv = gv;
-  fact->m_free_fn = ddsi_vnet_deinit;
   fact->m_kind = locator_kind;
-  fact->m_typename = ddsrt_strdup (name);
-  char *def_spdp; // I think I don't even need this
-  (void) ddsrt_asprintf (&def_spdp, "%s/00:00:00:00:00:00", name);
-  fact->m_default_spdp_address = def_spdp;
-  fact->m_connless = 1;
-  fact->m_adv_spdp = 0;
-  fact->m_supports_fn = ddsi_vnet_supports;
-  fact->m_create_conn_fn = ddsi_vnet_create_conn;
-  fact->m_release_conn_fn = ddsi_vnet_release_conn;
-  fact->m_join_mc_fn = 0;
-  fact->m_leave_mc_fn = 0;
-  fact->m_is_loopbackaddr_fn = ddsi_vnet_is_not;
-  fact->m_is_mcaddr_fn = ddsi_vnet_is_not;
-  fact->m_is_ssm_mcaddr_fn = ddsi_vnet_is_not;
-  fact->m_is_nearby_address_fn = ddsi_vnet_is_nearby_address;
-  fact->m_locator_from_string_fn = ddsi_vnet_address_from_string;
-  fact->m_locator_to_string_fn = ddsi_vnet_to_string;
-  fact->m_enumerate_interfaces_fn = ddsi_vnet_enumerate_interfaces;
-  fact->m_is_valid_port_fn = ddsi_vnet_is_valid_port;
-  fact->m_receive_buffer_size_fn = ddsi_vnet_receive_buffer_size;
-  ddsi_factory_add (gv, fact);
+  fact->m_base.gv = gv;
+  fact->m_base.m_free_fn = ddsi_vnet_deinit;
+  fact->m_base.m_typename = ddsrt_strdup (name);
+  fact->m_base.m_default_spdp_address = NULL;
+  fact->m_base.m_connless = 1;
+  fact->m_base.m_enable_spdp = 0;
+  fact->m_base.m_supports_fn = ddsi_vnet_supports;
+  fact->m_base.m_create_conn_fn = ddsi_vnet_create_conn;
+  fact->m_base.m_release_conn_fn = ddsi_vnet_release_conn;
+  fact->m_base.m_join_mc_fn = 0;
+  fact->m_base.m_leave_mc_fn = 0;
+  fact->m_base.m_is_loopbackaddr_fn = ddsi_vnet_is_not;
+  fact->m_base.m_is_mcaddr_fn = ddsi_vnet_is_not;
+  fact->m_base.m_is_ssm_mcaddr_fn = ddsi_vnet_is_not;
+  fact->m_base.m_is_nearby_address_fn = ddsi_vnet_is_nearby_address;
+  fact->m_base.m_locator_from_string_fn = ddsi_vnet_address_from_string;
+  fact->m_base.m_locator_to_string_fn = ddsi_vnet_to_string;
+  fact->m_base.m_enumerate_interfaces_fn = ddsi_vnet_enumerate_interfaces;
+  fact->m_base.m_is_valid_port_fn = ddsi_vnet_is_valid_port;
+  fact->m_base.m_receive_buffer_size_fn = ddsi_vnet_receive_buffer_size;
+  fact->m_base.m_locator_from_sockaddr_fn = ddsi_vnet_locator_from_sockaddr;
+  ddsi_factory_add (gv, &fact->m_base);
   GVLOG (DDS_LC_CONFIG, "vnet %s initialized\n", name);
   return 0;
 }

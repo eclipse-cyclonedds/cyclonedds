@@ -375,7 +375,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
     {
       for (int i = 0; i < pp->e.gv->n_interfaces; i++)
       {
-        if (!pp->e.gv->xmit_conns[i]->m_factory->m_adv_spdp)
+        if (!pp->e.gv->xmit_conns[i]->m_factory->m_enable_spdp)
         {
           // skip any interfaces where the address kind doesn't match the selected transport
           // as a reasonablish way of not advertising iceoryx locators here
@@ -1173,7 +1173,7 @@ static int sedp_write_endpoint_impl
           // FIXME: same as what SPDP uses, should be refactored, now more than ever
           for (int i = 0; i < epcommon->pp->e.gv->n_interfaces; i++)
           {
-            if (!epcommon->pp->e.gv->xmit_conns[i]->m_factory->m_adv_spdp)
+            if (!epcommon->pp->e.gv->xmit_conns[i]->m_factory->m_enable_spdp)
             {
               // skip any interfaces where the address kind doesn't match the selected transport
               // as a reasonablish way of not advertising iceoryx locators here

@@ -376,17 +376,30 @@ static uint32_t ddsi_raweth_receive_buffer_size (const struct ddsi_tran_factory 
   return 0;
 }
 
+static int ddsi_raweth_locator_from_sockaddr (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const struct sockaddr *sockaddr)
+{
+  (void) tran;
+
+  if (sockaddr->sa_family != AF_PACKET)
+    return -1;
+
+  loc->kind = NN_LOCATOR_KIND_RAWETH;
+  loc->port = NN_LOCATOR_PORT_INVALID;
+  memset (loc->address, 0, 10);
+  memcpy (loc->address + 10, ((struct sockaddr_ll *) sockaddr)->sll_addr, 6);
+  return 0;
+}
+
 int ddsi_raweth_init (struct ddsi_domaingv *gv)
 {
   struct ddsi_tran_factory *fact = ddsrt_malloc (sizeof (*fact));
   memset (fact, 0, sizeof (*fact));
   fact->gv = gv;
   fact->m_free_fn = ddsi_raweth_deinit;
-  fact->m_kind = NN_LOCATOR_KIND_RAWETH;
   fact->m_typename = "raweth";
   fact->m_default_spdp_address = "raweth/ff:ff:ff:ff:ff:ff";
   fact->m_connless = 1;
-  fact->fact.m_adv_spdp = 1;
+  fact->m_enable_spdp = 1;
   fact->m_supports_fn = ddsi_raweth_supports;
   fact->m_create_conn_fn = ddsi_raweth_create_conn;
   fact->m_release_conn_fn = ddsi_raweth_release_conn;
@@ -401,6 +414,7 @@ int ddsi_raweth_init (struct ddsi_domaingv *gv)
   fact->m_enumerate_interfaces_fn = ddsi_raweth_enumerate_interfaces;
   fact->m_is_valid_port_fn = ddsi_raweth_is_valid_port;
   fact->m_receive_buffer_size_fn = ddsi_raweth_receive_buffer_size;
+  fact->m_locator_from_sockaddr_fn = ddsi_raweth_locator_from_sockaddr;
   ddsi_factory_add (gv, fact);
   GVLOG (DDS_LC_CONFIG, "raweth initialized\n");
   return 0;

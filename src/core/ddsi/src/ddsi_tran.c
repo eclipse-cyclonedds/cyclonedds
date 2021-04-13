@@ -40,7 +40,11 @@ extern inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const ddsi_locator
 
 void ddsi_factory_add (struct ddsi_domaingv *gv, ddsi_tran_factory_t factory)
 {
-  factory->m_ignore = true; // FIXME: a bit of hack to initially ignore a factory ...
+  // Initially add factories in a disabled state.  We'll enable the ones we
+  // actually want to use for DDS explicitly, as a way to work around using
+  // the TCP support code for the "debmon" thing.
+  factory->m_enable = false;
+
   factory->m_factory = gv->ddsi_tran_factories;
   gv->ddsi_tran_factories = factory;
 }
@@ -274,6 +278,11 @@ enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi
     tran = default_factory;
   }
   return tran->m_locator_from_string_fn (tran, loc, sep ? sep + 1 : str);
+}
+
+int ddsi_locator_from_sockaddr (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const struct sockaddr *sockaddr)
+{
+  return tran->m_locator_from_sockaddr_fn (tran, loc, sockaddr);
 }
 
 static char *ddsi_xlocator_to_string_impl (char *dst, size_t sizeof_dst, const ddsi_xlocator_t *loc)

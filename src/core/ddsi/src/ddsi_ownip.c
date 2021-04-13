@@ -225,20 +225,10 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
       interfaces = ddsrt_realloc (interfaces, max_interfaces * sizeof (*interfaces));
     }
 
-#if defined(__linux) && !LWIP_SOCKET
-    if (ifa->addr->sa_family == AF_PACKET)
+    if (ddsi_locator_from_sockaddr (gv->m_factory, &interfaces[n_interfaces].loc, ifa->addr) < 0)
     {
-      /* FIXME: weirdo warning warranted */
-      ddsi_locator_t *l = &interfaces[n_interfaces].loc;
-      l->kind = NN_LOCATOR_KIND_RAWETH;
-      l->port = NN_LOCATOR_PORT_INVALID;
-      memset(l->address, 0, 10);
-      memcpy(l->address + 10, ((struct sockaddr_ll *)ifa->addr)->sll_addr, 6);
-    }
-    else
-#endif
-    {
-      ddsi_ipaddr_to_loc(&interfaces[n_interfaces].loc, ifa->addr, gv->m_factory->m_kind);
+      // pretend we didn't see it
+      continue;
     }
     ddsi_locator_to_string_no_port(addrbuf, sizeof(addrbuf), &interfaces[n_interfaces].loc);
     GVLOG (DDS_LC_CONFIG, " %s(", addrbuf);
@@ -309,11 +299,12 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
 
     if (ifa->addr->sa_family == AF_INET && ifa->netmask)
     {
-      ddsi_ipaddr_to_loc(&interfaces[n_interfaces].netmask, ifa->netmask, gv->m_factory->m_kind);
+      if (ddsi_locator_from_sockaddr (gv->m_factory, &interfaces[n_interfaces].netmask, ifa->netmask) < 0)
+        continue;
     }
     else
     {
-      interfaces[n_interfaces].netmask.kind = gv->m_factory->m_kind;
+      interfaces[n_interfaces].netmask.kind = interfaces[n_interfaces].loc.kind;
       interfaces[n_interfaces].netmask.port = NN_LOCATOR_PORT_INVALID;
       memset(&interfaces[n_interfaces].netmask.address, 0, sizeof(interfaces[n_interfaces].netmask.address));
     }

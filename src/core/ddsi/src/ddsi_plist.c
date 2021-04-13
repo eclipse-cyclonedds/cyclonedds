@@ -2498,7 +2498,7 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
   }
   
   ddsi_tran_factory_t fact = ddsi_factory_find_supported_kind (gv, loc.kind);
-  if (fact == NULL || fact->m_ignore)
+  if (fact == NULL || !fact->m_enable)
     return DOLOC_IGNORED;
   if (!ddsi_is_valid_port (fact, loc.port))
     return DOLOC_INVALID;
