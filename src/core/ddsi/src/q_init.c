@@ -1110,7 +1110,8 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
   ddsrt_asprintf (&sptr, "iceoryx_rt_%d_%ld", pid, gv->tstart.v);
   GVLOG (DDS_LC_SHM, "Current process name for iceoryx is %s\n", sptr);
   iox_runtime_init (sptr);
-  
+  free(sptr);
+
   gv->loc_iceoryx_addr.kind = NN_LOCATOR_KIND_SHEM;
   gv->loc_iceoryx_addr.port = 0;
   int if_index;
@@ -1128,6 +1129,7 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
   GVLOG (DDS_LC_SHM, "My iceoryx address: %s, Port: %d\n", sptr, pid);
   memset ((char *) gv->loc_iceoryx_addr.address, 0, sizeof (gv->loc_iceoryx_addr.address));
   ddsrt_strlcpy ((char *) gv->loc_iceoryx_addr.address, sptr, strlen (sptr));
+  free(sptr);
 
   // FIXME: this can be done more elegantly when properly supporting multiple transports
   if (ddsi_vnet_init (gv, "iceoryx", NN_LOCATOR_KIND_SHEM) < 0)
