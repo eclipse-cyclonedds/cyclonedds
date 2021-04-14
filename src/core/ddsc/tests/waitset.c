@@ -783,3 +783,147 @@ static dds_return_t waiting_thread_expect_exit (struct thread_arg_t *arg)
     (void) ddsrt_thread_join (arg->tid, NULL);
   return ret;
 }
+
+static void listener_nop (dds_entity_t e, void *vflags)
+{
+  ddsrt_atomic_uint32_t *flags = vflags;
+  uint32_t s;
+  dds_return_t rc = dds_read_status (e, &s, DDS_DATA_AVAILABLE_STATUS);
+  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_FATAL (s == DDS_DATA_AVAILABLE_STATUS);
+  ddsrt_atomic_or32 (flags, 1);
+}
+
+static void listener_take_expecting_data (dds_entity_t e, void *vflags)
+{
+  (void) e;
+  ddsrt_atomic_uint32_t *flags = vflags;
+  void *xs = NULL;
+  dds_sample_info_t si;
+  dds_return_t n = dds_take (reader, &xs, &si, 1, 1);
+  CU_ASSERT_FATAL (n == 1);
+  // don't care what we take
+  (void) dds_return_loan (reader, &xs, n);
+  ddsrt_atomic_or32 (flags, 1);
+}
+
+struct listener_waitset_thread_arg {
+  ddsrt_atomic_uint32_t *flags;
+  dds_entity_t ws;
+  dds_time_t abstimeout;
+};
+
+static uint32_t listener_waitset_thread (void *varg)
+{
+  struct listener_waitset_thread_arg * const arg = varg;
+  dds_return_t n;
+  do {
+    // spurious wakeups are a possibility in general (probably not here)
+    dds_attach_t xs = 0;
+    n = dds_waitset_wait_until (arg->ws, &xs, 1, arg->abstimeout);
+    if (n < 0)
+      return 0;
+  } while (n == 0 && dds_time () < arg->abstimeout);
+  if (n > 0)
+  {
+    uint32_t old = ddsrt_atomic_or32_ov (arg->flags, 2);
+    if (old & 1) // listener triggered first
+      ddsrt_atomic_or32 (arg->flags, 4);
+  }
+  return 1;
+}
+
+CU_TheoryDataPoints(ddsc_waitset_triggering, after_listener) = {
+  CU_DataPoints(bool, true, false)
+};
+CU_Theory((bool use_nop_listener), ddsc_waitset_triggering, after_listener, .init=ddsc_waitset_attached_init, .fini=ddsc_waitset_attached_fini)
+{
+  ddsrt_atomic_uint32_t flags;
+  dds_listener_t *listener = dds_create_listener (&flags);
+  ddsrt_thread_t thread_id;
+  ddsrt_threadattr_t thread_attr;
+  dds_return_t ret;
+
+  // nop listeners mean we operate without a timeout and can repeat the experiment more often
+  // repeating makes sense because it improves our chances of catching an ordering problem
+  printf ("ddsc_waitset_triggering after_listener - reader %d\n", reader);
+  printf ("ddsc_waitset_triggering after_listener - use_nop_listener = %d\n", use_nop_listener);
+  unsigned flags_counts[8] = { 0 };
+  const unsigned rounds = (use_nop_listener ? 100 : 10);
+  for (unsigned i = 0; i < rounds; i++)
+  {
+    ddsrt_atomic_st32 (&flags, 0);
+    ret = dds_set_status_mask (reader, DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_FATAL (ret == 0);
+    dds_lset_data_available_arg (listener, use_nop_listener ? listener_nop : listener_take_expecting_data, &flags, false);
+    ret = dds_set_listener (reader, listener);
+    CU_ASSERT_FATAL (ret == 0);
+
+    // if we're not expecting a trigger, wait only 100ms to speed things up a bit
+    dds_duration_t reltimeout = use_nop_listener ? DDS_SECS (1) : DDS_MSECS (100);
+    struct listener_waitset_thread_arg arg = {
+      .flags = &flags,
+      .ws = waitset,
+      .abstimeout = dds_time () + reltimeout
+    };
+    ddsrt_threadattr_init (&thread_attr);
+    ret = ddsrt_thread_create (&thread_id, "waiting_thread", &thread_attr, listener_waitset_thread, &arg);
+    CU_ASSERT_FATAL (ret == 0);
+
+    // There is now a short window during which wait() can observe the status before
+    // a listener runs, and so there is no guarantee that the listener runs before any
+    // waitsets are triggered, contrary to the spec. (The spec is totally broken on most
+    // points anyway ...)
+    dds_sleepfor (DDS_MSECS (10));
+
+    // writing data should trigger the listener; if the listener is a nop, the status
+    // should remain set and the waitset should become triggered; else the status
+    // should be cleared and the wait timeout
+    ret = dds_write (writer, &(RoundTripModule_DataType){0});
+    CU_ASSERT_FATAL (ret == 0);
+
+    // listener triggers synchronously in Cyclone, so it must already have set the flag
+    CU_ASSERT_FATAL (ddsrt_atomic_ld32 (&flags) & 1);
+
+    uint32_t thread_ret;
+    ret = ddsrt_thread_join (thread_id, &thread_ret);
+    CU_ASSERT_FATAL (ret == 0);
+    CU_ASSERT_FATAL (thread_ret != 0);
+
+    // must clear the data available status or the waitset will trigger even without a
+    // write, which means the next attempt will likely fail because of the sleep before
+    // the write
+    uint32_t status;
+    ret = dds_take_status (reader, &status, DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_FATAL (ret == 0);
+
+    // If a nop listener, expected observed behaviour to be: first listener, then waitset
+    // which maps to 7; else, expected observed behaviour is just listener and no waitset
+    // trigger
+    //
+    // There is no guarantee that the initial evaluation of the conditions by wait() won't
+    // happen just before the listener fires, so for the nop listener we expect to see
+    // mostly 7 and for the listener doing takes mostly 1, but we can't exclude other
+    // values.
+    uint32_t exp = use_nop_listener ? 7 : 1;
+    uint32_t cur = ddsrt_atomic_ld32 (&flags);
+    CU_ASSERT_FATAL (cur <= sizeof (flags_counts) / sizeof (flags_counts[0]));
+    flags_counts[cur]++;
+    if (cur != exp)
+      printf ("current flags: 0x%"PRIx32", expected: 0x%"PRIx32"\n", cur, exp);
+  }
+
+  // something must have happened
+  CU_ASSERT (flags_counts[0] == 0);
+  // listener must have been invoked in all cases
+  unsigned sum_of_odd_indices = 0;
+  for (size_t i = 1; i < sizeof (flags_counts) / sizeof (flags_counts[0]); i += 2)
+    sum_of_odd_indices += flags_counts[i];
+  CU_ASSERT (sum_of_odd_indices == rounds);
+  // majority of cases (80% is "just a number") must have expected value
+  CU_ASSERT (5 * flags_counts[use_nop_listener ? 7 : 1] >= 4 * rounds);
+
+  // clear listener so there'll be no reference &flags left
+  dds_set_listener (reader, NULL);
+  dds_delete_listener (listener);
+}
