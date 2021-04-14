@@ -172,6 +172,10 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
 
   struct dds_listener const * const lst = &rd->m_entity.m_listener;
   dds_entity * const sub = rd->m_entity.m_parent;
+
+  bool rd_signal = dds_entity_status_set (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
+  bool sub_signal = dds_entity_status_set (sub, DDS_DATA_ON_READERS_STATUS);
+
   if (lst->on_data_on_readers)
   {
     ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
@@ -201,17 +205,23 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
     lst->on_data_available (rd->m_entity.m_hdllink.hdl, lst->on_data_available_arg);
     ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
   }
-  else
-  {
-    dds_entity_status_set (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
-    ddsrt_mutex_lock (&sub->m_observers_lock);
-    dds_entity_status_set (sub, DDS_DATA_ON_READERS_STATUS);
-    ddsrt_mutex_unlock (&sub->m_observers_lock);
-  }
 
   rd->m_entity.m_cb_count--;
   rd->m_entity.m_cb_pending_count--;
 
+  if (sub_signal)
+  {
+    ddsrt_mutex_lock (&sub->m_observers_lock);
+    if (ddsrt_atomic_ld32 (&sub->m_status.m_status_and_mask) & DDS_DATA_ON_READERS_STATUS)
+      dds_entity_observers_signal (sub, DDS_DATA_ON_READERS_STATUS);
+    ddsrt_mutex_unlock (&sub->m_observers_lock);
+  }
+
+  if (rd_signal)
+  {
+    if (ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask) & DDS_DATA_AVAILABLE_STATUS)
+      dds_entity_observers_signal (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
+  }
   ddsrt_cond_broadcast (&rd->m_entity.m_observers_cond);
   ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 }
