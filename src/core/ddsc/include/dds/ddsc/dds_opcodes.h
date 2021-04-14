@@ -144,6 +144,7 @@ enum dds_stream_typecode_subtype {
 #define DDS_TOPIC_FIXED_KEY 0x0002
 #define DDS_TOPIC_CONTAINS_UNION 0x0004
 #define DDS_TOPIC_DISABLE_TYPECHECK 0x0008
+#define DDS_TOPIC_FIXED_SIZE 0x0010
 
 #if defined(__cplusplus)
 }

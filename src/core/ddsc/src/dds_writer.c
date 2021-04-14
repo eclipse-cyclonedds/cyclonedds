@@ -296,10 +296,13 @@ const struct dds_entity_deriver dds_entity_deriver_writer = {
 
 #ifdef DDS_HAS_SHM
 #define DDS_WRITER_QOS_CHECK_FIELDS (QP_LIVELINESS|QP_DEADLINE|QP_RELIABILITY|QP_DURABILITY|QP_HISTORY)
-static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_t* qos)
+static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_t* qos, const struct dds_topic *tp)
 {
   if (NULL == cfg ||
       false == cfg->enable_shm)
+    return false;
+
+  if (!tp->m_stype->fixed_size)
     return false;
 
   uint32_t pub_history_cap = cfg->pub_history_capacity;

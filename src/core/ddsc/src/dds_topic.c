@@ -596,6 +596,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
 #ifdef DDS_HAS_SHM
   st->c.iox_size = desc->m_size;
 #endif
+  st->c.fixed_size = (st->c.fixed_size || (desc->m_flagset & DDS_TOPIC_FIXED_SIZE)) ? 1u : 0u;
   st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE);
   st->serpool = ppent->m_domain->gv.serpool;
   st->type.size = desc->m_size;

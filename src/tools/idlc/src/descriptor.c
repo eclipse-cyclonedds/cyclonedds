@@ -1287,7 +1287,7 @@ err_keys:
 static int print_flags(FILE *fp, struct descriptor *descriptor)
 {
   const char *fmt;
-  const char *vec[3] = { NULL, NULL, NULL };
+  const char *vec[4] = { NULL };
   size_t cnt, len = 0;
 
   if (descriptor->flags & DDS_TOPIC_NO_OPTIMIZE)
@@ -1296,6 +1296,22 @@ static int print_flags(FILE *fp, struct descriptor *descriptor)
     vec[len++] = "DDS_TOPIC_CONTAINS_UNION";
   if (descriptor->flags & DDS_TOPIC_FIXED_KEY)
     vec[len++] = "DDS_TOPIC_FIXED_KEY";
+
+  bool fixed_size = true;
+  for (uint32_t op = 0; op < descriptor->instructions.count && fixed_size; op++)
+  {
+    struct instruction i = descriptor->instructions.table[op];
+    if (i.type != OPCODE)
+      continue;
+
+    if (((i.data.opcode.code>>16)&0xFF) == DDS_OP_VAL_STR ||
+      ((i.data.opcode.code >> 16) & 0xFF) == DDS_OP_VAL_BST ||
+      ((i.data.opcode.code >> 16) & 0xFF) == DDS_OP_VAL_SEQ)
+      fixed_size = false;
+  }
+
+  if (fixed_size)
+    vec[len++] = "DDS_TOPIC_FIXED_SIZE";
 
   if (!len)
     vec[len++] = "0u";
