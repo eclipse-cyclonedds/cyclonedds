@@ -22,7 +22,7 @@ extern "C" {
 struct addrset;
 struct writer;
 
-struct addrset *compute_writer_addrset (const struct writer *wr, bool enable_shm);
+struct addrset *compute_writer_addrset (const struct writer *wr);
 
 #if defined (__cplusplus)
 }

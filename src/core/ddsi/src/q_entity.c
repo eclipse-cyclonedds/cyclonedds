@@ -1585,17 +1585,10 @@ static void rebuild_writer_addrset (struct writer *wr)
   /* only one operation at a time */
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
-#ifdef DDS_HAS_SHM
-  bool enable_shm = ((wr->xqos->present & QP_SHARED_MEMORY) == QP_SHARED_MEMORY) &&
-                      wr->xqos->shared_memory.enabled;
-#else
-  bool enable_shm = false;
-#endif
-
   /* swap in new address set; this simple procedure is ok as long as
      wr->as is never accessed without the wr->e.lock held */
   struct addrset * const oldas = wr->as;
-  wr->as = compute_writer_addrset (wr, enable_shm);
+  wr->as = compute_writer_addrset (wr);
   unref_addrset (oldas);
 
   /* Computing burst size limit here is a bit of a hack; but anyway ...

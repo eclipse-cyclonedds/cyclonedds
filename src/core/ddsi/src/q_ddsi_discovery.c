@@ -1161,8 +1161,8 @@ static int sedp_write_endpoint_impl
       addrset_forall (as, add_xlocator_to_ps, &arg);
 
 #ifdef DDS_HAS_SHM
-    if ((xqos->present & QP_SHARED_MEMORY) == QP_SHARED_MEMORY &&
-      xqos->shared_memory.enabled)
+    assert(wr->xqos->present & QP_LOCATOR_MASK);
+    if (!(xqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM))
     {
       if (!(arg.ps->present & PP_UNICAST_LOCATOR) || 0 == arg.ps->unicast_locators.n)
       {

@@ -417,8 +417,9 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wr->whc_batch = gv->config.whc_batch;
 
 #ifdef DDS_HAS_SHM
-  wqos->shared_memory.enabled = dds_writer_support_shm(&gv->config, wqos);
-  wqos->present |= QP_SHARED_MEMORY;
+  assert(wqos->present & QP_LOCATOR_MASK);
+  if (!dds_writer_support_shm(&gv->config, wqos, tp))
+    wqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
 #endif
 
   rc = new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, wqos, wr->m_whc, dds_writer_status_cb, wr);
@@ -426,7 +427,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   thread_state_asleep (lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
-  if (wqos->shared_memory.enabled)
+  if (0x0 == (wqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM))
   {
     size_t name_size, type_name_size;
     rc = dds_get_name_size (topic, &name_size);

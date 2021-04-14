@@ -602,8 +602,9 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   dds_entity_init_complete (&rd->m_entity);
 
 #ifdef DDS_HAS_SHM
-  rqos->shared_memory.enabled = dds_reader_support_shm(&gv->config, rqos);
-  rqos->present |= QP_SHARED_MEMORY;
+  assert(rqos->present & QP_LOCATOR_MASK);
+  if (!dds_reader_support_shm(&gv->config, rqos, tp))
+    rqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
 #endif
 
   rc = new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
@@ -611,7 +612,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   thread_state_asleep (lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
-  if (rqos->shared_memory.enabled)
+  if (0x0 == (rqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM))
   {
     size_t name_size, type_name_size;
     rc = dds_get_name_size(topic, &name_size);

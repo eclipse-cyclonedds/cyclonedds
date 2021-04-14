@@ -1761,11 +1761,9 @@ static const struct piddesc piddesc_eclipse[] = {
 #ifdef DDS_HAS_TYPE_DISCOVERY
   QP  (CYCLONE_TYPE_INFORMATION,         type_information, XO),
 #endif
-#ifdef DDS_HAS_SHM
-    { PID_PAD, PDF_QOS, QP_SHARED_MEMORY, "CYCLONE_SHARED_MEMORY",
-    offsetof(struct ddsi_plist, qos.shared_memory), membersize(struct ddsi_plist, qos.shared_memory),
-    {.desc = { Xb, XSTOP } }, 0 },
-#endif
+    { PID_PAD, PDF_QOS, QP_LOCATOR_MASK, "CYCLONE_LOCATOR_MASK",
+    offsetof(struct ddsi_plist, qos.ignore_locator_type), membersize(struct ddsi_plist, qos.ignore_locator_type),
+    {.desc = { Xu, XSTOP } }, 0 },
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   PP  (CYCLONE_TOPIC_GUID,               topic_guid, XG),
 #endif
@@ -3284,6 +3282,9 @@ void ddsi_xqos_init_default_reader (dds_qos_t *xqos)
   xqos->type_consistency.ignore_member_names = false;
   xqos->type_consistency.prevent_type_widening = false;
   xqos->type_consistency.force_type_validation = false;
+
+  xqos->present |= QP_LOCATOR_MASK;
+  xqos->ignore_locator_type = 0;
 }
 
 void ddsi_xqos_init_default_writer (dds_qos_t *xqos)
@@ -3313,6 +3314,9 @@ void ddsi_xqos_init_default_writer (dds_qos_t *xqos)
 
   xqos->present |= QP_ADLINK_WRITER_DATA_LIFECYCLE;
   xqos->writer_data_lifecycle.autodispose_unregistered_instances = 1;
+
+  xqos->present |= QP_LOCATOR_MASK;
+  xqos->ignore_locator_type = 0;
 }
 
 void ddsi_xqos_init_default_writer_noautodispose (dds_qos_t *xqos)
