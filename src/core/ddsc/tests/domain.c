@@ -360,7 +360,7 @@ CU_Test(ddsc_domain_create, raw_config)
   CU_ASSERT_FATAL(domain > 0);
   dds_delete (domain);
 
-  dds_set_log_sink (0, NULL);
+  dds_set_trace_sink (0, NULL);
 
   {
     size_t i = 0, j = 0;
