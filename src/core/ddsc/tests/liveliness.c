@@ -258,7 +258,7 @@ static void test_expire_liveliness_kinds(uint32_t ldur, double mult, uint32_t wr
   do
   {
     tstart = dds_time();
-    printf("%d.%06d running test: lease duration %"PRIu32", delay %f, auto/man-by-part/man-by-topic %"PRIu32"/%"PRIu32"/%"PRIu32"\n, %s reader\n",
+    printf("%d.%06d running test: lease duration %"PRIu32", delay %f, auto/man-by-part/man-by-topic %"PRIu32"/%"PRIu32"/%"PRIu32", %s reader\n",
            (int32_t)(tstart / DDS_NSECS_IN_SEC), (int32_t)(tstart % DDS_NSECS_IN_SEC) / 1000,
            ldur, mult, wr_cnt_auto, wr_cnt_man_pp, wr_cnt_man_tp, remote_reader ? "remote" : "local");
 
