@@ -89,7 +89,6 @@ static int compare_instance_handle (const void *va, const void *vb)
 
 const ddsrt_avl_treedef_t dds_entity_children_td = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct dds_entity, m_avlnode_child), offsetof (struct dds_entity, m_iid), compare_instance_handle, 0);
 
-static void dds_entity_observers_signal (dds_entity *observed, uint32_t status);
 static void dds_entity_observers_signal_delete (dds_entity *observed);
 
 static dds_return_t dds_delete_impl (dds_entity_t entity, enum delete_impl_state delstate);
@@ -1421,7 +1420,7 @@ dds_return_t dds_entity_observer_unregister (dds_entity *observed, dds_waitset *
   return rc;
 }
 
-static void dds_entity_observers_signal (dds_entity *observed, uint32_t status)
+void dds_entity_observers_signal (dds_entity *observed, uint32_t status)
 {
   for (dds_entity_observer *idx = observed->m_observers; idx; idx = idx->m_next)
     idx->m_cb (idx->m_observer, observed->m_hdllink.hdl, status);
@@ -1448,7 +1447,7 @@ void dds_entity_status_signal (dds_entity *e, uint32_t status)
   ddsrt_mutex_unlock (&e->m_observers_lock);
 }
 
-void dds_entity_status_set (dds_entity *e, status_mask_t status)
+bool dds_entity_status_set (dds_entity *e, status_mask_t status)
 {
   assert (entity_has_status (e));
   uint32_t old, delta, new;
@@ -1456,11 +1455,10 @@ void dds_entity_status_set (dds_entity *e, status_mask_t status)
     old = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask);
     delta = ((uint32_t) status & (old >> SAM_ENABLED_SHIFT));
     if (delta == 0)
-      return;
+      return false;
     new = old | delta;
   } while (!ddsrt_atomic_cas32 (&e->m_status.m_status_and_mask, old, new));
-  if (delta)
-    dds_entity_observers_signal (e, status);
+  return (delta != 0);
 }
 
 dds_entity_t dds_get_topic (dds_entity_t entity)

@@ -82,6 +82,8 @@ DDS_EXPORT inline dds_entity_kind_t dds_entity_kind (const dds_entity *e) {
   return e->m_kind;
 }
 
+DDS_EXPORT void dds_entity_observers_signal (dds_entity *observed, uint32_t status);
+
 DDS_EXPORT void dds_entity_status_signal (dds_entity *e, uint32_t status);
 
 union dds_status_union {
@@ -102,11 +104,12 @@ union dds_status_union {
   static void status_cb_##name_ (dds_##entity_kind_ * const e, const status_cb_data_t *data, bool enabled) \
   { \
     struct dds_listener const * const listener = &e->m_entity.m_listener; \
+    const status_mask_t status_mask = (status_mask_t) (1u << DDS_##NAME_##_STATUS_ID); \
     const bool invoke = (listener->on_##name_ != 0) && enabled; \
     union dds_status_union lst; \
     update_##name_ (&e->m_##name_##_status, invoke ? &lst.name_ : NULL, data); \
+    bool signal = dds_entity_status_set (&e->m_entity, status_mask); \
     if (invoke) { \
-      dds_entity_status_reset (&e->m_entity, (status_mask_t) (1u << DDS_##NAME_##_STATUS_ID)); \
       e->m_entity.m_cb_pending_count++; \
       e->m_entity.m_cb_count++; \
       ddsrt_mutex_unlock (&e->m_entity.m_observers_lock); \
@@ -114,8 +117,10 @@ union dds_status_union {
       ddsrt_mutex_lock (&e->m_entity.m_observers_lock); \
       e->m_entity.m_cb_count--; \
       e->m_entity.m_cb_pending_count--; \
-    } else if (enabled) { \
-      dds_entity_status_set (&e->m_entity, (status_mask_t) (1u << DDS_##NAME_##_STATUS_ID)); \
+      signal = signal && (ddsrt_atomic_ld32 (&e->m_entity.m_status.m_status_and_mask) & status_mask); \
+    } \
+    if (signal) { \
+      dds_entity_observers_signal (&e->m_entity, status_mask); \
     } \
   }
 
