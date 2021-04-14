@@ -161,9 +161,11 @@ void    mcpp_use_mem_buffers(
     use_mem_buffers = tf ? TRUE : FALSE;
 
     for (i = 0; i < NUM_OUTDEST; ++i) {
-        if (mem_buffers[ i].buffer)
+        if (mem_buffers[ i].buffer) {
             /* Free previously allocated memory buffer  */
+            MSC_PRAGMA("warning(suppress: 6001)")
             free( mem_buffers[ i].buffer);
+        }
         if (use_mem_buffers) {
             /* Output to memory buffers instead of files    */
             mem_buffers[ i].buffer = NULL;
@@ -1473,6 +1475,7 @@ void    expanding(
         clear_exp_mac();
         exp_mac_ind++;
     }
+    assert(exp_mac_ind < EXP_MAC_IND_MAX - 1);
     expanding_macro[ exp_mac_ind].name = name;
     expanding_macro[ exp_mac_ind].to_be_freed = to_be_freed;
 }
