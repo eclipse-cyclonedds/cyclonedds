@@ -2162,12 +2162,12 @@ int main (int argc, char *argv[])
   /* set user data: magic cookie, whether we have a reader for the Data topic
      (all other endpoints always exist), pid and hostname */
   {
-    unsigned pos;
+    int cnt;
     char udata[256];
-    pos = (unsigned) snprintf (udata, sizeof (udata), UDATA_MAGIC"%d:%"PRIdPID":", submode != SM_NONE, ddsrt_getpid ());
-    assert (pos < sizeof (udata));
-    if (ddsrt_gethostname (udata + pos, sizeof (udata) - pos) != DDS_RETCODE_OK)
-      ddsrt_strlcpy (udata + UDATA_MAGIC_SIZE, "?", sizeof(udata) - UDATA_MAGIC_SIZE);
+    cnt = snprintf (udata, sizeof (udata), UDATA_MAGIC"%d:%"PRIdPID":", submode != SM_NONE, ddsrt_getpid ());
+    assert (cnt >= 0 && (size_t)cnt < sizeof (udata));
+    if (ddsrt_gethostname (udata + cnt, sizeof (udata) - (size_t)cnt) != DDS_RETCODE_OK)
+      ddsrt_strlcpy (udata + cnt, "?", sizeof(udata) - (size_t)cnt);
     dds_qset_userdata (qos, udata, strlen (udata));
   }
   if ((dp = dds_create_participant (did, qos, NULL)) < 0)
