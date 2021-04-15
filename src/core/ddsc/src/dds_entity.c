@@ -1104,29 +1104,6 @@ dds_return_t dds_enable (dds_entity_t entity)
   return DDS_RETCODE_OK;
 }
 
-dds_return_t dds_get_status_changes (dds_entity_t entity, uint32_t *status)
-{
-  dds_entity *e;
-  dds_return_t ret;
-
-  if (status == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  if ((ret = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
-    return ret;
-
-  if (!dds_entity_supports_validate_status (e))
-    ret = DDS_RETCODE_ILLEGAL_OPERATION;
-  else
-  {
-    assert (entity_has_status (e));
-    *status = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask) & SAM_STATUS_MASK;
-    ret = DDS_RETCODE_OK;
-  }
-  dds_entity_unlock(e);
-  return ret;
-}
-
 dds_return_t dds_get_status_mask (dds_entity_t entity, uint32_t *mask)
 {
   dds_entity *e;
@@ -1216,6 +1193,8 @@ static dds_return_t dds_readtake_status (dds_entity_t entity, uint32_t *status, 
   {
     uint32_t s;
     assert (entity_has_status (e));
+    if (mask == 0)
+      mask = SAM_STATUS_MASK;
     if (reset)
       s = ddsrt_atomic_and32_ov (&e->m_status.m_status_and_mask, ~mask) & mask;
     else
@@ -1234,6 +1213,11 @@ dds_return_t dds_read_status (dds_entity_t entity, uint32_t *status, uint32_t ma
 dds_return_t dds_take_status (dds_entity_t entity, uint32_t *status, uint32_t mask)
 {
   return dds_readtake_status (entity, status, mask, true);
+}
+
+dds_return_t dds_get_status_changes (dds_entity_t entity, uint32_t *status)
+{
+  return dds_read_status (entity, status, 0);
 }
 
 dds_return_t dds_get_domainid (dds_entity_t entity, dds_domainid_t *id)

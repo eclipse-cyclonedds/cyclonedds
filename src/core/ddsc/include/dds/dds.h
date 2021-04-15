@@ -477,16 +477,18 @@ dds_get_guid (dds_entity_t entity, dds_guid_t *guid);
  *
  * @param[in]  entity  Entity on which the status has to be read.
  * @param[out] status  Returns the status set on the entity, based on the enabled status.
- * @param[in]  mask    Filter the status condition to be read (can be NULL).
+ * @param[in]  mask    Filter the status condition to be read, 0 means all statuses
  *
  * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Success.
  * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter.
+ *             The entity parameter is not a valid parameter, status is a null pointer or
+ *             mask has bits set outside the status range.
  * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
+ *             The operation is invoked on an inappropriate object or mask has status
+ *             bits set that are undefined for the type of entity.
  * @retval DDS_RETCODE_ALREADY_DELETED
  *             The entity has already been deleted.
  */
@@ -501,16 +503,18 @@ dds_read_status(dds_entity_t entity, uint32_t *status, uint32_t mask);
  *
  * @param[in]  entity  Entity on which the status has to be read.
  * @param[out] status  Returns the status set on the entity, based on the enabled status.
- * @param[in]  mask    Filter the status condition to be read (can be NULL).
+ * @param[in]  mask    Filter the status condition to be read, 0 means all statuses
  *
  * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Success.
  * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter.
+ *             The entity parameter is not a valid parameter, status is a null pointer or
+ *             mask has bits set outside the status range.
  * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
+ *             The operation is invoked on an inappropriate object or mask has status
+ *             bits set that are undefined for the type of entity.
  * @retval DDS_RETCODE_ALREADY_DELETED
  *             The entity has already been deleted.
  */
