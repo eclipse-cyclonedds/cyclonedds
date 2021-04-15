@@ -4,7 +4,7 @@
 Shared Memory
 #############
 
-The documentation is to describe the Proof of Concepts detail of supporting shared memory in Cyclone DDS.
+The documentation is to describe the details of supporting shared memory in Cyclone DDS.
 The shared memory implementation is based on `Eclipse iceoryx <https://projects.eclipse.org/proposals/eclipse-iceoryx>`_.
 
 *****
