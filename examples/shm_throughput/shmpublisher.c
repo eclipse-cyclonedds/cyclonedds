@@ -345,7 +345,8 @@ static void start_writing(
       {
         void *loaned_sample;
 
-        status = dds_loan_sample(writer, &loaned_sample);
+        if ((status = dds_loan_sample(writer, &loaned_sample)) < 0)
+          DDS_FATAL("dds_loan_sample: %s\n", dds_strretcode(-status));
         memcpy(loaned_sample, sample, payloadSize);
         status = dds_write (writer, loaned_sample);
         if (status == DDS_RETCODE_TIMEOUT)

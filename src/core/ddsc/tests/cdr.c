@@ -326,6 +326,7 @@ static struct ddsi_serdata *sd_from_ser (const struct ddsi_sertype *tpcmn, enum 
   };
   const ddsi_keyhash_t *kh = ddsi_serdata_keyhash_from_fragchain (fragchain);
   CU_ASSERT_FATAL (kh != NULL);
+  assert (kh != NULL); // for Clang's static analyzer
   printf ("kh rcv %02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x\n",
           kh->value[0], kh->value[1], kh->value[2], kh->value[3],
           kh->value[4], kh->value[5], kh->value[6], kh->value[7],
@@ -1131,8 +1132,8 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 static struct tw make_topic (dds_entity_t pp, const char *topicname, const char *typename, const dds_qos_t *qos)
 {
   struct stp *stp = malloc (sizeof (*stp));
-  ddsi_sertype_init_flags (&stp->c, typename, &stp_ops, &sd_ops, DDSI_SERTYPE_FLAG_REQUEST_KEYHASH);
   assert(stp);
+  ddsi_sertype_init_flags (&stp->c, typename, &stp_ops, &sd_ops, DDSI_SERTYPE_FLAG_REQUEST_KEYHASH);
   struct ddsi_sertype *st = &stp->c;
   dds_entity_t tp = dds_create_topic_sertype (pp, topicname, &st, qos, NULL, NULL);
   CU_ASSERT_FATAL (tp > 0);
