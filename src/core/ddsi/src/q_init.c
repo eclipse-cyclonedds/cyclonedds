@@ -1126,7 +1126,7 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
     return -1;
   }
   ddsrt_asprintf (&sptr, "%02x%02x%02x%02x%02x%02x", *mac_addr, *(mac_addr+1), *(mac_addr+2), *(mac_addr+3), *(mac_addr+4), *(mac_addr+5));
-  GVLOG (DDS_LC_SHM, "My iceoryx address: %s, Port: %d\n", sptr, pid);
+  GVLOG (DDS_LC_SHM, "My iceoryx address: %s\n", sptr);
   memset ((char *) gv->loc_iceoryx_addr.address, 0, sizeof (gv->loc_iceoryx_addr.address));
   ddsrt_strlcpy ((char *) gv->loc_iceoryx_addr.address, sptr, strlen (sptr));
   free(sptr);

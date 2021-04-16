@@ -2524,8 +2524,9 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
       }
       break;
 #ifdef DDS_HAS_SHM
-    // SHM_TODO: Maybe we can check address here.
     case NN_LOCATOR_KIND_SHEM:
+      if (0 != memcmp(loc.address, gv->loc_iceoryx_addr.address, 16))
+        return DOLOC_IGNORED;
       break;
 #endif
     case NN_LOCATOR_KIND_INVALID:
