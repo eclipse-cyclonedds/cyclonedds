@@ -244,10 +244,12 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
     goto fail_prefix;
   }
 
+  DDSRT_WARNING_MSVC_OFF(6326)
   if (prefix->flags & 0x01)
     swap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   else
     swap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
+  DDSRT_WARNING_MSVC_ON(6326)
 
   hlen = swap ? ddsrt_bswap2u(prefix->length) : prefix->length;
 
@@ -982,6 +984,7 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
 
   result = check_encoded_data(&encoded_buffer, encoded, &header, &footer, &data);
   CU_ASSERT_FATAL(result);
+  assert(footer);
 
   CU_ASSERT(header->transform_identifier.transformation_kind[3] == transformation_kind);
 

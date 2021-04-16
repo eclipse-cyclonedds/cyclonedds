@@ -298,8 +298,7 @@ ddsrt_thread_create (
 
   /* Construct context structure & start thread */
   ctx = ddsrt_malloc (sizeof (thread_context_t));
-  ctx->name = ddsrt_malloc (strlen (name) + 1);
-  strcpy (ctx->name, name);
+  ctx->name = ddsrt_strdup(name);
   ctx->routine = start_routine;
   ctx->arg = arg;
 

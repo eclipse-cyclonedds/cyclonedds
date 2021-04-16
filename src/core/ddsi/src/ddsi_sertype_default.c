@@ -156,8 +156,10 @@ static bool sertype_default_deserialize (struct ddsi_domaingv *gv, struct ddsi_s
   st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE);
   st->serpool = gv->serpool;
   st->c.serdata_ops = st->c.typekind_no_key ? &ddsi_serdata_ops_cdr_nokey : &ddsi_serdata_ops_cdr;
+  DDSRT_WARNING_MSVC_OFF(6326)
   if (plist_deser_generic_srcoff (&st->type, src_data, src_sz, src_offset, DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN, ddsi_sertype_default_desc_ops) < 0)
     return false;
+  DDSRT_WARNING_MSVC_ON(6326)
   st->opt_size = (st->type.flagset & DDS_TOPIC_NO_OPTIMIZE) ? 0 : dds_stream_check_optimize (&st->type);
   return true;
 }

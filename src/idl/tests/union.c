@@ -51,6 +51,7 @@ CU_Test(idl_union, single_case)
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   u = (idl_union_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_union(u));
+  assert(u);
   CU_ASSERT(idl_type(u->switch_type_spec->type_spec) == IDL_LONG);
   c = (idl_case_t *)u->branches;
   CU_ASSERT_FATAL(idl_is_case(c));
@@ -79,6 +80,7 @@ CU_Test(idl_union, single_default_case)
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   u = (idl_union_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_union(u));
+  assert(u);
   CU_ASSERT(idl_type(u->switch_type_spec->type_spec) == IDL_CHAR);
   c = (idl_case_t *)u->branches;
   CU_ASSERT_FATAL(idl_is_case(c));
@@ -126,6 +128,7 @@ CU_Test(idl_union, enumerator_switch_type)
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   e = (idl_enum_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_enum(e));
+  assert(e);
   el = e->enumerators;
   CU_ASSERT_FATAL(idl_is_enumerator(el));
   CU_ASSERT_STRING_EQUAL(idl_identifier(el), "Red");
@@ -162,6 +165,7 @@ CU_Test(idl_union, typedef_switch_types)
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL(pstate);
+  assert(pstate);
   str = T("char", "baz") U("baz");
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
@@ -175,6 +179,7 @@ CU_Test(idl_union, typedef_switch_types)
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL(pstate);
+  assert(pstate);
   str = M("foo", T("char", "baz") U("baz"));
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
@@ -190,6 +195,7 @@ CU_Test(idl_union, typedef_switch_types)
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL(pstate);
+  assert(pstate);
   str = M("foo", T("char", "baz")) M("bar", U("foo::baz"));
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
@@ -285,6 +291,7 @@ CU_Test(idl_union, default_discriminator_bool)
       const idl_union_t *u;
 
       CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+      assert(pstate);
       u = (const idl_union_t *)pstate->root;
       CU_ASSERT_FATAL(idl_is_union(u));
       c = u->branches;
@@ -354,6 +361,7 @@ CU_Test(idl_union, default_discriminator_signed_int)
     ret = parse_string(buf, &pstate);
     CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
     CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+    assert(pstate);
     u = (const idl_union_t *)pstate->root;
     CU_ASSERT_FATAL(idl_is_union(u));
     c = u->branches;
@@ -418,6 +426,7 @@ CU_Test(idl_union, default_discriminator_unsigned_int)
     ret = parse_string(buf, &pstate);
     CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
     CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+    assert(pstate);
     u = (const idl_union_t *)pstate->root;
     CU_ASSERT_FATAL(idl_is_union(u));
     c = u->branches;
@@ -465,6 +474,7 @@ CU_Test(idl_union, default_discriminator_enum)
   ret = parse_string(idl, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   e1 = (const idl_enum_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_enum(e1));
   e1x = e1->enumerators;
@@ -482,6 +492,7 @@ CU_Test(idl_union, default_discriminator_enum)
   ret = parse_string(idl, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   e1 = (const idl_enum_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_enum(e1));
   e1x = idl_next(e1->enumerators);
@@ -499,6 +510,7 @@ CU_Test(idl_union, default_discriminator_enum)
   ret = parse_string(idl, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   e1 = (const idl_enum_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_enum(e1));
   e1x = e1->enumerators;
@@ -521,6 +533,7 @@ CU_Test(idl_union, default_discriminator_enum)
   ret = parse_string(idl, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   e1 = (const idl_enum_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_enum(e1));
   e1x = idl_next(e1->enumerators);

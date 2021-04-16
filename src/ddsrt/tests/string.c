@@ -102,8 +102,7 @@ CU_TheoryDataPoints(ddsrt_strndup, exact_length) = {
 CU_Theory((const char *s1, const char *s2, size_t n), ddsrt_strndup, exact_length)
 {
   char *s = ddsrt_strndup(s1, n);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(s);
-  CU_ASSERT_STRING_EQUAL(s, s2);
+  CU_ASSERT(s && strcmp(s, s2) == 0);
   ddsrt_free(s);
 }
 
@@ -116,8 +115,7 @@ CU_TheoryDataPoints(ddsrt_strndup, too_long) = {
 CU_Theory((const char *s1, const char *s2, size_t n), ddsrt_strndup, too_long)
 {
   char *s = ddsrt_strndup(s1, n);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(s);
-  CU_ASSERT_STRING_EQUAL(s, s2);
+  CU_ASSERT(s && strcmp(s, s2) == 0);
   ddsrt_free(s);
 }
 
@@ -130,7 +128,6 @@ CU_TheoryDataPoints(ddsrt_strndup, too_short) = {
 CU_Theory((const char *s1, const char *s2, size_t n), ddsrt_strndup, too_short)
 {
   char *s = ddsrt_strndup(s1, n);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(s);
-  CU_ASSERT_STRING_EQUAL(s, s2);
+  CU_ASSERT(s && strcmp(s, s2) == 0);
   ddsrt_free(s);
 }

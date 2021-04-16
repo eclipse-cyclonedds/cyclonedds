@@ -297,10 +297,12 @@ static bool read_prefix(unsigned char **ptr, uint32_t *remain)
     return false;
   }
 
+  DDSRT_WARNING_MSVC_OFF(6326)
   if (prefix->flags & 0x01)
     swap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   else
     swap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
+  DDSRT_WARNING_MSVC_ON(6326)
 
   hlen = swap ? ddsrt_bswap2u(prefix->length) : prefix->length;
 
@@ -326,7 +328,6 @@ static bool read_header(struct crypto_header **header, unsigned char **ptr, uint
 
   *header = ddsrt_malloc(sizeof(struct crypto_header));
   memcpy(*header, *ptr, sizeof(struct crypto_header));
-
   *ptr += sizeof(struct crypto_header);
   *remain -= (uint32_t)sizeof(struct crypto_header);
 
@@ -346,10 +347,12 @@ static bool read_body(DDS_Security_OctetSeq *contents, bool encrypted, unsigned 
 
   body = (struct submsg_header *)(*ptr);
 
+  DDSRT_WARNING_MSVC_OFF(6326)
   if (body->flags & 0x01)
     swap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   else
     swap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
+  DDSRT_WARNING_MSVC_ON(6326)
 
   hlen = swap ? ddsrt_bswap2u(body->length) : body->length;
 

@@ -39,10 +39,12 @@ CU_Test(ddsrt_select, duration_to_timeval)
   dds_duration_t usecs_max = 999999;
   dds_duration_t secs_max;
   DDSRT_STATIC_ASSERT (CHAR_BIT * sizeof (ddsrt_tv_sec_t) == 32 || CHAR_BIT * sizeof (ddsrt_tv_sec_t) == 64);
+  DDSRT_WARNING_MSVC_OFF(6326)
   if (CHAR_BIT * sizeof (ddsrt_tv_sec_t) == 32)
     secs_max = INT32_MAX;
   else
     secs_max = INT64_MAX;
+  DDSRT_WARNING_MSVC_ON(6326)
 
   if (DDS_INFINITY > secs_max) {
     CU_ASSERT_EQUAL_FATAL(secs_max, INT32_MAX);
@@ -247,7 +249,7 @@ static uint32_t recv_routine(void *ptr)
   (void)ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay, &nfds);
 
   if (ddsrt_recv(arg->sock, buf, sizeof(buf), 0, &rcvd) == DDS_RETCODE_OK) {
-    return (rcvd == sizeof(mesg) && strcmp(buf, mesg) == 0);
+    return (rcvd == sizeof(mesg) && memcmp(buf, mesg, sizeof(mesg)) == 0);
   }
 
   return 0;
@@ -314,7 +316,7 @@ static uint32_t recvmsg_routine(void *ptr)
   (void)ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay, &nfds);
 
   if (ddsrt_recvmsg(arg->sock, &msg, 0, &rcvd) == DDS_RETCODE_OK) {
-    return (rcvd == sizeof(mesg) && strcmp(buf, mesg) == 0);
+    return (rcvd == sizeof(mesg) && memcmp(buf, mesg, sizeof(mesg)) == 0);
   }
 
   return 0;

@@ -357,8 +357,7 @@ void validate_handshake_result(struct Handshake *hs, bool exp_fail_hs_req, const
       }
       else
       {
-        CU_ASSERT_FATAL (hs->err_msg != NULL);
-        CU_ASSERT_FATAL (strstr(hs->err_msg, fail_hs_req_msg) != NULL);
+        CU_ASSERT_FATAL (hs->err_msg && strstr(hs->err_msg, fail_hs_req_msg) != NULL);
       }
     }
   }
@@ -373,8 +372,7 @@ void validate_handshake_result(struct Handshake *hs, bool exp_fail_hs_req, const
       }
       else
       {
-        CU_ASSERT_FATAL (hs->err_msg != NULL);
-        CU_ASSERT_FATAL (strstr(hs->err_msg, fail_hs_reply_msg) != NULL);
+        CU_ASSERT_FATAL (hs->err_msg && strstr(hs->err_msg, fail_hs_reply_msg) != NULL);
       }
     }
   }
@@ -441,7 +439,7 @@ char *create_topic_name (const char *prefix, uint32_t nr, char *name, size_t siz
 {
   ddsrt_pid_t pid = ddsrt_getpid ();
   ddsrt_tid_t tid = ddsrt_gettid ();
-  (void)snprintf(name, size, "%s%d_pid%" PRIdPID "_tid%" PRIdTID "", prefix, nr, pid, tid);
+  (void)snprintf(name, size, "%s%"PRIu32"_pid%" PRIdPID "_tid%" PRIdTID "", prefix, nr, pid, tid);
   return name;
 }
 

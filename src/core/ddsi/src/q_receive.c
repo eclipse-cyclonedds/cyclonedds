@@ -2904,6 +2904,7 @@ static int handle_submsg_sequence
     bool byteswap;
     unsigned octetsToNextHeader;
 
+    DDSRT_WARNING_MSVC_OFF(6326)
     if (sm->smhdr.flags & SMFLAG_ENDIANNESS)
     {
       byteswap = !(DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
@@ -2912,6 +2913,7 @@ static int handle_submsg_sequence
     {
       byteswap =  (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
     }
+    DDSRT_WARNING_MSVC_ON(6326)
     if (byteswap)
     {
       sm->smhdr.octetsToNextHeader = ddsrt_bswap2u (sm->smhdr.octetsToNextHeader);
@@ -3228,6 +3230,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
     {
       int swap;
 
+      DDSRT_WARNING_MSVC_OFF(6326)
       if (ml->smhdr.flags & SMFLAG_ENDIANNESS)
       {
         swap = !(DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
@@ -3236,6 +3239,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
       {
         swap =  (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
       }
+      DDSRT_WARNING_MSVC_ON(6326)
       if (swap)
       {
         ml->length = ddsrt_bswap4u (ml->length);

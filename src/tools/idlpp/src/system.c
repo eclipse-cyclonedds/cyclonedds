@@ -460,7 +460,7 @@ void    do_options(
     /* Get current directory for -I option and #pragma once */
     assert( cwd_sz < INT_MAX);
     cwd = getcwd( cur_work_dir, cwd_sz - 1);
-    assert( cwd == cur_work_dir);
+    assert( cwd && cwd == cur_work_dir);
 #if SYS_FAMILY == SYS_WIN
     bsl2sl( cwd);
 #endif
@@ -697,7 +697,7 @@ plus:
 
         case 'g':
             assert( mcpp_optarg != NULL);
-            if (!isdigit( *mcpp_optarg)
+            if (!isdigit( (unsigned char)*mcpp_optarg)
                     && str_eq( argv[ mcpp_optind - 2], "-g"))
                 /* Neither '-g 0' nor '-ggdb' -- No argument    */
                 mcpp_optind--;
@@ -753,7 +753,7 @@ plus:
 
         case 'h':
             assert( mcpp_optarg != NULL);
-            if (*(mcpp_optarg + 1) == EOS && isdigit( *mcpp_optarg))
+            if (*(mcpp_optarg + 1) == EOS && isdigit( (unsigned char)*mcpp_optarg))
                 /* a digit  */
                 look_and_install( "__STDC_HOSTED__", DEF_NOARGS_PREDEF, null
                         , mcpp_optarg);
@@ -776,7 +776,7 @@ plus:
                 unset_sys_dirs = TRUE;
                         /* Unset pre-specified include directories  */
 #endif
-            } else if (*(mcpp_optarg + 1) == EOS && isdigit( *mcpp_optarg)
+            } else if (*(mcpp_optarg + 1) == EOS && isdigit( (unsigned char)*mcpp_optarg)
                     && (i = *mcpp_optarg - '0') != 0
                     && (i & ~(CURRENT | SOURCE)) == 0) {
                 search_rule = i;            /* -I1, -I2 or -I3      */
@@ -1008,12 +1008,12 @@ plus:
             if (integrated_cpp) {
                 if (*mcpp_optarg == '-')            /* No argument  */
                     mcpp_optind--;
-                else if ((isdigit( *mcpp_optarg) && *mcpp_optarg != '0')
+                else if ((isdigit( (unsigned char)*mcpp_optarg) && *mcpp_optarg != '0')
                         || *mcpp_optarg == 's' || *mcpp_optarg == 'z')
                                             /* -O1, -O2 -Os, -Oz    */
                     look_and_install( "__OPTIMIZE__", DEF_NOARGS_PREDEF, null
                             , "1");
-                else if (! isdigit( *mcpp_optarg))
+                else if (! isdigit( (unsigned char)*mcpp_optarg))
                     usage( opt);
                 /* Else -O0: ignore */
             } else {
@@ -1241,7 +1241,7 @@ Version:
                                         /* Single-line diagnostic   */
             }
 #endif
-            if (isdigit( *mcpp_optarg)) {
+            if (isdigit( (unsigned char)*mcpp_optarg)) {
                 warn_level |= parse_warn_level( mcpp_optarg, opt);
                 if (warn_level > 31 || warn_level < 0)
                     usage( opt);
@@ -1711,9 +1711,9 @@ static int  parse_warn_level(
     while( *cp != EOS) {
         while( *cp == ' ')
             cp++;                           /* Skip spaces          */
-        if (! isdigit( *cp))
+        if (! isdigit( (unsigned char)*cp))
             break;                          /* Error    */
-        while (isdigit( *cp)) {
+        while (isdigit( (unsigned char)*cp)) {
             i *= 10;
             i += (*cp++ - '0');
         }
@@ -1767,7 +1767,7 @@ static void def_a_macro(
         cp++;
     i = *cp;
     *cp = EOS;
-    if ((defp = look_id( definition)) != NULL)      /* Pre-defined  */
+    if (look_id( definition) != NULL)               /* Pre-defined  */
         undefine( definition);
     *cp = i;
     /* Now, save the definition.    */
@@ -3058,7 +3058,7 @@ static char *   md_init(
  * Initialize output file and target.
  */
 {
-    char    prefix[ PATHMAX];
+    char    prefix[ PATHMAX] = { '\0' };
     char *  cp = NULL;
     size_t  len;
     char *  out_p;
@@ -3077,11 +3077,13 @@ static char *   md_init(
         memcpy( prefix, target, len);
         cp = prefix + len;
         *cp++ = '.';
+        *cp   = '\0';
     }
 
     if (! mkdep_fp) {   /* Unless already opened by -MF, -MD, -MMD options  */
         if (mkdep & MD_FILE) {
-            strcpy( cp, "d");
+            *cp++ = 'd';
+            *cp   = '\0';
             mkdep_fp = fopen( prefix, "w");
         } else {
             mkdep_fp = fp_out;  /* Output dependency line to normal output  */
@@ -4712,6 +4714,7 @@ static void do_preprocessed( void)
                 || (memcmp( --comment, "/* ", 3) != 0)
                 || ((colon = strrchr( comment, ':')) == NULL))
             cfatal( corrupted, NULL, 0L, NULL);
+        MSC_PRAGMA("warning(suppress: 28182 28183)")
         src_line = (size_t)atol( colon + 1);  /* Pseudo line number   */
         *colon = EOS;
         dir = comment + 3;
@@ -4993,8 +4996,10 @@ void    clear_filelist( void)
     for (incp = incdir; incp < incend; incp++)
         free( (void *) *incp);
     free( (void *) incdir);
-    for (namep = fnamelist; namep < fname_end; namep++)
+    for (namep = fnamelist; namep < fname_end; namep++) {
+        MSC_PRAGMA("warning(suppress: 6001)")
         free( (void *) namep->name);
+    }
     free( (void *) fnamelist);
     if (standard)
         free( (void *) once_list);

@@ -268,8 +268,16 @@ something so go through the trouble of defining it!
 
 #if HOST_COMPILER == GNUC
 #define MCPP_ATTRIBUTE(...) __attribute__(__VA_ARGS__)
+#define MCPP_ATTRIBUTE_NORETURN() __attribute__((noreturn))
+#define MSC_PRAGMA(...) /* empty */
+#elif HOST_COMPILER == MSC
+#define MCPP_ATTRIBUTE(...) /* empty */
+#define MCPP_ATTRIBUTE_NORETURN() __declspec(noreturn)
+#define MSC_PRAGMA(...) _Pragma(__VA_ARGS__)
 #else
 #define MCPP_ATTRIBUTE(...) /* empty */
+#define MCPP_ATTRIBUTE_NORETURN() /* empty */
+#define MSC_PRAGMA(...) /* empty */
 #endif
 
 /*

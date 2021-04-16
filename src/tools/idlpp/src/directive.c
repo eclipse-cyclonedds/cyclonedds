@@ -705,6 +705,7 @@ DEFBUF *    do_define(
     size_t  def_start, def_end;     /* Column of macro definition   */
 
     def_start = def_end = 0;
+    memset(repl_list, 0, sizeof(repl_list));
     repl_base = repl_list;
     repl_end = & repl_list[ NMACWORK];
     c = skip_ws();
@@ -915,9 +916,9 @@ static int  get_parm( void)
             /* Handle GCC2 variadic params like par...  */
             char *  tp = workp;
             if (mcpp_mode == STD
-                    &&(token_type = scan_token( c, &workp, work_end)) == OPE
+                    && scan_token( c, &workp, work_end) == OPE
                     && openum == OP_ELL) {
-                if ((c = skip_ws()) != ')') {
+                if (skip_ws() != ')') {
                     cerror( misplaced_ellip, NULL, 0L, NULL);
                     return  FALSE;
                 }
@@ -1616,6 +1617,7 @@ void    dump_a_def(
                 }
             }
 #if COMPILER == GNUC
+            assert( !(dp->nargs & VA_ARGS) || numargs > 0);
             if ((dp->nargs & VA_ARGS)
                     && memcmp( parms[ numargs - 1].name, "...", 3) != 0) {
                 appendix = "...";   /* Append ... so as to become 'args...' */

@@ -347,7 +347,7 @@ static uint32_t createwriter_subscriber (void *varg)
             }
 
             snprintf (logbuf[xs[i]][logidx[xs[i]]], sizeof (logbuf[xs[i]][logidx[xs[i]]]),
-                      "%"PRId32": %"PRId32".%"PRIu32" %"PRIu32".%"PRIu32" iid %"PRIx64" new %"PRIx64" st %c%c seq %"PRIu32" seen %"PRIu32"\n",
+                      "%"PRIu32": %"PRId32".%"PRIu32" %"PRIu32".%"PRIu32" iid %"PRIx64" new %"PRIx64" st %c%c seq %"PRIu32" seen %"PRIu32"\n",
                       (uint32_t) xs[i], s->round, s->wrseq, s->wridx, s->histidx, wri->wr_iid, si[j].publication_handle,
                       (si[j].instance_state == DDS_IST_ALIVE) ? 'A' : (si[j].instance_state == DDS_IST_NOT_ALIVE_DISPOSED) ? 'D' : 'U',
                       si[j].valid_data ? 'v' : 'i', s->seq, wri->seen);

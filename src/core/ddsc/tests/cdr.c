@@ -259,6 +259,7 @@ static void sd0_free (struct ddsi_sertopic_serdata *dcmn)
 static char *strdup_with_len (const char *x, size_t l)
 {
   char *y = malloc (l);
+  assert(y);
   memcpy (y, x, l);
   return y;
 }
@@ -298,6 +299,7 @@ static struct ddsi_serdata *sd_from_ser_iov (const struct ddsi_sertype *tpcmn, e
 {
   struct stp const * const stp = (const struct stp *) tpcmn;
   struct sd *sd = malloc (sizeof (*sd));
+  assert(sd);
   ddsi_serdata_init (&sd->c, &stp->c, kind);
   (void) size;
   sd->c.hash = sdx_from_ser_iov (&sd->x, kind, niov, iov, tpcmn->serdata_basehash);
@@ -308,6 +310,7 @@ static struct ddsi_sertopic_serdata *sd0_from_ser_iov (const struct ddsi_sertopi
 {
   struct stp0 const * const stp = (const struct stp0 *) tpcmn;
   struct sd0 *sd = malloc (sizeof (*sd));
+  assert(sd);
   ddsi_sertopic_serdata_init (&sd->c, &stp->c, kind);
   (void) size;
   sd->c.hash = sdx_from_ser_iov (&sd->x, kind, niov, iov, tpcmn->serdata_basehash);
@@ -383,6 +386,7 @@ static struct ddsi_serdata *sd_from_sample (const struct ddsi_sertype *tpcmn, en
   if (s->key == NULL || (kind == SDK_DATA && s->value == NULL))
     return NULL;
   struct sd *sd = malloc (sizeof (*sd));
+  assert(sd);
   ddsi_serdata_init (&sd->c, &tp->c, kind);
   sd->c.hash = sdx_from_sample (&sd->x, kind, s, tpcmn->serdata_basehash);
   return &sd->c;
@@ -395,6 +399,7 @@ static struct ddsi_sertopic_serdata *sd0_from_sample (const struct ddsi_sertopic
   if (s->key == NULL || (kind == SDK_DATA && s->value == NULL))
     return NULL;
   struct sd0 *sd = malloc (sizeof (*sd));
+  assert(sd);
   ddsi_sertopic_serdata_init (&sd->c, &tp->c, kind);
   sd->c.hash = sdx_from_sample (&sd->x, kind, s, tpcmn->serdata_basehash);
   return &sd->c;
@@ -415,6 +420,7 @@ static struct ddsi_serdata *sd_to_untyped (const struct ddsi_serdata *serdata_co
   const struct sd *sd = (const struct sd *) serdata_common;
   const struct stp *tp = (const struct stp *) sd->c.type;
   struct sd *sd_tl = malloc (sizeof (*sd_tl));
+  assert(sd_tl);
   ddsi_serdata_init (&sd_tl->c, &tp->c, SDK_KEY);
   sd_tl->c.type = NULL;
   sd_tl->c.hash = sd->c.hash;
@@ -428,6 +434,7 @@ static struct ddsi_sertopic_serdata *sd0_to_topicless (const struct ddsi_sertopi
   const struct sd0 *sd = (const struct sd0 *) serdata_common;
   const struct stp0 *tp = (const struct stp0 *) sd->c.topic;
   struct sd0 *sd_tl = malloc (sizeof (*sd_tl));
+  assert(sd_tl);
   ddsi_sertopic_serdata_init (&sd_tl->c, &tp->c, SDK_KEY);
   sd_tl->c.topic = NULL;
   sd_tl->c.hash = sd->c.hash;
@@ -449,6 +456,8 @@ static void sdx_to_ser_ref (const struct sdx *sd, enum ddsi_serdata_kind kind, s
   ref->iov_len = sdx_get_size (sd, kind);
   ref->iov_base = malloc (ref->iov_len);
   char * const header = ref->iov_base;
+  assert(header);
+  assert(4 <= ref->iov_len);
   header[0] = 0;
   header[1] = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 1 : 0;
   header[2] = 0;
@@ -1123,6 +1132,7 @@ static struct tw make_topic (dds_entity_t pp, const char *topicname, const char 
 {
   struct stp *stp = malloc (sizeof (*stp));
   ddsi_sertype_init_flags (&stp->c, typename, &stp_ops, &sd_ops, DDSI_SERTYPE_FLAG_REQUEST_KEYHASH);
+  assert(stp);
   struct ddsi_sertype *st = &stp->c;
   dds_entity_t tp = dds_create_topic_sertype (pp, topicname, &st, qos, NULL, NULL);
   CU_ASSERT_FATAL (tp > 0);
@@ -1143,6 +1153,7 @@ static const struct sdx *get_sdx (const struct ddsi_serdata *serdata)
 static struct tw make_topic0 (dds_entity_t pp, const char *topicname, const char *typename, const dds_qos_t *qos)
 {
   struct stp0 *stp = malloc (sizeof (*stp));
+  assert(stp);
   ddsi_sertopic_init (&stp->c, topicname, typename, &stp0_ops, &sd0_ops, false);
   struct ddsi_sertopic *st = &stp->c;
   dds_entity_t tp = dds_create_topic_generic (pp, &st, qos, NULL, NULL);

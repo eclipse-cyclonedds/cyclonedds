@@ -126,7 +126,7 @@ static int parse_args(
     *partitionName = argv[5]; /* The name of the partition */
   }
 
-  printf ("payloadSize: %"PRIu32" bytes burstInterval: %u ms burstSize: %"PRId32" timeOut: %u seconds partitionName: %s\n",
+  printf ("payloadSize: %"PRIu32" bytes burstInterval: %d ms burstSize: %"PRIu32" timeOut: %d seconds partitionName: %s\n",
     *payloadSize, *burstInterval, *burstSize, *timeOut, *partitionName);
   fflush (stdout);
 

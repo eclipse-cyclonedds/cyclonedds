@@ -212,15 +212,15 @@ CU_Test(ddssec_timed_cb, test_create_dispatcher, .init = setup, .fini = teardown
   dds_time_t future2 = now + DDS_SECS(1);
   dds_time_t future3 = now + DDS_SECS(10);
   struct {
-    uint32_t rank;
     dds_time_t expire;
+    uint32_t rank;
     test_event_kind_t trigger_kind;
   } timers[NUM_TIMERS] = {
-      { 3, future2, EVENT_TRIGGERED },
-      { 1, present, EVENT_TRIGGERED },
-      { 0, past,    EVENT_TRIGGERED },
-      { 4, future3, EVENT_ARMED     },
-      { 2, future1, EVENT_TRIGGERED }
+      { future2, 3, EVENT_TRIGGERED },
+      { present, 1, EVENT_TRIGGERED },
+      { past,    0, EVENT_TRIGGERED },
+      { future3, 4, EVENT_ARMED     },
+      { future1, 2, EVENT_TRIGGERED }
   };
   struct dds_security_timed_dispatcher *d = NULL;
   struct test_data expected[NUM_TIMERS];
@@ -310,15 +310,15 @@ CU_Test(ddssec_timed_cb, test_remove_timer, .init = setup, .fini = teardown)
   dds_time_t now = dds_time();
   dds_time_t t1 = now + DDS_SECS(1);
   struct {
-    uint32_t rank;
     dds_time_t expire;
+    uint32_t rank;
     test_event_kind_t trigger_kind;
   } timers[NUM_TIMERS] = {
-      { 2, t1,                 EVENT_TRIGGERED },
-      { 0, t1 + DDS_MSECS(10), EVENT_DELETED   },
-      { 3, t1 + DDS_MSECS(20), EVENT_TRIGGERED },
-      { 1, t1 + DDS_MSECS(30), EVENT_DELETED   },
-      { 4, t1 + DDS_MSECS(40), EVENT_TRIGGERED }
+      { t1,                 2, EVENT_TRIGGERED },
+      { t1 + DDS_MSECS(10), 0, EVENT_DELETED   },
+      { t1 + DDS_MSECS(20), 3, EVENT_TRIGGERED },
+      { t1 + DDS_MSECS(30), 1, EVENT_DELETED   },
+      { t1 + DDS_MSECS(40), 4, EVENT_TRIGGERED }
   };
   struct dds_security_timed_dispatcher *d = NULL;
   struct test_data expected[NUM_TIMERS];

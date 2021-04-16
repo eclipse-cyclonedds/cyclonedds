@@ -43,6 +43,7 @@ CU_Test(idl_module, reopen)
 
   idl_module_t* m1 = (idl_module_t*)pstate->root;
   CU_ASSERT_FATAL(idl_is_module(m1));
+  assert(m1);
   CU_ASSERT_STRING_EQUAL(m1->name->identifier, "m1");
 
   idl_struct_t *s1 = (idl_struct_t*)m1->definitions;
@@ -52,18 +53,21 @@ CU_Test(idl_module, reopen)
 
   idl_member_t* mem1 = s1->members;
   CU_ASSERT_PTR_NOT_NULL_FATAL(mem1);
+  assert(mem1);
   CU_ASSERT_PTR_EQUAL(s1,mem1->node.parent);
   CU_ASSERT((idl_mask(mem1->type_spec) & IDL_LONG) == IDL_LONG);
   CU_ASSERT(!mem1->key);
 
   idl_declarator_t* decl1 = mem1->declarators;
   CU_ASSERT_PTR_NOT_NULL_FATAL(decl1);
+  assert(decl1);
   CU_ASSERT_PTR_NULL(decl1->node.next);
   CU_ASSERT_STRING_EQUAL(decl1->name->identifier, "l");
   CU_ASSERT_EQUAL(idl_array_size(decl1), 0);
 
   idl_module_t* m2 = (idl_module_t*)m1->node.next;
   CU_ASSERT_FATAL(idl_is_module(m2));
+  assert(m2);
   CU_ASSERT_STRING_EQUAL(m2->name->identifier, "m1");
 #if 0
   /* see comment in idl_create_module in tree.c */
@@ -77,12 +81,14 @@ CU_Test(idl_module, reopen)
 
   idl_member_t* mem2 = s2->members;
   CU_ASSERT_PTR_NOT_NULL_FATAL(mem2);
+  assert(mem2);
   CU_ASSERT_PTR_EQUAL(s2, mem2->node.parent);
   CU_ASSERT_PTR_EQUAL(mem2->type_spec, s1);
   CU_ASSERT(!mem2->key);
 
   idl_declarator_t* decl2 = mem2->declarators;
   CU_ASSERT_PTR_NOT_NULL_FATAL(decl2);
+  assert(decl2);
   CU_ASSERT_PTR_NULL(decl2->node.next);
   CU_ASSERT_STRING_EQUAL(decl2->name->identifier, "m_s1");
   CU_ASSERT_EQUAL(idl_array_size(decl2), 0);

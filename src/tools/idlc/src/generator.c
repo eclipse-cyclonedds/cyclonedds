@@ -25,7 +25,9 @@
 #include "idl/version.h"
 #include "idl/processor.h"
 
-idlc_thread_local struct idlc_auto idlc_auto__;
+idlc_thread_local struct idlc_auto_args__ idlc_auto_args__;
+
+extern char *idlc_auto__(void);
 
 char *absolute_name(const void *node, const char *separator);
 
@@ -98,13 +100,15 @@ char *typename(const void *node)
     case IDL_STRING:   return idl_strdup("char");
     case IDL_SEQUENCE: {
       /* sequences require a little magic */
-      const char pref[] = "dds_sequence_";
-      const char seq[] = "sequence_";
-      char dims[32] = "";
+      const char *pref = "dds_sequence_";
+      const char *seq = "sequence_";
+      char dims[32];
       const idl_type_spec_t *type_spec;
-      char *type, *seqtype = NULL;
+      const char *type;
+      char *name = NULL, *seqtype = NULL;
       size_t cnt = 0, len = 0, pos = 0;
 
+      dims[0] = '\0';
       type_spec = idl_type_spec(node);
       for (; idl_is_sequence(type_spec); type_spec = idl_type_spec(type_spec))
         cnt++;
@@ -138,12 +142,15 @@ char *typename(const void *node)
           default:
             abort();
         }
-      else if (!(type = absolute_name(type_spec, "_")))
+      else if (!(type = name = absolute_name(type_spec, "_")))
         goto err_type;
       len = strlen(pref) + strlen(type) + strlen(dims);
       if (!(seqtype = malloc(len + (cnt * strlen(seq)) + 1)))
         goto err_seqtype;
       len = strlen(pref);
+#if defined(_MSC_VER)
+#pragma warning(suppress: 6386)
+#endif
       memcpy(seqtype, pref, len);
       pos += len;
       for (; cnt; pos += strlen(seq), cnt--)
@@ -156,8 +163,8 @@ char *typename(const void *node)
       pos += len;
       seqtype[pos] = '\0';
 err_seqtype:
-      if (!idl_is_base_type(type_spec) && !idl_is_string(type_spec))
-        free(type);
+      if (name)
+        free(name);
 err_type:
       return seqtype;
     }
@@ -227,7 +234,7 @@ static idl_retcode_t print_includes(FILE *fh, const idl_source_t *source)
   char *sep = NULL, *path;
   const idl_source_t *include;
 
-  if (!(path = AUTO(idl_strdup(source->path->name))))
+  if (!(path = IDLC_AUTO(idl_strdup(source->path->name))))
     return IDL_RETCODE_NO_MEMORY;
   for (char *ptr = path; *ptr; ptr++)
     if (idl_isseparator(*ptr))
@@ -239,7 +246,7 @@ static idl_retcode_t print_includes(FILE *fh, const idl_source_t *source)
     char *ext, *relpath = NULL;
     if ((ret = idl_relative_path(path, include->path->name, &relpath)))
       return ret;
-    if (!(relpath = AUTO(relpath)))
+    if (!(relpath = IDLC_AUTO(relpath)))
       return IDL_RETCODE_NO_MEMORY;
     ext = relpath;
     for (char *ptr = ext; *ptr; ptr++) {
@@ -275,7 +282,7 @@ generate_nosetup(const idl_pstate_t *pstate, struct generator *generator)
   char *const header_file = generator->header.path;
   char *const source_file = generator->source.path;
 
-  if (!(guard = AUTO(figure_guard(header_file))))
+  if (!(guard = IDLC_AUTO(figure_guard(header_file))))
     return IDL_RETCODE_NO_MEMORY;
   if ((ret = print_header(generator->header.handle, file, header_file)))
     return ret;

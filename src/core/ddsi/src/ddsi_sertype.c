@@ -183,8 +183,10 @@ bool ddsi_sertype_deserialize (struct ddsi_domaingv *gv, struct ddsi_sertype *tp
   size_t srcoff = 0;
   if (!sertype_ops->deserialize)
     return false;
+  DDSRT_WARNING_MSVC_OFF(6326)
   if (plist_deser_generic_srcoff (&d, serdata, sz, &srcoff, DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN, sertype_ser_ops) < 0)
     return false;
+  DDSRT_WARNING_MSVC_ON(6326)
   ddsrt_atomic_st32 (&tp->flags_refc, 1);
   tp->ops = sertype_ops;
   tp->type_name = ddsrt_strdup (d.type_name);

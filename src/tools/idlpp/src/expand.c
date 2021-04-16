@@ -526,6 +526,7 @@ static char *   chk_magic_balance(
 #if 0
                 mac_loc[ mac] = buf_p - 2;
 #endif
+                MSC_PRAGMA("warning(suppress: 6385)")
                 memcpy( mac_id[ mac], buf_p, MAC_S_LEN - 2);
             }
             mac++;
@@ -533,7 +534,9 @@ static char *   chk_magic_balance(
             break;
         case MAC_ARG_START  :
             if (option_flags.v) {
+                MSC_PRAGMA("warning(suppress: 6386)")
                 arg_loc[ arg] = buf_p - 2;
+                MSC_PRAGMA("warning(suppress: 6385)")
                 memcpy( arg_id[ arg], buf_p, ARG_S_LEN - 2);
             }
             arg++;
@@ -789,6 +792,7 @@ static char *   replace(
         diag_macro( CERROR, macbuf_overflow, defp->name, 0L, catbuf, defp
                 , NULL);
         if (nargs >= 0) {
+            assert( arglist);
             if (! enable_trace_macro)
                 /* arglist[0] is needed for macro infs  */
                 free( arglist[ 0]);
@@ -804,6 +808,7 @@ static char *   replace(
         dump_string( "prescan exit", catbuf);
     }
 
+    assert( arglist);
     if (nargs > 0) {    /* Function-like macro with any argument    */
         expbuf = xmalloc( (size_t) (NMACWORK + IDMAX));
         if (mcpp_debug & EXPAND) {
@@ -2650,6 +2655,8 @@ static int  get_an_arg(
     MAGIC_SEQ   mgc_seq;        /* Magic seqs and spaces succeeding an arg  */
     size_t  len;
 
+    memset( &mgc_seq, 0, sizeof (MAGIC_SEQ));
+
     if (trace_macro) {
         trace_arg = m_num && infile->fp;
         if (m_num) {
@@ -2679,7 +2686,6 @@ static int  get_an_arg(
                 argp += len;
             }
         }
-        memset( &mgc_seq, 0, sizeof (MAGIC_SEQ));
     }
 
     while (1) {
@@ -2863,6 +2869,7 @@ static int  squeeze_ws(
     FILE *  fp = infile->fp;
     int     end_of_file = (out && endf) ? FALSE : TRUE;
 
+    assert(! mgc_seq || out);
     while (((char_type[ c = get_ch()] & SPA) && (! standard
                 || (mcpp_mode == POST_STD && file == infile)
                 || (mcpp_mode == STD

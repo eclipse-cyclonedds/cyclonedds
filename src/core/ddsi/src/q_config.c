@@ -1857,10 +1857,9 @@ static const struct cfgelem *find_cfgelem_by_name (struct cfgst * const cfgst, c
     else
       (void) cfg_error (cfgst, "%s: unknown %s", name, class);
   }
-
+  assert(!cfg_subelem || cfg_subelem->name);
   if (cfg_subelem && (cfg_subelem->name[0] == '>'))
   {
-    assert (strcmp (cfg_subelem->name, "*") != 0);
     struct cfgelem const * const cfg_subelem_orig = cfg_subelem;
     bool isattr;
     cfg_subelem = lookup_element (cfg_subelem->defvalue, &isattr);

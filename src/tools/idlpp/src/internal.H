@@ -486,9 +486,10 @@ extern char *   (xrealloc)( char * ptr, size_t size);
                 /* Reallocate memory or die     */
 extern LINE_COL *   get_src_location( LINE_COL * p_line_col);
                 /* Get location on source file  */
+
+MCPP_ATTRIBUTE_NORETURN()
 extern void     cfatal( const char * format, const char * arg1, long arg2
-        , const char * arg3)
-        MCPP_ATTRIBUTE((noreturn));
+        , const char * arg3);
                 /* Print a fatal error and exit */
 extern void     cerror( const char * format, const char * arg1, long arg2
         , const char * arg3);

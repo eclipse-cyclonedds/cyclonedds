@@ -109,6 +109,9 @@ move:
         memmove(path + len, path + j, n);
         len += n;
       }
+#if defined(_MSC_VER)
+__pragma(warning(suppress: 6385))
+#endif
       if (path[i++] == '\0')
         break;
       goto mark;

@@ -28,10 +28,11 @@
 #if defined(__GNUC__)
 _Pragma("GCC diagnostic push")
 _Pragma("GCC diagnostic ignored \"-Wconversion\"")
-_Pragma("GCC diagnostic push")
 _Pragma("GCC diagnostic ignored \"-Wsign-conversion\"")
-_Pragma("GCC diagnostic push")
 _Pragma("GCC diagnostic ignored \"-Wmissing-prototypes\"")
+#if (__GNUC__ >= 10)
+_Pragma("GCC diagnostic ignored \"-Wanalyzer-free-of-non-heap\"")
+#endif
 #endif
 
 static void yyerror(idl_location_t *, idl_pstate_t *, const char *);
@@ -1049,8 +1050,6 @@ annotation_appl_keyword_param:
 %%
 
 #if defined(__GNUC__)
-_Pragma("GCC diagnostic pop")
-_Pragma("GCC diagnostic pop")
 _Pragma("GCC diagnostic pop")
 #endif
 

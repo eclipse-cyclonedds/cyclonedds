@@ -64,11 +64,11 @@ emit_implicit_sequence(
   }
 
   /* https://www.omg.org/spec/C/1.0/PDF section 1.11 */
-  if (!(name = AUTO(typename(node))))
+  if (!(name = IDLC_AUTO(typename(node))))
     return IDL_RETCODE_NO_MEMORY;
-  if (!(type = AUTO(typename(type_spec))))
+  if (!(type = IDLC_AUTO(typename(type_spec))))
     return IDL_RETCODE_NO_MEMORY;
-  if (!(macro = AUTO(idl_strdup(name))))
+  if (!(macro = IDLC_AUTO(idl_strdup(name))))
     return IDL_RETCODE_NO_MEMORY;;
   for (char *ptr=macro; *ptr; ptr++)
     if (idl_islower((unsigned char)*ptr))
@@ -139,7 +139,7 @@ emit_field(
 
   name = idl_identifier(node);
   type_spec = idl_type_spec(node);
-  if (!(type = AUTO(typename(type_spec))))
+  if (!(type = IDLC_AUTO(typename(type_spec))))
     return IDL_RETCODE_NO_MEMORY;
 
   /* strings are special */
@@ -180,7 +180,7 @@ emit_struct(
   char *name = NULL;
   const char *fmt;
 
-  if (!(name = AUTO(typename(node))))
+  if (!(name = IDLC_AUTO(typename(node))))
     return IDL_RETCODE_NO_MEMORY;
 
   if (revisit) {
@@ -233,11 +233,11 @@ emit_union(
   (void)pstate;
   (void)path;
   assert(idl_is_union(node));
-  if (!(name = AUTO(typename(node))))
+  if (!(name = IDLC_AUTO(typename(node))))
     return IDL_RETCODE_NO_MEMORY;
   switch_type_spec = ((const idl_union_t *)node)->switch_type_spec;
   assert(idl_is_switch_type_spec(switch_type_spec));
-  if (!(type = AUTO(typename(switch_type_spec->type_spec))))
+  if (!(type = IDLC_AUTO(typename(switch_type_spec->type_spec))))
     return IDL_RETCODE_NO_MEMORY;
 
   if (revisit) {
@@ -297,11 +297,11 @@ emit_sequence_typedef(
     star = "*";
   }
 
-  if (!(type = AUTO(typename(type_spec))))
+  if (!(type = IDLC_AUTO(typename(type_spec))))
     return IDL_RETCODE_NO_MEMORY;
   declarator = ((const idl_typedef_t *)node)->declarators;
   for (; declarator; declarator = idl_next(declarator)) {
-    if (!(name = AUTO(typename(declarator))))
+    if (!(name = IDLC_AUTO(typename(declarator))))
       return IDL_RETCODE_NO_MEMORY;
     fmt = "typedef struct %1$s\n{\n"
           "  uint32_t _maximum;\n"
@@ -353,11 +353,11 @@ emit_typedef(
     idl_snprintf(dims, sizeof(dims), "[%" PRIu32 "]", idl_bound(type_spec)+1);
   else if (idl_is_string(type_spec))
     star = "*";
-  if (!(type = AUTO(typename(type_spec))))
+  if (!(type = IDLC_AUTO(typename(type_spec))))
     return IDL_RETCODE_NO_MEMORY;
   declarator = ((const idl_typedef_t *)node)->declarators;
   for (; declarator; declarator = idl_next(declarator)) {
-    if (!(name = AUTO(typename(declarator))))
+    if (!(name = IDLC_AUTO(typename(declarator))))
       return IDL_RETCODE_NO_MEMORY;
     fmt = "typedef %1$s %2$s%3$s%4$s";
     if (idl_fprintf(gen->header.handle, fmt, type, star, name, dims) < 0)
@@ -395,14 +395,14 @@ emit_enum(
   (void)pstate;
   (void)revisit;
   (void)path;
-  if (!(type = AUTO(typename(node))))
+  if (!(type = IDLC_AUTO(typename(node))))
     return IDL_RETCODE_NO_MEMORY;
   if (idl_fprintf(gen->header.handle, "typedef enum %s\n{\n", type) < 0)
     return IDL_RETCODE_NO_MEMORY;
 
   enumerator = ((const idl_enum_t *)node)->enumerators;
   for (; enumerator; enumerator = idl_next(enumerator)) {
-    if (!(name = AUTO(typename(enumerator))))
+    if (!(name = IDLC_AUTO(typename(enumerator))))
       return IDL_RETCODE_NO_MEMORY;
     value = enumerator->value;
     /* FIXME: IDL 3.5 did not support fixed enumerator values */
@@ -474,7 +474,7 @@ print_literal(
     default: {
       const char *name;
       assert(type == IDL_ENUM);
-      if (!(name = AUTO(typename(literal))))
+      if (!(name = IDLC_AUTO(typename(literal))))
         return -1;
       return idl_fprintf(fp, "%s", name);
     }
@@ -496,7 +496,7 @@ emit_const(
 
   (void)revisit;
   (void)path;
-  if (!(type = AUTO(typename(node))))
+  if (!(type = IDLC_AUTO(typename(node))))
     return IDL_RETCODE_NO_MEMORY;
   switch (idl_type(literal)) {
     case IDL_CHAR:

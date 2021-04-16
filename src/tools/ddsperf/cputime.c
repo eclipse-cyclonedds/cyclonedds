@@ -201,6 +201,7 @@ struct record_cputime_state *record_cputime_new (dds_entity_t wr)
   }
 
   struct record_cputime_state *state = malloc (sizeof (*state));
+  assert(state);
   ddsrt_rusage_t usage;
   if (ddsrt_getrusage (DDSRT_RUSAGE_SELF, &usage) < 0)
     usage.nvcsw = usage.nivcsw = 0;
@@ -209,6 +210,7 @@ struct record_cputime_state *record_cputime_new (dds_entity_t wr)
   state->vcswprev = (uint32_t) usage.nvcsw;
   state->ivcswprev = (uint32_t) usage.nivcsw;
   state->threads = malloc ((size_t) n * sizeof (*state->threads));
+  assert(state->threads);
   state->nthreads = 0;
   for (int32_t i = 0; i < n; i++)
   {
@@ -229,7 +231,7 @@ struct record_cputime_state *record_cputime_new (dds_entity_t wr)
   state->s.pid = (uint32_t) ddsrt_getpid ();
   state->s.cpu._length = 0;
   state->s.cpu._maximum = (uint32_t) state->nthreads;
-  state->s.cpu._buffer = malloc (state->s.cpu._maximum * sizeof (*state->s.cpu._buffer));
+  state->s.cpu._buffer = ddsrt_malloc (state->s.cpu._maximum * sizeof (*state->s.cpu._buffer));
   state->s.cpu._release = false;
   return state;
 }
@@ -241,7 +243,7 @@ void record_cputime_free (struct record_cputime_state *state)
     free (state->threads);
     ddsrt_free (state->s.hostname);
     /* we alias thread names in state->s->cpu._buffer, so no need to free */
-    free (state->s.cpu._buffer);
+    ddsrt_free (state->s.cpu._buffer);
     free (state);
   }
 }

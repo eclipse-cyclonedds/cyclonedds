@@ -2030,6 +2030,7 @@ static void plist_or_xqos_fini (void * __restrict dst, size_t shift, uint64_t pm
   for (size_t i = 0; i < sizeof (piddesc_fini) / sizeof (piddesc_fini[0]); i++)
   {
     struct piddesc const * const entry = piddesc_fini[i];
+    assert (entry);
     if (shift > 0 && !(entry->flags & PDF_QOS))
       break;
     assert (entry->plist_offset >= shift);
@@ -2070,6 +2071,7 @@ static void plist_or_xqos_unalias (void * __restrict dst, size_t shift)
   for (size_t i = 0; i < sizeof (piddesc_unalias) / sizeof (piddesc_unalias[0]); i++)
   {
     struct piddesc const * const entry = piddesc_unalias[i];
+    assert (entry);
     if (shift > 0 && !(entry->flags & PDF_QOS))
       break;
     assert (entry->plist_offset >= shift);
@@ -3036,6 +3038,7 @@ dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint1
   bool bswap;
   if (needlep)
     *needlep = NULL;
+  DDSRT_WARNING_MSVC_OFF(6326)
   switch (encoding)
   {
     case PL_CDR_LE:
@@ -3047,6 +3050,7 @@ dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint1
     default:
       return DDS_RETCODE_BAD_PARAMETER;
   }
+  DDSRT_WARNING_MSVC_ON(6326)
   const unsigned char *pl = buf;
   const unsigned char *endp = pl + bufsz;
   while (pl + sizeof (nn_parameter_t) <= endp)

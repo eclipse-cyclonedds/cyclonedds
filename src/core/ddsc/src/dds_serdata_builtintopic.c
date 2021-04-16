@@ -229,10 +229,10 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_sample (const struct ddsi_
       const dds_builtintopic_endpoint_t *s = sample;
       x.extguid = s->key;
       break;
+    }
     case DSBT_TOPIC:
       assert (0);
       break;
-    }
   }
   struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
   x.guid = nn_ntoh_guid (x.guid);
