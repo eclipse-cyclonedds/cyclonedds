@@ -349,6 +349,7 @@ static int valid_Data (const struct receiver_state *rst, Data_t *msg, size_t siz
        though one would expect octetsToInlineQos and size to be in
        agreement or octetsToInlineQos to be 0 or so */
     *payloadp = NULL;
+    *keyhashp = NULL;
     sampleinfo->size = 0; /* size is full payload size, no payload & unfragmented => size = 0 */
     sampleinfo->statusinfo = 0;
     sampleinfo->complex_qos = 0;
