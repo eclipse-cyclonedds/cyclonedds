@@ -17,3 +17,10 @@ install(
   DESTINATION "${CMAKE_INSTALL_BINDIR}"
   COMPONENT dev
 )
+if (MSVC)
+  install(FILES $<TARGET_PDB_FILE:ddsls>
+    DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    COMPONENT dev
+    OPTIONAL
+  )
+endif()
