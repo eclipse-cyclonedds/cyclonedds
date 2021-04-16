@@ -21,3 +21,10 @@ install(
   DESTINATION "${CMAKE_INSTALL_BINDIR}"
   COMPONENT dev
 )
+if (MSVC)
+  install(FILES $<TARGET_PDB_FILE:pubsub>
+    DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    COMPONENT dev
+    OPTIONAL
+  )
+endif()
