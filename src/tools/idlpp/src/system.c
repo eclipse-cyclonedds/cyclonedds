@@ -1122,17 +1122,17 @@ plus:
                     std_val = 199901L;
                 } else if (str_eq( cp, "c++98")) {  /* std=c++98    */
                     cplus_val = std_val = 199711L;
-                } else if (memcmp( cp, "iso9899:", 8) == 0
+                } else if (strncmp( cp, "iso9899:", 8) == 0
                         && strlen( cp) >= 14) { /* std=iso9899:199409, etc. */
                     mcpp_optarg = cp + 8;
                     look_and_install( "__STRICT_ANSI__", DEF_NOARGS_PREDEF
                             , null, "1");
                     ansi = TRUE;
                     goto Version;
-                } else if (memcmp( cp, "iso14882", 8) == 0) {
+                } else if (strncmp( cp, "iso14882", 8) == 0) {
                     cp += 8;
                     ansi = TRUE;
-                    if (cp && *cp == ':' && strlen( cp) >= 7) {
+                    if (*cp == ':' && strlen( cp) >= 7) {
                                     /* std=iso14882:199711, etc.    */
                         cplus_val = CPLUS;
                         mcpp_optarg = cp + 1;
@@ -1143,7 +1143,7 @@ plus:
                 } else {
                     usage( opt);
                 }
-                if (! cplus_val && memcmp( cp, "gnu", 3) != 0) {
+                if (! cplus_val && strncmp( cp, "gnu", 3) != 0) {
                     /* 'std=gnu*' does not imply -ansi  */
                     look_and_install( "__STRICT_ANSI__", DEF_NOARGS_PREDEF
                             , null, "1");
@@ -2530,17 +2530,19 @@ static char *   norm_path(
                 , NULL, 0L, NULL);
     inf = inf && (mcpp_debug & PATH);       /* Output information   */
 
-    strcpy( slbuf1, dir);                   /* Include directory    */
-    len = strlen( slbuf1);
-    if (fname && len && slbuf1[ len - 1] != PATH_DELIM) {
-        slbuf1[ len] = PATH_DELIM;          /* Append PATH_DELIM    */
-        slbuf1[ ++len] = EOS;
-    } else if (! fname && len && slbuf1[ len - 1] == PATH_DELIM) {
-        /* stat() of some systems do not like trailing '/'  */
-        slbuf1[ --len] = EOS;
+    len = strlcpy( slbuf1, dir, sizeof(slbuf1));    /* Include directory    */
+    if (fname) {
+        if (len && len < sizeof(slbuf1) && slbuf1[ len - 1] != PATH_DELIM) {
+            slbuf1[ len] = PATH_DELIM;      /* Append PATH_DELIM    */
+            slbuf1[ ++len] = EOS;
+        }
+        strlcat( slbuf1, fname, sizeof(slbuf1));
+    } else {
+        if (len && slbuf1[ len - 1] == PATH_DELIM) {
+            /* stat() of some systems do not like trailing '/'  */
+            slbuf1[ --len] = EOS;
+        }
     }
-    if (fname)
-        strcat( slbuf1, fname);
     if (stat( slbuf1, & st_buf) != 0        /* Non-existent         */
             || (! fname && ! S_ISDIR( st_buf.st_mode))
                 /* Not a directory though 'fname' is not specified  */
@@ -2575,19 +2577,18 @@ static char *   norm_path(
     } else if (fname) {                             /* Regular file */
         ssize_t rllen;
         len = strlen( slbuf1);
-        strcat( slbuf1, fname);
+        strlcat( slbuf1, fname, sizeof(slbuf1));
         deref_syml( slbuf1, slbuf2, slbuf1 + len);
                                 /* Symbolic link check of directory */
         if ((rllen = readlink( slbuf1, slbuf2, PATHMAX)) > 0) {
             /* Dereference symbolic linked file (not directory) */
-            *(slbuf2 + (size_t)rllen) = EOS;
-            cp1 = slbuf1;
+            slbuf2[ rllen] = EOS;
             if (slbuf2[ 0] != PATH_DELIM) {     /* Relative path    */
-                cp2 = strrchr( slbuf1, PATH_DELIM);
-                if (cp2)        /* Append to the source directory   */
-                    cp1 = cp2 + 1;
+                cp1 = strrchr( slbuf1, PATH_DELIM);
+                if (cp1)        /* Append to the source directory   */
+                    cp1[1] = '\0';
             }
-            strcpy( cp1, slbuf2);
+            (void)strlcat( slbuf1, slbuf2, sizeof(slbuf1));
         }
     }
     if (inf) {
@@ -2726,8 +2727,8 @@ static char *   norm_path(
 #endif
     if (inf) {
         char    debug_buf[ PATHMAX+1];
-        strcpy( debug_buf, dir);
-        strcat( debug_buf, fname ? fname : null);
+        strlcpy( debug_buf, dir, sizeof(debug_buf));
+        strlcat( debug_buf, fname ? fname : null, sizeof(debug_buf));
 #if SYS_FAMILY == SYS_WIN
         bsl2sl( debug_buf);
 #endif
@@ -2843,6 +2844,7 @@ static void init_gcc_macro( void)
             }
             skip_nl();
         }
+        fclose (fp);
     }
     free( include_dir);
 
@@ -3037,7 +3039,7 @@ void    put_depend(
     /* Need to enlarge the buffer   */
     if (pos_num >= pos_max) {
         pos = (size_t *) xrealloc( (char *) pos
-                , (pos_max *= 2) * sizeof (size_t *));
+                , (pos_max *= 2) * sizeof (size_t));
     }
     if (output + mkdep_len <= out_p + fnamlen + 1) {
         size_t  len = (size_t)(out_p - output);
@@ -3502,8 +3504,8 @@ static int  open_file(
     /* src_dir is usually NULL.  This is specified to   */
     /* search the source directory of the includer.     */
     if (src_dir && *src_dir != EOS) {
-        strcpy( dir_fname, src_dir);
-        strcat( dir_fname, filename);
+        strlcpy( dir_fname, src_dir, sizeof(dir_fname));
+        strlcat( dir_fname, filename, sizeof(dir_fname));
         fname = dir_fname;
     } else {
         fname = filename;
@@ -3538,6 +3540,7 @@ search:
          * The state will be restored by get_line() on end of the included.
          */
         file->pos = ftell( file->fp);
+        assert( file->pos >= 0);
         fclose( file->fp);
         /* In case of failure, re-open the includer */
         if ((fp = fopen( fullname, "r")) == NULL) {
@@ -3968,8 +3971,7 @@ void    sharp(
     while (! file->fp)
         file = file->parent;
     line = sharp_file ? sharp_file->line : src_line;
-    if (no_output || option_flags.p || file == NULL
-            || (file == sh_file && line == sh_line))
+    if (no_output || option_flags.p || (file == sh_file && line == sh_line))
         goto  sharp_exit;
     sh_file = file;
     sh_line = line;
@@ -4947,6 +4949,54 @@ char *  stpcpy(
     for (s = src, d = dest; (*d++ = *s++) != '\0'; )
         ;
     return  d - 1;
+}
+#endif
+
+#if ! HOST_HAVE_STRLCPY
+size_t  strlcpy(
+    char *          dest,
+    const char *    src,
+    size_t          size
+)
+/*
+ * Copy the string and return the number of bytes that (would) have been
+ * written.
+ */
+{
+  size_t len = strlen(src);
+
+  if (size == 0)
+    return len;
+  size = (size > len) ? len + 1 : size - 1;
+  memcpy(dest, src, size);
+  dest[size] = '\0';
+
+  return len;
+}
+#endif
+
+#if ! HOST_HAVE_STRLCAT
+size_t  strlcat(
+    char *          dest,
+    const char *    src,
+    size_t          size
+)
+/*
+ * Concatenate the strings and return the total number of bytes that (would)
+ * have been written.
+ */
+{
+    size_t off = 0;
+    size_t len = strlen(src);
+
+    if (size == 0 || (off = strlen(dest)) >= size)
+      return (len < SIZE_MAX - off) ? off + len : SIZE_MAX;
+    size -= off;
+    size = (size > len) ? len + 1 : size - 1;
+    memcpy(dest + off, src, size);
+    dest[off+size] = '\0';
+
+    return (len < SIZE_MAX - off) ? off + len : SIZE_MAX;
 }
 #endif
 

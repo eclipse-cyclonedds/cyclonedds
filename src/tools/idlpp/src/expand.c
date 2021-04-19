@@ -255,7 +255,7 @@ static int      prescan( const DEFBUF * defp, const char ** arglist
 static char *   catenate( const DEFBUF * defp, const char ** arglist
         , char * out, char * out_end, char ** token_p);
                 /* Catenate tokens                  */
-static const char * remove_magics( const char * argp, int from_last);
+static char * remove_magics( const char * argp, int from_last);
                 /* Remove pair of magic characters  */
 #if DEBUG_MACRO_ANN
 static void     chk_symmetry( char *  start_id, char *  end_id, size_t  len);
@@ -753,7 +753,7 @@ static char *   replace(
         cwarn( "Old style predefined macro \"%s\" is used", /* _W2_ */
                 defp->name, 0L, NULL);
     } else if (nargs >= 0) {                /* Function-like macro  */
-        squeeze_ws( NULL, NULL, NULL);      /* Skip to '('          */
+        (void)squeeze_ws( NULL, NULL, NULL);    /* Skip to '('      */
             /* Magic sequences are already read over by is_macro_call() */
         arglist = (char **) xmalloc( ((unsigned int)nargs + 1) * sizeof (char *));
         arglist[ 0] = xmalloc( (size_t) (NMACWORK + IDMAX * 2));
@@ -774,8 +774,7 @@ static char *   replace(
             if (compat_mode) {
                 enable_repl( outer, FALSE); /* Enable re-expansion  */
                 if (mcpp_debug & EXPAND)
-                    dump_string( "enabled re-expansion"
-                            , outer ? outer->name : "<arg>");
+                    dump_string( "enabled re-expansion", outer->name);
             } else {
                 replacing[ rescan_level-1].read_over = READ_OVER;
             }
@@ -1112,6 +1111,7 @@ static char *   catenate(
     = "Not a valid preprocessing token \"%s\"";     /* _E_ _W2_     */
     const char *    argp;           /* Pointer to an actual argument*/
     char *  prev_token = *token_p;  /* Preceding token              */
+    char *  arg_p;
     int     in_arg = FALSE;
     int     c;                      /* Value of a character         */
 
@@ -1120,9 +1120,11 @@ static char *   catenate(
         assert( arglist != NULL);
         c = (*(prev_token + 1) & UCHARMAX) - 1;     /* Parm number  */
         argp = arglist[ c];                 /* Actual argument      */
+        arg_p = NULL;
         out = prev_token;                   /* To overwrite         */
         if (trace_macro)
-            argp = remove_magics( argp, TRUE);  /* Remove pair of magics    */
+            argp = arg_p = remove_magics( argp, TRUE);
+                                        /* Remove pair of magics    */
         if ((mcpp_mode == POST_STD && *argp == EOS)
                 || (mcpp_mode == STD && *argp == RT_END)) {
             *out = EOS;                     /* An empty argument    */
@@ -1136,9 +1138,6 @@ static char *   catenate(
                 unget_ch();
             } else {
                 unget_string( argp, NULL);
-                if (trace_macro)
-                    free( (char *) argp);
-                    /* malloc()ed in remove_magics()    */
                 while ((c = get_ch()) != RT_END) {
                     prev_prev_token = prev_token;
                     prev_token = out;   /* Remember the last token  */
@@ -1159,6 +1158,9 @@ static char *   catenate(
                 /* Remove DEF_MAGIC enabling the name to replace later      */
             }
         }
+
+        if (arg_p)
+            free( arg_p);
     }   /* Else the previous token is an ordinary token, not an argument    */
 
     c = skip_ws();
@@ -1175,15 +1177,15 @@ static char *   catenate(
         assert( arglist != NULL);
         c = get_ch() - 1;                   /* Parameter number     */
         argp = arglist[ c];                 /* Actual argument      */
+        arg_p = NULL;
         if (trace_macro)
-            argp = remove_magics( argp, FALSE); /* Remove pair of magics    */
+            argp = arg_p = remove_magics( argp, FALSE);
+                                        /* Remove pair of magics    */
         if ((mcpp_mode == POST_STD && *argp == EOS)
                 || (mcpp_mode == STD && *argp == RT_END)) {
             *out = EOS;                     /* An empty argument    */
         } else {
             unget_string( argp, NULL);
-            if (trace_macro)
-                free( (char *) argp);
             if ((c = get_ch()) == DEF_MAGIC) {  /* Remove DEF_MAGIC */
                 c = get_ch();               /*  enabling to replace */
             } else if (c == IN_SRC) {       /* Remove IN_SRC        */
@@ -1197,6 +1199,8 @@ static char *   catenate(
             if (*infile->bptr)              /* There are more tokens*/
                 in_arg = TRUE;
         }
+        if (arg_p)
+            free( arg_p);
         break;
     case IN_SRC:
         if (trace_macro) {
@@ -1262,7 +1266,7 @@ static char *   catenate(
     return  out;
 }
 
-static const char *     remove_magics(
+static char *     remove_magics(
     const char *    argp,       /* The argument list    */
     int     from_last           /* token is the last or first?  */
 )
