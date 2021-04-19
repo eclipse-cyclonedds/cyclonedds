@@ -539,6 +539,16 @@ extern char *   stpcpy( char * dest, const char * src);
                 /* Non-Standard library function*/
 #endif
 
+#if ! HOST_HAVE_STRLCPY
+extern size_t   strlcpy( char * dest, const char * src, size_t size);
+                /* Non-Standard library function*/
+#endif
+
+#if ! HOST_HAVE_STRLCAT
+extern size_t   strlcat( char * dest, const char *src, size_t size);
+                /* Non-Standard library function */
+#endif
+
 #if MCPP_LIB    /* Setting to use mcpp as a subroutine  */
 /* directive.c  */
 extern void     clear_symtable( void);

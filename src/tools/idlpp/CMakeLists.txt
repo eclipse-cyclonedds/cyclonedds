@@ -110,6 +110,8 @@ check_include_file(inttypes.h idlpp_have_inttypes_h)
 have_type("intmax_t" idlpp_have_intmax_t)
 have_type("long long" idlpp_have_long_long)
 have_symbol("stpcpy" "string.h" idlpp_have_stpcpy)
+have_symbol("strlcpy" "string.h" idlpp_have_strlcpy)
+have_symbol("strlcat" "string.h" idlpp_have_strlcat)
 
 if(idlpp_have_intmax_t)
   set(idlpp_ll_form "j")
