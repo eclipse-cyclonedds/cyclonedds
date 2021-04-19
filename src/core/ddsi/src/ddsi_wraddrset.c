@@ -347,7 +347,6 @@ static readercount_cost_t calc_locator_cost (const struct cover *c, int lidx, bo
   if (rdidx == c->nreaders)
     goto no_readers;
 
-#ifdef DDS_HAS_SHM
   if ((ci & ~CI_STATUS_MASK) == CI_ICEORYX)
   {
     if (0 == (ignore & NN_LOCATOR_KIND_SHEM))
@@ -355,9 +354,7 @@ static readercount_cost_t calc_locator_cost (const struct cover *c, int lidx, bo
     else
       goto no_readers;
   }
-  else
-#endif
-  if ((ci & CI_MULTICAST_MASK) == 0)
+  else if ((ci & CI_MULTICAST_MASK) == 0)
     x.cost += cost_uc;
   else if (((ci & CI_MULTICAST_MASK) >> CI_MULTICAST_SHIFT) == CI_MULTICAST_SSM)
     x.cost += cost_ssm;
