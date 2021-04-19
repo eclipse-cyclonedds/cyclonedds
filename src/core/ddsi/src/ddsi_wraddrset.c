@@ -707,7 +707,14 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *ne
   }
 
   GVLOGDISC ("  %s %s\n", kindstr, ddsi_xlocator_to_string (str, sizeof(str), locp));
-  add_xlocator_to_addrset (gv, newas, locp);
+  if (locp->c.kind != NN_LOCATOR_KIND_SHEM)
+  {
+    // Iceoryx offload occurs above the RTPS stack, adding it to the address only means
+    // samples get packed into RTPS messages and the transmit path is traversed without
+    // actually sending any packet.  It should be generalized to handle various pub/sub
+    // providers.
+    add_xlocator_to_addrset (gv, newas, locp);
+  }
 }
 
 static void wras_drop_covered_readers (int locidx, struct costmap *wm, struct cover *covered, bool prefer_multicast)
