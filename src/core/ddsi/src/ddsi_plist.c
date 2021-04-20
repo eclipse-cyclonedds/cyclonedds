@@ -2498,18 +2498,20 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
   ddsi_tran_factory_t fact = ddsi_factory_find_supported_kind (gv, loc.kind);
   if (fact == NULL || !fact->m_enable)
     return DOLOC_IGNORED;
-  if (!ddsi_is_valid_port (fact, loc.port))
-    return DOLOC_INVALID;
 
   switch (loc.kind)
   {
     case NN_LOCATOR_KIND_UDPv4:
     case NN_LOCATOR_KIND_TCPv4:
+      if (!ddsi_is_valid_port (fact, loc.port))
+        return DOLOC_INVALID;
       if (!locator_address_prefix_zero (&loc, 12))
         return DOLOC_INVALID;
       break;
     case NN_LOCATOR_KIND_UDPv6:
     case NN_LOCATOR_KIND_TCPv6:
+      if (!ddsi_is_valid_port (fact, loc.port))
+        return DOLOC_INVALID;
       break;
     case NN_LOCATOR_KIND_UDPv4MCGEN:
       if (!vendor_is_eclipse (dd->vendorid))
@@ -2517,6 +2519,8 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
       else
       {
         const nn_udpv4mcgen_address_t *x = (const nn_udpv4mcgen_address_t *) loc.address;
+        if (!ddsi_is_valid_port (fact, loc.port))
+          return DOLOC_INVALID;
         if (!ddsi_factory_supports (fact, NN_LOCATOR_KIND_UDPv4))
           return DOLOC_IGNORED;
         if ((uint32_t) x->base + x->count >= 28 || x->count == 0 || x->idx >= x->count)
@@ -2525,8 +2529,15 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
       break;
 #ifdef DDS_HAS_SHM
     case NN_LOCATOR_KIND_SHEM:
-      if (0 != memcmp(loc.address, gv->loc_iceoryx_addr.address, 16))
+      if (!vendor_is_eclipse (dd->vendorid))
         return DOLOC_IGNORED;
+      else
+      {
+        if (!ddsi_is_valid_port (fact, loc.port))
+          return DOLOC_INVALID;
+        if (0 != memcmp(loc.address, gv->loc_iceoryx_addr.address, 16))
+          return DOLOC_IGNORED;
+      }
       break;
 #endif
     case NN_LOCATOR_KIND_INVALID:
@@ -2544,6 +2555,8 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
         return DOLOC_IGNORED;
       else
       {
+        if (!ddsi_is_valid_port (fact, loc.port))
+          return DOLOC_INVALID;
         if (!locator_address_prefix_zero (&loc, 10))
           return DOLOC_INVALID;
       }
