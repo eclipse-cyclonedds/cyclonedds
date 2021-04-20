@@ -92,6 +92,10 @@ if(ENABLE_TOPIC_DISCOVERY)
     "topic_find_global.c")
 endif()
 
+if(iceoryx_binding_c_FOUND)
+  list(APPEND ddsc_test_sources "iceoryx.c")
+endif()
+
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
 target_include_directories(
   cunit_ddsc PRIVATE
