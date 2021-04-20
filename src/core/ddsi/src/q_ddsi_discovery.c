@@ -334,6 +334,22 @@ static bool locators_add_one (struct locators_builder *b, const ddsi_locator_t *
   return true;
 }
 
+static bool include_multicast_locator_in_discovery (const struct participant *pp)
+{
+#ifdef DDS_HAS_SSM
+  /* Note that if the default multicast address is an SSM address,
+     we will simply advertise it. The recipients better understand
+     it means the writers will publish to address and the readers
+     favour SSM. */
+  if (ddsi_is_ssm_mcaddr (pp->e.gv, &pp->e.gv->loc_default_mc))
+    return (pp->e.gv->config.allowMulticast & DDSI_AMC_SSM) != 0;
+  else
+    return (pp->e.gv->config.allowMulticast & DDSI_AMC_ASM) != 0;
+#else
+  return (pp->e.gv->config.allowMulticast & DDSI_AMC_ASM) != 0;
+#endif
+}
+
 void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plist_t *dst, struct participant_builtin_topic_data_locators *locs)
 {
   size_t size;
@@ -393,31 +409,14 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
     }
   }
 
-  if (pp->e.gv->config.allowMulticast)
+  if (include_multicast_locator_in_discovery (pp))
   {
-    int include = 0;
-#ifdef DDS_HAS_SSM
-    /* Note that if the default multicast address is an SSM address,
-       we will simply advertise it. The recipients better understand
-       it means the writers will publish to address and the readers
-       favour SSM. */
-    if (ddsi_is_ssm_mcaddr (pp->e.gv, &pp->e.gv->loc_default_mc))
-      include = (pp->e.gv->config.allowMulticast & DDSI_AMC_SSM) != 0;
-    else
-      include = (pp->e.gv->config.allowMulticast & DDSI_AMC_ASM) != 0;
-#else
-    if (pp->e.gv->config.allowMulticast & DDSI_AMC_ASM)
-      include = 1;
-#endif
-    if (include)
-    {
-      dst->present |= PP_DEFAULT_MULTICAST_LOCATOR | PP_METATRAFFIC_MULTICAST_LOCATOR;
-      dst->aliased |= PP_DEFAULT_MULTICAST_LOCATOR | PP_METATRAFFIC_MULTICAST_LOCATOR;
-      struct locators_builder def_mc = locators_builder_init (&dst->default_multicast_locators, &locs->def_multi, 1);
-      struct locators_builder meta_mc = locators_builder_init (&dst->metatraffic_multicast_locators, &locs->meta_multi, 1);
-      locators_add_one (&def_mc, &pp->e.gv->loc_default_mc, NN_LOCATOR_PORT_INVALID);
-      locators_add_one (&meta_mc, &pp->e.gv->loc_meta_mc, NN_LOCATOR_PORT_INVALID);
-    }
+    dst->present |= PP_DEFAULT_MULTICAST_LOCATOR | PP_METATRAFFIC_MULTICAST_LOCATOR;
+    dst->aliased |= PP_DEFAULT_MULTICAST_LOCATOR | PP_METATRAFFIC_MULTICAST_LOCATOR;
+    struct locators_builder def_mc = locators_builder_init (&dst->default_multicast_locators, &locs->def_multi, 1);
+    struct locators_builder meta_mc = locators_builder_init (&dst->metatraffic_multicast_locators, &locs->meta_multi, 1);
+    locators_add_one (&def_mc, &pp->e.gv->loc_default_mc, NN_LOCATOR_PORT_INVALID);
+    locators_add_one (&meta_mc, &pp->e.gv->loc_meta_mc, NN_LOCATOR_PORT_INVALID);
   }
   dst->participant_lease_duration = pp->lease_duration;
 
@@ -1188,7 +1187,10 @@ static int sedp_write_endpoint_impl
       }
 
       if (!(arg.ps->present & PP_MULTICAST_LOCATOR) || 0 == arg.ps->multicast_locators.n)
-        add_locator_to_ps(&epcommon->pp->e.gv->loc_default_mc, &arg);
+      {
+        if (include_multicast_locator_in_discovery (epcommon->pp))
+          add_locator_to_ps (&epcommon->pp->e.gv->loc_default_mc, &arg);
+      }
 
       add_iox_locator_to_ps(&gv->loc_iceoryx_addr, &arg);
     }
