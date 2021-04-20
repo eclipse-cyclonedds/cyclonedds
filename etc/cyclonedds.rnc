@@ -1019,6 +1019,60 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
         }?
       }?
       & [ a:documentation [ xml:lang="en" """
+<p>The Shared Memory element allows specifying various parameters related to using shared memory.</p>""" ] ]
+      element SharedMemory {
+        [ a:documentation [ xml:lang="en" """
+<p>This element allows to enable shared memory in Cyclone DDS.</p>
+<p>The default value is: "false".</p>""" ] ]
+        element Enable {
+          xsd:boolean
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>Explicitly set the Iceoryx locator used by Cyclone to check whether a pair of processes is attached to the same Iceoryx shared memory.  The default is to use one of the MAC addresses of the machine, which should work well in most cases.</p>
+<p>The default value is: "".</p>""" ] ]
+        element Locator {
+          text
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>This element decides the verbosity level of shared memory message:</p>
+<ul><li><i>off</i>: no log</li>
+<li><i>fatal</i>: show fatal log</li>
+<li><i>error</i>: show error log</li>
+<li><i>warn</i>: show warn log</li>
+<li><i>info</i>: show info log</li>
+<li><i>debug</i>: show debug log</li>
+<li><i>verbose</i>: show verbose log</li>
+<p>If you don't want to see any log from shared memory, use <i>off</i> to disable log message.</p>
+<p>The default value is: "info".</p>""" ] ]
+        element LogLevel {
+          ("off"|"fatal"|"error"|"warn"|"info"|"debug"|"verbose")
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>Override the Iceoryx service name used by Cyclone.</p>
+<p>The default value is: "DDS_CYCLONE".</p>""" ] ]
+        element Prefix {
+          text
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>The number of messages which will be stored on the publisher for late joining subscribers. Should be a value between 0 and 16 and be equal to or larger than SubHistoryRequest.</p>
+<p>The default value is: "16".</p>""" ] ]
+        element PubHistoryCapacity {
+          xsd:integer
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>The number of messages published before subscription which will be requested by a subscriber upon subscription. Should be a value between 0 and 16.</p>
+<p>The default value is: "16".</p>""" ] ]
+        element SubHistoryRequest {
+          xsd:integer
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue. Should be a value between 1 and 256.</p>
+<p>The default value is: "256".</p>""" ] ]
+        element SubQueueCapacity {
+          xsd:integer
+        }?
+      }?
+      & [ a:documentation [ xml:lang="en" """
 <p>The Sizing element specifies a variety of configuration settings dealing with expected system sizes, buffer sizes, &c.</p>""" ] ]
       element Sizing {
         [ a:documentation [ xml:lang="en" """

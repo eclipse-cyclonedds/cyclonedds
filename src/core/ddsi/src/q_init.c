@@ -1104,7 +1104,6 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
   
   char str[128];
   char *sptr = str;
-  unsigned char mac_addr[6];
   uint32_t pid = (uint32_t) ddsrt_getpid ();
   
   ddsrt_asprintf (&sptr, "iceoryx_rt_%d_%ld", pid, gv->tstart.v);
@@ -1112,29 +1111,68 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
   iox_runtime_init (sptr);
   free(sptr);
 
-  gv->loc_iceoryx_addr.kind = NN_LOCATOR_KIND_SHEM;
-  gv->loc_iceoryx_addr.port = 0;
-  int if_index;
-  for (if_index = 0; if_index < gv->n_interfaces; if_index++)
-    if (!gv->interfaces[if_index].loopback)
-      break;
-  if (if_index == gv->n_interfaces)
-    if_index = 0;
-  if (ddsrt_eth_get_mac_addr (gv->interfaces[if_index].name, mac_addr))
-  {
-    GVLOG (DDS_LC_SHM, "Unable to get MAC address for iceoryx\n");
-    return -1;
-  }
-  ddsrt_asprintf (&sptr, "%02x%02x%02x%02x%02x%02x", *mac_addr, *(mac_addr+1), *(mac_addr+2), *(mac_addr+3), *(mac_addr+4), *(mac_addr+5));
-  GVLOG (DDS_LC_SHM, "My iceoryx address: %s\n", sptr);
-  memset ((char *) gv->loc_iceoryx_addr.address, 0, sizeof (gv->loc_iceoryx_addr.address));
-  ddsrt_strlcpy ((char *) gv->loc_iceoryx_addr.address, sptr, strlen (sptr));
-  free(sptr);
-
   // FIXME: this can be done more elegantly when properly supporting multiple transports
   if (ddsi_vnet_init (gv, "iceoryx", NN_LOCATOR_KIND_SHEM) < 0)
     return -1;
   ddsi_factory_find (gv, "iceoryx")->m_enable = true;
+
+  if (gv->config.shm_locator && *gv->config.shm_locator)
+  {
+    enum ddsi_locator_from_string_result res;
+    res = ddsi_locator_from_string (gv, &gv->loc_iceoryx_addr, gv->config.shm_locator, ddsi_factory_find (gv, "iceoryx"));
+    switch (res)
+    {
+      case AFSR_OK:
+        if (gv->loc_iceoryx_addr.kind != NN_LOCATOR_KIND_SHEM)
+        {
+          GVERROR ("invalid or unsupported SharedMemory/Locator: %s\n", gv->config.shm_locator);
+          return -1;
+        }
+        DDSRT_STATIC_ASSERT (NN_LOCATOR_PORT_INVALID == 0);
+        assert (gv->loc_iceoryx_addr.port == NN_LOCATOR_PORT_INVALID);
+        break;
+      case AFSR_INVALID:
+      case AFSR_UNKNOWN:
+      case AFSR_MISMATCH:
+        GVERROR ("invalid or unsupported SharedMemory/Locator: %s\n", gv->config.shm_locator);
+        return -1;
+    }
+  }
+  else
+  {
+    int if_index;
+    
+    // Try to avoid loopback interfaces for getting a MAC address, but if all
+    // we have are loopback interfaces, then it really doesn't matter.
+    for (if_index = 0; if_index < gv->n_interfaces; if_index++)
+    {
+      if (!gv->interfaces[if_index].loopback)
+        break;
+    }
+    if (if_index == gv->n_interfaces)
+    {
+      if_index = 0;
+    }
+
+    unsigned char mac_addr[6];
+    if (ddsrt_eth_get_mac_addr (gv->interfaces[if_index].name, mac_addr))
+    {
+      GVERROR ("Unable to get MAC address for iceoryx\n");
+      return -1;
+    }
+    ddsrt_asprintf (&sptr, "%02x%02x%02x%02x%02x%02x", *mac_addr, *(mac_addr+1), *(mac_addr+2), *(mac_addr+3), *(mac_addr+4), *(mac_addr+5));
+    gv->loc_iceoryx_addr.kind = NN_LOCATOR_KIND_SHEM;
+    gv->loc_iceoryx_addr.port = 0;
+    memset ((char *) gv->loc_iceoryx_addr.address, 0, sizeof (gv->loc_iceoryx_addr.address));
+    ddsrt_strlcpy ((char *) gv->loc_iceoryx_addr.address, sptr, strlen (sptr));
+    free(sptr);
+  }
+
+  {
+    char buf[DDSI_LOCSTRLEN];
+    GVLOG (DDS_LC_CONFIG | DDS_LC_SHM, "My iceoryx address: %s\n", ddsi_locator_to_string (buf, sizeof (buf), &gv->loc_iceoryx_addr));
+  }
+
   if (gv->n_interfaces == MAX_XMIT_CONNS)
   {
     GVERROR ("maximum number of interfaces reached, can't add virtual one for iceoryx\n");

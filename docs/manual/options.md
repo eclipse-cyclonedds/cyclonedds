@@ -6,7 +6,7 @@ CycloneDDS configuration
 
 ## //CycloneDDS/Domain
 Attributes: [Id](#cycloneddsdomainid)
-Children: [Compatibility](#cycloneddsdomaincompatibility), [Discovery](#cycloneddsdomaindiscovery), [General](#cycloneddsdomaingeneral), [Internal](#cycloneddsdomaininternal), [Partitioning](#cycloneddsdomainpartitioning), [SSL](#cycloneddsdomainssl), [Security](#cycloneddsdomainsecurity), [Sizing](#cycloneddsdomainsizing), [TCP](#cycloneddsdomaintcp), [Threads](#cycloneddsdomainthreads), [Tracing](#cycloneddsdomaintracing)
+Children: [Compatibility](#cycloneddsdomaincompatibility), [Discovery](#cycloneddsdomaindiscovery), [General](#cycloneddsdomaingeneral), [Internal](#cycloneddsdomaininternal), [Partitioning](#cycloneddsdomainpartitioning), [SSL](#cycloneddsdomainssl), [Security](#cycloneddsdomainsecurity), [SharedMemory](#cycloneddsdomainsharedmemory), [Sizing](#cycloneddsdomainsizing), [TCP](#cycloneddsdomaintcp), [Threads](#cycloneddsdomainthreads), [Tracing](#cycloneddsdomaintracing)
 
 The General element specifying Domain related settings.
 
@@ -1463,6 +1463,83 @@ It can be either absolute path excluding file extension ( /usr/lib/dds\_security
 If single file is supplied, the library located by way of the current working directory, or LD\_LIBRARY\_PATH for Unix systems, and PATH for Windows systems.
 
 The default value is: "dds\_security\_crypto".
+
+
+### //CycloneDDS/Domain/SharedMemory
+Children: [Enable](#cycloneddsdomainsharedmemoryenable), [Locator](#cycloneddsdomainsharedmemorylocator), [LogLevel](#cycloneddsdomainsharedmemoryloglevel), [Prefix](#cycloneddsdomainsharedmemoryprefix), [PubHistoryCapacity](#cycloneddsdomainsharedmemorypubhistorycapacity), [SubHistoryRequest](#cycloneddsdomainsharedmemorysubhistoryrequest), [SubQueueCapacity](#cycloneddsdomainsharedmemorysubqueuecapacity)
+
+The Shared Memory element allows specifying various parameters related to using shared memory.
+
+
+#### //CycloneDDS/Domain/SharedMemory/Enable
+Boolean
+
+This element allows to enable shared memory in Cyclone DDS.
+
+The default value is: "false".
+
+
+#### //CycloneDDS/Domain/SharedMemory/Locator
+Text
+
+Explicitly set the Iceoryx locator used by Cyclone to check whether a pair of processes is attached to the same Iceoryx shared memory.  The default is to use one of the MAC addresses of the machine, which should work well in most cases.
+
+The default value is: "".
+
+
+#### //CycloneDDS/Domain/SharedMemory/LogLevel
+One of: off, fatal, error, warn, info, debug, verbose
+
+This element decides the verbosity level of shared memory message:
+ * off: no log
+
+ * fatal: show fatal log
+
+ * error: show error log
+
+ * warn: show warn log
+
+ * info: show info log
+
+ * debug: show debug log
+
+ * verbose: show verbose log
+
+If you don't want to see any log from shared memory, use off to disable log message.
+
+The default value is: "info".
+
+
+#### //CycloneDDS/Domain/SharedMemory/Prefix
+Text
+
+Override the Iceoryx service name used by Cyclone.
+
+The default value is: "DDS\_CYCLONE".
+
+
+#### //CycloneDDS/Domain/SharedMemory/PubHistoryCapacity
+Integer
+
+The number of messages which will be stored on the publisher for late joining subscribers. Should be a value between 0 and 16 and be equal to or larger than SubHistoryRequest.
+
+The default value is: "16".
+
+
+#### //CycloneDDS/Domain/SharedMemory/SubHistoryRequest
+Integer
+
+The number of messages published before subscription which will be requested by a subscriber upon subscription. Should be a value between 0 and 16.
+
+The default value is: "16".
+
+
+#### //CycloneDDS/Domain/SharedMemory/SubQueueCapacity
+Integer
+
+Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue. Should be a value between 1 and 256.
+
+The default value is: "256".
 
 
 ### //CycloneDDS/Domain/Sizing

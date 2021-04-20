@@ -130,7 +130,7 @@ static enum ddsi_locator_from_string_result ddsi_vnet_address_from_string (const
     str++;
     bracketed = true;
   }
-  while (i < 6 && *str != 0)
+  while (i < (int) sizeof (loc->address) && *str != 0)
   {
     unsigned o;
     int p;
@@ -138,9 +138,9 @@ static enum ddsi_locator_from_string_result ddsi_vnet_address_from_string (const
     if (sscanf (str, "%x%n", &o, &p) != 1 || o > 255)
       return AFSR_INVALID;
     DDSRT_WARNING_MSVC_ON(4996);
-    loc->address[10 + i++] = (unsigned char) o;
+    loc->address[i++] = (unsigned char) o;
     str += p;
-    if (i < 6)
+    if (i < (int) sizeof (loc->address))
     {
       if (*str != ':')
         return AFSR_INVALID;
