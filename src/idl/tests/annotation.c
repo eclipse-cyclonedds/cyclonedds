@@ -328,57 +328,43 @@ CU _ Test(idl_annotation, autoid_struct)
 // x. autoid (HASH)
 // x. autoid (SEQUENTIAL)
 
-// x. @extensibility(FINAL)
-// x. @extensibility(APPENDABLE)
-// x. @extensibility(MUTABLE)
+#endif
 
-CU _ Test(idl_annotation, final_struct)
+#define A(ann) ann " struct s { char c; };"
+CU_Test(idl_annotation, struct_extensibility)
 {
+  static const struct {
+    const char *str;
+    enum idl_extensibility ext;
+  } tests[] = {
+    { A("@final"), IDL_EXTENSIBILITY_FINAL },
+    { A("@appendable"), IDL_EXTENSIBILITY_APPENDABLE },
+    { A("@mutable"), IDL_EXTENSIBILITY_MUTABLE},
+    { A("@extensibility(FINAL)"), IDL_EXTENSIBILITY_FINAL },
+    { A("@extensibility(APPENDABLE)"), IDL_EXTENSIBILITY_APPENDABLE },
+    { A("@extensibility(MUTABLE)"), IDL_EXTENSIBILITY_MUTABLE},
+  };
+  static const size_t n = sizeof(tests)/sizeof(tests[0]);
+
   idl_retcode_t ret;
-  idl_tree_t *tree = NULL;
+  idl_pstate_t *pstate = NULL;
   idl_struct_t *s;
-  const char str[] = "@final struct s { char c; };";
 
-  ret = idl_parse_string(str, IDL_FLAG_ANNOTATIONS, &tree);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL(tree);
-  s = (idl_struct_t *)tree->root;
-  CU_ASSERT_FATAL(idl_is_struct(s));
-  CU_ASSERT_EQUAL(s->extensibility, IDL_EXTENSIBILITY_FINAL);
-  idl_delete_tree(tree);
+  for (size_t i = 0; i < n; i++) {
+    pstate = NULL;
+    ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
+    CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+    s = (idl_struct_t *)pstate->root;
+    CU_ASSERT_PTR_NOT_NULL_FATAL(s);
+    CU_ASSERT_FATAL(idl_is_struct(s));
+    CU_ASSERT_EQUAL(s->extensibility, tests[i].ext);
+    idl_delete_pstate(pstate);
+  }
 }
+#undef A
 
-CU _ Test(idl_annotation, appendable_struct)
-{
-  idl_retcode_t ret;
-  idl_tree_t *tree = NULL;
-  idl_struct_t *s;
-  const char str[] = "@appendable struct s { char c; };";
-
-  ret = idl_parse_string(str, IDL_FLAG_ANNOTATIONS, &tree);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL(tree);
-  s = (idl_struct_t *)tree->root;
-  CU_ASSERT_FATAL(idl_is_struct(s));
-  CU_ASSERT_EQUAL(s->extensibility, IDL_EXTENSIBILITY_APPENDABLE);
-  idl_delete_tree(tree);
-}
-
-CU _ Test(idl_annotation, mutable_struct)
-{
-  idl_retcode_t ret;
-  idl_tree_t *tree = NULL;
-  idl_struct_t *s;
-  const char str[] = "@mutable struct s { char c; };";
-
-  ret = idl_parse_string(str, IDL_FLAG_ANNOTATIONS, &tree);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL(tree);
-  s = (idl_struct_t *)tree->root;
-  CU_ASSERT_FATAL(idl_is_struct(s));
-  CU_ASSERT_EQUAL(s->extensibility, IDL_EXTENSIBILITY_MUTABLE);
-  idl_delete_tree(tree);
-}
+#if 0
 
 CU _ Test(idl_annotation, foobar_struct)
 {

@@ -434,7 +434,7 @@ static const idl_builtin_annotation_t annotations[] = {
     .callback = annotate_value },
   { .syntax =
       "@annotation extensibility {\n"
-      "  enum ExtensibilityKind { FINAL, APPEND, MUTABLE };\n"
+      "  enum ExtensibilityKind { FINAL, APPENDABLE, MUTABLE };\n"
       "  ExtensibilityKind value;\n"
       "};",
     .summary =
