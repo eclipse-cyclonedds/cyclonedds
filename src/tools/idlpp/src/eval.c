@@ -709,33 +709,27 @@ static int  do_sizeof( void)
             if ((typecode & ~T_PTR) == 0) {
                 cerror( no_type, NULL, 0L, NULL);
                 return  OP_FAIL;
-            } else {
-                /*
-                 * Exactly one bit (and possibly T_PTR) may be set.
-                 */
-                for (sizp = size_table; sizp->bits != 0; sizp++) {
-                    if ((typecode & ~T_PTR) == sizp->bits) {
-                        ev.val = ((typecode & T_PTR) != 0)
-                                ? sizp->psize : sizp->size;
-                        break;
-                    }
+            }
+
+            /*
+             * Exactly one bit (and possibly T_PTR) may be set.
+             */
+            for (sizp = size_table; sizp->bits != 0; sizp++) {
+                if ((typecode & ~T_PTR) == sizp->bits) {
+                    ev.val = ((typecode & T_PTR) != 0)
+                            ? sizp->psize : sizp->size;
+                    break;
                 }
             }
-        } else {
-            goto  no_good;
-        }
-    } else {
-        goto  no_good;
-    }
 
-    if (mcpp_debug & EXPRESSION) {
-        if (sizp)
-            mcpp_fprintf( DBG,
-            "sizp->bits:0x%x sizp->size:0x%x sizp->psize:0x%x ev.val:0x%lx\n"
+            if (mcpp_debug & EXPRESSION)
+                mcpp_fprintf( DBG,
+                "sizp->bits:0x%x sizp->size:0x%x sizp->psize:0x%x ev.val:0x%lx\n"
                     , sizp->bits, sizp->size, sizp->psize
                     , (unsigned long) ev.val);
+            return  VAL;
+        }
     }
-    return  VAL;
 
 no_good:
     unget_ch();
@@ -880,6 +874,7 @@ VAL_SIGN *  eval_num(
                 erange = TRUE;
         }
 #if HAVE_LONG_LONG
+        /* coverity[report_constant_logical_operands: FALSE] */
         if (! stdc3 && v1 > ULONGMAX)
             /* Overflow of long or unsigned long    */
             erange_long = TRUE;
@@ -942,6 +937,7 @@ VAL_SIGN *  eval_num(
             ev.sign = (value >= 0L);
 #if HAVE_LONG_LONG
     } else {
+        /* coverity[result_independent_of_operands: FALSE] */
         if (value > LONGMAX)
             erange_long = TRUE;
 #endif
@@ -1048,6 +1044,7 @@ static VAL_SIGN *   eval_char(
                 erange = TRUE;
         }
 #if HAVE_LONG_LONG
+        /* coverity[result_independent_of_operands: FALSE] */
         if ((mcpp_mode == STD && (! stdc3 && value > ULONGMAX))
                 || (! standard && value > LONGMAX))
             erange_long = TRUE;
@@ -1524,6 +1521,7 @@ static expr_t   eval_unsigned(
     int     chk;        /* Flag of overflow in unsigned long long   */
     int     minus;      /* Big integer converted from signed long   */
 
+    /* coverity[result_independent_of_operands: FALSE] */
     minus = ! stdc3 && (v1u > ULONGMAX || v2u > ULONGMAX);
 
     switch (op) {
@@ -1574,6 +1572,7 @@ static expr_t   eval_unsigned(
         chk = v1 > v1u;
         if (chk
 #if HAVE_LONG_LONG
+                /* coverity[result_independent_of_operands: FALSE] */
                 || (! stdc3 && ! minus && v1 > ULONGMAX)
 #endif
             )

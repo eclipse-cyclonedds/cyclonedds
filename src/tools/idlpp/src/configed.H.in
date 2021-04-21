@@ -257,6 +257,12 @@ something so go through the trouble of defining it!
 /* Define to 1 if you have the `stpcpy' function. */
 #define HOST_HAVE_STPCPY    @idlpp_have_stpcpy@
 
+/* Define to 1 if you have the `strlcpy' function. */
+#define HOST_HAVE_STRLCPY   @idlpp_have_strlcpy@
+
+/* Define to 1 if you have the `strlcat' function. */
+#define HOST_HAVE_STRLCAT   @idlpp_have_strlcat@
+
 /* Define the host system. */
 #define HOST_SYSTEM         @idlpp_host_system@
 
