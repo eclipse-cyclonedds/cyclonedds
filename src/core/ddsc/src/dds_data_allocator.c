@@ -14,7 +14,7 @@
 #include "dds__data_allocator.h"
 #include "dds__entity.h"
 
-dds_return_t dds_data_allocator_init (dds_entity_t entity, dds_data_allocator_t *data_allocator)
+dds_return_t dds_data_allocator_init (dds_entity_t entity, dds_data_allocator_t *data_allocator, const bool allocate_on_heap)
 {
   dds_entity *e;
   dds_return_t ret;
@@ -27,10 +27,10 @@ dds_return_t dds_data_allocator_init (dds_entity_t entity, dds_data_allocator_t 
   switch (dds_entity_kind (e))
   {
     case DDS_KIND_READER:
-      ret = dds__reader_data_allocator_init ((struct dds_reader *) e, data_allocator);
+      ret = dds__reader_data_allocator_init ((struct dds_reader *) e, data_allocator, allocate_on_heap);
       break;
     case DDS_KIND_WRITER:
-      ret = dds__writer_data_allocator_init ((struct dds_writer *) e, data_allocator);
+      ret = dds__writer_data_allocator_init ((struct dds_writer *) e, data_allocator, allocate_on_heap);
       break;
     default:
       ret = DDS_RETCODE_ILLEGAL_OPERATION;
