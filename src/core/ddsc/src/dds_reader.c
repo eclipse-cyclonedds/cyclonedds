@@ -797,11 +797,11 @@ dds_entity_t dds_get_subscriber (dds_entity_t entity)
   }
 }
 
-dds_return_t dds__reader_data_allocator_init (const dds_reader *rd, dds_data_allocator_t *data_allocator)
+dds_return_t dds__reader_data_allocator_init (const dds_reader *rd, dds_data_allocator_t *data_allocator, const bool allocate_on_heap)
 {
 #ifdef DDS_HAS_SHM
   dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
-  if (NULL != rd->m_iox_sub)
+  if (NULL != rd->m_iox_sub && !allocate_on_heap)
   {
     d->kind = DDS_IOX_ALLOCATOR_KIND_SUBSCRIBER;
     d->ref.sub = rd->m_iox_sub;
@@ -814,6 +814,7 @@ dds_return_t dds__reader_data_allocator_init (const dds_reader *rd, dds_data_all
 #else
   (void) rd;
   (void) data_allocator;
+  (void) allocate_on_heap;
   return DDS_RETCODE_OK;
 #endif
 }

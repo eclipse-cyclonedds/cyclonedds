@@ -509,11 +509,11 @@ dds_entity_t dds_get_publisher (dds_entity_t writer)
   }
 }
 
-dds_return_t dds__writer_data_allocator_init (const dds_writer *wr, dds_data_allocator_t *data_allocator)
+dds_return_t dds__writer_data_allocator_init (const dds_writer *wr, dds_data_allocator_t *data_allocator, const bool allocate_on_heap)
 {
 #ifdef DDS_HAS_SHM
   dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
-  if (NULL != wr->m_iox_pub)
+  if (NULL != wr->m_iox_pub && !allocate_on_heap)
   {
     d->kind = DDS_IOX_ALLOCATOR_KIND_PUBLISHER;
     d->ref.pub = wr->m_iox_pub;
@@ -526,6 +526,7 @@ dds_return_t dds__writer_data_allocator_init (const dds_writer *wr, dds_data_all
 #else
   (void) wr;
   (void) data_allocator;
+  (void) allocate_on_heap;
   return DDS_RETCODE_OK;
 #endif
 }
