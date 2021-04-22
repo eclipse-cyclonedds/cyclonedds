@@ -40,7 +40,6 @@ typedef struct dds_data_allocator {
  *
  * @param[in] entity the handle of the entity
  * @param[out] data_allocator opaque allocator object to initialize
- * @param[in] allocate_on_heap flag to force the allocator to allocate on heap
  *
  * @returns success or a generic error indication
  *
@@ -53,7 +52,7 @@ typedef struct dds_data_allocator {
  * @retval DDS_RETCODE_ILLEGAL_OPERATION
  *    operation not supported on this entity
  */
-DDS_EXPORT dds_return_t dds_data_allocator_init (dds_entity_t entity, dds_data_allocator_t *data_allocator, const bool allocate_on_heap);
+DDS_EXPORT dds_return_t dds_data_allocator_init (dds_entity_t entity, dds_data_allocator_t *data_allocator);
 
 /** @brief Finalize a previously initialized allocator object
  *
