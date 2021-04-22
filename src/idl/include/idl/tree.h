@@ -477,6 +477,7 @@ IDL_EXPORT bool idl_is_array(const void *node);
 IDL_EXPORT bool idl_is_annotation_member(const void *node);
 IDL_EXPORT bool idl_is_annotation_appl(const void *node);
 IDL_EXPORT bool idl_is_topic(const void *node, bool keylist);
+IDL_EXPORT bool idl_is_keyless(const void *node, bool keylist);
 /* 1-based, returns 0 if path does not refer to key, non-0 otherwise */
 IDL_EXPORT uint32_t idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path);
 

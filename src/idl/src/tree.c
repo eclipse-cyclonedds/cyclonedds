@@ -2783,6 +2783,17 @@ static bool no_specific_key(const void *node)
   return true;
 }
 
+bool idl_is_keyless(const void *node, bool keylist)
+{
+  if (!keylist)
+    return no_specific_key(node);
+
+  if (idl_mask(node) & IDL_STRUCT)
+    return !(((const idl_struct_t *)node)->keylist &&
+            ((const idl_struct_t *)node)->keylist->keys);
+  return true;
+}
+
 static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
 {
   bool all_keys = false;
