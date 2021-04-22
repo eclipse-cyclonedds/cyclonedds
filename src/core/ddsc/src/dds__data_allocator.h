@@ -46,13 +46,13 @@ DDSRT_STATIC_ASSERT(sizeof (dds_iox_allocator_t) <= sizeof (dds_data_allocator_t
 struct dds_writer;
 struct dds_reader;
 
-dds_return_t dds__writer_data_allocator_init (const struct dds_writer *wr, dds_data_allocator_t *data_allocator, const bool allocate_on_heap)
+dds_return_t dds__writer_data_allocator_init (const struct dds_writer *wr, dds_data_allocator_t *data_allocator)
   ddsrt_nonnull_all;
 
 dds_return_t dds__writer_data_allocator_fini (const struct dds_writer *wr, dds_data_allocator_t *data_allocator)
   ddsrt_nonnull_all;
 
-dds_return_t dds__reader_data_allocator_init (const struct dds_reader *wr, dds_data_allocator_t *data_allocator, const bool allocate_on_heap)
+dds_return_t dds__reader_data_allocator_init (const struct dds_reader *wr, dds_data_allocator_t *data_allocator)
   ddsrt_nonnull_all;
 
 dds_return_t dds__reader_data_allocator_fini (const struct dds_reader *wr, dds_data_allocator_t *data_allocator)
