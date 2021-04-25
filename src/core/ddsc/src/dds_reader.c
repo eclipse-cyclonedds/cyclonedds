@@ -35,6 +35,7 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_statistics.h"
+#include "tracing_lttng.h"
 
 #ifdef DDS_HAS_SHM
 #include "shm__monitor.h"
@@ -685,6 +686,12 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   dds_topic_allow_set_qos (tp);
   dds_topic_unpin (tp);
   dds_subscriber_unlock (sub);
+
+#ifdef DDS_HAS_LTTNG_TRACING
+  dds_guid_t guid;
+  (void)dds_get_guid(reader, &guid);
+  TRACEPOINT(create_reader, (const void *)rd, rd->m_topic->m_name, guid.v);
+#endif
   return reader;
 
 #ifdef DDS_HAS_SECURITY

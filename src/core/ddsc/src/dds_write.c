@@ -26,6 +26,7 @@
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
+#include "tracing_lttng.h"
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/shm_sync.h"
@@ -332,6 +333,8 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
 
   if (data == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
+
+  TRACEPOINT(write, (const void *)wr, data, tstamp);
 
   /* Check for topic filter */
   if (!writekey && wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)

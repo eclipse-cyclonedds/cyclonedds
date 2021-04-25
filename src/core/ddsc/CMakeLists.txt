@@ -47,6 +47,10 @@ if (DDS_HAS_SHM)
   list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm_monitor.c")
 endif()
 
+if (DDS_HAS_LTTNG_TRACING)
+  list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/tracing_lttng.c")
+endif()
+
 prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__alloc.h
   dds__builtin.h
@@ -73,7 +77,8 @@ prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__whc_builtintopic.h
   dds__serdata_builtintopic.h
   dds__get_status.h
-  dds__data_allocator.h)
+  dds__data_allocator.h
+  tracing_lttng.h)
 
 prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/dds/"
   dds.h
@@ -114,6 +119,10 @@ target_include_directories(ddsc
     "${CMAKE_CURRENT_LIST_DIR}/src"
   INTERFACE
     $<INSTALL_INTERFACE:include>)
+
+if (DDS_HAS_LTTNG_TRACING)
+  target_link_libraries(ddsc PRIVATE ${LTTNG_LIBRARIES} "-rdynamic")
+endif()
 
 install(
   DIRECTORY

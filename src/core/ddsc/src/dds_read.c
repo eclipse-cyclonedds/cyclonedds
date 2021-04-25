@@ -21,6 +21,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_sertopic.h" // for extern ddsi_sertopic_serdata_ops_wrap
+#include "tracing_lttng.h"
 
 /*
   dds_read_impl: Core read/take function. Usually maxs is size of buf and si
@@ -127,6 +128,7 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
   }
   dds_entity_unpin (entity);
   thread_state_asleep (ts1);
+  TRACEPOINT(read, (const void *)rd, (const void *)*buf);
   return ret;
 
 #undef NC_CLEAR_LOAN_OUT

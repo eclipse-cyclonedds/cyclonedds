@@ -34,6 +34,7 @@
 #include "dds__statistics.h"
 #include "dds__data_allocator.h"
 #include "dds/ddsi/ddsi_statistics.h"
+#include "tracing_lttng.h"
 
 DECL_ENTITY_LOCK_UNLOCK (dds_writer)
 
@@ -445,6 +446,12 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     nn_xpack_sendq_start(gv);
   }
   ddsrt_mutex_unlock (&gv->sendq_running_lock);
+
+#ifdef DDS_HAS_LTTNG_TRACING
+  dds_guid_t guid;
+  (void)dds_get_guid(writer, &guid);
+  TRACEPOINT(create_writer, (const void *)wr, wr->m_topic->m_name, guid.v);
+#endif
   return writer;
 
 #ifdef DDS_HAS_SECURITY

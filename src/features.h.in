@@ -39,4 +39,7 @@
 /* Whether or not support for Iceoryx support is included */
 #cmakedefine DDS_HAS_SHM @DDS_HAS_SHM@
 
+/* Whether or not support for LTTng tracing instrumentation is included */
+#cmakedefine DDS_HAS_LTTNG_TRACING @DDS_HAS_LTTNG_TRACING@
+
 #endif
