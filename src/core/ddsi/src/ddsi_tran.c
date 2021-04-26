@@ -49,23 +49,6 @@ void ddsi_factory_add (struct ddsi_domaingv *gv, ddsi_tran_factory_t factory)
   gv->ddsi_tran_factories = factory;
 }
 
-ddsi_tran_factory_t ddsi_factory_find (const struct ddsi_domaingv *gv, const char *type)
-{
-  /* FIXME: should speed up */
-  ddsi_tran_factory_t factory = gv->ddsi_tran_factories;
-
-  while (factory)
-  {
-    if (strcmp (factory->m_typename, type) == 0)
-    {
-      break;
-    }
-    factory = factory->m_factory;
-  }
-
-  return factory;
-}
-
 void ddsi_tran_factories_fini (struct ddsi_domaingv *gv)
 {
   ddsi_tran_factory_t factory;
@@ -79,21 +62,41 @@ void ddsi_tran_factories_fini (struct ddsi_domaingv *gv)
   }
 }
 
+static bool type_is_numeric (const char *type, size_t len, int32_t *value)
+{
+  /* returns false if there are non-digits present or if the value is out of range */
+  *value = 0;
+  for (size_t i = 0; i < len; i++)
+  {
+    if (!isdigit ((unsigned char) type[i]))
+      return false;
+    int32_t d = (unsigned char) type[i] - '0';
+    if (*value > INT32_MAX / 10 || 10 * *value > INT32_MAX - d)
+      return false;
+    *value = 10 * *value + d;
+  }
+  return true;
+}
+
 static ddsi_tran_factory_t ddsi_factory_find_with_len (const struct ddsi_domaingv *gv, const char *type, size_t len)
 {
-  /* FIXME: should speed up */
-  ddsi_tran_factory_t factory = gv->ddsi_tran_factories;
-
-  while (factory)
+  int32_t loc_kind;
+  if (type_is_numeric (type, len, &loc_kind))
+    return ddsi_factory_find_supported_kind (gv, loc_kind);
+  else
   {
-    if (strncmp (factory->m_typename, type, len) == 0 && factory->m_typename[len] == 0)
+    for (ddsi_tran_factory_t f = gv->ddsi_tran_factories; f; f = f->m_factory)
     {
-      break;
+      if (strncmp (f->m_typename, type, len) == 0 && f->m_typename[len] == 0)
+        return f;
     }
-    factory = factory->m_factory;
   }
+  return NULL;
+}
 
-  return factory;
+ddsi_tran_factory_t ddsi_factory_find (const struct ddsi_domaingv *gv, const char *type)
+{
+  return ddsi_factory_find_with_len (gv, type, strlen (type));
 }
 
 ddsrt_attribute_no_sanitize (("thread"))
