@@ -15,6 +15,7 @@
 #include <ctype.h>
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/string.h"
 #include "dds/ddsrt/ifaddrs.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_ipaddr.h"
@@ -288,6 +289,26 @@ int ddsi_locator_from_sockaddr (const struct ddsi_tran_factory *tran, ddsi_locat
   return tran->m_locator_from_sockaddr_fn (tran, loc, sockaddr);
 }
 
+static size_t kindstr (char *dst, size_t sizeof_dst, int32_t kind)
+{
+  char *wellknown;
+  switch (kind)
+  {
+    case NN_LOCATOR_KIND_TCPv4: wellknown = "tcp/"; break;
+    case NN_LOCATOR_KIND_TCPv6: wellknown = "tcp6/"; break;
+    case NN_LOCATOR_KIND_UDPv4: wellknown = "udp/"; break;
+    case NN_LOCATOR_KIND_UDPv6: wellknown = "udp6/"; break;
+    default: wellknown = NULL; break;
+  };
+  if (wellknown)
+    return ddsrt_strlcpy (dst, wellknown, sizeof (dst));
+  else
+  {
+    int pos = snprintf (dst, sizeof_dst, "%"PRId32"/", kind);
+    return (pos < 0) ? sizeof_dst : (size_t) pos;
+  }
+}
+
 static char *ddsi_xlocator_to_string_impl (char *dst, size_t sizeof_dst, const ddsi_xlocator_t *loc)
 {
   /* FIXME: should add a "factory" for INVALID locators */
@@ -308,8 +329,8 @@ static char *ddsi_xlocator_to_string_impl (char *dst, size_t sizeof_dst, const d
       case NN_LOCATOR_KIND_TCPv6:
       case NN_LOCATOR_KIND_UDPv4:
       case NN_LOCATOR_KIND_UDPv6: {
-        int pos = snprintf (dst, sizeof_dst, "%"PRId32"/", loc->c.kind);
-        if (0 < pos && (size_t)pos < sizeof_dst)
+        size_t pos = kindstr (dst, sizeof_dst, loc->c.kind);
+        if ((size_t)pos < sizeof_dst)
           (void) ddsi_ipaddr_to_string (dst + (size_t)pos, sizeof_dst - (size_t)pos, &loc->c, 1, NULL);
         break;
       }
@@ -340,8 +361,8 @@ static char *ddsi_xlocator_to_string_no_port_impl (char *dst, size_t sizeof_dst,
       case NN_LOCATOR_KIND_TCPv6:
       case NN_LOCATOR_KIND_UDPv4:
       case NN_LOCATOR_KIND_UDPv6: {
-        int pos = snprintf (dst, sizeof_dst, "%"PRId32"/", loc->c.kind);
-        if (0 < pos && (size_t)pos < sizeof_dst)
+        size_t pos = kindstr (dst, sizeof_dst, loc->c.kind);
+        if ((size_t)pos < sizeof_dst)
           (void) ddsi_ipaddr_to_string (dst + (size_t)pos, sizeof_dst - (size_t)pos, &loc->c, 0, NULL);
         break;
       }
