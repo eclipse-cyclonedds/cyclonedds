@@ -298,3 +298,5 @@ if(BUILD_IDLC AND BUILD_EXAMPLES)
 endif()
 
 add_subdirectory(docs)
+
+include(CmakeCPack.cmake)
