@@ -563,6 +563,10 @@ idl_retcode_t idl_parse_directive(idl_pstate_t *pstate, idl_token_t *tok)
     return parse_line(pstate, tok);
   } else if ((pstate->scanner.state & IDL_SCAN_KEYLIST) == IDL_SCAN_KEYLIST) {
     return parse_keylist(pstate, tok);
+  } else if (pstate->scanner.state == IDL_SCAN_UNKNOWN_PRAGMA) {
+    if (tok->code == '\n')
+      pstate->scanner.state = IDL_SCAN;
+    return IDL_RETCODE_OK;
   } else if (pstate->scanner.state == IDL_SCAN_PRAGMA) {
     /* expect keylist */
     if (tok->code == IDL_TOKEN_IDENTIFIER) {
@@ -576,10 +580,9 @@ idl_retcode_t idl_parse_directive(idl_pstate_t *pstate, idl_token_t *tok)
         pstate->scanner.state = IDL_SCAN_KEYLIST;
         return IDL_RETCODE_OK;
       }
-      idl_error(pstate, &tok->location,
-        "Unsupported #pragma directive %s", tok->value.str);
-      return IDL_RETCODE_SYNTAX_ERROR;
     }
+    pstate->scanner.state = IDL_SCAN_UNKNOWN_PRAGMA;
+    return IDL_RETCODE_OK;
   } else if (pstate->scanner.state == IDL_SCAN_DIRECTIVE_NAME) {
     if (tok->code == IDL_TOKEN_PP_NUMBER) {
       /* expect linemarker */

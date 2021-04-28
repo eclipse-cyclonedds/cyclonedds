@@ -326,22 +326,6 @@ DDS_EXPORT char *
 DDS_Security_normalize_file(
     const char *filepath);
 
-/**
- * \brief Find first occurrence of character in null terminated string
- *
- * @param str String to search for given characters
- * @param chrs Characters to search for in string
- * @param inc true to find first character included in given characters,
- *            false to find first character not included.
- * @return Pointer to first occurrence of character in string, or NULL
- */
-
-DDS_EXPORT char *
-ddssec_strchrs (
-        const char *str,
-        const char *chrs,
-        bool inc);
-
 DDS_EXPORT dds_time_t
 DDS_Security_parse_xml_date(
         char *buf);

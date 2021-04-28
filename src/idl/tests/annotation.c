@@ -56,11 +56,14 @@ CU_Test(idl_annotation, id_member)
   ret = parse_string(IDL_FLAG_ANNOTATIONS, str, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   s = (idl_struct_t *)pstate->root;
   CU_ASSERT_PTR_NOT_NULL_FATAL(s);
   CU_ASSERT_FATAL(idl_is_struct(s));
+  assert(s);
   c = (idl_member_t *)s->members;
   CU_ASSERT_PTR_NOT_NULL(c);
+  assert(c);
   CU_ASSERT_FATAL(idl_is_member(c));
   CU_ASSERT_EQUAL(c->id.annotation, IDL_ID);
   CU_ASSERT_EQUAL(c->id.value, 1);
@@ -83,11 +86,14 @@ CU_Test(idl_annotation, key)
   ret = parse_string(IDL_FLAG_ANNOTATIONS, str, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   s = (idl_struct_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_struct(s));
+  assert(s);
   m = (idl_member_t *)s->members;
   CU_ASSERT_FATAL(idl_is_member(m));
   CU_ASSERT_EQUAL(m->key, IDL_TRUE);
+  assert(m);
   m = idl_next(m);
   CU_ASSERT_FATAL(idl_is_member(m));
   CU_ASSERT_EQUAL(m->key, IDL_TRUE);
@@ -113,6 +119,7 @@ CU_Test(idl_annotation, nested)
   ret = parse_string(IDL_FLAG_ANNOTATIONS, str, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  assert(pstate);
   s = (idl_struct_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_struct(s));
   CU_ASSERT_EQUAL(s->nested.annotation, IDL_DEFAULT_NESTED);
@@ -222,6 +229,12 @@ CU_Test(idl_annotation, default_nested)
     idl_delete_pstate(pstate);
   }
 }
+#undef M
+#undef S
+#undef DN
+#undef N
+#undef T
+#undef P
 
 #define ok IDL_RETCODE_OK
 #define semantic_error IDL_RETCODE_SEMANTIC_ERROR
@@ -249,8 +262,7 @@ CU_Test(idl_annotation, redefinition)
     ret = parse_string(IDL_FLAG_ANNOTATIONS, redef[i].str, &pstate);
     CU_ASSERT_EQUAL(ret, redef[i].ret);
     if (ret == IDL_RETCODE_OK) {
-      CU_ASSERT_PTR_NOT_NULL(pstate);
-      CU_ASSERT_PTR_NOT_NULL(pstate->builtin_root);
+      CU_ASSERT(pstate && pstate->builtin_root);
     }
     idl_delete_pstate(pstate);
   }
@@ -322,57 +334,45 @@ CU _ Test(idl_annotation, autoid_struct)
 // x. autoid (HASH)
 // x. autoid (SEQUENTIAL)
 
-// x. @extensibility(FINAL)
-// x. @extensibility(APPENDABLE)
-// x. @extensibility(MUTABLE)
+#endif
 
-CU _ Test(idl_annotation, final_struct)
+#define A(ann) ann " struct s { char c; };"
+CU_Test(idl_annotation, struct_extensibility)
 {
+  static const struct {
+    const char *str;
+    enum idl_extensibility ext;
+  } tests[] = {
+    { A("@final"), IDL_EXTENSIBILITY_FINAL },
+    { A("@appendable"), IDL_EXTENSIBILITY_APPENDABLE },
+    { A("@mutable"), IDL_EXTENSIBILITY_MUTABLE},
+    { A("@extensibility(FINAL)"), IDL_EXTENSIBILITY_FINAL },
+    { A("@extensibility(APPENDABLE)"), IDL_EXTENSIBILITY_APPENDABLE },
+    { A("@extensibility(MUTABLE)"), IDL_EXTENSIBILITY_MUTABLE},
+  };
+  static const size_t n = sizeof(tests)/sizeof(tests[0]);
+
   idl_retcode_t ret;
-  idl_tree_t *tree = NULL;
+  idl_pstate_t *pstate = NULL;
   idl_struct_t *s;
-  const char str[] = "@final struct s { char c; };";
 
-  ret = idl_parse_string(str, IDL_FLAG_ANNOTATIONS, &tree);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL(tree);
-  s = (idl_struct_t *)tree->root;
-  CU_ASSERT_FATAL(idl_is_struct(s));
-  CU_ASSERT_EQUAL(s->extensibility, IDL_EXTENSIBILITY_FINAL);
-  idl_delete_tree(tree);
+  for (size_t i = 0; i < n; i++) {
+    pstate = NULL;
+    ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
+    CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+    assert(pstate);
+    s = (idl_struct_t *)pstate->root;
+    CU_ASSERT_PTR_NOT_NULL_FATAL(s);
+    assert(s);
+    CU_ASSERT_FATAL(idl_is_struct(s));
+    CU_ASSERT_EQUAL(s->extensibility, tests[i].ext);
+    idl_delete_pstate(pstate);
+  }
 }
+#undef A
 
-CU _ Test(idl_annotation, appendable_struct)
-{
-  idl_retcode_t ret;
-  idl_tree_t *tree = NULL;
-  idl_struct_t *s;
-  const char str[] = "@appendable struct s { char c; };";
-
-  ret = idl_parse_string(str, IDL_FLAG_ANNOTATIONS, &tree);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL(tree);
-  s = (idl_struct_t *)tree->root;
-  CU_ASSERT_FATAL(idl_is_struct(s));
-  CU_ASSERT_EQUAL(s->extensibility, IDL_EXTENSIBILITY_APPENDABLE);
-  idl_delete_tree(tree);
-}
-
-CU _ Test(idl_annotation, mutable_struct)
-{
-  idl_retcode_t ret;
-  idl_tree_t *tree = NULL;
-  idl_struct_t *s;
-  const char str[] = "@mutable struct s { char c; };";
-
-  ret = idl_parse_string(str, IDL_FLAG_ANNOTATIONS, &tree);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL(tree);
-  s = (idl_struct_t *)tree->root;
-  CU_ASSERT_FATAL(idl_is_struct(s));
-  CU_ASSERT_EQUAL(s->extensibility, IDL_EXTENSIBILITY_MUTABLE);
-  idl_delete_tree(tree);
-}
+#if 0
 
 CU _ Test(idl_annotation, foobar_struct)
 {
@@ -389,3 +389,60 @@ CU _ Test(idl_annotation, foobar_struct)
   idl_delete_tree(tree);
 }
 #endif
+
+#define E(name, definitions) " enum " name " { " definitions " };\n"
+#define C(name, value) " const long " name " = " value ";\n"
+#define M(name, definitions) " module " name " {\n " definitions "\n};\n"
+#define A(name, definitions) " @annotation " name " {\n " definitions "\n};\n"
+#define TA(ann) \
+  E("gkind", "GKIND1, GKIND2")\
+  C("gv", "1") \
+  M("m1", \
+    E("m1kind", "M1KIND1, M1KIND2") \
+    C("m1v", "1") \
+    A("a1", "long v;")\
+    A("a2", E("a2kind", "KIND1, KIND2") "a2kind v;")\
+    M("m2", \
+      E("m2kind", "M2KIND1, M2KIND2") \
+      C("m2v", "1") \
+      ann\
+      "struct s { char c1; };"\
+    )\
+  )
+
+CU_Test(idl_annotation, parameter_scope)
+{
+  static const struct {
+    const char *str;
+  } tests[] = {
+    { TA("@a1(v = 1)") },
+    { TA("@a1(v = m2::m2v)") },
+    { TA("@a1(v = m1::m2::m2v)") },
+    { TA("@a1(v = m1::m1v)") },
+    { TA("@a1(v = ::gv)") },
+
+    { TA("@a2(v = KIND1)") },
+    { TA("@a2(v = m2::M2KIND1)") },
+    { TA("@a2(v = m1::m2::M2KIND1)") },
+    { TA("@a2(v = m1::M1KIND1)") },
+    { TA("@a2(v = ::GKIND1)") },
+  };
+  static const size_t n = sizeof(tests)/sizeof(tests[0]);
+
+  idl_retcode_t ret;
+  idl_pstate_t *pstate = NULL;
+
+  for (size_t i = 0; i < n; i++) {
+    pstate = NULL;
+    ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
+    CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+    idl_delete_pstate(pstate);
+  }
+}
+
+#undef E
+#undef C
+#undef M
+#undef A
+#undef TA

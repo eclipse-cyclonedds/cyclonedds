@@ -2827,7 +2827,7 @@ static int rhc_check_counts_locked (struct dds_rhc_default *rhc, bool check_cond
         }
       }
 
-      for (i = 0, rciter = rhc->conds; i < ncheck; i++, rciter = rciter->m_next)
+      for (i = 0, rciter = rhc->conds; rciter && i < ncheck; i++, rciter = rciter->m_next)
       {
         if (!rhc_get_cond_trigger (inst, rciter))
           ;
@@ -2862,7 +2862,7 @@ static int rhc_check_counts_locked (struct dds_rhc_default *rhc, bool check_cond
 
   if (check_conds)
   {
-    for (i = 0, rciter = rhc->conds; i < ncheck; i++, rciter = rciter->m_next)
+    for (i = 0, rciter = rhc->conds; rciter && i < ncheck; i++, rciter = rciter->m_next)
       assert (cond_match_count[i] == ddsrt_atomic_ld32 (&rciter->m_entity.m_status.m_trigger));
   }
 

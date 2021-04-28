@@ -93,6 +93,7 @@ CU_Theory ((enum ddsi_transport_selector tr), ddsi_locator_from_string, ipv4_inv
   ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   char astr[40];
+  assert(fact);
   snprintf (astr, sizeof (astr), "%s/", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID);
@@ -263,6 +264,7 @@ CU_Theory ((enum ddsi_transport_selector tr), ddsi_locator_from_string, ipv6_inv
   ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   char astr[40];
+  assert(fact);
   snprintf (astr, sizeof (astr), "%s/", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID);

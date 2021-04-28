@@ -819,7 +819,6 @@ idl_create_sequence(
 {
   idl_retcode_t ret;
   idl_sequence_t *node;
-  idl_type_spec_t *alias;
   static const size_t size = sizeof(*node);
   static const idl_mask_t mask = IDL_SEQUENCE;
   static const struct methods methods = {
@@ -828,11 +827,9 @@ idl_create_sequence(
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     goto err_node;
   /* type specifier can be a type definition */
-  alias = type_spec;
-  type_spec = idl_unalias(type_spec, 0u);
-  node->type_spec = alias;
-  if (!idl_scope(alias))
-    ((idl_node_t *)alias)->parent = (idl_node_t*)node;
+  node->type_spec = type_spec;
+  if (!idl_scope(type_spec))
+    ((idl_node_t *)type_spec)->parent = (idl_node_t*)node;
   assert(!literal || idl_type(literal) == IDL_ULONG);
   if (literal)
     node->maximum = literal->value.uint32;
@@ -1151,7 +1148,7 @@ idl_create_keylist(
   *((idl_keylist_t **)nodep) = node;
   return IDL_RETCODE_OK;
 err_node:
-  return IDL_RETCODE_NO_MEMORY;
+  return ret;
 }
 
 bool idl_is_member(const void *ptr)
@@ -1426,12 +1423,13 @@ idl_finalize_union(
 
   assert(branches);
   for (idl_case_t *c = branches; c; c = idl_next(c)) {
+    assert(c->labels);
     /* iterate case labels and evaluate constant expressions */
     for (idl_case_label_t *cl = c->labels; cl; cl = idl_next(cl)) {
       if (cl->const_expr) {
         idl_const_expr_t *const_expr = NULL;
 
-        len++; /* determine */
+        len++;
         if ((ret = idl_evaluate(pstate, cl->const_expr, type, &const_expr)))
           return ret;
         cl->const_expr = const_expr;
@@ -1458,28 +1456,32 @@ idl_finalize_union(
     }
   }
 
-  /* sort labels to detect duplicates and optionally determine default */
-  if (!(vec = malloc(len * sizeof(*vec))))
-    return IDL_RETCODE_NO_MEMORY;
+  assert(len > 0 || default_label);
 
-  for (const idl_case_t *c = branches; c; c = idl_next(c)) {
-    for (const idl_case_label_t *cl = c->labels; cl; cl = idl_next(cl)) {
-      if (!cl->const_expr)
-        continue;
-      assert(cnt < len);
-      vec[cnt++] = (idl_case_label_t *)cl;
+  if (len > 0) {
+    /* sort labels to detect duplicates and optionally determine default */
+    if (!(vec = malloc(len * sizeof(*vec))))
+      return IDL_RETCODE_NO_MEMORY;
+
+    for (const idl_case_t *c = branches; c; c = idl_next(c)) {
+      for (const idl_case_label_t *cl = c->labels; cl; cl = idl_next(cl)) {
+        if (!cl->const_expr)
+          continue;
+        assert(cnt < len);
+        vec[cnt++] = (idl_case_label_t *)cl;
+      }
     }
-  }
 
-  assert(cnt == len);
-  qsort(vec, len, sizeof(*vec), &compare_label);
+    assert(cnt == len);
+    qsort(vec, len, sizeof(*vec), &compare_label);
 
-  for (cnt=1; cnt < len; cnt++) {
-    if (compare_label(&vec[cnt - 1], &vec[cnt]) != IDL_EQUAL)
-      continue;
-    idl_error(pstate, idl_location(vec[cnt]),
-      "Duplicate case label in switch statement");
-    goto semantic_error;
+    for (cnt=1; cnt < len; cnt++) {
+      if (compare_label(&vec[cnt - 1], &vec[cnt]) != IDL_EQUAL)
+        continue;
+      idl_error(pstate, idl_location(vec[cnt]),
+        "Duplicate case label in switch statement");
+      goto semantic_error;
+    }
   }
 
   /* Java, C# and C++ map unions to a class which must provide a default
@@ -1527,7 +1529,7 @@ idl_finalize_union(
     } else {
       idl_equality_t eq;
       idl_literal_t *literal = NULL;
-      if ((ret = idl_create_literal(pstate, location, type, &literal)))
+      if (idl_create_literal(pstate, location, type, &literal))
         goto no_memory;
       memset(&literal->value, 0, sizeof(literal->value));
       const_expr = literal;
@@ -1557,13 +1559,13 @@ idl_finalize_union(
     c->node.parent = (idl_node_t *)node;
   idl_exit_scope(pstate);
 
-  free(vec);
+  if (vec) free(vec);
   return IDL_RETCODE_OK;
 semantic_error:
-  free(vec);
+  if (vec) free(vec);
   return IDL_RETCODE_SEMANTIC_ERROR;
 no_memory:
-  free(vec);
+  if (vec) free(vec);
   return IDL_RETCODE_NO_MEMORY;
 }
 
@@ -2491,7 +2493,7 @@ static void *iterate_annotation(const void *ptr, const void *cur)
   const idl_node_t *node = cur;
   assert(root);
   if (node) {
-    assert(idl_parent(root) == node);
+    assert(idl_parent(node) == root);
     return node->next;
   }
   return root->definitions;
@@ -2658,6 +2660,7 @@ idl_finalize_annotation_appl(
     while (definition && !member) {
       if (idl_is_annotation_member(definition))
         member = definition;
+      definition = ((idl_node_t *)definition)->next;
     }
     idl_annotation_appl_param_t *parameter = NULL;
     static const size_t size = sizeof(*parameter);
@@ -2715,7 +2718,7 @@ idl_type_spec_t *idl_type_spec(const void *node)
   idl_mask_t mask;
 
   mask = idl_mask(node);
-  if (idl_mask(node) & IDL_DECLARATOR)
+  if (mask & IDL_DECLARATOR)
     node = idl_parent(node);
   mask = idl_mask(node);
   if (mask & IDL_TYPEDEF)

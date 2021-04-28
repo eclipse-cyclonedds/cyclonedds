@@ -349,11 +349,13 @@ static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_ser
     if (d == NULL)
       return NULL;
     serdata_default_append_blob (&d, sizeof (keyhash->value), keyhash->value);
+    DDSRT_WARNING_MSVC_OFF(6326)
     if (!dds_stream_normalize (d->data, d->pos, (NATIVE_ENCODING != CDR_BE), tp, true))
     {
       ddsi_serdata_unref (&d->c);
       return NULL;
     }
+    DDSRT_WARNING_MSVC_ON(6326)
     memcpy (d->keyhash.m_hash, keyhash->value, sizeof (d->keyhash.m_hash));
     d->keyhash.m_set = 1;
     d->keyhash.m_iskey = 1;

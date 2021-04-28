@@ -204,11 +204,9 @@ need_refill(idl_pstate_t *pstate, const char *cur)
 static int32_t
 scan_line_comment(idl_pstate_t *pstate, const char *cur, const char **lim)
 {
-  int cnt = 0;
-
   cur = next(pstate, cur);
   while ((cur = next(pstate, cur)) < pstate->scanner.limit) {
-    if ((cnt = have_newline(pstate, cur)))
+    if (have_newline(pstate, cur))
       break;
   }
 
@@ -592,11 +590,11 @@ scan(idl_pstate_t *pstate, idl_lexeme_t *lex)
        */
       if (chr == '.' && have_digit(pstate, next(pstate, cur))) {
         code = scan_pp_number(pstate, cur, &lim);
-      } else if ((cnt = have_alpha(pstate, cur)) || chr == '_') {
+      } else if (have_alpha(pstate, cur) || chr == '_') {
         code = scan_identifier(pstate, cur, &lim);
-      } else if ((cnt = have_digit(pstate, cur))) {
+      } else if (have_digit(pstate, cur)) {
         code = scan_pp_number(pstate, cur, &lim);
-      } else if ((cnt = have(pstate, cur, "::"))) {
+      } else if (have(pstate, cur, "::")) {
         code = scan_scope(pstate, cur, &lim);
       } else {
         lim = cur + 1;
@@ -613,7 +611,7 @@ scan(idl_pstate_t *pstate, idl_lexeme_t *lex)
         code = scan_integer_literal(pstate, cur, &lim);
       } else if (have_alpha(pstate, cur) || chr == '_') {
         code = scan_identifier(pstate, cur, &lim);
-      } else if ((cnt = have(pstate, cur, "::")) > 0) {
+      } else if (have(pstate, cur, "::") > 0) {
         code = scan_scope(pstate, cur, &lim);
       } else if ((cnt = have(pstate, cur, "<<")) > 0) {
         lim = cur + cnt;

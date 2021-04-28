@@ -237,11 +237,10 @@ static void chhtest_gc (void *block, void *arg)
 struct chhtest_thread_arg {
   ddsrt_atomic_uint32_t *stop;
   struct ddsrt_chh *chh;
-  uint32_t nkeys;
   uint32_t *keys;
-  bool check;
-
+  uint32_t nkeys;
   uint32_t adds, removes, lookups, maxnkeys;
+  bool check;
 };
 
 static uint32_t chhtest_thread (void *varg)
@@ -250,6 +249,7 @@ static uint32_t chhtest_thread (void *varg)
   uint32_t ** ksptrs;
   uint32_t n = 0;
 
+  assert(arg->nkeys > 0);
   ksptrs = ddsrt_malloc (arg->nkeys * sizeof (*ksptrs));
   for (uint32_t i = 0; i < arg->nkeys; i++)
     ksptrs[i] = &arg->keys[i];

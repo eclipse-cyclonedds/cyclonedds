@@ -1077,12 +1077,12 @@ static bool parse_sample_value (struct oneliner_ctx *ctx, Space_Type1 *s, bool *
 }
 
 struct doreadlike_sample {
-  uint32_t state;
-  bool valid_data;
   dds_time_t ts;
-  int wrent;
   dds_instance_handle_t wrih;
+  uint32_t state;
+  int wrent;
   Space_Type1 data;
+  bool valid_data;
 };
 
 static bool wrname_from_pubhandle (const struct oneliner_ctx *ctx, int ent, dds_instance_handle_t pubhandle, entname_t *wrname)
@@ -1137,7 +1137,7 @@ static bool doreadlike_parse_sample (struct oneliner_ctx *ctx, struct doreadlike
     }
     if (*inp1 == 0)
       ;
-    else if (!isdigit (*inp1))
+    else if (!isdigit ((unsigned char)*inp1))
       return false;
     else // rewind input to digit
       ctx->l.inp = l1.inp + (inp1 - ctx->l.v.n);
@@ -1327,8 +1327,10 @@ static void dowritelike (struct oneliner_ctx *ctx, const char *name, bool fail, 
   Space_Type1 sample;
   if ((ent = parse_entity (ctx)) < 0)
     error (ctx, "%s: expecting entity", name);
+  DDSRT_WARNING_MSVC_OFF(6385)
   if (ctx->es[ent] == 0)
     make_entity (ctx, ent, NULL);
+  DDSRT_WARNING_MSVC_ON(6385)
   if (!parse_sample_value (ctx, &sample, &valid_data, 0))
     error (ctx, "%s: expecting sample value", name);
   if (nexttok_if (&ctx->l, TOK_TIMESTAMP))
@@ -1559,8 +1561,10 @@ static void dowaitforack (struct oneliner_ctx *ctx)
     error (ctx, "wait for ack: expecting writer");
   if (ent1 >= 0 && ent / 9 == ent1 / 9)
     error (ctx, "wait for ack: reader and writer must be in different domains");
+  DDSRT_WARNING_MSVC_OFF(6385)
   if (ctx->es[ent] == 0)
     make_entity (ctx, ent, NULL);
+  DDSRT_WARNING_MSVC_ON(6385)
   printf ("wait for ack %"PRId32" reader %"PRId32"\n", ctx->es[ent], ent1 < 0 ? 0 : ctx->es[ent1]);
 
   // without a reader argument a simple dds_wait_for_acks (ctx->es[ent], DDS_SECS (5)) suffices
@@ -1614,8 +1618,10 @@ static void dowaitforlistener (struct oneliner_ctx *ctx, int ll)
   const int ent = parse_entity (ctx);
   if (ent < 0)
     error (ctx, "check listener: requires an entity");
+  DDSRT_WARNING_MSVC_OFF(6385)
   if (ctx->es[ent] == 0)
     setlistener (ctx, NULL, ll, ent);
+  DDSRT_WARNING_MSVC_ON(6385)
   checklistener (ctx, ll, ent, have_args ? &l1 : NULL);
 }
 
@@ -1640,6 +1646,8 @@ static void dowait (struct oneliner_ctx *ctx)
   }
 }
 
+DDSRT_WARNING_MSVC_OFF(6385)
+DDSRT_WARNING_MSVC_OFF(6386)
 static void dodelete (struct oneliner_ctx *ctx)
 {
   dds_return_t ret;
@@ -1650,6 +1658,8 @@ static void dodelete (struct oneliner_ctx *ctx)
     error_dds (ctx, ret, "delete: failed on %"PRId32, ctx->es[ent]);
   ctx->es[ent] = 0;
 }
+DDSRT_WARNING_MSVC_ON(6386)
+DDSRT_WARNING_MSVC_ON(6385)
 
 static void dodeaf (struct oneliner_ctx *ctx)
 {
@@ -1659,8 +1669,10 @@ static void dodeaf (struct oneliner_ctx *ctx)
   if ((ent = parse_entity (ctx)) < 0 || (ent % 9) != 0)
     error (ctx, "deaf: requires participant");
   printf ("deaf: %s\n", getentname (&name, ent));
+  DDSRT_WARNING_MSVC_OFF(6385)
   if ((ret = dds_domain_set_deafmute (ctx->es[ent], true, false, DDS_INFINITY)) != 0)
     error_dds (ctx, ret, "deaf: dds_domain_set_deafmute failed on %"PRId32, ctx->es[ent]);
+  DDSRT_WARNING_MSVC_ON(6385)
   // speed up the process by forcing lease expiry
   dds_entity *x, *xprime;
   if ((ret = dds_entity_pin (ctx->es[ent], &x)) < 0)
@@ -1690,8 +1702,10 @@ static void dohearing (struct oneliner_ctx *ctx)
   if ((ent = parse_entity (ctx)) < 0 || (ent % 9) != 0)
     error (ctx, "hearing: requires participant");
   printf ("hearing: %s\n", getentname (&name, ent));
+  DDSRT_WARNING_MSVC_OFF(6385)
   if ((ret = dds_domain_set_deafmute (ctx->es[ent], false, false, DDS_INFINITY)) != 0)
     error_dds (ctx, ret, "hearing: dds_domain_set_deafmute failed %"PRId32, ctx->es[ent]);
+  DDSRT_WARNING_MSVC_ON(6385)
   // speed up the process by forcing SPDP publication on the remote
   for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
   {
@@ -1758,6 +1772,8 @@ static void dosetflags (struct oneliner_ctx *ctx)
   dds_entity_unpin (xwr);
 }
 
+DDSRT_WARNING_MSVC_OFF(6385)
+DDSRT_WARNING_MSVC_OFF(6001)
 static void docheckstatus (struct oneliner_ctx *ctx)
 {
   const int ll = parse_listener (ctx);
@@ -1794,6 +1810,8 @@ static void docheckstatus (struct oneliner_ctx *ctx)
   free (status);
   printf ("\n");
 }
+DDSRT_WARNING_MSVC_ON(6001)
+DDSRT_WARNING_MSVC_ON(6385)
 
 static void dispatchcmd (struct oneliner_ctx *ctx)
 {

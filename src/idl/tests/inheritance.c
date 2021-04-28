@@ -27,16 +27,17 @@ CU_Test(idl_inheritance, base_struct)
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL(pstate);
+  assert(pstate);
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate->root);
+  assert(pstate->root);
   s1 = (idl_struct_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_struct(s1));
   CU_ASSERT_STRING_EQUAL(idl_identifier(s1), "s1");
   s2 = idl_next(s1);
   CU_ASSERT_FATAL(idl_is_struct(s2));
   CU_ASSERT_STRING_EQUAL(idl_identifier(s2), "s2");
-  CU_ASSERT_PTR_NOT_NULL_FATAL(s2->inherit_spec);
-  CU_ASSERT_PTR_EQUAL(s2->inherit_spec->base, s1);
+  CU_ASSERT(s2->inherit_spec && s2->inherit_spec->base == s1);
   idl_delete_pstate(pstate);
 }

@@ -173,6 +173,9 @@ static double rss_term = 0;
 static uint64_t min_received = 0;
 static uint64_t min_roundtrips = 0;
 
+/* Whether to gather/show latency information in "sub" mode */
+static bool sublatency = false;
+
 static ddsrt_mutex_t disc_lock;
 
 /* Publisher statistics and lock protecting it */
@@ -188,6 +191,14 @@ struct hist {
 
 static ddsrt_mutex_t pubstat_lock;
 static struct hist *pubstat_hist;
+
+struct latencystat {
+  int64_t min, max;
+  int64_t sum;
+  uint32_t cnt;
+  uint64_t totcnt;
+  int64_t *raw;
+};
 
 /* Subscriber statistics for tracking number of samples received
    and lost per source */
@@ -205,6 +216,10 @@ struct eseq_stat {
     uint64_t nrecv_bytes;
   } ref[10];
   unsigned refidx;
+
+  /* for gathering latency information in case the clocks are
+     sufficiently well synchronised (e.g., single machine or PTP) */
+  struct latencystat info;
 };
 
 struct eseq_admin {
@@ -212,6 +227,7 @@ struct eseq_admin {
   unsigned nkeys;
   unsigned nph;
   dds_instance_handle_t *ph;
+  dds_instance_handle_t *pph;
   struct eseq_stat *stats;
   uint32_t **eseq;
 };
@@ -229,11 +245,7 @@ struct subthread_arg_pongwr {
 struct subthread_arg_pongstat {
   dds_instance_handle_t pubhandle;
   dds_instance_handle_t pphandle;
-  uint64_t min, max;
-  uint64_t sum;
-  uint32_t cnt;
-  uint64_t totcnt;
-  uint64_t *raw;
+  struct latencystat info;
 };
 
 /* Pong statistics is stored in n array of npongstat entries
@@ -397,6 +409,7 @@ static void hist_reset (struct hist *h)
 static struct hist *hist_new (unsigned nbins, uint64_t binwidth, uint64_t bin0)
 {
   struct hist *h = malloc (sizeof (*h) + nbins * sizeof (*h->bins));
+  assert(h);
   h->nbins = nbins;
   h->binwidth = binwidth;
   h->bin0 = bin0;
@@ -531,6 +544,7 @@ static void *make_baggage (dds_sequence_octet *b, uint32_t cnt)
   else
   {
     b->_buffer = malloc (b->_maximum);
+    assert(b->_buffer);
     memset(b->_buffer, 0xee, b->_maximum);
   }
   return b->_buffer;
@@ -587,6 +601,7 @@ static uint32_t pubthread (void *varg)
 
   baggage = init_sample (&data, 0);
   ihs = malloc (nkeyvals * sizeof (dds_instance_handle_t));
+  assert(ihs);
   if (!register_instances)
   {
     for (unsigned k = 0; k < nkeyvals; k++)
@@ -662,12 +677,95 @@ static uint32_t pubthread (void *varg)
   return 0;
 }
 
+static uint32_t topic_payload_size (enum topicsel tp, uint32_t bgsize)
+{
+  uint32_t size = 0;
+  switch (tp)
+  {
+    case KS:     size = 12 + bgsize; break;
+    case K32:    size = 32; break;
+    case K256:   size = 256; break;
+    case OU:     size = 4; break;
+    case UK16:   size = 16; break;
+    case UK1024: size = 1024; break;
+  }
+  return size;
+}
+
+static void latencystat_init (struct latencystat *x)
+{
+  x->min = INT64_MAX;
+  x->max = INT64_MIN;
+  x->sum = x->cnt = 0;
+  x->raw = malloc (PINGPONG_RAWSIZE * sizeof (*x->raw));
+}
+
+static void latencystat_fini (struct latencystat *x)
+{
+  free (x->raw);
+}
+
+static void latencystat_reset (struct latencystat *x, int64_t *newraw)
+{
+  x->raw = newraw;
+  x->min = INT64_MAX;
+  x->max = INT64_MIN;
+  x->sum = x->cnt = 0;
+}
+
+static int cmp_int64 (const void *va, const void *vb)
+{
+  const int64_t *a = va;
+  const int64_t *b = vb;
+  return (*a == *b) ? 0 : (*a < *b) ? -1 : 1;
+}
+
+static int64_t *latencystat_print (struct latencystat *y, const char *prefix, const char *subprefix, dds_instance_handle_t pubhandle, dds_instance_handle_t pphandle, uint32_t size)
+{
+  if (y->cnt > 0)
+  {
+    const uint32_t rawcnt = (y->cnt > PINGPONG_RAWSIZE) ? PINGPONG_RAWSIZE : y->cnt;
+    char ppinfo[128];
+    struct ppant *pp;
+    ddsrt_mutex_lock (&disc_lock);
+    if ((pp = ddsrt_avl_lookup (&ppants_td, &ppants, &pphandle)) == NULL)
+      snprintf (ppinfo, sizeof (ppinfo), "%"PRIx64, pubhandle);
+    else
+      snprintf (ppinfo, sizeof (ppinfo), "%s:%"PRIu32, pp->hostname, pp->pid);
+    ddsrt_mutex_unlock (&disc_lock);
+
+    qsort (y->raw, rawcnt, sizeof (*y->raw), cmp_int64);
+    printf ("%s%s %s size %"PRIu32" mean %.3fus min %.3fus 50%% %.3fus 90%% %.3fus 99%% %.3fus max %.3fus cnt %"PRIu32"\n",
+            prefix, subprefix, ppinfo, size,
+            (double) y->sum / (double) y->cnt / 1e3,
+            (double) y->min / 1e3,
+            (double) y->raw[rawcnt - (rawcnt + 1) / 2] / 1e3,
+            (double) y->raw[rawcnt - (rawcnt + 9) / 10] / 1e3,
+            (double) y->raw[rawcnt - (rawcnt + 99) / 100] / 1e3,
+            (double) y->max / 1e3,
+            y->cnt);
+  }
+  return y->raw;
+}
+
+static void latencystat_update (struct latencystat *x, int64_t tdelta)
+{
+  if (tdelta < x->min) x->min = tdelta;
+  if (tdelta > x->max) x->max = tdelta;
+  x->sum += tdelta;
+  if (x->cnt < PINGPONG_RAWSIZE)
+    x->raw[x->cnt] = tdelta;
+  x->cnt++;
+  x->totcnt++;
+}
+
 static void init_eseq_admin (struct eseq_admin *ea, unsigned nkeys)
 {
   ddsrt_mutex_init (&ea->lock);
   ea->nkeys = nkeys;
   ea->nph = 0;
   ea->ph = NULL;
+  ea->pph = NULL;
   ea->stats = NULL;
   ea->eseq = NULL;
 }
@@ -675,49 +773,17 @@ static void init_eseq_admin (struct eseq_admin *ea, unsigned nkeys)
 static void fini_eseq_admin (struct eseq_admin *ea)
 {
   free (ea->ph);
+  free (ea->pph);
+  if (sublatency)
+  {
+    for (unsigned i = 0; i < ea->nph; i++)
+      latencystat_fini (&ea->stats[i].info);
+  }
   free (ea->stats);
   for (unsigned i = 0; i < ea->nph; i++)
     free (ea->eseq[i]);
   ddsrt_mutex_destroy (&ea->lock);
   free (ea->eseq);
-}
-
-static int check_eseq (struct eseq_admin *ea, uint32_t seq, uint32_t keyval, uint32_t size, const dds_instance_handle_t pubhandle)
-{
-  uint32_t *eseq;
-  if (keyval >= ea->nkeys)
-  {
-    printf ("received key %"PRIu32" >= nkeys %u\n", keyval, ea->nkeys);
-    exit (3);
-  }
-  ddsrt_mutex_lock (&ea->lock);
-  for (uint32_t i = 0; i < ea->nph; i++)
-    if (pubhandle == ea->ph[i])
-    {
-      uint32_t e = ea->eseq[i][keyval];
-      ea->eseq[i][keyval] = seq + ea->nkeys;
-      ea->stats[i].nrecv++;
-      ea->stats[i].nrecv_bytes += size;
-      ea->stats[i].nlost += seq - e;
-      ea->stats[i].last_size = size;
-      ddsrt_mutex_unlock (&ea->lock);
-      return seq == e;
-    }
-  ea->ph = realloc (ea->ph, (ea->nph + 1) * sizeof (*ea->ph));
-  ea->ph[ea->nph] = pubhandle;
-  ea->eseq = realloc (ea->eseq, (ea->nph + 1) * sizeof (*ea->eseq));
-  ea->eseq[ea->nph] = malloc (ea->nkeys * sizeof (*ea->eseq[ea->nph]));
-  eseq = ea->eseq[ea->nph];
-  for (unsigned i = 0; i < ea->nkeys; i++)
-    eseq[i] = seq + (i - keyval) + (i <= keyval ? ea->nkeys : 0);
-  ea->stats = realloc (ea->stats, (ea->nph + 1) * sizeof (*ea->stats));
-  memset (&ea->stats[ea->nph], 0, sizeof (ea->stats[ea->nph]));
-  ea->stats[ea->nph].nrecv = 1;
-  ea->stats[ea->nph].nrecv_bytes = size;
-  ea->stats[ea->nph].last_size = size;
-  ea->nph++;
-  ddsrt_mutex_unlock (&ea->lock);
-  return 1;
 }
 
 static dds_instance_handle_t get_pphandle_for_pubhandle (dds_instance_handle_t pubhandle)
@@ -744,7 +810,63 @@ static dds_instance_handle_t get_pphandle_for_pubhandle (dds_instance_handle_t p
   }
 }
 
-static bool update_roundtrip (dds_instance_handle_t pubhandle, uint64_t tdelta, bool isping, uint32_t seq)
+DDSRT_WARNING_MSVC_OFF(6308)
+static int check_eseq (struct eseq_admin *ea, uint32_t seq, uint32_t keyval, uint32_t size, const dds_instance_handle_t pubhandle, int64_t tdelta)
+{
+  uint32_t *eseq;
+  if (keyval >= ea->nkeys)
+  {
+    printf ("received key %"PRIu32" >= nkeys %u\n", keyval, ea->nkeys);
+    exit (3);
+  }
+  ddsrt_mutex_lock (&ea->lock);
+  for (uint32_t i = 0; i < ea->nph; i++)
+    if (pubhandle == ea->ph[i])
+    {
+      uint32_t e = ea->eseq[i][keyval];
+      ea->eseq[i][keyval] = seq + ea->nkeys;
+      ea->stats[i].nrecv++;
+      ea->stats[i].nrecv_bytes += size;
+      ea->stats[i].nlost += seq - e;
+      ea->stats[i].last_size = size;
+      if (sublatency)
+        latencystat_update (&ea->stats[i].info, tdelta);
+      ddsrt_mutex_unlock (&ea->lock);
+      return seq == e;
+    }
+  ea->ph = realloc (ea->ph, (ea->nph + 1) * sizeof (*ea->ph));
+  assert(ea->ph);
+  ea->ph[ea->nph] = pubhandle;
+  ea->pph = realloc (ea->pph, (ea->nph + 1) * sizeof (*ea->pph));
+  assert(ea->pph);
+  ea->pph[ea->nph] = get_pphandle_for_pubhandle (pubhandle);
+  ea->eseq = realloc (ea->eseq, (ea->nph + 1) * sizeof (*ea->eseq));
+  assert(ea->eseq);
+  ea->eseq[ea->nph] = malloc (ea->nkeys * sizeof (*ea->eseq[ea->nph]));
+  assert(ea->eseq[ea->nph]);
+  eseq = ea->eseq[ea->nph];
+  DDSRT_WARNING_MSVC_OFF(6386)
+  for (unsigned i = 0; i < ea->nkeys; i++)
+    eseq[i] = seq + (i - keyval) + (i <= keyval ? ea->nkeys : 0);
+  DDSRT_WARNING_MSVC_ON(6386)
+  ea->stats = realloc (ea->stats, (ea->nph + 1) * sizeof (*ea->stats));
+  assert(ea->stats);
+  memset (&ea->stats[ea->nph], 0, sizeof (ea->stats[ea->nph]));
+  ea->stats[ea->nph].nrecv = 1;
+  ea->stats[ea->nph].nrecv_bytes = size;
+  ea->stats[ea->nph].last_size = size;
+  if (sublatency)
+  {
+    latencystat_init (&ea->stats[ea->nph].info);
+    latencystat_update (&ea->stats[ea->nph].info, tdelta);
+  }
+  ea->nph++;
+  ddsrt_mutex_unlock (&ea->lock);
+  return 1;
+}
+DDSRT_WARNING_MSVC_ON(6308)
+
+static bool update_roundtrip (dds_instance_handle_t pubhandle, int64_t tdelta, bool isping, uint32_t seq)
 {
   bool allseen;
   ddsrt_mutex_lock (&pongstat_lock);
@@ -761,26 +883,19 @@ static bool update_roundtrip (dds_instance_handle_t pubhandle, uint64_t tdelta, 
   for (uint32_t i = 0; i < npongstat; i++)
     if (pongstat[i].pubhandle == pubhandle)
     {
-      struct subthread_arg_pongstat * const x = &pongstat[i];
-      if (tdelta < x->min) x->min = tdelta;
-      if (tdelta > x->max) x->max = tdelta;
-      x->sum += tdelta;
-      if (x->cnt < PINGPONG_RAWSIZE)
-        x->raw[x->cnt] = tdelta;
-      x->cnt++;
-      x->totcnt++;
+      latencystat_update (&pongstat[i].info, tdelta);
       ddsrt_mutex_unlock (&pongstat_lock);
       return allseen;
     }
+  DDSRT_WARNING_MSVC_OFF(6308)
   pongstat = realloc (pongstat, (npongstat + 1) * sizeof (*pongstat));
+  assert(pongstat);
+  DDSRT_WARNING_MSVC_ON(6308)
   struct subthread_arg_pongstat * const x = &pongstat[npongstat];
   x->pubhandle = pubhandle;
   x->pphandle = get_pphandle_for_pubhandle (pubhandle);
-  x->min = x->max = x->sum = tdelta;
-  x->cnt = 1;
-  x->totcnt = 1;
-  x->raw = malloc (PINGPONG_RAWSIZE * sizeof (*x->raw));
-  x->raw[0] = tdelta;
+  latencystat_init (&x->info);
+  latencystat_update (&x->info, tdelta);
   npongstat++;
   ddsrt_mutex_unlock (&pongstat_lock);
   return allseen;
@@ -798,7 +913,7 @@ static dds_entity_t get_pong_writer_locked (dds_instance_handle_t pubhandle)
      (and having to GC it, which I'm skipping here ...) */
   pphandle = get_pphandle_for_pubhandle (pubhandle);
 
-  /* This gets called when no writer is associaed yet with pubhandle, but it may be that a writer
+  /* This gets called when no writer is associated yet with pubhandle, but it may be that a writer
      is associated already with pphandle (because there is the data writer and the ping writer) */
   for (uint32_t i = 0; i < npongwr; i++)
   {
@@ -812,7 +927,10 @@ static dds_entity_t get_pong_writer_locked (dds_instance_handle_t pubhandle)
       }
       else
       {
+        DDSRT_WARNING_MSVC_OFF(6308)
         pongwr = realloc (pongwr, (npongwr + 1) * sizeof (*pongwr));
+        assert(pongwr);
+        DDSRT_WARNING_MSVC_ON(6308)
         pongwr[npongwr].pubhandle = pubhandle;
         pongwr[npongwr].pphandle = pphandle;
         pongwr[npongwr].wr_pong = wr_pong;
@@ -835,21 +953,6 @@ static dds_entity_t get_pong_writer (dds_instance_handle_t pubhandle)
   return wr_pong;
 }
 
-static uint32_t topic_payload_size (enum topicsel tp, uint32_t bgsize)
-{
-  uint32_t size = 0;
-  switch (tp)
-  {
-    case KS:     size = 12 + bgsize; break;
-    case K32:    size = 32; break;
-    case K256:   size = 256; break;
-    case OU:     size = 4; break;
-    case UK16:   size = 16; break;
-    case UK1024: size = 1024; break;
-  }
-  return size;
-}
-
 static bool process_data (dds_entity_t rd, struct subthread_arg *arg)
 {
   uint32_t max_samples = arg->max_samples;
@@ -862,6 +965,7 @@ static bool process_data (dds_entity_t rd, struct subthread_arg *arg)
   {
     if (iseq[i].valid_data)
     {
+      const int64_t tdelta = dds_time () - iseq[i].source_timestamp;
       uint32_t seq = 0, keyval = 0, size = 0;
       switch (topicsel)
       {
@@ -875,7 +979,7 @@ static bool process_data (dds_entity_t rd, struct subthread_arg *arg)
         case UK16:   { Unkeyed16 *d   = mseq[i]; keyval = 0;         seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
         case UK1024: { Unkeyed1024 *d = mseq[i]; keyval = 0;         seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
       }
-      (void) check_eseq (&eseq_admin, seq, keyval, size, iseq[i].publication_handle);
+      (void) check_eseq (&eseq_admin, seq, keyval, size, iseq[i].publication_handle, tdelta);
       if (iseq[i].source_timestamp & 1)
       {
         dds_entity_t wr_pong;
@@ -904,16 +1008,16 @@ static bool process_ping (dds_entity_t rd, struct subthread_arg *arg)
     error2 ("dds_take (rd_data): %d\n", (int) nread_ping);
   for (int32_t i = 0; i < nread_ping; i++)
   {
-    if (iseq[i].valid_data)
+    if (!iseq[i].valid_data)
+      continue;
+
+    dds_entity_t wr_pong;
+    if ((wr_pong = get_pong_writer (iseq[i].publication_handle)) != 0)
     {
-      dds_entity_t wr_pong;
-      if ((wr_pong = get_pong_writer (iseq[i].publication_handle)) != 0)
-      {
-        dds_return_t rc;
-        if ((rc = dds_write_ts (wr_pong, mseq[i], iseq[i].source_timestamp | 1)) < 0 && rc != DDS_RETCODE_TIMEOUT)
-          error2 ("dds_write_ts (wr_pong, mseq[i], iseq[i].source_timestamp): %d\n", (int) rc);
-        dds_write_flush (wr_pong);
-      }
+      dds_return_t rc;
+      if ((rc = dds_write_ts (wr_pong, mseq[i], iseq[i].source_timestamp | 1)) < 0 && rc != DDS_RETCODE_TIMEOUT)
+        error2 ("dds_write_ts (wr_pong, mseq[i], iseq[i].source_timestamp): %d\n", (int) rc);
+      dds_write_flush (wr_pong);
     }
   }
   return (nread_ping > 0);
@@ -935,7 +1039,7 @@ static bool process_pong (dds_entity_t rd, struct subthread_arg *arg)
       {
         uint32_t * const seq = mseq[i];
         const bool isping = (iseq[i].source_timestamp & 1) != 0;
-        const bool all = update_roundtrip (iseq[i].publication_handle, (uint64_t) (tnow - iseq[i].source_timestamp) / 2, isping, *seq);
+        const bool all = update_roundtrip (iseq[i].publication_handle, (tnow - iseq[i].source_timestamp) / 2, isping, *seq);
         if (isping && all && ping_intv == 0)
         {
           /* If it is a pong sent in response to a ping, and all known nodes have responded, send out a new ping */
@@ -1119,7 +1223,10 @@ static dds_entity_t create_pong_writer (dds_instance_handle_t pphandle, const st
   dds_delete_listener (listener);
 
   ddsrt_mutex_lock (&pongwr_lock);
+  DDSRT_WARNING_MSVC_OFF(6308)
   pongwr = realloc (pongwr, (npongwr + 1) * sizeof (*pongwr));
+  assert(pongwr);
+  DDSRT_WARNING_MSVC_ON(6308)
   pongwr[npongwr].pubhandle = 0;
   pongwr[npongwr].pphandle = pphandle;
   pongwr[npongwr].wr_pong = wr_pong;
@@ -1207,6 +1314,7 @@ static void participant_data_listener (dds_entity_t rd, void *arg)
         {
           size_t sz = usz - (unsigned) pos;
           char *hostname = malloc (sz);
+          assert (hostname);
           memcpy (hostname, udata + pos + 1, sz);
           ddsrt_mutex_lock (&disc_lock);
           if ((pp = ddsrt_avl_lookup_ipath (&ppants_td, &ppants, &info.instance_handle, &ipath)) != NULL)
@@ -1215,6 +1323,7 @@ static void participant_data_listener (dds_entity_t rd, void *arg)
           {
             printf ("[%"PRIdPID"] participant %s:%"PRIu32": new%s\n", ddsrt_getpid (), hostname, (uint32_t) pid, (info.instance_handle == dp_handle) ? " (self)" : "");
             pp = malloc (sizeof (*pp));
+            assert(pp);
             pp->handle = info.instance_handle;
             pp->guid = sample->key;
             pp->hostname = hostname;
@@ -1373,13 +1482,6 @@ static void set_data_available_listener (dds_entity_t rd, const char *rd_name, d
   dds_delete_listener (listener);
 }
 
-static int cmp_uint64 (const void *va, const void *vb)
-{
-  const uint64_t *a = va;
-  const uint64_t *b = vb;
-  return (*a == *b) ? 0 : (*a < *b) ? -1 : 1;
-}
-
 struct dds_stats {
   struct dds_statistics *pubstat;
   const struct dds_stat_keyvalue *rexmit_bytes;
@@ -1405,6 +1507,7 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
     output = true;
   }
 
+  int64_t *newraw = malloc (PINGPONG_RAWSIZE * sizeof (*newraw));
   if (submode != SM_NONE)
   {
     struct eseq_admin * const ea = &eseq_admin;
@@ -1443,47 +1546,39 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
               (double) nrecv10s * 1e6 / (10 * dt), (double) nrecv10s_bytes * 8 * 1e3 / (10 * dt));
       output = true;
     }
+
+    if (sublatency)
+    {
+      ddsrt_mutex_lock (&ea->lock);
+      for (uint32_t i = 0; i < ea->nph; i++)
+      {
+        struct eseq_stat * const x = &ea->stats[i];
+        struct latencystat y = x->info;
+        latencystat_reset (&x->info, newraw);
+        /* pongwr entries get added at the end, npongwr only grows: so can safely
+         unlock the stats in between nodes for calculating percentiles */
+        ddsrt_mutex_unlock (&ea->lock);
+        if (y.cnt > 0)
+          output = true;
+        newraw = latencystat_print (&y, prefix, " sublat", ea->ph[i], ea->pph[i], x->last_size);
+        ddsrt_mutex_lock (&ea->lock);
+      }
+      ddsrt_mutex_unlock (&ea->lock);
+    }
   }
 
-  uint64_t *newraw = malloc (PINGPONG_RAWSIZE * sizeof (*newraw));
   ddsrt_mutex_lock (&pongstat_lock);
   for (uint32_t i = 0; i < npongstat; i++)
   {
     struct subthread_arg_pongstat * const x = &pongstat[i];
     struct subthread_arg_pongstat y = *x;
-    x->raw = newraw;
-    x->min = UINT64_MAX;
-    x->max = x->sum = x->cnt = 0;
+    latencystat_reset (&x->info, newraw);
     /* pongstat entries get added at the end, npongstat only grows: so can safely
        unlock the stats in between nodes for calculating percentiles */
     ddsrt_mutex_unlock (&pongstat_lock);
-
-    if (y.cnt > 0)
-    {
-      const uint32_t rawcnt = (y.cnt > PINGPONG_RAWSIZE) ? PINGPONG_RAWSIZE : y.cnt;
-      char ppinfo[128];
-      struct ppant *pp;
-      ddsrt_mutex_lock (&disc_lock);
-      if ((pp = ddsrt_avl_lookup (&ppants_td, &ppants, &y.pphandle)) == NULL)
-        snprintf (ppinfo, sizeof (ppinfo), "%"PRIx64, y.pubhandle);
-      else
-        snprintf (ppinfo, sizeof (ppinfo), "%s:%"PRIu32, pp->hostname, pp->pid);
-      ddsrt_mutex_unlock (&disc_lock);
-
-      qsort (y.raw, rawcnt, sizeof (*y.raw), cmp_uint64);
-      printf ("%s %s size %"PRIu32" mean %.3fus min %.3fus 50%% %.3fus 90%% %.3fus 99%% %.3fus max %.3fus cnt %"PRIu32"\n",
-              prefix, ppinfo, topic_payload_size (topicsel, baggagesize),
-              (double) y.sum / (double) y.cnt / 1e3,
-              (double) y.min / 1e3,
-              (double) y.raw[rawcnt - (rawcnt + 1) / 2] / 1e3,
-              (double) y.raw[rawcnt - (rawcnt + 9) / 10] / 1e3,
-              (double) y.raw[rawcnt - (rawcnt + 99) / 100] / 1e3,
-              (double) y.max / 1e3,
-              y.cnt);
+    if (y.info.cnt > 0)
       output = true;
-    }
-    newraw = y.raw;
-
+    newraw = latencystat_print (&y.info, prefix, "", y.pubhandle, y.pphandle, topic_payload_size (topicsel, baggagesize));
     ddsrt_mutex_lock (&pongstat_lock);
   }
   ddsrt_mutex_unlock (&pongstat_lock);
@@ -1541,9 +1636,13 @@ static void subthread_arg_init (struct subthread_arg *arg, dds_entity_t rd, uint
   arg->rd = rd;
   arg->max_samples = max_samples;
   arg->mseq = malloc (arg->max_samples * sizeof (arg->mseq[0]));
+  assert(arg->mseq);
   arg->iseq = malloc (arg->max_samples * sizeof (arg->iseq[0]));
+  assert(arg->iseq);
+  DDSRT_WARNING_MSVC_OFF(6386)
   for (uint32_t i = 0; i < arg->max_samples; i++)
     arg->mseq[i] = NULL;
+  DDSRT_WARNING_MSVC_ON(6386)
 }
 
 static void subthread_arg_fini (struct subthread_arg *arg)
@@ -1952,7 +2051,7 @@ int main (int argc, char *argv[])
 
   argv0 = argv[0];
 
-  while ((opt = getopt (argc, argv, "1cd:D:i:n:k:uLK:T:Q:R:Xh")) != EOF)
+  while ((opt = getopt (argc, argv, "1cd:D:i:n:k:ulLK:T:Q:R:Xh")) != EOF)
   {
     int pos;
     switch (opt)
@@ -1977,6 +2076,7 @@ int main (int argc, char *argv[])
       case 'n': nkeyvals = (unsigned) atoi (optarg); break;
       case 'u': reliable = false; break;
       case 'k': histdepth = atoi (optarg); if (histdepth < 0) histdepth = 0; break;
+      case 'l': sublatency = true; break;
       case 'L': ignorelocal = DDS_IGNORELOCAL_NONE; break;
       case 'T': case 'K': /* 'K' because of my muscle memory with pubsub ... */
         if (strcmp (optarg, "KS") == 0) topicsel = KS;
@@ -2062,12 +2162,12 @@ int main (int argc, char *argv[])
   /* set user data: magic cookie, whether we have a reader for the Data topic
      (all other endpoints always exist), pid and hostname */
   {
-    unsigned pos;
+    int cnt;
     char udata[256];
-    pos = (unsigned) snprintf (udata, sizeof (udata), UDATA_MAGIC"%d:%"PRIdPID":", submode != SM_NONE, ddsrt_getpid ());
-    assert (pos < sizeof (udata));
-    if (ddsrt_gethostname (udata + pos, sizeof (udata) - pos) != DDS_RETCODE_OK)
-      strcpy (udata + UDATA_MAGIC_SIZE, "?");
+    cnt = snprintf (udata, sizeof (udata), UDATA_MAGIC"%d:%"PRIdPID":", submode != SM_NONE, ddsrt_getpid ());
+    assert (cnt >= 0 && (size_t)cnt < sizeof (udata));
+    if (ddsrt_gethostname (udata + cnt, sizeof (udata) - (size_t)cnt) != DDS_RETCODE_OK)
+      ddsrt_strlcpy (udata + cnt, "?", sizeof(udata) - (size_t)cnt);
     dds_qset_userdata (qos, udata, strlen (udata));
   }
   if ((dp = dds_create_participant (did, qos, NULL)) < 0)
@@ -2528,9 +2628,9 @@ err_minmatch_wait:
   bool roundtrips_ok = true;
   for (uint32_t i = 0; i < npongstat; i++)
   {
-    if (pongstat[i].totcnt < min_roundtrips)
+    if (pongstat[i].info.totcnt < min_roundtrips)
       roundtrips_ok = false;
-    free (pongstat[i].raw);
+    latencystat_fini (&pongstat[i].info);
   }
   free (pongstat);
 

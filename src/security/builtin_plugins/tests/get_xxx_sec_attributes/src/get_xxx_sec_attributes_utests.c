@@ -449,13 +449,13 @@ verify_endpoint_attributes(SEC_TOPIC_TYPE topic_type, DDS_Security_EndpointSecur
   if (!result)
   {
     printf("Invalid attribute for Topic: %s\n", TOPIC_NAMES[topic_type]);
-    printf("is_read_protected: EXPECTED: %d ACTUAL: %d\n"
-           "is_write_protected: EXPECTED: %d ACTUAL: %d\n"
-           "is_discovery_protected: EXPECTED: %d ACTUAL: %d\n"
-           "is_liveliness_protected: EXPECTED: %d ACTUAL: %d\n"
-           "is_submessage_protected: EXPECTED: %d ACTUAL: %d\n"
-           "is_payload_protected: EXPECTED: %d ACTUAL: %d\n"
-           "is_key_protected: EXPECTED: %d ACTUAL: %d\n",
+    printf("is_read_protected: EXPECTED: %u ACTUAL: %u\n"
+           "is_write_protected: EXPECTED: %u ACTUAL: %u\n"
+           "is_discovery_protected: EXPECTED: %u ACTUAL: %u\n"
+           "is_liveliness_protected: EXPECTED: %u ACTUAL: %u\n"
+           "is_submessage_protected: EXPECTED: %u ACTUAL: %u\n"
+           "is_payload_protected: EXPECTED: %u ACTUAL: %u\n"
+           "is_key_protected: EXPECTED: %u ACTUAL: %u\n",
            ATTRIBUTE_CHECKLIST[topic_type].is_read_protected, attributes->is_read_protected,
            ATTRIBUTE_CHECKLIST[topic_type].is_write_protected, attributes->is_write_protected,
            ATTRIBUTE_CHECKLIST[topic_type].is_discovery_protected, attributes->is_discovery_protected,
@@ -482,10 +482,10 @@ static bool verify_topic_attributes(SEC_TOPIC_TYPE topic_type, DDS_Security_Topi
   if (!result)
   {
     printf("Invalid attribute for Topic: %s\n", TOPIC_NAMES[topic_type]);
-    printf("is_read_protected: EXPECTED: %d ACTUAL: %d\n"
-           "is_write_protected: EXPECTED: %d ACTUAL: %d\n"
-           "is_discovery_protected: EXPECTED: %d ACTUAL: %d\n"
-           "is_liveliness_protected: EXPECTED: %d ACTUAL: %d\n",
+    printf("is_read_protected: EXPECTED: %u ACTUAL: %u\n"
+           "is_write_protected: EXPECTED: %u ACTUAL: %u\n"
+           "is_discovery_protected: EXPECTED: %u ACTUAL: %u\n"
+           "is_liveliness_protected: EXPECTED: %u ACTUAL: %u\n",
            ATTRIBUTE_CHECKLIST[topic_type].is_read_protected, attributes->is_read_protected,
            ATTRIBUTE_CHECKLIST[topic_type].is_write_protected, attributes->is_write_protected,
            ATTRIBUTE_CHECKLIST[topic_type].is_discovery_protected, attributes->is_discovery_protected,

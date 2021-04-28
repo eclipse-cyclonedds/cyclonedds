@@ -418,6 +418,7 @@ static void print_dcps_topic (FILE *fp, dds_entity_t pp)
     for (int i = 0; i < n; i++)
     {
       dds_builtintopic_topic_t *data = ptrs[i];
+      assert(data);
       fprintf (fp,"TOPIC:\n");
       print_key_topic (fp, "  key =", data->key.d);
       fprintf (fp, "  name = %s\n", data->topic_name);
@@ -447,6 +448,7 @@ static void print_dcps_participant (FILE *fp, dds_entity_t pp)
     for (int i = 0; i < n; i++)
     {
       dds_builtintopic_participant_t *data = ptrs[i];
+      assert(data);
       fprintf (fp,"PARTICIPANT:\n");
       print_key (fp, "  key =", &data->key);
       if (info[i].valid_data)
@@ -473,6 +475,7 @@ static void print_dcps_endpoint (FILE *fp, dds_entity_t pp, const char *type, dd
     for (int i = 0; i < n; i++)
     {
       dds_builtintopic_endpoint_t *data = ptrs[i];
+      assert(data);
       fprintf (fp,"%s:\n", type);
       print_key (fp, "  key =", &data->key);
       if (info[i].valid_data)

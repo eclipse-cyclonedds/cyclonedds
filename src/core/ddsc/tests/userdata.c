@@ -377,7 +377,7 @@ static uint32_t rw_thread (void *varg)
           size_t chkusz = 0;
           if (!qget (chk, &chkud, &chkusz))
             CU_ASSERT_FATAL (0);
-          CU_ASSERT_FATAL (chkusz == expusz && (expusz == 0 || (chkud != NULL && memcmp (chkud, expud, expusz) == 0)));
+          CU_ASSERT_FATAL (chkusz == expusz && (expusz == 0 || (chkud != NULL && expud != NULL && memcmp (chkud, expud, expusz) == 0)));
           dds_free (chkud);
           dds_delete_qos (chk);
         }

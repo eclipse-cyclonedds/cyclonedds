@@ -486,9 +486,10 @@ extern char *   (xrealloc)( char * ptr, size_t size);
                 /* Reallocate memory or die     */
 extern LINE_COL *   get_src_location( LINE_COL * p_line_col);
                 /* Get location on source file  */
+
+MCPP_ATTRIBUTE_NORETURN()
 extern void     cfatal( const char * format, const char * arg1, long arg2
-        , const char * arg3)
-        MCPP_ATTRIBUTE((noreturn));
+        , const char * arg3);
                 /* Print a fatal error and exit */
 extern void     cerror( const char * format, const char * arg1, long arg2
         , const char * arg3);
@@ -536,6 +537,16 @@ extern void     print_heap( void);
 #if ! HOST_HAVE_STPCPY
 extern char *   stpcpy( char * dest, const char * src);
                 /* Non-Standard library function*/
+#endif
+
+#if ! HOST_HAVE_STRLCPY
+extern size_t   strlcpy( char * dest, const char * src, size_t size);
+                /* Non-Standard library function*/
+#endif
+
+#if ! HOST_HAVE_STRLCAT
+extern size_t   strlcat( char * dest, const char *src, size_t size);
+                /* Non-Standard library function */
 #endif
 
 #if MCPP_LIB    /* Setting to use mcpp as a subroutine  */

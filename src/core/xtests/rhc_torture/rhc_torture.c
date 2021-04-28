@@ -147,7 +147,7 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct pro
     if (sd->kind == SDK_KEY)
       printf ("STORE %c%c %16"PRIx64" %16"PRIx64" %2"PRId32" %6s %s\n", si_u, si_d, iid, wr->e.iid, d.k, "_", buf);
     else
-      printf ("STORE %c%c %16"PRIx64" %16"PRIx64" %2"PRId32" %6"PRIu32" %s\n", si_u, si_d, iid, wr->e.iid, d.k, d.x, buf);
+      printf ("STORE %c%c %16"PRIx64" %16"PRIx64" %2"PRId32" %6"PRId32" %s\n", si_u, si_d, iid, wr->e.iid, d.k, d.x, buf);
     ddsi_sertype_free_sample (sd->type, &d, DDS_FREE_CONTENTS);
   }
   pwr_info.auto_dispose = wr->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
@@ -187,8 +187,15 @@ static struct proxy_writer *mkwr (const struct ddsi_domaingv *gv, bool auto_disp
 
 static void fwr (struct proxy_writer *wr)
 {
-  free (wr->c.xqos);
-  free (wr);
+#if defined(__GNUC__) && (__GNUC__ >= 10)
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wanalyzer-double-free\"")
+#endif
+  ddsrt_free (wr->c.xqos);
+  ddsrt_free (wr);
+#if defined(__GNUC__) && (__GNUC__ >= 10)
+_Pragma("GCC diagnostic pop")
+#endif
 }
 
 static struct dds_rhc *mkrhc (struct ddsi_domaingv *gv, dds_reader *rd, dds_history_kind_t hk, int32_t hdepth, dds_destination_order_kind_t dok)
@@ -304,7 +311,7 @@ static void print_seq (int n, const dds_sample_info_t *iseq, const RhcTypes_T *m
             si->sample_rank, si->generation_rank, si->absolute_generation_rank,
             d->k);
     if (si->valid_data)
-      printf (" %6"PRIu32, d->x);
+      printf (" %6"PRId32, d->x);
     else
       printf (" %6s", "_");
     printf (" %s\n", print_tstamp (buf, sizeof (buf), si->source_timestamp));
@@ -550,7 +557,7 @@ static void print_cond_w_addr (const char *label, dds_entity_t x)
     abort();
   assert (dds_entity_kind (e) == DDS_KIND_COND_READ || dds_entity_kind (e) == DDS_KIND_COND_QUERY);
   print_condmask (buf, sizeof (buf), (dds_readcond *) e);
-  printf ("%s: %"PRIu32" => %p %s\n", label, x, (void *) e, buf);
+  printf ("%s: %"PRId32" => %p %s\n", label, x, (void *) e, buf);
   dds_entity_unlock (e);
 }
 
@@ -883,7 +890,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
     dds_delete (conds[ci]);
   for (size_t i = 0; i < nrd; i++)
     dds_delete (rd[i]);
-  for (size_t i = 0; i < sizeof (wr) / sizeof (wr[0]); i++)
+  for (size_t i = 0, n = (sizeof (wr) / sizeof (wr[0])); i < n; i++)
     fwr (wr[i]);
 }
 

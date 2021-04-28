@@ -210,8 +210,8 @@ typedef struct sizes {
 
 typedef struct types {
     int         type;               /* This is the bits for types   */
-    char *      token_name;         /* this is the token word       */
     int         excluded;           /* but these aren't legal here. */
+    char *      token_name;         /* this is the token word       */
 } TYPES;
 
 #define ANYSIGN     (T_SIGNED | T_UNSIGNED)
@@ -223,23 +223,24 @@ typedef struct types {
 #endif
 
 static const TYPES  basic_types[] = {
-    { T_CHAR,       "char",         ANYFLOAT | ANYINT },
-    { T_SHORT,      "short",        ANYFLOAT | ANYINT },
-    { T_INT,        "int",          ANYFLOAT | T_CHAR | T_INT },
-    { T_LONG,       "long",         ANYFLOAT | ANYINT },
+    { T_CHAR,       ANYFLOAT | ANYINT,           "char" },
+    { T_SHORT,      ANYFLOAT | ANYINT,           "short" },
+    { T_INT,        ANYFLOAT | T_CHAR | T_INT,   "int" },
+    { T_LONG,       ANYFLOAT | ANYINT,           "long" },
 #if HAVE_LONG_LONG
 #if HOST_COMPILER == BORLANDC
-    { T_LONGLONG,   "__int64",      ANYFLOAT | ANYINT },
+    { T_LONGLONG,   ANYFLOAT | ANYINT,           "__int64" },
 #else
-    { T_LONGLONG,   "long long",    ANYFLOAT | ANYINT },
+    { T_LONGLONG,   ANYFLOAT | ANYINT,           "long long" },
 #endif
 #endif
-    { T_FLOAT,      "float",        ANYFLOAT | ANYINT | ANYSIGN },
-    { T_DOUBLE,     "double",       ANYFLOAT | ANYINT | ANYSIGN },
-    { T_LONGDOUBLE, "long double",  ANYFLOAT | ANYINT | ANYSIGN },
-    { T_SIGNED,     "signed",       ANYFLOAT | ANYINT | ANYSIGN },
-    { T_UNSIGNED,   "unsigned",     ANYFLOAT | ANYINT | ANYSIGN },
-    { 0,            NULL,           0 }     /* Signal end           */
+    { T_FLOAT,      ANYFLOAT | ANYINT | ANYSIGN, "float" },
+    { T_DOUBLE,     ANYFLOAT | ANYINT | ANYSIGN, "double" },
+    { T_LONGDOUBLE, ANYFLOAT | ANYINT | ANYSIGN, "long double" },
+    { T_SIGNED,     ANYFLOAT | ANYINT | ANYSIGN, "signed" },
+    { T_UNSIGNED,   ANYFLOAT | ANYINT | ANYSIGN, "unsigned" },
+    { 0,            0,                           NULL }
+                                            /* Signal end           */
 };
 
 /*
@@ -708,33 +709,27 @@ static int  do_sizeof( void)
             if ((typecode & ~T_PTR) == 0) {
                 cerror( no_type, NULL, 0L, NULL);
                 return  OP_FAIL;
-            } else {
-                /*
-                 * Exactly one bit (and possibly T_PTR) may be set.
-                 */
-                for (sizp = size_table; sizp->bits != 0; sizp++) {
-                    if ((typecode & ~T_PTR) == sizp->bits) {
-                        ev.val = ((typecode & T_PTR) != 0)
-                                ? sizp->psize : sizp->size;
-                        break;
-                    }
+            }
+
+            /*
+             * Exactly one bit (and possibly T_PTR) may be set.
+             */
+            for (sizp = size_table; sizp->bits != 0; sizp++) {
+                if ((typecode & ~T_PTR) == sizp->bits) {
+                    ev.val = ((typecode & T_PTR) != 0)
+                            ? sizp->psize : sizp->size;
+                    break;
                 }
             }
-        } else {
-            goto  no_good;
-        }
-    } else {
-        goto  no_good;
-    }
 
-    if (mcpp_debug & EXPRESSION) {
-        if (sizp)
-            mcpp_fprintf( DBG,
-            "sizp->bits:0x%x sizp->size:0x%x sizp->psize:0x%x ev.val:0x%lx\n"
+            if (mcpp_debug & EXPRESSION)
+                mcpp_fprintf( DBG,
+                "sizp->bits:0x%x sizp->size:0x%x sizp->psize:0x%x ev.val:0x%lx\n"
                     , sizp->bits, sizp->size, sizp->psize
                     , (unsigned long) ev.val);
+            return  VAL;
+        }
     }
-    return  VAL;
 
 no_good:
     unget_ch();
@@ -806,7 +801,7 @@ basic:
             "sizeof -- typecode:0x%x tp->token_name:\"%s\" tp->type:0x%x\n"
                     , typecode, tp->token_name, tp->type);
     }
-    return  typecode |= tp->type;           /* Or in the type bit   */
+    return  typecode | tp->type;            /* Or in the type bit   */
 }
 
 VAL_SIGN *  eval_num(
@@ -879,6 +874,7 @@ VAL_SIGN *  eval_num(
                 erange = TRUE;
         }
 #if HAVE_LONG_LONG
+        /* coverity[report_constant_logical_operands: FALSE] */
         if (! stdc3 && v1 > ULONGMAX)
             /* Overflow of long or unsigned long    */
             erange_long = TRUE;
@@ -941,6 +937,7 @@ VAL_SIGN *  eval_num(
             ev.sign = (value >= 0L);
 #if HAVE_LONG_LONG
     } else {
+        /* coverity[result_independent_of_operands: FALSE] */
         if (value > LONGMAX)
             erange_long = TRUE;
 #endif
@@ -1047,6 +1044,7 @@ static VAL_SIGN *   eval_char(
                 erange = TRUE;
         }
 #if HAVE_LONG_LONG
+        /* coverity[result_independent_of_operands: FALSE] */
         if ((mcpp_mode == STD && (! stdc3 && value > ULONGMAX))
                 || (! standard && value > LONGMAX))
             erange_long = TRUE;
@@ -1324,7 +1322,7 @@ static VAL_SIGN *   eval_eval(
             snprintf( negate, sizeof(negate), neg_format, v3, v3);
             cwarn( negate, skip ? non_eval : NULL, 0L, NULL);
         }
-        valp->sign = sign1 = sign2 = UNSIGNED;
+        valp->sign = sign1 = UNSIGNED;
     }
     if ((op == OP_SL || op == OP_SR)
             && ((! skip && (warn_level & 1)) || (skip && (warn_level & 8)))) {
@@ -1523,6 +1521,7 @@ static expr_t   eval_unsigned(
     int     chk;        /* Flag of overflow in unsigned long long   */
     int     minus;      /* Big integer converted from signed long   */
 
+    /* coverity[result_independent_of_operands: FALSE] */
     minus = ! stdc3 && (v1u > ULONGMAX || v2u > ULONGMAX);
 
     switch (op) {
@@ -1573,6 +1572,7 @@ static expr_t   eval_unsigned(
         chk = v1 > v1u;
         if (chk
 #if HAVE_LONG_LONG
+                /* coverity[result_independent_of_operands: FALSE] */
                 || (! stdc3 && ! minus && v1 > ULONGMAX)
 #endif
             )

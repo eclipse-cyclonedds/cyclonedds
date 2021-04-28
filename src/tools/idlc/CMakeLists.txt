@@ -21,6 +21,10 @@ else()
   configure_file(src/config.h.in config.h)
 
   add_executable(idlc src/idlc.c src/plugin.c src/options.c src/generator.c src/descriptor.c src/types.c)
+  if(MSVC)
+    # ignore warnings C6255 and 6263 about _alloca
+    target_compile_options(idlc PRIVATE /wd6255 /wd6263)
+  endif()
   target_link_libraries(idlc PRIVATE idl idlpp ${CMAKE_DL_LIBS})
   target_include_directories(
     idlc PRIVATE

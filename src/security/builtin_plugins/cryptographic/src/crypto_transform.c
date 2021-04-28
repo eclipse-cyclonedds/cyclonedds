@@ -314,10 +314,12 @@ static bool read_submsg_header (tainted_input_buffer_t *input, uint8_t smid, Sub
   hdr->submessageId = smhdr->submessageId;
   hdr->flags = smhdr->flags;
 
+  DDSRT_WARNING_MSVC_OFF(6326)
   if (smhdr->flags & SMFLAG_ENDIANNESS)
     *bswap = !(DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
   else
     *bswap =  (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
+  DDSRT_WARNING_MSVC_ON(6326)
 
   if (*bswap)
     hdr->octetsToNextHeader = ddsrt_bswap2u (smhdr->octetsToNextHeader);

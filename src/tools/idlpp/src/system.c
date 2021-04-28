@@ -460,7 +460,7 @@ void    do_options(
     /* Get current directory for -I option and #pragma once */
     assert( cwd_sz < INT_MAX);
     cwd = getcwd( cur_work_dir, cwd_sz - 1);
-    assert( cwd == cur_work_dir);
+    assert( cwd && cwd == cur_work_dir);
 #if SYS_FAMILY == SYS_WIN
     bsl2sl( cwd);
 #endif
@@ -697,7 +697,7 @@ plus:
 
         case 'g':
             assert( mcpp_optarg != NULL);
-            if (!isdigit( *mcpp_optarg)
+            if (!isdigit( (unsigned char)*mcpp_optarg)
                     && str_eq( argv[ mcpp_optind - 2], "-g"))
                 /* Neither '-g 0' nor '-ggdb' -- No argument    */
                 mcpp_optind--;
@@ -753,7 +753,7 @@ plus:
 
         case 'h':
             assert( mcpp_optarg != NULL);
-            if (*(mcpp_optarg + 1) == EOS && isdigit( *mcpp_optarg))
+            if (*(mcpp_optarg + 1) == EOS && isdigit( (unsigned char)*mcpp_optarg))
                 /* a digit  */
                 look_and_install( "__STDC_HOSTED__", DEF_NOARGS_PREDEF, null
                         , mcpp_optarg);
@@ -776,7 +776,7 @@ plus:
                 unset_sys_dirs = TRUE;
                         /* Unset pre-specified include directories  */
 #endif
-            } else if (*(mcpp_optarg + 1) == EOS && isdigit( *mcpp_optarg)
+            } else if (*(mcpp_optarg + 1) == EOS && isdigit( (unsigned char)*mcpp_optarg)
                     && (i = *mcpp_optarg - '0') != 0
                     && (i & ~(CURRENT | SOURCE)) == 0) {
                 search_rule = i;            /* -I1, -I2 or -I3      */
@@ -1008,12 +1008,12 @@ plus:
             if (integrated_cpp) {
                 if (*mcpp_optarg == '-')            /* No argument  */
                     mcpp_optind--;
-                else if ((isdigit( *mcpp_optarg) && *mcpp_optarg != '0')
+                else if ((isdigit( (unsigned char)*mcpp_optarg) && *mcpp_optarg != '0')
                         || *mcpp_optarg == 's' || *mcpp_optarg == 'z')
                                             /* -O1, -O2 -Os, -Oz    */
                     look_and_install( "__OPTIMIZE__", DEF_NOARGS_PREDEF, null
                             , "1");
-                else if (! isdigit( *mcpp_optarg))
+                else if (! isdigit( (unsigned char)*mcpp_optarg))
                     usage( opt);
                 /* Else -O0: ignore */
             } else {
@@ -1122,17 +1122,17 @@ plus:
                     std_val = 199901L;
                 } else if (str_eq( cp, "c++98")) {  /* std=c++98    */
                     cplus_val = std_val = 199711L;
-                } else if (memcmp( cp, "iso9899:", 8) == 0
+                } else if (strncmp( cp, "iso9899:", 8) == 0
                         && strlen( cp) >= 14) { /* std=iso9899:199409, etc. */
                     mcpp_optarg = cp + 8;
                     look_and_install( "__STRICT_ANSI__", DEF_NOARGS_PREDEF
                             , null, "1");
                     ansi = TRUE;
                     goto Version;
-                } else if (memcmp( cp, "iso14882", 8) == 0) {
+                } else if (strncmp( cp, "iso14882", 8) == 0) {
                     cp += 8;
                     ansi = TRUE;
-                    if (cp && *cp == ':' && strlen( cp) >= 7) {
+                    if (*cp == ':' && strlen( cp) >= 7) {
                                     /* std=iso14882:199711, etc.    */
                         cplus_val = CPLUS;
                         mcpp_optarg = cp + 1;
@@ -1143,7 +1143,7 @@ plus:
                 } else {
                     usage( opt);
                 }
-                if (! cplus_val && memcmp( cp, "gnu", 3) != 0) {
+                if (! cplus_val && strncmp( cp, "gnu", 3) != 0) {
                     /* 'std=gnu*' does not imply -ansi  */
                     look_and_install( "__STRICT_ANSI__", DEF_NOARGS_PREDEF
                             , null, "1");
@@ -1241,7 +1241,7 @@ Version:
                                         /* Single-line diagnostic   */
             }
 #endif
-            if (isdigit( *mcpp_optarg)) {
+            if (isdigit( (unsigned char)*mcpp_optarg)) {
                 warn_level |= parse_warn_level( mcpp_optarg, opt);
                 if (warn_level > 31 || warn_level < 0)
                     usage( opt);
@@ -1711,9 +1711,9 @@ static int  parse_warn_level(
     while( *cp != EOS) {
         while( *cp == ' ')
             cp++;                           /* Skip spaces          */
-        if (! isdigit( *cp))
+        if (! isdigit( (unsigned char)*cp))
             break;                          /* Error    */
-        while (isdigit( *cp)) {
+        while (isdigit( (unsigned char)*cp)) {
             i *= 10;
             i += (*cp++ - '0');
         }
@@ -1767,7 +1767,7 @@ static void def_a_macro(
         cp++;
     i = *cp;
     *cp = EOS;
-    if ((defp = look_id( definition)) != NULL)      /* Pre-defined  */
+    if (look_id( definition) != NULL)               /* Pre-defined  */
         undefine( definition);
     *cp = i;
     /* Now, save the definition.    */
@@ -2530,17 +2530,19 @@ static char *   norm_path(
                 , NULL, 0L, NULL);
     inf = inf && (mcpp_debug & PATH);       /* Output information   */
 
-    strcpy( slbuf1, dir);                   /* Include directory    */
-    len = strlen( slbuf1);
-    if (fname && len && slbuf1[ len - 1] != PATH_DELIM) {
-        slbuf1[ len] = PATH_DELIM;          /* Append PATH_DELIM    */
-        slbuf1[ ++len] = EOS;
-    } else if (! fname && len && slbuf1[ len - 1] == PATH_DELIM) {
-        /* stat() of some systems do not like trailing '/'  */
-        slbuf1[ --len] = EOS;
+    len = strlcpy( slbuf1, dir, sizeof(slbuf1));    /* Include directory    */
+    if (fname) {
+        if (len && len < sizeof(slbuf1) && slbuf1[ len - 1] != PATH_DELIM) {
+            slbuf1[ len] = PATH_DELIM;      /* Append PATH_DELIM    */
+            slbuf1[ ++len] = EOS;
+        }
+        strlcat( slbuf1, fname, sizeof(slbuf1));
+    } else {
+        if (len && slbuf1[ len - 1] == PATH_DELIM) {
+            /* stat() of some systems do not like trailing '/'  */
+            slbuf1[ --len] = EOS;
+        }
     }
-    if (fname)
-        strcat( slbuf1, fname);
     if (stat( slbuf1, & st_buf) != 0        /* Non-existent         */
             || (! fname && ! S_ISDIR( st_buf.st_mode))
                 /* Not a directory though 'fname' is not specified  */
@@ -2575,19 +2577,18 @@ static char *   norm_path(
     } else if (fname) {                             /* Regular file */
         ssize_t rllen;
         len = strlen( slbuf1);
-        strcat( slbuf1, fname);
+        strlcat( slbuf1, fname, sizeof(slbuf1));
         deref_syml( slbuf1, slbuf2, slbuf1 + len);
                                 /* Symbolic link check of directory */
         if ((rllen = readlink( slbuf1, slbuf2, PATHMAX)) > 0) {
             /* Dereference symbolic linked file (not directory) */
-            *(slbuf2 + (size_t)rllen) = EOS;
-            cp1 = slbuf1;
+            slbuf2[ rllen] = EOS;
             if (slbuf2[ 0] != PATH_DELIM) {     /* Relative path    */
-                cp2 = strrchr( slbuf1, PATH_DELIM);
-                if (cp2)        /* Append to the source directory   */
-                    cp1 = cp2 + 1;
+                cp1 = strrchr( slbuf1, PATH_DELIM);
+                if (cp1)        /* Append to the source directory   */
+                    cp1[1] = '\0';
             }
-            strcpy( cp1, slbuf2);
+            (void)strlcat( slbuf1, slbuf2, sizeof(slbuf1));
         }
     }
     if (inf) {
@@ -2726,8 +2727,8 @@ static char *   norm_path(
 #endif
     if (inf) {
         char    debug_buf[ PATHMAX+1];
-        strcpy( debug_buf, dir);
-        strcat( debug_buf, fname ? fname : null);
+        strlcpy( debug_buf, dir, sizeof(debug_buf));
+        strlcat( debug_buf, fname ? fname : null, sizeof(debug_buf));
 #if SYS_FAMILY == SYS_WIN
         bsl2sl( debug_buf);
 #endif
@@ -2843,6 +2844,7 @@ static void init_gcc_macro( void)
             }
             skip_nl();
         }
+        fclose (fp);
     }
     free( include_dir);
 
@@ -3037,7 +3039,7 @@ void    put_depend(
     /* Need to enlarge the buffer   */
     if (pos_num >= pos_max) {
         pos = (size_t *) xrealloc( (char *) pos
-                , (pos_max *= 2) * sizeof (size_t *));
+                , (pos_max *= 2) * sizeof (size_t));
     }
     if (output + mkdep_len <= out_p + fnamlen + 1) {
         size_t  len = (size_t)(out_p - output);
@@ -3058,7 +3060,7 @@ static char *   md_init(
  * Initialize output file and target.
  */
 {
-    char    prefix[ PATHMAX];
+    char    prefix[ PATHMAX] = { '\0' };
     char *  cp = NULL;
     size_t  len;
     char *  out_p;
@@ -3077,11 +3079,13 @@ static char *   md_init(
         memcpy( prefix, target, len);
         cp = prefix + len;
         *cp++ = '.';
+        *cp   = '\0';
     }
 
     if (! mkdep_fp) {   /* Unless already opened by -MF, -MD, -MMD options  */
         if (mkdep & MD_FILE) {
-            strcpy( cp, "d");
+            *cp++ = 'd';
+            *cp   = '\0';
             mkdep_fp = fopen( prefix, "w");
         } else {
             mkdep_fp = fp_out;  /* Output dependency line to normal output  */
@@ -3500,8 +3504,8 @@ static int  open_file(
     /* src_dir is usually NULL.  This is specified to   */
     /* search the source directory of the includer.     */
     if (src_dir && *src_dir != EOS) {
-        strcpy( dir_fname, src_dir);
-        strcat( dir_fname, filename);
+        strlcpy( dir_fname, src_dir, sizeof(dir_fname));
+        strlcat( dir_fname, filename, sizeof(dir_fname));
         fname = dir_fname;
     } else {
         fname = filename;
@@ -3536,6 +3540,7 @@ search:
          * The state will be restored by get_line() on end of the included.
          */
         file->pos = ftell( file->fp);
+        assert( file->pos >= 0);
         fclose( file->fp);
         /* In case of failure, re-open the includer */
         if ((fp = fopen( fullname, "r")) == NULL) {
@@ -3966,8 +3971,7 @@ void    sharp(
     while (! file->fp)
         file = file->parent;
     line = sharp_file ? sharp_file->line : src_line;
-    if (no_output || option_flags.p || file == NULL
-            || (file == sh_file && line == sh_line))
+    if (no_output || option_flags.p || (file == sh_file && line == sh_line))
         goto  sharp_exit;
     sh_file = file;
     sh_line = line;
@@ -4712,6 +4716,7 @@ static void do_preprocessed( void)
                 || (memcmp( --comment, "/* ", 3) != 0)
                 || ((colon = strrchr( comment, ':')) == NULL))
             cfatal( corrupted, NULL, 0L, NULL);
+        MSC_PRAGMA("warning(suppress: 28182 28183)")
         src_line = (size_t)atol( colon + 1);  /* Pseudo line number   */
         *colon = EOS;
         dir = comment + 3;
@@ -4947,6 +4952,54 @@ char *  stpcpy(
 }
 #endif
 
+#if ! HOST_HAVE_STRLCPY
+size_t  strlcpy(
+    char *          dest,
+    const char *    src,
+    size_t          size
+)
+/*
+ * Copy the string and return the number of bytes that (would) have been
+ * written.
+ */
+{
+  size_t len = strlen(src);
+
+  if (size == 0)
+    return len;
+  size = (size > len) ? len + 1 : size - 1;
+  memcpy(dest, src, size);
+  dest[size] = '\0';
+
+  return len;
+}
+#endif
+
+#if ! HOST_HAVE_STRLCAT
+size_t  strlcat(
+    char *          dest,
+    const char *    src,
+    size_t          size
+)
+/*
+ * Concatenate the strings and return the total number of bytes that (would)
+ * have been written.
+ */
+{
+    size_t off = 0;
+    size_t len = strlen(src);
+
+    if (size == 0 || (off = strlen(dest)) >= size)
+      return (len < SIZE_MAX - off) ? off + len : SIZE_MAX;
+    size -= off;
+    size = (size > len) ? len + 1 : size - 1;
+    memcpy(dest + off, src, size);
+    dest[off+size] = '\0';
+
+    return (len < SIZE_MAX - off) ? off + len : SIZE_MAX;
+}
+#endif
+
 /*
  * list_heap() is a function to print out information of heap-memory.
  * See "kmmalloc-2.5.3.zip" by kmatsui.
@@ -4993,8 +5046,10 @@ void    clear_filelist( void)
     for (incp = incdir; incp < incend; incp++)
         free( (void *) *incp);
     free( (void *) incdir);
-    for (namep = fnamelist; namep < fname_end; namep++)
+    for (namep = fnamelist; namep < fname_end; namep++) {
+        MSC_PRAGMA("warning(suppress: 6001)")
         free( (void *) namep->name);
+    }
     free( (void *) fnamelist);
     if (standard)
         free( (void *) once_list);
