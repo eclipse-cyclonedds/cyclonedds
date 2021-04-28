@@ -63,8 +63,8 @@ struct ddsi_sertopic; // deprecated, binary compatibility only
  *  is not included in ddsi_sertype. */
 #define DDS_HAS_DDSI_SERTYPE 1
 
-/* @defgroup builtintopic_constants Convenience constants for referring to builtin topics
- *
+/**
+ * \defgroup builtintopic_constants Convenience constants for referring to builtin topics
  * These constants can be used in place of an actual dds_topic_t, when creating
  * readers or writers for builtin-topics.
  *

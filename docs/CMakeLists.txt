@@ -29,7 +29,7 @@ if(BUILD_SCHEMA OR BUILD_DOCS)
 endif()
 
 if(BUILD_DOCS)
-  find_package(Sphinx REQUIRED breathe)
+  find_package(Sphinx REQUIRED breathe exhale)
   sphinx_add_docs(
     docs
     BREATHE_PROJECTS ddsc_api_docs

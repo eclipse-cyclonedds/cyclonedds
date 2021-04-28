@@ -1,14 +1,3 @@
-#
-# Copyright(c) 2019 Jeroen Koekkoek
-#
-# This program and the accompanying materials are made available under the
-# terms of the Eclipse Public License v. 2.0 which is available at
-# http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-# v. 1.0 which is available at
-# http://www.eclipse.org/org/documents/edl-v10.php.
-#
-# SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-#
 include(FindPackageHandleStandardArgs)
 
 macro(_Sphinx_find_executable _exe)
@@ -42,31 +31,43 @@ macro(_Sphinx_find_executable _exe)
   unset(_uc)
 endmacro()
 
-macro(_Sphinx_find_extension _ext)
-  if(_SPHINX_PYTHON_EXECUTABLE)
+macro(_Sphinx_find_module _name _module)
+  string(TOUPPER "${_name}" _Sphinx_uc)
+  if(SPHINX_PYTHON_EXECUTABLE)
     execute_process(
-      COMMAND ${_SPHINX_PYTHON_EXECUTABLE} -c "import ${_ext}"
+      COMMAND ${SPHINX_PYTHON_EXECUTABLE} -m ${_module} --version
+      RESULT_VARIABLE _result
+      OUTPUT_VARIABLE _output
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_QUIET)
+    if(_result EQUAL 0)
+      if(_output MATCHES " v?([0-9]+\\.[0-9]+\\.[0-9]+)$")
+        set(SPHINX_${_Sphinx_uc}_VERSION "${CMAKE_MATCH_1}")
+      endif()
+
+      if(NOT TARGET Sphinx::${_name})
+        set(SPHINX_${_Sphinx_uc}_EXECUTABLE "${SPHINX_PYTHON_EXECUTABLE} -m ${_module}")
+        add_executable(Sphinx::${_name} IMPORTED GLOBAL)
+        set_target_properties(Sphinx::${_name} PROPERTIES
+          IMPORTED_LOCATION "${SPHINX_PYTHON_EXECUTABLE}")
+      endif()
+      set(Sphinx_${_name}_ARGS -m ${_module})
+      set(Sphinx_${_name}_FOUND TRUE)
+    else()
+      set(Sphinx_${_name}_FOUND FALSE)
+    endif()
+  else()
+    set(Sphinx_${_name}_FOUND FALSE)
+  endif()
+  unset(_Sphinx_uc)
+endmacro()
+
+macro(_Sphinx_find_extension _ext)
+  if(SPHINX_PYTHON_EXECUTABLE)
+    execute_process(
+      COMMAND ${SPHINX_PYTHON_EXECUTABLE} -c "import ${_ext}"
       RESULT_VARIABLE _result)
     if(_result EQUAL 0)
-      set(Sphinx_${_ext}_FOUND TRUE)
-    else()
-      set(Sphinx_${_ext}_FOUND FALSE)
-    endif()
-  elseif(CMAKE_HOST_WIN32 AND SPHINX_BUILD_EXECUTABLE)
-    # script-build on Windows located under (when PIP is used):
-    # C:/Program Files/PythonXX/Scripts
-    # C:/Users/username/AppData/Roaming/Python/PythonXX/Sripts
-    #
-    # Python modules are installed under:
-    # C:/Program Files/PythonXX/Lib
-    # C:/Users/username/AppData/Roaming/Python/PythonXX/site-packages
-    #
-    # To verify a given module is installed, use the Python base directory
-    # and test if either Lib/module.py or site-packages/module.py exists.
-    get_filename_component(_dirname "${SPHINX_BUILD_EXECUTABLE}" DIRECTORY)
-    get_filename_component(_dirname "${_dirname}" DIRECTORY)
-    if(IS_DIRECTORY "${_dirname}/Lib/${_ext}" OR
-       IS_DIRECTORY "${_dirname}/site-packages/${_ext}")
       set(Sphinx_${_ext}_FOUND TRUE)
     else()
       set(Sphinx_${_ext}_FOUND FALSE)
@@ -77,55 +78,98 @@ endmacro()
 #
 # Find sphinx-build and sphinx-quickstart.
 #
+
+# Find sphinx-build shim.
 _Sphinx_find_executable(build)
-_Sphinx_find_executable(quickstart)
+
+if(SPHINX_BUILD_EXECUTABLE)
+  # Find sphinx-quickstart shim.
+  _Sphinx_find_executable(quickstart)
+
+  # Locate Python executable
+  if(CMAKE_HOST_WIN32)
+    # script-build on Windows located under (when PIP is used):
+    # C:/Program Files/PythonXX/Scripts
+    # C:/Users/username/AppData/Roaming/Python/PythonXX/Sripts
+    #
+    # Python modules are installed under:
+    # C:/Program Files/PythonXX/Lib
+    # C:/Users/username/AppData/Roaming/Python/PythonXX/site-packages
+    #
+    # To verify a given module is installed, use the Python base directory
+    # and test if either Lib/module.py or site-packages/module.py exists.
+    get_filename_component(_Sphinx_directory "${SPHINX_BUILD_EXECUTABLE}" DIRECTORY)
+    get_filename_component(_Sphinx_directory "${_Sphinx_directory}" DIRECTORY)
+    if(EXISTS "${_Sphinx_directory}/python.exe")
+      set(SPHINX_PYTHON_EXECUTABLE "${_Sphinx_directory}/python.exe")
+    endif()
+    unset(_Sphinx_directory)
+  else()
+    file(READ "${SPHINX_BUILD_EXECUTABLE}" _Sphinx_script)
+    if(_Sphinx_script MATCHES "^#!([^\n]+)")
+      string(STRIP "${CMAKE_MATCH_1}" _Sphinx_shebang)
+      if(EXISTS "${_Sphinx_shebang}")
+        set(SPHINX_PYTHON_EXECUTABLE "${_Sphinx_shebang}")
+      endif()
+    endif()
+    unset(_Sphinx_script)
+    unset(_Sphinx_shebang)
+  endif()
+endif()
+
+if(NOT SPHINX_PYTHON_EXECUTABLE)
+  # Python executable cannot be extracted from shim shebang or path if e.g.
+  # virtual environments are used, fallback to find package. Assume the
+  # correct installation is found, the setup is probably broken in more ways
+  # than one otherwise.
+  find_package(Python3 QUIET COMPONENTS Interpreter)
+  if(TARGET Python3::Interpreter)
+    set(SPHINX_PYTHON_EXECUTABLE ${Python3_EXECUTABLE})
+    # Revert to "python -m sphinx" if shim cannot be found.
+    if(NOT SPHINX_BUILD_EXECUTABLE)
+      _Sphinx_find_module(build sphinx)
+      _Sphinx_find_module(quickstart sphinx.cmd.quickstart)
+    endif()
+  endif()
+endif()
 
 #
-# Verify both executables are part of the Sphinx distribution.
+# Verify components are available.
 #
-if(SPHINX_BUILD_EXECUTABLE AND SPHINX_QUICKSTART_EXECUTABLE)
-  if(NOT SPHINX_BUILD_VERSION STREQUAL SPHINX_QUICKSTART_VERSION)
+if(SPHINX_BUILD_VERSION)
+  # Breathe is required for Exhale
+  if("exhale"  IN_LIST Sphinx_FIND_COMPONENTS AND NOT
+     "breathe" IN_LIST Sphinx_FIND_COMPONENTS)
+    list(APPEND Sphinx_FIND_COMPONENTS "breathe")
+  endif()
+
+  foreach(_Sphinx_component IN LISTS Sphinx_FIND_COMPONENTS)
+    if(_Sphinx_component STREQUAL "build")
+      # Do nothing, sphinx-build is always required.
+      continue()
+    elseif(_Sphinx_component STREQUAL "quickstart")
+      # Do nothing, sphinx-quickstart is optional, but looked up by default.
+      continue()
+    endif()
+    _Sphinx_find_extension(${_Sphinx_component})
+  endforeach()
+  unset(_Sphinx_component)
+
+  #
+  # Verify both executables are part of the Sphinx distribution.
+  #
+  if(SPHINX_QUICKSTART_VERSION AND NOT SPHINX_BUILD_VERSION STREQUAL SPHINX_QUICKSTART_VERSION)
     message(FATAL_ERROR "Versions for sphinx-build (${SPHINX_BUILD_VERSION}) "
                         "and sphinx-quickstart (${SPHINX_QUICKSTART_VERSION}) "
                         "do not match")
   endif()
 endif()
 
-#
-# To verify the required Sphinx extensions are available, the right Python
-# installation must be queried (2 vs 3). Of course, this only makes sense on
-# UNIX-like systems.
-#
-if(NOT CMAKE_HOST_WIN32 AND SPHINX_BUILD_EXECUTABLE)
-  file(READ "${SPHINX_BUILD_EXECUTABLE}" _contents)
-  if(_contents MATCHES "^#!([^\n]+)")
-    string(STRIP "${CMAKE_MATCH_1}" _shebang)
-    if(EXISTS "${_shebang}")
-      set(_SPHINX_PYTHON_EXECUTABLE "${_shebang}")
-    endif()
-  endif()
-endif()
-
-foreach(_comp IN LISTS Sphinx_FIND_COMPONENTS)
-  if(_comp STREQUAL "build")
-    # Do nothing, sphinx-build is always required.
-  elseif(_comp STREQUAL "quickstart")
-    # Do nothing, sphinx-quickstart is optional, but looked up by default.
-  elseif(_comp STREQUAL "breathe")
-    _Sphinx_find_extension(${_comp})
-  else()
-    message(WARNING "${_comp} is not a valid or supported Sphinx extension")
-    set(Sphinx_${_comp}_FOUND FALSE)
-    continue()
-  endif()
-endforeach()
-
 find_package_handle_standard_args(
   Sphinx
   VERSION_VAR SPHINX_BUILD_VERSION
   REQUIRED_VARS SPHINX_BUILD_EXECUTABLE SPHINX_BUILD_VERSION
   HANDLE_COMPONENTS)
-
 
 # Generate a conf.py template file using sphinx-quickstart.
 #
@@ -195,8 +239,9 @@ function(_Sphinx_generate_confpy _target _cachedir)
 
   set(_templatedir "${CMAKE_CURRENT_BINARY_DIR}/${_target}.template")
   file(MAKE_DIRECTORY "${_templatedir}")
+  string(REPLACE " " ";" _Sphinx_executable ${SPHINX_QUICKSTART_EXECUTABLE})
   execute_process(
-    COMMAND "${SPHINX_QUICKSTART_EXECUTABLE}"
+    COMMAND ${_Sphinx_executable}
               -q --no-makefile --no-batchfile
               -p "${SPHINX_PROJECT}"
               -a "${SPHINX_AUTHOR}"
@@ -207,6 +252,7 @@ function(_Sphinx_generate_confpy _target _cachedir)
               ${_opts} ${_exts} "${_templatedir}"
     RESULT_VARIABLE _result
     OUTPUT_QUIET)
+  unset(_Sphinx_executable)
 
   if(_result EQUAL 0 AND EXISTS "${_templatedir}/conf.py")
     file(COPY "${_templatedir}/conf.py" DESTINATION "${_cachedir}")
@@ -310,7 +356,11 @@ function(sphinx_add_docs _target)
   file(MAKE_DIRECTORY "${_cachedir}")
   file(MAKE_DIRECTORY "${_cachedir}/_static")
 
-  _Sphinx_generate_confpy(${_target} "${_cachedir}")
+  if(EXISTS "${_sourcedir}/conf.py.in")
+    configure_file("${_sourcedir}/conf.py.in" "${_cachedir}/conf.py" @ONLY)
+  else()
+    _Sphinx_generate_confpy(${_target} "${_cachedir}")
+  endif()
 
   if(_breathe_projects)
     file(APPEND "${_cachedir}/conf.py"
@@ -318,14 +368,16 @@ function(sphinx_add_docs _target)
       "\nbreathe_default_project = '${_breathe_default_project}'")
   endif()
 
+  string(REPLACE " " ";" _Sphinx_executable ${SPHINX_BUILD_EXECUTABLE})
   add_custom_target(
     ${_target} ALL
-    COMMAND ${SPHINX_BUILD_EXECUTABLE}
+    COMMAND ${_Sphinx_executable}
               -b ${_builder}
               -d "${CMAKE_CURRENT_BINARY_DIR}/${_target}.cache/_doctrees"
               -c "${CMAKE_CURRENT_BINARY_DIR}/${_target}.cache"
               "${_sourcedir}"
               "${_outputdir}"
     DEPENDS ${_depends})
+  unset(_Sphinx_executable)
 endfunction()
 

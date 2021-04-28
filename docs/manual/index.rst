@@ -19,9 +19,9 @@ Welcome to Eclipse Cyclone DDS's documentation!
    :caption: Contents
 
    GettingStartedGuide/index
-   ddsc
    config
    security
+   ddsc
 
 Indices and tables
 ==================
