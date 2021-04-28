@@ -2493,7 +2493,7 @@ static void *iterate_annotation(const void *ptr, const void *cur)
   const idl_node_t *node = cur;
   assert(root);
   if (node) {
-    assert(idl_parent(root) == node);
+    assert(idl_parent(node) == root);
     return node->next;
   }
   return root->definitions;
@@ -2660,6 +2660,7 @@ idl_finalize_annotation_appl(
     while (definition && !member) {
       if (idl_is_annotation_member(definition))
         member = definition;
+      definition = ((idl_node_t *)definition)->next;
     }
     idl_annotation_appl_param_t *parameter = NULL;
     static const size_t size = sizeof(*parameter);
