@@ -18,48 +18,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#if defined(_MSC_VER)
-# include <malloc.h>
-# define idlc_thread_local __declspec(thread)
-#elif defined(__GNUC__) || (defined(__clang__) && __clang_major__ >= 2)
-# if !defined(__FreeBSD__)
-#   include <alloca.h>
-# endif
-# define idlc_thread_local __thread
-#elif defined(__SUNPROC_C) || defined(__SUNPRO_CC)
-# include <alloca.h>
-# define idlc_thread_local __thread
-#else
-# error "Thread-local storage is not supported"
-#endif
-
-#define IDLC_AUTO(str) \
-  ((idlc_auto_args__.src = (str)) \
-    ? (idlc_auto_args__.len = strlen(idlc_auto_args__.src), \
-       idlc_auto_args__.dest = alloca(idlc_auto_args__.len + 1), \
-       idlc_auto__()) \
-    : (NULL))
-
-/** @private */
-struct idlc_auto_args__ {
-  char *src;
-  size_t len;
-  char *dest;
-};
-
-/** @private */
-extern idlc_thread_local struct idlc_auto_args__ idlc_auto_args__;
-
-inline char *idlc_auto__(void)
-{
-  char *dest = idlc_auto_args__.dest;
-  memmove(dest, idlc_auto_args__.src, idlc_auto_args__.len + 1);
-  free(idlc_auto_args__.src);
-  idlc_auto_args__.src = NULL;
-  idlc_auto_args__.len = 0;
-  idlc_auto_args__.dest = NULL;
-  return dest;
-}
 
 struct generator {
   const char *path;
@@ -72,6 +30,9 @@ struct generator {
     char *path;
   } source;
 };
+
+int print_type(char *str, size_t len, const void *ptr, void *user_data);
+int print_scoped_name(char *str, size_t len, const void *ptr, void *user_data);
 
 #if _WIN32
 __declspec(dllexport)
