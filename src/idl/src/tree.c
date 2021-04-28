@@ -2493,7 +2493,7 @@ static void *iterate_annotation(const void *ptr, const void *cur)
   const idl_node_t *node = cur;
   assert(root);
   if (node) {
-    assert(idl_parent(root) == node);
+    assert(idl_parent(node) == root);
     return node->next;
   }
   return root->definitions;

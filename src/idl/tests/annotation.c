@@ -229,6 +229,12 @@ CU_Test(idl_annotation, default_nested)
     idl_delete_pstate(pstate);
   }
 }
+#undef M
+#undef S
+#undef DN
+#undef N
+#undef T
+#undef P
 
 #define ok IDL_RETCODE_OK
 #define semantic_error IDL_RETCODE_SEMANTIC_ERROR
@@ -381,3 +387,60 @@ CU _ Test(idl_annotation, foobar_struct)
   idl_delete_tree(tree);
 }
 #endif
+
+#define E(name, definitions) " enum " name " { " definitions " };\n"
+#define C(name, value) " const long " name " = " value ";\n"
+#define M(name, definitions) " module " name " {\n " definitions "\n};\n"
+#define A(name, definitions) " @annotation " name " {\n " definitions "\n};\n"
+#define TA(ann) \
+  E("gkind", "GKIND1, GKIND2")\
+  C("gv", "1") \
+  M("m1", \
+    E("m1kind", "M1KIND1, M1KIND2") \
+    C("m1v", "1") \
+    A("a1", "long v;")\
+    A("a2", E("a2kind", "KIND1, KIND2") "a2kind v;")\
+    M("m2", \
+      E("m2kind", "M2KIND1, M2KIND2") \
+      C("m2v", "1") \
+      ann\
+      "struct s { char c1; };"\
+    )\
+  )
+
+CU_Test(idl_annotation, parameter_scope)
+{
+  static const struct {
+    const char *str;
+  } tests[] = {
+    { TA("@a1(v = 1)") },
+    { TA("@a1(v = m2::m2v)") },
+    { TA("@a1(v = m1::m2::m2v)") },
+    { TA("@a1(v = m1::m1v)") },
+    { TA("@a1(v = ::gv)") },
+
+    { TA("@a2(v = KIND1)") },
+    { TA("@a2(v = m2::M2KIND1)") },
+    { TA("@a2(v = m1::m2::M2KIND1)") },
+    { TA("@a2(v = m1::M1KIND1)") },
+    { TA("@a2(v = ::GKIND1)") },
+  };
+  static const size_t n = sizeof(tests)/sizeof(tests[0]);
+
+  idl_retcode_t ret;
+  idl_pstate_t *pstate = NULL;
+
+  for (size_t i = 0; i < n; i++) {
+    pstate = NULL;
+    ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
+    CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+    idl_delete_pstate(pstate);
+  }
+}
+
+#undef E
+#undef C
+#undef M
+#undef A
+#undef TA

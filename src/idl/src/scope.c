@@ -452,10 +452,12 @@ idl_resolve(
   if (pstate->flags & IDL_FLAG_CASE_SENSITIVE)
     ignore_case = 0u;
 
-  if (pstate->parser.state == IDL_PARSE_ANNOTATION_APPL_PARAMS)
+  if (scoped_name->absolute)
+    scope = pstate->global_scope;
+  else if (pstate->parser.state == IDL_PARSE_ANNOTATION_APPL_PARAMS)
     scope = pstate->annotation_scope;
   else
-    scope = (scoped_name->absolute) ? pstate->global_scope : pstate->scope;
+    scope = pstate->scope;
   assert(scope);
 
   for (size_t i=0; i < scoped_name->length && scope;) {
