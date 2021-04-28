@@ -361,8 +361,10 @@ CU_Test(idl_annotation, struct_extensibility)
     ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
     CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
     CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+    assert(pstate);
     s = (idl_struct_t *)pstate->root;
     CU_ASSERT_PTR_NOT_NULL_FATAL(s);
+    assert(s);
     CU_ASSERT_FATAL(idl_is_struct(s));
     CU_ASSERT_EQUAL(s->extensibility, tests[i].ext);
     idl_delete_pstate(pstate);
