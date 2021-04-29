@@ -636,8 +636,9 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     // ICEORYX TODO: handle failure (how should the system behave if resources are insufficient?)
     iox_sub_storage_extension_init(&rd->m_iox_sub_stor);
 
+    assert (rqos->durability.kind == DDS_DURABILITY_VOLATILE);
     opts.queueCapacity = rd->m_entity.m_domain->gv.config.sub_queue_capacity;
-    opts.historyRequest = rd->m_entity.m_domain->gv.config.sub_history_request;
+    opts.historyRequest = 0;
     rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor.storage, gv->config.iceoryx_service, type_name, topic_name, &opts);
     shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
 
