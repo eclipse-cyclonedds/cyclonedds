@@ -22,7 +22,7 @@ Next you will need to get and build iceoryx (all of this is assumed to occur in 
 
   git clone https://github.com/eclipse-iceoryx/iceoryx.git -b master
   cd iceoryx
-  cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=install -DBUILD_ALL=True -DBUILD_SHARED_LIBS=ON -Hiceoryx_meta
+  cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=install -DBUILD_SHARED_LIBS=ON -Hiceoryx_meta
   cmake --build build --config Debug --target install
 
 After that, get Cyclone DDS (currently its iceoryx branch) and build it with shared memory support:
@@ -41,9 +41,11 @@ Configuration
 
 There are two levels of configuration for Cyclone DDS with shared memory support, the shared memory service (iceoryx) level, and the Cyclone DDS level.
 
-The performance of the shared memory service is strongly dependant on how well its configuration matches up with the use cases it will be asked to support, and large gains in performance can be made by configuring it correctly.
+The performance of the shared memory service is strongly dependent on how well its configuration matches up with the use cases it will be asked to support, and large gains in performance can be made by configuring it correctly.
 
-The memory of iceoryx is layed out as numbers of fixed-size segments, which taken together are iceoryx's memory pool. When a subscriber requests a block of memory from iceoryx, the smallest block which will fit the requested size and is available is provided to the subscriber from the pool.
+The memory of iceoryx is layed out as numbers of fixed-size segments, which taken together are iceoryx's memory pool. When a subscriber requests a block of memory from iceoryx, the smallest block which will fit the requested size and is available is provided to the subscriber from the pool. If no blocks can be found which satisfy these requirements, the publisher requesting the block will give an error, and abort the process.
+
+For testing, the default memory configuration usually suffices. The default configuration has blocks in varying numbers and sizes up to 4MiB, and iceoryx falls back to this configuration when it is not supplied with a suitable configuration file or cannot find one at the default location.
 
 To ensure the best performance with the smallest footprint, the user is advised to configure iceoryx in such a manner that the memory pool only consists of blocks which will be useful to the exchanges to be done. Additionally, due to header information being sent along with the sample, the block size required from the pool is 64 bytes larger than the data type being exchanged. Lastly, iceoryx requires that the blocks be aligned to 4 bytes.
 
@@ -278,11 +280,11 @@ Thereby eliminating a copy step in the publication process.
 If *status* returns **DDS_RETCODE_OK**, then *loaned_sample* will contain a pointer to the memory pool object, in all other cases, *loaned_sample* should not be dereferenced.
 For requesting loaned samples, the writer used to request the loaned sample should be of the same data type as the sample that you are writing in it, since necessary information about the data type is supplied by the writer.
 
-The user is limited in this case by the maximum number of outstanding loans, defined by **MAX_PUB_LOANS** (default set to 8). This is the maximum number of loaned samples that can be outstanding process wide from the shared memory, before some must be returned (handed back to the publisher through *dds_write*) before requesting new loaned samples.
+The user is limited in this case by the maximum number of outstanding loans, defined by **MAX_PUB_LOANS** (default set to 8). This is the maximum number of loaned samples that each publisher can have outstanding from the shared memory, before some must be returned (handed back to the publisher through *dds_write*) before requesting new loaned samples.
 
 After a loaned sample has been returned to the shared memory pool (at the moment, this can only be done by invoking *dds_write*), dereferencing the pointer is undefined behaviour.
 
-If the user is not able to use the loan mechanism, as *dds_write* will also write to the shared memory service if it is configured to do so. Though in that case, the overhead of the additional copy step in publication is still incurred.
+If the user is not able to use the loan mechanism, a *dds_write* will still write to the shared memory service if Cyclone DDS is configured to use shared memory. Though in this case, the overhead of an additional copy step in publication is incurred, since a block for publishing to the shared memory will be requested and the data of the published sample copied into it.
 
 Developer Hints
 ---------------
@@ -327,4 +329,4 @@ TODO List
 --------------
 
 * Extend configuration options for Shared Memory
-
+* Remove superfluous copy steps due to publishing returning ownership of shared memory blocks to iceoryx
