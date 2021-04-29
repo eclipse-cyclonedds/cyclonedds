@@ -2114,7 +2114,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
 
   ddsrt_mutex_lock (&wr->e.lock);
 #ifdef DDS_HAS_SHM
-  if (pretend_everything_acked || prd->c.proxypp->is_iceoryx)
+  if (pretend_everything_acked || prd->is_iceoryx)
 #else
   if (pretend_everything_acked)
 #endif
@@ -5067,18 +5067,6 @@ static void free_proxy_participant(struct proxy_participant *proxypp)
   ddsrt_free (proxypp);
 }
 
-#ifdef DDS_HAS_SHM
-static void chk_iceoryx (const ddsi_xlocator_t *n, void *varg)
-{
-  struct proxy_participant *proxypp = (struct proxy_participant *) varg;
-  struct ddsi_domaingv *gv = proxypp->e.gv;
-  if (n->c.kind == NN_LOCATOR_KIND_SHEM && memcmp (gv->loc_iceoryx_addr.address, n->c.address, sizeof (gv->loc_iceoryx_addr.address)) == 0)
-  {
-    proxypp->is_iceoryx = 1;
-  }
-}
-#endif
-
 bool new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const ddsi_plist_t *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq)
 {
   /* No locking => iff all participants use unique guids, and sedp
@@ -5137,13 +5125,6 @@ bool new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
     proxypp->redundant_networking = (plist->cyclone_redundant_networking != 0);
   else
     proxypp->redundant_networking = 0;
-
-#ifdef DDS_HAS_SHM
-  proxypp->is_iceoryx = 0;
-  if (gv->config.enable_shm) {
-    addrset_forall (as_default, chk_iceoryx, proxypp);
-  }
-#endif
 
   {
     struct proxy_participant *privpp;
@@ -5944,6 +5925,35 @@ static void proxy_endpoint_common_fini (struct entity_common *e, struct proxy_en
   entity_common_fini (e);
 }
 
+#ifdef DDS_HAS_SHM
+struct has_iceoryx_address_helper_arg {
+  const ddsi_locator_t *loc_iceoryx_addr;
+  bool has_iceoryx_address;
+};
+
+static void has_iceoryx_address_helper (const ddsi_xlocator_t *n, void *varg)
+{
+  struct has_iceoryx_address_helper_arg *arg = varg;
+  if (n->c.kind == NN_LOCATOR_KIND_SHEM && memcmp (arg->loc_iceoryx_addr->address, n->c.address, sizeof (arg->loc_iceoryx_addr->address)) == 0)
+    arg->has_iceoryx_address = true;
+}
+
+static bool has_iceoryx_address (struct ddsi_domaingv * const gv, struct addrset * const as)
+{
+  if (!gv->config.enable_shm)
+    return false;
+  else
+  {
+    struct has_iceoryx_address_helper_arg arg = {
+      .loc_iceoryx_addr = &gv->loc_iceoryx_addr,
+      .has_iceoryx_address = false
+    };
+    addrset_forall (as, has_iceoryx_address_helper, &arg);
+    return arg.has_iceoryx_address;
+  }
+}
+#endif
+
 /* PROXY-WRITER ----------------------------------------------------- */
 
 static enum nn_reorder_mode
@@ -6014,6 +6024,9 @@ int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
   pwr->local_matching_inprogress = 1;
 #ifdef DDS_HAS_SSM
   pwr->supports_ssm = (addrset_contains_ssm (gv, as) && gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
+#endif
+#ifdef DDS_HAS_SHM
+  pwr->is_iceoryx = has_iceoryx_address (gv, as) ? 1 : 0;
 #endif
   if (plist->present & PP_CYCLONE_REDUNDANT_NETWORKING)
     pwr->redundant_networking = (plist->cyclone_redundant_networking != 0);
@@ -6354,6 +6367,9 @@ int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
   prd->deleting = 0;
 #ifdef DDS_HAS_SSM
   prd->favours_ssm = (favours_ssm && gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
+#endif
+#ifdef DDS_HAS_SHM
+  prd->is_iceoryx = has_iceoryx_address (gv, as) ? 1 : 0;
 #endif
   prd->is_fict_trans_reader = 0;
   prd->receive_buffer_size = proxypp->receive_buffer_size;
