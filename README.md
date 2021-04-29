@@ -49,13 +49,13 @@ DDS requires a few simple steps. There are some small differences between Linux 
 hand, and Windows on the other. For Linux or macOS:
 
     $ cd build
-    $ cmake -DCMAKE_INSTALL_PREFIX=<install-location> ..
+    $ cmake -DCMAKE_INSTALL_PREFIX=<install-location> -DBUILD_EXAMPLES=ON ..
     $ cmake --build .
 
 and for Windows:
 
     $ cd build
-    $ cmake -G "<generator-name>" -DCMAKE_INSTALL_PREFIX=<install-location> ..
+    $ cmake -G "<generator-name>" -DCMAKE_INSTALL_PREFIX=<install-location> -DBUILD_EXAMPLES=ON ..
     $ cmake --build .
 
 where you should replace ``<install-location>`` by the directory under which you would like to
