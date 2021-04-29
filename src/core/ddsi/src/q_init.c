@@ -1102,8 +1102,7 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
 {
   shm_set_loglevel(gv->config.shm_log_lvl);
   
-  char str[128];
-  char *sptr = str;
+  char *sptr;
   uint32_t pid = (uint32_t) ddsrt_getpid ();
   
   ddsrt_asprintf (&sptr, "iceoryx_rt_%d_%ld", pid, gv->tstart.v);
@@ -1164,7 +1163,7 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
     gv->loc_iceoryx_addr.kind = NN_LOCATOR_KIND_SHEM;
     gv->loc_iceoryx_addr.port = 0;
     memset ((char *) gv->loc_iceoryx_addr.address, 0, sizeof (gv->loc_iceoryx_addr.address));
-    ddsrt_strlcpy ((char *) gv->loc_iceoryx_addr.address, sptr, strlen (sptr));
+    ddsrt_strlcpy ((char *) gv->loc_iceoryx_addr.address, sptr, strlen (sptr) + 1);
     free(sptr);
   }
 
