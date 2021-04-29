@@ -1185,7 +1185,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
   assert (gc_allowed || (wr->xqos->history.kind == DDS_HISTORY_KEEP_LAST && wr->whc_low == INT32_MAX));
   (void) gc_allowed;
 
-  if (ddsi_serdata_size (serdata) > gv->config.max_sample_size)
+  if (gv->config.max_sample_size < (uint32_t) INT32_MAX && ddsi_serdata_size (serdata) > gv->config.max_sample_size)
   {
     char ppbuf[1024];
     int tmp;
