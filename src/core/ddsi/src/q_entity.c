@@ -2074,10 +2074,17 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
   struct wr_prd_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
   int pretend_everything_acked;
+
+#ifdef DDS_HAS_SHM
+  const bool use_iceoryx = prd->is_iceoryx && !(wr->xqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM);
+#else
+  const bool use_iceoryx = false;
+#endif
+
   m->prd_guid = prd->e.guid;
   m->is_reliable = (prd->c.xqos->reliability.kind > DDS_RELIABILITY_BEST_EFFORT);
   m->assumed_in_sync = (wr->e.gv->config.retransmit_merging == DDSI_REXMIT_MERGE_ALWAYS);
-  m->has_replied_to_hb = !m->is_reliable;
+  m->has_replied_to_hb = !m->is_reliable || use_iceoryx;
   m->all_have_replied_to_hb = 0;
   m->non_responsive_count = 0;
   m->rexmit_requests = 0;
@@ -2094,7 +2101,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
               PGUID (wr->e.guid), PGUID (prd->e.guid));
     pretend_everything_acked = 1;
   }
-  else if (!m->is_reliable)
+  else if (!m->is_reliable || use_iceoryx)
   {
     /* Pretend a best-effort reader has ack'd everything, even waht is
        still to be published. */
@@ -2383,6 +2390,12 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
     pwr->ddsi2direct_cbarg = rd->ddsi2direct_cbarg;
   }
 
+#ifdef DDS_HAS_SHM
+  const bool use_iceoryx = pwr->is_iceoryx && !(rd->xqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM);
+#else
+  const bool use_iceoryx = false;
+#endif
+
   ELOGDISC (pwr, "  proxy_writer_add_connection(pwr "PGUIDFMT" rd "PGUIDFMT")",
             PGUID (pwr->e.guid), PGUID (rd->e.guid));
   m->rd_guid = rd->e.guid;
@@ -2426,6 +2439,10 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   if (is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) && !ddsrt_avl_is_empty (&pwr->readers) && !pwr->filtered)
   {
     /* builtins really don't care about multiple copies or anything */
+    m->in_sync = PRMSS_SYNC;
+  }
+  else if (use_iceoryx)
+  {
     m->in_sync = PRMSS_SYNC;
   }
   else if (!pwr->have_seen_heartbeat || !rd->handle_as_transient_local)
@@ -2485,7 +2502,9 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
       secondary_reorder_maxsamples = pwr->e.gv->config.primary_reorder_maxsamples;
       m->filtered = 1;
     }
-    m->acknack_xevent = qxev_acknack (pwr->evq, ddsrt_mtime_add_duration (tnow, pwr->e.gv->config.preemptive_ack_delay), &pwr->e.guid, &rd->e.guid);
+
+    const ddsrt_mtime_t tsched = use_iceoryx ? DDSRT_MTIME_NEVER : ddsrt_mtime_add_duration (tnow, pwr->e.gv->config.preemptive_ack_delay);
+    m->acknack_xevent = qxev_acknack (pwr->evq, tsched, &pwr->e.guid, &rd->e.guid);
     m->u.not_in_sync.reorder =
       nn_reorder_new (&pwr->e.gv->logconfig, NN_REORDER_MODE_NORMAL, secondary_reorder_maxsamples, pwr->e.gv->config.late_ack_mode);
     pwr->n_reliable_readers++;
