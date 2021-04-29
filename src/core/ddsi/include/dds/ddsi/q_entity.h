@@ -450,9 +450,6 @@ struct proxy_participant
   nn_security_info_t security_info;
   struct proxy_participant_sec_attributes *sec_attr;
 #endif
-#ifdef DDS_HAS_SHM
-  unsigned is_iceoryx: 1;
-#endif
 };
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
@@ -524,6 +521,9 @@ struct proxy_writer {
 #ifdef DDS_HAS_SSM
   unsigned supports_ssm: 1; /* iff 1, this proxy writer supports SSM */
 #endif
+#ifdef DDS_HAS_SHM
+  unsigned is_iceoryx: 1;
+#endif
   uint32_t alive_vclock; /* virtual clock counting transitions between alive/not-alive */
   struct nn_defrag *defrag; /* defragmenter for this proxy writer; FIXME: perhaps shouldn't be for historical data */
   struct nn_reorder *reorder; /* message reordering for this proxy writer, out-of-sync readers can have their own, see pwr_rd_match */
@@ -547,6 +547,9 @@ struct proxy_reader {
   unsigned redundant_networking: 1; /* 1 iff requests receiving data on all advertised interfaces */
 #ifdef DDS_HAS_SSM
   unsigned favours_ssm: 1; /* iff 1, this proxy reader favours SSM when available */
+#endif
+#ifdef DDS_HAS_SHM
+  unsigned is_iceoryx: 1;
 #endif
   ddsrt_avl_tree_t writers; /* matching LOCAL writers */
   uint32_t receive_buffer_size; /* assumed receive buffer size inherited from proxypp */
