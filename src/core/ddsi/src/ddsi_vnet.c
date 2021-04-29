@@ -36,16 +36,13 @@ typedef struct ddsi_vnet_tran_factory {
 
 static char *ddsi_vnet_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port)
 {
-  // FIXME: fixme
   (void) conn;
-  if (with_port)
-    (void) snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
-                    loc->address[0], loc->address[1], loc->address[2],
-                    loc->address[3], loc->address[4], loc->address[5], loc->port);
-  else
-    (void) snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x]",
-                    loc->address[0], loc->address[1], loc->address[2],
-                    loc->address[3], loc->address[4], loc->address[5]);
+  const unsigned char * const x = loc->address;
+  int pos;
+  pos = snprintf (dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x]",
+                  x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12], x[13], x[14], x[15]);
+  if (with_port && pos >= 0 && (size_t) pos < sizeof_dst)
+    (void) snprintf (dst + pos, sizeof_dst - (size_t) pos, ":%"PRIu32, loc->port);
   return dst;
 }
 
