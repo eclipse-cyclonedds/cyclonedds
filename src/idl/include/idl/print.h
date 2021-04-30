@@ -56,8 +56,11 @@ IDL_EXPORT int idl_printa__(void);
 
 #if _MSC_VER
 # define IDL_ALLOCA__(size_) (__pragma (warning(suppress: 6255)) alloca(size_))
+# define IDL_PRINTA IDL_PRINTA__
 #else
 # define IDL_ALLOCA__(size_) (alloca(size_))
+# define IDL_PRINTA(strp_, print_, ...) \
+    IDL_PRINTA__((strp_), (print_), __VA_ARGS__, )
 #endif
 
 #define IDL_PRINTA__(strp_, print_, object_, ...) \
@@ -65,9 +68,6 @@ IDL_EXPORT int idl_printa__(void);
    ? ((*(idl_printa_strp__()) = IDL_ALLOCA__(idl_printa_size__())), \
        idl_printa__()) \
    : (-1))
-
-#define IDL_PRINTA(strp_, print_, ...) \
-  IDL_PRINTA__((strp_), (print_), __VA_ARGS__, )
 
 IDL_EXPORT int idl_print__(
   char **strp, idl_print_t print, const void *object, void *user_data);
