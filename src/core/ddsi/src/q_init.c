@@ -1103,9 +1103,7 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
   shm_set_loglevel(gv->config.shm_log_lvl);
   
   char *sptr;
-  uint32_t pid = (uint32_t) ddsrt_getpid ();
-  
-  ddsrt_asprintf (&sptr, "iceoryx_rt_%d_%ld", pid, gv->tstart.v);
+  ddsrt_asprintf (&sptr, "iceoryx_rt_%"PRIdPID"_%"PRId64, ddsrt_getpid (), gv->tstart.v);
   GVLOG (DDS_LC_SHM, "Current process name for iceoryx is %s\n", sptr);
   iox_runtime_init (sptr);
   free(sptr);
@@ -1153,18 +1151,14 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
       if_index = 0;
     }
 
-    unsigned char mac_addr[6];
-    if (ddsrt_eth_get_mac_addr (gv->interfaces[if_index].name, mac_addr))
+    memset (gv->loc_iceoryx_addr.address, 0, sizeof (gv->loc_iceoryx_addr.address));
+    if (ddsrt_eth_get_mac_addr (gv->interfaces[if_index].name, gv->loc_iceoryx_addr.address))
     {
       GVERROR ("Unable to get MAC address for iceoryx\n");
       return -1;
     }
-    ddsrt_asprintf (&sptr, "%02x%02x%02x%02x%02x%02x", *mac_addr, *(mac_addr+1), *(mac_addr+2), *(mac_addr+3), *(mac_addr+4), *(mac_addr+5));
     gv->loc_iceoryx_addr.kind = NN_LOCATOR_KIND_SHEM;
     gv->loc_iceoryx_addr.port = 0;
-    memset ((char *) gv->loc_iceoryx_addr.address, 0, sizeof (gv->loc_iceoryx_addr.address));
-    ddsrt_strlcpy ((char *) gv->loc_iceoryx_addr.address, sptr, strlen (sptr) + 1);
-    free(sptr);
   }
 
   {
