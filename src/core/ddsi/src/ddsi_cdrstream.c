@@ -1955,6 +1955,9 @@ void dds_stream_extract_keyhash (dds_istream_t * __restrict is, dds_keyhash_t * 
 
 /* Returns true if buffer not yet exhausted, false otherwise */
 static bool prtf (char * __restrict *buf, size_t * __restrict bufsize, const char *fmt, ...)
+  ddsrt_attribute_format((printf, 3, 4));
+
+static bool prtf (char * __restrict *buf, size_t * __restrict bufsize, const char *fmt, ...)
 {
   va_list ap;
   if (*bufsize == 0)

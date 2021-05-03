@@ -258,6 +258,9 @@ static dds_return_t deser_int64 (int64_t *dst, const struct dd * __restrict dd, 
 
 /* Returns true if buffer not yet exhausted, false otherwise */
 static bool prtf (char * __restrict *buf, size_t * __restrict bufsize, const char *fmt, ...)
+  ddsrt_attribute_format((printf, 3, 4));
+
+static bool prtf (char * __restrict *buf, size_t * __restrict bufsize, const char *fmt, ...)
 {
   va_list ap;
   if (*bufsize == 0)
