@@ -410,120 +410,6 @@ static dds_return_t deliver_data (struct writer *ddsi_wr, dds_writer *wr, struct
   return ret;
 }
 
-#if 0
-// old implementation, remove later
-static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
-{
-  // consumes 1 refc from dinp in all paths (weird, but ... history ...)
-  struct thread_state1 * const ts1 = lookup_thread_state ();
-  struct ddsi_tkmap_instance *tk;
-  struct ddsi_serdata *dact;
-  int ret = DDS_RETCODE_OK;
-  int w_rc;
-
-  if (ddsi_wr->type == dinp->type)
-  {
-    dact = dinp;
-    // dact refc: must consume 1
-    // dinp refc: must consume 0 (it is an alias of dact)
-  }
-  else if (dinp->type->ops->version == ddsi_sertype_v0)
-  {
-    // deliberately allowing mismatches between d->type and ddsi_wr->type:
-    // that way we can allow transferring data from one domain to another
-    dact = ddsi_serdata_ref_as_type (ddsi_wr->type, dinp);
-    // dact refc: must consume 1
-    // dinp refc: must consume 1 (independent of dact: types are distinct)
-  }
-  else
-  {
-    // hope for the best (the type checks/conversions were missing in the
-    // sertopic days anyway, so this is simply bug-for-bug compatibility
-    dact = ddsi_sertopic_wrap_serdata (ddsi_wr->type, dinp->kind, dinp);
-    // dact refc: must consume 1
-    // dinp refc: must consume 1
-  }
-
-  if (dact == NULL)
-  {
-    // dinp may not be NULL, so this means something bad happened
-    // still must drop a dinp reference
-    ddsi_serdata_unref (dinp);
-    return DDS_RETCODE_ERROR;
-  }
-
-  thread_state_awake (ts1, ddsi_wr->e.gv);
-
-  // retain dact until after write_sample_gc so we can still pass it
-  // to deliver_locally
-  ddsi_serdata_ref (dact);
-
-  tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, dact);
-  // write_sample_gc always consumes 1 refc from dact
-  w_rc = write_sample_gc (ts1, xp, ddsi_wr, dact, tk);
-  if (w_rc >= 0)
-  {
-    /* Flush out write unless configured to batch */
-    if (flush && xp != NULL)
-      nn_xpack_send (xp, false);
-    ret = DDS_RETCODE_OK;
-  }
-  else
-  {
-    if (w_rc == DDS_RETCODE_TIMEOUT)
-      ret = DDS_RETCODE_TIMEOUT;
-    else if (w_rc == DDS_RETCODE_BAD_PARAMETER)
-      ret = DDS_RETCODE_ERROR;
-    else
-      ret = DDS_RETCODE_ERROR;
-  }
-
-  bool suppress_local_delivery = false;
-#ifdef DDS_HAS_SHM
-  if (wr && ret == DDS_RETCODE_OK) {
-    // Currently, Iceoryx is enabled only for volatile data, so data gets stored in the WHC only
-    // if remote subscribers exist, and in that case, at the moment that forces serialization of
-    // the data.  So dropping iox_chunk is survivable.
-    if (wr->m_iox_pub != NULL && dinp->iox_chunk != NULL)
-    {
-      iceoryx_header_t * ice_hdr = dinp->iox_chunk;
-      // Local readers go through Iceoryx as well (because the Iceoryx support code doesn't exclude
-      // that), which means we should suppress the internal path
-      suppress_local_delivery = true;
-      ice_hdr->guid = ddsi_wr->e.guid;
-      ice_hdr->tstamp = dinp->timestamp.v;
-      ice_hdr->statusinfo = dinp->statusinfo;
-      ice_hdr->data_kind = (unsigned char)dinp->kind;
-      ddsi_serdata_get_keyhash (dinp, &ice_hdr->keyhash, false);
-      // iox_pub_publish_chunk takes ownership, storing a null pointer here doesn't
-      // preclude the existence of race conditions on this, but it certainly improves
-      // the chances of detecting them
-      dinp->iox_chunk = NULL;
-      iox_pub_publish_chunk (wr->m_iox_pub, ice_hdr);
-    }
-  }
-#else
-  (void) wr;
-#endif
-
-  if (ret == DDS_RETCODE_OK && !suppress_local_delivery)
-    ret = deliver_locally (ddsi_wr, dact, tk);
-
-  // refc management at input is such that we must still consume a dinp
-  // reference if it isn't identical to dact; doing it prior to dropping
-  // a reference to dact means we're not testing pointers to freed memory
-  // (which is undefined behaviour IIRC).
-  if (dact != dinp)
-    ddsi_serdata_unref (dinp);
-
-  // balance ddsi_serdata_ref
-  ddsi_serdata_unref (dact);
-
-  ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
-  thread_state_asleep (ts1);
-  return ret;
-}
-#else
 static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
 {
   // consumes 1 refc from dinp in all paths (weird, but ... history ...)
@@ -553,13 +439,15 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
 
   ret = deliver_data(ddsi_wr, wr, dact, xp, flush);
 
+  // TODO: Check whether the refocunting is correct in all cases,
+  //       The idea is that deliver_data itself does ref the data itself but relies on it being done externally
+  //       A comment regarding write_sample_gc indicates that it might decrement the redcount though, 
+  //       in which case the following unref may be wrong.
   ddsi_serdata_unref (dact);
 
   thread_state_asleep (ts1);
   return ret;
 }
-#endif
-
 
 #ifdef DDS_HAS_SHM
 // implementation if no shared memory (iceoryx) is available
