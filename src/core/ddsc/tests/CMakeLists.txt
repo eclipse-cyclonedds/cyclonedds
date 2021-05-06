@@ -155,7 +155,7 @@ if(iceoryx_binding_c_FOUND AND NOT WIN32)
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
 
-  target_link_libraries(cunit_ddsc_iox PRIVATE Space ddsc)
+  target_link_libraries(cunit_ddsc_iox PRIVATE RoundTrip Space ddsc)
 
   # We need to start RouDi, so we need to find it
   find_program(ICEORYX_ROUDI iox-roudi REQUIRED)
