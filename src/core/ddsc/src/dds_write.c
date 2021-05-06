@@ -410,80 +410,6 @@ static dds_return_t deliver_data (struct writer *ddsi_wr, dds_writer *wr, struct
   return ret;
 }
 
-#if 0
-// old implementation, remove later
-static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
-{
-  struct thread_state1 * const ts1 = lookup_thread_state ();
-  const bool writekey = action & DDS_WR_KEY_BIT;
-  struct writer *ddsi_wr = wr->m_wr;
-  struct ddsi_serdata *d;
-  dds_return_t ret = DDS_RETCODE_OK;
-
-  if (data == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  /* Check for topic filter */
-  if (!writekey && wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
-  {
-    const struct dds_topic_filter *f = &wr->m_topic->m_filter;
-    switch (f->mode)
-    {
-      case DDS_TOPIC_FILTER_NONE:
-      case DDS_TOPIC_FILTER_SAMPLEINFO_ARG:
-        break;
-      case DDS_TOPIC_FILTER_SAMPLE:
-        if (!f->f.sample (data))
-          return DDS_RETCODE_OK;
-        break;
-      case DDS_TOPIC_FILTER_SAMPLE_ARG:
-        if (!f->f.sample_arg (data, f->arg))
-          return DDS_RETCODE_OK;
-        break;
-      case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
-        struct dds_sample_info si;
-        memset (&si, 0, sizeof (si));
-        if (!f->f.sample_sampleinfo_arg (data, &si, f->arg))
-          return DDS_RETCODE_OK;
-        break;
-      }
-    }
-  }
-
-  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
-
-  /* Serialize and write data or key */
-  if ((d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data)) == NULL)
-    ret = DDS_RETCODE_BAD_PARAMETER;
-  else
-  {
-    struct ddsi_tkmap_instance *tk;
-    d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
-                     ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
-    d->timestamp.v = tstamp;
-    ddsi_serdata_ref (d);
-
-    tk = ddsi_tkmap_lookup_instance_ref (wr->m_entity.m_domain->gv.m_tkmap, d);
-    ret = write_sample_gc (ts1, wr->m_xp, ddsi_wr, d, tk);
-
-    if (ret >= 0) {
-      /* Flush out write unless configured to batch */
-      if (!wr->whc_batch)
-        nn_xpack_send (wr->m_xp, false);
-      ret = DDS_RETCODE_OK;
-    } else if (ret != DDS_RETCODE_TIMEOUT) {
-      ret = DDS_RETCODE_ERROR;
-    } 
-
-    if (ret == DDS_RETCODE_OK)
-      ret = deliver_locally (ddsi_wr, d, tk);
-    ddsi_serdata_unref (d);
-    ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
-  }
-  thread_state_asleep (ts1);
-  return ret;
-}
-#else
 static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
 {
   // consumes 1 refc from dinp in all paths (weird, but ... history ...)
@@ -513,13 +439,15 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
 
   ret = deliver_data(ddsi_wr, wr, dact, xp, flush);
 
+  // TODO: Check whether the refocunting is correct in all cases,
+  //       The idea is that deliver_data itself does ref the data itself but relies on it being done externally
+  //       A comment regarding write_sample_gc indicates that it might decrement the redcount though, 
+  //       in which case the following unref may be wrong.
   ddsi_serdata_unref (dact);
 
   thread_state_asleep (ts1);
   return ret;
 }
-#endif
-
 
 #ifdef DDS_HAS_SHM
 // implementation if no shared memory (iceoryx) is available
