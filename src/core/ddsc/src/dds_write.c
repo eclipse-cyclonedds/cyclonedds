@@ -409,113 +409,6 @@ static dds_return_t deliver_data (struct writer *ddsi_wr, dds_writer *wr, struct
   return ret;
 }
 
-dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
-{
-  struct thread_state1 * const ts1 = lookup_thread_state ();
-  const bool writekey = action & DDS_WR_KEY_BIT;
-  struct writer *ddsi_wr = wr->m_wr;
-  struct ddsi_serdata *d;
-  dds_return_t ret = DDS_RETCODE_OK;
-  int w_rc;
-
-  if (data == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  /* Check for topic filter */
-  if (!writekey && wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
-  {
-    const struct dds_topic_filter *f = &wr->m_topic->m_filter;
-    switch (f->mode)
-    {
-      case DDS_TOPIC_FILTER_NONE:
-      case DDS_TOPIC_FILTER_SAMPLEINFO_ARG:
-        break;
-      case DDS_TOPIC_FILTER_SAMPLE:
-        if (!f->f.sample (data))
-          return DDS_RETCODE_OK;
-        break;
-      case DDS_TOPIC_FILTER_SAMPLE_ARG:
-        if (!f->f.sample_arg (data, f->arg))
-          return DDS_RETCODE_OK;
-        break;
-      case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
-        struct dds_sample_info si;
-        memset (&si, 0, sizeof (si));
-        if (!f->f.sample_sampleinfo_arg (data, &si, f->arg))
-          return DDS_RETCODE_OK;
-        break;
-      }
-    }
-  }
-
-  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
-
-  /* Serialize and write data or key */
-  if ((d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data)) == NULL)
-    ret = DDS_RETCODE_BAD_PARAMETER;
-  else
-  {
-    struct ddsi_tkmap_instance *tk;
-    d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
-                     ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
-    d->timestamp.v = tstamp;
-    ddsi_serdata_ref (d);
-
-    bool suppress_local_delivery = false;
-#ifdef DDS_HAS_SHM
-    if (wr->m_iox_pub)
-    {
-      iceoryx_header_t *ice_hdr;
-
-      if (!deregister_pub_loan(wr, data))
-      {
-        void *pub_loan;
-
-        pub_loan = create_iox_chunk(wr);
-        memcpy (pub_loan, data, wr->m_topic->m_stype->iox_size);
-        data = pub_loan;
-      }
-      ice_hdr = SHIFT_BACK_TO_ICEORYX_HEADER(data);
-      ice_hdr->guid = ddsi_wr->e.guid;
-      ice_hdr->tstamp = tstamp;
-      ice_hdr->statusinfo = d->statusinfo;
-      ice_hdr->data_kind = writekey ? SDK_KEY : SDK_DATA;
-      ddsi_serdata_get_keyhash(d, &ice_hdr->keyhash, false);
-      iox_pub_publish_chunk (wr->m_iox_pub, ice_hdr);
-
-      // Iceoryx will do delivery to local subscriptions, so we suppress it here
-      suppress_local_delivery = true;
-    }
-    else
-    {
-
-    }
-#endif
-
-    tk = ddsi_tkmap_lookup_instance_ref (wr->m_entity.m_domain->gv.m_tkmap, d);
-    w_rc = write_sample_gc (ts1, wr->m_xp, ddsi_wr, d, tk);
-
-    if (w_rc >= 0) {
-      /* Flush out write unless configured to batch */
-      if (!wr->whc_batch)
-        nn_xpack_send (wr->m_xp, false);
-      ret = DDS_RETCODE_OK;
-    } else if (w_rc == DDS_RETCODE_TIMEOUT) {
-      ret = DDS_RETCODE_TIMEOUT;
-    } else if (w_rc == DDS_RETCODE_BAD_PARAMETER) {
-      ret = DDS_RETCODE_ERROR;
-    } else {
-      ret = DDS_RETCODE_ERROR;
-    }
-    if (ret == DDS_RETCODE_OK && !suppress_local_delivery)
-      ret = deliver_locally (ddsi_wr, d, tk);
-    ddsi_serdata_unref (d);
-    ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
-  }
-  thread_state_asleep (ts1);
-  return ret;
-}
-
 #if 0
 // old implementation, remove later
 static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
@@ -661,6 +554,201 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
 
   ddsi_serdata_unref (dact);
 
+  thread_state_asleep (ts1);
+  return ret;
+}
+#endif
+
+
+#ifdef DDS_HAS_SHM
+// implementation if no shared memory (iceoryx) is available
+dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
+{
+  // 1. Input validation
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+  const bool writekey = action & DDS_WR_KEY_BIT;
+  struct writer *ddsi_wr = wr->m_wr;
+  int ret = DDS_RETCODE_OK;
+
+  if (data == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  // 2. Topic filter
+  if (!writekey && wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
+  {
+    const struct dds_topic_filter *f = &wr->m_topic->m_filter;
+    switch (f->mode)
+    {
+      case DDS_TOPIC_FILTER_NONE:
+      case DDS_TOPIC_FILTER_SAMPLEINFO_ARG:
+        break;
+      case DDS_TOPIC_FILTER_SAMPLE:
+        if (!f->f.sample (data))
+          return DDS_RETCODE_OK;
+        break;
+      case DDS_TOPIC_FILTER_SAMPLE_ARG:
+        if (!f->f.sample_arg (data, f->arg))
+          return DDS_RETCODE_OK;
+        break;
+      case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
+        struct dds_sample_info si;
+        memset (&si, 0, sizeof (si));
+        if (!f->f.sample_sampleinfo_arg (data, &si, f->arg))
+          return DDS_RETCODE_OK;
+        break;
+      }
+    }
+  }
+
+  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
+
+  // 3. Check availability of iceoryx and reader status
+  // note: condition checking can be optimized - focus on readability first
+
+  bool no_network_readers = addrset_empty (ddsi_wr->as) && (ddsi_wr->as_group == NULL || addrset_empty (ddsi_wr->as_group));
+  bool iceoryx_available = wr->m_iox_pub != NULL;
+  bool use_only_iceoryx = iceoryx_available && no_network_readers && ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE;
+  //note that volatile is currently implied by the availability of iceoryx
+
+  if(iceoryx_available) {
+    //note: whether the data was loaned cannot be determined in the non-iceoryx case currently
+    if(!deregister_pub_loan(wr, data))
+    {
+      void* chunk_data = create_iox_chunk(wr); 
+      memcpy (chunk_data, data, wr->m_topic->m_stype->iox_size);
+      data = chunk_data; // note that this points to the data in the chunk which is preceded by the iceoryx header
+    } 
+  } 
+
+  // 4. Prepare serdata
+  // avoid serialization for volatile writers if there are no network readers
+
+  struct ddsi_serdata *d = NULL;
+
+  if(use_only_iceoryx) {
+    // note: If we could keep ownership of the loaned data after iox publish we could implement lazy
+    // serialization (only serializing when sending from writer history cache, i.e. not when storing).
+    // The benefit of this would be minor in most cases though, when we assume a static configuration
+    // where we either have network readers (requiring serialization) or not.
+
+    // do not serialize yet (may not need it if only using iceoryx or no readers)
+    // TODO: specific iceoryx only serialization
+    //d = ddsi_serdata_from_sample_for_iox (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+    d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+  } else {
+    // serialize since we will need to send via network anyway
+    d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+  }
+
+  if(d == NULL) {
+    ret = DDS_RETCODE_BAD_PARAMETER; // or more appropriately error?
+    goto finalize_write;
+  }
+
+  // should be done in the serdata construction but we explicitly set it here for now
+  if(iceoryx_available) {
+    d->iox_chunk = SHIFT_BACK_TO_ICEORYX_HEADER(data); // serialization has not been performed
+  } else {
+    d->iox_chunk = NULL; // also indicates that serialization has been performed
+  }
+
+  d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
+                  ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
+  d->timestamp.v = tstamp;
+
+  // 5. Deliver the data
+
+  if(use_only_iceoryx) {
+    // deliver via iceoryx only
+    ddsi_serdata_ref (d);
+    if(deliver_data_via_iceoryx(wr, d)) {
+      ret = DDS_RETCODE_OK;
+    } else {
+      ret = DDS_RETCODE_ERROR;
+    }
+    ddsi_serdata_unref(d);
+  } else {
+    // this may convert the input data if needed (convert_serdata) and then deliver it using
+    // network AND/OR iceoryx as required
+    ret = dds_writecdr_impl_common(ddsi_wr, wr->m_xp, d, !wr->whc_batch, wr);
+  }
+
+finalize_write:
+  thread_state_asleep (ts1);
+  return ret;
+}
+
+#else
+
+// implementation if no shared memory (iceoryx) is available
+dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
+{
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+  const bool writekey = action & DDS_WR_KEY_BIT;
+  struct writer *ddsi_wr = wr->m_wr;
+  struct ddsi_serdata *d;
+  dds_return_t ret = DDS_RETCODE_OK;
+
+  if (data == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  /* Check for topic filter */
+  if (!writekey && wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
+  {
+    const struct dds_topic_filter *f = &wr->m_topic->m_filter;
+    switch (f->mode)
+    {
+      case DDS_TOPIC_FILTER_NONE:
+      case DDS_TOPIC_FILTER_SAMPLEINFO_ARG:
+        break;
+      case DDS_TOPIC_FILTER_SAMPLE:
+        if (!f->f.sample (data))
+          return DDS_RETCODE_OK;
+        break;
+      case DDS_TOPIC_FILTER_SAMPLE_ARG:
+        if (!f->f.sample_arg (data, f->arg))
+          return DDS_RETCODE_OK;
+        break;
+      case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
+        struct dds_sample_info si;
+        memset (&si, 0, sizeof (si));
+        if (!f->f.sample_sampleinfo_arg (data, &si, f->arg))
+          return DDS_RETCODE_OK;
+        break;
+      }
+    }
+  }
+
+  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
+
+  /* Serialize and write data or key */
+  if ((d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data)) == NULL)
+    ret = DDS_RETCODE_BAD_PARAMETER;
+  else
+  {
+    struct ddsi_tkmap_instance *tk;
+    d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
+                     ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
+    d->timestamp.v = tstamp;
+    ddsi_serdata_ref (d);
+
+    tk = ddsi_tkmap_lookup_instance_ref (wr->m_entity.m_domain->gv.m_tkmap, d);
+    ret = write_sample_gc (ts1, wr->m_xp, ddsi_wr, d, tk);
+
+    if (ret >= 0) {
+      /* Flush out write unless configured to batch */
+      if (!wr->whc_batch)
+        nn_xpack_send (wr->m_xp, false);
+      ret = DDS_RETCODE_OK;
+    } else if (ret != DDS_RETCODE_TIMEOUT) {
+      ret = DDS_RETCODE_ERROR;
+    } 
+
+    if (ret == DDS_RETCODE_OK)
+      ret = deliver_locally (ddsi_wr, d, tk);
+    ddsi_serdata_unref (d);
+    ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
+  }
   thread_state_asleep (ts1);
   return ret;
 }
