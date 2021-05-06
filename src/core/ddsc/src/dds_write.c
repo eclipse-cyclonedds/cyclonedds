@@ -321,6 +321,94 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
   return rc;
 }
 
+#if DDS_HAS_SHM
+static bool deliver_data_via_iceoryx(dds_writer *wr, struct ddsi_serdata *d) {
+    if (wr->m_iox_pub != NULL && d->iox_chunk != NULL)
+    {
+      iceoryx_header_t * ice_hdr = d->iox_chunk;
+      // Local readers go through Iceoryx as well (because the Iceoryx support code doesn't exclude
+      // that), which means we should suppress the internal path
+      ice_hdr->guid = wr->m_wr->e.guid;
+      ice_hdr->tstamp = d->timestamp.v;
+      ice_hdr->statusinfo = d->statusinfo;
+      ice_hdr->data_kind = (unsigned char)d->kind;
+      ddsi_serdata_get_keyhash (d, &ice_hdr->keyhash, false);
+      // iox_pub_publish_chunk takes ownership, storing a null pointer here doesn't
+      // preclude the existence of race conditions on this, but it certainly improves
+      // the chances of detecting them
+      d->iox_chunk = NULL;
+      iox_pub_publish_chunk (wr->m_iox_pub, ice_hdr);
+      return true; //we published the chunk
+    }
+    return false; // we did not publish the chunk
+}
+#endif
+
+static struct ddsi_serdata *convert_serdata(struct writer *ddsi_wr, struct ddsi_serdata *dinp) {
+  struct ddsi_serdata *dact;
+  if (ddsi_wr->type == dinp->type)
+  {
+    dact = dinp;
+    // dact refc: must consume 1
+    // dinp refc: must consume 0 (it is an alias of dact)
+  }
+  else if (dinp->type->ops->version == ddsi_sertype_v0)
+  {
+    // deliberately allowing mismatches between d->type and ddsi_wr->type:
+    // that way we can allow transferring data from one domain to another
+    dact = ddsi_serdata_ref_as_type (ddsi_wr->type, dinp);
+    // dact refc: must consume 1
+    // dinp refc: must consume 1 (independent of dact: types are distinct)
+  }
+  else
+  {
+    // hope for the best (the type checks/conversions were missing in the
+    // sertopic days anyway, so this is simply bug-for-bug compatibility
+    dact = ddsi_sertopic_wrap_serdata (ddsi_wr->type, dinp->kind, dinp);
+    // dact refc: must consume 1
+    // dinp refc: must consume 1
+  }
+  return dact;
+}
+
+static dds_return_t deliver_data (struct writer *ddsi_wr, dds_writer *wr, struct ddsi_serdata *d, struct nn_xpack *xp, bool flush) {
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+  thread_state_awake (ts1, ddsi_wr->e.gv);
+
+  struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, d);
+  // write_sample_gc always consumes 1 refc from dact
+  int ret = write_sample_gc (ts1, xp, ddsi_wr, d, tk);
+  if (ret >= 0)
+  {
+    /* Flush out write unless configured to batch */
+    if (flush && xp != NULL)
+      nn_xpack_send (xp, false);
+    ret = DDS_RETCODE_OK;
+  }
+  else
+  {
+    if (ret != DDS_RETCODE_TIMEOUT)
+      ret = DDS_RETCODE_ERROR;
+  }
+
+  bool suppress_local_delivery = false;
+#ifdef DDS_HAS_SHM
+  if (wr && ret == DDS_RETCODE_OK) {
+    //suppress if we successfully sent it via iceoryx
+    suppress_local_delivery = deliver_data_via_iceoryx(wr, d);
+  }
+#else
+  (void) wr;
+#endif
+
+  if (ret == DDS_RETCODE_OK && !suppress_local_delivery)
+    ret = deliver_locally (ddsi_wr, d, tk);
+
+  ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
+
+  return ret;
+}
+
 dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
@@ -428,6 +516,8 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   return ret;
 }
 
+#if 0
+// old implementation, remove later
 static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
 {
   // consumes 1 refc from dinp in all paths (weird, but ... history ...)
@@ -539,6 +629,42 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
   thread_state_asleep (ts1);
   return ret;
 }
+#else
+static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
+{
+  // consumes 1 refc from dinp in all paths (weird, but ... history ...)
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+  int ret = DDS_RETCODE_OK;
+
+  ddsi_serdata_ref (dinp);
+
+  struct ddsi_serdata *dact = convert_serdata(ddsi_wr, dinp);
+
+  if (dact == NULL)
+  {  
+    return DDS_RETCODE_ERROR;
+  }
+
+  if(dact != dinp) {
+    ddsi_serdata_unref(dinp);
+    ddsi_serdata_ref(dact);
+  }
+
+  #ifdef DDS_HAS_SHM
+    dact->iox_chunk = dinp->iox_chunk;
+    dinp->iox_chunk = NULL;
+  #endif
+
+  thread_state_awake (ts1, ddsi_wr->e.gv);
+
+  ret = deliver_data(ddsi_wr, wr, dact, xp, flush);
+
+  ddsi_serdata_unref (dact);
+
+  thread_state_asleep (ts1);
+  return ret;
+}
+#endif
 
 dds_return_t dds_writecdr_impl (dds_writer *wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush)
 {
