@@ -410,47 +410,6 @@ static dds_return_t deliver_data (struct writer *ddsi_wr, dds_writer *wr, struct
   return ret;
 }
 
-static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
-{
-  // consumes 1 refc from dinp in all paths (weird, but ... history ...)
-  struct thread_state1 * const ts1 = lookup_thread_state ();
-  int ret = DDS_RETCODE_OK;
-
-  ddsi_serdata_ref (dinp);
-
-  struct ddsi_serdata *dact = convert_serdata(ddsi_wr, dinp);
-
-  if (dact == NULL)
-  {  
-    return DDS_RETCODE_ERROR;
-  }
-
-  if(dact != dinp) {
-    ddsi_serdata_unref(dinp);
-    ddsi_serdata_ref(dact);
-  }
-
-  #ifdef DDS_HAS_SHM
-    dact->iox_chunk = dinp->iox_chunk;
-    dinp->iox_chunk = NULL;
-  #endif
-
-  thread_state_awake (ts1, ddsi_wr->e.gv);
-
-  ret = deliver_data(ddsi_wr, wr, dact, xp, flush);
-
-  // TODO: Check whether the refocunting is correct in all cases,
-  //       The idea is that deliver_data itself does ref the data itself but relies on it being done externally
-  //       A comment regarding write_sample_gc indicates that it might decrement the redcount though, 
-  //       in which case the following unref may be wrong.
-  ddsi_serdata_unref (dact);
-
-  thread_state_asleep (ts1);
-  return ret;
-}
-
-#ifdef DDS_HAS_SHM
-// implementation if no shared memory (iceoryx) is available
 dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
 {
   // 1. Input validation
@@ -565,10 +524,9 @@ finalize_write:
   return ret;
 }
 
-#else
-
-// implementation if no shared memory (iceoryx) is available
-dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
+#if 0
+// old implementation, remove later
+static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
   const bool writekey = action & DDS_WR_KEY_BIT;
@@ -636,6 +594,41 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     ddsi_serdata_unref (d);
     ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
   }
+  thread_state_asleep (ts1);
+  return ret;
+}
+#else
+static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
+{
+  // consumes 1 refc from dinp in all paths (weird, but ... history ...)
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+  int ret = DDS_RETCODE_OK;
+
+  ddsi_serdata_ref (dinp);
+
+  struct ddsi_serdata *dact = convert_serdata(ddsi_wr, dinp);
+
+  if (dact == NULL)
+  {  
+    return DDS_RETCODE_ERROR;
+  }
+
+  if(dact != dinp) {
+    ddsi_serdata_unref(dinp);
+    ddsi_serdata_ref(dact);
+  }
+
+  #ifdef DDS_HAS_SHM
+    dact->iox_chunk = dinp->iox_chunk;
+    dinp->iox_chunk = NULL;
+  #endif
+
+  thread_state_awake (ts1, ddsi_wr->e.gv);
+
+  ret = deliver_data(ddsi_wr, wr, dact, xp, flush);
+
+  ddsi_serdata_unref (dact);
+
   thread_state_asleep (ts1);
   return ret;
 }
