@@ -61,6 +61,9 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locato
   ddsi_ipaddr_from_loc(&tmp, loc);
   for (size_t i = 0; i < ninterf; i++)
   {
+    if (interf[i].loc.kind != loc->kind)
+      continue;
+
     ddsi_ipaddr_from_loc(&iftmp, &interf[i].loc);
     ddsi_ipaddr_from_loc(&nmtmp, &interf[i].netmask);
     if (ddsrt_sockaddr_insamesubnet ((struct sockaddr *) &tmp, (struct sockaddr *) &iftmp, (struct sockaddr *) &nmtmp))
