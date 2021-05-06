@@ -170,6 +170,11 @@ typedef uint32_t(*ddsi_serdata_iox_size_t) (const struct ddsi_serdata* d);
 
 // sub is really an iox_sub_t *
 typedef struct ddsi_serdata* (*ddsi_serdata_from_iox_t) (const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer);
+
+// Construct serdata from a sample in an efficient way suitable for iceoryx transport.
+// Depending on the implementation this does not need to actually serialize, allowing for
+// zero-copy data transfer.
+typedef struct ddsi_serdata* (*ddsi_serdata_from_sample_for_iox_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample);
 #endif
 
 struct ddsi_serdata_ops {
@@ -191,6 +196,7 @@ struct ddsi_serdata_ops {
 #ifdef DDS_HAS_SHM
   ddsi_serdata_iox_size_t get_sample_size;
   ddsi_serdata_from_iox_t from_iox_buffer;
+  ddsi_serdata_from_sample_for_iox_t from_sample_for_iox;
 #endif
 };
 
@@ -321,6 +327,10 @@ DDS_INLINE_EXPORT inline uint32_t ddsi_serdata_iox_size(const struct ddsi_serdat
 DDS_INLINE_EXPORT inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer)
 {
   return type->serdata_ops->from_iox_buffer(type, kind, sub, iox_buffer);
+}
+
+DDS_EXPORT inline struct ddsi_serdata* ddsi_serdata_from_sample_for_iox (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample) {
+  return type->serdata_ops->from_sample_for_iox(type, kind, sample);
 }
 #endif
 

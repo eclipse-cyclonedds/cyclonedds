@@ -452,6 +452,23 @@ static struct ddsi_serdata* serdata_default_from_iox(const struct ddsi_sertype* 
 
   return (struct ddsi_serdata*)d;
 }
+
+// Creates a serdata for the case where only iceoryx is required (i.e. no network).
+// This skips expensive serialization and just takes ownership of the iceoryx buffer.
+// Computing the keyhash is currently still required.
+static struct ddsi_serdata *ddsi_serdata_default_from_sample_for_iox (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample) {
+  const struct ddsi_sertype_default *t = (const struct ddsi_sertype_default *)type;
+  struct ddsi_serdata_default *d = serdata_default_new(t, kind);
+
+  if(d == NULL) 
+    return NULL;
+
+  gen_keyhash_from_sample (t, &d->keyhash, sample);
+
+  struct ddsi_serdata *serdata = (struct ddsi_serdata*) d;
+  serdata->iox_chunk = SHIFT_BACK_TO_ICEORYX_HEADER(sample);
+  return serdata; 
+}
 #endif
 
 static struct ddsi_serdata_default *serdata_default_from_sample_cdr_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
@@ -661,6 +678,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {
 #ifdef DDS_HAS_SHM
   , .get_sample_size = ddsi_serdata_iox_size
   , .from_iox_buffer = serdata_default_from_iox
+  , .from_sample_for_iox = ddsi_serdata_default_from_sample_for_iox
 #endif
 };
 
@@ -683,5 +701,6 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey = {
 #ifdef DDS_HAS_SHM
   , .get_sample_size = ddsi_serdata_iox_size
   , .from_iox_buffer = serdata_default_from_iox
+  , .from_sample_for_iox = ddsi_serdata_default_from_sample_for_iox
 #endif
 };
