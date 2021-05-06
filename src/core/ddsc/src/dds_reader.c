@@ -460,7 +460,6 @@ static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_
     DDS_READER_QOS_CHECK_FIELDS == (qos->present & DDS_READER_QOS_CHECK_FIELDS) &&
     DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
     DDS_INFINITY == qos->deadline.deadline &&
-    DDS_RELIABILITY_RELIABLE == qos->reliability.kind &&
     DDS_DURABILITY_VOLATILE == qos->durability.kind &&
     DDS_HISTORY_KEEP_LAST == qos->history.kind &&
     (int)sub_history_req >= (int)qos->history.depth);
