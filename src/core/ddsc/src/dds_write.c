@@ -593,9 +593,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     // where we either have network readers (requiring serialization) or not.
 
     // do not serialize yet (may not need it if only using iceoryx or no readers)
-    // TODO: specific iceoryx only serialization
-    //d = ddsi_serdata_from_sample_for_iox (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
-    d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+    d = ddsi_serdata_from_sample_for_iox (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
   } else {
     // serialize since we will need to send via network anyway
     d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
