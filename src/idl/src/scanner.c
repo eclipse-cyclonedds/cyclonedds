@@ -754,7 +754,7 @@ tokenize(
         goto identifier;
       if (pstate->scanner.state == IDL_SCAN_ANNOTATION_NAME)
         goto identifier;
-      if ((code = idl_iskeyword(pstate, str, 0)))
+      if ((code = idl_iskeyword(pstate, str, !(pstate->flags & IDL_FLAG_CASE_SENSITIVE))))
         break;
 identifier:
       pstate->scanner.state = IDL_SCAN_GRAMMAR;
