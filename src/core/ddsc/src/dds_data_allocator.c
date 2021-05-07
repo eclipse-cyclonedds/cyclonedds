@@ -16,8 +16,8 @@
 
 dds_return_t dds_data_allocator_init_heap (dds_data_allocator_t *data_allocator)
 {
-  // special case when the entity is 0
-  return dds_data_allocator_init(0, data_allocator);
+  // Use special entity handle to allocate on heap
+  return dds_data_allocator_init(DDS_DATA_ALLOCATOR_ALLOC_ON_HEAP, data_allocator);
 }
 
 dds_return_t dds_data_allocator_init (dds_entity_t entity, dds_data_allocator_t *data_allocator)
@@ -28,8 +28,8 @@ dds_return_t dds_data_allocator_init (dds_entity_t entity, dds_data_allocator_t 
   if (data_allocator == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  // special case when entity is 0, the allocator treats this as allocation on the heap
-  if (entity == 0) {
+  // special case, the allocator treats this entity as an allocation on the heap
+  if (entity == DDS_DATA_ALLOCATOR_ALLOC_ON_HEAP) {
     ret = DDS_RETCODE_OK;
   } else {
     if ((ret = dds_entity_pin(entity, &e)) != DDS_RETCODE_OK)
@@ -60,34 +60,37 @@ dds_return_t dds_data_allocator_fini (dds_data_allocator_t *data_allocator)
   if (data_allocator == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  // special case when entity is 0, the allocator treats this as allocation on the heap
-  if (data_allocator->entity == 0)
-    return DDS_RETCODE_OK;
-
-  if ((ret = dds_entity_pin (data_allocator->entity, &e)) != DDS_RETCODE_OK)
-    return ret;
-  switch (dds_entity_kind (e))
-  {
-    case DDS_KIND_READER:
-      ret = dds__reader_data_allocator_fini ((struct dds_reader *) e, data_allocator);
-      break;
-    case DDS_KIND_WRITER:
-      ret = dds__writer_data_allocator_fini ((struct dds_writer *) e, data_allocator);
-      break;
-    default:
-      ret = DDS_RETCODE_ILLEGAL_OPERATION;
-      break;
+  // special case, the allocator treats this entity as an allocation on the heap
+  if (data_allocator->entity == DDS_DATA_ALLOCATOR_ALLOC_ON_HEAP) {
+    ret = DDS_RETCODE_OK;
+  } else {
+    if ((ret = dds_entity_pin(data_allocator->entity, &e)) != DDS_RETCODE_OK)
+      return ret;
+    switch (dds_entity_kind(e)) {
+      case DDS_KIND_READER:
+        ret = dds__reader_data_allocator_fini((struct dds_reader *)e, data_allocator);
+        break;
+      case DDS_KIND_WRITER:
+        ret = dds__writer_data_allocator_fini((struct dds_writer *)e, data_allocator);
+        break;
+      default:
+        ret = DDS_RETCODE_ILLEGAL_OPERATION;
+        break;
+    }
+    dds_entity_unpin(e);
   }
   if (ret == DDS_RETCODE_OK)
     data_allocator->entity = 0;
-  dds_entity_unpin(e);
   return ret;
 }
 
 void *dds_data_allocator_alloc (dds_data_allocator_t *data_allocator, size_t size)
 {
 #if DDS_HAS_SHM
-  if(data_allocator->entity == 0)
+  if (data_allocator == NULL)
+    return NULL;
+
+  if(data_allocator->entity == DDS_DATA_ALLOCATOR_ALLOC_ON_HEAP)
     return ddsrt_malloc (size);
 
   dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
@@ -118,33 +121,41 @@ void *dds_data_allocator_alloc (dds_data_allocator_t *data_allocator, size_t siz
 #endif
 }
 
-void dds_data_allocator_free (dds_data_allocator_t *data_allocator, void *ptr)
+dds_return_t dds_data_allocator_free (dds_data_allocator_t *data_allocator, void *ptr)
 {
+  dds_return_t ret = DDS_RETCODE_OK;
 #if DDS_HAS_SHM
-  if(data_allocator->entity == 0)
-    return ddsrt_free (ptr);
+  if (data_allocator == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
 
-  dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
-  switch (d->kind)
-  {
-    case DDS_IOX_ALLOCATOR_KIND_FINI:
-      break;
-    case DDS_IOX_ALLOCATOR_KIND_NONE:
-      ddsrt_free (ptr);
-      break;
-    case DDS_IOX_ALLOCATOR_KIND_SUBSCRIBER:
-      if (ptr != NULL)
-        iox_sub_release_chunk (d->ref.sub, ptr);
-      break;
-    case DDS_IOX_ALLOCATOR_KIND_PUBLISHER:
-      if (ptr != NULL)
-        iox_pub_release_chunk (d->ref.pub, ptr);
-      break;
+  if(data_allocator->entity == DDS_DATA_ALLOCATOR_ALLOC_ON_HEAP) {
+    ddsrt_free(ptr);
+  } else {
+    dds_iox_allocator_t *d = (dds_iox_allocator_t *)data_allocator->opaque.bytes;
+    switch (d->kind) {
+      case DDS_IOX_ALLOCATOR_KIND_FINI:
+        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+        break;
+      case DDS_IOX_ALLOCATOR_KIND_NONE:
+        ddsrt_free(ptr);
+        break;
+      case DDS_IOX_ALLOCATOR_KIND_SUBSCRIBER:
+        if (ptr != NULL)
+          iox_sub_release_chunk(d->ref.sub, ptr);
+        break;
+      case DDS_IOX_ALLOCATOR_KIND_PUBLISHER:
+        if (ptr != NULL)
+          iox_pub_release_chunk(d->ref.pub, ptr);
+        break;
+      default:
+        ret = DDS_RETCODE_BAD_PARAMETER;
+    }
   }
 #else
   (void) data_allocator;
   ddsrt_free (ptr);
 #endif
+  return ret;
 }
 
 bool is_loan_available(const dds_entity_t entity)
