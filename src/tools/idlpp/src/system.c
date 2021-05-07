@@ -4716,7 +4716,7 @@ static void do_preprocessed( void)
                 || (memcmp( --comment, "/* ", 3) != 0)
                 || ((colon = strrchr( comment, ':')) == NULL))
             cfatal( corrupted, NULL, 0L, NULL);
-        MSC_PRAGMA("warning(suppress: 28182 28183)")
+        MSC_PRAGMA(warning(suppress: 28182 28183))
         src_line = (size_t)atol( colon + 1);  /* Pseudo line number   */
         *colon = EOS;
         dir = comment + 3;
@@ -5047,7 +5047,7 @@ void    clear_filelist( void)
         free( (void *) *incp);
     free( (void *) incdir);
     for (namep = fnamelist; namep < fname_end; namep++) {
-        MSC_PRAGMA("warning(suppress: 6001)")
+        MSC_PRAGMA(warning(suppress: 6001))
         free( (void *) namep->name);
     }
     free( (void *) fnamelist);
