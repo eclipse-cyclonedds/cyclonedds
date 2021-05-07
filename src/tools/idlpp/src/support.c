@@ -163,7 +163,7 @@ void    mcpp_use_mem_buffers(
     for (i = 0; i < NUM_OUTDEST; ++i) {
         if (mem_buffers[ i].buffer) {
             /* Free previously allocated memory buffer  */
-            MSC_PRAGMA("warning(suppress: 6001)")
+            MSC_PRAGMA(warning(suppress: 6001))
             free( mem_buffers[ i].buffer);
         }
         if (use_mem_buffers) {

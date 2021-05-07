@@ -526,7 +526,7 @@ static char *   chk_magic_balance(
 #if 0
                 mac_loc[ mac] = buf_p - 2;
 #endif
-                MSC_PRAGMA("warning(suppress: 6385)")
+                MSC_PRAGMA(warning(suppress: 6385))
                 memcpy( mac_id[ mac], buf_p, MAC_S_LEN - 2);
             }
             mac++;
@@ -534,9 +534,9 @@ static char *   chk_magic_balance(
             break;
         case MAC_ARG_START  :
             if (option_flags.v) {
-                MSC_PRAGMA("warning(suppress: 6386)")
+                MSC_PRAGMA(warning(suppress: 6386))
                 arg_loc[ arg] = buf_p - 2;
-                MSC_PRAGMA("warning(suppress: 6385)")
+                MSC_PRAGMA(warning(suppress: 6385))
                 memcpy( arg_id[ arg], buf_p, ARG_S_LEN - 2);
             }
             arg++;
