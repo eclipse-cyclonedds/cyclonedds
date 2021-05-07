@@ -23,9 +23,9 @@ set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 bison_target(parser src/parser.y "${binary_dir}/parser.c")
 
 # generate hashid.c from md5.h and md5.c to avoid code duplication
-file(READ "${CMAKE_SOURCE_DIR}/src/ddsrt/include/dds/ddsrt/endian.h" endian_h)
-file(READ "${CMAKE_SOURCE_DIR}/src/ddsrt/include/dds/ddsrt/md5.h" md5_h)
-file(READ "${CMAKE_SOURCE_DIR}/src/ddsrt/src/md5.c" md5_c)
+file(READ "${PROJECT_SOURCE_DIR}/src/ddsrt/include/dds/ddsrt/endian.h" endian_h)
+file(READ "${PROJECT_SOURCE_DIR}/src/ddsrt/include/dds/ddsrt/md5.h" md5_h)
+file(READ "${PROJECT_SOURCE_DIR}/src/ddsrt/src/md5.c" md5_c)
 string(CONCAT MD5 "${endian_h}" "${md5_h}" "${md5_c}")
 # remove occurrences of DDS_EXPORT
 string(REGEX REPLACE "\n[ \t]*DDS_EXPORT[ \t]+" "\n" MD5 "${MD5}")
