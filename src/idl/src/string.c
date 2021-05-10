@@ -306,6 +306,19 @@ int idl_fprintf(FILE *fp, const char *fmt, ...)
   return ret;
 }
 
+FILE *idl_fopen(const char *pathname, const char *mode)
+{
+#if _MSC_VER
+  FILE *fp = NULL;
+
+  if (fopen_s(&fp, pathname, mode) != 0)
+    return NULL;
+  return fp;
+#else
+  return fopen(pathname, mode);
+#endif
+}
+
 #if defined _WIN32
 static __declspec(thread) locale_t locale = NULL;
 

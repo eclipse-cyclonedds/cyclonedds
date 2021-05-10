@@ -29,6 +29,7 @@
 #include "idl/processor.h"
 #include "idl/file.h"
 #include "idl/version.h"
+#include "idl/stream.h"
 
 #include "mcpp_lib.h"
 #include "mcpp_out.h"
@@ -320,15 +321,10 @@ static idl_retcode_t idlc_parse(void)
     size_t nrd;
     int nwr;
 
-    if (strcmp(config.file, "-") == 0) {
+    if (strcmp(config.file, "-") == 0)
       fin = stdin;
-    } else {
-#if _WIN32
-      fopen_s(&fin, config.file, "rb");
-#else
-      fin = fopen(config.file, "rb");
-#endif
-    }
+    else
+      fin = idl_fopen(config.file, "rb");
 
     if (!fin) {
       if (errno == ENOMEM)

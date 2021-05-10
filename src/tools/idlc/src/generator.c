@@ -353,18 +353,6 @@ generate_nosetup(const idl_pstate_t *pstate, struct generator *generator)
   return IDL_RETCODE_OK;
 }
 
-static FILE *open_file(const char *pathname, const char *mode)
-{
-#if _WIN32
-  FILE *handle = NULL;
-  if (fopen_s(&handle, pathname, mode) != 0)
-    return NULL;
-  return handle;
-#else
-  return fopen(pathname, mode);
-#endif
-}
-
 idl_retcode_t
 idlc_generate(const idl_pstate_t *pstate)
 {
@@ -407,11 +395,11 @@ idlc_generate(const idl_pstate_t *pstate)
   sep = dir[0] == '\0' ? "" : "/";
   if (idl_asprintf(&generator.header.path, "%s%s%s.h", dir, sep, basename) < 0)
     goto err_header;
-  if (!(generator.header.handle = open_file(generator.header.path, "wb")))
+  if (!(generator.header.handle = idl_fopen(generator.header.path, "wb")))
     goto err_header;
   if (idl_asprintf(&generator.source.path, "%s%s%s.c", dir, sep, basename) < 0)
     goto err_source;
-  if (!(generator.source.handle = open_file(generator.source.path, "wb")))
+  if (!(generator.source.handle = idl_fopen(generator.source.path, "wb")))
     goto err_source;
   ret = generate_nosetup(pstate, &generator);
 
