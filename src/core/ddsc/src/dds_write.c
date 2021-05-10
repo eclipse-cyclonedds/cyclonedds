@@ -345,39 +345,38 @@ static bool deliver_data_via_iceoryx(dds_writer *wr, struct ddsi_serdata *d) {
 }
 #endif
 
-static struct ddsi_serdata *convert_serdata(struct writer *ddsi_wr, struct ddsi_serdata *dinp) {
-  struct ddsi_serdata *dact;
-  if (ddsi_wr->type == dinp->type)
+static struct ddsi_serdata *convert_serdata(struct writer *ddsi_wr, struct ddsi_serdata *din) {
+  struct ddsi_serdata *dout;
+  if (ddsi_wr->type == din->type)
   {
-    dact = dinp;
-    // dact refc: must consume 1
-    // dinp refc: must consume 0 (it is an alias of dact)
+    dout = din;
+    // dout refc: must consume 1
+    // din refc: must consume 0 (it is an alias of dact)
   }
-  else if (dinp->type->ops->version == ddsi_sertype_v0)
+  else if (din->type->ops->version == ddsi_sertype_v0)
   {
     // deliberately allowing mismatches between d->type and ddsi_wr->type:
     // that way we can allow transferring data from one domain to another
-    dact = ddsi_serdata_ref_as_type (ddsi_wr->type, dinp);
-    // dact refc: must consume 1
-    // dinp refc: must consume 1 (independent of dact: types are distinct)
+    dout = ddsi_serdata_ref_as_type (ddsi_wr->type, din);
+    // dout refc: must consume 1
+    // din refc: must consume 1 (independent of dact: types are distinct)
   }
   else
   {
     // hope for the best (the type checks/conversions were missing in the
     // sertopic days anyway, so this is simply bug-for-bug compatibility
-    dact = ddsi_sertopic_wrap_serdata (ddsi_wr->type, dinp->kind, dinp);
-    // dact refc: must consume 1
-    // dinp refc: must consume 1
+    dout = ddsi_sertopic_wrap_serdata (ddsi_wr->type, din->kind, din);
+    // dout refc: must consume 1
+    // din refc: must consume 1
   }
-  return dact;
+  return dout;
 }
 
 static dds_return_t deliver_data (struct writer *ddsi_wr, dds_writer *wr, struct ddsi_serdata *d, struct nn_xpack *xp, bool flush) {
   struct thread_state1 * const ts1 = lookup_thread_state ();
-  thread_state_awake (ts1, ddsi_wr->e.gv);
 
   struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, d);
-  // write_sample_gc always consumes 1 refc from dact
+  // write_sample_gc always consumes 1 refc from d
   int ret = write_sample_gc (ts1, xp, ddsi_wr, d, tk);
   if (ret >= 0)
   {
@@ -410,47 +409,43 @@ static dds_return_t deliver_data (struct writer *ddsi_wr, dds_writer *wr, struct
   return ret;
 }
 
-static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
+static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *din, bool flush, dds_writer *wr)
 {
   // consumes 1 refc from dinp in all paths (weird, but ... history ...)
   struct thread_state1 * const ts1 = lookup_thread_state ();
   int ret = DDS_RETCODE_OK;
 
-  ddsi_serdata_ref (dinp);
+  ddsi_serdata_ref (din);
 
-  struct ddsi_serdata *dact = convert_serdata(ddsi_wr, dinp);
+  struct ddsi_serdata *d = convert_serdata(ddsi_wr, din);
 
-  if (dact == NULL)
+  if (d == NULL)
   {  
+    ddsi_serdata_unref(din);
     return DDS_RETCODE_ERROR;
   }
 
-  if(dact != dinp) {
-    ddsi_serdata_unref(dinp);
-    ddsi_serdata_ref(dact);
+  if(d != din) {
+    ddsi_serdata_unref(din);
+    ddsi_serdata_ref(d);
   }
 
-  #ifdef DDS_HAS_SHM
-    dact->iox_chunk = dinp->iox_chunk;
-    dinp->iox_chunk = NULL;
-  #endif
+#ifdef DDS_HAS_SHM
+  // transfer ownership of an iceoryx chunk if it exists
+  d->iox_chunk = din->iox_chunk;
+  din->iox_chunk = NULL;
+#endif
 
   thread_state_awake (ts1, ddsi_wr->e.gv);
 
-  ret = deliver_data(ddsi_wr, wr, dact, xp, flush);
-
-  // TODO: Check whether the refocunting is correct in all cases,
-  //       The idea is that deliver_data itself does ref the data itself but relies on it being done externally
-  //       A comment regarding write_sample_gc indicates that it might decrement the redcount though, 
-  //       in which case the following unref may be wrong.
-  ddsi_serdata_unref (dact);
+  //always decreases refcount of d by 1
+  ret = deliver_data(ddsi_wr, wr, d, xp, flush);
 
   thread_state_asleep (ts1);
   return ret;
 }
 
 #ifdef DDS_HAS_SHM
-// implementation if no shared memory (iceoryx) is available
 dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
 {
   // 1. Input validation
@@ -494,10 +489,13 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   // 3. Check availability of iceoryx and reader status
   // note: condition checking can be optimized - focus on readability first
 
-  bool no_network_readers = addrset_empty (ddsi_wr->as) && (ddsi_wr->as_group == NULL || addrset_empty (ddsi_wr->as_group));
+  bool no_network_readers = addrset_empty (ddsi_wr->as);
   bool iceoryx_available = wr->m_iox_pub != NULL;
-  bool use_only_iceoryx = iceoryx_available && no_network_readers && ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE;
-  //note that volatile is currently implied by the availability of iceoryx
+  bool use_only_iceoryx = iceoryx_available && no_network_readers;
+
+  // iceoryx_available implies volatile 
+  // otherwise we need to add the check in the use_only_iceoryx expression
+  assert(!iceoryx_available || ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE);
 
   if(iceoryx_available) {
     //note: whether the data was loaned cannot be determined in the non-iceoryx case currently
@@ -521,6 +519,8 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     // where we either have network readers (requiring serialization) or not.
 
     // do not serialize yet (may not need it if only using iceoryx or no readers)
+    // TODO: from loaned sample or move the decision to the from_sample itself
+    //       should call from_sample internally if for iox not avialble
     d = ddsi_serdata_from_sample_for_iox (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
   } else {
     // serialize since we will need to send via network anyway
@@ -528,7 +528,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   }
 
   if(d == NULL) {
-    ret = DDS_RETCODE_BAD_PARAMETER; // or more appropriately error?
+    ret = DDS_RETCODE_BAD_PARAMETER;
     goto finalize_write;
   }
 
@@ -556,7 +556,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     ddsi_serdata_unref(d);
   } else {
     // this may convert the input data if needed (convert_serdata) and then deliver it using
-    // network AND/OR iceoryx as required
+    // network and/or iceoryx as required
     ret = dds_writecdr_impl_common(ddsi_wr, wr->m_xp, d, !wr->whc_batch, wr);
   }
 
