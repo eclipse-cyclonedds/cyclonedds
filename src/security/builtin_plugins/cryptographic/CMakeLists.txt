@@ -52,5 +52,12 @@ install(
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
 )
+if (MSVC)
+  install(FILES $<TARGET_PDB_FILE:dds_security_crypto>
+    DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    COMPONENT dev
+    OPTIONAL
+  )
+endif()
 
 add_coverage(dds_security_crypto)

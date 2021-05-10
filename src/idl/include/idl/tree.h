@@ -56,6 +56,10 @@
 #define IDL_FORWARD (1llu<<29)
 #define IDL_CASE (1llu<<28)
 #define IDL_CASE_LABEL (1llu<<27)
+/* if explicit default is specified */
+#define IDL_DEFAULT_CASE_LABEL (IDL_CASE_LABEL | 1u)
+/* if no explicit default is specified and range is not covered */
+#define IDL_IMPLICIT_DEFAULT_CASE_LABEL (IDL_DEFAULT_CASE_LABEL | 2u)
 #define IDL_ENUMERATOR (1llu<<26)
 #define IDL_DECLARATOR (1llu<<25)
 /* annotations */
@@ -359,27 +363,22 @@ struct idl_switch_type_spec {
   idl_boolean_t key;
 };
 
-typedef struct idl_default_discriminator idl_default_discriminator_t;
-struct idl_default_discriminator {
-  enum {
-    IDL_DEFAULT_CASE, /** union has a default case specified */
-    IDL_IMPLICIT_DEFAULT, /** union has an implicit default member */
-    IDL_FIRST_DISCRIMINANT /** entire range covered, no default */
-  } condition;
-  idl_const_expr_t *const_expr;
-  const idl_case_t *branch; /** branch associated with discriminant, if any */
-};
-
 typedef struct idl_union idl_union_t;
 struct idl_union {
   idl_node_t node;
   struct idl_name *name;
   idl_switch_type_spec_t *switch_type_spec;
-  idl_case_t *branches;
+  idl_case_t *cases;
   /* metadata */
+  /* label associated with the default value for the discriminator. i.e.
+   * the first discriminant value if the entire range of the discriminator is
+   * covered, the default case if specified, or a spontaneously materialised
+   * implicit default case that does not reference any branch
+   */
+  idl_case_label_t *default_case;
+  uint64_t unused_labels; /**< number of unused labels */
   idl_nested_t nested; /**< if type is topic (sum total of annotations) */
   idl_extensibility_t extensibility;
-  idl_default_discriminator_t default_discriminator;
 };
 
 typedef struct idl_enumerator idl_enumerator_t;
@@ -477,6 +476,7 @@ IDL_EXPORT bool idl_is_array(const void *node);
 IDL_EXPORT bool idl_is_annotation_member(const void *node);
 IDL_EXPORT bool idl_is_annotation_appl(const void *node);
 IDL_EXPORT bool idl_is_topic(const void *node, bool keylist);
+IDL_EXPORT bool idl_is_keyless(const void *node, bool keylist);
 /* 1-based, returns 0 if path does not refer to key, non-0 otherwise */
 IDL_EXPORT uint32_t idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path);
 

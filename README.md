@@ -49,13 +49,13 @@ DDS requires a few simple steps. There are some small differences between Linux 
 hand, and Windows on the other. For Linux or macOS:
 
     $ cd build
-    $ cmake -DCMAKE_INSTALL_PREFIX=<install-location> ..
+    $ cmake -DCMAKE_INSTALL_PREFIX=<install-location> -DBUILD_EXAMPLES=ON ..
     $ cmake --build .
 
 and for Windows:
 
     $ cd build
-    $ cmake -G "<generator-name>" -DCMAKE_INSTALL_PREFIX=<install-location> ..
+    $ cmake -G "<generator-name>" -DCMAKE_INSTALL_PREFIX=<install-location> -DBUILD_EXAMPLES=ON ..
     $ cmake --build .
 
 where you should replace ``<install-location>`` by the directory under which you would like to
@@ -104,15 +104,6 @@ the CI build infrastructure also uses.  In that case, install Conan and do:
     $ conan install .. --build missing
 
 in the build directory prior to running cmake.
-
-The CUnit Conan package is hosted in the
-[Bincrafters Bintray repository](https://bintray.com/bincrafters/public-conan). In case this repository
-was not added to your Conan remotes list yet (and the above mentioned install command failed because it
-could not find the CUnit package), you can add the Bintray repository by:
-
-    $ conan remote add <REMOTE> https://api.bintray.com/conan/bincrafters/public-conan
-
-Replace ``<REMOTE>`` with a name that identifies the repository (e.g. ``bincrafters``).
 
 For Windows, depending on the generator, you might also need to add switches to select the architecture
 and build type, e.g., ``conan install -s arch=x86_64 -s build_type=Debug ..`` This will automatically

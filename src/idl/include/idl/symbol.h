@@ -39,7 +39,7 @@ typedef struct idl_position {
   /* for error reporting purposes, the "filename" provided in the #line
      directive must be kept. on includes, idlpp provides a (relative) filename
      with the proper flags, which becomes the source. user provided #line
-     directives in the file are used merely in error reporting */
+     directives in the file are used merely for error reporting */
   const idl_file_t *file; /**< (alternate) filename in latest #line directive */
   uint32_t line;
   uint32_t column;

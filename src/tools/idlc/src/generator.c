@@ -24,172 +24,185 @@
 #include "idl/string.h"
 #include "idl/version.h"
 #include "idl/processor.h"
+#include "idl/print.h"
 
-idlc_thread_local struct idlc_auto_args__ idlc_auto_args__;
-
-extern char *idlc_auto__(void);
-
-char *absolute_name(const void *node, const char *separator);
-
-char *absolute_name(const void *node, const char *separator)
+static int print_base_type(
+  char *str, size_t size, const void *node, void *user_data)
 {
-  char *str;
-  size_t cnt, len = 0;
-  const char *sep, *ident;
-  const idl_node_t *root;
-  for (root=node, sep=""; root; root=root->parent) {
-    if ((idl_mask(root) & IDL_TYPEDEF) == IDL_TYPEDEF)
-      continue;
-    if ((idl_mask(root) & IDL_ENUM) == IDL_ENUM && root != node)
-      continue;
-    ident = idl_identifier(root);
-    assert(ident);
-    len += strlen(sep) + strlen(ident);
-    sep = separator;
+  const char *type;
+
+  (void)user_data;
+
+  switch (idl_type(node)) {
+    case IDL_BOOL:    type = "bool";        break;
+    case IDL_CHAR:    type = "char";        break;
+    case IDL_INT8:    type = "int8_t";      break;
+    case IDL_OCTET:
+    case IDL_UINT8:   type = "uint8_t";     break;
+    case IDL_SHORT:
+    case IDL_INT16:   type = "int16_t";     break;
+    case IDL_USHORT:
+    case IDL_UINT16:  type = "uint16_t";    break;
+    case IDL_LONG:
+    case IDL_INT32:   type = "int32_t";     break;
+    case IDL_ULONG:
+    case IDL_UINT32:  type = "uint32_t";    break;
+    case IDL_LLONG:
+    case IDL_INT64:   type = "int64_t";     break;
+    case IDL_ULLONG:
+    case IDL_UINT64:  type = "uint64_t";    break;
+    case IDL_FLOAT:   type = "float";       break;
+    case IDL_DOUBLE:  type = "double";      break;
+    case IDL_LDOUBLE: type = "long double"; break;
+    case IDL_STRING:  type = "char";        break;
+    default:
+      abort();
   }
-  if (!(str = malloc(len + 1)))
-    return NULL;
-  str[len] = '\0';
-  for (root=node, sep=separator; root; root=root->parent) {
-    if ((idl_mask(root) & IDL_TYPEDEF) == IDL_TYPEDEF)
+
+  return idl_snprintf(str, size, "%s", type);
+}
+
+static void copy(
+  char *dest, size_t off, size_t size, const char *src, size_t len)
+{
+  size_t cnt;
+
+  if (off >= size)
+    return;
+  cnt = size - off;
+  cnt = cnt > len ? len : cnt;
+  memmove(dest+off, src, cnt);
+}
+
+static int print_templ_type(
+  char *str, size_t size, const void *node, void *user_data)
+{
+  const idl_type_spec_t *type_spec;
+  char dims[32], *name = NULL;
+  const char *seg, *type;
+  size_t cnt, len = 0, seq = 0;
+
+  (void)user_data;
+  if (idl_type(node) == IDL_STRING)
+    return idl_snprintf(str, size, "char");
+  /* sequences require a little magic */
+  assert(idl_type(node) == IDL_SEQUENCE);
+
+  dims[0] = '\0';
+  type_spec = idl_type_spec(node);
+  for (; idl_is_sequence(type_spec); type_spec = idl_type_spec(type_spec))
+    seq++;
+
+  if (idl_is_base_type(type_spec) || idl_is_string(type_spec)) {
+    switch (idl_type(type_spec)) {
+      case IDL_BOOL:     type = "bool";                break;
+      case IDL_CHAR:     type = "char";                break;
+      case IDL_INT8:     type = "int8";                break;
+      case IDL_OCTET:    type = "octet";               break;
+      case IDL_UINT8:    type = "uint8";               break;
+      case IDL_SHORT:    type = "short";               break;
+      case IDL_INT16:    type = "int16";               break;
+      case IDL_USHORT:   type = "unsigned_short";      break;
+      case IDL_UINT16:   type = "uint16";              break;
+      case IDL_LONG:     type = "long";                break;
+      case IDL_INT32:    type = "int32";               break;
+      case IDL_ULONG:    type = "unsigned_long";       break;
+      case IDL_UINT32:   type = "uint32";              break;
+      case IDL_LLONG:    type = "long_long";           break;
+      case IDL_INT64:    type = "int64";               break;
+      case IDL_ULLONG:   type = "unsigned_long_long";  break;
+      case IDL_UINT64:   type = "uint64";              break;
+      case IDL_FLOAT:    type = "float";               break;
+      case IDL_DOUBLE:   type = "double";              break;
+      case IDL_LDOUBLE:  type = "long_double";         break;
+      case IDL_STRING:
+        if (idl_is_bounded(type_spec))
+          idl_snprintf(dims, sizeof(dims), "%"PRIu32, idl_bound(type_spec));
+        type = "string";
+        break;
+      default:
+        abort();
+    }
+  } else {
+    if (IDL_PRINT(&name, print_type, type_spec) < 0)
+      return -1;
+    type = name;
+  }
+
+  seg = "dds_sequence_";
+  cnt = strlen(seg);
+  copy(str, len, size, seg, cnt);
+  len += cnt;
+  seg = "sequence_";
+  cnt = strlen(seg);
+  for (; seq; len += cnt, seq--)
+    copy(str, len, size, seg, cnt);
+  cnt = strlen(type);
+  copy(str, len, size, type, cnt);
+  len += cnt;
+  cnt = strlen(dims);
+  copy(str, len, size, dims, cnt);
+  len += cnt;
+  str[ (size > len ? len : size - 1) ] = '\0';
+  if (name)
+    free(name);
+  return (int)len;
+}
+
+static int print_decl_type(
+  char *str, size_t size, const void *node, void *user_data)
+{
+  const char *ident, *sep = user_data;
+  size_t cnt, off, len = 0;
+
+  assert(sep);
+  for (const idl_node_t *n = node; n; n = n->parent) {
+    if ((idl_mask(n) & IDL_TYPEDEF) == IDL_TYPEDEF)
       continue;
-    if ((idl_mask(root) & IDL_ENUM) == IDL_ENUM && root != node)
+    if ((idl_mask(n) & IDL_ENUM) == IDL_ENUM && n != node)
       continue;
-    ident = idl_identifier(root);
+    ident = idl_identifier(n);
+    assert(ident);
+    len += strlen(ident) + (len ? strlen(sep) : 0);
+  }
+
+  off = len;
+  for (const idl_node_t *n = node; n; n = n->parent) {
+    if ((idl_mask(n) & IDL_TYPEDEF) == IDL_TYPEDEF)
+      continue;
+    if ((idl_mask(n) & IDL_ENUM) == IDL_ENUM && n != node)
+      continue;
+    ident = idl_identifier(n);
     assert(ident);
     cnt = strlen(ident);
-    assert(cnt <= len);
-    len -= cnt;
-    memmove(str+len, ident, cnt);
-    if (len == 0)
+    assert(cnt <= off);
+    off -= cnt;
+    copy(str, off, size, ident, cnt);
+    if (off == 0)
       break;
     cnt = strlen(sep);
-    assert(cnt <= len);
-    len -= cnt;
-    memmove(str+len, sep, cnt);
+    off -= cnt;
+    copy(str, off, size, sep, cnt);
   }
-  assert(len == 0);
-  return str;
+  str[ (size > len ? len : size - 1) ] = '\0';
+  return (int)len;
 }
 
-char *typename(const void *node);
-
-char *typename(const void *node)
+int print_type(
+  char *str, size_t size, const void *ptr, void *user_data)
 {
-  switch (idl_type(node)) {
-    case IDL_BOOL:     return idl_strdup("bool");
-    case IDL_CHAR:     return idl_strdup("char");
-    case IDL_INT8:     return idl_strdup("int8_t");
-    case IDL_OCTET:
-    case IDL_UINT8:    return idl_strdup("uint8_t");
-    case IDL_SHORT:
-    case IDL_INT16:    return idl_strdup("int16_t");
-    case IDL_USHORT:
-    case IDL_UINT16:   return idl_strdup("uint16_t");
-    case IDL_LONG:
-    case IDL_INT32:    return idl_strdup("int32_t");
-    case IDL_ULONG:
-    case IDL_UINT32:   return idl_strdup("uint32_t");
-    case IDL_LLONG:
-    case IDL_INT64:    return idl_strdup("int64_t");
-    case IDL_ULLONG:
-    case IDL_UINT64:   return idl_strdup("uint64_t");
-    case IDL_FLOAT:    return idl_strdup("float");
-    case IDL_DOUBLE:   return idl_strdup("double");
-    case IDL_LDOUBLE:  return idl_strdup("long double");
-    case IDL_STRING:   return idl_strdup("char");
-    case IDL_SEQUENCE: {
-      /* sequences require a little magic */
-      const char *pref = "dds_sequence_";
-      const char *seq = "sequence_";
-      char dims[32];
-      const idl_type_spec_t *type_spec;
-      const char *type;
-      char *name = NULL, *seqtype = NULL;
-      size_t cnt = 0, len = 0, pos = 0;
-
-      dims[0] = '\0';
-      type_spec = idl_type_spec(node);
-      for (; idl_is_sequence(type_spec); type_spec = idl_type_spec(type_spec))
-        cnt++;
-      if (idl_is_base_type(type_spec) || idl_is_string(type_spec))
-        switch (idl_type(type_spec)) {
-          case IDL_BOOL:     type = "bool";                break;
-          case IDL_CHAR:     type = "char";                break;
-          case IDL_INT8:     type = "int8";                break;
-          case IDL_OCTET:    type = "octet";               break;
-          case IDL_UINT8:    type = "uint8";               break;
-          case IDL_SHORT:    type = "short";               break;
-          case IDL_INT16:    type = "int16";               break;
-          case IDL_USHORT:   type = "unsigned_short";      break;
-          case IDL_UINT16:   type = "uint16";              break;
-          case IDL_LONG:     type = "long";                break;
-          case IDL_INT32:    type = "int32";               break;
-          case IDL_ULONG:    type = "unsigned_long";       break;
-          case IDL_UINT32:   type = "uint32";              break;
-          case IDL_LLONG:    type = "long_long";           break;
-          case IDL_INT64:    type = "int64";               break;
-          case IDL_ULLONG:   type = "unsigned_long_long";  break;
-          case IDL_UINT64:   type = "uint64";              break;
-          case IDL_FLOAT:    type = "float";               break;
-          case IDL_DOUBLE:   type = "double";              break;
-          case IDL_LDOUBLE:  type = "long_double";         break;
-          case IDL_STRING:
-            if (idl_is_bounded(type_spec))
-              idl_snprintf(dims, sizeof(dims), "%"PRIu32, idl_bound(type_spec));
-            type = "string";
-            break;
-          default:
-            abort();
-        }
-      else if (!(type = name = absolute_name(type_spec, "_")))
-        goto err_type;
-      len = strlen(pref) + strlen(type) + strlen(dims);
-      if (!(seqtype = malloc(len + (cnt * strlen(seq)) + 1)))
-        goto err_seqtype;
-      len = strlen(pref);
-#if defined(_MSC_VER)
-#pragma warning(suppress: 6386)
-#endif
-      memcpy(seqtype, pref, len);
-      pos += len;
-      for (; cnt; pos += strlen(seq), cnt--)
-        memcpy(seqtype+pos, seq, strlen(seq));
-      len = strlen(type);
-      memcpy(seqtype+pos, type, len);
-      pos += len;
-      len = strlen(dims);
-      memcpy(seqtype+pos, dims, len);
-      pos += len;
-      seqtype[pos] = '\0';
-err_seqtype:
-      if (name)
-        free(name);
-err_type:
-      return seqtype;
-    }
-    default:
-      break;
-  }
-
-  return absolute_name(node, "_");
+  if (idl_is_base_type(ptr))
+    return print_base_type(str, size, ptr, user_data);
+  if (idl_is_templ_type(ptr))
+    return print_templ_type(str, size, ptr, user_data);
+  return print_decl_type(str, size, ptr, "_");
 }
-static char *figure_guard(const char *file)
+
+int print_scoped_name(
+  char *str, size_t size, const void *ptr, void *user_data)
 {
-  char *inc = NULL;
-
-  if (idl_asprintf(&inc, "DDSC_%s", file) == -1)
-    return NULL;
-
-  /* replace any non-alphanumeric characters */
-  for (char *ptr = inc; *ptr; ptr++) {
-    if (idl_islower((unsigned char)*ptr))
-      *ptr = (char)idl_toupper((unsigned char)*ptr);
-    else if (!idl_isalnum((unsigned char)*ptr))
-      *ptr = '_';
-  }
-
-  return inc;
+  (void)user_data;
+  return print_decl_type(str, size, ptr, "::");
 }
 
 static idl_retcode_t print_header(FILE *fh, const char *in, const char *out)
@@ -209,21 +222,45 @@ static idl_retcode_t print_header(FILE *fh, const char *in, const char *out)
   return IDL_RETCODE_OK;
 }
 
-static idl_retcode_t print_guard_if(FILE *fh, const char *guard)
+static idl_retcode_t print_guard(FILE *fh, const char *in)
 {
-  static const char fmt[] =
-    "#ifndef %1$s\n"
-    "#define %1$s\n\n";
-  if (idl_fprintf(fh, fmt, guard) < 0)
+  if (fputs("DDSC_", fh) < 0)
+    return IDL_RETCODE_NO_MEMORY;
+  for (const char *ptr = in; *ptr; ptr++) {
+    int chr = (unsigned char)*ptr;
+    if (idl_islower((unsigned char)*ptr))
+      chr = idl_toupper((unsigned char)*ptr);
+    else if (!idl_isalnum((unsigned char)*ptr))
+      chr = '_';
+    if (fputc(chr, fh) == EOF)
+      return IDL_RETCODE_NO_MEMORY;
+  }
+
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t print_guard_if(FILE *fh, const char *in)
+{
+  if (fputs("#ifndef ", fh) < 0)
+    return IDL_RETCODE_NO_MEMORY;
+  if (print_guard(fh, in))
+    return IDL_RETCODE_NO_MEMORY;
+  if (fputs("\n#define ", fh) < 0)
+    return IDL_RETCODE_NO_MEMORY;
+  if (print_guard(fh, in))
+    return IDL_RETCODE_NO_MEMORY;
+  if (fputs("\n\n", fh) < 0)
     return IDL_RETCODE_NO_MEMORY;
   return IDL_RETCODE_OK;
 }
 
-static idl_retcode_t print_guard_endif(FILE *fh, const char *guard)
+static idl_retcode_t print_guard_endif(FILE *fh, const char *in)
 {
-  static const char fmt[] =
-    "#endif /* %1$s */\n";
-  if (idl_fprintf(fh, fmt, guard) < 0)
+  if (fputs("#endif /* ", fh) < 0)
+    return IDL_RETCODE_NO_MEMORY;
+  if (print_guard(fh, in))
+    return IDL_RETCODE_NO_MEMORY;
+  if (fputs(" */\n", fh) < 0)
     return IDL_RETCODE_NO_MEMORY;
   return IDL_RETCODE_OK;
 }
@@ -231,10 +268,10 @@ static idl_retcode_t print_guard_endif(FILE *fh, const char *guard)
 static idl_retcode_t print_includes(FILE *fh, const idl_source_t *source)
 {
   idl_retcode_t ret;
-  char *sep = NULL, *path;
+  char *sep = NULL, *path = NULL, *relpath = NULL;
   const idl_source_t *include;
 
-  if (!(path = IDLC_AUTO(idl_strdup(source->path->name))))
+  if (!(path = idl_strdup(source->path->name)))
     return IDL_RETCODE_NO_MEMORY;
   for (char *ptr = path; *ptr; ptr++)
     if (idl_isseparator(*ptr))
@@ -243,11 +280,9 @@ static idl_retcode_t print_includes(FILE *fh, const idl_source_t *source)
     *sep = '\0';
 
   for (include = source->includes; include; include = include->next) {
-    char *ext, *relpath = NULL;
+    char *ext;
     if ((ret = idl_relative_path(path, include->path->name, &relpath)))
-      return ret;
-    if (!(relpath = IDLC_AUTO(relpath)))
-      return IDL_RETCODE_NO_MEMORY;
+      goto err_relpath;
     ext = relpath;
     for (char *ptr = ext; *ptr; ptr++) {
       if (*ptr == '.')
@@ -257,17 +292,25 @@ static idl_retcode_t print_includes(FILE *fh, const idl_source_t *source)
       const char *fmt = "#include \"%.*s.h\"\n";
       int len = (int)(ext - relpath);
       if (idl_fprintf(fh, fmt, len, relpath) < 0)
-        return IDL_RETCODE_NO_MEMORY;
+        goto err_print;
     } else {
       const char *fmt = "#include \"%s\"\n";
       if (idl_fprintf(fh, fmt, relpath) < 0)
-        return IDL_RETCODE_NO_MEMORY;
+        goto err_print;
     }
     if (fputs("\n", fh) < 0)
-      return IDL_RETCODE_NO_MEMORY;
+      goto err_print;
+    free(relpath);
   }
 
+  free(path);
   return IDL_RETCODE_OK;
+err_print:
+  ret = IDL_RETCODE_NO_MEMORY;
+  free(relpath);
+err_relpath:
+  free(path);
+  return ret;
 }
 
 extern idl_retcode_t
@@ -277,16 +320,13 @@ idl_retcode_t
 generate_nosetup(const idl_pstate_t *pstate, struct generator *generator)
 {
   idl_retcode_t ret;
-  char *guard;
   const char *sep, *file = generator->path;
   char *const header_file = generator->header.path;
   char *const source_file = generator->source.path;
 
-  if (!(guard = IDLC_AUTO(figure_guard(header_file))))
-    return IDL_RETCODE_NO_MEMORY;
   if ((ret = print_header(generator->header.handle, file, header_file)))
     return ret;
-  if ((ret = print_guard_if(generator->header.handle, guard)))
+  if ((ret = print_guard_if(generator->header.handle, header_file)))
     return ret;
   if ((ret = print_includes(generator->header.handle, pstate->sources)))
     return ret;
@@ -307,22 +347,10 @@ generate_nosetup(const idl_pstate_t *pstate, struct generator *generator)
     return ret;
   if (fputs("#ifdef __cplusplus\n}\n#endif\n\n", generator->header.handle) < 0)
     return IDL_RETCODE_NO_MEMORY;
-  if ((ret = print_guard_endif(generator->header.handle, guard)))
+  if ((ret = print_guard_endif(generator->header.handle, header_file)))
     return ret;
 
   return IDL_RETCODE_OK;
-}
-
-static FILE *open_file(const char *pathname, const char *mode)
-{
-#if _WIN32
-  FILE *handle = NULL;
-  if (fopen_s(&handle, pathname, mode) != 0)
-    return NULL;
-  return handle;
-#else
-  return fopen(pathname, mode);
-#endif
 }
 
 idl_retcode_t
@@ -367,11 +395,11 @@ idlc_generate(const idl_pstate_t *pstate)
   sep = dir[0] == '\0' ? "" : "/";
   if (idl_asprintf(&generator.header.path, "%s%s%s.h", dir, sep, basename) < 0)
     goto err_header;
-  if (!(generator.header.handle = open_file(generator.header.path, "wb")))
+  if (!(generator.header.handle = idl_fopen(generator.header.path, "wb")))
     goto err_header;
   if (idl_asprintf(&generator.source.path, "%s%s%s.c", dir, sep, basename) < 0)
     goto err_source;
-  if (!(generator.source.handle = open_file(generator.source.path, "wb")))
+  if (!(generator.source.handle = idl_fopen(generator.source.path, "wb")))
     goto err_source;
   ret = generate_nosetup(pstate, &generator);
 

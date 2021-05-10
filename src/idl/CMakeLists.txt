@@ -23,9 +23,9 @@ set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 bison_target(parser src/parser.y "${binary_dir}/parser.c")
 
 # generate hashid.c from md5.h and md5.c to avoid code duplication
-file(READ "${CMAKE_SOURCE_DIR}/src/ddsrt/include/dds/ddsrt/endian.h" endian_h)
-file(READ "${CMAKE_SOURCE_DIR}/src/ddsrt/include/dds/ddsrt/md5.h" md5_h)
-file(READ "${CMAKE_SOURCE_DIR}/src/ddsrt/src/md5.c" md5_c)
+file(READ "${PROJECT_SOURCE_DIR}/src/ddsrt/include/dds/ddsrt/endian.h" endian_h)
+file(READ "${PROJECT_SOURCE_DIR}/src/ddsrt/include/dds/ddsrt/md5.h" md5_h)
+file(READ "${PROJECT_SOURCE_DIR}/src/ddsrt/src/md5.c" md5_c)
 string(CONCAT MD5 "${endian_h}" "${md5_h}" "${md5_c}")
 # remove occurrences of DDS_EXPORT
 string(REGEX REPLACE "\n[ \t]*DDS_EXPORT[ \t]+" "\n" MD5 "${MD5}")
@@ -53,6 +53,7 @@ add_library(
     src/tree.c
     src/visit.c
     src/thread.c
+    src/print.c
     ${CMAKE_CURRENT_BINARY_DIR}/hashid.c
     ${BISON_parser_OUTPUT_SOURCE})
 
@@ -96,6 +97,13 @@ install(
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib)
+if (MSVC)
+  install(FILES $<TARGET_PDB_FILE:idl>
+    DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    COMPONENT dev
+    OPTIONAL
+  )
+endif()
 
 if(BUILD_TESTING)
   add_subdirectory(tests)
