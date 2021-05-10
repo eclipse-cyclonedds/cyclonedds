@@ -174,7 +174,9 @@ typedef struct ddsi_serdata* (*ddsi_serdata_from_iox_t) (const struct ddsi_serty
 // Construct serdata from a sample in an efficient way suitable for iceoryx transport.
 // Depending on the implementation this does not need to actually serialize, allowing for
 // zero-copy data transfer.
-typedef struct ddsi_serdata* (*ddsi_serdata_from_sample_for_iox_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample);
+typedef struct ddsi_serdata *(*ddsi_serdata_from_loaned_sample_t)(
+    const struct ddsi_sertype *type, enum ddsi_serdata_kind kind,
+    const char *sample);
 #endif
 
 struct ddsi_serdata_ops {
@@ -196,7 +198,7 @@ struct ddsi_serdata_ops {
 #ifdef DDS_HAS_SHM
   ddsi_serdata_iox_size_t get_sample_size;
   ddsi_serdata_from_iox_t from_iox_buffer;
-  ddsi_serdata_from_sample_for_iox_t from_sample_for_iox;
+  ddsi_serdata_from_loaned_sample_t from_loaned_sample;
 #endif
 };
 
@@ -329,8 +331,16 @@ DDS_INLINE_EXPORT inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct
   return type->serdata_ops->from_iox_buffer(type, kind, sub, iox_buffer);
 }
 
-DDS_EXPORT inline struct ddsi_serdata* ddsi_serdata_from_sample_for_iox (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample) {
-  return type->serdata_ops->from_sample_for_iox(type, kind, sample);
+DDS_EXPORT inline struct ddsi_serdata *
+ddsi_serdata_from_loaned_sample(const struct ddsi_sertype *type,
+                                enum ddsi_serdata_kind kind,
+                                const char *sample) {
+  // the function may not exist for custom types and in this case we fall back
+  // to the regular from_sample
+  if (type->serdata_ops->from_loaned_sample) {
+    return type->serdata_ops->from_loaned_sample(type, kind, sample);
+  } 
+  return type->serdata_ops->from_sample(type, kind, sample);
 }
 #endif
 

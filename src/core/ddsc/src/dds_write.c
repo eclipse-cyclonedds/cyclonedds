@@ -415,8 +415,6 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
   struct thread_state1 * const ts1 = lookup_thread_state ();
   int ret = DDS_RETCODE_OK;
 
-  ddsi_serdata_ref (din);
-
   struct ddsi_serdata *d = convert_serdata(ddsi_wr, din);
 
   if (d == NULL)
@@ -425,10 +423,8 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
     return DDS_RETCODE_ERROR;
   }
 
-  if(d != din) {
-    ddsi_serdata_unref(din);
-    ddsi_serdata_ref(d);
-  }
+  thread_state_awake (ts1, ddsi_wr->e.gv);
+  ddsi_serdata_ref(d);
 
 #ifdef DDS_HAS_SHM
   // transfer ownership of an iceoryx chunk if it exists
@@ -436,11 +432,12 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
   din->iox_chunk = NULL;
 #endif
 
-  thread_state_awake (ts1, ddsi_wr->e.gv);
-
-  //always decreases refcount of d by 1
   ret = deliver_data(ddsi_wr, wr, d, xp, flush);
 
+  if(d != din)
+    ddsi_serdata_unref(din);
+  ddsi_serdata_unref(d);
+  
   thread_state_asleep (ts1);
   return ret;
 }
@@ -487,7 +484,6 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
 
   // 3. Check availability of iceoryx and reader status
-  // note: condition checking can be optimized - focus on readability first
 
   bool no_network_readers = addrset_empty (ddsi_wr->as);
   bool iceoryx_available = wr->m_iox_pub != NULL;
@@ -519,9 +515,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     // where we either have network readers (requiring serialization) or not.
 
     // do not serialize yet (may not need it if only using iceoryx or no readers)
-    // TODO: from loaned sample or move the decision to the from_sample itself
-    //       should call from_sample internally if for iox not avialble
-    d = ddsi_serdata_from_sample_for_iox (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+    d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
   } else {
     // serialize since we will need to send via network anyway
     d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
@@ -532,9 +526,9 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     goto finalize_write;
   }
 
-  // should be done in the serdata construction but we explicitly set it here for now
+  // should ideally be done in the serdata construction but we explicitly set it here for now
   if(iceoryx_available) {
-    d->iox_chunk = SHIFT_BACK_TO_ICEORYX_HEADER(data); // serialization has not been performed
+    d->iox_chunk = SHIFT_BACK_TO_ICEORYX_HEADER(data); // maybe serialization was performed
   } else {
     d->iox_chunk = NULL; // also indicates that serialization has been performed
   }
