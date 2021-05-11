@@ -427,7 +427,8 @@ static dds_return_t deliver_data (struct writer *ddsi_wr, dds_writer *wr, struct
 
 static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *din, bool flush, dds_writer *wr)
 {
-  // consumes 1 refc from dinp in all paths (weird, but ... history ...)
+  // consumes 1 refc from din in all paths (weird, but ... history ...)
+  // let refc(din) be r, so upon returning it must be r-1
   struct thread_state1 * const ts1 = lookup_thread_state ();
   int ret = DDS_RETCODE_OK;
 
@@ -435,12 +436,14 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
 
   if (d == NULL)
   {  
-    ddsi_serdata_unref(din);
+    ddsi_serdata_unref(din); // refc(din) = r - 1 as required
     return DDS_RETCODE_ERROR;
   }
 
+  // d = din: refc(d) = r, otherwise refc(d) = 1
+
   thread_state_awake (ts1, ddsi_wr->e.gv);
-  ddsi_serdata_ref(d);
+  ddsi_serdata_ref(d); // d = din: refc(d) = r + 1, otherwise refc(d) = 2
 
 #ifdef DDS_HAS_SHM
   // transfer ownership of an iceoryx chunk if it exists
@@ -448,11 +451,11 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
   din->iox_chunk = NULL;
 #endif
 
-  ret = deliver_data(ddsi_wr, wr, d, xp, flush);
+  ret = deliver_data(ddsi_wr, wr, d, xp, flush); // d = din: refc(d) = r, otherwise refc(d) = 1
 
   if(d != din)
-    ddsi_serdata_unref(din);
-  ddsi_serdata_unref(d);
+    ddsi_serdata_unref(din); // d != din: refc(din) = r - 1 as required, refc(d) unchanged
+  ddsi_serdata_unref(d); // d = din: refc(d) = r - 1, otherwise refc(din) = r-1 and refc(d) = 0
   
   thread_state_asleep (ts1);
   return ret;
@@ -539,6 +542,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
 
     // do not serialize yet (may not need it if only using iceoryx or no readers)
     d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+    //d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
   } else {
     // serialize since we will need to send via network anyway
     d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
@@ -548,6 +552,8 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     ret = DDS_RETCODE_BAD_PARAMETER;
     goto finalize_write;
   }
+
+  // refc(d) = 1 after successful construction
 
   // should ideally be done in the serdata construction but we explicitly set it here for now
   if(iceoryx_available) {
@@ -564,16 +570,16 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
 
   if(use_only_iceoryx) {
     // deliver via iceoryx only
-    ddsi_serdata_ref (d);
     if(deliver_data_via_iceoryx(wr, d)) {
       ret = DDS_RETCODE_OK;
     } else {
       ret = DDS_RETCODE_ERROR;
     }
-    ddsi_serdata_unref(d);
+    ddsi_serdata_unref(d); // refc(d) = 0
   } else {
     // this may convert the input data if needed (convert_serdata) and then deliver it using
     // network and/or iceoryx as required
+    // d refc(d) = 1, call will reduce refcount by 1
     ret = dds_writecdr_impl_common(ddsi_wr, wr->m_xp, d, !wr->whc_batch, wr);
   }
 
