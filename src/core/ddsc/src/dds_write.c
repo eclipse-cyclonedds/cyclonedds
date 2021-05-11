@@ -73,14 +73,24 @@ static void *create_iox_chunk(dds_writer *wr)
     void *sample;
     uint32_t sample_size = wr->m_topic->m_stype->iox_size;
     uint32_t chunk_size = DETERMINE_ICEORYX_CHUNK_SIZE(sample_size);
-    while (1)
+
+    // TODO: use a proper timeout to control the time it is allowed to take to obtain a chunk more accurately
+    // but for now only try a limited number of times (hence non-blocking).
+    // Otherwise we could block here forever and this also leads to problems with thread progress monitoring.
+
+    int32_t number_of_trys = 10; //try 10 times over at least 10ms, considering the wait time below
+
+    while (true)
     {
       enum iox_AllocationResult alloc_result = iox_pub_loan_chunk(wr->m_iox_pub, (void **) &ice_hdr, chunk_size);
       if (AllocationResult_SUCCESS == alloc_result)
         break;
-      // SHM_TODO: Maybe there is a better way to do while unable to allocate.
-      //           BTW, how long I should sleep is also another problem.
-      dds_sleepfor (DDS_MSECS (1));
+
+      if(--number_of_trys <= 0) {
+        return NULL;
+      }
+
+      dds_sleepfor (DDS_MSECS (1)); // TODO: how long should we wait?
     }
     ice_hdr->data_size = sample_size;
     sample = SHIFT_PAST_ICEORYX_HEADER(ice_hdr);
@@ -113,7 +123,13 @@ dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
   if (wr->m_iox_pub)
   {
     *sample = create_iox_chunk(wr);
-    register_pub_loan(wr, *sample);
+
+    if(*sample) {
+      register_pub_loan(wr, *sample);
+    } else {
+      ret = DDS_RETCODE_ERROR; // could not obtain a sample
+    }
+    
   } else {
     ret = DDS_RETCODE_UNSUPPORTED;
   }
@@ -485,23 +501,30 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
 
   // 3. Check availability of iceoryx and reader status
 
-  bool no_network_readers = addrset_empty (ddsi_wr->as);
   bool iceoryx_available = wr->m_iox_pub != NULL;
-  bool use_only_iceoryx = iceoryx_available && no_network_readers;
-
-  // iceoryx_available implies volatile 
-  // otherwise we need to add the check in the use_only_iceoryx expression
-  assert(!iceoryx_available || ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE);
 
   if(iceoryx_available) {
     //note: whether the data was loaned cannot be determined in the non-iceoryx case currently
     if(!deregister_pub_loan(wr, data))
     {
-      void* chunk_data = create_iox_chunk(wr); 
-      memcpy (chunk_data, data, wr->m_topic->m_stype->iox_size);
-      data = chunk_data; // note that this points to the data in the chunk which is preceded by the iceoryx header
+      void* chunk_data = create_iox_chunk(wr);
+      if(chunk_data) {
+        memcpy (chunk_data, data, wr->m_topic->m_stype->iox_size);
+        data = chunk_data; // note that this points to the data in the chunk which is preceded by the iceoryx header
+      } else {
+        // we failed to obtain a chunk, iceoryx transport is thus not available
+        // we will use the network path instead
+        iceoryx_available = false;
+      } 
     } 
-  } 
+  }
+
+  bool no_network_readers = addrset_empty (ddsi_wr->as);
+  bool use_only_iceoryx = iceoryx_available && no_network_readers;
+
+  // iceoryx_available implies volatile 
+  // otherwise we need to add the check in the use_only_iceoryx expression
+  assert(!iceoryx_available || ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE);
 
   // 4. Prepare serdata
   // avoid serialization for volatile writers if there are no network readers
