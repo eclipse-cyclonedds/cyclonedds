@@ -2617,6 +2617,7 @@ bool idl_is_annotation_appl(const void *ptr)
 {
 #if !defined(NDEBUG)
   static const idl_mask_t mask = IDL_MODULE |
+                                 IDL_ENUM |
                                  IDL_STRUCT | IDL_MEMBER |
                                  IDL_UNION | IDL_SWITCH_TYPE_SPEC;
 #endif
@@ -2791,9 +2792,8 @@ static bool no_specific_key(const void *node)
       if (member->key == IDL_TRUE)
         return false;
     }
-  } else {
-    assert(idl_mask(node) & IDL_UNION);
-    if (((const idl_union_t *)node)->switch_type_spec->key == IDL_TRUE)
+  } else if (idl_mask(node) & IDL_UNION) {
+    if (((const idl_union_t*)node)->switch_type_spec->key == IDL_TRUE)
       return false;
   }
 
