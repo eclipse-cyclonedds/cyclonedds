@@ -1278,7 +1278,7 @@ static int convert_network_partition_addresses (struct ddsi_domaingv *gv, uint32
         loc.port = port_data_uc;
         nextpp = &nextp_uc;
       }
-      assert (nextpp && *nextpp && **nextpp);
+      assert (nextpp && *nextpp);
 
       if (rc == -1)
         continue;
