@@ -1288,10 +1288,11 @@ static int convert_network_partition_addresses (struct ddsi_domaingv *gv, uint32
         rc = -1;
         continue;
       }
-      assert (**nextpp);
       (**nextpp)->loc = loc;
       (**nextpp)->next = NULL;
+      DDSRT_WARNING_MSVC_OFF(6011);
       *nextpp = &(**nextpp)->next;
+      DDSRT_WARNING_MSVC_ON(6011);
     }
     ddsrt_free (copy);
     ddsrt_free (msgtag);
