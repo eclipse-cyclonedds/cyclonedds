@@ -1288,6 +1288,7 @@ static int convert_network_partition_addresses (struct ddsi_domaingv *gv, uint32
         rc = -1;
         continue;
       }
+      assert (**nextpp);
       (**nextpp)->loc = loc;
       (**nextpp)->next = NULL;
       *nextpp = &(**nextpp)->next;
