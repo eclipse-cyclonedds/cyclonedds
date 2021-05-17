@@ -1278,7 +1278,7 @@ static int convert_network_partition_addresses (struct ddsi_domaingv *gv, uint32
         loc.port = port_data_uc;
         nextpp = &nextp_uc;
       }
-      assert (nextpp && *nextpp && **nextpp);
+      assert (nextpp && *nextpp);
 
       if (rc == -1)
         continue;
@@ -1290,7 +1290,9 @@ static int convert_network_partition_addresses (struct ddsi_domaingv *gv, uint32
       }
       (**nextpp)->loc = loc;
       (**nextpp)->next = NULL;
+      DDSRT_WARNING_MSVC_OFF(6011);
       *nextpp = &(**nextpp)->next;
+      DDSRT_WARNING_MSVC_ON(6011);
     }
     ddsrt_free (copy);
     ddsrt_free (msgtag);
