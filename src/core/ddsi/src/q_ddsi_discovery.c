@@ -173,14 +173,15 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
     allow_loopback = (a || b);
   }
 
-  // if any non-loopback address is identical to one of our own addresses, assume it is the
-  // same machine, in which case loopback addresses may be picked up
+  // if any non-loopback address is identical to one of our own addresses (actual or advertised),
+  // assume it is the same machine, in which case loopback addresses may be picked up
   for (struct nn_locators_one *l = uc->first; l != NULL && !allow_loopback; l = l->next)
   {
     if (ddsi_is_loopbackaddr (gv, &l->loc))
       continue;
     for (int i = 0; i < gv->n_interfaces && !allow_loopback; i++)
-      allow_loopback = (memcmp (l->loc.address, gv->interfaces[i].loc.address, sizeof (l->loc.address)) == 0);
+      allow_loopback = (memcmp (l->loc.address, gv->interfaces[i].loc.address, sizeof (l->loc.address)) == 0 ||
+                        memcmp (l->loc.address, gv->interfaces[i].extloc.address, sizeof (l->loc.address)) == 0);
   }
   //GVTRACE(" allow_loopback=%d\n", allow_loopback);
 

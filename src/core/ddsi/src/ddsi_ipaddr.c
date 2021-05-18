@@ -57,7 +57,7 @@ int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr
 
 enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface interf[], size_t *interf_idx)
 {
-  struct sockaddr_storage tmp, iftmp, nmtmp;
+  struct sockaddr_storage tmp, iftmp, xiftmp, nmtmp;
   ddsi_ipaddr_from_loc(&tmp, loc);
   for (size_t i = 0; i < ninterf; i++)
   {
@@ -65,8 +65,10 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locato
       continue;
 
     ddsi_ipaddr_from_loc(&iftmp, &interf[i].loc);
+    ddsi_ipaddr_from_loc(&xiftmp, &interf[i].extloc);
     ddsi_ipaddr_from_loc(&nmtmp, &interf[i].netmask);
-    if (ddsrt_sockaddr_insamesubnet ((struct sockaddr *) &tmp, (struct sockaddr *) &iftmp, (struct sockaddr *) &nmtmp))
+    if (ddsrt_sockaddr_insamesubnet ((struct sockaddr *) &tmp, (struct sockaddr *) &iftmp, (struct sockaddr *) &nmtmp) ||
+        ddsrt_sockaddr_insamesubnet ((struct sockaddr *) &tmp, (struct sockaddr *) &xiftmp, (struct sockaddr *) &nmtmp))
     {
       if (interf_idx)
         *interf_idx = i;
