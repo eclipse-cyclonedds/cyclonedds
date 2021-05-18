@@ -363,14 +363,13 @@ static int set_ext_address_and_mask (struct ddsi_domaingv *gv)
   int rc;
 
   if (!gv->config.externalAddressString)
-    set_unspec_locator (&gv->extloc);
+    set_unspec_locator (&loc);
   else if ((rc = string_to_default_locator (gv, &loc, gv->config.externalAddressString, 0, 0, "external address")) < 0)
     return rc;
-  else if (rc == 0) {
+  else if (rc == 0)
+  {
     GVWARNING ("Ignoring ExternalNetworkAddress %s\n", gv->config.externalAddressString);
-    set_unspec_locator (&gv->extloc);
-  } else {
-    gv->extloc = loc;
+    set_unspec_locator (&loc);
   }
 
   if (!gv->config.externalMaskString || strcmp (gv->config.externalMaskString, "0.0.0.0") == 0)
@@ -384,21 +383,43 @@ static int set_ext_address_and_mask (struct ddsi_domaingv *gv)
     GVERROR ("external network masks only supported in IPv4 mode\n");
     return -1;
   }
+  else if (gv->n_interfaces != 1)
+  {
+    GVERROR ("external network masks only supported with a single interface\n");
+    return -1;
+  }
   else
   {
     if ((rc = string_to_default_locator (gv, &gv->extmask, gv->config.externalMaskString, 0, -1, "external mask")) < 0)
       return rc;
   }
 
-  if (!is_unspec_locator (&gv->extloc))
+  if (!is_unspec_locator (&loc))
   {
-    if (gv->n_interfaces > 1)
+    int non_loopback_intf = -1;
+    for (int i = 0; i < gv->n_interfaces; i++)
     {
-      GVERROR ("external network address specification only supported when using a single interface\n");
+      if (gv->interfaces[i].loopback || gv->interfaces[i].link_local)
+        continue;
+      else if (non_loopback_intf == -1)
+        non_loopback_intf = i;
+      else
+      {
+        non_loopback_intf = -1;
+        break;
+      }
+    }
+    if (non_loopback_intf == -1)
+    {
+      GVERROR ("external network address specification only supported if there is a unique non-loopback interface\n");
       return -1;
     }
-    if (gv->interfaces[0].loc.kind != gv->extloc.kind)
-      DDS_FATAL ("mismatch between network address kinds\n");
+    if (gv->interfaces[non_loopback_intf].loc.kind != loc.kind)
+    {
+      GVERROR ("external network address kind does not match unique non-loopback interface\n");
+      return -1;
+    }
+    gv->interfaces[non_loopback_intf].extloc = loc;
   }
   return 0;
 }
@@ -1180,6 +1201,7 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
       intf->if_index = gv->interfaces[i].if_index + 1;
   intf->link_local = true; // Makes it so that non-local addresses are ignored
   intf->loc = gv->loc_iceoryx_addr;
+  intf->extloc = intf->loc;
   intf->loopback = false;
   intf->mc_capable = true; // FIXME: matters most for discovery, this avoids auto-lack-of-multicast-mitigation
   intf->mc_flaky = false;
@@ -1431,13 +1453,17 @@ int rtps_init (struct ddsi_domaingv *gv)
     goto err_set_ext_address;
 
   {
-    char buf[DDSI_LOCSTRLEN];
+    char buf[DDSI_LOCSTRLEN], buf2[DDSI_LOCSTRLEN];
     /* the "ownip", "extip" labels in the trace have been there for so long, that it seems worthwhile to retain them even though they need not be IP any longer */
     GVLOG (DDS_LC_CONFIG, "ownip: ");
     for (int i = 0; i < gv->n_interfaces; i++)
-      GVLOG (DDS_LC_CONFIG, "%s%s", (i == 0) ? "" : ", ", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->interfaces[i].loc));
+    {
+      if (compare_locators(&gv->interfaces[i].loc, &gv->interfaces[i].extloc) == 0)
+        GVLOG (DDS_LC_CONFIG, "%s%s", (i == 0) ? "" : ", ", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->interfaces[i].loc));
+      else
+        GVLOG (DDS_LC_CONFIG, "%s%s (ext: %s)", (i == 0) ? "" : ", ", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->interfaces[i].loc), ddsi_locator_to_string_no_port (buf2, sizeof(buf2), &gv->interfaces[i].extloc));
+    }
     GVLOG (DDS_LC_CONFIG, "\n");
-    GVLOG (DDS_LC_CONFIG, "extip: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extloc));
     GVLOG (DDS_LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extmask), gv->extmask.kind != NN_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
     GVLOG (DDS_LC_CONFIG, "SPDP MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_spdp_mc));
     GVLOG (DDS_LC_CONFIG, "default MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_default_mc));

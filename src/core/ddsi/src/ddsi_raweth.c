@@ -168,7 +168,7 @@ static int ddsi_raweth_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t 
   {
     loc->kind = NN_LOCATOR_KIND_RAWETH;
     loc->port = uc->m_base.m_base.m_port;
-    memcpy(loc->address, uc->m_base.m_base.gv->extloc.address, sizeof (loc->address));
+    memcpy(loc->address, uc->m_base.m_base.gv->interfaces[0].loc.address, sizeof (loc->address));
     ret = 0;
   }
   return ret;

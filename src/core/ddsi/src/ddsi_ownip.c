@@ -308,6 +308,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
       interfaces[n_interfaces].netmask.port = NN_LOCATOR_PORT_INVALID;
       memset(&interfaces[n_interfaces].netmask.address, 0, sizeof(interfaces[n_interfaces].netmask.address));
     }
+    interfaces[n_interfaces].extloc = interfaces[n_interfaces].loc;
     interfaces[n_interfaces].mc_capable = ((ifa->flags & IFF_MULTICAST) != 0);
     interfaces[n_interfaces].mc_flaky = ((ifa->type == DDSRT_IFTYPE_WIFI) != 0);
     interfaces[n_interfaces].point_to_point = ((ifa->flags & IFF_POINTOPOINT) != 0);
