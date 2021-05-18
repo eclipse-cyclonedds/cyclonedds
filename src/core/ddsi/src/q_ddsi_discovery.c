@@ -200,7 +200,22 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
       continue;
 
     ddsi_locator_t loc = l->loc;
-    if (loc.kind == NN_LOCATOR_KIND_UDPv4 && gv->extmask.kind != NN_LOCATOR_KIND_INVALID)
+
+    // if the advertised locator matches our own external locator, than presumably
+    // it is the same machine and should be addressed using the actual interface
+    // address
+    bool extloc_of_self = false;
+    for (int i = 0; i < gv->n_interfaces; i++)
+    {
+      if (loc.kind == gv->interfaces[i].loc.kind && memcmp (loc.address, gv->interfaces[i].extloc.address, sizeof (loc.address)) == 0)
+      {
+        memcpy (loc.address, gv->interfaces[i].loc.address, sizeof (loc.address));
+        extloc_of_self = true;
+        break;
+      }
+    }
+
+    if (!extloc_of_self && loc.kind == NN_LOCATOR_KIND_UDPv4 && gv->extmask.kind != NN_LOCATOR_KIND_INVALID)
     {
       /* If the examined locator is in the same subnet as our own
          external IP address, this locator will be translated into one
