@@ -196,9 +196,6 @@ struct ddsi_domaingv {
   struct config_in_addr_node *recvips;
   ddsi_locator_t extmask;
 
-  // extloc: if not UNSPEC, overrides advertised address
-  ddsi_locator_t extloc;
-
   /* Locators */
 
   ddsi_locator_t loc_spdp_mc;

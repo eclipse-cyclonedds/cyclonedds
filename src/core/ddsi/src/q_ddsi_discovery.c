@@ -207,7 +207,7 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
       assert (gv->n_interfaces == 1); // gv->extmask: the hack is only supported if limited to a single interface
       struct in_addr tmp4 = *((struct in_addr *) (loc.address + 12));
       const struct in_addr ownip = *((struct in_addr *) (gv->interfaces[0].loc.address + 12));
-      const struct in_addr extip = *((struct in_addr *) (gv->extloc.address + 12));
+      const struct in_addr extip = *((struct in_addr *) (gv->interfaces[0].extloc.address + 12));
       const struct in_addr extmask = *((struct in_addr *) (gv->extmask.address + 12));
 
       if ((tmp4.s_addr & extmask.s_addr) == (extip.s_addr & extmask.s_addr))
@@ -398,8 +398,8 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
           continue;
         }
         // FIXME: should have multiple loc_default_uc/loc_meta_uc or compute ports here
-        locators_add_one (&def_uni, &pp->e.gv->interfaces[i].loc, pp->e.gv->loc_default_uc.port);
-        locators_add_one (&meta_uni, &pp->e.gv->interfaces[i].loc, pp->e.gv->loc_meta_uc.port);
+        locators_add_one (&def_uni, &pp->e.gv->interfaces[i].extloc, pp->e.gv->loc_default_uc.port);
+        locators_add_one (&meta_uni, &pp->e.gv->interfaces[i].extloc, pp->e.gv->loc_meta_uc.port);
       }
     }
     if (pp->e.gv->config.publish_uc_locators)
@@ -1179,7 +1179,7 @@ static int sedp_write_endpoint_impl
               continue;
             }
             // FIXME: should have multiple loc_default_uc/loc_meta_uc or compute ports here
-            ddsi_locator_t loc = epcommon->pp->e.gv->interfaces[i].loc;
+            ddsi_locator_t loc = epcommon->pp->e.gv->interfaces[i].extloc;
             loc.port = epcommon->pp->e.gv->loc_default_uc.port;
             add_locator_to_ps(&loc, &arg);
           }
