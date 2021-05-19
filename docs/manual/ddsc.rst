@@ -12,5 +12,10 @@
 Eclipse Cyclone DDS C API Reference
 ===================================
 
-.. doxygenindex::
-   :project: ddsc_api_docs
+.. toctree::
+   :maxdepth: 1
+   :caption: API
+   :glob:
+
+   apigroups/*
+   ddsc_api_docs/library_root
