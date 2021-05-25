@@ -277,7 +277,7 @@ create_node(
   node->describe = methods->describe;
   node->references = 1;
 
-  *((idl_node_t **)nodep) = node;
+  *((void **)nodep) = (void *)node;
   return IDL_RETCODE_OK;
 }
 
