@@ -485,7 +485,7 @@ CU_Test(idl_annotation, bit_bound)
       idl_enum_t *e = (idl_enum_t *)pstate->root;
       CU_ASSERT_EQUAL(e->bit_bound, tests[i].value);
     } else {
-      CU_FAIL();
+      CU_FAIL_FATAL("Invalid data type");
     }
     idl_delete_pstate(pstate);
   }
