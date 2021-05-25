@@ -85,13 +85,14 @@ idl_type_t idl_type(const void *node)
   else if (idl_mask(node) & IDL_ENUMERATOR)
     return IDL_ENUM;
 
-  mask = idl_mask(node) & ((IDL_TYPEDEF << 1) - 1);
+  mask = idl_mask(node) & ((IDL_BITMASK << 1) - 1);
   switch (mask) {
     case IDL_TYPEDEF:
     /* constructed types */
     case IDL_STRUCT:
     case IDL_UNION:
     case IDL_ENUM:
+    case IDL_BITMASK:
     /* template types */
     case IDL_SEQUENCE:
     case IDL_STRING:
@@ -143,6 +144,10 @@ const idl_name_t *idl_name(const void *node)
     return ((const idl_enum_t *)node)->name;
   if (idl_mask(node) & IDL_ENUMERATOR)
     return ((const idl_enumerator_t *)node)->name;
+  if (idl_mask(node) & IDL_BITMASK)
+    return ((const idl_bitmask_t *)node)->name;
+  if (idl_mask(node) & IDL_BIT_VALUE)
+    return ((const idl_bit_value_t *)node)->name;
   if (idl_mask(node) & IDL_DECLARATOR)
     return ((const idl_declarator_t *)node)->name;
   if (idl_mask(node) & IDL_CONST)
@@ -349,7 +354,7 @@ bool idl_is_module(const void *ptr)
 {
 #if !defined NDEBUG
   static const idl_mask_t mask =
-    IDL_MODULE | IDL_CONST | IDL_STRUCT | IDL_UNION | IDL_ENUM |
+    IDL_MODULE | IDL_CONST | IDL_STRUCT | IDL_UNION | IDL_ENUM | IDL_BITMASK |
     IDL_TYPEDEF | IDL_ANNOTATION;
 #endif
   const idl_module_t *node = ptr;
@@ -772,6 +777,16 @@ uint32_t idl_bound(const void *node)
   return 0u;
 }
 
+uint16_t idl_bit_bound(const void *node)
+{
+  idl_mask_t mask = idl_mask(node);
+  if ((mask & IDL_BITMASK) == IDL_BITMASK)
+    return ((const idl_bitmask_t *)node)->bit_bound;
+  if ((mask & IDL_ENUM) == IDL_ENUM)
+    return ((const idl_enum_t *)node)->bit_bound;
+  return 0u;
+}
+
 bool idl_is_sequence(const void *ptr)
 {
   idl_mask_t mask;
@@ -785,7 +800,7 @@ bool idl_is_sequence(const void *ptr)
   type_spec = node->type_spec;
   if (idl_mask(type_spec) & IDL_DECLARATOR)
     type_spec = ((const idl_node_t *)type_spec)->parent;
-  mask = IDL_STRUCT | IDL_UNION | IDL_ENUM | IDL_TYPEDEF |
+  mask = IDL_STRUCT | IDL_UNION | IDL_ENUM | IDL_BITMASK | IDL_TYPEDEF |
          IDL_SEQUENCE | IDL_STRING | IDL_BASE_TYPE;
   (void)mask;
   assert(idl_mask(type_spec) & mask);
@@ -895,7 +910,7 @@ err_node:
 
 bool idl_is_constr_type(const void *node)
 {
-  return (idl_mask(node) & (IDL_STRUCT | IDL_UNION | IDL_ENUM)) != 0;
+  return (idl_mask(node) & (IDL_STRUCT | IDL_UNION | IDL_ENUM | IDL_BITMASK)) != 0;
 }
 
 bool idl_is_struct(const void *ptr)
@@ -2077,6 +2092,178 @@ err_alloc:
   return ret;
 }
 
+bool idl_is_bitmask(const void *ptr)
+{
+  const idl_bitmask_t *node = ptr;
+
+  if (!(idl_mask(node) & IDL_BITMASK))
+    return false;
+  /* a bitmask must have a name */
+  assert(node->name && node->name->identifier);
+  /* an bitmask must have no parent or a module parent */
+  assert(!node->node.parent || (idl_mask(node->node.parent) & IDL_MODULE));
+  /* an bitmask must have at least one bit value */
+  assert(!node->bit_values || (idl_mask(node->bit_values) & IDL_BIT_VALUE));
+  return true;
+}
+
+static void delete_bitmask(void *ptr)
+{
+  idl_bitmask_t *node = ptr;
+  idl_delete_node(node->bit_values);
+  idl_delete_name(node->name);
+  free(node);
+}
+
+static void *iterate_bitmask(const void *ptr, const void *cur)
+{
+  const idl_bitmask_t *root = ptr;
+  const idl_node_t *node = cur;
+  assert(root);
+  if (node) {
+    assert(idl_parent(node) == root);
+    if (node->next)
+      return node->next;
+    if (idl_is_annotation_appl(node))
+      return root->bit_values;
+    return NULL;
+  }
+  if (root->node.annotations)
+    return root->node.annotations;
+  return root->bit_values;
+}
+
+static const char *describe_bitmask(const void *ptr)
+{
+  (void)ptr;
+  assert(idl_mask(ptr) == IDL_BITMASK);
+  return "bitmask";
+}
+
+idl_retcode_t
+idl_create_bitmask(
+  idl_pstate_t *pstate,
+  const idl_location_t *location,
+  idl_name_t *name,
+  idl_bit_value_t *bit_values,
+  void *nodep)
+{
+  idl_retcode_t ret;
+  idl_bitmask_t *node;
+  static const size_t size = sizeof(*node);
+  static const idl_mask_t mask = IDL_BITMASK;
+  static const struct methods methods = {
+    delete_bitmask, iterate_bitmask, describe_bitmask };
+  static const enum idl_declaration_kind kind = IDL_SPECIFIER_DECLARATION;
+  uint16_t position = 0;
+
+  if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
+    goto err_alloc;
+  node->name = name;
+
+  assert(bit_values);
+  node->bit_values = bit_values;
+  for (idl_bit_value_t *e1 = bit_values; e1; e1 = idl_next(e1), position++) {
+    e1->node.parent = (idl_node_t*)node;
+
+    for (idl_annotation_appl_t *a = e1->node.annotations; a; a = idl_next(a)) {
+      assert(a->annotation);
+      if (strcmp(a->annotation->name->identifier, "position") != 0)
+        continue;
+      position = e1->position;
+      break;
+    }
+    e1->position = position;
+    for (idl_bit_value_t *e2 = bit_values; e2; e2 = idl_next(e2)) {
+      if (e2 == e1)
+        break;
+      if (e2->position != e1->position)
+        continue;
+      idl_error(pstate, idl_location(e1),
+        "Position of bit value '%s' clashes with the position of bit value '%s'",
+        e1->name->identifier, e2->name->identifier);
+      ret = IDL_RETCODE_SEMANTIC_ERROR;
+      goto err_clash;
+    }
+  }
+
+  if ((ret = idl_declare(pstate, kind, name, node, NULL, NULL)))
+    goto err_declare;
+
+  *((idl_bitmask_t **)nodep) = node;
+  return IDL_RETCODE_OK;
+err_declare:
+err_clash:
+  free(node);
+err_alloc:
+  return ret;
+}
+
+bool idl_is_bit_value(const void *ptr)
+{
+  const idl_bit_value_t *node = ptr;
+
+  if (!(idl_mask(node) & IDL_BIT_VALUE))
+    return false;
+  /* an enumerator must have an enum parent */
+  assert(!node->node.parent || (idl_mask(node->node.parent) & IDL_BITMASK));
+  return true;
+}
+
+static void delete_bit_value(void *ptr)
+{
+  idl_bit_value_t *node = ptr;
+  idl_delete_name(node->name);
+  free(node);
+}
+
+static void *iterate_bit_value(const void *ptr, const void *cur)
+{
+  const idl_bit_value_t *root = ptr;
+  const idl_node_t *node = cur;
+  assert(root);
+  assert(!node || idl_parent(node) == root);
+  if (node)
+    return node->next;
+  return root->node.annotations;
+}
+
+static const char *describe_bit_value(const void *ptr)
+{
+  (void)ptr;
+  assert(idl_mask(ptr) == IDL_BIT_VALUE);
+  return "bit_value";
+}
+
+idl_retcode_t
+idl_create_bit_value(
+  idl_pstate_t *pstate,
+  const idl_location_t *location,
+  idl_name_t *name,
+  void *nodep)
+{
+  idl_retcode_t ret;
+  idl_bit_value_t *node;
+  static const size_t size = sizeof(*node);
+  static const idl_mask_t mask = IDL_BIT_VALUE;
+  static const struct methods methods = {
+    delete_bit_value, iterate_bit_value, describe_bit_value };
+  static const enum idl_declaration_kind kind = IDL_SPECIFIER_DECLARATION;
+
+  if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
+    goto err_alloc;
+  node->name = name;
+  if ((ret = idl_declare(pstate, kind, name, node, NULL, NULL)))
+    goto err_declare;
+
+  *((idl_bit_value_t **)nodep) = node;
+  return IDL_RETCODE_OK;
+err_declare:
+  free(node);
+err_alloc:
+  return ret;
+}
+
 bool idl_is_alias(const void *ptr)
 {
   const idl_declarator_t *node = ptr;
@@ -2619,7 +2806,8 @@ bool idl_is_annotation_appl(const void *ptr)
   static const idl_mask_t mask = IDL_MODULE |
                                  IDL_ENUM |
                                  IDL_STRUCT | IDL_MEMBER |
-                                 IDL_UNION | IDL_SWITCH_TYPE_SPEC;
+                                 IDL_UNION | IDL_SWITCH_TYPE_SPEC |
+                                 IDL_BITMASK;
 #endif
   const idl_annotation_appl_t *node = ptr;
 

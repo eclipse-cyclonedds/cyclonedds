@@ -200,6 +200,21 @@ idl_create_enum(
   void *nodep);
 
 idl_retcode_t
+idl_create_bit_value(
+  idl_pstate_t *pstate,
+  const idl_location_t *location,
+  idl_name_t *name,
+  void *nodep);
+
+idl_retcode_t
+idl_create_bitmask(
+  idl_pstate_t *pstate,
+  const idl_location_t *location,
+  idl_name_t *name,
+  idl_bit_value_t *bit_values,
+  void *nodep);
+
+idl_retcode_t
 idl_create_typedef(
   idl_pstate_t *pstate,
   const idl_location_t *location,

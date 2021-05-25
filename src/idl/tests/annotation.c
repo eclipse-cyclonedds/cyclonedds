@@ -446,3 +446,50 @@ CU_Test(idl_annotation, parameter_scope)
 #undef M
 #undef A
 #undef TA
+
+
+#define BM(i) "@bit_bound(" i ") bitmask MyBitMask { @position(0) flag0 };"
+#define E(i) "@bit_bound(" i ") enum MyEnum { ENUM1, ENUM2 };"
+CU_Test(idl_annotation, bit_bound)
+{
+  static const struct {
+    const char *str;
+    uint16_t value;
+  } tests[] = {
+    { BM("0"), 0 },
+    { BM("1"), 1 },
+    { BM("8"), 8 },
+    { BM("63"), 63 },
+    { BM("64"), 64 },
+    { E("0"), 0 },
+    { E("10"), 10 },
+    { E("32"), 32 },
+  };
+  static const size_t n = sizeof(tests)/sizeof(tests[0]);
+
+  idl_retcode_t ret;
+  idl_pstate_t *pstate;
+
+  for (size_t i = 0; i < n; i++) {
+    pstate = NULL;
+    ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
+    CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+    assert(pstate);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate->root);
+    assert(pstate->root);
+    if (idl_is_bitmask(pstate->root)) {
+      idl_bitmask_t *b = (idl_bitmask_t *)pstate->root;
+      CU_ASSERT_EQUAL(b->bit_bound, tests[i].value);
+    } else if (idl_is_enum(pstate->root)) {
+      idl_enum_t *e = (idl_enum_t *)pstate->root;
+      CU_ASSERT_EQUAL(e->bit_bound, tests[i].value);
+    } else {
+      CU_FAIL();
+    }
+    idl_delete_pstate(pstate);
+  }
+}
+
+#undef BM
+#undef E

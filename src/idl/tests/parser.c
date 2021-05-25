@@ -245,3 +245,31 @@ CU_Test(idl_parser, struct_in_struct_other_module)
 //   x.x. see union
 // x. constant expressions
 // x. identifier that collides with a keyword
+
+CU_Test(idl_parser, bitmask)
+{
+  idl_retcode_t ret;
+  idl_pstate_t *pstate = NULL;
+  idl_bitmask_t *bm;
+  idl_bit_value_t *bv1, *bv2;
+  const char str[] = "bitmask MyBitmask { flag0, flag1, flag2 };";
+
+  ret = idl_create_pstate(0u, NULL, &pstate);
+  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  CU_ASSERT_PTR_NOT_NULL(pstate);
+  assert(pstate);
+  ret = idl_parse_string(pstate, str);
+  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  bm = (idl_bitmask_t *)pstate->root;
+  CU_ASSERT_FATAL(idl_is_bitmask(bm));
+  bv1 = (idl_bit_value_t *)bm->bit_values;
+  CU_ASSERT_FATAL(idl_is_bit_value(bv1));
+  CU_ASSERT_PTR_EQUAL(bv1->node.parent, bm);
+  CU_ASSERT_EQUAL_FATAL(bv1->position, 0);
+  bv2 = idl_next(bv1);
+  CU_ASSERT_FATAL(idl_is_bit_value(bv2));
+  CU_ASSERT_PTR_EQUAL(bv2->node.parent, bm);
+  CU_ASSERT_EQUAL_FATAL(bv2->position, 1);
+  idl_delete_pstate(pstate);
+}
+
