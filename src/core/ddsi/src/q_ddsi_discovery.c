@@ -70,7 +70,7 @@ static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv,
       return;
   }
 #else
-  if (ddsi_is_mcaddr (gv, &loc->loc) && !(allow_multicast & AMC_ASM))
+  if (ddsi_is_mcaddr (gv, &loc->c) && !(allow_multicast & DDSI_AMC_ASM))
     return;
 #endif
   add_xlocator_to_addrset (gv, as, loc);
