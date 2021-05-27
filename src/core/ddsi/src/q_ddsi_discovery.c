@@ -398,25 +398,37 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
   {
     struct locators_builder def_uni = locators_builder_init (&dst->default_unicast_locators, locs->def_uni, MAX_XMIT_CONNS);
     struct locators_builder meta_uni = locators_builder_init (&dst->metatraffic_unicast_locators, locs->meta_uni, MAX_XMIT_CONNS);
-    if (pp->e.gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
+    for (int i = 0; i < pp->e.gv->n_interfaces; i++)
     {
-      locators_add_one (&def_uni, &pp->m_locator, NN_LOCATOR_PORT_INVALID);
-      locators_add_one (&meta_uni, &pp->m_locator, NN_LOCATOR_PORT_INVALID);
-    }
-    else
-    {
-      for (int i = 0; i < pp->e.gv->n_interfaces; i++)
+      if (!pp->e.gv->xmit_conns[i]->m_factory->m_enable_spdp)
       {
-        if (!pp->e.gv->xmit_conns[i]->m_factory->m_enable_spdp)
-        {
-          // skip any interfaces where the address kind doesn't match the selected transport
-          // as a reasonablish way of not advertising iceoryx locators here
-          continue;
-        }
-        // FIXME: should have multiple loc_default_uc/loc_meta_uc or compute ports here
-        locators_add_one (&def_uni, &pp->e.gv->interfaces[i].extloc, pp->e.gv->loc_default_uc.port);
-        locators_add_one (&meta_uni, &pp->e.gv->interfaces[i].extloc, pp->e.gv->loc_meta_uc.port);
+        // skip any interfaces where the address kind doesn't match the selected transport
+        // as a reasonablish way of not advertising iceoryx locators here
+        continue;
       }
+#ifndef NDEBUG
+      int32_t kind;
+#endif
+      uint32_t data_port, meta_port;
+      if (pp->e.gv->config.many_sockets_mode != DDSI_MSM_MANY_UNICAST)
+      {
+#ifndef NDEBUG
+        kind = pp->e.gv->loc_default_uc.kind;
+#endif
+        assert (kind == pp->e.gv->loc_meta_uc.kind);
+        data_port = pp->e.gv->loc_default_uc.port;
+        meta_port = pp->e.gv->loc_meta_uc.port;
+      }
+      else
+      {
+#ifndef NDEBUG
+        kind = pp->m_locator.kind;
+#endif
+        data_port = meta_port = pp->m_locator.port;
+      }
+      assert (kind == pp->e.gv->interfaces[i].extloc.kind);
+      locators_add_one (&def_uni, &pp->e.gv->interfaces[i].extloc, data_port);
+      locators_add_one (&meta_uni, &pp->e.gv->interfaces[i].extloc, meta_port);
     }
     if (pp->e.gv->config.publish_uc_locators)
     {
