@@ -49,6 +49,7 @@ DDS_EXPORT void gcreq_queue_drain (struct gcreq_queue *q);
 DDS_EXPORT void gcreq_queue_free (struct gcreq_queue *q);
 
 DDS_EXPORT struct gcreq *gcreq_new (struct gcreq_queue *gcreq_queue, gcreq_cb_t cb);
+DDS_EXPORT bool gcreq_queue_start (struct gcreq_queue *q);
 DDS_EXPORT void gcreq_free (struct gcreq *gcreq);
 DDS_EXPORT void gcreq_enqueue (struct gcreq *gcreq);
 DDS_EXPORT int gcreq_requeue (struct gcreq *gcreq, gcreq_cb_t cb);

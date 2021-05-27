@@ -196,16 +196,22 @@ struct gcreq_queue *gcreq_queue_new (struct ddsi_domaingv *gv)
   q->terminate = 0;
   q->count = 0;
   q->gv = gv;
+  q->ts = NULL;
   ddsrt_mutex_init (&q->lock);
   ddsrt_cond_init (&q->cond);
-  if (create_thread (&q->ts, gv, "gc", (uint32_t (*) (void *)) gcreq_queue_thread, q) == DDS_RETCODE_OK)
-    return q;
+  return q;
+}
+
+bool gcreq_queue_start (struct gcreq_queue *q)
+{
+  if (create_thread (&q->ts, q->gv, "gc", (uint32_t (*) (void *)) gcreq_queue_thread, q) == DDS_RETCODE_OK)
+    return true;
   else
   {
-    ddsrt_mutex_destroy (&q->lock);
-    ddsrt_cond_destroy (&q->cond);
-    ddsrt_free (q);
-    return NULL;
+    /* we use q->ts as a marker whether the thread exists, protect against the possibility
+       that create_thread changes it in a failing case */
+    q->ts = NULL;
+    return false;
   }
 }
 
@@ -221,27 +227,31 @@ void gcreq_queue_free (struct gcreq_queue *q)
 {
   struct gcreq *gcreq;
 
-  /* Create a no-op not dependent on any thread */
-  gcreq = gcreq_new (q, gcreq_free);
-  gcreq->nvtimes = 0;
+  /* Shutdown is complicated only gcreq_eueu */
+  if (q->ts)
+  {
+    /* Create a no-op not dependent on any thread */
+    gcreq = gcreq_new (q, gcreq_free);
+    gcreq->nvtimes = 0;
 
-  ddsrt_mutex_lock (&q->lock);
-  q->terminate = 1;
-  /* Wait until there is only request in existence, the one we just
-     allocated (this is also why we can't use "drain" here). Then
-     we know the gc system is quiet. */
-  while (q->count != 1)
-    ddsrt_cond_wait (&q->cond, &q->lock);
-  ddsrt_mutex_unlock (&q->lock);
+    ddsrt_mutex_lock (&q->lock);
+    q->terminate = 1;
+    /* Wait until there is only request in existence, the one we just
+       allocated (this is also why we can't use "drain" here). Then
+       we know the gc system is quiet. */
+    while (q->count != 1)
+      ddsrt_cond_wait (&q->cond, &q->lock);
+    ddsrt_mutex_unlock (&q->lock);
 
-  /* Force the gc thread to wake up by enqueueing our no-op. The
-     callback, gcreq_free, will be called immediately, which causes
-     q->count to 0 before the loop condition is evaluated again, at
-     which point the thread terminates. */
-  gcreq_enqueue (gcreq);
+    /* Force the gc thread to wake up by enqueueing our no-op. The
+       callback, gcreq_free, will be called immediately, which causes
+       q->count to 0 before the loop condition is evaluated again, at
+       which point the thread terminates. */
+    gcreq_enqueue (gcreq);
 
-  join_thread (q->ts);
-  assert (q->first == NULL);
+    join_thread (q->ts);
+    assert (q->first == NULL);
+  }
   ddsrt_cond_destroy (&q->cond);
   ddsrt_mutex_destroy (&q->lock);
   ddsrt_free (q);
