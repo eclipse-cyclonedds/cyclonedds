@@ -1844,12 +1844,12 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->sendq_running = false;
   ddsrt_mutex_init (&gv->sendq_running_lock);
 
-  gv->builtins_dqueue = nn_dqueue_new ("builtins", gv, gv->config.delivery_queue_maxsamples, builtins_dqueue_handler, NULL);
+  gv->builtins_dqueue = NULL;
 #ifdef DDS_HAS_NETWORK_CHANNELS
   for (struct ddsi_config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
-    chptr->dqueue = nn_dqueue_new (chptr->name, &gv->config, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
+    chptr->dqueue = NULL;
 #else
-  gv->user_dqueue = nn_dqueue_new ("user", gv, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
+  gv->user_dqueue = NULL;
 #endif
 
   if (reset_deaf_mute_time.v < DDS_NEVER)
@@ -1956,6 +1956,14 @@ static void stop_all_xeventq_upto (struct ddsi_config_channel_listelem *chptr)
 
 int rtps_start (struct ddsi_domaingv *gv)
 {
+  gv->builtins_dqueue = nn_dqueue_new ("builtins", gv, gv->config.delivery_queue_maxsamples, builtins_dqueue_handler, NULL);
+#ifdef DDS_HAS_NETWORK_CHANNELS
+  for (struct ddsi_config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
+    chptr->dqueue = nn_dqueue_new (chptr->name, &gv->config, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
+#else
+  gv->user_dqueue = nn_dqueue_new ("user", gv, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
+#endif
+
   if (xeventq_start (gv->xevents, NULL) < 0)
     return -1;
 #ifdef DDS_HAS_NETWORK_CHANNELS
