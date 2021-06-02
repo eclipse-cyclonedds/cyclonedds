@@ -57,10 +57,15 @@ add_library(
     ${CMAKE_CURRENT_BINARY_DIR}/hashid.c
     ${BISON_parser_OUTPUT_SOURCE})
 
+# We can't guarantee that LD_LIBRARY_PATH doesn't place an older libidl.so ahead of the
+# newly built one, and this can cause the IDL compiler to fail when invoked as part of the
+# build process.  Bumping the version number often & independently of the cyclone library
+# is one way to solve it (another is to prepend the directory containing the newly built
+# one to LD_LIBRARY_PATH during the build process, and there may be others.)
 set_target_properties(
   idl PROPERTIES
-  VERSION ${PROJECT_VERSION}
-  SOVERSION ${PROJECT_VERSION_MAJOR})
+  VERSION 1
+  SOVERSION 1)
 
 generate_export_header(idl EXPORT_FILE_NAME include/idl/export.h)
 
