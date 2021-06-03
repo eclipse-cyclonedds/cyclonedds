@@ -324,6 +324,7 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
 
   for (size_t i=0; dir->keys && dir->keys[i]; i++) {
     idl_key_t *key = NULL;
+    idl_mask_t mask = IDL_BASE_TYPE | IDL_ENUM | IDL_STRING;
     const idl_declarator_t *declarator;
     const idl_type_spec_t *type_spec;
 
@@ -335,10 +336,15 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
     declarator = (const idl_declarator_t *)declaration->node;
     assert(idl_is_declarator(declarator));
     type_spec = idl_type_spec(declarator);
+    /* until DDS-XTypes is fully implemented, base types, enums, arrays of the
+       aforementioned and strings are allowed to be used in keys */
+    type_spec = idl_unalias(type_spec, 0u);
+    if (idl_is_array(type_spec))
+      mask &= (idl_mask_t)~IDL_STRING;
     type_spec = idl_unalias(type_spec, IDL_UNALIAS_IGNORE_ARRAY);
-    if (!(idl_is_base_type(type_spec) || idl_is_string(type_spec))) {
+    if (!(idl_mask(type_spec) & mask)) {
       idl_error(pstate, idl_location(dir->keys[i]),
-        "Invalid key '%s' type in keylist directive", dir->keys[i]->identifier);
+        "Invalid key '%s' in keylist directive", dir->keys[i]->identifier);
       return IDL_RETCODE_SEMANTIC_ERROR;
     }
 
