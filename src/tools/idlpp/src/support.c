@@ -1802,12 +1802,13 @@ end_line:
             temp++;
         if (*temp == '#'        /* This line starts with # token    */
                 || (mcpp_mode == STD && *temp == '%' && *(temp + 1) == ':'))
-            if (warn_level & 1)
+            if (warn_level & 1) {
                 assert( macro_line >= (ssize_t)LONG_MIN &&
                         macro_line <= (ssize_t)LONG_MAX);
                 cwarn(
     "Macro started at line %.0s%ld swallowed directive-like line"
                     , NULL, (long)macro_line, NULL);              /* _W1_ */
+            }
     }
     return  infile->buffer;
 }
