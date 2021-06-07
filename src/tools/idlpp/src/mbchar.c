@@ -367,6 +367,7 @@ const char *    set_encoding(
     const char *    loc = "";
     int     alias;
     size_t  len;
+    size_t  pos;
     char    norm[ NAMLEN];
             /*
              * Normalized name (removed 'xxxxx.', stripped '_', '-', '.'
@@ -381,11 +382,21 @@ const char *    set_encoding(
             mcpp_fputc( '\n', ERR);
         }
     }
-    len = strlcpy( norm, name, sizeof(norm));
-    if (len >= 5 && norm[ 5] == '.')
-        memmove( norm, norm + 5, (len - 5) + 1);
+    /* XPG syntax: language[_territory[.codeset]][@modifier]    */
+    len = strlcpy( norm, name, sizeof( norm));
+    if (len >= sizeof( norm))
+      len = sizeof( norm) - 1;
+    for (pos = 0; pos < len && norm[pos] != '@'; pos++)
+        ; /* Remove '@xxxx' as '@euro' or any other */
+    norm[pos] = '\0';
+    len = pos;
+    for (pos = 0; pos < len && norm[pos] != '.'; pos++)
+        ; /* Lookup '.codeset' */
+    if (pos < len)
+        memmove( norm, norm + (pos + 1), (len - (pos + 1)) + 1);
         /* Remove initial 'xxxxx.' as 'ja_JP.', 'en_US.' or any other   */
-    conv_case( norm, norm + strlen( norm), LOWER);
+    len = strlen( norm);
+    conv_case( norm, norm + len, LOWER);
     strip_bar( norm);
 
     if (strlen( name) == 0) {                       /* ""       */
