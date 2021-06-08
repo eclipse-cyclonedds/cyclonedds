@@ -480,7 +480,7 @@ DDS_Security_ValidationResult_t verify_certificate(X509 *identityCert, X509 *ide
   assert(identityCert);
   assert(identityCa);
 
-  /* Currently only a self signed indentiyCa is supported. Verification of against a certificate chain is not yet supported */
+  /* Currently only a self signed identityCa is supported. Verification against a certificate chain is not yet supported */
   /* Verification of the certificate expiry using a CRL is not yet supported */
 
   if (!(store = X509_STORE_new()))
