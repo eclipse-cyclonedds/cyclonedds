@@ -29,7 +29,7 @@ static const char * PROPERTY_TRUSTED_CA_DIR          = "dds.sec.auth.trusted_ca_
 static const char * PROPERTY_CERT_SUBJECT_NAME      = "dds.cert.sn";
 static const char * PROPERTY_CERT_ALGORITHM         = "dds.cert.algo";
 static const char * PROPERTY_CA_SUBJECT_NAME        = "dds.ca.sn";
-static const char * PROPERTY_CA_ALGORITHM           = "dds.ca.aglo";
+static const char * PROPERTY_CA_ALGORITHM           = "dds.ca.algo";
 
 static const char * PROPERTY_PERM_CA_SUBJECT_NAME   = "ds.perm_ca.sn";
 
