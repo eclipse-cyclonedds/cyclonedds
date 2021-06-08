@@ -54,7 +54,7 @@ static const char *PROPERTY_TRUSTED_CA_DIR = "dds.sec.auth.trusted_ca_dir";
 static const char *PROPERTY_CERT_SUBJECT_NAME = "dds.cert.sn";
 static const char *PROPERTY_CERT_ALGORITHM = "dds.cert.algo";
 static const char *PROPERTY_CA_SUBJECT_NAME = "dds.ca.sn";
-static const char *PROPERTY_CA_ALGORITHM = "dds.ca.aglo";
+static const char *PROPERTY_CA_ALGORITHM = "dds.ca.algo";
 
 static const char *AUTH_HANDSHAKE_REQUEST_TOKEN_ID = "DDS:Auth:PKI-DH:1.0+Req";
 static const char *AUTH_HANDSHAKE_REPLY_TOKEN_ID = "DDS:Auth:PKI-DH:1.0+Reply";
