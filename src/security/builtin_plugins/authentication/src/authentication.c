@@ -38,6 +38,8 @@
 #define HANDSHAKE_SIGNATURE_CONTENT_SIZE 6
 #define ADJUSTED_GUID_PREFIX_FLAG 0x80
 
+typedef unsigned char HashValue_t[SHA256_DIGEST_LENGTH];
+
 static const char *AUTH_PROTOCOL_CLASS = "DDS:Auth:PKI-DH";
 static const unsigned AUTH_PROTOCOL_VERSION_MAJOR = 1;
 static const unsigned AUTH_PROTOCOL_VERSION_MINOR = 0;
