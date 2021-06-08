@@ -58,6 +58,8 @@ static const char *PROPERTY_CERT_ALGORITHM = "dds.cert.algo";
 static const char *PROPERTY_CA_SUBJECT_NAME = "dds.ca.sn";
 static const char *PROPERTY_CA_ALGORITHM = "dds.ca.algo";
 
+static const char *PROPERTY_CRL = "org.eclipse.cyclonedds.sec.auth.crl";
+
 static const char *AUTH_HANDSHAKE_REQUEST_TOKEN_ID = "DDS:Auth:PKI-DH:1.0+Req";
 static const char *AUTH_HANDSHAKE_REPLY_TOKEN_ID = "DDS:Auth:PKI-DH:1.0+Reply";
 
@@ -118,6 +120,7 @@ typedef struct LocalIdentityInfo
   X509 *identityCert;
   X509 *identityCA;
   EVP_PKEY *privateKey;
+  X509_CRL *crl;
   DDS_Security_OctetSeq pdata;
   AuthenticationAlgoKind_t dsignAlgoKind;
   AuthenticationAlgoKind_t kagreeAlgoKind;
@@ -256,6 +259,8 @@ static void local_identity_info_free(SecurityObject *obj)
       X509_free(identity->identityCA);
     if (identity->privateKey)
       EVP_PKEY_free(identity->privateKey);
+    if (identity->crl)
+      X509_CRL_free(identity->crl);
     ddsrt_free(identity->pdata._buffer);
     ddsrt_free(identity->permissionsDocument);
     security_object_deinit((SecurityObject *)identity);
@@ -263,7 +268,7 @@ static void local_identity_info_free(SecurityObject *obj)
   }
 }
 
-static LocalIdentityInfo *local_identity_info_new(DDS_Security_DomainId domainId, X509 *identityCert, X509 *identityCa, EVP_PKEY *privateKey, const DDS_Security_GUID_t *candidate_participant_guid, const DDS_Security_GUID_t *adjusted_participant_guid)
+static LocalIdentityInfo *local_identity_info_new(DDS_Security_DomainId domainId, X509 *identityCert, X509 *identityCa, EVP_PKEY *privateKey, X509_CRL *crl, const DDS_Security_GUID_t *candidate_participant_guid, const DDS_Security_GUID_t *adjusted_participant_guid)
 {
   LocalIdentityInfo *identity = NULL;
   assert(identityCert);
@@ -282,6 +287,7 @@ static LocalIdentityInfo *local_identity_info_new(DDS_Security_DomainId domainId
   identity->identityCert = identityCert;
   identity->identityCA = identityCa;
   identity->privateKey = privateKey;
+  identity->crl = crl;
   identity->permissionsDocument = NULL;
   identity->dsignAlgoKind = get_authentication_algo_kind(identityCert);
   identity->kagreeAlgoKind = AUTH_ALGO_KIND_EC_PRIME256V1;
@@ -691,8 +697,9 @@ DDS_Security_ValidationResult_t validate_local_identity(dds_security_authenticat
 
   dds_security_authentication_impl *implementation = (dds_security_authentication_impl *)instance;
   LocalIdentityInfo *identity;
-  char *identityCertPEM, *identityCaPEM, *privateKeyPEM, *password, *trusted_ca_dir;
+  char *identityCertPEM, *identityCaPEM, *privateKeyPEM, *password, *trusted_ca_dir, *crlPEM;
   X509 *identityCert, *identityCA;
+  X509_CRL *crl = NULL;
   EVP_PKEY *privateKey;
   dds_time_t certExpiry = DDS_TIME_INVALID;
 
@@ -723,12 +730,22 @@ DDS_Security_ValidationResult_t validate_local_identity(dds_security_authenticat
       goto err_inv_trusted_ca_dir;
   }
 
+  crlPEM = DDS_Security_Property_get_value(&participant_qos->property.value, PROPERTY_CRL);
+
   if (load_X509_certificate(identityCaPEM, &identityCA, ex) != DDS_SECURITY_VALIDATION_OK)
     goto err_inv_identity_ca;
 
   /* check for CA if listed in trusted CA files */
   if (implementation->trustedCAList.length > 0)
   {
+    if (crlPEM)
+    {
+      // FIXME: When a CRL is specified, we assume that it is associated with the "own_ca".  However, when
+      // a list of CAs is presented that assumption may not hold.  Resolve this ambiguity for now by just
+      // failing if both a CRL and a list of CAs is presented.  We can fix this in the future by allowing a list of CRLs.
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Cannot specify both CRL and trusted_ca_list");
+      goto err_identity_ca_not_trusted;
+    }
     const EVP_MD *digest = EVP_get_digestbyname("sha1");
     uint32_t size;
     unsigned char hash_buffer[20], hash_buffer_trusted[20];
@@ -756,7 +773,15 @@ DDS_Security_ValidationResult_t validate_local_identity(dds_security_authenticat
   if (load_X509_private_key(privateKeyPEM, password, &privateKey, ex) != DDS_SECURITY_VALIDATION_OK)
     goto err_inv_private_key;
 
-  if (verify_certificate(identityCert, identityCA, ex) != DDS_SECURITY_VALIDATION_OK)
+  if (crlPEM && strlen(crlPEM) > 0)
+  {
+    if (load_X509_CRL(crlPEM, &crl, ex) != DDS_SECURITY_VALIDATION_OK)
+    {
+      goto err_inv_crl;
+    }
+  }
+
+  if (verify_certificate(identityCert, identityCA, crl, ex) != DDS_SECURITY_VALIDATION_OK)
     goto err_verification_failed;
 
   if ((certExpiry = get_certificate_expiry(identityCert)) == DDS_TIME_INVALID)
@@ -768,13 +793,14 @@ DDS_Security_ValidationResult_t validate_local_identity(dds_security_authenticat
   if (get_adjusted_participant_guid(identityCert, candidate_participant_guid, adjusted_participant_guid, ex) != DDS_SECURITY_VALIDATION_OK)
     goto err_adj_guid_failed;
 
+  ddsrt_free(crlPEM);
   ddsrt_free(password);
   ddsrt_free(privateKeyPEM);
   ddsrt_free(identityCaPEM);
   ddsrt_free(identityCertPEM);
   ddsrt_free(trusted_ca_dir);
 
-  identity = local_identity_info_new(domain_id, identityCert, identityCA, privateKey, candidate_participant_guid, adjusted_participant_guid);
+  identity = local_identity_info_new(domain_id, identityCert, identityCA, privateKey, crl, candidate_participant_guid, adjusted_participant_guid);
   *local_identity_handle = IDENTITY_HANDLE(identity);
 
   if (certExpiry != DDS_NEVER)
@@ -787,6 +813,11 @@ DDS_Security_ValidationResult_t validate_local_identity(dds_security_authenticat
 
 err_adj_guid_failed:
 err_verification_failed:
+  if (crl)
+  {
+    X509_CRL_free(crl);
+  }
+err_inv_crl:
   EVP_PKEY_free(privateKey);
 err_inv_private_key:
   X509_free(identityCert);
@@ -794,6 +825,7 @@ err_inv_identity_cert:
 err_identity_ca_not_trusted:
   X509_free(identityCA);
 err_inv_identity_ca:
+  ddsrt_free(crlPEM);
 err_inv_trusted_ca_dir:
   ddsrt_free(password);
   ddsrt_free(privateKeyPEM);
@@ -1331,23 +1363,33 @@ static const DDS_Security_BinaryProperty_t *find_required_binprop_exactsize (con
   return prop;
 }
 
-static X509 *load_X509_certificate_from_binprop (const DDS_Security_BinaryProperty_t *prop, X509 *own_ca, const X509Seq *trusted_ca_list, DDS_Security_SecurityException *ex)
+static X509 *load_X509_certificate_from_binprop (const DDS_Security_BinaryProperty_t *prop, X509 *own_ca, X509_CRL *own_crl, const X509Seq *trusted_ca_list, DDS_Security_SecurityException *ex)
 {
   X509 *cert;
+
+  if (own_crl && trusted_ca_list->length > 0)
+  {
+    // FIXME: When a CRL is specified, we assume that it is associated with the "own_ca".  However, when
+    // a list of CAs is presented that assumption may not hold.  Resolve this ambiguity for now by just
+    // failing if both a CRL and a list of CAs is presented.  We can fix this in the future by allowing a list of CRLs.
+    DDS_Security_ValidationResult_t result = set_exception (ex, "load_X509_certificate_from_binprop: Cannot specify both CRL and trusted_ca_list");
+    (void) result;
+    return NULL;
+  }
 
   if (load_X509_certificate_from_data ((char *) prop->value._buffer, (int) prop->value._length, &cert, ex) != DDS_SECURITY_VALIDATION_OK)
     return NULL;
 
   DDS_Security_ValidationResult_t result = DDS_SECURITY_VALIDATION_FAILED;
   if (trusted_ca_list->length == 0)
-    result = verify_certificate (cert, own_ca, ex);
+    result = verify_certificate (cert, own_ca, own_crl, ex);
   else
   {
     DDS_Security_Exception_clean (ex);
     for (unsigned i = 0; i < trusted_ca_list->length; ++i)
     {
       DDS_Security_Exception_reset (ex);
-      if ((result = verify_certificate (cert, trusted_ca_list->buffer[i], ex)) == DDS_SECURITY_VALIDATION_OK)
+      if ((result = verify_certificate (cert, trusted_ca_list->buffer[i], NULL, ex)) == DDS_SECURITY_VALIDATION_OK)
         break;
     }
   }
@@ -1408,7 +1450,7 @@ static DDS_Security_ValidationResult_t validate_handshake_token_impl (const DDS_
 
     if ((c_id = find_required_nonempty_binprop (token, "c.id", ex)) == NULL)
       return DDS_SECURITY_VALIDATION_FAILED;
-    if ((identityCert = load_X509_certificate_from_binprop (c_id, relation->localIdentity->identityCA, trusted_ca_list, ex)) == NULL)
+    if ((identityCert = load_X509_certificate_from_binprop (c_id, relation->localIdentity->identityCA, relation->localIdentity->crl, trusted_ca_list, ex)) == NULL)
       return DDS_SECURITY_VALIDATION_FAILED;
 
     /* TODO: check if an identity certificate was already associated with the remote identity and when that is the case both should be the same */

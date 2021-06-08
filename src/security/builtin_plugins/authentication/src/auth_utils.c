@@ -485,15 +485,85 @@ DDS_Security_ValidationResult_t load_X509_private_key(const char *data, const ch
   return result;
 }
 
-DDS_Security_ValidationResult_t verify_certificate(X509 *identityCert, X509 *identityCa, DDS_Security_SecurityException *ex)
+static DDS_Security_ValidationResult_t load_CRL_from_file(const char *filepath, X509_CRL **crl, DDS_Security_SecurityException *ex)
+{
+  BIO *bio;
+  assert(filepath);
+  assert(crl);
+
+  if ((bio = load_file_into_BIO(filepath, ex)) == NULL)
+  {
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  *crl = PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL);
+  BIO_free(bio);
+  if (*crl == NULL)
+  {
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to read CRL: ");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  return DDS_SECURITY_VALIDATION_OK;
+}
+
+static DDS_Security_ValidationResult_t load_CRL_from_data(const char *data, X509_CRL **crl, DDS_Security_SecurityException *ex)
+{
+  BIO *bio;
+  assert(data);
+  assert(crl);
+
+  if (!(bio = BIO_new_mem_buf((void *)data, -1)))
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "BIO_new_mem_buf failed");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  *crl = PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL);
+  BIO_free(bio);
+  if (*crl == NULL)
+  {
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to read CRL: ");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  return DDS_SECURITY_VALIDATION_OK;
+}
+
+DDS_Security_ValidationResult_t load_X509_CRL(const char *data, X509_CRL **crl, DDS_Security_SecurityException *ex)
+{
+  DDS_Security_ValidationResult_t result;
+  char *contents = NULL;
+  assert(data);
+  assert(crl);
+
+  switch (get_conf_item_type(data, &contents))
+  {
+  case AUTH_CONF_ITEM_PREFIX_FILE:
+    result = load_CRL_from_file(contents, crl, ex);
+    break;
+  case AUTH_CONF_ITEM_PREFIX_DATA:
+    result = load_CRL_from_data(contents, crl, ex);
+    break;
+  default:
+    result = DDS_SECURITY_VALIDATION_FAILED;
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "Specified CRL has wrong format:\n%s", data);
+    break;
+  }
+  ddsrt_free(contents);
+
+  return result;
+}
+
+DDS_Security_ValidationResult_t verify_certificate(X509 *identityCert, X509 *identityCa, X509_CRL *crl, DDS_Security_SecurityException *ex)
 {
   X509_STORE_CTX *ctx;
   X509_STORE *store;
+  unsigned long verify_flags = 0;
   assert(identityCert);
   assert(identityCa);
 
   /* Currently only a self signed identityCa is supported. Verification against a certificate chain is not yet supported */
-  /* Verification of the certificate expiry using a CRL is not yet supported */
 
   if (!(store = X509_STORE_new()))
   {
@@ -505,6 +575,16 @@ DDS_Security_ValidationResult_t verify_certificate(X509 *identityCert, X509 *ide
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "X509_STORE_add_cert failed : ");
     goto err_add_cert;
   }
+
+  if (crl != NULL)
+  {
+    if (X509_STORE_add_crl(store, crl) == 0)
+    {
+      goto err_add_cert;
+    }
+    verify_flags = X509_V_FLAG_CRL_CHECK;
+  }
+
   if (!(ctx = X509_STORE_CTX_new()))
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "X509_STORE_CTX_new failed : ");
@@ -515,6 +595,8 @@ DDS_Security_ValidationResult_t verify_certificate(X509 *identityCert, X509 *ide
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "X509_STORE_CTX_init failed : ");
     goto err_ctx_init;
   }
+  /* X509_STORE_CTX_set_flags is mis-named; it doesn't actually set flags, it ORs them in.  So it is always safe to do this. */
+  X509_STORE_CTX_set_flags(ctx, verify_flags);
   if (X509_verify_cert(ctx) != 1)
   {
     const char *msg = X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx));

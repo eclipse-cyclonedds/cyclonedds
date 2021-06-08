@@ -69,15 +69,18 @@ DDS_Security_ValidationResult_t load_X509_certificate_from_file(const char *file
 /* Load a Private Key for the provided data (private key uri) */
 DDS_Security_ValidationResult_t load_X509_private_key(const char *data, const char *password, EVP_PKEY **privateKey, DDS_Security_SecurityException *ex);
 
+/* Load a Certificate Revocation List (CRL) for the provided data (CRL uri) */
+DDS_Security_ValidationResult_t load_X509_CRL(const char *data, X509_CRL **crl, DDS_Security_SecurityException *ex);
+
 /* Validate an identity certificate against the identityCA
  * The provided identity certificate is checked if it is
  * signed by the identity corresponding to the identityCA.
  *
  * Note: Currently only a self signed CA is supported
- *       The function does not yet check a CLR or ocsp
+ *       The function does not yet check OCSP
  *       for expiry of identity certificate.
  */
-DDS_Security_ValidationResult_t verify_certificate(X509 *identityCert, X509 *identityCa, DDS_Security_SecurityException *ex);
+DDS_Security_ValidationResult_t verify_certificate(X509 *identityCert, X509 *identityCa, X509_CRL *crl, DDS_Security_SecurityException *ex);
 
 DDS_Security_ValidationResult_t check_certificate_expiry(const X509 *cert, DDS_Security_SecurityException *ex);
 AuthenticationAlgoKind_t get_authentication_algo_kind(X509 *cert);
