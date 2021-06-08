@@ -113,7 +113,6 @@ load_plugins(
     }
     if (auth) {
         *auth = load_plugin(&(plugins->plugin_auth),
-                            //"dds_security_auth",
                             "dds_security_auth",
                             "init_authentication",
                             "finalize_authentication",
