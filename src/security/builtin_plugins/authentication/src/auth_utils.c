@@ -28,7 +28,19 @@
 
 #define MAX_TRUSTED_CA 100
 
-char *get_openssl_error_message(void)
+typedef enum {
+    AUTH_CONF_ITEM_PREFIX_UNKNOWN,
+    AUTH_CONF_ITEM_PREFIX_FILE,
+    AUTH_CONF_ITEM_PREFIX_DATA,
+    AUTH_CONF_ITEM_PREFIX_PKCS11
+} AuthConfItemPrefix_t;
+
+/* Return a string that contains an openssl error description
+ * When a openssl function returns an error this function can be
+ * used to retrieve a descriptive error string.
+ * Note that the returned string should be freed.
+ */
+static char *get_openssl_error_message(void)
 {
   char *msg, *buf = NULL;
   size_t len;
@@ -366,7 +378,7 @@ static DDS_Security_ValidationResult_t load_private_key_from_file(const char *fi
  * Gets the URI string (as referred in DDS Security spec) and returns the URI type
  * data: data part of the URI. Typically It contains different format according to URI type.
  */
-AuthConfItemPrefix_t get_conf_item_type(const char *str, char **data)
+static AuthConfItemPrefix_t get_conf_item_type(const char *str, char **data)
 {
   const char *f = "file:", *d = "data:,", *p = "pkcs11:";
   size_t sf = strlen(f), sd = strlen(d), sp = strlen(p);
