@@ -187,6 +187,9 @@ DU(deaf_mute);
 #ifdef DDS_HAS_SSL
 DUPF(min_tls_version);
 #endif
+#ifdef DDS_HAS_SHM
+DUPF(shm_loglevel);
+#endif
 #undef DUPF
 #undef DU
 #undef PF
@@ -671,7 +674,11 @@ static int if_network_partition (struct cfgst *cfgst, void *parent, struct cfgel
   if (new == NULL)
     return -1;
   new->address_string = NULL;
-  new->as = NULL;
+  new->uc_addresses = NULL;
+  new->asm_addresses = NULL;
+#ifdef DDS_HAS_SSM
+  new->ssm_addresses = NULL;
+#endif
   new->name = NULL;
   return 0;
 }
@@ -938,12 +945,18 @@ static const char *en_standards_conformance_vs[] = { "pedantic", "strict", "lax"
 static const enum ddsi_standards_conformance en_standards_conformance_ms[] = { DDSI_SC_PEDANTIC, DDSI_SC_STRICT, DDSI_SC_LAX, 0 };
 GENERIC_ENUM_CTYPE (standards_conformance, enum ddsi_standards_conformance)
 
+#ifdef DDS_HAS_SHM
+static const char *en_shm_loglevel_vs[] = { "off", "fatal", "error", "warn", "info", "debug", "verbose", NULL };
+static const enum ddsi_shm_loglevel en_shm_loglevel_ms[] = { DDSI_SHM_OFF, DDSI_SHM_FATAL, DDSI_SHM_ERROR, DDSI_SHM_WARN, DDSI_SHM_INFO, DDSI_SHM_DEBUG, DDSI_SHM_VERBOSE, 0 };
+GENERIC_ENUM_CTYPE (shm_loglevel, enum ddsi_shm_loglevel)
+#endif
+
 /* "trace" is special: it enables (nearly) everything */
 static const char *tracemask_names[] = {
-  "fatal", "error", "warning", "info", "config", "discovery", "data", "radmin", "timing", "traffic", "topic", "tcp", "plist", "whc", "throttle", "rhc", "content", "trace", NULL
+  "fatal", "error", "warning", "info", "config", "discovery", "data", "radmin", "timing", "traffic", "topic", "tcp", "plist", "whc", "throttle", "rhc", "content", "shm", "trace", NULL
 };
 static const uint32_t tracemask_codes[] = {
-  DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_RHC, DDS_LC_CONTENT, DDS_LC_ALL
+  DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_RHC, DDS_LC_CONTENT, DDS_LC_SHM, DDS_LC_ALL
 };
 
 static enum update_result uf_tracemask (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)

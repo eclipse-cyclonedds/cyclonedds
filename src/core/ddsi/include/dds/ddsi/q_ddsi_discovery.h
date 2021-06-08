@@ -13,6 +13,7 @@
 #define NN_DDSI_DISCOVERY_H
 
 #include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_domaingv.h" // FIXME: MAX_XMIT_CONNS
 
 #if defined (__cplusplus)
 extern "C" {
@@ -27,7 +28,8 @@ struct nn_rdata;
 struct ddsi_plist;
 
 struct participant_builtin_topic_data_locators {
-  struct nn_locators_one def_uni_loc_one, def_multi_loc_one, meta_uni_loc_one, meta_multi_loc_one;
+  struct nn_locators_one def_uni[MAX_XMIT_CONNS], meta_uni[MAX_XMIT_CONNS];
+  struct nn_locators_one def_multi, meta_multi;
 };
 
 void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plist_t *dst, struct participant_builtin_topic_data_locators *locs);

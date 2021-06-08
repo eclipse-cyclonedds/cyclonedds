@@ -22,6 +22,14 @@
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds__handles.h"
 
+#ifdef DDS_HAS_SHM
+#include "iceoryx_binding_c/subscriber.h"
+#include "iceoryx_binding_c/publisher.h"
+#include "shm__monitor.h"
+#include "dds/ddsi/shm_sync.h"
+#define MAX_PUB_LOANS 8
+#endif
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -226,6 +234,11 @@ typedef struct dds_domain {
 
   ddsrt_avl_node_t m_node; /* for dds_global.m_domains */
   dds_domainid_t m_id;
+
+#ifdef DDS_HAS_SHM
+  shm_monitor_t m_shm_monitor;
+#endif
+
   struct cfgst *cfgst; // NULL if config initializer provided
 
   struct ddsi_sertype *builtin_participant_type;
@@ -300,6 +313,10 @@ typedef struct dds_reader {
   void *m_loan;
   uint32_t m_loan_size;
   unsigned m_wrapped_sertopic : 1; /* set iff reader's topic is a wrapped ddsi_sertopic for backwards compatibility */
+#ifdef DDS_HAS_SHM
+  iox_sub_storage_extension_t m_iox_sub_stor;
+  iox_sub_t m_iox_sub;
+#endif
 
   /* Status metrics */
 
@@ -318,6 +335,11 @@ typedef struct dds_writer {
   struct writer *m_wr;
   struct whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
   bool whc_batch; /* FIXME: channels + latency budget */
+#ifdef DDS_HAS_SHM
+  iox_pub_storage_t m_iox_pub_stor;
+  iox_pub_t m_iox_pub;
+  void *m_iox_pub_loans[MAX_PUB_LOANS];
+#endif
 
   /* Status metrics */
 

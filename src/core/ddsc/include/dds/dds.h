@@ -79,6 +79,9 @@ struct ddsi_sertopic; // deprecated, binary compatibility only
 /** Special handle representing the entity corresponding to the CycloneDDS library itself */
 #define DDS_CYCLONEDDS_HANDLE              ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 256))
 
+/** Special handle representing the entity which forces the dds_data_allocator to allocate on heap */
+#define DDS_DATA_ALLOCATOR_ALLOC_ON_HEAP   ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 257))
+
 /** @name Communication Status definitions
   @{**/
 typedef enum dds_status_id {
@@ -1650,6 +1653,11 @@ dds_create_writer(
   dds_entity_t topic,
   const dds_qos_t *qos,
   const dds_listener_t *listener);
+
+DDS_EXPORT dds_return_t
+dds_loan_sample(
+  dds_entity_t writer,
+  void** sample);
 
 /*
   Writing data (and variants of it) is straightforward. The first set

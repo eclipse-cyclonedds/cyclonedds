@@ -21,6 +21,7 @@ Welcome to Eclipse Cyclone DDS's documentation!
    GettingStartedGuide/index
    config
    security
+   shared_memory
    ddsc
 
 Indices and tables

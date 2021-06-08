@@ -26,12 +26,15 @@ struct ddsi_domaingv;
 
 #define MAX_INTERFACES 128
 struct nn_interface {
-  ddsi_locator_t loc;
+  ddsi_locator_t loc; // actual interface address
+  ddsi_locator_t extloc; // interface address to advertise in discovery
   ddsi_locator_t netmask;
   uint32_t if_index;
   unsigned mc_capable: 1;
   unsigned mc_flaky: 1;
   unsigned point_to_point: 1;
+  unsigned loopback: 1;
+  unsigned link_local: 1;
   char *name;
 };
 

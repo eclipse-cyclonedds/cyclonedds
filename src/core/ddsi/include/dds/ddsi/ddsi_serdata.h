@@ -17,6 +17,7 @@
 #include "dds/ddsrt/iovec.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_keyhash.h"
+#include "dds/features.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -56,6 +57,11 @@ struct ddsi_serdata {
 
   /* FIXME: can I get rid of this one? */
   ddsrt_mtime_t twrite; /* write time, not source timestamp, set post-throttling */
+
+#ifdef DDS_HAS_SHM
+  void* iox_chunk;
+  void* iox_subscriber; // actually: iox_sub_t *
+#endif
 };
 
 struct ddsi_serdata_wrapper {
@@ -159,6 +165,13 @@ typedef size_t (*ddsi_serdata_print_t) (const struct ddsi_sertype *type, const s
    - buf needs to be at least 16 bytes large */
 typedef void (*ddsi_serdata_get_keyhash_t) (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5);
 
+#ifdef DDS_HAS_SHM
+typedef uint32_t(*ddsi_serdata_iox_size_t) (const struct ddsi_serdata* d);
+
+// sub is really an iox_sub_t *
+typedef struct ddsi_serdata* (*ddsi_serdata_from_iox_t) (const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer);
+#endif
+
 struct ddsi_serdata_ops {
   ddsi_serdata_eqkey_t eqkey;
   ddsi_serdata_size_t get_size;
@@ -175,6 +188,10 @@ struct ddsi_serdata_ops {
   ddsi_serdata_free_t free;
   ddsi_serdata_print_t print;
   ddsi_serdata_get_keyhash_t get_keyhash;
+#ifdef DDS_HAS_SHM
+  ddsi_serdata_iox_size_t get_sample_size;
+  ddsi_serdata_from_iox_t from_iox_buffer;
+#endif
 };
 
 #define DDSI_SERDATA_HAS_PRINT 1
@@ -182,6 +199,14 @@ struct ddsi_serdata_ops {
 #define DDSI_SERDATA_HAS_GET_KEYHASH 1
 
 DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertype *type, enum ddsi_serdata_kind kind);
+
+/**
+ * @brief Return a pointer to the keyhash in the message fragchain if it was present, or else NULL.
+ *
+ * @param[in] fragchain the fragchain argument passed to @ref ddsi_serdata_from_ser (the first one, not any subsequent ones)
+ * @returns A pointer to the keyhash in the message if it was present, NULL if not. The lifetime is at least that of the fragchain itself.
+ */
+DDS_EXPORT const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct nn_rdata *fragchain);
 
 /* backwards compatibility: wrap a sertopic-derived serdata so that it may be used as a sertype-derived one; increments refcount */
 DDS_EXPORT struct ddsi_serdata *ddsi_sertopic_wrap_serdata (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, void *old);
@@ -286,6 +311,18 @@ DDS_EXPORT inline bool ddsi_serdata_print_untyped (const struct ddsi_sertype *ty
 DDS_EXPORT inline void ddsi_serdata_get_keyhash (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5) {
   d->ops->get_keyhash (d, buf, force_md5);
 }
+
+#ifdef DDS_HAS_SHM
+DDS_EXPORT inline uint32_t ddsi_serdata_iox_size(const struct ddsi_serdata* d)
+{
+  return d->type->iox_size;
+}
+
+DDS_EXPORT inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer)
+{
+  return type->serdata_ops->from_iox_buffer(type, kind, sub, iox_buffer);
+}
+#endif
 
 #if defined (__cplusplus)
 }

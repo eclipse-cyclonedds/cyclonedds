@@ -15,6 +15,7 @@
 #include <ctype.h>
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/string.h"
 #include "dds/ddsrt/ifaddrs.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_ipaddr.h"
@@ -40,25 +41,13 @@ extern inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const ddsi_locator
 
 void ddsi_factory_add (struct ddsi_domaingv *gv, ddsi_tran_factory_t factory)
 {
+  // Initially add factories in a disabled state.  We'll enable the ones we
+  // actually want to use for DDS explicitly, as a way to work around using
+  // the TCP support code for the "debmon" thing.
+  factory->m_enable = false;
+
   factory->m_factory = gv->ddsi_tran_factories;
   gv->ddsi_tran_factories = factory;
-}
-
-ddsi_tran_factory_t ddsi_factory_find (const struct ddsi_domaingv *gv, const char *type)
-{
-  /* FIXME: should speed up */
-  ddsi_tran_factory_t factory = gv->ddsi_tran_factories;
-
-  while (factory)
-  {
-    if (strcmp (factory->m_typename, type) == 0)
-    {
-      break;
-    }
-    factory = factory->m_factory;
-  }
-
-  return factory;
 }
 
 void ddsi_tran_factories_fini (struct ddsi_domaingv *gv)
@@ -74,21 +63,41 @@ void ddsi_tran_factories_fini (struct ddsi_domaingv *gv)
   }
 }
 
+static bool type_is_numeric (const char *type, size_t len, int32_t *value)
+{
+  /* returns false if there are non-digits present or if the value is out of range */
+  *value = 0;
+  for (size_t i = 0; i < len; i++)
+  {
+    if (!isdigit ((unsigned char) type[i]))
+      return false;
+    int32_t d = (unsigned char) type[i] - '0';
+    if (*value > INT32_MAX / 10 || 10 * *value > INT32_MAX - d)
+      return false;
+    *value = 10 * *value + d;
+  }
+  return true;
+}
+
 static ddsi_tran_factory_t ddsi_factory_find_with_len (const struct ddsi_domaingv *gv, const char *type, size_t len)
 {
-  /* FIXME: should speed up */
-  ddsi_tran_factory_t factory = gv->ddsi_tran_factories;
-
-  while (factory)
+  int32_t loc_kind;
+  if (type_is_numeric (type, len, &loc_kind))
+    return ddsi_factory_find_supported_kind (gv, loc_kind);
+  else
   {
-    if (strncmp (factory->m_typename, type, len) == 0 && factory->m_typename[len] == 0)
+    for (ddsi_tran_factory_t f = gv->ddsi_tran_factories; f; f = f->m_factory)
     {
-      break;
+      if (strncmp (f->m_typename, type, len) == 0 && f->m_typename[len] == 0)
+        return f;
     }
-    factory = factory->m_factory;
   }
+  return NULL;
+}
 
-  return factory;
+ddsi_tran_factory_t ddsi_factory_find (const struct ddsi_domaingv *gv, const char *type)
+{
+  return ddsi_factory_find_with_len (gv, type, strlen (type));
 }
 
 ddsrt_attribute_no_sanitize (("thread"))
@@ -158,12 +167,13 @@ void ddsi_conn_add_ref (ddsi_tran_conn_t conn)
   ddsrt_atomic_inc32 (&conn->m_count);
 }
 
-void ddsi_factory_conn_init (const struct ddsi_tran_factory *factory, ddsi_tran_conn_t conn)
+void ddsi_factory_conn_init (const struct ddsi_tran_factory *factory, const struct nn_interface *interf, ddsi_tran_conn_t conn)
 {
   ddsrt_atomic_st32 (&conn->m_count, 1);
   conn->m_connless = factory->m_connless;
   conn->m_stream = factory->m_stream;
   conn->m_factory = (struct ddsi_tran_factory *) factory;
+  conn->m_interf = interf;
   conn->m_base.gv = factory->gv;
 }
 
@@ -225,6 +235,12 @@ void ddsi_listener_free (ddsi_tran_listener_t listener)
   }
 }
 
+int ddsi_is_loopbackaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc)
+{
+  ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind (gv, loc->kind);
+  return tran ? tran->m_is_loopbackaddr_fn (tran, loc) : 0;
+}
+
 int ddsi_is_mcaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc)
 {
   ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind (gv, loc->kind);
@@ -239,12 +255,12 @@ int ddsi_is_ssm_mcaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *lo
   return 0;
 }
 
-enum ddsi_nearby_address_result ddsi_is_nearby_address (const ddsi_locator_t *loc, const ddsi_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
+enum ddsi_nearby_address_result ddsi_is_nearby_address (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface interf[], size_t *interf_idx)
 {
-  if (loc->tran != ownloc->tran || loc->kind != ownloc->kind)
+  ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind (gv, loc->kind);
+  if (tran == NULL)
     return DNAR_DISTANT;
-  else
-    return ownloc->tran->m_is_nearby_address_fn (loc, ownloc, ninterf, interf);
+  return tran->m_is_nearby_address_fn (loc, ninterf, interf, interf_idx);
 }
 
 enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, const char *str, ddsi_tran_factory_t default_factory)
@@ -268,72 +284,123 @@ enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi
   return tran->m_locator_from_string_fn (tran, loc, sep ? sep + 1 : str);
 }
 
-char *ddsi_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc)
+int ddsi_locator_from_sockaddr (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const struct sockaddr *sockaddr)
+{
+  return tran->m_locator_from_sockaddr_fn (tran, loc, sockaddr);
+}
+
+static size_t kindstr (char *dst, size_t sizeof_dst, int32_t kind)
+{
+  char *wellknown;
+  switch (kind)
+  {
+    case NN_LOCATOR_KIND_TCPv4: wellknown = "tcp/"; break;
+    case NN_LOCATOR_KIND_TCPv6: wellknown = "tcp6/"; break;
+    case NN_LOCATOR_KIND_UDPv4: wellknown = "udp/"; break;
+    case NN_LOCATOR_KIND_UDPv6: wellknown = "udp6/"; break;
+    default: wellknown = NULL; break;
+  };
+  if (wellknown)
+    return ddsrt_strlcpy (dst, wellknown, sizeof (dst));
+  else
+  {
+    int pos = snprintf (dst, sizeof_dst, "%"PRId32"/", kind);
+    return (pos < 0) ? sizeof_dst : (size_t) pos;
+  }
+}
+
+static char *ddsi_xlocator_to_string_impl (char *dst, size_t sizeof_dst, const ddsi_xlocator_t *loc)
 {
   /* FIXME: should add a "factory" for INVALID locators */
-  if (loc->kind == NN_LOCATOR_KIND_INVALID) {
+  if (loc->c.kind == NN_LOCATOR_KIND_INVALID) {
     (void) snprintf (dst, sizeof_dst, "invalid/0:0");
-  } else if (loc->tran != NULL) {
-    int pos = snprintf (dst, sizeof_dst, "%s/", loc->tran->m_typename);
+  } else if (loc->conn != NULL) {
+    struct ddsi_tran_factory const * const tran = loc->conn->m_factory;
+    int pos = snprintf (dst, sizeof_dst, "%s/", tran->m_typename);
     if (0 < pos && (size_t)pos < sizeof_dst)
-      (void) loc->tran->m_locator_to_string_fn (dst + (size_t)pos, sizeof_dst - (size_t)pos, loc, 1);
+      (void) tran->m_locator_to_string_fn (dst + (size_t)pos, sizeof_dst - (size_t)pos, &loc->c, loc->conn, 1);
   } else {
     /* Because IPv4 and IPv6 addresses are so common we special-case and print them in the usual form
        even if they didn't get mapped to a transport.  To indicate that this mapping never took place
        the kind is still printed as a number, not as (udp|tcp)6? */
-    switch (loc->kind)
+    switch (loc->c.kind)
     {
       case NN_LOCATOR_KIND_TCPv4:
       case NN_LOCATOR_KIND_TCPv6:
       case NN_LOCATOR_KIND_UDPv4:
       case NN_LOCATOR_KIND_UDPv6: {
-        int pos = snprintf (dst, sizeof_dst, "%"PRId32"/", loc->kind);
-        if (0 < pos && (size_t)pos < sizeof_dst)
-          (void) ddsi_ipaddr_to_string (dst + (size_t)pos, sizeof_dst - (size_t)pos, loc, 1);
+        size_t pos = kindstr (dst, sizeof_dst, loc->c.kind);
+        if ((size_t)pos < sizeof_dst)
+          (void) ddsi_ipaddr_to_string (dst + (size_t)pos, sizeof_dst - (size_t)pos, &loc->c, 1, NULL);
         break;
       }
       default: {
-        const unsigned char * const x = loc->address;
-        (void) snprintf (dst, sizeof_dst, "%"PRId32"/[%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x]:%"PRIu32,
-                         loc->kind, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12], x[13], x[14], x[15], loc->port);
+        const unsigned char * const x = loc->c.address;
+        (void) snprintf (dst, sizeof_dst, "%"PRId32"/[%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x]:%"PRIu32,
+                         loc->c.kind, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12], x[13], x[14], x[15], loc->c.port);
         break;
       }
     }
   }
   return dst;
+}
+
+static char *ddsi_xlocator_to_string_no_port_impl (char *dst, size_t sizeof_dst, const ddsi_xlocator_t *loc)
+{
+  if (loc->c.kind == NN_LOCATOR_KIND_INVALID) {
+    (void) snprintf (dst, sizeof_dst, "invalid/0");
+  } else if (loc->conn != NULL) {
+    struct ddsi_tran_factory const * const tran = loc->conn->m_factory;
+    int pos = snprintf (dst, sizeof_dst, "%s/", tran->m_typename);
+    if (0 < pos && (size_t)pos < sizeof_dst)
+      (void) tran->m_locator_to_string_fn (dst + (size_t)pos, sizeof_dst - (size_t)pos, &loc->c, loc->conn, 0);
+  } else {
+    switch (loc->c.kind)
+    {
+      case NN_LOCATOR_KIND_TCPv4:
+      case NN_LOCATOR_KIND_TCPv6:
+      case NN_LOCATOR_KIND_UDPv4:
+      case NN_LOCATOR_KIND_UDPv6: {
+        size_t pos = kindstr (dst, sizeof_dst, loc->c.kind);
+        if ((size_t)pos < sizeof_dst)
+          (void) ddsi_ipaddr_to_string (dst + (size_t)pos, sizeof_dst - (size_t)pos, &loc->c, 0, NULL);
+        break;
+      }
+      default: {
+        const unsigned char * const x = loc->c.address;
+        (void) snprintf (dst, sizeof_dst, "%"PRId32"/[%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x]",
+                         loc->c.kind, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12], x[13], x[14], x[15]);
+      }
+    }
+  }
+  return dst;
+}
+
+char *ddsi_xlocator_to_string (char *dst, size_t sizeof_dst, const ddsi_xlocator_t *loc)
+{
+  return ddsi_xlocator_to_string_impl (dst, sizeof_dst, loc);
+}
+
+char *ddsi_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc)
+{
+  return ddsi_xlocator_to_string_impl (dst, sizeof_dst, &(const ddsi_xlocator_t) {
+    .conn = NULL, .c = *loc
+  });
+}
+
+char *ddsi_xlocator_to_string_no_port (char *dst, size_t sizeof_dst, const ddsi_xlocator_t *loc)
+{
+  return ddsi_xlocator_to_string_no_port_impl (dst, sizeof_dst, loc);
 }
 
 char *ddsi_locator_to_string_no_port (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc)
 {
-  if (loc->kind == NN_LOCATOR_KIND_INVALID) {
-    (void) snprintf (dst, sizeof_dst, "invalid/0");
-  } else if (loc->tran != NULL) {
-    int pos = snprintf (dst, sizeof_dst, "%s/", loc->tran->m_typename);
-    if (0 < pos && (size_t)pos < sizeof_dst)
-      (void) loc->tran->m_locator_to_string_fn (dst + (size_t)pos, sizeof_dst - (size_t)pos, loc, 0);
-  } else {
-    switch (loc->kind)
-    {
-      case NN_LOCATOR_KIND_TCPv4:
-      case NN_LOCATOR_KIND_TCPv6:
-      case NN_LOCATOR_KIND_UDPv4:
-      case NN_LOCATOR_KIND_UDPv6: {
-        int pos = snprintf (dst, sizeof_dst, "%"PRId32"/", loc->kind);
-        if (0 < pos && (size_t)pos < sizeof_dst)
-          (void) ddsi_ipaddr_to_string (dst + (size_t)pos, sizeof_dst - (size_t)pos, loc, 0);
-        break;
-      }
-      default: {
-        const unsigned char * const x = loc->address;
-        (void) snprintf (dst, sizeof_dst, "%"PRId32"/[%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x]",
-                         loc->kind, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12], x[13], x[14], x[15]);
-      }
-    }
-  }
-  return dst;
+  return ddsi_xlocator_to_string_no_port_impl (dst, sizeof_dst, &(const ddsi_xlocator_t) {
+    .conn = NULL, .c = *loc
+  });
 }
 
-int ddsi_enumerate_interfaces (ddsi_tran_factory_t factory, ddsrt_ifaddrs_t **interfs)
+int ddsi_enumerate_interfaces (ddsi_tran_factory_t factory, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **interfs)
 {
-  return factory->m_enumerate_interfaces_fn (factory, interfs);
+  return factory->m_enumerate_interfaces_fn (factory, transport_selector, interfs);
 }

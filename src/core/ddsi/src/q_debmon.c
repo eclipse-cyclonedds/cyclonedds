@@ -83,11 +83,11 @@ struct print_address_arg {
   int count;
 };
 
-static void print_address (const ddsi_locator_t *n, void *varg)
+static void print_address (const ddsi_xlocator_t *n, void *varg)
 {
   struct print_address_arg *arg = varg;
   char buf[DDSI_LOCSTRLEN];
-  arg->count += cpf (arg->conn, " %s", ddsi_locator_to_string (buf, sizeof(buf), n));
+  arg->count += cpf (arg->conn, " %s", ddsi_locator_to_string (buf, sizeof(buf), &n->c));
 }
 
 static int print_addrset (ddsi_tran_conn_t conn, const char *prefix, struct addrset *as, const char *suffix)
@@ -167,7 +167,16 @@ static int print_participants (struct thread_state1 * const ts1, struct ddsi_dom
         ddsrt_mutex_lock (&r->e.lock);
         print_endpoint_common (conn, "rd", &r->e, &r->c, r->xqos);
 #ifdef DDS_HAS_NETWORK_PARTITIONS
-        x += print_addrset_if_notempty (conn, "    as", r->as, "\n");
+        if (r->uc_as || r->mc_as)
+        {
+          char buf[DDSI_LOCSTRLEN];
+          x += cpf (conn, "    as");
+          for (const struct networkpartition_address *a = r->uc_as; a != NULL; a = a->next)
+            x += cpf (conn, " %s", ddsi_locator_to_string (buf, sizeof(buf), &a->loc));
+          for (const struct networkpartition_address *a = r->mc_as; a != NULL; a = a->next)
+            x += cpf (conn, " %s", ddsi_locator_to_string (buf, sizeof(buf), &a->loc));
+          x += cpf (conn, "\n");
+        }
 #endif
         for (m = ddsrt_avl_iter_first (&rd_writers_treedef, &r->writers, &writ); m; m = ddsrt_avl_iter_next (&writ))
           x += cpf (conn, "    pwr "PGUIDFMT"\n", PGUID (m->pwr_guid));

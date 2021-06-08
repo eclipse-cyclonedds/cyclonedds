@@ -37,8 +37,9 @@ typedef struct ddsi_raweth_conn {
   int m_ifindex;
 } *ddsi_raweth_conn_t;
 
-static char *ddsi_raweth_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port)
+static char *ddsi_raweth_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port)
 {
+  (void) conn;
   if (with_port)
     (void) snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
                     loc->address[10], loc->address[11], loc->address[12],
@@ -78,7 +79,6 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
   {
     if (srcloc)
     {
-      srcloc->tran = conn->m_factory;
       srcloc->kind = NN_LOCATOR_KIND_RAWETH;
       srcloc->port = ntohs (src.sll_protocol);
       memset(srcloc->address, 0, 10);
@@ -168,7 +168,7 @@ static int ddsi_raweth_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t 
   {
     loc->kind = NN_LOCATOR_KIND_RAWETH;
     loc->port = uc->m_base.m_base.m_port;
-    memcpy(loc->address, uc->m_base.m_base.gv->extloc.address, sizeof (loc->address));
+    memcpy(loc->address, uc->m_base.m_base.gv->interfaces[0].loc.address, sizeof (loc->address));
     ret = 0;
   }
   return ret;
@@ -181,6 +181,8 @@ static dds_return_t ddsi_raweth_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tr
   ddsi_raweth_conn_t uc = NULL;
   struct sockaddr_ll addr;
   bool mcast = (qos->m_purpose == DDSI_TRAN_QOS_RECV_MC);
+  struct ddsi_domaingv const * const gv = fact->gv;
+  struct nn_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
 
   /* If port is zero, need to create dynamic port */
 
@@ -200,7 +202,7 @@ static dds_return_t ddsi_raweth_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tr
   memset(&addr, 0, sizeof(addr));
   addr.sll_family = AF_PACKET;
   addr.sll_protocol = htons((uint16_t)port);
-  addr.sll_ifindex = (int)fact->gv->interfaceNo;
+  addr.sll_ifindex = (int)intf->if_index;
   addr.sll_pkttype = PACKET_HOST | PACKET_BROADCAST | PACKET_MULTICAST;
   rc = ddsrt_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
   if (rc != DDS_RETCODE_OK)
@@ -219,7 +221,7 @@ static dds_return_t ddsi_raweth_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tr
   memset (uc, 0, sizeof (*uc));
   uc->m_sock = sock;
   uc->m_ifindex = addr.sll_ifindex;
-  ddsi_factory_conn_init (fact, &uc->m_base);
+  ddsi_factory_conn_init (fact, intf, &uc->m_base);
   uc->m_base.m_base.m_port = port;
   uc->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
   uc->m_base.m_base.m_multicast = mcast;
@@ -291,6 +293,13 @@ static void ddsi_raweth_release_conn (ddsi_tran_conn_t conn)
   ddsrt_free (conn);
 }
 
+static int ddsi_raweth_is_loopbackaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
+{
+  (void) tran;
+  (void) loc;
+  return 0;
+}
+
 static int ddsi_raweth_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
 {
   (void) tran;
@@ -305,12 +314,12 @@ static int ddsi_raweth_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, cons
   return 0;
 }
 
-static enum ddsi_nearby_address_result ddsi_raweth_is_nearby_address (const ddsi_locator_t *loc, const ddsi_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
+static enum ddsi_nearby_address_result ddsi_raweth_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface interf[], size_t *interf_idx)
 {
   (void) loc;
-  (void) ownloc;
   (void) ninterf;
   (void) interf;
+  *interf_idx = 0;
   return DNAR_LOCAL;
 }
 
@@ -318,7 +327,6 @@ static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (con
 {
   int i = 0;
   (void)tran;
-  loc->tran = tran;
   loc->kind = NN_LOCATOR_KIND_RAWETH;
   loc->port = NN_LOCATOR_PORT_INVALID;
   memset (loc->address, 0, sizeof (loc->address));
@@ -348,10 +356,11 @@ static void ddsi_raweth_deinit(ddsi_tran_factory_t fact)
   ddsrt_free (fact);
 }
 
-static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t fact, ddsrt_ifaddrs_t **ifs)
+static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t fact, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **ifs)
 {
   int afs[] = { AF_PACKET, DDSRT_AF_TERM };
   (void)fact;
+  (void)transport_selector;
   return ddsrt_getifaddrs(ifs, afs);
 }
 
@@ -367,21 +376,36 @@ static uint32_t ddsi_raweth_receive_buffer_size (const struct ddsi_tran_factory 
   return 0;
 }
 
+static int ddsi_raweth_locator_from_sockaddr (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const struct sockaddr *sockaddr)
+{
+  (void) tran;
+
+  if (sockaddr->sa_family != AF_PACKET)
+    return -1;
+
+  loc->kind = NN_LOCATOR_KIND_RAWETH;
+  loc->port = NN_LOCATOR_PORT_INVALID;
+  memset (loc->address, 0, 10);
+  memcpy (loc->address + 10, ((struct sockaddr_ll *) sockaddr)->sll_addr, 6);
+  return 0;
+}
+
 int ddsi_raweth_init (struct ddsi_domaingv *gv)
 {
   struct ddsi_tran_factory *fact = ddsrt_malloc (sizeof (*fact));
   memset (fact, 0, sizeof (*fact));
   fact->gv = gv;
   fact->m_free_fn = ddsi_raweth_deinit;
-  fact->m_kind = NN_LOCATOR_KIND_RAWETH;
   fact->m_typename = "raweth";
   fact->m_default_spdp_address = "raweth/ff:ff:ff:ff:ff:ff";
   fact->m_connless = 1;
+  fact->m_enable_spdp = 1;
   fact->m_supports_fn = ddsi_raweth_supports;
   fact->m_create_conn_fn = ddsi_raweth_create_conn;
   fact->m_release_conn_fn = ddsi_raweth_release_conn;
   fact->m_join_mc_fn = ddsi_raweth_join_mc;
   fact->m_leave_mc_fn = ddsi_raweth_leave_mc;
+  fact->m_is_loopbackaddr_fn = ddsi_raweth_is_loopbackaddr;
   fact->m_is_mcaddr_fn = ddsi_raweth_is_mcaddr;
   fact->m_is_ssm_mcaddr_fn = ddsi_raweth_is_ssm_mcaddr;
   fact->m_is_nearby_address_fn = ddsi_raweth_is_nearby_address;
@@ -390,6 +414,7 @@ int ddsi_raweth_init (struct ddsi_domaingv *gv)
   fact->m_enumerate_interfaces_fn = ddsi_raweth_enumerate_interfaces;
   fact->m_is_valid_port_fn = ddsi_raweth_is_valid_port;
   fact->m_receive_buffer_size_fn = ddsi_raweth_receive_buffer_size;
+  fact->m_locator_from_sockaddr_fn = ddsi_raweth_locator_from_sockaddr;
   ddsi_factory_add (gv, fact);
   GVLOG (DDS_LC_CONFIG, "raweth initialized\n");
   return 0;

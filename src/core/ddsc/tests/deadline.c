@@ -28,7 +28,11 @@
 
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
+#ifdef DDS_HAS_SHM
+#define DDS_CONFIG_NO_PORT_GAIN "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery><Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>"
+#else
 #define DDS_CONFIG_NO_PORT_GAIN "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
+#endif
 
 static dds_entity_t g_domain = 0;
 static dds_entity_t g_participant = 0;
@@ -106,6 +110,8 @@ static void deadline_fini(void)
   dds_delete(g_domain);
   dds_delete(g_remote_domain);
 }
+
+static void msg(const char *msg, ...) ddsrt_attribute_format((printf, 1, 2));
 
 static void msg(const char *msg, ...)
 {

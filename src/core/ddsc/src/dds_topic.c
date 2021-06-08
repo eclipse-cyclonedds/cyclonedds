@@ -593,6 +593,10 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   st = dds_alloc (sizeof (*st));
 
   ddsi_sertype_init (&st->c, desc->m_typename, &ddsi_sertype_ops_default, desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey, (desc->m_nkeys == 0));
+#ifdef DDS_HAS_SHM
+  st->c.iox_size = desc->m_size;
+#endif
+  st->c.fixed_size = (st->c.fixed_size || (desc->m_flagset & DDS_TOPIC_FIXED_SIZE)) ? 1u : 0u;
   st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE);
   st->serpool = ppent->m_domain->gv.serpool;
   st->type.size = desc->m_size;
@@ -932,6 +936,32 @@ dds_topic_filter_fn dds_get_topic_filter (dds_entity_t topic)
 dds_topic_filter_fn dds_topic_get_filter (dds_entity_t topic)
 {
   return dds_get_topic_filter_deprecated (topic);
+}
+
+dds_return_t dds_get_name_size (dds_entity_t topic, size_t *size)
+{
+  dds_topic *t;
+  dds_return_t ret;
+  if (size == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  if ((ret = dds_topic_pin (topic, &t)) != DDS_RETCODE_OK)
+    return ret;
+  *size = strlen (t->m_name);
+  dds_topic_unpin (t);
+  return DDS_RETCODE_OK;
+}
+
+dds_return_t dds_get_type_name_size (dds_entity_t topic, size_t *size)
+{
+  dds_topic *t;
+  dds_return_t ret;
+  if (size == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  if ((ret = dds_topic_pin (topic, &t)) != DDS_RETCODE_OK)
+    return ret;
+  *size = strlen (t->m_stype->type_name);
+  dds_topic_unpin (t);
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t dds_get_name (dds_entity_t topic, char *name, size_t size)

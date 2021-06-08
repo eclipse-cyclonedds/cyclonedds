@@ -298,6 +298,7 @@ CU_Test(ddsc_entity, incompatible_qos, .init=init_entity_status, .fini=fini_enti
 
     ret = dds_waitset_detach(waitSetrd, reader2);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
     dds_delete(reader2);
 }
 

@@ -479,7 +479,7 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
     nn_xmsg_setwriterseq (*pmsg, &wr->e.guid, seq);
 
   /* Adding parameters means potential reallocing, so sm, ddcmn now likely become invalid */
-  if (wr->include_keyhash)
+  if (wr->num_readers_requesting_keyhash > 0)
     nn_xmsg_addpar_keyhash (*pmsg, serdata, wr->force_md5_keyhash);
   if (serdata->statusinfo)
     nn_xmsg_addpar_statusinfo (*pmsg, serdata->statusinfo);
@@ -628,7 +628,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
   {
     int rc;
     /* Adding parameters means potential reallocing, so sm, ddcmn now likely become invalid */
-    if (wr->include_keyhash)
+    if (wr->num_readers_requesting_keyhash > 0)
     {
       nn_xmsg_addpar_keyhash (*pmsg, serdata, wr->force_md5_keyhash);
     }
@@ -1185,7 +1185,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
   assert (gc_allowed || (wr->xqos->history.kind == DDS_HISTORY_KEEP_LAST && wr->whc_low == INT32_MAX));
   (void) gc_allowed;
 
-  if (ddsi_serdata_size (serdata) > gv->config.max_sample_size)
+  if (gv->config.max_sample_size < (uint32_t) INT32_MAX && ddsi_serdata_size (serdata) > gv->config.max_sample_size)
   {
     char ppbuf[1024];
     int tmp;

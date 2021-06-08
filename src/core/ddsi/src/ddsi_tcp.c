@@ -69,6 +69,7 @@ typedef struct ddsi_tcp_listener {
 
 struct ddsi_tran_factory_tcp {
   struct ddsi_tran_factory fact;
+  int32_t m_kind;
   ddsrt_mutex_t ddsi_tcp_cache_lock_g;
   ddsrt_avl_tree_t ddsi_tcp_cache_g;
   struct ddsi_tcp_conn ddsi_tcp_conn_client;
@@ -106,12 +107,12 @@ static const ddsrt_avl_treedef_t ddsi_tcp_treedef = DDSRT_AVL_TREEDEF_INITIALIZE
   0
 );
 
-static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, ddsrt_socket_t, bool, struct sockaddr *);
+static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, const struct nn_interface *interf, ddsrt_socket_t, bool, struct sockaddr *);
 
-static char *sockaddr_to_string_with_port (struct ddsi_tran_factory_tcp *fact, char *dst, size_t sizeof_dst, const struct sockaddr *src)
+static char *sockaddr_to_string_with_port (char *dst, size_t sizeof_dst, const struct sockaddr *src)
 {
   ddsi_locator_t loc;
-  ddsi_ipaddr_to_loc(&fact->fact, &loc, src, src->sa_family == AF_INET ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6);
+  ddsi_ipaddr_to_loc(&loc, src, src->sa_family == AF_INET ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6);
   ddsi_locator_to_string(dst, sizeof_dst, &loc);
   return dst;
 }
@@ -180,7 +181,7 @@ static dds_return_t ddsi_tcp_sock_new (struct ddsi_tran_factory_tcp * const fact
   dds_return_t rc;
 
   memset (&socketname, 0, sizeof (socketname));
-  switch (fact->fact.m_kind)
+  switch (fact->m_kind)
   {
     case NN_LOCATOR_KIND_TCPv4:
       socketname.a4.sin_family = AF_INET;
@@ -195,7 +196,7 @@ static dds_return_t ddsi_tcp_sock_new (struct ddsi_tran_factory_tcp * const fact
       break;
 #endif
     default:
-      DDS_FATAL ("ddsi_tcp_sock_new: unsupported kind %"PRId32"\n", fact->fact.m_kind);
+      DDS_FATAL ("ddsi_tcp_sock_new: unsupported kind %"PRId32"\n", fact->m_kind);
   }
   if ((rc = ddsrt_socket (sock, socketname.a.sa_family, SOCK_STREAM, 0)) != DDS_RETCODE_OK)
   {
@@ -281,7 +282,7 @@ static void ddsi_tcp_conn_connect (ddsi_tcp_conn_t conn, const ddsrt_msghdr_t * 
   }
 #endif
 
-  sockaddr_to_string_with_port(fact, buff, sizeof(buff), (struct sockaddr *) msg->msg_name);
+  sockaddr_to_string_with_port(buff, sizeof(buff), (struct sockaddr *) msg->msg_name);
   GVLOG (DDS_LC_TCP, "tcp connect socket %"PRIdSOCK" port %u to %s\n", sock, get_socket_port (gv, sock), buff);
 
   /* Also may need to receive on connection so add to waitset */
@@ -333,7 +334,7 @@ static void ddsi_tcp_cache_add (struct ddsi_tran_factory_tcp *fact, ddsi_tcp_con
     }
   }
 
-  sockaddr_to_string_with_port(fact, buff, sizeof(buff), &conn->m_peer_addr.a);
+  sockaddr_to_string_with_port(buff, sizeof(buff), &conn->m_peer_addr.a);
   GVLOG (DDS_LC_TCP, "tcp cache %s %s socket %"PRIdSOCK" to %s\n", action, conn->m_base.m_server ? "server" : "client", conn->m_sock, buff);
 }
 
@@ -349,7 +350,7 @@ static void ddsi_tcp_cache_remove (ddsi_tcp_conn_t conn)
   node = ddsrt_avl_lookup_dpath (&ddsi_tcp_treedef, &fact->ddsi_tcp_cache_g, conn, &path);
   if (node)
   {
-    sockaddr_to_string_with_port(fact, buff, sizeof(buff), &conn->m_peer_addr.a);
+    sockaddr_to_string_with_port(buff, sizeof(buff), &conn->m_peer_addr.a);
     GVLOG (DDS_LC_TCP, "tcp cache removed socket %"PRIdSOCK" to %s\n", conn->m_sock, buff);
     ddsrt_avl_delete_dpath (&ddsi_tcp_treedef, &fact->ddsi_tcp_cache_g, node, &path);
     ddsi_tcp_node_free (node);
@@ -391,7 +392,7 @@ static ddsi_tcp_conn_t ddsi_tcp_cache_find (struct ddsi_tran_factory_tcp *fact, 
   }
   if (ret == NULL)
   {
-    ret = ddsi_tcp_new_conn (fact, DDSRT_INVALID_SOCKET, false, &key.m_peer_addr.a);
+    ret = ddsi_tcp_new_conn (fact, NULL, DDSRT_INVALID_SOCKET, false, &key.m_peer_addr.a);
     ddsi_tcp_cache_add (fact, ret, &path);
   }
   ddsrt_mutex_unlock (&fact->ddsi_tcp_cache_lock_g);
@@ -482,7 +483,7 @@ static ssize_t ddsi_tcp_conn_read (ddsi_tran_conn_t conn, unsigned char *buf, si
         if (srcloc)
         {
           const int32_t kind = addrfam_to_locator_kind (tcp->m_peer_addr.a.sa_family);
-          ddsi_ipaddr_to_loc(&fact->fact, srcloc, &tcp->m_peer_addr.a, kind);
+          ddsi_ipaddr_to_loc(srcloc, &tcp->m_peer_addr.a, kind);
         }
         return (ssize_t) pos;
       }
@@ -778,14 +779,15 @@ static ddsrt_socket_t ddsi_tcp_conn_handle (ddsi_tran_base_t base)
 ddsrt_attribute_no_sanitize (("thread"))
 static bool ddsi_tcp_supports (const struct ddsi_tran_factory *fact_cmn, int32_t kind)
 {
-  return kind == fact_cmn->m_kind;
+  struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) fact_cmn;
+  return kind == fact->m_kind;
 }
 
 static int ddsi_tcp_locator (struct ddsi_tran_factory *fact_cmn, ddsi_tran_base_t base, ddsi_locator_t *loc)
 {
-  loc->tran = fact_cmn;
-  loc->kind = fact_cmn->m_kind;
-  memcpy(loc->address, base->gv->extloc.address, sizeof(loc->address));
+  struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) fact_cmn;
+  loc->kind = fact->m_kind;
+  memcpy(loc->address, base->gv->interfaces[0].loc.address, sizeof(loc->address));
   loc->port = base->m_port;
   return 0;
 }
@@ -858,7 +860,7 @@ static ddsi_tran_conn_t ddsi_tcp_accept (ddsi_tran_listener_t listener)
   if (sock == DDSRT_INVALID_SOCKET)
   {
     (void)ddsrt_getsockname (tl->m_sock, &addr.a, &addrlen);
-    sockaddr_to_string_with_port(fact, buff, sizeof(buff), &addr.a);
+    sockaddr_to_string_with_port(buff, sizeof(buff), &addr.a);
     GVLOG ((rc == DDS_RETCODE_OK) ? DDS_LC_ERROR : DDS_LC_FATAL, "tcp accept failed on socket %"PRIdSOCK" at %s retcode %"PRId32"\n", tl->m_sock, buff, rc);
   }
   else if (getpeername (sock, &addr.a, &addrlen) == -1)
@@ -868,11 +870,11 @@ static ddsi_tran_conn_t ddsi_tcp_accept (ddsi_tran_listener_t listener)
   }
   else
   {
-    sockaddr_to_string_with_port(fact, buff, sizeof(buff), &addr.a);
+    sockaddr_to_string_with_port(buff, sizeof(buff), &addr.a);
     GVLOG (DDS_LC_TCP, "tcp accept new socket %"PRIdSOCK" on socket %"PRIdSOCK" from %s\n", sock, tl->m_sock, buff);
 
     (void)ddsrt_setsocknonblocking (sock, true);
-    tcp = ddsi_tcp_new_conn (fact, sock, true, &addr.a);
+    tcp = ddsi_tcp_new_conn (fact, NULL, sock, true, &addr.a);
 #ifdef DDS_HAS_SSL
     tcp->m_ssl = ssl;
 #endif
@@ -900,9 +902,9 @@ static ddsrt_socket_t ddsi_tcp_listener_handle (ddsi_tran_base_t base)
   caller (supporting call back over NAT).
 */
 
-static void addr_to_loc (const struct ddsi_tran_factory *fact, ddsi_locator_t *loc, const union addr *addr)
+static void addr_to_loc (ddsi_locator_t *loc, const union addr *addr)
 {
-  ddsi_ipaddr_to_loc (fact, loc, &addr->a, addrfam_to_locator_kind (addr->a.sa_family));
+  ddsi_ipaddr_to_loc (loc, &addr->a, addrfam_to_locator_kind (addr->a.sa_family));
 }
 
 static void ddsi_tcp_conn_peer_locator (ddsi_tran_conn_t conn, ddsi_locator_t * loc)
@@ -911,14 +913,14 @@ static void ddsi_tcp_conn_peer_locator (ddsi_tran_conn_t conn, ddsi_locator_t * 
   char buff[DDSI_LOCSTRLEN];
   ddsi_tcp_conn_t tc = (ddsi_tcp_conn_t) conn;
   assert (tc->m_sock != DDSRT_INVALID_SOCKET);
-  addr_to_loc (conn->m_factory, loc, &tc->m_peer_addr);
+  addr_to_loc (loc, &tc->m_peer_addr);
   ddsi_locator_to_string(buff, sizeof(buff), loc);
   GVLOG (DDS_LC_TCP, "(tcp EP:%s)", buff);
 }
 
-static void ddsi_tcp_base_init (const struct ddsi_tran_factory_tcp *fact, struct ddsi_tran_conn *base)
+static void ddsi_tcp_base_init (const struct ddsi_tran_factory_tcp *fact, const struct nn_interface *interf, struct ddsi_tran_conn *base)
 {
-  ddsi_factory_conn_init (&fact->fact, base);
+  ddsi_factory_conn_init (&fact->fact, interf, base);
   base->m_base.m_trantype = DDSI_TRAN_CONN;
   base->m_base.m_handle_fn = ddsi_tcp_conn_handle;
   base->m_read_fn = ddsi_tcp_conn_read;
@@ -928,12 +930,12 @@ static void ddsi_tcp_base_init (const struct ddsi_tran_factory_tcp *fact, struct
   base->m_locator_fn = ddsi_tcp_locator;
 }
 
-static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, ddsrt_socket_t sock, bool server, struct sockaddr * peer)
+static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, const struct nn_interface *interf, ddsrt_socket_t sock, bool server, struct sockaddr * peer)
 {
   ddsi_tcp_conn_t conn = ddsrt_malloc (sizeof (*conn));
 
   memset (conn, 0, sizeof (*conn));
-  ddsi_tcp_base_init (fact, &conn->m_base);
+  ddsi_tcp_base_init (fact, interf, &conn->m_base);
   ddsrt_mutex_init (&conn->m_mutex);
   conn->m_sock = DDSRT_INVALID_SOCKET;
   (void)memcpy(&conn->m_peer_addr, peer, ddsrt_sockaddr_get_size(peer));
@@ -965,7 +967,7 @@ static dds_return_t ddsi_tcp_create_listener (ddsi_tran_listener_t *listener_out
     ddsi_tcp_sock_free (gv, sock, NULL);
     return DDS_RETCODE_ERROR;
   }
-  sockaddr_to_string_with_port (fact_tcp, buff, sizeof (buff), &addr.a);
+  sockaddr_to_string_with_port (buff, sizeof (buff), &addr.a);
   GVLOG (DDS_LC_TCP, "tcp create listener socket %"PRIdSOCK" on %s\n", sock, buff);
 
   ddsi_tcp_listener_t tl = ddsrt_malloc (sizeof (*tl));
@@ -991,8 +993,8 @@ static void ddsi_tcp_conn_delete (ddsi_tcp_conn_t conn)
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) conn->m_base.m_factory;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
   char buff[DDSI_LOCSTRLEN];
-  sockaddr_to_string_with_port(fact, buff, sizeof(buff), &conn->m_peer_addr.a);
-  GVLOG (DDS_LC_TCP, "tcp free %s connection on socket %"PRIdSOCK" to %s\n", conn->m_base.m_server ? "server" : "client", conn->m_sock, buff);
+  sockaddr_to_string_with_port(buff, sizeof(buff), &conn->m_peer_addr.a);
+  GVLOG (DDS_LC_TCP, "tcp free %s connnection on socket %"PRIdSOCK" to %s\n", conn->m_base.m_server ? "server" : "client", conn->m_sock, buff);
 
 #ifdef DDS_HAS_SSL
   if (fact->ddsi_tcp_ssl_plugin.ssl_free)
@@ -1015,13 +1017,14 @@ static void ddsi_tcp_close_conn (ddsi_tran_conn_t tc)
   if (tc != &fact_tcp->ddsi_tcp_conn_client.m_base)
   {
     char buff[DDSI_LOCSTRLEN];
-    ddsi_locator_t loc;
+    ddsi_xlocator_t loc;
     ddsi_tcp_conn_t conn = (ddsi_tcp_conn_t) tc;
-    sockaddr_to_string_with_port(fact_tcp, buff, sizeof(buff), &conn->m_peer_addr.a);
-    GVLOG (DDS_LC_TCP, "tcp close %s connection on socket %"PRIdSOCK" to %s\n", conn->m_base.m_server ? "server" : "client", conn->m_sock, buff);
+    sockaddr_to_string_with_port(buff, sizeof(buff), &conn->m_peer_addr.a);
+    GVLOG (DDS_LC_TCP, "tcp close %s connnection on socket %"PRIdSOCK" to %s\n", conn->m_base.m_server ? "server" : "client", conn->m_sock, buff);
     (void) shutdown (conn->m_sock, 2);
-    ddsi_ipaddr_to_loc(&fact_tcp->fact, &loc, &conn->m_peer_addr.a, addrfam_to_locator_kind(conn->m_peer_addr.a.sa_family));
-    loc.port = conn->m_peer_port;
+    ddsi_ipaddr_to_loc(&loc.c, &conn->m_peer_addr.a, addrfam_to_locator_kind(conn->m_peer_addr.a.sa_family));
+    loc.c.port = conn->m_peer_port;
+    loc.conn = tc;
     purge_proxy_participants (gv, &loc, conn->m_base.m_server);
   }
 }
@@ -1073,9 +1076,8 @@ static void ddsi_tcp_unblock_listener (ddsi_tran_listener_t listener)
   } while (ret == DDS_RETCODE_INTERRUPTED);
   if (ret != DDS_RETCODE_OK)
   {
-    struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) listener->m_factory;
     char buff[DDSI_LOCSTRLEN];
-    sockaddr_to_string_with_port (fact, buff, sizeof (buff), &addr.a);
+    sockaddr_to_string_with_port (buff, sizeof (buff), &addr.a);
     GVWARNING ("tcp failed to connect to own listener (%s) error %"PRId32"\n", buff, ret);
   }
 
@@ -1116,9 +1118,30 @@ static void ddsi_tcp_release_factory (struct ddsi_tran_factory *fact_cmn)
   ddsrt_free (fact);
 }
 
-static enum ddsi_locator_from_string_result ddsi_tcp_address_from_string (const struct ddsi_tran_factory *fact, ddsi_locator_t *loc, const char *str)
+static enum ddsi_locator_from_string_result ddsi_tcp_address_from_string (const struct ddsi_tran_factory *fact_cmn, ddsi_locator_t *loc, const char *str)
 {
-  return ddsi_ipaddr_from_string(fact, loc, str, fact->m_kind);
+  struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) fact_cmn;
+  return ddsi_ipaddr_from_string(loc, str, fact->m_kind);
+}
+
+static int ddsi_tcp_is_loopbackaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
+{
+  (void) tran;
+  switch (loc->kind)
+  {
+    case NN_LOCATOR_KIND_UDPv4: {
+      return loc->address[12] == 127;
+    }
+#if DDSRT_HAVE_IPV6
+    case NN_LOCATOR_KIND_UDPv6: {
+      const struct in6_addr *ipv6 = (const struct in6_addr *) loc->address;
+      return IN6_IS_ADDR_LOOPBACK (ipv6);
+    }
+#endif
+    default: {
+      return 0;
+    }
+  }
 }
 
 static int ddsi_tcp_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
@@ -1135,9 +1158,9 @@ static int ddsi_tcp_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const d
   return 0;
 }
 
-static enum ddsi_nearby_address_result ddsi_tcp_is_nearby_address (const ddsi_locator_t *loc, const ddsi_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
+static enum ddsi_nearby_address_result ddsi_tcp_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface interf[], size_t *interf_idx)
 {
-  return ddsi_ipaddr_is_nearby_address(loc, ownloc, ninterf, interf);
+  return ddsi_ipaddr_is_nearby_address(loc, ninterf, interf, interf_idx);
 }
 
 static int ddsi_tcp_is_valid_port (const struct ddsi_tran_factory *fact, uint32_t port)
@@ -1152,16 +1175,42 @@ static uint32_t ddsi_tcp_receive_buffer_size (const struct ddsi_tran_factory *fa
   return 0;
 }
 
+static char *ddsi_tcp_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port)
+{
+  (void) conn;
+  return ddsi_ipaddr_to_string(dst, sizeof_dst, loc, with_port, NULL);
+}
+
+static int ddsi_tcp_locator_from_sockaddr (const struct ddsi_tran_factory *tran_cmn, ddsi_locator_t *loc, const struct sockaddr *sockaddr)
+{
+  struct ddsi_tran_factory_tcp * const tran = (struct ddsi_tran_factory_tcp *) tran_cmn;
+  switch (sockaddr->sa_family)
+  {
+    case AF_INET:
+      if (tran->m_kind != NN_LOCATOR_KIND_TCPv4)
+        return -1;
+      break;
+    case AF_INET6:
+      if (tran->m_kind != NN_LOCATOR_KIND_TCPv6)
+        return -1;
+      break;
+  }
+  ddsi_ipaddr_to_loc (loc, sockaddr, tran->m_kind);
+  return 0;
+}
+
 int ddsi_tcp_init (struct ddsi_domaingv *gv)
 {
   struct ddsi_tran_factory_tcp *fact = ddsrt_malloc (sizeof (*fact));
 
   memset (fact, 0, sizeof (*fact));
+  fact->m_kind = NN_LOCATOR_KIND_TCPv4;
   fact->fact.gv = gv;
-  fact->fact.m_kind = NN_LOCATOR_KIND_TCPv4;
   fact->fact.m_typename = "tcp";
+  fact->fact.m_default_spdp_address = NULL;
   fact->fact.m_stream = true;
   fact->fact.m_connless = false;
+  fact->fact.m_enable_spdp = true;
   fact->fact.m_supports_fn = ddsi_tcp_supports;
   fact->fact.m_create_listener_fn = ddsi_tcp_create_listener;
   fact->fact.m_create_conn_fn = ddsi_tcp_create_conn;
@@ -1171,25 +1220,28 @@ int ddsi_tcp_init (struct ddsi_domaingv *gv)
   fact->fact.m_release_listener_fn = ddsi_tcp_release_listener;
   fact->fact.m_free_fn = ddsi_tcp_release_factory;
   fact->fact.m_locator_from_string_fn = ddsi_tcp_address_from_string;
-  fact->fact.m_locator_to_string_fn = ddsi_ipaddr_to_string;
+  fact->fact.m_locator_to_string_fn = ddsi_tcp_locator_to_string;
   fact->fact.m_enumerate_interfaces_fn = ddsi_eth_enumerate_interfaces;
+  fact->fact.m_is_loopbackaddr_fn = ddsi_tcp_is_loopbackaddr;
   fact->fact.m_is_mcaddr_fn = ddsi_tcp_is_mcaddr;
   fact->fact.m_is_ssm_mcaddr_fn = ddsi_tcp_is_ssm_mcaddr;
   fact->fact.m_is_nearby_address_fn = ddsi_tcp_is_nearby_address;
   fact->fact.m_is_valid_port_fn = ddsi_tcp_is_valid_port;
   fact->fact.m_receive_buffer_size_fn = ddsi_tcp_receive_buffer_size;
-  ddsi_factory_add (gv, &fact->fact);
+  fact->fact.m_locator_from_sockaddr_fn = ddsi_tcp_locator_from_sockaddr;
 
 #if DDSRT_HAVE_IPV6
   if (gv->config.transport_selector == DDSI_TRANS_TCP6)
   {
-    fact->fact.m_kind = NN_LOCATOR_KIND_TCPv6;
+    fact->m_kind = NN_LOCATOR_KIND_TCPv6;
     fact->fact.m_typename = "tcp6";
   }
 #endif
 
+  ddsi_factory_add (gv, &fact->fact);
+
   memset (&fact->ddsi_tcp_conn_client, 0, sizeof (fact->ddsi_tcp_conn_client));
-  ddsi_tcp_base_init (fact, &fact->ddsi_tcp_conn_client.m_base);
+  ddsi_tcp_base_init (fact, NULL, &fact->ddsi_tcp_conn_client.m_base);
 
 #ifdef DDS_HAS_SSL
   if (gv->config.ssl_enable)

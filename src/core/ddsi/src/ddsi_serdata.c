@@ -17,6 +17,7 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_serdata.h"
 
@@ -29,6 +30,10 @@ void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertype *tp, e
   d->statusinfo = 0;
   d->timestamp.v = INT64_MIN;
   d->twrite.v = INT64_MIN;
+#ifdef DDS_HAS_SHM
+  d->iox_chunk = NULL;
+  d->iox_subscriber = NULL;
+#endif
   ddsrt_atomic_st32 (&d->refc, 1);
 }
 
@@ -53,6 +58,14 @@ struct ddsi_serdata *ddsi_serdata_ref_as_type (const struct ddsi_sertype *type, 
   }
 }
 
+const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct nn_rdata *fragchain)
+{
+  if (fragchain->keyhash_zoff == 0)
+    return NULL;
+  else
+    return (const ddsi_keyhash_t *) NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_KEYHASH_OFF (fragchain));
+}
+
 extern inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const);
 extern inline void ddsi_serdata_unref (struct ddsi_serdata *serdata);
 extern inline uint32_t ddsi_serdata_size (const struct ddsi_serdata *d);
@@ -70,3 +83,8 @@ extern inline bool ddsi_serdata_eqkey (const struct ddsi_serdata *a, const struc
 extern inline bool ddsi_serdata_print (const struct ddsi_serdata *d, char *buf, size_t size);
 extern inline bool ddsi_serdata_print_untyped (const struct ddsi_sertype *type, const struct ddsi_serdata *d, char *buf, size_t size);
 extern inline void ddsi_serdata_get_keyhash (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5);
+#ifdef DDS_HAS_SHM
+extern inline uint32_t ddsi_serdata_iox_size(const struct ddsi_serdata* d);
+// sub really is an iox_sub_t *
+extern inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer);
+#endif

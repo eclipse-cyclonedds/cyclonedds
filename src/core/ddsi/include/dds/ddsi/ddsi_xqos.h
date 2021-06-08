@@ -228,6 +228,8 @@ typedef struct dds_type_consistency_enforcement_qospolicy {
   bool force_type_validation;
 } dds_type_consistency_enforcement_qospolicy_t;
 
+typedef uint32_t dds_locator_mask_t;
+
 /***/
 
 /* Qos Present bit indices */
@@ -261,6 +263,7 @@ typedef struct dds_type_consistency_enforcement_qospolicy {
 #define QP_PROPERTY_LIST                     ((uint64_t)1 << 31)
 #define QP_TYPE_CONSISTENCY_ENFORCEMENT      ((uint64_t)1 << 32)
 #define QP_CYCLONE_TYPE_INFORMATION          ((uint64_t)1 << 33)
+#define QP_LOCATOR_MASK                      ((uint64_t)1 << 34)
 
 /* Partition QoS is not RxO according to the specification (DDS 1.2,
    section 7.1.3), but communication will not take place unless it
@@ -317,6 +320,7 @@ struct dds_qos {
   /* x  */dds_ignorelocal_qospolicy_t ignorelocal;
   /*xxx */dds_property_qospolicy_t property;
   /*xxxR*/dds_type_consistency_enforcement_qospolicy_t type_consistency;
+  /*xxxX*/dds_locator_mask_t ignore_locator_type;
 };
 
 struct nn_xmsg;

@@ -16,13 +16,14 @@ add_custom_command(
   COMMAND ddsconf -f defconfig -o ${defconfig_src}
   DEPENDS ddsconf)
 
-  set(srcs_ddsi
+set(srcs_ddsi
   ddsi_eth.c
   ddsi_ssl.c
   ddsi_tcp.c
   ddsi_tran.c
   ddsi_udp.c
   ddsi_raweth.c
+  ddsi_vnet.c
   ddsi_ipaddr.c
   ddsi_mcgroup.c
   ddsi_security_util.c
@@ -54,6 +55,7 @@ add_custom_command(
   ddsi_ownip.c
   ddsi_acknack.c
   ddsi_list_genptr.c
+  ddsi_wraddrset.c
   q_addrset.c
   q_bitset_inlines.c
   q_bswap.c
@@ -86,6 +88,7 @@ set(hdrs_private_ddsi
   ddsi_tran.h
   ddsi_udp.h
   ddsi_raweth.h
+  ddsi_vnet.h
   ddsi_ipaddr.h
   ddsi_locator.h
   ddsi_mcgroup.h
@@ -124,6 +127,7 @@ set(hdrs_private_ddsi
   ddsi_acknack.h
   ddsi_list_tmpl.h
   ddsi_list_genptr.h
+  ddsi_wraddrset.h
   q_addrset.h
   q_bitset.h
   q_bswap.h
@@ -171,12 +175,17 @@ if(ENABLE_SECURITY)
   list(APPEND srcs_ddsi ddsi_security_msg.c ddsi_security_exchange.c)
   list(APPEND hdrs_private_ddsi ddsi_security_msg.h ddsi_security_exchange.h)
 endif()
+if(iceoryx_binding_c_FOUND)
+  list(APPEND srcs_ddsi shm_init.c shm_sync.c)
+  list(APPEND hdrs_private_ddsi shm_sync.h)
+endif()
 
 prepend(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/" ${hdrs_private_ddsi})
 prepend(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/" ${srcs_ddsi})
 
 target_sources(ddsc PRIVATE ${srcs_ddsi} ${defconfig_src} ${hdrs_private_ddsi})
 target_include_directories(ddsc PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
+
 install(
   DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"

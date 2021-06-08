@@ -30,10 +30,22 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds__builtin.h"
 #include "dds__statistics.h"
+#include "dds__data_allocator.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_statistics.h"
+
+#ifdef DDS_HAS_SHM
+#include "shm__monitor.h"
+#include "dds/ddsi/q_receive.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "iceoryx_binding_c/wait_set.h"
+#include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/md5.h"
+#include "dds/ddsi/shm_sync.h"
+#endif
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
 
@@ -52,6 +64,15 @@ static void dds_reader_close (dds_entity *e)
 {
   struct dds_reader * const rd = (struct dds_reader *) e;
   assert (rd->m_rd != NULL);
+
+#ifdef DDS_HAS_SHM
+  if (rd->m_iox_sub)
+  {
+  //will wait for any runing callback using the iceoryx subscriber of this reader
+    shm_monitor_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+  //from now on no callbacks on this reader will run
+  }
+#endif
 
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   (void) delete_reader (&e->m_domain->gv, &e->m_guid);
@@ -80,6 +101,18 @@ static dds_return_t dds_reader_delete (dds_entity *e)
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   dds_rhc_free (rd->m_rhc);
   thread_state_asleep (lookup_thread_state ());
+
+#ifdef DDS_HAS_SHM
+  if (rd->m_iox_sub)
+  {
+    // deletion must happen at the very end after the reader cache is not used anymore
+    // since the mutex is needed and the data needs to be released using the iceoryx subscriber
+    DDS_CLOG (DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's subscriber\n");
+    iox_sub_deinit(rd->m_iox_sub);
+    iox_sub_storage_extension_fini(&rd->m_iox_sub_stor);
+  }
+#endif
+
   dds_entity_drop_ref (&rd->m_topic->m_entity);
   return DDS_RETCODE_OK;
 }
@@ -410,6 +443,29 @@ const struct dds_entity_deriver dds_entity_deriver_reader = {
   .refresh_statistics = dds_reader_refresh_statistics
 };
 
+#ifdef DDS_HAS_SHM
+#define DDS_READER_QOS_CHECK_FIELDS (QP_LIVELINESS|QP_DEADLINE|QP_RELIABILITY|QP_DURABILITY|QP_HISTORY)
+static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_t *qos, const struct dds_topic *tp)
+{
+  if (NULL == cfg ||
+      false == cfg->enable_shm)
+    return false;
+
+  if (!tp->m_stype->fixed_size)
+    return false;
+
+  uint32_t sub_history_req = cfg->sub_history_request;
+
+  return (NULL != qos &&
+    DDS_READER_QOS_CHECK_FIELDS == (qos->present & DDS_READER_QOS_CHECK_FIELDS) &&
+    DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
+    DDS_INFINITY == qos->deadline.deadline &&
+    DDS_DURABILITY_VOLATILE == qos->durability.kind &&
+    DDS_HISTORY_KEEP_LAST == qos->history.kind &&
+    (int)sub_history_req >= (int)qos->history.depth);
+}
+#endif
+
 static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
 {
   dds_qos_t *rqos;
@@ -547,9 +603,50 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
      it; and then invoke those listeners that are in the pending set */
   dds_entity_init_complete (&rd->m_entity);
 
+#ifdef DDS_HAS_SHM
+  assert(rqos->present & QP_LOCATOR_MASK);
+  if (!dds_reader_support_shm(&gv->config, rqos, tp))
+    rqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
+#endif
+
   rc = new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
   assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
   thread_state_asleep (lookup_thread_state ());
+
+#ifdef DDS_HAS_SHM
+  if (0x0 == (rqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM))
+  {
+    size_t name_size, type_name_size;
+    rc = dds_get_name_size(topic, &name_size);
+    assert(rc == DDS_RETCODE_OK);
+    rc = dds_get_type_name_size(topic, &type_name_size);
+    assert(rc == DDS_RETCODE_OK);
+    char topic_name[name_size + 1];
+    char type_name[type_name_size + 1];
+    rc = dds_get_name(topic, topic_name, name_size + 1);
+    assert(rc == DDS_RETCODE_OK);
+    rc = dds_get_type_name(topic, type_name, type_name_size + 1);
+    assert(rc == DDS_RETCODE_OK);
+    DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Reader's topic name will be DDS:Cyclone:%s\n", topic_name);
+
+    iox_sub_options_t opts;
+    iox_sub_options_init(&opts);
+
+    // ICEORYX TODO: handle failure (how should the system behave if resources are insufficient?)
+    iox_sub_storage_extension_init(&rd->m_iox_sub_stor);
+
+    assert (rqos->durability.kind == DDS_DURABILITY_VOLATILE);
+    opts.queueCapacity = rd->m_entity.m_domain->gv.config.sub_queue_capacity;
+    opts.historyRequest = 0;
+    rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor.storage, gv->config.iceoryx_service, type_name, topic_name, &opts);
+    shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+
+    // those are set once and never changed
+    // they are used to access reader and monitor from the callback when data is received
+    rd->m_iox_sub_stor.monitor = &rd->m_entity.m_domain->m_shm_monitor;
+    rd->m_iox_sub_stor.parent_reader = rd;
+  }
+#endif
 
   rd->m_entity.m_iid = get_entity_instance_id (&rd->m_entity.m_domain->gv, &rd->m_entity.m_guid);
   dds_entity_register_child (&sub->m_entity, &rd->m_entity);
@@ -698,6 +795,39 @@ dds_entity_t dds_get_subscriber (dds_entity_t entity)
     dds_entity_unpin (e);
     return subh;
   }
+}
+
+dds_return_t dds__reader_data_allocator_init (const dds_reader *rd, dds_data_allocator_t *data_allocator)
+{
+#ifdef DDS_HAS_SHM
+  dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
+  if (NULL != rd->m_iox_sub)
+  {
+    d->kind = DDS_IOX_ALLOCATOR_KIND_SUBSCRIBER;
+    d->ref.sub = rd->m_iox_sub;
+  }
+  else
+  {
+    d->kind = DDS_IOX_ALLOCATOR_KIND_NONE;
+  }
+  return DDS_RETCODE_OK;
+#else
+  (void) rd;
+  (void) data_allocator;
+  return DDS_RETCODE_OK;
+#endif
+}
+
+dds_return_t dds__reader_data_allocator_fini (const dds_reader *rd, dds_data_allocator_t *data_allocator)
+{
+#ifdef DDS_HAS_SHM
+  dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
+  d->kind = DDS_IOX_ALLOCATOR_KIND_FINI;
+#else
+  (void) data_allocator;
+#endif
+  (void) rd;
+  return DDS_RETCODE_OK;
 }
 
 /* Reset sets everything (type) 0, including the reason field, verify that 0 is correct */

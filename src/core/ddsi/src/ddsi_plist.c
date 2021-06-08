@@ -79,7 +79,6 @@ struct dd {
   unsigned bswap: 1;
   nn_protocol_version_t protocol_version;
   nn_vendorid_t vendorid;
-  ddsi_tran_factory_t factory;
 };
 
 #define PDF_QOS        1 /* part of dds_qos_t */
@@ -105,7 +104,7 @@ struct piddesc {
        will fit */
     const enum pserop desc[12];
     struct {
-      dds_return_t (*deser) (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd);
+dds_return_t (*deser) (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv);
       dds_return_t (*ser) (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo);
       dds_return_t (*unalias) (void * __restrict dst, size_t * __restrict dstoff);
       dds_return_t (*fini) (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag);
@@ -128,7 +127,7 @@ static dds_return_t validate_resource_limits_qospolicy (const dds_resource_limit
 static dds_return_t validate_history_and_resource_limits (const dds_history_qospolicy_t *qh, const dds_resource_limits_qospolicy_t *qr);
 static dds_return_t validate_external_duration (const ddsi_duration_t *d);
 static dds_return_t validate_durability_service_qospolicy_acceptzero (const dds_durability_service_qospolicy_t *q, bool acceptzero);
-static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const struct dd *dd, const struct ddsi_tran_factory *factory);
+static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const struct dd *dd, struct ddsi_domaingv const * const gv);
 static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict);
 static int partitions_equal (const void *srca, const void *srcb, size_t off);
 static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict);
@@ -259,6 +258,9 @@ static dds_return_t deser_int64 (int64_t *dst, const struct dd * __restrict dd, 
 
 /* Returns true if buffer not yet exhausted, false otherwise */
 static bool prtf (char * __restrict *buf, size_t * __restrict bufsize, const char *fmt, ...)
+  ddsrt_attribute_format((printf, 3, 4));
+
+static bool prtf (char * __restrict *buf, size_t * __restrict bufsize, const char *fmt, ...)
 {
   va_list ap;
   if (*bufsize == 0)
@@ -287,7 +289,7 @@ static bool prtf (char * __restrict *buf, size_t * __restrict bufsize, const cha
 
 #define alignof(type_) offsetof (struct { char c; type_ d; }, d)
 
-static dds_return_t deser_reliability (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd)
+static dds_return_t deser_reliability (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv)
 {
   DDSRT_STATIC_ASSERT (DDS_EXTERNAL_RELIABILITY_BEST_EFFORT == 1 && DDS_EXTERNAL_RELIABILITY_RELIABLE == 2 &&
                        DDS_RELIABILITY_BEST_EFFORT == 0 && DDS_RELIABILITY_RELIABLE == 1);
@@ -295,6 +297,7 @@ static dds_return_t deser_reliability (void * __restrict dst, struct flagset *fl
   dds_reliability_qospolicy_t * const x = deser_generic_dst (dst, &dstoff, alignof (dds_reliability_qospolicy_t));
   uint32_t kind, mbtsec, mbtfrac;
   ddsi_duration_t mbt;
+  (void) gv;
   if (deser_uint32 (&kind, dd, &srcoff) < 0 || deser_uint32 (&mbtsec, dd, &srcoff) < 0 || deser_uint32 (&mbtfrac, dd, &srcoff) < 0)
     return DDS_RETCODE_BAD_PARAMETER;
   if (kind < 1 || kind > 2)
@@ -344,11 +347,12 @@ static bool print_reliability (char * __restrict *buf, size_t * __restrict bufsi
   return prtf (buf, bufsize, "%d:%"PRId64, (int) x->kind, x->max_blocking_time);
 }
 
-static dds_return_t deser_statusinfo (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd)
+static dds_return_t deser_statusinfo (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv)
 {
   size_t srcoff = 0, dstoff = 0;
   uint32_t * const x = deser_generic_dst (dst, &dstoff, alignof (dds_reliability_qospolicy_t));
   size_t srcoff1 = (srcoff + 3) & ~(size_t)3;
+  (void) gv;
   if (srcoff1 + 4 > dd->bufsz)
     return DDS_RETCODE_BAD_PARAMETER;
   /* status info is always in BE format (it is an array of 4 octets according to the spec) --
@@ -373,7 +377,7 @@ static bool print_statusinfo (char * __restrict *buf, size_t * __restrict bufsiz
   return prtf (buf, bufsize, "%"PRIx32, *x);
 }
 
-static dds_return_t deser_locator (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd)
+static dds_return_t deser_locator (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv)
 {
   size_t srcoff = 0, dstoff = 0;
   nn_locators_t * const x = deser_generic_dst (dst, &dstoff, alignof (nn_locators_t));
@@ -386,7 +390,7 @@ static dds_return_t deser_locator (void * __restrict dst, struct flagset *flagse
   struct dd tmpdd = *dd;
   tmpdd.buf += srcoff;
   tmpdd.bufsz -= srcoff;
-  switch (do_locator (x, *flagset->present, flagset->wanted, flag, &tmpdd, dd->factory))
+  switch (do_locator (x, *flagset->present, flagset->wanted, flag, &tmpdd, gv))
   {
     case DOLOC_INVALID:
       return DDS_RETCODE_BAD_PARAMETER;
@@ -476,7 +480,7 @@ static bool print_locator (char * __restrict *buf, size_t * __restrict bufsize, 
   prtf (buf, bufsize, "{");
   for (const struct nn_locators_one *l = x->first; l != NULL; l = l->next)
   {
-    char tmp[DDSI_LOCATORSTRLEN];
+    char tmp[DDSI_LOCSTRLEN];
     ddsi_locator_to_string (tmp, sizeof (tmp), &l->loc);
     prtf (buf, bufsize, "%s%s", sep, tmp);
     sep = ",";
@@ -484,13 +488,14 @@ static bool print_locator (char * __restrict *buf, size_t * __restrict bufsize, 
   return prtf (buf, bufsize, "}");
 }
 
-static dds_return_t deser_type_consistency (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd)
+static dds_return_t deser_type_consistency (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv)
 {
   DDSRT_STATIC_ASSERT (DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION == 0 && DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION == 1);
   size_t srcoff = 0, dstoff = 0;
   dds_type_consistency_enforcement_qospolicy_t * const x = deser_generic_dst (dst, &dstoff, alignof (dds_type_consistency_enforcement_qospolicy_t));
   const uint32_t option_count = 5;
   uint16_t kind;
+  (void) gv;
   if (deser_uint16 (&kind, dd, &srcoff) < 0)
     return DDS_RETCODE_BAD_PARAMETER;
   if (kind > DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION)
@@ -898,7 +903,6 @@ dds_return_t plist_deser_generic_srcoff (void * __restrict dst, const void * __r
     .bswap = bswap,
     .protocol_version = {0,0},
     .vendorid = NN_VENDORID_ECLIPSE,
-    .factory = NULL
   };
   uint64_t present = 0, aliased = 0;
   struct flagset fs = { .present = &present, .aliased = &aliased, .wanted = 1 };
@@ -1760,12 +1764,17 @@ static const struct piddesc piddesc_eclipse[] = {
 #ifdef DDS_HAS_TYPE_DISCOVERY
   QP  (CYCLONE_TYPE_INFORMATION,         type_information, XO),
 #endif
+    { PID_PAD, PDF_QOS, QP_LOCATOR_MASK, "CYCLONE_LOCATOR_MASK",
+    offsetof(struct ddsi_plist, qos.ignore_locator_type), membersize(struct ddsi_plist, qos.ignore_locator_type),
+    {.desc = { Xu, XSTOP } }, 0 },
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   PP  (CYCLONE_TOPIC_GUID,               topic_guid, XG),
 #endif
   PP  (ADLINK_PARTICIPANT_VERSION_INFO,  adlink_participant_version_info, Xux5, XS),
   PP  (ADLINK_TYPE_DESCRIPTION,          type_description, XS),
   PP  (CYCLONE_RECEIVE_BUFFER_SIZE,      cyclone_receive_buffer_size, Xu),
+  PP  (CYCLONE_REQUESTS_KEYHASH,         cyclone_requests_keyhash, Xb),
+  PP  (CYCLONE_REDUNDANT_NETWORKING,     cyclone_redundant_networking, Xb),
   { PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
 };
 
@@ -1836,13 +1845,7 @@ struct piddesc_index {
 #endif
 
 static const struct piddesc *piddesc_omg_index[DEFAULT_OMG_PIDS_ARRAY_SIZE + SECURITY_OMG_PIDS_ARRAY_SIZE];
-#ifdef DDS_HAS_TOPIC_DISCOVERY
-static const struct piddesc *piddesc_eclipse_index[28];
-#elif DDS_HAS_TYPE_DISCOVERY
-static const struct piddesc *piddesc_eclipse_index[27];
-#else
-static const struct piddesc *piddesc_eclipse_index[26];
-#endif
+static const struct piddesc *piddesc_eclipse_index[30];
 static const struct piddesc *piddesc_adlink_index[19];
 
 #define INDEX_ANY(vendorid_, tab_) [vendorid_] = { \
@@ -2479,7 +2482,7 @@ static bool locator_address_zero (const ddsi_locator_t *loc)
   return locator_address_prefix_zero (loc, sizeof (loc->address));
 }
 
-static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const struct dd *dd, const struct ddsi_tran_factory *factory)
+static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const struct dd *dd, struct ddsi_domaingv const * const gv)
 {
   ddsi_locator_t loc;
 
@@ -2494,22 +2497,23 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
     loc.kind = ddsrt_bswap4 (loc.kind);
     loc.port = ddsrt_bswap4u (loc.port);
   }
+  
+  ddsi_tran_factory_t fact = ddsi_factory_find_supported_kind (gv, loc.kind);
+  if (fact == NULL || !fact->m_enable)
+    return DOLOC_IGNORED;
+
   switch (loc.kind)
   {
     case NN_LOCATOR_KIND_UDPv4:
     case NN_LOCATOR_KIND_TCPv4:
-      if (!ddsi_factory_supports (factory, loc.kind))
-        return DOLOC_IGNORED;
-      if (!ddsi_is_valid_port (factory, loc.port))
+      if (!ddsi_is_valid_port (fact, loc.port))
         return DOLOC_INVALID;
       if (!locator_address_prefix_zero (&loc, 12))
         return DOLOC_INVALID;
       break;
     case NN_LOCATOR_KIND_UDPv6:
     case NN_LOCATOR_KIND_TCPv6:
-      if (!ddsi_factory_supports (factory, loc.kind))
-        return DOLOC_IGNORED;
-      if (!ddsi_is_valid_port (factory, loc.port))
+      if (!ddsi_is_valid_port (fact, loc.port))
         return DOLOC_INVALID;
       break;
     case NN_LOCATOR_KIND_UDPv4MCGEN:
@@ -2518,14 +2522,27 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
       else
       {
         const nn_udpv4mcgen_address_t *x = (const nn_udpv4mcgen_address_t *) loc.address;
-        if (!ddsi_factory_supports (factory, NN_LOCATOR_KIND_UDPv4))
-          return DOLOC_IGNORED;
-        if (!ddsi_is_valid_port (factory, loc.port))
+        if (!ddsi_is_valid_port (fact, loc.port))
           return DOLOC_INVALID;
+        if (!ddsi_factory_supports (fact, NN_LOCATOR_KIND_UDPv4))
+          return DOLOC_IGNORED;
         if ((uint32_t) x->base + x->count >= 28 || x->count == 0 || x->idx >= x->count)
           return DOLOC_INVALID;
       }
       break;
+#ifdef DDS_HAS_SHM
+    case NN_LOCATOR_KIND_SHEM:
+      if (!vendor_is_eclipse (dd->vendorid))
+        return DOLOC_IGNORED;
+      else
+      {
+        if (!ddsi_is_valid_port (fact, loc.port))
+          return DOLOC_INVALID;
+        if (0 != memcmp(loc.address, gv->loc_iceoryx_addr.address, 16))
+          return DOLOC_IGNORED;
+      }
+      break;
+#endif
     case NN_LOCATOR_KIND_INVALID:
       if (!locator_address_zero (&loc))
         return DOLOC_INVALID;
@@ -2541,9 +2558,7 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
         return DOLOC_IGNORED;
       else
       {
-        if (!ddsi_factory_supports (factory, NN_LOCATOR_KIND_RAWETH))
-          return DOLOC_IGNORED;
-        if (!ddsi_is_valid_port (factory, loc.port))
+        if (!ddsi_is_valid_port (fact, loc.port))
           return DOLOC_INVALID;
         if (!locator_address_prefix_zero (&loc, 10))
           return DOLOC_INVALID;
@@ -2553,21 +2568,19 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
       return DOLOC_IGNORED;
   }
 
-  loc.tran = ddsi_factory_supports (factory, loc.kind) ? factory : NULL;
   add_locator (ls, present, wanted, fl, &loc);
   return DOLOC_ACCEPTED;
 }
 
-static void locator_from_ipv4address_port (ddsi_locator_t *loc, const nn_ipv4address_t *a, const nn_port_t *p, ddsi_tran_factory_t factory)
+static void locator_from_ipv4address_port (ddsi_locator_t *loc, const nn_ipv4address_t *a, const nn_port_t *p)
 {
-  loc->tran = factory;
-  loc->kind = factory->m_connless ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_TCPv4;
+  loc->kind = NN_LOCATOR_KIND_UDPv4;
   loc->port = *p;
   memset (loc->address, 0, 12);
   memcpy (loc->address + 12, a, 4);
 }
 
-static dds_return_t do_ipv4address (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd, ddsi_tran_factory_t factory)
+static dds_return_t do_ipv4address (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd)
 {
   nn_ipv4address_t *a;
   nn_port_t *p;
@@ -2623,7 +2636,7 @@ static dds_return_t do_ipv4address (ddsi_plist_t *dest, nn_ipaddress_params_tmp_
        both address & port from the set of present plist: this
        allows adding another pair. */
     ddsi_locator_t loc;
-    locator_from_ipv4address_port (&loc, a, p, factory);
+    locator_from_ipv4address_port (&loc, a, p);
     add_locator (ls, dest->present, wanted, fldest, &loc);
     dest_tmp->present &= ~(fl_tmp | fl1_tmp);
     dest->present |= fldest;
@@ -2631,7 +2644,7 @@ static dds_return_t do_ipv4address (ddsi_plist_t *dest, nn_ipaddress_params_tmp_
   return 0;
 }
 
-static dds_return_t do_port (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd, ddsi_tran_factory_t factory)
+static dds_return_t do_port (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd)
 {
   nn_ipv4address_t *a;
   nn_port_t *p;
@@ -2678,7 +2691,7 @@ static dds_return_t do_port (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest
        both address & port from the set of present plist: this
        allows adding another pair. */
     ddsi_locator_t loc;
-    locator_from_ipv4address_port (&loc, a, p, factory);
+    locator_from_ipv4address_port (&loc, a, p);
     add_locator (ls, dest->present, wanted, fldest, &loc);
     dest_tmp->present &= ~(fl_tmp | fl1_tmp);
     dest->present |= fldest;
@@ -2697,14 +2710,14 @@ static dds_return_t return_unrecognized_pid (ddsi_plist_t *plist, nn_parameterid
   }
 }
 
-static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t pwanted, uint64_t qwanted, uint16_t pid, const struct dd *dd, ddsi_tran_factory_t factory, const ddsrt_log_cfg_t *logcfg)
+static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t pwanted, uint64_t qwanted, uint16_t pid, const struct dd *dd, struct ddsi_domaingv const * const gv)
 {
   /* special-cased ipv4address and port, because they have state beyond that what gets
      passed into the generic code */
   switch (pid)
   {
-#define XA(NAME_) case PID_##NAME_##_IPADDRESS: return do_ipv4address (plist, dest_tmp, pwanted, PPTMP_##NAME_##_IPADDRESS, dd, factory)
-#define XP(NAME_) case PID_##NAME_##_PORT: return do_port (plist, dest_tmp, pwanted, PPTMP_##NAME_##_PORT, dd, factory)
+#define XA(NAME_) case PID_##NAME_##_IPADDRESS: return do_ipv4address (plist, dest_tmp, pwanted, PPTMP_##NAME_##_IPADDRESS, dd)
+#define XP(NAME_) case PID_##NAME_##_PORT: return do_port (plist, dest_tmp, pwanted, PPTMP_##NAME_##_PORT, dd)
     XA (MULTICAST);
     XA (DEFAULT_UNICAST);
     XP (DEFAULT_UNICAST);
@@ -2756,10 +2769,10 @@ static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params
      memory if deserialized repeatedly */
   if ((*flagset.present & entry->present_flag) && !(entry->flags & PDF_ALLOWMULTI))
   {
-    DDS_CWARNING (logcfg, "invalid parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" (%s) multiply defined\n",
-                  dd->vendorid.id[0], dd->vendorid.id[1],
-                  dd->protocol_version.major, dd->protocol_version.minor,
-                  pid, entry->name);
+    GVWARNING ("invalid parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" (%s) multiply defined\n",
+               dd->vendorid.id[0], dd->vendorid.id[1],
+               dd->protocol_version.major, dd->protocol_version.minor,
+               pid, entry->name);
     return DDS_RETCODE_BAD_PARAMETER;
   }
   if (!(flagset.wanted & entry->present_flag))
@@ -2775,7 +2788,7 @@ static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params
   dds_return_t ret;
   void * const dst = (char *) plist + entry->plist_offset;
   if (entry->flags & PDF_FUNCTION)
-    ret = entry->op.f.deser (dst, &flagset, entry->present_flag, dd);
+    ret = entry->op.f.deser (dst, &flagset, entry->present_flag, dd, gv);
   else
     ret = deser_generic (dst, &flagset, entry->present_flag, dd, entry->op.desc);
   if (ret == 0 && (*flagset.present & entry->present_flag) && entry->deser_validate_xform)
@@ -2785,10 +2798,10 @@ static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params
     char tmp[256], *ptmp = tmp;
     size_t tmpsize = sizeof (tmp);
     (void) prtf_octetseq (&ptmp, &tmpsize, (uint32_t) dd->bufsz, dd->buf);
-    DDS_CWARNING (logcfg, "invalid parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" (%s) invalid, input = %s\n",
-                  dd->vendorid.id[0], dd->vendorid.id[1],
-                  dd->protocol_version.major, dd->protocol_version.minor,
-                  pid, entry->name, tmp);
+    GVWARNING ("invalid parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" (%s) invalid, input = %s\n",
+               dd->vendorid.id[0], dd->vendorid.id[1],
+               dd->protocol_version.major, dd->protocol_version.minor,
+               pid, entry->name, tmp);
   }
   return ret;
 }
@@ -2909,7 +2922,7 @@ static dds_return_t final_validation (ddsi_plist_t *dest, nn_protocol_version_t 
   return final_validation_qos (&dest->qos, protocol_version, vendorid, dursvc_accepted_allzero, strict);
 }
 
-dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const ddsi_plist_src_t *src)
+dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv)
 {
   const unsigned char *pl;
   struct dd dd;
@@ -2923,7 +2936,6 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
     *nextafterplist = NULL;
   dd.protocol_version = src->protocol_version;
   dd.vendorid = src->vendorid;
-  dd.factory = src->factory;
   switch (src->encoding)
   {
     case PL_CDR_LE:
@@ -2941,14 +2953,14 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
 #endif
       break;
     default:
-      DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): unknown encoding (%d)\n",
-                    src->vendorid.id[0], src->vendorid.id[1], src->encoding);
+      GVWARNING ("plist(vendor %u.%u): unknown encoding (%d)\n",
+                 src->vendorid.id[0], src->vendorid.id[1], src->encoding);
       return DDS_RETCODE_BAD_PARAMETER;
   }
   ddsi_plist_init_empty (dest);
   dest_tmp.present = 0;
 
-  DDS_CLOG (DDS_LC_PLIST, src->logconfig, "DDSI_PLIST_INIT (bswap %d)\n", dd.bswap);
+  GVLOG (DDS_LC_PLIST, "DDSI_PLIST_INIT (bswap %d)\n", dd.bswap);
 
   pl = src->buf;
   while (pl + sizeof (nn_parameter_t) <= src->buf + src->bufsz)
@@ -2966,7 +2978,7 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
     {
       /* Sentinel terminates list, the length is ignored, DDSI 9.4.2.11. */
       bool dursvc_accepted_allzero;
-      DDS_CLOG (DDS_LC_PLIST, src->logconfig, "%4"PRIx32" PID %"PRIx16"\n", (uint32_t) (pl - src->buf), pid);
+      GVLOG (DDS_LC_PLIST, "%4"PRIx32" PID %"PRIx16"\n", (uint32_t) (pl - src->buf), pid);
       if ((res = final_validation (dest, src->protocol_version, src->vendorid, &dursvc_accepted_allzero, src->strict)) < 0)
       {
         ddsi_plist_fini (dest);
@@ -2986,33 +2998,33 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
     }
     if (length > src->bufsz - sizeof (*par) - (uint32_t) (pl - src->buf))
     {
-      DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): parameter length %"PRIu16" out of bounds\n",
-                    src->vendorid.id[0], src->vendorid.id[1], length);
+      GVWARNING ("plist(vendor %u.%u): parameter length %"PRIu16" out of bounds\n",
+                 src->vendorid.id[0], src->vendorid.id[1], length);
       ddsi_plist_fini (dest);
       return DDS_RETCODE_BAD_PARAMETER;
     }
     if ((length % 4) != 0) /* DDSI 9.4.2.11 */
     {
-      DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): parameter length %"PRIu16" mod 4 != 0\n",
-                    src->vendorid.id[0], src->vendorid.id[1], length);
+      GVWARNING ("plist(vendor %u.%u): parameter length %"PRIu16" mod 4 != 0\n",
+                 src->vendorid.id[0], src->vendorid.id[1], length);
       ddsi_plist_fini (dest);
       return DDS_RETCODE_BAD_PARAMETER;
     }
 
-    if (src->logconfig->c.mask & DDS_LC_PLIST)
+    if (gv->logconfig.c.mask & DDS_LC_PLIST)
     {
       char tmp[256], *ptmp = tmp;
       size_t tmpsize = sizeof (tmp);
       (void) prtf_octetseq (&ptmp, &tmpsize, length, (const unsigned char *) (par + 1));
-      DDS_CLOG (DDS_LC_PLIST, src->logconfig, "%4"PRIx32" PID %"PRIx16" len %"PRIu16" %s\n", (uint32_t) (pl - src->buf), pid, length, tmp);
+      GVLOG (DDS_LC_PLIST, "%4"PRIx32" PID %"PRIx16" len %"PRIu16" %s\n", (uint32_t) (pl - src->buf), pid, length, tmp);
     }
 
     dd.buf = (const unsigned char *) (par + 1);
     dd.bufsz = length;
-    if ((res = init_one_parameter (dest, &dest_tmp, pwanted, qwanted, pid, &dd, src->factory, src->logconfig)) < 0)
+    if ((res = init_one_parameter (dest, &dest_tmp, pwanted, qwanted, pid, &dd, gv)) < 0)
     {
       /* make sure we print a trace message on error */
-      DDS_CTRACE (src->logconfig, "plist(vendor %u.%u): failed at pid=%"PRIx16"\n", src->vendorid.id[0], src->vendorid.id[1], pid);
+      GVTRACE ("plist(vendor %u.%u): failed at pid=%"PRIx16"\n", src->vendorid.id[0], src->vendorid.id[1], pid);
       ddsi_plist_fini (dest);
       return res;
     }
@@ -3020,8 +3032,8 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
   }
   /* If we get here, that means we reached the end of the message
      without encountering a sentinel. That is an error */
-  DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): invalid parameter list: sentinel missing\n",
-                src->vendorid.id[0], src->vendorid.id[1]);
+  GVWARNING ("plist(vendor %u.%u): invalid parameter list: sentinel missing\n",
+             src->vendorid.id[0], src->vendorid.id[1]);
   ddsi_plist_fini (dest);
   return DDS_RETCODE_BAD_PARAMETER;
 }
@@ -3071,7 +3083,7 @@ dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint1
   return DDS_RETCODE_BAD_PARAMETER;
 }
 
-unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_plist_src_t *src)
+unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_keyhash_t **keyhashp, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv)
 {
   /* Sets a few fields in dest, returns address of first byte
      following parameter list, or NULL on error.  Most errors will go
@@ -3079,6 +3091,7 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_pl
   const unsigned char *pl;
   dest->statusinfo = 0;
   dest->complex_qos = 0;
+  *keyhashp = NULL;
   switch (src->encoding)
   {
     case PL_CDR_LE:
@@ -3096,11 +3109,11 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_pl
 #endif
       break;
     default:
-      DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): quickscan: unknown encoding (%d)\n",
-                    src->vendorid.id[0], src->vendorid.id[1], src->encoding);
+      GVWARNING ("plist(vendor %u.%u): quickscan: unknown encoding (%d)\n",
+                 src->vendorid.id[0], src->vendorid.id[1], src->encoding);
       return NULL;
   }
-  DDS_CLOG (DDS_LC_PLIST, src->logconfig, "DDSI_PLIST_QUICKSCAN (bswap %d)\n", dest->bswap);
+  GVLOG (DDS_LC_PLIST, "DDSI_PLIST_QUICKSCAN (bswap %d)\n", dest->bswap);
   pl = src->buf;
   while (pl + sizeof (nn_parameter_t) <= src->buf + src->bufsz)
   {
@@ -3114,14 +3127,14 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_pl
       return (unsigned char *) pl;
     if (length > src->bufsz - (size_t)(pl - src->buf))
     {
-      DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): quickscan: parameter length %"PRIu16" out of bounds\n",
-                    src->vendorid.id[0], src->vendorid.id[1], length);
+      GVWARNING ("plist(vendor %u.%u): quickscan: parameter length %"PRIu16" out of bounds\n",
+                 src->vendorid.id[0], src->vendorid.id[1], length);
       return NULL;
     }
     if ((length % 4) != 0) /* DDSI 9.4.2.11 */
     {
-      DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): quickscan: parameter length %"PRIu16" mod 4 != 0\n",
-                    src->vendorid.id[0], src->vendorid.id[1], length);
+      GVWARNING ("plist(vendor %u.%u): quickscan: parameter length %"PRIu16" mod 4 != 0\n",
+                 src->vendorid.id[0], src->vendorid.id[1], length);
       return NULL;
     }
     switch (pid)
@@ -3131,8 +3144,8 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_pl
       case PID_STATUSINFO:
         if (length < 4)
         {
-          DDS_CTRACE (src->logconfig, "plist(vendor %u.%u): quickscan(PID_STATUSINFO): buffer too small\n",
-                      src->vendorid.id[0], src->vendorid.id[1]);
+          GVTRACE ("plist(vendor %u.%u): quickscan(PID_STATUSINFO): buffer too small\n",
+                   src->vendorid.id[0], src->vendorid.id[1]);
           return NULL;
         }
         else
@@ -3146,9 +3159,19 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_pl
         }
         break;
       case PID_KEYHASH:
+        if (length < sizeof (ddsi_keyhash_t))
+        {
+          GVTRACE ("plist(vendor %u.%u): quickscan(PID_KEYHASH): buffer too small\n",
+                   src->vendorid.id[0], src->vendorid.id[1]);
+          return NULL;
+        }
+        else
+        {
+          *keyhashp = (const ddsi_keyhash_t *) pl;
+        }
         break;
       default:
-        DDS_CLOG (DDS_LC_PLIST, src->logconfig, "(pid=%"PRIx16" complex_qos=1)", pid);
+        GVLOG (DDS_LC_PLIST, "(pid=%"PRIx16" complex_qos=1)", pid);
         dest->complex_qos = 1;
         break;
     }
@@ -3156,8 +3179,8 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_pl
   }
   /* If we get here, that means we reached the end of the message
      without encountering a sentinel. That is an error */
-  DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): quickscan: invalid parameter list: sentinel missing\n",
-                src->vendorid.id[0], src->vendorid.id[1]);
+  GVWARNING ("plist(vendor %u.%u): quickscan: invalid parameter list: sentinel missing\n",
+             src->vendorid.id[0], src->vendorid.id[1]);
   return NULL;
 }
 
@@ -3276,6 +3299,9 @@ void ddsi_xqos_init_default_reader (dds_qos_t *xqos)
   xqos->type_consistency.ignore_member_names = false;
   xqos->type_consistency.prevent_type_widening = false;
   xqos->type_consistency.force_type_validation = false;
+
+  xqos->present |= QP_LOCATOR_MASK;
+  xqos->ignore_locator_type = 0;
 }
 
 void ddsi_xqos_init_default_writer (dds_qos_t *xqos)
@@ -3305,6 +3331,9 @@ void ddsi_xqos_init_default_writer (dds_qos_t *xqos)
 
   xqos->present |= QP_ADLINK_WRITER_DATA_LIFECYCLE;
   xqos->writer_data_lifecycle.autodispose_unregistered_instances = 1;
+
+  xqos->present |= QP_LOCATOR_MASK;
+  xqos->ignore_locator_type = 0;
 }
 
 void ddsi_xqos_init_default_writer_noautodispose (dds_qos_t *xqos)

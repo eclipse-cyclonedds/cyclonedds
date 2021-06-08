@@ -107,6 +107,7 @@ typedef uint32_t nn_count_t;
 #define NN_LOCATOR_KIND_UDPv6 2
 #define NN_LOCATOR_KIND_TCPv4 4
 #define NN_LOCATOR_KIND_TCPv6 8
+#define NN_LOCATOR_KIND_SHEM 16
 #define NN_LOCATOR_KIND_RAWETH 0x8000 /* proposed vendor-specific */
 #define NN_LOCATOR_KIND_UDPv4MCGEN 0x4fff0000
 #define NN_LOCATOR_PORT_INVALID 0
@@ -451,6 +452,8 @@ typedef union Submessage {
 #define PID_CYCLONE_RECEIVE_BUFFER_SIZE         (PID_VENDORSPECIFIC_FLAG | 0x19u)
 #define PID_CYCLONE_TYPE_INFORMATION            (PID_VENDORSPECIFIC_FLAG | 0x1au)
 #define PID_CYCLONE_TOPIC_GUID                  (PID_VENDORSPECIFIC_FLAG | 0x1bu)
+#define PID_CYCLONE_REQUESTS_KEYHASH            (PID_VENDORSPECIFIC_FLAG | 0x1cu)
+#define PID_CYCLONE_REDUNDANT_NETWORKING        (PID_VENDORSPECIFIC_FLAG | 0x1du)
 
 /* Names of the built-in topics */
 #define DDS_BUILTIN_TOPIC_PARTICIPANT_NAME "DCPSParticipant"

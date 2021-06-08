@@ -25,7 +25,7 @@ extern "C" {
 
 typedef struct addrset_node {
   ddsrt_avl_node_t avlnode;
-  ddsi_locator_t loc;
+  ddsi_xlocator_t loc;
 } * addrset_node_t;
 
 struct addrset {
@@ -34,16 +34,18 @@ struct addrset {
   ddsrt_avl_ctree_t ucaddrs, mcaddrs;
 };
 
-typedef void (*addrset_forall_fun_t) (const ddsi_locator_t *loc, void *arg);
-typedef ssize_t (*addrset_forone_fun_t) (const ddsi_locator_t *loc, void *arg);
+typedef void (*addrset_forall_fun_t) (const ddsi_xlocator_t *loc, void *arg);
+typedef ssize_t (*addrset_forone_fun_t) (const ddsi_xlocator_t *loc, void *arg);
 
 struct addrset *new_addrset (void);
 struct addrset *ref_addrset (struct addrset *as);
 void unref_addrset (struct addrset *as);
-void add_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_locator_t *loc);
-void remove_from_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_locator_t *loc);
+void add_locator_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_locator_t *loc);
+void add_xlocator_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_xlocator_t *loc);
+void remove_from_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_xlocator_t *loc);
 int addrset_purge (struct addrset *as);
 int compare_locators (const ddsi_locator_t *a, const ddsi_locator_t *b);
+int compare_xlocators (const ddsi_xlocator_t *a, const ddsi_xlocator_t *b);
 
 /* These lock ASADD, then lock/unlock AS any number of times, then
    unlock ASADD */
@@ -57,14 +59,16 @@ size_t addrset_count_mc (const struct addrset *as);
 int addrset_empty_uc (const struct addrset *as);
 int addrset_empty_mc (const struct addrset *as);
 int addrset_empty (const struct addrset *as);
-int addrset_any_uc (const struct addrset *as, ddsi_locator_t *dst);
-int addrset_any_mc (const struct addrset *as, ddsi_locator_t *dst);
-void addrset_any_uc_else_mc_nofail (const struct addrset *as, ddsi_locator_t *dst);
+int addrset_any_uc (const struct addrset *as, ddsi_xlocator_t *dst);
+int addrset_any_mc (const struct addrset *as, ddsi_xlocator_t *dst);
+void addrset_any_uc_else_mc_nofail (const struct addrset *as, ddsi_xlocator_t *dst);
 
 /* Keeps AS locked */
 int addrset_forone (struct addrset *as, addrset_forone_fun_t f, void *arg);
 void addrset_forall (struct addrset *as, addrset_forall_fun_t f, void *arg);
 size_t addrset_forall_count (struct addrset *as, addrset_forall_fun_t f, void *arg);
+size_t addrset_forall_uc_else_mc_count (struct addrset *as, addrset_forall_fun_t f, void *arg);
+size_t addrset_forall_mc_count (struct addrset *as, addrset_forall_fun_t f, void *arg);
 void nn_log_addrset (struct ddsi_domaingv *gv, uint32_t tf, const char *prefix, const struct addrset *as);
 
 /* Tries to lock A then B for a decent check, returning false if
@@ -72,15 +76,17 @@ void nn_log_addrset (struct ddsi_domaingv *gv, uint32_t tf, const char *prefix, 
 int addrset_eq_onesidederr (const struct addrset *a, const struct addrset *b);
 
 int is_unspec_locator (const ddsi_locator_t *loc);
+int is_unspec_xlocator (const ddsi_xlocator_t *loc);
 void set_unspec_locator (ddsi_locator_t *loc);
+void set_unspec_xlocator (ddsi_xlocator_t *loc);
 
 struct ddsi_domaingv;
 int add_addresses_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const char *addrs, int port_mode, const char *msgtag, int req_mc);
 
 #ifdef DDS_HAS_SSM
 int addrset_contains_ssm (const struct ddsi_domaingv *gv, const struct addrset *as);
-int addrset_any_ssm (const struct ddsi_domaingv *gv, const struct addrset *as, ddsi_locator_t *dst);
-int addrset_any_non_ssm_mc (const struct ddsi_domaingv *gv, const struct addrset *as, ddsi_locator_t *dst);
+int addrset_any_ssm (const struct ddsi_domaingv *gv, const struct addrset *as, ddsi_xlocator_t *dst);
+int addrset_any_non_ssm_mc (const struct ddsi_domaingv *gv, const struct addrset *as, ddsi_xlocator_t *dst);
 void copy_addrset_into_addrset_no_ssm_mc (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asadd);
 void copy_addrset_into_addrset_no_ssm (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asadd);
 #endif

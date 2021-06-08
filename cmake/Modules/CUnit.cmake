@@ -200,6 +200,29 @@ function(process_cunit_source_file SOURCE_FILE HEADER_FILE SUITES TESTS)
   set(${TESTS} ${tests};${theories} PARENT_SCOPE)
 endfunction()
 
+function(set_test_library_paths TEST_NAME)
+  if(ENABLE_SHM)
+    find_library(ICEORYX_LIB iceoryx_binding_c)
+    get_filename_component(ICEORYX_LIB_PATH ${ICEORYX_LIB} DIRECTORY)
+  endif ()
+  if(APPLE)
+    set_property(
+      TEST ${TEST_NAME}
+      PROPERTY ENVIRONMENT
+      "DYLD_LIBRARY_PATH=${CUNIT_LIBRARY_DIR}:${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:${ICEORYX_LIB_PATH}:$ENV{DYLD_LIBRARY_PATH}")
+  elseif(WIN32)
+    set_property(
+      TEST ${TEST_NAME}
+      PROPERTY ENVIRONMENT
+      "PATH=${CUNIT_LIBRARY_DIR};${ICEORYX_LIB_PATH};$ENV{PATH}")
+  else()
+    set_property(
+      TEST ${TEST_NAME}
+      PROPERTY ENVIRONMENT
+      "LD_LIBRARY_PATH=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:${ICEORYX_LIB_PATH}:$ENV{LD_LIBRARY_PATH}")
+  endif()
+endfunction()
+
 function(add_cunit_executable TARGET)
   # Retrieve location of shared libary, which is need to extend the PATH
   # environment variable on Microsoft Windows, so that the operating
@@ -277,22 +300,8 @@ function(add_cunit_executable TARGET)
           COMMAND ${TARGET} -s ${suite} -t ${test})
         set_property(TEST ${ctest} PROPERTY TIMEOUT ${timeout})
         set_property(TEST ${ctest} PROPERTY DISABLED ${disabled})
-        if(APPLE)
-          set_property(
-            TEST ${ctest}
-            PROPERTY ENVIRONMENT
-              "DYLD_LIBRARY_PATH=${CUNIT_LIBRARY_DIR}:${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:$ENV{DYLD_LIBRARY_PATH}")
-        elseif(WIN32 AND ${CUNIT_LIBRARY_TYPE} STREQUAL "SHARED_LIBRARY")
-          set_property(
-            TEST ${ctest}
-            PROPERTY ENVIRONMENT
-              "PATH=${CUNIT_LIBRARY_DIR};$ENV{PATH}")
-        else()
-          set_property(
-            TEST ${ctest}
-            PROPERTY ENVIRONMENT
-              "LD_LIBRARY_PATH=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:$ENV{LD_LIBRARY_PATH}")
-        endif()
+        set_test_library_paths(${ctest})
+
       endforeach()
 
       list(APPEND sources "${source}")

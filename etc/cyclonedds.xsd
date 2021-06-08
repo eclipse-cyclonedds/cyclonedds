@@ -25,6 +25,7 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:Partitioning"/>
         <xs:element minOccurs="0" ref="config:SSL"/>
         <xs:element minOccurs="0" ref="config:Security"/>
+        <xs:element minOccurs="0" ref="config:SharedMemory"/>
         <xs:element minOccurs="0" ref="config:Sizing"/>
         <xs:element minOccurs="0" ref="config:TCP"/>
         <xs:element minOccurs="0" ref="config:Threads"/>
@@ -315,6 +316,7 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:MulticastTimeToLive"/>
         <xs:element minOccurs="0" ref="config:NetworkInterfaceAddress"/>
         <xs:element minOccurs="0" ref="config:PreferMulticast"/>
+        <xs:element minOccurs="0" ref="config:RedundantNetworking"/>
         <xs:element minOccurs="0" ref="config:Transport"/>
         <xs:element minOccurs="0" ref="config:UseIPv6"/>
       </xs:all>
@@ -430,6 +432,13 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
+  <xs:element name="RedundantNetworking" type="xs:boolean">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;When enabled, use selected network interfaces in parallel for redundancy.&lt;/p&gt;
+&lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
   <xs:element name="Transport">
     <xs:annotation>
       <xs:documentation>
@@ -505,7 +514,6 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:SPDPResponseMaxDelay"/>
         <xs:element minOccurs="0" ref="config:ScheduleTimeRounding"/>
         <xs:element minOccurs="0" ref="config:SecondaryReorderMaxSamples"/>
-        <xs:element minOccurs="0" ref="config:SendAsync"/>
         <xs:element minOccurs="0" ref="config:SquashParticipants"/>
         <xs:element minOccurs="0" ref="config:SynchronousDeliveryLatencyBound"/>
         <xs:element minOccurs="0" ref="config:SynchronousDeliveryPriorityThreshold"/>
@@ -928,13 +936,6 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;This element sets the maximum size in samples of a secondary re-order administration. The secondary re-order administration is per reader in need of historical data.&lt;/p&gt;
 &lt;p&gt;The default value is: "128".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="SendAsync" type="xs:boolean">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This element controls whether the actual sending of packets occurs on the same thread that prepares them, or is done asynchronously by another thread.&lt;/p&gt;
-&lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="SquashParticipants" type="xs:boolean">
@@ -1508,6 +1509,90 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
       </xs:sequence>
     </xs:complexType>
   </xs:element>
+  <xs:element name="SharedMemory">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;The Shared Memory element allows specifying various parameters related to using shared memory.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:all>
+        <xs:element minOccurs="0" name="Enable" type="xs:boolean">
+          <xs:annotation>
+            <xs:documentation>
+&lt;p&gt;This element allows to enable shared memory in Cyclone DDS.&lt;/p&gt;
+&lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
+          </xs:annotation>
+        </xs:element>
+        <xs:element minOccurs="0" ref="config:Locator"/>
+        <xs:element minOccurs="0" ref="config:LogLevel"/>
+        <xs:element minOccurs="0" ref="config:Prefix"/>
+        <xs:element minOccurs="0" ref="config:PubHistoryCapacity"/>
+        <xs:element minOccurs="0" ref="config:SubHistoryRequest"/>
+        <xs:element minOccurs="0" ref="config:SubQueueCapacity"/>
+      </xs:all>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Locator" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;Explicitly set the Iceoryx locator used by Cyclone to check whether a pair of processes is attached to the same Iceoryx shared memory.  The default is to use one of the MAC addresses of the machine, which should work well in most cases.&lt;/p&gt;
+&lt;p&gt;The default value is: "".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="LogLevel">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element decides the verbosity level of shared memory message:&lt;/p&gt;
+&lt;ul&gt;&lt;li&gt;&lt;i&gt;off&lt;/i&gt;: no log&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;fatal&lt;/i&gt;: show fatal log&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;error&lt;/i&gt;: show error log&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;warn&lt;/i&gt;: show warn log&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;info&lt;/i&gt;: show info log&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;debug&lt;/i&gt;: show debug log&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;verbose&lt;/i&gt;: show verbose log&lt;/li&gt;
+&lt;p&gt;If you don't want to see any log from shared memory, use &lt;i&gt;off&lt;/i&gt; to disable log message.&lt;/p&gt;
+&lt;p&gt;The default value is: "info".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+    <xs:simpleType>
+      <xs:restriction base="xs:token">
+        <xs:enumeration value="off"/>
+        <xs:enumeration value="fatal"/>
+        <xs:enumeration value="error"/>
+        <xs:enumeration value="warn"/>
+        <xs:enumeration value="info"/>
+        <xs:enumeration value="debug"/>
+        <xs:enumeration value="verbose"/>
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:element>
+  <xs:element name="Prefix" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;Override the Iceoryx service name used by Cyclone.&lt;/p&gt;
+&lt;p&gt;The default value is: "DDS_CYCLONE".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="PubHistoryCapacity" type="xs:integer">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;The number of messages which will be stored on the publisher for late joining subscribers. Should be a value between 0 and 16 and be equal to or larger than SubHistoryRequest.&lt;/p&gt;
+&lt;p&gt;The default value is: "16".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="SubHistoryRequest" type="xs:integer">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;The number of messages published before subscription which will be requested by a subscriber upon subscription. Should be a value between 0 and 16.&lt;/p&gt;
+&lt;p&gt;The default value is: "16".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="SubQueueCapacity" type="xs:integer">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue. Should be a value between 1 and 256.&lt;/p&gt;
+&lt;p&gt;The default value is: "256".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
   <xs:element name="Sizing">
     <xs:annotation>
       <xs:documentation>
@@ -1730,7 +1815,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:pattern value="((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|trace)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|trace))*)|"/>
+        <xs:pattern value="((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|shm|trace)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|shm|trace))*)|"/>
       </xs:restriction>
     </xs:simpleType>
   </xs:element>

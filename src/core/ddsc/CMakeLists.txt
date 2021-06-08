@@ -40,7 +40,12 @@ prepend(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds_whc.c
   dds_whc_builtintopic.c
   dds_serdata_builtintopic.c
-  dds_sertype_builtintopic.c)
+  dds_sertype_builtintopic.c
+  dds_data_allocator.c)
+
+if (DDS_HAS_SHM)
+  list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm_monitor.c")
+endif()
 
 prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__alloc.h
@@ -67,7 +72,8 @@ prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__whc.h
   dds__whc_builtintopic.h
   dds__serdata_builtintopic.h
-  dds__get_status.h)
+  dds__get_status.h
+  dds__data_allocator.h)
 
 prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/dds/"
   dds.h
@@ -80,7 +86,12 @@ prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<
   ddsc/dds_statistics.h
   ddsc/dds_rhc.h
   ddsc/dds_internal_api.h
-  ddsc/dds_opcodes.h)
+  ddsc/dds_opcodes.h
+  ddsc/dds_data_allocator.h)
+
+if (DDS_HAS_SHM)
+  list(APPEND hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm__monitor.h")
+endif()
 
 generate_export_header(
   ddsc BASE_NAME DDS EXPORT_FILE_NAME include/dds/export.h)

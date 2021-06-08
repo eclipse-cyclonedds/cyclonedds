@@ -16,6 +16,7 @@
 #include <stdio.h>
 
 #include "dds/export.h"
+#include "dds/ddsrt/attributes.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -37,7 +38,7 @@ DDS_EXPORT int
 ddsrt_asprintf(
   char **strp,
   const char *fmt,
-  ...);
+  ...) ddsrt_attribute_format ((printf, 2, 3));
 
 #if defined(_MSC_VER) && (_MSC_VER < 1900)
 extern int snprintf(char *s, size_t n, const char *format, ...);

@@ -32,6 +32,10 @@ if(ENABLE_SECURITY)
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>)
 endif()
 
+if(iceoryx_binding_c_FOUND)
+  target_link_libraries(ddsc PRIVATE iceoryx_binding_c::iceoryx_binding_c)
+endif()
+
 include(ddsi/CMakeLists.txt)
 include(ddsc/CMakeLists.txt)
 
@@ -67,7 +71,7 @@ if (MSVC)
   )
 endif()
 
-if(BUILD_IDLC)
+if(BUILD_TESTING AND BUILD_IDLC)
   add_subdirectory(xtests)
 endif()
 

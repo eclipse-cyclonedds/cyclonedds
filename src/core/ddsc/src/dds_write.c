@@ -27,6 +27,94 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
 
+#ifdef DDS_HAS_SHM
+#include "dds/ddsi/shm_sync.h"
+#endif
+
+#ifdef DDS_HAS_SHM
+struct AlignIceOryxChunk_t {
+  iceoryx_header_t header;
+  uint64_t worst_case_member;
+};
+
+static void register_pub_loan(dds_writer *wr, void *pub_loan)
+{
+  for (uint32_t i = 0; i < MAX_PUB_LOANS; ++i)
+  {
+    if (!wr->m_iox_pub_loans[i])
+    {
+      wr->m_iox_pub_loans[i] = pub_loan;
+      return;
+    }
+  }
+  /* The loan pool should be big enough to store the maximum number of open IceOryx loans.
+   * So if IceOryx grants the loan, we should be able to store it.
+   */
+  assert(false);
+}
+
+static bool deregister_pub_loan(dds_writer *wr, const void *pub_loan)
+{
+    for (uint32_t i = 0; i < MAX_PUB_LOANS; ++i)
+    {
+      if (wr->m_iox_pub_loans[i] == pub_loan)
+      {
+        wr->m_iox_pub_loans[i] = NULL;
+        return true;
+      }
+    }
+    return false;
+}
+
+static void *create_iox_chunk(dds_writer *wr)
+{
+    iceoryx_header_t *ice_hdr;
+    void *sample;
+    uint32_t sample_size = wr->m_topic->m_stype->iox_size;
+    uint32_t chunk_size = DETERMINE_ICEORYX_CHUNK_SIZE(sample_size);
+    while (1)
+    {
+      enum iox_AllocationResult alloc_result = iox_pub_loan_chunk(wr->m_iox_pub, (void **) &ice_hdr, chunk_size);
+      if (AllocationResult_SUCCESS == alloc_result)
+        break;
+      // SHM_TODO: Maybe there is a better way to do while unable to allocate.
+      //           BTW, how long I should sleep is also another problem.
+      dds_sleepfor (DDS_MSECS (1));
+    }
+    ice_hdr->data_size = sample_size;
+    sample = SHIFT_PAST_ICEORYX_HEADER(ice_hdr);
+    return sample;
+}
+#endif
+
+dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
+{
+#ifndef DDS_HAS_SHM
+  (void) writer;
+  (void) sample;
+  return DDS_RETCODE_UNSUPPORTED;
+#else
+  dds_return_t ret;
+  dds_writer *wr;
+
+  if (!sample)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
+    return ret;
+
+  if (wr->m_iox_pub)
+  {
+    *sample = create_iox_chunk(wr);
+    register_pub_loan(wr, *sample);
+  } else {
+    ret = DDS_RETCODE_UNSUPPORTED;
+  }
+  dds_writer_unlock (wr);
+  return ret;
+#endif
+}
+
 dds_return_t dds_write (dds_entity_t writer, const void *data)
 {
   dds_return_t ret;
@@ -59,7 +147,7 @@ dds_return_t dds_writecdr (dds_entity_t writer, struct ddsi_serdata *serdata)
   }
   serdata->statusinfo = 0;
   serdata->timestamp.v = dds_time ();
-  ret = dds_writecdr_impl (wr->m_wr, wr->m_xp, serdata, !wr->whc_batch);
+  ret = dds_writecdr_impl (wr, wr->m_xp, serdata, !wr->whc_batch);
   dds_writer_unlock (wr);
   return ret;
 }
@@ -79,7 +167,7 @@ dds_return_t dds_forwardcdr (dds_entity_t writer, struct ddsi_serdata *serdata)
     dds_writer_unlock (wr);
     return DDS_RETCODE_ERROR;
   }
-  ret = dds_writecdr_impl (wr->m_wr, wr->m_xp, serdata, !wr->whc_batch);
+  ret = dds_writecdr_impl (wr, wr->m_xp, serdata, !wr->whc_batch);
   dds_writer_unlock (wr);
   return ret;
 }
@@ -233,6 +321,38 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
                      ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
     d->timestamp.v = tstamp;
     ddsi_serdata_ref (d);
+
+    bool suppress_local_delivery = false;
+#ifdef DDS_HAS_SHM
+    if (wr->m_iox_pub)
+    {
+      iceoryx_header_t *ice_hdr;
+
+      if (!deregister_pub_loan(wr, data))
+      {
+        void *pub_loan;
+
+        pub_loan = create_iox_chunk(wr);
+        memcpy (pub_loan, data, wr->m_topic->m_stype->iox_size);
+        data = pub_loan;
+      }
+      ice_hdr = SHIFT_BACK_TO_ICEORYX_HEADER(data);
+      ice_hdr->guid = ddsi_wr->e.guid;
+      ice_hdr->tstamp = tstamp;
+      ice_hdr->statusinfo = d->statusinfo;
+      ice_hdr->data_kind = writekey ? SDK_KEY : SDK_DATA;
+      ddsi_serdata_get_keyhash(d, &ice_hdr->keyhash, false);
+      iox_pub_publish_chunk (wr->m_iox_pub, ice_hdr);
+
+      // Iceoryx will do delivery to local subscriptions, so we suppress it here
+      suppress_local_delivery = true;
+    }
+    else
+    {
+
+    }
+#endif
+
     tk = ddsi_tkmap_lookup_instance_ref (wr->m_entity.m_domain->gv.m_tkmap, d);
     w_rc = write_sample_gc (ts1, wr->m_xp, ddsi_wr, d, tk);
 
@@ -248,7 +368,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     } else {
       ret = DDS_RETCODE_ERROR;
     }
-    if (ret == DDS_RETCODE_OK)
+    if (ret == DDS_RETCODE_OK && !suppress_local_delivery)
       ret = deliver_locally (ddsi_wr, d, tk);
     ddsi_serdata_unref (d);
     ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
@@ -257,7 +377,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   return ret;
 }
 
-dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush)
+static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush, dds_writer *wr)
 {
   // consumes 1 refc from dinp in all paths (weird, but ... history ...)
   struct thread_state1 * const ts1 = lookup_thread_state ();
@@ -323,7 +443,35 @@ dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, str
       ret = DDS_RETCODE_ERROR;
   }
 
-  if (ret == DDS_RETCODE_OK)
+  bool suppress_local_delivery = false;
+#ifdef DDS_HAS_SHM
+  if (wr && ret == DDS_RETCODE_OK) {
+    // Currently, Iceoryx is enabled only for volatile data, so data gets stored in the WHC only
+    // if remote subscribers exist, and in that case, at the moment that forces serialization of
+    // the data.  So dropping iox_chunk is survivable.
+    if (wr->m_iox_pub != NULL && dinp->iox_chunk != NULL)
+    {
+      iceoryx_header_t * ice_hdr = dinp->iox_chunk;
+      // Local readers go through Iceoryx as well (because the Iceoryx support code doesn't exclude
+      // that), which means we should suppress the internal path
+      suppress_local_delivery = true;
+      ice_hdr->guid = ddsi_wr->e.guid;
+      ice_hdr->tstamp = dinp->timestamp.v;
+      ice_hdr->statusinfo = dinp->statusinfo;
+      ice_hdr->data_kind = (unsigned char)dinp->kind;
+      ddsi_serdata_get_keyhash (dinp, &ice_hdr->keyhash, false);
+      // iox_pub_publish_chunk takes ownership, storing a null pointer here doesn't
+      // preclude the existence of race conditions on this, but it certainly improves
+      // the chances of detecting them
+      dinp->iox_chunk = NULL;
+      iox_pub_publish_chunk (wr->m_iox_pub, ice_hdr);
+    }
+  }
+#else
+  (void) wr;
+#endif
+
+  if (ret == DDS_RETCODE_OK && !suppress_local_delivery)
     ret = deliver_locally (ddsi_wr, dact, tk);
 
   // refc management at input is such that we must still consume a dinp
@@ -339,6 +487,16 @@ dds_return_t dds_writecdr_impl (struct writer *ddsi_wr, struct nn_xpack *xp, str
   ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
   thread_state_asleep (ts1);
   return ret;
+}
+
+dds_return_t dds_writecdr_impl (dds_writer *wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush)
+{
+  return dds_writecdr_impl_common (wr->m_wr, xp, dinp, flush, wr);
+}
+
+dds_return_t dds_writecdr_local_orphan_impl (struct local_orphan_writer *lowr, struct nn_xpack *xp, struct ddsi_serdata *dinp)
+{
+  return dds_writecdr_impl_common (&lowr->wr, xp, dinp, true, NULL);
 }
 
 void dds_write_flush (dds_entity_t writer)

@@ -36,4 +36,7 @@
 /* Whether or not support for topic discovery is included */
 #cmakedefine DDS_HAS_TOPIC_DISCOVERY @DDS_HAS_TOPIC_DISCOVERY@
 
+/* Whether or not support for Iceoryx support is included */
+#cmakedefine DDS_HAS_SHM @DDS_HAS_SHM@
+
 #endif

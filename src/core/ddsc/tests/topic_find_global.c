@@ -102,6 +102,8 @@ CU_Test(ddsc_topic_find_global, participant, .init = topic_find_global_init, .fi
   CU_ASSERT_FATAL (topic > 0);
 }
 
+static void msg (const char *msg, ...) ddsrt_attribute_format((printf, 1, 2));
+
 static void msg (const char *msg, ...)
 {
   va_list args;

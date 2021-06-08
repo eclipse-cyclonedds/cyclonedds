@@ -584,7 +584,7 @@ CU_Test(ddsc_readcondition, stress)
 
     conds[condidx] = dds_create_readcondition (rd, DDS_ANY_STATE);
     CU_ASSERT_FATAL (conds[condidx] > 0);
-    
+
     // the fact that read conditions get updated even when not attached to a waitset is
     // probably a bug, so let's attach it to a waitset for good measure
     rc = dds_waitset_attach (ws, conds[condidx], conds[condidx]);

@@ -103,8 +103,8 @@ struct rd_pwr_match {
   unsigned pwr_alive: 1; /* tracks pwr's alive state */
   uint32_t pwr_alive_vclock; /* used to ensure progress */
 #ifdef DDS_HAS_SSM
-  ddsi_locator_t ssm_mc_loc;
-  ddsi_locator_t ssm_src_loc;
+  ddsi_xlocator_t ssm_mc_loc;
+  ddsi_xlocator_t ssm_src_loc;
 #endif
 #ifdef DDS_HAS_SECURITY
   int64_t crypto_handle;
@@ -242,8 +242,8 @@ struct participant
   struct ddsi_plist *plist; /* settings/QoS for this participant */
   struct xevent *spdp_xevent; /* timed event for periodically publishing SPDP */
   struct xevent *pmd_update_xevent; /* timed event for periodically publishing ParticipantMessageData */
-  ddsi_locator_t m_locator;
-  ddsi_tran_conn_t m_conn;
+  ddsi_locator_t m_locator; /* this is always a unicast address, it is set if it is in the many unicast mode */
+  ddsi_tran_conn_t m_conn; /* this is connection to m_locator, if it is set, this is used */
   struct avail_entityid_set avail_entityids; /* available entity ids [e.lock] */
   ddsrt_mutex_t refc_lock;
   int32_t user_refc; /* number of non-built-in endpoints in this participant [refc_lock] */
@@ -320,7 +320,6 @@ struct writer
   enum writer_state state;
   unsigned reliable: 1; /* iff 1, writer is reliable <=> heartbeat_xevent != NULL */
   unsigned handle_as_transient_local: 1; /* controls whether data is retained in WHC */
-  unsigned include_keyhash: 1; /* iff 1, this writer includes a keyhash; keyless topics => include_keyhash = 0 */
   unsigned force_md5_keyhash: 1; /* iff 1, when keyhash has to be hashed, no matter the size */
   unsigned retransmitting: 1; /* iff 1, this writer is currently retransmitting */
   unsigned alive: 1; /* iff 1, the writer is alive (lease for this writer is not expired); field may be modified only when holding both wr->e.lock and wr->c.pp->e.lock */
@@ -347,6 +346,7 @@ struct writer
   uint32_t rexmit_burst_size_limit; /* derived from reader's receive_buffer_size */
   uint32_t num_readers; /* total number of matching PROXY readers */
   uint32_t num_reliable_readers; /* number of matching reliable PROXY readers */
+  uint32_t num_readers_requesting_keyhash; /* also +1 for protected keys and config override for generating keyhash */
   ddsrt_avl_tree_t readers; /* all matching PROXY readers, see struct wr_prd_match */
   ddsrt_avl_tree_t local_readers; /* all matching LOCAL readers, see struct wr_rd_match */
 #ifdef DDS_HAS_NETWORK_PARTITIONS
@@ -391,12 +391,14 @@ struct reader
   struct dds_qos *xqos;
   unsigned reliable: 1; /* 1 iff reader is reliable */
   unsigned handle_as_transient_local: 1; /* 1 iff reader wants historical data from proxy writers */
+  unsigned request_keyhash: 1; /* really controlled by the sertype */
 #ifdef DDS_HAS_SSM
   unsigned favours_ssm: 1; /* iff 1, this reader favours SSM */
 #endif
   nn_count_t init_acknack_count; /* initial value for "count" (i.e. ACK seq num) for newly matched proxy writers */
 #ifdef DDS_HAS_NETWORK_PARTITIONS
-  struct addrset *as;
+  struct networkpartition_address *uc_as;
+  struct networkpartition_address *mc_as;
 #endif
   const struct ddsi_sertype * type; /* type of the data read by this reader */
   uint32_t num_writers; /* total number of matching PROXY writers */
@@ -443,6 +445,7 @@ struct proxy_participant
   unsigned deleting: 1;
   unsigned proxypp_have_spdp: 1;
   unsigned owns_lease: 1;
+  unsigned redundant_networking: 1; /* 1 iff requests receiving data on all advertised interfaces */
 #ifdef DDS_HAS_SECURITY
   nn_security_info_t security_info;
   struct proxy_participant_sec_attributes *sec_attr;
@@ -514,8 +517,12 @@ struct proxy_writer {
   unsigned local_matching_inprogress: 1; /* iff 1, we are still busy matching local readers; this is so we don't deliver incoming data to some but not all readers initially */
   unsigned alive: 1; /* iff 1, the proxy writer is alive (lease for this proxy writer is not expired); field may be modified only when holding both pwr->e.lock and pwr->c.proxypp->e.lock */
   unsigned filtered: 1; /* iff 1, builtin proxy writer uses content filter, which affects heartbeats and gaps. */
+  unsigned redundant_networking: 1; /* 1 iff requests receiving data on all advertised interfaces */
 #ifdef DDS_HAS_SSM
   unsigned supports_ssm: 1; /* iff 1, this proxy writer supports SSM */
+#endif
+#ifdef DDS_HAS_SHM
+  unsigned is_iceoryx: 1;
 #endif
   uint32_t alive_vclock; /* virtual clock counting transitions between alive/not-alive */
   struct nn_defrag *defrag; /* defragmenter for this proxy writer; FIXME: perhaps shouldn't be for historical data */
@@ -536,8 +543,13 @@ struct proxy_reader {
   struct proxy_endpoint_common c;
   unsigned deleting: 1; /* set when being deleted */
   unsigned is_fict_trans_reader: 1; /* only true when it is certain that is a fictitious transient data reader (affects built-in topic generation) */
+  unsigned requests_keyhash: 1; /* 1 iff this reader would like to receive keyhashes */
+  unsigned redundant_networking: 1; /* 1 iff requests receiving data on all advertised interfaces */
 #ifdef DDS_HAS_SSM
   unsigned favours_ssm: 1; /* iff 1, this proxy reader favours SSM when available */
+#endif
+#ifdef DDS_HAS_SHM
+  unsigned is_iceoryx: 1;
 #endif
   ddsrt_avl_tree_t writers; /* matching LOCAL writers */
   uint32_t receive_buffer_size; /* assumed receive buffer size inherited from proxypp */
@@ -776,7 +788,7 @@ int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, se
 int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp);
 void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct lease *newlease);
 
-void purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_locator_t *loc, bool delete_from_as_disc);
+void purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *loc, bool delete_from_as_disc);
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 dds_return_t ddsi_new_topic (struct topic **tp_out, struct ddsi_guid *tpguid, struct participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, bool is_builtin, bool *new_topic_def);

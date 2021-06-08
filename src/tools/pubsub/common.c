@@ -118,6 +118,8 @@ void hist_record(struct hist *h, uint64_t x, unsigned weight) {
         h->bins[(x - h->bin0) / h->binwidth] += weight;
 }
 
+static void xsnprintf(char *buf, size_t bufsz, size_t *p, const char *fmt, ...) ddsrt_attribute_format((printf, 4, 5));
+
 static void xsnprintf(char *buf, size_t bufsz, size_t *p, const char *fmt, ...) {
     if (*p < bufsz) {
         int n;
@@ -217,6 +219,7 @@ void hist_print(struct hist *h, dds_time_t dt, int reset) {
         hist_reset(h);
 }
 
+void error(const char *fmt, ...) ddsrt_attribute_format((printf, 1, 2));
 void error(const char *fmt, ...) {
     va_list ap;
     fprintf (stderr, "%s: error: ", saved_argv0);

@@ -324,6 +324,14 @@ static struct ddsi_serdata *sd_from_ser (const struct ddsi_sertype *tpcmn, enum 
     .iov_base = NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain)),
     .iov_len = fragchain->maxp1 // fragchain->min = 0 for first fragment, by definition
   };
+  const ddsi_keyhash_t *kh = ddsi_serdata_keyhash_from_fragchain (fragchain);
+  CU_ASSERT_FATAL (kh != NULL);
+  assert (kh != NULL); // for Clang's static analyzer
+  printf ("kh rcv %02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x\n",
+          kh->value[0], kh->value[1], kh->value[2], kh->value[3],
+          kh->value[4], kh->value[5], kh->value[6], kh->value[7],
+          kh->value[8], kh->value[9], kh->value[10], kh->value[11],
+          kh->value[12], kh->value[13], kh->value[14], kh->value[15]);
   return sd_from_ser_iov (tpcmn, kind, 1, &iov, size);
 }
 
@@ -615,6 +623,11 @@ static void sd_get_keyhash (const struct ddsi_serdata *serdata_common, struct dd
 {
   struct sd const * const sd = (const struct sd *) serdata_common;
   sdx_get_keyhash (&sd->x, buf, force_md5);
+  printf ("kh gen %02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x\n",
+          buf->value[0], buf->value[1], buf->value[2], buf->value[3],
+          buf->value[4], buf->value[5], buf->value[6], buf->value[7],
+          buf->value[8], buf->value[9], buf->value[10], buf->value[11],
+          buf->value[12], buf->value[13], buf->value[14], buf->value[15]);
 }
 
 static void sd0_get_keyhash (const struct ddsi_sertopic_serdata *serdata_common, struct ddsi_keyhash *buf, bool force_md5)
@@ -684,7 +697,11 @@ static void cdr_basic (struct ops const * const ops)
   /* Domains for pub and sub use a different domain id, but the portgain setting
    * in configuration is 0, so that both domains will map to the same port number.
    * This allows to create two domains in a single test process. */
-  const char *config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>";
+#ifdef DDS_HAS_SHM
+  const char* config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery><Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>";
+#else
+  const char* config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>";
+#endif
   char *conf_pub = ddsrt_expand_envvars (config, 0);
   char *conf_sub = ddsrt_expand_envvars (config, 1);
   const dds_entity_t pub_dom = dds_create_domain (0, conf_pub);
@@ -899,7 +916,16 @@ static void cdr_forward (struct ops const * const ops)
   dds_return_t rc;
   char topicname[100];
 
-  const dds_entity_t pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+#ifdef DDS_HAS_SHM
+  const char* config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>";
+#else
+  const char* config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}";
+#endif
+  char* conf = ddsrt_expand_envvars(config, 0);
+  const dds_entity_t dom = dds_create_domain(0, conf);
+  ddsrt_free (conf);
+
+  const dds_entity_t pp = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_FATAL (pp > 0);
 
   create_unique_topic_name ("ddsc_cdr_sertopic_basic", topicname, sizeof topicname);
@@ -952,7 +978,7 @@ static void cdr_forward (struct ops const * const ops)
   CU_ASSERT_FATAL (si1.source_timestamp == si0.source_timestamp);
   ddsi_serdata_unref (serdata);
 
-  rc = dds_delete (pp);
+  rc = dds_delete (dom);
   CU_ASSERT_FATAL (rc == 0);
 }
 
@@ -1021,8 +1047,15 @@ static void cdr_timeout (struct ops const * const ops)
    * This allows to create two domains in a single test process. */
   const char *config = "\
 ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
-<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>\
-<Internal>\
+<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
+#ifdef DDS_HAS_SHM
+"<Domain id=\"any\">\
+  <SharedMemory>\
+    <Enable>false</Enable>\
+  </SharedMemory>\
+</Domain>"
+#endif
+"<Internal>\
   <Watermarks>\
     <WhcHigh>0B</WhcHigh>\
     <WhcHighInit>0B</WhcHighInit>\
@@ -1100,7 +1133,7 @@ static struct tw make_topic (dds_entity_t pp, const char *topicname, const char 
 {
   struct stp *stp = malloc (sizeof (*stp));
   assert(stp);
-  ddsi_sertype_init (&stp->c, typename, &stp_ops, &sd_ops, false);
+  ddsi_sertype_init_flags (&stp->c, typename, &stp_ops, &sd_ops, DDSI_SERTYPE_FLAG_REQUEST_KEYHASH);
   struct ddsi_sertype *st = &stp->c;
   dds_entity_t tp = dds_create_topic_sertype (pp, topicname, &st, qos, NULL, NULL);
   CU_ASSERT_FATAL (tp > 0);

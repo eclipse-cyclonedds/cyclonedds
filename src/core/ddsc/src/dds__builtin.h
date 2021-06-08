@@ -13,6 +13,7 @@
 #define _DDS_BUILTIN_H_
 
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
+#include "dds__types.h"
 
 #if defined (__cplusplus)
 extern "C"

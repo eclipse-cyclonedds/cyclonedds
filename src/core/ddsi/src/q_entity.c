@@ -45,6 +45,7 @@
 #include "dds/ddsi/q_receive.h"
 #include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
 #include "dds/ddsi/ddsi_rhc.h"
+#include "dds/ddsi/ddsi_wraddrset.h"
 
 #include "dds/ddsi/sysdeps.h"
 #include "dds__whc.h"
@@ -53,6 +54,7 @@
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/ddsi/ddsi_list_tmpl.h"
+#include "dds/ddsi/ddsi_builtin_topic_if.h"
 
 #ifdef DDS_HAS_SECURITY
 #include "dds/ddsi/ddsi_security_msg.h"
@@ -999,7 +1001,7 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
     ppconn = NULL;
   else
   {
-    const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_RECV_UC, .m_diffserv = 0 };
+    const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_RECV_UC, .m_diffserv = 0, .m_interface = NULL };
     if (ddsi_factory_create_conn (&ppconn, gv->m_factory, 0, &qos) != DDS_RETCODE_OK)
     {
       GVERROR ("new_participant("PGUIDFMT", %x) failed: could not create network endpoint\n", PGUID (*ppguid), flags);
@@ -1557,309 +1559,39 @@ dds_duration_t pp_get_pmd_interval (struct participant *pp)
    These are all located in a separate section because they are so
    very similar that co-locating them eases editing and checking. */
 
-struct rebuild_flatten_locs_arg {
-  ddsi_locator_t *locs;
-  int idx;
-#ifndef NDEBUG
-  int size;
-#endif
-};
-
-static void rebuild_flatten_locs(const ddsi_locator_t *loc, void *varg)
+static uint32_t get_min_receive_buffer_size (struct writer *wr)
 {
-  struct rebuild_flatten_locs_arg *arg = varg;
-  assert(arg->idx < arg->size);
-  arg->locs[arg->idx++] = *loc;
-}
-
-static int rebuild_compare_locs(const void *va, const void *vb)
-{
-  const ddsi_locator_t *a = va;
-  const ddsi_locator_t *b = vb;
-  if (a->kind != b->kind || a->kind != NN_LOCATOR_KIND_UDPv4MCGEN)
-    return compare_locators(a, b);
-  else
-  {
-    ddsi_locator_t u = *a, v = *b;
-    nn_udpv4mcgen_address_t *u1 = (nn_udpv4mcgen_address_t *) u.address;
-    nn_udpv4mcgen_address_t *v1 = (nn_udpv4mcgen_address_t *) v.address;
-    u1->idx = v1->idx = 0;
-    return compare_locators(&u, &v);
-  }
-}
-
-static struct addrset *rebuild_make_all_addrs (int *nreaders, struct writer *wr, uint32_t *min_receive_buffer_size)
-{
-  struct addrset *all_addrs = new_addrset();
+  uint32_t min_receive_buffer_size = UINT32_MAX;
   struct entity_index *gh = wr->e.gv->entity_index;
-  struct wr_prd_match *m;
   ddsrt_avl_iter_t it;
-#ifdef DDS_HAS_SSM
-  if (wr->supports_ssm && wr->ssm_as)
-    copy_addrset_into_addrset_mc (wr->e.gv, all_addrs, wr->ssm_as);
-#endif
-  *nreaders = 0;
-  for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
+  for (struct wr_prd_match *m = ddsrt_avl_iter_first (&wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
   {
     struct proxy_reader *prd;
     if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
       continue;
-    (*nreaders)++;
-    if (prd->receive_buffer_size < *min_receive_buffer_size)
-      *min_receive_buffer_size = prd->receive_buffer_size;
-    copy_addrset_into_addrset(wr->e.gv, all_addrs, prd->c.as);
+    if (prd->receive_buffer_size < min_receive_buffer_size)
+      min_receive_buffer_size = prd->receive_buffer_size;
   }
-  if (addrset_empty(all_addrs) || *nreaders == 0)
-  {
-    unref_addrset(all_addrs);
-    return NULL;
-  }
-  else
-  {
-    return all_addrs;
-  }
-}
-
-static void rebuild_make_locs(const struct ddsrt_log_cfg *logcfg, int *p_nlocs, ddsi_locator_t **p_locs, struct addrset *all_addrs)
-{
-  struct rebuild_flatten_locs_arg flarg;
-  int nlocs;
-  int i, j;
-  ddsi_locator_t *locs;
-  nlocs = (int)addrset_count(all_addrs);
-  locs = ddsrt_malloc((size_t)nlocs * sizeof(*locs));
-  flarg.locs = locs;
-  flarg.idx = 0;
-#ifndef NDEBUG
-  flarg.size = nlocs;
-#endif
-  addrset_forall(all_addrs, rebuild_flatten_locs, &flarg);
-  assert(flarg.idx == flarg.size);
-  qsort(locs, (size_t)nlocs, sizeof(*locs), rebuild_compare_locs);
-  /* We want MC gens just once for each IP,BASE,COUNT pair, not once for each node */
-  i = 0; j = 1;
-  while (j < nlocs)
-  {
-    if (rebuild_compare_locs(&locs[i], &locs[j]) != 0)
-      locs[++i] = locs[j];
-    j++;
-  }
-  nlocs = i+1;
-  DDS_CLOG (DDS_LC_DISCOVERY, logcfg, "reduced nlocs=%d\n", nlocs);
-  *p_nlocs = nlocs;
-  *p_locs = locs;
-}
-
-static void rebuild_make_covered(int8_t **covered, const struct writer *wr, int *nreaders, int nlocs, const ddsi_locator_t *locs)
-{
-  struct rebuild_flatten_locs_arg flarg;
-  struct entity_index *gh = wr->e.gv->entity_index;
-  struct wr_prd_match *m;
-  ddsrt_avl_iter_t it;
-  int rdidx, i, j;
-  int8_t *cov = ddsrt_malloc((size_t) *nreaders * (size_t) nlocs * sizeof (*cov));
-  for (i = 0; i < *nreaders * nlocs; i++)
-    cov[i] = -1;
-  rdidx = 0;
-  flarg.locs = ddsrt_malloc((size_t) nlocs * sizeof(*flarg.locs));
-#ifndef NDEBUG
-  flarg.size = nlocs;
-#endif
-  for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
-  {
-    struct proxy_reader *prd;
-    struct addrset *ass[] = { NULL, NULL, NULL };
-    if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
-      continue;
-    ass[0] = prd->c.as;
-#ifdef DDS_HAS_SSM
-    if (prd->favours_ssm && wr->supports_ssm)
-      ass[1] = wr->ssm_as;
-#endif
-    for (i = 0; ass[i]; i++)
-    {
-      flarg.idx = 0;
-      addrset_forall(ass[i], rebuild_flatten_locs, &flarg);
-      for (j = 0; j < flarg.idx; j++)
-      {
-        /* all addresses should be in the combined set of addresses -- FIXME: this doesn't hold if the address sets can change */
-        const ddsi_locator_t *l = bsearch(&flarg.locs[j], locs, (size_t) nlocs, sizeof(*locs), rebuild_compare_locs);
-        int lidx;
-        int8_t x;
-        assert(l != NULL);
-        lidx = (int) (l - locs);
-        if (l->kind != NN_LOCATOR_KIND_UDPv4MCGEN)
-          x = 0;
-        else
-        {
-          const nn_udpv4mcgen_address_t *l1 = (const nn_udpv4mcgen_address_t *) flarg.locs[j].address;
-          assert(l1->base + l1->idx <= 127);
-          x = (int8_t) (l1->base + l1->idx);
-        }
-        cov[rdidx * nlocs + lidx] = x;
-      }
-    }
-    rdidx++;
-  }
-  ddsrt_free(flarg.locs);
-  *covered = cov;
-  *nreaders = rdidx;
-}
-
-static void rebuild_make_locs_nrds(int **locs_nrds, int nreaders, int nlocs, const int8_t *covered)
-{
-  int i, j;
-  int *ln = ddsrt_malloc((size_t) nlocs * sizeof(*ln));
-  for (i = 0; i < nlocs; i++)
-  {
-    int n = 0;
-    for (j = 0; j < nreaders; j++)
-      if (covered[j * nlocs + i] >= 0)
-        n++;
-
-    /* The compiler doesn't realize that ln is large enough. */
-    DDSRT_WARNING_MSVC_OFF(6386);
-    ln[i] = n;
-    DDSRT_WARNING_MSVC_ON(6386);
-  }
-  *locs_nrds = ln;
-}
-
-static void rebuild_trace_covered(const struct ddsi_domaingv *gv, int nreaders, int nlocs, const ddsi_locator_t *locs, const int *locs_nrds, const int8_t *covered)
-{
-  int i, j;
-  for (i = 0; i < nlocs; i++)
-  {
-    char buf[DDSI_LOCATORSTRLEN];
-    ddsi_locator_to_string(buf, sizeof(buf), &locs[i]);
-    GVLOGDISC ("  loc %2d = %-30s %2d {", i, buf, locs_nrds[i]);
-    for (j = 0; j < nreaders; j++)
-      if (covered[j * nlocs + i] >= 0)
-        GVLOGDISC (" %d", covered[j * nlocs + i]);
-      else
-        GVLOGDISC (" .");
-    GVLOGDISC (" }\n");
-  }
-}
-
-static int rebuild_select(const struct ddsi_domaingv *gv, int nlocs, const ddsi_locator_t *locs, const int *locs_nrds, bool prefer_multicast)
-{
-  int i, j;
-  if (nlocs == 0)
-    return -1;
-  for (j = 0, i = 1; i < nlocs; i++) {
-    if (prefer_multicast && locs_nrds[i] > 0 && ddsi_is_mcaddr(gv, &locs[i]) && !ddsi_is_mcaddr(gv, &locs[j]))
-      j = i; /* obviously first step must be to try and avoid unicast if configuration says so */
-    else if (locs_nrds[i] > locs_nrds[j])
-      j = i; /* better coverage */
-    else if (locs_nrds[i] == locs_nrds[j])
-    {
-      if (locs_nrds[i] == 1 && !ddsi_is_mcaddr(gv, &locs[i]))
-        j = i; /* prefer unicast for single nodes */
-#if DDS_HAS_SSM
-      else if (ddsi_is_ssm_mcaddr(gv, &locs[i]))
-        j = i; /* "reader favours SSM": all else being equal, use SSM */
-#endif
-    }
-  }
-  return (locs_nrds[j] > 0) ? j : -1;
-}
-
-static void rebuild_add(const struct ddsi_domaingv *gv, struct addrset *newas, int locidx, int nreaders, int nlocs, const ddsi_locator_t *locs, const int8_t *covered)
-{
-  char str[DDSI_LOCATORSTRLEN];
-  if (locs[locidx].kind != NN_LOCATOR_KIND_UDPv4MCGEN)
-  {
-    ddsi_locator_to_string(str, sizeof(str), &locs[locidx]);
-    GVLOGDISC ("  simple %s\n", str);
-    add_to_addrset(gv, newas, &locs[locidx]);
-  }
-  else /* convert MC gen to the correct multicast address */
-  {
-    ddsi_locator_t l = locs[locidx];
-    nn_udpv4mcgen_address_t l1;
-    uint32_t iph, ipn;
-    int i;
-    memcpy(&l1, l.address, sizeof(l1));
-    l.kind = NN_LOCATOR_KIND_UDPv4;
-    memset(l.address, 0, 12);
-    iph = ntohl(l1.ipv4.s_addr);
-    for(i = 0; i < nreaders; i++)
-      if (covered[i * nlocs + locidx] >= 0)
-        iph |= 1u << covered[i * nlocs + locidx];
-    ipn = htonl(iph);
-    memcpy(l.address + 12, &ipn, 4);
-    ddsi_locator_to_string(str, sizeof(str), &l);
-    GVLOGDISC ("  mcgen %s\n", str);
-    add_to_addrset(gv, newas, &l);
-  }
-}
-
-static void rebuild_drop(int locidx, int nreaders, int nlocs, int *locs_nrds, int8_t *covered)
-{
-  /* readers covered by this locator no longer matter */
-  int i, j;
-  for (i = 0; i < nreaders; i++)
-  {
-    if (covered[i * nlocs + locidx] < 0)
-      continue;
-    for (j = 0; j < nlocs; j++)
-      if (covered[i * nlocs + j] >= 0)
-      {
-        assert(locs_nrds[j] > 0);
-        locs_nrds[j]--;
-        covered[i * nlocs + j] = -1;
-      }
-  }
-}
-
-static void rebuild_writer_addrset_setcover(struct addrset *newas, struct writer *wr, uint32_t *min_receive_buffer_size)
-{
-  bool prefer_multicast = wr->e.gv->config.prefer_multicast;
-  struct addrset *all_addrs;
-  int nreaders, nlocs;
-  ddsi_locator_t *locs;
-  int *locs_nrds;
-  int8_t *covered;
-  int best;
-  if ((all_addrs = rebuild_make_all_addrs(&nreaders, wr, min_receive_buffer_size)) == NULL)
-    return;
-  nn_log_addrset(wr->e.gv, DDS_LC_DISCOVERY, "setcover: all_addrs", all_addrs);
-  ELOGDISC (wr, "\n");
-  rebuild_make_locs(&wr->e.gv->logconfig, &nlocs, &locs, all_addrs);
-  unref_addrset(all_addrs);
-  rebuild_make_covered(&covered, wr, &nreaders, nlocs, locs);
-  if (nreaders == 0)
-    goto done;
-  rebuild_make_locs_nrds(&locs_nrds, nreaders, nlocs, covered);
-  while ((best = rebuild_select(wr->e.gv, nlocs, locs, locs_nrds, prefer_multicast)) >= 0)
-  {
-    rebuild_trace_covered(wr->e.gv, nreaders, nlocs, locs, locs_nrds, covered);
-    ELOGDISC (wr, "  best = %d\n", best);
-    rebuild_add(wr->e.gv, newas, best, nreaders, nlocs, locs, covered);
-    rebuild_drop(best, nreaders, nlocs, locs_nrds, covered);
-    assert (locs_nrds[best] == 0);
-  }
-  ddsrt_free(locs_nrds);
- done:
-  ddsrt_free(locs);
-  ddsrt_free(covered);
+  return min_receive_buffer_size;
 }
 
 static void rebuild_writer_addrset (struct writer *wr)
 {
-  /* FIXME way too inefficient in this form */
-  struct addrset *newas = new_addrset ();
-  struct addrset *oldas = wr->as;
-  uint32_t min_receive_buffer_size = UINT32_MAX;
+  /* FIXME: way too inefficient in this form:
+     - it gets computed for every change
+     - in many cases the set of addresses from the readers
+       is identical, so we could cache the results */
 
   /* only one operation at a time */
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
-  /* compute new addrset */
-  rebuild_writer_addrset_setcover(newas, wr, &min_receive_buffer_size);
+  /* swap in new address set; this simple procedure is ok as long as
+     wr->as is never accessed without the wr->e.lock held */
+  struct addrset * const oldas = wr->as;
+  wr->as = compute_writer_addrset (wr);
+  unref_addrset (oldas);
 
-  /* Modifying burst size limit here is a bit of a hack; but anyway ...
+  /* Computing burst size limit here is a bit of a hack; but anyway ...
      try to limit bursts of retransmits to 67% of the smallest receive
      buffer, and those of initial transmissions to that + overshoot%.
      It is usually best to send the full sample initially, always:
@@ -1869,6 +1601,7 @@ static void rebuild_writer_addrset (struct writer *wr)
      - the way things are now: the retransmits will be sent unicast,
        so if there are multiple receivers, that'll blow up things by
        a non-trivial amount */
+  const uint32_t min_receive_buffer_size = get_min_receive_buffer_size (wr);
   wr->rexmit_burst_size_limit = min_receive_buffer_size - min_receive_buffer_size / 3;
   if (wr->rexmit_burst_size_limit < 1024)
     wr->rexmit_burst_size_limit = 1024;
@@ -1884,11 +1617,6 @@ static void rebuild_writer_addrset (struct writer *wr)
     wr->init_burst_size_limit = wr->rexmit_burst_size_limit;
   else
     wr->init_burst_size_limit = (uint32_t) limit64;
-
-  /* swap in new address set; this simple procedure is ok as long as
-     wr->as is never accessed without the wr->e.lock held */
-  wr->as = newas;
-  unref_addrset (oldas);
 
   ELOGDISC (wr, "rebuild_writer_addrset("PGUIDFMT"):", PGUID (wr->e.guid));
   nn_log_addrset(wr->e.gv, DDS_LC_DISCOVERY, "", wr->as);
@@ -1955,11 +1683,11 @@ static void free_rd_pwr_match (struct ddsi_domaingv *gv, const ddsi_guid_t *rd_g
     (void) rd_guid;
 #endif
 #ifdef DDS_HAS_SSM
-    if (!is_unspec_locator (&m->ssm_mc_loc))
+    if (!is_unspec_xlocator (&m->ssm_mc_loc))
     {
-      assert (ddsi_is_mcaddr (gv, &m->ssm_mc_loc));
-      assert (!is_unspec_locator (&m->ssm_src_loc));
-      if (ddsi_leave_mc (gv, gv->mship, gv->data_conn_mc, &m->ssm_src_loc, &m->ssm_mc_loc) < 0)
+      assert (ddsi_is_mcaddr (gv, &m->ssm_mc_loc.c));
+      assert (!is_unspec_xlocator (&m->ssm_src_loc));
+      if (ddsi_leave_mc (gv, gv->mship, gv->data_conn_mc, &m->ssm_src_loc.c, &m->ssm_mc_loc.c) < 0)
         GVWARNING ("failed to leave network partition ssm group\n");
     }
 #endif
@@ -2034,10 +1762,11 @@ static void writer_drop_connection (const struct ddsi_guid *wr_guid, const struc
     {
       struct whc_state whcst;
       ddsrt_avl_delete (&wr_readers_treedef, &wr->readers, m);
-      rebuild_writer_addrset (wr);
-      remove_acked_messages (wr, &whcst, &deferred_free_list);
       wr->num_readers--;
       wr->num_reliable_readers -= m->is_reliable;
+      wr->num_readers_requesting_keyhash -= prd->requests_keyhash ? 1 : 0;
+      rebuild_writer_addrset (wr);
+      remove_acked_messages (wr, &whcst, &deferred_free_list);
     }
 
     ddsrt_mutex_unlock (&wr->e.lock);
@@ -2345,10 +2074,17 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
   struct wr_prd_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
   int pretend_everything_acked;
+
+#ifdef DDS_HAS_SHM
+  const bool use_iceoryx = prd->is_iceoryx && !(wr->xqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM);
+#else
+  const bool use_iceoryx = false;
+#endif
+
   m->prd_guid = prd->e.guid;
   m->is_reliable = (prd->c.xqos->reliability.kind > DDS_RELIABILITY_BEST_EFFORT);
   m->assumed_in_sync = (wr->e.gv->config.retransmit_merging == DDSI_REXMIT_MERGE_ALWAYS);
-  m->has_replied_to_hb = !m->is_reliable;
+  m->has_replied_to_hb = !m->is_reliable || use_iceoryx;
   m->all_have_replied_to_hb = 0;
   m->non_responsive_count = 0;
   m->rexmit_requests = 0;
@@ -2365,7 +2101,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
               PGUID (wr->e.guid), PGUID (prd->e.guid));
     pretend_everything_acked = 1;
   }
-  else if (!m->is_reliable)
+  else if (!m->is_reliable || use_iceoryx)
   {
     /* Pretend a best-effort reader has ack'd everything, even waht is
        still to be published. */
@@ -2384,7 +2120,11 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
   m->t_nackfrag_accepted.v = 0;
 
   ddsrt_mutex_lock (&wr->e.lock);
+#ifdef DDS_HAS_SHM
+  if (pretend_everything_acked || prd->is_iceoryx)
+#else
   if (pretend_everything_acked)
+#endif
     m->seq = MAX_SEQ_NUMBER;
   else
     m->seq = wr->seq;
@@ -2402,9 +2142,10 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
     ELOGDISC (wr, "  writer_add_connection(wr "PGUIDFMT" prd "PGUIDFMT") - ack seq %"PRId64"\n",
               PGUID (wr->e.guid), PGUID (prd->e.guid), m->seq);
     ddsrt_avl_insert_ipath (&wr_readers_treedef, &wr->readers, m, &path);
-    rebuild_writer_addrset (wr);
     wr->num_readers++;
     wr->num_reliable_readers += m->is_reliable;
+    wr->num_readers_requesting_keyhash += prd->requests_keyhash ? 1 : 0;
+    rebuild_writer_addrset (wr);
     ddsrt_mutex_unlock (&wr->e.lock);
 
     if (wr->status_cb)
@@ -2565,14 +2306,14 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
       /* FIXME: for now, assume that the ports match for datasock_mc --
        't would be better to dynamically create and destroy sockets on
        an as needed basis. */
-      int ret = ddsi_join_mc (rd->e.gv, rd->e.gv->mship, rd->e.gv->data_conn_mc, &m->ssm_src_loc, &m->ssm_mc_loc);
+      int ret = ddsi_join_mc (rd->e.gv, rd->e.gv->mship, rd->e.gv->data_conn_mc, &m->ssm_src_loc.c, &m->ssm_mc_loc.c);
       if (ret < 0)
         ELOGDISC (rd, "  unable to join\n");
     }
     else
     {
-      set_unspec_locator (&m->ssm_src_loc);
-      set_unspec_locator (&m->ssm_mc_loc);
+      set_unspec_xlocator (&m->ssm_src_loc);
+      set_unspec_xlocator (&m->ssm_mc_loc);
     }
 #endif
 
@@ -2649,6 +2390,12 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
     pwr->ddsi2direct_cbarg = rd->ddsi2direct_cbarg;
   }
 
+#ifdef DDS_HAS_SHM
+  const bool use_iceoryx = pwr->is_iceoryx && !(rd->xqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM);
+#else
+  const bool use_iceoryx = false;
+#endif
+
   ELOGDISC (pwr, "  proxy_writer_add_connection(pwr "PGUIDFMT" rd "PGUIDFMT")",
             PGUID (pwr->e.guid), PGUID (rd->e.guid));
   m->rd_guid = rd->e.guid;
@@ -2692,6 +2439,10 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   if (is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) && !ddsrt_avl_is_empty (&pwr->readers) && !pwr->filtered)
   {
     /* builtins really don't care about multiple copies or anything */
+    m->in_sync = PRMSS_SYNC;
+  }
+  else if (use_iceoryx)
+  {
     m->in_sync = PRMSS_SYNC;
   }
   else if (!pwr->have_seen_heartbeat || !rd->handle_as_transient_local)
@@ -2751,7 +2502,9 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
       secondary_reorder_maxsamples = pwr->e.gv->config.primary_reorder_maxsamples;
       m->filtered = 1;
     }
-    m->acknack_xevent = qxev_acknack (pwr->evq, ddsrt_mtime_add_duration (tnow, pwr->e.gv->config.preemptive_ack_delay), &pwr->e.guid, &rd->e.guid);
+
+    const ddsrt_mtime_t tsched = use_iceoryx ? DDSRT_MTIME_NEVER : ddsrt_mtime_add_duration (tnow, pwr->e.gv->config.preemptive_ack_delay);
+    m->acknack_xevent = qxev_acknack (pwr->evq, tsched, &pwr->e.guid, &rd->e.guid);
     m->u.not_in_sync.reorder =
       nn_reorder_new (&pwr->e.gv->logconfig, NN_REORDER_MODE_NORMAL, secondary_reorder_maxsamples, pwr->e.gv->config.late_ack_mode);
     pwr->n_reliable_readers++;
@@ -3885,6 +3638,7 @@ static void new_writer_guid_common_init (struct writer *wr, const char *topic_na
   wr->t_whc_high_upd.v = 0;
   wr->num_readers = 0;
   wr->num_reliable_readers = 0;
+  wr->num_readers_requesting_keyhash = 0;
   wr->num_acks_received = 0;
   wr->num_nacks_received = 0;
   wr->throttle_count = 0;
@@ -3940,7 +3694,7 @@ static void new_writer_guid_common_init (struct writer *wr, const char *topic_na
             (wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER));
   }
   wr->handle_as_transient_local = (wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
-  wr->include_keyhash =
+  wr->num_readers_requesting_keyhash +=
     wr->e.gv->config.generate_keyhash &&
     ((wr->e.guid.entityid.u & NN_ENTITYID_KIND_MASK) == NN_ENTITYID_KIND_WRITER_WITH_KEY);
   wr->type = ddsi_sertype_ref (type);
@@ -3952,9 +3706,14 @@ static void new_writer_guid_common_init (struct writer *wr, const char *topic_na
      partitions that match multiple network partitions.  From a safety
      point of view a wierd configuration. Here we chose the first one
      that we find */
-  wr->network_partition = NULL;
-  for (uint32_t i = 0; i < wr->xqos->partition.n && wr->network_partition == NULL; i++)
-    wr->network_partition = get_partition_from_mapping (&wr->e.gv->logconfig, &wr->e.gv->config, wr->xqos->partition.strs[i], wr->xqos->topic_name);
+  {
+    char *ps_def = "";
+    char **ps = (wr->xqos->partition.n > 0) ? wr->xqos->partition.strs : &ps_def;
+    uint32_t nps = (wr->xqos->partition.n > 0) ? wr->xqos->partition.n : 1;
+    wr->network_partition = NULL;
+    for (uint32_t i = 0; i < nps && wr->network_partition == NULL; i++)
+      wr->network_partition = get_partition_from_mapping (&wr->e.gv->logconfig, &wr->e.gv->config, ps[i], wr->xqos->topic_name);
+  }
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
 
 #ifdef DDS_HAS_SSM
@@ -3966,26 +3725,32 @@ static void new_writer_guid_common_init (struct writer *wr, const char *topic_na
   wr->ssm_as = NULL;
   if (wr->e.gv->config.allowMulticast & DDSI_AMC_SSM)
   {
-    ddsi_locator_t loc;
+    ddsi_xlocator_t loc;
     int have_loc = 0;
     if (wr->network_partition == NULL)
     {
       if (ddsi_is_ssm_mcaddr (wr->e.gv, &wr->e.gv->loc_default_mc))
       {
-        loc = wr->e.gv->loc_default_mc;
+        loc.conn = wr->e.gv->xmit_conns[0]; // FIXME: hack
+        loc.c = wr->e.gv->loc_default_mc;
         have_loc = 1;
       }
     }
     else
     {
-      if (addrset_any_ssm (wr->e.gv, wr->network_partition->as, &loc))
+      if (wr->network_partition->ssm_addresses)
+      {
+        assert (ddsi_is_ssm_mcaddr (wr->e.gv, &wr->network_partition->ssm_addresses->loc));
+        loc.conn = wr->e.gv->xmit_conns[0]; // FIXME: hack
+        loc.c = wr->network_partition->ssm_addresses->loc;
         have_loc = 1;
+      }
     }
     if (have_loc)
     {
       wr->supports_ssm = 1;
       wr->ssm_as = new_addrset ();
-      add_to_addrset (wr->e.gv, wr->ssm_as, &loc);
+      add_xlocator_to_addrset (wr->e.gv, wr->ssm_as, &loc);
       ELOGDISC (wr, "writer "PGUIDFMT": ssm=%d", PGUID (wr->e.guid), wr->supports_ssm);
       nn_log_addrset (wr->e.gv, DDS_LC_DISCOVERY, "", wr->ssm_as);
       ELOGDISC (wr, "\n");
@@ -4452,107 +4217,59 @@ dds_return_t delete_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *gu
 /* READER ----------------------------------------------------------- */
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
-static struct addrset *get_as_from_mapping (const struct ddsi_domaingv *gv, const char *partition, const char *topic)
+static const struct ddsi_config_networkpartition_listelem *get_as_from_mapping (const struct ddsi_domaingv *gv, const char *partition, const char *topic)
 {
   struct ddsi_config_partitionmapping_listelem *pm;
-  struct addrset *as = new_addrset ();
   if ((pm = find_partitionmapping (&gv->config, partition, topic)) != NULL)
   {
     GVLOGDISC ("matched reader for topic \"%s\" in partition \"%s\" to networkPartition \"%s\"\n",
                topic, partition, pm->networkPartition);
-    assert (pm->partition->as);
-    copy_addrset_into_addrset (gv, as, pm->partition->as);
+    return pm->partition;
   }
-  return as;
+  return NULL;
 }
 
-struct join_leave_mcast_helper_arg {
-  ddsi_tran_conn_t conn;
-  struct ddsi_domaingv *gv;
-};
-
-static void join_mcast_helper (const ddsi_locator_t *n, void *varg)
+static void joinleave_mcast_helper (struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_locator_t *n, const char *joinleavestr, int (*joinleave) (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc))
 {
-  struct join_leave_mcast_helper_arg *arg = varg;
-  struct ddsi_domaingv *gv = arg->gv;
-  if (ddsi_is_mcaddr (gv, n))
+  char buf[DDSI_LOCSTRLEN];
+  assert (ddsi_is_mcaddr (gv, n));
+  if (n->kind != NN_LOCATOR_KIND_UDPv4MCGEN)
   {
-    if (n->kind != NN_LOCATOR_KIND_UDPv4MCGEN)
+    if (joinleave (gv, gv->mship, conn, NULL, n) < 0)
+      GVWARNING ("failed to %s network partition multicast group %s\n", joinleavestr, ddsi_locator_to_string (buf, sizeof (buf), n));
+  }
+  else /* join all addresses that include this node */
+  {
+    ddsi_locator_t l = *n;
+    nn_udpv4mcgen_address_t l1;
+    uint32_t iph;
+    memcpy (&l1, l.address, sizeof (l1));
+    l.kind = NN_LOCATOR_KIND_UDPv4;
+    memset (l.address, 0, 12);
+    iph = ntohl (l1.ipv4.s_addr);
+    for (uint32_t i = 1; i < ((uint32_t)1 << l1.count); i++)
     {
-      if (ddsi_join_mc (gv, arg->gv->mship, arg->conn, NULL, n) < 0)
+      uint32_t ipn, iph1 = iph;
+      if (i & (1u << l1.idx))
       {
-        GVWARNING ("failed to join network partition multicast group\n");
-      }
-    }
-    else /* join all addresses that include this node */
-    {
-      {
-        ddsi_locator_t l = *n;
-        nn_udpv4mcgen_address_t l1;
-        uint32_t iph;
-        memcpy(&l1, l.address, sizeof(l1));
-        l.kind = NN_LOCATOR_KIND_UDPv4;
-        memset(l.address, 0, 12);
-        iph = ntohl(l1.ipv4.s_addr);
-        for (uint32_t i = 1; i < ((uint32_t)1 << l1.count); i++)
-        {
-          uint32_t ipn, iph1 = iph;
-          if (i & (1u << l1.idx))
-          {
-            iph1 |= (i << l1.base);
-            ipn = htonl(iph1);
-            memcpy(l.address + 12, &ipn, 4);
-            if (ddsi_join_mc (gv, gv->mship, arg->conn, NULL, &l) < 0)
-            {
-              GVWARNING ("failed to join network partition multicast group\n");
-            }
-          }
-        }
+        iph1 |= (i << l1.base);
+        ipn = htonl (iph1);
+        memcpy (l.address + 12, &ipn, 4);
+        if (joinleave (gv, gv->mship, conn, NULL, &l) < 0)
+          GVWARNING ("failed to %s network partition multicast group %s\n", joinleavestr, ddsi_locator_to_string (buf, sizeof (buf), &l));
       }
     }
   }
 }
 
-static void leave_mcast_helper (const ddsi_locator_t *n, void *varg)
+static void join_mcast_helper (struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_locator_t *n)
 {
-  struct join_leave_mcast_helper_arg *arg = varg;
-  struct ddsi_domaingv *gv = arg->gv;
-  if (ddsi_is_mcaddr (gv, n))
-  {
-    if (n->kind != NN_LOCATOR_KIND_UDPv4MCGEN)
-    {
-      if (ddsi_leave_mc (gv, gv->mship, arg->conn, NULL, n) < 0)
-      {
-        GVWARNING ("failed to leave network partition multicast group\n");
-      }
-    }
-    else /* join all addresses that include this node */
-    {
-      {
-        ddsi_locator_t l = *n;
-        nn_udpv4mcgen_address_t l1;
-        uint32_t iph;
-        memcpy(&l1, l.address, sizeof(l1));
-        l.kind = NN_LOCATOR_KIND_UDPv4;
-        memset(l.address, 0, 12);
-        iph = ntohl(l1.ipv4.s_addr);
-        for (uint32_t i = 1; i < ((uint32_t)1 << l1.count); i++)
-        {
-          uint32_t ipn, iph1 = iph;
-          if (i & (1u << l1.idx))
-          {
-            iph1 |= (i << l1.base);
-            ipn = htonl(iph1);
-            memcpy(l.address + 12, &ipn, 4);
-            if (ddsi_leave_mc (gv, arg->gv->mship, arg->conn, NULL, &l) < 0)
-            {
-              GVWARNING ("failed to leave network partition multicast group\n");
-            }
-          }
-        }
-      }
-    }
-  }
+  joinleave_mcast_helper (gv, conn, n, "join", ddsi_join_mc);
+}
+
+static void leave_mcast_helper (struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_locator_t *n)
+{
+  joinleave_mcast_helper (gv, conn, n, "leave", ddsi_leave_mc);
 }
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
 
@@ -4613,6 +4330,7 @@ static dds_return_t new_reader_guid
   rd->handle_as_transient_local = (rd->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL) ||
                                   (rd->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER);
   rd->type = ddsi_sertype_ref (type);
+  rd->request_keyhash = rd->type->request_keyhash;
   rd->ddsi2direct_cb = 0;
   rd->ddsi2direct_cbarg = 0;
   rd->init_acknack_count = 1;
@@ -4638,41 +4356,32 @@ static dds_return_t new_reader_guid
 #endif
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
-  rd->as = new_addrset ();
-  if (pp->e.gv->config.allowMulticast & ~DDSI_AMC_SPDP)
+  rd->uc_as = rd->mc_as = NULL;
   {
     /* compile address set from the mapped network partitions */
-    for (uint32_t i = 0; i < rd->xqos->partition.n; i++)
+    char *ps_def = "";
+    char **ps = (rd->xqos->partition.n > 0) ? rd->xqos->partition.strs : &ps_def;
+    uint32_t nps = (rd->xqos->partition.n > 0) ? rd->xqos->partition.n : 1;
+    const struct ddsi_config_networkpartition_listelem *np = NULL;
+    for (uint32_t i = 0; i < nps && np == NULL; i++)
+      np = get_as_from_mapping (pp->e.gv, ps[i], rd->xqos->topic_name);
+    if (np)
     {
-      struct addrset *pas = get_as_from_mapping (pp->e.gv, rd->xqos->partition.strs[i], rd->xqos->topic_name);
-      if (pas)
-      {
+      rd->uc_as = np->uc_addresses;
+      rd->mc_as = np->asm_addresses;
 #ifdef DDS_HAS_SSM
-        copy_addrset_into_addrset_no_ssm (pp->e.gv, rd->as, pas);
-        if (addrset_contains_ssm (pp->e.gv, pas) && rd->e.gv->config.allowMulticast & DDSI_AMC_SSM)
-          rd->favours_ssm = 1;
-#else
-        copy_addrset_into_addrset (pp->e.gv, rd->as, pas);
+      if (np->ssm_addresses != NULL && (rd->e.gv->config.allowMulticast & DDSI_AMC_SSM))
+        rd->favours_ssm = 1;
 #endif
-        unref_addrset (pas);
-      }
     }
-    if (!addrset_empty (rd->as))
+    if (rd->mc_as)
     {
       /* Iterate over all udp addresses:
        *   - Set the correct portnumbers
        *   - Join the socket if a multicast address
        */
-      struct join_leave_mcast_helper_arg arg;
-      arg.conn = pp->e.gv->data_conn_mc;
-      arg.gv = pp->e.gv;
-      addrset_forall (rd->as, join_mcast_helper, &arg);
-      if (pp->e.gv->logconfig.c.mask & DDS_LC_DISCOVERY)
-      {
-        ELOGDISC (pp, "READER "PGUIDFMT" locators={", PGUID (rd->e.guid));
-        nn_log_addrset(pp->e.gv, DDS_LC_DISCOVERY, "", rd->as);
-        ELOGDISC (pp, "}\n");
-      }
+      for (const struct networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
+        join_mcast_helper (pp->e.gv, pp->e.gv->data_conn_mc, &a->loc);
     }
 #ifdef DDS_HAS_SSM
     else
@@ -4689,6 +4398,16 @@ static dds_return_t new_reader_guid
   if (rd->favours_ssm)
     ELOGDISC (pp, "READER "PGUIDFMT" ssm=%d\n", PGUID (rd->e.guid), rd->favours_ssm);
 #endif
+  if ((rd->uc_as || rd->mc_as) && (pp->e.gv->logconfig.c.mask & DDS_LC_DISCOVERY))
+  {
+    char buf[DDSI_LOCSTRLEN];
+    ELOGDISC (pp, "READER "PGUIDFMT" locators={", PGUID (rd->e.guid));
+    for (const struct networkpartition_address *a = rd->uc_as; a != NULL; a = a->next)
+      ELOGDISC (pp, " %s", ddsi_locator_to_string (buf, sizeof (buf), &a->loc));
+    for (const struct networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
+      ELOGDISC (pp, " %s", ddsi_locator_to_string (buf, sizeof (buf), &a->loc));
+    ELOGDISC (pp, " }\n");
+  }
 #endif
 
   ddsrt_avl_init (&rd_writers_treedef, &rd->writers);
@@ -4758,11 +4477,10 @@ static void gc_delete_reader (struct gcreq *gcreq)
   if (!is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE))
     sedp_dispose_unregister_reader (rd);
 #ifdef DDS_HAS_NETWORK_PARTITIONS
+  if (rd->mc_as)
   {
-    struct join_leave_mcast_helper_arg arg;
-    arg.conn = rd->e.gv->data_conn_mc;
-    arg.gv = rd->e.gv;
-    addrset_forall (rd->as, leave_mcast_helper, &arg);
+    for (const struct networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
+      leave_mcast_helper (rd->e.gv, rd->e.gv->data_conn_mc, &a->loc);
   }
 #endif
   if (rd->rhc && is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE))
@@ -4777,10 +4495,6 @@ static void gc_delete_reader (struct gcreq *gcreq)
 
   ddsi_xqos_fini (rd->xqos);
   ddsrt_free (rd->xqos);
-#ifdef DDS_HAS_NETWORK_PARTITIONS
-  unref_addrset (rd->as);
-#endif
-
   endpoint_common_fini (&rd->e, &rd->c);
   ddsrt_free (rd);
 }
@@ -5426,6 +5140,10 @@ bool new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
     /* if we don't know anything, or if it is implausibly tiny, use 128kB */
     proxypp->receive_buffer_size = 131072;
   }
+  if (plist->present & PP_CYCLONE_REDUNDANT_NETWORKING)
+    proxypp->redundant_networking = (plist->cyclone_redundant_networking != 0);
+  else
+    proxypp->redundant_networking = 0;
 
   {
     struct proxy_participant *privpp;
@@ -5789,18 +5507,18 @@ static void downgrade_to_nonsecure(struct proxy_participant *proxypp)
 
 typedef struct proxy_purge_data {
   struct proxy_participant *proxypp;
-  const ddsi_locator_t *loc;
+  const ddsi_xlocator_t *loc;
   ddsrt_wctime_t timestamp;
 } *proxy_purge_data_t;
 
-static void purge_helper (const ddsi_locator_t *n, void * varg)
+static void purge_helper (const ddsi_xlocator_t *n, void * varg)
 {
   proxy_purge_data_t data = (proxy_purge_data_t) varg;
-  if (compare_locators (n, data->loc) == 0)
+  if (compare_xlocators (n, data->loc) == 0)
     delete_proxy_participant_by_guid (data->proxypp->e.gv, &data->proxypp->e.guid, data->timestamp, 1);
 }
 
-void purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_locator_t *loc, bool delete_from_as_disc)
+void purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *loc, bool delete_from_as_disc)
 {
   /* FIXME: check whether addr:port can't be reused for a new connection by the time we get here. */
   /* NOTE: This function exists for the sole purpose of cleaning up after closing a TCP connection in ddsi_tcp_close_conn and the state of the calling thread could be anything at this point. Because of that we do the unspeakable and toggle the thread state conditionally. We can't afford to have it in "asleep", as that causes a race with the garbage collector. */
@@ -6226,6 +5944,35 @@ static void proxy_endpoint_common_fini (struct entity_common *e, struct proxy_en
   entity_common_fini (e);
 }
 
+#ifdef DDS_HAS_SHM
+struct has_iceoryx_address_helper_arg {
+  const ddsi_locator_t *loc_iceoryx_addr;
+  bool has_iceoryx_address;
+};
+
+static void has_iceoryx_address_helper (const ddsi_xlocator_t *n, void *varg)
+{
+  struct has_iceoryx_address_helper_arg *arg = varg;
+  if (n->c.kind == NN_LOCATOR_KIND_SHEM && memcmp (arg->loc_iceoryx_addr->address, n->c.address, sizeof (arg->loc_iceoryx_addr->address)) == 0)
+    arg->has_iceoryx_address = true;
+}
+
+static bool has_iceoryx_address (struct ddsi_domaingv * const gv, struct addrset * const as)
+{
+  if (!gv->config.enable_shm)
+    return false;
+  else
+  {
+    struct has_iceoryx_address_helper_arg arg = {
+      .loc_iceoryx_addr = &gv->loc_iceoryx_addr,
+      .has_iceoryx_address = false
+    };
+    addrset_forall (as, has_iceoryx_address_helper, &arg);
+    return arg.has_iceoryx_address;
+  }
+}
+#endif
+
 /* PROXY-WRITER ----------------------------------------------------- */
 
 static enum nn_reorder_mode
@@ -6297,6 +6044,13 @@ int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
 #ifdef DDS_HAS_SSM
   pwr->supports_ssm = (addrset_contains_ssm (gv, as) && gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
 #endif
+#ifdef DDS_HAS_SHM
+  pwr->is_iceoryx = has_iceoryx_address (gv, as) ? 1 : 0;
+#endif
+  if (plist->present & PP_CYCLONE_REDUNDANT_NETWORKING)
+    pwr->redundant_networking = (plist->cyclone_redundant_networking != 0);
+  else
+    pwr->redundant_networking = proxypp->redundant_networking;
 
   assert (pwr->c.xqos->present & QP_LIVELINESS);
   if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
@@ -6633,8 +6387,16 @@ int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
 #ifdef DDS_HAS_SSM
   prd->favours_ssm = (favours_ssm && gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
 #endif
+#ifdef DDS_HAS_SHM
+  prd->is_iceoryx = has_iceoryx_address (gv, as) ? 1 : 0;
+#endif
   prd->is_fict_trans_reader = 0;
   prd->receive_buffer_size = proxypp->receive_buffer_size;
+  prd->requests_keyhash = (plist->present & PP_CYCLONE_REQUESTS_KEYHASH) && plist->cyclone_requests_keyhash;
+  if (plist->present & PP_CYCLONE_REDUNDANT_NETWORKING)
+    prd->redundant_networking = (plist->cyclone_redundant_networking != 0);
+  else
+    prd->redundant_networking = proxypp->redundant_networking;
 
   ddsrt_avl_init (&prd_writers_treedef, &prd->writers);
 

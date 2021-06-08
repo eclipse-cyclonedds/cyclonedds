@@ -12,7 +12,6 @@
 #ifndef _DDS_TKMAP_H_
 #define _DDS_TKMAP_H_
 
-#include "dds__types.h"
 #include "dds/ddsrt/atomics.h"
 
 #if defined (__cplusplus)

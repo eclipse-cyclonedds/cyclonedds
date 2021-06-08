@@ -63,8 +63,11 @@ extern "C" {
 #define PP_PARTICIPANT_SECURITY_INFO            ((uint64_t)1 << 35)
 #define PP_IDENTITY_STATUS_TOKEN                ((uint64_t)1 << 36)
 #define PP_DATA_TAGS                            ((uint64_t)1 << 37)
+/* Other stuff */
 #define PP_CYCLONE_RECEIVE_BUFFER_SIZE          ((uint64_t)1 << 38)
 #define PP_CYCLONE_TOPIC_GUID                   ((uint64_t)1 << 39)
+#define PP_CYCLONE_REQUESTS_KEYHASH             ((uint64_t)1 << 40)
+#define PP_CYCLONE_REDUNDANT_NETWORKING         ((uint64_t)1 << 41)
 
 /* Set for unrecognized parameters that are in the reserved space or
    in our own vendor-specific space that have the
@@ -234,6 +237,8 @@ typedef struct ddsi_plist {
   uint32_t domain_id;
   char *domain_tag;
   uint32_t cyclone_receive_buffer_size;
+  unsigned char cyclone_requests_keyhash;
+  unsigned char cyclone_redundant_networking;
 } ddsi_plist_t;
 
 
@@ -246,8 +251,6 @@ typedef struct ddsi_plist_src {
   const unsigned char *buf;               /**< input buffer */
   size_t bufsz;                           /**< size of input buffer */
   bool strict;                            /**< whether to be strict in checking */
-  ddsi_tran_factory_t factory;            /**< transport; eliminate this */
-  struct ddsrt_log_cfg *logconfig;        /**< logging configuration */
 } ddsi_plist_src_t;
 
 /**
@@ -320,6 +323,8 @@ DDS_EXPORT ddsi_plist_t *ddsi_plist_dup (const ddsi_plist_t *src);
  *               - encoding is PL_CDR_LE or PL_CDR_BE
  *               - buf is a pointer to the first parameter header
  *               - bufsz is the size in bytes of the input buffer
+ * @param[in]  gv
+ *               Global context, used for locator kind lookups and tracing
  * @param[out] dest
  *               Filled with the recognized parameters in the input if successful, otherwise
  *               initialized to an empty parameter list.  Where possible, pointers alias the
@@ -346,7 +351,7 @@ DDS_EXPORT ddsi_plist_t *ddsi_plist_dup (const ddsi_plist_t *src);
  *               Input contained an unrecognized parameter with the "incompatible-if-unknown"
  *               flag set; dest is cleared, *nextafterplist is NULL.
  */
-DDS_EXPORT dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const ddsi_plist_src_t *src);
+DDS_EXPORT dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv);
 
 /**
  * @brief Free memory owned by "ps"
@@ -486,13 +491,15 @@ struct nn_rsample_info;
  * It clears the `bswap` flag in `dest` if the input is in native endianness, and sets it
  * otherwise.
  *
- * @param[in]  src      input description (see `ddsi_plist_init_frommsg`)
  * @param[out] dest     internal sample info of which some fields will be set
+ * @param[in]  src      input description (see `ddsi_plist_init_frommsg`)
+ * @param[out] keyhashp set to point to keyhash in inline QoS if present, else to NULL
+ * @param[in]  gv       global context (for logging)
  *
  * @return pointer to the first byte following the sentinel if the input is well-formed, a
  * null pointer if it is not.
 */
-DDS_EXPORT unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_plist_src_t *src);
+DDS_EXPORT unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_keyhash_t **keyhashp, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv);
 
 /**
  * @brief Locate a specific parameter in a PL_CDR-serialized parameter list

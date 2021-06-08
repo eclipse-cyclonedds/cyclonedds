@@ -62,7 +62,8 @@ struct nn_xmsg_chain_elem {
 enum nn_xmsg_dstmode {
   NN_XMSG_DST_UNSET,
   NN_XMSG_DST_ONE,
-  NN_XMSG_DST_ALL
+  NN_XMSG_DST_ALL,
+  NN_XMSG_DST_ALL_UC
 };
 
 struct nn_xmsg {
@@ -98,12 +99,15 @@ struct nn_xmsg {
   enum nn_xmsg_dstmode dstmode;
   union {
     struct {
-      ddsi_locator_t loc;  /* send just to this locator */
+      ddsi_xlocator_t loc;  /* send just to this locator */
     } one;
     struct {
       struct addrset *as;       /* send to all addresses in set */
       struct addrset *as_group; /* send to one address in set */
     } all;
+    struct {
+      struct addrset *as;       /* send to all unicast addresses in set */
+    } all_uc;
   } dstaddr;
 
   struct nn_xmsg_chain_elem link;
@@ -154,7 +158,6 @@ struct nn_xpack
   unsigned packetid;
   ddsrt_atomic_uint32_t calls;
   uint32_t call_flags;
-  ddsi_tran_conn_t conn;
   size_t niov;
   ddsrt_iovec_t *iov;
   enum nn_xmsg_dstmode dstmode;
@@ -162,12 +165,16 @@ struct nn_xpack
 
   union
   {
-    ddsi_locator_t loc; /* send just to this locator */
+    ddsi_xlocator_t loc; /* send just to this locator */
     struct
     {
       struct addrset *as;        /* send to all addresses in set */
       struct addrset *as_group;  /* send to one address in set */
     } all;
+    struct
+    {
+      struct addrset *as;        /* send to all unicast addresses in set */
+    } all_uc;
   } dstaddr;
 
   bool includes_rexmit;
@@ -325,10 +332,18 @@ void nn_xmsg_free (struct nn_xmsg *m)
 #ifdef DDS_HAS_SECURITY
   ddsrt_free(m->refd_payload_encoded);
 #endif
-  if (m->dstmode == NN_XMSG_DST_ALL)
+  switch (m->dstmode)
   {
-    unref_addrset (m->dstaddr.all.as);
-    unref_addrset (m->dstaddr.all.as_group);
+    case NN_XMSG_DST_UNSET:
+    case NN_XMSG_DST_ONE:
+      break;
+    case NN_XMSG_DST_ALL:
+      unref_addrset (m->dstaddr.all.as);
+      unref_addrset (m->dstaddr.all.as_group);
+      break;
+    case NN_XMSG_DST_ALL_UC:
+      unref_addrset (m->dstaddr.all_uc.as);
+      break;
   }
   /* Only cache the smallest xmsgs; data messages store the payload by reference and are small */
   if (m->maxsz > NN_XMSG_CHUNK_SIZE || !nn_freelist_push (&pool->freelist, m))
@@ -673,11 +688,8 @@ void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t of
   }
 }
 
-void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_locator_t *loc)
+static void nn_xmsg_setdst1_common (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp)
 {
-  assert (m->dstmode == NN_XMSG_DST_UNSET);
-  m->dstmode = NN_XMSG_DST_ONE;
-  m->dstaddr.one.loc = *loc;
   m->data->dst.guid_prefix = nn_hton_guid_prefix (*gp);
 #ifdef DDS_HAS_SECURITY
   if (m->sec_info.use_rtps_encoding && !m->sec_info.dst_pp_handle)
@@ -693,8 +705,16 @@ void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_gu
       m->sec_info.dst_pp_handle = q_omg_security_get_remote_participant_handle(proxypp);
   }
 #else
-    DDSRT_UNUSED_ARG(gv);
+  DDSRT_UNUSED_ARG(gv);
 #endif
+}
+
+void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_xlocator_t *loc)
+{
+  assert (m->dstmode == NN_XMSG_DST_UNSET);
+  m->dstmode = NN_XMSG_DST_ONE;
+  m->dstaddr.one.loc = *loc;
+  nn_xmsg_setdst1_common (gv, m, gp);
 }
 
 bool nn_xmsg_getdst1prefix (struct nn_xmsg *m, ddsi_guid_prefix_t *gp)
@@ -709,18 +729,44 @@ bool nn_xmsg_getdst1prefix (struct nn_xmsg *m, ddsi_guid_prefix_t *gp)
 
 void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
 {
-  ddsi_locator_t loc;
   // only accepting endpoints that have an address
-  addrset_any_uc_else_mc_nofail (prd->c.as, &loc);
-  nn_xmsg_setdst1 (prd->e.gv, m, &prd->e.guid.prefix, &loc);
+  assert (m->dstmode == NN_XMSG_DST_UNSET);
+  if (!prd->redundant_networking)
+  {
+    ddsi_xlocator_t loc;
+    addrset_any_uc_else_mc_nofail (prd->c.as, &loc);
+    nn_xmsg_setdst1 (prd->e.gv, m, &prd->e.guid.prefix, &loc);
+  }
+  else
+  {
+    // FIXME: maybe I should work on the merging instead ...
+    if (m->kind == NN_XMSG_KIND_DATA_REXMIT)
+      m->kind = NN_XMSG_KIND_DATA_REXMIT_NOMERGE;
+    m->dstmode = NN_XMSG_DST_ALL_UC;
+    m->dstaddr.all_uc.as = ref_addrset (prd->c.as);
+    nn_xmsg_setdst1_common (prd->e.gv, m, &prd->e.guid.prefix);
+  }
 }
 
 void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
 {
-  ddsi_locator_t loc;
   // only accepting endpoints that have an address
-  addrset_any_uc_else_mc_nofail (pwr->c.as, &loc);
-  nn_xmsg_setdst1 (pwr->e.gv, m, &pwr->e.guid.prefix, &loc);
+  assert (m->dstmode == NN_XMSG_DST_UNSET);
+  if (!pwr->redundant_networking)
+  {
+    ddsi_xlocator_t loc;
+    addrset_any_uc_else_mc_nofail (pwr->c.as, &loc);
+    nn_xmsg_setdst1 (pwr->e.gv, m, &pwr->e.guid.prefix, &loc);
+  }
+  else
+  {
+    // FIXME: maybe I should work on the merging instead ...
+    if (m->kind == NN_XMSG_KIND_DATA_REXMIT)
+      m->kind = NN_XMSG_KIND_DATA_REXMIT_NOMERGE;
+    m->dstmode = NN_XMSG_DST_ALL_UC;
+    m->dstaddr.all_uc.as = ref_addrset (pwr->c.as);
+    nn_xmsg_setdst1_common (pwr->e.gv, m, &pwr->e.guid.prefix);
+  }
 }
 
 void nn_xmsg_setdstN (struct nn_xmsg *m, struct addrset *as, struct addrset *as_group)
@@ -733,7 +779,7 @@ void nn_xmsg_setdstN (struct nn_xmsg *m, struct addrset *as, struct addrset *as_
 
 void nn_xmsg_set_data_readerId (struct nn_xmsg *m, ddsi_entityid_t *readerId)
 {
-  assert (m->kind == NN_XMSG_KIND_DATA_REXMIT);
+  assert (m->kind == NN_XMSG_KIND_DATA_REXMIT || m->kind == NN_XMSG_KIND_DATA_REXMIT_NOMERGE);
   assert (m->kindspecific.data.readerId_off == 0);
   assert ((char *) readerId > m->data->payload);
   assert ((char *) readerId < m->data->payload + m->sz);
@@ -742,7 +788,7 @@ void nn_xmsg_set_data_readerId (struct nn_xmsg *m, ddsi_entityid_t *readerId)
 
 static void clear_readerId (struct nn_xmsg *m)
 {
-  assert (m->kind == NN_XMSG_KIND_DATA_REXMIT);
+  assert (m->kind == NN_XMSG_KIND_DATA_REXMIT || m->kind == NN_XMSG_KIND_DATA_REXMIT_NOMERGE);
   assert (m->kindspecific.data.readerId_off != 0);
   *((ddsi_entityid_t *) (m->data->payload + m->kindspecific.data.readerId_off)) =
     nn_hton_entityid (to_entityid (NN_ENTITYID_UNKNOWN));
@@ -750,7 +796,7 @@ static void clear_readerId (struct nn_xmsg *m)
 
 static ddsi_entityid_t load_readerId (const struct nn_xmsg *m)
 {
-  assert (m->kind == NN_XMSG_KIND_DATA_REXMIT);
+  assert (m->kind == NN_XMSG_KIND_DATA_REXMIT || m->kind == NN_XMSG_KIND_DATA_REXMIT_NOMERGE);
   assert (m->kindspecific.data.readerId_off != 0);
   return nn_ntoh_entityid (*((ddsi_entityid_t *) (m->data->payload + m->kindspecific.data.readerId_off)));
 }
@@ -787,11 +833,19 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, str
       GVTRACE ("*->*)");
       return 1;
 
+    case NN_XMSG_DST_ALL_UC:
+      GVTRACE ("all-uc)");
+      return 0;
+
     case NN_XMSG_DST_ONE:
       switch (madd->dstmode)
       {
         case NN_XMSG_DST_UNSET:
           assert (0);
+          return 0;
+
+        case NN_XMSG_DST_ALL_UC:
+          GVTRACE ("all-uc)");
           return 0;
 
         case NN_XMSG_DST_ALL:
@@ -1081,19 +1135,15 @@ static void nn_xpack_reinit (struct nn_xpack *xp)
   xp->packetid++;
 }
 
-struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool async_mode)
+struct nn_xpack * nn_xpack_new (struct ddsi_domaingv *gv, uint32_t bw_limit, bool async_mode)
 {
   struct nn_xpack *xp;
-
-  /* Disallow setting async_mode if not configured to enable async mode: this way we
-     can avoid starting the async send thread altogether */
-  assert (!async_mode || conn->m_base.gv->config.xpack_send_async);
 
   xp = ddsrt_malloc (sizeof (*xp));
   memset (xp, 0, sizeof (*xp));
   xp->async_mode = async_mode;
   xp->iov = NULL;
-  xp->gv = conn->m_base.gv;
+  xp->gv = gv;
 
   /* Fixed header fields, initialized just once */
   xp->hdr.protocol.id[0] = 'R';
@@ -1110,7 +1160,6 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
   xp->msg_len.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
   xp->msg_len.smhdr.octetsToNextHeader = 4;
 
-  xp->conn = conn;
   nn_xpack_reinit (xp);
 
 #ifdef DDS_HAS_BANDWIDTH_LIMITING
@@ -1129,7 +1178,7 @@ void nn_xpack_free (struct nn_xpack *xp)
   ddsrt_free (xp);
 }
 
-static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const ddsi_locator_t *loc)
+static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const ddsi_xlocator_t *loc)
 {
   ssize_t ret = -1;
 
@@ -1139,26 +1188,26 @@ static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const ddsi_locator_t *lo
   {
     ret = secure_conn_write(
                       xp->gv,
-                      xp->conn,
-                      loc,
+                      loc->conn,
+                      &loc->c,
                       xp->niov,
                       xp->iov,
                       xp->call_flags,
                       &(xp->msg_len),
-                      (xp->dstmode == NN_XMSG_DST_ONE),
+                      (xp->dstmode == NN_XMSG_DST_ONE || xp->dstmode == NN_XMSG_DST_ALL_UC),
                       &(xp->sec_info),
                       ddsi_conn_write);
   }
   else
 #endif /* DDS_HAS_SECURITY */
   {
-    ret = ddsi_conn_write (xp->conn, loc, xp->niov, xp->iov, xp->call_flags);
+    ret = ddsi_conn_write (loc->conn, &loc->c, xp->niov, xp->iov, xp->call_flags);
   }
 
   return ret;
 }
 
-static ssize_t nn_xpack_send1 (const ddsi_locator_t *loc, void * varg)
+static ssize_t nn_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
 {
   struct nn_xpack *xp = varg;
   struct ddsi_domaingv const * const gv = xp->gv;
@@ -1167,7 +1216,7 @@ static ssize_t nn_xpack_send1 (const ddsi_locator_t *loc, void * varg)
   if (gv->logconfig.c.mask & DDS_LC_TRACE)
   {
     char buf[DDSI_LOCSTRLEN];
-    GVTRACE (" %s", ddsi_locator_to_string (buf, sizeof(buf), loc));
+    GVTRACE (" %s", ddsi_xlocator_to_string (buf, sizeof(buf), loc));
   }
 
   if (gv->config.xmit_lossiness > 0)
@@ -1181,8 +1230,13 @@ static ssize_t nn_xpack_send1 (const ddsi_locator_t *loc, void * varg)
       return 0;
     }
   }
-
+#ifdef DDS_HAS_SHM
+  // SHM_TODO: We avoid sending packet while data is SHMEM.
+  //           I'm not sure whether this is correct or not.
+  if (!gv->mute && loc->c.kind != NN_LOCATOR_KIND_SHEM)
+#else
   if (!gv->mute)
+#endif
   {
     nbytes = nn_xpack_send_rtps(xp, loc);
 
@@ -1218,7 +1272,7 @@ static ssize_t nn_xpack_send1 (const ddsi_locator_t *loc, void * varg)
   return nbytes;
 }
 
-static void nn_xpack_send1v (const ddsi_locator_t *loc, void * varg)
+static void nn_xpack_send1v (const ddsi_xlocator_t *loc, void * varg)
 {
   (void) nn_xpack_send1 (loc, varg);
 }
@@ -1292,13 +1346,17 @@ static void nn_xpack_send_real (struct nn_xpack *xp)
 static uint32_t nn_xpack_sendq_thread (void *vgv)
 {
   struct ddsi_domaingv *gv = vgv;
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+  thread_state_awake_fixed_domain (ts1);
   ddsrt_mutex_lock (&gv->sendq_lock);
   while (!(gv->sendq_stop && gv->sendq_head == NULL))
   {
     struct nn_xpack *xp;
     if ((xp = gv->sendq_head) == NULL)
     {
-      (void) ddsrt_cond_waitfor (&gv->sendq_cond, &gv->sendq_lock, 1000000);
+      thread_state_asleep (ts1);
+      (void) ddsrt_cond_wait (&gv->sendq_cond, &gv->sendq_lock);
+      thread_state_awake_fixed_domain (ts1);
     }
     else
     {
@@ -1312,6 +1370,7 @@ static uint32_t nn_xpack_sendq_thread (void *vgv)
     }
   }
   ddsrt_mutex_unlock (&gv->sendq_lock);
+  thread_state_asleep (ts1);
   return 0;
 }
 
@@ -1327,8 +1386,9 @@ void nn_xpack_sendq_init (struct ddsi_domaingv *gv)
 
 void nn_xpack_sendq_start (struct ddsi_domaingv *gv)
 {
-  if (create_thread (&gv->sendq_ts, gv, "sendq", nn_xpack_sendq_thread, NULL) != DDS_RETCODE_OK)
+  if (create_thread (&gv->sendq_ts, gv, "sendq", nn_xpack_sendq_thread, gv) != DDS_RETCODE_OK)
     GVERROR ("nn_xpack_sendq_start: can't create nn_xpack_sendq_thread\n");
+  gv->sendq_running = true;
 }
 
 void nn_xpack_sendq_stop (struct ddsi_domaingv *gv)
@@ -1341,8 +1401,8 @@ void nn_xpack_sendq_stop (struct ddsi_domaingv *gv)
 
 void nn_xpack_sendq_fini (struct ddsi_domaingv *gv)
 {
-  assert (gv->sendq_head == NULL);
   join_thread (gv->sendq_ts);
+  assert (gv->sendq_head == NULL);
   ddsrt_cond_destroy (&gv->sendq_cond);
   ddsrt_mutex_destroy (&gv->sendq_lock);
 }
@@ -1356,16 +1416,20 @@ void nn_xpack_send (struct nn_xpack *xp, bool immediately)
   else
   {
     struct ddsi_domaingv * const gv = xp->gv;
+    // copy xp
     struct nn_xpack *xp1 = ddsrt_malloc (sizeof (*xp));
-    memcpy (xp1, xp, sizeof (*xp1));
+    memcpy(xp1, xp, sizeof(*xp1));
+    if (xp->iov != NULL) {
+      xp1->iov = ddsrt_malloc(xp->niov * sizeof(*xp->iov));
+      memcpy(xp1->iov, xp->iov, (xp->niov * sizeof(*xp->iov)));
+    }
     nn_xpack_reinit (xp);
     xp1->sendq_next = NULL;
     ddsrt_mutex_lock (&gv->sendq_lock);
-    if (immediately || gv->sendq_length == SENDQ_HW)
+    if (immediately || gv->sendq_length > SENDQ_LW)
       ddsrt_cond_broadcast (&gv->sendq_cond);
     if (gv->sendq_length >= SENDQ_MAX)
     {
-      while (gv->sendq_length > SENDQ_LW)
         ddsrt_cond_wait (&gv->sendq_cond, &gv->sendq_lock);
     }
     if (gv->sendq_head)
@@ -1395,6 +1459,9 @@ static void copy_addressing_info (struct nn_xpack *xp, const struct nn_xmsg *m)
       xp->dstaddr.all.as = ref_addrset (m->dstaddr.all.as);
       xp->dstaddr.all.as_group = ref_addrset (m->dstaddr.all.as_group);
       break;
+    case NN_XMSG_DST_ALL_UC:
+      xp->dstaddr.all_uc.as = ref_addrset (m->dstaddr.all_uc.as);
+      break;
   }
 }
 
@@ -1411,6 +1478,8 @@ static int addressing_info_eq_onesidederr (const struct nn_xpack *xp, const stru
     case NN_XMSG_DST_ALL:
       return (addrset_eq_onesidederr (xp->dstaddr.all.as, m->dstaddr.all.as) &&
               addrset_eq_onesidederr (xp->dstaddr.all.as_group, m->dstaddr.all.as_group));
+    case NN_XMSG_DST_ALL_UC:
+      return addrset_eq_onesidederr (xp->dstaddr.all_uc.as, m->dstaddr.all_uc.as);
   }
   assert (0);
   return 0;
@@ -1545,7 +1614,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
 
     /* Add MSG_LEN sub message for stream based transports */
 
-    if (xp->conn->m_stream)
+    if (!gv->m_factory->m_connless)
     {
       xp->iov[niov].iov_base = (void*) &xp->msg_len;
       xp->iov[niov].iov_len = sizeof (xp->msg_len);
@@ -1589,8 +1658,8 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
      packed message, add an InfoDST note. Note that neither has to
      have a dst set. */
   if (xp->last_dst == NULL)
-    dst = (m->dstmode == NN_XMSG_DST_ONE) ? &m->data->dst : NULL;
-  else if (m->dstmode != NN_XMSG_DST_ONE)
+    dst = (m->dstmode == NN_XMSG_DST_ONE || m->dstmode == NN_XMSG_DST_ALL_UC) ? &m->data->dst : NULL;
+  else if (m->dstmode != NN_XMSG_DST_ONE && m->dstmode != NN_XMSG_DST_ALL_UC)
     dst = &static_zero_dst;
   else
     dst = guid_prefix_eq (&xp->last_dst->guid_prefix, &m->data->dst.guid_prefix) ? NULL : &m->data->dst;
@@ -1659,15 +1728,8 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   else
   {
     xp->call_flags = flags;
-    switch (m->kind)
-    {
-      case NN_XMSG_KIND_DATA:
-      case NN_XMSG_KIND_CONTROL:
-        break;
-      case NN_XMSG_KIND_DATA_REXMIT:
-      case NN_XMSG_KIND_DATA_REXMIT_NOMERGE:
-        xp->includes_rexmit = true;
-    }
+    if (nn_xmsg_is_rexmit (m))
+      xp->includes_rexmit = true;
     nn_xmsg_chain_add (&xp->included_msgs, m);
     GVTRACE (" => now niov %d sz %"PRIuSIZE"\n", (int) niov, sz);
   }

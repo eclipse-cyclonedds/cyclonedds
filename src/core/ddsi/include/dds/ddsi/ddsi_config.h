@@ -60,6 +60,18 @@ enum ddsi_boolean_default {
   DDSI_BOOLDEF_TRUE
 };
 
+#ifdef DDS_HAS_SHM
+enum ddsi_shm_loglevel {
+  DDSI_SHM_OFF = 0,
+  DDSI_SHM_FATAL,
+  DDSI_SHM_ERROR,
+  DDSI_SHM_WARN,
+  DDSI_SHM_INFO,
+  DDSI_SHM_DEBUG,
+  DDSI_SHM_VERBOSE
+};
+#endif
+
 #define DDSI_PARTICIPANT_INDEX_AUTO -1
 #define DDSI_PARTICIPANT_INDEX_NONE -2
 
@@ -69,11 +81,20 @@ struct ddsi_config_listelem {
 };
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
+struct networkpartition_address {
+  struct networkpartition_address *next;
+  ddsi_locator_t loc;
+};
+
 struct ddsi_config_networkpartition_listelem {
   struct ddsi_config_networkpartition_listelem *next;
   char *name;
   char *address_string;
-  struct addrset *as;
+  struct networkpartition_address *uc_addresses;
+  struct networkpartition_address *asm_addresses;
+#ifdef DDS_HAS_SSM
+  struct networkpartition_address *ssm_addresses;
+#endif
 };
 
 struct ddsi_config_ignoredpartition_listelem {
@@ -256,7 +277,6 @@ struct ddsi_config
   int noprogress_log_stacktraces;
   int64_t liveliness_monitoring_interval;
   int prioritize_retransmit;
-  int xpack_send_async;
   enum ddsi_boolean_default multiple_recv_threads;
   unsigned recv_thread_stop_maxretries;
 
@@ -373,9 +393,20 @@ struct ddsi_config
 
   int use_multicast_if_mreqn;
   struct ddsi_config_prune_deleted_ppant prune_deleted_ppant;
+  int redundant_networking;
 
 #ifdef DDS_HAS_SECURITY
   struct ddsi_config_omg_security_listelem *omg_security_configuration;
+#endif
+
+#ifdef DDS_HAS_SHM
+  int enable_shm;
+  char *shm_locator;
+  char *iceoryx_service;
+  enum ddsi_shm_loglevel shm_log_lvl;
+  uint32_t sub_queue_capacity;
+  uint32_t sub_history_request;
+  uint32_t pub_history_capacity;
 #endif
 
 #if defined (__cplusplus)

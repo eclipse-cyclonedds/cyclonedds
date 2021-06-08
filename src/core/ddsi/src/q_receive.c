@@ -312,7 +312,7 @@ static int set_sampleinfo_bswap (struct nn_rsample_info *sampleinfo, struct CDRH
   return 1;
 }
 
-static int valid_Data (const struct receiver_state *rst, Data_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp, uint32_t *payloadsz)
+static int valid_Data (const struct receiver_state *rst, Data_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t **keyhashp, unsigned char **payloadp, uint32_t *payloadsz)
 {
   /* on success: sampleinfo->{seq,rst,statusinfo,bswap,complex_qos} all set */
   ddsi_guid_t pwr_guid;
@@ -349,6 +349,7 @@ static int valid_Data (const struct receiver_state *rst, Data_t *msg, size_t siz
        though one would expect octetsToInlineQos and size to be in
        agreement or octetsToInlineQos to be 0 or so */
     *payloadp = NULL;
+    *keyhashp = NULL;
     sampleinfo->size = 0; /* size is full payload size, no payload & unfragmented => size = 0 */
     sampleinfo->statusinfo = 0;
     sampleinfo->complex_qos = 0;
@@ -370,16 +371,15 @@ static int valid_Data (const struct receiver_state *rst, Data_t *msg, size_t siz
     src.encoding = (msg->x.smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
     src.buf = ptr;
     src.bufsz = (unsigned) ((unsigned char *) msg + size - src.buf); /* end of message, that's all we know */
-    src.factory = NULL;
-    src.logconfig = &rst->gv->logconfig;
     /* just a quick scan, gathering only what we _really_ need */
-    if ((ptr = ddsi_plist_quickscan (sampleinfo, &src)) == NULL)
+    if ((ptr = ddsi_plist_quickscan (sampleinfo, keyhashp, &src, rst->gv)) == NULL)
       return 0;
   }
   else
   {
     sampleinfo->statusinfo = 0;
     sampleinfo->complex_qos = 0;
+    *keyhashp = NULL;
   }
 
   if (!(msg->x.smhdr.flags & (DATA_FLAG_DATAFLAG | DATA_FLAG_KEYFLAG)))
@@ -403,7 +403,7 @@ static int valid_Data (const struct receiver_state *rst, Data_t *msg, size_t siz
   return 1;
 }
 
-static int valid_DataFrag (const struct receiver_state *rst, DataFrag_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp, uint32_t *payloadsz)
+static int valid_DataFrag (const struct receiver_state *rst, DataFrag_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t **keyhashp, unsigned char **payloadp, uint32_t *payloadsz)
 {
   ddsi_guid_t pwr_guid;
   unsigned char *ptr;
@@ -472,16 +472,15 @@ static int valid_DataFrag (const struct receiver_state *rst, DataFrag_t *msg, si
     src.encoding = (msg->x.smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
     src.buf = ptr;
     src.bufsz = (unsigned) ((unsigned char *) msg + size - src.buf); /* end of message, that's all we know */
-    src.factory = NULL;
-    src.logconfig = &rst->gv->logconfig;
     /* just a quick scan, gathering only what we _really_ need */
-    if ((ptr = ddsi_plist_quickscan (sampleinfo, &src)) == NULL)
+    if ((ptr = ddsi_plist_quickscan (sampleinfo, keyhashp, &src, rst->gv)) == NULL)
       return 0;
   }
   else
   {
     sampleinfo->statusinfo = 0;
     sampleinfo->complex_qos = 0;
+    *keyhashp = NULL;
   }
 
   *payloadp = ptr;
@@ -2163,9 +2162,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     src.buf = NN_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
     src.strict = DDSI_SC_STRICT_P (gv->config);
-    src.factory = gv->m_factory;
-    src.logconfig = &gv->logconfig;
-    if ((plist_ret = ddsi_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET, 0, &src)) < 0)
+    if ((plist_ret = ddsi_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET, 0, &src, gv)) < 0)
     {
       if (plist_ret != DDS_RETCODE_UNSUPPORTED)
         GVWARNING ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": invalid inline qos\n",
@@ -2541,7 +2538,7 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
   }
 }
 
-static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const Data_t *msg, size_t size, struct nn_rsample_info *sampleinfo, unsigned char *datap, struct nn_dqueue **deferred_wakeup, SubmessageKind_t prev_smid)
+static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const Data_t *msg, size_t size, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t *keyhash, unsigned char *datap, struct nn_dqueue **deferred_wakeup, SubmessageKind_t prev_smid)
 {
   RSTTRACE ("DATA("PGUIDFMT" -> "PGUIDFMT" #%"PRId64,
             PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
@@ -2567,14 +2564,18 @@ static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct n
   else
   {
     struct nn_rdata *rdata;
-    unsigned submsg_offset, payload_offset;
+    unsigned submsg_offset, payload_offset, keyhash_offset;
     submsg_offset = (unsigned) ((unsigned char *) msg - NN_RMSG_PAYLOAD (rmsg));
     if (datap)
       payload_offset = (unsigned) ((unsigned char *) datap - NN_RMSG_PAYLOAD (rmsg));
     else
       payload_offset = submsg_offset + (unsigned) size;
+    if (keyhash)
+      keyhash_offset = (unsigned) (keyhash->value - NN_RMSG_PAYLOAD (rmsg));
+    else
+      keyhash_offset = 0;
 
-    rdata = nn_rdata_new (rmsg, 0, sampleinfo->size, submsg_offset, payload_offset);
+    rdata = nn_rdata_new (rmsg, 0, sampleinfo->size, submsg_offset, payload_offset, keyhash_offset);
 
     if ((msg->x.writerId.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_BUILTIN)
     {
@@ -2606,7 +2607,7 @@ static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct n
   return 1;
 }
 
-static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const DataFrag_t *msg, size_t size, struct nn_rsample_info *sampleinfo, unsigned char *datap, struct nn_dqueue **deferred_wakeup, SubmessageKind_t prev_smid)
+static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const DataFrag_t *msg, size_t size, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t *keyhash, unsigned char *datap, struct nn_dqueue **deferred_wakeup, SubmessageKind_t prev_smid)
 {
   RSTTRACE ("DATAFRAG("PGUIDFMT" -> "PGUIDFMT" #%"PRId64"/[%u..%u]",
             PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
@@ -2633,7 +2634,7 @@ static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, stru
   else
   {
     struct nn_rdata *rdata;
-    unsigned submsg_offset, payload_offset;
+    unsigned submsg_offset, payload_offset, keyhash_offset;
     uint32_t begin, endp1;
     bool renew_manbypp_lease = true;
     if ((msg->x.writerId.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_BUILTIN)
@@ -2659,6 +2660,10 @@ static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, stru
       payload_offset = (unsigned) ((unsigned char *) datap - NN_RMSG_PAYLOAD (rmsg));
     else
       payload_offset = submsg_offset + (unsigned) size;
+    if (keyhash)
+      keyhash_offset = (unsigned) (keyhash->value - NN_RMSG_PAYLOAD (rmsg));
+    else
+      keyhash_offset = 0;
 
     begin = (msg->fragmentStartingNum - 1) * msg->fragmentSize;
     if ((uint32_t) msg->fragmentSize * msg->fragmentsInSubmessage > (uint32_t) ((unsigned char *) msg + size - datap)) {
@@ -2683,7 +2688,7 @@ static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, stru
     }
     RSTTRACE ("/[%"PRIu32"..%"PRIu32") of %"PRIu32, begin, endp1, msg->sampleSize);
 
-    rdata = nn_rdata_new (rmsg, begin, endp1, submsg_offset, payload_offset);
+    rdata = nn_rdata_new (rmsg, begin, endp1, submsg_offset, payload_offset, keyhash_offset);
 
     /* Fragment numbers in DDSI2 internal representation are 0-based,
        whereas in DDSI they are 1-based.  The highest fragment number in
@@ -3020,9 +3025,10 @@ static int handle_submsg_sequence
           struct nn_rsample_info sampleinfo;
           uint32_t datasz = 0;
           unsigned char *datap;
+          const ddsi_keyhash_t *keyhash;
           size_t submsg_len = submsg_size;
           /* valid_DataFrag does not validate the payload */
-          if (!valid_DataFrag (rst, &sm->datafrag, submsg_size, byteswap, &sampleinfo, &datap, &datasz))
+          if (!valid_DataFrag (rst, &sm->datafrag, submsg_size, byteswap, &sampleinfo, &keyhash, &datap, &datasz))
             goto malformed;
           /* This only decodes the payload when needed (possibly reducing the submsg size). */
           if (!decode_DataFrag (rst->gv, &sampleinfo, datap, datasz, &submsg_len))
@@ -3034,7 +3040,7 @@ static int handle_submsg_sequence
           }
           sampleinfo.timestamp = timestamp;
           sampleinfo.reception_timestamp = tnowWC;
-          handle_DataFrag (rst, tnowE, rmsg, &sm->datafrag, submsg_len, &sampleinfo, datap, &deferred_wakeup, prev_smid);
+          handle_DataFrag (rst, tnowE, rmsg, &sm->datafrag, submsg_len, &sampleinfo, keyhash, datap, &deferred_wakeup, prev_smid);
           rst_live = 1;
           ts_for_latmeas = 0;
         }
@@ -3044,10 +3050,11 @@ static int handle_submsg_sequence
         {
           struct nn_rsample_info sampleinfo;
           unsigned char *datap;
+          const ddsi_keyhash_t *keyhash;
           uint32_t datasz = 0;
           size_t submsg_len = submsg_size;
           /* valid_Data does not validate the payload */
-          if (!valid_Data (rst, &sm->data, submsg_size, byteswap, &sampleinfo, &datap, &datasz))
+          if (!valid_Data (rst, &sm->data, submsg_size, byteswap, &sampleinfo, &keyhash, &datap, &datasz))
             goto malformed;
           /* This only decodes the payload when needed (possibly reducing the submsg size). */
           if (!decode_Data (rst->gv, &sampleinfo, datap, datasz, &submsg_len))
@@ -3057,7 +3064,7 @@ static int handle_submsg_sequence
             goto malformed;
           sampleinfo.timestamp = timestamp;
           sampleinfo.reception_timestamp = tnowWC;
-          handle_Data (rst, tnowE, rmsg, &sm->data, submsg_len, &sampleinfo, datap, &deferred_wakeup, prev_smid);
+          handle_Data (rst, tnowE, rmsg, &sm->data, submsg_len, &sampleinfo, keyhash, datap, &deferred_wakeup, prev_smid);
           rst_live = 1;
           ts_for_latmeas = 0;
         }
@@ -3472,7 +3479,8 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
         iov.iov_base = &dummy;
         iov.iov_len = 1;
         GVTRACE ("trigger_recv_threads: %"PRIu32" single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
-        ddsi_conn_write (gv->xmit_conn, dst, 1, &iov, 0);
+        // all sockets listen on at least the interfaces used for transmitting (at least for now)
+        ddsi_conn_write (gv->xmit_conns[0], dst, 1, &iov, 0);
         break;
       }
       case RTM_MANY: {
@@ -3572,5 +3580,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
     }
     local_participant_set_fini (&lps);
   }
+  
+  GVTRACE ("done\n");
   return 0;
 }
