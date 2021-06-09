@@ -461,6 +461,8 @@ fill_participant_qos(
     char private_key_path[1024];
     char trusted_ca_dir_path[1024];
     unsigned size = 3;
+    unsigned offset = 0;
+    DDS_Security_Property_t *valbuf;
 
     password ? size++ : size;
     trusted_ca_dir ? size++ : size;
@@ -468,60 +470,63 @@ fill_participant_qos(
     memset(participant_qos, 0, sizeof(*participant_qos));
     dds_security_property_init(&participant_qos->property.value, size);
 
-    participant_qos->property.value._buffer[0].name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
-    participant_qos->property.value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
-    participant_qos->property.value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
-
-
+    valbuf = &participant_qos->property.value._buffer[offset++];
+    valbuf->name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
     if (is_file_certificate) {
 #ifdef WIN32
         snprintf(identity_cert_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, certificate);
 #else
         snprintf(identity_cert_path, 1024, "file:%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, certificate);
 #endif
-        participant_qos->property.value._buffer[0].value = ddsrt_strdup(identity_cert_path);
+        valbuf->value = ddsrt_strdup(identity_cert_path);
     }
     else {
-        participant_qos->property.value._buffer[0].value = ddsrt_strdup(certificate);
+        valbuf->value = ddsrt_strdup(certificate);
     }
 
+    valbuf = &participant_qos->property.value._buffer[offset++];
+    valbuf->name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
     if (is_file_ca) {
 #ifdef WIN32
         snprintf(identity_CA_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, ca);
 #else
         snprintf(identity_CA_path, 1024, "file:%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, ca);
 #endif
-        participant_qos->property.value._buffer[1].value = ddsrt_strdup(identity_CA_path);
+        valbuf->value = ddsrt_strdup(identity_CA_path);
     }
     else {
-        participant_qos->property.value._buffer[1].value = ddsrt_strdup(ca);
+        valbuf->value = ddsrt_strdup(ca);
     }
 
+    valbuf = &participant_qos->property.value._buffer[offset++];
+    valbuf->name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
     if (is_file_private_key) {
 #ifdef WIN32
         snprintf(private_key_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, private_key_data);
 #else
         snprintf(private_key_path, 1024, "file:%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, private_key_data);
 #endif
-        participant_qos->property.value._buffer[2].value = ddsrt_strdup(private_key_path);
+        valbuf->value = ddsrt_strdup(private_key_path);
     }
     else {
-        participant_qos->property.value._buffer[2].value = ddsrt_strdup(private_key_data);
+        valbuf->value = ddsrt_strdup(private_key_data);
     }
 
     if (password) {
-        participant_qos->property.value._buffer[3].name = ddsrt_strdup(PROPERTY_PASSWORD);
-        participant_qos->property.value._buffer[3].value = ddsrt_strdup(password);
+        valbuf = &participant_qos->property.value._buffer[offset++];
+        valbuf->name = ddsrt_strdup(PROPERTY_PASSWORD);
+        valbuf->value = ddsrt_strdup(password);
     }
 
     if (trusted_ca_dir) {
+        valbuf = &participant_qos->property.value._buffer[offset++];
 #ifdef WIN32
         snprintf(trusted_ca_dir_path, 1024, "%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
 #else
         snprintf(trusted_ca_dir_path, 1024, "%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
 #endif
-        participant_qos->property.value._buffer[size-1].name = ddsrt_strdup(PROPERTY_TRUSTED_CA_DIR);
-        participant_qos->property.value._buffer[size-1].value = ddsrt_strdup(trusted_ca_dir_path);
+        valbuf->name = ddsrt_strdup(PROPERTY_TRUSTED_CA_DIR);
+        valbuf->value = ddsrt_strdup(trusted_ca_dir_path);
     }
 }
 
