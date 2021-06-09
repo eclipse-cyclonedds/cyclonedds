@@ -27,6 +27,7 @@ static const char * PROPERTY_PRIVATE_KEY                = "dds.sec.auth.private_
 static const char * PROPERTY_PASSWORD                   = "dds.sec.auth.password";
 static const char * PROPERTY_IDENTITY_CERT              = "dds.sec.auth.identity_certificate";
 static const char * PROPERTY_TRUSTED_CA_DIR             = "dds.sec.auth.trusted_ca_dir";
+static const char * PROPERTY_CRL                        = "org.eclipse.cyclonedds.sec.auth.crl";
 
 // See ../etc/README.md for how the certificates and keys are generated.
 
@@ -292,6 +293,59 @@ static const char *private_key_w_password =
 
 static const char *private_key_password ="CHAM569";
 
+static const char *revoked_identity_certificate_filename = "revoked_identity_certificate";
+static const char *revoked_identity_certificate =
+        "data:,-----BEGIN CERTIFICATE-----\n"
+        "MIIDRDCCAiwCFCxXj0QLcpHA597b3QgDf0J3tnQ1MA0GCSqGSIb3DQEBCwUAMF8x\n"
+        "CzAJBgNVBAYTAk5MMRMwEQYDVQQIEwpTb21lLVN0YXRlMSEwHwYDVQQKExhJbnRl\n"
+        "cm5ldCBXaWRnaXRzIFB0eSBMdGQxGDAWBgNVBAMTD0NIQU01MDAgcm9vdCBjYTAg\n"
+        "Fw0yMTA2MDkyMDU2MDFaGA8yMjIxMDQyMjIwNTYwMVowXDELMAkGA1UEBhMCTkwx\n"
+        "EzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMg\n"
+        "UHR5IEx0ZDEVMBMGA1UEAwwMQ0hBTTUwMSBjZXJ0MIIBIjANBgkqhkiG9w0BAQEF\n"
+        "AAOCAQ8AMIIBCgKCAQEAxQJq8im5z1/RZcXS5OKM4PvjH5PXoEIPuIHEZXPH8Eqp\n"
+        "jB3Wi9pUIE27nd8Gm3+i4IUBrOUx/LUtmI+k2sd87LxdNsuYm/yVExhAKbYRGW8P\n"
+        "90XOAbivMILgjYPitKJazhvKEQLTkMVKO8pcBVtl6KWy15gyLd6eCxXfXPfdJkrO\n"
+        "1zYmx4FXttUq7z/gJBRkbV2fb5Tb5lX/8VbjynvYYGGFAexH04XxnHnbrHY/4MoP\n"
+        "nTYcZqyEaALrT3Lcv2UrJJTw0mpUCrIy9LReKVIeOGrd9wE0jt3qk41EFZ2RWo8C\n"
+        "IL3GfYqo1QtEzAbzsAAXL9S1HUN0OWJV+NoUqqzSvwIDAQABMA0GCSqGSIb3DQEB\n"
+        "CwUAA4IBAQC0yJZXJv8nLGG2/60jmG8BobLn6Cas1CLkpVch9N0/e698PHxRqHfs\n"
+        "9R/SG6kpfJdOOeBNdw2Z3/s0E2Vuan++DEgAyvVLEHI1RHUue+0GvdyeNJSst/iz\n"
+        "1jyFm0nvaiT/jVYpM86c+R0emAtr3rBtxkh/Kop4TM1SOEzutIB4w/vXqklXD5ui\n"
+        "XAzosVskfkcnt24c7U9mf9JQt73lB1HbXkyivuQ1lAaVAfhUCSOXi/p3whELeTjL\n"
+        "y56eGZ9PcGfDP6NW7YQBKmATkwUwMJzEseM3amwOOd6bHvpeuJzXGLHe92D2e/gr\n"
+        "GHRAQsBeyglL3TH2CliOouhtKIoFeVZe\n"
+        "-----END CERTIFICATE-----\n";
+
+static const char *revoked_private_key_filename = "revoked_private_key";
+static const char *revoked_private_key =
+        "data:,-----BEGIN RSA PRIVATE KEY-----\n"
+        "MIIEowIBAAKCAQEAxQJq8im5z1/RZcXS5OKM4PvjH5PXoEIPuIHEZXPH8EqpjB3W\n"
+        "i9pUIE27nd8Gm3+i4IUBrOUx/LUtmI+k2sd87LxdNsuYm/yVExhAKbYRGW8P90XO\n"
+        "AbivMILgjYPitKJazhvKEQLTkMVKO8pcBVtl6KWy15gyLd6eCxXfXPfdJkrO1zYm\n"
+        "x4FXttUq7z/gJBRkbV2fb5Tb5lX/8VbjynvYYGGFAexH04XxnHnbrHY/4MoPnTYc\n"
+        "ZqyEaALrT3Lcv2UrJJTw0mpUCrIy9LReKVIeOGrd9wE0jt3qk41EFZ2RWo8CIL3G\n"
+        "fYqo1QtEzAbzsAAXL9S1HUN0OWJV+NoUqqzSvwIDAQABAoIBABU7YHk+w/a0deXI\n"
+        "/ySJwfMRUnX5wfhUhks1OQxSAQ9FjKY8JP4nhn+AwSKPga/KfqxByV9vyAZbJFHX\n"
+        "0UV+0FjXKBiaspTFEO/g4jFcnNUn4gmdLUmENOU+haLavtkG0lB6MDnLGy/0Az8U\n"
+        "XPx60C3VhcO0dFv7LP822T60u9G/d8M034D8ruHsrLbpESUBORREXXDHAztH45nC\n"
+        "Z95Icy3iC6dLyM+6e5UULus3lmY53+xWIMrRqIsS6mKmh84nNxwtbqcCwVrUY7cH\n"
+        "XYgf8hqRFiSQiK+qtYjigpCTSM9B8ivDaxX5tdxuj/VuvVy+YPNcyq5+hrYPnYPO\n"
+        "G5XsJckCgYEA56rtOgjGczZjjs0e9/R1v3hhy4dy+jGkJGrzLR7BwDLXO6+EwK94\n"
+        "BcwQ16dDDxeRMaEGYeYc5egP/ODyAl+4Rd6auQkff8BfQK0UnPo6yPce0K6Yl56V\n"
+        "MCf8BV63Vedex1riIVRBOx0PwQBN5h9Vr7/oKaC5ITS6kehL2uxLpZsCgYEA2bOZ\n"
+        "+sbqKTylIJ/oSjoLhZ+S6I+2vY8IFtW65ZVaIveG0twxX6a1LnwmCNzXNs86mfs+\n"
+        "ASVjUHk6GbAcOEKkZ5jQeDbYyd3jOAljWYqFQaoArB8+7AS2SkrM0NoimlH/I1Uv\n"
+        "vVKT2JB+/5LK5KBxEz+6KZPpNPMZzwgfxa90y60CgYB0Hzc9ybw/b9nDcIm/W+fR\n"
+        "i7PpYwF863kNUBaIXUxc3J8KKdZvBwUwUrN2hT6VyAhdSgt68u81RncNGGv2SKiD\n"
+        "TStc6HfDf1e/gYI9lSf2J/hoPbv68+Bv/PrUbj+TbaASaTnD3wm7abvF0DM70CUR\n"
+        "LS5f/1IMlPOXw0qSd7MLVQKBgQDSvFjBuOvTHzF5c1GZCLc+kknTdcqflGVwNVTG\n"
+        "CN1IG/QXCa+BuA6LAQKQcbajB9biV6Kd2WNZ8v+a/i9TBq++2N50gCM6xd+9ztit\n"
+        "RLnZ5obgFx8BuU38fIvnYEE+wUEJIt0jl1wmtzk4jRB6YBUVXQsIVHXbG7hQAL1A\n"
+        "z6dvwQKBgHE7+xaHXeCBQxKsYeJWx9/WlUSGqcdOLOKrv4zo9PrpT2wb2pqGdVof\n"
+        "ANjJA1V0bMk6+kirzJSzQ9oBql5InF/fNKaMtSj1+bjr0MY3NaQ57NOLAWWlFFrD\n"
+        "cZ5yszaCk+uX7DACzN1XO7fL2FARNZkfHDZw/tQOKGDkl4x7IGml\n"
+        "-----END RSA PRIVATE KEY-----\n";
+
 static const char *ec_identity_certificate_filename = "ec_identity_certificate";
 static const char *ec_identity_certificate =
         "data:,-----BEGIN CERTIFICATE-----\n"
@@ -369,6 +423,23 @@ static const char *ec_private_key_unsupported =
         "Vs4vosHh7upPZBWhNAMyAAQq3cdg+cOUQ5LNipPNPalq3Kt4sc3Ym3LbYpfCNo0C\n"
         "OCvC6N0+v4xbfwOzIEXlif0=\n"
         "-----END PRIVATE KEY-----\n";
+
+
+const char *crl_filename = "crl";
+const char *crl =
+        "data:,-----BEGIN X509 CRL-----\n"
+        "MIIB4TCBygIBATANBgkqhkiG9w0BAQsFADBfMQswCQYDVQQGEwJOTDETMBEGA1UE\n"
+        "CBMKU29tZS1TdGF0ZTEhMB8GA1UEChMYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRk\n"
+        "MRgwFgYDVQQDEw9DSEFNNTAwIHJvb3QgY2EXDTIxMDYwOTIyMDU1NloXDTIxMDcw\n"
+        "OTIyMDU1NlowJzAlAhQsV49EC3KRwOfe290IA39Cd7Z0NRcNMjEwNjA5MjIwNTI3\n"
+        "WqAOMAwwCgYDVR0UBAMCAQEwDQYJKoZIhvcNAQELBQADggEBAEawm/sTPeAcqtHB\n"
+        "+p9Q125ZblOkqHYGwKlg1yxnCPsJn7Izk0xycW29mUxEt5ZnzcEzbqc2i7F1xhJb\n"
+        "67eK3ba62EJbvmWosknCbAL+2K+hxCOSiNWE67+Qbq6a49SvTGRd7wXG1tS0+lyz\n"
+        "H9aFq5PUttbSJCXYWw7XkUKEsOj76cjC5nV0GIokz3mBQFX2L0jfgdyi9zOmX04h\n"
+        "xdgPVlqhNtjzB3awRL63IUWzFgknqCOokG4eF+TKlFvLjk5uBx7fXBeI+NCWzNrz\n"
+        "IyHbl42mi7+JEtmfrBmtWCqNWU7W7ZcaOJx+z71mDOJ34ykWZ1J7OmXT8R9i/IV3\n"
+        "qnbrzkA=\n"
+        "-----END X509 CRL-----\n";
 
 
 static struct plugins_hdl *plugins = NULL;
@@ -454,18 +525,21 @@ fill_participant_qos(
     bool is_file_ca, const char *ca,
     bool is_file_private_key, const char *private_key_data,
     const char *password,
-    const char *trusted_ca_dir)
+    const char *trusted_ca_dir,
+    bool is_file_crl, const char *crl_data)
 {
     char identity_cert_path[1024];
     char identity_CA_path[1024];
     char private_key_path[1024];
     char trusted_ca_dir_path[1024];
+    char crl_path[1024];
     unsigned size = 3;
     unsigned offset = 0;
     DDS_Security_Property_t *valbuf;
 
     password ? size++ : size;
     trusted_ca_dir ? size++ : size;
+    crl_data ? size++ : size;
 
     memset(participant_qos, 0, sizeof(*participant_qos));
     dds_security_property_init(&participant_qos->property.value, size);
@@ -518,6 +592,22 @@ fill_participant_qos(
         valbuf->value = ddsrt_strdup(password);
     }
 
+    if (crl_data) {
+      valbuf = &participant_qos->property.value._buffer[offset++];
+      valbuf->name = ddsrt_strdup(PROPERTY_CRL);
+      if (is_file_crl) {
+#ifdef WIN32
+          snprintf(crl_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, crl_data);
+#else
+          snprintf(crl_path, 1024, "file:%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, crl_data);
+#endif
+          valbuf->value = ddsrt_strdup(crl_path);
+      }
+      else {
+        valbuf->value = ddsrt_strdup(crl_data);
+      }
+    }
+
     if (trusted_ca_dir) {
         valbuf = &participant_qos->property.value._buffer[offset++];
 #ifdef WIN32
@@ -558,7 +648,8 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day)
                                            false, identity_ca,
                                            false, private_key,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -600,7 +691,8 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day)
                                            true, identity_ca_filename,
                                            true, private_key_filename,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
@@ -662,7 +754,8 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_certificate)
                                            false, identity_ca,
                                            false, private_key,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
@@ -696,7 +789,8 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_certificate)
                                            false, identity_ca,
                                            false, private_key,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
@@ -748,7 +842,8 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_root)
                                            false, invalid_identity_ca,
                                            false, private_key,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -780,7 +875,8 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_root)
                                            true, invalid_identity_ca_filename,
                                            false, private_key,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -831,7 +927,8 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_chain)
                                            false, unrelated_identity_ca,
                                            false, private_key,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -863,7 +960,8 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_chain)
                                            true, unrelated_identity_ca_filename,
                                            false, private_key,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -915,7 +1013,8 @@ CU_Test(ddssec_builtin_validate_local_identity,certificate_key_too_small)
                                            false, identity_ca,
                                            false, private_key,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
@@ -967,7 +1066,8 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_private_key)
                                            false, identity_ca,
                                            false, invalid_private_key,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -999,7 +1099,8 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_private_key)
                                            false, identity_ca,
                                            true, invalid_private_key_filename,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -1050,7 +1151,8 @@ CU_Test(ddssec_builtin_validate_local_identity,private_key_too_small)
                                            false, identity_ca,
                                            false, private_key_1024,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -1277,7 +1379,8 @@ CU_Test(ddssec_builtin_validate_local_identity,unsupported_certification_format)
                                            false, identity_ca,
                                            false, private_key,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -1329,7 +1432,8 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key)
                                            false, identity_ca,
                                            false, private_key_w_password,
                                            private_key_password,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -1363,7 +1467,8 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key)
                                            false, identity_ca,
                                            true, private_key_w_password_filename,
                                            private_key_password,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -1415,7 +1520,8 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key_no_password)
                                            false, identity_ca,
                                            false, private_key_w_password,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -1443,7 +1549,8 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key_no_password)
                                            false, identity_ca,
                                            true, private_key_w_password_filename,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -1489,7 +1596,8 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key_invalid_password)
                                            false, identity_ca,
                                            false, private_key_w_password,
                                            "invalid",
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
@@ -1523,7 +1631,8 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key_invalid_password)
                                            false, identity_ca,
                                            true, private_key_w_password_filename,
                                            "invalid",
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
@@ -1575,7 +1684,8 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day_elliptic)
                                            false, ec_identity_ca,
                                            false, ec_private_key,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -1617,7 +1727,8 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day_elliptic)
                                            true, ec_identity_ca_filename,
                                            true, ec_private_key_filename,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -1678,7 +1789,8 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_ec_key)
                                            false, ec_identity_ca,
                                            false, ec_private_key_w_password,
                                            ec_password,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -1712,7 +1824,8 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_ec_key)
                                            false, ec_identity_ca,
                                            true, ec_private_key_w_password_filename,
                                            ec_password,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -1942,7 +2055,8 @@ CU_Test(ddssec_builtin_validate_local_identity,no_file)
                                            false, identity_ca,
                                            true, "invalid_filename",
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
@@ -1973,7 +2087,8 @@ CU_Test(ddssec_builtin_validate_local_identity,no_file)
                                            true, "invalid_filename",
                                            true, private_key_filename,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
@@ -2005,7 +2120,8 @@ CU_Test(ddssec_builtin_validate_local_identity,no_file)
                                            true, identity_ca_filename,
                                            false, private_key,
                                            NULL,
-                                           NULL);
+                                           NULL,
+                                           false, NULL);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
@@ -2056,7 +2172,8 @@ CU_Test(ddssec_builtin_validate_local_identity,with_extended_certificate_check)
                                            false, identity_ca,
                                            false, private_key,
                                            NULL,
-                                           "trusted_ca_dir");
+                                           "trusted_ca_dir",
+                                           false, NULL);
     /* Now call the function. */
     result = auth->validate_local_identity(
                             auth,
@@ -2096,7 +2213,8 @@ CU_Test(ddssec_builtin_validate_local_identity,with_extended_certificate_check)
                                            true, identity_ca_filename,
                                            true, private_key_filename,
                                            NULL,
-                                           "trusted_ca_dir_not_matching");
+                                           "trusted_ca_dir_not_matching",
+                                           false, NULL);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
@@ -2111,6 +2229,146 @@ CU_Test(ddssec_builtin_validate_local_identity,with_extended_certificate_check)
     /* We expected the validation to have failed. */
     CU_ASSERT_FATAL (result != DDS_SECURITY_VALIDATION_OK);
     CU_ASSERT (local_identity_handle == DDS_SECURITY_HANDLE_NIL);
+
+    dds_security_property_deinit(&participant_qos.property.value);
+    reset_exception(&exception);
+}
+
+
+CU_Test(ddssec_builtin_validate_local_identity,crl)
+{
+    DDS_Security_ValidationResult_t result;
+    DDS_Security_IdentityHandle local_identity_handle = DDS_SECURITY_HANDLE_NIL;
+    DDS_Security_GUID_t adjusted_participant_guid;
+    DDS_Security_DomainId domain_id = 0;
+    DDS_Security_Qos participant_qos;
+    DDS_Security_GUID_t candidate_participant_guid;
+    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
+    DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
+
+    /* Check if we actually have the validate_local_identity() function. */
+    CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
+    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
+    assert (auth->validate_local_identity != 0);
+
+    memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
+    memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
+    memcpy(&candidate_participant_guid.entityId, &entityId, sizeof(entityId));
+
+    fill_participant_qos(&participant_qos, false, revoked_identity_certificate,
+                                           false, identity_ca,
+                                           false, revoked_private_key,
+                                           NULL,
+                                           NULL,
+                                           false, crl);
+    /* Now call the function. */
+    result = auth->validate_local_identity(
+                            auth,
+                            &local_identity_handle,
+                            &adjusted_participant_guid,
+                            domain_id,
+                            &participant_qos,
+                            &candidate_participant_guid,
+                            &exception);
+
+    if (result != DDS_SECURITY_VALIDATION_OK) {
+        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    }
+
+    /* We expected the validation to have failed. */
+    CU_ASSERT_FATAL (result != DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT (exception.minor_code != 0);
+    CU_ASSERT (exception.message != NULL);
+
+    dds_security_property_deinit(&participant_qos.property.value);
+    reset_exception(&exception);
+
+    /* validate with file */
+    memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
+    memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
+    memcpy(&candidate_participant_guid.entityId, &entityId, sizeof(entityId));
+
+    fill_participant_qos(&participant_qos, true, revoked_identity_certificate_filename,
+                                           true, identity_ca_filename,
+                                           true, revoked_private_key_filename,
+                                           NULL,
+                                           NULL,
+                                           true, crl_filename);
+
+    /* Now call the function. */
+    result = auth->validate_local_identity(
+                            auth,
+                            &local_identity_handle,
+                            &adjusted_participant_guid,
+                            domain_id,
+                            &participant_qos,
+                            &candidate_participant_guid,
+                            &exception);
+
+    if (result != DDS_SECURITY_VALIDATION_OK) {
+        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    }
+
+    /* We expected the validation to have failed. */
+    CU_ASSERT_FATAL (result != DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT (exception.minor_code != 0);
+    CU_ASSERT (exception.message != NULL);
+
+    dds_security_property_deinit(&participant_qos.property.value);
+    reset_exception(&exception);
+}
+
+
+CU_Test(ddssec_builtin_validate_local_identity,trusted_ca_dir_and_crl)
+{
+    DDS_Security_ValidationResult_t result;
+    DDS_Security_IdentityHandle local_identity_handle = DDS_SECURITY_HANDLE_NIL;
+    DDS_Security_GUID_t adjusted_participant_guid;
+    DDS_Security_DomainId domain_id = 0;
+    DDS_Security_Qos participant_qos;
+    DDS_Security_GUID_t candidate_participant_guid;
+    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
+    DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
+
+    /* Check if we actually have the validate_local_identity() function. */
+    CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
+    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
+    assert (auth->validate_local_identity != 0);
+
+    /* validate with file */
+    memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
+    memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
+    memcpy(&candidate_participant_guid.entityId, &entityId, sizeof(entityId));
+
+    fill_participant_qos(&participant_qos, true, revoked_identity_certificate_filename,
+                                           true, identity_ca_filename,
+                                           true, revoked_private_key_filename,
+                                           NULL,
+                                           "trusted_ca_dir",
+                                           true, crl_filename);
+
+    /* Now call the function. */
+    result = auth->validate_local_identity(
+                            auth,
+                            &local_identity_handle,
+                            &adjusted_participant_guid,
+                            domain_id,
+                            &participant_qos,
+                            &candidate_participant_guid,
+                            &exception);
+
+    if (result != DDS_SECURITY_VALIDATION_OK) {
+        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    }
+
+    /* We expected the validation to have failed. */
+    CU_ASSERT_FATAL (result != DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT (exception.minor_code != 0);
+    CU_ASSERT (exception.message != NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
