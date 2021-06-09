@@ -89,7 +89,7 @@ static const char *identity_ca =
         "-----END CERTIFICATE-----\n";
 
 static const char *private_key_filename = "private_key";
-static const char *private_key_pem =
+static const char *private_key =
         "data:,-----BEGIN RSA PRIVATE KEY-----\n"
         "MIIEogIBAAKCAQEAwqVYYrx/8ASMru+K70J3J0maisrKTegrw9aZlfcH7eTx4Vbf\n"
         "Y1e/b4Erm+SwA6ERwIBXb/XbmIAa9ezm+rkayGOAdfAnKwo4UHAuII8fMto5fT3m\n"
@@ -452,7 +452,7 @@ fill_participant_qos(
     DDS_Security_Qos *participant_qos,
     bool is_file_certificate, const char *certificate,
     bool is_file_ca, const char *ca,
-    bool is_file_private_key, const char *private_key,
+    bool is_file_private_key, const char *private_key_data,
     const char *password,
     const char *trusted_ca_dir)
 {
@@ -499,14 +499,14 @@ fill_participant_qos(
 
     if (is_file_private_key) {
 #ifdef WIN32
-        snprintf(private_key_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, private_key);
+        snprintf(private_key_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, private_key_data);
 #else
-        snprintf(private_key_path, 1024, "file:%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, private_key);
+        snprintf(private_key_path, 1024, "file:%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, private_key_data);
 #endif
         participant_qos->property.value._buffer[2].value = ddsrt_strdup(private_key_path);
     }
     else {
-        participant_qos->property.value._buffer[2].value = ddsrt_strdup(private_key);
+        participant_qos->property.value._buffer[2].value = ddsrt_strdup(private_key_data);
     }
 
     if (password) {
@@ -551,7 +551,7 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day)
 
     fill_participant_qos(&participant_qos, false, identity_certificate,
                                            false, identity_ca,
-                                           false, private_key_pem,
+                                           false, private_key,
                                            NULL,
                                            NULL);
     /* Now call the function. */
@@ -655,7 +655,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_certificate)
 
     fill_participant_qos(&participant_qos, false, invalid_identity_certificate,
                                            false, identity_ca,
-                                           false, private_key_pem,
+                                           false, private_key,
                                            NULL,
                                            NULL);
 
@@ -689,7 +689,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_certificate)
 
     fill_participant_qos(&participant_qos, true, invalid_identity_certificate_filename,
                                            false, identity_ca,
-                                           false, private_key_pem,
+                                           false, private_key,
                                            NULL,
                                            NULL);
 
@@ -741,7 +741,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_root)
 
     fill_participant_qos(&participant_qos, false, identity_certificate,
                                            false, invalid_identity_ca,
-                                           false, private_key_pem,
+                                           false, private_key,
                                            NULL,
                                            NULL);
     /* Now call the function. */
@@ -773,7 +773,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_root)
 
     fill_participant_qos(&participant_qos, false, identity_certificate,
                                            true, invalid_identity_ca_filename,
-                                           false, private_key_pem,
+                                           false, private_key,
                                            NULL,
                                            NULL);
     /* Now call the function. */
@@ -824,7 +824,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_chain)
 
     fill_participant_qos(&participant_qos, false, identity_certificate,
                                            false, unrelated_identity_ca,
-                                           false, private_key_pem,
+                                           false, private_key,
                                            NULL,
                                            NULL);
     /* Now call the function. */
@@ -856,7 +856,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_chain)
 
     fill_participant_qos(&participant_qos, false, identity_certificate,
                                            true, unrelated_identity_ca_filename,
-                                           false, private_key_pem,
+                                           false, private_key,
                                            NULL,
                                            NULL);
     /* Now call the function. */
@@ -908,7 +908,7 @@ CU_Test(ddssec_builtin_validate_local_identity,certificate_key_too_small)
 
     fill_participant_qos(&participant_qos, false, identity_certificate_1024key,
                                            false, identity_ca,
-                                           false, private_key_pem,
+                                           false, private_key,
                                            NULL,
                                            NULL);
 
@@ -1270,7 +1270,7 @@ CU_Test(ddssec_builtin_validate_local_identity,unsupported_certification_format)
 
     fill_participant_qos(&participant_qos, false, cert,
                                            false, identity_ca,
-                                           false, private_key_pem,
+                                           false, private_key,
                                            NULL,
                                            NULL);
     /* Now call the function. */
@@ -1870,7 +1870,7 @@ CU_Test(ddssec_builtin_validate_local_identity,return_freed_handle)
     participant_qos.property.value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
     participant_qos.property.value._buffer[1].value = ddsrt_strdup(identity_ca);
     participant_qos.property.value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
-    participant_qos.property.value._buffer[2].value = ddsrt_strdup(private_key_pem);
+    participant_qos.property.value._buffer[2].value = ddsrt_strdup(private_key);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
@@ -2004,7 +2004,7 @@ CU_Test(ddssec_builtin_validate_local_identity,no_file)
 
     fill_participant_qos(&participant_qos, true, "invalid_filename",
                                            true, identity_ca_filename,
-                                           false, private_key_pem,
+                                           false, private_key,
                                            NULL,
                                            NULL);
 
@@ -2055,7 +2055,7 @@ CU_Test(ddssec_builtin_validate_local_identity,with_extended_certificate_check)
 
     fill_participant_qos(&participant_qos, false, identity_certificate,
                                            false, identity_ca,
-                                           false, private_key_pem,
+                                           false, private_key,
                                            NULL,
                                            "trusted_ca_dir");
     /* Now call the function. */
