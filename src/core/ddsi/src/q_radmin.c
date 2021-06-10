@@ -2466,6 +2466,7 @@ struct nn_dqueue {
   struct nn_rsample_chain sc;
 
   struct thread_state1 *ts;
+  struct ddsi_domaingv *gv;
   char *name;
   uint32_t max_samples;
   ddsrt_atomic_uint32_t nof_samples;
@@ -2607,8 +2608,6 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
 struct nn_dqueue *nn_dqueue_new (const char *name, const struct ddsi_domaingv *gv, uint32_t max_samples, nn_dqueue_handler_t handler, void *arg)
 {
   struct nn_dqueue *q;
-  char *thrname;
-  size_t thrnamesz;
 
   if ((q = ddsrt_malloc (sizeof (*q))) == NULL)
     goto fail_q;
@@ -2619,29 +2618,30 @@ struct nn_dqueue *nn_dqueue_new (const char *name, const struct ddsi_domaingv *g
   q->handler = handler;
   q->handler_arg = arg;
   q->sc.first = q->sc.last = NULL;
+  q->gv = (struct ddsi_domaingv *) gv;
+  q->ts = NULL;
 
   ddsrt_mutex_init (&q->lock);
   ddsrt_cond_init (&q->cond);
 
-  thrnamesz = 3 + strlen (name) + 1;
-  if ((thrname = ddsrt_malloc (thrnamesz)) == NULL)
-    goto fail_thrname;
-  (void) snprintf (thrname, thrnamesz, "dq.%s", name);
-  if (create_thread (&q->ts, gv, thrname, (uint32_t (*) (void *)) dqueue_thread, q) != DDS_RETCODE_OK)
-    goto fail_thread;
-  ddsrt_free (thrname);
   return q;
-
- fail_thread:
-  ddsrt_free (thrname);
- fail_thrname:
-  ddsrt_cond_destroy (&q->cond);
-  ddsrt_mutex_destroy (&q->lock);
-  ddsrt_free (q->name);
  fail_name:
   ddsrt_free (q);
  fail_q:
   return NULL;
+}
+
+bool nn_dqueue_start (struct nn_dqueue *q)
+{
+  char *thrname;
+  size_t thrnamesz;
+  thrnamesz = 3 + strlen (q->name) + 1;
+  if ((thrname = ddsrt_malloc (thrnamesz)) == NULL)
+    return false;
+  (void) snprintf (thrname, thrnamesz, "dq.%s", q->name);
+  dds_return_t ret = create_thread (&q->ts, q->gv, thrname, (uint32_t (*) (void *)) dqueue_thread, q);
+  ddsrt_free (thrname);
+  return ret == DDS_RETCODE_OK;
 }
 
 static int nn_dqueue_enqueue_locked (struct nn_dqueue *q, struct nn_rsample_chain *sc)
@@ -2777,12 +2777,15 @@ void nn_dqueue_free (struct nn_dqueue *q)
      malloced or freed, but instead lives on the stack for a little
      while.  It would be a shame to fail in free() due to a lack of
      heap space, would it not? */
-  struct nn_dqueue_bubble b;
-  b.kind = NN_DQBK_STOP;
-  nn_dqueue_enqueue_bubble (q, &b);
+  if (q->ts)
+  {
+    struct nn_dqueue_bubble b;
+    b.kind = NN_DQBK_STOP;
+    nn_dqueue_enqueue_bubble (q, &b);
 
-  join_thread (q->ts);
-  assert (q->sc.first == NULL);
+    join_thread (q->ts);
+    assert (q->sc.first == NULL);
+  }
   ddsrt_cond_destroy (&q->cond);
   ddsrt_mutex_destroy (&q->lock);
   ddsrt_free (q->name);
