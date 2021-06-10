@@ -508,7 +508,7 @@ plus:
 #if COMPILER == GNUC
         case '-':
             assert( mcpp_optarg != NULL);
-            if (memcmp( mcpp_optarg, "sysroot", 7) == 0) {
+            if (strncmp( mcpp_optarg, "sysroot", 7) == 0) {
                 if (mcpp_optarg[ 7] == '=')             /* --sysroot=DIR    */
                     sysroot = mcpp_optarg + 8;
                 else if (mcpp_optarg[ 7] == EOS)        /* --sysroot DIR    */
@@ -585,7 +585,7 @@ plus:
 #elif   COMPILER == MSC
         case 'a':
             assert( mcpp_optarg != NULL);
-            if (memcmp( mcpp_optarg, "rch", 3) == 0) {
+            if (strncmp( mcpp_optarg, "rch", 3) == 0) {
                 if (str_eq( mcpp_optarg + 3, ":SSE")        /* -arch:SSE    */
                         || str_eq( mcpp_optarg + 3, ":sse"))
                     sse = 1;
@@ -870,7 +870,7 @@ plus:
 #if COMPILER == GNUC
         case 'l':
             assert( mcpp_optarg != NULL);
-            if (memcmp( mcpp_optarg, "ang-", 4) != 0) {
+            if (strncmp( mcpp_optarg, "ang-", 4) != 0) {
                 usage( opt);
             } else if (str_eq( mcpp_optarg + 4, "c")) {     /* -lang-c  */
                 ;                           /* Ignore this option   */
