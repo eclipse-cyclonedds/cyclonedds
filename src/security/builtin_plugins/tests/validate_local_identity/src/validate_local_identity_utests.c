@@ -1759,14 +1759,12 @@ CU_Test(ddssec_builtin_validate_local_identity,elliptic_unsupported_certificate)
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
     memcpy(&candidate_participant_guid.entityId, &entityId, sizeof(entityId));
 
-    memset(&participant_qos, 0, sizeof(participant_qos));
-    dds_security_property_init(&participant_qos.property.value, 3);
-    participant_qos.property.value._buffer[0].name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
-    participant_qos.property.value._buffer[0].value = ddsrt_strdup(ec_identity_certificate_unsupported);
-    participant_qos.property.value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
-    participant_qos.property.value._buffer[1].value = ddsrt_strdup(ec_identity_ca);
-    participant_qos.property.value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
-    participant_qos.property.value._buffer[2].value = ddsrt_strdup(ec_private_key);
+    fill_participant_qos(&participant_qos, false, ec_identity_certificate_unsupported,
+                                           false, ec_identity_ca,
+                                           false, ec_private_key,
+                                           NULL,
+                                           NULL,
+                                           false, NULL);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
@@ -1813,14 +1811,12 @@ CU_Test(ddssec_builtin_validate_local_identity,elliptic_unsupported_private_key)
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
     memcpy(&candidate_participant_guid.entityId, &entityId, sizeof(entityId));
 
-    memset(&participant_qos, 0, sizeof(participant_qos));
-    dds_security_property_init(&participant_qos.property.value, 3);
-    participant_qos.property.value._buffer[0].name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
-    participant_qos.property.value._buffer[0].value = ddsrt_strdup(ec_identity_certificate);
-    participant_qos.property.value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
-    participant_qos.property.value._buffer[1].value = ddsrt_strdup(ec_identity_ca);
-    participant_qos.property.value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
-    participant_qos.property.value._buffer[2].value = ddsrt_strdup(ec_private_key_unsupported);
+    fill_participant_qos(&participant_qos, false, ec_identity_certificate,
+                                           false, ec_identity_ca,
+                                           false, ec_private_key_unsupported,
+                                           NULL,
+                                           NULL,
+                                           false, NULL);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
@@ -1868,14 +1864,12 @@ CU_Test(ddssec_builtin_validate_local_identity,return_freed_handle)
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
     memcpy(&candidate_participant_guid.entityId, &entityId, sizeof(entityId));
 
-    memset(&participant_qos, 0, sizeof(participant_qos));
-    dds_security_property_init(&participant_qos.property.value, 3);
-    participant_qos.property.value._buffer[0].name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
-    participant_qos.property.value._buffer[0].value = ddsrt_strdup(identity_certificate);
-    participant_qos.property.value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
-    participant_qos.property.value._buffer[1].value = ddsrt_strdup(identity_ca);
-    participant_qos.property.value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
-    participant_qos.property.value._buffer[2].value = ddsrt_strdup(private_key);
+    fill_participant_qos(&participant_qos, false, identity_certificate,
+                                           false, identity_ca,
+                                           false, private_key,
+                                           NULL,
+                                           NULL,
+                                           false, NULL);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
