@@ -16,6 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/types.h"
+#include "dds/ddsrt/static_assert.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/openssl_support.h"
@@ -140,7 +141,8 @@ crypto_hmac256(
   unsigned char md[EVP_MAX_MD_SIZE];
   unsigned char *result;
 
-  assert (key_size <= INT32_MAX);
+  DDSRT_STATIC_ASSERT (EVP_MAX_MD_SIZE <= INT32_MAX);
+  assert (key_size <= EVP_MAX_MD_SIZE);
   if (HMAC(EVP_sha256(), key, (int) key_size, data, data_size, md, NULL) == NULL)
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, 0, "Failed to init hashing context: ");
