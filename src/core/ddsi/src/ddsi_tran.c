@@ -301,7 +301,7 @@ static size_t kindstr (char *dst, size_t sizeof_dst, int32_t kind)
     default: wellknown = NULL; break;
   };
   if (wellknown)
-    return ddsrt_strlcpy (dst, wellknown, sizeof (dst));
+    return ddsrt_strlcpy (dst, wellknown, sizeof_dst);
   else
   {
     int pos = snprintf (dst, sizeof_dst, "%"PRId32"/", kind);
