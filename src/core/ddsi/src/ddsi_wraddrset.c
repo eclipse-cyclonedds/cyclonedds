@@ -594,6 +594,7 @@ static bool wras_calc_cover (const struct writer *wr, const struct locset *locs,
   return true;
 
 addrset_changed:
+  locset_free (work_locs);
   cover_free (cov);
   return false;
 }
