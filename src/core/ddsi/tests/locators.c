@@ -133,6 +133,11 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
   enum ddsi_locator_from_string_result res;
   char astr[40];
 
+  // Coverity warns about memcmps against uninitialized memory
+  // I guess it loses its way somewhere in the indirect function
+  // calls
+  memset (&loc, 0xee, sizeof (loc));
+
   CU_ASSERT_FATAL (ddsi_factory_supports (fact, loc_kind));
 
 #if DDSRT_HAVE_DNS
@@ -305,6 +310,11 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
   ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   char astr[40];
+
+  // Coverity warns about memcmps against uninitialized memory
+  // I guess it loses its way somewhere in the indirect function
+  // calls
+  memset (&loc, 0xee, sizeof (loc));
 
   CU_ASSERT_FATAL (ddsi_factory_supports (fact, loc_kind));
 
