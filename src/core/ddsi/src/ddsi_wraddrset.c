@@ -70,7 +70,7 @@ static void cover_makeroom (struct cover **c, int rdidx)
     (*c) = ddsrt_realloc (*c, cover_size ((*c)->nreaders + chunk, (*c)->nlocs));
     (*c)->nreaders += chunk;
     if ((*c)->rdnames)
-      (*c)->rdnames = ddsrt_realloc ((*c)->rdnames, (size_t) (*c)->nreaders * sizeof ((*c)->rdnames));
+      (*c)->rdnames = ddsrt_realloc ((*c)->rdnames, (size_t) (*c)->nreaders * sizeof (*(*c)->rdnames));
   }
 }
 
