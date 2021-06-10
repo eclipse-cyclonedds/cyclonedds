@@ -45,7 +45,7 @@
 
 /* Define the target compiler to GNUC to output GCC line directives, which
    are required to construct an include stack. */
-#define COMPILER            GNUC
+#define COMPILER            IDLC
 /* __GNUC__ and __GNUC_MINOR__ are required if COMPILER equals GNUC. */
 #define COMPILER_EXT        "__GNUC__"
 #define COMPILER_EXT_VAL    "0"
@@ -90,6 +90,7 @@
 #define WIN_SYMANTECC       0x7470  /* Symantec for Windows */
 #define LCC                 0x74C0  /* LCC-Win32 */
 #define GNUC                0x00E0  /* GNU C (GCC) */
+#define IDLC                0xFFFE  /* Eclipse Cyclone DDS IDL Compiler */
 #define INDEPENDENT         0xFFFF  /* No target, compiler-independent-build */
 
 #define SYS_FAMILY          (SYSTEM & 0xF000)

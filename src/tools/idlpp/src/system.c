@@ -4020,14 +4020,22 @@ static void cur_file(
         sharp_filename = save_string( name);
     }
     mcpp_fprintf( OUT, " \"%s\"", name);
-#if COMPILER == GNUC
+#if COMPILER == GNUC || COMPILER == IDLC
     if (! std_line_prefix) {
-        if (flag) {
-            mcpp_fputc( ' ', OUT);
-            mcpp_fputc( '0' + flag, OUT);
-        }
+#if COMPILER == IDLC
+        if ((flag & 1) && ! sharp_file) /* Signal non-relative file */
+            flag = (strlen(*(file->dirp)) != 0) ? 3 : 1;
+#endif
+        if (flag)
+            mcpp_fprintf( OUT, " %d", flag);
+#if COMPILER == GNUC
         if (file->sys_header)
             mcpp_fputs( " 3", OUT);
+#endif
+#if COMPILER == IDLC
+        if ((flag & 1))                 /* Output original filename */
+            mcpp_fprintf( OUT, " \"%s\"", cur_fname);
+#endif
     }
 #else
     (void)flag;
