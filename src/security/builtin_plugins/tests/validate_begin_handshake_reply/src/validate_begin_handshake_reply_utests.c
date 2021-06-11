@@ -21,7 +21,7 @@ static const char * PERM_ACCESS_CLASS_ID            = "DDS:Access:Permissions:1.
 static const char * PROPERTY_IDENTITY_CA            = "dds.sec.auth.identity_ca";
 static const char * PROPERTY_PRIVATE_KEY            = "dds.sec.auth.private_key";
 static const char * PROPERTY_IDENTITY_CERT          = "dds.sec.auth.identity_certificate";
-static const char * PROPERTY_TRUSTED_CA_DIR          = "dds.sec.auth.trusted_ca_dir";
+static const char * PROPERTY_TRUSTED_CA_DIR         = "dds.sec.auth.trusted_ca_dir";
 
 static const char * PROPERTY_CERT_SUBJECT_NAME      = "dds.cert.sn";
 static const char * PROPERTY_CERT_ALGORITHM         = "dds.cert.algo";
@@ -206,81 +206,81 @@ static const char *unrelated_identity =
 
 
 static const char *remote_identity_trusted =
-                "-----BEGIN CERTIFICATE-----\n"
-                "MIIDcDCCAligAwIBAgIBBTANBgkqhkiG9w0BAQsFADByMQswCQYDVQQGEwJOTDEL\n"
-                "MAkGA1UECBMCT1YxEzARBgNVBAoTCkFETGluayBJU1QxGTAXBgNVBAMTEElkZW50\n"
-                "aXR5IENBIFRlc3QxJjAkBgkqhkiG9w0BCQEWF2luZm9AaXN0LmFkbGlua3RlY2gu\n"
-                "Y29tMB4XDTE4MDMxMjAwMDAwMFoXDTI3MDMxMTIzNTk1OVowcDELMAkGA1UEBhMC\n"
-                "TkwxCzAJBgNVBAgTAk9WMQ8wDQYDVQQKEwZBRExpbmsxETAPBgNVBAsTCElTVCBU\n"
-                "ZXN0MREwDwYDVQQDEwhCb2IgVGVzdDEdMBsGCSqGSIb3DQEJARYOYm9iQGFkbGlu\n"
-                "ay5pc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDB5vqhuWnwhxXZ\n"
-                "qffPmfjzge7w91oX4ISlboIfBXp3sLj2mqLSsYhgBNJAn/Fl1OZeFw0d4gVibBgx\n"
-                "5Zdcjsi+ClvYK8H534iTJfNriMyhg4kSWxZF1Tixfw3FS7LqjKEY5ZNPfp5a4P+8\n"
-                "UveorYJusrnlv1DiF6aPhJQh8J62J6bhx62DNLO7dZbN0BUsnWtyDcfi5DOjf2/r\n"
-                "3lSRfecn3uBr1QYRaS5FrV+MSoGcjI3M75mei1TTUp7YT4ZWRR5rKUMql605xsms\n"
-                "d6sqJaKofYmw7wCuaVJ86pb/w8srdddKt21xUeQNMKn49H6raezMOE3U5BUMtZ+P\n"
-                "2OBLk/CPAgMBAAGjEzARMA8GA1UdDwEB/wQFAwMH/4AwDQYJKoZIhvcNAQELBQAD\n"
-                "ggEBAJV71Ckf1zsks5mJXqdUb8bTVHg4hN32pwjCL5c6W2XHAv+YHwE/fN3C1VIY\n"
-                "bC8zjUC9dCOyC2AvOQyZQ1eC/WoK6FlXjHVX2upL4lXQ9WL9ztt1mgdRrhvUPuUn\n"
-                "aBE8VgNU0t4jl93xMIaU8hB0kQsV+kdcN0cWbrF3mT4s9njRvopJ8hS2UE60V2wA\n"
-                "ceUOazH+QGPh1k0jkynrTlVR9GrpebQwZ2UFeinVO0km17IAyQkz+OmPc4jQLJMl\n"
-                "CmkbmMwowdLMKC6r/HyE87dN7NvFnRM5iByJklRwN7WDYZrl72HoUOlgTZ7PjW2G\n"
-                "jTxK8xXtDCXC/3CNpe0YFnOga8g=\n"
-                "-----END CERTIFICATE-----\n";
+        "-----BEGIN CERTIFICATE-----\n"
+        "MIIDcDCCAligAwIBAgIBBTANBgkqhkiG9w0BAQsFADByMQswCQYDVQQGEwJOTDEL\n"
+        "MAkGA1UECBMCT1YxEzARBgNVBAoTCkFETGluayBJU1QxGTAXBgNVBAMTEElkZW50\n"
+        "aXR5IENBIFRlc3QxJjAkBgkqhkiG9w0BCQEWF2luZm9AaXN0LmFkbGlua3RlY2gu\n"
+        "Y29tMB4XDTE4MDMxMjAwMDAwMFoXDTI3MDMxMTIzNTk1OVowcDELMAkGA1UEBhMC\n"
+        "TkwxCzAJBgNVBAgTAk9WMQ8wDQYDVQQKEwZBRExpbmsxETAPBgNVBAsTCElTVCBU\n"
+        "ZXN0MREwDwYDVQQDEwhCb2IgVGVzdDEdMBsGCSqGSIb3DQEJARYOYm9iQGFkbGlu\n"
+        "ay5pc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDB5vqhuWnwhxXZ\n"
+        "qffPmfjzge7w91oX4ISlboIfBXp3sLj2mqLSsYhgBNJAn/Fl1OZeFw0d4gVibBgx\n"
+        "5Zdcjsi+ClvYK8H534iTJfNriMyhg4kSWxZF1Tixfw3FS7LqjKEY5ZNPfp5a4P+8\n"
+        "UveorYJusrnlv1DiF6aPhJQh8J62J6bhx62DNLO7dZbN0BUsnWtyDcfi5DOjf2/r\n"
+        "3lSRfecn3uBr1QYRaS5FrV+MSoGcjI3M75mei1TTUp7YT4ZWRR5rKUMql605xsms\n"
+        "d6sqJaKofYmw7wCuaVJ86pb/w8srdddKt21xUeQNMKn49H6raezMOE3U5BUMtZ+P\n"
+        "2OBLk/CPAgMBAAGjEzARMA8GA1UdDwEB/wQFAwMH/4AwDQYJKoZIhvcNAQELBQAD\n"
+        "ggEBAJV71Ckf1zsks5mJXqdUb8bTVHg4hN32pwjCL5c6W2XHAv+YHwE/fN3C1VIY\n"
+        "bC8zjUC9dCOyC2AvOQyZQ1eC/WoK6FlXjHVX2upL4lXQ9WL9ztt1mgdRrhvUPuUn\n"
+        "aBE8VgNU0t4jl93xMIaU8hB0kQsV+kdcN0cWbrF3mT4s9njRvopJ8hS2UE60V2wA\n"
+        "ceUOazH+QGPh1k0jkynrTlVR9GrpebQwZ2UFeinVO0km17IAyQkz+OmPc4jQLJMl\n"
+        "CmkbmMwowdLMKC6r/HyE87dN7NvFnRM5iByJklRwN7WDYZrl72HoUOlgTZ7PjW2G\n"
+        "jTxK8xXtDCXC/3CNpe0YFnOga8g=\n"
+        "-----END CERTIFICATE-----\n";
 
 static const char *remote_identity_untrusted =
-                "-----BEGIN CERTIFICATE-----\n"
-                "MIIELTCCAxWgAwIBAgIBATANBgkqhkiG9w0BAQsFADB0MQswCQYDVQQGEwJOTDEL\n"
-                "MAkGA1UECBMCT1YxEzARBgNVBAoTCkFETGluayBJU1QxGzAZBgNVBAMTEkJvYiBU\n"
-                "ZXN0IFVudHJ1c3RlZDEmMCQGCSqGSIb3DQEJARYXaW5mb0Bpc3QuYWRsaW5rdGVj\n"
-                "aC5jb20wHhcNMTgwNjIwMDAwMDAwWhcNMjcwNjE5MjM1OTU5WjB0MQswCQYDVQQG\n"
-                "EwJOTDELMAkGA1UECBMCT1YxEzARBgNVBAoTCkFETGluayBJU1QxGzAZBgNVBAMT\n"
-                "EkJvYiBUZXN0IFVudHJ1c3RlZDEmMCQGCSqGSIb3DQEJARYXaW5mb0Bpc3QuYWRs\n"
-                "aW5rdGVjaC5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDB5vqh\n"
-                "uWnwhxXZqffPmfjzge7w91oX4ISlboIfBXp3sLj2mqLSsYhgBNJAn/Fl1OZeFw0d\n"
-                "4gVibBgx5Zdcjsi+ClvYK8H534iTJfNriMyhg4kSWxZF1Tixfw3FS7LqjKEY5ZNP\n"
-                "fp5a4P+8UveorYJusrnlv1DiF6aPhJQh8J62J6bhx62DNLO7dZbN0BUsnWtyDcfi\n"
-                "5DOjf2/r3lSRfecn3uBr1QYRaS5FrV+MSoGcjI3M75mei1TTUp7YT4ZWRR5rKUMq\n"
-                "l605xsmsd6sqJaKofYmw7wCuaVJ86pb/w8srdddKt21xUeQNMKn49H6raezMOE3U\n"
-                "5BUMtZ+P2OBLk/CPAgMBAAGjgckwgcYwDAYDVR0TBAUwAwEB/zAdBgNVHQ4EFgQU\n"
-                "QpxLPHT5o/GQRwdBw2scINXnWlUwHwYDVR0jBBgwFoAUQpxLPHT5o/GQRwdBw2sc\n"
-                "INXnWlUwDwYDVR0PAQH/BAUDAwf/gDBlBgNVHSUBAf8EWzBZBggrBgEFBQcDAQYI\n"
-                "KwYBBQUHAwIGCCsGAQUFBwMDBggrBgEFBQcDBAYIKwYBBQUHAwgGCCsGAQUFBwMJ\n"
-                "BggrBgEFBQcDDQYIKwYBBQUHAw4GBysGAQUCAwUwDQYJKoZIhvcNAQELBQADggEB\n"
-                "ABcyab7F7OAsjUSW0YWkVRX1SUMkW25xLLs8koXhHrdnBqgnmOur0xO72/fmTTX9\n"
-                "KnCUmQj+dAOmmZrAaIZzqLtMyp4ibHZPfOBwmM0MFnyuwyEnCEYvjPN3FTB0HEgS\n"
-                "vCoFH1001LVi4oC1mEMxYaNW4/5Tgl+DTqGF+tctJe3hvbxh+Uu5M0320VAvASjt\n"
-                "cJ0me6Ug1FJJ60tgXgZ+M/8V6AXhrQGNgN6WkPMFbbLi5IyEld186QPeLdZ8vCtz\n"
-                "StjIV9HZGR1XLotlXarbjVtjxavZJjtwiySeYkAgG7Zjy7LalPSJiIdAD3R/ny+S\n"
-                "9kXDKiw/HgYxb8xiy9gdlSc=\n"
-                "-----END CERTIFICATE-----\n";
+        "-----BEGIN CERTIFICATE-----\n"
+        "MIIELTCCAxWgAwIBAgIBATANBgkqhkiG9w0BAQsFADB0MQswCQYDVQQGEwJOTDEL\n"
+        "MAkGA1UECBMCT1YxEzARBgNVBAoTCkFETGluayBJU1QxGzAZBgNVBAMTEkJvYiBU\n"
+        "ZXN0IFVudHJ1c3RlZDEmMCQGCSqGSIb3DQEJARYXaW5mb0Bpc3QuYWRsaW5rdGVj\n"
+        "aC5jb20wHhcNMTgwNjIwMDAwMDAwWhcNMjcwNjE5MjM1OTU5WjB0MQswCQYDVQQG\n"
+        "EwJOTDELMAkGA1UECBMCT1YxEzARBgNVBAoTCkFETGluayBJU1QxGzAZBgNVBAMT\n"
+        "EkJvYiBUZXN0IFVudHJ1c3RlZDEmMCQGCSqGSIb3DQEJARYXaW5mb0Bpc3QuYWRs\n"
+        "aW5rdGVjaC5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDB5vqh\n"
+        "uWnwhxXZqffPmfjzge7w91oX4ISlboIfBXp3sLj2mqLSsYhgBNJAn/Fl1OZeFw0d\n"
+        "4gVibBgx5Zdcjsi+ClvYK8H534iTJfNriMyhg4kSWxZF1Tixfw3FS7LqjKEY5ZNP\n"
+        "fp5a4P+8UveorYJusrnlv1DiF6aPhJQh8J62J6bhx62DNLO7dZbN0BUsnWtyDcfi\n"
+        "5DOjf2/r3lSRfecn3uBr1QYRaS5FrV+MSoGcjI3M75mei1TTUp7YT4ZWRR5rKUMq\n"
+        "l605xsmsd6sqJaKofYmw7wCuaVJ86pb/w8srdddKt21xUeQNMKn49H6raezMOE3U\n"
+        "5BUMtZ+P2OBLk/CPAgMBAAGjgckwgcYwDAYDVR0TBAUwAwEB/zAdBgNVHQ4EFgQU\n"
+        "QpxLPHT5o/GQRwdBw2scINXnWlUwHwYDVR0jBBgwFoAUQpxLPHT5o/GQRwdBw2sc\n"
+        "INXnWlUwDwYDVR0PAQH/BAUDAwf/gDBlBgNVHSUBAf8EWzBZBggrBgEFBQcDAQYI\n"
+        "KwYBBQUHAwIGCCsGAQUFBwMDBggrBgEFBQcDBAYIKwYBBQUHAwgGCCsGAQUFBwMJ\n"
+        "BggrBgEFBQcDDQYIKwYBBQUHAw4GBysGAQUCAwUwDQYJKoZIhvcNAQELBQADggEB\n"
+        "ABcyab7F7OAsjUSW0YWkVRX1SUMkW25xLLs8koXhHrdnBqgnmOur0xO72/fmTTX9\n"
+        "KnCUmQj+dAOmmZrAaIZzqLtMyp4ibHZPfOBwmM0MFnyuwyEnCEYvjPN3FTB0HEgS\n"
+        "vCoFH1001LVi4oC1mEMxYaNW4/5Tgl+DTqGF+tctJe3hvbxh+Uu5M0320VAvASjt\n"
+        "cJ0me6Ug1FJJ60tgXgZ+M/8V6AXhrQGNgN6WkPMFbbLi5IyEld186QPeLdZ8vCtz\n"
+        "StjIV9HZGR1XLotlXarbjVtjxavZJjtwiySeYkAgG7Zjy7LalPSJiIdAD3R/ny+S\n"
+        "9kXDKiw/HgYxb8xiy9gdlSc=\n"
+        "-----END CERTIFICATE-----\n";
 
 static const char *remote_identity_trusted_expired =
-                "-----BEGIN CERTIFICATE-----\n"
-                "MIIEKTCCAxGgAwIBAgIBBjANBgkqhkiG9w0BAQsFADByMQswCQYDVQQGEwJOTDEL\n"
-                "MAkGA1UECBMCT1YxEzARBgNVBAoTCkFETGluayBJU1QxGTAXBgNVBAMTEElkZW50\n"
-                "aXR5IENBIFRlc3QxJjAkBgkqhkiG9w0BCQEWF2luZm9AaXN0LmFkbGlua3RlY2gu\n"
-                "Y29tMB4XDTE4MDMwMTAwMDAwMFoXDTE4MDQyMzIzNTk1OVowcjELMAkGA1UEBhMC\n"
-                "TkwxCzAJBgNVBAgTAk9WMRMwEQYDVQQKEwpBRExpbmsgSVNUMRkwFwYDVQQDExBC\n"
-                "b2IgVGVzdCBFeHBpcmVkMSYwJAYJKoZIhvcNAQkBFhdpbmZvQGlzdC5hZGxpbmt0\n"
-                "ZWNoLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMHm+qG5afCH\n"
-                "Fdmp98+Z+POB7vD3WhfghKVugh8FenewuPaaotKxiGAE0kCf8WXU5l4XDR3iBWJs\n"
-                "GDHll1yOyL4KW9grwfnfiJMl82uIzKGDiRJbFkXVOLF/DcVLsuqMoRjlk09+nlrg\n"
-                "/7xS96itgm6yueW/UOIXpo+ElCHwnrYnpuHHrYM0s7t1ls3QFSyda3INx+LkM6N/\n"
-                "b+veVJF95yfe4GvVBhFpLkWtX4xKgZyMjczvmZ6LVNNSnthPhlZFHmspQyqXrTnG\n"
-                "yax3qyoloqh9ibDvAK5pUnzqlv/Dyyt110q3bXFR5A0wqfj0fqtp7Mw4TdTkFQy1\n"
-                "n4/Y4EuT8I8CAwEAAaOByTCBxjAMBgNVHRMEBTADAQH/MB0GA1UdDgQWBBRCnEs8\n"
-                "dPmj8ZBHB0HDaxwg1edaVTAfBgNVHSMEGDAWgBRNVUJNFzhJPReYT4QSx6dK53CX\n"
-                "CTAPBgNVHQ8BAf8EBQMDB/+AMGUGA1UdJQEB/wRbMFkGCCsGAQUFBwMBBggrBgEF\n"
-                "BQcDAgYIKwYBBQUHAwMGCCsGAQUFBwMEBggrBgEFBQcDCAYIKwYBBQUHAwkGCCsG\n"
-                "AQUFBwMNBggrBgEFBQcDDgYHKwYBBQIDBTANBgkqhkiG9w0BAQsFAAOCAQEAdY5n\n"
-                "5ElOhpHq/YPWUs68t8HNIhqfokqjLZAgzNyU5QFppb9tPpmFCugerfjlScNwp5HB\n"
-                "X6/WjK4runDrgzXfmrBogR4Kscb1KJSm8KAmnzXVUNr1iyASlHxI7241kYdQvTH2\n"
-                "LL6b0kjsD5lKAnNh4id0SDHfy/CKg5d7dUxxO1mX48jUiIZtmFqgjej8tFLHy/w/\n"
-                "usI5ErlI0qzI6lkoRxPCEWLbXWeBDm3/smHeDbYa/+Lw4Bid8U1+ZSAuC1CT7a7F\n"
-                "O3gAjPUL0jzRztp5Yj3dYPV8YyJHLEKr75IXNedV9YKhT4f6kTS3UEjMTqYbYsix\n"
-                "MtqgY283RjsExzjNvw==\n"
-                "-----END CERTIFICATE-----\n";
+        "-----BEGIN CERTIFICATE-----\n"
+        "MIIEKTCCAxGgAwIBAgIBBjANBgkqhkiG9w0BAQsFADByMQswCQYDVQQGEwJOTDEL\n"
+        "MAkGA1UECBMCT1YxEzARBgNVBAoTCkFETGluayBJU1QxGTAXBgNVBAMTEElkZW50\n"
+        "aXR5IENBIFRlc3QxJjAkBgkqhkiG9w0BCQEWF2luZm9AaXN0LmFkbGlua3RlY2gu\n"
+        "Y29tMB4XDTE4MDMwMTAwMDAwMFoXDTE4MDQyMzIzNTk1OVowcjELMAkGA1UEBhMC\n"
+        "TkwxCzAJBgNVBAgTAk9WMRMwEQYDVQQKEwpBRExpbmsgSVNUMRkwFwYDVQQDExBC\n"
+        "b2IgVGVzdCBFeHBpcmVkMSYwJAYJKoZIhvcNAQkBFhdpbmZvQGlzdC5hZGxpbmt0\n"
+        "ZWNoLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMHm+qG5afCH\n"
+        "Fdmp98+Z+POB7vD3WhfghKVugh8FenewuPaaotKxiGAE0kCf8WXU5l4XDR3iBWJs\n"
+        "GDHll1yOyL4KW9grwfnfiJMl82uIzKGDiRJbFkXVOLF/DcVLsuqMoRjlk09+nlrg\n"
+        "/7xS96itgm6yueW/UOIXpo+ElCHwnrYnpuHHrYM0s7t1ls3QFSyda3INx+LkM6N/\n"
+        "b+veVJF95yfe4GvVBhFpLkWtX4xKgZyMjczvmZ6LVNNSnthPhlZFHmspQyqXrTnG\n"
+        "yax3qyoloqh9ibDvAK5pUnzqlv/Dyyt110q3bXFR5A0wqfj0fqtp7Mw4TdTkFQy1\n"
+        "n4/Y4EuT8I8CAwEAAaOByTCBxjAMBgNVHRMEBTADAQH/MB0GA1UdDgQWBBRCnEs8\n"
+        "dPmj8ZBHB0HDaxwg1edaVTAfBgNVHSMEGDAWgBRNVUJNFzhJPReYT4QSx6dK53CX\n"
+        "CTAPBgNVHQ8BAf8EBQMDB/+AMGUGA1UdJQEB/wRbMFkGCCsGAQUFBwMBBggrBgEF\n"
+        "BQcDAgYIKwYBBQUHAwMGCCsGAQUFBwMEBggrBgEFBQcDCAYIKwYBBQUHAwkGCCsG\n"
+        "AQUFBwMNBggrBgEFBQcDDgYHKwYBBQIDBTANBgkqhkiG9w0BAQsFAAOCAQEAdY5n\n"
+        "5ElOhpHq/YPWUs68t8HNIhqfokqjLZAgzNyU5QFppb9tPpmFCugerfjlScNwp5HB\n"
+        "X6/WjK4runDrgzXfmrBogR4Kscb1KJSm8KAmnzXVUNr1iyASlHxI7241kYdQvTH2\n"
+        "LL6b0kjsD5lKAnNh4id0SDHfy/CKg5d7dUxxO1mX48jUiIZtmFqgjej8tFLHy/w/\n"
+        "usI5ErlI0qzI6lkoRxPCEWLbXWeBDm3/smHeDbYa/+Lw4Bid8U1+ZSAuC1CT7a7F\n"
+        "O3gAjPUL0jzRztp5Yj3dYPV8YyJHLEKr75IXNedV9YKhT4f6kTS3UEjMTqYbYsix\n"
+        "MtqgY283RjsExzjNvw==\n"
+        "-----END CERTIFICATE-----\n";
 
 static struct plugins_hdl *plugins = NULL;
 static dds_security_authentication *auth = NULL;
@@ -489,7 +489,7 @@ deinitialize_identity_token(
 }
 
 static int
-validate_local_identity(const char* trusted_ca_dir)
+validate_local_identity(const char *trusted_ca_dir)
 {
     int res = 0;
     DDS_Security_ValidationResult_t result;
@@ -512,9 +512,9 @@ validate_local_identity(const char* trusted_ca_dir)
         char trusted_ca_dir_path[1024];
         dds_security_property_init(&participant_qos.property.value, 4);
 #ifdef WIN32
-    snprintf(trusted_ca_dir_path, 1024, "%s\\validate_begin_handshake_reply\\etc\\%s", CONFIG_ENV_TESTS_DIR,trusted_ca_dir);
+        snprintf(trusted_ca_dir_path, 1024, "%s\\validate_begin_handshake_reply\\etc\\%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
 #else
-    snprintf(trusted_ca_dir_path, 1024, "%s/validate_begin_handshake_reply/etc/%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
+        snprintf(trusted_ca_dir_path, 1024, "%s/validate_begin_handshake_reply/etc/%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
 #endif
         participant_qos.property.value._buffer[3].name = ddsrt_strdup(PROPERTY_TRUSTED_CA_DIR);
         participant_qos.property.value._buffer[3].value = ddsrt_strdup(trusted_ca_dir_path);
