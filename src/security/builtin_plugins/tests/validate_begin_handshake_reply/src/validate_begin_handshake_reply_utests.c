@@ -502,32 +502,42 @@ validate_local_identity(const char *trusted_ca_dir)
     DDS_Security_ParticipantBuiltinTopicData *local_participant_data;
     unsigned char *sdata;
     size_t sz;
+    unsigned participant_qos_size = 3;
+    unsigned offset = 0;
+    DDS_Security_Property_t *valbuf;
+
+    trusted_ca_dir ? participant_qos_size++ : participant_qos_size;
 
     memset(&local_participant_guid, 0, sizeof(local_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
     memcpy(&candidate_participant_guid.entityId, &entityId, sizeof(entityId));
 
     memset(&participant_qos, 0, sizeof(participant_qos));
-    if( trusted_ca_dir != NULL){
+    dds_security_property_init(&participant_qos.property.value, participant_qos_size);
+
+    valbuf = &participant_qos.property.value._buffer[offset++];
+    valbuf->name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
+    valbuf->value = ddsrt_strdup(identity_certificate);
+
+    valbuf = &participant_qos.property.value._buffer[offset++];
+    valbuf->name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
+    valbuf->value = ddsrt_strdup(identity_ca);
+
+    valbuf = &participant_qos.property.value._buffer[offset++];
+    valbuf->name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
+    valbuf->value = ddsrt_strdup(private_key);
+
+    if (trusted_ca_dir != NULL) {
         char trusted_ca_dir_path[1024];
-        dds_security_property_init(&participant_qos.property.value, 4);
 #ifdef WIN32
         snprintf(trusted_ca_dir_path, 1024, "%s\\validate_begin_handshake_reply\\etc\\%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
 #else
         snprintf(trusted_ca_dir_path, 1024, "%s/validate_begin_handshake_reply/etc/%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
 #endif
-        participant_qos.property.value._buffer[3].name = ddsrt_strdup(PROPERTY_TRUSTED_CA_DIR);
-        participant_qos.property.value._buffer[3].value = ddsrt_strdup(trusted_ca_dir_path);
+        valbuf = &participant_qos.property.value._buffer[offset++];
+        valbuf->name = ddsrt_strdup(PROPERTY_TRUSTED_CA_DIR);
+        valbuf->value = ddsrt_strdup(trusted_ca_dir_path);
     }
-    else{
-        dds_security_property_init(&participant_qos.property.value, 3);
-    }
-    participant_qos.property.value._buffer[0].name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
-    participant_qos.property.value._buffer[0].value = ddsrt_strdup(identity_certificate);
-    participant_qos.property.value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
-    participant_qos.property.value._buffer[1].value = ddsrt_strdup(identity_ca);
-    participant_qos.property.value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
-    participant_qos.property.value._buffer[2].value = ddsrt_strdup(private_key);
 
     /* Now call the function. */
     result = auth->validate_local_identity(
