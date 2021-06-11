@@ -22,6 +22,7 @@ static const char * PROPERTY_IDENTITY_CA            = "dds.sec.auth.identity_ca"
 static const char * PROPERTY_PRIVATE_KEY            = "dds.sec.auth.private_key";
 static const char * PROPERTY_IDENTITY_CERT          = "dds.sec.auth.identity_certificate";
 static const char * PROPERTY_TRUSTED_CA_DIR         = "dds.sec.auth.trusted_ca_dir";
+static const char * PROPERTY_CRL                    = "org.eclipse.cyclonedds.sec.auth.crl";
 
 static const char * PROPERTY_CERT_SUBJECT_NAME      = "dds.cert.sn";
 static const char * PROPERTY_CERT_ALGORITHM         = "dds.cert.algo";
@@ -282,6 +283,43 @@ static const char *remote_identity_trusted_expired =
         "MtqgY283RjsExzjNvw==\n"
         "-----END CERTIFICATE-----\n";
 
+static const char *remote_identity_revoked =
+        "-----BEGIN CERTIFICATE-----\n"
+        "MIIDRDCCAiwCFCxXj0QLcpHA597b3QgDf0J3tnQ1MA0GCSqGSIb3DQEBCwUAMF8x\n"
+        "CzAJBgNVBAYTAk5MMRMwEQYDVQQIEwpTb21lLVN0YXRlMSEwHwYDVQQKExhJbnRl\n"
+        "cm5ldCBXaWRnaXRzIFB0eSBMdGQxGDAWBgNVBAMTD0NIQU01MDAgcm9vdCBjYTAg\n"
+        "Fw0yMTA2MDkyMDU2MDFaGA8yMjIxMDQyMjIwNTYwMVowXDELMAkGA1UEBhMCTkwx\n"
+        "EzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMg\n"
+        "UHR5IEx0ZDEVMBMGA1UEAwwMQ0hBTTUwMSBjZXJ0MIIBIjANBgkqhkiG9w0BAQEF\n"
+        "AAOCAQ8AMIIBCgKCAQEAxQJq8im5z1/RZcXS5OKM4PvjH5PXoEIPuIHEZXPH8Eqp\n"
+        "jB3Wi9pUIE27nd8Gm3+i4IUBrOUx/LUtmI+k2sd87LxdNsuYm/yVExhAKbYRGW8P\n"
+        "90XOAbivMILgjYPitKJazhvKEQLTkMVKO8pcBVtl6KWy15gyLd6eCxXfXPfdJkrO\n"
+        "1zYmx4FXttUq7z/gJBRkbV2fb5Tb5lX/8VbjynvYYGGFAexH04XxnHnbrHY/4MoP\n"
+        "nTYcZqyEaALrT3Lcv2UrJJTw0mpUCrIy9LReKVIeOGrd9wE0jt3qk41EFZ2RWo8C\n"
+        "IL3GfYqo1QtEzAbzsAAXL9S1HUN0OWJV+NoUqqzSvwIDAQABMA0GCSqGSIb3DQEB\n"
+        "CwUAA4IBAQC0yJZXJv8nLGG2/60jmG8BobLn6Cas1CLkpVch9N0/e698PHxRqHfs\n"
+        "9R/SG6kpfJdOOeBNdw2Z3/s0E2Vuan++DEgAyvVLEHI1RHUue+0GvdyeNJSst/iz\n"
+        "1jyFm0nvaiT/jVYpM86c+R0emAtr3rBtxkh/Kop4TM1SOEzutIB4w/vXqklXD5ui\n"
+        "XAzosVskfkcnt24c7U9mf9JQt73lB1HbXkyivuQ1lAaVAfhUCSOXi/p3whELeTjL\n"
+        "y56eGZ9PcGfDP6NW7YQBKmATkwUwMJzEseM3amwOOd6bHvpeuJzXGLHe92D2e/gr\n"
+        "GHRAQsBeyglL3TH2CliOouhtKIoFeVZe\n"
+        "-----END CERTIFICATE-----\n";
+
+static const char *crl =
+        "data:,-----BEGIN X509 CRL-----\n"
+        "MIIB4TCBygIBATANBgkqhkiG9w0BAQsFADBfMQswCQYDVQQGEwJOTDETMBEGA1UE\n"
+        "CBMKU29tZS1TdGF0ZTEhMB8GA1UEChMYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRk\n"
+        "MRgwFgYDVQQDEw9DSEFNNTAwIHJvb3QgY2EXDTIxMDYwOTIyMDU1NloXDTIxMDcw\n"
+        "OTIyMDU1NlowJzAlAhQsV49EC3KRwOfe290IA39Cd7Z0NRcNMjEwNjA5MjIwNTI3\n"
+        "WqAOMAwwCgYDVR0UBAMCAQEwDQYJKoZIhvcNAQELBQADggEBAEawm/sTPeAcqtHB\n"
+        "+p9Q125ZblOkqHYGwKlg1yxnCPsJn7Izk0xycW29mUxEt5ZnzcEzbqc2i7F1xhJb\n"
+        "67eK3ba62EJbvmWosknCbAL+2K+hxCOSiNWE67+Qbq6a49SvTGRd7wXG1tS0+lyz\n"
+        "H9aFq5PUttbSJCXYWw7XkUKEsOj76cjC5nV0GIokz3mBQFX2L0jfgdyi9zOmX04h\n"
+        "xdgPVlqhNtjzB3awRL63IUWzFgknqCOokG4eF+TKlFvLjk5uBx7fXBeI+NCWzNrz\n"
+        "IyHbl42mi7+JEtmfrBmtWCqNWU7W7ZcaOJx+z71mDOJ34ykWZ1J7OmXT8R9i/IV3\n"
+        "qnbrzkA=\n"
+        "-----END X509 CRL-----\n";
+
 static struct plugins_hdl *plugins = NULL;
 static dds_security_authentication *auth = NULL;
 static DDS_Security_IdentityHandle local_identity_handle = DDS_SECURITY_HANDLE_NIL;
@@ -489,7 +527,7 @@ deinitialize_identity_token(
 }
 
 static int
-validate_local_identity(const char *trusted_ca_dir)
+validate_local_identity(const char *trusted_ca_dir, const char *crl_data)
 {
     int res = 0;
     DDS_Security_ValidationResult_t result;
@@ -507,6 +545,7 @@ validate_local_identity(const char *trusted_ca_dir)
     DDS_Security_Property_t *valbuf;
 
     trusted_ca_dir ? participant_qos_size++ : participant_qos_size;
+    crl_data ? participant_qos_size++ : participant_qos_size;
 
     memset(&local_participant_guid, 0, sizeof(local_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -537,6 +576,12 @@ validate_local_identity(const char *trusted_ca_dir)
         valbuf = &participant_qos.property.value._buffer[offset++];
         valbuf->name = ddsrt_strdup(PROPERTY_TRUSTED_CA_DIR);
         valbuf->value = ddsrt_strdup(trusted_ca_dir_path);
+    }
+
+    if (crl_data != NULL) {
+      valbuf = &participant_qos.property.value._buffer[offset++];
+      valbuf->name = ddsrt_strdup(PROPERTY_CRL);
+      valbuf->value = ddsrt_strdup(crl_data);
     }
 
     /* Now call the function. */
@@ -914,7 +959,7 @@ static void init_testcase(void)
                            &(const struct ddsi_domaingv){ .handshake_include_optional = true });
 
     if (plugins) {
-        res = validate_local_identity( NULL );
+        res = validate_local_identity( NULL, NULL );
         if (res == 0) {
             res = validate_remote_identities( remote_identity_certificate );
         }
@@ -1995,7 +2040,7 @@ CU_Test(validate_begin_handshake_reply,extended_certificate_check,  .init = init
     release_local_identity();
     release_remote_identities();
 
-    CU_ASSERT_FATAL( !validate_local_identity("trusted_ca_dir") );
+    CU_ASSERT_FATAL( !validate_local_identity("trusted_ca_dir", NULL) );
     CU_ASSERT_FATAL( !validate_remote_identities( remote_identity_trusted ) );
 
     CU_ASSERT_FATAL (auth != NULL);
@@ -2045,7 +2090,7 @@ CU_Test(validate_begin_handshake_reply,extended_certificate_check,  .init = init
     release_local_identity();
     release_remote_identities();
 
-    CU_ASSERT_FATAL( !validate_local_identity("trusted_ca_dir") );
+    CU_ASSERT_FATAL( !validate_local_identity("trusted_ca_dir", NULL) );
     CU_ASSERT_FATAL( !validate_remote_identities( remote_identity_untrusted ) );
 
     CU_ASSERT_FATAL (auth != NULL);
@@ -2085,7 +2130,7 @@ CU_Test(validate_begin_handshake_reply,extended_certificate_check,  .init = init
     release_local_identity();
     release_remote_identities();
 
-    CU_ASSERT_FATAL( !validate_local_identity("trusted_ca_dir") );
+    CU_ASSERT_FATAL( !validate_local_identity("trusted_ca_dir", NULL) );
     CU_ASSERT_FATAL( !validate_remote_identities( remote_identity_trusted_expired ) );
 
     CU_ASSERT_FATAL (auth != NULL);
@@ -2121,4 +2166,54 @@ CU_Test(validate_begin_handshake_reply,extended_certificate_check,  .init = init
     handshake_message_deinit(&handshake_token_in);
     handshake_message_deinit(&handshake_token_out);
     reset_exception(&exception);
+}
+
+CU_Test(validate_begin_handshake_reply,crl,  .init = init_testcase, .fini = fini_testcase )
+{
+    DDS_Security_ValidationResult_t result;
+    DDS_Security_HandshakeHandle handshake_handle;
+    DDS_Security_HandshakeMessageToken handshake_token_in = DDS_SECURITY_TOKEN_INIT;
+    DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
+    DDS_Security_SecurityException exception = {NULL, 0, 0};
+
+    release_local_identity();
+    release_remote_identities();
+
+    CU_ASSERT_FATAL( !validate_local_identity(NULL, crl) );
+    CU_ASSERT_FATAL( !validate_remote_identities( remote_identity_revoked ) );
+
+    CU_ASSERT_FATAL (auth != NULL);
+    assert (auth != NULL);
+    CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_FATAL (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_FATAL (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_FATAL (auth->begin_handshake_reply != NULL);
+    assert (auth->begin_handshake_reply != 0);
+
+    fill_handshake_message_token(
+                    &handshake_token_in, remote_participant_data1, remote_identity_revoked,
+                AUTH_DSIGN_ALGO_RSA_NAME, AUTH_KAGREE_ALGO_RSA_NAME,
+                dh_pubkey_modp_2048_value, dh_pubkey_modp_2048_length, challenge2->value._buffer, challenge2->value._length);
+
+    result = auth->begin_handshake_reply(
+                    auth,
+                    &handshake_handle,
+                    &handshake_token_out,
+                    &handshake_token_in,
+                    remote_identity_handle2,
+                    local_identity_handle,
+                    &serialized_participant_data,
+                    &exception);
+
+    if (result == DDS_SECURITY_VALIDATION_OK) {
+        printf("begin_handshake_reply failed: %s\n", exception.message ? exception.message : "Error message missing");
+    }
+
+    CU_ASSERT_FATAL(result != DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT (exception.minor_code != 0);
+    CU_ASSERT (exception.message != NULL);
+
+    reset_exception(&exception);
+
+    handshake_message_deinit(&handshake_token_in);
 }
