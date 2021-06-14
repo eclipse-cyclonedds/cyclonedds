@@ -202,6 +202,7 @@ typedef enum {
 #define DDS_SEC_PROP_AUTH_PRIV_KEY "dds.sec.auth.private_key"
 #define DDS_SEC_PROP_AUTH_IDENTITY_CERT "dds.sec.auth.identity_certificate"
 #define DDS_SEC_PROP_AUTH_PASSWORD "dds.sec.auth.password"
+#define ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "org.eclipse.cyclonedds.sec.auth.crl"
 #define DDS_SEC_PROP_ACCESS_PERMISSIONS_CA "dds.sec.access.permissions_ca"
 #define DDS_SEC_PROP_ACCESS_GOVERNANCE "dds.sec.access.governance"
 #define DDS_SEC_PROP_ACCESS_PERMISSIONS "dds.sec.access.permissions"
