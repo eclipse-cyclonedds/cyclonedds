@@ -67,7 +67,7 @@ The default value is: "lax".
 
 
 ### //CycloneDDS/Domain/Discovery
-Children: [DSGracePeriod](#cycloneddsdomaindiscoverydsgraceperiod), [DefaultMulticastAddress](#cycloneddsdomaindiscoverydefaultmulticastaddress), [EnableTopicDiscoveryEndpoints](#cycloneddsdomaindiscoveryenabletopicdiscoveryendpoints), [ExternalDomainId](#cycloneddsdomaindiscoveryexternaldomainid), [MaxAutoParticipantIndex](#cycloneddsdomaindiscoverymaxautoparticipantindex), [ParticipantIndex](#cycloneddsdomaindiscoveryparticipantindex), [Peers](#cycloneddsdomaindiscoverypeers), [Ports](#cycloneddsdomaindiscoveryports), [SPDPInterval](#cycloneddsdomaindiscoveryspdpinterval), [SPDPMulticastAddress](#cycloneddsdomaindiscoveryspdpmulticastaddress), [Tag](#cycloneddsdomaindiscoverytag)
+Children: [DSGracePeriod](#cycloneddsdomaindiscoverydsgraceperiod), [DefaultMulticastAddress](#cycloneddsdomaindiscoverydefaultmulticastaddress), [ExternalDomainId](#cycloneddsdomaindiscoveryexternaldomainid), [MaxAutoParticipantIndex](#cycloneddsdomaindiscoverymaxautoparticipantindex), [ParticipantIndex](#cycloneddsdomaindiscoveryparticipantindex), [Peers](#cycloneddsdomaindiscoverypeers), [Ports](#cycloneddsdomaindiscoveryports), [SPDPInterval](#cycloneddsdomaindiscoveryspdpinterval), [SPDPMulticastAddress](#cycloneddsdomaindiscoveryspdpmulticastaddress), [Tag](#cycloneddsdomaindiscoverytag)
 
 The Discovery element allows specifying various parameters related to the discovery of peers.
 
@@ -88,14 +88,6 @@ Text
 This element specifies the default multicast address for all traffic other than participant discovery packets. It defaults to Discovery/SPDPMulticastAddress.
 
 The default value is: "auto".
-
-
-#### //CycloneDDS/Domain/Discovery/EnableTopicDiscoveryEndpoints
-Boolean
-
-This element controls whether the built-in endpoints for topic discovery are created and used to exchange topic discovery information.
-
-The default value is: "false".
 
 
 #### //CycloneDDS/Domain/Discovery/ExternalDomainId
@@ -1294,9 +1286,27 @@ The default value is: "".
 
 
 #### //CycloneDDS/Domain/Security/Authentication
-Children: [IdentityCA](#cycloneddsdomainsecurityauthenticationidentityca), [IdentityCertificate](#cycloneddsdomainsecurityauthenticationidentitycertificate), [IncludeOptionalFields](#cycloneddsdomainsecurityauthenticationincludeoptionalfields), [Library](#cycloneddsdomainsecurityauthenticationlibrary), [Password](#cycloneddsdomainsecurityauthenticationpassword), [PrivateKey](#cycloneddsdomainsecurityauthenticationprivatekey), [TrustedCADirectory](#cycloneddsdomainsecurityauthenticationtrustedcadirectory)
+Children: [CRL](#cycloneddsdomainsecurityauthenticationcrl), [IdentityCA](#cycloneddsdomainsecurityauthenticationidentityca), [IdentityCertificate](#cycloneddsdomainsecurityauthenticationidentitycertificate), [IncludeOptionalFields](#cycloneddsdomainsecurityauthenticationincludeoptionalfields), [Library](#cycloneddsdomainsecurityauthenticationlibrary), [Password](#cycloneddsdomainsecurityauthenticationpassword), [PrivateKey](#cycloneddsdomainsecurityauthenticationprivatekey), [TrustedCADirectory](#cycloneddsdomainsecurityauthenticationtrustedcadirectory)
 
 This element configures the Authentication plugin of the DDS Security specification.
+
+
+##### //CycloneDDS/Domain/Security/Authentication/CRL
+Text
+
+Optional URI to load an X509 Certificate Revocation List
+
+Supported URI schemes: file, data
+
+Examples:
+
+<CRL>file:crl.pem</CRL>
+
+<CRL>data:,-----BEGIN X509 CRL-----<br>
+MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg=<br>
+-----END X509 CRL-----</CRL>
+
+The default value is: "".
 
 
 ##### //CycloneDDS/Domain/Security/Authentication/IdentityCA

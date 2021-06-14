@@ -112,7 +112,6 @@ CycloneDDS configuration</xs:documentation>
       <xs:all>
         <xs:element minOccurs="0" ref="config:DSGracePeriod"/>
         <xs:element minOccurs="0" ref="config:DefaultMulticastAddress"/>
-        <xs:element minOccurs="0" ref="config:EnableTopicDiscoveryEndpoints"/>
         <xs:element minOccurs="0" ref="config:ExternalDomainId"/>
         <xs:element minOccurs="0" ref="config:MaxAutoParticipantIndex"/>
         <xs:element minOccurs="0" ref="config:ParticipantIndex"/>
@@ -137,13 +136,6 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;This element specifies the default multicast address for all traffic other than participant discovery packets. It defaults to Discovery/SPDPMulticastAddress.&lt;/p&gt;
 &lt;p&gt;The default value is: "auto".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="EnableTopicDiscoveryEndpoints" type="xs:boolean">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This element controls whether the built-in endpoints for topic discovery are created and used to exchange topic discovery information.&lt;/p&gt;
-&lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="ExternalDomainId" type="xs:string">
@@ -1363,6 +1355,7 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
+        <xs:element minOccurs="0" ref="config:CRL"/>
         <xs:element ref="config:IdentityCA"/>
         <xs:element ref="config:IdentityCertificate"/>
         <xs:element minOccurs="0" ref="config:IncludeOptionalFields"/>
@@ -1403,6 +1396,19 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:TrustedCADirectory"/>
       </xs:all>
     </xs:complexType>
+  </xs:element>
+  <xs:element name="CRL" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;Optional URI to load an X509 Certificate Revocation List&lt;/p&gt;
+&lt;p&gt;Supported URI schemes: file, data&lt;/p&gt;
+&lt;p&gt;Examples:&lt;/p&gt;
+&lt;p&gt;&lt;CRL&gt;file:crl.pem&lt;/CRL&gt;&lt;/p&gt;
+&lt;p&gt;&lt;CRL&gt;data:,-----BEGIN X509 CRL-----&lt;br&gt;
+MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg=&lt;br&gt;
+-----END X509 CRL-----&lt;/CRL&gt;&lt;/p&gt;
+&lt;p&gt;The default value is: "".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
   </xs:element>
   <xs:element name="IdentityCA" type="xs:string">
     <xs:annotation>
