@@ -3510,6 +3510,8 @@ void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct ddsi_confi
     fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_PASSWORD, cfg->authentication_properties.password);
   if (cfg->authentication_properties.trusted_ca_dir )
     fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR, cfg->authentication_properties.trusted_ca_dir);
+  if (cfg->authentication_properties.crl )
+    fill_property(&(xqos->property.value.props[xqos->property.value.n++]), ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL, cfg->authentication_properties.crl);
 }
 #endif /* DDS_HAS_SECURITY */
 

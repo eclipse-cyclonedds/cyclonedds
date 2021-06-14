@@ -369,6 +369,18 @@ static struct cfgelem authentication_config_elements[] = {
       "<p>Trusted CA Directory which contains trusted CA certificates as "
       "separated files.</p>"
     )),
+  STRING("CRL", NULL, 1, "",
+    MEMBEROF(ddsi_config_omg_security_listelem, cfg.authentication_properties.crl),
+    FUNCTIONS(0, uf_string, ff_free, pf_string),
+    DESCRIPTION(
+      "<p>Optional URI to load an X509 Certificate Revocation List</p>\n"
+      "<p>Supported URI schemes: file, data</p>\n"
+      "<p>Examples:</p>\n"
+      "<p><CRL>file:crl.pem</CRL></p>\n"
+      "<p><CRL>data:,-----BEGIN X509 CRL-----<br>\n"
+      "MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg=<br>\n"
+      "-----END X509 CRL-----</CRL></p>"
+    )),
   BOOL("IncludeOptionalFields", NULL, 1, "false",
     MEMBEROF(ddsi_config_omg_security_listelem, cfg.authentication_properties.include_optional_fields),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),

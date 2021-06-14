@@ -64,12 +64,6 @@ CycloneDDS configuration""" ] ]
           text
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element controls whether the built-in endpoints for topic discovery are created and used to exchange topic discovery information.</p>
-<p>The default value is: "false".</p>""" ] ]
-        element EnableTopicDiscoveryEndpoints {
-          xsd:boolean
-        }?
-        & [ a:documentation [ xml:lang="en" """
 <p>An override for the domain id, to be used in discovery and for determining the port number mapping. This allows creating multiple domains in a single process while making them appear as a single domain on the network. The value "default" disables the override.</p>
 <p>The default value is: "default".</p>""" ] ]
         element ExternalDomainId {
@@ -906,6 +900,18 @@ CycloneDDS configuration""" ] ]
 <p>This element configures the Authentication plugin of the DDS Security specification.</p>""" ] ]
         element Authentication {
           [ a:documentation [ xml:lang="en" """
+<p>Optional URI to load an X509 Certificate Revocation List</p>
+<p>Supported URI schemes: file, data</p>
+<p>Examples:</p>
+<p><CRL>file:crl.pem</CRL></p>
+<p><CRL>data:,-----BEGIN X509 CRL-----<br>
+MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg=<br>
+-----END X509 CRL-----</CRL></p>
+<p>The default value is: "".</p>""" ] ]
+          element CRL {
+            text
+          }?
+          & [ a:documentation [ xml:lang="en" """
 <p>URI to the X509 certificate [39] of the Identity CA that is the signer of Identity Certificate.</p>
 <p>Supported URI schemes: file, data</p>
 <p>The file and data schemas shall refer to a X.509 v3 certificate (see X.509 v3 ITU-T Recommendation X.509 (2005) [39]) in PEM format.</p>
