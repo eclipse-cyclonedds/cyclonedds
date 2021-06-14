@@ -199,6 +199,7 @@ struct ddsi_authentication_properties {
   char *private_key;
   char *password;
   char *trusted_ca_dir;
+  char *crl;
   int include_optional_fields;
 };
 
