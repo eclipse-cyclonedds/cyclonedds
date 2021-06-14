@@ -66,6 +66,7 @@ static const char *config =
     "      <PrivateKey>data:,${TEST_IDENTITY_PRIVATE_KEY}</PrivateKey>"
     "      <IdentityCA>data:,${TEST_IDENTITY_CA_CERTIFICATE}</IdentityCA>"
     "      ${TRUSTED_CA_DIR:+<TrustedCADir>}${TRUSTED_CA_DIR}${TRUSTED_CA_DIR:+</TrustedCADir>}"
+    "      ${CRL:+<CRL>}${CRL}${CRL:+</CRL>}"
     "    </Authentication>"
     "    <AccessControl>"
     "      <Library finalizeFunction=\"finalize_access_control\" initFunction=\"init_access_control\"/>"
@@ -110,8 +111,8 @@ static dds_entity_t g_rd;
 static uint32_t g_topic_nr = 0;
 
 static void init_domain_pp (bool pp_secure, bool exp_pp_fail,
-    dds_domainid_t domain_id, const char *id_cert, const char * id_key, const char * id_ca, const char * gov_config, const char * perm_config, const char * trusted_ca_dir,
-    dds_entity_t *domain, dds_entity_t *pp)
+    dds_domainid_t domain_id, const char * id_cert, const char * id_key, const char * id_ca, const char * gov_config, const char * perm_config, const char * trusted_ca_dir, const char * crl,
+    dds_entity_t * domain, dds_entity_t * pp)
 {
   char *conf;
   if (pp_secure)
@@ -122,6 +123,7 @@ static void init_domain_pp (bool pp_secure, bool exp_pp_fail,
       { "TEST_IDENTITY_PRIVATE_KEY", id_key, 1 },
       { "TEST_IDENTITY_CA_CERTIFICATE", id_ca, 1 },
       { "TRUSTED_CA_DIR", trusted_ca_dir, 3 },
+      { "CRL", crl, 3 },
       { "PERMISSIONS_CONFIG", perm_config, 1 },
       { "GOVERNANCE_CONFIG", gov_config, 1 },
       { NULL, NULL, 0 }
@@ -144,10 +146,10 @@ static void init_domain_pp (bool pp_secure, bool exp_pp_fail,
 static void authentication_init(
     bool pp1_secure, const char * id1_cert, const char * id1_key, const char * id1_ca, bool exp_pp1_fail, const char * gov_conf1, const char * perm_conf1,
     bool pp2_secure, const char * id2_cert, const char * id2_key, const char * id2_ca, bool exp_pp2_fail, const char * gov_conf2, const char * perm_conf2,
-    const char * trusted_ca_dir)
+    const char * trusted_ca_dir, const char * crl)
 {
-  init_domain_pp (pp1_secure, exp_pp1_fail, DDS_DOMAINID1, id1_cert, id1_key, id1_ca, gov_conf1, perm_conf1, trusted_ca_dir, &g_domain1, &g_participant1);
-  init_domain_pp (pp2_secure, exp_pp2_fail, DDS_DOMAINID2, id2_cert, id2_key, id2_ca, gov_conf2, perm_conf2, trusted_ca_dir, &g_domain2, &g_participant2);
+  init_domain_pp (pp1_secure, exp_pp1_fail, DDS_DOMAINID1, id1_cert, id1_key, id1_ca, gov_conf1, perm_conf1, trusted_ca_dir, crl, &g_domain1, &g_participant1);
+  init_domain_pp (pp2_secure, exp_pp2_fail, DDS_DOMAINID2, id2_cert, id2_key, id2_ca, gov_conf2, perm_conf2, trusted_ca_dir, crl, &g_domain2, &g_participant2);
 }
 
 static void authentication_fini(bool delete_pp1, bool delete_pp2, void * res[], size_t nres)
@@ -204,7 +206,7 @@ CU_Theory((const char * test_descr, const char * id2, const char *key2, const ch
   authentication_init (
       true, ID1, ID1K, CA1, exp_fail_pp1, DEF_GOV_CONF, DEF_PERM_CONF,
       true, id2, key2, ca2, exp_fail_pp2, DEF_GOV_CONF, DEF_PERM_CONF,
-      NULL);
+      NULL, NULL);
 
   // Domain 1
   validate_handshake (DDS_DOMAINID1, false, NULL, &hs_list, &nhs, DDS_SECS(2));
@@ -233,7 +235,7 @@ CU_Theory((const char * ca_dir, bool exp_fail), ddssec_authentication, trusted_c
   authentication_init (
       true, ID1, ID1K, CA1, exp_fail, DEF_GOV_CONF, DEF_PERM_CONF,
       true, ID1, ID1K, CA1, exp_fail, DEF_GOV_CONF, DEF_PERM_CONF,
-      ca_dir);
+      ca_dir, NULL);
   if (!exp_fail)
   {
     validate_handshake_nofail (DDS_DOMAINID1, DDS_SECS (2));
@@ -297,7 +299,7 @@ CU_Theory(
   authentication_init (
     true, id1, ID1K, ca, id1_local_fail, DEF_GOV_CONF, perm_config,
     true, id2, ID1K, ca, id2_local_fail, DEF_GOV_CONF, perm_config,
-    NULL);
+    NULL, NULL);
   validate_handshake (DDS_DOMAINID1, id1_local_fail, NULL, NULL, NULL, DDS_SECS(2));
   validate_handshake (DDS_DOMAINID2, id2_local_fail, NULL, NULL, NULL, DDS_SECS(2));
   if (write_read_dur > 0)
@@ -340,7 +342,7 @@ CU_Test(ddssec_authentication, unauthenticated_pp)
   authentication_init (
     true, id1, TEST_IDENTITY1_PRIVATE_KEY, ca, false, gov_config, perm_config,
     false, NULL, NULL, NULL, false, NULL, NULL,
-    NULL);
+    NULL, NULL);
 
   print_test_msg ("writing sample for plain topic\n");
   dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
@@ -357,3 +359,23 @@ CU_Test(ddssec_authentication, unauthenticated_pp)
   authentication_fini (true, true, (void * []) { gov_config, gov_topic_rules, topic_rule_sec, topic_rule_plain, grants[0], perm_config, ca, id1_subj, id1 }, 9);
 }
 
+CU_TheoryDataPoints(ddssec_authentication, crl) = {
+    CU_DataPoints(const char *, "",    "/nonexisting", TEST_CRL, NULL),
+    CU_DataPoints(bool,         false, true,           true,     false),
+};
+/* Test correct and incorrect values for the trusted CA directory in the
+   authentication plugin configuration */
+CU_Theory((const char * crl, bool exp_fail), ddssec_authentication, crl)
+{
+  print_test_msg ("Testing CRL: %s\n", crl);
+  authentication_init (
+      true, TEST_REVOKED_IDENTITY_CERTIFICATE, TEST_REVOKED_IDENTITY_PRIVATE_KEY, CA1, exp_fail, DEF_GOV_CONF, DEF_PERM_CONF,
+      true, TEST_REVOKED_IDENTITY_CERTIFICATE, TEST_REVOKED_IDENTITY_PRIVATE_KEY, CA1, exp_fail, DEF_GOV_CONF, DEF_PERM_CONF,
+      NULL, crl);
+  if (!exp_fail)
+  {
+    validate_handshake_nofail (DDS_DOMAINID1, DDS_SECS (2));
+    validate_handshake_nofail (DDS_DOMAINID2, DDS_SECS (2));
+  }
+  authentication_fini (!exp_fail, !exp_fail, NULL, 0);
+}
