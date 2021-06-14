@@ -194,6 +194,7 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
     "config: Domain/Security/Authentication/PrivateKey/#text: "TEST_IDENTITY_PRIVATE_KEY_DUMMY"*",
     "config: Domain/Security/Authentication/Password/#text: testtext_Password_testtext*",
     "config: Domain/Security/Authentication/TrustedCADirectory/#text: testtext_Dir_testtext*",
+    "config: Domain/Security/Authentication/CRL/#text: testtext_Crl_testtext*",
     "config: Domain/Security/AccessControl/Library/#text: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
     "config: Domain/Security/AccessControl/Library[@path]: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
     "config: Domain/Security/AccessControl/Library[@initFunction]: init_test_access_control_all_ok*",
@@ -206,7 +207,7 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
     "config: Domain/Security/Cryptographic/Library[@initFunction]: init_test_cryptography_all_ok*",
     "config: Domain/Security/Cryptographic/Library[@finalizeFunction]: finalize_test_cryptography_all_ok*",
     /* The config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"testtext_Dir_testtext\"", ""),
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"testtext_Dir_testtext\",0:\"org.eclipse.cyclonedds.sec.auth.crl\":\"testtext_Crl_testtext\"", ""),
     NULL
   };
 
@@ -224,6 +225,7 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY_DUMMY"</PrivateKey>"
     "      <Password>testtext_Password_testtext</Password>"
     "      <TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
+    "      <CRL>testtext_Crl_testtext</CRL>"
     "    </Authentication>"
     "    <Cryptographic>"
     "      <Library initFunction=\"init_test_cryptography_all_ok\" finalizeFunction=\"finalize_test_cryptography_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
@@ -248,7 +250,7 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
 
   /* All traces should have been provided. */
   printf("found: %x\n", found);
-  CU_ASSERT_FATAL(found == 0x1fffff);
+  CU_ASSERT_FATAL(found == 0x3fffff);
 }
 
 /* Expected traces when creating participant with the security elements. */
@@ -265,6 +267,7 @@ CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
     "config: Domain/Security/Authentication/PrivateKey/#text: "TEST_IDENTITY_PRIVATE_KEY_DUMMY"*",
     "config: Domain/Security/Authentication/Password/#text:  {}*",
     "config: Domain/Security/Authentication/TrustedCADirectory/#text:  {}*",
+    "config: Domain/Security/Authentication/CRL/#text:  {}*",
     "config: Domain/Security/AccessControl/Library/#text: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
     "config: Domain/Security/AccessControl/Library[@path]: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
     "config: Domain/Security/AccessControl/Library[@initFunction]: init_test_access_control_all_ok*",
@@ -277,7 +280,7 @@ CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
     "config: Domain/Security/Cryptographic/Library[@initFunction]: init_test_cryptography_all_ok*",
     "config: Domain/Security/Cryptographic/Library[@finalizeFunction]: finalize_test_cryptography_all_ok*",
     /* The config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"\",0:\"dds.sec.auth.trusted_ca_dir\":\"\"", ""),
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"\",0:\"dds.sec.auth.trusted_ca_dir\":\"\",0:\"org.eclipse.cyclonedds.sec.auth.crl\":\"\"", ""),
     NULL
   };
 
@@ -316,7 +319,7 @@ CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
   reset_logger();
 
   /* All traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0x1fffff);
+  CU_ASSERT_FATAL(found == 0x3fffff);
 }
 
 /* Expected traces when creating domain with the security elements. */
@@ -333,6 +336,7 @@ CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
     "config: Domain/Security/Authentication/PrivateKey/#text: "TEST_IDENTITY_PRIVATE_KEY_DUMMY"*",
     "config: Domain/Security/Authentication/Password/#text: testtext_Password_testtext*",
     "config: Domain/Security/Authentication/TrustedCADirectory/#text: testtext_Dir_testtext*",
+    "config: Domain/Security/Authentication/CRL/#text: testtext_Crl_testtext*",
     "config: Domain/Security/AccessControl/Library/#text: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
     "config: Domain/Security/AccessControl/Library[@path]: "WRAPPERLIB_PATH("dds_security_access_control_wrapper")"*",
     "config: Domain/Security/AccessControl/Library[@initFunction]: init_test_access_control_all_ok*",
@@ -345,7 +349,7 @@ CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
     "config: Domain/Security/Cryptographic/Library[@initFunction]: init_test_cryptography_all_ok*",
     "config: Domain/Security/Cryptographic/Library[@finalizeFunction]: finalize_test_cryptography_all_ok*",
     /* The config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"testtext_Dir_testtext\"", ""),
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"testtext_Dir_testtext\",0:\"org.eclipse.cyclonedds.sec.auth.crl\":\"testtext_Crl_testtext\"", ""),
     NULL
   };
 
@@ -363,6 +367,7 @@ CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY_DUMMY"</PrivateKey>"
     "      <Password>testtext_Password_testtext</Password>"
     "      <TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
+    "      <CRL>testtext_Crl_testtext</CRL>"
     "    </Authentication>"
     "    <Cryptographic>"
     "      <Library initFunction=\"init_test_cryptography_all_ok\" finalizeFunction=\"finalize_test_cryptography_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
@@ -386,7 +391,7 @@ CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
   reset_logger();
 
   /* All traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0x1fffff);
+  CU_ASSERT_FATAL(found == 0x3fffff);
 }
 
 /* Expected traces when creating participant with the security elements. */
@@ -396,7 +401,7 @@ CU_Test(ddssec_config, qos, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qos_t * qos;
   const char *log_expected[] = {
     /* The config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"file:/test/dir\"", ""),
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"file:/test/dir\",0:\"org.eclipse.cyclonedds.sec.auth.crl\":\"file:/test/crl\"", ""),
     NULL
   };
 
@@ -419,6 +424,7 @@ CU_Test(ddssec_config, qos, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_prop(qos, "dds.sec.access.permissions", "file:Permissions.p7s");
   dds_qset_prop(qos, "dds.sec.auth.password", "testtext_Password_testtext");
   dds_qset_prop(qos, "dds.sec.auth.trusted_ca_dir", "file:/test/dir");
+  dds_qset_prop(qos, "org.eclipse.cyclonedds.sec.auth.crl", "file:/test/crl");
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, default_config);
@@ -441,7 +447,7 @@ CU_Test(ddssec_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qos_t * qos;
   const char *log_expected[] = {
     /* The config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"file:/test/dir\",0:\"test.prop1\":\"testtext_value1_testtext\",0:\"test.prop2\":\"testtext_value2_testtext\"",
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"file:/test/dir\",0:\"org.eclipse.cyclonedds.sec.auth.crl\":\"file:/test/crl\",0:\"test.prop1\":\"testtext_value1_testtext\",0:\"test.prop2\":\"testtext_value2_testtext\"",
                             "0:\"test.bprop1\":3<1,2,3>"),
     NULL
   };
@@ -466,6 +472,7 @@ CU_Test(ddssec_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_prop(qos, "dds.sec.access.permissions", "file:Permissions.p7s");
   dds_qset_prop(qos, "dds.sec.auth.password", "testtext_Password_testtext");
   dds_qset_prop(qos, "dds.sec.auth.trusted_ca_dir", "file:/test/dir");
+  dds_qset_prop(qos, "org.eclipse.cyclonedds.sec.auth.crl", "file:/test/crl");
   dds_qset_prop(qos, "test.prop1", "testtext_value1_testtext");
   dds_qset_prop(qos, "test.prop2", "testtext_value2_testtext");
   dds_qset_bprop(qos, "test.bprop1", bvalue, 3);
@@ -559,7 +566,7 @@ CU_Test(ddssec_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qos_t * qos;
   const char *log_expected[] = {
     /* The security settings from config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("0:\"test.dds.sec.prop1\":\"testtext_value1_testtext\",", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"testtext_Dir_testtext\"", ""),
+    PARTICIPANT_QOS_ALL_OK ("0:\"test.dds.sec.prop1\":\"testtext_value1_testtext\",", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"testtext_Dir_testtext\",0:\"org.eclipse.cyclonedds.sec.auth.crl\":\"testtext_Crl_testtext\"", ""),
     NULL
   };
 
@@ -577,6 +584,7 @@ CU_Test(ddssec_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini)
     "      <PrivateKey>"TEST_IDENTITY_PRIVATE_KEY_DUMMY"</PrivateKey>"
     "      <Password>testtext_Password_testtext</Password>"
     "      <TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
+    "      <CRL>testtext_Crl_testtext</CRL>"
     "    </Authentication>"
     "    <Cryptographic>"
     "      <Library initFunction=\"init_test_cryptography_all_ok\" finalizeFunction=\"finalize_test_cryptography_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
