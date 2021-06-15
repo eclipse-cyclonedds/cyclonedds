@@ -267,50 +267,30 @@ static idl_retcode_t print_guard_endif(FILE *fh, const char *in)
 
 static idl_retcode_t print_includes(FILE *fh, const idl_source_t *source)
 {
-  idl_retcode_t ret;
-  char *sep = NULL, *path = NULL, *relpath = NULL;
   const idl_source_t *include;
 
-  if (!(path = idl_strdup(source->path->name)))
-    return IDL_RETCODE_NO_MEMORY;
-  for (char *ptr = path; *ptr; ptr++)
-    if (idl_isseparator(*ptr))
-      sep = ptr;
-  if (sep)
-    *sep = '\0';
-
   for (include = source->includes; include; include = include->next) {
-    char *ext;
-    if ((ret = idl_relative_path(path, include->path->name, &relpath)))
-      goto err_relpath;
-    ext = relpath;
-    for (char *ptr = ext; *ptr; ptr++) {
+    const char *ext = include->file->name;
+    for (const char *ptr = ext; *ptr; ptr++) {
       if (*ptr == '.')
         ext = ptr;
     }
-    if (ext > relpath && idl_strcasecmp(ext, ".idl") == 0) {
+
+    if (idl_strcasecmp(ext, ".idl") == 0) {
       const char *fmt = "#include \"%.*s.h\"\n";
-      int len = (int)(ext - relpath);
-      if (idl_fprintf(fh, fmt, len, relpath) < 0)
-        goto err_print;
+      int len = (int)(ext - include->file->name);
+      if (idl_fprintf(fh, fmt, len, include->file->name) < 0)
+        return IDL_RETCODE_NO_MEMORY;
     } else {
       const char *fmt = "#include \"%s\"\n";
-      if (idl_fprintf(fh, fmt, relpath) < 0)
-        goto err_print;
+      if (idl_fprintf(fh, fmt, include->file->name) < 0)
+        return IDL_RETCODE_NO_MEMORY;
     }
     if (fputs("\n", fh) < 0)
-      goto err_print;
-    free(relpath);
+      return IDL_RETCODE_NO_MEMORY;
   }
 
-  free(path);
   return IDL_RETCODE_OK;
-err_print:
-  ret = IDL_RETCODE_NO_MEMORY;
-  free(relpath);
-err_relpath:
-  free(path);
-  return ret;
 }
 
 extern idl_retcode_t
