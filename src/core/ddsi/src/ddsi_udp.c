@@ -395,7 +395,7 @@ static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv const * c
   }
   return DDS_RETCODE_OK;
 #else
-  (void) gv; (void) sock;
+  (void) gv; (void) intf; (void) sock;
   return DDS_RETCODE_ERROR;
 #endif
 }
