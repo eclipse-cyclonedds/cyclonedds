@@ -147,6 +147,7 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
     enum ddsi_locator_from_string_result exp;
     struct sockaddr_in localhost;
     ddsrt_hostent_t *hent = NULL;
+    memset (&localhost, 0xee, sizeof (localhost));
     if (ddsrt_gethostbyname ("localhost", AF_INET, &hent) != 0)
       exp = AFSR_UNKNOWN;
     else
@@ -326,6 +327,7 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
     enum ddsi_locator_from_string_result exp;
     struct sockaddr_in6 localhost;
     ddsrt_hostent_t *hent = NULL;
+    memset (&localhost, 0xee, sizeof (localhost));
     if (ddsrt_gethostbyname ("localhost", AF_INET6, &hent) != 0)
       exp = AFSR_UNKNOWN;
     else
