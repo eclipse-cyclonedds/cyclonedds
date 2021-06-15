@@ -29,7 +29,7 @@ struct idl_source {
   const idl_source_t *parent;
   idl_source_t *previous, *next;
   idl_source_t *includes;
-  bool system; /**< system include */
+  bool additional_directory; /**< file does not reside in working directory */
   const idl_file_t *path; /**< normalized path of filename in #line directive */
   const idl_file_t *file; /**< filename in #line directive */
 };

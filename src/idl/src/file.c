@@ -239,7 +239,7 @@ idl_retcode_t idl_normalize_path(const char *path, char **normpathp)
 
   free(abspath);
   *normpathp = normpath;
-  return (idl_retcode_t)len;
+  return IDL_RETCODE_OK;
 err_seg:
   free(normpath);
 err_norm:

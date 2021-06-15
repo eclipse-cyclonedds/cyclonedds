@@ -68,8 +68,9 @@ struct idl_pstate {
       IDL_SCAN_DIRECTIVE_NAME,
       /** scanning #line directive */
       IDL_SCAN_LINE = (IDL_SCAN_DIRECTIVE | (1<<6)),
-      IDL_SCAN_FILENAME,
+      IDL_SCAN_PATH,
       IDL_SCAN_FLAGS,
+      IDL_SCAN_FILE,
       IDL_SCAN_EXTRA_TOKENS,
       /** scanning #pragma directive */
       IDL_SCAN_PRAGMA = (IDL_SCAN_DIRECTIVE | (1<<5)),

@@ -17,9 +17,9 @@
 #include <string.h>
 
 #include "idl/processor.h"
-#include "idl/file.h"
 #include "idl/string.h"
 
+#include "file.h"
 #include "symbol.h"
 #include "tree.h"
 #include "scope.h"
@@ -29,15 +29,20 @@
 struct directive {
   enum {
     LINE, /**< #line directive */
-    LINEMARKER, /**< GCC linemarker (extended line directive) */
+    LINEMARKER, /**< linemarker (extended line directive) */
     KEYLIST /**< #pragma keylist directive */
   } type;
 };
 
+#define START_OF_FILE (1u<<0)
+#define RETURN_TO_FILE (1u<<1)
+#define ADDITIONAL_DIRECTORY (1u<<2)
+
 struct line {
   struct directive directive;
   unsigned long long line;
-  char *file;
+  char *file; /**< original filename in include directive */
+  char *path; /**< normalized path of file */
   unsigned flags;
 };
 
@@ -65,7 +70,7 @@ push_file(idl_pstate_t *pstate, const char *inc)
 }
 
 static idl_retcode_t
-push_source(idl_pstate_t *pstate, const char *inc, const char *abs, bool sys)
+push_source(idl_pstate_t *pstate, const char *inc, const char *abs, uint32_t flags)
 {
   idl_file_t *path = pstate->paths;
   idl_source_t *src, *last;
@@ -82,9 +87,9 @@ push_source(idl_pstate_t *pstate, const char *inc, const char *abs, bool sys)
     return IDL_RETCODE_NO_MEMORY;
   if (!(src = calloc(1, sizeof(*src))))
     return IDL_RETCODE_NO_MEMORY;
-  src->file = pstate->files;
+  src->file = pstate->scanner.position.file;
   src->path = path;
-  src->system = sys;
+  src->additional_directory = (flags & ADDITIONAL_DIRECTORY) != 0;
   if (!pstate->sources) {
     pstate->sources = src;
   } else if (pstate->scanner.position.source->includes) {
@@ -101,150 +106,168 @@ push_source(idl_pstate_t *pstate, const char *inc, const char *abs, bool sys)
   return IDL_RETCODE_OK;
 }
 
-#define START_OF_FILE (1u<<0)
-#define RETURN_TO_FILE (1u<<1)
-#define SYSTEM_FILE (1u<<2)
-#define EXTRA_TOKENS (1u<<3)
-
 static void delete_line(void *ptr)
 {
   struct line *dir = (struct line *)ptr;
   assert(dir);
+  if (dir->path)
+    free(dir->path);
   if (dir->file)
     free(dir->file);
   free(dir);
 }
 
-static idl_retcode_t
-push_line(idl_pstate_t *pstate, struct line *dir)
+static idl_retcode_t push_line(idl_pstate_t *pstate, struct line *dir)
 {
-  idl_retcode_t ret = IDL_RETCODE_OK;
+  idl_retcode_t ret;
 
-  assert(dir);
   if (dir->flags & (START_OF_FILE|RETURN_TO_FILE)) {
-    bool sys = (dir->flags & SYSTEM_FILE) != 0;
-    char *norm = NULL, *abs, *inc;
-    abs = inc = dir->file;
-    /* convert to normalized file name */
-    if (!idl_isabsolute(abs)) {
-      /* include paths are relative to the current file. so, strip file name,
-         postfix with "/relative/path/to/file" and normalize */
-      const char *cwd = pstate->scanner.position.source->path->name;
-      const char *sep = cwd;
-      assert(idl_isabsolute(cwd));
-      for (size_t i=0; cwd[i]; i++) {
-        if (idl_isseparator(cwd[i]))
-          sep = cwd + i;
-      }
-      if (idl_asprintf(&abs, "%.*s/%s", (sep-cwd), cwd, inc) < 0)
-        return IDL_RETCODE_NO_MEMORY;
-    }
-    idl_normalize_path(abs, &norm);
-    if (abs != dir->file)
-      free(abs);
-    if (!norm)
-      return IDL_RETCODE_NO_MEMORY;
+    char *norm = NULL;
+    const idl_source_t *src = pstate->scanner.position.source;
 
-    if (dir->flags & START_OF_FILE) {
-      ret = push_source(pstate, inc, norm, sys);
-    } else {
-      assert(pstate->scanner.position.source);
-      const idl_source_t *src = pstate->scanner.position.source;
-      while (src) {
-        if (strcmp(src->path->name, norm) == 0)
-          break;
-        src = src->parent;
+    if (!idl_isabsolute(dir->path)) {
+      const char *cwd = src->path->name;
+
+      if (cwd && strcmp(cwd, "<builtin>") != 0) {
+        char *abs = NULL;
+        int len = 0, sep = 0;
+        assert(idl_isabsolute(cwd));
+        for (int pos=0; cwd[pos]; pos++) {
+          if (!idl_isseparator(cwd[pos]))
+            sep = 0;
+          else if (!sep)
+            len = sep = pos;
+        }
+        assert(!len || idl_isseparator(cwd[len]));
+        if (idl_asprintf(&abs, "%.*s/%s", len, cwd, dir->path) < 0)
+          return IDL_RETCODE_NO_MEMORY;
+        free(dir->path);
+        dir->path = abs;
       }
+    }
+
+    if ((ret = idl_normalize_path(dir->path, &norm)) < 0)
+      return ret;
+    free(dir->path);
+    dir->path = norm;
+
+    if (dir->flags & RETURN_TO_FILE) {
+      for (; src; src = src->parent)
+        if (src->path->name && strcmp(src->path->name, dir->path) == 0)
+          break;
       if (src) {
         pstate->scanner.position.source = src;
-        pstate->scanner.position.file = src->file;
+        pstate->scanner.position.file = src->path;
       } else {
         idl_error(pstate, idl_location(dir),
-          "Invalid #line directive, file '%s' not on include stack", inc);
-        ret = IDL_RETCODE_SEMANTIC_ERROR;
+          "Invalid line marker, file '%s' not on include stack", dir->path);
+        return IDL_RETCODE_SEMANTIC_ERROR;
       }
-    }
+    } else {
+      assert(dir->file);
 
-    free(norm);
+      /* reuse normalized filename if include is absolute */
+      if (idl_isabsolute(dir->file)) {
+        free(dir->file);
+        if (!(dir->file = idl_strdup(dir->path)))
+          return IDL_RETCODE_NO_MEMORY;
+      /* use original filename by default */
+      } else {
+        (void)idl_untaint_path(dir->file);
+      }
+
+      if ((ret = push_source(pstate, dir->file, dir->path, dir->flags)))
+        return ret;
+    }
   } else {
-    ret = push_file(pstate, dir->file);
+    if ((ret = push_file(pstate, dir->path)))
+      return ret;
   }
 
-  if (ret)
-    return ret;
   pstate->scanner.position.line = (uint32_t)dir->line;
   pstate->scanner.position.column = 1;
   delete_line(dir);
   pstate->directive = NULL;
+
   return IDL_RETCODE_OK;
 }
 
-/* for proper handling of includes by parsing line controls, GCCs linemarkers
-   are required. they are enabled in mcpp by defining the compiler to be GNUC
-   instead of INDEPENDANT.
-   See: https://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html */
 static int32_t
 parse_line(idl_pstate_t *pstate, idl_token_t *tok)
 {
   struct line *dir = (struct line *)pstate->directive;
   unsigned long long ullng;
+  const char *type =
+    dir->directive.type == LINE ? "#line directive" : "line marker";
 
   switch (pstate->scanner.state) {
     case IDL_SCAN_LINE:
       if (tok->code != IDL_TOKEN_PP_NUMBER) {
-        idl_error(pstate, &tok->location,
-          "No line number in #line directive");
+        idl_error(pstate, &tok->location, "No line number in %s", type);
         return IDL_RETCODE_SYNTAX_ERROR;
       }
       ullng = idl_strtoull(tok->value.str, NULL, 10);
       if (ullng == 0 || ullng > INT32_MAX) {
-        idl_error(pstate, &tok->location,
-          "Invalid line number in #line directive");
+        idl_error(pstate, &tok->location, "Invalid line number in %s", type);
         return IDL_RETCODE_SYNTAX_ERROR;
-      } else {
-        dir->line = ullng;
       }
-      pstate->scanner.state = IDL_SCAN_FILENAME;
+      dir->line = ullng;
+      pstate->scanner.state = IDL_SCAN_PATH;
       break;
-    case IDL_SCAN_FILENAME:
+    case IDL_SCAN_PATH:
       if (tok->code == '\n' || tok->code == '\0') {
         return push_line(pstate, dir);
       } else if (tok->code != IDL_TOKEN_STRING_LITERAL) {
-        idl_error(pstate, &tok->location,
-          "Invalid filename in #line directive");
+        idl_error(pstate, &tok->location, "Invalid filename in %s", type);
         return IDL_RETCODE_SYNTAX_ERROR;
-      } else {
-        dir->file = tok->value.str;
       }
-      tok->value.str = NULL; /* do not free */
+      dir->path = tok->value.str;
+      tok->value.str = NULL; /* dont free */
       pstate->scanner.state = IDL_SCAN_FLAGS;
       break;
     case IDL_SCAN_FLAGS:
       if (tok->code == '\n' || tok->code == '\0') {
         return push_line(pstate, dir);
-      } else if (dir->directive.type == LINE) {
-        goto extra_tokens;
       } else if (tok->code == IDL_TOKEN_PP_NUMBER) {
-        if (strcmp(tok->value.str, "1") == 0) {
-          if (dir->flags & (START_OF_FILE|RETURN_TO_FILE))
-            goto extra_tokens;
-          dir->flags |= START_OF_FILE;
-        } else if (strcmp(tok->value.str, "2") == 0) {
-          if (dir->flags & (START_OF_FILE|RETURN_TO_FILE))
-            goto extra_tokens;
-          dir->flags |= RETURN_TO_FILE;
-        } else if (strcmp(tok->value.str, "3") == 0) {
-          if (dir->flags & (SYSTEM_FILE))
-            goto extra_tokens;
-          dir->flags |= SYSTEM_FILE;
-        } else {
+        /* for proper handling of includes by parsing line controls, a
+           mechanism derived from GCCs linemarkers is required. they are
+           enabled in mcpp by defining the compiler to IDLC. See
+           https://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html for
+           details */
+        uint32_t flags = 0;
+        if (strcmp(tok->value.str, "1") == 0)
+          flags = START_OF_FILE;
+        else if (strcmp(tok->value.str, "2") == 0)
+          flags = RETURN_TO_FILE;
+        else if (strcmp(tok->value.str, "3") == 0)
+          flags = START_OF_FILE|ADDITIONAL_DIRECTORY;
+
+        /* either extra token or flag based on type of directive */
+        if (dir->directive.type == LINE || dir->flags)
           goto extra_tokens;
-        }
+        dir->flags |= flags;
+        /* expect original filename on non-local file */
+        if (dir->flags & START_OF_FILE)
+          pstate->scanner.state = IDL_SCAN_FILE;
       } else {
 extra_tokens:
-        idl_warning(pstate, &tok->location,
-          "Extra tokens at end of #line directive");
+        idl_warning(pstate, &tok->location, "Extra tokens at end of %s", type);
         pstate->scanner.state = IDL_SCAN_EXTRA_TOKENS;
+      }
+      break;
+    case IDL_SCAN_FILE: /* scan original filename */
+      if (tok->code == IDL_TOKEN_STRING_LITERAL) {
+        dir->file = tok->value.str;
+        tok->value.str = NULL; /* dont free */
+        pstate->scanner.state = IDL_SCAN_EXTRA_TOKENS;
+      } else {
+        const char *reason;
+        if (tok->code == '\n' || tok->code == '\0')
+          reason = "Missing";
+        else
+          reason = "Invalid";
+        idl_error(pstate, &tok->location, "%s filename in %s", reason, type);
+        return IDL_RETCODE_SEMANTIC_ERROR;
       }
       break;
     default:

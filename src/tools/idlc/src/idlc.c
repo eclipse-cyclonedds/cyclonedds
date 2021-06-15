@@ -288,7 +288,7 @@ static idl_retcode_t idlc_parse(void)
     source->parent = NULL;
     source->previous = source->next = NULL;
     source->includes = NULL;
-    source->system = false;
+    source->additional_directory = false;
     source->path = pstate->paths;
     source->file = pstate->files;
     pstate->sources = source;
