@@ -1394,7 +1394,8 @@ static bool prtf_octetseq (char * __restrict *buf, size_t * __restrict bufsize, 
     uint32_t m = isprint_runlen (n - i, xs);
     if (m >= 4 || (i == 0 && m == n))
     {
-      if (!prtf (buf, bufsize, "%s\"%*.*s\"", i == 0 ? "" : ",", m, m, xs))
+      // m <= lim, so casting to int is safe
+      if (!prtf (buf, bufsize, "%s\"%*.*s\"", i == 0 ? "" : ",", (int) m, (int) m, xs))
         return false;
       xs += m;
       i += m;
