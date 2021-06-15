@@ -180,27 +180,23 @@ static int set_recvips (struct ddsi_domaingv *gv)
   {
     if (ddsrt_strcasecmp (gv->config.networkRecvAddressStrings[0], "all") == 0)
     {
-#if DDSRT_HAVE_IPV6
-      if (gv->ipv6_link_local)
+      if (gv->using_link_local_intf)
       {
-        GVWARNING ("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: using 'preferred' instead of 'all' because of IPv6 link-local address\n");
+        GVWARNING ("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: using 'preferred' instead of 'all' because of link-local address\n");
         gv->recvips_mode = RECVIPS_MODE_PREFERRED;
       }
       else
-#endif
       {
         gv->recvips_mode = RECVIPS_MODE_ALL;
       }
     }
     else if (ddsrt_strcasecmp (gv->config.networkRecvAddressStrings[0], "any") == 0)
     {
-#if DDSRT_HAVE_IPV6
-      if (gv->ipv6_link_local)
+      if (gv->using_link_local_intf)
       {
-        GVERROR ("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: 'any' is unsupported in combination with an IPv6 link-local address\n");
+        GVERROR ("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: 'any' is unsupported in combination with a link-local address\n");
         return -1;
       }
-#endif
       gv->recvips_mode = RECVIPS_MODE_ANY;
     }
     else if (ddsrt_strcasecmp (gv->config.networkRecvAddressStrings[0], "preferred") == 0)
@@ -211,8 +207,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
     {
       gv->recvips_mode = RECVIPS_MODE_NONE;
     }
-#if DDSRT_HAVE_IPV6
-    else if (gv->ipv6_link_local)
+    else if (gv->using_link_local_intf)
     {
       /* If the configuration explicitly includes the selected
        interface, treat it as "preferred", else as "none"; warn if
@@ -238,7 +233,6 @@ static int set_recvips (struct ddsi_domaingv *gv)
         GVWARNING ("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: using 'preferred' because of IPv6 local address\n");
       }
     }
-#endif
     else
     {
       struct config_in_addr_node **recvnode = &gv->recvips;

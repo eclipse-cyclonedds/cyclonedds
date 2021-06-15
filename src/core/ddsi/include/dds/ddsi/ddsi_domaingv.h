@@ -183,11 +183,9 @@ struct ddsi_domaingv {
   /* number of selected interfaces. */
   int n_interfaces;
   struct nn_interface interfaces[MAX_XMIT_CONNS];
-#if DDSRT_HAVE_IPV6
-  /* whether we're using an IPv6 link-local address (and therefore
+  /* whether we're using a link-local address (and therefore
      only listening to multicasts on that interface) */
-  int ipv6_link_local;
-#endif
+  int using_link_local_intf;
 
   /* Addressing: actual own (preferred) IP address, IP address
      advertised in discovery messages (so that an external IP address on
