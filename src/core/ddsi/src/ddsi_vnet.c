@@ -12,7 +12,6 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <errno.h>
 
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_vnet.h"
