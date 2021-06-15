@@ -1918,6 +1918,7 @@ static void init_cpu_macro (
         return;
     }
     macro = cpu_macro[ index];
+    assert(macro);
     while (*macro)
         look_and_install( *macro++, DEF_NOARGS_PREDEF, null, "1");
 #if SYS_FAMILY == SYS_WIN
