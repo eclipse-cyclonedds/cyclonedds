@@ -36,10 +36,12 @@ static bool check_ipv4_address (const ddsi_locator_t *loc, const uint8_t x[4])
   return prefix_zero (loc, 12) && memcmp (loc->address + 12, x, 4) == 0;
 }
 
+#if DDSRT_HAVE_IPV6
 static bool check_ipv64_address (const ddsi_locator_t *loc, const uint8_t x[4])
 {
   return prefix_zero (loc, 10) && loc->address[10] == 0xff && loc->address[11] == 0xff && memcmp (loc->address + 12, x, 4) == 0;
 }
+#endif
 
 static struct ddsi_tran_factory *init (struct ddsi_domaingv *gv, enum ddsi_transport_selector tr)
 {
@@ -293,6 +295,7 @@ CU_Theory ((enum ddsi_transport_selector tr), ddsi_locator_from_string, ipv6_inv
   CU_ASSERT_FATAL (res == AFSR_INVALID || res == AFSR_UNKNOWN);
   fini (&gv);
 #else
+  (void) tr;
   CU_PASS ("No IPv6 support");
 #endif
 }
@@ -423,6 +426,7 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
 
   fini (&gv);
 #else
+  (void) tr; (void) loc_kind;
   CU_PASS ("No IPv6 support");
 #endif
 }
