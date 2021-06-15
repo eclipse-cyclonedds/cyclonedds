@@ -405,13 +405,13 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
     ddsrt_free (selected);
   }
 
-  gv->ipv6_link_local = false;
+  gv->using_link_local_intf = false;
   for (int i = 0; i < gv->n_interfaces; i++)
   {
     if (!gv->interfaces[i].link_local)
       continue;
-    else if (!gv->ipv6_link_local)
-      gv->ipv6_link_local = true;
+    else if (!gv->using_link_local_intf)
+      gv->using_link_local_intf = true;
     else
     {
       GVERROR ("multiple interfaces selected with at least one having a link-local address\n");
