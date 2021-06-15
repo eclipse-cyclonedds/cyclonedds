@@ -1245,10 +1245,11 @@ static int convert_network_partition_addresses (struct ddsi_domaingv *gv, uint32
 
     struct networkpartition_address **nextp_uc = &np->uc_addresses;
     struct networkpartition_address **nextp_asm = &np->asm_addresses;
+    assert (*nextp_uc == NULL && *nextp_asm == NULL);
 #ifdef DDS_HAS_SSM
     struct networkpartition_address **nextp_ssm = &np->ssm_addresses;
+    assert (*nextp_ssm == NULL);
 #endif
-    assert (*nextp_uc == NULL && *nextp_asm == NULL && *nextp_ssm == NULL);
     char *copy = ddsrt_strdup (np->address_string), *cursor = copy, *tok;
     while (rc >= 0 && (tok = ddsrt_strsep (&cursor, ",;")) != NULL)
     {
