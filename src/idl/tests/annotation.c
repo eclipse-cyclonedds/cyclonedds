@@ -554,9 +554,10 @@ CU_Test(idl_annotation, position)
     CU_ASSERT_FATAL(idl_is_bitmask(pstate->root));
     idl_bitmask_t *b = (idl_bitmask_t *)pstate->root;
     idl_bit_value_t *bv = b->bit_values;
-    for (int n = 0; n <= 3; bv = idl_next(bv), n++) {
+    for (int j = 0; j <= 3; bv = idl_next(bv), j++) {
       CU_ASSERT_PTR_NOT_NULL_FATAL(bv);
-      CU_ASSERT_EQUAL(bv->position, tests[i].p[n]);
+      assert(bv);
+      CU_ASSERT_EQUAL(bv->position, tests[i].p[j]);
     }
     idl_delete_pstate(pstate);
   }
