@@ -85,7 +85,7 @@ idl_type_t idl_type(const void *node)
   else if (idl_mask(node) & IDL_ENUMERATOR)
     return IDL_ENUM;
 
-  mask = idl_mask(node) & ((IDL_BITMASK << 1) - 1);
+  mask = idl_mask(node) & ((IDL_TYPEDEF << 1) - 1);
   switch (mask) {
     case IDL_TYPEDEF:
     /* constructed types */
@@ -774,12 +774,6 @@ uint32_t idl_bound(const void *node)
     return ((const idl_string_t *)node)->maximum;
   if ((mask & IDL_SEQUENCE) == IDL_SEQUENCE)
     return ((const idl_sequence_t *)node)->maximum;
-  return 0u;
-}
-
-uint16_t idl_bit_bound(const void *node)
-{
-  idl_mask_t mask = idl_mask(node);
   if ((mask & IDL_BITMASK) == IDL_BITMASK)
     return ((const idl_bitmask_t *)node)->bit_bound;
   if ((mask & IDL_ENUM) == IDL_ENUM)
@@ -1988,6 +1982,7 @@ idl_create_enum(
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     goto err_alloc;
   node->name = name;
+  node->bit_bound = 32; /* default value, can be overwritten with @bit_bound */
 
   assert(enumerators);
   node->enumerators = enumerators;
@@ -2160,6 +2155,7 @@ idl_create_bitmask(
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     goto err_alloc;
   node->name = name;
+  node->bit_bound = 32; /* default value, can be overwritten with @bit_bound */
 
   assert(bit_values);
   node->bit_values = bit_values;

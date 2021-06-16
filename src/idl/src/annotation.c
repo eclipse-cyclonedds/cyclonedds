@@ -421,26 +421,67 @@ annotate_bit_bound(
   value = literal->value.uint16;
 
   if (idl_is_bitmask(node)) {
-    if(value > 64)
-    {
+    if (value > 64) {
       idl_error(pstate, idl_location(annotation_appl),
         "@bit_bound for bitmask must be <= 64");
       return IDL_RETCODE_OUT_OF_RANGE;
     }
-    ((idl_bitmask_t *)node)->bit_bound = value;
+    idl_bitmask_t *bm = (idl_bitmask_t *)node;
+    bm->bit_bound = value;
+    for (idl_bit_value_t *e1 = bm->bit_values; e1; e1 = idl_next(e1)) {
+      if (e1->position >= bm->bit_bound) {
+        idl_error(pstate, idl_location(e1), "Position overflow for bit value '%s' (%u), bit_bound is %u", e1->name->identifier, e1->position, bm->bit_bound);
+        return IDL_RETCODE_OUT_OF_RANGE;
+      }
+    }
   } else if (idl_is_enum(node)) {
-    if(value > 32)
-    {
+    if (value > 32) {
       idl_error(pstate, idl_location(annotation_appl),
         "@bit_bound for enum must be <= 32");
       return IDL_RETCODE_OUT_OF_RANGE;
     }
-    ((idl_enum_t *)node)->bit_bound = value;
+    idl_enum_t *_enum = (idl_enum_t *)node;
+    _enum->bit_bound = value;
+    uint32_t cnt = 0;
+    for (idl_enumerator_t *e1 = _enum->enumerators; e1; e1 = idl_next(e1)) {
+      if (++cnt >= (1ull << _enum->bit_bound)) {
+        idl_error(pstate, idl_location(e1), "Enumerator count (%u) overflow, bit_bound is %u", cnt, _enum->bit_bound);
+        return IDL_RETCODE_OUT_OF_RANGE;
+      }
+    }
   } else {
     idl_error(pstate, idl_location(annotation_appl),
       "@bit_bound can only be applied to enum and bitmask types");
     return IDL_RETCODE_SEMANTIC_ERROR;
   }
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+annotate_position(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+#if !defined(NDEBUG)
+  static const idl_mask_t mask = IDL_LITERAL|IDL_USHORT;
+#endif
+  idl_literal_t *literal;
+
+  assert(annotation_appl);
+  assert(annotation_appl->parameters);
+  literal = (idl_literal_t *)annotation_appl->parameters->const_expr;
+  assert((idl_mask(literal) & mask) == mask);
+
+  if (idl_is_bit_value(node)) {
+    idl_bit_value_t *bit_value = (idl_bit_value_t *)node;
+    bit_value->position = literal->value.uint16;
+  } else {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@position cannot be applied to %s elements", idl_construct(node));
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
   return IDL_RETCODE_OK;
 }
 
@@ -555,8 +596,12 @@ static const idl_builtin_annotation_t annotations[] = {
   { .syntax = "@annotation bit_bound { unsigned short value default 32; };",
     .summary =
       "<p>This annotation allows setting a size (expressed in bits) to "
-      "an element or a group of elements</p>",
+      "an element or a group of elements.</p>",
     .callback = annotate_bit_bound },
+  { .syntax = "@annotation position { unsigned short value; };",
+    .summary =
+      "<p>This annotation allows setting a position to an element or a group of elements.</p>",
+    .callback = annotate_position },
   { .syntax = NULL, .summary = NULL, .callback = 0 }
 };
 
@@ -699,13 +744,13 @@ idl_annotate(
   if ((ret = dedup(pstate, node, annotation_appls)))
     return ret;
 
-  ((idl_node_t *)node)->annotations = annotation_appls;
   for (idl_annotation_appl_t *a = annotation_appls; a; a = idl_next(a)) {
     idl_annotation_callback_t callback = a->annotation->callback;
     if (callback && (ret = callback(pstate, a, node)))
       return ret;
     a->node.parent = node;
   }
+  ((idl_node_t *)node)->annotations = annotation_appls;
 
   return IDL_RETCODE_OK;
 }

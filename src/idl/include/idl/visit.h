@@ -35,6 +35,8 @@ enum idl_accept {
   IDL_ACCEPT_STRUCT,
   IDL_ACCEPT_UNION,
   IDL_ACCEPT_ENUM,
+  IDL_ACCEPT_BITMASK,
+  IDL_ACCEPT_BIT_VALUE,
   IDL_ACCEPT_SEQUENCE,
   IDL_ACCEPT_STRING,
   IDL_ACCEPT /**< generic callback, used if no specific callback exists */
