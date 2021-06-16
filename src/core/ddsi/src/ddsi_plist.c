@@ -3487,7 +3487,7 @@ void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct ddsi_confi
   }
 
   /* assume that no security properties exist in qos: fill QoS properties with values from configuration */
-  xqos->property.value.props = ddsrt_realloc (xqos->property.value.props, xqos->property.value.n + 18 /* max */ * sizeof (dds_property_t));
+  xqos->property.value.props = ddsrt_realloc (xqos->property.value.props, (xqos->property.value.n + 18) /* max */ * sizeof (dds_property_t));
 
   fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_LIBRARY_PATH, cfg->authentication_plugin.library_path);
   fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_LIBRARY_INIT, cfg->authentication_plugin.library_init);
