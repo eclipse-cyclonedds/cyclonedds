@@ -57,20 +57,60 @@ static void topic_find_local_fini (void)
   dds_delete (g_domain1);
 }
 
+enum topic_find_local_domain_impl_delete_what {
+  TFLDIDW_TOPIC,
+  TFLDIDW_PARTICIPANT
+};
+
+static void topic_find_local_domain_impl (enum topic_find_local_domain_impl_delete_what what, int dir)
+{
+  assert (dir == -1 || dir == 1);
+  dds_return_t ret;
+  dds_entity_t topic[2];
+  topic[0] = dds_find_topic_scoped (DDS_FIND_SCOPE_LOCAL_DOMAIN, g_participant1, g_topic_name_local, 0);
+  CU_ASSERT_FATAL (topic[0] > 0);
+  CU_ASSERT_NOT_EQUAL_FATAL (topic[0], g_topic1);
+  CU_ASSERT_EQUAL_FATAL (dds_get_participant (topic[0]), g_participant1);
+  topic[1] = dds_find_topic_scoped (DDS_FIND_SCOPE_LOCAL_DOMAIN, g_participant2, g_topic_name_local, 0);
+  CU_ASSERT_FATAL (topic[1] > 0);
+  CU_ASSERT_NOT_EQUAL_FATAL (topic[1], topic[0]);
+  CU_ASSERT_NOT_EQUAL_FATAL (topic[1], g_topic1);
+  CU_ASSERT_EQUAL_FATAL (dds_get_participant (topic[1]), g_participant2);
+  // The topics are in different participants and so may not have any dependencies. There
+  // is no way to directly observe this in the API but deleting the entities in various
+  // orders, and deleting the topics explicitly vs letting it be done implicitly by
+  // deleting the participants allows us to catch at least some of these.
+  dds_entity_t to_delete[] = { topic[dir > 0 ? 0 : 1], topic[dir > 0 ? 1 : 0] };
+  if (what == TFLDIDW_PARTICIPANT)
+  {
+    // we already checked dds_get_participant returns the expected result
+    for (size_t i = 0; i < sizeof (to_delete) / sizeof (to_delete[0]); i++)
+      to_delete[i] = dds_get_participant (to_delete[i]);
+  }
+  ret = dds_delete (to_delete[0]);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_delete (to_delete[1]);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+}
+
 CU_Test(ddsc_topic_find_local, domain, .init = topic_find_local_init, .fini = topic_find_local_fini)
 {
-  dds_return_t ret;
-  dds_entity_t topic1 = dds_find_topic_scoped (DDS_FIND_SCOPE_LOCAL_DOMAIN, g_participant1, g_topic_name_local, 0);
-  CU_ASSERT_FATAL (topic1 > 0);
-  CU_ASSERT_NOT_EQUAL_FATAL (topic1, g_topic1);
-  dds_entity_t topic2 = dds_find_topic_scoped (DDS_FIND_SCOPE_LOCAL_DOMAIN, g_participant2, g_topic_name_local, 0);
-  CU_ASSERT_FATAL (topic2 > 0);
-  CU_ASSERT_NOT_EQUAL_FATAL (topic2, topic1);
-  CU_ASSERT_NOT_EQUAL_FATAL (topic2, g_topic1);
-  ret = dds_delete (topic1);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  ret = dds_delete (topic2);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  topic_find_local_domain_impl (TFLDIDW_TOPIC, 1);
+}
+
+CU_Test(ddsc_topic_find_local, domain_delete_reversed, .init = topic_find_local_init, .fini = topic_find_local_fini)
+{
+  topic_find_local_domain_impl (TFLDIDW_TOPIC, -1);
+}
+
+CU_Test(ddsc_topic_find_local, domain_delete_pp, .init = topic_find_local_init, .fini = topic_find_local_fini)
+{
+  topic_find_local_domain_impl (TFLDIDW_PARTICIPANT, 1);
+}
+
+CU_Test(ddsc_topic_find_local, domain_delete_pp_reversed, .init = topic_find_local_init, .fini = topic_find_local_fini)
+{
+  topic_find_local_domain_impl (TFLDIDW_PARTICIPANT, -1);
 }
 
 CU_Test(ddsc_topic_find_local, participant, .init = topic_find_local_init, .fini = topic_find_local_fini)
