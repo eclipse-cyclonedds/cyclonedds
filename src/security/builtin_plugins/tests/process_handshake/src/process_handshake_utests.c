@@ -25,6 +25,7 @@ static const char * PROPERTY_IDENTITY_CA            = "dds.sec.auth.identity_ca"
 static const char * PROPERTY_PRIVATE_KEY            = "dds.sec.auth.private_key";
 static const char * PROPERTY_IDENTITY_CERT          = "dds.sec.auth.identity_certificate";
 static const char * PROPERTY_TRUSTED_CA_DIR         = "dds.sec.auth.trusted_ca_dir";
+static const char * PROPERTY_CRL                    = "org.eclipse.cyclonedds.sec.auth.crl";
 
 static const char * PROPERTY_CERT_SUBJECT_NAME      = "dds.cert.sn";
 static const char * PROPERTY_CERT_ALGORITHM         = "dds.cert.algo";
@@ -482,7 +483,7 @@ deinitialize_identity_token(
 }
 
 static int
-validate_local_identity(const char *trusted_ca_dir)
+validate_local_identity(const char *trusted_ca_dir, const char *crl_data)
 {
     int res = 0;
     DDS_Security_ValidationResult_t result;
@@ -500,6 +501,7 @@ validate_local_identity(const char *trusted_ca_dir)
     DDS_Security_Property_t *valbuf;
 
     trusted_ca_dir ? participant_qos_size++ : participant_qos_size;
+    crl_data ? participant_qos_size++ : participant_qos_size;
 
     memset(&local_participant_guid, 0, sizeof(local_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -530,6 +532,12 @@ validate_local_identity(const char *trusted_ca_dir)
         valbuf = &participant_qos.property.value._buffer[offset++];
         valbuf->name = ddsrt_strdup(PROPERTY_TRUSTED_CA_DIR);
         valbuf->value = ddsrt_strdup(trusted_ca_dir_path);
+    }
+
+    if (crl_data != NULL) {
+      valbuf = &participant_qos.property.value._buffer[offset++];
+      valbuf->name = ddsrt_strdup(PROPERTY_CRL);
+      valbuf->value = ddsrt_strdup(crl_data);
     }
 
     /* Now call the function. */
@@ -1003,7 +1011,7 @@ CU_Init(ddssec_builtin_process_handshake)
                            NULL   /* Cryptograpy    */,
                            &(const struct ddsi_domaingv){ .handshake_include_optional = true });
     if (plugins) {
-        result = validate_local_identity( NULL );
+        result = validate_local_identity( NULL, NULL );
         if (result >= 0) {
             result = validate_remote_identities( remote_identity_certificate );
         }
@@ -2252,7 +2260,7 @@ CU_Test(ddssec_builtin_process_handshake,extended_certificate_check)
     release_local_identity();
     release_remote_identities();
 
-    CU_ASSERT_FATAL( !validate_local_identity("trusted_ca_dir") );
+    CU_ASSERT_FATAL( !validate_local_identity("trusted_ca_dir", NULL) );
     CU_ASSERT_FATAL( !validate_remote_identities( remote_identity_trusted ) );
 
     CU_ASSERT_FATAL (auth != NULL);
@@ -2333,7 +2341,7 @@ CU_Test(ddssec_builtin_process_handshake,extended_certificate_check)
     release_local_identity();
     release_remote_identities();
 
-    CU_ASSERT_FATAL( !validate_local_identity("trusted_ca_dir") );
+    CU_ASSERT_FATAL( !validate_local_identity("trusted_ca_dir", NULL) );
     CU_ASSERT_FATAL( !validate_remote_identities( remote_identity_trusted_expired ) );
 
     CU_ASSERT_FATAL (auth != NULL);
@@ -2407,7 +2415,7 @@ CU_Test(ddssec_builtin_process_handshake,extended_certificate_check)
     release_local_identity();
     release_remote_identities();
 
-    CU_ASSERT_FATAL( !validate_local_identity("trusted_ca_dir") );
+    CU_ASSERT_FATAL( !validate_local_identity("trusted_ca_dir", NULL) );
     CU_ASSERT_FATAL( !validate_remote_identities( remote_identity_untrusted ) );
 
     CU_ASSERT_FATAL (auth != NULL);
