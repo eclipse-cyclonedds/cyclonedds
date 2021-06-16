@@ -94,10 +94,12 @@ static struct ktopic_type_guid * topic_guid_map_refc_impl (const struct dds_ktop
   return m;
 }
 
+#if 0 // not currently needed, symmetry arguments suggest it should exist but the compiler disagrees
 static void topic_guid_map_ref (const struct dds_ktopic * ktp, const struct ddsi_sertype *sertype)
 {
   (void) topic_guid_map_refc_impl (ktp, sertype, false);
 }
+#endif
 
 static void topic_guid_map_unref (struct ddsi_domaingv * const gv, const struct dds_ktopic * ktp, const struct ddsi_sertype *sertype)
 {
@@ -651,56 +653,120 @@ dds_entity_t dds_find_topic (dds_entity_t participant, const char *name)
   return tp != 0 ? tp : DDS_RETCODE_PRECONDITION_NOT_MET;
 }
 
+static dds_topic *pin_if_matching_topic (dds_entity * const e_pp_child, const char *name)
+{
+  // e_pp_child can't disappear while we hold pp->m_entity.m_mutex and so we
+  // can skip non-topics without first trying to pin it. That makes doing it
+  // this way cheaper than dds_topic_pin.
+  if (dds_entity_kind (e_pp_child) != DDS_KIND_TOPIC)
+    return NULL;
+
+  // pin to make sure that child is not closed (i.e., still accessible)
+  struct dds_entity *x;
+  if (dds_entity_pin (e_pp_child->m_hdllink.hdl, &x) != DDS_RETCODE_OK)
+    return NULL;
+
+  // unpin if non-matching topic
+  struct dds_topic * const tp = (struct dds_topic *) e_pp_child;
+  if (strcmp (tp->m_ktopic->name, name) == 0)
+    return tp;
+  else
+  {
+    dds_entity_unpin (x);
+    return NULL;
+  }
+}
+
 static dds_entity_t find_local_topic_pp (dds_participant *pp, const char *name, dds_participant *pp_topic)
 {
-  ddsrt_mutex_lock (&pp->m_entity.m_mutex);
+  // On entry:
+  // - pp and pp_topic are pinned, no locks held
+  // - pp and pp_topic may but need not be the same
+  // - pp_topic may contain a matching ktopic (regardless of whether pp & pp_topic are the same)
+  // - concurrent create, delete, set_qos of topics and ktopics may be happening in parallel
+  //
+  // dds_create_topic does "the right thing" once you have a sertype and a qos, so if we can find
+  // matching topic in pp, we clone its qos (to protect against concurrent calls to set_qos) and
+  // increment the refcount of its sertype.  Following that, we can call dds_create_topic_sertype
+  // at our leisure.
+  struct dds_topic *tp = NULL;
   ddsrt_avl_iter_t it;
+
+  ddsrt_mutex_lock (&pp->m_entity.m_mutex);
   for (dds_entity *e_pp_child = ddsrt_avl_iter_first (&dds_entity_children_td, &pp->m_entity.m_children, &it); e_pp_child != NULL; e_pp_child = ddsrt_avl_iter_next (&it))
   {
-    if (dds_entity_kind (e_pp_child) != DDS_KIND_TOPIC)
-      continue;
+    // pinning the topic serves a dual purpose: checking that its handle hasn't been closed
+    // and keeping it alive after we unlock the participant.
+    tp = pin_if_matching_topic (e_pp_child, name);
+    if (tp != NULL)
+      break;
+  }
 
-    /* pin to make sure that child is not closed */
-    struct dds_entity *x;
-    if (dds_entity_pin (e_pp_child->m_hdllink.hdl, &x) != DDS_RETCODE_OK)
-      continue;
-
-    struct dds_topic * const tp = (struct dds_topic *) e_pp_child;
-    if (strcmp (tp->m_ktopic->name, name) != 0)
-    {
-      dds_entity_unpin (x);
-      continue;
-    }
-
-    /* found a topic with the provided topic name */
-    struct ddsi_sertype * const sertype = ddsi_sertype_ref (tp->m_stype);
-    struct dds_ktopic * const ktp = tp->m_ktopic;
-    ktp->refc++;
-    dds_entity_unpin (x);
-
-#ifdef DDS_HAS_TOPIC_DISCOVERY
-    /* reference ktopic-sertype meta-data entry, this should be an existing
-      entry because the topic already exists locally */
-    topic_guid_map_ref (ktp, sertype);
-#endif
+  if (tp == NULL)
+  {
+    ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
+    return 0;
+  }
+  else
+  {
+    // QoS changes are protected by the participant lock (see dds_set_qos_locked_impl)
+    // which we currently hold for the topic's participant
+    dds_qos_t *qos = ddsi_xqos_dup (tp->m_ktopic->qos);
     ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
 
-    /* create the topic on the provided pp */
-    ddsrt_mutex_lock (&pp_topic->m_entity.m_mutex);
-    dds_entity_t hdl = create_topic_pp_locked (pp_topic, ktp, false, name, sertype, NULL, NULL);
-    ddsrt_mutex_unlock (&pp_topic->m_entity.m_mutex);
-#ifdef DDS_HAS_TYPE_DISCOVERY
-    struct ddsi_domaingv *gv = ddsrt_atomic_ldvoidp (&sertype->gv);
-    ddsi_tl_meta_local_ref (gv, NULL, sertype);
+    // Having pinned tp, its sertype will remain registered.  dds_create_topic_sertype
+    // takes ownership of the reference it is passed and returns an (uncounted) pointer
+    // to what it actually uses.  Thus, if we increment the refcount of tp->m_stype, we
+    // can pass it into dds_create_topic_sertype and be sure that it uses it, and only
+    // in case it fails do we need to drop the reference.  (It can fail, e.g., when the
+    // application concurrently calls dds_delete on pp_topic.)
+    struct ddsi_sertype *sertype = ddsi_sertype_ref (tp->m_stype);
+    const dds_entity_t hdl = dds_create_topic_sertype (pp_topic->m_entity.m_hdllink.hdl, name, &sertype, qos, NULL, NULL);
+    if (hdl < 0)
+      ddsi_sertype_unref (sertype);
+    dds_delete_qos (qos);
+
+#ifndef NDEBUG
+    if (hdl > 0)
+    {
+      dds_topic *new_topic;
+      // concurrently calling dds_delete on random handles might cause pinning the newly
+      // created topic to fail
+      if (dds_topic_pin (hdl, &new_topic) == DDS_RETCODE_OK)
+      {
+        if (pp == pp_topic)
+          assert (tp->m_ktopic == new_topic->m_ktopic);
+        else
+          assert (tp->m_ktopic != new_topic->m_ktopic);
+        assert (tp->m_stype == new_topic->m_stype);
+        dds_topic_unpin (new_topic);
+      }
+    }
+
+    // must be before unpinning tp or (1) sertype may have been dropped from the table if
+    // dds_create_topic_sertype failed, and (2) tp may have been deleted by the time we
+    // get here and so it would no longer necessarily be accounted for in the refcount of
+    // the sertype.
+    {
+      struct ddsi_domaingv * const gv = &pp_topic->m_entity.m_domain->gv;
+      ddsrt_mutex_lock (&gv->sertypes_lock);
+      assert (ddsrt_hh_lookup (gv->sertypes, sertype) == sertype);
+      ddsrt_mutex_unlock (&gv->sertypes_lock);
+      const uint32_t sertype_flags_refc = ddsrt_atomic_ld32 (&sertype->flags_refc);
+      assert (sertype_flags_refc & DDSI_SERTYPE_REGISTERED);
+      assert ((sertype_flags_refc & DDSI_SERTYPE_REFC_MASK) >= (hdl < 0 ? 1u : 2u));
+    }
 #endif
+
+    dds_topic_unpin (tp);
     return hdl;
   }
-  ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
-  return 0;
 }
 
 static dds_entity_t find_local_topic_impl (dds_find_scope_t scope, dds_participant *pp_topic, const char *name)
 {
+  // On entry: pp_topic is pinned, no locks held
+
   dds_entity *e_pp, *e_domain_child;
   dds_instance_handle_t last_iid = 0;
 
@@ -734,6 +800,8 @@ static dds_entity_t find_local_topic_impl (dds_find_scope_t scope, dds_participa
 
 static dds_entity_t find_remote_topic_impl (dds_participant *pp_topic, const char *name, dds_duration_t timeout)
 {
+  // On entry: pp_topic is pinned, no locks held
+
   dds_entity_t ret;
   struct ddsi_topic_definition *tpd;
   struct ddsi_sertype *sertype;
