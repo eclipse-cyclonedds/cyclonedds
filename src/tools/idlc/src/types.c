@@ -467,7 +467,7 @@ print_literal(
     case IDL_DOUBLE:
       return idl_fprintf(fp, "%f", literal->value.dbl);
     case IDL_LDOUBLE:
-      return idl_fprintf(fp, "%lf", literal->value.ldbl);
+      return idl_fprintf(fp, "%Lf", literal->value.ldbl);
     case IDL_STRING:
       return idl_fprintf(fp, "\"%s\"", literal->value.str);
     default: {
