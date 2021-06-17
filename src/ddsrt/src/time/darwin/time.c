@@ -72,7 +72,7 @@ ddsrt_etime_t ddsrt_time_elapsed(void)
   return (ddsrt_etime_t) { (int64_t) clock_gettime_nsec_np (CLOCK_MONOTONIC_RAW) };
 #else
   /* Elapsed time clock not (yet) supported on this platform. */
-  dds_mtime_t mt = ddsrt_time_monotonic();
+  ddsrt_mtime_t mt = ddsrt_time_monotonic();
   return (ddsrt_etime_t) { mt.v };
 #endif
 }
