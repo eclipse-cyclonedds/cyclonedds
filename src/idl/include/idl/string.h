@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "idl/export.h"
+#include "idl/attributes.h"
 
 IDL_EXPORT int idl_isalnum(int c);
 IDL_EXPORT int idl_isalpha(int c);
@@ -40,11 +41,13 @@ IDL_EXPORT char *idl_strdup(const char *str);
 
 IDL_EXPORT char *idl_strndup(const char *str, size_t len);
 
-IDL_EXPORT int idl_snprintf(char *str, size_t size, const char *fmt, ...);
+IDL_EXPORT int idl_snprintf(char *str, size_t size, const char *fmt, ...)
+idl_attribute_format((printf, 3, 4));
 
 IDL_EXPORT int idl_vsnprintf(char *str, size_t size, const char *fmt, va_list ap);
 
-IDL_EXPORT int idl_asprintf(char **strp, const char *fmt, ...);
+IDL_EXPORT int idl_asprintf(char **strp, const char *fmt, ...)
+idl_attribute_format((printf, 2, 3));
 
 IDL_EXPORT int idl_vasprintf(char **strp, const char *fmt, va_list ap);
 
