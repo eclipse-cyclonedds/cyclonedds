@@ -909,6 +909,11 @@ static dds_return_t check_and_load_security_config (struct ddsi_domaingv * const
      If none are, take the settings from the configuration if it has them.  When no security
      configuration exists anywhere, create an unsecured participant.
 
+     The CRL is a special case: it is optional, but it seems strange to allow an XML file
+     specifying a CRL when the QoS properties don't specify one if the CA is the same. It doesn't
+     seem like a good idea to compare CAs here, so instead just require a CRL property if the
+     XML configuration configures a CRL.
+
      This may modify "qos" */
   if (ddsi_xqos_has_prop_prefix (qos, "dds.sec.") || ddsi_xqos_has_prop_prefix (qos, "org.eclipse.cyclonedds.sec."))
   {
@@ -943,6 +948,19 @@ static dds_return_t check_and_load_security_config (struct ddsi_domaingv * const
         ret = DDS_RETCODE_PRECONDITION_NOT_MET;
       }
     }
+
+    /* deal with CRL: if configured in XML, require the property but allow an explicit empty configuration
+       to handle cases where the CA is different and to make it at least possible to override it.  The
+       goal is to avoid accidental unsecured participants, not to make things completely impossible. */
+    if (gv->config.omg_security_configuration &&
+        gv->config.omg_security_configuration->cfg.authentication_properties.crl &&
+        *gv->config.omg_security_configuration->cfg.authentication_properties.crl &&
+        !ddsi_xqos_find_prop (qos, ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL, NULL))
+    {
+      GVERROR ("new_participant("PGUIDFMT"): CRL security property " ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL " absent in Property QoS but specified in XML configuration\n", PGUID (*ppguid));
+      ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+    }
+
     if (ret != DDS_RETCODE_OK)
       return ret;
   }
