@@ -22,11 +22,8 @@
 
 void ddsrt_mutex_init (ddsrt_mutex_t *mutex)
 {
-  int shared;
   assert (mutex != NULL);
-
   pthread_mutex_init (&mutex->mutex, NULL);
-  (void)shared;
 }
 
 void ddsrt_mutex_destroy (ddsrt_mutex_t *mutex)
