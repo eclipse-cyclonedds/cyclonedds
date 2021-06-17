@@ -15,32 +15,15 @@
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
 #include "config_env.h"
+#include "auth_tokens.h"
+#include "ac_tokens.h"
 
 #define HANDSHAKE_SIGNATURE_SIZE 6
-
-static const char * AUTH_PROTOCOL_CLASS_ID          = "DDS:Auth:PKI-DH:1.0";
-static const char * PERM_ACCESS_CLASS_ID            = "DDS:Access:Permissions:1.0";
-
-static const char * PROPERTY_IDENTITY_CA            = "dds.sec.auth.identity_ca";
-static const char * PROPERTY_PRIVATE_KEY            = "dds.sec.auth.private_key";
-static const char * PROPERTY_IDENTITY_CERT          = "dds.sec.auth.identity_certificate";
-static const char * PROPERTY_TRUSTED_CA_DIR         = "dds.sec.auth.trusted_ca_dir";
-static const char * PROPERTY_CRL                    = "org.eclipse.cyclonedds.sec.auth.crl";
-
-static const char * PROPERTY_CERT_SUBJECT_NAME      = "dds.cert.sn";
-static const char * PROPERTY_CERT_ALGORITHM         = "dds.cert.algo";
-static const char * PROPERTY_CA_SUBJECT_NAME        = "dds.ca.sn";
-static const char * PROPERTY_CA_ALGORITHM           = "dds.ca.algo";
-
-static const char * PROPERTY_PERM_CA_SUBJECT_NAME   = "ds.perm_ca.sn";
 
 static const char * SUBJECT_NAME_IDENTITY_CERT      = "CN=CHAM-574 client,O=Some Company,ST=Some-State,C=NL";
 static const char * SUBJECT_NAME_IDENTITY_CA        = "CN=CHAM-574 authority,O=Some Company,ST=Some-State,C=NL";
 
 static const char * RSA_2048_ALGORITHM_NAME         = "RSA-2048";
-
-static const char * AUTH_REQUEST_TOKEN_CLASS_ID         = "DDS:Auth:PKI-DH:1.0+AuthReq";
-static const char * AUTH_REQUEST_TOKEN_FUTURE_PROP_NAME = "future_challenge";
 
 static const char * AUTH_HANDSHAKE_REQUEST_TOKEN_CLASS_ID = "DDS:Auth:PKI-DH:1.0+Req";
 static const char * AUTH_HANDSHAKE_REPLY_TOKEN_CLASS_ID   = "DDS:Auth:PKI-DH:1.0+Reply";
@@ -512,24 +495,24 @@ initialize_identity_token(
 {
     memset(token, 0, sizeof(*token));
 
-    token->class_id = ddsrt_strdup(AUTH_PROTOCOL_CLASS_ID);
+    token->class_id = ddsrt_strdup(DDS_AUTHTOKEN_CLASS_ID);
     token->properties._maximum = 4;
     token->properties._length  = 4;
     token->properties._buffer = DDS_Security_PropertySeq_allocbuf(4);
 
-    token->properties._buffer[0].name = ddsrt_strdup(PROPERTY_CERT_SUBJECT_NAME);
+    token->properties._buffer[0].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CERT_SN);
     token->properties._buffer[0].value = ddsrt_strdup(SUBJECT_NAME_IDENTITY_CERT);
     token->properties._buffer[0].propagate = true;
 
-    token->properties._buffer[1].name = ddsrt_strdup(PROPERTY_CERT_ALGORITHM);
+    token->properties._buffer[1].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CERT_ALGO);
     token->properties._buffer[1].value = ddsrt_strdup(certAlgo);
     token->properties._buffer[1].propagate = true;
 
-    token->properties._buffer[2].name = ddsrt_strdup(PROPERTY_CA_SUBJECT_NAME);
+    token->properties._buffer[2].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CA_SN);
     token->properties._buffer[2].value = ddsrt_strdup(SUBJECT_NAME_IDENTITY_CA);
     token->properties._buffer[2].propagate = true;
 
-    token->properties._buffer[3].name = ddsrt_strdup(PROPERTY_CA_ALGORITHM);
+    token->properties._buffer[3].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CA_ALGO);
     token->properties._buffer[3].value = ddsrt_strdup(caAlgo);
     token->properties._buffer[3].propagate = true;
 }
@@ -539,13 +522,13 @@ initialize_permissions_token(
     DDS_Security_PermissionsToken *token,
     const char *caAlgo)
 {
-    token->class_id = ddsrt_strdup(PERM_ACCESS_CLASS_ID);
+    token->class_id = ddsrt_strdup(DDS_ACTOKEN_PERMISSIONS_CLASS_ID);
     token->properties._length = 2;
     token->properties._maximum = 2;
     token->properties._buffer = DDS_Security_PropertySeq_allocbuf(4);
-    token->properties._buffer[0].name = ddsrt_strdup(PROPERTY_CERT_SUBJECT_NAME);
+    token->properties._buffer[0].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CERT_SN);
     token->properties._buffer[0].value = ddsrt_strdup(SUBJECT_NAME_IDENTITY_CA);
-    token->properties._buffer[1].name = ddsrt_strdup(PROPERTY_PERM_CA_SUBJECT_NAME);
+    token->properties._buffer[1].name = ddsrt_strdup(DDS_ACTOKEN_PROP_PERM_CA_SN);
     token->properties._buffer[1].value = ddsrt_strdup(caAlgo);
 }
 
@@ -567,11 +550,11 @@ fill_auth_request_token(
 
     memset(token, 0, sizeof(*token));
 
-    token->class_id = ddsrt_strdup(AUTH_REQUEST_TOKEN_CLASS_ID);
+    token->class_id = ddsrt_strdup(DDS_SECURITY_AUTH_REQUEST_TOKEN_CLASS_ID);
     token->binary_properties._maximum = 1;
     token->binary_properties._length = 1;
     token->binary_properties._buffer = DDS_Security_BinaryPropertySeq_allocbuf(1);
-    token->binary_properties._buffer->name = ddsrt_strdup(AUTH_REQUEST_TOKEN_FUTURE_PROP_NAME);
+    token->binary_properties._buffer->name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_FUTURE_CHALLENGE);
 
     token->binary_properties._buffer->value._maximum = len;
     token->binary_properties._buffer->value._length = len;
@@ -632,15 +615,15 @@ validate_local_identity(const char *ca_certificate, const char *public_cert, con
     dds_security_property_init(&participant_qos.property.value, participant_qos_size);
 
     valbuf = &participant_qos.property.value._buffer[offset++];
-    valbuf->name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
+    valbuf->name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CERT);
     valbuf->value = ddsrt_strdup(public_cert);
 
     valbuf = &participant_qos.property.value._buffer[offset++];
-    valbuf->name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
+    valbuf->name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CA);
     valbuf->value = ddsrt_strdup(ca_certificate);
 
     valbuf = &participant_qos.property.value._buffer[offset++];
-    valbuf->name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
+    valbuf->name = ddsrt_strdup(DDS_SEC_PROP_AUTH_PRIV_KEY);
     valbuf->value = ddsrt_strdup(key);
 
     if (trusted_ca_dir != NULL) {
@@ -651,13 +634,13 @@ validate_local_identity(const char *ca_certificate, const char *public_cert, con
         snprintf(trusted_ca_dir_path, 1024, "%s/validate_begin_handshake_reply/etc/%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
 #endif
         valbuf = &participant_qos.property.value._buffer[offset++];
-        valbuf->name = ddsrt_strdup(PROPERTY_TRUSTED_CA_DIR);
+        valbuf->name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR);
         valbuf->value = ddsrt_strdup(trusted_ca_dir_path);
     }
 
     if (crl_data != NULL) {
       valbuf = &participant_qos.property.value._buffer[offset++];
-      valbuf->name = ddsrt_strdup(PROPERTY_CRL);
+      valbuf->name = ddsrt_strdup(ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL);
       valbuf->value = ddsrt_strdup(crl_data);
     }
 
@@ -1086,7 +1069,7 @@ validate_remote_identities (const char *remote_id_certificate)
     remote_participant_data2->security_info.participant_security_attributes = 0x01;
     remote_participant_data2->security_info.plugin_participant_security_attributes = 0x02;
 
-    challenge1_predefined_glb = find_binary_property(&g_remote_auth_request_token, AUTH_REQUEST_TOKEN_FUTURE_PROP_NAME);
+    challenge1_predefined_glb = find_binary_property(&g_remote_auth_request_token, DDS_AUTHTOKEN_PROP_FUTURE_CHALLENGE);
     challenge2_predefined_glb = challenge1_predefined_glb;
 
     return res;
@@ -1301,30 +1284,30 @@ fill_handshake_message_token(
 
        /* Store the Identity Certificate associated with the local identify in c.id property */
        if (certificate) {
-           set_binary_property_string(c_id, "c.id", certificate);
+           set_binary_property_string(c_id, DDS_AUTHTOKEN_PROP_C_ID, certificate);
        } else {
-           set_binary_property_string(c_id, "c.idx", "rubbish");
+           set_binary_property_string(c_id, DDS_AUTHTOKEN_PROP_C_ID "x", "rubbish");
        }
 
        /* Store the permission document in the c.perm property */
-       set_binary_property_string(c_perm, "c.perm", "permissions_document");
+       set_binary_property_string(c_perm, DDS_AUTHTOKEN_PROP_C_PERM, "permissions_document");
 
        /* Store the provided local_participant_data in the c.pdata property */
-       set_binary_property_value(c_pdata, "c.pdata", serialized_local_participant_data, (uint32_t)serialized_local_participant_data_size);
+       set_binary_property_value(c_pdata, DDS_AUTHTOKEN_PROP_C_PDATA, serialized_local_participant_data, (uint32_t)serialized_local_participant_data_size);
        ddsrt_free(serialized_local_participant_data);
 
        /* Set the used signing algorithm descriptor in c.dsign_algo */
        if (dsign) {
-           set_binary_property_string(c_dsign_algo, "c.dsign_algo", dsign);
+           set_binary_property_string(c_dsign_algo, DDS_AUTHTOKEN_PROP_C_DSIGN_ALGO, dsign);
        } else {
-           set_binary_property_string(c_dsign_algo, "c.dsign_algox", "rubbish");
+           set_binary_property_string(c_dsign_algo, DDS_AUTHTOKEN_PROP_C_DSIGN_ALGO "x", "rubbish");
        }
 
        /* Set the used key algorithm descriptor in c.kagree_algo */
        if (kagree) {
-           set_binary_property_string(c_kagree_algo, "c.kagree_algo", kagree);
+           set_binary_property_string(c_kagree_algo, DDS_AUTHTOKEN_PROP_C_KAGREE_ALGO, kagree);
        } else {
-           set_binary_property_string(c_kagree_algo, "c.kagree_algox", "rubbish");
+           set_binary_property_string(c_kagree_algo, DDS_AUTHTOKEN_PROP_C_KAGREE_ALGO "x", "rubbish");
        }
 
        /* Calculate the hash_c1 */
@@ -1346,21 +1329,21 @@ fill_handshake_message_token(
            ddsrt_free(buffer);
            DDS_Security_Serializer_free(serializer);
 
-           set_binary_property_value(hash_c1, "hash_c1", hash1_sentrequest_arr, sizeof(hash1_sentrequest_arr));
+           set_binary_property_value(hash_c1, DDS_AUTHTOKEN_PROP_HASH_C1, hash1_sentrequest_arr, sizeof(hash1_sentrequest_arr));
        }
 
        /* Set the DH public key associated with the local participant in dh1 property */
        if (diffie_hellman1) {
-           set_binary_property_value(dh1, "dh1", diffie_hellman1->data, diffie_hellman1->length);
+           set_binary_property_value(dh1, DDS_AUTHTOKEN_PROP_DH1, diffie_hellman1->data, diffie_hellman1->length);
        } else {
-           set_binary_property_string(dh1, "dh1x", "rubbish");
+           set_binary_property_string(dh1, DDS_AUTHTOKEN_PROP_DH1 "x", "rubbish");
        }
 
        /* Set the challenge in challenge1 property */
        if (challengeData) {
-           set_binary_property_value(challenge1, "challenge1", challengeData, challengeDataSize);
+           set_binary_property_value(challenge1, DDS_AUTHTOKEN_PROP_CHALLENGE1, challengeData, challengeDataSize);
        } else {
-           set_binary_property_value(challenge1, "challenge1x", challenge1_predefined_glb->value._buffer, challenge1_predefined_glb->value._length);
+           set_binary_property_value(challenge1, DDS_AUTHTOKEN_PROP_CHALLENGE1 "x", challenge1_predefined_glb->value._buffer, challenge1_predefined_glb->value._length);
        }
 
        token->class_id = ddsrt_strdup(AUTH_HANDSHAKE_REQUEST_TOKEN_CLASS_ID);
@@ -1388,36 +1371,36 @@ fill_handshake_message_token(
 
         /* Store the Identity Certificate associated with the local identify in c.id property */
         if (certificate) {
-           set_binary_property_string(c_id, "c.id", certificate);
+           set_binary_property_string(c_id, DDS_AUTHTOKEN_PROP_C_ID, certificate);
         } else {
-           set_binary_property_string(c_id, "c.idx", "rubbish");
+           set_binary_property_string(c_id, DDS_AUTHTOKEN_PROP_C_ID "x", "rubbish");
         }
 
         /* Store the permission document in the c.perm property */
-        set_binary_property_string(c_perm, "c.perm", "permissions_document");
+        set_binary_property_string(c_perm, DDS_AUTHTOKEN_PROP_C_PERM, "permissions_document");
 
         /* Store the provided local_participant_data in the c.pdata property */
-        set_binary_property_value(c_pdata, "c.pdata", serialized_local_participant_data, (uint32_t )serialized_local_participant_data_size);
+        set_binary_property_value(c_pdata, DDS_AUTHTOKEN_PROP_C_PDATA, serialized_local_participant_data, (uint32_t )serialized_local_participant_data_size);
         ddsrt_free(serialized_local_participant_data);
 
         /* Set the used signing algorithm descriptor in c.dsign_algo */
         if (dsign) {
-           set_binary_property_string(c_dsign_algo, "c.dsign_algo", dsign);
+           set_binary_property_string(c_dsign_algo, DDS_AUTHTOKEN_PROP_C_DSIGN_ALGO, dsign);
         } else {
-           set_binary_property_string(c_dsign_algo, "c.dsign_algox", "rubbish");
+           set_binary_property_string(c_dsign_algo, DDS_AUTHTOKEN_PROP_C_DSIGN_ALGO "x", "rubbish");
         }
 
         /* Set the used key algorithm descriptor in c.kagree_algo */
         if (kagree) {
-           set_binary_property_string(c_kagree_algo, "c.kagree_algo", kagree);
+           set_binary_property_string(c_kagree_algo, DDS_AUTHTOKEN_PROP_C_KAGREE_ALGO, kagree);
         } else {
-           set_binary_property_string(c_kagree_algo, "c.kagree_algox", "rubbish");
+           set_binary_property_string(c_kagree_algo, DDS_AUTHTOKEN_PROP_C_KAGREE_ALGO "x", "rubbish");
         }
 
         CU_ASSERT_FATAL(hash1_from_request != NULL);
         assert(hash1_from_request != NULL); // for Clang's static analyzer
 
-        set_binary_property_value(hash_c1, "hash_c1", hash1_from_request->value._buffer, hash1_from_request->value._length);
+        set_binary_property_value(hash_c1, DDS_AUTHTOKEN_PROP_HASH_C1, hash1_from_request->value._buffer, hash1_from_request->value._length);
 
         /* Calculate the hash_c2 */
         {
@@ -1439,36 +1422,36 @@ fill_handshake_message_token(
            ddsrt_free(buffer);
            DDS_Security_Serializer_free(serializer);
 
-           set_binary_property_value(hash_c2, "hash_c2", hash2_sentreply_arr, sizeof(hash2_sentreply_arr));
+           set_binary_property_value(hash_c2, DDS_AUTHTOKEN_PROP_HASH_C2, hash2_sentreply_arr, sizeof(hash2_sentreply_arr));
         }
 
         /* Set the challenge in challenge1 property */
         if (challengeData) {
-          set_binary_property_value(challenge1, "challenge1", challengeData, challengeDataSize);
+          set_binary_property_value(challenge1, DDS_AUTHTOKEN_PROP_CHALLENGE1, challengeData, challengeDataSize);
         } else {
-          set_binary_property_value(challenge1, "challenge1x", challenge2->value._buffer, challenge2->value._length);
+          set_binary_property_value(challenge1, DDS_AUTHTOKEN_PROP_CHALLENGE1 "x", challenge2->value._buffer, challenge2->value._length);
         }
 
         /* Set the challenge in challenge2 property */
         if (challengeData2) {
-           set_binary_property_value(challenge2, "challenge2", challengeData2, challengeDataSize2);
+           set_binary_property_value(challenge2, DDS_AUTHTOKEN_PROP_CHALLENGE2, challengeData2, challengeDataSize2);
         } else {
-           set_binary_property_value(challenge2, "challenge2x", challenge2->value._buffer, challenge2->value._length);
+           set_binary_property_value(challenge2, DDS_AUTHTOKEN_PROP_CHALLENGE2 "x", challenge2->value._buffer, challenge2->value._length);
         }
 
 
         /* Set the DH public key associated with the local participant in dh1 property */
         if (diffie_hellman1) {
-          set_binary_property_value(dh1, "dh1", diffie_hellman1->data, diffie_hellman1->length);
+          set_binary_property_value(dh1, DDS_AUTHTOKEN_PROP_DH1, diffie_hellman1->data, diffie_hellman1->length);
         } else {
-          set_binary_property_string(dh1, "dh1x", "rubbish");
+          set_binary_property_string(dh1, DDS_AUTHTOKEN_PROP_DH1 "x", "rubbish");
         }
 
         /* Set the DH public key associated with the local participant in dh2 property */
         if (diffie_hellman2) {
-          set_binary_property_value(dh2, "dh2", diffie_hellman2->data, diffie_hellman2->length);
+          set_binary_property_value(dh2, DDS_AUTHTOKEN_PROP_DH2, diffie_hellman2->data, diffie_hellman2->length);
         } else {
-          set_binary_property_string(dh2, "dh2x", "rubbish");
+          set_binary_property_string(dh2, DDS_AUTHTOKEN_PROP_DH2 "x", "rubbish");
         }
 
         /* Calculate the signature */
@@ -1499,7 +1482,7 @@ fill_handshake_message_token(
             }
             else
             {
-                set_binary_property_value(signature, "signature", sign, (uint32_t ) signlen);
+                set_binary_property_value(signature, DDS_AUTHTOKEN_PROP_SIGNATURE, sign, (uint32_t ) signlen);
                 ddsrt_free(sign);
             }
             EVP_PKEY_free(private_key_x509);
@@ -1525,38 +1508,38 @@ fill_handshake_message_token(
         CU_ASSERT(hash1_from_request != NULL);
         CU_ASSERT(hash2_from_reply != NULL);
 
-        set_binary_property_value(hash_c1, "hash_c1", hash1_from_request->value._buffer, hash1_from_request->value._length);
-        set_binary_property_value(hash_c2, "hash_c2", hash2_from_reply->value._buffer, hash2_from_reply->value._length);
+        set_binary_property_value(hash_c1, DDS_AUTHTOKEN_PROP_HASH_C1, hash1_from_request->value._buffer, hash1_from_request->value._length);
+        set_binary_property_value(hash_c2, DDS_AUTHTOKEN_PROP_HASH_C2, hash2_from_reply->value._buffer, hash2_from_reply->value._length);
 
         printf("process: %s\n", hash_c1->name);
 
         /* Set the challenge in challenge1 property */
         if (challengeData) {
-          set_binary_property_value(challenge1, "challenge1", challengeData, challengeDataSize);
+          set_binary_property_value(challenge1, DDS_AUTHTOKEN_PROP_CHALLENGE1, challengeData, challengeDataSize);
         } else {
-          set_binary_property_value(challenge1, "challenge1x", challenge2->value._buffer, challenge2->value._length);
+          set_binary_property_value(challenge1, DDS_AUTHTOKEN_PROP_CHALLENGE1 "x", challenge2->value._buffer, challenge2->value._length);
         }
 
         /* Set the challenge in challenge2 property */
         if (challengeData2) {
-           set_binary_property_value(challenge2, "challenge2", challengeData2, challengeDataSize2);
+           set_binary_property_value(challenge2, DDS_AUTHTOKEN_PROP_CHALLENGE2, challengeData2, challengeDataSize2);
         } else {
-           set_binary_property_value(challenge2, "challenge2x", challenge2->value._buffer, challenge2->value._length);
+           set_binary_property_value(challenge2, DDS_AUTHTOKEN_PROP_CHALLENGE2 "x", challenge2->value._buffer, challenge2->value._length);
         }
 
 
         /* Set the DH public key associated with the local participant in dh1 property */
         if (diffie_hellman1) {
-          set_binary_property_value(dh1, "dh1", diffie_hellman1->data, diffie_hellman1->length);
+          set_binary_property_value(dh1, DDS_AUTHTOKEN_PROP_DH1, diffie_hellman1->data, diffie_hellman1->length);
         } else {
-          set_binary_property_string(dh1, "dh1x", "rubbish");
+          set_binary_property_string(dh1, DDS_AUTHTOKEN_PROP_DH1 "x", "rubbish");
         }
 
         /* Set the DH public key associated with the local participant in dh2 property */
         if (diffie_hellman2) {
-          set_binary_property_value(dh2, "dh2", diffie_hellman2->data, diffie_hellman2->length);
+          set_binary_property_value(dh2, DDS_AUTHTOKEN_PROP_DH2, diffie_hellman2->data, diffie_hellman2->length);
         } else {
-          set_binary_property_string(dh2, "dh2x", "rubbish");
+          set_binary_property_string(dh2, DDS_AUTHTOKEN_PROP_DH2 "x", "rubbish");
         }
 
         /* Calculate the signature */
@@ -1586,7 +1569,7 @@ fill_handshake_message_token(
             }
             else
             {
-                set_binary_property_value(signature, "signature", sign, (uint32_t) signlen);
+                set_binary_property_value(signature, DDS_AUTHTOKEN_PROP_SIGNATURE, sign, (uint32_t) signlen);
                 ddsrt_free(sign);
             }
             EVP_PKEY_free(private_key_x509);
@@ -1647,22 +1630,22 @@ validate_handshake_token(
 
     if (!token->class_id || strcmp(token->class_id, class_id) != 0) {
         CU_FAIL("HandshakeMessageToken incorrect class_id");
-    } else if (find_binary_property(token, "hash_c2") == NULL) {
-         CU_FAIL("HandshakeMessageToken incorrect property 'hash_c2' not found");
-    } else if (find_binary_property(token, "dh2") == NULL) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'dh2' not found");
-    } else if (find_binary_property(token, "hash_c1") == NULL) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'hash_c1' not found");
-    } else if (find_binary_property(token, "dh1") == NULL) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'dh1' not found");
-    } else if ((property = find_binary_property(token, "challenge1")) == NULL) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'challenge1' not found");
+    } else if (find_binary_property(token, DDS_AUTHTOKEN_PROP_HASH_C2) == NULL) {
+         CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_HASH_C2"' not found");
+    } else if (find_binary_property(token, DDS_AUTHTOKEN_PROP_DH2) == NULL) {
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_DH2"' not found");
+    } else if (find_binary_property(token, DDS_AUTHTOKEN_PROP_HASH_C1) == NULL) {
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_HASH_C1"' not found");
+    } else if (find_binary_property(token, DDS_AUTHTOKEN_PROP_DH1) == NULL) {
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_DH1"' not found");
+    } else if ((property = find_binary_property(token, DDS_AUTHTOKEN_PROP_CHALLENGE1)) == NULL) {
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_CHALLENGE1"' not found");
     } else if (challenge1 && compare_octet_seq(challenge1, &property->value) != 0) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'challenge1' incorrect value");
-    } else if ((property = find_binary_property(token, "challenge2")) == NULL) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'challenge2' not found");
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_CHALLENGE1"' incorrect value");
+    } else if ((property = find_binary_property(token, DDS_AUTHTOKEN_PROP_CHALLENGE2)) == NULL) {
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_CHALLENGE2"' not found");
     } else if (challenge2 && compare_octet_seq(challenge2, &property->value) != 0) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'challenge2' incorrect value");
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_CHALLENGE2"' incorrect value");
     } else {
         return true;
     }
@@ -1710,12 +1693,12 @@ CU_Test(ddssec_builtin_process_handshake,happy_day_after_request)
     }
 
     /* get challenge 1 from the message */
-    challenge1_glb = find_binary_property(&handshake_token_out, "challenge1");
+    challenge1_glb = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_CHALLENGE1);
 
     /*Get DH1 value */
-    dh1 = find_binary_property(&handshake_token_out, "dh1");
+    dh1 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH1);
 
-    hash1_sentrequest = find_binary_property(&handshake_token_out, "hash_c1");
+    hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
     assert(dh1 != NULL); // for Clang's static analyzer
@@ -1804,14 +1787,14 @@ CU_Test(ddssec_builtin_process_handshake,happy_day_after_reply)
     CU_ASSERT(handshake_handle != DDS_SECURITY_HANDLE_NIL);
     CU_ASSERT(validate_handshake_token(&handshake_token_out, &challenge1_predefined_glb->value, NULL, HANDSHAKE_REPLY));
 
-    hash1_sentrequest = find_binary_property(&handshake_token_out, "hash_c1");
-    hash2_sentreply = find_binary_property(&handshake_token_out, "hash_c2");
+    hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
+    hash2_sentreply = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C2);
 
     /*Get DH2 value */
-    dh2 = find_binary_property(&handshake_token_out, "dh2");
+    dh2 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH2);
 
     /* get challenge 2 from the message */
-    challenge2_glb = find_binary_property(&handshake_token_out, "challenge2");
+    challenge2_glb = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_CHALLENGE2);
 
     reset_exception(&exception);
 
@@ -1896,13 +1879,13 @@ CU_Test(ddssec_builtin_process_handshake,invalid_arguments)
     CU_ASSERT(validate_handshake_token(&handshake_token_out, &challenge1_predefined_glb->value, NULL, HANDSHAKE_REPLY));
 
     /*Get DH2 value */
-    dh2 = find_binary_property(&handshake_token_out, "dh2");
+    dh2 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH2);
 
-    hash1_sentrequest = find_binary_property(&handshake_token_out, "hash_c1");
-    hash2_sentreply = find_binary_property(&handshake_token_out, "hash_c2");
+    hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
+    hash2_sentreply = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C2);
 
     /* get challenge 2 from the message */
-    challenge2_glb = find_binary_property(&handshake_token_out, "challenge2");
+    challenge2_glb = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_CHALLENGE2);
 
     reset_exception(&exception);
 
@@ -2004,12 +1987,12 @@ CU_Test(ddssec_builtin_process_handshake,invalid_certificate)
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
 
     /* get challenge 1 from the message */
-    challenge1_glb = find_binary_property(&handshake_token_out, "challenge1");
+    challenge1_glb = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_CHALLENGE1);
 
     /*Get DH1 value */
-    dh1 = find_binary_property(&handshake_token_out, "dh1");
+    dh1 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH1);
 
-    hash1_sentrequest = find_binary_property(&handshake_token_out, "hash_c1");
+    hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
     assert(dh1 != NULL); // for Clang's static analyzer
@@ -2094,12 +2077,12 @@ CU_Test(ddssec_builtin_process_handshake,invalid_dsign_algo)
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
 
     /* get challenge 1 from the message */
-    challenge1_glb = find_binary_property(&handshake_token_out, "challenge1");
+    challenge1_glb = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_CHALLENGE1);
 
     /*Get DH1 value */
-    dh1 = find_binary_property(&handshake_token_out, "dh1");
+    dh1 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH1);
 
-    hash1_sentrequest = find_binary_property(&handshake_token_out, "hash_c1");
+    hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
     assert(dh1 != NULL); // for Clang's static analyzer
@@ -2178,12 +2161,12 @@ CU_Test(ddssec_builtin_process_handshake,invalid_kagree_algo)
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
 
     /* get challenge 1 from the message */
-    challenge1_glb = find_binary_property(&handshake_token_out, "challenge1");
+    challenge1_glb = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_CHALLENGE1);
 
     /*Get DH1 value */
-    dh1 = find_binary_property(&handshake_token_out, "dh1");
+    dh1 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH1);
 
-    hash1_sentrequest = find_binary_property(&handshake_token_out, "hash_c1");
+    hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
     assert (dh1 != NULL); // for Clang's static analyzer
@@ -2261,12 +2244,12 @@ CU_Test(ddssec_builtin_process_handshake,invalid_diffie_hellman)
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
 
     /* get challenge 1 from the message */
-    challenge1_glb = find_binary_property(&handshake_token_out, "challenge1");
+    challenge1_glb = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_CHALLENGE1);
 
     /*Get DH1 value */
-    dh1 = find_binary_property(&handshake_token_out, "dh1");
+    dh1 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH1);
 
-    hash1_sentrequest = find_binary_property(&handshake_token_out, "hash_c1");
+    hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
     assert (dh1 != NULL); // for Clang's static analyzer
@@ -2410,12 +2393,12 @@ CU_Test(ddssec_builtin_process_handshake,extended_certificate_check)
     assert(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE); // for Clang's static analyzer
 
     /* get challenge 1 from the message */
-    challenge1_glb = find_binary_property(&handshake_token_out, "challenge1");
+    challenge1_glb = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_CHALLENGE1);
 
     /*Get DH1 value */
-    dh1 = find_binary_property(&handshake_token_out, "dh1");
+    dh1 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH1);
 
-    hash1_sentrequest = find_binary_property(&handshake_token_out, "hash_c1");
+    hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
     assert(dh1 != NULL); // for Clang's static analyzer
@@ -2489,12 +2472,12 @@ CU_Test(ddssec_builtin_process_handshake,extended_certificate_check)
     }
 
     /* get challenge 1 from the message */
-    challenge1_glb = find_binary_property(&handshake_token_out, "challenge1");
+    challenge1_glb = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_CHALLENGE1);
 
     /*Get DH1 value */
-    dh1 = find_binary_property(&handshake_token_out, "dh1");
+    dh1 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH1);
 
-    hash1_sentrequest = find_binary_property(&handshake_token_out, "hash_c1");
+    hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
     assert (dh1 != NULL); // for Clang's static analyzer
@@ -2563,12 +2546,12 @@ CU_Test(ddssec_builtin_process_handshake,extended_certificate_check)
     }
 
     /* get challenge 1 from the message */
-    challenge1_glb = find_binary_property(&handshake_token_out, "challenge1");
+    challenge1_glb = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_CHALLENGE1);
 
     /*Get DH1 value */
-    dh1 = find_binary_property(&handshake_token_out, "dh1");
+    dh1 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH1);
 
-    hash1_sentrequest = find_binary_property(&handshake_token_out, "hash_c1");
+    hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
     assert (dh1 != NULL); // for Clang's static analyzer

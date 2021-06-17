@@ -915,7 +915,7 @@ static dds_return_t check_and_load_security_config (struct ddsi_domaingv * const
      XML configuration configures a CRL.
 
      This may modify "qos" */
-  if (ddsi_xqos_has_prop_prefix (qos, "dds.sec.") || ddsi_xqos_has_prop_prefix (qos, "org.eclipse.cyclonedds.sec."))
+  if (ddsi_xqos_has_prop_prefix (qos, DDS_SEC_PROP_PREFIX) || ddsi_xqos_has_prop_prefix (qos, ORG_ECLIPSE_CYCLONEDDS_SEC_PREFIX))
   {
     char const * const req[] = {
       DDS_SEC_PROP_AUTH_IDENTITY_CA,

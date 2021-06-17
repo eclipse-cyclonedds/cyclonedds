@@ -221,7 +221,7 @@ static void prepare_endpoint_security_attributes_and_properties(DDS_Security_End
     properties->_maximum = properties->_length = 1;
     properties->_buffer = ddsrt_malloc(sizeof(DDS_Security_Property_t));
 
-    properties->_buffer[0].name = ddsrt_strdup("dds.sec.crypto.keysize");
+    properties->_buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_CRYPTO_KEYSIZE);
 
     if (transformation_kind == CRYPTO_TRANSFORMATION_KIND_AES128_GCM || transformation_kind == CRYPTO_TRANSFORMATION_KIND_AES128_GMAC)
     {
@@ -1589,13 +1589,13 @@ CU_Test(ddssec_builtin_decode_datareader_submessage, volatile_sec, .init = suite
 
   datareader_properties._length = datareader_properties._maximum = 1;
   datareader_properties._buffer = DDS_Security_PropertySeq_allocbuf(1);
-  datareader_properties._buffer[0].name = ddsrt_strdup("dds.sec.builtin_endpoint_name");
+  datareader_properties._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME);
   datareader_properties._buffer[0].value = ddsrt_strdup("BuiltinParticipantVolatileMessageSecureReader");
   datareader_properties._buffer[0].propagate = false;
 
   datawriter_properties._length = datawriter_properties._maximum = 1;
   datawriter_properties._buffer = DDS_Security_PropertySeq_allocbuf(1);
-  datawriter_properties._buffer[0].name = ddsrt_strdup("dds.sec.builtin_endpoint_name");
+  datawriter_properties._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME);
   datawriter_properties._buffer[0].value = ddsrt_strdup("BuiltinParticipantVolatileMessageSecureWriter");
   datawriter_properties._buffer[0].propagate = false;
 

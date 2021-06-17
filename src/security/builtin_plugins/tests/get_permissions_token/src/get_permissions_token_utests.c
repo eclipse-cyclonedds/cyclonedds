@@ -23,13 +23,7 @@
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
 #include "config_env.h"
-
-static const char *PROPERTY_IDENTITY_CA = "dds.sec.auth.identity_ca";
-static const char *PROPERTY_PRIVATE_KEY = "dds.sec.auth.private_key";
-static const char *PROPERTY_IDENTITY_CERT = "dds.sec.auth.identity_certificate";
-static const char *PROPERTY_PERMISSIONS_CA = "dds.sec.access.permissions_ca";
-static const char *PROPERTY_PERMISSIONS = "dds.sec.access.permissions";
-static const char *PROPERTY_GOVERNANCE = "dds.sec.access.governance";
+#include "ac_tokens.h"
 
 static const char *RELATIVE_PATH_TO_ETC_DIR = "/get_permissions_token/etc/";
 
@@ -197,17 +191,17 @@ static void fill_participant_qos(DDS_Security_Qos *qos, const char *permission_f
 
   memset(qos, 0, sizeof(*qos));
   dds_security_property_init(&qos->property.value, 6);
-  qos->property.value._buffer[0].name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
+  qos->property.value._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CERT);
   qos->property.value._buffer[0].value = ddsrt_strdup(IDENTITY_CERTIFICATE);
-  qos->property.value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
+  qos->property.value._buffer[1].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CA);
   qos->property.value._buffer[1].value = ddsrt_strdup(IDENTITY_CA);
-  qos->property.value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
+  qos->property.value._buffer[2].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_PRIV_KEY);
   qos->property.value._buffer[2].value = ddsrt_strdup(PRIVATE_KEY);
-  qos->property.value._buffer[3].name = ddsrt_strdup(PROPERTY_PERMISSIONS_CA);
+  qos->property.value._buffer[3].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_PERMISSIONS_CA);
   qos->property.value._buffer[3].value = ddsrt_strdup(PERMISSIONS_CA);
-  qos->property.value._buffer[4].name = ddsrt_strdup(PROPERTY_PERMISSIONS);
+  qos->property.value._buffer[4].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_PERMISSIONS);
   qos->property.value._buffer[4].value = ddsrt_strdup(permission_uri);
-  qos->property.value._buffer[5].name = ddsrt_strdup(PROPERTY_GOVERNANCE);
+  qos->property.value._buffer[5].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_GOVERNANCE);
   qos->property.value._buffer[5].value = ddsrt_strdup(governance_uri);
 
   ddsrt_free(permission_uri);
@@ -303,17 +297,17 @@ static void suite_get_permissions_token_fini(void)
 static bool validate_permissions_token(
     DDS_Security_PermissionsToken *token)
 {
-  if (!token->class_id || strcmp(token->class_id, "DDS:Access:Permissions:1.0") != 0)
+  if (!token->class_id || strcmp(token->class_id, DDS_ACTOKEN_PERMISSIONS_CLASS_ID) != 0)
   {
     CU_FAIL("PermissionsToken incorrect class_id");
     return false;
   }
 
   /* Optional. */
-  if (find_property(token, "dds.perm_ca.sn") == NULL)
-    printf("Optional PermissionsToken property 'dds.perm_ca.sn' not found\n");
-  if (find_property(token, "dds.perm_ca.algo") == NULL)
-    printf("Optional PermissionsToken property 'dds.perm_ca.algo' not found\n");
+  if (find_property(token, DDS_ACTOKEN_PROP_PERM_CA_SN) == NULL)
+    printf("Optional PermissionsToken property '" DDS_ACTOKEN_PROP_PERM_CA_SN "' not found\n");
+  if (find_property(token, DDS_ACTOKEN_PROP_PERM_CA_ALGO) == NULL)
+    printf("Optional PermissionsToken property '" DDS_ACTOKEN_PROP_PERM_CA_ALGO "' not found\n");
   return true;
 }
 

@@ -22,13 +22,6 @@
 #include <dds/ddsrt/string.h>
 #include <config_env.h>
 
-static const char * PROPERTY_IDENTITY_CA                = "dds.sec.auth.identity_ca";
-static const char * PROPERTY_PRIVATE_KEY                = "dds.sec.auth.private_key";
-static const char * PROPERTY_PASSWORD                   = "dds.sec.auth.password";
-static const char * PROPERTY_IDENTITY_CERT              = "dds.sec.auth.identity_certificate";
-static const char * PROPERTY_TRUSTED_CA_DIR             = "dds.sec.auth.trusted_ca_dir";
-static const char * PROPERTY_CRL                        = "org.eclipse.cyclonedds.sec.auth.crl";
-
 // See ../etc/README.md for how the certificates and keys are generated.
 
 static const char *identity_certificate_filename = "identity_certificate";
@@ -545,7 +538,7 @@ fill_participant_qos(
     dds_security_property_init(&participant_qos->property.value, size);
 
     valbuf = &participant_qos->property.value._buffer[offset++];
-    valbuf->name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
+    valbuf->name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CERT);
     if (is_file_certificate) {
 #ifdef WIN32
         snprintf(identity_cert_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, certificate);
@@ -559,7 +552,7 @@ fill_participant_qos(
     }
 
     valbuf = &participant_qos->property.value._buffer[offset++];
-    valbuf->name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
+    valbuf->name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CA);
     if (is_file_ca) {
 #ifdef WIN32
         snprintf(identity_CA_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, ca);
@@ -573,7 +566,7 @@ fill_participant_qos(
     }
 
     valbuf = &participant_qos->property.value._buffer[offset++];
-    valbuf->name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
+    valbuf->name = ddsrt_strdup(DDS_SEC_PROP_AUTH_PRIV_KEY);
     if (is_file_private_key) {
 #ifdef WIN32
         snprintf(private_key_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, private_key_data);
@@ -588,13 +581,13 @@ fill_participant_qos(
 
     if (password) {
         valbuf = &participant_qos->property.value._buffer[offset++];
-        valbuf->name = ddsrt_strdup(PROPERTY_PASSWORD);
+        valbuf->name = ddsrt_strdup(DDS_SEC_PROP_AUTH_PASSWORD);
         valbuf->value = ddsrt_strdup(password);
     }
 
     if (crl_data) {
       valbuf = &participant_qos->property.value._buffer[offset++];
-      valbuf->name = ddsrt_strdup(PROPERTY_CRL);
+      valbuf->name = ddsrt_strdup(ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL);
       if (is_file_crl) {
 #ifdef WIN32
           snprintf(crl_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, crl_data);
@@ -615,7 +608,7 @@ fill_participant_qos(
 #else
         snprintf(trusted_ca_dir_path, 1024, "%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
 #endif
-        valbuf->name = ddsrt_strdup(PROPERTY_TRUSTED_CA_DIR);
+        valbuf->name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR);
         valbuf->value = ddsrt_strdup(trusted_ca_dir_path);
     }
 }
@@ -1201,11 +1194,11 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_certificate_property)
 
     memset(&participant_qos, 0, sizeof(participant_qos));
     dds_security_property_init(&participant_qos.property.value, 3);
-    participant_qos.property.value._buffer[0].name = ddsrt_strdup("dds.sec.auth.identity_cert");
+    participant_qos.property.value._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_PREFIX "auth.identity_cert"); // deliberately *not* DDS_SEC_PROP_AUTH_IDENTITY_CERT
     participant_qos.property.value._buffer[0].value = ddsrt_strdup(identity_certificate);
-    participant_qos.property.value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
+    participant_qos.property.value._buffer[1].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CA);
     participant_qos.property.value._buffer[1].value = ddsrt_strdup(identity_ca);
-    participant_qos.property.value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
+    participant_qos.property.value._buffer[2].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_PRIV_KEY);
     participant_qos.property.value._buffer[2].value = ddsrt_strdup(private_key_1024);
 
     /* Now call the function. */
@@ -1227,7 +1220,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_certificate_property)
     CU_ASSERT (exception.minor_code != 0);
     CU_ASSERT_FATAL (exception.message != NULL);
     assert(exception.message != NULL); // for Clang's static analyzer
-    CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property 'dds.sec.auth.identity_certificate'") == 0);
+    CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property '" DDS_SEC_PROP_AUTH_IDENTITY_CERT "'") == 0);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1260,11 +1253,11 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_ca_property)
 
     memset(&participant_qos, 0, sizeof(participant_qos));
     dds_security_property_init(&participant_qos.property.value, 3);
-    participant_qos.property.value._buffer[0].name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
+    participant_qos.property.value._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CERT);
     participant_qos.property.value._buffer[0].value = ddsrt_strdup(identity_certificate);
-    participant_qos.property.value._buffer[1].name = ddsrt_strdup("dds.sec.auth.identit_ca");
+    participant_qos.property.value._buffer[1].name = ddsrt_strdup(DDS_SEC_PROP_PREFIX "auth.identit_ca"); // deliberately *not* DDS_SEC_PROP_AUTH_IDENTITY_CA
     participant_qos.property.value._buffer[1].value = ddsrt_strdup(identity_ca);
-    participant_qos.property.value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
+    participant_qos.property.value._buffer[2].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_PRIV_KEY);
     participant_qos.property.value._buffer[2].value = ddsrt_strdup(private_key_1024);
 
     /* Now call the function. */
@@ -1286,7 +1279,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_ca_property)
     CU_ASSERT (exception.minor_code != 0);
     CU_ASSERT_FATAL (exception.message != NULL);
     assert(exception.message != NULL); // for Clang's static analyzer
-    CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property 'dds.sec.auth.identity_ca'") == 0);
+    CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property '" DDS_SEC_PROP_AUTH_IDENTITY_CA "'") == 0);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1316,9 +1309,9 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_private_key_property)
 
     memset(&participant_qos, 0, sizeof(participant_qos));
     dds_security_property_init(&participant_qos.property.value, 2);
-    participant_qos.property.value._buffer[0].name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
+    participant_qos.property.value._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CERT);
     participant_qos.property.value._buffer[0].value = ddsrt_strdup(identity_certificate);
-    participant_qos.property.value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
+    participant_qos.property.value._buffer[1].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CA);
     participant_qos.property.value._buffer[1].value = ddsrt_strdup(identity_ca);
 
     /* Now call the function. */
@@ -1340,7 +1333,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_private_key_property)
     CU_ASSERT (exception.minor_code != 0);
     CU_ASSERT_FATAL (exception.message != NULL);
     assert(exception.message != NULL); // for Clang's static analyzer
-    CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property 'dds.sec.auth.private_key'") == 0);
+    CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property '" DDS_SEC_PROP_AUTH_PRIV_KEY "'") == 0);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);

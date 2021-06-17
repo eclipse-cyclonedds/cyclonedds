@@ -188,26 +188,31 @@ typedef enum {
  * Security Property Key Names                                                     *
  *                                                                        *
  *************************************************************************/
-#define DDS_SEC_PROP_AUTH_LIBRARY_PATH "dds.sec.auth.library.path"
-#define DDS_SEC_PROP_AUTH_LIBRARY_INIT "dds.sec.auth.library.init"
-#define DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE "dds.sec.auth.library.finalize"
-#define DDS_SEC_PROP_CRYPTO_LIBRARY_PATH "dds.sec.crypto.library.path"
-#define DDS_SEC_PROP_CRYPTO_LIBRARY_INIT "dds.sec.crypto.library.init"
-#define DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE "dds.sec.crypto.library.finalize"
-#define DDS_SEC_PROP_ACCESS_LIBRARY_PATH "dds.sec.access.library.path"
-#define DDS_SEC_PROP_ACCESS_LIBRARY_INIT "dds.sec.access.library.init"
-#define DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE "dds.sec.access.library.finalize"
+#define DDS_SEC_PROP_PREFIX "dds.sec."
+#define ORG_ECLIPSE_CYCLONEDDS_SEC_PREFIX "org.eclipse.cyclonedds.sec."
 
-#define DDS_SEC_PROP_AUTH_IDENTITY_CA "dds.sec.auth.identity_ca"
-#define DDS_SEC_PROP_AUTH_PRIV_KEY "dds.sec.auth.private_key"
-#define DDS_SEC_PROP_AUTH_IDENTITY_CERT "dds.sec.auth.identity_certificate"
-#define DDS_SEC_PROP_AUTH_PASSWORD "dds.sec.auth.password"
-#define ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "org.eclipse.cyclonedds.sec.auth.crl"
-#define DDS_SEC_PROP_ACCESS_PERMISSIONS_CA "dds.sec.access.permissions_ca"
-#define DDS_SEC_PROP_ACCESS_GOVERNANCE "dds.sec.access.governance"
-#define DDS_SEC_PROP_ACCESS_PERMISSIONS "dds.sec.access.permissions"
-#define DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "dds.sec.auth.trusted_ca_dir"
+#define DDS_SEC_PROP_AUTH_LIBRARY_PATH DDS_SEC_PROP_PREFIX "auth.library.path"
+#define DDS_SEC_PROP_AUTH_LIBRARY_INIT DDS_SEC_PROP_PREFIX "auth.library.init"
+#define DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE DDS_SEC_PROP_PREFIX "auth.library.finalize"
+#define DDS_SEC_PROP_CRYPTO_LIBRARY_PATH DDS_SEC_PROP_PREFIX "crypto.library.path"
+#define DDS_SEC_PROP_CRYPTO_LIBRARY_INIT DDS_SEC_PROP_PREFIX "crypto.library.init"
+#define DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE DDS_SEC_PROP_PREFIX "crypto.library.finalize"
+#define DDS_SEC_PROP_ACCESS_LIBRARY_PATH DDS_SEC_PROP_PREFIX "access.library.path"
+#define DDS_SEC_PROP_ACCESS_LIBRARY_INIT DDS_SEC_PROP_PREFIX "access.library.init"
+#define DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE DDS_SEC_PROP_PREFIX "access.library.finalize"
 
+#define DDS_SEC_PROP_AUTH_IDENTITY_CA DDS_SEC_PROP_PREFIX "auth.identity_ca"
+#define DDS_SEC_PROP_AUTH_PRIV_KEY DDS_SEC_PROP_PREFIX "auth.private_key"
+#define DDS_SEC_PROP_AUTH_IDENTITY_CERT DDS_SEC_PROP_PREFIX "auth.identity_certificate"
+#define DDS_SEC_PROP_AUTH_PASSWORD DDS_SEC_PROP_PREFIX "auth.password"
+#define ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL ORG_ECLIPSE_CYCLONEDDS_SEC_PREFIX "auth.crl"
+#define DDS_SEC_PROP_ACCESS_PERMISSIONS_CA DDS_SEC_PROP_PREFIX "access.permissions_ca"
+#define DDS_SEC_PROP_ACCESS_GOVERNANCE DDS_SEC_PROP_PREFIX "access.governance"
+#define DDS_SEC_PROP_ACCESS_PERMISSIONS DDS_SEC_PROP_PREFIX "access.permissions"
+#define DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR DDS_SEC_PROP_PREFIX "auth.trusted_ca_dir"
+
+#define DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME DDS_SEC_PROP_PREFIX "builtin_endpoint_name"
+#define DDS_SEC_PROP_CRYPTO_KEYSIZE DDS_SEC_PROP_PREFIX "crypto.keysize"
 
 #if defined (__cplusplus)
 }

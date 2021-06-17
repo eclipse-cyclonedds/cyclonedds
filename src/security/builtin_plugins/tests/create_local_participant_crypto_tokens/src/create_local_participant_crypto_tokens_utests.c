@@ -22,11 +22,9 @@
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
 #include "crypto_objects.h"
+#include "crypto_tokens.h"
 
 #define TEST_SHARED_SECRET_SIZE 32
-
-static const char *CRYPTO_TOKEN_CLASS_ID = "DDS:Crypto:AES_GCM_GMAC";
-static const char *CRYPTO_TOKEN_PROPERTY_NAME = "dds.cryp.keymat";
 
 static struct plugins_hdl *plugins = NULL;
 static dds_security_cryptography *crypto = NULL;
@@ -189,11 +187,11 @@ static DDS_Security_boolean check_token_validity(const DDS_Security_ParticipantC
   for (i = 0; status && (i < tokens->_length); i++)
   {
     status = (tokens->_buffer[i].class_id != NULL) &&
-             (strcmp(CRYPTO_TOKEN_CLASS_ID, tokens->_buffer[i].class_id) == 0) &&
+             (strcmp(DDS_CRYPTOTOKEN_CLASS_ID, tokens->_buffer[i].class_id) == 0) &&
              (tokens->_buffer[i].binary_properties._length == 1) &&
              (tokens->_buffer[i].binary_properties._buffer != NULL) &&
              (tokens->_buffer[i].binary_properties._buffer[0].name != NULL) &&
-             (strcmp(CRYPTO_TOKEN_PROPERTY_NAME, tokens->_buffer[i].binary_properties._buffer[0].name) == 0) &&
+             (strcmp(DDS_CRYPTOTOKEN_PROP_KEYMAT, tokens->_buffer[i].binary_properties._buffer[0].name) == 0) &&
              (tokens->_buffer[i].binary_properties._buffer[0].value._length > 0) &&
              (tokens->_buffer[i].binary_properties._buffer[0].value._buffer != NULL);
   }

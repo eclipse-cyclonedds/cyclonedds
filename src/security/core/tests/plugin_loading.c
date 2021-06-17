@@ -436,7 +436,7 @@ CU_Test(ddssec_security_plugin_loading, missing_plugin_property_with_props, .ini
   dds_qos_t *qos;
   const char *log_expected[] = {
       "*using security settings from QoS*",
-      "*required security property dds.sec.auth.library.init missing in Property QoS*",
+      "*required security property " DDS_SEC_PROP_AUTH_LIBRARY_INIT " missing in Property QoS*",
       NULL};
 
   unsigned char bvalue[3] = {0x01, 0x02, 0x03};
@@ -483,7 +483,7 @@ CU_Test(ddssec_security_plugin_loading, empty_plugin_property_with_props, .init 
   dds_qos_t *qos;
   const char *log_expected[] = {
       "*using security settings from QoS*",
-      "*required security property dds.sec.auth.library.finalize missing in Property QoS*",
+      "*required security property " DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE " missing in Property QoS*",
       NULL};
 
   unsigned char bvalue[3] = {0x01, 0x02, 0x03};
@@ -530,7 +530,7 @@ CU_Test(ddssec_security_plugin_loading, missing_security_property_with_props, .i
   dds_qos_t *qos;
   const char *log_expected[] = {
       "*using security settings from QoS*",
-      "*required security property dds.sec.access.permissions missing in Property QoS*",
+      "*required security property " DDS_SEC_PROP_ACCESS_PERMISSIONS " missing in Property QoS*",
       NULL};
 
   unsigned char bvalue[3] = {0x01, 0x02, 0x03};

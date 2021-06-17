@@ -490,7 +490,7 @@ register_local_datawriter(
   if (datawriter_properties != NULL && datawriter_properties->_length > 0)
   {
     const DDS_Security_Property_t *property = DDS_Security_PropertySeq_find_property(
-        datawriter_properties, "dds.sec.builtin_endpoint_name");
+        datawriter_properties, DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME);
     if (property != NULL && strcmp(property->value, "BuiltinParticipantVolatileMessageSecureWriter") == 0)
       is_builtin = true;
   }
@@ -671,7 +671,7 @@ register_local_datareader(
   if (datareader_properties != NULL && datareader_properties->_length > 0)
   {
     const DDS_Security_Property_t *property = DDS_Security_PropertySeq_find_property(
-        datareader_properties, "dds.sec.builtin_endpoint_name");
+        datareader_properties, DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME);
     if (property != NULL && strcmp(property->value, "BuiltinParticipantVolatileMessageSecureReader") == 0)
       is_builtin = true;
   }

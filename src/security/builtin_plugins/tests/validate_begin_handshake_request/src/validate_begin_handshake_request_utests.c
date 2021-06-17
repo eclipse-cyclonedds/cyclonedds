@@ -15,7 +15,7 @@
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
 #include "assert.h"
-
+#include "auth_tokens.h"
 
 /* Test helper includes. */
 #include "common/src/loader.h"
@@ -28,24 +28,10 @@
 #endif
 #include <openssl/opensslv.h>
 
-static const char * AUTH_PROTOCOL_CLASS_ID          = "DDS:Auth:PKI-DH:1.0";
-
-static const char * PROPERTY_IDENTITY_CA            = "dds.sec.auth.identity_ca";
-static const char * PROPERTY_PRIVATE_KEY            = "dds.sec.auth.private_key";
-static const char * PROPERTY_IDENTITY_CERT          = "dds.sec.auth.identity_certificate";
-
-static const char * PROPERTY_CERT_SUBJECT_NAME      = "dds.cert.sn";
-static const char * PROPERTY_CERT_ALGORITHM         = "dds.cert.algo";
-static const char * PROPERTY_CA_SUBJECT_NAME        = "dds.ca.sn";
-static const char * PROPERTY_CA_ALGORITHM           = "dds.ca.algo";
-
 static const char * SUBJECT_NAME_IDENTITY_CERT      = "CN=CHAM-574 client,O=Some Company,ST=Some-State,C=NL";
 static const char * SUBJECT_NAME_IDENTITY_CA        = "CN=CHAM-574 authority,O=Some Company,ST=Some-State,C=NL";
 
 static const char * RSA_2048_ALGORITHM_NAME         = "RSA-2048";
-
-static const char * AUTH_REQUEST_TOKEN_CLASS_ID         = "DDS:Auth:PKI-DH:1.0+AuthReq";
-static const char * AUTH_REQUEST_TOKEN_FUTURE_PROP_NAME = "future_challenge";
 
 static const char * AUTH_HANDSHAKE_REQUEST_TOKEN_CLASS_ID = "DDS:Auth:PKI-DH:1.0+Req";
 
@@ -197,24 +183,24 @@ initialize_identity_token(
 {
     memset(token, 0, sizeof(*token));
 
-    token->class_id = ddsrt_strdup(AUTH_PROTOCOL_CLASS_ID);
+    token->class_id = ddsrt_strdup(DDS_AUTHTOKEN_CLASS_ID);
     token->properties._maximum = 4;
     token->properties._length  = 4;
     token->properties._buffer = DDS_Security_PropertySeq_allocbuf(4);
 
-    token->properties._buffer[0].name = ddsrt_strdup(PROPERTY_CERT_SUBJECT_NAME);
+    token->properties._buffer[0].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CERT_SN);
     token->properties._buffer[0].value = ddsrt_strdup(SUBJECT_NAME_IDENTITY_CERT);
     token->properties._buffer[0].propagate = true;
 
-    token->properties._buffer[1].name = ddsrt_strdup(PROPERTY_CERT_ALGORITHM);
+    token->properties._buffer[1].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CERT_ALGO);
     token->properties._buffer[1].value = ddsrt_strdup(certAlgo);
     token->properties._buffer[1].propagate = true;
 
-    token->properties._buffer[2].name = ddsrt_strdup(PROPERTY_CA_SUBJECT_NAME);
+    token->properties._buffer[2].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CA_SN);
     token->properties._buffer[2].value = ddsrt_strdup(SUBJECT_NAME_IDENTITY_CA);
     token->properties._buffer[2].propagate = true;
 
-    token->properties._buffer[3].name = ddsrt_strdup(PROPERTY_CA_ALGORITHM);
+    token->properties._buffer[3].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CA_ALGO);
     token->properties._buffer[3].value = ddsrt_strdup(caAlgo);
     token->properties._buffer[3].propagate = true;
 }
@@ -235,11 +221,11 @@ fill_auth_request_token(
 
     memset(token, 0, sizeof(*token));
 
-    token->class_id = ddsrt_strdup(AUTH_REQUEST_TOKEN_CLASS_ID);
+    token->class_id = ddsrt_strdup(DDS_SECURITY_AUTH_REQUEST_TOKEN_CLASS_ID);
     token->binary_properties._maximum = 1;
     token->binary_properties._length = 1;
     token->binary_properties._buffer = DDS_Security_BinaryPropertySeq_allocbuf(1);
-    token->binary_properties._buffer->name = ddsrt_strdup(AUTH_REQUEST_TOKEN_FUTURE_PROP_NAME);
+    token->binary_properties._buffer->name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_FUTURE_CHALLENGE);
 
     token->binary_properties._buffer->value._maximum = len;
     token->binary_properties._buffer->value._length = len;
@@ -290,11 +276,11 @@ validate_local_identity(void)
 
     memset(&participant_qos, 0, sizeof(participant_qos));
     dds_security_property_init(&participant_qos.property.value, 3);
-    participant_qos.property.value._buffer[0].name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
+    participant_qos.property.value._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CERT);
     participant_qos.property.value._buffer[0].value = ddsrt_strdup(identity_certificate);
-    participant_qos.property.value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
+    participant_qos.property.value._buffer[1].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CA);
     participant_qos.property.value._buffer[1].value = ddsrt_strdup(identity_ca);
-    participant_qos.property.value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
+    participant_qos.property.value._buffer[2].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_PRIV_KEY);
     participant_qos.property.value._buffer[2].value = ddsrt_strdup(private_key);
 
     /* Now call the function. */
@@ -397,8 +383,8 @@ validate_remote_identities (void)
     deinitialize_identity_token(&remote_identity_token);
     DDS_Security_DataHolder_deinit(&local_auth_request_token);
 
-    challenge1 = find_binary_property(&g_local_auth_request_token, AUTH_REQUEST_TOKEN_FUTURE_PROP_NAME);
-    challenge2 = find_binary_property(&g_remote_auth_request_token, AUTH_REQUEST_TOKEN_FUTURE_PROP_NAME);
+    challenge1 = find_binary_property(&g_local_auth_request_token, DDS_AUTHTOKEN_PROP_FUTURE_CHALLENGE);
+    challenge2 = find_binary_property(&g_remote_auth_request_token, DDS_AUTHTOKEN_PROP_FUTURE_CHALLENGE);
 
     return res;
 }
@@ -540,28 +526,28 @@ validate_handshake_token(
 
     if (!token->class_id || strcmp(token->class_id, AUTH_HANDSHAKE_REQUEST_TOKEN_CLASS_ID) != 0) {
         CU_FAIL("HandshakeMessageToken incorrect class_id");
-    } else if ((property = find_binary_property(token, "c.id")) == NULL) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'c.id' not found");
+    } else if ((property = find_binary_property(token, DDS_AUTHTOKEN_PROP_C_ID)) == NULL) {
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_C_ID"' not found");
     } else if (!valid_c_id_property(&identity_certificate[6], &property->value)) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'c.id' value is invalid");
-    } else if (find_binary_property(token, "c.pdata") == NULL) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'c.pdata' not found");
-    } else if ((property = find_binary_property(token, "c.dsign_algo")) == NULL) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'c.dsign_algo' not found");
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_C_ID"' value is invalid");
+    } else if (find_binary_property(token, DDS_AUTHTOKEN_PROP_C_PDATA) == NULL) {
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_C_PDATA"' not found");
+    } else if ((property = find_binary_property(token, DDS_AUTHTOKEN_PROP_C_DSIGN_ALGO)) == NULL) {
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_C_DSIGN_ALGO"' not found");
     } else if (!valid_string_value(AUTH_DSIGN_ALGO_RSA_NAME, &property->value)) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'c.dsign_algo' incorrect value");
-    } else if ((property = find_binary_property(token, "c.kagree_algo")) == NULL) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'c.kagree_algo' not found");
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_C_DSIGN_ALGO"' incorrect value");
+    } else if ((property = find_binary_property(token, DDS_AUTHTOKEN_PROP_C_KAGREE_ALGO)) == NULL) {
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_C_KAGREE_ALGO"' not found");
     } else if (!valid_string_value(AUTH_KAGREE_ALGO_ECDH_NAME, &property->value)) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'c.kagree_algo' incorrect value");
-    } else if (find_binary_property(token, "hash_c1") == NULL) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'hash_c1' not found");
-    } else if (find_binary_property(token, "dh1") == NULL) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'dh1' not found");
-    } else if ((property = find_binary_property(token, "challenge1")) == NULL) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'challenge1' not found");
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_C_KAGREE_ALGO"' incorrect value");
+    } else if (find_binary_property(token, DDS_AUTHTOKEN_PROP_HASH_C1) == NULL) {
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_HASH_C1"' not found");
+    } else if (find_binary_property(token, DDS_AUTHTOKEN_PROP_DH1) == NULL) {
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_DH1"' not found");
+    } else if ((property = find_binary_property(token, DDS_AUTHTOKEN_PROP_CHALLENGE1)) == NULL) {
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_CHALLENGE1"' not found");
     } else if (challenge && compare_octet_seq(challenge, &property->value) != 0) {
-        CU_FAIL("HandshakeMessageToken incorrect property 'challenge1' incorrect value");
+        CU_FAIL("HandshakeMessageToken incorrect property '"DDS_AUTHTOKEN_PROP_CHALLENGE1"' incorrect value");
     } else {
         return true;
     }

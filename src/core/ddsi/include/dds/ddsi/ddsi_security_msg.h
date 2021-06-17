@@ -19,6 +19,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsrt/retcode.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsi/ddsi_plist_generic.h"
 
 #if defined (__cplusplus)
@@ -32,10 +33,17 @@ struct ddsi_serdata;
 
 #define DDS_SECURITY_AUTH_REQUEST                     "dds.sec.auth_request"
 #define DDS_SECURITY_AUTH_HANDSHAKE                   "dds.sec.auth"
-#define DDS_SECURITY_AUTH_REQUEST_TOKEN_CLASS_ID      "DDS:Auth:PKI-DH:1.0+AuthReq"
-#define DDS_SECURITY_AUTH_HANDSHAKE_REQUEST_TOKEN_ID  "DDS:Auth:PKI-DH:1.0+Req"
-#define DDS_SECURITY_AUTH_HANDSHAKE_REPLY_TOKEN_ID    "DDS:Auth:PKI-DH:1.0+Reply"
-#define DDS_SECURITY_AUTH_HANDSHAKE_FINAL_TOKEN_ID    "DDS:Auth:PKI-DH:1.0+Final"
+
+#define DDS_SECURITY_AUTH_VERSION_MAJOR 1
+#define DDS_SECURITY_AUTH_VERSION_MINOR 0
+
+#define DDS_SECURITY_AUTH_TOKEN_CLASS_ID_BASE         "DDS:Auth:PKI-DH:"
+#define DDS_SECURITY_AUTH_TOKEN_CLASS_ID              DDS_SECURITY_AUTH_TOKEN_CLASS_ID_BASE DDSRT_STRINGIFY(DDS_SECURITY_AUTH_VERSION_MAJOR) "." DDSRT_STRINGIFY(DDS_SECURITY_AUTH_VERSION_MINOR)
+
+#define DDS_SECURITY_AUTH_REQUEST_TOKEN_CLASS_ID      DDS_SECURITY_AUTH_TOKEN_CLASS_ID "+AuthReq"
+#define DDS_SECURITY_AUTH_HANDSHAKE_REQUEST_TOKEN_ID  DDS_SECURITY_AUTH_TOKEN_CLASS_ID "+Req"
+#define DDS_SECURITY_AUTH_HANDSHAKE_REPLY_TOKEN_ID    DDS_SECURITY_AUTH_TOKEN_CLASS_ID "+Reply"
+#define DDS_SECURITY_AUTH_HANDSHAKE_FINAL_TOKEN_ID    DDS_SECURITY_AUTH_TOKEN_CLASS_ID "+Final"
 
 
 typedef struct nn_message_identity {

@@ -877,7 +877,7 @@ static uint32_t DDS_Security_getKeySize (const DDS_Security_PropertySeq *propert
     const DDS_Security_Property_t *key_size_property;
     if (properties != NULL)
     {
-        key_size_property = DDS_Security_PropertySeq_find_property (properties, "dds.sec.crypto.keysize");
+        key_size_property = DDS_Security_PropertySeq_find_property (properties, DDS_SEC_PROP_CRYPTO_KEYSIZE);
         if (key_size_property != NULL && !strcmp(key_size_property->value, "128"))
             return 128;
     }

@@ -229,7 +229,7 @@ CU_Test(ddssec_builtin_register_local_datawriter, builtin_endpoint, .init = suit
 
   datawriter_properties._buffer = DDS_Security_PropertySeq_allocbuf(1);
   datawriter_properties._length = datawriter_properties._maximum = 1;
-  datawriter_properties._buffer[0].name = ddsrt_strdup("dds.sec.builtin_endpoint_name");
+  datawriter_properties._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME);
   datawriter_properties._buffer[0].value = ddsrt_strdup("BuiltinSecureEndpointName");
 
   /* Now call the function. */
@@ -292,7 +292,7 @@ CU_Test(ddssec_builtin_register_local_datawriter, special_endpoint_name, .init =
   /*set special endpoint name*/
   datawriter_properties._buffer = DDS_Security_PropertySeq_allocbuf(1);
   datawriter_properties._length = datawriter_properties._maximum = 1;
-  datawriter_properties._buffer[0].name = ddsrt_strdup("dds.sec.builtin_endpoint_name");
+  datawriter_properties._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME);
   datawriter_properties._buffer[0].value = ddsrt_strdup("BuiltinParticipantVolatileMessageSecureWriter");
 
   /* Now call the function. */

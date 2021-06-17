@@ -66,11 +66,11 @@ static DDS_Security_ValidationResult_t test_validate_local_identity_all_ok(
   for (unsigned i = 0; i < participant_qos->property.value._length; i++)
   {
     printf("%s\n", participant_qos->property.value._buffer[i].name);
-    if (!strcmp(participant_qos->property.value._buffer[i].name, "dds.sec.auth.private_key"))
+    if (!strcmp(participant_qos->property.value._buffer[i].name, DDS_SEC_PROP_AUTH_PRIV_KEY))
       private_key = participant_qos->property.value._buffer[i].value;
-    else if (!strcmp(participant_qos->property.value._buffer[i].name, "dds.sec.auth.identity_ca"))
+    else if (!strcmp(participant_qos->property.value._buffer[i].name, DDS_SEC_PROP_AUTH_IDENTITY_CA))
       identity_ca = participant_qos->property.value._buffer[i].value;
-    else if (!strcmp(participant_qos->property.value._buffer[i].name, "dds.sec.auth.identity_certificate"))
+    else if (!strcmp(participant_qos->property.value._buffer[i].name, DDS_SEC_PROP_AUTH_IDENTITY_CERT))
       identity_certificate = participant_qos->property.value._buffer[i].value;
   }
 

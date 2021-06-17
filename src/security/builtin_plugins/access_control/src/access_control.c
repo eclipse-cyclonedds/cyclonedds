@@ -28,20 +28,7 @@
 #include "access_control_utils.h"
 #include "access_control_objects.h"
 #include "access_control_parser.h"
-
-static const char *ACCESS_CONTROL_PROTOCOL_CLASS = "DDS:Access";
-static const unsigned ACCESS_CONTROL_PROTOCOL_VERSION_MAJOR = 1;
-static const unsigned ACCESS_CONTROL_PROTOCOL_VERSION_MINOR = 0;
-
-static const char *ACCESS_CONTROL_PERMISSIONS_CLASS_ID = "Permissions";
-
-static const char *QOS_PROPERTY_PERMISSIONS_DOCUMENT = "dds.sec.access.permissions";
-static const char *QOS_PROPERTY_GOVERNANCE_DOCUMENT = "dds.sec.access.governance";
-static const char *QOS_PROPERTY_PERMISSIONS_CA = "dds.sec.access.permissions_ca";
-static const char *QOS_PROPERTY_IDENTITY_CERT = "dds.sec.auth.identity_certificate";
-
-static const char *ACCESS_PERMISSIONS_CREDENTIAL_TOKEN_ID = "DDS:Access:PermissionsCredential";
-static const char *ACCESS_PROPERTY_PERMISSION_DOCUMENT = "dds.perm.cert";
+#include "ac_tokens.h"
 
 typedef enum TOPIC_TYPE
 {
@@ -78,7 +65,6 @@ typedef struct dds_security_access_control_impl
 
 static bool get_sec_attributes(dds_security_access_control_impl *ac, const DDS_Security_PermissionsHandle permissions_handle, const char *topic_name,
     DDS_Security_EndpointSecurityAttributes *attributes, DDS_Security_SecurityException *ex);
-static char *get_access_control_class_id(const char *classid);
 static local_participant_access_rights *check_and_create_local_participant_rights(DDS_Security_IdentityHandle identity_handle, int domain_id, const DDS_Security_Qos *participant_qos, DDS_Security_SecurityException *ex);
 static remote_participant_access_rights *check_and_create_remote_participant_rights(DDS_Security_IdentityHandle remote_identity_handle, local_participant_access_rights *local_rights,
     const DDS_Security_PermissionsToken *remote_permissions_token, const DDS_Security_AuthenticatedPeerCredentialToken *remote_credential_token, DDS_Security_SecurityException *ex);
@@ -511,7 +497,6 @@ check_remote_participant(dds_security_access_control *instance,
   DDS_Security_ParticipantSecurityAttributes participantSecurityAttributes;
   DDS_Security_PermissionsHandle local_permissions_handle;
   DDS_Security_string class_id_remote_str;
-  DDS_Security_string class_id_local_str;
   DDS_Security_boolean result = false;
 
   if (instance == NULL || permissions_handle == DDS_SECURITY_HANDLE_NIL || participant_data == NULL)
@@ -540,16 +525,15 @@ check_remote_participant(dds_security_access_control *instance,
   /* 2) If the PluginClassName or the MajorVersion of the local permissions_token differ from those in the remote_permissions_token,
        the operation shall return false. */
   class_id_remote_str = remote_rights->permissions->remote_permissions_token_class_id;
-  class_id_local_str = get_access_control_class_id(ACCESS_CONTROL_PERMISSIONS_CLASS_ID);
-  if (compare_class_id_plugin_classname(class_id_remote_str, class_id_local_str) == false)
+  if (compare_class_id_plugin_classname(class_id_remote_str, DDS_ACTOKEN_PERMISSIONS_CLASS_ID) == false)
   {
     DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_CLASSNAME_CODE, 0, DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_CLASSNAME_MESSAGE);
-    goto exit_free_classid;
+    goto exit;
   }
-  if (compare_class_id_major_ver(class_id_remote_str, class_id_local_str) == false)
+  if (compare_class_id_major_ver(class_id_remote_str, DDS_ACTOKEN_PERMISSIONS_CLASS_ID) == false)
   {
     DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_MAJORVERSION_CODE, 0, DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_MAJORVERSION_MESSAGE);
-    goto exit_free_classid;
+    goto exit;
   }
 
   /* 3) If the Permissions document contains a Grant for the remote DomainParticipant and the Grant contains an allow rule on
@@ -557,8 +541,6 @@ check_remote_participant(dds_security_access_control *instance,
   /* Iterate over the grants and rules of the remote participant */
   result = is_participant_allowed_by_permissions(remote_rights->permissions->permissions_tree, domain_id, remote_rights->identity_subject_name, ex);
 
-exit_free_classid:
-  ddsrt_free(class_id_local_str);
 exit:
   ACCESS_CONTROL_OBJECT_RELEASE(remote_rights);
   return result;
@@ -575,7 +557,6 @@ check_remote_datawriter(dds_security_access_control *instance,
   DDS_Security_TopicSecurityAttributes topic_sec_attr;
   remote_participant_access_rights *remote_rights;
   DDS_Security_string class_id_remote_str;
-  DDS_Security_string class_id_local_str;
   DDS_Security_boolean result = false;
 
   if (instance == NULL || permissions_handle == DDS_SECURITY_HANDLE_NIL || publication_data == NULL)
@@ -598,26 +579,23 @@ check_remote_datawriter(dds_security_access_control *instance,
 
   /* Compare PluginClassName and MajorVersion parts */
   class_id_remote_str = remote_rights->permissions->remote_permissions_token_class_id;
-  class_id_local_str = get_access_control_class_id(ACCESS_CONTROL_PERMISSIONS_CLASS_ID);
-  if (compare_class_id_plugin_classname(class_id_remote_str, class_id_local_str) == false)
+  if (compare_class_id_plugin_classname(class_id_remote_str, DDS_ACTOKEN_PERMISSIONS_CLASS_ID) == false)
   {
     DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_CLASSNAME_CODE, 0,
         DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_CLASSNAME_MESSAGE);
-    goto exit_free_classid;
+    goto exit;
   }
-  if (compare_class_id_major_ver(class_id_remote_str, class_id_local_str) == false)
+  if (compare_class_id_major_ver(class_id_remote_str, DDS_ACTOKEN_PERMISSIONS_CLASS_ID) == false)
   {
     DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_MAJORVERSION_CODE, 0,
         DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_MAJORVERSION_MESSAGE);
-    goto exit_free_classid;
+    goto exit;
   }
 
   /* Find a topic with the specified topic name in the Governance */
   result = is_readwrite_allowed_by_permissions(remote_rights->permissions->permissions_tree, domain_id, publication_data->topic_name,
       &publication_data->partition, remote_rights->identity_subject_name, PUBLISH_CRITERIA, ex);
 
-exit_free_classid:
-  ddsrt_free(class_id_local_str);
 exit:
   ACCESS_CONTROL_OBJECT_RELEASE(remote_rights);
   return result;
@@ -635,7 +613,6 @@ check_remote_datareader(dds_security_access_control *instance,
   DDS_Security_TopicSecurityAttributes topic_sec_attr;
   remote_participant_access_rights *remote_rights;
   DDS_Security_string class_id_remote_str;
-  DDS_Security_string class_id_local_str;
 
   DDS_Security_boolean result = false;
 
@@ -661,27 +638,24 @@ check_remote_datareader(dds_security_access_control *instance,
 
   /* Compare PluginClassName and MajorVersion parts */
   class_id_remote_str = remote_rights->permissions->remote_permissions_token_class_id;
-  class_id_local_str = get_access_control_class_id(ACCESS_CONTROL_PERMISSIONS_CLASS_ID);
-  if (compare_class_id_plugin_classname(class_id_remote_str, class_id_local_str) == false)
+  if (compare_class_id_plugin_classname(class_id_remote_str, DDS_ACTOKEN_PERMISSIONS_CLASS_ID) == false)
   {
     DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_CLASSNAME_CODE, 0,
         DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_CLASSNAME_MESSAGE);
-    goto exit_free_classid;
+    goto exit;
   }
-  if (compare_class_id_major_ver(class_id_remote_str, class_id_local_str) == false)
+  if (compare_class_id_major_ver(class_id_remote_str, DDS_ACTOKEN_PERMISSIONS_CLASS_ID) == false)
   {
     DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_MAJORVERSION_CODE, 0,
                                DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_MAJORVERSION_MESSAGE);
     ACCESS_CONTROL_OBJECT_RELEASE(remote_rights);
-    goto exit_free_classid;
+    goto exit;
   }
 
   /* Find a topic with the specified topic name in the Governance */
   result = is_readwrite_allowed_by_permissions(remote_rights->permissions->permissions_tree, domain_id, subscription_data->topic_name,
       &subscription_data->partition, remote_rights->identity_subject_name, SUBSCRIBE_CRITERIA, ex);
 
-exit_free_classid:
-  ddsrt_free(class_id_local_str);
 exit:
   ACCESS_CONTROL_OBJECT_RELEASE(remote_rights);
   return result;
@@ -698,7 +672,6 @@ check_remote_topic(dds_security_access_control *instance,
   DDS_Security_TopicSecurityAttributes topic_sec_attr;
   remote_participant_access_rights *remote_rights;
   DDS_Security_string class_id_remote_str;
-  DDS_Security_string class_id_local_str;
   DDS_Security_boolean result = false;
 
   if (instance == NULL || permissions_handle == DDS_SECURITY_HANDLE_NIL || topic_data == NULL)
@@ -721,24 +694,21 @@ check_remote_topic(dds_security_access_control *instance,
 
   /* Compare PluginClassName and MajorVersion parts */
   class_id_remote_str = remote_rights->permissions->remote_permissions_token_class_id;
-  class_id_local_str = get_access_control_class_id(ACCESS_CONTROL_PERMISSIONS_CLASS_ID);
-  if (!compare_class_id_plugin_classname(class_id_remote_str, class_id_local_str))
+  if (!compare_class_id_plugin_classname(class_id_remote_str, DDS_ACTOKEN_PERMISSIONS_CLASS_ID))
   {
     DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_CLASSNAME_CODE, 0,
       DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_CLASSNAME_MESSAGE);
-    goto exit_free_classid;
+    goto exit;
   }
-  if (!compare_class_id_major_ver(class_id_remote_str, class_id_local_str))
+  if (!compare_class_id_major_ver(class_id_remote_str, DDS_ACTOKEN_PERMISSIONS_CLASS_ID))
   {
     DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_MAJORVERSION_CODE, 0,
       DDS_SECURITY_ERR_INCOMPATIBLE_REMOTE_PLUGIN_MAJORVERSION_MESSAGE);
-    goto exit_free_classid;
+    goto exit;
   }
 
   result = is_topic_allowed_by_permissions(remote_rights->permissions->permissions_tree, domain_id, topic_data->name, remote_rights->identity_subject_name, ex);
 
-exit_free_classid:
-  ddsrt_free(class_id_local_str);
 exit:
   ACCESS_CONTROL_OBJECT_RELEASE(remote_rights);
   return result;
@@ -859,7 +829,7 @@ get_permissions_token(dds_security_access_control *instance,
 
   ACCESS_CONTROL_OBJECT_RELEASE(rights);
   memset(permissions_token, 0, sizeof(*permissions_token));
-  permissions_token->class_id = get_access_control_class_id(ACCESS_CONTROL_PERMISSIONS_CLASS_ID);
+  permissions_token->class_id = ddsrt_strdup(DDS_ACTOKEN_PERMISSIONS_CLASS_ID);
   return true;
 }
 
@@ -896,10 +866,10 @@ get_permissions_credential_token(
   }
 
   memset(permissions_credential_token, 0, sizeof(*permissions_credential_token));
-  permissions_credential_token->class_id = ddsrt_strdup(ACCESS_PERMISSIONS_CREDENTIAL_TOKEN_ID);
+  permissions_credential_token->class_id = ddsrt_strdup(DDS_ACTOKEN_PERMISSIONS_CREDENTIAL_CLASS_ID);
   permissions_credential_token->properties._length = permissions_credential_token->properties._maximum = 1;
   permissions_credential_token->properties._buffer = DDS_Security_PropertySeq_allocbuf(1);
-  permissions_credential_token->properties._buffer[0].name = ddsrt_strdup(ACCESS_PROPERTY_PERMISSION_DOCUMENT);
+  permissions_credential_token->properties._buffer[0].name = ddsrt_strdup(DDS_ACTOKEN_PROP_PERM_CERT);
   permissions_credential_token->properties._buffer[0].value = ddsrt_strdup(rights->permissions_document);
   ACCESS_CONTROL_OBJECT_RELEASE(rights);
   return true;
@@ -1681,16 +1651,6 @@ get_sec_attributes(
   return result;
 }
 
-static char *
-get_access_control_class_id(
-    const char *classid)
-{
-  size_t sz = strlen(ACCESS_CONTROL_PROTOCOL_CLASS) + strlen(classid) + 6;
-  char *classId = ddsrt_malloc(sz);
-  snprintf(classId, sz, "%s:%s:%1u.%1u", ACCESS_CONTROL_PROTOCOL_CLASS, classid, ACCESS_CONTROL_PROTOCOL_VERSION_MAJOR, ACCESS_CONTROL_PROTOCOL_VERSION_MINOR);
-  return classId;
-}
-
 static void
 sanity_check_local_access_rights(
     local_participant_access_rights *rights)
@@ -2240,11 +2200,11 @@ check_and_create_local_participant_rights(
   dds_time_t permission_expiry = DDS_TIME_INVALID;
 
   /* Retrieve the identity certificate from the participant QoS */
-  identity_cert_data = DDS_Security_Property_get_value(&participant_qos->property.value, QOS_PROPERTY_IDENTITY_CERT);
+  identity_cert_data = DDS_Security_Property_get_value(&participant_qos->property.value, DDS_SEC_PROP_AUTH_IDENTITY_CERT);
   if (!identity_cert_data)
   {
     DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_MISSING_PROPERTY_CODE, 0,
-        DDS_SECURITY_ERR_MISSING_PROPERTY_MESSAGE, QOS_PROPERTY_IDENTITY_CERT);
+        DDS_SECURITY_ERR_MISSING_PROPERTY_MESSAGE, DDS_SEC_PROP_AUTH_IDENTITY_CERT);
     goto err_no_identity_cert;
   }
 
@@ -2254,24 +2214,24 @@ check_and_create_local_participant_rights(
   if (!(identity_subject = ac_get_certificate_subject_name(identity_cert, ex)))
     goto err_inv_identity_cert;
 
-  if (!(governance_uri = DDS_Security_Property_get_value(&participant_qos->property.value, QOS_PROPERTY_GOVERNANCE_DOCUMENT)))
+  if (!(governance_uri = DDS_Security_Property_get_value(&participant_qos->property.value, DDS_SEC_PROP_ACCESS_GOVERNANCE)))
   {
     DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_MISSING_PROPERTY_CODE, 0,
-        DDS_SECURITY_ERR_MISSING_PROPERTY_MESSAGE, QOS_PROPERTY_GOVERNANCE_DOCUMENT);
+        DDS_SECURITY_ERR_MISSING_PROPERTY_MESSAGE, DDS_SEC_PROP_ACCESS_GOVERNANCE);
     goto err_no_governance;
   }
 
-  if (!(permissions_uri = DDS_Security_Property_get_value(&participant_qos->property.value, QOS_PROPERTY_PERMISSIONS_DOCUMENT)))
+  if (!(permissions_uri = DDS_Security_Property_get_value(&participant_qos->property.value, DDS_SEC_PROP_ACCESS_PERMISSIONS)))
   {
     DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_MISSING_PROPERTY_CODE, 0,
-        DDS_SECURITY_ERR_MISSING_PROPERTY_MESSAGE, QOS_PROPERTY_PERMISSIONS_DOCUMENT);
+        DDS_SECURITY_ERR_MISSING_PROPERTY_MESSAGE, DDS_SEC_PROP_ACCESS_PERMISSIONS);
     goto err_no_permissions;
   }
 
-  if (!(permission_ca_data = DDS_Security_Property_get_value(&participant_qos->property.value, QOS_PROPERTY_PERMISSIONS_CA)))
+  if (!(permission_ca_data = DDS_Security_Property_get_value(&participant_qos->property.value, DDS_SEC_PROP_ACCESS_PERMISSIONS_CA)))
   {
     DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_MISSING_PROPERTY_CODE, 0,
-        DDS_SECURITY_ERR_MISSING_PROPERTY_MESSAGE, QOS_PROPERTY_PERMISSIONS_CA);
+        DDS_SECURITY_ERR_MISSING_PROPERTY_MESSAGE, DDS_SEC_PROP_ACCESS_PERMISSIONS_CA);
     goto err_no_permission_ca;
   }
 
@@ -2409,11 +2369,11 @@ check_and_create_remote_participant_rights(
   size_t len;
 
   /* Retrieve the remote identity certificate from the remote_credential_token */
-  identity_cert_property = DDS_Security_DataHolder_find_property(remote_credential_token, "c.id");
+  identity_cert_property = DDS_Security_DataHolder_find_property(remote_credential_token, DDS_ACTOKEN_PROP_C_ID);
   if (!identity_cert_property || !identity_cert_property->value)
   {
     DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_MISSING_PROPERTY_CODE, 0,
-        DDS_SECURITY_ERR_MISSING_PROPERTY_MESSAGE, "c.id");
+        DDS_SECURITY_ERR_MISSING_PROPERTY_MESSAGE, DDS_ACTOKEN_PROP_C_ID);
     goto err_no_identity_cert;
   }
 
@@ -2426,10 +2386,10 @@ check_and_create_remote_participant_rights(
     goto err_inv_identity_cert;
 
   /* Retrieve the remote permissions document from the remote_credential_token */
-  permission_doc_property = DDS_Security_DataHolder_find_property(remote_credential_token, "c.perm");
+  permission_doc_property = DDS_Security_DataHolder_find_property(remote_credential_token, DDS_ACTOKEN_PROP_C_PERM);
   if (!permission_doc_property || !permission_doc_property->value)
   {
-    DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_MISSING_PROPERTY_CODE, 0, DDS_SECURITY_ERR_MISSING_PROPERTY_MESSAGE, "c.perm");
+    DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_MISSING_PROPERTY_CODE, 0, DDS_SECURITY_ERR_MISSING_PROPERTY_MESSAGE, DDS_ACTOKEN_PROP_C_PERM);
     goto err_inv_perm_doc;
   }
 

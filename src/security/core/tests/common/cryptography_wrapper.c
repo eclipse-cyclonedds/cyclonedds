@@ -21,10 +21,8 @@
 #include "dds/security/dds_security_api.h"
 #include "dds/security/dds_security_api_defs.h"
 #include "dds/security/core/dds_security_utils.h"
+#include "crypto_tokens.h"
 #include "cryptography_wrapper.h"
-
-#define CRYPTO_TOKEN_CLASS_ID "DDS:Crypto:AES_GCM_GMAC"
-#define CRYPTO_TOKEN_PROPERTY_NAME "dds.cryp.keymat"
 
 int32_t init_crypto(const char *argument, void **context, struct ddsi_domaingv *gv);
 int32_t finalize_crypto(void *context);
@@ -145,11 +143,11 @@ static bool check_crypto_tokens(const DDS_Security_DataHolderSeq *tokens)
     for (uint32_t i = 0; result && (i < tokens->_length); i++)
     {
       result = (tokens->_buffer[i].class_id != NULL &&
-        strcmp(CRYPTO_TOKEN_CLASS_ID, tokens->_buffer[i].class_id) == 0 &&
+        strcmp(DDS_CRYPTOTOKEN_CLASS_ID, tokens->_buffer[i].class_id) == 0 &&
         tokens->_buffer[i].binary_properties._length == 1 &&
         tokens->_buffer[i].binary_properties._buffer != NULL &&
         tokens->_buffer[i].binary_properties._buffer[0].name != NULL &&
-        strcmp(CRYPTO_TOKEN_PROPERTY_NAME, tokens->_buffer[i].binary_properties._buffer[0].name) == 0 &&
+        strcmp(DDS_CRYPTOTOKEN_PROP_KEYMAT, tokens->_buffer[i].binary_properties._buffer[0].name) == 0 &&
         tokens->_buffer[i].binary_properties._buffer[0].value._length > 0 &&
         tokens->_buffer[i].binary_properties._buffer[0].value._buffer != NULL);
     }

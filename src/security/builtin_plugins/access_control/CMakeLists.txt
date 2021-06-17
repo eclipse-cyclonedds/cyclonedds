@@ -20,7 +20,8 @@ set(private_headers
   src/access_control_objects.h
   src/access_control_parser.h
   src/access_control_utils.h
-  src/access_control.h)
+  src/access_control.h
+  ../include/ac_tokens.h)
 
 add_library(dds_security_ac SHARED ${sources} ${private_headers})
 
@@ -43,6 +44,7 @@ target_include_directories(dds_security_ac
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_core,INTERFACE_INCLUDE_DIRECTORIES>>"
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_openssl,INTERFACE_INCLUDE_DIRECTORIES>>"
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include>"
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
 )
 

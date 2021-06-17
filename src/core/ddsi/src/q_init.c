@@ -1495,8 +1495,8 @@ int rtps_init (struct ddsi_domaingv *gv)
 
   /* Setting these properties allows the CryptoKeyFactory to recognize
    * the entities (see DDS Security spec chapter 8.8.8.1). */
-  add_property_to_xqos(&gv->builtin_secure_volatile_xqos_rd, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureReader");
-  add_property_to_xqos(&gv->builtin_secure_volatile_xqos_wr, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureWriter");
+  add_property_to_xqos(&gv->builtin_secure_volatile_xqos_rd, DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME, "BuiltinParticipantVolatileMessageSecureReader");
+  add_property_to_xqos(&gv->builtin_secure_volatile_xqos_wr, DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME, "BuiltinParticipantVolatileMessageSecureWriter");
 #endif
 
   ddsrt_mutex_init (&gv->sertypes_lock);

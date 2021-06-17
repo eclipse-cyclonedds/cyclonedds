@@ -143,7 +143,7 @@ static void prepare_participant_security_attributes_and_properties(DDS_Security_
     properties->_maximum = properties->_length = 1;
     properties->_buffer = ddsrt_malloc(sizeof(DDS_Security_Property_t));
 
-    properties->_buffer[0].name = ddsrt_strdup("dds.sec.crypto.keysize");
+    properties->_buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_CRYPTO_KEYSIZE);
 
     if (transformation_kind == CRYPTO_TRANSFORMATION_KIND_AES128_GCM || transformation_kind == CRYPTO_TRANSFORMATION_KIND_AES128_GMAC)
     {
