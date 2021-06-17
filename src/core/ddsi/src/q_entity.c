@@ -902,13 +902,15 @@ static void participant_remove_wr_lease_locked (struct participant * pp, struct 
 #ifdef DDS_HAS_SECURITY
 static dds_return_t check_and_load_security_config (struct ddsi_domaingv * const gv, const ddsi_guid_t *ppguid, dds_qos_t *qos)
 {
-  /* If some security properties (name starts with dds.sec. conform DDS Security spec 7.2.4.1)
-     are present in the QoS, all must be and they will be used.  If none are, take the settings
-     from the configuration if it has them.  When no security configuration exists anywhere,
-     create an unsecured participant.
+  /* If some security properties (name starts with "dds.sec." conform DDS Security spec 7.2.4.1,
+     or starts with "org.eclipse.cyclonedds.sec." which we use for Cyclone-specific extensions)
+     are present in the QoS, all required properties must be present and they will be used.
+
+     If none are, take the settings from the configuration if it has them.  When no security
+     configuration exists anywhere, create an unsecured participant.
 
      This may modify "qos" */
-  if (ddsi_xqos_has_prop_prefix (qos, "dds.sec."))
+  if (ddsi_xqos_has_prop_prefix (qos, "dds.sec.") || ddsi_xqos_has_prop_prefix (qos, "org.eclipse.cyclonedds.sec."))
   {
     char const * const req[] = {
       DDS_SEC_PROP_AUTH_IDENTITY_CA,
