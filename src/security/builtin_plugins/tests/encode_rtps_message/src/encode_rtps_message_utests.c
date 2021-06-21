@@ -500,6 +500,10 @@ crypto_decrypt_data(
       result = false;
     }
   }
+  else
+  {
+    result = false;
+  }
 
   if (result)
   {
