@@ -1777,6 +1777,7 @@ static void def_a_macro(
     *cp = EOS;
     if (str_eq( definition, "__STDC__")) {
         defp = look_id( definition);
+        assert (defp);
         defp->nargs = DEF_NOARGS_STANDARD;
                                 /* Restore Standard-predefinedness  */
     }
