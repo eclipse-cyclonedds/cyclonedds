@@ -807,8 +807,8 @@ static char *   replace(
         dump_string( "prescan exit", catbuf);
     }
 
-    assert( arglist);
     if (nargs > 0) {    /* Function-like macro with any argument    */
+        assert( arglist);
         expbuf = xmalloc( (size_t) (NMACWORK + IDMAX));
         if (mcpp_debug & EXPAND) {
             mcpp_fprintf( DBG, "(%s)", defp->name);
@@ -827,9 +827,11 @@ static char *   replace(
             dump_string( "substitute exit", expbuf);
         }
     } else {                                /* Object-like macro or */
-        if (nargs == 0 && ! enable_trace_macro)
+        if (nargs == 0 && ! enable_trace_macro) {
                             /* Function-like macro with no argument */
+            assert( arglist);
             free( arglist[ 0]);
+        }
         free( arglist);
         out_p = expbuf = catbuf;
     }
