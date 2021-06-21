@@ -25,6 +25,7 @@
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
 #include "crypto_objects.h"
+#include "crypto_utils.h"
 
 #define TEST_SHARED_SECRET_SIZE 32
 
@@ -823,7 +824,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
   /* use incorrect transformation key id */
   {
     unsigned char key[4];
-    uint32_t val = (uint32_t) rand();
+    uint32_t val = crypto_get_random_uint32();
 
     memcpy(key, header->transform_identifier.transformation_key_id, 4);
     memcpy(header->transform_identifier.transformation_key_id, &val, 4);
@@ -854,7 +855,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
   /* use incorrect session id*/
   {
     unsigned char sid[4];
-    uint32_t val = (uint32_t) rand();
+    uint32_t val = crypto_get_random_uint32();
 
     memcpy(sid, header->session_id, 4);
     memcpy(header->session_id, &val, 4);
@@ -891,8 +892,8 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
       uint32_t l;
     } val;
 
-    val.h = (uint32_t) rand();
-    val.l = (uint32_t) rand();
+    val.h = crypto_get_random_uint32();
+    val.l = crypto_get_random_uint32();
 
     memcpy(iv, header->init_vector_suffix, 8);
     memcpy(header->init_vector_suffix, &val, 8);
