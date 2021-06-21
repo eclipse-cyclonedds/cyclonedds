@@ -2564,6 +2564,7 @@ static void do_msg(
         if (file->fp == NULL) {             /* Macro                */
             if (file->filename) {
                 defp = look_id( file->filename);
+                assert (defp);
                 if ((defp->nargs > DEF_NOARGS_STANDARD)
                     && ! (file->parent && file->parent->filename
                         && str_eq( file->filename, file->parent->filename)))
