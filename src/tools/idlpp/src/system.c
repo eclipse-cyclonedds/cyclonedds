@@ -2533,12 +2533,20 @@ static char *   norm_path(
     inf = inf && (mcpp_debug & PATH);       /* Output information   */
 
     len = strlcpy( slbuf1, dir, sizeof(slbuf1));    /* Include directory    */
+    if (len >= sizeof (slbuf1)) { /* Truncated, not fit for use */
+        return NULL;
+    }
     if (fname) {
-        if (len && len < sizeof(slbuf1) && slbuf1[ len - 1] != PATH_DELIM) {
+        if (len && slbuf1[ len - 1] != PATH_DELIM) {
+            if (len >= sizeof (slbuf1) - 1) {
+                return NULL; /* Won't fit; not fit for use */
+            }
             slbuf1[ len] = PATH_DELIM;      /* Append PATH_DELIM    */
             slbuf1[ ++len] = EOS;
         }
-        strlcat( slbuf1, fname, sizeof(slbuf1));
+        if (strlcat( slbuf1, fname, sizeof(slbuf1)) >= sizeof (slbuf1)) {
+            return NULL; /* Truncated, not fit for use */
+        }
     } else {
         if (len && slbuf1[ len - 1] == PATH_DELIM) {
             /* stat() of some systems do not like trailing '/'  */
@@ -2566,6 +2574,9 @@ static char *   norm_path(
     (void)hmap;
 #endif
     if (! fname) {
+        if (len >= sizeof (slbuf1) - 1) {
+            return NULL; /* Won't fit; not fit for use */
+        }
         slbuf1[ len] = PATH_DELIM;          /* Append PATH_DELIM    */
         slbuf1[ ++len] = EOS;
     }
