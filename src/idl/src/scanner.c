@@ -348,6 +348,7 @@ scan_floating_pt_literal(
       const char *exp;
       if (state != integer && state != fraction)
         break;
+      state = exponent;
       exp = next(pstate, cur);
       chr = peek(pstate, exp);
       if (chr == '+' || chr == '-')

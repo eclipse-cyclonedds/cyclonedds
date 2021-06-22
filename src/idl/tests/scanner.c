@@ -224,6 +224,12 @@ CU_Test(idl_scanner, floating_pt_literal)
 CU_Test(idl_scanner, floating_pt_literal_dot_fraction)
 { test(".1", TOKVEC( TFL(.1,1,1,1,3), T0(1,3) )); }
 
+CU_Test(idl_scanner, floating_pt_literal_int_dot_fraction_exp)
+{ test("1.1e+3", TOKVEC( TFL(1.1e3,1,1,1,7), T0(1,7) )); }
+
+CU_Test(idl_scanner, floating_pt_literal_int_dot_fraction)
+{ test("1.1e-3e3", TOKVEC( TFL(1.1e-3,1,1,1,7), TI_STR("e3", 1,7,1,9), T0(1,9) )); }
+
 /* identifier */
 CU_Test(idl_scanner, ident)
 { test("a", TOKVEC( TI(1,1,1,2), T0(1,2) )); }
