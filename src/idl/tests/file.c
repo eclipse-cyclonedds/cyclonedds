@@ -169,7 +169,7 @@ CU_Test(idl_file, normalize_revert)
   idl_retcode_t ret;
   char *norm = NULL, *path = NULL;
 
-  idl_asprintf(&path, "%s/..", prefix);
+  (void) idl_asprintf(&path, "%s/..", prefix);
   CU_ASSERT_PTR_NOT_NULL_FATAL(path);
   assert(path);
   ret = idl_normalize_path(path, &norm);
@@ -214,7 +214,7 @@ CU_Test(idl_file, normalize_revert_too_many)
   fprintf(stderr, "revert: %s\n", revert);
 
   path = NULL;
-  idl_asprintf(&path, "%s%s", prefix, revert);
+  (void) idl_asprintf(&path, "%s%s", prefix, revert);
   CU_ASSERT_PTR_NOT_NULL_FATAL(path);
 
   fprintf(stderr, "path: %s\n", path);

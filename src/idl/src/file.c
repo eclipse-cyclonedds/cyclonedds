@@ -354,7 +354,7 @@ idl_retcode_t idl_relative_path(const char *base, const char *path, char **relpa
       rev[(i*3)+2] = sep;
   }
 
-  idl_asprintf(&rel, "%s%s", rev ? rev : "", fwd);
+  (void) idl_asprintf(&rel, "%s%s", rev ? rev : "", fwd);
   if (rev)
     free(rev);
   if (!rel)
