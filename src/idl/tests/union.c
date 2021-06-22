@@ -178,6 +178,7 @@ CU_Test(idl_union, typedef_switch_types)
 
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  assert(ret == IDL_RETCODE_OK); // Coverity thinks pstate is possibly a freed pointer
   CU_ASSERT_PTR_NOT_NULL(pstate);
   assert(pstate);
   str = M("foo", T("char", "baz") U("baz"));
