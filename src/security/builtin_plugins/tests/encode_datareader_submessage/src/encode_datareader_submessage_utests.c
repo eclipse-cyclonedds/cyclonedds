@@ -562,6 +562,10 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
       return false;
     }
   }
+  else
+  {
+    result = false;
+  }
 
   if (result)
   {
