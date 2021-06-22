@@ -22,13 +22,13 @@
 #include <vxWorks.h>
 #include <sockLib.h>
 #include <ioLib.h>
-#else
+#elif !defined(__QNXNTO__)
 #include <sys/fcntl.h>
 #endif /* __VXWORKS__ */
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#ifdef __sun
+#if defined(__sun) || defined(__QNXNTO__)
 #include <fcntl.h>
 #endif
 
@@ -316,13 +316,13 @@ ddsrt_setsockopt(
     goto err_setsockopt;
   }
 
-#if defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__QNXNTO__)
   if (level == SOL_SOCKET && optname == SO_REUSEADDR &&
       setsockopt(sock, level, SO_REUSEPORT, optval, optlen) == -1)
   {
     goto err_setsockopt;
   }
-#endif /* __APPLE__ || __FreeBSD__ */
+#endif /* __APPLE__ || __FreeBSD__ || __QNXNTO__*/
 
   return DDS_RETCODE_OK;
 err_setsockopt:
