@@ -61,6 +61,10 @@ typedef struct {
 /* VX_TASK_NAME_LENGTH is the maximum number of bytes, excluding
    null-terminating byte, for a thread name. */
 #define MAXTHREADNAMESIZE (VX_TASK_NAME_LENGTH)
+#elif defined(__QNXNTO__)
+#include <pthread.h>
+#include <sys/neutrino.h>
+#define MAXTHREADNAMESIZE (_NTO_THREAD_NAME_MAX - 1)
 #endif /* __APPLE__ */
 
 size_t
@@ -107,6 +111,9 @@ ddsrt_thread_getname(char *str, size_t size)
     }
     cnt = ddsrt_strlcpy(str, ptr, size);
   }
+#elif defined(__QNXNTO__)
+  (void)pthread_getname_np(pthread_self(), buf, sizeof(buf));
+  cnt = ddsrt_strlcpy(str, buf, size);
 #endif
 
   /* Thread identifier is used as fall back if thread name lookup is not
@@ -140,6 +147,8 @@ ddsrt_thread_setname(const char *__restrict name)
 #if !(__SunOS_5_6 || __SunOS_5_7 || __SunOS_5_8 || __SunOS_5_9 || __SunOS_5_10)
   (void)pthread_setname_np(pthread_self(), name);
 #endif
+#elif defined(__QNXNTO__)
+  (void)pthread_setname_np(pthread_self(), name);
 #else
   /* VxWorks does not support the task name to be set after a task is created.
      Setting the name of a task can be done through pthread_attr_setname. */

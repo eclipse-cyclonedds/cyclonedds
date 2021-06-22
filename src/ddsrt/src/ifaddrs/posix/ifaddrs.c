@@ -79,7 +79,7 @@ static enum ddsrt_iftype guess_iftype (const struct ifaddrs *sys_ifa)
   fclose (fp);
   return type;
 }
-#elif defined __APPLE__ || defined __FreeBSD__ /* probably works for all BSDs */
+#elif defined(__APPLE__) || defined(__QNXNTO__) || defined(__FreeBSD__)  /* probably works for all BSDs */
 #include <sys/ioctl.h>
 #include <sys/sockio.h>
 #include <net/if.h>
@@ -255,7 +255,7 @@ dds_return_t ddsrt_eth_get_mac_addr (char *interface_name, unsigned char *mac_ad
 
 #if defined __linux
 #include <linux/if_packet.h>
-#elif defined __APPLE__
+#elif defined(__APPLE__) || defined(__QNXNTO__)
 #include <net/if_dl.h>
 #endif
 
@@ -265,7 +265,7 @@ dds_return_t ddsrt_eth_get_mac_addr (char *interface_name, unsigned char *mac_ad
     ddsrt_ifaddrs_t *ifa, *ifa_root = NULL;
 #if defined __linux
     int afs[] = { AF_PACKET, DDSRT_AF_TERM };
-#elif defined __APPLE__
+#elif defined(__APPLE__) || defined(__QNXNTO__)
     int afs[] = { AF_LINK, DDSRT_AF_TERM };
 #else
 #error
@@ -278,7 +278,7 @@ dds_return_t ddsrt_eth_get_mac_addr (char *interface_name, unsigned char *mac_ad
         {
 #if defined __linux
             memcpy (mac_addr, ((struct sockaddr_ll *)ifa->addr)->sll_addr, 6);
-#elif defined __APPLE__
+#elif defined(__APPLE__) || defined(__QNXNTO__)
             memcpy (mac_addr, LLADDR((struct sockaddr_dl *)ifa->addr), 6);
 #else
 #error

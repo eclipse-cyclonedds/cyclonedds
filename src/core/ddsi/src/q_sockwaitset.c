@@ -41,7 +41,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifndef __QNXNTO__
 #include <sys/fcntl.h>
+#endif  // __QNXNTO__
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
@@ -505,9 +507,9 @@ int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
 
 #if !_WIN32 && !LWIP_SOCKET
 
-#ifndef __VXWORKS__
+#if ! __VXWORKS__&& !__QNXNTO__
 #include <sys/fcntl.h>
-#endif /* __VXWORKS__ */
+#endif /* __VXWORKS__ __QNXNTO__ */
 
 #ifndef _WRS_KERNEL
 #include <sys/select.h>
@@ -671,7 +673,7 @@ os_sockWaitset os_sockWaitsetNew (void)
 #endif
   ws->set.conns[0] = NULL;
 
-#if !defined(__VXWORKS__) && !defined(_WIN32) && !defined(LWIP_SOCKET)
+#if !defined(__VXWORKS__) && !defined(_WIN32) && !defined(LWIP_SOCKET) && !defined(__QNXNTO__)
   (void) fcntl (ws->pipe[0], F_SETFD, fcntl (ws->pipe[0], F_GETFD) | FD_CLOEXEC);
   (void) fcntl (ws->pipe[1], F_SETFD, fcntl (ws->pipe[1], F_GETFD) | FD_CLOEXEC);
 #endif
