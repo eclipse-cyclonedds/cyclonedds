@@ -2367,7 +2367,7 @@ enum_is_consistent(
     for (b = rhs->enumerators; b; b = idl_next(b))
       if (strcmp(idl_identifier(a), idl_identifier(b)) == 0)
         break;
-    if (!n || a->value != b->value)
+    if (!b || a->value != b->value)
       return false;
   }
 
