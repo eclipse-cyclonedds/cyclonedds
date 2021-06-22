@@ -2589,7 +2589,7 @@ static char *   norm_path(
                 if (cp1)        /* Append to the source directory   */
                     cp1[1] = '\0';
             }
-            (void)strlcat( slbuf1, slbuf2, sizeof(slbuf1));
+            (void)strlcpy( slbuf1, slbuf2, sizeof(slbuf1));
         }
     }
     if (inf) {
