@@ -1403,9 +1403,9 @@ static char *     remove_magics(
         *ep++ = RT_END;
     *ep = EOS;
     if ((from_last && !last) || (!from_last && !first))
-        return  arg_p;
+        goto done;
     if (mac_n == 0 && arg_n == 0)           /* No magic sequence    */
-        return  arg_p;
+        goto done;
     token = from_last ? last : first;
 
     /* Remove pair of magics surrounding the last (or first) token  */
@@ -1553,6 +1553,12 @@ static char *     remove_magics(
         get_ch();                               /* Clear the "file" */
     unget_ch();
 
+done:
+    free (arg_id);
+    free (arg_loc);
+    free (mac_loc);
+    free (mac_id);
+    free (mgc_index);
     return  arg_p;
 }
 
