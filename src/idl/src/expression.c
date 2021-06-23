@@ -321,6 +321,13 @@ int_modulo(idl_intval_t *a, idl_intval_t *b, idl_intval_t *r)
   return IDL_RETCODE_OK;
 }
 
+#ifndef NDEBUG
+static bool is_arith_return_type (idl_type_t t)
+{
+  return (t == IDL_LONG || t == IDL_ULONG || t == IDL_LLONG || t == IDL_ULLONG);
+}
+#endif
+
 static idl_retcode_t
 eval_binary_int_expr(
   idl_pstate_t *pstate,
@@ -331,8 +338,7 @@ eval_binary_int_expr(
   idl_retcode_t ret;
   idl_intval_t val, lhs, rhs;
 
-  assert((type & IDL_LONG) == IDL_LONG ||
-         (type & IDL_LLONG) == IDL_ULLONG);
+  assert (is_arith_return_type (type));
 
   if ((ret = eval_int_expr(pstate, expr->left, type, &lhs)))
     return ret;
@@ -398,8 +404,7 @@ eval_unary_int_expr(
   idl_retcode_t ret;
   idl_intval_t val, rhs;
 
-  assert((type & IDL_LONG) == IDL_LONG ||
-         (type & IDL_LLONG) == IDL_LLONG);
+  assert (is_arith_return_type (type));
 
   if ((ret = eval_int_expr(pstate, expr->right, type, &rhs)))
     return ret;
