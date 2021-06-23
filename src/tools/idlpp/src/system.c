@@ -3480,12 +3480,6 @@ static int  open_file(
  */
 {
     char        dir_fname[ PATHMAX] = { EOS, };
-#if HOST_COMPILER == BORLANDC
-    /* Borland's fopen() does not set errno.    */
-    static int  max_open = FOPEN_MAX - 5;
-#else
-    static int  max_open;
-#endif
     size_t      len;
     FILEINFO *  file = infile;
     FILE *      fp;
@@ -3533,38 +3527,14 @@ search:
     if (standard && included( fullname))        /* Once included    */
         goto  true;
 
-    if ((max_open != 0 && max_open <= include_nest)
-                            /* Exceed the known limit of open files */
-            || ((fp = fopen( fullname, "r")) == NULL && errno == EMFILE)) {
-                            /* Reached the limit for the first time */
-        if (mcpp_debug & PATH) {
-#if HOST_COMPILER == BORLANDC
-            if (include_nest == FOPEN_MAX - 5)
-#else
-            if (max_open == 0)
-#endif
-                mcpp_fprintf( DBG,
+    if ((fp = fopen( fullname, "r")) == NULL) {
+        if (errno == EMFILE) {
+            mcpp_fprintf( DBG,
     "#include nest reached at the maximum of system: %d, returned errno: %d\n"
-                    , include_nest, errno);
+                        , include_nest, errno);
         }
-        /*
-         * Table of open files is full.
-         * Remember the file position and close the includer.
-         * The state will be restored by get_line() on end of the included.
-         */
-        file->pos = ftell( file->fp);
-        assert( file->pos >= 0);
-        fclose( file->fp);
-        /* In case of failure, re-open the includer */
-        if ((fp = fopen( fullname, "r")) == NULL) {
-            file->fp = fopen( cur_fullname, "r");
-            fseek( file->fp, file->pos, SEEK_SET);
-            goto  false;
-        }
-        if (max_open == 0)      /* Remember the limit of the system */
-            max_open = include_nest;
-    } else if (fp == NULL)                  /* No read permission   */
         goto  false;
+    }
     /* Truncate buffer of the includer to save memory   */
     len = (size_t)(file->bptr - file->buffer);
     if (len) {
