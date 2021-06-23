@@ -1578,8 +1578,18 @@ static expr_t   eval_unsigned(
             )
             overflow( op_name, valpp, chk);
         break;
-    case OP_SL:     v1 = v1u << v2u;    break;
-    case OP_SR:     v1 = v1u >> v2u;    break;
+    case OP_SL:
+        if (v2u >= CHAR_BIT * sizeof (v1u))
+            v1 = 0;
+        else
+            v1 = v1u << v2u;
+        break;
+    case OP_SR:
+        if (v2u >= CHAR_BIT * sizeof (v1u))
+            v1 = 0;
+        else
+            v1 = v1u >> v2u;
+        break;
     case OP_LT:     v1 = (v1u < v2u);   break;
     case OP_LE:     v1 = (v1u <= v2u);  break;
     case OP_GT:     v1 = (v1u > v2u);   break;
