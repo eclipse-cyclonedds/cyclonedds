@@ -99,12 +99,14 @@ Check [Eclipse Developer Process](https://www.eclipse.org/projects/dev_process/)
 ### Continuous Integration [2.iv]
 
 Pull requests are required to pass all tests in the CI system prior to merging, unless Committers consider there is sufficient evidence that a failure is the result of a mishap unrelated to the change.
-Cyclone DDS CI results are [public](https://travis-ci.com/github/eclipse-cyclonedds/cyclonedds) and cover x64 platforms running Linux, macOS and Windows 10:
+Cyclone DDS CI results are [public](https://dev.azure.com/eclipse-cyclonedds/cyclonedds/_build) and cover x64 platforms running Linux, macOS and Windows:
 
+- Ubuntu 20.04 with gcc 10
 - Ubuntu 18.04 with gcc 10
-- Ubuntu 18.04 with clang 10
-- macOS 10.15 with Xcode 11.6
-- Windows 10 version 1809 with Visual Studio 2017
+- Ubuntu 18.04 with gcc 7
+- Ubuntu 20.04 with clang 10
+- macOS 10.15 with clang 12
+- Windows Server 2019 with Visual Studio 2019
 
 These are run with a mixture of debug, debug-with-address sanitizer and release builds.
 
