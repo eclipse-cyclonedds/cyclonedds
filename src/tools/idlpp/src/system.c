@@ -2596,12 +2596,14 @@ static char *   norm_path(
         if ((rllen = readlink( slbuf1, slbuf2, PATHMAX)) > 0) {
             /* Dereference symbolic linked file (not directory) */
             slbuf2[ rllen] = EOS;
+            cp1 = slbuf1;
             if (slbuf2[ 0] != PATH_DELIM) {     /* Relative path    */
-                cp1 = strrchr( slbuf1, PATH_DELIM);
-                if (cp1)        /* Append to the source directory   */
-                    cp1[1] = '\0';
+                cp2 = strrchr( slbuf1, PATH_DELIM);
+                if (cp2)        /* Append to the source directory   */
+                    cp1 = cp2 + 1;
             }
-            (void)strlcat( slbuf1, slbuf2, sizeof(slbuf1));
+            assert( slbuf1 <= cp1 && slbuf1 + sizeof(slbuf1) > cp1);
+            (void)strlcpy( cp1, slbuf2, sizeof(slbuf1) - (size_t)(slbuf1 - cp1));
         }
     }
     if (inf) {
