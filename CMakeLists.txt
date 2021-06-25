@@ -299,4 +299,4 @@ endif()
 
 add_subdirectory(docs)
 
-include(CmakeCPack.cmake)
+include(CMakeCPack.cmake)
