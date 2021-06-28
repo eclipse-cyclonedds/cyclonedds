@@ -13,7 +13,8 @@
 add_library(security_openssl INTERFACE)
 
 target_sources(security_openssl INTERFACE
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/openssl_support.c")
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/openssl_support.c"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/dds/security/openssl_support.h")
 
 target_include_directories(
   security_openssl INTERFACE
