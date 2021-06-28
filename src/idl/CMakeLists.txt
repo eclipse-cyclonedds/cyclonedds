@@ -55,7 +55,31 @@ add_library(
     src/thread.c
     src/print.c
     ${CMAKE_CURRENT_BINARY_DIR}/hashid.c
-    ${BISON_parser_OUTPUT_SOURCE})
+    ${BISON_parser_OUTPUT_SOURCE}
+
+    src/annotation.h
+    src/directive.h
+    src/expression.h
+    src/file.h
+    src/hashid.h
+    src/scanner.h
+    src/scope.h
+    src/symbol.h
+    src/tree.h
+
+    include/idl/attributes.h
+    include/idl/expression.h
+    include/idl/file.h
+    include/idl/print.h
+    include/idl/processor.h
+    include/idl/retcode.h
+    include/idl/scope.h
+    include/idl/stream.h
+    include/idl/string.h
+    include/idl/symbol.h
+    include/idl/tree.h
+    include/idl/visit.h
+    ${CMAKE_CURRENT_BINARY_DIR}/include/idl/version.h)
 
 set_target_properties(
   idl PROPERTIES

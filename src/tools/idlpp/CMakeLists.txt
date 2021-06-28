@@ -142,7 +142,7 @@ set(sources
 
 # idlpp (mcpp) must not be exported as a library by itself and is therefore
 # defined as a static library, to be used by idlc only.
-add_library(idlpp STATIC ${sources})
+add_library(idlpp STATIC ${sources} ${headers})
 target_include_directories(
   idlpp PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>
                $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)

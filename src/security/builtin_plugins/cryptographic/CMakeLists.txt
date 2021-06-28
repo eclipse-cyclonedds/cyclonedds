@@ -19,8 +19,16 @@ set(sources
   src/crypto_transform.c
   src/crypto_utils.c
   src/cryptography.c)
+set(private_headers
+  src/crypto_cipher.h
+  src/crypto_key_exchange.h
+  src/crypto_key_factory.h
+  src/crypto_objects.h
+  src/crypto_transform.h
+  src/crypto_utils.h
+  src/cryptography.h)
 
-add_library(dds_security_crypto SHARED ${sources})
+add_library(dds_security_crypto SHARED ${sources} ${private_headers})
 
 generate_export_header(
     dds_security_crypto

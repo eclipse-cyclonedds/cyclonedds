@@ -16,8 +16,13 @@ set(sources
   src/access_control_parser.c
   src/access_control_utils.c
   src/access_control.c)
+set(private_headers
+  src/access_control_objects.h
+  src/access_control_parser.h
+  src/access_control_utils.h
+  src/access_control.h)
 
-add_library(dds_security_ac SHARED ${sources})
+add_library(dds_security_ac SHARED ${sources} ${private_headers})
 
 generate_export_header(
     dds_security_ac
