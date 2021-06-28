@@ -1800,7 +1800,7 @@ end_line:
             if (warn_level & 1) {
                 assert( macro_line >= (ssize_t)LONG_MIN &&
                         macro_line <= (ssize_t)LONG_MAX);
-                cwarn(
+        cwarn(
     "Macro started at line %.0s%ld swallowed directive-like line"
                     , NULL, (long)macro_line, NULL);              /* _W1_ */
             }
