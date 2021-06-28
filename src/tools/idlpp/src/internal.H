@@ -230,7 +230,6 @@ typedef struct fileinfo {
         char *          bptr;       /* Current pointer into buffer  */
         size_t          line;       /* Current line number of file  */
         FILE *          fp;         /* Source file if non-null      */
-        long            pos;        /* Position next to #include    */
         struct fileinfo *   parent; /* Link to includer             */
         struct ifinfo *     initif; /* Initial ifstack (return there on EOF)*/
         int             sys_header; /* System header file or not    */
