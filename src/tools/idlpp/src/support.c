@@ -1598,11 +1598,6 @@ int     get_ch( void)
         /* Do not free file->real_fname and file->full_fname        */
         cur_fullname = infile->full_fname;
         cur_fname = infile->real_fname;     /* Restore current fname*/
-        if (infile->pos != 0L) {            /* Includer was closed  */
-            infile->fp = fopen( cur_fullname, "r");
-            assert( infile->fp);
-            fseek( infile->fp, infile->pos, SEEK_SET);
-        }   /* Re-open the includer and restore the file-position   */
         len = (int) (infile->bptr - infile->buffer);
         infile->buffer = xrealloc( infile->buffer, NBUFF);
             /* Restore full size buffer to get the next line        */
@@ -2294,7 +2289,6 @@ FILEINFO *  get_file(
     file->buffer[ 0] = EOS;                 /* Force first read     */
     file->line = 0L;                        /* (Not used just yet)  */
     file->fp = NULL;                        /* No file yet          */
-    file->pos = 0L;                         /* No pos to remember   */
     file->parent = infile;                  /* Chain files together */
     file->initif = ifptr;                   /* Initial ifstack      */
     file->include_opt = include_opt;        /* Specified by -include*/
