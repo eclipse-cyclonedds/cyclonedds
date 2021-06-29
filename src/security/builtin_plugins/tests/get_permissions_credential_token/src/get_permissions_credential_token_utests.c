@@ -351,17 +351,17 @@ static bool validate_permissions_token(DDS_Security_PermissionsCredentialToken *
   property = find_property(token, DDS_ACTOKEN_PROP_PERM_CERT);
   if (property == NULL)
   {
-    CU_FAIL("PermissionsCredentialToken property 'dds.perm.cert' not found");
+    CU_FAIL("PermissionsCredentialToken property '" DDS_ACTOKEN_PROP_PERM_CERT "' not found");
     return false;
   }
   if (property->value == NULL)
   {
-    CU_FAIL("PermissionsCredentialToken property 'dds.perm.cert' does not have a value");
+    CU_FAIL("PermissionsCredentialToken property '" DDS_ACTOKEN_PROP_PERM_CERT "' does not have a value");
     return false;
   }
   if (strcmp(property->value, permissions) != 0)
   {
-    CU_FAIL("PermissionsCredentialToken property 'dds.perm.cert' content does not match the permissions file");
+    CU_FAIL("PermissionsCredentialToken property '" DDS_ACTOKEN_PROP_PERM_CERT "' content does not match the permissions file");
     return false;
   }
 
