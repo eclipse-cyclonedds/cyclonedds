@@ -2749,6 +2749,8 @@ idl_type_spec_t *idl_type_spec(const void *node)
     return ((const idl_sequence_t *)node)->type_spec;
   if (mask & IDL_SWITCH_TYPE_SPEC)
     return ((const idl_switch_type_spec_t *)node)->type_spec;
+  if (mask & IDL_CONST)
+    return ((const idl_const_t *)node)->type_spec;
   return NULL;
 }
 
