@@ -22,13 +22,11 @@
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
 #include "crypto_objects.h"
+#include "crypto_tokens.h"
 
 #define TEST_SHARED_SECRET_SIZE 32
 #define CRYPTO_TRANSFORM_KIND(k) (*(uint32_t *)&((k)[0]))
 #define CRYPTO_TRANSFORM_ID(k) (*(uint32_t *)&((k)[0]))
-
-static const char *CRYPTO_TOKEN_CLASS_ID = "DDS:Crypto:AES_GCM_GMAC";
-static const char *CRYPTO_TOKEN_PROPERTY_NAME = "dds.cryp.keymat";
 
 static struct plugins_hdl *plugins = NULL;
 static dds_security_cryptography *crypto = NULL;
@@ -301,11 +299,11 @@ static void create_writer_tokens(DDS_Security_DatawriterCryptoTokenSeq *tokens, 
   tokens->_buffer = DDS_Security_DataHolderSeq_allocbuf(num);
   for (uint32_t i = 0; i < num; i++)
   {
-    tokens->_buffer[i].class_id = ddsrt_strdup(CRYPTO_TOKEN_CLASS_ID);
+    tokens->_buffer[i].class_id = ddsrt_strdup(DDS_CRYPTOTOKEN_CLASS_ID);
     tokens->_buffer[i].binary_properties._length = 1;
     tokens->_buffer[i].binary_properties._maximum = 1;
     tokens->_buffer[i].binary_properties._buffer = DDS_Security_BinaryPropertySeq_allocbuf(1);
-    tokens->_buffer[i].binary_properties._buffer[0].name = ddsrt_strdup(CRYPTO_TOKEN_PROPERTY_NAME);
+    tokens->_buffer[i].binary_properties._buffer[0].name = ddsrt_strdup(DDS_CRYPTOTOKEN_PROP_KEYMAT);
     create_key_material(&tokens->_buffer[i].binary_properties._buffer[0].value, false);
   }
 }
@@ -316,11 +314,11 @@ static void create_writer_tokens_no_key_material(DDS_Security_DatawriterCryptoTo
   tokens->_buffer = DDS_Security_DataHolderSeq_allocbuf(num);
   for (uint32_t i = 0; i < num; i++)
   {
-    tokens->_buffer[i].class_id = ddsrt_strdup(CRYPTO_TOKEN_CLASS_ID);
+    tokens->_buffer[i].class_id = ddsrt_strdup(DDS_CRYPTOTOKEN_CLASS_ID);
     tokens->_buffer[i].binary_properties._length = 1;
     tokens->_buffer[i].binary_properties._maximum = 1;
     tokens->_buffer[i].binary_properties._buffer = DDS_Security_BinaryPropertySeq_allocbuf(1);
-    tokens->_buffer[i].binary_properties._buffer[0].name = ddsrt_strdup(CRYPTO_TOKEN_PROPERTY_NAME);
+    tokens->_buffer[i].binary_properties._buffer[0].name = ddsrt_strdup(DDS_CRYPTOTOKEN_PROP_KEYMAT);
   }
 }
 
@@ -585,7 +583,7 @@ CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, invalid_tokens, .ini
   /* invalid token class id */
   {
     ddsrt_free(tokens._buffer[0].class_id);
-    tokens._buffer[0].class_id = ddsrt_strdup(CRYPTO_TOKEN_CLASS_ID);
+    tokens._buffer[0].class_id = ddsrt_strdup(DDS_CRYPTOTOKEN_CLASS_ID);
     ddsrt_free(tokens._buffer[1].class_id);
     tokens._buffer[1].class_id = ddsrt_strdup("invalid class");
     result = crypto->crypto_key_exchange->set_remote_datawriter_crypto_tokens(
@@ -603,7 +601,7 @@ CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, invalid_tokens, .ini
     CU_ASSERT(exception.message != NULL);
     reset_exception(&exception);
     ddsrt_free(tokens._buffer[1].class_id);
-    tokens._buffer[1].class_id = ddsrt_strdup(CRYPTO_TOKEN_CLASS_ID);
+    tokens._buffer[1].class_id = ddsrt_strdup(DDS_CRYPTOTOKEN_CLASS_ID);
   }
 
   /* no key material, binary_property missing */
@@ -689,7 +687,7 @@ CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, invalid_tokens, .ini
     CU_ASSERT(exception.message != NULL);
     reset_exception(&exception);
     ddsrt_free(tokens._buffer[0].binary_properties._buffer[0].name);
-    tokens._buffer[0].binary_properties._buffer[0].name = ddsrt_strdup(CRYPTO_TOKEN_PROPERTY_NAME);
+    tokens._buffer[0].binary_properties._buffer[0].name = ddsrt_strdup(DDS_CRYPTOTOKEN_PROP_KEYMAT);
   }
 
   /* invalid property name */
@@ -712,7 +710,7 @@ CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, invalid_tokens, .ini
     CU_ASSERT(exception.message != NULL);
     reset_exception(&exception);
     ddsrt_free(tokens._buffer[1].binary_properties._buffer[0].name);
-    tokens._buffer[1].binary_properties._buffer[0].name = ddsrt_strdup(CRYPTO_TOKEN_PROPERTY_NAME);
+    tokens._buffer[1].binary_properties._buffer[0].name = ddsrt_strdup(DDS_CRYPTOTOKEN_PROP_KEYMAT);
   }
 
   DDS_Security_DataHolderSeq_deinit(&tokens);

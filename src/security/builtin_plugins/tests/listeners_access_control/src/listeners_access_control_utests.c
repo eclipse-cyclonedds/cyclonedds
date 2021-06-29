@@ -27,21 +27,8 @@
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
 #include "config_env.h"
-
-static const char *ACCESS_PERMISSIONS_TOKEN_ID = "DDS:Access:Permissions:1.0";
-static const char *AUTH_PROTOCOL_CLASS_ID = "DDS:Auth:PKI-DH:1.0";
-
-static const char *PROPERTY_IDENTITY_CA = "dds.sec.auth.identity_ca";
-static const char *PROPERTY_PRIVATE_KEY = "dds.sec.auth.private_key";
-static const char *PROPERTY_IDENTITY_CERT = "dds.sec.auth.identity_certificate";
-static const char *PROPERTY_PERMISSIONS_CA = "dds.sec.access.permissions_ca";
-static const char *PROPERTY_PERMISSIONS = "dds.sec.access.permissions";
-static const char *PROPERTY_GOVERNANCE = "dds.sec.access.governance";
-
-static const char *PROPERTY_PERMISSIONS_CA_SN = "dds.perm_ca.sn";
-static const char *PROPERTY_PERMISSIONS_CA_ALGO = "dds.perm_ca.algo";
-static const char *PROPERTY_C_ID = "c.id";
-static const char *PROPERTY_C_PERM = "c.perm";
+#include "auth_tokens.h"
+#include "ac_tokens.h"
 
 static const char *SUBJECT_NAME_PERMISSIONS_CA = "C=NL, ST=Some-State, O=ADLINK Technolocy Inc., CN=adlinktech.com";
 static const char *RSA_2048_ALGORITHM_NAME = "RSA-2048";
@@ -348,17 +335,17 @@ static void fill_participant_qos(DDS_Security_Qos *qos, int32_t permission_expir
 
   memset(qos, 0, sizeof(*qos));
   dds_security_property_init(&qos->property.value, 6);
-  qos->property.value._buffer[0].name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
+  qos->property.value._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CERT);
   qos->property.value._buffer[0].value = ddsrt_strdup(identity_certificate);
-  qos->property.value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
+  qos->property.value._buffer[1].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CA);
   qos->property.value._buffer[1].value = ddsrt_strdup(identity_ca);
-  qos->property.value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
+  qos->property.value._buffer[2].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_PRIV_KEY);
   qos->property.value._buffer[2].value = ddsrt_strdup(private_key);
-  qos->property.value._buffer[3].name = ddsrt_strdup(PROPERTY_PERMISSIONS_CA);
+  qos->property.value._buffer[3].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_PERMISSIONS_CA);
   qos->property.value._buffer[3].value = ddsrt_strdup(permissions_ca);
-  qos->property.value._buffer[4].name = ddsrt_strdup(PROPERTY_PERMISSIONS);
+  qos->property.value._buffer[4].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_PERMISSIONS);
   qos->property.value._buffer[4].value = ddsrt_strdup(permission_uri);
-  qos->property.value._buffer[5].name = ddsrt_strdup(PROPERTY_GOVERNANCE);
+  qos->property.value._buffer[5].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_GOVERNANCE);
   qos->property.value._buffer[5].value = ddsrt_strdup(governance_uri);
 
   ddsrt_free(permission_uri);
@@ -373,14 +360,14 @@ static void fill_permissions_token(DDS_Security_PermissionsToken *token)
 {
   memset(token, 0, sizeof(DDS_Security_PermissionsToken));
 
-  token->class_id = ddsrt_strdup(ACCESS_PERMISSIONS_TOKEN_ID);
+  token->class_id = ddsrt_strdup(DDS_ACTOKEN_PERMISSIONS_CLASS_ID);
   token->properties._length = token->properties._maximum = 2;
   token->properties._buffer = DDS_Security_PropertySeq_allocbuf(2);
 
-  token->properties._buffer[0].name = ddsrt_strdup(PROPERTY_PERMISSIONS_CA_SN);
+  token->properties._buffer[0].name = ddsrt_strdup(DDS_ACTOKEN_PROP_PERM_CA_SN);
   token->properties._buffer[0].value = ddsrt_strdup(SUBJECT_NAME_PERMISSIONS_CA);
 
-  token->properties._buffer[1].name = ddsrt_strdup(PROPERTY_PERMISSIONS_CA_ALGO);
+  token->properties._buffer[1].name = ddsrt_strdup(DDS_ACTOKEN_PROP_PERM_CA_ALGO);
   token->properties._buffer[1].value = ddsrt_strdup(RSA_2048_ALGORITHM_NAME);
 }
 
@@ -412,14 +399,14 @@ static int fill_peer_credential_token(DDS_Security_AuthenticatedPeerCredentialTo
 
   if (permission_data)
   {
-    token->class_id = ddsrt_strdup(AUTH_PROTOCOL_CLASS_ID);
+    token->class_id = ddsrt_strdup(DDS_AUTHTOKEN_CLASS_ID);
     token->properties._length = token->properties._maximum = 2;
     token->properties._buffer = DDS_Security_PropertySeq_allocbuf(2);
 
-    token->properties._buffer[0].name = ddsrt_strdup(PROPERTY_C_ID);
+    token->properties._buffer[0].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_C_ID);
     token->properties._buffer[0].value = ddsrt_strdup(&identity_certificate[6]);
 
-    token->properties._buffer[1].name = ddsrt_strdup(PROPERTY_C_PERM);
+    token->properties._buffer[1].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_C_PERM);
     token->properties._buffer[1].value = permission_data;
   }
   else

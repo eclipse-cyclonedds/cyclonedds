@@ -18,6 +18,9 @@
 extern "C" {
 #endif
 
+#define DDSRT_STRINGIFY(x) DDSRT_STRINGIFY1(x)
+#define DDSRT_STRINGIFY1(x) #x
+
 #if defined(__clang__) || \
     defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 402
 # define DDSRT_STR(s) #s

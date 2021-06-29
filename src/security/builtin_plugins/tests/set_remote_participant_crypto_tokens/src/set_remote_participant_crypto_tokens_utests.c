@@ -22,11 +22,9 @@
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
 #include "crypto_objects.h"
+#include "crypto_tokens.h"
 
 #define TEST_SHARED_SECRET_SIZE 32
-
-static const char *CRYPTO_TOKEN_CLASS_ID = "DDS:Crypto:AES_GCM_GMA";
-static const char *CRYPTO_TOKEN_PROPERTY_NAME = "dds.cryp.keymat";
 
 static struct plugins_hdl *plugins = NULL;
 static dds_security_cryptography *crypto = NULL;
@@ -398,7 +396,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_tokens, .in
   reset_exception(&exception);
 
   /* no key material, binary_property missing */
-  invalid_tokens._buffer[0].class_id = ddsrt_strdup(CRYPTO_TOKEN_CLASS_ID);
+  invalid_tokens._buffer[0].class_id = ddsrt_strdup(DDS_CRYPTOTOKEN_CLASS_ID);
   result = crypto->crypto_key_exchange->set_remote_participant_crypto_tokens(
       crypto->crypto_key_exchange,
       local_crypto_handle,
@@ -448,7 +446,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_tokens, .in
   reset_exception(&exception);
 
   /* invalid property name */
-  invalid_tokens._buffer[0].binary_properties._buffer[0].name = ddsrt_strdup(CRYPTO_TOKEN_PROPERTY_NAME);
+  invalid_tokens._buffer[0].binary_properties._buffer[0].name = ddsrt_strdup(DDS_CRYPTOTOKEN_PROP_KEYMAT);
   result = crypto->crypto_key_exchange->set_remote_participant_crypto_tokens(
       crypto->crypto_key_exchange,
       local_crypto_handle,

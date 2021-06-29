@@ -24,13 +24,6 @@
 #include "common/src/loader.h"
 #include "config_env.h"
 
-static const char *PROPERTY_IDENTITY_CA = "dds.sec.auth.identity_ca";
-static const char *PROPERTY_PRIVATE_KEY = "dds.sec.auth.private_key";
-static const char *PROPERTY_IDENTITY_CERT = "dds.sec.auth.identity_certificate";
-static const char *PROPERTY_PERMISSIONS_CA = "dds.sec.access.permissions_ca";
-static const char *PROPERTY_PERMISSIONS = "dds.sec.access.permissions";
-static const char *PROPERTY_GOVERNANCE = "dds.sec.access.governance";
-
 static const char *RELATIVE_PATH_TO_ETC_DIR = "/validate_local_permissions/etc/";
 
 static const char *AUTH_IDENTITY_CERT =
@@ -230,18 +223,18 @@ static void fill_property_policy(DDS_Security_PropertyQosPolicy *property, const
 {
   dds_security_property_init(&property->value, 6);
   /* Authentication properties. */
-  property->value._buffer[0].name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
+  property->value._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CERT);
   property->value._buffer[0].value = ddsrt_strdup(AUTH_IDENTITY_CERT);
-  property->value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
+  property->value._buffer[1].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CA);
   property->value._buffer[1].value = ddsrt_strdup(AUTH_IDENTITY_CA);
-  property->value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
+  property->value._buffer[2].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_PRIV_KEY);
   property->value._buffer[2].value = ddsrt_strdup(AUTH_PRIVATE_KEY);
   /* AccessControl properties. */
-  property->value._buffer[3].name = ddsrt_strdup(PROPERTY_PERMISSIONS_CA);
+  property->value._buffer[3].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_PERMISSIONS_CA);
   property->value._buffer[3].value = permission_ca ? ddsrt_strdup(permission_ca) : NULL;
-  property->value._buffer[4].name = ddsrt_strdup(PROPERTY_PERMISSIONS);
+  property->value._buffer[4].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_PERMISSIONS);
   property->value._buffer[4].value = permission_uri ? ddsrt_strdup(permission_uri) : NULL;
-  property->value._buffer[5].name = ddsrt_strdup(PROPERTY_GOVERNANCE);
+  property->value._buffer[5].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_GOVERNANCE);
   property->value._buffer[5].value = governance_uri ? ddsrt_strdup(governance_uri) : NULL;
 }
 
@@ -603,9 +596,9 @@ static DDS_Security_long test_corrupted_signature(bool corrupt_permissions, bool
 
   /* Corrupt the signature. */
   if (corrupt_permissions)
-    prop = dds_security_property_find(&(participant_qos.property.value), PROPERTY_PERMISSIONS);
+    prop = dds_security_property_find(&(participant_qos.property.value), DDS_SEC_PROP_ACCESS_PERMISSIONS);
   if (corrupt_governance)
-    prop = dds_security_property_find(&(participant_qos.property.value), PROPERTY_GOVERNANCE);
+    prop = dds_security_property_find(&(participant_qos.property.value), DDS_SEC_PROP_ACCESS_GOVERNANCE);
 
   /* Just some (hardcoded) sanity checks. */
   CU_ASSERT_FATAL(prop != NULL);

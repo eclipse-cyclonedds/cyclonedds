@@ -30,13 +30,6 @@
 
 static const char *RELATIVE_PATH_TO_ETC_DIR = "/get_xxx_sec_attributes/etc/";
 
-static const char *PROPERTY_IDENTITY_CA = "dds.sec.auth.identity_ca";
-static const char *PROPERTY_PRIVATE_KEY = "dds.sec.auth.private_key";
-static const char *PROPERTY_IDENTITY_CERT = "dds.sec.auth.identity_certificate";
-static const char *PROPERTY_PERMISSIONS_CA = "dds.sec.access.permissions_ca";
-static const char *PROPERTY_PERMISSIONS = "dds.sec.access.permissions";
-static const char *PROPERTY_GOVERNANCE = "dds.sec.access.governance";
-
 static const char *IDENTITY_CERTIFICATE =
     "data:,-----BEGIN CERTIFICATE-----\n"
     "MIIEQTCCAymgAwIBAgIINpuaAAnrQZIwDQYJKoZIhvcNAQELBQAwXzELMAkGA1UE\n"
@@ -219,17 +212,17 @@ static void fill_participant_qos(DDS_Security_Qos *qos, const char *permission_f
 
   memset(qos, 0, sizeof(*qos));
   dds_security_property_init(&qos->property.value, 6);
-  qos->property.value._buffer[0].name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
+  qos->property.value._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CERT);
   qos->property.value._buffer[0].value = ddsrt_strdup(IDENTITY_CERTIFICATE);
-  qos->property.value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
+  qos->property.value._buffer[1].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CA);
   qos->property.value._buffer[1].value = ddsrt_strdup(IDENTITY_CA);
-  qos->property.value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
+  qos->property.value._buffer[2].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_PRIV_KEY);
   qos->property.value._buffer[2].value = ddsrt_strdup(PRIVATE_KEY);
-  qos->property.value._buffer[3].name = ddsrt_strdup(PROPERTY_PERMISSIONS_CA);
+  qos->property.value._buffer[3].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_PERMISSIONS_CA);
   qos->property.value._buffer[3].value = ddsrt_strdup(PERMISSIONS_CA);
-  qos->property.value._buffer[4].name = ddsrt_strdup(PROPERTY_PERMISSIONS);
+  qos->property.value._buffer[4].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_PERMISSIONS);
   qos->property.value._buffer[4].value = ddsrt_strdup(permission_uri);
-  qos->property.value._buffer[5].name = ddsrt_strdup(PROPERTY_GOVERNANCE);
+  qos->property.value._buffer[5].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_GOVERNANCE);
   qos->property.value._buffer[5].value = ddsrt_strdup(governance_uri);
 
   ddsrt_free(permission_uri);

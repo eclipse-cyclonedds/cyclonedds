@@ -214,7 +214,7 @@ CU_Test(ddssec_builtin_register_local_datareader, builtin_endpoint, .init = suit
   datareader_properties._buffer = DDS_Security_PropertySeq_allocbuf(1);
   datareader_properties._length = datareader_properties._maximum = 1;
 
-  datareader_properties._buffer[0].name = ddsrt_strdup("dds.sec.builtin_endpoint_name");
+  datareader_properties._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME);
   datareader_properties._buffer[0].value = ddsrt_strdup("BuiltinSecureEndpointName");
 
   prepare_endpoint_security_attributes(&datareader_security_attributes);
@@ -268,7 +268,7 @@ CU_Test(ddssec_builtin_register_local_datareader, special_endpoint_name, .init =
   /*set special endpoint name*/
   datareader_properties._buffer = DDS_Security_PropertySeq_allocbuf(1);
   datareader_properties._length = datareader_properties._maximum = 1;
-  datareader_properties._buffer[0].name = ddsrt_strdup("dds.sec.builtin_endpoint_name");
+  datareader_properties._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME);
   datareader_properties._buffer[0].value = ddsrt_strdup("BuiltinParticipantVolatileMessageSecureReader");
 
   prepare_endpoint_security_attributes(&datareader_security_attributes);

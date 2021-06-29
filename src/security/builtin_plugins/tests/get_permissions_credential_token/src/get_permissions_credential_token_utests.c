@@ -24,16 +24,10 @@
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
 #include "config_env.h"
+#include "ac_tokens.h"
 
 static const char *PERMISSIONS_FILE_NAME = "Test_Permissions_ok.p7s";
 static const char *GOVERNANCE_FILE_NAME = "Test_Governance_ok.p7s";
-
-static const char *PROPERTY_IDENTITY_CA = "dds.sec.auth.identity_ca";
-static const char *PROPERTY_PRIVATE_KEY = "dds.sec.auth.private_key";
-static const char *PROPERTY_IDENTITY_CERT = "dds.sec.auth.identity_certificate";
-static const char *PROPERTY_PERMISSIONS_CA = "dds.sec.access.permissions_ca";
-static const char *PROPERTY_PERMISSIONS = "dds.sec.access.permissions";
-static const char *PROPERTY_GOVERNANCE = "dds.sec.access.governance";
 
 static const char *RELATIVE_PATH_TO_ETC_DIR = "/get_permissions_credential_token/etc/";
 
@@ -220,17 +214,17 @@ static void fill_participant_qos(DDS_Security_Qos *qos, const char *permission_f
 
   memset(qos, 0, sizeof(*qos));
   dds_security_property_init(&qos->property.value, 6);
-  qos->property.value._buffer[0].name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
+  qos->property.value._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CERT);
   qos->property.value._buffer[0].value = ddsrt_strdup(IDENTITY_CERTIFICATE);
-  qos->property.value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
+  qos->property.value._buffer[1].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CA);
   qos->property.value._buffer[1].value = ddsrt_strdup(IDENTITY_CA);
-  qos->property.value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
+  qos->property.value._buffer[2].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_PRIV_KEY);
   qos->property.value._buffer[2].value = ddsrt_strdup(PRIVATE_KEY);
-  qos->property.value._buffer[3].name = ddsrt_strdup(PROPERTY_PERMISSIONS_CA);
+  qos->property.value._buffer[3].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_PERMISSIONS_CA);
   qos->property.value._buffer[3].value = ddsrt_strdup(PERMISSIONS_CA);
-  qos->property.value._buffer[4].name = ddsrt_strdup(PROPERTY_PERMISSIONS);
+  qos->property.value._buffer[4].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_PERMISSIONS);
   qos->property.value._buffer[4].value = ddsrt_strdup(permission_uri);
-  qos->property.value._buffer[5].name = ddsrt_strdup(PROPERTY_GOVERNANCE);
+  qos->property.value._buffer[5].name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_GOVERNANCE);
   qos->property.value._buffer[5].value = ddsrt_strdup(governance_uri);
 
   ddsrt_free(permission_uri);
@@ -348,26 +342,26 @@ static bool validate_permissions_token(DDS_Security_PermissionsCredentialToken *
 {
   DDS_Security_Property_t *property;
 
-  if (!token->class_id || strcmp(token->class_id, "DDS:Access:PermissionsCredential") != 0)
+  if (!token->class_id || strcmp(token->class_id, DDS_ACTOKEN_PERMISSIONS_CREDENTIAL_CLASS_ID) != 0)
   {
     CU_FAIL("PermissionsCredentialToken incorrect class_id");
     return false;
   }
 
-  property = find_property(token, "dds.perm.cert");
+  property = find_property(token, DDS_ACTOKEN_PROP_PERM_CERT);
   if (property == NULL)
   {
-    CU_FAIL("PermissionsCredentialToken property 'dds.perm.cert' not found");
+    CU_FAIL("PermissionsCredentialToken property '" DDS_ACTOKEN_PROP_PERM_CERT "' not found");
     return false;
   }
   if (property->value == NULL)
   {
-    CU_FAIL("PermissionsCredentialToken property 'dds.perm.cert' does not have a value");
+    CU_FAIL("PermissionsCredentialToken property '" DDS_ACTOKEN_PROP_PERM_CERT "' does not have a value");
     return false;
   }
   if (strcmp(property->value, permissions) != 0)
   {
-    CU_FAIL("PermissionsCredentialToken property 'dds.perm.cert' content does not match the permissions file");
+    CU_FAIL("PermissionsCredentialToken property '" DDS_ACTOKEN_PROP_PERM_CERT "' content does not match the permissions file");
     return false;
   }
 

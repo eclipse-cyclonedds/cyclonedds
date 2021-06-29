@@ -229,7 +229,7 @@ CU_Test(ddssec_builtin_register_remote_datawriter, volatile_secure, .init = suit
 
   datareader_properties._length = datareader_properties._maximum = 1;
   datareader_properties._buffer = DDS_Security_PropertySeq_allocbuf(1);
-  datareader_properties._buffer[0].name = ddsrt_strdup("dds.sec.builtin_endpoint_name");
+  datareader_properties._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME);
   datareader_properties._buffer[0].value = ddsrt_strdup("BuiltinParticipantVolatileMessageSecureReader");
   datareader_properties._buffer[0].propagate = false;
   memset(&datareader_security_attributes, 0, sizeof(datareader_security_attributes));

@@ -25,21 +25,21 @@
 
 #define PROPLIST(init_auth, fin_auth, init_crypto, fin_crypto, init_ac, fin_ac, perm_ca, gov, perm, pre_str, post_str, binprops)         \
   "property_list={" pre_str                                             \
-  "0:\"dds.sec.auth.library.path\":\""WRAPPERLIB_PATH("dds_security_authentication_wrapper")"\","                         \
-  "0:\"dds.sec.auth.library.init\":\""init_auth"\","            \
-  "0:\"dds.sec.auth.library.finalize\":\""fin_auth"\","    \
-  "0:\"dds.sec.crypto.library.path\":\""WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"\","                     \
-  "0:\"dds.sec.crypto.library.init\":\""init_crypto"\","                  \
-  "0:\"dds.sec.crypto.library.finalize\":\""fin_crypto"\","          \
-  "0:\"dds.sec.access.library.path\":\""WRAPPERLIB_PATH("dds_security_access_control_wrapper")"\","                         \
-  "0:\"dds.sec.access.library.init\":\""init_ac"\","          \
-  "0:\"dds.sec.access.library.finalize\":\""fin_ac"\","  \
-  "0:\"dds.sec.auth.identity_ca\":\"" TEST_IDENTITY_CA_CERTIFICATE_DUMMY "\","  \
-  "0:\"dds.sec.auth.private_key\":\"" TEST_IDENTITY_PRIVATE_KEY_DUMMY "\","     \
-  "0:\"dds.sec.auth.identity_certificate\":\"" TEST_IDENTITY_CERTIFICATE_DUMMY "\"," \
-  "0:\"dds.sec.access.permissions_ca\":\""perm_ca"\","    \
-  "0:\"dds.sec.access.governance\":\""gov"\","            \
-  "0:\"dds.sec.access.permissions\":\""perm"\""           \
+  "0:\"" DDS_SEC_PROP_AUTH_LIBRARY_PATH "\":\""WRAPPERLIB_PATH("dds_security_authentication_wrapper")"\","                         \
+  "0:\"" DDS_SEC_PROP_AUTH_LIBRARY_INIT "\":\""init_auth"\","            \
+  "0:\"" DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE "\":\""fin_auth"\","    \
+  "0:\"" DDS_SEC_PROP_CRYPTO_LIBRARY_PATH "\":\""WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"\","                     \
+  "0:\"" DDS_SEC_PROP_CRYPTO_LIBRARY_INIT "\":\""init_crypto"\","                  \
+  "0:\"" DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE "\":\""fin_crypto"\","          \
+  "0:\"" DDS_SEC_PROP_ACCESS_LIBRARY_PATH "\":\""WRAPPERLIB_PATH("dds_security_access_control_wrapper")"\","                         \
+  "0:\"" DDS_SEC_PROP_ACCESS_LIBRARY_INIT "\":\""init_ac"\","          \
+  "0:\"" DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE "\":\""fin_ac"\","  \
+  "0:\"" DDS_SEC_PROP_AUTH_IDENTITY_CA "\":\"" TEST_IDENTITY_CA_CERTIFICATE_DUMMY "\","  \
+  "0:\"" DDS_SEC_PROP_AUTH_PRIV_KEY "\":\"" TEST_IDENTITY_PRIVATE_KEY_DUMMY "\","     \
+  "0:\"" DDS_SEC_PROP_AUTH_IDENTITY_CERT "\":\"" TEST_IDENTITY_CERTIFICATE_DUMMY "\"," \
+  "0:\"" DDS_SEC_PROP_ACCESS_PERMISSIONS_CA "\":\""perm_ca"\","    \
+  "0:\"" DDS_SEC_PROP_ACCESS_GOVERNANCE "\":\""gov"\","            \
+  "0:\"" DDS_SEC_PROP_ACCESS_PERMISSIONS "\":\""perm"\""           \
   post_str "}:{" binprops "}"
 #define PARTICIPANT_QOS(init_auth, fin_auth, init_crypto, fin_crypto, init_ac, fin_ac, perm_ca, gov, perm, pre_str, post_str, binprops)  \
   "PARTICIPANT * QOS={*" PROPLIST (init_auth, fin_auth, init_crypto, fin_crypto, init_ac, fin_ac, perm_ca, gov, perm, pre_str, post_str, binprops) "*"
@@ -207,7 +207,7 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
     "config: Domain/Security/Cryptographic/Library[@initFunction]: init_test_cryptography_all_ok*",
     "config: Domain/Security/Cryptographic/Library[@finalizeFunction]: finalize_test_cryptography_all_ok*",
     /* The config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"testtext_Dir_testtext\",0:\"org.eclipse.cyclonedds.sec.auth.crl\":\"testtext_Crl_testtext\"", ""),
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"" DDS_SEC_PROP_AUTH_PASSWORD "\":\"testtext_Password_testtext\",0:\"" DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "\":\"testtext_Dir_testtext\",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"testtext_Crl_testtext\"", ""),
     NULL
   };
 
@@ -280,7 +280,7 @@ CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
     "config: Domain/Security/Cryptographic/Library[@initFunction]: init_test_cryptography_all_ok*",
     "config: Domain/Security/Cryptographic/Library[@finalizeFunction]: finalize_test_cryptography_all_ok*",
     /* The config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"\",0:\"dds.sec.auth.trusted_ca_dir\":\"\",0:\"org.eclipse.cyclonedds.sec.auth.crl\":\"\"", ""),
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"" DDS_SEC_PROP_AUTH_PASSWORD "\":\"\",0:\"" DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "\":\"\",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"\"", ""),
     NULL
   };
 
@@ -349,7 +349,7 @@ CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
     "config: Domain/Security/Cryptographic/Library[@initFunction]: init_test_cryptography_all_ok*",
     "config: Domain/Security/Cryptographic/Library[@finalizeFunction]: finalize_test_cryptography_all_ok*",
     /* The config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"testtext_Dir_testtext\",0:\"org.eclipse.cyclonedds.sec.auth.crl\":\"testtext_Crl_testtext\"", ""),
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"" DDS_SEC_PROP_AUTH_PASSWORD "\":\"testtext_Password_testtext\",0:\"" DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "\":\"testtext_Dir_testtext\",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"testtext_Crl_testtext\"", ""),
     NULL
   };
 
@@ -401,30 +401,30 @@ CU_Test(ddssec_config, qos, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qos_t * qos;
   const char *log_expected[] = {
     /* The config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"file:/test/dir\",0:\"org.eclipse.cyclonedds.sec.auth.crl\":\"file:/test/crl\"", ""),
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"" DDS_SEC_PROP_AUTH_PASSWORD "\":\"testtext_Password_testtext\",0:\"" DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "\":\"file:/test/dir\",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"file:/test/crl\"", ""),
     NULL
   };
 
   /* Create the qos */
   CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
-  dds_qset_prop(qos, "dds.sec.auth.library.path", ""WRAPPERLIB_PATH("dds_security_authentication_wrapper")"");
-  dds_qset_prop(qos, "dds.sec.auth.library.init", "init_test_authentication_all_ok");
-  dds_qset_prop(qos, "dds.sec.auth.library.finalize", "finalize_test_authentication_all_ok");
-  dds_qset_prop(qos, "dds.sec.crypto.library.path", ""WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"");
-  dds_qset_prop(qos, "dds.sec.crypto.library.init", "init_test_cryptography_all_ok");
-  dds_qset_prop(qos, "dds.sec.crypto.library.finalize", "finalize_test_cryptography_all_ok");
-  dds_qset_prop(qos, "dds.sec.access.library.path", ""WRAPPERLIB_PATH("dds_security_access_control_wrapper")"");
-  dds_qset_prop(qos, "dds.sec.access.library.init", "init_test_access_control_all_ok");
-  dds_qset_prop(qos, "dds.sec.access.library.finalize", "finalize_test_access_control_all_ok");
-  dds_qset_prop(qos, "dds.sec.auth.identity_ca", ""TEST_IDENTITY_CA_CERTIFICATE_DUMMY"");
-  dds_qset_prop(qos, "dds.sec.auth.private_key", ""TEST_IDENTITY_PRIVATE_KEY_DUMMY"");
-  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", ""TEST_IDENTITY_CERTIFICATE_DUMMY"");
-  dds_qset_prop(qos, "dds.sec.access.permissions_ca", "file:Permissions_CA.pem");
-  dds_qset_prop(qos, "dds.sec.access.governance", "file:Governance.p7s");
-  dds_qset_prop(qos, "dds.sec.access.permissions", "file:Permissions.p7s");
-  dds_qset_prop(qos, "dds.sec.auth.password", "testtext_Password_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.trusted_ca_dir", "file:/test/dir");
-  dds_qset_prop(qos, "org.eclipse.cyclonedds.sec.auth.crl", "file:/test/crl");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_authentication_wrapper")"");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_INIT, "init_test_authentication_all_ok");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE, "finalize_test_authentication_all_ok");
+  dds_qset_prop(qos, DDS_SEC_PROP_CRYPTO_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"");
+  dds_qset_prop(qos, DDS_SEC_PROP_CRYPTO_LIBRARY_INIT, "init_test_cryptography_all_ok");
+  dds_qset_prop(qos, DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE, "finalize_test_cryptography_all_ok");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_access_control_wrapper")"");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_INIT, "init_test_access_control_all_ok");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE, "finalize_test_access_control_all_ok");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CA, ""TEST_IDENTITY_CA_CERTIFICATE_DUMMY"");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_PRIV_KEY, ""TEST_IDENTITY_PRIVATE_KEY_DUMMY"");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CERT, ""TEST_IDENTITY_CERTIFICATE_DUMMY"");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_PERMISSIONS_CA, "file:Permissions_CA.pem");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_GOVERNANCE, "file:Governance.p7s");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_PERMISSIONS, "file:Permissions.p7s");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_PASSWORD, "testtext_Password_testtext");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR, "file:/test/dir");
+  dds_qset_prop(qos, ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL, "file:/test/crl");
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, default_config);
@@ -447,7 +447,7 @@ CU_Test(ddssec_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qos_t * qos;
   const char *log_expected[] = {
     /* The config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"file:/test/dir\",0:\"org.eclipse.cyclonedds.sec.auth.crl\":\"file:/test/crl\",0:\"test.prop1\":\"testtext_value1_testtext\",0:\"test.prop2\":\"testtext_value2_testtext\"",
+    PARTICIPANT_QOS_ALL_OK ("", ",0:\"" DDS_SEC_PROP_AUTH_PASSWORD "\":\"testtext_Password_testtext\",0:\"" DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "\":\"file:/test/dir\",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"file:/test/crl\",0:\"test.prop1\":\"testtext_value1_testtext\",0:\"test.prop2\":\"testtext_value2_testtext\"",
                             "0:\"test.bprop1\":3<1,2,3>"),
     NULL
   };
@@ -455,24 +455,24 @@ CU_Test(ddssec_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
   /* Create the qos */
   unsigned char bvalue[3] = { 0x01, 0x02, 0x03 };
   CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
-  dds_qset_prop(qos, "dds.sec.auth.library.path", ""WRAPPERLIB_PATH("dds_security_authentication_wrapper")"");
-  dds_qset_prop(qos, "dds.sec.auth.library.init", "init_test_authentication_all_ok");
-  dds_qset_prop(qos, "dds.sec.auth.library.finalize", "finalize_test_authentication_all_ok");
-  dds_qset_prop(qos, "dds.sec.crypto.library.path", ""WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"");
-  dds_qset_prop(qos, "dds.sec.crypto.library.init", "init_test_cryptography_all_ok");
-  dds_qset_prop(qos, "dds.sec.crypto.library.finalize", "finalize_test_cryptography_all_ok");
-  dds_qset_prop(qos, "dds.sec.access.library.path", ""WRAPPERLIB_PATH("dds_security_access_control_wrapper")"");
-  dds_qset_prop(qos, "dds.sec.access.library.init", "init_test_access_control_all_ok");
-  dds_qset_prop(qos, "dds.sec.access.library.finalize", "finalize_test_access_control_all_ok");
-  dds_qset_prop(qos, "dds.sec.auth.identity_ca", TEST_IDENTITY_CA_CERTIFICATE_DUMMY);
-  dds_qset_prop(qos, "dds.sec.auth.private_key", TEST_IDENTITY_PRIVATE_KEY_DUMMY);
-  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", TEST_IDENTITY_CERTIFICATE_DUMMY);
-  dds_qset_prop(qos, "dds.sec.access.permissions_ca", "file:Permissions_CA.pem");
-  dds_qset_prop(qos, "dds.sec.access.governance", "file:Governance.p7s");
-  dds_qset_prop(qos, "dds.sec.access.permissions", "file:Permissions.p7s");
-  dds_qset_prop(qos, "dds.sec.auth.password", "testtext_Password_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.trusted_ca_dir", "file:/test/dir");
-  dds_qset_prop(qos, "org.eclipse.cyclonedds.sec.auth.crl", "file:/test/crl");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_authentication_wrapper")"");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_INIT, "init_test_authentication_all_ok");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE, "finalize_test_authentication_all_ok");
+  dds_qset_prop(qos, DDS_SEC_PROP_CRYPTO_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_cryptography_wrapper")"");
+  dds_qset_prop(qos, DDS_SEC_PROP_CRYPTO_LIBRARY_INIT, "init_test_cryptography_all_ok");
+  dds_qset_prop(qos, DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE, "finalize_test_cryptography_all_ok");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_access_control_wrapper")"");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_INIT, "init_test_access_control_all_ok");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE, "finalize_test_access_control_all_ok");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CA, TEST_IDENTITY_CA_CERTIFICATE_DUMMY);
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_PRIV_KEY, TEST_IDENTITY_PRIVATE_KEY_DUMMY);
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CERT, TEST_IDENTITY_CERTIFICATE_DUMMY);
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_PERMISSIONS_CA, "file:Permissions_CA.pem");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_GOVERNANCE, "file:Governance.p7s");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_PERMISSIONS, "file:Permissions.p7s");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_PASSWORD, "testtext_Password_testtext");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR, "file:/test/dir");
+  dds_qset_prop(qos, ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL, "file:/test/crl");
   dds_qset_prop(qos, "test.prop1", "testtext_value1_testtext");
   dds_qset_prop(qos, "test.prop2", "testtext_value2_testtext");
   dds_qset_bprop(qos, "test.bprop1", bvalue, 3);
@@ -537,12 +537,12 @@ CU_Test(ddssec_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_access_control_wrapper"));
   dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_INIT, "init_test_access_control_all_ok");
   dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE, "finalize_test_access_control_all_ok");
-  dds_qset_prop(qos, "dds.sec.auth.identity_ca", TEST_IDENTITY_CA_CERTIFICATE_DUMMY);
-  dds_qset_prop(qos, "dds.sec.auth.private_key", TEST_IDENTITY_PRIVATE_KEY_DUMMY);
-  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", TEST_IDENTITY_CERTIFICATE_DUMMY);
-  dds_qset_prop(qos, "dds.sec.access.permissions_ca", "file:QOS_Permissions_CA.pem");
-  dds_qset_prop(qos, "dds.sec.access.governance", "file:QOS_Governance.p7s");
-  dds_qset_prop(qos, "dds.sec.access.permissions", "file:QOS_Permissions.p7s");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CA, TEST_IDENTITY_CA_CERTIFICATE_DUMMY);
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_PRIV_KEY, TEST_IDENTITY_PRIVATE_KEY_DUMMY);
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CERT, TEST_IDENTITY_CERTIFICATE_DUMMY);
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_PERMISSIONS_CA, "file:QOS_Permissions_CA.pem");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_GOVERNANCE, "file:QOS_Governance.p7s");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_PERMISSIONS, "file:QOS_Permissions.p7s");
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, sec_config);
@@ -566,7 +566,7 @@ CU_Test(ddssec_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qos_t * qos;
   const char *log_expected[] = {
     /* The security settings from config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("0:\"test.dds.sec.prop1\":\"testtext_value1_testtext\",", ",0:\"dds.sec.auth.password\":\"testtext_Password_testtext\",0:\"dds.sec.auth.trusted_ca_dir\":\"testtext_Dir_testtext\",0:\"org.eclipse.cyclonedds.sec.auth.crl\":\"testtext_Crl_testtext\"", ""),
+    PARTICIPANT_QOS_ALL_OK ("0:\"test.dds.sec.prop1\":\"testtext_value1_testtext\",", ",0:\"" DDS_SEC_PROP_AUTH_PASSWORD "\":\"testtext_Password_testtext\",0:\"" DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "\":\"testtext_Dir_testtext\",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"testtext_Crl_testtext\"", ""),
     NULL
   };
 
@@ -623,21 +623,21 @@ CU_Test(ddssec_config, qos_invalid, .init = ddsrt_init, .fini = ddsrt_fini)
   const char *log_expected[] = {
     /* The config should have been parsed into the participant QoS. */
     "new_participant(*): using security settings from QoS*",
-    "new_participant(*): required security property dds.sec.auth.identity_ca missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.auth.private_key missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.auth.identity_certificate missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.access.permissions_ca missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.access.governance missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.access.permissions missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.auth.library.path missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.auth.library.init missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.auth.library.finalize missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.crypto.library.path missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.crypto.library.init missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.crypto.library.finalize missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.access.library.path missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.access.library.init missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.access.library.finalize missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_IDENTITY_CA " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_PRIV_KEY " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_IDENTITY_CERT " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_PERMISSIONS_CA " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_GOVERNANCE " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_PERMISSIONS " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_PATH " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_INIT " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_PATH " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_INIT " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_PATH " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_INIT " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE " missing in Property QoS*",
     NULL
   };
 
@@ -664,7 +664,7 @@ CU_Test(ddssec_config, qos_invalid, .init = ddsrt_init, .fini = ddsrt_fini)
   set_logger_exp(log_expected);
 
   CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
-  dds_qset_prop(qos, "dds.sec.dummy", "testtext_dummy_testtext");
+  dds_qset_prop(qos, DDS_SEC_PROP_PREFIX "dummy", "testtext_dummy_testtext");
 
   /* Create participant with security config in qos. */
   domain = dds_create_domain(0, sec_config);
@@ -687,21 +687,21 @@ CU_Test(ddssec_config, qos_invalid_proprietary, .init = ddsrt_init, .fini = ddsr
   const char *log_expected[] = {
     /* The config should have been parsed into the participant QoS. */
     "new_participant(*): using security settings from QoS*",
-    "new_participant(*): required security property dds.sec.auth.identity_ca missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.auth.private_key missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.auth.identity_certificate missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.access.permissions_ca missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.access.governance missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.access.permissions missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.auth.library.path missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.auth.library.init missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.auth.library.finalize missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.crypto.library.path missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.crypto.library.init missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.crypto.library.finalize missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.access.library.path missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.access.library.init missing in Property QoS*",
-    "new_participant(*): required security property dds.sec.access.library.finalize missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_IDENTITY_CA " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_PRIV_KEY " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_IDENTITY_CERT " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_PERMISSIONS_CA " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_GOVERNANCE " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_PERMISSIONS " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_PATH " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_INIT " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_PATH " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_INIT " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_PATH " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_INIT " missing in Property QoS*",
+    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE " missing in Property QoS*",
     NULL
   };
 
@@ -750,7 +750,7 @@ CU_Test(ddssec_config, config_qos_missing_crl, .init = ddsrt_init, .fini = ddsrt
   dds_qos_t * qos;
   const char *log_expected[] = {
     /* The security settings from qos properties should have been parsed into the participant QoS. */
-    "*CRL security property org.eclipse.cyclonedds.sec.auth.crl absent in Property QoS but specified in XML configuration*",
+    "*CRL security property " ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL " absent in Property QoS but specified in XML configuration*",
     NULL
   };
 
@@ -785,12 +785,12 @@ CU_Test(ddssec_config, config_qos_missing_crl, .init = ddsrt_init, .fini = ddsrt
   dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_access_control_wrapper"));
   dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_INIT, "init_test_access_control_all_ok");
   dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE, "finalize_test_access_control_all_ok");
-  dds_qset_prop(qos, "dds.sec.auth.identity_ca", TEST_IDENTITY_CA_CERTIFICATE_DUMMY);
-  dds_qset_prop(qos, "dds.sec.auth.private_key", TEST_IDENTITY_PRIVATE_KEY_DUMMY);
-  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", TEST_IDENTITY_CERTIFICATE_DUMMY);
-  dds_qset_prop(qos, "dds.sec.access.permissions_ca", "file:QOS_Permissions_CA.pem");
-  dds_qset_prop(qos, "dds.sec.access.governance", "file:QOS_Governance.p7s");
-  dds_qset_prop(qos, "dds.sec.access.permissions", "file:QOS_Permissions.p7s");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CA, TEST_IDENTITY_CA_CERTIFICATE_DUMMY);
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_PRIV_KEY, TEST_IDENTITY_PRIVATE_KEY_DUMMY);
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CERT, TEST_IDENTITY_CERTIFICATE_DUMMY);
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_PERMISSIONS_CA, "file:QOS_Permissions_CA.pem");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_GOVERNANCE, "file:QOS_Governance.p7s");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_PERMISSIONS, "file:QOS_Permissions.p7s");
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, sec_config);
@@ -837,7 +837,7 @@ CU_Test(ddssec_config, config_qos_override_crl, .init = ddsrt_init, .fini = ddsr
                    "init_test_cryptography_all_ok", "finalize_test_cryptography_all_ok", \
                    "init_test_access_control_all_ok", "finalize_test_access_control_all_ok", \
                    "file:QOS_Permissions_CA.pem", "file:QOS_Governance.p7s", "file:QOS_Permissions.p7s", \
-                   "", ",0:\"org.eclipse.cyclonedds.sec.auth.crl\":\"\"", ""),
+                   "", ",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"\"", ""),
     NULL
   };
 
@@ -877,12 +877,12 @@ CU_Test(ddssec_config, config_qos_override_crl, .init = ddsrt_init, .fini = ddsr
   dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_access_control_wrapper"));
   dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_INIT, "init_test_access_control_all_ok");
   dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE, "finalize_test_access_control_all_ok");
-  dds_qset_prop(qos, "dds.sec.auth.identity_ca", TEST_IDENTITY_CA_CERTIFICATE_DUMMY);
-  dds_qset_prop(qos, "dds.sec.auth.private_key", TEST_IDENTITY_PRIVATE_KEY_DUMMY);
-  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", TEST_IDENTITY_CERTIFICATE_DUMMY);
-  dds_qset_prop(qos, "dds.sec.access.permissions_ca", "file:QOS_Permissions_CA.pem");
-  dds_qset_prop(qos, "dds.sec.access.governance", "file:QOS_Governance.p7s");
-  dds_qset_prop(qos, "dds.sec.access.permissions", "file:QOS_Permissions.p7s");
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CA, TEST_IDENTITY_CA_CERTIFICATE_DUMMY);
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_PRIV_KEY, TEST_IDENTITY_PRIVATE_KEY_DUMMY);
+  dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CERT, TEST_IDENTITY_CERTIFICATE_DUMMY);
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_PERMISSIONS_CA, "file:QOS_Permissions_CA.pem");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_GOVERNANCE, "file:QOS_Governance.p7s");
+  dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_PERMISSIONS, "file:QOS_Permissions.p7s");
   dds_qset_prop(qos, ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL, "");
 
   set_logger_exp(log_expected);

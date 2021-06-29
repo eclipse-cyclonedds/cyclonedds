@@ -758,7 +758,7 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, volatile_secure, .init = suite_
 
     datareader_properties._length = datareader_properties._maximum = 1;
     datareader_properties._buffer = DDS_Security_PropertySeq_allocbuf(1);
-    datareader_properties._buffer[0].name = ddsrt_strdup("dds.sec.builtin_endpoint_name");
+    datareader_properties._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME);
     datareader_properties._buffer[0].value = ddsrt_strdup("BuiltinParticipantVolatileMessageSecureReader");
     datareader_properties._buffer[0].propagate = false;
 
@@ -767,7 +767,7 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, volatile_secure, .init = suite_
 
     datawriter_properties._length = datawriter_properties._maximum = 1;
     datawriter_properties._buffer = DDS_Security_PropertySeq_allocbuf(1);
-    datawriter_properties._buffer[0].name = ddsrt_strdup("dds.sec.builtin_endpoint_name");
+    datawriter_properties._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME);
     datawriter_properties._buffer[0].value = ddsrt_strdup("BuiltinParticipantVolatileMessageSecureWriter");
     datawriter_properties._buffer[0].propagate = false;
 

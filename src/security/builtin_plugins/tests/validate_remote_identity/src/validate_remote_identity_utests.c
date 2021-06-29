@@ -12,23 +12,13 @@
 #include "CUnit/Test.h"
 #include "assert.h"
 
-
 /* Test helper includes. */
 #include "common/src/loader.h"
 
+#include "dds/ddsi/ddsi_security_msg.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
-
-static const char * AUTH_PROTOCOL_CLASS_ID          = "DDS:Auth:PKI-DH:1.0";
-
-static const char * PROPERTY_IDENTITY_CA            = "dds.sec.auth.identity_ca";
-static const char * PROPERTY_PRIVATE_KEY            = "dds.sec.auth.private_key";
-static const char * PROPERTY_IDENTITY_CERT          = "dds.sec.auth.identity_certificate";
-
-static const char * PROPERTY_CERT_SUBJECT_NAME      = "dds.cert.sn";
-static const char * PROPERTY_CERT_ALGORITHM         = "dds.cert.algo";
-static const char * PROPERTY_CA_SUBJECT_NAME        = "dds.ca.sn";
-static const char * PROPERTY_CA_ALGORITHM           = "dds.ca.algo";
+#include "auth_tokens.h"
 
 static const char * SUBJECT_NAME_IDENTITY_CERT      = "CN=CHAM-574 client,O=Some Company,ST=Some-State,C=NL";
 static const char * SUBJECT_NAME_IDENTITY_CA        = "CN=CHAM-574 authority,O=Some Company,ST=Some-State,C=NL";
@@ -39,9 +29,6 @@ static const char * SUBJECT_NAME_IDENTITY_CA_2      = "CN=CHAM-574_1 authority,O
 
 static const char * RSA_2048_ALGORITHM_NAME         = "RSA-2048";
 //static const char * EC_PRIME256V1_ALGORITHM_NAME    = "EC-prime256v1";
-
-static const char * AUTH_REQUEST_TOKEN_CLASS_ID         = "DDS:Auth:PKI-DH:1.0+AuthReq";
-static const char * AUTH_REQUEST_TOKEN_FUTURE_PROP_NAME = "future_challenge";
 
 static const char *identity_certificate =
         "data:,-----BEGIN CERTIFICATE-----\n"
@@ -181,24 +168,24 @@ initialize_identity_token(
 {
     memset(token, 0, sizeof(*token));
 
-    token->class_id = ddsrt_strdup(AUTH_PROTOCOL_CLASS_ID);
+    token->class_id = ddsrt_strdup(DDS_AUTHTOKEN_CLASS_ID);
     token->properties._maximum = 4;
     token->properties._length  = 4;
     token->properties._buffer = DDS_Security_PropertySeq_allocbuf(4);
 
-    token->properties._buffer[0].name = ddsrt_strdup(PROPERTY_CERT_SUBJECT_NAME);
+    token->properties._buffer[0].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CERT_SN);
     token->properties._buffer[0].value = ddsrt_strdup(SUBJECT_NAME_IDENTITY_CERT);
     token->properties._buffer[0].propagate = true;
 
-    token->properties._buffer[1].name = ddsrt_strdup(PROPERTY_CERT_ALGORITHM);
+    token->properties._buffer[1].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CERT_ALGO);
     token->properties._buffer[1].value = ddsrt_strdup(certAlgo);
     token->properties._buffer[1].propagate = true;
 
-    token->properties._buffer[2].name = ddsrt_strdup(PROPERTY_CA_SUBJECT_NAME);
+    token->properties._buffer[2].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CA_SN);
     token->properties._buffer[2].value = ddsrt_strdup(SUBJECT_NAME_IDENTITY_CA);
     token->properties._buffer[2].propagate = true;
 
-    token->properties._buffer[3].name = ddsrt_strdup(PROPERTY_CA_ALGORITHM);
+    token->properties._buffer[3].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CA_ALGO);
     token->properties._buffer[3].value = ddsrt_strdup(caAlgo);
     token->properties._buffer[3].propagate = true;
 }
@@ -213,24 +200,24 @@ initialize_identity_token_w_sn(
 {
     memset(token, 0, sizeof(*token));
 
-    token->class_id = ddsrt_strdup(AUTH_PROTOCOL_CLASS_ID);
+    token->class_id = ddsrt_strdup(DDS_AUTHTOKEN_CLASS_ID);
     token->properties._maximum = 4;
     token->properties._length  = 4;
     token->properties._buffer = DDS_Security_PropertySeq_allocbuf(4);
 
-    token->properties._buffer[0].name = ddsrt_strdup(PROPERTY_CERT_SUBJECT_NAME);
+    token->properties._buffer[0].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CERT_SN);
     token->properties._buffer[0].value = ddsrt_strdup(certSubjName);
     token->properties._buffer[0].propagate = true;
 
-    token->properties._buffer[1].name = ddsrt_strdup(PROPERTY_CERT_ALGORITHM);
+    token->properties._buffer[1].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CERT_ALGO);
     token->properties._buffer[1].value = ddsrt_strdup(certAlgo);
     token->properties._buffer[1].propagate = true;
 
-    token->properties._buffer[2].name = ddsrt_strdup(PROPERTY_CA_SUBJECT_NAME);
+    token->properties._buffer[2].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CA_SN);
     token->properties._buffer[2].value = ddsrt_strdup(caSubjName);
     token->properties._buffer[2].propagate = true;
 
-    token->properties._buffer[3].name = ddsrt_strdup(PROPERTY_CA_ALGORITHM);
+    token->properties._buffer[3].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_CA_ALGO);
     token->properties._buffer[3].value = ddsrt_strdup(caAlgo);
     token->properties._buffer[3].propagate = true;
 }
@@ -261,11 +248,11 @@ create_local_identity(void)
 
     memset(&participant_qos, 0, sizeof(participant_qos));
     dds_security_property_init(&participant_qos.property.value, 3);
-    participant_qos.property.value._buffer[0].name = ddsrt_strdup(PROPERTY_IDENTITY_CERT);
+    participant_qos.property.value._buffer[0].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CERT);
     participant_qos.property.value._buffer[0].value = ddsrt_strdup(identity_certificate);
-    participant_qos.property.value._buffer[1].name = ddsrt_strdup(PROPERTY_IDENTITY_CA);
+    participant_qos.property.value._buffer[1].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CA);
     participant_qos.property.value._buffer[1].value = ddsrt_strdup(identity_ca);
-    participant_qos.property.value._buffer[2].name = ddsrt_strdup(PROPERTY_PRIVATE_KEY);
+    participant_qos.property.value._buffer[2].name = ddsrt_strdup(DDS_SEC_PROP_AUTH_PRIV_KEY);
     participant_qos.property.value._buffer[2].value = ddsrt_strdup(private_key);
 
     /* Now call the function. */
@@ -311,7 +298,7 @@ check_auth_request_token(
 {
     if (notNil) {
         if (!token->class_id ||
-            (strcmp(token->class_id, AUTH_REQUEST_TOKEN_CLASS_ID) != 0)) {
+            (strcmp(token->class_id, DDS_SECURITY_AUTH_REQUEST_TOKEN_CLASS_ID) != 0)) {
             printf("AuthRequestMessageToken has invalid class_id\n");
             return 0;
         }
@@ -323,7 +310,7 @@ check_auth_request_token(
         }
 
         if (!token->binary_properties._buffer[0].name ||
-            (strcmp(token->binary_properties._buffer[0].name, AUTH_REQUEST_TOKEN_FUTURE_PROP_NAME) != 0)) {
+            (strcmp(token->binary_properties._buffer[0].name, DDS_AUTHTOKEN_PROP_FUTURE_CHALLENGE) != 0)) {
             printf("AuthRequestMessageToken has invalid property name\n");
             return 0;
         }
@@ -364,11 +351,11 @@ fill_auth_request_token(
 
     memset(token, 0, sizeof(*token));
 
-    token->class_id = ddsrt_strdup(AUTH_REQUEST_TOKEN_CLASS_ID);
+    token->class_id = ddsrt_strdup(DDS_SECURITY_AUTH_REQUEST_TOKEN_CLASS_ID);
     token->binary_properties._maximum = 1;
     token->binary_properties._length = 1;
     token->binary_properties._buffer = DDS_Security_BinaryPropertySeq_allocbuf(1);
-    token->binary_properties._buffer->name = ddsrt_strdup(AUTH_REQUEST_TOKEN_FUTURE_PROP_NAME);
+    token->binary_properties._buffer->name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_FUTURE_CHALLENGE);
 
     token->binary_properties._buffer->value._maximum = len;
     token->binary_properties._buffer->value._length = len;
@@ -844,7 +831,7 @@ CU_Test(ddssec_builtin_validate_remote_identity,invalid_auth_req_token )
 
     /* check invalid property name (empty) for future_challenge */
     ddsrt_free(remote_auth_request_token.class_id);
-    remote_auth_request_token.class_id = ddsrt_strdup(AUTH_REQUEST_TOKEN_CLASS_ID);
+    remote_auth_request_token.class_id = ddsrt_strdup(DDS_SECURITY_AUTH_REQUEST_TOKEN_CLASS_ID);
     ddsrt_free(remote_auth_request_token.binary_properties._buffer[0].name);
     remote_auth_request_token.binary_properties._buffer[0].name = ddsrt_strdup("");
 
@@ -918,7 +905,7 @@ CU_Test(ddssec_builtin_validate_remote_identity,invalid_auth_req_token )
 
     /* check missing future_challenge property*/
     ddsrt_free(remote_auth_request_token.binary_properties._buffer[0].name);
-    remote_auth_request_token.binary_properties._buffer[0].name = ddsrt_strdup(AUTH_REQUEST_TOKEN_FUTURE_PROP_NAME);
+    remote_auth_request_token.binary_properties._buffer[0].name = ddsrt_strdup(DDS_AUTHTOKEN_PROP_FUTURE_CHALLENGE);
     futureChallenge = remote_auth_request_token.binary_properties._buffer[0].value._buffer;
     remote_auth_request_token.binary_properties._buffer[0].value._buffer = NULL;
     remote_auth_request_token.binary_properties._buffer[0].value._length = 0;
