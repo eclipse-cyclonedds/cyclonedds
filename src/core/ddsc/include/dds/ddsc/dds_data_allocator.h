@@ -118,7 +118,9 @@ DDS_EXPORT dds_return_t dds_data_allocator_free (dds_data_allocator_t *data_allo
  *
  * @returns loan available or not
  */
-DDS_EXPORT bool is_loan_available (const dds_entity_t entity);
+DDS_EXPORT bool dds_is_loan_available (const dds_entity_t entity);
+
+DDS_DEPRECATED_EXPORT bool is_loan_available (const dds_entity_t entity);
 
 #if defined (__cplusplus)
 }

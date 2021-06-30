@@ -158,7 +158,7 @@ dds_return_t dds_data_allocator_free (dds_data_allocator_t *data_allocator, void
   return ret;
 }
 
-bool is_loan_available(const dds_entity_t entity)
+bool dds_is_loan_available(const dds_entity_t entity)
 {
   bool ret = false;
 #ifdef DDS_HAS_SHM
@@ -183,4 +183,9 @@ bool is_loan_available(const dds_entity_t entity)
 #endif
   (void) entity;
   return ret;
+}
+
+bool is_loan_available(const dds_entity_t entity)
+{
+  return dds_is_loan_available(entity);
 }
