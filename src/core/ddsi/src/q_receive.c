@@ -3156,7 +3156,7 @@ static int handle_submsg_sequence
     state = "parse:shortmsg";
     state_smkind = SMID_PAD;
     GVTRACE ("short (size %"PRIuSIZE" exp %p act %p)", submsg_size, (void *) submsg, (void *) end);
-    goto malformed_asleep;
+    goto malformed;
   }
   thread_state_asleep (ts1);
   assert (thread_is_asleep ());
@@ -3167,8 +3167,6 @@ static int handle_submsg_sequence
 
 malformed:
   thread_state_asleep (ts1);
-  assert (thread_is_asleep ());
-malformed_asleep:
   assert (thread_is_asleep ());
   malformed_packet_received (rst->gv, msg, submsg, len, state, state_smkind, hdr->vendorid);
   defer_hb_state_fini (gv, &defer_hb_state);
