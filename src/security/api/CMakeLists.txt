@@ -20,7 +20,8 @@ set(headers
   dds_security_api_types.h)
 prepend(headers "${CMAKE_CURRENT_LIST_DIR}/include/dds/security" ${headers})
 
-add_library(security_api INTERFACE ${headers})
+add_library(security_api INTERFACE)
+target_sources(security_api INTERFACE ${headers})
 
 target_include_directories(
   security_api INTERFACE
