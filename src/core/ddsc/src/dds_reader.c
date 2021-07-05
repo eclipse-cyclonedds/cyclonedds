@@ -519,7 +519,9 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     }
   }
 
-  if ((rc = dds_topic_pin (topic, &tp)) < 0)
+  /* If pseudo_topic != 0, topic didn't didn't originate from the application and we allow pinning
+     it despite it being marked as NO_USER_ACCESS */
+  if ((rc = dds_topic_pin_with_origin (topic, pseudo_topic ? false : true, &tp)) < 0)
     goto err_pin_topic;
   assert (tp->m_stype);
   if (dds_entity_participant (&sub->m_entity) != dds_entity_participant (&tp->m_entity))

@@ -21,6 +21,7 @@
 #include "dds__listener.h"
 #include "dds__qos.h"
 #include "dds__topic.h"
+#include "dds__builtin.h"
 #include "dds/version.h"
 #include "dds/ddsi/ddsi_pmd.h"
 #include "dds/ddsi/ddsi_xqos.h"
@@ -93,6 +94,17 @@ static void dds_entity_observers_signal_delete (dds_entity *observed);
 
 static dds_return_t dds_delete_impl (dds_entity_t entity, enum delete_impl_state delstate);
 static dds_return_t really_delete_pinned_closed_locked (struct dds_entity *e, enum delete_impl_state delstate);
+
+static bool entity_is_builtin_topic (const struct dds_entity *entity)
+{
+  if (dds_entity_kind (entity) != DDS_KIND_TOPIC)
+    return false;
+  else
+  {
+    const dds_topic *tp = (dds_topic *) entity;
+    return builtintopic_is_builtintopic (&tp->m_entity.m_domain->btif, tp->m_stype);
+  }
+}
 
 void dds_entity_add_ref_locked (dds_entity *e)
 {
@@ -619,9 +631,14 @@ dds_return_t dds_get_children (dds_entity_t entity, dds_entity_t *children, size
       /* Attempt at pinning the entity will fail if it is still pending */
       if (dds_entity_pin (c->m_hdllink.hdl, &tmp) == DDS_RETCODE_OK)
       {
-        if (n < size)
-          children[n] = c->m_hdllink.hdl;
-        n++;
+        /* Hide built-in topics to keep up the pretense that they are identified by their
+           pseudo handles and really do exist */
+        if (!entity_is_builtin_topic (tmp))
+        {
+          if (n < size)
+            children[n] = c->m_hdllink.hdl;
+          n++;
+        }
         dds_entity_unpin (tmp);
       }
     }
@@ -1470,11 +1487,13 @@ dds_entity_t dds_get_topic (dds_entity_t entity)
   {
     case DDS_KIND_READER: {
       dds_reader *rd = (dds_reader *) e;
-      hdl = rd->m_topic->m_entity.m_hdllink.hdl;
+      if ((hdl = dds__get_builtin_topic_pseudo_handle_from_typename (rd->m_topic->m_stype->type_name)) < 0)
+        hdl = rd->m_topic->m_entity.m_hdllink.hdl;
       break;
     }
     case DDS_KIND_WRITER: {
       dds_writer *wr = (dds_writer *) e;
+      assert (dds__get_builtin_topic_pseudo_handle_from_typename (wr->m_topic->m_stype->type_name) < 0);
       hdl = wr->m_topic->m_entity.m_hdllink.hdl;
       break;
     }
@@ -1482,7 +1501,8 @@ dds_entity_t dds_get_topic (dds_entity_t entity)
     case DDS_KIND_COND_QUERY: {
       assert (dds_entity_kind (e->m_parent) == DDS_KIND_READER);
       dds_reader *rd = (dds_reader *) e->m_parent;
-      hdl = rd->m_topic->m_entity.m_hdllink.hdl;
+      if ((hdl = dds__get_builtin_topic_pseudo_handle_from_typename (rd->m_topic->m_stype->type_name)) < 0)
+        hdl = rd->m_topic->m_entity.m_hdllink.hdl;
       break;
     }
     default: {
