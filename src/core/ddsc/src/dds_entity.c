@@ -259,7 +259,7 @@ dds_entity_t dds_entity_init (dds_entity *e, dds_entity *parent, dds_entity_kind
   {
     /* for topics, refc counts readers/writers, for all others, it counts children (this we can get away with
        as long as topics can't have children) */
-    if ((handle = dds_handle_create (&e->m_hdllink, implicit, entity_may_have_children (e))) <= 0)
+    if ((handle = dds_handle_create (&e->m_hdllink, implicit, entity_may_have_children (e), true)) <= 0)
       return (dds_entity_t) handle;
   }
 
@@ -1281,7 +1281,7 @@ dds_return_t dds_entity_pin_for_delete (dds_entity_t hdl, bool explicit, dds_ent
 {
   dds_return_t hres;
   struct dds_handle_link *hdllink;
-  if ((hres = dds_handle_pin_for_delete (hdl, explicit, &hdllink)) < 0)
+  if ((hres = dds_handle_pin_for_delete (hdl, explicit, true, &hdllink)) < 0)
     return hres;
   else
   {
