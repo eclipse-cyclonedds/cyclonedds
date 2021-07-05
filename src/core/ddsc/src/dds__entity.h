@@ -25,6 +25,7 @@ dds_entity_init(
   dds_entity * parent,
   dds_entity_kind_t kind,
   bool implicit,
+  bool user_access,
   dds_qos_t * qos,
   const dds_listener_t *listener,
   status_mask_t mask);
@@ -125,6 +126,7 @@ DDS_EXPORT void dds_entity_final_deinit_before_free (dds_entity *e);
 DDS_EXPORT bool dds_entity_in_scope (const dds_entity *e, const dds_entity *root);
 
 enum delete_impl_state {
+  DIS_USER,        /* delete invoked directly by application */
   DIS_EXPLICIT,    /* explicit delete on this entity */
   DIS_FROM_PARENT, /* called because the parent is being deleted */
   DIS_IMPLICIT     /* called from child; delete if implicit w/o children */
@@ -137,7 +139,13 @@ dds_entity_pin (
   dds_entity_t hdl,
   dds_entity **eptr);
 
-DDS_EXPORT dds_return_t dds_entity_pin_for_delete (dds_entity_t hdl, bool explicit, dds_entity **eptr);
+DDS_EXPORT dds_return_t
+dds_entity_pin_with_origin (
+  dds_entity_t hdl,
+  bool from_user,
+  dds_entity **eptr);
+
+DDS_EXPORT dds_return_t dds_entity_pin_for_delete (dds_entity_t hdl, bool explicit, bool from_user, dds_entity **eptr);
 
 DDS_EXPORT void dds_entity_unpin (
   dds_entity *e);

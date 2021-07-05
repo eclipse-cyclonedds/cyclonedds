@@ -410,7 +410,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
   /* Create writer */
   struct dds_writer * const wr = dds_alloc (sizeof (*wr));
-  const dds_entity_t writer = dds_entity_init (&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, false, wqos, listener, DDS_WRITER_STATUS_MASK);
+  const dds_entity_t writer = dds_entity_init (&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, false, true, wqos, listener, DDS_WRITER_STATUS_MASK);
   wr->m_topic = tp;
   dds_entity_add_ref_locked (&tp->m_entity);
   wr->m_xp = nn_xpack_new (gv, get_bandwidth_limit (wqos->transport_priority), async_mode);

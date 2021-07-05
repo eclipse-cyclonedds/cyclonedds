@@ -586,7 +586,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
   /* Create reader and associated read cache (if not provided by caller) */
   struct dds_reader * const rd = dds_alloc (sizeof (*rd));
-  const dds_entity_t reader = dds_entity_init (&rd->m_entity, &sub->m_entity, DDS_KIND_READER, false, rqos, listener, DDS_READER_STATUS_MASK);
+  const dds_entity_t reader = dds_entity_init (&rd->m_entity, &sub->m_entity, DDS_KIND_READER, false, true, rqos, listener, DDS_READER_STATUS_MASK);
   rd->m_sample_rejected_status.last_reason = DDS_NOT_REJECTED;
   rd->m_topic = tp;
   rd->m_wrapped_sertopic = (tp->m_stype->wrapped_sertopic != NULL) ? 1 : 0;
