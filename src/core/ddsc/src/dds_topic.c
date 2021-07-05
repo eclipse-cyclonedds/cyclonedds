@@ -1023,32 +1023,6 @@ dds_topic_filter_fn dds_topic_get_filter (dds_entity_t topic)
   return dds_get_topic_filter_deprecated (topic);
 }
 
-dds_return_t dds_get_name_size (dds_entity_t topic, size_t *size)
-{
-  dds_topic *t;
-  dds_return_t ret;
-  if (size == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-  if ((ret = dds_topic_pin (topic, &t)) != DDS_RETCODE_OK)
-    return ret;
-  *size = strlen (t->m_name);
-  dds_topic_unpin (t);
-  return DDS_RETCODE_OK;
-}
-
-dds_return_t dds_get_type_name_size (dds_entity_t topic, size_t *size)
-{
-  dds_topic *t;
-  dds_return_t ret;
-  if (size == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-  if ((ret = dds_topic_pin (topic, &t)) != DDS_RETCODE_OK)
-    return ret;
-  *size = strlen (t->m_stype->type_name);
-  dds_topic_unpin (t);
-  return DDS_RETCODE_OK;
-}
-
 dds_return_t dds_get_name (dds_entity_t topic, char *name, size_t size)
 {
   dds_topic *t;
