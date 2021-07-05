@@ -75,7 +75,7 @@ static bool cyclonedds_entity_ready (uint32_t s)
   else
   {
     struct dds_handle_link *x;
-    return dds_handle_pin_and_ref (DDS_CYCLONEDDS_HANDLE, &x) == DDS_RETCODE_OK;
+    return dds_handle_pin_and_ref_with_origin (DDS_CYCLONEDDS_HANDLE, false, &x) == DDS_RETCODE_OK;
   }
 }
 
