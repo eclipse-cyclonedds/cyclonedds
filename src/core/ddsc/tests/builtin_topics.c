@@ -435,7 +435,7 @@ CU_Test(ddsc_builtin_topics, get_name)
   {
     char buf[100];
     dds_return_t rc = dds_get_name (tps[i].h, buf, sizeof (buf));
-    CU_ASSERT_FATAL (rc == 0);
+    CU_ASSERT_FATAL (rc == (dds_return_t) strlen (tps[i].n));
     CU_ASSERT_FATAL (strcmp (buf, tps[i].n) == 0);
   }
 }
@@ -455,7 +455,7 @@ CU_Test(ddsc_builtin_topics, get_type_name)
   {
     char buf[100];
     dds_return_t rc = dds_get_type_name (tps[i].h, buf, sizeof (buf));
-    CU_ASSERT_FATAL (rc == 0);
+    CU_ASSERT_FATAL (rc == (dds_return_t) strlen (tps[i].n));
     CU_ASSERT_FATAL (strcmp (buf, tps[i].n) == 0);
   }
 }

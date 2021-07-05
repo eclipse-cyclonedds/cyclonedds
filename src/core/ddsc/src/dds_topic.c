@@ -1039,15 +1039,13 @@ dds_return_t dds_get_name (dds_entity_t topic, char *name, size_t size)
 
   const char *bname;
   if (dds__get_builtin_topic_name_typename (topic, &bname, NULL) == 0)
-    (void) ddsrt_strlcpy (name, bname, size);
-  else
+    ret = (dds_return_t) ddsrt_strlcpy (name, bname, size);
+  else if ((ret = dds_topic_pin (topic, &t)) == DDS_RETCODE_OK)
   {
-    if ((ret = dds_topic_pin (topic, &t)) != DDS_RETCODE_OK)
-      return ret;
-    (void) ddsrt_strlcpy (name, t->m_name, size);
+    ret = (dds_return_t) ddsrt_strlcpy (name, t->m_name, size);
     dds_topic_unpin (t);
   }
-  return DDS_RETCODE_OK;
+  return ret;
 }
 
 dds_return_t dds_get_type_name (dds_entity_t topic, char *name, size_t size)
@@ -1060,15 +1058,13 @@ dds_return_t dds_get_type_name (dds_entity_t topic, char *name, size_t size)
 
   const char *bname;
   if (dds__get_builtin_topic_name_typename (topic, NULL, &bname) == 0)
-    (void) ddsrt_strlcpy (name, bname, size);
-  else
+    ret = (dds_return_t) ddsrt_strlcpy (name, bname, size);
+  else if ((ret = dds_topic_pin (topic, &t)) == DDS_RETCODE_OK)
   {
-    if ((ret = dds_topic_pin (topic, &t)) != DDS_RETCODE_OK)
-      return ret;
-    (void) ddsrt_strlcpy (name, t->m_stype->type_name, size);
+    ret = (dds_return_t) ddsrt_strlcpy (name, t->m_stype->type_name, size);
     dds_topic_unpin (t);
   }
-  return DDS_RETCODE_OK;
+  return ret;
 }
 
 DDS_GET_STATUS(topic, inconsistent_topic, INCONSISTENT_TOPIC, total_count_change)

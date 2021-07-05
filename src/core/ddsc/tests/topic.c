@@ -142,21 +142,22 @@ CU_Test(ddsc_topic_get_name, valid, .init = ddsc_topic_init, .fini = ddsc_topic_
 {
   char name[MAX_NAME_SIZE];
   dds_return_t ret = dds_get_name(g_topic_rtmdt, name, MAX_NAME_SIZE);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(ret, (dds_return_t) strlen (g_topic_rtmdt_name));
   CU_ASSERT_STRING_EQUAL_FATAL(name, g_topic_rtmdt_name);
 
   ret = dds_get_name(g_topic_rtmaddr, name, MAX_NAME_SIZE);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(ret, (dds_return_t) strlen (g_topic_rtmaddr_name));
   CU_ASSERT_STRING_EQUAL_FATAL(name, g_topic_rtmaddr_name);
 }
 
 CU_Test(ddsc_topic_get_name, too_small, .init = ddsc_topic_init, .fini = ddsc_topic_fini)
 {
   char name[10];
+  assert (strlen (g_topic_rtmdt_name) >= sizeof (name));
   dds_return_t ret = dds_get_name(g_topic_rtmdt, name, 10);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-  g_topic_rtmdt_name[9] = '\0';
-  CU_ASSERT_STRING_EQUAL_FATAL(name, g_topic_rtmdt_name);
+  CU_ASSERT_FATAL (name[sizeof (name) - 1] == 0);
+  CU_ASSERT_FATAL (ret == (dds_return_t) strlen (g_topic_rtmdt_name));
+  CU_ASSERT_FATAL (strncmp (g_topic_rtmdt_name, name, sizeof (name) - 1) == 0);
 }
 
 CU_Test(ddsc_topic_get_name, non_topic, .init = ddsc_topic_init, .fini = ddsc_topic_fini)
@@ -191,22 +192,24 @@ CU_Test(ddsc_topic_get_type_name, valid, .init = ddsc_topic_init, .fini = ddsc_t
   const char *rtmDataTypeType = "RoundTripModule::DataType";
   const char *rtmAddressType = "RoundTripModule::Address";
   char name[MAX_NAME_SIZE];
-  dds_return_t ret = dds_get_type_name(g_topic_rtmdt, name, MAX_NAME_SIZE);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  dds_return_t ret = dds_get_type_name(g_topic_rtmdt, name, sizeof (name));
+  CU_ASSERT_EQUAL_FATAL(ret, (dds_return_t) strlen (rtmDataTypeType));
   CU_ASSERT_STRING_EQUAL_FATAL(name, rtmDataTypeType);
 
-  ret = dds_get_type_name(g_topic_rtmaddr, name, MAX_NAME_SIZE);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  ret = dds_get_type_name(g_topic_rtmaddr, name, sizeof (name));
+  CU_ASSERT_EQUAL_FATAL(ret, (dds_return_t) strlen (rtmAddressType));
   CU_ASSERT_STRING_EQUAL_FATAL(name, rtmAddressType);
 }
 
 CU_Test(ddsc_topic_get_type_name, too_small, .init = ddsc_topic_init, .fini = ddsc_topic_fini)
 {
-  const char *rtmDataTypeType = "RoundTrip";
+  const char *rtmDataTypeType = "RoundTripModule::DataType";
   char name[10];
-  dds_return_t ret = dds_get_type_name(g_topic_rtmdt, name, 10);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-  CU_ASSERT_STRING_EQUAL_FATAL(name, rtmDataTypeType);
+  assert (strlen (rtmDataTypeType) >= sizeof (name));
+  dds_return_t ret = dds_get_type_name(g_topic_rtmdt, name, sizeof (name));
+  CU_ASSERT_FATAL (name[sizeof (name) - 1] == 0);
+  CU_ASSERT_FATAL (ret == (dds_return_t) strlen (rtmDataTypeType));
+  CU_ASSERT_FATAL (strncmp (rtmDataTypeType, name, sizeof (name) - 1) == 0);
 }
 
 CU_Test(ddsc_topic_get_type_name, non_topic, .init = ddsc_topic_init, .fini = ddsc_topic_fini)
