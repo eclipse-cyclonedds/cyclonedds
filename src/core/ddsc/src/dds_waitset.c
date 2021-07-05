@@ -168,7 +168,7 @@ dds_entity_t dds_create_waitset (dds_entity_t owner)
   }
 
   dds_waitset *waitset = dds_alloc (sizeof (*waitset));
-  dds_entity_t hdl = dds_entity_init (&waitset->m_entity, e, DDS_KIND_WAITSET, false, NULL, NULL, 0);
+  dds_entity_t hdl = dds_entity_init (&waitset->m_entity, e, DDS_KIND_WAITSET, false, true, NULL, NULL, 0);
   ddsrt_mutex_init (&waitset->wait_lock);
   ddsrt_cond_init (&waitset->wait_cond);
   waitset->m_entity.m_iid = ddsi_iid_gen ();

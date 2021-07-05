@@ -66,7 +66,7 @@ dds_entity_t dds__create_subscriber_l (dds_participant *participant, bool implic
   }
 
   sub = dds_alloc (sizeof (*sub));
-  subscriber = dds_entity_init (&sub->m_entity, &participant->m_entity, DDS_KIND_SUBSCRIBER, implicit, new_qos, listener, DDS_SUBSCRIBER_STATUS_MASK);
+  subscriber = dds_entity_init (&sub->m_entity, &participant->m_entity, DDS_KIND_SUBSCRIBER, implicit, true, new_qos, listener, DDS_SUBSCRIBER_STATUS_MASK);
   sub->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (&participant->m_entity, &sub->m_entity);
   dds_entity_init_complete (&sub->m_entity);

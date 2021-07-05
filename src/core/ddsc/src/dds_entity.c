@@ -196,7 +196,7 @@ static bool entity_kind_has_qos (dds_entity_kind_t kind)
 }
 #endif
 
-dds_entity_t dds_entity_init (dds_entity *e, dds_entity *parent, dds_entity_kind_t kind, bool implicit, dds_qos_t *qos, const dds_listener_t *listener, status_mask_t mask)
+dds_entity_t dds_entity_init (dds_entity *e, dds_entity *parent, dds_entity_kind_t kind, bool implicit, bool user_access, dds_qos_t *qos, const dds_listener_t *listener, status_mask_t mask)
 {
   dds_handle_t handle;
 
@@ -259,7 +259,7 @@ dds_entity_t dds_entity_init (dds_entity *e, dds_entity *parent, dds_entity_kind
   {
     /* for topics, refc counts readers/writers, for all others, it counts children (this we can get away with
        as long as topics can't have children) */
-    if ((handle = dds_handle_create (&e->m_hdllink, implicit, entity_may_have_children (e), true)) <= 0)
+    if ((handle = dds_handle_create (&e->m_hdllink, implicit, entity_may_have_children (e), user_access)) <= 0)
       return (dds_entity_t) handle;
   }
 
@@ -364,7 +364,7 @@ static void print_delete (const dds_entity *e, enum delete_impl_state delstate ,
 
 dds_return_t dds_delete (dds_entity_t entity)
 {
-  return dds_delete_impl (entity, DIS_EXPLICIT);
+  return dds_delete_impl (entity, DIS_USER);
 }
 
 void dds_entity_final_deinit_before_free (dds_entity *e)
@@ -380,7 +380,7 @@ static dds_return_t dds_delete_impl (dds_entity_t entity, enum delete_impl_state
 {
   dds_entity *e;
   dds_return_t ret;
-  if ((ret = dds_entity_pin_for_delete (entity, (delstate != DIS_IMPLICIT), &e)) == DDS_RETCODE_OK)
+  if ((ret = dds_entity_pin_for_delete (entity, (delstate != DIS_IMPLICIT), (delstate == DIS_USER), &e)) == DDS_RETCODE_OK)
     return dds_delete_impl_pinned (e, delstate);
   else if (ret == DDS_RETCODE_TRY_AGAIN) /* non-child refs exist */
     return DDS_RETCODE_OK;
@@ -1264,11 +1264,11 @@ dds_return_t dds_get_guid (dds_entity_t entity, dds_guid_t *guid)
   return ret;
 }
 
-dds_return_t dds_entity_pin (dds_entity_t hdl, dds_entity **eptr)
+dds_return_t dds_entity_pin_with_origin (dds_entity_t hdl, bool from_user, dds_entity **eptr)
 {
   dds_return_t hres;
   struct dds_handle_link *hdllink;
-  if ((hres = dds_handle_pin (hdl, &hdllink)) < 0)
+  if ((hres = dds_handle_pin_with_origin (hdl, from_user, &hdllink)) < 0)
     return hres;
   else
   {
@@ -1277,11 +1277,16 @@ dds_return_t dds_entity_pin (dds_entity_t hdl, dds_entity **eptr)
   }
 }
 
-dds_return_t dds_entity_pin_for_delete (dds_entity_t hdl, bool explicit, dds_entity **eptr)
+dds_return_t dds_entity_pin (dds_entity_t hdl, dds_entity **eptr)
+{
+  return dds_entity_pin_with_origin (hdl, true, eptr);
+}
+
+dds_return_t dds_entity_pin_for_delete (dds_entity_t hdl, bool explicit, bool from_user, dds_entity **eptr)
 {
   dds_return_t hres;
   struct dds_handle_link *hdllink;
-  if ((hres = dds_handle_pin_for_delete (hdl, explicit, true, &hdllink)) < 0)
+  if ((hres = dds_handle_pin_for_delete (hdl, explicit, from_user, &hdllink)) < 0)
     return hres;
   else
   {

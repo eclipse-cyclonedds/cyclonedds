@@ -333,7 +333,7 @@ static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct d
   (void) sedp_plist;
   dds_entity_t hdl;
   dds_topic *tp = dds_alloc (sizeof (*tp));
-  hdl = dds_entity_init (&tp->m_entity, &pp->m_entity, DDS_KIND_TOPIC, implicit, NULL, listener, DDS_TOPIC_STATUS_MASK);
+  hdl = dds_entity_init (&tp->m_entity, &pp->m_entity, DDS_KIND_TOPIC, implicit, true, NULL, listener, DDS_TOPIC_STATUS_MASK);
   tp->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (&pp->m_entity, &tp->m_entity);
   tp->m_ktopic = ktp;
