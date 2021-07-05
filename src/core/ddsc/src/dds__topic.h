@@ -23,6 +23,7 @@ DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_topic, DDS_KIND_TOPIC)
 
 DDS_EXPORT void dds_topic_free (dds_domainid_t domainid, struct ddsi_sertype * st) ddsrt_nonnull_all;
 
+DDS_EXPORT dds_return_t dds_topic_pin_with_origin (dds_entity_t handle, bool from_user, struct dds_topic **tp) ddsrt_nonnull_all;
 DDS_EXPORT dds_return_t dds_topic_pin (dds_entity_t handle, struct dds_topic **tp) ddsrt_nonnull_all;
 DDS_EXPORT void dds_topic_unpin (struct dds_topic *tp) ddsrt_nonnull_all;
 DDS_EXPORT void dds_topic_defer_set_qos (struct dds_topic *tp) ddsrt_nonnull_all;
