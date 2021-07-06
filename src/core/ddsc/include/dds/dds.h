@@ -3535,7 +3535,7 @@ dds_read_next_wl(
  * the memory is released so that the buffer can be reused during a successive read/take operation.
  * When a condition is provided, the reader to which the condition belongs is looked up.
  *
- * @param[in] reader_or_condition Reader or condition that belongs to a reader.
+ * @param[in] entity The entity that the loan belongs to.
  * @param[in] buf An array of (pointers to) samples.
  * @param[in] bufsz The number of (pointers to) samples stored in buf.
  *
@@ -3544,7 +3544,7 @@ dds_read_next_wl(
 /* TODO: Add list of possible return codes */
 DDS_EXPORT dds_return_t
 dds_return_loan(
-  dds_entity_t reader_or_condition,
+  dds_entity_t entity,
   void **buf,
   int32_t bufsz);
 
