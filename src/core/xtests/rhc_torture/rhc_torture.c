@@ -167,7 +167,7 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct pro
   return iid;
 }
 
-static struct proxy_writer *mkwr (const struct ddsi_domaingv *gv, bool auto_dispose)
+static struct proxy_writer *mkwr (bool auto_dispose)
 {
   struct proxy_writer *pwr;
   struct dds_qos *xqos;
@@ -177,7 +177,7 @@ static struct proxy_writer *mkwr (const struct ddsi_domaingv *gv, bool auto_disp
   wr_iid = ddsi_iid_gen ();
   memset (pwr, 0, sizeof (*pwr));
   ddsi_xqos_init_empty (xqos);
-  ddsi_xqos_mergein_missing (xqos, &gv->default_xqos_wr, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (xqos, &ddsi_default_qos_writer, ~(uint64_t)0);
   xqos->ownership_strength.value = 0;
   xqos->writer_data_lifecycle.autodispose_unregistered_instances = auto_dispose;
   pwr->e.iid = wr_iid;
@@ -207,7 +207,7 @@ static struct dds_rhc *mkrhc (struct ddsi_domaingv *gv, dds_reader *rd, dds_hist
   rqos.history.kind = hk;
   rqos.history.depth = hdepth;
   rqos.destination_order.kind = dok;
-  ddsi_xqos_mergein_missing (&rqos, &gv->default_xqos_rd, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (&rqos, &ddsi_default_qos_reader, ~(uint64_t)0);
   thread_state_awake_domain_ok (lookup_thread_state ());
   rhc = dds_rhc_default_new_xchecks (rd, gv, mdtype, true);
   dds_rhc_set_qos(rhc, &rqos);
@@ -603,7 +603,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
 
   const struct ddsi_domaingv *gv = get_gv (pp);
   struct ddsi_tkmap *tkmap = gv->m_tkmap;
-  struct proxy_writer *wr[] = { mkwr (gv, 0), mkwr (gv, 1), mkwr (gv, 1) };
+  struct proxy_writer *wr[] = { mkwr (0), mkwr (1), mkwr (1) };
 
   static const uint32_t stab[] = {
     DDS_READ_SAMPLE_STATE, DDS_NOT_READ_SAMPLE_STATE,
@@ -953,8 +953,8 @@ int main (int argc, char **argv)
     if (print)
       printf ("************* 0 *************\n");
     struct dds_rhc *rhc = mkrhc (gv, NULL, DDS_HISTORY_KEEP_LAST, 1, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
-    struct proxy_writer *wr0 = mkwr (gv, 1);
-    struct proxy_writer *wr1 = mkwr (gv, 1);
+    struct proxy_writer *wr0 = mkwr (1);
+    struct proxy_writer *wr1 = mkwr (1);
     uint64_t iid0, iid1, iid_t;
     iid0 = store (tkmap, rhc, wr0, mksample (0, 0), print, false);
     iid1 = store (tkmap, rhc, wr0, mksample (1, NN_STATUSINFO_DISPOSE), print, false);
@@ -1028,7 +1028,7 @@ int main (int argc, char **argv)
     if (print)
       printf ("************* 1 *************\n");
     struct dds_rhc *rhc = mkrhc (gv, NULL, DDS_HISTORY_KEEP_LAST, 4, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
-    struct proxy_writer *wr[] = { mkwr (gv, 0), mkwr (gv, 0), mkwr (gv, 0) };
+    struct proxy_writer *wr[] = { mkwr (0), mkwr (0), mkwr (0) };
     uint64_t iid0, iid_t;
     int nregs = 3, isreg[] = { 1, 1, 1 };
     iid0 = store (tkmap, rhc, wr[0], mksample (0, 0), print, false);
