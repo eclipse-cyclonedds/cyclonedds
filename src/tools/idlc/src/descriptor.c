@@ -692,6 +692,8 @@ emit_switch_type_spec(
 
   type_spec = idl_unalias(idl_type_spec(node), 0u);
   assert(!idl_is_typedef(type_spec) && !idl_is_array(type_spec));
+  const idl_union_t *union_spec = idl_parent(node);
+  assert(idl_is_union(union_spec));
 
   if ((ret = push_field(descriptor, node, &field)))
     return ret;
@@ -699,6 +701,8 @@ emit_switch_type_spec(
   opcode = DDS_OP_ADR | DDS_OP_TYPE_UNI | typecode(type_spec, SUBTYPE);
   if ((order = idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path)))
     opcode |= DDS_OP_FLAG_KEY;
+  if (idl_is_default_case(idl_parent(union_spec->default_case)) && !idl_is_implicit_default_case(idl_parent(union_spec->default_case)))
+    opcode |= DDS_OP_FLAG_DEF;
   if ((ret = stash_opcode(descriptor, nop, opcode, order)))
     return ret;
   if ((ret = stash_offset(descriptor, nop, field)))

@@ -1749,6 +1749,18 @@ bool idl_is_default_case(const void *ptr)
   return false;
 }
 
+bool idl_is_implicit_default_case(const void *ptr)
+{
+  const idl_case_t *node = ptr;
+  static const idl_mask_t mask = IDL_IMPLICIT_DEFAULT_CASE_LABEL;
+  if (!(idl_mask(node) & IDL_CASE))
+    return false;
+  for (const idl_case_label_t *cl = node->labels; cl; cl = idl_next(cl))
+    if ((idl_mask(cl) & mask) == mask)
+      return true;
+  return false;
+}
+
 static void delete_case(void *ptr)
 {
   idl_case_t *node = ptr;
