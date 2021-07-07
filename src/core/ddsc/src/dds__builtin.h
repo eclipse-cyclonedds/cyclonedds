@@ -29,6 +29,9 @@ dds_entity_t dds__get_builtin_topic_pseudo_handle_from_typename (const char *typ
 /* Get actual topic in related participant related to topic 'id'. */
 dds_entity_t dds__get_builtin_topic (dds_entity_t e, dds_entity_t topic);
 
+/* Constructs the QoS object for a built-in topic QoS */
+dds_qos_t *dds__create_builtin_qos (void);
+
 /* Subscriber singleton within related participant. */
 dds_entity_t dds__get_builtin_subscriber (dds_entity_t e);
 
