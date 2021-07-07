@@ -25,6 +25,7 @@
 #include "dds__builtin.h"
 #include "dds__entity.h"
 #include "dds__subscriber.h"
+#include "dds__qos.h"
 #include "dds__topic.h"
 #include "dds__write.h"
 #include "dds__writer.h"
@@ -33,7 +34,7 @@
 #include "dds/ddsi/q_qosmatch.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 
-static dds_qos_t *dds__create_builtin_qos (void)
+dds_qos_t *dds__create_builtin_qos (void)
 {
   const char *partition = "__BUILT-IN PARTITION__";
   dds_qos_t *qos = dds_create_qos ();
@@ -41,6 +42,11 @@ static dds_qos_t *dds__create_builtin_qos (void)
   dds_qset_presentation (qos, DDS_PRESENTATION_TOPIC, false, false);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_MSECS(100));
   dds_qset_partition (qos, 1, &partition);
+  // FIXME: make the various default QoS compile-time constants
+  dds_qos_t *dq = dds_create_qos ();
+  ddsi_xqos_init_default_topic (dq);
+  ddsi_xqos_mergein_missing (qos, dq, DDS_TOPIC_QOS_MASK);
+  dds_delete_qos (dq);
   return qos;
 }
 

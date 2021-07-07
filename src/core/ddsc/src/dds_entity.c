@@ -678,6 +678,18 @@ static uint64_t entity_kind_qos_mask (dds_entity_kind_t kind)
   return 0;
 }
 
+static dds_return_t dds_get_qos_builtin_topic (dds_qos_t *qos)
+{
+  // It is surprisingly hard to get the topic QoS used for built-in
+  // topics without having a reference to a domain. Some changes in
+  // this area might be a good idea.
+  dds_reset_qos (qos);
+  dds_qos_t *bq = dds__create_builtin_qos ();
+  ddsi_xqos_mergein_missing (qos, bq, DDS_TOPIC_QOS_MASK);
+  dds_delete_qos (bq);
+  return DDS_RETCODE_OK;
+}
+
 dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
 {
   dds_entity *e;
@@ -687,7 +699,12 @@ dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
     return DDS_RETCODE_BAD_PARAMETER;
 
   if ((ret = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
-    return ret;
+  {
+    if (dds__get_builtin_topic_name_typename (entity, NULL, NULL) == 0)
+      return dds_get_qos_builtin_topic (qos);
+    else
+      return ret;
+  }
 
   if (!dds_entity_supports_set_qos (e))
     ret = DDS_RETCODE_ILLEGAL_OPERATION;
