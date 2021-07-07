@@ -466,6 +466,7 @@ IDL_EXPORT bool idl_is_union(const void *node);
 IDL_EXPORT bool idl_is_switch_type_spec(const void *node);
 IDL_EXPORT bool idl_is_case(const void *node);
 IDL_EXPORT bool idl_is_default_case(const void *node);
+IDL_EXPORT bool idl_is_implicit_default_case(const void *ptr);
 IDL_EXPORT bool idl_is_case_label(const void *node);
 IDL_EXPORT bool idl_is_enum(const void *node);
 IDL_EXPORT bool idl_is_enumerator(const void *node);
