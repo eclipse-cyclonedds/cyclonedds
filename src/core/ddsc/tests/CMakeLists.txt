@@ -72,7 +72,8 @@ set(ddsc_test_sources
     "test_common.h"
     "test_common.c"
     "test_oneliner.c"
-    "test_oneliner.h")
+    "test_oneliner.h"
+    "reload.c")
 
 if(ENABLE_LIFESPAN)
   list(APPEND ddsc_test_sources "lifespan.c")

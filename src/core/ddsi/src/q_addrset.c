@@ -370,6 +370,35 @@ void remove_from_addrset (const struct ddsi_domaingv *gv, struct addrset *as, co
   UNLOCK (as);
 }
 
+void remove_addrset_from_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asdel)
+{
+  ddsrt_avl_dpath_t path;
+  struct addrset_node *n, *ndel;
+  ddsrt_avl_citer_t it;
+  LOCK (as);
+  LOCK (asdel);
+  for (ndel = ddsrt_avl_citer_first (&addrset_treedef, &asdel->ucaddrs, &it); ndel; ndel = ddsrt_avl_citer_next (&it))
+  {
+    ddsrt_avl_dpath_t path;
+    if ((n = ddsrt_avl_clookup_dpath (&addrset_treedef, &as->ucaddrs, &ndel->loc, &path)) != NULL)
+    {
+      ddsrt_avl_cdelete_dpath (&addrset_treedef, &as->ucaddrs, n, &path);
+      ddsrt_free (n);
+    }
+  }
+  for (ndel = ddsrt_avl_citer_first (&addrset_treedef, &asdel->mcaddrs, &it); ndel; ndel = ddsrt_avl_citer_next (&it))
+  {
+    ddsrt_avl_dpath_t path;
+    if ((n = ddsrt_avl_clookup_dpath (&addrset_treedef, &as->mcaddrs, &ndel->loc, &path)) != NULL)
+    {
+      ddsrt_avl_cdelete_dpath (&addrset_treedef, &as->mcaddrs, n, &path);
+      ddsrt_free (n);
+    }
+  }
+  UNLOCK (asdel);
+  UNLOCK (as);
+}
+
 void copy_addrset_into_addrset_uc (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asadd)
 {
   struct addrset_node *n;
@@ -394,6 +423,11 @@ void copy_addrset_into_addrset (const struct ddsi_domaingv *gv, struct addrset *
 {
   copy_addrset_into_addrset_uc (gv, as, asadd);
   copy_addrset_into_addrset_mc (gv, as, asadd);
+}
+
+void replace_addrset_with_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asrepl)
+{
+  // .. implement
 }
 
 #ifdef DDS_HAS_SSM

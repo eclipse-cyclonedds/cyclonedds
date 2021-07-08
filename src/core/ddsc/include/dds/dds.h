@@ -859,6 +859,9 @@ dds_create_participant(
 DDS_EXPORT dds_entity_t
 dds_create_domain(const dds_domainid_t domain, const char *config);
 
+DDS_EXPORT dds_return_t
+dds_reload_domain_config(dds_entity_t domain, const char *config);
+
 struct ddsi_config;
 /**
  * @brief Creates a domain with a given configuration, specified as an

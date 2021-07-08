@@ -50,6 +50,7 @@ typedef int (*init_fun_t) (struct cfgst *cfgst, void *parent, struct cfgelem con
 typedef enum update_result (*update_fun_t) (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value);
 typedef void (*free_fun_t) (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
 typedef void (*print_fun_t) (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources);
+typedef enum update_result (*reload_fun_t) (struct ddsi_domaingv *gv, struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
 
 struct unit {
   const char *name;
@@ -68,6 +69,7 @@ struct cfgelem {
   update_fun_t update;
   free_fun_t free;
   print_fun_t print;
+  reload_fun_t reload;
 };
 
 struct cfgst_nodekey {
@@ -215,21 +217,27 @@ DI(if_omg_security);
 #endif
 #undef DI
 
+#define DR(fname) static enum update_result rf_##fname (struct ddsi_domaingv *gv, struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+DR(peer);
+DR(tracemask);
+DR(verbosity);
+#undef DR
+
 /* drop extra information, i.e. DESCRIPTION, RANGE, UNIT and VALUES */
 #define ELEMENT( \
   name, elems, attrs, multip, dflt, \
   relofst, elemofst, \
-  init, update, free, print, ...) \
+  init, update, free, print, reload, ...) \
   { \
     name, elems, attrs, multip, dflt, \
     relofst, elemofst, \
-    init, update, free, print \
+    init, update, free, print, reload \
   }
 
 #define DEPRECATED(name) "|" name
 #define MEMBER(name) 0, ((int) offsetof (struct ddsi_config, name))
 #define MEMBEROF(parent, name) 1, ((int) offsetof (struct parent, name))
-#define FUNCTIONS(init, update, free, print) init, update, free, print
+#define FUNCTIONS(init, update, free, print, reload) init, update, free, print, reload
 #define DESCRIPTION(...) /* drop */
 #define RANGE(...) /* drop */
 #define UNIT(...) /* drop */
@@ -238,7 +246,7 @@ DI(if_omg_security);
 #define MINIMUM(...) /* drop */
 
 #define NOMEMBER 0, 0
-#define NOFUNCTIONS 0, 0, 0, 0
+#define NOFUNCTIONS 0, 0, 0, 0, 0
 #define NODATA 1, NULL, NOMEMBER, NOFUNCTIONS
 #define END_MARKER { NULL, NULL, NULL, NODATA }
 
@@ -246,7 +254,7 @@ DI(if_omg_security);
 #define MOVED(name, whereto) \
   { ">" name, NULL, NULL, 0, whereto, NOMEMBER, NOFUNCTIONS }
 #define NOP(name) \
-  { name, NULL, NULL, 1, NULL, NOMEMBER, 0, uf_nop, 0, pf_nop }
+  { name, NULL, NULL, 1, NULL, NOMEMBER, 0, uf_nop, 0, pf_nop, 0 }
 #define WILDCARD { "*", NULL, NULL, NODATA }
 
 /* Visual Studio requires indirect expansion */
@@ -713,6 +721,100 @@ static int if_peer (struct cfgst *cfgst, void *parent, struct cfgelem const * co
   return 0;
 }
 
+#if defined(DDSCONF)
+static enum update_result rf_peer (struct ddsi_domaingv *gv, struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+{
+  return URES_SUCCESS;
+}
+#else
+static enum update_result rf_peer (struct ddsi_domaingv *gv, struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+{
+  struct addrset *as_disc = NULL, *as_disc_gv = NULL, *as_disc_def = NULL;
+  const struct ddsi_config_peer_listelem *peers;
+  enum update_result result = URES_ERROR;
+  static const char *func = "reload_peer_addresses";
+
+  peers = *(const struct ddsi_config_peer_listelem **)((char *)parent + cfgelem->elem_offset);
+
+  if (!(as_disc_def = new_addrset ()))
+    goto err_as_disc_def_alloc;
+  if (gv->config.allowMulticast & DDSI_AMC_SPDP)
+    add_locator_to_addrset (gv, as_disc_def, &gv->loc_spdp_mc);
+  // If multicast was enabled but not available, always add the local
+  // interface to the discovery address set. Conversion via string and
+  // add_peer_addresses has the benefit that the port number expansion happens
+  // automatically.
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    if (!gv->interfaces[i].mc_capable && peers == NULL)
+    {
+      char local_addr[DDSI_LOCSTRLEN];
+      ddsi_locator_to_string_no_port (local_addr, sizeof (local_addr), &gv->interfaces[i].loc);
+      if (add_addresses_to_addrset (gv, as_disc_def, local_addr, -1, func, 0))
+        goto err_as_disc_def;
+    }
+  }
+
+  if (gv->config.peers)
+  {
+    const struct ddsi_config_peer_listelem *list = peers;
+    if (!(as_disc_gv = new_addrset ()))
+      goto err_as_disc_gv_alloc;
+    for (; list; list = list->next)
+      if (add_addresses_to_addrset (gv, as_disc_gv, list->peer, -1, func, 0))
+        goto err_as_disc_gv;
+  }
+
+  if (peers)
+  {
+    const struct ddsi_config_peer_listelem *list = peers;
+    if (!(as_disc = new_addrset()))
+      goto err_as_disc_alloc;
+    for (; list; list = list->next)
+      if (add_addresses_to_addrset(gv, as_disc, list->peer, -1, func, 0))
+        goto err_as_disc;
+  }
+
+  // Do not discard current addrset if it was initially empty or a subset of
+  // the newly generated addrset.
+  switch ((as_disc_gv ? 1 : 0) + (as_disc ? 2 : 0)) {
+    case 0: // Do nothing.
+      break;
+    case 1: // Discard current addrset.
+      replace_addrset_with_addrset (gv, gv->as_disc, as_disc_def);
+      break;
+    case 2: // Update current addrset.
+      copy_addrset_into_addrset (gv, as_disc, as_disc_def);
+      replace_addrset_with_addrset (gv, gv->as_disc, as_disc);
+      break;
+    case 3: // Discard current addrset if not a subset.
+      remove_addrset_from_addrset (gv, as_disc_gv, as_disc);
+      if (addrset_count (as_disc_gv) == 0)
+      {
+        copy_addrset_into_addrset (gv, gv->as_disc, as_disc);
+      }
+      else
+      {
+        copy_addrset_into_addrset (gv, as_disc, as_disc_def);
+        replace_addrset_with_addrset (gv, gv->as_disc, as_disc);
+      }
+      break;
+  }
+
+  result = URES_SUCCESS;
+err_as_disc:
+  unref_addrset(as_disc);
+err_as_disc_alloc:
+err_as_disc_gv:
+  unref_addrset(as_disc_gv);
+err_as_disc_gv_alloc:
+err_as_disc_def:
+  unref_addrset(as_disc_def);
+err_as_disc_def_alloc:
+  return result;
+}
+#endif
+
 #ifdef DDS_HAS_SECURITY
 static int if_omg_security (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
@@ -964,23 +1066,6 @@ static enum update_result uf_tracemask (struct cfgst *cfgst, UNUSED_ARG (void *p
   return do_uint32_bitset (cfgst, &cfgst->cfg->tracemask, tracemask_names, tracemask_codes, value);
 }
 
-static enum update_result uf_verbosity (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
-{
-  static const char *vs[] = {
-    "finest", "finer", "fine", "config", "info", "warning", "severe", "none", NULL
-  };
-  static const uint32_t lc[] = {
-    DDS_LC_ALL, DDS_LC_TRAFFIC | DDS_LC_TIMING, DDS_LC_DISCOVERY | DDS_LC_THROTTLE, DDS_LC_CONFIG, DDS_LC_INFO, DDS_LC_WARNING, DDS_LC_ERROR | DDS_LC_FATAL, 0, 0
-  };
-  const int idx = list_index (vs, value);
-  assert (sizeof (vs) / sizeof (*vs) == sizeof (lc) / sizeof (*lc));
-  if (idx < 0)
-    return cfg_error (cfgst, "'%s': undefined value", value);
-  for (int i = (int) (sizeof (vs) / sizeof (*vs)) - 1; i >= idx; i--)
-    cfgst->cfg->tracemask |= lc[i];
-  return URES_SUCCESS;
-}
-
 static void pf_tracemask (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), uint32_t sources)
 {
   /* Category is also (and often) set by Verbosity, so make an effort to locate the sources for verbosity and merge them in */
@@ -993,6 +1078,60 @@ static void pf_tracemask (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED
   if ((n = ddsrt_avl_lookup_succ_eq (&cfgst_found_treedef, &cfgst->found, &key)) != NULL && n->key.e == key.e)
     sources |= n->sources;
   do_print_uint32_bitset (cfgst, cfgst->cfg->tracemask, sizeof (tracemask_codes) / sizeof (*tracemask_codes), tracemask_names, tracemask_codes, sources, "");
+}
+
+static enum update_result rf_tracemask(struct ddsi_domaingv *gv, struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem))
+{
+  uint32_t mask = 0u, tracemask = 0u;
+  const uint32_t codes = (sizeof(tracemask_codes)/sizeof(tracemask_codes[0]));
+
+  for (uint32_t i = 0; i < codes; i++)
+    mask |= tracemask_codes[i];
+  /* There is nothing to update if the mask did not change. */
+  if ((gv->config.tracemask & mask) == (cfgst->cfg->tracemask & mask))
+    return URES_SUCCESS;
+fprintf(stderr, "TRACING\n");
+  tracemask = (gv->config.tracemask & ~mask) | (cfgst->cfg->tracemask & mask);
+  if (gv->logconfig.c.tracemask == gv->config.tracemask)
+    gv->logconfig.c.tracemask = tracemask;
+  gv->config.tracemask = tracemask;
+  return URES_SUCCESS;
+}
+
+static const char *verbosity_names[] = {
+  "finest", "finer", "fine", "config", "info", "warning", "severe", "none", NULL
+};
+
+static const uint32_t verbosity_codes[] = {
+  DDS_LC_ALL, DDS_LC_TRAFFIC | DDS_LC_TIMING, DDS_LC_DISCOVERY | DDS_LC_THROTTLE, DDS_LC_CONFIG, DDS_LC_INFO, DDS_LC_WARNING, DDS_LC_ERROR | DDS_LC_FATAL, 0, 0
+};
+
+static enum update_result uf_verbosity (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
+{
+  const int idx = list_index (verbosity_names, value);
+  assert (sizeof (verbosity_names) / sizeof (*verbosity_names) == sizeof (verbosity_codes) / sizeof (*verbosity_codes));
+  if (idx < 0)
+    return cfg_error (cfgst, "'%s': undefined value", value);
+  for (int i = (int) (sizeof (verbosity_names) / sizeof (*verbosity_names)) - 1; i >= idx; i--)
+    cfgst->cfg->tracemask |= verbosity_codes[i];
+  return URES_SUCCESS;
+}
+
+static enum update_result rf_verbosity (struct ddsi_domaingv *gv, struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem))
+{
+  uint32_t mask = 0u, tracemask = 0u;
+  const uint32_t codes = (sizeof(verbosity_codes)/sizeof(verbosity_codes[0]));
+
+  for (uint32_t i = 0; i < codes; i++)
+    mask |= verbosity_codes[i];
+  if ((gv->config.tracemask & mask) == (cfgst->cfg->tracemask & mask))
+    return URES_SUCCESS; /* Nothing changed. */
+fprintf(stderr, "VERBOSITY\n");
+  tracemask = (gv->config.tracemask & ~mask) | (cfgst->cfg->tracemask & mask);
+  if ((gv->logconfig.c.mask & DDS_LOG_MASK) == (gv->config.tracemask & DDS_LOG_MASK))
+    gv->logconfig.c.mask = tracemask & DDS_LOG_MASK;
+  gv->config.tracemask = tracemask;
+  return URES_SUCCESS;
 }
 
 static const char *xcheck_names[] = {
@@ -1595,7 +1734,6 @@ static int set_defaults (struct cfgst *cfgst, void *parent, int isattr, struct c
   return ok;
 }
 
-
 static void print_configitems (struct cfgst *cfgst, void *parent, int isattr, struct cfgelem const * const cfgelem, uint32_t sources)
 {
   for (const struct cfgelem *ce = cfgelem; ce && ce->name; ce++)
@@ -2168,6 +2306,68 @@ static FILE *config_open_file (char *tok, char **cursor, uint32_t domid)
   }
   DDSRT_WARNING_MSVC_ON(4996);
   return fp;
+}
+
+static bool reload_setting (struct ddsi_domaingv *gv, struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+{
+  enum update_result res = URES_SUCCESS;
+  (void)gv;
+  (void)cfgst;
+  (void)parent;
+  res = cfgelem->reload (gv, cfgst, parent, cfgelem);
+  return (res != URES_ERROR);
+}
+
+static bool reload_settings (struct ddsi_domaingv *gv, struct cfgst *cfgst, void *parent, int isattr, struct cfgelem const * const cfgelem)
+{
+  bool ok = true;
+
+  for (const struct cfgelem *ce = cfgelem; ok && ce && ce->name; ce++)
+  {
+    bool found = false, changed = false;
+    const struct cfgst_nodekey key = { .e = ce, .p = parent };
+
+    cfgst_push (cfgst, isattr, ce, parent);
+    if (cfgelem->init || cfgelem->multiplicity == 1) /* multi-items are special */
+    {
+      const char **ptr = (const char **)((char *)parent + ce->elem_offset);
+      found = (ptr && *ptr);
+      ptr = (const char **)(((char *)&gv->config) + ce->elem_offset);
+      changed = (ptr && *ptr) != found;
+    }
+    else
+    {
+      found = ddsrt_avl_lookup (&cfgst_found_treedef, &cfgst->found, &key) != NULL;
+      /* There is no generic way to determine whether the setting was
+         specified before, best let the reload function decide. */
+      changed = true;
+    }
+    if ((found || changed) && ce->reload)
+    {
+      cfgst_push (cfgst, 0, NULL, NULL);
+      ok = reload_setting (gv, cfgst, parent, ce);
+      cfgst_pop (cfgst);
+    }
+    else if (!ce->reload)
+    {
+      /* Assume a reload function takes care of the subtree if it exists. */
+      if (ok && ce->children)
+        ok = reload_settings (gv, cfgst, parent, 0, ce->children);
+      if (ok && ce->attributes)
+        ok = reload_settings (gv, cfgst, parent, 1, ce->attributes);
+    }
+    cfgst_pop (cfgst);
+  }
+
+  return ok;
+}
+
+bool config_reload (struct ddsi_domaingv *gv, struct cfgst *cfgst)
+{
+  bool ok = reload_settings (gv, cfgst, cfgst->cfg, 0, root_cfgelems);
+  if (ok)
+    config_print_cfgst(cfgst, NULL); // FIXME: remove before merging to master!
+  return ok;
 }
 
 struct cfgst *config_init (const char *config, struct ddsi_config *cfg, uint32_t domid)

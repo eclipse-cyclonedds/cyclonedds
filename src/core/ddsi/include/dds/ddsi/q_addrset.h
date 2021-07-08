@@ -47,11 +47,15 @@ int addrset_purge (struct addrset *as);
 int compare_locators (const ddsi_locator_t *a, const ddsi_locator_t *b);
 int compare_xlocators (const ddsi_xlocator_t *a, const ddsi_xlocator_t *b);
 
+void remove_addrset_from_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asdel);
+
 /* These lock ASADD, then lock/unlock AS any number of times, then
    unlock ASADD */
 void copy_addrset_into_addrset_uc (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asadd);
 void copy_addrset_into_addrset_mc (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asadd);
 void copy_addrset_into_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asadd);
+
+void replace_addrset_with_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const struct addrset *asrepl);
 
 size_t addrset_count (const struct addrset *as);
 size_t addrset_count_uc (const struct addrset *as);

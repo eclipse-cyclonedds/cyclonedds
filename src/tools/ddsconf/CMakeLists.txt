@@ -25,6 +25,7 @@ else()
     )
 
   target_link_libraries(ddsconf ddsrt)
+  target_compile_definitions(ddsconf PRIVATE -DDDSCONF)
 
   # Windows wants its pound of flesh ...
   generate_dummy_export_header(

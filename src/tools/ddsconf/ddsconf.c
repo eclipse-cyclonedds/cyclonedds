@@ -54,7 +54,7 @@
    macros to convert them back to 0 ... */
 #define gendef_0 0
 #define gendef_NULL 0
-#define FUNCTIONS(if, uf, ff, pf) gendef_##pf
+#define FUNCTIONS(if, uf, ff, pf, rf) gendef_##pf
 #define DESCRIPTION(str) .description = str
 #define RANGE(str) .range = str
 #define UNIT(str) .unit = str

@@ -321,6 +321,36 @@ dds_entity_t dds_create_domain_with_rawconfig (const dds_domainid_t domain, cons
   return ret;
 }
 
+dds_return_t dds_reload_domain_config(dds_entity_t domain, const char *config_xml)
+{
+  dds_return_t ret = DDS_RETCODE_ERROR;
+  dds_domain *dom = NULL;
+
+  if ((ret = dds_entity_lock (domain, DDS_KIND_DOMAIN, (dds_entity **)&dom)) < 0) {
+    goto fail_lock;
+  }
+
+  assert (dom);
+  struct cfgst *cfgst;
+  struct ddsi_config cfg;
+
+  if (!(cfgst = config_init (config_xml ? config_xml : "", &cfg, dom->m_id))) {
+    ret = DDS_RETCODE_ERROR;
+    goto fail_config;
+  }
+  if (!config_reload (&dom->gv, cfgst)) {
+    ret = DDS_RETCODE_ERROR;
+    goto fail_reconfig;
+  }
+
+fail_reconfig:
+  config_fini (cfgst);
+fail_config:
+  dds_entity_unlock ((dds_entity *)dom);
+fail_lock:
+  return ret;
+}
+
 static dds_return_t dds_domain_free (dds_entity *vdomain)
 {
   struct dds_domain *domain = (struct dds_domain *) vdomain;

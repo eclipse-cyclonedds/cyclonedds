@@ -13,9 +13,11 @@
 #define NN_CONFIG_H
 
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsi/ddsi_config.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -24,6 +26,7 @@ extern "C" {
 struct cfgst;
 struct ddsrt_log_cfg;
 
+bool config_reload (struct ddsi_domaingv *gv, struct cfgst *cfgst);
 struct cfgst *config_init (const char *config, struct ddsi_config *cfg, uint32_t domid) ddsrt_nonnull((1,2));
 void config_print_cfgst (struct cfgst *cfgst, const struct ddsrt_log_cfg *logcfg);
 void config_print_rawconfig (const struct ddsi_config *cfg, const struct ddsrt_log_cfg *logcfg);
