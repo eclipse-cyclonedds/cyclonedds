@@ -51,6 +51,17 @@ target_include_directories(
 # SOVERSION should increase on incompatible ABI change
 set_target_properties(ddsc PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
 
+# define target property to indicate if Cyclone DDS is compiled with SHM support
+define_property(TARGET
+    PROPERTY SHM_SUPPORT_IS_AVAILABLE
+    BRIEF_DOCS "Indicator whether SHM support is available with current Cyclone DDS build configuration."
+    FULL_DOCS "Indicator whether SHM support is available with current Cyclone DDS build configuration."
+    )
+set_target_properties(ddsc PROPERTIES
+    SHM_SUPPORT_IS_AVAILABLE "${DDS_HAS_SHM}")
+set_target_properties(ddsc PROPERTIES EXPORT_PROPERTIES
+    "SHM_SUPPORT_IS_AVAILABLE")
+
 # Create a pseudo-target that other targets (i.e. examples, tests) can depend
 # on and can also be provided as import-target by a package-file when building
 # those targets outside the regular Cyclone build-tree (i.e. the installed tree)
