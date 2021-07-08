@@ -214,6 +214,7 @@ static uint32_t get_type_size (enum dds_stream_typecode type)
 static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc * __restrict desc)
 {
   const uint32_t *ops = desc->ops.ops;
+  size_t off = 0, size;
   uint32_t insn;
   while ((insn = *ops) != DDS_OP_RTS)
   {
@@ -226,8 +227,12 @@ static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc
       case DDS_OP_VAL_2BY:
       case DDS_OP_VAL_4BY:
       case DDS_OP_VAL_8BY:
-        if ((ops[1] % get_type_size (DDS_OP_TYPE (insn))) != 0)
+        size = get_type_size (DDS_OP_TYPE (insn));
+        if (off % size)
+          off += size - (off % size);
+        if (ops[1] != off)
           return 0;
+        off += size;
         ops += 2;
         break;
 
@@ -235,8 +240,12 @@ static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc
         switch (DDS_OP_SUBTYPE (insn))
         {
           case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-            if ((ops[1] % get_type_size (DDS_OP_SUBTYPE (insn))) != 0)
+            size = get_type_size (DDS_OP_SUBTYPE (insn));
+            if (off % size)
+              off += size - (off % size);
+            if (ops[1] != off)
               return 0;
+            off += size * ops[2];
             ops += 3;
             break;
           default:
@@ -249,7 +258,9 @@ static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc
     }
   }
 
-  return desc->size;
+  // off < desc can occur if desc->size includes "trailing" padding
+  assert (off <= desc->size);
+  return off;
 }
 
 size_t dds_stream_check_optimize (const struct ddsi_sertype_default_desc * __restrict desc)
@@ -1415,7 +1426,12 @@ void dds_stream_read_sample (dds_istream_t * __restrict is, void * __restrict da
 {
   const struct ddsi_sertype_default_desc *desc = &type->type;
   if (type->opt_size)
-    dds_is_get_bytes (is, data, desc->size, 1);
+  {
+    /* Layout of struct & CDR is the same, but sizeof(struct) may include padding at
+       the end that is not present in CDR, so we must use type->opt_size to avoid a
+       potential out-of-bounds read */
+    dds_is_get_bytes (is, data, (uint32_t) type->opt_size, 1);
+  }
   else
   {
     if (desc->flagset & DDS_TOPIC_CONTAINS_UNION)
@@ -1437,7 +1453,7 @@ void dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __rest
 {
   const struct ddsi_sertype_default_desc *desc = &type->type;
   if (type->opt_size && desc->align && (os->m_index % desc->align) == 0)
-    dds_os_put_bytes (os, data, desc->size);
+    dds_os_put_bytes (os, data, (uint32_t) type->opt_size);
   else
     dds_stream_write (os, data, desc->ops.ops);
 }
