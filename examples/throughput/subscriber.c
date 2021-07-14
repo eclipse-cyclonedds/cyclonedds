@@ -44,6 +44,7 @@ static unsigned long payloadSize = 0;
 
 static ThroughputModule_DataType data [MAX_SAMPLES];
 static void * samples[MAX_SAMPLES];
+static dds_sample_info_t info[MAX_SAMPLES];
 
 static dds_entity_t waitSet;
 
@@ -154,7 +155,6 @@ static HandleEntry * retrieve_handle (HandleMap *map, dds_instance_handle_t key)
 static int do_take (dds_entity_t reader)
 {
   int samples_received;
-  dds_sample_info_t *info = NULL;
   dds_instance_handle_t ph = 0;
   HandleEntry * current = NULL;
 
@@ -165,12 +165,9 @@ static int do_take (dds_entity_t reader)
 
   /* Take samples and iterate through them */
 
-  info = dds_alloc (sizeof(dds_sample_info_t) * MAX_SAMPLES);
-
   samples_received = dds_take (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
   if (samples_received < 0)
   {
-    dds_free( info );
     DDS_FATAL("dds_take: %s\n", dds_strretcode(-samples_received));
   }
 
@@ -201,7 +198,6 @@ static int do_take (dds_entity_t reader)
       total_samples++;
     }
   }
-  dds_free (info);
   return samples_received;
 }
 
