@@ -421,17 +421,17 @@ static const char *ec_private_key_unsupported =
 const char *crl_filename = "crl";
 const char *crl =
         "data:,-----BEGIN X509 CRL-----\n"
-        "MIIB4TCBygIBATANBgkqhkiG9w0BAQsFADBfMQswCQYDVQQGEwJOTDETMBEGA1UE\n"
+        "MIIB4zCBzAIBATANBgkqhkiG9w0BAQsFADBfMQswCQYDVQQGEwJOTDETMBEGA1UE\n"
         "CBMKU29tZS1TdGF0ZTEhMB8GA1UEChMYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRk\n"
-        "MRgwFgYDVQQDEw9DSEFNNTAwIHJvb3QgY2EXDTIxMDcxMjA5MjgwMFoXDTIxMDgx\n"
-        "MTA5MjgwMFowJzAlAhQsV49EC3KRwOfe290IA39Cd7Z0NRcNMjEwNjA5MjIwNTI3\n"
-        "WqAOMAwwCgYDVR0UBAMCAQIwDQYJKoZIhvcNAQELBQADggEBAAfiD+fV/m6/IW7L\n"
-        "wdQca9YDvzyAu0PYPfJcZ0etap0eMKGXQv8KBCFPQ8F6nH2kc4BoI2EAVtBIKt+o\n"
-        "4Zn+10vEZw8u7Qg4vV+67U14qf/8I10RAN5Jc/HL1Jao3ik1FHTQVKzpr7DY6n3V\n"
-        "6KVdBV6bRT7qHyowxTImGovA2Lx34us3QYoh9Wc7nvu9AEUxIa2N0YM2F7sQp2xW\n"
-        "UUdMfugFQgM35MgnMi0+O0g/iI7qNDa7mqUNLxV7sBst+T99mQWhUNdk7v0UAWtV\n"
-        "7oSOgRmR0toWx3D5wmRtTbZWoKjNdTC/f4pEwJnCqzXl3PlwRLmI0yfhcfD+S3bx\n"
-        "qE5Di0Q=\n"
+        "MRgwFgYDVQQDEw9DSEFNNTAwIHJvb3QgY2EXDTIxMDcxNDE0NTIzNFoYDzIyMjEw\n"
+        "NTI3MTQ1MjM0WjAnMCUCFCxXj0QLcpHA597b3QgDf0J3tnQ1Fw0yMTA2MDkyMjA1\n"
+        "MjdaoA4wDDAKBgNVHRQEAwIBAjANBgkqhkiG9w0BAQsFAAOCAQEAWDkxzaGqznJE\n"
+        "bB9PvSGrfRVYFJous5bFqCqB9jJ3nFBh/mQeqdpL9Eiw2rfSWIHbQAqPhDUkGY0t\n"
+        "z34aPeIxZZDTDzZZz4bkwt8dLrQwF+rRYEawDpATIoBUeQghVRyhrFNRa4VhtTgc\n"
+        "tG55Rt2upphLVqaMMQFHpFlVaMx3P09sXwH2XtPjg+MWYiw/HP6iETPzwBBwGFKb\n"
+        "jsS1J7lEJFcdHBCshkloxiZ0B8bj//+mpf0cUTOtn+oVv8adE7REbv1+6B3XV0wQ\n"
+        "3Yw16d9jYJb5cFPHK3voGbzuU8JhyOM8cA58Phvv0VJoRvoyMcMmgh9Muk5Uz9EI\n"
+        "3qRdLdaghA==\n"
         "-----END X509 CRL-----\n";
 
 
