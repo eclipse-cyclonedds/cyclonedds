@@ -87,4 +87,5 @@ extern inline void ddsi_serdata_get_keyhash (const struct ddsi_serdata *d, struc
 extern inline uint32_t ddsi_serdata_iox_size(const struct ddsi_serdata* d);
 // sub really is an iox_sub_t *
 extern inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer);
+extern inline struct ddsi_serdata* ddsi_serdata_from_loaned_sample(const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample);
 #endif
