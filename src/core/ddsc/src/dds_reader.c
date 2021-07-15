@@ -519,7 +519,9 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     }
   }
 
-  if ((rc = dds_topic_pin (topic, &tp)) < 0)
+  /* If pseudo_topic != 0, topic didn't didn't originate from the application and we allow pinning
+     it despite it being marked as NO_USER_ACCESS */
+  if ((rc = dds_topic_pin_with_origin (topic, pseudo_topic ? false : true, &tp)) < 0)
     goto err_pin_topic;
   assert (tp->m_stype);
   if (dds_entity_participant (&sub->m_entity) != dds_entity_participant (&tp->m_entity))
@@ -586,7 +588,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
   /* Create reader and associated read cache (if not provided by caller) */
   struct dds_reader * const rd = dds_alloc (sizeof (*rd));
-  const dds_entity_t reader = dds_entity_init (&rd->m_entity, &sub->m_entity, DDS_KIND_READER, false, rqos, listener, DDS_READER_STATUS_MASK);
+  const dds_entity_t reader = dds_entity_init (&rd->m_entity, &sub->m_entity, DDS_KIND_READER, false, true, rqos, listener, DDS_READER_STATUS_MASK);
   rd->m_sample_rejected_status.last_reason = DDS_NOT_REJECTED;
   rd->m_topic = tp;
   rd->m_wrapped_sertopic = (tp->m_stype->wrapped_sertopic != NULL) ? 1 : 0;
@@ -616,18 +618,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 #ifdef DDS_HAS_SHM
   if (0x0 == (rqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM))
   {
-    size_t name_size, type_name_size;
-    rc = dds_get_name_size(topic, &name_size);
-    assert(rc == DDS_RETCODE_OK);
-    rc = dds_get_type_name_size(topic, &type_name_size);
-    assert(rc == DDS_RETCODE_OK);
-    char topic_name[name_size + 1];
-    char type_name[type_name_size + 1];
-    rc = dds_get_name(topic, topic_name, name_size + 1);
-    assert(rc == DDS_RETCODE_OK);
-    rc = dds_get_type_name(topic, type_name, type_name_size + 1);
-    assert(rc == DDS_RETCODE_OK);
-    DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Reader's topic name will be DDS:Cyclone:%s\n", topic_name);
+    DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Reader's topic name will be DDS:Cyclone:%s\n", rd->m_topic->m_name);
 
     iox_sub_options_t opts;
     iox_sub_options_init(&opts);
@@ -638,7 +629,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     assert (rqos->durability.kind == DDS_DURABILITY_VOLATILE);
     opts.queueCapacity = rd->m_entity.m_domain->gv.config.sub_queue_capacity;
     opts.historyRequest = 0;
-    rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor.storage, gv->config.iceoryx_service, type_name, topic_name, &opts);
+    rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor.storage, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
     shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
 
     // those are set once and never changed

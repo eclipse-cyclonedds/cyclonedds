@@ -1251,8 +1251,7 @@ dds_find_topic_scoped (dds_find_scope_t scope, dds_entity_t participant, const c
  *
  * @returns A dds_return_t indicating success or failure.
  *
- * @retval DDS_RETCODE_OK
- *             Success.
+ * @return Actual length of topic name (name is truncated if return value >= size) or error
  */
 DDS_EXPORT dds_return_t
 dds_get_name(dds_entity_t topic, char *name, size_t size);
@@ -1266,8 +1265,7 @@ dds_get_name(dds_entity_t topic, char *name, size_t size);
  *
  * @returns A dds_return_t indicating success or failure.
  *
- * @return DDS_RETCODE_OK
- *             Success.
+ * @return Actual length of type name (name is truncated if return value >= size) or error
  */
 DDS_EXPORT dds_return_t
 dds_get_type_name(dds_entity_t topic, char *name, size_t size);

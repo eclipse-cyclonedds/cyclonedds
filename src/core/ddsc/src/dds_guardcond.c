@@ -59,7 +59,7 @@ dds_entity_t dds_create_guardcondition (dds_entity_t owner)
   }
 
   dds_guardcond *gcond = dds_alloc (sizeof (*gcond));
-  dds_entity_t hdl = dds_entity_init (&gcond->m_entity, e, DDS_KIND_COND_GUARD, false, NULL, NULL, 0);
+  dds_entity_t hdl = dds_entity_init (&gcond->m_entity, e, DDS_KIND_COND_GUARD, false, true, NULL, NULL, 0);
   gcond->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (e, &gcond->m_entity);
   dds_entity_init_complete (&gcond->m_entity);

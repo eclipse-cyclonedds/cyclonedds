@@ -77,6 +77,7 @@ typedef int32_t dds_handle_t;
 #define HDL_FLAG_PENDING         (0x20000000u)
 #define HDL_FLAG_IMPLICIT        (0x10000000u)
 #define HDL_FLAG_ALLOW_CHILDREN  (0x08000000u) /* refc counts children */
+#define HDL_FLAG_NO_USER_ACCESS  (0x04000000u)
 
 struct dds_handle_link {
   dds_handle_t hdl;
@@ -120,7 +121,8 @@ DDS_EXPORT dds_handle_t
 dds_handle_create(
         struct dds_handle_link *link,
         bool implicit,
-        bool allow_children);
+        bool allow_children,
+        bool user_access);
 
 
 /*
@@ -168,6 +170,12 @@ dds_handle_pin(
         struct dds_handle_link **entity);
 
 DDS_EXPORT int32_t
+dds_handle_pin_with_origin(
+        dds_handle_t hdl,
+        bool from_user,
+        struct dds_handle_link **entity);
+
+DDS_EXPORT int32_t
 dds_handle_pin_and_ref(
         dds_handle_t hdl,
         struct dds_handle_link **entity);
@@ -185,7 +193,7 @@ DDS_EXPORT void
 dds_handle_unpin(
         struct dds_handle_link *link);
 
-int32_t dds_handle_pin_for_delete (dds_handle_t hdl, bool explicit, struct dds_handle_link **link);
+int32_t dds_handle_pin_for_delete (dds_handle_t hdl, bool explicit, bool from_user, struct dds_handle_link **link);
 bool dds_handle_drop_childref_and_pin (struct dds_handle_link *link, bool may_delete_parent);
 
 /*

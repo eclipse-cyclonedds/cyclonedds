@@ -66,7 +66,7 @@ dds_entity_t dds__create_publisher_l (dds_participant *par, bool implicit, const
   }
 
   pub = dds_alloc (sizeof (*pub));
-  hdl = dds_entity_init (&pub->m_entity, &par->m_entity, DDS_KIND_PUBLISHER, implicit, new_qos, listener, DDS_PUBLISHER_STATUS_MASK);
+  hdl = dds_entity_init (&pub->m_entity, &par->m_entity, DDS_KIND_PUBLISHER, implicit, true, new_qos, listener, DDS_PUBLISHER_STATUS_MASK);
   pub->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (&par->m_entity, &pub->m_entity);
   dds_entity_init_complete (&pub->m_entity);

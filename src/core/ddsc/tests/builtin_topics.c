@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "dds/dds.h"
+#include "dds__reader.h"
 #include "test_common.h"
 
 static dds_entity_t g_participant = 0;
@@ -334,4 +335,187 @@ CU_Test(ddsc_builtin_topics, read_nothing)
 
   ret = dds_delete (pp);
   CU_ASSERT_FATAL (ret == 0);
+}
+
+static bool querycond_true (const void *sample)
+{
+  (void) sample;
+  return true;
+}
+
+CU_Test(ddsc_builtin_topics, get_topic)
+{
+  static const dds_entity_t tps[] = {
+    DDS_BUILTIN_TOPIC_DCPSPARTICIPANT,
+    DDS_BUILTIN_TOPIC_DCPSTOPIC,
+    DDS_BUILTIN_TOPIC_DCPSPUBLICATION,
+    DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION,
+    0
+  };
+  const dds_entity_t pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_FATAL (pp > 0);
+  for (int i = 0; tps[i]; i++)
+  {
+    const dds_entity_t rd = dds_create_reader (pp, tps[i], NULL, NULL);
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+    CU_ASSERT_FATAL (rd > 0);
+#else // expect failure for DCPSTopic if topic discovery isn't enabled, but verify the error code
+    if (tps[i] != DDS_BUILTIN_TOPIC_DCPSTOPIC)
+    {
+      CU_ASSERT_FATAL (rd > 0);
+    }
+    else
+    {
+      CU_ASSERT_FATAL (rd == DDS_RETCODE_UNSUPPORTED);
+      continue;
+    }
+#endif
+    // get_topic must return the pseudo handle
+    {
+      const dds_entity_t rdtp = dds_get_topic (rd);
+      CU_ASSERT_FATAL (rdtp == tps[i]);
+    }
+    // ... also on a read condition
+    {
+      const dds_entity_t rdc = dds_create_readcondition (rd, DDS_ANY_STATE);
+      CU_ASSERT_FATAL (rdc > 0);
+      const dds_entity_t rdctp = dds_get_topic (rdc);
+      CU_ASSERT_FATAL (rdctp == tps[i]);
+    }
+    // ... and on a query condition
+    {
+      const dds_entity_t qc = dds_create_querycondition (rd, DDS_ANY_STATE, querycond_true);
+      CU_ASSERT_FATAL (qc > 0);
+      const dds_entity_t qctp = dds_get_topic (qc);
+      CU_ASSERT_FATAL (qctp == tps[i]);
+    }
+  }
+  dds_return_t rc = dds_delete (pp);
+  CU_ASSERT_FATAL (rc == 0);
+}
+
+CU_Test(ddsc_builtin_topics, get_name)
+{
+  static const struct { dds_entity_t h; const char *n; } tps[] = {
+    { DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, "DCPSParticipant" },
+    { DDS_BUILTIN_TOPIC_DCPSTOPIC, "DCPSTopic" },
+    { DDS_BUILTIN_TOPIC_DCPSPUBLICATION, "DCPSPublication" },
+    { DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, "DCPSSubscription" },
+    { 0, NULL }
+  };
+  // pseudo handles always exist and it actually works even in the absence of a domain
+  // not sure whether that's a feature or a bug ...
+  for (int i = 0; tps[i].h; i++)
+  {
+    char buf[100];
+    dds_return_t rc = dds_get_name (tps[i].h, buf, sizeof (buf));
+    CU_ASSERT_FATAL (rc == (dds_return_t) strlen (tps[i].n));
+    CU_ASSERT_FATAL (strcmp (buf, tps[i].n) == 0);
+  }
+}
+
+CU_Test(ddsc_builtin_topics, get_type_name)
+{
+  static const struct { dds_entity_t h; const char *n; } tps[] = {
+    { DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, "org::eclipse::cyclonedds::builtin::DCPSParticipant" },
+    { DDS_BUILTIN_TOPIC_DCPSTOPIC, "org::eclipse::cyclonedds::builtin::DCPSTopic" },
+    { DDS_BUILTIN_TOPIC_DCPSPUBLICATION, "org::eclipse::cyclonedds::builtin::DCPSPublication" },
+    { DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, "org::eclipse::cyclonedds::builtin::DCPSSubscription" },
+    { 0, NULL }
+  };
+  // pseudo handles always exist and it actually works even in the absence of a domain
+  // not sure whether that's a feature or a bug ...
+  for (int i = 0; tps[i].h; i++)
+  {
+    char buf[100];
+    dds_return_t rc = dds_get_type_name (tps[i].h, buf, sizeof (buf));
+    CU_ASSERT_FATAL (rc == (dds_return_t) strlen (tps[i].n));
+    CU_ASSERT_FATAL (strcmp (buf, tps[i].n) == 0);
+  }
+}
+
+CU_Test(ddsc_builtin_topics, get_children)
+{
+  static const dds_entity_t tps[] = {
+    DDS_BUILTIN_TOPIC_DCPSPARTICIPANT,
+    DDS_BUILTIN_TOPIC_DCPSTOPIC,
+    DDS_BUILTIN_TOPIC_DCPSPUBLICATION,
+    DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION,
+    0
+  };
+  const dds_entity_t pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_FATAL (pp > 0);
+  for (int i = 0; tps[i]; i++)
+  {
+    const dds_entity_t rd = dds_create_reader (pp, tps[i], NULL, NULL);
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+    CU_ASSERT_FATAL (rd > 0);
+#else // expect failure for DCPSTopic if topic discovery isn't enabled, but verify the error code
+    if (tps[i] != DDS_BUILTIN_TOPIC_DCPSTOPIC)
+    {
+      CU_ASSERT_FATAL (rd > 0);
+    }
+    else
+    {
+      CU_ASSERT_FATAL (rd == DDS_RETCODE_UNSUPPORTED);
+      continue;
+    }
+#endif
+  }
+  // get_children on must not return the topics we just created, there should be just one
+  // subscriber in the result
+  dds_entity_t cs[1];
+  const int32_t ncs = dds_get_children (pp, cs, sizeof (cs) / sizeof (cs[0]));
+  CU_ASSERT_FATAL (ncs == 1);
+  dds_return_t rc = dds_delete (pp);
+  CU_ASSERT_FATAL (rc == 0);
+}
+
+CU_Test(ddsc_builtin_topics, cant_use_real_topic)
+{
+  static const dds_entity_t tps[] = {
+    DDS_BUILTIN_TOPIC_DCPSPARTICIPANT,
+    DDS_BUILTIN_TOPIC_DCPSTOPIC,
+    DDS_BUILTIN_TOPIC_DCPSPUBLICATION,
+    DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION,
+    0
+  };
+  const dds_entity_t pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_FATAL (pp > 0);
+  for (int i = 0; tps[i]; i++)
+  {
+    const dds_entity_t rd = dds_create_reader (pp, tps[i], NULL, NULL);
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+    CU_ASSERT_FATAL (rd > 0);
+#else // expect failure for DCPSTopic if topic discovery isn't enabled, but verify the error code
+    if (tps[i] != DDS_BUILTIN_TOPIC_DCPSTOPIC)
+    {
+      CU_ASSERT_FATAL (rd > 0);
+    }
+    else
+    {
+      CU_ASSERT_FATAL (rd == DDS_RETCODE_UNSUPPORTED);
+      continue;
+    }
+#endif
+    
+    // extract real topic handle by digging underneath the API
+    // as a very efficient alternative to a lucky guess
+    dds_return_t rc;
+    dds_reader *rd_ent = NULL;
+    rc = dds_reader_lock (rd, &rd_ent);
+    CU_ASSERT_FATAL (rc == 0 && rd_ent != NULL);
+    assert (rc == 0 && rd_ent != NULL);
+    const dds_entity_t real_topic = rd_ent->m_topic->m_entity.m_hdllink.hdl;
+    dds_reader_unlock (rd_ent);
+
+    // can't delete
+    rc = dds_delete (real_topic);
+    CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+
+    rc = dds_create_reader (pp, real_topic, NULL, NULL);
+    CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+  }
+  dds_return_t rc = dds_delete (pp);
+  CU_ASSERT_FATAL (rc == 0);
 }

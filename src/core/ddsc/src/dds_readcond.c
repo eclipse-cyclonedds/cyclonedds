@@ -45,7 +45,7 @@ dds_readcond *dds_create_readcond (dds_reader *rd, dds_entity_kind_t kind, uint3
 {
   dds_readcond *cond = dds_alloc (sizeof (*cond));
   assert ((kind == DDS_KIND_COND_READ && filter == 0) || (kind == DDS_KIND_COND_QUERY && filter != 0));
-  (void) dds_entity_init (&cond->m_entity, &rd->m_entity, kind, false, NULL, NULL, 0);
+  (void) dds_entity_init (&cond->m_entity, &rd->m_entity, kind, false, true, NULL, NULL, 0);
   cond->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (&rd->m_entity, &cond->m_entity);
   cond->m_sample_states = mask & DDS_ANY_SAMPLE_STATE;
