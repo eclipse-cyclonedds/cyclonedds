@@ -201,13 +201,11 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
     lst->on_data_available (rd->m_entity.m_hdllink.hdl, lst->on_data_available_arg);
     ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
   }
-  else
-  {
-    dds_entity_status_set (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
-    ddsrt_mutex_lock (&sub->m_observers_lock);
-    dds_entity_status_set (sub, DDS_DATA_ON_READERS_STATUS);
-    ddsrt_mutex_unlock (&sub->m_observers_lock);
-  }
+
+  dds_entity_status_set (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
+  ddsrt_mutex_lock (&sub->m_observers_lock);
+  dds_entity_status_set (sub, DDS_DATA_ON_READERS_STATUS);
+  ddsrt_mutex_unlock (&sub->m_observers_lock);
 
   rd->m_entity.m_cb_count--;
   rd->m_entity.m_cb_pending_count--;

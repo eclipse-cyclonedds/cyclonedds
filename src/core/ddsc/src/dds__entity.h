@@ -104,7 +104,7 @@ union dds_status_union {
     struct dds_listener const * const listener = &e->m_entity.m_listener; \
     const bool invoke = (listener->on_##name_ != 0) && enabled; \
     union dds_status_union lst; \
-    update_##name_ (&e->m_##name_##_status, invoke ? &lst.name_ : NULL, data); \
+    update_##name_ (&e->m_##name_##_status, false ? &lst.name_ : NULL, data); \
     if (invoke) { \
       dds_entity_status_reset (&e->m_entity, (status_mask_t) (1u << DDS_##NAME_##_STATUS_ID)); \
       e->m_entity.m_cb_pending_count++; \
@@ -114,7 +114,8 @@ union dds_status_union {
       ddsrt_mutex_lock (&e->m_entity.m_observers_lock); \
       e->m_entity.m_cb_count--; \
       e->m_entity.m_cb_pending_count--; \
-    } else if (enabled) { \
+    } \
+    if (enabled) { \
       dds_entity_status_set (&e->m_entity, (status_mask_t) (1u << DDS_##NAME_##_STATUS_ID)); \
     } \
   }
