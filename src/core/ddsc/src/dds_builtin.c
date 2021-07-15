@@ -25,6 +25,7 @@
 #include "dds__builtin.h"
 #include "dds__entity.h"
 #include "dds__subscriber.h"
+#include "dds__qos.h"
 #include "dds__topic.h"
 #include "dds__write.h"
 #include "dds__writer.h"
@@ -33,7 +34,7 @@
 #include "dds/ddsi/q_qosmatch.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 
-static dds_qos_t *dds__create_builtin_qos (void)
+dds_qos_t *dds__create_builtin_qos (void)
 {
   const char *partition = "__BUILT-IN PARTITION__";
   dds_qos_t *qos = dds_create_qos ();
@@ -41,7 +42,60 @@ static dds_qos_t *dds__create_builtin_qos (void)
   dds_qset_presentation (qos, DDS_PRESENTATION_TOPIC, false, false);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_MSECS(100));
   dds_qset_partition (qos, 1, &partition);
+  ddsi_xqos_mergein_missing (qos, &ddsi_default_qos_topic, DDS_TOPIC_QOS_MASK);
   return qos;
+}
+
+static const struct {
+  dds_entity_t pseudo_handle;
+  const char *name;
+  const char *typename;
+} builtin_topic_list[] = {
+  { DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, DDS_BUILTIN_TOPIC_PARTICIPANT_NAME, "org::eclipse::cyclonedds::builtin::DCPSParticipant" },
+  { DDS_BUILTIN_TOPIC_DCPSTOPIC, DDS_BUILTIN_TOPIC_TOPIC_NAME, "org::eclipse::cyclonedds::builtin::DCPSTopic" },
+  { DDS_BUILTIN_TOPIC_DCPSPUBLICATION, DDS_BUILTIN_TOPIC_PUBLICATION_NAME, "org::eclipse::cyclonedds::builtin::DCPSPublication" },
+  { DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, DDS_BUILTIN_TOPIC_SUBSCRIPTION_NAME, "org::eclipse::cyclonedds::builtin::DCPSSubscription" }
+};
+
+dds_return_t dds__get_builtin_topic_name_typename (dds_entity_t pseudo_handle, const char **name, const char **typename)
+{
+  const char *n;
+  const char *tn;
+  // avoid a search (mostly because we can)
+  DDSRT_STATIC_ASSERT (DDS_BUILTIN_TOPIC_DCPSTOPIC == DDS_BUILTIN_TOPIC_DCPSPARTICIPANT + 1 &&
+                       DDS_BUILTIN_TOPIC_DCPSPUBLICATION == DDS_BUILTIN_TOPIC_DCPSTOPIC + 1 &&
+                       DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION == DDS_BUILTIN_TOPIC_DCPSPUBLICATION + 1);
+  switch (pseudo_handle)
+  {
+    case DDS_BUILTIN_TOPIC_DCPSPARTICIPANT:
+    case DDS_BUILTIN_TOPIC_DCPSTOPIC:
+    case DDS_BUILTIN_TOPIC_DCPSPUBLICATION:
+    case DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION: {
+      dds_entity_t idx = pseudo_handle - DDS_BUILTIN_TOPIC_DCPSPARTICIPANT;
+      n = builtin_topic_list[idx].name;
+      tn = builtin_topic_list[idx].typename;
+      break;
+    }
+    default: {
+      // no assert: this is also used by some API calls
+      return DDS_RETCODE_BAD_PARAMETER;
+    }
+  }
+  if (name)
+    *name = n;
+  if (typename)
+    *typename = tn;
+  return 0;
+}
+
+dds_entity_t dds__get_builtin_topic_pseudo_handle_from_typename (const char *typename)
+{
+  for (size_t i = 0; i < sizeof (builtin_topic_list) / sizeof (builtin_topic_list[0]); i++)
+  {
+    if (strcmp (typename, builtin_topic_list[i].typename) == 0)
+      return builtin_topic_list[i].pseudo_handle;
+  }
+  return DDS_RETCODE_BAD_PARAMETER;
 }
 
 dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic)
@@ -59,26 +113,23 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic)
     return DDS_RETCODE_ILLEGAL_OPERATION;
   }
 
-  char *topic_name;
+  const char *topic_name;
   struct ddsi_sertype *sertype;
+  (void) dds__get_builtin_topic_name_typename (topic, &topic_name, NULL);
   switch (topic)
   {
     case DDS_BUILTIN_TOPIC_DCPSPARTICIPANT:
-      topic_name = DDS_BUILTIN_TOPIC_PARTICIPANT_NAME;
       sertype = e->m_domain->builtin_participant_type;
       break;
 #ifdef DDS_HAS_TOPIC_DISCOVERY
     case DDS_BUILTIN_TOPIC_DCPSTOPIC:
-      topic_name = DDS_BUILTIN_TOPIC_TOPIC_NAME;
       sertype = e->m_domain->builtin_topic_type;
       break;
 #endif
     case DDS_BUILTIN_TOPIC_DCPSPUBLICATION:
-      topic_name = DDS_BUILTIN_TOPIC_PUBLICATION_NAME;
       sertype = e->m_domain->builtin_writer_type;
       break;
     case DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION:
-      topic_name = DDS_BUILTIN_TOPIC_SUBSCRIPTION_NAME;
       sertype = e->m_domain->builtin_reader_type;
       break;
     default:
@@ -332,12 +383,17 @@ void dds__builtin_init (struct dds_domain *dom)
 #endif
   dom->gv.builtin_topic_interface = &dom->btif;
 
-  dom->builtin_participant_type = new_sertype_builtintopic (DSBT_PARTICIPANT, "org::eclipse::cyclonedds::builtin::DCPSParticipant");
+  const char *typename;
+  (void) dds__get_builtin_topic_name_typename (DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, NULL, &typename);
+  dom->builtin_participant_type = new_sertype_builtintopic (DSBT_PARTICIPANT, typename);
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-  dom->builtin_topic_type = new_sertype_builtintopic_topic (DSBT_TOPIC, "org::eclipse::cyclonedds::builtin::DCPSTopic");
+  (void) dds__get_builtin_topic_name_typename (DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, &typename);
+  dom->builtin_topic_type = new_sertype_builtintopic_topic (DSBT_TOPIC, typename);
 #endif
-  dom->builtin_reader_type = new_sertype_builtintopic (DSBT_READER, "org::eclipse::cyclonedds::builtin::DCPSSubscription");
-  dom->builtin_writer_type = new_sertype_builtintopic (DSBT_WRITER, "org::eclipse::cyclonedds::builtin::DCPSPublication");
+  (void) dds__get_builtin_topic_name_typename (DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, &typename);
+  dom->builtin_reader_type = new_sertype_builtintopic (DSBT_READER, typename);
+  (void) dds__get_builtin_topic_name_typename (DDS_BUILTIN_TOPIC_DCPSPUBLICATION, NULL, &typename);
+  dom->builtin_writer_type = new_sertype_builtintopic (DSBT_WRITER, typename);
 
   ddsrt_mutex_lock (&dom->gv.sertypes_lock);
   ddsi_sertype_register_locked (&dom->gv, dom->builtin_participant_type);

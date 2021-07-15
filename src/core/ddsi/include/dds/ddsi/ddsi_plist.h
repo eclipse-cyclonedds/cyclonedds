@@ -253,6 +253,8 @@ typedef struct ddsi_plist_src {
   bool strict;                            /**< whether to be strict in checking */
 } ddsi_plist_src_t;
 
+DDS_EXPORT extern const ddsi_plist_t ddsi_default_plist_participant;
+
 /**
  * @brief Initialize global parameter-list parsing indices.
  *
@@ -424,13 +426,6 @@ DDS_EXPORT void ddsi_plist_addtomsg (struct nn_xmsg *m, const ddsi_plist_t *ps, 
  * @param[in]     bo       byte order
  */
 DDS_EXPORT void ddsi_plist_addtomsg_bo (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo);
-
-/**
- * @brief Initialize plist to match default settings for a participant
- *
- * @param[out] plist    plist to contain the default settings.
- */
-DDS_EXPORT void ddsi_plist_init_default_participant (ddsi_plist_t *plist);
 
 /**
  * @brief Determine the set of entries in which "x" differs from "y"

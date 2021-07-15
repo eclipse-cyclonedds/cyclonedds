@@ -242,14 +242,7 @@ struct ddsi_domaingv {
      supplying values for missing QoS settings in incoming discovery
      packets); plus the actual QoSs needed for the builtin
      endpoints. */
-  ddsi_plist_t default_plist_pp;
   ddsi_plist_t default_local_plist_pp;
-  dds_qos_t default_xqos_rd;
-  dds_qos_t default_xqos_wr;
-  dds_qos_t default_xqos_wr_nad;
-  dds_qos_t default_xqos_tp;
-  dds_qos_t default_xqos_sub;
-  dds_qos_t default_xqos_pub;
   dds_qos_t spdp_endpoint_xqos;
   dds_qos_t builtin_endpoint_xqos_rd;
   dds_qos_t builtin_endpoint_xqos_wr;

@@ -3193,209 +3193,148 @@ void ddsi_xqos_init_empty (dds_qos_t *dest)
   dest->present = dest->aliased = 0;
 }
 
-void ddsi_plist_init_default_participant (ddsi_plist_t *plist)
-{
-  ddsi_plist_init_empty (plist);
+const ddsi_plist_t ddsi_default_plist_participant = {
+  .present = 0,
+  .aliased = 0,
+  .qos = {
+    .present = QP_ADLINK_ENTITY_FACTORY | QP_USER_DATA,
+    .aliased = 0,
+    .entity_factory.autoenable_created_entities = 0,
+    .user_data.length = 0,
+    .user_data.value = NULL
+  }
+};
 
-  plist->qos.present |= QP_ADLINK_ENTITY_FACTORY;
-  plist->qos.entity_factory.autoenable_created_entities = 0;
+const dds_qos_t ddsi_default_qos_reader = {
+  .present = QP_PRESENTATION | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_LIVELINESS | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_TRANSPORT_PRIORITY | QP_OWNERSHIP | QP_CYCLONE_IGNORELOCAL | QP_TOPIC_DATA | QP_GROUP_DATA | QP_USER_DATA | QP_PARTITION | QP_RELIABILITY | QP_TIME_BASED_FILTER | QP_ADLINK_READER_DATA_LIFECYCLE | QP_ADLINK_READER_LIFESPAN | QP_ADLINK_SUBSCRIPTION_KEYS | QP_TYPE_CONSISTENCY_ENFORCEMENT | QP_LOCATOR_MASK,
+  .aliased = 0,
+  .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
+  .presentation.coherent_access = 0,
+  .presentation.ordered_access = 0,
+  .durability.kind = DDS_DURABILITY_VOLATILE,
+  .deadline.deadline = DDS_INFINITY,
+  .latency_budget.duration = 0,
+  .liveliness.kind = DDS_LIVELINESS_AUTOMATIC,
+  .liveliness.lease_duration = DDS_INFINITY,
+  .destination_order.kind = DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP,
+  .history.kind = DDS_HISTORY_KEEP_LAST,
+  .history.depth = 1,
+  .resource_limits.max_samples = DDS_LENGTH_UNLIMITED,
+  .resource_limits.max_instances = DDS_LENGTH_UNLIMITED,
+  .resource_limits.max_samples_per_instance = DDS_LENGTH_UNLIMITED,
+  .transport_priority.value = 0,
+  .ownership.kind = DDS_OWNERSHIP_SHARED,
+  .ignorelocal.value = DDS_IGNORELOCAL_NONE,
+  .topic_data.length = 0,
+  .topic_data.value = NULL,
+  .group_data.length = 0,
+  .group_data.value = NULL,
+  .partition.n = 0,
+  .partition.strs = NULL,
+  .reliability.kind = DDS_RELIABILITY_BEST_EFFORT,
+  .time_based_filter.minimum_separation = 0,
+  .reader_data_lifecycle.autopurge_nowriter_samples_delay = DDS_INFINITY,
+  .reader_data_lifecycle.autopurge_disposed_samples_delay = DDS_INFINITY,
+  .reader_lifespan.use_lifespan = 0,
+  .reader_lifespan.duration = DDS_INFINITY,
+  .subscription_keys.use_key_list = 0,
+  .subscription_keys.key_list.n = 0,
+  .subscription_keys.key_list.strs = NULL,
+  .type_consistency.kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION,
+  .type_consistency.ignore_sequence_bounds = false,
+  .type_consistency.ignore_string_bounds = false,
+  .type_consistency.ignore_member_names = false,
+  .type_consistency.prevent_type_widening = false,
+  .type_consistency.force_type_validation = false,
+  .ignore_locator_type = 0
+};
 
-  plist->qos.present |= QP_USER_DATA;
-  plist->qos.user_data.length = 0;
-  plist->qos.user_data.value = NULL;
-}
+const dds_qos_t ddsi_default_qos_writer = {
+  .present = QP_PRESENTATION | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_LIVELINESS | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_OWNERSHIP | QP_CYCLONE_IGNORELOCAL | QP_TOPIC_DATA | QP_GROUP_DATA | QP_USER_DATA | QP_PARTITION | QP_DURABILITY_SERVICE | QP_RELIABILITY | QP_OWNERSHIP_STRENGTH | QP_TRANSPORT_PRIORITY | QP_LIFESPAN | QP_ADLINK_WRITER_DATA_LIFECYCLE | QP_LOCATOR_MASK,
+  .aliased = 0,
+  .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
+  .presentation.coherent_access = 0,
+  .presentation.ordered_access = 0,
+  .durability.kind = DDS_DURABILITY_VOLATILE,
+  .deadline.deadline = DDS_INFINITY,
+  .latency_budget.duration = 0,
+  .liveliness.kind = DDS_LIVELINESS_AUTOMATIC,
+  .liveliness.lease_duration = DDS_INFINITY,
+  .destination_order.kind = DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP,
+  .history.kind = DDS_HISTORY_KEEP_LAST,
+  .history.depth = 1,
+  .resource_limits.max_samples = DDS_LENGTH_UNLIMITED,
+  .resource_limits.max_instances = DDS_LENGTH_UNLIMITED,
+  .resource_limits.max_samples_per_instance = DDS_LENGTH_UNLIMITED,
+  .ownership.kind = DDS_OWNERSHIP_SHARED,
+  .ignorelocal.value = DDS_IGNORELOCAL_NONE,
+  .topic_data.length = 0,
+  .topic_data.value = NULL,
+  .group_data.length = 0,
+  .group_data.value = NULL,
+  .partition.n = 0,
+  .partition.strs = NULL,
+  .durability_service.service_cleanup_delay = 0,
+  .durability_service.history.kind = DDS_HISTORY_KEEP_LAST,
+  .durability_service.history.depth = 1,
+  .durability_service.resource_limits.max_samples = DDS_LENGTH_UNLIMITED,
+  .durability_service.resource_limits.max_instances = DDS_LENGTH_UNLIMITED,
+  .durability_service.resource_limits.max_samples_per_instance = DDS_LENGTH_UNLIMITED,
+  .reliability.kind = DDS_RELIABILITY_RELIABLE,
+  .reliability.max_blocking_time = DDS_MSECS (100),
+  .transport_priority.value = 0,
+  .time_based_filter.minimum_separation = 0,
+  .lifespan.duration = DDS_INFINITY,
+  .writer_data_lifecycle.autodispose_unregistered_instances = 1,
+  .ignore_locator_type = 0
+};
 
-static void xqos_init_default_common (dds_qos_t *xqos)
-{
-  ddsi_xqos_init_empty (xqos);
+const dds_qos_t ddsi_default_qos_topic = {
+  .present = QP_PRESENTATION | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_LIVELINESS | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_TRANSPORT_PRIORITY | QP_OWNERSHIP | QP_CYCLONE_IGNORELOCAL | QP_DURABILITY_SERVICE | QP_RELIABILITY | QP_ADLINK_SUBSCRIPTION_KEYS | QP_LIFESPAN,
+  .aliased = 0,
+  .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
+  .presentation.coherent_access = 0,
+  .presentation.ordered_access = 0,
+  .durability.kind = DDS_DURABILITY_VOLATILE,
+  .deadline.deadline = DDS_INFINITY,
+  .latency_budget.duration = 0,
+  .liveliness.kind = DDS_LIVELINESS_AUTOMATIC,
+  .liveliness.lease_duration = DDS_INFINITY,
+  .destination_order.kind = DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP,
+  .history.kind = DDS_HISTORY_KEEP_LAST,
+  .history.depth = 1,
+  .resource_limits.max_samples = DDS_LENGTH_UNLIMITED,
+  .resource_limits.max_instances = DDS_LENGTH_UNLIMITED,
+  .resource_limits.max_samples_per_instance = DDS_LENGTH_UNLIMITED,
+  .transport_priority.value = 0,
+  .ownership.kind = DDS_OWNERSHIP_SHARED,
+  .ignorelocal.value = DDS_IGNORELOCAL_NONE,
+  .reliability.kind = DDS_RELIABILITY_BEST_EFFORT,
+  .reliability.max_blocking_time = DDS_MSECS (100),
+  .durability_service.service_cleanup_delay = 0,
+  .durability_service.history.kind = DDS_HISTORY_KEEP_LAST,
+  .durability_service.history.depth = 1,
+  .durability_service.resource_limits.max_samples = DDS_LENGTH_UNLIMITED,
+  .durability_service.resource_limits.max_instances = DDS_LENGTH_UNLIMITED,
+  .durability_service.resource_limits.max_samples_per_instance = DDS_LENGTH_UNLIMITED,
+  .subscription_keys.use_key_list = 0,
+  .subscription_keys.key_list.n = 0,
+  .subscription_keys.key_list.strs = NULL,
+  .lifespan.duration = DDS_INFINITY
+};
 
-  xqos->present |= QP_PRESENTATION;
-  xqos->presentation.access_scope = DDS_PRESENTATION_INSTANCE;
-  xqos->presentation.coherent_access = 0;
-  xqos->presentation.ordered_access = 0;
-
-  xqos->present |= QP_DURABILITY;
-  xqos->durability.kind = DDS_DURABILITY_VOLATILE;
-
-  xqos->present |= QP_DEADLINE;
-  xqos->deadline.deadline = DDS_INFINITY;
-
-  xqos->present |= QP_LATENCY_BUDGET;
-  xqos->latency_budget.duration = 0;
-
-  xqos->present |= QP_LIVELINESS;
-  xqos->liveliness.kind = DDS_LIVELINESS_AUTOMATIC;
-  xqos->liveliness.lease_duration = DDS_INFINITY;
-
-  xqos->present |= QP_DESTINATION_ORDER;
-  xqos->destination_order.kind = DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP;
-
-  xqos->present |= QP_HISTORY;
-  xqos->history.kind = DDS_HISTORY_KEEP_LAST;
-  xqos->history.depth = 1;
-
-  xqos->present |= QP_RESOURCE_LIMITS;
-  xqos->resource_limits.max_samples = DDS_LENGTH_UNLIMITED;
-  xqos->resource_limits.max_instances = DDS_LENGTH_UNLIMITED;
-  xqos->resource_limits.max_samples_per_instance = DDS_LENGTH_UNLIMITED;
-
-  xqos->present |= QP_TRANSPORT_PRIORITY;
-  xqos->transport_priority.value = 0;
-
-  xqos->present |= QP_OWNERSHIP;
-  xqos->ownership.kind = DDS_OWNERSHIP_SHARED;
-
-  xqos->present |= QP_CYCLONE_IGNORELOCAL;
-  xqos->ignorelocal.value = DDS_IGNORELOCAL_NONE;
-}
-
-static void ddsi_xqos_init_default_endpoint (dds_qos_t *xqos)
-{
-  xqos_init_default_common (xqos);
-
-  xqos->present |= QP_TOPIC_DATA;
-  xqos->topic_data.length = 0;
-  xqos->topic_data.value = NULL;
-
-  xqos->present |= QP_GROUP_DATA;
-  xqos->group_data.length = 0;
-  xqos->group_data.value = NULL;
-
-  xqos->present |= QP_USER_DATA;
-  xqos->user_data.length = 0;
-  xqos->user_data.value = NULL;
-
-  xqos->present |= QP_PARTITION;
-  xqos->partition.n = 0;
-  xqos->partition.strs = NULL;
-}
-
-void ddsi_xqos_init_default_reader (dds_qos_t *xqos)
-{
-  ddsi_xqos_init_default_endpoint (xqos);
-
-  xqos->present |= QP_RELIABILITY;
-  xqos->reliability.kind = DDS_RELIABILITY_BEST_EFFORT;
-
-  xqos->present |= QP_TIME_BASED_FILTER;
-  xqos->time_based_filter.minimum_separation = 0;
-
-  xqos->present |= QP_ADLINK_READER_DATA_LIFECYCLE;
-  xqos->reader_data_lifecycle.autopurge_nowriter_samples_delay = DDS_INFINITY;
-  xqos->reader_data_lifecycle.autopurge_disposed_samples_delay = DDS_INFINITY;
-
-  xqos->present |= QP_ADLINK_READER_LIFESPAN;
-  xqos->reader_lifespan.use_lifespan = 0;
-  xqos->reader_lifespan.duration = DDS_INFINITY;
-
-  xqos->present |= QP_ADLINK_SUBSCRIPTION_KEYS;
-  xqos->subscription_keys.use_key_list = 0;
-  xqos->subscription_keys.key_list.n = 0;
-  xqos->subscription_keys.key_list.strs = NULL;
-
-  xqos->present |= QP_TYPE_CONSISTENCY_ENFORCEMENT;
-  xqos->type_consistency.kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION;
-  xqos->type_consistency.ignore_sequence_bounds = false;
-  xqos->type_consistency.ignore_string_bounds = false;
-  xqos->type_consistency.ignore_member_names = false;
-  xqos->type_consistency.prevent_type_widening = false;
-  xqos->type_consistency.force_type_validation = false;
-
-  xqos->present |= QP_LOCATOR_MASK;
-  xqos->ignore_locator_type = 0;
-}
-
-void ddsi_xqos_init_default_writer (dds_qos_t *xqos)
-{
-  ddsi_xqos_init_default_endpoint (xqos);
-
-  xqos->present |= QP_DURABILITY_SERVICE;
-  xqos->durability_service.service_cleanup_delay = 0;
-  xqos->durability_service.history.kind = DDS_HISTORY_KEEP_LAST;
-  xqos->durability_service.history.depth = 1;
-  xqos->durability_service.resource_limits.max_samples = DDS_LENGTH_UNLIMITED;
-  xqos->durability_service.resource_limits.max_instances = DDS_LENGTH_UNLIMITED;
-  xqos->durability_service.resource_limits.max_samples_per_instance = DDS_LENGTH_UNLIMITED;
-
-  xqos->present |= QP_RELIABILITY;
-  xqos->reliability.kind = DDS_RELIABILITY_RELIABLE;
-  xqos->reliability.max_blocking_time = DDS_MSECS (100);
-
-  xqos->present |= QP_OWNERSHIP_STRENGTH;
-  xqos->ownership_strength.value = 0;
-
-  xqos->present |= QP_TRANSPORT_PRIORITY;
-  xqos->transport_priority.value = 0;
-
-  xqos->present |= QP_LIFESPAN;
-  xqos->lifespan.duration = DDS_INFINITY;
-
-  xqos->present |= QP_ADLINK_WRITER_DATA_LIFECYCLE;
-  xqos->writer_data_lifecycle.autodispose_unregistered_instances = 1;
-
-  xqos->present |= QP_LOCATOR_MASK;
-  xqos->ignore_locator_type = 0;
-}
-
-void ddsi_xqos_init_default_writer_noautodispose (dds_qos_t *xqos)
-{
-  ddsi_xqos_init_default_writer (xqos);
-  xqos->writer_data_lifecycle.autodispose_unregistered_instances = 0;
-}
-
-void ddsi_xqos_init_default_topic (dds_qos_t *xqos)
-{
-  xqos_init_default_common (xqos);
-
-  xqos->present |= QP_DURABILITY_SERVICE;
-  xqos->durability_service.service_cleanup_delay = 0;
-  xqos->durability_service.history.kind = DDS_HISTORY_KEEP_LAST;
-  xqos->durability_service.history.depth = 1;
-  xqos->durability_service.resource_limits.max_samples = DDS_LENGTH_UNLIMITED;
-  xqos->durability_service.resource_limits.max_instances = DDS_LENGTH_UNLIMITED;
-  xqos->durability_service.resource_limits.max_samples_per_instance = DDS_LENGTH_UNLIMITED;
-
-  xqos->present |= QP_RELIABILITY;
-  xqos->reliability.kind = DDS_RELIABILITY_BEST_EFFORT;
-  xqos->reliability.max_blocking_time = DDS_MSECS (100);
-
-  xqos->present |= QP_TRANSPORT_PRIORITY;
-  xqos->transport_priority.value = 0;
-
-  xqos->present |= QP_LIFESPAN;
-  xqos->lifespan.duration = DDS_INFINITY;
-
-  xqos->present |= QP_ADLINK_SUBSCRIPTION_KEYS;
-  xqos->subscription_keys.use_key_list = 0;
-  xqos->subscription_keys.key_list.n = 0;
-  xqos->subscription_keys.key_list.strs = NULL;
-}
-
-static void ddsi_xqos_init_default_publisher_subscriber (dds_qos_t *xqos)
-{
-  ddsi_xqos_init_empty (xqos);
-
-  xqos->present |= QP_GROUP_DATA;
-  xqos->group_data.length = 0;
-  xqos->group_data.value = NULL;
-
-  xqos->present |= QP_ADLINK_ENTITY_FACTORY;
-  xqos->entity_factory.autoenable_created_entities = 1;
-
-  xqos->present |= QP_PARTITION;
-  xqos->partition.n = 0;
-  xqos->partition.strs = NULL;
-}
-
-void ddsi_xqos_init_default_subscriber (dds_qos_t *xqos)
-{
-  ddsi_xqos_init_default_publisher_subscriber (xqos);
-}
-
-void ddsi_xqos_init_default_publisher (dds_qos_t *xqos)
-{
-  ddsi_xqos_init_default_publisher_subscriber (xqos);
-}
+const dds_qos_t ddsi_default_qos_publisher_subscriber = {
+  .present = QP_GROUP_DATA | QP_PARTITION | QP_ADLINK_ENTITY_FACTORY,
+  .aliased = 0,
+  .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
+  .presentation.coherent_access = 0,
+  .presentation.ordered_access = 0,
+  .entity_factory.autoenable_created_entities = 1,
+  .group_data.length = 0,
+  .group_data.value = NULL,
+  .partition.n = 0,
+  .partition.strs = NULL
+};
 
 void ddsi_xqos_copy (dds_qos_t *dst, const dds_qos_t *src)
 {

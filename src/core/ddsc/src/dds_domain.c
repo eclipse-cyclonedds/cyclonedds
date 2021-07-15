@@ -68,7 +68,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   dds_entity_t domh;
   uint32_t len;
 
-  if ((domh = dds_entity_init (&domain->m_entity, &dds_global.m_entity, DDS_KIND_DOMAIN, implicit, NULL, NULL, 0)) < 0)
+  if ((domh = dds_entity_init (&domain->m_entity, &dds_global.m_entity, DDS_KIND_DOMAIN, implicit, true, NULL, NULL, 0)) < 0)
     return domh;
   domain->m_entity.m_domain = domain;
   domain->m_entity.m_iid = ddsi_iid_gen ();

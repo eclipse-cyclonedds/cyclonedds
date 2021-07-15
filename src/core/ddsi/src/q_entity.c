@@ -3688,7 +3688,7 @@ static void new_writer_guid_common_init (struct writer *wr, const char *topic_na
 
   wr->xqos = ddsrt_malloc (sizeof (*wr->xqos));
   ddsi_xqos_copy (wr->xqos, xqos);
-  ddsi_xqos_mergein_missing (wr->xqos, &wr->e.gv->default_xqos_wr, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (wr->xqos, &ddsi_default_qos_writer, ~(uint64_t)0);
   assert (wr->xqos->aliased == 0);
   set_topic_type_name (wr->xqos, topic_name, type->type_name);
 
@@ -4327,7 +4327,7 @@ static dds_return_t new_reader_guid
   /* Copy QoS, merging in defaults */
   rd->xqos = ddsrt_malloc (sizeof (*rd->xqos));
   ddsi_xqos_copy (rd->xqos, xqos);
-  ddsi_xqos_mergein_missing (rd->xqos, &pp->e.gv->default_xqos_rd, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (rd->xqos, &ddsi_default_qos_reader, ~(uint64_t)0);
   assert (rd->xqos->aliased == 0);
   set_topic_type_name (rd->xqos, topic_name, type->type_name);
 
@@ -4577,7 +4577,7 @@ dds_return_t ddsi_new_topic
   /* Copy QoS, merging in defaults */
   struct dds_qos *tp_qos = ddsrt_malloc (sizeof (*tp_qos));
   ddsi_xqos_copy (tp_qos, xqos);
-  ddsi_xqos_mergein_missing (tp_qos, &gv->default_xqos_tp, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (tp_qos, &ddsi_default_qos_topic, ~(uint64_t)0);
   assert (tp_qos->aliased == 0);
 
   /* Set topic name, type name and type id in qos */
@@ -5215,7 +5215,7 @@ bool new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
   proxy_topic_list_init (&proxypp->topics);
 #endif
   proxypp->plist = ddsi_plist_dup (plist);
-  ddsi_xqos_mergein_missing (&proxypp->plist->qos, &gv->default_plist_pp.qos, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (&proxypp->plist->qos, &ddsi_default_plist_participant.qos, ~(uint64_t)0);
   ddsrt_avl_init (&proxypp_groups_treedef, &proxypp->groups);
 
 #ifdef DDS_HAS_SECURITY
@@ -5264,13 +5264,12 @@ int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, se
   {
     proxypp->seq = seq;
 
-    struct ddsi_domaingv * const gv = proxypp->e.gv;
     const uint64_t pmask = PP_ENTITY_NAME;
     const uint64_t qmask = QP_USER_DATA;
     ddsi_plist_t *new_plist = ddsrt_malloc (sizeof (*new_plist));
     ddsi_plist_init_empty (new_plist);
     ddsi_plist_mergein_missing (new_plist, datap, pmask, qmask);
-    ddsi_plist_mergein_missing (new_plist, &gv->default_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
+    ddsi_plist_mergein_missing (new_plist, &ddsi_default_plist_participant, ~(uint64_t)0, ~(uint64_t)0);
     (void) update_qos_locked (&proxypp->e, &proxypp->plist->qos, &new_plist->qos, timestamp);
     ddsi_plist_fini (new_plist);
     ddsrt_free (new_plist);

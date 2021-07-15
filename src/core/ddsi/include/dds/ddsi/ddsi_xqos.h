@@ -325,6 +325,11 @@ struct dds_qos {
 
 struct nn_xmsg;
 
+DDS_EXPORT extern const dds_qos_t ddsi_default_qos_reader;
+DDS_EXPORT extern const dds_qos_t ddsi_default_qos_writer;
+DDS_EXPORT extern const dds_qos_t ddsi_default_qos_topic;
+DDS_EXPORT extern const dds_qos_t ddsi_default_qos_publisher_subscriber;
+
 /**
  * @brief Initialize a new empty dds_qos_t as an empty object
  *
@@ -334,63 +339,6 @@ struct nn_xmsg;
  * @param[out] xqos  qos object to be initialized.
  */
 DDS_EXPORT void ddsi_xqos_init_empty (dds_qos_t *xqos);
-
-/**
- * @brief Initialize xqos to match default QoS settings for a reader
- *
- * @param[out] xqos    qos object to contain the default settings.
- */
-DDS_EXPORT void ddsi_xqos_init_default_reader (dds_qos_t *xqos);
-
-/**
- * @brief Initialize xqos to match default QoS settings for a writer
- *
- * @param[out] xqos    qos object to contain the default settings.
- */
-DDS_EXPORT void ddsi_xqos_init_default_writer (dds_qos_t *xqos);
-
-/**
- * @brief Initialize xqos to match default QoS settings for a non-autodispose writer
- *
- * The default writer QoS has "auto dispose unregistered instances" set to true, and
- * opinions differ about what the correct behaviour is, but the setting doesn't really
- * make any sense if it is treated as a macro on the writing such, such that each
- * "unregister" call also performs a dispose.  Cyclone DDS implements the interpretation
- * that matches the name (whenever no registrations are left, make it disposed), which is
- * a refinement of OpenSplice's interpretation (whenever an unregister event occurs, make
- * it disposed).  All these differences originate in the DCPS spec not being clear enough
- * and the complicating factor is that the two different interpretations existed before
- * the introduction of the DDSI specification, and yet the DDSI specification doesn't
- * provide a standard way of discovering the setting for remote writers.
- *
- * Cyclone DDS uses the same vendor-specific extension as OpenSplice for communicating it,
- * and uses a different default for different implementations.  So this is the default
- * used for the "RTI interpretation".
- *
- * @param[out] xqos    qos object to contain the default settings.
- */
-DDS_EXPORT void ddsi_xqos_init_default_writer_noautodispose (dds_qos_t *xqos);
-
-/**
- * @brief Initialize xqos to match default QoS settings for a subscriber
- *
- * @param[out] xqos    qos object to contain the default settings.
- */
-DDS_EXPORT void ddsi_xqos_init_default_subscriber (dds_qos_t *xqos);
-
-/**
- * @brief Initialize xqos to match default QoS settings for a publisher
- *
- * @param[out] xqos    qos object to contain the default settings.
- */
-DDS_EXPORT void ddsi_xqos_init_default_publisher (dds_qos_t *xqos);
-
-/**
- * @brief Initialize xqos to match default QoS settings for a topic
- *
- * @param[out] xqos    qos object to contain the default settings.
- */
-DDS_EXPORT void ddsi_xqos_init_default_topic (dds_qos_t *xqos);
 
 /**
  * @brief Copy "src" to "dst"

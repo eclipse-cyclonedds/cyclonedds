@@ -496,7 +496,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
 #endif
 
   /* Participant QoS's insofar as they are set, different from the default, and mapped to the SPDP data, rather than to the Adlink-specific CMParticipant endpoint.  Currently, that means just USER_DATA. */
-  qosdiff = ddsi_xqos_delta (&pp->plist->qos, &pp->e.gv->default_plist_pp.qos, QP_USER_DATA);
+  qosdiff = ddsi_xqos_delta (&pp->plist->qos, &ddsi_default_plist_participant.qos, QP_USER_DATA);
   if (pp->e.gv->config.explicitly_publish_qos_set_to_default)
     qosdiff |= ~QP_UNRECOGNIZED_INCOMPATIBLE_MASK;
 
@@ -1096,9 +1096,9 @@ static int sedp_write_endpoint_impl
   struct ddsi_domaingv * const gv = wr->e.gv;
   const dds_qos_t *defqos = NULL;
   if (is_writer_entityid (guid->entityid))
-    defqos = &gv->default_xqos_wr;
+    defqos = &ddsi_default_qos_writer;
   else if (is_reader_entityid (guid->entityid))
-    defqos = &gv->default_xqos_rd;
+    defqos = &ddsi_default_qos_reader;
   else
     assert (false);
 
@@ -1241,7 +1241,7 @@ static int sedp_write_endpoint_impl
 static int sedp_write_topic_impl (struct writer *wr, int alive, const ddsi_guid_t *guid, const dds_qos_t *xqos, type_identifier_t *type_id)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
-  const dds_qos_t *defqos = &gv->default_xqos_tp;
+  const dds_qos_t *defqos = &ddsi_default_qos_topic;
 
   ddsi_plist_t ps;
   ddsi_plist_init_empty (&ps);
@@ -1559,13 +1559,15 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
 
   xqos = &datap->qos;
   if (sedp_kind == SEDP_KIND_READER)
-    ddsi_xqos_mergein_missing (xqos, &gv->default_xqos_rd, ~(uint64_t)0);
+    ddsi_xqos_mergein_missing (xqos, &ddsi_default_qos_reader, ~(uint64_t)0);
   else if (sedp_kind == SEDP_KIND_WRITER)
   {
-    if (vendor_is_eclipse_or_adlink (vendorid))
-      ddsi_xqos_mergein_missing (xqos, &gv->default_xqos_wr, ~(uint64_t)0);
-    else
-      ddsi_xqos_mergein_missing (xqos, &gv->default_xqos_wr_nad, ~(uint64_t)0);
+    ddsi_xqos_mergein_missing (xqos, &ddsi_default_qos_writer, ~(uint64_t)0);
+    if (!vendor_is_eclipse_or_adlink (vendorid))
+    {
+      // there is a difference in interpretation of autodispose between vendors
+      xqos->writer_data_lifecycle.autodispose_unregistered_instances = 0;
+    }
   }
   else
     E (" invalid entity kind\n", err);
@@ -1755,7 +1757,7 @@ static void handle_sedp_alive_topic (const struct receiver_state *rst, seqno_t s
     return;
 
   xqos = &datap->qos;
-  ddsi_xqos_mergein_missing (xqos, &gv->default_xqos_tp, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (xqos, &ddsi_default_qos_topic, ~(uint64_t)0);
   /* After copy + merge, should have at least the ones present in the
      input. Also verify reliability and durability are present,
      because we explicitly read those. */

@@ -58,7 +58,7 @@ dds_entity_t dds__create_subscriber_l (dds_participant *participant, bool implic
   new_qos = dds_create_qos ();
   if (qos)
     ddsi_xqos_mergein_missing (new_qos, qos, DDS_SUBSCRIBER_QOS_MASK);
-  ddsi_xqos_mergein_missing (new_qos, &participant->m_entity.m_domain->gv.default_xqos_sub, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (new_qos, &ddsi_default_qos_publisher_subscriber, ~(uint64_t)0);
   if ((ret = ddsi_xqos_valid (&participant->m_entity.m_domain->gv.logconfig, new_qos)) != DDS_RETCODE_OK)
   {
     dds_delete_qos (new_qos);
@@ -66,7 +66,7 @@ dds_entity_t dds__create_subscriber_l (dds_participant *participant, bool implic
   }
 
   sub = dds_alloc (sizeof (*sub));
-  subscriber = dds_entity_init (&sub->m_entity, &participant->m_entity, DDS_KIND_SUBSCRIBER, implicit, new_qos, listener, DDS_SUBSCRIBER_STATUS_MASK);
+  subscriber = dds_entity_init (&sub->m_entity, &participant->m_entity, DDS_KIND_SUBSCRIBER, implicit, true, new_qos, listener, DDS_SUBSCRIBER_STATUS_MASK);
   sub->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (&participant->m_entity, &sub->m_entity);
   dds_entity_init_complete (&sub->m_entity);
