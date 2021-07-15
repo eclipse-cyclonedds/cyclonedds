@@ -85,6 +85,12 @@ static void *create_iox_chunk(dds_writer *wr)
     sample = SHIFT_PAST_ICEORYX_HEADER(ice_hdr);
     return sample;
 }
+
+static void release_iox_chunk(dds_writer *wr, void *sample)
+{
+  iceoryx_header_t *ice_hdr = SHIFT_BACK_TO_ICEORYX_HEADER(sample);
+  iox_pub_release_chunk(wr->m_iox_pub, ice_hdr);
+}
 #endif
 
 dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
@@ -111,6 +117,36 @@ dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
     ret = DDS_RETCODE_UNSUPPORTED;
   }
   dds_writer_unlock (wr);
+  return ret;
+#endif
+}
+
+dds_return_t dds_return_writer_loan(dds_writer *writer, void *sample)
+{
+#ifndef DDS_HAS_SHM
+  (void) writer;
+  (void) sample;
+  return DDS_RETCODE_UNSUPPORTED;
+#else
+  dds_return_t ret;
+
+  if (!sample)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  ddsrt_mutex_lock (&writer->m_entity.m_mutex);
+
+  if (writer->m_iox_pub)
+  {
+    if (deregister_pub_loan(writer, sample)) {
+      release_iox_chunk(writer, sample);
+      ret = DDS_RETCODE_OK;
+    } else {
+      ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+    }
+  } else {
+    ret = DDS_RETCODE_UNSUPPORTED;
+  }
+  ddsrt_mutex_unlock (&writer->m_entity.m_mutex);
   return ret;
 #endif
 }

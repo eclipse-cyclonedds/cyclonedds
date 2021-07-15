@@ -13,6 +13,7 @@
 #include <string.h>
 #include "dds__entity.h"
 #include "dds__reader.h"
+#include "dds__writer.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsi/q_thread.h"
@@ -509,24 +510,28 @@ dds_return_t dds_take_next_wl (dds_entity_t reader, void **buf, dds_sample_info_
   return dds_read_impl (true, reader, buf, 1u, 1u, si, mask, DDS_HANDLE_NIL, true, true);
 }
 
-dds_return_t dds_return_loan (dds_entity_t reader_or_condition, void **buf, int32_t bufsz)
+dds_return_t dds_return_loan (dds_entity_t entity, void **buf, int32_t bufsz)
 {
   dds_reader *rd;
-  dds_entity *entity;
+  dds_entity *p_entity;
   dds_return_t ret;
 
   if (buf == NULL || (buf[0] == NULL && bufsz > 0) || (buf[0] != NULL && bufsz <= 0))
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if ((ret = dds_entity_pin (reader_or_condition, &entity)) < 0) {
+  if ((ret = dds_entity_pin (entity, &p_entity)) < 0) {
     return ret;
-  } else if (dds_entity_kind (entity) == DDS_KIND_READER) {
-    rd = (dds_reader *) entity;
-  } else if (dds_entity_kind (entity) != DDS_KIND_COND_READ && dds_entity_kind (entity) != DDS_KIND_COND_QUERY) {
-    dds_entity_unpin (entity);
+  } else if (dds_entity_kind (p_entity) == DDS_KIND_READER) {
+    rd = (dds_reader *) p_entity;
+  } else if (dds_entity_kind (p_entity) == DDS_KIND_WRITER) {
+    ret = dds_return_writer_loan((dds_writer *) p_entity, *buf);
+    dds_entity_unpin (p_entity);
+    return ret;
+  } else if (dds_entity_kind (p_entity) != DDS_KIND_COND_READ && dds_entity_kind (p_entity) != DDS_KIND_COND_QUERY) {
+    dds_entity_unpin (p_entity);
     return DDS_RETCODE_ILLEGAL_OPERATION;
   } else {
-    rd = (dds_reader *) entity->m_parent;
+    rd = (dds_reader *) p_entity->m_parent;
   }
 
   if (bufsz <= 0)
@@ -534,7 +539,7 @@ dds_return_t dds_return_loan (dds_entity_t reader_or_condition, void **buf, int3
     /* No data whatsoever, or an invocation following a failed read/take call.  Read/take
        already take care of restoring the state prior to their invocation if they return
        no data.  Return late so invalid handles can be detected. */
-    dds_entity_unpin (entity);
+    dds_entity_unpin (p_entity);
     return DDS_RETCODE_OK;
   }
   assert (buf[0] != NULL);
@@ -558,7 +563,7 @@ dds_return_t dds_return_loan (dds_entity_t reader_or_condition, void **buf, int3
   {
     /* Trying to return a loan that has been returned already */
     ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
-    dds_entity_unpin (entity);
+    dds_entity_unpin (p_entity);
     return DDS_RETCODE_PRECONDITION_NOT_MET;
   }
   else
@@ -572,6 +577,6 @@ dds_return_t dds_return_loan (dds_entity_t reader_or_condition, void **buf, int3
     buf[0] = NULL;
   }
   ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
-  dds_entity_unpin (entity);
+  dds_entity_unpin (p_entity);
   return DDS_RETCODE_OK;
 }
