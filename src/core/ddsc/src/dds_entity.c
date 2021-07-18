@@ -1547,3 +1547,27 @@ dds_return_t dds_assert_liveliness (dds_entity_t entity)
   dds_entity_unpin (e);
   return rc;
 }
+
+dds_return_t dds_return_loan (dds_entity_t entity, void **buf, int32_t bufsz)
+{
+  dds_entity *p_entity;
+  dds_return_t ret;
+
+  if (buf == NULL || (buf[0] == NULL && bufsz > 0) || (buf[0] != NULL && bufsz <= 0))
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  if ((ret = dds_entity_pin (entity, &p_entity)) >= 0) {
+    if (dds_entity_kind (p_entity) == DDS_KIND_READER ||
+        dds_entity_kind (p_entity) == DDS_KIND_COND_READ ||
+        dds_entity_kind (p_entity) == DDS_KIND_COND_QUERY) {
+      ret = dds_return_reader_loan(p_entity, buf, bufsz);
+    } else if (dds_entity_kind (p_entity) == DDS_KIND_WRITER) {
+      ret = dds_return_writer_loan((dds_writer *) p_entity, *buf);
+    } else {
+      ret = DDS_RETCODE_ILLEGAL_OPERATION;
+    }
+    dds_entity_unpin (p_entity);
+  }
+  return ret;
+}
+

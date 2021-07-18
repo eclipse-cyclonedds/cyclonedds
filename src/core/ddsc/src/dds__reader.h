@@ -23,6 +23,8 @@ struct status_cb_data;
 
 void dds_reader_status_cb (void *entity, const struct status_cb_data * data);
 
+dds_return_t dds_return_reader_loan (dds_entity *p_entity, void **buf, int32_t bufsz);
+
 /*
   dds_reader_lock_samples: Returns number of samples in read cache and locks the
   reader cache to make sure that the samples content doesn't change.

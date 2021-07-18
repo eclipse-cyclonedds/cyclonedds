@@ -3530,10 +3530,14 @@ dds_read_next_wl(
 /**
  * @brief Return loaned samples to data-reader or condition associated with a data-reader
  *
- * Used to release sample buffers returned by a read/take operation. When the application
- * provides an empty buffer, memory is allocated and managed by DDS. By calling dds_return_loan,
- * the memory is released so that the buffer can be reused during a successive read/take operation.
- * When a condition is provided, the reader to which the condition belongs is looked up.
+ * Used to release sample buffers returned by a read/take operation (a so called reader-loan)
+ * or, in case shared memory is enabled, of the loan_sample operation ( a so called writer-loan).
+ * When the application provides an empty buffer to a reader-loan, memory is allocated and
+ * managed by DDS. By calling dds_return_loan, the reader-loan is released so that the buffer
+ * can be reused during a successive read/take operation. When a condition is provided, the
+ * reader to which the condition belongs is looked up.
+ * Writer-loans are normally released implicitly when writing a loaned sample, but you can
+ * cancel a writer-loan prematurely by invoking the return_loan operation.
  *
  * @param[in] entity The entity that the loan belongs to.
  * @param[in] buf An array of (pointers to) samples.
