@@ -686,7 +686,7 @@ static int if_network_partition (struct cfgst *cfgst, void *parent, struct cfgel
 static int if_ignored_partition (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
   struct ddsi_config_ignoredpartition_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
-  if (if_common (cfgst, parent, cfgelem, sizeof (struct ddsi_config_ignoredpartition_listelem)) == NULL)
+  if (new == NULL)
     return -1;
   new->DCPSPartitionTopic = NULL;
   return 0;
