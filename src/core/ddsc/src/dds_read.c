@@ -509,16 +509,8 @@ dds_return_t dds_take_next_wl (dds_entity_t reader, void **buf, dds_sample_info_
   return dds_read_impl (true, reader, buf, 1u, 1u, si, mask, DDS_HANDLE_NIL, true, true);
 }
 
-dds_return_t dds_return_reader_loan (dds_entity *p_entity, void **buf, int32_t bufsz)
+dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz)
 {
-  dds_reader *rd;
-
-  if (dds_entity_kind (p_entity) == DDS_KIND_READER) {
-    rd = (dds_reader *) p_entity;
-  } else {
-    rd = (dds_reader *) p_entity->m_parent;
-  }
-
   if (bufsz <= 0)
   {
     /* No data whatsoever, or an invocation following a failed read/take call.  Read/take
