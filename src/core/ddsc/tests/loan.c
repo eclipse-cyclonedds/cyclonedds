@@ -64,15 +64,11 @@ CU_Test (ddsc_loan, bad_params, .init = create_entities, .fini = delete_entities
   void *buf = NULL;
   result = dds_return_loan (reader, &buf, 1);
   CU_ASSERT (result == DDS_RETCODE_BAD_PARAMETER);
+
+  /* not a reader or condition (checking only the ones we have at hand) */
   /* buf[0] != NULL, size <= 0 */
   char dummy = 0;
   buf = &dummy;
-  result = dds_return_loan (reader, &buf, 0);
-  CU_ASSERT (result == DDS_RETCODE_BAD_PARAMETER);
-  result = dds_return_loan (reader, &buf, -1);
-  CU_ASSERT (result == DDS_RETCODE_BAD_PARAMETER);
-
-  /* not a reader or condition (checking only the ones we have at hand) */
   result = dds_return_loan (participant, &buf, 1);
   CU_ASSERT (result == DDS_RETCODE_ILLEGAL_OPERATION);
   result = dds_return_loan (topic, &buf, 1);

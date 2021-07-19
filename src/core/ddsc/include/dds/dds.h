@@ -3549,12 +3549,11 @@ dds_read_next_wl(
  *
  * @returns A dds_return_t indicating success or failure
  * @retval DDS_RETCODE_OK
- *             - the operation was successful; for a writer loan, all entries in buf are set to null.
  *             - the operation was successful; for a writer loan, all entries in buf are set to null
  *             - this specifically includes cases where bufsz <= 0 while entity is valid
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             - the entity parameter is not a valid parameter
- *             - buf is null, or buf[0] is null and bufsz > 0 or buf[0] is non-null and bufsz <= 0
+ *             - buf is null, or bufsz > 0 and buf[0] = null
  *             - (for writer loans) buf[0 <= i < bufsz] is null; operation is aborted, all buf[j < i] = null on return
  * @retval DDS_RETCODE_PRECONDITION_NOT_MET
  *             - (for reader loans) buf was already returned (not guaranteed to be detected)
