@@ -1248,7 +1248,7 @@ static int convert_network_partition_addresses (struct ddsi_domaingv *gv, uint32
     assert (*nextp_ssm == NULL);
 #endif
     char *copy = ddsrt_strdup (np->address_string), *cursor = copy, *tok;
-    while (rc >= 0 && (tok = ddsrt_strsep (&cursor, ",;")) != NULL)
+    while (rc >= 0 && (tok = ddsrt_strsep (&cursor, ",")) != NULL)
     {
       if (strspn (tok, " \t") == strlen (tok))
         continue;
