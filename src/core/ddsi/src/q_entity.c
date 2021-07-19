@@ -3309,6 +3309,32 @@ static void new_reader_writer_common (const struct ddsrt_log_cfg *logcfg, const 
             type_name);
 }
 
+static bool is_onlylocal_endpoint (struct participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos)
+{
+  if (builtintopic_is_builtintopic (pp->e.gv->builtin_topic_interface, type))
+    return true;
+
+#ifdef DDS_HAS_NETWORK_PARTITIONS
+  char *ps_def = "";
+  char **ps;
+  uint32_t nps;
+  if ((xqos->present & QP_PARTITION) && xqos->partition.n > 0) {
+    ps = xqos->partition.strs;
+    nps = xqos->partition.n;
+  } else {
+    ps = &ps_def;
+    nps = 1;
+  }
+  for (uint32_t i = 0; i < nps; i++)
+  {
+    if (is_ignored_partition (&pp->e.gv->config, ps[i], topic_name))
+      return true;
+  }
+#endif
+
+  return false;
+}
+
 static void endpoint_common_init (struct entity_common *e, struct endpoint_common *c, struct ddsi_domaingv *gv, enum entity_kind kind, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct participant *pp, bool onlylocal, const struct ddsi_sertype *type)
 {
 #ifndef DDS_HAS_TYPE_DISCOVERY
@@ -3856,7 +3882,7 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_g
    delete_participant won't interfere with our ability to address
    the participant */
 
-  const bool onlylocal = builtintopic_is_builtintopic (pp->e.gv->builtin_topic_interface, type);
+  const bool onlylocal = is_onlylocal_endpoint (pp, topic_name, type, xqos);
   endpoint_common_init (&wr->e, &wr->c, pp->e.gv, EK_WRITER, guid, group_guid, pp, onlylocal, type);
   new_writer_guid_common_init(wr, topic_name, type, xqos, whc, status_cb, status_entity);
 
@@ -4321,7 +4347,7 @@ static dds_return_t new_reader_guid
   if (rd_out)
     *rd_out = rd;
 
-  const bool onlylocal = builtintopic_is_builtintopic (pp->e.gv->builtin_topic_interface, type);
+  const bool onlylocal = is_onlylocal_endpoint (pp, topic_name, type, xqos);
   endpoint_common_init (&rd->e, &rd->c, pp->e.gv, EK_READER, guid, group_guid, pp, onlylocal, type);
 
   /* Copy QoS, merging in defaults */
