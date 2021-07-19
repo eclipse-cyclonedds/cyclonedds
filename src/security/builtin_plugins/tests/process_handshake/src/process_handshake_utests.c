@@ -1116,9 +1116,18 @@ release_remote_identities(void)
     DDS_Security_DataHolder_deinit(&g_local_auth_request_token);
     DDS_Security_DataHolder_deinit(&g_remote_auth_request_token);
 
-    DDS_Security_ParticipantBuiltinTopicData_free(remote_participant_data1);
-    DDS_Security_ParticipantBuiltinTopicData_free(remote_participant_data2);
-    DDS_Security_ParticipantBuiltinTopicData_free(remote_participant_data3);
+    if (remote_participant_data1) {
+        DDS_Security_ParticipantBuiltinTopicData_free(remote_participant_data1);
+        remote_participant_data1 = NULL;
+    }
+    if (remote_participant_data2) {
+        DDS_Security_ParticipantBuiltinTopicData_free(remote_participant_data2);
+        remote_participant_data2 = NULL;
+    }
+    if (remote_participant_data3) {
+        DDS_Security_ParticipantBuiltinTopicData_free(remote_participant_data3);
+        remote_participant_data3 = NULL;
+    }
 }
 
 CU_Init(ddssec_builtin_process_handshake)
