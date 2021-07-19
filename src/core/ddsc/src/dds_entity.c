@@ -1595,7 +1595,16 @@ dds_return_t dds_return_loan (dds_entity_t entity, void **buf, int32_t bufsz)
   dds_entity *p_entity;
   dds_return_t ret;
 
-  if (buf == NULL || (buf[0] == NULL && bufsz > 0) || (buf[0] != NULL && bufsz <= 0))
+  // bufsz <= 0 is accepted because it allows one to write:
+  //
+  // if (dds_return_loan(rd, buf, dds_take(rd, buf, ...)) < 0)
+  //   abort();
+  //
+  // with abort only being called if there is a real problem.
+  //
+  // The wisdom of such code may be debatable, but it has been allowed for a long
+  // time and changing it may well break existing application code.
+  if (buf == NULL || (bufsz > 0 && buf[0] == NULL))
     return DDS_RETCODE_BAD_PARAMETER;
 
   if ((ret = dds_entity_pin (entity, &p_entity)) < 0)
