@@ -144,6 +144,8 @@ target_link_libraries(oneliner PRIVATE RoundTrip Space ddsc)
 # better not be part of the tests.  That also saves us from
 # having to figure out now how to start/stop RouDi on Windows.
 if(iceoryx_binding_c_FOUND AND NOT WIN32)
+  idlc_generate(TARGET Array100 FILES Array100.idl)
+
   add_cunit_executable(cunit_ddsc_iox
     "iceoryx.c"
     "test_util.c"
@@ -155,7 +157,7 @@ if(iceoryx_binding_c_FOUND AND NOT WIN32)
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
 
-  target_link_libraries(cunit_ddsc_iox PRIVATE RoundTrip Space ddsc)
+  target_link_libraries(cunit_ddsc_iox PRIVATE RoundTrip Space Array100 ddsc)
 
   # We need to start RouDi, so we need to find it
   find_program(ICEORYX_ROUDI iox-roudi REQUIRED)
@@ -195,10 +197,12 @@ kill -0 `cat ctest_fixture_iox_roudi.pid`")
   add_test(NAME stop_roudi COMMAND bash -c "kill `cat ctest_fixture_iox_roudi.pid` ; cat ctest_fixture_iox_roudi.output")
 
   set_tests_properties(CUnit_ddsc_iceoryx_one_writer PROPERTIES FIXTURES_REQUIRED iox)
+  set_tests_properties(CUnit_ddsc_iceoryx_return_loan PROPERTIES FIXTURES_REQUIRED iox)
   set_tests_properties(start_roudi PROPERTIES FIXTURES_SETUP iox)
   set_tests_properties(stop_roudi PROPERTIES FIXTURES_CLEANUP iox)
   set_tests_properties(
     CUnit_ddsc_iceoryx_one_writer
+    CUnit_ddsc_iceoryx_return_loan
     start_roudi
     stop_roudi
     PROPERTIES RESOURCE_LOCK iox_lock)

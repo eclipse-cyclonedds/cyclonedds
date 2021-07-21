@@ -26,6 +26,7 @@
 #include "dds__entity.h"
 
 #include "test_common.h"
+#include "Array100.h"
 
 static const struct shm_locator {
   unsigned char a[16];
@@ -288,7 +289,7 @@ static bool allmatched (dds_entity_t ws, dds_entity_t wr, int nrds, const dds_en
   while (dds_time () < abstimeout)
   {
     (void) dds_waitset_wait_until (ws, NULL, 0, abstimeout);
-    
+
     dds_instance_handle_t ms[MAX_DOMAINS * MAX_READERS_PER_DOMAIN];
     int32_t nms = dds_get_matched_subscriptions (wr, ms, sizeof (ms) / sizeof (ms[0]));
     CU_ASSERT_FATAL (nms >= 0);
@@ -307,13 +308,13 @@ static bool allmatched (dds_entity_t ws, dds_entity_t wr, int nrds, const dds_en
     qsort (mguids, (size_t) nms, sizeof (mguids[0]), compare_guid);
     if (memcmp (mguids, rdguids, (size_t) nms * sizeof (*mguids)) != 0)
       continue;
-    
+
     int mc = 0;
     for (int i = 0; i < nrds; i++)
       mc += get_current_match_count (rds[i]);
     if (mc != nrds)
       continue;
-    
+
     return true;
   }
   return false;
@@ -384,7 +385,7 @@ static bool alldataseen (struct tracebuf *tb, int nrds, const dds_entity_t rds[n
       if (dataseen[i] == 0)
         alldataseen = false;
   } while (!alldataseen && dds_time () < abstimeout);
-  
+
   if (!alldataseen)
   {
     for (int i = 0; i < nrds; i++)
@@ -478,7 +479,7 @@ static void dotest (void)
         if (i > 0 && dom > (i - 1) / MAX_READERS_PER_DOMAIN)
           print (&tb, " |");
         print (&tb, " %s", (rdmode[i] == 2) ? "iox" : "dds");
-        
+
         rds[i] = create_reader (tp[dom], rdmode[i] == 2);
         const uint32_t port = reader_unicast_port (rds[i]);
         if (dom == 0)
@@ -601,3 +602,37 @@ CU_Test(ddsc_iceoryx, one_writer, .timeout = 30)
   dotest ();
   CU_ASSERT (!failed);
 }
+
+CU_Test(ddsc_iceoryx, return_loan)
+{
+  dds_return_t rc;
+  const dds_entity_t pp = create_participant (0, true);
+  char topicname[100];
+  create_unique_topic_name ("test_iceoryx", topicname, sizeof (topicname));
+  const dds_entity_t tp = dds_create_topic (pp, &Array100_desc, topicname, NULL, NULL);
+  CU_ASSERT_FATAL (tp > 0);
+  const dds_entity_t wr = create_writer (tp, true);
+
+  // RouDI config says 10000 * 256 bytes
+  // there's some overhead involved, 100 bytes should be ok
+  // try 1 .. 3 outstanding loans, and try it so often that there is virtually
+  // no chance of it working unless dds_return_loan really does return all loans
+  for (int n = 1; n <= 3; n++)
+  {
+    for (int i = 0; i < 20000; i += n)
+    {
+      void *sample[3];
+      for (int j = 0; j < n; j++)
+      {
+        rc = dds_loan_sample (wr, &sample[j]);
+        CU_ASSERT_FATAL (rc == 0);
+      }
+      rc = dds_return_loan (wr, sample, n);
+      CU_ASSERT_FATAL (rc == 0);
+    }
+  }
+
+  rc = dds_delete (DDS_CYCLONEDDS_HANDLE);
+  CU_ASSERT_FATAL (rc == 0);
+}
+
