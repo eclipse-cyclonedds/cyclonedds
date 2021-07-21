@@ -158,7 +158,8 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
      overhead really matters.  Otherwise, it is pretty much like
      dds_reader_status_cb. */
 
-  const uint32_t data_av_enabled = (ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask) & (DDS_DATA_AVAILABLE_STATUS << SAM_ENABLED_SHIFT));
+  const uint32_t status_and_mask = ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask);
+  const uint32_t data_av_enabled = status_and_mask & (DDS_DATA_AVAILABLE_STATUS << SAM_ENABLED_SHIFT);
   if (data_av_enabled == 0)
     return;
 
@@ -171,13 +172,20 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
   rd->m_entity.m_cb_count++;
 
   struct dds_listener const * const lst = &rd->m_entity.m_listener;
-  dds_entity * const sub = rd->m_entity.m_parent;
 
   bool rd_signal = dds_entity_status_set (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
-  bool sub_signal = dds_entity_status_set (sub, DDS_DATA_ON_READERS_STATUS);
+
+  // avoid dereferencing subscriber if DATA_ON_READERS not materialized
+  bool sub_signal = false;
+  if (status_and_mask & (DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT))
+  {
+    dds_entity * const sub = rd->m_entity.m_parent;
+    sub_signal = dds_entity_status_set (sub, DDS_DATA_ON_READERS_STATUS);
+  }
 
   if (lst->on_data_on_readers)
   {
+    dds_entity * const sub = rd->m_entity.m_parent;
     ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
     ddsrt_mutex_lock (&sub->m_observers_lock);
     const uint32_t data_on_rds_enabled = (ddsrt_atomic_ld32 (&sub->m_status.m_status_and_mask) & (DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT));
@@ -211,12 +219,12 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
 
   if (sub_signal)
   {
+    dds_entity * const sub = rd->m_entity.m_parent;
     ddsrt_mutex_lock (&sub->m_observers_lock);
     if (ddsrt_atomic_ld32 (&sub->m_status.m_status_and_mask) & DDS_DATA_ON_READERS_STATUS)
       dds_entity_observers_signal (sub, DDS_DATA_ON_READERS_STATUS);
     ddsrt_mutex_unlock (&sub->m_observers_lock);
   }
-
   if (rd_signal)
   {
     if (ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask) & DDS_DATA_AVAILABLE_STATUS)
@@ -601,6 +609,11 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   /* Create reader and associated read cache (if not provided by caller) */
   struct dds_reader * const rd = dds_alloc (sizeof (*rd));
   const dds_entity_t reader = dds_entity_init (&rd->m_entity, &sub->m_entity, DDS_KIND_READER, false, true, rqos, listener, DDS_READER_STATUS_MASK);
+  // assume DATA_ON_READERS is materialized in the subscriber:
+  // - changes to it won't be propagated to this reader until after it has been added to the subscriber's children
+  // - data can arrive once `new_reader` is called, requiring raising DATA_ON_READERS if materialized
+  // - setting DATA_ON_READERS on subscriber if it is not actually materialized is no problem
+  ddsrt_atomic_or32 (&rd->m_entity.m_status.m_status_and_mask, DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT);
   rd->m_sample_rejected_status.last_reason = DDS_NOT_REJECTED;
   rd->m_topic = tp;
   rd->m_wrapped_sertopic = (tp->m_stype->wrapped_sertopic != NULL) ? 1 : 0;
@@ -653,6 +666,17 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
   rd->m_entity.m_iid = get_entity_instance_id (&rd->m_entity.m_domain->gv, &rd->m_entity.m_guid);
   dds_entity_register_child (&sub->m_entity, &rd->m_entity);
+
+  // After including the reader amongst the subscriber's children, the subscriber will start
+  // propagating whether data_on_readers is materialised or not.  That doesn't cater for the cases
+  // where pessimistically set it to materialized here, nor for the race where the it actually was
+  // materialized but no longer so prior to `dds_entity_register_child`.
+  ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
+  ddsrt_mutex_lock (&sub->m_entity.m_observers_lock);
+  if (sub->materialize_data_on_readers == 0)
+    ddsrt_atomic_and32 (&rd->m_entity.m_status.m_status_and_mask, ~(uint32_t)(DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT));
+  ddsrt_mutex_unlock (&sub->m_entity.m_observers_lock);
+  ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 
   dds_topic_allow_set_qos (tp);
   dds_topic_unpin (tp);

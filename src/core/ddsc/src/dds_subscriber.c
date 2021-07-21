@@ -68,6 +68,7 @@ dds_entity_t dds__create_subscriber_l (dds_participant *participant, bool implic
   sub = dds_alloc (sizeof (*sub));
   subscriber = dds_entity_init (&sub->m_entity, &participant->m_entity, DDS_KIND_SUBSCRIBER, implicit, true, new_qos, listener, DDS_SUBSCRIBER_STATUS_MASK);
   sub->m_entity.m_iid = ddsi_iid_gen ();
+  sub->materialize_data_on_readers = 0;
   dds_entity_register_child (&participant->m_entity, &sub->m_entity);
   dds_entity_init_complete (&sub->m_entity);
   return subscriber;
@@ -105,3 +106,97 @@ dds_return_t dds_subscriber_end_coherent (dds_entity_t e)
   return dds_generic_unimplemented_operation (e, DDS_KIND_SUBSCRIBER);
 }
 
+bool dds_subscriber_compute_data_on_readers_locked (dds_subscriber *sub)
+{
+  // sub->m_entity.m_mutex must be locked
+  ddsrt_avl_iter_t it;
+  
+  // Returning true when some reader has DATA_AVAILABLE set isn't the correct behaviour
+  // because it doesn't reset the DATA_ON_READERS state on the first read/take on one of
+  // the subscriber's readers.  It seems highly unlikely to be a problem in practice:
+  //
+  // - if one uses a listener, why look at the status?
+  // - if one uses a waitset, it is precise because it is materialized
+  //
+  // so that leaves polling DATA_ON_READERS.  Also it doesn't add any functionality in
+  // Cyclone at this time because the group ordering/coherency isn't implemented yet and
+  // neither is get_datareaders() implemented.
+  //
+  // A possible way to solve this is to add a "virtual clock" to the subscriber (just an
+  // integer that gets updated atomically on all relevant operations) and record in each
+  // reader virtual "time stamp" at which DATA_AVAILABLE was last updated.
+  for (dds_entity *rd = ddsrt_avl_iter_first (&dds_entity_children_td, &sub->m_entity.m_children, &it); rd; rd = ddsrt_avl_iter_next (&it))
+  {
+    const uint32_t sm = ddsrt_atomic_ld32 (&rd->m_status.m_status_and_mask);
+    if (sm & DDS_DATA_AVAILABLE_STATUS)
+      return true;
+  }
+  return false;
+}
+
+void dds_subscriber_adjust_materialize_data_on_readers (dds_subscriber *sub, bool materialization_needed)
+{
+  // no locks held, sub is pinned
+  bool propagate = false;
+  ddsrt_mutex_lock (&sub->m_entity.m_observers_lock);
+  if (materialization_needed)
+  {
+    // FIXME: indeed no need to propagate if flag is already set?
+    if (sub->materialize_data_on_readers++ == 0)
+      propagate = true;
+  }
+  else
+  {
+    assert ((sub->materialize_data_on_readers & DDS_SUB_MATERIALIZE_DATA_ON_READERS_MASK) > 0);
+    if (--sub->materialize_data_on_readers == 0)
+    {
+      sub->materialize_data_on_readers &= ~DDS_SUB_MATERIALIZE_DATA_ON_READERS_FLAG;
+      propagate = true;
+    }
+  }
+  ddsrt_mutex_unlock (&sub->m_entity.m_observers_lock);
+
+  ddsrt_mutex_lock (&sub->m_entity.m_mutex); // needed for iterating over readers, order is m_mutex, then m_observers_lock
+  if (propagate)
+  {
+    // propagate into readers and set DATA_ON_READERS if there is any reader with DATA_AVAILABLE set
+    // no need to trigger waitsets, as this gets done prior to attaching
+    dds_instance_handle_t last_iid = 0;
+    dds_entity *rd;
+    while ((rd = ddsrt_avl_lookup_succ (&dds_entity_children_td, &sub->m_entity.m_children, &last_iid)) != NULL)
+    {
+      last_iid = rd->m_iid;
+      dds_entity *x;
+      if (dds_entity_pin (rd->m_hdllink.hdl, &x) < 0)
+        continue;
+      if (x == rd) // FIXME: can this ever not be true?
+      {
+        ddsrt_mutex_unlock (&sub->m_entity.m_mutex);
+        
+        ddsrt_mutex_lock (&x->m_observers_lock);
+        ddsrt_mutex_lock (&sub->m_entity.m_observers_lock);
+        if (sub->materialize_data_on_readers)
+          ddsrt_atomic_or32 (&x->m_status.m_status_and_mask, DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT);
+        else
+          ddsrt_atomic_and32 (&x->m_status.m_status_and_mask, ~(uint32_t)(DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT));
+        ddsrt_mutex_unlock (&sub->m_entity.m_observers_lock);
+        ddsrt_mutex_unlock (&x->m_observers_lock);
+        
+        ddsrt_mutex_lock (&sub->m_entity.m_mutex);
+      }
+      dds_entity_unpin (x);
+    }
+  }
+
+  /* Set/clear DATA_ON_READERS - no point in triggering waitsets as it becomes materialized prior to
+     attaching it to a waitset. */
+  ddsrt_mutex_lock (&sub->m_entity.m_observers_lock);
+  if (dds_subscriber_compute_data_on_readers_locked (sub))
+    ddsrt_atomic_or32 (&sub->m_entity.m_status.m_status_and_mask, DDS_DATA_ON_READERS_STATUS);
+  else
+    dds_entity_status_reset (&sub->m_entity, DDS_DATA_ON_READERS_STATUS);
+  if ((sub->materialize_data_on_readers & DDS_SUB_MATERIALIZE_DATA_ON_READERS_MASK) != 0)
+    sub->materialize_data_on_readers |= DDS_SUB_MATERIALIZE_DATA_ON_READERS_FLAG;
+  ddsrt_mutex_unlock (&sub->m_entity.m_observers_lock);
+  ddsrt_mutex_unlock (&sub->m_entity.m_mutex);
+}

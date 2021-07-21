@@ -22,6 +22,7 @@
 #include "dds__qos.h"
 #include "dds__topic.h"
 #include "dds__builtin.h"
+#include "dds__subscriber.h" // for non-materialized DATA_ON_READERS
 #include "dds/version.h"
 #include "dds/ddsi/ddsi_pmd.h"
 #include "dds/ddsi/ddsi_xqos.h"
@@ -227,7 +228,10 @@ dds_entity_t dds_entity_init (dds_entity *e, dds_entity *parent, dds_entity_kind
   if (implicit)
     e->m_flags |= DDS_ENTITY_IMPLICIT;
 
-  /* set the status enable based on kind */
+  /* set the status enable based on kind
+     DATA_ON_READERS in mask on a reader, is cleared now, will be set from subscriber in
+     reader-specific init */
+  assert (kind != DDS_KIND_READER || (mask & DDS_DATA_ON_READERS_STATUS) == 0);
   if (entity_has_status (e))
     ddsrt_atomic_st32 (&e->m_status.m_status_and_mask, (uint32_t) mask << SAM_ENABLED_SHIFT);
   else
@@ -442,7 +446,10 @@ static dds_return_t really_delete_pinned_closed_locked (struct dds_entity *e, en
      (FIXME: or committed to?  I think in-progress only, better check.) */
   ddsrt_mutex_lock (&e->m_observers_lock);
   if (entity_has_status (e))
+  {
+    // XXX: leaves DATA_ON_READERS in reader mask unchanged, that should be ok
     ddsrt_atomic_and32 (&e->m_status.m_status_and_mask, SAM_STATUS_MASK);
+  }
 
   ddsrt_mutex_unlock (&e->m_mutex);
 
@@ -1015,6 +1022,8 @@ static void clear_status_with_listener (struct dds_entity *e)
     mask |= DDS_PUBLICATION_MATCHED_STATUS;
   if (lst->on_subscription_matched)
     mask |= DDS_SUBSCRIPTION_MATCHED_STATUS;
+  
+  // XXX: DATA_ON_READERS for a reader is in mask part, left alone here (this only messes with status)
   ddsrt_atomic_and32 (&e->m_status.m_status_and_mask, ~(uint32_t)mask);
 }
 
@@ -1120,6 +1129,9 @@ dds_return_t dds_get_status_mask (dds_entity_t entity, uint32_t *mask)
   {
     assert (entity_has_status (e));
     *mask = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask) >> SAM_ENABLED_SHIFT;
+    // don't leak abuse of DATA_ON_READERS in readers' status masks
+    if (dds_entity_kind (e) == DDS_KIND_READER)
+      *mask &= ~(uint32_t)DDS_DATA_ON_READERS_STATUS;
     ret = DDS_RETCODE_OK;
   }
   dds_entity_unpin(e);
@@ -1159,9 +1171,13 @@ dds_return_t dds_set_status_mask (dds_entity_t entity, uint32_t mask)
     while (e->m_cb_pending_count > 0)
       ddsrt_cond_wait (&e->m_observers_cond, &e->m_observers_lock);
 
+    // readers: don't touch DATA_ON_READERS_STATUS in mask
+    if (dds_entity_kind (e) == DDS_KIND_READER)
+      mask |= DDS_DATA_ON_READERS_STATUS;
     uint32_t old, new;
     do {
       old = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask);
+      assert (!(old & DDS_DATA_ON_READERS_STATUS) || dds_entity_kind (e) != DDS_KIND_READER);
       new = (mask << SAM_ENABLED_SHIFT) | (old & mask);
     } while (!ddsrt_atomic_cas32 (&e->m_status.m_status_and_mask, old, new));
     ddsrt_mutex_unlock (&e->m_observers_lock);
@@ -1198,6 +1214,22 @@ static dds_return_t dds_readtake_status (dds_entity_t entity, uint32_t *status, 
       s = ddsrt_atomic_and32_ov (&e->m_status.m_status_and_mask, ~mask) & mask;
     else
       s = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask) & mask;
+
+    // non-materialized DATA_ON_READERS requires a fix-up
+    if (dds_entity_kind (e) == DDS_KIND_SUBSCRIBER)
+    {
+      dds_subscriber * const sub = (dds_subscriber *) e;
+      ddsrt_mutex_lock (&sub->m_entity.m_observers_lock);
+      if (!(sub->materialize_data_on_readers & DDS_SUB_MATERIALIZE_DATA_ON_READERS_FLAG))
+      {
+        if (dds_subscriber_compute_data_on_readers_locked (sub))
+          s |= DDS_DATA_ON_READERS_STATUS;
+        else
+          s &= ~(uint32_t)DDS_DATA_ON_READERS_STATUS;
+      }
+      ddsrt_mutex_unlock (&sub->m_entity.m_observers_lock);
+    }
+
     *status = s;
   }
   dds_entity_unlock (e);

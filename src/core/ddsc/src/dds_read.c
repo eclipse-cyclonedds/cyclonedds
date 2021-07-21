@@ -103,9 +103,12 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
      the actual writing is protected by RHC lock, not by rd->m_entity.m_lock */
   dds_entity_status_reset (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
 
-  /* reset DATA_ON_READERS status on subscriber after successful read/take */
-  assert (dds_entity_kind (rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER);
-  dds_entity_status_reset (rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
+  /* reset DATA_ON_READERS status on subscriber after successful read/take if materialized */
+  if (ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask) & (DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT))
+  {
+    assert (dds_entity_kind (rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER);
+    dds_entity_status_reset (rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
+  }
 
   if (take)
     ret = dds_rhc_take (rd->m_rhc, lock, buf, si, maxs, mask, hand, cond);
