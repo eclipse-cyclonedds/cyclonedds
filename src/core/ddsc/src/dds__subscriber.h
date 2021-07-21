@@ -36,6 +36,10 @@ dds_return_t
 dds_subscriber_end_coherent (
   dds_entity_t e);
 
+bool dds_subscriber_compute_data_on_readers_locked (dds_subscriber *sub);
+
+void dds_subscriber_adjust_materialize_data_on_readers (dds_subscriber *sub, bool materialization_needed) ddsrt_nonnull_all;
+
 #if defined (__cplusplus)
 }
 #endif
