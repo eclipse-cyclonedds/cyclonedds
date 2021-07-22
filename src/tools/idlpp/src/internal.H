@@ -245,7 +245,7 @@ typedef struct fileinfo {
         int (* last_fputc)  ( int c, OUTDEST od);
         int (* last_fputs)  ( const char * s, OUTDEST od);
         int (* last_fprintf)( OUTDEST od, const char * format, ...)
-                MCPP_ATTRIBUTE((format (printf, 2, 3)));
+                MCPP_ATTRIBUTE_FORMAT_PRINTF(2, 3);
 #endif
 } FILEINFO;
 
@@ -504,7 +504,7 @@ extern void     dump_unget( const char * why);
 extern int      (* mcpp_fputc)( int c, OUTDEST od);
 extern int      (* mcpp_fputs)( const char * s, OUTDEST od);
 extern int      (* mcpp_fprintf)( OUTDEST od, const char * format, ...)
-        MCPP_ATTRIBUTE((format (printf, 2, 3)));
+        MCPP_ATTRIBUTE_FORMAT_PRINTF(2, 3);
 
 /* system.c */
 extern void     do_options( int argc, char ** argv, char ** in_pp

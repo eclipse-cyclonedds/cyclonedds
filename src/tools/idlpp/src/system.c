@@ -458,8 +458,12 @@ void    do_options(
     set_cplus_dir = TRUE;
 
     /* Get current directory for -I option and #pragma once */
+#if SYS_FAMILY == SYS_WIN
     assert( cwd_sz < INT_MAX);
-    cwd = getcwd( cur_work_dir, cwd_sz - 1);
+    cwd = getcwd( cur_work_dir, (int)(cwd_sz - 1u));
+#else
+    cwd = getcwd( cur_work_dir, cwd_sz - 1u);
+#endif
     assert( cwd && cwd == cur_work_dir);
 #if SYS_FAMILY == SYS_WIN
     bsl2sl( cwd);
@@ -1926,9 +1930,9 @@ static void init_cpu_macro (
     if (index == 0) {
         char    val[] = "600";
         if (gval)
-            val[ 0] = gval;
+            val[ 0] = (char)(unsigned char)gval;
         look_and_install( "_M_IX86", DEF_NOARGS_PREDEF, null, val);
-        val[ 0] = '0' + sse;
+        val[ 0] = (char)('0' + (char)(unsigned char)sse);
         val[ 1] = '\0';
         look_and_install( "_M_IX86_FP", DEF_NOARGS_PREDEF, null, val);
     }
@@ -3963,9 +3967,9 @@ void    sharp(
     if (keep_comments)
         mcpp_fputc( '\n', OUT);         /* Ensure to be on line top */
     if (std_line_prefix)
-        mcpp_fprintf( OUT, "#line %lu", line);
+        mcpp_fprintf( OUT, "#line %zu", line);
     else
-        mcpp_fprintf( OUT, "%s%lu", LINE_PREFIX, line);
+        mcpp_fprintf( OUT, "%s%zu", LINE_PREFIX, line);
     cur_file( file, sharp_file, flag);
     mcpp_fputc( '\n', OUT);
 sharp_exit:

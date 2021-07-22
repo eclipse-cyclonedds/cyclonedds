@@ -1653,7 +1653,7 @@ void    dump_a_def(
             /* Standard predefined or one-pass-compiler-predefined  */
         mcpp_fputs( " */", FP2DEST( fp));
     if (comment)                            /* Not -dM option       */
-        mcpp_fprintf( FP2DEST( fp), " \t/* %s:%ld\t*/", dp->fname, dp->mline);
+        mcpp_fprintf( FP2DEST( fp), " \t/* %s:%zu\t*/", dp->fname, dp->mline);
     mcpp_fputc( '\n', FP2DEST( fp));
 }
 
