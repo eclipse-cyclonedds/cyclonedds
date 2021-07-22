@@ -1538,7 +1538,7 @@ int     get_ch( void)
     }
 
     if (mcpp_debug & GETC) {
-        mcpp_fprintf( DBG, "get_ch(%s) '%c' line %ld, bptr = %d, buffer"
+        mcpp_fprintf( DBG, "get_ch(%s) '%c' line %zu, bptr = %d, buffer"
             , file->fp ? cur_fullname : file->real_fname ? file->real_fname
             : file->filename ? file->filename : "NULL"
             , *file->bptr & UCHARMAX
@@ -2569,13 +2569,13 @@ static void do_msg(
             if (file->buffer[ 0] == '\0')
                 strcpy( file->buffer, "\n");
             if (mcpp_mode != OLD_PREP) {
-                mcpp_fprintf( ERR, "    from %s: %ld:    %s",
+                mcpp_fprintf( ERR, "    from %s: %zu:    %s",
                     file->line ? file->full_fname       /* Full-path-list   */
                         : "<stdin>",        /* Included by -include */
                     file->line,             /* Current line number  */
                     file->buffer);          /* The source line      */
             } else {
-                mcpp_fprintf( ERR, "    from %s: %ld:    ", file->full_fname
+                mcpp_fprintf( ERR, "    from %s: %zu:    ", file->full_fname
                         , file->line);
                 put_line( file->buffer, fp_err);
             }
