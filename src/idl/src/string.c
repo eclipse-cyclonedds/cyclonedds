@@ -36,7 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined _MSC_VER
+#if defined _WIN32
 # include <locale.h>
 typedef _locale_t locale_t;
 #else
@@ -57,7 +57,7 @@ static locale_t posix_locale(void);
 #if _WIN32
 int idl_isalnum(int c) { return _isalnum_l(c, posix_locale()); }
 int idl_isalpha(int c) { return _isalpha_l(c, posix_locale()); }
-int idl_isblank(int c) { return _isblank_l(c, posix_locale()); }
+//int idl_isblank(int c) { return _isblank_l(c, posix_locale()); }
 int idl_iscntrl(int c) { return _iscntrl_l(c, posix_locale()); }
 int idl_isgraph(int c) { return _isgraph_l(c, posix_locale()); }
 int idl_islower(int c) { return _islower_l(c, posix_locale()); }
@@ -142,8 +142,10 @@ char *idl_strndup(const char *str, size_t len)
 int idl_vsnprintf(char *str, size_t size, const char *fmt, va_list ap)
 {
 #if _WIN32
+#if _MSC_VER
 __pragma(warning(push))
 __pragma(warning(disable: 4996))
+#endif
   int ret;
   va_list ap2;
   /* _vsprintf_p_l supports positional parameters */
@@ -152,7 +154,9 @@ __pragma(warning(disable: 4996))
     ret = _vscprintf_p_l(fmt, posix_locale(), ap2);
   va_end(ap2);
   return ret;
+#if _MSC_VER
 __pragma(warning(pop))
+#endif
 #elif __APPLE__ || __FreeBSD__
   return vsnprintf_l(str, size, posix_locale(), fmt, ap);
 #else
@@ -244,7 +248,11 @@ unsigned long long idl_strtoull(const char *str, char **endptr, int base)
   assert(str);
   assert(base >= 0 && base <= 36);
 #if _WIN32
+#if __GNUC__
+  return strtoull(str, endptr, base);
+#else
   return _strtoull_l(str, endptr, base, posix_locale());
+#endif
 #else
   return strtoull_l(str, endptr, base, posix_locale());
 #endif
@@ -254,7 +262,11 @@ long double idl_strtold(const char *str, char **endptr)
 {
   assert(str);
 #if _WIN32
+#if __GNUC__
+  return strtold(str, endptr);
+#else
   return _strtold_l(str, endptr, posix_locale());
+#endif
 #else
   return strtold_l(str, endptr, posix_locale());
 #endif
@@ -320,8 +332,16 @@ FILE *idl_fopen(const char *pathname, const char *mode)
 }
 
 #if defined _WIN32
+#if defined __MINGW32__
+static __thread locale_t locale = NULL;
+#else
 static __declspec(thread) locale_t locale = NULL;
+#endif
 
+#if defined __MINGW32__
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wmissing-prototypes\"")
+#endif
 void idl_create_locale(void)
 {
   locale = _create_locale(LC_ALL, "C");
@@ -332,6 +352,9 @@ void idl_delete_locale(void)
   _free_locale(locale);
   locale = NULL;
 }
+#if defined __MINGW32__
+_Pragma("GCC diagnostic pop")
+#endif
 
 static locale_t posix_locale(void)
 {

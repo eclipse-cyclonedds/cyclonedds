@@ -510,7 +510,14 @@ literal:
         $$ = NULL;
         if (pstate->parser.state == IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           break;
+#if __MINGW32__
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wfloat-conversion\"")
+#endif
         if (isnan((double)$1) || isinf((double)$1)) {
+#if __MINGW32__
+_Pragma("GCC diagnostic pop")
+#endif
           type = IDL_LDOUBLE;
           literal.value.ldbl = $1;
         } else {

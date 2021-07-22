@@ -175,9 +175,9 @@ copyname(const wchar_t *wstr, char **strp)
 
   len = WideCharToMultiByte(
     CP_UTF8, WC_ERR_INVALID_CHARS, wstr, -1, buf, 0, NULL, NULL);
-  if (len == 0) {
+  if (len <= 0) {
     return DDS_RETCODE_BAD_PARAMETER;
-  } else if ((str = ddsrt_malloc_s(len)) == NULL) {
+  } else if ((str = ddsrt_malloc_s((size_t)len)) == NULL) {
     return DDS_RETCODE_OUT_OF_RESOURCES;
   }
 

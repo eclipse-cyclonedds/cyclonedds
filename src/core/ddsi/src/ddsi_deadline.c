@@ -72,8 +72,8 @@ void deadline_fini (const struct deadline_adm *deadline_adm)
   (void) deadline_adm;
 }
 
-extern inline void deadline_register_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow);
-extern inline void deadline_reregister_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow);
+DDS_EXPORT extern inline void deadline_register_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow);
+DDS_EXPORT extern inline void deadline_reregister_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow);
 
 void deadline_register_instance_real (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tprev, ddsrt_mtime_t tnow)
 {
@@ -83,7 +83,7 @@ void deadline_register_instance_real (struct deadline_adm *deadline_adm, struct 
   resched_xevent_if_earlier (deadline_adm->evt, elem->t_deadline);
 }
 
-extern inline void deadline_unregister_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem);
+DDS_EXPORT extern inline void deadline_unregister_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem);
 
 void deadline_unregister_instance_real (struct deadline_adm *deadline_adm, struct deadline_elem *elem)
 {
@@ -96,7 +96,7 @@ void deadline_unregister_instance_real (struct deadline_adm *deadline_adm, struc
   ddsrt_circlist_remove(&deadline_adm->list, &elem->e);
 }
 
-extern inline void deadline_renew_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem);
+DDS_EXPORT extern inline void deadline_renew_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem);
 
 void deadline_renew_instance_real (struct deadline_adm *deadline_adm, struct deadline_elem *elem)
 {

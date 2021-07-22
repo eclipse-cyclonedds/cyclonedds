@@ -15,6 +15,7 @@
 #include "dds/ddsrt/countargs.h"
 #include "dds__types.h"
 #include "dds/ddsi/q_thread.h"
+#include "dds/export.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -47,8 +48,8 @@ dds_entity_drop_ref(dds_entity *e);
 DDS_EXPORT void
 dds_entity_unpin_and_drop_ref (dds_entity *e);
 
-#define DEFINE_ENTITY_LOCK_UNLOCK(qualifier_, type_, kind_) \
-  qualifier_ dds_return_t type_##_lock (dds_entity_t hdl, type_ **x) \
+#define DEFINE_ENTITY_LOCK_UNLOCK(type_, kind_) \
+  DDS_INLINE_EXPORT inline dds_return_t type_##_lock (dds_entity_t hdl, type_ **x) \
   { \
     dds_return_t rc; \
     dds_entity *e; \
@@ -57,33 +58,33 @@ dds_entity_unpin_and_drop_ref (dds_entity *e);
     *x = (type_ *) e; \
     return DDS_RETCODE_OK; \
   } \
-  qualifier_ void type_##_unlock (type_ *x) \
+  DDS_INLINE_EXPORT inline void type_##_unlock (type_ *x) \
   { \
     dds_entity_unlock (&x->m_entity); \
   }
-#define DECL_ENTITY_LOCK_UNLOCK(qualifier_, type_) \
-  qualifier_ dds_return_t type_##_lock (dds_entity_t hdl, type_ **x); \
-  qualifier_ void type_##_unlock (type_ *x);
+#define DECL_ENTITY_LOCK_UNLOCK(type_) \
+  DDS_EXPORT extern inline dds_return_t type_##_lock (dds_entity_t hdl, type_ **x); \
+  DDS_EXPORT extern inline void type_##_unlock (type_ *x);
 
-DDS_EXPORT inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink) {
+DDS_INLINE_EXPORT inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink) {
   return (dds_entity *) ((char *) hdllink - offsetof (struct dds_entity, m_hdllink));
 }
 
-DDS_EXPORT inline bool dds_entity_is_enabled (const dds_entity *e) {
+DDS_INLINE_EXPORT inline bool dds_entity_is_enabled (const dds_entity *e) {
   return (e->m_flags & DDS_ENTITY_ENABLED) != 0;
 }
 
 DDS_EXPORT bool dds_entity_status_set (dds_entity *e, status_mask_t t) ddsrt_attribute_warn_unused_result;
 
-DDS_EXPORT inline void dds_entity_status_reset (dds_entity *e, status_mask_t t) {
+DDS_INLINE_EXPORT inline void dds_entity_status_reset (dds_entity *e, status_mask_t t) {
   ddsrt_atomic_and32 (&e->m_status.m_status_and_mask, SAM_ENABLED_MASK | (status_mask_t) ~t);
 }
 
-DDS_EXPORT inline uint32_t dds_entity_status_reset_ov (dds_entity *e, status_mask_t t) {
+DDS_INLINE_EXPORT inline uint32_t dds_entity_status_reset_ov (dds_entity *e, status_mask_t t) {
   return ddsrt_atomic_and32_ov (&e->m_status.m_status_and_mask, SAM_ENABLED_MASK | (status_mask_t) ~t);
 }
 
-DDS_EXPORT inline dds_entity_kind_t dds_entity_kind (const dds_entity *e) {
+DDS_INLINE_EXPORT inline dds_entity_kind_t dds_entity_kind (const dds_entity *e) {
   return e->m_kind;
 }
 

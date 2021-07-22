@@ -1290,12 +1290,12 @@ void ddsi_handshake_admin_stop(struct ddsi_domaingv *gv)
 
 #else
 
-extern inline void ddsi_handshake_release(UNUSED_ARG(struct ddsi_handshake *handshake));
-extern inline void ddsi_handshake_crypto_tokens_received(UNUSED_ARG(struct ddsi_handshake *handshake));
-extern inline int64_t ddsi_handshake_get_shared_secret(UNUSED_ARG(const struct ddsi_handshake *handshake));
-extern inline int64_t ddsi_handshake_get_handle(UNUSED_ARG(const struct ddsi_handshake *handshake));
-extern inline void ddsi_handshake_register(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp), UNUSED_ARG(ddsi_handshake_end_cb_t callback));
-extern inline void ddsi_handshake_remove(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp), UNUSED_ARG(struct ddsi_handshake *handshake));
-extern inline struct ddsi_handshake * ddsi_handshake_find(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp));
+DDS_EXPORT extern inline void ddsi_handshake_release(UNUSED_ARG(struct ddsi_handshake *handshake));
+DDS_EXPORT extern inline void ddsi_handshake_crypto_tokens_received(UNUSED_ARG(struct ddsi_handshake *handshake));
+DDS_EXPORT extern inline int64_t ddsi_handshake_get_shared_secret(UNUSED_ARG(const struct ddsi_handshake *handshake));
+DDS_EXPORT extern inline int64_t ddsi_handshake_get_handle(UNUSED_ARG(const struct ddsi_handshake *handshake));
+DDS_EXPORT extern inline void ddsi_handshake_register(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp), UNUSED_ARG(ddsi_handshake_end_cb_t callback));
+DDS_EXPORT extern inline void ddsi_handshake_remove(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp), UNUSED_ARG(struct ddsi_handshake *handshake));
+DDS_EXPORT extern inline struct ddsi_handshake * ddsi_handshake_find(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp));
 
 #endif /* DDS_HAS_DDS_SECURITY */

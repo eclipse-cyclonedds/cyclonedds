@@ -529,7 +529,7 @@ static size_t cfg_note (struct cfgst *cfgst, uint32_t cat, size_t bsz, const cha
   return 0;
 }
 
-static void cfg_warning (struct cfgst *cfgst, const char *fmt, ...) ddsrt_attribute_format ((printf, 2, 3));
+static void cfg_warning (struct cfgst *cfgst, const char *fmt, ...) ddsrt_attribute_format_printf(2, 3);
 
 static void cfg_warning (struct cfgst *cfgst, const char *fmt, ...)
 {
@@ -542,7 +542,7 @@ static void cfg_warning (struct cfgst *cfgst, const char *fmt, ...)
   } while (bsz > 0);
 }
 
-static enum update_result cfg_error (struct cfgst *cfgst, const char *fmt, ...) ddsrt_attribute_format ((printf, 2, 3));
+static enum update_result cfg_error (struct cfgst *cfgst, const char *fmt, ...) ddsrt_attribute_format_printf(2, 3);
 
 static enum update_result cfg_error (struct cfgst *cfgst, const char *fmt, ...)
 {
@@ -556,7 +556,7 @@ static enum update_result cfg_error (struct cfgst *cfgst, const char *fmt, ...)
   return URES_ERROR;
 }
 
-static void cfg_logelem (struct cfgst *cfgst, uint32_t sources, const char *fmt, ...) ddsrt_attribute_format ((printf, 3, 4));
+static void cfg_logelem (struct cfgst *cfgst, uint32_t sources, const char *fmt, ...) ddsrt_attribute_format_printf(3, 4);
 
 static void cfg_logelem (struct cfgst *cfgst, uint32_t sources, const char *fmt, ...)
 {
@@ -836,7 +836,7 @@ static enum update_result uf_natint64_unit(struct cfgst *cfgst, int64_t *elem, c
   if (*value == 0) {
     *elem = 0; /* some static analyzers don't "get it" */
     return cfg_error(cfgst, "%s: empty string is not a valid value", value);
-  } else if (sscanf (value, "%lld%n", (long long int *) &v_int, &pos) == 1 && (mult = lookup_multiplier (cfgst, unittab, value, pos, v_int == 0, def_mult, 0)) != 0) {
+  } else if (sscanf (value, "%" SCNd64 "%n", &v_int, &pos) == 1 && (mult = lookup_multiplier (cfgst, unittab, value, pos, v_int == 0, def_mult, 0)) != 0) {
     assert(mult > 0);
     if (v_int < 0 || v_int > max / mult || mult * v_int < min)
       return cfg_error (cfgst, "%s: value out of range", value);

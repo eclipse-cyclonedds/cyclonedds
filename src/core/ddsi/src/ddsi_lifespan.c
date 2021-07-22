@@ -63,7 +63,7 @@ void lifespan_fini (const struct lifespan_adm *lifespan_adm)
   delete_xevent_callback (lifespan_adm->evt);
 }
 
-extern inline void lifespan_register_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);
+DDS_EXPORT extern inline void lifespan_register_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);
 
 void lifespan_register_sample_real (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node)
 {
@@ -71,7 +71,7 @@ void lifespan_register_sample_real (struct lifespan_adm *lifespan_adm, struct li
   resched_xevent_if_earlier (lifespan_adm->evt, node->t_expire);
 }
 
-extern inline void lifespan_unregister_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);
+DDS_EXPORT extern inline void lifespan_unregister_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);
 
 void lifespan_unregister_sample_real (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node)
 {

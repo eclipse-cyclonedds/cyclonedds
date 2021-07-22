@@ -97,13 +97,13 @@ uint32_t ddsi_sertopic_compute_serdata_basehash (const struct ddsi_sertopic_serd
   return res;
 }
 
-extern inline void ddsi_sertopic_free (struct ddsi_sertopic *tp);
-extern inline void ddsi_sertopic_zero_samples (const struct ddsi_sertopic *tp, void *samples, size_t count);
-extern inline void ddsi_sertopic_realloc_samples (void **ptrs, const struct ddsi_sertopic *tp, void *old, size_t oldcount, size_t count);
-extern inline void ddsi_sertopic_free_samples (const struct ddsi_sertopic *tp, void **ptrs, size_t count, dds_free_op_t op);
-extern inline void ddsi_sertopic_zero_sample (const struct ddsi_sertopic *tp, void *sample);
-extern inline void ddsi_sertopic_free_sample (const struct ddsi_sertopic *tp, void *sample, dds_free_op_t op);
-extern inline void *ddsi_sertopic_alloc_sample (const struct ddsi_sertopic *tp);
+DDS_EXPORT extern inline void ddsi_sertopic_free (struct ddsi_sertopic *tp);
+DDS_EXPORT extern inline void ddsi_sertopic_zero_samples (const struct ddsi_sertopic *tp, void *samples, size_t count);
+DDS_EXPORT extern inline void ddsi_sertopic_realloc_samples (void **ptrs, const struct ddsi_sertopic *tp, void *old, size_t oldcount, size_t count);
+DDS_EXPORT extern inline void ddsi_sertopic_free_samples (const struct ddsi_sertopic *tp, void **ptrs, size_t count, dds_free_op_t op);
+DDS_EXPORT extern inline void ddsi_sertopic_zero_sample (const struct ddsi_sertopic *tp, void *sample);
+DDS_EXPORT extern inline void ddsi_sertopic_free_sample (const struct ddsi_sertopic *tp, void *sample, dds_free_op_t op);
+DDS_EXPORT extern inline void *ddsi_sertopic_alloc_sample (const struct ddsi_sertopic *tp);
 
 static bool sertopic_equal_wrap (const struct ddsi_sertype *a, const struct ddsi_sertype *b)
 {

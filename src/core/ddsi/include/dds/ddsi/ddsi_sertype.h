@@ -18,6 +18,7 @@
 #include "dds/ddsi/ddsi_typeid.h"
 #include "dds/ddsc/dds_public_alloc.h"
 #include "dds/features.h"
+#include "dds/export.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -167,36 +168,36 @@ DDS_EXPORT bool ddsi_sertype_equal (const struct ddsi_sertype *a, const struct d
 DDS_EXPORT uint32_t ddsi_sertype_hash (const struct ddsi_sertype *tp);
 DDS_EXPORT bool ddsi_sertype_serialize (const struct ddsi_sertype *tp, size_t *dst_pos, unsigned char **dst_buf);
 
-DDS_EXPORT inline void ddsi_sertype_free (struct ddsi_sertype *tp) {
+DDS_INLINE_EXPORT inline void ddsi_sertype_free (struct ddsi_sertype *tp) {
   tp->ops->free (tp);
 }
-DDS_EXPORT inline void ddsi_sertype_zero_samples (const struct ddsi_sertype *tp, void *samples, size_t count) {
+DDS_INLINE_EXPORT inline void ddsi_sertype_zero_samples (const struct ddsi_sertype *tp, void *samples, size_t count) {
   tp->ops->zero_samples (tp, samples, count);
 }
-DDS_EXPORT inline void ddsi_sertype_realloc_samples (void **ptrs, const struct ddsi_sertype *tp, void *old, size_t oldcount, size_t count)
+DDS_INLINE_EXPORT inline void ddsi_sertype_realloc_samples (void **ptrs, const struct ddsi_sertype *tp, void *old, size_t oldcount, size_t count)
 {
   tp->ops->realloc_samples (ptrs, tp, old, oldcount, count);
 }
-DDS_EXPORT inline void ddsi_sertype_free_samples (const struct ddsi_sertype *tp, void **ptrs, size_t count, dds_free_op_t op) {
+DDS_INLINE_EXPORT inline void ddsi_sertype_free_samples (const struct ddsi_sertype *tp, void **ptrs, size_t count, dds_free_op_t op) {
   tp->ops->free_samples (tp, ptrs, count, op);
 }
-DDS_EXPORT inline void ddsi_sertype_zero_sample (const struct ddsi_sertype *tp, void *sample) {
+DDS_INLINE_EXPORT inline void ddsi_sertype_zero_sample (const struct ddsi_sertype *tp, void *sample) {
   ddsi_sertype_zero_samples (tp, sample, 1);
 }
-DDS_EXPORT inline void *ddsi_sertype_alloc_sample (const struct ddsi_sertype *tp) {
+DDS_INLINE_EXPORT inline void *ddsi_sertype_alloc_sample (const struct ddsi_sertype *tp) {
   void *ptr;
   ddsi_sertype_realloc_samples (&ptr, tp, NULL, 0, 1);
   return ptr;
 }
-DDS_EXPORT inline void ddsi_sertype_free_sample (const struct ddsi_sertype *tp, void *sample, dds_free_op_t op) {
+DDS_INLINE_EXPORT inline void ddsi_sertype_free_sample (const struct ddsi_sertype *tp, void *sample, dds_free_op_t op) {
   ddsi_sertype_free_samples (tp, &sample, 1, op);
 }
-DDS_EXPORT inline bool ddsi_sertype_typeid_hash (const struct ddsi_sertype *tp, unsigned char *buf) {
+DDS_INLINE_EXPORT inline bool ddsi_sertype_typeid_hash (const struct ddsi_sertype *tp, unsigned char *buf) {
   if (!tp->ops->typeid_hash)
     return false;
   return tp->ops->typeid_hash (tp, buf);
 }
-DDS_EXPORT inline bool ddsi_sertype_assignable_from (const struct ddsi_sertype *type_a, const struct ddsi_sertype *type_b) {
+DDS_INLINE_EXPORT inline bool ddsi_sertype_assignable_from (const struct ddsi_sertype *type_a, const struct ddsi_sertype *type_b) {
   /* If one of the types does not have a assignability check function
      (e.g. because it is an older sertype implementation), consider
      the types as assignable */

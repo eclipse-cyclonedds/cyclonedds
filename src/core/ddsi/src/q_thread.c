@@ -31,18 +31,18 @@
 struct thread_states thread_states;
 ddsrt_thread_local struct thread_state1 *tsd_thread_state;
 
-extern inline bool vtime_awake_p (vtime_t vtime);
-extern inline bool vtime_asleep_p (vtime_t vtime);
-extern inline bool vtime_gt (vtime_t vtime1, vtime_t vtime0);
+DDS_EXPORT extern inline bool vtime_awake_p (vtime_t vtime);
+DDS_EXPORT extern inline bool vtime_asleep_p (vtime_t vtime);
+DDS_EXPORT extern inline bool vtime_gt (vtime_t vtime1, vtime_t vtime0);
 
-extern inline struct thread_state1 *lookup_thread_state (void);
-extern inline bool thread_is_asleep (void);
-extern inline bool thread_is_awake (void);
-extern inline void thread_state_asleep (struct thread_state1 *ts1);
-extern inline void thread_state_awake (struct thread_state1 *ts1, const struct ddsi_domaingv *gv);
-extern inline void thread_state_awake_domain_ok (struct thread_state1 *ts1);
-extern inline void thread_state_awake_fixed_domain (struct thread_state1 *ts1);
-extern inline void thread_state_awake_to_awake_no_nest (struct thread_state1 *ts1);
+DDS_EXPORT extern inline struct thread_state1 *lookup_thread_state (void);
+DDS_EXPORT extern inline bool thread_is_asleep (void);
+DDS_EXPORT extern inline bool thread_is_awake (void);
+DDS_EXPORT extern inline void thread_state_asleep (struct thread_state1 *ts1);
+DDS_EXPORT extern inline void thread_state_awake (struct thread_state1 *ts1, const struct ddsi_domaingv *gv);
+DDS_EXPORT extern inline void thread_state_awake_domain_ok (struct thread_state1 *ts1);
+DDS_EXPORT extern inline void thread_state_awake_fixed_domain (struct thread_state1 *ts1);
+DDS_EXPORT extern inline void thread_state_awake_to_awake_no_nest (struct thread_state1 *ts1);
 
 static struct thread_state1 *init_thread_state (const char *tname, const struct ddsi_domaingv *gv, enum thread_state state);
 static void reap_thread_state (struct thread_state1 *ts1, bool in_thread_states_fini);

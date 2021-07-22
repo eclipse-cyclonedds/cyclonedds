@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2019 ADLINK Technology Limited and others
+ * Copyright(c) 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -12,14 +12,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <dds/ddsrt/dynlib.h>
-#include "CUnit/Test.h"
+
+#include "dds/ddsrt/dynlib.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/environ.h"
-#include "dl_test.h"
 
-#define TEST_LIB_FILE     ""TEST_LIB_PREFIX""TEST_LIB_NAME""TEST_LIB_SUFFIX""
+#include "CUnit/Test.h"
+
+#include "dl.h"
+
 #define TEST_LIB_ABSOLUTE ""TEST_LIB_DIR""TEST_LIB_SEP""TEST_LIB_FILE""
 
 #define TEST_ABORT_IF_NULL(var, msg) \
@@ -189,5 +191,4 @@ CU_Test(ddsrt_library, dlclose_error)
 
     r = ddsrt_dlclose( l ); /*already closed handle */
     CU_ASSERT_EQUAL(r, DDS_RETCODE_ERROR);
-
 }

@@ -157,14 +157,14 @@ DDSI_LIST_GENERIC_PTR_DECL(inline, proxy_topic_list, struct proxy_topic *, ddsrt
 DDSI_LIST_GENERIC_PTR_CODE(inline, proxy_topic_list, struct proxy_topic *, proxy_topic_equal)
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
 
-extern inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid);
-extern inline bool builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type);
-extern inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid);
-extern inline void builtintopic_write_endpoint (const struct ddsi_builtin_topic_interface *btif, const struct entity_common *e, ddsrt_wctime_t timestamp, bool alive);
-extern inline void builtintopic_write_topic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive);
+DDS_EXPORT extern inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid);
+DDS_EXPORT extern inline bool builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type);
+DDS_EXPORT extern inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid);
+DDS_EXPORT extern inline void builtintopic_write_endpoint (const struct ddsi_builtin_topic_interface *btif, const struct entity_common *e, ddsrt_wctime_t timestamp, bool alive);
+DDS_EXPORT extern inline void builtintopic_write_topic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive);
 
-extern inline seqno_t writer_read_seq_xmit (const struct writer *wr);
-extern inline void writer_update_seq_xmit (struct writer *wr, seqno_t nv);
+DDS_EXPORT extern inline seqno_t writer_read_seq_xmit (const struct writer *wr);
+DDS_EXPORT extern inline void writer_update_seq_xmit (struct writer *wr, seqno_t nv);
 
 static int compare_guid (const void *va, const void *vb)
 {

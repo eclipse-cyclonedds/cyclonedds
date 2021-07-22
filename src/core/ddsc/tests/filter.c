@@ -145,7 +145,7 @@ struct exp {
 };
 
 static void checkdata (dds_entity_t rd, const struct exp *exp, const char *headerfmt, ...)
-  ddsrt_attribute_format((printf, 3, 4));
+  ddsrt_attribute_format_printf(3, 4);
 
 static void checkdata (dds_entity_t rd, const struct exp *exp, const char *headerfmt, ...)
 {

@@ -18,8 +18,8 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_misc.h"
 
-extern inline seqno_t fromSN (const nn_sequence_number_t sn);
-extern inline nn_sequence_number_t toSN (seqno_t n);
+DDS_EXPORT extern inline seqno_t fromSN (const nn_sequence_number_t sn);
+DDS_EXPORT extern inline nn_sequence_number_t toSN (seqno_t n);
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
 int WildcardOverlap(char * p1, char * p2)

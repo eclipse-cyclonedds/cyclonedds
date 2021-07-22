@@ -15,6 +15,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <signal.h>
 #include <assert.h>
@@ -340,8 +341,8 @@ static ddsrt_fibheap_t ppants_to_match;
 
 /* Printing error messages: error2 is for DDS errors, error3 is for usage errors */
 static void verrorx (int exitcode, const char *fmt, va_list ap) ddsrt_attribute_noreturn;
-static void error2 (const char *fmt, ...) ddsrt_attribute_format ((printf, 1, 2)) ddsrt_attribute_noreturn;
-static void error3 (const char *fmt, ...) ddsrt_attribute_format ((printf, 1, 2)) ddsrt_attribute_noreturn;
+static void error2 (const char *fmt, ...) ddsrt_attribute_format_printf(1, 2) ddsrt_attribute_noreturn;
+static void error3 (const char *fmt, ...) ddsrt_attribute_format_printf(1, 2) ddsrt_attribute_noreturn;
 
 static void publication_matched_listener (dds_entity_t wr, const dds_publication_matched_status_t status, void *arg);
 
@@ -437,7 +438,7 @@ static void hist_record (struct hist *h, uint64_t x, unsigned weight)
     h->bins[(x - h->bin0) / h->binwidth] += weight;
 }
 
-static void xsnprintf(char *buf, size_t bufsz, size_t *p, const char *fmt, ...) ddsrt_attribute_format((printf, 4, 5));
+static void xsnprintf(char *buf, size_t bufsz, size_t *p, const char *fmt, ...) ddsrt_attribute_format_printf(4, 5);
 
 static void xsnprintf(char *buf, size_t bufsz, size_t *p, const char *fmt, ...)
 {

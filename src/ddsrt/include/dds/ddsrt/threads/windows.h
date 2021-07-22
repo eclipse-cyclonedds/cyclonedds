@@ -26,8 +26,8 @@ typedef struct {
   HANDLE handle;
 } ddsrt_thread_t;
 
-typedef DWORD ddsrt_tid_t;
-#define PRIdTID "u"
+typedef uint32_t ddsrt_tid_t;
+#define PRIdTID PRIu32
 
 typedef HANDLE ddsrt_thread_list_id_t;
 

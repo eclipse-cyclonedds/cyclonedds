@@ -146,7 +146,7 @@ void dds_set_trace_sink (dds_log_write_fn_t callback, void *userdata)
   set_log_sink (&sinks[TRACE], callback, userdata);
 }
 
-extern inline uint32_t dds_get_log_mask (void);
+DDS_EXPORT extern inline uint32_t dds_get_log_mask (void);
 
 void dds_set_log_mask (uint32_t cats)
 {

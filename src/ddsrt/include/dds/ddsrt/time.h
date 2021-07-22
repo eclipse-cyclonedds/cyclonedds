@@ -176,7 +176,7 @@ DDS_EXPORT size_t ddsrt_ctime(dds_time_t abstime, char *str, size_t size);
  *
  * @returns A timestamp in nanoseconds since UNIX Epoch.
  */
-inline dds_time_t ddsrt_time_add_duration(dds_time_t abstime, dds_duration_t reltime)
+DDS_INLINE_EXPORT inline dds_time_t ddsrt_time_add_duration(dds_time_t abstime, dds_duration_t reltime)
 {
   assert(abstime >= 0);
   assert(reltime >= 0);
@@ -195,7 +195,7 @@ inline dds_time_t ddsrt_time_add_duration(dds_time_t abstime, dds_duration_t rel
  *
  * @returns A timestamp in nanoseconds since UNIX Epoch.
  */
-inline ddsrt_mtime_t ddsrt_mtime_add_duration(ddsrt_mtime_t abstime, dds_duration_t reltime) {
+DDS_INLINE_EXPORT inline ddsrt_mtime_t ddsrt_mtime_add_duration(ddsrt_mtime_t abstime, dds_duration_t reltime) {
   ddsrt_mtime_t t;
   t.v = ddsrt_time_add_duration (abstime.v, reltime);
   return t;
@@ -213,7 +213,7 @@ inline ddsrt_mtime_t ddsrt_mtime_add_duration(ddsrt_mtime_t abstime, dds_duratio
  *
  * @returns A timestamp in nanoseconds since UNIX Epoch.
  */
-inline ddsrt_wctime_t ddsrt_wctime_add_duration(ddsrt_wctime_t abstime, dds_duration_t reltime) {
+DDS_INLINE_EXPORT inline ddsrt_wctime_t ddsrt_wctime_add_duration(ddsrt_wctime_t abstime, dds_duration_t reltime) {
   ddsrt_wctime_t t;
   t.v = ddsrt_time_add_duration (abstime.v, reltime);
   return t;
@@ -231,7 +231,7 @@ inline ddsrt_wctime_t ddsrt_wctime_add_duration(ddsrt_wctime_t abstime, dds_dura
  *
  * @returns A timestamp in nanoseconds since UNIX Epoch.
  */
-inline ddsrt_etime_t ddsrt_etime_add_duration(ddsrt_etime_t abstime, dds_duration_t reltime) {
+DDS_INLINE_EXPORT inline ddsrt_etime_t ddsrt_etime_add_duration(ddsrt_etime_t abstime, dds_duration_t reltime) {
   ddsrt_etime_t t;
   t.v = ddsrt_time_add_duration (abstime.v, reltime);
   return t;
@@ -246,7 +246,7 @@ inline ddsrt_etime_t ddsrt_etime_add_duration(ddsrt_etime_t abstime, dds_duratio
  * @returns INFINITE if @reltime was @DDS_INIFINITY, relative time converted to
  *          microseconds otherwise.
  */
-inline DWORD
+DDS_INLINE_EXPORT inline DWORD
 ddsrt_duration_to_msecs_ceil(dds_duration_t reltime)
 {
   if (reltime == DDS_INFINITY) {

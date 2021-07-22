@@ -16,7 +16,7 @@
 
 #include "dds/ddsrt/time.h"
 
-extern inline TickType_t ddsrt_duration_to_ticks_ceil(dds_duration_t reltime);
+DDS_EXPORT extern inline TickType_t ddsrt_duration_to_ticks_ceil(dds_duration_t reltime);
 
 dds_time_t dds_time(void)
 {

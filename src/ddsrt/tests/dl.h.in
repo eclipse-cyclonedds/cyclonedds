@@ -14,6 +14,7 @@
 
 /* Get the library name information from cmake. */
 #define TEST_LIB_NAME   "@test_lib_name@"
+#define TEST_LIB_FILE   "@test_lib_file@"
 #define TEST_LIB_DIR    "@test_lib_dir@"
 #define TEST_LIB_SEP    "@test_lib_sep@"
 #define TEST_LIB_SUFFIX "@CMAKE_SHARED_LIBRARY_SUFFIX@"

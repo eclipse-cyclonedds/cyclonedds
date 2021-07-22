@@ -34,19 +34,19 @@ struct ddsi_builtin_topic_interface {
   void (*builtintopic_write_topic) (const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive, void *arg);
 };
 
-inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid) {
+DDS_INLINE_EXPORT inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid) {
   return btif ? btif->builtintopic_is_visible (guid, vendorid, btif->arg) : false;
 }
-inline bool builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type) {
+DDS_INLINE_EXPORT inline bool builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type) {
   return btif ? btif->builtintopic_is_builtintopic (type, btif->arg) : false;
 }
-inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid) {
+DDS_INLINE_EXPORT inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid) {
   return btif ? btif->builtintopic_get_tkmap_entry (guid, btif->arg) : NULL;
 }
-inline void builtintopic_write_endpoint (const struct ddsi_builtin_topic_interface *btif, const struct entity_common *e, ddsrt_wctime_t timestamp, bool alive) {
+DDS_INLINE_EXPORT inline void builtintopic_write_endpoint (const struct ddsi_builtin_topic_interface *btif, const struct entity_common *e, ddsrt_wctime_t timestamp, bool alive) {
   if (btif) btif->builtintopic_write_endpoint (e, timestamp, alive, btif->arg);
 }
-inline void builtintopic_write_topic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive) {
+DDS_INLINE_EXPORT inline void builtintopic_write_topic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive) {
   if (btif) btif->builtintopic_write_topic (tpd, timestamp, alive, btif->arg);
 }
 

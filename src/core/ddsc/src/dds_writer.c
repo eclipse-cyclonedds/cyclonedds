@@ -35,7 +35,7 @@
 #include "dds__data_allocator.h"
 #include "dds/ddsi/ddsi_statistics.h"
 
-DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_writer)
+DECL_ENTITY_LOCK_UNLOCK (dds_writer)
 
 #define DDS_WRITER_STATUS_MASK                                   \
                         (DDS_LIVELINESS_LOST_STATUS              |\

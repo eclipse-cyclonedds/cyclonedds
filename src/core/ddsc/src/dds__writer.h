@@ -18,7 +18,7 @@
 extern "C" {
 #endif
 
-DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_writer, DDS_KIND_WRITER)
+DEFINE_ENTITY_LOCK_UNLOCK(dds_writer, DDS_KIND_WRITER)
 
 struct status_cb_data;
 

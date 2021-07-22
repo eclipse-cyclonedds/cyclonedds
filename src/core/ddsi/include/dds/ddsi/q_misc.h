@@ -18,11 +18,11 @@
 extern "C" {
 #endif
 
-inline seqno_t fromSN (const nn_sequence_number_t sn) {
+DDS_INLINE_EXPORT inline seqno_t fromSN (const nn_sequence_number_t sn) {
   return ((seqno_t) sn.high << 32) | sn.low;
 }
 
-inline nn_sequence_number_t toSN (seqno_t n) {
+DDS_INLINE_EXPORT inline nn_sequence_number_t toSN (seqno_t n) {
   nn_sequence_number_t x;
   x.high = (int) (n >> 32);
   x.low = (unsigned) n;

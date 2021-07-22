@@ -219,7 +219,7 @@ struct tracebuf {
   size_t pos;
 };
 
-static void print (struct tracebuf *tb, const char *fmt, ...) ddsrt_attribute_format ((printf, 2, 3));
+static void print (struct tracebuf *tb, const char *fmt, ...) ddsrt_attribute_format_printf(2, 3);
 
 static void print (struct tracebuf *tb, const char *fmt, ...)
 {

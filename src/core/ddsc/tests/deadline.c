@@ -111,7 +111,7 @@ static void deadline_fini(void)
   dds_delete(g_remote_domain);
 }
 
-static void msg(const char *msg, ...) ddsrt_attribute_format((printf, 1, 2));
+static void msg(const char *msg, ...) ddsrt_attribute_format_printf(1, 2);
 
 static void msg(const char *msg, ...)
 {

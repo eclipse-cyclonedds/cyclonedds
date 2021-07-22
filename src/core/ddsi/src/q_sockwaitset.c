@@ -564,7 +564,7 @@ static int make_pipe (ddsrt_socket_t fd[2])
     goto fail;
   if (connect (s1, (struct sockaddr *)&addr, sizeof (addr)) == -1)
     goto fail;
-  if ((s2 = accept (listener, 0, 0)) == -1)
+  if ((s2 = accept (listener, 0, 0)) == INVALID_SOCKET)
     goto fail;
   closesocket (listener);
   /* Equivalent to FD_CLOEXEC */
@@ -743,8 +743,8 @@ int os_sockWaitsetAdd (os_sockWaitset ws, ddsi_tran_conn_t conn)
   unsigned idx;
   int ret;
 
-  assert (handle >= 0);
 #if ! defined (_WIN32)
+  assert (handle >= 0);
   assert (handle < FD_SETSIZE);
 #endif
 
@@ -815,7 +815,9 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
 {
   int32_t n = -1;
   unsigned u;
+#if !_WIN32
   int fdmax;
+#endif
   fd_set * rdset = NULL;
   os_sockWaitsetCtx ctx = &ws->ctx;
   os_sockWaitsetSet * dst = &ctx->set;
@@ -823,7 +825,9 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
 
   ddsrt_mutex_lock (&ws->mutex);
 
+#if !_WIN32
   fdmax = ws->fdmax_plus_1;
+#endif
 
   /* Copy context to working context */
 

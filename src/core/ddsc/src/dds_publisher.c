@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/version.h"
 
-DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_publisher)
+DECL_ENTITY_LOCK_UNLOCK (dds_publisher)
 
 #define DDS_PUBLISHER_STATUS_MASK   (0u)
 

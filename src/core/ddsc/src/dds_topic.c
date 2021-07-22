@@ -38,7 +38,7 @@
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds__serdata_builtintopic.h"
 
-DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_topic)
+DECL_ENTITY_LOCK_UNLOCK (dds_topic)
 
 #define DDS_TOPIC_STATUS_MASK                                    \
                         (DDS_INCONSISTENT_TOPIC_STATUS)

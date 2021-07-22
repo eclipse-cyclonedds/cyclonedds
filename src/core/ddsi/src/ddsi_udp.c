@@ -196,7 +196,8 @@ static void ddsi_udp_disable_multiplexing (ddsi_tran_conn_t conn_cmn)
 {
 #if defined _WIN32 && !defined WINCE
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
-  uint32_t zero = 0, dummy;
+  uint32_t zero = 0;
+  DWORD dummy;
   WSAEventSelect (conn->m_sock, 0, 0);
   WSAIoctl (conn->m_sock, FIONBIO, &zero,sizeof(zero), NULL,0, &dummy, NULL,NULL);
 #else
@@ -732,11 +733,15 @@ static int ddsi_udp_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_
   {
     case NN_LOCATOR_KIND_UDPv4: {
       const struct in_addr *ipv4 = (const struct in_addr *) (loc->address + 12);
+      DDSRT_WARNING_GNUC_OFF(sign-conversion)
       return IN_MULTICAST (ntohl (ipv4->s_addr));
+      DDSRT_WARNING_GNUC_ON(sign-conversion)
     }
     case NN_LOCATOR_KIND_UDPv4MCGEN: {
       const nn_udpv4mcgen_address_t *mcgen = (const nn_udpv4mcgen_address_t *) loc->address;
+      DDSRT_WARNING_GNUC_OFF(sign-conversion)
       return IN_MULTICAST (ntohl (mcgen->ipv4.s_addr));
+      DDSRT_WARNING_GNUC_ON(sign-conversion)
     }
 #if DDSRT_HAVE_IPV6
     case NN_LOCATOR_KIND_UDPv6: {

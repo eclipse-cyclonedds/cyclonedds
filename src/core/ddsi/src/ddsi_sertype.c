@@ -246,12 +246,12 @@ uint32_t ddsi_sertype_compute_serdata_basehash (const struct ddsi_serdata_ops *o
   return res;
 }
 
-extern inline void ddsi_sertype_free (struct ddsi_sertype *tp);
-extern inline void ddsi_sertype_zero_samples (const struct ddsi_sertype *tp, void *samples, size_t count);
-extern inline void ddsi_sertype_realloc_samples (void **ptrs, const struct ddsi_sertype *tp, void *old, size_t oldcount, size_t count);
-extern inline void ddsi_sertype_free_samples (const struct ddsi_sertype *tp, void **ptrs, size_t count, dds_free_op_t op);
-extern inline void ddsi_sertype_zero_sample (const struct ddsi_sertype *tp, void *sample);
-extern inline void *ddsi_sertype_alloc_sample (const struct ddsi_sertype *tp);
-extern inline void ddsi_sertype_free_sample (const struct ddsi_sertype *tp, void *sample, dds_free_op_t op);
-extern inline bool ddsi_sertype_typeid_hash (const struct ddsi_sertype *tp, unsigned char *buf);
-extern inline bool ddsi_sertype_assignable_from (const struct ddsi_sertype *type_a, const struct ddsi_sertype *type_b);
+DDS_EXPORT extern inline void ddsi_sertype_free (struct ddsi_sertype *tp);
+DDS_EXPORT extern inline void ddsi_sertype_zero_samples (const struct ddsi_sertype *tp, void *samples, size_t count);
+DDS_EXPORT extern inline void ddsi_sertype_realloc_samples (void **ptrs, const struct ddsi_sertype *tp, void *old, size_t oldcount, size_t count);
+DDS_EXPORT extern inline void ddsi_sertype_free_samples (const struct ddsi_sertype *tp, void **ptrs, size_t count, dds_free_op_t op);
+DDS_EXPORT extern inline void ddsi_sertype_zero_sample (const struct ddsi_sertype *tp, void *sample);
+DDS_EXPORT extern inline void *ddsi_sertype_alloc_sample (const struct ddsi_sertype *tp);
+DDS_EXPORT extern inline void ddsi_sertype_free_sample (const struct ddsi_sertype *tp, void *sample, dds_free_op_t op);
+DDS_EXPORT extern inline bool ddsi_sertype_typeid_hash (const struct ddsi_sertype *tp, unsigned char *buf);
+DDS_EXPORT extern inline bool ddsi_sertype_assignable_from (const struct ddsi_sertype *type_a, const struct ddsi_sertype *type_b);

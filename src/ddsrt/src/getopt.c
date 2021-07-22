@@ -3,7 +3,7 @@
 #include "getopt.h"
 
 /* ::[[ @(#) getopt.c 1.5 89/03/11 05:40:23 ]]:: */
-#ifndef LINT
+#if 0
 static const char Id[] = "$Id: os_stdlib_getopt.c,v 1.2 2008-11-17 09:53:45 hansv Exp $";
 #endif
 

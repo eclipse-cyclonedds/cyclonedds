@@ -1670,7 +1670,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
        than many small ones */
     if ((char *) xp->iov[niov-1].iov_base + xp->iov[niov-1].iov_len == (char *) dst)
     {
-      xp->iov[niov-1].iov_len += sizeof (*dst);
+      xp->iov[niov-1].iov_len += (ddsrt_iov_len_t)sizeof (*dst);
     }
     else
     {

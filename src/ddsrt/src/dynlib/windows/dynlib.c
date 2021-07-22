@@ -85,7 +85,7 @@ dds_return_t ddsrt_dlerror (char *buf, size_t buflen)
   buf[0] = '\0';
   if (dynlib_last_err != 0)
   {
-    if ((ret = ddsrt_strerror_r (dynlib_last_err, buf, buflen)) == DDS_RETCODE_OK)
+    if ((ret = ddsrt_strerror_r ((int)dynlib_last_err, buf, buflen)) == DDS_RETCODE_OK)
       ret = (int32_t) strlen (buf);
     else if (ret == DDS_RETCODE_BAD_PARAMETER)
     {

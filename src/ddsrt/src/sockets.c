@@ -34,7 +34,7 @@
 #include <net/if_dl.h>
 #endif
 
-extern inline struct timeval *
+DDS_EXPORT extern inline struct timeval *
 ddsrt_duration_to_timeval_ceil(dds_duration_t reltime, struct timeval *tv);
 
 #if DDSRT_HAVE_IPV6
@@ -244,7 +244,7 @@ DDSRT_WARNING_GNUC_OFF(sign-conversion)
     case AF_INET:
 #if DDSRT_HAVE_INET_NTOP
       ptr = inet_ntop(
-        AF_INET, &((struct sockaddr_in *)sa)->sin_addr, buf, (socklen_t)size);
+        AF_INET, &((struct sockaddr_in *)sa)->sin_addr, buf, (uint32_t)size);
 #else
       {
           in_addr_t x = ntohl(((struct sockaddr_in *)sa)->sin_addr.s_addr);
@@ -256,7 +256,7 @@ DDSRT_WARNING_GNUC_OFF(sign-conversion)
 #if DDSRT_HAVE_IPV6
     case AF_INET6:
       ptr = inet_ntop(
-        AF_INET6, &((struct sockaddr_in6 *)sa)->sin6_addr, buf, (socklen_t)size);
+        AF_INET6, &((struct sockaddr_in6 *)sa)->sin6_addr, buf, (uint32_t)size);
       break;
 #endif
     default:
