@@ -20,7 +20,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 
-DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_guardcond)
+DECL_ENTITY_LOCK_UNLOCK (dds_guardcond)
 
 const struct dds_entity_deriver dds_entity_deriver_guardcondition = {
   .interrupt = dds_entity_deriver_dummy_interrupt,

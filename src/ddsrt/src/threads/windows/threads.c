@@ -15,6 +15,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/threads_priv.h"
+#include "dds/ddsrt/misc.h"
 
 /* tlhelp32 for ddsrt_thread_list */
 #include <stdio.h>
@@ -40,6 +41,7 @@ static HRESULT WINAPI SetThreadDescription_dummy (HANDLE hThread, PCWSTR lpThrea
 static HRESULT WINAPI GetThreadDescription_dummy (HANDLE hThread, PWSTR *ppszThreadDescription)
 {
   (void) hThread;
+  (void) ppszThreadDescription;
   return E_FAIL;
 }
 
@@ -58,6 +60,7 @@ static void getset_threaddescription_addresses (void)
     }
     else
     {
+      DDSRT_WARNING_GNUC_OFF(cast-function-type)
       if ((p = GetProcAddress (mod, "SetThreadDescription")) != 0)
         SetThreadDescription_ptr = (SetThreadDescription_t) p;
       else
@@ -66,6 +69,7 @@ static void getset_threaddescription_addresses (void)
         GetThreadDescription_ptr = (GetThreadDescription_t) p;
       else
         GetThreadDescription_ptr = GetThreadDescription_dummy;
+      DDSRT_WARNING_GNUC_ON(cast-function-type)
     }
   }
 }
@@ -161,7 +165,7 @@ ddsrt_thread_create(
   }
 
   if (SetThreadPriority(thr.handle, prio) == 0) {
-    DDS_WARNING("SetThreadPriority failed with %i\n", GetLastError());
+    DDS_WARNING("SetThreadPriority failed with %" PRIu32 "\n", (uint32_t)GetLastError());
   }
 
   return DDS_RETCODE_OK;
@@ -255,8 +259,7 @@ ddsrt_thread_getname(
 
   if ((cnt = ddsrt_strlcpy(str, thread_name, size)) == 0) {
     ddsrt_tid_t tid = ddsrt_gettid();
-    cnt = (size_t)snprintf(str, size, "%"PRIdTID, tid);
-    assert(cnt >= 0);
+    (void)snprintf(str, size, "%"PRIdTID, tid);
   }
 
   return cnt;
@@ -272,7 +275,9 @@ ddsrt_thread_getname(
  * until the reason for {Get,Set}Description's absence from the
  * regular libraries.
  */
+#ifndef __MINGW32__
 static const DWORD MS_VC_EXCEPTION=0x406D1388;
+#endif
 
 #pragma pack(push,8)
 typedef struct tagTHREADNAME_INFO
@@ -384,7 +389,7 @@ ddsrt_thread_getname_anythread (
     }
     if (name[0] == 0)
     {
-      snprintf (name, sizeof (name), "%"PRIdTID, GetThreadId (tid));
+      snprintf (name, sizeof (name), "%"PRIdTID, (ddsrt_tid_t)GetThreadId (tid));
     }
   }
   return DDS_RETCODE_OK;

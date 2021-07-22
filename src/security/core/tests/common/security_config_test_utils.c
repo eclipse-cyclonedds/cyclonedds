@@ -148,8 +148,7 @@ static char * get_xml_datetime(dds_time_t t, char * buf, size_t len)
 #else
   (void)gmtime_r(&sec, &tm);
 #endif /* _WIN32 */
-
-  strftime(buf, len, "%FT%TZ", &tm);
+  strftime(buf, len, "%Y-%m-%dT%H:%M:%SZ", &tm);
   return buf;
 }
 

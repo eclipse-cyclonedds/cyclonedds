@@ -19,7 +19,7 @@
 extern "C" {
 #endif
 
-DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_subscriber, DDS_KIND_SUBSCRIBER)
+DEFINE_ENTITY_LOCK_UNLOCK(dds_subscriber, DDS_KIND_SUBSCRIBER)
 
 dds_entity_t
 dds__create_subscriber_l(

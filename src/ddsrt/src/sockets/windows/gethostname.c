@@ -14,6 +14,7 @@
 
 #include "dds/ddsrt/sockets.h"
 
+dds_return_t
 ddsrt_gethostname(
   char *name,
   size_t len)

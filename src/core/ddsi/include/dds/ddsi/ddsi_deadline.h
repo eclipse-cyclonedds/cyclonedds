@@ -46,19 +46,19 @@ DDS_EXPORT void deadline_register_instance_real (struct deadline_adm *deadline_a
 DDS_EXPORT void deadline_unregister_instance_real (struct deadline_adm *deadline_adm, struct deadline_elem *elem);
 DDS_EXPORT void deadline_renew_instance_real (struct deadline_adm *deadline_adm, struct deadline_elem *elem);
 
-inline void deadline_register_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
+DDS_INLINE_EXPORT inline void deadline_register_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
 {
   if (deadline_adm->dur != DDS_INFINITY)
     deadline_register_instance_real (deadline_adm, elem, tnow, tnow);
 }
 
-inline void deadline_reregister_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
+DDS_INLINE_EXPORT inline void deadline_reregister_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
 {
   if (deadline_adm->dur != DDS_INFINITY)
     deadline_register_instance_real (deadline_adm, elem, elem->t_deadline, tnow);
 }
 
-inline void deadline_unregister_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem)
+DDS_INLINE_EXPORT inline void deadline_unregister_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem)
 {
   if (deadline_adm->dur != DDS_INFINITY)
   {
@@ -67,7 +67,7 @@ inline void deadline_unregister_instance_locked (struct deadline_adm *deadline_a
   }
 }
 
-inline void deadline_renew_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem)
+DDS_INLINE_EXPORT inline void deadline_renew_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem)
 {
   if (deadline_adm->dur != DDS_INFINITY)
   {

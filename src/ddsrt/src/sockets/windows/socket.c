@@ -24,6 +24,9 @@
 #undef ddsrt_select /* See sockets.h for details. */
 #endif
 
+DDSRT_WARNING_GNUC_OFF(missing-prototypes)
+DDSRT_WARNING_CLANG_OFF(missing-prototypes)
+
 void
 ddsrt_winsock_init(void)
 {
@@ -52,11 +55,13 @@ ddsrt_winsock_fini(void)
   WSACleanup();
 }
 
+DDSRT_WARNING_GNUC_ON(missing-prototypes)
+DDSRT_WARNING_CLANG_ON(missing-prototypes)
+
 dds_return_t
 ddsrt_socket(ddsrt_socket_t *sockptr, int domain, int type, int protocol)
 {
   int err;
-  dds_return_t ret = DDS_RETCODE_OK;
   ddsrt_socket_t sock = DDSRT_INVALID_SOCKET;
 
   assert(sockptr != NULL);
@@ -416,7 +421,7 @@ ddsrt_setsocknonblocking(
    * if mode != 0, non-blocking is enabled. */
   mode = nonblock ? 1 : 0;
 
-  if (ioctlsocket(sock, FIONBIO, &mode) != SOCKET_ERROR)
+  if (ioctlsocket(sock, (long)FIONBIO, &mode) != SOCKET_ERROR)
     return DDS_RETCODE_OK;
 
   err = WSAGetLastError();
@@ -502,12 +507,13 @@ ddsrt_recvmsg(
   assert(msg != NULL);
   assert(msg->msg_iovlen == 1);
   assert(msg->msg_controllen == 0);
+  assert(msg->msg_iov[0].iov_len < INT_MAX);
 
   msg->msg_flags = 0;
   n = recvfrom(
     sock,
     msg->msg_iov[0].iov_base,
-    msg->msg_iov[0].iov_len,
+    (int)msg->msg_iov[0].iov_len,
     flags,
     msg->msg_name,
    &msg->msg_namelen);
@@ -626,7 +632,7 @@ ddsrt_sendmsg(
         (WSABUF *)msg->msg_iov,
         (DWORD)msg->msg_iovlen,
         &n,
-        flags,
+        (DWORD)flags,
         (SOCKADDR *)msg->msg_name,
         msg->msg_namelen,
         NULL,

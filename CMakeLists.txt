@@ -264,6 +264,16 @@ else()
   set(CMAKE_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
 endif()
 
+if(MINGW)
+  # Require at least Windows 7
+  add_definitions(-D_WIN32_WINNT=_WIN32_WINNT_WIN7)
+  add_definitions(-DNTDDI_VERSION=NTDDI_WIN7)
+  add_definitions(-D__USE_MINGW_ANSI_STDIO=1) # prefer C99 conformance
+  # Do not prefix libraries with "lib"
+  set(CMAKE_SHARED_LIBRARY_PREFIX "")
+  set(CMAKE_STATIC_LIBRARY_PREFIX "")
+endif()
+
 set(CMAKE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
 
 # Generate <Package>Config.cmake

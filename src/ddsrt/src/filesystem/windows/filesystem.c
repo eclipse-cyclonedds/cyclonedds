@@ -76,7 +76,7 @@ dds_return_t ddsrt_stat(const char *path, struct ddsrt_stat *buf)
     r = _stat(path, &_buf);
     if (r == 0) {
         buf->stat_mode = _buf.st_mode;
-        buf->stat_size = _buf.st_size;
+        buf->stat_size = (size_t)_buf.st_size;
         buf->stat_mtime = DDS_SECS(_buf.st_mtime);;
         result = DDS_RETCODE_OK;
     } else {

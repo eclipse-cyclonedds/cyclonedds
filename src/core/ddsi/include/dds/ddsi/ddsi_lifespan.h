@@ -41,13 +41,13 @@ DDS_EXPORT ddsrt_mtime_t lifespan_next_expired_locked (const struct lifespan_adm
 DDS_EXPORT void lifespan_register_sample_real (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);
 DDS_EXPORT void lifespan_unregister_sample_real (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);
 
-inline void lifespan_register_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node)
+DDS_INLINE_EXPORT inline void lifespan_register_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node)
 {
   if (node->t_expire.v != DDS_NEVER)
     lifespan_register_sample_real (lifespan_adm, node);
 }
 
-inline void lifespan_unregister_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node)
+DDS_INLINE_EXPORT inline void lifespan_unregister_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node)
 {
   if (node->t_expire.v != DDS_NEVER)
     lifespan_unregister_sample_real (lifespan_adm, node);

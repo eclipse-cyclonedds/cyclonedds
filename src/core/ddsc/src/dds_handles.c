@@ -532,4 +532,4 @@ bool dds_handle_is_not_refd (struct dds_handle_link *link)
   return ((ddsrt_atomic_ld32 (&link->cnt_flags) & HDL_REFCOUNT_MASK) == 0);
 }
 
-extern inline bool dds_handle_is_closed (struct dds_handle_link *link);
+DDS_EXPORT extern inline bool dds_handle_is_closed (struct dds_handle_link *link);

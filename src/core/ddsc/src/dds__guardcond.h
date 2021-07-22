@@ -22,7 +22,7 @@ dds_guardcond*
 dds_create_guardcond(
         dds_participant *pp);
 
-DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_guardcond, DDS_KIND_COND_GUARD)
+DEFINE_ENTITY_LOCK_UNLOCK(dds_guardcond, DDS_KIND_COND_GUARD)
 
 #if defined (__cplusplus)
 }

@@ -372,7 +372,7 @@ static ddsi_tcp_conn_t ddsi_tcp_cache_find (struct ddsi_tran_factory_tcp *fact, 
 
   memset (&key, 0, sizeof (key));
   key.m_peer_port = ddsrt_sockaddr_get_port (msg->msg_name);
-  memcpy (&key.m_peer_addr, msg->msg_name, msg->msg_namelen);
+  memcpy (&key.m_peer_addr, msg->msg_name, (size_t)msg->msg_namelen);
 
   /* Check cache for existing connection to target */
 
@@ -834,7 +834,7 @@ static ddsi_tran_conn_t ddsi_tcp_accept (ddsi_tran_listener_t listener)
   SSL * ssl = NULL;
 #endif
 
-  memset (&addr, 0, addrlen);
+  memset (&addr, 0, sizeof(addr));
   do {
 #ifdef DDS_HAS_SSL
     if (fact->ddsi_tcp_ssl_plugin.accept)
@@ -938,7 +938,7 @@ static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, co
   ddsi_tcp_base_init (fact, interf, &conn->m_base);
   ddsrt_mutex_init (&conn->m_mutex);
   conn->m_sock = DDSRT_INVALID_SOCKET;
-  (void)memcpy(&conn->m_peer_addr, peer, ddsrt_sockaddr_get_size(peer));
+  (void)memcpy(&conn->m_peer_addr, peer, (size_t)ddsrt_sockaddr_get_size(peer));
   conn->m_peer_port = ddsrt_sockaddr_get_port (peer);
   conn->m_base.m_server = server;
   conn->m_base.m_base.m_port = INVALID_PORT;

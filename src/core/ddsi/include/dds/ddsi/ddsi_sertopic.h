@@ -83,27 +83,27 @@ DDS_EXPORT struct ddsi_sertype *ddsi_sertype_from_sertopic (struct ddsi_sertopic
 DDS_EXPORT bool ddsi_sertopic_equal (const struct ddsi_sertopic *a, const struct ddsi_sertopic *b);
 DDS_EXPORT uint32_t ddsi_sertopic_hash (const struct ddsi_sertopic *tp);
 
-DDS_EXPORT inline void ddsi_sertopic_free (struct ddsi_sertopic *tp) {
+DDS_INLINE_EXPORT inline void ddsi_sertopic_free (struct ddsi_sertopic *tp) {
   tp->ops->free (tp);
 }
-DDS_EXPORT inline void ddsi_sertopic_zero_samples (const struct ddsi_sertopic *tp, void *samples, size_t count) {
+DDS_INLINE_EXPORT inline void ddsi_sertopic_zero_samples (const struct ddsi_sertopic *tp, void *samples, size_t count) {
   tp->ops->zero_samples (tp, samples, count);
 }
-DDS_EXPORT inline void ddsi_sertopic_realloc_samples (void **ptrs, const struct ddsi_sertopic *tp, void *old, size_t oldcount, size_t count) {
+DDS_INLINE_EXPORT inline void ddsi_sertopic_realloc_samples (void **ptrs, const struct ddsi_sertopic *tp, void *old, size_t oldcount, size_t count) {
   tp->ops->realloc_samples (ptrs, tp, old, oldcount, count);
 }
-DDS_EXPORT inline void ddsi_sertopic_free_samples (const struct ddsi_sertopic *tp, void **ptrs, size_t count, dds_free_op_t op) {
+DDS_INLINE_EXPORT inline void ddsi_sertopic_free_samples (const struct ddsi_sertopic *tp, void **ptrs, size_t count, dds_free_op_t op) {
   tp->ops->free_samples (tp, ptrs, count, op);
 }
-DDS_EXPORT inline void ddsi_sertopic_zero_sample (const struct ddsi_sertopic *tp, void *sample) {
+DDS_INLINE_EXPORT inline void ddsi_sertopic_zero_sample (const struct ddsi_sertopic *tp, void *sample) {
   ddsi_sertopic_zero_samples (tp, sample, 1);
 }
-DDS_EXPORT inline void *ddsi_sertopic_alloc_sample (const struct ddsi_sertopic *tp) {
+DDS_INLINE_EXPORT inline void *ddsi_sertopic_alloc_sample (const struct ddsi_sertopic *tp) {
   void *ptr;
   ddsi_sertopic_realloc_samples (&ptr, tp, NULL, 0, 1);
   return ptr;
 }
-DDS_EXPORT inline void ddsi_sertopic_free_sample (const struct ddsi_sertopic *tp, void *sample, dds_free_op_t op) {
+DDS_INLINE_EXPORT inline void ddsi_sertopic_free_sample (const struct ddsi_sertopic *tp, void *sample, dds_free_op_t op) {
   ddsi_sertopic_free_samples (tp, &sample, 1, op);
 }
 

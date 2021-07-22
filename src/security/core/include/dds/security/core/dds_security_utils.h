@@ -280,7 +280,7 @@ DDS_Security_Exception_set(
          int minor_code,
          const char *fmt,
          ...)
-  ddsrt_attribute_format((printf, 5, 6))
+  ddsrt_attribute_format_printf(5, 6)
   ddsrt_nonnull_all;
 
 DDS_EXPORT void

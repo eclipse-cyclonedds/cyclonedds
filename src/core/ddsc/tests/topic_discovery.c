@@ -62,7 +62,7 @@ static void topic_discovery_fini (void)
   dds_delete (g_domain1);
 }
 
-static void msg (const char *msg, ...) ddsrt_attribute_format((printf, 1, 2));
+static void msg (const char *msg, ...) ddsrt_attribute_format_printf(1, 2);
 
 static void msg (const char *msg, ...)
 {

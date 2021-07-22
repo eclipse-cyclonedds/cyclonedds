@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2019 ADLINK Technology Limited and others
+ * Copyright(c) 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -9,19 +9,21 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "lib_test_export.h"
+#include "dl.h"
 
+/* source used for the test library */
 static int g_val = -1;
 
-LIB_TEST_EXPORT void set_int(int val);
-void set_int(int val)
-{
-  g_val = val;
-}
+#if _WIN32
+__declspec(dllexport)
+#endif
+void set_int(int val);
 
-LIB_TEST_EXPORT int get_int(void);
-int get_int(void)
-{
-  return g_val;
-}
+#if _WIN32
+__declspec(dllexport)
+#endif
+int get_int(void);
 
+void set_int(int val) { g_val = val; }
+
+int get_int(void) { return g_val; }

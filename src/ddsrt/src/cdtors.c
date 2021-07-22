@@ -99,15 +99,19 @@ ddsrt_cond_t *ddsrt_get_singleton_cond(void)
 
 #ifdef _WIN32
 #include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/misc.h"
+
+DDSRT_WARNING_GNUC_OFF(missing-prototypes)
+DDSRT_WARNING_CLANG_OFF(missing-prototypes)
 
 /* Executed before DllMain within the context of the thread. Located here too
    avoid removal due to link time optimization. */
 void WINAPI
-ddsrt_cdtor(
-  PVOID handle,
-  DWORD reason,
-  PVOID reserved)
+ddsrt_cdtor(PVOID handle, DWORD reason, PVOID reserved)
 {
+  (void)handle;
+  (void)reason;
+  (void)reserved;
   switch (reason) {
     case DLL_PROCESS_ATTACH:
       ddsrt_init();
@@ -126,6 +130,9 @@ ddsrt_cdtor(
   }
 }
 
+DDSRT_WARNING_GNUC_ON(missing-prototypes)
+DDSRT_WARNING_CLANG_ON(missing-prototypes)
+
 /* These instructions are very specific to the Windows platform. They register
    a function (or multiple) as a TLS initialization function. TLS initializers
    are executed when a thread (or program) attaches or detaches. In contrast to
@@ -141,7 +148,9 @@ ddsrt_cdtor(
    requires) this type of functionality/initialization. Apart from that the
    logic isn't exactly as trivial as for example determining the endianness of
    a platform, so keeping this close to the implementation is probably wise. */
-#ifdef _WIN64
+#if __MINGW32__
+  PIMAGE_TLS_CALLBACK __crt_xl_tls_callback__ __attribute__ ((section(".CRT$XLZ"))) = ddsrt_cdtor;
+#elif _WIN64
   #pragma comment (linker, "/INCLUDE:_tls_used")
   #pragma comment (linker, "/INCLUDE:tls_callback_func")
   #pragma const_seg(".CRT$XLZ")

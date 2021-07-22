@@ -19,7 +19,7 @@
 extern "C" {
 #endif
 
-DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_topic, DDS_KIND_TOPIC)
+DEFINE_ENTITY_LOCK_UNLOCK(dds_topic, DDS_KIND_TOPIC)
 
 DDS_EXPORT void dds_topic_free (dds_domainid_t domainid, struct ddsi_sertype * st) ddsrt_nonnull_all;
 

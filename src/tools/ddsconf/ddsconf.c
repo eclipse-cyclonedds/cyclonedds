@@ -532,7 +532,7 @@ int makedescription(
     char *dest = elem->meta.description;
     const char *dflt = "";
     size_t len = 0, pos = 0;
-    const struct cfgunit *unit;
+    const struct cfgunit *unit = NULL;
 
     if (isgroup(elem)) {
       src = ddsrt_strdup(elem->description);

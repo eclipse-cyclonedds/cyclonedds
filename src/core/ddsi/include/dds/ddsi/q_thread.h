@@ -131,7 +131,7 @@ DDS_EXPORT struct thread_state1 *lookup_thread_state_real (void);
 DDS_EXPORT dds_return_t join_thread (struct thread_state1 *ts1);
 DDS_EXPORT void log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct ddsi_domaingv *gv);
 
-DDS_EXPORT inline struct thread_state1 *lookup_thread_state (void) {
+DDS_INLINE_EXPORT inline struct thread_state1 *lookup_thread_state (void) {
   struct thread_state1 *ts1 = tsd_thread_state;
   if (ts1)
     return ts1;
@@ -139,37 +139,37 @@ DDS_EXPORT inline struct thread_state1 *lookup_thread_state (void) {
     return lookup_thread_state_real ();
 }
 
-DDS_EXPORT inline bool vtime_awake_p (vtime_t vtime)
+DDS_INLINE_EXPORT inline bool vtime_awake_p (vtime_t vtime)
 {
   return (vtime & VTIME_NEST_MASK) != 0;
 }
 
-DDS_EXPORT inline bool vtime_asleep_p (vtime_t vtime)
+DDS_INLINE_EXPORT inline bool vtime_asleep_p (vtime_t vtime)
 {
   return (vtime & VTIME_NEST_MASK) == 0;
 }
 
-DDS_EXPORT inline bool vtime_gt (vtime_t vtime1, vtime_t vtime0)
+DDS_INLINE_EXPORT inline bool vtime_gt (vtime_t vtime1, vtime_t vtime0)
 {
   DDSRT_STATIC_ASSERT_CODE (sizeof (vtime_t) == sizeof (svtime_t));
   return (svtime_t) ((vtime1 & VTIME_TIME_MASK) - (vtime0 & VTIME_TIME_MASK)) > 0;
 }
 
-DDS_EXPORT inline bool thread_is_awake (void)
+DDS_INLINE_EXPORT inline bool thread_is_awake (void)
 {
   struct thread_state1 *ts = lookup_thread_state ();
   vtime_t vt = ddsrt_atomic_ld32 (&ts->vtime);
   return vtime_awake_p (vt);
 }
 
-DDS_EXPORT inline bool thread_is_asleep (void)
+DDS_INLINE_EXPORT inline bool thread_is_asleep (void)
 {
   struct thread_state1 *ts = lookup_thread_state ();
   vtime_t vt = ddsrt_atomic_ld32 (&ts->vtime);
   return vtime_asleep_p (vt);
 }
 
-DDS_EXPORT inline void thread_state_asleep (struct thread_state1 *ts1)
+DDS_INLINE_EXPORT inline void thread_state_asleep (struct thread_state1 *ts1)
 {
   vtime_t vt = ddsrt_atomic_ld32 (&ts1->vtime);
   assert (vtime_awake_p (vt));
@@ -183,7 +183,7 @@ DDS_EXPORT inline void thread_state_asleep (struct thread_state1 *ts1)
   ddsrt_atomic_st32 (&ts1->vtime, vt);
 }
 
-DDS_EXPORT inline void thread_state_awake (struct thread_state1 *ts1, const struct ddsi_domaingv *gv)
+DDS_INLINE_EXPORT inline void thread_state_awake (struct thread_state1 *ts1, const struct ddsi_domaingv *gv)
 {
   vtime_t vt = ddsrt_atomic_ld32 (&ts1->vtime);
   assert ((vt & VTIME_NEST_MASK) < VTIME_NEST_MASK);
@@ -197,7 +197,7 @@ DDS_EXPORT inline void thread_state_awake (struct thread_state1 *ts1, const stru
   ddsrt_atomic_fence_acq ();
 }
 
-DDS_EXPORT inline void thread_state_awake_domain_ok (struct thread_state1 *ts1)
+DDS_INLINE_EXPORT inline void thread_state_awake_domain_ok (struct thread_state1 *ts1)
 {
   vtime_t vt = ddsrt_atomic_ld32 (&ts1->vtime);
   assert ((vt & VTIME_NEST_MASK) < VTIME_NEST_MASK);
@@ -208,14 +208,14 @@ DDS_EXPORT inline void thread_state_awake_domain_ok (struct thread_state1 *ts1)
   ddsrt_atomic_fence_acq ();
 }
 
-DDS_EXPORT inline void thread_state_awake_fixed_domain (struct thread_state1 *ts1)
+DDS_INLINE_EXPORT inline void thread_state_awake_fixed_domain (struct thread_state1 *ts1)
 {
   /* fixed domain -> must be an internal thread */
   assert (ts1->state == THREAD_STATE_ALIVE);
   thread_state_awake_domain_ok (ts1);
 }
 
-DDS_EXPORT inline void thread_state_awake_to_awake_no_nest (struct thread_state1 *ts1)
+DDS_INLINE_EXPORT inline void thread_state_awake_to_awake_no_nest (struct thread_state1 *ts1)
 {
   vtime_t vt = ddsrt_atomic_ld32 (&ts1->vtime);
   assert ((vt & VTIME_NEST_MASK) == 1);

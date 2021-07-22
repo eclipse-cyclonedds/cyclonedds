@@ -1,4 +1,5 @@
 #include "dds/dds.h"
+#include "dds/ddsrt/misc.h"
 #include "RoundTrip.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -113,6 +114,7 @@ static dds_entity_t waitSet;
 #include <Windows.h>
 static bool CtrlHandler (DWORD fdwCtrlType)
 {
+  (void)fdwCtrlType;
   dds_waitset_set_trigger (waitSet, true);
   return true; //Don't let other handlers handle this key
 }
@@ -248,7 +250,9 @@ int main (int argc, char *argv[])
 
   /* Register handler for Ctrl-C */
 #ifdef _WIN32
+  DDSRT_WARNING_GNUC_OFF(cast-function-type)
   SetConsoleCtrlHandler ((PHANDLER_ROUTINE)CtrlHandler, TRUE);
+  DDSRT_WARNING_GNUC_ON(cast-function-type)
 #elif !DDSRT_WITH_FREERTOS
   struct sigaction sat, oldAction;
   sat.sa_handler = CtrlHandler;

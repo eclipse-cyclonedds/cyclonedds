@@ -149,7 +149,7 @@ DDS_EXPORT extern uint32_t *const dds_log_mask;
  *
  * @returns A uint32_t with enabled categories set.
  */
-inline uint32_t
+DDS_INLINE_EXPORT inline uint32_t
 dds_get_log_mask(void)
 {
     return *dds_log_mask;
@@ -268,7 +268,7 @@ dds_log_cfg(
     const char *func,
     const char *fmt,
     ...)
-  ddsrt_attribute_format((__printf__, 6, 7));
+  ddsrt_attribute_format_printf(6, 7);
 
 /**
  * @brief Write a log or trace message to the global configuration but with
@@ -288,7 +288,7 @@ dds_log_id(
     const char *func,
     const char *fmt,
     ...)
-  ddsrt_attribute_format((__printf__, 6, 7));
+  ddsrt_attribute_format_printf(6, 7);
 
 /**
  * @brief Write a log or trace message to the global log/trace.
@@ -306,7 +306,7 @@ dds_log(
     const char *func,
     const char *fmt,
     ...)
-  ddsrt_attribute_format((__printf__, 5, 6));
+  ddsrt_attribute_format_printf(5, 6);
 
 /**
  * @brief Undecorated function name of the current function.

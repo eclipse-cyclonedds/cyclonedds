@@ -38,7 +38,7 @@ ddsrt_strerror_r(
   char *buf,
   size_t buflen)
 {
-  int orig_err;
+  DWORD orig_err;
   DWORD cnt;
 
   assert(buf != NULL);
@@ -49,7 +49,7 @@ ddsrt_strerror_r(
     FORMAT_MESSAGE_IGNORE_INSERTS |
     FORMAT_MESSAGE_MAX_WIDTH_MASK,
     NULL,
-    errnum,
+    (DWORD)errnum,
     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
     (LPTSTR)buf,
     (DWORD)buflen,

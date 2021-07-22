@@ -213,7 +213,7 @@ DDS_EXPORT bool dds_handle_drop_ref (struct dds_handle_link *link);
 DDS_EXPORT bool dds_handle_close (struct dds_handle_link *link);
 DDS_EXPORT bool dds_handle_unpin_and_drop_ref (struct dds_handle_link *link);
 
-DDS_EXPORT inline bool dds_handle_is_closed (struct dds_handle_link *link) {
+DDS_INLINE_EXPORT inline bool dds_handle_is_closed (struct dds_handle_link *link) {
   return (ddsrt_atomic_ld32 (&link->cnt_flags) & HDL_FLAG_CLOSING) != 0;
 }
 

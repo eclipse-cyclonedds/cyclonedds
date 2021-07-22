@@ -1273,7 +1273,7 @@ enum handshake_token_type
 };
 
 static DDS_Security_ValidationResult_t set_exception (DDS_Security_SecurityException *ex, const char *fmt, ...)
-  ddsrt_attribute_format ((printf, 2, 3)) ddsrt_attribute_warn_unused_result;
+  ddsrt_attribute_format_printf(2, 3) ddsrt_attribute_warn_unused_result;
 
 static DDS_Security_ValidationResult_t set_exception (DDS_Security_SecurityException *ex, const char *fmt, ...)
 {

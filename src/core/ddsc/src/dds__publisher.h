@@ -19,7 +19,7 @@
 extern "C" {
 #endif
 
-DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_publisher, DDS_KIND_PUBLISHER)
+DEFINE_ENTITY_LOCK_UNLOCK(dds_publisher, DDS_KIND_PUBLISHER)
 
 dds_entity_t
 dds__create_publisher_l(

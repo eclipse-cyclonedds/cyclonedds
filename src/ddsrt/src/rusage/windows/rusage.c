@@ -17,7 +17,7 @@
 
 #include <psapi.h>
 
-dds_time_t
+static dds_time_t
 filetime_to_time (const FILETIME *ft)
 {
     /* FILETIME structures express times in 100-nanosecond time units. */

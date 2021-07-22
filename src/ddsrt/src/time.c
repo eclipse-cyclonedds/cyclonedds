@@ -16,10 +16,10 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/static_assert.h"
 
-extern inline dds_time_t ddsrt_time_add_duration(dds_time_t abstime, dds_duration_t reltime);
-extern inline ddsrt_mtime_t ddsrt_mtime_add_duration(ddsrt_mtime_t abstime, dds_duration_t reltime);
-extern inline ddsrt_wctime_t ddsrt_wctime_add_duration(ddsrt_wctime_t abstime, dds_duration_t reltime);
-extern inline ddsrt_etime_t ddsrt_etime_add_duration(ddsrt_etime_t abstime, dds_duration_t reltime);
+DDS_EXPORT extern inline dds_time_t ddsrt_time_add_duration(dds_time_t abstime, dds_duration_t reltime);
+DDS_EXPORT extern inline ddsrt_mtime_t ddsrt_mtime_add_duration(ddsrt_mtime_t abstime, dds_duration_t reltime);
+DDS_EXPORT extern inline ddsrt_wctime_t ddsrt_wctime_add_duration(ddsrt_wctime_t abstime, dds_duration_t reltime);
+DDS_EXPORT extern inline ddsrt_etime_t ddsrt_etime_add_duration(ddsrt_etime_t abstime, dds_duration_t reltime);
 
 #if !_WIN32 && !DDSRT_WITH_FREERTOS
 #include <errno.h>
@@ -42,7 +42,7 @@ size_t
 ddsrt_ctime(dds_time_t n, char *str, size_t size)
 {
   struct tm tm;
-#if __SunOS_5_6
+#if __SunOS_5_6 || __MINGW32__
   /* Solaris 2.6 doesn't recognize %z so we just leave it out */
   static const char fmt[] = "%Y-%m-%d %H:%M:%S";
 #else
@@ -61,7 +61,7 @@ ddsrt_ctime(dds_time_t n, char *str, size_t size)
 #endif /* _WIN32 */
 
   cnt = strftime(buf, sizeof(buf), fmt, &tm);
-#if ! __SunOS_5_6
+#if ! __SunOS_5_6 && ! __MINGW32__
   /* %z is without a separator between hours and minutes, fixup */
   assert(cnt == (sizeof(buf) - 2 /* ':' + '\0' */));
   buf[sizeof(buf) - 1] = '\0';

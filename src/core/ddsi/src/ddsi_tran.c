@@ -23,21 +23,21 @@
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 
-extern inline uint32_t ddsi_conn_type (const struct ddsi_tran_conn *conn);
-extern inline uint32_t ddsi_conn_port (const struct ddsi_tran_conn *conn);
-extern inline dds_return_t ddsi_factory_create_listener (ddsi_tran_listener_t *listener, ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos);
-extern inline bool ddsi_factory_supports (const struct ddsi_tran_factory *factory, int32_t kind);
-extern inline int ddsi_is_valid_port (const struct ddsi_tran_factory *factory, uint32_t port);
-extern inline uint32_t ddsi_receive_buffer_size (const struct ddsi_tran_factory *factory);
-extern inline ddsrt_socket_t ddsi_conn_handle (ddsi_tran_conn_t conn);
-extern inline int ddsi_conn_locator (ddsi_tran_conn_t conn, ddsi_locator_t * loc);
-extern inline ddsrt_socket_t ddsi_tran_handle (ddsi_tran_base_t base);
-extern inline dds_return_t ddsi_factory_create_conn (ddsi_tran_conn_t *conn, ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos);
-extern inline int ddsi_listener_locator (ddsi_tran_listener_t listener, ddsi_locator_t * loc);
-extern inline int ddsi_listener_listen (ddsi_tran_listener_t listener);
-extern inline ddsi_tran_conn_t ddsi_listener_accept (ddsi_tran_listener_t listener);
-extern inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc);
-extern inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags);
+DDS_EXPORT extern inline uint32_t ddsi_conn_type (const struct ddsi_tran_conn *conn);
+DDS_EXPORT extern inline uint32_t ddsi_conn_port (const struct ddsi_tran_conn *conn);
+DDS_EXPORT extern inline dds_return_t ddsi_factory_create_listener (ddsi_tran_listener_t *listener, ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos);
+DDS_EXPORT extern inline bool ddsi_factory_supports (const struct ddsi_tran_factory *factory, int32_t kind);
+DDS_EXPORT extern inline int ddsi_is_valid_port (const struct ddsi_tran_factory *factory, uint32_t port);
+DDS_EXPORT extern inline uint32_t ddsi_receive_buffer_size (const struct ddsi_tran_factory *factory);
+DDS_EXPORT extern inline ddsrt_socket_t ddsi_conn_handle (ddsi_tran_conn_t conn);
+DDS_EXPORT extern inline int ddsi_conn_locator (ddsi_tran_conn_t conn, ddsi_locator_t * loc);
+DDS_EXPORT extern inline ddsrt_socket_t ddsi_tran_handle (ddsi_tran_base_t base);
+DDS_EXPORT extern inline dds_return_t ddsi_factory_create_conn (ddsi_tran_conn_t *conn, ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos);
+DDS_EXPORT extern inline int ddsi_listener_locator (ddsi_tran_listener_t listener, ddsi_locator_t * loc);
+DDS_EXPORT extern inline int ddsi_listener_listen (ddsi_tran_listener_t listener);
+DDS_EXPORT extern inline ddsi_tran_conn_t ddsi_listener_accept (ddsi_tran_listener_t listener);
+DDS_EXPORT extern inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc);
+DDS_EXPORT extern inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags);
 
 void ddsi_factory_add (struct ddsi_domaingv *gv, ddsi_tran_factory_t factory)
 {

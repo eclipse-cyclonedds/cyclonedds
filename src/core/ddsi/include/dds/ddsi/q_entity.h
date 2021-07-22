@@ -369,11 +369,11 @@ struct writer
 #endif
 };
 
-inline seqno_t writer_read_seq_xmit (const struct writer *wr) {
+DDS_INLINE_EXPORT inline seqno_t writer_read_seq_xmit (const struct writer *wr) {
   return (seqno_t) ddsrt_atomic_ld64 (&wr->seq_xmit);
 }
 
-inline void writer_update_seq_xmit (struct writer *wr, seqno_t nv) {
+DDS_INLINE_EXPORT inline void writer_update_seq_xmit (struct writer *wr, seqno_t nv) {
   uint64_t ov;
   do {
     ov = ddsrt_atomic_ld64 (&wr->seq_xmit);

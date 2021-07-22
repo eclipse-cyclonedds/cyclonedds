@@ -29,11 +29,11 @@
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_bswap.h"
 
-extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
-extern inline bool dds_entity_is_enabled (const dds_entity *e);
-extern inline void dds_entity_status_reset (dds_entity *e, status_mask_t t);
-extern inline uint32_t dds_entity_status_reset_ov (dds_entity *e, status_mask_t t);
-extern inline dds_entity_kind_t dds_entity_kind (const dds_entity *e);
+DDS_EXPORT extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
+DDS_EXPORT extern inline bool dds_entity_is_enabled (const dds_entity *e);
+DDS_EXPORT extern inline void dds_entity_status_reset (dds_entity *e, status_mask_t t);
+DDS_EXPORT extern inline uint32_t dds_entity_status_reset_ov (dds_entity *e, status_mask_t t);
+DDS_EXPORT extern inline dds_entity_kind_t dds_entity_kind (const dds_entity *e);
 
 const struct dds_entity_deriver *dds_entity_deriver_table[] = {
   [DDS_KIND_TOPIC] = &dds_entity_deriver_topic,
@@ -72,15 +72,15 @@ void dds_entity_deriver_dummy_refresh_statistics (const struct dds_entity *e, st
   (void) e; (void) s;
 }
 
-extern inline void dds_entity_deriver_interrupt (struct dds_entity *e);
-extern inline void dds_entity_deriver_close (struct dds_entity *e);
-extern inline dds_return_t dds_entity_deriver_delete (struct dds_entity *e);
-extern inline dds_return_t dds_entity_deriver_set_qos (struct dds_entity *e, const dds_qos_t *qos, bool enabled);
-extern inline dds_return_t dds_entity_deriver_validate_status (struct dds_entity *e, uint32_t mask);
-extern inline bool dds_entity_supports_set_qos (struct dds_entity *e);
-extern inline bool dds_entity_supports_validate_status (struct dds_entity *e);
-extern inline struct dds_statistics *dds_entity_deriver_create_statistics (const struct dds_entity *e);
-extern inline void dds_entity_deriver_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s);
+DDS_EXPORT extern inline void dds_entity_deriver_interrupt (struct dds_entity *e);
+DDS_EXPORT extern inline void dds_entity_deriver_close (struct dds_entity *e);
+DDS_EXPORT extern inline dds_return_t dds_entity_deriver_delete (struct dds_entity *e);
+DDS_EXPORT extern inline dds_return_t dds_entity_deriver_set_qos (struct dds_entity *e, const dds_qos_t *qos, bool enabled);
+DDS_EXPORT extern inline dds_return_t dds_entity_deriver_validate_status (struct dds_entity *e, uint32_t mask);
+DDS_EXPORT extern inline bool dds_entity_supports_set_qos (struct dds_entity *e);
+DDS_EXPORT extern inline bool dds_entity_supports_validate_status (struct dds_entity *e);
+DDS_EXPORT extern inline struct dds_statistics *dds_entity_deriver_create_statistics (const struct dds_entity *e);
+DDS_EXPORT extern inline void dds_entity_deriver_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s);
 
 static int compare_instance_handle (const void *va, const void *vb)
 {

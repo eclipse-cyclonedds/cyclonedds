@@ -27,7 +27,7 @@
 #include "dds__builtin.h"
 #include "dds__qos.h"
 
-DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_participant)
+DECL_ENTITY_LOCK_UNLOCK (dds_participant)
 
 #define DDS_PARTICIPANT_STATUS_MASK    (0u)
 

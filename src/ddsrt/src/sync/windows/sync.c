@@ -196,6 +196,7 @@ once_wrapper(
 {
   once_arg_t *wrap = (once_arg_t *)Parameter;
 
+  (void)InitOnce;
   assert(Parameter != NULL);
   assert(Context == NULL);
 

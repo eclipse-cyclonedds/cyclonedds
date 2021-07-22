@@ -20,7 +20,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/version.h"
 
-DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_subscriber)
+DECL_ENTITY_LOCK_UNLOCK (dds_subscriber)
 
 #define DDS_SUBSCRIBER_STATUS_MASK                               \
                         (DDS_DATA_ON_READERS_STATUS)

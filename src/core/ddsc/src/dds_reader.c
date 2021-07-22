@@ -47,7 +47,7 @@
 #include "dds/ddsi/shm_sync.h"
 #endif
 
-DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
+DECL_ENTITY_LOCK_UNLOCK (dds_reader)
 
 #define DDS_READER_STATUS_MASK                                   \
                         (DDS_SAMPLE_REJECTED_STATUS              |\

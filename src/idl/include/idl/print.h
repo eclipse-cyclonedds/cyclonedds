@@ -18,7 +18,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 # include <malloc.h>
 #elif defined(__GNUC__) || (defined(__clang__) && __clang_major__ >= 2)
 # if !defined(__FreeBSD__)

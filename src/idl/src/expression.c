@@ -524,6 +524,10 @@ eval_float_expr(
   idl_type_t type,
   idl_floatval_t *valp);
 
+#if defined __MINGW32__
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wfloat-conversion\"")
+#endif
 static bool
 float_overflows(long double ldbl, idl_type_t type)
 {
@@ -535,6 +539,9 @@ float_overflows(long double ldbl, idl_type_t type)
     return isnan(ldbl) || isinf(ldbl);
   abort();
 }
+#if defined __MINGW32__
+_Pragma("GCC diagnostic pop")
+#endif
 
 static idl_retcode_t
 eval_binary_float_expr(

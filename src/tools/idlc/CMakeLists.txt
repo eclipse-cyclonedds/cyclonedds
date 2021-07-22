@@ -47,7 +47,7 @@ else()
       ${CMAKE_CURRENT_BINARY_DIR}
       $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsc,INTERFACE_INCLUDE_DIRECTORIES>>)
 
-  if(NOT HAVE_GETOPT_H)
+  if(WIN32 OR NOT HAVE_GETOPT_H)
     # use getopt.h from ddsrt
     file(READ "${CMAKE_SOURCE_DIR}/src/ddsrt/include/getopt.h.in" getopt_h)
     # remove occurrences of DDS_EXPORT

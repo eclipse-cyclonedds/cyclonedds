@@ -56,7 +56,7 @@ struct debug_monitor {
   int stop;
 };
 
-static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...) ddsrt_attribute_format ((printf, 2, 3));
+static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...) ddsrt_attribute_format_printf(2, 3);
 
 static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...)
 {
@@ -73,7 +73,7 @@ static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...)
     n = vsnprintf (buf, sizeof (buf), fmt, ap);
     va_end (ap);
     iov.iov_base = buf;
-    iov.iov_len = (size_t) n;
+    iov.iov_len = (ddsrt_iov_len_t) n;
     return ddsi_conn_write (conn, &loc, 1, &iov, 0) < 0 ? -1 : 0;
   }
 }
