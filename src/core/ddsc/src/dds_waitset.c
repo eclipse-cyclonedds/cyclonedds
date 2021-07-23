@@ -33,9 +33,11 @@ static bool is_triggered (struct dds_entity *e)
     case DDS_KIND_WAITSET:
       t = ddsrt_atomic_ld32 (&e->m_status.m_trigger) != 0;
       break;
-    default:
-      t = (ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask) & SAM_STATUS_MASK) != 0;
+    default: {
+      const uint32_t sm = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask);
+      t = (sm & (sm >> SAM_ENABLED_SHIFT)) != 0;
       break;
+    }
   }
   return t;
 }

@@ -101,14 +101,10 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
 
   /* read/take resets data available status -- must reset before reading because
      the actual writing is protected by RHC lock, not by rd->m_entity.m_lock */
-  dds_entity_status_reset (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
-
+  const uint32_t sm_old = dds_entity_status_reset_ov (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
   /* reset DATA_ON_READERS status on subscriber after successful read/take if materialized */
-  if (ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask) & (DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT))
-  {
-    assert (dds_entity_kind (rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER);
+  if (sm_old & (DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT))
     dds_entity_status_reset (rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
-  }
 
   if (take)
     ret = dds_rhc_take (rd->m_rhc, lock, buf, si, maxs, mask, hand, cond);
@@ -168,11 +164,10 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
 
   /* read/take resets data available status -- must reset before reading because
      the actual writing is protected by RHC lock, not by rd->m_entity.m_lock */
-  dds_entity_status_reset (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
-
-  /* reset DATA_ON_READERS status on subscriber after successful read/take */
-  assert (dds_entity_kind (rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER);
-  dds_entity_status_reset (rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
+  const uint32_t sm_old = dds_entity_status_reset_ov (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
+  /* reset DATA_ON_READERS status on subscriber after successful read/take if materialized */
+  if (sm_old & (DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT))
+    dds_entity_status_reset (rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
 
   if (take)
     ret = dds_rhc_takecdr (rd->m_rhc, lock, buf, si, maxs, mask & DDS_ANY_SAMPLE_STATE, mask & DDS_ANY_VIEW_STATE, mask & DDS_ANY_INSTANCE_STATE, hand);
