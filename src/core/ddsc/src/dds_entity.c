@@ -32,6 +32,7 @@
 extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
 extern inline bool dds_entity_is_enabled (const dds_entity *e);
 extern inline void dds_entity_status_reset (dds_entity *e, status_mask_t t);
+extern inline uint32_t dds_entity_status_reset_ov (dds_entity *e, status_mask_t t);
 extern inline dds_entity_kind_t dds_entity_kind (const dds_entity *e);
 
 const struct dds_entity_deriver *dds_entity_deriver_table[] = {
@@ -439,25 +440,15 @@ static dds_return_t really_delete_pinned_closed_locked (struct dds_entity *e, en
      continued cleanup -- while that's quite safe given that GUIDs don't get
      reused quickly, it needs an update) */
   dds_entity_deriver_interrupt (e);
-
-  /* Prevent further listener invocations; dds_set_status_mask locks m_mutex and
-     checks for a pending delete to guarantee that once we clear the mask here,
-     no new listener invocations will occur beyond those already in progress.
-     (FIXME: or committed to?  I think in-progress only, better check.) */
-  ddsrt_mutex_lock (&e->m_observers_lock);
-  if (entity_has_status (e))
-  {
-    // XXX: leaves DATA_ON_READERS in reader mask unchanged, that should be ok
-    ddsrt_atomic_and32 (&e->m_status.m_status_and_mask, SAM_STATUS_MASK);
-  }
-
   ddsrt_mutex_unlock (&e->m_mutex);
 
-  /* wait for all listeners to complete - FIXME: rely on pincount instead?
-     that would require all listeners to pin the entity instead, but it
-     would prevent them from doing much. */
+  /* - Wait for listeners currently in-progress to complete their thing
+     - Reset all listeners so no new listener invocations will occur
+     - Wait for all pending ones ones to end as well */
+  ddsrt_mutex_lock (&e->m_observers_lock);
   while (e->m_cb_pending_count > 0)
     ddsrt_cond_wait (&e->m_observers_cond, &e->m_observers_lock);
+  dds_reset_listener (&e->m_listener);
   ddsrt_mutex_unlock (&e->m_observers_lock);
 
   /* Wait for all other threads to unpin the entity */
@@ -990,43 +981,6 @@ dds_return_t dds_get_listener (dds_entity_t entity, dds_listener_t *listener)
   }
 }
 
-static void clear_status_with_listener (struct dds_entity *e)
-{
-  const struct dds_listener *lst = &e->m_listener;
-  status_mask_t mask = 0;
-  if (lst->on_inconsistent_topic)
-    mask |= DDS_INCONSISTENT_TOPIC_STATUS;
-  if (lst->on_liveliness_lost)
-    mask |= DDS_LIVELINESS_LOST_STATUS;
-  if (lst->on_offered_deadline_missed)
-    mask |= DDS_OFFERED_DEADLINE_MISSED_STATUS;
-  if (lst->on_offered_deadline_missed_arg)
-    mask |= DDS_OFFERED_DEADLINE_MISSED_STATUS;
-  if (lst->on_offered_incompatible_qos)
-    mask |= DDS_OFFERED_INCOMPATIBLE_QOS_STATUS;
-  if (lst->on_data_on_readers)
-    mask |= DDS_DATA_ON_READERS_STATUS;
-  if (lst->on_sample_lost)
-    mask |= DDS_SAMPLE_LOST_STATUS;
-  if (lst->on_data_available)
-    mask |= DDS_DATA_AVAILABLE_STATUS;
-  if (lst->on_sample_rejected)
-    mask |= DDS_SAMPLE_REJECTED_STATUS;
-  if (lst->on_liveliness_changed)
-    mask |= DDS_LIVELINESS_CHANGED_STATUS;
-  if (lst->on_requested_deadline_missed)
-    mask |= DDS_REQUESTED_DEADLINE_MISSED_STATUS;
-  if (lst->on_requested_incompatible_qos)
-    mask |= DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS;
-  if (lst->on_publication_matched)
-    mask |= DDS_PUBLICATION_MATCHED_STATUS;
-  if (lst->on_subscription_matched)
-    mask |= DDS_SUBSCRIPTION_MATCHED_STATUS;
-  
-  // XXX: DATA_ON_READERS for a reader is in mask part, left alone here (this only messes with status)
-  ddsrt_atomic_and32 (&e->m_status.m_status_and_mask, ~(uint32_t)mask);
-}
-
 static void pushdown_listener (dds_entity *e)
 {
   /* Note: e is claimed, no mutexes held */
@@ -1049,7 +1003,6 @@ static void pushdown_listener (dds_entity *e)
       dds_override_inherited_listener (&c->m_listener, &e->m_listener);
       ddsrt_mutex_unlock (&e->m_observers_lock);
 
-      clear_status_with_listener (c);
       ddsrt_mutex_unlock (&c->m_observers_lock);
 
       pushdown_listener (c);
@@ -1087,7 +1040,6 @@ dds_return_t dds_set_listener (dds_entity_t entity, const dds_listener_t *listen
     dds_inherit_listener (&e->m_listener, &x->m_listener);
     ddsrt_mutex_unlock (&x->m_observers_lock);
   }
-  clear_status_with_listener (e);
   ddsrt_mutex_unlock (&e->m_observers_lock);
   pushdown_listener (e);
   dds_entity_unpin (e);
@@ -1151,15 +1103,12 @@ dds_return_t dds_set_status_mask (dds_entity_t entity, uint32_t mask)
   if ((mask & ~SAM_STATUS_MASK) != 0)
     return DDS_RETCODE_BAD_PARAMETER;
 
+  /* Lock rather than pin so this is can be done atomically with respect to dds_delete */
   if ((ret = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
     return ret;
 
   if (dds_handle_is_closed (&e->m_hdllink))
   {
-    /* The sole reason for locking the mutex was so we can do this atomically with
-       respect to dds_delete (which in turn requires checking whether the handle
-       is still open), because delete relies on the mask to shut down all listener
-       invocations.  */
     dds_entity_unlock (e);
     return DDS_RETCODE_PRECONDITION_NOT_MET;
   }
@@ -1178,7 +1127,7 @@ dds_return_t dds_set_status_mask (dds_entity_t entity, uint32_t mask)
     do {
       old = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask);
       assert (!(old & DDS_DATA_ON_READERS_STATUS) || dds_entity_kind (e) != DDS_KIND_READER);
-      new = (mask << SAM_ENABLED_SHIFT) | (old & mask);
+      new = (mask << SAM_ENABLED_SHIFT) | (old & SAM_STATUS_MASK);
     } while (!ddsrt_atomic_cas32 (&e->m_status.m_status_and_mask, old, new));
     ddsrt_mutex_unlock (&e->m_observers_lock);
   }
@@ -1382,10 +1331,13 @@ dds_return_t dds_triggered (dds_entity_t entity)
 
   if ((ret = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
     return ret;
-  if (entity_has_status (e))
-    ret = ((ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask) & SAM_STATUS_MASK) != 0);
-  else
+  if (!entity_has_status (e))
     ret = (ddsrt_atomic_ld32 (&e->m_status.m_trigger) != 0);
+  else
+  {
+    const uint32_t sm = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask);
+    ret = ((sm & (sm >> SAM_ENABLED_SHIFT)) != 0);
+  }
   dds_entity_unlock (e);
   return ret;
 }
@@ -1481,16 +1433,15 @@ void dds_entity_status_signal (dds_entity *e, uint32_t status)
 
 bool dds_entity_status_set (dds_entity *e, status_mask_t status)
 {
+  // returns true if waitsets need triggering
   assert (entity_has_status (e));
-  uint32_t old, delta, new;
-  do {
-    old = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask);
-    delta = ((uint32_t) status & (old >> SAM_ENABLED_SHIFT));
-    if (delta == 0)
-      return false;
-    new = old | delta;
-  } while (!ddsrt_atomic_cas32 (&e->m_status.m_status_and_mask, old, new));
-  return (delta != 0);
+  uint32_t old = ddsrt_atomic_or32_ov (&e->m_status.m_status_and_mask, status);
+  if (old & status)
+    return false; // already set, no need to trigger waitsets
+  else if (!(status & (old >> SAM_ENABLED_SHIFT)))
+    return false; // masked
+  else
+    return true;
 }
 
 dds_entity_t dds_get_topic (dds_entity_t entity)

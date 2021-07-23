@@ -119,22 +119,22 @@ void dds_writer_status_cb (void *entity, const struct status_cb_data *data)
   wr->m_entity.m_cb_pending_count++;
   while (wr->m_entity.m_cb_count > 0)
     ddsrt_cond_wait (&wr->m_entity.m_observers_cond, &wr->m_entity.m_observers_lock);
+  wr->m_entity.m_cb_count++;
 
   const enum dds_status_id status_id = (enum dds_status_id) data->raw_status_id;
-  const bool enabled = (ddsrt_atomic_ld32 (&wr->m_entity.m_status.m_status_and_mask) & ((1u << status_id) << SAM_ENABLED_SHIFT)) != 0;
   switch (status_id)
   {
     case DDS_OFFERED_DEADLINE_MISSED_STATUS_ID:
-      status_cb_offered_deadline_missed (wr, data, enabled);
+      status_cb_offered_deadline_missed (wr, data);
       break;
     case DDS_LIVELINESS_LOST_STATUS_ID:
-      status_cb_liveliness_lost (wr, data, enabled);
+      status_cb_liveliness_lost (wr, data);
       break;
     case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID:
-      status_cb_offered_incompatible_qos (wr, data, enabled);
+      status_cb_offered_incompatible_qos (wr, data);
       break;
     case DDS_PUBLICATION_MATCHED_STATUS_ID:
-      status_cb_publication_matched (wr, data, enabled);
+      status_cb_publication_matched (wr, data);
       break;
     case DDS_DATA_AVAILABLE_STATUS_ID:
     case DDS_INCONSISTENT_TOPIC_STATUS_ID:
@@ -148,6 +148,7 @@ void dds_writer_status_cb (void *entity, const struct status_cb_data *data)
       assert (0);
   }
 
+  wr->m_entity.m_cb_count--;
   wr->m_entity.m_cb_pending_count--;
   ddsrt_cond_broadcast (&wr->m_entity.m_observers_cond);
   ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
