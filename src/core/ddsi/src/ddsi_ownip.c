@@ -340,10 +340,10 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
     {
       const size_t idx = maxq_list[0];
       ddsi_locator_to_string_no_port (addrbuf, sizeof(addrbuf), &interfaces[idx].loc);
-      GVWARNING ("using network interface %s (%s) selected arbitrarily from: ", interfaces[idx].name, addrbuf);
+      GVLOG (DDS_LC_INFO, "using network interface %s (%s) selected arbitrarily from: ", interfaces[idx].name, addrbuf);
       for (size_t i = 0; i < maxq_count; i++)
-        GVWARNING ("%s%s", (i == 0) ? "" : ", ", interfaces[maxq_list[i]].name);
-      GVWARNING ("\n");
+        GVLOG (DDS_LC_INFO, "%s%s", (i == 0) ? "" : ", ", interfaces[maxq_list[i]].name);
+      GVLOG (DDS_LC_INFO, "\n");
     }
 
     if (maxq_count <= 0)
