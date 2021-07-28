@@ -43,10 +43,6 @@ prepend(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds_sertype_builtintopic.c
   dds_data_allocator.c)
 
-if (DDS_HAS_SHM)
-  list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm_monitor.c")
-endif()
-
 prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__alloc.h
   dds__builtin.h
@@ -89,7 +85,8 @@ prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<
   ddsc/dds_opcodes.h
   ddsc/dds_data_allocator.h)
 
-if (DDS_HAS_SHM)
+if(ENABLE_SHM)
+  list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm_monitor.c")
   list(APPEND hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm__monitor.h")
 endif()
 
