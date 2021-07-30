@@ -73,12 +73,12 @@ strategy:
       build_type: Release
       cc: clang
     # disabled for now because 32-bit packages are missing
-    #'Windows 2019 with Visual Studio 2019 (Visual Studio 2017, Debug, x86)':
-    #  arch: x86
-    #  image: windows-2019
-    #  conanfile: conanfile102.txt
-    #  generator: 'Visual Studio 16 2019'
-    #  toolkit: v141
+    'Windows 2019 with Visual Studio 2019 (Visual Studio 2017, Debug, x86)':
+      arch: x86
+      image: windows-2019
+      conanfile: conanfile102.txt
+      generator: 'Visual Studio 16 2019'
+      toolset: v141
     'Windows 2019 with Visual Studio 2019 (Debug, x86_64)':
       image: windows-2019
       analyzer: on
