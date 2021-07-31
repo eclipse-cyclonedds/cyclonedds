@@ -48,7 +48,7 @@ static dds_return_t dds_writer_status_validate (uint32_t mask)
   return (mask & ~DDS_WRITER_STATUS_MASK) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK;
 }
 
-static void update_offered_deadline_missed (struct dds_offered_deadline_missed_status * __restrict st, struct dds_offered_deadline_missed_status * __restrict lst, const status_cb_data_t *data)
+static void update_offered_deadline_missed (struct dds_offered_deadline_missed_status * __restrict st, const status_cb_data_t *data)
 {
   st->last_instance_handle = data->handle;
   st->total_count++;
@@ -58,38 +58,23 @@ static void update_offered_deadline_missed (struct dds_offered_deadline_missed_s
   //
   // (same line of reasoning for all of them)
   st->total_count_change++;
-  if (lst != NULL)
-  {
-    *lst = *st;
-    st->total_count_change = 0;
-  }
 }
 
-static void update_offered_incompatible_qos (struct dds_offered_incompatible_qos_status * __restrict st, struct dds_offered_incompatible_qos_status * __restrict lst, const status_cb_data_t *data)
+static void update_offered_incompatible_qos (struct dds_offered_incompatible_qos_status * __restrict st, const status_cb_data_t *data)
 {
   st->last_policy_id = data->extra;
   st->total_count++;
   st->total_count_change++;
-  if (lst != NULL)
-  {
-    *lst = *st;
-    st->total_count_change = 0;
-  }
 }
 
-static void update_liveliness_lost (struct dds_liveliness_lost_status * __restrict st, struct dds_liveliness_lost_status * __restrict lst, const status_cb_data_t *data)
+static void update_liveliness_lost (struct dds_liveliness_lost_status * __restrict st, const status_cb_data_t *data)
 {
   (void) data;
   st->total_count++;
   st->total_count_change++;
-  if (lst != NULL)
-  {
-    *lst = *st;
-    st->total_count_change = 0;
-  }
 }
 
-static void update_publication_matched (struct dds_publication_matched_status * __restrict st, struct dds_publication_matched_status * __restrict lst, const status_cb_data_t *data)
+static void update_publication_matched (struct dds_publication_matched_status * __restrict st, const status_cb_data_t *data)
 {
   st->last_subscription_handle = data->handle;
   if (data->add) {
@@ -101,18 +86,17 @@ static void update_publication_matched (struct dds_publication_matched_status * 
     st->current_count--;
     st->current_count_change--;
   }
-  if (lst != NULL)
-  {
-    *lst = *st;
-    st->total_count_change = 0;
-    st->current_count_change = 0;
-  }
 }
 
-STATUS_CB_IMPL (writer, offered_deadline_missed, OFFERED_DEADLINE_MISSED)
-STATUS_CB_IMPL (writer, offered_incompatible_qos, OFFERED_INCOMPATIBLE_QOS)
-STATUS_CB_IMPL (writer, liveliness_lost, LIVELINESS_LOST)
-STATUS_CB_IMPL (writer, publication_matched, PUBLICATION_MATCHED)
+DDS_GET_STATUS(writer, publication_matched, PUBLICATION_MATCHED, total_count_change, current_count_change)
+DDS_GET_STATUS(writer, liveliness_lost, LIVELINESS_LOST, total_count_change)
+DDS_GET_STATUS(writer, offered_deadline_missed, OFFERED_DEADLINE_MISSED, total_count_change)
+DDS_GET_STATUS(writer, offered_incompatible_qos, OFFERED_INCOMPATIBLE_QOS, total_count_change)
+
+STATUS_CB_IMPL(writer, publication_matched, PUBLICATION_MATCHED, total_count_change, current_count_change)
+STATUS_CB_IMPL(writer, liveliness_lost, LIVELINESS_LOST, total_count_change)
+STATUS_CB_IMPL(writer, offered_deadline_missed, OFFERED_DEADLINE_MISSED, total_count_change)
+STATUS_CB_IMPL(writer, offered_incompatible_qos, OFFERED_INCOMPATIBLE_QOS, total_count_change)
 
 void dds_writer_status_cb (void *entity, const struct status_cb_data *data)
 {
@@ -541,8 +525,3 @@ dds_return_t dds__writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t *rdgu
   else
     return writer_wait_for_acks (wr->m_wr, rdguid, abstimeout);
 }
-
-DDS_GET_STATUS(writer, publication_matched, PUBLICATION_MATCHED, total_count_change, current_count_change)
-DDS_GET_STATUS(writer, liveliness_lost, LIVELINESS_LOST, total_count_change)
-DDS_GET_STATUS(writer, offered_deadline_missed, OFFERED_DEADLINE_MISSED, total_count_change)
-DDS_GET_STATUS(writer, offered_incompatible_qos, OFFERED_INCOMPATIBLE_QOS, total_count_change)

@@ -234,7 +234,7 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
   ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 }
 
-static void update_requested_deadline_missed (struct dds_requested_deadline_missed_status * __restrict st, struct dds_requested_deadline_missed_status * __restrict lst, const status_cb_data_t *data)
+static void update_requested_deadline_missed (struct dds_requested_deadline_missed_status * __restrict st, const status_cb_data_t *data)
 {
   st->last_instance_handle = data->handle;
   st->total_count++;
@@ -244,51 +244,31 @@ static void update_requested_deadline_missed (struct dds_requested_deadline_miss
   //
   // (same line of reasoning for all of them)
   st->total_count_change++;
-  if (lst != NULL)
-  {
-    *lst = *st;
-    st->total_count_change = 0;
-  }
 }
 
-static void update_requested_incompatible_qos (struct dds_requested_incompatible_qos_status * __restrict st, struct dds_requested_incompatible_qos_status * __restrict lst, const status_cb_data_t *data)
+static void update_requested_incompatible_qos (struct dds_requested_incompatible_qos_status * __restrict st, const status_cb_data_t *data)
 {
   st->last_policy_id = data->extra;
   st->total_count++;
   st->total_count_change++;
-  if (lst != NULL)
-  {
-    *lst = *st;
-    st->total_count_change = 0;
-  }
 }
 
-static void update_sample_lost (struct dds_sample_lost_status * __restrict st, struct dds_sample_lost_status * __restrict lst, const status_cb_data_t *data)
+static void update_sample_lost (struct dds_sample_lost_status * __restrict st, const status_cb_data_t *data)
 {
   (void) data;
   st->total_count++;
   st->total_count_change++;
-  if (lst != NULL)
-  {
-    *lst = *st;
-    st->total_count_change = 0;
-  }
 }
 
-static void update_sample_rejected (struct dds_sample_rejected_status * __restrict st, struct dds_sample_rejected_status * __restrict lst, const status_cb_data_t *data)
+static void update_sample_rejected (struct dds_sample_rejected_status * __restrict st, const status_cb_data_t *data)
 {
   st->last_reason = data->extra;
   st->last_instance_handle = data->handle;
   st->total_count++;
   st->total_count_change++;
-  if (lst != NULL)
-  {
-    *lst = *st;
-    st->total_count_change = 0;
-  }
 }
 
-static void update_liveliness_changed (struct dds_liveliness_changed_status * __restrict st, struct dds_liveliness_changed_status * __restrict lst, const status_cb_data_t *data)
+static void update_liveliness_changed (struct dds_liveliness_changed_status * __restrict st, const status_cb_data_t *data)
 {
   DDSRT_STATIC_ASSERT ((uint32_t) LIVELINESS_CHANGED_ADD_ALIVE == 0 &&
                        LIVELINESS_CHANGED_ADD_ALIVE < LIVELINESS_CHANGED_ADD_NOT_ALIVE &&
@@ -330,15 +310,9 @@ static void update_liveliness_changed (struct dds_liveliness_changed_status * __
       st->alive_count_change++;
       break;
   }
-  if (lst != NULL)
-  {
-    *lst = *st;
-    st->alive_count_change = 0;
-    st->not_alive_count_change = 0;
-  }
 }
 
-static void update_subscription_matched (struct dds_subscription_matched_status * __restrict st, struct dds_subscription_matched_status * __restrict lst, const status_cb_data_t *data)
+static void update_subscription_matched (struct dds_subscription_matched_status * __restrict st, const status_cb_data_t *data)
 {
   st->last_publication_handle = data->handle;
   if (data->add) {
@@ -350,20 +324,24 @@ static void update_subscription_matched (struct dds_subscription_matched_status 
     st->current_count--;
     st->current_count_change--;
   }
-  if (lst != NULL)
-  {
-    *lst = *st;
-    st->total_count_change = 0;
-    st->current_count_change = 0;
-  }
 }
 
-STATUS_CB_IMPL (reader, requested_deadline_missed, REQUESTED_DEADLINE_MISSED)
-STATUS_CB_IMPL (reader, requested_incompatible_qos, REQUESTED_INCOMPATIBLE_QOS)
-STATUS_CB_IMPL (reader, sample_lost, SAMPLE_LOST)
-STATUS_CB_IMPL (reader, sample_rejected, SAMPLE_REJECTED)
-STATUS_CB_IMPL (reader, liveliness_changed, LIVELINESS_CHANGED)
-STATUS_CB_IMPL (reader, subscription_matched, SUBSCRIPTION_MATCHED)
+/* Reset sets everything (type) 0, including the reason field, verify that 0 is correct */
+DDSRT_STATIC_ASSERT ((int) DDS_NOT_REJECTED == 0);
+
+DDS_GET_STATUS (reader, subscription_matched,       SUBSCRIPTION_MATCHED,       total_count_change, current_count_change)
+DDS_GET_STATUS (reader, liveliness_changed,         LIVELINESS_CHANGED,         alive_count_change, not_alive_count_change)
+DDS_GET_STATUS (reader, sample_rejected,            SAMPLE_REJECTED,            total_count_change)
+DDS_GET_STATUS (reader, sample_lost,                SAMPLE_LOST,                total_count_change)
+DDS_GET_STATUS (reader, requested_deadline_missed,  REQUESTED_DEADLINE_MISSED,  total_count_change)
+DDS_GET_STATUS (reader, requested_incompatible_qos, REQUESTED_INCOMPATIBLE_QOS, total_count_change)
+
+STATUS_CB_IMPL (reader, subscription_matched,       SUBSCRIPTION_MATCHED,       total_count_change, current_count_change)
+STATUS_CB_IMPL (reader, liveliness_changed,         LIVELINESS_CHANGED,         alive_count_change, not_alive_count_change)
+STATUS_CB_IMPL (reader, sample_rejected,            SAMPLE_REJECTED,            total_count_change)
+STATUS_CB_IMPL (reader, sample_lost,                SAMPLE_LOST,                total_count_change)
+STATUS_CB_IMPL (reader, requested_deadline_missed,  REQUESTED_DEADLINE_MISSED,  total_count_change)
+STATUS_CB_IMPL (reader, requested_incompatible_qos, REQUESTED_INCOMPATIBLE_QOS, total_count_change)
 
 void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
 {
@@ -856,14 +834,3 @@ dds_return_t dds__reader_data_allocator_fini (const dds_reader *rd, dds_data_all
   (void) rd;
   return DDS_RETCODE_OK;
 }
-
-/* Reset sets everything (type) 0, including the reason field, verify that 0 is correct */
-DDSRT_STATIC_ASSERT ((int) DDS_NOT_REJECTED == 0);
-
-DDS_GET_STATUS (reader, subscription_matched,       SUBSCRIPTION_MATCHED,       total_count_change, current_count_change)
-DDS_GET_STATUS (reader, liveliness_changed,         LIVELINESS_CHANGED,         alive_count_change, not_alive_count_change)
-DDS_GET_STATUS (reader, sample_rejected,            SAMPLE_REJECTED,            total_count_change)
-DDS_GET_STATUS (reader, sample_lost,                SAMPLE_LOST,                total_count_change)
-DDS_GET_STATUS (reader, requested_deadline_missed,  REQUESTED_DEADLINE_MISSED,  total_count_change)
-DDS_GET_STATUS (reader, requested_incompatible_qos, REQUESTED_INCOMPATIBLE_QOS, total_count_change)
-
