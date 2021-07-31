@@ -12,6 +12,7 @@
 #ifndef _DDS_ENTITY_H_
 #define _DDS_ENTITY_H_
 
+#include "dds/ddsrt/countargs.h"
 #include "dds__types.h"
 #include "dds/ddsi/q_thread.h"
 
@@ -100,28 +101,59 @@ union dds_status_union {
   dds_subscription_matched_status_t subscription_matched;
 };
 
-#define STATUS_CB_IMPL(entity_kind_, name_, NAME_) \
-  static void status_cb_##name_ (dds_##entity_kind_ * const e, const status_cb_data_t *data, bool enabled) \
-  { \
+#define DDS_RESET_STATUS_FIELDS_1(ent_, status_, reset0_) \
+  ((ent_)->m_##status_##_status.reset0_ = 0);
+#define DDS_RESET_STATUS_FIELDS_2(ent_, status_, reset0_, reset1_) \
+  ((ent_)->m_##status_##_status.reset0_ = 0); \
+  ((ent_)->m_##status_##_status.reset1_ = 0);
+#define DDS_RESET_STATUS_FIELDS_MSVC_WORKAROUND(x) x
+#define DDS_RESET_STATUS_FIELDS_N1(n_, ent_, status_, ...) \
+  DDS_RESET_STATUS_FIELDS_MSVC_WORKAROUND (DDS_RESET_STATUS_FIELDS_##n_ (ent_, status_, __VA_ARGS__))
+#define DDS_RESET_STATUS_FIELDS_N(n_, ent_, status_, ...) DDS_RESET_STATUS_FIELDS_N1 (n_, ent_, status_, __VA_ARGS__)
+
+#define STATUS_CB_IMPL_NO_INVOKE(entity_kind_, name_, NAME_)            \
+  static void status_cb_##name_##_no_invoke (dds_##entity_kind_ * const e) \
+  {                                                                     \
+    if (dds_entity_status_set (&e->m_entity, DDS_##NAME_##_STATUS))     \
+      dds_entity_observers_signal (&e->m_entity, DDS_##NAME_##_STATUS); \
+  }
+
+#define STATUS_CB_IMPL_INVOKE(entity_kind_, name_, NAME_, ...)          \
+  static void status_cb_##name_##_invoke (dds_##entity_kind_ * const e) \
+  {                                                                     \
     struct dds_listener const * const listener = &e->m_entity.m_listener; \
-    const status_mask_t status_mask = (status_mask_t) (1u << DDS_##NAME_##_STATUS_ID); \
-    const bool invoke = (listener->on_##name_ != 0) && enabled; \
-    union dds_status_union lst; \
-    update_##name_ (&e->m_##name_##_status, invoke ? &lst.name_ : NULL, data); \
-    bool signal = dds_entity_status_set (&e->m_entity, status_mask); \
-    if (invoke) { \
-      e->m_entity.m_cb_pending_count++; \
-      e->m_entity.m_cb_count++; \
-      ddsrt_mutex_unlock (&e->m_entity.m_observers_lock); \
-      listener->on_##name_ (e->m_entity.m_hdllink.hdl, lst.name_, listener->on_##name_##_arg); \
-      ddsrt_mutex_lock (&e->m_entity.m_observers_lock); \
-      e->m_entity.m_cb_count--; \
-      e->m_entity.m_cb_pending_count--; \
-      signal = signal && (ddsrt_atomic_ld32 (&e->m_entity.m_status.m_status_and_mask) & status_mask); \
-    } \
-    if (signal) { \
-      dds_entity_observers_signal (&e->m_entity, status_mask); \
-    } \
+    union dds_status_union lst;                                         \
+    bool signal;                                                        \
+    lst.name_ = e->m_##name_##_status;                                  \
+    if (listener->reset_on_invoke & DDS_##NAME_##_STATUS) {             \
+      signal = false;                                                   \
+      DDS_RESET_STATUS_FIELDS_N (DDSRT_COUNT_ARGS (__VA_ARGS__), e, name_, __VA_ARGS__) \
+    } else {                                                            \
+      signal = dds_entity_status_set (&e->m_entity, DDS_##NAME_##_STATUS); \
+    }                                                                   \
+    e->m_entity.m_cb_pending_count++;                                   \
+    e->m_entity.m_cb_count++;                                           \
+    ddsrt_mutex_unlock (&e->m_entity.m_observers_lock);                 \
+    listener->on_##name_ (e->m_entity.m_hdllink.hdl, lst.name_, listener->on_##name_##_arg); \
+    ddsrt_mutex_lock (&e->m_entity.m_observers_lock);                   \
+    e->m_entity.m_cb_count--;                                           \
+    e->m_entity.m_cb_pending_count--;                                   \
+    if (signal && (ddsrt_atomic_ld32 (&e->m_entity.m_status.m_status_and_mask) & DDS_##NAME_##_STATUS)) \
+      dds_entity_observers_signal (&e->m_entity, DDS_##NAME_##_STATUS); \
+  }
+
+#define STATUS_CB_IMPL(entity_kind_, name_, NAME_, ...)                 \
+  STATUS_CB_IMPL_NO_INVOKE(entity_kind_, name_, NAME_)                  \
+  STATUS_CB_IMPL_INVOKE(entity_kind_, name_, NAME_, __VA_ARGS__)        \
+  static void status_cb_##name_ (dds_##entity_kind_ * const e, const status_cb_data_t *data, bool enabled) \
+  {                                                                     \
+    struct dds_listener const * const listener = &e->m_entity.m_listener; \
+    update_##name_ (&e->m_##name_##_status, data);                      \
+    if ((listener->on_##name_ != 0) && enabled) {                       \
+      status_cb_##name_##_invoke (e);                                   \
+    } else {                                                            \
+      status_cb_##name_##_no_invoke (e);                                \
+    }                                                                   \
   }
 
 DDS_EXPORT dds_participant *dds_entity_participant (const dds_entity *e);
