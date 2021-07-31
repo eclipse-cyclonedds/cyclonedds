@@ -37,6 +37,51 @@ void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertype *tp, e
   ddsrt_atomic_st32 (&d->refc, 1);
 }
 
+#if 0 // Useful for testing byteswapping in other serdata implementations
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
+static uint32_t get_payload (struct ddsi_serdata *serdata, ddsrt_iovec_t *iov)
+{
+  if (serdata->ops == &ddsi_serdata_ops_cdr || serdata->ops == &ddsi_serdata_ops_cdr_nokey)
+  {
+    struct ddsi_sertype_default *t = (struct ddsi_sertype_default *) serdata->type;
+    iov->iov_len = ddsi_serdata_size (serdata);
+    iov->iov_base = ddsrt_malloc (iov->iov_len);
+    ddsi_serdata_to_ser (serdata, 0, iov->iov_len, iov->iov_base);
+    unsigned char * const buf = iov->iov_base;
+    if (buf[1] != 1) abort();
+    bool ok = dds_stream_native_to_swapped (buf+4, (uint32_t)iov->iov_len-4, t, serdata->kind == SDK_KEY);
+    if(!ok) abort();
+    buf[1] = 0;
+    return (uint32_t) iov->iov_len;
+  }
+  else
+  {
+    uint32_t size = ddsi_serdata_size (serdata);
+    (void) ddsi_serdata_to_ser_ref (serdata, 0, size, iov);
+    return size;
+  }
+}
+static void drop_payload (struct ddsi_serdata *serdata, ddsrt_iovec_t *iov)
+{
+  if (serdata->ops == &ddsi_serdata_ops_cdr || serdata->ops == &ddsi_serdata_ops_cdr_nokey)
+    ddsrt_free (iov->iov_base);
+  else
+    ddsi_serdata_to_ser_unref (serdata, iov);
+}
+#else
+static uint32_t get_payload (struct ddsi_serdata *serdata, ddsrt_iovec_t *iov)
+{
+  uint32_t size = ddsi_serdata_size (serdata);
+  (void) ddsi_serdata_to_ser_ref (serdata, 0, size, iov);
+  return size;
+}
+static void drop_payload (struct ddsi_serdata *serdata, ddsrt_iovec_t *iov)
+{
+  ddsi_serdata_to_ser_unref (serdata, iov);
+}
+#endif
+
 struct ddsi_serdata *ddsi_serdata_ref_as_type (const struct ddsi_sertype *type, struct ddsi_serdata *serdata)
 {
   if (serdata->type == type)
@@ -46,14 +91,13 @@ struct ddsi_serdata *ddsi_serdata_ref_as_type (const struct ddsi_sertype *type, 
     /* ouch ... convert a serdata from one sertype to another ... */
     struct ddsi_serdata *converted;
     ddsrt_iovec_t iov;
-    uint32_t size = ddsi_serdata_size (serdata);
-    (void) ddsi_serdata_to_ser_ref (serdata, 0, size, &iov);
+    uint32_t size = get_payload (serdata, &iov);
     if ((converted = ddsi_serdata_from_ser_iov (type, serdata->kind, 1, &iov, size)) != NULL)
     {
       converted->statusinfo = serdata->statusinfo;
       converted->timestamp = serdata->timestamp;
     }
-    ddsi_serdata_to_ser_unref (serdata, &iov);
+    drop_payload (serdata, &iov);
     return converted;
   }
 }

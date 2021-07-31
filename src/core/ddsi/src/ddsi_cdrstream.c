@@ -885,7 +885,7 @@ static void dds_stream_read (dds_istream_t * __restrict is, char * __restrict da
    padding and a primitive type overflowing our offset */
 #define CDR_SIZE_MAX ((uint32_t) 0xfffffff0)
 
-static bool stream_normalize (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, const uint32_t * __restrict ops);
+static bool stream_normalize (char * __restrict data, uint32_t * __restrict off, uint32_t size, int bswap, const uint32_t * __restrict ops);
 
 static uint32_t check_align_prim (uint32_t off, uint32_t size, uint32_t a_lg2)
 {
@@ -921,7 +921,7 @@ static bool normalize_uint8 (uint32_t *off, uint32_t size)
   return true;
 }
 
-static bool normalize_uint16 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap)
+static bool normalize_uint16 (char * __restrict data, uint32_t * __restrict off, uint32_t size, int bswap)
 {
   if ((*off = check_align_prim (*off, size, 1)) == UINT32_MAX)
     return false;
@@ -931,7 +931,7 @@ static bool normalize_uint16 (char * __restrict data, uint32_t * __restrict off,
   return true;
 }
 
-static bool normalize_uint32 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap)
+static bool normalize_uint32 (char * __restrict data, uint32_t * __restrict off, uint32_t size, int bswap)
 {
   if ((*off = check_align_prim (*off, size, 2)) == UINT32_MAX)
     return false;
@@ -941,18 +941,26 @@ static bool normalize_uint32 (char * __restrict data, uint32_t * __restrict off,
   return true;
 }
 
-static bool read_and_normalize_uint32 (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap)
+static bool read_and_normalize_uint32 (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, int bswap)
 {
   if ((*off = check_align_prim (*off, size, 2)) == UINT32_MAX)
     return false;
-  if (bswap)
+  if (bswap < 0)
+  {
+    *val = *((uint32_t *) (data + *off));
     *((uint32_t *) (data + *off)) = ddsrt_bswap4u (*((uint32_t *) (data + *off)));
-  *val = *((uint32_t *) (data + *off));
+  }
+  else
+  {
+    if (bswap)
+      *((uint32_t *) (data + *off)) = ddsrt_bswap4u (*((uint32_t *) (data + *off)));
+    *val = *((uint32_t *) (data + *off));
+  }
   (*off) += 4;
   return true;
 }
 
-static bool normalize_uint64 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap)
+static bool normalize_uint64 (char * __restrict data, uint32_t * __restrict off, uint32_t size, int bswap)
 {
   if ((*off = check_align_prim (*off, size, 3)) == UINT32_MAX)
     return false;
@@ -962,7 +970,7 @@ static bool normalize_uint64 (char * __restrict data, uint32_t * __restrict off,
   return true;
 }
 
-static bool normalize_string (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, size_t maxsz)
+static bool normalize_string (char * __restrict data, uint32_t * __restrict off, uint32_t size, int bswap, size_t maxsz)
 {
   uint32_t sz;
   if (!read_and_normalize_uint32 (&sz, data, off, size, bswap))
@@ -975,7 +983,7 @@ static bool normalize_string (char * __restrict data, uint32_t * __restrict off,
   return true;
 }
 
-static bool normalize_primarray (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t num, enum dds_stream_typecode type)
+static bool normalize_primarray (char * __restrict data, uint32_t * __restrict off, uint32_t size, int bswap, uint32_t num, enum dds_stream_typecode type)
 {
   switch (type)
   {
@@ -1024,7 +1032,7 @@ static bool normalize_primarray (char * __restrict data, uint32_t * __restrict o
   return false;
 }
 
-static const uint32_t *normalize_seq (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, const uint32_t * __restrict ops, uint32_t insn)
+static const uint32_t *normalize_seq (char * __restrict data, uint32_t * __restrict off, uint32_t size, int bswap, const uint32_t * __restrict ops, uint32_t insn)
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   uint32_t num;
@@ -1057,7 +1065,7 @@ static const uint32_t *normalize_seq (char * __restrict data, uint32_t * __restr
   return NULL;
 }
 
-static const uint32_t *normalize_arr (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, const uint32_t * __restrict ops, uint32_t insn)
+static const uint32_t *normalize_arr (char * __restrict data, uint32_t * __restrict off, uint32_t size, int bswap, const uint32_t * __restrict ops, uint32_t insn)
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   const uint32_t num = ops[2];
@@ -1086,7 +1094,7 @@ static const uint32_t *normalize_arr (char * __restrict data, uint32_t * __restr
   return NULL;
 }
 
-static bool normalize_uni_disc (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, enum dds_stream_typecode disctype)
+static bool normalize_uni_disc (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, int bswap, enum dds_stream_typecode disctype)
 {
   switch (disctype)
   {
@@ -1099,17 +1107,33 @@ static bool normalize_uni_disc (uint32_t * __restrict val, char * __restrict dat
     case DDS_OP_VAL_2BY:
       if ((*off = check_align_prim (*off, size, 1)) == UINT32_MAX)
         return false;
-      if (bswap)
+      if (bswap < 0)
+      {
+        *val = *((uint16_t *) (data + *off));
         *((uint16_t *) (data + *off)) = ddsrt_bswap2u (*((uint16_t *) (data + *off)));
-      *val = *((uint16_t *) (data + *off));
+      }
+      else
+      {
+        if (bswap)
+          *((uint16_t *) (data + *off)) = ddsrt_bswap2u (*((uint16_t *) (data + *off)));
+        *val = *((uint16_t *) (data + *off));
+      }
       (*off) += 2;
       return true;
     case DDS_OP_VAL_4BY:
       if ((*off = check_align_prim (*off, size, 2)) == UINT32_MAX)
         return false;
-      if (bswap)
+      if (bswap < 0)
+      {
+        *val = *((uint32_t *) (data + *off));
         *((uint32_t *) (data + *off)) = ddsrt_bswap4u (*((uint32_t *) (data + *off)));
-      *val = *((uint32_t *) (data + *off));
+      }
+      else
+      {
+        if (bswap)
+          *((uint32_t *) (data + *off)) = ddsrt_bswap4u (*((uint32_t *) (data + *off)));
+        *val = *((uint32_t *) (data + *off));
+      }
       (*off) += 4;
       return true;
     default:
@@ -1118,7 +1142,7 @@ static bool normalize_uni_disc (uint32_t * __restrict val, char * __restrict dat
   return false;
 }
 
-static const uint32_t *normalize_uni (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, const uint32_t * __restrict ops, uint32_t insn)
+static const uint32_t *normalize_uni (char * __restrict data, uint32_t * __restrict off, uint32_t size, int bswap, const uint32_t * __restrict ops, uint32_t insn)
 {
   uint32_t disc;
   if (!normalize_uni_disc (&disc, data, off, size, bswap, DDS_OP_SUBTYPE (insn)))
@@ -1144,7 +1168,7 @@ static const uint32_t *normalize_uni (char * __restrict data, uint32_t * __restr
   return ops;
 }
 
-static bool stream_normalize (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, const uint32_t * __restrict ops)
+static bool stream_normalize (char * __restrict data, uint32_t * __restrict off, uint32_t size, int bswap, const uint32_t * __restrict ops)
 {
   uint32_t insn;
   while ((insn = *ops) != DDS_OP_RTS)
@@ -1182,7 +1206,7 @@ static bool stream_normalize (char * __restrict data, uint32_t * __restrict off,
   return true;
 }
 
-static bool stream_normalize_key (void * __restrict data, uint32_t size, bool bswap, const struct ddsi_sertype_default_desc * __restrict desc)
+static bool stream_normalize_key (void * __restrict data, uint32_t size, int bswap, const struct ddsi_sertype_default_desc * __restrict desc)
 {
   uint32_t off = 0;
   for (uint32_t i = 0; i < desc->keys.nkeys; i++)
@@ -1216,6 +1240,19 @@ bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, co
   {
     uint32_t off = 0;
     return stream_normalize (data, &off, size, bswap, topic->type.ops.ops);
+  }
+}
+
+bool dds_stream_native_to_swapped (void * __restrict data, uint32_t size, const struct ddsi_sertype_default * __restrict topic, bool just_key)
+{
+  if (size > CDR_SIZE_MAX)
+    return false;
+  if (just_key)
+    return stream_normalize_key (data, size, -1, &topic->type);
+  else
+  {
+    uint32_t off = 0;
+    return stream_normalize (data, &off, size, -1, topic->type.ops.ops);
   }
 }
 
