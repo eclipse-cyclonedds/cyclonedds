@@ -99,106 +99,262 @@ DDS_DEPRECATED_EXPORT void dds_listener_merge (dds_listener_t * __restrict dst, 
  ************************************************************************************************/
 
 /**
+ * @brief Set the data_available callback and argument in the listener structure.
+ *
+ * @param[in,out] listener listener structure to update
+ * @param[in] callback the callback to set or a null pointer
+ * @param[in] arg callback argument that is passed uninterpreted to the callback function
+ * @param[in] reset_on_invoke whether or not the status should be cleared when the listener callback is invoked
+ *
+ * @retval DDS_RETCODE_OK success
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lset_data_available_arg (dds_listener_t * __restrict listener, dds_on_data_available_fn callback, void *arg, bool reset_on_invoke);
+
+/**
+ * @brief Set the data_on_readers callback and argument in the listener structure.
+ *
+ * @param[in,out] listener listener structure to update
+ * @param[in] callback the callback to set or a null pointer
+ * @param[in] arg callback argument that is passed uninterpreted to the callback function
+ * @param[in] reset_on_invoke whether or not the status should be cleared when the listener callback is invoked
+ *
+ * @retval DDS_RETCODE_OK success
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lset_data_on_readers_arg (dds_listener_t * __restrict listener, dds_on_data_on_readers_fn callback, void *arg, bool reset_on_invoke);
+
+/**
+ * @brief Set the inconsistent_topic callback and argument in the listener structure.
+ *
+ * @param[in,out] listener listener structure to update
+ * @param[in] callback the callback to set or a null pointer
+ * @param[in] arg callback argument that is passed uninterpreted to the callback function
+ * @param[in] reset_on_invoke whether or not the status should be cleared when the listener callback is invoked
+ *
+ * @retval DDS_RETCODE_OK success
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lset_inconsistent_topic_arg (dds_listener_t * __restrict listener, dds_on_inconsistent_topic_fn callback, void *arg, bool reset_on_invoke);
+
+/**
+ * @brief Set the liveliness_changed callback and argument in the listener structure.
+ *
+ * @param[in,out] listener listener structure to update
+ * @param[in] callback the callback to set or a null pointer
+ * @param[in] arg callback argument that is passed uninterpreted to the callback function
+ * @param[in] reset_on_invoke whether or not the status should be cleared when the listener callback is invoked
+ *
+ * @retval DDS_RETCODE_OK success
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lset_liveliness_changed_arg (dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn callback, void *arg, bool reset_on_invoke);
+
+/**
+ * @brief Set the liveliness_lost callback and argument in the listener structure.
+ *
+ * @param[in,out] listener listener structure to update
+ * @param[in] callback the callback to set or a null pointer
+ * @param[in] arg callback argument that is passed uninterpreted to the callback function
+ * @param[in] reset_on_invoke whether or not the status should be cleared when the listener callback is invoked
+ *
+ * @retval DDS_RETCODE_OK success
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lset_liveliness_lost_arg (dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn callback, void *arg, bool reset_on_invoke);
+
+/**
+ * @brief Set the offered_deadline_missed callback and argument in the listener structure.
+ *
+ * @param[in,out] listener listener structure to update
+ * @param[in] callback the callback to set or a null pointer
+ * @param[in] arg callback argument that is passed uninterpreted to the callback function
+ * @param[in] reset_on_invoke whether or not the status should be cleared when the listener callback is invoked
+ *
+ * @retval DDS_RETCODE_OK success
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lset_offered_deadline_missed_arg (dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn callback, void *arg, bool reset_on_invoke);
+
+/**
+ * @brief Set the offered_incompatible_qos callback and argument in the listener structure.
+ *
+ * @param[in,out] listener listener structure to update
+ * @param[in] callback the callback to set or a null pointer
+ * @param[in] arg callback argument that is passed uninterpreted to the callback function
+ * @param[in] reset_on_invoke whether or not the status should be cleared when the listener callback is invoked
+ *
+ * @retval DDS_RETCODE_OK success
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lset_offered_incompatible_qos_arg (dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn callback, void *arg, bool reset_on_invoke);
+
+/**
+ * @brief Set the publication_matched callback and argument in the listener structure.
+ *
+ * @param[in,out] listener listener structure to update
+ * @param[in] callback the callback to set or a null pointer
+ * @param[in] arg callback argument that is passed uninterpreted to the callback function
+ * @param[in] reset_on_invoke whether or not the status should be cleared when the listener callback is invoked
+ *
+ * @retval DDS_RETCODE_OK success
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lset_publication_matched_arg (dds_listener_t * __restrict listener, dds_on_publication_matched_fn callback, void *arg, bool reset_on_invoke);
+
+/**
+ * @brief Set the requested_deadline_missed callback and argument in the listener structure.
+ *
+ * @param[in,out] listener listener structure to update
+ * @param[in] callback the callback to set or a null pointer
+ * @param[in] arg callback argument that is passed uninterpreted to the callback function
+ * @param[in] reset_on_invoke whether or not the status should be cleared when the listener callback is invoked
+ *
+ * @retval DDS_RETCODE_OK success
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lset_requested_deadline_missed_arg (dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn callback, void *arg, bool reset_on_invoke);
+
+/**
+ * @brief Set the requested_incompatible_qos callback and argument in the listener structure.
+ *
+ * @param[in,out] listener listener structure to update
+ * @param[in] callback the callback to set or a null pointer
+ * @param[in] arg callback argument that is passed uninterpreted to the callback function
+ * @param[in] reset_on_invoke whether or not the status should be cleared when the listener callback is invoked
+ *
+ * @retval DDS_RETCODE_OK success
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lset_requested_incompatible_qos_arg (dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn callback, void *arg, bool reset_on_invoke);
+
+/**
+ * @brief Set the sample_lost callback and argument in the listener structure.
+ *
+ * @param[in,out] listener listener structure to update
+ * @param[in] callback the callback to set or a null pointer
+ * @param[in] arg callback argument that is passed uninterpreted to the callback function
+ * @param[in] reset_on_invoke whether or not the status should be cleared when the listener callback is invoked
+ *
+ * @retval DDS_RETCODE_OK success
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lset_sample_lost_arg (dds_listener_t * __restrict listener, dds_on_sample_lost_fn callback, void *arg, bool reset_on_invoke);
+
+/**
+ * @brief Set the sample_rejected callback and argument in the listener structure.
+ *
+ * @param[in,out] listener listener structure to update
+ * @param[in] callback the callback to set or a null pointer
+ * @param[in] arg callback argument that is passed uninterpreted to the callback function
+ * @param[in] reset_on_invoke whether or not the status should be cleared when the listener callback is invoked
+ *
+ * @retval DDS_RETCODE_OK success
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lset_sample_rejected_arg (dds_listener_t * __restrict listener, dds_on_sample_rejected_fn callback, void *arg, bool reset_on_invoke);
+
+/**
+ * @brief Set the subscription_matched callback and argument in the listener structure.
+ *
+ * @param[in,out] listener listener structure to update
+ * @param[in] callback the callback to set or a null pointer
+ * @param[in] arg callback argument that is passed uninterpreted to the callback function
+ * @param[in] reset_on_invoke whether or not the status should be cleared when the listener callback is invoked
+ *
+ * @retval DDS_RETCODE_OK success
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lset_subscription_matched_arg (dds_listener_t * __restrict listener, dds_on_subscription_matched_fn callback, void *arg, bool reset_on_invoke);
+
+/**
  * @brief Set the inconsistent_topic callback in the listener structure.
  *
- * @param listener The pointer to the listener structure, where the callback will be set
- * @param callback The callback to set in the listener, can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lset_inconsistent_topic_arg with arg set to the argument passed in dds_create_listener and reset_on_invoke to true, and throwing away the result.
  */
 DDS_EXPORT void dds_lset_inconsistent_topic (dds_listener_t * __restrict listener, dds_on_inconsistent_topic_fn callback);
 
 /**
  * @brief Set the liveliness_lost callback in the listener structure.
  *
- * @param[out] listener The pointer to the listener structure, where the callback will be set
- * @param[in] callback The callback to set in the listener, can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lset_liveliness_lost_arg with arg set to the argument passed in dds_create_listener and reset_on_invoke to true, and throwing away the result.
  */
 DDS_EXPORT void dds_lset_liveliness_lost (dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn callback);
 
 /**
  * @brief Set the offered_deadline_missed callback in the listener structure.
  *
- * @param[in,out] listener The pointer to the listener structure, where the callback will be set
- * @param[in] callback The callback to set in the listener, can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lset_offered_deadline_missed_arg with arg set to the argument passed in dds_create_listener and reset_on_invoke to true, and throwing away the result.
  */
 DDS_EXPORT void dds_lset_offered_deadline_missed (dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn callback);
 
 /**
  * @brief Set the offered_incompatible_qos callback in the listener structure.
  *
- * @param[in,out] listener The pointer to the listener structure, where the callback will be set
- * @param[in] callback The callback to set in the listener, can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lset_offered_incompatible_qos_arg with arg set to the argument passed in dds_create_listener and reset_on_invoke to true, and throwing away the result.
  */
 DDS_EXPORT void dds_lset_offered_incompatible_qos (dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn callback);
 
 /**
  * @brief Set the data_on_readers callback in the listener structure.
  *
- * @param[in,out] listener The pointer to the listener structure, where the callback will be set
- * @param[in] callback The callback to set in the listener, can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lset_data_on_readers_arg with arg set to the argument passed in dds_create_listener and reset_on_invoke to true, and throwing away the result.
  */
 DDS_EXPORT void dds_lset_data_on_readers (dds_listener_t * __restrict listener, dds_on_data_on_readers_fn callback);
 
 /**
  * @brief Set the sample_lost callback in the listener structure.
  *
- * @param[in,out] listener The pointer to the listener structure, where the callback will be set
- * @param[in] callback The callback to set in the listener, can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lset_sample_lost_arg with arg set to the argument passed in dds_create_listener and reset_on_invoke to true, and throwing away the result.
  */
 DDS_EXPORT void dds_lset_sample_lost (dds_listener_t * __restrict listener, dds_on_sample_lost_fn callback);
 
 /**
  * @brief Set the data_available callback in the listener structure.
  *
- * @param[in,out] listener The pointer to the listener structure, where the callback will be set
- * @param[in] callback The callback to set in the listener, can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lset_data_available_arg with arg set to the argument passed in dds_create_listener and reset_on_invoke to true, and throwing away the result.
  */
 DDS_EXPORT void dds_lset_data_available (dds_listener_t * __restrict listener, dds_on_data_available_fn callback);
 
 /**
  * @brief Set the sample_rejected callback in the listener structure.
  *
- * @param[in,out] listener The pointer to the listener structure, where the callback will be set
- * @param[in] callback The callback to set in the listener, can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lset_sample_rejected_arg with arg set to the argument passed in dds_create_listener and reset_on_invoke to true, and throwing away the result.
  */
 DDS_EXPORT void dds_lset_sample_rejected (dds_listener_t * __restrict listener, dds_on_sample_rejected_fn callback);
 
 /**
  * @brief Set the liveliness_changed callback in the listener structure.
  *
- * @param[in,out] listener The pointer to the listener structure, where the callback will be set
- * @param[in] callback The callback to set in the listener, can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lset_liveliness_changed_arg with arg set to the argument passed in dds_create_listener and reset_on_invoke to true, and throwing away the result.
  */
 DDS_EXPORT void dds_lset_liveliness_changed (dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn callback);
 
 /**
  * @brief Set the requested_deadline_missed callback in the listener structure.
  *
- * @param[in,out] listener The pointer to the listener structure, where the callback will be set
- * @param[in] callback The callback to set in the listener, can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lset_requested_deadline_missed_arg with arg set to the argument passed in dds_create_listener and reset_on_invoke to true, and throwing away the result.
  */
 DDS_EXPORT void dds_lset_requested_deadline_missed (dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn callback);
 
 /**
  * @brief Set the requested_incompatible_qos callback in the listener structure.
  *
- * @param[in,out] listener The pointer to the listener structure, where the callback will be set
- * @param[in] callback The callback to set in the listener, can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lset_requested_incompatible_qos_arg with arg set to the argument passed in dds_create_listener and reset_on_invoke to true, and throwing away the result.
  */
 DDS_EXPORT void dds_lset_requested_incompatible_qos (dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn callback);
 
 /**
  * @brief Set the publication_matched callback in the listener structure.
  *
- * @param[in,out] listener The pointer to the listener structure, where the callback will be set
- * @param[in] callback The callback to set in the listener, can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lset_publication_matched_arg with arg set to the argument passed in dds_create_listener and reset_on_invoke to true, and throwing away the result.
  */
 DDS_EXPORT void dds_lset_publication_matched (dds_listener_t * __restrict listener, dds_on_publication_matched_fn callback);
 
 /**
  * @brief Set the subscription_matched callback in the listener structure.
  *
- * @param[in,out] listener The pointer to the listener structure, where the callback will be set
- * @param[in] callback The callback to set in the listener, can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lset_subscription_matched_arg with arg set to the argument passed in dds_create_listener and reset_on_invoke to true, and throwing away the result.
  */
 DDS_EXPORT void dds_lset_subscription_matched (dds_listener_t * __restrict listener, dds_on_subscription_matched_fn callback);
 
@@ -208,106 +364,262 @@ DDS_EXPORT void dds_lset_subscription_matched (dds_listener_t * __restrict liste
  ************************************************************************************************/
 
 /**
+ * @brief Get the data_available callback from the listener structure.
+ *
+ * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
+ * @param[out] callback Callback function; may be a null pointer
+ * @param[out] arg Callback argument pointer; may be a null pointer
+ * @param[out] reset_on_invoke Whether the status is reset by listener invocation; may be a null pointer
+ *
+ * @retval DDS_RETCODE_OK if successful
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lget_data_available_arg (const dds_listener_t * __restrict listener, dds_on_data_available_fn *callback, void **arg, bool *reset_on_invoke);
+
+/**
+ * @brief Get the data_on_readers callback from the listener structure.
+ *
+ * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
+ * @param[out] callback Callback function; may be a null pointer
+ * @param[out] arg Callback argument pointer; may be a null pointer
+ * @param[out] reset_on_invoke Whether the status is reset by listener invocation; may be a null pointer
+ *
+ * @retval DDS_RETCODE_OK if successful
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lget_data_on_readers_arg (const dds_listener_t * __restrict listener, dds_on_data_on_readers_fn *callback, void **arg, bool *reset_on_invoke);
+
+/**
  * @brief Get the inconsistent_topic callback from the listener structure.
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
- * @param[in,out] callback Pointer where the retrieved callback can be stored; can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * @param[out] callback Callback function; may be a null pointer
+ * @param[out] arg Callback argument pointer; may be a null pointer
+ * @param[out] reset_on_invoke Whether the status is reset by listener invocation; may be a null pointer
+ *
+ * @retval DDS_RETCODE_OK if successful
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lget_inconsistent_topic_arg (const dds_listener_t * __restrict listener, dds_on_inconsistent_topic_fn *callback, void **arg, bool *reset_on_invoke);
+
+/**
+ * @brief Get the liveliness_changed callback from the listener structure.
+ *
+ * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
+ * @param[out] callback Callback function; may be a null pointer
+ * @param[out] arg Callback argument pointer; may be a null pointer
+ * @param[out] reset_on_invoke Whether the status is reset by listener invocation; may be a null pointer
+ *
+ * @retval DDS_RETCODE_OK if successful
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lget_liveliness_changed_arg (const dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn *callback, void **arg, bool *reset_on_invoke);
+
+/**
+ * @brief Get the liveliness_lost callback from the listener structure.
+ *
+ * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
+ * @param[out] callback Callback function; may be a null pointer
+ * @param[out] arg Callback argument pointer; may be a null pointer
+ * @param[out] reset_on_invoke Whether the status is reset by listener invocation; may be a null pointer
+ *
+ * @retval DDS_RETCODE_OK if successful
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lget_liveliness_lost_arg (const dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn *callback, void **arg, bool *reset_on_invoke);
+
+/**
+ * @brief Get the offered_deadline_missed callback from the listener structure.
+ *
+ * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
+ * @param[out] callback Callback function; may be a null pointer
+ * @param[out] arg Callback argument pointer; may be a null pointer
+ * @param[out] reset_on_invoke Whether the status is reset by listener invocation; may be a null pointer
+ *
+ * @retval DDS_RETCODE_OK if successful
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lget_offered_deadline_missed_arg (const dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn *callback, void **arg, bool *reset_on_invoke);
+
+/**
+ * @brief Get the offered_incompatible_qos callback from the listener structure.
+ *
+ * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
+ * @param[out] callback Callback function; may be a null pointer
+ * @param[out] arg Callback argument pointer; may be a null pointer
+ * @param[out] reset_on_invoke Whether the status is reset by listener invocation; may be a null pointer
+ *
+ * @retval DDS_RETCODE_OK if successful
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lget_offered_incompatible_qos_arg (const dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn *callback, void **arg, bool *reset_on_invoke);
+
+/**
+ * @brief Get the publication_matched callback from the listener structure.
+ *
+ * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
+ * @param[out] callback Callback function; may be a null pointer
+ * @param[out] arg Callback argument pointer; may be a null pointer
+ * @param[out] reset_on_invoke Whether the status is reset by listener invocation; may be a null pointer
+ *
+ * @retval DDS_RETCODE_OK if successful
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lget_publication_matched_arg (const dds_listener_t * __restrict listener, dds_on_publication_matched_fn *callback, void **arg, bool *reset_on_invoke);
+
+/**
+ * @brief Get the subscription_matched callback from the listener structure.
+ *
+ * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
+ * @param[out] callback Callback function; may be a null pointer
+ * @param[out] arg Callback argument pointer; may be a null pointer
+ * @param[out] reset_on_invoke Whether the status is reset by listener invocation; may be a null pointer
+ *
+ * @retval DDS_RETCODE_OK if successful
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lget_requested_deadline_missed_arg (const dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn *callback, void **arg, bool *reset_on_invoke);
+
+/**
+ * @brief Get the requested_incompatible_qos callback from the listener structure.
+ *
+ * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
+ * @param[out] callback Callback function; may be a null pointer
+ * @param[out] arg Callback argument pointer; may be a null pointer
+ * @param[out] reset_on_invoke Whether the status is reset by listener invocation; may be a null pointer
+ *
+ * @retval DDS_RETCODE_OK if successful
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lget_requested_incompatible_qos_arg (const dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn *callback, void **arg, bool *reset_on_invoke);
+
+/**
+ * @brief Get the sample_lost callback from the listener structure.
+ *
+ * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
+ * @param[out] callback Callback function; may be a null pointer
+ * @param[out] arg Callback argument pointer; may be a null pointer
+ * @param[out] reset_on_invoke Whether the status is reset by listener invocation; may be a null pointer
+ *
+ * @retval DDS_RETCODE_OK if successful
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lget_sample_lost_arg (const dds_listener_t * __restrict listener, dds_on_sample_lost_fn *callback, void **arg, bool *reset_on_invoke);
+
+/**
+ * @brief Get the sample_rejected callback from the listener structure.
+ *
+ * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
+ * @param[out] callback Callback function; may be a null pointer
+ * @param[out] arg Callback argument pointer; may be a null pointer
+ * @param[out] reset_on_invoke Whether the status is reset by listener invocation; may be a null pointer
+ *
+ * @retval DDS_RETCODE_OK if successful
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lget_sample_rejected_arg (const dds_listener_t * __restrict listener, dds_on_sample_rejected_fn *callback, void **arg, bool *reset_on_invoke);
+
+/**
+ * @brief Get the subscription_matched callback from the listener structure.
+ *
+ * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
+ * @param[out] callback Callback function; may be a null pointer
+ * @param[out] arg Callback argument pointer; may be a null pointer
+ * @param[out] reset_on_invoke Whether the status is reset by listener invocation; may be a null pointer
+ *
+ * @retval DDS_RETCODE_OK if successful
+ * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
+ */
+DDS_EXPORT dds_return_t dds_lget_subscription_matched_arg (const dds_listener_t * __restrict listener, dds_on_subscription_matched_fn *callback, void **arg, bool *reset_on_invoke);
+
+/**
+ * @brief Get the inconsistent_topic callback from the listener structure
+ *
+ * Equivalent to calling @ref dds_lget_inconsistent_topic_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
  */
 DDS_EXPORT void dds_lget_inconsistent_topic (const dds_listener_t * __restrict listener, dds_on_inconsistent_topic_fn *callback);
 
 /**
  * @brief Get the liveliness_lost callback from the listener structure.
  *
- * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
- * @param[in,out] callback Pointer where the retrieved callback can be stored; can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lget_liveliness_lost_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
  */
 DDS_EXPORT void dds_lget_liveliness_lost (const dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn *callback);
 
 /**
  * @brief Get the offered_deadline_missed callback from the listener structure.
  *
- * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
- * @param[in,out] callback Pointer where the retrieved callback can be stored; can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lget_offered_deadline_missed_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
  */
 DDS_EXPORT void dds_lget_offered_deadline_missed (const dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn *callback);
 
 /**
  * @brief Get the offered_incompatible_qos callback from the listener structure.
  *
- * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
- * @param[in,out] callback Pointer where the retrieved callback can be stored; can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lget_offered_incompatible_qos_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
  */
 DDS_EXPORT void dds_lget_offered_incompatible_qos (const dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn *callback);
 
 /**
  * @brief Get the data_on_readers callback from the listener structure.
  *
- * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
- * @param[in,out] callback Pointer where the retrieved callback can be stored; can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lget_data_on_readers_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
  */
 DDS_EXPORT void dds_lget_data_on_readers (const dds_listener_t * __restrict listener, dds_on_data_on_readers_fn *callback);
 
 /**
  * @brief Get the sample_lost callback from the listener structure.
  *
- * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
- * @param[in,out] callback Pointer where the retrieved callback can be stored; can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lget_sample_lost_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
  */
 DDS_EXPORT void dds_lget_sample_lost (const dds_listener_t *__restrict listener, dds_on_sample_lost_fn *callback);
 
 /**
  * @brief Get the data_available callback from the listener structure.
  *
- * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
- * @param[in,out] callback Pointer where the retrieved callback can be stored; can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lget_data_available_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
  */
 DDS_EXPORT void dds_lget_data_available (const dds_listener_t *__restrict listener, dds_on_data_available_fn *callback);
 
 /**
  * @brief Get the sample_rejected callback from the listener structure.
  *
- * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
- * @param[in,out] callback Pointer where the retrieved callback can be stored; can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lget_sample_rejected_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
  */
 DDS_EXPORT void dds_lget_sample_rejected (const dds_listener_t  *__restrict listener, dds_on_sample_rejected_fn *callback);
 
 /**
  * @brief Get the liveliness_changed callback from the listener structure.
  *
- * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
- * @param[in,out] callback Pointer where the retrieved callback can be stored; can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lget_liveliness_changed_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
  */
 DDS_EXPORT void dds_lget_liveliness_changed (const dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn *callback);
 
 /**
  * @brief Get the requested_deadline_missed callback from the listener structure.
  *
- * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
- * @param[in,out] callback Pointer where the retrieved callback can be stored; can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lget_requested_deadline_missed_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
  */
 DDS_EXPORT void dds_lget_requested_deadline_missed (const dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn *callback);
 
 /**
  * @brief Get the requested_incompatible_qos callback from the listener structure.
  *
- * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
- * @param[in,out] callback Pointer where the retrieved callback can be stored; can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lget_requested_incompatible_qos_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
  */
 DDS_EXPORT void dds_lget_requested_incompatible_qos (const dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn *callback);
 
 /**
  * @brief Get the publication_matched callback from the listener structure.
  *
- * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
- * @param[in,out] callback Pointer where the retrieved callback can be stored; can be NULL, ::DDS_LUNSET or a valid callback pointer
+ * Equivalent to calling @ref dds_lget_publication_matched_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
  */
 DDS_EXPORT void dds_lget_publication_matched (const dds_listener_t * __restrict listener, dds_on_publication_matched_fn *callback);
 
 /**
  * @brief Get the subscription_matched callback from the listener structure.
  *
- * @param[in] callback Pointer where the retrieved callback can be stored; can be NULL, ::DDS_LUNSET or a valid callback pointer
- * @param[in,out] listener The pointer to the listener structure, where the callback will be retrieved from
+ * Equivalent to calling @ref dds_lget_subscription_matched_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
  */
 DDS_EXPORT void dds_lget_subscription_matched (const dds_listener_t * __restrict listener, dds_on_subscription_matched_fn *callback);
 

@@ -55,6 +55,7 @@ void dds_reset_listener (dds_listener_t * __restrict listener)
   {
     dds_listener_t * const l = listener;
     l->inherited = 0;
+    l->reset_on_invoke = 0;
     l->on_data_available = 0;
     l->on_data_on_readers = 0;
     l->on_inconsistent_topic = 0;
@@ -100,86 +101,40 @@ static bool dds_combine_listener_override_inherited (uint32_t inherited, void (*
   return inherited;
 }
 
+static uint32_t copy_bits (uint32_t a, uint32_t b, uint32_t mask)
+{
+  return (a & ~mask) | (b & mask);
+}
+
+static uint32_t combine_reset_on_invoke (const dds_listener_t *dst, const dds_listener_t *src, uint32_t status)
+{
+  return copy_bits (dst->reset_on_invoke, src->reset_on_invoke, status);
+}
+
 static void dds_combine_listener (bool (*op) (uint32_t inherited, void (*)(void), void (*)(void)), dds_listener_t * __restrict dst, const dds_listener_t * __restrict src)
 {
-  if (op (dst->inherited & DDS_DATA_AVAILABLE_STATUS, (void (*)(void)) dst->on_data_available, (void (*)(void)) src->on_data_available))
-  {
-    dst->inherited |= DDS_DATA_AVAILABLE_STATUS;
-    dst->on_data_available = src->on_data_available;
-    dst->on_data_available_arg = src->on_data_available_arg;
-  }
-  if (op (dst->inherited & DDS_DATA_ON_READERS_STATUS, (void (*)(void)) dst->on_data_on_readers, (void (*)(void)) src->on_data_on_readers))
-  {
-    dst->inherited |= DDS_DATA_ON_READERS_STATUS;
-    dst->on_data_on_readers = src->on_data_on_readers;
-    dst->on_data_on_readers_arg = src->on_data_on_readers_arg;
-  }
-  if (op (dst->inherited & DDS_INCONSISTENT_TOPIC_STATUS, (void (*)(void)) dst->on_inconsistent_topic, (void (*)(void)) src->on_inconsistent_topic))
-  {
-    dst->inherited |= DDS_INCONSISTENT_TOPIC_STATUS;
-    dst->on_inconsistent_topic = src->on_inconsistent_topic;
-    dst->on_inconsistent_topic_arg = src->on_inconsistent_topic_arg;
-  }
-  if (op (dst->inherited & DDS_LIVELINESS_CHANGED_STATUS, (void (*)(void)) dst->on_liveliness_changed, (void (*)(void)) src->on_liveliness_changed))
-  {
-    dst->inherited |= DDS_LIVELINESS_CHANGED_STATUS;
-    dst->on_liveliness_changed = src->on_liveliness_changed;
-    dst->on_liveliness_changed_arg = src->on_liveliness_changed_arg;
-  }
-  if (op (dst->inherited & DDS_LIVELINESS_LOST_STATUS, (void (*)(void)) dst->on_liveliness_lost, (void (*)(void)) src->on_liveliness_lost))
-  {
-    dst->inherited |= DDS_LIVELINESS_LOST_STATUS;
-    dst->on_liveliness_lost = src->on_liveliness_lost;
-    dst->on_liveliness_lost_arg = src->on_liveliness_lost_arg;
-  }
-  if (op (dst->inherited & DDS_OFFERED_DEADLINE_MISSED_STATUS, (void (*)(void)) dst->on_offered_deadline_missed, (void (*)(void)) src->on_offered_deadline_missed))
-  {
-    dst->inherited |= DDS_OFFERED_DEADLINE_MISSED_STATUS;
-    dst->on_offered_deadline_missed = src->on_offered_deadline_missed;
-    dst->on_offered_deadline_missed_arg = src->on_offered_deadline_missed_arg;
-  }
-  if (op (dst->inherited & DDS_OFFERED_INCOMPATIBLE_QOS_STATUS, (void (*)(void)) dst->on_offered_incompatible_qos, (void (*)(void)) src->on_offered_incompatible_qos))
-  {
-    dst->inherited |= DDS_OFFERED_INCOMPATIBLE_QOS_STATUS;
-    dst->on_offered_incompatible_qos = src->on_offered_incompatible_qos;
-    dst->on_offered_incompatible_qos_arg = src->on_offered_incompatible_qos_arg;
-  }
-  if (op (dst->inherited & DDS_PUBLICATION_MATCHED_STATUS, (void (*)(void)) dst->on_publication_matched, (void (*)(void)) src->on_publication_matched))
-  {
-    dst->inherited |= DDS_PUBLICATION_MATCHED_STATUS;
-    dst->on_publication_matched = src->on_publication_matched;
-    dst->on_publication_matched_arg = src->on_publication_matched_arg;
-  }
-  if (op (dst->inherited & DDS_REQUESTED_DEADLINE_MISSED_STATUS, (void (*)(void)) dst->on_requested_deadline_missed, (void (*)(void)) src->on_requested_deadline_missed))
-  {
-    dst->inherited |= DDS_REQUESTED_DEADLINE_MISSED_STATUS;
-    dst->on_requested_deadline_missed = src->on_requested_deadline_missed;
-    dst->on_requested_deadline_missed_arg = src->on_requested_deadline_missed_arg;
-  }
-  if (op (dst->inherited & DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS, (void (*)(void)) dst->on_requested_incompatible_qos, (void (*)(void)) src->on_requested_incompatible_qos))
-  {
-    dst->inherited |= DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS;
-    dst->on_requested_incompatible_qos = src->on_requested_incompatible_qos;
-    dst->on_requested_incompatible_qos_arg = src->on_requested_incompatible_qos_arg;
-  }
-  if (op (dst->inherited & DDS_SAMPLE_LOST_STATUS, (void (*)(void)) dst->on_sample_lost, (void (*)(void)) src->on_sample_lost))
-  {
-    dst->inherited |= DDS_SAMPLE_LOST_STATUS;
-    dst->on_sample_lost = src->on_sample_lost;
-    dst->on_sample_lost_arg = src->on_sample_lost_arg;
-  }
-  if (op (dst->inherited & DDS_SAMPLE_REJECTED_STATUS, (void (*)(void)) dst->on_sample_rejected, (void (*)(void)) src->on_sample_rejected))
-  {
-    dst->inherited |= DDS_SAMPLE_REJECTED_STATUS;
-    dst->on_sample_rejected = src->on_sample_rejected;
-    dst->on_sample_rejected_arg = src->on_sample_rejected_arg;
-  }
-  if (op (dst->inherited & DDS_SUBSCRIPTION_MATCHED_STATUS, (void (*)(void)) dst->on_subscription_matched, (void (*)(void)) src->on_subscription_matched))
-  {
-    dst->inherited |= DDS_SUBSCRIPTION_MATCHED_STATUS;
-    dst->on_subscription_matched = src->on_subscription_matched;
-    dst->on_subscription_matched_arg = src->on_subscription_matched_arg;
-  }
+#define C(NAME_, name_) do { \
+    if (op (dst->inherited & DDS_##NAME_##_STATUS, (void (*)(void)) dst->on_##name_, (void (*)(void)) src->on_##name_)){ \
+      dst->inherited |= DDS_##NAME_##_STATUS; \
+      dst->reset_on_invoke = combine_reset_on_invoke (dst, src, DDS_##NAME_##_STATUS); \
+      dst->on_##name_ = src->on_##name_; \
+      dst->on_##name_##_arg = src->on_##name_##_arg; \
+    } \
+  } while (0)
+  C(DATA_AVAILABLE, data_available);
+  C(DATA_ON_READERS, data_on_readers);
+  C(INCONSISTENT_TOPIC, inconsistent_topic);
+  C(LIVELINESS_CHANGED, liveliness_changed);
+  C(LIVELINESS_LOST, liveliness_lost);
+  C(OFFERED_DEADLINE_MISSED, offered_deadline_missed);
+  C(OFFERED_INCOMPATIBLE_QOS, offered_incompatible_qos);
+  C(PUBLICATION_MATCHED, publication_matched);
+  C(REQUESTED_DEADLINE_MISSED, requested_deadline_missed);
+  C(REQUESTED_INCOMPATIBLE_QOS, requested_incompatible_qos);
+  C(SAMPLE_LOST, sample_lost);
+  C(SAMPLE_REJECTED, sample_rejected);
+  C(SUBSCRIPTION_MATCHED, subscription_matched);
+#undef C
 }
 
 void dds_override_inherited_listener (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src)
@@ -209,166 +164,94 @@ void dds_listener_merge (dds_listener_t * __restrict dst, const dds_listener_t *
   dds_merge_listener (dst, src);
 }
 
-/************************************************************************************************
- *  Setters
- ************************************************************************************************/
+#define DDS_SET_LISTENER_ARG(NAME_, name_) \
+  dds_return_t dds_lset_##name_##_arg (dds_listener_t * __restrict listener, dds_on_##name_##_fn callback, void *arg, bool reset_on_invoke) \
+  { \
+    if (listener == NULL) \
+      return DDS_RETCODE_BAD_PARAMETER; \
+    listener->reset_on_invoke = copy_bits (listener->reset_on_invoke, reset_on_invoke ? ~(uint32_t)0 : 0, DDS_##NAME_##_STATUS); \
+    listener->on_##name_ = callback; \
+    listener->on_##name_##_arg = arg; \
+    return DDS_RETCODE_OK; \
+  }
+DDS_SET_LISTENER_ARG (DATA_AVAILABLE, data_available)
+DDS_SET_LISTENER_ARG (DATA_ON_READERS, data_on_readers)
+DDS_SET_LISTENER_ARG (INCONSISTENT_TOPIC, inconsistent_topic)
+DDS_SET_LISTENER_ARG (LIVELINESS_CHANGED, liveliness_changed)
+DDS_SET_LISTENER_ARG (LIVELINESS_LOST, liveliness_lost)
+DDS_SET_LISTENER_ARG (OFFERED_DEADLINE_MISSED, offered_deadline_missed)
+DDS_SET_LISTENER_ARG (OFFERED_INCOMPATIBLE_QOS, offered_incompatible_qos)
+DDS_SET_LISTENER_ARG (PUBLICATION_MATCHED, publication_matched)
+DDS_SET_LISTENER_ARG (REQUESTED_DEADLINE_MISSED, requested_deadline_missed)
+DDS_SET_LISTENER_ARG (REQUESTED_INCOMPATIBLE_QOS, requested_incompatible_qos)
+DDS_SET_LISTENER_ARG (SAMPLE_LOST, sample_lost)
+DDS_SET_LISTENER_ARG (SAMPLE_REJECTED, sample_rejected)
+DDS_SET_LISTENER_ARG (SUBSCRIPTION_MATCHED, subscription_matched)
+#undef DDS_SET_LISTENER_ARG
 
-void dds_lset_data_available (dds_listener_t * __restrict listener, dds_on_data_available_fn callback)
-{
-  if (listener)
-    listener->on_data_available = callback;
-}
+#define DDS_SET_LISTENER(NAME_, name_) \
+  void dds_lset_##name_ (dds_listener_t * __restrict listener, dds_on_##name_##_fn callback) { \
+    if (listener) \
+      (void) dds_lset_##name_##_arg (listener, callback, listener->on_##name_##_arg, true); \
+  }
+DDS_SET_LISTENER (DATA_AVAILABLE, data_available)
+DDS_SET_LISTENER (DATA_ON_READERS, data_on_readers)
+DDS_SET_LISTENER (INCONSISTENT_TOPIC, inconsistent_topic)
+DDS_SET_LISTENER (LIVELINESS_CHANGED, liveliness_changed)
+DDS_SET_LISTENER (LIVELINESS_LOST, liveliness_lost)
+DDS_SET_LISTENER (OFFERED_DEADLINE_MISSED, offered_deadline_missed)
+DDS_SET_LISTENER (OFFERED_INCOMPATIBLE_QOS, offered_incompatible_qos)
+DDS_SET_LISTENER (PUBLICATION_MATCHED, publication_matched)
+DDS_SET_LISTENER (REQUESTED_DEADLINE_MISSED, requested_deadline_missed)
+DDS_SET_LISTENER (REQUESTED_INCOMPATIBLE_QOS, requested_incompatible_qos)
+DDS_SET_LISTENER (SAMPLE_LOST, sample_lost)
+DDS_SET_LISTENER (SAMPLE_REJECTED, sample_rejected)
+DDS_SET_LISTENER (SUBSCRIPTION_MATCHED, subscription_matched)
+#undef DDS_SET_LISTENER
 
-void dds_lset_data_on_readers (dds_listener_t * __restrict listener, dds_on_data_on_readers_fn callback)
-{
-  if (listener)
-    listener->on_data_on_readers = callback;
-}
+#define DDS_GET_LISTENER_ARG(NAME_, name_) \
+  dds_return_t dds_lget_##name_##_arg (const dds_listener_t * __restrict listener, dds_on_##name_##_fn *callback, void **arg, bool *reset_on_invoke) \
+  { \
+    if (listener == NULL) \
+      return DDS_RETCODE_BAD_PARAMETER; \
+    if (callback) \
+      *callback = listener->on_##name_; \
+    if (arg) \
+      *arg = listener->on_##name_##_arg; \
+    if (reset_on_invoke) \
+      *reset_on_invoke = (listener->reset_on_invoke & DDS_##NAME_##_STATUS) != 0; \
+    return DDS_RETCODE_OK; \
+  }
+DDS_GET_LISTENER_ARG (DATA_AVAILABLE, data_available)
+DDS_GET_LISTENER_ARG (DATA_ON_READERS, data_on_readers)
+DDS_GET_LISTENER_ARG (INCONSISTENT_TOPIC, inconsistent_topic)
+DDS_GET_LISTENER_ARG (LIVELINESS_CHANGED, liveliness_changed)
+DDS_GET_LISTENER_ARG (LIVELINESS_LOST, liveliness_lost)
+DDS_GET_LISTENER_ARG (OFFERED_DEADLINE_MISSED, offered_deadline_missed)
+DDS_GET_LISTENER_ARG (OFFERED_INCOMPATIBLE_QOS, offered_incompatible_qos)
+DDS_GET_LISTENER_ARG (PUBLICATION_MATCHED, publication_matched)
+DDS_GET_LISTENER_ARG (REQUESTED_DEADLINE_MISSED, requested_deadline_missed)
+DDS_GET_LISTENER_ARG (REQUESTED_INCOMPATIBLE_QOS, requested_incompatible_qos)
+DDS_GET_LISTENER_ARG (SAMPLE_LOST, sample_lost)
+DDS_GET_LISTENER_ARG (SAMPLE_REJECTED, sample_rejected)
+DDS_GET_LISTENER_ARG (SUBSCRIPTION_MATCHED, subscription_matched)
+#undef DDS_GET_LISTENER_ARG
 
-void dds_lset_inconsistent_topic (dds_listener_t * __restrict listener, dds_on_inconsistent_topic_fn callback)
-{
-  if (listener)
-    listener->on_inconsistent_topic = callback;
-}
-
-void dds_lset_liveliness_changed (dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn callback)
-{
-  if (listener)
-    listener->on_liveliness_changed = callback;
-}
-
-void dds_lset_liveliness_lost (dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn callback)
-{
-  if (listener)
-    listener->on_liveliness_lost = callback;
-}
-
-void dds_lset_offered_deadline_missed (dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn callback)
-{
-  if (listener)
-    listener->on_offered_deadline_missed = callback;
-}
-
-void dds_lset_offered_incompatible_qos (dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn callback)
-{
-  if (listener)
-    listener->on_offered_incompatible_qos = callback;
-}
-
-void dds_lset_publication_matched (dds_listener_t * __restrict listener, dds_on_publication_matched_fn callback)
-{
-  if (listener)
-    listener->on_publication_matched = callback;
-}
-
-void dds_lset_requested_deadline_missed (dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn callback)
-{
-  if (listener)
-    listener->on_requested_deadline_missed = callback;
-}
-
-void dds_lset_requested_incompatible_qos (dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn callback)
-{
-  if (listener)
-    listener->on_requested_incompatible_qos = callback;
-}
-
-void dds_lset_sample_lost (dds_listener_t * __restrict listener, dds_on_sample_lost_fn callback)
-{
-  if (listener)
-    listener->on_sample_lost = callback;
-}
-
-void dds_lset_sample_rejected (dds_listener_t * __restrict listener, dds_on_sample_rejected_fn callback)
-{
-  if (listener)
-    listener->on_sample_rejected = callback;
-}
-
-void dds_lset_subscription_matched (dds_listener_t * __restrict listener, dds_on_subscription_matched_fn callback)
-{
-  if (listener)
-    listener->on_subscription_matched = callback;
-}
-
-/************************************************************************************************
- *  Getters
- ************************************************************************************************/
-
-void dds_lget_data_available (const dds_listener_t * __restrict listener, dds_on_data_available_fn *callback)
-{
-  if (callback != NULL)
-    *callback = listener ? listener->on_data_available : 0;
-}
-
-void dds_lget_data_on_readers (const dds_listener_t * __restrict listener, dds_on_data_on_readers_fn *callback)
-{
-  if (callback)
-    *callback = listener ? listener->on_data_on_readers : 0;
-}
-
-void dds_lget_inconsistent_topic (const dds_listener_t * __restrict listener, dds_on_inconsistent_topic_fn *callback)
-{
-  if (callback)
-    *callback = listener ? listener->on_inconsistent_topic : 0;
-}
-
-void dds_lget_liveliness_changed (const dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn *callback)
-{
-  if (callback)
-    *callback = listener ? listener->on_liveliness_changed : 0;
-}
-
-void dds_lget_liveliness_lost (const dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn *callback)
-{
-  if (callback)
-    *callback = listener ? listener->on_liveliness_lost : 0;
-}
-
-void dds_lget_offered_deadline_missed (const dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn *callback)
-{
-  if (callback)
-    *callback = listener ? listener->on_offered_deadline_missed : 0;
-}
-
-void dds_lget_offered_incompatible_qos (const dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn *callback)
-{
-  if (callback)
-    *callback = listener ? listener->on_offered_incompatible_qos : 0;
-}
-
-void dds_lget_publication_matched (const dds_listener_t * __restrict listener, dds_on_publication_matched_fn *callback)
-{
-  if (callback)
-    *callback = listener ? listener->on_publication_matched : 0;
-}
-
-void dds_lget_requested_deadline_missed (const dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn *callback)
-{
-  if (callback)
-    *callback = listener ? listener->on_requested_deadline_missed : 0;
-}
-
-void dds_lget_requested_incompatible_qos (const dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn *callback)
-{
-  if (callback)
-    *callback = listener ? listener->on_requested_incompatible_qos : 0;
-}
-
-void dds_lget_sample_lost (const dds_listener_t *__restrict listener, dds_on_sample_lost_fn *callback)
-{
-  if (callback)
-    *callback = listener ? listener->on_sample_lost : 0;
-}
-
-void dds_lget_sample_rejected (const dds_listener_t  *__restrict listener, dds_on_sample_rejected_fn *callback)
-{
-  if (callback)
-    *callback = listener ? listener->on_sample_rejected : 0;
-}
-
-void dds_lget_subscription_matched (const dds_listener_t * __restrict listener, dds_on_subscription_matched_fn *callback)
-{
-  if (callback)
-    *callback = listener ? listener->on_subscription_matched : 0;
-}
+#define DDS_GET_LISTENER(name_) \
+  void dds_lget_##name_ (const dds_listener_t * __restrict listener, dds_on_##name_##_fn *callback) { \
+    (void) dds_lget_##name_##_arg (listener, callback, NULL, NULL); \
+  }
+DDS_GET_LISTENER (data_available)
+DDS_GET_LISTENER (data_on_readers)
+DDS_GET_LISTENER (inconsistent_topic)
+DDS_GET_LISTENER (liveliness_changed)
+DDS_GET_LISTENER (liveliness_lost)
+DDS_GET_LISTENER (offered_deadline_missed)
+DDS_GET_LISTENER (offered_incompatible_qos)
+DDS_GET_LISTENER (publication_matched)
+DDS_GET_LISTENER (requested_deadline_missed)
+DDS_GET_LISTENER (requested_incompatible_qos)
+DDS_GET_LISTENER (sample_lost)
+DDS_GET_LISTENER (sample_rejected)
+DDS_GET_LISTENER (subscription_matched)
+#undef DDS_GET_LISTENER

@@ -69,6 +69,7 @@ typedef bool (*dds_querycondition_filter_with_ctx_fn) (const void * sample, cons
 
 struct dds_listener {
   uint32_t inherited;
+  uint32_t reset_on_invoke;
   dds_on_inconsistent_topic_fn on_inconsistent_topic;
   void *on_inconsistent_topic_arg;
   dds_on_liveliness_lost_fn on_liveliness_lost;
