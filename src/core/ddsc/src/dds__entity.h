@@ -72,8 +72,7 @@ DDS_EXPORT inline bool dds_entity_is_enabled (const dds_entity *e) {
   return (e->m_flags & DDS_ENTITY_ENABLED) != 0;
 }
 
-DDS_EXPORT void dds_entity_status_set (dds_entity *e, status_mask_t t);
-DDS_EXPORT void dds_entity_trigger_set (dds_entity *e, uint32_t t);
+DDS_EXPORT bool dds_entity_status_set (dds_entity *e, status_mask_t t) ddsrt_attribute_warn_unused_result;
 
 DDS_EXPORT inline void dds_entity_status_reset (dds_entity *e, status_mask_t t) {
   ddsrt_atomic_and32 (&e->m_status.m_status_and_mask, SAM_ENABLED_MASK | (status_mask_t) ~t);
