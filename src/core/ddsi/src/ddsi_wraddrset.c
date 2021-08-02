@@ -610,6 +610,8 @@ static struct costmap *wras_calc_costmap (const struct cover *covered, bool pref
 
 static void wras_trace_cover (const struct ddsi_domaingv *gv, const struct locset *locs, const struct costmap *wm, const struct cover *covered)
 {
+  if (!(gv->logconfig.c.mask & DDS_LC_DISCOVERY))
+    return;
   const int nreaders = cover_get_nreaders (covered);
   const int nlocs = cover_get_nlocs (covered);
   assert (nlocs == locs->nlocs);
