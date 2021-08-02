@@ -388,7 +388,14 @@ dds_return_t dds_waitset_set_trigger (dds_entity_t waitset, bool trigger)
   }
   else
   {
-    dds_entity_trigger_set (ent, trigger);
+    uint32_t oldst;
+    ddsrt_mutex_lock (&ent->m_observers_lock);
+    do {
+      oldst = ddsrt_atomic_ld32 (&ent->m_status.m_trigger);
+    } while (!ddsrt_atomic_cas32 (&ent->m_status.m_trigger, oldst, trigger));
+    if (oldst == 0 && trigger != 0)
+      dds_entity_observers_signal (ent, trigger);
+    ddsrt_mutex_unlock (&ent->m_observers_lock);
     dds_entity_unpin (ent);
     return DDS_RETCODE_OK;
   }

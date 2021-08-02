@@ -1479,19 +1479,6 @@ void dds_entity_status_set (dds_entity *e, status_mask_t status)
     dds_entity_observers_signal (e, status);
 }
 
-void dds_entity_trigger_set (dds_entity *e, uint32_t t)
-{
-  assert (! entity_has_status (e));
-  uint32_t oldst;
-  ddsrt_mutex_lock (&e->m_observers_lock);
-  do {
-    oldst = ddsrt_atomic_ld32 (&e->m_status.m_trigger);
-  } while (!ddsrt_atomic_cas32 (&e->m_status.m_trigger, oldst, t));
-  if (oldst == 0 && t != 0)
-    dds_entity_observers_signal (e, t);
-  ddsrt_mutex_unlock (&e->m_observers_lock);
-}
-
 dds_entity_t dds_get_topic (dds_entity_t entity)
 {
   dds_return_t rc;
