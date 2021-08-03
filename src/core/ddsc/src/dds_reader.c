@@ -373,6 +373,7 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
      are stable */
   /* FIXME: why do this if no listener is set? */
   ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
+  rd->m_entity.m_cb_pending_count++;
   while (rd->m_entity.m_cb_count > 0)
     ddsrt_cond_wait (&rd->m_entity.m_observers_cond, &rd->m_entity.m_observers_lock);
 
@@ -408,6 +409,7 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
       assert (0);
   }
 
+  rd->m_entity.m_cb_pending_count--;
   ddsrt_cond_broadcast (&rd->m_entity.m_observers_cond);
   ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 }
