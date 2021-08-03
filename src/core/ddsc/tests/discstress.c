@@ -396,6 +396,7 @@ static uint32_t createwriter_subscriber (void *varg)
   CU_ASSERT_FATAL(rc == 0);
   dds_delete_qos (qos);
 
+  int err = 0;
   struct ddsrt_hh_iter it;
   uint32_t nwri = 0;
   for (struct wrinfo *wri = ddsrt_hh_iter_first (wrinfo, &it); wri; wri = ddsrt_hh_iter_next (&it))
@@ -403,12 +404,15 @@ static uint32_t createwriter_subscriber (void *varg)
     nwri++;
     if (wri->seen != (1u << DEPTH) - 1)
     {
-      CU_ASSERT_FATAL (0);
+      printf ("err: wri->seen = %x rdid %"PRIu32" wrid %"PRIu32" iid %"PRIx64" lna %d\n",
+              wri->seen, wri->rdid, wri->wrid, wri->wr_iid, wri->last_not_alive);
+      err++;
     }
     /* simple iteration won't touch an object pointer twice */
     free (wri);
   }
   ddsrt_hh_free (wrinfo);
+  CU_ASSERT_FATAL (err == 0);
   CU_ASSERT_FATAL (nwri >= (N_ROUNDS / 3) * N_READERS * N_WRITERS);
   printf ("--- Done after %"PRIu32" sets\n", nwri / (N_READERS * N_WRITERS));
   return 0;
