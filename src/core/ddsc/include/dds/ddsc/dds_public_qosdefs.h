@@ -53,6 +53,7 @@ typedef enum dds_qos_policy_id {
   DDS_DURABILITYSERVICE_QOS_POLICY_ID,
   DDS_PROPERTY_QOS_POLICY_ID,
   DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID,
+  DDS_DATA_REPRESENTATION_QOS_POLICY_ID
 } dds_qos_policy_id_t;
 
 /* QoS structure is opaque */
@@ -134,6 +135,14 @@ typedef enum dds_type_consistency_kind
     DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION
 }
 dds_type_consistency_kind_t;
+
+/** Data Representation QoS: Applies to Topic, DataReader, DataWriter */
+typedef enum dds_data_representation_id {
+    XCDR_DATA_REPRESENTATION = 0,
+    XML_DATA_REPRESENTATION = 1,
+    XCDR2_DATA_REPRESENTATION = 2
+}
+dds_data_representation_id_t;
 
 #if defined (__cplusplus)
 }

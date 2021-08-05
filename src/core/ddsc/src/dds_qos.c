@@ -455,6 +455,18 @@ void dds_qset_type_consistency (dds_qos_t * __restrict qos, dds_type_consistency
   qos->present |= QP_TYPE_CONSISTENCY_ENFORCEMENT;
 }
 
+void dds_qset_data_representation (dds_qos_t * __restrict qos, uint32_t n, dds_data_representation_id_t *values)
+{
+  if (qos == NULL)
+    return;
+  if ((qos->present & QP_DATA_REPRESENTATION) && qos->data_representation.value.ids != NULL)
+    ddsrt_free (qos->data_representation.value.ids);
+  qos->data_representation.value.n = n;
+  qos->data_representation.value.ids = ddsrt_malloc (n * sizeof (*qos->data_representation.value.ids));
+  memcpy (qos->data_representation.value.ids, values, n * sizeof (*values));
+  qos->present |= QP_DATA_REPRESENTATION;
+}
+
 bool dds_qget_userdata (const dds_qos_t * __restrict qos, void **value, size_t *sz)
 {
   if (qos == NULL || !(qos->present & QP_USER_DATA))
@@ -766,5 +778,31 @@ bool dds_qget_type_consistency (const dds_qos_t * __restrict qos, dds_type_consi
     *prevent_type_widening = qos->type_consistency.prevent_type_widening;
   if (force_type_validation)
     *force_type_validation = qos->type_consistency.force_type_validation;
+  return true;
+}
+
+bool dds_qget_data_representation (const dds_qos_t * __restrict qos, uint32_t *n, dds_data_representation_id_t **values)
+{
+  if (qos == NULL || !(qos->present & QP_DATA_REPRESENTATION))
+    return false;
+  if (n == NULL && values != NULL)
+    return false;
+  if (qos->data_representation.value.n > 0)
+    assert (qos->data_representation.value.ids != NULL);
+  if (n != NULL)
+    *n = qos->data_representation.value.n;
+  if (values != NULL)
+  {
+    if (qos->data_representation.value.n > 0)
+    {
+      size_t sz = qos->data_representation.value.n * sizeof (*qos->data_representation.value.ids);
+      *values = ddsrt_malloc (sz);
+      memcpy (*values, qos->data_representation.value.ids, sz);
+    }
+    else
+    {
+      *values = NULL;
+    }
+  }
   return true;
 }

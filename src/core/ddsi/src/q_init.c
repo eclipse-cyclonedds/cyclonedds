@@ -834,7 +834,7 @@ static struct ddsi_sertype *make_special_type_pserop (const char *typename, size
   struct ddsi_sertype_pserop *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
   ddsi_sertype_init (&st->c, typename, &ddsi_sertype_ops_pserop, &ddsi_serdata_ops_pserop, nops_key == 0);
-  st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? CDR_LE : CDR_BE;
+  st->encoding_format = CDR_ENC_FORMAT_PLAIN;
   st->memsize = memsize;
   st->nops = nops;
   st->ops = ops;
@@ -848,7 +848,7 @@ static struct ddsi_sertype *make_special_type_plist (const char *typename, nn_pa
   struct ddsi_sertype_plist *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
   ddsi_sertype_init (&st->c, typename, &ddsi_sertype_ops_plist, &ddsi_serdata_ops_plist, false);
-  st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? PL_CDR_LE : PL_CDR_BE;
+  st->encoding_format = CDR_ENC_FORMAT_PL;
   st->keyparam = keyparam;
   return (struct ddsi_sertype *) st;
 }

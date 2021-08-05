@@ -87,13 +87,14 @@ idl_type_t idl_type(const void *node)
   else if (idl_mask(node) & IDL_ENUMERATOR)
     return IDL_ENUM;
 
-  mask = idl_mask(node) & ((IDL_TYPEDEF << 1) - 1);
+  mask = idl_mask(node) & ((IDL_BITMASK << 1) - 1);
   switch (mask) {
     case IDL_TYPEDEF:
     /* constructed types */
     case IDL_STRUCT:
     case IDL_UNION:
     case IDL_ENUM:
+    case IDL_BITMASK:
     /* template types */
     case IDL_SEQUENCE:
     case IDL_STRING:
@@ -135,6 +136,8 @@ idl_type_t idl_type(const void *node)
 
 const idl_name_t *idl_name(const void *node)
 {
+  if (idl_mask(node) & IDL_FORWARD)
+    return ((const idl_forward_decl_t *)node)->name;
   if (idl_mask(node) & IDL_MODULE)
     return ((const idl_module_t *)node)->name;
   if (idl_mask(node) & IDL_STRUCT)
@@ -145,6 +148,10 @@ const idl_name_t *idl_name(const void *node)
     return ((const idl_enum_t *)node)->name;
   if (idl_mask(node) & IDL_ENUMERATOR)
     return ((const idl_enumerator_t *)node)->name;
+  if (idl_mask(node) & IDL_BITMASK)
+    return ((const idl_bitmask_t *)node)->name;
+  if (idl_mask(node) & IDL_BIT_VALUE)
+    return ((const idl_bit_value_t *)node)->name;
   if (idl_mask(node) & IDL_DECLARATOR)
     return ((const idl_declarator_t *)node)->name;
   if (idl_mask(node) & IDL_CONST)
@@ -363,7 +370,7 @@ bool idl_is_module(const void *ptr)
 {
 #if !defined NDEBUG
   static const idl_mask_t mask =
-    IDL_MODULE | IDL_CONST | IDL_STRUCT | IDL_UNION | IDL_ENUM |
+    IDL_MODULE | IDL_CONST | IDL_STRUCT | IDL_UNION | IDL_ENUM | IDL_BITMASK |
     IDL_TYPEDEF | IDL_ANNOTATION;
 #endif
   const idl_module_t *node = ptr;
@@ -799,6 +806,15 @@ const idl_literal_t *idl_default_value(const void *node)
   return NULL;
 }
 
+uint16_t idl_bit_bound(const void *node)
+{
+  if (idl_is_bitmask(node))
+    return ((const idl_bitmask_t *)node)->bit_bound.value;
+  if (idl_is_enum(node))
+    return ((const idl_enum_t *)node)->bit_bound.value;
+  return 0u;
+}
+
 bool idl_is_sequence(const void *ptr)
 {
   idl_mask_t mask;
@@ -812,7 +828,7 @@ bool idl_is_sequence(const void *ptr)
   type_spec = node->type_spec;
   if (idl_mask(type_spec) & IDL_DECLARATOR)
     type_spec = ((const idl_node_t *)type_spec)->parent;
-  mask = IDL_STRUCT | IDL_UNION | IDL_ENUM | IDL_TYPEDEF |
+  mask = IDL_STRUCT | IDL_UNION | IDL_ENUM | IDL_BITMASK | IDL_TYPEDEF |
          IDL_SEQUENCE | IDL_STRING | IDL_BASE_TYPE;
   (void)mask;
   assert(idl_mask(type_spec) & mask);
@@ -922,14 +938,16 @@ err_node:
 
 bool idl_is_constr_type(const void *node)
 {
-  return (idl_mask(node) & (IDL_STRUCT | IDL_UNION | IDL_ENUM)) != 0;
+  return (idl_mask(node) & (IDL_STRUCT | IDL_UNION | IDL_ENUM | IDL_BITMASK)) != 0;
 }
 
 bool idl_is_struct(const void *ptr)
 {
   const idl_struct_t *node = ptr;
 
-  if (!(idl_mask(node) & IDL_STRUCT) || (idl_mask(node) & IDL_FORWARD))
+  if (idl_is_forward(node))
+    return false;
+  if (!(idl_mask(node) & IDL_STRUCT))
     return false;
   /* a struct must have a name */
   assert(node->name && node->name->identifier);
@@ -943,6 +961,21 @@ bool idl_is_struct(const void *ptr)
     assert(idl_mask(members) & IDL_MEMBER);
 #endif
   return true;
+}
+
+bool idl_is_empty_struct(const void *node)
+{
+  if (!idl_is_struct(node))
+    return false;
+  const idl_struct_t *s = (const idl_struct_t *)node;
+  if (!s->members)
+    return true;
+  bool empty = true;
+  for (idl_member_t *m = s->members; empty && m; m = idl_next(m)) {
+    if (!idl_is_empty_struct(m->type_spec))
+      empty = false;
+  }
+  return empty;
 }
 
 static void delete_struct(void *ptr)
@@ -1287,6 +1320,70 @@ err_node:
   return ret;
 }
 
+static void delete_struct_forward_decl(void *ptr)
+{
+  idl_forward_decl_t *node = ptr;
+  idl_delete_name(node->name);
+  free(node);
+}
+
+static const char *describe_struct_forward_decl(const void *ptr)
+{
+  (void)ptr;
+  assert(idl_mask(ptr) & (IDL_STRUCT | IDL_FORWARD));
+  return "struct forward declaration";
+}
+
+idl_retcode_t
+idl_forward_decl_struct(
+  idl_pstate_t *pstate,
+  const idl_location_t *location,
+  idl_name_t *name,
+  void *nodep)
+{
+  idl_retcode_t ret;
+  idl_forward_decl_t *node;
+  idl_declaration_t *declaration;
+  static const size_t size = sizeof(*node);
+  static const idl_mask_t mask = IDL_STRUCT | IDL_FORWARD;
+  static const struct methods methods = {
+    delete_struct_forward_decl, 0, describe_struct_forward_decl };
+  static const enum idl_declaration_kind kind = IDL_SPECIFIER_FORWARD_DECLARATION;
+
+  if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
+    goto err_node;
+  node->name = name;
+  node->type_mask = IDL_STRUCT;
+  if ((ret = idl_declare(pstate, kind, name, node, NULL, &declaration)))
+    goto err_declare;
+  node->scoped_name = declaration->scoped_name;
+  *((idl_forward_decl_t **)nodep) = node;
+  return ret;
+err_declare:
+err_node:
+  return ret;
+}
+
+bool idl_is_forward(const void *ptr)
+{
+  const idl_forward_decl_t *node = ptr;
+
+  if (!(idl_mask(node) & IDL_FORWARD))
+    return false;
+  /* a forward declaration must have a name */
+  assert(node->name && node->name->identifier);
+  return true;
+}
+
+idl_mask_t idl_forward_mask(const void *ptr)
+{
+  const idl_forward_decl_t *node = ptr;
+  if (!(idl_mask(node) & IDL_FORWARD))
+    return IDL_NULL;
+  assert (node->type_mask == IDL_UNION || node->type_mask == IDL_STRUCT);
+  return node->type_mask;
+}
+
 bool idl_is_inherit_spec(const void *ptr)
 {
   const idl_inherit_spec_t *node = ptr;
@@ -1504,7 +1601,9 @@ bool idl_is_union(const void *ptr)
 {
   const idl_union_t *node = ptr;
 
-  if (!(idl_mask(node) & IDL_UNION) || (idl_mask(node) & IDL_FORWARD))
+  if (idl_is_forward(node))
+    return false;
+  if (!(idl_mask(node) & IDL_UNION))
     return false;
   /* a union must have no parent or a module parent */
   assert(!node->node.parent || (idl_mask(node->node.parent) & IDL_MODULE));
@@ -1876,6 +1975,49 @@ err_node:
   return ret;
 }
 
+static void delete_union_forward_decl(void *ptr)
+{
+  idl_forward_decl_t *node = ptr;
+  idl_delete_name(node->name);
+  free(node);
+}
+
+static const char *describe_union_forward_decl(const void *ptr)
+{
+  (void)ptr;
+  assert(idl_mask(ptr) & (IDL_UNION | IDL_FORWARD));
+  return "struct forward declaration";
+}
+
+idl_retcode_t
+idl_forward_decl_union(
+  idl_pstate_t *pstate,
+  const idl_location_t *location,
+  idl_name_t *name,
+  void *nodep)
+{
+  idl_retcode_t ret;
+  idl_forward_decl_t *node;
+  idl_declaration_t *declaration;
+  static const size_t size = sizeof(*node);
+  static const idl_mask_t mask = IDL_UNION | IDL_FORWARD;
+  static const struct methods methods = {
+    delete_union_forward_decl, 0, describe_union_forward_decl };
+  static const enum idl_declaration_kind kind = IDL_SPECIFIER_FORWARD_DECLARATION;
+
+  if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
+    goto err_node;
+  if ((ret = idl_declare(pstate, kind, name, node, NULL, &declaration)))
+    goto err_declare;
+  node->name = name;
+  node->type_mask = IDL_UNION;
+  *((idl_forward_decl_t **)nodep) = node;
+  return ret;
+err_declare:
+err_node:
+  return ret;
+}
+
 bool
 idl_is_switch_type_spec(const void *ptr)
 {
@@ -2124,6 +2266,37 @@ bool idl_is_case_label(const void *ptr)
   return true;
 }
 
+int32_t idl_case_label_intvalue(const void *ptr)
+{
+  const idl_case_label_t *node = ptr;
+  if (!(idl_mask(node) & IDL_CASE_LABEL))
+    return -1;
+  idl_type_t type = idl_type(node->const_expr);
+  if (type & IDL_INTEGER_TYPE) {
+    idl_intval_t val = idl_intval(node->const_expr);
+    if (val.type & IDL_UNSIGNED)
+      assert(val.value.ullng <= INT32_MAX);
+    assert(val.value.llng <= INT32_MAX);
+    assert(val.value.llng >= INT32_MIN);
+    return (int32_t)val.value.llng;
+  } else if (type == IDL_CHAR) {
+    // FIXME
+    assert(false);
+  } else if (type == IDL_BOOL) {
+    // FIXME
+    assert(false);
+  } else if (type == IDL_OCTET) {
+    // FIXME
+    assert(false);
+  } else if (type == IDL_ENUM) {
+    // FIXME
+    assert(false);
+  } else {
+    assert(false);
+  }
+  return 0;
+}
+
 static void delete_case_label(void *ptr)
 {
   idl_case_label_t *node = ptr;
@@ -2346,6 +2519,178 @@ idl_create_enumerator(
     goto err_declare;
 
   *((idl_enumerator_t **)nodep) = node;
+  return IDL_RETCODE_OK;
+err_declare:
+  free(node);
+err_alloc:
+  return ret;
+}
+
+bool idl_is_bitmask(const void *ptr)
+{
+  const idl_bitmask_t *node = ptr;
+
+  if (!(idl_mask(node) & IDL_BITMASK))
+    return false;
+  /* a bitmask must have a name */
+  assert(node->name && node->name->identifier);
+  /* an bitmask must have no parent or a module parent */
+  assert(!node->node.parent || (idl_mask(node->node.parent) & IDL_MODULE));
+  /* an bitmask must have at least one bit value */
+  assert(!node->bit_values || (idl_mask(node->bit_values) & IDL_BIT_VALUE));
+  return true;
+}
+
+static void delete_bitmask(void *ptr)
+{
+  idl_bitmask_t *node = ptr;
+  idl_delete_node(node->bit_values);
+  idl_delete_name(node->name);
+  free(node);
+}
+
+static void *iterate_bitmask(const void *ptr, const void *cur)
+{
+  const idl_bitmask_t *root = ptr;
+  const idl_node_t *node = cur;
+  assert(root);
+  if (node) {
+    assert(idl_parent(node) == root);
+    if (node->next)
+      return node->next;
+    if (idl_is_annotation_appl(node))
+      return root->bit_values;
+    return NULL;
+  }
+  if (root->node.annotations)
+    return root->node.annotations;
+  return root->bit_values;
+}
+
+static const char *describe_bitmask(const void *ptr)
+{
+  (void)ptr;
+  assert(idl_mask(ptr) == IDL_BITMASK);
+  return "bitmask";
+}
+
+idl_retcode_t
+idl_create_bitmask(
+  idl_pstate_t *pstate,
+  const idl_location_t *location,
+  idl_name_t *name,
+  idl_bit_value_t *bit_values,
+  void *nodep)
+{
+  idl_retcode_t ret;
+  idl_bitmask_t *node;
+  static const size_t size = sizeof(*node);
+  static const idl_mask_t mask = IDL_BITMASK;
+  static const struct methods methods = {
+    delete_bitmask, iterate_bitmask, describe_bitmask };
+  static const enum idl_declaration_kind kind = IDL_SPECIFIER_DECLARATION;
+  uint16_t position = 0;
+
+  if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
+    goto err_alloc;
+  node->name = name;
+
+  assert(bit_values);
+  node->bit_values = bit_values;
+  for (idl_bit_value_t *e1 = bit_values; e1; e1 = idl_next(e1), position++) {
+    e1->node.parent = (idl_node_t*)node;
+
+    for (idl_annotation_appl_t *a = e1->node.annotations; a; a = idl_next(a)) {
+      assert(a->annotation);
+      if (strcmp(a->annotation->name->identifier, "position") != 0)
+        continue;
+      position = e1->position.value;
+      break;
+    }
+    e1->position.value = position;
+    for (idl_bit_value_t *e2 = bit_values; e2; e2 = idl_next(e2)) {
+      if (e2 == e1)
+        break;
+      if (e2->position.value != e1->position.value)
+        continue;
+      idl_error(pstate, idl_location(e1),
+        "Position of bit value '%s' clashes with the position of bit value '%s'",
+        e1->name->identifier, e2->name->identifier);
+      ret = IDL_RETCODE_SEMANTIC_ERROR;
+      goto err_clash;
+    }
+  }
+
+  if ((ret = idl_declare(pstate, kind, name, node, NULL, NULL)))
+    goto err_declare;
+
+  *((idl_bitmask_t **)nodep) = node;
+  return IDL_RETCODE_OK;
+err_declare:
+err_clash:
+  free(node);
+err_alloc:
+  return ret;
+}
+
+bool idl_is_bit_value(const void *ptr)
+{
+  const idl_bit_value_t *node = ptr;
+
+  if (!(idl_mask(node) & IDL_BIT_VALUE))
+    return false;
+  /* an enumerator must have an enum parent */
+  assert(!node->node.parent || (idl_mask(node->node.parent) & IDL_BITMASK));
+  return true;
+}
+
+static void delete_bit_value(void *ptr)
+{
+  idl_bit_value_t *node = ptr;
+  idl_delete_name(node->name);
+  free(node);
+}
+
+static void *iterate_bit_value(const void *ptr, const void *cur)
+{
+  const idl_bit_value_t *root = ptr;
+  const idl_node_t *node = cur;
+  assert(root);
+  assert(!node || idl_parent(node) == root);
+  if (node)
+    return node->next;
+  return root->node.annotations;
+}
+
+static const char *describe_bit_value(const void *ptr)
+{
+  (void)ptr;
+  assert(idl_mask(ptr) == IDL_BIT_VALUE);
+  return "bit_value";
+}
+
+idl_retcode_t
+idl_create_bit_value(
+  idl_pstate_t *pstate,
+  const idl_location_t *location,
+  idl_name_t *name,
+  void *nodep)
+{
+  idl_retcode_t ret;
+  idl_bit_value_t *node;
+  static const size_t size = sizeof(*node);
+  static const idl_mask_t mask = IDL_BIT_VALUE;
+  static const struct methods methods = {
+    delete_bit_value, iterate_bit_value, describe_bit_value };
+  static const enum idl_declaration_kind kind = IDL_SPECIFIER_DECLARATION;
+
+  if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
+    goto err_alloc;
+  node->name = name;
+  if ((ret = idl_declare(pstate, kind, name, node, NULL, NULL)))
+    goto err_declare;
+
+  *((idl_bit_value_t **)nodep) = node;
   return IDL_RETCODE_OK;
 err_declare:
   free(node);
@@ -2895,7 +3240,8 @@ bool idl_is_annotation_appl(const void *ptr)
   static const idl_mask_t mask = IDL_MODULE |
                                  IDL_ENUM |
                                  IDL_STRUCT | IDL_MEMBER |
-                                 IDL_UNION | IDL_SWITCH_TYPE_SPEC;
+                                 IDL_UNION | IDL_SWITCH_TYPE_SPEC |
+                                 IDL_BITMASK;
 #endif
   const idl_annotation_appl_t *node = ptr;
 
@@ -3027,6 +3373,8 @@ idl_type_spec_t *idl_type_spec(const void *node)
     return ((const idl_switch_type_spec_t *)node)->type_spec;
   if (mask & IDL_CONST)
     return ((const idl_const_t *)node)->type_spec;
+  if (mask & IDL_INHERIT_SPEC)
+    return ((const idl_inherit_spec_t *)node)->base;
   return NULL;
 }
 
@@ -3055,7 +3403,7 @@ bool idl_is_topic(const void *node, bool keylist)
     if (idl_is_struct(node))
       return !((const idl_struct_t *)node)->nested.value;
     else if (idl_is_union(node))
-      return !((const idl_struct_t *)node)->nested.value;
+      return !((const idl_union_t *)node)->nested.value;
     return false;
   }
   return false;
@@ -3098,7 +3446,7 @@ static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
     IDL_CONSTR_TYPE | IDL_MEMBER | IDL_SWITCH_TYPE_SPEC | IDL_CASE |
     IDL_SEQUENCE | IDL_DECLARATOR;
 
-  for (size_t i=0; (key || i == 0) && i < path->length; i++) {
+  for (size_t i = 1; (key || i == 1) && i < path->length; i++) {
     assert(path->nodes[i]);
 
     /* struct members can be explicitly annotated */
@@ -3114,7 +3462,9 @@ static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
          annotated, an intermediate aggregate type has no explicitly annotated
          fields and node is not on the first level */
       else if (all_keys || no_specific_key(idl_parent(instance)))
-        key = all_keys = (i != 0);
+        key = all_keys = (i != 1);
+      else
+        key = 0;
 
     /* union cases cannot be explicitly annotated */
     } else if (idl_is_case(path->nodes[i])) {
@@ -3127,7 +3477,7 @@ static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
          intermediate aggregate type has no explicitly annotated fields or if
          the switch type specifier is not annotated */
       if (all_keys || no_specific_key(idl_parent(instance)))
-        key = all_keys = (i != 0);
+        key = all_keys = (i != 1);
 
     /* switch type specifiers can be explicitly annotated */
     } else if (idl_is_switch_type_spec(path->nodes[i])) {
@@ -3140,7 +3490,7 @@ static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
       if (instance->key.value)
         key = (i == path->length - 1);
       else
-        key = (i == path->length - 1) ? (i != 0) : 0;
+        key = (i == path->length - 1) ? (i != 1) : 0;
     } else if (!(idl_mask(node) & mask)) {
       key = 0;
     }
@@ -3180,7 +3530,7 @@ uint32_t idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path
 {
   if (!idl_is_topic(node, keylist))
     return 0;
-  if (!path->length || node != path->nodes[0]->parent)
+  if (!path->length || node != path->nodes[0])
     return 0;
 
   return keylist ? is_key_by_keylist(node, path) : is_key_by_path(node, path);

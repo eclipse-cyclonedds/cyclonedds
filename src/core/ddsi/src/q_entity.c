@@ -260,7 +260,7 @@ int is_builtin_topic (ddsi_entityid_t id, nn_vendorid_t vendorid)
   return is_builtin_entityid (id, vendorid) && is_topic_entityid (id);
 }
 
-#if defined(DDS_HAS_SECURITY) || defined(DDS_HAS_TYPE_DISCOVERY) || !defined(NDEBUG)
+#if defined(DDS_HAS_SECURITY) || !defined(NDEBUG)
 static int is_builtin_volatile_endpoint (ddsi_entityid_t id)
 {
   switch (id.u) {

@@ -69,6 +69,7 @@ add_library(
     include/idl/attributes.h
     include/idl/expression.h
     include/idl/file.h
+    include/idl/misc.h
     include/idl/print.h
     include/idl/processor.h
     include/idl/retcode.h

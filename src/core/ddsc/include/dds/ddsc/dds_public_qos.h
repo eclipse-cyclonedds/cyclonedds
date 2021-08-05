@@ -473,6 +473,18 @@ dds_qset_type_consistency (
   bool prevent_type_widening,
   bool force_type_validation);
 
+/**
+ * @brief Set the data representation of a qos structure
+ *
+ * @param[in,out] qos    - Pointer to a dds_qos_t structure that will store the policy
+ * @param[in]     n      - Number of data representation values
+ * @param[in]     values - Data representation values
+ */
+DDS_EXPORT void
+dds_qset_data_representation (
+  dds_qos_t * __restrict qos,
+  uint32_t n,
+  dds_data_representation_id_t *values);
 
 /**
  * @brief Get the userdata from a qos structure
@@ -865,6 +877,21 @@ dds_qget_type_consistency (
   bool *ignore_member_names,
   bool *prevent_type_widening,
   bool *force_type_validation);
+
+/**
+ * @brief Get the data representation qos policy value.
+ *
+ * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
+ * @param[in,out] n - Pointer that will store the number of data representation values (optional)
+ * @param[in,out] values - Pointer that will store the data representation values (optional)
+ *
+ * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object
+ */
+DDS_EXPORT bool
+dds_qget_data_representation (
+  const dds_qos_t * __restrict qos,
+  uint32_t *n,
+  dds_data_representation_id_t **values);
 
 #if defined (__cplusplus)
 }

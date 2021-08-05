@@ -34,6 +34,11 @@ struct type_identifier;
 #define DDSI_SERTYPE_REGISTERED  0x80000000u // set after setting gv
 #define DDSI_SERTYPE_REFC_MASK   0x0fffffffu
 
+typedef struct ddsi_sertype_cdr_data {
+  uint32_t sz;
+  uint8_t *data;
+} ddsi_sertype_cdr_data_t;
+
 struct ddsi_sertype {
   const struct ddsi_sertype_ops *ops;
   const struct ddsi_serdata_ops *serdata_ops;
@@ -144,6 +149,13 @@ struct ddsi_sertype_ops {
   ddsi_sertype_assignable_from_t assignable_from;
 };
 
+enum ddsi_sertype_extensibility
+{
+  DDSI_SERTYPE_EXT_FINAL = 0,
+  DDSI_SERTYPE_EXT_APPENDABLE = 1,
+  DDSI_SERTYPE_EXT_MUTABLE = 2
+};
+
 struct ddsi_sertype *ddsi_sertype_lookup_locked (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype_template);
 void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype *sertype);
 
@@ -167,6 +179,10 @@ DDS_EXPORT uint32_t ddsi_sertype_compute_serdata_basehash (const struct ddsi_ser
 DDS_EXPORT bool ddsi_sertype_equal (const struct ddsi_sertype *a, const struct ddsi_sertype *b);
 DDS_EXPORT uint32_t ddsi_sertype_hash (const struct ddsi_sertype *tp);
 DDS_EXPORT bool ddsi_sertype_serialize (const struct ddsi_sertype *tp, size_t *dst_pos, unsigned char **dst_buf);
+
+DDS_EXPORT uint16_t ddsi_sertype_get_encoding_format (enum ddsi_sertype_extensibility type_extensibility);
+DDS_EXPORT uint16_t ddsi_sertype_get_native_encoding_identifier (uint32_t enc_version, uint32_t encoding_format);
+DDS_EXPORT uint32_t get_xcdr_version (unsigned short cdr_identifier);
 
 DDS_INLINE_EXPORT inline void ddsi_sertype_free (struct ddsi_sertype *tp) {
   tp->ops->free (tp);

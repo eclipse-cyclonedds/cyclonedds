@@ -99,6 +99,10 @@ typedef struct ddsi_serdata * (*ddsi_serdata_from_keyhash_t) (const struct ddsi_
      unless additional application knowledge is available */
 typedef struct ddsi_serdata * (*ddsi_serdata_from_sample_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const void *sample);
 
+/* Construct a serdata from an application sample using the specified XCDR version
+   (see ddsi_serdata_from_sample_t for usage of kind parameter) */
+typedef struct ddsi_serdata * (*ddsi_serdata_from_sample_xcdr_version_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, uint32_t xcdr_version, const void *sample);
+
 /* Construct a untyped serdata with just a keyvalue given a normal serdata (either key or data)
    - used for mapping key values to instance ids in tkmap
    - two reasons: size (keys are typically smaller than samples), and data in tkmap
@@ -192,6 +196,7 @@ struct ddsi_serdata_ops {
   ddsi_serdata_free_t free;
   ddsi_serdata_print_t print;
   ddsi_serdata_get_keyhash_t get_keyhash;
+  ddsi_serdata_from_sample_xcdr_version_t from_sample_xcdr_version;
 #ifdef DDS_HAS_SHM
   ddsi_serdata_iox_size_t get_sample_size;
   ddsi_serdata_from_iox_t from_iox_buffer;
@@ -272,6 +277,12 @@ DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_sample (const st
 
 DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_to_untyped (const struct ddsi_serdata *d) {
   return d->ops->to_untyped (d);
+}
+
+DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_sample_xcdr_version (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, uint32_t xcdr_version, const void *sample) {
+  if (!type->serdata_ops->from_sample_xcdr_version)
+    return type->serdata_ops->from_sample (type, kind, sample);
+  return type->serdata_ops->from_sample_xcdr_version (type, kind, xcdr_version, sample);
 }
 
 DDS_INLINE_EXPORT inline void ddsi_serdata_to_ser (const struct ddsi_serdata *d, size_t off, size_t sz, void *buf) {

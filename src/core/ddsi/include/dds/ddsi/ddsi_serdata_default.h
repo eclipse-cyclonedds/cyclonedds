@@ -25,13 +25,7 @@
 extern "C" {
 #endif
 
-#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-#define CDR_BE 0x0000
-#define CDR_LE 0x0100
-#else
-#define CDR_BE 0x0000
-#define CDR_LE 0x0001
-#endif
+struct ddsi_typeid_t;
 
 struct CDRHeader {
   unsigned short identifier;
@@ -115,13 +109,14 @@ struct ddsi_sertype_default_desc {
   uint32_t size;    /* Size of topic type */
   uint32_t align;   /* Alignment of topic type */
   uint32_t flagset; /* Flags */
+  enum ddsi_sertype_extensibility extensibility;  /* Extensibility of the top-level type */
   ddsi_sertype_default_desc_key_seq_t keys;
   ddsi_sertype_default_desc_op_seq_t ops;
 };
 
 struct ddsi_sertype_default {
   struct ddsi_sertype c;
-  uint16_t native_encoding_identifier; /* (PL_)?CDR_(LE|BE) */
+  uint16_t encoding_format; /* CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) */
   struct serdatapool *serpool;
   struct ddsi_sertype_default_desc type;
   size_t opt_size;

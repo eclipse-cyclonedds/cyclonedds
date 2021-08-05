@@ -293,12 +293,18 @@ static int set_sampleinfo_bswap (struct nn_rsample_info *sampleinfo, struct CDRH
     {
       case CDR_BE:
       case PL_CDR_BE:
+      case CDR2_BE:
+      case D_CDR2_BE:
+      case PL_CDR2_BE:
       {
         sampleinfo->bswap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 1 : 0;
         break;
       }
       case CDR_LE:
       case PL_CDR_LE:
+      case CDR2_LE:
+      case D_CDR2_LE:
+      case PL_CDR2_LE:
       {
         sampleinfo->bswap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 0 : 1;
         break;

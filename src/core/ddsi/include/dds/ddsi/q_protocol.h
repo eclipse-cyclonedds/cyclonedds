@@ -189,12 +189,45 @@ typedef struct InfoSRC {
 } InfoSRC_t;
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-#define PL_CDR_BE 0x0200u
-#define PL_CDR_LE 0x0300u
+#define CDR_BE      0x0000u
+#define CDR_LE      0x0100u
+#define PL_CDR_BE   0x0200u
+#define PL_CDR_LE   0x0300u
+#define CDR2_BE     0x0600u
+#define CDR2_LE     0x0700u
+#define D_CDR2_BE   0x0800u
+#define D_CDR2_LE   0x0900u
+#define PL_CDR2_BE  0x0a00u
+#define PL_CDR2_LE  0x0b00u
+
+#define CDR_ENC_LE(x) (((x) & 0x0100) == 0x0100)
+#define CDR_ENC_IS_NATIVE(x) (CDR_ENC_LE ((x)))
+#define CDR_ENC_TO_NATIVE(x) ((x) | 0x0100)
 #else
-#define PL_CDR_BE 0x0002u
-#define PL_CDR_LE 0x0003u
+#define CDR_BE      0x0000u
+#define CDR_LE      0x0001u
+#define PL_CDR_BE   0x0002u
+#define PL_CDR_LE   0x0003u
+#define CDR2_BE     0x0006u
+#define CDR2_LE     0x0007u
+#define D_CDR2_BE   0x0008u
+#define D_CDR2_LE   0x0009u
+#define PL_CDR2_BE  0x000au
+#define PL_CDR2_LE  0x000bu
+
+#define CDR_ENC_LE(x) (((x) & 0x0001) == 0x0001)
+#define CDR_ENC_TO_NATIVE(x) ((x) & ~0x0001)
+#define CDR_ENC_IS_NATIVE(x) (!CDR_ENC_LE ((x)))
 #endif
+
+#define CDR_ENC_VERSION_UNDEF     0
+#define CDR_ENC_VERSION_1         1
+#define CDR_ENC_VERSION_2         2
+
+#define CDR_ENC_FORMAT_PLAIN      0
+#define CDR_ENC_FORMAT_DELIMITED  1
+#define CDR_ENC_FORMAT_PL         2
+
 
 typedef uint16_t nn_parameterid_t; /* spec says short */
 typedef struct nn_parameter {
@@ -383,6 +416,7 @@ typedef union Submessage {
 #define PID_DIRECTED_WRITE                      0x57u
 #define PID_ORIGINAL_WRITER_INFO                0x61u
 #define PID_ENDPOINT_GUID                       0x5au /* !SPEC <=> ADLINK_ENDPOINT_GUID */
+#define PID_DATA_REPRESENTATION                 0x73u
 #define PID_TYPE_CONSISTENCY_ENFORCEMENT        0x74u
 #define PID_TYPE_INFORMATION                    0x75u
 

@@ -38,6 +38,8 @@
 #define IDL_FLAG_ANONYMOUS_TYPES (1u<<3)
 /* enable building block annotations */
 #define IDL_FLAG_ANNOTATIONS (1u<<4)
+/* include CDR serialized type information */
+#define IDL_FLAG_TYPE_INFO (1u<<5)
 /* flag used by idlc to indicate end-of-buffer (private) */
 #define IDL_WRITE (1u<<31)
 
@@ -53,6 +55,7 @@ struct idl_pstate {
   bool keylists;
   bool annotations;
   uint32_t flags; /**< processor options */
+  char *export_macro; /**< export macro to be used for topic descriptors */
   idl_file_t *paths; /**< normalized paths used in include statements */
   idl_file_t *files; /**< filenames used in #line directives */
   idl_source_t *sources;

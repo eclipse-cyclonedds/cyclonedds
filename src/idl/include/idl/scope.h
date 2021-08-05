@@ -32,7 +32,9 @@ struct idl_declaration {
     /** introduced through use of non-absolute qualified name */
     IDL_USE_DECLARATION,
     /** enclosing scope, for convenience */
-    IDL_SCOPE_DECLARATION
+    IDL_SCOPE_DECLARATION,
+    /** forward declarator (struct/union) */
+    IDL_SPECIFIER_FORWARD_DECLARATION
   } kind;
   idl_declaration_t *next;
   const idl_scope_t *local_scope; /**< scope local to declaration */

@@ -17,6 +17,8 @@
 #include <string.h>
 #include <inttypes.h>
 
+#include "dds/features.h"
+#include "idl/misc.h"
 #include "idl/print.h"
 #include "idl/processor.h"
 #include "idl/stream.h"
@@ -47,6 +49,10 @@ struct instruction {
     CONSTANT,
     COUPLE,
     SINGLE,
+    ELEM_OFFSET,
+    JEQ_OFFSET,
+    MEMBER_OFFSET,
+    KEY_OFFSET,
   } type;
   union {
     struct {
@@ -68,7 +74,60 @@ struct instruction {
       uint16_t low;
     } couple;
     uint32_t single;
+    struct {
+      const idl_node_t *node;
+      union {
+        uint32_t opcode;
+        uint16_t high;
+      } inst;
+      int16_t addr_offs;
+      int16_t elem_offs;
+    } inst_offset;
+    struct {
+      char *key_name;
+      uint16_t len;
+      uint16_t key_size;
+      uint16_t order;
+    } key_offset;
   } data;
+};
+
+struct constructed_type_fwd {
+  const void *node;
+  const struct constructed_type_fwd *next;
+};
+
+struct instructions {
+  uint32_t size;        /**< available number of instructions */
+  uint32_t count;       /**< used number of instructions */
+  uint32_t offset;      /**< absolute offset in descriptor instructions array */
+  struct instruction *table;
+};
+
+struct constructed_type {
+  struct constructed_type *next;
+  const void *node;
+  const idl_name_t *name;
+  const idl_scope_t *scope;
+  struct constructed_type_fwd *fwd_decls;
+  uint32_t offset;        /**< offset for the instructions of this type in the topic descriptor instruction array */
+  uint32_t pl_offset;     /**< current offset in parameter list for mutable types */
+  uint32_t refc;          /**< refcount for this type, used to filter out unused types */
+  struct instructions instructions;
+};
+
+struct constructed_type_key {
+  struct constructed_type_key *next;
+  char *name;
+  uint32_t size;
+  uint32_t offset;
+  uint32_t order;
+  struct constructed_type_key *sub;
+};
+
+struct key_offs {
+  uint16_t val[255];
+  uint16_t n;
 };
 
 struct field {
@@ -76,10 +135,11 @@ struct field {
   const void *node;
 };
 
-struct type {
-  struct type *previous;
+struct stack_type {
+  struct stack_type *previous;
   struct field *fields;
   const void *node;
+  struct constructed_type *ctype;
   uint32_t offset;
   uint32_t label, labels;
 };
@@ -93,15 +153,12 @@ struct alignment {
 struct descriptor {
   const idl_node_t *topic;
   const struct alignment *alignment; /**< alignment of topic type */
-  uint32_t keys; /**< number of keys in topic */
-  uint32_t opcodes; /**< number of opcodes in descriptor */
+  uint32_t n_keys; /**< number of keys in topic */
+  uint32_t n_opcodes; /**< number of opcodes in descriptor */
   uint32_t flags; /**< topic descriptor flag values */
-  struct type *types;
-  struct {
-    uint32_t size; /**< available number of instructions */
-    uint32_t count; /**< used number of instructions */
-    struct instruction *table;
-  } instructions;
+  struct stack_type *type_stack;
+  struct constructed_type *constructed_types;
+  struct instructions key_offsets;
 };
 
 static const struct alignment alignments[] = {
@@ -127,22 +184,29 @@ max_alignment(const struct alignment *a, const struct alignment *b)
   return b->ordering > a->ordering ? b : a;
 }
 
+static bool
+is_node_mutable(const idl_node_t *node)
+{
+  return (idl_is_struct(node) && ((idl_struct_t *)node)->extensibility.value == IDL_MUTABLE) ||
+    (idl_is_union(node) && ((idl_union_t *)node)->extensibility.value == IDL_MUTABLE);
+}
+
 static idl_retcode_t push_field(
   struct descriptor *descriptor, const void *node, struct field **fieldp)
 {
-  struct type *type;
+  struct stack_type *stype;
   struct field *field;
   assert(descriptor);
   assert(idl_is_declarator(node) ||
          idl_is_switch_type_spec(node) ||
          idl_is_case(node));
-  type = descriptor->types;
-  assert(type);
+  stype = descriptor->type_stack;
+  assert(stype);
   if (!(field = calloc(1, sizeof(*field))))
     return IDL_RETCODE_NO_MEMORY;
-  field->previous = type->fields;
+  field->previous = stype->fields;
   field->node = node;
-  type->fields = field;
+  stype->fields = field;
   if (fieldp)
     *fieldp = field;
   return IDL_RETCODE_OK;
@@ -151,114 +215,116 @@ static idl_retcode_t push_field(
 static void pop_field(struct descriptor *descriptor)
 {
   struct field *field;
-  struct type *type;
+  struct stack_type *stype;
   assert(descriptor);
-  type = descriptor->types;
-  assert(type);
-  field = type->fields;
+  stype = descriptor->type_stack;
+  assert(stype);
+  field = stype->fields;
   assert(field);
-  type->fields = field->previous;
+  stype->fields = field->previous;
   free(field);
 }
 
 static idl_retcode_t push_type(
-  struct descriptor *descriptor, const void *node, struct type **typep)
+  struct descriptor *descriptor, const void *node, struct constructed_type *ctype, struct stack_type **typep)
 {
-  struct type *type;
+  struct stack_type *stype;
   assert(descriptor);
+  assert(ctype);
   assert(idl_is_struct(node) ||
          idl_is_union(node) ||
          idl_is_sequence(node) ||
          idl_is_declarator(node));
-  if (!(type = calloc(1, sizeof(*type))))
+  if (!(stype = calloc(1, sizeof(*stype))))
     return IDL_RETCODE_NO_MEMORY;
-  type->previous = descriptor->types;
-  type->node = node;
-  descriptor->types = type;
+  stype->previous = descriptor->type_stack;
+  stype->node = node;
+  stype->ctype = ctype;
+  descriptor->type_stack = stype;
   if (typep)
-    *typep = type;
-  /* non-constructed types never carry fields */
-  if (!idl_is_constr_type(node))
-    return IDL_RETCODE_OK;
-  /* constructed types carry fields if previous type is a struct */
-  if (!type->previous || !idl_is_struct(type->previous->node))
-    return IDL_RETCODE_OK;
-  type->fields = type->previous->fields;
+    *typep = stype;
   return IDL_RETCODE_OK;
 }
 
 static void pop_type(struct descriptor *descriptor)
 {
-  struct type *type;
+  struct stack_type *stype;
   assert(descriptor);
-  assert(descriptor->types);
-  type = descriptor->types;
-  descriptor->types = type->previous;
-  assert(!type->fields || (type->previous && type->fields == type->previous->fields));
-  free(type);
+  assert(descriptor->type_stack);
+  stype = descriptor->type_stack;
+  descriptor->type_stack = stype->previous;
+  assert(!stype->fields || (stype->previous && stype->fields == stype->previous->fields));
+  free(stype);
 }
 
 static idl_retcode_t
 stash_instruction(
-  struct descriptor *descriptor, uint32_t index, const struct instruction *inst)
+  struct instructions *instructions, uint32_t index, const struct instruction *inst)
 {
   /* make more slots available as necessary */
-  if (descriptor->instructions.count == descriptor->instructions.size) {
-    uint32_t size = descriptor->instructions.size + 100;
-    struct instruction *table = descriptor->instructions.table;
+  if (instructions->count == instructions->size) {
+    uint32_t size = instructions->size + 100;
+    struct instruction *table = instructions->table;
     if (!(table = realloc(table, size * sizeof(*table))))
       return IDL_RETCODE_NO_MEMORY;
-    descriptor->instructions.size = size;
-    descriptor->instructions.table = table;
+    instructions->size = size;
+    instructions->table = table;
   }
 
-  if (index >= descriptor->instructions.count) {
-    index = descriptor->instructions.count;
+  if (index >= instructions->count) {
+    index = instructions->count;
   } else {
-    size_t size = descriptor->instructions.count - index;
-    struct instruction *table = descriptor->instructions.table;
+    size_t size = instructions->count - index;
+    struct instruction *table = instructions->table;
     memmove(&table[index+1], &table[index], size * sizeof(*table));
+    /* update element_offset base */
+    for (uint32_t i = index; i < instructions->count; i++)
+      if (table[i].type == ELEM_OFFSET || table[i].type == JEQ_OFFSET || table[i].type == MEMBER_OFFSET)
+        table[i].data.inst_offset.addr_offs++;
   }
 
-  descriptor->instructions.table[index] = *inst;
-  descriptor->instructions.count++;
+  instructions->table[index] = *inst;
+  instructions->count++;
   return IDL_RETCODE_OK;
 }
 
 static idl_retcode_t
 stash_opcode(
-  struct descriptor *descriptor, uint32_t index, uint32_t code, uint32_t order)
+  struct descriptor *descriptor, struct instructions *instructions, uint32_t index, uint32_t code, uint32_t order)
 {
-  uint32_t type = 0;
-  struct instruction inst = { OPCODE, { .opcode = { .code=code, .order=order } } };
+  uint32_t typecode = 0;
+  struct instruction inst = { OPCODE, { .opcode = { .code = code, .order = order } } };
   const struct alignment *alignment = NULL;
 
-  descriptor->opcodes++;
-  switch ((code & (0xffu<<24))) {
+  descriptor->n_opcodes++;
+  switch ((code & (0xffu << 24))) {
     case DDS_OP_ADR:
       if (code & DDS_OP_FLAG_KEY) {
-        descriptor->keys++;
         assert(order >  0);
       } else {
         assert(order == 0);
       }
       /* fall through */
     case DDS_OP_JEQ:
-      type = (code >> 16) & 0xffu;
-      if (type == DDS_OP_VAL_ARR)
-        type = (code >> 8) & 0xffu;
+      typecode = (code >> 16) & 0xffu;
+      if (typecode == DDS_OP_VAL_ARR)
+        typecode = (code >> 8) & 0xffu;
       break;
     default:
-      return stash_instruction(descriptor, index, &inst);
+      return stash_instruction(instructions, index, &inst);
   }
 
-  switch (type) {
+  switch (typecode) {
     case DDS_OP_VAL_STR:
     case DDS_OP_VAL_SEQ:
       alignment = ALIGNMENT_PTR;
       descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
       break;
     case DDS_OP_VAL_BST:
+      alignment = ALIGNMENT_1BY;
+      descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
+      break;
+    case DDS_OP_VAL_EXT:
       alignment = ALIGNMENT_1BY;
       descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
       break;
@@ -286,12 +352,12 @@ stash_opcode(
   }
 
   descriptor->alignment = max_alignment(descriptor->alignment, alignment);
-  return stash_instruction(descriptor, index, &inst);
+  return stash_instruction(instructions, index, &inst);
 }
 
 static idl_retcode_t
 stash_offset(
-  struct descriptor *descriptor,
+  struct instructions *instructions,
   uint32_t index,
   const struct field *field)
 {
@@ -301,12 +367,12 @@ stash_offset(
   struct instruction inst = { OFFSET, { .offset = { NULL, NULL } } };
 
   if (!field)
-    return stash_instruction(descriptor, index, &inst);
+    return stash_instruction(instructions, index, &inst);
 
   assert(field);
 
   len = 0;
-  for (fld=field; fld; fld = fld->previous) {
+  for (fld = field; fld; fld = fld->previous) {
     if (idl_is_switch_type_spec(fld->node))
       ident = "_d";
     else if (idl_is_case(fld->node))
@@ -334,7 +400,7 @@ stash_offset(
     cnt = strlen(ident);
     assert(pos >= cnt);
     pos -= cnt;
-    memcpy(inst.data.offset.member+pos, ident, cnt);
+    memcpy(inst.data.offset.member + pos, ident, cnt);
     if (!fld->previous)
       break;
     assert(pos > 1);
@@ -347,7 +413,7 @@ stash_offset(
   if (IDL_PRINT(&inst.data.offset.type, print_type, idl_ancestor(fld->node, levels)) < 0)
     goto err_type;
 
-  if (stash_instruction(descriptor, index, &inst))
+  if (stash_instruction(instructions, index, &inst))
     goto err_stash;
 
   return IDL_RETCODE_OK;
@@ -360,13 +426,43 @@ err_member:
 }
 
 static idl_retcode_t
+stash_key_offset(struct instructions *instructions, uint32_t index, char *key_name, uint16_t length, uint16_t key_size, uint16_t order)
+{
+  struct instruction inst = { KEY_OFFSET, { .key_offset = { .len = length, .key_size = key_size, .order = order } } };
+  if (!(inst.data.key_offset.key_name = idl_strdup(key_name)))
+    return IDL_RETCODE_NO_MEMORY;
+  return stash_instruction(instructions, index, &inst);
+}
+
+static idl_retcode_t
+stash_element_offset(struct instructions *instructions, uint32_t index, const idl_node_t *node, uint16_t high, int16_t addr_offs)
+{
+  struct instruction inst = { ELEM_OFFSET, { .inst_offset = { .node = node, .inst.high = high, .addr_offs = addr_offs, .elem_offs = 0 } } };
+  return stash_instruction(instructions, index, &inst);
+}
+
+static idl_retcode_t
+stash_jeq_offset(struct instructions *instructions, uint32_t index, const idl_node_t *node, uint32_t opcode, int16_t addr_offs)
+{
+  struct instruction inst = { JEQ_OFFSET, { .inst_offset = { .node = node, .inst.opcode = opcode, .addr_offs = addr_offs, .elem_offs = 0 } } };
+  return stash_instruction(instructions, index, &inst);
+}
+
+static idl_retcode_t
+stash_member_offset(struct instructions *instructions, uint32_t index, int16_t addr_offs)
+{
+  struct instruction inst = { MEMBER_OFFSET, { .inst_offset = { .addr_offs = addr_offs } } };
+  return stash_instruction(instructions, index, &inst);
+}
+
+static idl_retcode_t
 stash_size(
-  struct descriptor *descriptor, uint32_t index, const void *node)
+  struct instructions *instructions, uint32_t index, const void *node, bool ext)
 {
   const idl_type_spec_t *type_spec;
   struct instruction inst = { SIZE, { .size = { NULL } } };
 
-  if (idl_is_sequence(node)) {
+  if (idl_is_sequence(node) || ext) {
     type_spec = idl_type_spec(node);
 
     if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
@@ -409,14 +505,14 @@ stash_size(
       if (!(inst.data.size.type = idl_strdup("char *")))
         goto err_type;
     } else if (idl_is_array(type_spec)) {
-      char *type = NULL;
+      char *typestr = NULL;
       size_t len, pos;
       const idl_const_expr_t *const_expr;
 
-      if (IDL_PRINT(&type, print_type, type_spec) < 0)
+      if (IDL_PRINT(&typestr, print_type, type_spec) < 0)
         goto err_type;
 
-      len = pos = strlen(type);
+      len = pos = strlen(typestr);
       const_expr = ((const idl_declarator_t *)type_spec)->const_expr;
       assert(const_expr);
       for (; const_expr; const_expr = idl_next(const_expr), len += 3)
@@ -424,8 +520,8 @@ stash_size(
 
       inst.data.size.type = malloc(len + 1);
       if (inst.data.size.type)
-        memcpy(inst.data.size.type, type, pos);
-      free(type);
+        memcpy(inst.data.size.type, typestr, pos);
+      free(typestr);
       if (!inst.data.size.type)
         goto err_type;
 
@@ -440,7 +536,7 @@ stash_size(
     }
   }
 
-  if (stash_instruction(descriptor, index, &inst))
+  if (stash_instruction(instructions, index, &inst))
     goto err_stash;
 
   return IDL_RETCODE_OK;
@@ -453,7 +549,7 @@ err_type:
 /* used to stash case labels. no need to take into account strings etc */
 static idl_retcode_t
 stash_constant(
-  struct descriptor *descriptor, uint32_t index, const idl_const_expr_t *const_expr)
+  struct instructions *instructions, uint32_t index, const idl_const_expr_t *const_expr)
 {
   int cnt = 0;
   struct instruction inst = { CONSTANT, { .constant = { NULL } } };
@@ -512,7 +608,7 @@ stash_constant(
 
   if (!strp || cnt < 0)
     goto err_value;
-  if (stash_instruction(descriptor, index, &inst))
+  if (stash_instruction(instructions, index, &inst))
     goto err_stash;
   return IDL_RETCODE_OK;
 err_stash:
@@ -523,25 +619,27 @@ err_value:
 
 static idl_retcode_t
 stash_couple(
-  struct descriptor *desc, uint32_t index, uint16_t high, uint16_t low)
+  struct instructions *instructions, uint32_t index, uint16_t high, uint16_t low)
 {
   struct instruction inst = { COUPLE, { .couple = { high, low } } };
-  return stash_instruction(desc, index, &inst);
+  return stash_instruction(instructions, index, &inst);
 }
 
 static idl_retcode_t
 stash_single(
-  struct descriptor *desc, uint32_t index, uint32_t single)
+  struct instructions *instructions, uint32_t index, uint32_t single)
 {
   struct instruction inst = { SINGLE, { .single = single } };
-  return stash_instruction(desc, index, &inst);
+  return stash_instruction(instructions, index, &inst);
 }
 
-static uint32_t typecode(const idl_type_spec_t *type_spec, uint32_t shift)
+static uint32_t typecode(const idl_type_spec_t *type_spec, uint32_t shift, bool struct_union_ext)
 {
   assert(shift == 8 || shift == 16);
   if (idl_is_array(type_spec))
     return ((uint32_t)DDS_OP_VAL_ARR << shift);
+  if (idl_is_forward(type_spec))
+    return ((uint32_t)DDS_OP_VAL_EXT << shift);
   type_spec = idl_unalias(type_spec, 0u);
   assert(!idl_is_typedef(type_spec));
   switch (idl_type(type_spec)) {
@@ -591,13 +689,114 @@ static uint32_t typecode(const idl_type_spec_t *type_spec, uint32_t shift)
     case IDL_ENUM:
       return ((uint32_t)DDS_OP_VAL_4BY << shift);
     case IDL_UNION:
-      return ((uint32_t)DDS_OP_VAL_UNI << shift);
+      return ((uint32_t)(struct_union_ext ? DDS_OP_VAL_EXT : DDS_OP_VAL_UNI) << shift);
     case IDL_STRUCT:
-      return ((uint32_t)DDS_OP_VAL_STU << shift);
+      return ((uint32_t)(struct_union_ext ? DDS_OP_VAL_EXT : DDS_OP_VAL_STU) << shift);
+    case IDL_BITMASK:
+    {
+      uint16_t bit_bound = idl_bit_bound(type_spec);
+      if (bit_bound <= 8)
+        return ((uint32_t)DDS_OP_VAL_1BY << shift);
+      else if (bit_bound <= 16)
+        return ((uint32_t)DDS_OP_VAL_2BY << shift);
+      else if (bit_bound > 32)
+        return ((uint32_t)DDS_OP_VAL_8BY << shift);
+      else
+        return ((uint32_t)DDS_OP_VAL_4BY << shift);
+    }
     default:
+      abort ();
       break;
   }
   return 0u;
+}
+
+static struct constructed_type *
+find_ctype(const struct descriptor *descriptor, const void *node)
+{
+  struct constructed_type *ctype = descriptor->constructed_types;
+  while (ctype && ctype->node != node)
+    ctype = ctype->next;
+  return ctype;
+}
+
+static struct constructed_type *
+find_ctype_byname(const struct descriptor *descriptor, const idl_scope_t *scope, const idl_name_t *name)
+{
+  struct constructed_type *ctype = descriptor->constructed_types;
+  // FIXME: need to compare scope by name (identifier) and not pointers?
+  while (ctype && (strcmp(name->identifier, ctype->name->identifier) || ctype->scope != scope))
+    ctype = ctype->next;
+  return ctype;
+}
+
+static const struct constructed_type_fwd *
+ctype_has_fwd(const struct constructed_type *ctype, const void *node)
+{
+  const struct constructed_type_fwd *fwd = ctype->fwd_decls;
+  while (fwd && fwd->node != node)
+    fwd = fwd->next;
+  return fwd;
+}
+
+static struct constructed_type *
+find_ctype_byfwd(const struct descriptor *descriptor, const void *node)
+{
+  struct constructed_type *ctype = descriptor->constructed_types;
+  while (ctype && !ctype_has_fwd(ctype, node))
+    ctype = ctype->next;
+  return ctype;
+}
+
+static idl_retcode_t
+add_ctype(struct descriptor *descriptor, const idl_scope_t *scope, const void *node, bool is_fwd_decl, struct constructed_type **ctype)
+{
+  struct constructed_type *ctype1;
+  struct constructed_type_fwd *fwd = NULL;
+
+  if (!(ctype1 = calloc(1, sizeof (*ctype1))))
+    goto err_ctype;
+  if (is_fwd_decl) {
+    if (!(fwd = calloc(1, sizeof(*fwd))))
+      goto err_fwd;
+    fwd->node = node;
+    ctype1->fwd_decls = fwd;
+  } else
+    ctype1->node = node;
+  ctype1->name = idl_name(node);
+  ctype1->scope = scope;
+
+  if (!descriptor->constructed_types)
+    descriptor->constructed_types = ctype1;
+  else {
+    struct constructed_type *tmp = descriptor->constructed_types;
+    while (tmp->next)
+      tmp = tmp->next;
+    tmp->next = ctype1;
+  }
+  if (ctype)
+    *ctype = ctype1;
+  return IDL_RETCODE_OK;
+
+err_fwd:
+  free(ctype1);
+err_ctype:
+  return IDL_RETCODE_NO_MEMORY;
+}
+
+static idl_retcode_t
+add_ctype_fwd(struct constructed_type *ctype, const void *node, struct constructed_type_fwd **fwd)
+{
+  struct constructed_type_fwd *fwd1;
+  if (!(fwd1 = calloc(1, sizeof(*fwd1))))
+    return IDL_RETCODE_NO_MEMORY;
+  fwd1->node = node;
+  fwd1->next = ctype->fwd_decls;
+  ctype->fwd_decls = fwd1;
+
+  if (fwd)
+    *fwd = fwd1;
+  return IDL_RETCODE_OK;
 }
 
 static idl_retcode_t
@@ -610,62 +809,93 @@ emit_case(
 {
   idl_retcode_t ret;
   struct descriptor *descriptor = user_data;
+  struct stack_type *stype = descriptor->type_stack;
+  struct constructed_type *ctype = stype->ctype;
 
   (void)pstate;
   (void)path;
   if (revisit) {
-    if ((ret = stash_opcode(descriptor, nop, DDS_OP_RTS, 0u)))
+    /* close inline case */
+    if ((ret = stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_RTS, 0u)))
       return ret;
     pop_field(descriptor);
   } else {
-    bool simple = true;
+    enum { SIMPLE, EXTERNAL, INLINE } case_type;
     uint32_t off, cnt;
     uint32_t opcode = DDS_OP_JEQ;
-    const idl_case_t *branch = node;
+    const idl_case_t *_case = node;
     const idl_case_label_t *label;
     const idl_type_spec_t *type_spec;
-    struct type *type = descriptor->types;
 
     type_spec = idl_unalias(idl_type_spec(node), 0u);
 
-    /* simple elements are embedded, complex elements are not */
-    if (idl_is_array(branch->declarator)) {
-      opcode |= DDS_OP_TYPE_ARR;
-      simple = false;
-    } else {
-      opcode |= typecode(type_spec, TYPE);
-      if (idl_is_array(type_spec) || !(idl_is_base_type(type_spec) || idl_is_string(type_spec)))
-        simple = false;
+    if (idl_is_empty_struct(type_spec)) {
+      for (label = _case->labels; label; label = idl_next(label)) {
+        off = stype->offset + 2 + (stype->label * 3);
+        /* FIXME: as a work-around emit 3 RTS ops so that offset to type ops for non-simple
+           inline cases is correct. This needs a better solution... */
+        if ((ret = stash_opcode(descriptor, &ctype->instructions, off++, DDS_OP_RTS, 0u))
+            || (ret = stash_opcode(descriptor, &ctype->instructions, off++, DDS_OP_RTS, 0u))
+            || (ret = stash_opcode(descriptor, &ctype->instructions, off, DDS_OP_RTS, 0u)))
+          return ret;
+      }
+      return IDL_RETCODE_OK;
     }
 
-    if ((ret = push_field(descriptor, branch, NULL)))
+    /* simple elements are embedded, complex elements are not */
+    if (idl_is_array(_case->declarator)) {
+      opcode |= DDS_OP_TYPE_ARR;
+      case_type = INLINE;
+    } else {
+      opcode |= typecode(type_spec, TYPE, false);
+      if (idl_is_struct(type_spec) || idl_is_union(type_spec))
+        case_type = EXTERNAL;
+      else if (idl_is_array(type_spec) || (idl_is_string(type_spec) && idl_is_bounded(type_spec)))
+        case_type = INLINE;
+      else {
+        assert (idl_is_base_type(type_spec) || (idl_is_string(type_spec) && !idl_is_bounded(type_spec)));
+        case_type = SIMPLE;
+      }
+    }
+
+    if ((ret = push_field(descriptor, _case, NULL)))
       return ret;
-    if ((ret = push_field(descriptor, branch->declarator, NULL)))
+    if ((ret = push_field(descriptor, _case->declarator, NULL)))
       return ret;
 
-    cnt = descriptor->instructions.count + (type->labels - type->label) * 3;
-    for (label = branch->labels; label; label = idl_next(label)) {
-      off = type->offset + 2 + (type->label * 3);
-      /* update offset to first instruction for complex cases */
-      if (!simple)
-        opcode = (opcode & ~0xffffu) | (cnt - off);
-      /* generate union case opcode */
-      if ((ret = stash_opcode(descriptor, off++, opcode, 0u)))
-        return ret;
+    /* FIXME: see above.
+       For labels that are omitted because of empty target struct/union type, dummy ops
+       will be stashed, so that we can safely assume that offset of type instructions is
+       after last label */
+    cnt = ctype->instructions.count + (stype->labels - stype->label) * 3;
+    for (label = _case->labels; label; label = idl_next(label)) {
+      off = stype->offset + 2 + (stype->label * 3);
+      if (case_type == SIMPLE || case_type == INLINE) {
+        /* update offset to first instruction for inline non-simple cases */
+        opcode &= ~0xffffu;
+        if (case_type == INLINE)
+          opcode |= (cnt - off);
+        /* generate union case opcode */
+        if ((ret = stash_opcode(descriptor, &ctype->instructions, off++, opcode, 0u)))
+          return ret;
+      } else {
+        assert(off <= INT16_MAX);
+        stash_jeq_offset(&ctype->instructions, off, type_spec, opcode, (int16_t)off);
+        off++;
+      }
       /* generate union case discriminator */
-      if ((ret = stash_constant(descriptor, off++, label->const_expr)))
+      if ((ret = stash_constant(&ctype->instructions, off++, label->const_expr)))
         return ret;
       /* generate union case offset */
-      if ((ret = stash_offset(descriptor, off++, type->fields)))
+      if ((ret = stash_offset(&ctype->instructions, off++, stype->fields)))
         return ret;
-      type->label++;
+      stype->label++;
     }
 
     pop_field(descriptor); /* field readded by declarator for complex types */
-    if (simple) {
-      pop_field(descriptor);
-      /* field readded by declarator for complex types */
-      return IDL_VISIT_DONT_RECURSE;
+    if (case_type == SIMPLE || case_type == EXTERNAL) {
+      pop_field(descriptor); /* field readded by declarator for complex types */
+      return (case_type == SIMPLE) ? IDL_VISIT_DONT_RECURSE : IDL_VISIT_RECURSE;
     }
 
     return IDL_VISIT_REVISIT;
@@ -686,6 +916,7 @@ emit_switch_type_spec(
   uint32_t opcode, order;
   const idl_type_spec_t *type_spec;
   struct descriptor *descriptor = user_data;
+  struct constructed_type *ctype = descriptor->type_stack->ctype;
   struct field *field = NULL;
 
   (void)revisit;
@@ -698,14 +929,14 @@ emit_switch_type_spec(
   if ((ret = push_field(descriptor, node, &field)))
     return ret;
 
-  opcode = DDS_OP_ADR | DDS_OP_TYPE_UNI | typecode(type_spec, SUBTYPE);
+  opcode = DDS_OP_ADR | DDS_OP_TYPE_UNI | typecode(type_spec, SUBTYPE, false);
   if ((order = idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path)))
     opcode |= DDS_OP_FLAG_KEY;
   if (idl_is_default_case(idl_parent(union_spec->default_case)) && !idl_is_implicit_default_case(idl_parent(union_spec->default_case)))
     opcode |= DDS_OP_FLAG_DEF;
-  if ((ret = stash_opcode(descriptor, nop, opcode, order)))
+  if ((ret = stash_opcode(descriptor, &ctype->instructions, nop, opcode, order)))
     return ret;
-  if ((ret = stash_offset(descriptor, nop, field)))
+  if ((ret = stash_offset(&ctype->instructions, nop, field)))
     return ret;
   pop_field(descriptor);
   return IDL_RETCODE_OK;
@@ -721,39 +952,100 @@ emit_union(
 {
   idl_retcode_t ret;
   struct descriptor *descriptor = user_data;
-  struct type *type = descriptor->types;
-
+  struct stack_type *stype = descriptor->type_stack;
+  struct constructed_type *ctype;
   (void)pstate;
   (void)path;
   if (revisit) {
     uint32_t cnt;
-    assert(type->label == type->labels);
-    cnt = (descriptor->instructions.count - type->offset) + 2;
-    if ((ret = stash_single(descriptor, type->offset+2, type->labels)))
+    ctype = stype->ctype;
+    assert(stype->label <= stype->labels);
+    cnt = (ctype->instructions.count - stype->offset) + 2;
+    if ((ret = stash_single(&ctype->instructions, stype->offset + 2, stype->label)))  // not stype->labels, as labels with empty declarator type will be left out
       return ret;
-    if ((ret = stash_couple(descriptor, type->offset+3, (uint16_t)cnt, 4u)))
+    if ((ret = stash_couple(&ctype->instructions, stype->offset + 3, (uint16_t)cnt, 4u)))
+      return ret;
+    if ((ret = stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_RTS, 0u)))
       return ret;
     pop_type(descriptor);
   } else {
     const idl_case_t *_case;
     const idl_case_label_t *label;
+    bool existing = false;
 
-    if ((ret = push_type(descriptor, node, &type)))
+    if (find_ctype(descriptor, node))
+      return IDL_RETCODE_OK | IDL_VISIT_DONT_RECURSE;
+
+    if ((ctype = find_ctype_byname(descriptor, idl_scope(node), idl_name(node))))
+    {
+      if (!ctype->node)
+        ctype->node = node;
+      else {
+        assert(ctype->node == node);
+        existing = true;
+      }
+    } else {
+      if ((ret = add_ctype(descriptor, idl_scope(node), node, false, &ctype)))
+        return ret;
+    }
+
+    if (!existing) {
+      switch (((idl_union_t *)node)->extensibility.value) {
+        case IDL_APPENDABLE:
+          stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u);
+          break;
+        case IDL_MUTABLE:
+          stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u);
+          break;
+        case IDL_FINAL:
+          break;
+      }
+    }
+
+    if ((ret = push_type(descriptor, node, ctype, &stype)))
       return ret;
-    type->offset = descriptor->instructions.count;
-    type->labels = type->label = 0;
+
+    stype->offset = ctype->instructions.count;
+    stype->labels = stype->label = 0;
 
     /* determine total number of case labels as opcodes for complex elements
        are stored after case label opcodes */
     _case = ((const idl_union_t *)node)->cases;
     for (; _case; _case = idl_next(_case)) {
       for (label = _case->labels; label; label = idl_next(label))
-        type->labels++;
+        stype->labels++;
     }
 
     return IDL_VISIT_REVISIT;
   }
 
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+emit_forward(
+  const idl_pstate_t *pstate,
+  bool revisit,
+  const idl_path_t *path,
+  const void *node,
+  void *user_data)
+{
+  struct constructed_type *ctype;
+  struct descriptor *descriptor = user_data;
+  idl_retcode_t ret;
+
+  (void)pstate;
+  (void)revisit;
+  (void)path;
+  if (find_ctype_byfwd(descriptor, node))
+    return IDL_RETCODE_OK | IDL_VISIT_DONT_RECURSE;
+  if ((ctype = find_ctype_byname(descriptor, idl_scope(node), idl_name(node)))) {
+    if (!(ret = add_ctype_fwd(ctype, node, NULL)))
+      return ret;
+  } else {
+    if (!(ret = add_ctype(descriptor, idl_scope(node), node, true, NULL)))
+      return ret;
+  }
   return IDL_RETCODE_OK;
 }
 
@@ -767,13 +1059,51 @@ emit_struct(
 {
   idl_retcode_t ret;
   struct descriptor *descriptor = user_data;
-
+  struct constructed_type *ctype;
   (void)pstate;
   (void)path;
   if (revisit) {
+    ctype = find_ctype(descriptor, node);
+    assert(ctype);
+    /* generate return from subroutine */
+    uint32_t off = is_node_mutable(node) ? ctype->pl_offset : nop;
+    if ((ret = stash_opcode(descriptor, &ctype->instructions, off, DDS_OP_RTS, 0u)))
+      return ret;
     pop_type(descriptor);
   } else {
-    if ((ret = push_type(descriptor, node, NULL)))
+    bool existing = false;
+
+    if (find_ctype(descriptor, node))
+      return IDL_RETCODE_OK | IDL_VISIT_DONT_RECURSE;
+
+    if ((ctype = find_ctype_byname(descriptor, idl_scope(node), idl_name(node))))
+    {
+      if (!ctype->node)
+        ctype->node = node;
+      else {
+        assert(ctype->node == node);
+        existing = true;
+      }
+    } else {
+      if ((ret = add_ctype(descriptor, idl_scope(node), node, false, &ctype)))
+        return ret;
+    }
+
+    if (!existing) {
+      switch (((idl_struct_t *)node)->extensibility.value) {
+        case IDL_APPENDABLE:
+          stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u);
+          break;
+        case IDL_MUTABLE:
+          stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u);
+          ctype->pl_offset = ctype->instructions.count;
+          break;
+        case IDL_FINAL:
+          break;
+      }
+    }
+
+    if ((ret = push_type(descriptor, node, ctype, NULL)))
       return ret;
     return IDL_VISIT_REVISIT;
   }
@@ -790,7 +1120,8 @@ emit_sequence(
 {
   idl_retcode_t ret;
   struct descriptor *descriptor = user_data;
-  struct type *type = descriptor->types;
+  struct stack_type *stype = descriptor->type_stack;
+  struct constructed_type *ctype = stype->ctype;
   const idl_type_spec_t *type_spec;
 
   (void)pstate;
@@ -800,45 +1131,52 @@ emit_sequence(
   type_spec = idl_unalias(idl_type_spec(node), 0u);
   if (revisit) {
     uint32_t off, cnt;
-    off = type->offset;
-    cnt = descriptor->instructions.count;
+    off = stype->offset;
+    cnt = ctype->instructions.count;
     /* generate data field [elem-size] */
-    if ((ret = stash_size(descriptor, off+2, node)))
+    if ((ret = stash_size(&ctype->instructions, off + 2, node, false)))
       return ret;
     /* generate data field [next-insn, elem-insn] */
-    if ((ret = stash_couple(descriptor, off+3, (uint16_t)((cnt-off)+3u), 4u)))
-      return ret;
-    /* generate return from subroutine */
-    if ((ret = stash_opcode(descriptor, nop, DDS_OP_RTS, 0u)))
-      return ret;
+    if (idl_is_forward(type_spec) || idl_is_struct(type_spec) || idl_is_union(type_spec)) {
+      assert(cnt <= INT16_MAX);
+      int16_t addr_offs = (int16_t)(cnt - 2); /* minus 2 for the opcode and offset ops that are already stashed for this sequence */
+      if ((ret = stash_element_offset(&ctype->instructions, off + 3, type_spec, 4u, addr_offs)))
+        return ret;
+    } else {
+      if ((ret = stash_couple(&ctype->instructions, off + 3, (uint16_t)((cnt - off) + 3u), 4u)))
+        return ret;
+      /* generate return from subroutine */
+      if ((ret = stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_RTS, 0u)))
+        return ret;
+    }
     pop_type(descriptor);
   } else {
     uint32_t off;
     uint32_t opcode = DDS_OP_ADR | DDS_OP_TYPE_SEQ;
     struct field *field = NULL;
 
-    opcode |= typecode(type_spec, SUBTYPE);
-
-    off = descriptor->instructions.count;
-    if ((ret = stash_opcode(descriptor, nop, opcode, 0u)))
+    opcode |= typecode(type_spec, SUBTYPE, false);
+    off = ctype->instructions.count;
+    if ((ret = stash_opcode(descriptor, &ctype->instructions, nop, opcode, 0u)))
       return ret;
-    if (idl_is_struct(type->node))
-      field = type->fields;
-    if ((ret = stash_offset(descriptor, nop, field)))
+    if (idl_is_struct(stype->node))
+      field = stype->fields;
+    if ((ret = stash_offset(&ctype->instructions, nop, field)))
       return ret;
 
     /* short-circuit on simple types */
     if (idl_is_string(type_spec) || idl_is_base_type(type_spec)) {
       if (idl_is_bounded(type_spec)) {
-        if ((ret = stash_single(descriptor, nop, idl_bound(type_spec)+1)))
+        if ((ret = stash_single(&ctype->instructions, nop, idl_bound(type_spec) + 1)))
           return ret;
       }
       return IDL_RETCODE_OK;
     }
 
-    if ((ret = push_type(descriptor, node, &type)))
+    struct stack_type *seq_stype;
+    if ((ret = push_type(descriptor, node, stype->ctype, &seq_stype)))
       return ret;
-    type->offset = off;
+    seq_stype->offset = off;
     return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
   }
 
@@ -855,7 +1193,8 @@ emit_array(
 {
   idl_retcode_t ret;
   struct descriptor *descriptor = user_data;
-  struct type *type = descriptor->types;
+  struct stack_type *stype = descriptor->type_stack;
+  struct constructed_type *ctype = stype->ctype;
   const idl_type_spec_t *type_spec;
   bool simple = false;
   uint32_t dims = 1;
@@ -878,24 +1217,36 @@ emit_array(
   simple = (idl_mask(type_spec) & (IDL_BASE_TYPE|IDL_STRING|IDL_ENUM)) != 0;
 
   if (revisit) {
-    uint32_t off, cnt;
+    if (!simple) {
+      uint32_t off, cnt;
+      off = stype->offset;
+      cnt = ctype->instructions.count;
+      /* generate data field [next-insn, elem-insn] */
+      if (idl_is_forward(type_spec) || idl_is_struct(type_spec) || idl_is_union(type_spec)) {
+        assert(cnt <= INT16_MAX);
+        int16_t addr_offs = (int16_t)(cnt - 3); /* minus 2 for the opcode and offset ops that are already stashed for this array */
+        if ((ret = stash_element_offset(&ctype->instructions, off + 3, type_spec, 5u, addr_offs)))
+          return ret;
+        /* generate data field [elem-size] */
+        if ((ret = stash_size(&ctype->instructions, off + 4, node, false)))
+          return ret;
+      } else {
+        if ((ret = stash_couple(&ctype->instructions, off + 3, (uint16_t)((cnt - off) + 3u), 5u)))
+          return ret;
+        /* generate data field [elem-size] */
+        if ((ret = stash_size(&ctype->instructions, off + 4, node, false)))
+          return ret;
+        /* generate return from subroutine */
+        if ((ret = stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_RTS, 0u)))
+          return ret;
+      }
 
-    off = type->offset;
-    cnt = descriptor->instructions.count;
-    /* generate data field [next-insn, elem-insn] */
-    if ((ret = stash_couple(descriptor, off+3, (uint16_t)((cnt-off)+3u), 5u)))
-      return ret;
-    /* generate data field [elem-size] */
-    if ((ret = stash_size(descriptor, off+4, node)))
-      return ret;
-    /* generate return from subroutine */
-    if ((ret = stash_opcode(descriptor, nop, DDS_OP_RTS, 0u)))
-      return ret;
-
-    pop_type(descriptor);
-    type = descriptor->types;
-    if (!idl_is_alias(node) && idl_is_struct(type->node))
-      pop_field(descriptor);
+      pop_type(descriptor);
+      stype = descriptor->type_stack;
+      if (!idl_is_alias(node) && idl_is_struct(stype->node))
+        pop_field(descriptor);
+    }
+    return IDL_RETCODE_OK;
   } else {
     uint32_t off;
     uint32_t opcode = DDS_OP_ADR | DDS_OP_TYPE_ARR;
@@ -904,47 +1255,46 @@ emit_array(
 
     /* type definitions do not introduce a field */
     if (idl_is_alias(node))
-      assert(idl_is_sequence(type->node));
-    else if (idl_is_struct(type->node) && (ret = push_field(descriptor, node, &field)))
+      assert(idl_is_sequence(stype->node));
+    else if (idl_is_struct(stype->node) && (ret = push_field(descriptor, node, &field)))
       return ret;
 
-    opcode |= typecode(type_spec, SUBTYPE);
+    opcode |= typecode(type_spec, SUBTYPE, false);
     if ((order = idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path)))
       opcode |= DDS_OP_FLAG_KEY;
 
-    off = descriptor->instructions.count;
+    off = ctype->instructions.count;
     /* generate data field opcode */
-    if ((ret = stash_opcode(descriptor, nop, opcode, order)))
+    if ((ret = stash_opcode(descriptor, &ctype->instructions, nop, opcode, order)))
       return ret;
     /* generate data field offset */
-    if ((ret = stash_offset(descriptor, nop, field)))
+    if ((ret = stash_offset(&ctype->instructions, nop, field)))
       return ret;
     /* generate data field alen */
-    if ((ret = stash_single(descriptor, nop, dims)))
+    if ((ret = stash_single(&ctype->instructions, nop, dims)))
       return ret;
 
     /* short-circuit on simple types */
     if (simple) {
       if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
         /* generate data field noop [next-insn, elem-insn] */
-        if ((ret = stash_single(descriptor, nop, 0)))
+        if ((ret = stash_single(&ctype->instructions, nop, 0)))
           return ret;
         /* generate data field bound */
-        if ((ret = stash_single(descriptor, nop, idl_bound(type_spec)+1)))
+        if ((ret = stash_single(&ctype->instructions, nop, idl_bound(type_spec)+1)))
           return ret;
       }
-      if (!idl_is_alias(node) && idl_is_struct(type->node))
+      if (!idl_is_alias(node) && idl_is_struct(stype->node))
         pop_field(descriptor);
-      return IDL_RETCODE_OK;
+      return IDL_VISIT_REVISIT; /* revisit required because mutable member must be closed */
     }
 
-    if ((ret = push_type(descriptor, node, &type)))
+    struct stack_type *array_stype;
+    if ((ret = push_type(descriptor, node, stype->ctype, &array_stype)))
       return ret;
-    type->offset = off;
+    array_stype->offset = off;
     return IDL_VISIT_TYPE_SPEC | IDL_VISIT_UNALIAS_TYPE_SPEC | IDL_VISIT_REVISIT;
   }
-
-  return IDL_RETCODE_OK;
 }
 
 static idl_retcode_t
@@ -958,15 +1308,49 @@ emit_declarator(
   idl_retcode_t ret;
   const idl_type_spec_t *type_spec;
   struct descriptor *descriptor = user_data;
+  struct constructed_type *ctype = descriptor->type_stack->ctype;
+
+  if (is_node_mutable(ctype->node)) {
+    if (revisit) {
+      /* close mutable member */
+      if ((ret = stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_RTS, 0u)))
+        return ret;
+    } else {
+      /* add member offset for declarators of mutable types */
+      assert(ctype->instructions.count <= INT16_MAX);
+      int16_t addr_offs = (int16_t)(ctype->instructions.count
+          - ctype->pl_offset /* offset of first op after PLC */
+          + 2 /* skip this JEQ and member id */
+          + 1 /* skip RTS (of the PLC list) */);
+      if ((ret = stash_member_offset(&ctype->instructions, ctype->pl_offset++, addr_offs)))
+        return ret;
+      stash_single(&ctype->instructions, ctype->pl_offset++, ((idl_declarator_t *)node)->id.value);
+
+      /* update offset for previous members for this ctype */
+      struct instruction *table = ctype->instructions.table;
+      for (uint32_t i = 1; i < ctype->pl_offset - 2; i++) {
+        if (table[i].type == MEMBER_OFFSET) {
+          table[i].data.inst_offset.addr_offs = (int16_t)(table[i].data.inst_offset.addr_offs + 2);
+        }
+      }
+    }
+  }
+
+  if (idl_is_alias(node))
+    return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
 
   type_spec = idl_unalias(idl_type_spec(node), 0u);
   /* delegate array type specifiers or declarators */
   if (idl_is_array(node) || idl_is_array(type_spec))
     return emit_array(pstate, revisit, path, node, user_data);
 
+  if (idl_is_empty_struct(type_spec))
+    return IDL_RETCODE_OK | IDL_VISIT_REVISIT;
+
   if (revisit) {
     if (!idl_is_alias(node))
       pop_field(descriptor);
+    return IDL_RETCODE_OK;
   } else {
     uint32_t opcode;
     uint32_t order;
@@ -977,31 +1361,52 @@ emit_declarator(
 
     if (idl_is_sequence(type_spec))
       return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
-    else if (idl_is_union(type_spec))
-      return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
-    else if (idl_is_struct(type_spec))
-      return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
 
-    opcode = DDS_OP_ADR | typecode(type_spec, TYPE);
+    /* inline the type spec for seq/struct/union declarators in a union */
+    if (idl_is_union(ctype->node)) {
+      if (idl_is_sequence(type_spec) || idl_is_union(type_spec) || idl_is_struct(type_spec))
+        return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
+    }
+
+    assert(ctype->instructions.count <= INT16_MAX);
+    int16_t addr_offs = (int16_t)ctype->instructions.count;
+    bool has_size = false;
+    opcode = DDS_OP_ADR | typecode(type_spec, TYPE, true);
     if ((order = idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path)))
       opcode |= DDS_OP_FLAG_KEY;
+    idl_node_t *parent = idl_parent(node);
+    if (idl_is_member(parent) && ((idl_member_t *)parent)->external.value)
+    {
+      opcode |= DDS_OP_FLAG_EXT;
+      if (opcode & DDS_OP_TYPE_EXT)
+        has_size = true;
+    }
 
     /* generate data field opcode */
-    if ((ret = stash_opcode(descriptor, nop, opcode, order)))
+    if ((ret = stash_opcode(descriptor, &ctype->instructions, nop, opcode, order)))
       return ret;
     /* generate data field offset */
-    if ((ret = stash_offset(descriptor, nop, field)))
+    if ((ret = stash_offset(&ctype->instructions, nop, field)))
       return ret;
     /* generate data field bound */
     if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
-      if ((ret = stash_single(descriptor, nop, idl_bound(type_spec)+1)))
+      if ((ret = stash_single(&ctype->instructions, nop, idl_bound(type_spec)+1)))
+        return ret;
+    } else if (idl_is_forward(type_spec) || idl_is_struct(type_spec) || idl_is_union(type_spec)) {
+      if ((ret = stash_element_offset(&ctype->instructions, nop, type_spec, 3 + (has_size ? 1 : 0), addr_offs)))
+        return ret;
+    }
+    /* generate data field element size */
+    if (has_size) {
+      if ((ret = stash_size(&ctype->instructions, nop, node, true)))
         return ret;
     }
 
+    if (idl_is_forward(type_spec) || idl_is_union(type_spec) || idl_is_struct(type_spec))
+      return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
+
     return IDL_VISIT_REVISIT;
   }
-
-  return IDL_RETCODE_OK;
 }
 
 static int print_opcode(FILE *fp, const struct instruction *inst)
@@ -1018,8 +1423,20 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
   opcode = inst->data.opcode.code & (0xffu << 24);
 
   switch (opcode) {
+    case DDS_OP_DLC:
+      vec[len++] = "DDS_OP_DLC";
+      goto print;
+    case DDS_OP_PLC:
+      vec[len++] = "DDS_OP_PLC";
+      goto print;
     case DDS_OP_RTS:
       vec[len++] = "DDS_OP_RTS";
+      goto print;
+    case DDS_OP_KOF:
+      vec[len++] = "DDS_OP_KOF";
+      /* lower 16 bits contains length */
+      idl_snprintf(buf, sizeof(buf), " | %u", inst->data.opcode.code & 0xffff);
+      vec[len++] = buf;
       goto print;
     case DDS_OP_JEQ:
       vec[len++] = "DDS_OP_JEQ";
@@ -1031,7 +1448,7 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
   }
 
   type = inst->data.opcode.code & (0xffu << 16);
-  assert(type);
+  assert(opcode == DDS_OP_JEQ || type); /* JEQ can have null type in case it's used as PL-CDR member offset */
   switch (type) {
     case DDS_OP_TYPE_1BY: vec[len++] = " | DDS_OP_TYPE_1BY"; break;
     case DDS_OP_TYPE_2BY: vec[len++] = " | DDS_OP_TYPE_2BY"; break;
@@ -1039,12 +1456,14 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
     case DDS_OP_TYPE_8BY: vec[len++] = " | DDS_OP_TYPE_8BY"; break;
     case DDS_OP_TYPE_STR: vec[len++] = " | DDS_OP_TYPE_STR"; break;
     case DDS_OP_TYPE_BST: vec[len++] = " | DDS_OP_TYPE_BST"; break;
+    case DDS_OP_TYPE_BSP: vec[len++] = " | DDS_OP_TYPE_BSP"; break;
     case DDS_OP_TYPE_SEQ: vec[len++] = " | DDS_OP_TYPE_SEQ"; break;
     case DDS_OP_TYPE_ARR: vec[len++] = " | DDS_OP_TYPE_ARR"; break;
     case DDS_OP_TYPE_UNI: vec[len++] = " | DDS_OP_TYPE_UNI"; break;
     case DDS_OP_TYPE_STU: vec[len++] = " | DDS_OP_TYPE_STU"; break;
+    case DDS_OP_TYPE_ENU: vec[len++] = " | DDS_OP_TYPE_ENU"; break;
+    case DDS_OP_TYPE_EXT: vec[len++] = " | DDS_OP_TYPE_EXT"; break;
   }
-
   if (opcode == DDS_OP_JEQ) {
     /* lower 16 bits contain offset to next instruction */
     idl_snprintf(buf, sizeof(buf), " | %u", inst->data.opcode.code & 0xffff);
@@ -1066,10 +1485,12 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       case DDS_OP_SUBTYPE_8BY: vec[len++] = " | DDS_OP_SUBTYPE_8BY"; break;
       case DDS_OP_SUBTYPE_STR: vec[len++] = " | DDS_OP_SUBTYPE_STR"; break;
       case DDS_OP_SUBTYPE_BST: vec[len++] = " | DDS_OP_SUBTYPE_BST"; break;
+      case DDS_OP_SUBTYPE_BSP: vec[len++] = " | DDS_OP_SUBTYPE_BSP"; break;
       case DDS_OP_SUBTYPE_SEQ: vec[len++] = " | DDS_OP_SUBTYPE_SEQ"; break;
       case DDS_OP_SUBTYPE_ARR: vec[len++] = " | DDS_OP_SUBTYPE_ARR"; break;
       case DDS_OP_SUBTYPE_UNI: vec[len++] = " | DDS_OP_SUBTYPE_UNI"; break;
       case DDS_OP_SUBTYPE_STU: vec[len++] = " | DDS_OP_SUBTYPE_STU"; break;
+      case DDS_OP_SUBTYPE_ENU: vec[len++] = " | DDS_OP_SUBTYPE_ENU"; break;
     }
 
     if (type == DDS_OP_TYPE_UNI && (inst->data.opcode.code & DDS_OP_FLAG_DEF))
@@ -1080,6 +1501,8 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       vec[len++] = " | DDS_OP_FLAG_SGN";
     if (inst->data.opcode.code & DDS_OP_FLAG_KEY)
       vec[len++] = " | DDS_OP_FLAG_KEY";
+    if (inst->data.opcode.code & DDS_OP_FLAG_EXT)
+      vec[len++] = " | DDS_OP_FLAG_EXT";
   }
 
 print:
@@ -1133,167 +1556,348 @@ static int print_single(FILE *fp, const struct instruction *inst)
   return idl_fprintf(fp, "%"PRIu32"u", inst->data.single);
 }
 
-static int print_opcodes(FILE *fp, const struct descriptor *descriptor)
+static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t *kof_offs)
 {
   const struct instruction *inst;
   enum dds_stream_opcode opcode;
   enum dds_stream_typecode_primary optype;
+  enum dds_stream_typecode_subtype subtype;
   char *type = NULL;
   const char *seps[] = { ", ", ",\n  " };
   const char *sep = "  ";
+  uint32_t cnt = 0;
 
   if (IDL_PRINTA(&type, print_type, descriptor->topic) < 0)
     return -1;
   if (idl_fprintf(fp, "static const uint32_t %s_ops [] =\n{\n", type) < 0)
     return -1;
-  for (size_t op=0, brk=0; op < descriptor->instructions.count; op++) {
-    inst = &descriptor->instructions.table[op];
-    sep = seps[op==brk];
+
+  for (struct constructed_type *ctype = descriptor->constructed_types; ctype; ctype = ctype->next) {
+    if (ctype != descriptor->constructed_types)
+      if (fputs(",\n\n", fp) < 0)
+        return -1;
+
+    if (idl_fprintf(fp, "  /* %s */\n", idl_identifier(ctype->node)) < 0)
+      return -1;
+    for (size_t op = 0, brk = 0; op < ctype->instructions.count; op++) {
+      inst = &ctype->instructions.table[op];
+      sep = seps[op == brk];
+      switch (inst->type) {
+        case OPCODE:
+          sep = op ? seps[1] : "  "; /* indent, always */
+          /* determine when to break line */
+          opcode = inst->data.opcode.code & (0xffu << 24);
+          optype = inst->data.opcode.code & (0xffu << 16);
+          if (opcode == DDS_OP_RTS || opcode == DDS_OP_DLC || opcode == DDS_OP_PLC)
+            brk = op + 1;
+          else if (opcode == DDS_OP_JEQ)
+            brk = op + 3;
+          else if (optype == DDS_OP_TYPE_BST)
+            brk = op + 3;
+          else if (optype == DDS_OP_TYPE_EXT) {
+            brk = op + 3;
+            if (inst->data.opcode.code & DDS_OP_FLAG_EXT)
+              brk++;
+          }
+          else if (optype == DDS_OP_TYPE_ARR || optype == DDS_OP_TYPE_SEQ) {
+            subtype = inst->data.opcode.code & (0xffu << 8);
+            brk = op + (optype == DDS_OP_TYPE_SEQ ? 2 : 3);
+            if (subtype > DDS_OP_SUBTYPE_8BY && subtype != DDS_OP_SUBTYPE_BST)
+              brk += 2;
+          } else if (optype == DDS_OP_TYPE_UNI)
+            brk = op + 4;
+          else
+            brk = op + 2;
+          if (fputs(sep, fp) < 0 || print_opcode(fp, inst) < 0)
+            return -1;
+          break;
+        case OFFSET:
+          if (fputs(sep, fp) < 0 || print_offset(fp, inst) < 0)
+            return -1;
+          break;
+        case SIZE:
+          if (fputs(sep, fp) < 0 || print_size(fp, inst) < 0)
+            return -1;
+          break;
+        case CONSTANT:
+          if (fputs(sep, fp) < 0 || print_constant(fp, inst) < 0)
+            return -1;
+          break;
+        case COUPLE:
+          if (fputs(sep, fp) < 0 || print_couple(fp, inst) < 0)
+            return -1;
+          break;
+        case SINGLE:
+          if (fputs(sep, fp) < 0 || print_single(fp, inst) < 0)
+            return -1;
+          break;
+        case ELEM_OFFSET:
+        {
+          const struct instruction inst_couple = { COUPLE, { .couple = { .high = inst->data.inst_offset.inst.high & 0xffffu, .low = (uint16_t)inst->data.inst_offset.elem_offs } } };
+          if (fputs(sep, fp) < 0 || print_couple(fp, &inst_couple) < 0 || idl_fprintf(fp, " /* %s */", idl_identifier(inst->data.inst_offset.node)) < 0)
+            return -1;
+          break;
+        }
+        case JEQ_OFFSET:
+        {
+          const struct instruction inst_op = { OPCODE, { .opcode = { .code = (inst->data.inst_offset.inst.opcode & ~0xffffu) | (uint16_t)inst->data.inst_offset.elem_offs, .order = 0 } } };
+          if (fputs(sep, fp) < 0 || print_opcode(fp, &inst_op) < 0 || idl_fprintf(fp, " /* %s */", idl_identifier(inst->data.inst_offset.node)) < 0)
+            return -1;
+          brk = op + 3;
+          break;
+        }
+        case MEMBER_OFFSET:
+        {
+          const struct instruction inst_op = { OPCODE, { .opcode = { .code = (DDS_OP_JEQ & ~0xffffu) | (uint16_t)inst->data.inst_offset.addr_offs, .order = 0 } } };
+          if (fputs(sep, fp) < 0 || print_opcode(fp, &inst_op) < 0)
+            return -1;
+          brk = op + 2;
+          break;
+        }
+        case KEY_OFFSET:
+          return -1;
+      }
+      cnt++;
+    }
+  }
+
+  if (kof_offs)
+    *kof_offs = cnt;
+
+  for (size_t op = 0, brk = 0; op < descriptor->key_offsets.count; op++) {
+    inst = &descriptor->key_offsets.table[op];
+    sep = seps[op == brk];
     switch (inst->type) {
-      case OPCODE:
-        sep = op ? seps[1] : "  "; /* indent, always */
-        /* determine when to break line */
-        opcode = inst->data.opcode.code & (0xffu << 24);
-        optype = inst->data.opcode.code & (0xffu << 16);
-        if (opcode == DDS_OP_RTS)
-          brk = op+1;
-        else if (opcode == DDS_OP_JEQ)
-          brk = op+3;
-        else if (optype == DDS_OP_TYPE_ARR || optype == DDS_OP_TYPE_BST)
-          brk = op+3;
-        else if (optype == DDS_OP_TYPE_UNI)
-          brk = op+4;
-        else
-          brk = op+2;
-        if (fputs(sep, fp) < 0 || print_opcode(fp, inst) < 0)
+      case KEY_OFFSET:
+      {
+        const struct instruction inst_op = { OPCODE, { .opcode = { .code = (DDS_OP_KOF & ~0xffffu) | (inst->data.key_offset.len & 0xffffu), .order = 0 } } };
+        if (fputs(sep, fp) < 0 || idl_fprintf(fp, "\n  /* key: %s (size: %u, order: %u) */\n  ", inst->data.key_offset.key_name, inst->data.key_offset.key_size, inst->data.key_offset.order) < 0 || print_opcode(fp, &inst_op) < 0)
           return -1;
+        brk = op + 1 + inst->data.key_offset.len;
         break;
-      case OFFSET:
-        if (fputs(sep, fp) < 0 || print_offset(fp, inst) < 0)
-          return -1;
-        break;
-      case SIZE:
-        if (fputs(sep, fp) < 0 || print_size(fp, inst) < 0)
-          return -1;
-        break;
-      case CONSTANT:
-        if (fputs(sep, fp) < 0 || print_constant(fp, inst) < 0)
-          return -1;
-        break;
-      case COUPLE:
-        if (fputs(sep, fp) < 0 || print_couple(fp, inst) < 0)
-          return -1;
-        break;
+      }
       case SINGLE:
         if (fputs(sep, fp) < 0 || print_single(fp, inst) < 0)
           return -1;
         break;
+      case OPCODE:
+        opcode = inst->data.opcode.code & (0xffu << 24);
+        assert (opcode == DDS_OP_RTS);
+        if (fputs(sep, fp) < 0 || print_opcode(fp, inst) < 0)
+          return -1;
+        break;
+      default:
+        return -1;
     }
   }
+
   if (fputs("\n};\n\n", fp) < 0)
     return -1;
   return 0;
 }
 
-static int print_keys(FILE *fp, struct descriptor *descriptor, bool keylist)
+static void free_ctype_keys(struct constructed_type_key *key)
 {
-  char *type = NULL;
-  const char *fmt, *sep="";
-  uint32_t fixed = 0, align = 0;
-  struct { const char *member; uint32_t index; } *keys = NULL;
+  struct constructed_type_key *tmp = key, *tmp1;
+  while (tmp) {
+    if (tmp->name)
+      free(tmp->name);
+    if (tmp->sub)
+      free_ctype_keys(tmp->sub);
+    tmp1 = tmp;
+    tmp = tmp->next;
+    free(tmp1);
+  }
+}
 
-  if (descriptor->keys == 0)
-    return 0;
-  if (!(keys = calloc(descriptor->keys, sizeof(*keys))))
-    goto err_keys;
-  if (IDL_PRINT(&type, print_type, descriptor->topic) < 0)
-    goto err_type;
-  for (uint32_t i=0,k=0; i < descriptor->instructions.count && k < descriptor->keys; i++) {
-    const struct instruction *inst = &descriptor->instructions.table[i];
-    uint32_t code, size = 0, dims = 1;
-    uint32_t order = 0;
+static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys)
+{
+  idl_retcode_t ret;
+  assert(keys);
+  struct constructed_type_key *ctype_keys = NULL;
+  for (uint32_t i = 0; i < ctype->instructions.count; i++) {
+    const struct instruction *inst = &ctype->instructions.table[i];
+    uint32_t code, size = 0, dims = 1, align = 0;
 
     if (inst->type != OPCODE)
       continue;
     code = inst->data.opcode.code;
     if ((code & (0xffu<<24)) != DDS_OP_ADR || !(code & DDS_OP_FLAG_KEY))
       continue;
-    order = inst->data.opcode.order;
-    assert(order);
-    order--;
-    if (code & DDS_OP_TYPE_ARR) {
-      /* dimensions stored two instructions to the right */
-      assert(i+2 < descriptor->instructions.count);
-      assert(descriptor->instructions.table[i+2].type == SINGLE);
-      dims = descriptor->instructions.table[i+2].data.single;
-      code >>= 8;
-    } else {
-      code >>= 16;
+
+    struct constructed_type_key *key = calloc (1, sizeof(*key)), *tmp;
+    if (!key)
+      goto err_no_memory;
+    if (ctype_keys == NULL)
+      ctype_keys = key;
+    else {
+      tmp = ctype_keys;
+      while (tmp->next)
+        tmp = tmp->next;
+      tmp->next = key;
     }
 
-    switch (code & 0xffu) {
-      case DDS_OP_VAL_1BY: size = align = 1; break;
-      case DDS_OP_VAL_2BY: size = align = 2; break;
-      case DDS_OP_VAL_4BY: size = align = 4; break;
-      case DDS_OP_VAL_8BY: size = align = 8; break;
-      case DDS_OP_VAL_BST: {
-        assert(i+2 < descriptor->instructions.count);
-        assert(descriptor->instructions.table[i+2].type == SINGLE);
-        align = 4;
-        size = 5 + descriptor->instructions.table[i+2].data.single;
+    key->offset = i;
+    assert(inst->data.opcode.order);
+    key->order = inst->data.opcode.order - 1;
+
+    const struct instruction *inst2 = &ctype->instructions.table[i + 2];
+    if ((code & (0xffu << 16)) == DDS_OP_TYPE_EXT) {
+      assert(inst2->type == ELEM_OFFSET);
+      const idl_node_t *node = inst2->data.inst_offset.node;
+      struct constructed_type *csubtype = idl_is_forward(node) ?  find_ctype_byfwd(descriptor, node) : find_ctype(descriptor, node);
+      assert(csubtype);
+      if ((ret = get_ctype_keys(descriptor, csubtype, &key->sub)))
+        goto err;
+    } else {
+      descriptor->n_keys++;
+      if ((code & (0xffu << 16)) == DDS_OP_TYPE_ARR) {
+        assert(i + 2 < ctype->instructions.count);
+        assert(inst2->type == SINGLE);
+        dims = inst2->data.single;
+        code >>= 8;
+      } else {
+        code >>= 16;
       }
-      break;
-      default:
-        fixed = MAX_SIZE+1;
+
+      switch (code & 0xffu) {
+        case DDS_OP_VAL_1BY: size = align = 1; break;
+        case DDS_OP_VAL_2BY: size = align = 2; break;
+        case DDS_OP_VAL_4BY: size = align = 4; break;
+        case DDS_OP_VAL_8BY: size = align = 8; break;
+        case DDS_OP_VAL_BST: {
+          assert(i+2 < ctype->instructions.count);
+          assert(ctype->instructions.table[i+2].type == SINGLE);
+          align = 4;
+          size = 5 + ctype->instructions.table[i+2].data.single;
+        }
         break;
+        default:
+          key->size = MAX_SIZE + 1;
+          break;
+      }
+      if (size > MAX_SIZE || dims > MAX_SIZE || (size * dims) + key->size > MAX_SIZE)
+        key->size = MAX_SIZE + 1;
+      else
+      {
+        if ((key->size % align) != 0)
+          key->size += align - (key->size % align);
+        key->size += size * dims;
+      }
     }
 
-    if (size > MAX_SIZE || dims > MAX_SIZE || (size*dims)+fixed > MAX_SIZE)
-      fixed = MAX_SIZE+1;
-    else
-    {
-      if ((fixed % align) != 0)
-        fixed += align - (fixed % align);
-      fixed += size*dims;
-    }
+    const struct instruction *inst1 = &ctype->instructions.table[i + 1];
+    assert(inst1->type == OFFSET);
+    assert(inst1->data.offset.type);
+    assert(inst1->data.offset.member);
+    if (!(key->name = idl_strdup(inst1->data.offset.member)))
+      goto err_no_memory;
+  }
+  *keys = ctype_keys;
+  return IDL_RETCODE_OK;
 
-    inst = &descriptor->instructions.table[i+1];
-    assert(inst->type == OFFSET);
-    assert(inst->data.offset.type);
-    assert(inst->data.offset.member);
-    if (keylist) {
-      assert(order < descriptor->keys);
-      keys[order].member = inst->data.offset.member;
-      keys[order].index = i;
+err_no_memory:
+  ret = IDL_RETCODE_NO_MEMORY;
+err:
+  free_ctype_keys(ctype_keys);
+  return ret;
+}
+
+static int add_key_offset(struct descriptor *descriptor, struct constructed_type_key *key, char *name, struct key_offs *offs)
+{
+  char *name1;
+  while (key) {
+    if (idl_asprintf(&name1, "%s%s%s", name ? name : "", name ? "." : "", key->name) == -1)
+      goto err;
+    offs->val[offs->n] = (uint16_t)key->offset;
+    offs->n++;
+    if (key->sub) {
+      if (add_key_offset(descriptor, key->sub, name1, offs))
+        goto err_stash;
     } else {
-      keys[k].member = inst->data.offset.member;
-      keys[k].index = i;
+      if (stash_key_offset(&descriptor->key_offsets, nop, name1, offs->n, (uint16_t)key->size, (uint16_t)key->order) < 0)
+        goto err_stash;
+      for (uint32_t n = 0; n < offs->n; n++)
+        if (stash_single(&descriptor->key_offsets, nop, offs->val[n]))
+          goto err_stash;
+    }
+    offs->n--;
+    free(name1);
+    key = key->next;
+  }
+  return 0;
+err_stash:
+  free(name1);
+err:
+  return -1;
+}
+
+static int add_key_offset_list(struct descriptor *descriptor)
+{
+  struct constructed_type *ctype = find_ctype(descriptor, descriptor->topic);
+  assert(ctype);
+  struct constructed_type_key *keys;
+  if (get_ctype_keys(descriptor, ctype, &keys))
+    return -1;
+  struct key_offs offs = { .val = { 0 }, .n = 0 };
+  add_key_offset(descriptor, keys, NULL, &offs);
+  free_ctype_keys(keys);
+  return 0;
+}
+
+static int print_keys(FILE *fp, struct descriptor *descriptor, bool keylist, uint32_t offset)
+{
+  char *typestr = NULL;
+  const char *fmt, *sep="";
+  uint32_t sz = 0;
+  struct { const char *member; uint32_t inst_offs; } *keys = NULL;
+
+  if (descriptor->n_keys == 0)
+    return 0;
+  if (!(keys = calloc(descriptor->n_keys, sizeof(*keys))))
+    goto err_keys;
+  if (IDL_PRINT(&typestr, print_type, descriptor->topic) < 0)
+    goto err_type;
+
+  for (uint32_t i = 0, k = 0; i < descriptor->key_offsets.count; i++) {
+    const struct instruction *inst = &descriptor->key_offsets.table[i];
+    if (inst->type != KEY_OFFSET)
+      continue;
+    sz += inst->data.key_offset.key_size;
+    if (keylist) {
+      uint32_t order = inst->data.key_offset.order;
+      assert(order < descriptor->n_keys);
+      keys[order].member = inst->data.key_offset.key_name;
+      keys[order].inst_offs = i;
+    } else {
+      assert(k < descriptor->n_keys);
+      keys[k].member = inst->data.key_offset.key_name;
+      keys[k].inst_offs = i;
     }
     k++;
   }
 
-  if (fixed && fixed <= MAX_SIZE)
+  if (sz && sz <= MAX_SIZE)
     descriptor->flags |= DDS_TOPIC_FIXED_KEY;
 
   fmt = "static const dds_key_descriptor_t %s_keys[%"PRIu32"] =\n{\n";
-  if (idl_fprintf(fp, fmt, type, descriptor->keys) < 0)
+  if (idl_fprintf(fp, fmt, typestr, descriptor->n_keys) < 0)
     goto err_print;
   sep = "";
   fmt = "%s  { \"%s\", %"PRIu32" }";
-  for (uint32_t k=0; k < descriptor->keys; k++) {
-    assert(keys[k].member);
-    if (idl_fprintf(fp, fmt, sep, keys[k].member, keys[k].index) < 0)
+  for (uint32_t k=0; k < descriptor->n_keys; k++) {
+    if (idl_fprintf(fp, fmt, sep, keys[k].member, offset + keys[k].inst_offs) < 0)
       goto err_print;
-    sep=",\n";
+    sep = ",\n";
   }
   if (fputs("\n};\n\n", fp) < 0)
     goto err_print;
 
-  free(type);
+  free(typestr);
   free(keys);
   return 0;
 err_print:
-  free(type);
+  free(typestr);
 err_type:
   free(keys);
 err_keys:
@@ -1314,16 +1918,16 @@ static int print_flags(FILE *fp, struct descriptor *descriptor)
     vec[len++] = "DDS_TOPIC_FIXED_KEY";
 
   bool fixed_size = true;
-  for (uint32_t op = 0; op < descriptor->instructions.count && fixed_size; op++)
-  {
-    struct instruction i = descriptor->instructions.table[op];
-    if (i.type != OPCODE)
-      continue;
+  for (struct constructed_type *ctype = descriptor->constructed_types; ctype && fixed_size; ctype = ctype->next) {
+    for (uint32_t op = 0; op < ctype->instructions.count && fixed_size; op++) {
+      struct instruction i = ctype->instructions.table[op];
+      if (i.type != OPCODE)
+        continue;
 
-    if (((i.data.opcode.code>>16)&0xFF) == DDS_OP_VAL_STR ||
-      ((i.data.opcode.code >> 16) & 0xFF) == DDS_OP_VAL_BST ||
-      ((i.data.opcode.code >> 16) & 0xFF) == DDS_OP_VAL_SEQ)
-      fixed_size = false;
+      uint32_t typecode = (i.data.opcode.code >> 16) & 0xff;
+      if (typecode == DDS_OP_VAL_STR || typecode == DDS_OP_VAL_BST || typecode == DDS_OP_VAL_BSP ||typecode == DDS_OP_VAL_SEQ)
+        fixed_size = false;
+    }
   }
 
   if (fixed_size)
@@ -1340,7 +1944,10 @@ static int print_flags(FILE *fp, struct descriptor *descriptor)
   return fputs(",\n", fp) < 0 ? -1 : 0;
 }
 
-static int print_descriptor(FILE *fp, struct descriptor *descriptor)
+static int print_descriptor(
+    FILE *fp,
+    struct descriptor *descriptor
+)
 {
   char *name, *type;
   const char *fmt;
@@ -1350,86 +1957,89 @@ static int print_descriptor(FILE *fp, struct descriptor *descriptor)
   if (IDL_PRINTA(&type, print_type, descriptor->topic) < 0)
     return -1;
   fmt = "const dds_topic_descriptor_t %1$s_desc =\n{\n"
-        "  sizeof (%1$s),\n" /* size of type */
-        "  %2$s,\n  "; /* alignment */
+        "  .m_size = sizeof (%1$s),\n" /* size of type */
+        "  .m_align = %2$s,\n" /* alignment */
+        "  .m_flagset = ";
   if (idl_fprintf(fp, fmt, type, descriptor->alignment->rendering) < 0)
     return -1;
   if (print_flags(fp, descriptor) < 0)
     return -1;
-  if (descriptor->keys)
-    fmt = "  %1$"PRIu32"u,\n" /* number of keys */
-          "  \"%2$s\",\n" /* fully qualified name in IDL */
-          "  %3$s_keys,\n" /* key array */
-          "  %4$"PRIu32",\n" /* number of ops */
-          "  %3$s_ops,\n" /* ops array */
-          "  \"\"\n" /* OpenSplice metadata */
-          "};\n";
+  fmt = "  .m_nkeys = %1$"PRIu32"u,\n" /* number of keys */
+        "  .m_typename = \"%2$s\",\n"; /* fully qualified name in IDL */
+  if (idl_fprintf(fp, fmt, descriptor->n_keys, name) < 0)
+    return -1;
+
+  /* key array */
+  if (descriptor->n_keys)
+    fmt = "  .m_keys = %1$s_keys,\n";
   else
-    fmt = "  %1$"PRIu32"u,\n" /* number of keys */
-          "  \"%2$s\",\n" /* fully qualified name in IDL */
-          "  NULL,\n" /* key array */
-          "  %4$"PRIu32",\n" /* number of ops */
-          "  %3$s_ops,\n" /* ops array */
-          "  \"\"\n" /* OpenSplice metadata */
-          "};\n";
-  if (idl_fprintf(fp, fmt, descriptor->keys, name, type, descriptor->opcodes) < 0)
+    fmt = "  .m_keys = NULL,\n";
+  if (idl_fprintf(fp, fmt, type) < 0)
+    return -1;
+
+  fmt = "  .m_nops = %1$"PRIu32",\n" /* number of ops */
+        "  .m_ops = %2$s_ops,\n" /* ops array */
+        "  .m_meta = \"\",\n"; /* OpenSplice metadata */
+  if (idl_fprintf(fp, fmt, descriptor->n_opcodes, type) < 0)
+    return -1;
+
+  if (idl_fprintf(fp, "};\n") < 0)
     return -1;
 
   return 0;
 }
 
-idl_retcode_t generate_descriptor(const idl_pstate_t *pstate, struct generator *generator, const idl_node_t *node);
-
-idl_retcode_t
-generate_descriptor(
-  const idl_pstate_t *pstate,
-  struct generator *generator,
-  const idl_node_t *node)
+static idl_retcode_t
+resolve_offsets(struct descriptor *descriptor)
 {
-  idl_retcode_t ret;
-  bool keylist;
-  struct descriptor descriptor;
-  idl_visitor_t visitor;
+  /* set instruction offset for each type in descriptor */
+  {
+    uint32_t offs = 0;
+    for (struct constructed_type *ctype = descriptor->constructed_types; ctype; ctype = ctype->next) {
+      /* confirm that type is complete */
+      if (!ctype->node)
+        return IDL_RETCODE_SEMANTIC_ERROR;
+      ctype->offset = offs;
+      offs += ctype->instructions.count;
+    }
+  }
 
-  memset(&descriptor, 0, sizeof(descriptor));
-  memset(&visitor, 0, sizeof(visitor));
+  /* set offset for each ELEM_OFFSET instruction */
+  for (struct constructed_type *ctype = descriptor->constructed_types; ctype; ctype = ctype->next) {
+    for (size_t op = 0; op < ctype->instructions.count; op++) {
+      if (ctype->instructions.table[op].type == ELEM_OFFSET || ctype->instructions.table[op].type == JEQ_OFFSET)
+      {
+        struct instruction *inst = &ctype->instructions.table[op];
+        bool found = false;
+        for (struct constructed_type *ctype1 = descriptor->constructed_types; ctype1; ctype1 = ctype1->next) {
+          if (ctype1->node == inst->data.inst_offset.node || ctype_has_fwd(ctype1, inst->data.inst_offset.node))
+          {
+            assert(ctype1->offset <= INT32_MAX);
+            int32_t offs = (int32_t)ctype1->offset - ((int32_t)ctype->offset + inst->data.inst_offset.addr_offs);
+            assert(offs >= INT16_MIN);
+            assert(offs <= INT16_MAX);
+            inst->data.inst_offset.elem_offs = (int16_t)offs;
+            ctype1->refc++;
+            found = true;
+            break;
+          }
+        }
+        if (!found)
+          return IDL_RETCODE_SEMANTIC_ERROR;
+      }
+    }
+  }
+  return IDL_RETCODE_OK;
+}
 
-  visitor.visit = IDL_DECLARATOR | IDL_SEQUENCE | IDL_STRUCT | IDL_UNION | IDL_SWITCH_TYPE_SPEC | IDL_CASE;
-  visitor.accept[IDL_ACCEPT_SEQUENCE] = &emit_sequence;
-  visitor.accept[IDL_ACCEPT_UNION] = &emit_union;
-  visitor.accept[IDL_ACCEPT_SWITCH_TYPE_SPEC] = &emit_switch_type_spec;
-  visitor.accept[IDL_ACCEPT_CASE] = &emit_case;
-  visitor.accept[IDL_ACCEPT_STRUCT] = &emit_struct;
-  visitor.accept[IDL_ACCEPT_DECLARATOR] = &emit_declarator;
-
-  /* must be invoked for topics only, so structs (and unions?) */
-  assert(idl_is_struct(node));
-
-  descriptor.topic = node;
-
-  if ((ret = push_type(&descriptor, node, NULL)))
-    goto err_emit;
-  if ((ret = idl_visit(pstate, ((const idl_struct_t *)node)->members, &visitor, &descriptor)))
-    goto err_emit;
-  pop_type(&descriptor);
-  if ((ret = stash_opcode(&descriptor, nop, DDS_OP_RTS, 0u)))
-    goto err_emit;
-  keylist = (pstate->flags & IDL_FLAG_KEYLIST) != 0;
-  if (print_keys(generator->source.handle, &descriptor, keylist) < 0)
-    { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
-  if (print_opcodes(generator->source.handle, &descriptor) < 0)
-    { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
-  if (print_descriptor(generator->source.handle, &descriptor) < 0)
-    { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
-
-err_print:
-err_emit:
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable: 6001)
-#endif
-  for (size_t i=0; i < descriptor.instructions.count; i++) {
-    struct instruction *inst = &descriptor.instructions.table[i];
+static void
+instructions_fini(struct instructions *instructions)
+{
+  for (size_t i = 0; i < instructions->count; i++) {
+    struct instruction *inst = &instructions->table[i];
+    assert(inst);
+    /* MSVC incorrectly reports this as uninitialised variables */
+    DDSRT_WARNING_MSVC_OFF (6001);
     switch (inst->type) {
       case OFFSET:
         if (inst->data.offset.member)
@@ -1445,12 +2055,122 @@ err_emit:
         if (inst->data.constant.value)
           free(inst->data.constant.value);
         break;
+      case KEY_OFFSET:
+        if (inst->data.key_offset.key_name)
+          free(inst->data.key_offset.key_name);
       default:
         break;
     }
+    DDSRT_WARNING_MSVC_ON (6001);
   }
-  if (descriptor.instructions.table)
-    free(descriptor.instructions.table);
+}
+
+static void
+ctype_fini(struct constructed_type *ctype)
+{
+  instructions_fini(&ctype->instructions);
+
+  const struct constructed_type_fwd *fwd1, *fwd = ctype->fwd_decls;
+  while (fwd) {
+    fwd1 = fwd->next;
+    free((struct constructed_type_fwd *)fwd);
+    fwd = fwd1;
+  }
+
+  if (ctype->instructions.table)
+    free(ctype->instructions.table);
+}
+
+static idl_retcode_t
+remove_unused_types(struct descriptor *descriptor)
+{
+  /* remove unreferenced constructed types (which are not the topic for this descriptor) */
+  struct constructed_type *ctype = descriptor->constructed_types, *prev = NULL, *next;
+  while (ctype) {
+    next = ctype->next;
+    if (ctype->refc == 0 && descriptor->topic != ctype->node) {
+      if (!prev)
+        descriptor->constructed_types = next;
+      else
+        prev->next = next;
+      ctype_fini(ctype);
+      free(ctype);
+    } else {
+      prev = ctype;
+    }
+    ctype = next;
+  }
+  return IDL_RETCODE_OK;
+}
+
+idl_retcode_t generate_descriptor(const idl_pstate_t *pstate, struct generator *generator, const idl_node_t *node);
+
+idl_retcode_t
+generate_descriptor(
+  const idl_pstate_t *pstate,
+  struct generator *generator,
+  const idl_node_t *node)
+{
+  idl_retcode_t ret;
+  bool keylist;
+  struct descriptor descriptor;
+  idl_visitor_t visitor;
+  uint32_t inst_count;
+
+  memset(&descriptor, 0, sizeof(descriptor));
+  memset(&visitor, 0, sizeof(visitor));
+
+  visitor.visit = IDL_DECLARATOR | IDL_SEQUENCE | IDL_STRUCT | IDL_UNION | IDL_SWITCH_TYPE_SPEC | IDL_CASE | IDL_FORWARD;
+  visitor.accept[IDL_ACCEPT_SEQUENCE] = &emit_sequence;
+  visitor.accept[IDL_ACCEPT_UNION] = &emit_union;
+  visitor.accept[IDL_ACCEPT_SWITCH_TYPE_SPEC] = &emit_switch_type_spec;
+  visitor.accept[IDL_ACCEPT_CASE] = &emit_case;
+  visitor.accept[IDL_ACCEPT_STRUCT] = &emit_struct;
+  visitor.accept[IDL_ACCEPT_DECLARATOR] = &emit_declarator;
+  visitor.accept[IDL_ACCEPT_FORWARD] = &emit_forward;
+
+  /* must be invoked for topics only, so structs and unions */
+  assert(idl_is_struct(node) || idl_is_union(node));
+
+  descriptor.topic = node;
+
+  if ((ret = idl_visit(pstate, node, &visitor, &descriptor)))
+    goto err_emit;
+  if ((ret = resolve_offsets(&descriptor)) < 0)
+    goto err_offset;
+  if ((ret = remove_unused_types(&descriptor)) < 0)
+    goto err_remove_unused;
+  if ((ret = add_key_offset_list(&descriptor)) < 0)
+    goto err_add_keys;
+  keylist = (pstate->flags & IDL_FLAG_KEYLIST) != 0;
+  if (print_opcodes(generator->source.handle, &descriptor, &inst_count) < 0)
+    { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
+  if (print_keys(generator->source.handle, &descriptor, keylist, inst_count) < 0)
+    { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
+  if (print_descriptor(generator->source.handle, &descriptor) < 0)
+    { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
+
+err_print:
+err_emit:
+err_offset:
+err_remove_unused:
+err_add_keys:
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable: 6001)
+#endif
+  {
+    struct constructed_type *ctype1, *ctype = descriptor.constructed_types;
+    while (ctype) {
+      ctype_fini(ctype);
+      ctype1 = ctype->next;
+      free(ctype);
+      ctype = ctype1;
+    }
+    instructions_fini(&descriptor.key_offsets);
+    free(descriptor.key_offsets.table);
+    assert(!descriptor.type_stack);
+  }
 #if defined(_MSC_VER)
 #pragma warning(pop)
 #endif

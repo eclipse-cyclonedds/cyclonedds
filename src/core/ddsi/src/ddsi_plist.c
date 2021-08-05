@@ -439,7 +439,7 @@ static dds_return_t unalias_locator (void * __restrict dst, size_t * __restrict 
 static dds_return_t fini_locator (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag)
 {
   nn_locators_t * const x = deser_generic_dst (dst, dstoff, alignof (nn_locators_t));
-  if (!(*flagset->aliased &flag))
+  if (!(*flagset->aliased & flag))
   {
     while (x->first)
     {
@@ -1691,6 +1691,7 @@ static const struct piddesc piddesc_omg[] = {
   { PID_TYPE_CONSISTENCY_ENFORCEMENT, PDF_QOS | PDF_FUNCTION, QP_TYPE_CONSISTENCY_ENFORCEMENT, "TYPE_CONSISTENCY_ENFORCEMENT",
     offsetof (struct ddsi_plist, qos.type_consistency), membersize (struct ddsi_plist, qos.type_consistency),
     { .f = { .deser = deser_type_consistency, .ser = ser_type_consistency, .valid = valid_type_consistency, .equal = equal_type_consistency, .print = print_type_consistency } }, 0 },
+  QP  (DATA_REPRESENTATION,                 data_representation, XQ, XE2, XSTOP),
   PP  (PROTOCOL_VERSION,                    protocol_version, Xox2),
   PP  (VENDORID,                            vendorid, Xox2),
   PP  (EXPECTS_INLINE_QOS,                  expects_inline_qos, Xb),
@@ -1872,11 +1873,11 @@ static const struct piddesc_index piddesc_vendor_index[] = {
    initialized by ddsi_plist_init_tables; will assert when
    table too small or too large */
 #ifdef DDS_HAS_TYPE_DISCOVERY
+static const struct piddesc *piddesc_unalias[20 + SECURITY_PROC_ARRAY_SIZE];
+static const struct piddesc *piddesc_fini[20 + SECURITY_PROC_ARRAY_SIZE];
+#else
 static const struct piddesc *piddesc_unalias[19 + SECURITY_PROC_ARRAY_SIZE];
 static const struct piddesc *piddesc_fini[19 + SECURITY_PROC_ARRAY_SIZE];
-#else
-static const struct piddesc *piddesc_unalias[18 + SECURITY_PROC_ARRAY_SIZE];
-static const struct piddesc *piddesc_fini[18 + SECURITY_PROC_ARRAY_SIZE];
 #endif
 static uint64_t plist_fini_mask, qos_fini_mask;
 static ddsrt_once_t table_init_control = DDSRT_ONCE_INIT;
@@ -3206,7 +3207,7 @@ const ddsi_plist_t ddsi_default_plist_participant = {
 };
 
 const dds_qos_t ddsi_default_qos_reader = {
-  .present = QP_PRESENTATION | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_LIVELINESS | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_TRANSPORT_PRIORITY | QP_OWNERSHIP | QP_CYCLONE_IGNORELOCAL | QP_TOPIC_DATA | QP_GROUP_DATA | QP_USER_DATA | QP_PARTITION | QP_RELIABILITY | QP_TIME_BASED_FILTER | QP_ADLINK_READER_DATA_LIFECYCLE | QP_ADLINK_READER_LIFESPAN | QP_ADLINK_SUBSCRIPTION_KEYS | QP_TYPE_CONSISTENCY_ENFORCEMENT | QP_LOCATOR_MASK,
+  .present = QP_PRESENTATION | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_LIVELINESS | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_TRANSPORT_PRIORITY | QP_OWNERSHIP | QP_CYCLONE_IGNORELOCAL | QP_TOPIC_DATA | QP_GROUP_DATA | QP_USER_DATA | QP_PARTITION | QP_RELIABILITY | QP_TIME_BASED_FILTER | QP_ADLINK_READER_DATA_LIFECYCLE | QP_ADLINK_READER_LIFESPAN | QP_ADLINK_SUBSCRIPTION_KEYS | QP_TYPE_CONSISTENCY_ENFORCEMENT | QP_LOCATOR_MASK | QP_DATA_REPRESENTATION,
   .aliased = 0,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
@@ -3248,11 +3249,13 @@ const dds_qos_t ddsi_default_qos_reader = {
   .type_consistency.ignore_member_names = false,
   .type_consistency.prevent_type_widening = false,
   .type_consistency.force_type_validation = false,
-  .ignore_locator_type = 0
+  .ignore_locator_type = 0,
+  .data_representation.value.n = 0,
+  .data_representation.value.ids = NULL
 };
 
 const dds_qos_t ddsi_default_qos_writer = {
-  .present = QP_PRESENTATION | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_LIVELINESS | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_OWNERSHIP | QP_CYCLONE_IGNORELOCAL | QP_TOPIC_DATA | QP_GROUP_DATA | QP_USER_DATA | QP_PARTITION | QP_DURABILITY_SERVICE | QP_RELIABILITY | QP_OWNERSHIP_STRENGTH | QP_TRANSPORT_PRIORITY | QP_LIFESPAN | QP_ADLINK_WRITER_DATA_LIFECYCLE | QP_LOCATOR_MASK,
+  .present = QP_PRESENTATION | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_LIVELINESS | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_OWNERSHIP | QP_CYCLONE_IGNORELOCAL | QP_TOPIC_DATA | QP_GROUP_DATA | QP_USER_DATA | QP_PARTITION | QP_DURABILITY_SERVICE | QP_RELIABILITY | QP_OWNERSHIP_STRENGTH | QP_TRANSPORT_PRIORITY | QP_LIFESPAN | QP_ADLINK_WRITER_DATA_LIFECYCLE | QP_LOCATOR_MASK | QP_DATA_REPRESENTATION,
   .aliased = 0,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
@@ -3290,7 +3293,9 @@ const dds_qos_t ddsi_default_qos_writer = {
   .transport_priority.value = 0,
   .lifespan.duration = DDS_INFINITY,
   .writer_data_lifecycle.autodispose_unregistered_instances = 1,
-  .ignore_locator_type = 0
+  .ignore_locator_type = 0,
+  .data_representation.value.n = 0,
+  .data_representation.value.ids = NULL
 };
 
 const dds_qos_t ddsi_default_qos_topic = {

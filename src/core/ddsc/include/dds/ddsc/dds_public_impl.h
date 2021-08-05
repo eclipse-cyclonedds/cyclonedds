@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "dds/export.h"
+#include "dds/features.h"
 #include "dds/ddsc/dds_public_alloc.h"
 #include "dds/ddsc/dds_opcodes.h"
 

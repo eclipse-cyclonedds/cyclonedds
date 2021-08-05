@@ -161,6 +161,8 @@ static int print_decl_type(
       continue;
     if ((idl_mask(n) & IDL_ENUM) == IDL_ENUM && n != node)
       continue;
+    if ((idl_mask(n) & IDL_BITMASK) == IDL_BITMASK && n != node)
+      continue;
     ident = idl_identifier(n);
     assert(ident);
     len += strlen(ident) + (len ? strlen(sep) : 0);
@@ -171,6 +173,8 @@ static int print_decl_type(
     if ((idl_mask(n) & IDL_TYPEDEF) == IDL_TYPEDEF)
       continue;
     if ((idl_mask(n) & IDL_ENUM) == IDL_ENUM && n != node)
+      continue;
+    if ((idl_mask(n) & IDL_BITMASK) == IDL_BITMASK && n != node)
       continue;
     ident = idl_identifier(n);
     assert(ident);

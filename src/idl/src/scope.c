@@ -195,9 +195,15 @@ idl_declare(
           if (kind == IDL_INSTANCE_DECLARATION)
             goto exists;
           /* fall through */
+        case IDL_SPECIFIER_FORWARD_DECLARATION:
+          if (kind == IDL_SPECIFIER_FORWARD_DECLARATION)
+            goto clash;
+          break;
         case IDL_SPECIFIER_DECLARATION:
           if (kind == IDL_USE_DECLARATION)
             goto exists;
+          if (kind == IDL_SPECIFIER_FORWARD_DECLARATION)
+            break;
           /* short-circuit on parsing existing annotations */
           if (is_consistent(pstate, node, entry->node))
             goto exists;
@@ -240,7 +246,8 @@ clash:
   switch (kind) {
     case IDL_MODULE_DECLARATION:
     case IDL_ANNOTATION_DECLARATION:
-    case IDL_SPECIFIER_DECLARATION: {
+    case IDL_SPECIFIER_DECLARATION:
+    case IDL_SPECIFIER_FORWARD_DECLARATION: {
       size_t cnt = 0, len, off = 0;
       const char *sep = "::";
       idl_scoped_name_t *scoped_name = NULL;
@@ -330,7 +337,7 @@ idl_find(
   const idl_name_t *name,
   uint32_t flags)
 {
-  const idl_declaration_t *entry;
+  const idl_declaration_t *entry, *fwd = NULL;
   int (*cmp)(const idl_name_t *, const idl_name_t *);
 
   if (!scope)
@@ -346,7 +353,12 @@ idl_find(
     if (is_annotation(scope, entry) && !(flags & IDL_FIND_ANNOTATION))
       continue;
     if (cmp(name, entry->name) == 0)
-      return entry;
+    {
+      if (entry->kind & IDL_SPECIFIER_FORWARD_DECLARATION)
+        fwd = entry;
+      else
+        return entry;
+    }
   }
 
   if (!(flags & IDL_FIND_IGNORE_IMPORTS)) {
@@ -356,6 +368,9 @@ idl_find(
         return entry;
     }
   }
+
+  if (!entry && fwd)
+    return fwd;
 
   return NULL;
 }

@@ -88,7 +88,7 @@ static struct ddsi_serdata_pserop *serdata_pserop_new (const struct ddsi_sertype
 
 static struct ddsi_serdata *serdata_pserop_fix (const struct ddsi_sertype_pserop *tp, struct ddsi_serdata_pserop *d)
 {
-  const bool needs_bswap = (d->identifier != tp->native_encoding_identifier);
+  const bool needs_bswap = !CDR_ENC_IS_NATIVE (d->identifier);
   const enum pserop *ops = (d->c.kind == SDK_DATA) ? tp->ops : tp->ops_key;
   d->c.hash = tp->c.serdata_basehash;
   if (ops != NULL)
@@ -169,11 +169,11 @@ static bool serdata_pserop_to_sample (const struct ddsi_serdata *serdata_common,
     memcpy (sample, d->sample, 16);
   else
   {
-    dds_return_t x;
-    x = plist_deser_generic (sample, d->data, d->pos, d->identifier != tp->native_encoding_identifier, tp->ops);
+    const bool needs_bswap = !CDR_ENC_IS_NATIVE (d->identifier);
+    dds_return_t ret = plist_deser_generic (sample, d->data, d->pos, needs_bswap, tp->ops);
     plist_unalias_generic (sample, tp->ops);
-    assert (x >= 0);
-    (void) x;
+    assert (ret >= 0);
+    (void) ret;
   }
   return true; /* FIXME: can't conversion to sample fail? */
 }
@@ -201,7 +201,7 @@ static void serdata_pserop_to_ser_unref (struct ddsi_serdata *serdata_common, co
 static struct ddsi_serdata *serdata_pserop_from_sample (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
 {
   const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)tpcmn;
-  const struct { uint16_t identifier, options; } header = { tp->native_encoding_identifier, 0 };
+  const struct { uint16_t identifier, options; } header = { ddsi_sertype_get_native_encoding_identifier (CDR_ENC_VERSION_1, tp->encoding_format), 0 };
   if (kind == SDK_KEY && tp->ops_key == NULL)
     return serdata_pserop_fix (tp, serdata_pserop_new (tp, kind, 0, &header));
   else
@@ -294,5 +294,6 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_pserop = {
   .to_untyped = serdata_pserop_to_untyped,
   .untyped_to_sample = serdata_pserop_untyped_to_sample,
   .print = serdata_pserop_print_pserop,
-  .get_keyhash = serdata_pserop_get_keyhash
+  .get_keyhash = serdata_pserop_get_keyhash,
+  .from_sample_xcdr_version = 0
 };
