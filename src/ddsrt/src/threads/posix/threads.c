@@ -129,7 +129,7 @@ ddsrt_thread_setname(const char *__restrict name)
      name exceeds the limit, so silently truncate. */
   char buf[MAXTHREADNAMESIZE + 1] = "";
   (void)ddsrt_strlcpy(buf, name, sizeof(buf));
-  (void)pthread_setname_np(pthread_self(), name);
+  (void)pthread_setname_np(pthread_self(), buf);
 #elif defined(__APPLE__)
   (void)pthread_setname_np(name);
 #elif defined(__FreeBSD__)
