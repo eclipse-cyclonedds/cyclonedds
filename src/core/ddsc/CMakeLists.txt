@@ -121,7 +121,7 @@ target_include_directories(ddsc
     $<INSTALL_INTERFACE:include>)
 
 if (DDS_HAS_LTTNG_TRACING)
-  target_link_libraries(ddsc PRIVATE ${LTTNG_LIBRARIES} "-rdynamic")
+  target_link_libraries(ddsc PRIVATE ${LTTNG_LIBRARIES})
 endif()
 
 install(
