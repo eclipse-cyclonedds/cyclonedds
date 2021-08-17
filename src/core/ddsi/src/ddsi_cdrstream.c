@@ -1620,7 +1620,6 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t * __restrict 
       void * const dst = os->m_buffer + os->m_index;
       dds_is_get_bytes (is, dst, num, align);
       os->m_index += num * align;
-      is->m_index += num * align;
       break;
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
