@@ -1199,7 +1199,7 @@ static int print_keys(FILE *fp, struct descriptor *descriptor, bool keylist)
 {
   char *type = NULL;
   const char *fmt, *sep="";
-  uint32_t fixed = 0;
+  uint32_t fixed = 0, align = 0;
   struct { const char *member; uint32_t index; } *keys = NULL;
 
   if (descriptor->keys == 0)
@@ -1232,11 +1232,17 @@ static int print_keys(FILE *fp, struct descriptor *descriptor, bool keylist)
     }
 
     switch (code & 0xffu) {
-      case DDS_OP_VAL_1BY: size = 1; break;
-      case DDS_OP_VAL_2BY: size = 2; break;
-      case DDS_OP_VAL_4BY: size = 4; break;
-      case DDS_OP_VAL_8BY: size = 8; break;
-      /* FIXME: handle bounded strings by size too? */
+      case DDS_OP_VAL_1BY: size = align = 1; break;
+      case DDS_OP_VAL_2BY: size = align = 2; break;
+      case DDS_OP_VAL_4BY: size = align = 4; break;
+      case DDS_OP_VAL_8BY: size = align = 8; break;
+      case DDS_OP_VAL_BST: {
+        assert(i+2 < descriptor->instructions.count);
+        assert(descriptor->instructions.table[i+2].type == SINGLE);
+        align = 4;
+        size = 5 + descriptor->instructions.table[i+2].data.single;
+      }
+      break;
       default:
         fixed = MAX_SIZE+1;
         break;
@@ -1245,7 +1251,11 @@ static int print_keys(FILE *fp, struct descriptor *descriptor, bool keylist)
     if (size > MAX_SIZE || dims > MAX_SIZE || (size*dims)+fixed > MAX_SIZE)
       fixed = MAX_SIZE+1;
     else
+    {
+      if ((fixed % align) != 0)
+        fixed += align - (fixed % align);
       fixed += size*dims;
+    }
 
     inst = &descriptor->instructions.table[i+1];
     assert(inst->type == OFFSET);
