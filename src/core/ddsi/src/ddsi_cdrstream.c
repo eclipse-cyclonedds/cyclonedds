@@ -1747,7 +1747,7 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_array (dds_istream_
   assert (DDS_OP_TYPE (op) == DDS_OP_VAL_ARR);
   const uint32_t subtype = DDS_OP_SUBTYPE (op);
   const uint32_t num = ops[2];
-  if (subtype > DDS_OP_VAL_BST)
+  if (subtype >= DDS_OP_VAL_BST)
   {
     const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[3]);
     const uint32_t jmp = DDS_OP_ADR_JMP (ops[3]);
@@ -1764,12 +1764,23 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_array (dds_istream_
 static const uint32_t *dds_stream_extract_key_from_data_skip_sequence (dds_istream_t * __restrict is, const uint32_t * __restrict ops)
 {
   const uint32_t op = *ops;
-  const enum dds_stream_typecode type = DDS_OP_TYPE (op);
-  assert (type == DDS_OP_VAL_SEQ);
+  assert (DDS_OP_TYPE (op) == DDS_OP_VAL_SEQ);
   const uint32_t subtype = DDS_OP_SUBTYPE (op);
   const uint32_t num = dds_is_get4 (is);
-  if (num == 0)
-    return ops + 2 + (type == DDS_OP_VAL_BST || type == DDS_OP_VAL_ARR);
+  if (num == 0) {
+    switch(subtype) {
+      case DDS_OP_VAL_BST:
+        return ops + 3;
+      break;
+      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+        const uint32_t jmp = DDS_OP_ADR_JMP (ops[3]);
+        return ops + (jmp ? jmp : 4);/* FIXME: why would jmp be 0? */
+      }
+      break;
+      default:
+        return ops + 2;
+    }
+  }
   else if (subtype > DDS_OP_VAL_BST)
   {
     const uint32_t * jsr_ops = ops + DDS_OP_ADR_JSR (ops[3]);
@@ -1780,7 +1791,7 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_sequence (dds_istre
   else
   {
     dds_stream_extract_key_from_data_skip_subtype (is, num, subtype, NULL);
-    return ops + 2 + (type == DDS_OP_VAL_BST || type == DDS_OP_VAL_ARR);
+    return ops + 2 + (subtype == DDS_OP_VAL_BST);
   }
 }
 
