@@ -205,16 +205,19 @@ function(set_test_library_paths TEST_NAME)
     find_library(ICEORYX_LIB iceoryx_binding_c)
     get_filename_component(ICEORYX_LIB_PATH ${ICEORYX_LIB} DIRECTORY)
   endif ()
+  file(TO_NATIVE_PATH "${CUNIT_LIBRARY_DIR}" cudir)
   if(APPLE)
     set_property(
       TEST ${TEST_NAME}
       PROPERTY ENVIRONMENT
-      "DYLD_LIBRARY_PATH=${CUNIT_LIBRARY_DIR}:${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:${ICEORYX_LIB_PATH}:$ENV{DYLD_LIBRARY_PATH}")
+      "DYLD_LIBRARY_PATH=${cudir}:${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:${ICEORYX_LIB_PATH}:$ENV{DYLD_LIBRARY_PATH}")
   elseif(WIN32)
+    string(REPLACE "/" "\\" cudir "${cudir}")
+    string(REPLACE ";" "\\;" paths "$ENV{PATH}")
     set_property(
       TEST ${TEST_NAME}
       PROPERTY ENVIRONMENT
-      "PATH=${CUNIT_LIBRARY_DIR};${ICEORYX_LIB_PATH};$ENV{PATH}")
+      "PATH=${cudir}\\;${ICEORYX_LIB_PATH}\\;${paths}")
   else()
     set_property(
       TEST ${TEST_NAME}
