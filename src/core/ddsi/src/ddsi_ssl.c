@@ -303,7 +303,9 @@ static SSL *ddsi_ssl_connect (const struct ddsi_domaingv *gv, ddsrt_socket_t soc
      record of maintaining backwards compatibility. The SSL API is in the wrong of course ... */
   ssl = ddsi_ssl_new ();
   DDSRT_WARNING_MSVC_OFF(4244);
+  DDSRT_WARNING_GNUC_OFF(conversion);
   SSL_set_fd (ssl, sock);
+  DDSRT_WARNING_GNUC_ON(conversion);
   DDSRT_WARNING_MSVC_ON(4244);
   err = SSL_connect (ssl);
   if (err != 1)
@@ -321,7 +323,9 @@ static BIO *ddsi_ssl_listen (ddsrt_socket_t sock)
   /* See comment in ddsi_ssl_connect concerning casting the socket to an int */
   BIO * bio = BIO_new (BIO_s_accept ());
   DDSRT_WARNING_MSVC_OFF(4244);
+  DDSRT_WARNING_GNUC_OFF(conversion);
   BIO_set_fd (bio, sock, BIO_NOCLOSE);
+  DDSRT_WARNING_GNUC_ON(conversion);
   DDSRT_WARNING_MSVC_ON(4244);
   return bio;
 }

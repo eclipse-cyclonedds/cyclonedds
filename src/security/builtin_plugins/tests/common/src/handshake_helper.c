@@ -296,7 +296,7 @@ modp_data_to_pubkey(
     ASN1_INTEGER *asni;
     BIGNUM *bn = NULL;
 
-    if (!(asni = d2i_ASN1_INTEGER(NULL, &data, size))) {
+    if (!(asni = d2i_ASN1_INTEGER(NULL, &data, (long)size))) {
         char *msg = get_openssl_error_message_for_test();
         printf("Failed to decode DH public key: %s", msg);
         ddsrt_free(msg);

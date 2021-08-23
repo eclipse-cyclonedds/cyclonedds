@@ -689,7 +689,7 @@ validate_local_identity_and_permissions( uint32_t identity_expiry_duration, dds_
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
     memcpy(&candidate_participant_guid.entityId, &entityId, sizeof(entityId));
 
-    fill_participant_qos(&participant_qos, identity_expiry_duration, "Example_Governance.p7s", identity_expiry );
+    fill_participant_qos(&participant_qos, (long)identity_expiry_duration, "Example_Governance.p7s", identity_expiry );
 
     /* Now call the function. */
     result = auth->validate_local_identity(
