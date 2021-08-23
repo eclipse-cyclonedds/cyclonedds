@@ -21,6 +21,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/io.h"
+#include "dds/ddsrt/static_assert.h"
 #include "dds/security/dds_security_api_defs.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/openssl_support.h"
@@ -254,7 +255,8 @@ static BIO *load_file_into_BIO (const char *filename, DDS_Security_SecurityExcep
     goto err_get_length;
   }
   long max = ftell (fp);
-  if (max < 0 || (unsigned long) max > SIZE_MAX)
+  DDSRT_STATIC_ASSERT(ULONG_MAX <= SIZE_MAX);
+  if (max < 0)
   {
     DDS_Security_Exception_set (ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_file_into_BIO: ftell failed");
     goto err_get_length;
@@ -918,7 +920,7 @@ static DDS_Security_ValidationResult_t dh_oct_to_public_key_modp(EVP_PKEY **pkey
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to convert octet sequence to ASN1 integer: ");
     goto fail_alloc_pkey;
   }
-  if (!(asn1int = d2i_ASN1_INTEGER(NULL, (const unsigned char **)&keystr, size)))
+  if (!(asn1int = d2i_ASN1_INTEGER(NULL, (const unsigned char **)&keystr, (long)size)))
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to convert octet sequence to ASN1 integer: ");
     goto fail_get_asn1int;

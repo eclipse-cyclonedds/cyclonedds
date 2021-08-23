@@ -1471,7 +1471,7 @@ idl_finalize_union(
   if (used != 0) { /* sort labels to detect duplicates and determine default */
     size_t count;
 
-    if (!(labels = malloc(used * sizeof(*labels))))
+    if (!(labels = malloc((size_t)used * sizeof(*labels))))
       return IDL_RETCODE_NO_MEMORY;
 
     count = 0;
@@ -1485,7 +1485,7 @@ idl_finalize_union(
     }
 
     assert(count == used);
-    qsort(labels, used, sizeof(*labels), &compare_label);
+    qsort(labels, (size_t)used, sizeof(*labels), &compare_label);
 
     /* if a member corresponds to the default case label, its simple modifier
        shall set the discriminant to the first available default value
