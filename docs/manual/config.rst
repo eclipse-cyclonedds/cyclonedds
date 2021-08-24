@@ -649,16 +649,16 @@ PI is the most interesting, as it relates to having multiple processes in the sa
 domain on a single node. Its configured value is either *auto*, *none* or a non-negative
 integer.  This setting matters:
 
-+ When it is *auto* (which is the default), Eclipse Cyclone DDS probes UDP port numbers on
++ When it is *auto*, Eclipse Cyclone DDS probes UDP port numbers on
   start-up, starting with PI = 0, incrementing it by one each time until it finds a pair
   of available port numbers, or it hits the limit.  The maximum PI it will ever choose
   is ``Discovery/MaxAutoParticipantIndex`` as a way of limiting the cost of unicast
   discovery.
-+ When it is *none* it simply ignores the ‘participant index’ altogether and asks the
-  kernel to pick random ports (>= 32768).  This eliminates the limit on the number of
-  standalone deployments on a single machine and works just fine with multicast
-  discovery while complying with all other parts of the specification for
-  interoperability.  However, it is incompatible with unicast discovery.
++ When it is *none* (which is the default) it simply ignores the ‘participant index’
+  altogether and asks the kernel to pick random ports (>= 32768).  This eliminates
+  the limit on the number of standalone deployments on a single machine and works
+  just fine with multicast discovery while complying with all other parts of the
+  specification for interoperability. However, it is incompatible with unicast discovery.
 + When it is a non-negative integer, it is simply the value of PI in the above
   calculations.  If multiple processes on a single machine are needed, they will need
   unique values for PI, and so for standalone deployments this particular alternative is
