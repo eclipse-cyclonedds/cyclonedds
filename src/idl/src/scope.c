@@ -191,14 +191,14 @@ idl_declare(
           if (kind == IDL_MODULE_DECLARATION)
             goto exists;
           goto clash;
-        case IDL_USE_DECLARATION:
-          if (kind == IDL_INSTANCE_DECLARATION)
-            goto exists;
-          /* fall through */
         case IDL_SPECIFIER_FORWARD_DECLARATION:
           if (kind == IDL_SPECIFIER_FORWARD_DECLARATION)
             goto clash;
           break;
+        case IDL_USE_DECLARATION:
+          if (kind == IDL_INSTANCE_DECLARATION)
+            goto exists;
+          /* fall through */
         case IDL_SPECIFIER_DECLARATION:
           if (kind == IDL_USE_DECLARATION)
             goto exists;

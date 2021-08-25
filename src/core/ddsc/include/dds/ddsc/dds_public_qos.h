@@ -881,8 +881,14 @@ dds_qget_type_consistency (
 /**
  * @brief Get the data representation qos policy value.
  *
+ * Returns the data representation values that are set in the provided QoS object
+ * and stores the number of values in out parameter 'n'. In case the 'values' parameter
+ * is provided, this function will allocate a buffer that contains the data representation
+ * values, and set 'values' to point to this buffer. It is the responsibility of the caller
+ * to free the memory of this buffer.
+ *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
- * @param[in,out] n - Pointer that will store the number of data representation values (optional)
+ * @param[in,out] n - Pointer that will store the number of data representation values
  * @param[in,out] values - Pointer that will store the data representation values (optional)
  *
  * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object

@@ -249,27 +249,26 @@ uint32_t ddsi_sertype_compute_serdata_basehash (const struct ddsi_serdata_ops *o
 uint16_t ddsi_sertype_get_native_encoding_identifier (uint32_t enc_version, uint32_t enc_format)
 {
 #if (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN)
-#define CDR_BO(x) x ## _LE
+#define ENC_SUFFIX(x) x ## _LE
 #else
-#define CDR_BO(x) x ## _BE
+#define ENC_SUFFIX(x) x ## _BE
 #endif
   switch (enc_version)
   {
     case CDR_ENC_VERSION_1:
       if (enc_format == CDR_ENC_FORMAT_PL)
-        return CDR_BO(PL_CDR);
-      return CDR_BO(CDR);
+        return ENC_SUFFIX(PL_CDR);
+      return ENC_SUFFIX(CDR);
     case CDR_ENC_VERSION_2:
       if (enc_format == CDR_ENC_FORMAT_PL)
-        return CDR_BO(PL_CDR2);
+        return ENC_SUFFIX(PL_CDR2);
       if (enc_format == CDR_ENC_FORMAT_DELIMITED)
-        return CDR_BO(D_CDR2);
-      return CDR_BO(CDR2);
+        return ENC_SUFFIX(D_CDR2);
+      return ENC_SUFFIX(CDR2);
     default:
       abort (); /* unsupported */
   }
-#undef CDR_BO_EXT
-#undef CDR_BO
+#undef ENC_SUFFIX
 }
 
 uint16_t ddsi_sertype_get_encoding_format (enum ddsi_sertype_extensibility type_extensibility)

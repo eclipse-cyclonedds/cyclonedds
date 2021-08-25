@@ -15,10 +15,8 @@
 #include "dds/features.h"
 
 #include "dds/ddsc/dds_public_qosdefs.h"
-/*XXX*/
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_rtps.h"
-/*XXX*/
 #include "dds/ddsi/q_log.h"
 
 #if defined (__cplusplus)

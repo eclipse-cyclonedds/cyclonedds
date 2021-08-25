@@ -20,6 +20,8 @@
 #ifndef DDS_QOSDEFS_H
 #define DDS_QOSDEFS_H
 
+#include <stdint.h>
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -137,12 +139,10 @@ typedef enum dds_type_consistency_kind
 dds_type_consistency_kind_t;
 
 /** Data Representation QoS: Applies to Topic, DataReader, DataWriter */
-typedef enum dds_data_representation_id {
-    XCDR_DATA_REPRESENTATION = 0,
-    XML_DATA_REPRESENTATION = 1,
-    XCDR2_DATA_REPRESENTATION = 2
-}
-dds_data_representation_id_t;
+typedef int16_t dds_data_representation_id_t;
+#define DDS_DATA_REPRESENTATION_XCDR1    0
+#define DDS_DATA_REPRESENTATION_XML      1
+#define DDS_DATA_REPRESENTATION_XCDR2    2
 
 #if defined (__cplusplus)
 }

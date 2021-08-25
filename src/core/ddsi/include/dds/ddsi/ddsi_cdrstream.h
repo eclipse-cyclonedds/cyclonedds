@@ -73,7 +73,7 @@ DDS_EXPORT void dds_ostream_add_to_serdata_default (dds_ostream_t * __restrict s
 DDS_EXPORT void dds_stream_write_key (dds_ostream_t * __restrict os, const char * __restrict sample, const struct ddsi_sertype_default * __restrict type);
 DDS_EXPORT void dds_stream_write_keyBE (dds_ostreamBE_t * __restrict os, const char * __restrict sample, const struct ddsi_sertype_default * __restrict type);
 DDS_EXPORT void dds_stream_extract_key_from_data (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
-DDS_EXPORT void dds_stream_extract_key_from_dataBE (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
+DDS_EXPORT void dds_stream_extract_keyBE_from_data (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
 DDS_EXPORT void dds_stream_extract_keyhash (dds_istream_t * __restrict is, dds_keyhash_t * __restrict kh, const struct ddsi_sertype_default * __restrict type, const bool just_key);
 
 DDS_EXPORT const uint32_t *dds_stream_read (dds_istream_t * __restrict is, char * __restrict data, const uint32_t * __restrict ops);
@@ -82,27 +82,6 @@ DDS_EXPORT void dds_stream_read_key (dds_istream_t * __restrict is, char * __res
 DDS_EXPORT size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct ddsi_sertype_default * __restrict type, char * __restrict buf, size_t size);
 
 DDS_EXPORT size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct ddsi_sertype_default * __restrict type, char * __restrict buf, size_t size);
-
-/* For marshalling op code handling */
-
-#define DDS_OP_MASK 0xff000000
-#define DDS_OP_TYPE_MASK 0x00ff0000
-#define DDS_OP_SUBTYPE_MASK 0x0000ff00
-#define DDS_OP_JMP_MASK 0x0000ffff
-#define DDS_OP_FLAGS_MASK 0x000000ff
-#define DDS_JEQ_TYPE_MASK 0x00ff0000
-#define DDS_JEQ_FLAGS_MASK 0x00ff0000
-
-#define DDS_OP(o)         ((enum dds_stream_opcode) ((o) & DDS_OP_MASK))
-#define DDS_OP_TYPE(o)    ((enum dds_stream_typecode) (((o) & DDS_OP_TYPE_MASK) >> 16))
-#define DDS_OP_SUBTYPE(o) ((enum dds_stream_typecode) (((o) & DDS_OP_SUBTYPE_MASK) >> 8))
-#define DDS_OP_FLAGS(o)   ((o) & DDS_OP_FLAGS_MASK)
-#define DDS_OP_ADR_JSR(o) ((int16_t) ((o) & DDS_OP_JMP_MASK))
-#define DDS_OP_LENGTH(o)  ((uint16_t) ((o) & DDS_OP_JMP_MASK))
-#define DDS_OP_JUMP(o)    ((int16_t) ((o) & DDS_OP_JMP_MASK))
-#define DDS_OP_ADR_JMP(o) ((o) >> 16)
-#define DDS_JEQ_TYPE(o)   ((enum dds_stream_typecode) (((o) & DDS_JEQ_TYPE_MASK) >> 16))
-#define DDS_JEQ_FLAGS(o)  ((enum dds_stream_typecode) (((o) & DDS_JEQ_FLAGS_MASK) >> 16))
 
 #if defined (__cplusplus)
 }

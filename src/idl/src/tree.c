@@ -87,7 +87,7 @@ idl_type_t idl_type(const void *node)
   else if (idl_mask(node) & IDL_ENUMERATOR)
     return IDL_ENUM;
 
-  mask = idl_mask(node) & ((IDL_BITMASK << 1) - 1);
+  mask = idl_mask(node) & IDL_TYPE_MASK;
   switch (mask) {
     case IDL_TYPEDEF:
     /* constructed types */
@@ -1792,6 +1792,14 @@ idl_finalize_union(
             return IDL_RETCODE_SEMANTIC_ERROR;
           }
         } else {
+          if (idl_is_integer_type(const_expr)) {
+            idl_intval_t val = idl_intval(const_expr);
+            if (val.value.llng > INT32_MAX) {
+              idl_error(pstate, idl_location(cl),
+                "Label value larger than INT32_MAX not supported (because of lacking support in XTypes Type Object)");
+              return IDL_RETCODE_UNSUPPORTED;
+            }
+          }
           assert(!((const idl_node_t *)const_expr)->parent);
           ((idl_node_t *)const_expr)->parent = (idl_node_t *)cl;
         }
@@ -2106,6 +2114,16 @@ idl_create_switch_type_spec(
     return IDL_RETCODE_SEMANTIC_ERROR;
   }
 
+  if ((((unsigned)type & (unsigned)IDL_LLONG) == IDL_LLONG) ||
+      (((unsigned)type & (unsigned)IDL_ULLONG) == IDL_ULLONG) ||
+      (ext && (((unsigned)type & (unsigned)IDL_INT64) == IDL_INT64)) ||
+      (ext && (((unsigned)type & (unsigned)IDL_UINT64) == IDL_UINT64)))
+  {
+    idl_error(pstate, idl_location(type_spec),
+      "Unsupported switch type '%s' (because of lacking support in XTypes Type Objects)", idl_construct(type_spec));
+    return IDL_RETCODE_UNSUPPORTED;
+  }
+
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     return ret;
   node->type_spec = type_spec;
@@ -2283,14 +2301,15 @@ int32_t idl_case_label_intvalue(const void *ptr)
     // FIXME
     assert(false);
   } else if (type == IDL_BOOL) {
-    // FIXME
-    assert(false);
+    idl_literal_t *literal = node->const_expr;
+    return literal->value.bln;
   } else if (type == IDL_OCTET) {
-    // FIXME
-    assert(false);
+    idl_literal_t *literal = node->const_expr;
+    return literal->value.uint8;
   } else if (type == IDL_ENUM) {
-    // FIXME
-    assert(false);
+    idl_enumerator_t *enumerator = node->const_expr;
+    assert(enumerator->value.value <= INT32_MAX);
+    return (int32_t)enumerator->value.value;
   } else {
     assert(false);
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ * Copyright(c) 2006 to 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -10,8 +10,8 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 
-static void dds_stream_write_key_implBO (DDS_OSTREAM_T * __restrict os, const uint32_t *insnp, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn);
-static void dds_stream_write_key_implBO (DDS_OSTREAM_T * __restrict os, const uint32_t *insnp, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn)
+static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const uint32_t *insnp, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn);
+static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const uint32_t *insnp, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn)
 {
   assert (DDS_OP (*insnp) == DDS_OP_ADR);
   assert (insn_key_ok_p (*insnp));
@@ -30,13 +30,13 @@ static void dds_stream_write_key_implBO (DDS_OSTREAM_T * __restrict os, const ui
       dds_cdr_alignto_clear_and_resizeBO (os, elem_size, num * elem_size);
       void * const dst = ((struct dds_ostream *)os)->m_buffer + ((struct dds_ostream *)os)->m_index;
       dds_os_put_bytes ((struct dds_ostream *)os, addr, num * elem_size);
-      dds_stream_swap_insituBO (dst, elem_size, num);
+      dds_stream_swap_if_needed_insituBO (dst, elem_size, num);
       break;
     }
     case DDS_OP_VAL_EXT: {
       assert (key_offset_count > 0);
       const uint32_t *jsr_ops = insnp + DDS_OP_ADR_JSR (insnp[2]) + *key_offset_insn;
-      dds_stream_write_key_implBO (os, jsr_ops, addr, --key_offset_count, ++key_offset_insn);
+      dds_stream_write_keyBO_impl (os, jsr_ops, addr, --key_offset_count, ++key_offset_insn);
       break;
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
@@ -56,11 +56,11 @@ void dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, const char * __restr
     {
       case DDS_OP_KOF: {
         uint16_t n_offs = DDS_OP_LENGTH (*insnp);
-        dds_stream_write_key_implBO (os, desc->ops.ops + insnp[1], sample, --n_offs, insnp + 2);
+        dds_stream_write_keyBO_impl (os, desc->ops.ops + insnp[1], sample, --n_offs, insnp + 2);
         break;
       }
       case DDS_OP_ADR: {
-        dds_stream_write_key_implBO (os, insnp, sample, 0, NULL);
+        dds_stream_write_keyBO_impl (os, insnp, sample, 0, NULL);
         break;
       }
       default:
@@ -70,7 +70,7 @@ void dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, const char * __restr
   }
 }
 
-static const uint32_t *dds_stream_extract_key_from_data_delimitedBO (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const uint32_t * __restrict ops, uint32_t * __restrict keys_remaining)
+static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const uint32_t * __restrict ops, uint32_t * __restrict keys_remaining)
 {
   uint32_t delimited_sz = dds_is_get4 (is), delimited_offs = is->m_index, insn;
   ops++;
@@ -82,15 +82,15 @@ static const uint32_t *dds_stream_extract_key_from_data_delimitedBO (dds_istream
         /* skip fields that are not in serialized data for appendable type */
         const uint32_t type = DDS_OP_TYPE (insn);
         ops = (is->m_index - delimited_offs < delimited_sz) ?
-            dds_stream_extract_key_from_data1BO (is, os, ops, keys_remaining) : dds_stream_extract_key_from_data_skip_adr (is, ops, type);
+            dds_stream_extract_keyBO_from_data1 (is, os, ops, keys_remaining) : dds_stream_extract_key_from_data_skip_adr (is, ops, type);
         break;
       }
       case DDS_OP_JSR: {
-        (void) dds_stream_extract_key_from_data1BO (is, os, ops + DDS_OP_JUMP (insn), keys_remaining);
+        (void) dds_stream_extract_keyBO_from_data1 (is, os, ops + DDS_OP_JUMP (insn), keys_remaining);
         ops++;
         break;
       }
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: {
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM: {
         abort ();
         break;
       }
@@ -102,7 +102,7 @@ static const uint32_t *dds_stream_extract_key_from_data_delimitedBO (dds_istream
   return ops;
 }
 
-static const uint32_t *dds_stream_extract_key_from_data_plBO (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const uint32_t * __restrict ops, uint32_t * __restrict keys_remaining)
+static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const uint32_t * __restrict ops, uint32_t * __restrict keys_remaining)
 {
   /* skip PLC op */
   ops++;
@@ -113,20 +113,20 @@ static const uint32_t *dds_stream_extract_key_from_data_plBO (dds_istream_t * __
   {
     /* read EMHEADER and next_int */
     uint32_t em_hdr = dds_is_get4 (is);
-    uint32_t lc = EMHEADER_LC (em_hdr), mid = EMHEADER_MEMBERID (em_hdr), msz;
+    uint32_t lc = EMHEADER_LENGTH_CODE (em_hdr), mid = EMHEADER_MEMBERID (em_hdr), msz;
     switch (lc)
     {
-      case 0: case 1: case 2: case 3:
+      case LENGTH_CODE_1B: case LENGTH_CODE_2B: case LENGTH_CODE_4B: case LENGTH_CODE_8B:
         msz = 1u << lc;
         break;
-      case 4:
+      case LENGTH_CODE_NEXTINT:
         /* read NEXTINT */
         msz = dds_is_get4 (is);
         break;
-      case 5: case 6: case 7:
+      case LENGTH_CODE_ALSO_NEXTINT: case LENGTH_CODE_ALSO_NEXTINT4: case LENGTH_CODE_ALSO_NEXTINT8:
         /* length is part of serialized data */
         msz = dds_is_peek4 (is);
-        if (lc > 5)
+        if (lc > LENGTH_CODE_ALSO_NEXTINT)
           msz <<= (lc - 4);
         break;
       default:
@@ -142,11 +142,11 @@ static const uint32_t *dds_stream_extract_key_from_data_plBO (dds_istream_t * __
        found one, because in many cases the members will be in the data sequentially */
     while (!found && (insn = ops[ops_csr]) != DDS_OP_RTS)
     {
-      assert (DDS_OP (insn) == DDS_OP_JEQ);
+      assert (DDS_OP (insn) == DDS_OP_PLM);
       if (ops[ops_csr + 1] == mid)
       {
-        const uint32_t *jeq_ops = ops + ops_csr + DDS_OP_ADR_JSR (insn);
-        (void) dds_stream_extract_key_from_data1BO (is, os, jeq_ops, keys_remaining);
+        const uint32_t *plm_ops = ops + ops_csr + DDS_OP_ADR_JSR (insn);
+        (void) dds_stream_extract_keyBO_from_data1 (is, os, plm_ops, keys_remaining);
         found = true;
         break;
       }
@@ -156,19 +156,19 @@ static const uint32_t *dds_stream_extract_key_from_data_plBO (dds_istream_t * __
     if (!found)
     {
       is->m_index += msz;
-      if (lc >= 5)
+      if (lc >= LENGTH_CODE_ALSO_NEXTINT)
         is->m_index += 4; /* length embedded in member does not include it's own 4 bytes */
     }
   }
 
-  /* skip all JEQ-memberid pairs */
+  /* skip all PLM-memberid pairs */
   while (ops[0] != DDS_OP_RTS)
     ops += 2;
 
   return ops;
 }
 
-static const uint32_t *dds_stream_extract_key_from_data1BO (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const uint32_t * __restrict ops, uint32_t * __restrict keys_remaining)
+static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const uint32_t * __restrict ops, uint32_t * __restrict keys_remaining)
 {
   uint32_t op;
   while ((op = *ops) != DDS_OP_RTS)
@@ -182,12 +182,12 @@ static const uint32_t *dds_stream_extract_key_from_data1BO (dds_istream_t * __re
         {
           const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
           const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
-          (void) dds_stream_extract_key_from_data1BO (is, os, jsr_ops, keys_remaining);
+          (void) dds_stream_extract_keyBO_from_data1 (is, os, jsr_ops, keys_remaining);
           ops += jmp ? jmp : 3;
         }
         else if (is_key)
         {
-          dds_stream_extract_key_from_key_prim_opBO (is, os, ops, 0, NULL);
+          dds_stream_extract_keyBO_from_key_prim_op (is, os, ops, 0, NULL);
           if (--(*keys_remaining) == 0)
             return ops;
           ops += 2 + (type == DDS_OP_VAL_BST || type == DDS_OP_VAL_BSP || type == DDS_OP_VAL_ARR || type == DDS_OP_VAL_ENU);
@@ -200,24 +200,24 @@ static const uint32_t *dds_stream_extract_key_from_data1BO (dds_istream_t * __re
       }
       case DDS_OP_JSR: { /* Implies nested type */
         ops += 2;
-        dds_stream_extract_key_from_data1BO (is, os, ops + DDS_OP_JUMP (op), keys_remaining);
+        dds_stream_extract_keyBO_from_data1 (is, os, ops + DDS_OP_JUMP (op), keys_remaining);
         if (*keys_remaining == 0)
           return ops;
         ops++;
         break;
       }
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_KOF: {
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_KOF: case DDS_OP_PLM: {
         abort ();
         break;
       }
       case DDS_OP_DLC: {
-        ops = dds_stream_extract_key_from_data_delimitedBO (is, os, ops, keys_remaining);
+        ops = dds_stream_extract_keyBO_from_data_delimited (is, os, ops, keys_remaining);
         if (*keys_remaining == 0)
           return ops;
         break;
       }
       case DDS_OP_PLC: {
-        ops = dds_stream_extract_key_from_data_plBO (is, os, ops, keys_remaining);
+        ops = dds_stream_extract_keyBO_from_data_pl (is, os, ops, keys_remaining);
         if (*keys_remaining == 0)
           return ops;
         break;
@@ -227,9 +227,9 @@ static const uint32_t *dds_stream_extract_key_from_data1BO (dds_istream_t * __re
   return ops;
 }
 
-void dds_stream_extract_key_from_dataBO (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const struct ddsi_sertype_default * __restrict type)
+void dds_stream_extract_keyBO_from_data (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const struct ddsi_sertype_default * __restrict type)
 {
   const struct ddsi_sertype_default_desc *desc = &type->type;
   uint32_t keys_remaining = desc->keys.nkeys;
-  (void) dds_stream_extract_key_from_data1BO (is, os, desc->ops.ops, &keys_remaining);
+  (void) dds_stream_extract_keyBO_from_data1 (is, os, desc->ops.ops, &keys_remaining);
 }

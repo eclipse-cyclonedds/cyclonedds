@@ -32,6 +32,7 @@ enum pserop {
   XO, /* octet sequence */
   XS, /* string */
   XE1, XE2, XE3, /* enum 0..1, 0..2, 0..3 */
+  Xs, /* int16_t */
   Xi, Xix2, Xix3, Xix4, /* int32_t, 1 .. 4 in a row */
   Xu, Xux2, Xux3, Xux4, Xux5, /* uint32_t, 1 .. 5 in a row */
   XD, XDx2, /* duration, 1 .. 2 in a row */

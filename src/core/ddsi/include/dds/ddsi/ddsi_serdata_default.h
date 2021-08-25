@@ -117,6 +117,8 @@ struct ddsi_sertype_default_desc {
 struct ddsi_sertype_default {
   struct ddsi_sertype c;
   uint16_t encoding_format; /* CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) */
+  uint16_t encoding_version; /* CDR_ENC_VERSION_(1|2) */
+  struct ddsi_sertype_default *shallow_copy_src; /* pointer to src used for creating this shallow copy, used for refcounting */
   struct serdatapool *serpool;
   struct ddsi_sertype_default_desc type;
   size_t opt_size;

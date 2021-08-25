@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2020 ADLINK Technology Limited and others
+ * Copyright(c) 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -97,7 +97,7 @@ static bool sample_equal_nested (void *s1, void *s2)
 
 static void sample_free_nested (void *s)
 {
-  dds_free (s);
+  ddsrt_free (s);
 }
 
 /**********************************************
@@ -154,10 +154,10 @@ static bool sample_equal_str (void *s1, void *s2)
 static void sample_free_str (void *s)
 {
   TestIdl_MsgStr *msg = s;
-  dds_free (msg->msg_field1.strseq4[0]);
-  dds_free (msg->msg_field1.strseq4[1]);
-  dds_free (msg->msg_field1.strseq4[2]);
-  dds_free (msg);
+  ddsrt_free (msg->msg_field1.strseq4[0]);
+  ddsrt_free (msg->msg_field1.strseq4[1]);
+  ddsrt_free (msg->msg_field1.strseq4[2]);
+  ddsrt_free (msg);
 }
 
 /**********************************************
@@ -249,7 +249,7 @@ static bool sample_equal_union (void *s1, void *s2)
 
 static void sample_free_union (void *s)
 {
-  dds_free (s);
+  ddsrt_free (s);
 }
 
 /**********************************************
@@ -332,8 +332,8 @@ static bool sample_equal_recursive (void *s1, void *s2)
 static void sample_free_recursive (void *s)
 {
   TestIdl_MsgRecursive *msg = s;
-  dds_free (msg->msg_field2.submsg_field2._buffer);
-  dds_free (s);
+  ddsrt_free (msg->msg_field2.submsg_field2._buffer);
+  ddsrt_free (s);
 }
 
 /**********************************************
@@ -484,9 +484,9 @@ static bool sample_equal_appendable (void *s1, void *s2)
 static void sample_free_appendable (void *s)
 {
   TestIdl_AppendableMsg *msg = (TestIdl_AppendableMsg *) s;
-  dds_free (msg->msg_field3._buffer);
-  dds_free (msg->msg_field5._buffer);
-  dds_free (s);
+  ddsrt_free (msg->msg_field3._buffer);
+  ddsrt_free (msg->msg_field5._buffer);
+  ddsrt_free (s);
 }
 
 /**********************************************
@@ -541,8 +541,8 @@ static const uint32_t TestIdl_MsgKeysNested_ops [] =
 
   // SubMsg2
   DDS_OP_PLC,
-    DDS_OP_JEQ | 5u, 1,
-    DDS_OP_JEQ | 6u, 2,
+    DDS_OP_PLM | 5u, 1,
+    DDS_OP_PLM | 6u, 2,
   DDS_OP_RTS,
   DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsgKeysNested2, submsg2_field1),
   DDS_OP_RTS,
@@ -615,8 +615,8 @@ static bool sample_equal_keysnested (void *s1, void *s2)
 static void sample_free_keysnested (void *s)
 {
   TestIdl_MsgKeysNested *msg = (TestIdl_MsgKeysNested *) s;
-  dds_free (msg->msg_field2._buffer);
-  dds_free (s);
+  ddsrt_free (msg->msg_field2._buffer);
+  ddsrt_free (s);
 }
 
 /**********************************************
@@ -696,7 +696,7 @@ static bool sample_equal_arr (void *s1, void *s2)
 static void sample_free_arr (void *s)
 {
   TestIdl_MsgArr *msg = s;
-  dds_free (msg);
+  ddsrt_free (msg);
 }
 
 /**********************************************
@@ -814,8 +814,8 @@ static bool sample_equal_appendstruct2 (void *s_wr, void *s_rd)
 
 static void sample_free_appendstruct (void *s1, void *s2)
 {
-  dds_free (s1);
-  dds_free (s2);
+  ddsrt_free (s1);
+  ddsrt_free (s2);
 }
 
 /**********************************************
@@ -986,10 +986,10 @@ static bool sample_equal_appenddefaults2 (void *s_wr, void *s_rd)
 
 static void sample_free_appenddefaults (TestIdl_MsgAppendDefaults1 *s1, TestIdl_MsgAppendDefaults2 *s2)
 {
-  dds_free (s1);
-  dds_free (s2->msg_field_str);
-  dds_free (s2->msg_field_bstrp);
-  dds_free (s2);
+  ddsrt_free (s1);
+  ddsrt_free (s2->msg_field_str);
+  ddsrt_free (s2->msg_field_bstrp);
+  ddsrt_free (s2);
 }
 
 static void sample_free_appenddefaults1 (void *s_wr, void *s_rd)
@@ -1033,15 +1033,15 @@ typedef struct TestIdl_MsgMutable1 {
 static const uint32_t TestIdl_MsgMutable1_ops [] =
 {
   DDS_OP_PLC,
-    DDS_OP_JEQ | DDS_OP_FLAG_MU << 16 | 19u, 1,
-    DDS_OP_JEQ | 20u, 2,
-    DDS_OP_JEQ | 21u, 3,
-    DDS_OP_JEQ | 23u, 4,
-    DDS_OP_JEQ | 27u, 5,
-    DDS_OP_JEQ | 28u, 7,
-    DDS_OP_JEQ | 29u, 8,
-    DDS_OP_JEQ | 31u, 10,
-    DDS_OP_JEQ | 34u, 11,
+    DDS_OP_PLM | DDS_OP_FLAG_MU << 16 | 19u, 1,
+    DDS_OP_PLM | 20u, 2,
+    DDS_OP_PLM | 21u, 3,
+    DDS_OP_PLM | 23u, 4,
+    DDS_OP_PLM | 27u, 5,
+    DDS_OP_PLM | 28u, 7,
+    DDS_OP_PLM | 29u, 8,
+    DDS_OP_PLM | 31u, 10,
+    DDS_OP_PLM | 34u, 11,
   DDS_OP_RTS,
   DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_MsgMutable1, msg_field1),
   DDS_OP_RTS,
@@ -1063,8 +1063,8 @@ static const uint32_t TestIdl_MsgMutable1_ops [] =
   DDS_OP_RTS,
 
   DDS_OP_PLC,
-    DDS_OP_JEQ | 5u, 1,
-    DDS_OP_JEQ | 6u, 2,
+    DDS_OP_PLM | 5u, 1,
+    DDS_OP_PLM | 6u, 2,
   DDS_OP_RTS,
   DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsgMutable1, submsg_field1),
   DDS_OP_RTS,
@@ -1101,16 +1101,16 @@ typedef struct TestIdl_MsgMutable2 {
 static const uint32_t TestIdl_MsgMutable2_ops [] =
 {
   DDS_OP_PLC,
-    DDS_OP_JEQ | DDS_OP_FLAG_MU << 16 | 21u, 1,
-    DDS_OP_JEQ | 22u, 2,
-    DDS_OP_JEQ | 23u, 3,
-    DDS_OP_JEQ | 25u, 4,
-    DDS_OP_JEQ | 29u, 6,
-    DDS_OP_JEQ | 30u, 7,
-    DDS_OP_JEQ | 31u, 9,
-    DDS_OP_JEQ | 33u, 10,
-    DDS_OP_JEQ | 36u, 11,
-    DDS_OP_JEQ | 37u, 12,
+    DDS_OP_PLM | DDS_OP_FLAG_MU << 16 | 21u, 1,
+    DDS_OP_PLM | 22u, 2,
+    DDS_OP_PLM | 23u, 3,
+    DDS_OP_PLM | 25u, 4,
+    DDS_OP_PLM | 29u, 6,
+    DDS_OP_PLM | 30u, 7,
+    DDS_OP_PLM | 31u, 9,
+    DDS_OP_PLM | 33u, 10,
+    DDS_OP_PLM | 36u, 11,
+    DDS_OP_PLM | 37u, 12,
   DDS_OP_RTS,
   DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_MsgMutable2, msg_field1),
   DDS_OP_RTS,
@@ -1134,8 +1134,8 @@ static const uint32_t TestIdl_MsgMutable2_ops [] =
   DDS_OP_RTS,
 
   DDS_OP_PLC,
-    DDS_OP_JEQ | 5u, 1,
-    DDS_OP_JEQ | 6u, 2,
+    DDS_OP_PLM | 5u, 1,
+    DDS_OP_PLM | 6u, 2,
   DDS_OP_RTS,
   DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsgMutable2, submsg_field1),
   DDS_OP_RTS,
@@ -1245,11 +1245,11 @@ static bool sample_equal_mutable2 (void *s_wr, void *s_rd)
 
 static void sample_free_mutable (TestIdl_MsgMutable1 *s1, TestIdl_MsgMutable2 *s2)
 {
-  dds_free (s1->msg_field10._buffer);
-  dds_free (s2->msg_field10._buffer);
-  dds_free (s2->msg_field12._buffer);
-  dds_free (s1);
-  dds_free (s2);
+  ddsrt_free (s1->msg_field10._buffer);
+  ddsrt_free (s2->msg_field10._buffer);
+  ddsrt_free (s2->msg_field12._buffer);
+  ddsrt_free (s1);
+  ddsrt_free (s2);
 }
 
 static void sample_free_mutable1 (void *s_wr, void *s_rd)
@@ -1286,11 +1286,11 @@ static void cdrstream_init (void)
   char * conf = ddsrt_expand_envvars (DDS_CONFIG, DDS_DOMAINID1);
   d1 = dds_create_domain (DDS_DOMAINID1, conf);
   CU_ASSERT_FATAL (d1 > 0);
-  dds_free (conf);
+  ddsrt_free (conf);
   conf = ddsrt_expand_envvars (DDS_CONFIG, DDS_DOMAINID2);
   d2 = dds_create_domain (DDS_DOMAINID2, conf);
   CU_ASSERT_FATAL (d2 > 0);
-  dds_free (conf);
+  ddsrt_free (conf);
 
   dp1 = dds_create_participant (DDS_DOMAINID1, NULL, NULL);
   CU_ASSERT_FATAL (dp1 > 0);
@@ -1311,7 +1311,7 @@ static void entity_init (const dds_topic_descriptor_t *desc)
   dds_qset_history(qos, DDS_HISTORY_KEEP_ALL, DDS_LENGTH_UNLIMITED);
   dds_qset_durability(qos, DDS_DURABILITY_TRANSIENT_LOCAL);
   dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
-  dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { XCDR2_DATA_REPRESENTATION });
+  dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR2 });
   rd = dds_create_reader (dp2, tp2, qos, NULL);
   CU_ASSERT_FATAL (rd > 0);
   wr = dds_create_writer (dp1, tp1, qos, NULL);

@@ -494,19 +494,6 @@ static bool evalute_topic_filter (const dds_writer *wr, const void *data, bool w
   return true;
 }
 
-static uint32_t get_writer_xcdr_version (dds_qos_t *xqos)
-{
-  assert (xqos->present & QP_DATA_REPRESENTATION);
-  if (xqos->data_representation.value.n > 0)
-  {
-    assert (xqos->data_representation.value.ids != NULL);
-    assert (xqos->data_representation.value.ids[0] != XML_DATA_REPRESENTATION); /* not supported */
-    return xqos->data_representation.value.ids[0] == XCDR2_DATA_REPRESENTATION ? CDR_ENC_VERSION_2 : CDR_ENC_VERSION_1;
-  }
-  /* default is XCDR1 (xtypes 1.3 spec 7.6.3.1.1) */
-  return CDR_ENC_VERSION_1;
-}
-
 #ifdef DDS_HAS_SHM
 dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
 {
@@ -572,13 +559,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
   } else {
     // serialize since we will need to send via network anyway
-    uint32_t xcdr_version = get_writer_xcdr_version (ddsi_wr->xqos);
-    if ((d = ddsi_serdata_from_sample_xcdr_version (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, xcdr_version, data)) == NULL)
-    {
-      ret = DDS_RETCODE_BAD_PARAMETER;
-      goto finalize_write;
-    }
-    d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+    d = ddsi_serdata_from_sample_data_representation (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, wr->m_data_representation, data);
   }
 
   if(d == NULL) {
@@ -642,8 +623,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
 
   /* Serialize and write data or key */
-  uint32_t xcdr_version = get_writer_xcdr_version (ddsi_wr->xqos);
-  if ((d = ddsi_serdata_from_sample_xcdr_version (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, xcdr_version, data)) == NULL)
+  if ((d = ddsi_serdata_from_sample_data_representation (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, wr->m_data_representation, data)) == NULL)
     ret = DDS_RETCODE_BAD_PARAMETER;
   else
   {

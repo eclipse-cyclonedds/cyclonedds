@@ -202,6 +202,7 @@ typedef struct InfoSRC {
 
 #define CDR_ENC_LE(x) (((x) & 0x0100) == 0x0100)
 #define CDR_ENC_IS_NATIVE(x) (CDR_ENC_LE ((x)))
+#define CDR_ENC_IS_VALID(x) (!((x) > PL_CDR2_LE || (x) == 0x0400 || (x) == 0x0500))
 #define CDR_ENC_TO_NATIVE(x) ((x) | 0x0100)
 #else
 #define CDR_BE      0x0000u
@@ -216,10 +217,17 @@ typedef struct InfoSRC {
 #define PL_CDR2_LE  0x000bu
 
 #define CDR_ENC_LE(x) (((x) & 0x0001) == 0x0001)
-#define CDR_ENC_TO_NATIVE(x) ((x) & ~0x0001)
 #define CDR_ENC_IS_NATIVE(x) (!CDR_ENC_LE ((x)))
+#define CDR_ENC_IS_VALID(x) (!((x) > PL_CDR2_LE || (x) == 0x0004 || (x) == 0x0005))
+#define CDR_ENC_TO_NATIVE(x) ((x) & ~0x0001)
 #endif
 
+/*
+  Encoding version to be used for serialization. Encoding version 1
+  represents the XCDR1 format as defined in the DDS XTypes specification,
+  with PLAIN_CDR(1) that is backwards compatible with the CDR encoding
+  used by non-XTypes enabled nodes.
+*/
 #define CDR_ENC_VERSION_UNDEF     0
 #define CDR_ENC_VERSION_1         1
 #define CDR_ENC_VERSION_2         2

@@ -147,6 +147,7 @@ struct ddsi_sertype_ops {
   ddsi_sertype_serialize_t serialize;
   ddsi_sertype_deserialize_t deserialize;
   ddsi_sertype_assignable_from_t assignable_from;
+  void (*reserved)(void); /* reserved entry so that the number of function pointers equals previous revision of sertype_ops */
 };
 
 enum ddsi_sertype_extensibility

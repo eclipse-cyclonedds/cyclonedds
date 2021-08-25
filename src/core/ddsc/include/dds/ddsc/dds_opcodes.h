@@ -25,6 +25,26 @@
 extern "C" {
 #endif
 
+#define DDS_OP_MASK 0xff000000
+#define DDS_OP_TYPE_MASK 0x00ff0000
+#define DDS_OP_SUBTYPE_MASK 0x0000ff00
+#define DDS_OP_JMP_MASK 0x0000ffff
+#define DDS_OP_FLAGS_MASK 0x000000ff
+#define DDS_JEQ_TYPE_MASK 0x00ff0000
+#define DDS_PLM_FLAGS_MASK 0x00ff0000
+
+#define DDS_OP(o)         ((enum dds_stream_opcode) ((o) & DDS_OP_MASK))
+#define DDS_OP_TYPE(o)    ((enum dds_stream_typecode) (((o) & DDS_OP_TYPE_MASK) >> 16))
+#define DDS_OP_SUBTYPE(o) ((enum dds_stream_typecode) (((o) & DDS_OP_SUBTYPE_MASK) >> 8))
+#define DDS_OP_FLAGS(o)   ((o) & DDS_OP_FLAGS_MASK)
+#define DDS_OP_ADR_JSR(o) ((int16_t) ((o) & DDS_OP_JMP_MASK))
+#define DDS_OP_ADR_PLM(o) ((int16_t) ((o) & DDS_OP_JMP_MASK))
+#define DDS_OP_LENGTH(o)  ((uint16_t) ((o) & DDS_OP_JMP_MASK))
+#define DDS_OP_JUMP(o)    ((int16_t) ((o) & DDS_OP_JMP_MASK))
+#define DDS_OP_ADR_JMP(o) ((o) >> 16)
+#define DDS_JEQ_TYPE(o)   ((enum dds_stream_typecode) (((o) & DDS_JEQ_TYPE_MASK) >> 16))
+#define DDS_PLM_FLAGS(o)  ((enum dds_stream_typecode) (((o) & DDS_PLM_FLAGS_MASK) >> 16))
+
 /* Topic encoding instruction types */
 
 enum dds_stream_opcode {
@@ -32,51 +52,50 @@ enum dds_stream_opcode {
      [RTS,   0,   0, 0] */
   DDS_OP_RTS = 0x00 << 24,
   /* data field
-     [ADR, nBY,   0, k] [offset]
-     [ADR, ENU,   0, k] [offset] [max]
-     [ADR, STR,   0, k] [offset]
-     [ADR, BST,   0, k] [offset] [bound]
-     [ADR, BSP,   0, k] [offset] [bound]
+     [ADR, nBY,   0, f] [offset]
+     [ADR, ENU,   0, f] [offset] [max]
+     [ADR, STR,   0, f] [offset]
+     [ADR, BST,   0, f] [offset] [max-size]
+     [ADR, BSP,   0, f] [offset] [max-size]
 
      [ADR, SEQ, nBY, 0] [offset]
      [ADR, SEQ, ENU, 0] [offset] [max]
      [ADR, SEQ, STR, 0] [offset]
-     [ADR, SEQ, BST, 0] [offset] [bound]
-     [ADR, SEQ, BSP, 0] [offset] [bound]
+     [ADR, SEQ, BST, 0] [offset] [max-size]
+     [ADR, SEQ, BSP, 0] [offset] [max-size]
      [ADR, SEQ,   s, 0] [offset] [elem-size] [next-insn, elem-insn]
        where s = {SEQ,ARR,UNI,STU}
-     [ADR, SEQ, EXT, k] *** not supported
+     [ADR, SEQ, EXT, f] *** not supported
 
-     [ADR, ARR, nBY, k] [offset] [alen]
-     [ADR, ARR, ENU, k] [offset] [alen] [max]
+     [ADR, ARR, nBY, f] [offset] [alen]
+     [ADR, ARR, ENU, f] [offset] [alen] [max]
      [ADR, ARR, STR, 0] [offset] [alen]
-     [ADR, ARR, BST, 0] [offset] [alen] [0] [bound]
-     [ADR, ARR, BSP, 0] [offset] [alen] [0] [bound]
+     [ADR, ARR, BST, 0] [offset] [alen] [0] [max-size]
+     [ADR, ARR, BSP, 0] [offset] [alen] [0] [max-size]
      [ADR, ARR,   s, 0] [offset] [alen] [next-insn, elem-insn] [elem-size]
          where s = {SEQ,ARR,UNI,STU}
-     [ADR, ARR, EXT, k] *** not supported
+     [ADR, ARR, EXT, f] *** not supported
 
      [ADR, UNI,   d, z] [offset] [alen] [next-insn, cases]
      [ADR, UNI, ENU, z] [offset] [alen] [next-insn, cases] [max]
-     [ADR, UNI, EXT, k] *** not supported
+     [ADR, UNI, EXT, f] *** not supported
        where
-         d = discriminant type of {1BY,2BY,4BY,ENU}
+         d = discriminant type of {1BY,2BY,4BY}
          z = default present/not present (DDS_OP_FLAG_DEF)
          offset = discriminant offset
          max = max enum value
        followed by alen case labels: in JEQ format
 
-     [ADR, EXT,   0, k] [offset] [next-insn, elem-insn]
-     [ADR, EXT,   0, k] [offset] [next-insn, elem-insn] [elem-size]
-     [ADR, STU,   0, k] *** not supported
+     [ADR, EXT,   0, f] [offset] [next-insn, elem-insn] [elem-size iff "external" flag set in f]
+     [ADR, STU,   0, f] *** not supported
    where
      s            = subtype
-     k            = flags:
+     f            = flags:
                     - key/not key (DDS_OP_FLAG_KEY)
                     - external flag: stored as external data (pointer) (DDS_OP_FLAG_EXT)
      [offset]     = field offset from start of element in memory
      [elem-size]  = element size in memory (in case of ADR_EXT, elem-size is only included in case 'external' flag is set)
-     [bound]      = string bound + 1
+     [max-size]   = string bound + 1
      [max]        = max enum value
      [alen]       = array length, number of cases
      [next-insn]  = (unsigned 16 bits) offset to instruction for next field, from start of insn
@@ -102,12 +121,6 @@ enum dds_stream_opcode {
          e  = (unsigned 16 bits) offset to first instruction for case, from start of insn
               instruction sequence must end in RTS, at which point executes continues
               at the next field's instruction as specified by the union
-     and used for members of aggregated mutable types (pl-cdr):
-     [JEQ,   m, elem-insn] [member id]
-       where
-         m           = must-understand flag (DDS_OP_FLAG_MUST_UNDERSTAND)
-         [elem-insn] = (unsigned 16 bits) offset to instruction for element, from start of insn
-         [member id] = id for this member
   */
   DDS_OP_JEQ = 0x03 << 24,
 
@@ -122,6 +135,17 @@ enum dds_stream_opcode {
   */
   DDS_OP_PLC = 0x05 << 24,
 
+  /*
+     [PLM,   f, elem-insn] [member id]
+       for members of aggregated mutable types (pl-cdr):
+       where
+         f           = flags:
+                       - must-understand (DDS_OP_FLAG_MU)
+         [elem-insn] = (unsigned 16 bits) offset to instruction for element, from start of insn
+         [member id] = id for this member
+  */
+  DDS_OP_PLM = 0x06 << 24,
+
   /* Key offset list
      [KOF, 0, n] [offset-1] ... [offset-n]
        where
@@ -129,7 +153,7 @@ enum dds_stream_opcode {
         offset = offset of the key field, relative to the previous offset
                   (repeated n times, e.g. when key in nested struct)
   */
-  DDS_OP_KOF = 0x06 << 24,
+  DDS_OP_KOF = 0x07 << 24,
 };
 
 enum dds_stream_typecode {
@@ -186,8 +210,8 @@ enum dds_stream_typecode_subtype {
 #define DDS_OP_SUBTYPE_BOO DDS_OP_SUBTYPE_1BY
 
 /* key field: applicable to {1,2,4,8}BY, STR, BST, ARR-of-{1,2,4,8}BY.
-   Note that when using a field of a struct member of the top-level struct
-   in the key, the top-level STU field should also get the key flag. */
+   Note that when defining keys in nested types, the key flag should be set
+   on both the field(s) in the subtype and on the enclosing STU/EXT field. */
 #define DDS_OP_FLAG_KEY 0x01
 
 #define DDS_OP_FLAG_DEF 0x02 /* union has a default case (for DDS_OP_ADR | DDS_OP_TYPE_UNI) */
@@ -198,7 +222,7 @@ enum dds_stream_typecode_subtype {
    There are only a few flag bits, so saving one is not such a bad idea. */
 #define DDS_OP_FLAG_FP  (1u << 1) /* floating-point: applicable to {4,8}BY and arrays, sequences of them */
 #define DDS_OP_FLAG_SGN (1u << 2) /* signed: applicable to {1,2,4,8}BY and arrays, sequences of them */
-#define DDS_OP_FLAG_MU  (1u << 3) /* must-understand flag, used with JEQ in parameter list CDR */
+#define DDS_OP_FLAG_MU  (1u << 3) /* must-understand flag, used with PLM in parameter list CDR */
 #define DDS_OP_FLAG_EXT (1u << 4) /* external: field is stored as a pointer */
 
 /* Topic descriptor flag values */

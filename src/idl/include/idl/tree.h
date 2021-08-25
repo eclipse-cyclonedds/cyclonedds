@@ -122,6 +122,8 @@ enum idl_type {
   IDL_LDOUBLE = (IDL_BASE_TYPE | IDL_FLOATING_PT_TYPE | 3u)
 };
 
+#define IDL_TYPE_MASK ((IDL_BITMASK << 1) - 1)
+
 typedef struct idl_name idl_name_t;
 struct idl_name {
   idl_symbol_t symbol;
@@ -525,6 +527,8 @@ IDL_EXPORT uint32_t idl_array_size(const void *node);
 IDL_EXPORT uint32_t idl_bound(const void *node);
 IDL_EXPORT const idl_literal_t *idl_default_value(const void *node);
 IDL_EXPORT uint16_t idl_bit_bound(const void *node);
+/* returns the int32_t representation of the case label value,
+   e.g. used for type object creation */
 IDL_EXPORT int32_t idl_case_label_intvalue(const void *node);
 
 /* navigation */

@@ -109,32 +109,31 @@ static bool check_endpoint_typeid (struct ddsi_domaingv *gv, const type_identifi
 
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 
-static int data_representation_match_default (const dds_qos_t *x)
+static int data_representation_match_default (const dds_qos_t *x, bool is_writer)
 {
   if (!(x->present & QP_DATA_REPRESENTATION) || x->data_representation.value.n == 0)
     return 1;
-  for (uint32_t i = 0; i < x->data_representation.value.n; i++)
-    if (x->data_representation.value.ids[i] == XCDR_DATA_REPRESENTATION)
+  /* For writer use only the first value */
+  for (uint32_t i = 0; i < (is_writer ? 1 : x->data_representation.value.n); i++)
+    if (x->data_representation.value.ids[i] == DDS_DATA_REPRESENTATION_XCDR1)
       return 1;
   return 0;
 }
 
-static int data_representation_match_p (const dds_qos_t *a, const dds_qos_t *b)
+static int data_representation_match_p (const dds_qos_t *rd_qos, const dds_qos_t *wr_qos)
 {
-  if (!(a->present & QP_DATA_REPRESENTATION))
-    return data_representation_match_default (b);
-  else if (!(b->present & QP_DATA_REPRESENTATION))
-    return data_representation_match_default (a);
-  else if (a->data_representation.value.n == 0 && b->data_representation.value.n == 0)
+  if (!(rd_qos->present & QP_DATA_REPRESENTATION))
+    return data_representation_match_default (wr_qos, true);
+  else if (!(wr_qos->present & QP_DATA_REPRESENTATION))
+    return data_representation_match_default (rd_qos, false);
+  else if (rd_qos->data_representation.value.n == 0 && wr_qos->data_representation.value.n == 0)
     return 1;
   else
   {
-    for (uint32_t i = 0; i < a->data_representation.value.n; i++)
-      for (uint32_t j = 0; j < b->data_representation.value.n; j++)
-      {
-        if (a->data_representation.value.ids[i] == b->data_representation.value.ids[j])
-          return 1;
-      }
+    /* For the writer only use the first representation identifier and ignore 1..n (spec 7.6.3.1.1) */
+    for (uint32_t i = 0; i < rd_qos->data_representation.value.n; i++)
+      if (rd_qos->data_representation.value.ids[i] == wr_qos->data_representation.value.ids[0])
+        return 1;
     return 0;
   }
 }

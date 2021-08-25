@@ -457,13 +457,29 @@ void dds_qset_type_consistency (dds_qos_t * __restrict qos, dds_type_consistency
 
 void dds_qset_data_representation (dds_qos_t * __restrict qos, uint32_t n, dds_data_representation_id_t *values)
 {
-  if (qos == NULL)
+  if (qos == NULL || (n && !values))
     return;
   if ((qos->present & QP_DATA_REPRESENTATION) && qos->data_representation.value.ids != NULL)
     ddsrt_free (qos->data_representation.value.ids);
-  qos->data_representation.value.n = n;
-  qos->data_representation.value.ids = ddsrt_malloc (n * sizeof (*qos->data_representation.value.ids));
-  memcpy (qos->data_representation.value.ids, values, n * sizeof (*values));
+  qos->data_representation.value.n = 0;
+  qos->data_representation.value.ids = NULL;
+
+  /* De-duplicate the provided list of data representation identifiers. The re-alloc
+     approach is rather inefficient, but not really a problem because the list will
+     typically have a very limited number of values */
+  for (uint32_t x = 0; x < n; x++)
+  {
+    bool duplicate = false;
+    for (uint32_t c = 0; !duplicate && c < x; c++)
+      if (qos->data_representation.value.ids[c] == values[x])
+        duplicate = true;
+    if (!duplicate)
+    {
+      qos->data_representation.value.n++;
+      qos->data_representation.value.ids = dds_realloc (qos->data_representation.value.ids, qos->data_representation.value.n * sizeof (*qos->data_representation.value.ids));
+      qos->data_representation.value.ids[qos->data_representation.value.n - 1] = values[x];
+    }
+  }
   qos->present |= QP_DATA_REPRESENTATION;
 }
 
@@ -785,18 +801,17 @@ bool dds_qget_data_representation (const dds_qos_t * __restrict qos, uint32_t *n
 {
   if (qos == NULL || !(qos->present & QP_DATA_REPRESENTATION))
     return false;
-  if (n == NULL && values != NULL)
+  if (n == NULL)
     return false;
   if (qos->data_representation.value.n > 0)
     assert (qos->data_representation.value.ids != NULL);
-  if (n != NULL)
-    *n = qos->data_representation.value.n;
+  *n = qos->data_representation.value.n;
   if (values != NULL)
   {
     if (qos->data_representation.value.n > 0)
     {
       size_t sz = qos->data_representation.value.n * sizeof (*qos->data_representation.value.ids);
-      *values = ddsrt_malloc (sz);
+      *values = dds_alloc (sz);
       memcpy (*values, qos->data_representation.value.ids, sz);
     }
     else

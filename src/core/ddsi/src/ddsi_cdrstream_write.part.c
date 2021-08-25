@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ * Copyright(c) 2006 to 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -29,7 +29,7 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
   if (subtype > DDS_OP_VAL_8BY && ((struct dds_ostream *)os)->m_xcdr_version == CDR_ENC_VERSION_2)
   {
     /* reserve space for DHEADER */
-    dds_os_put4BO (os, 0xffffffff);
+    dds_os_reserve4BO (os);
     offs = ((struct dds_ostream *)os)->m_index;
   }
 
@@ -103,7 +103,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
   if (subtype > DDS_OP_VAL_8BY && ((struct dds_ostream *)os)->m_xcdr_version == CDR_ENC_VERSION_2)
   {
     /* reserve space for DHEADER */
-    dds_os_put4BO (os, 0xffffffff);
+    dds_os_reserve4BO (os);
     offs = ((struct dds_ostream *)os)->m_index;
   }
   const uint32_t num = ops[2];
@@ -242,7 +242,7 @@ const uint32_t *dds_stream_writeBO (DDS_OSTREAM_T * __restrict os, const char * 
         ops++;
         break;
       }
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_KOF: {
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_KOF: case DDS_OP_PLM: {
         abort ();
         break;
       }

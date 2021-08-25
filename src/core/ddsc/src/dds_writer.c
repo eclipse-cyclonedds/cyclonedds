@@ -371,6 +371,24 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   if ((rc = ddsi_xqos_valid (&gv->logconfig, wqos)) < 0 || (rc = validate_writer_qos(wqos)) != DDS_RETCODE_OK)
     goto err_bad_qos;
 
+  dds_data_representation_id_t data_representation;
+  assert (wqos->present & QP_DATA_REPRESENTATION);
+  if (wqos->data_representation.value.n > 0)
+  {
+    assert (wqos->data_representation.value.ids != NULL);
+    if (wqos->data_representation.value.n > 1 || wqos->data_representation.value.ids[0] == DDS_DATA_REPRESENTATION_XML)
+    {
+      rc = DDS_RETCODE_UNSUPPORTED;
+      goto err_data_repr;
+    }
+    data_representation = wqos->data_representation.value.ids[0];
+  }
+  else
+  {
+    /* default is XCDR1 (xtypes 1.3 spec 7.6.3.1.1) */
+    data_representation = DDS_DATA_REPRESENTATION_XCDR1;
+  }
+
   thread_state_awake (lookup_thread_state (), gv);
   const struct ddsi_guid *ppguid = dds_entity_participant_guid (&pub->m_entity);
   struct participant *pp = entidx_lookup_participant_guid (gv->entity_index, ppguid);
@@ -405,6 +423,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wr->m_whc = whc_new (gv, wrinfo);
   whc_free_wrinfo (wrinfo);
   wr->whc_batch = gv->config.whc_batch;
+  wr->m_data_representation = data_representation;
 
 #ifdef DDS_HAS_SHM
   assert(wqos->present & QP_LOCATOR_MASK);
@@ -451,6 +470,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 err_not_allowed:
   thread_state_asleep (lookup_thread_state ());
 #endif
+err_data_repr:
 err_bad_qos:
   dds_delete_qos(wqos);
   dds_topic_allow_set_qos (tp);

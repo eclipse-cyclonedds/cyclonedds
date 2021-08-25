@@ -231,11 +231,15 @@ CU_TheoryDataPoints(idl_union, bad_switch_types) = {
   CU_DataPoints(const char *,
     S("baz") U("baz"),
     U("baz"),
-    M("foo", T("float", "baz")) M("bar", U("foo::baz"))),
+    M("foo", T("float", "baz")) M("bar", U("foo::baz"))
+    U("long long"),
+    U("unsigned long long")),
   CU_DataPoints(idl_retcode_t,
     IDL_RETCODE_SEMANTIC_ERROR,
     IDL_RETCODE_SEMANTIC_ERROR,
-    IDL_RETCODE_SEMANTIC_ERROR)
+    IDL_RETCODE_SEMANTIC_ERROR,
+    IDL_RETCODE_UNSUPPORTED,
+    IDL_RETCODE_UNSUPPORTED)
 };
 
 CU_Theory((const char *str, idl_retcode_t expret), idl_union, bad_switch_types)
@@ -592,4 +596,31 @@ CU_Test(idl_union, two_unions_one_enum)
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
   idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_union, max_label_value)
+{
+  idl_retcode_t ret;
+  idl_pstate_t *pstate;
+  char buf[256];
+  const char *fmt = "union u switch(%s) { case %lld: long l; };";
+
+  static const struct {
+    const char *switch_type;
+    int64_t label_value;
+    idl_retcode_t result;
+  } tests[] = {
+    { "int32",  INT32_MAX,              IDL_RETCODE_OK },
+    { "int32",  (int64_t)INT32_MAX + 1, IDL_RETCODE_OUT_OF_RANGE },
+    { "uint32", INT32_MAX,              IDL_RETCODE_OK },
+    { "uint32", (int64_t)INT32_MAX + 1, IDL_RETCODE_UNSUPPORTED }
+  };
+
+  for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
+    pstate = NULL;
+    idl_snprintf(buf, sizeof(buf), fmt, tests[i].switch_type, tests[i].label_value);
+    ret = parse_string(buf, &pstate);
+    CU_ASSERT_EQUAL(ret, tests[i].result);
+    idl_delete_pstate(pstate);
+  }
 }
