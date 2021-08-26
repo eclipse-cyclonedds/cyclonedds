@@ -563,15 +563,17 @@ static void thread_cleanup_fini(void *arg)
      nullified if invoked as destructor, i.e. not from ddsrt_thread_fini. */
 }
 
-void ddsrt_thread_init(void)
+void ddsrt_thread_init(uint32_t reason)
 {
+  (void)reason;
   thread_init();
 }
 
-void ddsrt_thread_fini(void)
+void ddsrt_thread_fini(uint32_t reason)
 {
   thread_cleanup_t *tail;
 
+  (void)reason;
   thread_init();
   if ((tail = pthread_getspecific(thread_cleanup_key)) != NULL) {
     thread_cleanup_fini(tail);

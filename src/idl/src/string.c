@@ -332,33 +332,84 @@ FILE *idl_fopen(const char *pathname, const char *mode)
 }
 
 #if defined _WIN32
-#if defined __MINGW32__
-static __thread locale_t locale = NULL;
-#else
-static __declspec(thread) locale_t locale = NULL;
-#endif
+static DWORD locale = TLS_OUT_OF_INDEXES;
 
 #if defined __MINGW32__
 _Pragma("GCC diagnostic push")
 _Pragma("GCC diagnostic ignored \"-Wmissing-prototypes\"")
 #endif
-void idl_create_locale(void)
+void WINAPI idl_cdtor(PVOID handle, DWORD reason, PVOID reserved)
 {
-  locale = _create_locale(LC_ALL, "C");
-}
+  locale_t loc;
 
-void idl_delete_locale(void)
-{
-  _free_locale(locale);
-  locale = NULL;
+  (void)handle;
+  (void)reason;
+  (void)reserved;
+  switch (reason) {
+    case DLL_PROCESS_ATTACH:
+      if ((locale = TlsAlloc()) == TLS_OUT_OF_INDEXES)
+        goto err_alloc;
+      if (!(loc = _create_locale(LC_ALL, "C")))
+        goto err_locale;
+      if (TlsSetValue(locale, loc))
+        return;
+      _free_locale(loc);
+err_locale:
+      TlsFree(locale);
+err_alloc:
+      abort();
+      /* never reached */
+    case DLL_THREAD_ATTACH:
+      assert(locale != TLS_OUT_OF_INDEXES);
+      if (!(loc = _create_locale(LC_ALL, "C")))
+        abort();
+      if (TlsSetValue(locale, loc))
+        return;
+      _free_locale(loc);
+      abort();
+      break;
+    case DLL_THREAD_DETACH:
+      assert(locale != TLS_OUT_OF_INDEXES);
+      loc = TlsGetValue(locale);
+      if (loc && TlsSetValue(locale, NULL))
+        _free_locale(loc);
+      break;
+    case DLL_PROCESS_DETACH:
+      assert(locale != TLS_OUT_OF_INDEXES);
+      loc = TlsGetValue(locale);
+      if (loc)
+        _free_locale(loc);
+      TlsSetValue(locale, NULL);
+      TlsFree(locale);
+      locale = TLS_OUT_OF_INDEXES;
+      break;
+    default:
+      break;
+  }
 }
 #if defined __MINGW32__
 _Pragma("GCC diagnostic pop")
 #endif
 
+#if defined __MINGW32__
+  PIMAGE_TLS_CALLBACK __crt_xl_tls_callback__ __attribute__ ((section(".CRT$XLZ"))) = idl_cdtor;
+#elif defined _WIN64
+  #pragma comment (linker, "/INCLUDE:_tls_used")
+  #pragma comment (linker, "/INCLUDE:tls_callback_func")
+  #pragma const_seg(".CRT$XLZ")
+  EXTERN_C const PIMAGE_TLS_CALLBACK tls_callback_func = idl_cdtor;
+  #pragma const_seg()
+#else
+  #pragma comment (linker, "/INCLUDE:__tls_used")
+  #pragma comment (linker, "/INCLUDE:_tls_callback_func")
+  #pragma data_seg(".CRT$XLZ")
+  EXTERN_C PIMAGE_TLS_CALLBACK tls_callback_func = idl_cdtor;
+  #pragma data_seg()
+#endif /* _WIN32 */
+
 static locale_t posix_locale(void)
 {
-  return locale;
+  return TlsGetValue(locale);
 }
 #else /* _WIN32 */
 static pthread_key_t key;

@@ -117,12 +117,13 @@ ddsrt_cdtor(PVOID handle, DWORD reason, PVOID reserved)
       ddsrt_init();
       /* fall through */
     case DLL_THREAD_ATTACH:
+      ddsrt_thread_init(reason);
       break;
     case DLL_THREAD_DETACH: /* Specified when thread exits. */
-      ddsrt_thread_fini();
+      ddsrt_thread_fini(reason);
       break;
     case DLL_PROCESS_DETACH: /* Specified when main thread exits. */
-      ddsrt_thread_fini();
+      ddsrt_thread_fini(reason);
       ddsrt_fini();
       break;
     default:

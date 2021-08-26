@@ -424,18 +424,20 @@ ddsrt_thread_create(
 }
 
 void
-ddsrt_thread_init(void)
+ddsrt_thread_init(uint32_t reason)
 {
+  (void)reason;
   if (thread_context_require() != DDS_RETCODE_OK) {
     assert(0);
   }
 }
 
 void
-ddsrt_thread_fini(void)
+ddsrt_thread_fini(uint32_t reason)
 {
   thread_context_t *ctx;
 
+  (void)reason;
   /* NO-OP if no context exists since thread-local storage and cleanup
      handler references are both stored in the thread context. */
   if ((ctx = thread_context) != NULL) {
