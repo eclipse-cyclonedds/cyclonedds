@@ -127,3 +127,28 @@ CU_Test(ddsc_subscriber, create) {
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
+
+CU_Test(ddsc_subscriber, invalid_qos)
+{
+  dds_entity_t participant, subscriber;
+  dds_qos_t *qos;
+  dds_return_t rc;
+
+  participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_FATAL(participant >  0);
+
+  qos = dds_create_qos ();
+  CU_ASSERT_NOT_EQUAL_FATAL(qos, NULL);
+
+  // deliberately set an invalid value for the access scope kind, this should
+  // result in create_publisher failing with BAD_PARAMETER
+  dds_qset_presentation(qos, (dds_presentation_access_scope_kind_t)123, false, false);
+
+  subscriber = dds_create_subscriber(participant, qos, NULL);
+  CU_ASSERT_FATAL(subscriber == DDS_RETCODE_BAD_PARAMETER);
+
+  dds_delete_qos (qos);
+  rc = dds_delete(participant);
+  CU_ASSERT_FATAL (rc == 0);
+}
+
