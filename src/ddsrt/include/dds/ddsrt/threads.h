@@ -38,7 +38,7 @@
 extern "C" {
 #endif
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || __MINGW__
   /* Thread-local storage using __declspec(thread) on Windows versions before
      Vista and Server 2008 works in DLLs if they are bound to the executable,
      it does not work if the library is loaded using LoadLibrary. */
@@ -277,7 +277,7 @@ ddsrt_thread_cleanup_pop(
  * default initialization is done automatically.
  */
 DDS_EXPORT void
-ddsrt_thread_init(void);
+ddsrt_thread_init(uint32_t reason);
 
 /**
  * @brief Free thread resources and execute cleanup handlers.
@@ -288,7 +288,7 @@ ddsrt_thread_init(void);
  * only for threads that were not created with @ddsrt_thread_create.
  */
 DDS_EXPORT void
-ddsrt_thread_fini(void);
+ddsrt_thread_fini(uint32_t reason);
 
 #if defined (__cplusplus)
 }

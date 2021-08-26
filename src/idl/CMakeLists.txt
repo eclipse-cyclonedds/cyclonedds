@@ -52,7 +52,6 @@ add_library(
     src/string.c
     src/tree.c
     src/visit.c
-    src/thread.c
     src/print.c
     ${CMAKE_CURRENT_BINARY_DIR}/hashid.c
     ${BISON_parser_OUTPUT_SOURCE}
