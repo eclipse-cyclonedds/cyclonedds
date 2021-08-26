@@ -61,6 +61,7 @@ dds_entity_t dds__create_publisher_l (dds_participant *par, bool implicit, const
   ddsi_xqos_mergein_missing (new_qos, &ddsi_default_qos_publisher_subscriber, ~(uint64_t)0);
   if ((ret = ddsi_xqos_valid (&par->m_entity.m_domain->gv.logconfig, new_qos)) != DDS_RETCODE_OK)
   {
+    dds_delete_qos (new_qos);
     return ret;
   }
 
