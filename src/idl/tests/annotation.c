@@ -45,6 +45,62 @@ parse_string(uint32_t flags, const char *str, idl_pstate_t **pstatep)
   return ret;
 }
 
+typedef struct optional_test {
+  const char *str;
+  idl_retcode_t ret;
+  bool optionals[16];
+} optional_test_t;
+
+static void test_optional(optional_test_t test)
+{
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.str, &pstate);
+  CU_ASSERT_EQUAL_FATAL(ret, test.ret);
+
+  if (pstate) {
+    idl_node_t *node;
+    int nstructs = 0;
+    IDL_FOREACH(node, pstate->root) {
+      if (!idl_is_struct(node))
+        continue;
+      nstructs++;
+      idl_struct_t *s = (idl_struct_t *)node;
+      CU_ASSERT_PTR_NOT_NULL_FATAL(s);
+      CU_ASSERT_FATAL(idl_is_struct(s));
+      assert(s);
+      idl_member_t *m = NULL;
+      int n = 0;
+      IDL_FOREACH(m, s->members) {
+        CU_ASSERT_EQUAL(m->optional.value, test.optionals[n]);
+        n++;
+      }
+    }
+    CU_ASSERT_EQUAL(nstructs, 1);
+    idl_delete_pstate(pstate);
+  }
+}
+
+CU_Test(idl_annotation, optional)
+{
+  static const optional_test_t tests[] = {
+    {"struct s { char c; };",                                   IDL_RETCODE_OK,                  {false} },  //default (not optional)
+    {"struct s { @optional char c; };",                         IDL_RETCODE_OK,                  {true} },  //implicit true
+    {"struct s { @optional(false) char c; };",                  IDL_RETCODE_OK,                  {false} },  //explicit false
+    {"struct s { @optional(true) char c; };",                   IDL_RETCODE_OK,                  {true} },  //explicit true
+    {"struct s { @optional(true) char c_1, c_2; char c_3; };",  IDL_RETCODE_OK,                  {true, false} },  //set on both declarators
+    {"struct s { @optional sequence<double> s_d; };",           IDL_RETCODE_OK,                  {true} },  //set on sequence
+    {"typedef sequence<long> seq_long;\n"
+     "struct s { @optional seq_long s_l_a[15]; };",             IDL_RETCODE_OK,                  {true} },  //set on typedef
+    {"struct s { @optional @key char c; };",                    IDL_RETCODE_SEMANTIC_ERROR,      {0} }, //optional not allowed on key members
+    {"@optional struct s { char c; };",                         IDL_RETCODE_SEMANTIC_ERROR,      {0} }, //only allowed on member declarators
+    {"enum e {  e_0, @optional e_1};",                          IDL_RETCODE_SEMANTIC_ERROR,      {0} }  //only allowed on members
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+    test_optional(tests[i]);
+  }
+}
+
 CU_Test(idl_annotation, key)
 {
   idl_retcode_t ret;
