@@ -522,7 +522,12 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     } 
   }
 
+  // ddsi_wr->as can be changed by the matching/unmatching of proxy readers if we don't hold the lock
+  // it is rather unfortunate that this then means we have to lock here to check, then lock again to
+  // actually distribute the data, so some further refactoring is needed.
+  ddsrt_mutex_lock (&ddsi_wr->e.lock);
   bool no_network_readers = addrset_empty (ddsi_wr->as);
+  ddsrt_mutex_unlock (&ddsi_wr->e.lock);
   bool use_only_iceoryx = iceoryx_available && no_network_readers;
 
   // iceoryx_available implies volatile 
