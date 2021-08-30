@@ -97,6 +97,7 @@ if(BUILD_DOCS)
     "__attribute__="
     "__declspec(x)="
     "DDS_EXPORT="
+    "DDS_INLINE_EXPORT="
     "DDS_DEPRECATED_EXPORT="
     "DDSRT_STATIC_ASSERT(x)=")
   find_package(Doxygen REQUIRED)
