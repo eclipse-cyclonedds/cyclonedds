@@ -282,6 +282,7 @@ struct idl_member {
   idl_declarator_t *declarators;
   /* metadata */
   IDL_ANNOTATABLE(bool) key;
+  IDL_ANNOTATABLE(bool) optional;
   IDL_ANNOTATABLE(uint32_t) id;
 };
 

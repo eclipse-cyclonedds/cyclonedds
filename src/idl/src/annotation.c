@@ -130,6 +130,40 @@ annotate_autoid(
 }
 
 static idl_retcode_t
+annotate_optional(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+  const idl_const_expr_t *const_expr;
+  idl_member_t *mem = (idl_member_t*)node;
+  bool value = true;
+
+  assert(annotation_appl);
+
+  if (!idl_is_member(node)) {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@optional can only be assigned to members");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  } else if (mem->key.value) {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@optional cannot be assigned to key members");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  if (annotation_appl->parameters) {
+    const_expr = annotation_appl->parameters->const_expr;
+    assert(const_expr);
+    value = ((const idl_literal_t*)const_expr)->value.bln;
+  }
+
+  mem->optional.annotation = annotation_appl;
+  mem->optional.value = value;
+
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
 annotate_value(
   idl_pstate_t *pstate,
   idl_annotation_appl_t *annotation_appl,
@@ -250,8 +284,13 @@ annotate_key(
   }
 
   if (idl_mask(node) & IDL_MEMBER) {
-    ((idl_member_t *)node)->key.annotation = annotation_appl;
-    ((idl_member_t *)node)->key.value = key;
+    if (((idl_member_t*)node)->optional.value) {
+      idl_error(pstate, idl_location(annotation_appl),
+        "@key cannot be applied to optional members");
+      return IDL_RETCODE_SEMANTIC_ERROR;
+    }
+    ((idl_member_t*)node)->key.annotation = annotation_appl;
+    ((idl_member_t*)node)->key.value = key;
   } else if (idl_mask(node) & IDL_SWITCH_TYPE_SPEC) {
     ((idl_switch_type_spec_t *)node)->key.annotation = annotation_appl;
     ((idl_switch_type_spec_t *)node)->key.value = key;
@@ -430,12 +469,11 @@ static const idl_builtin_annotation_t annotations[] = {
       "instructs to automatically allocate identifiers to elements that have "
       "not been assigned a 32-bit unsigned identifiers explicitly.</p>",
     .callback = &annotate_autoid },
-#if 0
   { .syntax = "@annotation optional { boolean value default TRUE; };",
     .summary =
-      "<p>Set optionality on any element that makes sense to be optional.</p>",
-    .callback = annotate_optional },
-#endif
+      "<p>Indicates that the annotated member may be in a NULL state, not"
+      "containing any value.</p>",
+    .callback = &annotate_optional },
   { .syntax = "@annotation value { any value; };",
     .summary =
       "<p>Set a constant value to any element that may be given a constant "
