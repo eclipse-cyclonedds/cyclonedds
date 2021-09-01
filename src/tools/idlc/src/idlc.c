@@ -46,6 +46,7 @@
 static struct {
   char *file; /* path of input file or "-" for STDIN */
   const char *lang;
+  const char *outdir;
   int compile;
   int preprocess;
   int keylist;
@@ -285,6 +286,12 @@ static idl_retcode_t idlc_parse(void)
       idl_delete_pstate(pstate);
       return IDL_RETCODE_NO_MEMORY;
     }
+    if (config.outdir) {
+      if (!(pstate->outdir = idl_strdup(config.outdir))) {
+        idl_delete_pstate(pstate);
+        return IDL_RETCODE_NO_MEMORY;
+      }
+    }
     source->parent = NULL;
     source->previous = source->next = NULL;
     source->includes = NULL;
@@ -463,6 +470,9 @@ static const idlc_option_t *compopts[] = {
   &(idlc_option_t){
     IDLC_STRING, { .string = &config.lang }, 'l', "", "<language>",
     "Compile representation for <language>. (default:c)." },
+  &(idlc_option_t){
+    IDLC_STRING, { .string = &config.outdir }, 'd', "", "<directory>",
+    "Specify the location where to place the generated files." },
   &(idlc_option_t){
     IDLC_FLAG, { .flag = &config.version }, 'v', "", "",
     "Display version information." },

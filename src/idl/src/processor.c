@@ -226,6 +226,7 @@ void idl_delete_pstate(idl_pstate_t *pstate)
     /* buffer */
     if (pstate->buffer.data)
       free(pstate->buffer.data);
+    free(pstate->outdir);
     free(pstate);
   }
 }

@@ -56,6 +56,7 @@ struct idl_pstate {
   idl_file_t *paths; /**< normalized paths used in include statements */
   idl_file_t *files; /**< filenames used in #line directives */
   idl_source_t *sources;
+  char *outdir; /**< output directory */
   idl_scope_t *global_scope, *annotation_scope, *scope;
   void *directive;
   idl_node_t *builtin_root, *root;
