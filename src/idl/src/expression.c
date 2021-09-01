@@ -970,9 +970,9 @@ compare_enum(const idl_const_expr_t *lhs, const idl_const_expr_t *rhs)
   assert(idl_is_enumerator(rval));
   if (lval->node.parent != rval->node.parent)
     return IDL_MISMATCH; /* incompatible enums */
-  if (lval->value < rval->value)
+  if (lval->value.value < rval->value.value)
     return IDL_LESS;
-  if (lval->value > rval->value)
+  if (lval->value.value > rval->value.value)
     return IDL_GREATER;
   return IDL_EQUAL;
 }

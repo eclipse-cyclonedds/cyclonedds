@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "idl/processor.h"
+#include "idl/string.h"
 #include "annotation.h"
 #include "expression.h"
 #include "hashid.h"
@@ -28,15 +29,12 @@ annotate_id(
   idl_annotation_appl_t *annotation_appl,
   idl_node_t *node)
 {
-#if !defined(NDEBUG)
-  static const idl_mask_t mask = IDL_LITERAL|IDL_ULONG;
-#endif
   idl_literal_t *literal;
 
   assert(annotation_appl);
   assert(annotation_appl->parameters);
   literal = (idl_literal_t *)annotation_appl->parameters->const_expr;
-  assert((idl_mask(literal) & mask) == mask);
+  assert(idl_mask(literal) == (IDL_LITERAL|IDL_ULONG));
 
   if (idl_mask(node) & IDL_MEMBER) {
     idl_member_t *member = (idl_member_t *)node;
@@ -44,12 +42,12 @@ annotate_id(
       idl_error(pstate, idl_location(annotation_appl),
         "@id cannot be applied to members with multiple declarators");
       return IDL_RETCODE_SEMANTIC_ERROR;
-    } else if (member->id.annotation != IDL_AUTOID) {
+    } else if (member->id.annotation) {
       idl_error(pstate, idl_location(annotation_appl),
         "@id conflicts with earlier annotation");
       return IDL_RETCODE_SEMANTIC_ERROR;
     }
-    member->id.annotation = IDL_ID;
+    member->id.annotation = annotation_appl;
     member->id.value = literal->value.uint32;
   } else {
     idl_error(pstate, idl_location(annotation_appl),
@@ -70,11 +68,8 @@ annotate_hashid(
 
   assert(annotation_appl);
   if (annotation_appl->parameters) {
-#if !defined(NDEBUG)
-    static const idl_mask_t mask = IDL_LITERAL|IDL_STRING;
-#endif
     idl_literal_t *literal = annotation_appl->parameters->const_expr;
-    assert((idl_mask(literal) & mask) == mask);
+    assert(idl_mask(literal) == (IDL_LITERAL|IDL_STRING));
     name = literal->value.str;
   }
 
@@ -84,14 +79,14 @@ annotate_hashid(
       idl_error(pstate, idl_location(annotation_appl),
         "@hashid cannot be applied to members with multiple declarators");
       return IDL_RETCODE_SEMANTIC_ERROR;
-    } else if (member->id.annotation != IDL_AUTOID) {
+    } else if (member->id.annotation) {
       idl_error(pstate, idl_location(annotation_appl),
         "@hashid conflicts with earlier annotation");
       return IDL_RETCODE_SEMANTIC_ERROR;
     }
     if (!name)
       name = member->declarators->name->identifier;
-    member->id.annotation = IDL_ID;
+    member->id.annotation = annotation_appl;
     member->id.value = idl_hashid(name);
   } else {
     idl_error(pstate, idl_location(annotation_appl),
@@ -108,7 +103,7 @@ annotate_autoid(
   idl_annotation_appl_t *annotation_appl,
   idl_node_t *node)
 {
-  idl_autoid_t autoid = IDL_AUTOID_HASH;
+  idl_autoid_t autoid = IDL_HASH;
   const char *enumerator;
 
   assert(annotation_appl);
@@ -116,14 +111,15 @@ annotate_autoid(
   if (annotation_appl->parameters) {
     enumerator = idl_identifier(annotation_appl->parameters->const_expr);
     if (strcmp(enumerator, "HASH") == 0) {
-      autoid = IDL_AUTOID_HASH;
+      autoid = IDL_HASH;
     } else if (strcmp(enumerator, "SEQUENTIAL") == 0) {
-      autoid = IDL_AUTOID_SEQUENTIAL;
+      autoid = IDL_SEQUENTIAL;
     }
   }
 
   if (idl_is_struct(node)) {
-    ((idl_struct_t *)node)->autoid = autoid;
+    ((idl_struct_t *)node)->autoid.annotation = annotation_appl;
+    ((idl_struct_t *)node)->autoid.value = autoid;
   } else {
     idl_error(pstate, idl_location(annotation_appl),
       "@autoid cannot be applied to '%s' elements", idl_construct(node));
@@ -177,7 +173,8 @@ annotate_value(
     return IDL_RETCODE_SEMANTIC_ERROR;
   }
 
-  ((idl_enumerator_t *)node)->value = value;
+  ((idl_enumerator_t *)node)->value.annotation = annotation_appl;
+  ((idl_enumerator_t *)node)->value.value = value;
   return IDL_RETCODE_OK;
 }
 
@@ -187,47 +184,54 @@ annotate_extensibility(
   idl_annotation_appl_t *annotation_appl,
   idl_node_t *node)
 {
-  idl_extensibility_t extensibility = IDL_EXTENSIBILITY_FINAL;
+  const idl_annotation_appl_t **annotationp = NULL;
+  idl_extensibility_t *extensibilityp = NULL, extensibility = IDL_FINAL;
   const char *annotation;
 
   assert(annotation_appl);
-  annotation = idl_identifier(annotation_appl->annotation);
+  annotation = idl_identifier(annotation_appl);
   assert(annotation);
-
-  if (strcmp(annotation, "final") == 0) {
-    extensibility = IDL_EXTENSIBILITY_FINAL;
-  } else if (strcmp(annotation, "appendable") == 0) {
-    extensibility = IDL_EXTENSIBILITY_APPENDABLE;
-  } else if (strcmp(annotation, "mutable") == 0) {
-    extensibility = IDL_EXTENSIBILITY_MUTABLE;
-  } else if (strcmp(annotation, "extensibility") == 0) {
-    const char *enumerator = "";
-
+  if (idl_strcasecmp(annotation, "extensibility") == 0) {
     assert(annotation_appl->parameters);
     assert(annotation_appl->parameters->const_expr);
-    enumerator = idl_identifier(annotation_appl->parameters->const_expr);
-    assert(enumerator);
-    if (strcmp(enumerator, "FINAL") == 0) {
-      extensibility = IDL_EXTENSIBILITY_FINAL;
-    } else if (strcmp(enumerator, "APPENDABLE") == 0) {
-      extensibility = IDL_EXTENSIBILITY_APPENDABLE;
-    } else if (strcmp(enumerator, "MUTABLE") == 0) {
-      extensibility = IDL_EXTENSIBILITY_MUTABLE;
-    }
+    annotation = idl_identifier(annotation_appl->parameters->const_expr);
+    assert(annotation);
   }
 
   if (idl_is_struct(node)) {
-    ((idl_struct_t *)node)->extensibility = extensibility;
+    annotationp = &((idl_struct_t *)node)->extensibility.annotation;
+    extensibilityp = &((idl_struct_t *)node)->extensibility.value;
   } else if (idl_is_union(node)) {
-    ((idl_union_t *)node)->extensibility = extensibility;
+    annotationp = &((idl_union_t *)node)->extensibility.annotation;
+    extensibilityp = &((idl_union_t *)node)->extensibility.value;
   } else if (idl_is_enum(node)) {
-    ((idl_enum_t *)node)->extensibility = extensibility;
-  } else {
+    annotationp = &((idl_enum_t *)node)->extensibility.annotation;
+    extensibilityp = &((idl_enum_t *)node)->extensibility.value;
+  }
+
+  assert(!annotationp == !extensibilityp);
+
+  if (!annotationp) {
     idl_error(pstate, idl_location(annotation_appl),
       "@%s can only be applied to constructed types", annotation);
     return IDL_RETCODE_SEMANTIC_ERROR;
+  } else if (*annotationp) {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@%s clashes with an earlier annotation", annotation);
+    return IDL_RETCODE_SEMANTIC_ERROR;
   }
 
+  if (idl_strcasecmp(annotation, "appendable") == 0) {
+    extensibility = IDL_APPENDABLE;
+  } else if (idl_strcasecmp(annotation, "mutable") == 0) {
+    extensibility = IDL_MUTABLE;
+  } else {
+    assert(idl_strcasecmp(annotation, "final") == 0);
+    extensibility = IDL_FINAL;
+  }
+
+  *annotationp = annotation_appl;
+  *extensibilityp = extensibility;
   return IDL_RETCODE_OK;
 }
 
@@ -237,27 +241,68 @@ annotate_key(
   idl_annotation_appl_t *annotation_appl,
   idl_node_t *node)
 {
-  idl_boolean_t key = IDL_TRUE;
+  bool key = true;
 
   if (annotation_appl->parameters) {
-#if !defined(NDEBUG)
-    static const idl_mask_t mask = IDL_LITERAL|IDL_BOOL;
-#endif
     idl_literal_t *literal = annotation_appl->parameters->const_expr;
-    assert((idl_mask(literal) & mask) == mask);
-    key = literal->value.bln ? IDL_TRUE : IDL_FALSE;
+    assert(idl_mask(literal) == (IDL_LITERAL|IDL_BOOL));
+    key = literal->value.bln;
   }
 
   if (idl_mask(node) & IDL_MEMBER) {
-    ((idl_member_t *)node)->key = key;
+    ((idl_member_t *)node)->key.annotation = annotation_appl;
+    ((idl_member_t *)node)->key.value = key;
   } else if (idl_mask(node) & IDL_SWITCH_TYPE_SPEC) {
-    ((idl_switch_type_spec_t *)node)->key = key;
+    ((idl_switch_type_spec_t *)node)->key.annotation = annotation_appl;
+    ((idl_switch_type_spec_t *)node)->key.value = key;
   } else {
     idl_error(pstate, idl_location(annotation_appl),
       "@key can only be applied to members of constructed types");
     return IDL_RETCODE_SEMANTIC_ERROR;
   }
 
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+set_nested(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node,
+  bool nested)
+{
+  const idl_annotation_appl_t **annotationp = NULL;
+  bool *nestedp = NULL;
+  const char *annotation;
+
+  annotation = idl_identifier(annotation_appl->annotation);
+  assert(annotation);
+
+  if (idl_is_struct(node)) {
+    annotationp = &((idl_struct_t *)node)->nested.annotation;
+    nestedp = &((idl_struct_t *)node)->nested.value;
+  } else if (idl_is_union(node)) {
+    annotationp = &((idl_union_t *)node)->nested.annotation;
+    nestedp = &((idl_union_t *)node)->nested.value;
+  }
+
+  if (!annotationp) {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@%s cannot be applied to %s elements", annotation, idl_construct(node));
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  } else if (*annotationp) {
+    if (annotation_appl->annotation == (*annotationp)->annotation) {
+      idl_error(pstate, idl_location(annotation_appl),
+        "@%s clashes with an earlier annotation", annotation);
+      return IDL_RETCODE_SEMANTIC_ERROR;
+    /* @topic overrides @nested, short-circuit on @nested */
+    } else if (idl_identifier_is(annotation_appl->annotation, "nested")) {
+      return IDL_RETCODE_OK;
+    }
+  }
+
+  *annotationp = annotation_appl;
+  *nestedp = nested;
   return IDL_RETCODE_OK;
 }
 
@@ -270,33 +315,12 @@ annotate_nested(
   bool nested = true;
 
   if (annotation_appl->parameters) {
-#if !defined(NDEBUG)
-    static const idl_mask_t mask = IDL_LITERAL|IDL_BOOL;
-#endif
     idl_literal_t *literal = annotation_appl->parameters->const_expr;
-    assert((idl_mask(literal) & mask) == mask);
+    assert(idl_mask(literal) == (IDL_LITERAL|IDL_BOOL));
     nested = literal->value.bln;
   }
 
-  if (idl_is_struct(node)) {
-    /* @topic overrides @nested */
-    if (((idl_struct_t *)node)->nested.annotation == IDL_TOPIC)
-      return IDL_RETCODE_OK;
-    ((idl_struct_t *)node)->nested.annotation = IDL_NESTED;
-    ((idl_struct_t *)node)->nested.value = nested;
-  } else if (idl_is_union(node)) {
-    /* @topic overrides @nested */
-    if (((idl_union_t *)node)->nested.annotation == IDL_TOPIC)
-      return IDL_RETCODE_OK;
-    ((idl_union_t *)node)->nested.annotation = IDL_NESTED;
-    ((idl_union_t *)node)->nested.value = nested;
-  } else {
-    idl_error(pstate, idl_location(annotation_appl),
-      "@nested cannot be applied to %s elements", idl_construct(node));
-    return IDL_RETCODE_SEMANTIC_ERROR;
-  }
-
-  return IDL_RETCODE_OK;
+  return set_nested(pstate, annotation_appl, node, nested);
 }
 
 static idl_retcode_t
@@ -306,16 +330,13 @@ annotate_topic(
   idl_node_t *node)
 {
   const char *platform = "*"; /* default is any platform */
-  const char *identifier;
-  const idl_annotation_appl_param_t *parameter;
+  const idl_annotation_appl_param_t *p;
 
-  IDL_FOREACH(parameter, annotation_appl->parameters) {
-    identifier = idl_identifier(parameter->member);
-    assert(identifier);
-    if (strcmp(identifier, "platform") != 0)
+  for (p = annotation_appl->parameters; p; p = idl_next(p)) {
+    if (!idl_identifier_is(p->member, "platform"))
       continue;
-    assert(idl_mask(parameter->const_expr) & IDL_STRING);
-    platform = ((idl_literal_t *)parameter->const_expr)->value.str;
+    assert(idl_mask(p->const_expr) == (IDL_LITERAL|IDL_STRING));
+    platform = ((idl_literal_t *)p->const_expr)->value.str;
     break;
   }
 
@@ -323,23 +344,11 @@ annotate_topic(
   if (strcmp(platform, "*") != 0 && strcmp(platform, "DDS") != 0)
     return IDL_RETCODE_OK;
 
-  if (idl_is_struct(node)) {
-    ((idl_struct_t *)node)->nested.annotation = IDL_TOPIC;
-    ((idl_struct_t *)node)->nested.value = false;
-  } else if (idl_is_union(node)) {
-    ((idl_union_t *)node)->nested.annotation = IDL_TOPIC;
-    ((idl_union_t *)node)->nested.value = false;
-  } else {
-    idl_error(pstate, idl_location(annotation_appl),
-      "@topic can only be applied to constructed types");
-    return IDL_RETCODE_SEMANTIC_ERROR;
-  }
-
-  return IDL_RETCODE_OK;
+  return set_nested(pstate, annotation_appl, node, false);
 }
 
 static idl_retcode_t
-annotate_implicitly_nested(void *node)
+set_implicitly_nested(void *node)
 {
   idl_retcode_t ret = IDL_RETCODE_OK;
 
@@ -353,9 +362,12 @@ annotate_implicitly_nested(void *node)
       if (!((idl_union_t *)node)->nested.annotation)
         ((idl_union_t *)node)->nested.value = true;
     } else if (idl_is_module(node)) {
+      idl_module_t *module = node;
       /* skip if annotated with @default_nested before */
-      if (!((idl_module_t *)node)->default_nested)
-        ret = annotate_implicitly_nested(((idl_module_t *)node)->definitions);
+      if (module->default_nested.annotation)
+        continue;
+      module->default_nested.value = true;
+      ret = set_implicitly_nested(module->definitions);
     }
   }
 
@@ -368,26 +380,24 @@ annotate_default_nested(
   idl_annotation_appl_t *annotation_appl,
   idl_node_t *node)
 {
-  idl_boolean_t default_nested = IDL_TRUE;
+  bool default_nested = true;
 
   if (annotation_appl->parameters) {
-#if !defined(NDEBUG)
-    static const idl_mask_t mask = IDL_LITERAL|IDL_BOOL;
-#endif
     idl_literal_t *literal = annotation_appl->parameters->const_expr;
-    assert((idl_mask(literal) & mask) == mask);
-    default_nested = literal->value.bln ? IDL_TRUE : IDL_FALSE;
+    assert(idl_mask(literal) == (IDL_LITERAL|IDL_BOOL));
+    default_nested = literal->value.bln;
   }
 
   if ((idl_mask(node) & IDL_MODULE)) {
     idl_module_t *module = (idl_module_t *)node;
-    if (module->default_nested == IDL_DEFAULT) {
-      module->default_nested = default_nested;
-      if (module->default_nested != IDL_TRUE)
+    if (!module->default_nested.annotation) {
+      module->default_nested.annotation = annotation_appl;
+      module->default_nested.value = default_nested;
+      if (!module->default_nested.value)
         return IDL_RETCODE_OK;
       /* annotate all embedded structs and unions implicitly nested unless
          explicitly annotated with either @nested or @topic */
-      return annotate_implicitly_nested(module->definitions);
+      return set_implicitly_nested(module->definitions);
     } else {
       idl_error(pstate, idl_location(annotation_appl),
         "@default_nested conflicts with earlier annotation");
@@ -423,7 +433,7 @@ static const idl_builtin_annotation_t annotations[] = {
 #if 0
   { .syntax = "@annotation optional { boolean value default TRUE; };",
     .summary =
-      "<p>Set optionality on any element that makes to be optional.</p>",
+      "<p>Set optionality on any element that makes sense to be optional.</p>",
     .callback = annotate_optional },
 #endif
   { .syntax = "@annotation value { any value; };",
