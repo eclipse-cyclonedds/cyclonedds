@@ -65,7 +65,7 @@ CU_Test(idl_annotation, id_member)
   CU_ASSERT_PTR_NOT_NULL(c);
   assert(c);
   CU_ASSERT_FATAL(idl_is_member(c));
-  CU_ASSERT_EQUAL(c->id.annotation, IDL_ID);
+  CU_ASSERT_STRING_EQUAL(idl_identifier(c->id.annotation), "id");
   CU_ASSERT_EQUAL(c->id.value, 1);
   idl_delete_pstate(pstate);
 }
@@ -92,17 +92,21 @@ CU_Test(idl_annotation, key)
   assert(s);
   m = (idl_member_t *)s->members;
   CU_ASSERT_FATAL(idl_is_member(m));
-  CU_ASSERT_EQUAL(m->key, IDL_TRUE);
+  CU_ASSERT_PTR_NOT_NULL(m->key.annotation);
+  CU_ASSERT(m->key.value == true);
   assert(m);
   m = idl_next(m);
   CU_ASSERT_FATAL(idl_is_member(m));
-  CU_ASSERT_EQUAL(m->key, IDL_TRUE);
+  CU_ASSERT_PTR_NOT_NULL(m->key.annotation);
+  CU_ASSERT(m->key.value == true);
   m = idl_next(m);
   CU_ASSERT_FATAL(idl_is_member(m));
-  CU_ASSERT_EQUAL(m->key, IDL_FALSE);
+  CU_ASSERT_PTR_NOT_NULL(m->key.annotation);
+  CU_ASSERT(m->key.value == false);
   m = idl_next(m);
   CU_ASSERT_FATAL(idl_is_member(m));
-  CU_ASSERT_EQUAL(m->key, IDL_DEFAULT);
+  CU_ASSERT_PTR_NULL(m->key.annotation);
+  CU_ASSERT(m->key.value == false);
   idl_delete_pstate(pstate);
 }
 
@@ -122,19 +126,19 @@ CU_Test(idl_annotation, nested)
   assert(pstate);
   s = (idl_struct_t *)pstate->root;
   CU_ASSERT_FATAL(idl_is_struct(s));
-  CU_ASSERT_EQUAL(s->nested.annotation, IDL_DEFAULT_NESTED);
+  CU_ASSERT_PTR_NULL(s->nested.annotation);
   CU_ASSERT(s->nested.value == false);
   s = idl_next(s);
   CU_ASSERT_FATAL(idl_is_struct(s));
-  CU_ASSERT_EQUAL(s->nested.annotation, IDL_NESTED);
+  CU_ASSERT_PTR_NOT_NULL(s->nested.annotation);
   CU_ASSERT(s->nested.value == true);
   s = idl_next(s);
   CU_ASSERT_FATAL(idl_is_struct(s));
-  CU_ASSERT_EQUAL(s->nested.annotation, IDL_NESTED);
+  CU_ASSERT_PTR_NOT_NULL(s->nested.annotation);
   CU_ASSERT(s->nested.value == true);
   s = idl_next(s);
   CU_ASSERT_FATAL(idl_is_struct(s));
-  CU_ASSERT_EQUAL(s->nested.annotation, IDL_NESTED);
+  CU_ASSERT_PTR_NOT_NULL(s->nested.annotation);
   CU_ASSERT(s->nested.value == false);
   idl_delete_pstate(pstate);
 }
@@ -154,15 +158,16 @@ CU_Test(idl_annotation, topic)
 {
   static const struct {
     const char *s;
-    idl_nested_t n;
+    const char *a;
+    bool v;
   } tests[] = {
-    {                   S("s1"), {0,0} },
-    {               N() S("s1"), {1,1} },
-    { T()               S("s1"), {2,0} },
-    { T()           N() S("s1"), {2,0} },
-    { T(P("!DDS"))      S("s1"), {0,0} },
-    { T(P("DDS"))       S("s1"), {2,0} },
-    { T(P("!DDS"))  N() S("s1"), {1,1} }
+    {                   S("s1"), NULL,     false },
+    {               N() S("s1"), "nested", true  },
+    { T()               S("s1"), "topic",  false },
+    { T()           N() S("s1"), "topic",  false },
+    { T(P("!DDS"))      S("s1"), NULL,     false },
+    { T(P("DDS"))       S("s1"), "topic",  false },
+    { T(P("!DDS"))  N() S("s1"), "nested", true  }
   };
 
   static const size_t n = sizeof(tests)/sizeof(tests[0]);
@@ -176,9 +181,12 @@ CU_Test(idl_annotation, topic)
     ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].s, &pstate);
     CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
     if (ret == IDL_RETCODE_OK) {
+      const char *a;
       s = (idl_struct_t *)pstate->root;
       CU_ASSERT_FATAL(idl_is_struct(s));
-      CU_ASSERT(memcmp(&s->nested, &tests[i].n, sizeof(s->nested)) == 0);
+      a = idl_identifier(s->nested.annotation);
+      CU_ASSERT((a == NULL) == (tests[i].a == NULL) && (a == NULL || strcmp(a, tests[i].a) == 0));
+      CU_ASSERT(s->nested.value == tests[i].v);
     }
     idl_delete_pstate(pstate);
   }
@@ -188,14 +196,14 @@ CU_Test(idl_annotation, default_nested)
 {
   static const struct {
     const char *str;
-    idl_boolean_t dn[3];
-    idl_nested_t n[2];
+    struct { bool a; bool v; } dn[3];
+    struct { bool a; bool v; } n[2];
   } tests[] = {
-    {         M("m1",         M("m2",        S("s1")) M("m3", S("s2"))), {0,0,0}, {{0,0},{0,0}} },
-    { DN()    M("m1",         M("m2",        S("s1")) M("m3", S("s2"))), {2,0,0}, {{0,1},{0,1}} },
-    { DN()    M("m1", DN(NO)  M("m2",        S("s1")) M("m3", S("s2"))), {2,1,0}, {{0,0},{0,1}} },
-    { DN(NO)  M("m1", DN(YES) M("m2",        S("s1")) M("m3", S("s2"))), {1,2,0}, {{0,1},{0,0}} },
-    { DN(YES) M("m1",         M("m2", N(NO)  S("s1")) M("m3", S("s2"))), {2,0,0}, {{1,0},{0,1}} }
+    {         M("m1",         M("m2",        S("s1")) M("m3", S("s2"))), {{0,0},{0,0},{0,0}}, {{0,0},{0,0}} },
+    { DN()    M("m1",         M("m2",        S("s1")) M("m3", S("s2"))), {{1,1},{0,1},{0,1}}, {{0,1},{0,1}} },
+    { DN()    M("m1", DN(NO)  M("m2",        S("s1")) M("m3", S("s2"))), {{1,1},{1,0},{0,1}}, {{0,0},{0,1}} },
+    { DN(NO)  M("m1", DN(YES) M("m2",        S("s1")) M("m3", S("s2"))), {{1,0},{1,1},{0,0}}, {{0,1},{0,0}} },
+    { DN(YES) M("m1",         M("m2", N(NO)  S("s1")) M("m3", S("s2"))), {{1,1},{0,1},{0,1}}, {{1,0},{0,1}} }
   };
 
   static const size_t n = sizeof(tests)/sizeof(tests[0]);
@@ -212,19 +220,24 @@ CU_Test(idl_annotation, default_nested)
     if (ret == IDL_RETCODE_OK) {
       m = (idl_module_t *)pstate->root;
       CU_ASSERT_FATAL(idl_is_module(m));
-      CU_ASSERT_EQUAL(m->default_nested, tests[i].dn[0]);
+      CU_ASSERT(!tests[i].dn[0].a == !m->default_nested.annotation);
+      CU_ASSERT_EQUAL(m->default_nested.value, tests[i].dn[0].v);
       m = m->definitions;
       CU_ASSERT_FATAL(idl_is_module(m));
-      CU_ASSERT_EQUAL(m->default_nested, tests[i].dn[1]);
+      CU_ASSERT(!tests[i].dn[1].a == !m->default_nested.annotation);
+      CU_ASSERT_EQUAL(m->default_nested.value, tests[i].dn[1].v);
       s = m->definitions;
       CU_ASSERT_FATAL(idl_is_struct(s));
-      CU_ASSERT(memcmp(&s->nested, &tests[i].n[0], sizeof(s->nested)) == 0);
+      CU_ASSERT(!tests[i].n[0].a == !s->nested.annotation);
+      CU_ASSERT(s->nested.value == tests[i].n[0].v);
       m = idl_next(m);
       CU_ASSERT_FATAL(idl_is_module(m));
-      CU_ASSERT_EQUAL(m->default_nested, tests[i].dn[2]);
+      CU_ASSERT(!tests[i].dn[2].a == !m->default_nested.annotation);
+      CU_ASSERT_EQUAL(m->default_nested.value, tests[i].dn[2].v);
       s = m->definitions;
       CU_ASSERT_FATAL(idl_is_struct(s));
-      CU_ASSERT(memcmp(&s->nested, &tests[i].n[1], sizeof(s->nested)) == 0);
+      CU_ASSERT(!tests[i].n[1].a == !s->nested.annotation);
+      CU_ASSERT(s->nested.value == tests[i].n[1].v);
     }
     idl_delete_pstate(pstate);
   }
@@ -343,12 +356,12 @@ CU_Test(idl_annotation, struct_extensibility)
     const char *str;
     enum idl_extensibility ext;
   } tests[] = {
-    { A("@final"), IDL_EXTENSIBILITY_FINAL },
-    { A("@appendable"), IDL_EXTENSIBILITY_APPENDABLE },
-    { A("@mutable"), IDL_EXTENSIBILITY_MUTABLE},
-    { A("@extensibility(FINAL)"), IDL_EXTENSIBILITY_FINAL },
-    { A("@extensibility(APPENDABLE)"), IDL_EXTENSIBILITY_APPENDABLE },
-    { A("@extensibility(MUTABLE)"), IDL_EXTENSIBILITY_MUTABLE},
+    { A("@final"), IDL_FINAL },
+    { A("@appendable"), IDL_APPENDABLE },
+    { A("@mutable"), IDL_MUTABLE},
+    { A("@extensibility(FINAL)"), IDL_FINAL },
+    { A("@extensibility(APPENDABLE)"), IDL_APPENDABLE },
+    { A("@extensibility(MUTABLE)"), IDL_MUTABLE},
   };
   static const size_t n = sizeof(tests)/sizeof(tests[0]);
 
@@ -366,7 +379,7 @@ CU_Test(idl_annotation, struct_extensibility)
     CU_ASSERT_PTR_NOT_NULL_FATAL(s);
     assert(s);
     CU_ASSERT_FATAL(idl_is_struct(s));
-    CU_ASSERT_EQUAL(s->extensibility, tests[i].ext);
+    CU_ASSERT_EQUAL(s->extensibility.value, tests[i].ext);
     idl_delete_pstate(pstate);
   }
 }

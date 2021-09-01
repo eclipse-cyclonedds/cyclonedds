@@ -147,6 +147,8 @@ const idl_name_t *idl_name(const void *node)
     return ((const idl_declarator_t *)node)->name;
   if (idl_mask(node) & IDL_CONST)
     return ((const idl_const_t *)node)->name;
+  if (idl_mask(node) & IDL_ANNOTATION_APPL)
+    node = ((const idl_annotation_appl_t *)node)->annotation;
   if (idl_mask(node) & IDL_ANNOTATION)
     return ((const idl_annotation_t *)node)->name;
   if (idl_mask(node) & IDL_ANNOTATION_MEMBER)
@@ -163,6 +165,16 @@ const char *idl_identifier(const void *node)
 {
   const idl_name_t *name = idl_name(node);
   return name ? name->identifier : NULL;
+}
+
+bool idl_identifier_is(const void *node, const char *identifier)
+{
+  if (!identifier)
+    return false;
+  const char *str = idl_identifier(node);
+  if (!str || strcmp(str, identifier) != 0)
+    return false;
+  return true;
 }
 
 void *idl_ancestor(const void *node, size_t levels)
@@ -1990,19 +2002,13 @@ idl_create_enum(
   node->enumerators = enumerators;
   for (idl_enumerator_t *e1 = enumerators; e1; e1 = idl_next(e1), value++) {
     e1->node.parent = (idl_node_t*)node;
-
-    for (idl_annotation_appl_t *a = e1->node.annotations; a; a = idl_next(a)) {
-      assert(a->annotation);
-      if (strcmp(a->annotation->name->identifier, "value") != 0)
-        continue;
-      value = e1->value;
-      break;
-    }
-    e1->value = value;
+    if (e1->value.annotation)
+      value = e1->value.value;
+    e1->value.value = value;
     for (idl_enumerator_t *e2 = enumerators; e2; e2 = idl_next(e2)) {
       if (e2 == e1)
         break;
-      if (e2->value != e1->value)
+      if (e2->value.value != e1->value.value)
         continue;
       idl_error(pstate, idl_location(e1),
         "Value of enumerator '%s' clashes with the value of enumerator '%s'",
@@ -2379,7 +2385,7 @@ enum_is_consistent(
     for (b = rhs->enumerators; b; b = idl_next(b))
       if (strcmp(idl_identifier(a), idl_identifier(b)) == 0)
         break;
-    if (!b || a->value != b->value)
+    if (!b || a->value.value != b->value.value)
       return false;
   }
 
@@ -2803,11 +2809,11 @@ static bool no_specific_key(const void *node)
   if (idl_mask(node) & IDL_STRUCT) {
     const idl_member_t *member = ((const idl_struct_t *)node)->members;
     for (; member; member = idl_next(member)) {
-      if (member->key == IDL_TRUE)
+      if (member->key.value)
         return false;
     }
   } else if (idl_mask(node) & IDL_UNION) {
-    if (((const idl_union_t*)node)->switch_type_spec->key == IDL_TRUE)
+    if (((const idl_union_t*)node)->switch_type_spec->key.value)
       return false;
   }
 
@@ -2844,7 +2850,7 @@ static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
       if (i != 0 && !idl_is_struct(path->nodes[i - 1]))
         return 0;
 
-      if (instance->key == IDL_TRUE)
+      if (instance->key.value)
         key = 1;
       /* possibly implicit @key, but only if no other members are explicitly
          annotated, an intermediate aggregate type has no explicitly annotated
@@ -2873,7 +2879,7 @@ static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
         return 0;
 
       /* possibly (implicit) @key, but only if last in path and not first */
-      if (instance->key == IDL_TRUE)
+      if (instance->key.value)
         key = (i == path->length - 1);
       else
         key = (i == path->length - 1) ? (i != 0) : 0;

@@ -174,51 +174,34 @@ struct idl_path {
   const idl_node_t **nodes;
 };
 
-typedef struct idl_id idl_id_t;
-struct idl_id {
-  enum {
-    IDL_AUTOID, /**< value assigned automatically */
-    IDL_ID, /**< value assigned by @id */
-    IDL_HASHID /**< value assigned by @hashid */
-  } annotation;
-  uint32_t value;
-};
-
 typedef enum idl_autoid idl_autoid_t;
 enum idl_autoid {
-  IDL_AUTOID_SEQUENTIAL,
-  IDL_AUTOID_HASH
+  IDL_SEQUENTIAL,
+  IDL_HASH
 };
 
 typedef enum idl_extensibility idl_extensibility_t;
 enum idl_extensibility {
-  IDL_EXTENSIBILITY_FINAL,
-  IDL_EXTENSIBILITY_APPENDABLE,
-  IDL_EXTENSIBILITY_MUTABLE
+  IDL_FINAL,
+  IDL_APPENDABLE,
+  IDL_MUTABLE
 };
 
-/* constructed types are not considered @nested types by default, implicitly
-   stating the intent to use it as a topic. extensible and dynamic topic types
-   added @default_nested and @topic to explicitly state the intent to use a
-   type as a topic. for ease of use, the sum-total is provided as a single
-   boolean */
-typedef struct idl_nested idl_nested_t;
-struct idl_nested {
-  enum {
-    IDL_DEFAULT_NESTED, /**< implicit through @default_nested (or not) */
-    IDL_NESTED, /**< annotated with @nested */
-    IDL_TOPIC /**< annotated with @topic (overrides @nested) */
-  } annotation;
-  bool value;
-};
-
-/* nullable boolean, like Boolean object in e.g. JavaScript or Java */
-typedef enum idl_boolean idl_boolean_t;
-enum idl_boolean {
-  IDL_DEFAULT,
-  IDL_FALSE,
-  IDL_TRUE
-};
+/* most types have convenience members for information that is shared between
+   generators or makes sense to calculate in advance. e.g. the field
+   identifier for struct members, which can be assigned through @id, @hashid,
+   be assigned a value based on @autoid or the lack thereof. enumerator values
+   are another good example. in both scenarios the value can be assigned
+   through one or multiple annotations or automatically assigned when the
+   enclosing scope is finalized. if the value is assigned through use of
+   annotations, it must not be overwritten later on. alternatively, if
+   conflicting annotations are used, it must be possible to throw an
+   exception. therefore, each value that can be assigned explicitly, keeps a
+   weak reference to the annotation, or is set to NULL. only annotations on
+   the construct itself may be referenced. e.g. @default_nested annotations
+   are only referenced by the annotated module, not by any subconstructs */
+#define IDL_ANNOTATABLE(type) \
+  struct { const struct idl_annotation_appl *annotation; type value; }
 
 /* annotations */
 
@@ -282,7 +265,7 @@ struct idl_module {
   idl_definition_t *definitions;
   const idl_module_t *previous; /**< previous module if module was reopened */
   /* metadata */
-  idl_boolean_t default_nested;
+  IDL_ANNOTATABLE(bool) default_nested;
 };
 
 typedef struct idl_declarator idl_declarator_t;
@@ -298,8 +281,8 @@ struct idl_member {
   idl_type_spec_t *type_spec;
   idl_declarator_t *declarators;
   /* metadata */
-  idl_boolean_t key;
-  idl_id_t id;
+  IDL_ANNOTATABLE(bool) key;
+  IDL_ANNOTATABLE(uint32_t) id;
 };
 
 /* types can inherit from and extend other types (interfaces, values and
@@ -335,10 +318,16 @@ struct idl_struct {
   struct idl_name *name;
   idl_member_t *members;
   /* metadata */
-  idl_nested_t nested; /**< if type is a topic (sum total of annotations) */
   idl_keylist_t *keylist; /**< if type is a topic (#pragma keylist) */
-  idl_autoid_t autoid;
-  idl_extensibility_t extensibility;
+  IDL_ANNOTATABLE(uint32_t) id;
+  IDL_ANNOTATABLE(idl_autoid_t) autoid;
+  /* constructed types are not considered @nested types by default, implicitly
+     stating the intent to use it as a topic. extensible and dynamic topic
+     types added @default_nested and @topic to explicitly state the intent to
+     use a type as a topic. for ease of use, the sum-total is provided as a
+     single boolean */
+  IDL_ANNOTATABLE(bool) nested;
+  IDL_ANNOTATABLE(idl_extensibility_t) extensibility;
 };
 
 typedef struct idl_case_label idl_case_label_t;
@@ -360,7 +349,7 @@ struct idl_switch_type_spec {
   idl_node_t node;
   idl_type_spec_t *type_spec;
   /* metadata */
-  idl_boolean_t key;
+  IDL_ANNOTATABLE(bool) key;
 };
 
 typedef struct idl_union idl_union_t;
@@ -371,14 +360,13 @@ struct idl_union {
   idl_case_t *cases;
   /* metadata */
   /* label associated with the default value for the discriminator. i.e.
-   * the first discriminant value if the entire range of the discriminator is
-   * covered, the default case if specified, or a spontaneously materialised
-   * implicit default case that does not reference any branch
-   */
+     the first discriminant value if the entire range of the discriminator is
+     covered, the default case if specified, or a spontaneously materialised
+     implicit default case that does not reference any branch */
   idl_case_label_t *default_case;
   uint64_t unused_labels; /**< number of unused labels */
-  idl_nested_t nested; /**< if type is topic (sum total of annotations) */
-  idl_extensibility_t extensibility;
+  IDL_ANNOTATABLE(bool) nested; /**< if type is nested or a topic */
+  IDL_ANNOTATABLE(idl_extensibility_t) extensibility;
 };
 
 typedef struct idl_enumerator idl_enumerator_t;
@@ -389,7 +377,7 @@ struct idl_enumerator {
   /* an enumeration must contain no more than 2^32 enumerators and must be
      mapped to a native data type capable of representing a maximally-sized
      enumeration */
-  uint32_t value;
+  IDL_ANNOTATABLE(uint32_t) value;
 };
 
 typedef struct idl_enum idl_enum_t;
@@ -397,7 +385,7 @@ struct idl_enum {
   idl_node_t node;
   struct idl_name *name;
   idl_enumerator_t *enumerators;
-  idl_extensibility_t extensibility;
+  IDL_ANNOTATABLE(idl_extensibility_t) extensibility;
 };
 
 typedef struct idl_typedef idl_typedef_t;
@@ -489,6 +477,7 @@ IDL_EXPORT idl_type_spec_t *idl_type_spec(const void *node);
    "forward struct" for modules and forward struct declarations respectively */
 IDL_EXPORT const char *idl_construct(const void *node);
 IDL_EXPORT const char *idl_identifier(const void *node);
+IDL_EXPORT bool idl_identifier_is(const void *node, const char *identifier);
 IDL_EXPORT const idl_name_t *idl_name(const void *node);
 IDL_EXPORT uint32_t idl_array_size(const void *node);
 IDL_EXPORT uint32_t idl_bound(const void *node);
