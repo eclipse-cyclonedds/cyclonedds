@@ -101,6 +101,92 @@ CU_Test(idl_annotation, optional)
   }
 }
 
+typedef struct idl_default_test {
+  const char *str;
+  idl_retcode_t ret;
+  bool has_default;
+  idl_type_t default_type;
+  const void *default_val_ptr;
+} idl_default_test_t;
+
+static void test_default(
+  idl_default_test_t test)
+{
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.str, &pstate);
+  CU_ASSERT_EQUAL_FATAL(ret, test.ret);
+  if (pstate) {
+    idl_struct_t *s = (idl_struct_t *)pstate->root;
+    CU_ASSERT_FATAL(idl_is_struct(s));
+    assert(s);
+    idl_member_t *m = NULL;
+    IDL_FOREACH(m, s->members) {
+      const idl_literal_t *def = idl_default_value(m);
+      if (test.has_default) {
+        CU_ASSERT_EQUAL_FATAL(idl_type(def), test.default_type);
+        switch (test.default_type) {
+          case IDL_LONG:
+            CU_ASSERT_EQUAL(def->value.int32, *(const int32_t*)test.default_val_ptr);
+            break;
+          case IDL_ULONG:
+            CU_ASSERT_EQUAL(def->value.uint32, *(const uint32_t*)test.default_val_ptr);
+            break;
+          case IDL_DOUBLE:
+            CU_ASSERT_EQUAL(def->value.dbl, *(const double*)test.default_val_ptr);
+            break;
+          case IDL_CHAR:
+            CU_ASSERT_EQUAL(def->value.chr, *(const char*)test.default_val_ptr);
+            break;
+          case IDL_STRING:
+            CU_ASSERT_STRING_EQUAL(def->value.str, *(const char**)test.default_val_ptr);
+            break;
+          case IDL_BOOL:
+            CU_ASSERT_EQUAL(def->value.bln, *(const bool*)test.default_val_ptr);
+            break;
+          default:
+            break;
+        }
+      } else {
+        CU_ASSERT_PTR_NULL_FATAL(def);
+      }
+    }
+    idl_delete_pstate(pstate);
+  }
+}
+
+CU_Test(idl_annotation, idl_default)
+{
+  static const int32_t t1 = -123456789;
+  static const double t2 = 987.654321;
+  static const char t3 = 'a';
+  static const bool t4 = true;
+  static const char *t5 = "hello world!";
+  static const uint32_t t6 = 123456789;
+  static const idl_default_test_t tests[] = {
+    {"struct s { long l; };",                                IDL_RETCODE_OK,                  false, IDL_NULL,    NULL}, //no default whatsoever
+    {"struct s { @default(-123456789) long l; };",           IDL_RETCODE_OK,                  true,  IDL_LONG,    &t1},  //default long
+    {"struct s { @default(987.654321) double d; };",         IDL_RETCODE_OK,                  true,  IDL_DOUBLE,  &t2},  //default double
+    {"struct s { @default('a') char c; };",                  IDL_RETCODE_OK,                  true,  IDL_CHAR,    &t3},  //default char
+    {"struct s { @default(true) boolean b; };",              IDL_RETCODE_OK,                  true,  IDL_BOOL,    &t4},  //default bool
+    {"struct s { @default(\"hello world!\") string str; };", IDL_RETCODE_OK,                  true,  IDL_STRING,  &t5},  //default string
+    {"struct s { @default(123456789) unsigned long l; };",   IDL_RETCODE_OK,                  true,  IDL_ULONG,   &t6},  //default unsigned long
+    {"struct s { @default(123) @optional long l; };",        IDL_RETCODE_SEMANTIC_ERROR,      false, IDL_NULL,    NULL}, //mixing default and optional
+    {"struct s { @default long l; };",                       IDL_RETCODE_SEMANTIC_ERROR,      false, IDL_NULL,    NULL}, //misssing parameter
+    {"struct s { @default(123) string str; };",              IDL_RETCODE_ILLEGAL_EXPRESSION,  false, IDL_NULL,    NULL}, //parameter type mismatch (int vs string)
+    {"struct s { @default(\"false\") boolean b; };",         IDL_RETCODE_ILLEGAL_EXPRESSION,  false, IDL_NULL,    NULL}, //parameter type mismatch (string vs bool)
+    {"struct s { @default(123) boolean b; };",               IDL_RETCODE_ILLEGAL_EXPRESSION,  false, IDL_NULL,    NULL}, //parameter type mismatch (int vs bool)
+    {"struct s { @default(-123) unsigned long l; };",        IDL_RETCODE_OUT_OF_RANGE,        false, IDL_NULL,    NULL}, //parameter type mismatch (unsigned vs signed)
+    /* skipping this test as idl_create_annotation_appl leaks memory if idl_resolve cannot resolve the scoped name (https://github.com/eclipse-cyclonedds/cyclonedds/issues/950)
+      {"@default(e_0) enum e { e_0, e_1, e_2, e_3 };",         IDL_RETCODE_SEMANTIC_ERROR,  false, IDL_NULL,    NULL}  //setting default on enums is done through @default_literal
+    */
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+    test_default(tests[i]);
+  }
+
+}
+
 CU_Test(idl_annotation, key)
 {
   idl_retcode_t ret;

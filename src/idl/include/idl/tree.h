@@ -283,6 +283,7 @@ struct idl_member {
   /* metadata */
   IDL_ANNOTATABLE(bool) key;
   IDL_ANNOTATABLE(bool) optional;
+  IDL_ANNOTATABLE(const idl_literal_t*) value;
   IDL_ANNOTATABLE(uint32_t) id;
 };
 
@@ -482,6 +483,7 @@ IDL_EXPORT bool idl_identifier_is(const void *node, const char *identifier);
 IDL_EXPORT const idl_name_t *idl_name(const void *node);
 IDL_EXPORT uint32_t idl_array_size(const void *node);
 IDL_EXPORT uint32_t idl_bound(const void *node);
+IDL_EXPORT const idl_literal_t *idl_default_value(const void *node);
 
 /* navigation */
 IDL_EXPORT void *idl_ancestor(const void *node, size_t levels);

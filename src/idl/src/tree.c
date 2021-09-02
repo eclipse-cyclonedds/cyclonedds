@@ -784,6 +784,19 @@ uint32_t idl_bound(const void *node)
   return 0u;
 }
 
+const idl_literal_t *idl_default_value(const void *node)
+{
+  if (idl_is_member(node)) {
+    return ((const idl_member_t*)node)->value.value;
+  } else if (idl_is_declarator(node)) {
+    const idl_node_t *parent = idl_parent(node);
+    if (idl_is_member(parent))
+      return idl_default_value(parent);
+  }
+
+  return NULL;
+}
+
 bool idl_is_sequence(const void *ptr)
 {
   idl_mask_t mask;

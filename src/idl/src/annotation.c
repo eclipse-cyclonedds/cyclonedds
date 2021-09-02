@@ -149,6 +149,10 @@ annotate_optional(
     idl_error(pstate, idl_location(annotation_appl),
       "@optional cannot be assigned to key members");
     return IDL_RETCODE_SEMANTIC_ERROR;
+  } else if (mem->value.annotation) {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@optional cannot be assigned to members with explicit default values");
+    return IDL_RETCODE_SEMANTIC_ERROR;
   }
 
   if (annotation_appl->parameters) {
@@ -346,6 +350,51 @@ set_nested(
 }
 
 static idl_retcode_t
+annotate_default(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+  idl_const_expr_t *value;
+  idl_member_t *mem = (idl_member_t*)node;
+  idl_type_spec_t *mem_spec = mem->type_spec;
+
+  assert(annotation_appl);
+  assert(annotation_appl->parameters);
+
+  if (!idl_is_member(node)) {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@default can only be assigned to members");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  } else if (mem->optional.value) {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@default cannot be set on optional members");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  value = annotation_appl->parameters->const_expr;
+  assert(idl_is_literal(value));
+
+  /*check whether type of literal matches and falls inside spec of member*/
+  idl_type_t mem_type = idl_type(mem_spec);
+  if (mem_type != idl_type(value)) {
+    idl_retcode_t ret = IDL_RETCODE_OK;
+    idl_literal_t *literal = NULL;
+    if ((ret = idl_evaluate(pstate, value, mem_type, &literal)))
+      return ret;
+
+    assert(literal);
+    annotation_appl->parameters->const_expr = literal;
+    literal->node.parent = (idl_node_t*)annotation_appl->parameters;
+  }
+
+  ((idl_member_t *)node)->value.annotation = annotation_appl;
+  ((idl_member_t *)node)->value.value = annotation_appl->parameters->const_expr;
+
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
 annotate_nested(
   idl_pstate_t *pstate,
   idl_annotation_appl_t *annotation_appl,
@@ -504,6 +553,11 @@ static const idl_builtin_annotation_t annotations[] = {
       "<p>Specify a data member is part of the key for the object whose type "
       "is the constructed data type owning this element.</p>",
     .callback = annotate_key },
+  { .syntax = "@annotation default { any value; };",
+    .summary =
+      "<p>Specify the value with which the annotated member should be default"
+      "initialized.</p>",
+    .callback = &annotate_default },
 #if 0
   { .syntax = "@annotation must_understand { boolean value default TRUE; };",
     .summary =
@@ -511,10 +565,6 @@ static const idl_builtin_annotation_t annotations[] = {
       "making use of that piece of data.</p>",
     .callback = annotate_must_understand },
   /* units and ranges */
-  { .syntax = "@annotation default { any value; };",
-    .summary =
-       "<p>Specify a default value for the annotated element.</p>",
-    .callback = annotate_default },
   { .syntax = "@annotation range { any min; any max; };",
     .summary =
       "<p>Specify a range of allowed value for the annotated element.</p>",
