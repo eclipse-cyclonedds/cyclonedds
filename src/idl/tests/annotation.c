@@ -45,31 +45,6 @@ parse_string(uint32_t flags, const char *str, idl_pstate_t **pstatep)
   return ret;
 }
 
-CU_Test(idl_annotation, id_member)
-{
-  idl_retcode_t ret;
-  idl_pstate_t *pstate = NULL;
-  idl_struct_t *s;
-  idl_member_t *c;
-  const char str[] = "struct s { @id(1) @optional char c; };";
-
-  ret = parse_string(IDL_FLAG_ANNOTATIONS, str, &pstate);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
-  assert(pstate);
-  s = (idl_struct_t *)pstate->root;
-  CU_ASSERT_PTR_NOT_NULL_FATAL(s);
-  CU_ASSERT_FATAL(idl_is_struct(s));
-  assert(s);
-  c = (idl_member_t *)s->members;
-  CU_ASSERT_PTR_NOT_NULL(c);
-  assert(c);
-  CU_ASSERT_FATAL(idl_is_member(c));
-  CU_ASSERT_STRING_EQUAL(idl_identifier(c->id.annotation), "id");
-  CU_ASSERT_EQUAL(c->id.value, 1);
-  idl_delete_pstate(pstate);
-}
-
 CU_Test(idl_annotation, key)
 {
   idl_retcode_t ret;
@@ -281,51 +256,71 @@ CU_Test(idl_annotation, redefinition)
   }
 }
 
+CU_Test(idl_annotation, id)
+{
+  static const struct {
+    const char *s;
+    idl_retcode_t r;
+  } tests[] = {
+    { "struct s { @id(1) char c; };", IDL_RETCODE_OK }, // @id on member
+    { "@id(1) struct s { char c; };", IDL_RETCODE_SEMANTIC_ERROR }, // @id on non-member
+    { "struct s { @id char c; };", IDL_RETCODE_SEMANTIC_ERROR }, // @id without const-expr
+    { "struct s { @id(1) @id(1) char c; };", IDL_RETCODE_OK }, // duplicate @id
+    { "struct s { @id(1) @id(2) char c; };", IDL_RETCODE_SEMANTIC_ERROR }, // conflicting @id
+    { "struct s { @id(1) @hashid char c; };", IDL_RETCODE_SEMANTIC_ERROR } // @id and @hashid
+  };
+
+  for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
+    idl_pstate_t *pstate = NULL;
+    idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].s, &pstate);
+    CU_ASSERT_EQUAL(ret, tests[i].r);
+    if (ret == IDL_RETCODE_OK) {
+      const idl_struct_t *s = (const idl_struct_t *)pstate->root;
+      CU_ASSERT(idl_is_struct(s));
+      const idl_member_t *m = s->members;
+      CU_ASSERT(idl_is_member(m));
+      CU_ASSERT_PTR_NOT_NULL(m->id.annotation);
+      CU_ASSERT_EQUAL(m->id.value, 1u);
+    }
+    idl_delete_pstate(pstate);
+  }
+}
+
+CU_Test(idl_annotation, hashid)
+{
+  static const struct {
+    const char *s;
+    uint32_t h;
+    idl_retcode_t r;
+  } tests[] = {
+    { "struct s { @hashid char c; };", 0x00088a4au, IDL_RETCODE_OK }, // @hashid without parameter on member
+    { "struct s { @hashid(\"s\") char c; };", 0x0cc0c703u, IDL_RETCODE_OK }, // @hashid with parameter on member
+    { "@hashid struct s { char c; };", 0x00000000u, IDL_RETCODE_SEMANTIC_ERROR }, // @hashid on non-member
+    { "struct s { @hashid @hashid char c; };", 0x00088a4au, IDL_RETCODE_OK }, // duplicate non-parameterized @hashid
+    { "struct s { @hashid(\"c\") @hashid char c; };", 0x00088a4au, IDL_RETCODE_SEMANTIC_ERROR },
+    { "struct s { @hashid(\"c\") @hashid(\"c\") char c; };", 0x00088a4au, IDL_RETCODE_OK }, // duplicate parameterized @hashid
+    { "struct s { @hashid(\"c\") @hashid(\"s\") char c; };", 0x00000000u, IDL_RETCODE_SEMANTIC_ERROR } // conflicting @hashid
+  };
+
+  for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
+    idl_pstate_t *pstate = NULL;
+    idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].s, &pstate);
+    CU_ASSERT_EQUAL(ret, tests[i].r);
+    if (ret == IDL_RETCODE_OK) {
+      const idl_struct_t *s = (const idl_struct_t *)pstate->root;
+      CU_ASSERT(idl_is_struct(s));
+      const idl_member_t *m = s->members;
+      CU_ASSERT(idl_is_member(m));
+      CU_ASSERT_PTR_NOT_NULL(m->id.annotation);
+      CU_ASSERT_EQUAL(m->id.value, tests[i].h);
+    }
+    idl_delete_pstate(pstate);
+  }
+}
+
 // x. do not allow annotation_appl in annotation
 
 #if 0
-CU _ Test(idl_annotation, id_non_member)
-{
-  idl_retcode_t ret;
-  idl_tree_t *tree = NULL;
-  const char str[] = "@id(1) struct s { char c; };";
-
-  ret = idl_parse_string(str, IDL_FLAG_ANNOTATIONS, &tree);
-  CU_ASSERT_EQUAL(ret, IDL_RETCODE_SEMANTIC_ERROR);
-  idl_delete_tree(tree);
-}
-
-CU _ Test(idl_annotation, hashid_member)
-{
-  idl_retcode_t ret;
-  idl_tree_t *tree = NULL;
-  idl_struct_t *s;
-  idl_member_t *m;
-  const char str[] = "struct s { @hashid char color; @hashid(\"shapesize\") char size; };";
-
-  ret = idl_parse_string(str, IDL_FLAG_ANNOTATIONS, &tree);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL(tree);
-  s = (idl_struct_t *)tree->root;
-  CU_ASSERT_PTR_NOT_NULL_FATAL(s);
-  CU_ASSERT_FATAL(idl_is_struct(s));
-  m = s->members;
-  CU_ASSERT_PTR_NOT_NULL(m);
-  CU_ASSERT_FATAL(idl_is_member(m));
-  CU_ASSERT_EQUAL(m->id, 0x0fa5dd70u);
-  m = idl_next(m);
-  CU_ASSERT_PTR_NOT_NULL(m);
-  CU_ASSERT_FATAL(idl_is_member(m));
-  CU_ASSERT_EQUAL(m->id, 0x047790dau);
-  idl_delete_tree(tree);
-}
-
-// x. @hashid on non-member
-// x. @id without const_expr
-// x. both @id and @hashid
-// x. @id twice
-// x. @hashid twice
-
 CU _ Test(idl_annotation, autoid_struct)
 {
   idl_retcode_t ret;

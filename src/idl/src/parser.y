@@ -467,7 +467,7 @@ primary_expr:
              (builtin) annotation, stick to syntax checks */
           const idl_declaration_t *declaration = NULL;
           static const char fmt[] =
-            "Scoped name '%s' does not resolve to an enumerator or a contant";
+            "Scoped name '%s' does not resolve to an enumerator or a constant";
           TRY(idl_resolve(pstate, 0u, $1, &declaration));
           if (!(idl_mask(declaration->node) & (IDL_CONST|IDL_ENUMERATOR)))
             SEMANTIC_ERROR(pstate, &@1, fmt, $1->identifier);
