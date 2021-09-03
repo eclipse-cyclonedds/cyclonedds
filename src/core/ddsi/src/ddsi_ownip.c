@@ -183,7 +183,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
 
   n_interfaces = 0;
   max_interfaces = 8;
-  maxq_list = ddsrt_malloc (max_interfaces * sizeof (*interfaces));
+  maxq_list = ddsrt_malloc (max_interfaces * sizeof (*maxq_list));
   interfaces = ddsrt_malloc (max_interfaces * sizeof (*interfaces));
   last_if_name[0] = 0;
   for (ifa = ifa_root; ifa != NULL; ifa = ifa->next)
