@@ -650,7 +650,6 @@ idl_annotate(
   if ((ret = dedup(pstate, node, annotation_appls)))
     return ret;
 
-  ((idl_node_t *)node)->annotations = annotation_appls;
   for (idl_annotation_appl_t *a = annotation_appls; a; a = idl_next(a)) {
     idl_annotation_callback_t callback = a->annotation->callback;
     if (callback && (ret = callback(pstate, a, node)))
@@ -658,5 +657,6 @@ idl_annotate(
     a->node.parent = node;
   }
 
+  ((idl_node_t *)node)->annotations = annotation_appls;
   return IDL_RETCODE_OK;
 }
