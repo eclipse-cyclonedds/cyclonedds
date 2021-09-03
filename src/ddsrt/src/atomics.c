@@ -133,7 +133,7 @@ void *ddsrt_atomic_lifo_pop (ddsrt_atomic_lifo_t *head, size_t linkoff) {
       return NULL;
     }
     b1 = (*((volatile uintptr_t *) ((char *) b0 + linkoff)));
-  } while (!ddsrt_atomic_casvoidp2 (&head->aba_head, a0, b0, a0+1, b1));
+  } while (!ddsrt_atomic_casvoidp2 (&head->aba_head, a0, b0, a0-1, b1));
   return (void *) b0;
 }
 void ddsrt_atomic_lifo_pushmany (ddsrt_atomic_lifo_t *head, void *first, void *last, size_t linkoff)
