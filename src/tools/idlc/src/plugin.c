@@ -86,15 +86,15 @@ idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
 
   /* figure out if user passed library or language */
   if ((sep[0] && strchr(lang, sep[0])) || (sep[1] && strchr(lang, sep[1]))) {
-    path = lang;
+    path = lang; /* lang includes a directory separator, it is a path */
   } else if (len > extlen && strcmp(lang + (len - extlen), ext) == 0) {
-    path = lang;
+    path = lang; /* lang terminates with extension of plugins (libs), it is a path */
   } else {
     int cnt;
-    const char fmt[] = "%sidl%s.%s";
+    const char fmt[] = "%sidl%s.%s"; /* builds the library name based on 'lang' */
     cnt = snprintf(buf, sizeof(buf), fmt, lib, lang, ext);
     assert(cnt != -1);
-    if ((size_t)cnt <= sizeof(buf)) {
+    if ((size_t)cnt < sizeof(buf)) {
       path = (const char *)buf;
     } else if (!(file = malloc((size_t)cnt+1))) {
       return -1;
