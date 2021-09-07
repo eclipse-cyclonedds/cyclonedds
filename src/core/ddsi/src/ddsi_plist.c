@@ -542,7 +542,7 @@ static dds_return_t ser_type_consistency (struct nn_xmsg *xmsg, nn_parameterid_t
   char * const p = nn_xmsg_addpar_bo (xmsg, pid, 8, bo);
   const uint16_t kind = ddsrt_toBO2u (bo, (uint16_t) x->kind);
   memcpy (p, &kind, 2);
-  size_t offs = sizeof (x->kind);
+  size_t offs = sizeof (kind);
   p[offs + 0] = x->force_type_validation;
   p[offs + 1] = x->ignore_sequence_bounds;
   p[offs + 2] = x->ignore_string_bounds;
@@ -2498,7 +2498,7 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
     loc.kind = ddsrt_bswap4 (loc.kind);
     loc.port = ddsrt_bswap4u (loc.port);
   }
-  
+
   ddsi_tran_factory_t fact = ddsi_factory_find_supported_kind (gv, loc.kind);
   if (fact == NULL || !fact->m_enable)
     return DOLOC_IGNORED;
