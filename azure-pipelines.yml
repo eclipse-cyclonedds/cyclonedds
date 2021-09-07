@@ -81,7 +81,6 @@ strategy:
       toolset: v141
     'Windows 2019 with Visual Studio 2019 (Debug, x86_64)':
       image: windows-2019
-      analyzer: on
       generator: 'Visual Studio 16 2019'
     'Windows 2019 with Visual Studio 2019 (Release, x86_64)':
       image: windows-2019
