@@ -232,6 +232,27 @@ CU_Test(idl_parser, struct_in_struct_other_module)
   idl_delete_pstate(pstate);
 }
 
+CU_Test(idl_parser, forward_declared_struct)
+{
+  idl_retcode_t ret;
+  idl_pstate_t *pstate = NULL;
+  idl_forward_t *fwd1;
+  idl_struct_t *s1;
+  const char str[] = "struct a; struct a { long b; };";
+
+  ret = idl_create_pstate(0u, NULL, &pstate);
+  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  CU_ASSERT_PTR_NOT_NULL(pstate);
+  assert(pstate);
+  ret = idl_parse_string(pstate, str);
+  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  fwd1 = (idl_forward_t *)pstate->root;
+  CU_ASSERT_FATAL(idl_is_forward(fwd1));
+  s1 = idl_next(fwd1);
+  CU_ASSERT_FATAL(idl_is_struct(s1));
+  idl_delete_pstate(pstate);
+}
+
 // x. use nonexisting type!
 // x. union with same declarators
 // x. struct with same declarators

@@ -567,16 +567,13 @@ annotate_bit_bound(
   idl_annotation_appl_t *annotation_appl,
   idl_node_t *node)
 {
-#if !defined(NDEBUG)
-  static const idl_mask_t mask = IDL_LITERAL|IDL_USHORT;
-#endif
   idl_literal_t *literal;
   uint16_t value;
 
   assert(annotation_appl);
   assert(annotation_appl->parameters);
   literal = (idl_literal_t *)annotation_appl->parameters->const_expr;
-  assert((idl_mask(literal) & mask) == mask);
+  assert(idl_type(literal) == IDL_USHORT);
   value = literal->value.uint16;
 
   if (idl_is_bitmask(node)) {

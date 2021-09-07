@@ -55,7 +55,6 @@ struct idl_pstate {
   bool keylists;
   bool annotations;
   uint32_t flags; /**< processor options */
-  char *export_macro; /**< export macro to be used for topic descriptors */
   idl_file_t *paths; /**< normalized paths used in include statements */
   idl_file_t *files; /**< filenames used in #line directives */
   idl_source_t *sources;

@@ -52,6 +52,7 @@
 #define LENGTH_CODE_ALSO_NEXTINT4   6
 #define LENGTH_CODE_ALSO_NEXTINT8   7
 
+#define to_BO4u                                       NAME2_BYTE_ORDER(ddsrt_to, 4u)
 #define dds_os_put1BO                                 NAME_BYTE_ORDER(dds_os_put1)
 #define dds_os_put2BO                                 NAME_BYTE_ORDER(dds_os_put2)
 #define dds_os_put4BO                                 NAME_BYTE_ORDER(dds_os_put4)
@@ -66,11 +67,11 @@
 #define dds_stream_writeBO                            NAME_BYTE_ORDER(dds_stream_write)
 #define dds_stream_write_plBO                         NAME_BYTE_ORDER(dds_stream_write_pl)
 #define dds_stream_write_delimitedBO                  NAME_BYTE_ORDER(dds_stream_write_delimited)
-#define dds_stream_write_sampleBO                     NAME_BYTE_ORDER(dds_stream_write_sample)
 #define dds_stream_write_keyBO                        NAME_BYTE_ORDER(dds_stream_write_key)
 #define dds_stream_write_keyBO_impl                   NAME2_BYTE_ORDER(dds_stream_write_key, _impl)
 #define dds_cdr_alignto_clear_and_resizeBO            NAME_BYTE_ORDER(dds_cdr_alignto_clear_and_resize)
 #define dds_stream_swap_if_needed_insituBO            NAME_BYTE_ORDER(dds_stream_swap_if_needed_insitu)
+#define dds_stream_to_BO_insitu                       NAME2_BYTE_ORDER(dds_stream_to_, _insitu)
 #define dds_stream_extract_keyBO_from_data            NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data)
 #define dds_stream_extract_keyBO_from_data1           NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data1)
 #define dds_stream_extract_keyBO_from_key_prim_op     NAME2_BYTE_ORDER(dds_stream_extract_key, _from_key_prim_op)
@@ -271,6 +272,34 @@ static void dds_os_put8BE (dds_ostreamBE_t * __restrict s, uint64_t v) { dds_os_
 static uint32_t dds_os_reserve4BE (dds_ostreamBE_t * __restrict s) { return dds_os_reserve4 (&s->x); }
 static uint32_t dds_os_reserve8BE (dds_ostreamBE_t * __restrict s) { return dds_os_reserve8 (&s->x); }
 
+static void dds_stream_swap (void * __restrict vbuf, uint32_t size, uint32_t num)
+{
+  assert (size == 1 || size == 2 || size == 4 || size == 8);
+  switch (size)
+  {
+    case 1:
+      break;
+    case 2: {
+      uint16_t *buf = vbuf;
+      for (uint32_t i = 0; i < num; i++)
+        buf[i] = ddsrt_bswap2u (buf[i]);
+      break;
+    }
+    case 4: {
+      uint32_t *buf = vbuf;
+      for (uint32_t i = 0; i < num; i++)
+        buf[i] = ddsrt_bswap4u (buf[i]);
+      break;
+    }
+    case 8: {
+      uint64_t *buf = vbuf;
+      for (uint32_t i = 0; i < num; i++)
+        buf[i] = ddsrt_bswap8u (buf[i]);
+      break;
+    }
+  }
+}
+
 static void dds_os_put_bytes (dds_ostream_t * __restrict s, const void * __restrict b, uint32_t l)
 {
   dds_cdr_resize (s, l);
@@ -278,12 +307,14 @@ static void dds_os_put_bytes (dds_ostream_t * __restrict s, const void * __restr
   s->m_index += l;
 }
 
-static void dds_os_put_bytes_aligned (dds_ostream_t * __restrict s, const void * __restrict b, uint32_t n, uint32_t a)
+static void dds_os_put_bytes_aligned (dds_ostream_t * __restrict os, const void * __restrict data, uint32_t num, uint32_t elem_sz, uint32_t align, void **dst)
 {
-  const uint32_t l = n * a;
-  dds_cdr_alignto_clear_and_resize (s, a, l);
-  memcpy (s->m_buffer + s->m_index, b, l);
-  s->m_index += l;
+  const uint32_t sz = num * elem_sz;
+  dds_cdr_alignto_clear_and_resize (os, align, sz);
+  if (dst)
+    *dst = os->m_buffer + os->m_index;
+  memcpy (os->m_buffer + os->m_index, data, sz);
+  os->m_index += sz;
 }
 
 static uint32_t get_type_size (enum dds_stream_typecode type)
@@ -1000,6 +1031,30 @@ static const uint32_t *dds_stream_write_plBE (dds_ostreamBE_t * __restrict os, c
   return ops;
 }
 
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
+static inline void dds_stream_to_BE_insitu (void * __restrict vbuf, uint32_t size, uint32_t num)
+{
+  dds_stream_swap (vbuf, size, num);
+}
+static inline void dds_stream_to_LE_insitu (void * __restrict vbuf, uint32_t size, uint32_t num)
+{
+  (void) vbuf;
+  (void) size;
+  (void) num;
+}
+#else /* if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN */
+static inline void dds_stream_to_BE_insitu (void * __restrict vbuf, uint32_t size, uint32_t num)
+{
+  (void) vbuf;
+  (void) size;
+  (void) num;
+}
+static inline void dds_stream_to_LE_insitu (void * __restrict vbuf, uint32_t size, uint32_t num)
+{
+  dds_stream_swap (vbuf, size, num);
+}
+#endif /* if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN */
+
 // Little-endian
 #define NAME_BYTE_ORDER_EXT LE
 #include "ddsi_cdrstream_write.part.c"
@@ -1017,13 +1072,30 @@ static inline void dds_stream_write_string (dds_ostream_t * __restrict os, const
 {
   dds_stream_write_stringLE ((dds_ostreamLE_t *) os, val);
 }
+
 inline const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
 {
   return dds_stream_writeLE ((dds_ostreamLE_t *) os, data, ops);
 }
+
 inline void dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
 {
   dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, data, type);
+}
+
+void dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
+{
+  const struct ddsi_sertype_default_desc *desc = &type->type;
+  if (type->opt_size && desc->align && (((struct dds_ostream *)os)->m_index % desc->align) == 0)
+    dds_os_put_bytes ((struct dds_ostream *)os, data, (uint32_t) type->opt_size);
+  else
+    (void) dds_stream_writeLE (os, data, desc->ops.ops);
+}
+
+void dds_stream_write_sampleBE (dds_ostreamBE_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
+{
+  const struct ddsi_sertype_default_desc *desc = &type->type;
+  (void) dds_stream_writeBE (os, data, desc->ops.ops);
 }
 
 #else /* if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN */
@@ -1032,13 +1104,30 @@ static inline void dds_stream_write_string (dds_ostream_t * __restrict os, const
 {
   dds_stream_write_stringBE ((dds_ostreamBE_t *) os, val);
 }
+
 inline const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
 {
   return dds_stream_writeBE ((dds_ostreamBE_t *) os, data, ops);
 }
+
 inline void dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
 {
   dds_stream_write_sampleBE ((dds_ostreamBE_t *) os, data, type);
+}
+
+void dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
+{
+  const struct ddsi_sertype_default_desc *desc = &type->type;
+  (void) dds_stream_writeLE (os, data, desc->ops.ops);
+}
+
+void dds_stream_write_sampleBE (dds_ostreamBE_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
+{
+  const struct ddsi_sertype_default_desc *desc = &type->type;
+  if (type->opt_size && desc->align && (((struct dds_ostream *)os)->m_index % desc->align) == 0)
+    dds_os_put_bytes ((struct dds_ostream *)os, data, (uint32_t) type->opt_size);
+  else
+    (void) dds_stream_writeBE (os, data, desc->ops.ops);
 }
 
 #endif /* if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN */
@@ -2699,30 +2788,7 @@ static inline void dds_stream_swap_if_needed_insitu (void * __restrict vbuf, uin
 
 static void dds_stream_swap_if_needed_insituBE (void * __restrict vbuf, uint32_t size, uint32_t num)
 {
-  assert (size == 1 || size == 2 || size == 4 || size == 8);
-  switch (size)
-  {
-    case 1:
-      break;
-    case 2: {
-      uint16_t *buf = vbuf;
-      for (uint32_t i = 0; i < num; i++)
-        buf[i] = ddsrt_bswap2u (buf[i]);
-      break;
-    }
-    case 4: {
-      uint32_t *buf = vbuf;
-      for (uint32_t i = 0; i < num; i++)
-        buf[i] = ddsrt_bswap4u (buf[i]);
-      break;
-    }
-    case 8: {
-      uint64_t *buf = vbuf;
-      for (uint32_t i = 0; i < num; i++)
-        buf[i] = ddsrt_bswap8u (buf[i]);
-      break;
-    }
-  }
+  dds_stream_swap (vbuf, size, num);
 }
 
 // Big-endian implementation

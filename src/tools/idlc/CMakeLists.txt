@@ -94,3 +94,4 @@ install(
 
 include("${CycloneDDS_SOURCE_DIR}/cmake/Modules/Generate.cmake")
 
+add_subdirectory(tests)

@@ -125,13 +125,11 @@ static const uint32_t recurse[] = {
   IDL_VISIT_RECURSE|IDL_VISIT_DONT_RECURSE
 };
 
-#if 0
-static idl_visit_iterate_t iterate[] = {
+static uint32_t iterate[] = {
   IDL_VISIT_ITERATE,
   IDL_VISIT_DONT_ITERATE,
   IDL_VISIT_ITERATE|IDL_VISIT_DONT_ITERATE
 };
-#endif
 
 static const uint32_t revisit[] = {
   IDL_VISIT_REVISIT,
@@ -159,9 +157,7 @@ idl_visit(
   assert(visitor);
 
   flags |= recurse[ visitor->recurse == recurse[NO]  ];
-#if 0
   flags |= iterate[ visitor->iterate == iterate[NO]  ];
-#endif
   flags |= revisit[ visitor->revisit != revisit[YES] ];
 
   if (!push(&stack, node))
@@ -201,12 +197,10 @@ idl_visit(
         stack.flags[stack.depth - 1] &= ~recurse[MAYBE];
         stack.flags[stack.depth - 1] |=  recurse[ ((unsigned)ret & recurse[NO]) != 0 ];
       }
-#if 0
       if (ret & (idl_retcode_t)iterate[MAYBE]) {
         stack.flags[stack.depth - 1] &= ~iterate[MAYBE];
-        stack.flags[stack.depth - 1] |=  iterate[ (ret & iterate[NO]) != 0 ];
+        stack.flags[stack.depth - 1] |=  iterate[ ((unsigned)ret & iterate[NO]) != 0 ];
       }
-#endif
       if (ret & (idl_retcode_t)revisit[MAYBE]) {
         stack.flags[stack.depth - 1] &= ~revisit[MAYBE];
         stack.flags[stack.depth - 1] |=  revisit[ ((unsigned)ret & revisit[NO]) != 0 ];
@@ -240,10 +234,7 @@ idl_visit(
         if ((ret = callback(pstate, true, &stack.path, node, user_data)) < 0)
           goto err_revisit;
       }
-#if 0
       if (stack.flags[stack.depth - 1] & (IDL_VISIT_TYPE_SPEC|IDL_VISIT_DONT_ITERATE)) {
-#endif
-      if (stack.flags[stack.depth - 1] & (IDL_VISIT_TYPE_SPEC)) {
         (void)pop(&stack);
       } else {
         (void)pop(&stack);

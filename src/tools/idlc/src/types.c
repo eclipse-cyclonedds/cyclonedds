@@ -148,10 +148,10 @@ emit_field(
   } else if (idl_is_string(type_spec)) {
     star = "* ";
   }
-  if (idl_is_forward (type_spec))
+  if (idl_is_forward(type_spec))
     fwd_decl_type = "struct ";
 
-  bool empty = idl_is_empty_struct(type_spec);
+  bool empty = idl_is_empty(type_spec);
   fmt = empty ? "%s/* %s%s %s%s%s%s */ /* no members */" : "%s%s%s %s%s%s%s";
   if (idl_fprintf(gen->header.handle, fmt, indent, fwd_decl_type, type, ext, star, name, dims) < 0)
     return IDL_RETCODE_NO_MEMORY;
@@ -183,7 +183,7 @@ emit_struct(
   struct generator *gen = user_data;
   char *name = NULL;
   const char *fmt;
-  bool empty = idl_is_empty_struct(node);
+  bool empty = idl_is_empty(node);
 
   if (IDL_PRINTA(&name, print_type, node) < 0)
     return IDL_RETCODE_NO_MEMORY;
@@ -195,7 +195,7 @@ emit_struct(
     if (!empty && idl_fprintf(gen->header.handle, "\n") < 0)
       return IDL_RETCODE_NO_MEMORY;
     if (!empty && idl_is_topic(node, (pstate->flags & IDL_FLAG_KEYLIST) != 0)) {
-      if (pstate->export_macro && idl_fprintf(gen->header.handle, "%1$s ", pstate->export_macro) < 0)
+      if (gen->export_macro && idl_fprintf(gen->header.handle, "%1$s ", gen->export_macro) < 0)
         return IDL_RETCODE_NO_MEMORY;
       fmt = "extern const dds_topic_descriptor_t %1$s_desc;\n"
             "\n"
@@ -263,7 +263,7 @@ emit_union(
     if (idl_fprintf(gen->header.handle, fmt, name) < 0)
       return IDL_RETCODE_NO_MEMORY;
     if (idl_is_topic(node, (pstate->flags & IDL_FLAG_KEYLIST) != 0)) {
-      if (pstate->export_macro && idl_fprintf(gen->header.handle, "%1$s ", pstate->export_macro) < 0)
+      if (gen->export_macro && idl_fprintf(gen->header.handle, "%1$s ", gen->export_macro) < 0)
         return IDL_RETCODE_NO_MEMORY;
       fmt = "extern const dds_topic_descriptor_t %1$s_desc;\n"
             "\n"
@@ -503,17 +503,14 @@ emit_bitmask(
   if (IDL_PRINTA(&type, print_type, node) < 0)
     return IDL_RETCODE_NO_MEMORY;
   uint16_t bit_bound = bitmask->bit_bound.value;
-  assert(bit_bound > 0 && bit_bound <= 64);
   if (bit_bound <= 8)
     base_type_str = "uint8_t";
   else if (bit_bound <= 16)
     base_type_str = "uint16_t";
   else if (bit_bound <= 32)
     base_type_str = "uint32_t";
-  else {
-    assert(bit_bound <= 64);
+  else
     base_type_str = "uint64_t";
-  }
   if (idl_fprintf(gen->header.handle, "typedef %s %s;\n", base_type_str, type) < 0)
     return IDL_RETCODE_NO_MEMORY;
 

@@ -191,10 +191,16 @@ idl_declare(
           if (kind == IDL_MODULE_DECLARATION)
             goto exists;
           goto clash;
-        case IDL_SPECIFIER_FORWARD_DECLARATION:
-          if (kind == IDL_SPECIFIER_FORWARD_DECLARATION)
-            goto clash;
-          break;
+        case IDL_FORWARD_DECLARATION:
+          if (kind == IDL_FORWARD_DECLARATION)
+            if (is_consistent(pstate, node, entry->node))
+              goto exists;
+          if (kind == IDL_SPECIFIER_DECLARATION) {
+            if ((idl_mask(node) & (IDL_STRUCT | IDL_UNION)) != (idl_mask(entry->node) & (IDL_STRUCT | IDL_UNION)))
+              goto clash;
+            break;
+          }
+          /* fall through */
         case IDL_USE_DECLARATION:
           if (kind == IDL_INSTANCE_DECLARATION)
             goto exists;
@@ -202,7 +208,7 @@ idl_declare(
         case IDL_SPECIFIER_DECLARATION:
           if (kind == IDL_USE_DECLARATION)
             goto exists;
-          if (kind == IDL_SPECIFIER_FORWARD_DECLARATION)
+          if (kind == IDL_FORWARD_DECLARATION)
             break;
           /* short-circuit on parsing existing annotations */
           if (is_consistent(pstate, node, entry->node))
@@ -247,7 +253,7 @@ clash:
     case IDL_MODULE_DECLARATION:
     case IDL_ANNOTATION_DECLARATION:
     case IDL_SPECIFIER_DECLARATION:
-    case IDL_SPECIFIER_FORWARD_DECLARATION: {
+    case IDL_FORWARD_DECLARATION: {
       size_t cnt = 0, len, off = 0;
       const char *sep = "::";
       idl_scoped_name_t *scoped_name = NULL;
@@ -354,7 +360,7 @@ idl_find(
       continue;
     if (cmp(name, entry->name) == 0)
     {
-      if (entry->kind & IDL_SPECIFIER_FORWARD_DECLARATION)
+      if (entry->kind & IDL_FORWARD_DECLARATION)
         fwd = entry;
       else
         return entry;

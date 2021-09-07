@@ -40,6 +40,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
       break;
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+      // FIXME: implement support for sequences and unions as part of the key
       abort ();
       break;
     }

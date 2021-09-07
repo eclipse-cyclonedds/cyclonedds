@@ -137,7 +137,7 @@ idl_type_t idl_type(const void *node)
 const idl_name_t *idl_name(const void *node)
 {
   if (idl_mask(node) & IDL_FORWARD)
-    return ((const idl_forward_decl_t *)node)->name;
+    return ((const idl_forward_t *)node)->name;
   if (idl_mask(node) & IDL_MODULE)
     return ((const idl_module_t *)node)->name;
   if (idl_mask(node) & IDL_STRUCT)
@@ -963,21 +963,6 @@ bool idl_is_struct(const void *ptr)
   return true;
 }
 
-bool idl_is_empty_struct(const void *node)
-{
-  if (!idl_is_struct(node))
-    return false;
-  const idl_struct_t *s = (const idl_struct_t *)node;
-  if (!s->members)
-    return true;
-  bool empty = true;
-  for (idl_member_t *m = s->members; empty && m; m = idl_next(m)) {
-    if (!idl_is_empty_struct(m->type_spec))
-      empty = false;
-  }
-  return empty;
-}
-
 static void delete_struct(void *ptr)
 {
   idl_struct_t *node = ptr;
@@ -1320,44 +1305,65 @@ err_node:
   return ret;
 }
 
-static void delete_struct_forward_decl(void *ptr)
+bool idl_is_empty(const void *node)
 {
-  idl_forward_decl_t *node = ptr;
+  if(!idl_is_struct(node))
+    return false;
+  const idl_struct_t *s = (const idl_struct_t *)node;
+  if (!s->members)
+    return true;
+  bool empty = true;
+  for (idl_member_t *m = s->members; empty && m; m = idl_next(m)) {
+    if (!idl_is_empty(m->type_spec))
+      empty = false;
+  }
+  return empty;
+}
+
+static void delete_forward(void *ptr)
+{
+  idl_forward_t *node = ptr;
   idl_delete_name(node->name);
   free(node);
 }
 
-static const char *describe_struct_forward_decl(const void *ptr)
+static const char *describe_forward(const void *ptr)
 {
   (void)ptr;
-  assert(idl_mask(ptr) & (IDL_STRUCT | IDL_FORWARD));
-  return "struct forward declaration";
+  idl_mask_t mask = idl_mask(ptr);
+  assert(mask & IDL_FORWARD);
+  if (mask & IDL_STRUCT)
+    return "struct forward declaration";
+  else if (mask & IDL_UNION)
+    return "union forward declaration";
+  else
+    abort ();
 }
 
 idl_retcode_t
-idl_forward_decl_struct(
+idl_create_forward(
   idl_pstate_t *pstate,
   const idl_location_t *location,
   idl_name_t *name,
+  idl_mask_t mask,
   void *nodep)
 {
   idl_retcode_t ret;
-  idl_forward_decl_t *node;
+  idl_forward_t *node;
   idl_declaration_t *declaration;
   static const size_t size = sizeof(*node);
-  static const idl_mask_t mask = IDL_STRUCT | IDL_FORWARD;
+  assert (mask == IDL_STRUCT || mask == IDL_UNION);
   static const struct methods methods = {
-    delete_struct_forward_decl, 0, describe_struct_forward_decl };
-  static const enum idl_declaration_kind kind = IDL_SPECIFIER_FORWARD_DECLARATION;
+    delete_forward, 0, describe_forward };
+  static const enum idl_declaration_kind kind = IDL_FORWARD_DECLARATION;
 
-  if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
+  if ((ret = create_node(pstate, size, mask | IDL_FORWARD, location, &methods, &node)))
     goto err_node;
   node->name = name;
-  node->type_mask = IDL_STRUCT;
+  node->definition = NULL;
   if ((ret = idl_declare(pstate, kind, name, node, NULL, &declaration)))
     goto err_declare;
-  node->scoped_name = declaration->scoped_name;
-  *((idl_forward_decl_t **)nodep) = node;
+  *((idl_forward_t **)nodep) = node;
   return ret;
 err_declare:
 err_node:
@@ -1366,22 +1372,13 @@ err_node:
 
 bool idl_is_forward(const void *ptr)
 {
-  const idl_forward_decl_t *node = ptr;
+  const idl_forward_t *node = ptr;
 
   if (!(idl_mask(node) & IDL_FORWARD))
     return false;
   /* a forward declaration must have a name */
   assert(node->name && node->name->identifier);
   return true;
-}
-
-idl_mask_t idl_forward_mask(const void *ptr)
-{
-  const idl_forward_decl_t *node = ptr;
-  if (!(idl_mask(node) & IDL_FORWARD))
-    return IDL_NULL;
-  assert (node->type_mask == IDL_UNION || node->type_mask == IDL_STRUCT);
-  return node->type_mask;
 }
 
 bool idl_is_inherit_spec(const void *ptr)
@@ -1792,14 +1789,6 @@ idl_finalize_union(
             return IDL_RETCODE_SEMANTIC_ERROR;
           }
         } else {
-          if (idl_is_integer_type(const_expr)) {
-            idl_intval_t val = idl_intval(const_expr);
-            if (val.value.llng > INT32_MAX) {
-              idl_error(pstate, idl_location(cl),
-                "Label value larger than INT32_MAX not supported (because of lacking support in XTypes Type Object)");
-              return IDL_RETCODE_UNSUPPORTED;
-            }
-          }
           assert(!((const idl_node_t *)const_expr)->parent);
           ((idl_node_t *)const_expr)->parent = (idl_node_t *)cl;
         }
@@ -1983,49 +1972,6 @@ err_node:
   return ret;
 }
 
-static void delete_union_forward_decl(void *ptr)
-{
-  idl_forward_decl_t *node = ptr;
-  idl_delete_name(node->name);
-  free(node);
-}
-
-static const char *describe_union_forward_decl(const void *ptr)
-{
-  (void)ptr;
-  assert(idl_mask(ptr) & (IDL_UNION | IDL_FORWARD));
-  return "struct forward declaration";
-}
-
-idl_retcode_t
-idl_forward_decl_union(
-  idl_pstate_t *pstate,
-  const idl_location_t *location,
-  idl_name_t *name,
-  void *nodep)
-{
-  idl_retcode_t ret;
-  idl_forward_decl_t *node;
-  idl_declaration_t *declaration;
-  static const size_t size = sizeof(*node);
-  static const idl_mask_t mask = IDL_UNION | IDL_FORWARD;
-  static const struct methods methods = {
-    delete_union_forward_decl, 0, describe_union_forward_decl };
-  static const enum idl_declaration_kind kind = IDL_SPECIFIER_FORWARD_DECLARATION;
-
-  if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
-    goto err_node;
-  if ((ret = idl_declare(pstate, kind, name, node, NULL, &declaration)))
-    goto err_declare;
-  node->name = name;
-  node->type_mask = IDL_UNION;
-  *((idl_forward_decl_t **)nodep) = node;
-  return ret;
-err_declare:
-err_node:
-  return ret;
-}
-
 bool
 idl_is_switch_type_spec(const void *ptr)
 {
@@ -2112,16 +2058,6 @@ idl_create_switch_type_spec(
     idl_error(pstate, idl_location(type_spec),
       "Invalid switch type '%s'", idl_construct(type_spec));
     return IDL_RETCODE_SEMANTIC_ERROR;
-  }
-
-  if ((((unsigned)type & (unsigned)IDL_LLONG) == IDL_LLONG) ||
-      (((unsigned)type & (unsigned)IDL_ULLONG) == IDL_ULLONG) ||
-      (ext && (((unsigned)type & (unsigned)IDL_INT64) == IDL_INT64)) ||
-      (ext && (((unsigned)type & (unsigned)IDL_UINT64) == IDL_UINT64)))
-  {
-    idl_error(pstate, idl_location(type_spec),
-      "Unsupported switch type '%s' (because of lacking support in XTypes Type Objects)", idl_construct(type_spec));
-    return IDL_RETCODE_UNSUPPORTED;
   }
 
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
@@ -2282,38 +2218,6 @@ bool idl_is_case_label(const void *ptr)
   /* a case labels may have an expression (default case does not) */
   assert(!node->const_expr || (idl_mask(node->const_expr) & mask));
   return true;
-}
-
-int32_t idl_case_label_intvalue(const void *ptr)
-{
-  const idl_case_label_t *node = ptr;
-  if (!(idl_mask(node) & IDL_CASE_LABEL))
-    return -1;
-  idl_type_t type = idl_type(node->const_expr);
-  if (type & IDL_INTEGER_TYPE) {
-    idl_intval_t val = idl_intval(node->const_expr);
-    if (val.type & IDL_UNSIGNED)
-      assert(val.value.ullng <= INT32_MAX);
-    assert(val.value.llng <= INT32_MAX);
-    assert(val.value.llng >= INT32_MIN);
-    return (int32_t)val.value.llng;
-  } else if (type == IDL_CHAR) {
-    // FIXME
-    assert(false);
-  } else if (type == IDL_BOOL) {
-    idl_literal_t *literal = node->const_expr;
-    return literal->value.bln;
-  } else if (type == IDL_OCTET) {
-    idl_literal_t *literal = node->const_expr;
-    return literal->value.uint8;
-  } else if (type == IDL_ENUM) {
-    idl_enumerator_t *enumerator = node->const_expr;
-    assert(enumerator->value.value <= INT32_MAX);
-    return (int32_t)enumerator->value.value;
-  } else {
-    assert(false);
-  }
-  return 0;
 }
 
 static void delete_case_label(void *ptr)
@@ -3465,6 +3369,7 @@ static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
     IDL_CONSTR_TYPE | IDL_MEMBER | IDL_SWITCH_TYPE_SPEC | IDL_CASE |
     IDL_SEQUENCE | IDL_DECLARATOR;
 
+  /* start from level 1, the members of the topic node */
   for (size_t i = 1; (key || i == 1) && i < path->length; i++) {
     assert(path->nodes[i]);
 
@@ -3472,7 +3377,7 @@ static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
     if (idl_is_member(path->nodes[i])) {
       const idl_member_t *instance = (const idl_member_t *)path->nodes[i];
       /* path cannot be valid if not preceeded by struct */
-      if (i != 0 && !idl_is_struct(path->nodes[i - 1]))
+      if (i != 1 && !idl_is_struct(path->nodes[i - 1]))
         return 0;
 
       if (instance->key.value)
@@ -3481,7 +3386,7 @@ static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
          annotated, an intermediate aggregate type has no explicitly annotated
          fields and node is not on the first level */
       else if (all_keys || no_specific_key(idl_parent(instance)))
-        key = all_keys = (i != 1);
+        key = all_keys = (i > 1);
       else
         key = 0;
 
@@ -3496,7 +3401,7 @@ static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
          intermediate aggregate type has no explicitly annotated fields or if
          the switch type specifier is not annotated */
       if (all_keys || no_specific_key(idl_parent(instance)))
-        key = all_keys = (i != 1);
+        key = all_keys = (i > 1);
 
     /* switch type specifiers can be explicitly annotated */
     } else if (idl_is_switch_type_spec(path->nodes[i])) {
@@ -3509,7 +3414,7 @@ static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
       if (instance->key.value)
         key = (i == path->length - 1);
       else
-        key = (i == path->length - 1) ? (i != 1) : 0;
+        key = (i == path->length - 1) ? (i > 1) : 0;
     } else if (!(idl_mask(node) & mask)) {
       key = 0;
     }
@@ -3525,8 +3430,8 @@ static uint32_t is_key_by_keylist(const void *node, const idl_path_t *path)
 
   for (; key; key = idl_next(key), index++) {
     int cmp = 0;
-    size_t cnt = 0;
-    for (size_t i=0; cmp == 0 && i < path->length; i++) {
+    size_t cnt = 0, i;
+    for (i = 0; cmp == 0 && i < path->length; i++) {
       if (idl_is_declarator(path->nodes[i])) {
         if (key->field_name->length == cnt) {
           cmp = 1;
@@ -3538,7 +3443,9 @@ static uint32_t is_key_by_keylist(const void *node, const idl_path_t *path)
         }
       }
     }
-    if (cmp == 0 && cnt == key->field_name->length)
+    /* In case the path until current node matches with the first part of the
+       keylist entry, it is marked as key */
+    if (cmp == 0 && i == path->length)
       return index + 1;
   }
 

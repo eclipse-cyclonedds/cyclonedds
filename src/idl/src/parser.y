@@ -120,11 +120,10 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
   idl_definition_t *definition;
   idl_module_t *module_dcl;
   idl_struct_t *struct_dcl;
-  idl_forward_decl_t *struct_forward_dcl;
+  idl_forward_t *forward;
   idl_member_t *member;
   idl_declarator_t *declarator;
   idl_union_t *union_dcl;
-  idl_forward_decl_t *union_forward_dcl;
   idl_case_t *_case;
   idl_case_label_t *case_label;
   idl_enum_t *enum_dcl;
@@ -179,12 +178,13 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
 %type <sequence> sequence_type
 %type <string> string_type
 %type <module_dcl> module_dcl module_header
-%type <struct_dcl> struct_def struct_header struct_forward_dcl
+%type <struct_dcl> struct_def struct_header
 %type <member> members member struct_body
-%type <union_dcl> union_def union_header union_forward_dcl
+%type <union_dcl> union_def union_header
 %type <switch_type_spec> switch_header
 %type <_case> switch_body case element_spec
 %type <case_label> case_labels case_label
+%type <forward> struct_forward_dcl union_forward_dcl
 %type <enum_dcl> enum_def
 %type <enumerator> enumerators enumerator
 %type <bitmask_dcl> bitmask_def
@@ -695,7 +695,7 @@ struct_dcl:
 
 struct_forward_dcl:
     "struct" identifier
-      { TRY(idl_forward_decl_struct(pstate, &@1, $2, &$$)); }
+      { TRY(idl_create_forward(pstate, &@1, $2, IDL_STRUCT, &$$)); }
   ;
 
 struct_def:
@@ -766,7 +766,7 @@ union_def:
 
 union_forward_dcl:
     "union" identifier
-      { TRY(idl_forward_decl_union(pstate, &@1, $2, &$$)); }
+      { TRY(idl_create_forward(pstate, &@1, $2, IDL_UNION, &$$)); }
   ;
 
 union_header:

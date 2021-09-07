@@ -341,12 +341,11 @@ struct idl_struct {
   IDL_ANNOTATABLE(idl_extensibility_t) extensibility;
 };
 
-typedef struct idl_forward_decl idl_forward_decl_t;
-struct idl_forward_decl {
+typedef struct idl_forward idl_forward_t;
+struct idl_forward {
   idl_node_t node;
   struct idl_name *name;
-  struct idl_scoped_name *scoped_name;
-  idl_mask_t type_mask;
+  idl_type_spec_t *definition;
 };
 
 typedef struct idl_case_label idl_case_label_t;
@@ -487,7 +486,7 @@ IDL_EXPORT bool idl_is_sequence(const void *node);
 IDL_EXPORT bool idl_is_string(const void *node);
 IDL_EXPORT bool idl_is_constr_type(const void *node);
 IDL_EXPORT bool idl_is_struct(const void *node);
-IDL_EXPORT bool idl_is_empty_struct(const void *node);
+IDL_EXPORT bool idl_is_empty(const void *node);
 IDL_EXPORT bool idl_is_inherit_spec(const void *node);
 IDL_EXPORT bool idl_is_member(const void *node);
 IDL_EXPORT bool idl_is_union(const void *node);
@@ -509,7 +508,6 @@ IDL_EXPORT bool idl_is_annotation_appl(const void *node);
 IDL_EXPORT bool idl_is_topic(const void *node, bool keylist);
 IDL_EXPORT bool idl_is_keyless(const void *node, bool keylist);
 IDL_EXPORT bool idl_is_forward(const void *node);
-IDL_EXPORT idl_mask_t idl_forward_mask(const void *node);
 /* 1-based, returns 0 if path does not refer to key, non-0 otherwise */
 IDL_EXPORT uint32_t idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path);
 
@@ -527,9 +525,6 @@ IDL_EXPORT uint32_t idl_array_size(const void *node);
 IDL_EXPORT uint32_t idl_bound(const void *node);
 IDL_EXPORT const idl_literal_t *idl_default_value(const void *node);
 IDL_EXPORT uint16_t idl_bit_bound(const void *node);
-/* returns the int32_t representation of the case label value,
-   e.g. used for type object creation */
-IDL_EXPORT int32_t idl_case_label_intvalue(const void *node);
 
 /* navigation */
 IDL_EXPORT void *idl_ancestor(const void *node, size_t levels);

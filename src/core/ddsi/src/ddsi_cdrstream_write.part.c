@@ -24,9 +24,10 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
 {
   const dds_sequence_t * const seq = (const dds_sequence_t *) addr;
   uint32_t offs = 0;
+  bool is_xcdr2 = ((struct dds_ostream *)os)->m_xcdr_version == CDR_ENC_VERSION_2;
 
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
-  if (subtype > DDS_OP_VAL_8BY && ((struct dds_ostream *)os)->m_xcdr_version == CDR_ENC_VERSION_2)
+  if (subtype > DDS_OP_VAL_8BY && is_xcdr2)
   {
     /* reserve space for DHEADER */
     dds_os_reserve4BO (os);
@@ -45,14 +46,20 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
     /* following length, stream is aligned to mod 4 */
     switch (subtype)
     {
+      case DDS_OP_VAL_ENU:
+        ops++;
+        /* fall through */
       case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
-        dds_os_put_bytes_aligned ((struct dds_ostream *)os, seq->_buffer, num, get_type_size (subtype));
+        const uint32_t elem_size = get_type_size (subtype);
+        const uint32_t align = is_xcdr2 && subtype == DDS_OP_VAL_8BY ? 4 : elem_size;
+        void * dst;
+        /* Combining put bytes and swap into a single step would improve the performance
+           of writing data in non-native endianess. But in most cases the data will
+           be written in native endianess, and in that case the swap is a no-op (for writing
+           keys a separate function is used). */
+        dds_os_put_bytes_aligned ((struct dds_ostream *)os, seq->_buffer, num, elem_size, align, &dst);
+        dds_stream_to_BO_insitu (dst, elem_size, num);
         ops += 2;
-        break;
-      }
-      case DDS_OP_VAL_ENU: {
-        dds_os_put_bytes_aligned ((struct dds_ostream *)os, seq->_buffer, num, get_type_size (DDS_OP_VAL_4BY));
-        ops += 3;
         break;
       }
       case DDS_OP_VAL_STR: case DDS_OP_VAL_BSP: {
@@ -87,10 +94,10 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
     }
   }
 
-  if (subtype > DDS_OP_VAL_8BY && ((struct dds_ostream *)os)->m_xcdr_version == CDR_ENC_VERSION_2)
+  if (subtype > DDS_OP_VAL_8BY && is_xcdr2)
   {
     /* write DHEADER */
-    *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = ((struct dds_ostream *)os)->m_index - offs;
+    *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = to_BO4u(((struct dds_ostream *)os)->m_index - offs);
   }
 
   return ops;
@@ -100,6 +107,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   uint32_t offs = 0;
+  bool is_xcdr2 = ((struct dds_ostream *)os)->m_xcdr_version == CDR_ENC_VERSION_2;
   if (subtype > DDS_OP_VAL_8BY && ((struct dds_ostream *)os)->m_xcdr_version == CDR_ENC_VERSION_2)
   {
     /* reserve space for DHEADER */
@@ -113,7 +121,12 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
       ops++;
       /* fall through */
     case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
-      dds_os_put_bytes_aligned ((struct dds_ostream *)os, addr, num, get_type_size (subtype));
+      const uint32_t elem_size = get_type_size (subtype);
+      const uint32_t align = is_xcdr2 && subtype == DDS_OP_VAL_8BY ? 4 : elem_size;
+      void * dst;
+      /* See comment for stream_write_seq, swap is a no-op in most cases */
+      dds_os_put_bytes_aligned ((struct dds_ostream *)os, addr, num, elem_size, align, &dst);
+      dds_stream_to_BO_insitu (dst, elem_size, num);
       ops += 3;
       break;
     }
@@ -147,10 +160,10 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
     }
   }
 
-  if (subtype > DDS_OP_VAL_8BY && ((struct dds_ostream *)os)->m_xcdr_version == CDR_ENC_VERSION_2)
+  if (subtype > DDS_OP_VAL_8BY && is_xcdr2)
   {
     /* write DHEADER */
-    *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = ((struct dds_ostream *)os)->m_index - offs;
+    *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = to_BO4u(((struct dds_ostream *)os)->m_index - offs);
   }
 
   return ops;
@@ -259,13 +272,4 @@ const uint32_t *dds_stream_writeBO (DDS_OSTREAM_T * __restrict os, const char * 
     }
   }
   return ops;
-}
-
-void dds_stream_write_sampleBO (DDS_OSTREAM_T * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
-{
-  const struct ddsi_sertype_default_desc *desc = &type->type;
-  if (type->opt_size && desc->align && (((struct dds_ostream *)os)->m_index % desc->align) == 0)
-    dds_os_put_bytes ((struct dds_ostream *)os, data, (uint32_t) type->opt_size);
-  else
-    (void) dds_stream_writeBO (os, data, desc->ops.ops);
 }

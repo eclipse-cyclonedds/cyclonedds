@@ -248,27 +248,33 @@ uint32_t ddsi_sertype_compute_serdata_basehash (const struct ddsi_serdata_ops *o
 
 uint16_t ddsi_sertype_get_native_encoding_identifier (uint32_t enc_version, uint32_t enc_format)
 {
+#define CONCAT_(a,b) (a ## b)
+#define CONCAT(id,suffix) CONCAT_(id,suffix)
+
 #if (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN)
-#define ENC_SUFFIX(x) x ## _LE
+#define SUFFIX _LE
 #else
-#define ENC_SUFFIX(x) x ## _BE
+#define SUFFIX _BE
 #endif
+
   switch (enc_version)
   {
     case CDR_ENC_VERSION_1:
       if (enc_format == CDR_ENC_FORMAT_PL)
-        return ENC_SUFFIX(PL_CDR);
-      return ENC_SUFFIX(CDR);
+        return CONCAT(PL_CDR, SUFFIX);
+      return CONCAT(CDR, SUFFIX);
     case CDR_ENC_VERSION_2:
       if (enc_format == CDR_ENC_FORMAT_PL)
-        return ENC_SUFFIX(PL_CDR2);
+        return CONCAT(PL_CDR2, SUFFIX);
       if (enc_format == CDR_ENC_FORMAT_DELIMITED)
-        return ENC_SUFFIX(D_CDR2);
-      return ENC_SUFFIX(CDR2);
+        return CONCAT(D_CDR2, SUFFIX);
+      return CONCAT(CDR2, SUFFIX);
     default:
       abort (); /* unsupported */
   }
-#undef ENC_SUFFIX
+#undef SUFFIX
+#undef CONCAT
+#undef CONCAT_
 }
 
 uint16_t ddsi_sertype_get_encoding_format (enum ddsi_sertype_extensibility type_extensibility)
