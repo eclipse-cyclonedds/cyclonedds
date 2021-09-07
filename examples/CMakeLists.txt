@@ -41,6 +41,16 @@ install(
   DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/throughput"
   COMPONENT dev)
 
+if (ENABLE_TOPIC_DISCOVERY)
+  install(
+    FILES
+      listtopics/listtopics.c
+      listtopics/CMakeLists.txt
+      listtopics/readme.rst
+    DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/listtopics"
+    COMPONENT dev)
+endif ()
+
 if (ENABLE_SHM)
   install(
     FILES
@@ -69,6 +79,9 @@ endif()
 add_subdirectory(helloworld)
 add_subdirectory(roundtrip)
 add_subdirectory(throughput)
+if (ENABLE_TOPIC_DISCOVERY)
+  add_subdirectory(listtopics)
+endif ()
 if (ENABLE_SHM)
   add_subdirectory(shm_throughput)
 endif ()
