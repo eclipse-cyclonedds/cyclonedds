@@ -2029,6 +2029,23 @@ idl_create_enum(
       ret = IDL_RETCODE_SEMANTIC_ERROR;
       goto err_clash;
     }
+    if (idl_mask(e1) == IDL_DEFAULT_ENUMERATOR) {
+      if (node->default_enumerator) {
+        idl_error(pstate, idl_location(e1),
+          "Assigning default to enumerator '%s' clashes with '%s' already being set as default.",
+          e1->name->identifier, node->default_enumerator->name->identifier);
+        ret = IDL_RETCODE_SEMANTIC_ERROR;
+        goto err_defaults;
+      } else {
+        node->default_enumerator = e1;
+      }
+    }
+  }
+
+  //fallback to the first entry
+  if (!node->default_enumerator) {
+    node->default_enumerator = enumerators;
+    node->default_enumerator->node.mask = IDL_IMPLICIT_DEFAULT_ENUMERATOR;
   }
 
   if ((ret = idl_declare(pstate, kind, name, node, NULL, NULL)))
@@ -2038,6 +2055,7 @@ idl_create_enum(
   return IDL_RETCODE_OK;
 err_declare:
 err_clash:
+err_defaults:
   free(node);
 err_alloc:
   return ret;
@@ -2075,7 +2093,9 @@ static void *iterate_enumerator(const void *ptr, const void *cur)
 static const char *describe_enumerator(const void *ptr)
 {
   (void)ptr;
-  assert(idl_mask(ptr) == IDL_ENUMERATOR);
+  assert(idl_mask(ptr) == IDL_ENUMERATOR
+      || idl_mask(ptr) == IDL_DEFAULT_ENUMERATOR
+      || idl_mask(ptr) == IDL_IMPLICIT_DEFAULT_ENUMERATOR);
   return "enumerator";
 }
 

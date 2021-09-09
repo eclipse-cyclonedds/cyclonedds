@@ -187,6 +187,63 @@ CU_Test(idl_annotation, idl_default)
 
 }
 
+typedef struct enum_default_test {
+  const char *str;
+  idl_retcode_t ret;
+  uint32_t default_index;
+  const char *default_name;
+  uint32_t default_mask;
+} enum_default_test_t;
+
+static void test_enum_default(enum_default_test_t test) {
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.str, &pstate);
+  CU_ASSERT_EQUAL(ret, test.ret);
+  if (test.ret == ret
+   && ret == IDL_RETCODE_OK) {
+    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+    assert(pstate);
+    idl_enum_t *e = (idl_enum_t *)pstate->root;
+    CU_ASSERT(idl_is_enum(e));
+    if (idl_is_enum(e)) {
+      assert(e);
+      idl_enumerator_t *en = e->default_enumerator;
+      CU_ASSERT_PTR_NOT_NULL_FATAL(en);
+      if (en) {
+        CU_ASSERT_EQUAL(en->value.value, test.default_index);
+        CU_ASSERT_EQUAL(idl_mask(en), test.default_mask);
+        CU_ASSERT_STRING_EQUAL(en->name->identifier, test.default_name);
+      }
+
+      IDL_FOREACH(en, e->enumerators) {
+        if (en == e->default_enumerator) {
+          CU_ASSERT_EQUAL(idl_mask(en), test.default_mask);
+        } else {
+          CU_ASSERT_EQUAL(idl_mask(en), IDL_ENUMERATOR);
+        }
+      }
+    }
+
+    idl_delete_pstate(pstate);
+  }
+}
+
+CU_Test(idl_annotation, default_literal)
+{
+  static const enum_default_test_t tests[] = {
+    {"enum e { e_0, e_1, e_2, e_3 };",                                    IDL_RETCODE_OK,             0,    "e_0",  IDL_IMPLICIT_DEFAULT_ENUMERATOR }, //implicit defaults to the first entry
+    {"enum e { e_0, @default_literal e_1, e_2, e_3 };",                   IDL_RETCODE_OK,             1,    "e_1",  IDL_DEFAULT_ENUMERATOR          }, //setting an explicit default through the annotation
+    {"enum e { @value(123) e_0, @default_literal e_1, e_2, e_3 };",       IDL_RETCODE_OK,             124,  "e_1",  IDL_DEFAULT_ENUMERATOR          }, //starting at a different id
+    {"enum e { e_0, e_1, @default_literal @default_literal e_2, e_3 };",  IDL_RETCODE_OK,             2,    "e_2",  IDL_DEFAULT_ENUMERATOR          }, //re-annotate
+    {"enum e { e_0, @default_literal e_1, @default_literal e_2, e_3 };",  IDL_RETCODE_SEMANTIC_ERROR, 0,    NULL,   0                               },  //more than one enumerator set as default
+    {"struct s { @default_literal long l; double d; };\n",                IDL_RETCODE_SEMANTIC_ERROR, 0,    NULL,   0                               },  //this annotation is only allowed on enumerator fields
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+    test_enum_default(tests[i]);
+  }
+}
+
 CU_Test(idl_annotation, key)
 {
   idl_retcode_t ret;
