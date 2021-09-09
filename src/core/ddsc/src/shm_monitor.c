@@ -22,6 +22,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_rhc.h"
+#include "iceoryx_binding_c/chunk.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -111,7 +112,8 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
     if (ChunkReceiveResult_SUCCESS != take_result)
       break;
 
-    iceoryx_header_t* ice_hdr = (iceoryx_header_t*)chunk;
+    const iox_chunk_header_t* chunk_header = iox_chunk_header_from_user_payload_const(chunk);
+    const iceoryx_header_t* ice_hdr = iox_chunk_header_to_user_header_const(chunk_header);
 
     // Get writer or proxy writer
     struct entity_common * e = entidx_lookup_guid_untyped (gv->entity_index, &ice_hdr->guid);
