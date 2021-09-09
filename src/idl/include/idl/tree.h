@@ -61,6 +61,8 @@
 /* if no explicit default is specified and range is not covered */
 #define IDL_IMPLICIT_DEFAULT_CASE_LABEL (IDL_DEFAULT_CASE_LABEL | 2u)
 #define IDL_ENUMERATOR (1llu<<26)
+#define IDL_DEFAULT_ENUMERATOR (IDL_ENUMERATOR | 1u)
+#define IDL_IMPLICIT_DEFAULT_ENUMERATOR (IDL_DEFAULT_ENUMERATOR | 2u)
 #define IDL_DECLARATOR (1llu<<25)
 /* annotations */
 #define IDL_ANNOTATION (1llu<<24)
@@ -387,6 +389,7 @@ struct idl_enum {
   idl_node_t node;
   struct idl_name *name;
   idl_enumerator_t *enumerators;
+  idl_enumerator_t *default_enumerator;
   IDL_ANNOTATABLE(idl_extensibility_t) extensibility;
 };
 

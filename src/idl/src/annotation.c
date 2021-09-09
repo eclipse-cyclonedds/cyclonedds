@@ -395,6 +395,25 @@ annotate_default(
 }
 
 static idl_retcode_t
+annotate_default_literal(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+  assert(pstate);
+
+  if (!idl_is_enumerator(node)) {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@default_literal can only be assigned to enumerators");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  node->mask |= IDL_DEFAULT_ENUMERATOR;
+
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
 annotate_nested(
   idl_pstate_t *pstate,
   idl_annotation_appl_t *annotation_appl,
@@ -558,6 +577,11 @@ static const idl_builtin_annotation_t annotations[] = {
       "<p>Specify the value with which the annotated member should be default"
       "initialized.</p>",
     .callback = &annotate_default },
+  { .syntax = "@annotation default_literal { };",
+    .summary =
+      "<p>Explicity sets the default value for an enum to the annotated enumerator"
+      "instead of the first entry.</p>",
+    .callback = &annotate_default_literal },
 #if 0
   { .syntax = "@annotation must_understand { boolean value default TRUE; };",
     .summary =
