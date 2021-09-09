@@ -29,6 +29,7 @@
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/shm_sync.h"
+#include "iceoryx_binding_c/chunk.h"
 #endif
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
@@ -469,7 +470,7 @@ static struct ddsi_serdata *ddsi_serdata_default_from_loaned_sample (const struc
   gen_keyhash_from_sample (t, &d->keyhash, sample);
 
   struct ddsi_serdata *serdata = &d->c;
-  serdata->iox_chunk = SHIFT_BACK_TO_ICEORYX_HEADER(sample);
+  serdata->iox_chunk = (void*) sample;
   return serdata; 
 }
 
@@ -601,8 +602,10 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
 #ifdef DDS_HAS_SHM
   if (d->c.iox_chunk)
   {
-    iceoryx_header_t* hdr = (iceoryx_header_t*)d->c.iox_chunk;
-    memcpy(sample, SHIFT_PAST_ICEORYX_HEADER(hdr), hdr->data_size);
+    void* user_payload = d->c.iox_chunk;
+    iox_chunk_header_t* chunk_header = iox_chunk_header_from_user_payload(user_payload);
+    iceoryx_header_t* hdr = iox_chunk_header_to_user_header(chunk_header);
+    memcpy(sample, user_payload, hdr->data_size);
     return true;
   }
 #endif

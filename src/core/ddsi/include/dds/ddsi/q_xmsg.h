@@ -61,14 +61,10 @@ struct iceoryx_header {
    uint32_t data_size;
    unsigned char data_kind;
    ddsi_keyhash_t keyhash;
+   bool does_contain_serialized_data;
 };
 
 typedef struct iceoryx_header iceoryx_header_t;
-
-/* Assume worst-case 8 byte alignment for sample following the iceoryx header. */
-#define DETERMINE_ICEORYX_CHUNK_SIZE(sample_size) (uint32_t) (sizeof(iceoryx_header_t) + (8 - (sizeof(iceoryx_header_t) % 8)) % 8 + sample_size)
-#define SHIFT_PAST_ICEORYX_HEADER(chunk) (void *)(((char *)chunk) + sizeof(iceoryx_header_t) + (8 - (sizeof(iceoryx_header_t) % 8)) % 8)
-#define SHIFT_BACK_TO_ICEORYX_HEADER(chunk) (void *)(((char *)chunk) - sizeof(iceoryx_header_t) - (8 + (sizeof(iceoryx_header_t) % 8)) % 8)
 
 #endif
 

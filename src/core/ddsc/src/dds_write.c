@@ -30,6 +30,7 @@
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/shm_sync.h"
 #include "dds/ddsi/q_addrset.h"
+#include "iceoryx_binding_c/chunk.h"
 #endif
 
 #ifdef DDS_HAS_SHM
@@ -68,39 +69,41 @@ static bool deregister_pub_loan(dds_writer *wr, const void *pub_loan)
 }
 
 static void *create_iox_chunk(dds_writer *wr)
-{
+{   
     iceoryx_header_t *ice_hdr;
     void *sample;
-    uint32_t sample_size = wr->m_topic->m_stype->iox_size;
-    uint32_t chunk_size = DETERMINE_ICEORYX_CHUNK_SIZE(sample_size);
+    uint32_t sample_size = wr->m_topic->m_stype->iox_size;   
 
     // TODO: use a proper timeout to control the time it is allowed to take to obtain a chunk more accurately
     // but for now only try a limited number of times (hence non-blocking).
     // Otherwise we could block here forever and this also leads to problems with thread progress monitoring.
 
-    int32_t number_of_trys = 10; //try 10 times over at least 10ms, considering the wait time below
+    int32_t number_of_tries = 10; //try 10 times over at least 10ms, considering the wait time below
 
-    while (true)
+    while (true)  
     {
-      enum iox_AllocationResult alloc_result = iox_pub_loan_chunk(wr->m_iox_pub, (void **) &ice_hdr, chunk_size);
+      enum iox_AllocationResult alloc_result = 
+        iox_pub_loan_aligned_chunk_with_user_header(wr->m_iox_pub, &sample, sample_size, IOX_C_CHUNK_DEFAULT_USER_PAYLOAD_ALIGNMENT, sizeof(iceoryx_header_t), 8);
+      
       if (AllocationResult_SUCCESS == alloc_result)
         break;
 
-      if(--number_of_trys <= 0) {
+      if(--number_of_tries <= 0) {
         return NULL;
       }
 
       dds_sleepfor (DDS_MSECS (1)); // TODO: how long should we wait?
     }
+
+    iox_chunk_header_t * iox_chunk_header = iox_chunk_header_from_user_payload(sample);
+    ice_hdr = iox_chunk_header_to_user_header(iox_chunk_header);
     ice_hdr->data_size = sample_size;
-    sample = SHIFT_PAST_ICEORYX_HEADER(ice_hdr);
     return sample;
 }
 
 static void release_iox_chunk(dds_writer *wr, void *sample)
 {
-  iceoryx_header_t *ice_hdr = SHIFT_BACK_TO_ICEORYX_HEADER(sample);
-  iox_pub_release_chunk(wr->m_iox_pub, ice_hdr);
+  iox_pub_release_chunk(wr->m_iox_pub, sample);
 }
 #endif
 
@@ -342,7 +345,9 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
 static bool deliver_data_via_iceoryx(dds_writer *wr, struct ddsi_serdata *d) {
     if (wr->m_iox_pub != NULL && d->iox_chunk != NULL)
     {
-      iceoryx_header_t * ice_hdr = d->iox_chunk;
+      iox_chunk_header_t* chunk_header = iox_chunk_header_from_user_payload(d->iox_chunk);
+      iceoryx_header_t *ice_hdr = iox_chunk_header_to_user_header(chunk_header);
+     
       // Local readers go through Iceoryx as well (because the Iceoryx support code doesn't exclude
       // that), which means we should suppress the internal path
       ice_hdr->guid = wr->m_wr->e.guid;
@@ -353,8 +358,9 @@ static bool deliver_data_via_iceoryx(dds_writer *wr, struct ddsi_serdata *d) {
       // iox_pub_publish_chunk takes ownership, storing a null pointer here doesn't
       // preclude the existence of race conditions on this, but it certainly improves
       // the chances of detecting them
+      
+      iox_pub_publish_chunk (wr->m_iox_pub, d->iox_chunk);
       d->iox_chunk = NULL;
-      iox_pub_publish_chunk (wr->m_iox_pub, ice_hdr);
       return true; //we published the chunk
     }
     return false; // we did not publish the chunk
@@ -570,7 +576,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
 
   // should ideally be done in the serdata construction but we explicitly set it here for now
   if(iceoryx_available) {
-    d->iox_chunk = SHIFT_BACK_TO_ICEORYX_HEADER(data); // maybe serialization was performed
+    d->iox_chunk = (void*) data; // maybe serialization was performed
   } else {
     d->iox_chunk = NULL; // also indicates that serialization has been performed
   }
