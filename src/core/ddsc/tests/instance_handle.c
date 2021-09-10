@@ -84,8 +84,7 @@ CU_Test (ddsc_instance_handle, a, .init = instance_handle_init, .fini = instance
     a.v = i;
     b.k = i;
     b.v = 2 * a.k;
-    const uint32_t a_k_be = ddsrt_toBE4u (a.k);
-    memcpy (c.k, &a_k_be, sizeof (c.k));
+    memcpy (c.k, &a.k, sizeof (c.k));
     c.v = 3 * a.k;
     rc = dds_write (wr[0], &a);
     CU_ASSERT_FATAL (rc == 0);
@@ -119,8 +118,7 @@ CU_Test (ddsc_instance_handle, a, .init = instance_handle_init, .fini = instance
     CU_ASSERT_FATAL (rc == 1);
     CU_ASSERT_FATAL (siC.valid_data);
     CU_ASSERT_FATAL (siC.instance_handle == siA.instance_handle);
-    const uint32_t a_k_be = ddsrt_toBE4u (a.k);
-    CU_ASSERT_FATAL (memcmp (c.k, &a_k_be, sizeof (c.k)) == 0 && c.v == 3 * a.k);
+    CU_ASSERT_FATAL (memcmp (c.k, &a.k, sizeof (c.k)) == 0 && c.v == 3 * a.k);
   }
 
   /* there should be no data left */
