@@ -116,8 +116,6 @@ This element specifies the DDSI participant index used by this instance of the C
 
  * none:, which causes it to use arbitrary port numbers for unicast sockets which entirely removes the constraints on the participant index but makes unicast discovery impossible.
 
-The default is auto. The participant index is part of the port number calculation and if predictable port numbers are needed and fixing the participant index has no adverse effects, it is recommended that the second be option be used.
-
 The default value is: "none".
 
 
