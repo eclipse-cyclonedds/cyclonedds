@@ -36,12 +36,19 @@ struct serdatapool {
   struct nn_freelist freelist;
 };
 
-typedef struct dds_keyhash {
-  unsigned char m_hash [16]; /* Key hash value. Also possibly key. Suitably aligned for accessing as uint32_t's */
-  unsigned m_set : 1;        /* has it been initialised? */
-  unsigned m_iskey : 1;      /* m_hash is key value */
-  unsigned m_keysize : 5;    /* size of the key within the hash buffer */
-} dds_keyhash_t;
+#define KEYBUFTYPE_UNSET    0u
+#define KEYBUFTYPE_STATIC   1u // uses u.stbuf
+#define KEYBUFTYPE_DYNALIAS 2u // points into payload - FIXME: currently key buffer content is big-endian ...
+#define KEYBUFTYPE_DYNALLOC 3u // dynamically allocated
+
+struct ddsi_serdata_default_key {
+  unsigned buftype : 2;
+  unsigned keysize : 30;
+  union {
+    unsigned char stbuf[16];
+    unsigned char *dynbuf;
+  } u;
+};
 
 /* Debug builds may want to keep some additional state */
 #ifndef NDEBUG
@@ -60,7 +67,7 @@ typedef struct dds_keyhash {
   uint32_t pos;                       \
   uint32_t size;                      \
   DDSI_SERDATA_DEFAULT_DEBUG_FIELDS   \
-  dds_keyhash_t keyhash;              \
+  struct ddsi_serdata_default_key key;\
   struct serdatapool *serpool;        \
   struct ddsi_serdata_default *next /* in pool->freelist */
 #define DDSI_SERDATA_DEFAULT_POSTPAD  \

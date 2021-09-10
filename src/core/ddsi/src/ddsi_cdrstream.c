@@ -101,9 +101,17 @@ static void dds_cdr_resize (dds_ostream_t * __restrict s, uint32_t l)
     dds_ostream_grow (s, l);
 }
 
+void dds_istream_init (dds_istream_t * __restrict st, uint32_t size, const void * __restrict input)
+{
+  st->m_buffer = input;
+  st->m_size = size;
+  st->m_index = 0;
+}
+
 void dds_ostream_init (dds_ostream_t * __restrict st, uint32_t size)
 {
-  memset (st, 0, sizeof (*st));
+  st->m_buffer = NULL;
+  st->m_size = 0;
   st->m_index = 0;
   dds_cdr_resize (st, size);
 }
@@ -116,6 +124,11 @@ void dds_ostreamLE_init (dds_ostreamLE_t * __restrict st, uint32_t size)
 void dds_ostreamBE_init (dds_ostreamBE_t * __restrict st, uint32_t size)
 {
   dds_ostream_init (&st->x, size);
+}
+
+void dds_istream_fini (dds_istream_t * __restrict st)
+{
+  (void) st;
 }
 
 void dds_ostream_fini (dds_ostream_t * __restrict st)
@@ -2518,7 +2531,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
   }
 }
 
-static void dds_stream_extract_keyBE_from_key (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_sertype_default * __restrict type)
+void dds_stream_extract_keyBE_from_key (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_sertype_default * __restrict type)
 {
   const struct ddsi_sertype_default_desc *desc = &type->type;
   for (uint32_t i = 0; i < desc->keys.nkeys; i++)
@@ -2645,47 +2658,6 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_adr (dds_istream_t 
       break;
   }
   return ops;
-}
-
-void dds_stream_extract_keyhash (dds_istream_t * __restrict is, dds_keyhash_t * __restrict kh, const struct ddsi_sertype_default * __restrict type, const bool just_key)
-{
-  const struct ddsi_sertype_default_desc *desc = &type->type;
-  kh->m_set = 1;
-  if (desc->keys.nkeys == 0)
-  {
-    kh->m_iskey = 1;
-    kh->m_keysize = 0;
-  }
-  else if (desc->flagset & DDS_TOPIC_FIXED_KEY)
-  {
-    dds_ostreamBE_t os;
-    kh->m_iskey = 1;
-    dds_ostreamBE_init (&os, 0);
-    os.x.m_buffer = kh->m_hash;
-    os.x.m_size = 16;
-    if (just_key)
-      dds_stream_extract_keyBE_from_key (is, &os, type);
-    else
-      dds_stream_extract_keyBE_from_data (is, &os, type);
-    assert (os.x.m_index <= 16);
-    kh->m_keysize = (unsigned)os.x.m_index & 0x1f;
-  }
-  else
-  {
-    dds_ostreamBE_t os;
-    ddsrt_md5_state_t md5st;
-    kh->m_iskey = 0;
-    kh->m_keysize = 16;
-    dds_ostreamBE_init (&os, 0);
-    if (just_key)
-      dds_stream_extract_keyBE_from_key (is, &os, type);
-    else
-      dds_stream_extract_keyBE_from_data (is, &os, type);
-    ddsrt_md5_init (&md5st);
-    ddsrt_md5_append (&md5st, os.x.m_buffer, os.x.m_index);
-    ddsrt_md5_finish (&md5st, kh->m_hash);
-    dds_ostreamBE_fini (&os);
-  }
 }
 
 /*******************************************************************************************
