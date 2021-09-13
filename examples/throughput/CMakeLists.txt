@@ -14,7 +14,11 @@ cmake_minimum_required(VERSION 3.5)
 
 if(NOT TARGET CycloneDDS::ddsc)
   # Find the CycloneDDS package.
-  find_package(CycloneDDS REQUIRED)
+  if(YOCTO_CROSSCOMPILING)
+    find_package(CycloneDDS REQUIRED PATHS ${STAGING_DIR_NATIVE} NO_CMAKE_FIND_ROOT_PATH)
+  else()
+    find_package(CycloneDDS REQUIRED)
+  endif()
 endif()
 
 # This is a convenience function, provided by the CycloneDDS package,
@@ -29,5 +33,12 @@ add_executable(ThroughputSubscriber subscriber.c)
 
 # Both executables need to be linked to the idl data type library and
 # the ddsc API library.
-target_link_libraries(ThroughputPublisher Throughput_lib CycloneDDS::ddsc)
-target_link_libraries(ThroughputSubscriber Throughput_lib CycloneDDS::ddsc)
+if(YOCTO_CROSSCOMPILING)
+  unset(DDSC_LIB CACHE)
+  find_library(DDSC_LIB NAMES ddsc REQUIRED PATHS ${STAGING_DIR_HOST}/usr/lib NO_DEFAULT_PATH)
+  target_link_libraries(ThroughputPublisher Throughput_lib ${DDSC_LIB})
+  target_link_libraries(ThroughputSubscriber Throughput_lib ${DDSC_LIB})
+else()
+  target_link_libraries(ThroughputPublisher Throughput_lib CycloneDDS::ddsc)
+  target_link_libraries(ThroughputSubscriber Throughput_lib CycloneDDS::ddsc)
+endif()

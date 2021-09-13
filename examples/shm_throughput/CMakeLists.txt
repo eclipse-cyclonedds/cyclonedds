@@ -14,7 +14,11 @@ cmake_minimum_required(VERSION 3.5)
 
 if(NOT TARGET CycloneDDS::ddsc)
   # Find the CycloneDDS package.
-  find_package(CycloneDDS REQUIRED)
+  if(YOCTO_CROSSCOMPILING)
+    find_package(CycloneDDS REQUIRED PATHS ${STAGING_DIR_NATIVE} NO_CMAKE_FIND_ROOT_PATH)
+  else()
+    find_package(CycloneDDS REQUIRED)
+  endif()
 endif()
 
 idlc_generate(TARGET ShmThroughput_lib FILES "ShmThroughput.idl")
@@ -22,5 +26,14 @@ idlc_generate(TARGET ShmThroughput_lib FILES "ShmThroughput.idl")
 add_executable(ShmThroughputPublisher shmpublisher.c)
 add_executable(ShmThroughputSubscriber shmsubscriber.c)
 
-target_link_libraries(ShmThroughputPublisher ShmThroughput_lib CycloneDDS::ddsc)
-target_link_libraries(ShmThroughputSubscriber ShmThroughput_lib CycloneDDS::ddsc)
+# Both executables need to be linked to the idl data type library and
+# the ddsc API library.
+if(YOCTO_CROSSCOMPILING)
+  unset(DDSC_LIB CACHE)
+  find_library(DDSC_LIB NAMES ddsc REQUIRED PATHS ${STAGING_DIR_HOST}/usr/lib NO_DEFAULT_PATH)
+  target_link_libraries(ShmThroughputPublisher ShmThroughput_lib ${DDSC_LIB})
+  target_link_libraries(ShmThroughputSubscriber ShmThroughput_lib ${DDSC_LIB})
+else()
+  target_link_libraries(ShmThroughputPublisher ShmThroughput_lib CycloneDDS::ddsc)
+  target_link_libraries(ShmThroughputSubscriber ShmThroughput_lib CycloneDDS::ddsc)
+endif()
