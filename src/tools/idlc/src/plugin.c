@@ -64,6 +64,28 @@ static void *loadsym(void *handle, const char *symbol)
 #endif
 }
 
+static void liberror(char *buffer, size_t bufferlen)
+{
+  assert(buffer != NULL);
+  assert(bufferlen > 0);
+#if WIN32
+  DWORD error = GetLastError();
+  (void)FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
+    FORMAT_MESSAGE_IGNORE_INSERTS |
+    FORMAT_MESSAGE_MAX_WIDTH_MASK,
+    NULL,
+    (DWORD)error,
+    0,
+    (LPTSTR)buffer,
+    (DWORD)(bufferlen - 1),
+    NULL);
+  SetLastError(error);
+#else
+  strncpy(buffer, dlerror(), bufferlen - 1);
+#endif
+  buffer[bufferlen - 1] = 0; /* ensure final zero in all cases */
+}
+
 extern int idlc_generate(const idl_pstate_t *pstate);
 
 int32_t
@@ -105,6 +127,7 @@ idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
     }
   }
 
+  /* open the library */
   if ((handle = openlib(path)) || (lang != path && (handle = openlib(lang)))) {
     generate = loadsym(handle, "generate");
     if (generate) {
@@ -113,8 +136,14 @@ idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
       plugin->generator_options = loadsym(handle, "generator_options");
       plugin->generator_annotations = loadsym(handle, "generator_annotations");
     } else {
+      fprintf(stderr, "Symbol 'generate' not found in %s\n", lang != path ? lang : path);
       closelib(handle);
     }
+  }
+  else {
+    char errmsg[300];
+    liberror(errmsg, sizeof(errmsg));
+    fprintf(stderr, "Cannot load generator %s: %s\n", lang != path ? lang : path, errmsg);
   }
 
   if (file) {
