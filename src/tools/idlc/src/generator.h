@@ -15,6 +15,7 @@
 #include <stdio.h>
 
 #include "idl/processor.h"
+#include "idlc/idlc.h"
 
 #include <stdlib.h>
 #include <string.h>

@@ -12,37 +12,6 @@
 #ifndef IDLC_OPTIONS_H
 #define IDLC_OPTIONS_H
 
-#include <stdbool.h>
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
-#define IDLC_NO_MEMORY (-1)
-#define IDLC_BAD_OPTION (-2)
-#define IDLC_NO_ARGUMENT (-3)
-#define IDLC_BAD_ARGUMENT (-4)
-
-typedef struct idlc_option idlc_option_t;
-struct idlc_option {
-  enum {
-    IDLC_FLAG, /**< flag-only, i.e. (sub)option without argument */
-    IDLC_STRING,
-    IDLC_FUNCTION,
-  } type;
-  union {
-    int *flag;
-    const char **string;
-    int (*function)(const idlc_option_t *, const char *);
-  } store;
-  char option; /**< option, i.e. "o" in "-o". "-h" is reserved */
-  char *suboption; /**< name of suboption, i.e. "mount" in "-o mount" */
-  char *argument;
-  char *help;
-};
-
-#if defined(__cplusplus)
-}
-#endif
+#include "idlc.h"
 
 #endif /* IDLC_OPTIONS_H */

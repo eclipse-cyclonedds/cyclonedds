@@ -337,16 +337,16 @@ idl_retcode_t
 idlc_generate(const idl_pstate_t *pstate)
 {
   idl_retcode_t ret = IDL_RETCODE_NO_MEMORY;
+  int cnt;
   const char *sep, *ext, *file, *path;
-  char empty[1] = { '\0' };
   char *dir = NULL, *basename = NULL;
   struct generator generator;
 
   assert(pstate->paths);
   assert(pstate->paths->name);
-  path = pstate->sources->path->name;
+  path = pstate->sources->file->name;
   /* use relative directory if user provided a relative path, use current
-     word directory otherwise */
+     work directory otherwise */
   sep = ext = NULL;
   for (const char *ptr = path; ptr[0]; ptr++) {
     if (idl_isseparator((unsigned char)ptr[0]) && ptr[1] != '\0')
@@ -357,8 +357,13 @@ idlc_generate(const idl_pstate_t *pstate)
 
   file = sep ? sep + 1 : path;
   if (idl_isabsolute(path) || !sep)
-    dir = empty;
-  else if (!(dir = idl_strndup(path, (size_t)(sep-path))))
+    cnt = idl_asprintf(&dir, "%.*s", idlc_config->prefix);
+  else if (idlc_config->prefix)
+    cnt = idl_asprintf(&dir, "%s/%.*s", idlc_config->prefix, (int)(sep-path), path);
+  else
+    cnt = idl_asprintf(&dir, "%.*s", (int)(sep-path), path);
+
+  if (cnt < 0)
     goto err_dir;
   if (!(basename = idl_strndup(file, ext ? (size_t)(ext-file) : strlen(file))))
     goto err_basename;
@@ -372,6 +377,8 @@ idlc_generate(const idl_pstate_t *pstate)
   memset(&generator, 0, sizeof(generator));
   generator.path = file;
 
+  if (dir && idl_mkpath(dir) == -1)
+    goto err_mkpath;
   sep = dir[0] == '\0' ? "" : "/";
   if (idl_asprintf(&generator.header.path, "%s%s%s.h", dir, sep, basename) < 0)
     goto err_header;
@@ -395,8 +402,9 @@ err_header:
     free(generator.header.path);
   if (basename)
     free(basename);
+err_mkpath:
 err_basename:
-  if (dir && dir != empty)
+  if (dir)// && dir != empty)
     free(dir);
 err_dir:
   return ret;

@@ -37,25 +37,16 @@
 #include "plugin.h"
 #include "options.h"
 
+#include "idlc/idlc.h"
+
 #if 0
 #define IDLC_DEBUG_PREPROCESSOR (1u<<2)
 #define IDLC_DEBUG_SCANNER (1u<<3)
 #define IDLC_DEBUG_PARSER (1u<<4)
 #endif
 
-static struct {
-  char *file; /* path of input file or "-" for STDIN */
-  const char *lang;
-  int compile;
-  int preprocess;
-  int keylist;
-  int case_sensitive;
-  int help;
-  int version;
-  /* (emulated) command line options for mcpp */
-  int argc;
-  char **argv;
-} config;
+static idlc_config_t config;
+const idlc_config_t *idlc_config = &config;
 
 /* mcpp does not accept userdata */
 static idl_retcode_t retcode = IDL_RETCODE_OK;
@@ -461,11 +452,14 @@ static const idlc_option_t *compopts[] = {
     IDLC_FUNCTION, { .function = &add_macro }, 'D', "", "<macro>[=value]",
     "Define <macro> to <value> (default:1)." },
   &(idlc_option_t){
-    IDLC_STRING, { .string = &config.lang }, 'l', "", "<language>",
+    IDLC_STRING, { .string = &config.language }, 'l', "", "<language>",
     "Compile representation for <language>. (default:c)." },
   &(idlc_option_t){
     IDLC_FLAG, { .flag = &config.version }, 'v', "", "",
     "Display version information." },
+  &(idlc_option_t){
+    IDLC_STRING, { .string = &config.prefix }, 'p', "", "<directory>",
+    "Directory to prefix output path with." },
   NULL
 };
 
@@ -505,7 +499,7 @@ int main(int argc, char *argv[])
 {
   int exit_code = EXIT_FAILURE;
   const char *prog = argv[0];
-  const char *lang;
+  //const char *lang;
   idlc_generator_plugin_t gen;
   idlc_option_t **opts = NULL;
   const idlc_option_t **genopts = NULL;
@@ -520,10 +514,10 @@ int main(int argc, char *argv[])
   config.preprocess = 1;
 
   /* determine which generator to use */
-  lang = figure_language(argc, argv);
+  config.language = figure_language(argc, argv);
   memset(&gen, 0, sizeof(gen));
-  if (idlc_load_generator(&gen, lang) == -1)
-    fprintf(stderr, "%s: cannot load generator %s\n", prog, lang);
+  if (idlc_load_generator(&gen, config.language) == -1)
+    fprintf(stderr, "%s: cannot load generator %s\n", prog, config.language);
 
   config.argc = 0;
   if (!(config.argv = calloc((size_t)argc + 7, sizeof(config.argv[0]))))
@@ -559,7 +553,7 @@ int main(int argc, char *argv[])
     case 0:
       break;
     case IDLC_BAD_INPUT:
-      fprintf(stderr, "%s: conflicting options in generator %s\n", prog, lang);
+      fprintf(stderr, "%s: conflicting options in generator %s\n", prog, config.language);
       /* fall through */
     default:
       print_usage(prog, "[OPTIONS] FILE");

@@ -27,38 +27,47 @@
 #include "file.h"
 #include "idl/string.h"
 
-unsigned int idl_isseparator(int chr)
-{
-#if _WIN32
-  return chr == '/' || chr == '\\';
-#else
-  return chr == '/';
-#endif
-}
-
-#define isseparator(chr) idl_isseparator(chr)
-
-unsigned int idl_isabsolute(const char *path)
-{
-  assert(path);
-  if (path[0] == '/')
-    return 1;
-#if _WIN32
-  if (((path[0] >= 'a' && path[0] <= 'z') || (path[0] >= 'A' && path[0] <= 'Z')) &&
-       (path[1] == ':') &&
-       (path[2] == '/' || path[2] == '\\' || path[2] == '\0'))
-    return 3;
-#endif
-  return 0;
-}
-
-#define isabsolute(chr) idl_isabsolute(chr)
-
 #if _WIN32
 static const char sep = '\\';
 #else
 static const char sep = '/';
 #endif
+
+unsigned int idl_isseparator(int chr)
+{
+  return chr == '/' || chr == sep;
+}
+
+#define isseparator(chr) idl_isseparator(chr)
+
+static unsigned int isdelimiter(char chr)
+{
+  return chr == '\0' || isseparator(chr);
+}
+
+#if _WIN32
+static unsigned int isdrive(const char *str)
+{
+  if (((str[0] >= 'a' && str[0] <= 'z') || (str[0] >= 'A' && str[0] <= 'Z')) &&
+       (str[1] == ':'))
+    return 2u;
+  return 0u;
+}
+#endif
+
+unsigned int idl_isabsolute(const char *str)
+{
+  assert(str);
+  if (str[0] == '/')
+    return 1u;
+#if _WIN32
+  if (isdrive(str) && isdelimiter((unsigned char)str[2]))
+    return isdelimiter((unsigned char)str[2]) ? 3u : 2u;
+#endif
+  return 0u;
+}
+
+#define isabsolute(chr) idl_isabsolute(chr)
 
 idl_retcode_t
 idl_current_path(char **abspathp)
@@ -74,11 +83,6 @@ idl_current_path(char **abspathp)
     return IDL_RETCODE_NO_MEMORY;
   *abspathp = cwd;
   return IDL_RETCODE_OK;
-}
-
-static int isdelimiter(char chr)
-{
-  return chr == '\0' || isseparator(chr);
 }
 
 ssize_t idl_untaint_path(char *path)
@@ -362,4 +366,112 @@ idl_retcode_t idl_relative_path(const char *base, const char *path, char **relpa
   idl_untaint_path(rel);
   *relpathp = rel;
   return IDL_RETCODE_OK;
+}
+
+#if _WIN32
+static inline int mkdir(const char *pathname, mode_t mode)
+{
+  // FIXME: create security attributes object from mode parameter
+  (void)mode;
+
+  if (CreateDirectory(pathname, NULL))
+    return 0;
+
+  switch (GetLastError())
+  {
+    case ERROR_ALREADY_EXISTS:
+      errno = EEXIST;
+      break;
+    case ERROR_PATH_NOT_FOUND:
+      errno = ENOENT;
+      break;
+    default:
+      errno = EINVAL;
+      break;
+  }
+
+  return -1;
+}
+#endif
+
+int idl_mkpath(const char *path)
+{
+  char statbuf[128], *dynbuf = NULL, *buf = statbuf;
+  size_t bufsz = sizeof(statbuf), buflen = 0u, pathlen = 0u;
+
+  assert(path);
+
+  /* prepend cwd unless path is absolute */
+  if (!isabsolute(path))
+  {
+    for (;;)
+    {
+      if (getcwd(buf, bufsz - 1))
+        break;
+      else if (errno != ERANGE)
+        goto err_getcwd;
+      bufsz += sizeof(statbuf);
+      if (!(buf = realloc(dynbuf, bufsz)))
+        goto err_realloc;
+      dynbuf = buf;
+    }
+    buflen = strlen(buf);
+    assert(buflen < bufsz);
+    /* append path separator */
+    buf[buflen++] = sep;
+    buf[buflen] = '\0';
+  }
+
+  for (;;)
+  {
+    assert(bufsz >= buflen);
+    pathlen = idl_strlcpy(buf + buflen, path, bufsz - buflen);
+    if (pathlen < bufsz - buflen)
+      break;
+    if (pathlen > SIZE_MAX - (bufsz - buflen))
+      goto err_realloc;
+    bufsz += 1 + (pathlen - (bufsz - buflen));
+    if (!(buf = realloc(dynbuf, bufsz)))
+      goto err_realloc;
+    dynbuf = buf;
+  }
+
+  assert(pathlen <= bufsz - buflen);
+  buflen += pathlen;
+
+  /* normalize path */
+  if (idl_untaint_path(buf) == -1)
+  {
+    errno = EINVAL;
+    goto err_untaint;
+  }
+
+  {
+    char chr, *ptr = buf;
+
+    for (; *ptr && *ptr != '/' && *ptr != sep; ptr++)
+      /* skip ahead to first separator to skip drive */;
+
+    while (*ptr)
+    {
+      for (++ptr; *ptr && *ptr != '/' && *ptr != sep; ptr++)
+        /* search for next segment */;
+      assert(ptr[-1] != '/' && ptr[-1] != sep);
+      chr = *ptr;
+      *ptr = '\0';
+      if (mkdir(buf, 0755) == -1 && errno != EEXIST)
+        goto err_mkdir;
+      *ptr = chr;
+    }
+  }
+
+  return 0;
+err_realloc:
+  errno = ENOMEM;
+err_mkdir:
+err_untaint:
+err_getcwd:
+  if (dynbuf)
+    free(dynbuf);
+  return -1;
 }
