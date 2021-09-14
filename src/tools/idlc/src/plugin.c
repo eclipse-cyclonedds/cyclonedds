@@ -128,7 +128,8 @@ idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
   }
 
   /* open the library */
-  if ((handle = openlib(path)) || (lang != path && (handle = openlib(lang)))) {
+  handle = openlib(path);
+  if (handle) {
     generate = loadsym(handle, "generate");
     if (generate) {
       plugin->handle = handle;
@@ -136,14 +137,14 @@ idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
       plugin->generator_options = loadsym(handle, "generator_options");
       plugin->generator_annotations = loadsym(handle, "generator_annotations");
     } else {
-      fprintf(stderr, "Symbol 'generate' not found in %s\n", lang != path ? lang : path);
+      fprintf(stderr, "Symbol 'generate' not found in %s\n", path);
       closelib(handle);
     }
   }
   else {
     char errmsg[300];
     liberror(errmsg, sizeof(errmsg));
-    fprintf(stderr, "Cannot load generator %s: %s\n", lang != path ? lang : path, errmsg);
+    fprintf(stderr, "Cannot load generator %s: %s\n", path, errmsg);
   }
 
   if (file) {
