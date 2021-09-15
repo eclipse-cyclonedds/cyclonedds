@@ -38,7 +38,7 @@
    compiled to language-specific sources, not machine code. */
 
 /* Define the cpu-specific-macro. */
-#define CPU                 "@idlpp_cpu@"
+#define CPU                 ""
 
 /* Define the target system. */
 #define SYSTEM              @idlpp_system@
