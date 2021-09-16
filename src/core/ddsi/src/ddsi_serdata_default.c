@@ -431,7 +431,7 @@ static void gen_keyhash_from_sample (const struct ddsi_sertype_default *type, dd
 }
 
 #ifdef DDS_HAS_SHM
-static struct ddsi_serdata* serdata_default_from_iox(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer)
+static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer)
 {
   iceoryx_header_t* ice_hdr = (iceoryx_header_t*)iox_buffer;
 
@@ -471,6 +471,14 @@ static struct ddsi_serdata *ddsi_serdata_default_from_loaned_sample (const struc
   struct ddsi_serdata *serdata = &d->c;
   serdata->iox_chunk = SHIFT_BACK_TO_ICEORYX_HEADER(sample);
   return serdata; 
+}
+
+static struct ddsi_serdata* serdata_default_from_iox(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, void* sub, void* buffer)
+{
+  if (sub == NULL)
+    return ddsi_serdata_default_from_loaned_sample(tpcmn, kind, buffer);
+  else
+    return serdata_default_from_received_iox_buffer(tpcmn, kind, sub, buffer);
 }
 #endif
 
@@ -681,7 +689,6 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {
 #ifdef DDS_HAS_SHM
   , .get_sample_size = ddsi_serdata_iox_size
   , .from_iox_buffer = serdata_default_from_iox
-  , .from_loaned_sample = ddsi_serdata_default_from_loaned_sample
 #endif
 };
 
@@ -704,6 +711,5 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey = {
 #ifdef DDS_HAS_SHM
   , .get_sample_size = ddsi_serdata_iox_size
   , .from_iox_buffer = serdata_default_from_iox
-  , .from_loaned_sample = ddsi_serdata_default_from_loaned_sample
 #endif
 };
