@@ -41,15 +41,16 @@ static void yyerror(idl_location_t *, idl_pstate_t *, const char *);
 #define NO_MEMORY() \
   do { \
     yylen = 0; \
-    goto yyexhaustedlab; \
+    pstate->parser.result = IDL_RETCODE_NO_MEMORY; \
+    YYABORT; \
   } while(0)
 
 #define SEMANTIC_ERROR(state, loc, ...) \
   do { \
     idl_error(state, loc, __VA_ARGS__); \
     yylen = 0; /* pop right-hand side tokens */ \
-    yyresult = IDL_RETCODE_SEMANTIC_ERROR; \
-    goto yyreturn; \
+    state->parser.result = IDL_RETCODE_SEMANTIC_ERROR; \
+    YYABORT; \
   } while(0)
 
 #define YYLLOC_DEFAULT(Cur, Rhs, N) \
@@ -75,19 +76,12 @@ static void yyerror(idl_location_t *, idl_pstate_t *, const char *);
     switch ((_ret_ = (action))) { \
       case IDL_RETCODE_OK: \
         break; \
-      case IDL_RETCODE_NO_MEMORY: \
-        yylen = 0; /* pop right-hand side tokens */ \
-        (void)(except);\
-        goto yyexhaustedlab; \
-      case IDL_RETCODE_SYNTAX_ERROR: \
-        yylen = 0; /* pop right-hand side tokens */ \
-        (void)(except); \
-        goto yyabortlab; \
       default: \
         yylen = 0; \
-        yyresult = _ret_; \
         (void)(except); \
-        goto yyreturn; \
+        pstate->parser.result = (_ret_); \
+        YYABORT; \
+        break; \
     } \
   } while(0)
 
@@ -1102,7 +1096,14 @@ int idl_iskeyword(idl_pstate_t *pstate, const char *str, int nc)
         && cmp(yytname[i] + 1, str, n) == 0
         && yytname[i][n + 1] == '"'
         && yytname[i][n + 2] == '\0') {
+#if YYBISON >= 30800
+      // "yytname" is long deprecated and "yytokname" has been removed in bison 3.8.
+      // This hack seems to be enough to buy us some time to rewrite the keyword
+      // recognition to not rely on anything deprecated
+      toknum = (int) (255 + i);
+#else
       toknum = yytoknum[i];
+#endif
     }
   }
 
@@ -1134,4 +1135,5 @@ static void
 yyerror(idl_location_t *loc, idl_pstate_t *pstate, const char *str)
 {
   idl_error(pstate, loc, str);
+  pstate->parser.result = IDL_RETCODE_SYNTAX_ERROR;
 }
