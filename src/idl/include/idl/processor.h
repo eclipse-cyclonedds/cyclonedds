@@ -116,6 +116,7 @@ struct idl_pstate {
       IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS
     } state;
     void *yypstate; /**< state of Bison generated parser */
+    idl_retcode_t result; /**< return value from idl_parse */
   } parser;
 };
 
