@@ -115,7 +115,7 @@ configure_file(features.h.in "${CMAKE_CURRENT_BINARY_DIR}/core/include/dds/featu
 
 add_subdirectory(tools)
 add_subdirectory(ddsrt)
-if(NOT CMAKE_CROSSCOMPILING AND BUILD_IDLC)
+if(BUILD_IDLC)
   add_subdirectory(idl)
 endif()
 add_subdirectory(security)

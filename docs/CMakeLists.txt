@@ -19,11 +19,11 @@ set(options_md "${CMAKE_CURRENT_BINARY_DIR}/manual/options.md")
 if(BUILD_SCHEMA OR BUILD_DOCS)
   add_custom_command(
     OUTPUT "${cyclonedds_rnc}" "${cyclonedds_xsd}" "${options_md}"
-    COMMAND ddsconf ARGS -f rnc -o "${cyclonedds_rnc}"
-    COMMAND ddsconf ARGS -f xsd -o "${cyclonedds_xsd}"
+    COMMAND ddsconf-native ARGS -f rnc -o "${cyclonedds_rnc}"
+    COMMAND ddsconf-native ARGS -f xsd -o "${cyclonedds_xsd}"
     COMMAND ${CMAKE_COMMAND} -E make_directory manual
-    COMMAND ddsconf ARGS -f md -o "${options_md}"
-    DEPENDS ddsconf)
+    COMMAND ddsconf-native ARGS -f md -o "${options_md}"
+    DEPENDS ddsconf-native)
   add_custom_target(
     schema ALL DEPENDS "${cyclonedds_rnc}" "${cyclonedds_xsd}" "${options_md}")
 endif()
