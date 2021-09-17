@@ -11,10 +11,11 @@
 #
 set(defconfig_src "${CMAKE_CURRENT_BINARY_DIR}/defconfig.c")
 
+
 add_custom_command(
   OUTPUT ${defconfig_src}
-  COMMAND ddsconf -f defconfig -o ${defconfig_src}
-  DEPENDS ddsconf)
+  COMMAND ddsconf-native -f defconfig -o ${defconfig_src}
+  DEPENDS ddsconf-native)
 
 set(srcs_ddsi
   ddsi_eth.c

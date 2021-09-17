@@ -11,7 +11,7 @@
 #
 cmake_minimum_required(VERSION 3.5)
 
-find_package(CycloneDDS COMPONENTS idlc)
+find_package(CycloneDDS REQUIRED)
 
 add_compile_options("-I${PROJECT_SOURCE_DIR}/src/ddsrt/include")
 add_compile_options("-I${PROJECT_SOURCE_DIR}/src/core/ddsc/include")

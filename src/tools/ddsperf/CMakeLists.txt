@@ -10,6 +10,8 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 
+include(Generate)
+
 idlc_generate(TARGET ddsperf_types FILES ddsperf_types.idl)
 add_executable(ddsperf ddsperf.c cputime.c cputime.h netload.c netload.h)
 target_link_libraries(ddsperf ddsperf_types ddsc)
