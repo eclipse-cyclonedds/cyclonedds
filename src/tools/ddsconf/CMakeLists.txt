@@ -9,14 +9,8 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-if(CMAKE_CROSSCOMPILING)
-  find_program(DDSCONF_EXECUTABLE ddsconf REQUIRED)
-  if(NOT DDSCONF_EXECUTABLE)
-    message(FATAL_ERROR "ddsconf not found!")
-  endif()
-  add_executable(ddsconf IMPORTED GLOBAL)
-  set_property(TARGET ddsconf PROPERTY IMPORTED_LOCATION ${DDSCONF_EXECUTABLE})
-else()
+
+if (BUILD_DDSCONF)
   include(GenerateDummyExportHeader)
 
   add_executable(ddsconf
@@ -37,4 +31,42 @@ else()
     "${CMAKE_CURRENT_BINARY_DIR}/include"
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsc,INCLUDE_DIRECTORIES>>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+
+  add_executable(${PROJECT_NAME}::ddsconf ALIAS ddsconf)
+
+  install(
+    TARGETS ddsconf
+    EXPORT "${CMAKE_PROJECT_NAME}"
+    DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    COMPONENT dev)
+
+  if (CMAKE_CROSSCOMPILING)
+    find_program(_executable ddsconf REQUIRED NO_CMAKE_FIND_ROOT_PATH)
+
+    # REQUIRED is not working until cmake 3.18 so it might still not exist
+    if (NOT _executable)
+      message(FATAL_ERROR "Could not find a native ddsconf executable, please make sure it is available on PATH")
+    endif()
+
+    add_executable(ddsconf-native IMPORTED GLOBAL)
+    set_property(TARGET ddsconf-native PROPERTY IMPORTED_LOCATION "${_executable}")
+    message(STATUS "Using imported native ddsconf ${_executable}")
+  else()
+    add_executable(ddsconf-native ALIAS ddsconf)
+  endif()
+else()
+  # Note, no if crosscompiling statement here, ddsconf is _required_
+  # so if you don't BUILD_DDSCONF it has to be found
+  find_program(_executable ddsconf REQUIRED NO_CMAKE_FIND_ROOT_PATH)
+
+  # REQUIRED is not working until cmake 3.18 so it might still not exist
+  if (NOT _executable)
+    message(FATAL_ERROR "Could not find a native ddsconf executable, please make sure it is available on PATH")
+  endif()
+
+  add_executable(ddsconf-native IMPORTED GLOBAL)
+  set_property(TARGET ddsconf-native PROPERTY IMPORTED_LOCATION "${_executable}")
+  message(STATUS "Using imported native ddsconf ${_executable}")
 endif()
+
+

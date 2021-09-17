@@ -27,6 +27,12 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+if(CMAKE_CROSSCOMPILING)
+  set(not_crosscompiling OFF)
+else()
+  set(not_crosscompiling ON)
+endif()
+
 # By default don't treat warnings as errors, else anyone building it with a different compiler that
 # just happens to generate a warning, as well as anyone adding or modifying something and making a
 # small mistake would run into errors.  CI builds can be configured differently.
@@ -34,7 +40,9 @@ option(WERROR "Treat compiler warnings as errors" OFF)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
-option(BUILD_IDLC "Build IDL preprocessor" ON)
+option(BUILD_IDLC "Build IDL preprocessor" ${not_crosscompiling})
+option(BUILD_DDSCONF "Build DDSCONF buildtool" ${not_crosscompiling})
+
 
 set(CMAKE_C_STANDARD 99)
 if(CMAKE_SYSTEM_NAME STREQUAL "VxWorks")
@@ -235,15 +243,11 @@ set(MEMORYCHECK_COMMAND_OPTIONS "--track-origins=yes --leak-check=full --trace-c
 # since not everybody has CUnit, and because it is not strictly required to
 # build the product itself, switch to off by default.
 option(BUILD_TESTING "Build the testing tree." OFF)
+
 # Disable building examples by default because it is not strictly required.
 option(BUILD_EXAMPLES "Build examples." OFF)
 
 option(BUILD_DOCS "Build documentation." OFF)
-if(CMAKE_CROSSCOMPILING)
-  set(not_crosscompiling OFF)
-else()
-  set(not_crosscompiling ON)
-endif()
 option(BUILD_SCHEMA "Build generated schema for configuration options." ${not_crosscompiling})
 
 # Build all executables and libraries into the top-level /bin and /lib folders.
@@ -300,7 +304,7 @@ install(
   COMPONENT dev)
 
 add_subdirectory(src)
-if(BUILD_IDLC AND BUILD_EXAMPLES)
+if(BUILD_EXAMPLES)
   add_subdirectory(examples)
 endif()
 

@@ -9,11 +9,26 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
+
+
 function(IDLC_GENERATE)
   set(one_value_keywords TARGET)
   set(multi_value_keywords FILES FEATURES)
   cmake_parse_arguments(
     IDLC "" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
+
+  if (CMAKE_CROSSCOMPILING)
+    find_program(_idlc_executable idlc NO_CMAKE_FIND_ROOT_PATH REQUIRED)
+
+    if (_idlc_executable)
+      set(_idlc_depends "")
+    else()
+      message(FATAL_ERROR "Cannot find idlc executable")
+    endif()
+  else()
+    set(_idlc_executable CycloneDDS::idlc)
+    set(_idlc_depends CycloneDDS::idlc)
+  endif()
 
   if(NOT IDLC_TARGET AND NOT IDLC_FILES)
     # assume deprecated invocation: TARGET FILE [FILE..]
@@ -57,9 +72,9 @@ function(IDLC_GENERATE)
     list(APPEND _headers "${_header}")
     add_custom_command(
       OUTPUT   "${_source}" "${_header}"
-      COMMAND  CycloneDDS::idlc
+      COMMAND  ${_idlc_executable}
       ARGS     ${_file} ${IDLC_ARGS}
-      DEPENDS  ${_files} CycloneDDS::idlc)
+      DEPENDS  ${_files} ${_idlc_depends})
   endforeach()
 
   add_custom_target("${_target}_generate" DEPENDS "${_sources}" "${_headers}")
