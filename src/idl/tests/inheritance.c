@@ -17,29 +17,90 @@
 
 #include "CUnit/Test.h"
 
-CU_Test(idl_inheritance, base_struct)
+static idl_retcode_t
+parse_string(uint32_t flags, const char *str, idl_pstate_t **pstatep)
 {
-  idl_retcode_t ret;
   idl_pstate_t *pstate = NULL;
-  idl_struct_t *s1, *s2;
+  idl_retcode_t ret;
 
-  const char str[] = "struct s1 { char c; }; struct s2 : s1 { octet o; };";
-  ret = idl_create_pstate(0u, NULL, &pstate);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL(pstate);
-  assert(pstate);
+  if ((ret = idl_create_pstate(flags, NULL, &pstate)) != IDL_RETCODE_OK)
+    return ret;
   ret = idl_parse_string(pstate, str);
-  CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(pstate->root);
-  assert(pstate->root);
-  s1 = (idl_struct_t *)pstate->root;
-  CU_ASSERT_FATAL(idl_is_struct(s1));
-  CU_ASSERT_STRING_EQUAL(idl_identifier(s1), "s1");
-  s2 = idl_next(s1);
-  CU_ASSERT_FATAL(idl_is_struct(s2));
-  CU_ASSERT_STRING_EQUAL(idl_identifier(s2), "s2");
-  CU_ASSERT(s2->inherit_spec && s2->inherit_spec->base == s1);
-  idl_delete_pstate(pstate);
+  if (ret != IDL_RETCODE_OK)
+    idl_delete_pstate(pstate);
+  else
+    *pstatep = pstate;
+  return ret;
+}
+
+typedef struct inherit_spec_test {
+  const char *str;
+  idl_retcode_t parse_ret;
+  idl_extensibility_t base_ext;
+  idl_extensibility_t inh_ext;
+} inherit_spec_test_t;
+
+static void
+test_inheritance(inherit_spec_test_t test) {
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.str, &pstate);
+  CU_ASSERT_EQUAL(test.parse_ret, ret);
+  if (test.parse_ret != IDL_RETCODE_OK) {
+    CU_ASSERT_PTR_NULL(pstate);
+  } else if (ret == IDL_RETCODE_OK) {
+    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+
+    idl_struct_t *base = (idl_struct_t*)pstate->root;
+    idl_struct_t *derived = (idl_struct_t*)idl_next(base);
+
+    CU_ASSERT_FATAL(idl_is_struct(base) && idl_is_struct(derived));
+
+    CU_ASSERT_STRING_EQUAL(idl_identifier(base), "base");
+    CU_ASSERT_EQUAL(base->extensibility.value, test.base_ext);
+
+    CU_ASSERT_STRING_EQUAL(idl_identifier(derived), "derived");
+    CU_ASSERT_EQUAL(derived->extensibility.value, test.inh_ext);
+
+    CU_ASSERT(derived->inherit_spec && derived->inherit_spec->base == base);
+
+    idl_delete_pstate(pstate);
+  }
+}
+
+CU_Test(idl_inheritance, extensibility)
+{
+  static const inherit_spec_test_t tests[] = {
+    {"struct base { char c; };\n"
+     "struct derived : base { char d; };",                             IDL_RETCODE_OK,             IDL_FINAL, IDL_FINAL}, //base sanity check
+    {"@extensibility(MUTABLE) struct base { char c; };\n"
+     "struct derived : base { char d; };",                             IDL_RETCODE_OK,             IDL_MUTABLE, IDL_MUTABLE}, //implicit extensibility sanity check
+    {"@extensibility(MUTABLE) struct base { char c; };\n"
+     "@extensibility(MUTABLE) struct derived : base { char d; };",     IDL_RETCODE_OK,             IDL_MUTABLE, IDL_MUTABLE}, //explicit extensibility sanity check
+    {"struct base { char c; };\n"
+     "@extensibility(APPENDABLE) struct derived : base { char d; };",  IDL_RETCODE_SEMANTIC_ERROR, IDL_FINAL, IDL_FINAL}, //extensibility clash (implicit)
+    {"@extensibility(FINAL) struct base { char c; };\n"
+     "@extensibility(MUTABLE) struct derived : base { char d; };",     IDL_RETCODE_SEMANTIC_ERROR, IDL_FINAL, IDL_FINAL} //extensibility clash (explicit)
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+    test_inheritance(tests[i]);
+  }
+}
+
+CU_Test(idl_inheritance, members)
+{
+  static const inherit_spec_test_t tests[] = {
+    {"struct base { @key char c; char d; };\n"
+     "struct derived : base { char e, f; };",       IDL_RETCODE_OK,             IDL_FINAL, IDL_FINAL}, //base sanity check
+    {"struct base { char c, d; };\n"
+     "struct derived : base { string d, e; };",     IDL_RETCODE_SEMANTIC_ERROR, IDL_FINAL, IDL_FINAL}, //member name clash
+    {"struct base { @key char c, d; };\n"
+     "struct derived : base { @key char e, f; };",  IDL_RETCODE_SEMANTIC_ERROR, IDL_FINAL, IDL_FINAL} //extending key values is not allowed
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+    test_inheritance(tests[i]);
+  }
 }
 
 CU_Test(idl_inheritance, empty_structs)

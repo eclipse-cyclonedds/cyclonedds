@@ -297,6 +297,18 @@ annotate_extensibility(
     extensibility = IDL_FINAL;
   }
 
+  if (idl_is_struct(node)) {
+    idl_struct_t* _struct = (idl_struct_t*)node;
+    if (_struct->inherit_spec) {
+      idl_struct_t *base_struct = (idl_struct_t*)_struct->inherit_spec->base;
+      if (base_struct->extensibility.value != extensibility) {
+        idl_error(pstate, idl_location(annotation_appl),
+          "Extensibility of inherited type does not match that of base");
+        return IDL_RETCODE_SEMANTIC_ERROR;
+      }
+    }
+  }
+
   *annotationp = annotation_appl;
   *extensibilityp = extensibility;
   return IDL_RETCODE_OK;

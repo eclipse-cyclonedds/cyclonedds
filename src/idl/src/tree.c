@@ -1177,6 +1177,44 @@ idl_finalize_struct(
   idl_struct_t *node,
   idl_member_t *members)
 {
+  idl_member_t *member, *member2;
+  idl_declarator_t *decl, *decl2;
+
+  if (node->inherit_spec) {
+    idl_struct_t *base = node->inherit_spec->base;
+    assert(idl_is_struct(base));
+
+    node->extensibility.value = base->extensibility.value;
+    if (base->extensibility.value == IDL_APPENDABLE) {
+      static bool extensibility_inheritance_warned = false;
+      if (!extensibility_inheritance_warned) {
+        idl_warning(state, idl_location(node),
+          "Inheriting from appendable structs is unsafe");
+        extensibility_inheritance_warned = true;
+      }
+    }
+
+    /*check for clashes between inherited and inheriting members*/
+    IDL_FOREACH(member, members) {
+      if (member->key.value) {
+        idl_error(state, idl_location(member),
+          "Derived struct is not allowed to expand on keys");
+        return IDL_RETCODE_SEMANTIC_ERROR;
+      }
+      IDL_FOREACH(decl, member->declarators) {
+        IDL_FOREACH(member2, base->members) {
+          IDL_FOREACH(decl2, member2->declarators) {
+            if (0 == strcmp(decl->name->identifier,decl2->name->identifier)) {
+              idl_error(state, idl_location(decl),
+                "Member name %s clashes with declaration in inheritance", decl->name->identifier);
+              return IDL_RETCODE_SEMANTIC_ERROR;
+            }
+          }
+        }
+      }
+    }
+  }
+
   idl_exit_scope(state);
   node->node.symbol.location.last = location->last;
   if (members) {
