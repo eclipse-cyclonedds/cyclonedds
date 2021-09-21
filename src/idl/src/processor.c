@@ -169,7 +169,6 @@ idl_create_pstate(
   pstate->keylists = false;
   pstate->annotations = false;
   pstate->parser.state = IDL_PARSE;
-  pstate->parser.result = IDL_RETCODE_BAD_PARAMETER;
   pstate->scanner.state = IDL_SCAN;
   memset(&pstate->buffer, 0, sizeof(pstate->buffer));
   memset(&pstate->scanner, 0, sizeof(pstate->scanner));
@@ -316,12 +315,13 @@ static idl_retcode_t parse_grammar(idl_pstate_t *pstate, idl_token_t *tok)
       break;
   }
 
-  switch (idl_yypush_parse(pstate->parser.yypstate, tok->code, &yylval, &tok->location, pstate))
+  idl_retcode_t result = IDL_RETCODE_BAD_PARAMETER;
+  switch (idl_yypush_parse(pstate->parser.yypstate, tok->code, &yylval, &tok->location, pstate, &result))
   {
     case 0:
       return IDL_RETCODE_OK;
     case 1:
-      return pstate->parser.result;
+      return result;
     case 2:
       return IDL_RETCODE_NO_MEMORY;
     case YYPUSH_MORE:
