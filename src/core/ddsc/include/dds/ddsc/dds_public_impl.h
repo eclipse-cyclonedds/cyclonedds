@@ -44,7 +44,8 @@ dds_sequence_t;
 typedef struct dds_key_descriptor
 {
   const char * m_name;
-  uint32_t m_index;
+  uint32_t m_offset;
+  uint32_t m_idx;
 }
 dds_key_descriptor_t;
 

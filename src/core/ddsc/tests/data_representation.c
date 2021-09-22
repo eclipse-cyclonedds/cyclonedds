@@ -234,13 +234,14 @@ CU_Test(ddsc_data_representation, matching, .init = data_representation_init, .f
 
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
+    dds_return_t ret;
     printf ("running test %u: %s %u/%u\n", i, tests[i].match ? "true" : "false", tests[i].n_ids_rd, tests[i].n_ids_wr);
     dds_qos_t *qos_rd = dds_create_qos (), *qos_wr = dds_create_qos ();
     dds_qset_history(qos_rd, DDS_HISTORY_KEEP_ALL, DDS_LENGTH_UNLIMITED);
     dds_qset_durability(qos_rd, DDS_DURABILITY_TRANSIENT_LOCAL);
     dds_qset_reliability(qos_rd, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
 
-    dds_return_t ret = dds_copy_qos (qos_wr, qos_rd);
+    ret = dds_copy_qos (qos_wr, qos_rd);
     CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 
     if (tests[i].n_ids_rd > 0)
@@ -270,6 +271,18 @@ CU_Test(ddsc_data_representation, matching, .init = data_representation_init, .f
       dds_waitset_attach (ws, rd, rd);
       DataRepresentationTypes_Type1 sample = { { 1, 2, 3 }, "test", 4 };
       (void) write_read_sample (ws, wr, rd, &sample, NULL);
+
+      dds_attach_t triggered;
+      dds_sample_info_t si[1];
+      void * rds[1] = { NULL };
+      ret = dds_dispose (wr, &sample);
+      CU_ASSERT_EQUAL_FATAL (ret, 0);
+      ret = dds_waitset_wait (ws, &triggered, 1, DDS_SECS(5));
+      CU_ASSERT_EQUAL_FATAL (ret, 1);
+      ret = dds_read (rd, rds, si, 1, 1);
+      CU_ASSERT_EQUAL_FATAL (ret, 1);
+      CU_ASSERT_EQUAL_FATAL (si->instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+      dds_return_loan (rd, rds, 1);
     }
     else
       no_sync_reader_writer (dp2, rd, dp1, wr, DDS_MSECS (200));

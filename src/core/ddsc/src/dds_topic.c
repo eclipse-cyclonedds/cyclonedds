@@ -685,7 +685,10 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   st->type.keys.nkeys = desc->m_nkeys;
   st->type.keys.keys = ddsrt_malloc (st->type.keys.nkeys  * sizeof (*st->type.keys.keys));
   for (uint32_t i = 0; i < st->type.keys.nkeys; i++)
-    st->type.keys.keys[i] = desc->m_keys[i].m_index;
+  {
+    st->type.keys.keys[i].ops_offs = desc->m_keys[i].m_offset;
+    st->type.keys.keys[i].idx = desc->m_keys[i].m_idx;
+  }
   st->type.ops.nops = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys);
   st->type.ops.ops = ddsrt_memdup (desc->m_ops, st->type.ops.nops * sizeof (*st->type.ops.ops));
 

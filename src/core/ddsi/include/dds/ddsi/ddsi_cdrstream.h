@@ -47,11 +47,11 @@ DDSRT_STATIC_ASSERT (offsetof (dds_ostreamBE_t, x) == 0);
 
 DDS_EXPORT void dds_istream_init (dds_istream_t * __restrict st, uint32_t size, const void * __restrict input, uint32_t xcdr_version);
 DDS_EXPORT void dds_istream_fini (dds_istream_t * __restrict st);
-DDS_EXPORT void dds_ostream_init (dds_ostream_t * __restrict st, uint32_t size);
+DDS_EXPORT void dds_ostream_init (dds_ostream_t * __restrict st, uint32_t size, uint32_t xcdr_version);
 DDS_EXPORT void dds_ostream_fini (dds_ostream_t * __restrict st);
-DDS_EXPORT void dds_ostreamLE_init (dds_ostreamLE_t * __restrict st, uint32_t size);
+DDS_EXPORT void dds_ostreamLE_init (dds_ostreamLE_t * __restrict st, uint32_t size, uint32_t xcdr_version);
 DDS_EXPORT void dds_ostreamLE_fini (dds_ostreamLE_t * __restrict st);
-DDS_EXPORT void dds_ostreamBE_init (dds_ostreamBE_t * __restrict st, uint32_t size);
+DDS_EXPORT void dds_ostreamBE_init (dds_ostreamBE_t * __restrict st, uint32_t size, uint32_t xcdr_version);
 DDS_EXPORT void dds_ostreamBE_fini (dds_ostreamBE_t * __restrict st);
 
 DDS_EXPORT const uint32_t *dds_stream_normalize1 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops);
@@ -77,6 +77,7 @@ DDS_EXPORT void dds_ostream_add_to_serdata_default (dds_ostream_t * __restrict s
 DDS_EXPORT void dds_stream_write_key (dds_ostream_t * __restrict os, const char * __restrict sample, const struct ddsi_sertype_default * __restrict type);
 DDS_EXPORT void dds_stream_write_keyBE (dds_ostreamBE_t * __restrict os, const char * __restrict sample, const struct ddsi_sertype_default * __restrict type);
 DDS_EXPORT void dds_stream_extract_key_from_data (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
+DDS_EXPORT void dds_stream_extract_key_from_key (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
 DDS_EXPORT void dds_stream_extract_keyBE_from_data (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
 DDS_EXPORT void dds_stream_extract_keyBE_from_key (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
 

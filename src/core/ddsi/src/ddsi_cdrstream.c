@@ -77,10 +77,13 @@
 #define dds_stream_extract_keyBO_from_key_prim_op     NAME2_BYTE_ORDER(dds_stream_extract_key, _from_key_prim_op)
 #define dds_stream_extract_keyBO_from_data_delimited  NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data_delimited)
 #define dds_stream_extract_keyBO_from_data_pl         NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data_pl)
+#define dds_stream_extract_keyBO_from_key             NAME2_BYTE_ORDER(dds_stream_extract_key, _from_key)
 
 static const uint32_t *dds_stream_skip_default (char * __restrict data, const uint32_t * __restrict ops);
-static const uint32_t *dds_stream_extract_key_from_data1 (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const uint32_t * __restrict ops, uint32_t * __restrict keys_remaining);
-static const uint32_t *dds_stream_extract_keyBE_from_data1 (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const uint32_t * __restrict ops, uint32_t * __restrict keys_remaining);
+static const uint32_t *dds_stream_extract_key_from_data1 (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const uint32_t * __restrict ops,
+  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_sertype_default_desc_key_t * __restrict key, uint32_t * __restrict key_src_offs, const uint32_t ** __restrict key_op_offs);
+static const uint32_t *dds_stream_extract_keyBE_from_data1 (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const uint32_t * __restrict ops,
+  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_sertype_default_desc_key_t * __restrict key, uint32_t * __restrict key_src_offs, const uint32_t ** __restrict key_op_offs);
 
 static void dds_ostream_grow (dds_ostream_t * __restrict st, uint32_t size)
 {
@@ -109,22 +112,23 @@ void dds_istream_init (dds_istream_t * __restrict st, uint32_t size, const void 
   st->m_xcdr_version = xcdr_version;
 }
 
-void dds_ostream_init (dds_ostream_t * __restrict st, uint32_t size)
+void dds_ostream_init (dds_ostream_t * __restrict st, uint32_t size, uint32_t xcdr_version)
 {
   st->m_buffer = NULL;
   st->m_size = 0;
   st->m_index = 0;
+  st->m_xcdr_version = xcdr_version;
   dds_cdr_resize (st, size);
 }
 
-void dds_ostreamLE_init (dds_ostreamLE_t * __restrict st, uint32_t size)
+void dds_ostreamLE_init (dds_ostreamLE_t * __restrict st, uint32_t size, uint32_t xcdr_version)
 {
-  dds_ostream_init (&st->x, size);
+  dds_ostream_init (&st->x, size, xcdr_version);
 }
 
-void dds_ostreamBE_init (dds_ostreamBE_t * __restrict st, uint32_t size)
+void dds_ostreamBE_init (dds_ostreamBE_t * __restrict st, uint32_t size, uint32_t xcdr_version)
 {
-  dds_ostream_init (&st->x, size);
+  dds_ostream_init (&st->x, size, xcdr_version);
 }
 
 void dds_istream_fini (dds_istream_t * __restrict st)
@@ -595,10 +599,10 @@ static void dds_stream_countops_keyoffset (const uint32_t * __restrict ops, cons
 {
   assert (key);
   assert (*ops_end);
-  if (key->m_index >= *ops_end - ops)
+  if (key->m_offset >= (uint32_t) (*ops_end - ops))
   {
-    assert (DDS_OP (ops[key->m_index]) == DDS_OP_KOF);
-    *ops_end = ops + key->m_index + 1 + DDS_OP_LENGTH (ops[key->m_index]);
+    assert (DDS_OP (ops[key->m_offset]) == DDS_OP_KOF);
+    *ops_end = ops + key->m_offset + 1 + DDS_OP_LENGTH (ops[key->m_offset]);
   }
 }
 
@@ -2156,7 +2160,7 @@ static bool stream_normalize_key (void * __restrict data, uint32_t size, bool bs
   uint32_t offs = 0;
   for (uint32_t i = 0; i < desc->keys.nkeys; i++)
   {
-    const uint32_t *op = desc->ops.ops + desc->keys.keys[i];
+    const uint32_t *op = desc->ops.ops + desc->keys.keys[i].ops_offs;
     switch (DDS_OP (*op))
     {
       case DDS_OP_KOF: {
@@ -2540,38 +2544,20 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
   }
 }
 
-void dds_stream_extract_keyBE_from_key (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_sertype_default * __restrict type)
-{
-  const struct ddsi_sertype_default_desc *desc = &type->type;
-  for (uint32_t i = 0; i < desc->keys.nkeys; i++)
-  {
-    uint32_t const * const op = desc->ops.ops + desc->keys.keys[i];
-    switch (DDS_OP (*op))
-    {
-      case DDS_OP_KOF: {
-        uint16_t n_offs = DDS_OP_LENGTH (*op);
-        dds_stream_extract_keyBE_from_key_prim_op (is, os, desc->ops.ops + op[1], --n_offs, op + 2);
-        break;
-      }
-      case DDS_OP_ADR: {
-        dds_stream_extract_keyBE_from_key_prim_op (is, os, op, 0, NULL);
-        break;
-      }
-      default:
-        abort ();
-        break;
-    }
-  }
-}
-
 static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t * __restrict is, uint32_t num, uint32_t subtype, const uint32_t * __restrict subops)
 {
   switch (subtype)
   {
-    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_ENU: {
+    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_ENU: {
       const uint32_t elem_size = get_type_size (subtype);
       dds_cdr_alignto (is, elem_size);
       is->m_index += num * elem_size;
+      break;
+    }
+    case DDS_OP_VAL_8BY: {
+      const uint32_t elem_size = is->m_xcdr_version == CDR_ENC_VERSION_2 ? 4 : 8;
+      dds_cdr_alignto (is, elem_size);
+      is->m_index += num * 8;
       break;
     }
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: case DDS_OP_VAL_BSP: {
@@ -2585,7 +2571,7 @@ static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t * __res
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       uint32_t remain = UINT32_MAX;
       for (uint32_t i = 0; i < num; i++)
-        dds_stream_extract_key_from_data1 (is, NULL, subops, &remain);
+        dds_stream_extract_key_from_data1 (is, NULL, subops, remain, &remain, NULL, NULL, NULL);
       break;
     }
     case DDS_OP_VAL_EXT: {
@@ -2732,7 +2718,7 @@ void dds_stream_read_key (dds_istream_t * __restrict is, char * __restrict sampl
   const struct ddsi_sertype_default_desc *desc = &type->type;
   for (uint32_t i = 0; i < desc->keys.nkeys; i++)
   {
-    const uint32_t *op = desc->ops.ops + desc->keys.keys[i];
+    const uint32_t *op = desc->ops.ops + desc->keys.keys[i].ops_offs;
     switch (DDS_OP (*op))
     {
       case DDS_OP_KOF: {
@@ -3235,7 +3221,7 @@ size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct ddsi_se
   bool cont = prtf (&buf, &bufsize, ":k:{");
   for (uint32_t i = 0; cont && i < desc->keys.nkeys; i++)
   {
-    const uint32_t *op = desc->ops.ops + desc->keys.keys[i];
+    const uint32_t *op = desc->ops.ops + desc->keys.keys[i].ops_offs;
     switch (DDS_OP (*op))
     {
       case DDS_OP_KOF: {

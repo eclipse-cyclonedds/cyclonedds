@@ -225,6 +225,8 @@ enum gen_serdata_key_input_kind {
 static void gen_serdata_key (const struct ddsi_sertype_default *type, struct ddsi_serdata_default_key *kh, enum gen_serdata_key_input_kind input_kind, void *input)
 {
   const struct ddsi_sertype_default_desc *desc = &type->type;
+  struct dds_istream *is = NULL;
+  kh->buftype = KEYBUFTYPE_UNSET;
   if (desc->keys.nkeys == 0)
   {
     kh->buftype = KEYBUFTYPE_STATIC;
@@ -232,16 +234,21 @@ static void gen_serdata_key (const struct ddsi_sertype_default *type, struct dds
   }
   else if (input_kind == GSKIK_CDRKEY)
   {
-    const struct dds_istream *is = input;
-    kh->buftype = KEYBUFTYPE_DYNALIAS;
-    assert (is->m_size < (1u << 30));
-    kh->keysize = is->m_size & SERDATA_DEFAULT_KEYSIZE_MASK;
-    kh->u.dynbuf = (unsigned char *) is->m_buffer;
+    is = input;
+    if (is->m_xcdr_version == CDR_ENC_VERSION_2)
+    {
+      kh->buftype = KEYBUFTYPE_DYNALIAS;
+      assert (is->m_size < (1u << 30));
+      kh->keysize = is->m_size & SERDATA_DEFAULT_KEYSIZE_MASK;
+      kh->u.dynbuf = (unsigned char *) is->m_buffer;
+    }
   }
-  else
+
+  if (kh->buftype == KEYBUFTYPE_UNSET)
   {
+    // Force the key in the serdata object to be serialized in XCDR2 format
     dds_ostream_t os;
-    dds_ostream_init (&os, 0);
+    dds_ostream_init (&os, 0, CDR_ENC_VERSION_2);
     if (desc->flagset & DDS_TOPIC_FIXED_KEY)
     {
       // FIXME: there are more cases where we don't have to allocate memory
@@ -257,7 +264,9 @@ static void gen_serdata_key (const struct ddsi_sertype_default *type, struct dds
         dds_stream_extract_key_from_data (input, &os, type);
         break;
       case GSKIK_CDRKEY:
-        assert (0);
+        assert (is);
+        assert (is->m_xcdr_version == CDR_ENC_VERSION_1);
+        dds_stream_extract_key_from_key (is, &os, type);
         break;
     }
     assert (os.m_index < (1u << 30));
@@ -339,6 +348,13 @@ static struct ddsi_serdata_default *serdata_default_from_ser_common (const struc
     dds_istream_t is;
     dds_istream_init (&is, actual_size, d->data, get_xcdr_version (d->hdr.identifier));
     gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY);
+    // for (int n = 0; n < d->key.keysize; n++) {
+    //   if (d->key.buftype == KEYBUFTYPE_DYNALLOC || d->key.buftype == KEYBUFTYPE_DYNALIAS)
+    //     printf("%02x ", d->key.u.dynbuf[n]);
+    //   else
+    //     printf("%02x ", d->key.u.stbuf[n]);
+    // }
+    // printf("\n");
     return d;
   }
 }
@@ -516,16 +532,28 @@ static struct ddsi_serdata_default *serdata_default_from_sample_cdr_common (cons
     case SDK_KEY:
       dds_stream_write_key (&os, sample, tp);
       dds_ostream_add_to_serdata_default (&os, &d);
-      d->key.buftype = KEYBUFTYPE_DYNALIAS;
-      // dds_ostream_add_to_serdata_default pads the size to a multiple of 4,
-      // writing the number of padding bytes added in the 2 least-significant
-      // bits of options (when interpreted as a big-endian 16-bit number) in
-      // accordance with the XTypes spec.
-      //
-      // Those padding bytes are not part of the key!
-      assert (ddsrt_fromBE2u (d->hdr.options) < 4);
-      d->key.keysize = (d->pos - ddsrt_fromBE2u (d->hdr.options)) & SERDATA_DEFAULT_KEYSIZE_MASK;
-      d->key.u.dynbuf = (unsigned char *) d->data;
+
+      /* FIXME: detect cases where the XCDR1 and 2 representations are equal,
+         so that we could alias the XCDR1 key from d->data */
+      if (tp->encoding_version == CDR_ENC_VERSION_2)
+      {
+        d->key.buftype = KEYBUFTYPE_DYNALIAS;
+        // dds_ostream_add_to_serdata_default pads the size to a multiple of 4,
+        // writing the number of padding bytes added in the 2 least-significant
+        // bits of options (when interpreted as a big-endian 16-bit number) in
+        // accordance with the XTypes spec.
+        //
+        // Those padding bytes are not part of the key!
+        assert (ddsrt_fromBE2u (d->hdr.options) < 4);
+        d->key.keysize = (d->pos - ddsrt_fromBE2u (d->hdr.options)) & SERDATA_DEFAULT_KEYSIZE_MASK;
+        d->key.u.dynbuf = (unsigned char *) d->data;
+      }
+      else
+      {
+        /* We have a XCDR1 key, so this must be converted to XCDR2 to store
+           it as key in this serdata. */
+        gen_serdata_key_from_sample (tp, &d->key, sample);
+      }
       break;
     case SDK_DATA:
       dds_stream_write_sample (&os, sample, tp);
@@ -701,8 +729,11 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
   void *keyBE = (tp->type.flagset & DDS_TOPIC_FIXED_KEY) ? static_keyBE : ddsrt_malloc (d->key.keysize);
   dds_istream_t is;
   dds_istream_init (&is, d->key.keysize, serdata_default_keybuf(d), get_xcdr_version (d->hdr.identifier));
+
+  /* The output stream uses the XCDR version from the serdata, so that the keyhash is calculated
+     using this CDR representation (XTypes spec 7.6.8, step 4) */
   dds_ostreamBE_t os;
-  dds_ostreamBE_init (&os, 0);
+  dds_ostreamBE_init (&os, 0, get_xcdr_version (d->hdr.identifier));
   os.x.m_buffer = keyBE;
   os.x.m_size = d->key.keysize;
   dds_stream_extract_keyBE_from_key (&is, &os, tp);

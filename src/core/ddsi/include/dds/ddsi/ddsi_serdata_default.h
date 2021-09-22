@@ -38,7 +38,7 @@ struct serdatapool {
 
 #define KEYBUFTYPE_UNSET    0u
 #define KEYBUFTYPE_STATIC   1u // uses u.stbuf
-#define KEYBUFTYPE_DYNALIAS 2u // points into payload - FIXME: currently key buffer content is big-endian ...
+#define KEYBUFTYPE_DYNALIAS 2u // points into payload
 #define KEYBUFTYPE_DYNALLOC 3u // dynamically allocated
 
 #define SERDATA_DEFAULT_KEYSIZE_MASK        0x3FFFFFFFu
@@ -103,9 +103,14 @@ struct ddsi_serdata_default {
 typedef bool (*dds_topic_intern_filter_fn) (const void * sample, void *ctx);
 #endif
 
+typedef struct ddsi_sertype_default_desc_key {
+  uint32_t ops_offs;   /* Offset for key ops */
+  uint32_t idx;        /* Key index (used for key order) */
+} ddsi_sertype_default_desc_key_t;
+
 typedef struct ddsi_sertype_default_desc_key_seq {
-  uint32_t nkeys;   /* Number of keys (can be 0) */
-  uint32_t *keys;   /* Key descriptors (NULL iff nkeys 0) */
+  uint32_t nkeys;
+  ddsi_sertype_default_desc_key_t *keys;
 } ddsi_sertype_default_desc_key_seq_t;
 
 typedef struct ddsi_sertype_default_desc_op_seq {

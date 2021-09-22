@@ -146,6 +146,7 @@ struct key_print_meta {
   uint32_t n_order;
   uint32_t *order;
   uint32_t size;
+  uint32_t key_idx;
 };
 
 struct key_print_meta *

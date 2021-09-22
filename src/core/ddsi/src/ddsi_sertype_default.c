@@ -139,7 +139,7 @@ static void sertype_default_free_samples (const struct ddsi_sertype *sertype_com
   }
 }
 
-const enum pserop ddsi_sertype_default_desc_ops[] = { Xux4, XQ, Xu, XSTOP, XQ, Xu, XSTOP, XSTOP };
+const enum pserop ddsi_sertype_default_desc_ops[] = { Xux4, XQ, Xux2, XSTOP, XQ, Xu, XSTOP, XSTOP };
 
 static void sertype_default_serialized_size (const struct ddsi_sertype *stc, size_t *dst_offset)
 {

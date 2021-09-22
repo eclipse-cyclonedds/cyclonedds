@@ -52,7 +52,7 @@ void dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, const char * __restr
   const struct ddsi_sertype_default_desc *desc = &type->type;
   for (uint32_t i = 0; i < desc->keys.nkeys; i++)
   {
-    const uint32_t *insnp = desc->ops.ops + desc->keys.keys[i];
+    const uint32_t *insnp = desc->ops.ops + desc->keys.keys[i].ops_offs;
     switch (DDS_OP (*insnp))
     {
       case DDS_OP_KOF: {
@@ -71,7 +71,8 @@ void dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, const char * __restr
   }
 }
 
-static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const uint32_t * __restrict ops, uint32_t * __restrict keys_remaining)
+static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const uint32_t * __restrict ops,
+  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_sertype_default_desc_key_t * __restrict key, uint32_t * __restrict key_src_offs, const uint32_t ** __restrict key_op_offs)
 {
   uint32_t delimited_sz = dds_is_get4 (is), delimited_offs = is->m_index, insn;
   ops++;
@@ -83,11 +84,11 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
         /* skip fields that are not in serialized data for appendable type */
         const uint32_t type = DDS_OP_TYPE (insn);
         ops = (is->m_index - delimited_offs < delimited_sz) ?
-            dds_stream_extract_keyBO_from_data1 (is, os, ops, keys_remaining) : dds_stream_extract_key_from_data_skip_adr (is, ops, type);
+            dds_stream_extract_keyBO_from_data1 (is, os, ops, n_keys, keys_remaining, key, key_src_offs, key_op_offs) : dds_stream_extract_key_from_data_skip_adr (is, ops, type);
         break;
       }
       case DDS_OP_JSR: {
-        (void) dds_stream_extract_keyBO_from_data1 (is, os, ops + DDS_OP_JUMP (insn), keys_remaining);
+        (void) dds_stream_extract_keyBO_from_data1 (is, os, ops + DDS_OP_JUMP (insn), n_keys, keys_remaining, key, key_src_offs, key_op_offs);
         ops++;
         break;
       }
@@ -103,7 +104,8 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
   return ops;
 }
 
-static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const uint32_t * __restrict ops, uint32_t * __restrict keys_remaining)
+static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const uint32_t * __restrict ops,
+  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_sertype_default_desc_key_t * __restrict key, uint32_t * __restrict key_src_offs, const uint32_t ** __restrict key_op_offs)
 {
   /* skip PLC op */
   ops++;
@@ -147,7 +149,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t * __
       if (ops[ops_csr + 1] == mid)
       {
         const uint32_t *plm_ops = ops + ops_csr + DDS_OP_ADR_JSR (insn);
-        (void) dds_stream_extract_keyBO_from_data1 (is, os, plm_ops, keys_remaining);
+        (void) dds_stream_extract_keyBO_from_data1 (is, os, plm_ops, n_keys, keys_remaining, key, key_src_offs, key_op_offs);
         found = true;
         break;
       }
@@ -169,7 +171,8 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t * __
   return ops;
 }
 
-static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const uint32_t * __restrict ops, uint32_t * __restrict keys_remaining)
+static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const uint32_t * __restrict ops,
+  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_sertype_default_desc_key_t * __restrict key, uint32_t * __restrict key_src_offs, const uint32_t ** __restrict key_op_offs)
 {
   uint32_t op;
   while ((op = *ops) != DDS_OP_RTS)
@@ -183,15 +186,16 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __re
         {
           const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
           const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
-          (void) dds_stream_extract_keyBO_from_data1 (is, os, jsr_ops, keys_remaining);
+          (void) dds_stream_extract_keyBO_from_data1 (is, os, jsr_ops, n_keys, keys_remaining, key, key_src_offs, key_op_offs);
           ops += jmp ? jmp : 3;
         }
         else if (is_key)
         {
-          dds_stream_extract_keyBO_from_key_prim_op (is, os, ops, 0, NULL);
+          key_src_offs[key[n_keys - *keys_remaining].idx] = is->m_index;
+          key_op_offs[key[n_keys - *keys_remaining].idx] = ops;
           if (--(*keys_remaining) == 0)
             return ops;
-          ops += 2 + (type == DDS_OP_VAL_BST || type == DDS_OP_VAL_BSP || type == DDS_OP_VAL_ARR || type == DDS_OP_VAL_ENU);
+          ops = dds_stream_extract_key_from_data_skip_adr (is, ops, type);
         }
         else
         {
@@ -201,7 +205,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __re
       }
       case DDS_OP_JSR: { /* Implies nested type */
         ops += 2;
-        dds_stream_extract_keyBO_from_data1 (is, os, ops + DDS_OP_JUMP (op), keys_remaining);
+        dds_stream_extract_keyBO_from_data1 (is, os, ops + DDS_OP_JUMP (op), n_keys, keys_remaining, key, key_src_offs, key_op_offs);
         if (*keys_remaining == 0)
           return ops;
         ops++;
@@ -212,13 +216,13 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __re
         break;
       }
       case DDS_OP_DLC: {
-        ops = dds_stream_extract_keyBO_from_data_delimited (is, os, ops, keys_remaining);
+        ops = dds_stream_extract_keyBO_from_data_delimited (is, os, ops, n_keys, keys_remaining, key, key_src_offs, key_op_offs);
         if (*keys_remaining == 0)
           return ops;
         break;
       }
       case DDS_OP_PLC: {
-        ops = dds_stream_extract_keyBO_from_data_pl (is, os, ops, keys_remaining);
+        ops = dds_stream_extract_keyBO_from_data_pl (is, os, ops, n_keys, keys_remaining, key, key_src_offs, key_op_offs);
         if (*keys_remaining == 0)
           return ops;
         break;
@@ -232,5 +236,47 @@ void dds_stream_extract_keyBO_from_data (dds_istream_t * __restrict is, DDS_OSTR
 {
   const struct ddsi_sertype_default_desc *desc = &type->type;
   uint32_t keys_remaining = desc->keys.nkeys;
-  (void) dds_stream_extract_keyBO_from_data1 (is, os, desc->ops.ops, &keys_remaining);
+  if (keys_remaining == 0)
+    return;
+  uint32_t *key_src_offs = ddsrt_malloc (desc->keys.nkeys * sizeof (*key_src_offs));
+  const uint32_t **key_op_offs = ddsrt_malloc (desc->keys.nkeys * sizeof (*key_op_offs));
+
+  (void) dds_stream_extract_keyBO_from_data1 (is, os, desc->ops.ops, desc->keys.nkeys, &keys_remaining, desc->keys.keys, key_src_offs, key_op_offs);
+
+  for (uint32_t i = 0; i < desc->keys.nkeys; i++)
+  {
+    is->m_index = key_src_offs[i];
+    dds_stream_extract_keyBO_from_key_prim_op (is, os, key_op_offs[i], 0, NULL);
+  }
+
+  ddsrt_free (key_src_offs);
+  ddsrt_free ((void *) key_op_offs);
+}
+
+/* This function is used to create a serialized key in order to create a keyhash (big-endian) and to translate XCDR1 key CDR into XCDR2
+   representation (native endianess). The former is not used regularly by Cyclone, and the latter is only used when receiving a key sample,
+   e.g. a dispose. For this reason, we use a (performance wise) sub-optimal approach of going through the entire CDR for every key field.
+   Optimizations is possible but would result in more complex code. */
+void dds_stream_extract_keyBO_from_key (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const struct ddsi_sertype_default * __restrict type)
+{
+  const struct ddsi_sertype_default_desc *desc = &type->type;
+  for (uint32_t i = 0; i < desc->keys.nkeys; i++)
+  {
+    uint32_t const * const op = desc->ops.ops + desc->keys.keys[i].ops_offs;
+    switch (DDS_OP (*op))
+    {
+      case DDS_OP_KOF: {
+        uint16_t n_offs = DDS_OP_LENGTH (*op);
+        dds_stream_extract_keyBO_from_key_prim_op (is, os, desc->ops.ops + op[1], --n_offs, op + 2);
+        break;
+      }
+      case DDS_OP_ADR: {
+        dds_stream_extract_keyBO_from_key_prim_op (is, os, op, 0, NULL);
+        break;
+      }
+      default:
+        abort ();
+        break;
+    }
+  }
 }

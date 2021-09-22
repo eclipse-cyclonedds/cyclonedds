@@ -43,7 +43,7 @@ const dds_topic_descriptor_t OneULong_desc =
 
 static const dds_key_descriptor_t Keyed32_keys[1] =
 {
-  { "keyval", 2 }
+  { "keyval", 2, 0 }
 };
 
 static const uint32_t Keyed32_ops [] =
@@ -70,7 +70,7 @@ const dds_topic_descriptor_t Keyed32_desc =
 
 static const dds_key_descriptor_t Keyed64_keys[1] =
 {
-  { "keyval", 2 }
+  { "keyval", 2, 0 }
 };
 
 static const uint32_t Keyed64_ops [] =
@@ -97,7 +97,7 @@ const dds_topic_descriptor_t Keyed64_desc =
 
 static const dds_key_descriptor_t Keyed128_keys[1] =
 {
-  { "keyval", 2 }
+  { "keyval", 2, 0 }
 };
 
 static const uint32_t Keyed128_ops [] =
@@ -124,7 +124,7 @@ const dds_topic_descriptor_t Keyed128_desc =
 
 static const dds_key_descriptor_t Keyed256_keys[1] =
 {
-  { "keyval", 2 }
+  { "keyval", 2, 0 }
 };
 
 static const uint32_t Keyed256_ops [] =
@@ -151,7 +151,7 @@ const dds_topic_descriptor_t Keyed256_desc =
 
 static const dds_key_descriptor_t KeyedSeq_keys[1] =
 {
-  { "keyval", 2 }
+  { "keyval", 2, 0 }
 };
 
 static const uint32_t KeyedSeq_ops [] =

@@ -1813,6 +1813,7 @@ struct key_print_meta *key_print_meta_init(struct descriptor *descriptor, uint32
       keys[key_index].order = calloc(offs_len, sizeof (*keys[key_index].order));
       keys[key_index].n_order = offs_len;
       keys[key_index].size = inst->data.key_offset.key_size;
+      keys[key_index].key_idx = key_index;
       key_index++;
     } else {
       assert(inst->type == KEY_OFFSET_VAL);
@@ -1862,9 +1863,9 @@ static int print_keys(FILE *fp, struct descriptor *descriptor, uint32_t offset)
   if (idl_fprintf(fp, fmt, typestr, descriptor->n_keys) < 0)
     goto err_print;
   sep = "";
-  fmt = "%s  { \"%s\", %"PRIu32" }";
+  fmt = "%s  { \"%s\", %"PRIu32", %"PRIu32" }";
   for (uint32_t k=0; k < descriptor->n_keys; k++) {
-    if (idl_fprintf(fp, fmt, sep, keys[k].name, offset + keys[k].inst_offs) < 0)
+    if (idl_fprintf(fp, fmt, sep, keys[k].name, offset + keys[k].inst_offs, keys[k].key_idx) < 0)
       goto err_print;
     sep = ",\n";
   }

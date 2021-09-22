@@ -122,6 +122,7 @@ EOF
     .flagset = $t->[1]_desc.m_flagset,
     .keys.nkeys = 0,
     .keys.keys = NULL,
+    .keys.key_index = NULL,
     .ops.nops = dds_stream_countops ($t->[1]_desc.m_ops),
     .ops.ops = (uint32_t *) $t->[1]_desc.m_ops
   };
