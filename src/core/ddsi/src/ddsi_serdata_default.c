@@ -475,7 +475,7 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
 
   const struct ddsi_sertype_default* tp = (const struct ddsi_sertype_default*)tpcmn;
 
-  struct ddsi_serdata_default* d = serdata_default_new_size(tp, kind, ice_hdr->data_size, CDR_ENC_VERSION_UNDEF);
+  struct ddsi_serdata_default *d = serdata_default_new_size (tp, kind, ice_hdr->data_size, tp->encoding_version);
 
   //ICEORYX_TODO: we do no copy here but store the pointer to the chunk
   //              the pointer was gotten in some concurrent thread of the shm_monitor
@@ -490,9 +490,10 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
 // Creates a serdata for the case where only iceoryx is required (i.e. no network).
 // This skips expensive serialization and just takes ownership of the iceoryx buffer.
 // Computing the keyhash is currently still required.
-static struct ddsi_serdata *ddsi_serdata_default_from_loaned_sample (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample) {
+static struct ddsi_serdata *ddsi_serdata_default_from_loaned_sample (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample)
+{
   const struct ddsi_sertype_default *t = (const struct ddsi_sertype_default *)type;
-  struct ddsi_serdata_default *d = serdata_default_new(t, kind);
+  struct ddsi_serdata_default *d = serdata_default_new (t, kind, t->encoding_version);
 
   if(d == NULL)
     return NULL;
@@ -515,6 +516,7 @@ static struct ddsi_serdata* serdata_default_from_iox(const struct ddsi_sertype* 
     return serdata_default_from_received_iox_buffer(tpcmn, kind, sub, buffer);
 }
 #endif
+
 
 static struct ddsi_serdata_default *serdata_default_from_sample_cdr_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, uint32_t xcdr_version, const void *sample)
 {
