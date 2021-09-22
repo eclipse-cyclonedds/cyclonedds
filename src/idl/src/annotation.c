@@ -577,21 +577,36 @@ annotate_bit_bound(
   value = literal->value.uint16;
 
   if (idl_is_bitmask(node)) {
-    if(value > 64)
-    {
+    if (value > 64) {
       idl_error(pstate, idl_location(annotation_appl),
         "@bit_bound for bitmask must be <= 64");
       return IDL_RETCODE_OUT_OF_RANGE;
     }
-    ((idl_bitmask_t *)node)->bit_bound.value = value;
+    idl_bitmask_t *bm = (idl_bitmask_t *)node;
+    bm->bit_bound.annotation = annotation_appl;
+    bm->bit_bound.value = value;
+    for (idl_bit_value_t *e1 = bm->bit_values; e1; e1 = idl_next(e1)) {
+      if (e1->position.value >= bm->bit_bound.value) {
+        idl_error(pstate, idl_location(e1), "Position overflow for bit value '%s' (%u), bit_bound is %u", e1->name->identifier, e1->position, bm->bit_bound);
+        return IDL_RETCODE_OUT_OF_RANGE;
+      }
+    }
   } else if (idl_is_enum(node)) {
-    if(value > 32)
-    {
+    if (value > 32) {
       idl_error(pstate, idl_location(annotation_appl),
         "@bit_bound for enum must be <= 32");
       return IDL_RETCODE_OUT_OF_RANGE;
     }
-    ((idl_enum_t *)node)->bit_bound.value = value;
+    idl_enum_t *_enum = (idl_enum_t *)node;
+    _enum->bit_bound.annotation = annotation_appl;
+    _enum->bit_bound.value = value;
+    uint32_t cnt = 0;
+    for (idl_enumerator_t *e1 = _enum->enumerators; e1; e1 = idl_next(e1)) {
+      if (++cnt >= (1ull << _enum->bit_bound.value)) {
+        idl_error(pstate, idl_location(e1), "Enumerator count (%u) overflow, bit_bound is %u", cnt, _enum->bit_bound.value);
+        return IDL_RETCODE_OUT_OF_RANGE;
+      }
+    }
   } else {
     idl_error(pstate, idl_location(annotation_appl),
       "@bit_bound can only be applied to enum and bitmask types");
@@ -617,12 +632,44 @@ annotate_external(
   }
 
   if (idl_mask(node) & IDL_MEMBER) {
-    ((idl_member_t *)node)->external.value = external;
+    idl_member_t *member = (idl_member_t *)node;
+    member->external.annotation = annotation_appl;
+    member->external.value = external;
   } else if (idl_mask(node) & IDL_CASE) {
-    ((idl_case_t *)node)->external.value = external;
+    idl_case_t *_case = (idl_case_t *)node;
+    _case->external.annotation = annotation_appl;
+    _case->external.value = external;
   } else {
     idl_error(pstate, idl_location(annotation_appl),
       "@external can only be applied to members of constructed types");
+  }
+
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+annotate_position(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+#if !defined(NDEBUG)
+  static const idl_mask_t mask = IDL_LITERAL|IDL_USHORT;
+#endif
+  idl_literal_t *literal;
+
+  assert(annotation_appl);
+  assert(annotation_appl->parameters);
+  literal = (idl_literal_t *)annotation_appl->parameters->const_expr;
+  assert((idl_mask(literal) & mask) == mask);
+
+  if (idl_is_bit_value(node)) {
+    idl_bit_value_t *bit_value = (idl_bit_value_t *)node;
+    bit_value->position.annotation = annotation_appl;
+    bit_value->position.value = literal->value.uint16;
+  } else {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@position cannot be applied to %s elements", idl_construct(node));
     return IDL_RETCODE_SEMANTIC_ERROR;
   }
 
@@ -745,7 +792,7 @@ static const idl_builtin_annotation_t annotations[] = {
   { .syntax = "@annotation bit_bound { unsigned short value default 32; };",
     .summary =
       "<p>This annotation allows setting a size (expressed in bits) to "
-      "an element or a group of elements</p>",
+      "an element or a group of elements.</p>",
     .callback = annotate_bit_bound },
   { .syntax = "@annotation external { boolean value default TRUE; };",
     .summary =
@@ -753,6 +800,10 @@ static const idl_builtin_annotation_t annotations[] = {
       "that it is desirable for the implementation to store the member in "
       "storage external to the enclosing aggregated type object.</p>",
     .callback = annotate_external },
+  { .syntax = "@annotation position { unsigned short value; };",
+    .summary =
+      "<p>This annotation allows setting a position to an element or a group of elements.</p>",
+    .callback = annotate_position },
   { .syntax = NULL, .summary = NULL, .callback = 0 }
 };
 
@@ -901,7 +952,6 @@ idl_annotate(
       return ret;
     a->node.parent = node;
   }
-
   ((idl_node_t *)node)->annotations = annotation_appls;
   return IDL_RETCODE_OK;
 }

@@ -790,6 +790,10 @@ uint32_t idl_bound(const void *node)
     return ((const idl_string_t *)node)->maximum;
   if ((mask & IDL_SEQUENCE) == IDL_SEQUENCE)
     return ((const idl_sequence_t *)node)->maximum;
+  if ((mask & IDL_BITMASK) == IDL_BITMASK)
+    return ((const idl_bitmask_t *)node)->bit_bound.value;
+  if ((mask & IDL_ENUM) == IDL_ENUM)
+    return ((const idl_enum_t *)node)->bit_bound.value;
   return 0u;
 }
 
@@ -804,15 +808,6 @@ const idl_literal_t *idl_default_value(const void *node)
   }
 
   return NULL;
-}
-
-uint16_t idl_bit_bound(const void *node)
-{
-  if (idl_is_bitmask(node))
-    return ((const idl_bitmask_t *)node)->bit_bound.value;
-  if (idl_is_enum(node))
-    return ((const idl_enum_t *)node)->bit_bound.value;
-  return 0u;
 }
 
 bool idl_is_sequence(const void *ptr)
@@ -1257,6 +1252,7 @@ idl_create_struct(
   idl_struct_t *node;
   idl_scope_t *scope;
   idl_declaration_t *declaration;
+  const idl_declaration_t *fwd_decl;
   static const size_t size = sizeof(*node);
   static const idl_mask_t mask = IDL_STRUCT;
   static const struct methods methods = {
@@ -1266,6 +1262,22 @@ idl_create_struct(
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     goto err_node;
   node->name = name;
+
+  /* set definition for earlier forward declarations of this struct */
+  if ((fwd_decl = idl_find(pstate, pstate->scope, name, 0u))
+      && fwd_decl->kind == IDL_FORWARD_DECLARATION
+  ) {
+    assert(idl_is_forward(fwd_decl->node));
+    idl_forward_t *fwd = (idl_forward_t *)fwd_decl->node;
+    if(!(fwd->node.mask & IDL_STRUCT)) {
+      ret = IDL_RETCODE_SEMANTIC_ERROR;
+      idl_error(pstate, idl_location(node),
+        "Forward declaration for %s '%s' is not a %s", idl_construct(node), idl_identifier(node), idl_construct(node));
+      goto err_fwd;
+    }
+    fwd->definition = node;
+  }
+
   if ((ret = idl_create_scope(pstate, IDL_STRUCT_SCOPE, name, node, &scope)))
     goto err_scope;
   if ((ret = idl_declare(pstate, kind, name, node, scope, &declaration)))
@@ -1300,6 +1312,7 @@ idl_create_struct(
 err_declare:
   idl_delete_scope(scope);
 err_scope:
+err_fwd:
   free(node);
 err_node:
   return ret;
@@ -1351,11 +1364,22 @@ idl_create_forward(
   idl_retcode_t ret;
   idl_forward_t *node;
   idl_declaration_t *declaration;
+  const idl_declaration_t *existing_decl;
   static const size_t size = sizeof(*node);
   assert (mask == IDL_STRUCT || mask == IDL_UNION);
   static const struct methods methods = {
     delete_forward, 0, describe_forward };
   static const enum idl_declaration_kind kind = IDL_FORWARD_DECLARATION;
+
+  /* if earlier forward declaration */
+  if ((existing_decl = idl_find(pstate, pstate->scope, name, 0u))
+      && existing_decl->kind == IDL_FORWARD_DECLARATION
+      && existing_decl->node->mask == (IDL_FORWARD | mask)
+  ) {
+    nodep = NULL;
+    idl_delete_name(name);
+    return IDL_RETCODE_OK;
+  }
 
   if ((ret = create_node(pstate, size, mask | IDL_FORWARD, location, &methods, &node)))
     goto err_node;
@@ -1942,6 +1966,7 @@ idl_create_union(
   static const struct methods methods = {
     delete_union, iterate_union, describe_union };
   static const enum idl_declaration_kind kind = IDL_SPECIFIER_DECLARATION;
+  const idl_declaration_t *fwd_decl;
 
   if (!idl_is_switch_type_spec(switch_type_spec)) {
     static const char *fmt =
@@ -1954,6 +1979,22 @@ idl_create_union(
     goto err_node;
   node->name = name;
   node->switch_type_spec = switch_type_spec;
+
+  /* set definition for earlier forward declarations of this union */
+  if ((fwd_decl = idl_find(pstate, pstate->scope, name, 0u))
+      && fwd_decl->kind == IDL_FORWARD_DECLARATION
+  ) {
+    assert(idl_is_forward(fwd_decl->node));
+    idl_forward_t *fwd = (idl_forward_t *)fwd_decl->node;
+    if(!(fwd->node.mask & IDL_UNION)) {
+      ret = IDL_RETCODE_SEMANTIC_ERROR;
+      idl_error(pstate, idl_location(node),
+        "Forward declaration for %s '%s' is not a %s", idl_construct(node), idl_identifier(node), idl_construct(node));
+      goto err_fwd;
+    }
+    fwd->definition = node;
+  }
+
   assert(!idl_scope(switch_type_spec));
   ((idl_node_t *)switch_type_spec)->parent = (idl_node_t *)node;
   if ((ret = idl_create_scope(pstate, IDL_UNION_SCOPE, name, node, &scope)))
@@ -1967,6 +2008,7 @@ idl_create_union(
 err_declare:
   idl_delete_scope(scope);
 err_scope:
+err_fwd:
   free(node);
 err_node:
   return ret;
@@ -2331,6 +2373,7 @@ idl_create_enum(
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     goto err_alloc;
   node->name = name;
+  node->bit_bound.value = 32; /* default value, can be overwritten with @bit_bound */
 
   assert(enumerators);
   node->enumerators = enumerators;
@@ -2517,6 +2560,7 @@ idl_create_bitmask(
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     goto err_alloc;
   node->name = name;
+  node->bit_bound.value = 32; /* default value, can be overwritten with @bit_bound */
 
   assert(bit_values);
   node->bit_values = bit_values;

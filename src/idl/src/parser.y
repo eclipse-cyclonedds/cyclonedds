@@ -214,7 +214,7 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
 %destructor { idl_delete_node($$); } <node> <literal> <sequence>
                                      <string> <module_dcl> <struct_dcl> <member> <union_dcl>
                                      <_case> <case_label> <enum_dcl> <enumerator> <bitmask_dcl> <bit_value> <declarator> <typedef_dcl>
-                                     <const_dcl> <annotation> <annotation_member> <annotation_appl> <annotation_appl_param>
+                                     <const_dcl> <annotation> <annotation_member> <annotation_appl> <annotation_appl_param> <forward>
                                      <switch_type_spec>
 
 %token IDL_TOKEN_LINE_COMMENT

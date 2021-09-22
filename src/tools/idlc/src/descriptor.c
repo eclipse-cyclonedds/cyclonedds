@@ -575,7 +575,7 @@ static uint32_t typecode(const idl_type_spec_t *type_spec, uint32_t shift, bool 
       return ((uint32_t)(struct_union_ext ? DDS_OP_VAL_EXT : DDS_OP_VAL_STU) << shift);
     case IDL_BITMASK:
     {
-      uint16_t bit_bound = idl_bit_bound(type_spec);
+      uint32_t bit_bound = idl_bound(type_spec);
       if (bit_bound <= 8)
         return ((uint32_t)DDS_OP_VAL_1BY << shift);
       else if (bit_bound <= 16)

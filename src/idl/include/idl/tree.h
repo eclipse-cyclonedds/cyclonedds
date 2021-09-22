@@ -44,27 +44,27 @@
   (IDL_SEQUENCE | IDL_STRING | IDL_WSTRING | IDL_FIXED_PT)
 
 /* miscellaneous */
-#define IDL_KEYLIST (1llu<<38)
-#define IDL_KEY (1llu<<37)
-#define IDL_INHERIT_SPEC (1llu<<36)
-#define IDL_SWITCH_TYPE_SPEC (1llu<<35)
-#define IDL_LITERAL (1ull<<34)
+#define IDL_KEYLIST (1llu<<39)
+#define IDL_KEY (1llu<<38)
+#define IDL_INHERIT_SPEC (1llu<<37)
+#define IDL_SWITCH_TYPE_SPEC (1llu<<36)
+#define IDL_LITERAL (1ull<<35)
 /* declarations */
-#define IDL_MODULE (1llu<<33)
-#define IDL_CONST (1llu<<32)
-#define IDL_MEMBER (1llu<<31)
-#define IDL_FORWARD (1llu<<30)
-#define IDL_CASE (1llu<<29)
-#define IDL_CASE_LABEL (1llu<<28)
+#define IDL_MODULE (1llu<<34)
+#define IDL_CONST (1llu<<33)
+#define IDL_MEMBER (1llu<<32)
+#define IDL_FORWARD (1llu<<31)
+#define IDL_CASE (1llu<<30)
+#define IDL_CASE_LABEL (1llu<<29)
 /* if explicit default is specified */
 #define IDL_DEFAULT_CASE_LABEL (IDL_CASE_LABEL | 1u)
 /* if no explicit default is specified and range is not covered */
 #define IDL_IMPLICIT_DEFAULT_CASE_LABEL (IDL_DEFAULT_CASE_LABEL | 2u)
-#define IDL_ENUMERATOR (1llu<<26)
+#define IDL_ENUMERATOR (1llu<<28)
 #define IDL_DEFAULT_ENUMERATOR (IDL_ENUMERATOR | 1u)
 #define IDL_IMPLICIT_DEFAULT_ENUMERATOR (IDL_DEFAULT_ENUMERATOR | 2u)
-#define IDL_BIT_VALUE (1llu<<39)
-#define IDL_DECLARATOR (1llu<<25)
+#define IDL_BIT_VALUE (1llu<<27)
+#define IDL_DECLARATOR (1llu<<26)
 /* annotations */
 #define IDL_ANNOTATION (1llu<<25)
 #define IDL_ANNOTATION_MEMBER (1llu<<24)
@@ -76,12 +76,12 @@
 typedef enum idl_type idl_type_t;
 enum idl_type {
   IDL_NULL = 0u,
-  IDL_TYPEDEF = (1llu<<18),
+  IDL_TYPEDEF = (1llu<<19),
   /* constructed types */
   IDL_STRUCT = (1u<<17),
   IDL_UNION = (1u<<16),
   IDL_ENUM = (1u<<15),
-  IDL_BITMASK = (1u<<19),
+  IDL_BITMASK = (1u<<18),
   /* template types */
   IDL_SEQUENCE = (1llu<<14),
   IDL_STRING = (1llu<<13),
@@ -122,7 +122,7 @@ enum idl_type {
   IDL_LDOUBLE = (IDL_BASE_TYPE | IDL_FLOATING_PT_TYPE | 3u)
 };
 
-#define IDL_TYPE_MASK ((IDL_BITMASK << 1) - 1)
+#define IDL_TYPE_MASK ((IDL_TYPEDEF << 1) - 1)
 
 typedef struct idl_name idl_name_t;
 struct idl_name {
@@ -524,7 +524,6 @@ IDL_EXPORT const idl_name_t *idl_name(const void *node);
 IDL_EXPORT uint32_t idl_array_size(const void *node);
 IDL_EXPORT uint32_t idl_bound(const void *node);
 IDL_EXPORT const idl_literal_t *idl_default_value(const void *node);
-IDL_EXPORT uint16_t idl_bit_bound(const void *node);
 
 /* navigation */
 IDL_EXPORT void *idl_ancestor(const void *node, size_t levels);
