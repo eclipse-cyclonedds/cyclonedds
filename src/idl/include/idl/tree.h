@@ -509,7 +509,7 @@ IDL_EXPORT bool idl_is_topic(const void *node, bool keylist);
 IDL_EXPORT bool idl_is_keyless(const void *node, bool keylist);
 IDL_EXPORT bool idl_is_forward(const void *node);
 /* 1-based, returns 0 if path does not refer to key, non-0 otherwise */
-IDL_EXPORT uint32_t idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path);
+IDL_EXPORT bool idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, uint32_t *order);
 
 /* accessors */
 IDL_EXPORT idl_mask_t idl_mask(const void *node);

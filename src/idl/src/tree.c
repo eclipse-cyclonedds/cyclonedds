@@ -3360,10 +3360,12 @@ bool idl_is_keyless(const void *node, bool keylist)
   return true;
 }
 
-static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
+static bool is_key_by_path(const void *node, const idl_path_t *path, uint32_t *order)
 {
   bool all_keys = false;
   uint32_t key = 0;
+  uint32_t id = 0;
+
   /* constructed types, sequences, aliases and declarators carry the key */
   static const idl_mask_t mask =
     IDL_CONSTR_TYPE | IDL_MEMBER | IDL_SWITCH_TYPE_SPEC | IDL_CASE |
@@ -3373,45 +3375,52 @@ static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
   for (size_t i = 1; (key || i == 1) && i < path->length; i++) {
     assert(path->nodes[i]);
 
-    /* struct members can be explicitly annotated */
-    if (idl_is_member(path->nodes[i])) {
-      const idl_member_t *instance = (const idl_member_t *)path->nodes[i];
-      /* path cannot be valid if not preceeded by struct */
-      if (i != 1 && !idl_is_struct(path->nodes[i - 1]))
-        return 0;
+    if (idl_is_declarator(path->nodes[i])) {
+      const idl_declarator_t *declarator = (const idl_declarator_t *)path->nodes[i];
 
-      if (instance->key.value)
-        key = 1;
-      /* possibly implicit @key, but only if no other members are explicitly
-         annotated, an intermediate aggregate type has no explicitly annotated
-         fields and node is not on the first level */
-      else if (all_keys || no_specific_key(idl_parent(instance)))
-        key = all_keys = (i > 1);
-      else
-        key = 0;
+      /* declarators for struct members can be explicitly annotated */
+      if (idl_is_member(path->nodes[i - 1])) {
+        const idl_member_t *member = (const idl_member_t *)path->nodes[i - 1];
+        /* path cannot be valid if not preceeded by struct */
+        if (i > 1 && !idl_is_struct(path->nodes[i - 2]))
+          return 0;
 
-    /* union cases cannot be explicitly annotated */
-    } else if (idl_is_case(path->nodes[i])) {
-      const idl_case_t *instance = (const idl_case_t *)path->nodes[i];
-      /* path cannot be valid if not preceeded by union */
-      if (i != 0 && !idl_is_union(path->nodes[i - 1]))
-        return 0;
+        if (member->key.value)
+          key = 1;
+        /* possibly implicit @key, but only if no other members are explicitly
+          annotated, an intermediate aggregate type has no explicitly annotated
+          fields and node is not on the first level */
+        else if (all_keys || no_specific_key(idl_parent(member)))
+          key = all_keys = (i > 2);
+        else
+          key = 0;
 
-      /* union cases cannot be annotated, but can be part of the key if an
-         intermediate aggregate type has no explicitly annotated fields or if
-         the switch type specifier is not annotated */
-      if (all_keys || no_specific_key(idl_parent(instance)))
-        key = all_keys = (i > 1);
+        if (key)
+          id = declarator->id.value;
+
+      /* union cases cannot be explicitly annotated */
+      } else if (idl_is_case(path->nodes[i - 1])) {
+        const idl_case_t *_case = (const idl_case_t *)path->nodes[i - 1];
+        /* path cannot be valid if not preceeded by union */
+        if (i > 0 && !idl_is_union(path->nodes[i - 2]))
+          return 0;
+
+        /* union cases cannot be annotated, but can be part of the key if an
+          intermediate aggregate type has no explicitly annotated fields or if
+          the switch type specifier is not annotated */
+        if (all_keys || no_specific_key(idl_parent(_case)))
+          key = all_keys = (i > 2);
+      }
 
     /* switch type specifiers can be explicitly annotated */
     } else if (idl_is_switch_type_spec(path->nodes[i])) {
-      const idl_switch_type_spec_t *instance = (const idl_switch_type_spec_t *)path->nodes[i - 1];
+      const idl_switch_type_spec_t *switch_type_spec = (const idl_switch_type_spec_t *)path->nodes[i - 1];
       /* path cannot be valid if not preceeded by union */
       if (i != 0 && !idl_is_union(path->nodes[i - 1]))
         return 0;
 
       /* possibly (implicit) @key, but only if last in path and not first */
-      if (instance->key.value)
+      if (switch_type_spec->key.value)
         key = (i == path->length - 1);
       else
         key = (i == path->length - 1) ? (i > 1) : 0;
@@ -3420,10 +3429,15 @@ static uint32_t is_key_by_path(const void *node, const idl_path_t *path)
     }
   }
 
-  return key ? (idl_mask(path->nodes[path->length - 1]) & mask) != 0 : 0;
+  if (key && (idl_mask(path->nodes[path->length - 1]) & mask)) {
+    *order = id;
+    return true;
+  }
+  *order = 0;
+  return false;
 }
 
-static uint32_t is_key_by_keylist(const void *node, const idl_path_t *path)
+static bool is_key_by_keylist(const void *node, const idl_path_t *path, uint32_t *order)
 {
   const idl_key_t *key = ((const idl_struct_t *)node)->keylist->keys;
   uint32_t index = 0;
@@ -3445,19 +3459,28 @@ static uint32_t is_key_by_keylist(const void *node, const idl_path_t *path)
     }
     /* In case the path until current node matches with the first part of the
        keylist entry, it is marked as key */
-    if (cmp == 0 && i == path->length)
-      return index + 1;
+    if (cmp == 0 && i == path->length) {
+      if (path->length > 1 && idl_is_member(path->nodes[i - 2])) {
+        const idl_declarator_t *decl = (const idl_declarator_t *)path->nodes[i - 1];
+        assert (decl);
+        *order = decl->id.value;
+      } else {
+        // FIXME: key in union
+        *order = 0;
+      }
+      return true;
+    }
   }
-
-  return 0;
+  *order = 0;
+  return false;
 }
 
-uint32_t idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path)
+bool idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, uint32_t *order)
 {
   if (!idl_is_topic(node, keylist))
-    return 0;
+    return false;
   if (!path->length || node != path->nodes[0])
-    return 0;
+    return false;
 
-  return keylist ? is_key_by_keylist(node, path) : is_key_by_path(node, path);
+  return (keylist) ? is_key_by_keylist(node, path, order) : is_key_by_path(node, path, order);
 }

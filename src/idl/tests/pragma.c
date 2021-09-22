@@ -143,6 +143,50 @@ CU_Test(idl_pragma, keylist_nested_key)
   idl_delete_pstate(pstate);
 }
 
+CU_Test(idl_pragma, keylist_conflicting)
+{
+  idl_retcode_t ret;
+  idl_pstate_t *pstate = NULL;
+#define NESTED2 "struct i { char i1; char i2; }; struct o { i o1; i o2; };\n"
+#define NESTED3 "struct i { char i1; char i2; }; struct m { i m1; i m2; }; struct o { m o1; m o2; };\n"
+  static const struct {
+    const char *idl;
+    idl_retcode_t ret;
+  } tests[] = {
+    { NESTED2 "#pragma keylist o o1.i1 o2.i2\n", IDL_RETCODE_SEMANTIC_ERROR },
+    { NESTED2 "#pragma keylist o o1.i1 o1.i2 o2.i1\n", IDL_RETCODE_SEMANTIC_ERROR },
+    { NESTED2 "#pragma keylist o o1.i1 o1.i2\n", IDL_RETCODE_OK },
+    { NESTED2 "#pragma keylist o o1.i1 o1.i2 o2.i1 o2.i2\n", IDL_RETCODE_OK },
+
+    { NESTED3 "#pragma keylist o o1.m1.i1 o1.m2.i2\n", IDL_RETCODE_SEMANTIC_ERROR },
+    { NESTED3 "#pragma keylist o o1.m1.i1 o2.m1.i2\n", IDL_RETCODE_SEMANTIC_ERROR },
+    { NESTED3 "#pragma keylist o o1.m1.i1 o1.m1.i2 o1.m2.i1\n", IDL_RETCODE_SEMANTIC_ERROR },
+    { NESTED3 "#pragma keylist o o1.m1.i1 o1.m1.i2 o2.m1.i1\n", IDL_RETCODE_SEMANTIC_ERROR },
+    { NESTED3 "#pragma keylist o o1.m1.i1 o1.m1.i2 o2.m1.i1 o2.m1.i2 o1.m2.i1\n", IDL_RETCODE_SEMANTIC_ERROR },
+    { NESTED3 "#pragma keylist o o1.m1.i1 o1.m1.i2\n", IDL_RETCODE_OK },
+    { NESTED3 "#pragma keylist o o1.m1.i1 o1.m1.i2 o1.m2.i1 o1.m2.i2\n", IDL_RETCODE_OK },
+
+    { "struct i { char i1; char i2; }; struct m { i m1; }; struct o { m o1; i o2; };\n"
+      "#pragma keylist o o1.m1.i1 o1.m1.i2 o2.i1\n", IDL_RETCODE_SEMANTIC_ERROR },
+    { "struct i { char i1; char i2; }; struct m { i m1; }; struct o { m o1; i o2; };\n"
+      "#pragma keylist o o1.m1.i1 o2.i1\n", IDL_RETCODE_OK },
+
+    { "struct i { char i1; char i2; }; struct j { char j1; char j2; }; struct o { i o1; j o2; j o3; };\n"
+      "#pragma keylist o o1.i1 o1.i2 o2.j1 o2.j2 o3.j1\n", IDL_RETCODE_SEMANTIC_ERROR },
+    { "struct i { char i1; char i2; }; struct j { char j1; char j2; }; struct o { i o1; j o2; j o3; };\n"
+      "#pragma keylist o o1.i1 o1.i2 o2.j1 o2.j2\n", IDL_RETCODE_OK }
+  };
+
+  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
+    ret = parse_string(tests[i].idl, &pstate);
+    CU_ASSERT_EQUAL(ret, tests[i].ret);
+    if (ret != tests[i].ret)
+      printf("retcode: %d\n%s\n", ret, tests[i].idl);
+    idl_delete_pstate(pstate);
+    pstate = NULL;
+  }
+}
+
 CU_Test(idl_pragma, keylist_scoped_name)
 {
   idl_retcode_t ret;

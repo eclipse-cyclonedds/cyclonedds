@@ -31,6 +31,7 @@ struct instruction {
     JEQ_OFFSET,
     MEMBER_OFFSET,
     KEY_OFFSET,
+    KEY_OFFSET_VAL
   } type;
   union {
     struct {
@@ -65,8 +66,11 @@ struct instruction {
       char *key_name;
       uint16_t len;
       uint16_t key_size;
-      uint32_t order; /**< in xcdr2 the member id is used for ordening keys */
     } key_offset;
+    struct {
+      uint16_t offs;
+      uint32_t order; /**< in xcdr2 the member id is used for ordening keys */
+    } key_offset_val;
   } data;
 };
 
@@ -107,6 +111,7 @@ struct constructed_type_key {
 
 struct key_offs {
   uint16_t val[MAX_KEY_OFFS];
+  uint16_t order[MAX_KEY_OFFS];
   uint16_t n;
 };
 
@@ -138,15 +143,20 @@ struct descriptor {
 struct key_print_meta {
   const char *name;
   uint32_t inst_offs;
-  uint32_t order;
+  uint32_t n_order;
+  uint32_t *order;
   uint32_t size;
 };
 
 struct key_print_meta *
-get_key_print_meta(
+key_print_meta_init(
   struct descriptor *descriptor,
-  bool keylist,
   uint32_t *sz);
+
+void
+key_print_meta_free(
+  struct key_print_meta *keys,
+  uint32_t n_keys);
 
 idl_retcode_t
 descriptor_fini(
