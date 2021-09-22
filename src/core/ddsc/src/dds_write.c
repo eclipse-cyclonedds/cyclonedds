@@ -34,10 +34,6 @@
 #endif
 
 #ifdef DDS_HAS_SHM
-struct AlignIceOryxChunk_t {
-  iceoryx_header_t header;
-  uint64_t worst_case_member;
-};
 
 static void register_pub_loan(dds_writer *wr, void *pub_loan)
 {
@@ -527,7 +523,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       void* chunk_data = create_iox_chunk(wr);
       if(chunk_data) {
         memcpy (chunk_data, data, wr->m_topic->m_stype->iox_size);
-        data = chunk_data; // note that this points to the data in the chunk which is preceded by the iceoryx header
+        data = chunk_data;
       } else {
         // we failed to obtain a chunk, iceoryx transport is thus not available
         // we will use the network path instead
@@ -560,8 +556,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     // where we either have network readers (requiring serialization) or not.
 
     // do not serialize yet (may not need it if only using iceoryx or no readers)
-    d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
-    //d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+    d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);  
   } else {
     // serialize since we will need to send via network anyway
     d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
