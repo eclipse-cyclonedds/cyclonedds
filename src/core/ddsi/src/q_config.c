@@ -1962,6 +1962,8 @@ static int proc_update_cfgelem (struct cfgst *cfgst, const struct cfgelem *ce, c
 {
   void *parent = cfgst_parent (cfgst);
   char *xvalue = ddsrt_expand_envvars (value, cfgst->cfg->domainId);
+  if (xvalue == NULL)
+    return -1;
   enum update_result res;
   cfgst_push (cfgst, isattr, isattr ? ce : NULL, parent);
   res = do_update (cfgst, ce->update, parent, ce, xvalue, cfgst->source);
