@@ -477,7 +477,7 @@ static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr_nokey (const struct dd
 
 #ifdef DDS_HAS_SHM
 static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer)
-{
+{   
   iox_chunk_header_t* chunk_header = iox_chunk_header_from_user_payload(iox_buffer);
   const iceoryx_header_t* ice_hdr = iox_chunk_header_to_user_header(chunk_header);
 
