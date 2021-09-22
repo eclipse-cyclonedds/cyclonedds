@@ -111,7 +111,7 @@ static bool check_endpoint_typeid (struct ddsi_domaingv *gv, const type_identifi
 
 static int data_representation_match_default (const dds_qos_t *x, bool is_writer)
 {
-  if (!(x->present & QP_DATA_REPRESENTATION) || x->data_representation.value.n == 0)
+  if (x->data_representation.value.n == 0)
     return 1;
   /* For writer use only the first value */
   for (uint32_t i = 0; i < (is_writer ? 1 : x->data_representation.value.n); i++)
@@ -122,12 +122,12 @@ static int data_representation_match_default (const dds_qos_t *x, bool is_writer
 
 static int data_representation_match_p (const dds_qos_t *rd_qos, const dds_qos_t *wr_qos)
 {
-  if (!(rd_qos->present & QP_DATA_REPRESENTATION))
+  assert (rd_qos->present & QP_DATA_REPRESENTATION);
+  assert (wr_qos->present & QP_DATA_REPRESENTATION);
+  if (rd_qos->data_representation.value.n == 0)
     return data_representation_match_default (wr_qos, true);
-  else if (!(wr_qos->present & QP_DATA_REPRESENTATION))
+  else if (wr_qos->data_representation.value.n == 0)
     return data_representation_match_default (rd_qos, false);
-  else if (rd_qos->data_representation.value.n == 0 && wr_qos->data_representation.value.n == 0)
-    return 1;
   else
   {
     /* For the writer only use the first representation identifier and ignore 1..n (spec 7.6.3.1.1) */

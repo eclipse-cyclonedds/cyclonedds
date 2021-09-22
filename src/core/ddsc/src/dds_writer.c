@@ -22,6 +22,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds__writer.h"
 #include "dds__listener.h"
 #include "dds__init.h"
@@ -371,23 +372,36 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   if ((rc = ddsi_xqos_valid (&gv->logconfig, wqos)) < 0 || (rc = validate_writer_qos(wqos)) != DDS_RETCODE_OK)
     goto err_bad_qos;
 
-  dds_data_representation_id_t data_representation;
+  bool dynamic_types = tp->m_stype->dynamic_types;
   assert (wqos->present & QP_DATA_REPRESENTATION);
   if (wqos->data_representation.value.n > 0)
   {
     assert (wqos->data_representation.value.ids != NULL);
-    if (wqos->data_representation.value.n > 1 || wqos->data_representation.value.ids[0] == DDS_DATA_REPRESENTATION_XML)
+    for (uint32_t n = 0; n < wqos->data_representation.value.n; n++)
     {
-      rc = DDS_RETCODE_UNSUPPORTED;
-      goto err_data_repr;
+      switch (wqos->data_representation.value.ids[n])
+      {
+        case DDS_DATA_REPRESENTATION_XML:
+          rc = DDS_RETCODE_UNSUPPORTED;
+          goto err_data_repr;
+        case DDS_DATA_REPRESENTATION_XCDR1:
+          if (dynamic_types)
+          {
+            rc = DDS_RETCODE_BAD_PARAMETER;
+            goto err_data_repr;
+          }
+          break;
+      }
     }
-    data_representation = wqos->data_representation.value.ids[0];
   }
   else
   {
-    /* default is XCDR1 (xtypes 1.3 spec 7.6.3.1.1) */
-    data_representation = DDS_DATA_REPRESENTATION_XCDR1;
+    assert (!(wqos->present & QP_DATA_REPRESENTATION) || wqos->data_representation.value.n == 0);
+    dds_qset_data_representation (wqos, 1, (dds_data_representation_id_t[]) { dynamic_types ? DDS_DATA_REPRESENTATION_XCDR2 : DDS_DATA_REPRESENTATION_XCDR1 });
   }
+
+  assert (wqos->present & QP_DATA_REPRESENTATION && wqos->data_representation.value.n > 0);
+  dds_data_representation_id_t data_representation = wqos->data_representation.value.ids[0];
 
   thread_state_awake (lookup_thread_state (), gv);
   const struct ddsi_guid *ppguid = dds_entity_participant_guid (&pub->m_entity);
@@ -431,7 +445,8 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     wqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
 #endif
 
-  rc = new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, wqos, wr->m_whc, dds_writer_status_cb, wr);
+  struct ddsi_sertype *sertype = ddsi_sertype_data_representation (tp->m_stype, wr->m_data_representation);
+  rc = new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, sertype, wqos, wr->m_whc, dds_writer_status_cb, wr);
   assert(rc == DDS_RETCODE_OK);
   thread_state_asleep (lookup_thread_state ());
 

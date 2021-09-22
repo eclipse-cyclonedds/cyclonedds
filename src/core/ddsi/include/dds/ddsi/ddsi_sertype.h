@@ -46,9 +46,11 @@ struct ddsi_sertype {
   uint32_t typekind_no_key : 1;
   uint32_t request_keyhash : 1;
   uint32_t fixed_size : 1;
+  uint32_t dynamic_types : 1;  /* contains any appendable or mutable type, not necessarily the top-level type, can also be nested type */
   char *type_name;
   ddsrt_atomic_voidp_t gv; /* set during registration */
   ddsrt_atomic_uint32_t flags_refc; /* counts refs from entities (topic, reader, writer), not from data */
+  const struct ddsi_sertype *base_sertype; /* counted ref to sertype used to derive this sertype, used to overwrite the serdata_ops for a specific data representation */
   void *wrapped_sertopic; /* void pointer because that simplifies the required type-punning */
 #ifdef DDS_HAS_SHM
   uint32_t iox_size;
@@ -122,6 +124,9 @@ typedef bool (*ddsi_sertype_deserialize_t) (struct ddsi_domaingv *gv, struct dds
 /* Check if (an object of) type a is assignable from (an object of) the type b */
 typedef bool (*ddsi_sertype_assignable_from_t) (const struct ddsi_sertype *type_a, const struct ddsi_sertype *type_b);
 
+/* Create a new derived sertype that is a copy of the provided sertype */
+typedef struct ddsi_sertype * (*ddsi_sertype_derive_t) (const struct ddsi_sertype *sertype);
+
 struct ddsi_sertype_v0;
 typedef void (*ddsi_sertype_v0_t) (struct ddsi_sertype_v0 *dummy);
 
@@ -147,7 +152,7 @@ struct ddsi_sertype_ops {
   ddsi_sertype_serialize_t serialize;
   ddsi_sertype_deserialize_t deserialize;
   ddsi_sertype_assignable_from_t assignable_from;
-  void (*reserved)(void); /* reserved entry so that the number of function pointers equals previous revision of sertype_ops */
+  ddsi_sertype_derive_t derive_sertype;
 };
 
 enum ddsi_sertype_extensibility
@@ -183,7 +188,9 @@ DDS_EXPORT bool ddsi_sertype_serialize (const struct ddsi_sertype *tp, size_t *d
 
 DDS_EXPORT uint16_t ddsi_sertype_get_encoding_format (enum ddsi_sertype_extensibility type_extensibility);
 DDS_EXPORT uint16_t ddsi_sertype_get_native_encoding_identifier (uint32_t enc_version, uint32_t encoding_format);
-DDS_EXPORT uint32_t get_xcdr_version (unsigned short cdr_identifier);
+DDS_EXPORT uint32_t get_xcdr_version (uint16_t cdr_identifier);
+DDS_EXPORT struct ddsi_sertype *ddsi_sertype_data_representation (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t data_representation);
+
 
 DDS_INLINE_EXPORT inline void ddsi_sertype_free (struct ddsi_sertype *tp) {
   tp->ops->free (tp);
@@ -228,6 +235,13 @@ DDS_INLINE_EXPORT inline bool ddsi_sertype_assignable_from (const struct ddsi_se
 
   return type_a->ops->assignable_from (type_a, type_b);
 }
+
+DDS_INLINE_EXPORT inline struct ddsi_sertype * ddsi_sertype_derive_sertype (const struct ddsi_sertype *base_sertype) {
+  if (!base_sertype->ops->derive_sertype)
+    return NULL;
+  return base_sertype->ops->derive_sertype (base_sertype);
+}
+
 
 #if defined (__cplusplus)
 }

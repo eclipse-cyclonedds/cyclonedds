@@ -38,17 +38,17 @@ dds_return_t dds_dispose_ih (dds_entity_t writer, dds_instance_handle_t handle)
   return dds_dispose_ih_ts (writer, handle, dds_time ());
 }
 
-static struct ddsi_tkmap_instance *dds_instance_find (const dds_topic *topic, const void *data, const bool create)
+static struct ddsi_tkmap_instance *dds_instance_find (const dds_writer *writer, const void *data, const bool create)
 {
-  struct ddsi_serdata *sd = ddsi_serdata_from_sample (topic->m_stype, SDK_KEY, data);
+  struct ddsi_serdata *sd = ddsi_serdata_from_sample (writer->m_wr->type, SDK_KEY, data);
   if (sd == NULL)
     return NULL;
-  struct ddsi_tkmap_instance *inst = ddsi_tkmap_find (topic->m_entity.m_domain->gv.m_tkmap, sd, create);
+  struct ddsi_tkmap_instance *inst = ddsi_tkmap_find (writer->m_entity.m_domain->gv.m_tkmap, sd, create);
   ddsi_serdata_unref (sd);
   return inst;
 }
 
-static void dds_instance_remove (struct dds_domain *dom, const dds_topic *topic, const void *data, dds_instance_handle_t handle)
+static void dds_instance_remove (struct dds_domain *dom, const dds_writer *writer, const void *data, dds_instance_handle_t handle)
 {
   struct ddsi_tkmap_instance *inst;
   if (handle != DDS_HANDLE_NIL)
@@ -56,7 +56,7 @@ static void dds_instance_remove (struct dds_domain *dom, const dds_topic *topic,
   else
   {
     assert (data);
-    inst = dds_instance_find (topic, data, false);
+    inst = dds_instance_find (writer, data, false);
   }
   if (inst)
   {
@@ -77,7 +77,7 @@ dds_return_t dds_register_instance (dds_entity_t writer, dds_instance_handle_t *
     return ret;
 
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
-  struct ddsi_tkmap_instance * const inst = dds_instance_find (wr->m_topic, data, true);
+  struct ddsi_tkmap_instance * const inst = dds_instance_find (wr, data, true);
   if (inst == NULL)
     ret = DDS_RETCODE_BAD_PARAMETER;
   else
@@ -120,7 +120,7 @@ dds_return_t dds_unregister_instance_ts (dds_entity_t writer, const void *data, 
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
   if (autodispose)
   {
-    dds_instance_remove (wr->m_entity.m_domain, wr->m_topic, data, DDS_HANDLE_NIL);
+    dds_instance_remove (wr->m_entity.m_domain, wr, data, DDS_HANDLE_NIL);
     action |= DDS_WR_DISPOSE_BIT;
   }
   ret = dds_write_impl (wr, data, timestamp, action);
@@ -147,7 +147,7 @@ dds_return_t dds_unregister_instance_ih_ts (dds_entity_t writer, dds_instance_ha
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
   if (autodispose)
   {
-    dds_instance_remove (wr->m_entity.m_domain, wr->m_topic, NULL, handle);
+    dds_instance_remove (wr->m_entity.m_domain, wr, NULL, handle);
     action |= DDS_WR_DISPOSE_BIT;
   }
   if ((tk = ddsi_tkmap_find_by_id (wr->m_entity.m_domain->gv.m_tkmap, handle)) == NULL)
@@ -177,7 +177,7 @@ dds_return_t dds_writedispose_ts (dds_entity_t writer, const void *data, dds_tim
 
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
   if ((ret = dds_write_impl (wr, data, timestamp, DDS_WR_ACTION_WRITE_DISPOSE)) == DDS_RETCODE_OK)
-    dds_instance_remove (wr->m_entity.m_domain, wr->m_topic, data, DDS_HANDLE_NIL);
+    dds_instance_remove (wr->m_entity.m_domain, wr, data, DDS_HANDLE_NIL);
   thread_state_asleep (ts1);
   dds_writer_unlock (wr);
   return ret;
@@ -190,7 +190,7 @@ static dds_return_t dds_dispose_impl (dds_writer *wr, const void *data, dds_inst
   dds_return_t ret;
   assert (thread_is_awake ());
   if ((ret = dds_write_impl (wr, data, timestamp, DDS_WR_ACTION_DISPOSE)) == DDS_RETCODE_OK)
-    dds_instance_remove (wr->m_entity.m_domain, wr->m_topic, data, handle);
+    dds_instance_remove (wr->m_entity.m_domain, wr, data, handle);
   return ret;
 }
 
@@ -228,7 +228,7 @@ dds_return_t dds_dispose_ih_ts (dds_entity_t writer, dds_instance_handle_t handl
     ret = DDS_RETCODE_PRECONDITION_NOT_MET;
   else
   {
-    struct ddsi_sertype *tp = wr->m_topic->m_stype;
+    const struct ddsi_sertype *tp = wr->m_wr->type;
     void *sample = ddsi_sertype_alloc_sample (tp);
     ddsi_serdata_untyped_to_sample (tp, tk->m_sample, sample, NULL, NULL);
     ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
@@ -243,7 +243,7 @@ dds_return_t dds_dispose_ih_ts (dds_entity_t writer, dds_instance_handle_t handl
 dds_instance_handle_t dds_lookup_instance (dds_entity_t entity, const void *data)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
-  const dds_topic *topic;
+  const struct ddsi_sertype *sertype;
   struct ddsi_serdata *sd;
   dds_entity *w_or_r;
 
@@ -255,10 +255,11 @@ dds_instance_handle_t dds_lookup_instance (dds_entity_t entity, const void *data
   switch (dds_entity_kind (w_or_r))
   {
     case DDS_KIND_WRITER:
-      topic = ((dds_writer *) w_or_r)->m_topic;
+      sertype = ((dds_writer *) w_or_r)->m_wr->type;
       break;
     case DDS_KIND_READER:
-      topic = ((dds_reader *) w_or_r)->m_topic;
+      // FIXME: used for serdata_from_sample, so maybe this should take the derived sertype for a specific data-representation?
+      sertype = ((dds_reader *) w_or_r)->m_topic->m_stype;
       break;
     default:
       dds_entity_unlock (w_or_r);
@@ -267,7 +268,7 @@ dds_instance_handle_t dds_lookup_instance (dds_entity_t entity, const void *data
 
   dds_instance_handle_t ih;
   thread_state_awake (ts1, &w_or_r->m_domain->gv);
-  if ((sd = ddsi_serdata_from_sample (topic->m_stype, SDK_KEY, data)) == NULL)
+  if ((sd = ddsi_serdata_from_sample (sertype, SDK_KEY, data)) == NULL)
     ih = DDS_HANDLE_NIL;
   else
   {
@@ -319,6 +320,8 @@ dds_return_t dds_instance_get_key (dds_entity_t entity, dds_instance_handle_t ih
     ret = DDS_RETCODE_BAD_PARAMETER;
   else
   {
+    /* Use sertype from topic, as the zero_sample and untyped_to_sample functions
+       are identical for the derived sertype that is stored in the endpoint. */
     ddsi_sertype_zero_sample (topic->m_stype, data);
     ddsi_serdata_untyped_to_sample (topic->m_stype, tk->m_sample, data, NULL, NULL);
     ddsi_tkmap_instance_unref (e->m_domain->gv.m_tkmap, tk);

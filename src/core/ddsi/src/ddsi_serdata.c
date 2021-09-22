@@ -74,7 +74,6 @@ DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_ser (const struc
 DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_ser_iov (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size);
 DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_keyhash (const struct ddsi_sertype *type, const struct ddsi_keyhash *keyhash);
 DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_sample (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const void *sample);
-DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_sample_data_representation (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, dds_data_representation_id_t data_representation, const void *sample);
 DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_to_untyped (const struct ddsi_serdata *d);
 DDS_EXPORT extern inline void ddsi_serdata_to_ser (const struct ddsi_serdata *d, size_t off, size_t sz, void *buf);
 DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_to_ser_ref (const struct ddsi_serdata *d, size_t off, size_t sz, ddsrt_iovec_t *ref);

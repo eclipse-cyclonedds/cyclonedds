@@ -1,0 +1,88 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+module DataRepresentationTypes {
+
+  @nested
+  struct Subtype1 {
+    @id(3) char s1;
+    @id(2) @key long long s2;
+    @id(1) @key char s3;
+  };
+
+  @topic
+  struct Type1 {
+    @id(10) @key Subtype1 t1;
+    @id(20) string t3;
+    @id(5) @key char t2;
+  };
+
+  @topic
+  struct Type2 {
+    @key char t1[64];
+    long t2;
+  };
+
+  @topic
+  struct Type3 {
+    char t1;
+    @key long long t2[10];
+    long t3;
+  };
+
+  @topic @final
+  struct TypeFinal {
+    long a;
+  };
+
+  @topic @appendable
+  struct TypeAppendable {
+    long a;
+  };
+
+  @topic @mutable
+  struct TypeMutable {
+    long a;
+  };
+
+  @topic @final
+  struct TypeNestedAppendable {
+    TypeAppendable a;
+  };
+
+  @topic @final
+  struct TypeNestedMutable {
+    TypeMutable a;
+  };
+
+  @topic @final
+  struct TypeNestedMutableArr {
+    TypeMutable a[5];
+  };
+
+  @topic @final
+  struct TypeNestedMutableSeq {
+    sequence<TypeMutable> a;
+  };
+
+  @topic @final
+  union TypeNestedMutableUni switch(long) {
+    case 1:
+      char a;
+    case 2:
+      TypeNestedMutable b;
+    default:
+      long c;
+  };
+
+
+};

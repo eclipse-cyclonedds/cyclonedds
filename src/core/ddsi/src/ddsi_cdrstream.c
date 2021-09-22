@@ -101,11 +101,12 @@ static void dds_cdr_resize (dds_ostream_t * __restrict s, uint32_t l)
     dds_ostream_grow (s, l);
 }
 
-void dds_istream_init (dds_istream_t * __restrict st, uint32_t size, const void * __restrict input)
+void dds_istream_init (dds_istream_t * __restrict st, uint32_t size, const void * __restrict input, uint32_t xcdr_version)
 {
   st->m_buffer = input;
   st->m_size = size;
   st->m_index = 0;
+  st->m_xcdr_version = xcdr_version;
 }
 
 void dds_ostream_init (dds_ostream_t * __restrict st, uint32_t size)
@@ -409,9 +410,9 @@ size_t dds_stream_check_optimize (const struct ddsi_sertype_default_desc * __res
   return dds_stream_check_optimize1 (desc);
 }
 
-static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_t **ops_end);
+static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_t **ops_end, bool *dynamic_type);
 
-static const uint32_t *dds_stream_countops_seq (const uint32_t * __restrict ops, uint32_t insn, const uint32_t **ops_end)
+static const uint32_t *dds_stream_countops_seq (const uint32_t * __restrict ops, uint32_t insn, const uint32_t **ops_end, bool *dynamic_type)
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   switch (subtype)
@@ -429,7 +430,7 @@ static const uint32_t *dds_stream_countops_seq (const uint32_t * __restrict ops,
       if (ops + 4 > *ops_end)
         *ops_end = ops + 4;
       if (DDS_OP_ADR_JSR (ops[3]) > 0)
-        dds_stream_countops1 (jsr_ops, ops_end);
+        dds_stream_countops1 (jsr_ops, ops_end, dynamic_type);
       ops += (jmp ? jmp : 4); /* FIXME: why would jmp be 0? */
       break;
     }
@@ -442,7 +443,7 @@ static const uint32_t *dds_stream_countops_seq (const uint32_t * __restrict ops,
   return ops;
 }
 
-static const uint32_t *dds_stream_countops_arr (const uint32_t * __restrict ops, uint32_t insn, const uint32_t **ops_end)
+static const uint32_t *dds_stream_countops_arr (const uint32_t * __restrict ops, uint32_t insn, const uint32_t **ops_end, bool *dynamic_type)
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   switch (subtype)
@@ -460,7 +461,7 @@ static const uint32_t *dds_stream_countops_arr (const uint32_t * __restrict ops,
       if (ops + 5 > *ops_end)
         *ops_end = ops + 5;
       if (DDS_OP_ADR_JSR (ops[3]) > 0)
-        dds_stream_countops1 (jsr_ops, ops_end);
+        dds_stream_countops1 (jsr_ops, ops_end, dynamic_type);
       ops += (jmp ? jmp : 5);
       break;
     }
@@ -473,7 +474,7 @@ static const uint32_t *dds_stream_countops_arr (const uint32_t * __restrict ops,
   return ops;
 }
 
-static const uint32_t *dds_stream_countops_uni (const uint32_t * __restrict ops, const uint32_t **ops_end)
+static const uint32_t *dds_stream_countops_uni (const uint32_t * __restrict ops, const uint32_t **ops_end, bool *dynamic_type)
 {
   const uint32_t numcases = ops[2];
   const uint32_t *jeq_op = ops + DDS_OP_ADR_JSR (ops[3]);
@@ -490,7 +491,7 @@ static const uint32_t *dds_stream_countops_uni (const uint32_t * __restrict ops,
       case DDS_OP_VAL_ENU:
         break;
       case DDS_OP_VAL_BST: case DDS_OP_VAL_BSP: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
-        dds_stream_countops1 (jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), ops_end);
+        dds_stream_countops1 (jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), ops_end, dynamic_type);
         break;
       case DDS_OP_VAL_EXT:
         abort (); // not allowed
@@ -506,7 +507,7 @@ static const uint32_t *dds_stream_countops_uni (const uint32_t * __restrict ops,
   return ops;
 }
 
-static const uint32_t *dds_stream_countops_pl (const uint32_t * __restrict ops, const uint32_t **ops_end)
+static const uint32_t *dds_stream_countops_pl (const uint32_t * __restrict ops, const uint32_t **ops_end, bool *dynamic_type)
 {
   uint32_t insn;
   ops++; /* skip PLC op */
@@ -515,7 +516,7 @@ static const uint32_t *dds_stream_countops_pl (const uint32_t * __restrict ops, 
     switch (DDS_OP (insn))
     {
       case DDS_OP_PLM:
-        dds_stream_countops1 (ops + DDS_OP_ADR_PLM (insn), ops_end);
+        dds_stream_countops1 (ops + DDS_OP_ADR_PLM (insn), ops_end, dynamic_type);
         ops += 2;
         break;
       default:
@@ -528,7 +529,7 @@ static const uint32_t *dds_stream_countops_pl (const uint32_t * __restrict ops, 
   return ops;
 }
 
-static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_t **ops_end)
+static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_t **ops_end, bool *dynamic_type)
 {
   uint32_t insn;
   while ((insn = *ops) != DDS_OP_RTS)
@@ -544,14 +545,14 @@ static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_
           case DDS_OP_VAL_BST: case DDS_OP_VAL_BSP: case DDS_OP_VAL_ENU:
             ops += 3;
             break;
-          case DDS_OP_VAL_SEQ: ops = dds_stream_countops_seq (ops, insn, ops_end); break;
-          case DDS_OP_VAL_ARR: ops = dds_stream_countops_arr (ops, insn, ops_end); break;
-          case DDS_OP_VAL_UNI: ops = dds_stream_countops_uni (ops, ops_end); break;
+          case DDS_OP_VAL_SEQ: ops = dds_stream_countops_seq (ops, insn, ops_end, dynamic_type); break;
+          case DDS_OP_VAL_ARR: ops = dds_stream_countops_arr (ops, insn, ops_end, dynamic_type); break;
+          case DDS_OP_VAL_UNI: ops = dds_stream_countops_uni (ops, ops_end, dynamic_type); break;
           case DDS_OP_VAL_EXT: {
             const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
             const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
             if (DDS_OP_ADR_JSR (ops[2]) > 0)
-              dds_stream_countops1 (jsr_ops, ops_end);
+              dds_stream_countops1 (jsr_ops, ops_end, dynamic_type);
             ops += jmp ? jmp : 3;
             break;
           }
@@ -563,7 +564,7 @@ static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_
       }
       case DDS_OP_JSR: {
         if (DDS_OP_JUMP (insn) > 0)
-          dds_stream_countops1 (ops + DDS_OP_JUMP (insn), ops_end);
+          dds_stream_countops1 (ops + DDS_OP_JUMP (insn), ops_end, dynamic_type);
         ops++;
         break;
       }
@@ -572,11 +573,15 @@ static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_
         break;
       }
       case DDS_OP_DLC: {
+        if (dynamic_type)
+          *dynamic_type = true;
         ops++;
         break;
       }
       case DDS_OP_PLC: {
-        ops = dds_stream_countops_pl (ops, ops_end);
+        if (dynamic_type)
+          *dynamic_type = true;
+        ops = dds_stream_countops_pl (ops, ops_end, dynamic_type);
         break;
       }
     }
@@ -600,7 +605,7 @@ static void dds_stream_countops_keyoffset (const uint32_t * __restrict ops, cons
 uint32_t dds_stream_countops (const uint32_t * __restrict ops, uint32_t nkeys, const dds_key_descriptor_t * __restrict keys)
 {
   const uint32_t *ops_end = ops;
-  dds_stream_countops1 (ops, &ops_end);
+  dds_stream_countops1 (ops, &ops_end, NULL);
   for (uint32_t n = 0; n < nkeys; n++)
     dds_stream_countops_keyoffset (ops, &keys[n], &ops_end);
   return (uint32_t) (ops_end - ops);
@@ -2146,7 +2151,7 @@ static bool stream_normalize_key_impl (void * __restrict data, uint32_t size, ui
   return true;
 }
 
-static bool stream_normalize_key (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_sertype_default_desc * __restrict desc)
+static bool stream_normalize_key (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_sertype_default_desc * __restrict desc, uint32_t *actual_size)
 {
   uint32_t offs = 0;
   for (uint32_t i = 0; i < desc->keys.nkeys; i++)
@@ -2168,19 +2173,23 @@ static bool stream_normalize_key (void * __restrict data, uint32_t size, bool bs
         break;
     }
   }
+  *actual_size = offs;
   return true;
 }
 
-bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_sertype_default * __restrict topic, bool just_key)
+bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_sertype_default * __restrict topic, bool just_key, uint32_t * __restrict actual_size)
 {
+  uint32_t off = 0;
   if (size > CDR_SIZE_MAX)
     return false;
-  if (just_key)
-    return stream_normalize_key (data, size, bswap, xcdr_version, &topic->type);
+  else if (just_key)
+    return stream_normalize_key (data, size, bswap, xcdr_version, &topic->type, actual_size);
+  else if (!dds_stream_normalize1 (data, &off, size, bswap, xcdr_version, topic->type.ops.ops))
+    return false;
   else
   {
-    uint32_t off = 0;
-    return dds_stream_normalize1 (data, &off, size, bswap, xcdr_version, topic->type.ops.ops) != NULL;
+    *actual_size = off;
+    return true;
   }
 }
 
@@ -3296,3 +3305,13 @@ void dds_ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct dd
   (*d)->hdr.options = ddsrt_toBE2u ((uint16_t) pad);
 }
 
+/* Gets the (minimum) extensibility of the types used for this topic, and returns if XCDR
+   is required for (de)serializing the type for this topic descriptor (maybe move this
+   check to idl-compile time?) */
+bool dds_stream_has_dynamic_type (const uint32_t * __restrict ops)
+{
+  bool has_dynamic_type = false;
+  const uint32_t *ops_end = ops;
+  dds_stream_countops1 (ops, &ops_end, &has_dynamic_type);
+  return has_dynamic_type;
+}

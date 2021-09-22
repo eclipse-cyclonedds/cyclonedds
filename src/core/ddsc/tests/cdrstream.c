@@ -1307,28 +1307,19 @@ static void entity_init (const dds_topic_descriptor_t *desc)
   CU_ASSERT_FATAL (tp1 > 0);
   tp2 = dds_create_topic (dp2, desc, topicname, NULL, NULL);
   CU_ASSERT_FATAL (tp2 > 0);
+
   dds_qos_t *qos = dds_create_qos ();
   dds_qset_history(qos, DDS_HISTORY_KEEP_ALL, DDS_LENGTH_UNLIMITED);
   dds_qset_durability(qos, DDS_DURABILITY_TRANSIENT_LOCAL);
   dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
   dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR2 });
+
   rd = dds_create_reader (dp2, tp2, qos, NULL);
   CU_ASSERT_FATAL (rd > 0);
   wr = dds_create_writer (dp1, tp1, qos, NULL);
   CU_ASSERT_FATAL (wr > 0);
   sync_reader_writer (dp2, rd, dp1, wr);
   dds_delete_qos (qos);
-}
-
-static void write_key_sample (void * msg)
-{
-  struct dds_topic *x;
-  if (dds_topic_pin (tp1, &x) < 0) abort();
-  struct ddsi_sertype *stype = ddsi_sertype_ref (x->m_stype);
-  dds_topic_unpin (x);
-  struct ddsi_serdata *sd = ddsi_serdata_from_sample (stype, SDK_KEY, msg);
-  ddsi_serdata_unref (sd);
-  ddsi_sertype_unref (stype);
 }
 
 static void cdrstream_fini (void)
@@ -1372,9 +1363,6 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_empty 
   dds_waitset_attach (ws, rd, rd);
 
   void * msg = sample_init_fn ();
-
-  if (desc->m_nkeys > 0)
-    write_key_sample (msg);
 
   ret = dds_write (wr, msg);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);

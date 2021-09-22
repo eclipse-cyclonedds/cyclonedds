@@ -455,7 +455,7 @@ void dds_qset_type_consistency (dds_qos_t * __restrict qos, dds_type_consistency
   qos->present |= QP_TYPE_CONSISTENCY_ENFORCEMENT;
 }
 
-void dds_qset_data_representation (dds_qos_t * __restrict qos, uint32_t n, dds_data_representation_id_t *values)
+void dds_qset_data_representation (dds_qos_t * __restrict qos, uint32_t n, const dds_data_representation_id_t *values)
 {
   if (qos == NULL || (n && !values))
     return;

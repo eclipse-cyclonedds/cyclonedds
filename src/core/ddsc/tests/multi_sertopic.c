@@ -309,13 +309,13 @@ static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, siz
   CU_ASSERT_FATAL (wrcount == nwr);
 }
 
-static struct ddsi_sertype *get_sertype_from_reader (dds_entity_t reader)
+static const struct ddsi_sertype *get_sertype_from_reader (dds_entity_t reader)
 {
   /* not refcounting the sertopic: so this presumes it is kept alive for other reasons */
   dds_return_t rc;
   struct dds_entity *x;
   struct dds_reader *rd;
-  struct ddsi_sertype *sertype;
+  const struct ddsi_sertype *sertype;
   rc = dds_entity_pin (reader, &x);
   CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
   CU_ASSERT_FATAL (dds_entity_kind (x) == DDS_KIND_READER);

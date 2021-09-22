@@ -45,7 +45,7 @@ typedef struct dds_ostreamLE {
 DDSRT_STATIC_ASSERT (offsetof (dds_ostreamLE_t, x) == 0);
 DDSRT_STATIC_ASSERT (offsetof (dds_ostreamBE_t, x) == 0);
 
-DDS_EXPORT void dds_istream_init (dds_istream_t * __restrict st, uint32_t size, const void * __restrict input);
+DDS_EXPORT void dds_istream_init (dds_istream_t * __restrict st, uint32_t size, const void * __restrict input, uint32_t xcdr_version);
 DDS_EXPORT void dds_istream_fini (dds_istream_t * __restrict st);
 DDS_EXPORT void dds_ostream_init (dds_ostream_t * __restrict st, uint32_t size);
 DDS_EXPORT void dds_ostream_fini (dds_ostream_t * __restrict st);
@@ -55,7 +55,9 @@ DDS_EXPORT void dds_ostreamBE_init (dds_ostreamBE_t * __restrict st, uint32_t si
 DDS_EXPORT void dds_ostreamBE_fini (dds_ostreamBE_t * __restrict st);
 
 DDS_EXPORT const uint32_t *dds_stream_normalize1 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops);
-DDS_EXPORT bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_sertype_default * __restrict type, bool just_key);
+
+// *actual_size is set to the actual size of the data (*actual_size <= size) on successful return
+DDS_EXPORT bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_sertype_default * __restrict type, bool just_key, uint32_t * __restrict actual_size);
 
 DDS_EXPORT const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops);
 DDS_EXPORT const uint32_t *dds_stream_writeLE (dds_ostreamLE_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops);
@@ -84,6 +86,8 @@ DDS_EXPORT void dds_stream_read_key (dds_istream_t * __restrict is, char * __res
 DDS_EXPORT size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct ddsi_sertype_default * __restrict type, char * __restrict buf, size_t size);
 
 DDS_EXPORT size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct ddsi_sertype_default * __restrict type, char * __restrict buf, size_t size);
+
+DDS_EXPORT bool dds_stream_has_dynamic_type (const uint32_t * __restrict ops);
 
 #if defined (__cplusplus)
 }

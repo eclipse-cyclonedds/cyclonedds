@@ -41,6 +41,8 @@ struct serdatapool {
 #define KEYBUFTYPE_DYNALIAS 2u // points into payload - FIXME: currently key buffer content is big-endian ...
 #define KEYBUFTYPE_DYNALLOC 3u // dynamically allocated
 
+#define SERDATA_DEFAULT_KEYSIZE_MASK        0x3FFFFFFFu
+
 struct ddsi_serdata_default_key {
   unsigned buftype : 2;
   unsigned keysize : 30;
@@ -125,7 +127,6 @@ struct ddsi_sertype_default {
   struct ddsi_sertype c;
   uint16_t encoding_format; /* CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) */
   uint16_t encoding_version; /* CDR_ENC_VERSION_(1|2) */
-  struct ddsi_sertype_default *shallow_copy_src; /* pointer to src used for creating this shallow copy, used for refcounting */
   struct serdatapool *serpool;
   struct ddsi_sertype_default_desc type;
   size_t opt_size;
@@ -148,6 +149,9 @@ extern DDS_EXPORT const struct ddsi_sertype_ops ddsi_sertype_ops_default;
 
 extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_cdr;
 extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey;
+
+extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_xcdr2;
+extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_xcdr2_nokey;
 
 struct serdatapool * ddsi_serdatapool_new (void);
 void ddsi_serdatapool_free (struct serdatapool * pool);

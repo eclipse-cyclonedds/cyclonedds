@@ -588,6 +588,34 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     goto err_bad_qos;
   }
 
+  bool dynamic_types = tp->m_stype->dynamic_types;
+  assert (rqos->present & QP_DATA_REPRESENTATION);
+  if (rqos->data_representation.value.n > 0)
+  {
+    assert (rqos->data_representation.value.ids != NULL);
+    for (uint32_t n = 0; n < rqos->data_representation.value.n; n++)
+    {
+      switch (rqos->data_representation.value.ids[n])
+      {
+        case DDS_DATA_REPRESENTATION_XML:
+          rc = DDS_RETCODE_UNSUPPORTED;
+          goto err_data_repr;
+        case DDS_DATA_REPRESENTATION_XCDR1:
+          if (dynamic_types)
+          {
+            rc = DDS_RETCODE_BAD_PARAMETER;
+            goto err_data_repr;
+          }
+          break;
+      }
+    }
+  }
+  else
+  {
+    assert (!(rqos->present & QP_DATA_REPRESENTATION) || rqos->data_representation.value.n == 0);
+    dds_qset_data_representation (rqos, 1, (dds_data_representation_id_t[]) { dynamic_types ? DDS_DATA_REPRESENTATION_XCDR2 : DDS_DATA_REPRESENTATION_XCDR1 });
+  }
+
   thread_state_awake (lookup_thread_state (), gv);
   const struct ddsi_guid * ppguid = dds_entity_participant_guid (&sub->m_entity);
   struct participant * pp = entidx_lookup_participant_guid (gv->entity_index, ppguid);
@@ -640,6 +668,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     rqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
 #endif
 
+  /* Reader gets the sertype from the topic, as the serdata functions the reader uses are
+     not specific for a data representation (the representation can be retrieved from the cdr header) */
   rc = new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
   assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
   thread_state_asleep (lookup_thread_state ());
@@ -691,6 +721,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 err_not_allowed:
   thread_state_asleep (lookup_thread_state ());
 #endif
+err_data_repr:
 err_bad_qos:
   dds_delete_qos (rqos);
   dds_topic_allow_set_qos (tp);

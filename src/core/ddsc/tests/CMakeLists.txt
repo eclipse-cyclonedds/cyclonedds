@@ -18,6 +18,7 @@ idlc_generate(TARGET WriteTypes FILES WriteTypes.idl)
 idlc_generate(TARGET InstanceHandleTypes FILES InstanceHandleTypes.idl)
 idlc_generate(TARGET RWData FILES RWData.idl)
 idlc_generate(TARGET CreateWriter FILES CreateWriter.idl)
+idlc_generate(TARGET DataRepresentationTypes FILES DataRepresentationTypes.idl)
 
 set(ddsc_test_sources
     "basic.c"
@@ -73,7 +74,8 @@ set(ddsc_test_sources
     "test_common.c"
     "test_oneliner.c"
     "test_oneliner.h"
-    "cdrstream.c")
+    "cdrstream.c"
+    "data_representation.c")
 
 if(ENABLE_LIFESPAN)
   list(APPEND ddsc_test_sources "lifespan.c")
@@ -105,7 +107,7 @@ if(iceoryx_binding_c_FOUND)
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
 endif()
 target_link_libraries(cunit_ddsc PRIVATE
-  RoundTrip Space TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter ddsc)
+  RoundTrip Space TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter DataRepresentationTypes ddsc)
 
 # Setup environment for config-tests
 get_test_property(CUnit_ddsc_config_simple_udp ENVIRONMENT CUnit_ddsc_config_simple_udp_env)

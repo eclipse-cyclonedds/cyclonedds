@@ -28,6 +28,7 @@
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_entity.h"
 
 DDS_EXPORT extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
 DDS_EXPORT extern inline bool dds_entity_is_enabled (const dds_entity *e);
@@ -1462,7 +1463,7 @@ dds_entity_t dds_get_topic (dds_entity_t entity)
     }
     case DDS_KIND_WRITER: {
       dds_writer *wr = (dds_writer *) e;
-      assert (dds__get_builtin_topic_pseudo_handle_from_typename (wr->m_topic->m_stype->type_name) < 0);
+      assert (dds__get_builtin_topic_pseudo_handle_from_typename (wr->m_wr->type->type_name) < 0);
       hdl = wr->m_topic->m_entity.m_hdllink.hdl;
       break;
     }

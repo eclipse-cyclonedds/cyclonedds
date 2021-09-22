@@ -484,7 +484,7 @@ DDS_EXPORT void
 dds_qset_data_representation (
   dds_qos_t * __restrict qos,
   uint32_t n,
-  dds_data_representation_id_t *values);
+  const dds_data_representation_id_t *values);
 
 /**
  * @brief Get the userdata from a qos structure

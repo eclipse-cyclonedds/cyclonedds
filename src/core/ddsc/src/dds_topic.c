@@ -615,14 +615,69 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   if ((ret = dds_entity_pin (participant, &ppent)) < 0)
     return ret;
 
-  st = dds_alloc (sizeof (*st));
+  dds_qos_t *tpqos = dds_create_qos ();
+  if (qos)
+    ddsi_xqos_mergein_missing (tpqos, qos, DDS_TOPIC_QOS_MASK);
 
-  ddsi_sertype_init (&st->c, desc->m_typename, &ddsi_sertype_ops_default, desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey, (desc->m_nkeys == 0));
+  /* Check the data representation in the provided QoS for compatiblity with the extensibility
+     of the types used in this topic. In case any of these (nested) types is mutable and appendable,
+     XCDR2 data representation is required and the only valid value for this QoS.
+     If the data representation is not set in the QoS (or no QoS object provided), the allowed
+     data representations are added to the QoS object. */
+  bool dynamic_type = dds_stream_has_dynamic_type (desc->m_ops);
+  if (tpqos->present & QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0)
+  {
+    assert (tpqos->data_representation.value.ids != NULL);
+    for (uint32_t n = 0; n < tpqos->data_representation.value.n; n++)
+    {
+      switch (tpqos->data_representation.value.ids[n])
+      {
+        case DDS_DATA_REPRESENTATION_XML:
+          return DDS_RETCODE_UNSUPPORTED;
+        case DDS_DATA_REPRESENTATION_XCDR1:
+          if (dynamic_type)
+          {
+            hdl = DDS_RETCODE_BAD_PARAMETER;
+            goto err_data_repr;
+          }
+          break;
+      }
+    }
+  }
+  else
+  {
+    assert (!(tpqos->present & QP_DATA_REPRESENTATION) || tpqos->data_representation.value.n == 0);
+    if (dynamic_type)
+      dds_qset_data_representation (tpqos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR2 });
+    else
+      dds_qset_data_representation (tpqos, 2, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1, DDS_DATA_REPRESENTATION_XCDR2 });
+  }
+
+  assert (tpqos->present & QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0);
+  dds_data_representation_id_t data_representation = tpqos->data_representation.value.ids[0];
+
+  const struct ddsi_serdata_ops *serdata_ops;
+  switch (data_representation)
+  {
+    case DDS_DATA_REPRESENTATION_XCDR1:
+      serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey;
+      break;
+    case DDS_DATA_REPRESENTATION_XCDR2:
+      serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_xcdr2 : &ddsi_serdata_ops_xcdr2_nokey;
+      break;
+    default:
+      abort ();
+  }
+
+  st = dds_alloc (sizeof (*st));
+  ddsi_sertype_init (&st->c, desc->m_typename, &ddsi_sertype_ops_default, serdata_ops, (desc->m_nkeys == 0));
 #ifdef DDS_HAS_SHM
   st->c.iox_size = desc->m_size;
 #endif
   st->c.fixed_size = (st->c.fixed_size || (desc->m_flagset & DDS_TOPIC_FIXED_SIZE)) ? 1u : 0u;
+  st->c.dynamic_types = dynamic_type ? 1u : 0u;
   st->encoding_format = ddsi_sertype_get_encoding_format (DDS_TOPIC_TYPE_EXTENSIBILITY (desc->m_flagset));
+  st->encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? CDR_ENC_VERSION_1 : CDR_ENC_VERSION_2;
   st->serpool = ppent->m_domain->gv.serpool;
   st->type.size = desc->m_size;
   st->type.align = desc->m_align;
@@ -661,11 +716,13 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   }
 
   st_tmp = &st->c;
-  hdl = dds_create_topic_sertype (participant, name, &st_tmp, qos, listener, &plist);
+  hdl = dds_create_topic_sertype (participant, name, &st_tmp, tpqos, listener, &plist);
   if (hdl < 0)
     ddsi_sertype_unref (st_tmp);
-  dds_entity_unpin (ppent);
   ddsi_plist_fini (&plist);
+err_data_repr:
+  dds_delete_qos (tpqos);
+  dds_entity_unpin (ppent);
   return hdl;
 }
 

@@ -559,7 +559,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
   } else {
     // serialize since we will need to send via network anyway
-    d = ddsi_serdata_from_sample_data_representation (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, wr->m_data_representation, data);
+    d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
   }
 
   if(d == NULL) {
@@ -623,7 +623,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
 
   /* Serialize and write data or key */
-  if ((d = ddsi_serdata_from_sample_data_representation (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, wr->m_data_representation, data)) == NULL)
+  if ((d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data)) == NULL)
     ret = DDS_RETCODE_BAD_PARAMETER;
   else
   {
