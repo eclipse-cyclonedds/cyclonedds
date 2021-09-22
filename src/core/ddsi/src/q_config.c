@@ -355,15 +355,43 @@ static const struct unit unittab_bandwidth_Bps[] = {
 static void free_configured_elements (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
 static void free_configured_element (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
 static const struct cfgelem *lookup_element (const char *target, bool *isattr);
+static enum update_result cfg_error (struct cfgst *cfgst, const char *fmt, ...) ddsrt_attribute_format_printf(2, 3);
 
-static void cfgst_push (struct cfgst *cfgst, int isattr, const struct cfgelem *elem, void *parent)
+static bool cfgst_push_maybe_reservespace (struct cfgst *cfgst, int isattr, const struct cfgelem *elem, void *parent, bool allow_reservespace)
 {
-  assert(cfgst->path_depth < MAX_PATH_DEPTH);
   assert(isattr == 0 || isattr == 1);
+  if (cfgst->path_depth >= MAX_PATH_DEPTH - (allow_reservespace ? 0 : 1))
+  {
+    cfg_error (cfgst, "XML too deeply nested");
+    return false;
+  }
   cfgst->isattr[cfgst->path_depth] = isattr;
   cfgst->path[cfgst->path_depth] = elem;
   cfgst->parent[cfgst->path_depth] = parent;
   cfgst->path_depth++;
+  return true;
+}
+
+static bool cfgst_push (struct cfgst *cfgst, int isattr, const struct cfgelem *elem, void *parent)
+  ddsrt_attribute_warn_unused_result;
+
+static bool cfgst_push (struct cfgst *cfgst, int isattr, const struct cfgelem *elem, void *parent)
+{
+  return cfgst_push_maybe_reservespace (cfgst, isattr, elem, parent, false);
+}
+
+static void cfgst_push_nofail (struct cfgst *cfgst, int isattr, const struct cfgelem *elem, void *parent)
+{
+  bool ok = cfgst_push_maybe_reservespace (cfgst, isattr, elem, parent, false);
+  assert (ok);
+  (void) ok;
+}
+
+static void cfgst_push_errorhandling (struct cfgst *cfgst, int isattr, const struct cfgelem *elem, void *parent)
+{
+  bool ok = cfgst_push_maybe_reservespace (cfgst, isattr, elem, parent, true);
+  assert (ok);
+  (void) ok;
 }
 
 static void cfgst_pop (struct cfgst *cfgst)
@@ -541,8 +569,6 @@ static void cfg_warning (struct cfgst *cfgst, const char *fmt, ...)
     va_end (ap);
   } while (bsz > 0);
 }
-
-static enum update_result cfg_error (struct cfgst *cfgst, const char *fmt, ...) ddsrt_attribute_format_printf(2, 3);
 
 static enum update_result cfg_error (struct cfgst *cfgst, const char *fmt, ...)
 {
@@ -1577,7 +1603,8 @@ static int set_defaults (struct cfgst *cfgst, void *parent, int isattr, struct c
     struct cfgst_nodekey key;
     key.e = ce;
     key.p = parent;
-    cfgst_push (cfgst, isattr, ce, parent);
+    // running over internal tables, so stack must be large enough
+    cfgst_push_nofail (cfgst, isattr, ce, parent);
     if (ce->multiplicity <= 1)
     {
       if (ddsrt_avl_lookup (&cfgst_found_treedef, &cfgst->found, &key) == NULL)
@@ -1585,7 +1612,7 @@ static int set_defaults (struct cfgst *cfgst, void *parent, int isattr, struct c
         if (ce->update)
         {
           int ok1;
-          cfgst_push (cfgst, 0, NULL, NULL);
+          cfgst_push_nofail (cfgst, 0, NULL, NULL);
           ok1 = set_default (cfgst, parent, ce);
           cfgst_pop (cfgst);
           ok = ok && ok1;
@@ -1611,13 +1638,14 @@ static void print_configitems (struct cfgst *cfgst, void *parent, int isattr, st
       continue;
     key.e = ce;
     key.p = parent;
-    cfgst_push (cfgst, isattr, ce, parent);
+    // running over internal tables, so stack must be large enough
+    cfgst_push_nofail (cfgst, isattr, ce, parent);
     if ((n = ddsrt_avl_lookup(&cfgst_found_treedef, &cfgst->found, &key)) != NULL)
       sources = n->sources;
 
     if (ce->multiplicity <= 1)
     {
-      cfgst_push (cfgst, 0, NULL, NULL);
+      cfgst_push_nofail (cfgst, 0, NULL, NULL);
       if (ce->print)
         ce->print (cfgst, parent, ce, sources);
       cfgst_pop (cfgst);
@@ -1631,7 +1659,7 @@ static void print_configitems (struct cfgst *cfgst, void *parent, int isattr, st
       struct ddsi_config_listelem *p = cfg_deref_address (cfgst, parent, ce);
       while (p)
       {
-        cfgst_push (cfgst, 0, NULL, NULL);
+        cfgst_push_nofail (cfgst, 0, NULL, NULL);
         if (ce->print)
           ce->print (cfgst, p, ce, sources);
         cfgst_pop(cfgst);
@@ -1872,7 +1900,7 @@ static const struct cfgelem *find_cfgelem_by_name (struct cfgst * const cfgst, c
     struct cfgelem const * const cfg_subelem_orig = cfg_subelem;
     bool isattr;
     cfg_subelem = lookup_element (cfg_subelem->defvalue, &isattr);
-    cfgst_push (cfgst, 0, cfg_subelem_orig, NULL);
+    cfgst_push_errorhandling (cfgst, 0, cfg_subelem_orig, NULL);
     cfg_warning (cfgst, "setting%s moved to //%s", cfg_subelem->children ? "s" : "", cfg_subelem_orig->defvalue);
     cfgst_pop (cfgst);
   }
@@ -1890,13 +1918,14 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       cfgst->implicit_toplevel = ITL_DISALLOWED;
     else
     {
-      cfgst_push (cfgst, 0, &cyclonedds_root_cfgelems[0], cfgst_parent (cfgst));
+      /* If pushing CycloneDDS and/or Domain is impossible, the stack depth is simply to small */
+      cfgst_push_nofail (cfgst, 0, &cyclonedds_root_cfgelems[0], cfgst_parent (cfgst));
       /* Most likely one would want to override some domain settings without bothering,
          so also allow an implicit "Domain" */
       cfgst->implicit_toplevel = ITL_INSERTED_1;
       if (ddsrt_strcasecmp (name, "Domain") != 0)
       {
-        cfgst_push (cfgst, 0, &root_cfgelems[0], cfgst_parent (cfgst));
+        cfgst_push_nofail (cfgst, 0, &root_cfgelems[0], cfgst_parent (cfgst));
         cfgst->implicit_toplevel = ITL_INSERTED_2;
       }
       cfgst->source = (cfgst->source == 0) ? 1 : cfgst->source << 1;
@@ -1907,23 +1936,20 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
   const struct cfgelem *cfgelem = cfgst_tos (cfgst);
   if (cfgelem == NULL)
   {
-    /* Ignoring, but do track the structure so we can know when to stop ignoring */
-    cfgst_push (cfgst, 0, NULL, NULL);
-    return 1;
+    /* Ignoring, but do track the structure so we can know when to stop ignoring, abort if it is nested too deeply */
+    return cfgst_push (cfgst, 0, NULL, NULL) ? 1 : -1;
   }
 
   const struct cfgelem * const cfg_subelem = find_cfgelem_by_name (cfgst, "element", cfgelem->children, name);
   if (cfg_subelem == NULL)
   {
     /* Ignore the element, continue parsing */
-    cfgst_push (cfgst, 0, NULL, NULL);
-    return 0;
+    return cfgst_push (cfgst, 0, NULL, NULL) ? 0 : -1;
   }
   if (strcmp (cfg_subelem->name, "*") == 0)
   {
     /* Push a marker that we are to ignore this part of the DOM tree */
-    cfgst_push (cfgst, 0, NULL, NULL);
-    return 1;
+    return cfgst_push (cfgst, 0, NULL, NULL) ? 1 : -1;
   }
   else
   {
@@ -1941,7 +1967,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
     else
       dynparent = cfg_deref_address (cfgst, parent, cfg_subelem);
 
-    cfgst_push (cfgst, 0, cfg_subelem, dynparent);
+    if (!cfgst_push (cfgst, 0, cfg_subelem, dynparent))
+      return -1;
 
     if (cfg_subelem == &cyclonedds_root_cfgelems[0])
     {
@@ -1965,9 +1992,13 @@ static int proc_update_cfgelem (struct cfgst *cfgst, const struct cfgelem *ce, c
   if (xvalue == NULL)
     return -1;
   enum update_result res;
-  cfgst_push (cfgst, isattr, isattr ? ce : NULL, parent);
-  res = do_update (cfgst, ce->update, parent, ce, xvalue, cfgst->source);
-  cfgst_pop (cfgst);
+  if (!cfgst_push (cfgst, isattr, isattr ? ce : NULL, parent))
+    res = URES_ERROR;
+  else
+  {
+    res = do_update (cfgst, ce->update, parent, ce, xvalue, cfgst->source);
+    cfgst_pop (cfgst);
+  }
   ddsrt_free (xvalue);
 
   /* Push a marker that we are to ignore this part of the DOM tree -- see the
@@ -1985,16 +2016,18 @@ static int proc_update_cfgelem (struct cfgst *cfgst, const struct cfgelem *ce, c
 
      So replacing the top stack entry for an attribute and the top two entries
      if it's text is a reasonable interpretation of SKIP.  And it seems quite
-     likely that it won't be used for anything else ... */
+     likely that it won't be used for anything else ...
+
+     After popping an element, pushing one must succeed. */
   if (res == URES_SKIP_ELEMENT)
   {
     cfgst_pop (cfgst);
     if (!isattr)
     {
       cfgst_pop (cfgst);
-      cfgst_push (cfgst, 0, NULL, NULL);
+      cfgst_push_nofail (cfgst, 0, NULL, NULL);
     }
-    cfgst_push (cfgst, 0, NULL, NULL);
+    cfgst_push_nofail (cfgst, 0, NULL, NULL);
   }
   else
   {
@@ -2286,7 +2319,8 @@ struct cfgst *config_init (const char *config, struct ddsi_config *cfg, uint32_t
     cfgst->implicit_toplevel = (fp == NULL) ? ITL_ALLOWED : ITL_DISALLOWED;
     cfgst->partial_match_allowed = (fp == NULL);
     cfgst->first_data_in_source = true;
-    cfgst_push (cfgst, 0, &root_cfgelem, cfgst->cfg);
+    // top-level entry must fit
+    cfgst_push_nofail (cfgst, 0, &root_cfgelem, cfgst->cfg);
     ok = (ddsrt_xmlp_parse (qx) >= 0) && !cfgst->error;
     assert (!ok ||
             (cfgst->path_depth == 1 && cfgst->implicit_toplevel == ITL_DISALLOWED) ||
