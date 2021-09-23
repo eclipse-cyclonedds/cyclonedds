@@ -36,6 +36,21 @@ CU_Test(idl_union, no_case)
   idl_delete_pstate(pstate);
 }
 
+CU_Test(idl_union, name_clash)
+{
+  idl_retcode_t ret;
+  idl_pstate_t *pstate = NULL;
+
+  const char str[] = "union u switch (long) { case 1: char c; };\n"
+                     "union u switch (long) { case 1: char c; };";
+  ret = idl_create_pstate(0u, NULL, &pstate);
+  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  ret = idl_parse_string(pstate, str);
+  CU_ASSERT_EQUAL(ret, IDL_RETCODE_SEMANTIC_ERROR);
+  idl_delete_pstate(pstate);
+}
+
 CU_Test(idl_union, single_case)
 {
   idl_retcode_t ret;
