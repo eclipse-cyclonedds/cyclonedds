@@ -1902,7 +1902,7 @@ bool idl_is_case_label(const void *ptr)
 static void delete_case_label(void *ptr)
 {
   idl_case_label_t *node = ptr;
-  idl_delete_node(node->const_expr);
+  delete_const_expr(node, node->const_expr);
   free(node);
 }
 
