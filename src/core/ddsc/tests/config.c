@@ -382,7 +382,20 @@ CU_Test(ddsc_config, invalid_envvar, .init = ddsrt_init, .fini = ddsrt_fini)
 
 CU_Test(ddsc_config, too_deep_nesting, .init = ddsrt_init, .fini = ddsrt_fini)
 {
-  dds_entity_t domain;
-  domain = dds_create_domain (0, "<A><B><C><D><E><F><G><H><I><J><K><L>");
+  const char *log_expected[] = {
+    "*too deeply nested*",
+    NULL
+  };
+
+  dds_set_log_mask (DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
+  dds_set_log_sink (&logger, (void *) log_expected);
+  dds_set_trace_sink (&logger, (void *) log_expected);
+
+  found = 0;
+  dds_entity_t domain = dds_create_domain (0, "<A><B><C><D><E><F><G><H><I><J><K><L>");
   CU_ASSERT_FATAL (domain < 0);
+  CU_ASSERT_FATAL (found == 0x1);
+
+  dds_set_log_sink (NULL, NULL);
+  dds_set_trace_sink (NULL, NULL);
 }
