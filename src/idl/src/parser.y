@@ -185,6 +185,7 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
 %type <struct_dcl> struct_def struct_header
 %type <member> members member struct_body
 %type <union_dcl> union_def union_header
+%type <switch_type_spec> switch_header
 %type <_case> switch_body case element_spec
 %type <case_label> case_labels case_label
 %type <enum_dcl> enum_def
@@ -215,6 +216,7 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
                                      <string> <module_dcl> <struct_dcl> <member> <union_dcl>
                                      <_case> <case_label> <enum_dcl> <enumerator> <declarator> <typedef_dcl>
                                      <const_dcl> <annotation> <annotation_member> <annotation_appl> <annotation_appl_param>
+                                     <switch_type_spec>
 
 %token IDL_TOKEN_LINE_COMMENT
 %token IDL_TOKEN_COMMENT
@@ -754,15 +756,18 @@ union_def:
   ;
 
 union_header:
-    "union" identifier "switch" '(' annotations switch_type_spec
-      { idl_switch_type_spec_t *node = NULL;
-        TRY(idl_create_switch_type_spec(pstate, &@6, $6, &node));
-        TRY_EXCEPT(idl_annotate(pstate, node, $5), idl_delete_node(node));
-        $<node>$ = node;
-      }
-    ')'
-      { idl_switch_type_spec_t *node = $<node>7;
-        TRY(idl_create_union(pstate, LOC(@1.first, @8.last), $2, node, &$$));
+    "union" identifier switch_header
+      { TRY(idl_create_union(pstate, LOC(@1.first, @3.last), $2, $3, &$$)); }
+  ;
+
+switch_header:
+    "switch" '(' annotations switch_type_spec ')'
+      { /* switch_header action is a separate non-terminal, as opposed to a
+           mid-rule action, to avoid freeing the type specifier twice (once
+           through destruction of the type-spec and once through destruction
+           of the switch-type-spec) if union creation fails */
+        TRY(idl_create_switch_type_spec(pstate, &@4, $4, &$$));
+        TRY_EXCEPT(idl_annotate(pstate, $$, $3), idl_delete_node($$));
       }
   ;
 
