@@ -176,9 +176,7 @@ CU_Test(idl_annotation, idl_default)
     {"struct s { @default(\"false\") boolean b; };",         IDL_RETCODE_ILLEGAL_EXPRESSION,  false, IDL_NULL,    NULL}, //parameter type mismatch (string vs bool)
     {"struct s { @default(123) boolean b; };",               IDL_RETCODE_ILLEGAL_EXPRESSION,  false, IDL_NULL,    NULL}, //parameter type mismatch (int vs bool)
     {"struct s { @default(-123) unsigned long l; };",        IDL_RETCODE_OUT_OF_RANGE,        false, IDL_NULL,    NULL}, //parameter type mismatch (unsigned vs signed)
-    /* skipping this test as idl_create_annotation_appl leaks memory if idl_resolve cannot resolve the scoped name (https://github.com/eclipse-cyclonedds/cyclonedds/issues/950)
-      {"@default(e_0) enum e { e_0, e_1, e_2, e_3 };",         IDL_RETCODE_SEMANTIC_ERROR,  false, IDL_NULL,    NULL}  //setting default on enums is done through @default_literal
-    */
+    {"@default(e_0) enum e { e_0, e_1, e_2, e_3 };",         IDL_RETCODE_SEMANTIC_ERROR,      false, IDL_NULL,    NULL}  //setting default on enums is done through @default_literal
   };
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
