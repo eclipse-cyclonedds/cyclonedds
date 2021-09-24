@@ -1,6 +1,6 @@
 [![Build Status](https://dev.azure.com/eclipse-cyclonedds/cyclonedds/_apis/build/status/Pull%20requests?branchName=master)](https://dev.azure.com/eclipse-cyclonedds/cyclonedds/_build/latest?definitionId=4&branchName=master)
 [![Coverity Status](https://scan.coverity.com/projects/19078/badge.svg)](https://scan.coverity.com/projects/eclipse-cyclonedds-cyclonedds)
-[![Codecov](https://codecov.io/gh/eclipse-cyclonedds/cyclonedds/branch/master/graphs/badge.svg?branch=master)](https://codecov.io/github/eclipse-cyclonedds/cyclonedds?branch=master)
+[![Coverage](https://img.shields.io/azure-devops/coverage/eclipse-cyclonedds/cyclonedds/4/master)](https://dev.azure.com/eclipse-cyclonedds/cyclonedds/_build/latest?definitionId=4&branchName=master)
 [![License](https://img.shields.io/badge/License-EPL%202.0-blue)](https://choosealicense.com/licenses/epl-2.0/)
 [![License](https://img.shields.io/badge/License-EDL%201.0-blue)](https://choosealicense.com/licenses/edl-1.0/)
 
