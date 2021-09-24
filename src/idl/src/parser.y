@@ -196,7 +196,7 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
 %type <const_dcl> const_dcl
 %type <annotation> annotation_dcl annotation_header
 %type <annotation_member> annotation_body annotation_member
-%type <annotation_appl> annotations annotation_appl annotation_appls
+%type <annotation_appl> annotations annotation_appl annotation_appls annotation_appl_header
 %type <annotation_appl_param> annotation_appl_params
                               annotation_appl_keyword_param
                               annotation_appl_keyword_params
@@ -973,31 +973,35 @@ annotation_appls:
   ;
 
 annotation_appl:
+    annotation_appl_header annotation_appl_params
+      { if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
+          TRY(idl_finalize_annotation_appl(pstate, LOC(@1.first, @2.last), $1, $2));
+        pstate->parser.state = IDL_PARSE;
+        pstate->annotation_scope = NULL;
+        $$ = $1;
+      }
+  ;
+
+annotation_appl_header:
     "@"
       { pstate->parser.state = IDL_PARSE_ANNOTATION_APPL; }
     annotation_appl_name
-      { idl_annotation_appl_t *node = NULL;
-        const idl_annotation_t *annotation;
+      { const idl_annotation_t *annotation;
         const idl_declaration_t *declaration =
           idl_find_scoped_name(pstate, NULL, $3, IDL_FIND_ANNOTATION);
 
         pstate->annotations = true; /* register annotation occurence */
-        if (!declaration) {
-          pstate->parser.state = IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS;
-        } else {
+
+        $$ = NULL;
+        if (declaration) {
           annotation = idl_reference_node((idl_node_t *)declaration->node);
-          TRY(idl_create_annotation_appl(pstate, LOC(@1.first, @3.last), annotation, &node));
+          TRY(idl_create_annotation_appl(pstate, LOC(@1.first, @3.last), annotation, &$$));
           pstate->parser.state = IDL_PARSE_ANNOTATION_APPL_PARAMS;
           pstate->annotation_scope = declaration->scope;
+        } else {
+          pstate->parser.state = IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS;
         }
-        $<annotation_appl>$ = node;
-      }
-    annotation_appl_params
-      { if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
-          TRY(idl_finalize_annotation_appl(pstate, LOC(@1.first, @5.last), $<annotation_appl>4, $5));
-        pstate->parser.state = IDL_PARSE;
-        pstate->annotation_scope = NULL;
-        $$ = $<annotation_appl>4;
+
         idl_delete_scoped_name($3);
       }
   ;
