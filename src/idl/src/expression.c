@@ -759,7 +759,7 @@ idl_evaluate(
     }
   }
 
-  if ((ret = idl_create_literal(pstate, idl_location(const_expr), type, nodep)))
+  if ((ret = idl_create_literal(pstate, idl_location(const_expr), implicit, nodep)))
     return ret;
   (*((idl_literal_t **)nodep))->value = temporary.value;
 done:
