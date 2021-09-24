@@ -753,6 +753,8 @@ tokenize(
       /* annotation names cannot be keywords, i.e. "@default" */
       if (pstate->scanner.state == IDL_SCAN_ANNOTATION_APPL_NAME)
         goto identifier;
+      if (pstate->scanner.state == IDL_SCAN_ANNOTATION_APPL_SCOPED_NAME)
+        goto identifier;
       if (pstate->scanner.state == IDL_SCAN_ANNOTATION_NAME)
         goto identifier;
       if ((code = idl_iskeyword(pstate, str, !(pstate->flags & IDL_FLAG_CASE_SENSITIVE))))
