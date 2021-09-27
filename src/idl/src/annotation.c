@@ -36,7 +36,7 @@ annotate_id(
   assert(annotation_appl);
   assert(annotation_appl->parameters);
   literal = (idl_literal_t *)annotation_appl->parameters->const_expr;
-  assert(idl_mask(literal) == (IDL_LITERAL|IDL_ULONG));
+  assert(idl_type(literal) == IDL_ULONG);
 
   if (idl_is_member(node)) {
     decl = ((idl_member_t *)node)->declarators;
@@ -82,7 +82,7 @@ annotate_hashid(
   assert(annotation_appl);
   if (annotation_appl->parameters) {
     idl_literal_t *literal = annotation_appl->parameters->const_expr;
-    assert(idl_mask(literal) == (IDL_LITERAL|IDL_STRING));
+    assert(idl_type(literal) == IDL_STRING);
     name = literal->value.str;
   }
 
@@ -327,7 +327,7 @@ annotate_key(
 
   if (annotation_appl->parameters) {
     idl_literal_t *literal = annotation_appl->parameters->const_expr;
-    assert(idl_mask(literal) == (IDL_LITERAL|IDL_BOOL));
+    assert(idl_type(literal) == IDL_BOOL);
     key = literal->value.bln;
   }
 
@@ -535,7 +535,7 @@ annotate_default_nested(
 
   if (annotation_appl->parameters) {
     idl_literal_t *literal = annotation_appl->parameters->const_expr;
-    assert(idl_mask(literal) == (IDL_LITERAL|IDL_BOOL));
+    assert(idl_type(literal) == IDL_BOOL);
     default_nested = literal->value.bln;
   }
 
@@ -623,11 +623,8 @@ annotate_external(
 {
   bool external = true;
   if (annotation_appl->parameters) {
-#if !defined(NDEBUG)
-    static const idl_mask_t mask = IDL_LITERAL|IDL_BOOL;
-#endif
     idl_literal_t *literal = annotation_appl->parameters->const_expr;
-    assert((idl_mask(literal) & mask) == mask);
+    assert(idl_type(literal) == IDL_BOOL);
     external = literal->value.bln;
   }
 
