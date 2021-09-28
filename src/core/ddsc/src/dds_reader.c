@@ -482,15 +482,13 @@ static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_
     return false;
   }
 
-  uint32_t sub_history_req = cfg->sub_history_request;
-
   return (NULL != qos &&
     DDS_READER_QOS_CHECK_FIELDS == (qos->present & DDS_READER_QOS_CHECK_FIELDS) &&
     DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
     DDS_INFINITY == qos->deadline.deadline &&
-    DDS_DURABILITY_VOLATILE == qos->durability.kind &&
+    (DDS_DURABILITY_VOLATILE == qos->durability.kind || DDS_DURABILITY_TRANSIENT_LOCAL == qos->durability.kind) &&
     DDS_HISTORY_KEEP_LAST == qos->history.kind &&
-    (int)sub_history_req >= (int)qos->history.depth);
+    cfg->sub_queue_capacity >= (uint32_t) qos->history.depth);
 }
 #endif
 

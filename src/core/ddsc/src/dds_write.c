@@ -462,12 +462,12 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   // actually distribute the data, so some further refactoring is needed.
   ddsrt_mutex_lock (&ddsi_wr->e.lock);
   bool no_network_readers = addrset_empty (ddsi_wr->as);
+  bool volatile_writer = ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE;
   ddsrt_mutex_unlock (&ddsi_wr->e.lock);
-  bool use_only_iceoryx = iceoryx_available && no_network_readers;
+  bool use_only_iceoryx = iceoryx_available && no_network_readers && volatile_writer;
 
-  // iceoryx_available implies volatile
-  // otherwise we need to add the check in the use_only_iceoryx expression
-  assert(!iceoryx_available || ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE);
+  // iceoryx_available implies volatile or transient local
+  assert(!iceoryx_available || ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE || ddsi_wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
 
   // 4. Prepare serdata
   // avoid serialization for volatile writers if there are no network readers

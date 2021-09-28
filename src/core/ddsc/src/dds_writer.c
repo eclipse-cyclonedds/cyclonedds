@@ -295,18 +295,14 @@ static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_
   if (!tp->m_stype->fixed_size && (!tp->m_stype->ops->get_serialized_size ||
                                    !tp->m_stype->ops->serialize_into)) {
     return false;
-  }
-
-  uint32_t pub_history_cap = cfg->pub_history_capacity;
-
+ 
   return (NULL != qos &&
           DDS_WRITER_QOS_CHECK_FIELDS == (qos->present&DDS_WRITER_QOS_CHECK_FIELDS) &&
           DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
           DDS_INFINITY == qos->deadline.deadline &&
-          DDS_RELIABILITY_RELIABLE == qos->reliability.kind &&
-          DDS_DURABILITY_VOLATILE == qos->durability.kind &&
+          (DDS_DURABILITY_VOLATILE == qos->durability.kind || DDS_DURABILITY_TRANSIENT_LOCAL == qos->durability.kind) &&
           DDS_HISTORY_KEEP_LAST == qos->history.kind &&
-          (int)pub_history_cap >= (int)qos->history.depth);
+          cfg->pub_history_capacity >= (uint32_t)qos->history.depth);
 }
 #endif
 
