@@ -64,6 +64,7 @@ max_alignment(const struct alignment *a, const struct alignment *b)
   return b->ordering > a->ordering ? b : a;
 }
 
+<<<<<<< HEAD
 static bool
 is_node_mutable(const idl_node_t *node)
 {
@@ -71,6 +72,8 @@ is_node_mutable(const idl_node_t *node)
     (idl_is_union(node) && ((idl_union_t *)node)->extensibility.value == IDL_MUTABLE);
 }
 
+=======
+>>>>>>> Replace is_node_mutable by more generic idl_is_extensible
 static idl_retcode_t push_field(
   struct descriptor *descriptor, const void *node, struct field **fieldp)
 {
@@ -954,7 +957,7 @@ emit_struct(
     ctype = find_ctype(descriptor, node);
     assert(ctype);
     /* generate return from subroutine */
-    uint32_t off = is_node_mutable(node) ? ctype->pl_offset : nop;
+    uint32_t off = idl_is_extensible(node, IDL_EXTENSIBILITY_MUTABLE) ? ctype->pl_offset : nop;
     if ((ret = stash_opcode(descriptor, &ctype->instructions, off, DDS_OP_RTS, 0u)))
       return ret;
     pop_type(descriptor);

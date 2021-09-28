@@ -3528,3 +3528,9 @@ bool idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, ui
 
   return (keylist) ? is_key_by_keylist(node, path, order) : is_key_by_path(node, path, order);
 }
+
+bool idl_is_extensible(const idl_node_t *node, idl_extensibility_t extensibility)
+{
+  return (idl_is_struct(node) && ((idl_struct_t *)node)->extensibility == extensibility) ||
+    (idl_is_union(node) && ((idl_union_t *)node)->extensibility == extensibility);
+}
