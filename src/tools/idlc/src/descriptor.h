@@ -74,11 +74,6 @@ struct instruction {
   } data;
 };
 
-struct constructed_type_fwd {
-  const void *node;
-  const struct constructed_type_fwd *next;
-};
-
 struct instructions {
   uint32_t size;        /**< available number of instructions */
   uint32_t count;       /**< used number of instructions */
@@ -91,11 +86,9 @@ struct constructed_type {
   const void *node;
   const idl_name_t *name;
   const idl_scope_t *scope;
-  struct constructed_type_fwd *fwd_decls;
   bool has_key_member;
   uint32_t offset;        /**< offset for the instructions of this type in the topic descriptor instruction array */
   uint32_t pl_offset;     /**< current offset in parameter list for mutable types */
-  uint32_t refc;          /**< refcount for this type, used to filter out unused types */
   struct instructions instructions;
 };
 

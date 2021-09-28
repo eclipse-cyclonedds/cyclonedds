@@ -95,6 +95,8 @@ enum idl_visit_revisit {
 /** Unalias associated type specifier (callback signal) */
 #define IDL_VISIT_UNALIAS_TYPE_SPEC (1<<7)
 
+#define IDL_VISIT_FWD_DECL_TARGET (1<<8)
+
 /* FIXME: add IDL_VISIT_ARRAY that complements IDL_VISIT_TYPE_SPEC and takes
           into account array declarators, which is incredibly useful for
           backends, like the native generator for Cyclone DDS, that need to

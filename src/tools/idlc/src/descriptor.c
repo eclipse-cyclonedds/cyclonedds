@@ -64,16 +64,6 @@ max_alignment(const struct alignment *a, const struct alignment *b)
   return b->ordering > a->ordering ? b : a;
 }
 
-<<<<<<< HEAD
-static bool
-is_node_mutable(const idl_node_t *node)
-{
-  return (idl_is_struct(node) && ((idl_struct_t *)node)->extensibility.value == IDL_MUTABLE) ||
-    (idl_is_union(node) && ((idl_union_t *)node)->extensibility.value == IDL_MUTABLE);
-}
-
-=======
->>>>>>> Replace is_node_mutable by more generic idl_is_extensible
 static idl_retcode_t push_field(
   struct descriptor *descriptor, const void *node, struct field **fieldp)
 {
@@ -522,9 +512,9 @@ static uint32_t typecode(const idl_type_spec_t *type_spec, uint32_t shift, bool 
   assert(shift == 8 || shift == 16);
   if (idl_is_array(type_spec))
     return ((uint32_t)DDS_OP_VAL_ARR << shift);
-  if (idl_is_forward(type_spec))
-    return ((uint32_t)DDS_OP_VAL_EXT << shift);
   type_spec = idl_unalias(type_spec, 0u);
+  if (idl_is_forward(type_spec))
+    type_spec = ((const idl_forward_t *)type_spec)->definition;
   assert(!idl_is_typedef(type_spec));
   switch (idl_type(type_spec)) {
     case IDL_CHAR:
@@ -599,54 +589,24 @@ static struct constructed_type *
 find_ctype(const struct descriptor *descriptor, const void *node)
 {
   struct constructed_type *ctype = descriptor->constructed_types;
-  while (ctype && ctype->node != node)
-    ctype = ctype->next;
-  return ctype;
-}
-
-static struct constructed_type *
-find_ctype_byname(const struct descriptor *descriptor, const idl_scope_t *scope, const idl_name_t *name)
-{
-  struct constructed_type *ctype = descriptor->constructed_types;
-  // FIXME: need to compare scope by name (identifier) and not pointers?
-  while (ctype && (strcmp(name->identifier, ctype->name->identifier) || ctype->scope != scope))
-    ctype = ctype->next;
-  return ctype;
-}
-
-static const struct constructed_type_fwd *
-ctype_has_fwd(const struct constructed_type *ctype, const void *node)
-{
-  const struct constructed_type_fwd *fwd = ctype->fwd_decls;
-  while (fwd && fwd->node != node)
-    fwd = fwd->next;
-  return fwd;
-}
-
-static struct constructed_type *
-find_ctype_byfwd(const struct descriptor *descriptor, const void *node)
-{
-  struct constructed_type *ctype = descriptor->constructed_types;
-  while (ctype && !ctype_has_fwd(ctype, node))
+  const void *node1;
+  if (idl_is_forward(node))
+    node1 = ((const idl_forward_t *)node)->definition;
+  else
+    node1 = node;
+  while (ctype && ctype->node != node1)
     ctype = ctype->next;
   return ctype;
 }
 
 static idl_retcode_t
-add_ctype(struct descriptor *descriptor, const idl_scope_t *scope, const void *node, bool is_fwd_decl, struct constructed_type **ctype)
+add_ctype(struct descriptor *descriptor, const idl_scope_t *scope, const void *node, struct constructed_type **ctype)
 {
   struct constructed_type *ctype1;
-  struct constructed_type_fwd *fwd = NULL;
 
   if (!(ctype1 = calloc(1, sizeof (*ctype1))))
     goto err_ctype;
-  if (is_fwd_decl) {
-    if (!(fwd = calloc(1, sizeof(*fwd))))
-      goto err_fwd;
-    fwd->node = node;
-    ctype1->fwd_decls = fwd;
-  } else
-    ctype1->node = node;
+  ctype1->node = node;
   ctype1->name = idl_name(node);
   ctype1->scope = scope;
 
@@ -662,25 +622,8 @@ add_ctype(struct descriptor *descriptor, const idl_scope_t *scope, const void *n
     *ctype = ctype1;
   return IDL_RETCODE_OK;
 
-err_fwd:
-  free(ctype1);
 err_ctype:
   return IDL_RETCODE_NO_MEMORY;
-}
-
-static idl_retcode_t
-add_ctype_fwd(struct constructed_type *ctype, const void *node, struct constructed_type_fwd **fwd)
-{
-  struct constructed_type_fwd *fwd1;
-  if (!(fwd1 = calloc(1, sizeof(*fwd1))))
-    return IDL_RETCODE_NO_MEMORY;
-  fwd1->node = node;
-  fwd1->next = ctype->fwd_decls;
-  ctype->fwd_decls = fwd1;
-
-  if (fwd)
-    *fwd = fwd1;
-  return IDL_RETCODE_OK;
 }
 
 static idl_retcode_t
@@ -712,6 +655,8 @@ emit_case(
     const idl_type_spec_t *type_spec;
 
     type_spec = idl_unalias(idl_type_spec(node), 0u);
+    if (idl_is_forward(type_spec))
+      type_spec = ((const idl_forward_t *)type_spec)->definition;
 
     if (idl_is_empty(type_spec)) {
       for (label = _case->labels; label; label = idl_next(label)) {
@@ -860,18 +805,10 @@ emit_union(
 
     if (find_ctype(descriptor, node))
       return IDL_RETCODE_OK | IDL_VISIT_DONT_RECURSE;
+    if ((ret = add_ctype(descriptor, idl_scope(node), node, &ctype)))
+      return ret;
 
-    /* Try to find any forward declaration of this type */
-    if ((ctype = find_ctype_byname(descriptor, idl_scope(node), idl_name(node))))
-    {
-      assert(!ctype->node);
-      ctype->node = node;
-    } else {
-      if ((ret = add_ctype(descriptor, idl_scope(node), node, false, &ctype)))
-        return ret;
-    }
-
-    switch (((idl_union_t *)node)->extensibility) {
+    switch (((idl_union_t *)node)->extensibility.value) {
       case IDL_APPENDABLE:
         stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u);
         break;
@@ -915,23 +852,12 @@ emit_forward(
   const void *node,
   void *user_data)
 {
-  struct constructed_type *ctype;
-  struct descriptor *descriptor = user_data;
-  idl_retcode_t ret;
-
   (void)pstate;
   (void)revisit;
   (void)path;
-  if (find_ctype_byfwd(descriptor, node))
-    return IDL_RETCODE_OK | IDL_VISIT_DONT_RECURSE;
-  if ((ctype = find_ctype_byname(descriptor, idl_scope(node), idl_name(node)))) {
-    if (!(ret = add_ctype_fwd(ctype, node, NULL)))
-      return ret;
-  } else {
-    if (!(ret = add_ctype(descriptor, idl_scope(node), node, true, NULL)))
-      return ret;
-  }
-  return IDL_RETCODE_OK;
+  (void)node;
+  (void)user_data;
+  return IDL_VISIT_TYPE_SPEC | IDL_VISIT_FWD_DECL_TARGET;
 }
 
 static idl_retcode_t
@@ -951,25 +877,17 @@ emit_struct(
     ctype = find_ctype(descriptor, node);
     assert(ctype);
     /* generate return from subroutine */
-    uint32_t off = idl_is_extensible(node, IDL_EXTENSIBILITY_MUTABLE) ? ctype->pl_offset : nop;
+    uint32_t off = idl_is_extensible(node, IDL_MUTABLE) ? ctype->pl_offset : nop;
     if ((ret = stash_opcode(descriptor, &ctype->instructions, off, DDS_OP_RTS, 0u)))
       return ret;
     pop_type(descriptor);
   } else {
     if (find_ctype(descriptor, node))
       return IDL_RETCODE_OK | IDL_VISIT_DONT_RECURSE;
+    if ((ret = add_ctype(descriptor, idl_scope(node), node, &ctype)))
+      return ret;
 
-    /* Try to find any forward declaration of this type */
-    if ((ctype = find_ctype_byname(descriptor, idl_scope(node), idl_name(node))))
-    {
-      assert(!ctype->node);
-      ctype->node = node;
-    } else {
-      if ((ret = add_ctype(descriptor, idl_scope(node), node, false, &ctype)))
-        return ret;
-    }
-
-    switch (((idl_struct_t *)node)->extensibility) {
+    switch (((idl_struct_t *)node)->extensibility.value) {
       case IDL_APPENDABLE:
         stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u);
         break;
@@ -1012,6 +930,9 @@ emit_sequence(
 
   /* resolve non-array aliases */
   type_spec = idl_unalias(idl_type_spec(node), 0u);
+  if (idl_is_forward(type_spec))
+    type_spec = ((const idl_forward_t *)type_spec)->definition;
+
   if (revisit) {
     uint32_t off, cnt;
     off = stype->offset;
@@ -1020,7 +941,7 @@ emit_sequence(
     if ((ret = stash_size(&ctype->instructions, off + 2, node, false)))
       return ret;
     /* generate data field [next-insn, elem-insn] */
-    if (idl_is_forward(type_spec) || idl_is_struct(type_spec) || idl_is_union(type_spec)) {
+    if (idl_is_struct(type_spec) || idl_is_union(type_spec)) {
       assert(cnt <= INT16_MAX);
       int16_t addr_offs = (int16_t)(cnt - 2); /* minus 2 for the opcode and offset ops that are already stashed for this sequence */
       if ((ret = stash_element_offset(&ctype->instructions, off + 3, type_spec, 4u, addr_offs)))
@@ -1091,6 +1012,8 @@ emit_array(
   if (idl_is_array(node)) {
     dims = idl_array_size(node);
     type_spec = idl_type_spec(node);
+    if (idl_is_forward(type_spec))
+      type_spec = ((const idl_forward_t *)type_spec)->definition;
   } else {
     type_spec = idl_unalias(idl_type_spec(node), 0u);
     assert(idl_is_array(type_spec));
@@ -1111,7 +1034,7 @@ emit_array(
       off = stype->offset;
       cnt = ctype->instructions.count;
       /* generate data field [next-insn, elem-insn] */
-      if (idl_is_forward(type_spec) || idl_is_struct(type_spec) || idl_is_union(type_spec)) {
+      if (idl_is_struct(type_spec) || idl_is_union(type_spec)) {
         assert(cnt <= INT16_MAX);
         int16_t addr_offs = (int16_t)(cnt - 3); /* minus 2 for the opcode and offset ops that are already stashed for this array */
         if ((ret = stash_element_offset(&ctype->instructions, off + 3, type_spec, 5u, addr_offs)))
@@ -1201,7 +1124,7 @@ emit_declarator(
   struct descriptor *descriptor = user_data;
   struct constructed_type *ctype = descriptor->type_stack->ctype;
 
-  if (is_node_mutable(ctype->node)) {
+  if (idl_is_extensible(ctype->node, IDL_MUTABLE)) {
     if (revisit) {
       /* close mutable member */
       if ((ret = stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_RTS, 0u)))
@@ -1231,6 +1154,9 @@ emit_declarator(
     return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
 
   type_spec = idl_unalias(idl_type_spec(node), 0u);
+  if (idl_is_forward(type_spec))
+    type_spec = ((const idl_forward_t *)type_spec)->definition;
+
   /* delegate array type specifiers or declarators */
   if (idl_is_array(node) || idl_is_array(type_spec))
     return emit_array(pstate, revisit, path, node, user_data);
@@ -1296,7 +1222,7 @@ emit_declarator(
     if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
       if ((ret = stash_single(&ctype->instructions, nop, idl_bound(type_spec)+1)))
         return ret;
-    } else if (idl_is_forward(type_spec) || idl_is_struct(type_spec) || idl_is_union(type_spec)) {
+    } else if (idl_is_struct(type_spec) || idl_is_union(type_spec)) {
       if ((ret = stash_element_offset(&ctype->instructions, nop, type_spec, 3 + (has_size ? 1 : 0), addr_offs)))
         return ret;
     }
@@ -1306,7 +1232,7 @@ emit_declarator(
         return ret;
     }
 
-    if (idl_is_forward(type_spec) || idl_is_union(type_spec) || idl_is_struct(type_spec))
+    if (idl_is_union(type_spec) || idl_is_struct(type_spec))
       return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
 
     return IDL_VISIT_REVISIT;
@@ -1662,7 +1588,7 @@ static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constr
     if (DDS_OP_TYPE(code) == DDS_OP_VAL_EXT) {
       assert(inst2->type == ELEM_OFFSET);
       const idl_node_t *node = inst2->data.inst_offset.node;
-      struct constructed_type *csubtype = idl_is_forward(node) ?  find_ctype_byfwd(descriptor, node) : find_ctype(descriptor, node);
+      struct constructed_type *csubtype = find_ctype(descriptor, node);
       assert(csubtype);
       if ((ret = get_ctype_keys(descriptor, csubtype, &key->sub, true)))
         goto err;
@@ -1966,8 +1892,10 @@ resolve_offsets(struct descriptor *descriptor)
     uint32_t offs = 0;
     for (struct constructed_type *ctype = descriptor->constructed_types; ctype; ctype = ctype->next) {
       /* confirm that type is complete */
-      if (!ctype->node)
+      if (!ctype->node) {
+        // FIXME: this shouldn't happen, can we make it an assert?
         return IDL_RETCODE_SEMANTIC_ERROR;
+      }
       ctype->offset = offs;
       offs += ctype->instructions.count;
     }
@@ -1979,22 +1907,17 @@ resolve_offsets(struct descriptor *descriptor)
       if (ctype->instructions.table[op].type == ELEM_OFFSET || ctype->instructions.table[op].type == JEQ_OFFSET)
       {
         struct instruction *inst = &ctype->instructions.table[op];
-        bool found = false;
-        for (struct constructed_type *ctype1 = descriptor->constructed_types; ctype1; ctype1 = ctype1->next) {
-          if (ctype1->node == inst->data.inst_offset.node || ctype_has_fwd(ctype1, inst->data.inst_offset.node))
-          {
-            assert(ctype1->offset <= INT32_MAX);
-            int32_t offs = (int32_t)ctype1->offset - ((int32_t)ctype->offset + inst->data.inst_offset.addr_offs);
-            assert(offs >= INT16_MIN);
-            assert(offs <= INT16_MAX);
-            inst->data.inst_offset.elem_offs = (int16_t)offs;
-            ctype1->refc++;
-            found = true;
-            break;
-          }
-        }
-        if (!found)
+        struct constructed_type *ctype1 = find_ctype(descriptor, inst->data.inst_offset.node);
+        if (ctype1) {
+          assert(ctype1->offset <= INT32_MAX);
+          int32_t offs = (int32_t)ctype1->offset - ((int32_t)ctype->offset + inst->data.inst_offset.addr_offs);
+          assert(offs >= INT16_MIN);
+          assert(offs <= INT16_MAX);
+          inst->data.inst_offset.elem_offs = (int16_t)offs;
+        } else {
+          // FIXME: this shouldn't happen, can we make it an assert?
           return IDL_RETCODE_SEMANTIC_ERROR;
+        }
       }
     }
   }
@@ -2038,38 +1961,8 @@ static void
 ctype_fini(struct constructed_type *ctype)
 {
   instructions_fini(&ctype->instructions);
-
-  const struct constructed_type_fwd *fwd1, *fwd = ctype->fwd_decls;
-  while (fwd) {
-    fwd1 = fwd->next;
-    free((struct constructed_type_fwd *)fwd);
-    fwd = fwd1;
-  }
-
   if (ctype->instructions.table)
     free(ctype->instructions.table);
-}
-
-static idl_retcode_t
-remove_unused_types(struct descriptor *descriptor)
-{
-  /* remove unreferenced constructed types (which are not the topic for this descriptor) */
-  struct constructed_type *ctype = descriptor->constructed_types, *prev = NULL, *next;
-  while (ctype) {
-    next = ctype->next;
-    if (ctype->refc == 0 && descriptor->topic != ctype->node) {
-      if (!prev)
-        descriptor->constructed_types = next;
-      else
-        prev->next = next;
-      ctype_fini(ctype);
-      free(ctype);
-    } else {
-      prev = ctype;
-    }
-    ctype = next;
-  }
-  return IDL_RETCODE_OK;
 }
 
 idl_retcode_t generate_descriptor(const idl_pstate_t *pstate, struct generator *generator, const idl_node_t *node);
@@ -2125,8 +2018,6 @@ generate_descriptor_impl(
   if ((ret = idl_visit(pstate, descriptor->topic, &visitor, descriptor)))
     goto err;
   if ((ret = resolve_offsets(descriptor)) < 0)
-    goto err;
-  if ((ret = remove_unused_types(descriptor)) < 0)
     goto err;
   if ((ret = add_key_offset_list(descriptor, (pstate->flags & IDL_FLAG_KEYLIST))) < 0)
     goto err;
