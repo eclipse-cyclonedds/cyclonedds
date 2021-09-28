@@ -857,35 +857,29 @@ emit_union(
   } else {
     const idl_case_t *_case;
     const idl_case_label_t *label;
-    bool existing = false;
 
     if (find_ctype(descriptor, node))
       return IDL_RETCODE_OK | IDL_VISIT_DONT_RECURSE;
 
+    /* Try to find any forward declaration of this type */
     if ((ctype = find_ctype_byname(descriptor, idl_scope(node), idl_name(node))))
     {
-      if (!ctype->node)
-        ctype->node = node;
-      else {
-        assert(ctype->node == node);
-        existing = true;
-      }
+      assert(!ctype->node);
+      ctype->node = node;
     } else {
       if ((ret = add_ctype(descriptor, idl_scope(node), node, false, &ctype)))
         return ret;
     }
 
-    if (!existing) {
-      switch (((idl_union_t *)node)->extensibility.value) {
-        case IDL_APPENDABLE:
-          stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u);
-          break;
-        case IDL_MUTABLE:
-          stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u);
-          break;
-        case IDL_FINAL:
-          break;
-      }
+    switch (((idl_union_t *)node)->extensibility) {
+      case IDL_APPENDABLE:
+        stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u);
+        break;
+      case IDL_MUTABLE:
+        stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u);
+        break;
+      case IDL_FINAL:
+        break;
     }
 
     if ((ret = push_type(descriptor, node, ctype, &stype)))
@@ -962,36 +956,29 @@ emit_struct(
       return ret;
     pop_type(descriptor);
   } else {
-    bool existing = false;
-
     if (find_ctype(descriptor, node))
       return IDL_RETCODE_OK | IDL_VISIT_DONT_RECURSE;
 
+    /* Try to find any forward declaration of this type */
     if ((ctype = find_ctype_byname(descriptor, idl_scope(node), idl_name(node))))
     {
-      if (!ctype->node)
-        ctype->node = node;
-      else {
-        assert(ctype->node == node);
-        existing = true;
-      }
+      assert(!ctype->node);
+      ctype->node = node;
     } else {
       if ((ret = add_ctype(descriptor, idl_scope(node), node, false, &ctype)))
         return ret;
     }
 
-    if (!existing) {
-      switch (((idl_struct_t *)node)->extensibility.value) {
-        case IDL_APPENDABLE:
-          stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u);
-          break;
-        case IDL_MUTABLE:
-          stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u);
-          ctype->pl_offset = ctype->instructions.count;
-          break;
-        case IDL_FINAL:
-          break;
-      }
+    switch (((idl_struct_t *)node)->extensibility) {
+      case IDL_APPENDABLE:
+        stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u);
+        break;
+      case IDL_MUTABLE:
+        stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u);
+        ctype->pl_offset = ctype->instructions.count;
+        break;
+      case IDL_FINAL:
+        break;
     }
 
     if (!(ret = push_type(descriptor, node, ctype, NULL))) {
