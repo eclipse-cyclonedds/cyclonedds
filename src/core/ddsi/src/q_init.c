@@ -1552,6 +1552,7 @@ int rtps_init (struct ddsi_domaingv *gv)
     gv->ppguid_base.prefix.s[1] = NN_VENDORID_ECLIPSE.id[1];
     DDSRT_STATIC_ASSERT (sizeof (gv->ppguid_base.prefix.s) > 2 && sizeof (gv->ppguid_base.prefix.s) - 2 <= sizeof (digest));
     memcpy (&gv->ppguid_base.prefix.s[2], digest, sizeof (gv->ppguid_base.prefix.s) - 2);
+    gv->ppguid_base.prefix = nn_ntoh_guid_prefix (gv->ppguid_base.prefix);
     gv->ppguid_base.entityid.u = NN_ENTITYID_PARTICIPANT;
   }
 
