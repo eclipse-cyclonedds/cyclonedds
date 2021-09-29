@@ -502,7 +502,8 @@ static const uint32_t *dds_stream_countops_uni (const uint32_t * __restrict ops,
       case DDS_OP_VAL_ENU:
         break;
       case DDS_OP_VAL_BST: case DDS_OP_VAL_BSP: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
-        dds_stream_countops1 (jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), ops_end, dynamic_type);
+        if (DDS_OP_ADR_JSR (jeq_op[0]) > 0)
+          dds_stream_countops1 (jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), ops_end, dynamic_type);
         break;
       case DDS_OP_VAL_EXT:
         abort (); // not allowed

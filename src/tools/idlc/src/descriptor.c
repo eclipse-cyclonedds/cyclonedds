@@ -659,10 +659,11 @@ emit_case(
       type_spec = ((const idl_forward_t *)type_spec)->definition;
 
     if (idl_is_empty(type_spec)) {
+      /* In case of an empty type (a struct without members), stash no-ops for the
+         case labels so that offset to type ops for non-simple inline cases is correct.
+         FIXME: This needs a better solution... */
       for (label = _case->labels; label; label = idl_next(label)) {
         off = stype->offset + 2 + (stype->label * 3);
-        /* FIXME: as a work-around emit 3 RTS ops so that offset to type ops for non-simple
-           inline cases is correct. This needs a better solution... */
         if ((ret = stash_opcode(descriptor, &ctype->instructions, off++, DDS_OP_RTS, 0u))
             || (ret = stash_opcode(descriptor, &ctype->instructions, off++, DDS_OP_RTS, 0u))
             || (ret = stash_opcode(descriptor, &ctype->instructions, off, DDS_OP_RTS, 0u)))
@@ -682,7 +683,7 @@ emit_case(
       else if (idl_is_array(type_spec) || (idl_is_string(type_spec) && idl_is_bounded(type_spec)))
         case_type = INLINE;
       else {
-        assert (idl_is_base_type(type_spec) || (idl_is_string(type_spec) && !idl_is_bounded(type_spec)));
+        assert (idl_is_base_type(type_spec) || (idl_is_string(type_spec) && !idl_is_bounded(type_spec)) || idl_is_sequence(type_spec));
         case_type = SIMPLE;
       }
     }
@@ -702,7 +703,7 @@ emit_case(
       off = stype->offset + 2 + (stype->label * 3);
       if (case_type == SIMPLE || case_type == INLINE) {
         /* update offset to first instruction for inline non-simple cases */
-        opcode &= ~0xffffu;
+        opcode &= (DDS_OP_MASK | DDS_OP_TYPE_FLAGS_MASK | DDS_OP_TYPE_MASK);
         if (case_type == INLINE)
           opcode |= (cnt - off);
         /* generate union case opcode */
@@ -1314,7 +1315,7 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
   }
   if (opcode == DDS_OP_JEQ || opcode == DDS_OP_PLM) {
     /* lower 16 bits contain offset to next instruction */
-    idl_snprintf(buf, sizeof(buf), " | %u", DDS_OP_JUMP (inst->data.opcode.code));
+    idl_snprintf(buf, sizeof(buf), " | %u", (uint16_t) DDS_OP_JUMP (inst->data.opcode.code));
     vec[len++] = buf;
   } else {
     subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
@@ -1486,7 +1487,7 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
         }
         case JEQ_OFFSET:
         {
-          const struct instruction inst_op = { OPCODE, { .opcode = { .code = (inst->data.inst_offset.inst.opcode & ~0xffffu) | (uint16_t)inst->data.inst_offset.elem_offs, .order = 0 } } };
+          const struct instruction inst_op = { OPCODE, { .opcode = { .code = (inst->data.inst_offset.inst.opcode & (DDS_OP_MASK | DDS_OP_TYPE_FLAGS_MASK | DDS_OP_TYPE_MASK)) | (uint16_t)inst->data.inst_offset.elem_offs, .order = 0 } } };
           if (fputs(sep, fp) < 0 || print_opcode(fp, &inst_op) < 0 || idl_fprintf(fp, " /* %s */", idl_identifier(inst->data.inst_offset.node)) < 0)
             return -1;
           brk = op + 3;
@@ -1496,7 +1497,7 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
         }
         case MEMBER_OFFSET:
         {
-          const struct instruction inst_op = { OPCODE, { .opcode = { .code = (DDS_OP_PLM & ~0xffffu) | (uint16_t)inst->data.inst_offset.addr_offs, .order = 0 } } };
+          const struct instruction inst_op = { OPCODE, { .opcode = { .code = (DDS_OP_PLM & (DDS_OP_MASK | DDS_PLM_FLAGS_MASK)) | (uint16_t)inst->data.inst_offset.addr_offs, .order = 0 } } };
           if (fputs(sep, fp) < 0 || print_opcode(fp, &inst_op) < 0)
             return -1;
           brk = op + 2;
@@ -1519,7 +1520,7 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
     switch (inst->type) {
       case KEY_OFFSET:
       {
-        const struct instruction inst_op = { OPCODE, { .opcode = { .code = (DDS_OP_KOF & ~0xffffu) | (inst->data.key_offset.len & 0xffffu), .order = 0 } } };
+        const struct instruction inst_op = { OPCODE, { .opcode = { .code = (DDS_OP_KOF & DDS_OP_MASK) | (inst->data.key_offset.len & DDS_KOF_OFFSET_MASK), .order = 0 } } };
         if (fputs(sep, fp) < 0 || idl_fprintf(fp, "\n  /* key: %s (size: %u) */\n  ", inst->data.key_offset.key_name, inst->data.key_offset.key_size) < 0 || print_opcode(fp, &inst_op) < 0)
           return -1;
         brk = op + 1 + inst->data.key_offset.len;
