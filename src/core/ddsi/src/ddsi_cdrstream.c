@@ -349,6 +349,13 @@ static bool type_has_subtype_or_members (enum dds_stream_typecode type)
   return type == DDS_OP_VAL_SEQ || type == DDS_OP_VAL_ARR || type == DDS_OP_VAL_UNI || type == DDS_OP_VAL_STU;
 }
 
+static bool op_type_external (const uint32_t insn)
+{
+  uint32_t typeflags = DDS_OP_TYPE_FLAGS (insn);
+  return (typeflags & DDS_OP_FLAG_EXT);
+}
+
+
 static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc * __restrict desc)
 {
   const uint32_t *ops = desc->ops.ops;
@@ -701,14 +708,24 @@ static const uint32_t *find_union_case (const uint32_t * __restrict union_ops, u
   for (ci = 0; ci < numcases; ci++)
   {
     assert (DDS_OP (jeq_op[idx]) == DDS_OP_JEQ);
-    idx += (size_t) 3 + (DDS_OP_TYPE (jeq_op[idx]) == DDS_OP_VAL_ENU);
+    size_t inc = 3;
+    if (DDS_OP_TYPE (jeq_op[idx]) == DDS_OP_VAL_ENU)
+      inc++;
+    if (DDS_OP_TYPE_FLAGS (jeq_op[idx]) & DDS_OP_FLAG_EXT)
+      inc++;
+    idx += inc;
   }
 #endif
   for (ci = 0; ci < numcases - (has_default ? 1 : 0); ci++)
   {
     if (jeq_op[1] == disc)
       return jeq_op;
-    jeq_op += 3 + (DDS_OP_TYPE (jeq_op[0]) == DDS_OP_VAL_ENU);
+    size_t inc = 3;
+    if (DDS_OP_TYPE (jeq_op[0]) == DDS_OP_VAL_ENU)
+      inc++;
+    if (DDS_OP_TYPE_FLAGS (jeq_op[0]) & DDS_OP_FLAG_EXT)
+      inc++;
+    jeq_op += inc;
   }
   return (ci < numcases) ? jeq_op : NULL;
 }
@@ -1339,9 +1356,21 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t * __restrict is, char 
       case DDS_OP_VAL_4BY: case DDS_OP_VAL_ENU: *((uint32_t *) valaddr) = dds_is_get4 (is); break;
       case DDS_OP_VAL_8BY: *((uint64_t *) valaddr) = dds_is_get8 (is); break;
       case DDS_OP_VAL_STR: *(char **) valaddr = dds_stream_reuse_string (is, *((char **) valaddr)); break;
-      case DDS_OP_VAL_BST: case DDS_OP_VAL_BSP: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
+      case DDS_OP_VAL_BST: case DDS_OP_VAL_BSP: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR:
         (void) dds_stream_read (is, valaddr, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]));
         break;
+      case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+        const uint32_t *jsr_ops = jeq_op + DDS_OP_ADR_JSR (jeq_op[0]);
+        if (op_type_external (jeq_op[0]))
+        {
+          uint32_t sz = jeq_op[3];
+          *((char **) valaddr) = ddsrt_malloc (sz);
+          (void) dds_stream_read (is, *((char **) valaddr), jsr_ops);
+        }
+        else
+          (void) dds_stream_read (is, valaddr, jsr_ops);
+        break;
+      }
       case DDS_OP_VAL_EXT: {
         abort (); /* not supported */
         break;
@@ -1370,8 +1399,7 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
     case DDS_OP_VAL_EXT: {
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
       const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
-      uint32_t flags = DDS_OP_FLAGS (insn);
-      if (flags & DDS_OP_FLAG_EXT)
+      if (op_type_external (insn))
       {
         uint32_t sz = ops[3];
         *((char **) addr) = ddsrt_malloc (sz);
@@ -2312,7 +2340,21 @@ static const uint32_t *dds_stream_free_sample_uni (char * __restrict discaddr, c
         *((char **) valaddr) = NULL;
         break;
       }
-      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+      case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+        if (op_type_external (insn))
+        {
+          char *addr = *((char **) valaddr);
+          if (addr)
+          {
+            dds_stream_free_sample (addr, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]));
+            dds_free (addr);
+            addr = NULL;
+          }
+          break;
+        }
+      }
+      /* fall through */
+      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: {
         dds_stream_free_sample (valaddr, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]));
         break;
       }
@@ -2373,12 +2415,15 @@ void dds_stream_free_sample (void * __restrict data, const uint32_t * __restrict
           case DDS_OP_VAL_EXT: {
             const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
             const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
-            uint32_t flags = DDS_OP_FLAGS (insn);
-            if (flags & DDS_OP_FLAG_EXT)
+            if (op_type_external (insn))
             {
-              dds_stream_free_sample (*((char **) addr), jsr_ops);
-              dds_free (*((char **) addr));
-              *((char **) addr) = NULL;
+              char *addr1 = *((char **) addr);
+              if (addr1)
+              {
+                dds_stream_free_sample (addr1, jsr_ops);
+                dds_free (addr1);
+                addr1 = NULL;
+              }
             }
             else
               dds_stream_free_sample (addr, jsr_ops);

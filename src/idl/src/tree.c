@@ -3534,3 +3534,9 @@ bool idl_is_extensible(const idl_node_t *node, idl_extensibility_t extensibility
   return (idl_is_struct(node) && ((idl_struct_t *)node)->extensibility.value == extensibility) ||
     (idl_is_union(node) && ((idl_union_t *)node)->extensibility.value == extensibility);
 }
+
+bool idl_is_external(const idl_node_t *node)
+{
+  return (idl_is_member(node) && ((idl_member_t *)node)->external.value)
+    || (idl_is_case(node) && ((idl_case_t *)node)->external.value);
+}

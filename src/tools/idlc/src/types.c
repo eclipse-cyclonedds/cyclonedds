@@ -135,7 +135,7 @@ emit_field(
   (void)path;
   root = idl_parent(node);
   indent = idl_is_case(root) ? "    " : "  ";
-  if (idl_is_member(root) && ((idl_member_t *)root)->external.value)
+  if (idl_is_external(root))
     ext = "* ";
   name = idl_identifier(node);
   type_spec = idl_type_spec(node);

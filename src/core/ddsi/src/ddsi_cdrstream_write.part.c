@@ -198,9 +198,21 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
       case DDS_OP_VAL_8BY: dds_os_put8BO (os, *(const uint64_t *) valaddr); break;
       case DDS_OP_VAL_STR: case DDS_OP_VAL_BSP: dds_stream_write_stringBO (os, *(const char **) valaddr); break;
       case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, (const char *) valaddr); break;
-      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
+      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR:
         (void) dds_stream_writeBO (os, valaddr, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]));
         break;
+      case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+        const uint32_t *jsr_ops = jeq_op + DDS_OP_ADR_JSR (jeq_op[0]);
+        if (op_type_external (jeq_op[0]))
+        {
+          char *ext_addr = *(char **) valaddr;
+          if (ext_addr)
+            (void) dds_stream_writeBO (os, ext_addr, jsr_ops);
+        }
+        else
+          (void) dds_stream_writeBO (os, valaddr, jsr_ops);
+        break;
+      }
       case DDS_OP_VAL_EXT: {
         abort (); /* op type EXT as union subtype not supported */
         break;
@@ -235,11 +247,11 @@ const uint32_t *dds_stream_writeBO (DDS_OSTREAM_T * __restrict os, const char * 
           case DDS_OP_VAL_EXT: {
             const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
             const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
-            uint32_t flags = DDS_OP_FLAGS (insn);
-            if (flags & DDS_OP_FLAG_EXT)
+            if (op_type_external (insn))
             {
               char *ext_addr = *(char **) addr;
-              (void) dds_stream_writeBO (os, ext_addr, jsr_ops);
+              if (ext_addr)
+                (void) dds_stream_writeBO (os, ext_addr, jsr_ops);
             }
             else
               (void) dds_stream_writeBO (os, addr, jsr_ops);

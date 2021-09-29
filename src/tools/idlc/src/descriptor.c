@@ -698,6 +698,7 @@ emit_case(
        after last label */
     cnt = ctype->instructions.count + (stype->labels - stype->label) * 3;
     for (label = _case->labels; label; label = idl_next(label)) {
+      bool has_size = false;
       off = stype->offset + 2 + (stype->label * 3);
       if (case_type == SIMPLE || case_type == INLINE) {
         /* update offset to first instruction for inline non-simple cases */
@@ -709,6 +710,12 @@ emit_case(
           return ret;
       } else {
         assert(off <= INT16_MAX);
+        if (idl_is_external(node)) {
+          opcode |= DDS_OP_FLAG_EXT;
+          /* For @external union members include the size of the member to allow the
+             serializer to allocate memory when deserializing. */
+          has_size = true;
+        }
         stash_jeq_offset(&ctype->instructions, off, type_spec, opcode, (int16_t)off);
         off++;
       }
@@ -719,6 +726,11 @@ emit_case(
       if ((ret = stash_offset(&ctype->instructions, off++, stype->fields)))
         return ret;
       stype->label++;
+      /* generate data field element size */
+      if (has_size) {
+        if ((ret = stash_size(&ctype->instructions, nop, node, true)))
+          return ret;
+      }
     }
 
     pop_field(descriptor); /* field readded by declarator for complex types */
@@ -1202,11 +1214,12 @@ emit_declarator(
       opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
     }
-    if (idl_is_member(parent) && ((idl_member_t *)parent)->external.value)
+    if (idl_is_external(parent))
     {
       opcode |= DDS_OP_FLAG_EXT;
-      if (opcode & DDS_OP_TYPE_EXT)
-        has_size = true;
+      /* For @external fields include the size of the field to allow the serializer to allocate
+         memory for this field when deserializing. */
+      has_size = true;
     }
 
     /* use member id for key ordering */
@@ -1279,6 +1292,9 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       break;
   }
 
+  if (inst->data.opcode.code & DDS_OP_FLAG_EXT)
+    vec[len++] = " | DDS_OP_FLAG_EXT";
+
   type = DDS_OP_TYPE(inst->data.opcode.code);
   assert(opcode == DDS_OP_PLM || type);
   switch (type) {
@@ -1334,8 +1350,6 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       vec[len++] = " | DDS_OP_FLAG_SGN";
     if (inst->data.opcode.code & DDS_OP_FLAG_KEY)
       vec[len++] = " | DDS_OP_FLAG_KEY";
-    if (inst->data.opcode.code & DDS_OP_FLAG_EXT)
-      vec[len++] = " | DDS_OP_FLAG_EXT";
   }
 
 print:
@@ -1476,6 +1490,8 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
           if (fputs(sep, fp) < 0 || print_opcode(fp, &inst_op) < 0 || idl_fprintf(fp, " /* %s */", idl_identifier(inst->data.inst_offset.node)) < 0)
             return -1;
           brk = op + 3;
+          if (inst->data.opcode.code & DDS_OP_FLAG_EXT)
+            brk++;
           break;
         }
         case MEMBER_OFFSET:

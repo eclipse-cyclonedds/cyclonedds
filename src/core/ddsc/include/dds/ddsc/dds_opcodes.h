@@ -25,25 +25,30 @@
 extern "C" {
 #endif
 
-#define DDS_OP_MASK 0xff000000
-#define DDS_OP_TYPE_MASK 0x00ff0000
-#define DDS_OP_SUBTYPE_MASK 0x0000ff00
-#define DDS_OP_JMP_MASK 0x0000ffff
-#define DDS_OP_FLAGS_MASK 0x000000ff
-#define DDS_JEQ_TYPE_MASK 0x00ff0000
-#define DDS_PLM_FLAGS_MASK 0x00ff0000
+#define DDS_OP_MASK               0xff000000
+#define DDS_OP_TYPE_FLAGS_MASK    0x00800000
+#define DDS_OP_TYPE_MASK          0x007f0000
+#define DDS_OP_SUBTYPE_MASK       0x0000ff00
+#define DDS_OP_JMP_MASK           0x0000ffff
+#define DDS_OP_FLAGS_MASK         0x000000ff
+#define DDS_JEQ_TYPE_FLAGS_MASK   0x00800000
+#define DDS_JEQ_TYPE_MASK         0x007f0000
+#define DDS_PLM_FLAGS_MASK        0x00ff0000
+#define DDS_KOF_OFFSET_MASK       0x0000ffff
 
-#define DDS_OP(o)         ((enum dds_stream_opcode) ((o) & DDS_OP_MASK))
-#define DDS_OP_TYPE(o)    ((enum dds_stream_typecode) (((o) & DDS_OP_TYPE_MASK) >> 16))
-#define DDS_OP_SUBTYPE(o) ((enum dds_stream_typecode) (((o) & DDS_OP_SUBTYPE_MASK) >> 8))
-#define DDS_OP_FLAGS(o)   ((o) & DDS_OP_FLAGS_MASK)
-#define DDS_OP_ADR_JSR(o) ((int16_t) ((o) & DDS_OP_JMP_MASK))
-#define DDS_OP_ADR_PLM(o) ((int16_t) ((o) & DDS_OP_JMP_MASK))
-#define DDS_OP_LENGTH(o)  ((uint16_t) ((o) & DDS_OP_JMP_MASK))
-#define DDS_OP_JUMP(o)    ((int16_t) ((o) & DDS_OP_JMP_MASK))
-#define DDS_OP_ADR_JMP(o) ((o) >> 16)
-#define DDS_JEQ_TYPE(o)   ((enum dds_stream_typecode) (((o) & DDS_JEQ_TYPE_MASK) >> 16))
-#define DDS_PLM_FLAGS(o)  ((enum dds_stream_typecode) (((o) & DDS_PLM_FLAGS_MASK) >> 16))
+#define DDS_OP(o)             ((enum dds_stream_opcode) ((o) & DDS_OP_MASK))
+#define DDS_OP_TYPE(o)        ((enum dds_stream_typecode) (((o) & DDS_OP_TYPE_MASK) >> 16))
+#define DDS_OP_TYPE_FLAGS(o)  ((o) & DDS_OP_TYPE_FLAGS_MASK)
+#define DDS_OP_SUBTYPE(o)     ((enum dds_stream_typecode) (((o) & DDS_OP_SUBTYPE_MASK) >> 8))
+#define DDS_OP_FLAGS(o)       ((o) & DDS_OP_FLAGS_MASK)
+#define DDS_OP_ADR_JSR(o)     ((int16_t) ((o) & DDS_OP_JMP_MASK))
+#define DDS_OP_ADR_PLM(o)     ((int16_t) ((o) & DDS_OP_JMP_MASK))
+#define DDS_OP_LENGTH(o)      ((uint16_t) ((o) & DDS_OP_JMP_MASK))
+#define DDS_OP_JUMP(o)        ((int16_t) ((o) & DDS_OP_JMP_MASK))
+#define DDS_OP_ADR_JMP(o)     ((o) >> 16)
+#define DDS_JEQ_TYPE(o)       ((enum dds_stream_typecode) (((o) & DDS_JEQ_TYPE_MASK) >> 16))
+#define DDS_JEQ_TYPE_FLAGS(o) ((o) & DDS_JEQ_TYPE_FLAGS_MASK)
+#define DDS_PLM_FLAGS(o)      ((enum dds_stream_typecode) (((o) & DDS_PLM_FLAGS_MASK) >> 16))
 
 /* Topic encoding instruction types */
 
@@ -86,15 +91,15 @@ enum dds_stream_opcode {
          max = max enum value
        followed by alen case labels: in JEQ format
 
-     [ADR, EXT,   0, f] [offset] [next-insn, elem-insn] [elem-size iff "external" flag set in f]
+     [ADR, e | EXT,   0, f] [offset] [next-insn, elem-insn] [elem-size iff "external" flag e is set]
      [ADR, STU,   0, f] *** not supported
    where
      s            = subtype
+     e            = external: stored as external data (pointer) (DDS_OP_FLAG_EXT)
      f            = flags:
                     - key/not key (DDS_OP_FLAG_KEY)
-                    - external flag: stored as external data (pointer) (DDS_OP_FLAG_EXT)
      [offset]     = field offset from start of element in memory
-     [elem-size]  = element size in memory (in case of ADR_EXT, elem-size is only included in case 'external' flag is set)
+     [elem-size]  = element size in memory (elem-size is only included in case 'external' flag is set)
      [max-size]   = string bound + 1
      [max]        = max enum value
      [alen]       = array length, number of cases
@@ -115,10 +120,11 @@ enum dds_stream_opcode {
      [JEQ, STR, 0] [disc] [offset]
      [JEQ, ENU, 0] [disc] [offset] [max]
      [JEQ, EXT, 0] *** not supported
-     [JEQ,   s, e] [disc] [offset]
+     [JEQ, e | s, i] [disc] [offset] [elem-size iff "external" flag e is set]
        where
+         e  = external: stored as external data (pointer) (DDS_OP_FLAG_EXT)
          s  = subtype other than {nBY,STR,ENU,EXT}
-         e  = (unsigned 16 bits) offset to first instruction for case, from start of insn
+         i  = (unsigned 16 bits) offset to first instruction for case, from start of insn
               instruction sequence must end in RTS, at which point executes continues
               at the next field's instruction as specified by the union
   */
@@ -190,6 +196,12 @@ enum dds_stream_typecode_primary {
 };
 #define DDS_OP_TYPE_BOO DDS_OP_TYPE_1BY
 
+/* This flag indicates that the type is used as external data (annotated with
+   the @external annotation in idl). It is stored in the most-significant bit
+   of the type part of the instruction. */
+#define DDS_OP_FLAG_EXT (1u << 23)
+
+
 /* sub-type code:
    - encodes element type for DDS_OP_TYPE_{SEQ,ARR},
    - discriminant type for DDS_OP_TYPE_UNI */
@@ -223,7 +235,6 @@ enum dds_stream_typecode_subtype {
 #define DDS_OP_FLAG_FP  (1u << 1) /* floating-point: applicable to {4,8}BY and arrays, sequences of them */
 #define DDS_OP_FLAG_SGN (1u << 2) /* signed: applicable to {1,2,4,8}BY and arrays, sequences of them */
 #define DDS_OP_FLAG_MU  (1u << 3) /* must-understand flag, used with PLM in parameter list CDR */
-#define DDS_OP_FLAG_EXT (1u << 4) /* external: field is stored as a pointer */
 
 /* Topic descriptor flag values */
 #define DDS_TOPIC_FLAGS_MASK                    0x7fffffff
