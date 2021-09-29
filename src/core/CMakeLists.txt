@@ -49,7 +49,11 @@ target_include_directories(
   $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 # SOVERSION should increase on incompatible ABI change
-set_target_properties(ddsc PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
+set_target_properties(ddsc PROPERTIES
+  OUTPUT_NAME "cycloneddsc"
+  VERSION ${PROJECT_VERSION}
+  SOVERSION ${PROJECT_VERSION_MAJOR}
+)
 
 # define target property to indicate if Cyclone DDS is compiled with SHM support
 define_property(TARGET
