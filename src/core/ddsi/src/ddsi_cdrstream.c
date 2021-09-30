@@ -2342,7 +2342,7 @@ static const uint32_t *dds_stream_free_sample_uni (char * __restrict discaddr, c
         break;
       }
       case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
-        if (op_type_external (insn))
+        if (op_type_external (jeq_op[0]))
         {
           char *addr = *((char **) valaddr);
           if (addr)
