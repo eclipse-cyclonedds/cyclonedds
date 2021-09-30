@@ -46,7 +46,7 @@ emit_implicit_sequence(
     if (idl_is_sequence(type_spec))
       return IDL_VISIT_REVISIT | IDL_VISIT_TYPE_SPEC;
   } else {
-    assert(idl_is_member(node));
+    assert(idl_is_member(node) || idl_is_case(node));
     if (!idl_is_sequence(type_spec))
       return IDL_VISIT_DONT_RECURSE;
     return IDL_VISIT_TYPE_SPEC;
@@ -106,9 +106,9 @@ generate_implicit_sequences(
   (void)revisit;
   (void)path;
   memset(&visitor, 0, sizeof(visitor));
-  visitor.visit = IDL_MEMBER | IDL_SEQUENCE;
+  visitor.visit = IDL_MEMBER | IDL_CASE | IDL_SEQUENCE;
   visitor.accept[IDL_ACCEPT] = &emit_implicit_sequence;
-  assert(idl_is_member(node) || idl_is_sequence(node));
+  assert(idl_is_member(node) || idl_is_case(node) || idl_is_sequence(node));
   if ((ret = idl_visit(pstate, node, &visitor, user_data)) < 0)
     return ret;
   return IDL_RETCODE_OK;
@@ -224,6 +224,7 @@ emit_union(
   const void *node,
   void *user_data)
 {
+  idl_retcode_t ret = IDL_RETCODE_NO_MEMORY;
   struct generator *gen = user_data;
   char *name, *type;
   const char *fmt;
@@ -249,6 +250,10 @@ emit_union(
     if (idl_fprintf(gen->header.handle, fmt, name) < 0)
       return IDL_RETCODE_NO_MEMORY;
   } else {
+    const idl_case_t *cases = ((const idl_union_t *)node)->cases;
+    /* ensure typedefs for unnamed sequences exist beforehand */
+    if ((ret = generate_implicit_sequences(pstate, revisit, path, cases, user_data)))
+      return ret;
     fmt = "typedef struct %1$s\n"
           "{\n"
           "  %2$s _d;\n"
