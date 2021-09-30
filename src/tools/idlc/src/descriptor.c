@@ -150,8 +150,9 @@ stash_instruction(
     size_t size = instructions->count - index;
     struct instruction *table = instructions->table;
     memmove(&table[index+1], &table[index], size * sizeof(*table));
-    /* update element_offset base */
-    for (uint32_t i = index; i < instructions->count; i++)
+    /* update element_offset base, until count + 1 because instructions are already
+       moved and count is not updated at this point*/
+    for (uint32_t i = index + 1; i <= instructions->count; i++)
       if (table[i].type == ELEM_OFFSET || table[i].type == JEQ_OFFSET || table[i].type == MEMBER_OFFSET)
         table[i].data.inst_offset.addr_offs++;
   }
