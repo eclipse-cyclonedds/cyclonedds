@@ -21,7 +21,7 @@ static dds_time_t
 filetime_to_time (const FILETIME *ft)
 {
     /* FILETIME structures express times in 100-nanosecond time units. */
-    return (dds_time_t) ((((uint64_t) ft->dwHighDateTime << 31) + (ft->dwLowDateTime)) * 100);
+    return (dds_time_t) ((((uint64_t) ft->dwHighDateTime << 32) + (ft->dwLowDateTime)) * 100);
 }
 
 dds_return_t
