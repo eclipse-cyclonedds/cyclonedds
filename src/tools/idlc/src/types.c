@@ -35,7 +35,7 @@ emit_implicit_sequence(
 {
   struct generator *gen = user_data;
   char *name, *type, *macro, dims[32] = "";
-  const char *fmt, *star = "", *lpar = "", *rpar = "";
+  const char *fmt, *star = "", *lpar = "", *rpar = "", *type_prefix = "";
   const idl_type_spec_t *type_spec = idl_type_spec(node);
 
   (void)pstate;
@@ -62,13 +62,16 @@ emit_implicit_sequence(
     star = "*";
   }
 
+  if (idl_is_forward(type_spec))
+    type_prefix = "struct ";
+
   /* https://www.omg.org/spec/C/1.0/PDF section 1.11 */
   if (IDL_PRINTA(&name, print_type, node) < 0)
     return IDL_RETCODE_NO_MEMORY;
   if (IDL_PRINTA(&type, print_type, type_spec) < 0)
     return IDL_RETCODE_NO_MEMORY;
   if (IDL_PRINTA(&macro, print_type, node) < 0)
-    return IDL_RETCODE_NO_MEMORY;;
+    return IDL_RETCODE_NO_MEMORY;
   for (char *ptr=macro; *ptr; ptr++)
     if (idl_islower((unsigned char)*ptr))
       *ptr = (char)idl_toupper((unsigned char)*ptr);
@@ -77,15 +80,15 @@ emit_implicit_sequence(
         "typedef struct %2$s\n{\n"
         "  uint32_t _maximum;\n"
         "  uint32_t _length;\n"
-        "  %3$s %4$s%5$s*_buffer%6$s%7$s;\n"
+        "  %3$s%4$s %5$s%6$s*_buffer%7$s%8$s;\n"
         "  bool _release;\n"
         "} %2$s;\n\n"
         "#define %2$s__alloc() \\\n"
         "((%2$s*) dds_alloc (sizeof (%2$s)));\n\n"
         "#define %2$s_allocbuf(l) \\\n"
-        "((%3$s %4$s%5$s*%6$s%7$s) dds_alloc ((l) * sizeof (%3$s%4$s%7$s)))\n"
+        "((%3$s%4$s %5$s%6$s*%7$s%8$s) dds_alloc ((l) * sizeof (%3$s%4$s%5$s%8$s)))\n"
         "#endif /* %1$s_DEFINED */\n\n";
-  if (idl_fprintf(gen->header.handle, fmt, macro, name, type, star, lpar, rpar, dims) < 0)
+  if (idl_fprintf(gen->header.handle, fmt, macro, name, type_prefix, type, star, lpar, rpar, dims) < 0)
     return IDL_RETCODE_NO_MEMORY;
 
   return IDL_VISIT_DONT_RECURSE;
@@ -125,7 +128,7 @@ emit_field(
 {
   struct generator *gen = user_data;
   char *type, dims[32] = "";
-  const char *fmt, *indent, *name, *star = "", *ext = "", *fwd_decl_type = "";
+  const char *fmt, *indent, *name, *star = "", *ext = "", *type_prefix = "";
   const void *root;
   idl_literal_t *literal;
   idl_type_spec_t *type_spec;
@@ -148,12 +151,13 @@ emit_field(
   } else if (idl_is_string(type_spec)) {
     star = "* ";
   }
+
   if (idl_is_forward(type_spec))
-    fwd_decl_type = "struct ";
+    type_prefix = "struct ";
 
   bool empty = idl_is_empty(type_spec);
   fmt = empty ? "%s/* %s%s %s%s%s%s */ /* no members */" : "%s%s%s %s%s%s%s";
-  if (idl_fprintf(gen->header.handle, fmt, indent, fwd_decl_type, type, ext, star, name, dims) < 0)
+  if (idl_fprintf(gen->header.handle, fmt, indent, type_prefix, type, ext, star, name, dims) < 0)
     return IDL_RETCODE_NO_MEMORY;
   fmt = "[%" PRIu32 "]";
   literal = ((const idl_declarator_t *)node)->const_expr;
@@ -332,7 +336,7 @@ emit_sequence_typedef(
   idl_retcode_t ret;
   struct generator *gen = user_data;
   char *type, *name, dims[32] = "";
-  const char *fmt, *spc = " ", *star = "", *lpar = "", *rpar = "";
+  const char *fmt, *spc = " ", *star = "", *lpar = "", *rpar = "", *type_prefix = "";
   const idl_declarator_t *declarator;
   const idl_literal_t *literal;
   const idl_type_spec_t *type_spec;
@@ -355,6 +359,9 @@ emit_sequence_typedef(
     star = "*";
   }
 
+  if (idl_is_forward(type_spec))
+    type_prefix = "struct ";
+
   if (IDL_PRINTA(&type, print_type, type_spec) < 0)
     return IDL_RETCODE_NO_MEMORY;
   declarator = ((const idl_typedef_t *)node)->declarators;
@@ -364,10 +371,10 @@ emit_sequence_typedef(
     fmt = "typedef struct %1$s\n{\n"
           "  uint32_t _maximum;\n"
           "  uint32_t _length;\n"
-          "  %2$s %3$s%4$s*_buffer%5$s%6$s;\n"
+          "  %2$s%3$s %4$s%5$s*_buffer%6$s%7$s;\n"
           "  bool _release;\n"
           "} %1$s";
-    if (idl_fprintf(gen->header.handle, fmt, name, type, star, lpar, rpar, dims) < 0)
+    if (idl_fprintf(gen->header.handle, fmt, name, type_prefix, type, star, lpar, rpar, dims) < 0)
       return IDL_RETCODE_NO_MEMORY;
     literal = declarator->const_expr;
     for (; literal; literal = idl_next(literal)) {
@@ -379,8 +386,8 @@ emit_sequence_typedef(
           "#define %1$s__alloc() \\\n"
           "((%1$s*) dds_alloc (sizeof (%1$s)));\n\n"
           "#define %1$s_allocbuf(l) \\\n"
-          "((%2$s %3$s%4$s*%5$s%6$s) dds_alloc ((l) * sizeof (%2$s%3$s%6$s)))\n";
-    if (idl_fprintf(gen->header.handle, fmt, name, type, star, lpar, rpar, dims) < 0)
+          "((%2$s%3$s %4$s%5$s*%6$s%7$s) dds_alloc ((l) * sizeof (%2$s%3$s%4$s%7$s)))\n";
+    if (idl_fprintf(gen->header.handle, fmt, name, type_prefix, type, star, lpar, rpar, dims) < 0)
       return IDL_RETCODE_NO_MEMORY;
   }
 
