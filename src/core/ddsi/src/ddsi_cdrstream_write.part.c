@@ -205,6 +205,7 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
         const uint32_t *jsr_ops = jeq_op + DDS_OP_ADR_JSR (jeq_op[0]);
         if (op_type_external (jeq_op[0]))
         {
+          assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
           char *ext_addr = *(char **) valaddr;
           if (ext_addr)
             (void) dds_stream_writeBO (os, ext_addr, jsr_ops);
@@ -267,7 +268,7 @@ const uint32_t *dds_stream_writeBO (DDS_OSTREAM_T * __restrict os, const char * 
         ops++;
         break;
       }
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_KOF: case DDS_OP_PLM: {
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: {
         abort ();
         break;
       }

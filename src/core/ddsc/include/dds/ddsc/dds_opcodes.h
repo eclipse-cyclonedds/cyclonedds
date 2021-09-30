@@ -118,12 +118,13 @@ enum dds_stream_opcode {
   /* jump-if-equal, used for union cases:
      [JEQ, nBY, 0] [disc] [offset]
      [JEQ, STR, 0] [disc] [offset]
-     [JEQ, ENU, 0] [disc] [offset] [max]
-     [JEQ, EXT, 0] *** not supported
-     [JEQ, e | s, i] [disc] [offset] [elem-size iff "external" flag e is set]
+     [JEQ, s,   i] [disc] [offset]
+     [JEQ4, ENU, 0] [disc] [offset] [max]
+     [JEQ4, EXT, 0] *** not supported, use STU/UNI for external defined types
+     [JEQ4, e | s, i] [disc] [offset] [elem-size iff "external" flag e is set, else 0]
        where
          e  = external: stored as external data (pointer) (DDS_OP_FLAG_EXT)
-         s  = subtype other than {nBY,STR,ENU,EXT}
+         s  = subtype other than {nBY,STR} for JEQ and {nBY,STR,ENU,EXT} for JEQ4
          i  = (unsigned 16 bits) offset to first instruction for case, from start of insn
               instruction sequence must end in RTS, at which point executes continues
               at the next field's instruction as specified by the union
@@ -160,6 +161,9 @@ enum dds_stream_opcode {
                   (repeated n times, e.g. when key in nested struct)
   */
   DDS_OP_KOF = 0x07 << 24,
+
+  /* see comment for JEQ/JEQ4 above */
+  DDS_OP_JEQ4 = 0x08 << 24
 };
 
 enum dds_stream_typecode {

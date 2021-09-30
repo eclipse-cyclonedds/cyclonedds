@@ -173,6 +173,7 @@ stash_opcode(
   switch (DDS_OP(code)) {
     case DDS_OP_ADR:
     case DDS_OP_JEQ:
+    case DDS_OP_JEQ4:
       typecode = DDS_OP_TYPE(code);
       if (typecode == DDS_OP_VAL_ARR)
         typecode = DDS_OP_SUBTYPE(code);
@@ -649,7 +650,7 @@ emit_case(
   } else {
     enum { SIMPLE, EXTERNAL, INLINE } case_type;
     uint32_t off, cnt;
-    uint32_t opcode = DDS_OP_JEQ;
+    uint32_t opcode = DDS_OP_JEQ4;
     const idl_case_t *_case = node;
     const idl_case_label_t *label;
     const idl_type_spec_t *type_spec;
@@ -663,8 +664,9 @@ emit_case(
          case labels so that offset to type ops for non-simple inline cases is correct.
          FIXME: This needs a better solution... */
       for (label = _case->labels; label; label = idl_next(label)) {
-        off = stype->offset + 2 + (stype->label * 3);
+        off = stype->offset + 2 + (stype->label * 4);
         if ((ret = stash_opcode(descriptor, &ctype->instructions, off++, DDS_OP_RTS, 0u))
+            || (ret = stash_opcode(descriptor, &ctype->instructions, off++, DDS_OP_RTS, 0u))
             || (ret = stash_opcode(descriptor, &ctype->instructions, off++, DDS_OP_RTS, 0u))
             || (ret = stash_opcode(descriptor, &ctype->instructions, off, DDS_OP_RTS, 0u)))
           return ret;
@@ -680,10 +682,10 @@ emit_case(
       opcode |= typecode(type_spec, TYPE, false);
       if (idl_is_struct(type_spec) || idl_is_union(type_spec))
         case_type = EXTERNAL;
-      else if (idl_is_array(type_spec) || (idl_is_string(type_spec) && idl_is_bounded(type_spec)))
+      else if (idl_is_array(type_spec) || (idl_is_string(type_spec) && idl_is_bounded(type_spec)) || idl_is_sequence(type_spec))
         case_type = INLINE;
       else {
-        assert (idl_is_base_type(type_spec) || (idl_is_string(type_spec) && !idl_is_bounded(type_spec)) || idl_is_sequence(type_spec));
+        assert (idl_is_base_type(type_spec) || (idl_is_string(type_spec) && !idl_is_bounded(type_spec)));
         case_type = SIMPLE;
       }
     }
@@ -697,10 +699,13 @@ emit_case(
        For labels that are omitted because of empty target struct/union type, dummy ops
        will be stashed, so that we can safely assume that offset of type instructions is
        after last label */
-    cnt = ctype->instructions.count + (stype->labels - stype->label) * 3;
+    /* Note: this function currently only outputs JEQ4 ops and does not use JEQ where
+       that would be possibly (in case it is not type ENU, or an @external member). This
+       could be optimized to save some instructions in the descriptor. */
+    cnt = ctype->instructions.count + (stype->labels - stype->label) * 4;
     for (label = _case->labels; label; label = idl_next(label)) {
       bool has_size = false;
-      off = stype->offset + 2 + (stype->label * 3);
+      off = stype->offset + 2 + (stype->label * 4);
       if (case_type == SIMPLE || case_type == INLINE) {
         /* update offset to first instruction for inline non-simple cases */
         opcode &= (DDS_OP_MASK | DDS_OP_TYPE_FLAGS_MASK | DDS_OP_TYPE_MASK);
@@ -726,12 +731,17 @@ emit_case(
       /* generate union case offset */
       if ((ret = stash_offset(&ctype->instructions, off++, stype->fields)))
         return ret;
-      stype->label++;
-      /* generate data field element size */
+      /* Stash data field for the size of the type for this member. Stash 0 in case
+         no size is required (not an external member), so that the size of a JEQ4
+         instruction with parameters remains 4. */
       if (has_size) {
-        if ((ret = stash_size(&ctype->instructions, nop, node, true)))
+        if ((ret = stash_size(&ctype->instructions, off++, node, true)))
+          return ret;
+      } else {
+        if ((ret = stash_single(&ctype->instructions, off++, 0)))
           return ret;
       }
+      stype->label++;
     }
 
     pop_field(descriptor); /* field readded by declarator for complex types */
@@ -1287,6 +1297,9 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
     case DDS_OP_JEQ:
       vec[len++] = "DDS_OP_JEQ";
       break;
+    case DDS_OP_JEQ4:
+      vec[len++] = "DDS_OP_JEQ4";
+      break;
     default:
       assert(opcode == DDS_OP_ADR);
       vec[len++] = "DDS_OP_ADR";
@@ -1313,7 +1326,7 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
     case DDS_OP_VAL_ENU: vec[len++] = " | DDS_OP_TYPE_ENU"; break;
     case DDS_OP_VAL_EXT: vec[len++] = " | DDS_OP_TYPE_EXT"; break;
   }
-  if (opcode == DDS_OP_JEQ || opcode == DDS_OP_PLM) {
+  if (opcode == DDS_OP_JEQ || opcode == DDS_OP_JEQ4 || opcode == DDS_OP_PLM) {
     /* lower 16 bits contain offset to next instruction */
     idl_snprintf(buf, sizeof(buf), " | %u", (uint16_t) DDS_OP_JUMP (inst->data.opcode.code));
     vec[len++] = buf;
@@ -1437,7 +1450,11 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
           optype = DDS_OP_TYPE(inst->data.opcode.code);
           if (opcode == DDS_OP_RTS || opcode == DDS_OP_DLC || opcode == DDS_OP_PLC)
             brk = op + 1;
-          else if (opcode == DDS_OP_JEQ || opcode == DDS_OP_PLM)
+          else if (opcode == DDS_OP_JEQ)
+            brk = op + 3;
+          else if (opcode == DDS_OP_JEQ4)
+            brk = op + 4;
+          else if (opcode == DDS_OP_PLM)
             brk = op + 3;
           else if (optype == DDS_OP_VAL_BST)
             brk = op + 3;
@@ -1449,7 +1466,7 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
           else if (optype == DDS_OP_VAL_ARR || optype == DDS_OP_VAL_SEQ) {
             subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
             brk = op + (optype == DDS_OP_VAL_SEQ ? 2 : 3);
-            if (subtype > DDS_OP_VAL_8BY && subtype != DDS_OP_VAL_BST)
+            if (subtype > DDS_OP_VAL_8BY)
               brk += 2;
           } else if (optype == DDS_OP_VAL_UNI)
             brk = op + 4;
@@ -1490,9 +1507,7 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
           const struct instruction inst_op = { OPCODE, { .opcode = { .code = (inst->data.inst_offset.inst.opcode & (DDS_OP_MASK | DDS_OP_TYPE_FLAGS_MASK | DDS_OP_TYPE_MASK)) | (uint16_t)inst->data.inst_offset.elem_offs, .order = 0 } } };
           if (fputs(sep, fp) < 0 || print_opcode(fp, &inst_op) < 0 || idl_fprintf(fp, " /* %s */", idl_identifier(inst->data.inst_offset.node)) < 0)
             return -1;
-          brk = op + 3;
-          if (inst->data.opcode.code & DDS_OP_FLAG_EXT)
-            brk++;
+          brk = op + 4;
           break;
         }
         case MEMBER_OFFSET:
