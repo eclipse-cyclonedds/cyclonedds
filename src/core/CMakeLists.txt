@@ -17,6 +17,10 @@ else()
   add_library(ddsc)
 endif()
 
+if("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
+  target_link_libraries(ddsc PRIVATE dbghelp)
+endif()
+
 if(ENABLE_SSL AND OPENSSL_FOUND)
   target_link_libraries(ddsc PRIVATE OpenSSL::SSL)
   if(CMAKE_GENERATOR MATCHES "Visual Studio")
