@@ -290,6 +290,7 @@ static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_
       false == cfg->enable_shm)
     return false;
 
+  // MAKI: remove fixed type check?
   if (!tp->m_stype->fixed_size)
     return false;
 
@@ -417,6 +418,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
 #ifdef DDS_HAS_SHM
   assert(wqos->present & QP_LOCATOR_MASK);
+  // MAKI the only SHM support check
   if (!dds_writer_support_shm(&gv->config, wqos, tp))
     wqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
 #endif
@@ -429,13 +431,14 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 #ifdef DDS_HAS_SHM
   if (0x0 == (wqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM))
   {
+    // MAKI: we always create the iceoryx publisher regardless of QoS
     DDS_CLOG (DDS_LC_SHM, &wr->m_entity.m_domain->gv.logconfig, "Writer's topic name will be DDS:Cyclone:%s\n", wr->m_topic->m_name);
     iox_pub_options_t opts;
     iox_pub_options_init(&opts);
     opts.historyCapacity = wr->m_entity.m_domain->gv.config.pub_history_capacity;
     wr->m_iox_pub = iox_pub_init(&wr->m_iox_pub_stor, gv->config.iceoryx_service, wr->m_topic->m_stype->type_name, wr->m_topic->m_name, &opts);
     memset(wr->m_iox_pub_loans, 0, sizeof(wr->m_iox_pub_loans));
-    dds_sleepfor(DDS_MSECS(10));
+    dds_sleepfor(DDS_MSECS(10)); // MAKI: needed?
   }
 #endif
 

@@ -477,9 +477,8 @@ static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr_nokey (const struct dd
 
 #ifdef DDS_HAS_SHM
 static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer)
-{   
-  iox_chunk_header_t* chunk_header = iox_chunk_header_from_user_payload(iox_buffer);
-  const iceoryx_header_t* ice_hdr = iox_chunk_header_to_user_header(chunk_header);
+{     
+  const iceoryx_header_t* ice_hdr = iceoryx_header_from_chunk(iox_buffer);
 
   const struct ddsi_sertype_default* tp = (const struct ddsi_sertype_default*)tpcmn;
 
@@ -488,13 +487,29 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
   //ICEORYX_TODO: we do no copy here but store the pointer to the chunk
   //              the pointer was gotten in some concurrent thread of the shm_monitor
   //              problems may arise due to concurrent iox_release_chunk
-  d->c.iox_chunk = iox_buffer;
-  d->c.iox_subscriber = sub;
-  d->key.buftype = KEYBUFTYPE_STATIC;
-  d->key.keysize = FIXED_KEY_MAX_SIZE;
-  memcpy(d->key.u.stbuf, ice_hdr->keyhash.value, FIXED_KEY_MAX_SIZE);
 
+  // MAKI: here we obtain the iceoryx chunk and could also deserialize
+
+  
+  memcpy(d->keyhash.m_hash, ice_hdr->keyhash.value, 16);
+  d->keyhash.m_set = 1;
+  d->keyhash.m_iskey = 0;  //if set to 1, will cause issues @ serdata_default_to_untyped at the endianness swap
+  d->keyhash.m_keysize = 16;
+  d->c.timestamp.v = ice_hdr->tstamp;
+  d->c.statusinfo = ice_hdr->statusinfo;
   fix_serdata_default(d, tpcmn->serdata_basehash);
+
+  if(ice_hdr->data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {
+    // MAKI TODO: deserialize and free chunk
+    // ideally deserialize it into application
+    // need to consider read_cdr which expects a serialized form
+    iox_sub_release_chunk(sub, iox_buffer);
+    d->c.iox_chunk = NULL;
+    d->c.iox_subscriber = NULL;
+  } else {
+    d->c.iox_chunk = iox_buffer;
+    d->c.iox_subscriber = sub;
+  }
   return (struct ddsi_serdata*)d;
 }
 
@@ -515,6 +530,8 @@ static struct ddsi_serdata *ddsi_serdata_default_from_loaned_sample (const struc
   gen_serdata_key_from_sample (t, &d->key, sample);
 
   struct ddsi_serdata *serdata = &d->c;
+
+  // MAKI: here we could serialize (?) but the chunk might be too small
   serdata->iox_chunk = (void*) sample;
   return serdata;
 }
@@ -535,6 +552,8 @@ static struct ddsi_serdata_default *serdata_default_from_sample_cdr_common (cons
   struct ddsi_serdata_default *d = serdata_default_new(tp, kind, xcdr_version);
   if (d == NULL)
     return NULL;
+
+  // MAKI the regular deserialization path from cdr
   dds_ostream_t os;
   dds_ostream_from_serdata_default (&os, d);
   switch (kind)
@@ -669,10 +688,9 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
 #ifdef DDS_HAS_SHM
   if (d->c.iox_chunk)
   {
-    void* user_payload = d->c.iox_chunk;
-    iox_chunk_header_t* chunk_header = iox_chunk_header_from_user_payload(user_payload);
-    iceoryx_header_t* hdr = iox_chunk_header_to_user_header(chunk_header);
-    memcpy(sample, user_payload, hdr->data_size);
+    void* iox_chunk = d->c.iox_chunk;
+    iceoryx_header_t* hdr = iceoryx_header_from_chunk(iox_chunk);
+    memcpy(sample, iox_chunk, hdr->data_size);
     return true;
   }
 #endif
@@ -773,6 +791,7 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
   dds_ostreamBE_fini (&os);
 }
 
+//MAKI: serdata C "vtable"
 const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {
   .get_size = serdata_default_get_size,
   .eqkey = serdata_default_eqkey,

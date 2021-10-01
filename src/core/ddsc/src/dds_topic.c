@@ -647,6 +647,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   st = dds_alloc (sizeof (*st));
   ddsi_sertype_init (&st->c, desc->m_typename, &ddsi_sertype_ops_default, serdata_ops, (desc->m_nkeys == 0));
 #ifdef DDS_HAS_SHM
+  // MAKI: will this work for bounded types?
   st->c.iox_size = desc->m_size;
 #endif
   st->c.fixed_size = (st->c.fixed_size || (desc->m_flagset & DDS_TOPIC_FIXED_SIZE)) ? 1u : 0u;

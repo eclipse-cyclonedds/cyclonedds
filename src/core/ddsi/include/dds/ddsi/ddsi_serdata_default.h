@@ -77,6 +77,8 @@ struct ddsi_serdata_default_key {
 #define DDSI_SERDATA_DEFAULT_POSTPAD  \
   struct CDRHeader hdr;               \
   char data[]
+// MAKI: this data is allocated while we fill the stream, can be even
+// reallocated during this process ...
 
 struct ddsi_serdata_default_unpadded {
   DDSI_SERDATA_DEFAULT_PREPAD;

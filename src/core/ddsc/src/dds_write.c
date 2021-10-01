@@ -28,6 +28,7 @@
 #include "dds/ddsi/ddsi_deliver_locally.h"
 
 #ifdef DDS_HAS_SHM
+#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/shm_sync.h"
 #include "dds/ddsi/q_addrset.h"
 #include "iceoryx_binding_c/chunk.h"
@@ -94,7 +95,41 @@ static void *create_iox_chunk(dds_writer *wr)
     iox_chunk_header_t * iox_chunk_header = iox_chunk_header_from_user_payload(sample);
     ice_hdr = iox_chunk_header_to_user_header(iox_chunk_header);
     ice_hdr->data_size = sample_size;
+    ice_hdr->data_state = IOX_CHUNK_UNINITIALIZED;
     return sample;
+}
+
+static void *create_iox_chunk_for_size(dds_writer *wr, uint32_t serialized_sample_size)
+{   
+    iceoryx_header_t *ice_hdr;
+    void *iox_chunk;    
+
+    // TODO: use a proper timeout to control the time it is allowed to take to obtain a chunk more accurately
+    // but for now only try a limited number of times (hence non-blocking).
+    // Otherwise we could block here forever and this also leads to problems with thread progress monitoring.
+
+    int32_t number_of_tries = 10; //try 10 times over at least 10ms, considering the wait time below
+
+    while (true)  
+    {
+      enum iox_AllocationResult alloc_result = 
+        iox_pub_loan_aligned_chunk_with_user_header(wr->m_iox_pub, &iox_chunk, serialized_sample_size, IOX_C_CHUNK_DEFAULT_USER_PAYLOAD_ALIGNMENT, sizeof(iceoryx_header_t), 8);
+      
+      if (AllocationResult_SUCCESS == alloc_result)
+        break;
+
+      if(--number_of_tries <= 0) {
+        return NULL;
+      }
+
+      dds_sleepfor (DDS_MSECS (1)); // TODO: how long should we wait?
+    }
+
+    iox_chunk_header_t * iox_chunk_header = iox_chunk_header_from_user_payload(iox_chunk);
+    ice_hdr = iox_chunk_header_to_user_header(iox_chunk_header);
+    ice_hdr->data_size = serialized_sample_size;
+    ice_hdr->data_state = IOX_CHUNK_UNINITIALIZED;
+    return iox_chunk;
 }
 
 static void release_iox_chunk(dds_writer *wr, void *sample)
@@ -346,6 +381,7 @@ static bool deliver_data_via_iceoryx(dds_writer *wr, struct ddsi_serdata *d) {
 
       // Local readers go through Iceoryx as well (because the Iceoryx support code doesn't exclude
       // that), which means we should suppress the internal path
+      // MAKI: the chunk is already filled here
       ice_hdr->guid = wr->m_wr->e.guid;
       ice_hdr->tstamp = d->timestamp.v;
       ice_hdr->statusinfo = d->statusinfo;
@@ -494,7 +530,77 @@ static bool evalute_topic_filter (const dds_writer *wr, const void *data, bool w
   return true;
 }
 
+
+// MAKI: add a function to sertype 
+
+// they need to be moved somewhere appropriate if we use them
+//MAKI: magical placeholder for determining the serialized size in advance
+// can be done like in dds_stream_write but instead of writing we count
+// the bytes we would write (also consider alignment)
+static uint32_t serialized_size_in_bytes(struct dds_topic *topic, const void *sample) {
+  (void)sample;
+  bool has_fixed_size_type = topic->m_stype->fixed_size;
+  if (has_fixed_size_type) {
+    return topic->m_stype->iox_size;
+  }
+  // TODO: actually compute the required size
+  return 2 * topic->m_stype->iox_size;
+}
+
+static dds_ostream_t ostream_from_iox_chunk(void *iox_chunk) {
+  iceoryx_header_t *iox_header = iceoryx_header_from_chunk(iox_chunk);
+  dds_ostream_t os;
+  os.m_buffer = iox_chunk;
+  // TODO: we need to add an offset = 128 for technical reasons?
+  os.m_size = iox_header->data_size;
+  os.m_index = 0;
+  return os;
+}
+
+// interface in sertype
+// serialize to buffer (not iceoryx chunk),
+// with additional function to handle out of memory case (nullptr by default)
+
+// MAKI: magical placeholder for serialization
+// assume destination is large enough
+// we would need a modification of dds_stream_write which does not realloc
+// maybe it suffices just to write a stream creation function from an iox_buffer
+// which will be large enough
+
+// we need the sertype in the interface (if we move it to sertype)
+static bool serialize_to_iox_chunk(const void *sample, void *iox_chunk,
+                         uint32_t chunk_size) {
+  
+  (void) chunk_size;
+  // can it fail? -> yes out of memory (enums)
+  dds_ostream_t os = ostream_from_iox_chunk(iox_chunk);
+
+// TODO obtain sertype from ? -> by moving to sertype
+  const struct ddsi_sertype_default *sertype = NULL;
+  // TODO: would that realloc if the size is sufficient
+  dds_stream_write_sample(&os, sample, sertype);
+
+  return true;
+}
+
+// MAKI: incomplete function
+static void fill_iox_chunk(dds_writer *wr, const void *sample, void *iox_chunk,
+                           uint32_t sample_size) {
+  bool has_fixed_size_type = wr->m_topic->m_stype->fixed_size;
+  iceoryx_header_t *iox_header = iceoryx_header_from_chunk(iox_chunk);
+  if (has_fixed_size_type) {
+    memcpy(iox_chunk, sample, sample_size);
+    iox_header->data_state = IOX_CHUNK_CONTAINS_RAW_DATA;
+  } else {
+    serialize_to_iox_chunk(sample, iox_chunk, iox_header->data_size);
+    iox_header->data_state = IOX_CHUNK_CONTAINS_SERIALIZED_DATA;
+  }
+}
+
 #ifdef DDS_HAS_SHM
+//MAKI: must support two cases:
+// 1) data is in an external buffer allocated on the stack or dynamically
+// 2) data is in an iceoryx buffer obtained by dds_loan_sample
 dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
 {
   // 1. Input validation
@@ -513,30 +619,60 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
 
   // 3. Check availability of iceoryx and reader status
-
   bool iceoryx_available = wr->m_iox_pub != NULL;
+  //bool has_fixed_size_type = wr->m_topic->m_stype->fixed_size;
+  void *iox_chunk = NULL;
 
   if(iceoryx_available) {
     //note: whether the data was loaned cannot be determined in the non-iceoryx case currently
     if(!deregister_pub_loan(wr, data))
     {
-      void* chunk_data = create_iox_chunk(wr);
-      if(chunk_data) {
-        memcpy (chunk_data, data, wr->m_topic->m_stype->iox_size);
-        data = chunk_data;
+      // MAKI: the magical function to determine the size we need
+      uint32_t serialized_size = serialized_size_in_bytes(wr->m_topic, data);
+      iox_chunk = create_iox_chunk_for_size(wr, serialized_size);     
+
+      if(iox_chunk) {
+        // MAKI: since it somewhat depends on the writer we need to fill the chunk here
+        //       or communicate through the iox header what needs to be done
+        //       we can also pass the writer through this
+        //       TO DISCUSS
+        fill_iox_chunk(wr, data, iox_chunk, serialized_size);
+        data = iox_chunk;
       } else {
         // we failed to obtain a chunk, iceoryx transport is thus not available
         // we will use the network path instead
         iceoryx_available = false;
-      }
+
+        // TODO: return out of resources
+      } 
+    } else {
+      // we already have data in an iceoryx chunk
+      // TODO: we should not allow this with this API but it is currently needed if it was loaned
+      // note that we assume the values in the iceoryx header are correctly set
+      iox_chunk = (void*) data;
     }
   }
+
+  // MAKI: now we are in the following state:
+  // 0) we already had an iceoryx chunk (loan) and did not change it - the header must be correct (requires changes)
+  // 1) we have obtained an iceoryx chunk
+  //    a) fixed size: we copied original data to it
+  //    b) otherwise: we serialized the original data to it
+  // 2) we have no iceoryx chunk (out of chunks or another reason)
+  // afterwards if we have an iox chunk we will send it 
+  // and need to decide how to proceed on the receiver side depending on the state (deserialize or copy)
+  // The network path proceeds as normal
+  // TO DISCUSS: 
+  // i) loan case in C - we have to make sure the chunk is filled properly
+  // ii) write case in C++ - works the same but calls the C++ callbacks
+  //     - size estimation and serialization must use information from C++
+  // iii) loan case in C++ - chunk must be filled properly and ii) must hold
 
   // ddsi_wr->as can be changed by the matching/unmatching of proxy readers if we don't hold the lock
   // it is rather unfortunate that this then means we have to lock here to check, then lock again to
   // actually distribute the data, so some further refactoring is needed.
   ddsrt_mutex_lock (&ddsi_wr->e.lock);
-  bool no_network_readers = addrset_empty (ddsi_wr->as);
+  bool no_network_readers = addrset_empty (ddsi_wr->as);  
   ddsrt_mutex_unlock (&ddsi_wr->e.lock);
   bool use_only_iceoryx = iceoryx_available && no_network_readers;
 
@@ -555,11 +691,21 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     // The benefit of this would be minor in most cases though, when we assume a static configuration
     // where we either have network readers (requiring serialization) or not.
 
-    // do not serialize yet (may not need it if only using iceoryx or no readers)
+    // do not serialize yet (may not need it if only using iceoryx or no readers)   
+    // MAKI: is there a C++ version here? I do not think so.
     d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+        
   } else {
-    // serialize since we will need to send via network anyway
+    // serialize for network since we will need to send via network anyway
+    // we also need to serialize into an iceoryx chunk
+
+    //MAKI: note that in C++ API this will call the C++ callback
     d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+
+    //MAKI: d may or may not carry an iceoryx chunk in addition
+    // there is little sense of serializing twice here ... once for network and once for iox
+    // but it likely cannot easily be combined
+    // should serialize into iox buffer and then copy to the network buffer...
   }
 
   if(d == NULL) {

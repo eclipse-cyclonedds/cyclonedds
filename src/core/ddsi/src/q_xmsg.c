@@ -1746,3 +1746,11 @@ unsigned nn_xpack_packetid (const struct nn_xpack *xp)
 {
   return xp->packetid;
 }
+
+#ifdef DDS_HAS_SHM
+iceoryx_header_t *iceoryx_header_from_chunk(void *iox_chunk) {
+  iox_chunk_header_t *chunk_header =
+      iox_chunk_header_from_user_payload(iox_chunk);
+  return iox_chunk_header_to_user_header(chunk_header);
+}
+#endif

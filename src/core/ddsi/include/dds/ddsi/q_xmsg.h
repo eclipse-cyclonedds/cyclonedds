@@ -22,6 +22,7 @@
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_keyhash.h"
+#include "iceoryx_binding_c/chunk.h"
 #endif
 
 #if defined (__cplusplus)
@@ -54,6 +55,14 @@ enum nn_xmsg_kind {
 };
 
 #ifdef DDS_HAS_SHM
+// TODO: we should move this elsewhere ...
+
+typedef enum {
+  IOX_CHUNK_UNINITIALIZED,
+  IOX_CHUNK_CONTAINS_RAW_DATA,
+  IOX_CHUNK_CONTAINS_SERIALIZED_DATA
+} iox_data_state_t;
+
 struct iceoryx_header {
    struct ddsi_guid guid;
    dds_time_t tstamp;
@@ -61,10 +70,12 @@ struct iceoryx_header {
    uint32_t data_size;
    unsigned char data_kind;
    ddsi_keyhash_t keyhash;
-   bool does_contain_serialized_data;
+   iox_data_state_t data_state;
 };
 
 typedef struct iceoryx_header iceoryx_header_t;
+
+iceoryx_header_t *iceoryx_header_from_chunk(void *iox_chunk);
 
 #endif
 

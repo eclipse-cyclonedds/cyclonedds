@@ -111,9 +111,8 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
 
     if (ChunkReceiveResult_SUCCESS != take_result)
       break;
-
-    const iox_chunk_header_t* chunk_header = iox_chunk_header_from_user_payload_const(chunk);
-    const iceoryx_header_t* ice_hdr = iox_chunk_header_to_user_header_const(chunk_header);
+   
+    const iceoryx_header_t* ice_hdr = iceoryx_header_from_chunk(chunk);
 
     // Get writer or proxy writer
     struct entity_common * e = entidx_lookup_guid_untyped (gv->entity_index, &ice_hdr->guid);
@@ -124,11 +123,8 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
       continue;
     }
 
-    // Create struct ddsi_serdata
-    struct ddsi_serdata* d = ddsi_serdata_from_iox(rd->m_topic->m_stype, ice_hdr->data_kind, &rd->m_iox_sub, chunk);
-    //keyhash needs to be set here
-    d->timestamp.v = ice_hdr->tstamp;
-    d->statusinfo = ice_hdr->statusinfo;
+    // Create struct ddsi_serdata    
+    struct ddsi_serdata* d = ddsi_serdata_from_iox(rd->m_topic->m_stype, ice_hdr->data_kind, &rd->m_iox_sub, chunk);    
 
     // Get struct ddsi_tkmap_instance
     struct ddsi_tkmap_instance* tk;
