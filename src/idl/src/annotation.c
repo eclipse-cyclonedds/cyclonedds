@@ -39,6 +39,8 @@ annotate_id(
 
   if (idl_is_member(node)) {
     decl = ((idl_member_t *)node)->declarators;
+  } else if (idl_is_case(node)) {
+    decl = ((idl_case_t*)node)->declarator;
   } else {
     idl_error(pstate, idl_location(annotation_appl),
       "@id cannot be applied to '%s' elements", idl_construct(node));
@@ -81,6 +83,8 @@ annotate_hashid(
 
   if (idl_is_member(node)) {
     decl = ((idl_member_t *)node)->declarators;
+  } else if (idl_is_case(node)) {
+    decl = ((idl_case_t*)node)->declarator;
   } else {
     idl_error(pstate, idl_location(annotation_appl),
       "@hashid cannot be applied to '%s' elements", idl_construct(node));
@@ -132,6 +136,10 @@ annotate_autoid(
     idl_struct_t *str = (idl_struct_t *)node;
     str->autoid.annotation = annotation_appl;
     str->autoid.value = autoid;
+  } else if (idl_is_union(node)) {
+    idl_union_t *u = (idl_union_t *)node;
+    u->autoid.annotation = annotation_appl;
+    u->autoid.value = autoid;
   } else if (idl_is_module(node)) {
     idl_module_t *mod = (idl_module_t *)node;
     mod->autoid.annotation = annotation_appl;

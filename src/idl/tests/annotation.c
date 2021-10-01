@@ -501,6 +501,21 @@ void test_id(
             n++;
           }
         }
+      } else if (idl_is_union(node)) {
+        const idl_union_t *u = (const idl_union_t*)node;
+        CU_ASSERT_EQUAL(u->autoid.value, test.aid[m++]);
+
+        const idl_case_t *_case = NULL;
+        IDL_FOREACH(_case, u->cases) {
+          CU_ASSERT_TRUE_FATAL(n < sizeof(test.aid)/sizeof(test.aid[0]));
+          if (test.annotation_present[n]) {
+            CU_ASSERT_PTR_NOT_NULL(_case->declarator->id.annotation);
+          } else {
+            CU_ASSERT_PTR_NULL(_case->declarator->id.annotation);
+          }
+          CU_ASSERT_EQUAL(_case->declarator->id.value, test.id[n]);
+          n++;
+        }
       } else {
         CU_ASSERT_FATAL(0);
       }
@@ -519,6 +534,27 @@ CU_Test(idl_annotation, id)
     {"struct s { @id(1) @id(1) char c; };",   IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true}, {1}},         // duplicate @id
     {"struct s { @id(1) @id(2) char c; };",   IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},    {0}},         // conflicting @id
     {"struct s { @id(1) @hashid char c; };",  IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},    {0}},         // @id and @hashid
+    {"union u switch(long) {\n"
+     "case 0: @id(123) char c;\n"
+     "default: long l;\n"
+     "};",                                    IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true}, {123, 124}},  // @id on u::c
+    {"union u switch(long) {\n"
+     "case 0: @id(1) @id(1) char c;\n"
+     "default: long l;\n"
+     "};",                                    IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true}, {1, 2}},      // duplicate @id on u::c
+    {"union u switch(long) {\n"
+     "case 0: @id(1) @id(2) char c;\n"
+     "default: long l;\n"
+     "};",                                    IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},    {0}},         // conflicting @ids on u::c
+    {"union u switch(long) {\n"
+     "case 0: @id(1) char c;\n"
+     "case 1: long l;\n"
+     "default: @id(2) double d;\n"
+     "};",                                    IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},    {0}},         // u::d's id clashes with u::c
+    {"@id(123) union u switch(long) {\n"
+     "case 0: char c;\n"
+     "default: double d;\n"
+     "};",                                    IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},    {0}},         // @id on union
   };
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(id_test_t); i++)
@@ -535,6 +571,18 @@ CU_Test(idl_annotation, hashid)
     {"struct s { @hashid(\"c\") @hashid char c; };",        IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},          {0}},                         // mixing explicit and implicit hash
     {"struct s { @hashid(\"c\") @hashid(\"c\") char c; };", IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true},       {0x00088a4au}},               // duplicate parameterized @hashid
     {"struct s { @hashid(\"c\") @hashid(\"s\") char c; };", IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},          {0}},                         // conflicting @hashid
+    {"union u switch(long) {\n"
+     "case 0: @hashid char c;\n"
+     "default: @hashid(\"s\") long l;\n"
+     "};",                                                  IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true, true}, {0x00088a4au, 0x0cc0c703u}},  // @hashid with and without parameter on union branch
+    {"union u switch(long) {\n"
+     "case 0: @hashid char c;\n"
+     "default: @hashid(\"c\") long l;\n"
+     "};",                                                  IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},          {0}},                         // u::l's hashid clashes with u::c
+    {"@hashid union u switch(long) {\n"
+     "case 0: char c;\n"
+     "default: long l;\n"
+     "};",                                                  IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},          {0}},                         // hashid on union
   };
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(id_test_t); i++)
@@ -554,6 +602,41 @@ CU_Test(idl_annotation, autoid_struct)
     {"@autoid @autoid(SEQUENTIAL) struct s { char c; };",                           IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},            {0}},                                     //conflicting duplicate autoid
     {"@autoid(SEQUENTIAL) struct s { @id(456) char c; char d; @id(457) char e; };", IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},            {0}},                                     //clashing sequential id fields
     {"@autoid(HASH) struct s { char c; @hashid(\"c\") char d; };",                  IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},            {0}}                                      //clashing hashid fields
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(id_test_t); i++)
+    test_id(tests[i]);
+}
+
+CU_Test(idl_annotation, autoid_union)
+{
+  static const id_test_t tests[] = {
+    {"union u switch(long) {\n"
+     "case 0: char c;\n"
+     "default: string s;\n"
+     "};",                                          IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {false},  {0, 1}},                      // implicit sequential autoid
+    {"union u switch(long) {\n"
+     "case 0: @id(123) char c;\n"
+     "default: string s;\n"
+     "};",                                          IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true},   {123, 124}},                  // implicit sequential autoid, starting from a specific id
+    {"@autoid union u switch(long) {\n"
+     "case 0: char c;\n"
+     "default: string s;\n"
+     "};",                                          IDL_RETCODE_OK,             {IDL_HASH},       {false},  {0x00088a4au, 0x0cc0c703u}},  // explicit autoid, implicit hash
+    {"@autoid(HASH) union u switch(long) {\n"
+     "case 0: char c;\n"
+     "default: string s;\n"
+     "};",                                          IDL_RETCODE_OK,             {IDL_HASH},       {false},  {0x00088a4au, 0x0cc0c703u}},  // explicit hash autoid
+    {"@autoid(SEQUENTIAL) union u switch(long) {\n"
+     "case 0: @id(123) char c;\n"
+     "case 1: double d;\n"
+     "case 2: @id(122) long e;\n"
+     "default: string s;\n"
+     "};",                                          IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},      {0}},                         // u::s clashes with u::c
+    {"@autoid(HASH) union u switch(long) {\n"
+     "case 0: char c;\n"
+     "default: @hashid(\"c\") string s;\n"
+     "};",                                          IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},      {0}},                         // u::s clashes with u::c
   };
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(id_test_t); i++)

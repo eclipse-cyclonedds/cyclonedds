@@ -819,8 +819,12 @@ case_label:
   ;
 
 element_spec:
-    type_spec declarator
-      { TRY(idl_create_case(pstate, LOC(@1.first, @2.last), $1, $2, &$$)); }
+    /* some annotations may also occur on the union branch definitions (@id, @hashid, @external, @try_construct)
+       as defined in [XTypes v1.3] Table 21 */
+    annotations type_spec declarator
+      { TRY(idl_create_case(pstate, LOC(@1.first, @3.last), $2, $3, &$$));
+        TRY_EXCEPT(idl_annotate(pstate, $$, $1), free($$));
+      }
   ;
 
 enum_dcl: enum_def { $$ = $1; } ;
