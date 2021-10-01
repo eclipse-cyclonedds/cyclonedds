@@ -1017,6 +1017,11 @@ idl_propagate_autoid(
       if (!str->autoid.annotation)
         str->autoid.value = toset;
       ret = idl_propagate_autoid_constr_type(pstate, (idl_node_t*)str);
+    } else if (idl_is_union(node)) {
+      idl_union_t *u = (idl_union_t*)node;
+      if (!u->autoid.annotation)
+        u->autoid.value = toset;
+      ret = idl_propagate_autoid_constr_type(pstate, (idl_node_t*)u);
     }
     if (ret)
       break;
@@ -1082,6 +1087,20 @@ next_decl_struct(idl_declarator_t *decl, idl_declarator_t **last, idl_node_t *cu
   return NULL;
 }
 
+static idl_declarator_t*
+next_decl_union(idl_declarator_t *decl, idl_declarator_t **last, idl_node_t *current) {
+  (void) last;
+  (void) current;
+  assert(decl);
+  idl_case_t *_case = idl_parent(decl);
+  assert(idl_is_case(_case));
+  _case = idl_next(_case);
+  if (_case)
+    return _case->declarator;
+  else
+    return NULL;
+}
+
 typedef idl_declarator_t* (*itfunc_ptr)(idl_declarator_t*,idl_declarator_t**,idl_node_t*);
 
 idl_retcode_t
@@ -1109,6 +1128,12 @@ idl_propagate_autoid_constr_type(
     aid = str->autoid.value;
     if (str->members)
       first = str->members->declarators;
+  } else if (idl_is_union(constr_type)) {
+    idl_union_t *u = (idl_union_t*)constr_type;
+    iterate_func = &next_decl_union;
+    aid = u->autoid.value;
+    if (u->cases)
+      first = u->cases->declarator;
   } else {
     assert(idl_is_constr_type(constr_type));
     return ret;

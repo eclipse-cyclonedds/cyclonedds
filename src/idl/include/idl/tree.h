@@ -373,6 +373,7 @@ struct idl_union {
   uint64_t unused_labels; /**< number of unused labels */
   IDL_ANNOTATABLE(bool) nested; /**< if type is nested or a topic */
   IDL_ANNOTATABLE(idl_extensibility_t) extensibility;
+  IDL_ANNOTATABLE(idl_autoid_t) autoid;
 };
 
 typedef struct idl_enumerator idl_enumerator_t;
