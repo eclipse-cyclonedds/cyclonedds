@@ -22,6 +22,7 @@
 #include "tree.h"
 #include "scope.h"
 #include "symbol.h"
+#include "hashid.h"
 
 void *idl_push_node(void *list, void *node)
 {
@@ -981,6 +982,185 @@ static const char *describe_struct(const void *ptr)
   (void)ptr;
   assert(idl_mask(ptr) & IDL_STRUCT);
   return "struct";
+}
+
+static int compare_declarator(const void *lhs, const void *rhs)
+{
+  const idl_declarator_t *d_lhs = *(const idl_declarator_t **)lhs,
+                         *d_rhs = *(const idl_declarator_t **)rhs;
+  if (d_lhs->id.value < d_rhs->id.value)
+    return -1;
+  else if (d_lhs->id.value > d_rhs->id.value)
+    return 1;
+  else
+    return 0;
+}
+
+idl_retcode_t
+idl_propagate_autoid(
+  idl_pstate_t *pstate,
+  idl_node_t *list,
+  idl_autoid_t toset)
+{
+  assert(list);
+
+  idl_node_t *node = NULL;
+  idl_retcode_t ret = IDL_RETCODE_OK;
+  IDL_FOREACH(node, list) {
+    if (idl_is_module(node)) {
+      idl_module_t *mod = (idl_module_t*)node;
+      if (!mod->autoid.annotation)
+        mod->autoid.value = toset;
+      ret = idl_propagate_autoid(pstate, mod->definitions, mod->autoid.value);
+    } else if (idl_is_struct(node)) {
+      idl_struct_t *str = (idl_struct_t*)node;
+      if (!str->autoid.annotation)
+        str->autoid.value = toset;
+      ret = idl_propagate_autoid_constr_type(pstate, (idl_node_t*)str);
+    }
+    if (ret)
+      break;
+  }
+
+  return ret;
+}
+
+static void
+process_declarator_id(
+  idl_declarator_t *decl,
+  idl_declarator_t *last,
+  idl_autoid_t autoid)
+{
+  assert(decl);
+
+  if (decl->id.annotation) {
+    /*this declarator already has an ID annotation*/
+    return;
+  } else if (autoid == IDL_HASH) {
+    assert(decl->name->identifier);
+    decl->id.value = idl_hashid(decl->name->identifier);
+  } else if (last) {
+    /*after conferring with @e-hndrks it was decided that overflow would not be flagged as an error*/
+    decl->id.value = (last->id.value + 1) & 0x0FFFFFFFu;
+  } else {
+    decl->id.value = 0;
+  }
+}
+
+static idl_declarator_t*
+next_decl_struct(idl_declarator_t *decl, idl_declarator_t **last, idl_node_t *current) {
+  assert(decl);
+  assert(last);
+  assert(current);
+
+  idl_declarator_t *next_decl = idl_next(decl);
+  if (next_decl)
+    return next_decl;
+
+  idl_member_t *mem = idl_parent(decl);
+  assert(idl_is_member(mem));
+  idl_member_t *next_mem = idl_next(mem);
+
+  if (next_mem)
+    return next_mem->declarators;
+
+  idl_struct_t *str = idl_parent(mem);
+  assert(str);
+
+  /*store the last declarator of the parent of current*/
+  if ((idl_struct_t*)current != str && *last == NULL)
+    *last = decl;
+
+  if (str->inherit_spec) {
+    assert(idl_is_struct(str->inherit_spec->base));
+    idl_struct_t *base = str->inherit_spec->base;
+    assert(base->members);
+
+    return base->members->declarators;
+  }
+
+  return NULL;
+}
+
+typedef idl_declarator_t* (*itfunc_ptr)(idl_declarator_t*,idl_declarator_t**,idl_node_t*);
+
+idl_retcode_t
+idl_propagate_autoid_constr_type(
+  idl_pstate_t *pstate,
+  idl_node_t *constr_type)
+{
+  idl_retcode_t ret = IDL_RETCODE_OK;
+  size_t n_ids;
+  idl_declarator_t *decl = NULL, *first = NULL, *last = NULL;
+  idl_autoid_t aid = IDL_SEQUENTIAL;
+  /*function which iterates over declarators, returns the next declarator describing an entity
+    which needs a unique member id assigned, or NULL if it is done iterating
+    - the first parameter is the current declarator
+    - the second parameter will point to the last declarator of any parent after a full run over the
+      entire inheritance tree
+    - the third parameter is the pointer of the current struct, it is used to determine whether to
+      store anything in the second parameter*/
+  itfunc_ptr iterate_func = NULL;
+
+  /*initialize decl, aid and iterate_func*/
+  if (idl_is_struct(constr_type)) {
+    idl_struct_t *str = (idl_struct_t*)constr_type;
+    iterate_func = &next_decl_struct;
+    aid = str->autoid.value;
+    if (str->members)
+      first = str->members->declarators;
+  } else {
+    assert(idl_is_constr_type(constr_type));
+    return ret;
+  }
+
+  assert(constr_type);
+  /*counting number of declarators*/
+  decl = first;
+  if (decl)
+    n_ids = 1;
+  else
+    return ret;
+
+  while ((decl = iterate_func(decl, &last, constr_type)))
+    n_ids++;
+
+  idl_declarator_t **id_array = malloc(sizeof(idl_declarator_t *)*n_ids);
+  if (!id_array) {
+    ret = IDL_RETCODE_NO_MEMORY;
+    goto finish;
+  }
+
+  n_ids = 0;
+  decl = first;
+  /*populate the array of declarators with member ids*/
+  while (decl) {
+    idl_node_t *constr_type_of_decl = idl_parent(idl_parent(decl));
+    /*only modify declarators in the constructed type being examined*/
+    if (constr_type_of_decl == constr_type)
+      process_declarator_id(decl, last, aid);
+
+    last = decl;
+    id_array[n_ids++] = decl;
+    decl = iterate_func(decl, &last, constr_type);
+  }
+
+  qsort(id_array, n_ids, sizeof(*id_array), &compare_declarator);
+
+  /*check for duplicate entries*/
+  for (size_t i = 1; i < n_ids; i++) {
+    if (id_array[i-1]->id.value == id_array[i]->id.value) {
+      idl_error(pstate, idl_location(id_array[i]),
+        "Declarator member id '0x%.07x' is already assigned", id_array[i]->id.value);
+      ret = IDL_RETCODE_SEMANTIC_ERROR;
+    }
+  }
+
+  finish:
+  if (id_array)
+    free((void*)id_array);
+
+  return ret;
 }
 
 idl_retcode_t

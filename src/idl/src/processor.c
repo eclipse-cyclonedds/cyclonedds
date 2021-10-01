@@ -380,6 +380,9 @@ grammar:
     }
   }
 
+  if (ret == IDL_RETCODE_OK)
+    ret = idl_propagate_autoid(pstate, pstate->root, IDL_SEQUENTIAL);
+
   return ret;
 }
 
