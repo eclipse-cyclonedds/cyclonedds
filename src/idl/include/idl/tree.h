@@ -268,6 +268,7 @@ struct idl_module {
   const idl_module_t *previous; /**< previous module if module was reopened */
   /* metadata */
   IDL_ANNOTATABLE(bool) default_nested;
+  IDL_ANNOTATABLE(idl_autoid_t) autoid;
 };
 
 typedef struct idl_declarator idl_declarator_t;
@@ -275,6 +276,8 @@ struct idl_declarator {
   idl_node_t node;
   idl_name_t *name;
   idl_const_expr_t *const_expr;
+  /* metadata */
+  IDL_ANNOTATABLE(uint32_t) id;
 };
 
 typedef struct idl_member idl_member_t;
@@ -286,7 +289,6 @@ struct idl_member {
   IDL_ANNOTATABLE(bool) key;
   IDL_ANNOTATABLE(bool) optional;
   IDL_ANNOTATABLE(const idl_literal_t*) value;
-  IDL_ANNOTATABLE(uint32_t) id;
 };
 
 /* types can inherit from and extend other types (interfaces, values and

@@ -453,93 +453,185 @@ CU_Test(idl_annotation, redefinition)
   }
 }
 
+typedef struct id_test {
+  const char *s;
+  idl_retcode_t ret;
+  idl_autoid_t aid[8];
+  bool annotation_present[8];
+  uint32_t id[8];
+} id_test_t;
+
+static
+void test_id(
+  id_test_t test)
+{
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.s, &pstate);
+  CU_ASSERT_EQUAL(ret, test.ret);
+
+  if (ret == IDL_RETCODE_OK && ret == test.ret) {
+
+    size_t m = 0, n = 0;
+    const idl_node_t *node = pstate->root;
+    while (idl_is_module(node)) {
+      const idl_module_t *mod = (const idl_module_t *)node;
+      CU_ASSERT_TRUE_FATAL(m < sizeof(test.id)/sizeof(test.id[0]));
+      CU_ASSERT_EQUAL(mod->autoid.value, test.aid[m++]);
+      assert(mod->definitions);
+      node = (const idl_node_t*)mod->definitions;
+    }
+
+    IDL_FOREACH(node, node) {
+      CU_ASSERT_TRUE_FATAL(m < sizeof(test.id)/sizeof(test.id[0]));
+      if (idl_is_struct(node)) {
+        const idl_struct_t *s = (const idl_struct_t*)node;
+        CU_ASSERT_EQUAL(s->autoid.value, test.aid[m++]);
+
+        const idl_member_t *mem = NULL;
+        const idl_declarator_t *decl = NULL;
+        IDL_FOREACH(mem, s->members) {
+          IDL_FOREACH(decl, mem->declarators) {
+            CU_ASSERT_TRUE_FATAL(n < sizeof(test.aid)/sizeof(test.aid[0]));
+            if (test.annotation_present[n]) {
+              CU_ASSERT_PTR_NOT_NULL(decl->id.annotation);
+            } else {
+              CU_ASSERT_PTR_NULL(decl->id.annotation);
+            }
+            CU_ASSERT_EQUAL(decl->id.value, test.id[n]);
+            n++;
+          }
+        }
+      } else {
+        CU_ASSERT_FATAL(0);
+      }
+    }
+  }
+
+  idl_delete_pstate(pstate);
+}
+
 CU_Test(idl_annotation, id)
 {
-  static const struct {
-    const char *s;
-    idl_retcode_t r;
-  } tests[] = {
-    { "struct s { @id(1) char c; };", IDL_RETCODE_OK }, // @id on member
-    { "@id(1) struct s { char c; };", IDL_RETCODE_SEMANTIC_ERROR }, // @id on non-member
-    { "struct s { @id char c; };", IDL_RETCODE_SEMANTIC_ERROR }, // @id without const-expr
-    { "struct s { @id(1) @id(1) char c; };", IDL_RETCODE_OK }, // duplicate @id
-    { "struct s { @id(1) @id(2) char c; };", IDL_RETCODE_SEMANTIC_ERROR }, // conflicting @id
-    { "struct s { @id(1) @hashid char c; };", IDL_RETCODE_SEMANTIC_ERROR } // @id and @hashid
+  static const id_test_t tests[] = {
+    {"struct s { @id(1) char c; };",          IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true}, {1}},         // @id on member
+    {"@id(1) struct s { char c; };",          IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},    {0}},         // @id on struct
+    {"struct s { @id char c; };",             IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},    {0}},         // @id without const-expr
+    {"struct s { @id(1) @id(1) char c; };",   IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true}, {1}},         // duplicate @id
+    {"struct s { @id(1) @id(2) char c; };",   IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},    {0}},         // conflicting @id
+    {"struct s { @id(1) @hashid char c; };",  IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},    {0}},         // @id and @hashid
   };
 
-  for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
-    idl_pstate_t *pstate = NULL;
-    idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].s, &pstate);
-    CU_ASSERT_EQUAL(ret, tests[i].r);
-    if (ret == IDL_RETCODE_OK) {
-      const idl_struct_t *s = (const idl_struct_t *)pstate->root;
-      CU_ASSERT(idl_is_struct(s));
-      const idl_member_t *m = s->members;
-      CU_ASSERT(idl_is_member(m));
-      CU_ASSERT_PTR_NOT_NULL(m->id.annotation);
-      CU_ASSERT_EQUAL(m->id.value, 1u);
-    }
-    idl_delete_pstate(pstate);
-  }
+  for (size_t i = 0; i < sizeof(tests)/sizeof(id_test_t); i++)
+    test_id(tests[i]);
 }
 
 CU_Test(idl_annotation, hashid)
 {
-  static const struct {
-    const char *s;
-    uint32_t h;
-    idl_retcode_t r;
-  } tests[] = {
-    { "struct s { @hashid char c; };", 0x00088a4au, IDL_RETCODE_OK }, // @hashid without parameter on member
-    { "struct s { @hashid(\"s\") char c; };", 0x0cc0c703u, IDL_RETCODE_OK }, // @hashid with parameter on member
-    { "@hashid struct s { char c; };", 0x00000000u, IDL_RETCODE_SEMANTIC_ERROR }, // @hashid on non-member
-    { "struct s { @hashid @hashid char c; };", 0x00088a4au, IDL_RETCODE_OK }, // duplicate non-parameterized @hashid
-    { "struct s { @hashid(\"c\") @hashid char c; };", 0x00088a4au, IDL_RETCODE_SEMANTIC_ERROR },
-    { "struct s { @hashid(\"c\") @hashid(\"c\") char c; };", 0x00088a4au, IDL_RETCODE_OK }, // duplicate parameterized @hashid
-    { "struct s { @hashid(\"c\") @hashid(\"s\") char c; };", 0x00000000u, IDL_RETCODE_SEMANTIC_ERROR } // conflicting @hashid
+  static const id_test_t tests[] = {
+    {"struct s { @hashid char c; };",                       IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true},       {0x00088a4au}},               // @hashid without parameter on member
+    {"struct s { @hashid(\"s\") char c; };",                IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true},       {0x0cc0c703u}},               // @hashid with parameter on member
+    {"@hashid struct s { char c; };",                       IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},          {0}},                         // @hashid on struct
+    {"struct s { @hashid @hashid char c; };",               IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true},       {0x00088a4au}},               // duplicate non-parameterized @hashid
+    {"struct s { @hashid(\"c\") @hashid char c; };",        IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},          {0}},                         // mixing explicit and implicit hash
+    {"struct s { @hashid(\"c\") @hashid(\"c\") char c; };", IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true},       {0x00088a4au}},               // duplicate parameterized @hashid
+    {"struct s { @hashid(\"c\") @hashid(\"s\") char c; };", IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},          {0}},                         // conflicting @hashid
   };
 
-  for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
-    idl_pstate_t *pstate = NULL;
-    idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].s, &pstate);
-    CU_ASSERT_EQUAL(ret, tests[i].r);
-    if (ret == IDL_RETCODE_OK) {
-      const idl_struct_t *s = (const idl_struct_t *)pstate->root;
-      CU_ASSERT(idl_is_struct(s));
-      const idl_member_t *m = s->members;
-      CU_ASSERT(idl_is_member(m));
-      CU_ASSERT_PTR_NOT_NULL(m->id.annotation);
-      CU_ASSERT_EQUAL(m->id.value, tests[i].h);
-    }
-    idl_delete_pstate(pstate);
-  }
+  for (size_t i = 0; i < sizeof(tests)/sizeof(id_test_t); i++)
+    test_id(tests[i]);
+}
+
+CU_Test(idl_annotation, autoid_struct)
+{
+  static const id_test_t tests[] = {
+    {"struct s { char c; char d; };",                                               IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {0},            {0, 1}},                                  //implicit sequential autoid
+    {"struct s { @id(456) char c; char d; };",                                      IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true, false},  {456, 457}},                              //implicit sequential autoid, starting from a specific id
+    {"@autoid struct s { char c; char d; };",                                       IDL_RETCODE_OK,             {IDL_HASH},       {0},            {0x00088a4au, 0x01e07782u}},              //implicit hash autoid
+    {"@autoid(HASH) struct s { char c, d; char e; };",                              IDL_RETCODE_OK,             {IDL_HASH},       {0},            {0x00088a4au, 0x01e07782u, 0x071767e1u}}, //explicit hash autoid
+    {"@autoid(SEQUENTIAL) struct s { char c, d; char e; };",                        IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {0},            {0, 1, 2}},                               //explicit sequential autoid
+    {"@autoid(SEQUENTIAL) struct s { @hashid char c; char d; };",                   IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true, false},  {0x00088a4au, 0x00088a4bu}},              //explicit sequential autoid, with implicit hashid
+    {"@autoid(HASH) struct s { @id(123) char c; char d; };",                        IDL_RETCODE_OK,             {IDL_HASH},       {true, false},  {123, 0x01e07782u}},                      //explicit hash autoid, with explicit id
+    {"@autoid @autoid(SEQUENTIAL) struct s { char c; };",                           IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},            {0}},                                     //conflicting duplicate autoid
+    {"@autoid(SEQUENTIAL) struct s { @id(456) char c; char d; @id(457) char e; };", IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},            {0}},                                     //clashing sequential id fields
+    {"@autoid(HASH) struct s { char c; @hashid(\"c\") char d; };",                  IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},            {0}}                                      //clashing hashid fields
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(id_test_t); i++)
+    test_id(tests[i]);
+}
+
+CU_Test(idl_annotation, autoid_inheritance)
+{
+  static const id_test_t tests[] = {
+    {"struct base { char c; char d; };\n"
+     "struct derived : base { char e; char f; };",                IDL_RETCODE_OK,             {IDL_SEQUENTIAL, IDL_SEQUENTIAL},                 {0},  {0, 1, 2, 3}},                                          //implicit sequential autoid, single inheritance
+    {"struct base { char c; char d; };\n"
+     "struct derived : base { char e; char f; };\n"
+     "struct morederived : derived { char g; char h; };",         IDL_RETCODE_OK,             {IDL_SEQUENTIAL, IDL_SEQUENTIAL, IDL_SEQUENTIAL}, {0},  {0, 1, 2, 3, 4, 5}},                                    //implicit sequential autoid, double inheritance
+    {"@autoid(HASH) struct base { char c; char d; };\n"
+     "struct derived : base { char e; char f; };",                IDL_RETCODE_OK,             {IDL_HASH, IDL_SEQUENTIAL},                       {0},  {0x00088a4au, 0x01e07782u, 0x01e07783u, 0x01e07784u}},  //explicit hash autoid, derived class counting sequentially
+    {"@autoid(SEQUENTIAL) struct base { char c; char d; };\n"
+     "@autoid(HASH) struct derived : base { char e; char f; };",  IDL_RETCODE_OK,             {IDL_SEQUENTIAL, IDL_HASH},                       {0},  {0, 1, 0x071767e1u, 0x0d4ca18fu}},                      //explicit sequential autoid, derived class hashing
+    {"struct base { char c; char d; };\n"
+     "@autoid(SEQUENTIAL) struct derived : base {\n"
+     " char e; char f; };",                                       IDL_RETCODE_OK,             {IDL_SEQUENTIAL, IDL_SEQUENTIAL},                 {0},  {0, 1, 2, 3}},                                          //explicit sequential autoid, checking that this starts from the implicit sequential ids from base
+    {"struct baz { @id(2) long l2; @id(4) long l4; };\n"
+     "struct bar : baz { @id(1) long l1; @id(3) long l3; };\n"
+     "struct foo : bar { @id(5) long l5; long l6; };\n",          IDL_RETCODE_OK,             {IDL_SEQUENTIAL, IDL_SEQUENTIAL, IDL_SEQUENTIAL}, {true, true, true, true, true, false},  {2, 4, 1, 3, 5, 6}},  //explicit ids in inherited classes, sequential continuation
+    {"struct baz { @id(1) long l1; @id(2) long l2; };\n"
+     "struct bar { @id(1) long l1; @id(2) long l2; };\n"
+     "struct foo : bar { baz b1; long l; };\n",                   IDL_RETCODE_OK,             {IDL_SEQUENTIAL, IDL_SEQUENTIAL, IDL_SEQUENTIAL}, {true, true, true, true, false},  {1, 2, 1, 2, 3, 4}},        //member ids of baz should not conflict with those in bar
+    {"struct baz { @id(1) long l1; @id(3) long l3; };\n"
+     "struct bar : baz { @id(2) long l2; @id(4) long l4; };\n"
+     "struct foo : bar { @id(0) long l5; long l6; };\n",          IDL_RETCODE_SEMANTIC_ERROR, {0},                                              {0},  {0}},                                                   //foo::l6 clashes with baz::l1
+    {"struct base { char c; char d; };\n"
+     "struct derived : base { @id(1) char e; char f; };",         IDL_RETCODE_SEMANTIC_ERROR, {0},                                              {0},  {0}},                                                   //derived::e clashes with base::d
+    {"@autoid(HASH) struct base { char c; char d; };\n"
+     "struct derived : base { @hashid(\"c\") char e; char f; };", IDL_RETCODE_SEMANTIC_ERROR, {0},                                              {0},  {0}},                                                   //derived::e (hash(c)) clashes with base::c
+    {"struct baz { @id(2) long l2; @id(4) long l4; };\n"
+     "struct bar : baz { @id(1) long l1; @id(3) long l3; };\n"
+     "struct foo : bar { long l; };\n",                           IDL_RETCODE_SEMANTIC_ERROR, {0},                                              {0},  {0}},                                                   //foo::l attempts to take id 4, but this is already assigned to baz::l4
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(id_test_t); i++)
+    test_id(tests[i]);
+}
+
+CU_Test(idl_annotation, autoid_module)
+{
+  static const id_test_t tests[] = {
+    {"module m { struct s { char c; char d; }; };",                                 IDL_RETCODE_OK,             {IDL_SEQUENTIAL, IDL_SEQUENTIAL},     {0}, {0, 1}},               //implicit sequential autoid on module and struct inherits
+    {"@autoid module m { struct s { char c; }; };",                                 IDL_RETCODE_OK,             {IDL_HASH, IDL_HASH},                 {0}, {0x00088a4au}},        //implicit hash autoid on module and struct inherits
+    {"@autoid(HASH) module m {\n"
+     "  @autoid(SEQUENTIAL) struct s { char c; char d; };\n"
+     "  struct t { char c; };\n"
+     "};",                                                                          IDL_RETCODE_OK,             {IDL_HASH, IDL_SEQUENTIAL, IDL_HASH}, {0}, {0, 1, 0x00088a4au}},  //explicit hash autoid on module, one struct hash explicit sequential, the other inherits
+    {"@autoid(SEQUENTIAL) @autoid(SEQUENTIAL) module m { struct s { char c; }; };", IDL_RETCODE_OK,             {IDL_SEQUENTIAL, IDL_SEQUENTIAL},     {0}, {0}},                  //duplicate autoid declarations
+    {"@autoid @autoid(HASH) module m { struct s { char c; }; };",                   IDL_RETCODE_OK,             {IDL_HASH, IDL_HASH},                 {0}, {0x00088a4au}},        //duplicate autoid declarations
+    {"@autoid module m1 {\n"
+     "@autoid(SEQUENTIAL) module m2 { struct s { char c; char d; }; };\n"
+     "module m3 { struct s { char c; char d; }; };\n"
+     "};",                                                                          IDL_RETCODE_OK,             {IDL_HASH, IDL_SEQUENTIAL,
+                                                                                                                 IDL_SEQUENTIAL, IDL_HASH, IDL_HASH}, {0}, {0, 1, 0x00088a4au, 0x01e07782u}},  //mixing module level autoids
+    {"@autoid module m1 { @autoid(SEQUENTIAL) module m2 {\n"
+     "@autoid module m3 { @autoid(SEQUENTIAL) module m4 {\n"
+     "  struct s { char c; char d; };\n"
+     "}; }; }; };",                                                                 IDL_RETCODE_OK,             {IDL_HASH, IDL_SEQUENTIAL, IDL_HASH,
+                                                                                                                 IDL_SEQUENTIAL, IDL_SEQUENTIAL},     {0}, {0, 1}},               //overwriting module level autoids
+    {"@autoid(HASH) module m1 {\n"
+     "  struct s { char c; @hashid(\"c\") char d; };\n"
+     "};",                                                                          IDL_RETCODE_SEMANTIC_ERROR, {0},                                  {0}, {0}},                  //s::c clashes with s:::d
+    {"@autoid(SEQUENTIAL) module m {\n"
+     "  struct s { @id(1) char c1; @id(0) char c0; char c; };\n"
+     "};",                                                                          IDL_RETCODE_SEMANTIC_ERROR, {0},                                  {0}, {0}},                  //s::c clashes with s::c1
+    {"@autoid @autoid(SEQUENTIAL) module m { struct s { char c; }; };",             IDL_RETCODE_SEMANTIC_ERROR, {0},                                  {0}, {0}}                   //clashing autoid declarations
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(id_test_t); i++)
+    test_id(tests[i]);
 }
 
 // x. do not allow annotation_appl in annotation
-
-#if 0
-CU _ Test(idl_annotation, autoid_struct)
-{
-  idl_retcode_t ret;
-  idl_tree_t *tree = NULL;
-  idl_struct_t *s1;
-  const char str[] = "@autoid struct s { char c; };";
-
-  ret = idl_parse_string(str, IDL_FLAG_ANNOTATIONS, &tree);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL(tree);
-  s1 = (idl_struct_t *)tree->root;
-  CU_ASSERT_PTR_NOT_NULL_FATAL(s1);
-  CU_ASSERT_FATAL(idl_is_struct(s1));
-  CU_ASSERT_EQUAL(s1->autoid, IDL_AUTOID_SEQUENTIAL);
-  idl_delete_tree(tree);
-}
-
-// x. autoid twice
-// x. autoid (HASH)
-// x. autoid (SEQUENTIAL)
-
-#endif
 
 #define A(ann) ann " struct s { char c; };"
 CU_Test(idl_annotation, struct_extensibility)
