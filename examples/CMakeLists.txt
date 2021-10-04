@@ -11,7 +11,7 @@
 #
 set(CMAKE_INSTALL_EXAMPLESDIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/examples")
 
-include("${CMAKE_SOURCE_DIR}/cmake/Modules/Generate.cmake")
+include("${CycloneDDS_SOURCE_DIR}/cmake/Modules/Generate.cmake")
 
 install(
   FILES
