@@ -49,7 +49,7 @@ target_include_directories(
 
 if(WIN32 OR NOT HAVE_GETOPT_H)
   # use getopt.h from ddsrt
-  file(READ "${CMAKE_SOURCE_DIR}/src/ddsrt/include/getopt.h.in" getopt_h)
+  file(READ "${CycloneDDS_SOURCE_DIR}/src/ddsrt/include/getopt.h.in" getopt_h)
   # remove occurrences of DDS_EXPORT
   string(REGEX REPLACE "\n[ \t]*DDS_EXPORT[ \t]+" "\n" getopt_h "${getopt_h}")
   # remove dds/* includes
@@ -59,7 +59,7 @@ if(WIN32 OR NOT HAVE_GETOPT_H)
   target_include_directories(idlc PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
   # add getopt.c
   configure_file(
-    "${CMAKE_SOURCE_DIR}/src/ddsrt/src/getopt.c"
+    "${CycloneDDS_SOURCE_DIR}/src/ddsrt/src/getopt.c"
     "${CMAKE_CURRENT_BINARY_DIR}/getopt.c"
     COPYONLY)
   target_sources(idlc PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/getopt.c)
@@ -88,9 +88,9 @@ if (MSVC)
 endif()
 
 install(
-  FILES "${CMAKE_SOURCE_DIR}/cmake/Modules/Generate.cmake"
+  FILES "${CycloneDDS_SOURCE_DIR}/cmake/Modules/Generate.cmake"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}/idlc"
   COMPONENT dev)
 
-include("${CMAKE_SOURCE_DIR}/cmake/Modules/Generate.cmake")
+include("${CycloneDDS_SOURCE_DIR}/cmake/Modules/Generate.cmake")
 
