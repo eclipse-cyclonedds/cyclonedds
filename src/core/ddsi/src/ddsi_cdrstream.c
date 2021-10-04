@@ -1363,7 +1363,7 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t * __restrict is, char 
              to 0, because the type may contain sequences that need to have 0 index/size */
           assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
           uint32_t sz = jeq_op[3];
-          *((char **) valaddr) = ddsrt_malloc (sz);
+          *((char **) valaddr) = ddsrt_calloc (1, sz);
           (void) dds_stream_read (is, *((char **) valaddr), jsr_ops);
         }
         else
@@ -1400,8 +1400,10 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
       const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
       if (op_type_external (insn))
       {
+        /* Allocate memory for @external struct member. This memory must be initialized
+            to 0, because the type may contain sequences that need to have 0 index/size */
         uint32_t sz = ops[3];
-        *((char **) addr) = ddsrt_malloc (sz);
+        *((char **) addr) = ddsrt_calloc (1, sz);
         (void) dds_stream_read (is, *((char **) addr), jsr_ops);
       }
       else
