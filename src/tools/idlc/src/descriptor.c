@@ -1146,7 +1146,8 @@ emit_declarator(
   idl_retcode_t ret;
   const idl_type_spec_t *type_spec;
   struct descriptor *descriptor = user_data;
-  struct constructed_type *ctype = descriptor->type_stack->ctype;
+  struct stack_type *stype = descriptor->type_stack;
+  struct constructed_type *ctype = stype->ctype;
 
   if (idl_is_extensible(ctype->node, IDL_MUTABLE)) {
     if (revisit) {
@@ -1189,7 +1190,7 @@ emit_declarator(
     return IDL_RETCODE_OK | IDL_VISIT_REVISIT;
 
   if (revisit) {
-    if (!idl_is_alias(node))
+    if (!idl_is_alias(node) && idl_is_struct(stype->node))
       pop_field(descriptor);
     return IDL_RETCODE_OK;
   } else {
@@ -1197,7 +1198,7 @@ emit_declarator(
     uint32_t order = 0;
     struct field *field = NULL;
 
-    if (!idl_is_alias(node) && (ret = push_field(descriptor, node, &field)))
+    if (!idl_is_alias(node) && idl_is_struct(stype->node) && (ret = push_field(descriptor, node, &field)))
       return ret;
 
     if (idl_is_sequence(type_spec))
