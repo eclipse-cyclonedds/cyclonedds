@@ -232,7 +232,7 @@ void idl_delete_pstate(idl_pstate_t *pstate)
 
 static void
 idl_log(
-  idl_pstate_t *pstate, uint32_t prio, const idl_location_t *loc, const char *fmt, va_list ap)
+  const idl_pstate_t *pstate, uint32_t prio, const idl_location_t *loc, const char *fmt, va_list ap)
 {
   char buf[1024];
   int cnt = 0;
@@ -272,7 +272,7 @@ idl_verror(
 
 void
 idl_error(
-  idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...)
+  const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...)
 {
   va_list ap;
 

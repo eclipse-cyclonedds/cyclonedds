@@ -837,8 +837,9 @@ emit_union(
         stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u);
         break;
       case IDL_MUTABLE:
-        stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u);
-        break;
+        idl_error(pstate, idl_location(node), "Mutable unions are not supported yet");
+        // stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u);
+        return IDL_RETCODE_UNSUPPORTED;
       case IDL_FINAL:
         break;
     }
@@ -2049,8 +2050,16 @@ generate_descriptor_impl(
   visitor.accept[IDL_ACCEPT_DECLARATOR] = &emit_declarator;
   visitor.accept[IDL_ACCEPT_FORWARD] = &emit_forward;
 
-  if ((ret = idl_visit(pstate, descriptor->topic, &visitor, descriptor)))
+  if ((ret = idl_visit(pstate, descriptor->topic, &visitor, descriptor))) {
+    /* Clear the type stack in case an error occured during visit, so that the check
+      for an empty type stack in descriptor_fini will pass */
+    while (descriptor->type_stack) {
+      while (descriptor->type_stack->fields)
+        pop_field(descriptor);
+      pop_type(descriptor);
+    }
     goto err;
+  }
   if ((ret = resolve_offsets(descriptor)) < 0)
     goto err;
   if ((ret = add_key_offset_list(descriptor, (pstate->flags & IDL_FLAG_KEYLIST))) < 0)

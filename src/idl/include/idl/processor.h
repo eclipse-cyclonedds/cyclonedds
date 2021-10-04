@@ -147,7 +147,7 @@ IDL_EXPORT void
 idl_verror(idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, va_list ap);
 
 IDL_EXPORT void
-idl_error(idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...);
+idl_error(const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...);
 
 IDL_EXPORT void
 idl_warning(idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...);
