@@ -1747,9 +1747,9 @@ static bool normalize_uint64 (char * __restrict data, uint32_t * __restrict off,
     return false;
   if (bswap)
   {
-    uint32_t x = ddsrt_bswap4u (* (uint32_t *) data + *off);
-    *((uint32_t *) data + *off) = ddsrt_bswap4u (* (((uint32_t *) data + *off) + 1));
-    *(((uint32_t *) data + *off) + 1) = x;
+    uint32_t x = ddsrt_bswap4u (* (uint32_t *) (data + *off));
+    *((uint32_t *) (data + *off)) = ddsrt_bswap4u (* ((uint32_t *) (data + *off) + 1));
+    *((uint32_t *) (data + *off) + 1) = x;
   }
   (*off) += 8;
   return true;
