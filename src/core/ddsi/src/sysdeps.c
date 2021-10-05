@@ -126,6 +126,13 @@ static DWORD init_stackframe (STACKFRAME64 *frame, const CONTEXT *context)
 #endif
 }
 
+static int copy_thread_context (CONTEXT *dst, struct _EXCEPTION_POINTERS *ep)
+{
+  // Used to get a thread context off the current thread
+  *dst = *ep->ContextRecord;
+  return EXCEPTION_EXECUTE_HANDLER;
+}
+
 void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid)
 {
   const char *errmsg = "unknown";
@@ -140,7 +147,14 @@ void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt
   // GetCurrentThread() returns a pseudo handle which is really a magic constant (-2).
   // This is what we get for threads not created by Cyclone DDS itself.  If we get this,
   // we'd better open the thread using the thread id to get a handle.
-  if (tid.handle != GetCurrentThread ())
+  //
+  // If it is this thread, we have to avoid suspending it.  The only way of knowing
+  // whether it really is this thread is by inspecting the "tid" field because of how
+  // the tid/handle pair (ab)used for threads not created by Cyclone itself.  If it is
+  // this thread, it really doesn't matter whether "handle" is the pseudo handle or a
+  // real handle, either will work.
+  const bool self = (tid.tid == GetCurrentThreadId ());
+  if (self || tid.handle != GetCurrentThread ())
     handle = tid.handle;
   else if ((handle = OpenThread (THREAD_ALL_ACCESS, 0, tid.tid)) != 0)
     close_required = true;
@@ -151,23 +165,47 @@ void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt
   }
 
   // Once the thread is suspended we can get the context and walk the stack
-  if (SuspendThread (handle) == (DWORD) -1)
-  {
-    errmsg = "SuspendThread";
-    goto fail;
-  }
-
-  // Walking the stack requires the current thread state as a starting point.  Getting the
-  // context requires ContextFlags to be initialized, but it doesn't say what to put in.
-  // Some kind soul on the Internet figured out that CONTEXT_ALL does the trick.
   CONTEXT context;
   memset (&context, 0, sizeof (context));
-  context.ContextFlags = CONTEXT_ALL;
-  if (!GetThreadContext (handle, &context))
+  if (!self)
   {
-    (void) ResumeThread (handle);
-    errmsg = "GetThreadContext";
-    goto fail;
+    if (SuspendThread (handle) == (DWORD) -1)
+    {
+      errmsg = "SuspendThread";
+      goto fail;
+    }
+
+    // Walking the stack requires the current thread state as a starting point.  Getting the
+    // context requires ContextFlags to be initialized, but it doesn't say what to put in.
+    // Some kind soul on the Internet figured out that CONTEXT_ALL does the trick.
+    //
+    // Per Windows docs: GetThreadContext is only supported on a suspended thread, therefore
+    // not on the current thread.
+    context.ContextFlags = CONTEXT_ALL;
+    if (!GetThreadContext (handle, &context))
+    {
+      (void) ResumeThread (handle);
+      errmsg = "GetThreadContext";
+      goto fail;
+    }
+  }
+  else
+  {
+    // If GetThreadContext doesn't work on the current thread, exceptions do and give access
+    // to a thread context in the exception filter:
+    //
+    //   [...] you can use GetExceptionInformation only within the exception
+    //   filter expression. The information it points to is generally on the stack and is no
+    //   longer available when control gets transferred to the exception handler.
+    //
+    // Here the exception occurs in the same function, so presumably the thread context
+    // remains valid and it is ok to copy it out of the exception information and use it for
+    // walking the stack.
+    __try {
+      *((volatile int *)0) = 0; // intentional access violation
+    } __except (copy_thread_context (&context, GetExceptionInformation ())) {
+      // nothing to be done
+    }
   }
 
   // Loop over the stack frames, storing the addresses
@@ -187,7 +225,8 @@ void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt
   // captured, resume the thread.  There is the possibility of it unloading/loading
   // libraries and invalidating the addresses, but that is highly unlikely and the Cyclone
   // DLL itself (which we care about most) won't be unloaded.
-  (void) ResumeThread (handle);
+  if (!self)
+    (void) ResumeThread (handle);
   if (nstk == 0)
   {
     errmsg = "StackWalk64";
