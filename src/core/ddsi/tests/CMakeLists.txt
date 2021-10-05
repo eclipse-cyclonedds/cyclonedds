@@ -15,6 +15,7 @@ set(ddsi_test_sources
     "locators.c"
     "plist_generic.c"
     "plist.c"
+    "sysdeps.c"
     "mem_ser.h")
 
 if(ENABLE_SECURITY)
