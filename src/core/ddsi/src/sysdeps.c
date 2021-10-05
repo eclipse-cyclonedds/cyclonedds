@@ -252,9 +252,12 @@ void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt
     if (!(modulebase && GetModuleFileNameA ((HINSTANCE) modulebase, modulename, MAX_PATH)))
       strcpy_s (modulename, sizeof (modulename), "unknown");
     if (SymFromAddr (process, stk[i], &disp, &symbol.sym))
-      DDS_CLOG (~DDS_LC_FATAL, logcfg, "%s!%s + %"PRIu64"\n", modulename, symbol.sym.Name, (uint64_t) disp);
+      DDS_CLOG (~DDS_LC_FATAL, logcfg, "%s@0x%"PRIx64"!0x%"PRIx64" %s+0x%"PRIx64"\n",
+                modulename, (uint64_t) modulebase, (uint64_t) stk[i] - modulebase,
+                symbol.sym.Name, (uint64_t) disp);
     else
-      DDS_CLOG (~DDS_LC_FATAL, logcfg, "%s@0x%"PRIx64"!0x%"PRIx64"\n", modulename, (uint64_t) modulebase, (uint64_t) stk[i] - modulebase);
+      DDS_CLOG (~DDS_LC_FATAL, logcfg, "%s@0x%"PRIx64"!0x%"PRIx64"\n",
+                modulename, (uint64_t) modulebase, (uint64_t) stk[i] - modulebase);
   }
   DDS_CLOG (~DDS_LC_FATAL, logcfg, "-- end of stack trace --\n");
   return;
