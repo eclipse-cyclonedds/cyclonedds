@@ -12,6 +12,7 @@
 #ifndef SYSDEPS_H
 #define SYSDEPS_H
 
+#include "dds/export.h"
 #include "dds/ddsrt/threads.h"
 
 #if defined (__cplusplus)
@@ -22,7 +23,8 @@ extern "C" {
 #define ASSERT_WRLOCK_HELD(x) ((void) 0)
 #define ASSERT_MUTEX_HELD(x) ((void) 0)
 
-void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid);
+struct ddsrt_log_cfg;
+DDS_EXPORT void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid);
 
 #if defined (__cplusplus)
 }
