@@ -1176,9 +1176,6 @@ emit_declarator(
     }
   }
 
-  if (idl_is_alias(node))
-    return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
-
   type_spec = idl_unalias(idl_type_spec(node), 0u);
   if (idl_is_forward(type_spec))
     type_spec = ((const idl_forward_t *)type_spec)->definition;
