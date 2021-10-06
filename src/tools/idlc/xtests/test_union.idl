@@ -1,0 +1,72 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+union test_union;
+
+@nested
+union union_nested1 switch (short) {
+  case 1:
+    long a1;
+  case 2:
+    @external test_union c1;
+};
+
+@nested
+struct struct_nested1 {
+  @external union_nested1 a2;
+};
+
+@topic @appendable
+union test_union switch (short) {
+case 1:
+   union_nested1 a;
+default:
+   struct_nested1 b;
+};
+
+#else
+
+#include "dds/dds.h"
+#include "test_union.h"
+
+const dds_topic_descriptor_t *desc = &test_union_desc;
+void init_sample (void *s);
+int cmp_sample (const void *sa, const void *sb);
+
+void init_sample (void *s)
+{
+  test_union *s1 = (test_union *) s;
+  s1->_d = 2;
+  s1->_u.b.a2 = dds_alloc (sizeof (*s1->_u.b.a2));
+  s1->_u.b.a2->_d = 2;
+  s1->_u.b.a2->_u.c1 = dds_alloc (sizeof (*s1->_u.b.a2->_u.c1));
+  s1->_u.b.a2->_u.c1->_d = 1;
+  s1->_u.b.a2->_u.c1->_u.a._d = 1;
+  s1->_u.b.a2->_u.c1->_u.a._u.a1 = 123;
+}
+
+#define CMP(a,b,f,n) if ((a->f) != n) return -2; if ((a->f) != (b->f)) return (a->f) > (b->f) ? 1 : -1;
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_union *a = (test_union *) sa;
+  test_union *b = (test_union *) sb;
+  CMP(a, b, _d, 2)
+  CMP(a, b, _u.b.a2->_d, 2)
+  CMP(a, b, _u.b.a2->_u.c1->_u.a._d, 1)
+  CMP(a, b, _u.b.a2->_u.c1->_u.a._u.a1, 123)
+  return 0;
+}
+#undef CMP
+
+#endif

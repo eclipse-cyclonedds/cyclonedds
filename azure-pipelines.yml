@@ -78,18 +78,22 @@ strategy:
       arch: x86
       image: windows-2019
       conanfile: conanfile102.txt
+      idlc_testing: off
       generator: 'Visual Studio 16 2019'
       toolset: v141
     'Windows 2019 with Visual Studio 2019 (Debug, x86_64)':
       image: windows-2019
+      idlc_testing: off
       generator: 'Visual Studio 16 2019'
     'Windows 2019 with Visual Studio 2019 (Release, x86_64)':
       image: windows-2019
       build_type: Release
+      idlc_testing: off
       generator: 'Visual Studio 16 2019'
     'Windows 2019 with GCC 10 (Debug, x86_64)':
       image: windows-2019
       build_type: Debug
+      idlc_testing: off
       generator: 'MinGW Makefiles'
       cc: 'C:/msys64/mingw64/bin/gcc.exe'
       cxx: 'C:/msys64/mingw64/bin/g++.exe'

@@ -1,0 +1,159 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+union union3;
+typedef sequence<union3> union3seq;
+
+@nested @appendable
+struct type1 {
+  long a1;
+};
+typedef sequence<type1> type1seq;
+
+@nested @mutable
+struct type2 {
+  sequence<type1seq> b1;
+  type1seq b2[3];
+  float b3;
+  union3seq b4;
+};
+
+typedef string<128> string123;
+typedef sequence<string123> string123seq;
+typedef string123seq string123seq2;
+typedef sequence<string123seq2> string123seq2seq;
+
+@nested @appendable
+union union3 switch (short) {
+  case 1:
+    type1seq u1;
+  case 2:
+    string123seq u2;
+  case 5:
+    string123seq2seq u5[2];
+  default:
+    string123 ud;
+};
+
+@topic @mutable
+struct test_alias {
+  type1seq f1;
+  string123 f2[3];
+  string123seq2seq f3;
+  @external type2 f4;
+};
+
+#else
+
+#include <string.h>
+#include "dds/dds.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
+#include "test_alias.h"
+
+#define STR16 "abcdef0123456789"
+#define STR128 STR16 STR16 STR16 STR16 STR16 STR16 STR16 STR16
+
+const dds_topic_descriptor_t *desc = &test_alias_desc;
+void init_sample (void *s);
+int cmp_sample (const void *sa, const void *sb);
+
+#define SEQA(s,l) \
+{ \
+  s._length = s._maximum = l; \
+  s._release = true; \
+  s._buffer = dds_alloc (l * sizeof (*s._buffer)); \
+}
+
+void init_sample (void *s)
+{
+  test_alias *s1 = (test_alias *) s;
+  // s1->f1
+  SEQA(s1->f1, 2)
+  s1->f1._buffer[0].a1 = 1;
+  s1->f1._buffer[1].a1 = 2;
+  // s1->f2
+  for (int n = 0; n < 3; n++)
+    strcpy (s1->f2[n], STR128);
+  // s1->f3
+  SEQA(s1->f3, 1)
+  SEQA(s1->f3._buffer[0], 5)
+  for (int n = 0; n < 5; n++)
+    strcpy(s1->f3._buffer[0]._buffer[n], STR128);
+  // s1->f4
+  s1->f4 = dds_alloc (sizeof (*s1->f4));
+  // s1->f4->b1
+  SEQA(s1->f4->b1, 2)
+  SEQA(s1->f4->b1._buffer[0], 1)
+  s1->f4->b1._buffer[0]._buffer[0].a1 = 0x1f1f1f1f;
+  SEQA(s1->f4->b1._buffer[1], 2)
+  s1->f4->b1._buffer[1]._buffer[0].a1 = 0x2f2f2f2f;
+  s1->f4->b1._buffer[1]._buffer[1].a1 = 0x3f3f3f3f;
+  // s1->f4->b2
+  SEQA(s1->f4->b2[0], 1)
+  SEQA(s1->f4->b2[1], 2)
+  SEQA(s1->f4->b2[2], 1)
+  s1->f4->b2[0]._buffer[0].a1 = 5;
+  s1->f4->b2[1]._buffer[0].a1 = 6;
+  s1->f4->b2[1]._buffer[1].a1 = 7;
+  s1->f4->b2[2]._buffer[0].a1 = 8;
+  // s1->f4->b3
+  s1->f4->b3 = 1.01;
+  // s1->f4->b4
+  SEQA(s1->f4->b4, 2)
+  s1->f4->b4._buffer[0]._d = 10;
+  strcpy(s1->f4->b4._buffer[0]._u.ud, STR128);
+  s1->f4->b4._buffer[1]._d = 2;
+  SEQA(s1->f4->b4._buffer[1]._u.u2, 5)
+  for (int n = 0; n < 5; n++)
+    strcpy(s1->f4->b4._buffer[1]._u.u2._buffer[n], STR128);
+}
+
+#define CMP(a,b,f,n) { if ((a->f) != n) return -2; if ((a->f) != (b->f)) return (a->f) > (b->f) ? 1 : -1; }
+#define CMPSTR(a,b,f,s) { if (strcmp(a->f, s)) return -2; if (strcmp((a->f), (b->f))) return strcmp((a->f), (b->f)); }
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_alias *a = (test_alias *) sa;
+  test_alias *b = (test_alias *) sb;
+
+  // s1->f1
+  CMP(a, b, f1._buffer[0].a1, 1);
+  CMP(a, b, f1._buffer[1].a1, 2);
+  // s1->f2
+  for (int n = 0; n < 3; n++)
+    CMPSTR(a, b, f2[n], STR128);
+  // s1->f3
+  for (int n = 0; n < 5; n++)
+    CMPSTR(a, b, f3._buffer[0]._buffer[n], STR128);
+  // s1->f4.b1
+  CMP(a, b, f4->b1._buffer[0]._buffer[0].a1, 0x1f1f1f1f);
+  CMP(a, b, f4->b1._buffer[1]._buffer[0].a1, 0x2f2f2f2f);
+  CMP(a, b, f4->b1._buffer[1]._buffer[1].a1, 0x3f3f3f3f);
+  // s1->f4.b2
+  CMP(a, b, f4->b2[0]._buffer[0].a1, 5);
+  CMP(a, b, f4->b2[1]._buffer[0].a1, 6);
+  CMP(a, b, f4->b2[1]._buffer[1].a1, 7);
+  CMP(a, b, f4->b2[2]._buffer[0].a1, 8);
+  // s1->f4.b3
+  CMP(a, b, f4->b3, 1.01f);
+  // s1->f4.b4
+  CMP(a, b, f4->b4._buffer[0]._d, 10);
+  CMPSTR(a, b, f4->b4._buffer[0]._u.ud, STR128);
+  CMP(a, b, f4->b4._buffer[1]._d, 2);
+  for (int n = 0; n < 5; n++)
+    CMPSTR(a, b, f4->b4._buffer[1]._u.u2._buffer[n], STR128);
+  return 0;
+}
+
+#endif

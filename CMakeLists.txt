@@ -243,6 +243,11 @@ set(MEMORYCHECK_COMMAND_OPTIONS "--track-origins=yes --leak-check=full --trace-c
 # build the product itself, switch to off by default.
 option(BUILD_TESTING "Build the testing tree." OFF)
 
+# Include the tests for idlc. These tests use the idl compiler (C back-end) to
+# compile an idl file at (test) runtime, and use the C compiler to build a test
+# application for the generated types, that is executed to do the actual testing.
+option(BUILD_IDLC_TESTING "Build the idl compiler tests" OFF)
+
 # Disable building examples by default because it is not strictly required.
 option(BUILD_EXAMPLES "Build examples." OFF)
 
