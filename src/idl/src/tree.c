@@ -996,194 +996,175 @@ static int compare_declarator(const void *lhs, const void *rhs)
     return 0;
 }
 
-idl_retcode_t
-idl_propagate_autoid(
-  idl_pstate_t *pstate,
-  idl_node_t *list,
-  idl_autoid_t toset)
+static void
+assign_id(
+  idl_declarator_t *declarator,
+  const idl_declarator_t *last,
+  idl_autoid_t autoid)
 {
-  assert(list);
+  assert(declarator);
 
-  idl_node_t *node = NULL;
+  /* id assigned through @id or @hashid annotation */
+  if (declarator->id.annotation)
+    return;
+
+  assert(declarator->name);
+  assert(declarator->name->identifier);
+
+  if (autoid == IDL_HASH)
+    declarator->id.value = idl_hashid(declarator->name->identifier);
+  else if (last) /* identifiers silently overflow */
+    declarator->id.value = (last->id.value + 1) & 0x0FFFFFFFu;
+  else
+    declarator->id.value = 0u;
+}
+
+static idl_declarator_t *
+next_member(const void *node, const idl_declarator_t *declarator)
+{
+  const idl_struct_t *derived = node;
+
+  assert(idl_type(node) == IDL_STRUCT);
+  if (!declarator) {
+    /* iteration is depth first, see if struct is derived */
+    while (derived && derived->inherit_spec)
+      derived = derived->inherit_spec->base;
+  } else if (declarator->node.next) {
+    return (idl_declarator_t *)declarator->node.next;
+  } else {
+    const idl_struct_t *base;
+    const idl_member_t *member = (const idl_member_t *)declarator->node.parent;
+    assert(member);
+    if (member->node.next)
+      return (idl_declarator_t *)((const idl_member_t *)member->node.next)->declarators;
+    base = (const idl_struct_t *)member->node.parent;
+    if (base == node)
+      return NULL;
+    while (derived->inherit_spec && derived->inherit_spec->base != base)
+      derived = derived->inherit_spec->base;
+  }
+
+  assert(derived);
+  /* (intermediate) structs without members are supported in IDL4 */
+  while (!derived->members && derived != node) {
+    const idl_struct_t *base = derived;
+    derived = node;
+    while (derived->inherit_spec && derived->inherit_spec->base != base)
+      derived = derived->inherit_spec->base;
+  }
+  assert(derived);
+  if (!derived->members)
+    return NULL;
+
+  return (idl_declarator_t *)derived->members->declarators;
+}
+
+/* FIXME: does not take into account single inheritance for union types as
+          introduced by the DDS-XTypes specification section  7.2.2.4.5 */
+static idl_declarator_t *
+next_case(const void *node, const idl_declarator_t *declarator)
+{
+  const idl_case_t *branch;
+
+  assert(idl_type(node) == IDL_UNION);
+  if (!declarator)
+    return ((const idl_union_t *)node)->cases->declarator;
+  assert(!declarator->node.next);
+  branch = (const idl_case_t *)declarator->node.parent;
+  assert(branch);
+  branch = (const idl_case_t *)branch->node.next;
+  if (!branch)
+    return NULL;
+
+  return (idl_declarator_t *)branch->declarator;
+}
+
+static idl_retcode_t
+assign_field_ids(idl_pstate_t *pstate, void *node)
+{
   idl_retcode_t ret = IDL_RETCODE_OK;
-  IDL_FOREACH(node, list) {
-    if (idl_is_module(node)) {
-      idl_module_t *mod = (idl_module_t*)node;
-      if (!mod->autoid.annotation)
-        mod->autoid.value = toset;
-      ret = idl_propagate_autoid(pstate, mod->definitions, mod->autoid.value);
-    } else if (idl_is_struct(node)) {
-      idl_struct_t *str = (idl_struct_t*)node;
-      if (!str->autoid.annotation)
-        str->autoid.value = toset;
-      ret = idl_propagate_autoid_constr_type(pstate, (idl_node_t*)str);
-    } else if (idl_is_union(node)) {
-      idl_union_t *u = (idl_union_t*)node;
-      if (!u->autoid.annotation)
-        u->autoid.value = toset;
-      ret = idl_propagate_autoid_constr_type(pstate, (idl_node_t*)u);
-    }
-    if (ret)
+  idl_autoid_t autoid = IDL_SEQUENTIAL;
+  idl_declarator_t *declarator = NULL, *last = NULL;
+  idl_declarator_t **sorted = NULL; /* not "const" to silence MSVC */
+  idl_declarator_t *(*iterate)(const void *, const idl_declarator_t *);
+  size_t length = 0;
+
+  switch (idl_type(node)) {
+    case IDL_UNION:
+      autoid = ((const idl_union_t *)node)->autoid.value;
+      iterate = &next_case;
+      break;
+    default:
+      assert(idl_type(node) == IDL_STRUCT);
+      /* structs without members are supported in IDL4 */
+      if (!((const idl_struct_t *)node)->members)
+        return IDL_RETCODE_OK;
+      autoid = ((const idl_struct_t *)node)->autoid.value;
+      iterate = &next_member;
       break;
   }
 
-  return ret;
-}
-
-static void
-process_declarator_id(
-  idl_declarator_t *decl,
-  idl_declarator_t *last,
-  idl_autoid_t autoid)
-{
-  assert(decl);
-
-  if (decl->id.annotation) {
-    /*this declarator already has an ID annotation*/
-    return;
-  } else if (autoid == IDL_HASH) {
-    assert(decl->name->identifier);
-    decl->id.value = idl_hashid(decl->name->identifier);
-  } else if (last) {
-    /*after conferring with @e-hndrks it was decided that overflow would not be flagged as an error*/
-    decl->id.value = (last->id.value + 1) & 0x0FFFFFFFu;
-  } else {
-    decl->id.value = 0;
-  }
-}
-
-static idl_declarator_t*
-next_decl_struct(idl_declarator_t *decl, idl_declarator_t **last, idl_node_t *current) {
-  assert(decl);
-  assert(last);
-  assert(current);
-
-  idl_declarator_t *next_decl = idl_next(decl);
-  if (next_decl)
-    return next_decl;
-
-  idl_member_t *mem = idl_parent(decl);
-  assert(idl_is_member(mem));
-  idl_member_t *next_mem = idl_next(mem);
-
-  if (next_mem)
-    return next_mem->declarators;
-
-  idl_struct_t *str = idl_parent(mem);
-  assert(str);
-
-  /*store the last declarator of the parent of current*/
-  if ((idl_struct_t*)current != str && *last == NULL)
-    *last = decl;
-
-  if (str->inherit_spec) {
-    assert(idl_is_struct(str->inherit_spec->base));
-    idl_struct_t *base = str->inherit_spec->base;
-    assert(base->members);
-
-    return base->members->declarators;
+  /* assign field identifiers */
+  while ((declarator = iterate(node, declarator))) {
+    assert(declarator->node.parent);
+    if (((const idl_node_t *)declarator->node.parent)->parent == node)
+      assign_id(declarator, last, autoid);
+    last = declarator;
+    length++;
   }
 
-  return NULL;
-}
+  /* theoretically there are no fields to assign identifiers to */
+  if (!length)
+    return IDL_RETCODE_OK;
 
-static idl_declarator_t*
-next_decl_union(idl_declarator_t *decl, idl_declarator_t **last, idl_node_t *current) {
-  (void) last;
-  (void) current;
-  assert(decl);
-  idl_case_t *_case = idl_parent(decl);
-  assert(idl_is_case(_case));
-  _case = idl_next(_case);
-  if (_case)
-    return _case->declarator;
-  else
-    return NULL;
-}
+  /* check for duplicate field identifiers */
+  if (!(sorted = malloc(length * sizeof(*sorted))))
+    return IDL_RETCODE_NO_MEMORY;
 
-typedef idl_declarator_t* (*itfunc_ptr)(idl_declarator_t*,idl_declarator_t**,idl_node_t*);
+  assert(!declarator);
+  for (size_t count=0; (declarator = iterate(node, declarator)); count++)
+    sorted[count] = declarator;
+  qsort(sorted, length, sizeof(*sorted), &compare_declarator);
 
-idl_retcode_t
-idl_propagate_autoid_constr_type(
-  idl_pstate_t *pstate,
-  idl_node_t *constr_type)
-{
-  idl_retcode_t ret = IDL_RETCODE_OK;
-  size_t n_ids;
-  idl_declarator_t *decl = NULL, *first = NULL, *last = NULL;
-  idl_autoid_t aid = IDL_SEQUENTIAL;
-  /*function which iterates over declarators, returns the next declarator describing an entity
-    which needs a unique member id assigned, or NULL if it is done iterating
-    - the first parameter is the current declarator
-    - the second parameter will point to the last declarator of any parent after a full run over the
-      entire inheritance tree
-    - the third parameter is the pointer of the current struct, it is used to determine whether to
-      store anything in the second parameter*/
-  itfunc_ptr iterate_func = NULL;
-
-  /*initialize decl, aid and iterate_func*/
-  if (idl_is_struct(constr_type)) {
-    idl_struct_t *str = (idl_struct_t*)constr_type;
-    iterate_func = &next_decl_struct;
-    aid = str->autoid.value;
-    if (str->members)
-      first = str->members->declarators;
-  } else if (idl_is_union(constr_type)) {
-    idl_union_t *u = (idl_union_t*)constr_type;
-    iterate_func = &next_decl_union;
-    aid = u->autoid.value;
-    if (u->cases)
-      first = u->cases->declarator;
-  } else {
-    assert(idl_is_constr_type(constr_type));
-    return ret;
-  }
-
-  assert(constr_type);
-  /*counting number of declarators*/
-  decl = first;
-  if (decl)
-    n_ids = 1;
-  else
-    return ret;
-
-  while ((decl = iterate_func(decl, &last, constr_type)))
-    n_ids++;
-
-  idl_declarator_t **id_array = malloc(sizeof(idl_declarator_t *)*n_ids);
-  if (!id_array) {
-    ret = IDL_RETCODE_NO_MEMORY;
-    goto finish;
-  }
-
-  n_ids = 0;
-  decl = first;
-  /*populate the array of declarators with member ids*/
-  while (decl) {
-    idl_node_t *constr_type_of_decl = idl_parent(idl_parent(decl));
-    /*only modify declarators in the constructed type being examined*/
-    if (constr_type_of_decl == constr_type)
-      process_declarator_id(decl, last, aid);
-
-    last = decl;
-    id_array[n_ids++] = decl;
-    decl = iterate_func(decl, &last, constr_type);
-  }
-
-  qsort(id_array, n_ids, sizeof(*id_array), &compare_declarator);
-
-  /*check for duplicate entries*/
-  for (size_t i = 1; i < n_ids; i++) {
-    if (id_array[i-1]->id.value == id_array[i]->id.value) {
-      idl_error(pstate, idl_location(id_array[i]),
-        "Declarator member id '0x%.07x' is already assigned", id_array[i]->id.value);
+  for (size_t count=1; count < length; count++) {
+    if (sorted[count-1]->id.value == sorted[count]->id.value) {
+      idl_error(pstate, idl_location(sorted[count]),
+        "Field id '0x%.07x' is already assigned", sorted[count]->id.value);
       ret = IDL_RETCODE_SEMANTIC_ERROR;
+      break;
     }
   }
 
-  finish:
-  if (id_array)
-    free((void*)id_array);
+  free(sorted);
+  return ret;
+}
+
+idl_retcode_t
+idl_propagate_autoid(idl_pstate_t *pstate, void *list, idl_autoid_t autoid)
+{
+  idl_retcode_t ret = IDL_RETCODE_OK;
+
+  assert(pstate);
+  assert(list);
+
+  for (; ret == IDL_RETCODE_OK && list; list = idl_next(list)) {
+    if (idl_mask(list) == IDL_MODULE) {
+      idl_module_t *node = list;
+      if (!node->autoid.annotation)
+        node->autoid.value = autoid;
+      ret = idl_propagate_autoid(pstate, node->definitions, node->autoid.value);
+    } else if (idl_mask(list) == IDL_STRUCT) {
+      idl_struct_t *node = list;
+      if (!node->autoid.annotation)
+        node->autoid.value = autoid;
+      ret = assign_field_ids(pstate, node);
+    } else if (idl_mask(list) == IDL_UNION) {
+      idl_union_t *node = list;
+      if (!node->autoid.annotation)
+        node->autoid.value = autoid;
+      ret = assign_field_ids(pstate, node);
+    }
+  }
 
   return ret;
 }

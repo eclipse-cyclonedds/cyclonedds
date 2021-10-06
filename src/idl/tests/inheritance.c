@@ -60,7 +60,7 @@ CU_Test(idl_inheritance, empty_structs)
     uint32_t fields = 0, ids = tests[i].ids;
     idl_retcode_t ret;
     idl_pstate_t *pstate = NULL;
-    ret = idl_create_pstate(IDL_FLAG_ANNOTATIONS, NULL, &pstate);
+    ret = idl_create_pstate(0, NULL, &pstate);
     CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
     CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
     assert(pstate);
