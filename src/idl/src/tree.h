@@ -62,13 +62,8 @@ idl_create_unary_expr(
 idl_retcode_t
 idl_propagate_autoid(
   idl_pstate_t *pstate,
-  idl_node_t *list,
-  idl_autoid_t toset);
-
-idl_retcode_t
-idl_propagate_autoid_constr_type(
-  idl_pstate_t *pstate,
-  idl_node_t *str);
+  void *list,
+  idl_autoid_t autoid);
 
 idl_retcode_t
 idl_finalize_module(
