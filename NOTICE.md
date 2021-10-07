@@ -35,10 +35,6 @@ libmd5-rfc (2002-04-13)
 
 * License: Zlib
 
-grammers-v4 (git SHA 6610e82ee235992f50e108cd59204f3bcd7128c1)
-
-* License: New BSD License
-
 getopt 1.5 (1998-03-11)
 
 * License: Public domain
