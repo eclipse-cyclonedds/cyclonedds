@@ -354,9 +354,12 @@ static idl_retcode_t idlc_parse(void)
       if (config.keylist) {
         pstate->flags |= IDL_FLAG_KEYLIST;
       } else if (pstate->keylists && pstate->annotations) {
-        idl_warning(pstate, NULL,
-          "Translation unit contained both annotations and #pragma keylist "
-          "directives, annotations selected by default");
+        idl_error(pstate, NULL,
+          "Translation unit contains both annotations and #pragma keylist "
+          "directives, use only one of these or use the -f keylist command "
+          "line option to force using only #pragma keylist and ignore "
+          "annotations");
+        ret = IDL_RETCODE_SYNTAX_ERROR;
       } else if (pstate->keylists) {
         pstate->flags |= IDL_FLAG_KEYLIST;
       }

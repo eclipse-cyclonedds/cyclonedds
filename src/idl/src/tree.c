@@ -1376,7 +1376,7 @@ idl_create_forward(
       && existing_decl->kind == IDL_FORWARD_DECLARATION
       && existing_decl->node->mask == (IDL_FORWARD | mask)
   ) {
-    nodep = NULL;
+    *((idl_forward_t **)nodep) = NULL;
     idl_delete_name(name);
     return IDL_RETCODE_OK;
   }
@@ -3404,11 +3404,16 @@ bool idl_is_keyless(const void *node, bool keylist)
   return true;
 }
 
-static bool is_key_by_path(const void *node, const idl_path_t *path, uint32_t *order)
+bool idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, uint32_t *order)
 {
   bool all_keys = false;
   uint32_t key = 0;
   uint32_t id = 0;
+
+  if (!idl_is_topic(node, keylist))
+    return false;
+  if (!path->length || node != path->nodes[0])
+    return false;
 
   /* constructed types, sequences, aliases and declarators carry the key */
   static const idl_mask_t mask =
@@ -3419,49 +3424,52 @@ static bool is_key_by_path(const void *node, const idl_path_t *path, uint32_t *o
   for (size_t i = 1; (key || i == 1) && i < path->length; i++) {
     assert(path->nodes[i]);
 
-    if (idl_is_declarator(path->nodes[i])) {
-      const idl_declarator_t *declarator = (const idl_declarator_t *)path->nodes[i];
+    /* struct members can be explicitly annotated */
+    if (idl_is_member(path->nodes[i])) {
+      const idl_member_t *member = (const idl_member_t *)path->nodes[i];
+      /* path cannot be valid if not preceeded by struct */
+      if (i > 1 && !idl_is_struct(path->nodes[i - 1]))
+        return false;
 
-      /* declarators for struct members can be explicitly annotated */
-      if (idl_is_member(path->nodes[i - 1])) {
-        const idl_member_t *member = (const idl_member_t *)path->nodes[i - 1];
-        /* path cannot be valid if not preceeded by struct */
-        if (i > 1 && !idl_is_struct(path->nodes[i - 2]))
-          return 0;
+      if (member->key.value)
+        key = 1;
+      /* possibly implicit @key, but only if no other members are explicitly
+        annotated, an intermediate aggregate type has no explicitly annotated
+        fields and node is not on the first level */
+      else if (all_keys || no_specific_key(idl_parent(member)))
+        key = all_keys = (i > 1);
+      else
+        key = 0;
 
-        if (member->key.value)
-          key = 1;
-        /* possibly implicit @key, but only if no other members are explicitly
-          annotated, an intermediate aggregate type has no explicitly annotated
-          fields and node is not on the first level */
-        else if (all_keys || no_specific_key(idl_parent(member)))
-          key = all_keys = (i > 2);
-        else
-          key = 0;
-
-        if (key)
-          id = declarator->id.value;
-
-      /* union cases cannot be explicitly annotated */
-      } else if (idl_is_case(path->nodes[i - 1])) {
-        const idl_case_t *_case = (const idl_case_t *)path->nodes[i - 1];
-        /* path cannot be valid if not preceeded by union */
-        if (i > 0 && !idl_is_union(path->nodes[i - 2]))
-          return 0;
-
-        /* union cases cannot be annotated, but can be part of the key if an
-          intermediate aggregate type has no explicitly annotated fields or if
-          the switch type specifier is not annotated */
-        if (all_keys || no_specific_key(idl_parent(_case)))
-          key = all_keys = (i > 2);
+      /* if key member found, get the id from the declarator node which
+         should be next in the path (can be overwritten by the id of a key
+         field further down in the path in a next iteration) */
+      if (key) {
+        if (!idl_is_declarator(path->nodes[i + 1]))
+          return false;
+        const idl_declarator_t *declarator = (const idl_declarator_t *)path->nodes[i + 1];
+        id = declarator->id.value;
       }
+
+    /* union cases cannot be explicitly annotated */
+    } else if (idl_is_case(path->nodes[i])) {
+      const idl_case_t *_case = (const idl_case_t *)path->nodes[i];
+      /* path cannot be valid if not preceeded by union */
+      if (i > 0 && !idl_is_union(path->nodes[i - 1]))
+        return false;
+
+      /* union cases cannot be annotated, but can be part of the key if an
+        intermediate aggregate type has no explicitly annotated fields or if
+        the switch type specifier is not annotated */
+      if (all_keys || no_specific_key(idl_parent(_case)))
+        key = all_keys = (i > 1);
 
     /* switch type specifiers can be explicitly annotated */
     } else if (idl_is_switch_type_spec(path->nodes[i])) {
-      const idl_switch_type_spec_t *switch_type_spec = (const idl_switch_type_spec_t *)path->nodes[i - 1];
+      const idl_switch_type_spec_t *switch_type_spec = (const idl_switch_type_spec_t *)path->nodes[i];
       /* path cannot be valid if not preceeded by union */
       if (i != 0 && !idl_is_union(path->nodes[i - 1]))
-        return 0;
+        return false;
 
       /* possibly (implicit) @key, but only if last in path and not first */
       if (switch_type_spec->key.value)
@@ -3479,54 +3487,6 @@ static bool is_key_by_path(const void *node, const idl_path_t *path, uint32_t *o
   }
   *order = 0;
   return false;
-}
-
-static bool is_key_by_keylist(const void *node, const idl_path_t *path, uint32_t *order)
-{
-  const idl_key_t *key = ((const idl_struct_t *)node)->keylist->keys;
-  uint32_t index = 0;
-
-  for (; key; key = idl_next(key), index++) {
-    int cmp = 0;
-    size_t cnt = 0, i;
-    for (i = 0; cmp == 0 && i < path->length; i++) {
-      if (idl_is_declarator(path->nodes[i])) {
-        if (key->field_name->length == cnt) {
-          cmp = 1;
-        } else {
-          const char *s1, *s2;
-          s1 = key->field_name->names[cnt++]->identifier;
-          s2 = idl_identifier(path->nodes[i]);
-          cmp = idl_strcasecmp(s1, s2);
-        }
-      }
-    }
-    /* In case the path until current node matches with the first part of the
-       keylist entry, it is marked as key */
-    if (cmp == 0 && i == path->length) {
-      if (path->length > 1 && idl_is_member(path->nodes[i - 2])) {
-        const idl_declarator_t *decl = (const idl_declarator_t *)path->nodes[i - 1];
-        assert (decl);
-        *order = decl->id.value;
-      } else {
-        // FIXME: key in union
-        *order = 0;
-      }
-      return true;
-    }
-  }
-  *order = 0;
-  return false;
-}
-
-bool idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, uint32_t *order)
-{
-  if (!idl_is_topic(node, keylist))
-    return false;
-  if (!path->length || node != path->nodes[0])
-    return false;
-
-  return (keylist) ? is_key_by_keylist(node, path, order) : is_key_by_path(node, path, order);
 }
 
 bool idl_is_extensible(const idl_node_t *node, idl_extensibility_t extensibility)

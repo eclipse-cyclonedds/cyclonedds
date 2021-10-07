@@ -293,149 +293,6 @@ static void delete_keylist(void *ptr)
   free(dir);
 }
 
-struct key_field {
-  const idl_declarator_t *key_declarator;
-  char **parent_paths;
-  size_t n_parent_paths;
-};
-
-struct key_container {
-  const idl_node_t *node;
-  struct key_field *key_fields;
-  size_t n_key_fields;
-};
-
-static int cmp_parent_path(const void *a, const void *b)
-{
-  return strcmp(*(char **)a, *(char **)b);
-}
-
-static bool parent_path_sorted_list_equal(char **a, char **b, size_t len)
-{
-  for (size_t n = 0; n < len; n++)
-    if (strcmp(a[n], b[n]))
-      return false;
-  return true;
-}
-
-static bool has_conflicting_keys(const struct key_container *key_containers, size_t n_key_containers, const idl_node_t **node)
-{
-  assert(node);
-  for (size_t c = 0; c < n_key_containers; c++) {
-    const struct key_container *cntr = &key_containers[c];
-
-    /* For all keys in a key_container (struct), check if the set of parent
-        nodes is equal */
-    for (size_t k = 0; k < cntr->n_key_fields; k++) {
-      const struct key_field *fld = &cntr->key_fields[k];
-      qsort(fld->parent_paths, fld->n_parent_paths,
-        sizeof(*fld->parent_paths), cmp_parent_path);
-    }
-    for (size_t k = 0; k < cntr->n_key_fields; k++) {
-      const struct key_field *fld = &cntr->key_fields[k];
-      for (size_t k1 = 0; k1 < cntr->n_key_fields; k1++) {
-        const struct key_field *fld1 = &cntr->key_fields[k1];
-        if (fld->n_parent_paths != fld1->n_parent_paths
-          || !parent_path_sorted_list_equal(fld->parent_paths, fld1->parent_paths, fld->n_parent_paths)
-        ) {
-          *node = cntr->node;
-          return true;
-        }
-      }
-    }
-  }
-  return false;
-}
-
-static struct key_container *get_key_container(const idl_node_t *key_type_node, struct key_container **key_containers, size_t *n_key_containers)
-{
-  struct key_container *key_container = NULL;
-  for (size_t n=0; !key_container && n < *n_key_containers; n++) {
-    if ((*key_containers)[n].node == key_type_node)
-      key_container = &(*key_containers)[n];
-  }
-  if (!key_container) {
-    (*n_key_containers)++;
-    struct key_container *tmp = realloc(*key_containers, *n_key_containers * sizeof(**key_containers));
-    if (tmp == NULL) {
-      free (*key_containers);
-      return NULL;
-    }
-    *key_containers = tmp;
-    (*key_containers)[*n_key_containers - 1].node = key_type_node;
-    (*key_containers)[*n_key_containers - 1].key_fields = NULL;
-    (*key_containers)[*n_key_containers - 1].n_key_fields = 0;
-    key_container = &(*key_containers)[*n_key_containers - 1];
-  }
-  return key_container;
-}
-
-static struct key_field *get_key_field(const idl_declarator_t *declarator, struct key_container *key_container)
-{
-  struct key_field *key_field = NULL;
-  for (size_t n=0; !key_field && n < key_container->n_key_fields; n++) {
-    if (key_container->key_fields[n].key_declarator == declarator)
-      key_field = &key_container->key_fields[n];
-  }
-  if (!key_field) {
-    key_container->n_key_fields++;
-    struct key_field *tmp = realloc(key_container->key_fields, key_container->n_key_fields * sizeof(*key_container->key_fields));
-    if (tmp == NULL) {
-      free (key_container->key_fields);
-      return NULL;
-    }
-    key_container->key_fields = tmp;
-    key_container->key_fields[key_container->n_key_fields - 1].key_declarator = declarator;
-    key_container->key_fields[key_container->n_key_fields - 1].parent_paths = NULL;
-    key_container->key_fields[key_container->n_key_fields - 1].n_parent_paths = 0;
-    key_field = &key_container->key_fields[key_container->n_key_fields - 1];
-  }
-  return key_field;
-}
-
-static idl_retcode_t add_parent_path(struct key_field *key_field, idl_field_name_t *key)
-{
-  key_field->n_parent_paths++;
-  char **tmp;
-  if (!(tmp = realloc(key_field->parent_paths, key_field->n_parent_paths * sizeof(*key_field->parent_paths))))
-  {
-    free (key_field->parent_paths);
-    return IDL_RETCODE_NO_MEMORY;
-  }
-  key_field->parent_paths = tmp;
-  size_t parent_path_len = strlen(key->identifier) - strlen(key->names[key->length - 1]->identifier) - 1;
-  if (!(key_field->parent_paths[key_field->n_parent_paths - 1] = malloc(parent_path_len + 1)))
-    return IDL_RETCODE_NO_MEMORY;
-  memcpy(key_field->parent_paths[key_field->n_parent_paths - 1], key->identifier, parent_path_len);
-  key_field->parent_paths[key_field->n_parent_paths - 1][parent_path_len] = '\0';
-  return IDL_RETCODE_OK;
-}
-
-static void key_containers_fini(struct key_container *key_containers, size_t n_key_containers)
-{
-  DDSRT_WARNING_MSVC_OFF (6001);
-  if (!key_containers)
-    return;
-  for (size_t c = 0; c < n_key_containers; c++) {
-    if (!key_containers[c].key_fields)
-      continue;
-    for (size_t f = 0; f < key_containers[c].n_key_fields; f++) {
-      if (!key_containers[c].key_fields[f].parent_paths)
-        continue;
-      for (size_t p = 0; p < key_containers[c].key_fields[f].n_parent_paths; p++) {
-        if (!key_containers[c].key_fields[f].parent_paths[p])
-          continue;
-        free(key_containers[c].key_fields[f].parent_paths[p]);
-        key_containers[c].key_fields[f].parent_paths[p] = NULL;
-      }
-      free(key_containers[c].key_fields[f].parent_paths);
-    }
-    free(key_containers[c].key_fields);
-  }
-  free(key_containers);
-  DDSRT_WARNING_MSVC_ON (6001);
-}
-
 static idl_retcode_t
 push_keylist(idl_pstate_t *pstate, struct keylist *dir)
 {
@@ -489,9 +346,6 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
   keylist->node.parent = (idl_node_t *)node;
   node->keylist = keylist;
 
-  struct key_container *key_containers = NULL;
-  size_t n_key_containers = 0;
-
   for (size_t i=0; dir->keys && dir->keys[i]; i++) {
     idl_key_t *key = NULL;
     idl_mask_t mask = IDL_BASE_TYPE | IDL_ENUM | IDL_STRING;
@@ -520,22 +374,6 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
       goto err_invalid_key;
     }
 
-    const idl_node_t *key_type_node = (const idl_node_t *)declarator;
-    while ((key_type_node = idl_parent(key_type_node))) {
-      if (idl_is_struct(key_type_node) || idl_is_union(key_type_node))
-        break;
-    }
-    if (dir->keys[i]->length > 1 && key_type_node) {
-      struct key_container *key_container;
-      struct key_field *key_field;
-      if (!(key_container = get_key_container(key_type_node, &key_containers, &n_key_containers)))
-        goto err_create_key;
-      if (!(key_field = get_key_field(declarator, key_container)))
-        goto err_create_key;
-      if ((ret = add_parent_path(key_field, dir->keys[i])) < 0)
-        goto err_create_key;
-    }
-
     if ((ret = idl_create_key(pstate, idl_location(dir->keys[i]), &key)))
       goto err_create_key;
     key->node.parent = (idl_node_t *)keylist;
@@ -543,25 +381,11 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
     keylist->keys = idl_push_node(keylist->keys, key);
     dir->keys[i] = NULL; /* do not free */
   }
-
-  /* Check for conflicting keys */
-  if (n_key_containers > 0) {
-    const idl_node_t *conflicting_type;
-    if (has_conflicting_keys(key_containers, n_key_containers, &conflicting_type))
-    {
-      idl_error(pstate, idl_location(dir->keys[0]),
-        "Conflicting keys in keylist directive for type '%s' for data-type '%s'", idl_identifier(conflicting_type), dir->data_type->identifier);
-      ret = IDL_RETCODE_SEMANTIC_ERROR;
-      goto err_conflicting_key;
-    }
-  }
   ret = IDL_RETCODE_OK;
 
-err_conflicting_key:
 err_find_decl:
 err_invalid_key:
 err_create_key:
-  key_containers_fini(key_containers, n_key_containers);
   delete_keylist(dir);
   pstate->directive = NULL;
   return ret;

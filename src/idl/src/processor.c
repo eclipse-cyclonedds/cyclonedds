@@ -24,6 +24,7 @@
 #include "scanner.h"
 #include "tree.h"
 #include "scope.h"
+#include "keylist.h"
 
 #include "parser.h"
 
@@ -382,6 +383,11 @@ grammar:
 
   if (ret == IDL_RETCODE_OK)
     ret = idl_propagate_autoid(pstate, pstate->root, IDL_SEQUENTIAL);
+
+  if (ret == IDL_RETCODE_OK && pstate->keylists) {
+    if ((ret = idl_validate_keylists(pstate)) == IDL_RETCODE_OK)
+      idl_set_keylist_key_flags(pstate, pstate->root);
+  }
 
   return ret;
 }

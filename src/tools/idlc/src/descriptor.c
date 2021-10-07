@@ -1212,16 +1212,16 @@ emit_declarator(
     int16_t addr_offs = (int16_t)ctype->instructions.count;
     bool has_size = false;
     idl_node_t *parent = idl_parent(node);
-    bool keylist = (pstate->flags & IDL_FLAG_KEYLIST);
+    bool keylist = (pstate->flags & IDL_FLAG_KEYLIST) != 0;
     opcode = DDS_OP_ADR | typecode(type_spec, TYPE, true);
     if (idl_is_topic_key(descriptor->topic, keylist, path, &order)) {
       opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
-    } else if (!keylist && idl_is_member(parent) && ((idl_member_t *)parent)->key.value) {
-      /* Mark this DDS_OP_ADR as key if @key annotation is present and true, even in case the
-         referring member is not part of the key (which resulted in idl_is_topic_key returning
-         false). The reason for adding the key flag here, is that if any other member
-         (that is a key) refers to this type, it will require the key flag. */
+    } else if (idl_is_member(parent) && ((idl_member_t *)parent)->key.value) {
+      /* Mark this DDS_OP_ADR as key if @key annotation is present, even in case the referring
+         member is not part of the key (which resulted in idl_is_topic_key returning false).
+         The reason for adding the key flag here, is that if any other member (that is a key)
+         refers to this type, it will require the key flag. */
       opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
     }
@@ -2059,7 +2059,7 @@ generate_descriptor_impl(
   }
   if ((ret = resolve_offsets(descriptor)) < 0)
     goto err;
-  if ((ret = add_key_offset_list(descriptor, (pstate->flags & IDL_FLAG_KEYLIST))) < 0)
+  if ((ret = add_key_offset_list(descriptor, (pstate->flags & IDL_FLAG_KEYLIST) != 0)) < 0)
     goto err;
 
 err:
