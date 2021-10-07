@@ -205,6 +205,22 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
   return (struct ddsi_sertype *) derived_sertype;
 }
 
+// TODO: implement
+static size_t sertype_default_get_serialized_size (
+    const struct ddsi_sertype *type, void *sample) {
+  (void) type;
+  (void) sample;
+
+  return 0;
+}
+
+// TODO: implement
+static void sertype_default_serialize_into (const struct ddsi_sertype *type, void *sample, void* dst_buffer) {
+  (void) type;
+  (void) sample;
+  (void) dst_buffer;
+}
+
 const struct ddsi_sertype_ops ddsi_sertype_ops_default = {
   .version = ddsi_sertype_v0,
   .arg = 0,
@@ -220,5 +236,7 @@ const struct ddsi_sertype_ops ddsi_sertype_ops_default = {
   .deserialize = sertype_default_deserialize,
   .assignable_from = sertype_default_assignable_from,
   .derive_sertype = sertype_default_derive_sertype
+  .get_serialized_size = sertype_default_get_serialized_size,
+  .serialize_into = sertype_default_serialize_into
 };
 

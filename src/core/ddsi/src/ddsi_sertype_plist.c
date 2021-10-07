@@ -110,5 +110,7 @@ const struct ddsi_sertype_ops ddsi_sertype_ops_plist = {
   .serialized_size = 0,
   .serialize = 0,
   .deserialize = 0,
-  .assignable_from = 0
+  .assignable_from = 0,
+  .get_serialized_size = 0,
+  .serialize_into = 0
 };
