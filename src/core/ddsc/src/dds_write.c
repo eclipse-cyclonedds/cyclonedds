@@ -99,7 +99,7 @@ static void *create_iox_chunk(dds_writer *wr)
     return sample;
 }
 
-static void *create_iox_chunk_for_size(dds_writer *wr, uint32_t serialized_sample_size)
+static void *create_iox_chunk_for_size(dds_writer *wr, size_t size)
 {   
     iceoryx_header_t *ice_hdr;
     void *iox_chunk;    
@@ -113,7 +113,7 @@ static void *create_iox_chunk_for_size(dds_writer *wr, uint32_t serialized_sampl
     while (true)  
     {
       enum iox_AllocationResult alloc_result = 
-        iox_pub_loan_aligned_chunk_with_user_header(wr->m_iox_pub, &iox_chunk, serialized_sample_size, IOX_C_CHUNK_DEFAULT_USER_PAYLOAD_ALIGNMENT, sizeof(iceoryx_header_t), 8);
+        iox_pub_loan_aligned_chunk_with_user_header(wr->m_iox_pub, &iox_chunk, (uint32_t) size, IOX_C_CHUNK_DEFAULT_USER_PAYLOAD_ALIGNMENT, sizeof(iceoryx_header_t), 8);
       
       if (AllocationResult_SUCCESS == alloc_result)
         break;
@@ -127,7 +127,7 @@ static void *create_iox_chunk_for_size(dds_writer *wr, uint32_t serialized_sampl
 
     iox_chunk_header_t * iox_chunk_header = iox_chunk_header_from_user_payload(iox_chunk);
     ice_hdr = iox_chunk_header_to_user_header(iox_chunk_header);
-    ice_hdr->data_size = serialized_sample_size;
+    ice_hdr->data_size = (uint32_t) size;
     ice_hdr->data_state = IOX_CHUNK_UNINITIALIZED;
     return iox_chunk;
 }
@@ -530,69 +530,24 @@ static bool evalute_topic_filter (const dds_writer *wr, const void *data, bool w
   return true;
 }
 
-
-// MAKI: add a function to sertype 
-
-// they need to be moved somewhere appropriate if we use them
-//MAKI: magical placeholder for determining the serialized size in advance
-// can be done like in dds_stream_write but instead of writing we count
-// the bytes we would write (also consider alignment)
-static uint32_t serialized_size_in_bytes(struct dds_topic *topic, const void *sample) {
-  (void)sample;
+static size_t get_required_buffer_size(struct dds_topic *topic, const void *sample) {
   bool has_fixed_size_type = topic->m_stype->fixed_size;
   if (has_fixed_size_type) {
     return topic->m_stype->iox_size;
   }
-  // TODO: actually compute the required size
-  return 2 * topic->m_stype->iox_size;
-}
-
-static dds_ostream_t ostream_from_iox_chunk(void *iox_chunk) {
-  iceoryx_header_t *iox_header = iceoryx_header_from_chunk(iox_chunk);
-  dds_ostream_t os;
-  os.m_buffer = iox_chunk;
-  // TODO: we need to add an offset = 128 for technical reasons?
-  os.m_size = iox_header->data_size;
-  os.m_index = 0;
-  return os;
-}
-
-// interface in sertype
-// serialize to buffer (not iceoryx chunk),
-// with additional function to handle out of memory case (nullptr by default)
-
-// MAKI: magical placeholder for serialization
-// assume destination is large enough
-// we would need a modification of dds_stream_write which does not realloc
-// maybe it suffices just to write a stream creation function from an iox_buffer
-// which will be large enough
-
-// we need the sertype in the interface (if we move it to sertype)
-static bool serialize_to_iox_chunk(const void *sample, void *iox_chunk,
-                         uint32_t chunk_size) {
   
-  (void) chunk_size;
-  // can it fail? -> yes out of memory (enums)
-  dds_ostream_t os = ostream_from_iox_chunk(iox_chunk);
-
-// TODO obtain sertype from ? -> by moving to sertype
-  const struct ddsi_sertype_default *sertype = NULL;
-  // TODO: would that realloc if the size is sufficient
-  dds_stream_write_sample(&os, sample, sertype);
-
-  return true;
+  return ddsi_sertype_get_serialized_size(topic->m_stype, (void*) sample);
 }
 
-// MAKI: incomplete function
 static void fill_iox_chunk(dds_writer *wr, const void *sample, void *iox_chunk,
-                           uint32_t sample_size) {
+                           size_t sample_size) {
   bool has_fixed_size_type = wr->m_topic->m_stype->fixed_size;
   iceoryx_header_t *iox_header = iceoryx_header_from_chunk(iox_chunk);
   if (has_fixed_size_type) {
     memcpy(iox_chunk, sample, sample_size);
     iox_header->data_state = IOX_CHUNK_CONTAINS_RAW_DATA;
   } else {
-    serialize_to_iox_chunk(sample, iox_chunk, iox_header->data_size);
+    ddsi_sertype_serialize_into(wr->m_topic->m_stype, sample, iox_chunk);
     iox_header->data_state = IOX_CHUNK_CONTAINS_SERIALIZED_DATA;
   }
 }
@@ -627,16 +582,11 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     //note: whether the data was loaned cannot be determined in the non-iceoryx case currently
     if(!deregister_pub_loan(wr, data))
     {
-      // MAKI: the magical function to determine the size we need
-      uint32_t serialized_size = serialized_size_in_bytes(wr->m_topic, data);
-      iox_chunk = create_iox_chunk_for_size(wr, serialized_size);     
+      size_t required_size = get_required_buffer_size(wr->m_topic, data);
+      iox_chunk = create_iox_chunk_for_size(wr, required_size);     
 
       if(iox_chunk) {
-        // MAKI: since it somewhat depends on the writer we need to fill the chunk here
-        //       or communicate through the iox header what needs to be done
-        //       we can also pass the writer through this
-        //       TO DISCUSS
-        fill_iox_chunk(wr, data, iox_chunk, serialized_size);
+        fill_iox_chunk(wr, data, iox_chunk, required_size);
         data = iox_chunk;
       } else {
         // we failed to obtain a chunk, iceoryx transport is thus not available

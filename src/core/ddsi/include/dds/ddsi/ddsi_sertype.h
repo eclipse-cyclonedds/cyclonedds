@@ -120,14 +120,16 @@ typedef void (*ddsi_sertype_serialized_size_t) (const struct ddsi_sertype *d, si
 // Interface extension to support dynamic types with shared memory
 // TO DISCUSS can we change the signature of existing functions? (if they are seemingly unused)
 typedef size_t (*ddsi_sertype_get_serialized_size_t)(
-    const struct ddsi_sertype *d, void *sample);
+    const struct ddsi_sertype *d, const void *sample);
 
 /* Compute the serialized size based on the sertype information and the sample */
 // Note that we assume the destination buffer is large enough (we do not check)
 // The required size can be obtained with ddsi_sertype_get_serialized_size_t
 // TO_DISCUSS do we want to provide the size of the buffer? (it is not needed if we just assume it is large enough
 // which we should unless we want to call get_serialized_size again to verify)
-typedef void (*ddsi_sertype_serialize_into_t) (const struct ddsi_sertype *d, void *sample, void* dst_buffer);
+typedef void (*ddsi_sertype_serialize_into_t)(const struct ddsi_sertype *d,
+                                              const void *sample,
+                                              void *dst_buffer);
 
 /* Serialize this type */
 typedef bool (*ddsi_sertype_serialize_t) (const struct ddsi_sertype *d, size_t *dst_offset, unsigned char *dst_buf);
@@ -259,13 +261,14 @@ DDS_INLINE_EXPORT inline struct ddsi_sertype * ddsi_sertype_derive_sertype (cons
 }
 
 DDS_INLINE_EXPORT inline size_t
-ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp, void *sample) {
+ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp,
+                                 const void *sample) {
   return tp->ops->get_serialized_size(tp, sample);
 }
 
 DDS_INLINE_EXPORT inline void
-ddsi_sertype_sertype_serialize_into(const struct ddsi_sertype *tp, void *sample,
-                                    void *dst_buffer) {
+ddsi_sertype_serialize_into(const struct ddsi_sertype *tp, const void *sample,
+                            void *dst_buffer) {
   return tp->ops->serialize_into(tp, sample, dst_buffer);
 }
 

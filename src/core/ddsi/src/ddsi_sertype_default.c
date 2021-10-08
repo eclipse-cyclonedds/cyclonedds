@@ -27,6 +27,11 @@
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_typelookup.h"
 
+#ifdef DDS_HAS_SHM
+#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/ddsi/q_xmsg.h"
+#endif
+
 static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertype *bcmn)
 {
   const struct ddsi_sertype_default *a = (struct ddsi_sertype_default *) acmn;
@@ -206,19 +211,43 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
 }
 
 // TODO: implement
-static size_t sertype_default_get_serialized_size (
-    const struct ddsi_sertype *type, void *sample) {
-  (void) type;
-  (void) sample;
-
-  return 0;
+// move to cdr_stream?
+static dds_ostream_t ostream_from_buffer(void *buffer, size_t size) {
+  dds_ostream_t os;
+  os.m_buffer = buffer;
+  // TODO: we need to add an offset = 128 for technical reasons?
+  os.m_size = (uint32_t) size;
+  os.m_index = 0;
+  return os;
 }
 
-// TODO: implement
-static void sertype_default_serialize_into (const struct ddsi_sertype *type, void *sample, void* dst_buffer) {
-  (void) type;
-  (void) sample;
-  (void) dst_buffer;
+// dummy implementation that should work or overshoot
+// TODO: implement efficiently (we now actually serialize to get the size)
+static size_t sertype_default_get_serialized_size (
+    const struct ddsi_sertype *type, const void *sample) {
+
+  dds_ostream_t os;
+  // the normal algorithm starts with serdata d.m_size + m_index;
+  // but we do not have the serdata (we could construct it)
+  dds_ostream_init(&os, 1024);
+
+  const struct ddsi_sertype_default *type_default = (const struct ddsi_sertype_default *)type;
+  dds_stream_write_sample(&os, sample, type_default);
+
+  // - some offset? it should be large enough
+  return os.m_size;
+}
+
+// TODO: introduce buffer size dependency
+static void sertype_default_serialize_into (const struct ddsi_sertype *type, const void *sample, void* dst_buffer) {
+  // (void) type;
+  // (void) sample;
+  // (void) dst_buffer;
+
+  //TODO: need the size as well in the API (for iceoryx it could be derived from the header...)
+  dds_ostream_t os = ostream_from_buffer(dst_buffer, 1024);
+  const struct ddsi_sertype_default *type_default = (const struct ddsi_sertype_default *)type;
+  dds_stream_write_sample(&os, sample, type_default);
 }
 
 const struct ddsi_sertype_ops ddsi_sertype_ops_default = {
