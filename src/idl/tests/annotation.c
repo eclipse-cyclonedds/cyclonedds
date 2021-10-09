@@ -529,6 +529,7 @@ CU_Test(idl_annotation, id)
 {
   static const id_test_t tests[] = {
     {"struct s { @id(1) char c; };",          IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true}, {1}},         // @id on member
+    {"struct s { @id(0xffffffff) char c; };", IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},    {0}},         // @id out of range
     {"@id(1) struct s { char c; };",          IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},    {0}},         // @id on struct
     {"struct s { @id char c; };",             IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},    {0}},         // @id without const-expr
     {"struct s { @id(1) @id(1) char c; };",   IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {true}, {1}},         // duplicate @id
