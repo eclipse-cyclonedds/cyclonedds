@@ -21,6 +21,7 @@
 #include "annotation.h"
 #include "expression.h"
 #include "hashid.h"
+#include "fieldid.h"
 #include "tree.h"
 
 static idl_retcode_t
@@ -60,7 +61,7 @@ annotate_id(
   }
 
   decl->id.annotation = annotation_appl;
-  decl->id.value = (literal->value.uint32 & 0x0FFFFFFFu);
+  decl->id.value = (literal->value.uint32 & IDL_FIELDID_MASK);
 
   return IDL_RETCODE_OK;
 }

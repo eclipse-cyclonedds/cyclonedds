@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "hashid.h"
+#include "fieldid.h"
 
 @MD5@ /* sources from md5.h and md5.c inserted here */
 
@@ -27,5 +28,5 @@ uint32_t idl_hashid(const char *name)
   ddsrt_md5_append(&md5st, (ddsrt_md5_byte_t*)name, (unsigned int)strlen(name));
   ddsrt_md5_finish(&md5st, digest);
   memcpy(&id, digest, sizeof(id));
-  return id & 0x0fffffffu;
+  return id & IDL_FIELDID_MASK;
 }

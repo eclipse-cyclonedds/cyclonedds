@@ -23,6 +23,7 @@
 #include "scope.h"
 #include "symbol.h"
 #include "hashid.h"
+#include "fieldid.h"
 
 void *idl_push_node(void *list, void *node)
 {
@@ -1014,7 +1015,7 @@ assign_id(
   if (autoid == IDL_HASH)
     declarator->id.value = idl_hashid(declarator->name->identifier);
   else if (last) /* identifiers silently overflow */
-    declarator->id.value = (last->id.value + 1) & 0x0FFFFFFFu;
+    declarator->id.value = (last->id.value + 1) & IDL_FIELDID_MASK;
   else
     declarator->id.value = 0u;
 }
