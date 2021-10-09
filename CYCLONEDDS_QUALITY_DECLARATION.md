@@ -1,4 +1,4 @@
-This document is a declaration of software quality for the [Eclipse Cyclone DDS](https://github.com/eclipse-cyclonedds/cyclonedds) (hereafter simply "Cyclone DDS") project, based on the guidelines in [REP-2004](https://www.ros.org/reps/rep-2004.html). This quality declaration is therefore specific to use in [ROS 2](https://index.ros.org/doc/ros2/)-based systems.
+This document is a declaration of software quality for the [Eclipse Cyclone DDS](https://github.com/eclipse-cyclonedds/cyclonedds) (hereafter simply "Cyclone DDS") project and [rmw_cyclonedds](https://github.com/ros2/rmw_cyclonedds), based on the guidelines in [REP-2004](https://www.ros.org/reps/rep-2004.html). This quality declaration is therefore specific to use in [ROS 2](https://index.ros.org/doc/ros2/)-based systems.
 
 # Cyclone DDS Quality Declaration
 
