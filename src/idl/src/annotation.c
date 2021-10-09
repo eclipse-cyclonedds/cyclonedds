@@ -54,6 +54,10 @@ annotate_id(
     idl_error(pstate, idl_location(annotation_appl),
       "@id cannot be applied to multiple declarators simultaneously");
     return IDL_RETCODE_SEMANTIC_ERROR;
+  } else if ((literal->value.uint32 & ~IDL_FIELDID_MASK) != 0) {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@id '0x%"PRIx32"' is out of valid range", literal->value.uint32);
+    return IDL_RETCODE_SEMANTIC_ERROR;
   } else if (decl->id.annotation) {
     idl_error(pstate, idl_location(annotation_appl),
       "@id conflicts with earlier annotation");
