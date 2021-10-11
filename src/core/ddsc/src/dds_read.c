@@ -139,6 +139,7 @@ fail:
   return ret;
 }
 
+// MAKI read_cdr
 static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_condition, struct ddsi_serdata **buf, uint32_t maxs, dds_sample_info_t *si, uint32_t mask, dds_instance_handle_t hand, bool lock)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();

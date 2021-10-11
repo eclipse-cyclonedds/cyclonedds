@@ -492,8 +492,6 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
   d->keyhash.m_set = 1;
   d->keyhash.m_iskey = 0;  //if set to 1, will cause issues @ serdata_default_to_untyped at the endianness swap
   d->keyhash.m_keysize = 16;
-  d->c.timestamp.v = ice_hdr->tstamp;
-  d->c.statusinfo = ice_hdr->statusinfo;
   fix_serdata_default(d, tpcmn->serdata_basehash);
 
   if(ice_hdr->data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {
@@ -675,20 +673,43 @@ static void serdata_default_to_ser_unref (struct ddsi_serdata *serdata_common, c
   ddsi_serdata_unref(serdata_common);
 }
 
+// MAKI: move to cdr_stream?
+static void dds_istream_from_buffer(dds_istream_t* is, const void* buffer, uint32_t buffer_size) {
+  is->m_buffer = buffer;
+  is->m_index = 0;
+  is->m_size = buffer_size;
+};
+
 static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
 {
   const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
   const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *) d->c.type;
+  dds_istream_t is; 
 #ifdef DDS_HAS_SHM
   if (d->c.iox_chunk)
   {
+    // MAKI: refactor into a function
     void* iox_chunk = d->c.iox_chunk;
     iceoryx_header_t* hdr = iceoryx_header_from_chunk(iox_chunk);
-    memcpy(sample, iox_chunk, hdr->data_size);
-    return true;
+    if(hdr->data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {  
+      dds_istream_from_buffer(&is, iox_chunk, hdr->data_size) ;
+      // TODO: factoring this out would require runtime check (is initialization)
+      assert (d->hdr.identifier == NATIVE_ENCODING);     
+      if (d->c.kind == SDK_KEY)
+        dds_stream_read_key (&is, sample, tp);
+      else
+        dds_stream_read_sample (&is, sample, tp);
+    } else {
+      // should contain raw unserialized data
+      // we could check the enum but should not be needed
+      memcpy(sample, iox_chunk, hdr->data_size);
+    }
+    // MAKI we should free the chunk earlier to avoid some issues 
+    // (piling up chunks), may not be enough though
+    // note that this requires locking the iox subscriber ...   
+     return true;
   }
 #endif
-  dds_istream_t is;
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));
   dds_istream_from_serdata_default(&is, d);

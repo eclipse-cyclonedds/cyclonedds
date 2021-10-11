@@ -591,15 +591,13 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       } else {
         // we failed to obtain a chunk, iceoryx transport is thus not available
         // we will use the network path instead
-        iceoryx_available = false;
+        // we cannot do this as the code is now (locators etc.)
+        // same machine nodes would not get the data?
 
-        // TODO: return out of resources
+        iceoryx_available = false;
+        // TODO: activating this causes test failures
+        //return DDS_RETCODE_OUT_OF_RESOURCES;
       } 
-    } else {
-      // we already have data in an iceoryx chunk
-      // TODO: we should not allow this with this API but it is currently needed if it was loaned
-      // note that we assume the values in the iceoryx header are correctly set
-      iox_chunk = (void*) data;
     }
   }
 
@@ -659,13 +657,6 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
 
   // refc(d) = 1 after successful construction
 
-  // should ideally be done in the serdata construction but we explicitly set it here for now
-  if(iceoryx_available) {
-    d->iox_chunk = (void*) data; // maybe serialization was performed
-  } else {
-    d->iox_chunk = NULL; // also indicates that serialization has been performed
-  }
-
   d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
                   ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
   d->timestamp.v = tstamp;
@@ -674,6 +665,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
 
   if(use_only_iceoryx) {
     // deliver via iceoryx only
+    // MAKI: can we avoid constructing d in this case?
     if(deliver_data_via_iceoryx(wr, d)) {
       ret = DDS_RETCODE_OK;
     } else {
