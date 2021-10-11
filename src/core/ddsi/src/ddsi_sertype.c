@@ -373,4 +373,4 @@ DDS_EXPORT extern inline struct ddsi_sertype * ddsi_sertype_derive_sertype (cons
 DDS_EXPORT extern inline inline 
 size_t ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp, const void *sample);
 DDS_EXPORT extern inline inline 
-void ddsi_sertype_serialize_into(const struct ddsi_sertype *tp, const void *sample, void *dst_buffer);
+void ddsi_sertype_serialize_into(const struct ddsi_sertype *tp, const void *sample, void *dst_buffer, size_t dst_size);

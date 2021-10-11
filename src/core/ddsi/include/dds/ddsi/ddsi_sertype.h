@@ -129,7 +129,8 @@ typedef size_t (*ddsi_sertype_get_serialized_size_t)(
 // which we should unless we want to call get_serialized_size again to verify)
 typedef void (*ddsi_sertype_serialize_into_t)(const struct ddsi_sertype *d,
                                               const void *sample,
-                                              void *dst_buffer);
+                                              void *dst_buffer,
+                                              size_t dst_size);
 
 /* Serialize this type */
 typedef bool (*ddsi_sertype_serialize_t) (const struct ddsi_sertype *d, size_t *dst_offset, unsigned char *dst_buf);
@@ -268,8 +269,8 @@ ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp,
 
 DDS_INLINE_EXPORT inline void
 ddsi_sertype_serialize_into(const struct ddsi_sertype *tp, const void *sample,
-                            void *dst_buffer) {
-  return tp->ops->serialize_into(tp, sample, dst_buffer);
+                            void *dst_buffer, size_t dst_size) {
+  return tp->ops->serialize_into(tp, sample, dst_buffer, dst_size);
 }
 
 #if defined (__cplusplus)

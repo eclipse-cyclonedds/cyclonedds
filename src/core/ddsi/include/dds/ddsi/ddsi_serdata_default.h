@@ -74,11 +74,9 @@ struct ddsi_serdata_default_key {
   struct ddsi_serdata_default_key key;\
   struct serdatapool *serpool;        \
   struct ddsi_serdata_default *next /* in pool->freelist */
-#define DDSI_SERDATA_DEFAULT_POSTPAD  \
-  struct CDRHeader hdr;               \
+#define DDSI_SERDATA_DEFAULT_POSTPAD                                           \
+  struct CDRHeader hdr;                                                        \
   char data[]
-// MAKI: this data is allocated while we fill the stream, can be even
-// reallocated during this process ...
 
 struct ddsi_serdata_default_unpadded {
   DDSI_SERDATA_DEFAULT_PREPAD;

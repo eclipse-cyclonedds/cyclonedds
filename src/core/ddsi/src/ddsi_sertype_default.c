@@ -229,8 +229,10 @@ static size_t sertype_default_get_serialized_size (
   dds_ostream_t os;
   // the normal algorithm starts with serdata d.m_size + m_index;
   // but we do not have the serdata (we could construct it)
+  // TODO: this will be replaced with a proper implementation which does not require the size argument,
+  // we choose it arbitrarily for now
+  
   dds_ostream_init(&os, 1024);
-
   const struct ddsi_sertype_default *type_default = (const struct ddsi_sertype_default *)type;
   dds_stream_write_sample(&os, sample, type_default);
 
@@ -238,14 +240,8 @@ static size_t sertype_default_get_serialized_size (
   return os.m_size;
 }
 
-// TODO: introduce buffer size dependency
-static void sertype_default_serialize_into (const struct ddsi_sertype *type, const void *sample, void* dst_buffer) {
-  // (void) type;
-  // (void) sample;
-  // (void) dst_buffer;
-
-  //TODO: need the size as well in the API (for iceoryx it could be derived from the header...)
-  dds_ostream_t os = ostream_from_buffer(dst_buffer, 1024);
+static void sertype_default_serialize_into (const struct ddsi_sertype *type, const void *sample, void* dst_buffer, size_t dst_size) {
+  dds_ostream_t os = ostream_from_buffer(dst_buffer, dst_size);
   const struct ddsi_sertype_default *type_default = (const struct ddsi_sertype_default *)type;
   dds_stream_write_sample(&os, sample, type_default);
 }

@@ -381,7 +381,6 @@ static bool deliver_data_via_iceoryx(dds_writer *wr, struct ddsi_serdata *d) {
 
       // Local readers go through Iceoryx as well (because the Iceoryx support code doesn't exclude
       // that), which means we should suppress the internal path
-      // MAKI: the chunk is already filled here
       ice_hdr->guid = wr->m_wr->e.guid;
       ice_hdr->tstamp = d->timestamp.v;
       ice_hdr->statusinfo = d->statusinfo;
@@ -547,13 +546,14 @@ static void fill_iox_chunk(dds_writer *wr, const void *sample, void *iox_chunk,
     memcpy(iox_chunk, sample, sample_size);
     iox_header->data_state = IOX_CHUNK_CONTAINS_RAW_DATA;
   } else {
-    ddsi_sertype_serialize_into(wr->m_topic->m_stype, sample, iox_chunk);
+    size_t size = iox_header->data_size;
+    ddsi_sertype_serialize_into(wr->m_topic->m_stype, sample, iox_chunk, size);
     iox_header->data_state = IOX_CHUNK_CONTAINS_SERIALIZED_DATA;
   }
 }
 
 #ifdef DDS_HAS_SHM
-//MAKI: must support two cases:
+// has to support two cases:
 // 1) data is in an external buffer allocated on the stack or dynamically
 // 2) data is in an iceoryx buffer obtained by dds_loan_sample
 dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
@@ -603,7 +603,8 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     }
   }
 
-  // MAKI: now we are in the following state:
+  // TODO: remove/reduce comment
+  // We now we are in the following state:
   // 0) we already had an iceoryx chunk (loan) and did not change it - the header must be correct (requires changes)
   // 1) we have obtained an iceoryx chunk
   //    a) fixed size: we copied original data to it
@@ -642,20 +643,13 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     // where we either have network readers (requiring serialization) or not.
 
     // do not serialize yet (may not need it if only using iceoryx or no readers)   
-    // MAKI: is there a C++ version here? I do not think so.
     d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
         
   } else {
     // serialize for network since we will need to send via network anyway
     // we also need to serialize into an iceoryx chunk
-
-    //MAKI: note that in C++ API this will call the C++ callback
-    d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
-
-    //MAKI: d may or may not carry an iceoryx chunk in addition
-    // there is little sense of serializing twice here ... once for network and once for iox
-    // but it likely cannot easily be combined
-    // should serialize into iox buffer and then copy to the network buffer...
+ 
+    d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);  
   }
 
   if(d == NULL) {

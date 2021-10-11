@@ -488,9 +488,6 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
   //              the pointer was gotten in some concurrent thread of the shm_monitor
   //              problems may arise due to concurrent iox_release_chunk
 
-  // MAKI: here we obtain the iceoryx chunk and could also deserialize
-
-  
   memcpy(d->keyhash.m_hash, ice_hdr->keyhash.value, 16);
   d->keyhash.m_set = 1;
   d->keyhash.m_iskey = 0;  //if set to 1, will cause issues @ serdata_default_to_untyped at the endianness swap
@@ -530,8 +527,6 @@ static struct ddsi_serdata *ddsi_serdata_default_from_loaned_sample (const struc
   gen_serdata_key_from_sample (t, &d->key, sample);
 
   struct ddsi_serdata *serdata = &d->c;
-
-  // MAKI: here we could serialize (?) but the chunk might be too small
   serdata->iox_chunk = (void*) sample;
   return serdata;
 }
@@ -553,7 +548,6 @@ static struct ddsi_serdata_default *serdata_default_from_sample_cdr_common (cons
   if (d == NULL)
     return NULL;
 
-  // MAKI the regular deserialization path from cdr
   dds_ostream_t os;
   dds_ostream_from_serdata_default (&os, d);
   switch (kind)
@@ -791,7 +785,6 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
   dds_ostreamBE_fini (&os);
 }
 
-//MAKI: serdata C "vtable"
 const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {
   .get_size = serdata_default_get_size,
   .eqkey = serdata_default_eqkey,
