@@ -10,25 +10,27 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 
-include(Generate)
+if (BUILD_DDSPERF)
+  include(Generate)
 
-idlc_generate(TARGET ddsperf_types FILES ddsperf_types.idl)
-add_executable(ddsperf ddsperf.c cputime.c cputime.h netload.c netload.h)
-target_link_libraries(ddsperf ddsperf_types ddsc)
+  idlc_generate(TARGET ddsperf_types FILES ddsperf_types.idl)
+  add_executable(ddsperf ddsperf.c cputime.c cputime.h netload.c netload.h)
+  target_link_libraries(ddsperf ddsperf_types ddsc)
 
-if(WIN32)
-  target_compile_definitions(ddsperf PRIVATE _CRT_SECURE_NO_WARNINGS)
-endif()
+  if(WIN32)
+    target_compile_definitions(ddsperf PRIVATE _CRT_SECURE_NO_WARNINGS)
+  endif()
 
-install(
-  TARGETS ddsperf
-  DESTINATION "${CMAKE_INSTALL_BINDIR}"
-  COMPONENT dev
-)
-if (MSVC)
-  install(FILES $<TARGET_PDB_FILE:ddsperf>
+  install(
+    TARGETS ddsperf
     DESTINATION "${CMAKE_INSTALL_BINDIR}"
     COMPONENT dev
-    OPTIONAL
   )
-endif()
+  if (MSVC)
+    install(FILES $<TARGET_PDB_FILE:ddsperf>
+      DESTINATION "${CMAKE_INSTALL_BINDIR}"
+      COMPONENT dev
+      OPTIONAL
+    )
+  endif()
+endif ()
