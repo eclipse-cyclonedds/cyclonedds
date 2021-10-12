@@ -2564,25 +2564,19 @@ idl_create_bitmask(
 
   assert(bit_values);
   node->bit_values = bit_values;
-  for (idl_bit_value_t *e1 = bit_values; e1; e1 = idl_next(e1), position++) {
-    e1->node.parent = (idl_node_t*)node;
-
-    for (idl_annotation_appl_t *a = e1->node.annotations; a; a = idl_next(a)) {
-      assert(a->annotation);
-      if (strcmp(a->annotation->name->identifier, "position") != 0)
-        continue;
-      position = e1->position.value;
-      break;
-    }
-    e1->position.value = position;
-    for (idl_bit_value_t *e2 = bit_values; e2; e2 = idl_next(e2)) {
-      if (e2 == e1)
+  for (idl_bit_value_t *b1 = bit_values; b1; b1 = idl_next(b1), position++) {
+    b1->node.parent = (idl_node_t*)node;
+    if (b1->position.annotation)
+      position = b1->position.value;
+    b1->position.value = position;
+    for (idl_bit_value_t *b2 = bit_values; b2; b2 = idl_next(b2)) {
+      if (b2 == b1)
         break;
-      if (e2->position.value != e1->position.value)
+      if (b2->position.value != b1->position.value)
         continue;
-      idl_error(pstate, idl_location(e1),
+      idl_error(pstate, idl_location(b1),
         "Position of bit value '%s' clashes with the position of bit value '%s'",
-        e1->name->identifier, e2->name->identifier);
+        b1->name->identifier, b2->name->identifier);
       ret = IDL_RETCODE_SEMANTIC_ERROR;
       goto err_clash;
     }
