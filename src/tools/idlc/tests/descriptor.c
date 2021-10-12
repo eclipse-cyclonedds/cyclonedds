@@ -59,47 +59,46 @@ CU_Test(idlc_descriptor, keys_nested)
   } tests[] = {
     { "struct test { @key @id(2) long a; short b; }; ",
       1, 2, false, { 4 }, { { 2 } }, { "a" }, { 0 } },
-    { "struct test { @key @id(0) long a; @key @id(1) short b; }; ",
+    { "struct test { @key long a; @key short b; }; ",
       2, 4, false, { 4, 2 }, { { 0 }, { 1 } }, { "a", "b" }, { 0, 1 } },
     { "@nested struct inner { @id(3) long i1; @id(1) short i2; }; struct outer { @key inner o1; }; ",
       2, 6, false, { 2, 4 }, { { 0, 1 }, { 0, 3 } }, { "o1.i2", "o1.i1" }, { 1, 0 } },
-    { "@nested struct inner { @id(0) long i1; @key @id(1) short i2; }; struct outer { @key inner o1; }; ",
+    { "@nested struct inner { long i1; @key short i2; }; struct outer { @key inner o1; }; ",
       1, 3, false, { 2 }, { { 0, 1 } }, { "o1.i2" }, { 0 } },
     { "@nested struct inner { @key @id(5) short i1; }; struct outer { @key @id(0) inner o1; @key @id(10) inner o2; }; ",
       2, 6, false, { 2, 2 }, { { 0, 5 }, { 10, 5 } }, { "o1.i1", "o2.i1" }, { 0, 1 } },
     { "@nested struct inner { @key short i1; }; @nested struct mid { @key @id(3) char m1; @key @id(2) inner m2; @id(1) long m3; }; struct outer { @key @id(0) mid o1; @key @id(1) inner o2; }; ",
       3, 10, false, { 2, 1, 2 }, { { 0, 2, 0 }, { 0, 3 }, { 1, 0 } }, { "o1.m2.i1", "o1.m1", "o2.i1" }, { 1, 0, 2 } },
-    { "@nested struct inner { @id(0) char i1; @key @id(1) char i2; }; struct outer { @key @id(3) inner o1; @key @id(2) short o2; }; ",
+    { "@nested struct inner { char i1; @key char i2; }; struct outer { @key @id(3) inner o1; @key @id(2) short o2; }; ",
       2, 5, false, { 2, 1 }, { { 2 }, { 3, 1 } }, { "o2", "o1.i2" }, { 1, 0 } },
 
-    // FIXME: remove @key annotations once sequential auto-id is implemented
-    { "struct test { @id(0) long a; @id(1) short b; }; \n#pragma keylist test a",
+    { "struct test { long a; short b; }; \n#pragma keylist test a",
       1, 2, true, { 4 }, { { 0 } }, { "a" }, { 0 } },
-    { "struct test { @id(0) long a; @id(1) short b; }; \n#pragma keylist test a b",
+    { "struct test { long a; short b; }; \n#pragma keylist test a b",
       2, 4, true, { 4, 2 }, { { 0 }, { 1 } }, { "a", "b" }, { 0, 1 } },
-    { "struct inner { @id(0) long i1; @id(1) short i2; }; struct outer { @id(0) inner o1; @id(1) inner o2; }; \n#pragma keylist outer o1.i1",
+    { "struct inner { long i1; short i2; }; struct outer { inner o1; inner o2; }; \n#pragma keylist outer o1.i1",
       1, 3, true, { 4 }, { { 0, 0 } }, { "o1.i1" }, { 0 } },
-    { "struct inner { @id(0) long i1; @id(1) short i2; }; struct outer { @id(0) inner o1; @id(1) inner o2; }; \n#pragma keylist outer o1.i1 o2.i1",
+    { "struct inner { long i1; short i2; }; struct outer { inner o1; inner o2; }; \n#pragma keylist outer o1.i1 o2.i1",
       2, 6, true, { 4, 4 }, { { 0, 0 }, { 1, 0 } }, { "o1.i1", "o2.i1" }, { 0, 1 } },
-    { "struct inner { @id(0) long i1; @id(1) long i2; }; struct mid { @id(0) inner m1; }; struct outer { inner o1, o2; @id(2) inner o3[3]; @id(3) mid o4; @id(4) double o5; }; \n#pragma keylist outer o4.m1.i2",
+    { "struct inner { long i1; long i2; }; struct mid { inner m1; }; struct outer { inner o1, o2; inner o3[3]; mid o4; double o5; }; \n#pragma keylist outer o4.m1.i2",
       1, 4, true, { 4 }, { { 3, 0, 1 } }, { "o4.m1.i2" }, { 0 } },
 
     // type 'outer' should not get keys of other types using the same type 'inner' */
-    { "struct inner { @id(0) long i1; @id(1) short i2; }; struct outer { @id(0) inner o1; @id(1) inner o2; }; \n"
+    { "struct inner { long i1; short i2; }; struct outer { inner o1; inner o2; }; \n"
       "#pragma keylist outer o1.i1 \n "
       "struct p { inner p1; }; \n"
       "#pragma keylist p p1.i1 \n",
       1, 3, true, { 4 }, { { 0, 0 } }, { "o1.i1" }, { 0 } },
-    { "struct inner { @id(0) long i1; @id(1) short i2; }; struct outer { @id(0) inner o1; @id(1) inner o2; }; \n"
+    { "struct inner { long i1; short i2; }; struct outer { inner o1; inner o2; }; \n"
       "#pragma keylist outer \n"
       "struct p { inner p1; }; \n"
       "#pragma keylist p p1.i1 \n",
       0, 0, true, { 0 }, { { 0 } }, { "" }, { 0 } },
 
     // key fields ordered by member id, not by order used in keylist
-    { "struct inner { @id(0) long long i1; }; struct outer { @id(0) inner o1; @id(1) inner o2; }; \n#pragma keylist outer o2.i1 o1.i1",
+    { "struct inner { long long i1; }; struct outer { inner o1; inner o2; }; \n#pragma keylist outer o2.i1 o1.i1",
       2, 6, true, { 8, 8 }, { { 0, 0 }, { 1, 0 } }, { "o1.i1", "o2.i1" }, { 0, 1 } },
-    { "struct inner { @id(0) char i1; }; struct mid { @id(0) short m1; @id(1) inner m2; @id(2) long m3; }; struct outer { @id(0) mid o1; @id(1) inner o2; }; \n#pragma keylist outer o1.m1 o2.i1 o1.m2.i1",
+    { "struct inner { char i1; }; struct mid { short m1; inner m2; long m3; }; struct outer { mid o1; inner o2; }; \n#pragma keylist outer o1.m1 o2.i1 o1.m2.i1",
       3, 10, true, { 2, 1, 1 }, { { 0, 0 }, { 0, 1, 0 }, { 1, 0 } }, { "o1.m1", "o1.m2.i1", "o2.i1" }, { 0, 1, 2 } },
   };
 
