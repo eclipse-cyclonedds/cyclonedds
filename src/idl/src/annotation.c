@@ -931,7 +931,14 @@ idl_annotate(
   idl_retcode_t ret;
 
   assert(pstate);
-  assert(node);
+
+  /* FIXME: in case of multiple forward declators for a type, only the first
+     one gets a node, and the subsequent ones don't have a node. Therefore
+     these cannot get an annotation (which may not be a problem, as the spec
+     is not clear if annotations on forward declarations are allowed). */
+  // assert(node);
+  if (!node)
+    return IDL_RETCODE_OK;
 
   /* evaluate constant expressions */
   if ((ret = eval(pstate, node, annotation_appls)))
