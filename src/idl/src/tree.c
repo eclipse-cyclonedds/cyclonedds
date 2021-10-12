@@ -1327,7 +1327,9 @@ bool idl_is_empty(const void *node)
     return true;
   bool empty = true;
   for (idl_member_t *m = s->members; empty && m; m = idl_next(m)) {
-    if (!idl_is_empty(m->type_spec))
+    if (m->type_spec == node)
+      empty = false;
+    else if (!idl_is_empty(m->type_spec))
       empty = false;
   }
   return empty;
