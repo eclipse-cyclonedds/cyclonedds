@@ -1019,6 +1019,48 @@ emit_sequence(
 }
 
 static idl_retcode_t
+add_mutable_member_offset(
+  struct constructed_type *ctype,
+  const idl_declarator_t *decl)
+{
+  idl_retcode_t ret;
+  assert(idl_is_extensible(ctype->node, IDL_MUTABLE));
+
+  /* add member offset for declarators of mutable types */
+  assert(ctype->instructions.count <= INT16_MAX);
+  int16_t addr_offs = (int16_t)(ctype->instructions.count
+      - ctype->pl_offset /* offset of first op after PLC */
+      + 2 /* skip this JEQ and member id */
+      + 1 /* skip RTS (of the PLC list) */);
+  if ((ret = stash_member_offset(&ctype->instructions, ctype->pl_offset++, addr_offs)))
+    return ret;
+  stash_single(&ctype->instructions, ctype->pl_offset++, decl->id.value);
+
+  /* update offset for previous members for this ctype */
+  struct instruction *table = ctype->instructions.table;
+  for (uint32_t i = 1; i < ctype->pl_offset - 2; i++) {
+    if (table[i].type == MEMBER_OFFSET) {
+      table[i].data.inst_offset.addr_offs = (int16_t)(table[i].data.inst_offset.addr_offs + 2);
+    }
+  }
+
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+close_mutable_member(
+  struct descriptor *descriptor,
+  struct constructed_type *ctype)
+{
+  idl_retcode_t ret;
+  assert(idl_is_extensible(ctype->node, IDL_MUTABLE));
+
+  if ((ret = stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_RTS, 0u)))
+    return ret;
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
 emit_array(
   const idl_pstate_t *pstate,
   bool revisit,
@@ -1033,6 +1075,7 @@ emit_array(
   const idl_type_spec_t *type_spec;
   bool simple = false;
   uint32_t dims = 1;
+  bool mutable = idl_is_extensible(ctype->node, IDL_MUTABLE);
 
   if (idl_is_array(node)) {
     dims = idl_array_size(node);
@@ -1054,41 +1097,43 @@ emit_array(
   simple = (idl_mask(type_spec) & (IDL_BASE_TYPE|IDL_STRING|IDL_ENUM)) != 0;
 
   if (revisit) {
-    if (!simple) {
-      uint32_t off, cnt;
-      off = stype->offset;
-      cnt = ctype->instructions.count;
-      /* generate data field [next-insn, elem-insn] */
-      if (idl_is_struct(type_spec) || idl_is_union(type_spec)) {
-        assert(cnt <= INT16_MAX);
-        int16_t addr_offs = (int16_t)(cnt - 3); /* minus 2 for the opcode and offset ops that are already stashed for this array */
-        if ((ret = stash_element_offset(&ctype->instructions, off + 3, type_spec, 5u, addr_offs)))
-          return ret;
-        /* generate data field [elem-size] */
-        if ((ret = stash_size(&ctype->instructions, off + 4, node, false)))
-          return ret;
-      } else {
-        if ((ret = stash_couple(&ctype->instructions, off + 3, (uint16_t)((cnt - off) + 3u), 5u)))
-          return ret;
-        /* generate data field [elem-size] */
-        if ((ret = stash_size(&ctype->instructions, off + 4, node, false)))
-          return ret;
-        /* generate return from subroutine */
-        if ((ret = stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_RTS, 0u)))
-          return ret;
-      }
-
-      pop_type(descriptor);
-      stype = descriptor->type_stack;
-      if (!idl_is_alias(node) && idl_is_struct(stype->node))
-        pop_field(descriptor);
+    uint32_t off, cnt;
+    off = stype->offset;
+    cnt = ctype->instructions.count;
+    /* generate data field [next-insn, elem-insn] */
+    if (idl_is_struct(type_spec) || idl_is_union(type_spec)) {
+      assert(cnt <= INT16_MAX);
+      int16_t addr_offs = (int16_t)(cnt - 3); /* minus 2 for the opcode and offset ops that are already stashed for this array */
+      if ((ret = stash_element_offset(&ctype->instructions, off + 3, type_spec, 5u, addr_offs)))
+        return ret;
+      /* generate data field [elem-size] */
+      if ((ret = stash_size(&ctype->instructions, off + 4, node, false)))
+        return ret;
+    } else {
+      if ((ret = stash_couple(&ctype->instructions, off + 3, (uint16_t)((cnt - off) + 3u), 5u)))
+        return ret;
+      /* generate data field [elem-size] */
+      if ((ret = stash_size(&ctype->instructions, off + 4, node, false)))
+        return ret;
+      /* generate return from subroutine */
+      if ((ret = stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_RTS, 0u)))
+        return ret;
     }
-    return IDL_RETCODE_OK;
+
+    pop_type(descriptor);
+    stype = descriptor->type_stack;
+    if (!idl_is_alias(node) && idl_is_struct(stype->node))
+      pop_field(descriptor);
+    if (mutable && (ret = close_mutable_member(descriptor, ctype)))
+      return ret;
   } else {
     uint32_t off;
     uint32_t opcode = DDS_OP_ADR | DDS_OP_TYPE_ARR;
     uint32_t order;
     struct field *field = NULL;
+
+    if (mutable && (ret = add_mutable_member_offset(ctype, (idl_declarator_t *)node)))
+      return ret;
 
     /* type definitions do not introduce a field */
     if (idl_is_alias(node))
@@ -1125,7 +1170,11 @@ emit_array(
       }
       if (!idl_is_alias(node) && idl_is_struct(stype->node))
         pop_field(descriptor);
-      return IDL_VISIT_REVISIT; /* revisit required because mutable member must be closed */
+
+      if (mutable && (ret = close_mutable_member(descriptor, ctype)))
+        return ret;
+
+      return IDL_RETCODE_OK;
     }
 
     struct stack_type *array_stype;
@@ -1134,6 +1183,7 @@ emit_array(
     array_stype->offset = off;
     return IDL_VISIT_TYPE_SPEC | IDL_VISIT_UNALIAS_TYPE_SPEC | IDL_VISIT_REVISIT;
   }
+  return IDL_RETCODE_OK;
 }
 
 static idl_retcode_t
@@ -1149,32 +1199,7 @@ emit_declarator(
   struct descriptor *descriptor = user_data;
   struct stack_type *stype = descriptor->type_stack;
   struct constructed_type *ctype = stype->ctype;
-
-  if (idl_is_extensible(ctype->node, IDL_MUTABLE)) {
-    if (revisit) {
-      /* close mutable member */
-      if ((ret = stash_opcode(descriptor, &ctype->instructions, nop, DDS_OP_RTS, 0u)))
-        return ret;
-    } else {
-      /* add member offset for declarators of mutable types */
-      assert(ctype->instructions.count <= INT16_MAX);
-      int16_t addr_offs = (int16_t)(ctype->instructions.count
-          - ctype->pl_offset /* offset of first op after PLC */
-          + 2 /* skip this JEQ and member id */
-          + 1 /* skip RTS (of the PLC list) */);
-      if ((ret = stash_member_offset(&ctype->instructions, ctype->pl_offset++, addr_offs)))
-        return ret;
-      stash_single(&ctype->instructions, ctype->pl_offset++, ((idl_declarator_t *)node)->id.value);
-
-      /* update offset for previous members for this ctype */
-      struct instruction *table = ctype->instructions.table;
-      for (uint32_t i = 1; i < ctype->pl_offset - 2; i++) {
-        if (table[i].type == MEMBER_OFFSET) {
-          table[i].data.inst_offset.addr_offs = (int16_t)(table[i].data.inst_offset.addr_offs + 2);
-        }
-      }
-    }
-  }
+  bool mutable = idl_is_extensible(ctype->node, IDL_MUTABLE);
 
   type_spec = idl_unalias(idl_type_spec(node), 0u);
   if (idl_is_forward(type_spec))
@@ -1190,11 +1215,15 @@ emit_declarator(
   if (revisit) {
     if (!idl_is_alias(node) && idl_is_struct(stype->node))
       pop_field(descriptor);
-    return IDL_RETCODE_OK;
+    if (mutable && (ret = close_mutable_member(descriptor, ctype)))
+      return ret;
   } else {
     uint32_t opcode;
     uint32_t order = 0;
     struct field *field = NULL;
+
+    if (mutable && (ret = add_mutable_member_offset(ctype, (idl_declarator_t *)node)))
+      return ret;
 
     if (!idl_is_alias(node) && idl_is_struct(stype->node) && (ret = push_field(descriptor, node, &field)))
       return ret;
@@ -1261,6 +1290,7 @@ emit_declarator(
 
     return IDL_VISIT_REVISIT;
   }
+  return IDL_RETCODE_OK;
 }
 
 static int print_opcode(FILE *fp, const struct instruction *inst)
