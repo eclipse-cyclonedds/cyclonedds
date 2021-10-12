@@ -482,7 +482,10 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
   //              problems may arise due to concurrent iox_release_chunk
   d->c.iox_chunk = iox_buffer;
   d->c.iox_subscriber = sub;
-  gen_serdata_key_from_sample(tp, &d->key, SHIFT_PAST_ICEORYX_HEADER(iox_buffer));
+  d->key.buftype = KEYBUFTYPE_STATIC;
+  d->key.keysize = 16;
+  memcpy(d->key.u.stbuf, ice_hdr->keyhash.value, 16);
+
   fix_serdata_default(d, tpcmn->serdata_basehash);
   return (struct ddsi_serdata*)d;
 }
@@ -501,7 +504,7 @@ static struct ddsi_serdata *ddsi_serdata_default_from_loaned_sample (const struc
   // Currently needed even in the shared memory case (since it is potentially used at the reader side).
   // This may still incur computational costs linear in the sample size (?).
   // TODO: Can we avoid this with specific handling on the reader side which does not require the keyhash?
-  gen_keyhash_from_sample (t, &d->keyhash, sample);
+  gen_serdata_key_from_sample (t, &d->key, sample);
 
   struct ddsi_serdata *serdata = &d->c;
   serdata->iox_chunk = (void*) sample;
