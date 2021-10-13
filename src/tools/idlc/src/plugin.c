@@ -19,14 +19,14 @@
 #if WIN32
 #include <Windows.h>
 static const char sep[] = "/\\";
-static const char lib[] = "";
+static const char lib[] = "cyclonedds";
 static const char ext[] = "dll";
 #define SUBPROCESS_POPEN _popen
 #define SUBPROCESS_PCLOSE _pclose
 #else
 #include <dlfcn.h>
 static const char sep[] = "/";
-static const char lib[] = "lib";
+static const char lib[] = "libcyclonedds";
 #if __APPLE__
 static const char ext[] = "dylib";
 #else
