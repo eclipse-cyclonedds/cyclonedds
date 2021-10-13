@@ -475,8 +475,9 @@ static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_
       false == cfg->enable_shm)
     return false;
 
-  if (!tp->m_stype->fixed_size)
-    return false;
+  //MAKI remove fixed type check
+  // if (!tp->m_stype->fixed_size)
+  //   return false;
 
   uint32_t sub_history_req = cfg->sub_history_request;
 

@@ -291,8 +291,9 @@ static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_
     return false;
 
   // MAKI: remove fixed type check
-  if (!tp->m_stype->fixed_size)
-    return false;
+  (void) tp;
+  //  if (!tp->m_stype->fixed_size)
+  //    return false;
 
   uint32_t pub_history_cap = cfg->pub_history_capacity;
 
