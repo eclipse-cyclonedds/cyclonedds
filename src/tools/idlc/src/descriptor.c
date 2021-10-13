@@ -1038,10 +1038,9 @@ add_mutable_member_offset(
 
   /* update offset for previous members for this ctype */
   struct instruction *table = ctype->instructions.table;
-  for (uint32_t i = 1; i < ctype->pl_offset - 2; i++) {
-    if (table[i].type == MEMBER_OFFSET) {
-      table[i].data.inst_offset.addr_offs = (int16_t)(table[i].data.inst_offset.addr_offs + 2);
-    }
+  for (uint32_t i = 1; i < ctype->pl_offset - 2; i += 2) {
+    assert (table[i].type == MEMBER_OFFSET);
+    table[i].data.inst_offset.addr_offs = (int16_t)(table[i].data.inst_offset.addr_offs + 2);
   }
 
   return IDL_RETCODE_OK;
@@ -1075,7 +1074,6 @@ emit_array(
   const idl_type_spec_t *type_spec;
   bool simple = false;
   uint32_t dims = 1;
-  bool mutable = idl_is_extensible(ctype->node, IDL_MUTABLE);
 
   if (idl_is_array(node)) {
     dims = idl_array_size(node);
@@ -1124,16 +1122,11 @@ emit_array(
     stype = descriptor->type_stack;
     if (!idl_is_alias(node) && idl_is_struct(stype->node))
       pop_field(descriptor);
-    if (mutable && (ret = close_mutable_member(descriptor, ctype)))
-      return ret;
   } else {
     uint32_t off;
     uint32_t opcode = DDS_OP_ADR | DDS_OP_TYPE_ARR;
     uint32_t order;
     struct field *field = NULL;
-
-    if (mutable && (ret = add_mutable_member_offset(ctype, (idl_declarator_t *)node)))
-      return ret;
 
     /* type definitions do not introduce a field */
     if (idl_is_alias(node))
@@ -1170,10 +1163,6 @@ emit_array(
       }
       if (!idl_is_alias(node) && idl_is_struct(stype->node))
         pop_field(descriptor);
-
-      if (mutable && (ret = close_mutable_member(descriptor, ctype)))
-        return ret;
-
       return IDL_RETCODE_OK;
     }
 
@@ -1199,15 +1188,31 @@ emit_declarator(
   struct descriptor *descriptor = user_data;
   struct stack_type *stype = descriptor->type_stack;
   struct constructed_type *ctype = stype->ctype;
-  bool mutable = idl_is_extensible(ctype->node, IDL_MUTABLE);
+  bool mutable_aggr_type_member = idl_is_extensible(ctype->node, IDL_MUTABLE) &&
+    (idl_is_member(idl_parent(node)) || idl_is_case(idl_parent(node)));
 
   type_spec = idl_unalias(idl_type_spec(node), 0u);
   if (idl_is_forward(type_spec))
     type_spec = ((const idl_forward_t *)type_spec)->definition;
 
   /* delegate array type specifiers or declarators */
-  if (idl_is_array(node) || idl_is_array(type_spec))
-    return emit_array(pstate, revisit, path, node, user_data);
+  if (idl_is_array(node) || idl_is_array(type_spec)) {
+    if (!revisit && mutable_aggr_type_member) {
+      if ((ret = add_mutable_member_offset(ctype, (idl_declarator_t *)node)))
+        return ret;
+    }
+
+    if ((ret = emit_array(pstate, revisit, path, node, user_data)))
+      return ret;
+
+    /* in case there is no revisit required (array has simple element type) we have
+       to close the mutable member immediately, otherwise close it when revisiting */
+    if (mutable_aggr_type_member && (!(ret & IDL_VISIT_REVISIT) || revisit)) {
+      if ((ret = close_mutable_member(descriptor, ctype)))
+        return ret;
+    }
+    return IDL_RETCODE_OK;
+  }
 
   if (idl_is_empty(type_spec))
     return IDL_RETCODE_OK | IDL_VISIT_REVISIT;
@@ -1215,18 +1220,22 @@ emit_declarator(
   if (revisit) {
     if (!idl_is_alias(node) && idl_is_struct(stype->node))
       pop_field(descriptor);
-    if (mutable && (ret = close_mutable_member(descriptor, ctype)))
-      return ret;
+    if (mutable_aggr_type_member) {
+      if ((ret = close_mutable_member(descriptor, ctype)))
+        return ret;
+    }
   } else {
     uint32_t opcode;
     uint32_t order = 0;
     struct field *field = NULL;
 
-    if (mutable && (ret = add_mutable_member_offset(ctype, (idl_declarator_t *)node)))
+    if (mutable_aggr_type_member && (ret = add_mutable_member_offset(ctype, (idl_declarator_t *)node)))
       return ret;
 
-    if (!idl_is_alias(node) && idl_is_struct(stype->node) && (ret = push_field(descriptor, node, &field)))
-      return ret;
+    if (!idl_is_alias(node) && idl_is_struct(stype->node)) {
+      if ((ret = push_field(descriptor, node, &field)))
+        return ret;
+    }
 
     if (idl_is_sequence(type_spec))
       return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
