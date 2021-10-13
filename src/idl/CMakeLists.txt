@@ -82,6 +82,7 @@ add_library(
 
 set_target_properties(
   idl PROPERTIES
+  OUTPUT_NAME "cycloneddsidl"
   VERSION ${PROJECT_VERSION}
   SOVERSION ${PROJECT_VERSION_MAJOR})
 
