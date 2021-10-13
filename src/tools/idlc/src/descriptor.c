@@ -140,6 +140,7 @@ stash_instruction(
   }
 
   /* make more slots available as necessary */
+  assert(instructions->count <= instructions->size);
   if (instructions->count == instructions->size) {
     uint32_t size = instructions->size + 100;
     struct instruction *table = instructions->table;
@@ -152,14 +153,12 @@ stash_instruction(
   if (index >= instructions->count) {
     index = instructions->count;
   } else {
-    size_t size = instructions->count - index;
     struct instruction *table = instructions->table;
-    memmove(&table[index+1], &table[index], size * sizeof(*table));
-    /* update element_offset base, until count + 1 because instructions are already
-       moved and count is not updated at this point*/
-    for (uint32_t i = index + 1; i <= instructions->count; i++)
+    for (uint32_t i = instructions->count; i > index; i--) {
+      table[i] = table[i - 1];
       if (table[i].type == ELEM_OFFSET || table[i].type == JEQ_OFFSET || table[i].type == MEMBER_OFFSET)
         table[i].data.inst_offset.addr_offs++;
+    }
   }
 
   instructions->table[index] = *inst;
