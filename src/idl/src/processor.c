@@ -266,7 +266,7 @@ idl_log(
 
 void
 idl_verror(
-  idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, va_list ap)
+  const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, va_list ap)
 {
   idl_log(pstate, IDL_LC_ERROR, loc, fmt, ap);
 }
@@ -284,7 +284,7 @@ idl_error(
 
 void
 idl_warning(
-  idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...)
+  const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...)
 {
   va_list ap;
 

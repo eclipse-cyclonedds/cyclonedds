@@ -144,12 +144,12 @@ IDL_EXPORT idl_retcode_t
 idl_parse_string(idl_pstate_t *pstate, const char *str);
 
 IDL_EXPORT void
-idl_verror(idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, va_list ap);
+idl_verror(const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, va_list ap);
 
 IDL_EXPORT void
 idl_error(const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...);
 
 IDL_EXPORT void
-idl_warning(idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...);
+idl_warning(const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...);
 
 #endif /* IDL_COMPILER_H */

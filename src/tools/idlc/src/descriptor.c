@@ -1191,6 +1191,25 @@ emit_array(
 }
 
 static idl_retcode_t
+emit_member(
+  const idl_pstate_t *pstate,
+  bool revisit,
+  const idl_path_t *path,
+  const void *node,
+  void *user_data)
+{
+  (void)revisit;
+  (void)path;
+  (void)user_data;
+  const idl_member_t *member = (const idl_member_t *)node;
+  if (member->value.annotation)
+    idl_warning(pstate, idl_location(node), "Explicit defaults are not supported yet in the C generator, the value from the @default annotation will not be used");
+  if (member->optional.annotation)
+    idl_warning(pstate, idl_location(node), "Optional members are not supported yet in the C generator, the @optional annotation will be ignored");
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
 emit_declarator(
   const idl_pstate_t *pstate,
   bool revisit,
@@ -2092,7 +2111,7 @@ generate_descriptor_impl(
   descriptor->topic = topic_node;
 
   memset(&visitor, 0, sizeof(visitor));
-  visitor.visit = IDL_DECLARATOR | IDL_SEQUENCE | IDL_STRUCT | IDL_UNION | IDL_SWITCH_TYPE_SPEC | IDL_CASE | IDL_FORWARD;
+  visitor.visit = IDL_DECLARATOR | IDL_SEQUENCE | IDL_STRUCT | IDL_UNION | IDL_SWITCH_TYPE_SPEC | IDL_CASE | IDL_FORWARD | IDL_MEMBER;
   visitor.accept[IDL_ACCEPT_SEQUENCE] = &emit_sequence;
   visitor.accept[IDL_ACCEPT_UNION] = &emit_union;
   visitor.accept[IDL_ACCEPT_SWITCH_TYPE_SPEC] = &emit_switch_type_spec;
@@ -2100,6 +2119,7 @@ generate_descriptor_impl(
   visitor.accept[IDL_ACCEPT_STRUCT] = &emit_struct;
   visitor.accept[IDL_ACCEPT_DECLARATOR] = &emit_declarator;
   visitor.accept[IDL_ACCEPT_FORWARD] = &emit_forward;
+  visitor.accept[IDL_ACCEPT_MEMBER] = &emit_member;
 
   if ((ret = idl_visit(pstate, descriptor->topic, &visitor, descriptor))) {
     /* Clear the type stack in case an error occured during visit, so that the check
