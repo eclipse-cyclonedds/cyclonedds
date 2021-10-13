@@ -1220,6 +1220,23 @@ emit_member(
 }
 
 static idl_retcode_t
+emit_bitmask(
+  const idl_pstate_t *pstate,
+  bool revisit,
+  const idl_path_t *path,
+  const void *node,
+  void *user_data)
+{
+  (void)revisit;
+  (void)path;
+  (void)user_data;
+  const idl_bitmask_t *bitmask = (const idl_bitmask_t *)node;
+  if (bitmask->extensibility.annotation && bitmask->extensibility.value != IDL_FINAL)
+    idl_warning(pstate, idl_location(node), "Extensibility appendable and mutable are not yet supported in the C generator, the extensibility will not be used");
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
 emit_declarator(
   const idl_pstate_t *pstate,
   bool revisit,
@@ -1338,7 +1355,7 @@ emit_declarator(
         return ret;
     }
 
-    if (idl_is_union(type_spec) || idl_is_struct(type_spec))
+    if (idl_is_union(type_spec) || idl_is_struct(type_spec) || idl_is_bitmask(type_spec))
       return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
 
     return IDL_VISIT_REVISIT;
@@ -2121,7 +2138,7 @@ generate_descriptor_impl(
   descriptor->topic = topic_node;
 
   memset(&visitor, 0, sizeof(visitor));
-  visitor.visit = IDL_DECLARATOR | IDL_SEQUENCE | IDL_STRUCT | IDL_UNION | IDL_SWITCH_TYPE_SPEC | IDL_CASE | IDL_FORWARD | IDL_MEMBER;
+  visitor.visit = IDL_DECLARATOR | IDL_SEQUENCE | IDL_STRUCT | IDL_UNION | IDL_SWITCH_TYPE_SPEC | IDL_CASE | IDL_FORWARD | IDL_MEMBER | IDL_BITMASK;
   visitor.accept[IDL_ACCEPT_SEQUENCE] = &emit_sequence;
   visitor.accept[IDL_ACCEPT_UNION] = &emit_union;
   visitor.accept[IDL_ACCEPT_SWITCH_TYPE_SPEC] = &emit_switch_type_spec;
@@ -2130,6 +2147,7 @@ generate_descriptor_impl(
   visitor.accept[IDL_ACCEPT_DECLARATOR] = &emit_declarator;
   visitor.accept[IDL_ACCEPT_FORWARD] = &emit_forward;
   visitor.accept[IDL_ACCEPT_MEMBER] = &emit_member;
+  visitor.accept[IDL_ACCEPT_BITMASK] = &emit_bitmask;
 
   if ((ret = idl_visit(pstate, descriptor->topic, &visitor, descriptor))) {
     /* Clear the type stack in case an error occured during visit, so that the check
