@@ -649,7 +649,23 @@ emit_case(
       return ret;
     pop_field(descriptor);
   } else {
-    enum { SIMPLE, EXTERNAL, INLINE } case_type;
+    enum {
+      INLINE,     /* the instructions for the member are inlined with the ADR
+                      e.g.:
+                        DDS_OP_JEQ4 | DDS_OP_TYPE_4BY, ... */
+
+      IN_UNION,   /* the DDS_OP_JEQ4 has an offset to the member instructions:
+                      e.g.:
+                        DDS_OP_JEQ4 | DDS_OP_TYPE_SEQ | offs, ...
+                      which are embedded in the union instructions, after the last
+                      member's instructions, for example:
+                        DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_BST, ... */
+
+      EXTERNAL    /* the member is of an aggregated type that is defined outside the
+                      current union, the JEQ4 has an offset to these instructions,
+                      e.g.:
+                        DDS_OP_JEQ4 | DDS_OP_TYPE_EXT | DDS_OP_TYPE_STU | offs, ... */
+    } case_type;
     uint32_t off, cnt;
     uint32_t opcode = DDS_OP_JEQ4;
     const idl_case_t *_case = node;
@@ -675,19 +691,18 @@ emit_case(
       return IDL_RETCODE_OK;
     }
 
-    /* simple elements are embedded, complex elements are not */
     if (idl_is_array(_case->declarator)) {
       opcode |= DDS_OP_TYPE_ARR;
-      case_type = INLINE;
+      case_type = IN_UNION;
     } else {
       opcode |= typecode(type_spec, TYPE, false);
       if (idl_is_struct(type_spec) || idl_is_union(type_spec))
         case_type = EXTERNAL;
       else if (idl_is_array(type_spec) || (idl_is_string(type_spec) && idl_is_bounded(type_spec)) || idl_is_sequence(type_spec))
-        case_type = INLINE;
+        case_type = IN_UNION;
       else {
         assert (idl_is_base_type(type_spec) || (idl_is_string(type_spec) && !idl_is_bounded(type_spec)));
-        case_type = SIMPLE;
+        case_type = INLINE;
       }
     }
 
@@ -707,10 +722,10 @@ emit_case(
     for (label = _case->labels; label; label = idl_next(label)) {
       bool has_size = false;
       off = stype->offset + 2 + (stype->label * 4);
-      if (case_type == SIMPLE || case_type == INLINE) {
+      if (case_type == INLINE || case_type == IN_UNION) {
         /* update offset to first instruction for inline non-simple cases */
         opcode &= (DDS_OP_MASK | DDS_OP_TYPE_FLAGS_MASK | DDS_OP_TYPE_MASK);
-        if (case_type == INLINE)
+        if (case_type == IN_UNION)
           opcode |= (cnt - off);
         /* generate union case opcode */
         if ((ret = stash_opcode(descriptor, &ctype->instructions, off++, opcode, 0u)))
@@ -746,9 +761,9 @@ emit_case(
     }
 
     pop_field(descriptor); /* field readded by declarator for complex types */
-    if (case_type == SIMPLE || case_type == EXTERNAL) {
+    if (case_type == INLINE || case_type == EXTERNAL) {
       pop_field(descriptor); /* field readded by declarator for complex types */
-      return (case_type == SIMPLE) ? IDL_VISIT_DONT_RECURSE : IDL_VISIT_RECURSE;
+      return (case_type == INLINE) ? IDL_VISIT_DONT_RECURSE : IDL_VISIT_RECURSE;
     }
 
     return IDL_VISIT_REVISIT;
