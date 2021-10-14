@@ -60,20 +60,11 @@ struct test_alias {
 #include "dds/dds.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
 #include "test_alias.h"
-
-#define STR16 "abcdef0123456789"
-#define STR128 STR16 STR16 STR16 STR16 STR16 STR16 STR16 STR16
+#include "common.h"
 
 const dds_topic_descriptor_t *desc = &test_alias_desc;
 void init_sample (void *s);
 int cmp_sample (const void *sa, const void *sb);
-
-#define SEQA(s,l) \
-{ \
-  s._length = s._maximum = l; \
-  s._release = true; \
-  s._buffer = dds_alloc (l * sizeof (*s._buffer)); \
-}
 
 void init_sample (void *s)
 {
@@ -118,9 +109,6 @@ void init_sample (void *s)
   for (int n = 0; n < 5; n++)
     strcpy(s1->f4->b4._buffer[1]._u.u2._buffer[n], STR128);
 }
-
-#define CMP(a,b,f,n) { if ((a->f) != n) return -2; if ((a->f) != (b->f)) return (a->f) > (b->f) ? 1 : -1; }
-#define CMPSTR(a,b,f,s) { if (strcmp(a->f, s)) return -2; if (strcmp((a->f), (b->f))) return strcmp((a->f), (b->f)); }
 
 int cmp_sample (const void *sa, const void *sb)
 {

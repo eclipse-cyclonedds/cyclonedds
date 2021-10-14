@@ -1,0 +1,169 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+@default_nested
+module test {
+  union union_nested1;
+
+  @mutable
+  struct struct_nested1 {
+    long s1;
+  };
+
+  @bitbound(16)
+  bitmask bm1 {
+    bm1_value0,
+    bm1_value1,
+    @position(5) bm1_value5
+  };
+
+  enum enum1 {
+    enum1_value0,
+    enum1_value1,
+    enum1_value2
+  };
+
+  @appendable
+  union union_nested1 switch (short) {
+    case 1:
+      @external union_nested1 u1;
+    case 2:
+      struct_nested1 u2;
+    case 3:
+      sequence<bm1> u3;
+    case 4:
+      enum1 u4[2];
+    case 5:
+      sequence<union_nested1> u5;
+    case 6:
+      string<128> u6;
+    case 7:
+      bm1 u7;
+    case 8:
+      enum1 u8;
+  };
+
+  @topic @appendable
+  struct test_topic {
+    union_nested1 s1;
+    union_nested1 s2;
+    union_nested1 s3;
+    union_nested1 s4;
+    union_nested1 s5;
+    union_nested1 s6;
+    union_nested1 s7;
+    union_nested1 s8;
+  };
+}; // module
+
+#else
+
+#include <string.h>
+#include "dds/dds.h"
+#include "test_union_member_types.h"
+#include "common.h"
+
+const dds_topic_descriptor_t *desc = &test_test_topic_desc;
+void init_sample (void *s);
+int cmp_sample (const void *sa, const void *sb);
+
+void init_sample (void *s)
+{
+  test_test_topic *t = (test_test_topic *) s;
+
+  // case 1: @external union_nested1 u1;
+  t->s1._d = 1;
+  t->s1._u.u1 = dds_alloc (sizeof (*t->s1._u.u1));
+  t->s1._u.u1->_d = 6;
+  strcpy(t->s1._u.u1->_u.u6, STR128);
+
+  // case 2: struct_nested1 u2;
+  t->s2._d = 2;
+  t->s2._u.u2.s1 = 10;
+
+  // case 3: sequence<bm1> u3;
+  t->s3._d = 3;
+  SEQA(t->s3._u.u3, 2);
+  t->s3._u.u3._buffer[0] = test_bm1_value0 | test_bm1_value1;
+  t->s3._u.u3._buffer[1] = test_bm1_value5;
+
+  // case 4: enum1 u4[2];
+  t->s4._d = 4;
+  t->s4._u.u4[0] = test_enum1_value2;
+  t->s4._u.u4[1] = test_enum1_value1;
+
+  // case 5: sequence<union_nested1> u5;
+  t->s5._d = 5;
+  SEQA(t->s5._u.u5, 1);
+  t->s5._u.u5._buffer[0]._d = 2;
+  t->s5._u.u5._buffer[0]._u.u2.s1 = 20;
+
+  // case 6: string<128> u6;
+  t->s6._d = 6;
+  strcpy(t->s6._u.u6, STR128);
+
+  // case 7: bm1 u7;
+  t->s7._d = 7;
+  t->s7._u.u7 = test_bm1_value1 | test_bm1_value5;
+
+  // case 8: enum1 u8;
+  t->s8._d = 8;
+  t->s8._u.u8 = test_enum1_value2;
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_test_topic *a = (test_test_topic *) sa;
+  test_test_topic *b = (test_test_topic *) sb;
+
+  // case 1: @external union_nested1 u1;
+  CMP(a, b, s1._d, 1);
+  CMP(a, b, s1._u.u1->_d, 6);
+  CMPSTR(a, b, s1._u.u1->_u.u6, STR128);
+
+  // case 2: struct_nested1 u2;
+  CMP(a, b, s2._d, 2);
+  CMP(a, b, s2._u.u2.s1, 10);
+
+  // case 3: sequence<bm1> u3;
+  CMP(a, b, s3._d, 3);
+  CMP(a, b, s3._u.u3._buffer[0], (test_bm1_value0 | test_bm1_value1));
+  CMP(a, b, s3._u.u3._buffer[1], test_bm1_value5);
+
+  // case 4: enum1 u4[2];
+  CMP(a, b, s4._d, 4);
+  CMP(a, b, s4._u.u4[0], test_enum1_value2);
+  CMP(a, b, s4._u.u4[1], test_enum1_value1);
+
+  // case 5: sequence<union_nested1> u5;
+  CMP(a, b, s5._d, 5);
+  CMP(a, b, s5._u.u5._buffer[0]._d, 2);
+  CMP(a, b, s5._u.u5._buffer[0]._u.u2.s1, 20);
+
+  // case 6: string<128> u6;
+  CMP(a, b, s6._d, 6);
+  CMPSTR(a, b, s6._u.u6, STR128);
+
+  // case 7: bm1 u7;
+  CMP(a, b, s7._d, 7);
+  CMP(a, b, s7._u.u7, (test_bm1_value1 | test_bm1_value5));
+
+  // case 8: enum1 u8;
+  CMP(a, b, s8._d, 8);
+  CMP(a, b, s8._u.u8, test_enum1_value2);
+
+  return 0;
+}
+
+#endif

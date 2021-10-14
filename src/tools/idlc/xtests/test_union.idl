@@ -39,6 +39,7 @@ default:
 
 #include "dds/dds.h"
 #include "test_union.h"
+#include "common.h"
 
 const dds_topic_descriptor_t *desc = &test_union_desc;
 void init_sample (void *s);
@@ -56,7 +57,6 @@ void init_sample (void *s)
   s1->_u.b.a2->_u.c1->_u.a._u.a1 = 123;
 }
 
-#define CMP(a,b,f,n) if ((a->f) != n) return -2; if ((a->f) != (b->f)) return (a->f) > (b->f) ? 1 : -1;
 int cmp_sample (const void *sa, const void *sb)
 {
   test_union *a = (test_union *) sa;
@@ -67,6 +67,5 @@ int cmp_sample (const void *sa, const void *sb)
   CMP(a, b, _u.b.a2->_u.c1->_u.a._u.a1, 123)
   return 0;
 }
-#undef CMP
 
 #endif
