@@ -706,10 +706,10 @@ emit_case(
       opcode |= typecode(type_spec, TYPE, false);
       if (idl_is_struct(type_spec) || idl_is_union(type_spec))
         case_type = EXTERNAL;
-      else if (idl_is_array(type_spec) || (idl_is_string(type_spec) && idl_is_bounded(type_spec)) || idl_is_sequence(type_spec))
+      else if (idl_is_array(type_spec) || (idl_is_string(type_spec) && idl_is_bounded(type_spec)) || idl_is_sequence(type_spec) || idl_is_enum(type_spec))
         case_type = IN_UNION;
       else {
-        assert (idl_is_base_type(type_spec) || (idl_is_string(type_spec) && !idl_is_bounded(type_spec)));
+        assert (idl_is_base_type(type_spec) || (idl_is_string(type_spec) && !idl_is_bounded(type_spec)) || idl_is_bitmask(type_spec));
         case_type = INLINE;
       }
     }
@@ -1023,7 +1023,7 @@ emit_sequence(
       return ret;
 
     /* short-circuit on simple types */
-    if (idl_is_string(type_spec) || idl_is_base_type(type_spec)) {
+    if (idl_is_string(type_spec) || idl_is_base_type(type_spec) || idl_is_bitmask(type_spec)) {
       if (idl_is_bounded(type_spec)) {
         if ((ret = stash_single(pstate, &ctype->instructions, nop, idl_bound(type_spec) + 1)))
           return ret;
