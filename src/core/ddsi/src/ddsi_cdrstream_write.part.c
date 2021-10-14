@@ -207,8 +207,8 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
         {
           assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
           char *ext_addr = *(char **) valaddr;
-          if (ext_addr)
-            (void) dds_stream_writeBO (os, ext_addr, jsr_ops);
+          assert (ext_addr);
+          (void) dds_stream_writeBO (os, ext_addr, jsr_ops);
         }
         else
           (void) dds_stream_writeBO (os, valaddr, jsr_ops);
@@ -251,8 +251,8 @@ const uint32_t *dds_stream_writeBO (DDS_OSTREAM_T * __restrict os, const char * 
             if (op_type_external (insn))
             {
               char *ext_addr = *(char **) addr;
-              if (ext_addr)
-                (void) dds_stream_writeBO (os, ext_addr, jsr_ops);
+              assert (ext_addr);
+              (void) dds_stream_writeBO (os, ext_addr, jsr_ops);
             }
             else
               (void) dds_stream_writeBO (os, addr, jsr_ops);
