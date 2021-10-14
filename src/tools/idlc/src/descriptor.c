@@ -218,6 +218,7 @@ stash_opcode(
          members have the same size, and if the non-basetype members are all
          optimizable themselves, and the alignment of the discriminant is not
          less than the alignment of the members */
+      alignment = ALIGNMENT_1BY;
       descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_CONTAINS_UNION;
       break;
     default:
