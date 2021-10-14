@@ -25,6 +25,18 @@
 #include "generator.h"
 #include "descriptor.h"
 
+static const char *
+get_type_prefix(const idl_type_spec_t *type_spec)
+{
+  /* Prefixing a struct or union type with 'struct' is only required in case
+     it refers to a forward declared type, but in a direct recursive types, the
+     type is used for the member instead of the forward declarator. So therefore,
+     a struct or union type is also prefixed. */
+  if (idl_is_forward(type_spec) || idl_is_struct(type_spec) || idl_is_union(type_spec))
+    return "struct ";
+  return "";
+}
+
 static idl_retcode_t
 emit_implicit_sequence(
   const idl_pstate_t *pstate,
@@ -62,8 +74,7 @@ emit_implicit_sequence(
     star = "*";
   }
 
-  if (idl_is_forward(type_spec))
-    type_prefix = "struct ";
+  type_prefix = get_type_prefix(type_spec);
 
   /* https://www.omg.org/spec/C/1.0/PDF section 1.11 */
   if (IDL_PRINTA(&name, print_type, node) < 0)
@@ -152,8 +163,7 @@ emit_field(
     star = "* ";
   }
 
-  if (idl_is_forward(type_spec))
-    type_prefix = "struct ";
+  type_prefix = get_type_prefix(type_spec);
 
   bool empty = idl_is_empty(type_spec);
   fmt = empty ? "%s/* %s%s %s%s%s%s */ /* no members */" : "%s%s%s %s%s%s%s";
@@ -359,8 +369,7 @@ emit_sequence_typedef(
     star = "*";
   }
 
-  if (idl_is_forward(type_spec))
-    type_prefix = "struct ";
+  type_prefix = get_type_prefix(type_spec);
 
   if (IDL_PRINTA(&type, print_type, type_spec) < 0)
     return IDL_RETCODE_NO_MEMORY;
