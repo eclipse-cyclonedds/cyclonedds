@@ -151,10 +151,13 @@ dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
   if (!sample)
     return DDS_RETCODE_BAD_PARAMETER;
 
+  // MAKI, we can probably move this logic of locking/unlocking into the if block where we are
+  // actually creating the chunk, no? (TODO Sumanth)
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
 
-  if (wr->m_iox_pub)
+  // the loaning is only allowed if SHM is enabled correctly and if the type is fixed
+  if (wr->m_iox_pub && wr->m_topic->m_stype->fixed_size)
   {
     *sample = create_iox_chunk(wr);
 
@@ -179,7 +182,8 @@ dds_return_t dds_return_writer_loan(dds_writer *writer, void **buf, int32_t bufs
   return DDS_RETCODE_UNSUPPORTED;
 #else
   // Iceoryx publisher pointer is a constant so we can check outside the locks
-  if (writer->m_iox_pub == NULL)
+  // returning loan is only valid if SHM is enabled correctly (i.e. iox publisher is initialized) and the type is fixed
+  if (writer->m_iox_pub == NULL || !writer->m_topic->m_stype->fixed_size)
     return DDS_RETCODE_UNSUPPORTED;
   if (bufsz <= 0)
   {
