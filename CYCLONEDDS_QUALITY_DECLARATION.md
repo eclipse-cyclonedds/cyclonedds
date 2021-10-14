@@ -186,7 +186,7 @@ While there are no public automated tests or results, there is evidence in PRs t
 Performance-sensitive PRs are tested for regressions using ddsperf before changes are accepted.
 [ddsperf](https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/src/tools/ddsperf) is the tool to use for assessing Cyclone DDS performance.
 
-There is automated performance testing run nightly as part of the Cyclone DDS and OpenSplice DDS interoperability testing run on internal servers.
+There is automated performance testing run nightly as part interoperability testing on internal servers.
 
 Open Robotics runs ros2 [nightly CI performance tests](http://build.ros2.org/job/Fci__nightly-performance_ubuntu_focal_amd64/) exist but is not yet reliable infrastructure. 
 We suggest and would like to assist Open Robotics to move all performance testing to dedicated hardware.
