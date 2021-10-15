@@ -13,16 +13,17 @@ We ultimately aim to comply with the latest version of above OMG standards. Cycl
 
  * C language
  * C++ language ([ISO/IEC C++ 2003 Language PSM for DDS][5]) (DDS-PSM-Cxx)
+ * Python version 3.6 or higher
 
 The community is welcome to add new language bindings and contribute to the implementation of other OMG specifications.
 
 The roadmap presented here is indicative and subject to change.
 
-## Short-term milestones
+## New features in the current version
 
 **Cyclone 0.8**
 
- * C++11 APIs (GA)
+ * C++11 APIs
  * New APIs to access to serialized CDR data
  * New APIs for configuring the deployment of Cyclone DDS based application
  * Multi-Network interface cards support (Consolidation)
@@ -33,36 +34,38 @@ The roadmap presented here is indicative and subject to change.
    * Automated performance and regression testing
    * Formal feature list also showing test coverage
    * APIs marked stable (each API in formal feature list), evolving or experimental
-
-**Cyclone 0.9**
-
- * Integration of Durability Service for Transient and Persistent data
  * Shared memory transport support
- * Python APIs (GA)
- * Internet-scale deployment support
- * DDS-Xtypes APIs
- * Asynchronous mode of operation
- * ROS 2 Quality Level 1
+ * Python APIs
+ * Internet-scale deployment support through Zenoh Routing technology
 
-## Midterm milestones
+
+## Short milestones
 
 **Cyclone 1.0**
 
- * Static discovery
- * Static memory allocation
- * Writer side filtering support
- * Content Querying APIs
+* DDS-Xtypes support
+* Asynchronous mode of operation
+* Toward ROS 2 Quality Level 1
 
+## Midterm milestones
+
+**Cyclone 1.1**
+
+* Content Querying APIs
+* Static discovery
+
+ 
 ## Long-term milestones
 
 **Future versions**
 
  * Network Mobility support
+ * Static memory allocation
+ * Writer side filtering support
  * C# language binding support (DDS C# API)
  * Java language binding support (Java 5 Language PSM for DDS)
  * Time-sensitive Networking support DDS-TSN
  * Rust language binding support
- * Certifiable DDS
  * Face 3 support
  * Network Scheduling and Federated architecture support
  * [TrustZone](https://developer.arm.com/ip-products/security-ip/trustzone) support for DDS Security
