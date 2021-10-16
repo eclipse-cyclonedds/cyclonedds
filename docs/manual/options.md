@@ -22,7 +22,7 @@ The default value is: "any".
 ### //CycloneDDS/Domain/Compatibility
 Children: [AssumeRtiHasPmdEndpoints](#cycloneddsdomaincompatibilityassumertihaspmdendpoints), [ExplicitlyPublishQosSetToDefault](#cycloneddsdomaincompatibilityexplicitlypublishqossettodefault), [ManySocketsMode](#cycloneddsdomaincompatibilitymanysocketsmode), [StandardsConformance](#cycloneddsdomaincompatibilitystandardsconformance)
 
-The Compatibility elements allows specifying various settings related to compatability with standards and with other DDSI implementations.
+The Compatibility elements allows specifying various settings related to compatibility with standards and with other DDSI implementations.
 
 
 #### //CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints

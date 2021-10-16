@@ -15,7 +15,7 @@ CycloneDDS configuration""" ] ]
         text
       }?
       & [ a:documentation [ xml:lang="en" """
-<p>The Compatibility elements allows specifying various settings related to compatability with standards and with other DDSI implementations.</p>""" ] ]
+<p>The Compatibility elements allows specifying various settings related to compatibility with standards and with other DDSI implementations.</p>""" ] ]
       element Compatibility {
         [ a:documentation [ xml:lang="en" """
 <p>This option assumes ParticipantMessageData endpoints required by the liveliness protocol are present in RTI participants even when not properly advertised by the participant discovery protocol.</p>

@@ -43,7 +43,7 @@ CycloneDDS configuration</xs:documentation>
   <xs:element name="Compatibility">
     <xs:annotation>
       <xs:documentation>
-&lt;p&gt;The Compatibility elements allows specifying various settings related to compatability with standards and with other DDSI implementations.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;The Compatibility elements allows specifying various settings related to compatibility with standards and with other DDSI implementations.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
