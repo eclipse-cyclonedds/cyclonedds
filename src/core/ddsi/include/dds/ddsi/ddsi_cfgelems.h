@@ -1994,7 +1994,7 @@ static struct cfgelem domain_cfgelems[] = {
     NOFUNCTIONS,
     DESCRIPTION(
       "<p>The Compatibility elements allows specifying various settings "
-      "related to compatability with standards and with other DDSI "
+      "related to compatibility with standards and with other DDSI "
       "implementations.</p>"
     )),
   GROUP("Discovery", discovery_cfgelems, NULL, 1,
