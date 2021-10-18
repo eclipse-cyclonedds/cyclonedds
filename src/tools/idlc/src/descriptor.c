@@ -2024,10 +2024,7 @@ resolve_offsets(struct descriptor *descriptor)
     uint32_t offs = 0;
     for (struct constructed_type *ctype = descriptor->constructed_types; ctype; ctype = ctype->next) {
       /* confirm that type is complete */
-      if (!ctype->node) {
-        // FIXME: this shouldn't happen, can we make it an assert?
-        return IDL_RETCODE_SEMANTIC_ERROR;
-      }
+      assert (ctype->node);
       ctype->offset = offs;
       offs += ctype->instructions.count;
     }
@@ -2040,16 +2037,12 @@ resolve_offsets(struct descriptor *descriptor)
       {
         struct instruction *inst = &ctype->instructions.table[op];
         struct constructed_type *ctype1 = find_ctype(descriptor, inst->data.inst_offset.node);
-        if (ctype1) {
-          assert(ctype1->offset <= INT32_MAX);
-          int32_t offs = (int32_t)ctype1->offset - ((int32_t)ctype->offset + inst->data.inst_offset.addr_offs);
-          assert(offs >= INT16_MIN);
-          assert(offs <= INT16_MAX);
-          inst->data.inst_offset.elem_offs = (int16_t)offs;
-        } else {
-          // FIXME: this shouldn't happen, can we make it an assert?
-          return IDL_RETCODE_SEMANTIC_ERROR;
-        }
+        assert (ctype1);
+        assert(ctype1->offset <= INT32_MAX);
+        int32_t offs = (int32_t)ctype1->offset - ((int32_t)ctype->offset + inst->data.inst_offset.addr_offs);
+        assert(offs >= INT16_MIN);
+        assert(offs <= INT16_MAX);
+        inst->data.inst_offset.elem_offs = (int16_t)offs;
       }
     }
   }
