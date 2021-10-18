@@ -625,33 +625,8 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
      If the data representation is not set in the QoS (or no QoS object provided), the allowed
      data representations are added to the QoS object. */
   bool dynamic_type = dds_stream_has_dynamic_type (desc->m_ops);
-  if (tpqos->present & QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0)
-  {
-    assert (tpqos->data_representation.value.ids != NULL);
-    for (uint32_t n = 0; n < tpqos->data_representation.value.n; n++)
-    {
-      switch (tpqos->data_representation.value.ids[n])
-      {
-        case DDS_DATA_REPRESENTATION_XML:
-          return DDS_RETCODE_UNSUPPORTED;
-        case DDS_DATA_REPRESENTATION_XCDR1:
-          if (dynamic_type)
-          {
-            hdl = DDS_RETCODE_BAD_PARAMETER;
-            goto err_data_repr;
-          }
-          break;
-      }
-    }
-  }
-  else
-  {
-    assert (!(tpqos->present & QP_DATA_REPRESENTATION) || tpqos->data_representation.value.n == 0);
-    if (dynamic_type)
-      dds_qset_data_representation (tpqos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR2 });
-    else
-      dds_qset_data_representation (tpqos, 2, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1, DDS_DATA_REPRESENTATION_XCDR2 });
-  }
+  if ((hdl = dds_ensure_valid_data_representation (tpqos, dynamic_type, true)) != 0)
+    goto err_data_repr;
 
   assert (tpqos->present & QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0);
   dds_data_representation_id_t data_representation = tpqos->data_representation.value.ids[0];

@@ -16,6 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_plist.h"
+#include "dds__qos.h"
 
 static void dds_qos_data_copy_in (ddsi_octetseq_t *data, const void * __restrict value, size_t sz, bool overwrite)
 {
@@ -821,3 +822,38 @@ bool dds_qget_data_representation (const dds_qos_t * __restrict qos, uint32_t *n
   }
   return true;
 }
+
+dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, bool dynamic_type, bool topicqos)
+{
+  if ((qos->present & QP_DATA_REPRESENTATION) && qos->data_representation.value.n > 0)
+  {
+    assert (qos->data_representation.value.ids != NULL);
+    for (uint32_t n = 0; n < qos->data_representation.value.n; n++)
+    {
+      switch (qos->data_representation.value.ids[n])
+      {
+        case DDS_DATA_REPRESENTATION_XML:
+          return DDS_RETCODE_UNSUPPORTED;
+        case DDS_DATA_REPRESENTATION_XCDR1:
+          if (dynamic_type)
+            return DDS_RETCODE_BAD_PARAMETER;
+          break;
+        case DDS_DATA_REPRESENTATION_XCDR2:
+          break;
+        default:
+          return DDS_RETCODE_BAD_PARAMETER;
+      }
+    }
+  }
+  else
+  {
+    if (dynamic_type)
+      dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR2 });
+    else if (!topicqos)
+      dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1 });
+    else
+      dds_qset_data_representation (qos, 2, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1, DDS_DATA_REPRESENTATION_XCDR2 });
+  }
+  return DDS_RETCODE_OK;
+}
+

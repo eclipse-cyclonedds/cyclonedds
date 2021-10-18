@@ -52,6 +52,8 @@ extern "C" {
    QP_RESOURCE_LIMITS | QP_ADLINK_WRITER_DATA_LIFECYCLE |               \
    QP_CYCLONE_IGNORELOCAL | QP_PROPERTY_LIST | QP_DATA_REPRESENTATION)
 
+dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, bool dynamic_type, bool topicqos);
+
 #if defined (__cplusplus)
 }
 #endif

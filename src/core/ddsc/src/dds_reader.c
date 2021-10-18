@@ -589,32 +589,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   }
 
   bool dynamic_types = tp->m_stype->dynamic_types;
-  assert (rqos->present & QP_DATA_REPRESENTATION);
-  if (rqos->data_representation.value.n > 0)
-  {
-    assert (rqos->data_representation.value.ids != NULL);
-    for (uint32_t n = 0; n < rqos->data_representation.value.n; n++)
-    {
-      switch (rqos->data_representation.value.ids[n])
-      {
-        case DDS_DATA_REPRESENTATION_XML:
-          rc = DDS_RETCODE_UNSUPPORTED;
-          goto err_data_repr;
-        case DDS_DATA_REPRESENTATION_XCDR1:
-          if (dynamic_types)
-          {
-            rc = DDS_RETCODE_BAD_PARAMETER;
-            goto err_data_repr;
-          }
-          break;
-      }
-    }
-  }
-  else
-  {
-    assert (!(rqos->present & QP_DATA_REPRESENTATION) || rqos->data_representation.value.n == 0);
-    dds_qset_data_representation (rqos, 1, (dds_data_representation_id_t[]) { dynamic_types ? DDS_DATA_REPRESENTATION_XCDR2 : DDS_DATA_REPRESENTATION_XCDR1 });
-  }
+  if ((rc = dds_ensure_valid_data_representation (rqos, dynamic_types, false)) != 0)
+    goto err_data_repr;
 
   thread_state_awake (lookup_thread_state (), gv);
   const struct ddsi_guid * ppguid = dds_entity_participant_guid (&sub->m_entity);
