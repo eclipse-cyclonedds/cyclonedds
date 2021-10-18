@@ -18,9 +18,9 @@
 #include "keylist.h"
 
 struct key_field {
-  const idl_declarator_t *key_declarator;
-  char **parent_paths;
-  size_t n_parent_paths;
+  const idl_declarator_t *key_declarator; /* declarator node, used for finding an entry in the key_containers key_fields */
+  char **parent_paths;    /* stores the paths to this key field, as string with dot separated field names, e.g. { "field1.f2.id", "field2.f2.id" } */
+  size_t n_parent_paths;  /* number of paths in parent_paths */
 };
 
 struct key_container {

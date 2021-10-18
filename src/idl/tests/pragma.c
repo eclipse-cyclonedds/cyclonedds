@@ -147,8 +147,8 @@ CU_Test(idl_pragma, keylist_conflicting)
 {
   idl_retcode_t ret;
   idl_pstate_t *pstate = NULL;
-#define NESTED2 "struct i { char i1; char i2; }; struct o { i o1; i o2; };\n"
-#define NESTED3 "struct i { char i1; char i2; }; struct m { i m1; i m2; }; struct o { m o1; m o2; }; struct p {m p1; m p2; };\n"
+#define NESTED2 "struct i { char i1; char i2; }; struct o { i o1; i o2; }; struct p { i o1; i o2; };\n"
+#define NESTED3 "struct i { char i1; char i2; }; struct m { i m1; i m2; }; struct o { m o1; m o2; }; struct p { m p1; m p2; };\n"
   static const struct {
     const char *idl;
     idl_retcode_t ret;
@@ -165,6 +165,9 @@ CU_Test(idl_pragma, keylist_conflicting)
     { NESTED3 "#pragma keylist o o1.m1.i1 o1.m1.i2 o2.m1.i1 o2.m1.i2 o1.m2.i1\n", IDL_RETCODE_SEMANTIC_ERROR },
     { NESTED3 "#pragma keylist o o1.m1.i1 o1.m1.i2\n", IDL_RETCODE_OK },
     { NESTED3 "#pragma keylist o o1.m1.i1 o1.m1.i2 o1.m2.i1 o1.m2.i2\n", IDL_RETCODE_OK },
+
+    /* Fails because o has i1 as key, and o2 also i2 as key: conflicting key parent paths for type i */
+    { NESTED2 "#pragma keylist o o1.i1\n#pragma keylist p o1.i1 o1.i2\n", IDL_RETCODE_SEMANTIC_ERROR },
 
     /* Fails because o has m1 as key, and p has m2 as key: conflicting key parent paths for type m */
     { NESTED3 "#pragma keylist o o1.m1.i1\n#pragma keylist p p1.m2.i1\n", IDL_RETCODE_SEMANTIC_ERROR },

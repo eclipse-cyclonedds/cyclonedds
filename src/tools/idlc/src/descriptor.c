@@ -1684,55 +1684,53 @@ static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constr
   struct constructed_type_key *ctype_keys = NULL;
   for (uint32_t i = 0; i < ctype->instructions.count; i++) {
     struct instruction *inst = &ctype->instructions.table[i];
-    uint32_t code, typecode, size = 0, dims = 1, align = 0;
+    uint32_t typecode, size = 0, dims = 1, align = 0;
 
     if (inst->type != OPCODE)
       continue;
-    code = inst->data.opcode.code;
-    if (DDS_OP(code) != DDS_OP_ADR)
+    if (DDS_OP(inst->data.opcode.code) != DDS_OP_ADR)
       continue;
     /* If the parent is a @key member and there are no specific key members in this ctype,
        add the key flag to all members in this type. The serializer will only use these
        key flags in case the top-level member (which is referring this this member)
        also has the key flag set. */
     if (parent_is_key && !ctype->has_key_member)
-      code = (inst->data.opcode.code |= DDS_OP_FLAG_KEY);
-    if (!(code & DDS_OP_FLAG_KEY))
+      inst->data.opcode.code |= DDS_OP_FLAG_KEY;
+    else if (!(inst->data.opcode.code & DDS_OP_FLAG_KEY))
       continue;
 
-    struct constructed_type_key *key = calloc (1, sizeof(*key)), *tmp;
+    struct constructed_type_key *key = calloc (1, sizeof(*key));
     if (!key)
       goto err_no_memory;
     if (ctype_keys == NULL)
       ctype_keys = key;
     else {
-      tmp = ctype_keys;
-      while (tmp->next)
-        tmp = tmp->next;
-      tmp->next = key;
+      struct constructed_type_key *last = ctype_keys;
+      while (last->next)
+        last = last->next;
+      last->next = key;
     }
 
     key->ctype = ctype;
     key->offset = i;
     key->order = inst->data.opcode.order;
 
-    const struct instruction *inst2 = &ctype->instructions.table[i + 2];
-    if (DDS_OP_TYPE(code) == DDS_OP_VAL_EXT) {
-      assert(inst2->type == ELEM_OFFSET);
-      const idl_node_t *node = inst2->data.inst_offset.node;
+    if (DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_EXT) {
+      assert(ctype->instructions.table[i + 2].type == ELEM_OFFSET);
+      const idl_node_t *node = ctype->instructions.table[i + 2].data.inst_offset.node;
       struct constructed_type *csubtype = find_ctype(descriptor, node);
       assert(csubtype);
       if ((ret = get_ctype_keys(descriptor, csubtype, &key->sub, true)))
         goto err;
     } else {
       descriptor->n_keys++;
-      if (DDS_OP_TYPE(code) == DDS_OP_VAL_ARR) {
+      if (DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_ARR) {
         assert(i + 2 < ctype->instructions.count);
-        assert(inst2->type == SINGLE);
-        dims = inst2->data.single;
-        typecode = DDS_OP_SUBTYPE(code);
+        assert(ctype->instructions.table[i + 2].type == SINGLE);
+        dims = ctype->instructions.table[i + 2].data.single;
+        typecode = DDS_OP_SUBTYPE(inst->data.opcode.code);
       } else {
-        typecode = DDS_OP_TYPE(code);
+        typecode = DDS_OP_TYPE(inst->data.opcode.code);
       }
 
       switch (typecode) {
@@ -1741,10 +1739,10 @@ static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constr
         case DDS_OP_VAL_4BY: size = align = 4; break;
         case DDS_OP_VAL_8BY: size = align = 8; break;
         case DDS_OP_VAL_BST: {
-          assert(i+2 < ctype->instructions.count);
-          assert(ctype->instructions.table[i+2].type == SINGLE);
+          assert(i + 2 < ctype->instructions.count);
+          assert(ctype->instructions.table[i + 2].type == SINGLE);
           align = 4;
-          size = 5 + ctype->instructions.table[i+2].data.single;
+          size = 5 + ctype->instructions.table[i + 2].data.single;
         }
         break;
         default:
@@ -1794,8 +1792,8 @@ static int add_key_offset(const idl_pstate_t *pstate, struct descriptor *descrip
       if (add_key_offset(pstate, descriptor, ctype_top_level, key->sub, name1, keylist, offs))
         goto err_stash;
     } else {
-      /* For both @key and pragma keylist, use the key order stored in the constructed_type_key
-         object, which is the member id of this key member in its parent constructed_type. */
+      /* Use the key order stored in the constructed_type_key object, which is the member
+         id of this key member in its parent constructed_type. */
       if (stash_key_offset(pstate, &descriptor->key_offsets, nop, name1, offs->n, (uint16_t)key->size) < 0)
         goto err_stash;
       for (uint32_t n = 0; n < offs->n; n++) {
@@ -1832,13 +1830,11 @@ static int sort_keys_cmp (const void *va, const void *vb)
   const struct key_print_meta *a = va;
   const struct key_print_meta *b = vb;
   for (uint32_t i = 0; i < a->n_order; i++) {
-    if (b->n_order - 1 < i)
-      return 1;
+    assert (i < b->n_order);
     if (a->order[i] != b->order[i])
       return a->order[i] < b->order[i] ? -1 : 1;
   }
-  if (b->n_order > a->n_order)
-    return -1;
+  assert (b->n_order == a->n_order);
   return 0;
 }
 
