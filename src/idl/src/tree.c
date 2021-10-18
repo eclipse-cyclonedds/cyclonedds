@@ -2318,7 +2318,7 @@ bool idl_is_enum(const void *ptr)
   /* an enum must have no parent or a module parent */
   assert(!node->node.parent || (idl_mask(node->node.parent) & IDL_MODULE));
   /* an enum must have at least one enumerator */
-  assert(!node->enumerators || (idl_mask(node->enumerators) & IDL_ENUMERATOR));
+  assert(node->enumerators && (idl_mask(node->enumerators) & IDL_ENUMERATOR));
   return true;
 }
 
@@ -2505,7 +2505,7 @@ bool idl_is_bitmask(const void *ptr)
   /* an bitmask must have no parent or a module parent */
   assert(!node->node.parent || (idl_mask(node->node.parent) & IDL_MODULE));
   /* an bitmask must have at least one bit value */
-  assert(!node->bit_values || (idl_mask(node->bit_values) & IDL_BIT_VALUE));
+  assert(node->bit_values && (idl_mask(node->bit_values) & IDL_BIT_VALUE));
   return true;
 }
 
