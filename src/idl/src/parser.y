@@ -1185,6 +1185,6 @@ int idl_iskeyword(idl_pstate_t *pstate, const char *str, int nc)
 static void
 yyerror(idl_location_t *loc, idl_pstate_t *pstate, idl_retcode_t *result, const char *str)
 {
-  idl_error(pstate, loc, str);
+  idl_error(pstate, loc, "%s", str);
   *result = IDL_RETCODE_SYNTAX_ERROR;
 }
