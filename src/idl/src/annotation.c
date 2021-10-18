@@ -587,7 +587,7 @@ annotate_bit_bound(
     bm->bit_bound.value = value;
     for (idl_bit_value_t *e1 = bm->bit_values; e1; e1 = idl_next(e1)) {
       if (e1->position.value >= bm->bit_bound.value) {
-        idl_error(pstate, idl_location(e1), "Position overflow for bit value '%s' (%u), bit_bound is %u", e1->name->identifier, e1->position, bm->bit_bound);
+        idl_error(pstate, idl_location(e1), "Position overflow for bit value '%s' (%u), bit_bound is %u", e1->name->identifier, (unsigned) e1->position.value, (unsigned) bm->bit_bound.value);
         return IDL_RETCODE_OUT_OF_RANGE;
       }
     }
