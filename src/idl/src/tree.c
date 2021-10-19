@@ -1407,6 +1407,25 @@ bool idl_is_forward(const void *ptr)
   return true;
 }
 
+idl_retcode_t idl_validate_forwards(idl_pstate_t *pstate, void *list)
+{
+  idl_retcode_t ret = IDL_RETCODE_OK;
+  for ( ; ret == IDL_RETCODE_OK && list; list = idl_next(list)) {
+    if (idl_mask(list) == IDL_MODULE) {
+      idl_module_t *node = list;
+      ret = idl_validate_forwards(pstate, node->definitions);
+    } else if (idl_is_forward(list)) {
+      idl_forward_t *forward_node = list;
+      if (forward_node->definition == NULL) {
+        idl_error(pstate, idl_location(forward_node),
+          "Forward declared type %s is incomplete", idl_identifier(forward_node));
+        return IDL_RETCODE_SYNTAX_ERROR;
+      }
+    }
+  }
+  return ret;
+}
+
 bool idl_is_inherit_spec(const void *ptr)
 {
   const idl_inherit_spec_t *node = ptr;

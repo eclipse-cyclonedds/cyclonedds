@@ -372,6 +372,8 @@ grammar:
     }
   } while ((tok.code != '\0') &&
            (ret == IDL_RETCODE_OK || ret == IDL_RETCODE_PUSH_MORE));
+  if (ret != IDL_RETCODE_OK)
+    goto err;
 
   pstate->builtin_root = pstate->root;
   for (idl_node_t *node = pstate->root; node; node = node->next) {
@@ -381,14 +383,19 @@ grammar:
     }
   }
 
-  if (ret == IDL_RETCODE_OK)
-    ret = idl_propagate_autoid(pstate, pstate->root, IDL_SEQUENTIAL);
+  if ((ret = idl_validate_forwards(pstate, pstate->root)) != IDL_RETCODE_OK)
+    goto err;
 
-  if (ret == IDL_RETCODE_OK && pstate->keylists) {
-    if ((ret = idl_validate_keylists(pstate)) == IDL_RETCODE_OK)
-      idl_set_keylist_key_flags(pstate, pstate->root);
+  if ((ret = idl_propagate_autoid(pstate, pstate->root, IDL_SEQUENTIAL)) != IDL_RETCODE_OK)
+    goto err;
+
+  if (pstate->keylists) {
+    if ((ret = idl_validate_keylists(pstate)) != IDL_RETCODE_OK)
+      goto err;
+    idl_set_keylist_key_flags(pstate, pstate->root);
   }
 
+err:
   return ret;
 }
 

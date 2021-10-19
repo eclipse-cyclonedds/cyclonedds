@@ -127,6 +127,11 @@ idl_create_forward(
   void *nodep);
 
 idl_retcode_t
+idl_validate_forwards(
+  idl_pstate_t *pstate,
+  void *list);
+
+idl_retcode_t
 idl_create_key(
   idl_pstate_t *pstate,
   const idl_location_t *location,
