@@ -346,7 +346,7 @@ void *idl_delete_node(void *ptr)
     if (previous)
       previous->next = next;
     if (next)
-      next->previous = next;
+      next->previous = previous;
     idl_delete_node((idl_node_t *)node->annotations);
     /* self-destruct */
     if (node->destructor)
