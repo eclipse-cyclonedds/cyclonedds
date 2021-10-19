@@ -286,14 +286,11 @@ const struct dds_entity_deriver dds_entity_deriver_writer = {
 #define DDS_WRITER_QOS_CHECK_FIELDS (QP_LIVELINESS|QP_DEADLINE|QP_RELIABILITY|QP_DURABILITY|QP_HISTORY)
 static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_t* qos, const struct dds_topic *tp)
 {
+  // MAKI consider removing the argument once it is clear the check does not depend on topic
+  (void) tp;
   if (NULL == cfg ||
       false == cfg->enable_shm)
     return false;
-
-  // MAKI: remove fixed type check
-  (void) tp;
-  //  if (!tp->m_stype->fixed_size)
-  //    return false;
 
   uint32_t pub_history_cap = cfg->pub_history_capacity;
 
@@ -418,8 +415,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wr->m_data_representation = data_representation;
 
 #ifdef DDS_HAS_SHM
-  assert(wqos->present & QP_LOCATOR_MASK);
-  // MAKI the only SHM support check
+  assert(wqos->present & QP_LOCATOR_MASK);  
   if (!dds_writer_support_shm(&gv->config, wqos, tp))
     wqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
 #endif

@@ -140,6 +140,26 @@ static bool serdata_default_eqkey_nokey (const struct ddsi_serdata *acmn, const 
   return true;
 }
 
+
+static void serdata_default_free_iox_chunk(struct ddsi_serdata_default* d) {
+  // TODO(MAKI) optimize/check concurrent correctness
+  // Use double checked locking to avoid concurrent double free
+  // We could also use an exchange operation (do we have an abstraction for that?)
+  // This would avoid some locking (CAS is too costly and not needed)
+  // Note: we must be careful to only set the chunk to NULL under lock
+  if (d->c.iox_chunk)
+  {
+    iox_sub_t *sub = d->c.iox_subscriber;
+    shm_lock_iox_sub(*sub);
+    if (d->c.iox_chunk)
+    {
+      iox_sub_release_chunk(*sub, d->c.iox_chunk);
+      d->c.iox_chunk = NULL;
+    }
+    shm_unlock_iox_sub(*sub);
+  }
+}
+
 static void serdata_default_free(struct ddsi_serdata *dcmn)
 {
   struct ddsi_serdata_default *d = (struct ddsi_serdata_default *)dcmn;
@@ -149,17 +169,7 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
     ddsrt_free(d->key.u.dynbuf);
 
 #ifdef DDS_HAS_SHM
-  //ICEORYX_TODO the chunk is released concurrently to iox_sub_take_chunk here,
-  //                 we will need mutex protection for this call
-  //                 when is the free called exactly?
-  if (d->c.iox_chunk)
-  {
-    iox_sub_t *sub = d->c.iox_subscriber;
-    shm_lock_iox_sub(*sub);
-    iox_sub_release_chunk(*sub, d->c.iox_chunk);
-    d->c.iox_chunk = NULL;
-    shm_unlock_iox_sub(*sub);
-  }
+  serdata_default_free_iox_chunk(d);
 #endif
 
   if (d->size > MAX_SIZE_FOR_POOL || !nn_freelist_push (&d->serpool->freelist, d))
@@ -494,17 +504,10 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
   d->keyhash.m_keysize = 16;
   fix_serdata_default(d, tpcmn->serdata_basehash);
 
-  if(ice_hdr->data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {
-    // MAKI TODO: deserialize and free chunk
-    // ideally deserialize it into application
-    // need to consider read_cdr which expects a serialized form
-    iox_sub_release_chunk(sub, iox_buffer);
-    d->c.iox_chunk = NULL;
-    d->c.iox_subscriber = NULL;
-  } else {
-    d->c.iox_chunk = iox_buffer;
-    d->c.iox_subscriber = sub;
-  }
+  // MAKI: we do not deserialize or memcpy here, ust take ownership of the chunk
+  d->c.iox_chunk = iox_buffer;
+  d->c.iox_subscriber = sub;
+
   return (struct ddsi_serdata*)d;
 }
 
@@ -689,6 +692,7 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
   if (d->c.iox_chunk)
   {
     // MAKI: refactor into a function
+    // may need to happen under the subscriber lock if it can be called concurrently to e.g. itself
     void* iox_chunk = d->c.iox_chunk;
     iceoryx_header_t* hdr = iceoryx_header_from_chunk(iox_chunk);
     if(hdr->data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {  
@@ -704,10 +708,11 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
       // we could check the enum but should not be needed
       memcpy(sample, iox_chunk, hdr->data_size);
     }
-    // MAKI we should free the chunk earlier to avoid some issues 
-    // (piling up chunks), may not be enough though
-    // note that this requires locking the iox subscriber ...   
-     return true;
+    // MAKI the iox chunk is not needed anymore (discuss, it depends whether we
+    // may deserialize a sample twice but that would be inefficient)
+    // unfortunately this may change the object so we violate const correctness...
+    serdata_default_free_iox_chunk((struct ddsi_serdata_default *)d);  
+    return true;
   }
 #endif
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */

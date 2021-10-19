@@ -148,13 +148,11 @@ dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
   dds_return_t ret;
   dds_writer *wr;
 
-  if (!sample)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  // MAKI, we can probably move this logic of locking/unlocking into the if block where we are
-  // actually creating the chunk, no? (TODO Sumanth)
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
+
+  if (!sample)
+    return DDS_RETCODE_BAD_PARAMETER;  
 
   // the loaning is only allowed if SHM is enabled correctly and if the type is fixed
   if (wr->m_iox_pub && wr->m_topic->m_stype->fixed_size)
@@ -170,7 +168,8 @@ dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
   } else {
     ret = DDS_RETCODE_UNSUPPORTED;
   }
-  dds_writer_unlock (wr);
+
+  dds_writer_unlock (wr); 
   return ret;
 #endif
 }
