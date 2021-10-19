@@ -476,7 +476,8 @@ void test_id(
     while (idl_is_module(node)) {
       const idl_module_t *mod = (const idl_module_t *)node;
       CU_ASSERT_TRUE_FATAL(m < sizeof(test.id)/sizeof(test.id[0]));
-      CU_ASSERT_EQUAL(mod->autoid.value, test.aid[m++]);
+      CU_ASSERT_EQUAL(mod->autoid.value, test.aid[m]);
+      m++;
       assert(mod->definitions);
       node = (const idl_node_t*)mod->definitions;
     }
