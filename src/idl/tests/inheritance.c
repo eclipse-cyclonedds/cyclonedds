@@ -77,8 +77,10 @@ CU_Test(idl_inheritance, empty_structs)
     while (s) {
       for (const idl_member_t *m = s->members; m; m = idl_next(m)) {
         for (const idl_declarator_t *d = m->declarators; d; d = idl_next(d)) {
-          if (ids)
-            CU_ASSERT_EQUAL(d->id.value, --ids);
+          if (ids) {
+            ids--;
+            CU_ASSERT_EQUAL(d->id.value, ids);
+          }
           fields++;
         }
       }
