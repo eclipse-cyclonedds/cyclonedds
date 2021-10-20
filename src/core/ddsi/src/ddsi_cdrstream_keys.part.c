@@ -185,7 +185,8 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __re
         {
           const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
           const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
-          (void) dds_stream_extract_keyBO_from_data1 (is, os, jsr_ops, n_keys, keys_remaining, key, key_offs);
+          /* only in case the ADR|EXT has the key flag set, pass the actual ostream, otherwise skip the EXT type by passing NULL for ostream */
+          (void) dds_stream_extract_keyBO_from_data1 (is, is_key ? os : NULL, jsr_ops, n_keys, keys_remaining, key, key_offs);
           ops += jmp ? jmp : 3;
         }
         else if (is_key)
