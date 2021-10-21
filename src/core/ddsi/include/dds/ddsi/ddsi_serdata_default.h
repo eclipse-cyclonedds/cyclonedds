@@ -36,6 +36,8 @@ struct serdatapool {
   struct nn_freelist freelist;
 };
 
+#define FIXED_KEY_MAX_SIZE 16
+
 #define KEYBUFTYPE_UNSET    0u
 #define KEYBUFTYPE_STATIC   1u // uses u.stbuf
 #define KEYBUFTYPE_DYNALIAS 2u // points into payload
@@ -47,7 +49,7 @@ struct ddsi_serdata_default_key {
   unsigned buftype : 2;
   unsigned keysize : 30;
   union {
-    unsigned char stbuf[16];
+    unsigned char stbuf[FIXED_KEY_MAX_SIZE];
     unsigned char *dynbuf;
   } u;
 };

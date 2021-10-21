@@ -58,7 +58,7 @@ const dds_topic_descriptor_t Keyed32_desc =
 {
   sizeof (Keyed32),
   4u,
-  DDS_TOPIC_FIXED_KEY,
+  DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2,
   1u,
   "Keyed32",
   Keyed32_keys,
@@ -85,7 +85,7 @@ const dds_topic_descriptor_t Keyed64_desc =
 {
   sizeof (Keyed64),
   4u,
-  DDS_TOPIC_FIXED_KEY,
+  DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2,
   1u,
   "Keyed64",
   Keyed64_keys,
@@ -112,7 +112,7 @@ const dds_topic_descriptor_t Keyed128_desc =
 {
   sizeof (Keyed128),
   4u,
-  DDS_TOPIC_FIXED_KEY,
+  DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2,
   1u,
   "Keyed128",
   Keyed128_keys,
@@ -139,7 +139,7 @@ const dds_topic_descriptor_t Keyed256_desc =
 {
   sizeof (Keyed256),
   4u,
-  DDS_TOPIC_FIXED_KEY,
+  DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2,
   1u,
   "Keyed256",
   Keyed256_keys,

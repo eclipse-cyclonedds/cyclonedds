@@ -31,7 +31,8 @@
 #define TYPE (16)
 #define SUBTYPE (8)
 
-#define MAX_SIZE (16)
+#define XCDR1_MAX_ALIGN 8
+#define XCDR2_MAX_ALIGN 4
 
 static const uint16_t nop = UINT16_MAX;
 
@@ -299,9 +300,9 @@ err_member:
 
 static idl_retcode_t
 stash_key_offset(
-  const idl_pstate_t *pstate, struct instructions *instructions, uint32_t index, char *key_name, uint16_t length, uint16_t key_size)
+  const idl_pstate_t *pstate, struct instructions *instructions, uint32_t index, char *key_name, uint16_t length)
 {
-  struct instruction inst = { KEY_OFFSET, { .key_offset = { .len = length, .key_size = key_size } } };
+  struct instruction inst = { KEY_OFFSET, { .key_offset = { .len = length } } };
   if (!(inst.data.key_offset.key_name = idl_strdup(key_name)))
     return IDL_RETCODE_NO_MEMORY;
   return stash_instruction(pstate, instructions, index, &inst);
@@ -1636,7 +1637,7 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
       case KEY_OFFSET:
       {
         const struct instruction inst_op = { OPCODE, { .opcode = { .code = (DDS_OP_KOF & DDS_OP_MASK) | (inst->data.key_offset.len & DDS_KOF_OFFSET_MASK), .order = 0 } } };
-        if (fputs(sep, fp) < 0 || idl_fprintf(fp, "\n  /* key: %s (size: %u) */\n  ", inst->data.key_offset.key_name, inst->data.key_offset.key_size) < 0 || print_opcode(fp, &inst_op) < 0)
+        if (fputs(sep, fp) < 0 || idl_fprintf(fp, "\n  /* key: %s */\n  ", inst->data.key_offset.key_name) < 0 || print_opcode(fp, &inst_op) < 0)
           return -1;
         brk = op + 1 + inst->data.key_offset.len;
         break;
@@ -1675,6 +1676,19 @@ static void free_ctype_keys(struct constructed_type_key *key)
     tmp = tmp->next;
     free(tmp1);
   }
+}
+
+static uint32_t add_to_key_size(uint32_t keysize, uint32_t field_size, uint32_t field_dims, uint32_t field_align, uint32_t max_align)
+{
+  uint32_t sz = keysize;
+  if (field_align > max_align)
+    field_align = max_align;
+  if (sz % field_align)
+    sz += field_align - (sz % field_align);
+  sz += field_size * field_dims;
+  if (sz > FIXED_KEY_MAX_SIZE)
+    sz = FIXED_KEY_MAX_SIZE + 1;
+  return sz;
 }
 
 static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, bool parent_is_key)
@@ -1723,7 +1737,6 @@ static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constr
       if ((ret = get_ctype_keys(descriptor, csubtype, &key->sub, true)))
         goto err;
     } else {
-      descriptor->n_keys++;
       if (DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_ARR) {
         assert(i + 2 < ctype->instructions.count);
         assert(ctype->instructions.table[i + 2].type == SINGLE);
@@ -1738,27 +1751,28 @@ static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constr
         case DDS_OP_VAL_2BY: size = align = 2; break;
         case DDS_OP_VAL_4BY: size = align = 4; break;
         case DDS_OP_VAL_8BY: size = align = 8; break;
-        case DDS_OP_VAL_BST: {
+        case DDS_OP_VAL_BST: case DDS_OP_VAL_BSP: {
           assert(i + 2 < ctype->instructions.count);
           assert(ctype->instructions.table[i + 2].type == SINGLE);
+          /* string size if stored as bound + 1 */
+          uint32_t str_sz = ctype->instructions.table[i + 2].data.single;
+          /* use align and add size for 4 byte string-length field */
           align = 4;
-          size = 5 + ctype->instructions.table[i + 2].data.single;
+          size = 4 + str_sz;
         }
         break;
         default:
-          key->size = MAX_SIZE + 1;
+          size = FIXED_KEY_MAX_SIZE + 1;
+          align = 1;
           break;
       }
-      if (size > MAX_SIZE || dims > MAX_SIZE || (size * dims) + key->size > MAX_SIZE)
-        key->size = MAX_SIZE + 1;
-      else
-      {
-        if ((key->size % align) != 0)
-          key->size += align - (key->size % align);
-        key->size += size * dims;
-      }
-    }
 
+      descriptor->n_keys++;
+      descriptor->keysz_xcdr1 = add_to_key_size(descriptor->keysz_xcdr1, size, dims, align, XCDR1_MAX_ALIGN);
+      descriptor->keysz_xcdr2 = add_to_key_size(descriptor->keysz_xcdr2, size, dims, align, XCDR2_MAX_ALIGN);
+    } /* end for loop through all the ctype's instructions */
+
+    /* get the name of the field from the offset instruction, which is the first after the ADR */
     const struct instruction *inst1 = &ctype->instructions.table[i + 1];
     assert(inst1->type == OFFSET);
     assert(inst1->data.offset.type);
@@ -1766,6 +1780,7 @@ static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constr
     if (!(key->name = idl_strdup(inst1->data.offset.member)))
       goto err_no_memory;
   }
+
   *keys = ctype_keys;
   return IDL_RETCODE_OK;
 
@@ -1794,7 +1809,7 @@ static int add_key_offset(const idl_pstate_t *pstate, struct descriptor *descrip
     } else {
       /* Use the key order stored in the constructed_type_key object, which is the member
          id of this key member in its parent constructed_type. */
-      if (stash_key_offset(pstate, &descriptor->key_offsets, nop, name1, offs->n, (uint16_t)key->size) < 0)
+      if (stash_key_offset(pstate, &descriptor->key_offsets, nop, name1, offs->n) < 0)
         goto err_stash;
       for (uint32_t n = 0; n < offs->n; n++) {
         if (stash_key_offset_val(pstate, &descriptor->key_offsets, nop, offs->val[n], offs->order[n]))
@@ -1819,6 +1834,7 @@ static int add_key_offset_list(const idl_pstate_t *pstate, struct descriptor *de
   struct constructed_type_key *keys;
   if (get_ctype_keys(descriptor, ctype, &keys, false))
     return -1;
+
   struct key_offs offs = { .val = { 0 }, .order = { 0 }, .n = 0 };
   add_key_offset(pstate, descriptor, ctype, keys, NULL, keylist, &offs);
   free_ctype_keys(keys);
@@ -1838,25 +1854,22 @@ static int sort_keys_cmp (const void *va, const void *vb)
   return 0;
 }
 
-struct key_print_meta *key_print_meta_init(struct descriptor *descriptor, uint32_t *sz)
+struct key_print_meta *key_print_meta_init(struct descriptor *descriptor)
 {
   struct key_print_meta *keys;
   uint32_t key_index = 0, offs_len = 0;
 
-  assert (sz);
   if (!(keys = calloc(descriptor->n_keys, sizeof(*keys))))
     return NULL;
   for (uint32_t i = 0; i < descriptor->key_offsets.count; i++) {
     const struct instruction *inst = &descriptor->key_offsets.table[i];
     if (inst->type == KEY_OFFSET) {
-      (*sz) += inst->data.key_offset.key_size;
       offs_len = inst->data.key_offset.len;
       assert(key_index < descriptor->n_keys);
       keys[key_index].name = inst->data.key_offset.key_name;
       keys[key_index].inst_offs = i;
       keys[key_index].order = calloc(offs_len, sizeof (*keys[key_index].order));
       keys[key_index].n_order = offs_len;
-      keys[key_index].size = inst->data.key_offset.key_size;
       keys[key_index].key_idx = key_index;
       key_index++;
     } else {
@@ -1890,18 +1903,13 @@ static int print_keys(FILE *fp, struct descriptor *descriptor, uint32_t offset)
   char *typestr = NULL;
   const char *fmt, *sep="";
   struct key_print_meta *keys;
-  uint32_t sz = 0;
 
   if (descriptor->n_keys == 0)
     return 0;
-  if (!(keys = key_print_meta_init(descriptor, &sz)))
+  if (!(keys = key_print_meta_init(descriptor)))
     goto err_keys;
   if (IDL_PRINT(&typestr, print_type, descriptor->topic) < 0)
     goto err_type;
-
-  assert(sz);
-  if (sz <= MAX_SIZE)
-    descriptor->flags |= DDS_TOPIC_FIXED_KEY;
 
   fmt = "static const dds_key_descriptor_t %s_keys[%"PRIu32"] =\n{\n";
   if (idl_fprintf(fp, fmt, typestr, descriptor->n_keys) < 0)
@@ -1927,10 +1935,12 @@ err_keys:
   return -1;
 }
 
+#define MAX_FLAGS 30
+
 static int print_flags(FILE *fp, struct descriptor *descriptor)
 {
   const char *fmt;
-  const char *vec[4] = { NULL };
+  const char *vec[MAX_FLAGS] = { NULL };
   size_t cnt, len = 0;
 
   if (descriptor->flags & DDS_TOPIC_NO_OPTIMIZE)
@@ -1939,6 +1949,8 @@ static int print_flags(FILE *fp, struct descriptor *descriptor)
     vec[len++] = "DDS_TOPIC_CONTAINS_UNION";
   if (descriptor->flags & DDS_TOPIC_FIXED_KEY)
     vec[len++] = "DDS_TOPIC_FIXED_KEY";
+  if (descriptor->flags & DDS_TOPIC_FIXED_KEY_XCDR2)
+    vec[len++] = "DDS_TOPIC_FIXED_KEY_XCDR2";
 
   bool fixed_size = true;
   for (struct constructed_type *ctype = descriptor->constructed_types; ctype && fixed_size; ctype = ctype->next) {
@@ -2152,6 +2164,12 @@ generate_descriptor_impl(
     goto err;
   if ((ret = add_key_offset_list(pstate, descriptor, (pstate->flags & IDL_FLAG_KEYLIST) != 0)) < 0)
     goto err;
+
+  /* Set fixed-key flags */
+  if (descriptor->keysz_xcdr1 > 0 && descriptor->keysz_xcdr1 <= FIXED_KEY_MAX_SIZE)
+    descriptor->flags |= DDS_TOPIC_FIXED_KEY;
+  if (descriptor->keysz_xcdr2 > 0 && descriptor->keysz_xcdr2 <= FIXED_KEY_MAX_SIZE)
+    descriptor->flags |= DDS_TOPIC_FIXED_KEY_XCDR2;
 
 err:
   return ret;

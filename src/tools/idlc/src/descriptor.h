@@ -12,6 +12,7 @@
 #include "idl/processor.h"
 
 #define MAX_KEY_OFFS (255)
+#define FIXED_KEY_MAX_SIZE (16)
 
 /* store each instruction separately for easy post processing and reduced
    complexity. arrays and sequences introduce a new scope and the relative
@@ -96,7 +97,6 @@ struct constructed_type_key {
   const struct constructed_type *ctype;
   struct constructed_type_key *next;
   char *name;
-  uint32_t size;
   uint32_t offset;
   uint32_t order;
   struct constructed_type_key *sub;
@@ -128,6 +128,8 @@ struct descriptor {
   uint32_t n_keys; /**< number of keys in topic */
   uint32_t n_opcodes; /**< number of opcodes in descriptor */
   uint32_t flags; /**< topic descriptor flag values */
+  uint32_t keysz_xcdr1; /**< size of the XCDR1 serialized key (or set to MAX_FIXED_KEY + 1 if more than MAX_FIXED_KEY) */
+  uint32_t keysz_xcdr2; /**< size of the XCDR2 serialized key (or set to MAX_FIXED_KEY + 1 if more than MAX_FIXED_KEY) */
   struct stack_type *type_stack;
   struct constructed_type *constructed_types;
   struct instructions key_offsets;
@@ -138,14 +140,12 @@ struct key_print_meta {
   uint32_t inst_offs;
   uint32_t n_order;
   uint32_t *order;
-  uint32_t size;
   uint32_t key_idx;
 };
 
 struct key_print_meta *
 key_print_meta_init(
-  struct descriptor *descriptor,
-  uint32_t *sz);
+  struct descriptor *descriptor);
 
 void
 key_print_meta_free(

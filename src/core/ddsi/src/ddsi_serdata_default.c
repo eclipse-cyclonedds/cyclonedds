@@ -222,6 +222,14 @@ enum gen_serdata_key_input_kind {
   GSKIK_CDRKEY
 };
 
+static inline bool is_topic_fixed_key(uint32_t flagset, uint32_t xcdrv)
+{
+  /* The size of the XCDR2 representation of a key is <= the size of the XCDR1 representation
+     because of max-alignment, so if only the XCDR flag is set (legacy topic descriptor)
+     it is also a fixed key in XCDR2 */
+  return flagset & (DDS_TOPIC_FIXED_KEY | (xcdrv == CDR_ENC_VERSION_2 ? DDS_TOPIC_FIXED_KEY_XCDR2 : 0));
+}
+
 static void gen_serdata_key (const struct ddsi_sertype_default *type, struct ddsi_serdata_default_key *kh, enum gen_serdata_key_input_kind input_kind, void *input)
 {
   const struct ddsi_sertype_default_desc *desc = &type->type;
@@ -249,11 +257,11 @@ static void gen_serdata_key (const struct ddsi_sertype_default *type, struct dds
     // Force the key in the serdata object to be serialized in XCDR2 format
     dds_ostream_t os;
     dds_ostream_init (&os, 0, CDR_ENC_VERSION_2);
-    if (desc->flagset & DDS_TOPIC_FIXED_KEY)
+    if (is_topic_fixed_key(desc->flagset, CDR_ENC_VERSION_2))
     {
       // FIXME: there are more cases where we don't have to allocate memory
       os.m_buffer = kh->u.stbuf;
-      os.m_size = 16;
+      os.m_size = FIXED_KEY_MAX_SIZE;
     }
     switch (input_kind)
     {
@@ -271,7 +279,7 @@ static void gen_serdata_key (const struct ddsi_sertype_default *type, struct dds
     }
     assert (os.m_index < (1u << 30));
     kh->keysize = os.m_index & SERDATA_DEFAULT_KEYSIZE_MASK;
-    if (desc->flagset & DDS_TOPIC_FIXED_KEY)
+    if (is_topic_fixed_key (desc->flagset, CDR_ENC_VERSION_2))
       kh->buftype = KEYBUFTYPE_STATIC;
     else
     {
@@ -441,7 +449,7 @@ static struct ddsi_serdata *serdata_default_from_ser_iov_nokey (const struct dds
 static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_sertype *tpcmn, const ddsi_keyhash_t *keyhash)
 {
   const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *)tpcmn;
-  if (!(tp->type.flagset & DDS_TOPIC_FIXED_KEY))
+  if (!is_topic_fixed_key (tp->type.flagset, CDR_ENC_VERSION_2))
   {
     /* keyhash is MD5 of a key value, so impossible to turn into a key value */
     return NULL;
@@ -483,8 +491,8 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
   d->c.iox_chunk = iox_buffer;
   d->c.iox_subscriber = sub;
   d->key.buftype = KEYBUFTYPE_STATIC;
-  d->key.keysize = 16;
-  memcpy(d->key.u.stbuf, ice_hdr->keyhash.value, 16);
+  d->key.keysize = FIXED_KEY_MAX_SIZE;
+  memcpy(d->key.u.stbuf, ice_hdr->keyhash.value, FIXED_KEY_MAX_SIZE);
 
   fix_serdata_default(d, tpcmn->serdata_basehash);
   return (struct ddsi_serdata*)d;
@@ -725,44 +733,44 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
   // d->key could also be in big-endian, but that eliminates the possibility of aliasing d->data
   // on little endian machines and forces a double copy of the key to be present for SDK_KEY
   //
-  // As nobody should be using the DSDI keyhash, the price to pay for the conversion looks like
+  // As nobody should be using the DDSI keyhash, the price to pay for the conversion looks like
   // a price worth paying
-#if DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
-  const void *keyBE = serdata_default_keybuf(d);
-#else
-  unsigned char static_keyBE[sizeof (d->key.u.stbuf)];
-  void *keyBE = (tp->type.flagset & DDS_TOPIC_FIXED_KEY) ? static_keyBE : ddsrt_malloc (d->key.keysize);
+
+  uint32_t xcdrv = get_xcdr_version (d->hdr.identifier);
+
+  /* serdata has a XCDR2 serialized key, so initializer the istream with this version
+     and with the size of that key (d->key.keysize) */
   dds_istream_t is;
-  dds_istream_init (&is, d->key.keysize, serdata_default_keybuf(d), get_xcdr_version (d->hdr.identifier));
+  dds_istream_init (&is, d->key.keysize, serdata_default_keybuf(d), CDR_ENC_VERSION_2);
 
-  /* The output stream uses the XCDR version from the serdata, so that the keyhash is calculated
-     using this CDR representation (XTypes spec 7.6.8, step 4) */
+  /* The output stream uses the XCDR version from the serdata, so that the keyhash in
+     ostream is calculated using this CDR representation (XTypes spec 7.6.8, RTPS spec 9.6.3.8) */
   dds_ostreamBE_t os;
-  dds_ostreamBE_init (&os, 0, get_xcdr_version (d->hdr.identifier));
-  os.x.m_buffer = keyBE;
-  os.x.m_size = d->key.keysize;
+  dds_ostreamBE_init (&os, 0, xcdrv);
   dds_stream_extract_keyBE_from_key (&is, &os, tp);
-  assert (is.m_index == is.m_size);
-  assert (os.x.m_index == os.x.m_size);
-#endif
+  assert (is.m_index == d->key.keysize);
 
-  if (force_md5 || !(tp->type.flagset & DDS_TOPIC_FIXED_KEY))
+  /* We know the key size for XCDR2 encoding, but for XCDR1 there can be additional
+     padding because of 8-byte alignment of key fields */
+  if (xcdrv == CDR_ENC_VERSION_2)
+    assert (os.x.m_index == d->key.keysize);
+
+  /* Cannot use is_topic_fixed_key here, because in case there is a bounded string
+     key field, it may contain a shorter string and fit in the 16 bytes */
+  uint32_t actual_keysz = os.x.m_index;
+  if (force_md5 || actual_keysz > FIXED_KEY_MAX_SIZE)
   {
     ddsrt_md5_state_t md5st;
     ddsrt_md5_init (&md5st);
-    ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) keyBE, d->key.keysize);
+    ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) os.x.m_buffer, actual_keysz);
     ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf->value);
   }
   else
   {
-    memset (buf->value, 0, 16);
-    memcpy (buf->value, serdata_default_keybuf(d), d->key.keysize);
+    memset (buf->value, 0, FIXED_KEY_MAX_SIZE);
+    memcpy (buf->value, os.x.m_buffer, actual_keysz);
   }
-
-#if DDSRT_ENDIAN != DDSRT_BIG_ENDIAN
-  if (keyBE != static_keyBE)
-    ddsrt_free (keyBE);
-#endif
+  dds_ostreamBE_fini (&os);
 }
 
 const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {

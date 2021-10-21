@@ -241,12 +241,13 @@ enum dds_stream_typecode_subtype {
 #define DDS_OP_FLAG_MU  (1u << 3) /* must-understand flag, used with PLM in parameter list CDR */
 
 /* Topic descriptor flag values */
-#define DDS_TOPIC_FLAGS_MASK                    0x7fffffff
+#define DDS_TOPIC_FLAGS_MASK                    0x3fffffff  /* The 2 most significant bits are used for type extensibility */
 #define DDS_TOPIC_NO_OPTIMIZE                   (1u << 0)
-#define DDS_TOPIC_FIXED_KEY                     (1u << 1)
+#define DDS_TOPIC_FIXED_KEY                     (1u << 1)   /* Set if the XCDR1 serialized key fits in 16 bytes */
 #define DDS_TOPIC_CONTAINS_UNION                (1u << 2)
 #define DDS_TOPIC_DISABLE_TYPECHECK             (1u << 3)
 #define DDS_TOPIC_FIXED_SIZE                    (1u << 4)
+#define DDS_TOPIC_FIXED_KEY_XCDR2               (1u << 5)   /* Set if the XCDR2 serialized key fits in 16 bytes */
 
 
 #define DDS_TOPIC_TYPE_EXTENSIBILITY_MASK       0xc0000000
