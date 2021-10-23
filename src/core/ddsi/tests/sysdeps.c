@@ -13,11 +13,13 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <stddef.h>
 
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/sysdeps.h"
 #include "CUnit/Theory.h"
 
@@ -141,18 +143,42 @@ CU_Test (ddsi_sysdeps, log_stacktrace_self, .init = setup, .fini = teardown)
 }
 
 struct log_stacktrace_thread_arg {
+  int incallback;
   int stop;
   ddsrt_cond_t cond;
   ddsrt_mutex_t lock;
 };
 
-static uint32_t log_stacktrace_thread (void *varg)
+struct helper_node {
+  ddsrt_avl_node_t avlnode;
+  int key;
+};
+
+static const ddsrt_avl_treedef_t helper_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct helper_node, avlnode), offsetof (struct helper_node, key), 0, 0);
+static struct helper_node helper_node = {
+  .avlnode = { .cs = {0,0}, .parent = 0, .height = 1 },
+  .key = 0
+};
+static ddsrt_avl_tree_t helper_tree = {
+  &helper_node.avlnode
+};
+
+static void log_stacktrace_helper (void *vnode, void *varg)
 {
   struct log_stacktrace_thread_arg * const arg = varg;
+  (void) vnode;
   ddsrt_mutex_lock (&arg->lock);
+  arg->incallback = 1;
+  ddsrt_cond_signal (&arg->cond);
   while (!arg->stop)
     ddsrt_cond_wait (&arg->cond, &arg->lock);
   ddsrt_mutex_unlock (&arg->lock);
+}
+
+static uint32_t log_stacktrace_thread (void *varg)
+{
+  ddsrt_avl_walk (&helper_treedef, &helper_tree, log_stacktrace_helper, varg);
   return 0;
 }
 
@@ -160,6 +186,7 @@ CU_Test (ddsi_sysdeps, log_stacktrace_other, .init = setup, .fini = teardown)
 {
   struct log_stacktrace_thread_arg arg;
 
+  arg.incallback = 0;
   arg.stop = 0;
   ddsrt_mutex_init (&arg.lock);
   ddsrt_cond_init (&arg.cond);
@@ -170,6 +197,11 @@ CU_Test (ddsi_sysdeps, log_stacktrace_other, .init = setup, .fini = teardown)
   ddsrt_threadattr_init (&tattr);
   rc = ddsrt_thread_create (&tid, "log_stacktrace_thread", &tattr, log_stacktrace_thread, &arg);
   CU_ASSERT_FATAL (rc == 0);
+
+  ddsrt_mutex_lock (&arg.lock);
+  while (!arg.incallback)
+    ddsrt_cond_wait (&arg.cond, &arg.lock);
+  ddsrt_mutex_unlock (&arg.lock);
 
   log_stacktrace (&logconfig, "other", tid);
 
