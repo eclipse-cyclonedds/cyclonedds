@@ -139,6 +139,27 @@ char *idl_strndup(const char *str, size_t len)
   return s;
 }
 
+size_t idl_strlcpy(char * __restrict dest, const char * __restrict src, size_t size)
+{
+  size_t srclen;
+
+  assert(dest != NULL);
+  assert(src != NULL);
+
+  /* strlcpy must return the number of bytes that (would) have been written, i.e. the length of src. */
+  srclen = strlen(src);
+  if (size > 0) {
+    size_t len = srclen;
+    if (size <= srclen)
+      len = size - 1;
+    memcpy(dest, src, len);
+    dest[len] = '\0';
+  }
+
+  return srclen;
+}
+
+
 int idl_vsnprintf(char *str, size_t size, const char *fmt, va_list ap)
 {
 #if _WIN32

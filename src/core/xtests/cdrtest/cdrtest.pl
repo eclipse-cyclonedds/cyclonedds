@@ -16,7 +16,7 @@ use Data::Dumper;
 $Data::Dumper::Terse = 1;
 $Data::Dumper::Useqq = 1;
 
-my $outfn = "xxx";
+my $outfn = "cdrtest";
 local $nextident = "a0000";
 
 my @types = qw(u0 u1 u2 u3 u4 seq ary str uni);
@@ -44,25 +44,33 @@ my @unicaseprobs = do {
 };
 
 open IDL, ">${outfn}.idl" or die "can't open ${outfn}.idl";
-open CYC, ">${outfn}-cyc.c" or die "can't open ${outfn}-cyc.c";
+open CYC, ">${outfn}-main.c" or die "can't open ${outfn}-main.c";
 print CYC <<EOF;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+
+// Cyclone includes
 #include "dds/dds.h"
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
 
+// OpenSplice includes
 #include "c_base.h"
 #include "sd_cdr.h"
 #include "sd_serializerXMLTypeinfo.h"
 #include "v_copyIn.h"
 #include "sac_genericCopyIn.h"
 
-#include "xxx.h"
+// OpenSplice data types (modified)
+#include "cdrtestSplDcps_s.h"
+
+// Cyclone data types
+#include "cdrtest.h"
+
 int main()
 {
   unsigned char garbage[1000];
@@ -101,8 +109,11 @@ sub gencyc {
   if (tp < 0) abort ();
   dds_entity_t rd = dds_create_reader (dp, tp, NULL, NULL);
   if (rd < 0) abort ();
-  dds_entity_t wr = dds_create_writer (dp, tp, NULL, NULL);
+  dds_qos_t *wqos = dds_create_qos();
+  dds_qset_data_representation (wqos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1 } );
+  dds_entity_t wr = dds_create_writer (dp, tp, wqos, NULL);
   if (wr < 0) abort ();
+  dds_delete_qos (wqos);
 EOF
   ;
   print CYC geninit ($t);
@@ -116,19 +127,21 @@ EOF
   ;
   print CYC gencmp ($t);
   print CYC <<EOF;
+  uint32_t actual_sz = 0;
   ddd.type = (struct ddsi_sertype_default_desc) {
     .size = $t->[1]_desc.m_size,
     .align = $t->[1]_desc.m_align,
     .flagset = $t->[1]_desc.m_flagset,
     .keys.nkeys = 0,
     .keys.keys = NULL,
-    .ops.nops = dds_stream_countops ($t->[1]_desc.m_ops),
+    // .keys.key_index = NULL,
+    .ops.nops = dds_stream_countops ($t->[1]_desc.m_ops, $t->[1]_desc.m_nkeys, $t->[1]_desc.m_keys),
     .ops.ops = (uint32_t *) $t->[1]_desc.m_ops
   };
   for (uint32_t i = 0; i < 1000; i++) {
     for (size_t j = 0; j < sizeof (garbage); j++)
       garbage[j] = (unsigned char) ddsrt_random ();
-    if (dds_stream_normalize (garbage, (uint32_t) sizeof (garbage), false, &ddd, false)) {
+    if (dds_stream_normalize (garbage, (uint32_t) sizeof (garbage), false, CDR_ENC_VERSION_1, &ddd, false, &actual_sz)) {
       is.m_buffer = garbage;
       is.m_size = 1000;
       is.m_index = 0;
@@ -136,12 +149,16 @@ EOF
       deser_garbage++;
     }
   }
+  char *tmp = malloc ($t->[1]_metaDescriptorLength), *xml_desc = tmp;
+  for (int n = 0; n < $t->[1]_metaDescriptorArrLength; n++)
+    tmp = stpcpy (tmp, $t->[1]_metaDescriptor[n]);
   sd_serializer serializer = sd_serializerXMLTypeinfoNew (base, 0);
-  sd_serializedData meta_data = sd_serializerFromString (serializer, $t->[1]_desc.m_meta);
+  sd_serializedData meta_data = sd_serializerFromString (serializer, xml_desc);
   if (sd_serializerDeserialize (serializer, meta_data) == NULL) abort ();
   c_type type = c_resolve (base, "$t->[1]"); if (!type) abort ();
   sd_serializedDataFree (meta_data);
   sd_serializerFree (serializer);
+  free (xml_desc);
   struct sd_cdrInfo *ci = sd_cdrInfoNew (type);
   if (sd_cdrCompile (ci) < 0) abort ();
   DDS_copyCache cc = DDS_copyCacheNew ((c_metaObject) type);
@@ -152,7 +169,7 @@ EOF
   const void *blob;
   uint32_t blobsz = sd_cdrSerdataBlob (&blob, sd);
   /* hack alert: modifying read-only blob ...*/
-  if (!dds_stream_normalize ((void *) blob, blobsz, true, &ddd, false)) abort ();
+  if (!dds_stream_normalize ((void *) blob, blobsz, true, CDR_ENC_VERSION_1, &ddd, false, &actual_sz)) abort ();
   is.m_buffer = blob;
   is.m_size = blobsz;
   is.m_index = 0;
@@ -160,9 +177,9 @@ EOF
   sd_cdrSerdataFree (sd);
   sd = sd_cdrSerialize (ci, samplecopy);
   blobsz = sd_cdrSerdataBlob (&blob, sd);
-  if (!dds_stream_normalize ((void *) blob, blobsz, false, &ddd, false)) abort ();
+  if (!dds_stream_normalize ((void *) blob, blobsz, false, CDR_ENC_VERSION_1, &ddd, false, &actual_sz)) abort ();
   for (uint32_t i = 1; i < blobsz && i <= 16; i++) {
-    if (dds_stream_normalize ((void *) blob, blobsz - i, false, &ddd, false)) abort ();
+    if (dds_stream_normalize ((void *) blob, blobsz - i, false, CDR_ENC_VERSION_1, &ddd, false, &actual_sz)) abort ();
   }
   sd_cdrSerdataFree (sd);
 EOF
@@ -170,6 +187,7 @@ EOF
   print CYC gencmp ($t);
   print CYC <<EOF;
   sd_cdrInfoFree (ci);
+  c_free (samplecopy);
   dds_return_loan (rd, &msg, 1);
   dds_delete (rd);
   dds_delete (wr);

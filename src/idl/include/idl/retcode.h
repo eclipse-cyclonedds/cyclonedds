@@ -47,5 +47,7 @@ typedef int32_t idl_retcode_t;
 /** */
 #define IDL_RETCODE_BAD_PARAMETER (-12)
 /** @} */
+#define IDL_RETCODE_UNSUPPORTED (-13)
+/** @} */
 
 #endif /* IDL_RETCODE_H */

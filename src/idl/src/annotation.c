@@ -36,7 +36,7 @@ annotate_id(
   assert(annotation_appl);
   assert(annotation_appl->parameters);
   literal = (idl_literal_t *)annotation_appl->parameters->const_expr;
-  assert(idl_mask(literal) == (IDL_LITERAL|IDL_ULONG));
+  assert(idl_type(literal) == IDL_ULONG);
 
   if (idl_is_member(node)) {
     decl = ((idl_member_t *)node)->declarators;
@@ -82,7 +82,7 @@ annotate_hashid(
   assert(annotation_appl);
   if (annotation_appl->parameters) {
     idl_literal_t *literal = annotation_appl->parameters->const_expr;
-    assert(idl_mask(literal) == (IDL_LITERAL|IDL_STRING));
+    assert(idl_type(literal) == IDL_STRING);
     name = literal->value.str;
   }
 
@@ -274,6 +274,9 @@ annotate_extensibility(
   } else if (idl_is_enum(node)) {
     annotationp = &((idl_enum_t *)node)->extensibility.annotation;
     extensibilityp = &((idl_enum_t *)node)->extensibility.value;
+  } else if (idl_is_bitmask(node)) {
+    annotationp = &((idl_bitmask_t *)node)->extensibility.annotation;
+    extensibilityp = &((idl_bitmask_t *)node)->extensibility.value;
   }
 
   assert(!annotationp == !extensibilityp);
@@ -324,7 +327,7 @@ annotate_key(
 
   if (annotation_appl->parameters) {
     idl_literal_t *literal = annotation_appl->parameters->const_expr;
-    assert(idl_mask(literal) == (IDL_LITERAL|IDL_BOOL));
+    assert(idl_type(literal) == IDL_BOOL);
     key = literal->value.bln;
   }
 
@@ -532,7 +535,7 @@ annotate_default_nested(
 
   if (annotation_appl->parameters) {
     idl_literal_t *literal = annotation_appl->parameters->const_expr;
-    assert(idl_mask(literal) == (IDL_LITERAL|IDL_BOOL));
+    assert(idl_type(literal) == IDL_BOOL);
     default_nested = literal->value.bln;
   }
 
@@ -556,6 +559,115 @@ annotate_default_nested(
       "@default_nested cannot be applied to %s elements", idl_construct(node));
     return IDL_RETCODE_SEMANTIC_ERROR;
   }
+}
+
+static idl_retcode_t
+annotate_bit_bound(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+  idl_literal_t *literal;
+  uint16_t value;
+
+  assert(annotation_appl);
+  assert(annotation_appl->parameters);
+  literal = (idl_literal_t *)annotation_appl->parameters->const_expr;
+  assert(idl_type(literal) == IDL_USHORT);
+  value = literal->value.uint16;
+
+  if (idl_is_bitmask(node)) {
+    if (value > 64) {
+      idl_error(pstate, idl_location(annotation_appl),
+        "@bit_bound for bitmask must be <= 64");
+      return IDL_RETCODE_OUT_OF_RANGE;
+    }
+    idl_bitmask_t *bm = (idl_bitmask_t *)node;
+    bm->bit_bound.annotation = annotation_appl;
+    bm->bit_bound.value = value;
+    for (idl_bit_value_t *e1 = bm->bit_values; e1; e1 = idl_next(e1)) {
+      if (e1->position.value >= bm->bit_bound.value) {
+        idl_error(pstate, idl_location(e1), "Position overflow for bit value '%s' (%u), bit_bound is %u", e1->name->identifier, (unsigned) e1->position.value, (unsigned) bm->bit_bound.value);
+        return IDL_RETCODE_OUT_OF_RANGE;
+      }
+    }
+  } else if (idl_is_enum(node)) {
+    if (value > 32) {
+      idl_error(pstate, idl_location(annotation_appl),
+        "@bit_bound for enum must be <= 32");
+      return IDL_RETCODE_OUT_OF_RANGE;
+    }
+    idl_enum_t *_enum = (idl_enum_t *)node;
+    _enum->bit_bound.annotation = annotation_appl;
+    _enum->bit_bound.value = value;
+    uint32_t cnt = 0;
+    for (idl_enumerator_t *e1 = _enum->enumerators; e1; e1 = idl_next(e1)) {
+      if (++cnt >= (1ull << _enum->bit_bound.value)) {
+        idl_error(pstate, idl_location(e1), "Enumerator count (%u) overflow, bit_bound is %u", cnt, _enum->bit_bound.value);
+        return IDL_RETCODE_OUT_OF_RANGE;
+      }
+    }
+  } else {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@bit_bound can only be applied to enum and bitmask types");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+annotate_external(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+  bool external = true;
+  if (annotation_appl->parameters) {
+    idl_literal_t *literal = annotation_appl->parameters->const_expr;
+    assert(idl_type(literal) == IDL_BOOL);
+    external = literal->value.bln;
+  }
+
+  if (idl_mask(node) & IDL_MEMBER) {
+    idl_member_t *member = (idl_member_t *)node;
+    member->external.annotation = annotation_appl;
+    member->external.value = external;
+  } else if (idl_mask(node) & IDL_CASE) {
+    idl_case_t *_case = (idl_case_t *)node;
+    _case->external.annotation = annotation_appl;
+    _case->external.value = external;
+  } else {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@external can only be applied to members of constructed types");
+  }
+
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+annotate_position(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+  idl_literal_t *literal;
+
+  assert(annotation_appl);
+  assert(annotation_appl->parameters);
+  literal = (idl_literal_t *)annotation_appl->parameters->const_expr;
+  assert(idl_type(literal) == IDL_USHORT);
+
+  if (idl_is_bit_value(node)) {
+    idl_bit_value_t *bit_value = (idl_bit_value_t *)node;
+    bit_value->position.annotation = annotation_appl;
+    bit_value->position.value = literal->value.uint16;
+  } else {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@position cannot be applied to %s elements", idl_construct(node));
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  return IDL_RETCODE_OK;
 }
 
 static const idl_builtin_annotation_t annotations[] = {
@@ -671,6 +783,21 @@ static const idl_builtin_annotation_t annotations[] = {
       "<p>Change aggregated types contained in annotated module are "
       "considered nested unless otherwise annotated by @topic or @nested.</p>",
     .callback = annotate_default_nested },
+  { .syntax = "@annotation bit_bound { unsigned short value default 32; };",
+    .summary =
+      "<p>This annotation allows setting a size (expressed in bits) to "
+      "an element or a group of elements.</p>",
+    .callback = annotate_bit_bound },
+  { .syntax = "@annotation external { boolean value default TRUE; };",
+    .summary =
+      "<p>A member declared as external within an aggregated type indicates "
+      "that it is desirable for the implementation to store the member in "
+      "storage external to the enclosing aggregated type object.</p>",
+    .callback = annotate_external },
+  { .syntax = "@annotation position { unsigned short value; };",
+    .summary =
+      "<p>This annotation allows setting a position to an element or a group of elements.</p>",
+    .callback = annotate_position },
   { .syntax = NULL, .summary = NULL, .callback = 0 }
 };
 
@@ -804,7 +931,14 @@ idl_annotate(
   idl_retcode_t ret;
 
   assert(pstate);
-  assert(node);
+
+  /* FIXME: in case of multiple forward declators for a type, only the first
+     one gets a node, and the subsequent ones don't have a node. Therefore
+     these cannot get an annotation (which may not be a problem, as the spec
+     is not clear if annotations on forward declarations are allowed). */
+  // assert(node);
+  if (!node)
+    return IDL_RETCODE_OK;
 
   /* evaluate constant expressions */
   if ((ret = eval(pstate, node, annotation_appls)))
@@ -819,7 +953,6 @@ idl_annotate(
       return ret;
     a->node.parent = node;
   }
-
   ((idl_node_t *)node)->annotations = annotation_appls;
   return IDL_RETCODE_OK;
 }

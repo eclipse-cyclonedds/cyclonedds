@@ -80,7 +80,7 @@ static void dds_sample_free_key (void *vsample, const struct dds_topic_descripto
   char *sample = vsample;
   for (uint32_t i = 0; i < desc->m_nkeys; i++)
   {
-    const uint32_t *op = desc->m_ops + desc->m_keys[i].m_index;
+    const uint32_t *op = desc->m_ops + desc->m_keys[i].m_offset;
     if (DDS_OP_TYPE (*op) == DDS_OP_VAL_STR)
       dds_free (*(char **) (sample + op[1]));
   }

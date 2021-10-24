@@ -232,16 +232,51 @@ CU_Test(idl_parser, struct_in_struct_other_module)
   idl_delete_pstate(pstate);
 }
 
+CU_Test(idl_parser, forward_declared_struct_union)
+{
+  idl_retcode_t ret;
+  idl_pstate_t *pstate = NULL;
+  idl_forward_t *fwd1;
+  idl_node_t *n1;
+  static const struct {
+    bool valid;
+    uint32_t type;
+    const char *idl;
+  } tests[] = {
+    { true, IDL_STRUCT, "struct a; struct a { long b; };" },
+    { true, IDL_STRUCT, "struct a; struct a; struct a { long b; };" },
+    { true, IDL_UNION, "union a; union a switch (short) { case 1: long b; };" },
+    { true, IDL_UNION, "union a; union a; union a switch (short) { case 1: long b; };" },
+    { false, 0u, "struct a; union a; struct a { long b; };" },
+    { false, 0u, "union a; struct a; struct a { long b; };" },
+    { false, 0u, "union a; struct a; union a switch (short) { case 1: long b; };" }
+  };
+
+  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
+    printf("test idl: %s\n", tests[i].idl);
+    ret = idl_create_pstate(0u, NULL, &pstate);
+    CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+    CU_ASSERT_PTR_NOT_NULL(pstate);
+    assert(pstate);
+    ret = idl_parse_string(pstate, tests[i].idl);
+    if (tests[i].valid) {
+      CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+      fwd1 = (idl_forward_t *)pstate->root;
+      CU_ASSERT_FATAL(idl_is_forward(fwd1));
+      n1 = idl_next(fwd1);
+      CU_ASSERT_FATAL(tests[i].type == IDL_STRUCT ? idl_is_struct(n1) : idl_is_union(n1));
+      CU_ASSERT_PTR_EQUAL_FATAL(fwd1->definition, n1);
+    } else {
+      CU_ASSERT_FATAL(ret != IDL_RETCODE_OK);
+    }
+    idl_delete_pstate(pstate);
+  }
+}
+
 // x. use nonexisting type!
 // x. union with same declarators
 // x. struct with same declarators
 // x. struct with embedded struct
 // x. struct with anonymous embedded struct
-// x. forward declared union
-//   x.x. forward declared union before definition
-//   x.x. forward declared union after definition
-//   x.x. forward declared union with no definition at all
-// x. forward declared struct
-//   x.x. see union
 // x. constant expressions
 // x. identifier that collides with a keyword

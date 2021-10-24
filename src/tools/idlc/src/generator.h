@@ -15,6 +15,7 @@
 #include <stdio.h>
 
 #include "idl/processor.h"
+#include "idlc/generator.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -29,10 +30,16 @@ struct generator {
     FILE *handle;
     char *path;
   } source;
+  char *export_macro;
 };
 
 int print_type(char *str, size_t len, const void *ptr, void *user_data);
 int print_scoped_name(char *str, size_t len, const void *ptr, void *user_data);
+
+#if _WIN32
+__declspec(dllexport)
+#endif
+const idlc_option_t** idlc_generator_options(void);
 
 #if _WIN32
 __declspec(dllexport)

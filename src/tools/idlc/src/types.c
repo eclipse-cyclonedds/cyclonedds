@@ -25,6 +25,18 @@
 #include "generator.h"
 #include "descriptor.h"
 
+static const char *
+get_type_prefix(const idl_type_spec_t *type_spec)
+{
+  /* Prefixing a struct or union type with 'struct' is only required in case
+     it refers to a forward declared type, but in a direct recursive types, the
+     type is used for the member instead of the forward declarator. So therefore,
+     a struct or union type is also prefixed. */
+  if (idl_is_forward(type_spec) || idl_is_struct(type_spec) || idl_is_union(type_spec))
+    return "struct ";
+  return "";
+}
+
 static idl_retcode_t
 emit_implicit_sequence(
   const idl_pstate_t *pstate,
@@ -35,7 +47,7 @@ emit_implicit_sequence(
 {
   struct generator *gen = user_data;
   char *name, *type, *macro, dims[32] = "";
-  const char *fmt, *star = "", *lpar = "", *rpar = "";
+  const char *fmt, *star = "", *lpar = "", *rpar = "", *type_prefix = "";
   const idl_type_spec_t *type_spec = idl_type_spec(node);
 
   (void)pstate;
@@ -62,13 +74,15 @@ emit_implicit_sequence(
     star = "*";
   }
 
+  type_prefix = get_type_prefix(type_spec);
+
   /* https://www.omg.org/spec/C/1.0/PDF section 1.11 */
   if (IDL_PRINTA(&name, print_type, node) < 0)
     return IDL_RETCODE_NO_MEMORY;
   if (IDL_PRINTA(&type, print_type, type_spec) < 0)
     return IDL_RETCODE_NO_MEMORY;
   if (IDL_PRINTA(&macro, print_type, node) < 0)
-    return IDL_RETCODE_NO_MEMORY;;
+    return IDL_RETCODE_NO_MEMORY;
   for (char *ptr=macro; *ptr; ptr++)
     if (idl_islower((unsigned char)*ptr))
       *ptr = (char)idl_toupper((unsigned char)*ptr);
@@ -77,15 +91,15 @@ emit_implicit_sequence(
         "typedef struct %2$s\n{\n"
         "  uint32_t _maximum;\n"
         "  uint32_t _length;\n"
-        "  %3$s %4$s%5$s*_buffer%6$s%7$s;\n"
+        "  %3$s%4$s %5$s%6$s*_buffer%7$s%8$s;\n"
         "  bool _release;\n"
         "} %2$s;\n\n"
         "#define %2$s__alloc() \\\n"
         "((%2$s*) dds_alloc (sizeof (%2$s)));\n\n"
         "#define %2$s_allocbuf(l) \\\n"
-        "((%3$s %4$s%5$s*%6$s%7$s) dds_alloc ((l) * sizeof (%3$s%4$s%7$s)))\n"
+        "((%3$s%4$s %5$s%6$s*%7$s%8$s) dds_alloc ((l) * sizeof (%3$s%4$s%5$s%8$s)))\n"
         "#endif /* %1$s_DEFINED */\n\n";
-  if (idl_fprintf(gen->header.handle, fmt, macro, name, type, star, lpar, rpar, dims) < 0)
+  if (idl_fprintf(gen->header.handle, fmt, macro, name, type_prefix, type, star, lpar, rpar, dims) < 0)
     return IDL_RETCODE_NO_MEMORY;
 
   return IDL_VISIT_DONT_RECURSE;
@@ -125,7 +139,7 @@ emit_field(
 {
   struct generator *gen = user_data;
   char *type, dims[32] = "";
-  const char *fmt, *indent, *name, *star = "";
+  const char *fmt, *indent, *name, *star = "", *ext = "", *type_prefix = "";
   const void *root;
   idl_literal_t *literal;
   idl_type_spec_t *type_spec;
@@ -135,7 +149,8 @@ emit_field(
   (void)path;
   root = idl_parent(node);
   indent = idl_is_case(root) ? "    " : "  ";
-
+  if (idl_is_external(root))
+    ext = "* ";
   name = idl_identifier(node);
   type_spec = idl_type_spec(node);
   if (IDL_PRINTA(&type, print_type, type_spec) < 0)
@@ -148,8 +163,11 @@ emit_field(
     star = "* ";
   }
 
-  fmt = "%s%s %s%s%s";
-  if (idl_fprintf(gen->header.handle, fmt, indent, type, star, name, dims) < 0)
+  type_prefix = get_type_prefix(type_spec);
+
+  bool empty = idl_is_empty(type_spec);
+  fmt = empty ? "%s/* %s%s %s%s%s%s */ /* no members */" : "%s%s%s %s%s%s%s";
+  if (idl_fprintf(gen->header.handle, fmt, indent, type_prefix, type, ext, star, name, dims) < 0)
     return IDL_RETCODE_NO_MEMORY;
   fmt = "[%" PRIu32 "]";
   literal = ((const idl_declarator_t *)node)->const_expr;
@@ -158,7 +176,8 @@ emit_field(
     if (idl_fprintf(gen->header.handle, fmt, literal->value.uint32) < 0)
       return IDL_RETCODE_NO_MEMORY;
   }
-  if (fputs(";\n", gen->header.handle) < 0)
+  fmt = empty ? "\n" : ";\n";
+  if (fputs(fmt, gen->header.handle) < 0)
     return IDL_RETCODE_NO_MEMORY;
 
   return IDL_RETCODE_OK;
@@ -178,16 +197,20 @@ emit_struct(
   struct generator *gen = user_data;
   char *name = NULL;
   const char *fmt;
+  bool empty = idl_is_empty(node);
 
   if (IDL_PRINTA(&name, print_type, node) < 0)
     return IDL_RETCODE_NO_MEMORY;
 
   if (revisit) {
-    fmt = "} %1$s;\n"
-          "\n";
+    fmt = "} %1$s;\n";
     if (idl_fprintf(gen->header.handle, fmt, name) < 0)
       return IDL_RETCODE_NO_MEMORY;
-    if (idl_is_topic(node, (pstate->flags & IDL_FLAG_KEYLIST) != 0)) {
+    if (!empty && idl_fprintf(gen->header.handle, "\n") < 0)
+      return IDL_RETCODE_NO_MEMORY;
+    if (!empty && idl_is_topic(node, (pstate->flags & IDL_FLAG_KEYLIST) != 0)) {
+      if (gen->export_macro && idl_fprintf(gen->header.handle, "%1$s ", gen->export_macro) < 0)
+        return IDL_RETCODE_NO_MEMORY;
       fmt = "extern const dds_topic_descriptor_t %1$s_desc;\n"
             "\n"
             "#define %1$s__alloc() \\\n"
@@ -201,11 +224,18 @@ emit_struct(
       if ((ret = generate_descriptor(pstate, gen, node)))
         return ret;
     }
+    if (empty)
+      if (idl_fprintf(gen->header.handle, "#endif /* empty struct */\n\n") < 0)
+        return IDL_RETCODE_NO_MEMORY;
   } else {
     const idl_member_t *members = ((const idl_struct_t *)node)->members;
     /* ensure typedefs for unnamed sequences exist beforehand */
-    if ((ret = generate_implicit_sequences(pstate, revisit, path, members, user_data)))
+    if (members && (ret = generate_implicit_sequences(pstate, revisit, path, members, user_data)))
       return ret;
+    if (empty) {
+      if (idl_fprintf(gen->header.handle, "#if 0 /* empty struct */\n") < 0)
+        return IDL_RETCODE_NO_MEMORY;
+    }
     fmt = "typedef struct %1$s\n"
           "{\n";
     if (idl_fprintf(gen->header.handle, fmt, name) < 0)
@@ -243,12 +273,25 @@ emit_union(
   if (revisit) {
     fmt = "  } _u;\n"
           "} %1$s;\n"
-          "\n"
-          "#define %1$s__alloc() \\\n"
-          "((%1$s*) dds_alloc (sizeof (%1$s)));\n"
           "\n";
     if (idl_fprintf(gen->header.handle, fmt, name) < 0)
       return IDL_RETCODE_NO_MEMORY;
+    if (idl_is_topic(node, (pstate->flags & IDL_FLAG_KEYLIST) != 0)) {
+      if (gen->export_macro && idl_fprintf(gen->header.handle, "%1$s ", gen->export_macro) < 0)
+        return IDL_RETCODE_NO_MEMORY;
+      fmt = "extern const dds_topic_descriptor_t %1$s_desc;\n"
+            "\n"
+            "#define %1$s__alloc() \\\n"
+            "((%1$s*) dds_alloc (sizeof (%1$s)));\n"
+            "\n"
+            "#define %1$s_free(d,o) \\\n"
+            "dds_sample_free ((d), &%1$s_desc, (o))\n"
+            "\n";
+      if (idl_fprintf(gen->header.handle, fmt, name) < 0)
+        return IDL_RETCODE_NO_MEMORY;
+      if ((ret = generate_descriptor(pstate, gen, node)))
+        return ret;
+    }
   } else {
     const idl_case_t *cases = ((const idl_union_t *)node)->cases;
     /* ensure typedefs for unnamed sequences exist beforehand */
@@ -268,6 +311,31 @@ emit_union(
 }
 
 static idl_retcode_t
+emit_forward(
+  const idl_pstate_t *pstate,
+  bool revisit,
+  const idl_path_t *path,
+  const void *node,
+  void *user_data)
+{
+  char *name;
+  const char *fmt;
+  struct generator *gen = user_data;
+
+  (void)pstate;
+  (void)revisit;
+  (void)path;
+  assert(idl_is_forward(node));
+  if (IDL_PRINTA(&name, print_type, node) < 0)
+    return IDL_RETCODE_NO_MEMORY;
+
+  fmt = "struct %1$s;\n";
+  if (idl_fprintf(gen->header.handle, fmt, name) < 0)
+    return IDL_RETCODE_NO_MEMORY;
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
 emit_sequence_typedef(
   const idl_pstate_t *pstate,
   bool revisit,
@@ -278,7 +346,7 @@ emit_sequence_typedef(
   idl_retcode_t ret;
   struct generator *gen = user_data;
   char *type, *name, dims[32] = "";
-  const char *fmt, *spc = " ", *star = "", *lpar = "", *rpar = "";
+  const char *fmt, *spc = " ", *star = "", *lpar = "", *rpar = "", *type_prefix = "";
   const idl_declarator_t *declarator;
   const idl_literal_t *literal;
   const idl_type_spec_t *type_spec;
@@ -301,6 +369,8 @@ emit_sequence_typedef(
     star = "*";
   }
 
+  type_prefix = get_type_prefix(type_spec);
+
   if (IDL_PRINTA(&type, print_type, type_spec) < 0)
     return IDL_RETCODE_NO_MEMORY;
   declarator = ((const idl_typedef_t *)node)->declarators;
@@ -310,10 +380,10 @@ emit_sequence_typedef(
     fmt = "typedef struct %1$s\n{\n"
           "  uint32_t _maximum;\n"
           "  uint32_t _length;\n"
-          "  %2$s %3$s%4$s*_buffer%5$s%6$s;\n"
+          "  %2$s%3$s %4$s%5$s*_buffer%6$s%7$s;\n"
           "  bool _release;\n"
           "} %1$s";
-    if (idl_fprintf(gen->header.handle, fmt, name, type, star, lpar, rpar, dims) < 0)
+    if (idl_fprintf(gen->header.handle, fmt, name, type_prefix, type, star, lpar, rpar, dims) < 0)
       return IDL_RETCODE_NO_MEMORY;
     literal = declarator->const_expr;
     for (; literal; literal = idl_next(literal)) {
@@ -325,8 +395,8 @@ emit_sequence_typedef(
           "#define %1$s__alloc() \\\n"
           "((%1$s*) dds_alloc (sizeof (%1$s)));\n\n"
           "#define %1$s_allocbuf(l) \\\n"
-          "((%2$s %3$s%4$s*%5$s%6$s) dds_alloc ((l) * sizeof (%2$s%3$s%6$s)))\n";
-    if (idl_fprintf(gen->header.handle, fmt, name, type, star, lpar, rpar, dims) < 0)
+          "((%2$s%3$s %4$s%5$s*%6$s%7$s) dds_alloc ((l) * sizeof (%2$s%3$s%4$s%7$s)))\n";
+    if (idl_fprintf(gen->header.handle, fmt, name, type_prefix, type, star, lpar, rpar, dims) < 0)
       return IDL_RETCODE_NO_MEMORY;
   }
 
@@ -425,6 +495,49 @@ emit_enum(
         "((%1$s*) dds_alloc (sizeof (%1$s)));\n\n";
   if (idl_fprintf(gen->header.handle, fmt, type) < 0)
     return IDL_RETCODE_NO_MEMORY;
+
+  return IDL_VISIT_DONT_RECURSE;
+}
+
+static idl_retcode_t
+emit_bitmask(
+  const idl_pstate_t *pstate,
+  bool revisit,
+  const idl_path_t *path,
+  const void *node,
+  void *user_data)
+{
+  struct generator *gen = user_data;
+  char *name = NULL, *type = NULL;
+  const char *fmt, *base_type_str;
+  const idl_bitmask_t *bitmask = (const idl_bitmask_t *)node;
+  const idl_bit_value_t *bit_value;
+
+  (void)pstate;
+  (void)revisit;
+  (void)path;
+  if (IDL_PRINTA(&type, print_type, node) < 0)
+    return IDL_RETCODE_NO_MEMORY;
+  uint16_t bit_bound = bitmask->bit_bound.value;
+  if (bit_bound <= 8)
+    base_type_str = "uint8_t";
+  else if (bit_bound <= 16)
+    base_type_str = "uint16_t";
+  else if (bit_bound <= 32)
+    base_type_str = "uint32_t";
+  else
+    base_type_str = "uint64_t";
+  if (idl_fprintf(gen->header.handle, "typedef %s %s;\n", base_type_str, type) < 0)
+    return IDL_RETCODE_NO_MEMORY;
+
+  bit_value = bitmask->bit_values;
+  for (; bit_value; bit_value = idl_next(bit_value)) {
+    if (IDL_PRINTA(&name, print_type, bit_value) < 0)
+      return IDL_RETCODE_NO_MEMORY;
+    fmt = "#define %s (1 << %u)\n";
+    if (idl_fprintf(gen->header.handle, fmt, name, bit_value->position.value) < 0)
+      return IDL_RETCODE_NO_MEMORY;
+  }
 
   return IDL_VISIT_DONT_RECURSE;
 }
@@ -528,13 +641,15 @@ idl_retcode_t generate_types(const idl_pstate_t *pstate, struct generator *gener
   idl_visitor_t visitor;
 
   memset(&visitor, 0, sizeof(visitor));
-  visitor.visit = IDL_CONST | IDL_TYPEDEF | IDL_STRUCT | IDL_UNION | IDL_ENUM | IDL_DECLARATOR;
+  visitor.visit = IDL_CONST | IDL_TYPEDEF | IDL_STRUCT | IDL_UNION | IDL_ENUM | IDL_BITMASK | IDL_DECLARATOR | IDL_FORWARD;
   visitor.accept[IDL_ACCEPT_CONST] = &emit_const;
   visitor.accept[IDL_ACCEPT_TYPEDEF] = &emit_typedef;
   visitor.accept[IDL_ACCEPT_STRUCT] = &emit_struct;
   visitor.accept[IDL_ACCEPT_UNION] = &emit_union;
   visitor.accept[IDL_ACCEPT_ENUM] = &emit_enum;
+  visitor.accept[IDL_ACCEPT_BITMASK] = &emit_bitmask;
   visitor.accept[IDL_ACCEPT_DECLARATOR] = &emit_field;
+  visitor.accept[IDL_ACCEPT_FORWARD] = &emit_forward;
   visitor.sources = (const char *[]){ pstate->sources->path->name, NULL };
   if ((ret = idl_visit(pstate, pstate->root, &visitor, generator)))
     return ret;

@@ -31,13 +31,15 @@ static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct
 {
   const struct ddsi_sertype_default *a = (struct ddsi_sertype_default *) acmn;
   const struct ddsi_sertype_default *b = (struct ddsi_sertype_default *) bcmn;
-  if (a->native_encoding_identifier != b->native_encoding_identifier)
+  if (a->encoding_format != b->encoding_format)
     return false;
   if (a->type.size != b->type.size)
     return false;
   if (a->type.align != b->type.align)
     return false;
   if (a->type.flagset != b->type.flagset)
+    return false;
+  if (a->type.extensibility != b->type.extensibility)
     return false;
   if (a->type.keys.nkeys != b->type.keys.nkeys)
     return false;
@@ -63,10 +65,11 @@ static bool sertype_default_typeid_hash (const struct ddsi_sertype *tpcmn, unsig
   ddsrt_md5_state_t md5st;
   ddsrt_md5_init (&md5st);
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->c.type_name, (uint32_t) strlen (tp->c.type_name));
-  ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->native_encoding_identifier, sizeof (tp->native_encoding_identifier));
+  ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->encoding_format, sizeof (tp->encoding_format));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->type.size, sizeof (tp->type.size));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->type.align, sizeof (tp->type.align));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->type.flagset, sizeof (tp->type.flagset));
+  ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->type.extensibility, sizeof (tp->type.extensibility));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->type.keys.keys, (uint32_t) (tp->type.keys.nkeys * sizeof (*tp->type.keys.keys)));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->type.ops.ops, (uint32_t) (tp->type.ops.nops * sizeof (*tp->type.ops.ops)));
   ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf);
@@ -136,7 +139,7 @@ static void sertype_default_free_samples (const struct ddsi_sertype *sertype_com
   }
 }
 
-const enum pserop ddsi_sertype_default_desc_ops[] = { Xux3, XQ, Xu, XSTOP, XQ, Xu, XSTOP, XSTOP };
+const enum pserop ddsi_sertype_default_desc_ops[] = { Xux4, XQ, Xux2, XSTOP, XQ, Xu, XSTOP, XSTOP };
 
 static void sertype_default_serialized_size (const struct ddsi_sertype *stc, size_t *dst_offset)
 {
@@ -153,14 +156,16 @@ static bool sertype_default_serialize (const struct ddsi_sertype *stc, size_t *d
 static bool sertype_default_deserialize (struct ddsi_domaingv *gv, struct ddsi_sertype *stc, size_t src_sz, const unsigned char *src_data, size_t *src_offset)
 {
   struct ddsi_sertype_default *st = (struct ddsi_sertype_default *) stc;
-  st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE);
   st->serpool = gv->serpool;
+  st->c.base_sertype = NULL;
   st->c.serdata_ops = st->c.typekind_no_key ? &ddsi_serdata_ops_cdr_nokey : &ddsi_serdata_ops_cdr;
   DDSRT_WARNING_MSVC_OFF(6326)
   if (plist_deser_generic_srcoff (&st->type, src_data, src_sz, src_offset, DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN, ddsi_sertype_default_desc_ops) < 0)
     return false;
   DDSRT_WARNING_MSVC_ON(6326)
+  st->encoding_format = ddsi_sertype_get_encoding_format (DDS_TOPIC_TYPE_EXTENSIBILITY (st->type.flagset));
   st->opt_size = (st->type.flagset & DDS_TOPIC_NO_OPTIMIZE) ? 0 : dds_stream_check_optimize (&st->type);
+  st->c.dynamic_types = dds_stream_has_dynamic_type (st->type.ops.ops);
   return true;
 }
 
@@ -190,6 +195,16 @@ static bool sertype_default_assignable_from (const struct ddsi_sertype *type_a, 
 #endif
 }
 
+static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_sertype *base_sertype)
+{
+  assert (base_sertype);
+  struct ddsi_sertype_default *derived_sertype = ddsrt_memdup ((const struct ddsi_sertype_default *) base_sertype, sizeof (*derived_sertype));
+  uint32_t refc = ddsrt_atomic_ld32 (&derived_sertype->c.flags_refc);
+  ddsrt_atomic_st32 (&derived_sertype->c.flags_refc, refc & ~DDSI_SERTYPE_REFC_MASK);
+  derived_sertype->c.base_sertype = ddsi_sertype_ref (base_sertype);
+  return (struct ddsi_sertype *) derived_sertype;
+}
+
 const struct ddsi_sertype_ops ddsi_sertype_ops_default = {
   .version = ddsi_sertype_v0,
   .arg = 0,
@@ -203,5 +218,7 @@ const struct ddsi_sertype_ops ddsi_sertype_ops_default = {
   .serialized_size = sertype_default_serialized_size,
   .serialize = sertype_default_serialize,
   .deserialize = sertype_default_deserialize,
-  .assignable_from = sertype_default_assignable_from
+  .assignable_from = sertype_default_assignable_from,
+  .derive_sertype = sertype_default_derive_sertype
 };
+

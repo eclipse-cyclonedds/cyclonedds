@@ -828,3 +828,120 @@ CU_Test(idl_annotation, parameter_scope)
 #undef M
 #undef A
 #undef TA
+
+#define BM(i) "@bit_bound(" i ") bitmask MyBitMask { flag0 };"
+#define E(i) "@bit_bound(" i ") enum MyEnum { ENUM1 };"
+CU_Test(idl_annotation, bit_bound)
+{
+  static const struct {
+    const char *str;
+    bool valid;
+    uint16_t value;
+  } tests[] = {
+    /* valid */
+    { BM("1"), true, 1 },
+    { BM("8"), true, 8 },
+    { BM("42"), true, 42 },
+    { BM("64"), true, 64 },
+    { "bitmask MyBitMask { flag0 };", true, 32 },
+    { E("1"), true, 1 },
+    { E("21"), true, 21 },
+    { E("32"), true, 32 },
+    { "enum MyEnum { ENUM1 };", true, 32 },
+    /* invalid */
+    { BM("0"), false, 0 },
+    { BM("65"), false, 0 },
+    { E("0"), false, 0 },
+    { E("33"), false, 0 },
+    { "@bit_bound(1) bitmask MyBitMask { flag0, flag1 };", false, 0 },
+    { "@bit_bound(1) enum MyEnum { ENUM1, ENUM2 };", false, 0 },
+  };
+  static const size_t n = sizeof(tests)/sizeof(tests[0]);
+
+  idl_retcode_t ret;
+  idl_pstate_t *pstate;
+
+  for (size_t i = 0; i < n; i++) {
+    printf("idl_annotation.bit_bound test: %s\n", tests[i].str);
+    pstate = NULL;
+    ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
+    if (tests[i].valid) {
+      CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+    } else {
+      CU_ASSERT_NOT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+      continue;
+    }
+    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+    assert(pstate);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate->root);
+    assert(pstate->root);
+    if (idl_is_bitmask(pstate->root)) {
+      idl_bitmask_t *b = (idl_bitmask_t *)pstate->root;
+      CU_ASSERT_EQUAL_FATAL(b->bit_bound.value, tests[i].value);
+    } else if (idl_is_enum(pstate->root)) {
+      idl_enum_t *e = (idl_enum_t *)pstate->root;
+      CU_ASSERT_EQUAL_FATAL(e->bit_bound.value, tests[i].value);
+    } else {
+      CU_FAIL_FATAL("Invalid data type");
+    }
+    idl_delete_pstate(pstate);
+  }
+}
+
+#undef BM
+#undef E
+
+#define BM(p0, p1, p2, p3) "@bit_bound(16) bitmask MyBitMask { " p0 " flag0, " p1 " flag1, " p2 " flag2, " p3 " flag3 };"
+CU_Test(idl_annotation, position)
+{
+  static const struct {
+    const char *str;
+    bool valid;
+    uint16_t p[4];
+  } tests[] = {
+    /* valid */
+    { BM("", "", "", ""), true, { 0, 1, 2, 3 } },
+    { BM("@position(1)", "", "", ""), true, { 1, 2, 3, 4 } },
+    { BM("", "@position(3)", "", "@position(6)"), true, { 0, 3, 4, 6 } },
+    { BM("", "", "@position(3)", ""), true, { 0, 1, 3, 4 } },
+    { BM("@position(10)", "", "@position(5)", ""), true, { 10, 11, 5, 6 } },
+    { BM("@position(12)", "", "", ""), true, { 12, 13, 14, 15 } },
+    /* invalid */
+    { BM("", "", "", "@position(2)"), false, { 0, 0, 0, 0 } },
+    { BM("@position(-1)", "", "", ""), false, { 0, 0, 0, 0 } },
+    { BM("", "@position(0)", "", ""), false, { 0, 0, 0, 0 } },
+    { BM("@position(10)", "", "@position(9)", ""), false, { 0, 0, 0, 0 } },
+    { BM("@position(13)", "", "", ""), false, { 0, 0, 0, 0 } },
+  };
+  static const size_t n = sizeof(tests)/sizeof(tests[0]);
+
+  idl_retcode_t ret;
+  idl_pstate_t *pstate;
+
+  for (size_t i = 0; i < n; i++) {
+    printf("idl_annotation.position test: %s\n", tests[i].str);
+    pstate = NULL;
+    ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
+    if (tests[i].valid) {
+      CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+    } else {
+      CU_ASSERT_NOT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+      continue;
+    }
+    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+    assert(pstate);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate->root);
+    assert(pstate->root);
+    CU_ASSERT_FATAL(idl_is_bitmask(pstate->root));
+    idl_bitmask_t *b = (idl_bitmask_t *)pstate->root;
+    idl_bit_value_t *bv = b->bit_values;
+    for (int j = 0; j <= 3; bv = idl_next(bv), j++) {
+      CU_ASSERT_PTR_NOT_NULL_FATAL(bv);
+      assert(bv);
+      CU_ASSERT_EQUAL(bv->position.value, tests[i].p[j]);
+    }
+    idl_delete_pstate(pstate);
+  }
+}
+
+#undef BM

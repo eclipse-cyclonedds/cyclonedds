@@ -147,6 +147,7 @@ static int run_library_locator(const char *command, char **out_output) {
 }
 
 
+extern const idlc_option_t** idlc_generator_options(void);
 extern int idlc_generate(const idl_pstate_t *pstate);
 
 int32_t
@@ -161,7 +162,7 @@ idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
   /* short-circuit on builtin generator */
   if (idl_strcasecmp(lang, "C") == 0) {
     plugin->handle = NULL;
-    plugin->generator_options = 0;
+    plugin->generator_options = &idlc_generator_options;
     plugin->generator_annotations = 0;
     plugin->generate = &idlc_generate;
     return 0;

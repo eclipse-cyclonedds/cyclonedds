@@ -20,4 +20,8 @@ module InstanceHandleTypes {
     unsigned long v;
   };
 #pragma keylist C k
+  struct MD5 {
+    octet k[8*16]; //@Key
+  };
+#pragma keylist MD5 k
 };

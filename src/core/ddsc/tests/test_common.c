@@ -15,7 +15,7 @@
 #include "dds/ddsrt/threads.h"
 #include "test_common.h"
 
-void sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_entity_t participant_wr, dds_entity_t writer)
+static void sync_reader_writer_impl (dds_entity_t participant_rd, dds_entity_t reader, dds_entity_t participant_wr, dds_entity_t writer, bool expect_sync, dds_duration_t timeout)
 {
   dds_attach_t triggered;
   dds_return_t ret;
@@ -29,9 +29,14 @@ void sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_e
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_waitset_attach (waitset_rd, reader, reader);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  ret = dds_waitset_wait (waitset_rd, &triggered, 1, DDS_SECS (1));
-  CU_ASSERT_EQUAL_FATAL (ret, 1);
-  CU_ASSERT_EQUAL_FATAL (reader, (dds_entity_t)(intptr_t) triggered);
+  ret = dds_waitset_wait (waitset_rd, &triggered, 1, timeout);
+  if (expect_sync)
+  {
+    CU_ASSERT_EQUAL_FATAL (ret, 1);
+    CU_ASSERT_EQUAL_FATAL (reader, (dds_entity_t)(intptr_t) triggered);
+  }
+  else
+    CU_ASSERT_EQUAL_FATAL (ret, 0);
   ret = dds_waitset_detach (waitset_rd, reader);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   dds_delete (waitset_rd);
@@ -41,10 +46,25 @@ void sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_e
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_waitset_attach (waitset_wr, writer, writer);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  ret = dds_waitset_wait (waitset_wr, &triggered, 1, DDS_SECS (1));
-  CU_ASSERT_EQUAL_FATAL (ret, 1);
-  CU_ASSERT_EQUAL_FATAL (writer, (dds_entity_t)(intptr_t) triggered);
+  ret = dds_waitset_wait (waitset_wr, &triggered, 1, timeout);
+  if (expect_sync)
+  {
+    CU_ASSERT_EQUAL_FATAL (ret, 1);
+    CU_ASSERT_EQUAL_FATAL (writer, (dds_entity_t)(intptr_t) triggered);
+  }
+  else
+    CU_ASSERT_EQUAL_FATAL (ret, 0);
   ret = dds_waitset_detach (waitset_wr, writer);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   dds_delete (waitset_wr);
+}
+
+void sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_entity_t participant_wr, dds_entity_t writer)
+{
+  sync_reader_writer_impl (participant_rd, reader, participant_wr, writer, true, DDS_SECS (1));
+}
+
+void no_sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_entity_t participant_wr, dds_entity_t writer, dds_duration_t timeout)
+{
+  sync_reader_writer_impl (participant_rd, reader, participant_wr, writer, false, timeout);
 }

@@ -25,13 +25,7 @@
 extern "C" {
 #endif
 
-#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-#define CDR_BE 0x0000
-#define CDR_LE 0x0100
-#else
-#define CDR_BE 0x0000
-#define CDR_LE 0x0001
-#endif
+struct ddsi_typeid_t;
 
 struct CDRHeader {
   unsigned short identifier;
@@ -42,12 +36,23 @@ struct serdatapool {
   struct nn_freelist freelist;
 };
 
-typedef struct dds_keyhash {
-  unsigned char m_hash [16]; /* Key hash value. Also possibly key. Suitably aligned for accessing as uint32_t's */
-  unsigned m_set : 1;        /* has it been initialised? */
-  unsigned m_iskey : 1;      /* m_hash is key value */
-  unsigned m_keysize : 5;    /* size of the key within the hash buffer */
-} dds_keyhash_t;
+#define FIXED_KEY_MAX_SIZE 16
+
+#define KEYBUFTYPE_UNSET    0u
+#define KEYBUFTYPE_STATIC   1u // uses u.stbuf
+#define KEYBUFTYPE_DYNALIAS 2u // points into payload
+#define KEYBUFTYPE_DYNALLOC 3u // dynamically allocated
+
+#define SERDATA_DEFAULT_KEYSIZE_MASK        0x3FFFFFFFu
+
+struct ddsi_serdata_default_key {
+  unsigned buftype : 2;
+  unsigned keysize : 30;
+  union {
+    unsigned char stbuf[FIXED_KEY_MAX_SIZE];
+    unsigned char *dynbuf;
+  } u;
+};
 
 /* Debug builds may want to keep some additional state */
 #ifndef NDEBUG
@@ -66,7 +71,7 @@ typedef struct dds_keyhash {
   uint32_t pos;                       \
   uint32_t size;                      \
   DDSI_SERDATA_DEFAULT_DEBUG_FIELDS   \
-  dds_keyhash_t keyhash;              \
+  struct ddsi_serdata_default_key key;\
   struct serdatapool *serpool;        \
   struct ddsi_serdata_default *next /* in pool->freelist */
 #define DDSI_SERDATA_DEFAULT_POSTPAD  \
@@ -100,9 +105,14 @@ struct ddsi_serdata_default {
 typedef bool (*dds_topic_intern_filter_fn) (const void * sample, void *ctx);
 #endif
 
+typedef struct ddsi_sertype_default_desc_key {
+  uint32_t ops_offs;   /* Offset for key ops */
+  uint32_t idx;        /* Key index (used for key order) */
+} ddsi_sertype_default_desc_key_t;
+
 typedef struct ddsi_sertype_default_desc_key_seq {
-  uint32_t nkeys;   /* Number of keys (can be 0) */
-  uint32_t *keys;   /* Key descriptors (NULL iff nkeys 0) */
+  uint32_t nkeys;
+  ddsi_sertype_default_desc_key_t *keys;
 } ddsi_sertype_default_desc_key_seq_t;
 
 typedef struct ddsi_sertype_default_desc_op_seq {
@@ -115,13 +125,15 @@ struct ddsi_sertype_default_desc {
   uint32_t size;    /* Size of topic type */
   uint32_t align;   /* Alignment of topic type */
   uint32_t flagset; /* Flags */
+  enum ddsi_sertype_extensibility extensibility;  /* Extensibility of the top-level type */
   ddsi_sertype_default_desc_key_seq_t keys;
   ddsi_sertype_default_desc_op_seq_t ops;
 };
 
 struct ddsi_sertype_default {
   struct ddsi_sertype c;
-  uint16_t native_encoding_identifier; /* (PL_)?CDR_(LE|BE) */
+  uint16_t encoding_format; /* CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) */
+  uint16_t encoding_version; /* CDR_ENC_VERSION_(1|2) */
   struct serdatapool *serpool;
   struct ddsi_sertype_default_desc type;
   size_t opt_size;
@@ -144,6 +156,9 @@ extern DDS_EXPORT const struct ddsi_sertype_ops ddsi_sertype_ops_default;
 
 extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_cdr;
 extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey;
+
+extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_xcdr2;
+extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_xcdr2_nokey;
 
 struct serdatapool * ddsi_serdatapool_new (void);
 void ddsi_serdatapool_free (struct serdatapool * pool);

@@ -35,6 +35,8 @@ enum idl_accept {
   IDL_ACCEPT_STRUCT,
   IDL_ACCEPT_UNION,
   IDL_ACCEPT_ENUM,
+  IDL_ACCEPT_BITMASK,
+  IDL_ACCEPT_BIT_VALUE,
   IDL_ACCEPT_SEQUENCE,
   IDL_ACCEPT_STRING,
   IDL_ACCEPT /**< generic callback, used if no specific callback exists */
@@ -70,9 +72,7 @@ enum idl_visit_recurse {
   IDL_VISIT_DONT_RECURSE = (1<<1) /**< Do not recurse into subtree(s) */
 };
 
-#if 0
-/* FIXME: does not quite make sense in the current implementation. applies to
-        it now applies to the next level. instead, it should apply to the
+/* FIXME: it now applies to the next level. instead, it should apply to the
         current level. in which case IDL_VISIT_ITERATE instructs the
         visitor to continue, IDL_VISIT_DONT_ITERATE does the inverse!
 */
@@ -82,7 +82,6 @@ enum idl_visit_iterate {
   IDL_VISIT_ITERATE = (1<<2), /**< Iterate over subtree(s) */
   IDL_VISIT_DONT_ITERATE = (1<<3) /**< Do not iterate over subtree(s) */
 };
-#endif
 
 typedef enum idl_visit_revisit idl_visit_revisit_t;
 enum idl_visit_revisit {
@@ -96,6 +95,8 @@ enum idl_visit_revisit {
 /** Unalias associated type specifier (callback signal) */
 #define IDL_VISIT_UNALIAS_TYPE_SPEC (1<<7)
 
+#define IDL_VISIT_FWD_DECL_TARGET (1<<8)
+
 /* FIXME: add IDL_VISIT_ARRAY that complements IDL_VISIT_TYPE_SPEC and takes
           into account array declarators, which is incredibly useful for
           backends, like the native generator for Cyclone DDS, that need to
@@ -105,9 +106,7 @@ typedef struct idl_visitor idl_visitor_t;
 struct idl_visitor {
   idl_mask_t visit;
   idl_visit_recurse_t recurse;
-#if 0
   idl_visit_iterate_t iterate;
-#endif
   idl_visit_revisit_t revisit;
   idl_visitor_callback_t accept[IDL_ACCEPT + 1];
   const char **sources;

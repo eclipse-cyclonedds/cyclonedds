@@ -289,25 +289,9 @@ static int set_sampleinfo_bswap (struct nn_rsample_info *sampleinfo, struct CDRH
 {
   if (hdr)
   {
-    switch (hdr->identifier)
-    {
-      case CDR_BE:
-      case PL_CDR_BE:
-      {
-        sampleinfo->bswap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 1 : 0;
-        break;
-      }
-      case CDR_LE:
-      case PL_CDR_LE:
-      {
-        sampleinfo->bswap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 0 : 1;
-        break;
-      }
-      default:
-      {
-        return 0;
-      }
-    }
+    if (!CDR_ENC_IS_VALID(hdr->identifier))
+      return 0;
+    sampleinfo->bswap = !CDR_ENC_IS_NATIVE(hdr->identifier);
   }
   return 1;
 }
@@ -3591,7 +3575,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
     }
     local_participant_set_fini (&lps);
   }
-  
+
   GVTRACE ("done\n");
   return 0;
 }

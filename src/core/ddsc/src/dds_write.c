@@ -65,10 +65,10 @@ static bool deregister_pub_loan(dds_writer *wr, const void *pub_loan)
 }
 
 static void *create_iox_chunk(dds_writer *wr)
-{   
+{
     iceoryx_header_t *ice_hdr;
     void *sample;
-    uint32_t sample_size = wr->m_topic->m_stype->iox_size;   
+    uint32_t sample_size = wr->m_topic->m_stype->iox_size;
 
     // TODO: use a proper timeout to control the time it is allowed to take to obtain a chunk more accurately
     // but for now only try a limited number of times (hence non-blocking).
@@ -76,11 +76,11 @@ static void *create_iox_chunk(dds_writer *wr)
 
     int32_t number_of_tries = 10; //try 10 times over at least 10ms, considering the wait time below
 
-    while (true)  
+    while (true)
     {
-      enum iox_AllocationResult alloc_result = 
+      enum iox_AllocationResult alloc_result =
         iox_pub_loan_aligned_chunk_with_user_header(wr->m_iox_pub, &sample, sample_size, IOX_C_CHUNK_DEFAULT_USER_PAYLOAD_ALIGNMENT, sizeof(iceoryx_header_t), 8);
-      
+
       if (AllocationResult_SUCCESS == alloc_result)
         break;
 
@@ -128,7 +128,7 @@ dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
     } else {
       ret = DDS_RETCODE_ERROR; // could not obtain a sample
     }
-    
+
   } else {
     ret = DDS_RETCODE_UNSUPPORTED;
   }
@@ -343,7 +343,7 @@ static bool deliver_data_via_iceoryx(dds_writer *wr, struct ddsi_serdata *d) {
     {
       iox_chunk_header_t* chunk_header = iox_chunk_header_from_user_payload(d->iox_chunk);
       iceoryx_header_t *ice_hdr = iox_chunk_header_to_user_header(chunk_header);
-     
+
       // Local readers go through Iceoryx as well (because the Iceoryx support code doesn't exclude
       // that), which means we should suppress the internal path
       ice_hdr->guid = wr->m_wr->e.guid;
@@ -354,7 +354,7 @@ static bool deliver_data_via_iceoryx(dds_writer *wr, struct ddsi_serdata *d) {
       // iox_pub_publish_chunk takes ownership, storing a null pointer here doesn't
       // preclude the existence of race conditions on this, but it certainly improves
       // the chances of detecting them
-      
+
       iox_pub_publish_chunk (wr->m_iox_pub, d->iox_chunk);
       d->iox_chunk = NULL;
       return true; //we published the chunk
@@ -437,7 +437,7 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
   struct ddsi_serdata *d = convert_serdata(ddsi_wr, din);
 
   if (d == NULL)
-  {  
+  {
     ddsi_serdata_unref(din); // refc(din) = r - 1 as required
     return DDS_RETCODE_ERROR;
   }
@@ -458,7 +458,7 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
   if(d != din)
     ddsi_serdata_unref(din); // d != din: refc(din) = r - 1 as required, refc(d) unchanged
   ddsi_serdata_unref(d); // d = din: refc(d) = r - 1, otherwise refc(din) = r-1 and refc(d) = 0
-  
+
   thread_state_asleep (ts1);
   return ret;
 }
@@ -528,8 +528,8 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
         // we failed to obtain a chunk, iceoryx transport is thus not available
         // we will use the network path instead
         iceoryx_available = false;
-      } 
-    } 
+      }
+    }
   }
 
   // ddsi_wr->as can be changed by the matching/unmatching of proxy readers if we don't hold the lock
@@ -540,7 +540,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   ddsrt_mutex_unlock (&ddsi_wr->e.lock);
   bool use_only_iceoryx = iceoryx_available && no_network_readers;
 
-  // iceoryx_available implies volatile 
+  // iceoryx_available implies volatile
   // otherwise we need to add the check in the use_only_iceoryx expression
   assert(!iceoryx_available || ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE);
 
@@ -556,7 +556,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     // where we either have network readers (requiring serialization) or not.
 
     // do not serialize yet (may not need it if only using iceoryx or no readers)
-    d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);  
+    d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
   } else {
     // serialize since we will need to send via network anyway
     d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
@@ -643,7 +643,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       ret = DDS_RETCODE_OK;
     } else if (ret != DDS_RETCODE_TIMEOUT) {
       ret = DDS_RETCODE_ERROR;
-    } 
+    }
 
     if (ret == DDS_RETCODE_OK)
       ret = deliver_locally (ddsi_wr, d, tk);

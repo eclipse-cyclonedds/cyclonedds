@@ -191,6 +191,7 @@ static void fwr (struct proxy_writer *wr)
 _Pragma("GCC diagnostic push")
 _Pragma("GCC diagnostic ignored \"-Wanalyzer-double-free\"")
 #endif
+  ddsi_xqos_fini (wr->c.xqos);
   ddsrt_free (wr->c.xqos);
   ddsrt_free (wr);
 #if defined(__GNUC__) && (__GNUC__ >= 10)
@@ -212,6 +213,7 @@ static struct dds_rhc *mkrhc (struct ddsi_domaingv *gv, dds_reader *rd, dds_hist
   rhc = dds_rhc_default_new_xchecks (rd, gv, mdtype, true);
   dds_rhc_set_qos(rhc, &rqos);
   thread_state_asleep (lookup_thread_state ());
+  ddsi_xqos_fini (&rqos);
   return rhc;
 }
 

@@ -22,6 +22,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds__writer.h"
 #include "dds__listener.h"
 #include "dds__init.h"
@@ -371,6 +372,13 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   if ((rc = ddsi_xqos_valid (&gv->logconfig, wqos)) < 0 || (rc = validate_writer_qos(wqos)) != DDS_RETCODE_OK)
     goto err_bad_qos;
 
+  bool dynamic_types = tp->m_stype->dynamic_types;
+  if ((rc = dds_ensure_valid_data_representation (wqos, dynamic_types, false)) != 0)
+    goto err_data_repr;
+
+  assert (wqos->present & QP_DATA_REPRESENTATION && wqos->data_representation.value.n > 0);
+  dds_data_representation_id_t data_representation = wqos->data_representation.value.ids[0];
+
   thread_state_awake (lookup_thread_state (), gv);
   const struct ddsi_guid *ppguid = dds_entity_participant_guid (&pub->m_entity);
   struct participant *pp = entidx_lookup_participant_guid (gv->entity_index, ppguid);
@@ -405,6 +413,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wr->m_whc = whc_new (gv, wrinfo);
   whc_free_wrinfo (wrinfo);
   wr->whc_batch = gv->config.whc_batch;
+  wr->m_data_representation = data_representation;
 
 #ifdef DDS_HAS_SHM
   assert(wqos->present & QP_LOCATOR_MASK);
@@ -412,7 +421,8 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     wqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
 #endif
 
-  rc = new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, wqos, wr->m_whc, dds_writer_status_cb, wr);
+  struct ddsi_sertype *sertype = ddsi_sertype_data_representation (tp->m_stype, wr->m_data_representation);
+  rc = new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, sertype, wqos, wr->m_whc, dds_writer_status_cb, wr);
   assert(rc == DDS_RETCODE_OK);
   thread_state_asleep (lookup_thread_state ());
 
@@ -451,6 +461,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 err_not_allowed:
   thread_state_asleep (lookup_thread_state ());
 #endif
+err_data_repr:
 err_bad_qos:
   dds_delete_qos(wqos);
   dds_topic_allow_set_qos (tp);

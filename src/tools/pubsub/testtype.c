@@ -37,13 +37,13 @@ const dds_topic_descriptor_t OneULong_desc =
   NULL,
   2,
   OneULong_ops,
-  "<MetaData version=\"1.0.0\"><Struct name=\"OneULong\"><Member name=\"seq\"><ULong/></Member></Struct></MetaData>"
+  "<MetaData version=\"1.0.0\"><Struct name=\"OneULong\"><Member name=\"seq\"><ULong/></Member></Struct></MetaData>",
 };
 
 
 static const dds_key_descriptor_t Keyed32_keys[1] =
 {
-  { "keyval", 2 }
+  { "keyval", 2, 0 }
 };
 
 static const uint32_t Keyed32_ops [] =
@@ -58,19 +58,19 @@ const dds_topic_descriptor_t Keyed32_desc =
 {
   sizeof (Keyed32),
   4u,
-  DDS_TOPIC_FIXED_KEY,
+  DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2,
   1u,
   "Keyed32",
   Keyed32_keys,
   4,
   Keyed32_ops,
-  "<MetaData version=\"1.0.0\"><Struct name=\"Keyed32\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"24\"><Octet/></Array></Member></Struct></MetaData>"
+  "<MetaData version=\"1.0.0\"><Struct name=\"Keyed32\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"24\"><Octet/></Array></Member></Struct></MetaData>",
 };
 
 
 static const dds_key_descriptor_t Keyed64_keys[1] =
 {
-  { "keyval", 2 }
+  { "keyval", 2, 0 }
 };
 
 static const uint32_t Keyed64_ops [] =
@@ -85,19 +85,19 @@ const dds_topic_descriptor_t Keyed64_desc =
 {
   sizeof (Keyed64),
   4u,
-  DDS_TOPIC_FIXED_KEY,
+  DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2,
   1u,
   "Keyed64",
   Keyed64_keys,
   4,
   Keyed64_ops,
-  "<MetaData version=\"1.0.0\"><Struct name=\"Keyed64\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"56\"><Octet/></Array></Member></Struct></MetaData>"
+  "<MetaData version=\"1.0.0\"><Struct name=\"Keyed64\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"56\"><Octet/></Array></Member></Struct></MetaData>",
 };
 
 
 static const dds_key_descriptor_t Keyed128_keys[1] =
 {
-  { "keyval", 2 }
+  { "keyval", 2, 0 }
 };
 
 static const uint32_t Keyed128_ops [] =
@@ -112,19 +112,19 @@ const dds_topic_descriptor_t Keyed128_desc =
 {
   sizeof (Keyed128),
   4u,
-  DDS_TOPIC_FIXED_KEY,
+  DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2,
   1u,
   "Keyed128",
   Keyed128_keys,
   4,
   Keyed128_ops,
-  "<MetaData version=\"1.0.0\"><Struct name=\"Keyed128\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"120\"><Octet/></Array></Member></Struct></MetaData>"
+  "<MetaData version=\"1.0.0\"><Struct name=\"Keyed128\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"120\"><Octet/></Array></Member></Struct></MetaData>",
 };
 
 
 static const dds_key_descriptor_t Keyed256_keys[1] =
 {
-  { "keyval", 2 }
+  { "keyval", 2, 0 }
 };
 
 static const uint32_t Keyed256_ops [] =
@@ -139,19 +139,19 @@ const dds_topic_descriptor_t Keyed256_desc =
 {
   sizeof (Keyed256),
   4u,
-  DDS_TOPIC_FIXED_KEY,
+  DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2,
   1u,
   "Keyed256",
   Keyed256_keys,
   4,
   Keyed256_ops,
-  "<MetaData version=\"1.0.0\"><Struct name=\"Keyed256\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"248\"><Octet/></Array></Member></Struct></MetaData>"
+  "<MetaData version=\"1.0.0\"><Struct name=\"Keyed256\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"248\"><Octet/></Array></Member></Struct></MetaData>",
 };
 
 
 static const dds_key_descriptor_t KeyedSeq_keys[1] =
 {
-  { "keyval", 2 }
+  { "keyval", 2, 0 }
 };
 
 static const uint32_t KeyedSeq_ops [] =
@@ -172,5 +172,5 @@ const dds_topic_descriptor_t KeyedSeq_desc =
   KeyedSeq_keys,
   4,
   KeyedSeq_ops,
-  "<MetaData version=\"1.0.0\"><Struct name=\"KeyedSeq\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Sequence><Octet/></Sequence></Member></Struct></MetaData>"
+  "<MetaData version=\"1.0.0\"><Struct name=\"KeyedSeq\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Sequence><Octet/></Sequence></Member></Struct></MetaData>",
 };

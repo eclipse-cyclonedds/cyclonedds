@@ -53,6 +53,7 @@ add_library(
     src/tree.c
     src/visit.c
     src/print.c
+    src/keylist.c
     ${CMAKE_CURRENT_BINARY_DIR}/hashid.c
     ${BISON_parser_OUTPUT_SOURCE}
 
@@ -65,10 +66,12 @@ add_library(
     src/scope.h
     src/symbol.h
     src/tree.h
+    src/keylist.h
 
     include/idl/attributes.h
     include/idl/expression.h
     include/idl/file.h
+    include/idl/misc.h
     include/idl/print.h
     include/idl/processor.h
     include/idl/retcode.h

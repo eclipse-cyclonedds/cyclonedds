@@ -24,6 +24,7 @@
 #include "scanner.h"
 #include "tree.h"
 #include "scope.h"
+#include "keylist.h"
 
 #include "parser.h"
 
@@ -232,7 +233,7 @@ void idl_delete_pstate(idl_pstate_t *pstate)
 
 static void
 idl_log(
-  idl_pstate_t *pstate, uint32_t prio, const idl_location_t *loc, const char *fmt, va_list ap)
+  const idl_pstate_t *pstate, uint32_t prio, const idl_location_t *loc, const char *fmt, va_list ap)
 {
   char buf[1024];
   int cnt = 0;
@@ -265,14 +266,14 @@ idl_log(
 
 void
 idl_verror(
-  idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, va_list ap)
+  const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, va_list ap)
 {
   idl_log(pstate, IDL_LC_ERROR, loc, fmt, ap);
 }
 
 void
 idl_error(
-  idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...)
+  const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...)
 {
   va_list ap;
 
@@ -283,7 +284,7 @@ idl_error(
 
 void
 idl_warning(
-  idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...)
+  const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...)
 {
   va_list ap;
 
@@ -371,6 +372,8 @@ grammar:
     }
   } while ((tok.code != '\0') &&
            (ret == IDL_RETCODE_OK || ret == IDL_RETCODE_PUSH_MORE));
+  if (ret != IDL_RETCODE_OK)
+    goto err;
 
   pstate->builtin_root = pstate->root;
   for (idl_node_t *node = pstate->root; node; node = node->next) {
@@ -380,9 +383,19 @@ grammar:
     }
   }
 
-  if (ret == IDL_RETCODE_OK)
-    ret = idl_propagate_autoid(pstate, pstate->root, IDL_SEQUENTIAL);
+  if ((ret = idl_validate_forwards(pstate, pstate->root)) != IDL_RETCODE_OK)
+    goto err;
 
+  if ((ret = idl_propagate_autoid(pstate, pstate->root, IDL_SEQUENTIAL)) != IDL_RETCODE_OK)
+    goto err;
+
+  if (pstate->keylists) {
+    if ((ret = idl_validate_keylists(pstate)) != IDL_RETCODE_OK)
+      goto err;
+    idl_set_keylist_key_flags(pstate, pstate->root);
+  }
+
+err:
   return ret;
 }
 

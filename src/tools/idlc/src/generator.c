@@ -25,6 +25,9 @@
 #include "idl/version.h"
 #include "idl/processor.h"
 #include "idl/print.h"
+#include "idlc/generator.h"
+
+const char *export_macro = NULL;
 
 static int print_base_type(
   char *str, size_t size, const void *node, void *user_data)
@@ -161,6 +164,8 @@ static int print_decl_type(
       continue;
     if ((idl_mask(n) & IDL_ENUM) == IDL_ENUM && n != node)
       continue;
+    if ((idl_mask(n) & IDL_BITMASK) == IDL_BITMASK && n != node)
+      continue;
     ident = idl_identifier(n);
     assert(ident);
     len += strlen(ident) + (len ? strlen(sep) : 0);
@@ -171,6 +176,8 @@ static int print_decl_type(
     if ((idl_mask(n) & IDL_TYPEDEF) == IDL_TYPEDEF)
       continue;
     if ((idl_mask(n) & IDL_ENUM) == IDL_ENUM && n != node)
+      continue;
+    if ((idl_mask(n) & IDL_BITMASK) == IDL_BITMASK && n != node)
       continue;
     ident = idl_identifier(n);
     assert(ident);
@@ -333,6 +340,18 @@ generate_nosetup(const idl_pstate_t *pstate, struct generator *generator)
   return IDL_RETCODE_OK;
 }
 
+static const idlc_option_t *opts[] = {
+  &(idlc_option_t){
+    IDLC_STRING, { .string = &export_macro }, 'e', "", "<export macro>",
+    "Add export macro before topic descriptors." },
+  NULL
+};
+
+const idlc_option_t** idlc_generator_options(void)
+{
+  return opts;
+}
+
 idl_retcode_t
 idlc_generate(const idl_pstate_t *pstate)
 {
@@ -381,8 +400,17 @@ idlc_generate(const idl_pstate_t *pstate)
     goto err_source;
   if (!(generator.source.handle = idl_fopen(generator.source.path, "wb")))
     goto err_source;
+  if (export_macro) {
+    if (!(generator.export_macro = idl_strdup (export_macro)))
+      goto err_options;
+  } else {
+    generator.export_macro = NULL;
+  }
   ret = generate_nosetup(pstate, &generator);
 
+err_options:
+  if (generator.export_macro)
+    free(generator.export_macro);
 err_source:
   if (generator.source.handle)
     fclose(generator.source.handle);

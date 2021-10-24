@@ -25,6 +25,7 @@
 #include "idl/tree.h"
 #include "idl/scope.h"
 #include "idl/visit.h"
+#include "idl/attributes.h"
 
 /* enable "#pragma keylist" for backwards compatibility */
 #define IDL_FLAG_KEYLIST (1u<<0)
@@ -38,6 +39,8 @@
 #define IDL_FLAG_ANONYMOUS_TYPES (1u<<3)
 /* enable building block annotations */
 #define IDL_FLAG_ANNOTATIONS (1u<<4)
+/* include CDR serialized type information */
+#define IDL_FLAG_TYPE_INFO (1u<<5)
 /* flag used by idlc to indicate end-of-buffer (private) */
 #define IDL_WRITE (1u<<31)
 
@@ -142,12 +145,14 @@ IDL_EXPORT idl_retcode_t
 idl_parse_string(idl_pstate_t *pstate, const char *str);
 
 IDL_EXPORT void
-idl_verror(idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, va_list ap);
+idl_verror(const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, va_list ap);
 
 IDL_EXPORT void
-idl_error(idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...);
+idl_error(const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...)
+  idl_attribute_format_printf(3, 4);
 
 IDL_EXPORT void
-idl_warning(idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...);
+idl_warning(const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...)
+  idl_attribute_format_printf(3, 4);
 
 #endif /* IDL_COMPILER_H */

@@ -120,6 +120,7 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
   idl_definition_t *definition;
   idl_module_t *module_dcl;
   idl_struct_t *struct_dcl;
+  idl_forward_t *forward;
   idl_member_t *member;
   idl_declarator_t *declarator;
   idl_union_t *union_dcl;
@@ -127,6 +128,8 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
   idl_case_label_t *case_label;
   idl_enum_t *enum_dcl;
   idl_enumerator_t *enumerator;
+  idl_bitmask_t *bitmask_dcl;
+  idl_bit_value_t *bit_value;
   idl_typedef_t *typedef_dcl;
   idl_const_t *const_dcl;
   /* annotations */
@@ -157,7 +160,7 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
 %start specification
 
 %type <node> definitions definition type_dcl
-             constr_type_dcl struct_dcl union_dcl enum_dcl
+             constr_type_dcl struct_dcl union_dcl enum_dcl bitmask_dcl
 %type <type_spec> type_spec simple_type_spec template_type_spec
                   switch_type_spec const_type annotation_member_type
                   any_const_type struct_inherit_spec
@@ -181,8 +184,11 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
 %type <switch_type_spec> switch_header
 %type <_case> switch_body case element_spec
 %type <case_label> case_labels case_label
+%type <forward> struct_forward_dcl union_forward_dcl
 %type <enum_dcl> enum_def
 %type <enumerator> enumerators enumerator
+%type <bitmask_dcl> bitmask_def
+%type <bit_value> bit_values bit_value
 %type <declarator> declarators declarator simple_declarator
                    complex_declarator array_declarator
 %type <typedef_dcl> typedef_dcl
@@ -207,8 +213,8 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
 
 %destructor { idl_delete_node($$); } <node> <literal> <sequence>
                                      <string> <module_dcl> <struct_dcl> <member> <union_dcl>
-                                     <_case> <case_label> <enum_dcl> <enumerator> <declarator> <typedef_dcl>
-                                     <const_dcl> <annotation> <annotation_member> <annotation_appl> <annotation_appl_param>
+                                     <_case> <case_label> <enum_dcl> <enumerator> <bitmask_dcl> <bit_value> <declarator> <typedef_dcl>
+                                     <const_dcl> <annotation> <annotation_member> <annotation_appl> <annotation_appl_param> <forward>
                                      <switch_type_spec>
 
 %token IDL_TOKEN_LINE_COMMENT
@@ -678,10 +684,18 @@ constr_type_dcl:
     struct_dcl
   | union_dcl
   | enum_dcl
+  | bitmask_dcl
   ;
 
 struct_dcl:
     struct_def { $$ = $1; }
+  |
+    struct_forward_dcl { $$ = $1; }
+  ;
+
+struct_forward_dcl:
+    "struct" identifier
+      { TRY(idl_create_forward(pstate, &@1, $2, IDL_STRUCT, &$$)); }
   ;
 
 struct_def:
@@ -739,6 +753,8 @@ member:
 
 union_dcl:
     union_def { $$ = $1; }
+  |
+    union_forward_dcl { $$ = $1; }
   ;
 
 union_def:
@@ -746,6 +762,11 @@ union_def:
       { TRY(idl_finalize_union(pstate, LOC(@1.first, @4.last), $1, $3));
         $$ = $1;
       }
+  ;
+
+union_forward_dcl:
+    "union" identifier
+      { TRY(idl_create_forward(pstate, &@1, $2, IDL_UNION, &$$)); }
   ;
 
 union_header:
@@ -841,6 +862,27 @@ enumerator:
       }
   ;
 
+bitmask_dcl: bitmask_def { $$ = $1; } ;
+
+bitmask_def:
+    "bitmask" identifier '{' bit_values '}'
+      { TRY(idl_create_bitmask(pstate, LOC(@1.first, @5.last), $2, $4, &$$)); }
+  ;
+
+bit_values:
+    bit_value
+      { $$ = $1; }
+  | bit_values ',' bit_value
+      { $$ = idl_push_node($1, $3); }
+  ;
+
+bit_value:
+    annotations identifier
+      { TRY(idl_create_bit_value(pstate, &@2, $2, &$$));
+        TRY_EXCEPT(idl_annotate(pstate, $$, $1), free($$));
+      }
+  ;
+
 array_declarator:
     identifier fixed_array_sizes
       { TRY(idl_create_declarator(pstate, LOC(@1.first, @2.last), $1, $2, &$$)); }
@@ -924,6 +966,8 @@ annotation_body:
   | annotation_body annotation_member ';'
       { $$ = idl_push_node($1, $2); }
   | annotation_body enum_dcl ';'
+      { $$ = idl_push_node($1, $2); }
+  | annotation_body bitmask_dcl ';'
       { $$ = idl_push_node($1, $2); }
   | annotation_body const_dcl ';'
       { $$ = idl_push_node($1, $2); }
@@ -1141,6 +1185,6 @@ int idl_iskeyword(idl_pstate_t *pstate, const char *str, int nc)
 static void
 yyerror(idl_location_t *loc, idl_pstate_t *pstate, idl_retcode_t *result, const char *str)
 {
-  idl_error(pstate, loc, str);
+  idl_error(pstate, loc, "%s", str);
   *result = IDL_RETCODE_SYNTAX_ERROR;
 }

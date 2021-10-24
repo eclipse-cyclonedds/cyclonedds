@@ -18,6 +18,7 @@
 
 #include "idl/processor.h"
 #include "idl/string.h"
+#include "idl/misc.h"
 
 #include "file.h"
 #include "symbol.h"
@@ -354,7 +355,8 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
     if (!(declaration = idl_find_field_name(pstate, scope, dir->keys[i], 0u))) {
       idl_error(pstate, idl_location(dir->keys[i]),
         "Unknown key '%s' in keylist directive", dir->keys[i]->identifier);
-      return IDL_RETCODE_SEMANTIC_ERROR;
+      ret = IDL_RETCODE_SEMANTIC_ERROR;
+      goto err_find_decl;
     }
     declarator = (const idl_declarator_t *)declaration->node;
     assert(idl_is_declarator(declarator));
@@ -368,20 +370,25 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
     if (!(idl_mask(type_spec) & mask)) {
       idl_error(pstate, idl_location(dir->keys[i]),
         "Invalid key '%s' in keylist directive", dir->keys[i]->identifier);
-      return IDL_RETCODE_SEMANTIC_ERROR;
+      ret = IDL_RETCODE_SEMANTIC_ERROR;
+      goto err_invalid_key;
     }
 
     if ((ret = idl_create_key(pstate, idl_location(dir->keys[i]), &key)))
-      return ret;
+      goto err_create_key;
     key->node.parent = (idl_node_t *)keylist;
     key->field_name = dir->keys[i];
     keylist->keys = idl_push_node(keylist->keys, key);
     dir->keys[i] = NULL; /* do not free */
   }
+  ret = IDL_RETCODE_OK;
 
+err_find_decl:
+err_invalid_key:
+err_create_key:
   delete_keylist(dir);
   pstate->directive = NULL;
-  return IDL_RETCODE_OK;
+  return ret;
 }
 
 static int stash_name(idl_pstate_t *pstate, idl_location_t *loc, char *str)
