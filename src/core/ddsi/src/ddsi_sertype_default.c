@@ -225,18 +225,25 @@ static dds_ostream_t ostream_from_buffer(void *buffer, size_t size) {
 static size_t sertype_default_get_serialized_size (
     const struct ddsi_sertype *type, const void *sample) {
 
-  dds_ostream_t os;
   // the normal algorithm starts with serdata d.m_size + m_index;
   // but we do not have the serdata (we could construct it)
-  // TODO: this will be replaced with a proper implementation which does not require the size argument,
-  // we choose it arbitrarily for now
   
-  dds_ostream_init(&os, 1024);
-  // MAKI: unsafe downcast ...
+  
+  // TODO: this is off by 4 bytes (header?)
+  // TODO: which implementation to keep for now?
+#if 0
+  dds_ostream_t os;
+  dds_ostream_init(&os, 1024); // initial size chosen arbitrarily 
   const struct ddsi_sertype_default *type_default = (const struct ddsi_sertype_default *)type;
   dds_stream_write_sample(&os, sample, type_default);
-
   return os.m_index;
+#else
+  struct ddsi_serdata *serdata = ddsi_serdata_from_sample(type, SDK_DATA, sample);
+  size_t serialized_size = ddsi_serdata_size(serdata);
+  ddsi_serdata_unref(serdata);
+  return serialized_size;
+#endif
+  
 }
 
 static void sertype_default_serialize_into (const struct ddsi_sertype *type, const void *sample, void* dst_buffer, size_t dst_size) {

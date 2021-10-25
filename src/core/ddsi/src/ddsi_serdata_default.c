@@ -140,7 +140,6 @@ static bool serdata_default_eqkey_nokey (const struct ddsi_serdata *acmn, const 
   return true;
 }
 
-
 static void serdata_default_free_iox_chunk(struct ddsi_serdata_default* d) {
   // TODO(MAKI) optimize/check concurrent correctness
   // Use double checked locking to avoid concurrent double free
@@ -690,14 +689,11 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
   dds_istream_t is; 
 #ifdef DDS_HAS_SHM
   if (d->c.iox_chunk)
-  {
-    // MAKI: refactor into a function
-    // may need to happen under the subscriber lock if it can be called concurrently to e.g. itself
+  {    
     void* iox_chunk = d->c.iox_chunk;
     iceoryx_header_t* hdr = iceoryx_header_from_chunk(iox_chunk);
-    if(hdr->data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {  
-      dds_istream_from_buffer(&is, iox_chunk, hdr->data_size) ;
-      // TODO: factoring this out would require runtime check (is initialization)
+    if(hdr->data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {
+      dds_istream_from_buffer(&is, iox_chunk, hdr->data_size) ;      
       assert (d->hdr.identifier == NATIVE_ENCODING);     
       if (d->c.kind == SDK_KEY)
         dds_stream_read_key (&is, sample, tp);
@@ -705,10 +701,10 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
         dds_stream_read_sample (&is, sample, tp);
     } else {
       // should contain raw unserialized data
-      // we could check the enum but should not be needed
+      // we could check the data_state but should not be needed
       memcpy(sample, iox_chunk, hdr->data_size);
     }
-    // MAKI the iox chunk is not needed anymore (discuss, it depends whether we
+    // TODO: the iox chunk is not needed anymore (discuss, it depends whether we
     // may deserialize a sample twice but that would be inefficient)
     // unfortunately this may change the object so we violate const correctness...
     serdata_default_free_iox_chunk((struct ddsi_serdata_default *)d);  

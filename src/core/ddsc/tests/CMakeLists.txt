@@ -148,7 +148,7 @@ target_link_libraries(oneliner PRIVATE RoundTrip Space ddsc)
 # having to figure out now how to start/stop RouDi on Windows.
 if(iceoryx_binding_c_FOUND AND NOT WIN32)
   idlc_generate(TARGET Array100 FILES Array100.idl)
-  idlc_generate(TARGET StringData FILES StringData.idl)
+  idlc_generate(TARGET DynamicData FILES DynamicData.idl)
 
   add_cunit_executable(cunit_ddsc_iox
     "iceoryx.c"
@@ -176,7 +176,7 @@ if(iceoryx_binding_c_FOUND AND NOT WIN32)
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
 
-  target_link_libraries(cunit_ddsc_shm_serialization PRIVATE RoundTrip Space StringData ddsc)
+  target_link_libraries(cunit_ddsc_shm_serialization PRIVATE RoundTrip Space DynamicData ddsc)
 
   # We need to start RouDi, so we need to find it
   find_program(ICEORYX_ROUDI iox-roudi REQUIRED)

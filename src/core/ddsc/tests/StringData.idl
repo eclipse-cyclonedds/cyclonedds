@@ -1,5 +1,0 @@
-module StringData {
-  struct Msg {
-    string message;
-  };
-};

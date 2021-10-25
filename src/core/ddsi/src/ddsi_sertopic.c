@@ -161,8 +161,8 @@ static const struct ddsi_sertype_ops sertopic_ops_wrap = {
   .serialize = 0,
   .deserialize = 0,
   .assignable_from = 0,
-  .get_serialized_size = 0, // TODO: implement and assign
-  .serialize_into = 0 // TODO: implement and assign
+  .get_serialized_size = 0,
+  .serialize_into = 0
 };
 
 static uint32_t sertopic_serdata_get_size_wrap (const struct ddsi_serdata *d)

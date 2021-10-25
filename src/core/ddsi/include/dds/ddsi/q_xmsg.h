@@ -55,7 +55,7 @@ enum nn_xmsg_kind {
 };
 
 #ifdef DDS_HAS_SHM
-// TODO: we should move this elsewhere ...
+// MAKI: TODO: we should move this elsewhere ...
 
 typedef enum {
   IOX_CHUNK_UNINITIALIZED,

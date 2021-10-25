@@ -1,0 +1,7 @@
+module DynamicData {
+  struct Msg {
+    string message;    
+    int32 scalar;
+    sequence<int32> values;
+  };
+};
