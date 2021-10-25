@@ -624,15 +624,17 @@ static uint32_t pubthread (void *varg)
     }
   }
 
+  uint32_t time_interval = 1; // call dds_time() once for this many samples
+  uint32_t time_counter = time_interval; // how many more samples on current time stamp
+  uint32_t batch_counter = 0; // number of samples in current batch
   data.seq_keyval.keyval = 0;
   tfirst = dds_time();
-  uint32_t bi = 0;
+  dds_time_t t_write = tfirst;
   while (!ddsrt_atomic_ld32 (&termflag))
   {
     /* lsb of timestamp is abused to signal whether the sample is a ping requiring a response or not */
     bool reqresp = (ping_frac == 0) ? 0 : (ping_frac == UINT32_MAX) ? 1 : (ddsrt_random () <= ping_frac);
-    const dds_time_t t_write = (dds_time () & ~1) | reqresp;
-    if ((result = dds_write_ts (wr_data, &data, t_write)) != DDS_RETCODE_OK)
+    if ((result = dds_write_ts (wr_data, &data, (t_write & ~1) | reqresp)) != DDS_RETCODE_OK)
     {
       printf ("write error: %d\n", result);
       fflush (stdout);
@@ -640,7 +642,9 @@ static uint32_t pubthread (void *varg)
         exit (2);
       timeouts++;
       /* retry with original timestamp, it really is just a way of reporting
-         blocking for an exceedingly long time */
+         blocking for an exceedingly long time, but do force a fresh time stamp
+         for the next sample */
+      time_counter = time_interval = 1;
       continue;
     }
     if (reqresp)
@@ -648,29 +652,47 @@ static uint32_t pubthread (void *varg)
       dds_write_flush (wr_data);
     }
 
-    const dds_time_t t_post_write = dds_time ();
-    dds_time_t t = t_post_write;
+    const dds_time_t t_post_write = (time_counter == 1) ? dds_time () : t_write;
+    const dds_duration_t dt = t_post_write - t_write;
+    if (--time_counter == 0)
+    {
+      // try to read out the clock only every now and then
+      // - keeping it between once per 1us and once per 5us
+      // - also at least every 10th sample (not likely to go over 5MHz anyway)
+      // - if the interval is longish, reset it immediately to read the
+      //   clock every time (low-rate, scheduling mishaps)
+      // that should work to keep the cost of reading the clock inside ddsperf
+      // to a reasonably low fraction of the time without significantly distorting
+      // the results
+      if (dt < DDS_USECS (5) && time_interval < 10)
+        time_interval++;
+      else if (dt > DDS_USECS (1) && time_interval > 1)
+        time_interval = (dt > DDS_USECS (10)) ? 1 : time_interval - 1;
+      time_counter = time_interval;
+    }
     ddsrt_mutex_lock (&pubstat_lock);
-    hist_record (pubstat_hist, (uint64_t) ((t_post_write - t_write) / 1), 1);
+    hist_record (pubstat_hist, (uint64_t) dt, 1);
     ntot++;
     ddsrt_mutex_unlock (&pubstat_lock);
 
     data.seq_keyval.keyval = (data.seq_keyval.keyval + 1) % (int32_t) nkeyvals;
     data.seq++;
 
+    t_write = t_post_write;
     if (pub_rate < HUGE_VAL)
     {
-      if (++bi == burstsize)
+      if (++batch_counter == burstsize)
       {
         /* FIXME: should average rate over a short-ish period, rather than over the entire run */
-        while (((double) (ntot / burstsize) / ((double) (t - tfirst) / 1e9 + 5e-3)) > pub_rate && !ddsrt_atomic_ld32 (&termflag))
+        while (((double) (ntot / burstsize) / ((double) (t_write - tfirst) / 1e9 + 5e-3)) > pub_rate && !ddsrt_atomic_ld32 (&termflag))
         {
           /* FIXME: flushing manually because batching is not yet implemented properly */
           dds_write_flush (wr_data);
           dds_sleepfor (DDS_MSECS (1));
-          t = dds_time ();
+          t_write = dds_time ();
+          time_counter = time_interval = 1;
         }
-        bi = 0;
+        batch_counter = 0;
       }
     }
   }
@@ -968,7 +990,9 @@ static bool process_data (dds_entity_t rd, struct subthread_arg *arg)
   {
     if (iseq[i].valid_data)
     {
-      const int64_t tdelta = dds_time () - iseq[i].source_timestamp;
+      // time stamp is only used when tracking latency, and reading the clock a couple of
+      // times every microsecond is rather costly
+      const int64_t tdelta = sublatency ? dds_time () - iseq[i].source_timestamp : 0;
       uint32_t seq = 0, keyval = 0, size = 0;
       switch (topicsel)
       {
