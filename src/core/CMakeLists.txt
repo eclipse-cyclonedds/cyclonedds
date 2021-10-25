@@ -28,6 +28,15 @@ if(ENABLE_SSL AND OPENSSL_FOUND)
   endif()
 endif()
 
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT error)
+if(ipo_supported)
+  set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+  set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL TRUE)
+  #-flto and debugging info do not seem to go well together
+  #set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO TRUE)
+endif()
+
 # Support the OMG DDS Security within ddsc adds quite a bit of code.
 if(ENABLE_SECURITY)
   target_link_libraries(ddsc PRIVATE security_core)
