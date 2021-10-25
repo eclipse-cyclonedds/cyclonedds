@@ -1011,6 +1011,50 @@ static struct cfgelem multiple_recv_threads_attrs[] = {
   END_MARKER
 };
 
+static struct cfgelem sock_rcvbuf_size_attrs[] = {
+  STRING("min", NULL, 1, "default",
+    MEMBER(socket_rcvbuf_size.min),
+    FUNCTIONS(0, uf_maybe_memsize, 0, pf_maybe_memsize),
+    DESCRIPTION(
+      "<p>This sets the minimum acceptable socket receive buffer size, "
+      "with the special value \"default\" indicating that whatever is "
+      "available is acceptable.</p>"),
+    UNIT("memsize")),
+  STRING("max", NULL, 1, "default",
+    MEMBER(socket_rcvbuf_size.max),
+    FUNCTIONS(0, uf_maybe_memsize, 0, pf_maybe_memsize),
+    DESCRIPTION(
+      "<p>This sets the size of the socket receive buffer to request, "
+      "with the special value of \"default\" indicating that it should "
+      "try to satisfy the minimum buffer size. If both are at \"default\", "
+      "it will request 1MiB and accept anything. If the maximum is set "
+      "to less than the minimum, it is ignored.</p>"),
+    UNIT("memsize")),
+  END_MARKER
+};
+
+static struct cfgelem sock_sndbuf_size_attrs[] = {
+  STRING("min", NULL, 1, "64 KiB",
+    MEMBER(socket_sndbuf_size.min),
+    FUNCTIONS(0, uf_maybe_memsize, 0, pf_maybe_memsize),
+    DESCRIPTION(
+      "<p>This sets the minimum acceptable socket send buffer size, "
+      "with the special value \"default\" indicating that whatever is "
+      "available is acceptable.</p>"),
+    UNIT("memsize")),
+  STRING("max", NULL, 1, "default",
+    MEMBER(socket_sndbuf_size.max),
+    FUNCTIONS(0, uf_maybe_memsize, 0, pf_maybe_memsize),
+    DESCRIPTION(
+      "<p>This sets the size of the socket send buffer to request, "
+      "with the special value of \"default\" indicating that it should "
+      "try to satisfy the minimum buffer size. If both are at \"default\", "
+      "it will use whatever is the system default. If the maximum is set "
+      "to less than the minimum, it is ignored.</p>"),
+    UNIT("memsize")),
+  END_MARKER
+};
+
 static struct cfgelem internal_cfgelems[] = {
   MOVED("MaxMessageSize", "CycloneDDS/Domain/General/MaxMessageSize"),
   MOVED("FragmentSize", "CycloneDDS/Domain/General/FragmentSize"),
@@ -1187,29 +1231,31 @@ static struct cfgelem internal_cfgelems[] = {
       "deletion of a reliable writer with unacknowledged data in its history "
       "will be postponed to provide proper reliable transmission.<p>"),
     UNIT("duration")),
-  STRING("MinimumSocketReceiveBufferSize", NULL, 1, "default",
-    MEMBER(socket_min_rcvbuf_size),
-    FUNCTIONS(0, uf_maybe_memsize, 0, pf_maybe_memsize),
+  MOVED("MinimumSocketReceiveBufferSize", "CycloneDDS/Domain/Internal/SocketReceiveBufferSize[@min]"),
+  MOVED("MinimumSocketSendBufferSize", "CycloneDDS/Domain/Internal/SocketSendBufferSize[@min]"),
+  GROUP("SocketReceiveBufferSize", NULL, sock_rcvbuf_size_attrs, 1,
+    NOMEMBER,
+    NOFUNCTIONS,
     DESCRIPTION(
-      "<p>This setting controls the minimum size of socket receive buffers. "
+      "<p>The settings in this element control the size of the socket receive buffers. "
       "The operating system provides some size receive buffer upon creation "
       "of the socket, this option can be used to increase the size of the "
       "buffer beyond that initially provided by the operating system. If the "
-      "buffer size cannot be increased to the specified size, an error is "
+      "buffer size cannot be increased to the requested minimum size, an error is "
       "reported.</p>\n"
-      "<p>The default setting is the word \"default\", which means Cyclone DDS "
-      "will attempt to increase the buffer size to 1MB, but will silently "
-      "accept a smaller buffer should that attempt fail.</p>"),
-    UNIT("memsize")),
-  STRING("MinimumSocketSendBufferSize", NULL, 1, "64 KiB",
-    MEMBER(socket_min_sndbuf_size),
-    FUNCTIONS(0, uf_memsize, 0, pf_memsize),
+      "<p>The default setting requests a buffer size of 1MiB but accepts whatever "
+      "is available after that.</p>")),
+  GROUP("SocketSendBufferSize", NULL, sock_sndbuf_size_attrs, 1,
+    NOMEMBER,
+    NOFUNCTIONS,
     DESCRIPTION(
-      "<p>This setting controls the minimum size of socket send buffers. "
-      "This setting can only increase the size of the send buffer, if the "
-      "operating system by default creates a larger buffer, it is left "
-      "unchanged.</p>"),
-    UNIT("memsize")),
+      "<p>The settings in this element control the size of the socket send buffers. "
+      "The operating system provides some size send buffer upon creation "
+      "of the socket, this option can be used to increase the size of the "
+      "buffer beyond that initially provided by the operating system. If the "
+      "buffer size cannot be increased to the requested minimum size, an error is "
+      "reported.</p>\n"
+      "<p>The default setting requires a buffer of at least 64KiB.</p>")),
   STRING("NackDelay", NULL, 1, "100 ms",
     MEMBER(nack_delay),
     FUNCTIONS(0, uf_duration_ms_1hr, 0, pf_duration),
