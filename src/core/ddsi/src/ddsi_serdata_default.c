@@ -140,6 +140,7 @@ static bool serdata_default_eqkey_nokey (const struct ddsi_serdata *acmn, const 
   return true;
 }
 
+#ifdef DDS_HAS_SHM
 static void serdata_default_free_iox_chunk(struct ddsi_serdata_default* d) {
   // TODO(MAKI) optimize/check concurrent correctness
   // Use double checked locking to avoid concurrent double free
@@ -158,6 +159,7 @@ static void serdata_default_free_iox_chunk(struct ddsi_serdata_default* d) {
     shm_unlock_iox_sub(*sub);
   }
 }
+#endif
 
 static void serdata_default_free(struct ddsi_serdata *dcmn)
 {
@@ -493,10 +495,11 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
 
   struct ddsi_serdata_default *d = serdata_default_new_size (tp, kind, ice_hdr->data_size, tp->encoding_version);
 
-  memcpy(d->keyhash.m_hash, ice_hdr->keyhash.value, 16);
-  d->keyhash.m_set = 1;
-  d->keyhash.m_iskey = 0;  //if set to 1, will cause issues @ serdata_default_to_untyped at the endianness swap
-  d->keyhash.m_keysize = 16;
+  // TODO(MAKI) keyhash appears to be gone, confirn new logic
+  // required to obtain keyhash and copy to buffer?
+  // memcpy(d->keyhash.m_hash, ice_hdr->keyhash.value, 16); 
+  d->key.buftype = KEYBUFTYPE_STATIC;
+  d->key.keysize = 16;
   fix_serdata_default(d, tpcmn->serdata_basehash);
 
   // note: we do not deserialize or memcpy here, just take ownership of the chunk
@@ -683,7 +686,7 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
     iceoryx_header_t* hdr = iceoryx_header_from_chunk(iox_chunk);
     if(hdr->shm_data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {
       dds_istream_from_buffer(&is, iox_chunk, hdr->data_size) ;      
-      assert (d->hdr.identifier == NATIVE_ENCODING);     
+      assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));    
       if (d->c.kind == SDK_KEY)
         dds_stream_read_key (&is, sample, tp);
       else

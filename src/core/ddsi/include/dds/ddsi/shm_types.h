@@ -13,8 +13,6 @@
 #ifndef SHM_TYPES_H
 #define SHM_TYPES_H
 
-#ifdef DDS_HAS_SHM
-
 #include "dds/ddsi/q_protocol.h" /* for, e.g., SubmessageKind_t */
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/features.h"
@@ -41,7 +39,5 @@ struct iceoryx_header {
 typedef struct iceoryx_header iceoryx_header_t;
 
 iceoryx_header_t *iceoryx_header_from_chunk(void *iox_chunk);
-
-#endif
 
 #endif // SHM_TYPES_H

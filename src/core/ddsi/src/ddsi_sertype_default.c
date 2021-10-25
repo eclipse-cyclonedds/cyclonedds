@@ -270,7 +270,7 @@ const struct ddsi_sertype_ops ddsi_sertype_ops_default = {
   .serialize = sertype_default_serialize,
   .deserialize = sertype_default_deserialize,
   .assignable_from = sertype_default_assignable_from,
-  .derive_sertype = sertype_default_derive_sertype
+  .derive_sertype = sertype_default_derive_sertype,
   .get_serialized_size = sertype_default_get_serialized_size,
   .serialize_into = sertype_default_serialize_into
 };

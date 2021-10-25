@@ -532,6 +532,7 @@ static bool evalute_topic_filter (const dds_writer *wr, const void *data, bool w
   return true;
 }
 
+#ifdef DDS_HAS_SHM
 static size_t get_required_buffer_size(struct dds_topic *topic, const void *sample) {
   bool has_fixed_size_type = topic->m_stype->fixed_size;
   if (has_fixed_size_type) {
@@ -555,7 +556,6 @@ static void fill_iox_chunk(dds_writer *wr, const void *sample, void *iox_chunk,
   }
 }
 
-#ifdef DDS_HAS_SHM
 // has to support two cases:
 // 1) data is in an external buffer allocated on the stack or dynamically
 // 2) data is in an iceoryx buffer obtained by dds_loan_sample
@@ -604,27 +604,11 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     }
   }
 
-  // TODO: remove/reduce comment
-  // We now we are in the following state:
-  // 0) we already had an iceoryx chunk (loan) and did not change it - the header must be correct (requires changes)
-  // 1) we have obtained an iceoryx chunk
-  //    a) fixed size: we copied original data to it
-  //    b) otherwise: we serialized the original data to it
-  // 2) we have no iceoryx chunk (out of chunks or another reason)
-  // afterwards if we have an iox chunk we will send it 
-  // and need to decide how to proceed on the receiver side depending on the state (deserialize or copy)
-  // The network path proceeds as normal
-  // TO DISCUSS: 
-  // i) loan case in C - we have to make sure the chunk is filled properly
-  // ii) write case in C++ - works the same but calls the C++ callbacks
-  //     - size estimation and serialization must use information from C++
-  // iii) loan case in C++ - chunk must be filled properly and ii) must hold
-
   // ddsi_wr->as can be changed by the matching/unmatching of proxy readers if we don't hold the lock
   // it is rather unfortunate that this then means we have to lock here to check, then lock again to
   // actually distribute the data, so some further refactoring is needed.
   ddsrt_mutex_lock (&ddsi_wr->e.lock);
-  bool no_network_readers = addrset_empty (ddsi_wr->as);  
+  bool no_network_readers = addrset_empty (ddsi_wr->as);
   ddsrt_mutex_unlock (&ddsi_wr->e.lock);
   bool use_only_iceoryx = iceoryx_available && no_network_readers;
 
@@ -643,7 +627,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     // The benefit of this would be minor in most cases though, when we assume a static configuration
     // where we either have network readers (requiring serialization) or not.
 
-    // do not serialize yet (may not need it if only using iceoryx or no readers)   
+    // do not serialize yet (may not need it if only using iceoryx or no readers)
     d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
         
   } else {
