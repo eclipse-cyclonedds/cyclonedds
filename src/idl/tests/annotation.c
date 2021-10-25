@@ -486,7 +486,8 @@ void test_id(
       CU_ASSERT_TRUE_FATAL(m < sizeof(test.id)/sizeof(test.id[0]));
       if (idl_is_struct(node)) {
         const idl_struct_t *s = (const idl_struct_t*)node;
-        CU_ASSERT_EQUAL(s->autoid.value, test.aid[m++]);
+        CU_ASSERT_EQUAL(s->autoid.value, test.aid[m]);
+        m++;
 
         const idl_member_t *mem = NULL;
         const idl_declarator_t *decl = NULL;
@@ -504,7 +505,8 @@ void test_id(
         }
       } else if (idl_is_union(node)) {
         const idl_union_t *u = (const idl_union_t*)node;
-        CU_ASSERT_EQUAL(u->autoid.value, test.aid[m++]);
+        CU_ASSERT_EQUAL(u->autoid.value, test.aid[m]);
+        m++;
 
         const idl_case_t *_case = NULL;
         IDL_FOREACH(_case, u->cases) {
