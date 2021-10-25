@@ -163,8 +163,7 @@ if(iceoryx_binding_c_FOUND AND NOT WIN32)
 
   target_link_libraries(cunit_ddsc_iox PRIVATE RoundTrip Space Array100 ddsc)
 
-  # MAKI discuss test structure
-  # partially move to ddsi tests?
+  # TODO(MAKI) test structure, partially move to ddsi tests?
   add_cunit_executable(cunit_ddsc_shm_serialization
     "test_shm_serialization.c"
     "test_util.c"

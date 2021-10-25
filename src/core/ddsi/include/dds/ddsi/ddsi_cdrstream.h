@@ -90,6 +90,25 @@ DDS_EXPORT size_t dds_stream_print_sample (dds_istream_t * __restrict is, const 
 
 DDS_EXPORT bool dds_stream_has_dynamic_type (const uint32_t * __restrict ops);
 
+void dds_istream_from_buffer(dds_istream_t* is, const void* buffer, uint32_t buffer_size);
+/* For marshalling op code handling */
+
+// #define DDS_OP_MASK 0xff000000
+// #define DDS_OP_TYPE_MASK 0x00ff0000
+// #define DDS_OP_SUBTYPE_MASK 0x0000ff00
+// #define DDS_OP_JMP_MASK 0x0000ffff
+// #define DDS_OP_FLAGS_MASK 0x000000ff
+// #define DDS_JEQ_TYPE_MASK 0x00ff0000
+
+// #define DDS_OP(o)         ((enum dds_stream_opcode) ((o) & DDS_OP_MASK))
+// #define DDS_OP_TYPE(o)    ((enum dds_stream_typecode) (((o) & DDS_OP_TYPE_MASK) >> 16))
+// #define DDS_OP_SUBTYPE(o) ((enum dds_stream_typecode) (((o) & DDS_OP_SUBTYPE_MASK) >> 8))
+// #define DDS_OP_FLAGS(o)   ((o) & DDS_OP_FLAGS_MASK)
+// #define DDS_OP_ADR_JSR(o) ((o) & DDS_OP_JMP_MASK)
+// #define DDS_OP_JUMP(o)    ((int16_t) ((o) & DDS_OP_JMP_MASK))
+// #define DDS_OP_ADR_JMP(o) ((o) >> 16)
+// #define DDS_JEQ_TYPE(o)   ((enum dds_stream_typecode) (((o) & DDS_JEQ_TYPE_MASK) >> 16))
+
 #if defined (__cplusplus)
 }
 #endif

@@ -471,7 +471,8 @@ const struct dds_entity_deriver dds_entity_deriver_reader = {
 #define DDS_READER_QOS_CHECK_FIELDS (QP_LIVELINESS|QP_DEADLINE|QP_RELIABILITY|QP_DURABILITY|QP_HISTORY)
 static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_t *qos, const struct dds_topic *tp)
 {
-  // MAKI consider removing the argument once it is clear the check does not depend on topic
+  // TODO(MAKI) consider removing the argument once it is clear the check does not depend on topic
+  //            it may depend on topic in the future again
   (void) tp;
 
   if (NULL == cfg ||

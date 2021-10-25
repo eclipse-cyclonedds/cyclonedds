@@ -20,9 +20,6 @@ static const struct shm_locator {
 
 #define TRACE_CATEGORY "discovery"
 
-#define TEST_DOMAIN 1
-
-// MAKI can be somewhat simplified for our case
 static dds_entity_t create_participant(dds_domainid_t int_dom,
                                        bool shm_enable) {
   const unsigned char *l = shm_locators[int_dom].a;

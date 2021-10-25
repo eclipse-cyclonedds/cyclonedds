@@ -95,7 +95,7 @@ static void *create_iox_chunk(dds_writer *wr)
     iox_chunk_header_t * iox_chunk_header = iox_chunk_header_from_user_payload(sample);
     ice_hdr = iox_chunk_header_to_user_header(iox_chunk_header);
     ice_hdr->data_size = sample_size;
-    ice_hdr->data_state = IOX_CHUNK_UNINITIALIZED;
+    ice_hdr->shm_data_state = IOX_CHUNK_UNINITIALIZED;
     return sample;
 }
 
@@ -128,7 +128,7 @@ static void *create_iox_chunk_for_size(dds_writer *wr, size_t size)
     iox_chunk_header_t * iox_chunk_header = iox_chunk_header_from_user_payload(iox_chunk);
     ice_hdr = iox_chunk_header_to_user_header(iox_chunk_header);
     ice_hdr->data_size = (uint32_t) size;
-    ice_hdr->data_state = IOX_CHUNK_UNINITIALIZED;
+    ice_hdr->shm_data_state = IOX_CHUNK_UNINITIALIZED;
     return iox_chunk;
 }
 
@@ -547,11 +547,11 @@ static void fill_iox_chunk(dds_writer *wr, const void *sample, void *iox_chunk,
   iceoryx_header_t *iox_header = iceoryx_header_from_chunk(iox_chunk);
   if (has_fixed_size_type) {
     memcpy(iox_chunk, sample, sample_size);
-    iox_header->data_state = IOX_CHUNK_CONTAINS_RAW_DATA;
+    iox_header->shm_data_state = IOX_CHUNK_CONTAINS_RAW_DATA;
   } else {
     size_t size = iox_header->data_size;
     ddsi_sertype_serialize_into(wr->m_topic->m_stype, sample, iox_chunk, size);
-    iox_header->data_state = IOX_CHUNK_CONTAINS_SERIALIZED_DATA;
+    iox_header->shm_data_state = IOX_CHUNK_CONTAINS_SERIALIZED_DATA;
   }
 }
 
@@ -668,7 +668,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
 
   if(use_only_iceoryx) {
     // deliver via iceoryx only
-    // MAKI: can we avoid constructing d in this case?
+    // TODO(MAKI) can we avoid constructing d in this case?
     if(deliver_data_via_iceoryx(wr, d)) {
       ret = DDS_RETCODE_OK;
     } else {

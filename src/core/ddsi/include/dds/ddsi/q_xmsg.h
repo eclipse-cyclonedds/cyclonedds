@@ -21,8 +21,7 @@
 #include "dds/features.h"
 
 #ifdef DDS_HAS_SHM
-#include "dds/ddsi/ddsi_keyhash.h"
-#include "iceoryx_binding_c/chunk.h"
+#include "dds/ddsi/shm_types.h"
 #endif
 
 #if defined (__cplusplus)
@@ -53,31 +52,6 @@ enum nn_xmsg_kind {
   NN_XMSG_KIND_DATA_REXMIT,
   NN_XMSG_KIND_DATA_REXMIT_NOMERGE
 };
-
-#ifdef DDS_HAS_SHM
-// MAKI: TODO: we should move this elsewhere ...
-
-typedef enum {
-  IOX_CHUNK_UNINITIALIZED,
-  IOX_CHUNK_CONTAINS_RAW_DATA,
-  IOX_CHUNK_CONTAINS_SERIALIZED_DATA
-} iox_data_state_t;
-
-struct iceoryx_header {
-   struct ddsi_guid guid;
-   dds_time_t tstamp;
-   uint32_t statusinfo;
-   uint32_t data_size;
-   unsigned char data_kind;
-   ddsi_keyhash_t keyhash;
-   iox_data_state_t data_state;
-};
-
-typedef struct iceoryx_header iceoryx_header_t;
-
-iceoryx_header_t *iceoryx_header_from_chunk(void *iox_chunk);
-
-#endif
 
 /* XMSGPOOL */
 

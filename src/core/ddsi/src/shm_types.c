@@ -10,7 +10,14 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 
-#ifndef SHM_SERIALIZE_H
-#define SHM_SERIALIZE_H
+#include "dds/ddsi/shm_types.h"
 
-#endif // SHM_SERIALIZE_H
+#ifdef DDS_HAS_SHM
+
+iceoryx_header_t *iceoryx_header_from_chunk(void *iox_chunk) {
+  iox_chunk_header_t *chunk_header =
+      iox_chunk_header_from_user_payload(iox_chunk);
+  return iox_chunk_header_to_user_header(chunk_header);
+}
+
+#endif

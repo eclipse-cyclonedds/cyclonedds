@@ -221,17 +221,21 @@ static dds_ostream_t ostream_from_buffer(void *buffer, size_t size) {
   return os;
 }
 
+// placeholder implementation
 // TODO: implement efficiently (we now actually serialize to get the size)
+//       This is similar to serializing but instead counting bytes instead of writing
+//       data to a stream.
+//       This should be (almost...) O(1), there may be issues with
+//       sequences of nontrivial types where it will depend on the number of elements.
 static size_t sertype_default_get_serialized_size (
     const struct ddsi_sertype *type, const void *sample) {
 
-  // the normal algorithm starts with serdata d.m_size + m_index;
+  // the normal algorithm starts with serdata d.m_size + m_index
+
   // but we do not have the serdata (we could construct it)
-  
-  
-  // TODO: this is off by 4 bytes (header?)
   // TODO: which implementation to keep for now?
 #if 0
+  // TODO: this is off by 4 bytes (header?)
   dds_ostream_t os;
   dds_ostream_init(&os, 1024); // initial size chosen arbitrarily 
   const struct ddsi_sertype_default *type_default = (const struct ddsi_sertype_default *)type;

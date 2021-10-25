@@ -493,17 +493,13 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
 
   struct ddsi_serdata_default *d = serdata_default_new_size (tp, kind, ice_hdr->data_size, tp->encoding_version);
 
-  //ICEORYX_TODO: we do no copy here but store the pointer to the chunk
-  //              the pointer was gotten in some concurrent thread of the shm_monitor
-  //              problems may arise due to concurrent iox_release_chunk
-
   memcpy(d->keyhash.m_hash, ice_hdr->keyhash.value, 16);
   d->keyhash.m_set = 1;
   d->keyhash.m_iskey = 0;  //if set to 1, will cause issues @ serdata_default_to_untyped at the endianness swap
   d->keyhash.m_keysize = 16;
   fix_serdata_default(d, tpcmn->serdata_basehash);
 
-  // MAKI: we do not deserialize or memcpy here, ust take ownership of the chunk
+  // note: we do not deserialize or memcpy here, just take ownership of the chunk
   d->c.iox_chunk = iox_buffer;
   d->c.iox_subscriber = sub;
 
@@ -675,13 +671,6 @@ static void serdata_default_to_ser_unref (struct ddsi_serdata *serdata_common, c
   ddsi_serdata_unref(serdata_common);
 }
 
-// MAKI: move to cdr_stream?
-static void dds_istream_from_buffer(dds_istream_t* is, const void* buffer, uint32_t buffer_size) {
-  is->m_buffer = buffer;
-  is->m_index = 0;
-  is->m_size = buffer_size;
-};
-
 static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
 {
   const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
@@ -692,7 +681,7 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
   {    
     void* iox_chunk = d->c.iox_chunk;
     iceoryx_header_t* hdr = iceoryx_header_from_chunk(iox_chunk);
-    if(hdr->data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {
+    if(hdr->shm_data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {
       dds_istream_from_buffer(&is, iox_chunk, hdr->data_size) ;      
       assert (d->hdr.identifier == NATIVE_ENCODING);     
       if (d->c.kind == SDK_KEY)
