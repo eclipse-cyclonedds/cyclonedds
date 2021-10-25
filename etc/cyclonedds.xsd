@@ -112,6 +112,7 @@ CycloneDDS configuration</xs:documentation>
       <xs:all>
         <xs:element minOccurs="0" ref="config:DSGracePeriod"/>
         <xs:element minOccurs="0" ref="config:DefaultMulticastAddress"/>
+        <xs:element minOccurs="0" ref="config:EnableTopicDiscoveryEndpoints"/>
         <xs:element minOccurs="0" ref="config:ExternalDomainId"/>
         <xs:element minOccurs="0" ref="config:MaxAutoParticipantIndex"/>
         <xs:element minOccurs="0" ref="config:ParticipantIndex"/>
@@ -136,6 +137,13 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;This element specifies the default multicast address for all traffic other than participant discovery packets. It defaults to Discovery/SPDPMulticastAddress.&lt;/p&gt;
 &lt;p&gt;The default value is: "auto".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="EnableTopicDiscoveryEndpoints" type="xs:boolean">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element controls whether the built-in endpoints for topic discovery are created and used to exchange topic discovery information.&lt;/p&gt;
+&lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="ExternalDomainId" type="xs:string">
@@ -491,8 +499,6 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:MaxQueuedRexmitMessages"/>
         <xs:element minOccurs="0" ref="config:MaxSampleSize"/>
         <xs:element minOccurs="0" ref="config:MeasureHbToAckLatency"/>
-        <xs:element minOccurs="0" ref="config:MinimumSocketReceiveBufferSize"/>
-        <xs:element minOccurs="0" ref="config:MinimumSocketSendBufferSize"/>
         <xs:element minOccurs="0" ref="config:MonitorPort"/>
         <xs:element minOccurs="0" ref="config:MultipleReceiveThreads"/>
         <xs:element minOccurs="0" ref="config:NackDelay"/>
@@ -506,6 +512,8 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:SPDPResponseMaxDelay"/>
         <xs:element minOccurs="0" ref="config:ScheduleTimeRounding"/>
         <xs:element minOccurs="0" ref="config:SecondaryReorderMaxSamples"/>
+        <xs:element minOccurs="0" ref="config:SocketReceiveBufferSize"/>
+        <xs:element minOccurs="0" ref="config:SocketSendBufferSize"/>
         <xs:element minOccurs="0" ref="config:SquashParticipants"/>
         <xs:element minOccurs="0" ref="config:SynchronousDeliveryLatencyBound"/>
         <xs:element minOccurs="0" ref="config:SynchronousDeliveryPriorityThreshold"/>
@@ -771,23 +779,6 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="MinimumSocketReceiveBufferSize" type="config:memsize">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This setting controls the minimum size of socket receive buffers. The operating system provides some size receive buffer upon creation of the socket, this option can be used to increase the size of the buffer beyond that initially provided by the operating system. If the buffer size cannot be increased to the specified size, an error is reported.&lt;/p&gt;
-&lt;p&gt;The default setting is the word "default", which means Cyclone DDS will attempt to increase the buffer size to 1MB, but will silently accept a smaller buffer should that attempt fail.&lt;/p&gt;
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
-&lt;p&gt;The default value is: "default".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="MinimumSocketSendBufferSize" type="config:memsize">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This setting controls the minimum size of socket send buffers. This setting can only increase the size of the send buffer, if the operating system by default creates a larger buffer, it is left unchanged.&lt;/p&gt;
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
-&lt;p&gt;The default value is: "64 KiB".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
   <xs:element name="MonitorPort" type="xs:integer">
     <xs:annotation>
       <xs:documentation>
@@ -929,6 +920,56 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;This element sets the maximum size in samples of a secondary re-order administration. The secondary re-order administration is per reader in need of historical data.&lt;/p&gt;
 &lt;p&gt;The default value is: "128".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
+  </xs:element>
+  <xs:element name="SocketReceiveBufferSize">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;The settings in this element control the size of the socket receive buffers. The operating system provides some size receive buffer upon creation of the socket, this option can be used to increase the size of the buffer beyond that initially provided by the operating system. If the buffer size cannot be increased to the requested minimum size, an error is reported.&lt;/p&gt;
+&lt;p&gt;The default setting requests a buffer size of 1MiB but accepts whatever is available after that.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="max" type="config:memsize">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This sets the size of the socket receive buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will request 1MiB and accept anything. If the maximum is set to less than the minimum, it is ignored.&lt;/p&gt;
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
+&lt;p&gt;The default value is: "default".&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="min" type="config:memsize">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This sets the minimum acceptable socket receive buffer size, with the special value "default" indicating that whatever is available is acceptable.&lt;/p&gt;
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
+&lt;p&gt;The default value is: "default".&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="SocketSendBufferSize">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;The settings in this element control the size of the socket send buffers. The operating system provides some size send buffer upon creation of the socket, this option can be used to increase the size of the buffer beyond that initially provided by the operating system. If the buffer size cannot be increased to the requested minimum size, an error is reported.&lt;/p&gt;
+&lt;p&gt;The default setting requires a buffer of at least 64KiB.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="max" type="config:memsize">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This sets the size of the socket send buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will use whatever is the system default. If the maximum is set to less than the minimum, it is ignored.&lt;/p&gt;
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
+&lt;p&gt;The default value is: "default".&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="min" type="config:memsize">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This sets the minimum acceptable socket send buffer size, with the special value "default" indicating that whatever is available is acceptable.&lt;/p&gt;
+&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
+&lt;p&gt;The default value is: "64 KiB".&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+    </xs:complexType>
   </xs:element>
   <xs:element name="SquashParticipants" type="xs:boolean">
     <xs:annotation>

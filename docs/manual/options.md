@@ -67,7 +67,7 @@ The default value is: "lax".
 
 
 ### //CycloneDDS/Domain/Discovery
-Children: [DSGracePeriod](#cycloneddsdomaindiscoverydsgraceperiod), [DefaultMulticastAddress](#cycloneddsdomaindiscoverydefaultmulticastaddress), [ExternalDomainId](#cycloneddsdomaindiscoveryexternaldomainid), [MaxAutoParticipantIndex](#cycloneddsdomaindiscoverymaxautoparticipantindex), [ParticipantIndex](#cycloneddsdomaindiscoveryparticipantindex), [Peers](#cycloneddsdomaindiscoverypeers), [Ports](#cycloneddsdomaindiscoveryports), [SPDPInterval](#cycloneddsdomaindiscoveryspdpinterval), [SPDPMulticastAddress](#cycloneddsdomaindiscoveryspdpmulticastaddress), [Tag](#cycloneddsdomaindiscoverytag)
+Children: [DSGracePeriod](#cycloneddsdomaindiscoverydsgraceperiod), [DefaultMulticastAddress](#cycloneddsdomaindiscoverydefaultmulticastaddress), [EnableTopicDiscoveryEndpoints](#cycloneddsdomaindiscoveryenabletopicdiscoveryendpoints), [ExternalDomainId](#cycloneddsdomaindiscoveryexternaldomainid), [MaxAutoParticipantIndex](#cycloneddsdomaindiscoverymaxautoparticipantindex), [ParticipantIndex](#cycloneddsdomaindiscoveryparticipantindex), [Peers](#cycloneddsdomaindiscoverypeers), [Ports](#cycloneddsdomaindiscoveryports), [SPDPInterval](#cycloneddsdomaindiscoveryspdpinterval), [SPDPMulticastAddress](#cycloneddsdomaindiscoveryspdpmulticastaddress), [Tag](#cycloneddsdomaindiscoverytag)
 
 The Discovery element allows specifying various parameters related to the discovery of peers.
 
@@ -88,6 +88,14 @@ Text
 This element specifies the default multicast address for all traffic other than participant discovery packets. It defaults to Discovery/SPDPMulticastAddress.
 
 The default value is: "auto".
+
+
+#### //CycloneDDS/Domain/Discovery/EnableTopicDiscoveryEndpoints
+Boolean
+
+This element controls whether the built-in endpoints for topic discovery are created and used to exchange topic discovery information.
+
+The default value is: "false".
 
 
 #### //CycloneDDS/Domain/Discovery/ExternalDomainId
@@ -414,7 +422,7 @@ The default value is: "default".
 
 
 ### //CycloneDDS/Domain/Internal
-Children: [AccelerateRexmitBlockSize](#cycloneddsdomaininternalacceleraterexmitblocksize), [AckDelay](#cycloneddsdomaininternalackdelay), [AssumeMulticastCapable](#cycloneddsdomaininternalassumemulticastcapable), [AutoReschedNackDelay](#cycloneddsdomaininternalautoreschednackdelay), [BuiltinEndpointSet](#cycloneddsdomaininternalbuiltinendpointset), [BurstSize](#cycloneddsdomaininternalburstsize), [ControlTopic](#cycloneddsdomaininternalcontroltopic), [DDSI2DirectMaxThreads](#cycloneddsdomaininternalddsidirectmaxthreads), [DefragReliableMaxSamples](#cycloneddsdomaininternaldefragreliablemaxsamples), [DefragUnreliableMaxSamples](#cycloneddsdomaininternaldefragunreliablemaxsamples), [DeliveryQueueMaxSamples](#cycloneddsdomaininternaldeliveryqueuemaxsamples), [EnableExpensiveChecks](#cycloneddsdomaininternalenableexpensivechecks), [GenerateKeyhash](#cycloneddsdomaininternalgeneratekeyhash), [HeartbeatInterval](#cycloneddsdomaininternalheartbeatinterval), [LateAckMode](#cycloneddsdomaininternallateackmode), [LeaseDuration](#cycloneddsdomaininternalleaseduration), [LivelinessMonitoring](#cycloneddsdomaininternallivelinessmonitoring), [MaxParticipants](#cycloneddsdomaininternalmaxparticipants), [MaxQueuedRexmitBytes](#cycloneddsdomaininternalmaxqueuedrexmitbytes), [MaxQueuedRexmitMessages](#cycloneddsdomaininternalmaxqueuedrexmitmessages), [MaxSampleSize](#cycloneddsdomaininternalmaxsamplesize), [MeasureHbToAckLatency](#cycloneddsdomaininternalmeasurehbtoacklatency), [MinimumSocketReceiveBufferSize](#cycloneddsdomaininternalminimumsocketreceivebuffersize), [MinimumSocketSendBufferSize](#cycloneddsdomaininternalminimumsocketsendbuffersize), [MonitorPort](#cycloneddsdomaininternalmonitorport), [MultipleReceiveThreads](#cycloneddsdomaininternalmultiplereceivethreads), [NackDelay](#cycloneddsdomaininternalnackdelay), [PreEmptiveAckDelay](#cycloneddsdomaininternalpreemptiveackdelay), [PrimaryReorderMaxSamples](#cycloneddsdomaininternalprimaryreordermaxsamples), [PrioritizeRetransmit](#cycloneddsdomaininternalprioritizeretransmit), [RediscoveryBlacklistDuration](#cycloneddsdomaininternalrediscoveryblacklistduration), [RetransmitMerging](#cycloneddsdomaininternalretransmitmerging), [RetransmitMergingPeriod](#cycloneddsdomaininternalretransmitmergingperiod), [RetryOnRejectBestEffort](#cycloneddsdomaininternalretryonrejectbesteffort), [SPDPResponseMaxDelay](#cycloneddsdomaininternalspdpresponsemaxdelay), [ScheduleTimeRounding](#cycloneddsdomaininternalscheduletimerounding), [SecondaryReorderMaxSamples](#cycloneddsdomaininternalsecondaryreordermaxsamples), [SquashParticipants](#cycloneddsdomaininternalsquashparticipants), [SynchronousDeliveryLatencyBound](#cycloneddsdomaininternalsynchronousdeliverylatencybound), [SynchronousDeliveryPriorityThreshold](#cycloneddsdomaininternalsynchronousdeliveryprioritythreshold), [Test](#cycloneddsdomaininternaltest), [UnicastResponseToSPDPMessages](#cycloneddsdomaininternalunicastresponsetospdpmessages), [UseMulticastIfMreqn](#cycloneddsdomaininternalusemulticastifmreqn), [Watermarks](#cycloneddsdomaininternalwatermarks), [WriteBatch](#cycloneddsdomaininternalwritebatch), [WriterLingerDuration](#cycloneddsdomaininternalwriterlingerduration)
+Children: [AccelerateRexmitBlockSize](#cycloneddsdomaininternalacceleraterexmitblocksize), [AckDelay](#cycloneddsdomaininternalackdelay), [AssumeMulticastCapable](#cycloneddsdomaininternalassumemulticastcapable), [AutoReschedNackDelay](#cycloneddsdomaininternalautoreschednackdelay), [BuiltinEndpointSet](#cycloneddsdomaininternalbuiltinendpointset), [BurstSize](#cycloneddsdomaininternalburstsize), [ControlTopic](#cycloneddsdomaininternalcontroltopic), [DDSI2DirectMaxThreads](#cycloneddsdomaininternalddsidirectmaxthreads), [DefragReliableMaxSamples](#cycloneddsdomaininternaldefragreliablemaxsamples), [DefragUnreliableMaxSamples](#cycloneddsdomaininternaldefragunreliablemaxsamples), [DeliveryQueueMaxSamples](#cycloneddsdomaininternaldeliveryqueuemaxsamples), [EnableExpensiveChecks](#cycloneddsdomaininternalenableexpensivechecks), [GenerateKeyhash](#cycloneddsdomaininternalgeneratekeyhash), [HeartbeatInterval](#cycloneddsdomaininternalheartbeatinterval), [LateAckMode](#cycloneddsdomaininternallateackmode), [LeaseDuration](#cycloneddsdomaininternalleaseduration), [LivelinessMonitoring](#cycloneddsdomaininternallivelinessmonitoring), [MaxParticipants](#cycloneddsdomaininternalmaxparticipants), [MaxQueuedRexmitBytes](#cycloneddsdomaininternalmaxqueuedrexmitbytes), [MaxQueuedRexmitMessages](#cycloneddsdomaininternalmaxqueuedrexmitmessages), [MaxSampleSize](#cycloneddsdomaininternalmaxsamplesize), [MeasureHbToAckLatency](#cycloneddsdomaininternalmeasurehbtoacklatency), [MonitorPort](#cycloneddsdomaininternalmonitorport), [MultipleReceiveThreads](#cycloneddsdomaininternalmultiplereceivethreads), [NackDelay](#cycloneddsdomaininternalnackdelay), [PreEmptiveAckDelay](#cycloneddsdomaininternalpreemptiveackdelay), [PrimaryReorderMaxSamples](#cycloneddsdomaininternalprimaryreordermaxsamples), [PrioritizeRetransmit](#cycloneddsdomaininternalprioritizeretransmit), [RediscoveryBlacklistDuration](#cycloneddsdomaininternalrediscoveryblacklistduration), [RetransmitMerging](#cycloneddsdomaininternalretransmitmerging), [RetransmitMergingPeriod](#cycloneddsdomaininternalretransmitmergingperiod), [RetryOnRejectBestEffort](#cycloneddsdomaininternalretryonrejectbesteffort), [SPDPResponseMaxDelay](#cycloneddsdomaininternalspdpresponsemaxdelay), [ScheduleTimeRounding](#cycloneddsdomaininternalscheduletimerounding), [SecondaryReorderMaxSamples](#cycloneddsdomaininternalsecondaryreordermaxsamples), [SocketReceiveBufferSize](#cycloneddsdomaininternalsocketreceivebuffersize), [SocketSendBufferSize](#cycloneddsdomaininternalsocketsendbuffersize), [SquashParticipants](#cycloneddsdomaininternalsquashparticipants), [SynchronousDeliveryLatencyBound](#cycloneddsdomaininternalsynchronousdeliverylatencybound), [SynchronousDeliveryPriorityThreshold](#cycloneddsdomaininternalsynchronousdeliveryprioritythreshold), [Test](#cycloneddsdomaininternaltest), [UnicastResponseToSPDPMessages](#cycloneddsdomaininternalunicastresponsetospdpmessages), [UseMulticastIfMreqn](#cycloneddsdomaininternalusemulticastifmreqn), [Watermarks](#cycloneddsdomaininternalwatermarks), [WriteBatch](#cycloneddsdomaininternalwritebatch), [WriterLingerDuration](#cycloneddsdomaininternalwriterlingerduration)
 
 The Internal elements deal with a variety of settings that evolving and that are not necessarily fully supported. For the vast majority of the Internal settings, the functionality per-se is supported, but the right to change the way the options control the functionality is reserved. This includes renaming or moving options.
 
@@ -689,28 +697,6 @@ This element enables heartbeat-to-ack latency among Cyclone DDS services by prep
 The default value is: "false".
 
 
-#### //CycloneDDS/Domain/Internal/MinimumSocketReceiveBufferSize
-Number-with-unit
-
-This setting controls the minimum size of socket receive buffers. The operating system provides some size receive buffer upon creation of the socket, this option can be used to increase the size of the buffer beyond that initially provided by the operating system. If the buffer size cannot be increased to the specified size, an error is reported.
-
-The default setting is the word "default", which means Cyclone DDS will attempt to increase the buffer size to 1MB, but will silently accept a smaller buffer should that attempt fail.
-
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
-
-The default value is: "default".
-
-
-#### //CycloneDDS/Domain/Internal/MinimumSocketSendBufferSize
-Number-with-unit
-
-This setting controls the minimum size of socket send buffers. This setting can only increase the size of the send buffer, if the operating system by default creates a larger buffer, it is left unchanged.
-
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
-
-The default value is: "64 KiB".
-
-
 #### //CycloneDDS/Domain/Internal/MonitorPort
 Integer
 
@@ -854,6 +840,62 @@ Integer
 This element sets the maximum size in samples of a secondary re-order administration. The secondary re-order administration is per reader in need of historical data.
 
 The default value is: "128".
+
+
+#### //CycloneDDS/Domain/Internal/SocketReceiveBufferSize
+Attributes: [max](#cycloneddsdomaininternalsocketreceivebuffersizemax), [min](#cycloneddsdomaininternalsocketreceivebuffersizemin)
+
+The settings in this element control the size of the socket receive buffers. The operating system provides some size receive buffer upon creation of the socket, this option can be used to increase the size of the buffer beyond that initially provided by the operating system. If the buffer size cannot be increased to the requested minimum size, an error is reported.
+
+The default setting requests a buffer size of 1MiB but accepts whatever is available after that.
+
+
+#### //CycloneDDS/Domain/Internal/SocketReceiveBufferSize[@max]
+Number-with-unit
+
+This sets the size of the socket receive buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will request 1MiB and accept anything. If the maximum is set to less than the minimum, it is ignored.
+
+The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+
+The default value is: "default".
+
+
+#### //CycloneDDS/Domain/Internal/SocketReceiveBufferSize[@min]
+Number-with-unit
+
+This sets the minimum acceptable socket receive buffer size, with the special value "default" indicating that whatever is available is acceptable.
+
+The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+
+The default value is: "default".
+
+
+#### //CycloneDDS/Domain/Internal/SocketSendBufferSize
+Attributes: [max](#cycloneddsdomaininternalsocketsendbuffersizemax), [min](#cycloneddsdomaininternalsocketsendbuffersizemin)
+
+The settings in this element control the size of the socket send buffers. The operating system provides some size send buffer upon creation of the socket, this option can be used to increase the size of the buffer beyond that initially provided by the operating system. If the buffer size cannot be increased to the requested minimum size, an error is reported.
+
+The default setting requires a buffer of at least 64KiB.
+
+
+#### //CycloneDDS/Domain/Internal/SocketSendBufferSize[@max]
+Number-with-unit
+
+This sets the size of the socket send buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will use whatever is the system default. If the maximum is set to less than the minimum, it is ignored.
+
+The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+
+The default value is: "default".
+
+
+#### //CycloneDDS/Domain/Internal/SocketSendBufferSize[@min]
+Number-with-unit
+
+This sets the minimum acceptable socket send buffer size, with the special value "default" indicating that whatever is available is acceptable.
+
+The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+
+The default value is: "64 KiB".
 
 
 #### //CycloneDDS/Domain/Internal/SquashParticipants

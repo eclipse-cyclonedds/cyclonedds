@@ -230,6 +230,10 @@ struct ddsi_config_ssl_min_version {
 };
 #endif
 
+struct ddsi_config_socket_buf_size {
+  struct ddsi_config_maybe_uint32 min, max;
+};
+
 /* Expensive checks (compiled in when NDEBUG not defined, enabled only if flag set in xchecks) */
 #define DDSI_XCHECK_WHC 1u
 #define DDSI_XCHECK_RHC 2u
@@ -358,8 +362,8 @@ struct ddsi_config
   uint32_t max_participants;
   int64_t writer_linger_duration;
   int multicast_ttl;
-  struct ddsi_config_maybe_uint32 socket_min_rcvbuf_size;
-  uint32_t socket_min_sndbuf_size;
+  struct ddsi_config_socket_buf_size socket_rcvbuf_size;
+  struct ddsi_config_socket_buf_size socket_sndbuf_size;
   int64_t ack_delay;
   int64_t nack_delay;
   int64_t preemptive_ack_delay;
