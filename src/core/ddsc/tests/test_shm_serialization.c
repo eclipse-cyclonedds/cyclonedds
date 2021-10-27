@@ -88,8 +88,8 @@ CU_Test(ddsc_shm_serialization, get_serialized_size) {
   size_t serialized_size = ddsi_serdata_size(serdata);  
   ddsi_serdata_unref(serdata);
 
-  printf("required size %zu \n", required_size);
-  printf("actual_serialized_size %zu \n", serialized_size);
+  // printf("required size %zu \n", required_size);
+  // printf("actual_serialized_size %zu \n", serialized_size);
   CU_ASSERT(required_size >= serialized_size);
 
   dds_topic_unpin(tp);
@@ -100,7 +100,7 @@ CU_Test(ddsc_shm_serialization, get_serialized_size) {
 
   // TODO: need to do this in teardown code (always, i.e. also in failure cases)
   rc = dds_delete(DDS_CYCLONEDDS_HANDLE);
-  CU_ASSERT_FATAL(rc == 0);
+  CU_ASSERT_FATAL(rc == 0);  
 }
 
 CU_Test(ddsc_shm_serialization, serialize_into) {
@@ -129,18 +129,20 @@ CU_Test(ddsc_shm_serialization, serialize_into) {
 
   size_t buffer_size = ddsi_sertype_get_serialized_size(stype, &sample);
   char *buffer = (char *)dds_alloc(buffer_size);
+  memset(buffer, 0, buffer_size);
 
   ddsi_sertype_serialize_into(stype, &sample, buffer, buffer_size);
 
-  struct ddsi_serdata *serdata =
-      ddsi_serdata_from_sample(stype, SDK_DATA, &sample);
-  struct ddsi_serdata_default *d = (struct ddsi_serdata_default *)serdata;
-  uint32_t *hdr = (uint32_t *)d->data;
-  size_t serialized_size = *hdr + sizeof(struct CDRHeader);
+  struct ddsi_serdata *serdata = ddsi_serdata_from_sample(stype, SDK_DATA, &sample);
+  size_t serialized_size = ddsi_serdata_size(serdata);
 
+  struct ddsi_serdata_default *d = (struct ddsi_serdata_default*) serdata;
   CU_ASSERT(buffer_size >= serialized_size);
+
+  // may fail due to gaps of unused bytes in indeterminate state (no compact serialization)
   CU_ASSERT(memcmp(d->data, buffer, serialized_size) == 0);
 
+  ddsi_serdata_unref(serdata);
   dds_free(buffer);
   dds_topic_unpin(tp);
   dds_delete(participant);
@@ -167,7 +169,7 @@ static bool compare_messages(const DynamicData_Msg* s1, const DynamicData_Msg* s
   return result;
 }
 
-CU_Test(ddsc_shm_serialization, transmit_non_fixed_type, .timeout = 30) {
+CU_Test(ddsc_shm_serialization, transmit_dynamic_type, .timeout = 30) {  
   dds_entity_t participant;
   dds_entity_t topic;
   dds_entity_t writer;

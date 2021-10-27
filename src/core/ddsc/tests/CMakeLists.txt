@@ -216,11 +216,14 @@ kill -0 `cat ctest_fixture_iox_roudi.pid`")
 
   set_tests_properties(CUnit_ddsc_iceoryx_one_writer PROPERTIES FIXTURES_REQUIRED iox)
   set_tests_properties(CUnit_ddsc_iceoryx_return_loan PROPERTIES FIXTURES_REQUIRED iox)
+  set_tests_properties(CUnit_ddsc_iceoryx_return_loan PROPERTIES FIXTURES_REQUIRED iox)
+  set_tests_properties(CUnit_ddsc_shm_serialization_transmit_dynamic_type PROPERTIES FIXTURES_REQUIRED iox)
   set_tests_properties(start_roudi PROPERTIES FIXTURES_SETUP iox)
   set_tests_properties(stop_roudi PROPERTIES FIXTURES_CLEANUP iox)
   set_tests_properties(
     CUnit_ddsc_iceoryx_one_writer
     CUnit_ddsc_iceoryx_return_loan
+    CUnit_ddsc_shm_serialization_transmit_dynamic_type
     start_roudi
     stop_roudi
     PROPERTIES RESOURCE_LOCK iox_lock)

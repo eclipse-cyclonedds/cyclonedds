@@ -594,6 +594,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       } else {
         // we failed to obtain a chunk, iceoryx transport is thus not available
         // we will use the network path instead
+        // TODO: clarify
         // we cannot do this as the code is now (locators etc.)
         // same machine nodes would not get the data?
 
