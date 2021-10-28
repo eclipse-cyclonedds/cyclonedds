@@ -66,7 +66,9 @@ typedef struct {
 size_t
 ddsrt_thread_getname(char *str, size_t size)
 {
+#ifdef MAXTHREADNAMESIZE
   char buf[MAXTHREADNAMESIZE + 1] = "";
+#endif
   size_t cnt = 0;
 
   assert(str != NULL);
