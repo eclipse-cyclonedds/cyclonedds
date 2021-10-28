@@ -1,0 +1,9 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+
+Name: @PROJECT_NAME@
+Description: Eclipse Cyclone DDS library
+Version: @PROJECT_VERSION@
+Libs: -L${libdir} -lddsc
+Cflags: -I${includedir}
