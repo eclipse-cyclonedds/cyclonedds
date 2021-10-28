@@ -307,6 +307,18 @@ install(
   DESTINATION "${CMAKE_INSTALL_CMAKEDIR}"
   COMPONENT dev)
 
+# Generate Pkg-Config file
+configure_file(
+  "PkgConfig.pc.in"
+  "${PROJECT_NAME}.pc"
+  @ONLY
+)
+install(
+  FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+  COMPONENT dev
+)
+
 add_subdirectory(src)
 if(BUILD_EXAMPLES)
   add_subdirectory(examples)
