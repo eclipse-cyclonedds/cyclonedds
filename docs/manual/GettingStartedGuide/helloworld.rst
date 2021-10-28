@@ -96,7 +96,7 @@ Hello World! CMake (CycloneDDS Package)
 Specifying how to build the *Hello World!* example requires only a few
 lines of configuration in :code:`examples/helloworld/CMakeLists.txt`
 
-.. literalinclude:: ../../../examples/helloworld/CMakeLists.export
+.. literalinclude:: ../../../examples/helloworld/CMakeLists.txt
     :linenos:
     :language: cmake
 
