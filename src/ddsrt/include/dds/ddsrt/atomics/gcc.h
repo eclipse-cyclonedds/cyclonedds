@@ -239,7 +239,12 @@ DDS_INLINE_EXPORT inline int ddsrt_atomic_casvoidp (volatile ddsrt_atomic_voidp_
 }
 #if DDSRT_HAVE_ATOMIC_LIFO
 #if DDSRT_HAVE_ATOMIC64
-typedef union { __int128_t x; struct { uintptr_t a, b; } s; } ddsrt_atomic_uintptr2_t;
+#if defined(__s390__) || defined(__s390x__) || defined(__zarch__)
+typedef __int128_t __attribute__((aligned(16))) ddsrt_atomic_int128_t;
+#else
+typedef __int128_t ddsrt_atomic_int128_t;
+#endif
+typedef union { ddsrt_atomic_int128_t x; struct { uintptr_t a, b; } s; } ddsrt_atomic_uintptr2_t;
 #else
 typedef union { uint64_t x; struct { uintptr_t a, b; } s; } ddsrt_atomic_uintptr2_t;
 #endif
@@ -257,7 +262,11 @@ DDS_INLINE_EXPORT inline int ddsrt_atomic_casvoidp2 (volatile ddsrt_atomic_uintp
   ddsrt_atomic_uintptr2_t o, n;
   o.s.a = a0; o.s.b = b0;
   n.s.a = a1; n.s.b = b1;
+#if defined(__s390__) || defined(__s390x__) || defined(__zarch__)
+  return __sync_bool_compare_and_swap ((ddsrt_atomic_int128_t*)__builtin_assume_aligned(&x->x, 16), o.x, n.x);
+#else
   return __sync_bool_compare_and_swap (&x->x, o.x, n.x);
+#endif
 }
 #endif
 
