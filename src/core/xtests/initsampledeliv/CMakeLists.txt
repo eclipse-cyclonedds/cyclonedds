@@ -9,8 +9,6 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-cmake_minimum_required(VERSION 3.5)
-
 idlc_generate(TARGET InitSampleDeliv_lib FILES InitSampleDelivData.idl)
 
 add_executable(InitSampleDelivPub publisher.c)

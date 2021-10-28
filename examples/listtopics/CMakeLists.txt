@@ -10,7 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 project(listtopics LANGUAGES C)
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 
 if(NOT TARGET CycloneDDS::ddsc)
   find_package(CycloneDDS REQUIRED)
