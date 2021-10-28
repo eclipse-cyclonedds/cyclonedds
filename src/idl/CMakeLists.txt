@@ -9,9 +9,6 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-cmake_minimum_required(VERSION 3.7)
-#project(cyclonedds-idl LANGUAGES C)
-
 include(GenerateExportHeader)
 
 find_package(BISON 3.0.4 REQUIRED)
