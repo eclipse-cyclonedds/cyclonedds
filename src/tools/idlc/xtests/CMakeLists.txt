@@ -14,6 +14,7 @@ set(_sources
   test_alias.idl
   test_basic.idl
   test_union.idl
+  test_typedef_member.idl
 #  test_struct_recursive.idl
 #  test_union_member_types.idl
 #  test_union_recursive.idl

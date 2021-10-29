@@ -1,0 +1,80 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+module test_module
+{
+    @nested @final
+    struct inner
+    {
+        long i1;
+    };
+    typedef inner inner_t;
+
+    @nested @final
+    struct s
+    {
+      @key inner_t s1;
+      @key sequence<inner_t> s2;
+    };
+
+    @nested @final
+    union u switch (long) {
+        case 1: inner_t u1;
+        case 2: sequence<inner_t> u2;
+    };
+
+    @topic @final
+    struct test_typedef_member {
+        @key s t1;
+        u t2;
+    };
+};
+
+#else
+
+#include "dds/ddsrt/heap.h"
+#include "test_typedef_member.h"
+#include "common.h"
+
+const dds_topic_descriptor_t *desc = &test_module_test_typedef_member_desc;
+void init_sample (void *s);
+int cmp_sample (const void *sa, const void *sb);
+
+void init_sample (void *s)
+{
+  test_module_test_typedef_member *s1 = (test_module_test_typedef_member *) s;
+  s1->t1.s1.i1 = 123;
+  SEQA(s1->t1.s2, 2);
+  s1->t1.s2._buffer[0].i1 = 345;
+  s1->t1.s2._buffer[1].i1 = 567;
+  s1->t2._d = 2;
+  SEQA(s1->t2._u.u2, 2);
+  s1->t2._u.u2._buffer[0].i1 = 678;
+  s1->t2._u.u2._buffer[1].i1 = 789;
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_module_test_typedef_member *a = (test_module_test_typedef_member *) sa;
+  test_module_test_typedef_member *b = (test_module_test_typedef_member *) sb;
+  CMP(a, b, t1.s1.i1, 123);
+  CMP(a, b, t1.s2._buffer[0].i1, 345);
+  CMP(a, b, t1.s2._buffer[1].i1, 567);
+  CMP(a, b, t2._d, 2);
+  CMP(a, b, t2._u.u2._buffer[0].i1, 678);
+  CMP(a, b, t2._u.u2._buffer[1].i1, 789);
+  return 0;
+}
+
+#endif
