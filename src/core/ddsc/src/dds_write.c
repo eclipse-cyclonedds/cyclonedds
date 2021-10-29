@@ -65,42 +65,8 @@ static bool deregister_pub_loan(dds_writer *wr, const void *pub_loan)
     return false;
 }
 
-static void *create_iox_chunk(dds_writer *wr)
-{
-    iceoryx_header_t *ice_hdr;
-    void *sample;
-    uint32_t sample_size = wr->m_topic->m_stype->iox_size;
-
-    // TODO: use a proper timeout to control the time it is allowed to take to obtain a chunk more accurately
-    // but for now only try a limited number of times (hence non-blocking).
-    // Otherwise we could block here forever and this also leads to problems with thread progress monitoring.
-
-    int32_t number_of_tries = 10; //try 10 times over at least 10ms, considering the wait time below
-
-    while (true)
-    {
-      enum iox_AllocationResult alloc_result =
-        iox_pub_loan_aligned_chunk_with_user_header(wr->m_iox_pub, &sample, sample_size, IOX_C_CHUNK_DEFAULT_USER_PAYLOAD_ALIGNMENT, sizeof(iceoryx_header_t), 8);
-
-      if (AllocationResult_SUCCESS == alloc_result)
-        break;
-
-      if(--number_of_tries <= 0) {
-        return NULL;
-      }
-
-      dds_sleepfor (DDS_MSECS (1)); // TODO: how long should we wait?
-    }
-
-    iox_chunk_header_t * iox_chunk_header = iox_chunk_header_from_user_payload(sample);
-    ice_hdr = iox_chunk_header_to_user_header(iox_chunk_header);
-    ice_hdr->data_size = sample_size;
-    ice_hdr->shm_data_state = IOX_CHUNK_UNINITIALIZED;
-    return sample;
-}
-
-static void *create_iox_chunk_for_size(dds_writer *wr, size_t size)
-{   
+static void *create_iox_chunk(dds_writer *wr, size_t size)
+{ 
     iceoryx_header_t *ice_hdr;
     void *iox_chunk;    
 
@@ -157,7 +123,7 @@ dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
   // the loaning is only allowed if SHM is enabled correctly and if the type is fixed
   if (wr->m_iox_pub && wr->m_topic->m_stype->fixed_size)
   {
-    *sample = create_iox_chunk(wr);
+    *sample = create_iox_chunk(wr, wr->m_topic->m_stype->iox_size);
 
     if(*sample) {
       register_pub_loan(wr, *sample);
@@ -586,7 +552,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     if(!deregister_pub_loan(wr, data))
     {
       size_t required_size = get_required_buffer_size(wr->m_topic, data);
-      iox_chunk = create_iox_chunk_for_size(wr, required_size);     
+      iox_chunk = create_iox_chunk(wr, required_size);     
 
       if(iox_chunk) {
         fill_iox_chunk(wr, data, iox_chunk, required_size);
@@ -653,7 +619,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
 
   if(use_only_iceoryx) {
     // deliver via iceoryx only
-    // TODO(MAKI) can we avoid constructing d in this case?
+    // TODO: can we avoid constructing d in this case?
     if(deliver_data_via_iceoryx(wr, d)) {
       ret = DDS_RETCODE_OK;
     } else {

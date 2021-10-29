@@ -495,16 +495,14 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
 
   struct ddsi_serdata_default *d = serdata_default_new_size (tp, kind, ice_hdr->data_size, tp->encoding_version);
 
-  // TODO(MAKI) keyhash appears to be gone, confirn new logic
-  // required to obtain keyhash and copy to buffer?
-  // memcpy(d->keyhash.m_hash, ice_hdr->keyhash.value, 16); 
-  d->key.buftype = KEYBUFTYPE_STATIC;
-  d->key.keysize = 16;
-  fix_serdata_default(d, tpcmn->serdata_basehash);
-
   // note: we do not deserialize or memcpy here, just take ownership of the chunk
   d->c.iox_chunk = iox_buffer;
   d->c.iox_subscriber = sub;
+  d->key.buftype = KEYBUFTYPE_STATIC;
+  d->key.keysize = FIXED_KEY_MAX_SIZE;
+  memcpy(d->key.u.stbuf, ice_hdr->keyhash.value, FIXED_KEY_MAX_SIZE);
+
+  fix_serdata_default(d, tpcmn->serdata_basehash);
 
   return (struct ddsi_serdata*)d;
 }
@@ -695,11 +693,7 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
       // should contain raw unserialized data
       // we could check the data_state but should not be needed
       memcpy(sample, iox_chunk, hdr->data_size);
-    }
-    // TODO: the iox chunk is not needed anymore (discuss, it depends whether we
-    // may deserialize a sample twice but that would be inefficient)
-    // unfortunately this may change the object so we violate const correctness...
-    serdata_default_free_iox_chunk((struct ddsi_serdata_default *)d);  
+    }   
     return true;
   }
 #endif

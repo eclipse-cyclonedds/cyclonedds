@@ -116,17 +116,13 @@ typedef void (*ddsi_sertype_free_samples_t) (const struct ddsi_sertype *d, void 
 typedef void (*ddsi_sertype_serialized_size_t) (const struct ddsi_sertype *d, size_t *dst_offset);
 
 /* Compute the serialized size based on the sertype information and the sample */
-// TODO: remove obsolete comments after discussion
-// Interface extension to support dynamic types with shared memory
-// TO DISCUSS can we change the signature of existing functions? (if they are seemingly unused)
+// Note: size_t maximum is reserved as error value
 typedef size_t (*ddsi_sertype_get_serialized_size_t)(
     const struct ddsi_sertype *d, const void *sample);
 
-/* Compute the serialized size based on the sertype information and the sample */
-// Note that we assume the destination buffer is large enough (we do not check)
+/* Serialize into a destination buffer */
+// Note that we assume the destination buffer is large enough (we do not necessarily check)
 // The required size can be obtained with ddsi_sertype_get_serialized_size_t
-// TO_DISCUSS do we want to provide the size of the buffer? (it is not needed if we just assume it is large enough
-// which we should unless we want to call get_serialized_size again to verify)
 typedef void (*ddsi_sertype_serialize_into_t)(const struct ddsi_sertype *d,
                                               const void *sample,
                                               void *dst_buffer,
@@ -178,7 +174,7 @@ enum ddsi_sertype_extensibility
 {
   DDSI_SERTYPE_EXT_FINAL = 0,
   DDSI_SERTYPE_EXT_APPENDABLE = 1,
-  DDSI_SERTYPE_EXT_MUTABLE = 2  
+  DDSI_SERTYPE_EXT_MUTABLE = 2
 };
 
 struct ddsi_sertype *ddsi_sertype_lookup_locked (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype_template);

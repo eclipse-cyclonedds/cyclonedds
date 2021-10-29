@@ -74,8 +74,8 @@ struct ddsi_serdata_default_key {
   struct ddsi_serdata_default_key key;\
   struct serdatapool *serpool;        \
   struct ddsi_serdata_default *next /* in pool->freelist */
-#define DDSI_SERDATA_DEFAULT_POSTPAD                                           \
-  struct CDRHeader hdr;                                                        \
+#define DDSI_SERDATA_DEFAULT_POSTPAD  \
+  struct CDRHeader hdr;               \
   char data[]
 
 struct ddsi_serdata_default_unpadded {

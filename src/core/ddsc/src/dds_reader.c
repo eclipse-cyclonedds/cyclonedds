@@ -469,12 +469,8 @@ const struct dds_entity_deriver dds_entity_deriver_reader = {
 
 #ifdef DDS_HAS_SHM
 #define DDS_READER_QOS_CHECK_FIELDS (QP_LIVELINESS|QP_DEADLINE|QP_RELIABILITY|QP_DURABILITY|QP_HISTORY)
-static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_t *qos, const struct dds_topic *tp)
+static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_t *qos)
 {
-  // TODO(MAKI) consider removing the argument once it is clear the check does not depend on topic
-  //            it may depend on topic in the future again
-  (void) tp;
-
   if (NULL == cfg ||
       false == cfg->enable_shm)
     return false;
@@ -641,7 +637,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
 #ifdef DDS_HAS_SHM
   assert(rqos->present & QP_LOCATOR_MASK);
-  if (!dds_reader_support_shm(&gv->config, rqos, tp))
+  if (!dds_reader_support_shm(&gv->config, rqos))
     rqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
 #endif
 

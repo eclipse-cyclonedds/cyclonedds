@@ -284,11 +284,8 @@ const struct dds_entity_deriver dds_entity_deriver_writer = {
 
 #ifdef DDS_HAS_SHM
 #define DDS_WRITER_QOS_CHECK_FIELDS (QP_LIVELINESS|QP_DEADLINE|QP_RELIABILITY|QP_DURABILITY|QP_HISTORY)
-static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_t* qos, const struct dds_topic *tp)
+static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_t* qos)
 {
-  // TODO(MAKI) consider removing the argument once it is clear the check does not depend on topic
-  //            it may depend on topic in the future again
-  (void) tp;
   if (NULL == cfg ||
       false == cfg->enable_shm)
     return false;
@@ -417,7 +414,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
 #ifdef DDS_HAS_SHM
   assert(wqos->present & QP_LOCATOR_MASK);  
-  if (!dds_writer_support_shm(&gv->config, wqos, tp))
+  if (!dds_writer_support_shm(&gv->config, wqos))
     wqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
 #endif
 

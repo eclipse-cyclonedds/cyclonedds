@@ -210,12 +210,10 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
   return (struct ddsi_sertype *) derived_sertype;
 }
 
-// TODO: implement
 // move to cdr_stream?
 static dds_ostream_t ostream_from_buffer(void *buffer, size_t size) {
   dds_ostream_t os;
   os.m_buffer = buffer;
-  // TODO: we need to add an offset = 128 for technical reasons?
   os.m_size = (uint32_t) size;
   os.m_index = 0;
   return os;
@@ -230,10 +228,6 @@ static dds_ostream_t ostream_from_buffer(void *buffer, size_t size) {
 static size_t sertype_default_get_serialized_size (
     const struct ddsi_sertype *type, const void *sample) {
 
-  // the normal algorithm starts with serdata d.m_size + m_index
-
-  // but we do not have the serdata (we could construct it)
-  // TODO: which implementation to keep for now?
 #if 0
   // TODO: this is off by 4 bytes (header?)
   dds_ostream_t os;

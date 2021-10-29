@@ -75,8 +75,6 @@ CU_Test(ddsc_shm_serialization, get_serialized_size) {
   DynamicData_Msg sample;
   sample.message = "test message";  
   sample.scalar = 73;
-
-  // TODO: is this the way to work with sequences in C? (error-prone)
   int32_t values[] = {11, 13, 17, 19};
   sample.values._buffer = (int32_t*)(&values);
   sample.values._length = 4;
@@ -88,9 +86,10 @@ CU_Test(ddsc_shm_serialization, get_serialized_size) {
   size_t serialized_size = ddsi_serdata_size(serdata);  
   ddsi_serdata_unref(serdata);
 
-  // printf("required size %zu \n", required_size);
-  // printf("actual_serialized_size %zu \n", serialized_size);
-  CU_ASSERT(required_size >= serialized_size);
+  printf("required size %zu \n", required_size);
+  printf("actual_serialized_size %zu \n", serialized_size);
+  // note: it is a multiple of 4 due to the used type, it will round up to multiple of 4
+  CU_ASSERT(required_size == serialized_size);
 
   dds_topic_unpin(tp);
 
@@ -101,6 +100,14 @@ CU_Test(ddsc_shm_serialization, get_serialized_size) {
   // TODO: need to do this in teardown code (always, i.e. also in failure cases)
   rc = dds_delete(DDS_CYCLONEDDS_HANDLE);
   CU_ASSERT_FATAL(rc == 0);  
+}
+
+static void printbuffer(void* buffer, size_t n) {
+  char* buf = (char*) buffer;
+  for (size_t i = 0; i < n; i++) {
+    printf("%02x ", buf[i] & 0xff);
+  }
+printf("\n");
 }
 
 CU_Test(ddsc_shm_serialization, serialize_into) {
@@ -141,6 +148,12 @@ CU_Test(ddsc_shm_serialization, serialize_into) {
 
   // may fail due to gaps of unused bytes in indeterminate state (no compact serialization)
   CU_ASSERT(memcmp(d->data, buffer, serialized_size) == 0);
+
+  printf("buffer ");
+  printbuffer(buffer, serialized_size);
+
+  printf("serdata ");
+  printbuffer(d->data, serialized_size);
 
   ddsi_serdata_unref(serdata);
   dds_free(buffer);
@@ -232,7 +245,7 @@ CU_Test(ddsc_shm_serialization, transmit_dynamic_type, .timeout = 30) {
 
   DynamicData_Msg *received_sample = (DynamicData_Msg *)samples[0];  
 
-  CU_ASSERT(compare_messages(&sample, received_sample));
+  CU_ASSERT(compare_messages(&sample, received_sample)); 
 
   dds_delete(participant);
   rc = dds_delete(DDS_CYCLONEDDS_HANDLE);
