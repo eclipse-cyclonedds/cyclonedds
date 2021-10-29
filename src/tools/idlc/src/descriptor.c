@@ -1036,7 +1036,7 @@ emit_sequence(
     if ((ret = push_type(descriptor, node, stype->ctype, &seq_stype)))
       return ret;
     seq_stype->offset = off;
-    return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
+    return IDL_VISIT_TYPE_SPEC | IDL_VISIT_UNALIAS_TYPE_SPEC | IDL_VISIT_REVISIT;
   }
 
   return IDL_RETCODE_OK;
@@ -1300,12 +1300,12 @@ emit_declarator(
     }
 
     if (idl_is_sequence(type_spec))
-      return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
+      return IDL_VISIT_TYPE_SPEC | IDL_VISIT_UNALIAS_TYPE_SPEC | IDL_VISIT_REVISIT;
 
-    /* inline the type spec for seq/struct/union declarators in a union */
+    /* inline the type spec for struct/union declarators in a union */
     if (idl_is_union(ctype->node)) {
-      if (idl_is_sequence(type_spec) || idl_is_union(type_spec) || idl_is_struct(type_spec))
-        return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
+      if (idl_is_union(type_spec) || idl_is_struct(type_spec))
+        return IDL_VISIT_TYPE_SPEC | IDL_VISIT_UNALIAS_TYPE_SPEC | IDL_VISIT_REVISIT;
     }
 
     assert(ctype->instructions.count <= INT16_MAX);
@@ -1357,7 +1357,7 @@ emit_declarator(
     }
 
     if (idl_is_union(type_spec) || idl_is_struct(type_spec) || idl_is_bitmask(type_spec))
-      return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
+      return IDL_VISIT_TYPE_SPEC | IDL_VISIT_UNALIAS_TYPE_SPEC | IDL_VISIT_REVISIT;
 
     return IDL_VISIT_REVISIT;
   }
