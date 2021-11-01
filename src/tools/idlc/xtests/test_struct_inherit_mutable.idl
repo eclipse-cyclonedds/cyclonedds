@@ -1,0 +1,70 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+@default_nested
+module test {
+  @final
+  struct c {
+    @id(0) long c0;
+  };
+
+  @mutable
+  struct b {
+    @id(1) long f1;
+    @id(3) c f3;
+  };
+
+  @topic
+  @mutable
+  struct struct_inherit : b {
+    @id(0) long f0;
+    @id(2) long f2;
+  };
+}; // module
+
+#else
+
+#include <string.h>
+#include "dds/dds.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
+#include "test_struct_inherit_mutable.h"
+#include "common.h"
+
+const dds_topic_descriptor_t *desc = &test_struct_inherit_desc;
+void init_sample (void *s);
+int cmp_sample (const void *sa, const void *sb);
+
+void init_sample (void *s)
+{
+  test_struct_inherit *s1 = (test_struct_inherit *) s;
+  s1->parent.f1 = 123;
+  s1->parent.f3.c0 = 321;
+  s1->f0 = 456;
+  s1->f2 = 789;
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_struct_inherit *a = (test_struct_inherit *) sa;
+  test_struct_inherit *b = (test_struct_inherit *) sb;
+
+  CMP(a, b, parent.f1, 123);
+  CMP(a, b, parent.f3.c0, 321);
+  CMP(a, b, f0, 456);
+  CMP(a, b, f2, 789);
+
+  return 0;
+}
+
+#endif

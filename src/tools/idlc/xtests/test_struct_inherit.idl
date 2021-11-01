@@ -1,0 +1,102 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+@default_nested
+module test {
+  union u;
+
+  @final
+  struct d {
+    short d1;
+    @external u d2;
+  };
+
+  @final
+  struct c : d {
+    long c1;
+  };
+
+  typedef c c_t;
+  typedef c_t c_t2;
+
+  @final
+  struct b : c_t2 {
+    long b1;
+    c b2;
+  };
+
+  @final
+  union u switch(short) {
+    case 1: long u1;
+    default: short u2;
+  };
+
+  @topic
+  @final
+  struct struct_inherit : b {
+    u s1;
+  };
+}; // module
+
+#else
+
+#include <string.h>
+#include "dds/dds.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
+#include "test_struct_inherit.h"
+#include "common.h"
+
+const dds_topic_descriptor_t *desc = &test_struct_inherit_desc;
+void init_sample (void *s);
+int cmp_sample (const void *sa, const void *sb);
+
+void init_sample (void *s)
+{
+  test_struct_inherit *s1 = (test_struct_inherit *) s;
+  s1->parent.b1 = 123;
+  s1->parent.parent.c1 = 234;
+  s1->parent.parent.parent.d1 = 456;
+  s1->parent.parent.parent.d2 = dds_alloc (sizeof (*s1->parent.parent.parent.d2));
+  s1->parent.parent.parent.d2->_d = 1;
+  s1->parent.parent.parent.d2->_u.u1 = 789;
+  s1->parent.b2.parent.d1 = 654;
+  s1->parent.b2.parent.d2 = dds_alloc (sizeof (*s1->parent.b2.parent.d2));
+  s1->parent.b2.parent.d2->_d = 3;
+  s1->parent.b2.parent.d2->_u.u2 = 765;
+  s1->parent.b2.c1 = 321;
+  s1->s1._d = 2;
+  s1->s1._u.u2 = 987;
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_struct_inherit *a = (test_struct_inherit *) sa;
+  test_struct_inherit *b = (test_struct_inherit *) sb;
+
+  CMP(a, b, parent.b1, 123);
+  CMP(a, b, parent.parent.c1, 234);
+  CMP(a, b, parent.parent.parent.d1, 456);
+  CMP(a, b, parent.parent.parent.d2->_d, 1);
+  CMP(a, b, parent.parent.parent.d2->_u.u1, 789);
+  CMP(a, b, parent.b2.parent.d1, 654);
+  CMP(a, b, parent.b2.parent.d2->_d, 3);
+  CMP(a, b, parent.b2.parent.d2->_u.u2, 765);
+  CMP(a, b, parent.b2.c1, 321);
+  CMP(a, b, s1._d, 2);
+  CMP(a, b, s1._u.u2, 987);
+
+  return 0;
+}
+
+#endif
