@@ -29,7 +29,7 @@
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_cdrstream.h"
-#include "dds/ddsi/shm_sync.h"
+#include "dds/ddsi/shm_transport.h"
 #include "dds/ddsi/q_addrset.h"
 #include "iceoryx_binding_c/chunk.h"
 #endif
@@ -114,11 +114,11 @@ dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
   dds_return_t ret;
   dds_writer *wr;
 
-  if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
-    return ret;
-
   if (!sample)
-    return DDS_RETCODE_BAD_PARAMETER;  
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
+    return ret;  
 
   // the loaning is only allowed if SHM is enabled correctly and if the type is fixed
   if (wr->m_iox_pub && wr->m_topic->m_stype->fixed_size)

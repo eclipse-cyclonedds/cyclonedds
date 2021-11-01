@@ -21,7 +21,7 @@
 #include "dds/features.h"
 
 #ifdef DDS_HAS_SHM
-#include "dds/ddsi/shm_types.h"
+#include "dds/ddsi/shm_transport.h"
 #endif
 
 #if defined (__cplusplus)

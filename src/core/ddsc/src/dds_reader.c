@@ -44,7 +44,7 @@
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/md5.h"
-#include "dds/ddsi/shm_sync.h"
+#include "dds/ddsi/shm_transport.h"
 #endif
 
 DECL_ENTITY_LOCK_UNLOCK (dds_reader)

@@ -146,7 +146,6 @@ CU_Test(ddsc_shm_serialization, serialize_into) {
   struct ddsi_serdata_default *d = (struct ddsi_serdata_default*) serdata;
   CU_ASSERT(buffer_size >= serialized_size);
 
-  // may fail due to gaps of unused bytes in indeterminate state (no compact serialization)
   CU_ASSERT(memcmp(d->data, buffer, serialized_size) == 0);
 
   printf("buffer ");

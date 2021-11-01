@@ -28,7 +28,7 @@
 #include "dds/ddsi/ddsi_serdata_default.h"
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/shm_sync.h"
+#include "dds/ddsi/shm_transport.h"
 #include "iceoryx_binding_c/chunk.h"
 #endif
 
@@ -140,27 +140,6 @@ static bool serdata_default_eqkey_nokey (const struct ddsi_serdata *acmn, const 
   return true;
 }
 
-#ifdef DDS_HAS_SHM
-static void serdata_default_free_iox_chunk(struct ddsi_serdata_default* d) {
-  // TODO(MAKI) optimize/check concurrent correctness
-  // Use double checked locking to avoid concurrent double free
-  // We could also use an exchange operation (do we have an abstraction for that?)
-  // This would avoid some locking (CAS is too costly and not needed)
-  // Note: we must be careful to only set the chunk to NULL under lock
-  if (d->c.iox_chunk)
-  {
-    iox_sub_t *sub = d->c.iox_subscriber;
-    shm_lock_iox_sub(*sub);
-    if (d->c.iox_chunk)
-    {
-      iox_sub_release_chunk(*sub, d->c.iox_chunk);
-      d->c.iox_chunk = NULL;
-    }
-    shm_unlock_iox_sub(*sub);
-  }
-}
-#endif
-
 static void serdata_default_free(struct ddsi_serdata *dcmn)
 {
   struct ddsi_serdata_default *d = (struct ddsi_serdata_default *)dcmn;
@@ -170,7 +149,7 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
     ddsrt_free(d->key.u.dynbuf);
 
 #ifdef DDS_HAS_SHM
-  serdata_default_free_iox_chunk(d);
+  free_iox_chunk(d->c.iox_subscriber, &d->c.iox_chunk);
 #endif
 
   if (d->size > MAX_SIZE_FOR_POOL || !nn_freelist_push (&d->serpool->freelist, d))
