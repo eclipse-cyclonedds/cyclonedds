@@ -133,17 +133,24 @@ static void setqos (dds_qos_t *q, size_t i, bool isrd, bool create)
 static bool pubsub_qos_eq_h (const dds_qos_t *a, dds_entity_t ent)
 {
   dds_qos_t *b = dds_create_qos ();
-  dds_get_qos (ent, b);
-  /* internal interface is more luxurious that a simple compare for equality, and
-     using that here saves us a ton of code */
-  uint64_t delta = ddsi_xqos_delta (a, b, QP_GROUP_DATA | QP_PRESENTATION | QP_PARTITION);
-  if (delta)
+  uint64_t delta = 1;
+  struct ddsrt_log_cfg logcfg;
+  dds_log_cfg_init (&logcfg, 0, DDS_LC_ERROR, stderr, stderr);
+  if (dds_get_qos (ent, b) < 0)
   {
-    struct ddsrt_log_cfg logcfg;
-    dds_log_cfg_init (&logcfg, 0, DDS_LC_ERROR, stderr, stderr);
-    DDS_CLOG (DDS_LC_ERROR, &logcfg, "pub/sub: delta = %"PRIx64"\n", delta);
-    ddsi_xqos_log (DDS_LC_ERROR, &logcfg, a); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
-    ddsi_xqos_log (DDS_LC_ERROR, &logcfg, b); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
+    DDS_CLOG (DDS_LC_ERROR, &logcfg, "publisher/subscriber qos retrieval failure\n");
+  }
+  else
+  {
+    /* internal interface is more luxurious that a simple compare for equality, and
+       using that here saves us a ton of code */
+    delta = ddsi_xqos_delta (a, b, QP_GROUP_DATA | QP_PRESENTATION | QP_PARTITION);
+    if (delta)
+    {
+      DDS_CLOG (DDS_LC_ERROR, &logcfg, "pub/sub: delta = %"PRIx64"\n", delta);
+      ddsi_xqos_log (DDS_LC_ERROR, &logcfg, a); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
+      ddsi_xqos_log (DDS_LC_ERROR, &logcfg, b); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
+    }
   }
   dds_delete_qos (b);
   return delta == 0;
@@ -157,15 +164,22 @@ static uint64_t reader_qos_delta (const dds_qos_t *a, const dds_qos_t *b)
 static bool reader_qos_eq_h (const dds_qos_t *a, dds_entity_t ent)
 {
   dds_qos_t *b = dds_create_qos ();
-  dds_get_qos (ent, b);
-  uint64_t delta = reader_qos_delta (a, b);
-  if (delta)
+  uint64_t delta = 1;
+  struct ddsrt_log_cfg logcfg;
+  dds_log_cfg_init (&logcfg, 0, DDS_LC_ERROR, stderr, stderr);
+  if (dds_get_qos (ent, b) < 0)
   {
-    struct ddsrt_log_cfg logcfg;
-    dds_log_cfg_init (&logcfg, 0, DDS_LC_ERROR, stderr, stderr);
-    DDS_CLOG (DDS_LC_ERROR, &logcfg, "reader: delta = %"PRIx64"\n", delta);
-    ddsi_xqos_log (DDS_LC_ERROR, &logcfg, a); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
-    ddsi_xqos_log (DDS_LC_ERROR, &logcfg, b); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
+    DDS_CLOG (DDS_LC_ERROR, &logcfg, "reader qos retrieval failure\n");
+  }
+  else
+  {
+    delta = reader_qos_delta (a, b);
+    if (delta)
+    {
+      DDS_CLOG (DDS_LC_ERROR, &logcfg, "reader: delta = %"PRIx64"\n", delta);
+      ddsi_xqos_log (DDS_LC_ERROR, &logcfg, a); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
+      ddsi_xqos_log (DDS_LC_ERROR, &logcfg, b); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
+    }
   }
   dds_delete_qos (b);
   return delta == 0;
@@ -179,15 +193,22 @@ static uint64_t writer_qos_delta (const dds_qos_t *a, const dds_qos_t *b)
 static bool writer_qos_eq_h (const dds_qos_t *a, dds_entity_t ent)
 {
   dds_qos_t *b = dds_create_qos ();
-  dds_get_qos (ent, b);
-  uint64_t delta = writer_qos_delta (a, b);
-  if (delta)
+  uint64_t delta = 1;
+  struct ddsrt_log_cfg logcfg;
+  dds_log_cfg_init (&logcfg, 0, DDS_LC_ERROR, stderr, stderr);
+  if (dds_get_qos (ent, b) < 0)
   {
-    struct ddsrt_log_cfg logcfg;
-    dds_log_cfg_init (&logcfg, 0, DDS_LC_ERROR, stderr, stderr);
-    DDS_CLOG (DDS_LC_ERROR, &logcfg, "writer: delta = %"PRIx64"\n", delta);
-    ddsi_xqos_log (DDS_LC_ERROR, &logcfg, a); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
-    ddsi_xqos_log (DDS_LC_ERROR, &logcfg, b); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
+    DDS_CLOG (DDS_LC_ERROR, &logcfg, "writer qos retrieval failure\n");
+  }
+  else
+  {
+    delta = writer_qos_delta (a, b);
+    if (delta)
+    {
+      DDS_CLOG (DDS_LC_ERROR, &logcfg, "writer: delta = %"PRIx64"\n", delta);
+      ddsi_xqos_log (DDS_LC_ERROR, &logcfg, a); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
+      ddsi_xqos_log (DDS_LC_ERROR, &logcfg, b); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
+    }
   }
   dds_delete_qos (b);
   return delta == 0;
