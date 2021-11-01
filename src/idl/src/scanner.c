@@ -636,7 +636,9 @@ scan(idl_pstate_t *pstate, idl_lexeme_t *lex)
       pstate->scanner.state = IDL_SCAN_GRAMMAR;
     }
   } while (code == '\0');
-  move(pstate, lim);
+
+  if (code > 0)
+    move(pstate, lim);
   lex->limit = lim;
   lex->location.last = pstate->scanner.position;
 
