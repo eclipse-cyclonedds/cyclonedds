@@ -66,7 +66,7 @@ static bool deregister_pub_loan(dds_writer *wr, const void *pub_loan)
 }
 
 static void *create_iox_chunk(dds_writer *wr, size_t size)
-{ 
+{
     iceoryx_header_t *ice_hdr;
     void *iox_chunk;    
 
@@ -76,11 +76,11 @@ static void *create_iox_chunk(dds_writer *wr, size_t size)
 
     int32_t number_of_tries = 10; //try 10 times over at least 10ms, considering the wait time below
 
-    while (true)  
+    while (true)
     {
       enum iox_AllocationResult alloc_result = 
         iox_pub_loan_aligned_chunk_with_user_header(wr->m_iox_pub, &iox_chunk, (uint32_t) size, IOX_C_CHUNK_DEFAULT_USER_PAYLOAD_ALIGNMENT, sizeof(iceoryx_header_t), 8);
-      
+
       if (AllocationResult_SUCCESS == alloc_result)
         break;
 
@@ -118,7 +118,7 @@ dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
     return DDS_RETCODE_BAD_PARAMETER;
 
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
-    return ret;  
+    return ret;
 
   // the loaning is only allowed if SHM is enabled correctly and if the type is fixed
   if (wr->m_iox_pub && wr->m_topic->m_stype->fixed_size)

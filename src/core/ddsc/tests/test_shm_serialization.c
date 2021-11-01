@@ -50,9 +50,9 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
   CU_ASSERT_FATAL(dom > 0);
   ddsrt_free(xconfigstr);
   ddsrt_free(configstr);
-  const dds_entity_t pp = dds_create_participant(int_dom, NULL, NULL);
-  CU_ASSERT_FATAL(pp > 0);
-  return pp;
+  const dds_entity_t p = dds_create_participant(int_dom, NULL, NULL);
+  CU_ASSERT_FATAL(p > 0);
+  return p;
 }
 
 CU_Test(ddsc_shm_serialization, get_serialized_size) {
@@ -88,26 +88,25 @@ CU_Test(ddsc_shm_serialization, get_serialized_size) {
 
   printf("required size %zu \n", required_size);
   printf("actual_serialized_size %zu \n", serialized_size);
-  // note: it is a multiple of 4 due to the used type, it will round up to multiple of 4
+  // serialized size is always a multiple of 4 (padding is added to ensure this)
   CU_ASSERT(required_size == serialized_size);
+  CU_ASSERT(required_size % 4 == 0);
 
   dds_topic_unpin(tp);
 
-  // likely not needed if we delete the main handle?
-  // delete everything recursively
   dds_delete(participant);
-
-  // TODO: need to do this in teardown code (always, i.e. also in failure cases)
   rc = dds_delete(DDS_CYCLONEDDS_HANDLE);
   CU_ASSERT_FATAL(rc == 0);  
 }
 
+// TODO: remove or keep? its is useful for checking the buffer contents in case something goes wrong
+//       output should be suppressed for successful tests
 static void printbuffer(void* buffer, size_t n) {
   char* buf = (char*) buffer;
   for (size_t i = 0; i < n; i++) {
     printf("%02x ", buf[i] & 0xff);
   }
-printf("\n");
+  printf("\n");
 }
 
 CU_Test(ddsc_shm_serialization, serialize_into) {
@@ -128,9 +127,9 @@ CU_Test(ddsc_shm_serialization, serialize_into) {
   struct ddsi_sertype *stype = tp->m_stype;
 
   DynamicData_Msg sample;
-  sample.message = "test mess";
+  sample.message = "test message";
   sample.scalar = 73;
-  int32_t values[4] = {11, 13, 17, 19};
+  int32_t values[] = {11, 13, 17, 19};
   sample.values._buffer = (int32_t*)(&values);
   sample.values._length = 4;
   sample.values._maximum = 5;
@@ -148,15 +147,9 @@ CU_Test(ddsc_shm_serialization, serialize_into) {
   CU_ASSERT(buffer_size >= serialized_size);
 
   CU_ASSERT(memcmp(d->data, buffer, serialized_size) == 0);
-
-  if(DDSRT_ENDIAN == DDSRT_BIG_ENDIAN) {
-    printf("BIG ENDIAN\n");
-  } else {
-    printf("LITTLE ENDIAN\n");
-  }
-  printf("buffer ");
+ 
+  printf("buffer  ");
   printbuffer(buffer, serialized_size);
-
   printf("serdata ");
   printbuffer(d->data, serialized_size);
 
@@ -201,7 +194,8 @@ CU_Test(ddsc_shm_serialization, transmit_dynamic_type, .timeout = 30) {
   CU_ASSERT_FATAL(topic > 0);
 
   dds_qos_t *qos = dds_create_qos();
-  qos = dds_create_qos();
+  CU_ASSERT_FATAL(qos != NULL);
+
   dds_qset_durability(qos, DDS_DURABILITY_VOLATILE);
   reader = dds_create_reader(participant, topic, qos, NULL);
   CU_ASSERT_FATAL(reader > 0);
@@ -245,18 +239,21 @@ CU_Test(ddsc_shm_serialization, transmit_dynamic_type, .timeout = 30) {
   }
 
   if (received != 1 || !infos[0].valid_data) {
+    printf("Failure - nothing received\n");
     goto fail;
   }
 
   DynamicData_Msg *received_sample = (DynamicData_Msg *)samples[0];  
 
-  CU_ASSERT(compare_messages(&sample, received_sample)); 
+  CU_ASSERT(compare_messages(&sample, received_sample));
 
+  dds_delete_qos(qos);
   dds_delete(participant);
   rc = dds_delete(DDS_CYCLONEDDS_HANDLE);
-  CU_ASSERT_FATAL(rc == 0);
+  CU_ASSERT_FATAL(rc == 0);  
   return;
 fail:
+  dds_delete_qos(qos);
   dds_delete(participant);
   dds_delete(DDS_CYCLONEDDS_HANDLE);
   CU_FAIL();
