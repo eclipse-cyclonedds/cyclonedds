@@ -228,7 +228,8 @@ emit_struct(
       if (idl_fprintf(gen->header.handle, "#endif /* empty struct */\n\n") < 0)
         return IDL_RETCODE_NO_MEMORY;
   } else {
-    const idl_member_t *members = ((const idl_struct_t *)node)->members;
+    const idl_struct_t *_struct = (const idl_struct_t *)node;
+    const idl_member_t *members = _struct->members;
     /* ensure typedefs for unnamed sequences exist beforehand */
     if (members && (ret = generate_implicit_sequences(pstate, revisit, path, members, user_data)))
       return ret;
@@ -240,6 +241,16 @@ emit_struct(
           "{\n";
     if (idl_fprintf(gen->header.handle, fmt, name) < 0)
       return IDL_RETCODE_NO_MEMORY;
+    if (_struct->inherit_spec) {
+      char *type;
+      idl_struct_t *base_struct = (idl_struct_t*)_struct->inherit_spec->base;
+      if (IDL_PRINTA(&type, print_type, base_struct) < 0)
+        return IDL_RETCODE_NO_MEMORY;
+      const char *type_prefix = get_type_prefix(base_struct);
+      fmt = "  %s%s %s;\n";
+      if (idl_fprintf(gen->header.handle, fmt, type_prefix, type, STRUCT_BASE_MEMBER_NAME) < 0)
+        return IDL_RETCODE_NO_MEMORY;
+    }
     return IDL_VISIT_REVISIT;
   }
 

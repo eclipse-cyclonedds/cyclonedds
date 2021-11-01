@@ -14,6 +14,10 @@
 #define MAX_KEY_OFFS (255)
 #define FIXED_KEY_MAX_SIZE (16)
 
+/* The name of the member that is added as the first member in a struct to
+   include its base type in case of inheritance */
+#define STRUCT_BASE_MEMBER_NAME "parent"
+
 /* store each instruction separately for easy post processing and reduced
    complexity. arrays and sequences introduce a new scope and the relative
    offset to the next field is stored with the instructions for the respective
