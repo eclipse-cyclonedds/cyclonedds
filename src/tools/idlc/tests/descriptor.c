@@ -212,3 +212,62 @@ CU_Test(idlc_descriptor, key_size)
 }
 #undef TEST_MAX_KEYS
 #undef VAR
+
+#define TEST_MAX_KEYS 10
+CU_Test(idlc_descriptor, keys_inheritance)
+{
+  static const struct {
+    const char *idl;
+    uint32_t n_keys;
+    const char *key_name[TEST_MAX_KEYS];
+  } tests[] = {
+    /* no keys */
+    { "@nested struct test_base { long a; }; @topic struct test : test_base { long c; };",
+      0, { "" } },
+    /* single inheritance, one key field */
+    { "@nested struct test_base { @key long a; short b; }; @topic struct test : test_base { long c; };",
+      1, { "parent.a" } },
+    /* two levels of inheritance */
+    { "@nested struct test_base2 { @key long a2; }; @nested struct test_base1 : test_base2 { long a1; }; @topic struct test : test_base1 { long a; };",
+      1, { "parent.parent.a2" } },
+    /* base type has (all members of) struct type test_base2 as key */
+    { "@nested struct test_base2 { long a2; long b2; }; @nested struct test_base1 { @key long a1; @key test_base2 b1; }; @topic struct test : test_base1 { long c; };",
+      3, { "parent.a1", "parent.b1.a2", "parent.b1.b2" } },
+    /* single inheritance, key fields reversed by @id */
+    { "@nested struct test_base { @key @id(1) long a; @key @id(0) short b; }; @topic struct test : test_base { @id(2) long c; };",
+      2, { "parent.b", "parent.a" } },
+  };
+
+  idl_retcode_t ret;
+  uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
+                   IDL_FLAG_ANONYMOUS_TYPES |
+                   IDL_FLAG_ANNOTATIONS;
+  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
+    static idl_pstate_t *pstate = NULL;
+    struct descriptor descriptor;
+
+    printf ("running test for idl: %s\n", tests[i].idl);
+
+    ret = idl_create_pstate (flags, NULL, &pstate);
+    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+
+    memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
+    ret = generate_test_descriptor (pstate, tests[i].idl, &descriptor);
+    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL (descriptor.n_keys, tests[i].n_keys);
+
+    struct key_print_meta *keys = key_print_meta_init (&descriptor);
+    for (uint32_t k = 0; k < descriptor.n_keys; k++) {
+      CU_ASSERT_PTR_NOT_NULL_FATAL (keys[k].name);
+      assert (keys[k].name && tests[i].key_name[k]);
+      CU_ASSERT_STRING_EQUAL_FATAL (keys[k].name, tests[i].key_name[k]);
+    }
+
+    ret = descriptor_fini (&descriptor);
+    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+
+    idl_delete_pstate (pstate);
+    key_print_meta_free (keys, descriptor.n_keys);
+  }
+}
+#undef TEST_MAX_KEYS
