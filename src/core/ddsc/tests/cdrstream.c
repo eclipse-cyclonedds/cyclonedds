@@ -1360,7 +1360,8 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_empty 
   entity_init (desc);
   dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
   dds_entity_t ws = dds_create_waitset (dp2);
-  dds_waitset_attach (ws, rd, rd);
+  ret = dds_waitset_attach (ws, rd, rd);
+  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
   void * msg = sample_init_fn ();
 

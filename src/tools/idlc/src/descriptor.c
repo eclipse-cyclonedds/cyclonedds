@@ -858,11 +858,13 @@ emit_union(
 
     switch (((idl_union_t *)node)->extensibility.value) {
       case IDL_APPENDABLE:
-        stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u);
+        if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u)))
+          return ret;
         break;
       case IDL_MUTABLE:
         idl_error(pstate, idl_location(node), "Mutable unions are not supported yet");
-        // stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u);
+        //if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u)))
+        //  return ret;
         return IDL_RETCODE_UNSUPPORTED;
       case IDL_FINAL:
         break;
@@ -938,10 +940,12 @@ emit_struct(
 
     switch (((idl_struct_t *)node)->extensibility.value) {
       case IDL_APPENDABLE:
-        stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u);
+        if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u)))
+          return ret;
         break;
       case IDL_MUTABLE:
-        stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u);
+        if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u)))
+          return ret;
         ctype->pl_offset = ctype->instructions.count;
         break;
       case IDL_FINAL:
@@ -1057,9 +1061,9 @@ add_mutable_member_offset(
       - ctype->pl_offset /* offset of first op after PLC */
       + 2 /* skip this JEQ and member id */
       + 1 /* skip RTS (of the PLC list) */);
-  if ((ret = stash_member_offset(pstate, &ctype->instructions, ctype->pl_offset++, addr_offs)))
+  if ((ret = stash_member_offset(pstate, &ctype->instructions, ctype->pl_offset++, addr_offs)) ||
+      (ret = stash_single(pstate, &ctype->instructions, ctype->pl_offset++, decl->id.value)))
     return ret;
-  stash_single(pstate, &ctype->instructions, ctype->pl_offset++, decl->id.value);
 
   /* update offset for previous members for this ctype */
   struct instruction *table = ctype->instructions.table;
