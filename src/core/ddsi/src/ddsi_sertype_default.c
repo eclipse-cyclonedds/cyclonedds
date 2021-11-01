@@ -228,20 +228,14 @@ static dds_ostream_t ostream_from_buffer(void *buffer, size_t size) {
 static size_t sertype_default_get_serialized_size (
     const struct ddsi_sertype *type, const void *sample) {
 
-#if 0
-  // TODO: this is off by 4 bytes (header?)
-  dds_ostream_t os;
-  dds_ostream_init(&os, 1024); // initial size chosen arbitrarily 
-  const struct ddsi_sertype_default *type_default = (const struct ddsi_sertype_default *)type;
-  dds_stream_write_sample(&os, sample, type_default);
-  return os.m_index;
-#else
+  // We do not count the CDR header here.
+  // TODO Do we want to include CDR header into the serialization used by iceoryx?
+  //      If the endianness does not change, it appears not to be necessary (maybe for
+  //      XTypes)
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample(type, SDK_DATA, sample);
-  size_t serialized_size = ddsi_serdata_size(serdata);
+  size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct CDRHeader);
   ddsi_serdata_unref(serdata);
   return serialized_size;
-#endif
-  
 }
 
 static bool sertype_default_serialize_into (const struct ddsi_sertype *type, const void *sample, void* dst_buffer, size_t dst_size) {

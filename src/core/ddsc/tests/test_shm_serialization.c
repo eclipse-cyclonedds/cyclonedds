@@ -83,7 +83,7 @@ CU_Test(ddsc_shm_serialization, get_serialized_size) {
   size_t required_size = ddsi_sertype_get_serialized_size(stype, &sample);
 
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample(stype, SDK_DATA, &sample);  
-  size_t serialized_size = ddsi_serdata_size(serdata);  
+  size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct CDRHeader);
   ddsi_serdata_unref(serdata);
 
   printf("required size %zu \n", required_size);
@@ -128,8 +128,9 @@ CU_Test(ddsc_shm_serialization, serialize_into) {
   struct ddsi_sertype *stype = tp->m_stype;
 
   DynamicData_Msg sample;
-  sample.message = "test message";
-  int32_t values[] = {11, 13, 17, 19};
+  sample.message = "test mess";
+  sample.scalar = 73;
+  int32_t values[4] = {11, 13, 17, 19};
   sample.values._buffer = (int32_t*)(&values);
   sample.values._length = 4;
   sample.values._maximum = 5;
@@ -141,13 +142,18 @@ CU_Test(ddsc_shm_serialization, serialize_into) {
   ddsi_sertype_serialize_into(stype, &sample, buffer, buffer_size);
 
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample(stype, SDK_DATA, &sample);
-  size_t serialized_size = ddsi_serdata_size(serdata);
+  size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct CDRHeader);
 
   struct ddsi_serdata_default *d = (struct ddsi_serdata_default*) serdata;
   CU_ASSERT(buffer_size >= serialized_size);
 
   CU_ASSERT(memcmp(d->data, buffer, serialized_size) == 0);
 
+  if(DDSRT_ENDIAN == DDSRT_BIG_ENDIAN) {
+    printf("BIG ENDIAN\n");
+  } else {
+    printf("LITTLE ENDIAN\n");
+  }
   printf("buffer ");
   printbuffer(buffer, serialized_size);
 
