@@ -123,7 +123,8 @@ typedef size_t (*ddsi_sertype_get_serialized_size_t)(
 /* Serialize into a destination buffer */
 // Note that we assume the destination buffer is large enough (we do not necessarily check)
 // The required size can be obtained with ddsi_sertype_get_serialized_size_t
-typedef void (*ddsi_sertype_serialize_into_t)(const struct ddsi_sertype *d,
+// Returns true if the serialization succeeds, false otherwise.
+typedef bool (*ddsi_sertype_serialize_into_t)(const struct ddsi_sertype *d,
                                               const void *sample,
                                               void *dst_buffer,
                                               size_t dst_size);
@@ -263,7 +264,7 @@ ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp,
   return tp->ops->get_serialized_size(tp, sample);
 }
 
-DDS_INLINE_EXPORT inline void
+DDS_INLINE_EXPORT inline bool
 ddsi_sertype_serialize_into(const struct ddsi_sertype *tp, const void *sample,
                             void *dst_buffer, size_t dst_size) {
   return tp->ops->serialize_into(tp, sample, dst_buffer, dst_size);

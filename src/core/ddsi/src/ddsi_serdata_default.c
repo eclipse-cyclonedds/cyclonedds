@@ -662,7 +662,7 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
     void* iox_chunk = d->c.iox_chunk;
     iceoryx_header_t* hdr = iceoryx_header_from_chunk(iox_chunk);
     if(hdr->shm_data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {
-      dds_istream_from_buffer(&is, iox_chunk, hdr->data_size) ;      
+      dds_istream_init (&is, hdr->data_size, iox_chunk, get_xcdr_version(d->hdr.identifier));     
       assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));    
       if (d->c.kind == SDK_KEY)
         dds_stream_read_key (&is, sample, tp);

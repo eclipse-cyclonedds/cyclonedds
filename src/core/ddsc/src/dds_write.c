@@ -508,18 +508,25 @@ static size_t get_required_buffer_size(struct dds_topic *topic, const void *samp
   return ddsi_sertype_get_serialized_size(topic->m_stype, (void*) sample);
 }
 
-static void fill_iox_chunk(dds_writer *wr, const void *sample, void *iox_chunk,
+static bool fill_iox_chunk(dds_writer *wr, const void *sample, void *iox_chunk,
                            size_t sample_size) {
   bool has_fixed_size_type = wr->m_topic->m_stype->fixed_size;
+  bool ret = true;
   iceoryx_header_t *iox_header = iceoryx_header_from_chunk(iox_chunk);
   if (has_fixed_size_type) {
     memcpy(iox_chunk, sample, sample_size);
     iox_header->shm_data_state = IOX_CHUNK_CONTAINS_RAW_DATA;
   } else {
     size_t size = iox_header->data_size;
-    ddsi_sertype_serialize_into(wr->m_topic->m_stype, sample, iox_chunk, size);
-    iox_header->shm_data_state = IOX_CHUNK_CONTAINS_SERIALIZED_DATA;
+    ret = ddsi_sertype_serialize_into(wr->m_topic->m_stype, sample, iox_chunk, size);
+    if(ret) {
+      iox_header->shm_data_state = IOX_CHUNK_CONTAINS_SERIALIZED_DATA;
+    } else {
+       // data is in invalid state
+       iox_header->shm_data_state = IOX_CHUNK_UNINITIALIZED;
+    }
   }
+  return ret;
 }
 
 // has to support two cases:
@@ -555,18 +562,22 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       iox_chunk = create_iox_chunk(wr, required_size);     
 
       if(iox_chunk) {
-        fill_iox_chunk(wr, data, iox_chunk, required_size);
+        if(!fill_iox_chunk(wr, data, iox_chunk, required_size)) {
+          // serialization failed
+          ret = DDS_RETCODE_BAD_PARAMETER;
+          goto finalize_write;
+        }
         data = iox_chunk;
       } else {
         // we failed to obtain a chunk, iceoryx transport is thus not available
-        // we will use the network path instead
-        // TODO: clarify
-        // we cannot do this as the code is now (locators etc.)
-        // same machine nodes would not get the data?
+        // we cannot use the network path is now since due to the locators
+        // readers on the same machine would not get the data
+        // TODO: proper fallback logic to network path?
 
         iceoryx_available = false;
         // TODO: activating this causes test failures
-        //return DDS_RETCODE_OUT_OF_RESOURCES;
+        // ret = DDS_RETCODE_OUT_OF_RESOURCES;
+        // goto finalize_write;        
       } 
     }
   }

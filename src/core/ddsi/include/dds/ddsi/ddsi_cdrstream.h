@@ -90,8 +90,6 @@ DDS_EXPORT size_t dds_stream_print_sample (dds_istream_t * __restrict is, const 
 
 DDS_EXPORT bool dds_stream_has_dynamic_type (const uint32_t * __restrict ops);
 
-void dds_istream_from_buffer(dds_istream_t* is, const void* buffer, uint32_t buffer_size);
-
 #if defined (__cplusplus)
 }
 #endif

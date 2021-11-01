@@ -2237,12 +2237,6 @@ bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, ui
   }
 }
 
-void dds_istream_from_buffer(dds_istream_t* is, const void* buffer, uint32_t buffer_size) {
-  is->m_buffer = buffer;
-  is->m_index = 0;
-  is->m_size = buffer_size;
-};
-
 /*******************************************************************************************
  **
  **  Freeing samples
