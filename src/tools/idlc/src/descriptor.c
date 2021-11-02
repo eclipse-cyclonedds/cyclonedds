@@ -159,7 +159,7 @@ stash_instruction(
     struct instruction *table = instructions->table;
     for (uint32_t i = instructions->count; i > index; i--) {
       table[i] = table[i - 1];
-      if (table[i].type == ELEM_OFFSET || table[i].type == JEQ_OFFSET || table[i].type == MEMBER_OFFSET)
+      if (table[i].type == ELEM_OFFSET || table[i].type == JEQ_OFFSET || table[i].type == MEMBER_OFFSET || table[i].type == BASE_MEMBERS_OFFSET)
         table[i].data.inst_offset.addr_offs++;
     }
   }
@@ -343,6 +343,16 @@ stash_member_offset(
   const idl_pstate_t *pstate, struct instructions *instructions, uint32_t index, int16_t addr_offs)
 {
   struct instruction inst = { MEMBER_OFFSET, { .inst_offset = { .addr_offs = addr_offs } } };
+  return stash_instruction(pstate, instructions, index, &inst);
+}
+
+static idl_retcode_t
+stash_base_members_offset(
+  const idl_pstate_t *pstate, struct instructions *instructions, uint32_t index, const idl_node_t *node)
+{
+  /* Use index (which is a position in the mutable types parameter list) as the addr_offs to calculate
+     the relative offset for the target type */
+  struct instruction inst = { BASE_MEMBERS_OFFSET, { .inst_offset = { .node = node, .addr_offs = (int16_t)index, .elem_offs = 0 } } };
   return stash_instruction(pstate, instructions, index, &inst);
 }
 
@@ -643,6 +653,18 @@ err_ctype:
   return IDL_RETCODE_NO_MEMORY;
 }
 
+static void
+shift_plm_list_offsets(struct constructed_type *ctype)
+{
+  /* update offset for previous members for this ctype */
+  assert(idl_is_extensible(ctype->node, IDL_MUTABLE));
+  struct instruction *table = ctype->instructions.table;
+  for (uint32_t i = 1; i < ctype->pl_offset - 2; i += 2) {
+    if (table[i].type == MEMBER_OFFSET) /* not for BASE_MEMBERS_OFFSET */
+      table[i].data.inst_offset.addr_offs = (int16_t)(table[i].data.inst_offset.addr_offs + 2);
+  }
+}
+
 static idl_retcode_t
 add_mutable_member_offset(
   const idl_pstate_t *pstate,
@@ -662,13 +684,23 @@ add_mutable_member_offset(
       (ret = stash_single(pstate, &ctype->instructions, ctype->pl_offset++, id)))
     return ret;
 
-  /* update offset for previous members for this ctype */
-  struct instruction *table = ctype->instructions.table;
-  for (uint32_t i = 1; i < ctype->pl_offset - 2; i += 2) {
-    assert (table[i].type == MEMBER_OFFSET);
-    table[i].data.inst_offset.addr_offs = (int16_t)(table[i].data.inst_offset.addr_offs + 2);
-  }
+  shift_plm_list_offsets(ctype);
 
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+add_mutable_member_base(
+  const idl_pstate_t *pstate,
+  struct constructed_type *ctype,
+  const struct constructed_type *base_ctype)
+{
+  idl_retcode_t ret;
+  assert(idl_is_extensible(ctype->node, IDL_MUTABLE));
+  if ((ret = stash_base_members_offset(pstate, &ctype->instructions, ctype->pl_offset++, base_ctype->node)))
+    return ret;
+  stash_single(pstate, &ctype->instructions, ctype->pl_offset++, 0u);
+  shift_plm_list_offsets(ctype);
   return IDL_RETCODE_OK;
 }
 
@@ -976,47 +1008,39 @@ emit_inherit_spec(
   struct constructed_type *ctype = find_ctype(descriptor, inherit_spec->node.parent);
   assert(ctype);
 
-  uint32_t parent_field_id = idl_hashid(STRUCT_BASE_MEMBER_NAME);
-
   if (revisit) {
     struct constructed_type *base_ctype = find_ctype(descriptor, inherit_spec->base);
     assert(base_ctype);
 
-    /* add the parent member as if it is a mutable member for structs with
-      extensibility mutable */
     if (idl_is_extensible(ctype->node, IDL_MUTABLE)) {
-      if ((ret = add_mutable_member_offset(pstate, ctype, parent_field_id)))
+      if ((ret = add_mutable_member_base(pstate, ctype, base_ctype)))
+        return ret;
+    } else {
+      // final and appendable structs
+      int16_t addr_offs = (int16_t)ctype->instructions.count;
+
+      /* generate data field opcode */
+      uint32_t opcode = DDS_OP_ADR | typecode(inherit_spec->base, TYPE, true);
+      if (base_ctype->has_key_member) {
+        opcode |= DDS_OP_FLAG_KEY;
+        ctype->has_key_member = true;
+      }
+      if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, opcode, 0u)))
+        return ret;
+
+      /* generate 'parent' field offset (which should always be 0) */
+      struct field *field = NULL;
+      if ((ret = push_field(descriptor, node, &field)))
+        return ret;
+      if ((ret = stash_offset(pstate, &ctype->instructions, nop, field)))
+        return ret;
+      pop_field(descriptor);
+
+      /* generate offset to base type */
+      if ((ret = stash_element_offset(pstate, &ctype->instructions, nop, inherit_spec->base, 3, addr_offs /* FIXME: add flag for appendable */ )))
         return ret;
     }
 
-    int16_t addr_offs = (int16_t)ctype->instructions.count;
-
-    /* generate data field opcode */
-    uint32_t opcode = DDS_OP_ADR | typecode(inherit_spec->base, TYPE, true);
-    if (base_ctype->has_key_member) {
-      opcode |= DDS_OP_FLAG_KEY;
-      ctype->has_key_member = true;
-    }
-    if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, opcode, 0u)))
-      return ret;
-
-    /* generate 'parent' field offset */
-    struct field *field = NULL;
-    if ((ret = push_field(descriptor, node, &field)))
-      return ret;
-    if ((ret = stash_offset(pstate, &ctype->instructions, nop, field)))
-      return ret;
-    pop_field(descriptor);
-
-    /* generate offset to base type */
-    if ((ret = stash_element_offset(pstate, &ctype->instructions, nop, inherit_spec->base, 3, addr_offs)))
-      return ret;
-
-    /* close the mutable member */
-    if (idl_is_extensible(ctype->node, IDL_MUTABLE)) {
-      if ((ret = close_mutable_member(pstate, descriptor, ctype)))
-        return ret;
-    }
     return IDL_RETCODE_OK;
   } else {
     return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
@@ -1503,7 +1527,10 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
     case DDS_OP_VAL_EXT: vec[len++] = " | DDS_OP_TYPE_EXT"; break;
   }
   if (opcode == DDS_OP_JEQ || opcode == DDS_OP_JEQ4 || opcode == DDS_OP_PLM) {
-    /* lower 16 bits contain offset to next instruction */
+    if (opcode == DDS_OP_PLM && (DDS_PLM_FLAGS(inst->data.opcode.code) & DDS_OP_FLAG_BASE))
+      vec[len++] = " | (DDS_OP_FLAG_BASE << 16)";
+
+    /* lower 16 bits contain an offset */
     idl_snprintf(buf, sizeof(buf), " | %u", (uint16_t) DDS_OP_JUMP (inst->data.opcode.code));
     vec[len++] = buf;
   } else {
@@ -1694,6 +1721,14 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
           brk = op + 2;
           break;
         }
+        case BASE_MEMBERS_OFFSET:
+        {
+          const struct instruction inst_op = { OPCODE, { .opcode = { .code = ((DDS_OP_PLM | (DDS_OP_FLAG_BASE << 16)) & (DDS_OP_MASK | DDS_PLM_FLAGS_MASK)) | (uint16_t)inst->data.inst_offset.elem_offs } } };
+          if (fputs(sep, fp) < 0 || print_opcode(fp, &inst_op) < 0 || idl_fprintf(fp, " /* %s */", idl_identifier(inst->data.inst_offset.node)) < 0)
+            return -1;
+          brk = op + 2;
+          break;
+        }
         case KEY_OFFSET:
         case KEY_OFFSET_VAL:
           return -1;
@@ -1766,101 +1801,129 @@ static uint32_t add_to_key_size(uint32_t keysize, uint32_t field_size, uint32_t 
   return sz;
 }
 
+static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, bool parent_is_key);
+
+static idl_retcode_t get_ctype_keys_adr(
+  struct descriptor *descriptor,
+  uint32_t offs,
+  struct instruction *inst,
+  struct constructed_type *ctype,
+  struct constructed_type_key **ctype_keys)
+{
+  uint32_t typecode, size = 0, dims = 1, align = 0;
+  idl_retcode_t ret;
+
+  struct constructed_type_key *key = calloc (1, sizeof(*key));
+  if (!key)
+    return IDL_RETCODE_NO_MEMORY;
+
+  assert(ctype_keys);
+  if (*ctype_keys == NULL)
+    *ctype_keys = key;
+  else {
+    struct constructed_type_key *last = *ctype_keys;
+    while (last->next)
+      last = last->next;
+    last->next = key;
+  }
+
+  key->ctype = ctype;
+  key->offset = offs;
+  key->order = inst->data.opcode.order;
+
+  if (DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_EXT) {
+    assert(ctype->instructions.table[offs + 2].type == ELEM_OFFSET);
+    const idl_node_t *node = ctype->instructions.table[offs + 2].data.inst_offset.node;
+    struct constructed_type *csubtype = find_ctype(descriptor, node);
+    assert(csubtype);
+    if ((ret = get_ctype_keys(descriptor, csubtype, &key->sub, true)))
+      return ret;
+  } else {
+    if (DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_ARR) {
+      assert(offs + 2 < ctype->instructions.count);
+      assert(ctype->instructions.table[offs + 2].type == SINGLE);
+      dims = ctype->instructions.table[offs + 2].data.single;
+      typecode = DDS_OP_SUBTYPE(inst->data.opcode.code);
+    } else {
+      typecode = DDS_OP_TYPE(inst->data.opcode.code);
+    }
+
+    switch (typecode) {
+      case DDS_OP_VAL_1BY: size = align = 1; break;
+      case DDS_OP_VAL_2BY: size = align = 2; break;
+      case DDS_OP_VAL_4BY: size = align = 4; break;
+      case DDS_OP_VAL_8BY: size = align = 8; break;
+      case DDS_OP_VAL_BST: case DDS_OP_VAL_BSP: {
+        assert(offs + 2 < ctype->instructions.count);
+        assert(ctype->instructions.table[offs + 2].type == SINGLE);
+        /* string size if stored as bound + 1 */
+        uint32_t str_sz = ctype->instructions.table[offs + 2].data.single;
+        /* use align and add size for 4 byte string-length field */
+        align = 4;
+        size = 4 + str_sz;
+      }
+      break;
+      default:
+        size = FIXED_KEY_MAX_SIZE + 1;
+        align = 1;
+        break;
+    }
+
+    descriptor->n_keys++;
+    descriptor->keysz_xcdr1 = add_to_key_size(descriptor->keysz_xcdr1, size, dims, align, XCDR1_MAX_ALIGN);
+    descriptor->keysz_xcdr2 = add_to_key_size(descriptor->keysz_xcdr2, size, dims, align, XCDR2_MAX_ALIGN);
+  }
+
+  /* get the name of the field from the offset instruction, which is the first after the ADR */
+  const struct instruction *inst1 = &ctype->instructions.table[offs + 1];
+  assert(inst1->type == OFFSET);
+  assert(inst1->data.offset.type);
+  assert(inst1->data.offset.member);
+  if (!(key->name = idl_strdup(inst1->data.offset.member)))
+    return IDL_RETCODE_NO_MEMORY;
+  return IDL_RETCODE_OK;
+}
+
 static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, bool parent_is_key)
 {
   idl_retcode_t ret;
   assert(keys);
   struct constructed_type_key *ctype_keys = NULL;
-  for (uint32_t i = 0; i < ctype->instructions.count; i++) {
-    struct instruction *inst = &ctype->instructions.table[i];
-    uint32_t typecode, size = 0, dims = 1, align = 0;
-
-    if (inst->type != OPCODE)
-      continue;
-    if (DDS_OP(inst->data.opcode.code) != DDS_OP_ADR)
-      continue;
-    /* If the parent is a @key member and there are no specific key members in this ctype,
-       add the key flag to all members in this type. The serializer will only use these
-       key flags in case the top-level member (which is referring this this member)
-       also has the key flag set. */
-    if (parent_is_key && !ctype->has_key_member)
-      inst->data.opcode.code |= DDS_OP_FLAG_KEY;
-    else if (!(inst->data.opcode.code & DDS_OP_FLAG_KEY))
-      continue;
-
-    struct constructed_type_key *key = calloc (1, sizeof(*key));
-    if (!key)
-      goto err_no_memory;
-    if (ctype_keys == NULL)
-      ctype_keys = key;
-    else {
-      struct constructed_type_key *last = ctype_keys;
-      while (last->next)
-        last = last->next;
-      last->next = key;
-    }
-
-    key->ctype = ctype;
-    key->offset = i;
-    key->order = inst->data.opcode.order;
-
-    if (DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_EXT) {
-      assert(ctype->instructions.table[i + 2].type == ELEM_OFFSET);
-      const idl_node_t *node = ctype->instructions.table[i + 2].data.inst_offset.node;
-      struct constructed_type *csubtype = find_ctype(descriptor, node);
-      assert(csubtype);
-      if ((ret = get_ctype_keys(descriptor, csubtype, &key->sub, true)))
-        goto err;
-    } else {
-      if (DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_ARR) {
-        assert(i + 2 < ctype->instructions.count);
-        assert(ctype->instructions.table[i + 2].type == SINGLE);
-        dims = ctype->instructions.table[i + 2].data.single;
-        typecode = DDS_OP_SUBTYPE(inst->data.opcode.code);
-      } else {
-        typecode = DDS_OP_TYPE(inst->data.opcode.code);
+  for (uint32_t offs = 0; offs < ctype->instructions.count; offs++) {
+    struct instruction *inst = &ctype->instructions.table[offs];
+    switch (inst->type) {
+      case BASE_MEMBERS_OFFSET: {
+        struct constructed_type *cbasetype = find_ctype(descriptor, inst->data.inst_offset.node);
+        assert (cbasetype);
+        if ((ret = get_ctype_keys(descriptor, cbasetype, &ctype_keys, false)) != IDL_RETCODE_OK)
+          goto err;
+        break;
       }
 
-      switch (typecode) {
-        case DDS_OP_VAL_1BY: size = align = 1; break;
-        case DDS_OP_VAL_2BY: size = align = 2; break;
-        case DDS_OP_VAL_4BY: size = align = 4; break;
-        case DDS_OP_VAL_8BY: size = align = 8; break;
-        case DDS_OP_VAL_BST: case DDS_OP_VAL_BSP: {
-          assert(i + 2 < ctype->instructions.count);
-          assert(ctype->instructions.table[i + 2].type == SINGLE);
-          /* string size if stored as bound + 1 */
-          uint32_t str_sz = ctype->instructions.table[i + 2].data.single;
-          /* use align and add size for 4 byte string-length field */
-          align = 4;
-          size = 4 + str_sz;
+      case OPCODE:
+        if (DDS_OP(inst->data.opcode.code) == DDS_OP_ADR) {
+          /* If the parent is a @key member and there are no specific key members in this ctype,
+            add the key flag to all members in this type. The serializer will only use these
+            key flags in case the top-level member (which is referring to this member)
+            also has the key flag set. */
+          if (parent_is_key && !ctype->has_key_member)
+            inst->data.opcode.code |= DDS_OP_FLAG_KEY;
+          if (inst->data.opcode.code & DDS_OP_FLAG_KEY) {
+            if ((ret = get_ctype_keys_adr(descriptor, offs, inst, ctype, &ctype_keys)) != IDL_RETCODE_OK)
+              goto err;
+          }
         }
         break;
-        default:
-          size = FIXED_KEY_MAX_SIZE + 1;
-          align = 1;
-          break;
-      }
 
-      descriptor->n_keys++;
-      descriptor->keysz_xcdr1 = add_to_key_size(descriptor->keysz_xcdr1, size, dims, align, XCDR1_MAX_ALIGN);
-      descriptor->keysz_xcdr2 = add_to_key_size(descriptor->keysz_xcdr2, size, dims, align, XCDR2_MAX_ALIGN);
-    } /* end for loop through all the ctype's instructions */
+      default:
+        break;
+    }
 
-    /* get the name of the field from the offset instruction, which is the first after the ADR */
-    const struct instruction *inst1 = &ctype->instructions.table[i + 1];
-    assert(inst1->type == OFFSET);
-    assert(inst1->data.offset.type);
-    assert(inst1->data.offset.member);
-    if (!(key->name = idl_strdup(inst1->data.offset.member)))
-      goto err_no_memory;
-  }
+  } /* end for loop through all the ctype's instructions */
 
   *keys = ctype_keys;
   return IDL_RETCODE_OK;
 
-err_no_memory:
-  ret = IDL_RETCODE_NO_MEMORY;
 err:
   free_ctype_keys(ctype_keys);
   return ret;
@@ -2114,10 +2177,10 @@ resolve_offsets(struct descriptor *descriptor)
     }
   }
 
-  /* set offset for each ELEM_OFFSET instruction */
+  /* set offset for each ELEM_OFFSET, JEQ_OFFSET and BASE_MEMBERS_OFFSET instruction */
   for (struct constructed_type *ctype = descriptor->constructed_types; ctype; ctype = ctype->next) {
     for (size_t op = 0; op < ctype->instructions.count; op++) {
-      if (ctype->instructions.table[op].type == ELEM_OFFSET || ctype->instructions.table[op].type == JEQ_OFFSET)
+      if (ctype->instructions.table[op].type == ELEM_OFFSET || ctype->instructions.table[op].type == JEQ_OFFSET || ctype->instructions.table[op].type == BASE_MEMBERS_OFFSET)
       {
         struct instruction *inst = &ctype->instructions.table[op];
         struct constructed_type *ctype1 = find_ctype(descriptor, inst->data.inst_offset.node);

@@ -148,8 +148,10 @@ enum dds_stream_opcode {
        where
          f           = flags:
                        - must-understand (DDS_OP_FLAG_MU)
+                       - jump to base type (DDS_OP_FLAG_BASE)
          [elem-insn] = (unsigned 16 bits) offset to instruction for element, from start of insn
-         [member id] = id for this member
+                        when FLAG_BASE is set, this is the offset of the PLM list of the base type
+         [member id] = id for this member (0 in case FLAG_BASE is set)
   */
   DDS_OP_PLM = 0x06 << 24,
 
@@ -236,9 +238,10 @@ enum dds_stream_typecode_subtype {
    and (3) the discriminator can be an integral type (or enumerated - here treated as equivalent).
    What it can't be is a floating-point type. So DEF and FP need never be set at the same time.
    There are only a few flag bits, so saving one is not such a bad idea. */
-#define DDS_OP_FLAG_FP  (1u << 1) /* floating-point: applicable to {4,8}BY and arrays, sequences of them */
-#define DDS_OP_FLAG_SGN (1u << 2) /* signed: applicable to {1,2,4,8}BY and arrays, sequences of them */
-#define DDS_OP_FLAG_MU  (1u << 3) /* must-understand flag, used with PLM in parameter list CDR */
+#define DDS_OP_FLAG_FP   (1u << 1) /* floating-point: applicable to {4,8}BY and arrays, sequences of them */
+#define DDS_OP_FLAG_SGN  (1u << 2) /* signed: applicable to {1,2,4,8}BY and arrays, sequences of them */
+#define DDS_OP_FLAG_MU   (1u << 3) /* must-understand flag */
+#define DDS_OP_FLAG_BASE (1u << 4) /* jump to base type, used with PLM in PL-CDR */
 
 /* Topic descriptor flag values */
 #define DDS_TOPIC_FLAGS_MASK                    0x3fffffff  /* The 2 most significant bits are used for type extensibility */

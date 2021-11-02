@@ -223,6 +223,75 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
   return ops;
 }
 
+static void dds_stream_write_pl_memberBO (bool must_understand, uint32_t mid, DDS_OSTREAM_T * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
+{
+  assert (!(mid & ~EMHEADER_MEMBERID_MASK));
+  uint32_t lc = get_length_code (ops);
+  assert (lc < LENGTH_CODE_ALSO_NEXTINT8);
+  uint32_t data_offs = (lc != LENGTH_CODE_NEXTINT) ? dds_os_reserve4BO (os) : dds_os_reserve8BO (os);
+  (void) dds_stream_writeBO (os, data, ops);
+
+  uint32_t em_hdr = 0;
+  if (must_understand)
+    em_hdr |= EMHEADER_FLAG_MUSTUNDERSTAND;
+  em_hdr |= lc << 28;
+  em_hdr |= mid & EMHEADER_MEMBERID_MASK;
+
+  uint32_t *em_hdr_ptr = (uint32_t *) (os->x.m_buffer + data_offs - (lc == LENGTH_CODE_NEXTINT ? 8 : 4));
+  em_hdr_ptr[0] = to_BO4u (em_hdr);
+  if (lc == LENGTH_CODE_NEXTINT)
+    em_hdr_ptr[1] = to_BO4u (os->x.m_index - data_offs);  /* member size in next_int field in emheader */
+}
+
+static const uint32_t *dds_stream_write_pl_memberlistBO (DDS_OSTREAM_T * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
+{
+  uint32_t insn;
+  while ((insn = *ops) != DDS_OP_RTS)
+  {
+    switch (DDS_OP (insn))
+    {
+      case DDS_OP_PLM: {
+        uint32_t flags = DDS_PLM_FLAGS (insn);
+        const uint32_t *plm_ops = ops + DDS_OP_ADR_PLM (insn);
+        if (flags & DDS_OP_FLAG_BASE)
+        {
+          assert (plm_ops[0] == DDS_OP_PLC);
+          plm_ops++; /* skip PLC op to go to first PLM for the base type */
+          (void) dds_stream_write_pl_memberlistBO (os, data, plm_ops);
+        }
+        else
+        {
+          uint32_t member_id = ops[1];
+          dds_stream_write_pl_memberBO (flags & DDS_OP_FLAG_MU, member_id, os, data, plm_ops);
+        }
+        ops += 2;
+        break;
+      }
+      default:
+        abort (); /* other ops not supported at this point */
+        break;
+    }
+  }
+  return ops;
+}
+
+static const uint32_t *dds_stream_write_plBO (DDS_OSTREAM_T * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
+{
+  /* skip PLC op */
+  ops++;
+
+  /* alloc space for dheader */
+  dds_os_reserve4BO (os);
+  uint32_t data_offs = os->x.m_index;
+
+  /* write members, including members from base types */
+  ops = dds_stream_write_pl_memberlistBO (os, data, ops);
+
+  /* write serialized size in dheader */
+  *((uint32_t *) (os->x.m_buffer + data_offs - 4)) = to_BO4u (os->x.m_index - data_offs);
+  return ops;
+}
+
 const uint32_t *dds_stream_writeBO (DDS_OSTREAM_T * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
 {
   uint32_t insn;

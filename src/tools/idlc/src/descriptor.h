@@ -27,16 +27,17 @@
 struct instruction {
   enum {
     OPCODE,
-    OFFSET,
+    OFFSET,                 /* offsetof(type, member) */
     SIZE,
     CONSTANT,
     COUPLE,
     SINGLE,
-    ELEM_OFFSET,
-    JEQ_OFFSET,
-    MEMBER_OFFSET,
-    KEY_OFFSET,
-    KEY_OFFSET_VAL
+    ELEM_OFFSET,            /* lower 16 bits have the offset of an external type (for EXT instruction), higher 16 bits offset to next instruction */
+    JEQ_OFFSET,             /* JEQ for union case */
+    MEMBER_OFFSET,          /* PLM with offset to the member instruction within the current type */
+    BASE_MEMBERS_OFFSET,    /* PLM with FLAG_BASE set, to jump to PLM list of base type */
+    KEY_OFFSET,             /* KOF instruction, lower 16 bits have the number of offsets that follow this instruction */
+    KEY_OFFSET_VAL          /* follows KOF, and has the offset to instruction of a key part */
   } type;
   union {
     struct {

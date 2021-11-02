@@ -58,6 +58,7 @@
 #define dds_os_put4BO                                 NAME_BYTE_ORDER(dds_os_put4)
 #define dds_os_put8BO                                 NAME_BYTE_ORDER(dds_os_put8)
 #define dds_os_reserve4BO                             NAME_BYTE_ORDER(dds_os_reserve4)
+#define dds_os_reserve8BO                             NAME_BYTE_ORDER(dds_os_reserve8)
 #define dds_stream_write_stringBO                     NAME_BYTE_ORDER(dds_stream_write_string)
 #define dds_stream_writeBO                            NAME_BYTE_ORDER(dds_stream_write)
 #define dds_stream_write_seqBO                        NAME_BYTE_ORDER(dds_stream_write_seq)
@@ -66,6 +67,8 @@
 #define dds_stream_write_uniBO                        NAME_BYTE_ORDER(dds_stream_write_uni)
 #define dds_stream_writeBO                            NAME_BYTE_ORDER(dds_stream_write)
 #define dds_stream_write_plBO                         NAME_BYTE_ORDER(dds_stream_write_pl)
+#define dds_stream_write_pl_memberlistBO              NAME_BYTE_ORDER(dds_stream_write_pl_memberlist)
+#define dds_stream_write_pl_memberBO                  NAME_BYTE_ORDER(dds_stream_write_pl_member)
 #define dds_stream_write_delimitedBO                  NAME_BYTE_ORDER(dds_stream_write_delimited)
 #define dds_stream_write_keyBO                        NAME_BYTE_ORDER(dds_stream_write_key)
 #define dds_stream_write_keyBO_impl                   NAME2_BYTE_ORDER(dds_stream_write_key, _impl)
@@ -529,15 +532,22 @@ static const uint32_t *dds_stream_countops_uni (const uint32_t * __restrict ops,
 static const uint32_t *dds_stream_countops_pl (const uint32_t * __restrict ops, const uint32_t **ops_end, bool *dynamic_type)
 {
   uint32_t insn;
+  assert (ops[0] == DDS_OP_PLC);
   ops++; /* skip PLC op */
   while ((insn = *ops) != DDS_OP_RTS)
   {
     switch (DDS_OP (insn))
     {
-      case DDS_OP_PLM:
-        dds_stream_countops1 (ops + DDS_OP_ADR_PLM (insn), ops_end, dynamic_type);
+      case DDS_OP_PLM: {
+        uint32_t flags = DDS_PLM_FLAGS (insn);
+        const uint32_t *plm_ops = ops + DDS_OP_ADR_PLM (insn);
+        if (flags & DDS_OP_FLAG_BASE)
+          (void) dds_stream_countops_pl (plm_ops, ops_end, dynamic_type);
+        else
+          dds_stream_countops1 (plm_ops, ops_end, dynamic_type);
         ops += 2;
         break;
+      }
       default:
         abort (); /* only list of (PLM, member-id) supported */
         break;
@@ -967,110 +977,6 @@ static uint32_t get_length_code (const uint32_t * __restrict ops)
     }
   }
   return 0;
-}
-
-static void dds_stream_write_pl_memberLE (bool must_understand, uint32_t mid, dds_ostreamLE_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
-{
-  assert (!(mid & ~EMHEADER_MEMBERID_MASK));
-  uint32_t lc = get_length_code (ops);
-  assert (lc < LENGTH_CODE_ALSO_NEXTINT8);
-  uint32_t data_offs = (lc != LENGTH_CODE_NEXTINT) ? dds_os_reserve4LE (os) : dds_os_reserve8LE (os);
-  (void) dds_stream_writeLE (os, data, ops);
-
-  uint32_t em_hdr = 0;
-  if (must_understand)
-    em_hdr |= EMHEADER_FLAG_MUSTUNDERSTAND;
-  em_hdr |= lc << 28;
-  em_hdr |= mid & EMHEADER_MEMBERID_MASK;
-
-  uint32_t *em_hdr_ptr = (uint32_t *) (os->x.m_buffer + data_offs - (lc == LENGTH_CODE_NEXTINT ? 8 : 4));
-  em_hdr_ptr[0] = ddsrt_toLE4u (em_hdr);
-  if (lc == LENGTH_CODE_NEXTINT)
-    em_hdr_ptr[1] = ddsrt_toLE4u (os->x.m_index - data_offs);  /* member size in next_int field in emheader */
-}
-
-static void dds_stream_write_pl_memberBE (bool must_understand, uint32_t mid, dds_ostreamBE_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
-{
-  assert (!(mid & ~EMHEADER_MEMBERID_MASK));
-  uint32_t lc = get_length_code (ops);
-  assert (lc < LENGTH_CODE_ALSO_NEXTINT8);
-  uint32_t data_offs = (lc != LENGTH_CODE_NEXTINT) ? dds_os_reserve4BE (os) : dds_os_reserve8BE (os);
-  (void) dds_stream_writeBE (os, data, ops);
-
-  uint32_t em_hdr = 0;
-  if (must_understand)
-    em_hdr |= EMHEADER_FLAG_MUSTUNDERSTAND;
-  em_hdr |= lc << 28;
-  em_hdr |= mid & EMHEADER_MEMBERID_MASK;
-
-  uint32_t *em_hdr_ptr = (uint32_t *) (os->x.m_buffer + data_offs - (lc == LENGTH_CODE_NEXTINT ? 8 : 4));
-  em_hdr_ptr[0] = ddsrt_toBE4u (em_hdr);
-  if (lc == LENGTH_CODE_NEXTINT)
-    em_hdr_ptr[1] = ddsrt_toBE4u (os->x.m_index - data_offs);  /* member size in next_int field in emheader */
-}
-
-static const uint32_t *dds_stream_write_plLE (dds_ostreamLE_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
-{
-  /* skip PLC op */
-  ops++;
-
-  /* alloc space for dheader */
-  dds_os_reserve4LE (os);
-  uint32_t data_offs = os->x.m_index;
-
-  uint32_t insn;
-  while ((insn = *ops) != DDS_OP_RTS)
-  {
-    switch (DDS_OP (insn))
-    {
-      case DDS_OP_PLM: {
-        uint32_t flags = DDS_PLM_FLAGS (insn);
-        uint32_t member_id = ops[1];
-        const uint32_t *plm_ops = ops + DDS_OP_ADR_PLM (insn);
-        dds_stream_write_pl_memberLE (flags & DDS_OP_FLAG_MU, member_id, os, data, plm_ops);
-        ops += 2;
-        break;
-      }
-      default:
-        abort (); /* other ops not supported at this point */
-        break;
-    }
-  }
-  /* write serialized size in dheader */
-  *((uint32_t *) (os->x.m_buffer + data_offs - 4)) = ddsrt_toLE4u (os->x.m_index - data_offs);
-  return ops;
-}
-
-static const uint32_t *dds_stream_write_plBE (dds_ostreamBE_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
-{
-  /* skip PLC op */
-  ops++;
-
-  /* alloc space for dheader */
-  dds_os_reserve4BE (os);
-  uint32_t data_offs = os->x.m_index;
-
-  uint32_t insn;
-  while ((insn = *ops) != DDS_OP_RTS)
-  {
-    switch (DDS_OP (insn))
-    {
-      case DDS_OP_PLM: {
-        uint32_t flags = DDS_PLM_FLAGS (insn);
-        uint32_t member_id = ops[1];
-        const uint32_t *plm_ops = ops + DDS_OP_ADR_PLM (insn);
-        dds_stream_write_pl_memberBE (flags & DDS_OP_FLAG_MU, member_id, os, data, plm_ops);
-        ops += 2;
-        break;
-      }
-      default:
-        abort (); /* other ops not supported at this point */
-        break;
-    }
-  }
-  /* write serialized size in dheader */
-  *((uint32_t *) (os->x.m_buffer + data_offs - 4)) = ddsrt_toBE4u (os->x.m_index - data_offs);
-  return ops;
 }
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
@@ -1553,6 +1459,35 @@ static const uint32_t *dds_stream_read_delimited (dds_istream_t * __restrict is,
   return ops;
 }
 
+static bool dds_stream_read_pl_member (dds_istream_t * __restrict is, char * __restrict data, uint32_t m_id, const uint32_t * __restrict ops)
+{
+  uint32_t insn, ops_csr = 0;
+  bool found = false;
+
+  /* FIXME: continue finding the member in the ops member list starting from the last
+      found one, because in many cases the members will be in the data sequentially */
+  while (!found && (insn = ops[ops_csr]) != DDS_OP_RTS)
+  {
+    assert (DDS_OP (insn) == DDS_OP_PLM);
+    uint32_t flags = DDS_PLM_FLAGS (insn);
+    const uint32_t *plm_ops = ops + ops_csr + DDS_OP_ADR_PLM (insn);
+    if (flags & DDS_OP_FLAG_BASE)
+    {
+      assert (DDS_OP (plm_ops[0]) == DDS_OP_PLC);
+      plm_ops++; /* skip PLC to go to first PLM from base type */
+      found = dds_stream_read_pl_member (is, data, m_id, plm_ops);
+    }
+    else if (ops[ops_csr + 1] == m_id)
+    {
+      (void) dds_stream_read (is, data, plm_ops);
+      found = true;
+      break;
+    }
+    ops_csr += 2;
+  }
+  return found;
+}
+
 static const uint32_t *dds_stream_read_pl (dds_istream_t * __restrict is, char * __restrict data, const uint32_t * __restrict ops)
 {
   /* skip PLC op */
@@ -1564,7 +1499,7 @@ static const uint32_t *dds_stream_read_pl (dds_istream_t * __restrict is, char *
   {
     /* read EMHEADER and next_int */
     uint32_t em_hdr = dds_is_get4 (is);
-    uint32_t lc = EMHEADER_LENGTH_CODE (em_hdr), mid = EMHEADER_MEMBERID (em_hdr), msz;
+    uint32_t lc = EMHEADER_LENGTH_CODE (em_hdr), m_id = EMHEADER_MEMBERID (em_hdr), msz;
     switch (lc)
     {
       case LENGTH_CODE_1B: case LENGTH_CODE_2B: case LENGTH_CODE_4B: case LENGTH_CODE_8B:
@@ -1586,25 +1521,7 @@ static const uint32_t *dds_stream_read_pl (dds_istream_t * __restrict is, char *
     }
 
     /* find member and deserialize */
-    uint32_t insn, ops_csr = 0;
-    bool found = false;
-
-    /* FIXME: continue finding the member in the ops member list starting from the last
-       found one, because in many cases the members will be in the data sequentially */
-    while (!found && (insn = ops[ops_csr]) != DDS_OP_RTS)
-    {
-      assert (DDS_OP (insn) == DDS_OP_PLM);
-      if (ops[ops_csr + 1] == mid)
-      {
-        const uint32_t *plm_ops = ops + ops_csr + DDS_OP_ADR_PLM (insn);
-        (void) dds_stream_read (is, data, plm_ops);
-        found = true;
-        break;
-      }
-      ops_csr += 2;
-    }
-
-    if (!found)
+    if (!dds_stream_read_pl_member (is, data, m_id, ops))
     {
       is->m_index += msz;
       if (lc >= LENGTH_CODE_ALSO_NEXTINT)
@@ -2062,6 +1979,32 @@ static const uint32_t *stream_normalize_delimited (char * __restrict data, uint3
   return ops;
 }
 
+static bool dds_stream_normalize_pl_member (char * __restrict data, uint32_t m_id, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops)
+{
+  uint32_t insn, ops_csr = 0;
+  bool found = false;
+  while (!found && (insn = ops[ops_csr]) != DDS_OP_RTS)
+  {
+    assert (DDS_OP (insn) == DDS_OP_PLM);
+    uint32_t flags = DDS_PLM_FLAGS (insn);
+    const uint32_t *plm_ops = ops + ops_csr + DDS_OP_ADR_PLM (insn);
+    if (flags & DDS_OP_FLAG_BASE)
+    {
+      assert (DDS_OP (plm_ops[0]) == DDS_OP_PLC);
+      plm_ops++; /* skip PLC to go to first PLM from base type */
+      found = dds_stream_normalize_pl_member (data, m_id, off, size, bswap, xcdr_version, plm_ops);
+    }
+    else if (ops[ops_csr + 1] == m_id)
+    {
+      dds_stream_normalize1 (data, off, size, bswap, xcdr_version, plm_ops);
+      found = true;
+      break;
+    }
+    ops_csr += 2;
+  }
+  return found;
+}
+
 static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops)
 {
   /* skip PLC op */
@@ -2078,7 +2021,7 @@ static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * _
     uint32_t em_hdr;
     if (!read_and_normalize_uint32 (&em_hdr, data, off, size, bswap))
       return NULL;
-    uint32_t lc = EMHEADER_LENGTH_CODE (em_hdr), mid = EMHEADER_MEMBERID (em_hdr), msz;
+    uint32_t lc = EMHEADER_LENGTH_CODE (em_hdr), m_id = EMHEADER_MEMBERID (em_hdr), msz;
     switch (lc)
     {
       case LENGTH_CODE_1B: case LENGTH_CODE_2B: case LENGTH_CODE_4B: case LENGTH_CODE_8B:
@@ -2101,22 +2044,7 @@ static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * _
         break;
     }
 
-    uint32_t insn, ops_csr = 0;
-    bool found = false;
-    while (!found && (insn = ops[ops_csr]) != DDS_OP_RTS)
-    {
-      assert (DDS_OP (insn) == DDS_OP_PLM);
-      if (ops[ops_csr + 1] == mid)
-      {
-        const uint32_t *plm_ops = ops + ops_csr + DDS_OP_ADR_PLM (insn);
-        dds_stream_normalize1 (data, off, size, bswap, xcdr_version, plm_ops);
-        found = true;
-        break;
-      }
-      ops_csr += 2;
-    }
-
-    if (!found)
+    if (!dds_stream_normalize_pl_member (data, m_id, off, size, bswap, xcdr_version, ops))
     {
       *off += msz;
       if (lc >= LENGTH_CODE_ALSO_NEXTINT)
@@ -2383,6 +2311,7 @@ static const uint32_t *dds_stream_free_sample_uni (char * __restrict discaddr, c
 static const uint32_t *dds_stream_free_sample_pl (char * __restrict addr, const uint32_t * __restrict ops)
 {
   uint32_t insn;
+  assert (ops[0] == DDS_OP_PLC);
   ops++; /* skip PLC op */
   while ((insn = *ops) != DDS_OP_RTS)
   {
@@ -2390,7 +2319,11 @@ static const uint32_t *dds_stream_free_sample_pl (char * __restrict addr, const 
     {
       case DDS_OP_PLM: {
         const uint32_t *plm_ops = ops + DDS_OP_ADR_PLM (insn);
-        dds_stream_free_sample (addr, plm_ops);
+        uint32_t flags = DDS_PLM_FLAGS (insn);
+        if (flags & DDS_OP_FLAG_BASE)
+          (void) dds_stream_free_sample_pl (addr, plm_ops);
+        else
+          dds_stream_free_sample (addr, plm_ops);
         ops += 2;
         break;
       }
@@ -3080,6 +3013,32 @@ static const uint32_t *prtf_uni (char * __restrict *buf, size_t *bufsize, dds_is
   return ops;
 }
 
+static bool prtf_plm (char * __restrict *buf, size_t *bufsize, dds_istream_t * __restrict is, uint32_t m_id, const uint32_t * __restrict ops)
+{
+  uint32_t insn, ops_csr = 0;
+  bool found = false;
+  while (!found && (insn = ops[ops_csr]) != DDS_OP_RTS)
+  {
+    assert (DDS_OP (insn) == DDS_OP_PLM);
+    uint32_t flags = DDS_PLM_FLAGS (insn);
+    const uint32_t *plm_ops = ops + ops_csr + DDS_OP_ADR_PLM (insn);
+    if (flags & DDS_OP_FLAG_BASE)
+    {
+      assert (DDS_OP (plm_ops[0]) == DDS_OP_PLC);
+      plm_ops++; /* skip PLC to go to first PLM from base type */
+      found = prtf_plm (buf, bufsize, is, m_id, plm_ops);
+    }
+    else if (ops[ops_csr + 1] == m_id)
+    {
+      (void) dds_stream_print_sample1 (buf, bufsize, is, plm_ops, true);
+      found = true;
+      break;
+    }
+    ops_csr += 2;
+  }
+  return found;
+}
+
 static const uint32_t *prtf_pl (char * __restrict *buf, size_t *bufsize, dds_istream_t * __restrict is, const uint32_t * __restrict ops)
 {
   /* skip PLC op */
@@ -3093,8 +3052,8 @@ static const uint32_t *prtf_pl (char * __restrict *buf, size_t *bufsize, dds_ist
   {
     /* read emheader and next_int */
     uint32_t em_hdr = dds_is_get4 (is);
-    uint32_t lc = EMHEADER_LENGTH_CODE (em_hdr), mid = EMHEADER_MEMBERID (em_hdr), msz;
-    if (!prtf (buf, bufsize, ",lc:%d,m:%d,", lc, mid))
+    uint32_t lc = EMHEADER_LENGTH_CODE (em_hdr), m_id = EMHEADER_MEMBERID (em_hdr), msz;
+    if (!prtf (buf, bufsize, ",lc:%d,m:%d,", lc, m_id))
       return NULL;
     switch (lc)
     {
@@ -3115,22 +3074,8 @@ static const uint32_t *prtf_pl (char * __restrict *buf, size_t *bufsize, dds_ist
     }
 
     /* find member and deserialize */
-    uint32_t insn, ops_csr = 0;
-    bool found = false;
-    while (!found && (insn = ops[ops_csr]) != DDS_OP_RTS)
-    {
-      assert (DDS_OP (insn) == DDS_OP_PLM);
-      if (ops[ops_csr + 1] == mid)
-      {
-        const uint32_t *plm_ops = ops + ops_csr + DDS_OP_ADR_PLM (insn);
-        (void) dds_stream_print_sample1 (buf, bufsize, is, plm_ops, true);
-        found = true;
-        break;
-      }
-      ops_csr += 2;
-    }
 
-    if (!found)
+    if (!prtf_plm (buf, bufsize, is, m_id, ops))
     {
       is->m_index += msz;
       if (lc >= LENGTH_CODE_ALSO_NEXTINT)
