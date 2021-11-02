@@ -36,9 +36,9 @@ void shm_unlock_iox_sub(iox_sub_t sub)
     ddsrt_mutex_unlock(&storage->mutex);
 }
 
-iceoryx_header_t *iceoryx_header_from_chunk(void *iox_chunk) {
+iceoryx_header_t *iceoryx_header_from_chunk(const void *iox_chunk) {
   iox_chunk_header_t *chunk_header =
-      iox_chunk_header_from_user_payload(iox_chunk);
+      iox_chunk_header_from_user_payload((void*) iox_chunk);
   return iox_chunk_header_to_user_header(chunk_header);
 }
 

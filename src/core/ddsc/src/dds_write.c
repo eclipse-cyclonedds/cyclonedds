@@ -579,6 +579,14 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
         // ret = DDS_RETCODE_OUT_OF_RESOURCES;
         // goto finalize_write;        
       } 
+    } else {
+      // The user already provided an iceoryx_chunk with data (by using the dds_loan API)
+      // We assume if we got the data from a loan it contains raw data
+      // (i.e. not serialized)
+      // This requires the user to adhere to the contract, we cannot enforce this
+      // with the given API.
+      iceoryx_header_t *iox_header = iceoryx_header_from_chunk(data);
+      iox_header->shm_data_state = IOX_CHUNK_CONTAINS_RAW_DATA;      
     }
   }
 
