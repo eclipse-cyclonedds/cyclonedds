@@ -1268,21 +1268,23 @@ emit_declarator(
         return ret;
     }
 
-    if ((ret = emit_array(pstate, revisit, path, node, user_data)))
+    if ((ret = emit_array(pstate, revisit, path, node, user_data)) < 0)
       return ret;
 
     /* in case there is no revisit required (array has simple element type) we have
        to close the mutable member immediately, otherwise close it when revisiting */
     if (mutable_aggr_type_member && (!(ret & IDL_VISIT_REVISIT) || revisit)) {
-      if ((ret = close_mutable_member(pstate, descriptor, ctype)))
-        return ret;
+      idl_retcode_t ret2;
+      if ((ret2 = close_mutable_member(pstate, descriptor, ctype)) < 0)
+        ret = ret2;
     }
-    return IDL_RETCODE_OK;
+    return ret;
   }
 
   if (idl_is_empty(type_spec))
     return IDL_RETCODE_OK | IDL_VISIT_REVISIT;
 
+  /* close the mutable member when revisiting */
   if (revisit) {
     if (!idl_is_alias(node) && idl_is_struct(stype->node))
       pop_field(descriptor);
@@ -1999,6 +2001,7 @@ static int print_descriptor(
         "  .m_size = sizeof (%1$s),\n" /* size of type */
         "  .m_align = %2$s,\n" /* alignment */
         "  .m_flagset = ";
+  assert(descriptor->alignment);
   if (idl_fprintf(fp, fmt, type, descriptor->alignment->rendering) < 0)
     return -1;
   if (print_flags(fp, descriptor) < 0)
