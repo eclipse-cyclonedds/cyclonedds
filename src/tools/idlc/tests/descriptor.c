@@ -225,7 +225,7 @@ CU_Test(idlc_descriptor, keys_inheritance)
     { "@nested struct test_base { long a; }; @topic struct test : test_base { long c; };",
       0, { "" } },
     /* single inheritance, one key field */
-    { "@nested struct test_base { @key long a; short b; }; @topic struct test : test_base { long c; };",
+    { "@nested struct test_base { @key long a; short b; }; @topic struct test : test_base { };",
       1, { "parent.a" } },
     /* two levels of inheritance */
     { "@nested struct test_base2 { @key long a2; }; @nested struct test_base1 : test_base2 { long a1; }; @topic struct test : test_base1 { long a; };",
@@ -236,6 +236,21 @@ CU_Test(idlc_descriptor, keys_inheritance)
     /* single inheritance, key fields reversed by @id */
     { "@nested struct test_base { @key @id(1) long a; @key @id(0) short b; }; @topic struct test : test_base { @id(2) long c; };",
       2, { "parent.b", "parent.a" } },
+    /* single inheritance appendable struct, one key field */
+    { "@nested @appendable struct test_base { @key long a; short b; }; @topic @appendable struct test : test_base { long c; };",
+      1, { "parent.a" } },
+    /* single inheritance mutable struct, one key field */
+    { "@nested @mutable struct test_base { @key long a; short b; }; @topic @mutable struct test : test_base { long c; };",
+      1, { "a" } },
+    /* two levels of inheritance, mutable struct */
+    { "@nested @mutable struct test_base2 { @key long a2; @key long b2; }; @nested @mutable struct test_base1 : test_base2 { long a1; }; @topic @mutable struct test : test_base1 { long a; };",
+      2, { "a2", "b2" } },
+    /* base type has (all members of) struct type test_base2 as key, mutable struct */
+    { "@nested @appendable struct test_base2 { long a2; long b2; }; @nested @mutable struct test_base1 { @key long a1; @key test_base2 b1; }; @topic @mutable struct test : test_base1 { long c; };",
+      3, { "a1", "b1.a2", "b1.b2" } },
+    /* single inheritance, mutable types, key fields reversed by @id */
+    { "@nested @mutable struct test_base { @key @id(1) long a; @key @id(0) short b; }; @topic @mutable struct test : test_base { @id(2) long c; };",
+      2, { "b", "a" } },
   };
 
   idl_retcode_t ret;
