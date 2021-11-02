@@ -70,20 +70,40 @@ int main(int argc, char **argv)
     // }
     // printf("\n");
 
-    // read data
     dds_istream_t is;
     is.m_buffer = os.m_buffer;
     is.m_index = 0;
     is.m_size = os.m_size;
     is.m_xcdr_version = CDR_ENC_VERSION_2;
 
+    // normalize sample
+    uint32_t actual_size = 0;
+    if (!dds_stream_normalize ((void *)is.m_buffer, os.m_index, false, CDR_ENC_VERSION_2, &sertype, false, &actual_size))
+    {
+      printf("cdr normalize failed\n");
+      return 1;
+    }
+    if (actual_size != os.m_index)
+    {
+      printf("cdr normalize size invalid (actual: %u, expected: %u)\n", actual_size, os.m_index);
+      return 1;
+    }
+    printf("cdr normalize complete\n");
+
+    // read data
     void *msg_rd = ddsrt_calloc (1, desc->m_size);
     dds_stream_read_sample (&is, msg_rd, &sertype);
     printf("cdr read complete\n");
 
-    /* Check for expected result */
+    // check for expected result
     int res = cmp_sample(msg_wr, msg_rd);
     printf("compare result: %d\n", res);
+
+    // print sample
+    char buf[99999];
+    is.m_index = 0;
+    size_t sz = dds_stream_print_sample (&is, &sertype, buf, sizeof (buf));
+    printf("sample: %s\n", buf);
 
     dds_ostream_fini (&os);
     // is->_buffer aliases os->_buffer, so no free
