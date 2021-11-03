@@ -98,6 +98,7 @@ enum dds_stream_opcode {
      e            = external: stored as external data (pointer) (DDS_OP_FLAG_EXT)
      f            = flags:
                     - key/not key (DDS_OP_FLAG_KEY)
+                    - base type member, used with EXT type (DDS_OP_FLAG_BASE)
      [offset]     = field offset from start of element in memory
      [elem-size]  = element size in memory (elem-size is only included in case 'external' flag is set)
      [max-size]   = string bound + 1
@@ -241,7 +242,8 @@ enum dds_stream_typecode_subtype {
 #define DDS_OP_FLAG_FP   (1u << 1) /* floating-point: applicable to {4,8}BY and arrays, sequences of them */
 #define DDS_OP_FLAG_SGN  (1u << 2) /* signed: applicable to {1,2,4,8}BY and arrays, sequences of them */
 #define DDS_OP_FLAG_MU   (1u << 3) /* must-understand flag */
-#define DDS_OP_FLAG_BASE (1u << 4) /* jump to base type, used with PLM in PL-CDR */
+#define DDS_OP_FLAG_BASE (1u << 4) /* jump to base type, used with PLM in mutable types and for
+                                      the TYPE_EXT 'parent' member in final and appendable types */
 
 /* Topic descriptor flag values */
 #define DDS_TOPIC_FLAGS_MASK                    0x3fffffff  /* The 2 most significant bits are used for type extensibility */

@@ -359,12 +359,17 @@ static bool type_has_subtype_or_members (enum dds_stream_typecode type)
   return type == DDS_OP_VAL_SEQ || type == DDS_OP_VAL_ARR || type == DDS_OP_VAL_UNI || type == DDS_OP_VAL_STU;
 }
 
-static bool op_type_external (const uint32_t insn)
+static inline bool op_type_external (const uint32_t insn)
 {
   uint32_t typeflags = DDS_OP_TYPE_FLAGS (insn);
   return (typeflags & DDS_OP_FLAG_EXT);
 }
 
+static inline bool op_type_base (const uint32_t insn)
+{
+  uint32_t opflags = DDS_OP_FLAGS (insn);
+  return (opflags & DDS_OP_FLAG_BASE);
+}
 
 static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc * __restrict desc)
 {
@@ -873,22 +878,6 @@ static const uint32_t *skip_union_default (uint32_t insn, char * __restrict disc
   return ops;
 }
 
-static const uint32_t *dds_stream_write_delimitedLE (dds_ostreamLE_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
-{
-  uint32_t offs = dds_os_reserve4LE (os);
-  ops = dds_stream_writeLE (os, data, ops + 1);
-  *((uint32_t *) (os->x.m_buffer + offs - 4)) = ddsrt_toLE4u (os->x.m_index - offs);
-  return ops;
-}
-
-static const uint32_t *dds_stream_write_delimitedBE (dds_ostreamBE_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
-{
-  uint32_t offs = dds_os_reserve4BE (os);
-  ops = dds_stream_writeBE (os, data, ops + 1);
-  *((uint32_t *) (os->x.m_buffer + offs - 4)) = ddsrt_toBE4u (os->x.m_index - offs);
-  return ops;
-}
-
 static uint32_t get_length_code_seq (const uint32_t subtype)
 {
   switch (subtype)
@@ -1311,6 +1300,12 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
     case DDS_OP_VAL_EXT: {
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
       const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
+
+      /* skip DLC instruction for base type, handle as if it is final because the base type's
+         members follow the derived types members without an extra DHEADER */
+      if (op_type_base (insn) && jsr_ops[0] == DDS_OP_DLC)
+        jsr_ops++;
+
       if (op_type_external (insn))
       {
         /* Allocate memory for @external struct member. This memory must be initialized
@@ -1924,6 +1919,11 @@ static const uint32_t *stream_normalize_adr (uint32_t insn, char * __restrict da
     case DDS_OP_VAL_EXT: {
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
       const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
+
+      /* skip DLC instruction for base type, the base type members are not preceded by a DHEADER */
+      if (op_type_base (insn) && jsr_ops[0] == DDS_OP_DLC)
+        jsr_ops++;
+
       if (dds_stream_normalize1 (data, off, size, bswap, xcdr_version, jsr_ops) == NULL)
         return NULL;
       ops += jmp ? jmp : 3;
@@ -3130,6 +3130,11 @@ static bool dds_stream_print_sample1 (char * __restrict *buf, size_t * __restric
             case DDS_OP_VAL_EXT: {
               const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
               const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
+
+              /* skip DLC instruction for base type, DHEADER is not in the data for base types */
+              if (op_type_base (insn) && jsr_ops[0] == DDS_OP_DLC)
+                jsr_ops++;
+
               cont = dds_stream_print_sample1 (buf, bufsize, is, jsr_ops, true);
               ops += jmp ? jmp : 3;
               break;
