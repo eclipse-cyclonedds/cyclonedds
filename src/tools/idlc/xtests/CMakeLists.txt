@@ -16,6 +16,7 @@ set(_sources
   test_union.idl
   test_typedef_member.idl
   test_struct_inherit.idl
+  test_struct_inherit_appendable.idl
   test_struct_inherit_mutable.idl
 #  test_struct_recursive.idl
 #  test_union_member_types.idl
