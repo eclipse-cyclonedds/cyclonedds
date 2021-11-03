@@ -223,6 +223,14 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
   return ops;
 }
 
+static const uint32_t *dds_stream_write_delimitedBO (DDS_OSTREAM_T * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
+{
+  uint32_t offs = dds_os_reserve4BO (os);
+  ops = dds_stream_writeBO (os, data, ops + 1);
+  *((uint32_t *) (os->x.m_buffer + offs - 4)) = to_BO4u (os->x.m_index - offs);
+  return ops;
+}
+
 static void dds_stream_write_pl_memberBO (bool must_understand, uint32_t mid, DDS_OSTREAM_T * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
 {
   assert (!(mid & ~EMHEADER_MEMBERID_MASK));
@@ -317,6 +325,12 @@ const uint32_t *dds_stream_writeBO (DDS_OSTREAM_T * __restrict os, const char * 
           case DDS_OP_VAL_EXT: {
             const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
             const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
+
+            /* skip DLC instruction for base type, so that the DHEADER is not
+               serialized for base types */
+            if (op_type_base (insn) && jsr_ops[0] == DDS_OP_DLC)
+              jsr_ops++;
+
             if (op_type_external (insn))
             {
               char *ext_addr = *(char **) addr;

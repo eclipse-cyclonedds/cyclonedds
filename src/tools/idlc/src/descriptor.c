@@ -1021,6 +1021,7 @@ emit_inherit_spec(
 
       /* generate data field opcode */
       uint32_t opcode = DDS_OP_ADR | typecode(inherit_spec->base, TYPE, true);
+      opcode |= DDS_OP_FLAG_BASE;
       if (base_ctype->has_key_member) {
         opcode |= DDS_OP_FLAG_KEY;
         ctype->has_key_member = true;
@@ -1037,7 +1038,7 @@ emit_inherit_spec(
       pop_field(descriptor);
 
       /* generate offset to base type */
-      if ((ret = stash_element_offset(pstate, &ctype->instructions, nop, inherit_spec->base, 3, addr_offs /* FIXME: add flag for appendable */ )))
+      if ((ret = stash_element_offset(pstate, &ctype->instructions, nop, inherit_spec->base, 3, addr_offs)))
         return ret;
     }
 
@@ -1526,10 +1527,14 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
     case DDS_OP_VAL_ENU: vec[len++] = " | DDS_OP_TYPE_ENU"; break;
     case DDS_OP_VAL_EXT: vec[len++] = " | DDS_OP_TYPE_EXT"; break;
   }
-  if (opcode == DDS_OP_JEQ || opcode == DDS_OP_JEQ4 || opcode == DDS_OP_PLM) {
-    if (opcode == DDS_OP_PLM && (DDS_PLM_FLAGS(inst->data.opcode.code) & DDS_OP_FLAG_BASE))
-      vec[len++] = " | (DDS_OP_FLAG_BASE << 16)";
 
+  /* FLAG_BASE to indicate inheritance in PLM list or EXT 'parent' field */
+  if (opcode == DDS_OP_ADR && inst->data.opcode.code & DDS_OP_FLAG_BASE)
+    vec[len++] = " | DDS_OP_FLAG_BASE";
+  else if (opcode == DDS_OP_PLM && (DDS_PLM_FLAGS(inst->data.opcode.code) & DDS_OP_FLAG_BASE))
+    vec[len++] = " | (DDS_OP_FLAG_BASE << 16)";
+
+  if (opcode == DDS_OP_JEQ || opcode == DDS_OP_JEQ4 || opcode == DDS_OP_PLM) {
     /* lower 16 bits contain an offset */
     idl_snprintf(buf, sizeof(buf), " | %u", (uint16_t) DDS_OP_JUMP (inst->data.opcode.code));
     vec[len++] = buf;
