@@ -453,8 +453,11 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
 
 #ifdef DDS_HAS_SHM
   // transfer ownership of an iceoryx chunk if it exists
-  d->iox_chunk = din->iox_chunk;
-  din->iox_chunk = NULL;
+  // din and d may alias each other
+  // note: use those assignments instead of if-statement (jump) for efficiency
+  void* iox_chunk = din->iox_chunk;
+  din->iox_chunk = NULL;  
+  d->iox_chunk = iox_chunk;    
 #endif
 
   ret = deliver_data(ddsi_wr, wr, d, xp, flush); // d = din: refc(d) = r, otherwise refc(d) = 1
@@ -550,8 +553,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
 
   // 3. Check availability of iceoryx and reader status
-  bool iceoryx_available = wr->m_iox_pub != NULL;
-  //bool has_fixed_size_type = wr->m_topic->m_stype->fixed_size;
+  bool iceoryx_available = wr->m_iox_pub != NULL;  
   void *iox_chunk = NULL;
 
   if(iceoryx_available) {
@@ -559,25 +561,27 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     if(!deregister_pub_loan(wr, data))
     {
       size_t required_size = get_required_buffer_size(wr->m_topic, data);
-      iox_chunk = create_iox_chunk(wr, required_size);     
+      if(required_size == SIZE_MAX) {
+        ret = DDS_RETCODE_OUT_OF_RESOURCES;
+        goto finalize_write;
+      }
+      iox_chunk = create_iox_chunk(wr, required_size);
 
       if(iox_chunk) {
         if(!fill_iox_chunk(wr, data, iox_chunk, required_size)) {
           // serialization failed
           ret = DDS_RETCODE_BAD_PARAMETER;
-          goto finalize_write;
+          goto release_chunk;
         }
-        data = iox_chunk;
       } else {
         // we failed to obtain a chunk, iceoryx transport is thus not available
         // we cannot use the network path is now since due to the locators
         // readers on the same machine would not get the data
         // TODO: proper fallback logic to network path?
 
-        iceoryx_available = false;
-        // TODO: activating this causes test failures
-        // ret = DDS_RETCODE_OUT_OF_RESOURCES;
-        // goto finalize_write;        
+        // iceoryx_available = false;
+        ret = DDS_RETCODE_OUT_OF_RESOURCES;
+        goto finalize_write;      
       } 
     } else {
       // The user already provided an iceoryx_chunk with data (by using the dds_loan API)
@@ -585,10 +589,23 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
       // (i.e. not serialized)
       // This requires the user to adhere to the contract, we cannot enforce this
       // with the given API.
-      iceoryx_header_t *iox_header = iceoryx_header_from_chunk(data);
+      iox_chunk = (void*) data;
+      iceoryx_header_t *iox_header = iceoryx_header_from_chunk(iox_chunk);
       iox_header->shm_data_state = IOX_CHUNK_CONTAINS_RAW_DATA;      
     }
   }
+
+  // The following holds from here
+  // 1) data still points to the original data
+  // 2) iox_chunk is NULL or
+  // 3) iox_chunk is NOT NULL
+  //    a) was created by the write call or
+  //    b) data is an iceoryx chunk and iox_chunk == data
+  // in case 3 a) iox_chunk will contain serialized or raw data
+  //
+  // in case 3 a) and b) we must ensure we publish or release the chunk (failure)
+  // in 3b) we could argue to not release the chunk but the user effectively passed ownership
+  //        by calling write
 
   // ddsi_wr->as can be changed by the matching/unmatching of proxy readers if we don't hold the lock
   // it is rather unfortunate that this then means we have to lock here to check, then lock again to
@@ -614,18 +631,30 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     // where we either have network readers (requiring serialization) or not.
 
     // do not serialize yet (may not need it if only using iceoryx or no readers)
-    d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
-        
+    d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, iox_chunk);
+    if(d == NULL) {
+      ret = DDS_RETCODE_BAD_PARAMETER;
+      goto release_chunk;
+    }   
   } else {
     // serialize for network since we will need to send via network anyway
     // we also need to serialize into an iceoryx chunk
  
-    d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);  
-  }
+    d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+    if(d == NULL) {
+      ret = DDS_RETCODE_BAD_PARAMETER;
+      goto release_chunk;
+    }
 
-  if(d == NULL) {
-    ret = DDS_RETCODE_BAD_PARAMETER;
-    goto finalize_write;
+    // Needed for the mixed case where serdata d was created for the network path
+    // but iceoryx can also be used.
+    // In this case d was created by ddsi_serdata_from_sample and we need
+    // to set the iceoryx chunk.
+    if(iceoryx_available) {
+      d->iox_chunk = iox_chunk;
+    } else {
+      d->iox_chunk = NULL;
+    }  
   }
 
   // refc(d) = 1 after successful construction
@@ -642,6 +671,9 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     if(deliver_data_via_iceoryx(wr, d)) {
       ret = DDS_RETCODE_OK;
     } else {
+      // Did not publish iox_chunk. We have to return the chunk (if any).      
+      iox_pub_release_chunk(wr->m_iox_pub, d->iox_chunk);
+      d->iox_chunk = NULL;
       ret = DDS_RETCODE_ERROR;
     }
     ddsi_serdata_unref(d); // refc(d) = 0
@@ -650,9 +682,20 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     // network and/or iceoryx as required
     // d refc(d) = 1, call will reduce refcount by 1
     ret = dds_writecdr_impl_common(ddsi_wr, wr->m_xp, d, !wr->whc_batch, wr);
+
+    if(ret != DDS_RETCODE_OK && d->iox_chunk) {                      
+        iox_pub_release_chunk(wr->m_iox_pub, d->iox_chunk);
+    }
   }
 
 finalize_write:
+  thread_state_asleep (ts1);
+  return ret;
+
+release_chunk:  
+  if(iox_chunk) {    
+    iox_pub_release_chunk(wr->m_iox_pub, iox_chunk);
+  }
   thread_state_asleep (ts1);
   return ret;
 }
