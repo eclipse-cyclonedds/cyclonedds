@@ -84,7 +84,7 @@ void init_sample (void *s)
 
   // case 1: @external union_nested1 u1;
   t->s1._d = 1;
-  t->s1._u.u1 = dds_alloc (sizeof (*t->s1._u.u1));
+  A (t->s1._u.u1);
   t->s1._u.u1->_d = 6;
   strcpy(t->s1._u.u1->_u.u6, STR128);
 

@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
@@ -28,57 +29,63 @@ static void free_sample (void *s)
   dds_free (s);
 }
 
+static void init_sertype (struct ddsi_sertype_default *sertype)
+{
+  memset (sertype, 0, sizeof (*sertype));
+  sertype->type = (struct ddsi_sertype_default_desc) {
+    .size = desc->m_size,
+    .align = desc->m_align,
+    .flagset = desc->m_flagset,
+    .keys.nkeys = 0,
+    .keys.keys = NULL,
+    .ops.nops = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys),
+    .ops.ops = (uint32_t *) desc->m_ops
+  };
+}
+
 int main(int argc, char **argv)
 {
-    (void)argc;
-    (void)argv;
+  (void)argc;
+  (void)argv;
 
-    printf("Running test for type %s\n", desc->m_typename);
+  printf("Running test for type %s\n", desc->m_typename);
 
+  // create sertype
+  struct ddsi_sertype_default sertype;
+  init_sertype (&sertype);
+
+  enum { LE, BE } tests[2] = { LE, BE };
+  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
     // init data
     void *msg_wr = ddsrt_calloc (1, desc->m_size);
     init_sample(msg_wr);
 
-    // create sertype
-    struct ddsi_sertype_default sertype;
-    memset (&sertype, 0, sizeof (sertype));
-    sertype.type = (struct ddsi_sertype_default_desc) {
-      .size = desc->m_size,
-      .align = desc->m_align,
-      .flagset = desc->m_flagset,
-      .keys.nkeys = 0,
-      .keys.keys = NULL,
-      .ops.nops = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys),
-      .ops.ops = (uint32_t *) desc->m_ops
-    };
-
     // write data
-    dds_ostream_t os;
-    os.m_buffer = NULL;
-    os.m_index = 0;
-    os.m_size = 0;
-    os.m_xcdr_version = CDR_ENC_VERSION_2;
-    dds_stream_write_sample (&os, msg_wr, &sertype);
-    printf("cdr write complete\n");
+    printf("cdr write %s\n", tests[i] == BE ? "BE" : "LE");
+    dds_ostream_t os = { NULL, 0, 0, CDR_ENC_VERSION_2 };
+    if (tests[i] == BE)
+      dds_stream_write_sampleBE ((dds_ostreamBE_t *)(&os), msg_wr, &sertype);
+    else
+      dds_stream_write_sampleLE ((dds_ostreamLE_t *)(&os), msg_wr, &sertype);
+
 
     // output raw cdr
-    // for (uint32_t n = 0; n < os.m_index; n++)
-    // {
-    //   printf("%02x ", os.m_buffer[n]);
-    //   if (!((n + 1) % 16))
-    //     printf("\n");
-    // }
-    // printf("\n");
+    for (uint32_t n = 0; n < os.m_index; n++)
+    {
+      printf("%02x ", os.m_buffer[n]);
+      if (!((n + 1) % 16))
+        printf("\n");
+    }
+    printf("\n");
 
-    dds_istream_t is;
-    is.m_buffer = os.m_buffer;
-    is.m_index = 0;
-    is.m_size = os.m_size;
-    is.m_xcdr_version = CDR_ENC_VERSION_2;
+    dds_istream_t is = { os.m_buffer, os.m_size, 0, CDR_ENC_VERSION_2 };
 
     // normalize sample
     uint32_t actual_size = 0;
-    if (!dds_stream_normalize ((void *)is.m_buffer, os.m_index, false, CDR_ENC_VERSION_2, &sertype, false, &actual_size))
+    bool swap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? (tests[i] == BE) : (tests[i] == LE);
+    printf("cdr normalize (%sswap)\n", swap ? "" : "no ");
+    if (!dds_stream_normalize ((void *)is.m_buffer, os.m_index, swap, CDR_ENC_VERSION_2, &sertype, false, &actual_size))
     {
       printf("cdr normalize failed\n");
       return 1;
@@ -88,12 +95,11 @@ int main(int argc, char **argv)
       printf("cdr normalize size invalid (actual: %u, expected: %u)\n", actual_size, os.m_index);
       return 1;
     }
-    printf("cdr normalize complete\n");
 
     // read data
+    printf("cdr read\n");
     void *msg_rd = ddsrt_calloc (1, desc->m_size);
     dds_stream_read_sample (&is, msg_rd, &sertype);
-    printf("cdr read complete\n");
 
     // check for expected result
     int res = cmp_sample(msg_wr, msg_rd);
@@ -109,5 +115,10 @@ int main(int argc, char **argv)
     // is->_buffer aliases os->_buffer, so no free
     free_sample(msg_wr);
     free_sample(msg_rd);
-    return res;
+
+    if (res != 0)
+      return res;
+  }
+
+  return 0;
 }

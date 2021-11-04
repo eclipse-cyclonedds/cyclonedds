@@ -1,0 +1,140 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+@nested @final
+struct struct_nested {
+    @external long b1;
+};
+
+@nested @final
+union union_nested switch (short) {
+ case 1: long n1;
+};
+
+@nested @final
+union test_union switch (short) {
+  case 1:
+    @external long u1;
+  case 2:
+    @external string u2;          // char * u2;
+  case 3:
+    @external string<128> u3;     // char (* u3)[129];
+  case 4:
+    @external struct_nested u4;
+  case 5:
+    @external union_nested u5;
+  case 6:
+    @external short u6[2];        // int16_t (* u6)[10]
+  case 7:
+    @external short u7[2][3];     // int16_t (* u7)[2][3]
+  // case 8:
+  //   @external sequence<short> u8;
+};
+
+@topic @final
+struct test_ext {
+  test_union f1;
+  test_union f2;
+  test_union f3;
+  test_union f4;
+  test_union f5;
+  test_union f6;
+  test_union f7;
+};
+
+#else
+
+#include "dds/ddsrt/heap.h"
+#include "common.h"
+#include "test_union_external.h"
+
+const dds_topic_descriptor_t *desc = &test_ext_desc;
+void init_sample (void *s);
+int cmp_sample (const void *sa, const void *sb);
+
+void init_sample (void *s)
+{
+  test_ext *s1 = (test_ext *) s;
+
+  s1->f1._d = 1;
+  EXTA (s1->f1._u.u1, 123);
+
+  s1->f2._d = 2;
+  STRA (s1->f2._u.u2, STR128);
+
+  s1->f3._d = 3;
+  A (s1->f3._u.u3);
+  strcpy (*(s1->f3._u.u3), STR128);
+
+  s1->f4._d = 4;
+  A (s1->f4._u.u4);
+  EXTA (s1->f4._u.u4->b1, 456);
+
+  s1->f5._d = 5;
+  A (s1->f5._u.u5);
+  s1->f5._u.u5->_d = 1;
+  s1->f5._u.u5->_u.n1 = 789;
+
+  s1->f6._d = 6;
+  A (s1->f6._u.u6);
+  (*s1->f6._u.u6)[0] = 321;
+  (*s1->f6._u.u6)[1] = 654;
+
+  s1->f7._d = 7;
+  A (s1->f7._u.u7);
+  for (int n = 0; n < 6; n++)
+    (*s1->f7._u.u7)[n / 3][n % 3] = 1000 * n;
+
+  // s1->f8 = dds_alloc (sizeof (*s1->f8));
+  // SEQA(*(s1->f8), 3);
+  // for (int n = 0; n < 3; n++)
+  //   s1->f8->_buffer[n] = 100 * n;
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_ext *a = (test_ext *) sa;
+  test_ext *b = (test_ext *) sb;
+
+  CMP (a, b, f1._d, 1);
+  CMPEXT (a, b, f1._u.u1, 123);
+
+  CMP (a, b, f2._d, 2);
+  CMPSTR (a, b, f2._u.u2, STR128);
+
+  CMP (a, b, f3._d, 3);
+  CMPEXTSTR (a, b, f3._u.u3, STR128);
+
+  CMP (a, b, f4._d, 4);
+  CMPEXTEXTF (a, b, f4._u.u4, b1, 456);
+
+  CMP (a, b, f5._d, 5);
+  CMPEXTF (a, b, f5._u.u5, _d, 1);
+  CMPEXTF (a, b, f5._u.u5, _u.n1, 789);
+
+  CMP (a, b, f6._d, 6);
+  CMPEXTA (a, b, f6._u.u6, 0, 321);
+  CMPEXTA (a, b, f6._u.u6, 1, 654);
+
+  CMP (a, b, f7._d, 7);
+  for (int n = 0; n < 6; n++)
+    CMPEXTA2 (a, b, f7._u.u7, n / 3, n % 3, 1000 * n);
+
+  // for (int n = 0; n < 3; n++)
+  //   CMP(a, b, f8->_buffer[n], n);
+
+  return 0;
+}
+
+#endif

@@ -49,9 +49,9 @@ void init_sample (void *s)
 {
   test_union *s1 = (test_union *) s;
   s1->_d = 2;
-  s1->_u.b.a2 = dds_alloc (sizeof (*s1->_u.b.a2));
+  A (s1->_u.b.a2);
   s1->_u.b.a2->_d = 2;
-  s1->_u.b.a2->_u.c1 = dds_alloc (sizeof (*s1->_u.b.a2->_u.c1));
+  A (s1->_u.b.a2->_u.c1);
   s1->_u.b.a2->_u.c1->_d = 1;
   s1->_u.b.a2->_u.c1->_u.a._d = 1;
   s1->_u.b.a2->_u.c1->_u.a._u.a1 = 123;
