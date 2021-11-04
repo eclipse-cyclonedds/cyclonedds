@@ -139,7 +139,7 @@ emit_field(
 {
   struct generator *gen = user_data;
   char *type, dims[32] = "";
-  const char *fmt, *indent, *name, *star = "", *ext = "", *type_prefix = "";
+  const char *fmt, *indent, *name, *ptr_open = "", *ptr_close = "", *type_prefix = "";
   const void *root;
   idl_literal_t *literal;
   idl_type_spec_t *type_spec;
@@ -149,25 +149,34 @@ emit_field(
   (void)path;
   root = idl_parent(node);
   indent = idl_is_case(root) ? "    " : "  ";
-  if (idl_is_external(root))
-    ext = "* ";
   name = idl_identifier(node);
   type_spec = idl_type_spec(node);
   if (IDL_PRINTA(&type, print_type, type_spec) < 0)
     return IDL_RETCODE_NO_MEMORY;
 
-  /* strings are special */
-  if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
-    idl_snprintf(dims, sizeof(dims), "[%"PRIu32"]", idl_bound(type_spec)+1);
-  } else if (idl_is_string(type_spec)) {
-    star = "* ";
+  if (idl_is_string(type_spec)) {
+    if (idl_is_bounded(type_spec))
+      idl_snprintf(dims, sizeof(dims), "[%"PRIu32"]", idl_bound(type_spec)+1);
+    else
+      ptr_open = "* ";
+  }
+
+  if (idl_is_external(root)) {
+    if (idl_is_array(node) || (idl_is_string(type_spec) && idl_is_bounded(type_spec))) {
+      /* for arrays and bounded strings, add paratheses so that it won't be an
+         array of pointers but a pointer to the array, e.g. long (*member_name)[5] */
+      ptr_open = "(* ";
+      ptr_close = ")";
+    } else if (!idl_is_string(type_spec)) { /* unbounded strings are already a pointer, don't add an extra * for external */
+      ptr_open = "* ";
+    }
   }
 
   type_prefix = get_type_prefix(type_spec);
 
   bool empty = idl_is_empty(type_spec);
   fmt = empty ? "%s/* %s%s %s%s%s%s */ /* no members */" : "%s%s%s %s%s%s%s";
-  if (idl_fprintf(gen->header.handle, fmt, indent, type_prefix, type, ext, star, name, dims) < 0)
+  if (idl_fprintf(gen->header.handle, fmt, indent, type_prefix, type, ptr_open, name, ptr_close, dims) < 0)
     return IDL_RETCODE_NO_MEMORY;
   fmt = "[%" PRIu32 "]";
   literal = ((const idl_declarator_t *)node)->const_expr;

@@ -354,6 +354,95 @@ static uint32_t get_type_size (enum dds_stream_typecode type)
   return (uint32_t)1 << ((uint32_t) type - 1);
 }
 
+static uint32_t get_arr_elem_size (uint32_t insn, const uint32_t * __restrict ops)
+{
+  uint32_t elem_sz;
+  switch (DDS_OP_SUBTYPE (insn))
+  {
+    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_ENU:
+      elem_sz = get_type_size (DDS_OP_SUBTYPE (insn));
+      break;
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BSP:
+      elem_sz = sizeof (char *);
+      break;
+    case DDS_OP_VAL_BST: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
+      elem_sz = ops[4];
+      break;
+    case DDS_OP_VAL_EXT:
+      abort ();
+      break;
+  }
+  return elem_sz;
+}
+
+static uint32_t get_adr_type_size (uint32_t insn, const uint32_t * __restrict ops)
+{
+  uint32_t sz = 0;
+  switch (DDS_OP_TYPE (insn))
+  {
+    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_ENU:
+      sz = get_type_size (DDS_OP_TYPE (insn));
+      break;
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BSP:
+      sz = sizeof (char *);
+      break;
+    case DDS_OP_VAL_BST:
+      sz = ops[2];
+      break;
+    case DDS_OP_VAL_ARR:
+    {
+      uint32_t num = ops[2];
+      uint32_t elem_sz = get_arr_elem_size (insn, ops);
+      sz = num * elem_sz;
+      break;
+    }
+    case DDS_OP_VAL_UNI:
+      /* FIXME: not supported yet, an elem_size field should be added to the ADR | UNI
+          instruction in case the external flag is set, similar to EXT */
+      abort ();
+      break;
+    case DDS_OP_VAL_SEQ:
+      /* FIXME: not supported yet, implementation needs to get the sequence length
+          from the CDR, and determine the element size similar to array case */
+      abort ();
+      break;
+    case DDS_OP_VAL_EXT:
+      sz = ops[3];
+      break;
+    case DDS_OP_VAL_STU:
+      abort ();
+      break;
+  }
+  return sz;
+}
+
+static uint32_t get_jeq4_type_size (const enum dds_stream_typecode valtype, const uint32_t * __restrict jeq_op)
+{
+  uint32_t sz = 0;
+  switch (valtype)
+  {
+    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_ENU:
+      sz = get_type_size (valtype);
+      break;
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BSP:
+      sz = sizeof (char *);
+      break;
+    case DDS_OP_VAL_BST:
+      sz = get_adr_type_size (valtype << 16, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]));
+      break;
+    case DDS_OP_VAL_ARR:
+      sz = get_adr_type_size (valtype << 16, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]));
+      break;
+    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_STU: case DDS_OP_VAL_UNI:
+      sz = jeq_op[3];
+      break;
+    case DDS_OP_VAL_EXT:
+      abort ();
+      break;
+  }
+  return sz;
+}
+
 static bool type_has_subtype_or_members (enum dds_stream_typecode type)
 {
   return type == DDS_OP_VAL_SEQ || type == DDS_OP_VAL_ARR || type == DDS_OP_VAL_UNI || type == DDS_OP_VAL_STU;
@@ -1247,6 +1336,17 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t * __restrict is, char 
   {
     const enum dds_stream_typecode valtype = DDS_JEQ_TYPE (jeq_op[0]);
     void *valaddr = baseaddr + jeq_op[2];
+
+    if (op_type_external (jeq_op[0]) && valtype != DDS_OP_VAL_STR)
+    {
+      /* Allocate memory for @external union member. This memory must be initialized
+          to 0, because the type may contain sequences that need to have 0 index/size */
+      assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
+      uint32_t sz = get_jeq4_type_size (valtype, jeq_op);
+      *((char **) valaddr) = ddsrt_calloc (1, sz);
+      valaddr = *((char **) valaddr);
+    }
+
     switch (valtype)
     {
       case DDS_OP_VAL_1BY: *((uint8_t *) valaddr) = dds_is_get1 (is); break;
@@ -1259,17 +1359,7 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t * __restrict is, char 
         break;
       case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
         const uint32_t *jsr_ops = jeq_op + DDS_OP_ADR_JSR (jeq_op[0]);
-        if (op_type_external (jeq_op[0]))
-        {
-          /* Allocate memory for @external union member. This memory must be initialized
-             to 0, because the type may contain sequences that need to have 0 index/size */
-          assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
-          uint32_t sz = jeq_op[3];
-          *((char **) valaddr) = ddsrt_calloc (1, sz);
-          (void) dds_stream_read (is, *((char **) valaddr), jsr_ops);
-        }
-        else
-          (void) dds_stream_read (is, valaddr, jsr_ops);
+        (void) dds_stream_read (is, valaddr, jsr_ops);
         break;
       }
       case DDS_OP_VAL_EXT: {
@@ -1284,6 +1374,15 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t * __restrict is, char 
 static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t * __restrict is, char * __restrict data, const uint32_t * __restrict ops)
 {
   void *addr = data + ops[1];
+  if (op_type_external (insn) && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
+  {
+    /* Allocate memory for @external struct member. This memory must be initialized
+        to 0, because the type may contain sequences that need to have 0 index/size */
+    uint32_t sz = get_adr_type_size (insn, ops);
+    *((char **) addr) = ddsrt_calloc (1, sz);
+    addr = *((char **) addr);
+  }
+
   switch (DDS_OP_TYPE (insn))
   {
     case DDS_OP_VAL_1BY: *((uint8_t *) addr) = dds_is_get1 (is); ops += 2; break;
@@ -1306,16 +1405,7 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
       if (op_type_base (insn) && jsr_ops[0] == DDS_OP_DLC)
         jsr_ops++;
 
-      if (op_type_external (insn))
-      {
-        /* Allocate memory for @external struct member. This memory must be initialized
-            to 0, because the type may contain sequences that need to have 0 index/size */
-        uint32_t sz = ops[3];
-        *((char **) addr) = ddsrt_calloc (1, sz);
-        (void) dds_stream_read (is, *((char **) addr), jsr_ops);
-      }
-      else
-        (void) dds_stream_read (is, addr, jsr_ops);
+      (void) dds_stream_read (is, addr, jsr_ops);
       ops += jmp ? jmp : 3;
       break;
     }
@@ -2272,6 +2362,16 @@ static const uint32_t *dds_stream_free_sample_uni (char * __restrict discaddr, c
   {
     const enum dds_stream_typecode subtype = DDS_JEQ_TYPE (jeq_op[0]);
     void *valaddr = baseaddr + jeq_op[2];
+
+    /* de-reference addr in case of an external member, except strings */
+    if (op_type_external (jeq_op[0]) && subtype != DDS_OP_VAL_STR)
+    {
+      assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
+      valaddr = *((char **) valaddr);
+      if (!valaddr)
+        goto no_ext_member;
+    }
+
     switch (subtype)
     {
       case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU: break;
@@ -2280,21 +2380,7 @@ static const uint32_t *dds_stream_free_sample_uni (char * __restrict discaddr, c
         *((char **) valaddr) = NULL;
         break;
       }
-      case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
-        if (op_type_external (jeq_op[0]))
-        {
-          assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
-          char *addr = *((char **) valaddr);
-          if (addr)
-          {
-            dds_stream_free_sample (addr, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]));
-            dds_free (addr);
-            addr = NULL;
-          }
-          break;
-        }
-      }
-      /* fall through */
+      case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
       case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: {
         dds_stream_free_sample (valaddr, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]));
         break;
@@ -2304,7 +2390,15 @@ static const uint32_t *dds_stream_free_sample_uni (char * __restrict discaddr, c
         break;
       }
     }
+
+    /* free buffer of the external field */
+    if (op_type_external (jeq_op[0]) && subtype != DDS_OP_VAL_STR)
+    {
+      dds_free (valaddr);
+      valaddr = NULL;
+    }
   }
+no_ext_member:
   return ops;
 }
 
@@ -2344,6 +2438,18 @@ void dds_stream_free_sample (void * __restrict data, const uint32_t * __restrict
     {
       case DDS_OP_ADR: {
         void *addr = (char *) data + ops[1];
+
+        /* de-reference addr in case of an external member, except strings */
+        if (op_type_external (insn) && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
+        {
+          addr = *((char **) addr);
+          /* in case of null pointer to external buffer, continue to next ADR */
+          if (!addr) {
+            ops = dds_stream_skip_adr (insn, ops);
+            continue;
+          }
+        }
+
         switch (DDS_OP_TYPE (insn))
         {
           case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: ops += 2; break;
@@ -2361,24 +2467,20 @@ void dds_stream_free_sample (void * __restrict data, const uint32_t * __restrict
           case DDS_OP_VAL_EXT: {
             const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
             const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
-            if (op_type_external (insn))
-            {
-              char *addr1 = *((char **) addr);
-              if (addr1)
-              {
-                dds_stream_free_sample (addr1, jsr_ops);
-                dds_free (addr1);
-                addr1 = NULL;
-              }
-            }
-            else
-              dds_stream_free_sample (addr, jsr_ops);
+            dds_stream_free_sample (addr, jsr_ops);
             ops += jmp ? jmp : 3;
             break;
           }
           case DDS_OP_VAL_STU:
             abort (); /* op type STU only supported as subtype */
             break;
+        }
+
+        /* free buffer of the external member */
+        if (op_type_external (insn) && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
+        {
+          dds_free (addr);
+          addr = NULL;
         }
         break;
       }

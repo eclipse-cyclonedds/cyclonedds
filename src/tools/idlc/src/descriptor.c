@@ -731,7 +731,6 @@ emit_case(
   struct stack_type *stype = descriptor->type_stack;
   struct constructed_type *ctype = stype->ctype;
 
-  (void)pstate;
   (void)path;
   if (revisit) {
     /* close inline case */
@@ -781,6 +780,9 @@ emit_case(
       return IDL_RETCODE_OK;
     }
 
+    if (idl_is_external(node))
+      opcode |= DDS_OP_FLAG_EXT;
+
     if (idl_is_array(_case->declarator)) {
       opcode |= DDS_OP_TYPE_ARR;
       case_type = IN_UNION;
@@ -820,14 +822,14 @@ emit_case(
         /* generate union case opcode */
         if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, off++, opcode, 0u)))
           return ret;
-      } else {
-        assert(off <= INT16_MAX);
         if (idl_is_external(node)) {
           opcode |= DDS_OP_FLAG_EXT;
-          /* For @external union members include the size of the member to allow the
-             serializer to allocate memory when deserializing. */
-          has_size = true;
+          has_size = idl_is_array(type_spec) || idl_is_sequence(type_spec);
         }
+      } else { /* EXTERNAL */
+        assert(off <= INT16_MAX);
+        if (idl_is_external(node))
+          has_size = true;
         stash_jeq_offset(pstate, &ctype->instructions, off, type_spec, opcode, (int16_t)off);
         off++;
       }
@@ -837,7 +839,8 @@ emit_case(
       /* generate union case offset */
       if ((ret = stash_offset(pstate, &ctype->instructions, off++, stype->fields)))
         return ret;
-      /* Stash data field for the size of the type for this member. Stash 0 in case
+      /* For @external union members include the size of the member to allow the
+         serializer to allocate memory when deserializing. Stash 0 in case
          no size is required (not an external member), so that the size of a JEQ4
          instruction with parameters remains 4. */
       if (has_size) {
@@ -1156,6 +1159,10 @@ emit_sequence(
       ctype->has_key_member = true;
     }
 
+    idl_node_t *parent = idl_parent(node);
+    if (idl_is_struct(stype->node) && idl_is_external(parent))
+      opcode |= DDS_OP_FLAG_EXT;
+
     off = ctype->instructions.count;
     if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, opcode, order)))
       return ret;
@@ -1263,6 +1270,10 @@ emit_array(
       opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
     }
+
+    idl_node_t *parent = idl_parent(node);
+    if (idl_is_struct(stype->node) && idl_is_external(parent))
+      opcode |= DDS_OP_FLAG_EXT;
 
     off = ctype->instructions.count;
     /* generate data field opcode */
@@ -1425,12 +1436,13 @@ emit_declarator(
       opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
     }
-    if (idl_is_external(parent))
+    if (idl_is_struct(stype->node) && idl_is_external(parent))
     {
       opcode |= DDS_OP_FLAG_EXT;
-      /* For @external fields include the size of the field to allow the serializer to allocate
+      /* For @external fields of type OP_TYPE_EXT include the size of the field to allow the serializer to allocate
          memory for this field when deserializing. */
-      has_size = true;
+      if (DDS_OP_TYPE(opcode) == DDS_OP_VAL_EXT)
+        has_size = true;
     }
 
     /* use member id for key ordering */
