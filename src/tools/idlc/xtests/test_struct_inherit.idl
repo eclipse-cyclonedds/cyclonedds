@@ -67,11 +67,11 @@ void init_sample (void *s)
   s1->parent.b1 = 123;
   s1->parent.parent.c1 = 234;
   s1->parent.parent.parent.d1 = 456;
-  s1->parent.parent.parent.d2 = dds_alloc (sizeof (*s1->parent.parent.parent.d2));
+  A (s1->parent.parent.parent.d2);
   s1->parent.parent.parent.d2->_d = 1;
   s1->parent.parent.parent.d2->_u.u1 = 789;
   s1->parent.b2.parent.d1 = 654;
-  s1->parent.b2.parent.d2 = dds_alloc (sizeof (*s1->parent.b2.parent.d2));
+  A (s1->parent.b2.parent.d2);
   s1->parent.b2.parent.d2->_d = 3;
   s1->parent.b2.parent.d2->_u.u2 = 765;
   s1->parent.b2.c1 = 321;

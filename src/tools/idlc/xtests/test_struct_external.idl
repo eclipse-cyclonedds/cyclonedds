@@ -1,0 +1,94 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+@nested @final
+struct b {
+    long b1;
+};
+
+@nested @final
+union u switch (short) {
+ case 1: long u1;
+};
+
+@topic @final
+struct test_ext {
+    @external long f1;
+    @external string f2;          // char * f2;
+    @external string<128> f3;     // char (* f3)[129];
+    @external b f4;
+    @external u f5;
+    @external short f6[2];        // int16_t (* f6)[10]
+    @external short f7[2][3];     // int16_t (* f7)[2][3]
+
+    // not yet supported
+    // @external sequence<short> f8;
+};
+
+#else
+
+#include "dds/ddsrt/heap.h"
+#include "common.h"
+#include "test_struct_external.h"
+
+const dds_topic_descriptor_t *desc = &test_ext_desc;
+void init_sample (void *s);
+int cmp_sample (const void *sa, const void *sb);
+
+void init_sample (void *s)
+{
+  test_ext *s1 = (test_ext *) s;
+  EXTA (s1->f1, 123);
+  STRA (s1->f2, STR128);
+  A (s1->f3);
+  strcpy (*(s1->f3), STR128);
+  A (s1->f4);
+  (*s1->f4).b1 = 456;
+  A (s1->f5);
+  s1->f5->_d = 1;
+  s1->f5->_u.u1 = 789;
+  A (s1->f6);
+  (*s1->f6)[0] = 321;
+  (*s1->f6)[1] = 654;
+  A (s1->f7);
+  for (int n = 0; n < 6; n++)
+    (*s1->f7)[n / 3][n % 3] = 1000 * n;
+  // s1->f8 = dds_alloc (sizeof (*s1->f8));
+  // SEQA(*(s1->f8), 3);
+  // for (int n = 0; n < 3; n++)
+  //   s1->f8->_buffer[n] = 100 * n;
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_ext *a = (test_ext *) sa;
+  test_ext *b = (test_ext *) sb;
+
+  CMPEXT (a, b, f1, 123);
+  CMPSTR (a, b, f2, STR128);
+  CMPEXTSTR (a, b, f3, STR128);
+  CMPEXTF (a, b, f4, b1, 456);
+  CMPEXTF (a, b, f5, _d, 1);
+  CMPEXTF (a, b, f5, _u.u1, 789);
+  CMPEXTA (a, b, f6, 0, 321);
+  CMPEXTA (a, b, f6, 1, 654);
+  for (int n = 0; n < 6; n++)
+    CMPEXTA2 (a, b, f7, n / 3, n % 3, 1000 * n);
+  // for (int n = 0; n < 3; n++)
+  //   CMP(a, b, f8->_buffer[n], n);
+
+  return 0;
+}
+
+#endif
