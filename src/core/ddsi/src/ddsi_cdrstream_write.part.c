@@ -190,6 +190,14 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
   {
     const enum dds_stream_typecode valtype = DDS_JEQ_TYPE (jeq_op[0]);
     const void *valaddr = baseaddr + jeq_op[2];
+
+    if (op_type_external (jeq_op[0]) && valtype != DDS_OP_VAL_STR)
+    {
+      assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
+      valaddr = *(char **) valaddr;
+      assert (valaddr);
+    }
+
     switch (valtype)
     {
       case DDS_OP_VAL_1BY: dds_os_put1BO (os, *(const uint8_t *) valaddr); break;
@@ -203,15 +211,7 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
         break;
       case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
         const uint32_t *jsr_ops = jeq_op + DDS_OP_ADR_JSR (jeq_op[0]);
-        if (op_type_external (jeq_op[0]))
-        {
-          assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
-          char *ext_addr = *(char **) valaddr;
-          assert (ext_addr);
-          (void) dds_stream_writeBO (os, ext_addr, jsr_ops);
-        }
-        else
-          (void) dds_stream_writeBO (os, valaddr, jsr_ops);
+        (void) dds_stream_writeBO (os, valaddr, jsr_ops);
         break;
       }
       case DDS_OP_VAL_EXT: {
@@ -309,6 +309,12 @@ const uint32_t *dds_stream_writeBO (DDS_OSTREAM_T * __restrict os, const char * 
     {
       case DDS_OP_ADR: {
         const void *addr = data + ops[1];
+        if (op_type_external (insn) && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
+        {
+          addr = *(char **) addr;
+          assert (addr);
+        }
+
         switch (DDS_OP_TYPE (insn))
         {
           case DDS_OP_VAL_1BY: dds_os_put1BO (os, *((const uint8_t *) addr)); ops += 2; break;
@@ -331,14 +337,7 @@ const uint32_t *dds_stream_writeBO (DDS_OSTREAM_T * __restrict os, const char * 
             if (op_type_base (insn) && jsr_ops[0] == DDS_OP_DLC)
               jsr_ops++;
 
-            if (op_type_external (insn))
-            {
-              char *ext_addr = *(char **) addr;
-              assert (ext_addr);
-              (void) dds_stream_writeBO (os, ext_addr, jsr_ops);
-            }
-            else
-              (void) dds_stream_writeBO (os, addr, jsr_ops);
+            (void) dds_stream_writeBO (os, addr, jsr_ops);
             ops += jmp ? jmp : 3;
             break;
           }

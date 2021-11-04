@@ -120,6 +120,8 @@ enum dds_stream_opcode {
      [JEQ, nBY, 0] [disc] [offset]
      [JEQ, STR, 0] [disc] [offset]
      [JEQ, s,   i] [disc] [offset]
+     [JEQ4, nBY, 0] [disc] [offset] 0
+     [JEQ4, STR, 0] [disc] [offset] 0
      [JEQ4, ENU, 0] [disc] [offset] [max]
      [JEQ4, EXT, 0] *** not supported, use STU/UNI for external defined types
      [JEQ4, e | s, i] [disc] [offset] [elem-size iff "external" flag e is set, else 0]
