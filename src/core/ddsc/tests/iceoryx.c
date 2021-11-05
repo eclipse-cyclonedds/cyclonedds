@@ -23,6 +23,7 @@
 #include "dds/dds.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds__entity.h"
 
 #include "test_common.h"
@@ -406,6 +407,38 @@ out:
   return alldataseen;
 }
 
+struct fastpath_info {
+  uint32_t nrd;
+  struct reader *rdary0;
+};
+
+static struct fastpath_info getset_fastpath_reader_count (dds_entity_t wrhandle, struct fastpath_info new)
+{
+  dds_return_t rc;
+  struct dds_entity *x;
+
+  rc = dds_entity_pin (wrhandle, &x);
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  CU_ASSERT_FATAL (dds_entity_kind (x) == DDS_KIND_WRITER);
+  struct writer * const wr = ((struct dds_writer *) x)->m_wr;
+  ddsrt_mutex_lock (&wr->rdary.rdary_lock);
+  while (!wr->rdary.fastpath_ok)
+  {
+    ddsrt_mutex_unlock (&wr->rdary.rdary_lock);
+    dds_sleepfor (DDS_MSECS (10));
+    ddsrt_mutex_lock (&wr->rdary.rdary_lock);
+  }
+  const struct fastpath_info old = {
+    .nrd = wr->rdary.n_readers,
+    .rdary0 = wr->rdary.rdary[0]
+  };
+  wr->rdary.n_readers = new.nrd;
+  wr->rdary.rdary[0] = new.rdary0;
+  ddsrt_mutex_unlock (&wr->rdary.rdary_lock);
+  dds_entity_unpin (x);
+  return old;
+}
+
 static int compare_uint32 (const void *va, const void *vb)
 {
   const uint32_t *a = va;
@@ -457,6 +490,7 @@ static void dotest (void)
       struct tracebuf tb = { .pos = 0 };
       int nrds_active = 0;
       int nports = 0;
+      bool fatal = false;
       bool fail_one = false;
 
       //if (!wr_use_iceoryx)
@@ -472,6 +506,13 @@ static void dotest (void)
         if (skip)
           goto skip;
       }
+
+      // We want to be certain that local delivery happens via Iceoryx, which is tricky
+      // because we rather try not to make it visible at the API level. We test it here by
+      // preventing the local short-circuit from working by temporarily forcing the "fast
+      // path" reader count to 0, so that nothing will get delivered if it picks the wrong
+      // path.
+      bool override_fastpath_rdcount = wr_use_iceoryx;
 
       print (&tb, "wr: %s; rds:", wr_use_iceoryx ? "iox" : "dds");
       for (int i = 0; rdmode[i] != 0; i++)
@@ -496,6 +537,12 @@ static void dotest (void)
         {
           // non-Iceoryx writer, reader, or a different Iceoryx "domain"
           ports[nports++] = port;
+          if (dom == 0 && rdmode[i] != 2)
+          {
+            // if non-Iceoryx reader present in same Iceoryx "domain", we need
+            // the native short-circuiting
+            override_fastpath_rdcount = false;
+          }
         }
 
         rc = dds_set_status_mask (rds[i], DDS_SUBSCRIPTION_MATCHED_STATUS);
@@ -512,6 +559,10 @@ static void dotest (void)
       }
 
       print (&tb, "; match");
+      struct fastpath_info old_fastpath = {
+        .nrd = UINT32_MAX,
+        .rdary0 = 0
+      };
       if (!allmatched (ws, wr, nrds_active, rds))
       {
         fail_match ();
@@ -536,8 +587,15 @@ static void dotest (void)
         fail_one = true;
         goto next;
       }
-      print (&tb, "; ");
 
+      // Once matched, fast path should go to "ok" and we can override it (if needed)
+      if (override_fastpath_rdcount)
+      {
+        print (&tb, "; hack-fastpath");
+        old_fastpath = getset_fastpath_reader_count (wr, (struct fastpath_info){ .nrd = 0, .rdary0 = 0 });
+        print (&tb, "(%"PRIu32")", old_fastpath.nrd);
+      }
+      print (&tb, "; ");
       // easier on the eyes in the log:
       //dds_sleepfor (DDS_MSECS (100));
       static struct {
@@ -564,6 +622,8 @@ static void dotest (void)
       }
 
     next:
+      if (old_fastpath.nrd != UINT32_MAX)
+        (void) getset_fastpath_reader_count (wr, old_fastpath);
       print (&tb, ": %s", fail_one ? "FAIL" : "ok");
       for (int i = 0; i < MAX_DOMAINS; i++)
       {
@@ -572,6 +632,7 @@ static void dotest (void)
       }
       fputs (fail_one ? "\n" : " $$\r", stdout);
       fflush (stdout);
+      CU_ASSERT_FATAL (!fatal);
 
     skip:
       // delete the readers, keep the writer
