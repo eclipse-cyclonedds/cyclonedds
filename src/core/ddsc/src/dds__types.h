@@ -26,7 +26,7 @@
 #include "iceoryx_binding_c/subscriber.h"
 #include "iceoryx_binding_c/publisher.h"
 #include "shm__monitor.h"
-#include "dds/ddsi/shm_sync.h"
+#include "dds/ddsi/shm_transport.h"
 #define MAX_PUB_LOANS 8
 #endif
 

@@ -44,7 +44,7 @@
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/md5.h"
-#include "dds/ddsi/shm_sync.h"
+#include "dds/ddsi/shm_transport.h"
 #endif
 
 DECL_ENTITY_LOCK_UNLOCK (dds_reader)
@@ -475,8 +475,9 @@ static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_
       false == cfg->enable_shm)
     return false;
 
-  if (!tp->m_stype->fixed_size)
+  if(!tp->m_stype->fixed_size && !tp->m_stype->ops->get_serialized_size && !tp->m_stype->ops->serialize_into) {
     return false;
+  }
 
   uint32_t sub_history_req = cfg->sub_history_request;
 

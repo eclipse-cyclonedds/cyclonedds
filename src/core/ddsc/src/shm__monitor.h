@@ -17,7 +17,7 @@
 
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/sync.h"
-#include "dds/ddsi/shm_sync.h"
+#include "dds/ddsi/shm_transport.h"
 
 #if defined (__cplusplus)
 extern "C" {

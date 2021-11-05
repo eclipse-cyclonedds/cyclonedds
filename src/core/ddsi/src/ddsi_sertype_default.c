@@ -27,6 +27,11 @@
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_typelookup.h"
 
+#ifdef DDS_HAS_SHM
+#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/ddsi/q_xmsg.h"
+#endif
+
 static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertype *bcmn)
 {
   const struct ddsi_sertype_default *a = (struct ddsi_sertype_default *) acmn;
@@ -205,6 +210,41 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
   return (struct ddsi_sertype *) derived_sertype;
 }
 
+// move to cdr_stream?
+static dds_ostream_t ostream_from_buffer(void *buffer, size_t size) {
+  dds_ostream_t os;
+  os.m_buffer = buffer;
+  os.m_size = (uint32_t) size;
+  os.m_index = 0;
+  return os;
+}
+
+// placeholder implementation
+// TODO: implement efficiently (we now actually serialize to get the size)
+//       This is similar to serializing but instead counting bytes instead of writing
+//       data to a stream.
+//       This should be (almost...) O(1), there may be issues with
+//       sequences of nontrivial types where it will depend on the number of elements.
+static size_t sertype_default_get_serialized_size (
+    const struct ddsi_sertype *type, const void *sample) {
+
+  // We do not count the CDR header here.
+  // TODO Do we want to include CDR header into the serialization used by iceoryx?
+  //      If the endianness does not change, it appears not to be necessary (maybe for
+  //      XTypes)
+  struct ddsi_serdata *serdata = ddsi_serdata_from_sample(type, SDK_DATA, sample);
+  size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct CDRHeader);
+  ddsi_serdata_unref(serdata);
+  return serialized_size;
+}
+
+static bool sertype_default_serialize_into (const struct ddsi_sertype *type, const void *sample, void* dst_buffer, size_t dst_size) {
+  dds_ostream_t os = ostream_from_buffer(dst_buffer, dst_size);
+  const struct ddsi_sertype_default *type_default = (const struct ddsi_sertype_default *)type;
+  dds_stream_write_sample(&os, sample, type_default);
+  return true;
+}
+
 const struct ddsi_sertype_ops ddsi_sertype_ops_default = {
   .version = ddsi_sertype_v0,
   .arg = 0,
@@ -219,6 +259,8 @@ const struct ddsi_sertype_ops ddsi_sertype_ops_default = {
   .serialize = sertype_default_serialize,
   .deserialize = sertype_default_deserialize,
   .assignable_from = sertype_default_assignable_from,
-  .derive_sertype = sertype_default_derive_sertype
+  .derive_sertype = sertype_default_derive_sertype,
+  .get_serialized_size = sertype_default_get_serialized_size,
+  .serialize_into = sertype_default_serialize_into
 };
 

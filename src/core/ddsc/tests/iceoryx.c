@@ -223,6 +223,7 @@ static void print (struct tracebuf *tb, const char *fmt, ...) ddsrt_attribute_fo
 
 static void print (struct tracebuf *tb, const char *fmt, ...)
 {
+  //return;
   if (tb->pos >= sizeof (tb->buf))
     abort ();
 
@@ -553,6 +554,7 @@ static void dotest (void)
       {
         print (&tb, "%s ", ops[opidx].info); fflush (stdout);
         rc = ops[opidx].op (wr, &(Space_Type1){ 0 });
+
         CU_ASSERT_FATAL (rc == 0);
         if (!alldataseen (&tb, MAX_READERS_PER_DOMAIN, rds, ops[opidx].istate))
         {

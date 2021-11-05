@@ -21,7 +21,7 @@
 #include "dds/features.h"
 
 #ifdef DDS_HAS_SHM
-#include "dds/ddsi/ddsi_keyhash.h"
+#include "dds/ddsi/shm_transport.h"
 #endif
 
 #if defined (__cplusplus)
@@ -52,21 +52,6 @@ enum nn_xmsg_kind {
   NN_XMSG_KIND_DATA_REXMIT,
   NN_XMSG_KIND_DATA_REXMIT_NOMERGE
 };
-
-#ifdef DDS_HAS_SHM
-struct iceoryx_header {
-   struct ddsi_guid guid;
-   dds_time_t tstamp;
-   uint32_t statusinfo;
-   uint32_t data_size;
-   unsigned char data_kind;
-   ddsi_keyhash_t keyhash;
-   bool does_contain_serialized_data;
-};
-
-typedef struct iceoryx_header iceoryx_header_t;
-
-#endif
 
 /* XMSGPOOL */
 

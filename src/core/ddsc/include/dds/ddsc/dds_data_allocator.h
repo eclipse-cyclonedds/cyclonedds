@@ -113,6 +113,8 @@ DDS_EXPORT void *dds_data_allocator_alloc (dds_data_allocator_t *data_allocator,
 DDS_EXPORT dds_return_t dds_data_allocator_free (dds_data_allocator_t *data_allocator, void *ptr);
 
 /** @brief Check if a Loan is available to reader/writer
+ * The loan is available if the shared memory is enabled and all the constraints to enable
+ * shared memory are met and the type is fixed
  *
  * @param[in] entity the handle of the entity
  *

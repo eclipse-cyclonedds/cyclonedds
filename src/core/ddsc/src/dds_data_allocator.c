@@ -11,6 +11,7 @@
  */
 #include "dds/dds.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsi/ddsi_sertype.h"
 #include "dds__data_allocator.h"
 #include "dds__entity.h"
 
@@ -169,12 +170,18 @@ bool dds_is_loan_available(const dds_entity_t entity)
   }
 
   switch (dds_entity_kind(e)) {
-    case DDS_KIND_READER:
-      ret = (((struct dds_reader *) e)->m_iox_sub != NULL);
+    case DDS_KIND_READER: {
+      struct dds_reader const *const rd = (struct dds_reader *)e;
+      // only if SHM is enabled correctly (i.e. iox subscriber is initialized) and the type is fixed
+      ret = (rd->m_iox_sub != NULL) && (rd->m_topic->m_stype->fixed_size);
       break;
-    case DDS_KIND_WRITER:
-      ret = (((struct dds_writer *) e)->m_iox_pub != NULL);
+    }
+    case DDS_KIND_WRITER: {
+      struct dds_writer const *const wr = (struct dds_writer *)e;
+      // only if SHM is enabled correctly (i.e. iox publisher is initialized) and the type is fixed
+      ret = (wr->m_iox_pub != NULL) && (wr->m_topic->m_stype->fixed_size);
       break;
+    }
     default:
       break;
   }

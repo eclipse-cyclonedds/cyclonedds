@@ -28,7 +28,7 @@
 #include "dds/ddsi/ddsi_serdata_default.h"
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/shm_sync.h"
+#include "dds/ddsi/shm_transport.h"
 #include "iceoryx_binding_c/chunk.h"
 #endif
 
@@ -149,17 +149,7 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
     ddsrt_free(d->key.u.dynbuf);
 
 #ifdef DDS_HAS_SHM
-  //ICEORYX_TODO the chunk is released concurrently to iox_sub_take_chunk here,
-  //                 we will need mutex protection for this call
-  //                 when is the free called exactly?
-  if (d->c.iox_chunk)
-  {
-    iox_sub_t *sub = d->c.iox_subscriber;
-    shm_lock_iox_sub(*sub);
-    iox_sub_release_chunk(*sub, d->c.iox_chunk);
-    d->c.iox_chunk = NULL;
-    shm_unlock_iox_sub(*sub);
-  }
+  free_iox_chunk(d->c.iox_subscriber, &d->c.iox_chunk);
 #endif
 
   if (d->size > MAX_SIZE_FOR_POOL || !nn_freelist_push (&d->serpool->freelist, d))
@@ -477,17 +467,14 @@ static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr_nokey (const struct dd
 
 #ifdef DDS_HAS_SHM
 static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer)
-{
-  iox_chunk_header_t* chunk_header = iox_chunk_header_from_user_payload(iox_buffer);
-  const iceoryx_header_t* ice_hdr = iox_chunk_header_to_user_header(chunk_header);
+{     
+  const iceoryx_header_t* ice_hdr = iceoryx_header_from_chunk(iox_buffer);
 
   const struct ddsi_sertype_default* tp = (const struct ddsi_sertype_default*)tpcmn;
 
   struct ddsi_serdata_default *d = serdata_default_new_size (tp, kind, ice_hdr->data_size, tp->encoding_version);
 
-  //ICEORYX_TODO: we do no copy here but store the pointer to the chunk
-  //              the pointer was gotten in some concurrent thread of the shm_monitor
-  //              problems may arise due to concurrent iox_release_chunk
+  // note: we do not deserialize or memcpy here, just take ownership of the chunk
   d->c.iox_chunk = iox_buffer;
   d->c.iox_subscriber = sub;
   d->key.buftype = KEYBUFTYPE_STATIC;
@@ -495,6 +482,7 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
   memcpy(d->key.u.stbuf, ice_hdr->keyhash.value, FIXED_KEY_MAX_SIZE);
 
   fix_serdata_default(d, tpcmn->serdata_basehash);
+
   return (struct ddsi_serdata*)d;
 }
 
@@ -535,6 +523,7 @@ static struct ddsi_serdata_default *serdata_default_from_sample_cdr_common (cons
   struct ddsi_serdata_default *d = serdata_default_new(tp, kind, xcdr_version);
   if (d == NULL)
     return NULL;
+
   dds_ostream_t os;
   dds_ostream_from_serdata_default (&os, d);
   switch (kind)
@@ -666,17 +655,27 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
 {
   const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
   const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *) d->c.type;
+  dds_istream_t is; 
 #ifdef DDS_HAS_SHM
   if (d->c.iox_chunk)
-  {
-    void* user_payload = d->c.iox_chunk;
-    iox_chunk_header_t* chunk_header = iox_chunk_header_from_user_payload(user_payload);
-    iceoryx_header_t* hdr = iox_chunk_header_to_user_header(chunk_header);
-    memcpy(sample, user_payload, hdr->data_size);
+  {    
+    void* iox_chunk = d->c.iox_chunk;
+    iceoryx_header_t* hdr = iceoryx_header_from_chunk(iox_chunk);
+    if(hdr->shm_data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {
+      dds_istream_init (&is, hdr->data_size, iox_chunk, get_xcdr_version(d->hdr.identifier));     
+      assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));    
+      if (d->c.kind == SDK_KEY)
+        dds_stream_read_key (&is, sample, tp);
+      else
+        dds_stream_read_sample (&is, sample, tp);
+    } else {
+      // should contain raw unserialized data
+      // we could check the data_state but should not be needed
+      memcpy(sample, iox_chunk, hdr->data_size);
+    }   
     return true;
   }
 #endif
-  dds_istream_t is;
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));
   dds_istream_from_serdata_default(&is, d);

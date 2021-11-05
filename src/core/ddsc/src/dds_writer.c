@@ -290,8 +290,9 @@ static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_
       false == cfg->enable_shm)
     return false;
 
-  if (!tp->m_stype->fixed_size)
+  if(!tp->m_stype->fixed_size && !tp->m_stype->ops->get_serialized_size && !tp->m_stype->ops->serialize_into) {
     return false;
+  }
 
   uint32_t pub_history_cap = cfg->pub_history_capacity;
 
@@ -416,7 +417,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wr->m_data_representation = data_representation;
 
 #ifdef DDS_HAS_SHM
-  assert(wqos->present & QP_LOCATOR_MASK);
+  assert(wqos->present & QP_LOCATOR_MASK);  
   if (!dds_writer_support_shm(&gv->config, wqos, tp))
     wqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
 #endif

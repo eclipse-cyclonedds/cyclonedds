@@ -115,6 +115,20 @@ typedef void (*ddsi_sertype_free_samples_t) (const struct ddsi_sertype *d, void 
 /* Serialized size for this type */
 typedef void (*ddsi_sertype_serialized_size_t) (const struct ddsi_sertype *d, size_t *dst_offset);
 
+/* Compute the serialized size based on the sertype information and the sample */
+// Note: size_t maximum is reserved as error value
+typedef size_t (*ddsi_sertype_get_serialized_size_t)(
+    const struct ddsi_sertype *d, const void *sample);
+
+/* Serialize into a destination buffer */
+// Note that we assume the destination buffer is large enough (we do not necessarily check)
+// The required size can be obtained with ddsi_sertype_get_serialized_size_t
+// Returns true if the serialization succeeds, false otherwise.
+typedef bool (*ddsi_sertype_serialize_into_t)(const struct ddsi_sertype *d,
+                                              const void *sample,
+                                              void *dst_buffer,
+                                              size_t dst_size);
+
 /* Serialize this type */
 typedef bool (*ddsi_sertype_serialize_t) (const struct ddsi_sertype *d, size_t *dst_offset, unsigned char *dst_buf);
 
@@ -153,6 +167,8 @@ struct ddsi_sertype_ops {
   ddsi_sertype_deserialize_t deserialize;
   ddsi_sertype_assignable_from_t assignable_from;
   ddsi_sertype_derive_t derive_sertype;
+  ddsi_sertype_get_serialized_size_t get_serialized_size;
+  ddsi_sertype_serialize_into_t serialize_into;
 };
 
 enum ddsi_sertype_extensibility
@@ -242,6 +258,17 @@ DDS_INLINE_EXPORT inline struct ddsi_sertype * ddsi_sertype_derive_sertype (cons
   return base_sertype->ops->derive_sertype (base_sertype);
 }
 
+DDS_INLINE_EXPORT inline size_t
+ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp,
+                                 const void *sample) {
+  return tp->ops->get_serialized_size(tp, sample);
+}
+
+DDS_INLINE_EXPORT inline bool
+ddsi_sertype_serialize_into(const struct ddsi_sertype *tp, const void *sample,
+                            void *dst_buffer, size_t dst_size) {
+  return tp->ops->serialize_into(tp, sample, dst_buffer, dst_size);
+}
 
 #if defined (__cplusplus)
 }
