@@ -28,6 +28,7 @@
 
 #include "test_common.h"
 #include "Array100.h"
+#include "DynamicData.h"
 
 static const struct shm_locator {
   unsigned char a[16];
@@ -365,12 +366,12 @@ static bool alldataseen (struct tracebuf *tb, int nrds, const dds_entity_t rds[n
     {
       if (rdconds[i] != 0)
       {
-        Space_Type1 sample;
-        void *raw = &sample;
+        void *sampleptr = NULL;
         dds_sample_info_t si;
         int32_t n;
-        while ((n = dds_take (rdconds[i], &raw, &si, 1, 1)) > 0)
+        while ((n = dds_take (rdconds[i], &sampleptr, &si, 1, 1)) > 0)
         {
+          (void) dds_return_loan (rdconds[i], &sampleptr, n);
           if (si.instance_state != instance_state)
           {
             print (tb, "[rd %d %s while expecting %s] ", i, istatestr (si.instance_state), istatestr (instance_state));
@@ -446,7 +447,7 @@ static int compare_uint32 (const void *va, const void *vb)
   return (*a == *b) ? 0 : (*a < *b) ? -1 : 1;
 }
 
-static void dotest (void)
+static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample)
 {
   dds_return_t rc;
   dds_entity_t pp[MAX_DOMAINS];
@@ -461,7 +462,7 @@ static void dotest (void)
   for (int i = 0; i < MAX_DOMAINS; i++)
   {
     pp[i] = create_participant ((dds_domainid_t) i, true); // FIXME: vary shm_enable for i > 0
-    tp[i] = dds_create_topic (pp[i], &Space_Type1_desc, topicname, NULL, NULL);
+    tp[i] = dds_create_topic (pp[i], tpdesc, topicname, NULL, NULL);
     CU_ASSERT_FATAL (tp[i] > 0);
     gvs[i] = get_domaingv (pp[i]);
   }
@@ -611,7 +612,7 @@ static void dotest (void)
       for (size_t opidx = 0; opidx < sizeof (ops) / sizeof (ops[0]); opidx++)
       {
         print (&tb, "%s ", ops[opidx].info); fflush (stdout);
-        rc = ops[opidx].op (wr, &(Space_Type1){ 0 });
+        rc = ops[opidx].op (wr, sample);
 
         CU_ASSERT_FATAL (rc == 0);
         if (!alldataseen (&tb, MAX_READERS_PER_DOMAIN, rds, ops[opidx].istate))
@@ -662,7 +663,21 @@ static void dotest (void)
 CU_Test(ddsc_iceoryx, one_writer, .timeout = 30)
 {
   failed = false;
-  dotest ();
+  dotest (&Space_Type1_desc, &(const Space_Type1){ 0 });
+  CU_ASSERT (!failed);
+}
+
+CU_Test(ddsc_iceoryx, one_writer_dynsize, .timeout = 30)
+{
+  failed = false;
+  dotest (&DynamicData_Msg_desc, &(const DynamicData_Msg){
+    .message = "Muss es sein?",
+    .scalar = 135,
+    .values = {
+      ._length = 4, ._maximum = 4, ._release = false,
+      ._buffer = (int32_t[]) { 193, 272, 54, 277 }
+    }
+  });
   CU_ASSERT (!failed);
 }
 
