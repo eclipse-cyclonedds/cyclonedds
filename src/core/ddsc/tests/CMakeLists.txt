@@ -161,7 +161,7 @@ if(iceoryx_binding_c_FOUND AND NOT WIN32)
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
 
-  target_link_libraries(cunit_ddsc_iox PRIVATE RoundTrip Space Array100 ddsc)
+  target_link_libraries(cunit_ddsc_iox PRIVATE RoundTrip Space Array100 DynamicData ddsc)
 
   add_cunit_executable(cunit_ddsc_shm_serialization
     "test_shm_serialization.c"
@@ -213,16 +213,16 @@ kill -0 `cat ctest_fixture_iox_roudi.pid`")
   # SIGTERM should suffice for stopping RouDi
   add_test(NAME stop_roudi COMMAND bash -c "kill `cat ctest_fixture_iox_roudi.pid` ; cat ctest_fixture_iox_roudi.output")
 
-  set_tests_properties(CUnit_ddsc_iceoryx_one_writer PROPERTIES FIXTURES_REQUIRED iox)
-  set_tests_properties(CUnit_ddsc_iceoryx_return_loan PROPERTIES FIXTURES_REQUIRED iox)
-  set_tests_properties(CUnit_ddsc_shm_serialization_transmit_dynamic_type PROPERTIES FIXTURES_REQUIRED iox)
   set_tests_properties(start_roudi PROPERTIES FIXTURES_SETUP iox)
   set_tests_properties(stop_roudi PROPERTIES FIXTURES_CLEANUP iox)
-  set_tests_properties(
-    CUnit_ddsc_iceoryx_one_writer
-    CUnit_ddsc_iceoryx_return_loan
-    CUnit_ddsc_shm_serialization_transmit_dynamic_type
-    start_roudi
-    stop_roudi
-    PROPERTIES RESOURCE_LOCK iox_lock)
+  set_tests_properties(start_roudi stop_roudi PROPERTIES RESOURCE_LOCK iox_lock)
+
+  foreach(t
+      iceoryx_one_writer
+      iceoryx_one_writer_dynsize
+      iceoryx_return_loan
+      shm_serialization_transmit_dynamic_type)
+    set_tests_properties(CUnit_ddsc_${t} PROPERTIES FIXTURES_REQUIRED iox)
+    set_tests_properties(CUnit_ddsc_${t} PROPERTIES RESOURCE_LOCK iox_lock)
+  endforeach()
 endif()
