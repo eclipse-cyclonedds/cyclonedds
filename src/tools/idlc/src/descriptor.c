@@ -1159,15 +1159,20 @@ emit_sequence(
       ctype->has_key_member = true;
     }
 
-    idl_node_t *parent = idl_parent(node);
-    if (idl_is_struct(stype->node) && idl_is_external(parent))
-      opcode |= DDS_OP_FLAG_EXT;
 
+    if (idl_is_struct(stype->node)) {
+      field = stype->fields;
+
+      /* Determine if the member is external: use field->node and not the parent of the current node,
+         because the latter could be a typedef in case of an aliased type */
+      idl_node_t *member_node = idl_parent(field->node);
+      assert(idl_is_member(member_node));
+      if (idl_is_external(member_node))
+        opcode |= DDS_OP_FLAG_EXT;
+    }
     off = ctype->instructions.count;
     if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, opcode, order)))
       return ret;
-    if (idl_is_struct(stype->node))
-      field = stype->fields;
     if ((ret = stash_offset(pstate, &ctype->instructions, nop, field)))
       return ret;
 
@@ -1271,6 +1276,9 @@ emit_array(
       ctype->has_key_member = true;
     }
 
+    /* Array node is the declarator node, so its parent is the member in case
+       we're processing a struct type, and this can be used to determine if its
+       an external member */
     idl_node_t *parent = idl_parent(node);
     if (idl_is_struct(stype->node) && idl_is_external(parent))
       opcode |= DDS_OP_FLAG_EXT;
