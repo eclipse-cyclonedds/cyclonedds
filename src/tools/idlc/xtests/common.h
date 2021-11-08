@@ -70,6 +70,11 @@
   if ((!(a->f) && (b->f)) || ((a->f) && !(b->f))) return 2; \
   if ((*(a->f))[i][i2] != (*(b->f))[i][i2]) return (*(a->f))[i][i2] > (*(b->f))[i][i2] ? 1 : -1; \
 }
+#define CMPEXTAF(a,b,f,i,f2,n) { \
+  if ((a->f) && (*(a->f))[i].f2 != n) return -2; \
+  if ((!(a->f) && (b->f)) || ((a->f) && !(b->f))) return 2; \
+  if ((*(a->f))[i].f2 != (*(b->f))[i].f2) return (*(a->f))[i].f2 > (*(b->f))[i].f2 ? 1 : -1; \
+}
 #define CMPEXTSTR(a,b,f,s) { \
   if ((a->f) && strcmp(*(a->f), s)) return -2; \
   if ((!(a->f) && (b->f)) || ((a->f) && !(b->f))) return 2; \
