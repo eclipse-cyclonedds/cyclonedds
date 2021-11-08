@@ -354,7 +354,7 @@ static uint32_t get_type_size (enum dds_stream_typecode type)
   return (uint32_t)1 << ((uint32_t) type - 1);
 }
 
-static uint32_t get_arr_elem_size (uint32_t insn, const uint32_t * __restrict ops)
+static uint32_t get_elem_size (uint32_t insn, const uint32_t * __restrict ops)
 {
   uint32_t elem_sz;
   switch (DDS_OP_SUBTYPE (insn))
@@ -366,9 +366,13 @@ static uint32_t get_arr_elem_size (uint32_t insn, const uint32_t * __restrict op
       elem_sz = sizeof (char *);
       break;
     case DDS_OP_VAL_BST: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
-      elem_sz = ops[4];
+      if (DDS_OP_TYPE (insn) == DDS_OP_VAL_ARR)
+        elem_sz = ops[4];
+      else
+        abort ();
       break;
     case DDS_OP_VAL_EXT:
+    default:
       abort ();
       break;
   }
@@ -392,24 +396,21 @@ static uint32_t get_adr_type_size (uint32_t insn, const uint32_t * __restrict op
     case DDS_OP_VAL_ARR:
     {
       uint32_t num = ops[2];
-      uint32_t elem_sz = get_arr_elem_size (insn, ops);
+      uint32_t elem_sz = get_elem_size (ops[0], ops);
       sz = num * elem_sz;
       break;
     }
-    case DDS_OP_VAL_UNI:
-      /* FIXME: not supported yet, an elem_size field should be added to the ADR | UNI
-          instruction in case the external flag is set, similar to EXT */
-      abort ();
-      break;
     case DDS_OP_VAL_SEQ:
-      /* FIXME: not supported yet, implementation needs to get the sequence length
-          from the CDR, and determine the element size similar to array case */
-      abort ();
+      /* external sequence member is a pointer to a dds_sequence_t, so element size and
+         sequence length are not relevant for the allocation size for the member */
+      sz = sizeof (struct dds_sequence);
       break;
     case DDS_OP_VAL_EXT:
       sz = ops[3];
       break;
+    case DDS_OP_VAL_UNI:
     case DDS_OP_VAL_STU:
+      /* for UNI and STU members are externally defined, so are using EXT type */
       abort ();
       break;
   }
