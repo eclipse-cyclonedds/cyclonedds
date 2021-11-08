@@ -211,11 +211,12 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
 }
 
 // move to cdr_stream?
-static dds_ostream_t ostream_from_buffer(void *buffer, size_t size) {
+static dds_ostream_t ostream_from_buffer(void *buffer, size_t size, uint16_t encoding_version) {
   dds_ostream_t os;
   os.m_buffer = buffer;
   os.m_size = (uint32_t) size;
   os.m_index = 0;
+  os.m_xcdr_version = encoding_version;
   return os;
 }
 
@@ -239,8 +240,8 @@ static size_t sertype_default_get_serialized_size (
 }
 
 static bool sertype_default_serialize_into (const struct ddsi_sertype *type, const void *sample, void* dst_buffer, size_t dst_size) {
-  dds_ostream_t os = ostream_from_buffer(dst_buffer, dst_size);
   const struct ddsi_sertype_default *type_default = (const struct ddsi_sertype_default *)type;
+  dds_ostream_t os = ostream_from_buffer(dst_buffer, dst_size, type_default->encoding_version);
   dds_stream_write_sample(&os, sample, type_default);
   return true;
 }

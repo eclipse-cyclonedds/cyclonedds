@@ -521,7 +521,7 @@ static bool fill_iox_chunk(dds_writer *wr, const void *sample, void *iox_chunk,
     iox_header->shm_data_state = IOX_CHUNK_CONTAINS_RAW_DATA;
   } else {
     size_t size = iox_header->data_size;
-    ret = ddsi_sertype_serialize_into(wr->m_topic->m_stype, sample, iox_chunk, size);
+    ret = ddsi_sertype_serialize_into(wr->m_wr->type, sample, iox_chunk, size);
     if(ret) {
       iox_header->shm_data_state = IOX_CHUNK_CONTAINS_SERIALIZED_DATA;
     } else {
