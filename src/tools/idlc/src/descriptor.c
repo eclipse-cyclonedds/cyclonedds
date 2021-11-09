@@ -1177,6 +1177,8 @@ emit_sequence(
       assert(idl_is_member(member_node));
       if (idl_is_external(member_node))
         opcode |= DDS_OP_FLAG_EXT;
+      if (idl_is_optional(member_node))
+        opcode |= DDS_OP_FLAG_OPT;
     }
     off = ctype->instructions.count;
     if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, opcode, order)))
@@ -1288,8 +1290,12 @@ emit_array(
        we're processing a struct type, and this can be used to determine if its
        an external member */
     idl_node_t *parent = idl_parent(node);
-    if (idl_is_struct(stype->node) && idl_is_external(parent))
-      opcode |= DDS_OP_FLAG_EXT;
+    if (idl_is_struct(stype->node)) {
+      if (idl_is_external(parent))
+        opcode |= DDS_OP_FLAG_EXT;
+      if (idl_is_optional(parent))
+        opcode |= DDS_OP_FLAG_OPT;
+    }
 
     off = ctype->instructions.count;
     /* generate data field opcode */
@@ -1340,8 +1346,6 @@ emit_member(
   const idl_member_t *member = (const idl_member_t *)node;
   if (member->value.annotation)
     idl_warning(pstate, idl_location(node), "Explicit defaults are not supported yet in the C generator, the value from the @default annotation will not be used");
-  if (member->optional.annotation)
-    idl_warning(pstate, idl_location(node), "Optional members are not supported yet in the C generator, the @optional annotation will be ignored");
   return IDL_RETCODE_OK;
 }
 
@@ -1452,11 +1456,13 @@ emit_declarator(
       opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
     }
-    if (idl_is_struct(stype->node) && idl_is_external(parent))
-    {
-      opcode |= DDS_OP_FLAG_EXT;
-      /* For @external fields of type OP_TYPE_EXT include the size of the field to allow the serializer to allocate
-         memory for this field when deserializing. */
+    if (idl_is_struct(stype->node) && (idl_is_external(parent) || idl_is_optional(parent))) {
+      if (idl_is_external(parent))
+        opcode |= DDS_OP_FLAG_EXT;
+      if (idl_is_optional(parent))
+        opcode |= DDS_OP_FLAG_OPT;
+      /* For @external and @optional fields of type OP_TYPE_EXT include the size of the field to
+         allow the serializer to allocate memory for this field when deserializing. */
       if (DDS_OP_TYPE(opcode) == DDS_OP_VAL_EXT)
         has_size = true;
     }
@@ -1535,7 +1541,7 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       break;
   }
 
-  if (inst->data.opcode.code & DDS_OP_FLAG_EXT)
+  if ((opcode == DDS_OP_ADR || opcode == DDS_OP_JEQ4) && inst->data.opcode.code & DDS_OP_FLAG_EXT)
     vec[len++] = " | DDS_OP_FLAG_EXT";
 
   type = DDS_OP_TYPE(inst->data.opcode.code);
@@ -1556,9 +1562,13 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
   }
 
   /* FLAG_BASE to indicate inheritance in PLM list or EXT 'parent' field */
-  if (opcode == DDS_OP_ADR && inst->data.opcode.code & DDS_OP_FLAG_BASE)
-    vec[len++] = " | DDS_OP_FLAG_BASE";
-  else if (opcode == DDS_OP_PLM && (DDS_PLM_FLAGS(inst->data.opcode.code) & DDS_OP_FLAG_BASE))
+  if (opcode == DDS_OP_ADR) {
+    if (inst->data.opcode.code & DDS_OP_FLAG_BASE)
+      vec[len++] = " | DDS_OP_FLAG_BASE";
+    if (inst->data.opcode.code & DDS_OP_FLAG_OPT)
+      vec[len++] = " | DDS_OP_FLAG_OPT";
+  }
+  if (opcode == DDS_OP_PLM && (DDS_PLM_FLAGS(inst->data.opcode.code) & DDS_OP_FLAG_BASE))
     vec[len++] = " | (DDS_OP_FLAG_BASE << 16)";
 
   if (opcode == DDS_OP_JEQ || opcode == DDS_OP_JEQ4 || opcode == DDS_OP_PLM) {
@@ -1694,8 +1704,6 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
             brk = op + 3;
           else if (optype == DDS_OP_VAL_EXT) {
             brk = op + 3;
-            if (inst->data.opcode.code & DDS_OP_FLAG_EXT)
-              brk++;
           }
           else if (optype == DDS_OP_VAL_ARR || optype == DDS_OP_VAL_SEQ) {
             subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
@@ -1706,6 +1714,8 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
             brk = op + 4;
           else
             brk = op + 2;
+          if (inst->data.opcode.code & (DDS_OP_FLAG_EXT | DDS_OP_FLAG_OPT))
+            brk++;
           if (fputs(sep, fp) < 0 || print_opcode(fp, inst) < 0)
             return -1;
           break;

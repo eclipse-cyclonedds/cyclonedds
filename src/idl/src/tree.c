@@ -3515,3 +3515,8 @@ bool idl_is_external(const idl_node_t *node)
   return (idl_is_member(node) && ((idl_member_t *)node)->external.value)
     || (idl_is_case(node) && ((idl_case_t *)node)->external.value);
 }
+
+bool idl_is_optional(const idl_node_t *node)
+{
+  return (idl_is_member(node) && ((idl_member_t *)node)->optional.value);
+}

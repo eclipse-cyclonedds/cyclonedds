@@ -88,7 +88,7 @@ enum dds_stream_opcode {
          max = max enum value
        followed by alen case labels: in JEQ format
 
-     [ADR, e | EXT,   0, f] [offset] [next-insn, elem-insn] [elem-size iff "external" flag e is set]
+     [ADR, e | EXT,   0, f] [offset] [next-insn, elem-insn] [elem-size iff "external" flag e is set, or flag f has DDS_OP_FLAG_OPT]
      [ADR, STU,   0, f] *** not supported
    where
      s            = subtype
@@ -96,6 +96,7 @@ enum dds_stream_opcode {
      f            = flags:
                     - key/not key (DDS_OP_FLAG_KEY)
                     - base type member, used with EXT type (DDS_OP_FLAG_BASE)
+                    - optional (DDS_OP_FLAG_OPT)
      [offset]     = field offset from start of element in memory
      [elem-size]  = element size in memory (elem-size is only included in case 'external' flag is set)
      [max-size]   = string bound + 1
@@ -241,6 +242,7 @@ enum dds_stream_typecode_subtype {
 #define DDS_OP_FLAG_MU   (1u << 3) /* must-understand flag */
 #define DDS_OP_FLAG_BASE (1u << 4) /* jump to base type, used with PLM in mutable types and for
                                       the TYPE_EXT 'parent' member in final and appendable types */
+#define DDS_OP_FLAG_OPT  (1u << 5) /* optional flag, used with struct members */
 
 /* Topic descriptor flag values */
 #define DDS_TOPIC_FLAGS_MASK                    0x3fffffff  /* The 2 most significant bits are used for type extensibility */
