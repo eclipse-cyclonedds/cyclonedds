@@ -20,6 +20,8 @@ set(_sources
   test_struct_inherit_mutable.idl
   test_struct_external.idl
   test_union_external.idl
+  test_optional.idl
+  test_optional_mutable.idl
 #  test_struct_recursive.idl
 #  test_union_member_types.idl
 #  test_union_recursive.idl

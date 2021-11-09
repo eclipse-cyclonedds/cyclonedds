@@ -1,0 +1,203 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+@nested @final
+struct b {
+    long b1;
+};
+
+@nested @final
+union u switch (short) {
+ case 1: long u1;
+};
+
+typedef sequence<float> seqfloat_t;
+typedef sequence<long> seqlong_t;
+typedef sequence<seqlong_t> seqlong2_t;
+
+@nested @appendable
+struct test_opt_base {
+  @optional long b1;
+  @optional long b1n;
+};
+
+@topic @appendable
+struct test_opt : test_opt_base {
+  @optional long f1;
+  @optional long f1n;
+  @optional string f2;          // char * f2;
+  @optional string f2n;
+  @optional string<128> f3;     // char (* f3)[129];
+  @optional string<128> f3n;
+  @optional b f4;
+  @optional b f4n;
+  @optional u f5;
+  @optional u f5n;
+  @optional short f6[2];        // int16_t (* f6)[10]
+  @optional short f6n[2];
+  @optional short f7[2][3];     // int16_t (* f7)[2][3]
+  @optional short f7n[2][3];
+  @optional sequence<short> f8;
+  @optional sequence<short> f8n;
+  @optional seqfloat_t f9;
+  @optional seqfloat_t f9n;
+  @optional sequence<seqlong_t> f10;
+  @optional sequence<seqlong_t> f10n;
+  @optional seqlong2_t f11;
+  @optional seqlong2_t f11n;
+  @optional @external long f12;
+  @optional @external long f12n;
+};
+
+#else
+
+#include "dds/ddsrt/heap.h"
+#include "common.h"
+#include "test_optional.h"
+
+const dds_topic_descriptor_t *desc = &test_opt_desc;
+void init_sample (void *s);
+int cmp_sample (const void *sa, const void *sb);
+
+void init_sample (void *s)
+{
+  test_opt *s1 = (test_opt *) s;
+
+  EXTA (s1->parent.b1, 789);
+  s1->parent.b1n = NULL;
+
+  EXTA (s1->f1, 123);
+  s1->f1n = NULL;
+
+  STRA (s1->f2, STR128);
+  s1->f2n = NULL;
+
+  A (s1->f3);
+  strcpy (*(s1->f3), STR128);
+  s1->f3n = NULL;
+
+  A (s1->f4);
+  (*s1->f4).b1 = 456;
+  s1->f4n = NULL;
+
+  A (s1->f5);
+  s1->f5->_d = 1;
+  s1->f5->_u.u1 = 789;
+  s1->f5n = NULL;
+
+  A (s1->f6);
+  (*s1->f6)[0] = 321;
+  (*s1->f6)[1] = 654;
+  s1->f6n = NULL;
+
+  A (s1->f7);
+  for (int n = 0; n < 6; n++)
+    (*s1->f7)[n / 3][n % 3] = 1000 * n;
+  s1->f7n = NULL;
+
+  A (s1->f8);
+  SEQA(*(s1->f8), 3);
+  for (int n = 0; n < 3; n++)
+    s1->f8->_buffer[n] = 100 * n;
+  s1->f8n = NULL;
+
+  A (s1->f9);
+  SEQA(*(s1->f9), 4);
+  for (int n = 0; n < 4; n++)
+    s1->f9->_buffer[n] = (float) (0.1 * (float) n);
+  s1->f9n = NULL;
+
+  A (s1->f10);
+  SEQA(*(s1->f10), 2);
+  for (int n = 0; n < 2; n++)
+  {
+    SEQA(s1->f10->_buffer[n], 2);
+    s1->f10->_buffer[n]._buffer[0] = 20 * n;
+    s1->f10->_buffer[n]._buffer[1] = 20 * n + 10;
+  }
+  s1->f10n = NULL;
+
+  A (s1->f11);
+  SEQA(*(s1->f11), 3);
+  for (int n = 0; n < 3; n++)
+  {
+    SEQA(s1->f11->_buffer[n], 10);
+    for (int m = 0; m < 10; m++)
+      s1->f11->_buffer[n]._buffer[m] = 123 * n + m;
+  }
+  s1->f11n = NULL;
+
+  EXTA (s1->f12, 321);
+  s1->f12n = NULL;
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_opt *a = (test_opt *) sa;
+  test_opt *b = (test_opt *) sb;
+
+  CMPEXT (a, b, parent.b1, 789);
+  CMP (a, b, parent.b1n, NULL);
+
+  CMPEXT (a, b, f1, 123);
+  CMP (a, b, f1n, NULL);
+
+  CMPSTR (a, b, f2, STR128);
+  CMP (a, b, f2n, NULL);
+
+  CMPEXTSTR (a, b, f3, STR128);
+  CMP (a, b, f3n, NULL);
+
+  CMPEXTF (a, b, f4, b1, 456);
+  CMP (a, b, f4n, NULL);
+
+  CMPEXTF (a, b, f5, _d, 1);
+  CMPEXTF (a, b, f5, _u.u1, 789);
+  CMP (a, b, f5n, NULL);
+
+  CMPEXTA (a, b, f6, 0, 321);
+  CMPEXTA (a, b, f6, 1, 654);
+  CMP (a, b, f6n, NULL);
+
+  for (int n = 0; n < 6; n++)
+    CMPEXTA2 (a, b, f7, n / 3, n % 3, 1000 * n);
+  CMP (a, b, f7n, NULL);
+
+  for (int n = 0; n < 3; n++)
+    CMP(a, b, f8->_buffer[n], 100 * n);
+  CMP (a, b, f8n, NULL);
+
+  for (int n = 0; n < 4; n++)
+    CMP(a, b, f9->_buffer[n], (float) (0.1 * (float) n));
+  CMP (a, b, f9n, NULL);
+
+  for (int n = 0; n < 2; n++)
+  {
+    CMP(a, b, f10->_buffer[n]._buffer[0], 20 * n);
+    CMP(a, b, f10->_buffer[n]._buffer[1], 20 * n + 10);
+  }
+  CMP (a, b, f10n, NULL);
+
+  for (int n = 0; n < 3; n++)
+    for (int m = 0; m < 10; m++)
+      CMP(a, b, f11->_buffer[n]._buffer[m], 123 * n + m);
+  CMP (a, b, f11n, NULL);
+
+  CMPEXT (a, b, f12, 321);
+  CMP (a, b, f12n, NULL);
+
+  return 0;
+}
+
+#endif
