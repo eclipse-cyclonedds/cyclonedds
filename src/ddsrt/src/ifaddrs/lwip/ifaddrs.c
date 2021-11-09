@@ -199,7 +199,7 @@ again:
   }
 
   if (rc == DDS_RETCODE_OK) {
-    *ifap = ifa;
+    *ifap = root_ifa;
   } else {
     ddsrt_freeifaddrs(root_ifa);
   }
