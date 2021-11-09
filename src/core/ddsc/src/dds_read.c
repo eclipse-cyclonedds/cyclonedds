@@ -507,6 +507,28 @@ dds_return_t dds_take_next_wl (dds_entity_t reader, void **buf, dds_sample_info_
   return dds_read_impl (true, reader, buf, 1u, 1u, si, mask, DDS_HANDLE_NIL, true, true);
 }
 
+// MAKI should this only depend on iceoryx?
+bool dds_reader_loan_supported(dds_entity_t reader) {
+#ifndef DDS_HAS_SHM
+  (void)reader;
+  return false;
+#else
+  dds_reader *rd;
+
+  if (dds_reader_lock(reader, &rd) != DDS_RETCODE_OK) {
+    // more like an error but do we want to pass the result by pointer instead?
+    return false;
+  }
+
+  // lock/unlock is not necessary since it should not change
+  // can we acquire the rd pointer without locking?
+  bool ret = rd->m_iox_sub != NULL;
+
+  dds_reader_unlock(rd);
+  return ret;
+#endif
+}
+
 dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz)
 {
   if (bufsz <= 0)

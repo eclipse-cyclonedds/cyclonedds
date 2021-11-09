@@ -104,6 +104,62 @@ static void release_iox_chunk(dds_writer *wr, void *sample)
 }
 #endif
 
+bool dds_writer_loan_supported(dds_entity_t writer) {
+#ifndef DDS_HAS_SHM
+  (void)writer;
+  return false;
+#else
+  dds_writer *wr;
+
+  if (dds_writer_lock(writer, &wr) != DDS_RETCODE_OK) {
+    // more like an error but do we want to pass the result by pointer instead?
+    return false;
+  }
+
+  // lock/unlock is not necessary since it should not change
+  // can we acquire the wr pointer without locking?
+  bool ret = wr->m_iox_pub != NULL;
+
+  dds_writer_unlock(wr);
+  return ret;
+#endif
+}
+
+dds_return_t dds_loan_buffer(dds_entity_t writer, size_t size, void **buffer) {
+#ifndef DDS_HAS_SHM
+  (void)writer;
+  (void)sample;
+  return DDS_RETCODE_UNSUPPORTED;
+#else
+  dds_return_t ret;
+  dds_writer *wr;
+
+  if (!buffer)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  if ((ret = dds_writer_lock(writer, &wr)) != DDS_RETCODE_OK)
+    return ret;
+
+  // the loaning is only allowed if SHM is enabled correctly and if the type is
+  // fixed
+  if (/* writer supports shm*/ true) {
+    *buffer = create_iox_chunk(wr, size);
+    if (*buffer) {
+      register_pub_loan(wr, *buffer);
+    } else {
+      ret = DDS_RETCODE_ERROR; // could not obtain a sample
+    }
+
+  } else {
+    ret = DDS_RETCODE_UNSUPPORTED;
+  }
+
+  dds_writer_unlock(wr);
+  return ret;
+#endif
+}
+
+// MAKI implement in terms of loan_buffer
 dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
 {
 #ifndef DDS_HAS_SHM
@@ -140,6 +196,7 @@ dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
 #endif
 }
 
+// MAKI can use this to return the loan
 dds_return_t dds_return_writer_loan(dds_writer *writer, void **buf, int32_t bufsz)
 {
 #ifndef DDS_HAS_SHM
