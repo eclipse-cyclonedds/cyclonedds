@@ -1,0 +1,128 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+@nested @appendable
+union u switch (short) {
+ case 1: long u1;
+};
+
+typedef sequence<long> seqlong_t;
+typedef sequence<seqlong_t> seqlong2_t;
+
+@nested @mutable
+struct test_opt_base {
+  @optional long b1;
+  @optional long b1n;
+};
+
+@topic @mutable
+struct test_opt : test_opt_base {
+  @optional long f1;
+  @optional long f1n;
+  @optional string f2;
+  @optional string f2n;
+  @optional string<128> f3;
+  @optional string<128> f3n;
+  @optional u f4;
+  @optional u f4n;
+  @optional short f5[2][3];
+  @optional short f5n[2][3];
+  @optional sequence<seqlong_t> f6;
+  @optional sequence<seqlong_t> f6n;
+};
+
+#else
+
+#include "dds/ddsrt/heap.h"
+#include "common.h"
+#include "test_optional_mutable.h"
+
+const dds_topic_descriptor_t *desc = &test_opt_desc;
+void init_sample (void *s);
+int cmp_sample (const void *sa, const void *sb);
+
+void init_sample (void *s)
+{
+  test_opt *s1 = (test_opt *) s;
+
+  EXTA (s1->parent.b1, 789);
+  s1->parent.b1n = NULL;
+
+  EXTA (s1->f1, 123);
+  s1->f1n = NULL;
+
+  STRA (s1->f2, STR128);
+  s1->f2n = NULL;
+
+  A (s1->f3);
+  strcpy (*(s1->f3), STR128);
+  s1->f3n = NULL;
+
+  A (s1->f4);
+  s1->f4->_d = 1;
+  s1->f4->_u.u1 = 789;
+  s1->f4n = NULL;
+
+  A (s1->f5);
+  for (int n = 0; n < 6; n++)
+    (*s1->f5)[n / 3][n % 3] = 1000 * n;
+  s1->f5n = NULL;
+
+  A (s1->f6);
+  SEQA(*(s1->f6), 2);
+  for (int n = 0; n < 2; n++)
+  {
+    SEQA(s1->f6->_buffer[n], 2);
+    s1->f6->_buffer[n]._buffer[0] = 20 * n;
+    s1->f6->_buffer[n]._buffer[1] = 20 * n + 10;
+  }
+  s1->f6n = NULL;
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_opt *a = (test_opt *) sa;
+  test_opt *b = (test_opt *) sb;
+
+  CMPEXT (a, b, parent.b1, 789);
+  CMP (a, b, parent.b1n, NULL);
+
+  CMPEXT (a, b, f1, 123);
+  CMP (a, b, f1n, NULL);
+
+  CMPSTR (a, b, f2, STR128);
+  CMP (a, b, f2n, NULL);
+
+  CMPEXTSTR (a, b, f3, STR128);
+  CMP (a, b, f3n, NULL);
+
+  CMPEXTF (a, b, f4, _d, 1);
+  CMPEXTF (a, b, f4, _u.u1, 789);
+  CMP (a, b, f4n, NULL);
+
+  for (int n = 0; n < 6; n++)
+    CMPEXTA2 (a, b, f5, n / 3, n % 3, 1000 * n);
+  CMP (a, b, f5n, NULL);
+
+  for (int n = 0; n < 2; n++)
+  {
+    CMP(a, b, f6->_buffer[n]._buffer[0], 20 * n);
+    CMP(a, b, f6->_buffer[n]._buffer[1], 20 * n + 10);
+  }
+  CMP (a, b, f6n, NULL);
+
+  return 0;
+}
+
+#endif
