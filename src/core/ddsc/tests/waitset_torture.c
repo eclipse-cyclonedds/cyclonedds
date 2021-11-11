@@ -393,6 +393,12 @@ CU_Test (ddsc_waitset, torture)
              create_ent_ok_sum +
              wait_ok_sum > 1000);
 
+  /* Library should be de-initialized at this point.  That ordinarily means the handle
+     table is gone and PRECONDITION_NOT_MET is returned.  For some reason, on Windows x64
+     Release builds the thread cleanup doesn't fully take place, ultimately causing the
+     handle table to remain in existence (this is by design: those threads may still be
+     reading from it) and BAD_PARAMETER to be returned if the library is otherwise
+     properly deinitialized. */
   rc = dds_get_parent (DDS_CYCLONEDDS_HANDLE);
-  CU_ASSERT_FATAL (rc == DDS_RETCODE_PRECONDITION_NOT_MET);
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_PRECONDITION_NOT_MET || rc == DDS_RETCODE_BAD_PARAMETER);
 }
