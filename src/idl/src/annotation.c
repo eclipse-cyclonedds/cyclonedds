@@ -458,6 +458,40 @@ annotate_default_literal(
 }
 
 static idl_retcode_t
+annotate_must_understand(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+  idl_member_t *mem = (idl_member_t *)node;
+  bool must_understand = true;
+
+  assert(pstate);
+  assert(annotation_appl);
+
+  if (annotation_appl->parameters) {
+    idl_literal_t *literal = annotation_appl->parameters->const_expr;
+    assert(idl_type(literal) == IDL_BOOL);
+    must_understand = literal->value.bln;
+  }
+
+  if (!idl_is_member(node)) {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@must_understand can only be assigned to members");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }else if (!must_understand && mem->key.value) {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@must_understand can not be set to false on key members");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  mem->must_understand.annotation = annotation_appl;
+  mem->must_understand.value = must_understand;
+
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
 annotate_nested(
   idl_pstate_t *pstate,
   idl_annotation_appl_t *annotation_appl,
@@ -735,12 +769,12 @@ static const idl_builtin_annotation_t annotations[] = {
       "<p>Explicity sets the default value for an enum to the annotated enumerator"
       "instead of the first entry.</p>",
     .callback = &annotate_default_literal },
-#if 0
   { .syntax = "@annotation must_understand { boolean value default TRUE; };",
     .summary =
       "<p>Specify the data member must be understood by any application "
       "making use of that piece of data.</p>",
     .callback = annotate_must_understand },
+#if 0
   /* units and ranges */
   { .syntax = "@annotation range { any min; any max; };",
     .summary =
