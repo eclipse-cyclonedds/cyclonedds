@@ -293,6 +293,7 @@ struct idl_member {
   IDL_ANNOTATABLE(bool) key;
   IDL_ANNOTATABLE(bool) optional;
   IDL_ANNOTATABLE(bool) external;
+  IDL_ANNOTATABLE(bool) must_understand;
   IDL_ANNOTATABLE(const idl_literal_t*) value;
 };
 

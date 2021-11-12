@@ -947,3 +947,54 @@ CU_Test(idl_annotation, position)
 }
 
 #undef BM
+
+typedef struct mu_test {
+  const char *s;
+  idl_retcode_t ret;
+  bool val[8];
+  bool annotated[8];
+} mu_test_t;
+
+static void test_must_understand(mu_test_t test)
+{
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.s, &pstate);
+  CU_ASSERT_EQUAL(ret, test.ret);
+
+  if (ret)
+    return;
+
+  size_t i = 0;
+  if (idl_is_struct(pstate->root)) {
+    const idl_struct_t *s = (const idl_struct_t*)pstate->root;
+
+    const idl_member_t *mem = NULL;
+    IDL_FOREACH(mem, s->members) {
+      CU_ASSERT_EQUAL(mem->must_understand.value, test.val[i]);
+      if (test.annotated[i]) {
+        CU_ASSERT_PTR_NOT_NULL(mem->must_understand.annotation);
+      } else {
+        CU_ASSERT_PTR_NULL(mem->must_understand.annotation);
+      }
+      i++;
+    }
+  }
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_annotation, must_understand)
+{
+  mu_test_t tests[] = {
+    {"struct s { char c; @must_understand char d; @must_understand(false) char e; @key @must_understand(true) char f; };", IDL_RETCODE_OK, {false, true, false, true}, {false, true, true, true} },
+    {"struct s { @key @must_understand(false) char c;  };", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false} },
+    {"@must_understand struct s { char b; char c; };", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false} },
+    {"@must_understand module m { struct s { char b; char c; }; }; ", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false} },
+    {"union u switch(long) { case 0: @must_understand char c; default: string s; };", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false} },
+    {"@must_understand union u switch(long) { case 0: char c; default: string s; };", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false} },
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+    test_must_understand(tests[i]);
+  }
+}
