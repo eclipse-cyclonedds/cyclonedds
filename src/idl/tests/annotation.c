@@ -87,6 +87,8 @@ CU_Test(idl_annotation, optional)
     {"struct s { @optional char c; };",                         IDL_RETCODE_OK,                  {true} },  //implicit true
     {"struct s { @optional(false) char c; };",                  IDL_RETCODE_OK,                  {false} },  //explicit false
     {"struct s { @optional(true) char c; };",                   IDL_RETCODE_OK,                  {true} },  //explicit true
+    {"struct s { @optional(false) @key char c; };",             IDL_RETCODE_OK,                  {false} },  //no conflict
+    {"struct s { @optional(true) @key(false) char c; };",       IDL_RETCODE_OK,                  {true} },  //no conflict
     {"struct s { @optional(true) char c_1, c_2; char c_3; };",  IDL_RETCODE_OK,                  {true, false} },  //set on both declarators
     {"struct s { @optional sequence<double> s_d; };",           IDL_RETCODE_OK,                  {true} },  //set on sequence
     {"typedef sequence<long> seq_long;\n"
@@ -242,44 +244,98 @@ CU_Test(idl_annotation, default_literal)
   }
 }
 
-CU_Test(idl_annotation, key)
-{
+typedef struct key_test {
+  const char *str;
   idl_retcode_t ret;
-  idl_pstate_t *pstate = NULL;
-  idl_struct_t *s;
-  idl_member_t *m;
-  const char str[] = "struct s {\n"
-                     "  @key char a;\n"
-                     "  @key(TRUE) char b;\n"
-                     "  @key(FALSE) char c;\n"
-                     "  char d;\n"
-                     "};";
+  bool val[8];
+  bool annotated[8];
+} key_test_t;
 
-  ret = parse_string(IDL_FLAG_ANNOTATIONS, str, &pstate);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+static void test_key(key_test_t test)
+{
+  idl_pstate_t *pstate = NULL;
+
+  idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.str, &pstate);
+
+  CU_ASSERT_EQUAL(ret, test.ret);
+
+  if (ret)
+    return;
+
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
   assert(pstate);
-  s = (idl_struct_t *)pstate->root;
-  CU_ASSERT_FATAL(idl_is_struct(s));
-  assert(s);
-  m = (idl_member_t *)s->members;
-  CU_ASSERT_FATAL(idl_is_member(m));
-  CU_ASSERT_PTR_NOT_NULL(m->key.annotation);
-  CU_ASSERT(m->key.value == true);
-  assert(m);
-  m = idl_next(m);
-  CU_ASSERT_FATAL(idl_is_member(m));
-  CU_ASSERT_PTR_NOT_NULL(m->key.annotation);
-  CU_ASSERT(m->key.value == true);
-  m = idl_next(m);
-  CU_ASSERT_FATAL(idl_is_member(m));
-  CU_ASSERT_PTR_NOT_NULL(m->key.annotation);
-  CU_ASSERT(m->key.value == false);
-  m = idl_next(m);
-  CU_ASSERT_FATAL(idl_is_member(m));
-  CU_ASSERT_PTR_NULL(m->key.annotation);
-  CU_ASSERT(m->key.value == false);
+
+  if (idl_is_struct(pstate->root)) {
+    idl_struct_t *s = (idl_struct_t *)pstate->root;
+    assert(s);
+    size_t i = 0;
+    idl_member_t *m = NULL;
+    IDL_FOREACH(m, s->members) {
+      if (test.annotated[i]) {
+        CU_ASSERT_PTR_NOT_NULL(m->key.annotation);
+      } else {
+        CU_ASSERT_PTR_NULL(m->key.annotation);
+      }
+      CU_ASSERT(m->key.value == test.val[i]);
+
+      i++;
+    }
+  } else if (idl_is_union(pstate->root)) {
+    idl_union_t *u = (idl_union_t *)pstate->root;
+    assert(u);
+
+    if (test.annotated[0]) {
+      CU_ASSERT_PTR_NOT_NULL(u->switch_type_spec->key.annotation);
+    } else {
+      CU_ASSERT_PTR_NULL(u->switch_type_spec->key.annotation);
+    }
+    CU_ASSERT(u->switch_type_spec->key.value == test.val[0]);
+  } else {
+    CU_ASSERT(false);
+  }
+
   idl_delete_pstate(pstate);
+
+}
+
+CU_Test(idl_annotation, key)
+{
+  key_test_t tests[] = {
+    {"struct s {\n"
+     "  @key char a;\n"
+     "  @key(TRUE) char b;\n"
+     "  @key(FALSE) char c;\n"
+     "  @must_understand @key char d;\n"
+     "  @optional(FALSE) @key char e;\n"
+     "  char f;\n"
+     "};", IDL_RETCODE_OK, {true, true, false, true, true, false}, {true, true, true, true, true, false}},
+    {"union u switch(@key long) {\n"
+     " case 0: char c;\n"
+     " case 1: double d;\n"
+     "};", IDL_RETCODE_OK, {true}, {true}},
+    {"union u switch(long) {\n"
+     " case 0: char c;\n"
+     " case 1: @key double d;\n"
+     "};", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false}},
+    {"struct s {\n"
+     "  @must_understand(FALSE) @key char c;\n"
+     "};", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false}},
+    {"struct s {\n"
+     "  @optional @key char c;\n"
+     "};", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false}},
+    {"@key struct s {\n"
+     "  char c;\n"
+     "};", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false}},
+    {"@key module m {\n"
+     "  struct s {\n"
+     "    char c;\n"
+     "  };\n"
+     "};\n", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false}},
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+    test_key(tests[i]);
+  }
 }
 
 CU_Test(idl_annotation, nested)
