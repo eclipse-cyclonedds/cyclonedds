@@ -168,26 +168,27 @@ annotate_optional(
   idl_member_t *mem = (idl_member_t*)node;
   bool value = true;
 
+  assert(pstate);
   assert(annotation_appl);
+
+  if (annotation_appl->parameters) {
+    const_expr = annotation_appl->parameters->const_expr;
+    assert(idl_type(const_expr) == IDL_BOOL);
+    value = ((const idl_literal_t*)const_expr)->value.bln;
+  }
 
   if (!idl_is_member(node)) {
     idl_error(pstate, idl_location(annotation_appl),
       "@optional can only be assigned to members");
     return IDL_RETCODE_SEMANTIC_ERROR;
-  } else if (mem->key.value) {
+  } else if (value && mem->key.value) {
     idl_error(pstate, idl_location(annotation_appl),
-      "@optional cannot be assigned to key members");
+      "@optional cannot be set to true on key members");
     return IDL_RETCODE_SEMANTIC_ERROR;
-  } else if (mem->value.annotation) {
+  } else if (value && mem->value.annotation) {
     idl_error(pstate, idl_location(annotation_appl),
-      "@optional cannot be assigned to members with explicit default values");
+      "@optional cannot be set to true on members with explicit default values");
     return IDL_RETCODE_SEMANTIC_ERROR;
-  }
-
-  if (annotation_appl->parameters) {
-    const_expr = annotation_appl->parameters->const_expr;
-    assert(const_expr);
-    value = ((const idl_literal_t*)const_expr)->value.bln;
   }
 
   mem->optional.annotation = annotation_appl;
@@ -325,6 +326,9 @@ annotate_key(
 {
   bool key = true;
 
+  assert(pstate);
+  assert(annotation_appl);
+
   if (annotation_appl->parameters) {
     idl_literal_t *literal = annotation_appl->parameters->const_expr;
     assert(idl_type(literal) == IDL_BOOL);
@@ -332,13 +336,20 @@ annotate_key(
   }
 
   if (idl_mask(node) & IDL_MEMBER) {
-    if (((idl_member_t*)node)->optional.value) {
-      idl_error(pstate, idl_location(annotation_appl),
-        "@key cannot be applied to optional members");
-      return IDL_RETCODE_SEMANTIC_ERROR;
+    idl_member_t *mem = (idl_member_t *)node;
+    if (key) {
+      if (mem->optional.value) {
+        idl_error(pstate, idl_location(annotation_appl),
+          "@key cannot be set to true on optional members");
+        return IDL_RETCODE_SEMANTIC_ERROR;
+      } else if (mem->must_understand.annotation && !mem->must_understand.value) {
+        idl_error(pstate, idl_location(annotation_appl),
+          "@key cannot be set to true on members with must_understand set to false");
+        return IDL_RETCODE_SEMANTIC_ERROR;
+      }
     }
-    ((idl_member_t*)node)->key.annotation = annotation_appl;
-    ((idl_member_t*)node)->key.value = key;
+    mem->key.annotation = annotation_appl;
+    mem->key.value = key;
   } else if (idl_mask(node) & IDL_SWITCH_TYPE_SPEC) {
     ((idl_switch_type_spec_t *)node)->key.annotation = annotation_appl;
     ((idl_switch_type_spec_t *)node)->key.value = key;
@@ -763,12 +774,12 @@ static const idl_builtin_annotation_t annotations[] = {
     .summary =
       "<p>Specify the value with which the annotated member should be default"
       "initialized.</p>",
-    .callback = &annotate_default },
+    .callback = annotate_default },
   { .syntax = "@annotation default_literal { };",
     .summary =
       "<p>Explicity sets the default value for an enum to the annotated enumerator"
       "instead of the first entry.</p>",
-    .callback = &annotate_default_literal },
+    .callback = annotate_default_literal },
   { .syntax = "@annotation must_understand { boolean value default TRUE; };",
     .summary =
       "<p>Specify the data member must be understood by any application "
