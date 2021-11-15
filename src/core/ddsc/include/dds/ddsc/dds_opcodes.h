@@ -61,13 +61,11 @@ enum dds_stream_opcode {
      [ADR, ENU,   0, f] [offset] [max]
      [ADR, STR,   0, f] [offset]
      [ADR, BST,   0, f] [offset] [max-size]
-     [ADR, BSP,   0, f] [offset] [max-size]
 
      [ADR, SEQ, nBY, 0] [offset]
      [ADR, SEQ, ENU, 0] [offset] [max]
      [ADR, SEQ, STR, 0] [offset]
      [ADR, SEQ, BST, 0] [offset] [max-size]
-     [ADR, SEQ, BSP, 0] [offset] [max-size]
      [ADR, SEQ,   s, 0] [offset] [elem-size] [next-insn, elem-insn]
        where s = {SEQ,ARR,UNI,STU}
      [ADR, SEQ, EXT, f] *** not supported
@@ -76,7 +74,6 @@ enum dds_stream_opcode {
      [ADR, ARR, ENU, f] [offset] [alen] [max]
      [ADR, ARR, STR, 0] [offset] [alen]
      [ADR, ARR, BST, 0] [offset] [alen] [0] [max-size]
-     [ADR, ARR, BSP, 0] [offset] [alen] [0] [max-size]
      [ADR, ARR,   s, 0] [offset] [alen] [next-insn, elem-insn] [elem-size]
          where s = {SEQ,ARR,UNI,STU}
      [ADR, ARR, EXT, f] *** not supported
@@ -182,7 +179,7 @@ enum dds_stream_typecode {
   DDS_OP_VAL_ARR = 0x08, /* array */
   DDS_OP_VAL_UNI = 0x09, /* union */
   DDS_OP_VAL_STU = 0x0a, /* struct */
-  DDS_OP_VAL_BSP = 0x0b, /* bounded string mapped to char * */
+  /* 0x0b **available for future use** */
   DDS_OP_VAL_ENU = 0x0c, /* enumerated value (long) */
   DDS_OP_VAL_EXT = 0x0d  /* field with external definition */
 };
@@ -199,7 +196,6 @@ enum dds_stream_typecode_primary {
   DDS_OP_TYPE_ARR = DDS_OP_VAL_ARR << 16,
   DDS_OP_TYPE_UNI = DDS_OP_VAL_UNI << 16,
   DDS_OP_TYPE_STU = DDS_OP_VAL_STU << 16,
-  DDS_OP_TYPE_BSP = DDS_OP_VAL_BSP << 16,
   DDS_OP_TYPE_ENU = DDS_OP_VAL_ENU << 16,
   DDS_OP_TYPE_EXT = DDS_OP_VAL_EXT << 16
 };
@@ -225,7 +221,6 @@ enum dds_stream_typecode_subtype {
   DDS_OP_SUBTYPE_ARR = DDS_OP_VAL_ARR << 8,
   DDS_OP_SUBTYPE_UNI = DDS_OP_VAL_UNI << 8,
   DDS_OP_SUBTYPE_STU = DDS_OP_VAL_STU << 8,
-  DDS_OP_SUBTYPE_BSP = DDS_OP_VAL_BSP << 8,
   DDS_OP_SUBTYPE_ENU = DDS_OP_VAL_ENU << 8
 };
 #define DDS_OP_SUBTYPE_BOO DDS_OP_SUBTYPE_1BY

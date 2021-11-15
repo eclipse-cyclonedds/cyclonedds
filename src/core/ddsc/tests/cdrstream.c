@@ -106,9 +106,9 @@ static void sample_free_nested (void *s)
 typedef struct TestIdl_StrType
 {
   char * str1;
-  char * str2; // bounded (5)
+  char str2[6]; // bounded (6)
   char * strseq3[2];
-  char * strseq4[3]; // bounded (5)
+  char strseq4[3][6]; // bounded (6)
 } TestIdl_StrType;
 
 typedef struct TestIdl_MsgStr
@@ -119,21 +119,28 @@ typedef struct TestIdl_MsgStr
 static const uint32_t TestIdl_Msg_ops [] =
 {
   DDS_OP_ADR | DDS_OP_TYPE_STR, offsetof (TestIdl_MsgStr, msg_field1.str1),
-  DDS_OP_ADR | DDS_OP_TYPE_BSP, offsetof (TestIdl_MsgStr, msg_field1.str2), 6,
+  DDS_OP_ADR | DDS_OP_TYPE_BST, offsetof (TestIdl_MsgStr, msg_field1.str2), 6,
   DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_STR, offsetof (TestIdl_MsgStr, msg_field1.strseq3), 2,
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_BSP, offsetof (TestIdl_MsgStr, msg_field1.strseq4), 3, 0, 6,
+  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_BST, offsetof (TestIdl_MsgStr, msg_field1.strseq4), 3, 0, 6,
   DDS_OP_RTS
 };
 
-const dds_topic_descriptor_t TestIdl_MsgStr_desc = { sizeof (TestIdl_MsgStr), sizeof (char *), DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl::MsgStr", NULL, 6, TestIdl_Msg_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgStr_desc = { sizeof (TestIdl_MsgStr), sizeof (char *), DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl::MsgStr", NULL, 14, TestIdl_Msg_ops, "" };
 
 static void * sample_init_str (void)
 {
-  TestIdl_MsgStr msg = { .msg_field1 = { .str1 = "vstr", .str2 = "bstr", .strseq3 = { "vstr1", "vstr2" }} };
-  msg.msg_field1.strseq4[0] = ddsrt_strdup ("bstr1");
-  msg.msg_field1.strseq4[1] = ddsrt_strdup ("bstr2");
-  msg.msg_field1.strseq4[2] = ddsrt_strdup ("bstr3");
-  return ddsrt_memdup (&msg, sizeof (TestIdl_MsgStr));
+  TestIdl_MsgStr *msg = calloc (1, sizeof (*msg));
+  msg->msg_field1.str1 = ddsrt_strdup ("vstr");
+  strcpy (msg->msg_field1.str2, "bstr");
+
+  msg->msg_field1.strseq3[0] = ddsrt_strdup ("vstr1");
+  msg->msg_field1.strseq3[1] = ddsrt_strdup ("vstr2");
+
+  strcpy (msg->msg_field1.strseq4[0], "bstr1");
+  strcpy (msg->msg_field1.strseq4[1], "bstr2");
+  strcpy (msg->msg_field1.strseq4[2], "bstr3");
+
+  return msg;
 }
 
 static bool sample_equal_str (void *s1, void *s2)
@@ -154,9 +161,9 @@ static bool sample_equal_str (void *s1, void *s2)
 static void sample_free_str (void *s)
 {
   TestIdl_MsgStr *msg = s;
-  ddsrt_free (msg->msg_field1.strseq4[0]);
-  ddsrt_free (msg->msg_field1.strseq4[1]);
-  ddsrt_free (msg->msg_field1.strseq4[2]);
+  ddsrt_free (msg->msg_field1.str1);
+  ddsrt_free (msg->msg_field1.strseq3[0]);
+  ddsrt_free (msg->msg_field1.strseq3[1]);
   ddsrt_free (msg);
 }
 
@@ -892,7 +899,6 @@ typedef struct TestIdl_MsgAppendDefaults2
   TestIdl_MsgAppendDefaults2_Enum msg_field_enum;
   char *msg_field_str;
   char msg_field_bstr[100];
-  char *msg_field_bstrp;
   TestIdl_MsgAppendDefaults2Union msg_field_uni;
   TestIdl_MsgAppendDefaults2_msg_field_su8_seq msg_field_su8;
   TestIdl_SubMsgAppendDefaults2 msg_field_subm;
@@ -915,7 +921,6 @@ static const uint32_t TestIdl_MsgAppendDefaults2_ops [] =
   DDS_OP_ADR | DDS_OP_TYPE_ENU, offsetof (TestIdl_MsgAppendDefaults2, msg_field_enum), 2u,
   DDS_OP_ADR | DDS_OP_TYPE_STR, offsetof (TestIdl_MsgAppendDefaults2, msg_field_str),
   DDS_OP_ADR | DDS_OP_TYPE_BST, offsetof (TestIdl_MsgAppendDefaults2, msg_field_bstr), 100u,
-  DDS_OP_ADR | DDS_OP_TYPE_BSP, offsetof (TestIdl_MsgAppendDefaults2, msg_field_bstrp), 100u,
   DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_1BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field_au8), 100u,
   DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_8BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field_au64), 100u,
   DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_1BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field_su8),
@@ -946,7 +951,6 @@ static void * sample_init_appenddefaults2 (void)
   TestIdl_MsgAppendDefaults2 msg;
   memset (&msg, 0xff, sizeof (msg));
   msg.msg_field_str = NULL;
-  msg.msg_field_bstrp = NULL;
   msg.msg_field_su8._length = 0;
   msg.msg_field_ssubm._length = 0;
   msg.msg_field_uni._d = 0;
@@ -968,7 +972,6 @@ static bool sample_equal_appenddefaults1 (void *s_wr, void *s_rd)
     && msg_rd->msg_field_enum == TestIdl_APPEND_DEFAULTS_KIND1
     && msg_rd->msg_field_str != NULL && msg_rd->msg_field_str[0] == '\0'
     && msg_rd->msg_field_bstr[0] == '\0'
-    && msg_rd->msg_field_bstrp != NULL && msg_rd->msg_field_bstrp[0] == '\0'
     && msg_rd->msg_field_uni._d == 0 && msg_rd->msg_field_uni._u.field1 == 0
     && msg_rd->msg_field_su8._length == 0
     && msg_rd->msg_field_subm.submsg_field1 == 0
@@ -988,7 +991,6 @@ static void sample_free_appenddefaults (TestIdl_MsgAppendDefaults1 *s1, TestIdl_
 {
   ddsrt_free (s1);
   ddsrt_free (s2->msg_field_str);
-  ddsrt_free (s2->msg_field_bstrp);
   ddsrt_free (s2);
 }
 
