@@ -23,8 +23,9 @@ struct status_cb_data;
 
 void dds_reader_status_cb (void *entity, const struct status_cb_data * data);
 
-// MAKI make public
-bool dds_reader_loan_supported(dds_entity_t writer);
+DDS_EXPORT bool dds_reader_loan_supported(dds_entity_t reader);
+
+DDS_EXPORT bool dds_reader_shared_memory_supported(dds_entity_t reader);
 
 dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz);
 

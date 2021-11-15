@@ -507,24 +507,37 @@ dds_return_t dds_take_next_wl (dds_entity_t reader, void **buf, dds_sample_info_
   return dds_read_impl (true, reader, buf, 1u, 1u, si, mask, DDS_HANDLE_NIL, true, true);
 }
 
-// MAKI should this only depend on iceoryx?
+bool dds_reader_shared_memory_supported(dds_entity_t reader) {
+#ifndef DDS_HAS_SHM
+  (void)reader;
+  return false;
+#else
+  dds_entity *e;
+  if (DDS_RETCODE_OK != dds_entity_pin(reader, &e)) {
+    return false;
+  }
+
+  dds_reader *rd = (struct dds_reader *)e;
+  bool ret = rd->m_iox_sub != NULL;
+  dds_entity_unpin(e);
+  return ret;
+#endif
+}
+
 bool dds_reader_loan_supported(dds_entity_t reader) {
 #ifndef DDS_HAS_SHM
   (void)reader;
   return false;
 #else
-  dds_reader *rd;
-
-  if (dds_reader_lock(reader, &rd) != DDS_RETCODE_OK) {
-    // more like an error but do we want to pass the result by pointer instead?
+  dds_entity *e;
+  if (DDS_RETCODE_OK != dds_entity_pin(reader, &e)) {
     return false;
   }
 
-  // lock/unlock is not necessary since it should not change
-  // can we acquire the rd pointer without locking?
-  bool ret = rd->m_iox_sub != NULL;
-
-  dds_reader_unlock(rd);
+  dds_reader *rd = (struct dds_reader *)e;
+  // MAKI: check condition at reader side ok?
+  bool ret = (rd->m_iox_sub != NULL) && (rd->m_topic->m_stype->fixed_size);
+  dds_entity_unpin(e);
   return ret;
 #endif
 }

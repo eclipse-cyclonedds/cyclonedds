@@ -104,23 +104,36 @@ static void release_iox_chunk(dds_writer *wr, void *sample)
 }
 #endif
 
+bool dds_writer_shared_memory_supported(dds_entity_t writer) {
+#ifndef DDS_HAS_SHM
+  (void)writer;
+  return false;
+#else
+  dds_entity *e;
+  if (DDS_RETCODE_OK != dds_entity_pin(writer, &e)) {
+    return false;
+  }
+
+  dds_writer *wr = (struct dds_writer *)e;
+  bool ret = wr->m_iox_pub != NULL;
+  dds_entity_unpin(e);
+  return ret;
+#endif
+}
+
 bool dds_writer_loan_supported(dds_entity_t writer) {
 #ifndef DDS_HAS_SHM
   (void)writer;
   return false;
 #else
-  dds_writer *wr;
-
-  if (dds_writer_lock(writer, &wr) != DDS_RETCODE_OK) {
-    // more like an error but do we want to pass the result by pointer instead?
+  dds_entity *e;
+  if (DDS_RETCODE_OK != dds_entity_pin(writer, &e)) {
     return false;
   }
 
-  // lock/unlock is not necessary since it should not change
-  // can we acquire the wr pointer without locking?
-  bool ret = wr->m_iox_pub != NULL;
-
-  dds_writer_unlock(wr);
+  dds_writer *wr = (struct dds_writer *)e;
+  bool ret = (wr->m_iox_pub != NULL) && (wr->m_topic->m_stype->fixed_size);
+  dds_entity_unpin(e);
   return ret;
 #endif
 }
@@ -196,7 +209,6 @@ dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
 #endif
 }
 
-// MAKI can use this to return the loan
 dds_return_t dds_return_writer_loan(dds_writer *writer, void **buf, int32_t bufsz)
 {
 #ifndef DDS_HAS_SHM

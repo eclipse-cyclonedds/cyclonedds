@@ -110,6 +110,8 @@ void *dds_data_allocator_alloc (dds_data_allocator_t *data_allocator, size_t siz
       {
         enum iox_AllocationResult alloc_result;
         void *ptr;
+        // MAKI TODO set chunk header state uninitialized
+        // this needs a lock (use the writer lock?)
         alloc_result = iox_pub_loan_chunk (d->ref.pub, &ptr, (uint32_t) size);
         return (alloc_result == AllocationResult_SUCCESS) ? ptr : NULL;
       }
@@ -156,6 +158,42 @@ dds_return_t dds_data_allocator_free (dds_data_allocator_t *data_allocator, void
   (void) data_allocator;
   ddsrt_free (ptr);
 #endif
+  return ret;
+}
+
+// MAKI: return memory property struture instead? (dynamic, shared memory, other
+// ...), rename into memory properties in this case
+bool dds_is_shared_memory_available(const dds_entity_t entity) {
+  bool ret = false;
+#ifdef DDS_HAS_SHM
+  dds_entity *e;
+
+  if (DDS_RETCODE_OK != dds_entity_pin(entity, &e)) {
+    return ret;
+  }
+
+  switch (dds_entity_kind(e)) {
+  case DDS_KIND_READER: {
+    struct dds_reader const *const rd = (struct dds_reader *)e;
+    // only if SHM is enabled correctly (i.e. iox subscriber is initialized) and
+    // the type is fixed
+    ret = (rd->m_iox_sub != NULL) && (rd->m_topic->m_stype->fixed_size);
+    break;
+  }
+  case DDS_KIND_WRITER: {
+    struct dds_writer const *const wr = (struct dds_writer *)e;
+    // only if SHM is enabled correctly (i.e. iox publisher is initialized) and
+    // the type is fixed
+    ret = (wr->m_iox_pub != NULL) && (wr->m_topic->m_stype->fixed_size);
+    break;
+  }
+  default:
+    break;
+  }
+
+  dds_entity_unpin(e);
+#endif
+  (void)entity;
   return ret;
 }
 

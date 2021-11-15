@@ -122,6 +122,19 @@ DDS_EXPORT dds_return_t dds_data_allocator_free (dds_data_allocator_t *data_allo
  */
 DDS_EXPORT bool dds_is_loan_available (const dds_entity_t entity);
 
+/** @brief Check if a shared memory is available to reader/writer.
+ *
+ * @note shared memory available and loan available have different meaning
+ * 1)We may not be able to use the loan API due to type constraints (not fixed)
+ * 2) We may also allow using the loan API but without shared memory
+ * but in this case not zero-copy.
+ *
+ * @param[in] entity the handle of the entity
+ *
+ * @returns true if shared memory is available, false otherwise
+ */
+DDS_EXPORT bool dds_is_shared_memory_available(const dds_entity_t entity);
+
 DDS_DEPRECATED_EXPORT bool is_loan_available (const dds_entity_t entity);
 
 #if defined (__cplusplus)
