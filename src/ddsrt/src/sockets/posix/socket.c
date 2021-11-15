@@ -256,15 +256,6 @@ ddsrt_getsockopt(
   void *optval,
   socklen_t *optlen)
 {
-#if LWIP_SOCKET
-  if (optname == SO_SNDBUF || optname == SO_RCVBUF)
-    return DDS_RETCODE_BAD_PARAMETER;
-# if !SO_REUSE
-  if (optname == SO_REUSEADDR)
-    return DDS_RETCODE_BAD_PARAMETER;
-# endif /* SO_REUSE */
-#endif /* LWIP_SOCKET */
-
   if (getsockopt(sock, level, optname, optval, optlen) == 0)
     return DDS_RETCODE_OK;
 
@@ -272,9 +263,10 @@ ddsrt_getsockopt(
     case EBADF:
     case EFAULT:
     case EINVAL:
-    case ENOPROTOOPT:
     case ENOTSOCK:
       return DDS_RETCODE_BAD_PARAMETER;
+    case ENOPROTOOPT:
+      return DDS_RETCODE_UNSUPPORTED;
     default:
       break;
   }
@@ -290,15 +282,6 @@ ddsrt_setsockopt(
   const void *optval,
   socklen_t optlen)
 {
-#if LWIP_SOCKET
-  if (optname == SO_SNDBUF || optname == SO_RCVBUF)
-    return DDS_RETCODE_BAD_PARAMETER;
-# if !SO_REUSE
-  if (optname == SO_REUSEADDR)
-    return DDS_RETCODE_BAD_PARAMETER;
-# endif /* SO_REUSE */
-#endif /* LWIP_SOCKET */
-
   switch (optname) {
     case SO_SNDBUF:
     case SO_RCVBUF:
@@ -312,26 +295,16 @@ ddsrt_setsockopt(
       return DDS_RETCODE_OK;
   }
 
-  if (setsockopt(sock, level, optname, optval, optlen) == -1) {
-    goto err_setsockopt;
-  }
+  if (setsockopt(sock, level, optname, optval, optlen) == 0)
+    return DDS_RETCODE_OK;
 
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__QNXNTO__)
-  if (level == SOL_SOCKET && optname == SO_REUSEADDR &&
-      setsockopt(sock, level, SO_REUSEPORT, optval, optlen) == -1)
-  {
-    goto err_setsockopt;
-  }
-#endif /* __APPLE__ || __FreeBSD__ || __QNXNTO__*/
-
-  return DDS_RETCODE_OK;
-err_setsockopt:
   switch (errno) {
     case EBADF:
     case EINVAL:
-    case ENOPROTOOPT:
     case ENOTSOCK:
       return DDS_RETCODE_BAD_PARAMETER;
+    case ENOPROTOOPT:
+      return DDS_RETCODE_UNSUPPORTED;
     default:
       break;
   }

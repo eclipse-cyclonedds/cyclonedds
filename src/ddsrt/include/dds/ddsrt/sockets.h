@@ -113,7 +113,7 @@ DDS_EXPORT dds_return_t
 ddsrt_getsockopt(
   ddsrt_socket_t sock,
   int32_t level, /* SOL_SOCKET */
-  int32_t optname, /* SO_REUSEADDR, SO_DONTROUTE, SO_BROADCAST, SO_SNDBUF, SO_RCVBUF */
+  int32_t optname, /* SO_REUSEADDR, SO_DONTROUTE, SO_BROADCAST, SO_SNDBUF, SO_RCVBUF, ... */
   void *optval,
   socklen_t *optlen);
 
@@ -121,7 +121,7 @@ DDS_EXPORT dds_return_t
 ddsrt_setsockopt(
   ddsrt_socket_t sock,
   int32_t level, /* SOL_SOCKET */
-  int32_t optname, /* SO_REUSEADDR, SO_DONTROUTE, SO_BROADCAST, SO_SNDBUF, SO_RCVBUF */
+  int32_t optname, /* SO_REUSEADDR, SO_DONTROUTE, SO_BROADCAST, SO_SNDBUF, SO_RCVBUF, ... */
   const void *optval,
   socklen_t optlen);
 
@@ -146,6 +146,33 @@ DDS_EXPORT dds_return_t
 ddsrt_setsocknonblocking(
   ddsrt_socket_t sock,
   bool nonblock);
+
+/**
+ * @brief Set whether a port may be shared with other sockets
+ *
+ * Maps to SO_REUSEPORT (if defined) followed by SO_REUSEADDR
+ *
+ * @param[in]   sock  Socket to set reusability for.
+ * @param[in]   reuse Whether to allow sharing the address/port.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             SO_REUSEPORT successfully set, or not defined,
+ *             or returned ENOPROTOOPT
+ *             SO_REUSEADDR successfully set
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *             Network stack doesn't support SO_REUSEADDR and
+ *             returned ENOPROTOOPT
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Bad things happened (e.g., not a socket)
+ * @retval DDS_RETCODE_ERROR
+ *             An unknown error occurred.
+ */
+DDS_EXPORT dds_return_t
+ddsrt_setsockreuse(
+  ddsrt_socket_t sock,
+  bool reuse);
 
 DDS_EXPORT int32_t
 ddsrt_select(

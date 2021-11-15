@@ -351,9 +351,10 @@ ddsrt_getsockopt(
       return DDS_RETCODE_NO_NETWORK;
     case WSAEFAULT:
     case WSAEINVAL:
-    case WSAENOPROTOOPT:
     case WSAENOTSOCK:
       return DDS_RETCODE_BAD_PARAMETER;
+    case WSAENOPROTOOPT:
+      return DDS_RETCODE_UNSUPPORTED;
     case WSAEINPROGRESS:
       return DDS_RETCODE_TRY_AGAIN;
     default:
@@ -397,9 +398,10 @@ ddsrt_setsockopt(
       return DDS_RETCODE_NO_NETWORK;
     case WSAEFAULT:
     case WSAEINVAL:
-    case WSAENOPROTOOPT:
     case WSAENOTSOCK:
       return DDS_RETCODE_BAD_PARAMETER;
+    case WSAENOPROTOOPT:
+      return DDS_RETCODE_UNSUPPORTED;
     case WSAEINPROGRESS:
       return DDS_RETCODE_IN_PROGRESS;
     default:

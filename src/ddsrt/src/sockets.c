@@ -427,3 +427,23 @@ ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
 }
 #endif /* DDSRT_HAVE_GETADDRINFO */
 #endif /* DDSRT_HAVE_DNS */
+
+dds_return_t
+ddsrt_setsockreuse(ddsrt_socket_t sock, bool reuse)
+{
+  int flags = reuse;
+#ifdef SO_REUSEPORT
+  const dds_return_t rc = ddsrt_setsockopt (sock, SOL_SOCKET, SO_REUSEPORT, &flags, sizeof (flags));
+  switch (rc)
+  {
+    case DDS_RETCODE_UNSUPPORTED:
+      // e.g. LWIP, which defines SO_REUSEPORT but doesn't implement it.
+      //      note that we ignore this error because some systems use SO_REUSEADDR instead
+    case DDS_RETCODE_OK:
+      break;
+    default:
+      return rc;
+  }
+#endif
+  return ddsrt_setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, &flags, sizeof (flags));
+}
