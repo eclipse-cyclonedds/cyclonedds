@@ -65,39 +65,6 @@ static bool deregister_pub_loan(dds_writer *wr, const void *pub_loan)
     return false;
 }
 
-static void *create_iox_chunk(dds_writer *wr, size_t size)
-{
-    iceoryx_header_t *ice_hdr;
-    void *iox_chunk;    
-
-    // TODO: use a proper timeout to control the time it is allowed to take to obtain a chunk more accurately
-    // but for now only try a limited number of times (hence non-blocking).
-    // Otherwise we could block here forever and this also leads to problems with thread progress monitoring.
-
-    int32_t number_of_tries = 10; //try 10 times over at least 10ms, considering the wait time below
-
-    while (true)
-    {
-      enum iox_AllocationResult alloc_result = 
-        iox_pub_loan_aligned_chunk_with_user_header(wr->m_iox_pub, &iox_chunk, (uint32_t) size, IOX_C_CHUNK_DEFAULT_USER_PAYLOAD_ALIGNMENT, sizeof(iceoryx_header_t), 8);
-
-      if (AllocationResult_SUCCESS == alloc_result)
-        break;
-
-      if(--number_of_tries <= 0) {
-        return NULL;
-      }
-
-      dds_sleepfor (DDS_MSECS (1)); // TODO: how long should we wait?
-    }
-
-    iox_chunk_header_t * iox_chunk_header = iox_chunk_header_from_user_payload(iox_chunk);
-    ice_hdr = iox_chunk_header_to_user_header(iox_chunk_header);
-    ice_hdr->data_size = (uint32_t) size;
-    ice_hdr->shm_data_state = IOX_CHUNK_UNINITIALIZED;
-    return iox_chunk;
-}
-
 static void release_iox_chunk(dds_writer *wr, void *sample)
 {
   iox_pub_release_chunk(wr->m_iox_pub, sample);
@@ -141,7 +108,8 @@ bool dds_writer_loan_supported(dds_entity_t writer) {
 dds_return_t dds_loan_buffer(dds_entity_t writer, size_t size, void **buffer) {
 #ifndef DDS_HAS_SHM
   (void)writer;
-  (void)sample;
+  (void)size;
+  (void)buffer;
   return DDS_RETCODE_UNSUPPORTED;
 #else
   dds_return_t ret;
@@ -155,10 +123,18 @@ dds_return_t dds_loan_buffer(dds_entity_t writer, size_t size, void **buffer) {
 
   // the loaning is only allowed if SHM is enabled correctly and if the type is
   // fixed
-  if (/* writer supports shm*/ true) {
-    *buffer = create_iox_chunk(wr, size);
+  if (wr->m_iox_pub && wr->m_topic->m_stype->fixed_size) {
+    *buffer = shm_create_chunk(wr->m_iox_pub, size);
     if (*buffer) {
       register_pub_loan(wr, *buffer);
+      // NB: we set this since the user can use this chunk not only with write
+      // where we check whether it was loaned before.
+      // It is only possible to loan for fixed size types as of now.
+
+      // Unfortunate, since the chunk is not actually filled at this point.
+      // We should ensure that we cannot circumvent the write API
+      // (API redesign).
+      shm_set_data_state(*buffer, IOX_CHUNK_CONTAINS_RAW_DATA);
     } else {
       ret = DDS_RETCODE_ERROR; // could not obtain a sample
     }
@@ -172,7 +148,9 @@ dds_return_t dds_loan_buffer(dds_entity_t writer, size_t size, void **buffer) {
 #endif
 }
 
-// MAKI implement in terms of loan_buffer
+// MAKI: implementing this in terms of dds_loan_buffer leads to a performance
+// hit since we need to pin/lock writer to get the size Keep it duplicated for
+// this reason.
 dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
 {
 #ifndef DDS_HAS_SHM
@@ -192,10 +170,19 @@ dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
   // the loaning is only allowed if SHM is enabled correctly and if the type is fixed
   if (wr->m_iox_pub && wr->m_topic->m_stype->fixed_size)
   {
-    *sample = create_iox_chunk(wr, wr->m_topic->m_stype->iox_size);
+    *sample = shm_create_chunk(wr->m_iox_pub, wr->m_topic->m_stype->iox_size);
 
     if(*sample) {
       register_pub_loan(wr, *sample);
+
+      // NB: we set this since the user can use this chunk not only with write
+      // where we check whether it was loaned before.
+      // It is only possible to loan for fixed size types as of now.
+
+      // Unfortunate, since the chunk is not actually filled at this point.
+      // We should ensure that we cannot circumvent the write API
+      // (API redesign).
+      shm_set_data_state(*sample, IOX_CHUNK_CONTAINS_RAW_DATA);
     } else {
       ret = DDS_RETCODE_ERROR; // could not obtain a sample
     }
@@ -634,7 +621,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
         ret = DDS_RETCODE_OUT_OF_RESOURCES;
         goto finalize_write;
       }
-      iox_chunk = create_iox_chunk(wr, required_size);
+      iox_chunk = shm_create_chunk(wr->m_iox_pub, required_size);
 
       if(iox_chunk) {
         if(!fill_iox_chunk(wr, data, iox_chunk, required_size)) {

@@ -10,8 +10,9 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "dds/dds.h"
-#include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_sertype.h"
+#include "dds/ddsi/shm_transport.h"
+#include "dds/ddsrt/heap.h"
 #include "dds__data_allocator.h"
 #include "dds__entity.h"
 
@@ -106,14 +107,12 @@ void *dds_data_allocator_alloc (dds_data_allocator_t *data_allocator, size_t siz
     case DDS_IOX_ALLOCATOR_KIND_PUBLISHER:
       if (size > UINT32_MAX)
         return NULL;
-      else
-      {
-        enum iox_AllocationResult alloc_result;
-        void *ptr;
-        // MAKI TODO set chunk header state uninitialized
-        // this needs a lock (use the writer lock?)
-        alloc_result = iox_pub_loan_chunk (d->ref.pub, &ptr, (uint32_t) size);
-        return (alloc_result == AllocationResult_SUCCESS) ? ptr : NULL;
+      else {
+        // MAKI: We get problems with bookkeeping of loans etc., for which we
+        // need the dds_writer. We also need to lock the access to the iceoryx
+        // publisher if this is to be used concurrently. Currently we use the
+        // writer lock for this.
+        return shm_create_chunk(d->ref.pub, (uint32_t)size);
       }
     default:
       return NULL;
@@ -177,14 +176,14 @@ bool dds_is_shared_memory_available(const dds_entity_t entity) {
     struct dds_reader const *const rd = (struct dds_reader *)e;
     // only if SHM is enabled correctly (i.e. iox subscriber is initialized) and
     // the type is fixed
-    ret = (rd->m_iox_sub != NULL) && (rd->m_topic->m_stype->fixed_size);
+    ret = (rd->m_iox_sub != NULL);
     break;
   }
   case DDS_KIND_WRITER: {
     struct dds_writer const *const wr = (struct dds_writer *)e;
     // only if SHM is enabled correctly (i.e. iox publisher is initialized) and
     // the type is fixed
-    ret = (wr->m_iox_pub != NULL) && (wr->m_topic->m_stype->fixed_size);
+    ret = (wr->m_iox_pub != NULL);
     break;
   }
   default:

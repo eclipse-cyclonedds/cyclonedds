@@ -12,16 +12,17 @@
 #ifndef DDS_SHM__TRANSPORT_H
 #define DDS_SHM__TRANSPORT_H
 
-#include "dds/export.h"
-#include "iceoryx_binding_c/subscriber.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsi/q_protocol.h" /* for, e.g., SubmessageKind_t */
-#include "dds/ddsi/ddsi_tran.h"
-#include "dds/features.h"
 #include "dds/ddsi/ddsi_config.h"
-
 #include "dds/ddsi/ddsi_keyhash.h"
+#include "dds/ddsi/ddsi_tran.h"
+#include "dds/ddsi/q_protocol.h" /* for, e.g., SubmessageKind_t */
+#include "dds/ddsrt/sync.h"
+#include "dds/export.h"
+#include "dds/features.h"
+
 #include "iceoryx_binding_c/chunk.h"
+#include "iceoryx_binding_c/publisher.h"
+#include "iceoryx_binding_c/subscriber.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -71,6 +72,10 @@ DDS_EXPORT iceoryx_header_t *iceoryx_header_from_chunk(const void *iox_chunk);
 
 DDS_EXPORT void shm_set_loglevel(enum ddsi_shm_loglevel);
 
+DDS_EXPORT void *shm_create_chunk(iox_pub_t iox_pub, size_t size);
+
+DDS_EXPORT void shm_set_data_state(void *iox_chunk,
+                                   iox_shm_data_state_t data_state);
 
 #if defined (__cplusplus)
 }
