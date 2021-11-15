@@ -138,7 +138,7 @@ emit_field(
   void *user_data)
 {
   struct generator *gen = user_data;
-  char *type, dims[32] = "";
+  char *type;
   const char *fmt, *indent, *name, *ptr_open = "", *ptr_close = "", *type_prefix = "";
   const void *root;
   idl_literal_t *literal;
@@ -154,12 +154,8 @@ emit_field(
   if (IDL_PRINTA(&type, print_type, type_spec) < 0)
     return IDL_RETCODE_NO_MEMORY;
 
-  if (idl_is_string(type_spec)) {
-    if (idl_is_bounded(type_spec))
-      idl_snprintf(dims, sizeof(dims), "[%"PRIu32"]", idl_bound(type_spec)+1);
-    else
-      ptr_open = "* ";
-  }
+  if (idl_is_string(type_spec) && !idl_is_bounded(type_spec))
+    ptr_open = "* ";
 
   if (idl_is_external(root)) {
     if (idl_is_array(node) || (idl_is_string(type_spec) && idl_is_bounded(type_spec))) {
@@ -174,10 +170,20 @@ emit_field(
 
   type_prefix = get_type_prefix(type_spec);
 
-  bool empty = idl_is_empty(type_spec);
-  fmt = empty ? "%s/* %s%s %s%s%s%s */ /* no members */" : "%s%s%s %s%s%s%s";
-  if (idl_fprintf(gen->header.handle, fmt, indent, type_prefix, type, ptr_open, name, ptr_close, dims) < 0)
+  fmt = "%s";
+  if (idl_fprintf(gen->header.handle, fmt, indent) < 0)
     return IDL_RETCODE_NO_MEMORY;
+
+  bool empty = idl_is_empty(type_spec);
+  if (empty)
+    if (fputs("/* ", gen->header.handle) < 0)
+      return IDL_RETCODE_NO_MEMORY;
+
+  fmt = "%s%s %s%s%s";
+  if (idl_fprintf(gen->header.handle, fmt, type_prefix, type, ptr_open, name, ptr_close) < 0)
+    return IDL_RETCODE_NO_MEMORY;
+
+  /* array dims */
   fmt = "[%" PRIu32 "]";
   literal = ((const idl_declarator_t *)node)->const_expr;
   for (; literal; literal = idl_next(literal)) {
@@ -185,7 +191,16 @@ emit_field(
     if (idl_fprintf(gen->header.handle, fmt, literal->value.uint32) < 0)
       return IDL_RETCODE_NO_MEMORY;
   }
-  fmt = empty ? "\n" : ";\n";
+
+  /* bounded string dims */
+  if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
+    fmt = "[%"PRIu32"]";
+    if (idl_fprintf(gen->header.handle, fmt, idl_bound(type_spec) + 1) < 0)
+      return IDL_RETCODE_NO_MEMORY;
+  }
+
+  /* close member with ; or end empty-comment */
+  fmt = empty ? " */ /* no members */\n" : ";\n";
   if (fputs(fmt, gen->header.handle) < 0)
     return IDL_RETCODE_NO_MEMORY;
 
