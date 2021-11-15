@@ -33,14 +33,6 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t tstamp
 dds_return_t dds_writecdr_impl (dds_writer *wr, struct nn_xpack *xp, struct ddsi_serdata *d, bool flush);
 dds_return_t dds_writecdr_local_orphan_impl (struct local_orphan_writer *lowr, struct nn_xpack *xp, struct ddsi_serdata *d);
 
-// MAKI: maybe we do not want this (use allocator only instead)
-DDS_EXPORT dds_return_t dds_loan_buffer(dds_entity_t writer, size_t size,
-                                        void **buffer);
-
-DDS_EXPORT bool dds_writer_loan_supported(dds_entity_t writer);
-
-DDS_EXPORT bool dds_writer_shared_memory_supported(dds_entity_t writer);
-
 #if defined (__cplusplus)
 }
 #endif

@@ -22,6 +22,8 @@
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_sertopic.h" // for extern ddsi_sertopic_serdata_ops_wrap
 
+#include "dds/ddsc/dds_loan.h"
+
 /*
   dds_read_impl: Core read/take function. Usually maxs is size of buf and si
   into which samples/status are written, when set to zero is special case
@@ -505,41 +507,6 @@ dds_return_t dds_take_next_wl (dds_entity_t reader, void **buf, dds_sample_info_
 {
   uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
   return dds_read_impl (true, reader, buf, 1u, 1u, si, mask, DDS_HANDLE_NIL, true, true);
-}
-
-bool dds_reader_shared_memory_supported(dds_entity_t reader) {
-#ifndef DDS_HAS_SHM
-  (void)reader;
-  return false;
-#else
-  dds_entity *e;
-  if (DDS_RETCODE_OK != dds_entity_pin(reader, &e)) {
-    return false;
-  }
-
-  dds_reader *rd = (struct dds_reader *)e;
-  bool ret = rd->m_iox_sub != NULL;
-  dds_entity_unpin(e);
-  return ret;
-#endif
-}
-
-bool dds_reader_loan_supported(dds_entity_t reader) {
-#ifndef DDS_HAS_SHM
-  (void)reader;
-  return false;
-#else
-  dds_entity *e;
-  if (DDS_RETCODE_OK != dds_entity_pin(reader, &e)) {
-    return false;
-  }
-
-  dds_reader *rd = (struct dds_reader *)e;
-  // MAKI: check condition at reader side ok?
-  bool ret = (rd->m_iox_sub != NULL) && (rd->m_topic->m_stype->fixed_size);
-  dds_entity_unpin(e);
-  return ret;
-#endif
 }
 
 dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz)

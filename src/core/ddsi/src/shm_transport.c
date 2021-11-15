@@ -114,8 +114,12 @@ void *shm_create_chunk(iox_pub_t iox_pub, size_t size) {
   return iox_chunk;
 }
 
-DDS_EXPORT void shm_set_data_state(void *iox_chunk,
-                                   iox_shm_data_state_t data_state) {
+void shm_set_data_state(void *iox_chunk, iox_shm_data_state_t data_state) {
   iceoryx_header_t *iox_hdr = iceoryx_header_from_chunk(iox_chunk);
   iox_hdr->shm_data_state = data_state;
+}
+
+iox_shm_data_state_t shm_get_data_state(void *iox_chunk) {
+  iceoryx_header_t *iox_hdr = iceoryx_header_from_chunk(iox_chunk);
+  return iox_hdr->shm_data_state;
 }

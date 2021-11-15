@@ -27,6 +27,8 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
 
+#include "dds/ddsc/dds_loan.h"
+
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/shm_transport.h"
@@ -71,41 +73,8 @@ static void release_iox_chunk(dds_writer *wr, void *sample)
 }
 #endif
 
-bool dds_writer_shared_memory_supported(dds_entity_t writer) {
-#ifndef DDS_HAS_SHM
-  (void)writer;
-  return false;
-#else
-  dds_entity *e;
-  if (DDS_RETCODE_OK != dds_entity_pin(writer, &e)) {
-    return false;
-  }
-
-  dds_writer *wr = (struct dds_writer *)e;
-  bool ret = wr->m_iox_pub != NULL;
-  dds_entity_unpin(e);
-  return ret;
-#endif
-}
-
-bool dds_writer_loan_supported(dds_entity_t writer) {
-#ifndef DDS_HAS_SHM
-  (void)writer;
-  return false;
-#else
-  dds_entity *e;
-  if (DDS_RETCODE_OK != dds_entity_pin(writer, &e)) {
-    return false;
-  }
-
-  dds_writer *wr = (struct dds_writer *)e;
-  bool ret = (wr->m_iox_pub != NULL) && (wr->m_topic->m_stype->fixed_size);
-  dds_entity_unpin(e);
-  return ret;
-#endif
-}
-
-dds_return_t dds_loan_buffer(dds_entity_t writer, size_t size, void **buffer) {
+dds_return_t dds_loan_shared_memory_buffer(dds_entity_t writer, size_t size,
+                                           void **buffer) {
 #ifndef DDS_HAS_SHM
   (void)writer;
   (void)size;
@@ -121,9 +90,7 @@ dds_return_t dds_loan_buffer(dds_entity_t writer, size_t size, void **buffer) {
   if ((ret = dds_writer_lock(writer, &wr)) != DDS_RETCODE_OK)
     return ret;
 
-  // the loaning is only allowed if SHM is enabled correctly and if the type is
-  // fixed
-  if (wr->m_iox_pub && wr->m_topic->m_stype->fixed_size) {
+  if (wr->m_iox_pub) {
     *buffer = shm_create_chunk(wr->m_iox_pub, size);
     if (*buffer) {
       register_pub_loan(wr, *buffer);

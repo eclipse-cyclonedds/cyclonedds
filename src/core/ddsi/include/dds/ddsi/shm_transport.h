@@ -77,6 +77,8 @@ DDS_EXPORT void *shm_create_chunk(iox_pub_t iox_pub, size_t size);
 DDS_EXPORT void shm_set_data_state(void *iox_chunk,
                                    iox_shm_data_state_t data_state);
 
+DDS_EXPORT iox_shm_data_state_t shm_get_data_state(void *iox_chunk);
+
 #if defined (__cplusplus)
 }
 #endif
