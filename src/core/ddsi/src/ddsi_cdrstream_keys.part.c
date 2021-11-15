@@ -21,7 +21,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
     case DDS_OP_VAL_2BY: dds_os_put2BO (os, *((uint16_t *) addr)); break;
     case DDS_OP_VAL_4BY: case DDS_OP_VAL_ENU: dds_os_put4BO (os, *((uint32_t *) addr)); break;
     case DDS_OP_VAL_8BY: dds_os_put8BO (os, *((uint64_t *) addr)); break;
-    case DDS_OP_VAL_STR: case DDS_OP_VAL_BSP: dds_stream_write_stringBO (os, *(char **) addr); break;
+    case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, *(char **) addr); break;
     case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, addr); break;
     case DDS_OP_VAL_ARR: {
       const uint32_t elem_size = get_type_size (DDS_OP_SUBTYPE (*insnp));

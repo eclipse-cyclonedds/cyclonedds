@@ -1539,7 +1539,6 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
     case DDS_OP_VAL_8BY: vec[len++] = " | DDS_OP_TYPE_8BY"; break;
     case DDS_OP_VAL_STR: vec[len++] = " | DDS_OP_TYPE_STR"; break;
     case DDS_OP_VAL_BST: vec[len++] = " | DDS_OP_TYPE_BST"; break;
-    case DDS_OP_VAL_BSP: vec[len++] = " | DDS_OP_TYPE_BSP"; break;
     case DDS_OP_VAL_SEQ: vec[len++] = " | DDS_OP_TYPE_SEQ"; break;
     case DDS_OP_VAL_ARR: vec[len++] = " | DDS_OP_TYPE_ARR"; break;
     case DDS_OP_VAL_UNI: vec[len++] = " | DDS_OP_TYPE_UNI"; break;
@@ -1575,7 +1574,6 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       case DDS_OP_VAL_8BY: vec[len++] = " | DDS_OP_SUBTYPE_8BY"; break;
       case DDS_OP_VAL_STR: vec[len++] = " | DDS_OP_SUBTYPE_STR"; break;
       case DDS_OP_VAL_BST: vec[len++] = " | DDS_OP_SUBTYPE_BST"; break;
-      case DDS_OP_VAL_BSP: vec[len++] = " | DDS_OP_SUBTYPE_BSP"; break;
       case DDS_OP_VAL_SEQ: vec[len++] = " | DDS_OP_SUBTYPE_SEQ"; break;
       case DDS_OP_VAL_ARR: vec[len++] = " | DDS_OP_SUBTYPE_ARR"; break;
       case DDS_OP_VAL_UNI: vec[len++] = " | DDS_OP_SUBTYPE_UNI"; break;
@@ -1878,7 +1876,7 @@ static idl_retcode_t get_ctype_keys_adr(
       case DDS_OP_VAL_2BY: size = align = 2; break;
       case DDS_OP_VAL_4BY: size = align = 4; break;
       case DDS_OP_VAL_8BY: size = align = 8; break;
-      case DDS_OP_VAL_BST: case DDS_OP_VAL_BSP: {
+      case DDS_OP_VAL_BST: {
         assert(offs + 2 < ctype->instructions.count);
         assert(ctype->instructions.table[offs + 2].type == SINGLE);
         /* string size if stored as bound + 1 */
@@ -2123,7 +2121,7 @@ static int print_flags(FILE *fp, struct descriptor *descriptor)
         continue;
 
       uint32_t typecode = DDS_OP_TYPE(i.data.opcode.code);
-      if (typecode == DDS_OP_VAL_STR || typecode == DDS_OP_VAL_BST || typecode == DDS_OP_VAL_BSP ||typecode == DDS_OP_VAL_SEQ)
+      if (typecode == DDS_OP_VAL_STR || typecode == DDS_OP_VAL_BST ||typecode == DDS_OP_VAL_SEQ)
         fixed_size = false;
     }
   }

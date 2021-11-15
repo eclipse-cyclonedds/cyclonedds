@@ -62,11 +62,11 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
         ops += 2;
         break;
       }
-      case DDS_OP_VAL_STR: case DDS_OP_VAL_BSP: {
+      case DDS_OP_VAL_STR: {
         const char **ptr = (const char **) seq->_buffer;
         for (uint32_t i = 0; i < num; i++)
           dds_stream_write_stringBO (os, ptr[i]);
-        ops += 2 + (subtype == DDS_OP_VAL_BSP ? 2 : 0);
+        ops += 2;
         break;
       }
       case DDS_OP_VAL_BST: {
@@ -130,11 +130,11 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
       ops += 3;
       break;
     }
-    case DDS_OP_VAL_STR: case DDS_OP_VAL_BSP: {
+    case DDS_OP_VAL_STR: {
       const char **ptr = (const char **) addr;
       for (uint32_t i = 0; i < num; i++)
         dds_stream_write_stringBO (os, ptr[i]);
-      ops += 3 + (subtype == DDS_OP_VAL_BSP ? 2 : 0);
+      ops += 3;
       break;
     }
     case DDS_OP_VAL_BST: {
@@ -204,7 +204,7 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
       case DDS_OP_VAL_2BY: dds_os_put2BO (os, *(const uint16_t *) valaddr); break;
       case DDS_OP_VAL_4BY: case DDS_OP_VAL_ENU: dds_os_put4BO (os, *(const uint32_t *) valaddr); break;
       case DDS_OP_VAL_8BY: dds_os_put8BO (os, *(const uint64_t *) valaddr); break;
-      case DDS_OP_VAL_STR: case DDS_OP_VAL_BSP: dds_stream_write_stringBO (os, *(const char **) valaddr); break;
+      case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, *(const char **) valaddr); break;
       case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, (const char *) valaddr); break;
       case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR:
         (void) dds_stream_writeBO (os, valaddr, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]));
@@ -322,7 +322,6 @@ const uint32_t *dds_stream_writeBO (DDS_OSTREAM_T * __restrict os, const char * 
           case DDS_OP_VAL_4BY: dds_os_put4BO (os, *((const uint32_t *) addr)); ops += 2; break;
           case DDS_OP_VAL_8BY: dds_os_put8BO (os, *((const uint64_t *) addr)); ops += 2; break;
           case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, *((const char **) addr)); ops += 2; break;
-          case DDS_OP_VAL_BSP: dds_stream_write_stringBO (os, *((const char **) addr)); ops += 3; break;
           case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, (const char *) addr); ops += 3; break;
           case DDS_OP_VAL_SEQ: ops = dds_stream_write_seqBO (os, addr, ops, insn); break;
           case DDS_OP_VAL_ARR: ops = dds_stream_write_arrBO (os, addr, ops, insn); break;
