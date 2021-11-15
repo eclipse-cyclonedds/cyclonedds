@@ -475,7 +475,10 @@ static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_
       false == cfg->enable_shm)
     return false;
 
-  if(!tp->m_stype->fixed_size && !tp->m_stype->ops->get_serialized_size && !tp->m_stype->ops->serialize_into) {
+  // check necessary condition: fixed size data type OR serializing into shared
+  // memory is available
+  if (!tp->m_stype->fixed_size && (!tp->m_stype->ops->get_serialized_size ||
+                                   !tp->m_stype->ops->serialize_into)) {
     return false;
   }
 
