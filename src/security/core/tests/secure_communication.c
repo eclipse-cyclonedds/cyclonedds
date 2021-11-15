@@ -395,7 +395,7 @@ static void test_payload_secret(DDS_Security_ProtectionKind rtps_pk, DDS_Securit
 
 /* Test communication between 2 nodes for all combinations of RTPS, metadata (submsg)
    and payload protection kinds using a single reader and writer */
-CU_Test(ddssec_secure_communication, protection_kinds, .timeout = 120)
+CU_Test(ddssec_secure_communication, protection_kinds, .timeout = 150)
 {
   DDS_Security_ProtectionKind rtps_pk[] = { PK_N, PK_S, PK_E };
   DDS_Security_ProtectionKind metadata_pk[] = { PK_N, PK_S, PK_E };
@@ -414,7 +414,7 @@ CU_Test(ddssec_secure_communication, protection_kinds, .timeout = 120)
 
 /* Test communication between 2 nodes for all combinations of discovery and
    liveliness protection kinds using a single reader and writer */
-CU_Test(ddssec_secure_communication, discovery_liveliness_protection, .timeout = 60)
+CU_Test(ddssec_secure_communication, discovery_liveliness_protection, .timeout = 90)
 {
   DDS_Security_ProtectionKind discovery_pk[] = { PK_N, PK_S, PK_E };
   DDS_Security_ProtectionKind liveliness_pk[] = { PK_N, PK_S, PK_E };
@@ -429,7 +429,7 @@ CU_Test(ddssec_secure_communication, discovery_liveliness_protection, .timeout =
 
 /* Test that a specific character sequence from the plain data does not appear in
    encrypted payload, submessage or rtps message when protection kind is ENCRYPT*/
-CU_Test(ddssec_secure_communication, check_encrypted_secret, .timeout = 60)
+CU_Test(ddssec_secure_communication, check_encrypted_secret, .timeout = 90)
 {
   DDS_Security_ProtectionKind rtps_pk[] = { PK_N, PK_E, PK_EOA };
   DDS_Security_ProtectionKind metadata_pk[] = { PK_N, PK_E, PK_EOA };
@@ -453,7 +453,7 @@ CU_TheoryDataPoints(ddssec_secure_communication, multiple_readers) = {
     CU_DataPoints(size_t, 1, 3, 1, 3), /* number of participants per domain */
     CU_DataPoints(size_t, 3, 1, 3, 3), /* number of readers per participant */
 };
-CU_Theory((size_t n_dom, size_t n_pp, size_t n_rd), ddssec_secure_communication, multiple_readers, .timeout = 90, .disabled = false)
+CU_Theory((size_t n_dom, size_t n_pp, size_t n_rd), ddssec_secure_communication, multiple_readers, .timeout = 120, .disabled = false)
 {
   DDS_Security_ProtectionKind metadata_pk[] = { PK_N, PK_SOA, PK_EOA };
   DDS_Security_BasicProtectionKind payload_pk[] = { BPK_N, BPK_S, BPK_E };
@@ -475,7 +475,7 @@ CU_TheoryDataPoints(ddssec_secure_communication, multiple_readers_writers) = {
     CU_DataPoints(size_t, 1, 1, 2), /* number of writer domains */
     CU_DataPoints(size_t, 1, 3, 3), /* number of writers per domain */
 };
-CU_Theory((size_t n_rd_dom, size_t n_rd, size_t n_wr_dom, size_t n_wr), ddssec_secure_communication, multiple_readers_writers, .timeout = 60, .disabled = false)
+CU_Theory((size_t n_rd_dom, size_t n_rd, size_t n_wr_dom, size_t n_wr), ddssec_secure_communication, multiple_readers_writers, .timeout = 90, .disabled = false)
 {
   DDS_Security_ProtectionKind metadata_pk[] = { PK_SOA, PK_EOA };
   for (size_t metadata = 0; metadata < sizeof (metadata_pk) / sizeof (metadata_pk[0]); metadata++)

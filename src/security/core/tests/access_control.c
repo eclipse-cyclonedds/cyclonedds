@@ -214,7 +214,7 @@ CU_Theory(
   (const char * test_descr,
     int32_t perm1_not_before, int32_t perm1_not_after, int32_t perm2_not_before, int32_t perm2_not_after,
     uint32_t delay_perm, bool exp_pp1_fail, bool exp_pp2_fail, uint32_t write_read_dur, bool exp_read_fail),
-  ddssec_access_control, permissions_expiry, .timeout=30)
+  ddssec_access_control, permissions_expiry, .timeout=60)
 {
   print_test_msg ("running test permissions_expiry: %s\n", test_descr);
 
@@ -275,7 +275,7 @@ static dds_time_t ceiling_sec (dds_time_t t)
 #define PERM_EXP_INCR 2
 /* Tests permissions configuration expiry using multiple writers, to validate
    that a reader keeps receiving data from writers that have valid permissions config */
-CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
+CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=60)
 {
   char topic_name[100];
   create_topic_name ("ddssec_access_control_", g_topic_nr++, topic_name, sizeof (topic_name));
@@ -446,7 +446,7 @@ CU_TheoryDataPoints(ddssec_access_control, hooks) = {
    not-allowed mode to force denial of a specified entity. */
 CU_Theory(
   (const char * init_fn, bool exp_pp_fail, bool exp_local_topic_fail, bool exp_remote_topic_fail, bool exp_wr_fail, bool exp_rd_fail, bool exp_wr_rd_sync_fail, bool exp_rd_wr_sync_fail),
-  ddssec_access_control, hooks, .timeout=60)
+  ddssec_access_control, hooks, .timeout=90)
 {
   for (int i = 0; i <= 1; i++)
   {
@@ -524,7 +524,7 @@ CU_TheoryDataPoints(ddssec_access_control, join_access_control) = {
    valid/invalid permissions for 2 participants. */
 CU_Theory(
   (const char * test_descr, bool join_ac_pp1, bool join_ac_pp2, bool perm_inv_pp1, bool perm_inv_pp2, bool exp_pp1_fail, bool exp_pp2_fail, bool exp_hs_fail),
-  ddssec_access_control, join_access_control, .timeout=30)
+  ddssec_access_control, join_access_control, .timeout=60)
 {
   print_test_msg ("running test join_access_control: %s\n", test_descr);
 
@@ -824,7 +824,7 @@ static void test_readwrite_protection (
 /* Test read/write access control by running test cases with different combinations
    of allow and deny rules for publishing and subscribing on a topic, and check correct
    working of the default policy. */
-CU_Test(ddssec_access_control, readwrite_protection, .timeout=60)
+CU_Test(ddssec_access_control, readwrite_protection, .timeout=90)
 {
   for (int allow_pub = 0; allow_pub <= 1; allow_pub++)
     for (int allow_sub = 0; allow_sub <= 1; allow_sub++)
