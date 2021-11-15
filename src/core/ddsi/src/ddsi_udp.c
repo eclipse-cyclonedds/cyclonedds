@@ -418,9 +418,7 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
 {
   struct ddsi_udp_tran_factory *fact = (struct ddsi_udp_tran_factory *) fact_cmn;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
-  //
   struct nn_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
-  const int one = 1;
 
   dds_return_t rc;
   ddsrt_socket_t sock;
@@ -488,14 +486,15 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
     goto fail;
   }
 
-  if (reuse_addr && (rc = ddsrt_setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof (one))) != DDS_RETCODE_OK)
-  {
-    GVERROR ("ddsi_udp_create_conn: failed to enable address reuse: %s\n", dds_strretcode (rc));
-    if (rc != DDS_RETCODE_BAD_PARAMETER)
-    {
-      /* There must at some point have been an implementation that refused to do SO_REUSEADDR, but I
-         don't know which */
+  if (reuse_addr && (rc = ddsrt_setsockreuse (sock, true)) != DDS_RETCODE_OK) {
+    if (rc != DDS_RETCODE_UNSUPPORTED) {
+      GVERROR ("ddsi_udp_create_conn: failed to enable port reuse: %s\n", dds_strretcode(rc));
       goto fail_w_socket;
+    } else {
+      // If the network stack doesn't support it, do make it fairly easy to find out,
+      // but don't always print it to stderr because it would likely be more annoying
+      // than helpful.
+      GVLOG (DDS_LC_CONFIG, "ddsi_udp_create_conn: port reuse not supported by network stack\n");
     }
   }
 

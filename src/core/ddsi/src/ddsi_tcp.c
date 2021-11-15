@@ -176,9 +176,11 @@ static void ddsi_tcp_sock_free (struct ddsi_domaingv const * const gv, ddsrt_soc
 static dds_return_t ddsi_tcp_sock_new (struct ddsi_tran_factory_tcp * const fact, ddsrt_socket_t *sock, uint16_t port)
 {
   struct ddsi_domaingv const * const gv = fact->fact.gv;
-  const int one = 1;
   union addr socketname;
   dds_return_t rc;
+#if defined SO_NOSIGPIPE || defined TCP_NODELAY
+  const int one = 1;
+#endif
 
   memset (&socketname, 0, sizeof (socketname));
   switch (fact->m_kind)
@@ -204,11 +206,17 @@ static dds_return_t ddsi_tcp_sock_new (struct ddsi_tran_factory_tcp * const fact
     goto fail;
   }
 
-  /* REUSEADDR if we're binding to a port number */
-  if (port && (rc = ddsrt_setsockopt (*sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof (one))) != DDS_RETCODE_OK)
-  {
-    GVERROR ("ddsi_tcp_sock_new: failed to enable address reuse: %s\n", dds_strretcode (rc));
-    goto fail_w_socket;
+  /* If we're binding to a port number, allow others to bind to the same port */
+  if (port && (rc = ddsrt_setsockreuse (*sock, true)) != DDS_RETCODE_OK) {
+    if (rc != DDS_RETCODE_UNSUPPORTED) {
+      GVERROR ("ddsi_tcp_sock_new: failed to enable port reuse: %s\n", dds_strretcode(rc));
+      goto fail_w_socket;
+    } else {
+      // If the network stack doesn't support it, do make it fairly easy to find out,
+      // but don't always print it to stderr because it would likely be more annoying
+      // than helpful.
+      GVLOG (DDS_LC_CONFIG, "ddsi_tcp_sock_new: port reuse not supported by network stack\n");
+    }
   }
 
   if ((rc = ddsrt_bind (*sock, &socketname.a, ddsrt_sockaddr_get_size (&socketname.a))) != DDS_RETCODE_OK)
