@@ -11,10 +11,13 @@
  */
 #include "dds/dds.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/shm_transport.h"
 #include "dds/ddsrt/heap.h"
 #include "dds__data_allocator.h"
 #include "dds__entity.h"
+
+#ifdef DDS_HAS_SHM
+#include "dds/ddsi/shm_transport.h"
+#endif
 
 #include "dds/ddsc/dds_loan.h"
 

@@ -32,8 +32,6 @@
 extern "C" {
 #endif
 
-typedef int32_t dds_entity_t;
-
 typedef struct dds_sequence
 {
   uint32_t _maximum;

@@ -6,7 +6,7 @@
 #ifndef _DDS_LOAN_H_
 #define _DDS_LOAN_H_
 
-#include "dds/ddsc/dds_public_impl.h"
+#include "dds/ddsc/dds_public_types.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/export.h"
 

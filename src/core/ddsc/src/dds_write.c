@@ -71,7 +71,6 @@ static void release_iox_chunk(dds_writer *wr, void *sample)
 {
   iox_pub_release_chunk(wr->m_iox_pub, sample);
 }
-#endif
 
 static void *dds_writer_loan_chunk(dds_writer *wr, size_t size) {
   void *chunk = shm_create_chunk(wr->m_iox_pub, size);
@@ -89,6 +88,8 @@ static void *dds_writer_loan_chunk(dds_writer *wr, size_t size) {
   }
   return NULL;
 }
+
+#endif
 
 dds_return_t dds_loan_shared_memory_buffer(dds_entity_t writer, size_t size,
                                            void **buffer) {

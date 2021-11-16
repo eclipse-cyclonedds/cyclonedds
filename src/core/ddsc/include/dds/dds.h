@@ -12,9 +12,6 @@
 #ifndef DDS_H
 #define DDS_H
 
-#include <stddef.h>
-#include <stdint.h>
-
 /** @file
  *
  *  @brief Eclipse Cyclone DDS C header
@@ -27,12 +24,9 @@
 #include "dds/export.h"
 #include "dds/features.h"
 
-/**
- * Handle to an entity. A valid entity handle will always have a positive
- * integer value. Should the value be negative, it is one of the DDS_RETCODE_*
- * error codes.
- */
-typedef int32_t dds_entity_t;
+// MAKI TODO if the public_* headers depend on definitions it should be included
+// in the headers and not pre-included
+#include "dds/ddsc/dds_public_types.h"
 
 /* Sub components */
 
