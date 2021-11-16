@@ -177,6 +177,11 @@ stash_opcode(
   struct instruction inst = { OPCODE, { .opcode = { .code = code, .order = order } } };
   const struct alignment *alignment = NULL;
 
+  if (code | DDS_OP_FLAG_EXT) {
+    descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
+    descriptor->alignment = max_alignment(descriptor->alignment, ALIGNMENT_PTR);
+  }
+
   descriptor->n_opcodes++;
   switch (DDS_OP(code)) {
     case DDS_OP_ADR:

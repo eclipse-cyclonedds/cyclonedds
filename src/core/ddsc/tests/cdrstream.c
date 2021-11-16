@@ -15,6 +15,7 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/io.h"
+#include "dds/ddsrt/random.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsc/dds_public_impl.h"
 #include "dds__topic.h"
@@ -25,6 +26,16 @@
 #define DDS_DOMAINID1 0
 #define DDS_DOMAINID2 1
 #define DDS_CONFIG "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
+
+#define _C "0123456789"
+#define RND_INT16 ((int16_t) ddsrt_random ())
+#define RND_INT32 ((int32_t) ddsrt_random ())
+#define RND_UINT32 (ddsrt_random ())
+#define RND_CHAR (_C[ddsrt_random () % 10])
+#define RND_CHAR4 RND_CHAR, RND_CHAR, RND_CHAR
+#define RND_CHAR8 RND_CHAR4, RND_CHAR4
+#define RND_STR32 (ddsrt_random () % 2 ? (char []){ 't', RND_CHAR4, 0 } : (char []){ 't', 'e', 's', 't', RND_CHAR8, RND_CHAR8, RND_CHAR8, RND_CHAR4, 0 })
+#define RND_STR5 (ddsrt_random () % 2 ? (char []){ 't', RND_CHAR, 0 } : (char []){ 't', RND_CHAR4, 0 })
 
 typedef void * (*sample_empty) (void);
 typedef void * (*sample_init) (void);
@@ -44,7 +55,7 @@ typedef struct TestIdl_SubMsg1
 typedef struct TestIdl_SubMsg2
 {
   uint32_t submsg_field1;
-  uint32_t submsg_field2;
+  uint32_t * submsg_field2;
   TestIdl_SubMsg1 submsg_field3;
 } TestIdl_SubMsg2;
 
@@ -65,7 +76,7 @@ static const uint32_t TestIdl_MsgNested_ops [] =
 
   // SubMsg2
   DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsg2, submsg_field1),
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsg2, submsg_field2),
+  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsg2, submsg_field2),
   DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_SubMsg2, submsg_field3), (3u << 16u) + 4u, // SubMsg2
   DDS_OP_RTS,
 
@@ -74,14 +85,16 @@ static const uint32_t TestIdl_MsgNested_ops [] =
   DDS_OP_RTS
 };
 
-const dds_topic_descriptor_t TestIdl_MsgNested_desc = { sizeof (TestIdl_MsgNested), 4u, 0u, 0u, "TestIdl::MsgNested", NULL, 17, TestIdl_MsgNested_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgNested_desc = { sizeof (TestIdl_MsgNested), 4u, DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl::MsgNested", NULL, 17, TestIdl_MsgNested_ops, "" };
 
 static void * sample_init_nested (void)
 {
+  uint32_t *subf2 = ddsrt_malloc (sizeof (*subf2));
+  *subf2 = RND_UINT32;
   TestIdl_MsgNested msg = {
-            .msg_field1 = { .submsg_field1 = 1100 },
-            .msg_field2 = { .submsg_field1 = 2100, .submsg_field2 = 2200, .submsg_field3 = { .submsg_field1 = 2310 } },
-            .msg_field3 = { .submsg_field1 = 3100 } };
+            .msg_field1 = { .submsg_field1 = RND_UINT32 },
+            .msg_field2 = { .submsg_field1 = RND_UINT32, .submsg_field2 = subf2, .submsg_field3 = { .submsg_field1 = RND_UINT32 } },
+            .msg_field3 = { .submsg_field1 = RND_UINT32 } };
   return ddsrt_memdup (&msg, sizeof (TestIdl_MsgNested));
 }
 
@@ -90,14 +103,16 @@ static bool sample_equal_nested (void *s1, void *s2)
   TestIdl_MsgNested *msg1 = s1, *msg2 = s2;
   return msg1->msg_field1.submsg_field1 == msg2->msg_field1.submsg_field1
     && msg1->msg_field2.submsg_field1 == msg2->msg_field2.submsg_field1
-    && msg1->msg_field2.submsg_field2 == msg2->msg_field2.submsg_field2
+    && *msg1->msg_field2.submsg_field2 == *msg2->msg_field2.submsg_field2
     && msg1->msg_field2.submsg_field3.submsg_field1 == msg2->msg_field2.submsg_field3.submsg_field1
     && msg1->msg_field3.submsg_field1 == msg2->msg_field3.submsg_field1;
 }
 
 static void sample_free_nested (void *s)
 {
-  ddsrt_free (s);
+  TestIdl_MsgNested *msg = s;
+  ddsrt_free (msg->msg_field2.submsg_field2);
+  ddsrt_free (msg);
 }
 
 /**********************************************
@@ -129,16 +144,16 @@ const dds_topic_descriptor_t TestIdl_MsgStr_desc = { sizeof (TestIdl_MsgStr), si
 
 static void * sample_init_str (void)
 {
-  TestIdl_MsgStr *msg = calloc (1, sizeof (*msg));
-  msg->msg_field1.str1 = ddsrt_strdup ("vstr");
-  strcpy (msg->msg_field1.str2, "bstr");
+  TestIdl_MsgStr *msg = ddsrt_calloc (1, sizeof (*msg));
+  msg->msg_field1.str1 = ddsrt_strdup (RND_STR32);
+  strcpy (msg->msg_field1.str2, RND_STR5);
 
-  msg->msg_field1.strseq3[0] = ddsrt_strdup ("vstr1");
-  msg->msg_field1.strseq3[1] = ddsrt_strdup ("vstr2");
+  msg->msg_field1.strseq3[0] = ddsrt_strdup (RND_STR32);
+  msg->msg_field1.strseq3[1] = ddsrt_strdup (RND_STR32);
 
-  strcpy (msg->msg_field1.strseq4[0], "bstr1");
-  strcpy (msg->msg_field1.strseq4[1], "bstr2");
-  strcpy (msg->msg_field1.strseq4[2], "bstr3");
+  strcpy (msg->msg_field1.strseq4[0], RND_STR5);
+  strcpy (msg->msg_field1.strseq4[1], RND_STR5);
+  strcpy (msg->msg_field1.strseq4[2], RND_STR5);
 
   return msg;
 }
@@ -237,7 +252,7 @@ static const uint32_t TestIdl_MsgUnion_ops [] =
   DDS_OP_RTS
 };
 
-const dds_topic_descriptor_t TestIdl_MsgUnion_desc = { sizeof (TestIdl_MsgUnion), 4u, DDS_TOPIC_CONTAINS_UNION, 0u, "TestIdl::MsgUnion", NULL, 3, TestIdl_MsgUnion_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgUnion_desc = { sizeof (TestIdl_MsgUnion), 4u, DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_CONTAINS_UNION, 0u, "TestIdl::MsgUnion", NULL, 3, TestIdl_MsgUnion_ops, "" };
 
 static void * sample_init_union (void)
 {
@@ -307,10 +322,13 @@ const dds_topic_descriptor_t TestIdl_MsgRecursive_desc = { sizeof (TestIdl_MsgRe
 
 static void * sample_init_recursive (void)
 {
-  TestIdl_SubMsgRecursive sseq[] = { { .submsg_field1 = 1, .submsg_field3 = 2 }, { .submsg_field1 = 3, .submsg_field3 = 3 } };
-  TestIdl_SubMsgRecursive_submsg_field2_seq seq = { ._length = 2, ._maximum = 2, ._buffer = ddsrt_memdup (sseq, 2 * sizeof (TestIdl_SubMsgRecursive)) };
-  TestIdl_SubMsgRecursive s1 = { .submsg_field1 = 5, .submsg_field2 = seq, .submsg_field3 = 6 };
-  TestIdl_MsgRecursive msg = { .msg_field1 = 1, .msg_field2 = s1, .msg_field3 = 3};
+  uint32_t sseqsz = RND_UINT32 % 1024;
+  TestIdl_SubMsgRecursive *sseq = ddsrt_malloc (sseqsz * sizeof (*sseq));
+  for (uint32_t n = 0; n < sseqsz; n++)
+    sseq[n] = (TestIdl_SubMsgRecursive) { .submsg_field1 = RND_UINT32, .submsg_field3 = RND_INT32 };
+  TestIdl_SubMsgRecursive_submsg_field2_seq seq = { ._length = sseqsz, ._maximum = sseqsz, ._buffer = sseq };
+  TestIdl_SubMsgRecursive s1 = { .submsg_field1 = RND_UINT32, .submsg_field2 = seq, .submsg_field3 = RND_INT32 };
+  TestIdl_MsgRecursive msg = { .msg_field1 = RND_UINT32, .msg_field2 = s1, .msg_field3 = RND_INT32};
   return ddsrt_memdup (&msg, sizeof (TestIdl_MsgRecursive));
 }
 
@@ -340,6 +358,128 @@ static void sample_free_recursive (void *s)
 {
   TestIdl_MsgRecursive *msg = s;
   ddsrt_free (msg->msg_field2.submsg_field2._buffer);
+  ddsrt_free (s);
+}
+
+/**********************************************
+ * External fields
+ **********************************************/
+typedef struct TestIdl_MsgExt_b
+{
+  int32_t * b1;
+} TestIdl_MsgExt_b;
+
+typedef struct dds_sequence_short
+{
+  uint32_t _maximum;
+  uint32_t _length;
+  int16_t *_buffer;
+  bool _release;
+} dds_sequence_short;
+
+typedef struct dds_sequence_TestIdl_MsgExt_b
+{
+  uint32_t _maximum;
+  uint32_t _length;
+  struct TestIdl_MsgExt_b *_buffer;
+  bool _release;
+} dds_sequence_TestIdl_MsgExt_b;
+
+typedef struct TestIdl_MsgExt
+{
+  char * f1;
+  char (* f2)[33];
+  struct TestIdl_MsgExt_b * f3;
+  int16_t (* f4)[3];
+  dds_sequence_short * f5;
+  dds_sequence_TestIdl_MsgExt_b * f6;
+} TestIdl_MsgExt;
+
+static const uint32_t TestIdl_MsgExt_ops [] =
+{
+  /* TestIdl_MsgExt */
+  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_STR, offsetof (TestIdl_MsgExt, f1),
+  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_BST, offsetof (TestIdl_MsgExt, f2), 33u,
+  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_EXT, offsetof (TestIdl_MsgExt, f3), (4u << 16u) + 14u /* TestIdl_MsgExt_b */, sizeof (TestIdl_MsgExt_b),
+  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_2BY | DDS_OP_FLAG_SGN, offsetof (TestIdl_MsgExt, f4), 3u,
+  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_2BY | DDS_OP_FLAG_SGN, offsetof (TestIdl_MsgExt, f5),
+  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_STU, offsetof (TestIdl_MsgExt, f6), sizeof (TestIdl_MsgExt_b), (4u << 16u) + 5u /* TestIdl_MsgExt_b */,
+  DDS_OP_RTS,
+
+  /* TestIdl_MsgExt_b */
+  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_4BY | DDS_OP_FLAG_SGN, offsetof (TestIdl_MsgExt_b, b1),
+  DDS_OP_RTS
+};
+
+const dds_topic_descriptor_t TestIdl_MsgExt_desc = { sizeof (TestIdl_MsgExt), sizeof (char *), DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl_MsgExt", NULL, 9, TestIdl_MsgExt_ops, "" };
+
+static void * sample_init_ext (void)
+{
+  TestIdl_MsgExt *msg = ddsrt_malloc (sizeof (*msg));
+  msg->f1 = ddsrt_strdup (RND_STR32);
+
+  msg->f2 = ddsrt_malloc (sizeof (*msg->f2));
+  strcpy (*msg->f2, RND_STR32);
+
+  msg->f3 = ddsrt_malloc (sizeof (*msg->f3));
+  msg->f3->b1 = ddsrt_malloc (sizeof (*msg->f3->b1));
+  *msg->f3->b1 = RND_INT32;
+
+  msg->f4 = ddsrt_malloc (sizeof (*msg->f4));
+  (*msg->f4)[0] = RND_INT16;
+  (*msg->f4)[1] = RND_INT16;
+  (*msg->f4)[2] = RND_INT16;
+
+  msg->f5 = ddsrt_malloc (sizeof (*msg->f5));
+  uint32_t seqsz5 = RND_UINT32 % 255;
+  msg->f5->_length = msg->f5->_maximum = seqsz5;
+  msg->f5->_buffer = ddsrt_malloc (seqsz5 * sizeof (*msg->f5->_buffer));
+  msg->f5->_release = true;
+  for (uint32_t n = 0; n < seqsz5; n++)
+    msg->f5->_buffer[n] = RND_INT16;
+
+  msg->f6 = ddsrt_malloc (sizeof (*msg->f6));
+  uint32_t seqsz6 = RND_UINT32 % 255;
+  msg->f6->_length = msg->f6->_maximum = seqsz6;
+  msg->f6->_buffer = ddsrt_malloc (seqsz6 * sizeof (*msg->f6->_buffer));
+  msg->f6->_release = true;
+  for (uint32_t n = 0; n < seqsz6; n++)
+  {
+    msg->f6->_buffer[n].b1 = ddsrt_malloc (sizeof (*msg->f6->_buffer[n].b1));
+    *msg->f6->_buffer[n].b1 = RND_INT32;
+  }
+
+  return msg;
+}
+
+static bool sample_equal_ext (void *s1, void *s2)
+{
+  TestIdl_MsgExt *msg1 = s1, *msg2 = s2;
+
+  if (msg1->f5->_length != msg2->f5->_length)
+    return false;
+  for (uint32_t n = 0; n < msg1->f5->_length; n++)
+    if (msg1->f5->_buffer[n] != msg2->f5->_buffer[n])
+      return false;
+
+  if (msg1->f6->_length != msg2->f6->_length)
+    return false;
+  for (uint32_t n = 0; n < msg1->f6->_length; n++)
+    if (*msg1->f6->_buffer[n].b1 != *msg2->f6->_buffer[n].b1)
+      return false;
+
+  return
+    !strcmp (msg1->f1, msg2->f1)
+    && !strcmp (*msg1->f2, *msg2->f2)
+    && *msg1->f3->b1 == *msg2->f3->b1
+    && (*msg1->f4)[0] == (*msg2->f4)[0]
+    && (*msg1->f4)[1] == (*msg2->f4)[1]
+    && (*msg1->f4)[2] == (*msg2->f4)[2];
+}
+
+static void sample_free_ext (void *s)
+{
+  dds_stream_free_sample (s, TestIdl_MsgExt_desc.m_ops);
   ddsrt_free (s);
 }
 
@@ -672,7 +812,7 @@ static const uint32_t TestIdl_MsgArr_ops [] =
   DDS_OP_RTS
 };
 
-const dds_topic_descriptor_t TestIdl_MsgArr_desc = { sizeof (TestIdl_MsgArr), sizeof (char *), DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl::MsgArr", NULL, 6, TestIdl_MsgArr_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgArr_desc = { sizeof (TestIdl_MsgArr), sizeof (char *), DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_CONTAINS_UNION, 0u, "TestIdl::MsgArr", NULL, 6, TestIdl_MsgArr_ops, "" };
 
 static void * sample_init_arr (void)
 {
@@ -938,7 +1078,7 @@ static const uint32_t TestIdl_MsgAppendDefaults2_ops [] =
 };
 
 const dds_topic_descriptor_t TestIdl_MsgAppendDefaults1_desc = { sizeof (TestIdl_MsgAppendDefaults1), 4u, 0u, 0u, "TestIdl::MsgAppendDefaults1", NULL, 0, TestIdl_MsgAppendDefaults1_ops, "" };
-const dds_topic_descriptor_t TestIdl_MsgAppendDefaults2_desc = { sizeof (TestIdl_MsgAppendDefaults2), 4u, DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl::MsgAppendDefaults2", NULL, 0, TestIdl_MsgAppendDefaults2_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgAppendDefaults2_desc = { sizeof (TestIdl_MsgAppendDefaults2), 4u, DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_CONTAINS_UNION, 0u, "TestIdl::MsgAppendDefaults2", NULL, 0, TestIdl_MsgAppendDefaults2_ops, "" };
 
 static void * sample_init_appenddefaults1 (void)
 {
@@ -1413,6 +1553,53 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_empty 
   sample_free_fn (msg);
 }
 
+CU_TheoryDataPoints (ddsc_cdrstream, ser_des_multiple) = {
+  CU_DataPoints (const char *,                   "nested structs",
+  /*                                             |          */"string types",
+  /*                                             |           |       */"unions",
+  /*                                             |           |        |         */"recursive",
+  /*                                             |           |        |          |             */"appendable",
+  /*                                             |           |        |          |              |              */"keys nested",
+  /*                                             |           |        |          |              |               |              */"arrays",
+  /*                                             |           |        |          |              |               |               |       */"ext" ),
+  CU_DataPoints (const dds_topic_descriptor_t *, &D(Nested), &D(Str), &D(Union), &D(Recursive), &D(Appendable), &D(KeysNested), &D(Arr), &D(Ext) ),
+  CU_DataPoints (sample_init,                    I(nested),   I(str),  I(union),  I(recursive),  I(appendable),  I(keysnested),  I(arr),  I(ext) ),
+  CU_DataPoints (sample_equal,                   C(nested),   C(str),  C(union),  C(recursive),  C(appendable),  C(keysnested),  C(arr),  C(ext) ),
+  CU_DataPoints (sample_free,                    F(nested),   F(str),  F(union),  F(recursive),  F(appendable),  F(keysnested),  F(arr),  F(ext) ),
+};
+
+#define NUM_SAMPLES 10
+CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_init sample_init_fn, sample_equal sample_equal_fn, sample_free sample_free_fn),
+    ddsc_cdrstream, ser_des_multiple, .init = cdrstream_init, .fini = cdrstream_fini)
+{
+  dds_return_t ret;
+  msg ("Running test ser_des_multiple: %s", descr);
+
+  entity_init (desc);
+
+  void * rds[1] = { NULL };
+  for (int n = 0; n < NUM_SAMPLES; n++)
+  {
+    void * msg = sample_init_fn ();
+    ret = dds_write (wr, msg);
+    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    while (ret <= 0)
+    {
+      dds_sample_info_t si[1];
+      if ((ret = dds_take (rd, rds, si, 1, 1)) > 0)
+      {
+        CU_ASSERT_EQUAL_FATAL (ret, 1);
+        bool eq = sample_equal_fn (msg, rds[0]);
+        CU_ASSERT_FATAL (eq);
+      }
+      else
+        dds_sleepfor (DDS_MSECS (10));
+    }
+    sample_free_fn (msg);
+  }
+  dds_return_loan (rd, rds, 1);
+}
+#undef NUM_SAMPLES
 
 CU_TheoryDataPoints (ddsc_cdrstream, appendable_mutable) = {
   CU_DataPoints (const char *,                   "appendable struct",

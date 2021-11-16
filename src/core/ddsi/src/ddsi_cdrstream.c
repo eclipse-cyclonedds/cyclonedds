@@ -1316,10 +1316,12 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t * __restrict is, char 
     if (op_type_external (jeq_op[0]) && valtype != DDS_OP_VAL_STR)
     {
       /* Allocate memory for @external union member. This memory must be initialized
-          to 0, because the type may contain sequences that need to have 0 index/size */
+          to 0, because the type may contain sequences that need to have 0 index/size
+          or external fields that need to be initialized to null */
       assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
       uint32_t sz = get_jeq4_type_size (valtype, jeq_op);
-      *((char **) valaddr) = ddsrt_calloc (1, sz);
+      if (*((char **) valaddr) == NULL)
+        *((char **) valaddr) = ddsrt_calloc (1, sz);
       valaddr = *((char **) valaddr);
     }
 
@@ -1352,10 +1354,12 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
   void *addr = data + ops[1];
   if (op_type_external (insn) && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
   {
-    /* Allocate memory for @external struct member. This memory must be initialized
-        to 0, because the type may contain sequences that need to have 0 index/size */
+    /* Allocate memory for @external union member. This memory must be initialized
+        to 0, because the type may contain sequences that need to have 0 index/size
+        or external fields that need to be initialized to null */
     uint32_t sz = get_adr_type_size (insn, ops);
-    *((char **) addr) = ddsrt_calloc (1, sz);
+    if (*((char **) addr) == NULL)
+      *((char **) addr) = ddsrt_calloc (1, sz);
     addr = *((char **) addr);
   }
 
