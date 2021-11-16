@@ -152,7 +152,7 @@ static void unref_topic_definition_locked (struct ddsi_topic_definition *tpd, dd
 static void unref_topic_definition (struct ddsi_domaingv *gv, struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp);
 static void delete_topic_definition_locked (struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp);
 
-int proxy_topic_equal (const struct proxy_topic *proxy_tp_a, const struct proxy_topic *proxy_tp_b);
+static int proxy_topic_equal (const struct proxy_topic *proxy_tp_a, const struct proxy_topic *proxy_tp_b); // FIXME: ddsrt_nonnull_all?
 DDSI_LIST_GENERIC_PTR_DECL(inline, proxy_topic_list, struct proxy_topic *, ddsrt_attribute_unused);
 DDSI_LIST_GENERIC_PTR_CODE(inline, proxy_topic_list, struct proxy_topic *, proxy_topic_equal)
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
@@ -5784,7 +5784,7 @@ static void delete_topic_definition_locked (struct ddsi_topic_definition *tpd, d
 
 /* PROXY-TOPIC --------------------------------------------------- */
 
-int proxy_topic_equal (const struct proxy_topic *proxy_tp_a, const struct proxy_topic *proxy_tp_b)
+static int proxy_topic_equal (const struct proxy_topic *proxy_tp_a, const struct proxy_topic *proxy_tp_b)
 {
   if (proxy_tp_a != NULL && proxy_tp_b != NULL)
     return topic_definition_equal (proxy_tp_a->definition, proxy_tp_b->definition);
