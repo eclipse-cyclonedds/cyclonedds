@@ -372,7 +372,6 @@ static uint32_t get_elem_size (uint32_t insn, const uint32_t * __restrict ops)
         abort ();
       break;
     case DDS_OP_VAL_EXT:
-    default:
       abort ();
       break;
   }

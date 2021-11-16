@@ -177,7 +177,7 @@ stash_opcode(
   struct instruction inst = { OPCODE, { .opcode = { .code = code, .order = order } } };
   const struct alignment *alignment = NULL;
 
-  if (code | DDS_OP_FLAG_EXT) {
+  if (code & DDS_OP_FLAG_EXT) {
     descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
     descriptor->alignment = max_alignment(descriptor->alignment, ALIGNMENT_PTR);
   }
@@ -206,8 +206,10 @@ stash_opcode(
       descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
       break;
     case DDS_OP_VAL_EXT:
+      /* External struct or union does not mean that the type is NO_OPTIMIZE
+         (if there is no FLAG_EXT). In case of a external union, the
+         NO_OPTIMIZE flag will be set when emitting opcodes for the union. */
       alignment = ALIGNMENT_1BY;
-      descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
       break;
     case DDS_OP_VAL_8BY:
       alignment = ALIGNMENT_8BY;
