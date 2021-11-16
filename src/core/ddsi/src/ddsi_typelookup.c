@@ -123,7 +123,7 @@ static void tlm_ref_impl (struct ddsi_domaingv *gv, const type_identifier_t *typ
     memset (tlm, 0, sizeof (*tlm));
     tlm->state = TL_META_NEW;
     tlm->type_id = *tid;
-    ddsrt_hh_add (gv->tl_admin, tlm);
+    ddsrt_hh_add_absent (gv->tl_admin, tlm);
     GVTRACE (" new %p", tlm);
   }
   if (proxy_guid != NULL)
@@ -176,7 +176,7 @@ static void tlm_unref_impl_locked (struct ddsi_domaingv *gv, struct tl_meta *tlm
   if (--tlm->refc == 0)
   {
     GVTRACE (" remove tl_meta\n");
-    ddsrt_hh_remove (gv->tl_admin, tlm);
+    ddsrt_hh_remove_present (gv->tl_admin, tlm);
     tlm_fini (tlm);
   }
 }

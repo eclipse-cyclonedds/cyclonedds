@@ -205,9 +205,7 @@ int32_t dds_handle_delete (struct dds_handle_link *link)
   assert ((cf & HDL_PINCOUNT_MASK) == 1u);
 #endif
   ddsrt_mutex_lock (&handles.lock);
-  int x = ddsrt_hh_remove (handles.ht, link);
-  assert(x);
-  (void)x;
+  ddsrt_hh_remove_present (handles.ht, link);
   assert (handles.count > 0);
   handles.count--;
   ddsrt_mutex_unlock (&handles.lock);

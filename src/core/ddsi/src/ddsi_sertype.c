@@ -91,9 +91,7 @@ void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype
   ddsrt_atomic_stvoidp (&sertype->gv, gv);
   ddsrt_atomic_fence_stst ();
   ddsrt_atomic_or32 (&sertype->flags_refc, DDSI_SERTYPE_REGISTERED);
-  int x = ddsrt_hh_add (gv->sertypes, sertype);
-  assert (x);
-  (void) x;
+  ddsrt_hh_add_absent (gv->sertypes, sertype);
 }
 
 void ddsi_sertype_unref_locked (struct ddsi_domaingv * const gv, struct ddsi_sertype *sertype)
@@ -110,7 +108,7 @@ void ddsi_sertype_unref_locked (struct ddsi_domaingv * const gv, struct ddsi_ser
     else
     {
       if (flags_refc1 & DDSI_SERTYPE_REGISTERED)
-        (void) ddsrt_hh_remove (gv->sertypes, sertype);
+        ddsrt_hh_remove_present (gv->sertypes, sertype);
       ddsi_sertype_free (sertype);
     }
   }

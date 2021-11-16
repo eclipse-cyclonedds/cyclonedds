@@ -114,7 +114,7 @@ static void topic_guid_map_unref (struct ddsi_domaingv * const gv, const struct 
 
   if (m->refc == 0)
   {
-    ddsrt_hh_remove (ktp->topic_guid_map, m);
+    ddsrt_hh_remove_present (ktp->topic_guid_map, m);
     thread_state_awake (lookup_thread_state (), gv);
     (void) delete_topic (gv, &m->guid);
     thread_state_asleep (lookup_thread_state ());
@@ -378,7 +378,7 @@ static bool register_topic_type_for_discovery (struct ddsi_domaingv * const gv, 
       dds_return_t rc = ddsi_new_topic (&m->tp, &m->guid, pp_ddsi, ktp->name, sertype_registered, ktp->qos, is_builtin, &new_topic_def);
       assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
       (void) rc;
-      ddsrt_hh_add (ktp->topic_guid_map, m);
+      ddsrt_hh_add_absent (ktp->topic_guid_map, m);
       thread_state_asleep (lookup_thread_state ());
     }
     else
