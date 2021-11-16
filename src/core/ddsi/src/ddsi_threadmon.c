@@ -249,9 +249,7 @@ void ddsi_threadmon_register_domain (struct ddsi_threadmon *sl, const struct dds
     tmdom->msg[0] = 0;
 
     ddsrt_mutex_lock (&sl->lock);
-    int x = ddsrt_hh_add (sl->domains, tmdom);
-    assert (x);
-    (void) x;
+    ddsrt_hh_add_absent (sl->domains, tmdom);
     ddsrt_mutex_unlock (&sl->lock);
   }
 }
@@ -265,7 +263,7 @@ void ddsi_threadmon_unregister_domain (struct ddsi_threadmon *sl, const struct d
     dummy.gv = gv;
     struct threadmon_domain *tmdom = ddsrt_hh_lookup (sl->domains, &dummy);
     assert (tmdom);
-    (void) ddsrt_hh_remove (sl->domains, tmdom);
+    ddsrt_hh_remove_present (sl->domains, tmdom);
     ddsrt_mutex_unlock (&sl->lock);
     ddsrt_free (tmdom);
   }

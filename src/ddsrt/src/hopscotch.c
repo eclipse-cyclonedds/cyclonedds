@@ -239,6 +239,20 @@ int ddsrt_hh_remove (struct ddsrt_hh * __restrict rt, const void * __restrict te
   return 0;
 }
 
+void ddsrt_hh_add_absent (struct ddsrt_hh * __restrict rt, const void * __restrict data)
+{
+  const int x = ddsrt_hh_add (rt, data);
+  assert (x);
+  (void) x;
+}
+
+void ddsrt_hh_remove_present (struct ddsrt_hh * __restrict rt, const void * __restrict template)
+{
+  const int x = ddsrt_hh_remove (rt, template);
+  assert (x);
+  (void) x;
+}
+
 void ddsrt_hh_enum (struct ddsrt_hh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg)
 {
   uint32_t i;

@@ -53,14 +53,16 @@ struct ddsrt_hh_iter {
     uint32_t cursor;
 };
 
-DDS_EXPORT struct ddsrt_hh *ddsrt_hh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals);
-DDS_EXPORT void ddsrt_hh_free (struct ddsrt_hh * __restrict hh);
-DDS_EXPORT void *ddsrt_hh_lookup (const struct ddsrt_hh * __restrict rt, const void * __restrict template);
-DDS_EXPORT int ddsrt_hh_add (struct ddsrt_hh * __restrict rt, const void * __restrict data);
-DDS_EXPORT int ddsrt_hh_remove (struct ddsrt_hh * __restrict rt, const void * __restrict template);
-DDS_EXPORT void ddsrt_hh_enum (struct ddsrt_hh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg); /* may delete a */
-DDS_EXPORT void *ddsrt_hh_iter_first (struct ddsrt_hh * __restrict rt, struct ddsrt_hh_iter * __restrict iter); /* may delete nodes */
-DDS_EXPORT void *ddsrt_hh_iter_next (struct ddsrt_hh_iter * __restrict iter);
+DDS_EXPORT struct ddsrt_hh *ddsrt_hh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals) ddsrt_nonnull_all;
+DDS_EXPORT void ddsrt_hh_free (struct ddsrt_hh * __restrict hh) ddsrt_nonnull_all;
+DDS_EXPORT void *ddsrt_hh_lookup (const struct ddsrt_hh * __restrict rt, const void * __restrict template) ddsrt_nonnull_all;
+DDS_EXPORT int ddsrt_hh_add (struct ddsrt_hh * __restrict rt, const void * __restrict data) ddsrt_nonnull_all;
+DDS_EXPORT int ddsrt_hh_remove (struct ddsrt_hh * __restrict rt, const void * __restrict template) ddsrt_nonnull_all;
+DDS_EXPORT void ddsrt_hh_add_absent (struct ddsrt_hh * __restrict rt, const void * __restrict data) ddsrt_nonnull_all;
+DDS_EXPORT void ddsrt_hh_remove_present (struct ddsrt_hh * __restrict rt, const void * __restrict template) ddsrt_nonnull_all;
+DDS_EXPORT void ddsrt_hh_enum (struct ddsrt_hh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg) ddsrt_nonnull ((1, 2)); /* may delete a */
+DDS_EXPORT void *ddsrt_hh_iter_first (struct ddsrt_hh * __restrict rt, struct ddsrt_hh_iter * __restrict iter) ddsrt_nonnull_all; /* may delete nodes */
+DDS_EXPORT void *ddsrt_hh_iter_next (struct ddsrt_hh_iter * __restrict iter) ddsrt_nonnull_all;
 
 /* Concurrent version */
 struct ddsrt_chh;

@@ -324,8 +324,7 @@ static void insert_whcn_in_hash (struct whc_impl *whc, struct whc_node *whcn)
   if (!ddsrt_ehh_add (whc->seq_hash, &e))
     assert (0);
 #else
-  if (!ddsrt_hh_add (whc->seq_hash, whcn))
-    assert (0);
+  ddsrt_hh_add_absent (whc->seq_hash, whcn);
 #endif
 }
 
@@ -337,8 +336,7 @@ static void remove_whcn_from_hash (struct whc_impl *whc, struct whc_node *whcn)
   if (!ddsrt_ehh_remove (whc->seq_hash, &e))
     assert (0);
 #else
-  if (!ddsrt_hh_remove (whc->seq_hash, whcn))
-    assert (0);
+  ddsrt_hh_remove_present (whc->seq_hash, whcn);
 #endif
 }
 
@@ -681,8 +679,7 @@ static void free_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop_s
 
 static void delete_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop_seq, struct whc_idxnode *idxn)
 {
-  if (!ddsrt_hh_remove (whc->idx_hash, idxn))
-    assert (0);
+  ddsrt_hh_remove_present (whc->idx_hash, idxn);
 #ifdef DDS_HAS_DEADLINE_MISSED
   deadline_unregister_instance_locked (&whc->deadline, &idxn->deadline);
 #endif
@@ -1365,8 +1362,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
         newn->idxnode = idxn;
         newn->idxnode_pos = 0;
       }
-      if (!ddsrt_hh_add (whc->idx_hash, idxn))
-        assert (0);
+      ddsrt_hh_add_absent (whc->idx_hash, idxn);
 #ifdef DDS_HAS_DEADLINE_MISSED
       deadline_register_instance_locked (&whc->deadline, &idxn->deadline, ddsrt_time_monotonic ());
 #endif

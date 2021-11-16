@@ -1074,17 +1074,13 @@ static void update_inst (struct rhc_instance *inst, const struct ddsi_writer_inf
 static void drop_instance_noupdate_no_writers (struct dds_rhc_default *__restrict rhc, struct rhc_instance * __restrict * __restrict instptr)
 {
   struct rhc_instance *inst = *instptr;
-  int ret;
   assert (inst_is_empty (inst));
 
   rhc->n_instances--;
   if (inst->isnew)
     rhc->n_new--;
 
-  ret = ddsrt_hh_remove (rhc->instances, inst);
-  assert (ret);
-  (void) ret;
-
+  ddsrt_hh_remove_present (rhc->instances, inst);
   free_empty_instance (inst, rhc);
   *instptr = NULL;
 }
