@@ -144,8 +144,8 @@ static int gcreq_topic (struct topic *tp);
 static int gcreq_topic_definition (struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp);
 static int gcreq_proxy_topic (struct proxy_participant *proxypp, struct proxy_topic *proxytp, ddsrt_wctime_t timestamp);
 
-static struct ddsi_topic_definition *lookup_topic_definition_locked (struct ddsi_domaingv *gv, struct dds_qos *qos, const type_identifier_t *type_id, const struct ddsi_sertype *type, bool *new_tpd);
-static struct ddsi_topic_definition *lookup_topic_definition (struct ddsi_domaingv *gv, struct dds_qos *qos, const type_identifier_t *type_id, const struct ddsi_sertype *type, bool *new_tpd);
+static void set_topic_definition_hash (struct ddsi_topic_definition *tpd) ddsrt_nonnull_all;
+static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv *gv, const struct ddsi_sertype *type, const struct dds_qos *qos) ddsrt_nonnull ((1, 3));
 static struct ddsi_topic_definition * ref_topic_definition_locked (struct ddsi_domaingv *gv, const struct ddsi_sertype *type, const type_identifier_t *type_id, struct dds_qos *qos, bool *is_new) ddsrt_nonnull ((1, 3, 4, 5));
 static struct ddsi_topic_definition * ref_topic_definition (struct ddsi_domaingv *gv, const struct ddsi_sertype *type, const type_identifier_t *type_id, struct dds_qos *qos, bool *is_new) ddsrt_nonnull ((1, 3, 4, 5));
 static void unref_topic_definition_locked (struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp) ddsrt_nonnull_all;
@@ -4702,9 +4702,21 @@ dds_return_t delete_topic (struct ddsi_domaingv *gv, const struct ddsi_guid *gui
 
 static struct ddsi_topic_definition * ref_topic_definition_locked (struct ddsi_domaingv *gv, const struct ddsi_sertype *type, const type_identifier_t *type_id, struct dds_qos *qos, bool *is_new)
 {
-  assert (is_new);
-  struct ddsi_topic_definition *tpd = lookup_topic_definition_locked (gv, qos, type_id, type, is_new);
-  tpd->refc++;
+  struct ddsi_topic_definition templ;
+  memset (&templ, 0, sizeof (templ));
+  templ.xqos = qos;
+  templ.type_id = *type_id;
+  templ.gv = gv;
+  set_topic_definition_hash (&templ);
+  struct ddsi_topic_definition *tpd = ddsrt_hh_lookup (gv->topic_defs, &templ);
+  if (tpd) {
+    tpd->refc++;
+    *is_new = false;
+  } else {
+    tpd = new_topic_definition (gv, type, qos);
+    assert (tpd != NULL);
+    *is_new = true;
+  }
   return tpd;
 }
 
@@ -5661,7 +5673,7 @@ static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv
   assert ((qos->present & (QP_TOPIC_NAME | QP_TYPE_NAME)) == (QP_TOPIC_NAME | QP_TYPE_NAME));
   struct ddsi_topic_definition *tpd = ddsrt_malloc (sizeof (*tpd));
   tpd->xqos = ddsi_xqos_dup (qos);
-  tpd->refc = 0;
+  tpd->refc = 1;
   tpd->gv = gv;
   if (type != NULL)
   {
@@ -5693,39 +5705,7 @@ static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv
     GVLOGDISC ("}\n");
   }
 
-#ifndef NDEBUG
-  assert (ddsrt_hh_lookup (gv->topic_defs, tpd) == NULL);
-#endif
-  (void) ddsrt_hh_add (gv->topic_defs, tpd);
-  return tpd;
-}
-
-static struct ddsi_topic_definition *lookup_topic_definition_locked (struct ddsi_domaingv *gv, struct dds_qos *qos, const type_identifier_t *type_id, const struct ddsi_sertype *type, bool *is_new)
-{
-  bool new = false;
-  struct ddsi_topic_definition templ;
-  memset (&templ, 0, sizeof (templ));
-  templ.xqos = qos;
-  memcpy (&templ.type_id, type_id, sizeof (templ.type_id));
-  templ.gv = gv;
-  set_topic_definition_hash (&templ);
-  struct ddsi_topic_definition *tpd = ddsrt_hh_lookup (gv->topic_defs, &templ);
-  if (tpd == NULL)
-  {
-    tpd = new_topic_definition (gv, type, qos);
-    assert (tpd != NULL);
-    new = true;
-  }
-  if (is_new != NULL)
-    *is_new = new;
-  return tpd;
-}
-
-static struct ddsi_topic_definition *lookup_topic_definition (struct ddsi_domaingv *gv, struct dds_qos *qos, const type_identifier_t *type_id, const struct ddsi_sertype *type, bool *is_new)
-{
-  ddsrt_mutex_lock (&gv->topic_defs_lock);
-  struct ddsi_topic_definition *tpd = lookup_topic_definition_locked (gv, qos, type_id, type, is_new);
-  ddsrt_mutex_unlock (&gv->topic_defs_lock);
+  ddsrt_hh_add_absent (gv->topic_defs, tpd);
   return tpd;
 }
 
@@ -5772,11 +5752,7 @@ static void delete_topic_definition_locked (struct ddsi_topic_definition *tpd, d
 {
   struct ddsi_domaingv *gv = tpd->gv;
   GVLOGDISC ("delete_topic_definition_locked (%p) ", tpd);
-#ifndef NDEBUG
-  void *tmp = ddsrt_hh_lookup (gv->topic_defs, tpd);
-  assert (tmp != NULL);
-#endif
-  (void) ddsrt_hh_remove (gv->topic_defs, tpd);
+  ddsrt_hh_remove_present (gv->topic_defs, tpd);
   GVLOGDISC ("- deleting\n");
   gcreq_topic_definition (tpd, timestamp);
 }
@@ -5811,7 +5787,7 @@ void new_proxy_topic (struct proxy_participant *proxypp, seqno_t seq, const ddsi
   assert (proxypp != NULL);
   struct ddsi_domaingv *gv = proxypp->e.gv;
   bool new_tpd = false;
-  struct ddsi_topic_definition *tpd = lookup_topic_definition (gv, qos, type_id, NULL, &new_tpd);
+  struct ddsi_topic_definition *tpd = ref_topic_definition (gv, NULL, type_id, qos, &new_tpd);
 #ifndef NDEBUG
   bool found_proxytp = lookup_proxy_topic (proxypp, guid);
   assert (!found_proxytp);
@@ -5824,7 +5800,6 @@ void new_proxy_topic (struct proxy_participant *proxypp, seqno_t seq, const ddsi
   proxytp->deleted = 0;
   ddsrt_mutex_lock (&proxypp->e.lock);
   proxy_topic_list_insert (&proxypp->topics, proxytp);
-  tpd->refc++;
   ddsrt_mutex_unlock (&proxypp->e.lock);
   ddsi_tl_meta_proxy_ref (gv, &tpd->type_id, guid);
   if (new_tpd)
