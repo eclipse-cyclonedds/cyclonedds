@@ -110,10 +110,14 @@ void *dds_data_allocator_alloc (dds_data_allocator_t *data_allocator, size_t siz
       if (size > UINT32_MAX)
         return NULL;
       else {
-        // TODO: we need to lock the iceoryx publisher with an extra lock
-        // It is not thread-safe on its own. The allocator must own the
-        // corresponding lock.
-        return shm_create_chunk(d->ref.pub, (uint32_t)size);
+        ddsrt_mutex_lock(&d->mutex);
+        // NB: This creates an iceoryx header in addition to the allocation.
+        //     This may be undesirable, especially for small allocations...
+        // The header contains the size of the allocation and other information,
+        // e.g. whether the memory is uninitialized or contains data.
+        void *chunk = shm_create_chunk(d->ref.pub, (uint32_t)size);
+        ddsrt_mutex_unlock(&d->mutex);
+        return chunk;
       }
     default:
       return NULL;

@@ -503,6 +503,7 @@ dds_return_t dds__writer_data_allocator_init (const dds_writer *wr, dds_data_all
 {
 #ifdef DDS_HAS_SHM
   dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
+  ddsrt_mutex_init(&d->mutex);
   if (NULL != wr->m_iox_pub)
   {
     d->kind = DDS_IOX_ALLOCATOR_KIND_PUBLISHER;
@@ -524,6 +525,7 @@ dds_return_t dds__writer_data_allocator_fini (const dds_writer *wr, dds_data_all
 {
 #ifdef DDS_HAS_SHM
   dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
+  ddsrt_mutex_destroy(&d->mutex);
   d->kind = DDS_IOX_ALLOCATOR_KIND_FINI;
 #else
   (void) data_allocator;

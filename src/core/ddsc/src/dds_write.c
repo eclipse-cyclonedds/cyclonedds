@@ -73,6 +73,23 @@ static void release_iox_chunk(dds_writer *wr, void *sample)
 }
 #endif
 
+static void *dds_writer_loan_chunk(dds_writer *wr, size_t size) {
+  void *chunk = shm_create_chunk(wr->m_iox_pub, size);
+  if (chunk) {
+    register_pub_loan(wr, chunk);
+    // NB: we set this since the user can use this chunk not only with write
+    // where we check whether it was loaned before.
+    // It is only possible to loan for fixed size types as of now.
+
+    // Unfortunate, since the chunk is not actually filled at this point.
+    // We should ensure that we cannot circumvent the write API
+    // (API redesign).
+    shm_set_data_state(chunk, IOX_CHUNK_CONTAINS_RAW_DATA);
+    return chunk;
+  }
+  return NULL;
+}
+
 dds_return_t dds_loan_shared_memory_buffer(dds_entity_t writer, size_t size,
                                            void **buffer) {
 #ifndef DDS_HAS_SHM
@@ -91,21 +108,10 @@ dds_return_t dds_loan_shared_memory_buffer(dds_entity_t writer, size_t size,
     return ret;
 
   if (wr->m_iox_pub) {
-    *buffer = shm_create_chunk(wr->m_iox_pub, size);
-    if (*buffer) {
-      register_pub_loan(wr, *buffer);
-      // NB: we set this since the user can use this chunk not only with write
-      // where we check whether it was loaned before.
-      // It is only possible to loan for fixed size types as of now.
-
-      // Unfortunate, since the chunk is not actually filled at this point.
-      // We should ensure that we cannot circumvent the write API
-      // (API redesign).
-      shm_set_data_state(*buffer, IOX_CHUNK_CONTAINS_RAW_DATA);
-    } else {
-      ret = DDS_RETCODE_ERROR; // could not obtain a sample
+    *buffer = dds_writer_loan_chunk(wr, size);
+    if (*buffer == NULL) {
+      ret = DDS_RETCODE_ERROR; // could not obtain buffer memory
     }
-
   } else {
     ret = DDS_RETCODE_UNSUPPORTED;
   }
@@ -115,9 +121,6 @@ dds_return_t dds_loan_shared_memory_buffer(dds_entity_t writer, size_t size,
 #endif
 }
 
-// MAKI: implementing this in terms of dds_loan_buffer leads to a performance
-// hit since we need to pin/lock writer to get the size Keep it duplicated for
-// this reason.
 dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
 {
 #ifndef DDS_HAS_SHM
@@ -137,23 +140,10 @@ dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
   // the loaning is only allowed if SHM is enabled correctly and if the type is fixed
   if (wr->m_iox_pub && wr->m_topic->m_stype->fixed_size)
   {
-    *sample = shm_create_chunk(wr->m_iox_pub, wr->m_topic->m_stype->iox_size);
-
-    if(*sample) {
-      register_pub_loan(wr, *sample);
-
-      // NB: we set this since the user can use this chunk not only with write
-      // where we check whether it was loaned before.
-      // It is only possible to loan for fixed size types as of now.
-
-      // Unfortunate, since the chunk is not actually filled at this point.
-      // We should ensure that we cannot circumvent the write API
-      // (API redesign).
-      shm_set_data_state(*sample, IOX_CHUNK_CONTAINS_RAW_DATA);
-    } else {
+    *sample = dds_writer_loan_chunk(wr, wr->m_topic->m_stype->iox_size);
+    if (*sample == NULL) {
       ret = DDS_RETCODE_ERROR; // could not obtain a sample
     }
-
   } else {
     ret = DDS_RETCODE_UNSUPPORTED;
   }
