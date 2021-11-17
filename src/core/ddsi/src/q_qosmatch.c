@@ -159,6 +159,13 @@ bool qos_match_mask_p (
   assert ((wr_qos->present & musthave) == musthave);
 #endif
 
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  if (rd_typeid_req_lookup != NULL)
+    *rd_typeid_req_lookup = false;
+  if (wr_typeid_req_lookup != NULL)
+    *wr_typeid_req_lookup = false;
+#endif
+
   mask &= rd_qos->present & wr_qos->present;
   *reason = DDS_INVALID_QOS_POLICY_ID;
   if ((mask & QP_TOPIC_NAME) && strcmp (rd_qos->topic_name, wr_qos->topic_name) != 0)
@@ -167,11 +174,6 @@ bool qos_match_mask_p (
     return false;
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  if (rd_typeid_req_lookup != NULL)
-    *rd_typeid_req_lookup = false;
-  if (wr_typeid_req_lookup != NULL)
-    *wr_typeid_req_lookup = false;
-
   if (ddsi_typeid_none (rd_typeid) || ddsi_typeid_none (wr_typeid))
   {
     // Type id missing on either or both: automatic failure if "force type validation"

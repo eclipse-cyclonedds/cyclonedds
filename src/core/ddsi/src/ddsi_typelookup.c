@@ -239,6 +239,7 @@ static struct writer *get_typelookup_writer (const struct ddsi_domaingv *gv, uin
 bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const type_identifier_t *type_id)
 {
   ddsrt_mutex_lock (&gv->tl_admin_lock);
+  assert (!ddsi_typeid_none (type_id));
   struct tl_meta *tlm = ddsi_tl_meta_lookup_locked (gv, type_id);
   GVTRACE ("tl-req ");
   if (tlm->state != TL_META_NEW)
