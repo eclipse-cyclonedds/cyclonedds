@@ -16,10 +16,10 @@
 #include "dds__entity.h"
 
 #ifdef DDS_HAS_SHM
-#include "dds/ddsi/shm_transport.h"
+#include "dds/ddsi/ddsi_shm_transport.h"
 #endif
 
-#include "dds/ddsc/dds_loan.h"
+#include "dds/ddsc/dds_loan_api.h"
 
 dds_return_t dds_data_allocator_init_heap (dds_data_allocator_t *data_allocator)
 {

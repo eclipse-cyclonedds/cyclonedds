@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_sertopic.h" // for extern ddsi_sertopic_serdata_ops_wrap
 
-#include "dds/ddsc/dds_loan.h"
+#include "dds/ddsc/dds_loan_api.h"
 
 /*
   dds_read_impl: Core read/take function. Usually maxs is size of buf and si

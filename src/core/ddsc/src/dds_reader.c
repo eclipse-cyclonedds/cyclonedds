@@ -37,14 +37,14 @@
 #include "dds/ddsi/ddsi_statistics.h"
 
 #ifdef DDS_HAS_SHM
-#include "shm__monitor.h"
-#include "dds/ddsi/q_receive.h"
+#include "dds/ddsi/ddsi_shm_transport.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "iceoryx_binding_c/wait_set.h"
-#include "dds/ddsrt/threads.h"
-#include "dds/ddsrt/sync.h"
+#include "dds/ddsi/q_receive.h"
 #include "dds/ddsrt/md5.h"
-#include "dds/ddsi/shm_transport.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/threads.h"
+#include "iceoryx_binding_c/wait_set.h"
+#include "shm__monitor.h"
 #endif
 
 DECL_ENTITY_LOCK_UNLOCK (dds_reader)

@@ -23,10 +23,10 @@
 #include "dds__handles.h"
 
 #ifdef DDS_HAS_SHM
-#include "iceoryx_binding_c/subscriber.h"
+#include "dds/ddsi/ddsi_shm_transport.h"
 #include "iceoryx_binding_c/publisher.h"
+#include "iceoryx_binding_c/subscriber.h"
 #include "shm__monitor.h"
-#include "dds/ddsi/shm_transport.h"
 #define MAX_PUB_LOANS 8
 #endif
 

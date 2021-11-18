@@ -26,6 +26,8 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds__entity.h"
 
+#include "dds/ddsc/dds_loan_api.h"
+
 #include "test_common.h"
 #include "Array100.h"
 

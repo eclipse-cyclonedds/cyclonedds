@@ -24,9 +24,7 @@
 #include "dds/export.h"
 #include "dds/features.h"
 
-// MAKI TODO if the public_* headers depend on definitions it should be included
-// in the headers and not pre-included
-#include "dds/ddsc/dds_public_types.h"
+#include "dds/ddsc/dds_basic_types.h"
 
 /* Sub components */
 
@@ -50,8 +48,6 @@ struct ddsi_sertype;
 struct ddsi_serdata;
 struct ddsi_sertopic; // deprecated, binary compatibility only
 
-#define DDS_MIN_PSEUDO_HANDLE ((dds_entity_t) 0x7fff0000)
-
 /** Indicates that the library uses ddsi_sertype (as a replacement for ddsi_sertopic). If sertype
  *  is used, the function dds_create_topic_sertype requires a topic name parameter, as this field
  *  is not included in ddsi_sertype. */
@@ -69,9 +65,6 @@ struct ddsi_sertopic; // deprecated, binary compatibility only
 #define DDS_BUILTIN_TOPIC_DCPSPUBLICATION  ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 3))
 #define DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 4))
 /** @}*/
-
-/** Special handle representing the entity corresponding to the CycloneDDS library itself */
-#define DDS_CYCLONEDDS_HANDLE              ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 256))
 
 /** Special handle representing the entity which forces the dds_data_allocator to allocate on heap */
 #define DDS_DATA_ALLOCATOR_ALLOC_ON_HEAP   ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 257))
@@ -1649,11 +1642,6 @@ dds_create_writer(
   dds_entity_t topic,
   const dds_qos_t *qos,
   const dds_listener_t *listener);
-
-DDS_EXPORT dds_return_t
-dds_loan_sample(
-  dds_entity_t writer,
-  void** sample);
 
 /*
   Writing data (and variants of it) is straightforward. The first set

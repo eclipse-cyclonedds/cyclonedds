@@ -112,6 +112,14 @@ DDS_EXPORT void *dds_data_allocator_alloc (dds_data_allocator_t *data_allocator,
  */
 DDS_EXPORT dds_return_t dds_data_allocator_free (dds_data_allocator_t *data_allocator, void *ptr);
 
+/// @note This function declaration is depecated here and has been moved to
+/// dds_loan_api.h.
+DDS_EXPORT bool dds_is_loan_available(const dds_entity_t entity);
+
+/// @note This function declaration is depecated here and has been moved to
+/// dds_loan_api.h.
+DDS_EXPORT bool is_loan_available(const dds_entity_t entity);
+
 #if defined (__cplusplus)
 }
 #endif

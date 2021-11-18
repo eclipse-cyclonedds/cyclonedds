@@ -15,7 +15,6 @@
 #include "RoundTrip.h"
 #include "Space.h"
 #include "dds/dds.h"
-#include "dds/ddsc/dds_loan.h"
 #include "dds/ddsrt/misc.h"
 
 /* Tests in this file only concern themselves with very basic api tests of

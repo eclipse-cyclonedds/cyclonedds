@@ -27,8 +27,8 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 #ifdef DDS_HAS_SHM
+#include "dds/ddsi/ddsi_shm_transport.h"
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/shm_transport.h"
 #include "iceoryx_binding_c/chunk.h"
 #endif
 

@@ -70,9 +70,9 @@
 #include "dds/ddsi/ddsi_security_omg.h"
 
 #ifdef DDS_HAS_SHM
+#include "dds/ddsi/ddsi_shm_transport.h"
 #include "dds/ddsrt/io.h"
 #include "iceoryx_binding_c/runtime.h"
-#include "dds/ddsi/shm_transport.h"
 #endif
 
 static void add_peer_addresses (const struct ddsi_domaingv *gv, struct addrset *as, const struct ddsi_config_peer_listelem *list)

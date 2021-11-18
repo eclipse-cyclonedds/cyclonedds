@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsi/shm_transport.h"
+#include "dds/ddsi/ddsi_shm_transport.h"
 #include "iceoryx_binding_c/log.h"
 
 void iox_sub_storage_extension_init(iox_sub_storage_extension_t *storage)

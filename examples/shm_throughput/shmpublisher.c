@@ -1,4 +1,5 @@
 #include "dds/dds.h"
+#include "dds/ddsc/dds_loan_api.h"
 #include "ShmThroughput.h"
 #include <stdio.h>
 #include <stdlib.h>
