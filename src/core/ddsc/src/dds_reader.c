@@ -589,8 +589,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     goto err_bad_qos;
   }
 
-  bool dynamic_types = tp->m_stype->dynamic_types;
-  if ((rc = dds_ensure_valid_data_representation (rqos, dynamic_types, false)) != 0)
+  if ((rc = dds_ensure_valid_data_representation (rqos, tp->m_stype->min_xcdrv, false)) != 0)
     goto err_data_repr;
 
   thread_state_awake (lookup_thread_state (), gv);

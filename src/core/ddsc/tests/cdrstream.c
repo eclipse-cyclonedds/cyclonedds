@@ -22,6 +22,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
 #include "test_util.h"
+#include "MinXcdrVersion.h"
 
 #define DDS_DOMAINID1 0
 #define DDS_DOMAINID2 1
@@ -1440,7 +1441,7 @@ static void cdrstream_init (void)
   CU_ASSERT_FATAL (dp2 > 0);
 }
 
-static void entity_init (const dds_topic_descriptor_t *desc)
+static void entity_init (const dds_topic_descriptor_t *desc, dds_data_representation_id_t data_representation, bool exp_rd_wr_fail)
 {
   char topicname[100];
   create_unique_topic_name ("ddsc_cdrstream", topicname, sizeof topicname);
@@ -1454,13 +1455,14 @@ static void entity_init (const dds_topic_descriptor_t *desc)
   dds_qset_history(qos, DDS_HISTORY_KEEP_ALL, DDS_LENGTH_UNLIMITED);
   dds_qset_durability(qos, DDS_DURABILITY_TRANSIENT_LOCAL);
   dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
-  dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR2 });
+  dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { data_representation });
 
   rd = dds_create_reader (dp2, tp2, qos, NULL);
-  CU_ASSERT_FATAL (rd > 0);
+  CU_ASSERT_FATAL ((!exp_rd_wr_fail && rd > 0) || (exp_rd_wr_fail && rd <= 0));
   wr = dds_create_writer (dp1, tp1, qos, NULL);
-  CU_ASSERT_FATAL (wr > 0);
-  sync_reader_writer (dp2, rd, dp1, wr);
+  CU_ASSERT_FATAL ((!exp_rd_wr_fail && wr > 0) || (exp_rd_wr_fail && wr <= 0));
+  if (!exp_rd_wr_fail)
+    sync_reader_writer (dp2, rd, dp1, wr);
   dds_delete_qos (qos);
 }
 
@@ -1499,7 +1501,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_empty 
   dds_return_t ret;
   msg ("Running test ser_des: %s", descr);
 
-  entity_init (desc);
+  entity_init (desc, DDS_DATA_REPRESENTATION_XCDR2, false);
   dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
   dds_entity_t ws = dds_create_waitset (dp2);
   ret = dds_waitset_attach (ws, rd, rd);
@@ -1575,7 +1577,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_init s
   dds_return_t ret;
   msg ("Running test ser_des_multiple: %s", descr);
 
-  entity_init (desc);
+  entity_init (desc, DDS_DATA_REPRESENTATION_XCDR2, false);
 
   void * rds[1] = { NULL };
   for (int n = 0; n < NUM_SAMPLES; n++)
@@ -1692,3 +1694,25 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
 #undef K
 #undef C
 #undef F
+
+#define D(n) (&MinXcdrVersion_ ## n ## _desc)
+#define XCDR1 CDR_ENC_VERSION_1
+#define XCDR2 CDR_ENC_VERSION_2
+CU_TheoryDataPoints (ddsc_cdrstream, min_xcdr_version) = {
+  CU_DataPoints (const dds_topic_descriptor_t *, D(t),  D(t_nested), D(t_inherit), D(t_opt), D(t_ext), D(t_append), D(t_mut), D(t_nested_mut), D(t_nested_opt) ),
+  CU_DataPoints (uint16_t,                       XCDR1, XCDR1,       XCDR1,        XCDR2,    XCDR1,    XCDR2,       XCDR2,    XCDR2,           XCDR2 ),
+};
+
+CU_Theory ((const dds_topic_descriptor_t *desc, uint16_t min_xcdrv),
+    ddsc_cdrstream, min_xcdr_version, .init = cdrstream_init, .fini = cdrstream_fini)
+{
+  printf("running test for desc: %s\n", desc->m_typename);
+  CU_ASSERT_EQUAL_FATAL (dds_stream_minimum_xcdr_version (desc->m_ops), min_xcdrv);
+
+  entity_init (desc, DDS_DATA_REPRESENTATION_XCDR1, min_xcdrv != XCDR1);
+  entity_init (desc, DDS_DATA_REPRESENTATION_XCDR2, false);
+}
+
+#undef XCDR1
+#undef XCDR2
+#undef D

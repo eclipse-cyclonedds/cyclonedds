@@ -823,8 +823,9 @@ bool dds_qget_data_representation (const dds_qos_t * __restrict qos, uint32_t *n
   return true;
 }
 
-dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, bool dynamic_type, bool topicqos)
+dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint16_t min_xcdrv, bool topicqos)
 {
+  assert (min_xcdrv <= CDR_ENC_VERSION_2);
   if ((qos->present & QP_DATA_REPRESENTATION) && qos->data_representation.value.n > 0)
   {
     assert (qos->data_representation.value.ids != NULL);
@@ -835,7 +836,7 @@ dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, bool dynamic_
         case DDS_DATA_REPRESENTATION_XML:
           return DDS_RETCODE_UNSUPPORTED;
         case DDS_DATA_REPRESENTATION_XCDR1:
-          if (dynamic_type)
+          if (min_xcdrv == CDR_ENC_VERSION_2)
             return DDS_RETCODE_BAD_PARAMETER;
           break;
         case DDS_DATA_REPRESENTATION_XCDR2:
@@ -847,7 +848,7 @@ dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, bool dynamic_
   }
   else
   {
-    if (dynamic_type)
+    if (min_xcdrv == CDR_ENC_VERSION_2)
       dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR2 });
     else if (!topicqos)
       dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1 });

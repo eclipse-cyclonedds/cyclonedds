@@ -86,7 +86,7 @@ DDS_EXPORT size_t dds_stream_print_key (dds_istream_t * __restrict is, const str
 
 DDS_EXPORT size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct ddsi_sertype_default * __restrict type, char * __restrict buf, size_t size);
 
-DDS_EXPORT bool dds_stream_has_dynamic_type (const uint32_t * __restrict ops);
+DDS_EXPORT uint16_t dds_stream_minimum_xcdr_version (const uint32_t * __restrict ops);
 
 #if defined (__cplusplus)
 }

@@ -46,7 +46,7 @@ struct ddsi_sertype {
   uint32_t typekind_no_key : 1;
   uint32_t request_keyhash : 1;
   uint32_t fixed_size : 1;
-  uint32_t dynamic_types : 1;  /* contains any appendable or mutable type, not necessarily the top-level type, can also be nested type */
+  uint16_t min_xcdrv;  /* minimum XCDR version required for (de)serialization */
   char *type_name;
   ddsrt_atomic_voidp_t gv; /* set during registration */
   ddsrt_atomic_uint32_t flags_refc; /* counts refs from entities (topic, reader, writer), not from data */

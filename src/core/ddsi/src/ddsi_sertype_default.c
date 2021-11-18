@@ -170,7 +170,7 @@ static bool sertype_default_deserialize (struct ddsi_domaingv *gv, struct ddsi_s
   DDSRT_WARNING_MSVC_ON(6326)
   st->encoding_format = ddsi_sertype_get_encoding_format (DDS_TOPIC_TYPE_EXTENSIBILITY (st->type.flagset));
   st->opt_size = (st->type.flagset & DDS_TOPIC_NO_OPTIMIZE) ? 0 : dds_stream_check_optimize (&st->type);
-  st->c.dynamic_types = dds_stream_has_dynamic_type (st->type.ops.ops);
+  st->c.min_xcdrv = dds_stream_minimum_xcdr_version (st->type.ops.ops);
   return true;
 }
 
