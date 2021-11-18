@@ -150,12 +150,18 @@ dds_return_t dds_data_allocator_free (dds_data_allocator_t *data_allocator, void
         ddsrt_free(ptr);
         break;
       case DDS_IOX_ALLOCATOR_KIND_SUBSCRIBER:
-        if (ptr != NULL)
+        if (ptr != NULL) {
+          ddsrt_mutex_lock(&d->mutex);
           iox_sub_release_chunk(d->ref.sub, ptr);
+          ddsrt_mutex_unlock(&d->mutex);
+        }
         break;
       case DDS_IOX_ALLOCATOR_KIND_PUBLISHER:
-        if (ptr != NULL)
+        if (ptr != NULL) {
+          ddsrt_mutex_lock(&d->mutex);
           iox_pub_release_chunk(d->ref.pub, ptr);
+          ddsrt_mutex_unlock(&d->mutex);
+        }
         break;
       default:
         ret = DDS_RETCODE_BAD_PARAMETER;

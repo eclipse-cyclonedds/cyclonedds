@@ -37,7 +37,7 @@
 #endif
 
 #ifdef DDS_HAS_SHM
-
+// MAKI move to loan.c
 static void register_pub_loan(dds_writer *wr, void *pub_loan)
 {
   for (uint32_t i = 0; i < MAX_PUB_LOANS; ++i)
@@ -91,6 +91,8 @@ static void *dds_writer_loan_chunk(dds_writer *wr, size_t size) {
 
 #endif
 
+// we do not register this loan (we do not need to for the use with
+// dds_writecdr)
 dds_return_t dds_loan_shared_memory_buffer(dds_entity_t writer, size_t size,
                                            void **buffer) {
 #ifndef DDS_HAS_SHM
@@ -109,10 +111,11 @@ dds_return_t dds_loan_shared_memory_buffer(dds_entity_t writer, size_t size,
     return ret;
 
   if (wr->m_iox_pub) {
-    *buffer = dds_writer_loan_chunk(wr, size);
+    *buffer = shm_create_chunk(wr->m_iox_pub, size);
     if (*buffer == NULL) {
       ret = DDS_RETCODE_ERROR; // could not obtain buffer memory
     }
+    shm_set_data_state(*buffer, IOX_CHUNK_UNINITIALIZED);
   } else {
     ret = DDS_RETCODE_UNSUPPORTED;
   }
@@ -154,6 +157,7 @@ dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
 #endif
 }
 
+// MAKI move to loan.c
 dds_return_t dds_return_writer_loan(dds_writer *writer, void **buf, int32_t bufsz)
 {
 #ifndef DDS_HAS_SHM
