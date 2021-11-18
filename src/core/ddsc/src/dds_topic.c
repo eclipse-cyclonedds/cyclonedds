@@ -624,8 +624,8 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
      XCDR2 data representation is required and the only valid value for this QoS.
      If the data representation is not set in the QoS (or no QoS object provided), the allowed
      data representations are added to the QoS object. */
-  bool dynamic_type = dds_stream_has_dynamic_type (desc->m_ops);
-  if ((hdl = dds_ensure_valid_data_representation (tpqos, dynamic_type, true)) != 0)
+  uint16_t min_xcdrv = dds_stream_minimum_xcdr_version (desc->m_ops);
+  if ((hdl = dds_ensure_valid_data_representation (tpqos, min_xcdrv, true)) != 0)
     goto err_data_repr;
 
   assert (tpqos->present & QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0);
@@ -650,7 +650,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   st->c.iox_size = desc->m_size;
 #endif
   st->c.fixed_size = (st->c.fixed_size || (desc->m_flagset & DDS_TOPIC_FIXED_SIZE)) ? 1u : 0u;
-  st->c.dynamic_types = dynamic_type ? 1u : 0u;
+  st->c.min_xcdrv = min_xcdrv;
   st->encoding_format = ddsi_sertype_get_encoding_format (DDS_TOPIC_TYPE_EXTENSIBILITY (desc->m_flagset));
   st->encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? CDR_ENC_VERSION_1 : CDR_ENC_VERSION_2;
   st->serpool = ppent->m_domain->gv.serpool;

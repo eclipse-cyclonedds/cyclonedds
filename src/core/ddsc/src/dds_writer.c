@@ -373,8 +373,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   if ((rc = ddsi_xqos_valid (&gv->logconfig, wqos)) < 0 || (rc = validate_writer_qos(wqos)) != DDS_RETCODE_OK)
     goto err_bad_qos;
 
-  bool dynamic_types = tp->m_stype->dynamic_types;
-  if ((rc = dds_ensure_valid_data_representation (wqos, dynamic_types, false)) != 0)
+  if ((rc = dds_ensure_valid_data_representation (wqos, tp->m_stype->min_xcdrv, false)) != 0)
     goto err_data_repr;
 
   assert (wqos->present & QP_DATA_REPRESENTATION && wqos->data_representation.value.n > 0);
@@ -417,7 +416,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wr->m_data_representation = data_representation;
 
 #ifdef DDS_HAS_SHM
-  assert(wqos->present & QP_LOCATOR_MASK);  
+  assert(wqos->present & QP_LOCATOR_MASK);
   if (!dds_writer_support_shm(&gv->config, wqos, tp))
     wqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
 #endif

@@ -1,0 +1,58 @@
+/*
+ * Copyright(c) 2006 to 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+module MinXcdrVersion {
+    @topic @final
+    struct t {
+        long f1;
+    };
+
+    @topic @final
+    struct t_nested {
+        t f1;
+    };
+
+    @topic @final
+    struct t_inherit : t {
+        long f2;
+    };
+
+    @topic @final
+    struct t_opt {
+        @optional long f1;
+    };
+
+    @topic @final
+    struct t_ext {
+        @external long f1;
+    };
+
+    @topic @appendable
+    struct t_append {
+        long f1;
+    };
+
+    @topic @mutable
+    struct t_mut {
+        long f1;
+    };
+
+    @topic @final
+    struct t_nested_mut {
+        t_mut f1;
+    };
+
+    @topic @final
+    struct t_nested_opt {
+        t_mut f1;
+    };
+
+};

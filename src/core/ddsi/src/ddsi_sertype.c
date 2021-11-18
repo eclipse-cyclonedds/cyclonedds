@@ -207,7 +207,7 @@ bool ddsi_sertype_deserialize (struct ddsi_domaingv *gv, struct ddsi_sertype *tp
   tp->ops = sertype_ops;
   tp->type_name = ddsrt_strdup (d.type_name);
   tp->typekind_no_key = d.typekind_no_key;
-  tp->dynamic_types = 0u;
+  tp->min_xcdrv = 0u;
   if (!tp->ops->deserialize (gv, tp, sz, serdata, &srcoff))
   {
     ddsrt_free (tp->type_name);
@@ -232,7 +232,7 @@ void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, co
   tp->typekind_no_key = (flags & DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY) ? 1u : 0u;
   tp->request_keyhash = (flags & DDSI_SERTYPE_FLAG_REQUEST_KEYHASH) ? 1u : 0u;
   tp->fixed_size = (flags & DDSI_SERTYPE_FLAG_FIXED_SIZE) ? 1u : 0u;
-  tp->dynamic_types = 0u;
+  tp->min_xcdrv = CDR_ENC_VERSION_1;
   tp->base_sertype = NULL;
   tp->wrapped_sertopic = NULL;
 #ifdef DDS_HAS_SHM
