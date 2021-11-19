@@ -246,8 +246,8 @@ ddsrt_thread_create (
   if (tattr.stackSize != 0)
   {
 #ifdef PTHREAD_STACK_MIN
-    if (tattr.stackSize < PTHREAD_STACK_MIN)
-      tattr.stackSize = PTHREAD_STACK_MIN;
+    if (tattr.stackSize < (uint32_t)PTHREAD_STACK_MIN)
+      tattr.stackSize = (uint32_t)PTHREAD_STACK_MIN;
 #endif
     if ((result = pthread_attr_setstacksize (&attr, tattr.stackSize)) != 0)
     {
