@@ -199,8 +199,12 @@ CU_Test (ddsi_sysdeps, log_stacktrace_other, .init = setup, .fini = teardown)
   CU_ASSERT_FATAL (rc == 0);
 
   ddsrt_mutex_lock (&arg.lock);
-  while (!arg.incallback)
+  /* coverity[loop_top: FALSE] */
+  /* coverity[exit_condition: FALSE] */
+  while (!arg.incallback) {
+    /* coverity[loop_bottom: FALSE] */
     ddsrt_cond_wait (&arg.cond, &arg.lock);
+  }
   ddsrt_mutex_unlock (&arg.lock);
 
   log_stacktrace (&logconfig, "other", tid);
