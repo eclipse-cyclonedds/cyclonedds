@@ -706,7 +706,8 @@ add_mutable_member_base(
   assert(idl_is_extensible(ctype->node, IDL_MUTABLE));
   if ((ret = stash_base_members_offset(pstate, &ctype->instructions, ctype->pl_offset++, base_ctype->node)))
     return ret;
-  stash_single(pstate, &ctype->instructions, ctype->pl_offset++, 0u);
+  if ((ret = stash_single(pstate, &ctype->instructions, ctype->pl_offset++, 0u)))
+    return ret;
   shift_plm_list_offsets(ctype);
   return IDL_RETCODE_OK;
 }
