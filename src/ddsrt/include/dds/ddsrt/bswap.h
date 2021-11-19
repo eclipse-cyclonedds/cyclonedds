@@ -30,25 +30,21 @@ enum ddsrt_byte_order_selector {
 
 DDS_INLINE_EXPORT inline uint16_t ddsrt_bswap2u (uint16_t x)
 {
-  /* coverity[byte_swapping]*/
   return (uint16_t) ((x >> 8) | (x << 8));
 }
 
 DDS_INLINE_EXPORT inline int16_t ddsrt_bswap2 (int16_t x)
 {
-  /* coverity[byte_swapping]*/
   return (int16_t) ddsrt_bswap2u ((uint16_t) x);
 }
 
 DDS_INLINE_EXPORT inline uint32_t ddsrt_bswap4u (uint32_t x)
 {
-  /* coverity[byte_swapping]*/
   return (x >> 24) | ((x >> 8) & 0xff00) | ((x << 8) & 0xff0000) | (x << 24);
 }
 
 DDS_INLINE_EXPORT inline int32_t ddsrt_bswap4 (int32_t x)
 {
-  /* coverity[byte_swapping]*/
   return (int32_t) ddsrt_bswap4u ((uint32_t) x);
 }
 
@@ -56,13 +52,11 @@ DDS_INLINE_EXPORT inline uint64_t ddsrt_bswap8u (uint64_t x)
 {
   const uint32_t newhi = ddsrt_bswap4u ((uint32_t) x);
   const uint32_t newlo = ddsrt_bswap4u ((uint32_t) (x >> 32));
-  /* coverity[byte_swapping]*/
   return ((uint64_t) newhi << 32) | (uint64_t) newlo;
 }
 
 DDS_INLINE_EXPORT inline int64_t ddsrt_bswap8 (int64_t x)
 {
-  /* coverity[byte_swapping]*/
   return (int64_t) ddsrt_bswap8u ((uint64_t) x);
 }
 

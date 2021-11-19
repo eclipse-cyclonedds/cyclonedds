@@ -626,6 +626,7 @@ static dds_return_t deser_data_representation (void * __restrict dst, struct fla
     return DDS_RETCODE_BAD_PARAMETER;
   x->value.n = cnt;
   x->value.ids = ddsrt_malloc (cnt * sizeof (*x->value.ids));
+  /* coverity[tainted_data: FALSE] */
   for (uint32_t n = 0; n < cnt; n++)
   {
     if (deser_int16 (&v, dd, &srcoff) < 0)
