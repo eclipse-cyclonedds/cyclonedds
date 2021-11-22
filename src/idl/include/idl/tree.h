@@ -485,6 +485,8 @@ IDL_EXPORT bool idl_is_templ_type(const void *node);
 IDL_EXPORT bool idl_is_bounded(const void *node);
 IDL_EXPORT bool idl_is_sequence(const void *node);
 IDL_EXPORT bool idl_is_string(const void *node);
+IDL_EXPORT bool idl_is_unbounded_string(const void *node);
+IDL_EXPORT bool idl_is_bounded_string(const void *node);
 IDL_EXPORT bool idl_is_constr_type(const void *node);
 IDL_EXPORT bool idl_is_struct(const void *node);
 IDL_EXPORT bool idl_is_empty(const void *node);

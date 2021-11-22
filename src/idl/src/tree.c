@@ -894,6 +894,16 @@ bool idl_is_string(const void *ptr)
   return true;
 }
 
+bool idl_is_unbounded_string(const void *ptr)
+{
+  return idl_is_string(ptr) && !idl_is_bounded(ptr);
+}
+
+bool idl_is_bounded_string(const void *ptr)
+{
+  return idl_is_string(ptr) && idl_is_bounded(ptr);
+}
+
 static void delete_string(void *ptr)
 {
   free(ptr);
