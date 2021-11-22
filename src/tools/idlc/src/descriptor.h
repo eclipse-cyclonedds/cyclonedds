@@ -157,7 +157,7 @@ key_print_meta_free(
   struct key_print_meta *keys,
   uint32_t n_keys);
 
-idl_retcode_t
+void
 descriptor_fini(
   struct descriptor *descriptor);
 
