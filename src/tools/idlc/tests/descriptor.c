@@ -133,9 +133,7 @@ CU_Test(idlc_descriptor, keys_nested)
       CU_ASSERT_EQUAL_FATAL (keys[k].key_idx, tests[i].key_index[k]);
     }
 
-    ret = descriptor_fini (&descriptor);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
-
+    descriptor_fini (&descriptor);
     idl_delete_pstate (pstate);
     key_print_meta_free (keys, descriptor.n_keys);
   }
@@ -204,8 +202,7 @@ CU_Test(idlc_descriptor, key_size)
     CU_ASSERT_EQUAL_FATAL (descriptor.keysz_xcdr1, tests[i].keysz_xcdr1);
     CU_ASSERT_EQUAL_FATAL (descriptor.keysz_xcdr2, tests[i].keysz_xcdr2);
 
-    ret = descriptor_fini (&descriptor);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    descriptor_fini (&descriptor);
 
     idl_delete_pstate (pstate);
   }
@@ -278,8 +275,7 @@ CU_Test(idlc_descriptor, keys_inheritance)
       CU_ASSERT_STRING_EQUAL_FATAL (keys[k].name, tests[i].key_name[k]);
     }
 
-    ret = descriptor_fini (&descriptor);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    descriptor_fini (&descriptor);
 
     idl_delete_pstate (pstate);
     key_print_meta_free (keys, descriptor.n_keys);
@@ -330,8 +326,7 @@ CU_Test(idlc_descriptor, no_optimize)
     CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL ((descriptor.flags & DDS_TOPIC_NO_OPTIMIZE) != 0, tests[i].no_optimize);
 
-    ret = descriptor_fini (&descriptor);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    descriptor_fini (&descriptor);
     idl_delete_pstate (pstate);
   }
 }
