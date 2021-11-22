@@ -77,7 +77,6 @@ strategy:
     'Windows 2019 with Visual Studio 2019 (Visual Studio 2017, Debug, x86)':
       arch: x86
       image: windows-2019
-      conanfile: conanfile102.txt
       idlc_testing: off
       generator: 'Visual Studio 16 2019'
       toolset: v141
