@@ -373,11 +373,11 @@ stash_size(
   if (idl_is_sequence(node) || ext) {
     type_spec = idl_type_spec(node);
 
-    if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
+    if (idl_is_bounded_string(type_spec)) {
       uint32_t dims = ((const idl_string_t *)type_spec)->maximum;
       if (idl_asprintf(&inst.data.size.type, "char[%"PRIu32"]", dims) == -1)
         goto err_type;
-    } else if (idl_is_string(type_spec)) {
+    } else if (idl_is_unbounded_string(type_spec)) {
       if (!(inst.data.size.type = idl_strdup("char *")))
         goto err_type;
     } else {
@@ -405,11 +405,11 @@ stash_size(
       type_spec = idl_type_spec(node);
     }
 
-    if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
+    if (idl_is_bounded_string(type_spec)) {
       uint32_t dims = ((const idl_string_t *)type_spec)->maximum;
       if (idl_asprintf(&inst.data.size.type, "char[%"PRIu32"]", dims) == -1)
         goto err_type;
-    } else if (idl_is_string(type_spec)) {
+    } else if (idl_is_unbounded_string(type_spec)) {
       if (!(inst.data.size.type = idl_strdup("char *")))
         goto err_type;
     } else if (idl_is_array(type_spec)) {
@@ -787,7 +787,7 @@ emit_case(
       return IDL_RETCODE_OK;
     }
 
-    if (idl_is_external(node))
+    if (idl_is_external(node) && !idl_is_unbounded_string(type_spec))
       opcode |= DDS_OP_FLAG_EXT;
 
     if (idl_is_array(_case->declarator)) {
@@ -797,10 +797,10 @@ emit_case(
       opcode |= typecode(type_spec, TYPE, false);
       if (idl_is_struct(type_spec) || idl_is_union(type_spec))
         case_type = EXTERNAL;
-      else if (idl_is_array(type_spec) || (idl_is_string(type_spec) && idl_is_bounded(type_spec)) || idl_is_sequence(type_spec) || idl_is_enum(type_spec))
+      else if (idl_is_array(type_spec) || idl_is_bounded_string(type_spec) || idl_is_sequence(type_spec) || idl_is_enum(type_spec))
         case_type = IN_UNION;
       else {
-        assert (idl_is_base_type(type_spec) || (idl_is_string(type_spec) && !idl_is_bounded(type_spec)) || idl_is_bitmask(type_spec));
+        assert (idl_is_base_type(type_spec) || idl_is_unbounded_string(type_spec) || idl_is_bitmask(type_spec));
         case_type = INLINE;
       }
     }
@@ -829,7 +829,7 @@ emit_case(
         /* generate union case opcode */
         if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, off++, opcode, 0u)))
           return ret;
-        if (idl_is_external(node)) {
+        if (idl_is_external(node) && !idl_is_unbounded_string(type_spec)) {
           opcode |= DDS_OP_FLAG_EXT;
           has_size = idl_is_array(type_spec) || idl_is_sequence(type_spec);
         }
@@ -1174,10 +1174,12 @@ emit_sequence(
          because the latter could be a typedef in case of an aliased type */
       idl_node_t *member_node = idl_parent(field->node);
       assert(idl_is_member(member_node));
-      if (idl_is_external(member_node))
+      if (idl_is_external(member_node) && !idl_is_unbounded_string(type_spec))
         opcode |= DDS_OP_FLAG_EXT;
+      /* Add FLAG_OPT, and add FLAG_EXT for non-string type as an optional field is represented in
+         the same way as external fields */
       if (idl_is_optional(member_node))
-        opcode |= DDS_OP_FLAG_OPT;
+        opcode |= DDS_OP_FLAG_OPT | (idl_is_unbounded_string(type_spec) ? 0 : DDS_OP_FLAG_EXT);
     }
     off = ctype->instructions.count;
     if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, opcode, order)))
@@ -1290,10 +1292,10 @@ emit_array(
        an external member */
     idl_node_t *parent = idl_parent(node);
     if (idl_is_struct(stype->node)) {
-      if (idl_is_external(parent))
+      if (idl_is_external(parent) && !idl_is_unbounded_string(type_spec))
         opcode |= DDS_OP_FLAG_EXT;
       if (idl_is_optional(parent))
-        opcode |= DDS_OP_FLAG_OPT;
+        opcode |= DDS_OP_FLAG_OPT | (idl_is_unbounded_string(type_spec) ? 0 : DDS_OP_FLAG_EXT);
     }
 
     off = ctype->instructions.count;
@@ -1309,7 +1311,7 @@ emit_array(
 
     /* short-circuit on simple types */
     if (simple) {
-      if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
+      if (idl_is_bounded_string(type_spec)) {
         /* generate data field noop [next-insn, elem-insn] */
         if ((ret = stash_single(pstate, &ctype->instructions, nop, 0)))
           return ret;
@@ -1456,10 +1458,10 @@ emit_declarator(
       ctype->has_key_member = true;
     }
     if (idl_is_struct(stype->node) && (idl_is_external(parent) || idl_is_optional(parent))) {
-      if (idl_is_external(parent))
+      if (idl_is_external(parent) && !idl_is_unbounded_string(type_spec))
         opcode |= DDS_OP_FLAG_EXT;
       if (idl_is_optional(parent))
-        opcode |= DDS_OP_FLAG_OPT;
+        opcode |= DDS_OP_FLAG_OPT | (idl_is_unbounded_string(type_spec) ? 0 : DDS_OP_FLAG_EXT);
       /* For @external and @optional fields of type OP_TYPE_EXT include the size of the field to
          allow the serializer to allocate memory for this field when deserializing. */
       if (DDS_OP_TYPE(opcode) == DDS_OP_VAL_EXT)
@@ -1476,7 +1478,7 @@ emit_declarator(
     if ((ret = stash_offset(pstate, &ctype->instructions, nop, field)))
       return ret;
     /* generate data field bound */
-    if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
+    if (idl_is_bounded_string(type_spec)) {
       if ((ret = stash_single(pstate, &ctype->instructions, nop, idl_bound(type_spec)+1)))
         return ret;
     } else if (idl_is_struct(type_spec) || idl_is_union(type_spec)) {

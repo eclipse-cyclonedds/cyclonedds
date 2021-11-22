@@ -98,6 +98,7 @@ static const uint32_t *dds_stream_extract_keyBE_from_data1 (dds_istream_t * __re
   uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_sertype_default_desc_key_t * __restrict key, struct key_off_info * __restrict key_offs);
 static const uint32_t *dds_stream_normalize1 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, bool is_mutable_member);
 static const uint32_t *dds_stream_read_impl (dds_istream_t * __restrict is, char * __restrict data, const uint32_t * __restrict ops, bool is_mutable_member);
+static const uint32_t *stream_free_sample_adr (uint32_t insn, void * __restrict data, const uint32_t * __restrict ops);
 
 static void dds_ostream_grow (dds_ostream_t * __restrict st, uint32_t size)
 {
@@ -1219,6 +1220,11 @@ static void realloc_sequence_buffer_if_needed (dds_sequence_t * __restrict seq, 
   }
 }
 
+static bool stream_is_member_present (uint32_t insn, dds_istream_t * __restrict is, bool is_mutable_member)
+{
+  return !op_type_optional (insn) || is_mutable_member || dds_is_get1 (is);
+}
+
 static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char * __restrict addr, const uint32_t * __restrict ops, uint32_t insn)
 {
   dds_sequence_t * const seq = (dds_sequence_t *) addr;
@@ -1352,7 +1358,7 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t * __restrict is, char 
     const enum dds_stream_typecode valtype = DDS_JEQ_TYPE (jeq_op[0]);
     void *valaddr = baseaddr + jeq_op[2];
 
-    if (op_type_external (jeq_op[0]) && valtype != DDS_OP_VAL_STR)
+    if (op_type_external (jeq_op[0]))
     {
       /* Allocate memory for @external union member. This memory must be initialized
           to 0, because the type may contain sequences that need to have 0 index/size
@@ -1391,26 +1397,18 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t * __restrict is, char 
 static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t * __restrict is, char * __restrict data, const uint32_t * __restrict ops, bool is_mutable_member)
 {
   void *addr = data + ops[1];
-  if (op_type_optional (insn))
+  if (!stream_is_member_present (insn, is, is_mutable_member))
   {
-    /* mutable optional members are only included in PL-CDR2 if the
-       member is present, so present defaults to true */
-    bool present = is_mutable_member ? true : dds_is_get1 (is);
-    if (!present)
-    {
-      if (DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
-        *((char **) addr) = NULL;
-      else
-        addr = NULL;
-      return dds_stream_skip_adr (insn, ops);
-    }
+    (void) stream_free_sample_adr (insn, data, ops);
+    *(char **) addr = NULL;
+    return dds_stream_skip_adr (insn, ops);
   }
 
-  if ((op_type_external (insn) || op_type_optional (insn)) && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
+  if (op_type_external (insn))
   {
-    /* Allocate memory for @external union member. This memory must be initialized
-        to 0, because the type may contain sequences that need to have 0 index/size
-        or external fields that need to be initialized to null */
+    /* Allocate memory for @external member. This memory must be initialized to 0,
+       because the type may contain sequences that need to have 0 index/size
+       or external fields that need to be initialized to null */
     uint32_t sz = get_adr_type_size (insn, ops);
     if (*((char **) addr) == NULL)
       *((char **) addr) = ddsrt_calloc (1, sz);
@@ -1751,11 +1749,14 @@ static bool normalize_uint32 (char * __restrict data, uint32_t * __restrict off,
   return true;
 }
 
-static bool read_and_normalize_uint8 (uint8_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size)
+static bool read_and_normalize_bool (bool * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size)
 {
   if (*off == size)
     return false;
-  *val = *((uint8_t *) (data + *off));
+  uint8_t b = *((uint8_t *) (data + *off));
+  if (b > 1)
+    return false;
+  *val = b;
   (*off)++;
   return true;
 }
@@ -2036,15 +2037,13 @@ static const uint32_t *stream_normalize_adr (uint32_t insn, char * __restrict da
 {
   if (op_type_optional (insn))
   {
-    uint8_t present = 1;
+    bool present = true;
     if (!is_mutable_member)
     {
-      if (!read_and_normalize_uint8 (&present, data, off, size))
+      if (!read_and_normalize_bool (&present, data, off, size))
         return NULL;
     }
-    if (present > 1)
-      return NULL;
-    if (present == 0)
+    if (!present)
       return dds_stream_skip_adr (insn, ops);
   }
   switch (DDS_OP_TYPE (insn))
@@ -2415,7 +2414,7 @@ static const uint32_t *dds_stream_free_sample_uni (char * __restrict discaddr, c
     void *valaddr = baseaddr + jeq_op[2];
 
     /* de-reference addr in case of an external member, except strings */
-    if (op_type_external (jeq_op[0]) && subtype != DDS_OP_VAL_STR)
+    if (op_type_external (jeq_op[0]))
     {
       assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
       valaddr = *((char **) valaddr);
@@ -2443,7 +2442,7 @@ static const uint32_t *dds_stream_free_sample_uni (char * __restrict discaddr, c
     }
 
     /* free buffer of the external field */
-    if (op_type_external (jeq_op[0]) && subtype != DDS_OP_VAL_STR)
+    if (op_type_external (jeq_op[0]))
     {
       dds_free (valaddr);
       valaddr = NULL;
@@ -2480,6 +2479,52 @@ static const uint32_t *dds_stream_free_sample_pl (char * __restrict addr, const 
   return ops;
 }
 
+static const uint32_t *stream_free_sample_adr (uint32_t insn, void * __restrict data, const uint32_t * __restrict ops)
+{
+  assert (DDS_OP (insn) == DDS_OP_ADR);
+  void *addr = (char *) data + ops[1];
+
+  if (op_type_external (insn))
+  {
+    addr = *(char **) addr;
+    if (!addr)
+      return dds_stream_skip_adr (insn, ops);
+  }
+
+  switch (DDS_OP_TYPE (insn))
+  {
+    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: ops += 2; break;
+    case DDS_OP_VAL_STR: {
+      dds_free (*((char **) addr));
+      ops += 2;
+      break;
+    }
+    case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU: ops += 3; break;
+    case DDS_OP_VAL_SEQ: ops = dds_stream_free_sample_seq (addr, ops, insn); break;
+    case DDS_OP_VAL_ARR: ops = dds_stream_free_sample_arr (addr, ops, insn); break;
+    case DDS_OP_VAL_UNI: ops = dds_stream_free_sample_uni (addr, data, ops, insn); break;
+    case DDS_OP_VAL_EXT: {
+      const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
+      const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
+      dds_stream_free_sample (addr, jsr_ops);
+      ops += jmp ? jmp : 3;
+      break;
+    }
+    case DDS_OP_VAL_STU:
+      abort (); /* op type STU only supported as subtype */
+      break;
+  }
+
+  /* free buffer of the external member */
+  if (op_type_external (insn))
+  {
+    dds_free (addr);
+    addr = NULL;
+  }
+
+  return ops;
+}
+
 void dds_stream_free_sample (void * __restrict data, const uint32_t * __restrict ops)
 {
   uint32_t insn;
@@ -2487,70 +2532,22 @@ void dds_stream_free_sample (void * __restrict data, const uint32_t * __restrict
   {
     switch (DDS_OP (insn))
     {
-      case DDS_OP_ADR: {
-        void *addr = (char *) data + ops[1];
-
-        /* de-reference addr in case of an external member, except strings */
-        if ((op_type_external (insn) || op_type_optional (insn)) && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
-        {
-          addr = *((char **) addr);
-          /* in case of null pointer to external buffer, continue to next ADR */
-          if (!addr) {
-            ops = dds_stream_skip_adr (insn, ops);
-            continue;
-          }
-        }
-
-        switch (DDS_OP_TYPE (insn))
-        {
-          case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: ops += 2; break;
-          case DDS_OP_VAL_STR: {
-            dds_free (*((char **) addr));
-            *((char **) addr) = NULL;
-            ops += 2;
-            break;
-          }
-          case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU: ops += 3; break;
-          case DDS_OP_VAL_SEQ: ops = dds_stream_free_sample_seq (addr, ops, insn); break;
-          case DDS_OP_VAL_ARR: ops = dds_stream_free_sample_arr (addr, ops, insn); break;
-          case DDS_OP_VAL_UNI: ops = dds_stream_free_sample_uni (addr, data, ops, insn); break;
-          case DDS_OP_VAL_EXT: {
-            const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
-            const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
-            dds_stream_free_sample (addr, jsr_ops);
-            ops += jmp ? jmp : 3;
-            break;
-          }
-          case DDS_OP_VAL_STU:
-            abort (); /* op type STU only supported as subtype */
-            break;
-        }
-
-        /* free buffer of the external member */
-        if ((op_type_external (insn) || op_type_optional (insn)) && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
-        {
-          dds_free (addr);
-          addr = NULL;
-        }
+      case DDS_OP_ADR:
+        ops = stream_free_sample_adr (insn, data, ops);
         break;
-      }
-      case DDS_OP_JSR: {
+      case DDS_OP_JSR:
         dds_stream_free_sample (data, ops + DDS_OP_JUMP (insn));
         ops++;
         break;
-      }
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: {
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
         abort ();
         break;
-      }
-      case DDS_OP_DLC: {
+      case DDS_OP_DLC:
         ops++;
         break;
-      }
-      case DDS_OP_PLC: {
+      case DDS_OP_PLC:
         ops = dds_stream_free_sample_pl (data, ops);
         break;
-      }
     }
   }
 }
@@ -3258,15 +3255,11 @@ static bool dds_stream_print_sample1 (char * __restrict *buf, size_t * __restric
       case DDS_OP_ADR: {
         if (!delimited_sz || (is->m_index - delimited_offs < delimited_sz))
         {
-          if (op_type_optional (insn))
+          if (!stream_is_member_present (insn, is, is_mutable_member))
           {
-            bool present = is_mutable_member ? true : dds_is_get1 (is);
-            if (present == 0)
-            {
-              (void) prtf (buf, bufsize, "NULL");
-              ops = dds_stream_skip_adr (insn, ops);
-              break;
-            }
+            (void) prtf (buf, bufsize, "NULL");
+            ops = dds_stream_skip_adr (insn, ops);
+            break;
           }
 
           switch (DDS_OP_TYPE (insn))

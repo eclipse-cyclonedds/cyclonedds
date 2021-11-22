@@ -202,9 +202,10 @@ enum dds_stream_typecode_primary {
 };
 #define DDS_OP_TYPE_BOO DDS_OP_TYPE_1BY
 
-/* This flag indicates that the type is used as external data (annotated with
-   the @external annotation in idl). It is stored in the most-significant bit
-   of the type part of the instruction. */
+/* This flag indicates that the type has external data (i.e. a mapped to a pointer type),
+   which can be the case because of (1) the @external annotation in idl or (2) the @optional
+   annotation (optional fields are also mapped to pointer types as described in the XTypes spec).
+   This flag is stored in the most-significant bit of the 'type' part of the serializer instruction. */
 #define DDS_OP_FLAG_EXT (1u << 23)
 
 
@@ -242,7 +243,8 @@ enum dds_stream_typecode_subtype {
 #define DDS_OP_FLAG_MU   (1u << 3) /* must-understand flag */
 #define DDS_OP_FLAG_BASE (1u << 4) /* jump to base type, used with PLM in mutable types and for
                                       the TYPE_EXT 'parent' member in final and appendable types */
-#define DDS_OP_FLAG_OPT  (1u << 5) /* optional flag, used with struct members */
+#define DDS_OP_FLAG_OPT  (1u << 5) /* optional flag, used with struct members. For non-string types,
+                                      an optional member also gets the FLAG_EXT, see above. */
 
 /* Topic descriptor flag values */
 #define DDS_TOPIC_FLAGS_MASK                    0x3fffffff  /* The 2 most significant bits are used for type extensibility */
