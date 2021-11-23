@@ -73,7 +73,6 @@ strategy:
       image: macOS-10.15
       build_type: Release
       cc: clang
-    # disabled for now because 32-bit packages are missing
     'Windows 2019 with Visual Studio 2019 (Visual Studio 2017, Debug, x86)':
       arch: x86
       image: windows-2019
