@@ -221,15 +221,16 @@ CU_Theory ((const struct ops *ops, bool random, adj_fun_t adj, const char *adjna
 }
 
 struct gcelem {
+  void *block;
   struct gcelem *next;
 };
 
 static void chhtest_gc (void *block, void *arg)
 {
-  // block is large enough
   // simply defer freeing memory until the end of the test
   struct gcelem **gclist = arg;
-  struct gcelem *elem = block;
+  struct gcelem *elem = ddsrt_malloc (sizeof (*elem));
+  elem->block = block;
   elem->next = *gclist;
   *gclist = elem;
 }
@@ -402,6 +403,7 @@ CU_Test(ddsrt_hopscotch, concurrent, .timeout = 20)
   {
     struct gcelem *elem = gclist;
     gclist = gclist->next;
+    ddsrt_free (elem->block);
     ddsrt_free (elem);
   }
 }
