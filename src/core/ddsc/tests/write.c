@@ -12,9 +12,9 @@
 #include <stdio.h>
 
 #include "CUnit/Theory.h"
-#include "dds/dds.h"
 #include "RoundTrip.h"
 #include "Space.h"
+#include "dds/dds.h"
 #include "dds/ddsrt/misc.h"
 
 /* Tests in this file only concern themselves with very basic api tests of

@@ -12,8 +12,9 @@
 #ifndef DDS__DATA_ALLOCATOR_H
 #define DDS__DATA_ALLOCATOR_H
 
-#include "dds/ddsrt/static_assert.h"
 #include "dds/ddsc/dds_data_allocator.h"
+#include "dds/ddsrt/static_assert.h"
+#include "dds/ddsrt/sync.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -37,6 +38,7 @@ typedef struct dds_iox_allocator {
     iox_pub_t pub;
     iox_sub_t sub;
   } ref;
+  ddsrt_mutex_t mutex;
 } dds_iox_allocator_t;
 
 DDSRT_STATIC_ASSERT(sizeof (dds_iox_allocator_t) <= sizeof (dds_data_allocator_t));

@@ -27,164 +27,14 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
 
+#include "dds/ddsc/dds_loan_api.h"
+#include "dds__loan.h"
+
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_cdrstream.h"
-#include "dds/ddsi/shm_transport.h"
+#include "dds/ddsi/ddsi_shm_transport.h"
 #include "dds/ddsi/q_addrset.h"
-#include "iceoryx_binding_c/chunk.h"
 #endif
-
-#ifdef DDS_HAS_SHM
-
-static void register_pub_loan(dds_writer *wr, void *pub_loan)
-{
-  for (uint32_t i = 0; i < MAX_PUB_LOANS; ++i)
-  {
-    if (!wr->m_iox_pub_loans[i])
-    {
-      wr->m_iox_pub_loans[i] = pub_loan;
-      return;
-    }
-  }
-  /* The loan pool should be big enough to store the maximum number of open IceOryx loans.
-   * So if IceOryx grants the loan, we should be able to store it.
-   */
-  assert(false);
-}
-
-static bool deregister_pub_loan(dds_writer *wr, const void *pub_loan)
-{
-    for (uint32_t i = 0; i < MAX_PUB_LOANS; ++i)
-    {
-      if (wr->m_iox_pub_loans[i] == pub_loan)
-      {
-        wr->m_iox_pub_loans[i] = NULL;
-        return true;
-      }
-    }
-    return false;
-}
-
-static void *create_iox_chunk(dds_writer *wr, size_t size)
-{
-    iceoryx_header_t *ice_hdr;
-    void *iox_chunk;    
-
-    // TODO: use a proper timeout to control the time it is allowed to take to obtain a chunk more accurately
-    // but for now only try a limited number of times (hence non-blocking).
-    // Otherwise we could block here forever and this also leads to problems with thread progress monitoring.
-
-    int32_t number_of_tries = 10; //try 10 times over at least 10ms, considering the wait time below
-
-    while (true)
-    {
-      enum iox_AllocationResult alloc_result = 
-        iox_pub_loan_aligned_chunk_with_user_header(wr->m_iox_pub, &iox_chunk, (uint32_t) size, IOX_C_CHUNK_DEFAULT_USER_PAYLOAD_ALIGNMENT, sizeof(iceoryx_header_t), 8);
-
-      if (AllocationResult_SUCCESS == alloc_result)
-        break;
-
-      if(--number_of_tries <= 0) {
-        return NULL;
-      }
-
-      dds_sleepfor (DDS_MSECS (1)); // TODO: how long should we wait?
-    }
-
-    iox_chunk_header_t * iox_chunk_header = iox_chunk_header_from_user_payload(iox_chunk);
-    ice_hdr = iox_chunk_header_to_user_header(iox_chunk_header);
-    ice_hdr->data_size = (uint32_t) size;
-    ice_hdr->shm_data_state = IOX_CHUNK_UNINITIALIZED;
-    return iox_chunk;
-}
-
-static void release_iox_chunk(dds_writer *wr, void *sample)
-{
-  iox_pub_release_chunk(wr->m_iox_pub, sample);
-}
-#endif
-
-dds_return_t dds_loan_sample(dds_entity_t writer, void** sample)
-{
-#ifndef DDS_HAS_SHM
-  (void) writer;
-  (void) sample;
-  return DDS_RETCODE_UNSUPPORTED;
-#else
-  dds_return_t ret;
-  dds_writer *wr;
-
-  if (!sample)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
-    return ret;
-
-  // the loaning is only allowed if SHM is enabled correctly and if the type is fixed
-  if (wr->m_iox_pub && wr->m_topic->m_stype->fixed_size)
-  {
-    *sample = create_iox_chunk(wr, wr->m_topic->m_stype->iox_size);
-
-    if(*sample) {
-      register_pub_loan(wr, *sample);
-    } else {
-      ret = DDS_RETCODE_ERROR; // could not obtain a sample
-    }
-
-  } else {
-    ret = DDS_RETCODE_UNSUPPORTED;
-  }
-
-  dds_writer_unlock (wr); 
-  return ret;
-#endif
-}
-
-dds_return_t dds_return_writer_loan(dds_writer *writer, void **buf, int32_t bufsz)
-{
-#ifndef DDS_HAS_SHM
-  (void) writer; (void) buf; (void) bufsz;
-  return DDS_RETCODE_UNSUPPORTED;
-#else
-  // Iceoryx publisher pointer is a constant so we can check outside the locks
-  // returning loan is only valid if SHM is enabled correctly (i.e. iox publisher is initialized) and the type is fixed
-  if (writer->m_iox_pub == NULL || !writer->m_topic->m_stype->fixed_size)
-    return DDS_RETCODE_UNSUPPORTED;
-  if (bufsz <= 0)
-  {
-    // analogous to long-standing behaviour for the reader case, where it makes (some) sense
-    // as it allows passing in the result of a read/take operation regardless of whether that
-    // operation was successful
-    return DDS_RETCODE_OK;
-  }
-
-  ddsrt_mutex_lock (&writer->m_entity.m_mutex);
-  dds_return_t ret = DDS_RETCODE_OK;
-  for (int32_t i = 0; i < bufsz; i++)
-  {
-    if (buf[i] == NULL)
-    {
-      ret = DDS_RETCODE_BAD_PARAMETER;
-      break;
-    }
-    else if (!deregister_pub_loan (writer, buf[i]))
-    {
-      ret = DDS_RETCODE_PRECONDITION_NOT_MET;
-      break;
-    }
-    else
-    {
-      release_iox_chunk (writer, buf[i]);
-      // return loan on the reader nulls buf[0], but here it makes more sense to clear all
-      // successfully returned ones: then, on failure, the application can figure out which
-      // ones weren't returned by looking for the first non-null pointer
-      buf[i] = NULL;
-    }
-  }
-  ddsrt_mutex_unlock (&writer->m_entity.m_mutex);
-  return ret;
-#endif
-}
 
 dds_return_t dds_write (dds_entity_t writer, const void *data)
 {
@@ -565,7 +415,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
         ret = DDS_RETCODE_OUT_OF_RESOURCES;
         goto finalize_write;
       }
-      iox_chunk = create_iox_chunk(wr, required_size);
+      iox_chunk = shm_create_chunk(wr->m_iox_pub, required_size);
 
       if(iox_chunk) {
         if(!fill_iox_chunk(wr, data, iox_chunk, required_size)) {

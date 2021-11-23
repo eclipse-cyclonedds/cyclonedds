@@ -23,7 +23,9 @@
 extern "C" {
 #endif
 
-#define DDS_DATA_ALLOCATOR_MAX_SIZE (8 * sizeof (void *))
+// macOS' mutexes require quite a lot of space, but it is not quite enough
+// to make this system-dependent
+#define DDS_DATA_ALLOCATOR_MAX_SIZE (12 * sizeof (void *))
 
 typedef struct dds_data_allocator {
   dds_entity_t entity;
@@ -112,17 +114,13 @@ DDS_EXPORT void *dds_data_allocator_alloc (dds_data_allocator_t *data_allocator,
  */
 DDS_EXPORT dds_return_t dds_data_allocator_free (dds_data_allocator_t *data_allocator, void *ptr);
 
-/** @brief Check if a Loan is available to reader/writer
- * The loan is available if the shared memory is enabled and all the constraints to enable
- * shared memory are met and the type is fixed
- *
- * @param[in] entity the handle of the entity
- *
- * @returns loan available or not
- */
-DDS_EXPORT bool dds_is_loan_available (const dds_entity_t entity);
+/// @note This function declaration is depecated here and has been moved to
+/// dds_loan_api.h.
+DDS_EXPORT bool dds_is_loan_available(const dds_entity_t entity);
 
-DDS_DEPRECATED_EXPORT bool is_loan_available (const dds_entity_t entity);
+/// @note This function declaration is depecated here and has been moved to
+/// dds_loan_api.h.
+DDS_EXPORT bool is_loan_available(const dds_entity_t entity);
 
 #if defined (__cplusplus)
 }

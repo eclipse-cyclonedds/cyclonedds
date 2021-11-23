@@ -290,7 +290,10 @@ static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_
       false == cfg->enable_shm)
     return false;
 
-  if(!tp->m_stype->fixed_size && !tp->m_stype->ops->get_serialized_size && !tp->m_stype->ops->serialize_into) {
+  // check necessary condition: fixed size data type OR serializing into shared
+  // memory is available
+  if (!tp->m_stype->fixed_size && (!tp->m_stype->ops->get_serialized_size ||
+                                   !tp->m_stype->ops->serialize_into)) {
     return false;
   }
 
@@ -499,6 +502,7 @@ dds_return_t dds__writer_data_allocator_init (const dds_writer *wr, dds_data_all
 {
 #ifdef DDS_HAS_SHM
   dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
+  ddsrt_mutex_init(&d->mutex);
   if (NULL != wr->m_iox_pub)
   {
     d->kind = DDS_IOX_ALLOCATOR_KIND_PUBLISHER;
@@ -520,6 +524,7 @@ dds_return_t dds__writer_data_allocator_fini (const dds_writer *wr, dds_data_all
 {
 #ifdef DDS_HAS_SHM
   dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
+  ddsrt_mutex_destroy(&d->mutex);
   d->kind = DDS_IOX_ALLOCATOR_KIND_FINI;
 #else
   (void) data_allocator;

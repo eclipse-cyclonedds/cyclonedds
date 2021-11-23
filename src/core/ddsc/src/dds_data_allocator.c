@@ -10,10 +10,16 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "dds/dds.h"
-#include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_sertype.h"
+#include "dds/ddsrt/heap.h"
 #include "dds__data_allocator.h"
 #include "dds__entity.h"
+
+#ifdef DDS_HAS_SHM
+#include "dds/ddsi/ddsi_shm_transport.h"
+#endif
+
+#include "dds/ddsc/dds_loan_api.h"
 
 dds_return_t dds_data_allocator_init_heap (dds_data_allocator_t *data_allocator)
 {
@@ -106,12 +112,15 @@ void *dds_data_allocator_alloc (dds_data_allocator_t *data_allocator, size_t siz
     case DDS_IOX_ALLOCATOR_KIND_PUBLISHER:
       if (size > UINT32_MAX)
         return NULL;
-      else
-      {
-        enum iox_AllocationResult alloc_result;
-        void *ptr;
-        alloc_result = iox_pub_loan_chunk (d->ref.pub, &ptr, (uint32_t) size);
-        return (alloc_result == AllocationResult_SUCCESS) ? ptr : NULL;
+      else {
+        ddsrt_mutex_lock(&d->mutex);
+        // NB: This creates an iceoryx header in addition to the allocation.
+        //     This may be undesirable, especially for small allocations...
+        // The header contains the size of the allocation and other information,
+        // e.g. whether the memory is uninitialized or contains data.
+        void *chunk = shm_create_chunk(d->ref.pub, (uint32_t)size);
+        ddsrt_mutex_unlock(&d->mutex);
+        return chunk;
       }
     default:
       return NULL;
@@ -141,12 +150,18 @@ dds_return_t dds_data_allocator_free (dds_data_allocator_t *data_allocator, void
         ddsrt_free(ptr);
         break;
       case DDS_IOX_ALLOCATOR_KIND_SUBSCRIBER:
-        if (ptr != NULL)
+        if (ptr != NULL) {
+          ddsrt_mutex_lock(&d->mutex);
           iox_sub_release_chunk(d->ref.sub, ptr);
+          ddsrt_mutex_unlock(&d->mutex);
+        }
         break;
       case DDS_IOX_ALLOCATOR_KIND_PUBLISHER:
-        if (ptr != NULL)
+        if (ptr != NULL) {
+          ddsrt_mutex_lock(&d->mutex);
           iox_pub_release_chunk(d->ref.pub, ptr);
+          ddsrt_mutex_unlock(&d->mutex);
+        }
         break;
       default:
         ret = DDS_RETCODE_BAD_PARAMETER;
@@ -157,42 +172,4 @@ dds_return_t dds_data_allocator_free (dds_data_allocator_t *data_allocator, void
   ddsrt_free (ptr);
 #endif
   return ret;
-}
-
-bool dds_is_loan_available(const dds_entity_t entity)
-{
-  bool ret = false;
-#ifdef DDS_HAS_SHM
-  dds_entity * e;
-
-  if (DDS_RETCODE_OK != dds_entity_pin(entity, &e)) {
-    return ret;
-  }
-
-  switch (dds_entity_kind(e)) {
-    case DDS_KIND_READER: {
-      struct dds_reader const *const rd = (struct dds_reader *)e;
-      // only if SHM is enabled correctly (i.e. iox subscriber is initialized) and the type is fixed
-      ret = (rd->m_iox_sub != NULL) && (rd->m_topic->m_stype->fixed_size);
-      break;
-    }
-    case DDS_KIND_WRITER: {
-      struct dds_writer const *const wr = (struct dds_writer *)e;
-      // only if SHM is enabled correctly (i.e. iox publisher is initialized) and the type is fixed
-      ret = (wr->m_iox_pub != NULL) && (wr->m_topic->m_stype->fixed_size);
-      break;
-    }
-    default:
-      break;
-  }
-
-  dds_entity_unpin(e);
-#endif
-  (void) entity;
-  return ret;
-}
-
-bool is_loan_available(const dds_entity_t entity)
-{
-  return dds_is_loan_available(entity);
 }

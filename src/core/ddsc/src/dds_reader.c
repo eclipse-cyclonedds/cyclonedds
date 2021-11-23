@@ -37,14 +37,14 @@
 #include "dds/ddsi/ddsi_statistics.h"
 
 #ifdef DDS_HAS_SHM
-#include "shm__monitor.h"
-#include "dds/ddsi/q_receive.h"
+#include "dds/ddsi/ddsi_shm_transport.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "iceoryx_binding_c/wait_set.h"
-#include "dds/ddsrt/threads.h"
-#include "dds/ddsrt/sync.h"
+#include "dds/ddsi/q_receive.h"
 #include "dds/ddsrt/md5.h"
-#include "dds/ddsi/shm_transport.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/threads.h"
+#include "iceoryx_binding_c/wait_set.h"
+#include "shm__monitor.h"
 #endif
 
 DECL_ENTITY_LOCK_UNLOCK (dds_reader)
@@ -475,7 +475,10 @@ static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_
       false == cfg->enable_shm)
     return false;
 
-  if(!tp->m_stype->fixed_size && !tp->m_stype->ops->get_serialized_size && !tp->m_stype->ops->serialize_into) {
+  // check necessary condition: fixed size data type OR serializing into shared
+  // memory is available
+  if (!tp->m_stype->fixed_size && (!tp->m_stype->ops->get_serialized_size ||
+                                   !tp->m_stype->ops->serialize_into)) {
     return false;
   }
 
@@ -839,6 +842,7 @@ dds_return_t dds__reader_data_allocator_init (const dds_reader *rd, dds_data_all
 {
 #ifdef DDS_HAS_SHM
   dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
+  ddsrt_mutex_init(&d->mutex);
   if (NULL != rd->m_iox_sub)
   {
     d->kind = DDS_IOX_ALLOCATOR_KIND_SUBSCRIBER;
@@ -860,6 +864,7 @@ dds_return_t dds__reader_data_allocator_fini (const dds_reader *rd, dds_data_all
 {
 #ifdef DDS_HAS_SHM
   dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
+  ddsrt_mutex_destroy(&d->mutex);
   d->kind = DDS_IOX_ALLOCATOR_KIND_FINI;
 #else
   (void) data_allocator;

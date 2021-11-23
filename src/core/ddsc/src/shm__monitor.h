@@ -15,9 +15,9 @@
 #include "iceoryx_binding_c/subscriber.h"
 #include "iceoryx_binding_c/listener.h"
 
-#include "dds/ddsrt/threads.h"
+#include "dds/ddsi/ddsi_shm_transport.h"
 #include "dds/ddsrt/sync.h"
-#include "dds/ddsi/shm_transport.h"
+#include "dds/ddsrt/threads.h"
 
 #if defined (__cplusplus)
 extern "C" {
