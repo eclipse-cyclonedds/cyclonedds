@@ -23,7 +23,9 @@
 extern "C" {
 #endif
 
-#define DDS_DATA_ALLOCATOR_MAX_SIZE (8 * sizeof (void *))
+// macOS' mutexes require quite a lot of space, but it is not quite enough
+// to make this system-dependent
+#define DDS_DATA_ALLOCATOR_MAX_SIZE (12 * sizeof (void *))
 
 typedef struct dds_data_allocator {
   dds_entity_t entity;
