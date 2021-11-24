@@ -616,8 +616,6 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
 
 dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descriptor_t *desc, const char *name, const dds_qos_t *qos, const dds_listener_t *listener)
 {
-  struct ddsi_sertype_default *st;
-  struct ddsi_sertype *st_tmp;
   ddsi_plist_t plist;
   dds_entity_t hdl;
   struct dds_entity *ppent;
@@ -645,73 +643,11 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   assert (tpqos->present & QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0);
   dds_data_representation_id_t data_representation = tpqos->data_representation.value.ids[0];
 
-  const struct ddsi_serdata_ops *serdata_ops;
-  switch (data_representation)
+  struct ddsi_sertype_default *st = ddsrt_malloc (sizeof (*st));
+  if ((hdl = ddsi_sertype_default_init (&ppent->m_domain->gv, st, desc, min_xcdrv, data_representation)) < 0)
   {
-    case DDS_DATA_REPRESENTATION_XCDR1:
-      serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey;
-      break;
-    case DDS_DATA_REPRESENTATION_XCDR2:
-      serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_xcdr2 : &ddsi_serdata_ops_xcdr2_nokey;
-      break;
-    default:
-      abort ();
-  }
-
-  DDSRT_STATIC_ASSERT (DDSI_SERTYPE_EXT_FINAL == DDS_TOPIC_TYPE_EXTENSIBILITY (DDS_TOPIC_TYPE_EXTENSIBILITY_FINAL));
-  DDSRT_STATIC_ASSERT (DDSI_SERTYPE_EXT_APPENDABLE == DDS_TOPIC_TYPE_EXTENSIBILITY (DDS_TOPIC_TYPE_EXTENSIBILITY_APPENDABLE));
-  DDSRT_STATIC_ASSERT (DDSI_SERTYPE_EXT_MUTABLE == DDS_TOPIC_TYPE_EXTENSIBILITY (DDS_TOPIC_TYPE_EXTENSIBILITY_MUTABLE));
-
-  st = dds_alloc (sizeof (*st));
-  ddsi_sertype_init (&st->c, desc->m_typename, &ddsi_sertype_ops_default, serdata_ops, (desc->m_nkeys == 0));
-#ifdef DDS_HAS_SHM
-  st->c.iox_size = desc->m_size;
-#endif
-  st->c.fixed_size = (st->c.fixed_size || (desc->m_flagset & DDS_TOPIC_FIXED_SIZE)) ? 1u : 0u;
-  st->c.min_xcdrv = min_xcdrv;
-  st->encoding_format = ddsi_sertype_get_encoding_format (DDS_TOPIC_TYPE_EXTENSIBILITY (desc->m_flagset));
-  st->encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? CDR_ENC_VERSION_1 : CDR_ENC_VERSION_2;
-  st->serpool = ppent->m_domain->gv.serpool;
-  st->type.size = desc->m_size;
-  st->type.align = desc->m_align;
-  st->type.flagset = desc->m_flagset & DDS_TOPIC_FLAGS_MASK;
-  st->type.extensibility = (uint32_t) DDS_TOPIC_TYPE_EXTENSIBILITY (desc->m_flagset);
-  st->type.keys.nkeys = desc->m_nkeys;
-  st->type.keys.keys = ddsrt_malloc (st->type.keys.nkeys  * sizeof (*st->type.keys.keys));
-  for (uint32_t i = 0; i < st->type.keys.nkeys; i++)
-  {
-    st->type.keys.keys[i].ops_offs = desc->m_keys[i].m_offset;
-    st->type.keys.keys[i].idx = desc->m_keys[i].m_idx;
-  }
-  st->type.ops.nops = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys);
-  st->type.ops.ops = ddsrt_memdup (desc->m_ops, st->type.ops.nops * sizeof (*st->type.ops.ops));
-
-  if (desc->m_flagset & DDS_TOPIC_XTYPES_METADATA)
-  {
-    if (desc->type_information.sz == 0 || desc->type_information.data == NULL
-      || desc->type_mapping.sz == 0 || desc->type_mapping.data == NULL)
-    {
-      hdl = DDS_RETCODE_BAD_PARAMETER;
-      ddsi_sertype_unref (&st->c);
-      goto err_xt_meta;
-    }
-    st->type.typeinfo_ser.data =  ddsrt_memdup (desc->type_information.data, desc->type_information.sz);
-    st->type.typeinfo_ser.sz = desc->type_information.sz;
-    st->type.typemap_ser.data = ddsrt_memdup (desc->type_mapping.data, desc->type_mapping.sz);
-    st->type.typemap_ser.sz = desc->type_mapping.sz;
-  }
-  else
-  {
-    st->type.typeinfo_ser.data = NULL;
-    st->type.typeinfo_ser.sz = 0;
-    st->type.typemap_ser.data = NULL;
-    st->type.typemap_ser.sz = 0;
-  }
-
-  /* Check if topic cannot be optimised (memcpy marshal) */
-  if (!(st->type.flagset & DDS_TOPIC_NO_OPTIMIZE)) {
-    st->opt_size = dds_stream_check_optimize (&st->type);
-    DDS_CTRACE (&ppent->m_domain->gv.logconfig, "Marshalling for type: %s is %soptimised\n", desc->m_typename, st->opt_size ? "" : "not ");
+    ddsrt_free (st);
+    goto err_st_init;
   }
 
   ddsi_plist_init_empty (&plist);
@@ -734,13 +670,13 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
       plist.qos.subscription_keys.key_list.strs[index] = dds_string_dup (desc->m_keys[index].m_name);
   }
 
-  st_tmp = &st->c;
+  struct ddsi_sertype *st_tmp = &st->c;
   hdl = dds_create_topic_sertype (participant, name, &st_tmp, tpqos, listener, &plist);
   if (hdl < 0)
     ddsi_sertype_unref (st_tmp);
   ddsi_plist_fini (&plist);
 err_data_repr:
-err_xt_meta:
+err_st_init:
   dds_delete_qos (tpqos);
   dds_entity_unpin (ppent);
   return hdl;

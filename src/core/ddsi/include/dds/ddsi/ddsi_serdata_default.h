@@ -164,6 +164,7 @@ extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_xcdr2_nokey;
 
 struct serdatapool * ddsi_serdatapool_new (void);
 void ddsi_serdatapool_free (struct serdatapool * pool);
+dds_return_t ddsi_sertype_default_init (const struct ddsi_domaingv *gv, struct ddsi_sertype_default *st, const dds_topic_descriptor_t *desc, uint16_t min_xcdrv, dds_data_representation_id_t data_representation);
 
 #if defined (__cplusplus)
 }
