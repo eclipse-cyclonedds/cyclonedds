@@ -473,6 +473,7 @@ static inline bool op_type_base (const uint32_t insn)
 
 static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc * __restrict desc)
 {
+#define ALLOW_ENUM 0 // enums need validation on input; FIXME: should distinguish between read & write
   const uint32_t *ops = desc->ops.ops;
   size_t off = 0, size;
   uint32_t insn;
@@ -487,7 +488,9 @@ static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc
       case DDS_OP_VAL_2BY:
       case DDS_OP_VAL_4BY:
       case DDS_OP_VAL_8BY:
+#if ALLOW_ENUM
       case DDS_OP_VAL_ENU:
+#endif
         size = get_type_size (DDS_OP_TYPE (insn));
         if (off % size)
           off += size - (off % size);
@@ -495,8 +498,10 @@ static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc
           return 0;
         off += size;
         ops += 2;
+#if ALLOW_ENUM
         if (DDS_OP_TYPE (insn) == DDS_OP_VAL_ENU)
           ops++;
+#endif
         break;
       case DDS_OP_VAL_ARR:
         switch (DDS_OP_SUBTYPE (insn))
@@ -505,7 +510,9 @@ static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc
           case DDS_OP_VAL_2BY:
           case DDS_OP_VAL_4BY:
           case DDS_OP_VAL_8BY:
+#if ALLOW_ENUM
           case DDS_OP_VAL_ENU:
+#endif
             size = get_type_size (DDS_OP_SUBTYPE (insn));
             if (off % size)
               off += size - (off % size);
@@ -513,8 +520,10 @@ static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc
               return 0;
             off += size * ops[2];
             ops += 3;
+#if ALLOW_ENUM
             if (DDS_OP_SUBTYPE (insn) == DDS_OP_VAL_ENU)
               ops++;
+#endif
             break;
           default:
             return 0;
@@ -529,6 +538,7 @@ static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc
   // off < desc can occur if desc->size includes "trailing" padding
   assert (off <= desc->size);
   return off;
+#undef ALLOW_ENUM
 }
 
 size_t dds_stream_check_optimize (const struct ddsi_sertype_default_desc * __restrict desc)
@@ -1839,7 +1849,6 @@ static bool normalize_primarray (char * __restrict data, uint32_t * __restrict o
       *off += 2 * num;
       return true;
     case DDS_OP_VAL_4BY:
-    case DDS_OP_VAL_ENU:
       if ((*off = check_align_prim_many (*off, size, 2, num)) == UINT32_MAX)
         return false;
       if (bswap)
@@ -1870,6 +1879,29 @@ static bool normalize_primarray (char * __restrict data, uint32_t * __restrict o
       break;
   }
   return false;
+}
+
+static bool normalize_enumarray (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t num, uint32_t max)
+{
+  if ((*off = check_align_prim_many (*off, size, 2, num)) == UINT32_MAX)
+    return false;
+  uint32_t * const xs = (uint32_t *) (data + *off);
+  if (bswap)
+  {
+    for (uint32_t i = 0; i < num; i++)
+    {
+      xs[i] = ddsrt_bswap4u (xs[i]);
+      if (xs[i] > max)
+        return false;
+    }
+  }
+  else
+  {
+    for (uint32_t i = 0; i < num; i++)
+      if (xs[i] > max)
+        return false;
+  }
+  return true;
 }
 
 static bool read_and_normalize_collection_dheader (bool * __restrict has_dheader, uint32_t * __restrict size1, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, const enum dds_stream_typecode subtype, uint32_t xcdr_version)
@@ -1911,13 +1943,16 @@ static const uint32_t *normalize_seq (char * __restrict data, uint32_t * __restr
   }
   switch (subtype)
   {
-    case DDS_OP_VAL_ENU:
-      ops++;
-      /* fall through */
     case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
       if (!normalize_primarray (data, off, size1, bswap, num, subtype, xcdr_version))
         return NULL;
       ops += 2;
+      break;
+    }
+    case DDS_OP_VAL_ENU: {
+      if (!normalize_enumarray (data, off, size1, bswap, num, ops[2]))
+        return NULL;
+      ops += 3;
       break;
     }
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: {
@@ -1959,13 +1994,16 @@ static const uint32_t *normalize_arr (char * __restrict data, uint32_t * __restr
   const uint32_t num = ops[2];
   switch (subtype)
   {
-    case DDS_OP_VAL_ENU:
-      ops++;
-      /* fall through */
     case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
       if (!normalize_primarray (data, off, size1, bswap, num, subtype, xcdr_version))
         return NULL;
       ops += 3;
+      break;
+    }
+    case DDS_OP_VAL_ENU: {
+      if (!normalize_enumarray (data, off, size1, bswap, num, ops[3]))
+        return NULL;
+      ops += 4;
       break;
     }
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: {
@@ -2323,7 +2361,8 @@ static bool stream_normalize_key_impl (void * __restrict data, uint32_t size, ui
   {
     case DDS_OP_VAL_1BY: if (!normalize_uint8 (offs, size)) return false; break;
     case DDS_OP_VAL_2BY: if (!normalize_uint16 (data, offs, size, bswap)) return false; break;
-    case DDS_OP_VAL_4BY: case DDS_OP_VAL_ENU: if (!normalize_uint32 (data, offs, size, bswap)) return false; break;
+    case DDS_OP_VAL_4BY: if (!normalize_uint32 (data, offs, size, bswap)) return false; break;
+    case DDS_OP_VAL_ENU: if (!normalize_enum (data, offs, size, bswap, insnp[2])) return false; break;
     case DDS_OP_VAL_8BY: if (!normalize_uint64 (data, offs, size, bswap, xcdr_version)) return false; break;
     case DDS_OP_VAL_STR: if (!normalize_string (data, offs, size, bswap, SIZE_MAX)) return false; break;
     case DDS_OP_VAL_BST: if (!normalize_string (data, offs, size, bswap, insnp[2])) return false; break;
