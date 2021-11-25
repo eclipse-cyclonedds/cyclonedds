@@ -28,6 +28,7 @@
 #include "dds/dds.h"
 #include "dds/ddsc/dds_statistics.h"
 #include "ddsperf_types.h"
+#include "async_listener.h"
 
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/string.h"
@@ -176,6 +177,12 @@ static uint64_t min_roundtrips = 0;
 
 /* Whether to gather/show latency information in "sub" mode */
 static bool sublatency = false;
+
+/* Event queue for processing discovery events (data available on
+   DCPSParticipant, subscription & publication matched)
+   asynchronously to avoid deadlocking on creating a reader from
+   within a subscription_matched event. */
+struct async_listener *async_listener;
 
 static ddsrt_mutex_t disc_lock;
 
@@ -1289,7 +1296,7 @@ static void free_ppant (void *vpp)
   free (pp);
 }
 
-static void participant_data_listener (dds_entity_t rd, void *arg)
+static void async_participant_data_listener (dds_entity_t rd, void *arg)
 {
   dds_sample_info_t info;
   void *msg = NULL;
@@ -1397,14 +1404,14 @@ static void participant_data_listener (dds_entity_t rd, void *arg)
   }
 }
 
-static void endpoint_matched_listener (uint32_t match_mask, dds_entity_t rd_epinfo, dds_instance_handle_t remote_endpoint)
+static void async_endpoint_matched_listener (uint32_t match_mask, dds_entity_t rd_epinfo, dds_instance_handle_t remote_endpoint)
 {
   dds_sample_info_t info;
   void *msg = NULL;
   int32_t n;
 
   /* update participant data so this remote endpoint's participant will be known */
-  participant_data_listener (rd_participants, NULL);
+  async_participant_data_listener (rd_participants, NULL);
 
   /* FIXME: implement the get_matched_... interfaces so there's no need for keeping a reader
      (and having to GC it, which I'm skipping here ...) */
@@ -1462,7 +1469,7 @@ static char *match_mask_to_string (char *buf, size_t size, uint32_t mask)
   return buf;
 }
 
-static void subscription_matched_listener (dds_entity_t rd, const dds_subscription_matched_status_t status, void *arg)
+static void async_subscription_matched_listener (dds_entity_t rd, const dds_subscription_matched_status_t status, void *arg)
 {
   /* this only works because the listener is called for every match; but I don't think that is something the
      spec guarantees, and I don't think Cyclone should guarantee that either -- and if it isn't guaranteed
@@ -1472,11 +1479,11 @@ static void subscription_matched_listener (dds_entity_t rd, const dds_subscripti
   {
     uint32_t mask = (uint32_t) (uintptr_t) arg;
     //printf ("[%"PRIdPID"] subscription match: %s\n", ddsrt_getpid (), match_mask1_to_string (mask));
-    endpoint_matched_listener (mask, rd_publications, status.last_publication_handle);
+    async_endpoint_matched_listener (mask, rd_publications, status.last_publication_handle);
   }
 }
 
-static void publication_matched_listener (dds_entity_t wr, const dds_publication_matched_status_t status, void *arg)
+static void async_publication_matched_listener (dds_entity_t wr, const dds_publication_matched_status_t status, void *arg)
 {
   /* this only works because the listener is called for every match; but I don't think that is something the
      spec guarantees, and I don't think Cyclone should guarantee that either -- and if it isn't guaranteed
@@ -1486,8 +1493,23 @@ static void publication_matched_listener (dds_entity_t wr, const dds_publication
   {
     uint32_t mask = (uint32_t) (uintptr_t) arg;
     //printf ("[%"PRIdPID"] publication match: %s\n", ddsrt_getpid (), match_mask1_to_string (mask));
-    endpoint_matched_listener (mask, rd_subscriptions, status.last_subscription_handle);
+    async_endpoint_matched_listener (mask, rd_subscriptions, status.last_subscription_handle);
   }
+}
+
+static void participant_data_listener (dds_entity_t rd, void *arg)
+{
+  async_listener_enqueue_data_available (async_listener, async_participant_data_listener, rd, arg);
+}
+
+static void subscription_matched_listener (dds_entity_t rd, const dds_subscription_matched_status_t status, void *arg)
+{
+  async_listener_enqueue_subscription_matched (async_listener, async_subscription_matched_listener, rd, status, arg);
+}
+
+static void publication_matched_listener (dds_entity_t wr, const dds_publication_matched_status_t status, void *arg)
+{
+  async_listener_enqueue_publication_matched (async_listener, async_publication_matched_listener, wr, status, arg);
 }
 
 static void set_data_available_listener (dds_entity_t rd, const char *rd_name, dds_on_data_available_fn fn, void *arg)
@@ -2179,6 +2201,9 @@ int main (int argc, char *argv[])
 
   pubstat_hist = hist_new (30, 1000, 0);
 
+  if ((async_listener = async_listener_new ()) == NULL || !async_listener_start (async_listener))
+    error2 ("failed to start asynchronous listener thread\n");
+
   qos = dds_create_qos ();
   /* set user data: magic cookie, whether we have a reader for the Data topic
      (all other endpoints always exist), pid and hostname */
@@ -2257,8 +2282,9 @@ int main (int argc, char *argv[])
   dds_set_listener (rd_participants, listener);
   dds_delete_listener (listener);
   /* then there is the matter of data arriving prior to setting the listener ... this state
-     of affairs is undoubtedly a bug */
-  participant_data_listener (rd_participants, NULL);
+     of affairs is undoubtedly a bug; call the "asynchronous" one synchronously (this is an
+     application thread anyway) */
+  async_participant_data_listener (rd_participants, NULL);
 
   /* stats writer always exists, reader only when we were requested to collect & print stats */
   qos = dds_create_qos ();
@@ -2315,20 +2341,12 @@ int main (int argc, char *argv[])
      it and futhermore eagerly creating the pong writers means we can do more
      checking.  */
   {
-    /* participant listener should have already been called for "dp", so we
-       can simply look up the details on ourself to get at the GUID of the
-       participant */
+    dds_guid_t ppguid;
+    if ((rc = dds_get_guid (dp, &ppguid)) < 0)
+      error2 ("dds_get_guid(participant) failed: %d\n", (int) rc);
     struct guidstr guidstr;
-    struct ppant *pp;
+    make_guidstr (&guidstr, &ppguid);
     dds_entity_t sub_pong;
-    ddsrt_mutex_lock (&disc_lock);
-    if ((pp = ddsrt_avl_lookup (&ppants_td, &ppants, &dp_handle)) == NULL)
-    {
-      printf ("participant %"PRIx64" (self) not found\n", dp_handle);
-      exit (2);
-    }
-    make_guidstr (&guidstr, &pp->guid);
-    ddsrt_mutex_unlock (&disc_lock);
     dds_qos_t *subqos = dds_create_qos ();
     dds_qset_partition1 (subqos, guidstr.str);
     if ((sub_pong = dds_create_subscriber (dp, subqos, NULL)) < 0)
@@ -2640,6 +2658,13 @@ err_minmatch_wait:
   subthread_arg_fini (&subarg_ping);
   subthread_arg_fini (&subarg_pong);
   dds_delete (dp);
+  
+  // only shutdown async listener once the participant is gone: that's
+  // how we get rid of the dynamically created pong writers, and those
+  // have a publication_matched listener.
+  async_listener_stop (async_listener);
+  async_listener_free (async_listener);
+
   ddsrt_mutex_destroy (&disc_lock);
   ddsrt_mutex_destroy (&pongwr_lock);
   ddsrt_mutex_destroy (&pongstat_lock);
