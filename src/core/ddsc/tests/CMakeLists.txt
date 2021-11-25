@@ -222,6 +222,8 @@ kill -0 `cat ctest_fixture_iox_roudi.pid`")
       iceoryx_one_writer
       iceoryx_one_writer_dynsize
       iceoryx_return_loan
+      shm_serialization_get_serialized_size
+      shm_serialization_serialize_into
       shm_serialization_transmit_dynamic_type)
     set_tests_properties(CUnit_ddsc_${t} PROPERTIES FIXTURES_REQUIRED iox)
     set_tests_properties(CUnit_ddsc_${t} PROPERTIES RESOURCE_LOCK iox_lock)
