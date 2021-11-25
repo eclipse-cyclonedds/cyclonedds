@@ -14,7 +14,11 @@ if (BUILD_DDSPERF)
   include(Generate)
 
   idlc_generate(TARGET ddsperf_types FILES ddsperf_types.idl)
-  add_executable(ddsperf ddsperf.c cputime.c cputime.h netload.c netload.h)
+  add_executable(ddsperf
+    ddsperf.c
+    cputime.c cputime.h
+    netload.c netload.h
+    async_listener.c async_listener.h)
   target_link_libraries(ddsperf ddsperf_types ddsc)
 
   if(WIN32)
