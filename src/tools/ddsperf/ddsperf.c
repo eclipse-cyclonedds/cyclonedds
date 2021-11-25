@@ -1492,18 +1492,12 @@ static void publication_matched_listener (dds_entity_t wr, const dds_publication
 
 static void set_data_available_listener (dds_entity_t rd, const char *rd_name, dds_on_data_available_fn fn, void *arg)
 {
-  /* This convoluted code is so that we leave all listeners unchanged, except the
-     data_available one.  There is no real need for these complications, but it is
-     a nice exercise. */
+  /* Update data available listener leaving the others untouched. */
   dds_listener_t *listener = dds_create_listener (arg);
   dds_return_t rc;
-  dds_lset_data_available (listener, fn);
-  dds_listener_t *tmplistener = dds_create_listener (NULL);
-  if ((rc = dds_get_listener (rd, tmplistener)) < 0)
+  if ((rc = dds_get_listener (rd, listener)) < 0)
     error2 ("dds_get_listener(%s) failed: %d\n", rd_name, (int) rc);
-  dds_merge_listener (listener, tmplistener);
-  dds_delete_listener (tmplistener);
-
+  dds_lset_data_available_arg (listener, fn, arg, true);
   if ((rc = dds_set_listener (rd, listener)) < 0)
     error2 ("dds_set_listener(%s) failed: %d\n", rd_name, (int) rc);
   dds_delete_listener (listener);
