@@ -2231,6 +2231,7 @@ static const uint32_t *dds_stream_normalize1 (char * __restrict data, uint32_t *
       }
       case DDS_OP_PLC: {
         assert (xcdr_version == CDR_ENC_VERSION_2);
+        /* coverity[tainted_data_argument: FALSE] */
         if ((ops = stream_normalize_pl (data, off, size, bswap, xcdr_version, ops)) == NULL)
           return NULL;
         break;
