@@ -191,12 +191,14 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __re
         }
         else if (is_key)
         {
+          assert (*keys_remaining <= n_keys);
           const uint32_t idx = key[n_keys - *keys_remaining].idx;
           key_offs[idx].src_off = is->m_index;
           key_offs[idx].op_off = ops;
+          ops = dds_stream_extract_key_from_data_skip_adr (is, ops, type);
+          assert (*keys_remaining > 0);
           if (--(*keys_remaining) == 0)
             return ops;
-          ops = dds_stream_extract_key_from_data_skip_adr (is, ops, type);
         }
         else
         {
