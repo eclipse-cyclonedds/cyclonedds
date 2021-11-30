@@ -1847,7 +1847,7 @@ static struct cfgelem discovery_cfgelems[] = {
     UNIT("duration")),
   STRING("DefaultMulticastAddress", NULL, 1, "auto",
     MEMBER(defaultMulticastAddressString),
-    FUNCTIONS(0, uf_networkAddress, 0, pf_networkAddress),
+    FUNCTIONS(0, uf_networkAddress, ff_free, pf_networkAddress),
     DESCRIPTION(
       "<p>This element specifies the default multicast address for all "
       "traffic other than participant discovery packets. It defaults to "
