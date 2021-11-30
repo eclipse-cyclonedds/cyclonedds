@@ -1769,7 +1769,7 @@ static struct cfgelem discovery_peers_cfgelems[] = {
 };
 
 static struct cfgelem discovery_cfgelems[] = {
-  STRING("Tag", NULL, 0, "",
+  STRING("Tag", NULL, 1, "",
     MEMBER(domainTag),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
@@ -1863,7 +1863,7 @@ static struct cfgelem discovery_cfgelems[] = {
       "changed.</p>"
     )),
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-  BOOL("EnableTopicDiscoveryEndpoints", NULL, 0, "false",
+  BOOL("EnableTopicDiscoveryEndpoints", NULL, 1, "false",
     MEMBER(enable_topic_discovery_endpoints),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
@@ -1970,6 +1970,8 @@ static struct cfgelem tracing_cfgelems[] = {
   END_MARKER
 };
 
+/* Multiplicity = 0 is a special for Domain/[@Id] as it has some special processing to
+   only process relevant configuration sections. */
 static struct cfgelem domain_cfgattrs[] = {
   STRING("Id", NULL, 0, "any",
     MEMBER(domainId),
