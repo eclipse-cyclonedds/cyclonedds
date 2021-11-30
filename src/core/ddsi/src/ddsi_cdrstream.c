@@ -96,7 +96,7 @@ static const uint32_t *dds_stream_extract_key_from_data1 (dds_istream_t * __rest
   uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_sertype_default_desc_key_t * __restrict key, struct key_off_info * __restrict key_offs);
 static const uint32_t *dds_stream_extract_keyBE_from_data1 (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const uint32_t * __restrict ops,
   uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_sertype_default_desc_key_t * __restrict key, struct key_off_info * __restrict key_offs);
-static const uint32_t *dds_stream_normalize1 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, bool is_mutable_member);
+static const uint32_t *dds_stream_normalize1 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, bool is_mutable_member) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static const uint32_t *dds_stream_read_impl (dds_istream_t * __restrict is, char * __restrict data, const uint32_t * __restrict ops, bool is_mutable_member);
 static const uint32_t *stream_free_sample_adr (uint32_t insn, void * __restrict data, const uint32_t * __restrict ops);
 
@@ -1731,6 +1731,7 @@ static uint32_t check_align_prim_many (uint32_t off, uint32_t size, uint32_t a_l
   return off1;
 }
 
+static bool normalize_uint8 (uint32_t *off, uint32_t size) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool normalize_uint8 (uint32_t *off, uint32_t size)
 {
   if (*off == size)
@@ -1739,6 +1740,7 @@ static bool normalize_uint8 (uint32_t *off, uint32_t size)
   return true;
 }
 
+static bool normalize_uint16 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool normalize_uint16 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap)
 {
   if ((*off = check_align_prim (*off, size, 1)) == UINT32_MAX)
@@ -1749,6 +1751,7 @@ static bool normalize_uint16 (char * __restrict data, uint32_t * __restrict off,
   return true;
 }
 
+static bool normalize_uint32 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool normalize_uint32 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap)
 {
   if ((*off = check_align_prim (*off, size, 2)) == UINT32_MAX)
@@ -1759,6 +1762,7 @@ static bool normalize_uint32 (char * __restrict data, uint32_t * __restrict off,
   return true;
 }
 
+static bool read_and_normalize_bool (bool * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool read_and_normalize_bool (bool * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size)
 {
   if (*off == size)
@@ -1771,6 +1775,7 @@ static bool read_and_normalize_bool (bool * __restrict val, char * __restrict da
   return true;
 }
 
+static bool read_and_normalize_uint32 (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool read_and_normalize_uint32 (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap)
 {
   if ((*off = check_align_prim (*off, size, 2)) == UINT32_MAX)
@@ -1782,6 +1787,7 @@ static bool read_and_normalize_uint32 (uint32_t * __restrict val, char * __restr
   return true;
 }
 
+static bool peek_and_normalize_uint32 (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool peek_and_normalize_uint32 (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap)
 {
   if ((*off = check_align_prim (*off, size, 2)) == UINT32_MAX)
@@ -1793,6 +1799,7 @@ static bool peek_and_normalize_uint32 (uint32_t * __restrict val, char * __restr
   return true;
 }
 
+static bool normalize_enum (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t max) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool normalize_enum (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t max)
 {
   uint32_t val;
@@ -1801,6 +1808,7 @@ static bool normalize_enum (char * __restrict data, uint32_t * __restrict off, u
   return val <= max;
 }
 
+static bool normalize_uint64 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool normalize_uint64 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version)
 {
   if ((*off = check_align_prim (*off, size, xcdr_version == CDR_ENC_VERSION_2 ? 2 : 3)) == UINT32_MAX)
@@ -1815,6 +1823,7 @@ static bool normalize_uint64 (char * __restrict data, uint32_t * __restrict off,
   return true;
 }
 
+static bool normalize_string (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, size_t maxsz) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool normalize_string (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, size_t maxsz)
 {
   uint32_t sz;
@@ -1828,6 +1837,7 @@ static bool normalize_string (char * __restrict data, uint32_t * __restrict off,
   return true;
 }
 
+static bool normalize_primarray (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t num, enum dds_stream_typecode type, uint32_t xcdr_version) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool normalize_primarray (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t num, enum dds_stream_typecode type, uint32_t xcdr_version)
 {
   switch (type)
@@ -1881,6 +1891,7 @@ static bool normalize_primarray (char * __restrict data, uint32_t * __restrict o
   return false;
 }
 
+static bool normalize_enumarray (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t num, uint32_t max) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool normalize_enumarray (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t num, uint32_t max)
 {
   if ((*off = check_align_prim_many (*off, size, 2, num)) == UINT32_MAX)
@@ -1904,6 +1915,7 @@ static bool normalize_enumarray (char * __restrict data, uint32_t * __restrict o
   return true;
 }
 
+static bool read_and_normalize_collection_dheader (bool * __restrict has_dheader, uint32_t * __restrict size1, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, const enum dds_stream_typecode subtype, uint32_t xcdr_version) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool read_and_normalize_collection_dheader (bool * __restrict has_dheader, uint32_t * __restrict size1, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, const enum dds_stream_typecode subtype, uint32_t xcdr_version)
 {
   if (subtype > DDS_OP_VAL_8BY && xcdr_version == CDR_ENC_VERSION_2)
@@ -1924,6 +1936,7 @@ static bool read_and_normalize_collection_dheader (bool * __restrict has_dheader
   }
 }
 
+static const uint32_t *normalize_seq (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, uint32_t insn) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static const uint32_t *normalize_seq (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, uint32_t insn)
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
@@ -1982,6 +1995,7 @@ static const uint32_t *normalize_seq (char * __restrict data, uint32_t * __restr
   return ops;
 }
 
+static const uint32_t *normalize_arr (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, uint32_t insn) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static const uint32_t *normalize_arr (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, uint32_t insn)
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
@@ -2032,6 +2046,7 @@ static const uint32_t *normalize_arr (char * __restrict data, uint32_t * __restr
   return ops;
 }
 
+static bool normalize_uni_disc (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, enum dds_stream_typecode disctype, const uint32_t * __restrict ops) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool normalize_uni_disc (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, enum dds_stream_typecode disctype, const uint32_t * __restrict ops)
 {
   switch (disctype)
@@ -2068,6 +2083,7 @@ static bool normalize_uni_disc (uint32_t * __restrict val, char * __restrict dat
   return false;
 }
 
+static const uint32_t *normalize_uni (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, uint32_t insn) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static const uint32_t *normalize_uni (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, uint32_t insn)
 {
   uint32_t disc;
@@ -2103,6 +2119,7 @@ static const uint32_t *normalize_uni (char * __restrict data, uint32_t * __restr
   return ops;
 }
 
+static const uint32_t *stream_normalize_adr (uint32_t insn, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, bool is_mutable_member) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static const uint32_t *stream_normalize_adr (uint32_t insn, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, bool is_mutable_member)
 {
   if (op_type_optional (insn))
@@ -2148,6 +2165,7 @@ static const uint32_t *stream_normalize_adr (uint32_t insn, char * __restrict da
   return ops;
 }
 
+static const uint32_t *stream_normalize_delimited (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static const uint32_t *stream_normalize_delimited (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops)
 {
   uint32_t delimited_sz;
@@ -2208,6 +2226,7 @@ enum normalize_pl_member_result {
   NPMR_ERROR // found the data, but normalization failed
 };
 
+static enum normalize_pl_member_result dds_stream_normalize_pl_member (char * __restrict data, uint32_t m_id, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static enum normalize_pl_member_result dds_stream_normalize_pl_member (char * __restrict data, uint32_t m_id, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops)
 {
   uint32_t insn, ops_csr = 0;
@@ -2236,6 +2255,7 @@ static enum normalize_pl_member_result dds_stream_normalize_pl_member (char * __
   return result;
 }
 
+static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops)
 {
   /* skip PLC op */
@@ -2316,6 +2336,7 @@ static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * _
   return ops;
 }
 
+static const uint32_t *dds_stream_normalize1 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, bool is_mutable_member) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static const uint32_t *dds_stream_normalize1 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, bool is_mutable_member)
 {
   uint32_t insn;
@@ -2355,6 +2376,7 @@ static const uint32_t *dds_stream_normalize1 (char * __restrict data, uint32_t *
   return ops;
 }
 
+static bool stream_normalize_key_impl (void * __restrict data, uint32_t size, uint32_t *offs, bool bswap, uint32_t xcdr_version, const uint32_t *insnp, uint16_t key_offset_count, const uint32_t * key_offset_insn) ddsrt_attribute_warn_unused_result ddsrt_nonnull ((1, 3, 6));
 static bool stream_normalize_key_impl (void * __restrict data, uint32_t size, uint32_t *offs, bool bswap, uint32_t xcdr_version, const uint32_t *insnp, uint16_t key_offset_count, const uint32_t * key_offset_insn)
 {
   assert (insn_key_ok_p (*insnp));
@@ -2382,6 +2404,7 @@ static bool stream_normalize_key_impl (void * __restrict data, uint32_t size, ui
   return true;
 }
 
+static bool stream_normalize_key (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_sertype_default_desc * __restrict desc, uint32_t *actual_size) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool stream_normalize_key (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_sertype_default_desc * __restrict desc, uint32_t *actual_size)
 {
   uint32_t offs = 0;
