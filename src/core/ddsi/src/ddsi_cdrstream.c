@@ -2875,6 +2875,8 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_array (dds_istream_
   assert (DDS_OP_TYPE (op) == DDS_OP_VAL_ARR);
   const uint32_t subtype = DDS_OP_SUBTYPE (op);
   const uint32_t num = ops[2];
+
+  // if DHEADER present, use its value to skip array
   if (subtype > DDS_OP_VAL_8BY && is->m_xcdr_version == CDR_ENC_VERSION_2)
   {
     const uint32_t sz = dds_is_get4 (is);
@@ -2891,19 +2893,24 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_sequence (dds_istre
 {
   const uint32_t op = *ops;
   assert (DDS_OP_TYPE (op) == DDS_OP_VAL_SEQ);
-  const uint32_t num = dds_is_get4 (is);
-  if (num > 0)
+  const uint32_t subtype = DDS_OP_SUBTYPE (op);
+
+  // if DHEADER present, use its value to skip sequence
+  if (subtype > DDS_OP_VAL_8BY && is->m_xcdr_version == CDR_ENC_VERSION_2)
   {
-    const uint32_t subtype = DDS_OP_SUBTYPE (op);
-    if (subtype > DDS_OP_VAL_8BY && is->m_xcdr_version == CDR_ENC_VERSION_2)
+    const uint32_t sz = dds_is_get4 (is);
+    is->m_index += sz;
+  }
+  else
+  {
+    const uint32_t num = dds_is_get4 (is);
+    if (num > 0)
     {
-      const uint32_t sz = dds_is_get4 (is);
-      is->m_index += sz;
+      if (type_has_subtype_or_members (subtype))
+        dds_stream_extract_key_from_data_skip_subtype (is, num, subtype, ops + DDS_OP_ADR_JSR (ops[3]));
+      else
+        dds_stream_extract_key_from_data_skip_subtype (is, num, subtype, NULL);
     }
-    else if (type_has_subtype_or_members (subtype))
-      dds_stream_extract_key_from_data_skip_subtype (is, num, subtype, ops + DDS_OP_ADR_JSR (ops[3]));
-    else
-      dds_stream_extract_key_from_data_skip_subtype (is, num, subtype, NULL);
   }
   return skip_sequence_insns (op, ops);
 }
