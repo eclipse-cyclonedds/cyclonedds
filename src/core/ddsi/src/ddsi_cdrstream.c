@@ -1906,7 +1906,6 @@ static bool normalize_enumarray (char * __restrict data, uint32_t * __restrict o
 
 static bool read_and_normalize_collection_dheader (bool * __restrict has_dheader, uint32_t * __restrict size1, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, const enum dds_stream_typecode subtype, uint32_t xcdr_version)
 {
-  // FIXME: what about DDS_OP_VAL_ENU and _EXT?
   if (subtype > DDS_OP_VAL_8BY && xcdr_version == CDR_ENC_VERSION_2)
   {
     if (!read_and_normalize_uint32 (size1, data, off, size, bswap))
@@ -1937,8 +1936,8 @@ static const uint32_t *normalize_seq (char * __restrict data, uint32_t * __restr
     return NULL;
   if (num == 0)
   {
-    if (has_dheader)
-      *off = size1;
+    if (has_dheader && *off != size1)
+      return NULL;
     return skip_sequence_insns (insn, ops);
   }
   switch (subtype)
@@ -1978,9 +1977,8 @@ static const uint32_t *normalize_seq (char * __restrict data, uint32_t * __restr
       break;
     }
   }
-  assert (*off <= size1);
-  if (has_dheader)
-    *off = size1;
+  if (has_dheader && *off != size1)
+    return NULL;
   return ops;
 }
 
@@ -2029,9 +2027,8 @@ static const uint32_t *normalize_arr (char * __restrict data, uint32_t * __restr
       break;
     }
   }
-  assert (*off <= size1);
-  if (has_dheader)
-    *off = size1;
+  if (has_dheader && *off != size1)
+    return NULL;
   return ops;
 }
 
@@ -2193,7 +2190,8 @@ static const uint32_t *stream_normalize_delimited (char * __restrict data, uint3
       return NULL;
 #endif
     /* skip fields that are not in serialized data for appendable type */
-    ops = dds_stream_skip_adr (insn, ops);
+    while ((insn = *ops) != DDS_OP_RTS)
+      ops = dds_stream_skip_adr (insn, ops);
   }
 
   // whether we consumed all bytes depends on whether the serialized type is the same as the
@@ -2300,8 +2298,11 @@ static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * _
     switch (dds_stream_normalize_pl_member (data, m_id, off, size2, bswap, xcdr_version, ops))
     {
       case NPMR_NOT_FOUND:
-      case NPMR_FOUND:
         *off = size2;
+        break;
+      case NPMR_FOUND:
+        if (*off != size2)
+          return NULL;
         break;
       case NPMR_ERROR:
         return NULL;
