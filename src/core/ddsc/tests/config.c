@@ -399,3 +399,85 @@ CU_Test(ddsc_config, too_deep_nesting, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_set_log_sink (NULL, NULL);
   dds_set_trace_sink (NULL, NULL);
 }
+
+CU_Test(ddsc_config, multiple_domains, .init = ddsrt_init, .fini = ddsrt_fini)
+{
+  static const char *config = "\
+<CycloneDDS>\
+  <Domain id=\"any\">\
+    <Tracing>\
+      <Category>config</Category>\
+    </Tracing>\
+    <Compatibility>\
+      <StandardsConformance>strict</StandardsConformance>\
+    </Compatibility>\
+  </Domain>\
+  <Domain id=\"53\">\
+    <Discovery>\
+      <Tag>W</Tag>\
+    </Discovery>\
+  </Domain>\
+  <Domain id=\"57\">\
+    <Discovery>\
+      <Tag>A</Tag>\
+    </Discovery>\
+  </Domain>\
+</CycloneDDS>\
+";
+  const char *exp[][4] = {
+    {
+      "*config: Domain/Discovery/Tag/#text: W {1}*",
+      "*config: Domain/Compatibility/StandardsConformance/#text: strict {0}*",
+      "*config: Domain[@Id]: 53 {0,1,2}*",
+      NULL
+    },
+    {
+      "*config: Domain/Discovery/Tag/#text:  {}*",
+      "*config: Domain/Compatibility/StandardsConformance/#text: strict {0}*",
+      "*config: Domain[@Id]: 54 {0,1}*",
+      NULL
+    },
+    {
+      "*config: Domain/Discovery/Tag/#text: A {1}*",
+      "*config: Domain/Compatibility/StandardsConformance/#text: strict {0}*",
+      "*config: Domain[@Id]: 57 {0,1}*",
+      NULL
+    }
+  };
+  dds_entity_t doms[3];
+
+  dds_set_log_mask (DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
+
+  dds_set_log_sink (&logger, (void *) exp[0]);
+  dds_set_trace_sink (&logger, (void *) exp[0]);
+  found = 0;
+  doms[0] = dds_create_domain (53, config);
+  CU_ASSERT_FATAL (doms[0] > 0);
+  printf ("found = %d\n", found);
+  CU_ASSERT_FATAL (found == 7);
+
+  dds_set_log_sink (&logger, (void *) exp[1]);
+  dds_set_trace_sink (&logger, (void *) exp[1]);
+  found = 0;
+  doms[1] = dds_create_domain (54, config);
+  CU_ASSERT_FATAL (doms[1] > 0 && doms[1] != doms[0]);
+  printf ("found = %d\n", found);
+  CU_ASSERT_FATAL (found == 7);
+
+  dds_set_log_sink (&logger, (void *) exp[2]);
+  dds_set_trace_sink (&logger, (void *) exp[2]);
+  found = 0;
+  doms[2] = dds_create_domain (57, config);
+  CU_ASSERT_FATAL (doms[2] > 0 && doms[2] != doms[1] && doms[2] != doms[0]);
+  printf ("found = %d\n", found);
+  CU_ASSERT_FATAL (found == 7);
+
+  for (int i = 0; i < 3; i++)
+  {
+    const dds_return_t rc = dds_delete (doms[i]);
+    CU_ASSERT_FATAL (rc == 0);
+  }
+
+  dds_set_log_sink (NULL, NULL);
+  dds_set_trace_sink (NULL, NULL);
+}
