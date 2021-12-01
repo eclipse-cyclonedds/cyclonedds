@@ -295,6 +295,7 @@ static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_
   if (!tp->m_stype->fixed_size && (!tp->m_stype->ops->get_serialized_size ||
                                    !tp->m_stype->ops->serialize_into)) {
     return false;
+  }
  
   return (NULL != qos &&
           DDS_WRITER_QOS_CHECK_FIELDS == (qos->present&DDS_WRITER_QOS_CHECK_FIELDS) &&
@@ -431,7 +432,10 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     DDS_CLOG (DDS_LC_SHM, &wr->m_entity.m_domain->gv.logconfig, "Writer's topic name will be DDS:Cyclone:%s\n", wr->m_topic->m_name);
     iox_pub_options_t opts;
     iox_pub_options_init(&opts);
-    opts.historyCapacity = wr->m_entity.m_domain->gv.config.pub_history_capacity;
+
+    // MAKI TODO: iceoryx max check
+    opts.historyCapacity = (uint64_t) wqos->durability_service.history.depth;
+    // opts.historyCapacity = wr->m_entity.m_domain->gv.config.pub_history_capacity;
     wr->m_iox_pub = iox_pub_init(&wr->m_iox_pub_stor, gv->config.iceoryx_service, wr->m_topic->m_stype->type_name, wr->m_topic->m_name, &opts);
     memset(wr->m_iox_pub_loans, 0, sizeof(wr->m_iox_pub_loans));
     dds_sleepfor(DDS_MSECS(10));

@@ -662,9 +662,16 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     // ICEORYX TODO: handle failure (how should the system behave if resources are insufficient?)
     iox_sub_storage_extension_init(&rd->m_iox_sub_stor);
 
+    // MAKI TODO: assert may not be useful/valid -> check
     assert (rqos->durability.kind == DDS_DURABILITY_VOLATILE);
-    opts.queueCapacity = rd->m_entity.m_domain->gv.config.sub_queue_capacity;
-    opts.historyRequest = 0;
+
+    // MAKI TODO iceoryx limits
+    opts.queueCapacity = (uint64_t) rqos->durability_service.history.depth;
+
+    // MAKI maybe only for transient local
+    opts.historyRequest = (uint64_t) rqos->durability_service.history.depth;
+    // opts.queueCapacity = rd->m_entity.m_domain->gv.config.sub_queue_capacity;
+    // opts.historyRequest = 0;
     rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor.storage, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
     shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
 
