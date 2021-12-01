@@ -21,7 +21,18 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/process.h"
 
-typedef char * (*expand_fn)(const char *src0, expand_lookup_fn lookup, void * data);
+typedef char * (*expand_fn)(const char *src0, expand_lookup_fn lookup, void * data, uint32_t depth);
+
+static void errorN (size_t n0, const char *s, const char *msg)
+{
+  const int n = (n0 > 100) ? 100 : (int) n0;
+  DDS_ERROR("%*.*s%s: %s\n", n, n, s, ((size_t) n < n0) ? "..." : "", msg);
+}
+
+static void error (const char *s, const char *msg)
+{
+  errorN (strlen (s), s, msg);
+}
 
 static void expand_append (char **dst, size_t *sz, size_t *pos, char c)
 {
@@ -33,7 +44,7 @@ static void expand_append (char **dst, size_t *sz, size_t *pos, char c)
     (*pos)++;
 }
 
-static char *expand_var (const char *name, char op, const char *alt, expand_fn expand, expand_lookup_fn lookup, void * data)
+static char *expand_var (const char *name, char op, const char *alt, expand_fn expand, expand_lookup_fn lookup, void * data, uint32_t depth)
 {
     const char *val = lookup (name, data);
     switch (op)
@@ -41,25 +52,27 @@ static char *expand_var (const char *name, char op, const char *alt, expand_fn e
         case 0:
             return ddsrt_strdup (val ? val : "");
         case '-':
-            return val && *val ? ddsrt_strdup (val) : expand (alt, lookup, data);
+            return val && *val ? ddsrt_strdup (val) : expand (alt, lookup, data, depth + 1);
         case '?':
             if (val && *val) {
                 return ddsrt_strdup (val);
             } else {
-                char *altx = expand (alt, lookup, data);
-                DDS_LOG (DDS_LC_ERROR, "%s: %s\n", name, altx);
-                ddsrt_free (altx);
+                char *altx = expand (alt, lookup, data, depth + 1);
+                if (altx) {
+                    DDS_ERROR("%s: %s", name, altx);
+                    ddsrt_free (altx);
+                }
                 return NULL;
             }
         case '+':
-            return val && *val ? expand (alt, lookup, data) : ddsrt_strdup ("");
+            return val && *val ? expand (alt, lookup, data, depth + 1) : ddsrt_strdup ("");
         default:
             abort ();
             return NULL;
     }
 }
 
-static char *expand_varbrace (const char **src, expand_fn expand, expand_lookup_fn lookup, void * data)
+static char *expand_varbrace (const char **src, expand_fn expand, expand_lookup_fn lookup, void * data, uint32_t depth)
 {
     const char *start = *src + 1;
     char *name, *x;
@@ -76,7 +89,7 @@ static char *expand_varbrace (const char **src, expand_fn expand, expand_lookup_
     name[*src - start] = 0;
     if (**src == '}') {
         (*src)++;
-        x = expand_var (name, 0, NULL, expand, lookup, data);
+        x = expand_var (name, 0, NULL, expand, lookup, data, depth);
         ddsrt_free (name);
         return x;
     } else {
@@ -120,17 +133,17 @@ static char *expand_varbrace (const char **src, expand_fn expand, expand_lookup_
         memcpy (alt, altstart, (size_t) (*src - altstart));
         alt[*src - altstart] = 0;
         (*src)++;
-        x = expand_var (name, op, alt, expand, lookup, data);
+        x = expand_var (name, op, alt, expand, lookup, data, depth);
         ddsrt_free (alt);
         ddsrt_free (name);
         return x;
     }
 err:
-    DDS_ERROR("%*.*s: invalid expansion\n", (int) (*src - start), (int) (*src - start), start);
+    errorN((size_t) (*src - start), start, "invalid expansion");
     return NULL;
 }
 
-static char *expand_varsimple (const char **src, expand_fn expand, expand_lookup_fn lookup, void * data)
+static char *expand_varsimple (const char **src, expand_fn expand, expand_lookup_fn lookup, void * data, uint32_t depth)
 {
     const char *start = *src;
     char *name, *x;
@@ -141,24 +154,29 @@ static char *expand_varsimple (const char **src, expand_fn expand, expand_lookup
     name = ddsrt_malloc ((size_t) (*src - start) + 1);
     memcpy (name, start, (size_t) (*src - start));
     name[*src - start] = 0;
-    x = expand_var (name, 0, NULL, expand, lookup, data);
+    x = expand_var (name, 0, NULL, expand, lookup, data, depth);
     ddsrt_free (name);
     return x;
 }
 
-static char *expand_varchar (const char **src, expand_fn expand, expand_lookup_fn lookup, void * data)
+static char *expand_varchar (const char **src, expand_fn expand, expand_lookup_fn lookup, void * data, uint32_t depth)
 {
     char name[2];
     assert (**src);
     name[0] = **src;
     name[1] = 0;
     (*src)++;
-    return expand_var (name, 0, NULL, expand, lookup, data);
+    return expand_var (name, 0, NULL, expand, lookup, data, depth);
 }
 
-char *ddsrt_expand_vars_sh (const char *src0, expand_lookup_fn lookup, void * data)
+static char *ddsrt_expand_vars_sh1 (const char *src0, expand_lookup_fn lookup, void * data, uint32_t depth)
 {
     /* Expands $X, ${X}, ${X:-Y}, ${X:+Y}, ${X:?Y} forms; $ and \ can be escaped with \ */
+    if (depth >= 20)
+    {
+      error(src0, "variable expansions too deeply nested");
+      return NULL;
+    }
     const char *src = src0;
     size_t sz = strlen (src) + 1, pos = 0;
     char *dst = ddsrt_malloc (sz);
@@ -166,7 +184,7 @@ char *ddsrt_expand_vars_sh (const char *src0, expand_lookup_fn lookup, void * da
         if (*src == '\\') {
             src++;
             if (*src == 0) {
-                DDS_ERROR("%s: incomplete escape at end of string\n", src0);
+                error(src0, "incomplete escape at end of string");
                 ddsrt_free(dst);
                 return NULL;
             }
@@ -175,15 +193,15 @@ char *ddsrt_expand_vars_sh (const char *src0, expand_lookup_fn lookup, void * da
             char *x, *xp;
             src++;
             if (*src == 0) {
-                DDS_ERROR("%s: incomplete variable expansion at end of string\n", src0);
+                error(src0, "incomplete variable expansion at end of string");
                 ddsrt_free(dst);
                 return NULL;
             } else if (*src == '{') {
-                x = expand_varbrace (&src, &ddsrt_expand_vars_sh, lookup, data);
+                x = expand_varbrace (&src, &ddsrt_expand_vars_sh1, lookup, data, depth);
             } else if (isalnum ((unsigned char) *src) || *src == '_') {
-                x = expand_varsimple (&src, &ddsrt_expand_vars_sh, lookup, data);
+                x = expand_varsimple (&src, &ddsrt_expand_vars_sh1, lookup, data, depth);
             } else {
-                x = expand_varchar (&src, &ddsrt_expand_vars_sh, lookup, data);
+                x = expand_varchar (&src, &ddsrt_expand_vars_sh1, lookup, data, depth);
             }
             if (x == NULL) {
                 ddsrt_free(dst);
@@ -202,9 +220,14 @@ char *ddsrt_expand_vars_sh (const char *src0, expand_lookup_fn lookup, void * da
     return dst;
 }
 
-char *ddsrt_expand_vars (const char *src0, expand_lookup_fn lookup, void * data)
+static char *ddsrt_expand_vars1 (const char *src0, expand_lookup_fn lookup, void * data, uint32_t depth)
 {
     /* Expands ${X}, ${X:-Y}, ${X:+Y}, ${X:?Y} forms, but not $X */
+    if (depth >= 20)
+    {
+      error(src0, "variable expansions too deeply nested");
+      return NULL;
+    }
     const char *src = src0;
     size_t sz = strlen (src) + 1, pos = 0;
     char *dst = ddsrt_malloc (sz);
@@ -212,7 +235,7 @@ char *ddsrt_expand_vars (const char *src0, expand_lookup_fn lookup, void * data)
         if (*src == '$' && *(src + 1) == '{') {
             char *x, *xp;
             src++;
-            x = expand_varbrace (&src, &ddsrt_expand_vars, lookup, data);
+            x = expand_varbrace (&src, &ddsrt_expand_vars1, lookup, data, depth);
             if (x == NULL) {
                 ddsrt_free(dst);
                 return NULL;
@@ -228,5 +251,15 @@ char *ddsrt_expand_vars (const char *src0, expand_lookup_fn lookup, void * data)
     }
     expand_append (&dst, &sz, &pos, 0);
     return dst;
+}
+
+char *ddsrt_expand_vars_sh (const char *src0, expand_lookup_fn lookup, void * data)
+{
+  return ddsrt_expand_vars_sh1 (src0, lookup, data, 0);
+}
+
+char *ddsrt_expand_vars (const char *src0, expand_lookup_fn lookup, void * data)
+{
+  return ddsrt_expand_vars1 (src0, lookup, data, 0);
 }
 
