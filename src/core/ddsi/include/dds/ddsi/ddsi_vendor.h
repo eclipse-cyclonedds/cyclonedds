@@ -81,7 +81,7 @@ DDS_INLINE_EXPORT inline bool vendor_is_cloud (nn_vendorid_t vendor) {
   return vendor_equals (vendor, x);
 }
 DDS_INLINE_EXPORT inline bool vendor_is_eclipse_or_opensplice (nn_vendorid_t vendor) {
-  return vendor_is_eclipse (vendor) | vendor_is_opensplice (vendor);
+  return vendor_is_eclipse (vendor) || vendor_is_opensplice (vendor);
 }
 DDS_INLINE_EXPORT inline bool vendor_is_adlink (nn_vendorid_t vendor) {
   const nn_vendorid_t a = NN_VENDORID_INIT (ADLINK_OSPL);
