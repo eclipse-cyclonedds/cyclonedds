@@ -17,6 +17,7 @@
 #include "dds/ddsc/dds_opcodes.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/ddsi/ddsi_xt_impl.h"
 #include "idl/string.h"
 #include "descriptor.h"
 #include "descriptor_type_meta.h"
@@ -602,8 +603,9 @@ CU_Test(idlc_type_meta, type_obj_serdes)
 
     for (struct type_meta *tm = dtm.admin; tm; tm = tm->admin_next)
     {
+      struct ddsi_typeid_str tidstr;
       const char *type_name = idl_identifier(tm->node);
-      printf ("test type %s "PTYPEIDFMT"\n", type_name ? type_name : "<anonymous>", PTYPEID (*tm->ti_complete));
+      printf ("test type %s %s\n", type_name ? type_name : "<anonymous>", ddsi_make_typeid_str_impl (&tidstr, tm->ti_complete));
 
       // serialize the generated type object
       dds_ostream_t os;

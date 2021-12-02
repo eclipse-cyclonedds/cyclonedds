@@ -70,17 +70,11 @@ static ddsi_typeid_t * sertype_default_typeid (const struct ddsi_sertype *tpcmn,
 {
   assert (tpcmn);
   assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
-  const struct ddsi_sertype_default *type = (struct ddsi_sertype_default *) tpcmn;
-  if (type->type.typeinfo_ser.sz == 0 || type->type.typeinfo_ser.data == NULL)
+  const struct ddsi_sertype_default *tp = (struct ddsi_sertype_default *) tpcmn;
+  ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser (&tp->type.typeinfo_ser);
+  if (type_info == NULL)
     return NULL;
-  ddsi_typeid_t *type_id = NULL;
-  ddsi_typeinfo_t *type_info = NULL;
-  /* The type information blob is little endian XCDR2 data */
-  ddsi_typeinfo_deserLE (type->type.typeinfo_ser.data, type->type.typeinfo_ser.sz, &type_info);
-  if (kind == DDSI_TYPEID_KIND_MINIMAL && !ddsi_typeid_is_none (&type_info->minimal.typeid_with_size.type_id))
-    type_id = ddsi_typeid_dup (&type_info->minimal.typeid_with_size.type_id);
-  else if (!ddsi_typeid_is_none (&type_info->complete.typeid_with_size.type_id))
-    type_id = ddsi_typeid_dup (&type_info->complete.typeid_with_size.type_id);
+  ddsi_typeid_t *type_id = ddsi_typeinfo_typeid (type_info, kind);
   ddsi_typeinfo_fini (type_info);
   ddsrt_free (type_info);
   return type_id;
@@ -90,23 +84,14 @@ static ddsi_typemap_t * sertype_default_typemap (const struct ddsi_sertype *tpcm
 {
   assert (tpcmn);
   const struct ddsi_sertype_default *tp = (struct ddsi_sertype_default *) tpcmn;
-  if (tp->type.typemap_ser.sz == 0 || tp->type.typemap_ser.data == NULL)
-    return NULL;
-  ddsi_typemap_t *tmap = NULL;
-  ddsi_typemap_deser (tp->type.typemap_ser.data, tp->type.typemap_ser.sz, &tmap);
-  return tmap;
+  return ddsi_typemap_deser (&tp->type.typemap_ser);
 }
 
 static ddsi_typeinfo_t *sertype_default_typeinfo (const struct ddsi_sertype *tpcmn)
 {
   assert (tpcmn);
   const struct ddsi_sertype_default *tp = (struct ddsi_sertype_default *) tpcmn;
-  if (tp->type.typeinfo_ser.sz == 0 || tp->type.typeinfo_ser.data == NULL)
-    return false;
-  ddsi_typeinfo_t *type_info = NULL;
-  /* The type information blob is little endian XCDR2 data */
-  ddsi_typeinfo_deserLE (tp->type.typeinfo_ser.data, tp->type.typeinfo_ser.sz, &type_info);
-  return type_info;
+  return ddsi_typeinfo_deser (&tp->type.typeinfo_ser);
 }
 
 static uint32_t sertype_default_hash (const struct ddsi_sertype *tpcmn)
@@ -211,15 +196,8 @@ static bool sertype_default_assignable_from (const struct ddsi_sertype *sertype_
     ddsi_typeid_fini (type_id);
     ddsrt_free (type_id);
   }
+  return ddsi_is_assignable_from (gv, type_a, type_pair_b);
 
-  if (!type_a)
-    return false;
-
-  if (type_pair_b->minimal)
-    return ddsi_xt_is_assignable_from (gv, &type_a->xt, &type_pair_b->minimal->xt);
-  if (type_pair_b->complete)
-    return ddsi_xt_is_assignable_from (gv, &type_a->xt, &type_pair_b->complete->xt);
-  return false;
 #else
   DDSRT_UNUSED_ARG (sertype_a);
   DDSRT_UNUSED_ARG (type_pair_b);

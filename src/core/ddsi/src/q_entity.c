@@ -55,6 +55,7 @@
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/ddsi/ddsi_list_tmpl.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
+#include "dds/ddsi/ddsi_typelib.h"
 
 #ifdef DDS_HAS_SECURITY
 #include "dds/ddsi/ddsi_security_msg.h"
@@ -2710,35 +2711,6 @@ static void reader_qos_mismatch (struct reader * rd, dds_qos_policy_id_t reason)
   }
 }
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
-
-static uint32_t get_dependent_typeids (const ddsi_typeinfo_t *type_info, const ddsi_typeid_t *** dep_ids, ddsi_typeid_kind_t kind)
-{
-  assert (dep_ids);
-  assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
-  int32_t cnt = (kind == DDSI_TYPEID_KIND_MINIMAL) ? type_info->minimal.dependent_typeid_count : type_info->complete.dependent_typeid_count;
-  if (cnt <= 0)
-  {
-    *dep_ids = NULL;
-    return 0;
-  }
-
-  *dep_ids = ddsrt_malloc ((uint32_t) cnt * sizeof (**dep_ids));
-  if (kind == DDSI_TYPEID_KIND_MINIMAL)
-  {
-    for (int32_t n = 0; n < type_info->minimal.dependent_typeid_count; n++)
-      (*dep_ids)[n] = &type_info->minimal.dependent_typeids._buffer[n].type_id;
-  }
-  else
-  {
-    for (int32_t n = 0; n < type_info->complete.dependent_typeid_count; n++)
-      (*dep_ids)[n] = &type_info->complete.dependent_typeids._buffer[n].type_id;
-  }
-  return (uint32_t) cnt;
-}
-
-#endif
-
 static bool topickind_qos_match_p_lock (
     struct ddsi_domaingv *gv,
     struct entity_common *rd,
@@ -2747,8 +2719,8 @@ static bool topickind_qos_match_p_lock (
     const dds_qos_t *wrqos,
     dds_qos_policy_id_t *reason
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    , const ddsi_type_pair_t *rd_type_pair
-    , const ddsi_type_pair_t *wr_type_pair
+    , const struct ddsi_type_pair *rd_type_pair
+    , const struct ddsi_type_pair *wr_type_pair
 #endif
 )
 {
@@ -2765,7 +2737,7 @@ static bool topickind_qos_match_p_lock (
     ddsrt_mutex_lock (locks[i + shift]);
 #ifdef DDS_HAS_TYPE_DISCOVERY
   bool rd_type_lookup, wr_type_lookup;
-  ddsi_typeid_t *req_type_id = NULL;
+  const ddsi_typeid_t *req_type_id = NULL;
   const ddsi_typeid_t ** req_dep_ids = NULL;
   uint32_t req_ndep_ids = 0;
   bool ret = qos_match_p (gv, rdqos, wrqos, reason, rd_type_pair, wr_type_pair, &rd_type_lookup, &wr_type_lookup);
@@ -2777,15 +2749,15 @@ static bool topickind_qos_match_p_lock (
        wr_type_pair->minimal. */
     if (rd_type_lookup)
     {
-      req_type_id = &rd_type_pair->minimal->xt.id;
+      req_type_id = ddsi_type_pair_minimal_id (rd_type_pair);
       if (rdqos->present & QP_TYPE_INFORMATION)
-        req_ndep_ids = get_dependent_typeids (rdqos->type_information, &req_dep_ids, DDSI_TYPEID_KIND_MINIMAL);
+        req_ndep_ids = ddsi_typeinfo_get_dependent_typeids (rdqos->type_information, &req_dep_ids, DDSI_TYPEID_KIND_MINIMAL);
     }
     else if (wr_type_lookup)
     {
-      req_type_id = &wr_type_pair->minimal->xt.id;
+      req_type_id = ddsi_type_pair_minimal_id (wr_type_pair);
       if (wrqos->present & QP_TYPE_INFORMATION)
-        req_ndep_ids = get_dependent_typeids (wrqos->type_information, &req_dep_ids, DDSI_TYPEID_KIND_MINIMAL);
+        req_ndep_ids = ddsi_typeinfo_get_dependent_typeids (wrqos->type_information, &req_dep_ids, DDSI_TYPEID_KIND_MINIMAL);
     }
   }
 #else
@@ -4658,7 +4630,7 @@ dds_return_t ddsi_new_topic
     ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, tp_qos);
     ELOGDISC (tp, "}\n");
   }
-  tp->definition = ref_topic_definition (gv, sertype, &tp_qos->type_information->complete.typeid_with_size.type_id, tp_qos, new_topic_def);
+  tp->definition = ref_topic_definition (gv, sertype, ddsi_typeinfo_complete_typeid (tp_qos->type_information), tp_qos, new_topic_def);
   if (new_topic_def)
     builtintopic_write_topic (gv->builtin_topic_interface, tp->definition, timestamp, true);
   ddsi_xqos_fini (tp_qos);
@@ -4697,7 +4669,7 @@ void update_topic_qos (struct topic *tp, const dds_qos_t *xqos)
   ddsi_xqos_mergein_missing (newqos, xqos, mask);
   ddsi_xqos_mergein_missing (newqos, tpd->xqos, ~(uint64_t)0);
   ddsrt_mutex_lock (&gv->topic_defs_lock);
-  tp->definition = ref_topic_definition_locked (gv, NULL, &tpd->type_pair->complete->xt.id, newqos, &new_tpd);
+  tp->definition = ref_topic_definition_locked (gv, NULL, ddsi_type_pair_complete_id (tpd->type_pair), newqos, &new_tpd);
   unref_topic_definition_locked (tpd, ddsrt_time_wallclock());
   ddsrt_mutex_unlock (&gv->topic_defs_lock);
   if (new_tpd)
@@ -4738,18 +4710,19 @@ dds_return_t delete_topic (struct ddsi_domaingv *gv, const struct ddsi_guid *gui
 
 static struct ddsi_topic_definition * ref_topic_definition_locked (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype, const ddsi_typeid_t *type_id, struct dds_qos *qos, bool *is_new)
 {
-  struct ddsi_topic_definition templ;
-  memset (&templ, 0, sizeof (templ));
-  templ.xqos = qos;
-  templ.type_pair = ddsrt_malloc (sizeof (*templ.type_pair));
-  templ.type_pair->complete = ddsrt_malloc (sizeof (*templ.type_pair->complete));
-  ddsi_typeid_copy (&templ.type_pair->complete->xt.id, type_id);
-  templ.gv = gv;
+  const ddsi_typeid_t *type_id_minimal = NULL, *type_id_complete = NULL;
+  if (ddsi_typeid_is_minimal (type_id))
+    type_id_minimal = type_id;
+  else
+    type_id_complete = type_id;
+  struct ddsi_topic_definition templ = {
+    .xqos = qos,
+    .type_pair = ddsi_type_pair_init (type_id_minimal, type_id_complete),
+    .gv = gv
+  };
   set_topic_definition_hash (&templ);
   struct ddsi_topic_definition *tpd = ddsrt_hh_lookup (gv->topic_defs, &templ);
-  ddsi_typeid_fini (&templ.type_pair->complete->xt.id);
-  ddsrt_free (templ.type_pair->complete);
-  ddsrt_free (templ.type_pair);
+  ddsi_type_pair_free (templ.type_pair);
   if (tpd) {
     tpd->refc++;
     *is_new = false;
@@ -5685,7 +5658,9 @@ int topic_definition_equal (const struct ddsi_topic_definition *tpd_a, const str
   {
     // The complete type identifier and qos should always be set for a topic definition
     assert (tpd_a->xqos != NULL && tpd_b->xqos != NULL);
-    return !ddsi_typeid_compare (&tpd_a->type_pair->complete->xt.id, &tpd_b->type_pair->complete->xt.id)
+    const ddsi_typeid_t *tid_a = ddsi_type_pair_complete_id (tpd_a->type_pair),
+      *tid_b = ddsi_type_pair_complete_id (tpd_b->type_pair);
+    return !ddsi_typeid_compare (tid_a, tid_b)
         && !ddsi_xqos_delta (tpd_a->xqos, tpd_b->xqos, ~(QP_TYPE_INFORMATION));
   }
   return tpd_a == tpd_b;
@@ -5699,7 +5674,8 @@ uint32_t topic_definition_hash (const struct ddsi_topic_definition *tpd)
 
 static void set_topic_definition_hash (struct ddsi_topic_definition *tpd)
 {
-  assert (!ddsi_typeid_is_none (&tpd->type_pair->complete->xt.id));
+  const ddsi_typeid_t *tid_complete = ddsi_type_pair_complete_id (tpd->type_pair);
+  assert (!ddsi_typeid_is_none (tid_complete));
   assert (tpd->xqos != NULL);
 
   ddsrt_md5_state_t md5st;
@@ -5708,7 +5684,7 @@ static void set_topic_definition_hash (struct ddsi_topic_definition *tpd)
   /* Add type id to the key */
   unsigned char *buf = NULL;
   uint32_t sz = 0;
-  ddsi_typeid_ser (&tpd->type_pair->complete->xt.id, &buf, &sz);
+  ddsi_typeid_ser (tid_complete, &buf, &sz);
   assert (sz && buf);
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) buf, sz);
   ddsrt_free (buf);
@@ -5842,14 +5818,14 @@ struct proxy_topic *lookup_proxy_topic (struct proxy_participant *proxypp, const
   return ptp;
 }
 
-void new_proxy_topic (struct proxy_participant *proxypp, seqno_t seq, const ddsi_guid_t *guid, const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id, struct dds_qos *qos, ddsrt_wctime_t timestamp)
+void new_proxy_topic (struct proxy_participant *proxypp, seqno_t seq, const ddsi_guid_t *guid, const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id_complete, struct dds_qos *qos, ddsrt_wctime_t timestamp)
 {
   assert (proxypp != NULL);
   struct ddsi_domaingv *gv = proxypp->e.gv;
   bool new_tpd = false;
   struct ddsi_topic_definition *tpd;
-  if (!ddsi_typeid_is_none (type_id))
-    tpd = ref_topic_definition (gv, NULL, type_id, qos, &new_tpd);
+  if (!ddsi_typeid_is_none (type_id_complete))
+    tpd = ref_topic_definition (gv, NULL, type_id_complete, qos, &new_tpd);
   else
   {
     assert (!ddsi_typeid_is_none (type_id_minimal));
@@ -5913,7 +5889,7 @@ void update_proxy_topic (struct proxy_participant *proxypp, struct proxy_topic *
   ddsi_xqos_mergein_missing (newqos, xqos, mask);
   ddsi_xqos_mergein_missing (newqos, tpd0->xqos, ~(uint64_t) 0);
   bool new_tpd = false;
-  struct ddsi_topic_definition *tpd1 = ref_topic_definition_locked (gv, NULL, &tpd0->type_pair->complete->xt.id, newqos, &new_tpd);
+  struct ddsi_topic_definition *tpd1 = ref_topic_definition_locked (gv, NULL, ddsi_type_pair_complete_id (tpd0->type_pair), newqos, &new_tpd);
   unref_topic_definition_locked (tpd0, timestamp);
   proxytp->definition = tpd1;
   ddsrt_mutex_unlock (&gv->topic_defs_lock);

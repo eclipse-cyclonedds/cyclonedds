@@ -46,6 +46,7 @@
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_pmd.h"
+#include "dds/ddsi/ddsi_typelib.h"
 #ifdef DDS_HAS_SECURITY
 #include "dds/ddsi/ddsi_security_exchange.h"
 #endif
@@ -1277,9 +1278,7 @@ int sedp_write_topic (struct topic *tp, bool alive)
     unsigned entityid = determine_topic_writer (tp);
     struct writer *sedp_wr = get_sedp_writer (tp->pp, entityid);
     ddsrt_mutex_lock (&tp->e.qos_lock);
-    const struct ddsi_sertype *sertype = NULL;
-    if (tp->definition->type_pair && tp->definition->type_pair->complete)
-      sertype = tp->definition->type_pair->complete->sertype;
+    const struct ddsi_sertype *sertype = ddsi_type_pair_complete_sertype (tp->definition->type_pair);
     res = sedp_write_topic_impl (sedp_wr, alive, &tp->e.guid, tp->definition->xqos, sertype);
     ddsrt_mutex_unlock (&tp->e.qos_lock);
   }
@@ -1762,7 +1761,7 @@ static void handle_sedp_alive_topic (const struct receiver_state *rst, seqno_t s
   ddsi_guid_t ppguid;
   dds_qos_t *xqos;
   int reliable;
-  ddsi_typeid_t type_id_minimal, type_id;
+  const ddsi_typeid_t *type_id_minimal, *type_id_complete;
 
   assert (datap);
   assert (datap->present & PP_CYCLONE_TOPIC_GUID);
@@ -1787,9 +1786,10 @@ static void handle_sedp_alive_topic (const struct receiver_state *rst, seqno_t s
              "topic", xqos->topic_name, xqos->type_name);
   if (xqos->present & QP_TYPE_INFORMATION)
   {
-    ddsi_typeid_copy (&type_id_minimal, &xqos->type_information->minimal.typeid_with_size.type_id);
-    ddsi_typeid_copy (&type_id, &xqos->type_information->complete.typeid_with_size.type_id);
-    GVLOGDISC (" tid "PTYPEIDFMT, PTYPEID(type_id));
+    struct ddsi_typeid_str strm, strc;
+    type_id_minimal = ddsi_typeinfo_minimal_typeid (xqos->type_information);
+    type_id_complete = ddsi_typeinfo_complete_typeid (xqos->type_information);
+    GVLOGDISC (" tid %s/%s", ddsi_make_typeid_str(&strm, type_id_minimal), ddsi_make_typeid_str(&strc, type_id_complete));
   }
   GVLOGDISC (" QOS={");
   ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, xqos);
@@ -1811,7 +1811,7 @@ static void handle_sedp_alive_topic (const struct receiver_state *rst, seqno_t s
     else
     {
       GVLOGDISC (" NEW proxy-topic");
-      new_proxy_topic (proxypp, seq, &datap->topic_guid, &type_id_minimal, &type_id, xqos, timestamp);
+      new_proxy_topic (proxypp, seq, &datap->topic_guid, type_id_minimal, type_id_complete, xqos, timestamp);
     }
   }
 }

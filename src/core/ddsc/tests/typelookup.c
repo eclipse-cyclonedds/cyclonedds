@@ -90,8 +90,7 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
     CU_ASSERT_FATAL (gpe != NULL);
     CU_ASSERT_FATAL (gpe->c.type_pair != NULL);
     CU_ASSERT_FATAL (gpe->c.type_pair->minimal != NULL);
-    assert (gpe->c.type_pair->minimal);
-    *type_id = ddsi_typeid_dup (&gpe->c.type_pair->minimal->xt.id);
+    *type_id = ddsi_typeid_dup (ddsi_type_pair_minimal_id (gpe->c.type_pair));
     *type_name = ddsrt_strdup (gpe->c.xqos->type_name);
   }
   else if (ec->kind == EK_READER)
@@ -99,8 +98,7 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
     struct reader *rd = (struct reader *) ec;
     CU_ASSERT_FATAL (rd->c.type_pair != NULL);
     CU_ASSERT_FATAL (rd->c.type_pair->minimal != NULL);
-    assert (rd->c.type_pair->minimal);
-    *type_id = ddsi_typeid_dup (&rd->c.type_pair->minimal->xt.id);
+    *type_id = ddsi_typeid_dup (ddsi_type_pair_minimal_id (rd->c.type_pair));
     *type_name = ddsrt_strdup (rd->xqos->type_name);
   }
   else if (ec->kind == EK_WRITER)
@@ -108,8 +106,7 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
     struct writer *wr = (struct writer *) ec;
     CU_ASSERT_FATAL (wr->c.type_pair != NULL);
     CU_ASSERT_FATAL (wr->c.type_pair->minimal != NULL);
-    assert (wr->c.type_pair->minimal);
-    *type_id = ddsi_typeid_dup (&wr->c.type_pair->minimal->xt.id);
+    *type_id = ddsi_typeid_dup (ddsi_type_pair_minimal_id (wr->c.type_pair));
     *type_name = ddsrt_strdup (wr->xqos->type_name);
   }
   else
@@ -152,8 +149,9 @@ static endpoint_info_t * find_typeid_match (dds_entity_t participant, dds_entity
         CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
         if (t != NULL)
         {
+          struct ddsi_typeid_str tidstr;
           print_ep (&data->key);
-          printf (" type: "PTYPEIDFMT, PTYPEID (*t));
+          printf (" type: %s", ddsi_make_typeid_str (&tidstr, t));
           if (!ddsi_typeid_compare (t, type_id) && !strcmp (data->topic_name, match_topic))
           {
             printf(" match");

@@ -445,6 +445,7 @@ dds_return_t dds_domain_resolve_type (dds_entity_t entity, const dds_typeid_t *t
   struct dds_entity *e;
   dds_return_t rc;
   const ddsi_typeid_t *ddsi_type_id = (const ddsi_typeid_t *) type_id;
+  const struct ddsi_sertype *type_st;
 
   if (ddsi_typeid_is_none (ddsi_type_id) || !ddsi_typeid_is_hash (ddsi_type_id))
     return DDS_RETCODE_BAD_PARAMETER;
@@ -466,9 +467,9 @@ dds_return_t dds_domain_resolve_type (dds_entity_t entity, const dds_typeid_t *t
     rc = DDS_RETCODE_PRECONDITION_NOT_MET;
     goto failed;
   }
-  if (type->sertype)
+  if ((type_st = ddsi_type_sertype (type)))
   {
-    *sertype = ddsi_sertype_ref (type->sertype);
+    *sertype = ddsi_sertype_ref (type_st);
     ddsrt_mutex_unlock (&gv->typelib_lock);
   }
   else if (timeout == 0)
@@ -491,16 +492,17 @@ dds_return_t dds_domain_resolve_type (dds_entity_t entity, const dds_typeid_t *t
     *sertype = NULL;
     ddsrt_mutex_lock (&gv->typelib_lock);
 
-    while (!type->xt.has_obj)
+    while (!ddsi_type_has_obj (type))
     {
       if (!ddsrt_cond_waituntil (&gv->typelib_resolved_cond, &gv->typelib_lock, abstimeout))
         break;
     }
     // FIXME: if we have a complete type object, dynamically generate a sertype
-    if (type->xt.has_obj)
+    if (ddsi_type_has_obj (type))
     {
-      assert (type->sertype != NULL);
-      *sertype = ddsi_sertype_ref (type->sertype);
+      type_st = ddsi_type_sertype (type);
+      assert (type_st != NULL);
+      *sertype = ddsi_sertype_ref (type_st);
     }
     ddsrt_mutex_unlock (&gv->typelib_lock);
     if (*sertype == NULL)

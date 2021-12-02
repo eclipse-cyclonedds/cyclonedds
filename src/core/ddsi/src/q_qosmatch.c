@@ -76,13 +76,16 @@ static bool check_endpoint_typeid (struct ddsi_domaingv *gv, char *type_name, co
 {
   assert (type_pair);
   ddsrt_mutex_lock (&gv->typelib_lock);
-  if ((!type_pair->minimal || !type_pair->minimal->xt.has_obj) && (!type_pair->complete || !type_pair->complete->xt.has_obj))
+  if (!ddsi_type_pair_has_minimal_obj (type_pair) && !ddsi_type_pair_has_complete_obj (type_pair))
   {
+    struct ddsi_typeid_str str;
+    const ddsi_typeid_t *tid_m = ddsi_type_pair_minimal_id (type_pair),
+      *tid_c = ddsi_type_pair_complete_id (type_pair);
     GVTRACE ("unresolved %s type %s ", entity, type_name);
-    if (type_pair->minimal)
-      GVTRACE ("min " PTYPEIDFMT, PTYPEID(type_pair->minimal->xt.id));
-    if (type_pair->complete)
-      GVTRACE ("compl " PTYPEIDFMT, PTYPEID(type_pair->complete->xt.id));
+    if (tid_m)
+      GVTRACE ("min %s", ddsi_make_typeid_str (&str, tid_m));
+    if (tid_c)
+      GVTRACE ("compl %s", ddsi_make_typeid_str (&str, tid_c));
     GVTRACE ("\n");
     /* defer requesting unresolved type until after the endpoint qos lock
        has been released, so just set a bool value indicating that a type
@@ -141,8 +144,8 @@ bool qos_match_mask_p (
     uint64_t mask,
     dds_qos_policy_id_t *reason
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    , const ddsi_type_pair_t *rd_type_pair
-    , const ddsi_type_pair_t *wr_type_pair
+    , const struct ddsi_type_pair *rd_type_pair
+    , const struct ddsi_type_pair *wr_type_pair
     , bool *rd_typeid_req_lookup
     , bool *wr_typeid_req_lookup
 #endif
@@ -191,10 +194,15 @@ bool qos_match_mask_p (
       return false;
     bool assignable = false;
     ddsrt_mutex_lock (&gv->typelib_lock);
-    if (rd_type_pair->complete && rd_type_pair->complete->sertype)
-      assignable = ddsi_sertype_assignable_from (rd_type_pair->complete->sertype, wr_type_pair);
-    else if (wr_type_pair->complete && wr_type_pair->complete->sertype)
-      assignable = ddsi_sertype_assignable_from (wr_type_pair->complete->sertype, rd_type_pair);
+    const struct ddsi_sertype *rd_sertype = ddsi_type_pair_complete_sertype (rd_type_pair);
+    if (rd_sertype)
+      assignable = ddsi_sertype_assignable_from (rd_sertype, wr_type_pair);
+    else
+    {
+      const struct ddsi_sertype *wr_sertype = ddsi_type_pair_complete_sertype (wr_type_pair);
+      if (wr_sertype)
+        assignable = ddsi_sertype_assignable_from (wr_sertype, rd_type_pair);
+    }
     ddsrt_mutex_unlock (&gv->typelib_lock);
     if (!assignable)
     {
@@ -268,8 +276,8 @@ bool qos_match_p (
     const dds_qos_t *wr_qos,
     dds_qos_policy_id_t *reason
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    , const ddsi_type_pair_t *rd_type_pair
-    , const ddsi_type_pair_t *wr_type_pair
+    , const struct ddsi_type_pair *rd_type_pair
+    , const struct ddsi_type_pair *wr_type_pair
     , bool *rd_typeid_req_lookup
     , bool *wr_typeid_req_lookup
 #endif

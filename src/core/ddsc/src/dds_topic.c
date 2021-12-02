@@ -395,8 +395,9 @@ static int ktopic_type_guid_equal (const void *ktp_guid_a, const void *ktp_guid_
 static uint32_t ktopic_type_guid_hash (const void *ktp_guid)
 {
   struct ktopic_type_guid *x = (struct ktopic_type_guid *) ktp_guid;
-  assert (ddsi_typeid_is_hash (x->type_id));
-  return * (uint32_t *) x->type_id->_u.equivalence_hash;
+  DDS_XTypes_EquivalenceHash hash;
+  ddsi_typeid_get_equivalence_hash (x->type_id, &hash);
+  return * (uint32_t *) hash;
 }
 
 #else
@@ -436,7 +437,7 @@ dds_entity_t dds_create_topic_impl (
   ddsi_typeinfo_t *type_info = ddsi_sertype_typeinfo (*sertype);
   if (type_info != NULL)
   {
-    if (ddsi_typeid_is_none (&type_info->minimal.typeid_with_size.type_id) || ddsi_typeid_is_none (&type_info->complete.typeid_with_size.type_id))
+    if (ddsi_typeid_is_none (ddsi_typeinfo_minimal_typeid (type_info)) || ddsi_typeid_is_none (ddsi_typeinfo_complete_typeid (type_info)))
       rc = DDS_RETCODE_BAD_PARAMETER;
     ddsi_typeinfo_fini (type_info);
     ddsrt_free (type_info);
@@ -846,7 +847,7 @@ static dds_entity_t find_remote_topic_impl (dds_participant *pp_topic, const cha
     return ret;
   if (tpd == NULL)
     return DDS_RETCODE_OK;
-  if ((ret = dds_domain_resolve_type (pp_topic->m_entity.m_hdllink.hdl, (const dds_typeid_t *) &tpd->type_pair->complete->xt.id, timeout, &sertype)) != DDS_RETCODE_OK)
+  if ((ret = dds_domain_resolve_type (pp_topic->m_entity.m_hdllink.hdl, ddsi_type_pair_complete_id (tpd->type_pair), timeout, &sertype)) != DDS_RETCODE_OK)
   {
     /* if topic definition is found, but the type for this topic is not resolved
         and timeout 0 means we don't want to request and wait for the type to be retrieved */

@@ -20,6 +20,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/ddsi_typewrap.h"
+#include "dds/ddsi/ddsi_xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "dds/ddsc/dds_opcodes.h"
@@ -499,8 +500,8 @@ get_check_type_spec_typeid(
     memset (&ti_tmp, 0, sizeof (ti_tmp));
     ret = get_typeid (pstate, dtm, type_spec, &ti_tmp, kind, false);
     assert (ret == IDL_RETCODE_OK);
-    assert (!ddsi_typeid_compare (ti, &ti_tmp));
-    ddsi_typeid_fini (&ti_tmp);
+    assert (!ddsi_typeid_compare_impl (ti, &ti_tmp));
+    ddsi_typeid_fini_impl (&ti_tmp);
   }
 #endif
   return IDL_RETCODE_OK;
@@ -1292,13 +1293,14 @@ print_typeid_with_deps (
   FILE *fp,
   const struct DDS_XTypes_TypeIdentifierWithDependencies *typeid_with_deps)
 {
-  const char *fmt = "  "PTYPEIDFMT" (#deps: %d)\n";
-  if (idl_fprintf (fp, fmt, PTYPEID(typeid_with_deps->typeid_with_size.type_id), typeid_with_deps->dependent_typeid_count) < 0)
+  struct ddsi_typeid_str tidstr;
+  const char *fmt = "  %s (#deps: %d)\n";
+  if (idl_fprintf (fp, fmt, ddsi_make_typeid_str_impl (&tidstr, &typeid_with_deps->typeid_with_size.type_id), typeid_with_deps->dependent_typeid_count) < 0)
     return IDL_RETCODE_NO_MEMORY;
-  fmt = "   - "PTYPEIDFMT"\n";
+  fmt = "   - %s\n";
   for (uint32_t n = 0; n < typeid_with_deps->dependent_typeids._length; n++)
   {
-    if (idl_fprintf (fp, fmt, PTYPEID(typeid_with_deps->dependent_typeids._buffer[n].type_id)) < 0)
+    if (idl_fprintf (fp, fmt, ddsi_make_typeid_str_impl(&tidstr, &typeid_with_deps->dependent_typeids._buffer[n].type_id)) < 0)
       return IDL_RETCODE_NO_MEMORY;
   }
   return IDL_RETCODE_OK;

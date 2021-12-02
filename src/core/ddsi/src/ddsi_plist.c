@@ -705,7 +705,7 @@ static dds_return_t deser_type_information (void * __restrict dst, struct flagse
 
   dds_istream_t is = { .m_buffer = buf, .m_index = 0, .m_size = (uint32_t) dd->bufsz, .m_xcdr_version = CDR_ENC_VERSION_2 };
   ddsi_typeinfo_t const ** x = deser_generic_dst (dst, &dstoff, alignof (ddsi_typeinfo_t *));
-  *x = ddsrt_calloc (1, sizeof (**x));
+  *x = ddsrt_calloc (1, DDS_XTypes_TypeInformation_desc.m_size);
   dds_stream_read (&is, (void *) *x, DDS_XTypes_TypeInformation_desc.m_ops);
   *flagset->present |= flag;
 err_normalize:
@@ -736,8 +736,8 @@ static dds_return_t valid_type_information (const void *src, size_t srcoff)
   ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, alignof (ddsi_typeinfo_t *));
   /* FIXME: add more checks for type ids */
   return *x != NULL &&
-    !ddsi_typeid_is_none (&(*x)->minimal.typeid_with_size.type_id) &&
-    !ddsi_typeid_is_none (&(*x)->complete.typeid_with_size.type_id);
+    !ddsi_typeid_is_none (ddsi_typeinfo_minimal_typeid (*x)) &&
+    !ddsi_typeid_is_none (ddsi_typeinfo_complete_typeid (*x));
 }
 
 static bool equal_type_information (const void *srcx, const void *srcy, size_t srcoff)
@@ -771,7 +771,10 @@ static dds_return_t fini_type_information (void * __restrict dst, size_t * __res
 static bool print_type_information (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff)
 {
   ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, alignof (ddsi_typeinfo_t *));
-  return prtf (buf, bufsize, PTYPEIDFMT "/" PTYPEIDFMT, PTYPEID((*x)->minimal.typeid_with_size.type_id), PTYPEID((*x)->complete.typeid_with_size.type_id));
+  struct ddsi_typeid_str tpstrm, tpstrc;
+  return prtf (buf, bufsize, "%s/%s",
+    ddsi_make_typeid_str (&tpstrm, ddsi_typeinfo_minimal_typeid (*x)),
+    ddsi_make_typeid_str (&tpstrc, ddsi_typeinfo_complete_typeid (*x)));
 }
 
 #endif /* DDS_HAS_TYPE_DISCOVERY */

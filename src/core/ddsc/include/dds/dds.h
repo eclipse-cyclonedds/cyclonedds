@@ -42,8 +42,8 @@
 extern "C" {
 #endif
 
-struct ddsi_typeid_t;
-typedef struct ddsi_typeid_t dds_typeid_t;
+typedef struct ddsi_typeid dds_typeid_t;
+typedef struct ddsi_typeobj dds_typeobj_t;
 
 struct dds_rhc;
 struct ddsi_plist;

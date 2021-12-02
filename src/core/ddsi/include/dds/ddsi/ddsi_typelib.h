@@ -21,6 +21,7 @@
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsi/ddsi_list_tmpl.h"
 #include "dds/ddsi/ddsi_typewrap.h"
+#include "dds/ddsi/ddsi_sertype.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -28,20 +29,14 @@ extern "C" {
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
 
-#define NOARG
-DDSI_LIST_TYPES_TMPL(ddsi_type_proxy_guid_list, ddsi_guid_t, NOARG, 32)
-#undef NOARG
-
 extern const ddsrt_avl_treedef_t ddsi_typelib_treedef;
 
-struct xt_type;
-struct ddsi_domaingv;
 struct generic_proxy_endpoint;
-
-struct ddsi_type_dep {
-  struct ddsi_type *type;
-  struct ddsi_type_dep *prev;
-};
+struct ddsi_domaingv;
+struct ddsi_sertype;
+struct ddsi_sertype_cdr_data;
+struct ddsi_type;
+struct ddsi_type_pair;
 
 enum ddsi_type_state {
   DDSI_TYPE_UNRESOLVED,
@@ -49,44 +44,43 @@ enum ddsi_type_state {
   DDSI_TYPE_RESOLVED,
 };
 
-struct ddsi_type {
-  struct xt_type xt;                            /* wrapper for XTypes type id/obj */
-  ddsrt_avl_node_t avl_node;
-  enum ddsi_type_state state;
-  const struct ddsi_sertype *sertype;           /* sertype associated with the type identifier, NULL if type is unresolved or not used as a top-level type */
-  seqno_t request_seqno;                        /* sequence number of the last type lookup request message */
-  struct ddsi_type_proxy_guid_list proxy_guids; /* administration for proxy endpoints (not proxy topics) that are using this type */
-  uint32_t refc;                                /* refcount for this record */
-  struct ddsi_type_dep *deps;                   /* dependent type records */
+/* Used for converting type-id to strings */
+struct ddsi_typeid_str {
+  char str[50];
 };
-
-/* The xt_type member must be at offset 0 so that the type identifier field
-   in this type is at offset 0, and a ddsi_type can be used for hash table lookup
-   without copying the type identifier in the search template */
-DDSRT_STATIC_ASSERT (offsetof (struct ddsi_type, xt) == 0);
-
-
-typedef struct ddsi_type_pair {
-  struct ddsi_type *minimal;
-  struct ddsi_type *complete;
-} ddsi_type_pair_t;
+char *ddsi_make_typeid_str (struct ddsi_typeid_str *buf, const ddsi_typeid_t *type_id);
 
 bool ddsi_typeinfo_equal (const ddsi_typeinfo_t *a, const ddsi_typeinfo_t *b);
-void ddsi_typeinfo_deserLE (unsigned char *buf, uint32_t sz, ddsi_typeinfo_t **typeinfo);
+ddsi_typeid_t *ddsi_typeinfo_typeid (ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind);
+ddsi_typeinfo_t *ddsi_typeinfo_deser (const struct ddsi_sertype_cdr_data *ser);
 void ddsi_typeinfo_fini (ddsi_typeinfo_t *typeinfo);
 ddsi_typeinfo_t * ddsi_typeinfo_dup (const ddsi_typeinfo_t *src);
+const ddsi_typeid_t *ddsi_typeinfo_minimal_typeid (const ddsi_typeinfo_t *typeinfo);
+const ddsi_typeid_t *ddsi_typeinfo_complete_typeid (const ddsi_typeinfo_t *typeinfo);
+uint32_t ddsi_typeinfo_get_dependent_typeids (const ddsi_typeinfo_t *type_info, const ddsi_typeid_t *** dep_ids, ddsi_typeid_kind_t kind);
 
-void ddsi_typemap_deser (unsigned char *buf, uint32_t sz, ddsi_typemap_t **typemap);
+ddsi_typemap_t *ddsi_typemap_deser (const struct ddsi_sertype_cdr_data *ser);
 
 struct ddsi_type * ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type);
 struct ddsi_type * ddsi_type_ref_id_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id);
 struct ddsi_type * ddsi_type_ref_local (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype, ddsi_typeid_kind_t kind);
 struct ddsi_type * ddsi_type_ref_proxy (struct ddsi_domaingv *gv, const ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind, const ddsi_guid_t *proxy_guid);
-
+const struct ddsi_sertype *ddsi_type_sertype (const struct ddsi_type *type);
+bool ddsi_type_has_obj (const struct ddsi_type *type);
 void ddsi_type_unreg_proxy (struct ddsi_domaingv *gv, struct ddsi_type *type, const ddsi_guid_t *proxy_guid);
 void ddsi_type_unref (struct ddsi_domaingv *gv, struct ddsi_type *type);
 void ddsi_type_unref_sertype (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype);
 void ddsi_type_unref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type);
+
+bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type *type_a, const struct ddsi_type_pair *type_pair_b);
+const ddsi_typeid_t *ddsi_type_pair_minimal_id (const struct ddsi_type_pair *type_pair);
+const ddsi_typeid_t *ddsi_type_pair_complete_id (const struct ddsi_type_pair *type_pair);
+const struct ddsi_sertype *ddsi_type_pair_complete_sertype (const struct ddsi_type_pair *type_pair);
+struct ddsi_type_pair *ddsi_type_pair_init (const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id_complete);
+void ddsi_type_pair_free (struct ddsi_type_pair *type_pair);
+bool ddsi_type_pair_has_minimal_obj (const struct ddsi_type_pair *type_pair);
+bool ddsi_type_pair_has_complete_obj (const struct ddsi_type_pair *type_pair);
+
 
 /**
  * Returns the type lookup meta object for the provided type identifier.

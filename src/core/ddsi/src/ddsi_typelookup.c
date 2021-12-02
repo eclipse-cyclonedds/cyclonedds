@@ -23,6 +23,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typelookup.h"
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/ddsi/ddsi_typelib.h"
@@ -51,13 +52,14 @@ static struct writer *get_typelookup_writer (const struct ddsi_domaingv *gv, uin
 
 bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, const ddsi_typeid_t ** dependent_type_ids, uint32_t dependent_type_id_count)
 {
+  struct ddsi_typeid_str tidstr;
   assert (ddsi_typeid_is_hash (type_id));
   ddsrt_mutex_lock (&gv->typelib_lock);
   struct ddsi_type *type = ddsi_type_lookup_locked (gv, type_id);
   GVTRACE ("tl-req ");
   if (!type)
   {
-    GVTRACE ("cannot find "PTYPEIDFMT"\n", PTYPEID (*type_id));
+    GVTRACE ("cannot find %s\n", ddsi_make_typeid_str (&tidstr, type_id));
     ddsrt_mutex_unlock (&gv->typelib_lock);
     return false;
   }
@@ -65,7 +67,7 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   {
     // type lookup is pending or the type is already resolved, so we'll return true
     // to indicate that the type request is done (or not required)
-    GVTRACE ("state not-new for "PTYPEIDFMT"\n", PTYPEID (*type_id));
+    GVTRACE ("state not-new for %s\n", ddsi_make_typeid_str (&tidstr, type_id));
     ddsrt_mutex_unlock (&gv->typelib_lock);
     return true;
   }
@@ -89,9 +91,9 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   request.data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
   request.data._u.getTypes.type_ids._length = 1 + dependent_type_id_count;
   request.data._u.getTypes.type_ids._buffer = ddsrt_malloc ((dependent_type_id_count + 1) * sizeof (*request.data._u.getTypes.type_ids._buffer));
-  ddsi_typeid_copy (&request.data._u.getTypes.type_ids._buffer[0], type_id);
+  ddsi_typeid_copy_impl (&request.data._u.getTypes.type_ids._buffer[0], &type_id->x);
   for (uint32_t n = 0; n < dependent_type_id_count; n++)
-    ddsi_typeid_copy (&request.data._u.getTypes.type_ids._buffer[n + 1], dependent_type_ids[n]);
+    ddsi_typeid_copy_impl (&request.data._u.getTypes.type_ids._buffer[n + 1], &dependent_type_ids[n]->x);
 
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample (gv->tl_svc_request_type, SDK_DATA, &request);
   ddsrt_free (request.data._u.getTypes.type_ids._buffer);
@@ -100,7 +102,7 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
   thread_state_awake (lookup_thread_state (), gv);
-  GVTRACE ("wr "PGUIDFMT" typeid "PTYPEIDFMT"\n", PGUID (wr->e.guid ), PTYPEID(*type_id));
+  GVTRACE ("wr "PGUIDFMT" typeid %s\n", PGUID (wr->e.guid), ddsi_make_typeid_str (&tidstr, type_id));
   struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
   write_sample_gc (lookup_thread_state (), NULL, wr, serdata, tk);
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
@@ -160,19 +162,20 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
   struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq types = { 0, 0, NULL, false };
   for (uint32_t n = 0; n < req.data._u.getTypes.type_ids._length; n++)
   {
-    ddsi_typeid_t *type_id = &req.data._u.getTypes.type_ids._buffer[n];
-    if (!ddsi_typeid_is_hash (type_id))
+    struct ddsi_typeid_str tidstr;
+    struct DDS_XTypes_TypeIdentifier *type_id = &req.data._u.getTypes.type_ids._buffer[n];
+    if (!ddsi_typeid_is_hash_impl (type_id))
     {
-      GVTRACE (" non-hash id " PTYPEIDFMT, PTYPEID (*type_id));
+      GVTRACE (" non-hash id %s", ddsi_make_typeid_str_impl (&tidstr, type_id));
       continue;
     }
-    GVTRACE (" id "PTYPEIDFMT, PTYPEID (*type_id));
-    const struct ddsi_type *type = ddsi_type_lookup_locked (gv, type_id);
+    GVTRACE (" id %s", ddsi_make_typeid_str_impl (&tidstr, type_id));
+    const struct ddsi_type *type = ddsi_type_lookup_locked_impl (gv, type_id);
     if (type && type->xt.has_obj)
     {
       types._buffer = ddsrt_realloc (types._buffer, (types._length + 1) * sizeof (*types._buffer));
-      ddsi_typeid_copy (&types._buffer[types._length].type_identifier, type_id);
-      ddsi_xt_get_typeobject (&type->xt, &types._buffer[types._length].type_object);
+      ddsi_typeid_copy_impl (&types._buffer[types._length].type_identifier, type_id);
+      ddsi_xt_get_typeobject_impl (&type->xt, &types._buffer[types._length].type_object);
       types._length++;
     }
   }
@@ -187,8 +190,8 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
   ddsi_sertype_free_sample (d->type, &req, DDS_FREE_CONTENTS);
   for (uint32_t n = 0; n < types._length; n++)
   {
-    ddsi_typeid_fini (&types._buffer[n].type_identifier);
-    ddsi_typeobj_fini (&types._buffer[n].type_object);
+    ddsi_typeid_fini_impl (&types._buffer[n].type_identifier);
+    ddsi_typeobj_fini_impl (&types._buffer[n].type_object);
   }
   ddsrt_free (types._buffer);
 }
@@ -207,9 +210,10 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
   GVTRACE ("handle-tl-reply wr "PGUIDFMT " seqnr %"PRIi64" ntypeids %"PRIu32"\n", PGUID (from_guid (&reply.header.requestId.writer_guid)), from_seqno (&reply.header.requestId.sequence_number), reply.return_data._u.getType._u.result.types._length);
   for (uint32_t n = 0; n < reply.return_data._u.getType._u.result.types._length; n++)
   {
+    struct ddsi_typeid_str str;
     DDS_XTypes_TypeIdentifierTypeObjectPair r = reply.return_data._u.getType._u.result.types._buffer[n];
-    GVTRACE (" type "PTYPEIDFMT, PTYPEID (r.type_identifier));
-    struct ddsi_type *type = ddsi_type_lookup_locked (gv, &r.type_identifier);
+    GVTRACE (" type %s", ddsi_make_typeid_str_impl (&str, &r.type_identifier));
+    struct ddsi_type *type = ddsi_type_lookup_locked_impl (gv, &r.type_identifier);
     if (!type)
     {
       /* received a typelookup reply for a type we don't know, so the type
@@ -226,7 +230,7 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
     {
       GVTRACE (" already resolved\n");
     }
-    if (ddsi_typeid_is_minimal (&r.type_identifier))
+    if (ddsi_typeid_is_minimal_impl (&r.type_identifier))
     {
       /* don't set resolved when a minimal type object is received, because
          only when getting a complete type object a sertype (and thus a topic)

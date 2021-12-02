@@ -197,6 +197,11 @@ struct nn_rsample_info;
 struct nn_rdata;
 struct ddsi_tkmap_instance;
 
+typedef struct ddsi_type_pair {
+  struct ddsi_type *minimal;
+  struct ddsi_type *complete;
+} ddsi_type_pair_t;
+
 struct entity_common {
   enum entity_kind kind;
   ddsi_guid_t guid;
@@ -261,7 +266,7 @@ struct participant
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 struct ddsi_topic_definition {
   unsigned char key[16]; /* key for this topic definition (MD5 hash of the type_id and qos) */
-  ddsi_type_pair_t *type_pair; /* has a ddsi_type object for the minimal and complete type, which contains the XTypes type identifiers */
+  struct ddsi_type_pair *type_pair; /* has a ddsi_type object for the minimal and complete type, which contains the XTypes type identifiers */
   struct dds_qos *xqos; /* contains also the topic name and type name */
   uint32_t refc;
   struct ddsi_domaingv *gv;
@@ -278,7 +283,7 @@ struct endpoint_common {
   struct participant *pp;
   ddsi_guid_t group_guid;
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  ddsi_type_pair_t *type_pair;
+  struct ddsi_type_pair *type_pair;
 #endif
 };
 
@@ -489,7 +494,7 @@ struct proxy_endpoint_common
   nn_vendorid_t vendor; /* cached from proxypp->vendor */
   seqno_t seq; /* sequence number of most recent SEDP message */
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  ddsi_type_pair_t *type_pair;
+  struct ddsi_type_pair *type_pair;
   const struct ddsi_sertype * type; /* sertype for data this endpoint reads/writes */
 #endif
 #ifdef DDS_HAS_SECURITY
