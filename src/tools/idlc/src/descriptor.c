@@ -1952,7 +1952,7 @@ static int add_key_offset(const idl_pstate_t *pstate, struct descriptor *descrip
     if (idl_asprintf(&name1, "%s%s%s", name ? name : "", name ? "." : "", key->name) == -1)
       goto err;
     offs->val[offs->n] = (uint16_t)key->offset;
-    offs->order[offs->n] = (uint16_t)key->order;
+    offs->order[offs->n] = key->order;
     offs->n++;
     if (key->sub) {
       if (add_key_offset(pstate, descriptor, ctype_top_level, key->sub, name1, keylist, offs))

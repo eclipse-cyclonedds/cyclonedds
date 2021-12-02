@@ -111,7 +111,7 @@ struct constructed_type_key {
 
 struct key_offs {
   uint16_t val[MAX_KEY_OFFS];
-  uint16_t order[MAX_KEY_OFFS];
+  uint32_t order[MAX_KEY_OFFS];
   uint16_t n;
 };
 
