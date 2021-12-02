@@ -197,6 +197,13 @@ static uint32_t dds_cdr_alignto_clear_and_resizeBE (dds_ostreamBE_t * __restrict
   return dds_cdr_alignto_clear_and_resize (&s->x, a, extra);
 }
 
+static uint32_t xcdr_max_align (uint32_t xcdr_version, uint32_t align)
+{
+  if (align > 4)
+    return xcdr_version == CDR_ENC_VERSION_2 ? 4 : 8;
+  return align;
+}
+
 static uint8_t dds_is_get1 (dds_istream_t * __restrict s)
 {
   assert (s->m_index < s->m_size);
@@ -269,7 +276,7 @@ static void dds_os_put4 (dds_ostream_t * __restrict s, uint32_t v)
 
 static void dds_os_put8 (dds_ostream_t * __restrict s, uint64_t v)
 {
-  uint32_t align = s->m_xcdr_version == CDR_ENC_VERSION_2 ? 4 : 8;
+  uint32_t align = xcdr_max_align (s->m_xcdr_version, 8);
   dds_cdr_alignto_clear_and_resize (s, align, 8);
   size_t off_low = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 0 : 4, off_high = 4 - off_low;
   *((uint32_t *) (s->m_buffer + s->m_index + off_low)) = (uint32_t) v;
@@ -286,7 +293,7 @@ static uint32_t dds_os_reserve4 (dds_ostream_t * __restrict s)
 
 static uint32_t dds_os_reserve8 (dds_ostream_t * __restrict s)
 {
-  uint32_t align = s->m_xcdr_version == CDR_ENC_VERSION_2 ? 4 : 8;
+  uint32_t align = xcdr_max_align (s->m_xcdr_version, 8);
   dds_cdr_alignto_clear_and_resize (s, align, 8);
   s->m_index += 8;
   return s->m_index;
@@ -2727,12 +2734,13 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t * __restrict 
     case DDS_OP_VAL_ARR: {
       const uint32_t subtype = DDS_OP_SUBTYPE (*op);
       assert (subtype <= DDS_OP_VAL_8BY);
-      const uint32_t align = get_type_size (subtype);
+      const uint32_t elem_size = get_type_size (subtype);
+      const uint32_t align = xcdr_max_align (os->m_xcdr_version, elem_size);
       const uint32_t num = op[2];
-      dds_cdr_alignto_clear_and_resize (os, align, num * align);
+      dds_cdr_alignto_clear_and_resize (os, align, num * elem_size);
       void * const dst = os->m_buffer + os->m_index;
-      dds_is_get_bytes (is, dst, num, align);
-      os->m_index += num * align;
+      dds_is_get_bytes (is, dst, num, elem_size);
+      os->m_index += num * elem_size;
       break;
     }
     case DDS_OP_VAL_EXT: {
@@ -2804,19 +2812,20 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
     case DDS_OP_VAL_ARR: {
       const uint32_t subtype = DDS_OP_SUBTYPE (*op);
       assert (subtype <= DDS_OP_VAL_8BY);
-      const uint32_t align = get_type_size (subtype);
+      const uint32_t elem_size = get_type_size (subtype);
+      const uint32_t align = xcdr_max_align (os->x.m_xcdr_version, elem_size);
       const uint32_t num = op[2];
       dds_cdr_alignto (is, align);
-      dds_cdr_alignto_clear_and_resizeBE (os, align, num * align);
+      dds_cdr_alignto_clear_and_resizeBE (os, align, num * elem_size);
       void const * const src = is->m_buffer + is->m_index;
       void * const dst = os->x.m_buffer + os->x.m_index;
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-      dds_stream_swap_copy (dst, src, align, num);
+      dds_stream_swap_copy (dst, src, elem_size, num);
 #else
-      memcpy (dst, src, num * align);
+      memcpy (dst, src, num * elem_size);
 #endif
-      os->x.m_index += num * align;
-      is->m_index += num * align;
+      os->x.m_index += num * elem_size;
+      is->m_index += num * elem_size;
       break;
     }
     case DDS_OP_VAL_EXT: {
