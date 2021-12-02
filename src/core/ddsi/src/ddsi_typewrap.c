@@ -1788,7 +1788,6 @@ ddsi_typeid_kind_t ddsi_typeid_kind (const ddsi_typeid_t *type_id)
 
 void ddsi_xt_get_typeobject_impl (const struct xt_type *xt, struct DDS_XTypes_TypeObject *to)
 {
-
   assert (xt);
   assert (to);
   assert (xt->has_obj);

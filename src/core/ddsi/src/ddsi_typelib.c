@@ -464,11 +464,21 @@ const struct ddsi_sertype *ddsi_type_sertype (const struct ddsi_type *type)
   return type->sertype;
 }
 
-bool ddsi_type_has_obj (const struct ddsi_type *type)
+bool ddsi_type_has_typeobj (const struct ddsi_type *type)
 {
   if (type == NULL)
     return NULL;
   return type->xt.has_obj;
+}
+
+struct ddsi_typeobj *ddsi_type_get_typeobj (const struct ddsi_type *type)
+{
+  if (!ddsi_type_has_typeobj (type))
+    return NULL;
+
+  ddsi_typeobj_t *to = ddsrt_malloc (sizeof (*to));
+  ddsi_xt_get_typeobject (&type->xt, to);
+  return to;
 }
 
 static void ddsi_type_unref_impl_locked (struct ddsi_domaingv *gv, struct ddsi_type *type)

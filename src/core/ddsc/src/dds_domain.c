@@ -492,13 +492,13 @@ dds_return_t dds_domain_resolve_type (dds_entity_t entity, const dds_typeid_t *t
     *sertype = NULL;
     ddsrt_mutex_lock (&gv->typelib_lock);
 
-    while (!ddsi_type_has_obj (type))
+    while (!ddsi_type_has_typeobj (type))
     {
       if (!ddsrt_cond_waituntil (&gv->typelib_resolved_cond, &gv->typelib_lock, abstimeout))
         break;
     }
     // FIXME: if we have a complete type object, dynamically generate a sertype
-    if (ddsi_type_has_obj (type))
+    if (ddsi_type_has_typeobj (type))
     {
       type_st = ddsi_type_sertype (type);
       assert (type_st != NULL);
@@ -519,4 +519,76 @@ failed:
   assert (rc != DDS_RETCODE_OK);
   return rc;
 }
+
+dds_return_t dds_domain_get_typeobj(
+  dds_entity_t entity,
+  const dds_typeid_t *type_id,
+  dds_duration_t timeout,
+  dds_typeobj_t **type_obj)
+{
+  struct dds_entity *e;
+  dds_return_t rc;
+  const ddsi_typeid_t *ddsi_type_id = (const ddsi_typeid_t *) type_id;
+  ddsi_typeobj_t **dds_typeobj = (ddsi_typeobj_t **) type_obj;
+
+  if (ddsi_type_id == NULL || !ddsi_typeid_is_hash(ddsi_type_id))
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  if ((rc = dds_entity_pin (entity, &e)) < 0)
+    return rc;
+  if (e->m_domain == NULL)
+  {
+    rc = DDS_RETCODE_ILLEGAL_OPERATION;
+    goto failed;
+  }
+
+  struct ddsi_domaingv *gv = &e->m_domain->gv;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  struct ddsi_type *type = ddsi_type_lookup_locked (gv, ddsi_type_id);
+
+  if (type == NULL)
+  {
+    ddsrt_mutex_unlock (&gv->typelib_lock);
+    rc = DDS_RETCODE_PRECONDITION_NOT_MET;
+    goto failed;
+  }
+
+  if (timeout == 0)
+  {
+    ddsrt_mutex_unlock (&gv->typelib_lock);
+    rc = DDS_RETCODE_TIMEOUT;
+    goto failed;
+  }
+  else
+  {
+    ddsrt_mutex_unlock (&gv->typelib_lock);
+    if (!ddsi_tl_request_type (gv, ddsi_type_id, NULL, 0))
+    {
+      rc = DDS_RETCODE_PRECONDITION_NOT_MET;
+      goto failed;
+    }
+
+    const dds_time_t tnow = dds_time ();
+    const dds_time_t abstimeout = (DDS_INFINITY - timeout <= tnow) ? DDS_NEVER : (tnow + timeout);
+    ddsrt_mutex_lock (&gv->typelib_lock);
+
+    while (!ddsi_type_has_typeobj (type))
+    {
+      if (!ddsrt_cond_waituntil (&gv->typelib_resolved_cond, &gv->typelib_lock, abstimeout))
+        break;
+    }
+
+    if (ddsi_type_has_typeobj (type))
+      *dds_typeobj = ddsi_type_get_typeobj (type);
+    ddsrt_mutex_unlock (&gv->typelib_lock);
+  }
+  dds_entity_unpin (e);
+  return DDS_RETCODE_OK;
+
+failed:
+  dds_entity_unpin (e);
+  assert (rc != DDS_RETCODE_OK);
+  return rc;
+}
+
 #endif /* DDS_HAS_TYPE_DISCOVERY */

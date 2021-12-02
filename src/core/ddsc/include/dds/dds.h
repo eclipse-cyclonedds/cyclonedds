@@ -3991,6 +3991,36 @@ dds_domain_resolve_type (
   dds_duration_t timeout,
   struct ddsi_sertype **sertype);
 
+/**
+ * @brief This function resolves the type for the provided type identifier,
+ * which can e.g. be retrieved from endpoint or topic discovery data.
+ *
+ * @param[in]   entity              A domain entity or an entity bound to a domain, such
+ *                                  as a participant, reader or writer.
+ * @param[in]   type_id             Type identifier
+ * @param[in]   timeout             Timeout for waiting for requested type information to be available
+ * @param[out]  type_obj            The type information, untouched if type is not resolved
+ *
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The operation was successful.
+ * @retval DDS_BAD_PARAMETER
+ *             The entity parameter is not a valid parameter, type_id or type name
+ *             is not provided, or the sertype out parameter is NULL
+ * @retval DDS_RETCODE_NOT_FOUND
+ *             A type with the provided type_id and type_name was not found
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+*/
+DDS_EXPORT dds_return_t
+dds_domain_get_typeobj (
+  dds_entity_t entity,
+  const dds_typeid_t *type_id,
+  dds_duration_t timeout,
+  dds_typeobj_t **type_obj);
+
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 
 #if defined (__cplusplus)

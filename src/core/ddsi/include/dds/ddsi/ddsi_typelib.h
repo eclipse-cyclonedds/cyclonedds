@@ -66,7 +66,8 @@ struct ddsi_type * ddsi_type_ref_id_locked (struct ddsi_domaingv *gv, const ddsi
 struct ddsi_type * ddsi_type_ref_local (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype, ddsi_typeid_kind_t kind);
 struct ddsi_type * ddsi_type_ref_proxy (struct ddsi_domaingv *gv, const ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind, const ddsi_guid_t *proxy_guid);
 const struct ddsi_sertype *ddsi_type_sertype (const struct ddsi_type *type);
-bool ddsi_type_has_obj (const struct ddsi_type *type);
+bool ddsi_type_has_typeobj (const struct ddsi_type *type);
+struct ddsi_typeobj *ddsi_type_get_typeobj (const struct ddsi_type *type);
 void ddsi_type_unreg_proxy (struct ddsi_domaingv *gv, struct ddsi_type *type, const ddsi_guid_t *proxy_guid);
 void ddsi_type_unref (struct ddsi_domaingv *gv, struct ddsi_type *type);
 void ddsi_type_unref_sertype (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype);
