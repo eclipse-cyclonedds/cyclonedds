@@ -89,11 +89,18 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
     if (is_key)
     {
       assert (*keys_remaining <= n_keys);
-      const uint32_t idx = keys[n_keys - *keys_remaining].idx;
-      key_offs[idx].src_off = is->m_index;
-      key_offs[idx].op_off = ops;
-      assert (*keys_remaining > 0);
-      (*keys_remaining)--;
+      uint32_t idx = n_keys - *keys_remaining;
+      for (uint32_t n = 0; n < n_keys; n++)
+      {
+        if (keys[n].idx == idx)
+        {
+          key_offs[n].src_off = is->m_index;
+          key_offs[n].op_off = ops;
+          assert (*keys_remaining > 0);
+          (*keys_remaining)--;
+          break;
+        }
+      }
     }
     ops = dds_stream_extract_key_from_data_skip_adr (is, ops, type);
   }
@@ -244,7 +251,7 @@ void dds_stream_extract_keyBO_from_data (dds_istream_t * __restrict is, DDS_OSTR
     (desc->keys.nkeys <= MAX_ST_KEYS) ? st_key_offs : ddsrt_malloc (desc->keys.nkeys * sizeof (*key_offs));
 
   (void) dds_stream_extract_keyBO_from_data1 (is, os, desc->ops.ops, desc->keys.nkeys, &keys_remaining, desc->keys.keys, key_offs);
-
+  assert (keys_remaining == 0);
   for (uint32_t i = 0; i < desc->keys.nkeys; i++)
   {
     is->m_index = key_offs[i].src_off;
