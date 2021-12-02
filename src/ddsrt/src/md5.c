@@ -64,6 +64,7 @@
  */
 
 #include <string.h>
+#include <stdint.h>
 
 #include "dds/ddsrt/endian.h" /* big or little endianness */
 #include "dds/ddsrt/md5.h"
@@ -178,7 +179,7 @@ md5_process(ddsrt_md5_state_t *pms, const ddsrt_md5_byte_t *data /*[64]*/)
              * On little-endian machines, we can process properly aligned
              * data without copying it.
              */
-            if (!((data - (const ddsrt_md5_byte_t *)0) & 3)) {
+            if (!((uintptr_t)data & 3)) {
                 /* data are properly aligned */
                 X = (const ddsrt_md5_word_t *)data;
             } else {
