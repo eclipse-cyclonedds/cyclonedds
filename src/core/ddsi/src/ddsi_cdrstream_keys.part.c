@@ -172,7 +172,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t * __
 
     /* FIXME: continue finding the member in the ops member list starting from the last
        found one, because in many cases the members will be in the data sequentially */
-    while (!found && (insn = ops[ops_csr]) != DDS_OP_RTS)
+    while (*keys_remaining > 0 && !found && (insn = ops[ops_csr]) != DDS_OP_RTS)
     {
       assert (DDS_OP (insn) == DDS_OP_PLM);
       if (ops[ops_csr + 1] == mid)
@@ -185,6 +185,8 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t * __
       ops_csr += 2;
     }
 
+    /* If member not found or in case no more keys remaining to be found, skip the member
+       in the input stream */
     if (!found)
     {
       is->m_index += msz;
