@@ -764,9 +764,8 @@ add_typedef (
 
   if ((ret = emit_hashed_type (DDS_XTypes_TK_ALIAS, node, revisit, dtm)) < 0)
     return ret;
-
-  if (dtm->stack->finalized)
-    return IDL_VISIT_REVISIT | (visit_type_spec ? IDL_VISIT_TYPE_SPEC : 0);
+  if (!revisit && dtm->stack->finalized)
+    return IDL_VISIT_REVISIT | IDL_VISIT_DONT_RECURSE | (visit_type_spec ? IDL_VISIT_TYPE_SPEC : 0);
 
   if (!revisit) {
     if ((ret = get_complete_type_detail (node, &dtm->stack->to_complete->_u.complete._u.alias_type.header.detail)) < 0)
@@ -801,9 +800,8 @@ add_array (
 
   if ((ret = emit_hashed_type (DDS_XTypes_TK_ARRAY, node, revisit, dtm)) < 0)
     return ret;
-
-  if (dtm->stack->finalized)
-    return IDL_VISIT_REVISIT;
+  if (!revisit && dtm->stack->finalized)
+    return IDL_VISIT_REVISIT | IDL_VISIT_DONT_RECURSE;
 
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.array_type.element.common.element_flags =
@@ -856,8 +854,12 @@ emit_struct(
        values of the member_index, so no need to do any custom ordering here because the members
        are visited in the same order */
   }
+
   if ((ret = emit_hashed_type (DDS_XTypes_TK_STRUCTURE, node, revisit, dtm)) < 0)
     return ret;
+  if (!revisit && dtm->stack->finalized)
+    return IDL_VISIT_REVISIT | IDL_VISIT_DONT_RECURSE | (node == dtm->root ? IDL_VISIT_DONT_ITERATE : 0);
+
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.struct_type.struct_flags =
       dtm->stack->to_complete->_u.complete._u.struct_type.struct_flags = get_struct_flags (_struct);
@@ -886,16 +888,17 @@ emit_union(
   }
   if ((ret = emit_hashed_type (DDS_XTypes_TK_UNION, node, revisit, dtm)) < 0)
     return ret;
+
+  if (!revisit && dtm->stack->finalized)
+    return IDL_VISIT_REVISIT | IDL_VISIT_DONT_RECURSE | (node == dtm->root ? IDL_VISIT_DONT_ITERATE : 0);
+
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.union_type.union_flags =
       dtm->stack->to_complete->_u.complete._u.union_type.union_flags = get_union_flags ((const idl_union_t *) node);
     if ((ret = get_complete_type_detail (node, &dtm->stack->to_complete->_u.complete._u.union_type.header.detail)) < 0)
       return ret;
-    ret = IDL_VISIT_REVISIT;
     /* For a topic, only its top-level type should be visited, not the other (non-related) types in the idl */
-    if (node == dtm->root)
-      ret |= IDL_VISIT_DONT_ITERATE;
-    return ret;
+    return IDL_VISIT_REVISIT | (node == dtm->root ? IDL_VISIT_DONT_ITERATE : 0);
   }
   return IDL_RETCODE_OK;
 }
@@ -980,6 +983,7 @@ emit_declarator (
   if (revisit) {
     struct type_meta *tm = dtm->stack;
     assert(tm);
+    assert(!tm->finalized);
     if (tm->to_minimal->_u.minimal._d == DDS_XTypes_TK_STRUCTURE) {
       assert (tm->to_complete->_u.complete._d == DDS_XTypes_TK_STRUCTURE);
       if ((ret = add_struct_member (pstate, dtm, tm->to_minimal, tm->to_complete, node, idl_is_array (node) ? node : idl_type_spec (node))) < 0)
@@ -1043,7 +1047,7 @@ emit_enum (
   }
   if ((ret = emit_hashed_type (DDS_XTypes_TK_ENUM, node, revisit, (struct descriptor_type_meta *) user_data)) < 0)
     return ret;
-  if (dtm->stack->finalized)
+  if (!revisit && dtm->stack->finalized)
     return IDL_VISIT_REVISIT | IDL_VISIT_DONT_RECURSE;
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.enumerated_type.header.common.bit_bound =
@@ -1136,7 +1140,7 @@ emit_bitmask(
   }
   if ((ret = emit_hashed_type (DDS_XTypes_TK_BITMASK, node, revisit, (struct descriptor_type_meta *) user_data)) < 0)
     return ret;
-  if (dtm->stack->finalized)
+  if (!revisit && dtm->stack->finalized)
     return IDL_VISIT_REVISIT | IDL_VISIT_DONT_RECURSE;
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.bitmask_type.header.common.bit_bound =
@@ -1222,7 +1226,7 @@ emit_sequence(
 
   if ((ret = emit_hashed_type (DDS_XTypes_TK_SEQUENCE, node, revisit, dtm)) < 0)
     return ret;
-  if (dtm->stack->finalized)
+  if (!revisit && dtm->stack->finalized)
     return IDL_VISIT_REVISIT | IDL_VISIT_TYPE_SPEC;
 
   if (!revisit) {
