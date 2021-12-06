@@ -66,3 +66,87 @@ struct CPUStats
   boolean some_above;
   sequence<CPUStatThread> cpu;
 };
+
+@final
+struct Struct16 {
+  octet struct0;
+  octet struct1;
+  octet struct2;
+  octet struct3;
+  octet struct4;
+  octet struct5;
+  octet struct6;
+  octet struct7;
+  octet struct8;
+  octet struct9;
+  octet structa;
+  octet structb;
+  octet structc;
+  octet structd;
+  octet structe;
+  octet structf;
+  long long junk;
+  unsigned long seq;
+  @key unsigned long keyval;
+};
+
+@final
+struct Struct256 {
+  Struct16 struct160;
+  Struct16 struct161;
+  Struct16 struct162;
+  Struct16 struct163;
+  Struct16 struct164;
+  Struct16 struct165;
+  Struct16 struct166;
+  Struct16 struct167;
+  Struct16 struct168;
+  Struct16 struct169;
+  Struct16 struct16a;
+  Struct16 struct16b;
+  Struct16 struct16c;
+  Struct16 struct16d;
+  Struct16 struct16e;
+  Struct16 struct16f;
+  long long junk;
+  unsigned long seq;
+  @key unsigned long keyval;
+};
+
+@final
+struct Struct4k {
+  Struct256 struct2560;
+  Struct256 struct2561;
+  Struct256 struct2562;
+  Struct256 struct2563;
+  Struct256 struct2564;
+  Struct256 struct2565;
+  Struct256 struct2566;
+  Struct256 struct2567;
+  Struct256 struct2568;
+  Struct256 struct2569;
+  Struct256 struct256a;
+  Struct256 struct256b;
+  Struct256 struct256c;
+  Struct256 struct256d;
+  Struct256 struct256e;
+  Struct256 struct256f;
+  long long junk;
+  unsigned long seq;
+  @key unsigned long keyval;
+};
+
+@final
+struct Struct32k {
+  Struct4k struct4k0;
+  Struct4k struct4k1;
+  Struct4k struct4k2;
+  Struct4k struct4k3;
+  Struct4k struct4k4;
+  Struct4k struct4k5;
+  Struct4k struct4k6;
+  Struct4k struct4k7;
+  long long junk;
+  unsigned long seq;
+  @key unsigned long keyval;
+};
