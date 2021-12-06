@@ -1214,7 +1214,7 @@ emit_array(
     if (idl_is_array(type_spec))
       dims *= idl_array_size(type_spec);
 
-  simple = (idl_mask(type_spec) & (IDL_BASE_TYPE|IDL_STRING|IDL_ENUM)) != 0;
+  simple = (idl_mask(type_spec) & (IDL_BASE_TYPE|IDL_STRING|IDL_ENUM|IDL_BITMASK)) != 0;
 
   if (revisit) {
     uint32_t off, cnt;
