@@ -73,7 +73,7 @@ static int idlc_putn(const char *str, size_t len)
   assert(pstate->flags & IDL_WRITE);
 
   /* tokenize to free up space */
-  if ((pstate->buffer.size - pstate->buffer.used) <= len) {
+  if (pstate->buffer.data && (pstate->buffer.size - pstate->buffer.used) <= len) {
     if ((retcode = idl_parse(pstate)) == IDL_RETCODE_NEED_REFILL)
       retcode = IDL_RETCODE_OK;
     /* move non-tokenized data to start of buffer */
@@ -88,7 +88,7 @@ static int idlc_putn(const char *str, size_t len)
     return -1;
 
   /* expand buffer if necessary */
-  if ((pstate->buffer.size - pstate->buffer.used) <= len) {
+  if (pstate->buffer.data == NULL || (pstate->buffer.size - pstate->buffer.used) <= len) {
     size_t size = pstate->buffer.size + (((len / CHUNK) + 1) * CHUNK);
     char *buf = realloc(pstate->buffer.data, size + 2 /* '\0' + '\0' */);
     if (buf == NULL) {
