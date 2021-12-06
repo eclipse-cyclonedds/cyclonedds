@@ -1,3 +1,28 @@
+# -- Helper function ---------------------------------------------------------
+
+# This ridiculous way of defining a function is to allow Sphinx to pickle this
+# That it doesn't work by just defining the function is probably a bug in Sphinx.
+
+from tempfile import TemporaryDirectory
+import sys
+import textwrap
+
+with TemporaryDirectory() as d:
+    with open(f'{d}/helper.py', 'w') as f:
+        f.write(textwrap.dedent("""
+            from docutils.nodes import make_id
+
+            def my_make_id(string):
+                # Github doesn't count '/' as a title separator, myst does.
+                if not string.startswith('//'):
+                    return make_id(string)
+                return make_id(string.translate({ord(i): None for i in '[]/@'}).lower())
+            """
+        ))
+    sys.path.append(d)
+    from helper import my_make_id
+    sys.path.pop()
+
 # -- Project information -----------------------------------------------------
 
 project = '@PROJECT_NAME@'
@@ -36,6 +61,17 @@ except ImportError:
     import warnings
     warnings.warn("The Sphinx rtd theme is not installed. Falling back to alabaster.")
     html_theme = 'alabaster'
+
+# -- Options for Markdown inclusion -----------------------------------------
+
+try:
+    import myst_parser
+    extensions.append('myst_parser')
+    myst_heading_slug_func = my_make_id
+    myst_heading_anchors = 10
+except ImportError:
+    import warnings
+    warnings.warn("The myst_parser is not installed, will not be including markdown documents.")
 
 
 html_static_path = ['_static']

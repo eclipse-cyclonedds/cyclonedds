@@ -29,13 +29,23 @@ if(BUILD_SCHEMA OR BUILD_DOCS)
 endif()
 
 if(BUILD_DOCS)
+  add_custom_target(_dev_document_copy)
+  add_custom_command(
+    TARGET _dev_document_copy
+    COMMAND ${CMAKE_COMMAND} -E copy
+          ${CMAKE_CURRENT_SOURCE_DIR}/dev/*.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/manual/dev/
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+          ${CMAKE_CURRENT_SOURCE_DIR}/dev/pictures
+          ${CMAKE_CURRENT_SOURCE_DIR}/manual/dev/pictures)
+
   find_package(Sphinx REQUIRED breathe exhale)
   sphinx_add_docs(
     docs
     BREATHE_PROJECTS ddsc_api_docs
     BUILDER html
     SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/manual")
-  add_dependencies(docs schema)
+  add_dependencies(docs schema _dev_document_copy)
 
   install(
     DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/docs"

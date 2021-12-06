@@ -283,11 +283,13 @@ static int initmd(struct cfgelem *elem, const struct cfgunit *units)
 
 int printmd(FILE *out, struct cfgelem *elem, const struct cfgunit *units)
 {
+
   if (initmd(elem, units) == -1)
     return -1;
   if (maketitles(elem, 0, "/", 1) == -1)
     return -1;
   memset(hashes, '#', sizeof(hashes));
-  printelem(out, 0u, 0u, elem, units);
+  fprintf(out, "# CycloneDDS configuration XML reference\n");
+  printelem(out, 1u, 0u, elem, units);
   return 0;
 }

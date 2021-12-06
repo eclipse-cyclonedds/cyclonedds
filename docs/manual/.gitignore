@@ -1,0 +1,5 @@
+# Copied dev documents
+dev/*.md
+pictures
+# Exhale generated api docs
+ddsc_api_docs
