@@ -206,7 +206,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
       if (has_fully_descriptive_typeid (type_spec))
         ti->_u.array_sdefn.header.equiv_kind = DDS_XTypes_EK_BOTH;
       else
-        ti->_u.array_sdefn.header.equiv_kind = ti->_u.array_sdefn.element_identifier->_d;
+        ti->_u.array_sdefn.header.equiv_kind = kind;
     } else {
       ti->_d = DDS_XTypes_TI_PLAIN_ARRAY_LARGE;
       ti->_u.array_ldefn.element_identifier = calloc (1, sizeof (*ti->_u.array_ldefn.element_identifier));
@@ -221,7 +221,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
       if (has_fully_descriptive_typeid (type_spec))
         ti->_u.array_ldefn.header.equiv_kind = DDS_XTypes_EK_BOTH;
       else
-        ti->_u.array_ldefn.header.equiv_kind = ti->_u.array_ldefn.element_identifier->_d;
+        ti->_u.array_ldefn.header.equiv_kind = kind;
     }
   } else {
     switch (idl_type (type_spec))
@@ -264,7 +264,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
           if (has_fully_descriptive_typeid (type_spec))
             ti->_u.seq_sdefn.header.equiv_kind = DDS_XTypes_EK_BOTH;
           else
-            ti->_u.seq_sdefn.header.equiv_kind = ti->_u.seq_sdefn.element_identifier->_d;
+            ti->_u.seq_sdefn.header.equiv_kind = kind;
         } else {
           ti->_d = DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE;
           ti->_u.seq_ldefn.bound = seq->maximum;
@@ -274,7 +274,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
           if (has_fully_descriptive_typeid (type_spec))
             ti->_u.seq_ldefn.header.equiv_kind = DDS_XTypes_EK_BOTH;
           else
-            ti->_u.seq_ldefn.header.equiv_kind = ti->_u.seq_ldefn.element_identifier->_d;
+            ti->_u.seq_ldefn.header.equiv_kind = kind;
         }
         break;
       }
