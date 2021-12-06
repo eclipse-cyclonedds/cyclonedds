@@ -31,6 +31,7 @@
 #include "dds/ddsrt/threads_priv.h"
 #include "dds/ddsrt/types.h"
 #include "dds/ddsrt/static_assert.h"
+#include "dds/ddsrt/misc.h"
 
 typedef struct {
   char *name;
@@ -314,7 +315,13 @@ ddsrt_thread_create (
   /* Block signal delivery in our own threads (SIGXCPU is excluded so we have a way of
      dumping stack traces, but that should be improved upon) */
   sigfillset (&set);
+#ifdef __APPLE__
+  DDSRT_WARNING_GNUC_OFF(sign-conversion)
+#endif
   sigdelset (&set, SIGXCPU);
+#ifdef __APPLE__
+  DDSRT_WARNING_GNUC_ON(sign-conversion)
+#endif
   sigprocmask (SIG_BLOCK, &set, &oset);
   if ((create_ret = pthread_create (&threadptr->v, &attr, os_startRoutineWrapper, ctx)) != 0)
   {
