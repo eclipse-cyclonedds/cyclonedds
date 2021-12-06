@@ -2478,9 +2478,15 @@ int main (int argc, char *argv[])
   signal (SIGINT, signal_handler);
 #elif !DDSRT_WITH_FREERTOS
   sigemptyset (&sigset);
+#ifdef __APPLE__
+  DDSRT_WARNING_GNUC_OFF(sign-conversion)
+#endif
   sigaddset (&sigset, SIGHUP);
   sigaddset (&sigset, SIGINT);
   sigaddset (&sigset, SIGTERM);
+#ifdef __APPLE__
+  DDSRT_WARNING_GNUC_ON(sign-conversion)
+#endif
   sigprocmask (SIG_BLOCK, &sigset, &osigset);
   ddsrt_thread_create (&sigtid, "sigthread", &attr, sigthread, &sigset);
 #if defined __APPLE__ || defined __linux
@@ -2658,7 +2664,7 @@ err_minmatch_wait:
   subthread_arg_fini (&subarg_ping);
   subthread_arg_fini (&subarg_pong);
   dds_delete (dp);
-  
+
   // only shutdown async listener once the participant is gone: that's
   // how we get rid of the dynamically created pong writers, and those
   // have a publication_matched listener.
