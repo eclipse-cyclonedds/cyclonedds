@@ -260,7 +260,7 @@ DDS_EXPORT void ddsrt_avl_free (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t 
 DDS_EXPORT void ddsrt_avl_free_arg (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void (*freefun) (void *node, void *arg), void *arg) ddsrt_nonnull((1,2));
 
 DDS_EXPORT void *ddsrt_avl_root (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree) ddsrt_nonnull_all;
-DDS_EXPORT void *ddsrt_avl_root_non_empty (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree) ddsrt_nonnull_all;
+DDS_EXPORT void *ddsrt_avl_root_non_empty (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree) ddsrt_nonnull_all ddsrt_attribute_returns_nonnull;
 DDS_EXPORT void *ddsrt_avl_lookup (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, const void *key) ddsrt_nonnull_all;
 DDS_EXPORT void *ddsrt_avl_lookup_ipath (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, const void *key, ddsrt_avl_ipath_t *path) ddsrt_nonnull_all;
 DDS_EXPORT void *ddsrt_avl_lookup_dpath (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, const void *key, ddsrt_avl_dpath_t *path) ddsrt_nonnull_all;
