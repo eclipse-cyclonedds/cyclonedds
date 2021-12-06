@@ -62,8 +62,12 @@ static bool has_conflicting_keys(const struct key_container *key_containers, siz
        @key annotations). */
     for (size_t k = 0; k < cntr->n_key_fields; k++) {
       const struct key_field *fld = &cntr->key_fields[k];
-      qsort(fld->parent_paths, fld->n_parent_paths,
-        sizeof(*fld->parent_paths), cmp_parent_path);
+      /* parent_paths == NULL && n_parent_paths == 0 happens for keys in the outer
+         struct but qsort() requires a non-null pointer */
+      if (fld->n_parent_paths > 1) {
+        qsort(fld->parent_paths, fld->n_parent_paths,
+          sizeof(*fld->parent_paths), cmp_parent_path);
+      }
     }
     for (size_t k = 0; k < cntr->n_key_fields; k++) {
       const struct key_field *fld = &cntr->key_fields[k];
