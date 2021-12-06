@@ -118,7 +118,6 @@ CU_Test(idlc_descriptor, keys_nested)
 #undef TEST_MAX_KEY_OFFS
 
 
-#define TEST_MAX_KEYS 10
 #define VAR (DDS_FIXED_KEY_MAX_SIZE + 1)
 CU_Test(idlc_descriptor, key_size)
 {
@@ -137,8 +136,6 @@ CU_Test(idlc_descriptor, key_size)
       false, true, VAR, 14 },  // key size: 1 + 7/3 (pad) + 8 + 2
     { "@nested struct nested { char a; short b; }; @topic struct test { @key nested a; @key long long b; @key char c; }; ",
       false, true, VAR, 13 },  // key size: 1 + 1 (pad) + 2 + 4/0 (pad) + 8 + 1
-    { "@topic struct test { @key sequence<long> a; }; ",
-      false, false, VAR, VAR },
     { "@topic struct test { @key long a[5]; }; ",
       false, false, VAR, VAR },
     { "@nested struct nested { @key long long a; }; @topic struct test { @key nested a; long b[5]; @key char c; @key float d; }; ",
@@ -187,8 +184,49 @@ CU_Test(idlc_descriptor, key_size)
     idl_delete_pstate (pstate);
   }
 }
-#undef TEST_MAX_KEYS
 #undef VAR
+
+CU_Test(idlc_descriptor, key_valid_types)
+{
+  static const struct {
+    bool valid;
+    const char *idl;
+  } tests[] = {
+    { true, "@topic struct test { @key boolean a; @key boolean b[3]; }; " },
+    { true, "@topic struct test { @key char a; @key octet b; @key char c[3]; }; " },
+    { true, "@topic struct test { @key short a; @key unsigned short b; @key short c[3]; }; " },
+    { true, "@topic struct test { @key long a; @key unsigned long b; @key long c[3]; }; " },
+    { true, "@topic struct test { @key long long a; @key unsigned long long b; @key long long c[3]; }; " },
+    { true, "@topic struct test { @key float a; @key double b; @key float c[3]; }; " },
+    { true, "enum e { E1, E2 }; @topic struct test { @key e a; @key e b[3]; }; " },
+    { true, "bitmask bm { BM1, BM2 }; @topic struct test { @key bm a; @key bm b[3]; }; " },
+    { false, "@topic struct test { @key string a; @key string<5> b; @key string c[3]; }; " },
+    { false, "@topic struct test { @key sequence<long> a; }; " },
+    { true, "@nested struct sub { long a; long b; }; @topic struct test { @key sub a; }; " },
+    { true, "@nested struct sub { @key long a; long b; }; @topic struct test { @key sub a; }; " },
+    { false, "@nested struct sub { long a; sequence<long> b; }; @topic struct test { @key sub a; }; " },
+    { false, "@nested union u switch(long) { case 1: long a; }; @topic struct test { @key u a; }; " }
+  };
+
+  idl_retcode_t ret;
+  uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
+                   IDL_FLAG_ANONYMOUS_TYPES |
+                   IDL_FLAG_ANNOTATIONS;
+  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
+    static idl_pstate_t *pstate = NULL;
+    struct descriptor descriptor;
+
+    printf ("running test for idl: %s\n", tests[i].idl);
+    ret = idl_create_pstate (flags, NULL, &pstate);
+    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
+    ret = generate_test_descriptor (pstate, tests[i].idl, &descriptor);
+    CU_ASSERT_EQUAL_FATAL (ret, tests[i].valid ? IDL_RETCODE_OK : IDL_RETCODE_UNSUPPORTED);
+    if (tests[i].valid)
+      descriptor_fini (&descriptor);
+    idl_delete_pstate (pstate);
+  }
+}
 
 #define TEST_MAX_KEYS 10
 CU_Test(idlc_descriptor, keys_inheritance)

@@ -28,7 +28,7 @@ module test_module
     struct s
     {
       @key inner_t s1;
-      @key sequence<inner_t> s2;
+      sequence<inner_t> s2;
     };
 
     @nested @final

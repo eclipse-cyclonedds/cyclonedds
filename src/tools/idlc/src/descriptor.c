@@ -1814,9 +1814,10 @@ static uint32_t add_to_key_size(uint32_t keysize, uint32_t field_size, uint32_t 
   return sz;
 }
 
-static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key);
+static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key);
 
 static idl_retcode_t get_ctype_keys_adr(
+  const idl_pstate_t *pstate,
   struct descriptor *descriptor,
   uint32_t offs,
   struct instruction *inst,
@@ -1851,10 +1852,11 @@ static idl_retcode_t get_ctype_keys_adr(
     const idl_node_t *node = ctype->instructions.table[offs + 2].data.inst_offset.node;
     struct constructed_type *csubtype = find_ctype(descriptor, node);
     assert(csubtype);
-    if ((ret = get_ctype_keys(descriptor, csubtype, &key->sub, n_keys, true)))
+    if ((ret = get_ctype_keys(pstate, descriptor, csubtype, &key->sub, n_keys, true)))
       return ret;
   } else {
-    if (DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_ARR) {
+    bool is_array = DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_ARR;
+    if (is_array) {
       assert(offs + 2 < ctype->instructions.count);
       assert(ctype->instructions.table[offs + 2].type == SINGLE);
       key->dims = ctype->instructions.table[offs + 2].data.single;
@@ -1870,6 +1872,8 @@ static idl_retcode_t get_ctype_keys_adr(
       case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
       case DDS_OP_VAL_8BY: key->size = key->align = 8; break;
       case DDS_OP_VAL_BST: {
+        if (is_array)
+          idl_error (pstate, ctype->node, "Using array with string element type as part of the key is currently unsupported");
         assert(offs + 2 < ctype->instructions.count);
         assert(ctype->instructions.table[offs + 2].type == SINGLE);
         /* string size if stored as bound + 1 */
@@ -1877,11 +1881,25 @@ static idl_retcode_t get_ctype_keys_adr(
         /* use align and add size for 4 byte string-length field */
         key->align = 4;
         key->size = 4 + str_sz;
+        break;
       }
-      break;
-      default:
-        key->size = DDS_FIXED_KEY_MAX_SIZE + 1;
-        key->align = 1;
+      case DDS_OP_VAL_ARR:
+      case DDS_OP_VAL_STR:
+      case DDS_OP_VAL_EXT:
+        if (is_array) {
+          idl_error (pstate, ctype->node, "Using array with non-primitive element type as part of the key is currently unsupported");
+          return IDL_RETCODE_UNSUPPORTED;
+        } else {
+          key->size = DDS_FIXED_KEY_MAX_SIZE + 1;
+          key->align = 1;
+        }
+        break;
+      case DDS_OP_VAL_UNI:
+      case DDS_OP_VAL_SEQ:
+        idl_error (pstate, ctype->node, "Using sequence or union type as part of the key is currently unsupported");
+        return IDL_RETCODE_UNSUPPORTED;
+      case DDS_OP_VAL_STU:
+        abort();
         break;
     }
     (*n_keys)++;
@@ -1897,7 +1915,7 @@ static idl_retcode_t get_ctype_keys_adr(
   return IDL_RETCODE_OK;
 }
 
-static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key)
+static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key)
 {
   idl_retcode_t ret;
   assert(keys);
@@ -1908,7 +1926,7 @@ static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constr
       case BASE_MEMBERS_OFFSET: {
         struct constructed_type *cbasetype = find_ctype(descriptor, inst->data.inst_offset.node);
         assert (cbasetype);
-        if ((ret = get_ctype_keys(descriptor, cbasetype, &ctype_keys, n_keys, false)) != IDL_RETCODE_OK)
+        if ((ret = get_ctype_keys(pstate, descriptor, cbasetype, &ctype_keys, n_keys, false)) != IDL_RETCODE_OK)
           goto err;
         break;
       }
@@ -1922,7 +1940,7 @@ static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constr
           if (parent_is_key && !ctype->has_key_member)
             inst->data.opcode.code |= DDS_OP_FLAG_KEY;
           if (inst->data.opcode.code & DDS_OP_FLAG_KEY) {
-            if ((ret = get_ctype_keys_adr(descriptor, offs, inst, ctype, n_keys, &ctype_keys)) != IDL_RETCODE_OK)
+            if ((ret = get_ctype_keys_adr(pstate, descriptor, offs, inst, ctype, n_keys, &ctype_keys)) != IDL_RETCODE_OK)
               goto err;
           }
         }
@@ -2353,7 +2371,7 @@ generate_descriptor_impl(
   struct constructed_type_key *ctype_keys;
   struct constructed_type *ctype = find_ctype(descriptor, descriptor->topic);
   uint32_t n_keys = 0;
-  if (get_ctype_keys(descriptor, ctype, &ctype_keys, &n_keys, false))
+  if ((ret = get_ctype_keys(pstate, descriptor, ctype, &ctype_keys, &n_keys, false)) != IDL_RETCODE_OK)
     goto err;
   if ((ret = descriptor_init_keys(pstate, ctype, ctype_keys, descriptor, n_keys, (pstate->flags & IDL_FLAG_KEYLIST) != 0)) < 0)
     goto err;
