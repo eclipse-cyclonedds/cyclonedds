@@ -101,19 +101,17 @@ CU_Test(idlc_descriptor, keys_nested)
     CU_ASSERT_EQUAL_FATAL (descriptor.key_offsets.count, tests[i].n_key_offs);
     CU_ASSERT_EQUAL_FATAL (pstate->keylists, tests[i].keylist);
 
-    struct key_print_meta *keys = key_print_meta_init (&descriptor);
     for (uint32_t k = 0; k < descriptor.n_keys; k++) {
-      for (uint32_t j = 0; j < keys[k].n_order; j++)
-        CU_ASSERT_EQUAL_FATAL (keys[k].order[j], tests[i].key_order[k][j]);
-      CU_ASSERT_PTR_NOT_NULL_FATAL (keys[k].name);
-      assert (keys[k].name && tests[i].key_name[k]);
-      CU_ASSERT_STRING_EQUAL_FATAL (keys[k].name, tests[i].key_name[k]);
-      CU_ASSERT_EQUAL_FATAL (keys[k].key_idx, tests[i].key_index[k]);
+      for (uint32_t j = 0; j < descriptor.keys[k].n_order; j++)
+        CU_ASSERT_EQUAL_FATAL (descriptor.keys[k].order[j], tests[i].key_order[k][j]);
+      CU_ASSERT_PTR_NOT_NULL_FATAL (descriptor.keys[k].name);
+      assert (descriptor.keys[k].name && tests[i].key_name[k]);
+      CU_ASSERT_STRING_EQUAL_FATAL (descriptor.keys[k].name, tests[i].key_name[k]);
+      CU_ASSERT_EQUAL_FATAL (descriptor.keys[k].key_idx, tests[i].key_index[k]);
     }
 
     descriptor_fini (&descriptor);
     idl_delete_pstate (pstate);
-    key_print_meta_free (keys, descriptor.n_keys);
   }
 }
 #undef TEST_MAX_KEYS
@@ -157,6 +155,10 @@ CU_Test(idlc_descriptor, key_size)
       true, true, 16, 16 }, // key size: 8 + 8
     { "@topic struct test { @key char a; @key string<3> b; @key long c; }; ",
       true, true, 16, 16 }, // key size: 1 + 3 (pad) + 8 + 4
+    { "@topic struct test { @key @id(2) float a; @key @id(1) char b; @key @id(0) double c; }; ",
+      true, true, 16, 16 }, // key size: 8 + 1 + 3 (pad) + 4
+    { "@topic struct test { @key @id(1) double a; @key @id(0) char b; @key @id(2) float c; }; ",
+      false, true, VAR, 16 }, // key size: 1 + 7/3 (pad) + 8 + 4
   };
 
   idl_retcode_t ret;
@@ -246,17 +248,14 @@ CU_Test(idlc_descriptor, keys_inheritance)
     CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL (descriptor.n_keys, tests[i].n_keys);
 
-    struct key_print_meta *keys = key_print_meta_init (&descriptor);
     for (uint32_t k = 0; k < descriptor.n_keys; k++) {
-      CU_ASSERT_PTR_NOT_NULL_FATAL (keys[k].name);
-      assert (keys[k].name && tests[i].key_name[k]);
-      CU_ASSERT_STRING_EQUAL_FATAL (keys[k].name, tests[i].key_name[k]);
+      CU_ASSERT_PTR_NOT_NULL_FATAL (descriptor.keys[k].name);
+      assert (descriptor.keys[k].name && tests[i].key_name[k]);
+      CU_ASSERT_STRING_EQUAL_FATAL (descriptor.keys[k].name, tests[i].key_name[k]);
     }
 
     descriptor_fini (&descriptor);
-
     idl_delete_pstate (pstate);
-    key_print_meta_free (keys, descriptor.n_keys);
   }
 }
 #undef TEST_MAX_KEYS

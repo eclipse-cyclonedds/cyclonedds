@@ -73,7 +73,6 @@ struct instruction {
     struct {
       char *key_name;
       uint16_t len;
-      uint16_t key_size;
     } key_offset;
     struct {
       uint16_t offs;
@@ -106,6 +105,9 @@ struct constructed_type_key {
   char *name;
   uint32_t offset;
   uint32_t order;
+  uint32_t dims;
+  uint32_t size;
+  uint32_t align;
   struct constructed_type_key *sub;
 };
 
@@ -129,10 +131,22 @@ struct stack_type {
   uint32_t label, labels;
 };
 
+struct key_meta_data {
+  char *name;
+  uint32_t inst_offs;
+  uint32_t n_order;
+  uint32_t *order;
+  uint32_t key_idx;
+  uint32_t dims;
+  uint32_t size;
+  uint32_t align;
+};
+
 struct descriptor {
   const idl_node_t *topic;
   const struct alignment *alignment; /**< alignment of topic type */
   uint32_t n_keys; /**< number of keys in topic */
+  struct key_meta_data *keys; /**< key meta-data */
   uint32_t n_opcodes; /**< number of opcodes in descriptor */
   uint32_t flags; /**< topic descriptor flag values */
   uint32_t keysz_xcdr1; /**< size of the XCDR1 serialized key (or set to MAX_FIXED_KEY + 1 if more than MAX_FIXED_KEY) */
@@ -141,23 +155,6 @@ struct descriptor {
   struct constructed_type *constructed_types;
   struct instructions key_offsets;
 };
-
-struct key_print_meta {
-  const char *name;
-  uint32_t inst_offs;
-  uint32_t n_order;
-  uint32_t *order;
-  uint32_t key_idx;
-};
-
-struct key_print_meta *
-key_print_meta_init(
-  struct descriptor *descriptor);
-
-void
-key_print_meta_free(
-  struct key_print_meta *keys,
-  uint32_t n_keys);
 
 void
 descriptor_fini(

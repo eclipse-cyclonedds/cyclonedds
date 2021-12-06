@@ -1814,22 +1814,24 @@ static uint32_t add_to_key_size(uint32_t keysize, uint32_t field_size, uint32_t 
   return sz;
 }
 
-static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, bool parent_is_key);
+static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key);
 
 static idl_retcode_t get_ctype_keys_adr(
   struct descriptor *descriptor,
   uint32_t offs,
   struct instruction *inst,
   struct constructed_type *ctype,
+  uint32_t *n_keys,
   struct constructed_type_key **ctype_keys)
 {
-  uint32_t typecode, size = 0, dims = 1, align = 0;
+  uint32_t typecode;
   idl_retcode_t ret;
 
   struct constructed_type_key *key = calloc (1, sizeof(*key));
   if (!key)
     return IDL_RETCODE_NO_MEMORY;
 
+  assert(n_keys);
   assert(ctype_keys);
   if (*ctype_keys == NULL)
     *ctype_keys = key;
@@ -1849,42 +1851,40 @@ static idl_retcode_t get_ctype_keys_adr(
     const idl_node_t *node = ctype->instructions.table[offs + 2].data.inst_offset.node;
     struct constructed_type *csubtype = find_ctype(descriptor, node);
     assert(csubtype);
-    if ((ret = get_ctype_keys(descriptor, csubtype, &key->sub, true)))
+    if ((ret = get_ctype_keys(descriptor, csubtype, &key->sub, n_keys, true)))
       return ret;
   } else {
     if (DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_ARR) {
       assert(offs + 2 < ctype->instructions.count);
       assert(ctype->instructions.table[offs + 2].type == SINGLE);
-      dims = ctype->instructions.table[offs + 2].data.single;
+      key->dims = ctype->instructions.table[offs + 2].data.single;
       typecode = DDS_OP_SUBTYPE(inst->data.opcode.code);
     } else {
+      key->dims = 1;
       typecode = DDS_OP_TYPE(inst->data.opcode.code);
     }
 
     switch (typecode) {
-      case DDS_OP_VAL_1BY: size = align = 1; break;
-      case DDS_OP_VAL_2BY: size = align = 2; break;
-      case DDS_OP_VAL_4BY: size = align = 4; break;
-      case DDS_OP_VAL_8BY: size = align = 8; break;
+      case DDS_OP_VAL_1BY: key->size = key->align = 1; break;
+      case DDS_OP_VAL_2BY: key->size = key->align = 2; break;
+      case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
+      case DDS_OP_VAL_8BY: key->size = key->align = 8; break;
       case DDS_OP_VAL_BST: {
         assert(offs + 2 < ctype->instructions.count);
         assert(ctype->instructions.table[offs + 2].type == SINGLE);
         /* string size if stored as bound + 1 */
         uint32_t str_sz = ctype->instructions.table[offs + 2].data.single;
         /* use align and add size for 4 byte string-length field */
-        align = 4;
-        size = 4 + str_sz;
+        key->align = 4;
+        key->size = 4 + str_sz;
       }
       break;
       default:
-        size = DDS_FIXED_KEY_MAX_SIZE + 1;
-        align = 1;
+        key->size = DDS_FIXED_KEY_MAX_SIZE + 1;
+        key->align = 1;
         break;
     }
-
-    descriptor->n_keys++;
-    descriptor->keysz_xcdr1 = add_to_key_size(descriptor->keysz_xcdr1, size, dims, align, XCDR1_MAX_ALIGN);
-    descriptor->keysz_xcdr2 = add_to_key_size(descriptor->keysz_xcdr2, size, dims, align, XCDR2_MAX_ALIGN);
+    (*n_keys)++;
   }
 
   /* get the name of the field from the offset instruction, which is the first after the ADR */
@@ -1897,7 +1897,7 @@ static idl_retcode_t get_ctype_keys_adr(
   return IDL_RETCODE_OK;
 }
 
-static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, bool parent_is_key)
+static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key)
 {
   idl_retcode_t ret;
   assert(keys);
@@ -1908,7 +1908,7 @@ static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constr
       case BASE_MEMBERS_OFFSET: {
         struct constructed_type *cbasetype = find_ctype(descriptor, inst->data.inst_offset.node);
         assert (cbasetype);
-        if ((ret = get_ctype_keys(descriptor, cbasetype, &ctype_keys, false)) != IDL_RETCODE_OK)
+        if ((ret = get_ctype_keys(descriptor, cbasetype, &ctype_keys, n_keys, false)) != IDL_RETCODE_OK)
           goto err;
         break;
       }
@@ -1922,7 +1922,7 @@ static idl_retcode_t get_ctype_keys(struct descriptor *descriptor, struct constr
           if (parent_is_key && !ctype->has_key_member)
             inst->data.opcode.code |= DDS_OP_FLAG_KEY;
           if (inst->data.opcode.code & DDS_OP_FLAG_KEY) {
-            if ((ret = get_ctype_keys_adr(descriptor, offs, inst, ctype, &ctype_keys)) != IDL_RETCODE_OK)
+            if ((ret = get_ctype_keys_adr(descriptor, offs, inst, ctype, n_keys, &ctype_keys)) != IDL_RETCODE_OK)
               goto err;
           }
         }
@@ -1942,60 +1942,57 @@ err:
   return ret;
 }
 
-static int add_key_offset(const idl_pstate_t *pstate, struct descriptor *descriptor, const struct constructed_type *ctype_top_level, struct constructed_type_key *key, char *name, bool keylist, struct key_offs *offs)
+static idl_retcode_t descriptor_add_key_recursive(const idl_pstate_t *pstate, struct descriptor *descriptor, const struct constructed_type *ctype_top_level, struct constructed_type_key *key, char *name, bool keylist, struct key_offs *offs)
 {
+  idl_retcode_t ret;
   if (offs->n >= MAX_KEY_OFFS)
     return -1;
 
   char *name1;
   while (key) {
-    if (idl_asprintf(&name1, "%s%s%s", name ? name : "", name ? "." : "", key->name) == -1)
+    if (idl_asprintf(&name1, "%s%s%s", name ? name : "", name ? "." : "", key->name) == -1) {
+      ret = IDL_RETCODE_NO_MEMORY;
       goto err;
+    }
     offs->val[offs->n] = (uint16_t)key->offset;
     offs->order[offs->n] = key->order;
     offs->n++;
     if (key->sub) {
-      if (add_key_offset(pstate, descriptor, ctype_top_level, key->sub, name1, keylist, offs))
+      if ((ret = descriptor_add_key_recursive(pstate, descriptor, ctype_top_level, key->sub, name1, keylist, offs)) < 0)
         goto err_stash;
     } else {
+      uint32_t i = descriptor->n_keys;
+      descriptor->keys[i].name = idl_strdup(name1);
+      descriptor->keys[i].size = key->size;
+      descriptor->keys[i].dims = key->dims;
+      descriptor->keys[i].align = key->align;
+
       /* Use the key order stored in the constructed_type_key object, which is the member
          id of this key member in its parent constructed_type. */
-      if (stash_key_offset(pstate, &descriptor->key_offsets, nop, name1, offs->n) < 0)
+      if ((ret = stash_key_offset(pstate, &descriptor->key_offsets, nop, name1, offs->n)) < 0)
         goto err_stash;
       for (uint32_t n = 0; n < offs->n; n++) {
-        if (stash_key_offset_val(pstate, &descriptor->key_offsets, nop, offs->val[n], offs->order[n]))
+        if ((ret = stash_key_offset_val(pstate, &descriptor->key_offsets, nop, offs->val[n], offs->order[n])) < 0)
           goto err_stash;
       }
+      descriptor->n_keys++;
     }
     offs->n--;
     free(name1);
     key = key->next;
   }
-  return 0;
+  return IDL_RETCODE_OK;
 err_stash:
   free(name1);
 err:
-  return -1;
+  return ret;
 }
 
-static int add_key_offset_list(const idl_pstate_t *pstate, struct descriptor *descriptor, bool keylist)
-{
-  struct constructed_type *ctype = find_ctype(descriptor, descriptor->topic);
-  assert(ctype);
-  struct constructed_type_key *keys;
-  if (get_ctype_keys(descriptor, ctype, &keys, false))
-    return -1;
 
-  struct key_offs offs = { .val = { 0 }, .order = { 0 }, .n = 0 };
-  add_key_offset(pstate, descriptor, ctype, keys, NULL, keylist, &offs);
-  free_ctype_keys(keys);
-  return 0;
-}
-
-static int sort_keys_cmp (const void *va, const void *vb)
+static int key_meta_data_cmp (const void *va, const void *vb)
 {
-  const struct key_print_meta *a = va;
-  const struct key_print_meta *b = vb;
+  const struct key_meta_data *a = va;
+  const struct key_meta_data *b = vb;
   for (uint32_t i = 0; i < a->n_order; i++) {
     assert (i < b->n_order);
     if (a->order[i] != b->order[i])
@@ -2005,43 +2002,69 @@ static int sort_keys_cmp (const void *va, const void *vb)
   return 0;
 }
 
-struct key_print_meta *key_print_meta_init(struct descriptor *descriptor)
+static idl_retcode_t descriptor_add_keys(const idl_pstate_t *pstate, struct constructed_type *ctype, struct constructed_type_key *ctype_keys, struct descriptor *descriptor, uint32_t n_keys, bool keylist)
 {
-  struct key_print_meta *keys;
+  idl_retcode_t ret;
+  struct key_offs offs = { .val = { 0 }, .order = { 0 }, .n = 0 };
+  if ((ret = descriptor_add_key_recursive(pstate, descriptor, ctype, ctype_keys, NULL, keylist, &offs)) < 0)
+    return ret;
+  assert(descriptor->n_keys == n_keys);
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t descriptor_init_keys(const idl_pstate_t *pstate, struct constructed_type *ctype, struct constructed_type_key *ctype_keys, struct descriptor *descriptor, uint32_t n_keys, bool keylist)
+{
+  idl_retcode_t ret;
   uint32_t key_index = 0, offs_len = 0;
 
-  if (!(keys = calloc(descriptor->n_keys, sizeof(*keys))))
-    return NULL;
+  assert(ctype);
+  if (n_keys == 0)
+    return IDL_RETCODE_OK;
+  if (!(descriptor->keys = calloc(n_keys, sizeof(*descriptor->keys))))
+    return IDL_RETCODE_NO_MEMORY;
+
+  if ((ret = descriptor_add_keys(pstate, ctype, ctype_keys, descriptor, n_keys, keylist)) < 0) {
+    free(descriptor->keys);
+    return ret;
+  }
+
   for (uint32_t i = 0; i < descriptor->key_offsets.count; i++) {
     const struct instruction *inst = &descriptor->key_offsets.table[i];
     if (inst->type == KEY_OFFSET) {
       offs_len = inst->data.key_offset.len;
       assert(key_index < descriptor->n_keys);
-      keys[key_index].name = inst->data.key_offset.key_name;
-      keys[key_index].inst_offs = i;
-      keys[key_index].order = calloc(offs_len, sizeof (*keys[key_index].order));
-      keys[key_index].n_order = offs_len;
-      keys[key_index].key_idx = key_index;
+      assert(!strcmp(descriptor->keys[key_index].name, inst->data.key_offset.key_name));
+      descriptor->keys[key_index].inst_offs = i;
+      descriptor->keys[key_index].order = calloc(offs_len, sizeof (*descriptor->keys[key_index].order));
+      descriptor->keys[key_index].n_order = offs_len;
+      descriptor->keys[key_index].key_idx = key_index;
       key_index++;
     } else {
       assert(inst->type == KEY_OFFSET_VAL);
       assert(offs_len > 0);
       assert(key_index > 0);
       uint32_t order = inst->data.key_offset_val.order;
-      keys[key_index - 1].order[keys[key_index - 1].n_order - offs_len] = order;
+      descriptor->keys[key_index - 1].order[descriptor->keys[key_index - 1].n_order - offs_len] = order;
       offs_len--;
     }
   }
   assert(key_index == descriptor->n_keys);
-  qsort(keys, descriptor->n_keys, sizeof (*keys), sort_keys_cmp);
+  qsort(descriptor->keys, descriptor->n_keys, sizeof (*descriptor->keys), key_meta_data_cmp);
 
-  return keys;
+  /* Calculate key size for XCDR1 and XCDR2 keys */
+  for (uint32_t k = 0; k < descriptor->n_keys; k++) {
+    descriptor->keysz_xcdr1 = add_to_key_size(descriptor->keysz_xcdr1, descriptor->keys[k].size, descriptor->keys[k].dims, descriptor->keys[k].align, XCDR1_MAX_ALIGN);
+    descriptor->keysz_xcdr2 = add_to_key_size(descriptor->keysz_xcdr2, descriptor->keys[k].size, descriptor->keys[k].dims, descriptor->keys[k].align, XCDR2_MAX_ALIGN);
+  }
+
+  return IDL_RETCODE_OK;
 }
 
-void key_print_meta_free(struct key_print_meta *keys, uint32_t n_keys)
+static void descriptor_keys_free(struct key_meta_data *keys, uint32_t n_keys)
 {
   for (uint32_t k = 0; k < n_keys; k++) {
     if (keys[k].order) {
+      free(keys[k].name);
       free(keys[k].order);
       keys[k].order = NULL;
     }
@@ -2053,12 +2076,9 @@ static int print_keys(FILE *fp, struct descriptor *descriptor, uint32_t offset)
 {
   char *typestr = NULL;
   const char *fmt, *sep="";
-  struct key_print_meta *keys;
 
   if (descriptor->n_keys == 0)
     return 0;
-  if (!(keys = key_print_meta_init(descriptor)))
-    goto err_keys;
   if (IDL_PRINT(&typestr, print_type, descriptor->topic) < 0)
     goto err_type;
 
@@ -2068,21 +2088,18 @@ static int print_keys(FILE *fp, struct descriptor *descriptor, uint32_t offset)
   sep = "";
   fmt = "%s  { \"%s\", %"PRIu32", %"PRIu32" }";
   for (uint32_t k=0; k < descriptor->n_keys; k++) {
-    if (idl_fprintf(fp, fmt, sep, keys[k].name, offset + keys[k].inst_offs, keys[k].key_idx) < 0)
+    if (idl_fprintf(fp, fmt, sep, descriptor->keys[k].name, offset + descriptor->keys[k].inst_offs, descriptor->keys[k].key_idx) < 0)
       goto err_print;
     sep = ",\n";
   }
   if (fputs("\n};\n\n", fp) < 0)
     goto err_print;
   free(typestr);
-  key_print_meta_free(keys, descriptor->n_keys);
   return 0;
 
 err_print:
   free(typestr);
 err_type:
-  key_print_meta_free(keys, descriptor->n_keys);
-err_keys:
   return -1;
 }
 
@@ -2284,6 +2301,7 @@ descriptor_fini(struct descriptor *descriptor)
     ctype = ctype1;
   }
   instructions_fini(&descriptor->key_offsets);
+  descriptor_keys_free(descriptor->keys, descriptor->n_keys);
   free(descriptor->key_offsets.table);
   assert(!descriptor->type_stack);
 #if defined(_MSC_VER)
@@ -2331,8 +2349,15 @@ generate_descriptor_impl(
   }
   if ((ret = resolve_offsets(descriptor)) < 0)
     goto err;
-  if ((ret = add_key_offset_list(pstate, descriptor, (pstate->flags & IDL_FLAG_KEYLIST) != 0)) < 0)
+
+  struct constructed_type_key *ctype_keys;
+  struct constructed_type *ctype = find_ctype(descriptor, descriptor->topic);
+  uint32_t n_keys = 0;
+  if (get_ctype_keys(descriptor, ctype, &ctype_keys, &n_keys, false))
     goto err;
+  if ((ret = descriptor_init_keys(pstate, ctype, ctype_keys, descriptor, n_keys, (pstate->flags & IDL_FLAG_KEYLIST) != 0)) < 0)
+    goto err;
+  free_ctype_keys(ctype_keys);
 
   /* Set fixed-key flags */
   if (descriptor->keysz_xcdr1 > 0 && descriptor->keysz_xcdr1 <= DDS_FIXED_KEY_MAX_SIZE)
