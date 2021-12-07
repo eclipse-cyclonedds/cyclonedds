@@ -75,9 +75,9 @@ DDS_EXPORT void dds_ostream_add_to_serdata_default (dds_ostream_t * __restrict s
 
 DDS_EXPORT void dds_stream_write_key (dds_ostream_t * __restrict os, const char * __restrict sample, const struct ddsi_sertype_default * __restrict type);
 DDS_EXPORT void dds_stream_write_keyBE (dds_ostreamBE_t * __restrict os, const char * __restrict sample, const struct ddsi_sertype_default * __restrict type);
-DDS_EXPORT void dds_stream_extract_key_from_data (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
+DDS_EXPORT bool dds_stream_extract_key_from_data (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
 DDS_EXPORT void dds_stream_extract_key_from_key (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
-DDS_EXPORT void dds_stream_extract_keyBE_from_data (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
+DDS_EXPORT bool dds_stream_extract_keyBE_from_data (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
 DDS_EXPORT void dds_stream_extract_keyBE_from_key (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
 
 DDS_EXPORT const uint32_t *dds_stream_read (dds_istream_t * __restrict is, char * __restrict data, const uint32_t * __restrict ops);

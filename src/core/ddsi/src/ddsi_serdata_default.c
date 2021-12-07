@@ -220,7 +220,7 @@ static inline bool is_topic_fixed_key(uint32_t flagset, uint32_t xcdrv)
   return flagset & (DDS_TOPIC_FIXED_KEY | (xcdrv == CDR_ENC_VERSION_2 ? DDS_TOPIC_FIXED_KEY_XCDR2 : 0));
 }
 
-static void gen_serdata_key (const struct ddsi_sertype_default *type, struct ddsi_serdata_default_key *kh, enum gen_serdata_key_input_kind input_kind, void *input)
+static bool gen_serdata_key (const struct ddsi_sertype_default *type, struct ddsi_serdata_default_key *kh, enum gen_serdata_key_input_kind input_kind, void *input)
 {
   const struct ddsi_sertype_default_desc *desc = &type->type;
   struct dds_istream *is = NULL;
@@ -259,7 +259,8 @@ static void gen_serdata_key (const struct ddsi_sertype_default *type, struct dds
         dds_stream_write_key (&os, input, type);
         break;
       case GSKIK_CDRSAMPLE:
-        dds_stream_extract_key_from_data (input, &os, type);
+        if (!dds_stream_extract_key_from_data (input, &os, type))
+          return false;
         break;
       case GSKIK_CDRKEY:
         assert (is);
@@ -277,16 +278,17 @@ static void gen_serdata_key (const struct ddsi_sertype_default *type, struct dds
       kh->u.dynbuf = ddsrt_realloc (os.m_buffer, os.m_index); // don't waste bytes FIXME: maybe should be willing to waste a little
     }
   }
+  return true;
 }
 
-static void gen_serdata_key_from_sample (const struct ddsi_sertype_default *type, struct ddsi_serdata_default_key *kh, const char *sample)
+static bool gen_serdata_key_from_sample (const struct ddsi_sertype_default *type, struct ddsi_serdata_default_key *kh, const char *sample)
 {
-  gen_serdata_key (type, kh, GSKIK_SAMPLE, (void *) sample);
+  return gen_serdata_key (type, kh, GSKIK_SAMPLE, (void *) sample);
 }
 
-static void gen_serdata_key_from_cdr (dds_istream_t * __restrict is, struct ddsi_serdata_default_key * __restrict kh, const struct ddsi_sertype_default * __restrict type, const bool just_key)
+static bool gen_serdata_key_from_cdr (dds_istream_t * __restrict is, struct ddsi_serdata_default_key * __restrict kh, const struct ddsi_sertype_default * __restrict type, const bool just_key)
 {
-  gen_serdata_key (type, kh, just_key ? GSKIK_CDRKEY : GSKIK_CDRSAMPLE, is);
+  return gen_serdata_key (type, kh, just_key ? GSKIK_CDRKEY : GSKIK_CDRSAMPLE, is);
 }
 
 /* Construct a serdata from a fragchain received over the network */
@@ -345,7 +347,11 @@ static struct ddsi_serdata_default *serdata_default_from_ser_common (const struc
   {
     dds_istream_t is;
     dds_istream_init (&is, actual_size, d->data, get_xcdr_version (d->hdr.identifier));
-    gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY);
+    if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
+    {
+      ddsi_serdata_unref (&d->c);
+      return NULL;
+    }
     // for (int n = 0; n < d->key.keysize; n++) {
     //   if (d->key.buftype == KEYBUFTYPE_DYNALLOC || d->key.buftype == KEYBUFTYPE_DYNALIAS)
     //     printf("%02x ", d->key.u.dynbuf[n]);
@@ -399,7 +405,11 @@ static struct ddsi_serdata_default *serdata_default_from_ser_iov_common (const s
   {
     dds_istream_t is;
     dds_istream_init (&is, actual_size, d->data, get_xcdr_version (d->hdr.identifier));
-    gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY);
+    if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
+    {
+      ddsi_serdata_unref (&d->c);
+      return NULL;
+    }
     return d;
   }
 }
@@ -467,7 +477,7 @@ static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr_nokey (const struct dd
 
 #ifdef DDS_HAS_SHM
 static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer)
-{     
+{
   const iceoryx_header_t* ice_hdr = iceoryx_header_from_chunk(iox_buffer);
 
   const struct ddsi_sertype_default* tp = (const struct ddsi_sertype_default*)tpcmn;
@@ -500,7 +510,8 @@ static struct ddsi_serdata *ddsi_serdata_default_from_loaned_sample (const struc
   // Currently needed even in the shared memory case (since it is potentially used at the reader side).
   // This may still incur computational costs linear in the sample size (?).
   // TODO: Can we avoid this with specific handling on the reader side which does not require the keyhash?
-  gen_serdata_key_from_sample (t, &d->key, sample);
+  if (!gen_serdata_key_from_sample (t, &d->key, sample))
+    return NULL;
 
   struct ddsi_serdata *serdata = &d->c;
   serdata->iox_chunk = (void*) sample;
@@ -554,13 +565,15 @@ static struct ddsi_serdata_default *serdata_default_from_sample_cdr_common (cons
       {
         /* We have a XCDR1 key, so this must be converted to XCDR2 to store
            it as key in this serdata. */
-        gen_serdata_key_from_sample (tp, &d->key, sample);
+        if (!gen_serdata_key_from_sample (tp, &d->key, sample))
+          return NULL;
       }
       break;
     case SDK_DATA:
       dds_stream_write_sample (&os, sample, tp);
       dds_ostream_add_to_serdata_default (&os, &d);
-      gen_serdata_key_from_sample (tp, &d->key, sample);
+      if (!gen_serdata_key_from_sample (tp, &d->key, sample))
+        return NULL;
       break;
   }
   return d;
@@ -655,15 +668,15 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
 {
   const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
   const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *) d->c.type;
-  dds_istream_t is; 
+  dds_istream_t is;
 #ifdef DDS_HAS_SHM
   if (d->c.iox_chunk)
-  {    
+  {
     void* iox_chunk = d->c.iox_chunk;
     iceoryx_header_t* hdr = iceoryx_header_from_chunk(iox_chunk);
     if(hdr->shm_data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {
-      dds_istream_init (&is, hdr->data_size, iox_chunk, get_xcdr_version(d->hdr.identifier));     
-      assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));    
+      dds_istream_init (&is, hdr->data_size, iox_chunk, get_xcdr_version(d->hdr.identifier));
+      assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));
       if (d->c.kind == SDK_KEY)
         dds_stream_read_key (&is, sample, tp);
       else
@@ -672,7 +685,7 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
       // should contain raw unserialized data
       // we could check the data_state but should not be needed
       memcpy(sample, iox_chunk, hdr->data_size);
-    }   
+    }
     return true;
   }
 #endif

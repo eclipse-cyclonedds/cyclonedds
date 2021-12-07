@@ -238,12 +238,13 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __re
   return ops;
 }
 
-void dds_stream_extract_keyBO_from_data (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const struct ddsi_sertype_default * __restrict type)
+bool dds_stream_extract_keyBO_from_data (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const struct ddsi_sertype_default * __restrict type)
 {
+  bool ret = true;
   const struct ddsi_sertype_default_desc *desc = &type->type;
   uint32_t keys_remaining = desc->keys.nkeys;
   if (keys_remaining == 0)
-    return;
+    return ret;
 
 #define MAX_ST_KEYS 16
   struct key_off_info st_key_offs[MAX_ST_KEYS];
@@ -251,15 +252,24 @@ void dds_stream_extract_keyBO_from_data (dds_istream_t * __restrict is, DDS_OSTR
     (desc->keys.nkeys <= MAX_ST_KEYS) ? st_key_offs : ddsrt_malloc (desc->keys.nkeys * sizeof (*key_offs));
 
   (void) dds_stream_extract_keyBO_from_data1 (is, os, desc->ops.ops, desc->keys.nkeys, &keys_remaining, desc->keys.keys, key_offs);
-  assert (keys_remaining == 0);
+  if (keys_remaining > 0)
+  {
+    /* FIXME: stream_normalize should check for missing keys by implementing the
+       must_understand annotation, so the check keys_remaining > 0 can become an assert. */
+    ret = false;
+    dds_ostreamBO_fini (os);
+    goto err_missing_key;
+  }
   for (uint32_t i = 0; i < desc->keys.nkeys; i++)
   {
     is->m_index = key_offs[i].src_off;
     dds_stream_extract_keyBO_from_key_prim_op (is, os, key_offs[i].op_off, 0, NULL);
   }
 
+err_missing_key:
   if (desc->keys.nkeys > MAX_ST_KEYS)
     ddsrt_free (key_offs);
+  return ret;
 #undef MAX_ST_KEYS
 }
 

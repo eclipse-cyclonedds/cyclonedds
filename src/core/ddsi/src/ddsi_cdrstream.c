@@ -59,6 +59,7 @@
 #define dds_os_put8BO                                 NAME_BYTE_ORDER(dds_os_put8)
 #define dds_os_reserve4BO                             NAME_BYTE_ORDER(dds_os_reserve4)
 #define dds_os_reserve8BO                             NAME_BYTE_ORDER(dds_os_reserve8)
+#define dds_ostreamBO_fini                            NAME2_BYTE_ORDER(dds_ostream, _fini)
 #define dds_stream_write_stringBO                     NAME_BYTE_ORDER(dds_stream_write_string)
 #define dds_stream_write_seqBO                        NAME_BYTE_ORDER(dds_stream_write_seq)
 #define dds_stream_write_arrBO                        NAME_BYTE_ORDER(dds_stream_write_arr)
