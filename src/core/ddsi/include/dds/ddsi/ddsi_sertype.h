@@ -158,9 +158,9 @@ struct ddsi_sertype_ops {
   ddsi_sertype_free_samples_t free_samples;
   ddsi_sertype_equal_t equal;
   ddsi_sertype_hash_t hash;
-  ddsi_sertype_typeid_t typeid;
-  ddsi_sertype_typemap_t typemap;
-  ddsi_sertype_typeinfo_t typeinfo;
+  ddsi_sertype_typeid_t type_id;
+  ddsi_sertype_typemap_t type_map;
+  ddsi_sertype_typeinfo_t type_info;
   ddsi_sertype_assignable_from_t assignable_from;
   ddsi_sertype_derive_t derive_sertype;
   ddsi_sertype_get_serialized_size_t get_serialized_size;
@@ -228,21 +228,21 @@ DDS_INLINE_EXPORT inline void ddsi_sertype_free_sample (const struct ddsi_sertyp
 }
 DDS_INLINE_EXPORT inline ddsi_typeid_t * ddsi_sertype_typeid (const struct ddsi_sertype *tp, ddsi_typeid_kind_t kind)
 {
-  if (!tp->ops->typeid)
+  if (!tp->ops->type_id)
     return NULL;
-  return tp->ops->typeid (tp, kind);
+  return tp->ops->type_id (tp, kind);
 }
 DDS_INLINE_EXPORT inline ddsi_typemap_t * ddsi_sertype_typemap (const struct ddsi_sertype *tp)
 {
-  if (!tp->ops->typemap)
+  if (!tp->ops->type_map)
     return NULL;
-  return tp->ops->typemap (tp);
+  return tp->ops->type_map (tp);
 }
 DDS_INLINE_EXPORT inline ddsi_typeinfo_t *ddsi_sertype_typeinfo (const struct ddsi_sertype *tp)
 {
-  if (!tp->ops->typeinfo)
+  if (!tp->ops->type_info)
     return NULL;
-  return tp->ops->typeinfo (tp);
+  return tp->ops->type_info (tp);
 }
 DDS_INLINE_EXPORT inline bool ddsi_sertype_assignable_from (const struct ddsi_sertype *sertype_a, const struct ddsi_type_pair *type_pair_b) {
   /* If sertype_a does not have a assignability check function

@@ -324,62 +324,62 @@ int ddsi_typeid_compare (const ddsi_typeid_t *a, const ddsi_typeid_t *b)
   return ddsi_typeid_compare_impl (&a->x, &b->x);
 }
 
-void ddsi_typeid_ser (const ddsi_typeid_t *typeid, unsigned char **buf, uint32_t *sz)
+void ddsi_typeid_ser (const ddsi_typeid_t *type_id, unsigned char **buf, uint32_t *sz)
 {
   dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = CDR_ENC_VERSION_2 };
-  dds_stream_writeLE ((dds_ostreamLE_t *) &os, (const void *) typeid, DDS_XTypes_TypeIdentifier_desc.m_ops);
+  dds_stream_writeLE ((dds_ostreamLE_t *) &os, (const void *) type_id, DDS_XTypes_TypeIdentifier_desc.m_ops);
   *buf = os.m_buffer;
   *sz = os.m_index;
 }
 
-void ddsi_typeid_fini_impl (struct DDS_XTypes_TypeIdentifier *typeid)
+void ddsi_typeid_fini_impl (struct DDS_XTypes_TypeIdentifier *type_id)
 {
-  dds_stream_free_sample (typeid, DDS_XTypes_TypeIdentifier_desc.m_ops);
+  dds_stream_free_sample (type_id, DDS_XTypes_TypeIdentifier_desc.m_ops);
 }
 
-void ddsi_typeid_fini (ddsi_typeid_t *typeid)
+void ddsi_typeid_fini (ddsi_typeid_t *type_id)
 {
-  ddsi_typeid_fini_impl (&typeid->x);
+  ddsi_typeid_fini_impl (&type_id->x);
 }
 
-bool ddsi_typeid_is_none_impl (const struct DDS_XTypes_TypeIdentifier *xtypeid)
+bool ddsi_typeid_is_none_impl (const struct DDS_XTypes_TypeIdentifier *type_id)
 {
-  return xtypeid == NULL || xtypeid->_d == DDS_XTypes_TK_NONE;
+  return type_id == NULL || type_id->_d == DDS_XTypes_TK_NONE;
 }
 
-bool ddsi_typeid_is_none (const ddsi_typeid_t *typeid)
+bool ddsi_typeid_is_none (const ddsi_typeid_t *type_id)
 {
-  return ddsi_typeid_is_none_impl (&typeid->x);
+  return ddsi_typeid_is_none_impl (&type_id->x);
 }
 
-bool ddsi_typeid_is_hash_impl (const struct DDS_XTypes_TypeIdentifier *typeid)
+bool ddsi_typeid_is_hash_impl (const struct DDS_XTypes_TypeIdentifier *type_id)
 {
-  return ddsi_typeid_is_minimal_impl (typeid) || ddsi_typeid_is_complete_impl (typeid);
+  return ddsi_typeid_is_minimal_impl (type_id) || ddsi_typeid_is_complete_impl (type_id);
 }
 
-bool ddsi_typeid_is_hash (const ddsi_typeid_t *typeid)
+bool ddsi_typeid_is_hash (const ddsi_typeid_t *type_id)
 {
-  return ddsi_typeid_is_hash_impl (&typeid->x);
+  return ddsi_typeid_is_hash_impl (&type_id->x);
 }
 
-bool ddsi_typeid_is_minimal_impl (const struct DDS_XTypes_TypeIdentifier *typeid)
+bool ddsi_typeid_is_minimal_impl (const struct DDS_XTypes_TypeIdentifier *type_id)
 {
-  return typeid != NULL && typeid->_d == DDS_XTypes_EK_MINIMAL;
+  return type_id != NULL && type_id->_d == DDS_XTypes_EK_MINIMAL;
 }
 
-bool ddsi_typeid_is_minimal (const ddsi_typeid_t *typeid)
+bool ddsi_typeid_is_minimal (const ddsi_typeid_t *type_id)
 {
-  return ddsi_typeid_is_minimal_impl (&typeid->x);
+  return ddsi_typeid_is_minimal_impl (&type_id->x);
 }
 
-bool ddsi_typeid_is_complete_impl (const struct DDS_XTypes_TypeIdentifier *typeid)
+bool ddsi_typeid_is_complete_impl (const struct DDS_XTypes_TypeIdentifier *type_id)
 {
-  return typeid != NULL && typeid->_d == DDS_XTypes_EK_COMPLETE;
+  return type_id != NULL && type_id->_d == DDS_XTypes_EK_COMPLETE;
 }
 
-bool ddsi_typeid_is_complete (const ddsi_typeid_t *typeid)
+bool ddsi_typeid_is_complete (const ddsi_typeid_t *type_id)
 {
-  return ddsi_typeid_is_complete_impl (&typeid->x);
+  return ddsi_typeid_is_complete_impl (&type_id->x);
 }
 
 void ddsi_typeid_get_equivalence_hash (const ddsi_typeid_t *type_id, DDS_XTypes_EquivalenceHash *hash)

@@ -288,21 +288,21 @@ DDSRT_STATIC_ASSERT (offsetof (struct ddsi_type, xt) == 0);
 
 DDS_EXPORT char *ddsi_make_typeid_str_impl (struct ddsi_typeid_str *buf, const DDS_XTypes_TypeIdentifier *type_id);
 DDS_EXPORT int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const struct DDS_XTypes_TypeIdentifier *b);
-DDS_EXPORT void ddsi_typeid_fini_impl (struct DDS_XTypes_TypeIdentifier *typeid);
+DDS_EXPORT void ddsi_typeid_fini_impl (struct DDS_XTypes_TypeIdentifier *type_id);
 
 DDS_EXPORT void ddsi_typeid_copy_impl (struct DDS_XTypes_TypeIdentifier *dst, const struct DDS_XTypes_TypeIdentifier *src);
 DDS_EXPORT void ddsi_typeid_copy_to_impl (struct DDS_XTypes_TypeIdentifier *dst, const ddsi_typeid_t *src);
 DDS_EXPORT struct DDS_XTypes_TypeIdentifier * ddsi_typeid_dup_impl (const struct DDS_XTypes_TypeIdentifier *src);
 DDS_EXPORT ddsi_typeid_t * ddsi_typeid_dup_from_impl (const struct DDS_XTypes_TypeIdentifier *src);
-DDS_EXPORT bool ddsi_typeid_is_none_impl (const struct DDS_XTypes_TypeIdentifier *typeid);
+DDS_EXPORT bool ddsi_typeid_is_none_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
 
 DDS_EXPORT void ddsi_xt_get_typeobject_impl (const struct xt_type *xt, struct DDS_XTypes_TypeObject *to);
 DDS_EXPORT struct ddsi_type * ddsi_type_ref_id_locked_impl (struct ddsi_domaingv *gv, const struct DDS_XTypes_TypeIdentifier *type_id);
 DDS_EXPORT struct ddsi_type * ddsi_type_lookup_locked_impl (struct ddsi_domaingv *gv, const struct DDS_XTypes_TypeIdentifier *type_id);
 
-DDS_EXPORT bool ddsi_typeid_is_hash_impl (const struct DDS_XTypes_TypeIdentifier *typeid);
-DDS_EXPORT bool ddsi_typeid_is_minimal_impl (const struct DDS_XTypes_TypeIdentifier *typeid);
-DDS_EXPORT bool ddsi_typeid_is_complete_impl (const struct DDS_XTypes_TypeIdentifier *typeid);
+DDS_EXPORT bool ddsi_typeid_is_hash_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
+DDS_EXPORT bool ddsi_typeid_is_minimal_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
+DDS_EXPORT bool ddsi_typeid_is_complete_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
 DDS_EXPORT void ddsi_typeobj_fini_impl (struct DDS_XTypes_TypeObject *typeobj);
 DDS_EXPORT int ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeIdentifier *ti, const struct DDS_XTypes_TypeObject *to);
 
