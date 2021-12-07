@@ -3848,11 +3848,13 @@ dds_get_matched_publication_data (
  * dds_get_matched_publication_data
  *
  * @param[in] builtintopic_endpoint  The builtintopic endpoint struct
+ * @param[in] kind                   Kind of type identifier (minimal/complete)
  * @param[out] type_identifier       Type identifier that will be allocated by this function in case of success. Needs to be freed by the caller.
  */
 DDS_EXPORT dds_return_t
 dds_builtintopic_get_endpoint_typeid (
   dds_builtintopic_endpoint_t * builtintopic_endpoint,
+  dds_typeid_kind_t kind,
   dds_typeid_t **type_identifier);
 #endif
 

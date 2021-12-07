@@ -229,13 +229,16 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
 }
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
-// FIXME: minimal/complete type id?
-dds_return_t dds_builtintopic_get_endpoint_typeid (dds_builtintopic_endpoint_t * builtintopic_endpoint, dds_typeid_t **type_id)
+dds_return_t dds_builtintopic_get_endpoint_typeid (dds_builtintopic_endpoint_t * builtintopic_endpoint, dds_typeid_kind_t kind, dds_typeid_t **type_id)
 {
-  if (builtintopic_endpoint == NULL)
+  if (builtintopic_endpoint == NULL || (kind != DDS_TYPEID_MINIMAL && kind != DDS_TYPEID_COMPLETE))
     return DDS_RETCODE_BAD_PARAMETER;
+
   if (builtintopic_endpoint->qos && builtintopic_endpoint->qos->present & QP_TYPE_INFORMATION)
-    *type_id = (dds_typeid_t *) ddsi_typeid_dup (ddsi_typeinfo_minimal_typeid (builtintopic_endpoint->qos->type_information));
+  {
+    ddsi_typeinfo_t *type_info = builtintopic_endpoint->qos->type_information;
+    *type_id = (dds_typeid_t *) ddsi_typeid_dup (kind == DDS_TYPEID_MINIMAL ? ddsi_typeinfo_minimal_typeid (type_info) : ddsi_typeinfo_complete_typeid (type_info));
+  }
   else
     *type_id = NULL;
   return DDS_RETCODE_OK;

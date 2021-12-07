@@ -144,15 +144,15 @@ static endpoint_info_t * find_typeid_match (dds_entity_t participant, dds_entity
       if (info[i].valid_data)
       {
         dds_builtintopic_endpoint_t *data = ptrs[i];
-        ddsi_typeid_t *t;
-        dds_return_t ret = dds_builtintopic_get_endpoint_typeid (data, (dds_typeid_t **) &t);
+        dds_typeid_t *t;
+        dds_return_t ret = dds_builtintopic_get_endpoint_typeid (data, DDS_TYPEID_MINIMAL, &t);
         CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
         if (t != NULL)
         {
           struct ddsi_typeid_str tidstr;
           print_ep (&data->key);
-          printf (" type: %s", ddsi_make_typeid_str (&tidstr, t));
-          if (!ddsi_typeid_compare (t, type_id) && !strcmp (data->topic_name, match_topic))
+          printf (" type: %s", ddsi_make_typeid_str (&tidstr, (ddsi_typeid_t *) t));
+          if (!ddsi_typeid_compare ((ddsi_typeid_t *) t, type_id) && !strcmp (data->topic_name, match_topic))
           {
             printf(" match");
             // copy data from sample to our own struct
@@ -161,7 +161,7 @@ static endpoint_info_t * find_typeid_match (dds_entity_t participant, dds_entity
             result->type_name = ddsrt_strdup (data->type_name);
           }
           printf("\n");
-          ddsrt_free (t);
+          dds_free (t);
         }
         else
         {

@@ -132,6 +132,14 @@ typedef enum dds_find_scope
 }
 dds_find_scope_t;
 
+/* Type identifier kind for getting endpoint type identifier */
+typedef enum dds_typeid_kind
+{
+  DDS_TYPEID_MINIMAL,
+  DDS_TYPEID_COMPLETE
+}
+dds_typeid_kind_t;
+
 /**
  * Description : Enable or disable write batching. Overrides default configuration
  * setting for write batching (Internal/WriteBatch).
