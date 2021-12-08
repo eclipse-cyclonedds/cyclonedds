@@ -2069,13 +2069,17 @@ static idl_retcode_t descriptor_init_keys(const idl_pstate_t *pstate, struct con
     }
   }
   assert(key_index == descriptor->n_keys);
+
+  // calculate key size for XCDR1 keys (by definition order)
+  for (uint32_t k = 0; k < descriptor->n_keys; k++)
+    descriptor->keysz_xcdr1 = add_to_key_size(descriptor->keysz_xcdr1, descriptor->keys[k].size, descriptor->keys[k].dims, descriptor->keys[k].align, XCDR1_MAX_ALIGN);
+
+  // sort keys by member id (scoped within the containing aggregated type)
   qsort(descriptor->keys, descriptor->n_keys, sizeof (*descriptor->keys), key_meta_data_cmp);
 
-  /* Calculate key size for XCDR1 and XCDR2 keys */
-  for (uint32_t k = 0; k < descriptor->n_keys; k++) {
-    descriptor->keysz_xcdr1 = add_to_key_size(descriptor->keysz_xcdr1, descriptor->keys[k].size, descriptor->keys[k].dims, descriptor->keys[k].align, XCDR1_MAX_ALIGN);
+  // calculate key size for XCDR2 keys (ordered by member id)
+  for (uint32_t k = 0; k < descriptor->n_keys; k++)
     descriptor->keysz_xcdr2 = add_to_key_size(descriptor->keysz_xcdr2, descriptor->keys[k].size, descriptor->keys[k].dims, descriptor->keys[k].align, XCDR2_MAX_ALIGN);
-  }
 
   return IDL_RETCODE_OK;
 }

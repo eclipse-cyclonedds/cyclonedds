@@ -89,16 +89,30 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
     if (is_key)
     {
       assert (*keys_remaining <= n_keys);
-      uint32_t idx = n_keys - *keys_remaining;
-      for (uint32_t n = 0; n < n_keys; n++)
+      uint32_t idx = n_keys - *keys_remaining; // position (index) of the key in the CDR
+      if (((struct dds_ostream *)os)->m_xcdr_version == CDR_ENC_VERSION_1)
       {
-        if (keys[n].idx == idx)
+        /* Key in CDR encoding version 1 are ordered by their definition order, so we can
+           use the key index field from the key descriptors key list */
+        key_offs[idx].src_off = is->m_index;
+        key_offs[idx].op_off = ops;
+        assert (*keys_remaining > 0);
+        (*keys_remaining)--;
+      }
+      else
+      {
+        /* Keys in XCDR2 are ordered by their member id (ascending), so we've to find the key's
+           position in the key list from the key descriptor (this list is ordered by member id) */
+        for (uint32_t n = 0; n < n_keys; n++)
         {
-          key_offs[n].src_off = is->m_index;
-          key_offs[n].op_off = ops;
-          assert (*keys_remaining > 0);
-          (*keys_remaining)--;
-          break;
+          if (keys[n].idx == idx)
+          {
+            key_offs[n].src_off = is->m_index;
+            key_offs[n].op_off = ops;
+            assert (*keys_remaining > 0);
+            (*keys_remaining)--;
+            break;
+          }
         }
       }
     }

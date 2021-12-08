@@ -153,9 +153,11 @@ CU_Test(idlc_descriptor, key_size)
     { "@topic struct test { @key char a; @key string<3> b; @key long c; }; ",
       true, true, 16, 16 }, // key size: 1 + 3 (pad) + 8 + 4
     { "@topic struct test { @key @id(2) float a; @key @id(1) char b; @key @id(0) double c; }; ",
-      true, true, 16, 16 }, // key size: 8 + 1 + 3 (pad) + 4
-    { "@topic struct test { @key @id(1) double a; @key @id(0) char b; @key @id(2) float c; }; ",
-      false, true, VAR, 16 }, // key size: 1 + 7/3 (pad) + 8 + 4
+      true, true, 16, 16 }, // key size XCDR1: 4 + 1 + 3 (pad) + 8 / XCDR2: 8 + 1 + 3 (pad) + 4
+    { "@topic struct test { @key @id(0) char b; @key @id(1) double a; @key @id(2) float c; }; ",
+      false, true, VAR, 16 }, // key size XCDR1: 1 + 7 (pad) + 8 + 4 / XCDR2: 1 + 3 (pad) + 8 + 4
+    { "@topic struct test { @key @id(0) char c1; @key @id(2) char c2; @key @id(4) char c3; @key @id(1) long l1; @key @id(3) long l2; }; ",
+      true, false, 12, VAR }, // key size XCDR1: 1 + 1 + 1 + 1 (pad) + 4 + 4 / XCDR2: 1 + 3 (pad) + 4 + 1 + 3 (pad) + 4 + 1
   };
 
   idl_retcode_t ret;
