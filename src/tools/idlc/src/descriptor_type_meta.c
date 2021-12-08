@@ -144,11 +144,22 @@ has_non_plain_annotation (const idl_type_spec_t *type_spec)
 }
 
 static bool
-has_plain_collection_typeid (const idl_type_spec_t *type_spec)
+has_plain_collection_typeid_impl (const idl_type_spec_t *type_spec, bool alias_related_type)
 {
+  /* An alias declarator can be an array, but can't have a plain-collection type id. An array
+     type related type of an alias can be a plain collection type (in that case, type_spec,
+     which is the alias declarator, is an array type) */
+  if (idl_is_alias (type_spec) && !alias_related_type)
+    return false;
   if (idl_is_array (type_spec) || idl_is_sequence (type_spec))
     return !has_non_plain_annotation (type_spec);
   return false;
+}
+
+static bool
+has_plain_collection_typeid (const idl_type_spec_t *type_spec)
+{
+  return has_plain_collection_typeid_impl (type_spec, false);
 }
 
 static bool
@@ -180,14 +191,14 @@ has_fully_descriptive_typeid (const idl_type_spec_t *type_spec)
 }
 
 static idl_retcode_t
-get_typeid(const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, const idl_type_spec_t *type_spec, DDS_XTypes_TypeIdentifier *ti, DDS_XTypes_TypeKind kind, bool array_element);
+get_typeid(const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, const idl_type_spec_t *type_spec, bool alias_related_type, DDS_XTypes_TypeIdentifier *ti, DDS_XTypes_TypeKind kind, bool array_element);
 
 static idl_retcode_t
-get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, const idl_type_spec_t *type_spec, DDS_XTypes_TypeIdentifier *ti, DDS_XTypes_TypeKind kind)
+get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, const idl_type_spec_t *type_spec, bool alias_related_type, DDS_XTypes_TypeIdentifier *ti, DDS_XTypes_TypeKind kind)
 {
   idl_retcode_t ret;
   assert (ti);
-  assert (has_fully_descriptive_typeid (type_spec) || has_plain_collection_typeid (type_spec));
+  assert (has_fully_descriptive_typeid (type_spec) || has_plain_collection_typeid_impl (type_spec, alias_related_type));
 
   if (idl_is_array (type_spec)) {
     const idl_literal_t *literal = ((const idl_declarator_t *) type_spec)->const_expr;
@@ -201,7 +212,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
           return ret;
       }
       ti->_u.array_sdefn.element_identifier = calloc (1, sizeof (*ti->_u.array_sdefn.element_identifier));
-      if ((ret = get_typeid (pstate, dtm, type_spec, ti->_u.array_sdefn.element_identifier, kind, true)) < 0)
+      if ((ret = get_typeid (pstate, dtm, type_spec, false, ti->_u.array_sdefn.element_identifier, kind, true)) < 0)
         return ret;
       if (has_fully_descriptive_typeid (type_spec))
         ti->_u.array_sdefn.header.equiv_kind = DDS_XTypes_EK_BOTH;
@@ -216,7 +227,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
         if ((ret = add_to_seq ((dds_sequence_t *) &ti->_u.array_ldefn.array_bound_seq, &val, sizeof (*ti->_u.array_ldefn.array_bound_seq._buffer))) < 0)
           return ret;
       }
-      if ((ret = get_typeid (pstate, dtm, type_spec, ti->_u.array_ldefn.element_identifier, kind, true)) < 0)
+      if ((ret = get_typeid (pstate, dtm, type_spec, false, ti->_u.array_ldefn.element_identifier, kind, true)) < 0)
         return ret;
       if (has_fully_descriptive_typeid (type_spec))
         ti->_u.array_ldefn.header.equiv_kind = DDS_XTypes_EK_BOTH;
@@ -259,7 +270,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
           ti->_d = DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL;
           ti->_u.seq_sdefn.bound = (uint8_t) seq->maximum;
           ti->_u.seq_sdefn.element_identifier = calloc (1, sizeof (*ti->_u.seq_sdefn.element_identifier));
-          if ((ret = get_typeid (pstate, dtm, idl_type_spec (type_spec), ti->_u.seq_sdefn.element_identifier, kind, false)) < 0)
+          if ((ret = get_typeid (pstate, dtm, idl_type_spec (type_spec), false, ti->_u.seq_sdefn.element_identifier, kind, false)) < 0)
             return ret;
           if (has_fully_descriptive_typeid (type_spec))
             ti->_u.seq_sdefn.header.equiv_kind = DDS_XTypes_EK_BOTH;
@@ -269,7 +280,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
           ti->_d = DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE;
           ti->_u.seq_ldefn.bound = seq->maximum;
           ti->_u.seq_ldefn.element_identifier = calloc (1, sizeof (*ti->_u.seq_ldefn.element_identifier));
-          if ((ret = get_typeid (pstate, dtm, idl_type_spec (type_spec), ti->_u.seq_ldefn.element_identifier, kind, false)) < 0)
+          if ((ret = get_typeid (pstate, dtm, idl_type_spec (type_spec), false, ti->_u.seq_ldefn.element_identifier, kind, false)) < 0)
             return ret;
           if (has_fully_descriptive_typeid (type_spec))
             ti->_u.seq_ldefn.header.equiv_kind = DDS_XTypes_EK_BOTH;
@@ -459,6 +470,7 @@ get_typeid(
   const idl_pstate_t *pstate,
   struct descriptor_type_meta *dtm,
   const idl_type_spec_t *type_spec,
+  bool alias_related_type,
   DDS_XTypes_TypeIdentifier *ti,
   DDS_XTypes_TypeKind kind,
   bool array_element)
@@ -469,8 +481,8 @@ get_typeid(
   if (idl_is_array (type_spec) && array_element)
     type_spec = idl_type_spec (type_spec);
 
-  if (has_fully_descriptive_typeid (type_spec) || has_plain_collection_typeid (type_spec)) {
-    if ((ret = get_plain_typeid (pstate, dtm, type_spec, ti, kind)) < 0)
+  if (has_fully_descriptive_typeid (type_spec) || has_plain_collection_typeid_impl (type_spec, alias_related_type)) {
+    if ((ret = get_plain_typeid (pstate, dtm, type_spec, alias_related_type, ti, kind)) < 0)
       return ret;
   } else {
     if ((ret = get_hashed_typeid (pstate, dtm, type_spec, ti, kind)) < 0)
@@ -484,6 +496,7 @@ get_check_type_spec_typeid(
   const idl_pstate_t *pstate,
   struct descriptor_type_meta *dtm,
   const idl_type_spec_t *type_spec,
+  bool alias_related_type,
   DDS_XTypes_TypeIdentifier *ti,
   DDS_XTypes_TypeKind kind)
 {
@@ -491,14 +504,14 @@ get_check_type_spec_typeid(
   /* Only set the type id in case it is not set yet, to avoid leaking memory
      by overwriting an existing one */
   if (ti->_d == DDS_XTypes_TK_NONE) {
-    if ((ret = get_typeid (pstate, dtm, type_spec, ti, kind, false)) < 0)
+    if ((ret = get_typeid (pstate, dtm, type_spec, alias_related_type, ti, kind, false)) < 0)
       return ret;
   }
 #ifndef NDEBUG
   else {
     DDS_XTypes_TypeIdentifier ti_tmp;
     memset (&ti_tmp, 0, sizeof (ti_tmp));
-    ret = get_typeid (pstate, dtm, type_spec, &ti_tmp, kind, false);
+    ret = get_typeid (pstate, dtm, type_spec, alias_related_type, &ti_tmp, kind, false);
     assert (ret == IDL_RETCODE_OK);
     assert (!ddsi_typeid_compare_impl (ti, &ti_tmp));
     ddsi_typeid_fini_impl (&ti_tmp);
@@ -512,13 +525,14 @@ get_type_spec_typeids(
   const idl_pstate_t *pstate,
   struct descriptor_type_meta *dtm,
   const idl_type_spec_t *type_spec,
+  bool alias_related_type,
   DDS_XTypes_TypeIdentifier *ti_minimal,
   DDS_XTypes_TypeIdentifier *ti_complete)
 {
   idl_retcode_t ret;
-  if ((ret = get_check_type_spec_typeid (pstate, dtm, type_spec, ti_minimal, DDS_XTypes_EK_MINIMAL)) < 0)
+  if ((ret = get_check_type_spec_typeid (pstate, dtm, type_spec, alias_related_type, ti_minimal, DDS_XTypes_EK_MINIMAL)) < 0)
     return ret;
-  if ((ret = get_check_type_spec_typeid (pstate, dtm, type_spec, ti_complete, DDS_XTypes_EK_COMPLETE)) < 0)
+  if ((ret = get_check_type_spec_typeid (pstate, dtm, type_spec, alias_related_type, ti_complete, DDS_XTypes_EK_COMPLETE)) < 0)
     return ret;
   return IDL_RETCODE_OK;
 }
@@ -615,7 +629,7 @@ add_struct_member (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm,
 
   const idl_member_t *member = (const idl_member_t *) idl_parent (node);
   const idl_declarator_t *decl = (const idl_declarator_t *) node;
-  if ((ret = get_type_spec_typeids (pstate, dtm, type_spec, &m.common.member_type_id, &c.common.member_type_id)) < 0)
+  if ((ret = get_type_spec_typeids (pstate, dtm, type_spec, false, &m.common.member_type_id, &c.common.member_type_id)) < 0)
     return ret;
   m.common.member_id = c.common.member_id = decl->id.value;
   m.common.member_flags = c.common.member_flags = get_struct_member_flags (member);
@@ -646,7 +660,7 @@ add_union_case(const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, DDS
   memset (&c, 0, sizeof (c));
 
   const idl_case_t *_case = (const idl_case_t *) idl_parent (node);
-  if (get_type_spec_typeids (pstate, dtm, type_spec, &m.common.type_id, &c.common.type_id) < 0)
+  if (get_type_spec_typeids (pstate, dtm, type_spec, false, &m.common.type_id, &c.common.type_id) < 0)
     return -1;
   m.common.member_id = c.common.member_id = _case->declarator->id.value;
   m.common.member_flags = c.common.member_flags = get_union_case_flags (_case);
@@ -747,16 +761,16 @@ add_typedef (
 {
   idl_retcode_t ret;
   struct descriptor_type_meta *dtm = (struct descriptor_type_meta *) user_data;
-  const idl_type_spec_t *type_spec = idl_type_spec (node);
+  const idl_type_spec_t *type_spec = idl_is_array (node) ? node : idl_type_spec (node);
 
   // don't visit fully descriptive type-spec, but visit plain-collection type-spec
-  bool visit_type_spec = !has_fully_descriptive_typeid (type_spec);
+  bool visit_type_spec = !has_fully_descriptive_typeid_impl (type_spec, true);
 
   if (revisit) {
     assert (dtm->stack->to_minimal->_u.minimal._d == DDS_XTypes_TK_ALIAS);
     assert (dtm->stack->to_complete->_u.complete._d == DDS_XTypes_TK_ALIAS);
     /* alias_flags and related_flags unused, header empty */
-    if ((ret = get_type_spec_typeids (pstate, dtm, type_spec,
+    if ((ret = get_type_spec_typeids (pstate, dtm, type_spec, idl_is_array (node),
           &dtm->stack->to_minimal->_u.minimal._u.alias_type.body.common.related_type,
           &dtm->stack->to_complete->_u.complete._u.alias_type.body.common.related_type)) < 0)
       return ret;
@@ -770,7 +784,7 @@ add_typedef (
   if (!revisit) {
     if ((ret = get_complete_type_detail (node, &dtm->stack->to_complete->_u.complete._u.alias_type.header.detail)) < 0)
       return ret;
-    if ((ret = get_builtin_member_ann (type_spec, &dtm->stack->to_complete->_u.complete._u.alias_type.body.ann_builtin)) < 0)
+    if ((ret = get_builtin_member_ann (node, &dtm->stack->to_complete->_u.complete._u.alias_type.body.ann_builtin)) < 0)
       return ret;
     return IDL_VISIT_REVISIT | (visit_type_spec ? IDL_VISIT_TYPE_SPEC : 0);
   }
@@ -792,7 +806,7 @@ add_array (
   if (revisit) {
     assert (dtm->stack->to_minimal->_u.minimal._d == DDS_XTypes_TK_ARRAY);
     assert (dtm->stack->to_complete->_u.complete._d == DDS_XTypes_TK_ARRAY);
-    if ((ret = get_type_spec_typeids (pstate, dtm, type_spec,
+    if ((ret = get_type_spec_typeids (pstate, dtm, type_spec, false,
         &dtm->stack->to_minimal->_u.minimal._u.array_type.element.common.type,
         &dtm->stack->to_complete->_u.complete._u.array_type.element.common.type)) < 0)
       return ret;
@@ -844,7 +858,7 @@ emit_struct(
     assert (dtm->stack->to_minimal->_u.minimal._d == DDS_XTypes_TK_STRUCTURE);
     assert (dtm->stack->to_complete->_u.complete._d == DDS_XTypes_TK_STRUCTURE);
     if (_struct->inherit_spec) {
-      if ((ret = get_type_spec_typeids (pstate, dtm, _struct->inherit_spec->base, &dtm->stack->to_minimal->_u.minimal._u.struct_type.header.base_type, &dtm->stack->to_complete->_u.complete._u.struct_type.header.base_type)) < 0)
+      if ((ret = get_type_spec_typeids (pstate, dtm, _struct->inherit_spec->base, false, &dtm->stack->to_minimal->_u.minimal._u.struct_type.header.base_type, &dtm->stack->to_complete->_u.complete._u.struct_type.header.base_type)) < 0)
         return ret;
     }
     if ((ret = get_complete_type_detail (node, &dtm->stack->to_complete->_u.complete._u.struct_type.header.detail)) < 0)
@@ -928,7 +942,7 @@ emit_switch_type_spec(
       *m_cdm = &tm->to_minimal->_u.minimal._u.union_type.discriminator.common,
       *c_cdm = &tm->to_complete->_u.complete._u.union_type.discriminator.common;
     m_cdm->member_flags = c_cdm->member_flags = get_union_discriminator_flags (_union->switch_type_spec);
-    if (get_type_spec_typeids (pstate, dtm, switch_type_spec, &m_cdm->type_id, &c_cdm->type_id) < 0)
+    if (get_type_spec_typeids (pstate, dtm, switch_type_spec, false, &m_cdm->type_id, &c_cdm->type_id) < 0)
       return -1;
     get_builtin_type_ann (node, &tm->to_complete->_u.complete._u.union_type.discriminator.ann_builtin);
     get_custom_ann (node, &tm->to_complete->_u.complete._u.union_type.discriminator.ann_custom);
@@ -1216,7 +1230,7 @@ emit_sequence(
   if (revisit) {
     assert (dtm->stack->to_minimal->_u.minimal._d == DDS_XTypes_TK_SEQUENCE);
     assert (dtm->stack->to_complete->_u.complete._d == DDS_XTypes_TK_SEQUENCE);
-    if ((ret = get_type_spec_typeids (pstate, dtm, idl_type_spec(node),
+    if ((ret = get_type_spec_typeids (pstate, dtm, idl_type_spec(node), false,
         &dtm->stack->to_minimal->_u.minimal._u.sequence_type.element.common.type,
         &dtm->stack->to_complete->_u.complete._u.sequence_type.element.common.type)) < 0)
     {
