@@ -1177,7 +1177,9 @@ emit_sequence(
     if ((ret = push_type(descriptor, node, stype->ctype, &seq_stype)))
       return ret;
     seq_stype->offset = off;
-    return IDL_VISIT_TYPE_SPEC | IDL_VISIT_UNALIAS_TYPE_SPEC | IDL_VISIT_REVISIT;
+    /* For array element type, don't let the visit function unalias the type spec, because this is part
+       of the actual type and will be unaliased in emit_declarator for this type */
+    return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT | (idl_is_array(type_spec) ? 0 : IDL_VISIT_UNALIAS_TYPE_SPEC);
   }
 
   return IDL_RETCODE_OK;
