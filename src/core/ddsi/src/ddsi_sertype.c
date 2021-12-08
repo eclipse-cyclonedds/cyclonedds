@@ -274,37 +274,6 @@ uint32_t get_xcdr_version (uint16_t cdr_identifier)
   }
 }
 
-static bool sertype_is_default (const struct ddsi_sertype *sertype)
-{
-  return (sertype->serdata_ops == &ddsi_serdata_ops_cdr
-      || sertype->serdata_ops == &ddsi_serdata_ops_cdr_nokey
-      || sertype->serdata_ops == &ddsi_serdata_ops_xcdr2
-      || sertype->serdata_ops == &ddsi_serdata_ops_xcdr2_nokey);
-}
-
-struct ddsi_sertype *ddsi_sertype_data_representation (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t data_representation)
-{
-  struct ddsi_sertype_default *derived_sertype = NULL;
-  if (sertype_is_default (base_sertype))
-  {
-    const struct ddsi_serdata_ops *required_ops;
-    if (data_representation == DDS_DATA_REPRESENTATION_XCDR1)
-      required_ops = base_sertype->typekind_no_key ? &ddsi_serdata_ops_cdr_nokey : &ddsi_serdata_ops_cdr;
-    else if (data_representation == DDS_DATA_REPRESENTATION_XCDR2)
-      required_ops = base_sertype->typekind_no_key ? &ddsi_serdata_ops_xcdr2_nokey : &ddsi_serdata_ops_xcdr2;
-    else
-      abort ();
-
-    if (base_sertype->serdata_ops != required_ops)
-    {
-      derived_sertype = (struct ddsi_sertype_default *) ddsi_sertype_derive_sertype (base_sertype);
-      derived_sertype->c.serdata_ops = required_ops;
-      derived_sertype->encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? CDR_ENC_VERSION_1 : CDR_ENC_VERSION_2;
-    }
-  }
-  return derived_sertype != NULL ? (struct ddsi_sertype *) derived_sertype : (struct ddsi_sertype *) base_sertype;
-}
-
 DDS_EXPORT extern inline void ddsi_sertype_free (struct ddsi_sertype *tp);
 DDS_EXPORT extern inline void ddsi_sertype_zero_samples (const struct ddsi_sertype *tp, void *samples, size_t count);
 DDS_EXPORT extern inline void ddsi_sertype_realloc_samples (void **ptrs, const struct ddsi_sertype *tp, void *old, size_t oldcount, size_t count);
@@ -316,7 +285,7 @@ DDS_EXPORT extern inline ddsi_typeid_t * ddsi_sertype_typeid (const struct ddsi_
 DDS_EXPORT extern inline ddsi_typemap_t * ddsi_sertype_typemap (const struct ddsi_sertype *tp);
 DDS_EXPORT extern inline ddsi_typeinfo_t * ddsi_sertype_typeinfo (const struct ddsi_sertype *tp);
 DDS_EXPORT extern inline bool ddsi_sertype_assignable_from (const struct ddsi_sertype *sertype_a, const struct ddsi_type_pair *type_pair_b);
-DDS_EXPORT extern inline struct ddsi_sertype * ddsi_sertype_derive_sertype (const struct ddsi_sertype *base_sertype);
+DDS_EXPORT extern inline struct ddsi_sertype * ddsi_sertype_derive_sertype (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t data_representation, dds_type_consistency_enforcement_qospolicy_t tce_qos);
 
 DDS_EXPORT extern inline size_t ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp, const void *sample);
 DDS_EXPORT extern inline bool ddsi_sertype_serialize_into(const struct ddsi_sertype *tp, const void *sample, void *dst_buffer, size_t dst_size);

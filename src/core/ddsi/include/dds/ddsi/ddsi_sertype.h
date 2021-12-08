@@ -135,8 +135,9 @@ typedef ddsi_typeinfo_t * (*ddsi_sertype_typeinfo_t) (const struct ddsi_sertype 
 /* Check if (an object of) type a is assignable from (an object of) the type b */
 typedef bool (*ddsi_sertype_assignable_from_t) (const struct ddsi_sertype *sertype_a, const struct ddsi_type_pair *type_pair_b);
 
-/* Create a new derived sertype that is a copy of the provided sertype */
-typedef struct ddsi_sertype * (*ddsi_sertype_derive_t) (const struct ddsi_sertype *sertype);
+/* Create a new derived sertype (a shallow copy of the provided sertype) with the
+   serdata_ops for the provided data representation */
+typedef struct ddsi_sertype * (*ddsi_sertype_derive_t) (const struct ddsi_sertype *sertype, dds_data_representation_id_t data_representation, dds_type_consistency_enforcement_qospolicy_t tce_qos);
 
 struct ddsi_sertype_v0;
 typedef void (*ddsi_sertype_v0_t) (struct ddsi_sertype_v0 *dummy);
@@ -199,7 +200,6 @@ DDS_EXPORT uint32_t ddsi_sertype_hash (const struct ddsi_sertype *tp);
 DDS_EXPORT uint16_t ddsi_sertype_get_encoding_format (enum ddsi_sertype_extensibility type_extensibility);
 DDS_EXPORT uint16_t ddsi_sertype_get_native_encoding_identifier (uint32_t enc_version, uint32_t encoding_format);
 DDS_EXPORT uint32_t get_xcdr_version (uint16_t cdr_identifier);
-DDS_EXPORT struct ddsi_sertype *ddsi_sertype_data_representation (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t data_representation);
 
 
 DDS_INLINE_EXPORT inline void ddsi_sertype_free (struct ddsi_sertype *tp) {
@@ -254,10 +254,10 @@ DDS_INLINE_EXPORT inline bool ddsi_sertype_assignable_from (const struct ddsi_se
   return sertype_a->ops->assignable_from (sertype_a, type_pair_b);
 }
 
-DDS_INLINE_EXPORT inline struct ddsi_sertype * ddsi_sertype_derive_sertype (const struct ddsi_sertype *base_sertype) {
+DDS_INLINE_EXPORT inline struct ddsi_sertype * ddsi_sertype_derive_sertype (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t data_representation, dds_type_consistency_enforcement_qospolicy_t tce_qos) {
   if (!base_sertype->ops->derive_sertype)
     return NULL;
-  return base_sertype->ops->derive_sertype (base_sertype);
+  return base_sertype->ops->derive_sertype (base_sertype, data_representation, tce_qos);
 }
 
 DDS_INLINE_EXPORT inline size_t

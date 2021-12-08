@@ -18,11 +18,12 @@
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/ddsi_typelib.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
+
+struct ddsi_typeinfo;
 
 typedef struct ddsi_octetseq {
   uint32_t length;
@@ -297,7 +298,7 @@ struct dds_qos {
   /* xx */char *topic_name;
   /* xx */char *type_name;
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  /* xx */ddsi_typeinfo_t *type_information;
+  /* xx */struct ddsi_typeinfo *type_information;
 #endif
   /*      PublisherQos, SubscriberQos: */
   /*xxx */dds_presentation_qospolicy_t presentation;

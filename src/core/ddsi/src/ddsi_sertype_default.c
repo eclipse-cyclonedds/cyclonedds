@@ -23,6 +23,7 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
@@ -205,13 +206,36 @@ static bool sertype_default_assignable_from (const struct ddsi_sertype *sertype_
   return false;
 }
 
-static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_sertype *base_sertype)
+static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t data_representation, dds_type_consistency_enforcement_qospolicy_t tce_qos)
 {
+  const struct ddsi_sertype_default *base_sertype_default = (const struct ddsi_sertype_default *) base_sertype;
+  struct ddsi_sertype_default *derived_sertype = NULL;
+  const struct ddsi_serdata_ops *required_ops;
+
   assert (base_sertype);
-  struct ddsi_sertype_default *derived_sertype = ddsrt_memdup ((const struct ddsi_sertype_default *) base_sertype, sizeof (*derived_sertype));
-  uint32_t refc = ddsrt_atomic_ld32 (&derived_sertype->c.flags_refc);
-  ddsrt_atomic_st32 (&derived_sertype->c.flags_refc, refc & ~DDSI_SERTYPE_REFC_MASK);
-  derived_sertype->c.base_sertype = ddsi_sertype_ref (base_sertype);
+
+  // FIXME: implement using options from the type consistency enforcement qos policy in (de)serializer
+  (void) tce_qos;
+
+  if (data_representation == DDS_DATA_REPRESENTATION_XCDR1)
+    required_ops = base_sertype->typekind_no_key ? &ddsi_serdata_ops_cdr_nokey : &ddsi_serdata_ops_cdr;
+  else if (data_representation == DDS_DATA_REPRESENTATION_XCDR2)
+    required_ops = base_sertype->typekind_no_key ? &ddsi_serdata_ops_xcdr2_nokey : &ddsi_serdata_ops_xcdr2;
+  else
+    abort ();
+
+  if (base_sertype->serdata_ops == required_ops)
+    derived_sertype = (struct ddsi_sertype_default *) base_sertype_default;
+  else
+  {
+    derived_sertype = ddsrt_memdup (base_sertype_default, sizeof (*derived_sertype));
+    uint32_t refc = ddsrt_atomic_ld32 (&derived_sertype->c.flags_refc);
+    ddsrt_atomic_st32 (&derived_sertype->c.flags_refc, refc & ~DDSI_SERTYPE_REFC_MASK);
+    derived_sertype->c.base_sertype = ddsi_sertype_ref (base_sertype);
+    derived_sertype->c.serdata_ops = required_ops;
+    derived_sertype->encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? CDR_ENC_VERSION_1 : CDR_ENC_VERSION_2;
+  }
+
   return (struct ddsi_sertype *) derived_sertype;
 }
 
