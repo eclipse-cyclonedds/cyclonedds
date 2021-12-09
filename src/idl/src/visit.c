@@ -26,8 +26,6 @@ static idl_accept_t idl_accept(const void *node)
     return IDL_ACCEPT_INHERIT_SPEC;
   if (mask & IDL_SWITCH_TYPE_SPEC)
     return IDL_ACCEPT_SWITCH_TYPE_SPEC;
-  if (!(mask & IDL_DECLARATION))
-    return IDL_ACCEPT;
   if (mask & IDL_MODULE)
     return IDL_ACCEPT_MODULE;
   if (mask & IDL_CONST)
