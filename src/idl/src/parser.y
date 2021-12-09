@@ -910,6 +910,20 @@ complex_declarator: array_declarator ;
 typedef_dcl:
     "typedef" type_spec declarators
       { TRY(idl_create_typedef(pstate, LOC(@1.first, @3.last), $2, $3, &$$)); }
+  | "typedef" constr_type_dcl declarators
+      {
+        idl_typedef_t *node;
+        idl_type_spec_t *type_spec;
+        assert($2);
+        /* treat forward declaration as no-op if definition is available */
+        if ((idl_mask($2) & IDL_FORWARD) && ((idl_forward_t *)$2)->type_spec)
+          type_spec = ((idl_forward_t *)$2)->type_spec;
+        else
+          type_spec = $2;
+        TRY(idl_create_typedef(pstate, LOC(@1.first, @3.last), type_spec, $3, &node));
+        idl_reference_node(type_spec);
+        $$ = idl_push_node($2, node);
+      }
   ;
 
 declarators:
