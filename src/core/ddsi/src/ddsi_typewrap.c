@@ -248,10 +248,14 @@ int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const s
   {
     case DDS_XTypes_TI_STRING8_SMALL:
     case DDS_XTypes_TI_STRING16_SMALL:
-      return a->_u.string_sdefn.bound > b->_u.string_sdefn.bound ? 1 : -1;
+      if (a->_u.string_sdefn.bound != b->_u.string_sdefn.bound)
+        return a->_u.string_sdefn.bound > b->_u.string_sdefn.bound ? 1 : -1;
+      return 0;
     case DDS_XTypes_TI_STRING8_LARGE:
     case DDS_XTypes_TI_STRING16_LARGE:
-      return a->_u.string_ldefn.bound > b->_u.string_ldefn.bound ? 1 : -1;
+      if (a->_u.string_ldefn.bound != b->_u.string_ldefn.bound)
+        return a->_u.string_ldefn.bound > b->_u.string_ldefn.bound ? 1 : -1;
+      return 0;
     case DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL:
       if ((r = plain_collection_header_compare (a->_u.seq_sdefn.header, b->_u.seq_sdefn.header)) != 0)
         return r;
