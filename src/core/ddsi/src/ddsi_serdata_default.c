@@ -251,7 +251,7 @@ static void gen_serdata_key (const struct ddsi_sertype_default *type, struct dds
     {
       // FIXME: there are more cases where we don't have to allocate memory
       os.m_buffer = kh->u.stbuf;
-      os.m_size = FIXED_KEY_MAX_SIZE;
+      os.m_size = DDS_FIXED_KEY_MAX_SIZE;
     }
     switch (input_kind)
     {
@@ -478,8 +478,8 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
   d->c.iox_chunk = iox_buffer;
   d->c.iox_subscriber = sub;
   d->key.buftype = KEYBUFTYPE_STATIC;
-  d->key.keysize = FIXED_KEY_MAX_SIZE;
-  memcpy(d->key.u.stbuf, ice_hdr->keyhash.value, FIXED_KEY_MAX_SIZE);
+  d->key.keysize = DDS_FIXED_KEY_MAX_SIZE;
+  memcpy(d->key.u.stbuf, ice_hdr->keyhash.value, DDS_FIXED_KEY_MAX_SIZE);
 
   fix_serdata_default(d, tpcmn->serdata_basehash);
 
@@ -757,7 +757,7 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
   /* Cannot use is_topic_fixed_key here, because in case there is a bounded string
      key field, it may contain a shorter string and fit in the 16 bytes */
   uint32_t actual_keysz = os.x.m_index;
-  if (force_md5 || actual_keysz > FIXED_KEY_MAX_SIZE)
+  if (force_md5 || actual_keysz > DDS_FIXED_KEY_MAX_SIZE)
   {
     ddsrt_md5_state_t md5st;
     ddsrt_md5_init (&md5st);
@@ -766,7 +766,7 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
   }
   else
   {
-    memset (buf->value, 0, FIXED_KEY_MAX_SIZE);
+    memset (buf->value, 0, DDS_FIXED_KEY_MAX_SIZE);
     memcpy (buf->value, os.x.m_buffer, actual_keysz);
   }
   dds_ostreamBE_fini (&os);

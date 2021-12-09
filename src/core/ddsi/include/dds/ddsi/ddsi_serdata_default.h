@@ -18,6 +18,8 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_plist_generic.h"
+#include "dds/ddsi/ddsi_typelib.h"
+#include "dds/ddsi/ddsi_typelookup.h"
 
 #include "dds/dds.h"
 
@@ -36,8 +38,6 @@ struct serdatapool {
   struct nn_freelist freelist;
 };
 
-#define FIXED_KEY_MAX_SIZE 16
-
 #define KEYBUFTYPE_UNSET    0u
 #define KEYBUFTYPE_STATIC   1u // uses u.stbuf
 #define KEYBUFTYPE_DYNALIAS 2u // points into payload
@@ -49,7 +49,7 @@ struct ddsi_serdata_default_key {
   unsigned buftype : 2;
   unsigned keysize : 30;
   union {
-    unsigned char stbuf[FIXED_KEY_MAX_SIZE];
+    unsigned char stbuf[DDS_FIXED_KEY_MAX_SIZE];
     unsigned char *dynbuf;
   } u;
 };
@@ -128,6 +128,8 @@ struct ddsi_sertype_default_desc {
   enum ddsi_sertype_extensibility extensibility;  /* Extensibility of the top-level type */
   ddsi_sertype_default_desc_key_seq_t keys;
   ddsi_sertype_default_desc_op_seq_t ops;
+  ddsi_sertype_cdr_data_t typeinfo_ser;
+  ddsi_sertype_cdr_data_t typemap_ser;
 };
 
 struct ddsi_sertype_default {

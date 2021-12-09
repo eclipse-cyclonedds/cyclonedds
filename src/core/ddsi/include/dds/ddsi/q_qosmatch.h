@@ -12,14 +12,13 @@
 #ifndef Q_QOSMATCH_H
 #define Q_QOSMATCH_H
 
-#include "dds/ddsi/ddsi_typeid.h"
+#include "dds/features.h"
+#include "dds/ddsi/ddsi_typelib.h"
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
 struct dds_qos;
-
-int partitions_match_p (const struct dds_qos *a, const struct dds_qos *b);
 
 /* perform reader/writer QoS (and topic name, type name, partition) matching;
    mask can be used to exclude some of these (including topic name and type
@@ -39,8 +38,8 @@ bool qos_match_mask_p (
     uint64_t mask,
     dds_qos_policy_id_t *reason
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    , const type_identifier_t *rd_typeid
-    , const type_identifier_t *wr_typeid
+    , const ddsi_type_pair_t *rd_type_pair
+    , const ddsi_type_pair_t *wr_type_pair
     , bool *rd_typeid_req_lookup
     , bool *wr_typeid_req_lookup
 #endif
@@ -52,8 +51,8 @@ bool qos_match_p (
     const dds_qos_t *wr_qos,
     dds_qos_policy_id_t *reason
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    , const type_identifier_t *rd_typeid
-    , const type_identifier_t *wr_typeid
+    , const ddsi_type_pair_t *rd_type_pair
+    , const ddsi_type_pair_t *wr_type_pair
     , bool *rd_typeid_req_lookup
     , bool *wr_typeid_req_lookup
 #endif

@@ -20,6 +20,7 @@ idlc_generate(TARGET RWData FILES RWData.idl)
 idlc_generate(TARGET CreateWriter FILES CreateWriter.idl)
 idlc_generate(TARGET DataRepresentationTypes FILES DataRepresentationTypes.idl)
 idlc_generate(TARGET MinXcdrVersion FILES MinXcdrVersion.idl)
+idlc_generate(TARGET XSpace FILES XSpace.idl)
 
 set(ddsc_test_sources
     "basic.c"
@@ -87,7 +88,7 @@ if(ENABLE_DEADLINE_MISSED)
 endif()
 
 if(ENABLE_TYPE_DISCOVERY)
-  list(APPEND ddsc_test_sources "typelookup.c")
+  list(APPEND ddsc_test_sources "typelookup.c" "xtypes.c")
 endif()
 
 if(ENABLE_TOPIC_DISCOVERY)
@@ -108,7 +109,7 @@ if(iceoryx_binding_c_FOUND)
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
 endif()
 target_link_libraries(cunit_ddsc PRIVATE
-  RoundTrip Space TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter DataRepresentationTypes MinXcdrVersion ddsc)
+  RoundTrip Space XSpace TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter DataRepresentationTypes MinXcdrVersion ddsc)
 
 # Setup environment for config-tests
 get_test_property(CUnit_ddsc_config_simple_udp ENVIRONMENT CUnit_ddsc_config_simple_udp_env)

@@ -12,12 +12,13 @@
 #ifndef DDSI_SERDATA_H
 #define DDSI_SERDATA_H
 
+#include "dds/features.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/iovec.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_keyhash.h"
-#include "dds/features.h"
+#include "dds/ddsi/ddsi_typelib.h"
 
 #if defined (__cplusplus)
 extern "C" {

@@ -12,12 +12,12 @@
 #ifndef DDSI_SERTYPE_H
 #define DDSI_SERTYPE_H
 
+#include "dds/features.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_xqos.h"
-#include "dds/ddsi/ddsi_typeid.h"
+#include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsc/dds_public_alloc.h"
-#include "dds/features.h"
 #include "dds/export.h"
 
 #if defined (__cplusplus)
@@ -28,7 +28,8 @@ struct ddsi_serdata;
 struct ddsi_serdata_ops;
 struct ddsi_sertype_ops;
 struct ddsi_domaingv;
-struct type_identifier;
+struct ddsi_typeid_t;
+struct ddsi_type_pair;
 
 #define DDSI_SERTYPE_REGISTERING 0x40000000u // set prior to setting gv
 #define DDSI_SERTYPE_REGISTERED  0x80000000u // set after setting gv
@@ -95,10 +96,6 @@ typedef bool (*ddsi_sertype_equal_t) (const struct ddsi_sertype *a, const struct
    the fields that are defined in struct ddsi_sertype) */
 typedef uint32_t (*ddsi_sertype_hash_t) (const struct ddsi_sertype *tp);
 
-/* Calculates a hash to be used in a TypeIdentifier, that includes the
-   custom component of the sertype */
-typedef bool (*ddsi_sertype_typeid_hash_t) (const struct ddsi_sertype *tp, unsigned char *buf);
-
 /* Called when the refcount dropped to zero */
 typedef void (*ddsi_sertype_free_t) (struct ddsi_sertype *tp);
 
@@ -112,8 +109,8 @@ typedef void (*ddsi_sertype_realloc_samples_t) (void **ptrs, const struct ddsi_s
 /* Release any memory allocated by ddsi_sertype_to_sample (also undo sertype_alloc_sample if "op" so requests) */
 typedef void (*ddsi_sertype_free_samples_t) (const struct ddsi_sertype *d, void **ptrs, size_t count, dds_free_op_t op);
 
-/* Serialized size for this type */
-typedef void (*ddsi_sertype_serialized_size_t) (const struct ddsi_sertype *d, size_t *dst_offset);
+/* Gets the type identifier of the requested kind (minimal or complete) for this sertype */
+typedef ddsi_typeid_t * (*ddsi_sertype_typeid_t) (const struct ddsi_sertype *tp, ddsi_typeid_kind_t kind);
 
 /* Compute the serialized size based on the sertype information and the sample */
 // Note: size_t maximum is reserved as error value
@@ -129,14 +126,14 @@ typedef bool (*ddsi_sertype_serialize_into_t)(const struct ddsi_sertype *d,
                                               void *dst_buffer,
                                               size_t dst_size);
 
-/* Serialize this type */
-typedef bool (*ddsi_sertype_serialize_t) (const struct ddsi_sertype *d, size_t *dst_offset, unsigned char *dst_buf);
+/* Gets the type map for this sertype */
+typedef ddsi_typemap_t * (*ddsi_sertype_typemap_t) (const struct ddsi_sertype *tp);
 
-/* Deserialize this type */
-typedef bool (*ddsi_sertype_deserialize_t) (struct ddsi_domaingv *gv, struct ddsi_sertype *d, size_t src_sz, const unsigned char *src_data, size_t *src_offset);
+/* Gets the CDR blob for the type information of this sertype */
+typedef ddsi_typeinfo_t * (*ddsi_sertype_typeinfo_t) (const struct ddsi_sertype *tp);
 
 /* Check if (an object of) type a is assignable from (an object of) the type b */
-typedef bool (*ddsi_sertype_assignable_from_t) (const struct ddsi_sertype *type_a, const struct ddsi_sertype *type_b);
+typedef bool (*ddsi_sertype_assignable_from_t) (const struct ddsi_sertype *sertype_a, const struct ddsi_type_pair *type_pair_b);
 
 /* Create a new derived sertype that is a copy of the provided sertype */
 typedef struct ddsi_sertype * (*ddsi_sertype_derive_t) (const struct ddsi_sertype *sertype);
@@ -161,10 +158,9 @@ struct ddsi_sertype_ops {
   ddsi_sertype_free_samples_t free_samples;
   ddsi_sertype_equal_t equal;
   ddsi_sertype_hash_t hash;
-  ddsi_sertype_typeid_hash_t typeid_hash;
-  ddsi_sertype_serialized_size_t serialized_size;
-  ddsi_sertype_serialize_t serialize;
-  ddsi_sertype_deserialize_t deserialize;
+  ddsi_sertype_typeid_t typeid;
+  ddsi_sertype_typemap_t typemap;
+  ddsi_sertype_typeinfo_t typeinfo;
   ddsi_sertype_assignable_from_t assignable_from;
   ddsi_sertype_derive_t derive_sertype;
   ddsi_sertype_get_serialized_size_t get_serialized_size;
@@ -189,7 +185,6 @@ void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype
 
 DDS_EXPORT void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, uint32_t flags);
 DDS_EXPORT void ddsi_sertype_init (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, bool topickind_no_key);
-DDS_EXPORT bool ddsi_sertype_deserialize (struct ddsi_domaingv *gv, struct ddsi_sertype *tp, const struct ddsi_sertype_ops *sertype_ops, size_t sz, unsigned char *serdata);
 DDS_EXPORT void ddsi_sertype_fini (struct ddsi_sertype *tp);
 DDS_EXPORT struct ddsi_sertype *ddsi_sertype_ref (const struct ddsi_sertype *tp);
 
@@ -200,7 +195,6 @@ DDS_EXPORT uint32_t ddsi_sertype_compute_serdata_basehash (const struct ddsi_ser
 
 DDS_EXPORT bool ddsi_sertype_equal (const struct ddsi_sertype *a, const struct ddsi_sertype *b);
 DDS_EXPORT uint32_t ddsi_sertype_hash (const struct ddsi_sertype *tp);
-DDS_EXPORT bool ddsi_sertype_serialize (const struct ddsi_sertype *tp, size_t *dst_pos, unsigned char **dst_buf);
 
 DDS_EXPORT uint16_t ddsi_sertype_get_encoding_format (enum ddsi_sertype_extensibility type_extensibility);
 DDS_EXPORT uint16_t ddsi_sertype_get_native_encoding_identifier (uint32_t enc_version, uint32_t encoding_format);
@@ -232,24 +226,32 @@ DDS_INLINE_EXPORT inline void *ddsi_sertype_alloc_sample (const struct ddsi_sert
 DDS_INLINE_EXPORT inline void ddsi_sertype_free_sample (const struct ddsi_sertype *tp, void *sample, dds_free_op_t op) {
   ddsi_sertype_free_samples (tp, &sample, 1, op);
 }
-DDS_INLINE_EXPORT inline bool ddsi_sertype_typeid_hash (const struct ddsi_sertype *tp, unsigned char *buf) {
-  if (!tp->ops->typeid_hash)
-    return false;
-  return tp->ops->typeid_hash (tp, buf);
+DDS_INLINE_EXPORT inline ddsi_typeid_t * ddsi_sertype_typeid (const struct ddsi_sertype *tp, ddsi_typeid_kind_t kind)
+{
+  if (!tp->ops->typeid)
+    return NULL;
+  return tp->ops->typeid (tp, kind);
 }
-DDS_INLINE_EXPORT inline bool ddsi_sertype_assignable_from (const struct ddsi_sertype *type_a, const struct ddsi_sertype *type_b) {
-  /* If one of the types does not have a assignability check function
+DDS_INLINE_EXPORT inline ddsi_typemap_t * ddsi_sertype_typemap (const struct ddsi_sertype *tp)
+{
+  if (!tp->ops->typemap)
+    return NULL;
+  return tp->ops->typemap (tp);
+}
+DDS_INLINE_EXPORT inline ddsi_typeinfo_t *ddsi_sertype_typeinfo (const struct ddsi_sertype *tp)
+{
+  if (!tp->ops->typeinfo)
+    return NULL;
+  return tp->ops->typeinfo (tp);
+}
+DDS_INLINE_EXPORT inline bool ddsi_sertype_assignable_from (const struct ddsi_sertype *sertype_a, const struct ddsi_type_pair *type_pair_b) {
+  /* If sertype_a does not have a assignability check function
      (e.g. because it is an older sertype implementation), consider
      the types as assignable */
-  if (!type_a->ops->assignable_from || !type_b->ops->assignable_from)
+  if (!sertype_a->ops->assignable_from)
     return true;
-  /* In case the types have a different assignable_from function,
-     we currently don't have a proper way to check type assignability,
-     so we'll consider the types as not-assignable */
-  if (type_a->ops->assignable_from != type_b->ops->assignable_from)
-    return false;
 
-  return type_a->ops->assignable_from (type_a, type_b);
+  return sertype_a->ops->assignable_from (sertype_a, type_pair_b);
 }
 
 DDS_INLINE_EXPORT inline struct ddsi_sertype * ddsi_sertype_derive_sertype (const struct ddsi_sertype *base_sertype) {

@@ -166,58 +166,6 @@ void ddsi_sertype_unref (struct ddsi_sertype *sertype)
   }
 }
 
-struct sertype_ser
-{
-  char *type_name;
-  bool typekind_no_key;
-};
-
-const enum pserop sertype_ser_ops[] = { XS, Xb, XSTOP };
-
-bool ddsi_sertype_serialize (const struct ddsi_sertype *tp, size_t *dst_sz, unsigned char **dst_buf)
-{
-  struct sertype_ser d = { tp->type_name, tp->typekind_no_key };
-  size_t dst_pos = 0;
-
-  if (!tp->ops->serialized_size || !tp->ops->serialize)
-    return false;
-  *dst_sz = 0;
-  plist_ser_generic_size_embeddable (dst_sz, &d, 0, sertype_ser_ops);
-  tp->ops->serialized_size (tp, dst_sz);
-  *dst_buf = ddsrt_malloc (*dst_sz);
-  if (plist_ser_generic_embeddable ((char *) *dst_buf, &dst_pos, &d, 0, sertype_ser_ops, DDSRT_BOSEL_LE) < 0) // xtypes spec (7.3.4.5) requires LE encoding for type serialization
-    return false;
-  if (!tp->ops->serialize (tp, &dst_pos, *dst_buf))
-    return false;
-  assert (dst_pos == *dst_sz);
-  return true;
-}
-
-bool ddsi_sertype_deserialize (struct ddsi_domaingv *gv, struct ddsi_sertype *tp, const struct ddsi_sertype_ops *sertype_ops, size_t sz, unsigned char *serdata)
-{
-  struct sertype_ser d;
-  size_t srcoff = 0;
-  if (!sertype_ops->deserialize)
-    return false;
-  DDSRT_WARNING_MSVC_OFF(6326)
-  if (plist_deser_generic_srcoff (&d, serdata, sz, &srcoff, DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN, sertype_ser_ops) < 0)
-    return false;
-  DDSRT_WARNING_MSVC_ON(6326)
-  ddsrt_atomic_st32 (&tp->flags_refc, 1);
-  tp->ops = sertype_ops;
-  tp->type_name = ddsrt_strdup (d.type_name);
-  tp->typekind_no_key = d.typekind_no_key;
-  tp->min_xcdrv = 0u;
-  if (!tp->ops->deserialize (gv, tp, sz, serdata, &srcoff))
-  {
-    ddsrt_free (tp->type_name);
-    return false;
-  }
-  tp->serdata_basehash = ddsi_sertype_compute_serdata_basehash (tp->serdata_ops);
-  ddsrt_atomic_stvoidp (&tp->gv, NULL);
-  return true;
-}
-
 void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, uint32_t flags)
 {
   // only one version for now
@@ -364,8 +312,10 @@ DDS_EXPORT extern inline void ddsi_sertype_free_samples (const struct ddsi_serty
 DDS_EXPORT extern inline void ddsi_sertype_zero_sample (const struct ddsi_sertype *tp, void *sample);
 DDS_EXPORT extern inline void *ddsi_sertype_alloc_sample (const struct ddsi_sertype *tp);
 DDS_EXPORT extern inline void ddsi_sertype_free_sample (const struct ddsi_sertype *tp, void *sample, dds_free_op_t op);
-DDS_EXPORT extern inline bool ddsi_sertype_typeid_hash (const struct ddsi_sertype *tp, unsigned char *buf);
-DDS_EXPORT extern inline bool ddsi_sertype_assignable_from (const struct ddsi_sertype *type_a, const struct ddsi_sertype *type_b);
+DDS_EXPORT extern inline ddsi_typeid_t * ddsi_sertype_typeid (const struct ddsi_sertype *tp, ddsi_typeid_kind_t kind);
+DDS_EXPORT extern inline ddsi_typemap_t * ddsi_sertype_typemap (const struct ddsi_sertype *tp);
+DDS_EXPORT extern inline ddsi_typeinfo_t * ddsi_sertype_typeinfo (const struct ddsi_sertype *tp);
+DDS_EXPORT extern inline bool ddsi_sertype_assignable_from (const struct ddsi_sertype *sertype_a, const struct ddsi_type_pair *type_pair_b);
 DDS_EXPORT extern inline struct ddsi_sertype * ddsi_sertype_derive_sertype (const struct ddsi_sertype *base_sertype);
 
 DDS_EXPORT extern inline size_t ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp, const void *sample);

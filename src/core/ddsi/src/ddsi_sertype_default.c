@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <string.h>
 
+#include "dds/features.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/heap.h"
@@ -25,7 +26,10 @@
 #include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_xt_typeinfo.h"
 #include "dds/ddsi/ddsi_typelookup.h"
+#include "dds/ddsi/ddsi_typelib.h"
+
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_cdrstream.h"
@@ -62,11 +66,54 @@ static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct
   return true;
 }
 
-static bool sertype_default_typeid_hash (const struct ddsi_sertype *tpcmn, unsigned char *buf)
+static ddsi_typeid_t * sertype_default_typeid (const struct ddsi_sertype *tpcmn, ddsi_typeid_kind_t kind)
+{
+  assert (tpcmn);
+  assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
+  const struct ddsi_sertype_default *type = (struct ddsi_sertype_default *) tpcmn;
+  if (type->type.typeinfo_ser.sz == 0 || type->type.typeinfo_ser.data == NULL)
+    return NULL;
+  ddsi_typeid_t *type_id = NULL;
+  ddsi_typeinfo_t *type_info = NULL;
+  /* The type information blob is little endian XCDR2 data */
+  ddsi_typeinfo_deserLE (type->type.typeinfo_ser.data, type->type.typeinfo_ser.sz, &type_info);
+  if (kind == DDSI_TYPEID_KIND_MINIMAL && !ddsi_typeid_is_none (&type_info->minimal.typeid_with_size.type_id))
+    type_id = ddsi_typeid_dup (&type_info->minimal.typeid_with_size.type_id);
+  else if (!ddsi_typeid_is_none (&type_info->complete.typeid_with_size.type_id))
+    type_id = ddsi_typeid_dup (&type_info->complete.typeid_with_size.type_id);
+  ddsi_typeinfo_fini (type_info);
+  ddsrt_free (type_info);
+  return type_id;
+}
+
+static ddsi_typemap_t * sertype_default_typemap (const struct ddsi_sertype *tpcmn)
 {
   assert (tpcmn);
   const struct ddsi_sertype_default *tp = (struct ddsi_sertype_default *) tpcmn;
+  if (tp->type.typemap_ser.sz == 0 || tp->type.typemap_ser.data == NULL)
+    return NULL;
+  ddsi_typemap_t *tmap = NULL;
+  ddsi_typemap_deser (tp->type.typemap_ser.data, tp->type.typemap_ser.sz, &tmap);
+  return tmap;
+}
 
+static ddsi_typeinfo_t *sertype_default_typeinfo (const struct ddsi_sertype *tpcmn)
+{
+  assert (tpcmn);
+  const struct ddsi_sertype_default *tp = (struct ddsi_sertype_default *) tpcmn;
+  if (tp->type.typeinfo_ser.sz == 0 || tp->type.typeinfo_ser.data == NULL)
+    return false;
+  ddsi_typeinfo_t *type_info = NULL;
+  /* The type information blob is little endian XCDR2 data */
+  ddsi_typeinfo_deserLE (tp->type.typeinfo_ser.data, tp->type.typeinfo_ser.sz, &type_info);
+  return type_info;
+}
+
+static uint32_t sertype_default_hash (const struct ddsi_sertype *tpcmn)
+{
+  assert (tpcmn);
+  const struct ddsi_sertype_default *tp = (struct ddsi_sertype_default *) tpcmn;
+  unsigned char buf[16];
   ddsrt_md5_state_t md5st;
   ddsrt_md5_init (&md5st);
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->c.type_name, (uint32_t) strlen (tp->c.type_name));
@@ -78,13 +125,6 @@ static bool sertype_default_typeid_hash (const struct ddsi_sertype *tpcmn, unsig
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->type.keys.keys, (uint32_t) (tp->type.keys.nkeys * sizeof (*tp->type.keys.keys)));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->type.ops.ops, (uint32_t) (tp->type.ops.nops * sizeof (*tp->type.ops.ops)));
   ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf);
-  return true;
-}
-
-static uint32_t sertype_default_hash (const struct ddsi_sertype *tpcmn)
-{
-  unsigned char buf[16];
-  sertype_default_typeid_hash (tpcmn, buf);
   return *(uint32_t *) buf;
 }
 
@@ -93,6 +133,10 @@ static void sertype_default_free (struct ddsi_sertype *tpcmn)
   struct ddsi_sertype_default *tp = (struct ddsi_sertype_default *) tpcmn;
   ddsrt_free (tp->type.keys.keys);
   ddsrt_free (tp->type.ops.ops);
+  if (tp->type.typeinfo_ser.data != NULL)
+    ddsrt_free (tp->type.typeinfo_ser.data);
+  if (tp->type.typemap_ser.data != NULL)
+    ddsrt_free (tp->type.typemap_ser.data);
   ddsi_sertype_fini (&tp->c);
   ddsrt_free (tp);
 }
@@ -144,60 +188,43 @@ static void sertype_default_free_samples (const struct ddsi_sertype *sertype_com
   }
 }
 
-const enum pserop ddsi_sertype_default_desc_ops[] = { Xux4, XQ, Xux2, XSTOP, XQ, Xu, XSTOP, XSTOP };
-
-static void sertype_default_serialized_size (const struct ddsi_sertype *stc, size_t *dst_offset)
-{
-  const struct ddsi_sertype_default *st = (const struct ddsi_sertype_default *) stc;
-  plist_ser_generic_size_embeddable (dst_offset, &st->type, 0, ddsi_sertype_default_desc_ops);
-}
-
-static bool sertype_default_serialize (const struct ddsi_sertype *stc, size_t *dst_offset, unsigned char *dst_buf)
-{
-  const struct ddsi_sertype_default *st = (const struct ddsi_sertype_default *) stc;
-  return (plist_ser_generic_embeddable ((char *) dst_buf, dst_offset, &st->type, 0, ddsi_sertype_default_desc_ops, DDSRT_BOSEL_LE) >= 0); // xtypes spec (7.3.4.5) requires LE encoding for type serialization
-}
-
-static bool sertype_default_deserialize (struct ddsi_domaingv *gv, struct ddsi_sertype *stc, size_t src_sz, const unsigned char *src_data, size_t *src_offset)
-{
-  struct ddsi_sertype_default *st = (struct ddsi_sertype_default *) stc;
-  st->serpool = gv->serpool;
-  st->c.base_sertype = NULL;
-  st->c.serdata_ops = st->c.typekind_no_key ? &ddsi_serdata_ops_cdr_nokey : &ddsi_serdata_ops_cdr;
-  DDSRT_WARNING_MSVC_OFF(6326)
-  if (plist_deser_generic_srcoff (&st->type, src_data, src_sz, src_offset, DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN, ddsi_sertype_default_desc_ops) < 0)
-    return false;
-  DDSRT_WARNING_MSVC_ON(6326)
-  st->encoding_format = ddsi_sertype_get_encoding_format (DDS_TOPIC_TYPE_EXTENSIBILITY (st->type.flagset));
-  st->opt_size = (st->type.flagset & DDS_TOPIC_NO_OPTIMIZE) ? 0 : dds_stream_check_optimize (&st->type);
-  st->c.min_xcdrv = dds_stream_minimum_xcdr_version (st->type.ops.ops);
-  return true;
-}
-
-static bool sertype_default_assignable_from (const struct ddsi_sertype *type_a, const struct ddsi_sertype *type_b)
+static bool sertype_default_assignable_from (const struct ddsi_sertype *sertype_a, const struct ddsi_type_pair *type_pair_b)
 {
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  struct ddsi_sertype_default *a = (struct ddsi_sertype_default *) type_a;
-  struct ddsi_sertype_default *b = (struct ddsi_sertype_default *) type_b;
+  assert (type_pair_b);
+  struct ddsi_type *type_a;
+  struct ddsi_domaingv *gv = ddsrt_atomic_ldvoidp (&sertype_a->gv);
 
   // If receiving type disables type checking, type b is assignable
+  struct ddsi_sertype_default *a = (struct ddsi_sertype_default *) sertype_a;
   if (a->type.flagset & DDS_TOPIC_DISABLE_TYPECHECK)
     return true;
 
-  // For now, the assignable check is just comparing the type-ids for a and b, so only equal types will match
-  type_identifier_t *typeid_a = ddsi_typeid_from_sertype (&a->c);
-  type_identifier_t *typeid_b = ddsi_typeid_from_sertype (&b->c);
-  // this sertype always provides a typeid
-  assert (typeid_a && typeid_b);
-  bool assignable = ddsi_typeid_equal (typeid_a, typeid_b);
-  ddsrt_free (typeid_a);
-  ddsrt_free (typeid_b);
-  return assignable;
-#else
-  DDSRT_UNUSED_ARG (type_a);
-  DDSRT_UNUSED_ARG (type_b);
+  ddsi_typeid_t *type_id = sertype_default_typeid (sertype_a, DDSI_TYPEID_KIND_MINIMAL);
+  type_a = ddsi_type_lookup_locked (gv, type_id);
+  ddsi_typeid_fini (type_id);
+  ddsrt_free (type_id);
+  if (!type_a)
+  {
+    type_id = sertype_default_typeid (sertype_a, DDSI_TYPEID_KIND_COMPLETE);
+    type_a = ddsi_type_lookup_locked (gv, type_id);
+    ddsi_typeid_fini (type_id);
+    ddsrt_free (type_id);
+  }
+
+  if (!type_a)
+    return false;
+
+  if (type_pair_b->minimal)
+    return ddsi_xt_is_assignable_from (gv, &type_a->xt, &type_pair_b->minimal->xt);
+  if (type_pair_b->complete)
+    return ddsi_xt_is_assignable_from (gv, &type_a->xt, &type_pair_b->complete->xt);
   return false;
+#else
+  DDSRT_UNUSED_ARG (sertype_a);
+  DDSRT_UNUSED_ARG (type_pair_b);
 #endif
+  return false;
 }
 
 static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_sertype *base_sertype)
@@ -251,17 +278,15 @@ const struct ddsi_sertype_ops ddsi_sertype_ops_default = {
   .arg = 0,
   .equal = sertype_default_equal,
   .hash = sertype_default_hash,
-  .typeid_hash = sertype_default_typeid_hash,
   .free = sertype_default_free,
   .zero_samples = sertype_default_zero_samples,
   .realloc_samples = sertype_default_realloc_samples,
   .free_samples = sertype_default_free_samples,
-  .serialized_size = sertype_default_serialized_size,
-  .serialize = sertype_default_serialize,
-  .deserialize = sertype_default_deserialize,
+  .typeid = sertype_default_typeid,
+  .typemap = sertype_default_typemap,
+  .typeinfo = sertype_default_typeinfo,
   .assignable_from = sertype_default_assignable_from,
   .derive_sertype = sertype_default_derive_sertype,
   .get_serialized_size = sertype_default_get_serialized_size,
   .serialize_into = sertype_default_serialize_into
 };
-

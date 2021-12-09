@@ -45,16 +45,12 @@ struct ddsi_serdata_builtintopic_participant {
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 struct ddsi_serdata_builtintopic_topic {
   struct ddsi_serdata_builtintopic common;
-  type_identifier_t type_id;
 };
 #endif
 
 struct ddsi_serdata_builtintopic_endpoint {
   struct ddsi_serdata_builtintopic common;
   dds_instance_handle_t pphandle;
-#ifdef DDS_HAS_TYPE_DISCOVERY
-  type_identifier_t type_id;
-#endif
 };
 
 struct ddsi_sertype_builtintopic {

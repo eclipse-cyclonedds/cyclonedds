@@ -11,17 +11,26 @@
 #
 include(CUnit)
 
-add_cunit_executable(cunit_idlc
+set(sources
   ../src/plugin.c
   ../src/generator.c
   ../src/descriptor.c
   ../src/types.c
-  descriptor.c)
+  test_common.c
+  descriptor.c
+  type_meta.c)
+
+if(ENABLE_TYPE_DISCOVERY)
+  list(APPEND sources ../src/descriptor_type_meta.c)
+endif()
+
+add_cunit_executable(cunit_idlc ${sources})
 
 target_include_directories(
   cunit_idlc PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../src>")
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../src>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/include>")
 
 if(MSVC)
   # ignore warnings C6255 and 6263 about _alloca

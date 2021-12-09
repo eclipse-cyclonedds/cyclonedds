@@ -143,7 +143,7 @@ CU_Test(idlc_descriptor, keys_nested)
 
 
 #define TEST_MAX_KEYS 10
-#define VAR (FIXED_KEY_MAX_SIZE + 1)
+#define VAR (DDS_FIXED_KEY_MAX_SIZE + 1)
 CU_Test(idlc_descriptor, key_size)
 {
   static const struct {

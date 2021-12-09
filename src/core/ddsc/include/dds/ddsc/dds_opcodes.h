@@ -254,6 +254,10 @@ enum dds_stream_typecode_subtype {
 #define DDS_TOPIC_DISABLE_TYPECHECK             (1u << 3)
 #define DDS_TOPIC_FIXED_SIZE                    (1u << 4)
 #define DDS_TOPIC_FIXED_KEY_XCDR2               (1u << 5)   /* Set if the XCDR2 serialized key fits in 16 bytes */
+#define DDS_TOPIC_XTYPES_METADATA               (1u << 6)   /* Set if XTypes meta-data is present for this topic */
+
+/* Max size of fixed key */
+#define DDS_FIXED_KEY_MAX_SIZE (16)
 
 
 #define DDS_TOPIC_TYPE_EXTENSIBILITY_MASK       0xc0000000

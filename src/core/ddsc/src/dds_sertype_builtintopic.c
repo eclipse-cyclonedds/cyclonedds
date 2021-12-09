@@ -61,16 +61,6 @@ static uint32_t sertype_builtin_hash (const struct ddsi_sertype *tpcmn)
   return (uint32_t) tp->entity_kind;
 }
 
-static bool sertype_builtin_typeid_hash (const struct ddsi_sertype *tpcmn, unsigned char *seq)
-{
-  const struct ddsi_sertype_builtintopic *tp = (struct ddsi_sertype_builtintopic *) tpcmn;
-  ddsrt_md5_state_t md5st;
-  ddsrt_md5_init (&md5st);
-  ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->entity_kind, sizeof (tp->entity_kind));
-  ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) seq);
-  return true;
-}
-
 static void free_pp (void *vsample)
 {
   dds_builtintopic_participant_t *sample = vsample;
@@ -196,14 +186,13 @@ const struct ddsi_sertype_ops ddsi_sertype_ops_builtintopic = {
   .arg = 0,
   .equal = sertype_builtin_equal,
   .hash = sertype_builtin_hash,
-  .typeid_hash = sertype_builtin_typeid_hash,
   .free = sertype_builtin_free,
   .zero_samples = sertype_builtin_zero_samples,
   .realloc_samples = sertype_builtin_realloc_samples,
   .free_samples = sertype_builtin_free_samples,
-  .serialized_size = 0,
-  .serialize = 0,
-  .deserialize = 0,
+  .typeid = 0,
+  .typemap = 0,
+  .typeinfo = 0,
   .assignable_from = 0,
   .get_serialized_size = 0,
   .serialize_into = 0

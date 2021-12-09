@@ -57,6 +57,7 @@ set(srcs_ddsi
   ddsi_acknack.c
   ddsi_list_genptr.c
   ddsi_wraddrset.c
+  ddsi_typelib.c
   q_addrset.c
   q_bitset_inlines.c
   q_bswap.c
@@ -129,6 +130,7 @@ set(hdrs_private_ddsi
   ddsi_list_tmpl.h
   ddsi_list_genptr.h
   ddsi_wraddrset.h
+  ddsi_typelib.h
   q_addrset.h
   q_bitset.h
   q_bswap.h
@@ -169,8 +171,8 @@ if(ENABLE_DEADLINE_MISSED)
   list(APPEND hdrs_private_ddsi ddsi_deadline.h)
 endif()
 if(ENABLE_TYPE_DISCOVERY)
-  list(APPEND srcs_ddsi ddsi_typeid.c ddsi_typelookup.c)
-  list(APPEND hdrs_private_ddsi ddsi_typeid.h ddsi_typelookup.h)
+  list(APPEND srcs_ddsi ddsi_xt_typeinfo.c ddsi_xt_typelookup.c ddsi_xt_typemap.c ddsi_typelookup.c ddsi_typewrap.c)
+  list(APPEND hdrs_private_ddsi ddsi_xt_typeinfo.h ddsi_xt_typelookup.h ddsi_xt_typemap.h ddsi_typelookup.h ddsi_typewrap.h)
 endif()
 if(ENABLE_SECURITY)
   list(APPEND srcs_ddsi ddsi_security_msg.c ddsi_security_exchange.c)

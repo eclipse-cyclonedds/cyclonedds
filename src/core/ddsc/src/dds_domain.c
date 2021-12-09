@@ -11,6 +11,7 @@
  */
 #include <string.h>
 
+#include "dds/features.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/hopscotch.h"
@@ -28,6 +29,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_typelib.h"
 
 #ifdef DDS_HAS_SHM
 #include "shm__monitor.h"
@@ -139,7 +141,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   // TODO: isolate the shm runtime creation in a separate function
 
   // create the shared memory monitor based on iceoryx
-  if (domain->gv.config.enable_shm) 
+  if (domain->gv.config.enable_shm)
   {
     shm_monitor_init(&domain->m_shm_monitor);
   }
@@ -438,13 +440,13 @@ void dds_write_set_batch (bool enable)
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
 
-dds_return_t dds_domain_resolve_type (dds_entity_t entity, unsigned char *type_identifier, size_t type_identifier_sz, dds_duration_t timeout, struct ddsi_sertype **sertype)
+dds_return_t dds_domain_resolve_type (dds_entity_t entity, const dds_typeid_t *type_id, dds_duration_t timeout, struct ddsi_sertype **sertype)
 {
   struct dds_entity *e;
-  type_identifier_t type_id;
   dds_return_t rc;
+  const ddsi_typeid_t *ddsi_type_id = (const ddsi_typeid_t *) type_id;
 
-  if (type_identifier == NULL || type_identifier_sz != sizeof (type_id) || sertype == NULL)
+  if (ddsi_typeid_is_none (ddsi_type_id) || !ddsi_typeid_is_hash (ddsi_type_id))
     return DDS_RETCODE_BAD_PARAMETER;
 
   if ((rc = dds_entity_pin (entity, &e)) < 0)
@@ -456,30 +458,29 @@ dds_return_t dds_domain_resolve_type (dds_entity_t entity, unsigned char *type_i
   }
 
   struct ddsi_domaingv *gv = &e->m_domain->gv;
-  memcpy (&type_id.hash, type_identifier, sizeof (type_id));
-  ddsrt_mutex_lock (&gv->tl_admin_lock);
-  struct tl_meta *tlm = ddsi_tl_meta_lookup_locked (gv, &type_id);
-  if (tlm == NULL)
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  struct ddsi_type *type = ddsi_type_lookup_locked (gv, ddsi_type_id);
+  if (type == NULL)
   {
-    ddsrt_mutex_unlock (&gv->tl_admin_lock);
+    ddsrt_mutex_unlock (&gv->typelib_lock);
     rc = DDS_RETCODE_PRECONDITION_NOT_MET;
     goto failed;
   }
-  if (tlm->state == TL_META_RESOLVED)
+  if (type->sertype)
   {
-    *sertype = ddsi_sertype_ref (tlm->sertype);
-    ddsrt_mutex_unlock (&gv->tl_admin_lock);
+    *sertype = ddsi_sertype_ref (type->sertype);
+    ddsrt_mutex_unlock (&gv->typelib_lock);
   }
   else if (timeout == 0)
   {
-    ddsrt_mutex_unlock (&gv->tl_admin_lock);
+    ddsrt_mutex_unlock (&gv->typelib_lock);
     rc = DDS_RETCODE_TIMEOUT;
     goto failed;
   }
   else
   {
-    ddsrt_mutex_unlock (&gv->tl_admin_lock);
-    if (!ddsi_tl_request_type (gv, &type_id))
+    ddsrt_mutex_unlock (&gv->typelib_lock);
+    if (!ddsi_tl_request_type (gv, ddsi_type_id, NULL, 0))
     {
       rc = DDS_RETCODE_PRECONDITION_NOT_MET;
       goto failed;
@@ -488,18 +489,20 @@ dds_return_t dds_domain_resolve_type (dds_entity_t entity, unsigned char *type_i
     const dds_time_t tnow = dds_time ();
     const dds_time_t abstimeout = (DDS_INFINITY - timeout <= tnow) ? DDS_NEVER : (tnow + timeout);
     *sertype = NULL;
-    ddsrt_mutex_lock (&gv->tl_admin_lock);
-    while (tlm->state != TL_META_RESOLVED)
+    ddsrt_mutex_lock (&gv->typelib_lock);
+
+    while (!type->xt.has_obj)
     {
-      if (!ddsrt_cond_waituntil (&gv->tl_resolved_cond, &gv->tl_admin_lock, abstimeout))
+      if (!ddsrt_cond_waituntil (&gv->typelib_resolved_cond, &gv->typelib_lock, abstimeout))
         break;
     }
-    if (tlm->state == TL_META_RESOLVED)
+    // FIXME: if we have a complete type object, dynamically generate a sertype
+    if (type->xt.has_obj)
     {
-      assert (tlm->sertype != NULL);
-      *sertype = ddsi_sertype_ref (tlm->sertype);
+      assert (type->sertype != NULL);
+      *sertype = ddsi_sertype_ref (type->sertype);
     }
-    ddsrt_mutex_unlock (&gv->tl_admin_lock);
+    ddsrt_mutex_unlock (&gv->typelib_lock);
     if (*sertype == NULL)
     {
       rc = DDS_RETCODE_TIMEOUT;

@@ -9,10 +9,12 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#ifndef DESCRIPTOR_H
+#define DESCRIPTOR_H
+
 #include "idl/processor.h"
 
 #define MAX_KEY_OFFS (255)
-#define FIXED_KEY_MAX_SIZE (16)
 
 /* The name of the member that is added as the first member in a struct to
    include its base type in case of inheritance */
@@ -172,3 +174,5 @@ emit_topic_descriptor(
   const idl_pstate_t *pstate,
   const idl_node_t *node,
   void *user_data);
+
+#endif /* DESCRIPTOR_H */

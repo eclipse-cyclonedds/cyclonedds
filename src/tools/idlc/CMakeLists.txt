@@ -34,18 +34,25 @@ set(sources
   src/generator.c
   src/descriptor.c
   src/types.c)
+
+if(ENABLE_TYPE_DISCOVERY)
+  list(APPEND headers src/descriptor_type_meta.h)
+  list(APPEND sources src/descriptor_type_meta.c)
+endif()
+
 add_executable(idlc ${sources} ${headers})
 
 if(MSVC)
   # ignore warnings C6255 and 6263 about _alloca
   target_compile_options(idlc PRIVATE /wd6255 /wd6263)
 endif()
-target_link_libraries(idlc PRIVATE idl idlpp ${CMAKE_DL_LIBS})
+target_link_libraries(idlc PRIVATE idl idlpp ddsc ${CMAKE_DL_LIBS})
 target_include_directories(
   idlc PRIVATE
     include
     ${CMAKE_CURRENT_BINARY_DIR}
-    $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsc,INTERFACE_INCLUDE_DIRECTORIES>>)
+    $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsc,INTERFACE_INCLUDE_DIRECTORIES>>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/include>)
 
 if(WIN32 OR NOT HAVE_GETOPT_H)
   # use getopt.h from ddsrt

@@ -12,8 +12,9 @@
 #include <string.h>
 #include <assert.h>
 
+#include "dds/features.h"
 #include "dds/ddsi/ddsi_xqos.h"
-#include "dds/ddsi/ddsi_typeid.h"
+#include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_misc.h"
@@ -47,7 +48,7 @@ static int partitions_match_default (const dds_qos_t *x)
   return 0;
 }
 
-int partitions_match_p (const dds_qos_t *a, const dds_qos_t *b)
+static int partitions_match_p (const dds_qos_t *a, const dds_qos_t *b)
 {
   if (!(a->present & QP_PARTITION) || a->partition.n == 0)
     return partitions_match_default (b);
@@ -68,42 +69,30 @@ int partitions_match_p (const dds_qos_t *a, const dds_qos_t *b)
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
 
-static bool check_assignability (struct tl_meta *rd_tlm, struct tl_meta *wr_tlm) ddsrt_nonnull_all;
-
-static bool check_assignability (struct tl_meta *rd_tlm, struct tl_meta *wr_tlm)
-{
-  assert (rd_tlm->sertype != NULL);
-  assert (wr_tlm->sertype != NULL);
-  return ddsi_sertype_assignable_from (rd_tlm->sertype, wr_tlm->sertype);
-}
-
-static bool check_endpoint_typeid (struct ddsi_domaingv *gv, const type_identifier_t *type_id, struct tl_meta **tlm, bool *req_lookup)
+static bool check_endpoint_typeid (struct ddsi_domaingv *gv, char *type_name, const ddsi_type_pair_t *type_pair, bool *req_lookup, const char *entity)
   ddsrt_nonnull((1, 2, 3));
 
-static bool check_endpoint_typeid (struct ddsi_domaingv *gv, const type_identifier_t *type_id, struct tl_meta **tlm, bool *req_lookup)
+static bool check_endpoint_typeid (struct ddsi_domaingv *gv, char *type_name, const ddsi_type_pair_t *type_pair, bool *req_lookup, const char *entity)
 {
-  assert (tlm != NULL);
-
-  // type_id = NULL is treated the same as type_id = 0...0, so this implies type_id may not be a null pointer
-  assert (!ddsi_typeid_none (type_id));
-
-  ddsrt_mutex_lock (&gv->tl_admin_lock);
-  /* no refcounting for returned tlm object, but its lifetime is
-     at least that of the endpoint that refers to it */
-  *tlm = ddsi_tl_meta_lookup_locked (gv, type_id);
-  assert (*tlm != NULL);
-  if ((*tlm)->state != TL_META_RESOLVED)
+  assert (type_pair);
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  if ((!type_pair->minimal || !type_pair->minimal->xt.has_obj) && (!type_pair->complete || !type_pair->complete->xt.has_obj))
   {
-    GVTRACE ("typeid unresolved "PTYPEIDFMT"\n", PTYPEID(*type_id));
+    GVTRACE ("unresolved %s type %s ", entity, type_name);
+    if (type_pair->minimal)
+      GVTRACE ("min " PTYPEIDFMT, PTYPEID(type_pair->minimal->xt.id));
+    if (type_pair->complete)
+      GVTRACE ("compl " PTYPEIDFMT, PTYPEID(type_pair->complete->xt.id));
+    GVTRACE ("\n");
     /* defer requesting unresolved type until after the endpoint qos lock
        has been released, so just set a bool value indicating that a type
        lookup is required */
     if (req_lookup != NULL)
       *req_lookup = true;
-    ddsrt_mutex_unlock (&gv->tl_admin_lock);
+    ddsrt_mutex_unlock (&gv->typelib_lock);
     return false;
   }
-  ddsrt_mutex_unlock (&gv->tl_admin_lock);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
   return true;
 }
 
@@ -138,6 +127,13 @@ static int data_representation_match_p (const dds_qos_t *rd_qos, const dds_qos_t
   }
 }
 
+#ifdef DDS_HAS_TYPE_DISCOVERY
+static bool type_pair_has_id (const ddsi_type_pair_t *pair)
+{
+  return pair && (pair->minimal || pair->complete);
+}
+#endif
+
 bool qos_match_mask_p (
     struct ddsi_domaingv *gv,
     const dds_qos_t *rd_qos,
@@ -145,8 +141,8 @@ bool qos_match_mask_p (
     uint64_t mask,
     dds_qos_policy_id_t *reason
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    , const type_identifier_t *rd_typeid
-    , const type_identifier_t *wr_typeid
+    , const ddsi_type_pair_t *rd_type_pair
+    , const ddsi_type_pair_t *wr_type_pair
     , bool *rd_typeid_req_lookup
     , bool *wr_typeid_req_lookup
 #endif
@@ -170,13 +166,11 @@ bool qos_match_mask_p (
   *reason = DDS_INVALID_QOS_POLICY_ID;
   if ((mask & QP_TOPIC_NAME) && strcmp (rd_qos->topic_name, wr_qos->topic_name) != 0)
     return false;
-  if ((mask & QP_TYPE_NAME) && strcmp (rd_qos->type_name, wr_qos->type_name) != 0)
-    return false;
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  if (ddsi_typeid_none (rd_typeid) || ddsi_typeid_none (wr_typeid))
+  if (!type_pair_has_id (rd_type_pair) || !type_pair_has_id (wr_type_pair))
   {
-    // Type id missing on either or both: automatic failure if "force type validation"
+    // Type info missing on either or both: automatic failure if "force type validation"
     // is set.  If it is missing for one, there is no point in requesting it for the
     // other (it wouldn't be inspected anyway).
     if (rd_qos->type_consistency.force_type_validation)
@@ -184,20 +178,33 @@ bool qos_match_mask_p (
       *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
       return false;
     }
+    // If either the reader or writer does not provide a type id,the type names are consulted
+    // (XTypes spec 7.6.3.4.2)
+    if ((mask & QP_TYPE_NAME) && strcmp (rd_qos->type_name, wr_qos->type_name) != 0)
+      return false;
   }
   else
   {
-    struct tl_meta *rd_tlm = NULL, *wr_tlm = NULL;
-    if (!check_endpoint_typeid (gv, rd_typeid, &rd_tlm, rd_typeid_req_lookup))
+    if (!check_endpoint_typeid (gv, rd_qos->type_name, rd_type_pair, rd_typeid_req_lookup, "rd"))
       return false;
-    if (!check_endpoint_typeid (gv, wr_typeid, &wr_tlm, wr_typeid_req_lookup))
+    if (!check_endpoint_typeid (gv, wr_qos->type_name, wr_type_pair, wr_typeid_req_lookup, "wr"))
       return false;
-    if (!check_assignability (rd_tlm, wr_tlm))
+    bool assignable = false;
+    ddsrt_mutex_lock (&gv->typelib_lock);
+    if (rd_type_pair->complete && rd_type_pair->complete->sertype)
+      assignable = ddsi_sertype_assignable_from (rd_type_pair->complete->sertype, wr_type_pair);
+    else if (wr_type_pair->complete && wr_type_pair->complete->sertype)
+      assignable = ddsi_sertype_assignable_from (wr_type_pair->complete->sertype, rd_type_pair);
+    ddsrt_mutex_unlock (&gv->typelib_lock);
+    if (!assignable)
     {
       *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
       return false;
     }
   }
+#else
+  if ((mask & QP_TYPE_NAME) && strcmp (rd_qos->type_name, wr_qos->type_name) != 0)
+    return false;
 #endif
 
   if ((mask & QP_RELIABILITY) && rd_qos->reliability.kind > wr_qos->reliability.kind) {
@@ -261,8 +268,8 @@ bool qos_match_p (
     const dds_qos_t *wr_qos,
     dds_qos_policy_id_t *reason
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    , const type_identifier_t *rd_typeid
-    , const type_identifier_t *wr_typeid
+    , const ddsi_type_pair_t *rd_type_pair
+    , const ddsi_type_pair_t *wr_type_pair
     , bool *rd_typeid_req_lookup
     , bool *wr_typeid_req_lookup
 #endif
@@ -270,7 +277,7 @@ bool qos_match_p (
 {
   dds_qos_policy_id_t dummy;
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  return qos_match_mask_p (gv, rd_qos, wr_qos, ~(uint64_t)0, reason ? reason : &dummy, rd_typeid, wr_typeid, rd_typeid_req_lookup, wr_typeid_req_lookup);
+  return qos_match_mask_p (gv, rd_qos, wr_qos, ~(uint64_t)0, reason ? reason : &dummy, rd_type_pair, wr_type_pair, rd_typeid_req_lookup, wr_typeid_req_lookup);
 #else
   return qos_match_mask_p (gv, rd_qos, wr_qos, ~(uint64_t)0, reason ? reason : &dummy);
 #endif

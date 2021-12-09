@@ -33,22 +33,15 @@ static bool sertype_plist_equal (const struct ddsi_sertype *acmn, const struct d
   return true;
 }
 
-static bool sertype_plist_typeid_hash (const struct ddsi_sertype *tpcmn, unsigned char *buf)
+static uint32_t sertype_plist_hash (const struct ddsi_sertype *tpcmn)
 {
+  unsigned char buf[16];
   const struct ddsi_sertype_plist *tp = (struct ddsi_sertype_plist *) tpcmn;
-
   ddsrt_md5_state_t md5st;
   ddsrt_md5_init (&md5st);
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->encoding_format, sizeof (tp->encoding_format));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->keyparam, sizeof (tp->keyparam));
   ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf);
-  return true;
-}
-
-static uint32_t sertype_plist_hash (const struct ddsi_sertype *tpcmn)
-{
-  unsigned char buf[16];
-  sertype_plist_typeid_hash (tpcmn, buf);
   return *(uint32_t *) buf;
 }
 
@@ -102,14 +95,13 @@ const struct ddsi_sertype_ops ddsi_sertype_ops_plist = {
   .arg = 0,
   .equal = sertype_plist_equal,
   .hash = sertype_plist_hash,
-  .typeid_hash = sertype_plist_typeid_hash,
   .free = sertype_plist_free,
   .zero_samples = sertype_plist_zero_samples,
   .realloc_samples = sertype_plist_realloc_samples,
   .free_samples = sertype_plist_free_samples,
-  .serialized_size = 0,
-  .serialize = 0,
-  .deserialize = 0,
+  .typeid = 0,
+  .typemap = 0,
+  .typeinfo = 0,
   .assignable_from = 0,
   .get_serialized_size = 0,
   .serialize_into = 0

@@ -56,6 +56,7 @@ DDS_EXPORT void dds_ostreamBE_fini (dds_ostreamBE_t * __restrict st);
 
 // *actual_size is set to the actual size of the data (*actual_size <= size) on successful return
 DDS_EXPORT bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_sertype_default * __restrict type, bool just_key, uint32_t * __restrict actual_size) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+DDS_EXPORT const uint32_t *dds_stream_normalize_data (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 DDS_EXPORT const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops);
 DDS_EXPORT const uint32_t *dds_stream_writeLE (dds_ostreamLE_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops);

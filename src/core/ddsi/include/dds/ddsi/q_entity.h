@@ -26,9 +26,9 @@
 #include "dds/ddsi/q_hbcontrol.h"
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/q_inverse_uint32_set.h"
+#include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_handshake.h"
-#include "dds/ddsi/ddsi_typeid.h"
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_list_genptr.h"
@@ -260,8 +260,8 @@ struct participant
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 struct ddsi_topic_definition {
-  unsigned char key[16]; /* key for this topic definition (MD5 hash of the type_id and qos */
-  type_identifier_t type_id; /* type identifier for this topic */
+  unsigned char key[16]; /* key for this topic definition (MD5 hash of the type_id and qos) */
+  ddsi_type_pair_t *type_pair; /* has a ddsi_type object for the minimal and complete type, which contains the XTypes type identifiers */
   struct dds_qos *xqos; /* contains also the topic name and type name */
   uint32_t refc;
   struct ddsi_domaingv *gv;
@@ -278,7 +278,7 @@ struct endpoint_common {
   struct participant *pp;
   ddsi_guid_t group_guid;
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  type_identifier_t type_id;
+  ddsi_type_pair_t *type_pair;
 #endif
 };
 
@@ -489,7 +489,7 @@ struct proxy_endpoint_common
   nn_vendorid_t vendor; /* cached from proxypp->vendor */
   seqno_t seq; /* sequence number of most recent SEDP message */
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  type_identifier_t type_id; /* type identifier for for type used by this proxy endpoint */
+  ddsi_type_pair_t *type_pair;
   const struct ddsi_sertype * type; /* sertype for data this endpoint reads/writes */
 #endif
 #ifdef DDS_HAS_SECURITY
@@ -798,7 +798,7 @@ dds_return_t delete_topic (struct ddsi_domaingv *gv, const struct ddsi_guid *gui
 int topic_definition_equal (const struct ddsi_topic_definition *tpd_a, const struct ddsi_topic_definition *tpd_b);
 uint32_t topic_definition_hash (const struct ddsi_topic_definition *tpd);
 dds_return_t lookup_topic_definition_by_name (struct ddsi_domaingv *gv, const char * topic_name, struct ddsi_topic_definition **tpd);
-void new_proxy_topic (struct proxy_participant *proxypp, seqno_t seq, const ddsi_guid_t *guid, const type_identifier_t *type_id, struct dds_qos *qos, ddsrt_wctime_t timestamp);
+void new_proxy_topic (struct proxy_participant *proxypp, seqno_t seq, const ddsi_guid_t *guid, const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id, struct dds_qos *qos, ddsrt_wctime_t timestamp);
 struct proxy_topic *lookup_proxy_topic (struct proxy_participant *proxypp, const ddsi_guid_t *guid);
 void update_proxy_topic (struct proxy_participant *proxypp, struct proxy_topic *proxytp, seqno_t seq, struct dds_qos *xqos, ddsrt_wctime_t timestamp);
 int delete_proxy_topic_locked (struct proxy_participant *proxypp, struct proxy_topic *proxytp, ddsrt_wctime_t timestamp);
