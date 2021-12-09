@@ -1,0 +1,66 @@
+/*
+ * Copyright(c) 2006 to 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+module XSpace {
+    @bit_bound(10)
+    bitmask my_bitmask {
+        flag0,
+        flag1
+    };
+
+    @mutable
+    struct XType1 {
+      @id(1) long long_1;
+      @id(2) long long_2;
+      @id(3) my_bitmask bm_3;
+    };
+    @mutable
+    struct XType1a {
+      @id(1) long long_1;
+      @id(2) long long_2;
+      @id(3) unsigned short bm_3;
+    };
+
+    @appendable
+    struct XType2 {
+      @id(1) long long_1;
+      @id(2) long long_2;
+    };
+    @appendable
+    struct XType2a {
+      @id(1) long long_1;
+      @id(2) long long_2;
+      @id(3) long long_3;
+    };
+
+    @appendable
+    struct XType3_1 {
+        @id(1) long long_4;
+        @id(2) long long_5;
+    };
+    @appendable
+    struct XType3_1a {
+        @id(1) long long_4;
+    };
+    @mutable
+    struct XType3 {
+      @id(2) long long_2;
+      @id(3) XType3_1 struct_3;
+    };
+    @mutable
+    struct XType3a {
+      @id(1) long long_1;
+      @id(2) long long_2;
+      @id(3) XType3_1a struct_3;
+    };
+
+};
