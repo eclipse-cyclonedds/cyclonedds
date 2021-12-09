@@ -19,25 +19,31 @@ $Data::Dumper::Useqq = 1;
 my $outfn = "cdrtest";
 local $nextident = "a0000";
 
-my @types = qw(u0 u1 u2 u3 u4 seq ary str uni);
+my @types = qw(u0 u1 u2 u3 u4 bstr seq ary str uni);
 my @idltype = ("octet", "unsigned short", "unsigned long", "unsigned long long", "string");
 # unions cannot have an octet as a discriminator ...
 my @idltype_unidisc = ("char", "unsigned short", "unsigned long", "unsigned long long", "string");
 my @ctype = ("uint8_t", "uint16_t", "uint32_t", "uint64_t", "char *");
 my @probs = do {
-  my @ps = qw(0.3 0.3 0.3 0.3 0.3 1 1 1 1);
+  my @ps = qw(0.3 0.3 0.3 0.3 0.3 0 1 1 1 1);
+  my (@xs, $sum);
+  for (@ps) { $sum += $_; push @xs, $sum; }
+  @xs;
+};
+my @noseqprobs = do {
+  my @ps = qw(0.3 0.3 0.3 0.3 0.3 0 1 1 1 1);
   my (@xs, $sum);
   for (@ps) { $sum += $_; push @xs, $sum; }
   @xs;
 };
 my @noaryprobs = do {
-  my @ps = qw(0.3 0.3 0.3 0.3 0.3 1 0 1 1);
+  my @ps = qw(0.3 0.3 0.3 0.3 0.3 0 1 0 1 1);
   my (@xs, $sum);
   for (@ps) { $sum += $_; push @xs, $sum; }
   @xs;
 };
 my @unicaseprobs = do {
-  my @ps = qw(0.3 0.3 0.3 0.3 0.3 1 0 1 0);
+  my @ps = qw(0.3 0.3 0.3 0.3 0.3 0 1 0 1 0);
   my (@xs, $sum);
   for (@ps) { $sum += $_; push @xs, $sum; }
   @xs;
@@ -103,6 +109,7 @@ close IDL;
 
 sub gencyc {
   my ($t) = @_;
+  my $runs = 10;
   print CYC <<EOF;
 {
   dds_entity_t tp = dds_create_topic (dp, &$t->[1]_desc, \"$t->[1]\", NULL, NULL);
@@ -114,100 +121,120 @@ sub gencyc {
   dds_entity_t wr = dds_create_writer (dp, tp, wqos, NULL);
   if (wr < 0) abort ();
   dds_delete_qos (wqos);
-EOF
-  ;
-  print CYC geninit ($t);
-  print CYC <<EOF;
-  if (dds_write (wr, &v$t->[1]) < 0) abort ();
-  void *msg = NULL;
-  dds_sample_info_t info;
-  if (dds_take (rd, &msg, &info, 1, 1) != 1) abort ();
-  const $t->[1] *b = msg;
-EOF
-  ;
-  print CYC gencmp ($t);
-  print CYC <<EOF;
-  uint32_t actual_sz = 0;
-  ddd.type = (struct ddsi_sertype_default_desc) {
-    .size = $t->[1]_desc.m_size,
-    .align = $t->[1]_desc.m_align,
-    .flagset = $t->[1]_desc.m_flagset,
-    .keys.nkeys = 0,
-    .keys.keys = NULL,
-    // .keys.key_index = NULL,
-    .ops.nops = dds_stream_countops ($t->[1]_desc.m_ops, $t->[1]_desc.m_nkeys, $t->[1]_desc.m_keys),
-    .ops.ops = (uint32_t *) $t->[1]_desc.m_ops
-  };
-  for (uint32_t i = 0; i < 1000; i++) {
-    for (size_t j = 0; j < sizeof (garbage); j++)
-      garbage[j] = (unsigned char) ddsrt_random ();
-    if (dds_stream_normalize (garbage, (uint32_t) sizeof (garbage), false, CDR_ENC_VERSION_1, &ddd, false, &actual_sz)) {
-      is.m_buffer = garbage;
-      is.m_size = 1000;
-      is.m_index = 0;
-      dds_stream_read_sample (&is, msg, &ddd);
-      deser_garbage++;
-    }
-  }
-  char *tmp = malloc ($t->[1]_metaDescriptorLength), *xml_desc = tmp;
-  for (int n = 0; n < $t->[1]_metaDescriptorArrLength; n++)
-    tmp = stpcpy (tmp, $t->[1]_metaDescriptor[n]);
-  sd_serializer serializer = sd_serializerXMLTypeinfoNew (base, 0);
-  sd_serializedData meta_data = sd_serializerFromString (serializer, xml_desc);
-  if (sd_serializerDeserialize (serializer, meta_data) == NULL) abort ();
-  c_type type = c_resolve (base, "$t->[1]"); if (!type) abort ();
-  sd_serializedDataFree (meta_data);
-  sd_serializerFree (serializer);
-  free (xml_desc);
-  struct sd_cdrInfo *ci = sd_cdrInfoNew (type);
-  if (sd_cdrCompile (ci) < 0) abort ();
-  DDS_copyCache cc = DDS_copyCacheNew ((c_metaObject) type);
-  struct DDS_srcInfo_s src = { .src = &v$t->[1], cc };
-  void *samplecopy = c_new (type);
-  DDS_copyInStruct (base, &src, samplecopy);
-  struct sd_cdrSerdata *sd = sd_cdrSerializeBSwap (ci, samplecopy);
-  const void *blob;
-  uint32_t blobsz = sd_cdrSerdataBlob (&blob, sd);
-  /* hack alert: modifying read-only blob ...*/
-  if (!dds_stream_normalize ((void *) blob, blobsz, true, CDR_ENC_VERSION_1, &ddd, false, &actual_sz)) abort ();
-  is.m_buffer = blob;
-  is.m_size = blobsz;
-  is.m_index = 0;
-  dds_stream_read_sample (&is, msg, &ddd);
-  sd_cdrSerdataFree (sd);
-  sd = sd_cdrSerialize (ci, samplecopy);
-  blobsz = sd_cdrSerdataBlob (&blob, sd);
-  if (!dds_stream_normalize ((void *) blob, blobsz, false, CDR_ENC_VERSION_1, &ddd, false, &actual_sz)) abort ();
-  for (uint32_t i = 1; i < blobsz && i <= 16; i++) {
-    if (dds_stream_normalize ((void *) blob, blobsz - i, false, CDR_ENC_VERSION_1, &ddd, false, &actual_sz)) abort ();
-  }
-  sd_cdrSerdataFree (sd);
+  for (int run = 0; run < $runs; run++)
+  {
 EOF
 ;
-  print CYC gencmp ($t);
-  print CYC <<EOF;
-  sd_cdrInfoFree (ci);
-  c_free (samplecopy);
-  dds_return_loan (rd, &msg, 1);
+    print CYC geninit ($t, $runs);
+    print CYC <<EOF;
+
+    $t->[1] v$t->[1] = a$t->[1]\[run\];
+
+    /* write a sample and take it */
+    if (dds_write (wr, &v$t->[1]) < 0) abort ();
+    void *msg = NULL;
+    dds_sample_info_t info;
+    if (dds_take (rd, &msg, &info, 1, 1) != 1) abort ();
+    const $t->[1] *b = msg;
+EOF
+;
+    print CYC gencmp ($t);
+    print CYC <<EOF;
+    uint32_t actual_sz = 0;
+    ddd.type = (struct ddsi_sertype_default_desc) {
+      .size = $t->[1]_desc.m_size,
+      .align = $t->[1]_desc.m_align,
+      .flagset = $t->[1]_desc.m_flagset,
+      .keys.nkeys = 0,
+      .keys.keys = NULL,
+      // .keys.key_index = NULL,
+      .ops.nops = dds_stream_countops ($t->[1]_desc.m_ops, $t->[1]_desc.m_nkeys, $t->[1]_desc.m_keys),
+      .ops.ops = (uint32_t *) $t->[1]_desc.m_ops
+    };
+    for (uint32_t i = 0; i < 1000; i++) {
+      for (size_t j = 0; j < sizeof (garbage); j++)
+        garbage[j] = (unsigned char) ddsrt_random ();
+      if (dds_stream_normalize (garbage, (uint32_t) sizeof (garbage), false, CDR_ENC_VERSION_1, &ddd, false, &actual_sz)) {
+        is.m_buffer = garbage;
+        is.m_size = 1000;
+        is.m_index = 0;
+        dds_stream_read_sample (&is, msg, &ddd);
+        deser_garbage++;
+      }
+    }
+    char *tmp = malloc ($t->[1]_metaDescriptorLength), *xml_desc = tmp;
+    for (int n = 0; n < $t->[1]_metaDescriptorArrLength; n++)
+      tmp = stpcpy (tmp, $t->[1]_metaDescriptor[n]);
+    sd_serializer serializer = sd_serializerXMLTypeinfoNew (base, 0);
+    sd_serializedData meta_data = sd_serializerFromString (serializer, xml_desc);
+    if (sd_serializerDeserialize (serializer, meta_data) == NULL) abort ();
+    c_type type = c_resolve (base, "$t->[1]"); if (!type) abort ();
+    sd_serializedDataFree (meta_data);
+    sd_serializerFree (serializer);
+    free (xml_desc);
+    struct sd_cdrInfo *ci = sd_cdrInfoNew (type);
+    if (sd_cdrCompile (ci) < 0) abort ();
+    DDS_copyCache cc = DDS_copyCacheNew ((c_metaObject) type);
+    struct DDS_srcInfo_s src = { .src = &v$t->[1], cc };
+    void *samplecopy = c_new (type);
+    DDS_copyInStruct (base, &src, samplecopy);
+    struct sd_cdrSerdata *sd = sd_cdrSerializeBSwap (ci, samplecopy);
+    const void *blob;
+    uint32_t blobsz = sd_cdrSerdataBlob (&blob, sd);
+    /* hack alert: modifying read-only blob ...*/
+    if (!dds_stream_normalize ((void *) blob, blobsz, true, CDR_ENC_VERSION_1, &ddd, false, &actual_sz)) abort ();
+    is.m_buffer = blob;
+    is.m_size = blobsz;
+    is.m_index = 0;
+    dds_stream_read_sample (&is, msg, &ddd);
+    sd_cdrSerdataFree (sd);
+    sd = sd_cdrSerialize (ci, samplecopy);
+    blobsz = sd_cdrSerdataBlob (&blob, sd);
+    if (!dds_stream_normalize ((void *) blob, blobsz, false, CDR_ENC_VERSION_1, &ddd, false, &actual_sz)) abort ();
+    for (uint32_t i = 1; i < blobsz && i <= 16; i++) {
+      if (dds_stream_normalize ((void *) blob, blobsz - i, false, CDR_ENC_VERSION_1, &ddd, false, &actual_sz)) abort ();
+    }
+    sd_cdrSerdataFree (sd);
+EOF
+;
+    print CYC gencmp ($t);
+    print CYC <<EOF;
+    sd_cdrInfoFree (ci);
+    c_free (samplecopy);
+    dds_return_loan (rd, &msg, 1);
+  } /* for run 0..9 */
   dds_delete (rd);
   dds_delete (wr);
   dds_delete (tp);
 }
+
 EOF
   ;
 }
 
 sub geninit {
-  my ($t) = @_;
-  my @out;
-  my $res = geninit1 ("  ", \@out, $t, "");
-  return (join "", @out) . "  $t->[1] v$t->[1] = $res;\n";
+  my ($t, $runs) = @_;
+  my $ind = "    ";
+  my $tmp = $ind . "/* init samples */\n";
+  my @res;
+  for (1..$runs) {
+    my @out;
+    push (@res, geninit1 ($ind . "  ", \@out, $t, "_r$_"));
+    $tmp .= (join "", @out);
+  }
+  $tmp .= $ind . "$t->[1] a$t->[1]\[$runs\] = {";
+  for (1..$runs) {
+    $tmp .= $ind . "  " . pop (@res) . ", \n"
+  }
+  $tmp .= $ind . "};\n";
+  return $tmp;
 }
 
 sub gencmp {
   my ($t) = @_;
-  my $res = gencmp1 ($t, "v$t->[1]", "");
-  return $res;
+  my $ind = "    ";
+  my $res = gencmp1 ($ind, $t, "v$t->[1]", "");
+  return "\n" . $ind . "/* compare b with original sample */\n" . $res;
 }
 
 sub geninit1 {
@@ -216,6 +243,8 @@ sub geninit1 {
     return int (rand (10));
   } elsif ($t->[0] eq "u4") {
     return "\"".("x"x(int (rand (8))))."\"";
+  } elsif ($t->[0] eq "bstr") {
+    return "\"".("x"x(int ($t->[1] - 1)))."\"";
   } elsif ($t->[0] eq "seq") {
     my $len = int (rand (10));
     my $bufref;
@@ -224,10 +253,17 @@ sub geninit1 {
     } else {
       my $buf = "vb$t->[1]_$idxsuf";
       $bufref = "$buf";
-      my $ctype = ($t->[2]->[0] =~ /^u(\d+)$/) ? $ctype[$1] : $t->[2]->[1];
-      my $tmp = "  $ctype $buf\[\] = {";
+      my $ctype;
+      if ($t->[2]->[0] =~ /^u(\d+)$/) {
+        $ctype = $ctype[$1];
+      } elsif ($t->[2]->[0] eq "bstr") {
+        $ctype = "char *";
+      } else {
+        $ctype = $t->[2]->[1];
+      }
+      my $tmp = $ind . "$ctype $buf\[\] = {";
       for (1..$len) {
-        $tmp .= geninit1 ("$ind", $out, $t->[2], "${idxsuf}_$_");
+        $tmp .= geninit1 ($ind, $out, $t->[2], "${idxsuf}_$_");
         $tmp .= "," if $_ < $len;
       }
       $tmp .= "};\n";
@@ -238,7 +274,7 @@ sub geninit1 {
     my $len = $t->[3]; die unless $len > 0;
     my $tmp = "{";
     for (1..$len) {
-      $tmp .= geninit1 ("$ind", $out, $t->[2], "${idxsuf}_$_");
+      $tmp .= geninit1 ($ind, $out, $t->[2], "${idxsuf}_$_");
       $tmp .= "," if $_ < $len;
     }
     $tmp .= "}";
@@ -247,7 +283,7 @@ sub geninit1 {
     my $tmp = "{";
     for (my $i = 2; $i < @$t; $i++) {
       my ($name, $st) = @{$t->[$i]};
-      $tmp .= geninit1 ("", $out, $st, "${idxsuf}_");
+      $tmp .= geninit1 ($ind, $out, $st, "${idxsuf}_");
       $tmp .= "," if $i + 1 < @$t;
     }
     $tmp .= "}";
@@ -261,7 +297,7 @@ sub geninit1 {
     # first case to avoid compiler warnings
     my ($name, $st) = @{$t->[4+$case]};
     my $tmp = "{$discval,{.$name=";
-    $tmp .= geninit1 ("", $out, $st, "${idxsuf}_");
+    $tmp .= geninit1 ($ind, $out, $st, "${idxsuf}_");
     $tmp .= "}}";
     return $tmp;
   } else {
@@ -270,44 +306,46 @@ sub geninit1 {
 }
 
 sub gencmp1 {
-  my ($t, $toplevel, $path) = @_;
+  my ($ind, $t, $toplevel, $path) = @_;
   if ($t->[0] =~ /^u([0-3])$/) {
-    return "  if ($toplevel.$path != b->$path) abort ();\n";
+    return $ind . "if ($toplevel.$path != b->$path) abort ();\n";
   } elsif ($t->[0] eq "u4") {
-    return "  if (strcmp ($toplevel.$path, b->$path) != 0) abort ();\n";
+    return $ind . "if (strcmp ($toplevel.$path, b->$path) != 0) abort ();\n";
+  } elsif ($t->[0] eq "bstr") {
+    return $ind . "if (strcmp ($toplevel.$path, b->$path) != 0) abort ();\n";
   } elsif ($t->[0] eq "seq") {
     my $idx = "i".length $path;
-    return ("if ($toplevel.$path._length != b->$path._length) abort ();\n" .
-            "for (uint32_t $idx = 0; $idx < $toplevel.$path._length; $idx++) {\n" .
-            gencmp1 ($t->[2], $toplevel, "$path._buffer[$idx]") .
-            "}\n");
+    return ($ind . "if ($toplevel.$path._length != b->$path._length) abort ();\n" .
+            $ind . "for (uint32_t $idx = 0; $idx < $toplevel.$path._length; $idx++) {\n" .
+            $ind . gencmp1 ("  ", $t->[2], $toplevel, "$path._buffer[$idx]") .
+            $ind . "}\n");
   } elsif ($t->[0] eq "ary") {
     my $len = $t->[3]; die unless $len > 0;
     my $idx = "i".length $path;
-    return ("for (uint32_t $idx = 0; $idx < $len; $idx++) {\n" .
-            gencmp1 ($t->[2], $toplevel, "$path\[$idx]") .
-            "}\n");
+    return ($ind . "for (uint32_t $idx = 0; $idx < $len; $idx++) {\n" .
+            $ind . gencmp1 ("  ", $t->[2], $toplevel, "$path\[$idx]") .
+            $ind . "}\n");
   } elsif ($t->[0] eq "str") {
     my $sep = length $path == 0 ? "" : ".";
-    my $tmp = "";
+    my $tmp = $ind;
     for (my $i = 2; $i < @$t; $i++) {
       my ($name, $st) = @{$t->[$i]};
-      $tmp .= gencmp1 ($st, $toplevel, "$path$sep$name");
+      $tmp .= gencmp1 ("  ", $st, $toplevel, "$path$sep$name");
     }
     return $tmp;
   } elsif ($t->[0] eq "uni") { # uni name disctype hasdef case...
-    my $tmp = "if ($toplevel.$path._d != b->$path._d) abort ();\n";
+    my $tmp = $ind . "if ($toplevel.$path._d != b->$path._d) abort ();\n";
     my $hasdef = $t->[3];
-    $tmp .= "switch ($toplevel.$path._d) {\n";
+    $tmp .= $ind . "switch ($toplevel.$path._d) {\n";
     for (my $i = 4; $i < @$t; $i++) {
       my ($name, $st) = @{$t->[$i]};
       my $discval = $i - 4;
       $discval = "'".chr ($discval + ord ("A"))."'" if $t->[2] eq "u0";
-      $tmp .= ($i == @$t && $hasdef) ? "  default:\n" : "  case $discval:\n";
-      $tmp .= gencmp1 ($st, $toplevel, "$path._u.$name");
-      $tmp .= "break;\n";
+      $tmp .= ($i == @$t && $hasdef) ? $ind . "  default:\n" : $ind . "  case $discval:\n";
+      $tmp .= gencmp1 ($ind . "  ", $st, $toplevel, "$path._u.$name");
+      $tmp .= $ind . "break;\n";
     }
-    $tmp .= "}\n";
+    $tmp .= $ind . "  }\n";
     return $tmp;
   } else {
     die;
@@ -326,12 +364,16 @@ sub genidl1 {
   my $res = "";
   if ($t->[0] =~ /^u(\d+)$/) {
     $res = "${ind}$idltype[$1] $name;\n";
+  } elsif ($t->[0] eq "bstr") {
+    $res = "${ind}string<$t->[1]> $name;\n";
   } elsif ($t->[0] eq "seq") {
     push @$out, genidl1td ("", $out, $t);
     $res = "${ind}$t->[1] $name;\n";
   } elsif ($t->[0] eq "ary") {
     if ($t->[2]->[0] =~ /^u(\d+)$/) {
       $res = "${ind}$idltype[$1] ${name}[$t->[3]];\n";
+    } elsif ($t->[2]->[0] eq "bstr") {
+      $res = "${ind}string<$t->[2]->[1]> ${name}[$t->[3]];\n";
     } else {
       push @$out, genidl1td ("", $out, $t->[2]);
       $res = "${ind}$t->[2]->[1] ${name}[$t->[3]];\n";
@@ -353,6 +395,8 @@ sub genidl1td {
   if ($t->[0] eq "seq") {
     if ($t->[2]->[0] =~ /^u(\d+)$/) {
       return "${ind}typedef sequence<$idltype[$1]> $t->[1];\n";
+    } elsif ($t->[2]->[0] eq "bstr") {
+      return "${ind}typedef sequence<string<$t->[2]->[1]>> $t->[1];\n";
     } else {
       push @$out, genidl1td ("", $out, $t->[2]);
       return "${ind}typedef sequence<$t->[2]->[1]> $t->[1];\n";
@@ -360,6 +404,8 @@ sub genidl1td {
   } elsif ($t->[0] eq "ary") {
     if ($t->[2]->[0] =~ /^u(\d+)$/) {
       return "${ind}typedef ${idltype[$1]} $t->[1]"."[$t->[3]];\n";
+    } elsif ($t->[2]->[0] eq "bstr") {
+      return "${ind}typedef string<$t->[2]->[1]> $t->[1]"."[$t->[3]];\n";
     } else {
       push @$out, genidl1td ("", $out, $t->[2]);
       return "${ind}typedef $t->[2]->[1] $t->[1]"."[$t->[3]];\n";
@@ -393,7 +439,8 @@ sub genu1 { return ["u1"]; }
 sub genu2 { return ["u2"]; }
 sub genu3 { return ["u3"]; }
 sub genu4 { return ["u4"]; }
-sub genseq { return ["seq", nextident (), gentype ($_[0] + 1, @probs)]; }
+sub genbstr { return ["bstr", 2 + int (rand (20))]; }
+sub genseq { return ["seq", nextident (), gentype ($_[0] + 1, @noseqprobs)]; }
 sub genary { return ["ary", nextident (), gentype ($_[0] + 1, @noaryprobs), 1 + int (rand (4))]; }
 sub genstr {
   my @ts = ("str", nextident ());
