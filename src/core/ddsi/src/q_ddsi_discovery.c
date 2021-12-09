@@ -1761,7 +1761,7 @@ static void handle_sedp_alive_topic (const struct receiver_state *rst, seqno_t s
   ddsi_guid_t ppguid;
   dds_qos_t *xqos;
   int reliable;
-  const ddsi_typeid_t *type_id_minimal, *type_id_complete;
+  const ddsi_typeid_t *type_id_minimal = NULL, *type_id_complete = NULL;
 
   assert (datap);
   assert (datap->present & PP_CYCLONE_TOPIC_GUID);

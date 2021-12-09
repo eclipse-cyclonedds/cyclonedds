@@ -89,6 +89,7 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
     struct generic_proxy_endpoint *gpe = (struct generic_proxy_endpoint *)ec;
     CU_ASSERT_FATAL (gpe != NULL);
     CU_ASSERT_FATAL (gpe->c.type_pair != NULL);
+    assert (gpe->c.type_pair);
     CU_ASSERT_FATAL (gpe->c.type_pair->minimal != NULL);
     *type_id = ddsi_typeid_dup (ddsi_type_pair_minimal_id (gpe->c.type_pair));
     *type_name = ddsrt_strdup (gpe->c.xqos->type_name);
@@ -97,6 +98,7 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
   {
     struct reader *rd = (struct reader *) ec;
     CU_ASSERT_FATAL (rd->c.type_pair != NULL);
+    assert (rd->c.type_pair);
     CU_ASSERT_FATAL (rd->c.type_pair->minimal != NULL);
     *type_id = ddsi_typeid_dup (ddsi_type_pair_minimal_id (rd->c.type_pair));
     *type_name = ddsrt_strdup (rd->xqos->type_name);
@@ -105,6 +107,7 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
   {
     struct writer *wr = (struct writer *) ec;
     CU_ASSERT_FATAL (wr->c.type_pair != NULL);
+    assert (wr->c.type_pair);
     CU_ASSERT_FATAL (wr->c.type_pair->minimal != NULL);
     *type_id = ddsi_typeid_dup (ddsi_type_pair_minimal_id (wr->c.type_pair));
     *type_name = ddsrt_strdup (wr->xqos->type_name);

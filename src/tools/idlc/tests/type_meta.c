@@ -157,10 +157,13 @@ static struct DDS_XTypes_CompleteUnionMember *get_typeobj_union_member_seq(uint3
     member_seq[n] = (DDS_XTypes_CompleteUnionMember) { .common = { .member_id = m[n].id, .member_flags = m[n].flags, .type_id = m[n].ti } };
     member_seq[n].common.label_seq._maximum = m[n].num_case_labels;
     member_seq[n].common.label_seq._length = m[n].num_case_labels;
-    member_seq[n].common.label_seq._buffer = calloc (m[n].num_case_labels, sizeof (*member_seq[n].common.label_seq._buffer));
-    for (uint32_t cl = 0; cl < m[n].num_case_labels; cl++)
-      member_seq[n].common.label_seq._buffer[cl] = m[n].case_labels[cl];
-    member_seq[n].common.label_seq._release = true;
+    if (m[n].num_case_labels > 0)
+    {
+      member_seq[n].common.label_seq._buffer = calloc (m[n].num_case_labels, sizeof (*member_seq[n].common.label_seq._buffer));
+      for (uint32_t cl = 0; cl < m[n].num_case_labels; cl++)
+        member_seq[n].common.label_seq._buffer[cl] = m[n].case_labels[cl];
+      member_seq[n].common.label_seq._release = true;
+    }
     strcpy (member_seq[n].detail.name, m[n].name);
   }
   return member_seq;
@@ -554,7 +557,7 @@ static DDS_XTypes_TypeObject *get_typeobj11 (void)
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_CHAR8 },
     2, (umember_t[]) {
       { 99, 0, { ._d = DDS_XTypes_TK_INT32 }, "f1", 1, (int32_t[]) { 'a' } },
-      { 5, DDS_XTypes_IS_DEFAULT, { ._d = DDS_XTypes_TK_UINT16 }, "f2", 0, (int32_t[]) { } }
+      { 5, DDS_XTypes_IS_DEFAULT, { ._d = DDS_XTypes_TK_UINT16 }, "f2", 0, (int32_t[]) { 0 } }
     });
 }
 
@@ -692,7 +695,7 @@ CU_Test(idlc_type_meta, type_obj_serdes)
         dds_stream_free_sample (to_test, DDS_XTypes_TypeObject_desc.m_ops);
         free (to_test);
         dds_ostream_fini (&os_test);
-        }
+      }
 
       // test that generated type object can be serialized
       DDS_XTypes_TypeObject *to;

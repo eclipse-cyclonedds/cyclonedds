@@ -365,11 +365,11 @@ stash_base_members_offset(
 }
 
 static idl_retcode_t
-stash_size(
+stash_member_size(
   const idl_pstate_t *pstate, struct instructions *instructions, uint32_t index, const void *node, bool ext)
 {
   const idl_type_spec_t *type_spec;
-  struct instruction inst = { SIZE, { .size = { NULL } } };
+  struct instruction inst = { MEMBER_SIZE, { .size = { NULL } } };
 
   if (idl_is_sequence(node) || ext) {
     type_spec = idl_type_spec(node);
@@ -830,7 +830,7 @@ emit_case(
          no size is required (not an external member), so that the size of a JEQ4
          instruction with parameters remains 4. */
       if (has_size) {
-        if ((ret = stash_size(pstate, &ctype->instructions, off++, node, true)))
+        if ((ret = stash_member_size(pstate, &ctype->instructions, off++, node, true)))
           return ret;
       } else {
         if ((ret = stash_single(pstate, &ctype->instructions, off++, 0)))
@@ -1115,7 +1115,7 @@ emit_sequence(
     off = stype->offset;
     cnt = ctype->instructions.count;
     /* generate data field [elem-size] */
-    if ((ret = stash_size(pstate, &ctype->instructions, off + 2, node, false)))
+    if ((ret = stash_member_size(pstate, &ctype->instructions, off + 2, node, false)))
       return ret;
     /* generate data field [next-insn, elem-insn] */
     if (idl_is_struct(type_spec) || idl_is_union(type_spec)) {
@@ -1229,13 +1229,13 @@ emit_array(
       if ((ret = stash_element_offset(pstate, &ctype->instructions, off + 3, type_spec, 5u, addr_offs)))
         return ret;
       /* generate data field [elem-size] */
-      if ((ret = stash_size(pstate, &ctype->instructions, off + 4, node, false)))
+      if ((ret = stash_member_size(pstate, &ctype->instructions, off + 4, node, false)))
         return ret;
     } else {
       if ((ret = stash_couple(pstate, &ctype->instructions, off + 3, (uint16_t)((cnt - off) + 3u), 5u)))
         return ret;
       /* generate data field [elem-size] */
-      if ((ret = stash_size(pstate, &ctype->instructions, off + 4, node, false)))
+      if ((ret = stash_member_size(pstate, &ctype->instructions, off + 4, node, false)))
         return ret;
       /* generate return from subroutine */
       if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_RTS, 0u)))
@@ -1460,7 +1460,7 @@ emit_declarator(
     }
     /* generate data field element size */
     if (has_size) {
-      if ((ret = stash_size(pstate, &ctype->instructions, nop, node, true)))
+      if ((ret = stash_member_size(pstate, &ctype->instructions, nop, node, true)))
         return ret;
     }
 
@@ -1608,7 +1608,7 @@ static int print_offset(FILE *fp, const struct instruction *inst)
 static int print_size(FILE *fp, const struct instruction *inst)
 {
   const char *type;
-  assert(inst->type == SIZE);
+  assert(inst->type == MEMBER_SIZE);
   type = inst->data.offset.type;
   return idl_fprintf(fp, "sizeof (%s)", type) < 0 ? -1 : 0;
 }
@@ -1697,7 +1697,7 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
           if (fputs(sep, fp) < 0 || print_offset(fp, inst) < 0)
             return -1;
           break;
-        case SIZE:
+        case MEMBER_SIZE:
           if (fputs(sep, fp) < 0 || print_size(fp, inst) < 0)
             return -1;
           break;
@@ -2029,6 +2029,7 @@ static idl_retcode_t descriptor_add_keys(const idl_pstate_t *pstate, struct cons
   if ((ret = descriptor_add_key_recursive(pstate, descriptor, ctype, ctype_keys, NULL, keylist, &offs)) < 0)
     return ret;
   assert(descriptor->n_keys == n_keys);
+  (void) n_keys;
   return IDL_RETCODE_OK;
 }
 
@@ -2053,6 +2054,7 @@ static idl_retcode_t descriptor_init_keys(const idl_pstate_t *pstate, struct con
     if (inst->type == KEY_OFFSET) {
       offs_len = inst->data.key_offset.len;
       assert(key_index < descriptor->n_keys);
+      assert(descriptor->keys[key_index].name);
       assert(!strcmp(descriptor->keys[key_index].name, inst->data.key_offset.key_name));
       descriptor->keys[key_index].inst_offs = i;
       descriptor->keys[key_index].order = calloc(offs_len, sizeof (*descriptor->keys[key_index].order));
@@ -2162,6 +2164,9 @@ static int print_flags(FILE *fp, struct descriptor *descriptor, bool type_info)
 #ifdef DDS_HAS_TYPE_DISCOVERY
   if (type_info)
     vec[len++] = "DDS_TOPIC_XTYPES_METADATA";
+#else
+  assert(!type_info);
+  (void) type_info;
 #endif
 
   if (!len)
@@ -2175,13 +2180,7 @@ static int print_flags(FILE *fp, struct descriptor *descriptor, bool type_info)
   return fputs(",\n", fp) < 0 ? -1 : 0;
 }
 
-static int print_descriptor(
-    FILE *fp,
-    struct descriptor *descriptor
-#ifdef DDS_HAS_TYPE_DISCOVERY
-    , bool type_info
-#endif
-)
+static int print_descriptor(FILE *fp, struct descriptor *descriptor, bool type_info)
 {
   char *name, *type;
   const char *fmt;
@@ -2282,7 +2281,7 @@ instructions_fini(struct instructions *instructions)
         if (inst->data.offset.type)
           free(inst->data.offset.type);
         break;
-      case SIZE:
+      case MEMBER_SIZE:
         if (inst->data.size.type)
           free(inst->data.size.type);
         break;
@@ -2418,7 +2417,7 @@ generate_descriptor(
   if (print_descriptor(generator->source.handle, &descriptor, type_info) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
 #else
-  if (print_descriptor(generator->source.handle, &descriptor) < 0)
+  if (print_descriptor(generator->source.handle, &descriptor, false) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
 #endif
 

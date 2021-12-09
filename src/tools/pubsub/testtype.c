@@ -38,10 +38,8 @@ const dds_topic_descriptor_t OneULong_desc =
   2,
   OneULong_ops,
   "<MetaData version=\"1.0.0\"><Struct name=\"OneULong\"><Member name=\"seq\"><ULong/></Member></Struct></MetaData>",
-#ifdef DDS_HAS_TYPE_DISCOVERY
   { NULL, 0 },
   { NULL, 0 },
-#endif
 };
 
 
@@ -69,10 +67,8 @@ const dds_topic_descriptor_t Keyed32_desc =
   4,
   Keyed32_ops,
   "<MetaData version=\"1.0.0\"><Struct name=\"Keyed32\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"24\"><Octet/></Array></Member></Struct></MetaData>",
-#ifdef DDS_HAS_TYPE_DISCOVERY
   { NULL, 0 },
   { NULL, 0 },
-#endif
 };
 
 
@@ -100,10 +96,8 @@ const dds_topic_descriptor_t Keyed64_desc =
   4,
   Keyed64_ops,
   "<MetaData version=\"1.0.0\"><Struct name=\"Keyed64\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"56\"><Octet/></Array></Member></Struct></MetaData>",
-#ifdef DDS_HAS_TYPE_DISCOVERY
   { NULL, 0 },
   { NULL, 0 },
-#endif
 };
 
 
@@ -131,10 +125,8 @@ const dds_topic_descriptor_t Keyed128_desc =
   4,
   Keyed128_ops,
   "<MetaData version=\"1.0.0\"><Struct name=\"Keyed128\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"120\"><Octet/></Array></Member></Struct></MetaData>",
-#ifdef DDS_HAS_TYPE_DISCOVERY
   { NULL, 0 },
   { NULL, 0 },
-#endif
 };
 
 
@@ -162,10 +154,8 @@ const dds_topic_descriptor_t Keyed256_desc =
   4,
   Keyed256_ops,
   "<MetaData version=\"1.0.0\"><Struct name=\"Keyed256\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"248\"><Octet/></Array></Member></Struct></MetaData>",
-#ifdef DDS_HAS_TYPE_DISCOVERY
   { NULL, 0 },
   { NULL, 0 },
-#endif
 };
 
 
@@ -193,8 +183,6 @@ const dds_topic_descriptor_t KeyedSeq_desc =
   4,
   KeyedSeq_ops,
   "<MetaData version=\"1.0.0\"><Struct name=\"KeyedSeq\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Sequence><Octet/></Sequence></Member></Struct></MetaData>",
-#ifdef DDS_HAS_TYPE_DISCOVERY
   { NULL, 0 },
   { NULL, 0 },
-#endif
 };

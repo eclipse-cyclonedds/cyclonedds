@@ -17,11 +17,12 @@ set(sources
   ../src/descriptor.c
   ../src/types.c
   test_common.c
-  descriptor.c
-  type_meta.c)
+  descriptor.c)
 
 if(ENABLE_TYPE_DISCOVERY)
-  list(APPEND sources ../src/descriptor_type_meta.c)
+  list(APPEND sources
+    ../src/descriptor_type_meta.c
+    type_meta.c)
 endif()
 
 add_cunit_executable(cunit_idlc ${sources})

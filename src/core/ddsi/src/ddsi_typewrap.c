@@ -779,6 +779,7 @@ int ddsi_xt_type_init (struct ddsi_domaingv *gv, struct xt_type *xt, const ddsi_
 
 static void DDS_XTypes_AppliedVerbatimAnnotation_copy (struct DDS_XTypes_AppliedVerbatimAnnotation *dst, const struct DDS_XTypes_AppliedVerbatimAnnotation *src)
 {
+  assert (dst);
   if (src)
   {
     ddsrt_strlcpy (dst->placement, src->placement, sizeof (dst->placement));

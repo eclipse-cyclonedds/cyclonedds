@@ -48,39 +48,40 @@ enum ddsi_type_state {
 struct ddsi_typeid_str {
   char str[50];
 };
-char *ddsi_make_typeid_str (struct ddsi_typeid_str *buf, const ddsi_typeid_t *type_id);
 
-bool ddsi_typeinfo_equal (const ddsi_typeinfo_t *a, const ddsi_typeinfo_t *b);
-ddsi_typeid_t *ddsi_typeinfo_typeid (ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind);
-ddsi_typeinfo_t *ddsi_typeinfo_deser (const struct ddsi_sertype_cdr_data *ser);
-void ddsi_typeinfo_fini (ddsi_typeinfo_t *typeinfo);
-ddsi_typeinfo_t * ddsi_typeinfo_dup (const ddsi_typeinfo_t *src);
-const ddsi_typeid_t *ddsi_typeinfo_minimal_typeid (const ddsi_typeinfo_t *typeinfo);
-const ddsi_typeid_t *ddsi_typeinfo_complete_typeid (const ddsi_typeinfo_t *typeinfo);
-uint32_t ddsi_typeinfo_get_dependent_typeids (const ddsi_typeinfo_t *type_info, const ddsi_typeid_t *** dep_ids, ddsi_typeid_kind_t kind);
+DDS_EXPORT char *ddsi_make_typeid_str (struct ddsi_typeid_str *buf, const ddsi_typeid_t *type_id);
 
-ddsi_typemap_t *ddsi_typemap_deser (const struct ddsi_sertype_cdr_data *ser);
+DDS_EXPORT bool ddsi_typeinfo_equal (const ddsi_typeinfo_t *a, const ddsi_typeinfo_t *b);
+DDS_EXPORT ddsi_typeid_t *ddsi_typeinfo_typeid (ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind);
+DDS_EXPORT ddsi_typeinfo_t *ddsi_typeinfo_deser (const struct ddsi_sertype_cdr_data *ser);
+DDS_EXPORT void ddsi_typeinfo_fini (ddsi_typeinfo_t *typeinfo);
+DDS_EXPORT ddsi_typeinfo_t * ddsi_typeinfo_dup (const ddsi_typeinfo_t *src);
+DDS_EXPORT const ddsi_typeid_t *ddsi_typeinfo_minimal_typeid (const ddsi_typeinfo_t *typeinfo);
+DDS_EXPORT const ddsi_typeid_t *ddsi_typeinfo_complete_typeid (const ddsi_typeinfo_t *typeinfo);
+DDS_EXPORT uint32_t ddsi_typeinfo_get_dependent_typeids (const ddsi_typeinfo_t *type_info, const ddsi_typeid_t *** dep_ids, ddsi_typeid_kind_t kind);
 
-struct ddsi_type * ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type);
-struct ddsi_type * ddsi_type_ref_id_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id);
-struct ddsi_type * ddsi_type_ref_local (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype, ddsi_typeid_kind_t kind);
-struct ddsi_type * ddsi_type_ref_proxy (struct ddsi_domaingv *gv, const ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind, const ddsi_guid_t *proxy_guid);
-const struct ddsi_sertype *ddsi_type_sertype (const struct ddsi_type *type);
-bool ddsi_type_has_typeobj (const struct ddsi_type *type);
-struct ddsi_typeobj *ddsi_type_get_typeobj (const struct ddsi_type *type);
-void ddsi_type_unreg_proxy (struct ddsi_domaingv *gv, struct ddsi_type *type, const ddsi_guid_t *proxy_guid);
-void ddsi_type_unref (struct ddsi_domaingv *gv, struct ddsi_type *type);
-void ddsi_type_unref_sertype (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype);
-void ddsi_type_unref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type);
+DDS_EXPORT ddsi_typemap_t *ddsi_typemap_deser (const struct ddsi_sertype_cdr_data *ser);
 
-bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type *type_a, const struct ddsi_type_pair *type_pair_b);
-const ddsi_typeid_t *ddsi_type_pair_minimal_id (const struct ddsi_type_pair *type_pair);
-const ddsi_typeid_t *ddsi_type_pair_complete_id (const struct ddsi_type_pair *type_pair);
-const struct ddsi_sertype *ddsi_type_pair_complete_sertype (const struct ddsi_type_pair *type_pair);
-struct ddsi_type_pair *ddsi_type_pair_init (const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id_complete);
-void ddsi_type_pair_free (struct ddsi_type_pair *type_pair);
-bool ddsi_type_pair_has_minimal_obj (const struct ddsi_type_pair *type_pair);
-bool ddsi_type_pair_has_complete_obj (const struct ddsi_type_pair *type_pair);
+DDS_EXPORT struct ddsi_type * ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type);
+DDS_EXPORT struct ddsi_type * ddsi_type_ref_id_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id);
+DDS_EXPORT struct ddsi_type * ddsi_type_ref_local (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype, ddsi_typeid_kind_t kind);
+DDS_EXPORT struct ddsi_type * ddsi_type_ref_proxy (struct ddsi_domaingv *gv, const ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind, const ddsi_guid_t *proxy_guid);
+DDS_EXPORT const struct ddsi_sertype *ddsi_type_sertype (const struct ddsi_type *type);
+DDS_EXPORT bool ddsi_type_has_typeobj (const struct ddsi_type *type);
+DDS_EXPORT struct ddsi_typeobj *ddsi_type_get_typeobj (const struct ddsi_type *type);
+DDS_EXPORT void ddsi_type_unreg_proxy (struct ddsi_domaingv *gv, struct ddsi_type *type, const ddsi_guid_t *proxy_guid);
+DDS_EXPORT void ddsi_type_unref (struct ddsi_domaingv *gv, struct ddsi_type *type);
+DDS_EXPORT void ddsi_type_unref_sertype (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype);
+DDS_EXPORT void ddsi_type_unref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type);
+
+DDS_EXPORT bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type *type_a, const struct ddsi_type_pair *type_pair_b);
+DDS_EXPORT const ddsi_typeid_t *ddsi_type_pair_minimal_id (const struct ddsi_type_pair *type_pair);
+DDS_EXPORT const ddsi_typeid_t *ddsi_type_pair_complete_id (const struct ddsi_type_pair *type_pair);
+DDS_EXPORT const struct ddsi_sertype *ddsi_type_pair_complete_sertype (const struct ddsi_type_pair *type_pair);
+DDS_EXPORT struct ddsi_type_pair *ddsi_type_pair_init (const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id_complete);
+DDS_EXPORT void ddsi_type_pair_free (struct ddsi_type_pair *type_pair);
+DDS_EXPORT bool ddsi_type_pair_has_minimal_obj (const struct ddsi_type_pair *type_pair);
+DDS_EXPORT bool ddsi_type_pair_has_complete_obj (const struct ddsi_type_pair *type_pair);
 
 
 /**
@@ -91,14 +92,14 @@ bool ddsi_type_pair_has_complete_obj (const struct ddsi_type_pair *type_pair);
  *   its lifetime is at lease the lifetime of the (proxy) endpoints
  *   that are referring to it.
  */
-struct ddsi_type * ddsi_type_lookup_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id);
+DDS_EXPORT struct ddsi_type * ddsi_type_lookup_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id);
 
 /**
  * For all proxy endpoints registered with the type lookup meta object that is
  * associated with the provided type, this function references the sertype
  * for these endpoints.
  */
-void ddsi_type_register_with_proxy_endpoints (struct ddsi_domaingv *gv, const struct ddsi_sertype *type);
+DDS_EXPORT void ddsi_type_register_with_proxy_endpoints (struct ddsi_domaingv *gv, const struct ddsi_sertype *type);
 
 /**
  * Gets a list of proxy endpoints that are registered for the provided type
@@ -107,12 +108,12 @@ void ddsi_type_register_with_proxy_endpoints (struct ddsi_domaingv *gv, const st
  * be updated if new entries are added. The return value is the number
  * of entries appended to the list.
  */
-uint32_t ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd);
+DDS_EXPORT uint32_t ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd);
 
 /**
  * Compares the provided type lookup meta objects.
  */
-int ddsi_type_compare (const struct ddsi_type *a, const struct ddsi_type *b);
+DDS_EXPORT int ddsi_type_compare (const struct ddsi_type *a, const struct ddsi_type *b);
 
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 

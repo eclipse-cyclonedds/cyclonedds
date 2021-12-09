@@ -121,6 +121,7 @@ add_to_seq (dds_sequence_t *seq, const void *obj, size_t sz)
   if (buf == NULL) {
     free (seq->_buffer);
     seq->_buffer = NULL;
+    seq->_release = false;
     return IDL_RETCODE_NO_MEMORY;
   }
   seq->_buffer = buf;
@@ -128,7 +129,7 @@ add_to_seq (dds_sequence_t *seq, const void *obj, size_t sz)
   seq->_maximum++;
   seq->_release = true;
   memcpy (seq->_buffer + (seq->_length - 1) * sz, obj, sz);
-  return 0;
+  return IDL_RETCODE_OK;
 }
 
 static bool
@@ -199,6 +200,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
   idl_retcode_t ret;
   assert (ti);
   assert (has_fully_descriptive_typeid (type_spec) || has_plain_collection_typeid_impl (type_spec, alias_related_type));
+  (void) alias_related_type;
 
   if (idl_is_array (type_spec)) {
     const idl_literal_t *literal = ((const idl_declarator_t *) type_spec)->const_expr;
@@ -542,13 +544,18 @@ get_builtin_member_ann(
   const idl_node_t *node,
   DDS_XTypes_AppliedBuiltinMemberAnnotations **ann_builtin)
 {
+  idl_retcode_t ret = IDL_RETCODE_OK;
   *ann_builtin = NULL;
   if (idl_is_member (node) || idl_is_case (node))
   {
     for (idl_annotation_appl_t *a = ((idl_node_t *) node)->annotations; a; a = idl_next (a)) {
       if (!strcmp (a->annotation->name->identifier, "hashid")) {
-        if (!*ann_builtin)
-          *ann_builtin = calloc (1, sizeof (**ann_builtin));
+        assert (*ann_builtin == NULL);
+        *ann_builtin = calloc (1, sizeof (**ann_builtin));
+        if (*ann_builtin == NULL) {
+          ret = IDL_RETCODE_NO_MEMORY;
+          goto err;
+        }
         if (a->parameters) {
           assert (idl_type(a->parameters->const_expr) == IDL_STRING);
           assert (idl_is_literal(a->parameters->const_expr));
@@ -556,15 +563,29 @@ get_builtin_member_ann(
         } else {
           (*ann_builtin)->hash_id = idl_strdup ("");
         }
+        if ((*ann_builtin)->hash_id == NULL) {
+          ret = IDL_RETCODE_NO_MEMORY;
+          goto err;
+        }
+        break;
       }
       // FIXME: implement unit, min, max
     }
   }
-
-  return 0;
+  return ret;
+err:
+  if (*ann_builtin) {
+    if ((*ann_builtin)->hash_id) {
+      free ((*ann_builtin)->hash_id);
+      (*ann_builtin)->hash_id = NULL;
+    }
+    free (*ann_builtin);
+    *ann_builtin = NULL;
+  }
+  return ret;
 }
 
-static idl_retcode_t
+static void
 get_builtin_type_ann(
   const idl_node_t *node,
   DDS_XTypes_AppliedBuiltinTypeAnnotations **ann_builtin)
@@ -572,10 +593,9 @@ get_builtin_type_ann(
   *ann_builtin = NULL;
   (void) node;
   // FIXME: verbatim annotation not supported
-  return 0;
 }
 
-static idl_retcode_t
+static void
 get_custom_ann(
   const idl_node_t *node,
   DDS_XTypes_AppliedAnnotationSeq **ann_custom)
@@ -583,7 +603,6 @@ get_custom_ann(
   *ann_custom = NULL;
   (void) node;
   // FIXME: custom annotations not supported
-  return 0;
 }
 
 static idl_retcode_t
@@ -598,7 +617,7 @@ get_complete_type_detail(
 
   get_builtin_type_ann (node, &detail->ann_builtin);
   get_custom_ann (node, &detail->ann_custom);
-  return 0;
+  return IDL_RETCODE_OK;
 }
 
 static idl_retcode_t
@@ -606,10 +625,12 @@ get_complete_member_detail(
   const idl_node_t *node,
   DDS_XTypes_CompleteMemberDetail *detail)
 {
+  idl_retcode_t ret = IDL_RETCODE_OK;
   idl_strlcpy (detail->name, idl_identifier (node), sizeof (detail->name));
-  get_builtin_member_ann (idl_parent (node), &detail->ann_builtin);
+  if ((ret = get_builtin_member_ann (idl_parent (node), &detail->ann_builtin)) != IDL_RETCODE_OK)
+    return ret;
   get_custom_ann (node, &detail->ann_custom);
-  return 0;
+  return ret;
 }
 
 
@@ -1180,7 +1201,7 @@ emit_bit_value (
   (void) revisit;
   (void) path;
 
-  idl_retcode_t ret;
+  idl_retcode_t ret = IDL_RETCODE_OK;
   struct descriptor_type_meta *dtm = (struct descriptor_type_meta *) user_data;
   struct type_meta *tm = dtm->stack;
 
@@ -1197,14 +1218,24 @@ emit_bit_value (
   m.common.position = c.common.position = bit_value->position.value;
   get_namehash (m.detail.name_hash, idl_identifier (bit_value));
   if ((ret = get_complete_member_detail (node, &c.detail)) < 0)
-    return ret;
+    goto err;
+  if ((ret = add_to_seq ((dds_sequence_t *) &tm->to_minimal->_u.minimal._u.bitmask_type.flag_seq, &m, sizeof (m))) != IDL_RETCODE_OK)
+    goto err;
+  if ((ret = add_to_seq ((dds_sequence_t *) &tm->to_complete->_u.complete._u.bitmask_type.flag_seq, &c, sizeof (c))) != IDL_RETCODE_OK)
+    goto err;
+  return ret;
 
-  if ((ret = add_to_seq ((dds_sequence_t *) &tm->to_minimal->_u.minimal._u.bitmask_type.flag_seq, &m, sizeof (m))) < 0)
-    return ret;
-  if ((ret = add_to_seq ((dds_sequence_t *) &tm->to_complete->_u.complete._u.bitmask_type.flag_seq, &c, sizeof (c))) < 0)
-    return ret;
-
-  return IDL_RETCODE_OK;
+err:
+  if (c.detail.ann_builtin != NULL) {
+    if (c.detail.ann_builtin->hash_id != NULL)
+      free (c.detail.ann_builtin->hash_id);
+    free (c.detail.ann_builtin);
+  }
+  if (tm->to_minimal->_u.minimal._u.bitmask_type.flag_seq._release)
+    free (tm->to_minimal->_u.minimal._u.bitmask_type.flag_seq._buffer);
+  if (tm->to_complete->_u.complete._u.bitmask_type.flag_seq._release)
+    free (tm->to_complete->_u.complete._u.bitmask_type.flag_seq._buffer);
+  return ret;
 }
 
 static idl_retcode_t

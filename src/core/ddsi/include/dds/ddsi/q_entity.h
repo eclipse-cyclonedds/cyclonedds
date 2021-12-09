@@ -198,8 +198,10 @@ struct nn_rdata;
 struct ddsi_tkmap_instance;
 
 typedef struct ddsi_type_pair {
+#ifdef DDS_HAS_TYPE_DISCOVERY
   struct ddsi_type *minimal;
   struct ddsi_type *complete;
+#endif
 } ddsi_type_pair_t;
 
 struct entity_common {

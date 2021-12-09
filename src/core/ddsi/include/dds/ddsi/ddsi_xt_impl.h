@@ -33,21 +33,21 @@ extern "C" {
 DDSI_LIST_TYPES_TMPL(ddsi_type_proxy_guid_list, ddsi_guid_t, NOARG, 32)
 #undef NOARG
 
-typedef struct ddsi_typeid {
+struct ddsi_typeid {
   struct DDS_XTypes_TypeIdentifier x;
-} ddsi_typeid_t;
+};
 
-typedef struct ddsi_typeobj {
+struct ddsi_typeobj {
   struct DDS_XTypes_TypeObject x;
-} ddsi_typeobj_t;
+};
 
-typedef struct ddsi_typeinfo {
+struct ddsi_typeinfo {
   struct DDS_XTypes_TypeInformation x;
-} ddsi_typeinfo_t;
+};
 
-typedef struct ddsi_typemap {
+struct ddsi_typemap {
   struct DDS_XTypes_TypeMapping x;
-} ddsi_typemap_t;
+};
 
 struct xt_applied_type_annotations {
   struct DDS_XTypes_AppliedBuiltinTypeAnnotations *ann_builtin;

@@ -72,7 +72,6 @@ typedef void ddsi_typeid_t;
 typedef int ddsi_typeid_kind_t;
 typedef void ddsi_typemap_t;
 typedef void ddsi_typeinfo_t;
-typedef void ddsi_type_pair_t;
 
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 

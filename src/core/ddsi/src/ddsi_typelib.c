@@ -362,6 +362,8 @@ struct ddsi_type * ddsi_type_ref_id_locked_impl (struct ddsi_domaingv *gv, const
   struct ddsi_type *type = ddsi_type_lookup_locked_impl (gv, type_id);
   if (!type)
     type = ddsi_type_new (gv, type_id, NULL);
+  if (!type)
+    return NULL;
   type->refc++;
   GVTRACE (" refc %"PRIu32"\n", type->refc);
   return type;
@@ -467,7 +469,7 @@ const struct ddsi_sertype *ddsi_type_sertype (const struct ddsi_type *type)
 bool ddsi_type_has_typeobj (const struct ddsi_type *type)
 {
   if (type == NULL)
-    return NULL;
+    return false;
   return type->xt.has_obj;
 }
 
@@ -712,7 +714,7 @@ bool ddsi_type_pair_has_minimal_obj (const struct ddsi_type_pair *type_pair)
 bool ddsi_type_pair_has_complete_obj (const struct ddsi_type_pair *type_pair)
 {
   if (type_pair == NULL || type_pair->complete == NULL)
-    return NULL;
+    return false;
   return type_pair->complete->xt.has_obj;
 }
 

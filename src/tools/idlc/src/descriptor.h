@@ -30,7 +30,7 @@ struct instruction {
   enum {
     OPCODE,
     OFFSET,                 /* offsetof(type, member) */
-    SIZE,
+    MEMBER_SIZE,
     CONSTANT,
     COUPLE,
     SINGLE,
