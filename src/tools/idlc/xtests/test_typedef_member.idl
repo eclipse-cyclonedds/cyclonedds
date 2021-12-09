@@ -14,10 +14,13 @@
 
 module test_module
 {
+    typedef unsigned short td_short;
+
     @nested @final
     struct inner
     {
-        long i1;
+      long i1;
+      td_short i2;
     };
     typedef inner inner_t;
 
@@ -55,13 +58,18 @@ void init_sample (void *s)
 {
   test_module_test_typedef_member *s1 = (test_module_test_typedef_member *) s;
   s1->t1.s1.i1 = 123;
+  s1->t1.s1.i2 = 321;
   SEQA(s1->t1.s2, 2);
   s1->t1.s2._buffer[0].i1 = 345;
+  s1->t1.s2._buffer[0].i2 = 543;
   s1->t1.s2._buffer[1].i1 = 567;
+  s1->t1.s2._buffer[1].i2 = 765;
   s1->t2._d = 2;
   SEQA(s1->t2._u.u2, 2);
   s1->t2._u.u2._buffer[0].i1 = 678;
+  s1->t2._u.u2._buffer[0].i2 = 876;
   s1->t2._u.u2._buffer[1].i1 = 789;
+  s1->t2._u.u2._buffer[1].i2 = 987;
 }
 
 int cmp_sample (const void *sa, const void *sb)
@@ -69,11 +77,16 @@ int cmp_sample (const void *sa, const void *sb)
   test_module_test_typedef_member *a = (test_module_test_typedef_member *) sa;
   test_module_test_typedef_member *b = (test_module_test_typedef_member *) sb;
   CMP(a, b, t1.s1.i1, 123);
+  CMP(a, b, t1.s1.i2, 321);
   CMP(a, b, t1.s2._buffer[0].i1, 345);
+  CMP(a, b, t1.s2._buffer[0].i2, 543);
   CMP(a, b, t1.s2._buffer[1].i1, 567);
+  CMP(a, b, t1.s2._buffer[1].i2, 765);
   CMP(a, b, t2._d, 2);
   CMP(a, b, t2._u.u2._buffer[0].i1, 678);
+  CMP(a, b, t2._u.u2._buffer[0].i2, 876);
   CMP(a, b, t2._u.u2._buffer[1].i1, 789);
+  CMP(a, b, t2._u.u2._buffer[1].i2, 987);
   return 0;
 }
 

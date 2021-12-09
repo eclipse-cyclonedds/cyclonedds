@@ -26,7 +26,7 @@ union union_test switch (short) {
 
 #include <string.h>
 #include "dds/dds.h"
-#include "test_union_recursive.h"
+#include "test_union_r.h"
 #include "common.h"
 
 const dds_topic_descriptor_t *desc = &union_test_desc;

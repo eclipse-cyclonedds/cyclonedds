@@ -43,7 +43,9 @@ if(_c_compiler MATCHES "cl\\.exe$")
     set(_lib_path "${_lib_path} /LIBPATH:\"${_path}\"")
   endforeach()
   set(_lib "ddsc.lib")
-  set(_dbg "/Zi")
+  set(_fdbg "/Zi")
+  set(_fwarn "/W3")
+  set(_fwerr "/WX")
 else()
   set(ENV{C_INCLUDE_PATH} "${_include_paths}")
   set(ENV{LD_LIBRARY_PATH} "$ENV{LD_LIBRARY_PATH}:$ENV{CDDS_LIB_PATH}")
@@ -52,6 +54,8 @@ else()
   set(_lib_path "")
   set(_lib "-lddsc")
   set(_fdbg "-g")
+  set(_fwarn "-Wall")
+  set(_fwerr "-Werror")
   if(APPLE)
     set(_fsysroot "-isysroot$ENV{OSX_SYSROOT}") # no space after isysroot because option in placed in quotes
   endif()
@@ -94,18 +98,28 @@ foreach(_source ${_sources})
   configure_file(${_source} ${_type})
 
   # idl compile the idl file
+
+  # FIXME: temporary disable leak checking for tests with recursive types
+  if (${_source} MATCHES ".*_r\.idl")
+    set(ENV{ASAN_OPTIONS} "detect_leaks=0")
+  endif()
+
   execute_process(
-    COMMAND ${_idl_compiler} ${_source}
+    COMMAND ${_idl_compiler} ${_source} "-t"   # FIXME: generating type meta-data disabled because recursive types are not supported yet
     COMMAND_ECHO STDOUT
     WORKING_DIRECTORY ${_base_dir}
     RESULT_VARIABLE _result)
   if(NOT _result EQUAL "0")
     message(FATAL_ERROR "Cannot transpile ${_source} to source code")
   endif()
+  # FIXME: re-enable leak checking
+  if (${_source} MATCHES ".*_r\.idl")
+    set(ENV{ASAN_OPTIONS} "detect_leaks=1")
+  endif()
 
   # compile and link c files
   execute_process(
-    COMMAND ${_c_compiler} ${_fdbg} ${_fnofp} ${_fsan} ${_fsysroot} ${_output_flag}${_base} ${_main} ${_type} ${_c} ${_lib} ${_lib_path}
+    COMMAND ${_c_compiler} ${_fdbg} ${_fwarn} ${_fwerr} ${_fnofp} ${_fsan} ${_fsysroot} ${_output_flag}${_base} ${_main} ${_type} ${_c} ${_lib} ${_lib_path}
     COMMAND_ECHO STDOUT
     WORKING_DIRECTORY ${_base_dir}
     RESULT_VARIABLE _result)

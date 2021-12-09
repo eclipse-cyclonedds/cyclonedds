@@ -22,9 +22,9 @@ set(_sources
   test_union_external.idl
   test_optional.idl
   test_optional_mutable.idl
-#  test_struct_recursive.idl
-#  test_union_member_types.idl
-#  test_union_recursive.idl
+  test_struct_r.idl
+  test_union_member_types_r.idl
+  test_union_r.idl
 )
 
 set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/ddsc/include")

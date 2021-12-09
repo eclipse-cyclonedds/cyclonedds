@@ -24,7 +24,7 @@ struct struct_test {
 
 #include <string.h>
 #include "dds/dds.h"
-#include "test_struct_recursive.h"
+#include "test_struct_r.h"
 #include "common.h"
 
 const dds_topic_descriptor_t *desc = &struct_test_desc;
