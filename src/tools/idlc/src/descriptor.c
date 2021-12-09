@@ -1827,7 +1827,6 @@ static idl_retcode_t get_ctype_keys_adr(
   uint32_t *n_keys,
   struct constructed_type_key **ctype_keys)
 {
-  uint32_t typecode;
   idl_retcode_t ret;
 
   struct constructed_type_key *key = calloc (1, sizeof(*key));
@@ -1862,47 +1861,55 @@ static idl_retcode_t get_ctype_keys_adr(
       assert(offs + 2 < ctype->instructions.count);
       assert(ctype->instructions.table[offs + 2].type == SINGLE);
       key->dims = ctype->instructions.table[offs + 2].data.single;
-      typecode = DDS_OP_SUBTYPE(inst->data.opcode.code);
+      switch (DDS_OP_SUBTYPE(inst->data.opcode.code)) {
+        case DDS_OP_VAL_1BY: key->size = key->align = 1; break;
+        case DDS_OP_VAL_2BY: key->size = key->align = 2; break;
+        case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
+        case DDS_OP_VAL_8BY: key->size = key->align = 8; break;
+        case DDS_OP_VAL_BST: case DDS_OP_VAL_STR:
+          idl_error (pstate, ctype->node, "Using array with string element type as part of the key is currently unsupported");
+          return IDL_RETCODE_UNSUPPORTED;
+        case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ:
+          idl_error (pstate, ctype->node, "Using array with collection element type as part of the key is currently unsupported");
+          return IDL_RETCODE_UNSUPPORTED;
+        case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
+          idl_error (pstate, ctype->node, "Using array with aggregated element type as part of the key is currently unsupported");
+          return IDL_RETCODE_UNSUPPORTED;
+        case DDS_OP_VAL_EXT: case DDS_OP_VAL_ENU:
+          abort();
+          break;
+      }
     } else {
       key->dims = 1;
-      typecode = DDS_OP_TYPE(inst->data.opcode.code);
-    }
-
-    switch (typecode) {
-      case DDS_OP_VAL_1BY: key->size = key->align = 1; break;
-      case DDS_OP_VAL_2BY: key->size = key->align = 2; break;
-      case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
-      case DDS_OP_VAL_8BY: key->size = key->align = 8; break;
-      case DDS_OP_VAL_BST: {
-        if (is_array)
-          idl_error (pstate, ctype->node, "Using array with string element type as part of the key is currently unsupported");
-        assert(offs + 2 < ctype->instructions.count);
-        assert(ctype->instructions.table[offs + 2].type == SINGLE);
-        /* string size if stored as bound + 1 */
-        uint32_t str_sz = ctype->instructions.table[offs + 2].data.single;
-        /* use align and add size for 4 byte string-length field */
-        key->align = 4;
-        key->size = 4 + str_sz;
-        break;
-      }
-      case DDS_OP_VAL_ARR:
-      case DDS_OP_VAL_STR:
-      case DDS_OP_VAL_EXT:
-        if (is_array) {
-          idl_error (pstate, ctype->node, "Using array with non-primitive element type as part of the key is currently unsupported");
-          return IDL_RETCODE_UNSUPPORTED;
-        } else {
+      switch (DDS_OP_TYPE(inst->data.opcode.code)) {
+        case DDS_OP_VAL_1BY: key->size = key->align = 1; break;
+        case DDS_OP_VAL_2BY: key->size = key->align = 2; break;
+        case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
+        case DDS_OP_VAL_8BY: key->size = key->align = 8; break;
+        case DDS_OP_VAL_BST: {
+          assert(offs + 2 < ctype->instructions.count);
+          assert(ctype->instructions.table[offs + 2].type == SINGLE);
+          /* string size if stored as bound + 1 */
+          uint32_t str_sz = ctype->instructions.table[offs + 2].data.single;
+          /* use align and add size for 4 byte string-length field */
+          key->align = 4;
+          key->size = 4 + str_sz;
+          break;
+        }
+        case DDS_OP_VAL_ARR: case DDS_OP_VAL_STR: case DDS_OP_VAL_EXT:
           key->size = DDS_FIXED_KEY_MAX_SIZE + 1;
           key->align = 1;
-        }
-        break;
-      case DDS_OP_VAL_UNI:
-      case DDS_OP_VAL_SEQ:
-        idl_error (pstate, ctype->node, "Using sequence or union type as part of the key is currently unsupported");
-        return IDL_RETCODE_UNSUPPORTED;
-      case DDS_OP_VAL_STU:
-        abort();
-        break;
+          break;
+        case DDS_OP_VAL_UNI:
+          idl_error (pstate, ctype->node, "Using union type as part of the key is currently unsupported");
+          return IDL_RETCODE_UNSUPPORTED;
+        case DDS_OP_VAL_SEQ:
+          idl_error (pstate, ctype->node, "Using sequence type as part of the key is currently unsupported");
+          return IDL_RETCODE_UNSUPPORTED;
+        case DDS_OP_VAL_STU: case DDS_OP_VAL_ENU:
+          abort();
+          break;
+      }
     }
     (*n_keys)++;
   }

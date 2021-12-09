@@ -203,8 +203,11 @@ CU_Test(idlc_descriptor, key_valid_types)
     { true, "enum e { E1, E2 }; @topic struct test { @key e a; @key e b[3]; }; " },
     { true, "bitmask bm { BM1, BM2 }; @topic struct test { @key bm a; @key bm b[3]; }; " },
     { false, "@topic struct test { @key string a; @key string<5> b; @key string c[3]; }; " },
+    { false, "@topic struct test { @key string<5> a[2]; }; " },
     { false, "@topic struct test { @key sequence<long> a; }; " },
+    { false, "@topic struct test { @key sequence<long> a[2]; }; " },
     { true, "@nested struct sub { long a; long b; }; @topic struct test { @key sub a; }; " },
+    { false, "@nested struct sub { long a; }; @topic struct test { @key sub a[2]; }; " },
     { true, "@nested struct sub { @key long a; long b; }; @topic struct test { @key sub a; }; " },
     { false, "@nested struct sub { long a; sequence<long> b; }; @topic struct test { @key sub a; }; " },
     { false, "@nested union u switch(long) { case 1: long a; }; @topic struct test { @key u a; }; " }
