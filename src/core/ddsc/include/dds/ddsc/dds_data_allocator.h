@@ -13,7 +13,11 @@
 #ifndef DDS_DATA_ALLOCATOR_H
 #define DDS_DATA_ALLOCATOR_H
 
-/* A quick-and-dirty provisional interface */
+/**
+ * @defgroup data_allocator (Data Allocator)
+ * @ingroup dds
+ * A quick-and-dirty provisional interface
+ */
 
 #include "dds/dds.h"
 #include "dds/ddsrt/attributes.h"
@@ -27,16 +31,23 @@ extern "C" {
 // to make this system-dependent
 #define DDS_DATA_ALLOCATOR_MAX_SIZE (12 * sizeof (void *))
 
+/**
+ * @ingroup data_allocator
+ * @brief Data Allocator structure
+ * Contains internal details about the data allocator for a given entity
+ */
 typedef struct dds_data_allocator {
-  dds_entity_t entity;
+  dds_entity_t entity;  /**< to which entity this allocator is attached */
   union {
-    unsigned char bytes[DDS_DATA_ALLOCATOR_MAX_SIZE];
-    void *align_ptr;
-    uint64_t align_u64;
-  } opaque;
+    unsigned char bytes[DDS_DATA_ALLOCATOR_MAX_SIZE]; /**< internal details */
+    void *align_ptr; /**< internal details */
+    uint64_t align_u64; /**< internal details */
+  } opaque; /**< internal details */
 } dds_data_allocator_t;
 
-/** @brief Initialize an object for performing allocations/frees in the context of a reader/writer
+/**
+ * @ingroup data_allocator
+ * @brief Initialize an object for performing allocations/frees in the context of a reader/writer
  *
  * The operation will fall back to standard heap allocation if nothing better is available.
  *
@@ -56,7 +67,9 @@ typedef struct dds_data_allocator {
  */
 DDS_EXPORT dds_return_t dds_data_allocator_init (dds_entity_t entity, dds_data_allocator_t *data_allocator);
 
-/** @brief Initialize an object for performing standard allocations/frees on the heap
+/**
+ * @ingroup data_allocator
+ * @brief Initialize an object for performing standard allocations/frees on the heap
  *
  * @param[out] data_allocator opaque allocator object to initialize
  *
@@ -73,7 +86,9 @@ DDS_EXPORT dds_return_t dds_data_allocator_init (dds_entity_t entity, dds_data_a
  */
 DDS_EXPORT dds_return_t dds_data_allocator_init_heap (dds_data_allocator_t *data_allocator);
 
-/** @brief Finalize a previously initialized allocator object
+/**
+ * @ingroup data_allocator
+ * @brief Finalize a previously initialized allocator object
  *
  * @param[in,out] data_allocator object to finalize
  *
@@ -88,7 +103,9 @@ DDS_EXPORT dds_return_t dds_data_allocator_init_heap (dds_data_allocator_t *data
  */
 DDS_EXPORT dds_return_t dds_data_allocator_fini (dds_data_allocator_t *data_allocator);
 
-/** @brief Allocate memory using the given allocator
+/**
+ * @ingroup data_allocator
+ * @brief Allocate memory using the given allocator
  *
  * @param[in,out] data_allocator  initialized allocator object
  * @param[in] size minimum number of bytes to allocate with suitable alignment
@@ -98,7 +115,9 @@ DDS_EXPORT dds_return_t dds_data_allocator_fini (dds_data_allocator_t *data_allo
 DDS_EXPORT void *dds_data_allocator_alloc (dds_data_allocator_t *data_allocator, size_t size)
   ddsrt_attribute_warn_unused_result ddsrt_attribute_malloc;
 
-/** @brief Release memory using the given allocator
+/**
+ * @ingroup data_allocator
+ * @brief Release memory using the given allocator
  *
  * @param[in,out] data_allocator  initialized allocator object
  * @param[in] ptr memory to free
@@ -114,13 +133,15 @@ DDS_EXPORT void *dds_data_allocator_alloc (dds_data_allocator_t *data_allocator,
  */
 DDS_EXPORT dds_return_t dds_data_allocator_free (dds_data_allocator_t *data_allocator, void *ptr);
 
-/// @note This function declaration is depecated here and has been moved to
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+/// @note This function declaration is deprecated here and has been moved to
 /// dds_loan_api.h.
 DDS_EXPORT bool dds_is_loan_available(const dds_entity_t entity);
 
-/// @note This function declaration is depecated here and has been moved to
+/// @note This function declaration is deprecated here and has been moved to
 /// dds_loan_api.h.
 DDS_EXPORT bool is_loan_available(const dds_entity_t entity);
+#endif
 
 #if defined (__cplusplus)
 }

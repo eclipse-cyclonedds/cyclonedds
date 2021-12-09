@@ -249,19 +249,21 @@ If the choice to use shared memory exchange is made, additional performance gain
 The loan mechanism directly allocates memory from the iceoryx shared memory pool, and provides this to the user in the shape of the message data type.
 Thereby eliminating a copy step in the publication process.
 
-.. code-block:: C
+.. highlight:: c
 
-  message_type *loaned_sample;
-  dds_return_t status = dds_loan_sample(writer, (void**)&loaned_sample);
+.. code-block:: c
 
-If *status* returns **DDS_RETCODE_OK**, then *loaned_sample* will contain a pointer to the memory pool object, in all other cases, *loaned_sample* should not be dereferenced.
+  struct message_type *loaned_sample;
+  dds_return_t status = dds_loan_sample (writer, (void**)&loaned_sample);
+
+If *status* returns :c:macro:`DDS_RETCODE_OK`, then *loaned_sample* will contain a pointer to the memory pool object, in all other cases, *loaned_sample* should not be dereferenced.
 For requesting loaned samples, the writer used to request the loaned sample should be of the same data type as the sample that you are writing in it, since necessary information about the data type is supplied by the writer.
 
-The user is limited in this case by the maximum number of outstanding loans, defined by **MAX_PUB_LOANS** (default set to 8). This is the maximum number of loaned samples that each publisher can have outstanding from the shared memory, before some must be returned (handed back to the publisher through *dds_write*) before requesting new loaned samples.
+The user is limited in this case by the maximum number of outstanding loans, defined by **MAX_PUB_LOANS** (default set to 8). This is the maximum number of loaned samples that each publisher can have outstanding from the shared memory, before some must be returned (handed back to the publisher through :c:func:`dds_write()`) before requesting new loaned samples.
 
-After a loaned sample has been returned to the shared memory pool (at the moment, this can only be done by invoking *dds_write*), dereferencing the pointer is undefined behaviour.
+After a loaned sample has been returned to the shared memory pool (at the moment, this can only be done by invoking :c:func:`dds_write()`), dereferencing the pointer is undefined behaviour.
 
-If the user is not able to use the loan mechanism, a *dds_write* will still write to the shared memory service if Cyclone DDS is configured to use shared memory. Though in this case, the overhead of an additional copy step in publication is incurred, since a block for publishing to the shared memory will be requested and the data of the published sample copied into it.
+If the user is not able to use the loan mechanism, a :c:func:`dds_write()` will still write to the shared memory service if Cyclone DDS is configured to use shared memory. Though in this case, the overhead of an additional copy step in publication is incurred, since a block for publishing to the shared memory will be requested and the data of the published sample copied into it.
 
 Developer Hints
 ---------------
