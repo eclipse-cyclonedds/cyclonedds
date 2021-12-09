@@ -18,31 +18,9 @@
 #include "idl/string.h"
 #include "descriptor.h"
 #include "plugin.h"
+#include "test_common.h"
 
 #include "CUnit/Theory.h"
-
-static idl_retcode_t generate_test_descriptor (idl_pstate_t *pstate, const char *idl, struct descriptor *descriptor)
-{
-  idl_retcode_t ret = idl_parse_string(pstate, idl);
-  CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
-  assert (ret == IDL_RETCODE_OK);
-
-  bool topic_found = false;
-  for (idl_node_t *node = pstate->root; node; node = idl_next (node))
-  {
-    if (idl_is_topic (node, (pstate->flags & IDL_FLAG_KEYLIST)))
-    {
-      ret = generate_descriptor_impl(pstate, node, descriptor);
-      CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
-      topic_found = true;
-      break;
-    }
-  }
-  CU_ASSERT_FATAL (topic_found);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (descriptor);
-  assert (descriptor); /* static analyzer */
-  return ret;
-}
 
 #define TEST_MAX_KEYS 10
 #define TEST_MAX_KEY_OFFS 10
