@@ -1,7 +1,7 @@
 
 # Asynchronous write
 
-`Asynchronous Write` is a feature where the actual sending of the data packets occurs on a different thread, than the thread where the `dds_write()` function is invoked. By default when application writes data using a DDS data writer, the entire write operation involving the steps from serialization to writing the actual data packets on to the socket happen synchronously in the same thread, which is called `Synchronous Write`. Applications can enable `Asynchronous Write` mode where the `dds_write()` call will only copy the data to the writer history cache and queues the data, but the actual transmission of the data happens asynchronously in a separate thread.
+`Asynchronous Write` is a feature where the actual sending of the data packets occurs on a different thread, than the thread where the `dds_write()` function is invoked. By default when application writes data using a DDS data writer, the entire write operation involving the steps from serialization to writing the actual data packets on to the socket happen synchronously in the same thread, which is called `Synchronous Write`. Applications can enable `Asynchronous Write` mode where the dds_write() call will only copy the data to the writer history cache and queues the data, but the actual transmission of the data happens asynchronously in a separate thread.
 
 ### Asynchronous write behavior
 

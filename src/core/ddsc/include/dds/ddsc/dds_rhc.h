@@ -15,6 +15,8 @@
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_rhc.h"
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS /** DOC_TODO we should document the rhc */
+
 #define NO_STATE_MASK_SET   (DDS_ANY_STATE + 1)
 
 #if defined (__cplusplus)
@@ -102,5 +104,6 @@ DDS_EXPORT void dds_reader_data_available_cb (struct dds_reader *rd);
 
 #if defined (__cplusplus)
 }
+#endif
 #endif
 #endif

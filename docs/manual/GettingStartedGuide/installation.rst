@@ -112,11 +112,11 @@ and the HelloworldPublisher in the other console window by typing:
 
 The output HelloworldPublisher should look like
 
-.. image:: ../_static/pictures/HelloworldPublisherWindows.png
+.. image:: ../_static/pictures/HelloWorldPublisher.png
 
 while the HelloworldSubscriber will be looking like this
 
-.. image:: ../_static/pictures/HelloworldSubscriberWindows.png
+.. image:: ../_static/pictures/HelloWorldSubscriber.png
 
 For more information on how to build this application your own and the code which has
 been used, please have a look at the :ref:`Hello World! <HelloWorld>` chapter.

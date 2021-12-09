@@ -124,21 +124,3 @@ endif()
 if(BUILD_TESTING AND BUILD_IDLC)
   add_subdirectory(xtests)
 endif()
-
-if(BUILD_DOCS)
-  set(DOXYGEN_GENERATE_HTML NO)
-  set(DOXYGEN_GENERATE_XML YES)
-  set(DOXYGEN_STRIP_FROM_PATH "ddsc/include/dds/")
-  set(DOXYGEN_EXCLUDE_PATTERNS "*/tests/*")
-  set(DOXYGEN_MACRO_EXPANSION YES)
-  set(DOXYGEN_PREDEFINED
-    "__restrict="
-    "__attribute__="
-    "__declspec(x)="
-    "DDS_EXPORT="
-    "DDS_INLINE_EXPORT="
-    "DDS_DEPRECATED_EXPORT="
-    "DDSRT_STATIC_ASSERT(x)=")
-  find_package(Doxygen REQUIRED)
-  doxygen_add_docs(ddsc_api_docs "ddsc/include/dds/")
-endif()

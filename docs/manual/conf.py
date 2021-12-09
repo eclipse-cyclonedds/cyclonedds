@@ -17,7 +17,6 @@ release = '@PROJECT_VERSION@'
 
 extensions = [
     'breathe',
-    "exhale",
     'sphinx.ext.intersphinx',
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary"
@@ -31,31 +30,26 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # -- Options for HTML output -------------------------------------------------
 
 try:
-    import sphinx_rtd_theme
-    extensions.append('sphinx_rtd_theme')
-    html_theme = 'sphinx_rtd_theme'
+    import piccolo_theme
+    extensions.append('piccolo_theme')
+    html_theme = 'piccolo_theme'
 except ImportError:
     import warnings
-    warnings.warn("The Sphinx rtd theme is not installed. Falling back to alabaster.")
+    warnings.warn("piccolo_theme is not installed. Falling back to alabaster.")
     html_theme = 'alabaster'
 
 
 html_static_path = ['_static']
+html_css_files = ['/_static/style.css']
 
 autosummary_generate=True
-# Setup the exhale extension
-exhale_args = {
-    "containmentFolder":     str(Path("@_sourcedir@/ddsc_api_docs").resolve()),
-    "rootFileName":          "library_root.rst",
-    "rootFileTitle":         "Raw C API",
-    "fullToctreeMaxDepth":   1,
-    "createTreeView":        True,
-    "exhaleExecutesDoxygen": False,
-    "doxygenStripFromPath":  ".",
-}
 
 # Tell sphinx what the primary language being documented is.
 primary_domain = 'c'
 
 # Tell sphinx what the pygments highlight language should be.
 highlight_language = 'c'
+
+breathe_domain_by_extension = { "h" : "c" , "c" : "c"}
+breathe_show_define_initializer = True
+breathe_show_include = True

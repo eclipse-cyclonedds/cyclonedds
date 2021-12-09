@@ -25,7 +25,8 @@ typedef int32_t dds_return_t;
 */
 
 /**
- * @name DDS_Error_Type
+ * @defgroup retcode (Return Codes)
+ * @ingroup dds
  * @{
  */
 #define DDS_RETCODE_OK                   (0) /**< Success */
@@ -46,8 +47,8 @@ typedef int32_t dds_return_t;
 
 /* Extended return codes are not in the DDS specification and are meant
    exclusively for internal use and must not be returned by the C API. */
-#define DDS_XRETCODE_BASE (-50)
-#define DDS_XRETCODE(x) (DDS_XRETCODE_BASE - (x))
+#define DDS_XRETCODE_BASE (-50) /**< Base offset for extended return codes */
+#define DDS_XRETCODE(x) (DDS_XRETCODE_BASE - (x)) /**< Extended return code generator */
 
 /** Requested resource is busy */
 #define DDS_RETCODE_IN_PROGRESS         DDS_XRETCODE(1)
@@ -77,9 +78,7 @@ typedef int32_t dds_return_t;
 #define DDS_RETCODE_OUT_OF_RANGE        DDS_XRETCODE(9)
 /** Not found */
 #define DDS_RETCODE_NOT_FOUND           DDS_XRETCODE(10)
-/**
- * @}
- */
+
 
 /**
  * @brief Takes the error value and outputs a string corresponding to it.
@@ -89,7 +88,9 @@ typedef int32_t dds_return_t;
  * @returns  String corresponding to the error value
  */
 DDS_EXPORT const char *dds_strretcode(dds_return_t ret);
-
+/**
+ * @}
+ */
 #if defined (__cplusplus)
 }
 #endif

@@ -367,7 +367,6 @@ function(sphinx_add_docs _target)
   set(_cachedir "${CMAKE_CURRENT_BINARY_DIR}/${_target}.cache")
   file(MAKE_DIRECTORY "${_cachedir}")
   file(COPY "${_sourcedir}/_static" DESTINATION "${_cachedir}")
-  file(COPY "${_sourcedir}/_templates" DESTINATION "${_cachedir}")
 
   if(EXISTS "${_sourcedir}/conf.py")
     configure_file("${_sourcedir}/conf.py" "${_cachedir}/conf.py" @ONLY)

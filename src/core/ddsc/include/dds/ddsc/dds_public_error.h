@@ -29,6 +29,7 @@ extern "C" {
 #endif
 
 /* ** DEPRECATED ** */
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 /* Error masks for returned status values */
 
@@ -46,6 +47,8 @@ extern "C" {
 
 /** Macro to extract file identifier */
 #define dds_err_file_id(e) (0)
+
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 #if defined (__cplusplus)
 }

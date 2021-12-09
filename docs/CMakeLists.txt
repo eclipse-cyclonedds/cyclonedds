@@ -11,7 +11,7 @@
 #
 
 if(BUILD_DOCS)
-  find_package(Sphinx REQUIRED breathe exhale)
+  find_package(Sphinx REQUIRED breathe)
   sphinx_add_docs(
     docs
     BREATHE_PROJECTS ddsc_api_docs
