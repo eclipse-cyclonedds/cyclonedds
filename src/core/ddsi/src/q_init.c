@@ -1641,34 +1641,6 @@ int rtps_init (struct ddsi_domaingv *gv)
     gv->pcap_fp = NULL;
   }
 
-  gv->mship = new_group_membership();
-
-  /* Create transmit connections */
-  for (size_t i = 0; i < MAX_XMIT_CONNS; i++)
-    gv->xmit_conns[i] = NULL;
-  if (gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST)
-    gv->xmit_conns[0] = gv->data_conn_uc;
-  else
-  {
-    dds_return_t rc;
-    for (int i = 0; i < gv->n_interfaces; i++)
-    {
-      const ddsi_tran_qos_t qos = {
-        .m_purpose = (gv->config.allowMulticast ? DDSI_TRAN_QOS_XMIT_MC : DDSI_TRAN_QOS_XMIT_UC),
-        .m_diffserv = 0,
-        .m_interface = &gv->interfaces[i]
-      };
-      // FIXME: looking up the factory here is a hack to support iceoryx in addition to (e.g.) UDP
-      ddsi_tran_factory_t fact = ddsi_factory_find_supported_kind (gv, gv->interfaces[i].loc.kind);
-      rc = ddsi_factory_create_conn (&gv->xmit_conns[i], fact, 0, &qos);
-      if (rc != DDS_RETCODE_OK)
-        goto err_mc_conn;
-      GVLOG (DDS_LC_CONFIG, "interface %s: transmit port %d\n", gv->interfaces[i].name, (int) ddsi_conn_port (gv->xmit_conns[i]));
-      gv->intf_xlocators[i].conn = gv->xmit_conns[i];
-      gv->intf_xlocators[i].c = gv->interfaces[i].loc;
-    }
-  }
-
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   /* Convert address sets in partition mappings from string to address sets now that we have
      xmit_conns filled in */
@@ -1676,6 +1648,7 @@ int rtps_init (struct ddsi_domaingv *gv)
     goto err_network_partition_addrset;
 #endif
 
+  gv->mship = new_group_membership();
   if (gv->m_factory->m_connless)
   {
     if (!(gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST && gv->config.allowMulticast))
@@ -1690,6 +1663,9 @@ int rtps_init (struct ddsi_domaingv *gv)
       {
         gv->data_conn_uc = gv->data_conn_mc;
         gv->disc_conn_uc = gv->disc_conn_mc;
+        // FIXME: uc locators get set by make_uc_sockets for all cases but MSM_NO_UNICAST but we need them
+        ddsi_conn_locator (gv->disc_conn_uc, &gv->loc_meta_uc);
+        ddsi_conn_locator (gv->data_conn_uc, &gv->loc_default_uc);
       }
 
       /* Set multicast locators */
@@ -1699,9 +1675,6 @@ int rtps_init (struct ddsi_domaingv *gv)
         gv->loc_meta_mc.port = ddsi_conn_port (gv->disc_conn_mc);
       if (!is_unspec_locator(&gv->loc_default_mc))
         gv->loc_default_mc.port = ddsi_conn_port (gv->data_conn_mc);
-
-      if (joinleave_spdp_defmcip (gv, 1) < 0)
-        goto err_mc_conn;
     }
   }
   else
@@ -1732,6 +1705,44 @@ int rtps_init (struct ddsi_domaingv *gv)
       ddsi_listener_locator (gv->listener, &gv->loc_meta_uc);
       ddsi_listener_locator (gv->listener, &gv->loc_default_uc);
     }
+  }
+
+  /* Create transmit connections */
+  for (size_t i = 0; i < MAX_XMIT_CONNS; i++)
+    gv->xmit_conns[i] = NULL;
+  if (gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST)
+  {
+    gv->xmit_conns[0] = gv->data_conn_uc;
+  }
+  else
+  {
+    dds_return_t rc;
+    for (int i = 0; i < gv->n_interfaces; i++)
+    {
+      const ddsi_tran_qos_t qos = {
+        .m_purpose = (gv->config.allowMulticast ? DDSI_TRAN_QOS_XMIT_MC : DDSI_TRAN_QOS_XMIT_UC),
+        .m_diffserv = 0,
+        .m_interface = &gv->interfaces[i]
+      };
+      // FIXME: looking up the factory here is a hack to support iceoryx in addition to (e.g.) UDP
+      ddsi_tran_factory_t fact = ddsi_factory_find_supported_kind (gv, gv->interfaces[i].loc.kind);
+      rc = ddsi_factory_create_conn (&gv->xmit_conns[i], fact, 0, &qos);
+      if (rc != DDS_RETCODE_OK)
+        goto err_mc_conn;
+    }
+  }
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    GVLOG (DDS_LC_CONFIG, "interface %s: transmit port %d\n", gv->interfaces[i].name, (int) ddsi_conn_port (gv->xmit_conns[i]));
+    gv->intf_xlocators[i].conn = gv->xmit_conns[i];
+    gv->intf_xlocators[i].c = gv->interfaces[i].loc;
+  }
+
+  // Join SPDP, default multicast addresses if enabled
+  if (gv->m_factory->m_connless && gv->config.allowMulticast)
+  {
+    if (joinleave_spdp_defmcip (gv, 1) < 0)
+      goto err_mc_conn;
   }
 
 #ifdef DDS_HAS_NETWORK_CHANNELS
