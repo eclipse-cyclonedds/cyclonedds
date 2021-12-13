@@ -118,6 +118,18 @@ static int valid_fragment_number_set (const nn_fragment_number_set_header_t *fns
   return (fnset->bitmap_base > 0 && fnset->numbits <= 256);
 }
 
+static int valid_writer_and_reader_entityid (ddsi_entityid_t wrid, ddsi_entityid_t rdid)
+{
+  return is_writer_entityid (wrid) && is_reader_entityid (rdid);
+}
+
+static int valid_writer_and_reader_or_null_entityid (ddsi_entityid_t wrid, ddsi_entityid_t rdid)
+{
+  // the official term is "unknown entity id" but that's too close for comfort
+  // to "unknown entity" in the message validation code
+  return is_writer_entityid (wrid) && (rdid.u == NN_ENTITYID_UNKNOWN || is_reader_entityid (rdid));
+}
+
 static int valid_AckNack (const struct receiver_state *rst, AckNack_t *msg, size_t size, int byteswap)
 {
   nn_count_t *count; /* this should've preceded the bitmap */
@@ -132,6 +144,9 @@ static int valid_AckNack (const struct receiver_state *rst, AckNack_t *msg, size
   }
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
+  /* unspecified reader makes no sense in the context of an ACKNACK */
+  if (!valid_writer_and_reader_entityid (msg->writerId, msg->readerId))
+    return 0;
   /* Validation following 8.3.7.1.3 + 8.3.5.5 */
   if (!valid_sequence_number_set (&msg->readerSNState))
   {
@@ -168,6 +183,8 @@ static int valid_Gap (Gap_t *msg, size_t size, int byteswap)
   }
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
+  if (!valid_writer_and_reader_or_null_entityid (msg->writerId, msg->readerId))
+    return 0;
   if (fromSN (msg->gapStart) <= 0)
     return 0;
   if (!valid_sequence_number_set (&msg->gapList))
@@ -225,6 +242,8 @@ static int valid_Heartbeat (Heartbeat_t *msg, size_t size, int byteswap)
   }
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
+  if (!valid_writer_and_reader_or_null_entityid (msg->writerId, msg->readerId))
+    return 0;
   /* Validation following 8.3.7.5.3; lastSN + 1 == firstSN: no data */
   if (fromSN (msg->firstSN) <= 0 || fromSN (msg->lastSN) + 1 < fromSN (msg->firstSN))
     return 0;
@@ -243,6 +262,8 @@ static int valid_HeartbeatFrag (HeartbeatFrag_t *msg, size_t size, int byteswap)
   }
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
+  if (!valid_writer_and_reader_or_null_entityid (msg->writerId, msg->readerId))
+    return 0;
   if (fromSN (msg->writerSN) <= 0 || msg->lastFragmentNum == 0)
     return 0;
   return 1;
@@ -263,6 +284,9 @@ static int valid_NackFrag (NackFrag_t *msg, size_t size, int byteswap)
   }
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
+  /* unspecified reader makes no sense in the context of a NACKFRAG */
+  if (!valid_writer_and_reader_entityid (msg->writerId, msg->readerId))
+    return 0;
   /* Validation following 8.3.7.1.3 + 8.3.5.5 */
   if (!valid_fragment_number_set (&msg->fragmentNumberState))
     return 0;
@@ -316,6 +340,8 @@ static int valid_Data (const struct receiver_state *rst, Data_t *msg, size_t siz
   }
   msg->x.readerId = nn_ntoh_entityid (msg->x.readerId);
   msg->x.writerId = nn_ntoh_entityid (msg->x.writerId);
+  if (!valid_writer_and_reader_or_null_entityid (msg->x.writerId, msg->x.readerId))
+    return 0;
   pwr_guid.prefix = rst->src_guid_prefix;
   pwr_guid.entityid = msg->x.writerId;
 
@@ -407,6 +433,8 @@ static int valid_DataFrag (const struct receiver_state *rst, DataFrag_t *msg, si
   }
   msg->x.readerId = nn_ntoh_entityid (msg->x.readerId);
   msg->x.writerId = nn_ntoh_entityid (msg->x.writerId);
+  if (!valid_writer_and_reader_or_null_entityid (msg->x.writerId, msg->x.readerId))
+    return 0;
   pwr_guid.prefix = rst->src_guid_prefix;
   pwr_guid.entityid = msg->x.writerId;
 
