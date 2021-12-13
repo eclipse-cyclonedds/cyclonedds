@@ -1479,13 +1479,33 @@ static struct proxy_participant *implicitly_create_proxypp (struct ddsi_domaingv
   return entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid);
 }
 
-static bool handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_guid_t *entity_guid, ddsi_plist_t *datap,
+static bool check_sedp_kind_and_guid (ddsi_sedp_kind_t sedp_kind, const ddsi_guid_t *entity_guid)
+{
+  switch (sedp_kind)
+  {
+    case SEDP_KIND_TOPIC:
+      return is_topic_entityid (entity_guid->entityid);
+    case SEDP_KIND_WRITER:
+      return is_writer_entityid (entity_guid->entityid);
+    case SEDP_KIND_READER:
+      return is_reader_entityid (entity_guid->entityid);
+  }
+  assert (0);
+  return false;
+}
+
+static bool handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_t sedp_kind, ddsi_guid_t *entity_guid, ddsi_plist_t *datap,
     const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, ddsrt_wctime_t timestamp,
     struct proxy_participant **proxypp, ddsi_guid_t *ppguid)
 {
 #define E(msg, lbl) do { GVLOGDISC (msg); return false; } while (0)
+  if (!check_sedp_kind_and_guid (sedp_kind, entity_guid))
+    E (" SEDP topic/GUID entity kind mismatch\n", err);
   ppguid->prefix = entity_guid->prefix;
   ppguid->entityid.u = NN_ENTITYID_PARTICIPANT;
+  // Accept the presence of a participant GUID, but only if it matches
+  if ((datap->present & PP_PARTICIPANT_GUID) && memcmp (&datap->participant_guid, ppguid, sizeof (*ppguid)) != 0)
+    E (" endpoint/participant GUID mismatch", err);
   if (is_deleted_participant_guid (gv->deleted_participants, ppguid, DPG_REMOTE))
     E (" local dead pp?\n", err);
   if (entidx_lookup_participant_guid (gv->entity_index, ppguid) != NULL)
@@ -1554,7 +1574,7 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
   assert (datap->present & PP_ENDPOINT_GUID);
   GVLOGDISC (" "PGUIDFMT, PGUID (datap->endpoint_guid));
 
-  if (!handle_sedp_checks (gv, &datap->endpoint_guid, datap, src_guid_prefix, vendorid, timestamp, &proxypp, &ppguid))
+  if (!handle_sedp_checks (gv, sedp_kind, &datap->endpoint_guid, datap, src_guid_prefix, vendorid, timestamp, &proxypp, &ppguid))
     goto err;
 
   xqos = &datap->qos;
@@ -1731,7 +1751,9 @@ static void handle_sedp_dead_endpoint (const struct receiver_state *rst, ddsi_pl
   int res = -1;
   assert (datap->present & PP_ENDPOINT_GUID);
   GVLOGDISC (" "PGUIDFMT" ", PGUID (datap->endpoint_guid));
-  if (sedp_kind == SEDP_KIND_WRITER)
+  if (!check_sedp_kind_and_guid (sedp_kind, &datap->endpoint_guid))
+    return;
+  else if (sedp_kind == SEDP_KIND_WRITER)
     res = delete_proxy_writer (gv, &datap->endpoint_guid, timestamp, 0);
   else
     res = delete_proxy_reader (gv, &datap->endpoint_guid, timestamp, 0);
@@ -1753,7 +1775,7 @@ static void handle_sedp_alive_topic (const struct receiver_state *rst, seqno_t s
   assert (datap->present & PP_CYCLONE_TOPIC_GUID);
   GVLOGDISC (" "PGUIDFMT, PGUID (datap->topic_guid));
 
-  if (!handle_sedp_checks (gv, &datap->topic_guid, datap, src_guid_prefix, vendorid, timestamp, &proxypp, &ppguid))
+  if (!handle_sedp_checks (gv, SEDP_KIND_TOPIC, &datap->topic_guid, datap, src_guid_prefix, vendorid, timestamp, &proxypp, &ppguid))
     return;
 
   xqos = &datap->qos;
@@ -1806,6 +1828,8 @@ static void handle_sedp_dead_topic (const struct receiver_state *rst, ddsi_plist
   struct ddsi_domaingv * const gv = rst->gv;
   assert (datap->present & PP_CYCLONE_TOPIC_GUID);
   GVLOGDISC (" "PGUIDFMT" ", PGUID (datap->topic_guid));
+  if (!check_sedp_kind_and_guid (SEDP_KIND_TOPIC, &datap->topic_guid))
+    return;
   ddsi_guid_t ppguid = { .prefix = datap->topic_guid.prefix, .entityid.u = NN_ENTITYID_PARTICIPANT };
   if ((proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, &ppguid)) == NULL)
     GVLOGDISC (" unknown proxypp\n");
@@ -1832,22 +1856,34 @@ static void handle_sedp (const struct receiver_state *rst, seqno_t seq, struct d
     switch (serdata->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
     {
       case 0:
+        switch (sedp_kind)
+        {
+          case SEDP_KIND_TOPIC:
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-        if (sedp_kind == SEDP_KIND_TOPIC)
-          handle_sedp_alive_topic (rst, seq, &decoded_data, &rst->src_guid_prefix, rst->vendor, serdata->timestamp);
-        else
+            handle_sedp_alive_topic (rst, seq, &decoded_data, &rst->src_guid_prefix, rst->vendor, serdata->timestamp);
 #endif
-          handle_sedp_alive_endpoint (rst, seq, &decoded_data, sedp_kind, &rst->src_guid_prefix, rst->vendor, serdata->timestamp);
+            break;
+          case SEDP_KIND_READER:
+          case SEDP_KIND_WRITER:
+            handle_sedp_alive_endpoint (rst, seq, &decoded_data, sedp_kind, &rst->src_guid_prefix, rst->vendor, serdata->timestamp);
+            break;
+        }
         break;
       case NN_STATUSINFO_DISPOSE:
       case NN_STATUSINFO_UNREGISTER:
       case (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER):
+        switch (sedp_kind)
+        {
+          case SEDP_KIND_TOPIC:
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-        if (sedp_kind == SEDP_KIND_TOPIC)
-          handle_sedp_dead_topic (rst, &decoded_data, serdata->timestamp);
-        else
+            handle_sedp_dead_topic (rst, &decoded_data, serdata->timestamp);
 #endif
-          handle_sedp_dead_endpoint (rst, &decoded_data, sedp_kind, serdata->timestamp);
+            break;
+          case SEDP_KIND_READER:
+          case SEDP_KIND_WRITER:
+            handle_sedp_dead_endpoint (rst, &decoded_data, sedp_kind, serdata->timestamp);
+            break;
+        }
         break;
     }
     ddsi_plist_fini (&decoded_data);
