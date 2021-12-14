@@ -232,49 +232,6 @@ CU_Test(idl_parser, struct_in_struct_other_module)
   idl_delete_pstate(pstate);
 }
 
-CU_Test(idl_parser, forward_declared_struct_union)
-{
-  idl_retcode_t ret;
-  idl_pstate_t *pstate = NULL;
-  static const struct {
-    bool valid;
-    uint32_t type;
-    const char *idl;
-  } tests[] = {
-    { true, IDL_STRUCT, "struct a; struct a { long b; };" },
-    { true, IDL_STRUCT, "struct a; struct a; struct a { long b; };" },
-    { true, IDL_UNION, "union a; union a switch (short) { case 1: long b; };" },
-    { true, IDL_UNION, "union a; union a; union a switch (short) { case 1: long b; };" },
-    { false, 0u, "struct a; union a; struct a { long b; };" },
-    { false, 0u, "union a; struct a; struct a { long b; };" },
-    { false, 0u, "union a; struct a; union a switch (short) { case 1: long b; };" }
-  };
-
-  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
-    printf("test idl: %s\n", tests[i].idl);
-    ret = idl_create_pstate(0u, NULL, &pstate);
-    CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-    CU_ASSERT_PTR_NOT_NULL(pstate);
-    assert(pstate);
-    ret = idl_parse_string(pstate, tests[i].idl);
-    if (tests[i].valid) {
-      CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-      const idl_forward_t *forward = NULL;
-      const idl_type_spec_t *node;
-      for (node = pstate->root; idl_is_forward(node); node = idl_next(node))
-        forward = node;
-      CU_ASSERT_FATAL(idl_is_forward(forward));
-      assert(forward);
-      CU_ASSERT_EQUAL(idl_type(node), tests[i].type);
-      CU_ASSERT_PTR_EQUAL(forward->type_spec, node);
-    } else {
-      CU_ASSERT_FATAL(ret != IDL_RETCODE_OK);
-    }
-    idl_delete_pstate(pstate);
-  }
-}
-
-// x. forward declaration tests
 // x. use nonexisting type!
 // x. union with same declarators
 // x. struct with same declarators
