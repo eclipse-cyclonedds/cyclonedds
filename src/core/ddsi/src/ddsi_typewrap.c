@@ -15,6 +15,7 @@
 #include "dds/features.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_xt_impl.h"
@@ -1120,6 +1121,7 @@ static void xt_bitflag_seq_copy (struct xt_bitflag_seq *dst, const struct xt_bit
 static struct xt_type * xt_dup (struct ddsi_domaingv *gv, const struct xt_type *src)
 {
   struct xt_type *dst = ddsrt_calloc (1, sizeof (*dst));
+  ddsi_typeid_copy (&dst->id, &src->id);
   dst->kind = src->kind;
   dst->_d = src->_d;
   switch (src->_d)
@@ -1201,10 +1203,15 @@ static struct xt_type *xt_expand_basetype (struct ddsi_domaingv *gv, const struc
   struct xt_type *b = &t->_u.structure.base_type->xt,
     *te = xt_has_basetype (b) ? xt_expand_basetype (gv, b) : xt_dup (gv, t);
   struct xt_struct_member_seq ms = te->_u.structure.members;
+
+  /* Expand members of the base type in the resulting type
+     before the members of the derived type */
   uint32_t incr = b->_u.structure.members.length;
   ms.length += incr;
   ms.seq = ddsrt_realloc (ms.seq, ms.length * sizeof (*ms.seq));
   memmove (&ms.seq[incr], ms.seq, incr * sizeof (*ms.seq));
+  for (uint32_t i = 0; i < b->_u.structure.members.length; i++)
+    memcpy (&ms.seq[i], &b->_u.structure.members.seq[i], sizeof (ms.seq[i]));
   return te;
 }
 
@@ -1264,6 +1271,11 @@ static struct xt_type *xt_type_keyholder (struct ddsi_domaingv *gv, const struct
             i++;
             continue;
           }
+
+          /* Unref the member type for non-key fields for this copy of the type,
+             because the member is removed */
+          ddsi_type_unref_locked (gv, tkh->_u.structure.members.seq[i].type);
+
           if (i < l - 1)
             memmove (&tkh->_u.structure.members.seq[i], &tkh->_u.structure.members.seq[i + 1], (l - i - 1) * sizeof (*tkh->_u.structure.members.seq));
           l--;
@@ -1284,6 +1296,10 @@ static struct xt_type *xt_type_keyholder (struct ddsi_domaingv *gv, const struct
          - If T is a union and the discriminator is not marked as key, then KeyHolder(T) is the same type T. */
       if (tkh->_u.union_type.disc_flags & DDS_XTypes_IS_KEY)
       {
+        /* Unref type for members, because all members are removed from this copy of the type */
+        for (uint32_t n = 0; n < tkh->_u.union_type.members.length; n++)
+          ddsi_type_unref_locked (gv, tkh->_u.union_type.members.seq[n].type);
+
         tkh->_u.union_type.members.length = 0;
         ddsrt_free (tkh->_u.union_type.members.seq);
       }
@@ -1587,6 +1603,7 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
             same ID also have the same name." */
         if (!xt_namehash_eq (&m1->detail.name_hash, &m2->detail.name_hash))
           goto struct_failed;
+
         /* Rule: "For any member m2 in T2, if there is a member m1 in T1 with the same member ID, then the type
             KeyErased(m1.type) is-assignable from the type KeyErased(m2.type) */
         struct xt_type *m1_ke = xt_type_key_erased (gv, &m1->type->xt),
@@ -1666,7 +1683,8 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
         }
         break;
       }
-    }
+    } /* for members in T2 */
+
     /* Rule (for T1 members): "Members for which both optional is false and must_understand is true in either T1 or T2 appear (i.e., have a
         corresponding member of the same member ID) in both T1 and T2. */
     if (!m1_opt && m1_mu && !match)
@@ -1678,8 +1696,7 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
     /* Rules:
         - if T1 is appendable, then members with the same member_index have the same member ID, the same setting for the
           optional attribute and the T1 member type is strongly assignable from the T2 member type
-        - if T1 is final, then they meet the same condition as for T1 being appendable and in addition T1 and T2 have the
-          same set of member IDs. */
+        - if T1 is final, then they meet the same condition as for T1 being appendable and ... (see below) */
     if ((xt_get_extensibility (te1) == DDS_XTypes_IS_APPENDABLE && i1 < i2_max) || xt_get_extensibility (te1) == DDS_XTypes_IS_FINAL)
     {
       if (i1 >= i2_max)
@@ -1688,23 +1705,31 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
       if (m1->id != m2->id || (m1->flags & DDS_XTypes_IS_OPTIONAL) != (m2->flags & DDS_XTypes_IS_OPTIONAL) || !xt_is_strongly_assignable_from (gv, &m1->type->xt, &m2->type->xt))
         goto struct_failed;
     }
-  }
+    /* if T1 is final: ... [continued] in addition T1 and T2 have the same set of member IDs */
+    if (xt_get_extensibility (te1) == DDS_XTypes_IS_FINAL && !match)
+      goto struct_failed;
+  } /* for members in T1 */
+
+
   /* Rules (for T2 members):
       - Members for which both optional is false and must_understand is true in either T1 or T2 appear (i.e., have a corresponding member
-        of the same member ID) in both T1 and T2.
-      - Members marked as key in either T1 or T2 appear (i.e., have a corresponding member of the same member ID) in both T1 and T2. */
+        of the same member ID) in both T1 and T2
+      - Members marked as key in either T1 or T2 appear (i.e., have a corresponding member of the same member ID) in both T1 and T2.
+      - If T1 is final: ... [continued] in addition T1 and T2 have the same set of member IDs
+    [Note that the first 2 rules are checked here for T2 members only, in the loop above this was checked for T1 members] */
   for (uint32_t i2 = 0; i2 < i2_max; i2++)
   {
     struct xt_struct_member *m2 = &te2->_u.structure.members.seq[i2 % i2_max];
     bool match = false;
-    if ((m2->flags & DDS_XTypes_IS_OPTIONAL) || !(m2->flags & DDS_XTypes_IS_MUST_UNDERSTAND))
-      continue;
-    if (m2->flags & DDS_XTypes_IS_KEY)
-      continue;
-    for (uint32_t i1 = i2; !match && i1 < i1_max + i2; i1++)
-      match = (te1->_u.structure.members.seq[i1 % i1_max].id == m2->id);
-    if (!match)
-      goto struct_failed;
+    if ((!(m2->flags & DDS_XTypes_IS_OPTIONAL) && (m2->flags & DDS_XTypes_IS_MUST_UNDERSTAND))
+        || (m2->flags & DDS_XTypes_IS_KEY)
+        || xt_get_extensibility (te1) == DDS_XTypes_IS_FINAL)
+    {
+      for (uint32_t i1 = i2; !match && i1 < i1_max + i2; i1++)
+        match = (te1->_u.structure.members.seq[i1 % i1_max].id == m2->id);
+      if (!match)
+        goto struct_failed;
+    }
   }
   /* Rule: There is at least one member m1 of T1 and one corresponding member m2 of T2 such that m1.id == m2.id */
   if (!any_member_match)
