@@ -40,7 +40,8 @@ struct idl_declaration {
   const idl_scope_t *local_scope; /**< scope local to declaration */
   idl_name_t *name;
   idl_scoped_name_t *scoped_name;
-  const idl_node_t *node;
+  /* not a reference, used to populate forward declarations */
+  idl_node_t *node;
   idl_scope_t *scope; /**< scope introduced by declaration (optional) */
 };
 

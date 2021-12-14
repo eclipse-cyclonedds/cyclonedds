@@ -207,12 +207,12 @@ idl_visit(
       }
 
       if (ret & IDL_VISIT_TYPE_SPEC) {
-        if (ret & IDL_VISIT_FWD_DECL_TARGET)
-          node = ((idl_forward_t *)node)->definition;
+        if (ret & IDL_VISIT_FWD_DECL_TARGET) // >> FIXME: this should definitely be handled in another way
+          node = ((idl_forward_t *)node)->type_spec;
         else
           node = idl_type_spec(node);
         if (ret & IDL_VISIT_UNALIAS_TYPE_SPEC)
-          node = idl_unalias(node, IDL_UNALIAS_IGNORE_ARRAY);
+          node = idl_strip(node, IDL_STRIP_ALIASES|IDL_STRIP_ARRAYS);
         assert(node);
         if (!push(&stack, node))
           goto err_push;

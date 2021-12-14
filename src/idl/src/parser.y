@@ -360,7 +360,7 @@ const_type:
         static const char fmt[] =
           "Scoped name '%s' does not resolve to a valid constant type";
         TRY(idl_resolve(pstate, 0u, $1, &declaration));
-        node = idl_unalias(declaration->node, 0u);
+        node = idl_unalias(declaration->node);
         if (!(idl_mask(node) & (IDL_BASE_TYPE|IDL_STRING|IDL_ENUM)))
           SEMANTIC_ERROR(&@1, fmt, $1->identifier);
         $$ = idl_reference_node((idl_node_t *)declaration->node);
@@ -689,8 +689,7 @@ constr_type_dcl:
 
 struct_dcl:
     struct_def { $$ = $1; }
-  |
-    struct_forward_dcl { $$ = $1; }
+  | struct_forward_dcl { $$ = $1; }
   ;
 
 struct_forward_dcl:
@@ -720,7 +719,7 @@ struct_inherit_spec:
         static const char fmt[] =
           "Scoped name '%s' does not resolve to a struct";
         TRY(idl_resolve(pstate, 0u, $2, &declaration));
-        node = idl_unalias(declaration->node, 0u);
+        node = idl_unalias(declaration->node);
         if (!idl_is_struct(node))
           SEMANTIC_ERROR(&@2, fmt, $2->identifier);
         TRY(idl_create_inherit_spec(pstate, &@2, idl_reference_node(node), &$$));
@@ -753,8 +752,7 @@ member:
 
 union_dcl:
     union_def { $$ = $1; }
-  |
-    union_forward_dcl { $$ = $1; }
+  | union_forward_dcl { $$ = $1; }
   ;
 
 union_def:

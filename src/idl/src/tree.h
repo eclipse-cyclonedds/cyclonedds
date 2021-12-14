@@ -123,13 +123,8 @@ idl_create_forward(
   idl_pstate_t *pstate,
   const idl_location_t *location,
   idl_name_t *name,
-  idl_mask_t mask,
+  idl_type_t type,
   void *nodep);
-
-idl_retcode_t
-idl_validate_forwards(
-  idl_pstate_t *pstate,
-  void *list);
 
 idl_retcode_t
 idl_create_key(

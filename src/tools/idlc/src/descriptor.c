@@ -546,10 +546,8 @@ static uint32_t typecode(const idl_type_spec_t *type_spec, uint32_t shift, bool 
   assert(shift == 8 || shift == 16);
   if (idl_is_array(type_spec))
     return ((uint32_t)DDS_OP_VAL_ARR << shift);
-  type_spec = idl_unalias(type_spec, 0u);
-  if (idl_is_forward(type_spec))
-    type_spec = ((const idl_forward_t *)type_spec)->definition;
-  assert(!idl_is_typedef(type_spec));
+  type_spec = idl_strip(type_spec, IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
+  assert(!idl_is_typedef(type_spec) && !idl_is_forward(type_spec));
   switch (idl_type(type_spec)) {
     case IDL_CHAR:
       return ((uint32_t)DDS_OP_VAL_1BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
@@ -625,7 +623,7 @@ find_ctype(const struct descriptor *descriptor, const void *node)
   struct constructed_type *ctype = descriptor->constructed_types;
   const void *node1;
   if (idl_is_forward(node))
-    node1 = ((const idl_forward_t *)node)->definition;
+    node1 = ((const idl_forward_t *)node)->type_spec;
   else
     node1 = node;
   while (ctype && ctype->node != node1)
@@ -769,10 +767,7 @@ emit_case(
     const idl_case_label_t *label;
     const idl_type_spec_t *type_spec;
 
-    type_spec = idl_unalias(idl_type_spec(node), 0u);
-    if (idl_is_forward(type_spec))
-      type_spec = ((const idl_forward_t *)type_spec)->definition;
-
+    type_spec = idl_strip(idl_type_spec(node), IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
     if (idl_is_empty(type_spec)) {
       /* In case of an empty type (a struct without members), stash no-ops for the
          case labels so that offset to type ops for non-simple inline cases is correct.
@@ -890,7 +885,7 @@ emit_switch_type_spec(
 
   (void)revisit;
 
-  type_spec = idl_unalias(idl_type_spec(node), 0u);
+  type_spec = idl_unalias(idl_type_spec(node));
   assert(!idl_is_typedef(type_spec) && !idl_is_array(type_spec));
   const idl_union_t *union_spec = idl_parent(node);
   assert(idl_is_union(union_spec));
@@ -1130,9 +1125,7 @@ emit_sequence(
   (void)path;
 
   /* resolve non-array aliases */
-  type_spec = idl_unalias(idl_type_spec(node), 0u);
-  if (idl_is_forward(type_spec))
-    type_spec = ((const idl_forward_t *)type_spec)->definition;
+  type_spec = idl_strip(idl_type_spec(node), IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
 
   if (revisit) {
     uint32_t off, cnt;
@@ -1225,11 +1218,9 @@ emit_array(
 
   if (idl_is_array(node)) {
     dims = idl_array_size(node);
-    type_spec = idl_type_spec(node);
-    if (idl_is_forward(type_spec))
-      type_spec = ((const idl_forward_t *)type_spec)->definition;
+    type_spec = idl_strip(idl_type_spec(node), IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
   } else {
-    type_spec = idl_unalias(idl_type_spec(node), 0u);
+    type_spec = idl_unalias(idl_type_spec(node));
     assert(idl_is_array(type_spec));
     dims = idl_array_size(type_spec);
     type_spec = idl_type_spec(type_spec);
@@ -1384,9 +1375,7 @@ emit_declarator(
   bool mutable_aggr_type_member = idl_is_extensible(ctype->node, IDL_MUTABLE) &&
     (idl_is_member(idl_parent(node)) || idl_is_case(idl_parent(node)));
 
-  type_spec = idl_unalias(idl_type_spec(node), 0u);
-  if (idl_is_forward(type_spec))
-    type_spec = ((const idl_forward_t *)type_spec)->definition;
+  type_spec = idl_strip(idl_type_spec(node), IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
 
   /* delegate array type specifiers or declarators */
   if (idl_is_array(node) || idl_is_array(type_spec)) {
