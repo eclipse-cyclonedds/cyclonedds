@@ -298,7 +298,8 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
 {
   idl_retcode_t ret;
   idl_scope_t *scope;
-  idl_struct_t *node;
+  idl_type_spec_t *type_spec;
+  idl_struct_t *_struct;
   idl_keylist_t *keylist = NULL;
   const idl_declaration_t *declaration;
 
@@ -308,13 +309,20 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
       "Unknown data-type '%s' in keylist directive", dir->data_type->identifier);
     return IDL_RETCODE_SEMANTIC_ERROR;
   }
-  node = (idl_struct_t *)declaration->node;
-  scope = (idl_scope_t *)declaration->scope;
-  if (!idl_is_struct(node)) {
+  /* can be an alias, forward declaration or a combination thereof */
+  type_spec = idl_strip(declaration->node, IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
+  if (!type_spec) {
+    idl_error(pstate, idl_location(dir->data_type),
+      "Incomplete data-type '%s' in keylist directive", dir->data_type->identifier);
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+  if (!idl_is_struct(type_spec)) {
     idl_error(pstate, idl_location(dir->data_type),
       "Invalid data-type '%s' in keylist directive", dir->data_type->identifier);
     return IDL_RETCODE_SEMANTIC_ERROR;
-  } else if (node->keylist) {
+  }
+  _struct = type_spec;
+  if (_struct->keylist) {
     idl_error(pstate, idl_location(dir->data_type),
       "Redefinition of keylist for data-type '%s'", dir->data_type->identifier);
     return IDL_RETCODE_SEMANTIC_ERROR;
@@ -343,14 +351,18 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
 
   if ((ret = idl_create_keylist(pstate, idl_location(dir->data_type), &keylist)))
     return ret;
-  keylist->node.parent = (idl_node_t *)node;
-  node->keylist = keylist;
+  keylist->node.parent = (idl_node_t *)_struct;
+  _struct->keylist = keylist;
+
+  declaration = ((idl_node_t *)_struct)->declaration;
+  assert(declaration);
+  scope = declaration->scope;
 
   for (size_t i=0; dir->keys && dir->keys[i]; i++) {
     idl_key_t *key = NULL;
     idl_mask_t mask = IDL_BASE_TYPE | IDL_ENUM | IDL_STRING;
     const idl_declarator_t *declarator;
-    const idl_type_spec_t *type_spec;
+    const idl_type_spec_t *ts;
 
     if (!(declaration = idl_find_field_name(pstate, scope, dir->keys[i], 0u))) {
       idl_error(pstate, idl_location(dir->keys[i]),
@@ -360,14 +372,14 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
     }
     declarator = (const idl_declarator_t *)declaration->node;
     assert(idl_is_declarator(declarator));
-    type_spec = idl_type_spec(declarator);
+    ts = idl_type_spec(declarator);
     /* until DDS-XTypes is fully implemented, base types, enums, arrays of the
        aforementioned and strings are allowed to be used in keys */
-    type_spec = idl_unalias(type_spec, 0u);
-    if (idl_is_array(type_spec))
+    ts = idl_strip(ts, IDL_STRIP_ALIASES);
+    if (idl_is_array(ts))
       mask &= (idl_mask_t)~IDL_STRING;
-    type_spec = idl_unalias(type_spec, IDL_UNALIAS_IGNORE_ARRAY);
-    if (!(idl_mask(type_spec) & mask)) {
+    ts = idl_strip(ts, IDL_STRIP_ALIASES|IDL_STRIP_ARRAYS);
+    if (!(idl_mask(ts) & mask)) {
       idl_error(pstate, idl_location(dir->keys[i]),
         "Invalid key '%s' in keylist directive", dir->keys[i]->identifier);
       ret = IDL_RETCODE_SEMANTIC_ERROR;

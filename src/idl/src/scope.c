@@ -18,6 +18,7 @@
 #include "idl/string.h"
 #include "symbol.h"
 #include "scope.h"
+#include "tree.h"
 
 static idl_retcode_t
 create_declaration(
@@ -67,7 +68,7 @@ idl_create_scope(
   idl_pstate_t *pstate,
   enum idl_scope_kind kind,
   const idl_name_t *name,
-  const void *node,
+  void *node,
   idl_scope_t **scopep)
 {
   idl_scope_t *scope;
@@ -152,6 +153,12 @@ is_consistent(
   return idl_mask(lhs) == idl_mask(rhs);
 }
 
+static bool
+is_same_type(const void *lhs, const void *rhs)
+{
+  return (idl_mask(lhs) & ~IDL_FORWARD) == (idl_type(rhs) & ~IDL_FORWARD);
+}
+
 idl_retcode_t
 idl_declare(
   idl_pstate_t *pstate,
@@ -161,7 +168,7 @@ idl_declare(
   idl_scope_t *scope,
   idl_declaration_t **declarationp)
 {
-  idl_declaration_t *entry = NULL;
+  idl_declaration_t *entry = NULL, *last = NULL;
   int (*cmp)(const char *, const char *);
 
   assert(pstate && pstate->scope);
@@ -172,6 +179,7 @@ idl_declare(
     /* identifiers that differ only in case collide, and will yield a
        compilation error under certain circumstances */
     if (cmp(name->identifier, entry->name->identifier) == 0) {
+      last = entry;
       switch (entry->kind) {
         case IDL_SCOPE_DECLARATION:
           /* declaration of the enclosing scope, but if the enclosing scope
@@ -192,24 +200,47 @@ idl_declare(
             goto exists;
           goto clash;
         case IDL_FORWARD_DECLARATION:
-          if (kind == IDL_FORWARD_DECLARATION)
-            if (is_consistent(pstate, node, entry->node))
-              goto exists;
-          if (kind == IDL_SPECIFIER_DECLARATION) {
-            if ((idl_mask(node) & (IDL_STRUCT | IDL_UNION)) != (idl_mask(entry->node) & (IDL_STRUCT | IDL_UNION)))
-              goto clash;
-            break;
+          /* instance declarations cannot occur in the same scope */
+          assert(kind != IDL_INSTANCE_DECLARATION);
+          /* use declarations are solely there to reserve a name */
+          if (kind == IDL_USE_DECLARATION)
+            goto exists;
+          /* multiple forward declarations are legal */
+          if (kind == IDL_FORWARD_DECLARATION && is_same_type(node, entry->node))
+            continue; /* skip forward to search for defintion */
+          if (kind != IDL_SPECIFIER_DECLARATION || !is_same_type(node, entry->node))
+            goto clash;
+          assert(idl_mask(entry->node) & IDL_FORWARD);
+          {
+            idl_forward_t *forward = (idl_forward_t *)entry->node;
+            /* skip ahead to definition for reporting name clash */
+            if (forward->type_spec)
+              continue;
+            /* FIXME: type specifier in forward declarations is not reference
+                      counted. see tree.h for details */
+            forward->type_spec = node;
           }
-          /* fall through */
+          break;
         case IDL_USE_DECLARATION:
           if (kind == IDL_INSTANCE_DECLARATION)
             goto exists;
           /* fall through */
         case IDL_SPECIFIER_DECLARATION:
+          /* use declarations are solely there to reserve a name */
           if (kind == IDL_USE_DECLARATION)
             goto exists;
-          if (kind == IDL_FORWARD_DECLARATION)
+          /* multiple forward declarations are legal. backward declarations,
+             although unusual, are legal too(?) functionally, they can be
+             discarded, but a reference is required for validation */
+          if (kind == IDL_FORWARD_DECLARATION && is_same_type(node, entry->node))
+          {
+            idl_forward_t *forward = node;
+            assert(forward->type_spec == NULL);
+            /* FIXME: type specifier in forward declarations is not reference
+                      counted. see tree.h for details */
+            forward->type_spec = entry->node;
             break;
+          }
           /* short-circuit on parsing existing annotations */
           if (is_consistent(pstate, node, entry->node))
             goto exists;
@@ -308,9 +339,12 @@ clash:
       break;
   }
 
+  last = entry;
+
 exists:
+  assert(last);
   if (declarationp)
-    *declarationp = entry;
+    *declarationp = last;
   return IDL_RETCODE_OK;
 }
 
@@ -360,7 +394,7 @@ idl_find(
       continue;
     if (cmp(name, entry->name) == 0)
     {
-      if (entry->kind & IDL_FORWARD_DECLARATION)
+      if (entry->kind == IDL_FORWARD_DECLARATION)
         fwd = entry;
       else
         return entry;
@@ -375,10 +409,8 @@ idl_find(
     }
   }
 
-  if (!entry && fwd)
-    return fwd;
-
-  return NULL;
+  assert(!entry);
+  return fwd;
 }
 
 const idl_declaration_t *

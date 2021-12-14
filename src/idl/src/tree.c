@@ -259,13 +259,29 @@ void *idl_iterate(const void *root, const void *node)
   return NULL;
 }
 
-void *idl_unalias(const void *node, uint32_t flags)
+void *idl_unalias(const void *node)
 {
-  while (idl_is_alias(node)) {
-    if (!(flags & IDL_UNALIAS_IGNORE_ARRAY) && idl_is_array(node))
-      break;
+  while (idl_is_alias(node))
     node = idl_type_spec(node);
-  }
+
+  return (void *)node;
+}
+
+void *idl_strip(const void *node, uint32_t flags)
+{
+  if (!flags) // unwrap every indirection by default
+    flags = IDL_STRIP_ALIASES | IDL_STRIP_ARRAYS | IDL_STRIP_FORWARD;
+
+  do {
+    if (idl_is_forward(node) && (flags & IDL_STRIP_FORWARD))
+      node = idl_type_spec(node);
+    else if (idl_is_array(node) && (flags & IDL_STRIP_ARRAYS))
+      node = idl_type_spec(node);
+    else if (idl_is_alias(node) && (flags & IDL_STRIP_ALIASES))
+      node = idl_type_spec(node);
+    else
+      break;
+  } while (node);
 
   return (void *)node;
 }
@@ -552,7 +568,7 @@ idl_create_const(
   node->name = name;
   /* type specifier can be a type definition */
   alias = type_spec;
-  type_spec = idl_unalias(type_spec, 0u);
+  type_spec = idl_unalias(type_spec);
   assert(idl_mask(type_spec) & (IDL_BASE_TYPE|IDL_STRING|IDL_ENUM));
   node->type_spec = alias;
   if (!idl_scope(alias))
@@ -1262,7 +1278,6 @@ idl_create_struct(
   idl_struct_t *node;
   idl_scope_t *scope;
   idl_declaration_t *declaration;
-  const idl_declaration_t *fwd_decl;
   static const size_t size = sizeof(*node);
   static const idl_mask_t mask = IDL_STRUCT;
   static const struct methods methods = {
@@ -1272,22 +1287,6 @@ idl_create_struct(
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     goto err_node;
   node->name = name;
-
-  /* set definition for earlier forward declarations of this struct */
-  if ((fwd_decl = idl_find(pstate, pstate->scope, name, 0u))
-      && fwd_decl->kind == IDL_FORWARD_DECLARATION
-  ) {
-    assert(idl_is_forward(fwd_decl->node));
-    idl_forward_t *fwd = (idl_forward_t *)fwd_decl->node;
-    if(!(fwd->node.mask & IDL_STRUCT)) {
-      ret = IDL_RETCODE_SEMANTIC_ERROR;
-      idl_error(pstate, idl_location(node),
-        "Forward declaration for %s '%s' is not a %s", idl_construct(node), idl_identifier(node), idl_construct(node));
-      goto err_fwd;
-    }
-    fwd->definition = node;
-  }
-
   if ((ret = idl_create_scope(pstate, IDL_STRUCT_SCOPE, name, node, &scope)))
     goto err_scope;
   if ((ret = idl_declare(pstate, kind, name, node, scope, &declaration)))
@@ -1311,7 +1310,7 @@ idl_create_struct(
     declaration = (void*)idl_find(pstate, idl_scope(base), idl_name(base), 0u);
     assert(declaration && declaration->scope);
     if ((ret = idl_import(pstate, scope, declaration->scope)))
-      return ret;
+      return ret;// goto err_import
     node->inherit_spec = inherit_spec;
     inherit_spec->node.parent = (idl_node_t *)node;
   }
@@ -1322,7 +1321,6 @@ idl_create_struct(
 err_declare:
   idl_delete_scope(scope);
 err_scope:
-err_fwd:
   free(node);
 err_node:
   return ret;
@@ -1370,38 +1368,29 @@ idl_create_forward(
   idl_pstate_t *pstate,
   const idl_location_t *location,
   idl_name_t *name,
-  idl_mask_t mask,
+  idl_type_t type,
   void *nodep)
 {
   idl_retcode_t ret;
   idl_forward_t *node;
   idl_declaration_t *declaration;
-  const idl_declaration_t *existing_decl;
   static const size_t size = sizeof(*node);
-  assert (mask == IDL_STRUCT || mask == IDL_UNION);
   static const struct methods methods = {
     delete_forward, 0, describe_forward };
   static const enum idl_declaration_kind kind = IDL_FORWARD_DECLARATION;
 
-  /* if earlier forward declaration */
-  if ((existing_decl = idl_find(pstate, pstate->scope, name, 0u))
-      && existing_decl->kind == IDL_FORWARD_DECLARATION
-      && existing_decl->node->mask == (IDL_FORWARD | mask)
-  ) {
-    *((idl_forward_t **)nodep) = NULL;
-    idl_delete_name(name);
-    return IDL_RETCODE_OK;
-  }
+  assert(type == IDL_STRUCT || type == IDL_UNION);
 
-  if ((ret = create_node(pstate, size, mask | IDL_FORWARD, location, &methods, &node)))
+  if ((ret = create_node(pstate, size, type | IDL_FORWARD, location, &methods, &node)))
     goto err_node;
   node->name = name;
-  node->definition = NULL;
+  node->type_spec = NULL;
   if ((ret = idl_declare(pstate, kind, name, node, NULL, &declaration)))
     goto err_declare;
   *((idl_forward_t **)nodep) = node;
   return ret;
 err_declare:
+  free(node);
 err_node:
   return ret;
 }
@@ -1414,26 +1403,10 @@ bool idl_is_forward(const void *ptr)
     return false;
   /* a forward declaration must have a name */
   assert(node->name && node->name->identifier);
+  /* a forward must forward declare either a struct or a union */
+  assert(!node->type_spec || idl_type(node->type_spec) == IDL_STRUCT
+                          || idl_type(node->type_spec) == IDL_UNION);
   return true;
-}
-
-idl_retcode_t idl_validate_forwards(idl_pstate_t *pstate, void *list)
-{
-  idl_retcode_t ret = IDL_RETCODE_OK;
-  for ( ; ret == IDL_RETCODE_OK && list; list = idl_next(list)) {
-    if (idl_mask(list) == IDL_MODULE) {
-      idl_module_t *node = list;
-      ret = idl_validate_forwards(pstate, node->definitions);
-    } else if (idl_is_forward(list)) {
-      idl_forward_t *forward_node = list;
-      if (forward_node->definition == NULL) {
-        idl_error(pstate, idl_location(forward_node),
-          "Forward declared type %s is incomplete", idl_identifier(forward_node));
-        return IDL_RETCODE_SYNTAX_ERROR;
-      }
-    }
-  }
-  return ret;
 }
 
 bool idl_is_inherit_spec(const void *ptr)
@@ -1619,7 +1592,7 @@ idl_create_member(
   if (idl_scope(type_spec)) {
     /* struct and union types introduce a scope. resolve scope and link it for
        field name lookup. e.g. #pragma keylist directives */
-    type_spec = idl_unalias(type_spec, IDL_UNALIAS_IGNORE_ARRAY);
+    type_spec = idl_strip(type_spec, IDL_STRIP_ALIASES|IDL_STRIP_ARRAYS);
     if (idl_is_struct(type_spec) || idl_is_union(type_spec)) {
       const idl_declaration_t *declaration = idl_declaration(type_spec);
       assert(declaration);
@@ -1819,7 +1792,7 @@ idl_finalize_union(
   assert(node);
   assert(node->switch_type_spec);
   assert(cases);
-  type_spec = idl_unalias(node->switch_type_spec->type_spec, 0u);
+  type_spec = idl_unalias(node->switch_type_spec->type_spec);
   type = idl_type(type_spec);
   maximum = maximum_labels(type_spec);
 
@@ -1997,7 +1970,6 @@ idl_create_union(
   static const struct methods methods = {
     delete_union, iterate_union, describe_union };
   static const enum idl_declaration_kind kind = IDL_SPECIFIER_DECLARATION;
-  const idl_declaration_t *fwd_decl;
 
   if (!idl_is_switch_type_spec(switch_type_spec)) {
     static const char *fmt =
@@ -2008,26 +1980,6 @@ idl_create_union(
 
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     goto err_node;
-  node->name = name;
-  node->switch_type_spec = switch_type_spec;
-
-  /* set definition for earlier forward declarations of this union */
-  if ((fwd_decl = idl_find(pstate, pstate->scope, name, 0u))
-      && fwd_decl->kind == IDL_FORWARD_DECLARATION
-  ) {
-    assert(idl_is_forward(fwd_decl->node));
-    idl_forward_t *fwd = (idl_forward_t *)fwd_decl->node;
-    if(!(fwd->node.mask & IDL_UNION)) {
-      ret = IDL_RETCODE_SEMANTIC_ERROR;
-      idl_error(pstate, idl_location(node),
-        "Forward declaration for %s '%s' is not a %s", idl_construct(node), idl_identifier(node), idl_construct(node));
-      goto err_fwd;
-    }
-    fwd->definition = node;
-  }
-
-  assert(!idl_scope(switch_type_spec));
-  ((idl_node_t *)switch_type_spec)->parent = (idl_node_t *)node;
   if ((ret = idl_create_scope(pstate, IDL_UNION_SCOPE, name, node, &scope)))
     goto err_scope;
   if ((ret = idl_declare(pstate, kind, name, node, scope, NULL)))
@@ -2035,11 +1987,14 @@ idl_create_union(
 
   idl_enter_scope(pstate, scope);
   *((idl_union_t **)nodep) = node;
+  node->name = name;
+  node->switch_type_spec = switch_type_spec;
+  assert(!idl_scope(switch_type_spec));
+  ((idl_node_t *)switch_type_spec)->parent = (idl_node_t *)node;
   return ret;
 err_declare:
   idl_delete_scope(scope);
 err_scope:
-err_fwd:
   free(node);
 err_node:
   return ret;
@@ -2058,7 +2013,7 @@ idl_is_switch_type_spec(const void *ptr)
   /* a switch type specifier must have a type specifier */
   type_spec = node->type_spec;
   assert(type_spec);
-  type_spec = idl_unalias(type_spec, 0u);
+  type_spec = idl_unalias(type_spec);
   switch (idl_type(type_spec)) {
     case IDL_ENUM:
       return true;
@@ -2120,7 +2075,7 @@ idl_create_switch_type_spec(
   bool ext = (pstate->flags & IDL_FLAG_EXTENDED_DATA_TYPES) != 0;
 
   assert(type_spec);
-  type = idl_type(idl_unalias(type_spec, 0u));
+  type = idl_type(idl_unalias(type_spec));
   if (!(type == IDL_ENUM) &&
       !(type == IDL_BOOL) &&
       !(type == IDL_CHAR) &&
@@ -2250,7 +2205,7 @@ idl_create_case(
   if (idl_scope(type_spec)) {
     /* struct and union types introduce a scope. resolve the scope and link it
        for field name lookup. e.g. #pragma keylist directives */
-    type_spec = idl_unalias(type_spec, 0u);
+    type_spec = idl_unalias(type_spec);
     if (idl_is_struct(type_spec) || idl_is_union(type_spec)) {
       const idl_declaration_t *declaration;
 
@@ -2695,6 +2650,8 @@ bool idl_is_alias(const void *ptr)
   const idl_declarator_t *node = ptr;
 
   if (!(idl_mask(node) & IDL_DECLARATOR))
+    return false;
+  if (((idl_declarator_t *)node)->const_expr)
     return false;
   /* a declarator is an alias if its parent is a typedef */
   return (idl_mask(node->node.parent) & IDL_TYPEDEF) != 0;
@@ -3353,6 +3310,8 @@ idl_type_spec_t *idl_type_spec(const void *node)
   if (mask & IDL_DECLARATOR)
     node = idl_parent(node);
   mask = idl_mask(node);
+  if (mask & IDL_FORWARD)
+    return ((const idl_forward_t *)node)->type_spec;
   if (mask & IDL_TYPEDEF)
     return ((const idl_typedef_t *)node)->type_spec;
   if (mask & IDL_MEMBER)

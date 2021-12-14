@@ -333,6 +333,38 @@ static idl_retcode_t parse_grammar(idl_pstate_t *pstate, idl_token_t *tok)
   return IDL_RETCODE_BAD_PARAMETER;
 }
 
+static idl_retcode_t validate_forwards(idl_pstate_t *pstate, void *root)
+{
+  for (void *node = root; node; node = idl_next(node))
+  {
+    if (idl_mask(node) == IDL_MODULE) {
+      idl_retcode_t ret;
+      if ((ret = validate_forwards(pstate, ((idl_module_t *)node)->definitions)))
+        return ret;
+    } else if (idl_mask(node) & IDL_FORWARD) {
+      idl_forward_t *forward = node;
+      if (!forward->type_spec) {
+        idl_error(pstate, idl_location(forward),
+          "Forward declared type %s is incomplete", idl_identifier(forward));
+        return IDL_RETCODE_SEMANTIC_ERROR;
+      }
+      /* if a structure or union is forward declared, a definition of that
+         structure or union must follow the forward declaration in the same
+         compilation unit */
+      const idl_source_t *a, *b;
+      a = forward->node.symbol.location.first.source;
+      b = ((idl_node_t *)forward->type_spec)->symbol.location.first.source;
+      if (a != b) {
+        idl_error(pstate, idl_location(forward),
+          "Forward declaration for %s does not reside in same compilation "
+          "unit as definition", idl_identifier(forward));
+        return IDL_RETCODE_SEMANTIC_ERROR;
+      }
+    }
+  }
+  return IDL_RETCODE_OK;
+}
+
 idl_retcode_t idl_parse(idl_pstate_t *pstate)
 {
   idl_retcode_t ret;
@@ -383,7 +415,7 @@ grammar:
     }
   }
 
-  if ((ret = idl_validate_forwards(pstate, pstate->root)) != IDL_RETCODE_OK)
+  if ((ret = validate_forwards(pstate, pstate->root)))
     goto err;
 
   if ((ret = idl_propagate_autoid(pstate, pstate->root, IDL_SEQUENTIAL)) != IDL_RETCODE_OK)

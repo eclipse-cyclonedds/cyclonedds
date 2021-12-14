@@ -21,7 +21,7 @@ idl_create_scope(
   idl_pstate_t *pstate,
   enum idl_scope_kind kind,
   const idl_name_t *name,
-  const void *node,
+  void *node,
   idl_scope_t **scopep);
 
 void idl_delete_scope(idl_scope_t *scope);

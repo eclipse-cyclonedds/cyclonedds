@@ -236,8 +236,6 @@ CU_Test(idl_parser, forward_declared_struct_union)
 {
   idl_retcode_t ret;
   idl_pstate_t *pstate = NULL;
-  idl_forward_t *fwd1;
-  idl_node_t *n1;
   static const struct {
     bool valid;
     uint32_t type;
@@ -261,11 +259,14 @@ CU_Test(idl_parser, forward_declared_struct_union)
     ret = idl_parse_string(pstate, tests[i].idl);
     if (tests[i].valid) {
       CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-      fwd1 = (idl_forward_t *)pstate->root;
-      CU_ASSERT_FATAL(idl_is_forward(fwd1));
-      n1 = idl_next(fwd1);
-      CU_ASSERT_FATAL(tests[i].type == IDL_STRUCT ? idl_is_struct(n1) : idl_is_union(n1));
-      CU_ASSERT_PTR_EQUAL_FATAL(fwd1->definition, n1);
+      const idl_forward_t *forward = NULL;
+      const idl_type_spec_t *node;
+      for (node = pstate->root; idl_is_forward(node); node = idl_next(node))
+        forward = node;
+      CU_ASSERT_FATAL(idl_is_forward(forward));
+      assert(forward);
+      CU_ASSERT_EQUAL(idl_type(node), tests[i].type);
+      CU_ASSERT_PTR_EQUAL(forward->type_spec, node);
     } else {
       CU_ASSERT_FATAL(ret != IDL_RETCODE_OK);
     }
@@ -273,6 +274,7 @@ CU_Test(idl_parser, forward_declared_struct_union)
   }
 }
 
+// x. forward declaration tests
 // x. use nonexisting type!
 // x. union with same declarators
 // x. struct with same declarators

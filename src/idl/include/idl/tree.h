@@ -346,7 +346,11 @@ typedef struct idl_forward idl_forward_t;
 struct idl_forward {
   idl_node_t node;
   struct idl_name *name;
-  idl_type_spec_t *definition;
+  /* FIXME: no reference count is maintained for type specifier in forward
+            declarations as it may introduce cyclic dependencies. perfect
+            reason to remove use of destructors in Bison and use a pool
+            allocator instead */
+  idl_type_spec_t *type_spec;
 };
 
 typedef struct idl_case_label idl_case_label_t;
@@ -542,7 +546,11 @@ IDL_EXPORT void *idl_iterate(const void *root, const void *node);
 #define IDL_FOREACH(node, list) \
   for ((node) = (list); (node); (node) = idl_next(node))
 
-#define IDL_UNALIAS_IGNORE_ARRAY (1u<<0) /**< ignore array declarators */
-IDL_EXPORT void *idl_unalias(const void *node, uint32_t flags);
+IDL_EXPORT void *idl_unalias(const void *node);
+
+#define IDL_STRIP_ALIASES (1u<<0) /**< expose base type of aliase(s) */
+#define IDL_STRIP_ARRAYS (1u<<1) /**< expose base type of array(s) */
+#define IDL_STRIP_FORWARD (1u<<2) /**< expose definition */
+IDL_EXPORT void *idl_strip(const void *node, uint32_t flags);
 
 #endif /* IDL_TREE_H */
