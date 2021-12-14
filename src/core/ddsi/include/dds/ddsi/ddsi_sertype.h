@@ -28,7 +28,7 @@ struct ddsi_serdata;
 struct ddsi_serdata_ops;
 struct ddsi_sertype_ops;
 struct ddsi_domaingv;
-struct ddsi_typeid_t;
+struct ddsi_typeid;
 struct ddsi_type_pair;
 
 #define DDSI_SERTYPE_REGISTERING 0x40000000u // set prior to setting gv
