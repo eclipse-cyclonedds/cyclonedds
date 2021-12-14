@@ -339,12 +339,20 @@ dds_return_t ddsi_sertype_default_init (const struct ddsi_domaingv *gv, struct d
   st->type.ops.nops = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys);
   st->type.ops.ops = ddsrt_memdup (desc->m_ops, st->type.ops.nops * sizeof (*st->type.ops.ops));
 
+  if (min_xcdrv == CDR_ENC_VERSION_2 && dds_stream_type_nesting_depth (desc->m_ops) > DDSI_CDRSTREAM_MAX_NESTING_DEPTH)
+  {
+    ddsi_sertype_unref (&st->c);
+    GVTRACE ("Serializer ops for type %s has unsupported nesting depth (max %u)\n", desc->m_typename, DDSI_CDRSTREAM_MAX_NESTING_DEPTH);
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+
   if (desc->m_flagset & DDS_TOPIC_XTYPES_METADATA)
   {
     if (desc->type_information.sz == 0 || desc->type_information.data == NULL
       || desc->type_mapping.sz == 0 || desc->type_mapping.data == NULL)
     {
       ddsi_sertype_unref (&st->c);
+      GVTRACE ("Flag DDS_TOPIC_XTYPES_METADATA set for type %s but topic descriptor does not contains type information\n", desc->m_typename);
       return DDS_RETCODE_BAD_PARAMETER;
     }
     st->type.typeinfo_ser.data =  ddsrt_memdup (desc->type_information.data, desc->type_information.sz);

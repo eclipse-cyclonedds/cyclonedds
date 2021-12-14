@@ -20,6 +20,8 @@
 extern "C" {
 #endif
 
+#define DDSI_CDRSTREAM_MAX_NESTING_DEPTH 32  /* maximum level of nesting for key extraction */
+
 typedef struct dds_istream {
   const unsigned char *m_buffer;
   uint32_t m_size;          /* Buffer size */
@@ -88,6 +90,7 @@ DDS_EXPORT size_t dds_stream_print_key (dds_istream_t * __restrict is, const str
 DDS_EXPORT size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct ddsi_sertype_default * __restrict type, char * __restrict buf, size_t size);
 
 DDS_EXPORT uint16_t dds_stream_minimum_xcdr_version (const uint32_t * __restrict ops);
+DDS_EXPORT uint32_t dds_stream_type_nesting_depth (const uint32_t * __restrict ops);
 
 #if defined (__cplusplus)
 }
