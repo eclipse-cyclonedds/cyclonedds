@@ -10,17 +10,30 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 
-
 function(IDLC_GENERATE)
   set(one_value_keywords TARGET)
-  set(multi_value_keywords FILES FEATURES)
+  set(multi_value_keywords FILES FEATURES INCLUDES)
   cmake_parse_arguments(
     IDLC "" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
 
-  if (CMAKE_CROSSCOMPILING)
+  idlc_generate_generic(TARGET ${IDLC_TARGET}
+    FILES ${IDLC_FILES}
+    FEATURES ${IDLC_FEATURES}
+    INCLUDES ${IDLC_INCLUDES}
+  )
+endfunction()
+
+function(IDLC_GENERATE_GENERIC)
+  set(one_value_keywords TARGET BACKEND)
+  set(multi_value_keywords FILES FEATURES INCLUDES SUFFIXES DEPENDS)
+  cmake_parse_arguments(
+    IDLC "" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
+
+  # find idlc binary
+  if(CMAKE_CROSSCOMPILING)
     find_program(_idlc_executable idlc NO_CMAKE_FIND_ROOT_PATH REQUIRED)
 
-    if (_idlc_executable)
+    if(_idlc_executable)
       set(_idlc_depends "")
     else()
       message(FATAL_ERROR "Cannot find idlc executable")
@@ -57,6 +70,25 @@ function(IDLC_GENERATE)
     list(APPEND IDLC_ARGS "-f" ${_feature})
   endforeach()
 
+  # add directories to include search list
+  if(IDLC_INCLUDES)
+    foreach(_dir ${IDLC_INCLUDES})
+      list(APPEND IDLC_INCLUDE_DIRS "-I" ${_dir})
+    endforeach()
+  endif()
+
+  # generate using which language (defaults to c)?
+  if(IDLC_BACKEND)
+    string(APPEND _language "-l" ${IDLC_BACKEND})
+  endif()
+
+  # set dependencies
+  if(IDLC_DEPENDS)
+    list(APPEND _depends ${_idlc_depends} ${IDLC_DEPENDS})
+  else()
+    set(_depends ${_idlc_depends})
+  endif()
+
   set(_dir ${CMAKE_CURRENT_BINARY_DIR})
   set(_target ${IDLC_TARGET})
   foreach(_file ${IDLC_FILES})
@@ -64,22 +96,28 @@ function(IDLC_GENERATE)
     list(APPEND _files "${_path}")
   endforeach()
 
+  # set source suffixes (defaults to .c and .h)
+  if(NOT IDLC_SUFFIXES)
+    set(IDLC_SUFFIXES ".c" ".h")
+  endif()
+  set(_outputs "")
   foreach(_file ${_files})
     get_filename_component(_name ${_file} NAME_WE)
-    set(_source "${_dir}/${_name}.c")
-    set(_header "${_dir}/${_name}.h")
-    list(APPEND _sources "${_source}")
-    list(APPEND _headers "${_header}")
+    set(_file_outputs "")
+    foreach(_suffix ${IDLC_SUFFIXES})
+      list(APPEND _file_outputs "${_dir}/${_name}${_suffix}")
+      list(APPEND _outputs ${_file_outputs})
+    endforeach()
     add_custom_command(
-      OUTPUT   "${_source}" "${_header}"
+      OUTPUT   ${_file_outputs}
       COMMAND  ${_idlc_executable}
-      ARGS     ${_file} ${IDLC_ARGS}
-      DEPENDS  ${_files} ${_idlc_depends})
+      ARGS     ${_language} ${IDLC_ARGS} ${IDLC_INCLUDE_DIRS} ${_file}
+      DEPENDS  ${_files} ${_depends})
   endforeach()
 
-  add_custom_target("${_target}_generate" DEPENDS "${_sources}" "${_headers}")
+  add_custom_target("${_target}_generate" DEPENDS "${_outputs}")
   add_library(${_target} INTERFACE)
-  target_sources(${_target} INTERFACE ${_sources} ${_headers})
+  target_sources(${_target} INTERFACE ${_outputs})
   target_include_directories(${_target} INTERFACE "${_dir}")
   add_dependencies(${_target} "${_target}_generate")
 endfunction()
