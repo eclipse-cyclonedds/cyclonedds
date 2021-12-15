@@ -933,6 +933,10 @@ plus:
 
 #if SYS_FAMILY == SYS_UNIX
         case 'm':
+#if defined __clang__ || __GNUC__ >= 500
+            _Pragma("GCC diagnostic push");
+            _Pragma("GCC diagnostic ignored \"-Wunreachable-code\"");
+#endif
             assert( mcpp_optarg != NULL);
             if (str_eq( mcpp_optarg, "64")) {               /* -m64 */
                 if (str_eq( CPU, "i386"))
@@ -955,6 +959,9 @@ plus:
                 undef_list[ undef_cnt++] = "__MMX__";
                 break;
             }
+#if defined __clang__ || __GNUC__ >= 500
+            _Pragma("GCC diagnostic pop");
+#endif
 #endif  /* SYS_FAMILY == UNIX   */
 #if COMPILER == GNUC
 #if SYSTEM == SYS_CYGWIN
