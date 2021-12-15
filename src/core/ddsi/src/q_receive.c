@@ -461,10 +461,12 @@ static enum validation_result validate_DataFrag (const struct receiver_state *rs
   }
   if (msg->fragmentSize == 0 || msg->fragmentStartingNum == 0 || msg->fragmentsInSubmessage == 0)
     return VR_MALFORMED;
+  if (msg->fragmentsInSubmessage > UINT32_MAX - msg->fragmentStartingNum)
+    return VR_MALFORMED;
   if (DDSI_SC_STRICT_P (rst->gv->config) && msg->fragmentSize >= msg->sampleSize)
     /* may not fragment if not needed -- but I don't care */
     return VR_MALFORMED;
-  if ((msg->fragmentStartingNum + msg->fragmentsInSubmessage - 2) * msg->fragmentSize >= msg->sampleSize)
+  if ((uint64_t) (msg->fragmentStartingNum + msg->fragmentsInSubmessage - 2) * msg->fragmentSize >= msg->sampleSize)
     /* starting offset of last fragment must be within sample, note:
        fragment numbers are 1-based */
     return VR_MALFORMED;
