@@ -3705,7 +3705,7 @@ decode_rtps_message_awake (
   struct nn_rmsg **rmsg,
   Header_t **hdr,
   unsigned char **buff,
-  ssize_t *sz,
+  size_t *sz,
   struct nn_rbufpool *rbpool,
   bool isstream,
   struct proxy_participant *proxypp)
@@ -3721,16 +3721,16 @@ decode_rtps_message_awake (
   if (isstream)
   {
     /* Remove MsgLen Submessage which was only needed for a stream to determine the end of the message */
-    assert (*sz > (ssize_t) sizeof (MsgLen_t));
+    assert (*sz > sizeof (MsgLen_t));
     srcbuf = *buff + sizeof (MsgLen_t);
-    srclen = (size_t) *sz - sizeof (MsgLen_t);
+    srclen = *sz - sizeof (MsgLen_t);
     memmove (srcbuf, *buff, RTPS_MESSAGE_HEADER_SIZE);
   }
   else
   {
     assert (*sz > 0);
     srcbuf = *buff;
-    srclen = (size_t) *sz;
+    srclen = *sz;
   }
 
   if (!q_omg_security_decode_rtps_message (proxypp, srcbuf, srclen, &dstbuf, &dstlen))
@@ -3749,8 +3749,7 @@ decode_rtps_message_awake (
 
   *hdr = (Header_t *) *buff;
   (*hdr)->guid_prefix = nn_ntoh_guid_prefix ((*hdr)->guid_prefix);
-  *sz = (ssize_t) dstlen;
-  assert ((size_t) *sz == dstlen);
+  *sz = dstlen;
   return NN_RTPS_MSG_STATE_ENCODED;
 }
 
@@ -3761,7 +3760,7 @@ decode_rtps_message (
   struct nn_rmsg **rmsg,
   Header_t **hdr,
   unsigned char **buff,
-  ssize_t *sz,
+  size_t *sz,
   struct nn_rbufpool *rbpool,
   bool isstream)
 {
@@ -4036,7 +4035,7 @@ DDS_EXPORT extern inline nn_rtps_msg_state_t decode_rtps_message(
   UNUSED_ARG(struct nn_rmsg **rmsg),
   UNUSED_ARG(Header_t **hdr),
   UNUSED_ARG(unsigned char **buff),
-  UNUSED_ARG(ssize_t *sz),
+  UNUSED_ARG(size_t *sz),
   UNUSED_ARG(struct nn_rbufpool *rbpool),
   UNUSED_ARG(bool isstream));
 

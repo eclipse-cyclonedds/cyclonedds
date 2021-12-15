@@ -1067,7 +1067,7 @@ decode_SecPrefix(
  * @retval NN_RTPS_MSG_STATE_ENCODED  Decoding succeeded.
  * @retval NN_RTPS_MSG_STATE_ERROR    Decoding failed.
  */
-nn_rtps_msg_state_t decode_rtps_message(struct thread_state1 * const ts1, struct ddsi_domaingv *gv, struct nn_rmsg **rmsg, Header_t **hdr, unsigned char **buff, ssize_t *sz, struct nn_rbufpool *rbpool, bool isstream);
+nn_rtps_msg_state_t decode_rtps_message(struct thread_state1 * const ts1, struct ddsi_domaingv *gv, struct nn_rmsg **rmsg, Header_t **hdr, unsigned char **buff, size_t *sz, struct nn_rbufpool *rbpool, bool isstream);
 
 /**
  * @brief Send the RTPS message securely.
@@ -1416,7 +1416,7 @@ decode_rtps_message(
   UNUSED_ARG(struct nn_rmsg **rmsg),
   UNUSED_ARG(Header_t **hdr),
   UNUSED_ARG(unsigned char **buff),
-  UNUSED_ARG(ssize_t *sz),
+  UNUSED_ARG(size_t *sz),
   UNUSED_ARG(struct nn_rbufpool *rbpool),
   UNUSED_ARG(bool isstream))
 {

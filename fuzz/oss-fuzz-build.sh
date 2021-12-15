@@ -44,6 +44,7 @@ find build/bin -type f -name 'fuzz_*' | while read fuzzer; do
     copy_fuzzer "$fuzzer"
 done
 
+find fuzz/ -type f -name 'fuzz_*_seed_corpus.zip' | xargs -I {} cp {} $OUT
 find fuzz/ -type d -name 'fuzz_*_seed_corpus' | while read corpus_dir; do
   zip -j $OUT/$(basename "$corpus_dir").zip $corpus_dir/*
 done

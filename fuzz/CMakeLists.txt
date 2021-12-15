@@ -15,5 +15,5 @@ set(CMAKE_INSTALL_EXAMPLESDIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/fuzz")
 include("${CMAKE_SOURCE_DIR}/cmake/Modules/Generate.cmake")
 
 add_subdirectory(fuzz_config_init)
-# add_subdirectory(fuzz_process_msg)
+add_subdirectory(fuzz_handle_rtps_message)
 # add_subdirectory(fuzz_idlc)

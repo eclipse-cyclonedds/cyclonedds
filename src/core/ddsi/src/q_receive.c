@@ -3153,6 +3153,46 @@ static int handle_submsg_sequence
   }
 }
 
+static void handle_rtps_message (struct thread_state1 * const ts1, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool, struct nn_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
+{
+  Header_t *hdr = (Header_t *) msg;
+  assert (thread_is_asleep ());
+  if (sz < RTPS_MESSAGE_HEADER_SIZE || *(uint32_t *)msg != NN_PROTOCOLID_AS_UINT32)
+  {
+    /* discard packets that are really too small or don't have magic cookie */
+  }
+  else if (hdr->version.major != RTPS_MAJOR || (hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
+  {
+    if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
+      GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
+               PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor);
+    if (DDSI_SC_PEDANTIC_P (gv->config))
+      malformed_packet_received (gv, msg, NULL, (size_t) sz, hdr->vendorid);
+  }
+  else
+  {
+    hdr->guid_prefix = nn_ntoh_guid_prefix (hdr->guid_prefix);
+
+    if (gv->logconfig.c.mask & DDS_LC_TRACE)
+    {
+      char addrstr[DDSI_LOCSTRLEN];
+      ddsi_locator_to_string(addrstr, sizeof(addrstr), srcloc);
+      GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu from %s\n",
+               PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
+    }
+    nn_rtps_msg_state_t res = decode_rtps_message (ts1, gv, &rmsg, &hdr, &msg, &sz, rbpool, conn->m_stream);
+    if (res != NN_RTPS_MSG_STATE_ERROR)
+    {
+      handle_submsg_sequence (ts1, gv, conn, srcloc, ddsrt_time_wallclock (), ddsrt_time_elapsed (), &hdr->guid_prefix, guidprefix, msg, (size_t) sz, msg + RTPS_MESSAGE_HEADER_SIZE, rmsg, res == NN_RTPS_MSG_STATE_ENCODED);
+    }
+  }
+}
+
+void ddsi_handle_rtps_message (struct thread_state1 * const ts1, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool, struct nn_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
+{
+  handle_rtps_message (ts1, gv, conn, guidprefix, rbpool, rmsg, sz, msg, srcloc);
+}
+
 static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool)
 {
   /* UDP max packet size is 64kB */
@@ -3241,42 +3281,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
   if (sz > 0 && !gv->deaf)
   {
     nn_rmsg_setsize (rmsg, (uint32_t) sz);
-    assert (thread_is_asleep ());
-
-    if ((size_t)sz < RTPS_MESSAGE_HEADER_SIZE || *(uint32_t *)buff != NN_PROTOCOLID_AS_UINT32)
-    {
-      /* discard packets that are really too small or don't have magic cookie */
-    }
-    else if (hdr->version.major != RTPS_MAJOR || (hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
-    {
-      if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
-        GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
-                 PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor);
-      if (DDSI_SC_PEDANTIC_P (gv->config))
-        malformed_packet_received (gv, buff, NULL, (size_t) sz, hdr->vendorid);
-    }
-    else
-    {
-      hdr->guid_prefix = nn_ntoh_guid_prefix (hdr->guid_prefix);
-
-      if (gv->logconfig.c.mask & DDS_LC_TRACE)
-      {
-        char addrstr[DDSI_LOCSTRLEN];
-        ddsi_locator_to_string(addrstr, sizeof(addrstr), &srcloc);
-        GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu from %s\n",
-                 PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
-      }
-      nn_rtps_msg_state_t res = decode_rtps_message (ts1, gv, &rmsg, &hdr, &buff, &sz, rbpool, conn->m_stream);
-      if (res != NN_RTPS_MSG_STATE_ERROR)
-      {
-        handle_submsg_sequence (ts1, gv, conn, &srcloc, ddsrt_time_wallclock (), ddsrt_time_elapsed (), &hdr->guid_prefix, guidprefix, buff, (size_t) sz, buff + RTPS_MESSAGE_HEADER_SIZE, rmsg, res == NN_RTPS_MSG_STATE_ENCODED);
-      }
-      else
-      {
-        /* drop message */
-        sz = 1;
-      }
-    }
+    handle_rtps_message(ts1, gv, conn, guidprefix, rbpool, rmsg, (size_t) sz, buff, &srcloc);
   }
   nn_rmsg_commit (rmsg);
   return (sz > 0);

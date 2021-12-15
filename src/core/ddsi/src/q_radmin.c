@@ -2770,6 +2770,29 @@ void nn_dqueue_wait_until_empty_if_full (struct nn_dqueue *q)
   }
 }
 
+static void dqueue_free_remaining_elements (struct nn_dqueue *q)
+{
+  assert (q->ts == NULL);
+  while (q->sc.first)
+  {
+    struct nn_rsample_chain_elem *e = q->sc.first;
+    q->sc.first = e->next;
+    switch (dqueue_elem_kind (e))
+    {
+      case DQEK_DATA:
+      case DQEK_GAP:
+        nn_fragchain_unref (e->fragchain);
+        break;
+      case DQEK_BUBBLE: {
+        struct nn_dqueue_bubble *b = (struct nn_dqueue_bubble *) e->sampleinfo;
+        if (b->kind != NN_DQBK_STOP)
+          ddsrt_free (b);
+        break;
+      }
+    }
+  }
+}
+
 void nn_dqueue_free (struct nn_dqueue *q)
 {
   /* There must not be any thread enqueueing things anymore at this
@@ -2785,6 +2808,10 @@ void nn_dqueue_free (struct nn_dqueue *q)
 
     join_thread (q->ts);
     assert (q->sc.first == NULL);
+  }
+  else
+  {
+    dqueue_free_remaining_elements (q);
   }
   ddsrt_cond_destroy (&q->cond);
   ddsrt_mutex_destroy (&q->lock);
