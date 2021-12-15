@@ -166,9 +166,8 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
   {
     switch (DDS_OP (insn))
     {
-      case DDS_OP_ADR: {
+      case DDS_OP_ADR:
         /* skip fields that are not in serialized data for appendable type */
-        const uint32_t type = DDS_OP_TYPE (insn);
         ops = (is->m_index - delimited_offs < delimited_sz) ?
           dds_stream_extract_keyBO_from_data_adr (insn, is, os, ops_offs_idx, ops_offs, op0, op0_type, ops, false, mutable_member_or_parent, n_keys, keys_remaining, keys, key_offs) : dds_stream_skip_adr (insn, ops);
         break;
@@ -176,11 +175,9 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
         (void) dds_stream_extract_keyBO_from_data1 (is, os, ops_offs_idx, ops_offs, op0, op0_type, ops + DDS_OP_JUMP (insn), false, mutable_member_or_parent, n_keys, keys_remaining, keys, key_offs);
         ops++;
         break;
-      }
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM: {
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM:
         abort ();
         break;
-      }
     }
   }
   /* Skip remainder of serialized data for this appendable type */
