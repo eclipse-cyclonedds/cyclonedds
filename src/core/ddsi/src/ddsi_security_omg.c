@@ -3586,8 +3586,12 @@ static bool decode_SecPrefix_patched_hdr_flags (const struct receiver_state *rst
   prefix_submsg = submsg;
 
   /* Next sub-message is SEC_BODY when encrypted or the original submessage when only signed. */
+  if ((submsg_size % 4) != 0)
+    return false;
   body_submsg = submsg + submsg_size;
   if ((smsize = validate_submsg (rst->gv, SMID_PAD, body_submsg, msg_end, byteswap)) <= 0)
+    return false;
+  if ((smsize % 4) != 0)
     return false;
   totalsize += (size_t) smsize;
 
