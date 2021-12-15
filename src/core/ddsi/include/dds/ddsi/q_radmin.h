@@ -165,7 +165,7 @@ struct nn_rdata {
    we have the option to do wild things. */
 #ifndef NDEBUG
 #define NN_ZOFF_TO_OFF(zoff) ((unsigned) (zoff))
-#define NN_OFF_TO_ZOFF(off) (assert ((off) < 65536 && ((off) % 4) == 0), ((unsigned short) (off)))
+#define NN_OFF_TO_ZOFF(off) (assert ((off) < 65536), ((unsigned short) (off)))
 #else
 #define NN_ZOFF_TO_OFF(zoff) ((unsigned) (zoff))
 #define NN_OFF_TO_ZOFF(off) ((unsigned short) (off))
