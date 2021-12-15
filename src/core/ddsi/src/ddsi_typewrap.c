@@ -472,7 +472,7 @@ static int add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, co
         xt->_u.union_type.members.seq[n].flags = mto->_u.union_type.member_seq._buffer[n].common.member_flags;
         xt->_u.union_type.members.seq[n].type = ddsi_type_ref_id_locked_impl (gv, &mto->_u.union_type.member_seq._buffer[n].common.type_id);
         xt->_u.union_type.members.seq[n].label_seq._length = mto->_u.union_type.member_seq._buffer[n].common.label_seq._length;
-        xt->_u.union_type.members.seq[n].label_seq._buffer = ddsrt_memdup (&mto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer,
+        xt->_u.union_type.members.seq[n].label_seq._buffer = ddsrt_memdup (mto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer,
           mto->_u.union_type.member_seq._buffer[n].common.label_seq._length * sizeof (*mto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer));
         memcpy (xt->_u.union_type.members.seq[n].detail.name_hash, mto->_u.union_type.member_seq._buffer[n].detail.name_hash,
           sizeof (xt->_u.union_type.members.seq[n].detail.name_hash));
@@ -591,7 +591,7 @@ static int add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, c
         xt->_u.union_type.members.seq[n].flags = cto->_u.union_type.member_seq._buffer[n].common.member_flags;
         xt->_u.union_type.members.seq[n].type = ddsi_type_ref_id_locked_impl (gv, &cto->_u.union_type.member_seq._buffer[n].common.type_id);
         xt->_u.union_type.members.seq[n].label_seq._length = cto->_u.union_type.member_seq._buffer[n].common.label_seq._length;
-        xt->_u.union_type.members.seq[n].label_seq._buffer = ddsrt_memdup (&cto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer,
+        xt->_u.union_type.members.seq[n].label_seq._buffer = ddsrt_memdup (cto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer,
           cto->_u.union_type.member_seq._buffer[n].common.label_seq._length * sizeof (*cto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer));
         memcpy (xt->_u.union_type.members.seq[n].detail.name, cto->_u.union_type.member_seq._buffer[n].detail.name,
           sizeof (xt->_u.union_type.members.seq[n].detail.name));
@@ -1482,6 +1482,15 @@ static bool xt_union_label_selects (const struct DDS_XTypes_UnionCaseLabelSeq *l
   return false;
 }
 
+static bool xt_union_labels_match (const struct DDS_XTypes_UnionCaseLabelSeq *ls1, const struct DDS_XTypes_UnionCaseLabelSeq *ls2)
+{
+  /* UnionCaseLabelSeq is ordered by value (as noted in typeobject idl) */
+  for (uint32_t i = 0; i < ls1->_length; i++)
+    if (i >= ls2->_length || ls1->_buffer[i] != ls2->_buffer[i])
+      return false;
+  return true;
+}
+
 static bool xt_is_assignable_from_enum (const struct xt_type *t1, const struct xt_type *t2)
 {
   assert (t1->_d == DDS_XTypes_TK_ENUM);
@@ -1532,44 +1541,74 @@ static bool xt_is_assignable_from_union (struct ddsi_domaingv *gv, const struct 
   {
     struct xt_union_member *m1 = &t1->_u.union_type.members.seq[i1];
     const struct xt_type *m1t = ddsi_xt_unalias (&m1->type->xt);
-    bool m2_match = false;
+    bool m2_id_match = false, m2_labels_match = true, t1_selects_t2_member = false;
+    struct xt_union_member *def_m2 = NULL;
     for (uint32_t i2 = i1; i2 < i2_max + i1; i2++)
     {
       struct xt_union_member *m2 = &t2->_u.union_type.members.seq[i2 % i2_max];
       const struct xt_type *m2t = ddsi_xt_unalias (&m2->type->xt);
       if (m1->id == m2->id)
       {
+        m2_id_match = true;
+
         /* Rule: Any members in T1 and T2 that have the same name also have the same ID and any members
         with the same ID also have the same name. */
         if (!xt_namehash_eq (&m1->detail.name_hash, &m2->detail.name_hash))
           return false;
       }
-      bool match;
-      if ((match = xt_union_label_selects (&m1->label_seq, &m2->label_seq)))
-        m2_match = true;
-      /* Rule: For all non-default labels in T2 that select some member in T1 (including selecting the member in T1’s
-        default label), the type of the selected member in T1 is assignable from the type of the T2 member. */
-      if ((match || (m1->flags & DDS_XTypes_IS_DEFAULT)) && !(m2->flags & DDS_XTypes_IS_DEFAULT) && !ddsi_xt_is_assignable_from (gv, m1t, m2t))
-        return false;
-      /* Rule: If any non-default labels in T1 that select the default member in T2, the type of the member in T1 is
-        assignable from the type of the T2 default member. */
-      if (!match && !(m1->flags & DDS_XTypes_IS_DEFAULT) && (m2->flags & DDS_XTypes_IS_DEFAULT) && !ddsi_xt_is_assignable_from (gv, m1t, m2t))
-        return false;
+
       /* Rule: If T1 and T2 both have default labels, the type associated with T1 default member is assignable from
           the type associated with T2 default member. */
       if ((m1->flags & DDS_XTypes_IS_DEFAULT) && (m2->flags & DDS_XTypes_IS_DEFAULT))
       {
-        m2_match = true;
         if (!ddsi_xt_is_assignable_from (gv, m1t, m2t))
           return false;
       }
+
+      if (m1->id == m2->id && !xt_union_labels_match (&m1->label_seq, &m2->label_seq))
+        m2_labels_match = false;
+      if (xt_union_label_selects (&m1->label_seq, &m2->label_seq))
+        t1_selects_t2_member = true;
+      if (m2->flags & DDS_XTypes_IS_DEFAULT)
+        def_m2 = m2;
+    } /* loop T2 members */
+
+    /* Rule: If any non-default labels in T1 that select the default member in T2, the type of the member in T1 is
+      assignable from the type of the T2 default member. */
+    if (!(m1->flags & DDS_XTypes_IS_DEFAULT) && !t1_selects_t2_member && def_m2)
+    {
+      if (!ddsi_xt_is_assignable_from (gv, m1t, ddsi_xt_unalias (&def_m2->type->xt)))
+        return false;
     }
+
     /* Rule: If T1 (and therefore T2) extensibility is final then the set of labels is identical. */
-    if (!m2_match && xt_get_extensibility (t1) == DDS_XTypes_IS_FINAL)
+    if (xt_get_extensibility (t1) == DDS_XTypes_IS_FINAL && (!m2_id_match || !m2_labels_match))
       return false;
-    if (m2_match)
+    if (t1_selects_t2_member)
       any_match = true;
+  } /* loop T1 members */
+
+  /* Rule: For all non-default labels in T2 that select some member in T1 (including selecting the member in T1’s
+    default label), the type of the selected member in T1 is assignable from the type of the T2 member. */
+  for (uint32_t i2 = 0; i2 < i2_max; i2++)
+  {
+    // FIXME: integrate this in the loop above to get better performance
+    struct xt_union_member *m2 = &t2->_u.union_type.members.seq[i2];
+    if (m2->flags & DDS_XTypes_IS_DEFAULT)
+      continue;
+    struct xt_union_member *def_m1 = NULL, *sel_m1 = NULL;
+    for (uint32_t i1 = i2; i1 < i1_max + i2; i1++)
+    {
+      struct xt_union_member *m1 = &t1->_u.union_type.members.seq[i1 % i1_max];
+      if (xt_union_label_selects (&m2->label_seq, &m1->label_seq))
+        sel_m1 = m1;
+      if (m1->flags & DDS_XTypes_IS_DEFAULT)
+        def_m1 = m1;
+    }
+    if ((sel_m1 || def_m1) && !ddsi_xt_is_assignable_from (gv, ddsi_xt_unalias (sel_m1 ? &sel_m1->type->xt : &def_m1->type->xt), ddsi_xt_unalias(&m2->type->xt)))
+      return false;
   }
+
   /* Rule: [extensibility is final], otherwise, they have at least one common label other than the default label. */
   if (!any_match)
     return false;
