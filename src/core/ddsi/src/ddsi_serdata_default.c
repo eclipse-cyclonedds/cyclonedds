@@ -214,10 +214,12 @@ enum gen_serdata_key_input_kind {
 
 static inline bool is_topic_fixed_key(uint32_t flagset, uint32_t xcdrv)
 {
-  /* The size of the XCDR2 representation of a key is <= the size of the XCDR1 representation
-     because of max-alignment, so if only the XCDR flag is set (legacy topic descriptor)
-     it is also a fixed key in XCDR2 */
-  return flagset & (DDS_TOPIC_FIXED_KEY | (xcdrv == CDR_ENC_VERSION_2 ? DDS_TOPIC_FIXED_KEY_XCDR2 : 0));
+  if (xcdrv == CDR_ENC_VERSION_1)
+    return flagset & DDS_TOPIC_FIXED_KEY;
+  else if (xcdrv == CDR_ENC_VERSION_2)
+    return flagset & DDS_TOPIC_FIXED_KEY_XCDR2;
+  assert (0);
+  return false;
 }
 
 static bool gen_serdata_key (const struct ddsi_sertype_default *type, struct ddsi_serdata_default_key *kh, enum gen_serdata_key_input_kind input_kind, void *input)
