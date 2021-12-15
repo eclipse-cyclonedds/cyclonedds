@@ -348,6 +348,10 @@ static enum validation_result validate_Data (const struct receiver_state *rst, D
     msg->x.octetsToInlineQos = ddsrt_bswap2u (msg->x.octetsToInlineQos);
     bswapSN (&msg->x.writerSN);
   }
+  if ((msg->x.octetsToInlineQos % 4) != 0) {
+    // Not quite clear whether this is actually required
+    return VR_MALFORMED;
+  }
   msg->x.readerId = nn_ntoh_entityid (msg->x.readerId);
   msg->x.writerId = nn_ntoh_entityid (msg->x.writerId);
   pwr_guid.prefix = rst->src_guid_prefix;
@@ -444,6 +448,10 @@ static enum validation_result validate_DataFrag (const struct receiver_state *rs
     msg->fragmentsInSubmessage = ddsrt_bswap2u (msg->fragmentsInSubmessage);
     msg->fragmentSize = ddsrt_bswap2u (msg->fragmentSize);
     msg->sampleSize = ddsrt_bswap4u (msg->sampleSize);
+  }
+  if ((msg->x.octetsToInlineQos % 4) != 0) {
+    // Not quite clear whether this is actually required
+    return VR_MALFORMED;
   }
   msg->x.readerId = nn_ntoh_entityid (msg->x.readerId);
   msg->x.writerId = nn_ntoh_entityid (msg->x.writerId);
@@ -2960,12 +2968,20 @@ static int handle_submsg_sequence
       sm->smhdr.octetsToNextHeader = ddsrt_bswap2u (sm->smhdr.octetsToNextHeader);
 
     const uint32_t octetsToNextHeader = sm->smhdr.octetsToNextHeader;
-    if (octetsToNextHeader != 0)
-      submsg_size = RTPS_SUBMESSAGE_HEADER_SIZE + octetsToNextHeader;
-    else if (sm->smhdr.submessageId == SMID_PAD || sm->smhdr.submessageId == SMID_INFO_TS)
+    if (octetsToNextHeader != 0) {
+      // DDSI 2.5 9.4.1: The PSM aligns each Submessage on a 32-bit boundary
+      // with respect to the start of the Message
+      if ((octetsToNextHeader % 4) == 0) {
+        submsg_size = RTPS_SUBMESSAGE_HEADER_SIZE + octetsToNextHeader;
+      } else {
+        vr = VR_MALFORMED;
+        break;
+      }
+    } else if (sm->smhdr.submessageId == SMID_PAD || sm->smhdr.submessageId == SMID_INFO_TS) {
       submsg_size = RTPS_SUBMESSAGE_HEADER_SIZE;
-    else
+    } else {
       submsg_size = (size_t) (end - submsg);
+    }
     /*GVTRACE ("submsg_size %d\n", submsg_size);*/
 
     if (submsg + submsg_size > end)
