@@ -1393,7 +1393,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
   dst.entityid = msg->readerId;
   const bool directed_heartbeat = (dst.entityid.u != NN_ENTITYID_UNKNOWN && vendor_is_eclipse (rst->vendor));
 
-  RSTTRACE ("HEARTBEATFRAG(#%"PRId32":%"PRId64"/[1,%u]", msg->count, seq, fragnum+1);
+  RSTTRACE ("HEARTBEATFRAG(#%"PRId32":%"PRId64"/[1,%"PRIu32"]", msg->count, seq, fragnum+1);
   if (!rst->forme)
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not-for-me)", PGUID (src), PGUID (dst));
@@ -1546,7 +1546,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->writerId;
 
-  RSTTRACE ("NACKFRAG(#%"PRId32":%"PRId64"/%u/%"PRIu32":", *countp, seq, msg->fragmentNumberState.bitmap_base, msg->fragmentNumberState.numbits);
+  RSTTRACE ("NACKFRAG(#%"PRId32":%"PRId64"/%"PRIu32"/%"PRIu32":", *countp, seq, msg->fragmentNumberState.bitmap_base, msg->fragmentNumberState.numbits);
   for (uint32_t i = 0; i < msg->fragmentNumberState.numbits; i++)
     RSTTRACE ("%c", nn_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i) ? '1' : '0');
 
@@ -2621,11 +2621,11 @@ static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct n
 
 static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const DataFrag_t *msg, size_t size, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t *keyhash, unsigned char *datap, struct nn_dqueue **deferred_wakeup, SubmessageKind_t prev_smid)
 {
-  RSTTRACE ("DATAFRAG("PGUIDFMT" -> "PGUIDFMT" #%"PRId64"/[%u..%u]",
+  RSTTRACE ("DATAFRAG("PGUIDFMT" -> "PGUIDFMT" #%"PRId64"/[%"PRIu32"..%"PRIu32"]",
             PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
             PGUIDPREFIX (rst->dst_guid_prefix), msg->x.readerId.u,
             fromSN (msg->x.writerSN),
-            msg->fragmentStartingNum, msg->fragmentStartingNum + msg->fragmentsInSubmessage - 1);
+            msg->fragmentStartingNum, (nn_fragment_number_t) (msg->fragmentStartingNum + msg->fragmentsInSubmessage - 1));
   if (!rst->forme)
   {
     RSTTRACE (" not-for-me)");

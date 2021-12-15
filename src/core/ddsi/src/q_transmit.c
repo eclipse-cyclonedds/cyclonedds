@@ -647,7 +647,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
   nn_xmsg_serdata (*pmsg, serdata, fragstart, fraglen, wr);
   nn_xmsg_submsg_setnext (*pmsg, sm_marker);
 #if 0
-  GVTRACE ("queue data%s "PGUIDFMT" #%lld/%u[%u..%u)\n",
+  GVTRACE ("queue data%s "PGUIDFMT" #%"PRId64"/%"PRIu32"[%"PRIu32"..%"PRIu32")\n",
            fragging ? "frag" : "", PGUID (wr->e.guid),
            seq, fragnum+1, fragstart, fragstart + fraglen);
 #endif

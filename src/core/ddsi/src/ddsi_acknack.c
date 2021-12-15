@@ -191,7 +191,7 @@ static void add_NackFrag (struct nn_xmsg *msg, const struct proxy_writer *pwr, c
 
   if (pwr->e.gv->logconfig.c.mask & DDS_LC_TRACE)
   {
-    ETRACE (pwr, "nackfrag #%"PRIu32":%"PRId64"/%u/%"PRIu32":",
+    ETRACE (pwr, "nackfrag #%"PRIu32":%"PRId64"/%"PRIu32"/%"PRIu32":",
             pwr->nackfragcount, fromSN (nf->writerSN),
             nf->fragmentNumberState.bitmap_base, nf->fragmentNumberState.numbits);
     for (uint32_t ui = 0; ui != nf->fragmentNumberState.numbits; ui++)

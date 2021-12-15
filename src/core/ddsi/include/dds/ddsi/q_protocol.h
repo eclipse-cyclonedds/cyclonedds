@@ -46,7 +46,7 @@ typedef struct nn_sequence_number_set_header {
 #define NN_SEQUENCE_NUMBER_SET_MAX_BITS (256u)
 #define NN_SEQUENCE_NUMBER_SET_BITS_SIZE(numbits) ((unsigned) (4 * (((numbits) + 31) / 32)))
 #define NN_SEQUENCE_NUMBER_SET_SIZE(numbits) (sizeof (nn_sequence_number_set_header_t) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits))
-typedef unsigned nn_fragment_number_t;
+typedef uint32_t nn_fragment_number_t;
 typedef struct nn_fragment_number_set_header {
   nn_fragment_number_t bitmap_base;
   uint32_t numbits;
