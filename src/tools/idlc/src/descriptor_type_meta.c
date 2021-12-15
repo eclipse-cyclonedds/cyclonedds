@@ -164,19 +164,21 @@ has_plain_collection_typeid (const idl_type_spec_t *type_spec)
 }
 
 static bool
-has_fully_descriptive_typeid_impl (const idl_type_spec_t *type_spec, bool array_type_spec)
+has_fully_descriptive_typeid_impl (const idl_type_spec_t *type_spec, bool array_type_spec, bool alias_related_type)
 {
+  if (idl_is_alias (type_spec) && !alias_related_type)
+    return false;
   if (idl_is_array (type_spec)) {
     if (array_type_spec) {
       type_spec = idl_type_spec (type_spec);
     } else {
       // re-check for the array element type
-      return has_fully_descriptive_typeid_impl (type_spec, true) && !has_non_plain_annotation (type_spec);
+      return has_fully_descriptive_typeid_impl (type_spec, true, alias_related_type) && !has_non_plain_annotation (type_spec);
     }
   }
   if (idl_is_sequence (type_spec)) {
     idl_type_spec_t *element_type_spec = idl_type_spec (type_spec);
-    return has_fully_descriptive_typeid_impl (element_type_spec, false)
+    return has_fully_descriptive_typeid_impl (element_type_spec, false, false)
       && !has_non_plain_annotation (type_spec)
       && !has_non_plain_annotation (element_type_spec);
   }
@@ -188,7 +190,7 @@ has_fully_descriptive_typeid_impl (const idl_type_spec_t *type_spec, bool array_
 static bool
 has_fully_descriptive_typeid (const idl_type_spec_t *type_spec)
 {
-  return has_fully_descriptive_typeid_impl (type_spec, false);
+  return has_fully_descriptive_typeid_impl (type_spec, false, false);
 }
 
 static idl_retcode_t
@@ -199,7 +201,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
 {
   idl_retcode_t ret;
   assert (ti);
-  assert (has_fully_descriptive_typeid (type_spec) || has_plain_collection_typeid_impl (type_spec, alias_related_type));
+  assert (has_fully_descriptive_typeid_impl (type_spec, false, alias_related_type) || has_plain_collection_typeid_impl (type_spec, alias_related_type));
   (void) alias_related_type;
 
   if (idl_is_array (type_spec)) {
@@ -216,7 +218,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
       ti->_u.array_sdefn.element_identifier = calloc (1, sizeof (*ti->_u.array_sdefn.element_identifier));
       if ((ret = get_typeid (pstate, dtm, type_spec, false, ti->_u.array_sdefn.element_identifier, kind, true)) < 0)
         return ret;
-      if (has_fully_descriptive_typeid (type_spec))
+      if (has_fully_descriptive_typeid_impl (type_spec, true, alias_related_type))
         ti->_u.array_sdefn.header.equiv_kind = DDS_XTypes_EK_BOTH;
       else
         ti->_u.array_sdefn.header.equiv_kind = kind;
@@ -231,7 +233,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
       }
       if ((ret = get_typeid (pstate, dtm, type_spec, false, ti->_u.array_ldefn.element_identifier, kind, true)) < 0)
         return ret;
-      if (has_fully_descriptive_typeid (type_spec))
+      if (has_fully_descriptive_typeid_impl (type_spec, true, alias_related_type))
         ti->_u.array_ldefn.header.equiv_kind = DDS_XTypes_EK_BOTH;
       else
         ti->_u.array_ldefn.header.equiv_kind = kind;
@@ -472,7 +474,7 @@ get_typeid(
   const idl_pstate_t *pstate,
   struct descriptor_type_meta *dtm,
   const idl_type_spec_t *type_spec,
-  bool alias_related_type,
+  bool alias_related_type, /* FIXME: refactor so that this parameter is not required */
   DDS_XTypes_TypeIdentifier *ti,
   DDS_XTypes_TypeKind kind,
   bool array_element)
@@ -483,7 +485,7 @@ get_typeid(
   if (idl_is_array (type_spec) && array_element)
     type_spec = idl_type_spec (type_spec);
 
-  if (has_fully_descriptive_typeid (type_spec) || has_plain_collection_typeid_impl (type_spec, alias_related_type)) {
+  if (has_fully_descriptive_typeid_impl (type_spec, false, alias_related_type) || has_plain_collection_typeid_impl (type_spec, alias_related_type)) {
     if ((ret = get_plain_typeid (pstate, dtm, type_spec, alias_related_type, ti, kind)) < 0)
       return ret;
   } else {
@@ -498,7 +500,7 @@ get_check_type_spec_typeid(
   const idl_pstate_t *pstate,
   struct descriptor_type_meta *dtm,
   const idl_type_spec_t *type_spec,
-  bool alias_related_type,
+  bool alias_related_type, /* FIXME: refactor so that this parameter is not required */
   DDS_XTypes_TypeIdentifier *ti,
   DDS_XTypes_TypeKind kind)
 {
@@ -527,7 +529,7 @@ get_type_spec_typeids(
   const idl_pstate_t *pstate,
   struct descriptor_type_meta *dtm,
   const idl_type_spec_t *type_spec,
-  bool alias_related_type,
+  bool alias_related_type, /* FIXME: refactor so that this parameter is not required */
   DDS_XTypes_TypeIdentifier *ti_minimal,
   DDS_XTypes_TypeIdentifier *ti_complete)
 {
@@ -785,7 +787,7 @@ add_typedef (
   const idl_type_spec_t *type_spec = idl_is_array (node) ? node : idl_type_spec (node);
 
   // don't visit fully descriptive type-spec, but visit plain-collection type-spec
-  bool visit_type_spec = !has_fully_descriptive_typeid_impl (type_spec, true);
+  bool visit_type_spec = !has_fully_descriptive_typeid_impl (type_spec, true, true);
 
   if (revisit) {
     assert (dtm->stack->to_minimal->_u.minimal._d == DDS_XTypes_TK_ALIAS);
