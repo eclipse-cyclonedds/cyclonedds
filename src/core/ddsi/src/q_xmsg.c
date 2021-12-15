@@ -821,7 +821,7 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, str
   assert (m->kindspecific.data.readerId_off != 0);
   assert (madd->kindspecific.data.readerId_off != 0);
 
-  GVTRACE (" ("PGUIDFMT"#%"PRId64"/%u:", PGUID (m->kindspecific.data.wrguid), m->kindspecific.data.wrseq, m->kindspecific.data.wrfragid + 1);
+  GVTRACE (" ("PGUIDFMT"#%"PRId64"/%"PRIu32":", PGUID (m->kindspecific.data.wrguid), m->kindspecific.data.wrseq, m->kindspecific.data.wrfragid + 1);
 
   switch (m->dstmode)
   {
@@ -1592,7 +1592,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
     case NN_XMSG_KIND_DATA:
     case NN_XMSG_KIND_DATA_REXMIT:
     case NN_XMSG_KIND_DATA_REXMIT_NOMERGE:
-      GVTRACE ("%s("PGUIDFMT":#%"PRId64"/%u)",
+      GVTRACE ("%s("PGUIDFMT":#%"PRId64"/%"PRIu32")",
                (m->kind == NN_XMSG_KIND_DATA) ? "data" : "rexmit",
                PGUID (m->kindspecific.data.wrguid),
                m->kindspecific.data.wrseq,

@@ -198,7 +198,7 @@ static void trace_msg (struct xeventq *evq, const char *func, const struct nn_xm
     seqno_t wrseq;
     nn_fragment_number_t wrfragid;
     nn_xmsg_guid_seq_fragid (m, &wrguid, &wrseq, &wrfragid);
-    EVQTRACE(" %s("PGUIDFMT"/%"PRId64"/%u)", func, PGUID (wrguid), wrseq, wrfragid);
+    EVQTRACE(" %s("PGUIDFMT"/%"PRId64"/%"PRIu32")", func, PGUID (wrguid), wrseq, wrfragid);
   }
 }
 #else
