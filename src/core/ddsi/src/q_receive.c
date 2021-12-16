@@ -253,8 +253,9 @@ static enum validation_result validate_Heartbeat (Heartbeat_t *msg, size_t size,
   }
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
-  /* Validation following 8.3.7.5.3; lastSN + 1 == firstSN: no data */
-  if (fromSN (msg->firstSN) <= 0 || fromSN (msg->lastSN) + 1 < fromSN (msg->firstSN))
+  /* Validation following 8.3.7.5.3; lastSN + 1 == firstSN: no data; test using
+     firstSN-1 because lastSN+1 can overflow and we already know firstSN-1 >= 0 */
+  if (fromSN (msg->firstSN) <= 0 || fromSN (msg->lastSN) < fromSN (msg->firstSN) - 1)
     return VR_MALFORMED;
   // do reader/writer entity id validation last: if it returns "NOT_UNDERSTOOD" for an
   // otherwise malformed message, we still need to discard the message in its entirety
