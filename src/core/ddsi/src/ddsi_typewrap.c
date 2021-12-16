@@ -423,16 +423,16 @@ static void xt_lbounds_dup (struct DDS_XTypes_LBoundSeq *dst, const struct DDS_X
   dst->_buffer = ddsrt_memdup (&src->_buffer, dst->_length * sizeof (*dst->_buffer));
 }
 
-static int add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeObject *to)
+static dds_return_t add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeObject *to)
 {
   const struct DDS_XTypes_MinimalTypeObject *mto = &to->_u.minimal;
-  int ret = 0;
+  dds_return_t ret = DDS_RETCODE_OK;
   xt->has_obj = 1;
   if (!xt->_d)
     xt->_d = mto->_d;
   else if (xt->_d != mto->_d)
   {
-    ret = -1;
+    ret = DDS_RETCODE_BAD_PARAMETER;
     goto err_tk;
   }
   switch (mto->_d)
@@ -441,8 +441,8 @@ static int add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, co
       xt->_u.alias.related_type = ddsi_type_ref_id_locked_impl (gv, &mto->_u.alias_type.body.common.related_type);
       break;
     case DDS_XTypes_TK_ANNOTATION:
-      abort (); /* FIXME: not implemented */
-      break;
+      ret = DDS_RETCODE_UNSUPPORTED; /* FIXME: not implemented */
+      goto err_tk;
     case DDS_XTypes_TK_STRUCTURE:
       xt->_u.structure.flags = mto->_u.struct_type.struct_flags;
       if (mto->_u.struct_type.header.base_type._d)
@@ -532,24 +532,27 @@ static int add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, co
       }
       break;
     default:
-      ret = -1; /* not supported */
-      break;
+      ret = DDS_RETCODE_UNSUPPORTED; /* not supported */
+      goto err_tk;
   }
+  return ret;
+
 err_tk:
+  xt->has_obj = 0;
+  xt->_d = DDS_XTypes_TK_NONE;
   return ret;
 }
 
-static int add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeObject *to)
+static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeObject *to)
 {
   const struct DDS_XTypes_CompleteTypeObject *cto = &to->_u.complete;
-  int ret = 0;
+  dds_return_t ret = DDS_RETCODE_OK;
   xt->has_obj = 1;
   if (!xt->_d)
     xt->_d = cto->_d;
-
   else if (xt->_d != cto->_d)
   {
-    ret = -1;
+    ret = DDS_RETCODE_BAD_PARAMETER;
     goto err_tk;
   }
   switch (cto->_d)
@@ -559,8 +562,8 @@ static int add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, c
       memcpy(&xt->_u.alias.detail.type_name, cto->_u.alias_type.header.detail.type_name, sizeof(xt->_u.alias.detail.type_name));
       break;
     case DDS_XTypes_TK_ANNOTATION:
-      abort (); /* FIXME: not implemented */
-      break;
+      ret = DDS_RETCODE_UNSUPPORTED; /* FIXME: not implemented */
+      goto err_tk;
     case DDS_XTypes_TK_STRUCTURE:
       xt->_u.structure.flags = cto->_u.struct_type.struct_flags;
       if (cto->_u.struct_type.header.base_type._d)
@@ -651,20 +654,24 @@ static int add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, c
       }
       break;
     default:
-      ret = -1; /* not supported */
-      break;
+      ret = DDS_RETCODE_UNSUPPORTED; /* not supported */
+      goto err_tk;
   }
+  return ret;
+
 err_tk:
+  xt->has_obj = 0;
+  xt->_d = DDS_XTypes_TK_NONE;
   return ret;
 }
 
-int ddsi_xt_type_add_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeObject *to)
+dds_return_t ddsi_xt_type_add_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeObject *to)
 {
   assert (xt);
   assert (to);
   assert (xt->kind == DDSI_TYPEID_KIND_MINIMAL || xt->kind == DDSI_TYPEID_KIND_COMPLETE);
   if (xt->has_obj)
-    return 0;
+    return DDS_RETCODE_OK;
   if (xt->kind == DDSI_TYPEID_KIND_MINIMAL)
   {
     assert (to->_d == DDS_XTypes_EK_MINIMAL);
@@ -675,14 +682,14 @@ int ddsi_xt_type_add_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, cons
     assert (to->_d == DDS_XTypes_EK_COMPLETE);
     return add_complete_typeobj (gv, xt, to);
   }
-  return -1;
+  return DDS_RETCODE_BAD_PARAMETER;
 }
 
-int ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeIdentifier *ti, const struct DDS_XTypes_TypeObject *to)
+dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeIdentifier *ti, const struct DDS_XTypes_TypeObject *to)
 {
   assert (xt);
   assert (ti);
-  int ret = 0;
+  dds_return_t ret = DDS_RETCODE_OK;
 
   ddsi_typeid_copy_impl (&xt->id.x, ti);
   if (!ddsi_typeid_is_hash_impl (ti))
@@ -770,14 +777,14 @@ int ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *xt, const 
         break;
       default:
         ddsi_typeid_fini (&xt->id);
-        ret = -1; /* not supported */
+        ret = DDS_RETCODE_UNSUPPORTED; /* not supported */
         break;
     }
   }
   return ret;
 }
 
-int ddsi_xt_type_init (struct ddsi_domaingv *gv, struct xt_type *xt, const ddsi_typeid_t *ti, const ddsi_typeobj_t *to)
+dds_return_t ddsi_xt_type_init (struct ddsi_domaingv *gv, struct xt_type *xt, const ddsi_typeid_t *ti, const ddsi_typeobj_t *to)
 {
   return ddsi_xt_type_init_impl (gv, xt, &ti->x, &to->x);
 }

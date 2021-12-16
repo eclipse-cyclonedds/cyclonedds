@@ -220,43 +220,44 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
          object should not be stored as there is no endpoint using this type */
       continue;
     }
-    if (!type->xt.has_obj)
-    {
-      GVTRACE (" resolve-minimal type %p\n", type);
-      ddsi_xt_type_add_typeobj (gv, &type->xt, &r.type_object);
-      type->state = DDSI_TYPE_RESOLVED;
-    }
-    else
+    if (type->xt.has_obj)
     {
       GVTRACE (" already resolved\n");
+      continue;
     }
-    if (ddsi_typeid_is_minimal_impl (&r.type_identifier))
-    {
-      /* don't set resolved when a minimal type object is received, because
-         only when getting a complete type object a sertype (and thus a topic)
-         can be constructed, so find_topic should be triggered */
-      ddsi_type_get_gpe_matches (gv, type, &gpe_match_upd, &n_match_upd);
-    }
-    else
-    {
-      GVTRACE (" resolve-complete type %p\n", type);
 
-      // FIXME: create sertype from received (complete) type object, check if it exists and register if not
-      // bool sertype_new = false;
-      // struct ddsi_sertype *st = ...
-      // ddsrt_mutex_lock (&gv->sertypes_lock);
-      // struct ddsi_sertype *existing_sertype = ddsi_sertype_lookup_locked (gv, &st->c);
-      // if (existing_sertype == NULL)
-      // {
-      //   ddsi_sertype_register_locked (gv, &st->c);
-      //   sertype_new = true;
-      // }
-      // ddsi_sertype_unref_locked (gv, &st->c); // unref because both init_from_ser and sertype_lookup/register refcounts the type
-      // ddsrt_mutex_unlock (&gv->sertypes_lock);
-      // type->sertype = &st->c; // refcounted by sertype_register/lookup
+    if (ddsi_xt_type_add_typeobj (gv, &type->xt, &r.type_object) == 0)
+    {
+      type->state = DDSI_TYPE_RESOLVED;
+      if (ddsi_typeid_is_minimal_impl (&r.type_identifier))
+      {
+        GVTRACE (" resolved minimal type %p\n", type);
+        /* don't trigger find_topic when a minimal type object is received, because
+          only when getting a complete type object a sertype (and thus a topic)
+          can be constructed */
+        ddsi_type_get_gpe_matches (gv, type, &gpe_match_upd, &n_match_upd);
+      }
+      else
+      {
+        GVTRACE (" resolved complete type %p\n", type);
 
-      if (ddsi_type_get_gpe_matches (gv, type, &gpe_match_upd, &n_match_upd))
-        resolved = true;
+        // FIXME: create sertype from received (complete) type object, check if it exists and register if not
+        // bool sertype_new = false;
+        // struct ddsi_sertype *st = ...
+        // ddsrt_mutex_lock (&gv->sertypes_lock);
+        // struct ddsi_sertype *existing_sertype = ddsi_sertype_lookup_locked (gv, &st->c);
+        // if (existing_sertype == NULL)
+        // {
+        //   ddsi_sertype_register_locked (gv, &st->c);
+        //   sertype_new = true;
+        // }
+        // ddsi_sertype_unref_locked (gv, &st->c); // unref because both init_from_ser and sertype_lookup/register refcounts the type
+        // ddsrt_mutex_unlock (&gv->sertypes_lock);
+        // type->sertype = &st->c; // refcounted by sertype_register/lookup
+
+        if (ddsi_type_get_gpe_matches (gv, type, &gpe_match_upd, &n_match_upd))
+          resolved = true;
+      }
     }
   }
   if (resolved)

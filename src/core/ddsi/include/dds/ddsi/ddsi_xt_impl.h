@@ -304,7 +304,7 @@ DDS_EXPORT bool ddsi_typeid_is_hash_impl (const struct DDS_XTypes_TypeIdentifier
 DDS_EXPORT bool ddsi_typeid_is_minimal_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
 DDS_EXPORT bool ddsi_typeid_is_complete_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
 DDS_EXPORT void ddsi_typeobj_fini_impl (struct DDS_XTypes_TypeObject *typeobj);
-DDS_EXPORT int ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeIdentifier *ti, const struct DDS_XTypes_TypeObject *to);
+DDS_EXPORT dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeIdentifier *ti, const struct DDS_XTypes_TypeObject *to);
 
 #if defined (__cplusplus)
 }

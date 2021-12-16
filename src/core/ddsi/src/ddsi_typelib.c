@@ -309,9 +309,11 @@ static void type_add_dep (struct ddsi_domaingv *gv, struct ddsi_type *type, cons
   {
     assert (n_match_upd);
     assert (gpe_match_upd);
-    ddsi_xt_type_add_typeobj (gv, &dep_type->xt, dep_type_obj);
-    dep_type->state = DDSI_TYPE_RESOLVED;
-    (void) ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
+    if (ddsi_xt_type_add_typeobj (gv, &dep_type->xt, dep_type_obj) == 0)
+    {
+      dep_type->state = DDSI_TYPE_RESOLVED;
+      (void) ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
+    }
   }
   /* FIXME: This should be using more efficient storage structure, but as the number
      of dependent types is typically rather small, the performance hit is limited */
@@ -334,6 +336,7 @@ static void type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *type, con
     else
       dep_ids = &type_info->x.minimal.dependent_typeids;
 
+    // FIXME: find a better approach to keep track of type dependencies
     for (uint32_t n = 0; dep_ids && n < dep_ids->_length; n++)
     {
       const struct DDS_XTypes_TypeIdentifier *dep_type_id = &dep_ids->_buffer[n].type_id;
@@ -398,7 +401,7 @@ struct ddsi_type * ddsi_type_ref_local (struct ddsi_domaingv *gv, const struct d
   if (!type)
     type = ddsi_type_new (gv, type_id, type_obj);
   else if (type_obj)
-    ddsi_xt_type_add_typeobj (gv, &type->xt, type_obj);
+    (void) ddsi_xt_type_add_typeobj (gv, &type->xt, type_obj);
   type->refc++;
   GVTRACE (" refc %"PRIu32"\n", type->refc);
 

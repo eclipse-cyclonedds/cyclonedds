@@ -59,8 +59,8 @@ DDS_EXPORT ddsi_typeid_kind_t ddsi_typeid_kind (const ddsi_typeid_t *type);
 
 DDS_EXPORT void ddsi_typeobj_fini (ddsi_typeobj_t *typeobj);
 
-DDS_EXPORT int ddsi_xt_type_init (struct ddsi_domaingv *gv, struct xt_type *xt, const ddsi_typeid_t *ti, const ddsi_typeobj_t *to);
-DDS_EXPORT int ddsi_xt_type_add_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeObject *to);
+DDS_EXPORT dds_return_t ddsi_xt_type_init (struct ddsi_domaingv *gv, struct xt_type *xt, const ddsi_typeid_t *ti, const ddsi_typeobj_t *to);
+DDS_EXPORT dds_return_t ddsi_xt_type_add_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeObject *to);
 DDS_EXPORT void ddsi_xt_get_typeobject (const struct xt_type *xt, ddsi_typeobj_t *to);
 DDS_EXPORT void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt);
 DDS_EXPORT bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *t1, const struct xt_type *t2);
