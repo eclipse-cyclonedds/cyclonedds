@@ -78,18 +78,23 @@ static dds_return_t dds_topic_status_validate (uint32_t mask)
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 static struct ktopic_type_guid * topic_guid_map_refc_impl (const struct dds_ktopic * ktp, const struct ddsi_sertype *sertype, bool unref)
 {
+  struct ktopic_type_guid *m = NULL;
   ddsi_typeid_t *type_id = ddsi_sertype_typeid (sertype, DDSI_TYPEID_KIND_COMPLETE);
-  if (ddsi_typeid_is_none (type_id))
-    return NULL;
-  struct ktopic_type_guid templ = { .type_id = type_id }, *m;
+  if (ddsi_typeid_is_none (type_id) || !ddsi_typeid_is_hash (type_id))
+    goto no_typeid;
+  struct ktopic_type_guid templ = { .type_id = type_id };
   m = ddsrt_hh_lookup (ktp->topic_guid_map, &templ);
   assert (m != NULL);
   if (unref)
     m->refc--;
   else
     m->refc++;
-  ddsi_typeid_fini (type_id);
-  ddsrt_free (type_id);
+no_typeid:
+  if (type_id != NULL)
+  {
+    ddsi_typeid_fini (type_id);
+    ddsrt_free (type_id);
+  }
   return m;
 }
 
@@ -208,7 +213,7 @@ static void dds_topic_close (dds_entity *e)
 #ifdef DDS_HAS_TYPE_DISCOVERY
   ddsi_type_unref_sertype (&e->m_domain->gv, tp->m_stype);
 #endif
-  ddsrt_free (tp->m_name);
+  dds_free (tp->m_name);
 
   ddsrt_mutex_lock (&pp->m_entity.m_mutex);
 
@@ -221,8 +226,8 @@ static void dds_topic_close (dds_entity *e)
   {
     ddsrt_avl_delete (&participant_ktopics_treedef, &pp->m_ktopics, ktp);
     dds_delete_qos (ktp->qos);
-    ddsrt_free (ktp->name);
-    ddsrt_free (ktp->type_name);
+    dds_free (ktp->name);
+    dds_free (ktp->type_name);
 #ifdef DDS_HAS_TOPIC_DISCOVERY
     ddsrt_hh_free (ktp->topic_guid_map);
 #endif
@@ -339,7 +344,7 @@ static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct d
   tp->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (&pp->m_entity, &tp->m_entity);
   tp->m_ktopic = ktp;
-  tp->m_name = ddsrt_strdup (topic_name);
+  tp->m_name = dds_string_dup (topic_name);
   tp->m_stype = sertype;
   dds_entity_init_complete (&tp->m_entity);
   return hdl;
@@ -350,37 +355,43 @@ static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct d
 static bool register_topic_type_for_discovery (struct ddsi_domaingv * const gv, dds_participant * const pp, dds_ktopic * const ktp, bool is_builtin, struct ddsi_sertype * const sertype)
 {
   bool new_topic_def = false;
+
   /* Create or reference a ktopic-sertype meta-data entry. The hash table has the
      complete xtypes type-id as key; for both local and discovered topic with type information,
      both minimal and complete type identifiers are always set */
   ddsi_typeid_t *type_id = ddsi_sertype_typeid (sertype, DDSI_TYPEID_KIND_COMPLETE);
-  if (type_id)
-  {
-    assert (!ddsi_typeid_is_none (type_id));
-    struct ktopic_type_guid templ = { .type_id = type_id }, *m;
-    if ((m = ddsrt_hh_lookup (ktp->topic_guid_map, &templ)))
-    {
-      m->refc++;
-      ddsi_typeid_fini (type_id);
-      ddsrt_free (type_id);
-    }
-    else
-    {
-      /* Add a ktopic-type-guid entry with the complete type identifier of the sertype as
-         key and a reference to a newly create ddsi topic entity */
-      thread_state_awake (lookup_thread_state (), gv);
-      const struct ddsi_guid * pp_guid = dds_entity_participant_guid (&pp->m_entity);
-      struct participant * pp_ddsi = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
+  if (ddsi_typeid_is_none (type_id) || !ddsi_typeid_is_hash (type_id))
+    goto free_typeid;
 
-      m = dds_alloc (sizeof (*m));
-      m->type_id = type_id; /* the ktopic_type_guid gets the ownership for the type_id */
-      m->refc = 1;
-      dds_return_t rc = ddsi_new_topic (&m->tp, &m->guid, pp_ddsi, ktp->name, sertype, ktp->qos, is_builtin, &new_topic_def);
-      assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
-      (void) rc;
-      ddsrt_hh_add_absent (ktp->topic_guid_map, m);
-      thread_state_asleep (lookup_thread_state ());
-    }
+  struct ktopic_type_guid templ = { .type_id = type_id }, *m;
+  if ((m = ddsrt_hh_lookup (ktp->topic_guid_map, &templ)))
+  {
+    m->refc++;
+    goto free_typeid;
+  }
+  else
+  {
+    /* Add a ktopic-type-guid entry with the complete type identifier of the sertype as
+        key and a reference to a newly create ddsi topic entity */
+    thread_state_awake (lookup_thread_state (), gv);
+    const struct ddsi_guid * pp_guid = dds_entity_participant_guid (&pp->m_entity);
+    struct participant * pp_ddsi = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
+
+    m = dds_alloc (sizeof (*m));
+    m->type_id = type_id;
+    type_id = NULL; /* the ktopic_type_guid gets the ownership for the type_id */
+    m->refc = 1;
+    dds_return_t rc = ddsi_new_topic (&m->tp, &m->guid, pp_ddsi, ktp->name, sertype, ktp->qos, is_builtin, &new_topic_def);
+    assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
+    (void) rc;
+    ddsrt_hh_add_absent (ktp->topic_guid_map, m);
+    thread_state_asleep (lookup_thread_state ());
+  }
+free_typeid:
+  if (type_id != NULL)
+  {
+    ddsi_typeid_fini (type_id);
+    ddsrt_free (type_id);
   }
   return new_topic_def;
 }
@@ -394,10 +405,12 @@ static int ktopic_type_guid_equal (const void *ktp_guid_a, const void *ktp_guid_
 
 static uint32_t ktopic_type_guid_hash (const void *ktp_guid)
 {
+  uint32_t hash32;
   struct ktopic_type_guid *x = (struct ktopic_type_guid *) ktp_guid;
   DDS_XTypes_EquivalenceHash hash;
   ddsi_typeid_get_equivalence_hash (x->type_id, &hash);
-  return * (uint32_t *) hash;
+  memcpy (&hash32, hash, sizeof (hash32));
+  return hash32;
 }
 
 #else
@@ -506,9 +519,9 @@ dds_entity_t dds_create_topic_impl (
     ktp->refc = 1;
     ktp->defer_set_qos = 0;
     ktp->qos = new_qos;
-    ktp->name = ddsrt_strdup (name);
+    ktp->name = dds_string_dup (name);
     /* have to copy these because the ktopic can outlast any specific sertype */
-    ktp->type_name = ddsrt_strdup ((*sertype)->type_name);
+    ktp->type_name = dds_string_dup ((*sertype)->type_name);
 #ifdef DDS_HAS_TOPIC_DISCOVERY
     ktp->topic_guid_map = ddsrt_hh_new (1, ktopic_type_guid_hash, ktopic_type_guid_equal);
 #endif
