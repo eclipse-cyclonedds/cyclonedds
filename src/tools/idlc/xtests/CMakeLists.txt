@@ -87,7 +87,9 @@ if(MSVC)
   set(_libs "${_libs}\\;${_windows_kit_libs}/um/${CMAKE_MSVC_ARCH}")
 endif()
 
-
+if(ENABLE_TYPE_DISCOVERY)
+  set(_type_meta 1)
+endif()
 
 set(_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 foreach(_source ${_sources})
@@ -106,7 +108,8 @@ foreach(_source ${_sources})
         "TEST_LIB_PATHS=${_libs}"
         "CDDS_LIB_PATH=$<TARGET_LINKER_FILE_DIR:CycloneDDS::ddsc>"
         "CDDS_BIN_PATH=$<TARGET_FILE_DIR:CycloneDDS::ddsc>"
-        "SANITIZER=${SANITIZER}")
+        "SANITIZER=${SANITIZER}"
+        "HAS_TYPE_META=${_type_meta}")
   if(APPLE)
     set_property(
         TEST "idlc_${_base}"

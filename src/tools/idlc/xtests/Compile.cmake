@@ -104,8 +104,12 @@ foreach(_source ${_sources})
     set(ENV{ASAN_OPTIONS} "detect_leaks=0")
   endif()
 
+  if($ENV{HAS_TYPE_META})
+    set(_disable_type_meta_option "-t")
+  endif()
+
   execute_process(
-    COMMAND ${_idl_compiler} "-t" ${_source}   # FIXME: generating type meta-data disabled because recursive types are not supported yet
+    COMMAND ${_idl_compiler} ${_disable_type_meta_option} ${_source}   # FIXME: generating type meta-data disabled because recursive types are not supported yet
     COMMAND_ECHO STDOUT
     WORKING_DIRECTORY ${_base_dir}
     RESULT_VARIABLE _result)
