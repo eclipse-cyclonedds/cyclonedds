@@ -440,11 +440,11 @@ void dds_write_set_batch (bool enable)
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
 
-dds_return_t dds_domain_resolve_type (dds_entity_t entity, const dds_typeid_t *type_id, dds_duration_t timeout, struct ddsi_sertype **sertype)
+dds_return_t dds_resolve_type (dds_entity_t entity, const dds_typeid_t *type_id, dds_duration_t timeout, struct ddsi_sertype **sertype)
 {
   struct dds_entity *e;
   dds_return_t rc;
-  const ddsi_typeid_t *ddsi_type_id = (const ddsi_typeid_t *) type_id;
+  const ddsi_typeid_t *ddsi_type_id = type_id;
   const struct ddsi_sertype *type_st;
 
   if (ddsi_typeid_is_none (ddsi_type_id) || !ddsi_typeid_is_hash (ddsi_type_id))
@@ -520,7 +520,7 @@ failed:
   return rc;
 }
 
-dds_return_t dds_domain_get_typeobj(
+dds_return_t dds_get_typeobj(
   dds_entity_t entity,
   const dds_typeid_t *type_id,
   dds_duration_t timeout,

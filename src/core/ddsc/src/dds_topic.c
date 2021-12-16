@@ -847,7 +847,7 @@ static dds_entity_t find_remote_topic_impl (dds_participant *pp_topic, const cha
     return ret;
   if (tpd == NULL)
     return DDS_RETCODE_OK;
-  if ((ret = dds_domain_resolve_type (pp_topic->m_entity.m_hdllink.hdl, ddsi_type_pair_complete_id (tpd->type_pair), timeout, &sertype)) != DDS_RETCODE_OK)
+  if ((ret = dds_resolve_type (pp_topic->m_entity.m_hdllink.hdl, ddsi_type_pair_complete_id (tpd->type_pair), timeout, &sertype)) != DDS_RETCODE_OK)
   {
     /* if topic definition is found, but the type for this topic is not resolved
         and timeout 0 means we don't want to request and wait for the type to be retrieved */

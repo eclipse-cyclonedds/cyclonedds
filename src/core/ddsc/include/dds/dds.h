@@ -3987,7 +3987,7 @@ dds_domain_set_deafmute (
  *             The operation is invoked on an inappropriate object.
 */
 DDS_EXPORT dds_return_t
-dds_domain_resolve_type (
+dds_resolve_type (
   dds_entity_t entity,
   const dds_typeid_t *type_id,
   dds_duration_t timeout,
@@ -4017,7 +4017,7 @@ dds_domain_resolve_type (
  *             The operation is invoked on an inappropriate object.
 */
 DDS_EXPORT dds_return_t
-dds_domain_get_typeobj (
+dds_get_typeobj (
   dds_entity_t entity,
   const dds_typeid_t *type_id,
   dds_duration_t timeout,

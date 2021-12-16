@@ -72,8 +72,9 @@ typedef struct dds_topic_descriptor
   const uint32_t m_nops;               /* Number of ops in m_ops */
   const uint32_t * m_ops;              /* Marshalling meta data */
   const char * m_meta;                 /* XML topic description meta data */
-  struct dds_type_meta_ser type_information;  /* XCDR2 serialized TypeInformation */
-  struct dds_type_meta_ser type_mapping;      /* XCDR2 serialized TypeMapping: maps type-id to type object and minimal to complete type id */
+  struct dds_type_meta_ser type_information;  /* XCDR2 serialized TypeInformation, only present if flag DDS_TOPIC_XTYPES_METADATA is set */
+  struct dds_type_meta_ser type_mapping;      /* XCDR2 serialized TypeMapping: maps type-id to type object and minimal to complete type id,
+                                                   only present if flag DDS_TOPIC_XTYPES_METADATA is set */
 }
 dds_topic_descriptor_t;
 
