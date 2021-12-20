@@ -232,10 +232,8 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
       if (ddsi_typeid_is_minimal_impl (&r.type_identifier))
       {
         GVTRACE (" resolved minimal type %p\n", type);
-        /* don't trigger find_topic when a minimal type object is received, because
-          only when getting a complete type object a sertype (and thus a topic)
-          can be constructed */
-        ddsi_type_get_gpe_matches (gv, type, &gpe_match_upd, &n_match_upd);
+        if (ddsi_type_get_gpe_matches (gv, type, &gpe_match_upd, &n_match_upd))
+          resolved = true;
       }
       else
       {

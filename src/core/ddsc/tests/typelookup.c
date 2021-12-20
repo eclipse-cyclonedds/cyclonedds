@@ -30,6 +30,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "test_common.h"
+#include "XSpace.h"
 
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
@@ -211,13 +212,18 @@ static bool reader_wait_for_data (dds_entity_t pp, dds_entity_t rd, dds_duration
 CU_Test(ddsc_typelookup, basic, .init = typelookup_init, .fini = typelookup_fini)
 {
   char topic_name_wr[100], topic_name_rd[100];
+  dds_return_t ret;
 
   create_unique_topic_name ("ddsc_typelookup", topic_name_wr, sizeof (topic_name_wr));
-  dds_entity_t topic_wr = dds_create_topic (g_participant1, &Space_Type1_desc, topic_name_wr, NULL, NULL);
+  dds_entity_t topic_wr = dds_create_topic (g_participant1, &XSpace_XType3a_desc, topic_name_wr, NULL, NULL);
   CU_ASSERT_FATAL (topic_wr > 0);
   create_unique_topic_name ("ddsc_typelookup", topic_name_rd, sizeof (topic_name_rd));
   dds_entity_t topic_rd = dds_create_topic (g_participant1, &Space_Type3_desc, topic_name_rd, NULL, NULL);
   CU_ASSERT_FATAL (topic_rd > 0);
+
+  /* Topic in domain 2 with topic same name, different (incompatible) type */
+  dds_entity_t topic_rd2 = dds_create_topic (g_participant2, &Space_Type1_desc, topic_name_wr, NULL, NULL);
+  CU_ASSERT_FATAL (topic_rd2 > 0);
 
   /* create a writer and reader on domain 1 */
   dds_qos_t *qos = dds_create_qos ();
@@ -226,6 +232,9 @@ CU_Test(ddsc_typelookup, basic, .init = typelookup_init, .fini = typelookup_fini
   CU_ASSERT_FATAL (writer > 0);
   dds_entity_t reader = dds_create_reader (g_participant1, topic_rd, qos, NULL);
   CU_ASSERT_FATAL (reader > 0);
+  /* create reader on domain 2 (used to force typelookup) */
+  dds_entity_t reader2 = dds_create_reader (g_participant2, topic_rd2, qos, NULL);
+  CU_ASSERT_FATAL (reader2 > 0);
   dds_delete_qos (qos);
   ddsi_typeid_t *wr_type_id, *rd_type_id;
   char *wr_type_name, *rd_type_name;
@@ -240,6 +249,19 @@ CU_Test(ddsc_typelookup, basic, .init = typelookup_init, .fini = typelookup_fini
   assert (writer_ep && reader_ep); // clang static analyzer
   endpoint_info_free (writer_ep);
   endpoint_info_free (reader_ep);
+
+  /* check that type object can be resolved in domain 2 */
+  dds_typeobj_t *to_wr = NULL, *to_rd = NULL;
+  dds_get_typeobj (g_participant2, wr_type_id, DDS_SECS (3), &to_wr);
+  dds_get_typeobj (g_participant2, rd_type_id, DDS_SECS (3), &to_rd);
+  CU_ASSERT_FATAL (to_wr != NULL);
+  CU_ASSERT_FATAL (to_rd != NULL);
+  assert (to_rd && to_wr);
+  ret = dds_free_typeobj (to_wr);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_free_typeobj (to_rd);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+
   dds_free (wr_type_name);
   dds_free (rd_type_name);
   ddsi_typeid_fini (wr_type_id);
