@@ -1215,6 +1215,16 @@ void dds_stream_write_sampleBE (dds_ostreamBE_t * __restrict os, const void * __
 
 #endif /* if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN */
 
+const uint32_t * dds_stream_write_with_byte_order (dds_ostream_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops, enum ddsrt_byte_order_selector bo)
+{
+  if (bo == DDSRT_BOSEL_LE)
+    return dds_stream_writeLE ((dds_ostreamLE_t *) os, data, ops);
+  else if (bo == DDSRT_BOSEL_BE)
+    return dds_stream_writeBE ((dds_ostreamBE_t *) os, data, ops);
+  else
+    return dds_stream_write (os, data, ops);
+}
+
 static void realloc_sequence_buffer_if_needed (dds_sequence_t * __restrict seq, uint32_t num, uint32_t elem_size, bool init)
 {
   const uint32_t size = num * elem_size;

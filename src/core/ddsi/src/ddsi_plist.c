@@ -719,12 +719,7 @@ static dds_return_t ser_type_information (struct nn_xmsg *xmsg, nn_parameterid_t
   ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, alignof (ddsi_typeinfo_t *));
 
   dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = CDR_ENC_VERSION_2 };
-  if (bo == DDSRT_BOSEL_LE)
-    dds_stream_writeLE ((dds_ostreamLE_t *) &os, (const void *) *x, DDS_XTypes_TypeInformation_desc.m_ops);
-  else if (bo == DDSRT_BOSEL_BE)
-    dds_stream_writeBE ((dds_ostreamBE_t *) &os, (const void *) *x, DDS_XTypes_TypeInformation_desc.m_ops);
-  else
-    dds_stream_write (&os, (const void *) *x, DDS_XTypes_TypeInformation_desc.m_ops);
+  (void) dds_stream_write_with_byte_order (&os, (const void *) *x, DDS_XTypes_TypeInformation_desc.m_ops, bo);
   char * const p = nn_xmsg_addpar_bo (xmsg, pid, os.m_index, bo);
   memcpy (p, os.m_buffer, os.m_index);
   dds_ostream_fini (&os);
