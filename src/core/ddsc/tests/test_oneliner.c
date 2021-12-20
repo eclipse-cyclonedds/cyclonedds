@@ -828,6 +828,7 @@ static void make_participant (struct oneliner_ctx *ctx, int ent, dds_listener_t 
   char* conf = ddsrt_expand_envvars("${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>", domid);
 #endif
   entname_t name;
+  dds_entity_t bisub;
   printf ("create domain %"PRIu32, domid);
   fflush (stdout);
   if ((ctx->doms[domid] = dds_create_domain (domid, conf)) <= 0)
@@ -835,7 +836,7 @@ static void make_participant (struct oneliner_ctx *ctx, int ent, dds_listener_t 
   ddsrt_free (conf);
   printf (" create participant %s", getentname (&name, ent));
   fflush (stdout);
-  if ((ctx->es[ent] = dds_create_participant (domid, NULL, list)) <= 0)
+  if ((ctx->es[ent] = dds_create_participant (domid, NULL, NULL)) <= 0)
     error_dds (ctx, ctx->es[ent], "make_participant: create participant failed in domain %"PRIu32, domid);
   if ((ctx->tps[domid] = dds_create_topic (ctx->es[ent], &Space_Type1_desc, ctx->topicname, ctx->qos, NULL)) <= 0)
     error_dds (ctx, ctx->tps[domid], "make_participant: create topic failed in domain %"PRIu32, domid);
@@ -867,7 +868,10 @@ static void make_participant (struct oneliner_ctx *ctx, int ent, dds_listener_t 
     error_dds (ctx, ctx->pubrd[domid], "make_participant: create DCPSPublication reader in domain %"PRIu32, domid);
   if ((ctx->subrd[domid] = dds_create_reader (ctx->es[ent], DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, dummylist)) <= 0)
     error_dds (ctx, ctx->subrd[domid], "make_participant: create DCPSSubscription reader in domain %"PRIu32, domid);
+  bisub = dds_get_subscriber(ctx->pubrd[domid]);
+  dds_set_listener(bisub, dummylist);
   dds_delete_listener (dummylist);
+  dds_set_listener(ctx->es[ent], list);
   //printf ("pubrd %"PRId32" subrd %"PRId32" sub %"PRId32"\n", es->pubrd[domid], es->subrd[domid], dds_get_parent (es->pubrd[domid]));
 }
 
