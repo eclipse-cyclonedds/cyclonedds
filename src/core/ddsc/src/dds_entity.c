@@ -260,6 +260,11 @@ dds_entity_t dds_entity_init (dds_entity *e, dds_entity *parent, dds_entity_kind
   dds_reset_listener (&e->m_listener);
   if (listener)
     dds_merge_listener (&e->m_listener, listener);
+
+  /* Special case: the on_data_on_readers event doesn't exist on DataReaders. */
+  if (kind == DDS_KIND_READER)
+    e->m_listener.on_data_on_readers = 0;
+
   if (parent)
   {
     ddsrt_mutex_lock (&parent->m_observers_lock);
@@ -1033,6 +1038,11 @@ dds_return_t dds_set_listener (dds_entity_t entity, const dds_listener_t *listen
   dds_reset_listener (&e->m_listener);
   if (listener)
     dds_merge_listener (&e->m_listener, listener);
+
+  /* Special case: the on_data_on_readers event doesn't exist on DataReaders. */
+  if (dds_entity_kind (e) == DDS_KIND_READER)
+    e->m_listener.on_data_on_readers = 0;
+
   x = e;
   while (dds_entity_kind (x) != DDS_KIND_CYCLONEDDS)
   {
@@ -1041,6 +1051,7 @@ dds_return_t dds_set_listener (dds_entity_t entity, const dds_listener_t *listen
     dds_inherit_listener (&e->m_listener, &x->m_listener);
     ddsrt_mutex_unlock (&x->m_observers_lock);
   }
+
   ddsrt_mutex_unlock (&e->m_observers_lock);
   pushdown_listener (e);
   dds_entity_unpin (e);
