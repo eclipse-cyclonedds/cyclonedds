@@ -133,6 +133,42 @@ const ddsi_typeid_t *ddsi_typeinfo_complete_typeid (const ddsi_typeinfo_t *typei
   return (const ddsi_typeid_t *) &typeinfo->x.complete.typeid_with_size.type_id;
 }
 
+static bool typeinfo_dependent_typeids_valid (const struct DDS_XTypes_TypeIdentifierWithDependencies *t)
+{
+  if (t->dependent_typeid_count == -1)
+  {
+    if (t->dependent_typeids._length > 0)
+      return false;
+  }
+  else
+  {
+    if (t->dependent_typeids._length > INT32_MAX ||
+        t->dependent_typeid_count < (int32_t) t->dependent_typeids._length ||
+        (t->dependent_typeids._length > 0 && t->dependent_typeids._buffer == NULL))
+      return false;
+    for (uint32_t n = 0; n < t->dependent_typeids._length; n++)
+    {
+      if (!ddsi_typeid_is_minimal_impl (&t->dependent_typeids._buffer[n].type_id) ||
+          t->dependent_typeids._buffer[n].typeobject_serialized_size == 0)
+        return false;
+    }
+  }
+  return true;
+}
+
+bool ddsi_typeinfo_valid (const ddsi_typeinfo_t *typeinfo)
+{
+  const ddsi_typeid_t *tid_min = ddsi_typeinfo_minimal_typeid (typeinfo);
+  const ddsi_typeid_t *tid_compl = ddsi_typeinfo_complete_typeid (typeinfo);
+  if (ddsi_typeid_is_none (tid_min) || !ddsi_typeid_is_hash (tid_min) ||
+      ddsi_typeid_is_none (tid_compl) || !ddsi_typeid_is_hash (tid_compl))
+    return false;
+  if (!typeinfo_dependent_typeids_valid (&typeinfo->x.minimal) ||
+      !typeinfo_dependent_typeids_valid (&typeinfo->x.complete))
+    return false;
+  return true;
+}
+
 static const struct DDS_XTypes_TypeObject * ddsi_typemap_typeobj (const ddsi_typemap_t *tmap, const struct DDS_XTypes_TypeIdentifier *type_id)
 {
   assert (type_id);

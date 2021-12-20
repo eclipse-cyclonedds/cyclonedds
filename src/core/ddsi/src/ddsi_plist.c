@@ -729,10 +729,7 @@ static dds_return_t ser_type_information (struct nn_xmsg *xmsg, nn_parameterid_t
 static dds_return_t valid_type_information (const void *src, size_t srcoff)
 {
   ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, alignof (ddsi_typeinfo_t *));
-  /* FIXME: add more checks for type ids */
-  return *x != NULL &&
-    !ddsi_typeid_is_none (ddsi_typeinfo_minimal_typeid (*x)) &&
-    !ddsi_typeid_is_none (ddsi_typeinfo_complete_typeid (*x));
+  return *x != NULL && ddsi_typeinfo_valid (*x);
 }
 
 static bool equal_type_information (const void *srcx, const void *srcy, size_t srcoff)
@@ -3021,7 +3018,11 @@ static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params
   dds_return_t ret;
   void * const dst = (char *) plist + entry->plist_offset;
   if (entry->flags & PDF_FUNCTION)
+  {
     ret = entry->op.f.deser (dst, &flagset, entry->present_flag, dd, gv);
+    if (ret == 0 && (*flagset.present & entry->present_flag) && entry->op.f.valid)
+      ret = entry->op.f.valid (plist, entry->plist_offset);
+  }
   else
     ret = deser_generic (dst, &flagset, entry->present_flag, dd, entry->op.desc);
   if (ret == 0 && (*flagset.present & entry->present_flag) && entry->deser_validate_xform)
