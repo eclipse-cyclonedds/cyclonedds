@@ -87,7 +87,8 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   type->request_seqno++;
   request.header.requestId.sequence_number.high = (int32_t) (type->request_seqno >> 32);
   request.header.requestId.sequence_number.low = (uint32_t) type->request_seqno;
-  // FIXME: request.header.instanceName = ...
+  (void) snprintf (request.header.instanceName, sizeof (request.header.instanceName), "dds.builtin.TOS.%08"PRIx32 "%08"PRIx32 "%08"PRIx32 "%08"PRIx32,
+    wr->c.pp->e.guid.prefix.u[0], wr->c.pp->e.guid.prefix.u[1], wr->c.pp->e.guid.prefix.u[2], wr->c.pp->e.guid.entityid.u);
   request.data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
   request.data._u.getTypes.type_ids._length = 1 + dependent_type_id_count;
   request.data._u.getTypes.type_ids._buffer = ddsrt_malloc ((dependent_type_id_count + 1) * sizeof (*request.data._u.getTypes.type_ids._buffer));
@@ -122,7 +123,8 @@ static void write_typelookup_reply (struct writer *wr, seqno_t seqno, struct DDS
   memcpy (&reply.header.requestId.writer_guid.entityId, &wr->e.guid.entityid, sizeof (reply.header.requestId.writer_guid.entityId));
   reply.header.requestId.sequence_number.high = (int32_t) (seqno >> 32);
   reply.header.requestId.sequence_number.low = (uint32_t) seqno;
-
+  (void) snprintf (reply.header.instanceName, sizeof (reply.header.instanceName), "dds.builtin.TOS.%08"PRIx32 "%08"PRIx32 "%08"PRIx32 "%08"PRIx32,
+    wr->c.pp->e.guid.prefix.u[0], wr->c.pp->e.guid.prefix.u[1], wr->c.pp->e.guid.prefix.u[2], wr->c.pp->e.guid.entityid.u);
   reply.return_data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
   reply.return_data._u.getType._d = DDS_RETCODE_OK;
   reply.return_data._u.getType._u.result.types._length = types->_length;
