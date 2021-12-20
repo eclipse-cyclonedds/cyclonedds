@@ -4023,6 +4023,24 @@ dds_get_typeobj (
   dds_duration_t timeout,
   dds_typeobj_t **type_obj);
 
+/**
+ * @brief Free the type object that was retrieved using dds_get_typeobj
+ *
+ * @param[in]  type_obj     The type object
+ *
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The operation was successful.
+ * @retval DDS_BAD_PARAMETER
+ *             The type_obj parameter is NULL
+*/
+DDS_EXPORT dds_return_t
+dds_free_typeobj (
+  dds_typeobj_t *type_obj);
+
+
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 
 #if defined (__cplusplus)

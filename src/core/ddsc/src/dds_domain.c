@@ -591,4 +591,13 @@ failed:
   return rc;
 }
 
+dds_return_t dds_free_typeobj (dds_typeobj_t *type_obj)
+{
+  if (type_obj == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  ddsi_typeobj_fini (type_obj);
+  dds_free (type_obj);
+  return DDS_RETCODE_OK;
+}
+
 #endif /* DDS_HAS_TYPE_DISCOVERY */
