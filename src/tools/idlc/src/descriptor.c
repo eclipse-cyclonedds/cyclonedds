@@ -30,8 +30,10 @@
 #define SUBTYPE (8)
 
 #define MAX_SIZE (16)
+#define INST_SLOT_SZ (100)
+#define MAX_INST ((UINT16_MAX / INST_SLOT_SZ) * INST_SLOT_SZ)
 
-static const uint16_t nop = UINT16_MAX;
+static const uint16_t nop = MAX_INST;
 
 /* store each instruction separately for easy post processing and reduced
    complexity. arrays and sequences introduce a new scope and the relative
@@ -204,7 +206,12 @@ stash_instruction(
 {
   /* make more slots available as necessary */
   if (descriptor->instructions.count == descriptor->instructions.size) {
-    uint32_t size = descriptor->instructions.size + 100;
+    if (descriptor->instructions.size + INST_SLOT_SZ > MAX_INST)
+    {
+      idl_error (NULL, NULL, "Maximum number of instructions (%"PRIu16") reached", MAX_INST);
+      return IDL_RETCODE_NO_SPACE;
+    }
+    uint32_t size = descriptor->instructions.size + INST_SLOT_SZ;
     struct instruction *table = descriptor->instructions.table;
     if (!(table = realloc(table, size * sizeof(*table))))
       return IDL_RETCODE_NO_MEMORY;
@@ -1410,7 +1417,15 @@ generate_descriptor(
   if ((ret = push_type(&descriptor, node, NULL)))
     goto err_emit;
   if ((ret = idl_visit(pstate, ((const idl_struct_t *)node)->members, &visitor, &descriptor)))
+  {
+    while (descriptor.types)
+    {
+      while (descriptor.types->fields && (!descriptor.types->previous || descriptor.types->fields != descriptor.types->previous->fields))
+        pop_field (&descriptor);
+      pop_type (&descriptor);
+    }
     goto err_emit;
+  }
   pop_type(&descriptor);
   if ((ret = stash_opcode(&descriptor, nop, DDS_OP_RTS, 0u)))
     goto err_emit;
