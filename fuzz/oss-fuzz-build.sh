@@ -20,28 +20,16 @@ cmake \
     -DBUILD_SHARED_LIBS=OFF \
     -DBUILD_EXAMPLES=NO \
     -DENABLE_SECURITY=NO \
+    -DENABLE_SSL=NO \
     -DCMAKE_INSTALL_PREFIX=/usr/local ..
-cmake --build . 
+cmake --build .
 cmake --build . --target install
 cd ..
 )
 
-function copy_fuzzer {
-  mkdir -p "$OUT/lib"
-  cp -v "$1" "$OUT/"
-  patchelf --set-rpath '$ORIGIN/lib' "$OUT/$(basename "$1")"
-
-  ldd "$1" | grep '=>' | cut -d ' ' -f 3 | while read lib; do
-    if [[ -f $lib ]]; then
-      cp -v "$lib" "$OUT/lib/"
-      patchelf --set-rpath '$ORIGIN' "$OUT/lib/$(basename "$lib")"
-    fi
-  done
-}
-
-# copy out stuff
+# copy fuzzer executables to $OUT
 find build/bin -type f -name 'fuzz_*' | while read fuzzer; do
-    copy_fuzzer "$fuzzer"
+  cp -v "$fuzzer" "$OUT/"
 done
 
 find fuzz/ -type f -name 'fuzz_*_seed_corpus.zip' | xargs -I {} cp {} $OUT
