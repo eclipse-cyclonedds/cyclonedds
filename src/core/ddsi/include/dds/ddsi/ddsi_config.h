@@ -177,7 +177,8 @@ enum ddsi_transport_selector {
   DDSI_TRANS_UDP6,
   DDSI_TRANS_TCP,
   DDSI_TRANS_TCP6,
-  DDSI_TRANS_RAWETH
+  DDSI_TRANS_RAWETH,
+  DDSI_TRANS_NONE /* FIXME: see FIXME above ... :( */
 };
 
 enum ddsi_many_sockets_mode {
