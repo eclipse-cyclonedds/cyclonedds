@@ -978,7 +978,7 @@ emit_forward(
   (void)path;
   (void)node;
   (void)user_data;
-  return IDL_VISIT_TYPE_SPEC | IDL_VISIT_FWD_DECL_TARGET;
+  return IDL_VISIT_TYPE_SPEC;
 }
 
 static idl_retcode_t
