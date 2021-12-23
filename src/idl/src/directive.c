@@ -378,7 +378,7 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
     ts = idl_strip(ts, IDL_STRIP_ALIASES);
     if (idl_is_array(ts))
       mask &= (idl_mask_t)~IDL_STRING;
-    ts = idl_strip(ts, IDL_STRIP_ALIASES|IDL_STRIP_ARRAYS);
+    ts = idl_strip(ts, IDL_STRIP_ALIASES|IDL_STRIP_ALIASES_ARRAY);
     if (!(idl_mask(ts) & mask)) {
       idl_error(pstate, idl_location(dir->keys[i]),
         "Invalid key '%s' in keylist directive", dir->keys[i]->identifier);

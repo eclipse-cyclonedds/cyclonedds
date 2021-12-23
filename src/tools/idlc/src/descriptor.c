@@ -885,7 +885,7 @@ emit_switch_type_spec(
 
   (void)revisit;
 
-  type_spec = idl_unalias(idl_type_spec(node));
+  type_spec = idl_strip(idl_type_spec(node), IDL_STRIP_ALIASES);
   assert(!idl_is_typedef(type_spec) && !idl_is_array(type_spec));
   const idl_union_t *union_spec = idl_parent(node);
   assert(idl_is_union(union_spec));
@@ -1218,9 +1218,9 @@ emit_array(
 
   if (idl_is_array(node)) {
     dims = idl_array_size(node);
-    type_spec = idl_strip(idl_type_spec(node), IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
+    type_spec = idl_strip(idl_type_spec(node), IDL_STRIP_FORWARD);
   } else {
-    type_spec = idl_unalias(idl_type_spec(node));
+    type_spec = idl_strip(idl_type_spec(node), IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
     assert(idl_is_array(type_spec));
     dims = idl_array_size(type_spec);
     type_spec = idl_type_spec(type_spec);
