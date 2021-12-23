@@ -57,20 +57,25 @@ static ddsrt_socket_t ddsi_vnet_conn_handle (ddsi_tran_base_t conn)
   return DDSRT_INVALID_SOCKET;
 }
 
-static int ddsi_vnet_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t base, ddsi_locator_t *loc)
+static int ddsi_vnet_conn_locator (ddsi_tran_factory_t vfact, ddsi_tran_base_t base, ddsi_locator_t *loc)
 {
-  (void) fact; (void) base; (void) loc;
-  // FIXME: not sure I can get away with this
-  return -1;
+  (void) base; (void) loc;
+  const struct ddsi_vnet_tran_factory *fact = (const struct ddsi_vnet_tran_factory *) vfact;
+  memset (loc, 0, sizeof (*loc));
+  loc->kind = fact->m_kind;
+  return 0;
 }
 
-static dds_return_t ddsi_vnet_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_factory_t fact, uint32_t port, const struct ddsi_tran_qos *qos)
+static dds_return_t ddsi_vnet_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_factory_t fact_cmn, uint32_t port, const struct ddsi_tran_qos *qos)
 {
   (void) port;
+  struct ddsi_vnet_tran_factory *fact = (struct ddsi_vnet_tran_factory *) fact_cmn;
+  struct ddsi_domaingv const * const gv = fact->m_base.gv;
   struct ddsi_vnet_conn *x = ddsrt_malloc (sizeof (*x));
+  struct nn_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
   memset (x, 0, sizeof (*x));
   
-  ddsi_factory_conn_init (fact, qos->m_interface, &x->m_base);
+  ddsi_factory_conn_init (&fact->m_base, intf, &x->m_base);
   x->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
   x->m_base.m_base.m_multicast = false;
   x->m_base.m_base.m_handle_fn = ddsi_vnet_conn_handle;
@@ -79,7 +84,7 @@ static dds_return_t ddsi_vnet_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran
   x->m_base.m_write_fn = 0;
   x->m_base.m_disable_multiplexing_fn = 0;
 
-  DDS_CTRACE (&fact->gv->logconfig, "ddsi_vnet_create_conn intf %s kind %s\n", x->m_base.m_interf->name, fact->m_typename);
+  DDS_CTRACE (&fact->m_base.gv->logconfig, "ddsi_vnet_create_conn intf %s kind %s\n", x->m_base.m_interf->name, fact->m_base.m_typename);
   *conn_out = &x->m_base;
   return 0;
 }
@@ -150,15 +155,25 @@ static enum ddsi_locator_from_string_result ddsi_vnet_address_from_string (const
 
 static int ddsi_vnet_enumerate_interfaces (ddsi_tran_factory_t fact, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **ifs)
 {
-  (void) fact; (void) transport_selector;
-  *ifs = NULL;
-  return DDS_RETCODE_UNSUPPORTED;
+  (void) transport_selector;
+  *ifs = ddsrt_malloc (sizeof (**ifs));
+  (*ifs)->next = NULL;
+  (*ifs)->type = DDSRT_IFTYPE_UNKNOWN;
+  (*ifs)->name = ddsrt_strdup (fact->m_typename);
+  (*ifs)->index = 0;
+  (*ifs)->flags = IFF_UP | IFF_MULTICAST;
+  (*ifs)->addr = ddsrt_malloc (sizeof (struct sockaddr_storage));
+  memset ((*ifs)->addr, 0, sizeof (struct sockaddr_storage));
+  (*ifs)->addr->sa_data[0] = 1;
+  (*ifs)->netmask = NULL;
+  (*ifs)->broadaddr = NULL;
+  return 0;
 }
 
 static int ddsi_vnet_is_valid_port (const struct ddsi_tran_factory *fact, uint32_t port)
 {
-  (void) fact;
-  return (port == 0);
+  (void) fact; (void) port;
+  return true;
 }
 
 static uint32_t ddsi_vnet_receive_buffer_size (const struct ddsi_tran_factory *fact)
@@ -169,8 +184,13 @@ static uint32_t ddsi_vnet_receive_buffer_size (const struct ddsi_tran_factory *f
 
 static int ddsi_vnet_locator_from_sockaddr (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const struct sockaddr *sockaddr)
 {
-  (void) tran; (void) loc; (void) sockaddr;
-  return -1;
+  (void) sockaddr;
+  const struct ddsi_vnet_tran_factory *fact = (const struct ddsi_vnet_tran_factory *) tran;
+  memset (loc, 0, sizeof (*loc));
+  loc->kind = fact->m_kind;
+  loc->port = 0;
+  memcpy (loc->address, sockaddr->sa_data, sizeof (loc->address));
+  return 0;
 }
 
 static void ddsi_vnet_deinit (ddsi_tran_factory_t fact)

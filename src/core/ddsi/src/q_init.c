@@ -1389,6 +1389,15 @@ int rtps_init (struct ddsi_domaingv *gv)
         goto err_udp_tcp_init;
       gv->m_factory = ddsi_factory_find (gv, "raweth");
       break;
+    case DDSI_TRANS_NONE:
+      gv->config.publish_uc_locators = 0;
+      gv->config.enable_uc_locators = 0;
+      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_NONE;
+      gv->config.many_sockets_mode = DDSI_MSM_NO_UNICAST;
+      if (ddsi_vnet_init (gv, "dummy", INT32_MAX) < 0)
+        goto err_udp_tcp_init;
+      gv->m_factory = ddsi_factory_find (gv, "dummy");
+      break;
   }
   gv->m_factory->m_enable = true;
 
@@ -1999,7 +2008,7 @@ int rtps_start (struct ddsi_domaingv *gv)
   }
 #endif
 
-  if (setup_and_start_recv_threads (gv) < 0)
+  if (gv->config.transport_selector != DDSI_TRANS_NONE && setup_and_start_recv_threads (gv) < 0)
   {
 #ifdef DDS_HAS_NETWORK_CHANNELS
     stop_all_xeventq_upto (NULL);
@@ -2062,7 +2071,8 @@ void rtps_stop (struct ddsi_domaingv *gv)
 
   /* Stop all I/O */
   rtps_term_prep (gv);
-  wait_for_receive_threads (gv);
+  if (gv->config.transport_selector != DDSI_TRANS_NONE)
+    wait_for_receive_threads (gv);
 
   if (gv->listener)
   {

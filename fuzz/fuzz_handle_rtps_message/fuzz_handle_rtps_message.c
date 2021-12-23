@@ -80,6 +80,7 @@ int LLVMFuzzerTestOneInput(
   ddsrt_mutex_init(&dds_global.m_mutex);
 
   ddsi_config_init_default(&gv.config);
+  gv.config.transport_selector = DDSI_TRANS_NONE;
 
   rtps_config_prep(&gv, cfgst);
   dds_set_log_sink(null_log_sink, NULL);
