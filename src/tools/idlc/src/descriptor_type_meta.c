@@ -322,9 +322,7 @@ get_hashed_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm,
   assert (ti);
   assert (!has_fully_descriptive_typeid (type_spec) && !has_plain_collection_typeid (type_spec));
 
-  /* resolve forward decls to the actual type */
-  if (idl_is_forward (type_spec))
-    type_spec = ((const idl_forward_t *) type_spec)->definition;
+  type_spec = idl_strip (type_spec, IDL_STRIP_FORWARD);
 
   struct type_meta *tm = dtm->admin;
   while (tm && tm->node != type_spec)
