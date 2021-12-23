@@ -548,8 +548,8 @@ IDL_EXPORT void *idl_iterate(const void *root, const void *node);
 
 IDL_EXPORT void *idl_unalias(const void *node);
 
-#define IDL_STRIP_ALIASES (1u<<0) /**< expose base type of aliase(s) */
-#define IDL_STRIP_ARRAYS (1u<<1) /**< expose base type of array(s) */
+#define IDL_STRIP_ALIASES (1u<<0) /**< expose base type of aliase(s) for a non-array type */
+#define IDL_STRIP_ALIASES_ARRAY (1u<<1) /**< expose base type of aliase(s) for array type */
 #define IDL_STRIP_FORWARD (1u<<2) /**< expose definition */
 IDL_EXPORT void *idl_strip(const void *node, uint32_t flags);
 
