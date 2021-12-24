@@ -344,6 +344,12 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
         .element_identifier = ti_f1_el
       }
     };
+    // These two superfluous lines silence Clang's static analyzer warning of leaking
+    // (in the case of this field) f1bound_seq, ti_f1_el if they are only assigned via
+    // the compound literal, but it doesn't when assigned like this. Same thing for
+    // the other 2 fields.
+    ti_f1._u.array_sdefn.array_bound_seq._buffer = f1bound_seq;
+    ti_f1._u.array_sdefn.element_identifier = ti_f1_el;
   }
 
   /* f2 type identifier: string<555> f2[999][3] */
@@ -363,6 +369,9 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
         .element_identifier = ti_f2_el
       }
     };
+    // Clang's static analyzer ...
+    ti_f2._u.array_ldefn.array_bound_seq._buffer = f2bound_seq;
+    ti_f2._u.array_ldefn.element_identifier = ti_f2_el;
   }
 
   /* f3 type identifier: a[3] f3 */
@@ -387,6 +396,9 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
         .element_identifier = ti_a
       }
     };
+    // Clang's static analyzer ...
+    ti_f3._u.array_sdefn.array_bound_seq._buffer = f3bound_seq;
+    ti_f3._u.array_sdefn.element_identifier = ti_a;
   }
 
   return get_typeobj_struct (
