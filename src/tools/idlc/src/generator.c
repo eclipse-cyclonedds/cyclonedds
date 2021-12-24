@@ -208,7 +208,10 @@ int print_type(
 int print_scoped_name(
   char *str, size_t size, const void *ptr, void *user_data)
 {
-  (void)user_data;
+  if (idl_is_base_type(ptr))
+    return print_base_type(str, size, ptr, user_data);
+  if (idl_is_templ_type(ptr))
+    return print_templ_type(str, size, ptr, user_data);
   return print_decl_type(str, size, ptr, "::");
 }
 

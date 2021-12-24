@@ -108,7 +108,7 @@ int main(int argc, char **argv)
     // print sample
     char buf[99999];
     is.m_index = 0;
-    size_t sz = dds_stream_print_sample (&is, &sertype, buf, sizeof (buf));
+    (void) dds_stream_print_sample (&is, &sertype, buf, sizeof (buf));
     printf("sample: %s\n", buf);
 
     dds_ostream_fini (&os);

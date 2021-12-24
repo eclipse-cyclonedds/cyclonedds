@@ -55,6 +55,12 @@ dds_key_descriptor_t;
   API is a pointer to the "topic_descriptor_t" struct type.
 */
 
+struct dds_type_meta_ser
+{
+  unsigned char * data;
+  uint32_t sz;
+};
+
 typedef struct dds_topic_descriptor
 {
   const uint32_t m_size;               /* Size of topic type */
@@ -66,6 +72,9 @@ typedef struct dds_topic_descriptor
   const uint32_t m_nops;               /* Number of ops in m_ops */
   const uint32_t * m_ops;              /* Marshalling meta data */
   const char * m_meta;                 /* XML topic description meta data */
+  struct dds_type_meta_ser type_information;  /* XCDR2 serialized TypeInformation, only present if flag DDS_TOPIC_XTYPES_METADATA is set */
+  struct dds_type_meta_ser type_mapping;      /* XCDR2 serialized TypeMapping: maps type-id to type object and minimal to complete type id,
+                                                   only present if flag DDS_TOPIC_XTYPES_METADATA is set */
 }
 dds_topic_descriptor_t;
 
@@ -123,6 +132,14 @@ typedef enum dds_find_scope
   DDS_FIND_SCOPE_PARTICIPANT
 }
 dds_find_scope_t;
+
+/* Type identifier kind for getting endpoint type identifier */
+typedef enum dds_typeid_kind
+{
+  DDS_TYPEID_MINIMAL,
+  DDS_TYPEID_COMPLETE
+}
+dds_typeid_kind_t;
 
 /**
  * Description : Enable or disable write batching. Overrides default configuration

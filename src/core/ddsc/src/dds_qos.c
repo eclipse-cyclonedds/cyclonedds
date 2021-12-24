@@ -122,7 +122,7 @@ bool dds_qos_equal (const dds_qos_t * __restrict a, const dds_qos_t * __restrict
   else if (a == NULL || b == NULL)
     return false;
   else
-    return ddsi_xqos_delta (a, b, ~(QP_CYCLONE_TYPE_INFORMATION)) == 0;
+    return ddsi_xqos_delta (a, b, ~(QP_TYPE_INFORMATION)) == 0;
 }
 
 void dds_qset_userdata (dds_qos_t * __restrict qos, const void * __restrict value, size_t sz)

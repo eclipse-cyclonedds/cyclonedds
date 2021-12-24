@@ -40,6 +40,7 @@ strategy:
       deadline: off
       type_discovery: off
       topic_discovery: off
+      idlc_testing: off # temporary dislabled because of passing -t option to idlc in this test for recursive types
       cc: gcc-10
     'Ubuntu 18.04 LTS with GCC 7 (Debug, x86_64)':
       image: ubuntu-18.04
@@ -61,6 +62,7 @@ strategy:
       build_type: Release
       sanitizer: undefined
       topic_discovery: off
+      idlc_testing: off # temporary dislabled because of passing -t option to idlc in this test for recursive types
       cc: clang-10
     'macOS 10.15 with Clang 12 (macOS 10.12, Release, x86_64)':
       image: macOS-10.15

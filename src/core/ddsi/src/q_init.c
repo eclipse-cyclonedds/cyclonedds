@@ -50,7 +50,9 @@
 #include "dds/ddsi/q_init.h"
 #include "dds/ddsi/ddsi_threadmon.h"
 #include "dds/ddsi/ddsi_pmd.h"
+#include "dds/ddsi/ddsi_xt_typelookup.h"
 #include "dds/ddsi/ddsi_typelookup.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_udp.h"
@@ -853,6 +855,20 @@ static struct ddsi_sertype *make_special_type_plist (const char *typename, nn_pa
   return (struct ddsi_sertype *) st;
 }
 
+#ifdef DDS_HAS_TYPE_DISCOVERY
+/* Creates a sertype that is used for built-in type lookup readers and writers, which are using XCDR2
+   because the request/response messages contain mutable and appendable types. */
+static struct ddsi_sertype *make_special_type_cdrstream (const struct ddsi_domaingv *gv, const dds_topic_descriptor_t *desc)
+{
+  struct ddsi_sertype_default *st = ddsrt_malloc (sizeof (*st));
+  dds_return_t ret = ddsi_sertype_default_init (gv, st, desc, CDR_ENC_VERSION_2, DDS_DATA_REPRESENTATION_XCDR2);
+  assert (ret == DDS_RETCODE_OK);
+  (void) ret;
+  return (struct ddsi_sertype *) st;
+}
+#endif
+
+
 static void free_special_types (struct ddsi_domaingv *gv)
 {
 #ifdef DDS_HAS_SECURITY
@@ -884,8 +900,8 @@ static void make_special_types (struct ddsi_domaingv *gv)
   gv->sedp_writer_type = make_special_type_plist ("PublicationBuiltinTopicData", PID_ENDPOINT_GUID);
   gv->pmd_type = make_special_type_pserop ("ParticipantMessageData", sizeof (ParticipantMessageData_t), participant_message_data_nops, participant_message_data_ops, participant_message_data_nops_key, participant_message_data_ops_key);
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  gv->tl_svc_request_type = make_special_type_pserop ("TypeLookup_Request", sizeof (type_lookup_request_t), typelookup_service_request_nops, typelookup_service_request_ops, 0, NULL);
-  gv->tl_svc_reply_type = make_special_type_pserop ("TypeLookup_Reply", sizeof (type_lookup_reply_t), typelookup_service_reply_nops, typelookup_service_reply_ops, 0, NULL);
+  gv->tl_svc_request_type = make_special_type_cdrstream (gv, &DDS_Builtin_TypeLookup_Request_desc);
+  gv->tl_svc_reply_type = make_special_type_cdrstream (gv, &DDS_Builtin_TypeLookup_Reply_desc);
 #endif
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   if (gv->config.enable_topic_discovery_endpoints)
@@ -1047,17 +1063,6 @@ static uint32_t ddsi_sertype_hash_wrap (const void *tp)
 {
   return ddsi_sertype_hash (tp);
 }
-
-#ifdef DDS_HAS_TYPE_DISCOVERY
-static int tl_meta_equal_wrap (const void *tlm_a, const void *tlm_b)
-{
-  return ddsi_tl_meta_equal (tlm_a, tlm_b);
-}
-static uint32_t tl_meta_hash_wrap (const void *tlm)
-{
-  return ddsi_tl_meta_hash (tlm);
-}
-#endif /* DDS_HAS_TYPE_DISCOVERY */
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 static int topic_definition_equal_wrap (const void *tpd_a, const void *tpd_b)
@@ -1499,9 +1504,9 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->sertypes = ddsrt_hh_new (1, ddsi_sertype_hash_wrap, ddsi_sertype_equal_wrap);
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  ddsrt_mutex_init (&gv->tl_admin_lock);
-  ddsrt_cond_init (&gv->tl_resolved_cond);
-  gv->tl_admin = ddsrt_hh_new (1, tl_meta_hash_wrap, tl_meta_equal_wrap);
+  ddsrt_mutex_init (&gv->typelib_lock);
+  ddsrt_cond_init (&gv->typelib_resolved_cond);
+  ddsrt_avl_init (&ddsi_typelib_treedef, &gv->typelib);
 #endif
   ddsrt_mutex_init (&gv->new_topic_lock);
   ddsrt_cond_init (&gv->new_topic_cond);
@@ -1905,9 +1910,9 @@ err_unicast_sockets:
   ddsrt_mutex_destroy (&gv->new_topic_lock);
   ddsrt_cond_destroy (&gv->new_topic_cond);
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  ddsrt_hh_free (gv->tl_admin);
-  ddsrt_mutex_destroy (&gv->tl_admin_lock);
-  ddsrt_cond_destroy (&gv->tl_resolved_cond);
+  ddsrt_avl_free (&ddsi_typelib_treedef, &gv->typelib, 0);
+  ddsrt_mutex_destroy (&gv->typelib_lock);
+  ddsrt_cond_destroy (&gv->typelib_resolved_cond);
 #endif
 #ifdef DDS_HAS_SECURITY
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);
@@ -2278,6 +2283,15 @@ void rtps_fini (struct ddsi_domaingv *gv)
   ddsrt_hh_free (gv->topic_defs);
   ddsrt_mutex_destroy (&gv->topic_defs_lock);
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
+#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifndef NDEBUG
+  {
+    assert(ddsrt_avl_is_empty(&gv->typelib));
+  }
+#endif
+  ddsrt_avl_free (&ddsi_typelib_treedef, &gv->typelib, 0);
+  ddsrt_mutex_destroy (&gv->typelib_lock);
+#endif /* DDS_HAS_TYPE_DISCOVERY */
 #ifndef NDEBUG
   {
     struct ddsrt_hh_iter it;
@@ -2286,16 +2300,6 @@ void rtps_fini (struct ddsi_domaingv *gv)
 #endif
   ddsrt_hh_free (gv->sertypes);
   ddsrt_mutex_destroy (&gv->sertypes_lock);
-#ifdef DDS_HAS_TYPE_DISCOVERY
-#ifndef NDEBUG
-  {
-    struct ddsrt_hh_iter it;
-    assert (ddsrt_hh_iter_first (gv->tl_admin, &it) == NULL);
-  }
-#endif
-  ddsrt_hh_free (gv->tl_admin);
-  ddsrt_mutex_destroy (&gv->tl_admin_lock);
-#endif /* DDS_HAS_TYPE_DISCOVERY */
 #ifdef DDS_HAS_SECURITY
   q_omg_security_free (gv);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);

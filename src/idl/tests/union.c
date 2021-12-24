@@ -593,33 +593,3 @@ CU_Test(idl_union, two_unions_one_enum)
   CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
   idl_delete_pstate(pstate);
 }
-
-/* FIXME: in a type object, case label is stored as 32 bits signed integer,
-        so this test should be enabled when type object generation is
-        implemented, and a check should be included there */
-CU_Test(idl_union, max_label_value, .disabled = true)
-{
-  idl_retcode_t ret;
-  idl_pstate_t *pstate;
-  char buf[256];
-  const char *fmt = "union u switch(%s) { case %lld: long l; };";
-
-  static const struct {
-    const char *switch_type;
-    int64_t label_value;
-    idl_retcode_t result;
-  } tests[] = {
-    { "int32",  INT32_MAX,              IDL_RETCODE_OK },
-    { "int32",  (int64_t)INT32_MAX + 1, IDL_RETCODE_OUT_OF_RANGE },
-    { "uint32", INT32_MAX,              IDL_RETCODE_OK },
-    { "uint32", (int64_t)INT32_MAX + 1, IDL_RETCODE_UNSUPPORTED }
-  };
-
-  for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
-    pstate = NULL;
-    idl_snprintf(buf, sizeof(buf), fmt, tests[i].switch_type, tests[i].label_value);
-    ret = parse_string(buf, &pstate);
-    CU_ASSERT_EQUAL(ret, tests[i].result);
-    idl_delete_pstate(pstate);
-  }
-}

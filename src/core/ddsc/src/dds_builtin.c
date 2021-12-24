@@ -43,6 +43,7 @@ dds_qos_t *dds__create_builtin_qos (void)
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_MSECS(100));
   dds_qset_partition (qos, 1, &partition);
   ddsi_xqos_mergein_missing (qos, &ddsi_default_qos_topic, DDS_TOPIC_QOS_MASK);
+  dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1 });
   return qos;
 }
 
@@ -195,7 +196,7 @@ bool dds__validate_builtin_reader_qos (const dds_domain *dom, dds_entity_t topic
        the full QoS object ...  Here the two have the same topic by construction
        so ignoring them in the comparison makes things work.  The discrepancy
        should be addressed one day. */
-    const uint64_t qmask = ~(QP_TOPIC_NAME | QP_TYPE_NAME | QP_CYCLONE_TYPE_INFORMATION);
+    const uint64_t qmask = ~(QP_TOPIC_NAME | QP_TYPE_NAME | QP_TYPE_INFORMATION);
     dds_qos_policy_id_t dummy;
 #ifdef DDS_HAS_TYPE_DISCOVERY
     return qos_match_mask_p (bwr->wr.e.gv, qos, bwr->wr.xqos, qmask, &dummy, NULL, NULL, NULL, NULL) && !qos_has_resource_limits (qos);

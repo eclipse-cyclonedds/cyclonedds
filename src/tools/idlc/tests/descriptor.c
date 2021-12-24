@@ -18,31 +18,9 @@
 #include "idl/string.h"
 #include "descriptor.h"
 #include "plugin.h"
+#include "test_common.h"
 
 #include "CUnit/Theory.h"
-
-static idl_retcode_t generate_test_descriptor (idl_pstate_t *pstate, const char *idl, struct descriptor *descriptor)
-{
-  idl_retcode_t ret = idl_parse_string(pstate, idl);
-  CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
-  assert (ret == IDL_RETCODE_OK);
-
-  bool topic_found = false;
-  for (idl_node_t *node = pstate->root; node; node = idl_next (node))
-  {
-    if (idl_is_topic (node, (pstate->flags & IDL_FLAG_KEYLIST)))
-    {
-      ret = generate_descriptor_impl(pstate, node, descriptor);
-      CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
-      topic_found = true;
-      break;
-    }
-  }
-  CU_ASSERT_FATAL (topic_found);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (descriptor);
-  assert (descriptor); /* static analyzer */
-  return ret;
-}
 
 #define TEST_MAX_KEYS 10
 #define TEST_MAX_KEY_OFFS 10
@@ -123,27 +101,24 @@ CU_Test(idlc_descriptor, keys_nested)
     CU_ASSERT_EQUAL_FATAL (descriptor.key_offsets.count, tests[i].n_key_offs);
     CU_ASSERT_EQUAL_FATAL (pstate->keylists, tests[i].keylist);
 
-    struct key_print_meta *keys = key_print_meta_init (&descriptor);
     for (uint32_t k = 0; k < descriptor.n_keys; k++) {
-      for (uint32_t j = 0; j < keys[k].n_order; j++)
-        CU_ASSERT_EQUAL_FATAL (keys[k].order[j], tests[i].key_order[k][j]);
-      CU_ASSERT_PTR_NOT_NULL_FATAL (keys[k].name);
-      assert (keys[k].name && tests[i].key_name[k]);
-      CU_ASSERT_STRING_EQUAL_FATAL (keys[k].name, tests[i].key_name[k]);
-      CU_ASSERT_EQUAL_FATAL (keys[k].key_idx, tests[i].key_index[k]);
+      for (uint32_t j = 0; j < descriptor.keys[k].n_order; j++)
+        CU_ASSERT_EQUAL_FATAL (descriptor.keys[k].order[j], tests[i].key_order[k][j]);
+      CU_ASSERT_PTR_NOT_NULL_FATAL (descriptor.keys[k].name);
+      assert (descriptor.keys[k].name && tests[i].key_name[k]);
+      CU_ASSERT_STRING_EQUAL_FATAL (descriptor.keys[k].name, tests[i].key_name[k]);
+      CU_ASSERT_EQUAL_FATAL (descriptor.keys[k].key_idx, tests[i].key_index[k]);
     }
 
     descriptor_fini (&descriptor);
     idl_delete_pstate (pstate);
-    key_print_meta_free (keys, descriptor.n_keys);
   }
 }
 #undef TEST_MAX_KEYS
 #undef TEST_MAX_KEY_OFFS
 
 
-#define TEST_MAX_KEYS 10
-#define VAR (FIXED_KEY_MAX_SIZE + 1)
+#define VAR (DDS_FIXED_KEY_MAX_SIZE + 1)
 CU_Test(idlc_descriptor, key_size)
 {
   static const struct {
@@ -161,8 +136,6 @@ CU_Test(idlc_descriptor, key_size)
       false, true, VAR, 14 },  // key size: 1 + 7/3 (pad) + 8 + 2
     { "@nested struct nested { char a; short b; }; @topic struct test { @key nested a; @key long long b; @key char c; }; ",
       false, true, VAR, 13 },  // key size: 1 + 1 (pad) + 2 + 4/0 (pad) + 8 + 1
-    { "@topic struct test { @key sequence<long> a; }; ",
-      false, false, VAR, VAR },
     { "@topic struct test { @key long a[5]; }; ",
       false, false, VAR, VAR },
     { "@nested struct nested { @key long long a; }; @topic struct test { @key nested a; long b[5]; @key char c; @key float d; }; ",
@@ -179,6 +152,12 @@ CU_Test(idlc_descriptor, key_size)
       true, true, 16, 16 }, // key size: 8 + 8
     { "@topic struct test { @key char a; @key string<3> b; @key long c; }; ",
       true, true, 16, 16 }, // key size: 1 + 3 (pad) + 8 + 4
+    { "@topic struct test { @key @id(2) float a; @key @id(1) char b; @key @id(0) double c; }; ",
+      true, true, 16, 16 }, // key size XCDR1: 4 + 1 + 3 (pad) + 8 / XCDR2: 8 + 1 + 3 (pad) + 4
+    { "@topic struct test { @key @id(0) char b; @key @id(1) double a; @key @id(2) float c; }; ",
+      false, true, VAR, 16 }, // key size XCDR1: 1 + 7 (pad) + 8 + 4 / XCDR2: 1 + 3 (pad) + 8 + 4
+    { "@topic struct test { @key @id(0) char c1; @key @id(2) char c2; @key @id(4) char c3; @key @id(1) long l1; @key @id(3) long l2; }; ",
+      true, false, 12, VAR }, // key size XCDR1: 1 + 1 + 1 + 1 (pad) + 4 + 4 / XCDR2: 1 + 3 (pad) + 4 + 1 + 3 (pad) + 4 + 1
   };
 
   idl_retcode_t ret;
@@ -207,8 +186,52 @@ CU_Test(idlc_descriptor, key_size)
     idl_delete_pstate (pstate);
   }
 }
-#undef TEST_MAX_KEYS
 #undef VAR
+
+CU_Test(idlc_descriptor, key_valid_types)
+{
+  static const struct {
+    bool valid;
+    const char *idl;
+  } tests[] = {
+    { true, "@topic struct test { @key boolean a; @key boolean b[3]; }; " },
+    { true, "@topic struct test { @key char a; @key octet b; @key char c[3]; }; " },
+    { true, "@topic struct test { @key short a; @key unsigned short b; @key short c[3]; }; " },
+    { true, "@topic struct test { @key long a; @key unsigned long b; @key long c[3]; }; " },
+    { true, "@topic struct test { @key long long a; @key unsigned long long b; @key long long c[3]; }; " },
+    { true, "@topic struct test { @key float a; @key double b; @key float c[3]; }; " },
+    { true, "enum e { E1, E2 }; @topic struct test { @key e a; @key e b[3]; }; " },
+    { true, "bitmask bm { BM1, BM2 }; @topic struct test { @key bm a; @key bm b[3]; }; " },
+    { false, "@topic struct test { @key string a; @key string<5> b; @key string c[3]; }; " },
+    { false, "@topic struct test { @key string<5> a[2]; }; " },
+    { false, "@topic struct test { @key sequence<long> a; }; " },
+    { false, "@topic struct test { @key sequence<long> a[2]; }; " },
+    { true, "@nested struct sub { long a; long b; }; @topic struct test { @key sub a; }; " },
+    { false, "@nested struct sub { long a; }; @topic struct test { @key sub a[2]; }; " },
+    { true, "@nested struct sub { @key long a; long b; }; @topic struct test { @key sub a; }; " },
+    { false, "@nested struct sub { long a; sequence<long> b; }; @topic struct test { @key sub a; }; " },
+    { false, "@nested union u switch(long) { case 1: long a; }; @topic struct test { @key u a; }; " }
+  };
+
+  idl_retcode_t ret;
+  uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
+                   IDL_FLAG_ANONYMOUS_TYPES |
+                   IDL_FLAG_ANNOTATIONS;
+  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
+    static idl_pstate_t *pstate = NULL;
+    struct descriptor descriptor;
+
+    printf ("running test for idl: %s\n", tests[i].idl);
+    ret = idl_create_pstate (flags, NULL, &pstate);
+    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
+    ret = generate_test_descriptor (pstate, tests[i].idl, &descriptor);
+    CU_ASSERT_EQUAL_FATAL (ret, tests[i].valid ? IDL_RETCODE_OK : IDL_RETCODE_UNSUPPORTED);
+    if (tests[i].valid)
+      descriptor_fini (&descriptor);
+    idl_delete_pstate (pstate);
+  }
+}
 
 #define TEST_MAX_KEYS 10
 CU_Test(idlc_descriptor, keys_inheritance)
@@ -268,17 +291,14 @@ CU_Test(idlc_descriptor, keys_inheritance)
     CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL (descriptor.n_keys, tests[i].n_keys);
 
-    struct key_print_meta *keys = key_print_meta_init (&descriptor);
     for (uint32_t k = 0; k < descriptor.n_keys; k++) {
-      CU_ASSERT_PTR_NOT_NULL_FATAL (keys[k].name);
-      assert (keys[k].name && tests[i].key_name[k]);
-      CU_ASSERT_STRING_EQUAL_FATAL (keys[k].name, tests[i].key_name[k]);
+      CU_ASSERT_PTR_NOT_NULL_FATAL (descriptor.keys[k].name);
+      assert (descriptor.keys[k].name && tests[i].key_name[k]);
+      CU_ASSERT_STRING_EQUAL_FATAL (descriptor.keys[k].name, tests[i].key_name[k]);
     }
 
     descriptor_fini (&descriptor);
-
     idl_delete_pstate (pstate);
-    key_print_meta_free (keys, descriptor.n_keys);
   }
 }
 #undef TEST_MAX_KEYS

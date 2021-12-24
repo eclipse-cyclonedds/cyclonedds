@@ -32,7 +32,7 @@
 
 #define IDL_DECLARATION \
   (IDL_MODULE | IDL_CONST | IDL_CONSTR_TYPE | IDL_TYPEDEF | \
-   IDL_MEMBER | IDL_CASE | IDL_CASE_LABEL | IDL_ENUMERATOR | IDL_DECLARATOR)
+   IDL_MEMBER | IDL_CASE | IDL_CASE_LABEL | IDL_ENUMERATOR | IDL_DECLARATOR | IDL_BIT_VALUE)
 
 #define IDL_TYPE \
   (IDL_BASE_TYPE | IDL_TEMPL_TYPE | IDL_CONSTR_TYPE | IDL_TYPEDEF)
@@ -520,6 +520,7 @@ IDL_EXPORT bool idl_is_topic_key(const void *node, bool keylist, const idl_path_
 IDL_EXPORT bool idl_is_extensible(const idl_node_t *node, idl_extensibility_t extensibility);
 IDL_EXPORT bool idl_is_external(const idl_node_t *node);
 IDL_EXPORT bool idl_is_optional(const idl_node_t *node);
+IDL_EXPORT int64_t idl_case_label_intvalue(const void *ptr);
 
 /* accessors */
 IDL_EXPORT idl_mask_t idl_mask(const void *node);

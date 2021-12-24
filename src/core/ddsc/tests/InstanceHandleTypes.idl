@@ -16,7 +16,7 @@ module InstanceHandleTypes {
   };
 #pragma keylist A k
   struct C {
-    octet k[4]; //@Key
+    unsigned long k; //@Key
     unsigned long v;
   };
 #pragma keylist C k

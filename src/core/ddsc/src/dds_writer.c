@@ -424,7 +424,11 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     wqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
 #endif
 
-  struct ddsi_sertype *sertype = ddsi_sertype_data_representation (tp->m_stype, wr->m_data_representation);
+  struct ddsi_sertype *sertype = ddsi_sertype_derive_sertype (tp->m_stype, wr->m_data_representation,
+    wqos->present & QP_TYPE_CONSISTENCY_ENFORCEMENT ? wqos->type_consistency : ddsi_default_qos_topic.type_consistency);
+  if (!sertype)
+    sertype = tp->m_stype;
+
   rc = new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, sertype, wqos, wr->m_whc, dds_writer_status_cb, wr);
   assert(rc == DDS_RETCODE_OK);
   thread_state_asleep (lookup_thread_state ());

@@ -21,7 +21,7 @@ module test {
     long s1;
   };
 
-  @bitbound(16)
+  @bit_bound(16)
   bitmask bm1 {
     bm1_value0,
     bm1_value1,
@@ -71,7 +71,7 @@ module test {
 
 #include <string.h>
 #include "dds/dds.h"
-#include "test_union_member_types.h"
+#include "test_union_member_types_r.h"
 #include "common.h"
 
 const dds_topic_descriptor_t *desc = &test_test_topic_desc;
