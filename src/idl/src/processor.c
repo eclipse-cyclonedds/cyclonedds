@@ -153,6 +153,7 @@ idl_create_pstate(
     goto err_scope;
 
   pstate->config.flags = flags;
+  pstate->config.default_extensibility = IDL_DEFAULT_EXTENSIBILITY_UNDEFINED;
   pstate->global_scope = pstate->scope = scope;
 
   if (pstate->config.flags & IDL_FLAG_ANNOTATIONS) {
@@ -395,6 +396,19 @@ static idl_retcode_t validate_must_understand(idl_pstate_t *pstate, void *root)
   return IDL_RETCODE_OK;
 }
 
+static idl_retcode_t set_type_extensibility(idl_pstate_t *pstate)
+{
+  if (pstate->config.default_extensibility == IDL_DEFAULT_EXTENSIBILITY_UNDEFINED && idl_has_implicit_default_extensibility(pstate->root)) {
+    idl_warning(pstate, NULL, "No default extensibility provided. For one or more of the "
+      "aggregated types in the IDL the extensibility is not explicitly set. "
+      "Currently the default extensibility for these types is 'final', but this "
+      "may change to 'appendable' in a future release because that is the "
+      "default in the DDS XTypes specification.");
+  }
+  idl_extensibility_t def_ext = pstate->config.default_extensibility >= 0 ? (idl_extensibility_t) pstate->config.default_extensibility : IDL_FINAL;
+  return idl_set_default_extensibility(pstate->root, def_ext);
+}
+
 idl_retcode_t idl_parse(idl_pstate_t *pstate)
 {
   idl_retcode_t ret;
@@ -447,6 +461,8 @@ grammar:
 
   /* FIXME: combine these validations into a single pass, e.g. by using
      callback functions for node validation */
+  if ((ret = set_type_extensibility(pstate)) != IDL_RETCODE_OK)
+    goto err;
   if ((ret = validate_forwards(pstate, pstate->root)))
     goto err;
   if ((ret = validate_must_understand(pstate, pstate->root)))

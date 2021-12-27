@@ -776,41 +776,75 @@ CU_Test(idl_annotation, autoid_module)
 
 // x. do not allow annotation_appl in annotation
 
-#define A(ann) ann " struct s { char c; };"
-CU_Test(idl_annotation, struct_extensibility)
+#define S(ann) ann " struct s { char c; };"
+#define U(ann) ann " union u switch(short) { case 1: char c; };"
+#define BM(ann) ann " bitmask bm { bm0, bm1; };"
+#define E(ann) ann " enum e { enum0, enum1; };"
+CU_Test(idl_annotation, extensibility)
 {
   static const struct {
+    idl_type_t type;
     const char *str;
     enum idl_extensibility ext;
+    idl_retcode_t ret;
   } tests[] = {
-    { A("@final"), IDL_FINAL },
-    { A("@appendable"), IDL_APPENDABLE },
-    { A("@mutable"), IDL_MUTABLE},
-    { A("@extensibility(FINAL)"), IDL_FINAL },
-    { A("@extensibility(APPENDABLE)"), IDL_APPENDABLE },
-    { A("@extensibility(MUTABLE)"), IDL_MUTABLE},
+    { IDL_STRUCT, S("@final"), IDL_FINAL, IDL_RETCODE_OK },
+    { IDL_STRUCT, S("@appendable"), IDL_APPENDABLE, IDL_RETCODE_OK },
+    { IDL_STRUCT, S("@mutable"), IDL_MUTABLE, IDL_RETCODE_OK },
+    { IDL_STRUCT, S("@extensibility(FINAL)"), IDL_FINAL, IDL_RETCODE_OK },
+    { IDL_STRUCT, S("@extensibility(APPENDABLE)"), IDL_APPENDABLE, IDL_RETCODE_OK },
+    { IDL_STRUCT, S("@extensibility(MUTABLE)"), IDL_MUTABLE, IDL_RETCODE_OK },
+    { IDL_UNION, U("@mutable"), IDL_MUTABLE, IDL_RETCODE_OK },
+    { IDL_UNION, U("@extensibility(APPENDABLE)"), IDL_APPENDABLE, IDL_RETCODE_OK },
+
+    /* FIXME: extensibility on bitmask and enum not supported yet
+        (both can be final or appendable, not mutable */
+    { IDL_BITMASK, BM("@appendable"), 0, IDL_RETCODE_SYNTAX_ERROR },
+    { IDL_BITMASK, BM("@mutable"), 0, IDL_RETCODE_SYNTAX_ERROR },
+    { IDL_ENUM, E("@appendable"), 0, IDL_RETCODE_SYNTAX_ERROR },
+    { IDL_ENUM, E("@mutable"), 0, IDL_RETCODE_SYNTAX_ERROR },
   };
   static const size_t n = sizeof(tests)/sizeof(tests[0]);
 
   idl_retcode_t ret;
   idl_pstate_t *pstate = NULL;
-  idl_struct_t *s;
 
   for (size_t i = 0; i < n; i++) {
+    printf("idl: %s\n", tests[i].str);
     pstate = NULL;
     ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
-    CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
-    assert(pstate);
-    s = (idl_struct_t *)pstate->root;
-    CU_ASSERT_PTR_NOT_NULL_FATAL(s);
-    assert(s);
-    CU_ASSERT_FATAL(idl_is_struct(s));
-    CU_ASSERT_EQUAL(s->extensibility.value, tests[i].ext);
-    idl_delete_pstate(pstate);
+    CU_ASSERT_EQUAL_FATAL(ret, tests[i].ret);
+    if (tests[i].ret == IDL_RETCODE_OK) {
+      CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+      assert(pstate);
+      switch (tests[i].type) {
+        case IDL_STRUCT: {
+          idl_struct_t *s = (idl_struct_t *)pstate->root;
+          CU_ASSERT_PTR_NOT_NULL_FATAL(s);
+          assert(s);
+          CU_ASSERT_FATAL(idl_is_struct(s));
+          CU_ASSERT_EQUAL(s->extensibility.value, tests[i].ext);
+          break;
+        }
+        case IDL_UNION: {
+          idl_union_t *u = (idl_union_t *)pstate->root;
+          CU_ASSERT_PTR_NOT_NULL_FATAL(u);
+          assert(u);
+          CU_ASSERT_FATAL(idl_is_union(u));
+          CU_ASSERT_EQUAL(u->extensibility.value, tests[i].ext);
+          break;
+        }
+        default:
+          CU_FAIL_FATAL("Unexpected type");
+      }
+      idl_delete_pstate(pstate);
+    }
   }
 }
-#undef A
+#undef S
+#undef U
+#undef BM
+#undef E
 
 #if 0
 

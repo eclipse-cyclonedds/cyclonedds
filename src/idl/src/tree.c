@@ -1057,6 +1057,7 @@ assign_id(
     declarator->id.value = (last->id.value + 1) & IDL_FIELDID_MASK;
   else
     declarator->id.value = 0u;
+  declarator->id.implicit = true;
 }
 
 static idl_declarator_t *
@@ -1190,18 +1191,24 @@ idl_propagate_autoid(idl_pstate_t *pstate, void *list, idl_autoid_t autoid)
   for (; ret == IDL_RETCODE_OK && list; list = idl_next(list)) {
     if (idl_mask(list) == IDL_MODULE) {
       idl_module_t *node = list;
-      if (!node->autoid.annotation)
+      if (!node->autoid.annotation) {
         node->autoid.value = autoid;
+        node->autoid.implicit = true;
+      }
       ret = idl_propagate_autoid(pstate, node->definitions, node->autoid.value);
     } else if (idl_mask(list) == IDL_STRUCT) {
       idl_struct_t *node = list;
-      if (!node->autoid.annotation)
+      if (!node->autoid.annotation) {
         node->autoid.value = autoid;
+        node->autoid.implicit = true;
+      }
       ret = assign_field_ids(pstate, node);
     } else if (idl_mask(list) == IDL_UNION) {
       idl_union_t *node = list;
-      if (!node->autoid.annotation)
+      if (!node->autoid.annotation) {
         node->autoid.value = autoid;
+        node->autoid.implicit = true;
+      }
       ret = assign_field_ids(pstate, node);
     }
   }
@@ -1223,7 +1230,12 @@ idl_finalize_struct(
     idl_struct_t *base = node->inherit_spec->base;
     assert(idl_is_struct(base));
 
-    node->extensibility.value = base->extensibility.value;
+    if (node->extensibility.annotation == NULL) {
+      node->extensibility.value = base->extensibility.value;
+      node->extensibility.implicit = true;
+    } else {
+      assert (node->extensibility.value == base->extensibility.value);
+    }
     if (base->extensibility.value == IDL_APPENDABLE) {
       static bool extensibility_inheritance_warned = false;
       if (!extensibility_inheritance_warned) {
@@ -2395,6 +2407,8 @@ idl_create_enum(
     e1->node.parent = (idl_node_t*)node;
     if (e1->value.annotation)
       value = e1->value.value;
+    else
+      e1->value.implicit = true;
     e1->value.value = value;
     for (idl_enumerator_t *e2 = enumerators; e2; e2 = idl_next(e2)) {
       if (e2 == e1)
@@ -2582,6 +2596,8 @@ idl_create_bitmask(
     b1->node.parent = (idl_node_t*)node;
     if (b1->position.annotation)
       position = b1->position.value;
+    else
+      b1->position.implicit = true;
     b1->position.value = position;
     for (idl_bit_value_t *b2 = bit_values; b2; b2 = idl_next(b2)) {
       if (b2 == b1)
@@ -3502,9 +3518,63 @@ bool idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, ui
 
 bool idl_is_extensible(const idl_node_t *node, idl_extensibility_t extensibility)
 {
-  return (idl_is_struct(node) && ((idl_struct_t *)node)->extensibility.value == extensibility) ||
-    (idl_is_union(node) && ((idl_union_t *)node)->extensibility.value == extensibility);
+  if (idl_is_struct(node)) {
+    const idl_struct_t *_struct = (const idl_struct_t *)node;
+    return _struct->extensibility.value == extensibility;
+  }
+  if (idl_is_union(node)) {
+    const idl_union_t *_union = (const idl_union_t *)node;
+    return _union->extensibility.value == extensibility;
+  }
+  return false;
 }
+
+bool idl_has_implicit_default_extensibility(const idl_node_t *node)
+{
+  assert(node);
+  for (; node; node = idl_next(node)) {
+    if (idl_mask(node) == IDL_MODULE) {
+      const idl_module_t *module = (const idl_module_t *)node;
+      return idl_has_implicit_default_extensibility(module->definitions);
+    } else if (idl_mask(node) == IDL_STRUCT) {
+      const idl_struct_t *_struct = (const idl_struct_t *)node;
+      if (!_struct->extensibility.annotation && !_struct->extensibility.implicit)
+        return true;
+    } else if (idl_mask(node) == IDL_UNION) {
+      const idl_union_t *_union = (const idl_union_t *)node;
+      if (!_union->extensibility.annotation && !_union->extensibility.implicit)
+        return true;
+    }
+  }
+  return false;
+}
+
+idl_retcode_t idl_set_default_extensibility(idl_node_t *node, idl_extensibility_t default_extensibility)
+{
+  idl_retcode_t ret = IDL_RETCODE_OK;
+
+  assert(node);
+  for (; node; node = idl_next(node)) {
+    if (idl_mask(node) == IDL_MODULE) {
+      idl_module_t *module = (idl_module_t *)node;
+      return idl_set_default_extensibility(module->definitions, default_extensibility);
+    } else if (idl_mask(node) == IDL_STRUCT) {
+      idl_struct_t *_struct = (idl_struct_t *)node;
+      if (!_struct->extensibility.annotation && !_struct->extensibility.implicit) {
+        _struct->extensibility.value = default_extensibility;
+        _struct->extensibility.implicit = true;
+      }
+    } else if (idl_mask(node) == IDL_UNION) {
+      idl_union_t *_union = (idl_union_t *)node;
+      if (!_union->extensibility.annotation && !_union->extensibility.implicit) {
+        _union->extensibility.value = default_extensibility;
+        _union->extensibility.implicit = true;
+      }
+    }
+  }
+  return ret;
+}
+
 
 bool idl_is_external(const idl_node_t *node)
 {

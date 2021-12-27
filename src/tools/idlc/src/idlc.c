@@ -50,6 +50,7 @@ static struct {
   int preprocess;
   int keylist;
   int case_sensitive;
+  int default_extensibility;
   int help;
   int version;
 #ifdef DDS_HAS_TYPE_DISCOVERY
@@ -301,6 +302,7 @@ static idl_retcode_t idlc_parse(void)
     pstate->scanner.position.line = 1;
     pstate->scanner.position.column = 1;
     pstate->config.flags |= IDL_WRITE;
+    pstate->config.default_extensibility = config.default_extensibility;
   }
 
   if (config.preprocess) {
@@ -413,6 +415,20 @@ static int set_preprocess_only(const idlc_option_t *opt, const char *arg)
   return 0;
 }
 
+static int config_default_extensibility(const idlc_option_t *opt, const char *arg)
+{
+  (void)opt;
+  if (strcmp(arg, "final") == 0)
+    config.default_extensibility = IDL_FINAL;
+  else if (strcmp(arg, "appendable") == 0)
+    config.default_extensibility = IDL_APPENDABLE;
+  else if (strcmp(arg, "mutable") == 0)
+    config.default_extensibility = IDL_MUTABLE;
+  else
+    return IDLC_BAD_ARGUMENT;
+  return 0;
+}
+
 static int add_include(const idlc_option_t *opt, const char *arg)
 {
   (void)opt;
@@ -472,6 +488,11 @@ static const idlc_option_t *compopts[] = {
   &(idlc_option_t){
     IDLC_FLAG, { .flag = &config.version }, 'v', "", "",
     "Display version information." },
+  &(idlc_option_t){
+    IDLC_FUNCTION, { .function = &config_default_extensibility }, 'x', "", "<extensibility>",
+    "Set the default extensibility that is used in case no extensibility"
+    "is set on a type. Possible values are final, appendable and mutable. "
+    "(default: final)" },
 #ifdef DDS_HAS_TYPE_DISCOVERY
   &(idlc_option_t){
     IDLC_FLAG, { .flag = &config.no_type_info }, 't', "", "",
@@ -529,6 +550,7 @@ int main(int argc, char *argv[])
 
   config.compile = 1;
   config.preprocess = 1;
+  config.default_extensibility = IDL_DEFAULT_EXTENSIBILITY_UNDEFINED;
 #ifdef DDS_HAS_TYPE_DISCOVERY
   config.no_type_info = 0;
 #endif
