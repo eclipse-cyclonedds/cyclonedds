@@ -133,7 +133,7 @@ static void sample_init_XType2a (void *ptr)
   XSpace_XType2a *sample = (XSpace_XType2a *) ptr;
   sample->long_1 = 1;
   sample->long_2 = 2;
-  sample->long_2 = 3;
+  sample->long_3 = 3;
 }
 static void sample_check_XType2_2a (void *ptr1, void *ptr2)
 {

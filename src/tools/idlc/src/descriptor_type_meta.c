@@ -138,7 +138,7 @@ has_non_plain_annotation (const idl_type_spec_t *type_spec)
   /* XTypes spec section 7.3.4.1: anonymous collection types (array, sequence,
      and map) that have no annotations beyond @external and @try_construct */
   for (idl_annotation_appl_t *a = ((idl_node_t *) type_spec)->annotations; a; a = idl_next (a)) {
-    if (strcmp (a->annotation->name->identifier, "external") || strcmp (a->annotation->name->identifier, "try_construct"))
+    if (strcmp (a->annotation->name->identifier, "external") && strcmp (a->annotation->name->identifier, "try_construct"))
       return true;
   }
   return false;

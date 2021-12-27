@@ -143,7 +143,8 @@ static struct DDS_XTypes_CompleteStructMember *get_typeobj_struct_member_seq(uin
   for (uint32_t n = 0; n < cnt; n++)
   {
     member_seq[n] = (DDS_XTypes_CompleteStructMember) { .common = { .member_id = m[n].id, .member_flags = m[n].flags, .member_type_id = m[n].ti } };
-    strcpy (member_seq[n].detail.name, m[n].name);
+    assert (strlen (m[n].name) < sizeof (member_seq[n].detail.name));
+    (void) idl_strlcpy (member_seq[n].detail.name, m[n].name, sizeof (member_seq[n].detail.name));
   }
   return member_seq;
 }
@@ -164,7 +165,8 @@ static struct DDS_XTypes_CompleteUnionMember *get_typeobj_union_member_seq(uint3
         member_seq[n].common.label_seq._buffer[cl] = m[n].case_labels[cl];
       member_seq[n].common.label_seq._release = true;
     }
-    strcpy (member_seq[n].detail.name, m[n].name);
+    assert (strlen(m[n].name) < sizeof (member_seq[n].detail.name));
+    (void) idl_strlcpy (member_seq[n].detail.name, m[n].name, sizeof (member_seq[n].detail.name));
   }
   return member_seq;
 }
@@ -186,7 +188,8 @@ static DDS_XTypes_TypeObject *get_typeobj_struct(const char *name, uint16_t flag
       }
     }
   };
-  strcpy (to->_u.complete._u.struct_type.header.detail.type_name, name);
+  assert (strlen (name) < sizeof (to->_u.complete._u.struct_type.header.detail.type_name));
+  (void) idl_strlcpy (to->_u.complete._u.struct_type.header.detail.type_name, name, sizeof (to->_u.complete._u.struct_type.header.detail.type_name));
   return to;
 }
 
@@ -207,7 +210,8 @@ static DDS_XTypes_TypeObject *get_typeobj_union(const char *name, uint16_t flags
       }
     }
   };
-  strcpy (to->_u.complete._u.union_type.header.detail.type_name, name);
+  assert (strlen(name) < sizeof (to->_u.complete._u.union_type.header.detail.type_name));
+  (void) idl_strlcpy (to->_u.complete._u.union_type.header.detail.type_name, name, sizeof (to->_u.complete._u.union_type.header.detail.type_name));
   return to;
 }
 
