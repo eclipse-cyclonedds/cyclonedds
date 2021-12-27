@@ -2382,6 +2382,7 @@ generate_descriptor_impl(
 
   struct constructed_type_key *ctype_keys;
   struct constructed_type *ctype = find_ctype(descriptor, descriptor->topic);
+  assert(ctype);
   uint32_t n_keys = 0;
   if ((ret = get_ctype_keys(pstate, descriptor, ctype, &ctype_keys, &n_keys, false)) != IDL_RETCODE_OK)
     goto err;
