@@ -11,10 +11,11 @@
  */
 module RhcTypes {
   struct T {
+    @key
     long   k;
+    @key
     string ks;
     long   x, y;
     string s;
   };
-#pragma keylist T k ks
 };

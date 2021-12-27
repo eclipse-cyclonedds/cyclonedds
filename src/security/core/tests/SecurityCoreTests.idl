@@ -10,15 +10,15 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 module SecurityCoreTests {
-    struct Type1 {
-        long	id; //@Key
-        long    value;
-    };
-#pragma keylist Type1 id
+  struct Type1 {
+    @key
+    long	id;
+    long    value;
+  };
 
-    struct Type2 {
-        long    id; //@Key
-        string  text;
-    };
-#pragma keylist Type2 id
+  struct Type2 {
+    @key
+    long    id;
+    string  text;
+  };
 };

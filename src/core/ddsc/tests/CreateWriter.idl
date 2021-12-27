@@ -7,6 +7,5 @@ module DiscStress {
       unsigned long histidx;
       unsigned long seq;
     };
-#pragma keylist Msg
   };
 };

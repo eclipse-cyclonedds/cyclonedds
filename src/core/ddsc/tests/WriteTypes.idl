@@ -1,25 +1,25 @@
 module WriteTypes {
   struct a {
+    @key
     octet k[3];
     unsigned long long ll;
   };
-#pragma keylist a k
 
   struct b {
+    @key
     unsigned short k[3];
     unsigned long long ll;
   };
-#pragma keylist b k
 
   struct c {
+    @key
     unsigned long k[3];
     unsigned long long ll;
   };
-#pragma keylist c k
-  
+
   struct d {
+    @key
     unsigned long long k[3];
     unsigned long long ll;
   };
-#pragma keylist d k
 };

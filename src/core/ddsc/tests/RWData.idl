@@ -13,7 +13,7 @@ module RWData
 {
   struct Msg
   {
+    @key
     long k;
   };
-  #pragma keylist Msg k
 };

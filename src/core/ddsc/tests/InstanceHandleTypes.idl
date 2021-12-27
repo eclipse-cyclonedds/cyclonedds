@@ -11,17 +11,19 @@
  */
 module InstanceHandleTypes {
   struct A {
-    unsigned long k; //@Key
+    @key
+    unsigned long k;
     unsigned long v;
   };
-#pragma keylist A k
+
   struct C {
-    unsigned long k; //@Key
+    @key
+    unsigned long k;
     unsigned long v;
   };
-#pragma keylist C k
+
   struct MD5 {
-    octet k[8*16]; //@Key
+    @key
+    octet k[8*16];
   };
-#pragma keylist MD5 k
 };

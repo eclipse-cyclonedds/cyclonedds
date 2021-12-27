@@ -1,8 +1,8 @@
 module RoundTripModule
 {
+  @final
   struct DataType
   {
     sequence<octet> payload;
   };
-  #pragma keylist DataType
 };
