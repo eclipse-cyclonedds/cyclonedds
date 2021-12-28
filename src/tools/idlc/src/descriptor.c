@@ -2319,7 +2319,7 @@ instructions_fini(struct instructions *instructions)
     struct instruction *inst = &instructions->table[i];
     assert(inst);
     /* MSVC incorrectly reports this as uninitialised variables */
-    DDSRT_WARNING_MSVC_OFF (6001);
+    IDL_WARNING_MSVC_OFF (6001);
     switch (inst->type) {
       case OFFSET:
         if (inst->data.offset.member)
@@ -2341,7 +2341,7 @@ instructions_fini(struct instructions *instructions)
       default:
         break;
     }
-    DDSRT_WARNING_MSVC_ON (6001);
+    IDL_WARNING_MSVC_ON (6001);
   }
 }
 
