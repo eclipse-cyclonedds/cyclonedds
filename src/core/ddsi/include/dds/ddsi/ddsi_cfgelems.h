@@ -2120,7 +2120,6 @@ static struct cfgelem root_cfgelems[] = {
   MOVED("Tracing", "CycloneDDS/Domain/Tracing"),
   MOVED("Internal|Unsupported", "CycloneDDS/Domain/Internal"),
   MOVED("TCP", "CycloneDDS/Domain/TCP"),
-  MOVED("ThreadPool", "CycloneDDS/Domain/ThreadPool"),
 #if DDS_HAS_SECURITY
   MOVED("DDSSecurity", "CycloneDDS/Domain/Security"),
 #endif
