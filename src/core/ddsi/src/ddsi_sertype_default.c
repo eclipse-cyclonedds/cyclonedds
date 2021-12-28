@@ -203,6 +203,14 @@ static void sertype_default_free_samples (const struct ddsi_sertype *sertype_com
   }
 }
 
+static size_t get_optimized_size (const struct ddsi_sertype_default *st)
+{
+  /* Check if topic cannot be optimised (memcpy marshal) */
+  if (!(st->type.flagset & DDS_TOPIC_NO_OPTIMIZE))
+     return dds_stream_check_optimize (&st->type, st->encoding_version);
+  return 0;
+}
+
 static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t data_representation, dds_type_consistency_enforcement_qospolicy_t tce_qos)
 {
   const struct ddsi_sertype_default *base_sertype_default = (const struct ddsi_sertype_default *) base_sertype;
@@ -231,6 +239,7 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
     derived_sertype->c.base_sertype = ddsi_sertype_ref (base_sertype);
     derived_sertype->c.serdata_ops = required_ops;
     derived_sertype->encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? CDR_ENC_VERSION_1 : CDR_ENC_VERSION_2;
+    derived_sertype->opt_size = get_optimized_size (derived_sertype);
   }
 
   return (struct ddsi_sertype *) derived_sertype;
@@ -368,14 +377,8 @@ dds_return_t ddsi_sertype_default_init (const struct ddsi_domaingv *gv, struct d
     st->type.typemap_ser.sz = 0;
   }
 
-  /* Check if topic cannot be optimised (memcpy marshal) */
-  if (!(st->type.flagset & DDS_TOPIC_NO_OPTIMIZE))
-  {
-    st->opt_size = dds_stream_check_optimize (&st->type);
-    GVTRACE ("Marshalling for type: %s is %soptimised\n", desc->m_typename, st->opt_size ? "" : "not ");
-  }
-  else
-    st->opt_size = 0;
+  if ((st->opt_size = get_optimized_size (st)) > 0)
+    GVTRACE ("Marshalling for type: %s is %soptimised\n", st->c.type_name, st->opt_size ? "" : "not ");
 
   return DDS_RETCODE_OK;
 }

@@ -71,7 +71,7 @@ DDS_EXPORT void dds_stream_read_sample (dds_istream_t * __restrict is, void * __
 DDS_EXPORT void dds_stream_free_sample (void * __restrict data, const uint32_t * __restrict ops);
 
 DDS_EXPORT uint32_t dds_stream_countops (const uint32_t * __restrict ops, uint32_t nkeys, const dds_key_descriptor_t * __restrict keys);
-DDS_EXPORT size_t dds_stream_check_optimize (const struct ddsi_sertype_default_desc * __restrict desc);
+DDS_EXPORT size_t dds_stream_check_optimize (const struct ddsi_sertype_default_desc * __restrict desc, uint32_t xcdr_version);
 DDS_EXPORT void dds_istream_from_serdata_default (dds_istream_t * __restrict s, const struct ddsi_serdata_default * __restrict d);
 DDS_EXPORT void dds_ostream_from_serdata_default (dds_ostream_t * __restrict s, const struct ddsi_serdata_default * __restrict d);
 DDS_EXPORT void dds_ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct ddsi_serdata_default ** __restrict d);

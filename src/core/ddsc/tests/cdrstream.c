@@ -23,6 +23,7 @@
 #include "dds/ddsi/ddsi_cdrstream.h"
 #include "test_util.h"
 #include "MinXcdrVersion.h"
+#include "CdrStreamOptimize.h"
 
 #define DDS_DOMAINID1 0
 #define DDS_DOMAINID2 1
@@ -37,6 +38,9 @@
 #define RND_CHAR8 RND_CHAR4, RND_CHAR4
 #define RND_STR32 (ddsrt_random () % 2 ? (char []){ 't', RND_CHAR4, 0 } : (char []){ 't', 'e', 's', 't', RND_CHAR8, RND_CHAR8, RND_CHAR8, RND_CHAR4, 0 })
 #define RND_STR5 (ddsrt_random () % 2 ? (char []){ 't', RND_CHAR, 0 } : (char []){ 't', RND_CHAR4, 0 })
+
+#define XCDR1 CDR_ENC_VERSION_1
+#define XCDR2 CDR_ENC_VERSION_2
 
 typedef void * (*sample_empty) (void);
 typedef void * (*sample_init) (void);
@@ -1833,8 +1837,6 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
 #undef F
 
 #define D(n) (&MinXcdrVersion_ ## n ## _desc)
-#define XCDR1 CDR_ENC_VERSION_1
-#define XCDR2 CDR_ENC_VERSION_2
 CU_TheoryDataPoints (ddsc_cdrstream, min_xcdr_version) = {
   CU_DataPoints (const dds_topic_descriptor_t *, D(t),  D(t_nested), D(t_inherit), D(t_opt), D(t_ext), D(t_append), D(t_mut), D(t_nested_mut), D(t_nested_opt) ),
   CU_DataPoints (uint16_t,                       XCDR1, XCDR1,       XCDR1,        XCDR2,    XCDR1,    XCDR2,       XCDR2,    XCDR2,           XCDR2 ),
@@ -1849,7 +1851,49 @@ CU_Theory ((const dds_topic_descriptor_t *desc, uint16_t min_xcdrv),
   entity_init (desc, DDS_DATA_REPRESENTATION_XCDR1, min_xcdrv != XCDR1);
   entity_init (desc, DDS_DATA_REPRESENTATION_XCDR2, false);
 }
+#undef D
+
+
+#define D(n) (&CdrStreamOptimize_ ## n ## _desc)
+CU_TheoryDataPoints (ddsc_cdrstream, check_optimize) = {
+  /*
+                                                 / final type
+                                                 |      / appendable type: has DHEADER in CDR
+                                                 |      |        / mutable type: has EMHEADER and DHEADERS
+                                                 |      |        |        / XCDR2 uses 4 byte padding for 64-bits type, does not match memory layout
+                                                 |      |        |        |      / external field is pointer type
+                                                 |      |        |        |      |      / nested struct (aligned at 4 byte) at offset 0 can be optimized
+                                                 |      |        |        |      |      |      / 2 nested structs, alignment in CDR equal to memory alignment
+                                                 |      |        |        |      |      |      |        / 2-level nesting, also using same alignment in CDR and memory
+                                                 |      |        |        |      |      |      |        |        / XCDR2 uses 4 byte alignment for 64 bits types
+                                                 |      |        |        |      |      |      |        |        |      / array of non-primitive type is currently not optimized (FIXME: could be optimized for XCDR1?)
+                                                 |      |        |        |      |      |      |        |        |      |      / CDR and memory have equal alignment
+                                                 |      |        |        |      |      |      |        |        |      |      |      / field f2 is 1-byte aligned in CDR (because of 1-byte type in nested type), but 2-byte in memory
+                                                 |      |        |        |      |      |      |        |        |      |      |      |      / type of f2 is appendable */
+  CU_DataPoints (const dds_topic_descriptor_t *, D(t1), D(t1_a), D(t1_m), D(t2), D(t3), D(t4), D(t4_1), D(t4_2), D(t5), D(t6), D(t7), D(t8), D(t9) ),
+  CU_DataPoints (size_t,                         4,     0,       0,       16,    0,     5,     13,      29,      16,    0,     16,    0,     0     ), /* optimized size xcdr1 */
+  CU_DataPoints (size_t,                         4,     0,       0,       0,     0,     5,     13,      29,      0,     0,     16,    0,     0     )  /* optimized size xcdr2 */
+};
+
+CU_Theory ((const dds_topic_descriptor_t *desc, size_t opt_size_xcdr1, size_t opt_size_xcdr2), ddsc_cdrstream, check_optimize)
+{
+  printf("running test for desc: %s\n", desc->m_typename);
+  struct ddsi_sertype_default_desc ddsi_desc;
+  ddsi_desc.ops.nops = desc->m_nops;
+  ddsi_desc.ops.ops = (uint32_t *) desc->m_ops;
+  ddsi_desc.size = desc->m_size;
+  if (!(desc->m_flagset & DDS_TOPIC_NO_OPTIMIZE))
+  {
+    CU_ASSERT_EQUAL_FATAL (dds_stream_check_optimize (&ddsi_desc, XCDR1), opt_size_xcdr1);
+    CU_ASSERT_EQUAL_FATAL (dds_stream_check_optimize (&ddsi_desc, XCDR2), opt_size_xcdr2);
+  }
+  else
+  {
+    CU_ASSERT_EQUAL_FATAL (opt_size_xcdr1, 0);
+    CU_ASSERT_EQUAL_FATAL (opt_size_xcdr2, 0);
+  }
+}
+#undef D
 
 #undef XCDR1
 #undef XCDR2
-#undef D
