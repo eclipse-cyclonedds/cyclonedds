@@ -151,7 +151,7 @@ static idl_retcode_t add_parent_path(struct key_field *key_field, idl_field_name
 
 static void key_containers_fini(struct key_container *key_containers, size_t n_key_containers)
 {
-  DDSRT_WARNING_MSVC_OFF (6001);
+  IDL_WARNING_MSVC_OFF (6001);
   if (!key_containers)
     return;
   for (size_t c = 0; c < n_key_containers; c++) {
@@ -173,7 +173,7 @@ static void key_containers_fini(struct key_container *key_containers, size_t n_k
     key_containers[c].key_fields = NULL;
   }
   free(key_containers);
-  DDSRT_WARNING_MSVC_ON (6001);
+  IDL_WARNING_MSVC_ON (6001);
 }
 
 static idl_retcode_t get_keylist_key_paths_struct_key(idl_pstate_t *pstate, idl_struct_t *struct_node, const idl_key_t *key_node, struct key_container **key_containers, size_t *n_key_containers)

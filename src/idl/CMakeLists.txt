@@ -19,66 +19,88 @@ set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 bison_target(parser src/parser.y "${binary_dir}/parser.c")
 
-# generate hashid.c from md5.h and md5.c to avoid code duplication
-file(READ "${PROJECT_SOURCE_DIR}/src/ddsrt/include/dds/ddsrt/endian.h" endian_h)
-file(READ "${PROJECT_SOURCE_DIR}/src/ddsrt/include/dds/ddsrt/md5.h" md5_h)
-file(READ "${PROJECT_SOURCE_DIR}/src/ddsrt/src/md5.c" md5_c)
-string(CONCAT MD5 "${endian_h}" "${md5_h}" "${md5_c}")
-# remove occurrences of DDS_EXPORT
-string(REGEX REPLACE "\n[ \t]*DDS_EXPORT[ \t]+" "\n" MD5 "${MD5}")
-# remove dds/* includes
-string(REGEX REPLACE "\n[ \t]*#[ \t]*include[ \t]+[<\"]dds/[^\n]*" "" MD5 "${MD5}")
-# switch functions to static
-foreach(func ddsrt_md5_init ddsrt_md5_append ddsrt_md5_finish)
-  string(REGEX REPLACE "\n[ \t]*void[ \n\t]+${func}" "\nstatic void ${func}" MD5 "${MD5}")
+configure_file(include/idl/version.h.in include/idl/version.h @ONLY)
+
+set(headers
+  include/idl/expression.h
+  include/idl/file.h
+  include/idl/print.h
+  include/idl/processor.h
+  include/idl/retcode.h
+  include/idl/scope.h
+  include/idl/stream.h
+  include/idl/string.h
+  include/idl/symbol.h
+  include/idl/tree.h
+  include/idl/visit.h
+  ${binary_dir}/include/idl/version.h)
+
+set(sources
+  src/symbol.c
+  src/directive.c
+  src/expression.c
+  src/file.c
+  src/processor.c
+  src/scanner.c
+  src/string.c
+  src/annotation.c
+  src/scope.c
+  src/string.c
+  src/tree.c
+  src/visit.c
+  src/print.c
+  src/keylist.c
+  src/hashid.c
+  ${BISON_parser_OUTPUT_SOURCE}
+  src/annotation.h
+  src/directive.h
+  src/expression.h
+  src/file.h
+  src/hashid.h
+  src/scanner.h
+  src/scope.h
+  src/symbol.h
+  src/tree.h
+  src/keylist.h)
+
+# import generic utility sources from ddsrt to avoid duplication
+# NOTE: an additional INTERFACE library defined in ddsrt would be ideal, but
+#       the GENERATED property is not propagated before 3.20. using an OBJECT
+#       library and propagating the object files through an INTERFACE library
+#       can be done, but a proper export header can only be generated from the
+#       final library.
+#       see: https://gitlab.kitware.com/cmake/cmake/-/issues/18399
+set(script "${PROJECT_SOURCE_DIR}/src/ddsrt/rename.cmake")
+set(templates
+  include/dds/ddsrt/misc.h
+  include/dds/ddsrt/attributes.h
+  include/dds/ddsrt/endian.h
+  include/dds/ddsrt/md5.h
+  src/md5.c)
+# FIXME: move general functionality to ddsrt
+
+foreach(source ${templates})
+  set(input "${PROJECT_SOURCE_DIR}/src/ddsrt/${source}")
+  # map include path. i.e. map include/dds/ddsrt to include/idl
+  string(REGEX REPLACE "(/dds(rt)?)+" "/idl" source "${source}")
+  set(output "${binary_dir}/${source}")
+  # process source file. i.e. replace dds and ddsrt with idl
+  add_custom_command(
+    OUTPUT "${output}"
+    COMMAND "${CMAKE_COMMAND}" -DNAMESPACE=idl
+                               -DINPUT_FILE="${input}"
+                               -DOUTPUT_DIRECTORY="${binary_dir}"
+                               -DOUTPUT_FILE="${output}"
+                               -P "${script}"
+    DEPENDS "${input}" "${script}")
+  if(source MATCHES "^include/.*\\.h")
+    list(APPEND headers ${output})
+  else()
+    list(APPEND sources ${output})
+  endif()
 endforeach()
 
-configure_file(src/hashid.c.in ${CMAKE_CURRENT_BINARY_DIR}/hashid.c @ONLY)
-
-add_library(
-  idl SHARED
-    src/symbol.c
-    src/directive.c
-    src/expression.c
-    src/file.c
-    src/processor.c
-    src/scanner.c
-    src/string.c
-    src/annotation.c
-    src/scope.c
-    src/string.c
-    src/tree.c
-    src/visit.c
-    src/print.c
-    src/keylist.c
-    ${CMAKE_CURRENT_BINARY_DIR}/hashid.c
-    ${BISON_parser_OUTPUT_SOURCE}
-
-    src/annotation.h
-    src/directive.h
-    src/expression.h
-    src/file.h
-    src/hashid.h
-    src/scanner.h
-    src/scope.h
-    src/symbol.h
-    src/tree.h
-    src/keylist.h
-
-    include/idl/attributes.h
-    include/idl/expression.h
-    include/idl/file.h
-    include/idl/misc.h
-    include/idl/print.h
-    include/idl/processor.h
-    include/idl/retcode.h
-    include/idl/scope.h
-    include/idl/stream.h
-    include/idl/string.h
-    include/idl/symbol.h
-    include/idl/tree.h
-    include/idl/visit.h
-    ${CMAKE_CURRENT_BINARY_DIR}/include/idl/version.h)
+add_library(idl SHARED ${headers} ${sources})
 
 set_target_properties(
   idl PROPERTIES
@@ -88,7 +110,6 @@ set_target_properties(
 
 generate_export_header(idl EXPORT_FILE_NAME include/idl/export.h)
 
-configure_file(include/idl/version.h.in include/idl/version.h @ONLY)
 
 target_include_directories(
   idl
@@ -103,17 +124,12 @@ target_include_directories(
 target_link_libraries(idl PRIVATE Threads::Threads)
 
 install(
-  DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/idl"
+  DIRECTORY
+    "${source_dir}/include/idl"
+    "${binary_dir}/include/idl"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   COMPONENT dev
   FILES_MATCHING PATTERN "*.h")
-
-install(
-  FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/include/idl/export.h"
-    "${CMAKE_CURRENT_BINARY_DIR}/include/idl/version.h"
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/idl"
-  COMPONENT dev)
 
 install(
   TARGETS idl
@@ -121,12 +137,12 @@ install(
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib)
+
 if (MSVC)
   install(FILES $<TARGET_PDB_FILE:idl>
     DESTINATION "${CMAKE_INSTALL_BINDIR}"
     COMPONENT dev
-    OPTIONAL
-  )
+    OPTIONAL)
 endif()
 
 if(BUILD_TESTING)
