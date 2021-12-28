@@ -482,15 +482,16 @@ static inline bool op_type_base (const uint32_t insn)
   return (opflags & DDS_OP_FLAG_BASE);
 }
 
-static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc * __restrict desc)
+static uint32_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc * __restrict desc, uint32_t xcdr_version, const uint32_t *ops, uint32_t off, uint32_t member_offs)
 {
 #define ALLOW_ENUM 0 // enums need validation on input; FIXME: should distinguish between read & write
-  const uint32_t *ops = desc->ops.ops;
-  size_t off = 0, size;
-  uint32_t insn;
+  uint32_t size, align, insn;
   while ((insn = *ops) != DDS_OP_RTS)
   {
     if (DDS_OP (insn) != DDS_OP_ADR)
+      return 0;
+
+    if (op_type_external (insn))
       return 0;
 
     switch (DDS_OP_TYPE (insn))
@@ -503,9 +504,10 @@ static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc
       case DDS_OP_VAL_ENU:
 #endif
         size = get_type_size (DDS_OP_TYPE (insn));
-        if (off % size)
-          off += size - (off % size);
-        if (ops[1] != off)
+        align = xcdr_max_align (xcdr_version, size);
+        if (off % align)
+          off += align - (off % align);
+        if (member_offs + ops[1] != off)
           return 0;
         off += size;
         ops += 2;
@@ -525,9 +527,10 @@ static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc
           case DDS_OP_VAL_ENU:
 #endif
             size = get_type_size (DDS_OP_SUBTYPE (insn));
-            if (off % size)
-              off += size - (off % size);
-            if (ops[1] != off)
+            align = xcdr_max_align (xcdr_version, size);
+            if (off % align)
+              off += align - (off % align);
+            if (member_offs + ops[1] != off)
               return 0;
             off += size * ops[2];
             ops += 3;
@@ -540,21 +543,35 @@ static size_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc
             return 0;
         }
         break;
-
-      default:
+      case DDS_OP_VAL_EXT: {
+        const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
+        const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
+        if (DDS_OP_ADR_JSR (ops[2]) > 0)
+          off = dds_stream_check_optimize1 (desc, xcdr_version, jsr_ops, off, member_offs + ops[1]);
+        ops += jmp ? jmp : 3;
+        break;
+      }
+      case DDS_OP_VAL_SEQ:
+      case DDS_OP_VAL_STR:
+      case DDS_OP_VAL_BST:
+      case DDS_OP_VAL_STU:
+      case DDS_OP_VAL_UNI:
+#if !ALLOW_ENUM
+      case DDS_OP_VAL_ENU:
+#endif
         return 0;
     }
   }
-
-  // off < desc can occur if desc->size includes "trailing" padding
-  assert (off <= desc->size);
   return off;
 #undef ALLOW_ENUM
 }
 
-size_t dds_stream_check_optimize (const struct ddsi_sertype_default_desc * __restrict desc)
+size_t dds_stream_check_optimize (const struct ddsi_sertype_default_desc * __restrict desc, uint32_t xcdr_version)
 {
-  return dds_stream_check_optimize1 (desc);
+  size_t opt_size = dds_stream_check_optimize1 (desc, xcdr_version, desc->ops.ops, 0, 0);
+  // off < desc can occur if desc->size includes "trailing" padding
+  assert (opt_size <= desc->size);
+  return opt_size;
 }
 
 static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_t **ops_end, uint16_t *min_xcdrv, uint32_t nestc, uint32_t *nestm);

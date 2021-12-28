@@ -1,0 +1,115 @@
+/*
+ * Copyright(c) 2006 to 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+module CdrStreamOptimize {
+  @final
+  struct t1 {
+    long f1;
+  };
+
+  @appendable
+  struct t1_a {
+    long f1;
+  };
+
+  @mutable
+  struct t1_m {
+    long f1;
+  };
+
+  @final
+  struct t2 {
+    octet f1;
+    long long f2;
+  };
+
+  @final
+  struct t3 {
+    @external octet f1;
+  };
+
+  @nested @final
+  struct n1 {
+    long f1;
+    octet f2;
+  };
+
+  @final
+  struct t4 {
+    n1 f1;
+  };
+
+  @final
+  struct t4_1 {
+    n1 f1;
+    n1 f2;
+  };
+
+  @final
+  struct t4_2 {
+    t4_1 f1;
+    t4_1 f2;
+  };
+
+  @nested @final
+  struct n2 {
+    octet f1;
+    long long f2;
+  };
+
+  @final
+  struct t5 {
+    n2 f1;
+  };
+
+  @final
+  struct t6 {
+    n2 f1[3];
+  };
+
+  enum en1 {
+    E1,
+    E2
+  };
+
+  @final
+  struct t7 {
+    boolean f1;
+    en1 f2;
+    octet f3;
+    short f5;
+    long f6;
+  };
+
+  @nested @final
+  struct n3 {
+    octet f1;
+    short f2;
+  };
+
+  @final
+  struct t8 {
+    octet f1;
+    n3 f2;
+    short f3;
+  };
+
+  @nested @appendable
+  struct n4 {
+    long f1;
+  };
+
+  @final
+  struct t9 {
+    long f1;
+    n4 f2;
+  };
+};
