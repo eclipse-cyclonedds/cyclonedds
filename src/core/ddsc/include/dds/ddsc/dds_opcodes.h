@@ -97,6 +97,7 @@ enum dds_stream_opcode {
                     - key/not key (DDS_OP_FLAG_KEY)
                     - base type member, used with EXT type (DDS_OP_FLAG_BASE)
                     - optional (DDS_OP_FLAG_OPT)
+                    - must-understand (DDS_OP_FLAG_MU)
      [offset]     = field offset from start of element in memory
      [elem-size]  = element size in memory (elem-size is only included in case 'external' flag is set)
      [max-size]   = string bound + 1

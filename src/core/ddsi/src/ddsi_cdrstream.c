@@ -2317,6 +2317,7 @@ static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * _
     if (!read_and_normalize_uint32 (&em_hdr, data, off, size1, bswap))
       return NULL;
     uint32_t lc = EMHEADER_LENGTH_CODE (em_hdr), m_id = EMHEADER_MEMBERID (em_hdr), msz;
+    bool must_understand = (em_hdr & EMHEADER_FLAG_MASK) & EMHEADER_FLAG_MUSTUNDERSTAND;
     switch (lc)
     {
       case LENGTH_CODE_1B: case LENGTH_CODE_2B: case LENGTH_CODE_4B: case LENGTH_CODE_8B:
@@ -2358,6 +2359,13 @@ static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * _
     switch (dds_stream_normalize_pl_member (data, m_id, off, size2, bswap, xcdr_version, ops))
     {
       case NPMR_NOT_FOUND:
+        /* FIXME: the caller should be able to differentiate between a sample that
+           is dropped because of an unknown member that has the must-understand flag
+           and a sample that is dropped because the data is invalid. This requires
+           changes in the cdrstream interface, but also in the serdata interface to
+           pass the return value to q_receive. */
+        if (must_understand)
+          return NULL;
         *off = size2;
         break;
       case NPMR_FOUND:

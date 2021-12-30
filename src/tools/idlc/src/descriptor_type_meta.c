@@ -383,7 +383,8 @@ get_struct_member_flags(const idl_member_t *member)
     flags |= DDS_XTypes_IS_KEY;
   if (member->optional.value)
     flags |= DDS_XTypes_IS_OPTIONAL;
-  // FIXME: implement must-understand and try-construct
+  if (member->must_understand.value)
+    flags |= DDS_XTypes_IS_MUST_UNDERSTAND;
   return flags;
 }
 

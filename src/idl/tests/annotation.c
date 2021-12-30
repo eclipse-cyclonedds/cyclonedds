@@ -301,7 +301,7 @@ static void test_key(key_test_t test)
 CU_Test(idl_annotation, key)
 {
   key_test_t tests[] = {
-    {"struct s {\n"
+    {"@mutable struct s {\n"
      "  @key char a;\n"
      "  @key(TRUE) char b;\n"
      "  @key(FALSE) char c;\n"
@@ -317,7 +317,7 @@ CU_Test(idl_annotation, key)
      " case 0: char c;\n"
      " case 1: @key double d;\n"
      "};", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false}},
-    {"struct s {\n"
+    {"@mutable struct s {\n"
      "  @must_understand(FALSE) @key char c;\n"
      "};", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false}},
     {"struct s {\n"
@@ -1042,7 +1042,11 @@ static void test_must_understand(mu_test_t test)
 CU_Test(idl_annotation, must_understand)
 {
   mu_test_t tests[] = {
-    {"struct s { char c; @must_understand char d; @must_understand(false) char e; @key @must_understand(true) char f; };", IDL_RETCODE_OK, {false, true, false, true}, {false, true, true, true} },
+    {"@mutable struct s { char c; @must_understand char d; @must_understand(false) char e; @key @must_understand(true) char f; };", IDL_RETCODE_OK, {false, true, false, true}, {false, true, true, true} },
+    {"@final struct s { @must_understand char c;  };", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false} },
+    {"@final struct s { @must_understand(false) char c;  };", IDL_RETCODE_OK, {false}, {true} },
+    {"@appendable struct s { @must_understand char c;  };", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false} },
+    {"@appendable struct s { @must_understand(false) char c;  };", IDL_RETCODE_OK, {false}, {true} },
     {"struct s { @key @must_understand(false) char c;  };", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false} },
     {"@must_understand struct s { char b; char c; };", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false} },
     {"@must_understand module m { struct s { char b; char c; }; }; ", IDL_RETCODE_SEMANTIC_ERROR, {false}, {false} },

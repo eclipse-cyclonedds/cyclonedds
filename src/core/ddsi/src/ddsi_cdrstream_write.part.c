@@ -280,13 +280,17 @@ static const uint32_t *dds_stream_write_delimitedBO (DDS_OSTREAM_T * __restrict 
   return ops;
 }
 
-static void dds_stream_write_pl_memberBO (bool must_understand, uint32_t mid, DDS_OSTREAM_T * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
+static void dds_stream_write_pl_memberBO (uint32_t mid, DDS_OSTREAM_T * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
 {
   assert (!(mid & ~EMHEADER_MEMBERID_MASK));
   uint32_t lc = get_length_code (ops);
   assert (lc < LENGTH_CODE_ALSO_NEXTINT8);
   uint32_t data_offs = (lc != LENGTH_CODE_NEXTINT) ? dds_os_reserve4BO (os) : dds_os_reserve8BO (os);
   (void) dds_stream_write_implBO (os, data, ops, true);
+
+  /* get must-understand flag from first member op */
+  uint32_t flags = DDS_OP_FLAGS (ops[0]);
+  bool must_understand = flags & DDS_OP_FLAG_MU;
 
   /* add emheader with data length code and flags and optionally the serialized size of the data */
   uint32_t em_hdr = 0;
@@ -320,7 +324,7 @@ static const uint32_t *dds_stream_write_pl_memberlistBO (DDS_OSTREAM_T * __restr
         else if (is_member_present (data, plm_ops))
         {
           uint32_t member_id = ops[1];
-          dds_stream_write_pl_memberBO (flags & DDS_OP_FLAG_MU, member_id, os, data, plm_ops);
+          dds_stream_write_pl_memberBO (member_id, os, data, plm_ops);
         }
         ops += 2;
         break;
