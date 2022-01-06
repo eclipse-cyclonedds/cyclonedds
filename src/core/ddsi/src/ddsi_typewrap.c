@@ -435,7 +435,7 @@ static void set_member_detail (struct xt_member_detail *dst, const DDS_XTypes_Co
     dst->annotations.ann_builtin = NULL;
   }
 
-  if (src->ann_builtin) {
+  if (src->ann_custom) {
     dst->annotations.ann_custom = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
     DDS_XTypes_AppliedAnnotationSeq_copy (dst->annotations.ann_custom, src->ann_custom);
   } else {
@@ -902,7 +902,7 @@ static void get_type_detail (DDS_XTypes_CompleteTypeDetail *dst, const struct xt
     dst->ann_builtin = NULL;
   }
 
-  if (src->annotations.ann_builtin) {
+  if (src->annotations.ann_custom) {
     dst->ann_custom = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
     DDS_XTypes_AppliedAnnotationSeq_copy (dst->ann_custom, src->annotations.ann_custom);
   } else {
@@ -920,7 +920,7 @@ static void get_member_detail (DDS_XTypes_CompleteMemberDetail *dst, const struc
     dst->ann_builtin = NULL;
   }
 
-  if (src->annotations.ann_builtin) {
+  if (src->annotations.ann_custom) {
     dst->ann_custom = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
     DDS_XTypes_AppliedAnnotationSeq_copy (dst->ann_custom, src->annotations.ann_custom);
   } else {
