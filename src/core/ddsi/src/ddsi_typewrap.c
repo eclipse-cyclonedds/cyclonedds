@@ -605,6 +605,7 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
       xt->_u.union_type.flags = cto->_u.union_type.union_flags;
       xt->_u.union_type.disc_type = ddsi_type_ref_id_locked_impl (gv, &cto->_u.union_type.discriminator.common.type_id);
       xt->_u.union_type.disc_flags = cto->_u.union_type.discriminator.common.member_flags;
+      memcpy(&xt->_u.union_type.detail.type_name, cto->_u.union_type.header.detail.type_name, sizeof(xt->_u.union_type.detail.type_name));
       xt->_u.union_type.members.length = cto->_u.union_type.member_seq._length;
       xt->_u.union_type.members.seq = ddsrt_calloc (xt->_u.union_type.members.length, sizeof (*xt->_u.union_type.members.seq));
       for (uint32_t n = 0; n < xt->_u.union_type.members.length; n++)
@@ -619,6 +620,7 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
       }
       break;
     case DDS_XTypes_TK_BITSET:
+      memcpy(&xt->_u.bitset.detail.type_name, cto->_u.bitset_type.header.detail.type_name, sizeof(xt->_u.bitset.detail.type_name));
       xt->_u.bitset.fields.length = cto->_u.bitset_type.field_seq._length;
       xt->_u.bitset.fields.seq = ddsrt_calloc (xt->_u.bitset.fields.length, sizeof (*xt->_u.bitset.fields.seq));
       for (uint32_t n = 0; n < xt->_u.bitset.fields.length; n++)
@@ -648,6 +650,7 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
     case DDS_XTypes_TK_ENUM:
       xt->_u.enum_type.flags = cto->_u.enumerated_type.enum_flags;
       xt->_u.enum_type.bit_bound = cto->_u.enumerated_type.header.common.bit_bound;
+      memcpy(&xt->_u.enum_type.detail.type_name, cto->_u.enumerated_type.header.detail.type_name, sizeof(xt->_u.enum_type.detail.type_name));
       xt->_u.enum_type.literals.length = cto->_u.enumerated_type.literal_seq._length;
       xt->_u.enum_type.literals.seq = ddsrt_calloc (xt->_u.enum_type.literals.length, sizeof (*xt->_u.enum_type.literals.seq));
       for (uint32_t n = 0; n < xt->_u.enum_type.literals.length; n++)
@@ -660,6 +663,7 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
     case DDS_XTypes_TK_BITMASK:
       xt->_u.bitmask.flags = cto->_u.bitmask_type.bitmask_flags;
       xt->_u.bitmask.bit_bound = cto->_u.bitmask_type.header.common.bit_bound;
+      memcpy(&xt->_u.bitmask.detail.type_name, cto->_u.bitmask_type.header.detail.type_name, sizeof(xt->_u.bitmask.detail.type_name));
       xt->_u.bitmask.bitflags.length = cto->_u.bitmask_type.flag_seq._length;
       xt->_u.bitmask.bitflags.seq = ddsrt_calloc (xt->_u.bitmask.bitflags.length, sizeof (*xt->_u.bitmask.bitflags.seq));
       for (uint32_t n = 0; n < xt->_u.bitmask.bitflags.length; n++)
@@ -2156,6 +2160,7 @@ void ddsi_xt_get_typeobject_impl (const struct xt_type *xt, struct DDS_XTypes_Ty
       case DDS_XTypes_TK_ENUM:
       {
         struct DDS_XTypes_CompleteEnumeratedType *cenum = &cto->_u.enumerated_type;
+        get_type_detail (&cenum->header.detail, &xt->_u.enum_type.detail);
         cenum->enum_flags = xt->_u.enum_type.flags;
         cenum->header.common.bit_bound = xt->_u.enum_type.bit_bound;
         cenum->literal_seq._length = xt->_u.enum_type.literals.length;
@@ -2172,6 +2177,7 @@ void ddsi_xt_get_typeobject_impl (const struct xt_type *xt, struct DDS_XTypes_Ty
       case DDS_XTypes_TK_BITMASK:
       {
         struct DDS_XTypes_CompleteBitmaskType *cbitmask = &cto->_u.bitmask_type;
+        get_type_detail (&cbitmask->header.detail, &xt->_u.bitmask.detail);
         cbitmask->bitmask_flags = xt->_u.bitmask.flags;
         cbitmask->header.common.bit_bound = xt->_u.bitmask.bit_bound;
         cbitmask->flag_seq._length = xt->_u.bitmask.bitflags.length;
