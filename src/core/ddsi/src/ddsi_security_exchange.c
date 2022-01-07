@@ -55,7 +55,7 @@ bool write_auth_handshake_message(const struct participant *pp, const struct pro
   }
 
   ddsrt_mutex_lock (&wr->e.lock);
-  seq = ++wr->seq;
+  seq = (seqno_t){ ++wr->seq.v };
 
   if (request) {
     nn_participant_generic_message_init(&pmg, &wr->e.guid, seq, &proxypp->e.guid, NULL, NULL, DDS_SECURITY_AUTH_REQUEST, mdata, NULL);
@@ -166,7 +166,7 @@ static bool write_crypto_exchange_message(const struct participant *pp, const dd
   GVLOG (DDS_LC_DISCOVERY, "send crypto tokens("PGUIDFMT" --> "PGUIDFMT")\n", PGUID (wr->e.guid), PGUID (prd_guid));
 
   ddsrt_mutex_lock (&wr->e.lock);
-  seq = ++wr->seq;
+  seq = (seqno_t){ ++wr->seq.v };
 
   /* Get serialized message. */
   nn_participant_generic_message_init(&pmg, &wr->e.guid, seq, dst_pguid, dst_eguid, src_eguid, classid, tokens, NULL);

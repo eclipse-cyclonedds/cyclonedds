@@ -23,7 +23,7 @@ extern "C" {
 typedef struct {
   uint8_t major, minor;
 } nn_protocol_version_t;
-typedef int64_t seqno_t;
+typedef struct { uint64_t v; } seqno_t;
 #define MAX_SEQ_NUMBER INT64_MAX
 
 #define PGUIDPREFIX(gp) (gp).u[0], (gp).u[1], (gp).u[2]

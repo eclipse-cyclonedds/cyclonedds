@@ -39,7 +39,7 @@ struct whc_state {
   seqno_t max_seq; /* 0 if WHC empty, else >= min_seq */
   size_t unacked_bytes;
 };
-#define WHCST_ISEMPTY(whcst) ((whcst)->max_seq == 0)
+#define WHCST_ISEMPTY(whcst) ((whcst)->max_seq.v == 0)
 
 /* Adjust SIZE and alignment stuff as needed: they are here simply so we can allocate
    an iter on the stack without specifying an implementation. If future changes or

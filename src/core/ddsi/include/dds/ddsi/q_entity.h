@@ -324,7 +324,7 @@ struct writer
   status_cb_t status_cb;
   void * status_cb_entity;
   ddsrt_cond_t throttle_cond; /* used to trigger a transmit thread blocked in throttle_writer() or wait_for_acks() */
-  seqno_t seq; /* last sequence number (transmitted seqs are 1 ... seq) */
+  seqno_t seq; /* last sequence number (transmitted seqs are 1 ... seq, 0 when nothing published yet) */
   seqno_t cs_seq; /* 1st seq in coherent set (or 0) */
   seq_xmit_t seq_xmit; /* last sequence number actually transmitted */
   seqno_t min_local_readers_reject_seq; /* mimum of local_readers->last_deliv_seq */
@@ -386,15 +386,15 @@ struct writer
 };
 
 DDS_INLINE_EXPORT inline seqno_t writer_read_seq_xmit (const struct writer *wr) {
-  return (seqno_t) ddsrt_atomic_ld64 (&wr->seq_xmit);
+  return (seqno_t){ ddsrt_atomic_ld64 (&wr->seq_xmit) };
 }
 
 DDS_INLINE_EXPORT inline void writer_update_seq_xmit (struct writer *wr, seqno_t nv) {
   uint64_t ov;
   do {
     ov = ddsrt_atomic_ld64 (&wr->seq_xmit);
-    if ((uint64_t) nv <= ov) break;
-  } while (!ddsrt_atomic_cas64 (&wr->seq_xmit, ov, (uint64_t) nv));
+    if (nv.v <= ov) break;
+  } while (!ddsrt_atomic_cas64 (&wr->seq_xmit, ov, nv.v));
 }
 
 struct reader

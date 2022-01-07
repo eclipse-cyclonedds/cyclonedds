@@ -663,20 +663,20 @@ static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *e
     while ((m = ddsrt_avl_lookup_succ (&wr_readers_treedef, &wr->readers, &last_guid)) != NULL)
     {
       last_guid = m->prd_guid;
-      if (m->seq < m->last_seq)
+      if (m->seq.v < m->last_seq.v)
       {
         struct proxy_reader *prd;
 
         prd = entidx_lookup_proxy_reader_guid(wr->e.gv->entity_index, &m->prd_guid);
         if (prd)
         {
-          ETRACE (wr, " heartbeat(wr "PGUIDFMT" rd "PGUIDFMT" %s) send, resched in %g s (min-ack %"PRId64", avail-seq %"PRId64")\n",
+          ETRACE (wr, " heartbeat(wr "PGUIDFMT" rd "PGUIDFMT" %s) send, resched in %g s (min-ack %"PRIu64", avail-seq %"PRIu64")\n",
               PGUID (wr->e.guid),
               PGUID (m->prd_guid),
               hbansreq ? "" : " final",
               (double)(t_next.v - tnow.v) / 1e9,
-              m->seq,
-              m->last_seq);
+              m->seq.v,
+              m->last_seq.v);
 
           struct nn_xmsg *msg = writer_hbcontrol_p2p(wr, &whcst, hbansreq, prd);
           if (msg != NULL)
@@ -693,13 +693,24 @@ static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *e
 
   if (count == 0)
   {
-    ETRACE (wr, "heartbeat(wr "PGUIDFMT") suppressed, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRId64", xmit %"PRId64")\n",
-        PGUID (wr->e.guid),
-        (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
-        ddsrt_avl_is_empty (&wr->readers) ? (int64_t) -1 : ((struct wr_prd_match *) ddsrt_avl_root (&wr_readers_treedef, &wr->readers))->min_seq,
-        ddsrt_avl_is_empty (&wr->readers) || ((struct wr_prd_match *) ddsrt_avl_root (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
-        whcst.max_seq,
-        writer_read_seq_xmit(wr));
+    if (ddsrt_avl_is_empty (&wr->readers))
+    {
+      ETRACE (wr, "heartbeat(wr "PGUIDFMT") suppressed, resched in %g s (min-ack [none], avail-seq %"PRIu64", xmit %"PRIu64")\n",
+              PGUID (wr->e.guid),
+              (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
+              whcst.max_seq.v,
+              writer_read_seq_xmit(wr).v);
+    }
+    else
+    {
+      ETRACE (wr, "heartbeat(wr "PGUIDFMT") suppressed, resched in %g s (min-ack %"PRIu64"%s, avail-seq %"PRIu64", xmit %"PRIu64")\n",
+              PGUID (wr->e.guid),
+              (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
+              ((struct wr_prd_match *) ddsrt_avl_root (&wr_readers_treedef, &wr->readers))->min_seq.v,
+              ((struct wr_prd_match *) ddsrt_avl_root (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
+              whcst.max_seq.v,
+              writer_read_seq_xmit(wr).v);
+    }
   }
 
   ddsrt_mutex_unlock (&wr->e.lock);
@@ -751,14 +762,26 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
     t_next.v = tnow.v + writer_hbcontrol_intv (wr, &whcst, tnow);
   }
 
-  GVTRACE ("heartbeat(wr "PGUIDFMT"%s) %s, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRId64", xmit %"PRId64")\n",
-           PGUID (wr->e.guid),
-           hbansreq ? "" : " final",
-           msg ? "sent" : "suppressed",
-           (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
-           ddsrt_avl_is_empty (&wr->readers) ? (seqno_t) -1 : ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->min_seq,
-           ddsrt_avl_is_empty (&wr->readers) || ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
-           whcst.max_seq, writer_read_seq_xmit (wr));
+  if (ddsrt_avl_is_empty (&wr->readers))
+  {
+    GVTRACE ("heartbeat(wr "PGUIDFMT"%s) %s, resched in %g s (min-ack [none], avail-seq %"PRIu64", xmit %"PRIu64")\n",
+             PGUID (wr->e.guid),
+             hbansreq ? "" : " final",
+             msg ? "sent" : "suppressed",
+             (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
+             whcst.max_seq.v, writer_read_seq_xmit (wr).v);
+  }
+  else
+  {
+    GVTRACE ("heartbeat(wr "PGUIDFMT"%s) %s, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRIu64", xmit %"PRIu64")\n",
+             PGUID (wr->e.guid),
+             hbansreq ? "" : " final",
+             msg ? "sent" : "suppressed",
+             (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
+             ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->min_seq.v,
+             ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
+             whcst.max_seq.v, writer_read_seq_xmit (wr).v);
+  }
   (void) resched_xevent_if_earlier (ev, t_next);
   wr->hbcontrol.tsched = t_next;
   ddsrt_mutex_unlock (&wr->e.lock);
@@ -830,7 +853,7 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct proxy_
   nn_xmsg_submsg_init (msg, sm_marker, SMID_ACKNACK);
   an->readerId = nn_hton_entityid (rwn->rd_guid.entityid);
   an->writerId = nn_hton_entityid (pwr->e.guid.entityid);
-  an->readerSNState.bitmap_base = toSN (1);
+  an->readerSNState.bitmap_base = toSN ((seqno_t){ 1 });
   an->readerSNState.numbits = 0;
   nn_count_t * const countp =
     (nn_count_t *) ((char *) an + offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (0));
