@@ -542,80 +542,104 @@ stash_single(
   return stash_instruction(pstate, instructions, index, &inst);
 }
 
-static uint32_t typecode(const idl_type_spec_t *type_spec, uint32_t shift, bool struct_union_ext)
+static idl_retcode_t add_typecode(const idl_pstate_t *pstate, const idl_type_spec_t *type_spec, uint32_t shift, bool struct_union_ext, uint32_t *add_to)
 {
-  assert(shift == 8 || shift == 16);
-  if (idl_is_array(type_spec))
-    return ((uint32_t)DDS_OP_VAL_ARR << shift);
+  assert(add_to && (shift == 8 || shift == 16));
+  if (idl_is_array(type_spec)) {
+    *add_to |= ((uint32_t)DDS_OP_VAL_ARR << shift);
+    return IDL_RETCODE_OK;
+  }
   type_spec = idl_strip(type_spec, IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
   assert(!idl_is_typedef(type_spec) && !idl_is_forward(type_spec));
   switch (idl_type(type_spec)) {
     case IDL_CHAR:
-      return ((uint32_t)DDS_OP_VAL_1BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
+      *add_to |= ((uint32_t)DDS_OP_VAL_1BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
+      break;
     case IDL_BOOL:
-      return ((uint32_t)DDS_OP_VAL_1BY << shift);
+      *add_to |=  ((uint32_t)DDS_OP_VAL_1BY << shift);
+      break;
     case IDL_INT8:
-      return ((uint32_t)DDS_OP_VAL_1BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
+      *add_to |= ((uint32_t)DDS_OP_VAL_1BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
+      break;
     case IDL_OCTET:
     case IDL_UINT8:
-      return ((uint32_t)DDS_OP_VAL_1BY << shift);
+      *add_to |= ((uint32_t)DDS_OP_VAL_1BY << shift);
+      break;
     case IDL_SHORT:
     case IDL_INT16:
-      return ((uint32_t)DDS_OP_VAL_2BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
+      *add_to |= ((uint32_t)DDS_OP_VAL_2BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
+      break;
     case IDL_USHORT:
     case IDL_UINT16:
-      return ((uint32_t)DDS_OP_VAL_2BY << shift);
+      *add_to |= ((uint32_t)DDS_OP_VAL_2BY << shift);
+      break;
     case IDL_LONG:
     case IDL_INT32:
-      return ((uint32_t)DDS_OP_VAL_4BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
+      *add_to |= ((uint32_t)DDS_OP_VAL_4BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
+      break;
     case IDL_ULONG:
     case IDL_UINT32:
-      return ((uint32_t)DDS_OP_VAL_4BY << shift);
+      *add_to |= ((uint32_t)DDS_OP_VAL_4BY << shift);
+      break;
     case IDL_LLONG:
     case IDL_INT64:
-      return ((uint32_t)DDS_OP_VAL_8BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
+      *add_to |= ((uint32_t)DDS_OP_VAL_8BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
+      break;
     case IDL_ULLONG:
     case IDL_UINT64:
-      return ((uint32_t)DDS_OP_VAL_8BY << shift);
+      *add_to |= ((uint32_t)DDS_OP_VAL_8BY << shift);
+      break;
     case IDL_FLOAT:
-      return ((uint32_t)DDS_OP_VAL_4BY << shift) | (uint32_t)DDS_OP_FLAG_FP;
+      *add_to |= ((uint32_t)DDS_OP_VAL_4BY << shift) | (uint32_t)DDS_OP_FLAG_FP;
+      break;
     case IDL_DOUBLE:
-      return ((uint32_t)DDS_OP_VAL_8BY << shift) | (uint32_t)DDS_OP_FLAG_FP;
+      *add_to |= ((uint32_t)DDS_OP_VAL_8BY << shift) | (uint32_t)DDS_OP_FLAG_FP;
+      break;
     case IDL_LDOUBLE:
-      /* long doubles are not supported (yet) */
-      abort();
+      idl_error (pstate, type_spec, "Long doubles are currently unsupported");
+      return IDL_RETCODE_UNSUPPORTED;
+      break;
     case IDL_STRING:
       if (idl_is_bounded(type_spec))
-        return ((uint32_t)DDS_OP_VAL_BST << shift);
-      return ((uint32_t)DDS_OP_VAL_STR << shift);
+        *add_to |= ((uint32_t)DDS_OP_VAL_BST << shift);
+      else
+        *add_to |= ((uint32_t)DDS_OP_VAL_STR << shift);
+      break;
     case IDL_SEQUENCE:
-      /* bounded sequences are not supported (yet) */
-      if (idl_is_bounded(type_spec))
-        abort();
-      return ((uint32_t)DDS_OP_VAL_SEQ << shift);
+      if (idl_is_bounded(type_spec)) {
+        idl_error (pstate, type_spec, "Bounded sequences are currently unsupported");
+        return IDL_RETCODE_UNSUPPORTED;
+      } else {
+        *add_to |= ((uint32_t)DDS_OP_VAL_SEQ << shift);
+      }
+      break;
     case IDL_ENUM:
-      return ((uint32_t)DDS_OP_VAL_4BY << shift);
+      *add_to |= ((uint32_t)DDS_OP_VAL_4BY << shift);
+      break;
     case IDL_UNION:
-      return ((uint32_t)(struct_union_ext ? DDS_OP_VAL_EXT : DDS_OP_VAL_UNI) << shift);
+      *add_to |= ((uint32_t)(struct_union_ext ? DDS_OP_VAL_EXT : DDS_OP_VAL_UNI) << shift);
+      break;
     case IDL_STRUCT:
-      return ((uint32_t)(struct_union_ext ? DDS_OP_VAL_EXT : DDS_OP_VAL_STU) << shift);
+      *add_to |= ((uint32_t)(struct_union_ext ? DDS_OP_VAL_EXT : DDS_OP_VAL_STU) << shift);
+      break;
     case IDL_BITMASK:
     {
       uint32_t bit_bound = idl_bound(type_spec);
       if (bit_bound <= 8)
-        return ((uint32_t)DDS_OP_VAL_1BY << shift);
+        *add_to |= ((uint32_t)DDS_OP_VAL_1BY << shift);
       else if (bit_bound <= 16)
-        return ((uint32_t)DDS_OP_VAL_2BY << shift);
+        *add_to |= ((uint32_t)DDS_OP_VAL_2BY << shift);
       else if (bit_bound <= 32)
-        return ((uint32_t)DDS_OP_VAL_4BY << shift);
+        *add_to |= ((uint32_t)DDS_OP_VAL_4BY << shift);
       else
-        return ((uint32_t)DDS_OP_VAL_8BY << shift);
+        *add_to |= ((uint32_t)DDS_OP_VAL_8BY << shift);
     }
-    default:
-      abort ();
       break;
+    default:
+      idl_error (pstate, type_spec, "Unsupported type for opcode generation");
+      return IDL_RETCODE_UNSUPPORTED;
   }
-  return 0u;
+  return IDL_RETCODE_OK;
 }
 
 static struct constructed_type *
@@ -776,7 +800,8 @@ emit_case(
       opcode |= DDS_OP_TYPE_ARR;
       case_type = IN_UNION;
     } else {
-      opcode |= typecode(type_spec, TYPE, false);
+      if ((ret = add_typecode(pstate, type_spec, TYPE, false, &opcode)))
+        return ret;
       if (idl_is_struct(type_spec) || idl_is_union(type_spec))
         case_type = EXTERNAL;
       else if (idl_is_array(type_spec) || idl_is_bounded_string(type_spec) || idl_is_sequence(type_spec) || idl_is_enum(type_spec))
@@ -876,7 +901,9 @@ emit_switch_type_spec(
   if ((ret = push_field(descriptor, node, &field)))
     return ret;
 
-  opcode = DDS_OP_ADR | DDS_OP_TYPE_UNI | typecode(type_spec, SUBTYPE, false);
+  opcode = DDS_OP_ADR | DDS_OP_TYPE_UNI;
+  if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
+    return ret;
   if (idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
     opcode |= DDS_OP_FLAG_KEY;
     ctype->has_key_member = true;
@@ -1009,7 +1036,9 @@ emit_inherit_spec(
       int16_t addr_offs = (int16_t)ctype->instructions.count;
 
       /* generate data field opcode */
-      uint32_t opcode = DDS_OP_ADR | typecode(inherit_spec->base, TYPE, true);
+      uint32_t opcode = DDS_OP_ADR;
+      if ((ret = add_typecode(pstate, inherit_spec->base, TYPE, true, &opcode)))
+        return ret;
       opcode |= DDS_OP_FLAG_BASE;
       if (base_ctype->has_key_member) {
         opcode |= DDS_OP_FLAG_KEY;
@@ -1137,7 +1166,8 @@ emit_sequence(
     uint32_t order;
     struct field *field = NULL;
 
-    opcode |= typecode(type_spec, SUBTYPE, false);
+    if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
+      return ret;
     if (idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
       opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
@@ -1258,7 +1288,8 @@ emit_array(
     else if (idl_is_struct(stype->node) && (ret = push_field(descriptor, node, &field)))
       return ret;
 
-    opcode |= typecode(type_spec, SUBTYPE, false);
+    if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
+      return ret;
     if (idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
       opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
@@ -1417,7 +1448,9 @@ emit_declarator(
     bool has_size = false;
     idl_node_t *parent = idl_parent(node);
     bool keylist = (pstate->flags & IDL_FLAG_KEYLIST) != 0;
-    opcode = DDS_OP_ADR | typecode(type_spec, TYPE, true);
+    opcode = DDS_OP_ADR;
+    if ((ret = add_typecode(pstate, type_spec, TYPE, true, &opcode)))
+      return ret;
     if (idl_is_topic_key(descriptor->topic, keylist, path, &order)) {
       opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
@@ -1875,9 +1908,12 @@ static idl_retcode_t get_ctype_keys_adr(
         case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
           idl_error (pstate, ctype->node, "Using array with aggregated element type as part of the key is currently unsupported");
           return IDL_RETCODE_UNSUPPORTED;
-        case DDS_OP_VAL_EXT: case DDS_OP_VAL_ENU:
-          abort();
-          break;
+        case DDS_OP_VAL_EXT:
+          idl_error (pstate, ctype->node, "Using array with externally defined type as part of the key is currently unsupported");
+          return IDL_RETCODE_UNSUPPORTED;
+        case DDS_OP_VAL_ENU:
+          idl_error (pstate, ctype->node, "Using array with an enumerated type as part of the key is currently unsupported");
+          return IDL_RETCODE_UNSUPPORTED;
       }
     } else {
       key->dims = 1;
@@ -1906,9 +1942,12 @@ static idl_retcode_t get_ctype_keys_adr(
         case DDS_OP_VAL_SEQ:
           idl_error (pstate, ctype->node, "Using sequence type as part of the key is currently unsupported");
           return IDL_RETCODE_UNSUPPORTED;
-        case DDS_OP_VAL_STU: case DDS_OP_VAL_ENU:
-          abort();
-          break;
+        case DDS_OP_VAL_STU:
+          idl_error (pstate, ctype->node, "Using struct type as part of the key is currently unsupported");
+          return IDL_RETCODE_UNSUPPORTED;
+        case DDS_OP_VAL_ENU:
+          idl_error (pstate, ctype->node, "Using an enumerated type as part of the key is currently unsupported");
+          return IDL_RETCODE_UNSUPPORTED;
       }
     }
     (*n_keys)++;
