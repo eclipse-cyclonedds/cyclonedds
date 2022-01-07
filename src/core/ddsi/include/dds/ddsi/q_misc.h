@@ -20,7 +20,7 @@ extern "C" {
 
 DDS_INLINE_EXPORT inline seqno_t fromSN (const nn_sequence_number_t sn) {
   uint64_t sn_high = (uint32_t) sn.high;
-  return (seqno_t) ((sn_high << 32) | sn.low);
+  return (seqno_t){ (sn_high << 32) | sn.low };
 }
 
 DDS_INLINE_EXPORT inline bool validating_fromSN (const nn_sequence_number_t sn, seqno_t *res) {
@@ -36,13 +36,13 @@ DDS_INLINE_EXPORT inline bool validating_fromSN (const nn_sequence_number_t sn, 
   // Since we use uint64_t, we can easily test by checking whether (s-1) is in [0 .. 2**63-1)
   const seqno_t tmp = fromSN (sn);
   *res = tmp;
-  return ((uint64_t) tmp - 1) < MAX_SEQ_NUMBER;
+  return (tmp.v - 1) < MAX_SEQ_NUMBER;
 }
 
 DDS_INLINE_EXPORT inline nn_sequence_number_t toSN (seqno_t n) {
   nn_sequence_number_t x;
-  x.high = (int) ((uint64_t) n >> 32);
-  x.low = (unsigned) n;
+  x.high = (int32_t) (n.v >> 32);
+  x.low = (uint32_t) n.v;
   return x;
 }
 

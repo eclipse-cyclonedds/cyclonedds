@@ -119,19 +119,19 @@ static void check_intermediate_whc_state(dds_entity_t writer, seqno_t exp_min, s
   get_writer_whc_state (writer, &whcst);
   /* WHC must not contain any samples < exp_min and must contain at least exp_max if it
      contains at least one sample.  (We never know for certain when ACKs arrive.) */
-  printf(" -- intermediate state: unacked: %zu; min %"PRId64" (exp %"PRId64"); max %"PRId64" (exp %"PRId64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
-  CU_ASSERT_FATAL (whcst.min_seq >= exp_min || (whcst.min_seq == 0 && whcst.max_seq == 0));
-  CU_ASSERT_FATAL (whcst.max_seq == exp_max || (whcst.min_seq == 0 && whcst.max_seq == 0));
+  printf(" -- intermediate state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq.v, exp_min.v, whcst.max_seq.v, exp_max.v);
+  CU_ASSERT_FATAL (whcst.min_seq.v >= exp_min.v || (whcst.min_seq.v == 0 && whcst.max_seq.v == 0));
+  CU_ASSERT_FATAL (whcst.max_seq.v == exp_max.v || (whcst.min_seq.v == 0 && whcst.max_seq.v == 0));
 }
 
 static void check_whc_state(dds_entity_t writer, seqno_t exp_min, seqno_t exp_max)
 {
   struct whc_state whcst;
   get_writer_whc_state (writer, &whcst);
-  printf(" -- final state: unacked: %zu; min %"PRId64" (exp %"PRId64"); max %"PRId64" (exp %"PRId64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
+  printf(" -- final state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq.v, exp_min.v, whcst.max_seq.v, exp_max.v);
   CU_ASSERT_EQUAL_FATAL (whcst.unacked_bytes, 0);
-  CU_ASSERT_EQUAL_FATAL (whcst.min_seq, exp_min);
-  CU_ASSERT_EQUAL_FATAL (whcst.max_seq, exp_max);
+  CU_ASSERT_EQUAL_FATAL (whcst.min_seq.v, exp_min.v);
+  CU_ASSERT_EQUAL_FATAL (whcst.max_seq.v, exp_max.v);
 }
 
 #define V DDS_DURABILITY_VOLATILE
@@ -209,11 +209,11 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
         // change to unsigned means we need to clamp it
         if (exp_min < 0)
           exp_min = 0;
-        check_intermediate_whc_state (writer, exp_min, exp_max);
+        check_intermediate_whc_state (writer, (seqno_t){ (uint32_t)exp_min }, (seqno_t){ (uint32_t)exp_max });
       }
       else
       {
-        check_intermediate_whc_state (writer, 0, 0);
+        check_intermediate_whc_state (writer, (seqno_t){ 0 }, (seqno_t){ 0 });
       }
     }
   }
@@ -242,7 +242,7 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
   /* check whc state */
   int32_t exp_max = (d == TL) ? ni * SAMPLE_COUNT : 0;
   int32_t exp_min = (d == TL) ? ((dh == KA) ? 1 : exp_max - dhd * ni + 1) : 0;
-  check_whc_state (writer, exp_min, exp_max);
+  check_whc_state (writer, (seqno_t){ (uint32_t)exp_min }, (seqno_t){ (uint32_t)exp_max });
 
   dds_delete (writer);
   dds_delete (remote_topic);

@@ -227,8 +227,8 @@ static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, str
 static void bwhc_get_state (const struct whc *whc, struct whc_state *st)
 {
   (void)whc;
-  st->max_seq = 0;
-  st->min_seq = 0;
+  st->max_seq = (seqno_t){ 0 };
+  st->min_seq = (seqno_t){ 0 };
   st->unacked_bytes = 0;
 }
 

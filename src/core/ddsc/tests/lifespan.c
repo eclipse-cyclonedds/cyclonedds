@@ -117,8 +117,8 @@ static void check_whc_state(dds_entity_t writer, seqno_t exp_min, seqno_t exp_ma
   thread_state_asleep(lookup_thread_state());
   dds_entity_unpin(wr_entity);
 
-  CU_ASSERT_EQUAL_FATAL (whcst.min_seq, exp_min);
-  CU_ASSERT_EQUAL_FATAL (whcst.max_seq, exp_max);
+  CU_ASSERT_EQUAL_FATAL (whcst.min_seq.v, exp_min.v);
+  CU_ASSERT_EQUAL_FATAL (whcst.max_seq.v, exp_max.v);
 }
 
 CU_Test(ddsc_lifespan, basic, .init=lifespan_init, .fini=lifespan_fini)
@@ -134,20 +134,20 @@ CU_Test(ddsc_lifespan, basic, .init=lifespan_init, .fini=lifespan_fini)
   /* Write with default qos: lifespan inifinite */
   ret = dds_write (g_writer, &sample);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  check_whc_state(g_writer, 1, 1);
+  check_whc_state(g_writer, (seqno_t){ 1 }, (seqno_t){ 1 });
 
   dds_sleepfor (2 * exp);
-  check_whc_state(g_writer, 1, 1);
+  check_whc_state(g_writer, (seqno_t){ 1 }, (seqno_t){ 1 });
 
   dds_qset_lifespan(qos, exp);
   ret = dds_set_qos(g_writer, qos);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_write (g_writer, &sample);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  check_whc_state(g_writer, 2, 2);
+  check_whc_state(g_writer, (seqno_t){ 2 }, (seqno_t){ 2 });
 
   dds_sleepfor (2 * exp);
-  check_whc_state(g_writer, 0, 0);
+  check_whc_state(g_writer, (seqno_t){ 0 }, (seqno_t){ 0 });
 
   dds_delete_qos(qos);
 }

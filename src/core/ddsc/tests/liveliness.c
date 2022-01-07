@@ -166,7 +166,7 @@ static void test_pmd_count(dds_liveliness_kind_t kind, uint32_t ldur, double mul
          kind == 0 ? "A" : "MP", ldur, (int32_t)(mult * ldur), remote_reader ? "remote" : "local");
 
   /* wait for initial PMD to be sent by the participant */
-  while (get_pmd_seqno(g_pub_participant) < 1)
+  while (get_pmd_seqno(g_pub_participant).v < 1)
     dds_sleepfor(DDS_MSECS(50));
 
   /* topics */
@@ -202,16 +202,16 @@ static void test_pmd_count(dds_liveliness_kind_t kind, uint32_t ldur, double mul
   end_seqno = get_pmd_seqno(g_pub_participant);
 
   t = dds_time();
-  printf("%d.%06d PMD sequence no: start %" PRId64 " -> end %" PRId64 "\n",
+  printf("%d.%06d PMD sequence no: start %" PRIu64 " -> end %" PRIu64 "\n",
          (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000,
-         start_seqno, end_seqno);
+         start_seqno.v, end_seqno.v);
 
   /* End-start should be mult - 1 under ideal circumstances, but consider the test successful
            when at least 50% of the expected PMD's was sent. This checks that the frequency for sending
            PMDs was increased when the writer was added. */
-  CU_ASSERT_FATAL((double) (end_seqno - start_seqno) >= (kind == DDS_LIVELINESS_AUTOMATIC ? (50 * (mult - 1)) / 100 : 0))
+  CU_ASSERT_FATAL((double) (end_seqno.v - start_seqno.v) >= (kind == DDS_LIVELINESS_AUTOMATIC ? (50 * (mult - 1)) / 100 : 0))
   if (kind != DDS_LIVELINESS_AUTOMATIC)
-    CU_ASSERT_FATAL((double) (get_pmd_seqno(g_pub_participant) - start_seqno) < mult)
+    CU_ASSERT_FATAL((double) (get_pmd_seqno(g_pub_participant).v - start_seqno.v) < mult)
 
   /* cleanup */
   if (remote_reader)
