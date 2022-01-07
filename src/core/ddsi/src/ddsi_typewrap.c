@@ -423,6 +423,26 @@ static void xt_lbounds_dup (struct DDS_XTypes_LBoundSeq *dst, const struct DDS_X
   dst->_buffer = ddsrt_memdup (&src->_buffer, dst->_length * sizeof (*dst->_buffer));
 }
 
+static void DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (struct DDS_XTypes_AppliedBuiltinMemberAnnotations *dst, const struct DDS_XTypes_AppliedBuiltinMemberAnnotations *src);
+static void DDS_XTypes_AppliedAnnotationSeq_copy (struct DDS_XTypes_AppliedAnnotationSeq *dst, const struct DDS_XTypes_AppliedAnnotationSeq *src);
+static void set_member_detail (struct xt_member_detail *dst, const DDS_XTypes_CompleteMemberDetail *src)
+{
+  ddsrt_strlcpy (dst->name, src->name, sizeof (dst->name));
+  if (src->ann_builtin) {
+    dst->annotations.ann_builtin = ddsrt_calloc(1, sizeof(struct DDS_XTypes_AppliedBuiltinMemberAnnotations));
+    DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (dst->annotations.ann_builtin, src->ann_builtin);
+  } else {
+    dst->annotations.ann_builtin = NULL;
+  }
+
+  if (src->ann_custom) {
+    dst->annotations.ann_custom = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
+    DDS_XTypes_AppliedAnnotationSeq_copy (dst->annotations.ann_custom, src->ann_custom);
+  } else {
+    dst->annotations.ann_custom = NULL;
+  }
+}
+
 static dds_return_t add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeObject *to)
 {
   const struct DDS_XTypes_MinimalTypeObject *mto = &to->_u.minimal;
@@ -578,14 +598,14 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
         xt->_u.structure.members.seq[n].id = cto->_u.struct_type.member_seq._buffer[n].common.member_id;
         xt->_u.structure.members.seq[n].flags = cto->_u.struct_type.member_seq._buffer[n].common.member_flags;
         xt->_u.structure.members.seq[n].type = ddsi_type_ref_id_locked_impl (gv, &cto->_u.struct_type.member_seq._buffer[n].common.member_type_id);
-        memcpy (xt->_u.structure.members.seq[n].detail.name, cto->_u.struct_type.member_seq._buffer[n].detail.name,
-          sizeof (xt->_u.structure.members.seq[n].detail.name));
+        set_member_detail(&xt->_u.structure.members.seq[n].detail, &cto->_u.struct_type.member_seq._buffer[n].detail);
       }
       break;
     case DDS_XTypes_TK_UNION:
       xt->_u.union_type.flags = cto->_u.union_type.union_flags;
       xt->_u.union_type.disc_type = ddsi_type_ref_id_locked_impl (gv, &cto->_u.union_type.discriminator.common.type_id);
       xt->_u.union_type.disc_flags = cto->_u.union_type.discriminator.common.member_flags;
+      memcpy(&xt->_u.union_type.detail.type_name, cto->_u.union_type.header.detail.type_name, sizeof(xt->_u.union_type.detail.type_name));
       xt->_u.union_type.members.length = cto->_u.union_type.member_seq._length;
       xt->_u.union_type.members.seq = ddsrt_calloc (xt->_u.union_type.members.length, sizeof (*xt->_u.union_type.members.seq));
       for (uint32_t n = 0; n < xt->_u.union_type.members.length; n++)
@@ -596,11 +616,11 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
         xt->_u.union_type.members.seq[n].label_seq._length = cto->_u.union_type.member_seq._buffer[n].common.label_seq._length;
         xt->_u.union_type.members.seq[n].label_seq._buffer = ddsrt_memdup (cto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer,
           cto->_u.union_type.member_seq._buffer[n].common.label_seq._length * sizeof (*cto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer));
-        memcpy (xt->_u.union_type.members.seq[n].detail.name, cto->_u.union_type.member_seq._buffer[n].detail.name,
-          sizeof (xt->_u.union_type.members.seq[n].detail.name));
+        set_member_detail(&xt->_u.union_type.members.seq[n].detail, &cto->_u.union_type.member_seq._buffer[n].detail);
       }
       break;
     case DDS_XTypes_TK_BITSET:
+      memcpy(&xt->_u.bitset.detail.type_name, cto->_u.bitset_type.header.detail.type_name, sizeof(xt->_u.bitset.detail.type_name));
       xt->_u.bitset.fields.length = cto->_u.bitset_type.field_seq._length;
       xt->_u.bitset.fields.seq = ddsrt_calloc (xt->_u.bitset.fields.length, sizeof (*xt->_u.bitset.fields.seq));
       for (uint32_t n = 0; n < xt->_u.bitset.fields.length; n++)
@@ -608,8 +628,7 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
         xt->_u.bitset.fields.seq[n].position = cto->_u.bitset_type.field_seq._buffer[n].common.position;
         xt->_u.bitset.fields.seq[n].bitcount = cto->_u.bitset_type.field_seq._buffer[n].common.bitcount;
         xt->_u.bitset.fields.seq[n].holder_type = cto->_u.bitset_type.field_seq._buffer[n].common.holder_type;
-        memcpy (xt->_u.bitset.fields.seq[n].detail.name, cto->_u.bitset_type.field_seq._buffer[n].detail.name,
-          sizeof (xt->_u.bitset.fields.seq[n].detail.name));
+        set_member_detail(&xt->_u.bitset.fields.seq[n].detail, &cto->_u.bitset_type.field_seq._buffer[n].detail);
       }
       break;
     case DDS_XTypes_TK_SEQUENCE:
@@ -631,26 +650,26 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
     case DDS_XTypes_TK_ENUM:
       xt->_u.enum_type.flags = cto->_u.enumerated_type.enum_flags;
       xt->_u.enum_type.bit_bound = cto->_u.enumerated_type.header.common.bit_bound;
+      memcpy(&xt->_u.enum_type.detail.type_name, cto->_u.enumerated_type.header.detail.type_name, sizeof(xt->_u.enum_type.detail.type_name));
       xt->_u.enum_type.literals.length = cto->_u.enumerated_type.literal_seq._length;
       xt->_u.enum_type.literals.seq = ddsrt_calloc (xt->_u.enum_type.literals.length, sizeof (*xt->_u.enum_type.literals.seq));
       for (uint32_t n = 0; n < xt->_u.enum_type.literals.length; n++)
       {
         xt->_u.enum_type.literals.seq[n].value = cto->_u.enumerated_type.literal_seq._buffer[n].common.value;
         xt->_u.enum_type.literals.seq[n].flags = cto->_u.enumerated_type.literal_seq._buffer[n].common.flags;
-        memcpy (xt->_u.enum_type.literals.seq[n].detail.name, cto->_u.enumerated_type.literal_seq._buffer[n].detail.name,
-          sizeof (xt->_u.enum_type.literals.seq[n].detail.name));
+        set_member_detail(&xt->_u.enum_type.literals.seq[n].detail, &cto->_u.enumerated_type.literal_seq._buffer[n].detail);
       }
       break;
     case DDS_XTypes_TK_BITMASK:
       xt->_u.bitmask.flags = cto->_u.bitmask_type.bitmask_flags;
       xt->_u.bitmask.bit_bound = cto->_u.bitmask_type.header.common.bit_bound;
+      memcpy(&xt->_u.bitmask.detail.type_name, cto->_u.bitmask_type.header.detail.type_name, sizeof(xt->_u.bitmask.detail.type_name));
       xt->_u.bitmask.bitflags.length = cto->_u.bitmask_type.flag_seq._length;
       xt->_u.bitmask.bitflags.seq = ddsrt_calloc (xt->_u.bitmask.bitflags.length, sizeof (*xt->_u.bitmask.bitflags.seq));
       for (uint32_t n = 0; n < xt->_u.bitmask.bitflags.length; n++)
       {
         xt->_u.bitmask.bitflags.seq[n].position = cto->_u.bitmask_type.flag_seq._buffer[n].common.position;
-        memcpy (xt->_u.bitmask.bitflags.seq[n].detail.name, cto->_u.bitmask_type.flag_seq._buffer[n].detail.name,
-          sizeof (xt->_u.bitmask.bitflags.seq[n].detail.name));
+        set_member_detail(&xt->_u.bitmask.bitflags.seq[n].detail, &cto->_u.bitmask_type.flag_seq._buffer[n].detail);
       }
       break;
     default:
@@ -858,25 +877,55 @@ static void DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (struct DDS_XTypes_A
 {
   if (src)
   {
-    dst->unit = ddsrt_strdup (src->unit);
-    dst->min = src->min;
-    dst->max = src->max;
-    dst->hash_id = ddsrt_strdup (src->hash_id);
+    dst->unit = src->unit ? ddsrt_strdup (src->unit) : NULL;
+    if (src->min) {
+      dst->min = ddsrt_memdup(src->min, sizeof(struct DDS_XTypes_AnnotationParameterValue));
+    } else {
+      dst->min = NULL;
+    }
+    if (src->max) {
+      dst->max = ddsrt_memdup(src->max, sizeof(struct DDS_XTypes_AnnotationParameterValue));
+    } else {
+      dst->max = NULL;
+    }
+    dst->hash_id = src->hash_id ? ddsrt_strdup (src->hash_id) : NULL;
   }
 }
 
 static void get_type_detail (DDS_XTypes_CompleteTypeDetail *dst, const struct xt_type_detail *src)
 {
   ddsrt_strlcpy (dst->type_name, src->type_name, sizeof (dst->type_name));
-  DDS_XTypes_AppliedBuiltinTypeAnnotations_copy (dst->ann_builtin, src->annotations.ann_builtin);
-  DDS_XTypes_AppliedAnnotationSeq_copy (dst->ann_custom, src->annotations.ann_custom);
+  if (src->annotations.ann_builtin) {
+    dst->ann_builtin = ddsrt_calloc(1, sizeof(struct DDS_XTypes_AppliedBuiltinTypeAnnotations));
+    DDS_XTypes_AppliedBuiltinTypeAnnotations_copy (dst->ann_builtin, src->annotations.ann_builtin);
+  } else {
+    dst->ann_builtin = NULL;
+  }
+
+  if (src->annotations.ann_custom) {
+    dst->ann_custom = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
+    DDS_XTypes_AppliedAnnotationSeq_copy (dst->ann_custom, src->annotations.ann_custom);
+  } else {
+    dst->ann_custom = NULL;
+  }
 }
 
 static void get_member_detail (DDS_XTypes_CompleteMemberDetail *dst, const struct xt_member_detail *src)
 {
   ddsrt_strlcpy (dst->name, src->name, sizeof (dst->name));
-  DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (dst->ann_builtin, src->annotations.ann_builtin);
-  DDS_XTypes_AppliedAnnotationSeq_copy (dst->ann_custom, src->annotations.ann_custom);
+  if (src->annotations.ann_builtin) {
+    dst->ann_builtin = ddsrt_calloc(1, sizeof(struct DDS_XTypes_AppliedBuiltinMemberAnnotations));
+    DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (dst->ann_builtin, src->annotations.ann_builtin);
+  } else {
+    dst->ann_builtin = NULL;
+  }
+
+  if (src->annotations.ann_custom) {
+    dst->ann_custom = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
+    DDS_XTypes_AppliedAnnotationSeq_copy (dst->ann_custom, src->annotations.ann_custom);
+  } else {
+    dst->ann_custom = NULL;
+  }
 }
 
 static void get_minimal_member_detail (DDS_XTypes_MinimalMemberDetail *dst, const struct xt_member_detail *src)
@@ -937,14 +986,36 @@ void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt)
 
 static void xt_applied_type_annotations_copy (struct xt_applied_type_annotations *dst, const struct xt_applied_type_annotations *src)
 {
-  DDS_XTypes_AppliedBuiltinTypeAnnotations_copy (dst->ann_builtin, src->ann_builtin);
-  DDS_XTypes_AppliedAnnotationSeq_copy (dst->ann_custom, src->ann_custom);
+  if (src->ann_builtin) {
+    dst->ann_builtin = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedBuiltinTypeAnnotations));
+    DDS_XTypes_AppliedBuiltinTypeAnnotations_copy (dst->ann_builtin, src->ann_builtin);
+  } else {
+    dst->ann_builtin = NULL;
+  }
+
+  if (src->ann_custom) {
+    dst->ann_custom = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
+    DDS_XTypes_AppliedAnnotationSeq_copy (dst->ann_custom, src->ann_custom);
+  } else {
+    dst->ann_custom = NULL;
+  }
 }
 
 static void xt_applied_member_annotations_copy (struct xt_applied_member_annotations *dst, const struct xt_applied_member_annotations *src)
 {
-  DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (dst->ann_builtin, src->ann_builtin);
-  DDS_XTypes_AppliedAnnotationSeq_copy (dst->ann_custom, src->ann_custom);
+  if (src->ann_builtin) {
+    dst->ann_builtin = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedBuiltinMemberAnnotations));
+    DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (dst->ann_builtin, src->ann_builtin);
+  } else {
+    dst->ann_builtin = NULL;
+  }
+
+  if (src->ann_custom) {
+    dst->ann_custom = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
+    DDS_XTypes_AppliedAnnotationSeq_copy (dst->ann_custom, src->ann_custom);
+  } else {
+    dst->ann_custom = NULL;
+  }
 }
 
 static void xt_annotation_parameter_copy (struct ddsi_domaingv *gv, struct xt_annotation_parameter *dst, const struct xt_annotation_parameter *src)
@@ -2089,6 +2160,7 @@ void ddsi_xt_get_typeobject_impl (const struct xt_type *xt, struct DDS_XTypes_Ty
       case DDS_XTypes_TK_ENUM:
       {
         struct DDS_XTypes_CompleteEnumeratedType *cenum = &cto->_u.enumerated_type;
+        get_type_detail (&cenum->header.detail, &xt->_u.enum_type.detail);
         cenum->enum_flags = xt->_u.enum_type.flags;
         cenum->header.common.bit_bound = xt->_u.enum_type.bit_bound;
         cenum->literal_seq._length = xt->_u.enum_type.literals.length;
@@ -2105,6 +2177,7 @@ void ddsi_xt_get_typeobject_impl (const struct xt_type *xt, struct DDS_XTypes_Ty
       case DDS_XTypes_TK_BITMASK:
       {
         struct DDS_XTypes_CompleteBitmaskType *cbitmask = &cto->_u.bitmask_type;
+        get_type_detail (&cbitmask->header.detail, &xt->_u.bitmask.detail);
         cbitmask->bitmask_flags = xt->_u.bitmask.flags;
         cbitmask->header.common.bit_bound = xt->_u.bitmask.bit_bound;
         cbitmask->flag_seq._length = xt->_u.bitmask.bitflags.length;
