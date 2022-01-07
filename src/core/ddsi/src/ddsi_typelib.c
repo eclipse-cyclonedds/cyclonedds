@@ -90,7 +90,8 @@ ddsi_typeinfo_t *ddsi_typeinfo_deser (const struct ddsi_sertype_cdr_data *ser)
     data = ser->data;
   if (!dds_stream_normalize_data ((char *) data, &srcoff, ser->sz, bswap, CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
   {
-    ddsrt_free (data);
+    if (bswap)
+      ddsrt_free (data);
     return NULL;
   }
 
