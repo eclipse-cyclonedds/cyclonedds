@@ -482,15 +482,19 @@ static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_
     return false;
   }
 
-  uint32_t sub_history_req = cfg->sub_history_request;
+  // uint32_t sub_history_req = cfg->sub_history_request;
+  // MAKI: need the max from iceoryx here (available on master in the API but
+  // not in release_1.0)
+  const int32_t max_sub_history_req = 16;
 
   return (NULL != qos &&
-    DDS_READER_QOS_CHECK_FIELDS == (qos->present & DDS_READER_QOS_CHECK_FIELDS) &&
-    DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
-    DDS_INFINITY == qos->deadline.deadline &&
-    DDS_DURABILITY_VOLATILE == qos->durability.kind &&
-    DDS_HISTORY_KEEP_LAST == qos->history.kind &&
-    (int)sub_history_req >= (int)qos->history.depth);
+          DDS_READER_QOS_CHECK_FIELDS ==
+              (qos->present & DDS_READER_QOS_CHECK_FIELDS) &&
+          DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
+          DDS_INFINITY == qos->deadline.deadline &&
+          DDS_DURABILITY_VOLATILE == qos->durability.kind &&
+          DDS_HISTORY_KEEP_LAST == qos->history.kind &&
+          max_sub_history_req >= qos->history.depth);
 }
 #endif
 
@@ -665,8 +669,15 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     iox_sub_storage_extension_init(&rd->m_iox_sub_stor);
 
     assert (rqos->durability.kind == DDS_DURABILITY_VOLATILE);
-    opts.queueCapacity = rd->m_entity.m_domain->gv.config.sub_queue_capacity;
-    opts.historyRequest = 0;
+    // opts.queueCapacity = rd->m_entity.m_domain->gv.config.sub_queue_capacity;
+    opts.queueCapacity = (uint64_t)rqos->history.depth;
+
+    // MAKI: if this is always zero we need no
+    // capacity on the writer side ...
+    // opts.historyRequest = 0;
+    // TODO: will those mechanism used by iceoryx and cyclonedds to get data
+    // at late joining readers interfere?
+    opts.historyRequest = (uint64_t)rqos->history.depth;
     rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor.storage, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
     shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
 
