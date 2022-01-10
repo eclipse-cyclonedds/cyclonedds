@@ -94,7 +94,7 @@ void
 nn_participant_generic_message_init(
    nn_participant_generic_message_t *msg,
    const ddsi_guid_t *wrguid,
-   int64_t wrseq,
+   seqno_t wrseq,
    const ddsi_guid_t *dstpguid,
    const ddsi_guid_t *dsteguid,
    const ddsi_guid_t *srceguid,
