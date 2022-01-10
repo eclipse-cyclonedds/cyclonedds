@@ -23,6 +23,22 @@ DDS_INLINE_EXPORT inline seqno_t fromSN (const nn_sequence_number_t sn) {
   return (seqno_t) ((sn_high << 32) | sn.low);
 }
 
+DDS_INLINE_EXPORT inline bool validating_fromSN (const nn_sequence_number_t sn, seqno_t *res) {
+  // fromSN does not checks whatsoever (and shouldn't because it is used quite a lot)
+  // Valid sequence numbers are in [1 .. 2**63-1] union { SEQUENCE_NUMBER_UNKNOWN }
+  // where SEQUENCE_NUMBER_UNKNOWN is the usual abomination: ((2**32-1) << 32)
+  //
+  // As far as I can tell, there are no messages where SEQUENCE_NUMBER_UNKNOWN is actually a
+  // valid input (it would perhaps have been an elegant way to mark pre-emptive HEARTBEATs and
+  // ACKNACKs, but convention is different).  So we reject them as invalid until we are forced
+  // to do differently.  That leaves [1 .. 2**63-1]
+  //
+  // Since we use uint64_t, we can easily test by checking whether (s-1) is in [0 .. 2**63-1)
+  const seqno_t tmp = fromSN (sn);
+  *res = tmp;
+  return ((uint64_t) tmp - 1) < MAX_SEQ_NUMBER;
+}
+
 DDS_INLINE_EXPORT inline nn_sequence_number_t toSN (seqno_t n) {
   nn_sequence_number_t x;
   x.high = (int) ((uint64_t) n >> 32);
