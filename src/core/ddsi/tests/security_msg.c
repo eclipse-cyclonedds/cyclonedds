@@ -19,11 +19,11 @@
 
 static nn_participant_generic_message_t test_msg_in =
 {
-  .message_identity             = { {{.u={1,2,3}},{4}}, {5} },
-  .related_message_identity     = { {{.u={5,4,3}},{2}}, {1} },
-  .destination_participant_guid = {  {.u={2,3,4}},{5}       },
-  .destination_endpoint_guid    = {  {.u={3,4,5}},{6}       },
-  .source_endpoint_guid         = {  {.u={4,5,6}},{7}       },
+  .message_identity             = { {{.u={1,2,3}},{4}}, 5 },
+  .related_message_identity     = { {{.u={5,4,3}},{2}}, 1 },
+  .destination_participant_guid = {  {.u={2,3,4}},{5}     },
+  .destination_endpoint_guid    = {  {.u={3,4,5}},{6}     },
+  .source_endpoint_guid         = {  {.u={4,5,6}},{7}     },
   .message_class_id             = "testing message",
   .message_data                 = {
      .n = 4,
@@ -147,11 +147,11 @@ static nn_participant_generic_message_t test_msg_in =
 /* Same as test_msg_in, excluding the non-propagated properties. */
 static nn_participant_generic_message_t test_msg_out =
 {
-  .message_identity             = { {{.u={1,2,3}},{4}}, {5} },
-  .related_message_identity     = { {{.u={5,4,3}},{2}}, {1} },
-  .destination_participant_guid = {  {.u={2,3,4}},{5}       },
-  .destination_endpoint_guid    = {  {.u={3,4,5}},{6}       },
-  .source_endpoint_guid         = {  {.u={4,5,6}},{7}       },
+  .message_identity             = { {{.u={1,2,3}},{4}}, 5 },
+  .related_message_identity     = { {{.u={5,4,3}},{2}}, 1 },
+  .destination_participant_guid = {  {.u={2,3,4}},{5}     },
+  .destination_endpoint_guid    = {  {.u={3,4,5}},{6}     },
+  .source_endpoint_guid         = {  {.u={4,5,6}},{7}     },
   .message_class_id             = "testing message",
   .message_data                 = {
      .n = 4,

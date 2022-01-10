@@ -885,7 +885,7 @@ static int compare_seqno (const void *va, const void *vb)
 {
   seqno_t a = *((const seqno_t *) va);
   seqno_t b = *((const seqno_t *) vb);
-  return (a.v == b.v) ? 0 : (a.v < b.v) ? -1 : 1;
+  return (a == b) ? 0 : (a < b) ? -1 : 1;
 }
 
 struct nn_defrag *nn_defrag_new (const struct ddsrt_log_cfg *logcfg, enum nn_defrag_drop_mode drop_mode, uint32_t max_samples)
@@ -955,7 +955,7 @@ void nn_defrag_free (struct nn_defrag *defrag)
   s = ddsrt_avl_find_min (&defrag_sampletree_treedef, &defrag->sampletree);
   while (s)
   {
-    TRACE (defrag, "defrag_free(%p, sample %p seq %"PRIu64")\n", (void *) defrag, (void *) s, s->u.defrag.seq.v);
+    TRACE (defrag, "defrag_free(%p, sample %p seq %"PRIu64")\n", (void *) defrag, (void *) s, s->u.defrag.seq);
     defrag_rsample_drop (defrag, s);
     s = ddsrt_avl_find_min (&defrag_sampletree_treedef, &defrag->sampletree);
   }
@@ -1107,7 +1107,7 @@ static struct nn_rsample *reorder_rsample_new (struct nn_rdata *rdata, const str
 
   s = &rsample->u.reorder;
   s->min = sampleinfo->seq;
-  s->maxp1 = (seqno_t){ sampleinfo->seq.v + 1 };
+  s->maxp1 = sampleinfo->seq + 1;
   s->n_samples = 1;
   s->sc.first = s->sc.last = sce;
   return rsample;
@@ -1160,7 +1160,7 @@ static void rsample_convert_defrag_to_reorder (struct nn_rsample *sample)
 
   sample->u.reorder.sc.first = sample->u.reorder.sc.last = sce;
   sample->u.reorder.min = seq;
-  sample->u.reorder.maxp1 = (seqno_t){ seq.v + 1 };
+  sample->u.reorder.maxp1 = seq + 1;
   sample->u.reorder.n_samples = 1;
 }
 
@@ -1176,7 +1176,7 @@ static struct nn_rsample *defrag_add_fragment (struct nn_defrag *defrag, struct 
   assert (min < maxp1);
   /* and it must concern this message */
   assert (dfsample);
-  assert (dfsample->seq.v == sampleinfo->seq.v);
+  assert (dfsample->seq == sampleinfo->seq);
   /* there must be a last fragment */
   assert (dfsample->lastfrag);
   /* relatively expensive test: lastfrag, tree must be consistent */
@@ -1297,7 +1297,7 @@ static int defrag_limit_samples (struct nn_defrag *defrag, seqno_t seq, seqno_t 
   {
     case NN_DEFRAG_DROP_LATEST:
       TRACE (defrag, "  drop mode = DROP_LATEST\n");
-      if (seq.v > defrag->max_sample->u.defrag.seq.v)
+      if (seq > defrag->max_sample->u.defrag.seq)
       {
         TRACE (defrag, "  new sample is new latest => discarding it\n");
         return 0;
@@ -1308,7 +1308,7 @@ static int defrag_limit_samples (struct nn_defrag *defrag, seqno_t seq, seqno_t 
       TRACE (defrag, "  drop mode = DROP_OLDEST\n");
       sample_to_drop = ddsrt_avl_find_min (&defrag_sampletree_treedef, &defrag->sampletree);
       assert (sample_to_drop);
-      if (seq.v < sample_to_drop->u.defrag.seq.v)
+      if (seq < sample_to_drop->u.defrag.seq)
       {
         TRACE (defrag, "  new sample is new oldest => discarding it\n");
         return 0;
@@ -1320,9 +1320,9 @@ static int defrag_limit_samples (struct nn_defrag *defrag, seqno_t seq, seqno_t 
   if (sample_to_drop == defrag->max_sample)
   {
     defrag->max_sample = ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree);
-    *max_seq = defrag->max_sample ? defrag->max_sample->u.defrag.seq : (seqno_t){ 0 };
+    *max_seq = defrag->max_sample ? defrag->max_sample->u.defrag.seq : 0;
     TRACE (defrag, "  updating max_sample: now %p %"PRIu64"\n",
-           (void *) defrag->max_sample, defrag->max_sample ? defrag->max_sample->u.defrag.seq.v : 0);
+           (void *) defrag->max_sample, defrag->max_sample ? defrag->max_sample->u.defrag.seq : 0);
   }
   return 1;
 }
@@ -1366,14 +1366,14 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
      last message in 'defrag'. max_seq and max_sample must be
      consistent. Max_sample must be consistent with tree */
   assert (defrag->max_sample == ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree));
-  max_seq = defrag->max_sample ? defrag->max_sample->u.defrag.seq : (seqno_t){ 0 };
+  max_seq = defrag->max_sample ? defrag->max_sample->u.defrag.seq : 0;
   TRACE (defrag, "defrag_rsample(%p, %p [%"PRIu32"..%"PRIu32") msg %p, %p seq %"PRIu64" size %"PRIu32") max_seq %p %"PRIu64":\n",
          (void *) defrag, (void *) rdata, rdata->min, rdata->maxp1, (void *) rdata->rmsg,
-         (void *) sampleinfo, sampleinfo->seq.v, sampleinfo->size,
-         (void *) defrag->max_sample, max_seq.v);
+         (void *) sampleinfo, sampleinfo->seq, sampleinfo->size,
+         (void *) defrag->max_sample, max_seq);
   /* fast path: rdata is part of message with the highest sequence
      number we're currently defragmenting, or is beyond that */
-  if (sampleinfo->seq.v == max_seq.v)
+  if (sampleinfo->seq == max_seq)
   {
     TRACE (defrag, "  add fragment to max_sample\n");
     result = defrag_add_fragment (defrag, defrag->max_sample, rdata, sampleinfo);
@@ -1383,7 +1383,7 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
     TRACE (defrag, "  discarding sample\n");
     result = NULL;
   }
-  else if (sampleinfo->seq.v > max_seq.v)
+  else if (sampleinfo->seq > max_seq)
   {
     /* a node with a key greater than the maximum always is the right
        child of the old maximum node */
@@ -1401,7 +1401,7 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
   {
     /* a new sequence number, but smaller than the maximum */
     TRACE (defrag, "  new sample less than max\n");
-    assert (sampleinfo->seq.v < max_seq.v);
+    assert (sampleinfo->seq < max_seq);
     if ((sample = defrag_rsample_new (rdata, sampleinfo)) == NULL)
       return NULL;
     ddsrt_avl_insert_ipath (&defrag_sampletree_treedef, &defrag->sampletree, sample, &path);
@@ -1428,7 +1428,7 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
     {
       defrag->max_sample = ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree);
       TRACE (defrag, "  updating max_sample: now %p %"PRIu64"\n",
-             (void *) defrag->max_sample, defrag->max_sample ? defrag->max_sample->u.defrag.seq.v : 0);
+             (void *) defrag->max_sample, defrag->max_sample ? defrag->max_sample->u.defrag.seq : 0);
     }
     rsample_convert_defrag_to_reorder (result);
   }
@@ -1443,7 +1443,7 @@ void nn_defrag_notegap (struct nn_defrag *defrag, seqno_t min, seqno_t maxp1)
      fragments in that range must be discarded.  Used both for
      Hearbeats (by setting min=1) and for Gaps. */
   struct nn_rsample *s = ddsrt_avl_lookup_succ_eq (&defrag_sampletree_treedef, &defrag->sampletree, &min);
-  while (s && s->u.defrag.seq.v < maxp1.v)
+  while (s && s->u.defrag.seq < maxp1)
   {
     struct nn_rsample *s1 = ddsrt_avl_find_succ (&defrag_sampletree_treedef, &defrag->sampletree, s);
     defrag_rsample_drop (defrag, s);
@@ -1679,7 +1679,7 @@ struct nn_reorder *nn_reorder_new (const struct ddsrt_log_cfg *logcfg, enum nn_r
     return NULL;
   ddsrt_avl_init (&reorder_sampleivtree_treedef, &r->sampleivtree);
   r->max_sampleiv = NULL;
-  r->next_seq = (seqno_t){ 1 };
+  r->next_seq = 1;
   r->mode = mode;
   r->max_samples = max_samples;
   r->n_samples = 0;
@@ -1738,11 +1738,11 @@ static void reorder_add_rsampleiv (struct nn_reorder *reorder, struct nn_rsample
 #ifndef NDEBUG
 static int rsample_is_singleton (const struct nn_rsample_reorder *s)
 {
-  assert (s->min.v < s->maxp1.v);
+  assert (s->min < s->maxp1);
   if (s->n_samples != 1)
     return 0;
-  assert (s->min.v + 1 == s->maxp1.v);
-  assert (s->min.v + s->n_samples <= s->maxp1.v);
+  assert (s->min + 1 == s->maxp1);
+  assert (s->min + s->n_samples <= s->maxp1);
   assert (s->sc.first != NULL);
   assert (s->sc.first == s->sc.last);
   assert (s->sc.first->next == NULL);
@@ -1765,21 +1765,21 @@ static int reorder_try_append_and_discard (struct nn_reorder *reorder, struct nn
     TRACE (reorder, "  try_append_and_discard: fail: todiscard = NULL\n");
     return 0;
   }
-  else if (appendto->u.reorder.maxp1.v < todiscard->u.reorder.min.v)
+  else if (appendto->u.reorder.maxp1 < todiscard->u.reorder.min)
   {
     TRACE (reorder, "  try_append_and_discard: fail: appendto = [%"PRIu64",%"PRIu64") @ %p, "
            "todiscard = [%"PRIu64",%"PRIu64") @ %p - gap\n",
-           appendto->u.reorder.min.v, appendto->u.reorder.maxp1.v, (void *) appendto,
-           todiscard->u.reorder.min.v, todiscard->u.reorder.maxp1.v, (void *) todiscard);
+           appendto->u.reorder.min, appendto->u.reorder.maxp1, (void *) appendto,
+           todiscard->u.reorder.min, todiscard->u.reorder.maxp1, (void *) todiscard);
     return 0;
   }
   else
   {
     TRACE (reorder, "  try_append_and_discard: success: appendto = [%"PRIu64",%"PRIu64") @ %p, "
            "todiscard = [%"PRIu64",%"PRIu64") @ %p\n",
-           appendto->u.reorder.min.v, appendto->u.reorder.maxp1.v, (void *) appendto,
-           todiscard->u.reorder.min.v, todiscard->u.reorder.maxp1.v, (void *) todiscard);
-    assert (todiscard->u.reorder.min.v == appendto->u.reorder.maxp1.v);
+           appendto->u.reorder.min, appendto->u.reorder.maxp1, (void *) appendto,
+           todiscard->u.reorder.min, todiscard->u.reorder.maxp1, (void *) todiscard);
+    assert (todiscard->u.reorder.min == appendto->u.reorder.maxp1);
     ddsrt_avl_delete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, todiscard);
     append_rsample_interval (appendto, todiscard);
     TRACE (reorder, "  try_append_and_discard: max_sampleiv needs update? %s\n",
@@ -1821,7 +1821,7 @@ struct nn_rsample *nn_reorder_rsample_dup_first (struct nn_rmsg *rmsg, struct nn
   sce->next = NULL;
   sce->sampleinfo = rsampleiv->u.reorder.sc.first->sampleinfo;
   rsampleiv_new->u.reorder.min = rsampleiv->u.reorder.min;
-  rsampleiv_new->u.reorder.maxp1 = (seqno_t){ rsampleiv_new->u.reorder.min.v + 1 };
+  rsampleiv_new->u.reorder.maxp1 = rsampleiv_new->u.reorder.min + 1;
   rsampleiv_new->u.reorder.n_samples = 1;
   rsampleiv_new->u.reorder.sc.first = rsampleiv_new->u.reorder.sc.last = sce;
   return rsampleiv_new;
@@ -1876,9 +1876,9 @@ static void delete_last_sample (struct nn_reorder *reorder)
        large!).  Can't be a singleton list, so might as well chop off
        one evaluation of the loop condition. */
     struct nn_rsample_chain_elem *e, *pe;
-    TRACE (reorder, "  delete_last_sample: scanning last interval [%"PRIu64"..%"PRIu64")\n", last->min.v, last->maxp1.v);
+    TRACE (reorder, "  delete_last_sample: scanning last interval [%"PRIu64"..%"PRIu64")\n", last->min, last->maxp1);
     assert (last->n_samples >= 1);
-    assert (last->min.v + last->n_samples <= last->maxp1.v);
+    assert (last->min + last->n_samples <= last->maxp1);
     e = last->sc.first;
     do {
       pe = e;
@@ -1887,9 +1887,9 @@ static void delete_last_sample (struct nn_reorder *reorder)
     reorder->discarded_bytes += e->sampleinfo->size;
     fragchain = e->fragchain;
     pe->next = NULL;
-    assert (pe->sampleinfo->seq.v + 1 < last->maxp1.v);
+    assert (pe->sampleinfo->seq + 1 < last->maxp1);
     last->sc.last = pe;
-    last->maxp1.v--;
+    last->maxp1--;
     last->n_samples--;
   }
 
@@ -1908,8 +1908,8 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
   struct nn_rsample_reorder *s = &rsampleiv->u.reorder;
 
   TRACE (reorder, "reorder_sample(%p %c, %"PRIu64" @ %p) expecting %"PRIu64":\n",
-         (void *) reorder, reorder_mode_as_char (reorder), rsampleiv->u.reorder.min.v,
-         (void *) rsampleiv, reorder->next_seq.v);
+         (void *) reorder, reorder_mode_as_char (reorder), rsampleiv->u.reorder.min,
+         (void *) rsampleiv, reorder->next_seq);
 
   /* Incoming rsample must be a singleton */
   assert (rsample_is_singleton (s));
@@ -1920,8 +1920,8 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
   {
     struct nn_rsample *min = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
     if (min)
-      TRACE (reorder, "  min = %"PRIu64" @ %p\n", min->u.reorder.min.v, (void *) min);
-    assert (min == NULL || reorder->next_seq.v < min->u.reorder.min.v);
+      TRACE (reorder, "  min = %"PRIu64" @ %p\n", min->u.reorder.min, (void *) min);
+    assert (min == NULL || reorder->next_seq < min->u.reorder.min);
     assert ((reorder->max_sampleiv == NULL && min == NULL) ||
             (reorder->max_sampleiv != NULL && min != NULL));
   }
@@ -1930,11 +1930,11 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
   assert (reorder->max_sampleiv == NULL || reorder->max_sampleiv == ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree));
   assert (reorder->n_samples <= reorder->max_samples);
   if (reorder->max_sampleiv)
-    TRACE (reorder, "  max = [%"PRIu64",%"PRIu64") @ %p\n", reorder->max_sampleiv->u.reorder.min.v,
-           reorder->max_sampleiv->u.reorder.maxp1.v, (void *) reorder->max_sampleiv);
+    TRACE (reorder, "  max = [%"PRIu64",%"PRIu64") @ %p\n", reorder->max_sampleiv->u.reorder.min,
+           reorder->max_sampleiv->u.reorder.maxp1, (void *) reorder->max_sampleiv);
 
-  if (s->min.v == reorder->next_seq.v ||
-      (s->min.v > reorder->next_seq.v && reorder->mode == NN_REORDER_MODE_MONOTONICALLY_INCREASING) ||
+  if (s->min == reorder->next_seq ||
+      (s->min > reorder->next_seq && reorder->mode == NN_REORDER_MODE_MONOTONICALLY_INCREASING) ||
       reorder->mode == NN_REORDER_MODE_ALWAYS_DELIVER)
   {
     /* Can deliver at least one sample, but that appends samples to
@@ -1964,17 +1964,17 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     reorder->next_seq = s->maxp1;
     *sc = rsampleiv->u.reorder.sc;
     (*refcount_adjust)++;
-    TRACE (reorder, "  return [%"PRIu64",%"PRIu64")\n", s->min.v, s->maxp1.v);
+    TRACE (reorder, "  return [%"PRIu64",%"PRIu64")\n", s->min, s->maxp1);
 
     /* Adjust reorder->n_samples, new sample is not counted yet */
-    assert (s->maxp1.v - s->min.v >= 1);
-    assert (s->maxp1.v - s->min.v <= (int) INT32_MAX);
-    assert (s->min.v + s->n_samples <= s->maxp1.v);
+    assert (s->maxp1 - s->min >= 1);
+    assert (s->maxp1 - s->min <= (int) INT32_MAX);
+    assert (s->min + s->n_samples <= s->maxp1);
     assert (reorder->n_samples >= s->n_samples - 1);
     reorder->n_samples -= s->n_samples - 1;
     return (nn_reorder_result_t) s->n_samples;
   }
-  else if (s->min.v < reorder->next_seq.v)
+  else if (s->min < reorder->next_seq)
   {
     /* we've moved beyond this one: discard it; no need to adjust
        n_samples */
@@ -2002,7 +2002,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
       reorder->n_samples++;
     }
   }
-  else if (((void) assert (reorder->max_sampleiv != NULL)), (s->min.v == reorder->max_sampleiv->u.reorder.maxp1.v))
+  else if (((void) assert (reorder->max_sampleiv != NULL)), (s->min == reorder->max_sampleiv->u.reorder.maxp1))
   {
     /* (sampleivtree not empty) <=> (max_sampleiv is non-NULL), for which there is an assert at the beginning but compilers and static analyzers don't all quite get that ... the somewhat crazy assert shuts up Clang's static analyzer */
     if (delivery_queue_full_p)
@@ -2027,7 +2027,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
       return NN_REORDER_REJECT;
     }
   }
-  else if (s->min.v > reorder->max_sampleiv->u.reorder.maxp1.v)
+  else if (s->min > reorder->max_sampleiv->u.reorder.maxp1)
   {
     if (delivery_queue_full_p)
     {
@@ -2072,10 +2072,10 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     predeq = ddsrt_avl_lookup_pred_eq (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &s->min);
     if (predeq)
       TRACE (reorder, "  predeq = [%"PRIu64",%"PRIu64") @ %p\n",
-             predeq->u.reorder.min.v, predeq->u.reorder.maxp1.v, (void *) predeq);
+             predeq->u.reorder.min, predeq->u.reorder.maxp1, (void *) predeq);
     else
       TRACE (reorder, "  predeq = null\n");
-    if (predeq && s->min.v >= predeq->u.reorder.min.v && s->min.v < predeq->u.reorder.maxp1.v)
+    if (predeq && s->min >= predeq->u.reorder.min && s->min < predeq->u.reorder.maxp1)
     {
       /* contained in predeq */
       TRACE (reorder, "  discard: contained in predeq\n");
@@ -2086,10 +2086,10 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     immsucc = ddsrt_avl_lookup (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &s->maxp1);
     if (immsucc)
       TRACE (reorder, "  immsucc = [%"PRIu64",%"PRIu64") @ %p\n",
-             immsucc->u.reorder.min.v, immsucc->u.reorder.maxp1.v, (void *) immsucc);
+             immsucc->u.reorder.min, immsucc->u.reorder.maxp1, (void *) immsucc);
     else
       TRACE (reorder, "  immsucc = null\n");
-    if (predeq && s->min.v == predeq->u.reorder.maxp1.v)
+    if (predeq && s->min == predeq->u.reorder.maxp1)
     {
       /* grow predeq at end, and maybe append immsucc as well */
       TRACE (reorder, "  growing predeq at end ...\n");
@@ -2154,12 +2154,12 @@ static struct nn_rsample *coalesce_intervals_touching_range (struct nn_reorder *
   *valuable = 0;
   /* Find first (lowest m) interval [m,n) s.t. n >= min && m <= maxp1 */
   s = ddsrt_avl_lookup_pred_eq (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &min);
-  if (s && s->u.reorder.maxp1.v >= min.v)
+  if (s && s->u.reorder.maxp1 >= min)
   {
     /* m <= min && n >= min (note: pred of s [m',n') necessarily has n' < m) */
 #ifndef NDEBUG
     struct nn_rsample *q = ddsrt_avl_find_pred (&reorder_sampleivtree_treedef, &reorder->sampleivtree, s);
-    assert (q == NULL || q->u.reorder.maxp1.v < min.v);
+    assert (q == NULL || q->u.reorder.maxp1 < min);
 #endif
   }
   else
@@ -2168,25 +2168,25 @@ static struct nn_rsample *coalesce_intervals_touching_range (struct nn_reorder *
        NULL) may still have m <= maxp1 (m > min is implied now).  If
        not, no such interval.  */
     s = ddsrt_avl_find_succ (&reorder_sampleivtree_treedef, &reorder->sampleivtree, s);
-    if (!(s && s->u.reorder.min.v <= maxp1.v))
+    if (!(s && s->u.reorder.min <= maxp1))
       return NULL;
   }
   /* Append successors [m',n') s.t. m' <= maxp1 to s */
-  assert (s->u.reorder.min.v + s->u.reorder.n_samples <= s->u.reorder.maxp1.v);
-  while ((t = ddsrt_avl_find_succ (&reorder_sampleivtree_treedef, &reorder->sampleivtree, s)) != NULL && t->u.reorder.min.v <= maxp1.v)
+  assert (s->u.reorder.min + s->u.reorder.n_samples <= s->u.reorder.maxp1);
+  while ((t = ddsrt_avl_find_succ (&reorder_sampleivtree_treedef, &reorder->sampleivtree, s)) != NULL && t->u.reorder.min <= maxp1)
   {
     ddsrt_avl_delete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, t);
-    assert (t->u.reorder.min.v + t->u.reorder.n_samples <= t->u.reorder.maxp1.v);
+    assert (t->u.reorder.min + t->u.reorder.n_samples <= t->u.reorder.maxp1);
     append_rsample_interval (s, t);
     *valuable = 1;
   }
   /* If needed, grow range to [min,maxp1) */
-  if (min.v < s->u.reorder.min.v)
+  if (min < s->u.reorder.min)
   {
     *valuable = 1;
     s->u.reorder.min = min;
   }
-  if (maxp1.v > s->u.reorder.maxp1.v)
+  if (maxp1 > s->u.reorder.maxp1)
   {
     *valuable = 1;
     s->u.reorder.maxp1 = maxp1;
@@ -2257,9 +2257,9 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
 
   TRACE (reorder, "reorder_gap(%p %c, [%"PRIu64",%"PRIu64") data %p) expecting %"PRIu64":\n",
          (void *) reorder, reorder_mode_as_char (reorder),
-         min.v, maxp1.v, (void *) rdata, reorder->next_seq.v);
+         min, maxp1, (void *) rdata, reorder->next_seq);
 
-  if (maxp1.v <= reorder->next_seq.v)
+  if (maxp1 <= reorder->next_seq)
   {
     TRACE (reorder, "  too old\n");
     return NN_REORDER_TOO_OLD;
@@ -2275,14 +2275,14 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
   {
     nn_reorder_result_t res;
     TRACE (reorder, "  coalesced = null\n");
-    if (min.v <= reorder->next_seq.v)
+    if (min <= reorder->next_seq)
     {
-      TRACE (reorder, "  next expected: %"PRIu64"\n", maxp1.v);
+      TRACE (reorder, "  next expected: %"PRIu64"\n", maxp1);
       reorder->next_seq = maxp1;
       res = NN_REORDER_ACCEPT;
     }
     else if (reorder->n_samples == reorder->max_samples &&
-             (reorder->max_sampleiv == NULL || min.v > reorder->max_sampleiv->u.reorder.maxp1.v))
+             (reorder->max_sampleiv == NULL || min > reorder->max_sampleiv->u.reorder.maxp1))
     {
       /* n_samples = max_samples => (max_sampleiv = NULL <=> max_samples = 0) */
       TRACE (reorder, "  discarding gap: max_samples reached and gap at end\n");
@@ -2309,21 +2309,21 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
     reorder->max_sampleiv = ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
     return res;
   }
-  else if (coalesced->u.reorder.min.v <= reorder->next_seq.v)
+  else if (coalesced->u.reorder.min <= reorder->next_seq)
   {
     TRACE (reorder, "  coalesced = [%"PRIu64",%"PRIu64") @ %p containing %"PRId32" samples\n",
-           coalesced->u.reorder.min.v, coalesced->u.reorder.maxp1.v,
+           coalesced->u.reorder.min, coalesced->u.reorder.maxp1,
            (void *) coalesced, coalesced->u.reorder.n_samples);
     ddsrt_avl_delete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, coalesced);
-    if (coalesced->u.reorder.min.v <= reorder->next_seq.v)
-      assert (min.v <= reorder->next_seq.v);
+    if (coalesced->u.reorder.min <= reorder->next_seq)
+      assert (min <= reorder->next_seq);
     reorder->next_seq = coalesced->u.reorder.maxp1;
     reorder->max_sampleiv = ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
-    TRACE (reorder, "  next expected: %"PRIu64"\n", reorder->next_seq.v);
+    TRACE (reorder, "  next expected: %"PRIu64"\n", reorder->next_seq);
     *sc = coalesced->u.reorder.sc;
 
     /* Adjust n_samples */
-    assert (coalesced->u.reorder.min.v + coalesced->u.reorder.n_samples <= coalesced->u.reorder.maxp1.v);
+    assert (coalesced->u.reorder.min + coalesced->u.reorder.n_samples <= coalesced->u.reorder.maxp1);
     assert (reorder->n_samples >= coalesced->u.reorder.n_samples);
     reorder->n_samples -= coalesced->u.reorder.n_samples;
     return (nn_reorder_result_t) coalesced->u.reorder.n_samples;
@@ -2331,7 +2331,7 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
   else
   {
     TRACE (reorder, "  coalesced = [%"PRIu64",%"PRIu64") @ %p - that is all\n",
-           coalesced->u.reorder.min.v, coalesced->u.reorder.maxp1.v, (void *) coalesced);
+           coalesced->u.reorder.min, coalesced->u.reorder.maxp1, (void *) coalesced);
     reorder->max_sampleiv = ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
     return valuable ? NN_REORDER_ACCEPT : NN_REORDER_REJECT;
   }
@@ -2344,7 +2344,7 @@ void nn_reorder_drop_upto (struct nn_reorder *reorder, seqno_t maxp1)
   // >= maxp1 for which all sequence numbers starting from maxp1 are present.
   // Requiring that no samples are present beyond maxp1 means we're not dropping
   // too much.  That's good enough for the current purpose.
-  assert (reorder->max_sampleiv == NULL || reorder->max_sampleiv->u.reorder.maxp1.v <= maxp1.v);
+  assert (reorder->max_sampleiv == NULL || reorder->max_sampleiv->u.reorder.maxp1 <= maxp1);
   // gap won't be stored, so can safely be stack-allocated for the purpose of calling
   // nn_reorder_gap
   struct nn_rdata gap = {
@@ -2355,7 +2355,7 @@ void nn_reorder_drop_upto (struct nn_reorder *reorder, seqno_t maxp1)
   };
   struct nn_rsample_chain sc;
   int refc_adjust = 0;
-  if (nn_reorder_gap (&sc, reorder, &gap, (seqno_t){ 1 }, maxp1, &refc_adjust) > 0)
+  if (nn_reorder_gap (&sc, reorder, &gap, 1, maxp1, &refc_adjust) > 0)
   {
     while (sc.first)
     {
@@ -2365,19 +2365,19 @@ void nn_reorder_drop_upto (struct nn_reorder *reorder, seqno_t maxp1)
     }
   }
   assert (refc_adjust == 0 && !ddsrt_atomic_ld32 (&gap.refcount_bias_added));
-  assert (nn_reorder_next_seq (reorder).v >= maxp1.v);
+  assert (nn_reorder_next_seq (reorder) >= maxp1);
 }
 
 int nn_reorder_wantsample (const struct nn_reorder *reorder, seqno_t seq)
 {
   struct nn_rsample *s;
-  if (seq.v < reorder->next_seq.v)
+  if (seq < reorder->next_seq)
     /* trivially not interesting */
     return 0;
   /* Find interval that contains seq, if we know seq.  We are
      interested if seq is outside this interval (if any). */
   s = ddsrt_avl_lookup_pred_eq (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &seq);
-  return (s == NULL || s->u.reorder.maxp1.v <= seq.v);
+  return (s == NULL || s->u.reorder.maxp1 <= seq);
 }
 
 unsigned nn_reorder_nackmap (const struct nn_reorder *reorder, seqno_t base, seqno_t maxseq, struct nn_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail)
@@ -2397,45 +2397,45 @@ unsigned nn_reorder_nackmap (const struct nn_reorder *reorder, seqno_t base, seq
      delivery */
   base = reorder->next_seq;
 #else
-  if (base.v > reorder->next_seq.v)
+  if (base > reorder->next_seq)
   {
-    DDS_CERROR (reorder->logcfg, "nn_reorder_nackmap: incorrect base sequence number supplied (%"PRIu64" > %"PRIu64")\n", base.v, reorder->next_seq.v);
+    DDS_CERROR (reorder->logcfg, "nn_reorder_nackmap: incorrect base sequence number supplied (%"PRIu64" > %"PRIu64")\n", base, reorder->next_seq);
     base = reorder->next_seq;
   }
 #endif
-  if (maxseq.v + 1 < base.v)
+  if (maxseq + 1 < base)
   {
-    DDS_CERROR (reorder->logcfg, "nn_reorder_nackmap: incorrect max sequence number supplied (maxseq %"PRIu64" base %"PRIu64")\n", maxseq.v, base.v);
-    maxseq = (seqno_t){ base.v - 1 };
+    DDS_CERROR (reorder->logcfg, "nn_reorder_nackmap: incorrect max sequence number supplied (maxseq %"PRIu64" base %"PRIu64")\n", maxseq, base);
+    maxseq = base - 1;
   }
 
   map->bitmap_base = toSN (base);
-  if (maxseq.v + 1 - base.v > maxsz)
+  if (maxseq + 1 - base > maxsz)
     map->numbits = maxsz;
   else
-    map->numbits = (uint32_t) (maxseq.v + 1 - base.v);
+    map->numbits = (uint32_t) (maxseq + 1 - base);
   nn_bitset_zero (map->numbits, mapbits);
 
   struct nn_rsample *iv = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
-  assert (iv == NULL || iv->u.reorder.min.v > base.v);
+  assert (iv == NULL || iv->u.reorder.min > base);
   seqno_t i = base;
-  while (iv && i.v < base.v + map->numbits)
+  while (iv && i < base + map->numbits)
   {
-    for (; i.v < base.v + map->numbits && i.v < iv->u.reorder.min.v; i.v++)
+    for (; i < base + map->numbits && i < iv->u.reorder.min; i++)
     {
-      uint32_t x = (uint32_t) (i.v - base.v);
+      uint32_t x = (uint32_t) (i - base);
       nn_bitset_set (map->numbits, mapbits, x);
     }
     i = iv->u.reorder.maxp1;
     iv = ddsrt_avl_find_succ (&reorder_sampleivtree_treedef, &reorder->sampleivtree, iv);
   }
-  if (notail && i.v < base.v + map->numbits)
-    map->numbits = (uint32_t) (i.v - base.v);
+  if (notail && i < base + map->numbits)
+    map->numbits = (uint32_t) (i - base);
   else
   {
-    for (; i.v < base.v + map->numbits; i.v++)
+    for (; i < base + map->numbits; i++)
     {
-      uint32_t x = (uint32_t) (i.v - base.v);
+      uint32_t x = (uint32_t) (i - base);
       nn_bitset_set (map->numbits, mapbits, x);
     }
   }

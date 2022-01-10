@@ -798,7 +798,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
       if ((lease = ddsrt_atomic_ldvoidp (&proxypp->minl_auto)) != NULL)
         lease_renew (lease, ddsrt_time_elapsed ());
       ddsrt_mutex_lock (&proxypp->e.lock);
-      if (proxypp->implicitly_created || seq.v > proxypp->seq.v)
+      if (proxypp->implicitly_created || seq > proxypp->seq)
       {
         interesting = 1;
         if (!(gv->logconfig.c.mask & DDS_LC_TRACE))
@@ -1519,7 +1519,7 @@ static bool handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_
   if ((*proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid)) == NULL)
   {
     GVLOGDISC (" unknown-proxypp");
-    if ((*proxypp = implicitly_create_proxypp (gv, ppguid, datap, src_guid_prefix, vendorid, timestamp, (seqno_t){ 0 })) == NULL)
+    if ((*proxypp = implicitly_create_proxypp (gv, ppguid, datap, src_guid_prefix, vendorid, timestamp, 0)) == NULL)
       E ("?\n", err);
     /* Repeat regular SEDP trace for convenience */
     GVLOGDISC ("SEDP ST0 "PGUIDFMT" (cont)", PGUID (*entity_guid));
@@ -1969,7 +1969,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     {
       if (plist_ret != DDS_RETCODE_UNSUPPORTED)
         GVWARNING ("data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRIu64": invalid inline qos\n",
-                   src.vendorid.id[0], src.vendorid.id[1], PGUID (srcguid), sampleinfo->seq.v);
+                   src.vendorid.id[0], src.vendorid.id[1], PGUID (srcguid), sampleinfo->seq);
       goto done_upd_deliv;
     }
     /* Complex qos bit also gets set when statusinfo bits other than
@@ -2056,14 +2056,14 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
   {
     GVLOGDISC ("data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRIu64": missing payload\n",
                sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
-               PGUID (srcguid), sampleinfo->seq.v);
+               PGUID (srcguid), sampleinfo->seq);
     goto done_upd_deliv;
   }
   if (d == NULL)
   {
     GVLOG (DDS_LC_DISCOVERY | DDS_LC_WARNING, "data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRIu64": deserialization failed\n",
            sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
-           PGUID (srcguid), sampleinfo->seq.v);
+           PGUID (srcguid), sampleinfo->seq);
     goto done_upd_deliv;
   }
 
@@ -2089,7 +2089,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
     GVTRACE ("data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRIu64": ST%x %s/%s:%s%s\n",
              sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
-             PGUID (guid), sampleinfo->seq.v, statusinfo,
+             PGUID (guid), sampleinfo->seq, statusinfo,
              pwr ? pwr->c.xqos->topic_name : "", d->type->type_name,
              tmp, res < sizeof (tmp) - 1 ? "" : "(trunc)");
   }
@@ -2132,7 +2132,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     default:
       GVLOGDISC ("data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRIu64": not handled\n",
                  sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
-                 PGUID (srcguid), sampleinfo->seq.v);
+                 PGUID (srcguid), sampleinfo->seq);
       break;
   }
 
@@ -2142,7 +2142,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
   if (pwr)
   {
     /* No proxy writer for SPDP */
-    ddsrt_atomic_st32 (&pwr->next_deliv_seq_lowword, (uint32_t) (sampleinfo->seq.v + 1));
+    ddsrt_atomic_st32 (&pwr->next_deliv_seq_lowword, (uint32_t) (sampleinfo->seq + 1));
   }
   return 0;
 }

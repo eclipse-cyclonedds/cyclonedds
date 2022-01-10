@@ -386,15 +386,15 @@ struct writer
 };
 
 DDS_INLINE_EXPORT inline seqno_t writer_read_seq_xmit (const struct writer *wr) {
-  return (seqno_t){ ddsrt_atomic_ld64 (&wr->seq_xmit) };
+  return ddsrt_atomic_ld64 (&wr->seq_xmit);
 }
 
 DDS_INLINE_EXPORT inline void writer_update_seq_xmit (struct writer *wr, seqno_t nv) {
   uint64_t ov;
   do {
     ov = ddsrt_atomic_ld64 (&wr->seq_xmit);
-    if (nv.v <= ov) break;
-  } while (!ddsrt_atomic_cas64 (&wr->seq_xmit, ov, nv.v));
+    if (nv <= ov) break;
+  } while (!ddsrt_atomic_cas64 (&wr->seq_xmit, ov, nv));
 }
 
 struct reader

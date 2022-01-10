@@ -444,8 +444,8 @@ int nn_xmsg_compare_fragid (const struct nn_xmsg *a, const struct nn_xmsg *b)
      seq, frag */
   if ((c = memcmp (&a->kindspecific.data.wrguid, &b->kindspecific.data.wrguid, sizeof (a->kindspecific.data.wrguid))) != 0)
     return c;
-  else if (a->kindspecific.data.wrseq.v != b->kindspecific.data.wrseq.v)
-    return (a->kindspecific.data.wrseq.v < b->kindspecific.data.wrseq.v) ? -1 : 1;
+  else if (a->kindspecific.data.wrseq != b->kindspecific.data.wrseq)
+    return (a->kindspecific.data.wrseq < b->kindspecific.data.wrseq) ? -1 : 1;
   else if (a->kindspecific.data.wrfragid != b->kindspecific.data.wrfragid)
     return (a->kindspecific.data.wrfragid < b->kindspecific.data.wrfragid) ? -1 : 1;
   else
@@ -810,18 +810,18 @@ static int readerId_compatible (const struct nn_xmsg *m, const struct nn_xmsg *m
 
 int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, struct nn_xmsg *m, const struct nn_xmsg *madd)
 {
-  assert (m->kindspecific.data.wrseq.v >= 1);
+  assert (m->kindspecific.data.wrseq >= 1);
   assert (m->kindspecific.data.wrguid.prefix.u[0] != 0);
   assert (is_writer_entityid (m->kindspecific.data.wrguid.entityid));
   assert (memcmp (&m->kindspecific.data.wrguid, &madd->kindspecific.data.wrguid, sizeof (m->kindspecific.data.wrguid)) == 0);
-  assert (m->kindspecific.data.wrseq.v == madd->kindspecific.data.wrseq.v);
+  assert (m->kindspecific.data.wrseq == madd->kindspecific.data.wrseq);
   assert (m->kindspecific.data.wrfragid == madd->kindspecific.data.wrfragid);
   assert (m->kind == NN_XMSG_KIND_DATA_REXMIT);
   assert (madd->kind == NN_XMSG_KIND_DATA_REXMIT);
   assert (m->kindspecific.data.readerId_off != 0);
   assert (madd->kindspecific.data.readerId_off != 0);
 
-  GVTRACE (" ("PGUIDFMT"#%"PRId64"/%"PRIu32":", PGUID (m->kindspecific.data.wrguid), m->kindspecific.data.wrseq.v, m->kindspecific.data.wrfragid + 1);
+  GVTRACE (" ("PGUIDFMT"#%"PRId64"/%"PRIu32":", PGUID (m->kindspecific.data.wrguid), m->kindspecific.data.wrseq, m->kindspecific.data.wrfragid + 1);
 
   switch (m->dstmode)
   {
@@ -1030,7 +1030,7 @@ static void nn_xmsg_chain_release (struct ddsi_domaingv *gv, struct nn_xmsg_chai
           wrguid.entityid.u != m->kindspecific.data.wrguid.entityid.u)
       {
         struct writer *wr;
-        assert (m->kindspecific.data.wrseq.v != 0);
+        assert (m->kindspecific.data.wrseq != 0);
         wrguid = m->kindspecific.data.wrguid;
         if ((wr = entidx_lookup_writer_guid (gv->entity_index, &m->kindspecific.data.wrguid)) != NULL)
           writer_update_seq_xmit (wr, m->kindspecific.data.wrseq);
@@ -1595,7 +1595,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
       GVTRACE ("%s("PGUIDFMT":#%"PRId64"/%"PRIu32")",
                (m->kind == NN_XMSG_KIND_DATA) ? "data" : "rexmit",
                PGUID (m->kindspecific.data.wrguid),
-               m->kindspecific.data.wrseq.v,
+               m->kindspecific.data.wrseq,
                m->kindspecific.data.wrfragid + 1);
       break;
   }

@@ -2089,8 +2089,8 @@ static void proxy_writer_drop_connection (const struct ddsi_guid *pwr_guid, stru
       if (pwr->n_reliable_readers == 0 && isreliable && pwr->have_seen_heartbeat)
       {
         pwr->have_seen_heartbeat = 0;
-        nn_defrag_notegap (pwr->defrag, (seqno_t){ 1 }, (seqno_t){ pwr->last_seq.v + 1 });
-        nn_reorder_drop_upto (pwr->reorder, (seqno_t){ pwr->last_seq.v + 1 });
+        nn_defrag_notegap (pwr->defrag, 1, pwr->last_seq + 1);
+        nn_reorder_drop_upto (pwr->reorder, pwr->last_seq + 1);
       }
       local_reader_ary_remove (&pwr->rdary, rd);
     }
@@ -2178,7 +2178,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
 #else
   if (pretend_everything_acked)
 #endif
-    m->seq = (seqno_t){ MAX_SEQ_NUMBER };
+    m->seq = MAX_SEQ_NUMBER;
   else
     m->seq = wr->seq;
   m->last_seq = m->seq;
@@ -2193,7 +2193,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, 
   else
   {
     ELOGDISC (wr, "  writer_add_connection(wr "PGUIDFMT" prd "PGUIDFMT") - ack seq %"PRIu64"\n",
-              PGUID (wr->e.guid), PGUID (prd->e.guid), m->seq.v);
+              PGUID (wr->e.guid), PGUID (prd->e.guid), m->seq);
     ddsrt_avl_insert_ipath (&wr_readers_treedef, &wr->readers, m, &path);
     wr->num_readers++;
     wr->num_reliable_readers += m->is_reliable;
@@ -2468,11 +2468,11 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   m->t_heartbeat_accepted.v = 0;
   m->t_last_nack.v = 0;
   m->t_last_ack.v = 0;
-  m->last_nack.seq_end_p1 = (seqno_t){ 0 };
-  m->last_nack.seq_base = (seqno_t){ 0 };
+  m->last_nack.seq_end_p1 = 0;
+  m->last_nack.seq_base = 0;
   m->last_nack.frag_end_p1 = 0;
   m->last_nack.frag_base = 0;
-  m->last_seq = (seqno_t){ 0 };
+  m->last_seq = 0;
   m->filtered = 0;
   m->ack_requested = 0;
   m->heartbeat_since_ack = 0;
@@ -2525,7 +2525,7 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
       m->in_sync = PRMSS_OUT_OF_SYNC;
     else
       m->in_sync = PRMSS_SYNC;
-    m->u.not_in_sync.end_of_tl_seq = (seqno_t){ MAX_SEQ_NUMBER };
+    m->u.not_in_sync.end_of_tl_seq = MAX_SEQ_NUMBER;
   }
   else
   {
@@ -3478,22 +3478,22 @@ static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vr
      reader that has not yet replied to a heartbeat as a demoted
      one */
   min_seq = n->seq;
-  max_seq = (n->seq.v < MAX_SEQ_NUMBER) ? n->seq : (seqno_t){ 0 };
+  max_seq = (n->seq < MAX_SEQ_NUMBER) ? n->seq : 0;
 
   /* 1. Compute {min,max} & have_replied. */
   if (left)
   {
-    if (left->min_seq.v < min_seq.v)
+    if (left->min_seq < min_seq)
       min_seq = left->min_seq;
-    if (left->max_seq.v > max_seq.v)
+    if (left->max_seq > max_seq)
       max_seq = left->max_seq;
     have_replied = have_replied && left->all_have_replied_to_hb;
   }
   if (right)
   {
-    if (right->min_seq.v < min_seq.v)
+    if (right->min_seq < min_seq)
       min_seq = right->min_seq;
-    if (right->max_seq.v > max_seq.v)
+    if (right->max_seq > max_seq)
       max_seq = right->max_seq;
     have_replied = have_replied && right->all_have_replied_to_hb;
   }
@@ -3502,7 +3502,7 @@ static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vr
   n->all_have_replied_to_hb = have_replied ? 1 : 0;
 
   /* 2. Compute num_reliable_readers_where_seq_equals_max */
-  if (max_seq.v == 0)
+  if (max_seq == 0)
   {
     /* excludes demoted & best-effort readers; note that max == 0
        cannot happen if {left,right}.max > 0 */
@@ -3512,23 +3512,23 @@ static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vr
   {
     /* if demoted or best-effort, seq != max */
     n->num_reliable_readers_where_seq_equals_max =
-      (n->seq.v == max_seq.v && n->has_replied_to_hb);
-    if (left && left->max_seq.v == max_seq.v)
+      (n->seq == max_seq && n->has_replied_to_hb);
+    if (left && left->max_seq == max_seq)
       n->num_reliable_readers_where_seq_equals_max +=
         left->num_reliable_readers_where_seq_equals_max;
-    if (right && right->max_seq.v == max_seq.v)
+    if (right && right->max_seq == max_seq)
       n->num_reliable_readers_where_seq_equals_max +=
         right->num_reliable_readers_where_seq_equals_max;
   }
 
   /* 3. Compute arbitrary unacked reader */
   /* 3a: maybe this reader is itself a candidate */
-  if (n->seq.v < max_seq.v)
+  if (n->seq < max_seq)
   {
     /* seq < max cannot be true for a best-effort reader or a demoted */
     n->arbitrary_unacked_reader = n->prd_guid;
   }
-  else if (n->is_reliable && (n->seq.v == MAX_SEQ_NUMBER || n->seq.v == 0 || !n->has_replied_to_hb))
+  else if (n->is_reliable && (n->seq == MAX_SEQ_NUMBER || n->seq == 0 || !n->has_replied_to_hb))
   {
     /* demoted readers and reliable readers that have not yet replied to a heartbeat are candidates */
     n->arbitrary_unacked_reader = n->prd_guid;
@@ -3544,11 +3544,11 @@ static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vr
   }
   /* 3c: else it may be that we can now determine one of our children
      is actually a candidate */
-  else if (left && left->max_seq.v != 0 && left->max_seq.v < max_seq.v)
+  else if (left && left->max_seq != 0 && left->max_seq < max_seq)
   {
     n->arbitrary_unacked_reader = left->prd_guid;
   }
-  else if (right && right->max_seq.v != 0 && right->max_seq.v < max_seq.v)
+  else if (right && right->max_seq != 0 && right->max_seq < max_seq)
   {
     n->arbitrary_unacked_reader = right->prd_guid;
   }
@@ -3565,7 +3565,7 @@ seqno_t writer_max_drop_seq (const struct writer *wr)
   if (ddsrt_avl_is_empty (&wr->readers))
     return wr->seq;
   n = ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers);
-  return (n->min_seq.v == MAX_SEQ_NUMBER) ? wr->seq : n->min_seq;
+  return (n->min_seq == MAX_SEQ_NUMBER) ? wr->seq : n->min_seq;
 }
 
 int writer_must_have_hb_scheduled (const struct writer *wr, const struct whc_state *whcst)
@@ -3594,7 +3594,7 @@ int writer_must_have_hb_scheduled (const struct writer *wr, const struct whc_sta
        requiring a non-empty whc_seq: if it is transient_local,
        whc_seq usually won't be empty even when all msgs have been
        ack'd. */
-    return writer_max_drop_seq (wr).v < whcst->max_seq.v;
+    return writer_max_drop_seq (wr) < whcst->max_seq;
   }
 }
 
@@ -3724,8 +3724,8 @@ int writer_set_notalive (struct writer *wr, bool notify)
 static void new_writer_guid_common_init (struct writer *wr, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc *whc, status_cb_t status_cb, void * status_entity)
 {
   ddsrt_cond_init (&wr->throttle_cond);
-  wr->seq = (seqno_t){ 0 };
-  wr->cs_seq = (seqno_t){ 0 };
+  wr->seq = 0;
+  wr->cs_seq = 0;
   ddsrt_atomic_st64 (&wr->seq_xmit, (uint64_t) 0);
   wr->hbcount = 1;
   wr->state = WRST_OPERATIONAL;
@@ -4171,21 +4171,21 @@ dds_return_t writer_wait_for_acks (struct writer *wr, const ddsi_guid_t *rdguid,
   ref_seq = wr->seq;
   if (rdguid == NULL)
   {
-    while (wr->state == WRST_OPERATIONAL && ref_seq.v > writer_max_drop_seq (wr).v)
+    while (wr->state == WRST_OPERATIONAL && ref_seq > writer_max_drop_seq (wr))
       if (!ddsrt_cond_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
         break;
-    rc = (ref_seq.v <= writer_max_drop_seq (wr).v) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
+    rc = (ref_seq <= writer_max_drop_seq (wr)) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
   }
   else
   {
     struct wr_prd_match *m = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, rdguid);
-    while (wr->state == WRST_OPERATIONAL && m && ref_seq.v > m->seq.v)
+    while (wr->state == WRST_OPERATIONAL && m && ref_seq > m->seq)
     {
       if (!ddsrt_cond_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
         break;
       m = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, rdguid);
     }
-    rc = (m == NULL || ref_seq.v <= m->seq.v) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
+    rc = (m == NULL || ref_seq <= m->seq) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
   }
   ddsrt_mutex_unlock (&wr->e.lock);
   return rc;
@@ -4865,14 +4865,14 @@ static void create_proxy_builtin_endpoint_impl (struct ddsi_domaingv *gv, ddsrt_
   plist->qos.topic_name = dds_string_dup (topic_name);
   plist->qos.present |= QP_TOPIC_NAME;
   if (is_writer_entityid (ep_guid->entityid))
-    new_proxy_writer (gv, ppguid, ep_guid, proxypp->as_meta, plist, gv->builtins_dqueue, gv->xevents, timestamp, (seqno_t){ 0 });
+    new_proxy_writer (gv, ppguid, ep_guid, proxypp->as_meta, plist, gv->builtins_dqueue, gv->xevents, timestamp, 0);
   else
   {
 #ifdef DDS_HAS_SSM
     const int ssm = addrset_contains_ssm (gv, proxypp->as_meta);
-    new_proxy_reader (gv, ppguid, ep_guid, proxypp->as_meta, plist, timestamp, (seqno_t){ 0 }, ssm);
+    new_proxy_reader (gv, ppguid, ep_guid, proxypp->as_meta, plist, timestamp, 0, ssm);
 #else
-    new_proxy_reader (gv, ppguid, ep_guid, proxypp->as_meta, plist, timestamp, (seqno_t){ 0 });
+    new_proxy_reader (gv, ppguid, ep_guid, proxypp->as_meta, plist, timestamp, 0);
 #endif
   }
 }
@@ -5344,7 +5344,7 @@ bool new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
 
 int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp)
 {
-  if (seq.v > proxypp->seq.v)
+  if (seq > proxypp->seq)
   {
     proxypp->seq = seq;
 
@@ -5897,7 +5897,7 @@ void update_proxy_topic (struct proxy_participant *proxypp, struct proxy_topic *
     ddsrt_mutex_unlock (&proxypp->e.lock);
     return;
   }
-  if (seq.v <= proxytp->seq.v)
+  if (seq <= proxytp->seq)
   {
     GVLOGDISC (" seqno not new\n");
     ddsrt_mutex_unlock (&proxypp->e.lock);
@@ -6118,7 +6118,7 @@ int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
   ddsrt_avl_init (&pwr_readers_treedef, &pwr->readers);
   pwr->n_reliable_readers = 0;
   pwr->n_readers_out_of_sync = 0;
-  pwr->last_seq = (seqno_t){ 0 };
+  pwr->last_seq = 0;
   pwr->last_fragnum = UINT32_MAX;
   pwr->nackfragcount = 1;
   pwr->alive = 1;
@@ -6193,7 +6193,7 @@ int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
      * reader is always considered out of sync the reorder administration of the corresponding reader will be used
      * instead.
      */
-    nn_reorder_set_next_seq(pwr->reorder, (seqno_t){ MAX_SEQ_NUMBER });
+    nn_reorder_set_next_seq(pwr->reorder, MAX_SEQ_NUMBER);
     pwr->filtered = 1;
   }
 
@@ -6228,7 +6228,7 @@ void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset 
   /* Update proxy writer endpoints (from SEDP alive) */
 
   ddsrt_mutex_lock (&pwr->e.lock);
-  if (seq.v > pwr->c.seq.v)
+  if (seq > pwr->c.seq)
   {
     pwr->c.seq = seq;
     if (! addrset_eq_onesidederr (pwr->c.as, as))
@@ -6264,7 +6264,7 @@ void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset 
   memset (&wrguid, 0, sizeof (wrguid));
 
   ddsrt_mutex_lock (&prd->e.lock);
-  if (seq.v > prd->c.seq.v)
+  if (seq > prd->c.seq)
   {
     prd->c.seq = seq;
     if (! addrset_eq_onesidederr (prd->c.as, as))
@@ -6565,7 +6565,7 @@ static void proxy_reader_set_delete_and_ack_all_messages (struct proxy_reader *p
       if ((m_wr = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
       {
         struct whc_state whcst;
-        m_wr->seq = (seqno_t){ MAX_SEQ_NUMBER };
+        m_wr->seq = MAX_SEQ_NUMBER;
         ddsrt_avl_augment_update (&wr_readers_treedef, m_wr);
         (void)remove_acked_messages (wr, &whcst, &deferred_free_list);
         writer_clear_retransmitting (wr);

@@ -87,9 +87,9 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   memset (&request, 0, sizeof (request));
   memcpy (&request.header.requestId.writer_guid.guidPrefix, &wr->e.guid.prefix, sizeof (request.header.requestId.writer_guid.guidPrefix));
   memcpy (&request.header.requestId.writer_guid.entityId, &wr->e.guid.entityid, sizeof (request.header.requestId.writer_guid.entityId));
-  type->request_seqno.v++;
-  request.header.requestId.sequence_number.high = (int32_t) (type->request_seqno.v >> 32);
-  request.header.requestId.sequence_number.low = (uint32_t) type->request_seqno.v;
+  type->request_seqno++;
+  request.header.requestId.sequence_number.high = (int32_t) (type->request_seqno >> 32);
+  request.header.requestId.sequence_number.low = (uint32_t) type->request_seqno;
   (void) snprintf (request.header.instanceName, sizeof (request.header.instanceName), "dds.builtin.TOS.%08"PRIx32 "%08"PRIx32 "%08"PRIx32 "%08"PRIx32,
     wr->c.pp->e.guid.prefix.u[0], wr->c.pp->e.guid.prefix.u[1], wr->c.pp->e.guid.prefix.u[2], wr->c.pp->e.guid.entityid.u);
   request.data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
@@ -124,8 +124,8 @@ static void write_typelookup_reply (struct writer *wr, seqno_t seqno, struct DDS
   GVTRACE (" tl-reply ");
   memcpy (&reply.header.requestId.writer_guid.guidPrefix, &wr->e.guid.prefix, sizeof (reply.header.requestId.writer_guid.guidPrefix));
   memcpy (&reply.header.requestId.writer_guid.entityId, &wr->e.guid.entityid, sizeof (reply.header.requestId.writer_guid.entityId));
-  reply.header.requestId.sequence_number.high = (int32_t) (seqno.v >> 32);
-  reply.header.requestId.sequence_number.low = (uint32_t) seqno.v;
+  reply.header.requestId.sequence_number.high = (int32_t) (seqno >> 32);
+  reply.header.requestId.sequence_number.low = (uint32_t) seqno;
   (void) snprintf (reply.header.instanceName, sizeof (reply.header.instanceName), "dds.builtin.TOS.%08"PRIx32 "%08"PRIx32 "%08"PRIx32 "%08"PRIx32,
     wr->c.pp->e.guid.prefix.u[0], wr->c.pp->e.guid.prefix.u[1], wr->c.pp->e.guid.prefix.u[2], wr->c.pp->e.guid.entityid.u);
   reply.return_data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
@@ -161,7 +161,7 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
   DDS_Builtin_TypeLookup_Request req;
   memset (&req, 0, sizeof (req));
   ddsi_serdata_to_sample (d, &req, NULL, NULL);
-  GVTRACE (" handle-tl-req wr "PGUIDFMT " seqnr %"PRIu64" ntypeids %"PRIu32, PGUID (from_guid (&req.header.requestId.writer_guid)), from_seqno (&req.header.requestId.sequence_number).v, req.data._u.getTypes.type_ids._length);
+  GVTRACE (" handle-tl-req wr "PGUIDFMT " seqnr %"PRIu64" ntypeids %"PRIu32, PGUID (from_guid (&req.header.requestId.writer_guid)), from_seqno (&req.header.requestId.sequence_number), req.data._u.getTypes.type_ids._length);
 
   ddsrt_mutex_lock (&gv->typelib_lock);
   struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq types = { 0, 0, NULL, false };
@@ -212,7 +212,7 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
   ddsi_serdata_to_sample (d, &reply, NULL, NULL);
   bool resolved = false;
   ddsrt_mutex_lock (&gv->typelib_lock);
-  GVTRACE ("handle-tl-reply wr "PGUIDFMT " seqnr %"PRIu64" ntypeids %"PRIu32"\n", PGUID (from_guid (&reply.header.requestId.writer_guid)), from_seqno (&reply.header.requestId.sequence_number).v, reply.return_data._u.getType._u.result.types._length);
+  GVTRACE ("handle-tl-reply wr "PGUIDFMT " seqnr %"PRIu64" ntypeids %"PRIu32"\n", PGUID (from_guid (&reply.header.requestId.writer_guid)), from_seqno (&reply.header.requestId.sequence_number), reply.return_data._u.getType._u.result.types._length);
   for (uint32_t n = 0; n < reply.return_data._u.getType._u.result.types._length; n++)
   {
     struct ddsi_typeid_str str;
