@@ -37,7 +37,7 @@ bool write_auth_handshake_message(const struct participant *pp, const struct pro
   struct nn_participant_generic_message pmg;
   struct ddsi_serdata *serdata;
   struct writer *wr;
-  int64_t seq;
+  seqno_t seq;
   struct proxy_reader *prd;
   ddsi_guid_t prd_guid;
   bool result = false;

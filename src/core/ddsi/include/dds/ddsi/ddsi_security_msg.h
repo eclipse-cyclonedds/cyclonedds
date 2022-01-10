@@ -48,7 +48,7 @@ struct ddsi_serdata;
 
 typedef struct nn_message_identity {
   ddsi_guid_t source_guid;
-  int64_t sequence_number;
+  seqno_t sequence_number;
 } nn_message_identity_t;
 
 typedef struct nn_participant_generic_message {
@@ -71,7 +71,7 @@ DDS_EXPORT void
 nn_participant_generic_message_init(
    nn_participant_generic_message_t *msg,
    const ddsi_guid_t *wrguid,
-   int64_t wrseq,
+   seqno_t wrseq,
    const ddsi_guid_t *dstpguid,
    const ddsi_guid_t *dsteguid,
    const ddsi_guid_t *srceguid,
