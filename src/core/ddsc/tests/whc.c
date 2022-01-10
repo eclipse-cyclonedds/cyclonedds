@@ -120,8 +120,8 @@ static void check_intermediate_whc_state(dds_entity_t writer, seqno_t exp_min, s
   /* WHC must not contain any samples < exp_min and must contain at least exp_max if it
      contains at least one sample.  (We never know for certain when ACKs arrive.) */
   printf(" -- intermediate state: unacked: %zu; min %"PRId64" (exp %"PRId64"); max %"PRId64" (exp %"PRId64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
-  CU_ASSERT_FATAL (whcst.min_seq >= exp_min || (whcst.min_seq == -1 && whcst.max_seq == -1));
-  CU_ASSERT_FATAL (whcst.max_seq == exp_max || (whcst.min_seq == -1 && whcst.max_seq == -1));
+  CU_ASSERT_FATAL (whcst.min_seq >= exp_min || (whcst.min_seq == 0 && whcst.max_seq == 0));
+  CU_ASSERT_FATAL (whcst.max_seq == exp_max || (whcst.min_seq == 0 && whcst.max_seq == 0));
 }
 
 static void check_whc_state(dds_entity_t writer, seqno_t exp_min, seqno_t exp_max)
@@ -204,11 +204,16 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
         int32_t depth = (d == V || hd >= dhd) ? hd : dhd;
         int32_t exp_max = ni * (s + 1);
         int32_t exp_min = exp_max - ni * (depth - 1) - (ni - 1);
+        // exp_min <= 0 can occur with exp_max > 0 (i.e., non-empty, so a non-sensical exp_min)
+        // the check accepts this, treating everything <= 0 the same
+        // change to unsigned means we need to clamp it
+        if (exp_min < 0)
+          exp_min = 0;
         check_intermediate_whc_state (writer, exp_min, exp_max);
       }
       else
       {
-        check_intermediate_whc_state (writer, -1, -1);
+        check_intermediate_whc_state (writer, 0, 0);
       }
     }
   }
@@ -235,8 +240,8 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
   }
 
   /* check whc state */
-  int32_t exp_max = (d == TL) ? ni * SAMPLE_COUNT : -1;
-  int32_t exp_min = (d == TL) ? ((dh == KA) ? 1 : exp_max - dhd * ni + 1) : -1;
+  int32_t exp_max = (d == TL) ? ni * SAMPLE_COUNT : 0;
+  int32_t exp_min = (d == TL) ? ((dh == KA) ? 1 : exp_max - dhd * ni + 1) : 0;
   check_whc_state (writer, exp_min, exp_max);
 
   dds_delete (writer);

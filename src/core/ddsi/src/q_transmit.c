@@ -962,7 +962,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
       uint32_t n = whc_remove_acked_messages (wr->whc, seq, &whcst, &deferred_free_list);
       (void)n;
       assert (n <= 1);
-      assert (whcst.min_seq == -1 && whcst.max_seq == -1);
+      assert (whcst.min_seq == 0 && whcst.max_seq == 0);
       whc_free_deferred_free_list (wr->whc, deferred_free_list);
     }
 #endif
