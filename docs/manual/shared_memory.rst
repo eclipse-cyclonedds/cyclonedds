@@ -81,26 +81,6 @@ The following optional configuration parameters in SharedMemory govern how Cyclo
 
   * defaults to *false*
 
-* SubQueueCapacity
-
-  * controls how many samples a reader using shared memory can hold before the least recent is discarded
-
-  * defaults to *256*
-
-* PubHistoryCapacity
-
-  * defines how many samples a shared memory writer will keep to send to late-joining subscribers
-
-  * defaults to *16*
-
-* SubHistoryRequest
-
-  * the number of samples a late-joining reader will request from a writer
-
-  * this can only be as many as were sent and at most PubHistoryCapacity
-
-  * defaults to *16*
-
 * LogLevel
 
   * controls the output of the iceoryx runtime and can be set to, in order of decreasing output:
@@ -129,10 +109,7 @@ Below follows an example of a Cyclone DDS configuration file supporting shared m
               xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/iceoryx/etc/cyclonedds.xsd">
       <Domain id="any">
           <SharedMemory>
-              <Enable>true</Enable>
-              <SubQueueCapacity>256</SubQueueCapacity>
-              <SubHistoryRequest>16</SubHistoryRequest>
-              <PubHistoryCapacity>16</PubHistoryCapacity>
+              <Enable>true</Enable>              
               <LogLevel>info</LogLevel>
           </SharedMemory>
       </Domain>

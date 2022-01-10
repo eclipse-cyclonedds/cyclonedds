@@ -408,10 +408,7 @@ struct ddsi_config
   int enable_shm;
   char *shm_locator;
   char *iceoryx_service;
-  enum ddsi_shm_loglevel shm_log_lvl;
-  uint32_t sub_queue_capacity;
-  uint32_t sub_history_request;
-  uint32_t pub_history_capacity;
+  enum ddsi_shm_loglevel shm_log_lvl;  
 #endif
 
 #if defined (__cplusplus)
