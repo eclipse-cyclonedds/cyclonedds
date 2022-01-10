@@ -227,16 +227,15 @@ ddsi_typemap_t *ddsi_typemap_deser (const struct ddsi_sertype_cdr_data *ser)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
   if (bswap)
-  {
     data = ddsrt_memdup (ser->data, ser->sz);
-    if (!dds_stream_normalize_data ((char *) data, &srcoff, ser->sz, bswap, CDR_ENC_VERSION_2, DDS_XTypes_TypeMapping_desc.m_ops))
-    {
-      ddsrt_free (data);
-      return NULL;
-    }
-  }
   else
     data = ser->data;
+  if (!dds_stream_normalize_data ((char *) data, &srcoff, ser->sz, bswap, CDR_ENC_VERSION_2, DDS_XTypes_TypeMapping_desc.m_ops))
+  {
+    if (bswap)
+      ddsrt_free (data);
+    return NULL;
+  }
 
   dds_istream_t is = { .m_buffer = data, .m_index = 0, .m_size = ser->sz, .m_xcdr_version = CDR_ENC_VERSION_2 };
   ddsi_typemap_t *typemap = ddsrt_calloc (1, sizeof (*typemap));
