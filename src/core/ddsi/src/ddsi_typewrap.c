@@ -354,7 +354,7 @@ bool ddsi_typeid_is_none_impl (const struct DDS_XTypes_TypeIdentifier *type_id)
 
 bool ddsi_typeid_is_none (const ddsi_typeid_t *type_id)
 {
-  return ddsi_typeid_is_none_impl (&type_id->x);
+  return type_id == NULL || ddsi_typeid_is_none_impl (&type_id->x);
 }
 
 bool ddsi_typeid_is_hash_impl (const struct DDS_XTypes_TypeIdentifier *type_id)
@@ -364,7 +364,7 @@ bool ddsi_typeid_is_hash_impl (const struct DDS_XTypes_TypeIdentifier *type_id)
 
 bool ddsi_typeid_is_hash (const ddsi_typeid_t *type_id)
 {
-  return ddsi_typeid_is_hash_impl (&type_id->x);
+  return type_id != NULL && ddsi_typeid_is_hash_impl (&type_id->x);
 }
 
 bool ddsi_typeid_is_minimal_impl (const struct DDS_XTypes_TypeIdentifier *type_id)
@@ -374,7 +374,7 @@ bool ddsi_typeid_is_minimal_impl (const struct DDS_XTypes_TypeIdentifier *type_i
 
 bool ddsi_typeid_is_minimal (const ddsi_typeid_t *type_id)
 {
-  return ddsi_typeid_is_minimal_impl (&type_id->x);
+  return type_id != NULL && ddsi_typeid_is_minimal_impl (&type_id->x);
 }
 
 bool ddsi_typeid_is_complete_impl (const struct DDS_XTypes_TypeIdentifier *type_id)
@@ -384,7 +384,7 @@ bool ddsi_typeid_is_complete_impl (const struct DDS_XTypes_TypeIdentifier *type_
 
 bool ddsi_typeid_is_complete (const ddsi_typeid_t *type_id)
 {
-  return ddsi_typeid_is_complete_impl (&type_id->x);
+  return type_id != NULL && ddsi_typeid_is_complete_impl (&type_id->x);
 }
 
 void ddsi_typeid_get_equivalence_hash (const ddsi_typeid_t *type_id, DDS_XTypes_EquivalenceHash *hash)
