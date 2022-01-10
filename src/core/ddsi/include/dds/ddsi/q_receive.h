@@ -26,14 +26,14 @@ struct writer;
 struct proxy_reader;
 
 struct nn_gap_info {
-  int64_t gapstart;
-  int64_t gapend;
+  seqno_t gapstart; // == 0 on init, indicating no gap recorded yet
+  seqno_t gapend;   // >= gapstart
   uint32_t gapnumbits;
   uint32_t gapbits[256 / 32];
 };
 
 void nn_gap_info_init(struct nn_gap_info *gi);
-void nn_gap_info_update(struct ddsi_domaingv *gv, struct nn_gap_info *gi, int64_t seqnr);
+void nn_gap_info_update(struct ddsi_domaingv *gv, struct nn_gap_info *gi, seqno_t seqnr);
 struct nn_xmsg * nn_gap_info_create_gap(struct writer *wr, struct proxy_reader *prd, struct nn_gap_info *gi);
 
 void trigger_recv_threads (const struct ddsi_domaingv *gv);

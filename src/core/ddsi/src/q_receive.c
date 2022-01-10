@@ -637,15 +637,18 @@ static int accept_ack_or_hb_w_timeout (nn_count_t new_count, nn_count_t *prev_co
 
 void nn_gap_info_init(struct nn_gap_info *gi)
 {
-  gi->gapstart = -1;
-  gi->gapend = -1;
+  gi->gapstart = 0;
+  gi->gapend = 0;
   gi->gapnumbits = 0;
   memset(gi->gapbits, 0, sizeof(gi->gapbits));
 }
 
 void nn_gap_info_update(struct ddsi_domaingv *gv, struct nn_gap_info *gi, int64_t seqnr)
 {
-  if (gi->gapstart == -1)
+  assert (gi->gapend >= gi->gapstart);
+  assert (seqnr >= gi->gapend);
+
+  if (gi->gapstart == 0)
   {
     GVTRACE (" M%"PRId64, seqnr);
     gi->gapstart = seqnr;
