@@ -49,7 +49,7 @@ static const struct wr_prd_match *root_rdmatch (const struct writer *wr)
 
 static int have_reliable_subs (const struct writer *wr)
 {
-  if (ddsrt_avl_is_empty (&wr->readers) || root_rdmatch (wr)->min_seq.v == MAX_SEQ_NUMBER)
+  if (ddsrt_avl_is_empty (&wr->readers) || root_rdmatch (wr)->min_seq == MAX_SEQ_NUMBER)
     return 0;
   else
     return 1;
@@ -157,7 +157,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
        reliable writer. */
     prd_guid = NULL;
   }
-  else if (wr->seq.v != root_rdmatch (wr)->max_seq.v)
+  else if (wr->seq != root_rdmatch (wr)->max_seq)
   {
     /* If the writer is ahead of its readers, multicast. Couldn't care
        less about the pessimal cases such as multicasting when there
@@ -189,16 +189,16 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   {
     ETRACE (wr, "(rel-prd %"PRId32" seq-eq-max [none] seq %"PRId64" maxseq %"PRId64")\n",
             wr->num_reliable_readers,
-            wr->seq.v,
-            root_rdmatch (wr)->max_seq.v);
+            wr->seq,
+            root_rdmatch (wr)->max_seq);
   }
   else
   {
     ETRACE (wr, "(rel-prd %"PRId32" seq-eq-max %"PRId32" seq %"PRIu64" maxseq %"PRIu64")\n",
             wr->num_reliable_readers,
             (int32_t) root_rdmatch (wr)->num_reliable_readers_where_seq_equals_max,
-            wr->seq.v,
-            root_rdmatch (wr)->max_seq.v);
+            wr->seq,
+            root_rdmatch (wr)->max_seq);
   }
 
   if (prd_guid == NULL)
@@ -327,7 +327,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
               PGUID (wr->e.guid),
               *hbansreq ? "" : " final",
               (hbc->tsched.v == DDS_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
-              whcst->max_seq.v, writer_read_seq_xmit(wr).v);
+              whcst->max_seq, writer_read_seq_xmit(wr));
     }
     else
     {
@@ -335,9 +335,9 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
               PGUID (wr->e.guid),
               *hbansreq ? "" : " final",
               (hbc->tsched.v == DDS_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
-              root_rdmatch (wr)->min_seq.v,
+              root_rdmatch (wr)->min_seq,
               root_rdmatch (wr)->all_have_replied_to_hb ? "" : "!",
-              whcst->max_seq.v, writer_read_seq_xmit(wr).v);
+              whcst->max_seq, writer_read_seq_xmit(wr));
     }
   }
 
@@ -359,15 +359,15 @@ struct nn_xmsg *writer_hbcontrol_p2p(struct writer *wr, const struct whc_state *
   ETRACE (wr, "writer_hbcontrol_p2p: wr "PGUIDFMT" unicasting to prd "PGUIDFMT" ", PGUID (wr->e.guid), PGUID (prd->e.guid));
   if (ddsrt_avl_is_empty (&wr->readers))
   {
-    ETRACE (wr, "(rel-prd %d seq-eq-max [none] seq %"PRIu64")\n", wr->num_reliable_readers, wr->seq.v);
+    ETRACE (wr, "(rel-prd %d seq-eq-max [none] seq %"PRIu64")\n", wr->num_reliable_readers, wr->seq);
   }
   else
   {
     ETRACE (wr, "(rel-prd %d seq-eq-max %d seq %"PRIu64" maxseq %"PRIu64")\n",
             wr->num_reliable_readers,
             (int32_t) root_rdmatch (wr)->num_reliable_readers_where_seq_equals_max,
-            wr->seq.v,
-            root_rdmatch (wr)->max_seq.v);
+            wr->seq,
+            root_rdmatch (wr)->max_seq);
   }
 
   /* set the destination explicitly to the unicast destination and the fourth
@@ -418,7 +418,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
   if (WHCST_ISEMPTY(whcst))
   {
     max = wr->seq;
-    min = (seqno_t){ max.v + 1 };
+    min = max + 1;
   }
   else
   {
@@ -426,21 +426,21 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
     min = whcst->min_seq;
     max = wr->seq;
     const seqno_t seq_xmit = writer_read_seq_xmit (wr);
-    assert (min.v <= max.v);
+    assert (min <= max);
     /* Informing readers of samples that haven't even been transmitted makes little sense,
        but for transient-local data, we let the first heartbeat determine the time at which
        we trigger wait_for_historical_data, so it had better be correct */
-    if (!issync && seq_xmit.v < max.v && !wr->handle_as_transient_local)
+    if (!issync && seq_xmit < max && !wr->handle_as_transient_local)
     {
       /* When: queue data ; queue heartbeat ; transmit data ; update
          seq_xmit, max may be < min.  But we must never advertise the
          minimum available sequence number incorrectly! */
-      if (seq_xmit.v >= min.v) {
+      if (seq_xmit >= min) {
         /* Advertise some but not all data */
         max = seq_xmit;
       } else {
         /* Advertise no data yet */
-        max = (seqno_t){ min.v - 1 };
+        max = min - 1;
       }
     }
   }
@@ -950,9 +950,9 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
     tmp = sizeof (ppbuf) - 1;
     if (wr->e.gv->logconfig.c.mask & DDS_LC_CONTENT)
       ddsi_serdata_print (serdata, ppbuf, sizeof (ppbuf));
-    ETRACE (wr, "write_sample "PGUIDFMT" #%"PRIu64, PGUID (wr->e.guid), seq.v);
+    ETRACE (wr, "write_sample "PGUIDFMT" #%"PRIu64, PGUID (wr->e.guid), seq);
     if (plist != 0 && (plist->present & PP_COHERENT_SET))
-      ETRACE (wr, " C#%"PRIu64"", fromSN (plist->coherent_set_seqno).v);
+      ETRACE (wr, " C#%"PRIu64"", fromSN (plist->coherent_set_seqno));
     ETRACE (wr, ": ST%"PRIu32" %s/%s:%s%s\n", serdata->statusinfo, wr->xqos->topic_name, wr->type->type_name, ppbuf, tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
   }
 
@@ -986,7 +986,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
       uint32_t n = whc_remove_acked_messages (wr->whc, seq, &whcst, &deferred_free_list);
       (void)n;
       assert (n <= 1);
-      assert (whcst.min_seq.v == 0 && whcst.max_seq.v == 0);
+      assert (whcst.min_seq == 0 && whcst.max_seq == 0);
       whc_free_deferred_free_list (wr->whc, deferred_free_list);
     }
 #endif
@@ -1154,7 +1154,7 @@ int write_sample_p2p_wrlock_held(struct writer *wr, seqno_t seq, struct ddsi_pli
   {
     if ((wprd = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
     {
-      if (wprd->seq.v == MAX_SEQ_NUMBER)
+      if (wprd->seq == MAX_SEQ_NUMBER)
         goto prd_is_deleting;
 
       rexmit = prd->filter(wr, prd, serdata);
@@ -1163,10 +1163,10 @@ int write_sample_p2p_wrlock_held(struct writer *wr, seqno_t seq, struct ddsi_pli
       {
         struct nn_gap_info gi;
 
-        GVLOG (DDS_LC_DISCOVERY, "send filtered "PGUIDFMT" last_seq=%"PRIu64" seq=%"PRIu64"\n", PGUID (wr->e.guid), wprd->seq.v, seq.v);
+        GVLOG (DDS_LC_DISCOVERY, "send filtered "PGUIDFMT" last_seq=%"PRIu64" seq=%"PRIu64"\n", PGUID (wr->e.guid), wprd->seq, seq);
 
         nn_gap_info_init(&gi);
-        for (gseq = (seqno_t){ wprd->seq.v + 1 }; gseq.v < seq.v; gseq.v++)
+        for (gseq = wprd->seq + 1; gseq < seq; gseq++)
         {
           struct whc_borrowed_sample sample;
           if (whc_borrow_sample (wr->whc, seq, &sample))
@@ -1241,7 +1241,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
 
   if (end_of_txn)
   {
-    wr->cs_seq = (seqno_t){ 0 };
+    wr->cs_seq = 0;
   }
 
   /* If WHC overfull, block. */
@@ -1282,8 +1282,8 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
   tnow = ddsrt_time_monotonic ();
   serdata->twrite = tnow;
 
-  seq = (seqno_t){ ++wr->seq.v };
-  if (wr->cs_seq.v != 0)
+  seq = ++wr->seq;
+  if (wr->cs_seq != 0)
   {
     if (plist == NULL)
     {
