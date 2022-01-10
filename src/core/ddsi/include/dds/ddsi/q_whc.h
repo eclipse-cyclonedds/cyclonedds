@@ -35,11 +35,11 @@ struct whc_borrowed_sample {
 };
 
 struct whc_state {
-  seqno_t min_seq; /* -1 if WHC empty, else > 0 */
-  seqno_t max_seq; /* -1 if WHC empty, else >= min_seq */
+  seqno_t min_seq; /* 0 if WHC empty, else > 0 */
+  seqno_t max_seq; /* 0 if WHC empty, else >= min_seq */
   size_t unacked_bytes;
 };
-#define WHCST_ISEMPTY(whcst) ((whcst)->max_seq == -1)
+#define WHCST_ISEMPTY(whcst) ((whcst)->max_seq == 0)
 
 /* Adjust SIZE and alignment stuff as needed: they are here simply so we can allocate
    an iter on the stack without specifying an implementation. If future changes or

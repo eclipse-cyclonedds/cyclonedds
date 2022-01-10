@@ -147,7 +147,7 @@ CU_Test(ddsc_lifespan, basic, .init=lifespan_init, .fini=lifespan_fini)
   check_whc_state(g_writer, 2, 2);
 
   dds_sleepfor (2 * exp);
-  check_whc_state(g_writer, -1, -1);
+  check_whc_state(g_writer, 0, 0);
 
   dds_delete_qos(qos);
 }

@@ -564,7 +564,7 @@ static void get_state_locked (const struct whc_impl *whc, struct whc_state *st)
 {
   if (whc->seq_size == 0)
   {
-    st->min_seq = st->max_seq = -1;
+    st->min_seq = st->max_seq = 0;
     st->unacked_bytes = 0;
   }
   else
