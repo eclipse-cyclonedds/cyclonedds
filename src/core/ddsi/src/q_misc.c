@@ -19,6 +19,7 @@
 #include "dds/ddsi/q_misc.h"
 
 DDS_EXPORT extern inline seqno_t fromSN (const nn_sequence_number_t sn);
+DDS_EXPORT extern inline bool validating_fromSN (const nn_sequence_number_t sn, seqno_t *res);
 DDS_EXPORT extern inline nn_sequence_number_t toSN (seqno_t n);
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS

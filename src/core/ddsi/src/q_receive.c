@@ -108,14 +108,18 @@ static void maybe_set_reader_in_sync (struct proxy_writer *pwr, struct pwr_rd_ma
   }
 }
 
-static bool valid_sequence_number_set (const nn_sequence_number_set_header_t *snset)
+static bool valid_sequence_number_set (const nn_sequence_number_set_header_t *snset, seqno_t *start)
 {
-  return (fromSN (snset->bitmap_base) > 0 && snset->numbits <= 256);
+  // reject sets that imply sequence numbers beyond the range of valid sequence numbers
+  // (not a spec'd requirement)
+  return (validating_fromSN (snset->bitmap_base, start) && snset->numbits <= 256 && snset->numbits <= MAX_SEQ_NUMBER - *start);
 }
 
 static bool valid_fragment_number_set (const nn_fragment_number_set_header_t *fnset)
 {
-  return (fnset->bitmap_base > 0 && fnset->numbits <= 256);
+  // reject sets that imply fragment numbers beyond the range of valid fragment numbers
+  // (not a spec'd requirement)
+  return (fnset->bitmap_base > 0 && fnset->numbits <= 256 && fnset->numbits <= UINT32_MAX - fnset->bitmap_base);
 }
 
 enum validation_result {
@@ -155,12 +159,13 @@ static enum validation_result validate_AckNack (const struct receiver_state *rst
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
   /* Validation following 8.3.7.1.3 + 8.3.5.5 */
-  if (!valid_sequence_number_set (&msg->readerSNState))
+  seqno_t ackseq;
+  if (!valid_sequence_number_set (&msg->readerSNState, &ackseq))
   {
     /* FastRTPS, Connext send invalid pre-emptive ACKs -- patch the message to
        make it well-formed and process it as normal */
     if (! DDSI_SC_STRICT_P (rst->gv->config) &&
-        (fromSN (msg->readerSNState.bitmap_base) == 0 && msg->readerSNState.numbits == 0) &&
+        (ackseq == 0 && msg->readerSNState.numbits == 0) &&
         (vendor_is_eprosima (rst->vendor) || vendor_is_rti (rst->vendor)))
       msg->readerSNState.bitmap_base = toSN (1);
     else
@@ -194,12 +199,18 @@ static enum validation_result validate_Gap (Gap_t *msg, size_t size, int byteswa
   }
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
-  if (fromSN (msg->gapStart) <= 0)
+  seqno_t gapstart;
+  if (!validating_fromSN (msg->gapStart, &gapstart))
     return VR_MALFORMED;
-  if (!valid_sequence_number_set (&msg->gapList))
+  seqno_t gapend;
+  if (!valid_sequence_number_set (&msg->gapList, &gapend))
     return VR_MALFORMED;
-  /* One would expect gapStart < gapList.base, but it is not required by
-     the spec for the GAP to valid. */
+  // gapstart >= gapend is not listed as malformed in spec but it really makes no sense
+  // the only plausible interpretation is that the interval is empty and that only the
+  // bitmap matters (which could then be all-0 in which case the message is roughly
+  // equivalent to a heartbeat that says 1 .. N ...  Rewrite so at least end >= start
+  if (gapend < gapstart)
+    msg->gapStart = msg->gapList.bitmap_base;
   if (size < GAP_SIZE (msg->gapList.numbits))
     return VR_MALFORMED;
   if (byteswap)
@@ -359,11 +370,9 @@ static enum validation_result validate_Data (const struct receiver_state *rst, D
   pwr_guid.entityid = msg->x.writerId;
 
   sampleinfo->rst = (struct receiver_state *) rst; /* drop const */
-  sampleinfo->seq = fromSN (msg->x.writerSN);
-  sampleinfo->fragsize = 0; /* for unfragmented data, fragsize = 0 works swell */
-
-  if (sampleinfo->seq <= 0 && sampleinfo->seq != NN_SEQUENCE_NUMBER_UNKNOWN)
+  if (!validating_fromSN (msg->x.writerSN, &sampleinfo->seq))
     return VR_MALFORMED;
+  sampleinfo->fragsize = 0; /* for unfragmented data, fragsize = 0 works swell */
 
   if ((msg->x.smhdr.flags & (DATA_FLAG_INLINE_QOS | DATA_FLAG_DATAFLAG | DATA_FLAG_KEYFLAG)) == 0)
   {
@@ -481,12 +490,10 @@ static enum validation_result validate_DataFrag (const struct receiver_state *rs
     return VR_MALFORMED;
 
   sampleinfo->rst = (struct receiver_state *) rst; /* drop const */
-  sampleinfo->seq = fromSN (msg->x.writerSN);
+  if (!validating_fromSN (msg->x.writerSN, &sampleinfo->seq))
+    return VR_MALFORMED;
   sampleinfo->fragsize = msg->fragmentSize;
   sampleinfo->size = msg->sampleSize;
-
-  if (sampleinfo->seq <= 0 && sampleinfo->seq != NN_SEQUENCE_NUMBER_UNKNOWN)
-    return VR_MALFORMED;
 
   /* QoS and/or payload, so octetsToInlineQos must be within the msg;
      since the serialized data and serialized parameter lists have a 4
