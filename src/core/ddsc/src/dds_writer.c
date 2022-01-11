@@ -297,12 +297,6 @@ static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_
     return false;
   }
 
-  // uint32_t pub_history_cap = cfg->pub_history_capacity;
-
-  // MAKI: need the max from iceoryx here (available on master in the API but
-  // not in release_1.0)
-  const int32_t max_pub_history_cap = 16;
-
   return (NULL != qos &&
           DDS_WRITER_QOS_CHECK_FIELDS ==
               (qos->present & DDS_WRITER_QOS_CHECK_FIELDS) &&
@@ -310,8 +304,8 @@ static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_
           DDS_INFINITY == qos->deadline.deadline &&
           DDS_RELIABILITY_RELIABLE == qos->reliability.kind &&
           DDS_DURABILITY_VOLATILE == qos->durability.kind &&
-          DDS_HISTORY_KEEP_LAST == qos->history.kind &&
-          max_pub_history_cap >= qos->history.depth);
+          DDS_HISTORY_KEEP_LAST == qos->history.kind
+          );
 }
 #endif
 
@@ -441,11 +435,9 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     iox_pub_options_t opts;
     iox_pub_options_init(&opts);
 
-    // MAKI writer config, limit to max
-    // how do we handle impossible settings? (conversion is ok as it is >0, but
-    // value can be beyond iceoryx max) does it have to be 0 since we use the
-    // cyclonedds mechanism anyway?
-    opts.historyCapacity = (uint64_t)wqos->history.depth;
+    // NB: since currently we only support the volatile reader case, there is no
+    // requirement for a specific historyCapacity value > 0 in iceoryx
+    opts.historyCapacity = 0;
     wr->m_iox_pub = iox_pub_init(&wr->m_iox_pub_stor, gv->config.iceoryx_service, wr->m_topic->m_stype->type_name, wr->m_topic->m_name, &opts);
     memset(wr->m_iox_pub_loans, 0, sizeof(wr->m_iox_pub_loans));
     dds_sleepfor(DDS_MSECS(10));
