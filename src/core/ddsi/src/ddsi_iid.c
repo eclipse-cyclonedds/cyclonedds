@@ -9,10 +9,12 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#include <string.h>
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_iid.h"
 
 static struct ddsi_iid ddsi_iid;
@@ -57,9 +59,40 @@ uint64_t ddsi_iid_gen (void)
 void ddsi_iid_init (void)
 {
   union { uint64_t u64; uint32_t u32[2]; } tmp;
-  for (size_t i = 0; i < sizeof (ddsi_iid.key) / sizeof (ddsi_iid.key[0]); i++)
-    ddsi_iid.key[i] = ddsrt_random ();
-
+  ddsrt_prng_seed_t seed;
+  DDSRT_STATIC_ASSERT (sizeof (seed.key) >= sizeof (ddsi_iid.key));
+  // Try to get a good seed for the generator, and if this doesn't succeed,
+  // fall back to extracting one from the global random generator that was
+  // initialized "somehow".  If "makeseed" fails, most likely that generator
+  // was initialized by the fallback procedure, and so not as good a source
+  // of randomness as it would normally be.
+  //
+  // The reason for calling "makeseed" instead of relying on "ddsrt_random"
+  // is forking: ddsrt gets initialized once and therefore the child process
+  // gets the same random generator state as the parent. That means a process
+  // doing
+  //   main () {
+  //     if (fork () == 0)
+  //       create_participant
+  //     else
+  //       create_participant
+  //   }
+  // ends up with the same IIDs and (worse) the same GUIDs!  And that is not
+  // supposed to ever happen.
+  //
+  // As "ddsi_iid_init" is called when the domain wakes up, this call to
+  // "makeseed" should save the day.
+  //
+  // Note that we can't do pthread_atfork for the global random generator
+  // (no matter how good well it would work for the forking itself) because
+  // there is no way to *remove* the at-fork handler.
+  if (ddsrt_prng_makeseed (&seed))
+    memcpy (ddsi_iid.key, seed.key, sizeof (ddsi_iid.key));
+  else
+  {
+    for (size_t i = 0; i < sizeof (ddsi_iid.key) / sizeof (ddsi_iid.key[0]); i++)
+      ddsi_iid.key[i] = ddsrt_random ();
+  }
   tmp.u64 = 0;
   dds_tea_decrypt (tmp.u32, ddsi_iid.key);
   ddsrt_atomic_st64 (&ddsi_iid.counter, tmp.u64);
