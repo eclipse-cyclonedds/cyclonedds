@@ -815,7 +815,6 @@ void os_sockWaitsetRemove (os_sockWaitset ws, ddsi_tran_conn_t conn)
 
 os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
 {
-  int32_t n = -1;
   unsigned u;
 #if !_WIN32
   int fdmax;
@@ -865,18 +864,18 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
   }
 #endif /* LWIP_SOCKET */
 
+  dds_return_t rc;
   do
   {
-    dds_return_t rc = ddsrt_select (fdmax, rdset, NULL, NULL, DDS_INFINITY, &n);
-    if (rc != DDS_RETCODE_OK && rc != DDS_RETCODE_INTERRUPTED && rc != DDS_RETCODE_TRY_AGAIN)
+    rc = ddsrt_select (fdmax, rdset, NULL, NULL, DDS_INFINITY);
+    if (rc < 0 && rc != DDS_RETCODE_INTERRUPTED && rc != DDS_RETCODE_TRY_AGAIN)
     {
       DDS_WARNING("os_sockWaitsetWait: select failed, retcode = %"PRId32, rc);
       break;
     }
-  }
-  while (n == -1);
+  } while (rc < 0);
 
-  if (n > 0)
+  if (rc > 0)
   {
     /* this simply skips the trigger fd */
     ctx->index = 1;
