@@ -175,28 +175,6 @@ ddsrt_strlcat(
 ddsrt_nonnull((1,2));
 
 /**
- * @brief Get description for specified system error number.
- *
- * @param[in]  errnum  System error number.
- * @param[in]  buf     Buffer where description is copied to.
- * @param[in]  buflen  Number of bytes available in @buf.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Description for @errnum was successfully copied to @buf.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             Unknown error number.
- * @retval DDS_RETCODE_NOT_ENOUGH_SPACE
- *             Buffer was not large enough to hold the description.
- */
-DDS_EXPORT dds_return_t
-ddsrt_strerror_r(
-    int errnum,
-    char *buf,
-    size_t buflen);
-
-/**
  * @brief Replace substring of null terminated string
  *
  * @param[in]   str     pointer to string
