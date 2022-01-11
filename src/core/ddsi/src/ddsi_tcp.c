@@ -434,7 +434,6 @@ static bool ddsi_tcp_select (struct ddsi_domaingv const * const gv, ddsrt_socket
   fd_set *rdset = read ? &fds : NULL;
   fd_set *wrset = read ? NULL : &fds;
   int64_t tval = timeout;
-  int32_t ready = 0;
 
   FD_ZERO (&fds);
 #if LWIP_SOCKET == 1
@@ -447,15 +446,15 @@ static bool ddsi_tcp_select (struct ddsi_domaingv const * const gv, ddsrt_socket
 
   GVLOG (DDS_LC_TCP, "tcp blocked %s: sock %d\n", read ? "read" : "write", (int) sock);
   do {
-    rc = ddsrt_select (sock + 1, rdset, wrset, NULL, tval, &ready);
+    rc = ddsrt_select (sock + 1, rdset, wrset, NULL, tval);
   } while (rc == DDS_RETCODE_INTERRUPTED);
 
-  if (rc != DDS_RETCODE_OK)
+  if (rc < 0)
   {
     GVWARNING ("tcp abandoning %s on blocking socket %d after %"PRIuSIZE" bytes\n", read ? "read" : "write", (int) sock, pos);
   }
 
-  return (ready > 0);
+  return (rc > 0);
 }
 
 static int32_t addrfam_to_locator_kind (int af)

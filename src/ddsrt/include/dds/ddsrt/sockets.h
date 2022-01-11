@@ -174,22 +174,32 @@ ddsrt_setsockreuse(
   ddsrt_socket_t sock,
   bool reuse);
 
-DDS_EXPORT int32_t
+/**
+ * @brief Monitor multiple sockets, waiting until one or more become ready.
+ *
+ * @param[in]  nfds      Highest-numbered file descriptor in any of the sets.
+ * @param[in]  readfds   Set of sockets to monitor for read ready status.
+ * @param[in]  writefds  Set of sockets to monitor for write ready status.
+ * @param[in]  errorfds  Set of sockets to monitor for exceptional conditions.
+ * @param[in]  reltime   Interval to block for sockets to become ready.
+ *
+ * @returns The number of sockets ready in the sets or a return code.
+ */
+DDS_EXPORT dds_return_t
 ddsrt_select(
   int32_t nfds,
   fd_set *readfds,
   fd_set *writefds,
   fd_set *errorfds,
-  dds_duration_t reltime,
-  int32_t *ready);
+  dds_duration_t reltime);
 
 #if _WIN32
 /* SOCKETs on Windows are NOT integers. The nfds parameter is only there for
    compatibility, the implementation ignores it. Implicit casts will generate
    warnings though, therefore ddsrt_select is redefined to discard the
    parameter on Windows. */
-#define ddsrt_select(nfds, readfds, writefds, errorfds, timeout, ready) \
-    ddsrt_select(-1, readfds, writefds, errorfds, timeout, ready)
+#define ddsrt_select(nfds, readfds, writefds, errorfds, timeout) \
+    ddsrt_select(-1, readfds, writefds, errorfds, timeout)
 #endif /* _WIN32 */
 
 /**

@@ -653,8 +653,7 @@ ddsrt_select(
   fd_set *readfds,
   fd_set *writefds,
   fd_set *errorfds,
-  dds_duration_t reltime,
-  int32_t *ready)
+  dds_duration_t reltime)
 {
   int err;
   int32_t n;
@@ -663,10 +662,8 @@ ddsrt_select(
   (void)nfds;
 
   tvp = ddsrt_duration_to_timeval_ceil(reltime, &tv);
-  if ((n = select(-1, readfds, writefds, errorfds, tvp)) != SOCKET_ERROR) {
-    *ready = n;
-    return (n == 0 ? DDS_RETCODE_TIMEOUT : DDS_RETCODE_OK);
-  }
+  if ((n = select(-1, readfds, writefds, errorfds, tvp)) != SOCKET_ERROR)
+    return (n == 0 ? DDS_RETCODE_TIMEOUT : n);
 
   err = WSAGetLastError();
   assert(err != WSANOTINITIALISED);

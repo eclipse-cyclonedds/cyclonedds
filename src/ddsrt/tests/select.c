@@ -151,7 +151,6 @@ static const char mesg[] = "foobar";
 
 static uint32_t select_timeout_routine(void *ptr)
 {
-  int32_t cnt = -1;
   dds_return_t rc;
   dds_time_t before, after;
   dds_duration_t delay;
@@ -169,22 +168,16 @@ static uint32_t select_timeout_routine(void *ptr)
 #endif
 
   before = dds_time();
-  rc = ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay, &cnt);
+  rc = ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay);
   after = dds_time();
   delay = after - before;
 
   fprintf(stderr, "Waited for %"PRId64" (nanoseconds)\n", delay);
   fprintf(stderr, "Expected to wait %"PRId64" (nanoseconds)\n", arg->delay);
   fprintf(stderr, "ddsrt_select returned %"PRId32"\n", rc);
-  fprintf(stderr, "ddsrt_select reported %"PRId32" ready\n", cnt);
 
-  if (rc == DDS_RETCODE_TIMEOUT) {
-    res = (((after - delay) >= (arg->delay - arg->skew)) && (cnt == 0));
-  /* Running in the FreeRTOS simulator causes some trouble as interrupts are
-     simulated using signals causing the select call to be interrupted. */
-  } else if (rc == DDS_RETCODE_INTERRUPTED) {
-    res = (cnt == -1);
-  }
+  if (rc == DDS_RETCODE_TIMEOUT)
+    res = ((after - delay) >= (arg->delay - arg->skew));
 
   return res;
 }
@@ -232,7 +225,6 @@ static uint32_t recv_routine(void *ptr)
 {
   thread_arg_t *arg = (thread_arg_t*)ptr;
 
-  int32_t nfds = 0;
   fd_set rdset;
   ssize_t rcvd = -1;
   char buf[sizeof(mesg)];
@@ -246,7 +238,7 @@ static uint32_t recv_routine(void *ptr)
   DDSRT_WARNING_GNUC_ON(sign-conversion)
 #endif
 
-  (void)ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay, &nfds);
+  (void)ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay);
 
   if (ddsrt_recv(arg->sock, buf, sizeof(buf), 0, &rcvd) == DDS_RETCODE_OK) {
     return (rcvd == sizeof(mesg) && memcmp(buf, mesg, sizeof(mesg)) == 0);
@@ -291,7 +283,6 @@ static uint32_t recvmsg_routine(void *ptr)
 {
   thread_arg_t *arg = (thread_arg_t*)ptr;
 
-  int32_t nfds = 0;
   fd_set rdset;
   ssize_t rcvd = -1;
   char buf[sizeof(mesg)];
@@ -313,7 +304,7 @@ static uint32_t recvmsg_routine(void *ptr)
   DDSRT_WARNING_GNUC_ON(sign-conversion)
 #endif
 
-  (void)ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay, &nfds);
+  (void)ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay);
 
   if (ddsrt_recvmsg(arg->sock, &msg, 0, &rcvd) == DDS_RETCODE_OK) {
     return (rcvd == sizeof(mesg) && memcmp(buf, mesg, sizeof(mesg)) == 0);
