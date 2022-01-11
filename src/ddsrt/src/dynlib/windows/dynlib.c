@@ -81,19 +81,21 @@ dds_return_t ddsrt_dlerror (char *buf, size_t buflen)
 {
   assert (buf);
   assert (buflen);
-  dds_return_t ret = 0;
   buf[0] = '\0';
   if (dynlib_last_err != 0)
   {
-    if ((ret = ddsrt_strerror_r ((int)dynlib_last_err, buf, buflen)) == DDS_RETCODE_OK)
-      ret = (int32_t) strlen (buf);
-    else if (ret == DDS_RETCODE_BAD_PARAMETER)
-    {
-      const char *err_unknown = "unknown error";
-      size_t len = ddsrt_strlcpy (buf, err_unknown, buflen);
-      ret = (len >= buflen) ? DDS_RETCODE_NOT_ENOUGH_SPACE : (int32_t) strlen (buf);
-    }
+    DWORD cnt = FormatMessage(
+      FORMAT_MESSAGE_FROM_SYSTEM |
+      FORMAT_MESSAGE_IGNORE_INSERTS |
+      FORMAT_MESSAGE_MAX_WIDTH_MASK,
+      NULL,
+      dynlib_last_err,
+      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+      (LPTSTR)buf,
+      (DWORD)buflen,
+      NULL);
     dynlib_last_err = 0;
+    return (dds_return_t)cnt;
   }
-  return ret;
+  return 0;
 }
