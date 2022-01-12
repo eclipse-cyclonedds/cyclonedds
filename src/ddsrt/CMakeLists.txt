@@ -96,14 +96,6 @@ configure_file("include/dds/version.h.in" "include/dds/version.h")
 target_sources(
   ddsrt INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/include/dds/version.h")
 
-# Microsoft Visual Studio does not ship a getopt.h, MinGW does.
-#check_include_file(getopt.h HAVE_GETOPT_H)
-if(WIN32)
-  configure_file("include/getopt.h.in" "include/getopt.h" COPYONLY)
-  list(APPEND headers "${CMAKE_CURRENT_BINARY_DIR}/include/getopt.h")
-  list(APPEND sources "${CMAKE_CURRENT_SOURCE_DIR}/src/getopt.c")
-endif()
-
 set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(source_path "${CMAKE_CURRENT_SOURCE_DIR}/src")
 

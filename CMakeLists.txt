@@ -319,6 +319,7 @@ install(
   COMPONENT dev
 )
 
+add_subdirectory(compat)
 add_subdirectory(src)
 if(BUILD_EXAMPLES)
   add_subdirectory(examples)

@@ -1,0 +1,10 @@
+include(CheckIncludeFile)
+
+check_include_file(getopt.h HAVE_GETOPT_H)
+if(WIN32 OR NOT HAVE_GETOPT_H)
+  add_library(compat OBJECT)
+  target_include_directories(compat INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
+  target_sources(compat PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/getopt.c")
+else()
+  add_library(compat INTERFACE)
+endif()

@@ -18,7 +18,7 @@ if (BUILD_DDSCONF)
     ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/q_config.c
     )
 
-  target_link_libraries(ddsconf ddsrt)
+  target_link_libraries(ddsconf ddsrt compat)
 
   # Windows wants its pound of flesh ...
   generate_dummy_export_header(

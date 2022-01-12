@@ -13,11 +13,7 @@
 
 #include <assert.h>
 #include <errno.h>
-#if HAVE_GETOPT_H
-# include <getopt.h>
-#else
-# include "getopt.h"
-#endif
+#include <getopt.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
