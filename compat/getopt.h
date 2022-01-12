@@ -12,13 +12,11 @@
 #ifndef GETOPT_H
 #define GETOPT_H
 
-#include "dds/export.h"
+extern int opterr;
+extern int optind;
+extern int optopt;
+extern char *optarg;
 
-DDS_EXPORT extern int opterr;
-DDS_EXPORT extern int optind;
-DDS_EXPORT extern int optopt;
-DDS_EXPORT extern char *optarg;
-
-DDS_EXPORT int getopt(int argc, char **argv, const char *opts);
+int getopt(int argc, char **argv, const char *opts);
 
 #endif /* GETOPT_H */
