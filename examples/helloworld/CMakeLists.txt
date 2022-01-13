@@ -21,7 +21,7 @@ endif()
 # that will supply a library target related the the given idl file.
 # In short, it takes the idl file, generates the source files with
 # the proper data types and compiles them into a library.
-idlc_generate(TARGET HelloWorldData_lib FILES "HelloWorldData.idl")
+idlc_generate(TARGET HelloWorldData_lib FILES "HelloWorldData.idl" NO_WARN implicit-extensibility)
 
 # Both executables have only one related source file.
 add_executable(HelloworldPublisher publisher.c)

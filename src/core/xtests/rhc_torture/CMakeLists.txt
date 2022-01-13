@@ -9,7 +9,7 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-idlc_generate(TARGET RhcTypes FILES RhcTypes.idl)
+idlc_generate(TARGET RhcTypes FILES RhcTypes.idl NO_WARN implicit-extensibility)
 
 add_executable(rhc_torture rhc_torture.c)
 

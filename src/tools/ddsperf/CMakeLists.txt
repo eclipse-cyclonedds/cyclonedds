@@ -13,7 +13,7 @@
 if (BUILD_DDSPERF)
   include(Generate)
 
-  idlc_generate(TARGET ddsperf_types FILES ddsperf_types.idl)
+  idlc_generate(TARGET ddsperf_types FILES ddsperf_types.idl NO_WARN implicit-extensibility)
   add_executable(ddsperf
     ddsperf.c
     cputime.c cputime.h
