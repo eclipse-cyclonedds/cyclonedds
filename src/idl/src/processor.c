@@ -285,9 +285,13 @@ idl_error(
 
 void
 idl_warning(
-  const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...)
+  const idl_pstate_t *pstate, idl_warning_t warning, const idl_location_t *loc, const char *fmt, ...)
 {
   va_list ap;
+
+  for (size_t n = 0; n < pstate->config.n_disable_warnings; n++)
+    if (pstate->config.disable_warnings[n] == warning)
+      return;
 
   va_start(ap, fmt);
   idl_log(pstate, IDL_LC_WARNING, loc, fmt, ap);
@@ -399,7 +403,7 @@ static idl_retcode_t validate_must_understand(idl_pstate_t *pstate, void *root)
 static idl_retcode_t set_type_extensibility(idl_pstate_t *pstate)
 {
   if (pstate->config.default_extensibility == IDL_DEFAULT_EXTENSIBILITY_UNDEFINED && idl_has_implicit_default_extensibility(pstate->root)) {
-    idl_warning(pstate, NULL, "No default extensibility provided. For one or more of the "
+    idl_warning(pstate, IDL_WARN_IMPLICIT_EXTENSIBILITY, NULL, "No default extensibility provided. For one or more of the "
       "aggregated types in the IDL the extensibility is not explicitly set. "
       "Currently the default extensibility for these types is 'final', but this "
       "may change to 'appendable' in a future release because that is the "

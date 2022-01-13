@@ -1239,7 +1239,7 @@ idl_finalize_struct(
     if (base->extensibility.value == IDL_APPENDABLE) {
       static bool extensibility_inheritance_warned = false;
       if (!extensibility_inheritance_warned) {
-        idl_warning(state, idl_location(node),
+        idl_warning(state, IDL_WARN_INHERIT_APPENDABLE, idl_location(node),
           "Inheriting from appendable structs is unsafe");
         extensibility_inheritance_warned = true;
       }

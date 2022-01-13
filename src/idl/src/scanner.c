@@ -693,7 +693,7 @@ unescape(
           str[pos++] = seq[j][1];
         } else {
           str[pos++] = str[i];
-          idl_warning(pstate, &lex->location,
+          idl_warning(pstate, IDL_WARN_UNKNOWN_ESCAPE_SEQ, &lex->location,
             "unknown escape sequence '\\%c'", str[i]);
         }
         i++;

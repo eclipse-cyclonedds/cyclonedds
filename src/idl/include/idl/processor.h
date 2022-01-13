@@ -60,6 +60,15 @@ struct idl_typeinfo_typemap {
   size_t typemap_size;
 };
 
+typedef enum idl_warning idl_warning_t;
+enum idl_warning {
+  IDL_WARN_GENERIC,
+  IDL_WARN_IMPLICIT_EXTENSIBILITY,
+  IDL_WARN_EXTRA_TOKEN_DIRECTIVE,
+  IDL_WARN_UNKNOWN_ESCAPE_SEQ,
+  IDL_WARN_INHERIT_APPENDABLE
+};
+
 typedef struct idl_pstate idl_pstate_t;
 struct idl_pstate {
   bool keylists;
@@ -67,6 +76,8 @@ struct idl_pstate {
   struct {
     uint32_t flags; /**< processor options */
     int default_extensibility; /**< default extensibility for aggregated types */
+    const idl_warning_t *disable_warnings; /**< list of warning that will be suppressed */
+    size_t n_disable_warnings; /**< number of items in disable_warnings */
   } config;
   idl_file_t *paths; /**< normalized paths used in include statements */
   idl_file_t *files; /**< filenames used in #line directives */
@@ -164,7 +175,7 @@ idl_error(const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt
   idl_attribute_format_printf(3, 4);
 
 IDL_EXPORT void
-idl_warning(const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...)
-  idl_attribute_format_printf(3, 4);
+idl_warning(const idl_pstate_t *pstate, idl_warning_t warning, const idl_location_t *loc, const char *fmt, ...)
+  idl_attribute_format_printf(4, 5);
 
 #endif /* IDL_COMPILER_H */

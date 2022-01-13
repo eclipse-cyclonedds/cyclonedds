@@ -43,6 +43,14 @@
 #define IDLC_DEBUG_PARSER (1u<<4)
 #endif
 
+#define DISABLE_WARNING_CHSZ 10
+struct idlc_disable_warning_list
+{
+  idl_warning_t *list;
+  size_t size;
+  size_t count;
+};
+
 static struct {
   char *file; /* path of input file or "-" for STDIN */
   const char *lang;
@@ -51,6 +59,7 @@ static struct {
   int keylist;
   int case_sensitive;
   int default_extensibility;
+  struct idlc_disable_warning_list disable_warnings;
   int help;
   int version;
 #ifdef DDS_HAS_TYPE_DISCOVERY
@@ -303,6 +312,8 @@ static idl_retcode_t idlc_parse(void)
     pstate->scanner.position.column = 1;
     pstate->config.flags |= IDL_WRITE;
     pstate->config.default_extensibility = config.default_extensibility;
+    pstate->config.disable_warnings = config.disable_warnings.list;
+    pstate->config.n_disable_warnings = config.disable_warnings.count;
   }
 
   if (config.preprocess) {
@@ -429,6 +440,35 @@ static int config_default_extensibility(const idlc_option_t *opt, const char *ar
   return 0;
 }
 
+static int add_disable_warning(idl_warning_t warning)
+{
+  if (config.disable_warnings.count == config.disable_warnings.size) {
+    config.disable_warnings.size += DISABLE_WARNING_CHSZ;
+    idl_warning_t *tmp = realloc(config.disable_warnings.list, config.disable_warnings.size * sizeof(*config.disable_warnings.list));
+    if (!tmp)
+      return IDLC_NO_MEMORY;
+    config.disable_warnings.list = tmp;
+  }
+  config.disable_warnings.list[config.disable_warnings.count++] = warning;
+  return 0;
+}
+
+static int config_warning(const idlc_option_t *opt, const char *arg)
+{
+  (void)opt;
+  if (strcmp(arg, "no-implicit-extensibility") == 0)
+    add_disable_warning(IDL_WARN_IMPLICIT_EXTENSIBILITY);
+  else if (strcmp(arg, "no-extra-token-directive") == 0)
+    add_disable_warning(IDL_WARN_EXTRA_TOKEN_DIRECTIVE);
+  else if (strcmp(arg, "no-unknown_escape_seq") == 0)
+    add_disable_warning(IDL_WARN_UNKNOWN_ESCAPE_SEQ);
+  else if (strcmp(arg, "no-inherit-appendable") == 0)
+    add_disable_warning(IDL_WARN_INHERIT_APPENDABLE);
+  else
+    return IDLC_BAD_ARGUMENT;
+  return 0;
+}
+
 static int add_include(const idlc_option_t *opt, const char *arg)
 {
   (void)opt;
@@ -493,6 +533,11 @@ static const idlc_option_t *compopts[] = {
     "Set the default extensibility that is used in case no extensibility"
     "is set on a type. Possible values are final, appendable and mutable. "
     "(default: final)" },
+  &(idlc_option_t){
+    IDLC_FUNCTION, { .function = &config_warning }, 'W', "", "<no-warning>",
+    "Disable warning. Possible values are: no-implicit-extensibility, "
+    "no-extra-token-directive, no-unknown_escape_seq, no-inherit-appendable, "
+    "no-eof-newline. " },
 #ifdef DDS_HAS_TYPE_DISCOVERY
   &(idlc_option_t){
     IDLC_FLAG, { .flag = &config.no_type_info }, 't', "", "",
@@ -551,6 +596,9 @@ int main(int argc, char *argv[])
   config.compile = 1;
   config.preprocess = 1;
   config.default_extensibility = IDL_DEFAULT_EXTENSIBILITY_UNDEFINED;
+  config.disable_warnings.list = NULL;
+  config.disable_warnings.size = 0;
+  config.disable_warnings.count = 0;
 #ifdef DDS_HAS_TYPE_DISCOVERY
   config.no_type_info = 0;
 #endif
@@ -643,6 +691,8 @@ err_parse:
 err_parse_opts:
   free(opts);
 err_alloc_opts:
+  if (config.disable_warnings.list)
+    free(config.disable_warnings.list);
   free(config.argv);
 err_argv:
   return exit_code;
