@@ -1360,12 +1360,12 @@ enum qxev_msg_rexmit_result qxev_msg_rexmit_wrlock_held (struct xeventq *evq, st
 {
   struct ddsi_domaingv * const gv = evq->gv;
   size_t msg_size = nn_xmsg_size (msg);
-  struct xevent_nt *ev;
+  struct xevent_nt *existing_ev;
 
   assert (evq);
   assert (nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT || nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT_NOMERGE);
   ddsrt_mutex_lock (&evq->lock);
-  if ((ev = lookup_msg (evq, msg)) != NULL && nn_xmsg_merge_rexmit_destinations_wrlock_held (gv, ev->u.msg_rexmit.msg, msg))
+  if ((existing_ev = lookup_msg (evq, msg)) != NULL && nn_xmsg_merge_rexmit_destinations_wrlock_held (gv, existing_ev->u.msg_rexmit.msg, msg))
   {
     /* MSG got merged with a pending retransmit, so it has effectively been queued */
     ddsrt_mutex_unlock (&evq->lock);
@@ -1387,9 +1387,23 @@ enum qxev_msg_rexmit_result qxev_msg_rexmit_wrlock_held (struct xeventq *evq, st
   }
   else
   {
+    // kind == rexmit && existing_ev != NULL (i.e., same writer, sequence number and fragment already enqueued,
+    // but not mergeable despite both entries not being of the NOMERGE kind) is really rare but not impossible.
+    // Treating it as XEVK_MSG_REXMIT would lead to attempting to insert a duplicate for (GUID,seq#,frag#) into
+    // the table of enqueued retransmits and that is disallowed by the default settings of the AVL tree used
+    // to implement the table. That leaves two options:
+    // - Preventing this new message from getting inserted. Only those of kind REXMIT get inserted, so simply
+    //   marking it as REXMIT_NOMERGE will do that. Downside, the new copy will never be a candidate for
+    //   merging.
+    // - Marking the AVL tree as ALLOWDUPS. Once upon a time a heavily used feature of this tree implementation
+    //   but not used for a long time and perhaps best removed. Reintroducing a usage for doubtful benefit had
+    //   better have a positive effect. The lookup logic always returns the first match in insertion order, so
+    //   the new entry won't be considered for merging until the first one has been sent.
+    // So in a very rare case, there'd be a (presumably) even rarer case where the second option confers a
+    // benefit. The first has the advantage of being simpler, which weighs heaver in my opinion.
     const enum xeventkind_nt kind =
-      (nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT) ? XEVK_MSG_REXMIT : XEVK_MSG_REXMIT_NOMERGE;
-    ev = qxev_common_nt (evq, kind);
+      (nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT && existing_ev == NULL) ? XEVK_MSG_REXMIT : XEVK_MSG_REXMIT_NOMERGE;
+    struct xevent_nt *ev = qxev_common_nt (evq, kind);
     ev->u.msg_rexmit.msg = msg;
     ev->u.msg_rexmit.queued_rexmit_bytes = msg_size;
     evq->queued_rexmit_bytes += msg_size;
