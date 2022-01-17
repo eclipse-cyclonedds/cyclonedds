@@ -283,13 +283,13 @@ static void sample_init_mu_wr1_3b (void *ptr)
 {
   XSpaceMustUnderstand_wr1_3 *sample = (XSpaceMustUnderstand_wr1_3 *) ptr;
   sample->f1 = 1;
-  sample->f2 = dds_alloc (sizeof (sample->f2));
+  sample->f2 = dds_alloc (sizeof (*sample->f2));
   *(sample->f2) = 1;
 }
 static void sample_init_mu_wr1_4a (void *ptr)
 {
   XSpaceMustUnderstand_wr1_4 *sample = (XSpaceMustUnderstand_wr1_4 *) ptr;
-  sample->f1 = dds_alloc (sizeof (sample->f1));
+  sample->f1 = dds_alloc (sizeof (*sample->f1));
   *(sample->f1) = 1;
 }
 static void sample_init_mu_wr1_4b (void *ptr)
@@ -308,7 +308,7 @@ static void sample_init_mu_wr2_1b (void *ptr)
 {
   XSpaceMustUnderstand_wr2_1 *sample = (XSpaceMustUnderstand_wr2_1 *) ptr;
   sample->f1.f1 = 1;
-  sample->f1.f2 = dds_alloc (sizeof (sample->f1.f2));
+  sample->f1.f2 = dds_alloc (sizeof (*sample->f1.f2));
   *(sample->f1.f2) = 1;
 }
 
