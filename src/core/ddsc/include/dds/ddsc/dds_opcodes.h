@@ -56,6 +56,7 @@ enum dds_stream_opcode {
   /* return from subroutine, exits top-level
      [RTS,   0,   0, 0] */
   DDS_OP_RTS = 0x00 << 24,
+
   /* data field
      [ADR, nBY,   0, f] [offset]
      [ADR, ENU,   0, f] [offset] [max]
@@ -108,6 +109,7 @@ enum dds_stream_opcode {
      [cases]      = (unsigned 16 bits) offset to first case label, from start of insn
    */
   DDS_OP_ADR = 0x01 << 24,
+
   /* jump-to-subroutine (e.g. used for recursive types and appendable unions)
      [JSR,   0, e]
        where
@@ -115,6 +117,7 @@ enum dds_stream_opcode {
              instruction sequence must end in RTS, execution resumes at instruction
              following JSR */
   DDS_OP_JSR = 0x02 << 24,
+
   /* jump-if-equal, used for union cases:
      [JEQ, nBY, 0] [disc] [offset]
      [JEQ, STR, 0] [disc] [offset]
@@ -130,6 +133,10 @@ enum dds_stream_opcode {
          i  = (unsigned 16 bits) offset to first instruction for case, from start of insn
               instruction sequence must end in RTS, at which point executes continues
               at the next field's instruction as specified by the union
+
+      Note that the JEQ instruction is deprecated and replaced by the JEQ4 instruction. The
+      IDL compiler only generates JEQ4 for union cases, the JEQ instruction is included here
+      for backwards compatibility (topic descriptors generated with a previous version of IDLC)
   */
   DDS_OP_JEQ = 0x03 << 24,
 

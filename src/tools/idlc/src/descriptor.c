@@ -186,11 +186,13 @@ stash_opcode(
   descriptor->n_opcodes++;
   switch (DDS_OP(code)) {
     case DDS_OP_ADR:
-    case DDS_OP_JEQ:
     case DDS_OP_JEQ4:
       typecode = DDS_OP_TYPE(code);
       if (typecode == DDS_OP_VAL_ARR)
         typecode = DDS_OP_SUBTYPE(code);
+      break;
+    case DDS_OP_JEQ:
+      assert (0); // deprecated
       break;
     default:
       return stash_instruction(pstate, instructions, index, &inst);
@@ -1525,24 +1527,20 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
   switch (opcode) {
     case DDS_OP_DLC:
       vec[len++] = "DDS_OP_DLC";
-      goto print;
+      break;
     case DDS_OP_PLC:
       vec[len++] = "DDS_OP_PLC";
-      goto print;
+      break;
     case DDS_OP_RTS:
       vec[len++] = "DDS_OP_RTS";
-      goto print;
+      break;
     case DDS_OP_KOF:
       vec[len++] = "DDS_OP_KOF";
-      /* lower 16 bits contains length */
       idl_snprintf(buf, sizeof(buf), " | %u", DDS_OP_LENGTH(inst->data.opcode.code));
       vec[len++] = buf;
-      goto print;
+      break;
     case DDS_OP_PLM:
       vec[len++] = "DDS_OP_PLM";
-      break;
-    case DDS_OP_JEQ:
-      vec[len++] = "DDS_OP_JEQ";
       break;
     case DDS_OP_JEQ4:
       vec[len++] = "DDS_OP_JEQ4";
@@ -1582,8 +1580,7 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
     /* Optional */
     if (inst->data.opcode.code & DDS_OP_FLAG_OPT)
       vec[len++] = " | DDS_OP_FLAG_OPT";
-  }
-  if (opcode == DDS_OP_PLM) {
+  } else if (opcode == DDS_OP_PLM) {
     /* FLAG_BASE to indicate inheritance in PLM list */
     if (DDS_PLM_FLAGS(inst->data.opcode.code) & DDS_OP_FLAG_BASE)
       vec[len++] = " | (DDS_OP_FLAG_BASE << 16)";
@@ -1592,22 +1589,14 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       vec[len++] = " | (DDS_OP_FLAG_MU << 16)";
   }
 
-  if (opcode == DDS_OP_JEQ || opcode == DDS_OP_JEQ4 || opcode == DDS_OP_PLM) {
+  if (opcode == DDS_OP_JEQ4 || opcode == DDS_OP_PLM) {
     /* lower 16 bits contain an offset */
     idl_snprintf(buf, sizeof(buf), " | %u", (uint16_t) DDS_OP_JUMP (inst->data.opcode.code));
     vec[len++] = buf;
-  } else {
-    assert(opcode == DDS_OP_ADR);
+  } else if (opcode == DDS_OP_ADR) {
     enum dds_stream_typecode type = DDS_OP_TYPE(inst->data.opcode.code);
     enum dds_stream_typecode subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
-    assert(( subtype &&  (type == DDS_OP_VAL_SEQ ||
-                          type == DDS_OP_VAL_ARR ||
-                          type == DDS_OP_VAL_UNI ||
-                          type == DDS_OP_VAL_STU))
-        || (!subtype && !(type == DDS_OP_VAL_SEQ ||
-                          type == DDS_OP_VAL_ARR ||
-                          type == DDS_OP_VAL_UNI ||
-                          type == DDS_OP_VAL_STU)));
+    assert((type == DDS_OP_VAL_SEQ || type == DDS_OP_VAL_ARR || type == DDS_OP_VAL_UNI || type == DDS_OP_VAL_STU) == (subtype != 0));
     switch (subtype) {
       case DDS_OP_VAL_1BY: vec[len++] = " | DDS_OP_SUBTYPE_1BY"; break;
       case DDS_OP_VAL_2BY: vec[len++] = " | DDS_OP_SUBTYPE_2BY"; break;
@@ -1633,7 +1622,6 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       vec[len++] = " | DDS_OP_FLAG_KEY";
   }
 
-print:
   for (size_t cnt=0; cnt < len; cnt++) {
     if (fputs(vec[cnt], fp) < 0)
       return -1;
@@ -1717,8 +1705,6 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
           optype = DDS_OP_TYPE(inst->data.opcode.code);
           if (opcode == DDS_OP_RTS || opcode == DDS_OP_DLC || opcode == DDS_OP_PLC)
             brk = op + 1;
-          else if (opcode == DDS_OP_JEQ)
-            brk = op + 3;
           else if (opcode == DDS_OP_JEQ4)
             brk = op + 4;
           else if (opcode == DDS_OP_PLM)

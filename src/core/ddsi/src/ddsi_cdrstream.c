@@ -2317,7 +2317,7 @@ static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * _
     if (!read_and_normalize_uint32 (&em_hdr, data, off, size1, bswap))
       return NULL;
     uint32_t lc = EMHEADER_LENGTH_CODE (em_hdr), m_id = EMHEADER_MEMBERID (em_hdr), msz;
-    bool must_understand = (em_hdr & EMHEADER_FLAG_MASK) & EMHEADER_FLAG_MUSTUNDERSTAND;
+    bool must_understand = em_hdr & EMHEADER_FLAG_MUSTUNDERSTAND;
     switch (lc)
     {
       case LENGTH_CODE_1B: case LENGTH_CODE_2B: case LENGTH_CODE_4B: case LENGTH_CODE_8B:
