@@ -37,6 +37,7 @@
 
 #include "plugin.h"
 #include "options.h"
+#include "descriptor_type_meta.h"
 
 #if 0
 #define IDLC_DEBUG_PREPROCESSOR (1u<<2)
@@ -603,6 +604,9 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Out of memory\n");
       goto err_parse;
     } else if (config.compile) {
+#ifdef DDS_HAS_TYPE_DISCOVERY
+      pstate->generate_typeinfo_typemap = generate_type_meta_ser;
+#endif // DDS_HAS_TYPE_DISCOVERY
       if (gen.generate)
         ret = gen.generate(pstate);
       idl_delete_pstate(pstate);
