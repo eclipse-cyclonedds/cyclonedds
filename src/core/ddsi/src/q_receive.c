@@ -1642,7 +1642,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
         struct nn_xmsg *reply;
         if (create_fragment_message (wr, seq, sample.plist, sample.serdata, base + i, 1, prd, &reply, 0, 0) < 0)
           nfrags_lim = 0;
-        else if (!qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0))
+        else if (qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0) == QXEV_MSG_REXMIT_DROPPED)
           nfrags_lim = 0;
         else
         {

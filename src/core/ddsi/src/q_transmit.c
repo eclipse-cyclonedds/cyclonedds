@@ -851,7 +851,7 @@ int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct dds
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   uint32_t i, sz, nfrags;
-  int enqueued = 1;
+  enum qxev_msg_rexmit_result enqueued = QXEV_MSG_REXMIT_QUEUED;
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
@@ -864,7 +864,7 @@ int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct dds
   }
   if (!isnew && nfrags > 1)
     nfrags = 1;
-  for (i = 0; i < nfrags && enqueued; i++)
+  for (i = 0; i < nfrags && enqueued != QXEV_MSG_REXMIT_DROPPED; i++)
   {
     struct nn_xmsg *fmsg = NULL;
     struct nn_xmsg *hmsg = NULL;
@@ -894,14 +894,20 @@ int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct dds
          HeartbeatFrags out, so never force them into the queue. */
       if(hmsg)
       {
-        if (enqueued > 1)
-          qxev_msg (wr->evq, hmsg);
-        else
-          nn_xmsg_free (hmsg);
+        switch (enqueued)
+        {
+          case QXEV_MSG_REXMIT_DROPPED:
+          case QXEV_MSG_REXMIT_MERGED:
+            nn_xmsg_free (hmsg);
+            break;
+          case QXEV_MSG_REXMIT_QUEUED:
+            qxev_msg (wr->evq, hmsg);
+            break;
+        }
       }
     }
   }
-  return enqueued ? 0 : -1;
+  return (enqueued != QXEV_MSG_REXMIT_DROPPED) ? 0 : -1;
 }
 
 static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)

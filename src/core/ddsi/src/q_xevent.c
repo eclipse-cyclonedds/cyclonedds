@@ -1356,7 +1356,7 @@ void qxev_pwr_entityid (struct proxy_writer *pwr, const ddsi_guid_t *guid)
   }
 }
 
-int qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg *msg, int force)
+enum qxev_msg_rexmit_result qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg *msg, int force)
 {
   struct ddsi_domaingv * const gv = evq->gv;
   size_t msg_size = nn_xmsg_size (msg);
@@ -1370,7 +1370,7 @@ int qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg *msg, int f
     /* MSG got merged with a pending retransmit, so it has effectively been queued */
     ddsrt_mutex_unlock (&evq->lock);
     nn_xmsg_free (msg);
-    return 1;
+    return QXEV_MSG_REXMIT_MERGED;
   }
   else if ((evq->queued_rexmit_bytes > evq->max_queued_rexmit_bytes ||
             evq->queued_rexmit_msgs == evq->max_queued_rexmit_msgs) &&
@@ -1383,7 +1383,7 @@ int qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg *msg, int f
     GVTRACE (" qxev_msg_rexmit%s drop (sz %"PA_PRIuSIZE" qb %"PA_PRIuSIZE" qm %"PA_PRIuSIZE")", force ? "!" : "",
              msg_size, evq->queued_rexmit_bytes, evq->queued_rexmit_msgs);
 #endif
-    return 0;
+    return QXEV_MSG_REXMIT_DROPPED;
   }
   else
   {
@@ -1399,7 +1399,7 @@ int qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg *msg, int f
     GVTRACE ("AAA(%p,%"PA_PRIuSIZE")", (void *) ev, msg_size);
 #endif
     ddsrt_mutex_unlock (&evq->lock);
-    return 2;
+    return QXEV_MSG_REXMIT_QUEUED;
   }
 }
 
