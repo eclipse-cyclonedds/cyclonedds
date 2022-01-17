@@ -27,8 +27,6 @@
 extern "C" {
 #endif
 
-struct ddsi_typeid_t;
-
 struct CDRHeader {
   unsigned short identifier;
   unsigned short options;
