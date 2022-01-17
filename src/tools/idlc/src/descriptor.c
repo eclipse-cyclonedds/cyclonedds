@@ -186,11 +186,13 @@ stash_opcode(
   descriptor->n_opcodes++;
   switch (DDS_OP(code)) {
     case DDS_OP_ADR:
-    case DDS_OP_JEQ:
     case DDS_OP_JEQ4:
       typecode = DDS_OP_TYPE(code);
       if (typecode == DDS_OP_VAL_ARR)
         typecode = DDS_OP_SUBTYPE(code);
+      break;
+    case DDS_OP_JEQ:
+      assert (0); // deprecated
       break;
     default:
       return stash_instruction(pstate, instructions, index, &inst);
@@ -347,10 +349,10 @@ stash_jeq_offset(
 }
 
 static idl_retcode_t
-stash_member_offset(
-  const idl_pstate_t *pstate, struct instructions *instructions, uint32_t index, int16_t addr_offs)
+stash_mutable_member_offset(
+  const idl_pstate_t *pstate, struct instructions *instructions, uint32_t index, uint32_t opcode, int16_t addr_offs)
 {
-  struct instruction inst = { MEMBER_OFFSET, { .inst_offset = { .addr_offs = addr_offs } } };
+  struct instruction inst = { MEMBER_OFFSET, { .inst_offset = { .inst.opcode = opcode, .addr_offs = addr_offs } } };
   return stash_instruction(pstate, instructions, index, &inst);
 }
 
@@ -699,18 +701,22 @@ static idl_retcode_t
 add_mutable_member_offset(
   const idl_pstate_t *pstate,
   struct constructed_type *ctype,
-  uint32_t id)
+  uint32_t id,
+  bool must_understand)
 {
   idl_retcode_t ret;
   assert(idl_is_extensible(ctype->node, IDL_MUTABLE));
 
   /* add member offset for declarators of mutable types */
+  uint32_t opcode = DDS_OP_PLM;
+  if (must_understand)
+    opcode |= (DDS_OP_FLAG_MU << 16);
   assert(ctype->instructions.count <= INT16_MAX);
   int16_t addr_offs = (int16_t)(ctype->instructions.count
       - ctype->pl_offset /* offset of first op after PLC */
       + 2 /* skip this JEQ and member id */
       + 1 /* skip RTS (of the PLC list) */);
-  if ((ret = stash_member_offset(pstate, &ctype->instructions, ctype->pl_offset++, addr_offs)) ||
+  if ((ret = stash_mutable_member_offset(pstate, &ctype->instructions, ctype->pl_offset++, opcode, addr_offs)) ||
       (ret = stash_single(pstate, &ctype->instructions, ctype->pl_offset++, id)))
     return ret;
 
@@ -1388,6 +1394,7 @@ emit_declarator(
   struct descriptor *descriptor = user_data;
   struct stack_type *stype = descriptor->type_stack;
   struct constructed_type *ctype = stype->ctype;
+  idl_node_t *parent = idl_parent(node);
   bool mutable_aggr_type_member = idl_is_extensible(ctype->node, IDL_MUTABLE) &&
     (idl_is_member(idl_parent(node)) || idl_is_case(idl_parent(node)));
 
@@ -1396,7 +1403,7 @@ emit_declarator(
   /* delegate array type specifiers or declarators */
   if (idl_is_array(node) || idl_is_array(type_spec)) {
     if (!revisit && mutable_aggr_type_member) {
-      if ((ret = add_mutable_member_offset(pstate, ctype, ((idl_declarator_t *)node)->id.value)))
+      if ((ret = add_mutable_member_offset(pstate, ctype, ((idl_declarator_t *)node)->id.value, idl_is_must_understand(parent))))
         return ret;
     }
 
@@ -1426,7 +1433,7 @@ emit_declarator(
     uint32_t order = 0;
     struct field *field = NULL;
 
-    if (mutable_aggr_type_member && (ret = add_mutable_member_offset(pstate, ctype, ((idl_declarator_t *)node)->id.value)))
+    if (mutable_aggr_type_member && (ret = add_mutable_member_offset(pstate, ctype, ((idl_declarator_t *)node)->id.value, idl_is_must_understand(parent))))
       return ret;
 
     if (!idl_is_alias(node) && idl_is_struct(stype->node)) {
@@ -1446,7 +1453,6 @@ emit_declarator(
     assert(ctype->instructions.count <= INT16_MAX);
     int16_t addr_offs = (int16_t)ctype->instructions.count;
     bool has_size = false;
-    idl_node_t *parent = idl_parent(node);
     bool keylist = (pstate->flags & IDL_FLAG_KEYLIST) != 0;
     opcode = DDS_OP_ADR;
     if ((ret = add_typecode(pstate, type_spec, TYPE, true, &opcode)))
@@ -1472,6 +1478,8 @@ emit_declarator(
       if (DDS_OP_TYPE(opcode) == DDS_OP_VAL_EXT)
         has_size = true;
     }
+    if (idl_is_must_understand(parent))
+      opcode |= DDS_OP_FLAG_MU;
 
     /* use member id for key ordering */
     order = ((idl_declarator_t *)node)->id.value;
@@ -1511,7 +1519,6 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
   const char *vec[10];
   size_t len = 0;
   enum dds_stream_opcode opcode;
-  enum dds_stream_typecode type, subtype;
 
   assert(inst->type == OPCODE);
 
@@ -1520,24 +1527,20 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
   switch (opcode) {
     case DDS_OP_DLC:
       vec[len++] = "DDS_OP_DLC";
-      goto print;
+      break;
     case DDS_OP_PLC:
       vec[len++] = "DDS_OP_PLC";
-      goto print;
+      break;
     case DDS_OP_RTS:
       vec[len++] = "DDS_OP_RTS";
-      goto print;
+      break;
     case DDS_OP_KOF:
       vec[len++] = "DDS_OP_KOF";
-      /* lower 16 bits contains length */
       idl_snprintf(buf, sizeof(buf), " | %u", DDS_OP_LENGTH(inst->data.opcode.code));
       vec[len++] = buf;
-      goto print;
+      break;
     case DDS_OP_PLM:
       vec[len++] = "DDS_OP_PLM";
-      break;
-    case DDS_OP_JEQ:
-      vec[len++] = "DDS_OP_JEQ";
       break;
     case DDS_OP_JEQ4:
       vec[len++] = "DDS_OP_JEQ4";
@@ -1548,50 +1551,52 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       break;
   }
 
-  if ((opcode == DDS_OP_ADR || opcode == DDS_OP_JEQ4) && inst->data.opcode.code & DDS_OP_FLAG_EXT)
-    vec[len++] = " | DDS_OP_FLAG_EXT";
-
-  type = DDS_OP_TYPE(inst->data.opcode.code);
-  assert(opcode == DDS_OP_PLM || type);
-  switch (type) {
-    case DDS_OP_VAL_1BY: vec[len++] = " | DDS_OP_TYPE_1BY"; break;
-    case DDS_OP_VAL_2BY: vec[len++] = " | DDS_OP_TYPE_2BY"; break;
-    case DDS_OP_VAL_4BY: vec[len++] = " | DDS_OP_TYPE_4BY"; break;
-    case DDS_OP_VAL_8BY: vec[len++] = " | DDS_OP_TYPE_8BY"; break;
-    case DDS_OP_VAL_STR: vec[len++] = " | DDS_OP_TYPE_STR"; break;
-    case DDS_OP_VAL_BST: vec[len++] = " | DDS_OP_TYPE_BST"; break;
-    case DDS_OP_VAL_SEQ: vec[len++] = " | DDS_OP_TYPE_SEQ"; break;
-    case DDS_OP_VAL_ARR: vec[len++] = " | DDS_OP_TYPE_ARR"; break;
-    case DDS_OP_VAL_UNI: vec[len++] = " | DDS_OP_TYPE_UNI"; break;
-    case DDS_OP_VAL_STU: vec[len++] = " | DDS_OP_TYPE_STU"; break;
-    case DDS_OP_VAL_ENU: vec[len++] = " | DDS_OP_TYPE_ENU"; break;
-    case DDS_OP_VAL_EXT: vec[len++] = " | DDS_OP_TYPE_EXT"; break;
+  if (opcode == DDS_OP_ADR || opcode == DDS_OP_JEQ4) {
+    if (inst->data.opcode.code & DDS_OP_FLAG_EXT)
+      vec[len++] = " | DDS_OP_FLAG_EXT";
+    switch (DDS_OP_TYPE(inst->data.opcode.code)) {
+      case DDS_OP_VAL_1BY: vec[len++] = " | DDS_OP_TYPE_1BY"; break;
+      case DDS_OP_VAL_2BY: vec[len++] = " | DDS_OP_TYPE_2BY"; break;
+      case DDS_OP_VAL_4BY: vec[len++] = " | DDS_OP_TYPE_4BY"; break;
+      case DDS_OP_VAL_8BY: vec[len++] = " | DDS_OP_TYPE_8BY"; break;
+      case DDS_OP_VAL_STR: vec[len++] = " | DDS_OP_TYPE_STR"; break;
+      case DDS_OP_VAL_BST: vec[len++] = " | DDS_OP_TYPE_BST"; break;
+      case DDS_OP_VAL_SEQ: vec[len++] = " | DDS_OP_TYPE_SEQ"; break;
+      case DDS_OP_VAL_ARR: vec[len++] = " | DDS_OP_TYPE_ARR"; break;
+      case DDS_OP_VAL_UNI: vec[len++] = " | DDS_OP_TYPE_UNI"; break;
+      case DDS_OP_VAL_STU: vec[len++] = " | DDS_OP_TYPE_STU"; break;
+      case DDS_OP_VAL_ENU: vec[len++] = " | DDS_OP_TYPE_ENU"; break;
+      case DDS_OP_VAL_EXT: vec[len++] = " | DDS_OP_TYPE_EXT"; break;
+    }
   }
 
-  /* FLAG_BASE to indicate inheritance in PLM list or EXT 'parent' field */
   if (opcode == DDS_OP_ADR) {
+    /* FLAG_BASE to indicate EXT 'parent' field */
     if (inst->data.opcode.code & DDS_OP_FLAG_BASE)
       vec[len++] = " | DDS_OP_FLAG_BASE";
+    /* Must-understand */
+    if (inst->data.opcode.code & DDS_OP_FLAG_MU)
+      vec[len++] = " | DDS_OP_FLAG_MU";
+    /* Optional */
     if (inst->data.opcode.code & DDS_OP_FLAG_OPT)
       vec[len++] = " | DDS_OP_FLAG_OPT";
+  } else if (opcode == DDS_OP_PLM) {
+    /* FLAG_BASE to indicate inheritance in PLM list */
+    if (DDS_PLM_FLAGS(inst->data.opcode.code) & DDS_OP_FLAG_BASE)
+      vec[len++] = " | (DDS_OP_FLAG_BASE << 16)";
+    /* Must-understand flag for mutable types set on PLM instruction */
+    if (DDS_PLM_FLAGS(inst->data.opcode.code) & DDS_OP_FLAG_MU)
+      vec[len++] = " | (DDS_OP_FLAG_MU << 16)";
   }
-  if (opcode == DDS_OP_PLM && (DDS_PLM_FLAGS(inst->data.opcode.code) & DDS_OP_FLAG_BASE))
-    vec[len++] = " | (DDS_OP_FLAG_BASE << 16)";
 
-  if (opcode == DDS_OP_JEQ || opcode == DDS_OP_JEQ4 || opcode == DDS_OP_PLM) {
+  if (opcode == DDS_OP_JEQ4 || opcode == DDS_OP_PLM) {
     /* lower 16 bits contain an offset */
     idl_snprintf(buf, sizeof(buf), " | %u", (uint16_t) DDS_OP_JUMP (inst->data.opcode.code));
     vec[len++] = buf;
-  } else {
-    subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
-    assert(( subtype &&  (type == DDS_OP_VAL_SEQ ||
-                          type == DDS_OP_VAL_ARR ||
-                          type == DDS_OP_VAL_UNI ||
-                          type == DDS_OP_VAL_STU))
-        || (!subtype && !(type == DDS_OP_VAL_SEQ ||
-                          type == DDS_OP_VAL_ARR ||
-                          type == DDS_OP_VAL_UNI ||
-                          type == DDS_OP_VAL_STU)));
+  } else if (opcode == DDS_OP_ADR) {
+    enum dds_stream_typecode type = DDS_OP_TYPE(inst->data.opcode.code);
+    enum dds_stream_typecode subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
+    assert((type == DDS_OP_VAL_SEQ || type == DDS_OP_VAL_ARR || type == DDS_OP_VAL_UNI || type == DDS_OP_VAL_STU) == (subtype != 0));
     switch (subtype) {
       case DDS_OP_VAL_1BY: vec[len++] = " | DDS_OP_SUBTYPE_1BY"; break;
       case DDS_OP_VAL_2BY: vec[len++] = " | DDS_OP_SUBTYPE_2BY"; break;
@@ -1617,7 +1622,6 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       vec[len++] = " | DDS_OP_FLAG_KEY";
   }
 
-print:
   for (size_t cnt=0; cnt < len; cnt++) {
     if (fputs(vec[cnt], fp) < 0)
       return -1;
@@ -1701,8 +1705,6 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
           optype = DDS_OP_TYPE(inst->data.opcode.code);
           if (opcode == DDS_OP_RTS || opcode == DDS_OP_DLC || opcode == DDS_OP_PLC)
             brk = op + 1;
-          else if (opcode == DDS_OP_JEQ)
-            brk = op + 3;
           else if (opcode == DDS_OP_JEQ4)
             brk = op + 4;
           else if (opcode == DDS_OP_PLM)
@@ -1763,7 +1765,7 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
         }
         case MEMBER_OFFSET:
         {
-          const struct instruction inst_op = { OPCODE, { .opcode = { .code = (DDS_OP_PLM & (DDS_OP_MASK | DDS_PLM_FLAGS_MASK)) | (uint16_t)inst->data.inst_offset.addr_offs, .order = 0 } } };
+          const struct instruction inst_op = { OPCODE, { .opcode = { .code = (inst->data.inst_offset.inst.opcode & (DDS_OP_MASK | DDS_PLM_FLAGS_MASK)) | (uint16_t)inst->data.inst_offset.addr_offs, .order = 0 } } };
           if (fputs(sep, fp) < 0 || print_opcode(fp, &inst_op) < 0)
             return -1;
           brk = op + 2;

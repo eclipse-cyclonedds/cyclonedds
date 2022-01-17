@@ -32,6 +32,7 @@
 #include "test_common.h"
 
 #include "XSpace.h"
+#include "XSpaceMustUnderstand.h"
 
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
@@ -192,15 +193,13 @@ CU_TheoryDataPoints (ddsc_xtypes, basic) = {
   /*                                             |                       |                       */"appendable_nested"),
   CU_DataPoints (const dds_topic_descriptor_t *, &D(XType1),             &D(XType2),              &D(XType3),             ),
   CU_DataPoints (const dds_topic_descriptor_t *, &D(XType1a),            &D(XType2a),             &D(XType3a),            ),
-  CU_DataPoints (size_t,                         sizeof(XSpace_XType1),  sizeof(XSpace_XType2),   sizeof(XSpace_XType3),  ),
-  CU_DataPoints (size_t,                         sizeof(XSpace_XType1a), sizeof(XSpace_XType2a),  sizeof(XSpace_XType3a), ),
   CU_DataPoints (sample_init,                    I(XType1),              I(XType2),               I(XType3),              ),
   CU_DataPoints (sample_init,                    I(XType1a),             I(XType2a),              I(XType3a),             ),
   CU_DataPoints (sample_check,                   C(XType1_1a),           C(XType2_2a),            C(XType3_3a),           ),
   CU_DataPoints (sample_check,                   C(XType1a_1),           C(XType2a_2),            C(XType3a_3),           ),
 };
 
-CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_topic_descriptor_t *desc2, size_t size1, size_t size2, sample_init fn_init1, sample_init fn_init2, sample_check fn_cmp1, sample_check fn_cmp2),
+CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_topic_descriptor_t *desc2, sample_init fn_init1, sample_init fn_init2, sample_check fn_cmp1, sample_check fn_cmp2),
     ddsc_xtypes, basic, .init = xtypes_init, .fini = xtypes_fini)
 {
   for (int t = 0; t <= 1; t++)
@@ -209,8 +208,8 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
 
     const dds_topic_descriptor_t *wr_desc = t ? desc2 : desc1,
                                  *rd_desc = t ? desc1 : desc2;
-    size_t wr_size = t ? size2 : size1,
-           rd_size = t ? size1 : size2;
+    size_t wr_size = t ? desc2->m_size : desc1->m_size,
+           rd_size = t ? desc1->m_size : desc2->m_size;
     sample_init fn_wr_init = t ? fn_init2 : fn_init1;
 
     char topic_name[100];
@@ -263,3 +262,119 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
 #undef D
 #undef I
 #undef C
+
+
+/* Must-understand test cases */
+#define D(n) XSpaceMustUnderstand_ ## n ## _desc
+#define I(n) sample_init_ ## n
+
+static void sample_init_mu_wr1_2 (void *ptr)
+{
+  XSpaceMustUnderstand_wr1_2 *sample = (XSpaceMustUnderstand_wr1_2 *) ptr;
+  sample->f1 = 1;
+}
+static void sample_init_mu_wr1_3a (void *ptr)
+{
+  XSpaceMustUnderstand_wr1_3 *sample = (XSpaceMustUnderstand_wr1_3 *) ptr;
+  sample->f1 = 1;
+  sample->f2 = NULL;
+}
+static void sample_init_mu_wr1_3b (void *ptr)
+{
+  XSpaceMustUnderstand_wr1_3 *sample = (XSpaceMustUnderstand_wr1_3 *) ptr;
+  sample->f1 = 1;
+  sample->f2 = dds_alloc (sizeof (sample->f2));
+  *(sample->f2) = 1;
+}
+static void sample_init_mu_wr1_4a (void *ptr)
+{
+  XSpaceMustUnderstand_wr1_4 *sample = (XSpaceMustUnderstand_wr1_4 *) ptr;
+  sample->f1 = dds_alloc (sizeof (sample->f1));
+  *(sample->f1) = 1;
+}
+static void sample_init_mu_wr1_4b (void *ptr)
+{
+  XSpaceMustUnderstand_wr1_4 *sample = (XSpaceMustUnderstand_wr1_4 *) ptr;
+  sample->f1 = NULL;
+}
+
+static void sample_init_mu_wr2_1a (void *ptr)
+{
+  XSpaceMustUnderstand_wr2_1 *sample = (XSpaceMustUnderstand_wr2_1 *) ptr;
+  sample->f1.f1 = 1;
+  sample->f1.f2 = NULL;
+}
+static void sample_init_mu_wr2_1b (void *ptr)
+{
+  XSpaceMustUnderstand_wr2_1 *sample = (XSpaceMustUnderstand_wr2_1 *) ptr;
+  sample->f1.f1 = 1;
+  sample->f1.f2 = dds_alloc (sizeof (sample->f1.f2));
+  *(sample->f1.f2) = 1;
+}
+
+CU_TheoryDataPoints (ddsc_xtypes, must_understand) = {
+  CU_DataPoints (const dds_topic_descriptor_t *,  &D(rd1),   &D(rd1),     &D(rd1),      &D(rd1),      &D(rd1),      &D(rd1),      &D(rd2),      &D(rd2)      ),
+  CU_DataPoints (const dds_topic_descriptor_t *,  &D(wr1_1), &D(wr1_2),   &D(wr1_3),    &D(wr1_3),    &D(wr1_4),    &D(wr1_4),    &D(wr2_1),    &D(wr2_1)    ),
+  CU_DataPoints (bool,                            false,     true,        true,         true,         true,         true,         true,         true         ),
+  CU_DataPoints (sample_init,                     0,         I(mu_wr1_2), I(mu_wr1_3a), I(mu_wr1_3b), I(mu_wr1_4a), I(mu_wr1_4b), I(mu_wr2_1a), I(mu_wr2_1b) ),
+  CU_DataPoints (bool,                            false,     true,        true,         false,        true,         true,         true,         false        )
+};
+
+CU_Theory ((const dds_topic_descriptor_t *rd_desc, const dds_topic_descriptor_t *wr_desc, bool assignable, sample_init fn_init, bool read_sample),
+    ddsc_xtypes, must_understand, .init = xtypes_init, .fini = xtypes_fini)
+{
+  char topic_name[100];
+  dds_return_t ret;
+
+  printf ("Running test xtypes_must_understand: %s %s\n", wr_desc->m_typename, rd_desc->m_typename);
+  create_unique_topic_name ("ddsc_xtypes", topic_name, sizeof (topic_name));
+  dds_entity_t topic_wr = dds_create_topic (g_participant1, wr_desc, topic_name, NULL, NULL);
+  CU_ASSERT_FATAL (topic_wr > 0);
+  dds_entity_t topic_rd = dds_create_topic (g_participant2, rd_desc, topic_name, NULL, NULL);
+  CU_ASSERT_FATAL (topic_rd > 0);
+
+  dds_qos_t *qos = dds_create_qos ();
+  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
+  dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, 0);
+  dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR2 });
+  CU_ASSERT_FATAL (qos != NULL);
+
+  dds_entity_t writer = dds_create_writer (g_participant1, topic_wr, qos, NULL);
+  CU_ASSERT_FATAL (writer > 0);
+  dds_entity_t reader = dds_create_reader (g_participant2, topic_rd, qos, NULL);
+  CU_ASSERT_FATAL (reader > 0);
+  dds_delete_qos (qos);
+
+  if (assignable)
+  {
+    sync_reader_writer (g_participant2, reader, g_participant1, writer);
+    ret = dds_set_status_mask (reader, DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+
+    void * wr_sample = dds_alloc (wr_desc->m_size);
+    fn_init (wr_sample);
+    ret = dds_write (writer, wr_sample);
+    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+
+    void * rd_sample = dds_alloc (rd_desc->m_size);
+    void * rd_samples[1];
+    rd_samples[0] = rd_sample;
+    dds_sample_info_t info;
+    bool data = reader_wait_for_data (g_participant2, reader, DDS_MSECS (500));
+    CU_ASSERT_FATAL (data == read_sample);
+    if (data)
+    {
+      CU_ASSERT_FATAL (data);
+      ret = dds_take (reader, rd_samples, &info, 1, 1);
+      CU_ASSERT_EQUAL_FATAL (ret, 1);
+    }
+    dds_sample_free (wr_sample, wr_desc, DDS_FREE_ALL);
+    dds_sample_free (rd_sample, rd_desc, DDS_FREE_ALL);
+  }
+  else
+  {
+    no_sync_reader_writer (g_participant2, reader, g_participant1, writer, DDS_MSECS (200));
+  }
+}
+#undef D
+#undef I
