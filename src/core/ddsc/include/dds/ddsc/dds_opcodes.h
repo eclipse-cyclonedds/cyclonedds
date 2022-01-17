@@ -63,19 +63,19 @@ enum dds_stream_opcode {
      [ADR, STR,   0, f] [offset]
      [ADR, BST,   0, f] [offset] [max-size]
 
-     [ADR, SEQ, nBY, 0] [offset]
-     [ADR, SEQ, ENU, 0] [offset] [max]
-     [ADR, SEQ, STR, 0] [offset]
-     [ADR, SEQ, BST, 0] [offset] [max-size]
-     [ADR, SEQ,   s, 0] [offset] [elem-size] [next-insn, elem-insn]
+     [ADR, SEQ, nBY, f] [offset]
+     [ADR, SEQ, ENU, f] [offset] [max]
+     [ADR, SEQ, STR, f] [offset]
+     [ADR, SEQ, BST, f] [offset] [max-size]
+     [ADR, SEQ,   s, f] [offset] [elem-size] [next-insn, elem-insn]
        where s = {SEQ,ARR,UNI,STU}
      [ADR, SEQ, EXT, f] *** not supported
 
      [ADR, ARR, nBY, f] [offset] [alen]
      [ADR, ARR, ENU, f] [offset] [alen] [max]
-     [ADR, ARR, STR, 0] [offset] [alen]
-     [ADR, ARR, BST, 0] [offset] [alen] [0] [max-size]
-     [ADR, ARR,   s, 0] [offset] [alen] [next-insn, elem-insn] [elem-size]
+     [ADR, ARR, STR, f] [offset] [alen]
+     [ADR, ARR, BST, f] [offset] [alen] [0] [max-size]
+     [ADR, ARR,   s, f] [offset] [alen] [next-insn, elem-insn] [elem-size]
          where s = {SEQ,ARR,UNI,STU}
      [ADR, ARR, EXT, f] *** not supported
 
@@ -156,7 +156,6 @@ enum dds_stream_opcode {
        for members of aggregated mutable types (pl-cdr):
        where
          f           = flags:
-                       - must-understand (DDS_OP_FLAG_MU)
                        - jump to base type (DDS_OP_FLAG_BASE)
          [elem-insn] = (unsigned 16 bits) offset to instruction for element, from start of insn
                         when FLAG_BASE is set, this is the offset of the PLM list of the base type
