@@ -201,7 +201,7 @@ static DDS_XTypes_TypeObject *get_typeobj_union(const char *name, uint16_t flags
     ._d = DDS_XTypes_TK_UNION,
     ._u.union_type = (DDS_XTypes_CompleteUnionType) {
       .union_flags = flags,
-      .discriminator = { .common = { .member_flags = 0, .type_id = disc_type } },
+      .discriminator = { .common = { .member_flags = DDS_XTypes_IS_MUST_UNDERSTAND, .type_id = disc_type } },
       .member_seq = {
         ._maximum = member_cnt,
         ._length = member_cnt,
@@ -223,7 +223,7 @@ static DDS_XTypes_TypeObject *get_typeobj1 (void)
     DDS_XTypes_IS_APPENDABLE,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
     3, (smember_t[]) {
-      { 0, DDS_XTypes_IS_KEY, { ._d = DDS_XTypes_TK_INT64 }, "f1" },
+      { 0, DDS_XTypes_IS_KEY | DDS_XTypes_IS_MUST_UNDERSTAND, { ._d = DDS_XTypes_TK_INT64 }, "f1" },
       { 1, DDS_XTypes_IS_OPTIONAL, { ._d = DDS_XTypes_TI_STRING8_SMALL, ._u.string_sdefn.bound = 0 }, "f2" },
       { 4, DDS_XTypes_IS_EXTERNAL, { ._d = DDS_XTypes_TK_CHAR8 }, "f3" }
     });
