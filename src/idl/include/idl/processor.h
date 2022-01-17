@@ -51,6 +51,14 @@ struct idl_buffer {
   size_t used; /**< number of bytes used */
 };
 
+typedef struct idl_typeinfo_typemap idl_typeinfo_typemap_t;
+struct idl_typeinfo_typemap {
+  unsigned char *typeinfo;
+  size_t typeinfo_size;
+  unsigned char *typemap;
+  size_t typemap_size;
+};
+
 typedef struct idl_pstate idl_pstate_t;
 struct idl_pstate {
   bool keylists;
@@ -120,6 +128,15 @@ struct idl_pstate {
     } state;
     void *yypstate; /**< state of Bison generated parser */
   } parser;
+
+  /** Generating xtypes typeinfo and typemap is logically a language independent operation that
+   various language backends will need to do, but at the same time doing so requires XCDR2
+   serialization, which, for an IDL compiler written in C, really means relying on the C backend.
+   Passing a pointer to a generator function is a reasonable way of avoiding the layering problems
+   this introduces; passing it here (in pstate_t) is a purely pragmatic choice.
+
+   May be a null pointer */
+  idl_retcode_t (*generate_typeinfo_typemap) (const idl_pstate_t *pstate, const idl_node_t *node, idl_typeinfo_typemap_t *result);
 };
 
 typedef struct idl_builtin_annotation idl_builtin_annotation_t;

@@ -51,4 +51,10 @@ print_type_meta_ser (
   const idl_pstate_t *pstate,
   const idl_node_t *node);
 
+idl_retcode_t
+generate_type_meta_ser (
+  const idl_pstate_t *pstate,
+  const idl_node_t *node,
+  idl_typeinfo_typemap_t *result);
+
 #endif /* DESCRIPTOR_TYPE_META_H */

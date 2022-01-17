@@ -1433,53 +1433,51 @@ descriptor_type_meta_fini (struct descriptor_type_meta *dtm)
   }
 }
 
-idl_retcode_t
-print_type_meta_ser (
-  FILE *fp,
-  const idl_pstate_t *pstate,
-  const idl_node_t *node)
+static void
+xtypes_typeinfo_fini (struct DDS_XTypes_TypeInformation *type_information)
 {
-  char *type_name;
+  if (type_information->minimal.dependent_typeids._buffer)
+    free (type_information->minimal.dependent_typeids._buffer);
+  if (type_information->complete.dependent_typeids._buffer)
+    free (type_information->complete.dependent_typeids._buffer);
+}
+
+static idl_retcode_t
+generate_type_meta_ser_impl (
+  const idl_pstate_t *pstate,
+  const idl_node_t *node,
+  struct DDS_XTypes_TypeInformation *type_information,
+  dds_ostream_t *os_typeinfo,
+  dds_ostream_t *os_typemap)
+{
   idl_retcode_t ret;
   struct descriptor_type_meta dtm;
 
   if ((ret = generate_descriptor_type_meta (pstate, node, &dtm)) != IDL_RETCODE_OK)
     goto err_gen;
 
-  if (IDL_PRINTA(&type_name, print_type, node) < 0)
-    return IDL_RETCODE_NO_MEMORY;
-
-  struct DDS_XTypes_TypeInformation type_information;
-  memset (&type_information, 0, sizeof (type_information));
+  memset (type_information, 0, sizeof (*type_information));
 
   /* typeidwithsize for top-level type */
-  get_typeid_with_size (&type_information.minimal.typeid_with_size, dtm.admin->ti_minimal, dtm.admin->to_minimal);
-  get_typeid_with_size (&type_information.complete.typeid_with_size, dtm.admin->ti_complete, dtm.admin->to_complete);
+  get_typeid_with_size (&type_information->minimal.typeid_with_size, dtm.admin->ti_minimal, dtm.admin->to_minimal);
+  get_typeid_with_size (&type_information->complete.typeid_with_size, dtm.admin->ti_complete, dtm.admin->to_complete);
 
   /* dependent type ids, skip first (top-level) */
   for (struct type_meta *tm = dtm.admin->admin_next; tm; tm = tm->admin_next) {
     DDS_XTypes_TypeIdentifierWithSize tidws;
 
     get_typeid_with_size (&tidws, tm->ti_minimal, tm->to_minimal);
-    if ((ret = add_to_seq ((dds_sequence_t *) &type_information.minimal.dependent_typeids, &tidws, sizeof (tidws))) < 0)
+    if ((ret = add_to_seq ((dds_sequence_t *) &type_information->minimal.dependent_typeids, &tidws, sizeof (tidws))) < 0)
       goto err_dep;
-    type_information.minimal.dependent_typeid_count++;
+    type_information->minimal.dependent_typeid_count++;
 
     get_typeid_with_size (&tidws, tm->ti_complete, tm->to_complete);
-    if ((ret = add_to_seq ((dds_sequence_t *) &type_information.complete.dependent_typeids, &tidws, sizeof (tidws))) < 0)
+    if ((ret = add_to_seq ((dds_sequence_t *) &type_information->complete.dependent_typeids, &tidws, sizeof (tidws))) < 0)
       goto err_dep;
-    type_information.complete.dependent_typeid_count++;
+    type_information->complete.dependent_typeid_count++;
   }
 
-  if (print_typeinformation_comment (fp, &type_information) != IDL_RETCODE_OK)
-    goto err_print;
-
-  {
-    dds_ostream_t os;
-    xcdr2_ser (&type_information, &DDS_XTypes_TypeInformation_desc, &os);
-    print_ser_data (fp, "TYPE_INFO_CDR", type_name, os.m_buffer, os.m_index);
-    dds_ostream_fini (&os);
-  }
+  xcdr2_ser (type_information, &DDS_XTypes_TypeInformation_desc, os_typeinfo);
 
   /* type id/obj seq for min and complete */
   DDS_XTypes_TypeMapping mapping;
@@ -1504,13 +1502,7 @@ print_type_meta_ser (
       goto err_map;
   }
 
-  {
-    dds_ostream_t os;
-    xcdr2_ser (&mapping, &DDS_XTypes_TypeMapping_desc, &os);
-    print_ser_data (fp, "TYPE_MAP_CDR", type_name, os.m_buffer, os.m_index);
-    dds_ostream_fini (&os);
-  }
-
+  xcdr2_ser (&mapping, &DDS_XTypes_TypeMapping_desc, os_typemap);
   ret = IDL_RETCODE_OK;
 
 err_map:
@@ -1520,14 +1512,77 @@ err_map:
     free (mapping.identifier_object_pair_complete._buffer);
   if (mapping.identifier_object_pair_minimal._buffer)
     free (mapping.identifier_object_pair_minimal._buffer);
-err_print:
 err_dep:
-  if (type_information.minimal.dependent_typeids._buffer)
-    free (type_information.minimal.dependent_typeids._buffer);
-  if (type_information.complete.dependent_typeids._buffer)
-    free (type_information.complete.dependent_typeids._buffer);
+  if (ret)
+    xtypes_typeinfo_fini (type_information);
 err_gen:
   descriptor_type_meta_fini (&dtm);
   return ret;
+}
+
+idl_retcode_t
+print_type_meta_ser (
+  FILE *fp,
+  const idl_pstate_t *pstate,
+  const idl_node_t *node)
+{
+  struct DDS_XTypes_TypeInformation type_information;
+  dds_ostream_t os_typeinfo;
+  dds_ostream_t os_typemap;
+  char *type_name;
+  idl_retcode_t rc;
+
+  if (IDL_PRINTA(&type_name, print_type, node) < 0)
+    return IDL_RETCODE_NO_MEMORY;
+
+  if ((rc = generate_type_meta_ser_impl (pstate, node, &type_information, &os_typeinfo, &os_typemap)))
+    return rc;
+
+  if ((rc = print_typeinformation_comment (fp, &type_information)) != IDL_RETCODE_OK)
+    goto err_print;
+  print_ser_data (fp, "TYPE_INFO_CDR", type_name, os_typeinfo.m_buffer, os_typeinfo.m_index);
+  print_ser_data (fp, "TYPE_MAP_CDR", type_name, os_typemap.m_buffer, os_typemap.m_index);
+
+err_print:
+  xtypes_typeinfo_fini (&type_information);
+  dds_ostream_fini (&os_typeinfo);
+  dds_ostream_fini (&os_typemap);
+  return rc;
+}
+
+idl_retcode_t
+generate_type_meta_ser (
+  const idl_pstate_t *pstate,
+  const idl_node_t *node,
+  idl_typeinfo_typemap_t *result)
+{
+  struct DDS_XTypes_TypeInformation type_information;
+  dds_ostream_t os_typeinfo;
+  dds_ostream_t os_typemap;
+  idl_retcode_t rc;
+
+  if ((rc = generate_type_meta_ser_impl (pstate, node, &type_information, &os_typeinfo, &os_typemap)))
+    return rc;
+
+  result->typeinfo = NULL;
+  result->typemap = NULL;
+  result->typeinfo_size = os_typeinfo.m_index;
+  result->typemap_size = os_typemap.m_index;
+  if ((result->typeinfo = malloc (result->typeinfo_size)) == NULL) {
+    rc = IDL_RETCODE_NO_MEMORY;
+    goto err_nomem;
+  }
+  memcpy (result->typeinfo, os_typeinfo.m_buffer, result->typeinfo_size);
+  if ((result->typemap = malloc (result->typemap_size)) == NULL) {
+    rc = IDL_RETCODE_NO_MEMORY;
+    goto err_nomem;
+  }
+  memcpy (result->typemap, os_typemap.m_buffer, result->typemap_size);
+
+err_nomem:
+  xtypes_typeinfo_fini (&type_information);
+  dds_ostream_fini (&os_typeinfo);
+  dds_ostream_fini (&os_typemap);
+  return rc;
 }
 
