@@ -383,7 +383,8 @@ get_struct_member_flags(const idl_member_t *member)
     flags |= DDS_XTypes_IS_KEY;
   if (member->optional.value)
     flags |= DDS_XTypes_IS_OPTIONAL;
-  if (member->must_understand.value)
+  // XTypes spec 7.2.2.4.4.4.8: Key members shall always have their 'must understand' attribute set to true
+  if (member->must_understand.value || member->key.value)
     flags |= DDS_XTypes_IS_MUST_UNDERSTAND;
   return flags;
 }
@@ -411,6 +412,8 @@ static DDS_XTypes_UnionDiscriminatorFlag
 get_union_discriminator_flags(const idl_switch_type_spec_t *switch_type_spec)
 {
   DDS_XTypes_UnionDiscriminatorFlag flags = 0u;
+  // XTypes spec 7.2.2.4.4.4.6: In a union type, the discriminator member shall always have the 'must understand' attribute set to true
+  flags |= DDS_XTypes_IS_MUST_UNDERSTAND;
   if (switch_type_spec->key.value)
     flags |= DDS_XTypes_IS_KEY;
   // optional and external not allowed
