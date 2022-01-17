@@ -1316,7 +1316,7 @@ typedef struct TestIdl_MsgMutable1 {
 static const uint32_t TestIdl_MsgMutable1_ops [] =
 {
   DDS_OP_PLC,
-    DDS_OP_PLM | DDS_OP_FLAG_MU << 16 | 19u, 1,
+    DDS_OP_PLM | 19u, 1,
     DDS_OP_PLM | 20u, 2,
     DDS_OP_PLM | 21u, 3,
     DDS_OP_PLM | 23u, 4,
@@ -1326,7 +1326,7 @@ static const uint32_t TestIdl_MsgMutable1_ops [] =
     DDS_OP_PLM | 31u, 10,
     DDS_OP_PLM | 34u, 11,
   DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_MsgMutable1, msg_field1),
+  DDS_OP_ADR | DDS_OP_TYPE_4BY | DDS_OP_FLAG_MU, offsetof (TestIdl_MsgMutable1, msg_field1),
   DDS_OP_RTS,
   DDS_OP_ADR | DDS_OP_TYPE_2BY, offsetof (TestIdl_MsgMutable1, msg_field2),
   DDS_OP_RTS,

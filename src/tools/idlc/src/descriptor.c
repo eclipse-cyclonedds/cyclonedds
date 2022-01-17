@@ -701,16 +701,13 @@ static idl_retcode_t
 add_mutable_member_offset(
   const idl_pstate_t *pstate,
   struct constructed_type *ctype,
-  uint32_t id,
-  bool must_understand)
+  uint32_t id)
 {
   idl_retcode_t ret;
   assert(idl_is_extensible(ctype->node, IDL_MUTABLE));
 
   /* add member offset for declarators of mutable types */
   uint32_t opcode = DDS_OP_PLM;
-  if (must_understand)
-    opcode |= (DDS_OP_FLAG_MU << 16);
   assert(ctype->instructions.count <= INT16_MAX);
   int16_t addr_offs = (int16_t)(ctype->instructions.count
       - ctype->pl_offset /* offset of first op after PLC */
@@ -910,6 +907,8 @@ emit_switch_type_spec(
   opcode = DDS_OP_ADR | DDS_OP_TYPE_UNI;
   if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
     return ret;
+  // XTypes spec 7.2.2.4.4.4.6: In a union type, the discriminator member shall always have the 'must understand' attribute set to true.
+  opcode |= DDS_OP_FLAG_MU;
   if (idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
     opcode |= DDS_OP_FLAG_KEY;
     ctype->has_key_member = true;
@@ -1175,7 +1174,7 @@ emit_sequence(
     if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
       return ret;
     if (idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
-      opcode |= DDS_OP_FLAG_KEY;
+      opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
       ctype->has_key_member = true;
     }
 
@@ -1193,6 +1192,8 @@ emit_sequence(
          the same way as external fields */
       if (idl_is_optional(member_node))
         opcode |= DDS_OP_FLAG_OPT | (idl_is_unbounded_string(type_spec) ? 0 : DDS_OP_FLAG_EXT);
+      if (idl_is_must_understand(member_node))
+        opcode |= DDS_OP_FLAG_MU;
     }
     off = ctype->instructions.count;
     if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, opcode, order)))
@@ -1297,7 +1298,7 @@ emit_array(
     if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
       return ret;
     if (idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
-      opcode |= DDS_OP_FLAG_KEY;
+      opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
       ctype->has_key_member = true;
     }
 
@@ -1310,6 +1311,8 @@ emit_array(
         opcode |= DDS_OP_FLAG_EXT;
       if (idl_is_optional(parent))
         opcode |= DDS_OP_FLAG_OPT | (idl_is_unbounded_string(type_spec) ? 0 : DDS_OP_FLAG_EXT);
+      if (idl_is_must_understand(parent))
+        opcode |= DDS_OP_FLAG_MU;
     }
 
     off = ctype->instructions.count;
@@ -1403,7 +1406,7 @@ emit_declarator(
   /* delegate array type specifiers or declarators */
   if (idl_is_array(node) || idl_is_array(type_spec)) {
     if (!revisit && mutable_aggr_type_member) {
-      if ((ret = add_mutable_member_offset(pstate, ctype, ((idl_declarator_t *)node)->id.value, idl_is_must_understand(parent))))
+      if ((ret = add_mutable_member_offset(pstate, ctype, ((idl_declarator_t *)node)->id.value)))
         return ret;
     }
 
@@ -1433,7 +1436,7 @@ emit_declarator(
     uint32_t order = 0;
     struct field *field = NULL;
 
-    if (mutable_aggr_type_member && (ret = add_mutable_member_offset(pstate, ctype, ((idl_declarator_t *)node)->id.value, idl_is_must_understand(parent))))
+    if (mutable_aggr_type_member && (ret = add_mutable_member_offset(pstate, ctype, ((idl_declarator_t *)node)->id.value)))
       return ret;
 
     if (!idl_is_alias(node) && idl_is_struct(stype->node)) {
@@ -1457,15 +1460,15 @@ emit_declarator(
     opcode = DDS_OP_ADR;
     if ((ret = add_typecode(pstate, type_spec, TYPE, true, &opcode)))
       return ret;
-    if (idl_is_topic_key(descriptor->topic, keylist, path, &order)) {
-      opcode |= DDS_OP_FLAG_KEY;
-      ctype->has_key_member = true;
-    } else if (idl_is_member(parent) && ((idl_member_t *)parent)->key.value) {
-      /* Mark this DDS_OP_ADR as key if @key annotation is present, even in case the referring
-         member is not part of the key (which resulted in idl_is_topic_key returning false).
-         The reason for adding the key flag here, is that if any other member (that is a key)
-         refers to this type, it will require the key flag. */
-      opcode |= DDS_OP_FLAG_KEY;
+
+    /* Mark this DDS_OP_ADR as key if @key annotation is present, even in case the referring
+        member is not part of the key (which resulted in idl_is_topic_key returning false).
+        The reason for adding the key flag here, is that if any other member (that is a key)
+        refers to this type, it will require the key flag. */
+    if (idl_is_topic_key(descriptor->topic, keylist, path, &order) ||
+        (idl_is_member(parent) && ((idl_member_t *)parent)->key.value)
+    ) {
+      opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
       ctype->has_key_member = true;
     }
     if (idl_is_struct(stype->node) && (idl_is_external(parent) || idl_is_optional(parent))) {
@@ -1551,6 +1554,22 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       break;
   }
 
+  if (opcode == DDS_OP_ADR) {
+    /* FLAG_BASE to indicate EXT 'parent' field */
+    if (inst->data.opcode.code & DDS_OP_FLAG_BASE)
+      vec[len++] = " | DDS_OP_FLAG_BASE";
+    if (inst->data.opcode.code & DDS_OP_FLAG_KEY)
+      vec[len++] = " | DDS_OP_FLAG_KEY";
+    if (inst->data.opcode.code & DDS_OP_FLAG_MU)
+      vec[len++] = " | DDS_OP_FLAG_MU";
+    if (inst->data.opcode.code & DDS_OP_FLAG_OPT)
+      vec[len++] = " | DDS_OP_FLAG_OPT";
+  } else if (opcode == DDS_OP_PLM) {
+    /* FLAG_BASE to indicate inheritance in PLM list */
+    if (DDS_PLM_FLAGS(inst->data.opcode.code) & DDS_OP_FLAG_BASE)
+      vec[len++] = " | (DDS_OP_FLAG_BASE << 16)";
+  }
+
   if (opcode == DDS_OP_ADR || opcode == DDS_OP_JEQ4) {
     if (inst->data.opcode.code & DDS_OP_FLAG_EXT)
       vec[len++] = " | DDS_OP_FLAG_EXT";
@@ -1568,25 +1587,6 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       case DDS_OP_VAL_ENU: vec[len++] = " | DDS_OP_TYPE_ENU"; break;
       case DDS_OP_VAL_EXT: vec[len++] = " | DDS_OP_TYPE_EXT"; break;
     }
-  }
-
-  if (opcode == DDS_OP_ADR) {
-    /* FLAG_BASE to indicate EXT 'parent' field */
-    if (inst->data.opcode.code & DDS_OP_FLAG_BASE)
-      vec[len++] = " | DDS_OP_FLAG_BASE";
-    /* Must-understand */
-    if (inst->data.opcode.code & DDS_OP_FLAG_MU)
-      vec[len++] = " | DDS_OP_FLAG_MU";
-    /* Optional */
-    if (inst->data.opcode.code & DDS_OP_FLAG_OPT)
-      vec[len++] = " | DDS_OP_FLAG_OPT";
-  } else if (opcode == DDS_OP_PLM) {
-    /* FLAG_BASE to indicate inheritance in PLM list */
-    if (DDS_PLM_FLAGS(inst->data.opcode.code) & DDS_OP_FLAG_BASE)
-      vec[len++] = " | (DDS_OP_FLAG_BASE << 16)";
-    /* Must-understand flag for mutable types set on PLM instruction */
-    if (DDS_PLM_FLAGS(inst->data.opcode.code) & DDS_OP_FLAG_MU)
-      vec[len++] = " | (DDS_OP_FLAG_MU << 16)";
   }
 
   if (opcode == DDS_OP_JEQ4 || opcode == DDS_OP_PLM) {
@@ -1612,14 +1612,12 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       case DDS_OP_VAL_EXT: abort(); break;
     }
 
+    if (inst->data.opcode.code & DDS_OP_FLAG_SGN)
+      vec[len++] = " | DDS_OP_FLAG_SGN";
     if (type == DDS_OP_VAL_UNI && (inst->data.opcode.code & DDS_OP_FLAG_DEF))
       vec[len++] = " | DDS_OP_FLAG_DEF";
     else if (inst->data.opcode.code & DDS_OP_FLAG_FP)
       vec[len++] = " | DDS_OP_FLAG_FP";
-    if (inst->data.opcode.code & DDS_OP_FLAG_SGN)
-      vec[len++] = " | DDS_OP_FLAG_SGN";
-    if (inst->data.opcode.code & DDS_OP_FLAG_KEY)
-      vec[len++] = " | DDS_OP_FLAG_KEY";
   }
 
   for (size_t cnt=0; cnt < len; cnt++) {
