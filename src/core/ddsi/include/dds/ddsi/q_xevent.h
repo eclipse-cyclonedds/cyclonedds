@@ -50,9 +50,13 @@ DDS_EXPORT void qxev_pwr_entityid (struct proxy_writer * pwr, const ddsi_guid_t 
 DDS_EXPORT void qxev_prd_entityid (struct proxy_reader * prd, const ddsi_guid_t *guid);
 DDS_EXPORT void qxev_nt_callback (struct xeventq *evq, void (*cb) (void *arg), void *arg);
 
-/* Returns 1 if queued, 0 otherwise (no point in returning the
-   event, you can't do anything with it anyway) */
-DDS_EXPORT int qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg *msg, int force);
+enum qxev_msg_rexmit_result {
+  QXEV_MSG_REXMIT_DROPPED,
+  QXEV_MSG_REXMIT_MERGED,
+  QXEV_MSG_REXMIT_QUEUED
+};
+
+DDS_EXPORT enum qxev_msg_rexmit_result qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg *msg, int force);
 
 /* All of the following lock EVQ for the duration of the operation */
 DDS_EXPORT void delete_xevent (struct xevent *ev);
