@@ -724,13 +724,25 @@ static void add_builtin_endpoints(struct participant *pp, ddsi_guid_t *subguid, 
 #ifdef DDS_HAS_TYPE_DISCOVERY
     /* TypeLookup writers */
     struct whc_writer_info *wrinfo_vol = whc_make_wrinfo (NULL, &gv->builtin_volatile_xqos_wr);
+    struct writer *wr_tl_req, *wr_tl_reply;
+
     subguid->entityid = to_entityid (NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER);
-    new_writer_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_TYPELOOKUP_REQUEST_NAME, gv->tl_svc_request_type, &gv->builtin_volatile_xqos_wr, whc_new(gv, wrinfo_vol), NULL, NULL);
+    new_writer_guid (&wr_tl_req, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_TYPELOOKUP_REQUEST_NAME, gv->tl_svc_request_type, &gv->builtin_volatile_xqos_wr, whc_new(gv, wrinfo_vol), NULL, NULL);
     pp->bes |= NN_BUILTIN_ENDPOINT_TL_SVC_REQUEST_DATA_WRITER;
 
     subguid->entityid = to_entityid (NN_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER);
-    new_writer_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_TYPELOOKUP_REPLY_NAME, gv->tl_svc_reply_type, &gv->builtin_volatile_xqos_wr, whc_new(gv, wrinfo_vol), NULL, NULL);
+    new_writer_guid (&wr_tl_reply, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_TYPELOOKUP_REPLY_NAME, gv->tl_svc_reply_type, &gv->builtin_volatile_xqos_wr, whc_new(gv, wrinfo_vol), NULL, NULL);
     pp->bes |= NN_BUILTIN_ENDPOINT_TL_SVC_REPLY_DATA_WRITER;
+
+    /* The built-in type lookup writers are keep-all writers, because the topic is keyless (using DDS-RPC request
+       and reply type). This means that the throttling will occur in case the WHC limits are reached. But the
+       function throttle_writer asserts that the writer is not a built-in writer: throttling the type lookup
+       writer may force the thread to go asleep, and because these requests are done during qos matching, this
+       can cause other problems. Therefore, the WHC watermarks are set to a high value, so that no throttling
+       will occur. */
+    wr_tl_req->whc_low = wr_tl_req->whc_high = INT32_MAX;
+    wr_tl_reply->whc_low = wr_tl_reply->whc_high = INT32_MAX;
+
     whc_free_wrinfo (wrinfo_vol);
 #endif
     whc_free_wrinfo (wrinfo_tl);
