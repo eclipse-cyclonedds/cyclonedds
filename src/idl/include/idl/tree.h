@@ -193,6 +193,13 @@ enum idl_extensibility {
   IDL_MUTABLE
 };
 
+typedef enum idl_try_construct idl_try_construct_t;
+enum idl_try_construct {
+  IDL_DISCARD,
+  IDL_USE_DEFAULT,
+  IDL_TRIM
+};
+
 /* most types have convenience members for information that is shared between
    generators or makes sense to calculate in advance. e.g. the field
    identifier for struct members, which can be assigned through @id, @hashid,
@@ -294,6 +301,7 @@ struct idl_member {
   IDL_ANNOTATABLE(bool) optional;
   IDL_ANNOTATABLE(bool) external;
   IDL_ANNOTATABLE(bool) must_understand;
+  IDL_ANNOTATABLE(idl_try_construct_t) try_construct;
   IDL_ANNOTATABLE(const idl_literal_t*) value;
 };
 
@@ -366,6 +374,7 @@ struct idl_case {
   idl_type_spec_t *type_spec;
   idl_declarator_t *declarator;
   IDL_ANNOTATABLE(bool) external;
+  IDL_ANNOTATABLE(idl_try_construct_t) try_construct;
 };
 
 typedef struct idl_switch_type_spec idl_switch_type_spec_t;

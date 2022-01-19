@@ -29,6 +29,11 @@ extern "C" {
 
 #define XT_FLAG_EXTENSIBILITY_MASK  0x7
 
+#define DDS_XTypes_TRY_CONSTRUCT_INVALID 0
+#define DDS_XTypes_TRY_CONSTRUCT_DISCARD DDS_XTypes_TRY_CONSTRUCT1
+#define DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT DDS_XTypes_TRY_CONSTRUCT2
+#define DDS_XTypes_TRY_CONSTRUCT_TRIM (DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_TRY_CONSTRUCT2)
+
 struct xt_type;
 
 typedef struct ddsi_typeid ddsi_typeid_t;

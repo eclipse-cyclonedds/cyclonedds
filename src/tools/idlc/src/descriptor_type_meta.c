@@ -386,6 +386,19 @@ static DDS_XTypes_StructMemberFlag
 get_struct_member_flags(const idl_member_t *member)
 {
   DDS_XTypes_StructMemberFlag flags = 0u;
+  if (member->try_construct.annotation) {
+    switch (member->try_construct.value) {
+      case IDL_DISCARD:
+        flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
+        break;
+      case IDL_USE_DEFAULT:
+        flags |= DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+        break;
+      case IDL_TRIM:
+        flags |= DDS_XTypes_TRY_CONSTRUCT_TRIM;
+        break;
+    }
+  }
   if (member->external.value)
     flags |= DDS_XTypes_IS_EXTERNAL;
   if (member->key.value)
@@ -433,7 +446,19 @@ static DDS_XTypes_UnionMemberFlag
 get_union_case_flags(const idl_case_t *_case)
 {
   DDS_XTypes_UnionMemberFlag flags = 0u;
-  // FIXME: implement try-construct
+  if (_case->try_construct.annotation) {
+    switch (_case->try_construct.value) {
+      case IDL_DISCARD:
+        flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
+        break;
+      case IDL_USE_DEFAULT:
+        flags |= DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+        break;
+      case IDL_TRIM:
+        flags |= DDS_XTypes_TRY_CONSTRUCT_TRIM;
+        break;
+    }
+  }
   if (_case->external.value)
     flags |= DDS_XTypes_IS_EXTERNAL;
   if (idl_is_default_case (_case))
