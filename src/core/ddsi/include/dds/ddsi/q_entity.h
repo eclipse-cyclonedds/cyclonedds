@@ -242,6 +242,13 @@ struct avail_entityid_set {
   struct inverse_uint32_set x;
 };
 
+enum participant_state {
+  PARTICIPANT_STATE_INITIALIZING,
+  PARTICIPANT_STATE_OPERATIONAL,
+  PARTICIPANT_STATE_DELETE_STARTED,
+  PARTICIPANT_STATE_DELETING_BUILTINS
+};
+
 struct participant
 {
   struct entity_common e;
@@ -257,7 +264,7 @@ struct participant
   ddsrt_mutex_t refc_lock;
   int32_t user_refc; /* number of non-built-in endpoints in this participant [refc_lock] */
   int32_t builtin_refc; /* number of built-in endpoints in this participant [refc_lock] */
-  int builtins_deleted; /* whether deletion of built-in endpoints has been initiated [refc_lock] */
+  enum participant_state state; /* current state of this participant [refc_lock] */
   ddsrt_fibheap_t ldur_auto_wr; /* Heap that contains lease duration for writers with automatic liveliness in this participant */
   ddsrt_atomic_voidp_t minl_man; /* clone of min(leaseheap_man) */
   ddsrt_fibheap_t leaseheap_man; /* keeps leases for this participant's writers (with liveliness manual-by-participant) */
@@ -723,6 +730,7 @@ dds_return_t new_participant (struct ddsi_guid *ppguid, struct ddsi_domaingv *gv
 dds_return_t delete_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid);
 void update_participant_plist (struct participant *pp, const struct ddsi_plist *plist);
 uint64_t get_entity_instance_id (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
+bool participant_builtin_writers_ready (struct participant *pp);
 
 /* Gets the interval for PMD messages, which is the minimal lease duration for writers
    with auto liveliness in this participant, or the participants lease duration if shorter */

@@ -44,7 +44,10 @@ static struct writer *get_typelookup_writer (const struct ddsi_domaingv *gv, uin
   thread_state_awake (lookup_thread_state (), gv);
   entidx_enum_participant_init (&est, gv->entity_index);
   while (wr == NULL && (pp = entidx_enum_participant_next (&est)) != NULL)
-    wr = get_builtin_writer (pp, wr_eid);
+  {
+    if (participant_builtin_writers_ready (pp))
+      wr = get_builtin_writer (pp, wr_eid);
+  }
   entidx_enum_participant_fini (&est);
   thread_state_asleep (lookup_thread_state ());
   return wr;
