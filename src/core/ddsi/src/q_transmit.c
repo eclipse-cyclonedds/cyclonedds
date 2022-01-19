@@ -976,7 +976,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
     struct whc_state whcst;
     whc_get_state(wr->whc, &whcst);
     if (WHCST_ISEMPTY(&whcst))
-      assert (wr->c.pp->builtins_deleted);
+      assert (wr->c.pp->state >= PARTICIPANT_STATE_DELETING_BUILTINS);
   }
 #endif
   return res;

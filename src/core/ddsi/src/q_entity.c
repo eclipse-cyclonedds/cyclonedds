@@ -1074,7 +1074,7 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   entity_common_init (&pp->e, gv, ppguid, "", EK_PARTICIPANT, ddsrt_time_wallclock (), NN_VENDORID_ECLIPSE, ((flags & RTPS_PF_ONLY_LOCAL) != 0));
   pp->user_refc = 1;
   pp->builtin_refc = 0;
-  pp->builtins_deleted = 0;
+  pp->state = PARTICIPANT_STATE_INITIALIZING;
   pp->is_ddsi2_pp = (flags & (RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP)) ? 1 : 0;
   ddsrt_mutex_init (&pp->refc_lock);
   inverse_uint32_set_init(&pp->avail_entityids.x, 1, UINT32_MAX / NN_ENTITYID_ALLOCSTEP);
@@ -1179,10 +1179,15 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
     ddsrt_mutex_unlock (&gv->privileged_pp_lock);
   }
 
-  /* Make it globally visible, then signal receive threads if
-     necessary. Must do in this order, or the receive thread won't
-     find the new participant */
+  /* All attributes set, anyone looking for a built-in topic writer can
+     now safely do so */
+  ddsrt_mutex_lock (&pp->refc_lock);
+  pp->state = PARTICIPANT_STATE_OPERATIONAL;
+  ddsrt_mutex_unlock (&pp->refc_lock);
 
+  /* Signal receive threads if necessary. Must do this after adding it
+     to the entity index, or the receive thread won't find the new
+     participant */
   if (gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
   {
     ddsrt_atomic_fence ();
@@ -1258,6 +1263,18 @@ void update_participant_plist (struct participant *pp, const ddsi_plist_t *plist
   if (update_qos_locked (&pp->e, &pp->plist->qos, &plist->qos, ddsrt_time_wallclock ()))
     spdp_write (pp);
   ddsrt_mutex_unlock (&pp->e.lock);
+}
+
+bool participant_builtin_writers_ready (struct participant *pp)
+{
+  // lock is needed to read the state, we're fine even if the state flips
+  // from operational to deleting, this exists to protect against the gap
+  // between making the participant discoverable through the entity index
+  // and checking pp->bes
+  ddsrt_mutex_lock (&pp->refc_lock);
+  const bool x = pp->state >= PARTICIPANT_STATE_OPERATIONAL;
+  ddsrt_mutex_unlock (&pp->refc_lock);
+  return x;
 }
 
 static void delete_builtin_endpoint (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, unsigned entityid)
@@ -1346,7 +1363,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
   ELOGDISC (pp, "unref_participant("PGUIDFMT" @ %p <- "PGUIDFMT" @ %p) user %"PRId32" builtin %"PRId32"\n",
             PGUID (pp->e.guid), (void*)pp, PGUID (stguid), (void*)guid_of_refing_entity, pp->user_refc, pp->builtin_refc);
 
-  if (pp->user_refc == 0 && pp->bes != 0 && !pp->builtins_deleted)
+  if (pp->user_refc == 0 && pp->bes != 0 && pp->state < PARTICIPANT_STATE_DELETING_BUILTINS)
   {
     int i;
 
@@ -1369,7 +1386,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
        unref_participant() for some of the error handling in
        new_participant(). Non-existent built-in endpoints can't be
        found in entity_index and are simply ignored. */
-    pp->builtins_deleted = 1;
+    pp->state = PARTICIPANT_STATE_DELETING_BUILTINS;
     ddsrt_mutex_unlock (&pp->refc_lock);
 
     if (pp->spdp_xevent)
@@ -1474,6 +1491,9 @@ dds_return_t delete_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
 #ifdef DDS_HAS_SECURITY
   disconnect_participant_secure (pp);
 #endif
+  ddsrt_mutex_lock (&pp->refc_lock);
+  pp->state = PARTICIPANT_STATE_DELETE_STARTED;
+  ddsrt_mutex_unlock (&pp->refc_lock);
   entidx_remove_participant_guid (gv->entity_index, pp);
   ddsrt_mutex_unlock (&gv->lock);
   gcreq_participant (pp);
