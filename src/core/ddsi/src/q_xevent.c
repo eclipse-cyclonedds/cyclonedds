@@ -863,6 +863,11 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct proxy_
 
   rwn->t_last_ack = tnow;
   (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_ack, intv));
+
+  // numbits is always 0 here, so need to print the bitmap
+  ETRACE (pwr, "acknack "PGUIDFMT" -> "PGUIDFMT": #%"PRIu32":%"PRId64"/%"PRIu32":\n",
+          PGUID (rwn->rd_guid), PGUID (pwr->e.guid), *countp,
+          fromSN (an->readerSNState.bitmap_base), an->readerSNState.numbits);
   return msg;
 }
 
