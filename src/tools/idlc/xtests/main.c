@@ -64,11 +64,16 @@ int main(int argc, char **argv)
     // write data
     printf("cdr write %s\n", tests[i] == BE ? "BE" : "LE");
     dds_ostream_t os = { NULL, 0, 0, CDR_ENC_VERSION_2 };
+    bool ret;
     if (tests[i] == BE)
-      dds_stream_write_sampleBE ((dds_ostreamBE_t *)(&os), msg_wr, &sertype);
+      ret = dds_stream_write_sampleBE ((dds_ostreamBE_t *)(&os), msg_wr, &sertype);
     else
-      dds_stream_write_sampleLE ((dds_ostreamLE_t *)(&os), msg_wr, &sertype);
-
+      ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *)(&os), msg_wr, &sertype);
+    if (!ret)
+    {
+      printf("cdr write failed\n");
+      return 1;
+    }
 
     // output raw cdr
     for (uint32_t n = 0; n < os.m_index; n++)

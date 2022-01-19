@@ -68,15 +68,23 @@ enum dds_stream_opcode {
      [ADR, SEQ, STR, f] [offset]
      [ADR, SEQ, BST, f] [offset] [max-size]
      [ADR, SEQ,   s, f] [offset] [elem-size] [next-insn, elem-insn]
-       where s = {SEQ,ARR,UNI,STU}
+       where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, SEQ, EXT, f] *** not supported
+
+     [ADR, BSQ, nBY, 0] [offset] [sbound]
+     [ADR, BSQ, ENU, 0] [offset] [sbound] [max]
+     [ADR, BSQ, STR, 0] [offset] [sbound]
+     [ADR, BSQ, BST, 0] [offset] [sbound] [max-size]
+     [ADR, BSQ,   s, 0] [offset] [sbound] [elem-size] [next-insn, elem-insn]
+       where s = {SEQ,ARR,UNI,STU,BSQ}
+     [ADR, BSQ, EXT, f] *** not supported
 
      [ADR, ARR, nBY, f] [offset] [alen]
      [ADR, ARR, ENU, f] [offset] [alen] [max]
      [ADR, ARR, STR, f] [offset] [alen]
      [ADR, ARR, BST, f] [offset] [alen] [0] [max-size]
      [ADR, ARR,   s, f] [offset] [alen] [next-insn, elem-insn] [elem-size]
-         where s = {SEQ,ARR,UNI,STU}
+         where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, ARR, EXT, f] *** not supported
 
      [ADR, UNI,   d, z] [offset] [alen] [next-insn, cases]
@@ -104,6 +112,7 @@ enum dds_stream_opcode {
      [max-size]   = string bound + 1
      [max]        = max enum value
      [alen]       = array length, number of cases
+     [sbound]     = bounded sequence maximum number of elements
      [next-insn]  = (unsigned 16 bits) offset to instruction for next field, from start of insn
      [elem-insn]  = (unsigned 16 bits) offset to first instruction for element, from start of insn
      [cases]      = (unsigned 16 bits) offset to first case label, from start of insn
@@ -187,7 +196,7 @@ enum dds_stream_typecode {
   DDS_OP_VAL_ARR = 0x08, /* array */
   DDS_OP_VAL_UNI = 0x09, /* union */
   DDS_OP_VAL_STU = 0x0a, /* struct */
-  /* 0x0b **available for future use** */
+  DDS_OP_VAL_BSQ = 0x0b, /* bounded sequence */
   DDS_OP_VAL_ENU = 0x0c, /* enumerated value (long) */
   DDS_OP_VAL_EXT = 0x0d  /* field with external definition */
 };
@@ -204,6 +213,7 @@ enum dds_stream_typecode_primary {
   DDS_OP_TYPE_ARR = DDS_OP_VAL_ARR << 16,
   DDS_OP_TYPE_UNI = DDS_OP_VAL_UNI << 16,
   DDS_OP_TYPE_STU = DDS_OP_VAL_STU << 16,
+  DDS_OP_TYPE_BSQ = DDS_OP_VAL_BSQ << 16,
   DDS_OP_TYPE_ENU = DDS_OP_VAL_ENU << 16,
   DDS_OP_TYPE_EXT = DDS_OP_VAL_EXT << 16
 };
@@ -230,6 +240,7 @@ enum dds_stream_typecode_subtype {
   DDS_OP_SUBTYPE_ARR = DDS_OP_VAL_ARR << 8,
   DDS_OP_SUBTYPE_UNI = DDS_OP_VAL_UNI << 8,
   DDS_OP_SUBTYPE_STU = DDS_OP_VAL_STU << 8,
+  DDS_OP_SUBTYPE_BSQ = DDS_OP_VAL_BSQ << 8,
   DDS_OP_SUBTYPE_ENU = DDS_OP_VAL_ENU << 8
 };
 #define DDS_OP_SUBTYPE_BOO DDS_OP_SUBTYPE_1BY

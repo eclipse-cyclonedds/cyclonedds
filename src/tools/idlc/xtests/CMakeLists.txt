@@ -25,6 +25,7 @@ set(_sources
   test_struct_r.idl
   test_union_member_types_r.idl
   test_union_r.idl
+  test_bounded_seq.idl
 )
 
 set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/ddsc/include")

@@ -32,7 +32,7 @@ struct descriptor_type_meta {
   struct type_meta *stack;
 };
 
-void
+idl_retcode_t
 get_type_hash (DDS_XTypes_EquivalenceHash hash, const DDS_XTypes_TypeObject *to);
 
 idl_retcode_t

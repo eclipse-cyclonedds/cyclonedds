@@ -87,7 +87,7 @@ pop_type (struct descriptor_type_meta *dtm, const void *node)
   return IDL_RETCODE_OK;
 }
 
-static void
+static idl_retcode_t
 xcdr2_ser (
   const void *obj,
   const dds_topic_descriptor_t *desc,
@@ -111,7 +111,9 @@ xcdr2_ser (
   os->m_index = 0;
   os->m_size = 0;
   os->m_xcdr_version = CDR_ENC_VERSION_2;
-  dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &sertype);
+  if (!dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &sertype))
+    return IDL_RETCODE_BAD_PARAMETER;
+  return IDL_RETCODE_OK;
 }
 
 static idl_retcode_t
@@ -300,11 +302,13 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
   return IDL_RETCODE_OK;
 }
 
-void
+idl_retcode_t
 get_type_hash (DDS_XTypes_EquivalenceHash hash, const DDS_XTypes_TypeObject *to)
 {
   dds_ostream_t os;
-  xcdr2_ser (to, &DDS_XTypes_TypeObject_desc, &os);
+  idl_retcode_t ret;
+  if ((ret = xcdr2_ser (to, &DDS_XTypes_TypeObject_desc, &os)) < 0)
+    return ret;
 
   // get md5 of serialized cdr and store first 14 bytes in equivalence hash parameter
   char buf[16];
@@ -314,11 +318,14 @@ get_type_hash (DDS_XTypes_EquivalenceHash hash, const DDS_XTypes_TypeObject *to)
   ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf);
   memcpy (hash, buf, sizeof(DDS_XTypes_EquivalenceHash));
   dds_ostream_fini (&os);
+  return IDL_RETCODE_OK;
 }
 
 static idl_retcode_t
 get_hashed_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, const idl_type_spec_t *type_spec, DDS_XTypes_TypeIdentifier *ti, DDS_XTypes_TypeKind kind)
 {
+  idl_retcode_t ret;
+
   assert (ti);
   assert (!has_fully_descriptive_typeid (type_spec) && !has_plain_collection_typeid (type_spec));
 
@@ -333,13 +340,15 @@ get_hashed_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm,
   }
   if (kind == DDS_XTypes_EK_COMPLETE) {
     ti->_d = DDS_XTypes_EK_COMPLETE;
-    get_type_hash (ti->_u.equivalence_hash, tm->to_complete);
+    if ((ret = get_type_hash (ti->_u.equivalence_hash, tm->to_complete)) < 0)
+      return ret;
   } else {
     assert (kind == DDS_XTypes_EK_MINIMAL);
     ti->_d = DDS_XTypes_EK_MINIMAL;
-    get_type_hash (ti->_u.equivalence_hash, tm->to_minimal);
+    if ((ret = get_type_hash (ti->_u.equivalence_hash, tm->to_minimal)) < 0)
+      return ret;
   }
-  return 0;
+  return IDL_RETCODE_OK;
 }
 
 static void
@@ -756,8 +765,9 @@ emit_hashed_type(
   assert (!has_fully_descriptive_typeid (node) && !has_plain_collection_typeid (node));
   if (revisit) {
     if (!dtm->stack->finalized) {
-      get_type_hash (dtm->stack->ti_minimal->_u.equivalence_hash, dtm->stack->to_minimal);
-      get_type_hash (dtm->stack->ti_complete->_u.equivalence_hash, dtm->stack->to_complete);
+      if ((ret = get_type_hash (dtm->stack->ti_minimal->_u.equivalence_hash, dtm->stack->to_minimal)) < 0
+          || (ret = get_type_hash (dtm->stack->ti_complete->_u.equivalence_hash, dtm->stack->to_complete)) < 0)
+        return ret;
       dtm->stack->finalized = true;
     }
     pop_type (dtm, node);
@@ -1314,19 +1324,22 @@ print_ser_data(FILE *fp, const char *kind, const char *type, unsigned char *data
   return 0;
 }
 
-static void
+static idl_retcode_t
 get_typeid_with_size (
     DDS_XTypes_TypeIdentifierWithSize *typeid_with_size,
     DDS_XTypes_TypeIdentifier *ti,
     DDS_XTypes_TypeObject *to)
 {
+  idl_retcode_t ret;
   assert (ti);
   assert (to);
   memcpy (&typeid_with_size->type_id, ti, sizeof (typeid_with_size->type_id));
   dds_ostream_t os;
-  xcdr2_ser (to, &DDS_XTypes_TypeObject_desc, &os);
+  if ((ret = xcdr2_ser (to, &DDS_XTypes_TypeObject_desc, &os)) < 0)
+    return ret;
   typeid_with_size->typeobject_serialized_size = os.m_index;
   dds_ostream_fini (&os);
+  return IDL_RETCODE_OK;
 }
 
 static void
@@ -1459,25 +1472,29 @@ generate_type_meta_ser_impl (
   memset (type_information, 0, sizeof (*type_information));
 
   /* typeidwithsize for top-level type */
-  get_typeid_with_size (&type_information->minimal.typeid_with_size, dtm.admin->ti_minimal, dtm.admin->to_minimal);
-  get_typeid_with_size (&type_information->complete.typeid_with_size, dtm.admin->ti_complete, dtm.admin->to_complete);
+  if ((ret = get_typeid_with_size (&type_information->minimal.typeid_with_size, dtm.admin->ti_minimal, dtm.admin->to_minimal)) < 0
+      || (ret = get_typeid_with_size (&type_information->complete.typeid_with_size, dtm.admin->ti_complete, dtm.admin->to_complete)) < 0)
+    goto err_dep;
 
   /* dependent type ids, skip first (top-level) */
   for (struct type_meta *tm = dtm.admin->admin_next; tm; tm = tm->admin_next) {
     DDS_XTypes_TypeIdentifierWithSize tidws;
 
-    get_typeid_with_size (&tidws, tm->ti_minimal, tm->to_minimal);
+    if ((ret = get_typeid_with_size (&tidws, tm->ti_minimal, tm->to_minimal)) < 0)
+      goto err_dep;
     if ((ret = add_to_seq ((dds_sequence_t *) &type_information->minimal.dependent_typeids, &tidws, sizeof (tidws))) < 0)
       goto err_dep;
     type_information->minimal.dependent_typeid_count++;
 
-    get_typeid_with_size (&tidws, tm->ti_complete, tm->to_complete);
+    if ((ret = get_typeid_with_size (&tidws, tm->ti_complete, tm->to_complete)) < 0)
+      goto err_dep;
     if ((ret = add_to_seq ((dds_sequence_t *) &type_information->complete.dependent_typeids, &tidws, sizeof (tidws))) < 0)
       goto err_dep;
     type_information->complete.dependent_typeid_count++;
   }
 
-  xcdr2_ser (type_information, &DDS_XTypes_TypeInformation_desc, os_typeinfo);
+  if ((ret = xcdr2_ser (type_information, &DDS_XTypes_TypeInformation_desc, os_typeinfo)) < 0)
+    goto err_dep_ser;
 
   /* type id/obj seq for min and complete */
   DDS_XTypes_TypeMapping mapping;
@@ -1502,9 +1519,11 @@ generate_type_meta_ser_impl (
       goto err_map;
   }
 
-  xcdr2_ser (&mapping, &DDS_XTypes_TypeMapping_desc, os_typemap);
+  if ((ret = xcdr2_ser (&mapping, &DDS_XTypes_TypeMapping_desc, os_typemap)) < 0)
+    goto err_map_ser;
   ret = IDL_RETCODE_OK;
 
+err_map_ser:
 err_map:
   if (mapping.identifier_complete_minimal._buffer)
     free (mapping.identifier_complete_minimal._buffer);
@@ -1512,6 +1531,7 @@ err_map:
     free (mapping.identifier_object_pair_complete._buffer);
   if (mapping.identifier_object_pair_minimal._buffer)
     free (mapping.identifier_object_pair_minimal._buffer);
+err_dep_ser:
 err_dep:
   if (ret)
     xtypes_typeinfo_fini (type_information);

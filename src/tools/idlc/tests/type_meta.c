@@ -108,7 +108,8 @@ static void xcdr2_ser (const void *obj, const dds_topic_descriptor_t *desc, dds_
   os->m_index = 0;
   os->m_size = 0;
   os->m_xcdr_version = CDR_ENC_VERSION_2;
-  dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &sertype);
+  bool ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &sertype);
+  CU_ASSERT_FATAL (ret);
 }
 
 static void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const dds_topic_descriptor_t *desc)
@@ -257,7 +258,8 @@ static void get_typeid (DDS_XTypes_TypeIdentifier *ti, DDS_XTypes_TypeObject *to
 {
   memset (ti, 0, sizeof (*ti));
   ti->_d = DDS_XTypes_EK_COMPLETE;
-  get_type_hash (ti->_u.equivalence_hash, to);
+  idl_retcode_t ret = get_type_hash (ti->_u.equivalence_hash, to);
+  CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
   dds_stream_free_sample (to, DDS_XTypes_TypeObject_desc.m_ops);
   free (to);
 }
