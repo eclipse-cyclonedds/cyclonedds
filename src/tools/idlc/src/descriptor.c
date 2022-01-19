@@ -201,6 +201,7 @@ stash_opcode(
   switch (typecode) {
     case DDS_OP_VAL_STR:
     case DDS_OP_VAL_SEQ:
+    case DDS_OP_VAL_BSQ:
       alignment = ALIGNMENT_PTR;
       descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
       break;
@@ -608,12 +609,10 @@ static idl_retcode_t add_typecode(const idl_pstate_t *pstate, const idl_type_spe
         *add_to |= ((uint32_t)DDS_OP_VAL_STR << shift);
       break;
     case IDL_SEQUENCE:
-      if (idl_is_bounded(type_spec)) {
-        idl_error (pstate, type_spec, "Bounded sequences are currently unsupported");
-        return IDL_RETCODE_UNSUPPORTED;
-      } else {
+      if (idl_is_bounded(type_spec))
+        *add_to |= ((uint32_t)DDS_OP_VAL_BSQ << shift);
+      else
         *add_to |= ((uint32_t)DDS_OP_VAL_SEQ << shift);
-      }
       break;
     case IDL_ENUM:
       *add_to |= ((uint32_t)DDS_OP_VAL_4BY << shift);
@@ -1146,19 +1145,20 @@ emit_sequence(
 
   if (revisit) {
     uint32_t off, cnt;
+    uint16_t bound_op = idl_is_bounded(node) ? 1 : 0;
     off = stype->offset;
     cnt = ctype->instructions.count;
     /* generate data field [elem-size] */
-    if ((ret = stash_member_size(pstate, &ctype->instructions, off + 2, node, false)))
+    if ((ret = stash_member_size(pstate, &ctype->instructions, off + 2 + bound_op, node, false)))
       return ret;
     /* generate data field [next-insn, elem-insn] */
     if (idl_is_struct(type_spec) || idl_is_union(type_spec)) {
       assert(cnt <= INT16_MAX);
-      int16_t addr_offs = (int16_t)(cnt - 2); /* minus 2 for the opcode and offset ops that are already stashed for this sequence */
-      if ((ret = stash_element_offset(pstate, &ctype->instructions, off + 3, type_spec, 4u, addr_offs)))
+      int16_t addr_offs = (int16_t)(cnt - 2 - bound_op); /* minus 2 or 3 for the opcode, offset and bound (if applicable) ops that are already stashed for this sequence */
+      if ((ret = stash_element_offset(pstate, &ctype->instructions, off + 3 + bound_op, type_spec, (uint16_t)(4u + bound_op), addr_offs)))
         return ret;
     } else {
-      if ((ret = stash_couple(pstate, &ctype->instructions, off + 3, (uint16_t)((cnt - off) + 3u), 4u)))
+      if ((ret = stash_couple(pstate, &ctype->instructions, off + 3 + bound_op, (uint16_t)((cnt - off) + 3u), (uint16_t)(4u + bound_op))))
         return ret;
       /* generate return from subroutine */
       if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_RTS, 0u)))
@@ -1167,17 +1167,17 @@ emit_sequence(
     pop_type(descriptor);
   } else {
     uint32_t off;
-    uint32_t opcode = DDS_OP_ADR | DDS_OP_TYPE_SEQ;
+    uint32_t opcode = DDS_OP_ADR;
     uint32_t order;
     struct field *field = NULL;
 
+    opcode |= idl_is_bounded(node) ? DDS_OP_TYPE_BSQ : DDS_OP_TYPE_SEQ;
     if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
       return ret;
     if (idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
       opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
       ctype->has_key_member = true;
     }
-
 
     if (idl_is_struct(stype->node)) {
       field = stype->fields;
@@ -1200,7 +1200,11 @@ emit_sequence(
       return ret;
     if ((ret = stash_offset(pstate, &ctype->instructions, nop, field)))
       return ret;
-
+    if (idl_is_bounded(node)) {
+      /* generate seq bound field */
+      if ((ret = stash_single(pstate, &ctype->instructions, nop, idl_bound(node))))
+        return ret;
+    }
     /* short-circuit on simple types */
     if (idl_is_string(type_spec) || idl_is_base_type(type_spec) || idl_is_bitmask(type_spec) || idl_is_enum(type_spec)) {
       if (idl_is_bounded(type_spec)) {
@@ -1581,6 +1585,7 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       case DDS_OP_VAL_STR: vec[len++] = " | DDS_OP_TYPE_STR"; break;
       case DDS_OP_VAL_BST: vec[len++] = " | DDS_OP_TYPE_BST"; break;
       case DDS_OP_VAL_SEQ: vec[len++] = " | DDS_OP_TYPE_SEQ"; break;
+      case DDS_OP_VAL_BSQ: vec[len++] = " | DDS_OP_TYPE_BSQ"; break;
       case DDS_OP_VAL_ARR: vec[len++] = " | DDS_OP_TYPE_ARR"; break;
       case DDS_OP_VAL_UNI: vec[len++] = " | DDS_OP_TYPE_UNI"; break;
       case DDS_OP_VAL_STU: vec[len++] = " | DDS_OP_TYPE_STU"; break;
@@ -1596,7 +1601,7 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
   } else if (opcode == DDS_OP_ADR) {
     enum dds_stream_typecode type = DDS_OP_TYPE(inst->data.opcode.code);
     enum dds_stream_typecode subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
-    assert((type == DDS_OP_VAL_SEQ || type == DDS_OP_VAL_ARR || type == DDS_OP_VAL_UNI || type == DDS_OP_VAL_STU) == (subtype != 0));
+    assert((type == DDS_OP_VAL_SEQ || type == DDS_OP_VAL_ARR || type == DDS_OP_VAL_UNI || type == DDS_OP_VAL_STU || type == DDS_OP_VAL_BSQ) == (subtype != 0));
     switch (subtype) {
       case DDS_OP_VAL_1BY: vec[len++] = " | DDS_OP_SUBTYPE_1BY"; break;
       case DDS_OP_VAL_2BY: vec[len++] = " | DDS_OP_SUBTYPE_2BY"; break;
@@ -1605,6 +1610,7 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       case DDS_OP_VAL_STR: vec[len++] = " | DDS_OP_SUBTYPE_STR"; break;
       case DDS_OP_VAL_BST: vec[len++] = " | DDS_OP_SUBTYPE_BST"; break;
       case DDS_OP_VAL_SEQ: vec[len++] = " | DDS_OP_SUBTYPE_SEQ"; break;
+      case DDS_OP_VAL_BSQ: vec[len++] = " | DDS_OP_SUBTYPE_BSQ"; break;
       case DDS_OP_VAL_ARR: vec[len++] = " | DDS_OP_SUBTYPE_ARR"; break;
       case DDS_OP_VAL_UNI: vec[len++] = " | DDS_OP_SUBTYPE_UNI"; break;
       case DDS_OP_VAL_STU: vec[len++] = " | DDS_OP_SUBTYPE_STU"; break;
@@ -1712,7 +1718,7 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
           else if (optype == DDS_OP_VAL_EXT) {
             brk = op + 3;
           }
-          else if (optype == DDS_OP_VAL_ARR || optype == DDS_OP_VAL_SEQ) {
+          else if (optype == DDS_OP_VAL_ARR || optype == DDS_OP_VAL_SEQ || optype == DDS_OP_VAL_BSQ) {
             subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
             brk = op + (optype == DDS_OP_VAL_SEQ ? 2 : 3);
             if (subtype > DDS_OP_VAL_8BY)
@@ -1902,7 +1908,7 @@ static idl_retcode_t get_ctype_keys_adr(
         case DDS_OP_VAL_BST: case DDS_OP_VAL_STR:
           idl_error (pstate, ctype->node, "Using array with string element type as part of the key is currently unsupported");
           return IDL_RETCODE_UNSUPPORTED;
-        case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ:
+        case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ:
           idl_error (pstate, ctype->node, "Using array with collection element type as part of the key is currently unsupported");
           return IDL_RETCODE_UNSUPPORTED;
         case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
@@ -1940,6 +1946,7 @@ static idl_retcode_t get_ctype_keys_adr(
           idl_error (pstate, ctype->node, "Using union type as part of the key is currently unsupported");
           return IDL_RETCODE_UNSUPPORTED;
         case DDS_OP_VAL_SEQ:
+        case DDS_OP_VAL_BSQ:
           idl_error (pstate, ctype->node, "Using sequence type as part of the key is currently unsupported");
           return IDL_RETCODE_UNSUPPORTED;
         case DDS_OP_VAL_STU:
@@ -2199,7 +2206,7 @@ static int print_flags(FILE *fp, struct descriptor *descriptor, bool type_info)
         continue;
 
       uint32_t typecode = DDS_OP_TYPE(i.data.opcode.code);
-      if (typecode == DDS_OP_VAL_STR || typecode == DDS_OP_VAL_BST ||typecode == DDS_OP_VAL_SEQ)
+      if (typecode == DDS_OP_VAL_STR || typecode == DDS_OP_VAL_BST || typecode == DDS_OP_VAL_SEQ || typecode == DDS_OP_VAL_BSQ)
         fixed_size = false;
     }
   }

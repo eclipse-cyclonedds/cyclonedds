@@ -277,8 +277,7 @@ static size_t sertype_default_get_serialized_size (
 static bool sertype_default_serialize_into (const struct ddsi_sertype *type, const void *sample, void* dst_buffer, size_t dst_size) {
   const struct ddsi_sertype_default *type_default = (const struct ddsi_sertype_default *)type;
   dds_ostream_t os = ostream_from_buffer(dst_buffer, dst_size, type_default->encoding_version);
-  dds_stream_write_sample(&os, sample, type_default);
-  return true;
+  return dds_stream_write_sample(&os, sample, type_default);
 }
 
 const struct ddsi_sertype_ops ddsi_sertype_ops_default = {

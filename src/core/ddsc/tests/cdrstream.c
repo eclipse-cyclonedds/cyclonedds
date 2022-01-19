@@ -1789,7 +1789,8 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
     };
 
     void * msg_wr = t ? sample_init_fn2 () : sample_init_fn1 ();
-    dds_stream_write_sample (&os, msg_wr, &tp_wr);
+    bool ret = dds_stream_write_sample (&os, msg_wr, &tp_wr);
+    CU_ASSERT_FATAL (ret);
 
     /* Read data */
     dds_istream_t is;

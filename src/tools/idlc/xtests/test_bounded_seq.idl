@@ -1,0 +1,187 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+module test_module
+{
+  enum en {
+      E1,
+      E2
+  };
+
+  @nested @final
+  struct n {
+      long n1;
+  };
+
+  typedef sequence<char> cseq;
+  typedef sequence<char, 3> bcseq;
+  typedef char carr[98];
+
+  @nested @final
+  union u switch (short) {
+      case 1: sequence<long, 1> u1;
+  };
+
+  @final
+  struct test_bounded_seq {
+      sequence<long, 1> f1;
+      sequence<string, 2> f2;
+      sequence<string<99>, 3> f3;
+      sequence<cseq, 4> f4;
+      sequence<bcseq, 5> f5;
+      sequence<carr, 6> f6;
+      sequence<u, 7> f7;
+      sequence<n, 8> f8;
+      sequence<long, 9> f9[99];
+      sequence<en, 10> f10;
+  };
+};
+
+#else
+
+#include "dds/ddsrt/heap.h"
+#include "test_bounded_seq.h"
+#include "common.h"
+
+const dds_topic_descriptor_t *desc = &test_module_test_bounded_seq_desc;
+void init_sample (void *s);
+int cmp_sample (const void *sa, const void *sb);
+
+void init_sample (void *s)
+{
+  test_module_test_bounded_seq *s1 = (test_module_test_bounded_seq *) s;
+  SEQA(s1->f1, 1);
+  s1->f1._buffer[0] = 123;
+
+  SEQA (s1->f2, 2);
+  for (int n = 0; n < 2; n++)
+    STRA (s1->f2._buffer[n], STR128);
+
+  SEQA (s1->f3, 3);
+  for (int n = 0; n < 3; n++)
+    strcpy (s1->f3._buffer[n], STR16);
+
+  SEQA (s1->f4, 4);
+  for (int n = 0; n < 4; n++)
+  {
+    SEQA (s1->f4._buffer[n], 2);
+    for (int m = 0; m < 2; m++)
+      s1->f4._buffer[n]._buffer[m] = n * m;
+  }
+
+  SEQA (s1->f5, 5);
+  for (int n = 0; n < 5; n++)
+  {
+    SEQA (s1->f5._buffer[n], 3);
+    for (int m = 0; m < 3; m++)
+      s1->f5._buffer[n]._buffer[m] = n * m;
+  }
+
+  SEQA (s1->f6, 6);
+  for (int n = 0; n < 6; n++)
+  {
+    for (int m = 0; m < 98; m++)
+      s1->f6._buffer[n][m] = m;
+  }
+
+  SEQA (s1->f7, 7);
+  for (int n = 0; n < 7; n++)
+  {
+    s1->f7._buffer[n]._d = 1;
+    SEQA (s1->f7._buffer[n]._u.u1, 1);
+    s1->f7._buffer[n]._u.u1._buffer[0] = 10 * n;
+  }
+
+  SEQA (s1->f8, 8);
+  for (int n = 0; n < 8; n++)
+    s1->f8._buffer[n].n1 = 10 * n;
+
+  for (int m = 0; m < 99; m++)
+  {
+    SEQA (s1->f9[m], 9);
+    for (int n = 0; n < 9; n++)
+      s1->f9[m]._buffer[n] = m * n;
+  }
+
+  SEQA (s1->f10, 10);
+  for (int n = 0; n < 10; n++)
+    s1->f10._buffer[n] = n % 2 ? test_module_E1 : test_module_E2;
+
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_module_test_bounded_seq *a = (test_module_test_bounded_seq *) sa;
+  test_module_test_bounded_seq *b = (test_module_test_bounded_seq *) sb;
+  CMP (a, b, f1._length, 1);
+  CMP (a, b, f1._buffer[0], 123);
+
+  CMP (a, b, f2._length, 2);
+  for (int n = 0; n < 2; n++)
+    CMPSTR (a, b, f2._buffer[n], STR128);
+
+  CMP (a, b, f3._length, 3);
+  for (int n = 0; n < 3; n++)
+    CMPSTR (a, b, f3._buffer[n], STR16);
+
+  CMP (a, b, f4._length, 4);
+  for (int n = 0; n < 4; n++)
+  {
+    CMP (a, b, f4._buffer[n]._length, 2);
+    for (int m = 0; m < 2; m++)
+      CMP (a, b, f4._buffer[n]._buffer[m], n * m);
+  }
+
+  CMP (a, b, f5._length, 5);
+  for (int n = 0; n < 5; n++)
+  {
+    CMP (a, b, f5._buffer[n]._length, 3);
+    for (int m = 0; m < 3; m++)
+      CMP (a, b, f5._buffer[n]._buffer[m], n * m);
+  }
+
+  CMP (a, b, f6._length, 6);
+  for (int n = 0; n < 6; n++)
+  {
+    for (int m = 0; m < 98; m++)
+      CMP (a, b, f6._buffer[n][m], m);
+  }
+
+  CMP (a, b, f7._length, 7);
+  for (int n = 0; n < 7; n++)
+  {
+    CMP (a, b, f7._buffer[n]._d, 1);
+    CMP (a, b, f7._buffer[n]._u.u1._length, 1);
+    CMP (a, b, f7._buffer[n]._u.u1._buffer[0], 10 * n);
+  }
+
+  CMP (a, b, f8._length, 8);
+  for (int n = 0; n < 8; n++)
+    CMP (a, b, f8._buffer[n].n1, 10 * n);
+
+  for (int m = 0; m < 99; m++)
+  {
+    CMP (a, b, f9[m]._length, 9);
+    for (int n = 0; n < 9; n++)
+      CMP (a, b, f9[m]._buffer[n], n * m);
+  }
+
+  CMP (a, b, f10._length, 10);
+  for (int n = 0; n < 10; n++)
+    CMP (a, b, f10._buffer[n], n % 2 ? test_module_E1 : test_module_E2);
+
+  return 0;
+}
+
+#endif
