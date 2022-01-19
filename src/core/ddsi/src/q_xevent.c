@@ -823,10 +823,10 @@ static dds_duration_t preemptive_acknack_interval (const struct pwr_rd_match *rw
 
 static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct proxy_writer *pwr, struct pwr_rd_match *rwn, ddsrt_mtime_t tnow)
 {
-  const dds_duration_t intv = preemptive_acknack_interval (rwn);
-  if (tnow.v < ddsrt_mtime_add_duration (rwn->t_last_ack, intv).v)
+  const dds_duration_t old_intv = preemptive_acknack_interval (rwn);
+  if (tnow.v < ddsrt_mtime_add_duration (rwn->t_last_ack, old_intv).v)
   {
-    (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_ack, intv));
+    (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_ack, old_intv));
     return NULL;
   }
 
@@ -843,7 +843,7 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct proxy_
   if ((msg = nn_xmsg_new (gv->xmsgpool, &rwn->rd_guid, pp, ACKNACK_SIZE_MAX, NN_XMSG_KIND_CONTROL)) == NULL)
   {
     // if out of memory, try again later
-    (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (tnow, DDS_SECS (1)));
+    (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (tnow, old_intv));
     return NULL;
   }
 
@@ -862,7 +862,8 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct proxy_
   encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
 
   rwn->t_last_ack = tnow;
-  (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_ack, intv));
+  const dds_duration_t new_intv = preemptive_acknack_interval (rwn);
+  (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_ack, new_intv));
 
   // numbits is always 0 here, so need to print the bitmap
   ETRACE (pwr, "acknack "PGUIDFMT" -> "PGUIDFMT": #%"PRIu32":%"PRId64"/%"PRIu32":\n",
