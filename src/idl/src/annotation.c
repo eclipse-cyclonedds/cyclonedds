@@ -722,6 +722,67 @@ annotate_position(
   return IDL_RETCODE_OK;
 }
 
+static idl_retcode_t
+annotate_try_construct(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+  assert(annotation_appl);
+
+  const char *str = NULL;
+  const idl_type_spec_t *ts = NULL;
+  const idl_annotation_appl_t **annotation_appl_p = NULL;
+  idl_try_construct_t *try_construct_p = NULL;
+
+  if (annotation_appl->parameters) {
+    idl_literal_t *literal = annotation_appl->parameters->const_expr;
+    assert(idl_type(literal) == IDL_ENUM);
+    str = idl_identifier(literal);
+  }
+
+  if (idl_is_member(node)) {
+    idl_member_t *mem = (idl_member_t*)node;
+    ts = mem->type_spec;
+    try_construct_p = &(mem->try_construct.value);
+    annotation_appl_p = &(mem->try_construct.annotation);
+  } else if (idl_is_case(node)) {
+    idl_case_t *cs = (idl_case_t*)node;
+    ts = cs->type_spec;
+    try_construct_p = &(cs->try_construct.value);
+    annotation_appl_p = &(cs->try_construct.annotation);
+  } else {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@try_construct can only be applied to struct members and union cases");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  if (NULL == str || idl_strcasecmp(str, "use_default") == 0) {
+    /*USE_DEFAULT is the annotation default, NOT the default
+      try_construct action in absence of an annotation, that
+      is DISCARD*/
+    *try_construct_p = IDL_USE_DEFAULT;
+  } else if (idl_strcasecmp(str, "discard") == 0) {
+    *try_construct_p = IDL_DISCARD;
+  } else if (idl_strcasecmp(str, "trim") == 0) {
+    /*TRIM can only be used on bounded sequences/strings*/
+    if (!idl_is_bounded(ts)) {
+      idl_error(pstate, idl_location(annotation_appl),
+      "@try_construct(%s) can not be applied to types which cannot have bounds", str);
+      return IDL_RETCODE_SEMANTIC_ERROR;
+    }
+    *try_construct_p = IDL_TRIM;
+  } else {
+    idl_error(pstate, idl_location(annotation_appl),
+      "%s is not a supported value for annotation try_construct", str);
+    assert(0);
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  *annotation_appl_p = annotation_appl;
+  return IDL_RETCODE_OK;
+}
+
 static const idl_builtin_annotation_t annotations[] = {
   /* general purpose */
   { .syntax = "@annotation id { unsigned long value; };",
@@ -850,6 +911,13 @@ static const idl_builtin_annotation_t annotations[] = {
     .summary =
       "<p>This annotation allows setting a position to an element or a group of elements.</p>",
     .callback = annotate_position },
+  { .syntax = "@annotation try_construct {\n"
+              "enum TryConstructFailAction { DISCARD, USE_DEFAULT, TRIM };\n"
+              "TryConstructFailAction value default USE_DEFAULT;\n"
+              "};",
+    .summary =
+      "<p>This annotation allows setting the (fallback)behaviour when constructing fails.</p>",
+    .callback = annotate_try_construct },
   { .syntax = NULL, .summary = NULL, .callback = 0 }
 };
 
