@@ -578,11 +578,11 @@ static dds_return_t ser_type_consistency (struct nn_xmsg *xmsg, nn_parameterid_t
   const uint16_t kind = ddsrt_toBO2u (bo, (uint16_t) x->kind);
   memcpy (p, &kind, 2);
   size_t offs = sizeof (kind);
-  p[offs + 0] = x->force_type_validation;
-  p[offs + 1] = x->ignore_sequence_bounds;
-  p[offs + 2] = x->ignore_string_bounds;
-  p[offs + 3] = x->ignore_member_names;
-  p[offs + 4] = x->prevent_type_widening;
+  p[offs + 0] = x->ignore_sequence_bounds;
+  p[offs + 1] = x->ignore_string_bounds;
+  p[offs + 2] = x->ignore_member_names;
+  p[offs + 3] = x->prevent_type_widening;
+  p[offs + 4] = x->force_type_validation;
   return 0;
 }
 
