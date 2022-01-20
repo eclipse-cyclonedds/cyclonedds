@@ -1,3 +1,5 @@
+from pathlib import Path
+
 # -- Project information -----------------------------------------------------
 
 project = '@PROJECT_NAME@'
@@ -43,7 +45,7 @@ html_static_path = ['_static']
 autosummary_generate=True
 # Setup the exhale extension
 exhale_args = {
-    "containmentFolder":     "@_sourcedir@/ddsc_api_docs",
+    "containmentFolder":     str(Path("@_sourcedir@/ddsc_api_docs").resolve()),
     "rootFileName":          "library_root.rst",
     "rootFileTitle":         "Raw C API",
     "fullToctreeMaxDepth":   1,
