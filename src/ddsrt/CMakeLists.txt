@@ -23,6 +23,24 @@ include(CheckSymbolExists)
 option(WITH_LWIP "Use lightweight IP stack" OFF)
 option(WITH_FREERTOS "Build for FreeRTOS" OFF)
 
+if(WITH_LWIP)
+  set(event "select")
+elseif(CMAKE_SYSTEM MATCHES "Linux" OR
+       CMAKE_SYSTEM MATCHES "Windows")
+  set(event "epoll")
+  set(DDSRT_HAVE_NETLINK_EVENT TRUE)
+elseif(CMAKE_SYSTEM MATCHES "Darwin" OR
+       CMAKE_SYSTEM MATCHES "BSD")
+  set(event "kqueue")
+  set(DDSRT_HAVE_NETLINK_EVENT TRUE)
+else()
+  set(event "select")
+endif()
+
+set(WITH_EVENT "${event}" CACHE STRING "Use specified backend for event framework")
+set_property(CACHE WITH_EVENT PROPERTY STRINGS "epoll" "kqueue" "select")
+set(EMBEDDED_EVENTS "6" CACHE STRING "Minimum number of events to reserve space for")
+
 set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 set(binary_dir "${CMAKE_CURRENT_BINARY_DIR}")
 
@@ -159,6 +177,34 @@ if(SIZEOF_SOCKADDR_IN6)
   set(DDSRT_HAVE_IPV6 TRUE)
 endif()
 
+# EVENT
+set(CMAKE_REQUIRED_INCLUDES "${source_dir}/src/event/${WITH_EVENT}")
+# The configuration header must contain the minimum number of events and the
+# size alignment of the internal event buffer. A cyclic dependency is That introduces a cyclic
+# dependency because the size can only be determined with the minimum number
+# of events to reserve space for, define it manually to workaround it.
+set(CMAKE_REQUIRED_DEFINITIONS "-DDDSRT_EMBEDDED_EVENTS=${EMBEDDED_EVENTS}")
+set(CMAKE_EXTRA_INCLUDE_FILES "eventlist.h")
+check_type_size("struct eventlist" DDSRT_SIZEOF_EVENTLIST)
+
+target_include_directories(
+  ddsrt INTERFACE
+    "$<BUILD_INTERFACE:${source_dir}/src/event/include>")
+
+list(APPEND headers
+  "${source_dir}/include/dds/ddsrt/event.h"
+  "${source_dir}/src/event.h"
+  "${source_dir}/src/event/${WITH_EVENT}/eventlist.h")
+list(APPEND sources
+  "${source_dir}/src/event.c"
+  "${source_dir}/src/event/${WITH_EVENT}/event.c")
+if(WIN32 AND WITH_EVENT STREQUAL "epoll")
+  list(APPEND headers
+    "${source_dir}/src/event/epoll/wepoll.h")
+  list(APPEND sources
+    "${source_dir}/src/event/epoll/wepoll.c")
+endif()
+
 if(WITH_FREERTOS)
   list(APPEND headers
     "${source_dir}/include/dds/ddsrt/sync/freertos.h"
@@ -273,6 +319,8 @@ endif()
 # Generate configuration file
 set(DDSRT_WITH_LWIP ${WITH_LWIP})
 set(DDSRT_WITH_FREERTOS ${WITH_FREERTOS})
+string(TOUPPER "${WITH_EVENT}" DDSRT_EVENT)
+set(DDSRT_EMBEDDED_EVENTS ${EMBEDDED_EVENTS})
 
 foreach(feature SSL SECURITY LIFESPAN DEADLINE_MISSED NETWORK_PARTITIONS
                 SSM TYPE_DISCOVERY TOPIC_DISCOVERY SHM)

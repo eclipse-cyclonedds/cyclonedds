@@ -27,7 +27,8 @@ set(sources
   retcode.c
   strlcpy.c
   socket.c
-  select.c)
+  select.c
+  eventlist.c)
 
 if(WITH_FREERTOS)
   list(APPEND sources tasklist.c)

@@ -74,7 +74,6 @@ set(srcs_ddsi
   q_qosmatch.c
   q_radmin.c
   q_receive.c
-  q_sockwaitset.c
   q_thread.c
   q_transmit.c
   q_inverse_uint32_set.c
@@ -152,7 +151,6 @@ set(hdrs_private_ddsi
   q_radmin.h
   q_receive.h
   q_rtps.h
-  q_sockwaitset.h
   q_thread.h
   q_transmit.h
   q_inverse_uint32_set.h
@@ -160,6 +158,7 @@ set(hdrs_private_ddsi
   q_whc.h
   q_xevent.h
   q_xmsg.h
+  q_receive.h
   sysdeps.h)
 
 if(ENABLE_LIFESPAN)

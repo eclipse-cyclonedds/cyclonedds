@@ -22,11 +22,11 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/event.h"
 
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_ownip.h"
 #include "dds/ddsi/q_protocol.h"
-#include "dds/ddsi/q_sockwaitset.h"
 #include "dds/ddsi/q_config.h"
 
 #if defined (__cplusplus)
@@ -80,7 +80,7 @@ struct recv_thread_arg {
       struct ddsi_tran_conn *conn;
     } single;
     struct {
-      os_sockWaitset ws;
+      ddsrt_loop_t loop;
     } many;
   } u;
 };

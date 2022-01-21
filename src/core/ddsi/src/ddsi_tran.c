@@ -30,12 +30,15 @@ DDS_EXPORT extern inline bool ddsi_factory_supports (const struct ddsi_tran_fact
 DDS_EXPORT extern inline int ddsi_is_valid_port (const struct ddsi_tran_factory *factory, uint32_t port);
 DDS_EXPORT extern inline uint32_t ddsi_receive_buffer_size (const struct ddsi_tran_factory *factory);
 DDS_EXPORT extern inline ddsrt_socket_t ddsi_conn_handle (ddsi_tran_conn_t conn);
+DDS_EXPORT extern inline ddsrt_event_t *ddsi_conn_event (ddsi_tran_conn_t conn);
 DDS_EXPORT extern inline int ddsi_conn_locator (ddsi_tran_conn_t conn, ddsi_locator_t * loc);
 DDS_EXPORT extern inline ddsrt_socket_t ddsi_tran_handle (ddsi_tran_base_t base);
+DDS_EXPORT extern inline ddsrt_event_t *ddsi_tran_event (ddsi_tran_base_t base);
 DDS_EXPORT extern inline dds_return_t ddsi_factory_create_conn (ddsi_tran_conn_t *conn, ddsi_tran_factory_t factory, uint32_t port, const struct ddsi_tran_qos *qos);
 DDS_EXPORT extern inline int ddsi_listener_locator (ddsi_tran_listener_t listener, ddsi_locator_t * loc);
 DDS_EXPORT extern inline int ddsi_listener_listen (ddsi_tran_listener_t listener);
 DDS_EXPORT extern inline ddsi_tran_conn_t ddsi_listener_accept (ddsi_tran_listener_t listener);
+DDS_EXPORT extern inline ddsrt_event_t *ddsi_listener_event (ddsi_tran_listener_t listener);
 DDS_EXPORT extern inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc);
 DDS_EXPORT extern inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags);
 
@@ -140,7 +143,7 @@ void ddsi_conn_free (ddsi_tran_conn_t conn)
             switch (conn->m_base.gv->recv_threads[i].arg.mode)
             {
               case RTM_MANY:
-                os_sockWaitsetRemove (conn->m_base.gv->recv_threads[i].arg.u.many.ws, conn);
+                ddsrt_delete_event (&conn->m_base.gv->recv_threads[i].arg.u.many.loop, ddsi_conn_event (conn));
                 break;
               case RTM_SINGLE:
                 if (conn->m_base.gv->recv_threads[i].arg.u.single.conn == conn)
@@ -213,7 +216,6 @@ void ddsi_tran_free (ddsi_tran_base_t base)
     }
     else
     {
-      ddsi_listener_unblock ((ddsi_tran_listener_t) base);
       ddsi_listener_free ((ddsi_tran_listener_t) base);
     }
   }

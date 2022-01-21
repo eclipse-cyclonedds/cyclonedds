@@ -973,6 +973,7 @@ static bool use_multiple_receive_threads (const struct ddsi_config *cfg)
 static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
 {
   const bool multi_recv_thr = use_multiple_receive_threads (&gv->config);
+  uint32_t initcnt = 0u;
 
   for (uint32_t i = 0; i < MAX_RECV_THREADS; i++)
   {
@@ -1014,7 +1015,7 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
   assert (gv->n_recv_threads <= MAX_RECV_THREADS);
 
   /* For each thread, create rbufpool and waitset if needed, then start it */
-  for (uint32_t i = 0; i < gv->n_recv_threads; i++)
+  for (uint32_t i = 0; i < gv->n_recv_threads; i++, initcnt++)
   {
     /* We create the rbufpool for the receive thread, and so we'll
        become the initial owner thread. The receive thread will change
@@ -1024,15 +1025,13 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
       GVERROR ("rtps_init: can't allocate receive buffer pool for thread %s\n", gv->recv_threads[i].name);
       goto fail;
     }
-    if (gv->recv_threads[i].arg.mode == RTM_MANY)
+    struct recv_thread_arg *arg = &gv->recv_threads[i].arg;
+    if (arg->mode == RTM_MANY && ddsrt_create_loop(&arg->u.many.loop))
     {
-      if ((gv->recv_threads[i].arg.u.many.ws = os_sockWaitsetNew ()) == NULL)
-      {
-        GVERROR ("rtps_init: can't allocate sock waitset for thread %s\n", gv->recv_threads[i].name);
-        goto fail;
-      }
+      GVERROR ("rtps_init: can't create event loop for thread %s\n", gv->recv_threads[i].name);
+      goto fail;
     }
-    if (create_thread (&gv->recv_threads[i].ts, gv, gv->recv_threads[i].name, recv_thread, &gv->recv_threads[i].arg) != DDS_RETCODE_OK)
+    if (create_thread (&gv->recv_threads[i].ts, gv, gv->recv_threads[i].name, recv_thread, arg) != DDS_RETCODE_OK)
     {
       GVERROR ("rtps_init: failed to start thread %s\n", gv->recv_threads[i].name);
       goto fail;
@@ -1044,10 +1043,10 @@ fail:
   /* to trigger any threads we already started to stop - xevent thread has already been started */
   rtps_term_prep (gv);
   wait_for_receive_threads (gv);
-  for (uint32_t i = 0; i < gv->n_recv_threads; i++)
+  for (uint32_t i = 0; i < initcnt; i++)
   {
-    if (gv->recv_threads[i].arg.mode == RTM_MANY && gv->recv_threads[i].arg.u.many.ws)
-      os_sockWaitsetFree (gv->recv_threads[i].arg.u.many.ws);
+    if (gv->recv_threads[i].arg.mode == RTM_MANY)
+      ddsrt_destroy_loop (&gv->recv_threads[i].arg.u.many.loop);
     if (gv->recv_threads[i].arg.rbpool)
       nn_rbufpool_free (gv->recv_threads[i].arg.rbpool);
   }
@@ -1705,7 +1704,6 @@ int rtps_init (struct ddsi_domaingv *gv)
           ddsi_listener_free(gv->listener);
         goto err_mc_conn;
       }
-
       /* Set unicast locators from listener */
       set_unspec_locator (&gv->loc_spdp_mc);
       set_unspec_locator (&gv->loc_meta_mc);
@@ -2016,17 +2014,6 @@ int rtps_start (struct ddsi_domaingv *gv)
     xeventq_stop (gv->xevents);
     return -1;
   }
-  if (gv->listener)
-  {
-    if (create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) listen_thread, gv->listener) != DDS_RETCODE_OK)
-    {
-      GVERROR ("failed to create TCP listener thread\n");
-      ddsi_listener_free (gv->listener);
-      gv->listener = NULL;
-      rtps_stop (gv);
-      return -1;
-    }
-  }
   if (gv->config.monitor_port >= 0)
   {
     if ((gv->debmon = new_debug_monitor (gv, gv->config.monitor_port)) == NULL)
@@ -2075,11 +2062,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
     wait_for_receive_threads (gv);
 
   if (gv->listener)
-  {
-    ddsi_listener_unblock(gv->listener);
-    join_thread (gv->listen_ts);
     ddsi_listener_free(gv->listener);
-  }
 
   xeventq_stop (gv->xevents);
 #ifdef DDS_HAS_NETWORK_CHANNELS
@@ -2281,7 +2264,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
   for (uint32_t i = 0; i < gv->n_recv_threads; i++)
   {
     if (gv->recv_threads[i].arg.mode == RTM_MANY)
-      os_sockWaitsetFree (gv->recv_threads[i].arg.u.many.ws);
+      ddsrt_destroy_loop (&gv->recv_threads[i].arg.u.many.loop);
     nn_rbufpool_free (gv->recv_threads[i].arg.rbpool);
   }
 

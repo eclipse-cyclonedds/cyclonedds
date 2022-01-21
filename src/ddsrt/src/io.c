@@ -78,6 +78,7 @@ ddsrt_asprintf(
 }
 
 #if defined(_MSC_VER) && (_MSC_VER < 1900)
+// FIXME: this should really be in compat
 int
 snprintf(
   char *str,
