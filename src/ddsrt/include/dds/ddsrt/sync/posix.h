@@ -23,15 +23,19 @@ extern "C" {
 #endif
 
 typedef struct {
-    pthread_cond_t cond;
+  pthread_cond_t cond;
 } ddsrt_cond_t;
 
 typedef struct {
-    pthread_mutex_t mutex;
+  pthread_mutex_t mutex;
 } ddsrt_mutex_t;
 
 typedef struct {
-    pthread_rwlock_t rwlock;
+#if __SunOS_5_6
+  pthread_mutex_t rwlock;
+#else
+  pthread_rwlock_t rwlock;
+#endif
 } ddsrt_rwlock_t;
 
 typedef pthread_once_t ddsrt_once_t;

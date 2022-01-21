@@ -114,7 +114,7 @@ if(ENABLE_SSL AND OPENSSL_FOUND)
       "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_openssl,INTERFACE_INCLUDE_DIRECTORIES>>"
   )
 endif()
-if(iceoryx_binding_c_FOUND)
+if(ENABLE_SHM)
   target_include_directories(
     cunit_security_core PRIVATE
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")

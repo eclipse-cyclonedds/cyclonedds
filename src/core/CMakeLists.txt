@@ -45,7 +45,7 @@ if(ENABLE_SECURITY)
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>)
 endif()
 
-if(iceoryx_binding_c_FOUND)
+if(ENABLE_SHM)
   target_link_libraries(ddsc PRIVATE iceoryx_binding_c::iceoryx_binding_c)
 endif()
 

@@ -3,11 +3,8 @@
 
 #include <stdbool.h>
 
-#if !defined(DDSRT_WITH_DNS)
-# define DDSRT_WITH_DNS 1
-#endif
-
 #include "dds/export.h"
+#include "dds/config.h"
 #include "dds/ddsrt/types.h"
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/retcode.h"
@@ -33,10 +30,12 @@ extern const struct in6_addr ddsrt_in6addr_loopback;
 
 #define DDSRT_AF_TERM (-1)
 
+#if DDSRT_HAVE_GETHOSTNAME
 DDS_EXPORT dds_return_t
 ddsrt_gethostname(
   char *hostname,
   size_t buffersize);
+#endif
 
 DDS_EXPORT dds_return_t
 ddsrt_socket(

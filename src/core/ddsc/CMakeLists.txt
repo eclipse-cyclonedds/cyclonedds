@@ -44,7 +44,7 @@ prepend(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds_data_allocator.c
   dds_loan.c)
 
-if (DDS_HAS_SHM)
+if(ENABLE_SHM)
   list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm_monitor.c")
 endif()
 
@@ -91,7 +91,7 @@ prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<
   ddsc/dds_data_allocator.h
   ddsc/dds_loan_api.h)
 
-if (DDS_HAS_SHM)
+if(ENABLE_SHM)
   list(APPEND hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm__monitor.h")
 endif()
 
@@ -104,8 +104,7 @@ target_sources(ddsc
     ${hdrs_private_ddsc}
   PUBLIC
     ${hdrs_public_ddsc}
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>$<INSTALL_INTERFACE:include>/dds/export.h"
-)
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>$<INSTALL_INTERFACE:include>/dds/export.h")
 
 target_include_directories(ddsc
   PUBLIC

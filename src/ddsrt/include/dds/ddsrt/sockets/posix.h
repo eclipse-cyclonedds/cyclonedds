@@ -35,36 +35,16 @@ typedef int ddsrt_socket_t;
 #define PRIdSOCK "d"
 
 #if LWIP_SOCKET
-# if LWIP_IPV6
-#   define DDSRT_HAVE_IPV6 1
-# endif
-# if LWIP_DNS && LWIP_SOCKET
-#   define DDSRT_HAVE_DNS         DDSRT_WITH_DNS
-#   define DDSRT_HAVE_GETADDRINFO DDSRT_WITH_DNS
-# endif
 # define DDSRT_HAVE_SSM         0
-# define DDSRT_HAVE_INET_NTOP   1
-# define DDSRT_HAVE_INET_PTON   1
-
 # define IFF_UP               0x1
 # define IFF_BROADCAST        0x2
 # define IFF_LOOPBACK         0x8
 # define IFF_POINTOPOINT     0x10
 # define IFF_MULTICAST     0x1000
 #elif __SunOS_5_6
-# define DDSRT_HAVE_IPV6        0
-# define DDSRT_HAVE_DNS         DDSRT_WITH_DNS
-# define DDSRT_HAVE_GETADDRINFO 0
 # define DDSRT_HAVE_SSM         0
-# define DDSRT_HAVE_INET_NTOP   0
-# define DDSRT_HAVE_INET_PTON   0
 #else /* LWIP_SOCKET */
-# define DDSRT_HAVE_IPV6        1
-# define DDSRT_HAVE_DNS         DDSRT_WITH_DNS
-# define DDSRT_HAVE_GETADDRINFO DDSRT_WITH_DNS
 # define DDSRT_HAVE_SSM         1
-# define DDSRT_HAVE_INET_NTOP   1
-# define DDSRT_HAVE_INET_PTON   1
 #endif /* LWIP_SOCKET */
 
 typedef struct msghdr ddsrt_msghdr_t;

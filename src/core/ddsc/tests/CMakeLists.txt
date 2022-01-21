@@ -105,7 +105,7 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
-if(iceoryx_binding_c_FOUND)
+if(ENABLE_SHM)
   target_include_directories(
     cunit_ddsc PRIVATE
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
@@ -139,7 +139,7 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
 
-if(iceoryx_binding_c_FOUND)
+if(ENABLE_SHM)
   target_include_directories(
     oneliner PRIVATE
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
@@ -150,7 +150,7 @@ target_link_libraries(oneliner PRIVATE RoundTrip Space ddsc)
 # Iceoryx itself isn't really supported yet on Windows, so it
 # better not be part of the tests.  That also saves us from
 # having to figure out now how to start/stop RouDi on Windows.
-if(iceoryx_binding_c_FOUND AND NOT WIN32)
+if(ENABLE_SHM)
   idlc_generate(TARGET Array100 FILES Array100.idl)
   idlc_generate(TARGET DynamicData FILES DynamicData.idl)
 

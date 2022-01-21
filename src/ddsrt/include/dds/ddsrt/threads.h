@@ -21,6 +21,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "dds/config.h"
 #include "dds/export.h"
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/retcode.h"

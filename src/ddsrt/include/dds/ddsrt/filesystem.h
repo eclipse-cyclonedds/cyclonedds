@@ -9,21 +9,15 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-
-#ifndef FILESYSTEM_H
-#define FILESYSTEM_H
+#ifndef DDSRT_FILESYSTEM_H
+#define DDSRT_FILESYSTEM_H
 
 #include <stddef.h>
 
 #include "dds/export.h"
+#include "dds/config.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/time.h"
-
-#if !DDSRT_WITH_FREERTOS
-#define DDSRT_HAVE_FILESYSTEM (1)
-#else
-#define DDSRT_HAVE_FILESYSTEM (0)
-#endif
 
 #if DDSRT_HAVE_FILESYSTEM
 
@@ -130,4 +124,4 @@ DDS_EXPORT const char* ddsrt_file_sep(void);
 
 #endif // DDRT_HAVE_FILESYSTEM
 
-#endif // FILESYSTEM_H
+#endif // DDSRT_FILESYSTEM_H

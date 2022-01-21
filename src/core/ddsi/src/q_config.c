@@ -33,7 +33,7 @@
 
 #include "dds/ddsrt/xmlparser.h"
 
-#include "dds/version.h"
+#include "dds/config.h"
 
 #define MAX_PATH_DEPTH 10 /* max nesting level of configuration elements */
 
