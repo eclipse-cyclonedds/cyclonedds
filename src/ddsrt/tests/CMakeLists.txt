@@ -10,9 +10,8 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 include(CUnit)
-include(GenerateDummyExportHeader)
 
-list(APPEND sources
+set(sources
   atomics.c
   environ.c
   heap.c
@@ -103,16 +102,6 @@ endif()
 
 add_coverage(cunit_ddsrt)
 target_link_libraries(
-  cunit_ddsrt PRIVATE ddsrt)
+  cunit_ddsrt PRIVATE ddsrt-internal)
 target_include_directories(
   cunit_ddsrt PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
-
-generate_dummy_export_header(
-  cunit_ddsrt
-  BASE_NAME dds
-  EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/export.h")
-
-generate_dummy_export_header(
-  cunit_ddsrt
-  BASE_NAME dds
-  EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/features.h")

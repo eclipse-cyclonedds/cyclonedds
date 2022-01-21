@@ -32,6 +32,7 @@ set(_sources
 set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/ddsc/include")
 set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/ddsi/include")
 set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/ddsrt/include")
+set(_includes "${_includes}\\;${CMAKE_BINARY_DIR}/src/ddsrt/include")
 set(_includes "${_includes}\\;${CMAKE_BINARY_DIR}/src/core/include")
 set(_includes "${_includes}\\;${CMAKE_CURRENT_SOURCE_DIR}")
 

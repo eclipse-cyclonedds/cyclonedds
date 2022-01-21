@@ -10,19 +10,14 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSRT_LIBRARY_H
-#define DDSRT_LIBRARY_H
+#ifndef DDSRT_DYNLIB_H
+#define DDSRT_DYNLIB_H
 
 #include "dds/export.h"
+#include "dds/config.h"
 #include "dds/ddsrt/types.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/attributes.h"
-
-#if !DDSRT_WITH_FREERTOS
-#define DDSRT_HAVE_DYNLIB (1)
-#else
-#define DDSRT_HAVE_DYNLIB (0)
-#endif
 
 #if DDSRT_HAVE_DYNLIB
 
@@ -151,4 +146,4 @@ ddsrt_dlerror(
 
 #endif /* DDSRT_HAVE_DYNLIB */
 
-#endif /* DDSRT_LIBRARY_H */
+#endif /* DDSRT_DYNLIB_H */

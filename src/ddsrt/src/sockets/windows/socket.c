@@ -14,10 +14,10 @@
 #include <stddef.h>
 #include <winerror.h>
 
+#include "sockets_priv.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/retcode.h"
-#include "dds/ddsrt/sockets_priv.h"
 #include "dds/ddsrt/time.h"
 
 #ifdef ddsrt_select

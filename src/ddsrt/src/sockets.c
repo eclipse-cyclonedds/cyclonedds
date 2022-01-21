@@ -15,9 +15,9 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "sockets_priv.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
-#include "dds/ddsrt/sockets_priv.h"
 
 #if !LWIP_SOCKET
 # if !defined(_WIN32)
@@ -274,8 +274,6 @@ DDSRT_WARNING_GNUC_ON(sign-conversion)
 }
 
 #if DDSRT_HAVE_DNS
-#if DDSRT_HAVE_GETADDRINFO
-
 static bool
 is_valid_hostname_char(char c)
 {
@@ -288,6 +286,7 @@ is_valid_hostname_char(char c)
     c == ':';
 }
 
+#if DDSRT_HAVE_GETADDRINFO
 dds_return_t
 ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
 {
@@ -407,7 +406,7 @@ ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
   *hentp = hent;
   return DDS_RETCODE_OK;
 }
-#else
+#elif DDSRT_HAVE_GETHOSTBYNAME_R
 dds_return_t
 ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
 {
@@ -425,8 +424,8 @@ ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
     return DDS_RETCODE_OK;
   }
 }
-#endif /* DDSRT_HAVE_GETADDRINFO */
-#endif /* DDSRT_HAVE_DNS */
+#endif // DDSRT_HAVE_GETADDRINFO
+#endif // DDSRT_HAVE_DNS
 
 dds_return_t
 ddsrt_setsockreuse(ddsrt_socket_t sock, bool reuse)

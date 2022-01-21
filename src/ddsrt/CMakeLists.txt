@@ -1,5 +1,5 @@
 #
-# Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+# Copyright(c) 2006 to 2022 ADLINK Technology Limited and others
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License v. 2.0 which is available at
@@ -9,132 +9,94 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
+include(GenerateExportHeader)
 include(CheckCSourceCompiles)
 include(CheckLibraryExists)
 include(CheckIncludeFile)
-include(GenerateDummyExportHeader)
+include(CheckTypeSize)
+include(CheckSymbolExists)
 
 # Lightweight IP stack can be used on non-embedded targets too, but the
 # runtime must be instructed to use it instead of the native stack. Of course
 # for embedded targets there is no "native" stack and the runtime module must
 # always be instructed to use an "alternative" stack.
 option(WITH_LWIP "Use lightweight IP stack" OFF)
-option(WITH_DNS "Enable domain name lookups" ON)
 option(WITH_FREERTOS "Build for FreeRTOS" OFF)
 
-function(check_runtime_feature SOURCE_FILE)
-  get_target_property(_defs ddsrt INTERFACE_COMPILE_DEFINITIONS)
-  foreach(_def ${_defs})
-    set(_strdefs "${_strdefs} -D${_def}")
-  endforeach()
+set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
+set(binary_dir "${CMAKE_CURRENT_BINARY_DIR}")
 
-  # Generate dummy export header required by feature tests.
-  generate_dummy_export_header(
-    ddsrt
-    BASE_NAME dds
-    EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/cmake/include/dds/export.h")
-  set(_strincs "${CMAKE_CURRENT_BINARY_DIR}/cmake/include")
-
-  get_target_property(_incs ddsrt INTERFACE_INCLUDE_DIRECTORIES)
-  foreach(_inc ${_incs})
-    set(_strincs "${_strincs};${_inc}")
-  endforeach()
-
-  if(_strincs)
-    set(_strincs "-DINCLUDE_DIRECTORIES:STRING=${_strincs}")
-  endif()
-
-  set(expr "cmake_([_a-zA-Z0-9]+)=([_a-zA-Z0-9]+)")
-  try_compile(
-    foo "${CMAKE_BINARY_DIR}"
-    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE_FILE}"
-    CMAKE_FLAGS "${_strincs}"
-    COMPILE_DEFINITIONS "${_strdefs}"
-    OUTPUT_VARIABLE output)
-  string(REGEX MATCHALL "${expr}" matches "${output}")
-  foreach(match ${matches})
-    string(REGEX REPLACE "${expr}" "\\1" option "${match}")
-    string(REGEX REPLACE "${expr}" "\\2" value "${match}")
-    set(${option} ${value} PARENT_SCOPE)
-  endforeach()
-endfunction()
-
-if(WITH_FREERTOS)
-  set(system_name freertos)
-elseif(APPLE)
-  set(system_name darwin)
-elseif(ANDROID)
-  # FIXME: Not correct, but will do for the short-term. A better way would be
-  #        fallback to linux, and then posix.
-  set(system_name linux)
-else()
-  string(TOLOWER ${CMAKE_SYSTEM_NAME} system_name)
-endif()
-
-# A better choice is to use a so-called object library for ddsrt, but it was
-# not possible to use target_link_libraries with object libraries until CMake
-# 3.12. At the time of this writing most long-term stable distributions still
-# ship an older version, so an interface library with public sources is used
-# as a workaround for now.
 add_library(ddsrt INTERFACE)
-
-foreach(opt WITH_LWIP WITH_DNS WITH_FREERTOS)
-  if(${opt})
-    target_compile_definitions(ddsrt INTERFACE DDSRT_${opt}=1)
-  else()
-    target_compile_definitions(ddsrt INTERFACE DDSRT_${opt}=0)
-  endif()
-endforeach()
-
 target_include_directories(
   ddsrt INTERFACE
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
+    "$<BUILD_INTERFACE:${source_dir}/include>"
+    "$<BUILD_INTERFACE:${source_dir}/src>"
+    "$<BUILD_INTERFACE:${binary_dir}/include>")
 
-# Generate version header.
-configure_file("include/dds/version.h.in" "include/dds/version.h")
-target_sources(
-  ddsrt INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/include/dds/version.h")
+set(headers
+  "${binary_dir}/include/dds/config.h"
+  "${source_dir}/include/dds/ddsrt/avl.h"
+  "${source_dir}/include/dds/ddsrt/fibheap.h"
+  "${source_dir}/include/dds/ddsrt/hopscotch.h"
+  "${source_dir}/include/dds/ddsrt/log.h"
+  "${source_dir}/include/dds/ddsrt/retcode.h"
+  "${source_dir}/include/dds/ddsrt/attributes.h"
+  "${source_dir}/include/dds/ddsrt/endian.h"
+  "${source_dir}/include/dds/ddsrt/arch.h"
+  "${source_dir}/include/dds/ddsrt/misc.h"
+  "${source_dir}/include/dds/ddsrt/mh3.h"
+  "${source_dir}/include/dds/ddsrt/io.h"
+  "${source_dir}/include/dds/ddsrt/process.h"
+  "${source_dir}/include/dds/ddsrt/sched.h"
+  "${source_dir}/include/dds/ddsrt/strtod.h"
+  "${source_dir}/include/dds/ddsrt/strtol.h"
+  "${source_dir}/include/dds/ddsrt/types.h"
+  "${source_dir}/include/dds/ddsrt/countargs.h"
+  "${source_dir}/include/dds/ddsrt/static_assert.h"
+  "${source_dir}/include/dds/ddsrt/circlist.h"
+  "${source_dir}/include/dds/ddsrt/atomics.h"
+  "${source_dir}/include/dds/ddsrt/atomics/arm.h"
+  "${source_dir}/include/dds/ddsrt/atomics/gcc.h"
+  "${source_dir}/include/dds/ddsrt/atomics/msvc.h"
+  "${source_dir}/include/dds/ddsrt/atomics/sun.h"
+  "${source_dir}/include/dds/ddsrt/dynlib.h"
+  "${source_dir}/include/dds/ddsrt/environ.h"
+  "${source_dir}/include/dds/ddsrt/heap.h"
+  "${source_dir}/include/dds/ddsrt/ifaddrs.h"
+  "${source_dir}/include/dds/ddsrt/md5.h"
+  "${source_dir}/include/dds/ddsrt/netstat.h"
+  "${source_dir}/include/dds/ddsrt/string.h"
+  "${source_dir}/include/dds/ddsrt/sockets.h"
+  "${source_dir}/src/sockets_priv.h"
+  "${source_dir}/include/dds/ddsrt/threads.h"
+  "${source_dir}/src/threads_priv.h"
+  "${source_dir}/include/dds/ddsrt/cdtors.h"
+  "${source_dir}/include/dds/ddsrt/random.h")
 
-set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include")
-set(source_path "${CMAKE_CURRENT_SOURCE_DIR}/src")
-
-list(APPEND headers
-  "${include_path}/dds/ddsrt/avl.h"
-  "${include_path}/dds/ddsrt/fibheap.h"
-  "${include_path}/dds/ddsrt/hopscotch.h"
-  "${include_path}/dds/ddsrt/log.h"
-  "${include_path}/dds/ddsrt/retcode.h"
-  "${include_path}/dds/ddsrt/attributes.h"
-  "${include_path}/dds/ddsrt/endian.h"
-  "${include_path}/dds/ddsrt/arch.h"
-  "${include_path}/dds/ddsrt/misc.h"
-  "${include_path}/dds/ddsrt/mh3.h"
-  "${include_path}/dds/ddsrt/io.h"
-  "${include_path}/dds/ddsrt/process.h"
-  "${include_path}/dds/ddsrt/sched.h"
-  "${include_path}/dds/ddsrt/strtod.h"
-  "${include_path}/dds/ddsrt/strtol.h"
-  "${include_path}/dds/ddsrt/types.h"
-  "${include_path}/dds/ddsrt/countargs.h"
-  "${include_path}/dds/ddsrt/static_assert.h"
-  "${include_path}/dds/ddsrt/circlist.h")
-
-list(APPEND sources
-  "${source_path}/bswap.c"
-  "${source_path}/io.c"
-  "${source_path}/log.c"
-  "${source_path}/retcode.c"
-  "${source_path}/strtod.c"
-  "${source_path}/strtol.c"
-  "${source_path}/mh3.c"
-  "${source_path}/avl.c"
-  "${source_path}/environ.c"
-  "${source_path}/expand_vars.c"
-  "${source_path}/fibheap.c"
-  "${source_path}/hopscotch.c"
-  "${source_path}/xmlparser.c"
-  "${source_path}/circlist.c")
+set(sources
+  "${source_dir}/src/atomics.c"
+  "${source_dir}/src/avl.c"
+  "${source_dir}/src/bswap.c"
+  "${source_dir}/src/io.c"
+  "${source_dir}/src/log.c"
+  "${source_dir}/src/retcode.c"
+  "${source_dir}/src/strtod.c"
+  "${source_dir}/src/strtol.c"
+  "${source_dir}/src/mh3.c"
+  "${source_dir}/src/environ.c"
+  "${source_dir}/src/expand_vars.c"
+  "${source_dir}/src/fibheap.c"
+  "${source_dir}/src/hopscotch.c"
+  "${source_dir}/src/circlist.c"
+  "${source_dir}/src/threads.c"
+  "${source_dir}/src/string.c"
+  "${source_dir}/src/sockets.c"
+  "${source_dir}/src/md5.c"
+  "${source_dir}/src/xmlparser.c"
+  "${source_dir}/src/ifaddrs.c"
+  "${source_dir}/src/cdtors.c"
+  "${source_dir}/src/random.c"
+  "${source_dir}/src/time.c")
 
 # Not every target offers the same set of features. For embedded targets the
 # set of features may even be different between builds. e.g. a FreeRTOS build
@@ -146,116 +108,200 @@ list(APPEND sources
 # that the network stack to be used is lwIP as opposed to the target native
 # network stack. In order to mix-and-match various compilers, architectures,
 # operating systems, etc input from the build system is required.
-foreach(feature atomics cdtors environ heap ifaddrs random rusage
-        sockets string sync threads time md5 process netstat dynlib filesystem)
-  if(EXISTS "${include_path}/dds/ddsrt/${feature}.h")
-    list(APPEND headers "${include_path}/dds/ddsrt/${feature}.h")
-    file(GLOB_RECURSE
-           files
-         CONFIGURE_DEPENDS
-           "${include_path}/dds/ddsrt/${feature}/*.h")
-    list(APPEND headers ${files})
-
-    # Do not add any sources if a feature is not offered by the target. The
-    # headers will define any macros needed by the source code by combining
-    # build system exports and pre-defined macros. To determine if a certain
-    # feature is offered by the target and whether or not to compile any
-    # source files, that information must be made available to CMake.
-    #
-    # Tests that export the required information can be written in
-    # cmake/${feature}.c. A test consists of a source file that includes the
-    # required header files and results in a specifically crafted compiler
-    # error that is picked up by CMake. By default, if a file named after the
-    # feature does not exist in cmake, the feature is expected to be
-    # implemented for all targets.
-    string(TOUPPER "${feature}" feature_uc)
-    set(HAVE_${feature_uc} TRUE)
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${feature}.c")
-      check_runtime_feature("cmake/${feature}.c")
-    endif()
-
-    if(HAVE_${feature_uc})
-      # Code that is more-or-less the same for all targets can placed in
-      # src/<feature>.c. An example would be ddsrt_freeifaddrs.
-      if(EXISTS "${source_path}/${feature}.c")
-        list(APPEND sources "${source_path}/${feature}.c")
-      endif()
-      set(system_exists FALSE)
-
-      # Headers that must remain private but are required by other runtime
-      # source files must be located in src/<feature>/dds/ddsrt.
-      if(IS_DIRECTORY "${source_path}/${feature}/include")
-        file(GLOB_RECURSE
-               files
-             CONFIGURE_DEPENDS
-               "${source_path}/${feature}/include/*.h")
-        list(APPEND headers ${files})
-        target_include_directories(
-          ddsrt INTERFACE
-            "$<BUILD_INTERFACE:${source_path}/${feature}/include/>")
-      endif()
-
-      # Allow custom implementations for a feature. e.g. lwip as opposed to
-      # windows or posix.
-      set(_system_name "${system_name}")
-      if(NOT HAVE_${feature_uc} MATCHES "[tT][rR][uU][eE]")
-        set(_system_name "${HAVE_${feature_uc}}")
-      endif()
-
-      foreach(system ${_system_name} posix)
-        if(IS_DIRECTORY "${source_path}/${feature}/${system}")
-          file(GLOB_RECURSE
-                 files
-               CONFIGURE_DEPENDS
-                 "${source_path}/${feature}/${system}/*.c")
-          list(APPEND sources ${files})
-          set(system_exists TRUE)
-        endif()
-        # Break as soon a system-specific headers or sources are found.
-        if(system_exists)
-          break()
-        endif()
-      endforeach()
-    else()
-      message(STATUS "Feature ${feature} disabled")
-    endif()
+if(WITH_LWIP)
+  set(CMAKE_EXTRA_INCLUDE_FILES "ws2tcpip.h")
+  set(hostname_header "unistd.h")
+  set(inet_header "lwip/sockets.h")
+  set(netdb_header "lwip/netdb.h")
+  list(APPEND headers
+    "${source_dir}/include/dds/ddsrt/sockets/posix.h")
+  list(APPEND sources
+    "${source_dir}/src/ifaddrs/lwip/ifaddrs.c"
+    "${source_dir}/src/sockets/posix/socket.c"
+    "${source_dir}/src/sockets/posix/gethostname.c")
+else()
+  if(WIN32)
+    set(CMAKE_EXTRA_INCLUDE_FILES "ws2tcpip.h")
+    set(CMAKE_REQUIRED_LIBRARIES ws2_32 iphlpapi)
+    set(hostname_header "winsock2.h")
+    set(inet_header "ws2tcpip.h")
+    set(netdb_header "ws2tcpip.h")
+    list(APPEND headers
+      "${source_dir}/include/dds/ddsrt/sockets/windows.h")
+    list(APPEND sources
+      "${source_dir}/src/ifaddrs/windows/ifaddrs.c"
+      "${source_dir}/src/sockets/windows/socket.c"
+      "${source_dir}/src/sockets/windows/gethostname.c")
   else()
-    message(FATAL_ERROR "Feature ${feature} does not exist")
+    set(CMAKE_EXTRA_INCLUDE_FILES "netinet/in.h")
+    set(hostname_header "unistd.h")
+    set(inet_header "arpa/inet.h")
+    set(netdb_header "netdb.h")
+    list(APPEND headers
+      "${source_dir}/include/dds/ddsrt/sockets/posix.h")
+    list(APPEND sources
+      "${source_dir}/src/ifaddrs/posix/ifaddrs.c"
+      "${source_dir}/src/sockets/posix/socket.c"
+      "${source_dir}/src/sockets/posix/gethostname.c")
   endif()
-endforeach()
+endif()
 
-target_sources(ddsrt INTERFACE ${sources} ${headers})
+check_symbol_exists("gethostname" ${hostname_header} DDSRT_HAVE_GETHOSTNAME)
+check_symbol_exists("inet_ntop" ${inet_header} DDSRT_HAVE_INET_NTOP)
+check_symbol_exists("inet_pton" ${inet_header} DDSRT_HAVE_INET_PTON)
+check_symbol_exists("getaddrinfo" ${netdb_header} DDSRT_HAVE_GETADDRINFO)
+check_symbol_exists("gethostbyname_r" ${netdb_header} DDSRT_HAVE_GETHOSTBYNAME_R)
+if(DDSRT_HAVE_GETADDRINFO OR DDSRT_HAVE_GETHOSTBYNAME_R)
+  set(DDSRT_HAVE_DNS TRUE)
+endif()
+check_type_size("struct sockaddr_in6" SIZEOF_SOCKADDR_IN6)
+if(SIZEOF_SOCKADDR_IN6)
+  set(DDSRT_HAVE_IPV6 TRUE)
+endif()
 
-set(HAVE_MULTI_PROCESS ${HAVE_MULTI_PROCESS} PARENT_SCOPE)
+if(WITH_FREERTOS)
+  list(APPEND headers
+    "${source_dir}/include/dds/ddsrt/sync/freertos.h"
+    "${source_dir}/include/dds/ddsrt/threads/freertos.h"
+    "${source_dir}/include/dds/ddsrt/time/freertos.h")
+  list(APPEND sources
+    "${source_dir}/src/environ/posix/environ.c"
+    "${source_dir}/src/heap/freertos/heap.c"
+    "${source_dir}/src/sync/freertos/sync.c"
+    "${source_dir}/src/sync/freertos/tasklist.c"
+    "${source_dir}/src/threads/freertos/threads.c"
+    "${source_dir}/src/time/freertos/time.c"
+    "${source_dir}/src/process/freertos/process.c"
+    "${source_dir}/src/random/posix/random.c")
 
-if(NOT WITH_FREERTOS)
+  string(CONCAT rusage_code
+    "#include <FreeRTOS.h>\n"
+    "#if configUSE_TRACE_FACILITY == 1 && configGENERATE_RUN_TIME_STATS == 1\n"
+    "int main(int argc, char *argv[]) { return 0; }\n"
+    "#endif\n")
+  check_c_source_compiles("${rusage_code}" DDSRT_HAVE_RUSAGE)
+  if(DDSRT_HAVE_RUSAGE)
+    list(APPEND sources
+      "${source_dir}/src/rusage/freertos/rusage.c")
+  endif()
+else()
   set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
   find_package(Threads REQUIRED)
   target_link_libraries(ddsrt INTERFACE Threads::Threads)
   target_link_libraries(ddsrt INTERFACE ${CMAKE_DL_LIBS})
-endif()
 
-if(WIN32)
-  target_link_libraries(ddsrt INTERFACE ws2_32 iphlpapi bcrypt)
-elseif(UNIX)
-  check_library_exists(c clock_gettime "" HAVE_CLOCK_GETTIME)
-  if(NOT HAVE_CLOCK_GETTIME)
-    # Before glibc 2.17, clock_gettime was in librt.
-    check_library_exists(rt clock_gettime "time.h" HAVE_CLOCK_GETTIME_RT)
-    if(HAVE_CLOCK_GETTIME_RT)
-      set(HAVE_CLOCK_GETTIME TRUE)
-      target_link_libraries(ddsrt INTERFACE rt)
+  set(DDSRT_HAVE_DYNLIB TRUE)
+  set(DDSRT_HAVE_FILESYSTEM TRUE)
+
+  list(APPEND sources
+    "${source_dir}/src/heap/posix/heap.c")
+
+  if(WIN32)
+    set(DDSRT_HAVE_NETSTAT TRUE)
+    set(DDSRT_HAVE_RUSAGE TRUE)
+
+    list(APPEND headers
+      "${source_dir}/include/dds/ddsrt/filesystem/windows.h"
+      "${source_dir}/include/dds/ddsrt/sync/windows.h"
+      "${source_dir}/include/dds/ddsrt/threads/windows.h"
+      "${source_dir}/include/dds/ddsrt/types/windows.h")
+    list(APPEND sources
+      "${source_dir}/src/dynlib/windows/dynlib.c"
+      "${source_dir}/src/environ/windows/environ.c"
+      "${source_dir}/src/filesystem/windows/filesystem.c"
+      "${source_dir}/src/netstat/windows/netstat.c"
+      "${source_dir}/src/process/windows/process.c"
+      "${source_dir}/src/random/windows/random.c"
+      "${source_dir}/src/rusage/windows/rusage.c"
+      "${source_dir}/src/sync/windows/sync.c"
+      "${source_dir}/src/threads/windows/threads.c"
+      "${source_dir}/src/time/windows/time.c")
+
+    target_link_libraries(ddsrt INTERFACE ws2_32 iphlpapi bcrypt)
+  else()
+    list(APPEND headers
+      "${source_dir}/include/dds/ddsrt/filesystem/posix.h"
+      "${source_dir}/include/dds/ddsrt/sync/posix.h"
+      "${source_dir}/include/dds/ddsrt/threads/posix.h"
+      "${source_dir}/include/dds/ddsrt/types/posix.h")
+    list(APPEND sources
+      "${source_dir}/src/dynlib/posix/dynlib.c"
+      "${source_dir}/src/environ/posix/environ.c"
+      "${source_dir}/src/filesystem/posix/filesystem.c"
+      "${source_dir}/src/process/posix/process.c"
+      "${source_dir}/src/random/posix/random.c"
+      "${source_dir}/src/sync/posix/sync.c"
+      "${source_dir}/src/threads/posix/threads.c")
+
+    if(CMAKE_SYSTEM MATCHES "Linux")
+      set(DDSRT_HAVE_NETSTAT TRUE)
+      list(APPEND sources
+        "${source_dir}/src/netstat/linux/netstat.c"
+        "${source_dir}/src/time/posix/time.c")
+    elseif(CMAKE_SYSTEM MATCHES "Darwin")
+      set(DDSRT_HAVE_NETSTAT TRUE)
+      list(APPEND sources
+        "${source_dir}/src/netstat/darwin/netstat.c"
+        "${source_dir}/src/time/darwin/time.c")
+    else()
+      list(APPEND sources
+        "${source_dir}/src/time/posix/time.c")
+    endif()
+
+    if(CMAKE_SYSTEM MATCHES "Darwin|Linux")
+      set(DDSRT_HAVE_RUSAGE TRUE)
+      list(APPEND sources
+        "${source_dir}/src/rusage/posix/rusage.c")
+    endif()
+
+    check_library_exists(c clock_gettime "" HAVE_CLOCK_GETTIME)
+    if(NOT HAVE_CLOCK_GETTIME)
+      # Before glibc 2.17, clock_gettime was in librt.
+      check_library_exists(rt clock_gettime "time.h" HAVE_CLOCK_GETTIME_RT)
+      if(HAVE_CLOCK_GETTIME_RT)
+        set(HAVE_CLOCK_GETTIME TRUE)
+        target_link_libraries(ddsrt INTERFACE rt)
+      endif()
+    endif()
+
+    if(CMAKE_C_COMPILER_ID STREQUAL "SunPro")
+      target_link_libraries(ddsrt INTERFACE socket nsl)
     endif()
   endif()
-
-  if(NOT HAVE_CLOCK_GETTIME)
-    message(FATAL_ERROR "clock_gettime is not available")
-  endif()
 endif()
 
-if(${CMAKE_C_COMPILER_ID} STREQUAL "SunPro")
-  target_link_libraries(ddsrt INTERFACE socket nsl)
-endif()
+# Generate configuration file
+set(DDSRT_WITH_LWIP ${WITH_LWIP})
+set(DDSRT_WITH_FREERTOS ${WITH_FREERTOS})
+
+foreach(feature SSL SECURITY LIFESPAN DEADLINE_MISSED NETWORK_PARTITIONS
+                SSM TYPE_DISCOVERY TOPIC_DISCOVERY SHM)
+  set(DDS_HAS_${feature} ${ENABLE_${feature}})
+endforeach()
+
+configure_file(include/dds/config.h.in include/dds/config.h)
+configure_file(include/dds/features.h.in include/dds/features.h)
+configure_file(include/dds/version.h.in include/dds/version.h)
+
+list(APPEND headers
+  "${binary_dir}/include/dds/config.h"
+  "${binary_dir}/include/dds/features.h"
+  "${binary_dir}/include/dds/version.h")
+
+target_sources(ddsrt INTERFACE ${headers} ${sources})
+
+# Add library for internal use, i.e. for ddsconf and cunit_ddsrt, to avoid
+# having to compile the same sources twice.
+add_library(ddsrt-internal STATIC)
+generate_export_header(
+  ddsrt-internal BASE_NAME DDS EXPORT_FILE_NAME ddsrt-internal/include/dds/export.h)
+target_link_libraries(
+  ddsrt-internal PUBLIC $<TARGET_PROPERTY:ddsrt,INTERFACE_LINK_LIBRARIES>)
+target_include_directories(
+  ddsrt-internal PUBLIC ${binary_dir}/ddsrt-internal/include
+                        $<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>)
+target_sources(
+  ddsrt-internal PRIVATE $<TARGET_PROPERTY:ddsrt,INTERFACE_SOURCES>)
 
 if(BUILD_TESTING)
   add_subdirectory(tests)
@@ -263,8 +309,8 @@ endif()
 
 install(
   DIRECTORY
-      "include/"
-      ${CMAKE_CURRENT_BINARY_DIR}/include/
+      "${source_dir}/include/"
+      "${binary_dir}/include/"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   COMPONENT dev
   FILES_MATCHING PATTERN "*.h")

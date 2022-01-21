@@ -13,30 +13,30 @@
 #define _DDS_PUBLIC_FEATURES_H_
 
 /* Whether or not support for DDS Security is included */
-#cmakedefine DDS_HAS_SECURITY @DDS_HAS_SECURITY@
+#cmakedefine DDS_HAS_SECURITY 1
 
 /* Whether or not support for the lifespan QoS is included */
-#cmakedefine DDS_HAS_LIFESPAN @DDS_HAS_LIFESPAN@
+#cmakedefine DDS_HAS_LIFESPAN 1
 
 /* Whether or not support for generating "deadline missed" events is included */
-#cmakedefine DDS_HAS_DEADLINE_MISSED @DDS_HAS_DEADLINE_MISSED@
+#cmakedefine DDS_HAS_DEADLINE_MISSED 1
 
 /* Whether or not support for network partitions is included */
-#cmakedefine DDS_HAS_NETWORK_PARTITIONS @DDS_HAS_NETWORK_PARTITIONS@
+#cmakedefine DDS_HAS_NETWORK_PARTITIONS 1
 
 /* Whether or not support for source-specific multicast is included */
-#cmakedefine DDS_HAS_SSM @DDS_HAS_SSM@
+#cmakedefine DDS_HAS_SSM 1
 
 /* Whether or not features dependent on OpenSSL are included */
-#cmakedefine DDS_HAS_SSL @DDS_HAS_SSL@
+#cmakedefine DDS_HAS_SSL 1
 
 /* Whether or not support for type discovery is included */
-#cmakedefine DDS_HAS_TYPE_DISCOVERY @DDS_HAS_TYPE_DISCOVERY@
+#cmakedefine DDS_HAS_TYPE_DISCOVERY 1
 
 /* Whether or not support for topic discovery is included */
-#cmakedefine DDS_HAS_TOPIC_DISCOVERY @DDS_HAS_TOPIC_DISCOVERY@
+#cmakedefine DDS_HAS_TOPIC_DISCOVERY 1
 
 /* Whether or not support for Iceoryx support is included */
-#cmakedefine DDS_HAS_SHM @DDS_HAS_SHM@
+#cmakedefine DDS_HAS_SHM 1
 
 #endif

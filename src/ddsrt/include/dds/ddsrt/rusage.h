@@ -12,25 +12,15 @@
 #ifndef DDSRT_RUSAGE_H
 #define DDSRT_RUSAGE_H
 
+
 #include <stddef.h>
 
-#if DDSRT_WITH_FREERTOS
-#include <FreeRTOS.h>
-# if configUSE_TRACE_FACILITY == 1 && \
-     configGENERATE_RUN_TIME_STATS == 1
-#   define DDSRT_HAVE_RUSAGE 1
-# else
-#   define DDSRT_HAVE_RUSAGE 0
-#endif
-#elif defined (_WIN32) || defined (__linux) || defined (__APPLE__)
-# define DDSRT_HAVE_RUSAGE 1
-#else
-# define DDSRT_HAVE_RUSAGE 0
-#endif
-
+#include "dds/config.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/threads.h"
+
+#if DDSRT_HAVE_RUSAGE
 
 #if defined (__cplusplus)
 extern "C" {
@@ -91,4 +81,6 @@ DDS_EXPORT dds_return_t ddsrt_getrusage_anythread (ddsrt_thread_list_id_t tid, d
 }
 #endif
 
-#endif /* DDSRT_RUSAGE_H */
+#endif // DDSRT_HAVE_RUSAGE
+
+#endif // DDSRT_RUSAGE_H

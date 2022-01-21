@@ -24,6 +24,7 @@
 #include <assert.h>
 
 #include "dds/export.h"
+#include "dds/config.h"
 #include "dds/ddsrt/types.h"
 
 #if defined (__cplusplus)
