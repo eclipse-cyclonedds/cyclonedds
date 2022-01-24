@@ -305,6 +305,7 @@ struct idl_member {
   IDL_ANNOTATABLE(const idl_literal_t*) min;
   IDL_ANNOTATABLE(const idl_literal_t*) max;
   IDL_ANNOTATABLE(const idl_literal_t*) value;
+  IDL_ANNOTATABLE(const char *) unit;
 };
 
 /* types can inherit from and extend other types (interfaces, values and
@@ -379,6 +380,7 @@ struct idl_case {
   IDL_ANNOTATABLE(idl_try_construct_t) try_construct;
   IDL_ANNOTATABLE(const idl_literal_t*) min;
   IDL_ANNOTATABLE(const idl_literal_t*) max;
+  IDL_ANNOTATABLE(const char *) unit;
 };
 
 typedef struct idl_switch_type_spec idl_switch_type_spec_t;

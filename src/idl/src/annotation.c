@@ -735,6 +735,36 @@ annotate_max(
 }
 
 static idl_retcode_t
+annotate_unit(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+  const char *name = NULL;
+  idl_literal_t *literal = NULL;
+  assert(annotation_appl);
+  assert(annotation_appl->parameters);
+  literal = annotation_appl->parameters->const_expr;
+  assert(idl_type(literal) == IDL_STRING);
+  name = literal->value.str;
+
+  if (idl_is_member(node)) {
+    ((idl_member_t*)node)->unit.annotation = annotation_appl;
+    ((idl_member_t*)node)->unit.value = name;
+  } else if (idl_is_case(node)) {
+    ((idl_case_t*)node)->unit.annotation = annotation_appl;
+    ((idl_case_t*)node)->unit.value = name;
+  } else {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@unit can only be assigned to members and cases");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
 annotate_nested(
   idl_pstate_t *pstate,
   idl_annotation_appl_t *annotation_appl,
@@ -1090,12 +1120,10 @@ static const idl_builtin_annotation_t annotations[] = {
     .summary =
       "<p>Specify a maximum value for the annotated element.</p>",
     .callback = annotate_max },
-#if 0
   { .syntax = "@annotation unit { string value; };",
     .summary =
       "<p>Specify a unit of measurement for the annotated element.</p>",
     .callback = annotate_unit },
-#endif
   { .syntax = "@annotation nested { boolean value default TRUE; };",
     .summary =
       "<p>Specify annotated element is never used as top-level object.</p>",
