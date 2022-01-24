@@ -1302,6 +1302,58 @@ CU_Test(idl_annotation, limits)
   }
 }
 
+typedef struct unit_test {
+  const char *s;
+  idl_retcode_t ret;
+  const char *unitstr;
+} unit_test_t;
+
+static void test_unit(unit_test_t test)
+{
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.s, &pstate);
+  if (ret != test.ret)
+  CU_ASSERT_EQUAL(ret, test.ret);
+
+  if (ret)
+    return;
+
+  if (idl_is_struct(pstate->root)) {
+    const idl_member_t *mem = ((const idl_struct_t*)pstate->root)->members;
+    CU_ASSERT_EQUAL(test.unitstr != NULL, mem->unit.value != NULL);
+    if (test.unitstr&& mem->unit.value) {
+        CU_ASSERT_STRING_EQUAL(test.unitstr, mem->unit.value);
+    }
+  } else if (idl_is_union(pstate->root)) {
+    const idl_case_t *cs = ((const idl_union_t*)pstate->root)->cases;
+    CU_ASSERT_EQUAL(test.unitstr != NULL, cs->unit.value != NULL);
+    if (test.unitstr&& cs->unit.value) {
+        CU_ASSERT_STRING_EQUAL(test.unitstr, cs->unit.value);
+    }
+  } else {
+    CU_FAIL("Invalid data type");
+  }
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_annotation, units)
+{
+  unit_test_t tests[] = {
+    //unsupported annotations
+    {"@unit(\"Watt\") module m { struct s { char c; }; };", IDL_RETCODE_SEMANTIC_ERROR},
+    {U_L("@unit"), IDL_RETCODE_SEMANTIC_ERROR},
+    {U_L("@unit(0.1234)"), IDL_RETCODE_ILLEGAL_EXPRESSION},
+    //allowed annotations
+    {U_L("@unit(\"Watt\")"), IDL_RETCODE_OK, "Watt"},
+    {S_L("@unit(\"Watt\")"), IDL_RETCODE_OK, "Watt"},
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+    test_unit(tests[i]);
+  }
+}
+
 #undef U
 #undef U_L
 #undef U_D
