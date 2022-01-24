@@ -88,7 +88,7 @@ static void dds_sample_free_key (void *vsample, const struct dds_topic_descripto
 
 void dds_sample_free (void * sample, const struct dds_topic_descriptor * desc, dds_free_op_t op)
 {
-  /* external API, so can't replace the dds_topic_decsriptor type ... */
+  /* external API, so can't replace the dds_topic_descriptor type ... */
   assert (desc);
 
   if (sample)
