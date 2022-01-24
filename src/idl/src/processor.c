@@ -152,10 +152,10 @@ idl_create_pstate(
   if (idl_create_scope(pstate, IDL_GLOBAL_SCOPE, &builtin_name, NULL, &scope))
     goto err_scope;
 
-  pstate->flags = flags;
+  pstate->config.flags = flags;
   pstate->global_scope = pstate->scope = scope;
 
-  if (pstate->flags & IDL_FLAG_ANNOTATIONS) {
+  if (pstate->config.flags & IDL_FLAG_ANNOTATIONS) {
     idl_retcode_t ret;
     if ((ret = parse_builtin_annotations(pstate, builtin_annotations))) {
       idl_delete_pstate(pstate);

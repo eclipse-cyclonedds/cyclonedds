@@ -31,6 +31,8 @@
 #include "mcpp_lib.h"
 #include "mcpp_out.h"
 
+#include "idlc/generator.h"
+#include "generator.h"
 #include "plugin.h"
 #include "options.h"
 #include "descriptor_type_meta.h"
@@ -70,7 +72,7 @@ static int idlc_printf(OUTDEST od, const char *str, ...);
 
 static int idlc_putn(const char *str, size_t len)
 {
-  assert(pstate->flags & IDL_WRITE);
+  assert(pstate->config.flags & IDL_WRITE);
 
   /* tokenize to free up space */
   if (pstate->buffer.data && (pstate->buffer.size - pstate->buffer.used) <= len) {
@@ -262,10 +264,6 @@ static idl_retcode_t idlc_parse(void)
 
   if(config.case_sensitive)
     flags |= IDL_FLAG_CASE_SENSITIVE;
-#ifdef DDS_HAS_TYPE_DISCOVERY
-  if(!config.no_type_info)
-    flags |= IDL_FLAG_TYPE_INFO;
-#endif
 
   if(config.compile) {
     idl_source_t *source;
@@ -302,13 +300,13 @@ static idl_retcode_t idlc_parse(void)
     pstate->scanner.position.file = (const idl_file_t *)pstate->files;
     pstate->scanner.position.line = 1;
     pstate->scanner.position.column = 1;
-    pstate->flags |= IDL_WRITE;
+    pstate->config.flags |= IDL_WRITE;
   }
 
   if (config.preprocess) {
     if (pstate) {
       assert(config.compile);
-      pstate->flags |= IDL_WRITE;
+      pstate->config.flags |= IDL_WRITE;
     }
     mcpp_set_out_func(&idlc_putc, &idlc_puts, &idlc_printf);
     if (mcpp_lib_main(config.argc, config.argv) == 0) {
@@ -318,7 +316,7 @@ static idl_retcode_t idlc_parse(void)
       ret = retcode ? retcode : IDL_RETCODE_SYNTAX_ERROR;
     }
     if (pstate) {
-      pstate->flags &= ~IDL_WRITE;
+      pstate->config.flags &= ~IDL_WRITE;
     }
   } else {
     FILE *fin = NULL;
@@ -356,7 +354,7 @@ static idl_retcode_t idlc_parse(void)
     assert(ret != IDL_RETCODE_NEED_REFILL);
     if (ret == IDL_RETCODE_OK) {
       if (config.keylist) {
-        pstate->flags |= IDL_FLAG_KEYLIST;
+        pstate->config.flags |= IDL_FLAG_KEYLIST;
       } else if (pstate->keylists && pstate->annotations) {
         idl_error(pstate, NULL,
           "Translation unit contains both annotations and #pragma keylist "
@@ -365,7 +363,7 @@ static idl_retcode_t idlc_parse(void)
           "annotations");
         ret = IDL_RETCODE_SYNTAX_ERROR;
       } else if (pstate->keylists) {
-        pstate->flags |= IDL_FLAG_KEYLIST;
+        pstate->config.flags |= IDL_FLAG_KEYLIST;
       }
     }
   }
@@ -600,11 +598,15 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Out of memory\n");
       goto err_parse;
     } else if (config.compile) {
+      idlc_generator_config_t generator_config;
+      memset(&generator_config, 0, sizeof(generator_config));
 #ifdef DDS_HAS_TYPE_DISCOVERY
-      pstate->generate_typeinfo_typemap = generate_type_meta_ser;
+      if(!config.no_type_info)
+        generator_config.generate_type_info = true;
+      generator_config.generate_typeinfo_typemap = generate_type_meta_ser;
 #endif // DDS_HAS_TYPE_DISCOVERY
       if (gen.generate)
-        ret = gen.generate(pstate);
+        ret = gen.generate(pstate, &generator_config);
       idl_delete_pstate(pstate);
       if (ret) {
         fprintf(stderr, "Failed to compile '%s'\n", config.file);

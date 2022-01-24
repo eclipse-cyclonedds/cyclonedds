@@ -908,7 +908,7 @@ emit_switch_type_spec(
     return ret;
   // XTypes spec 7.2.2.4.4.4.6: In a union type, the discriminator member shall always have the 'must understand' attribute set to true.
   opcode |= DDS_OP_FLAG_MU;
-  if (idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
+  if (idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
     opcode |= DDS_OP_FLAG_KEY;
     ctype->has_key_member = true;
   }
@@ -1174,7 +1174,7 @@ emit_sequence(
     opcode |= idl_is_bounded(node) ? DDS_OP_TYPE_BSQ : DDS_OP_TYPE_SEQ;
     if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
       return ret;
-    if (idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
+    if (idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
       opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
       ctype->has_key_member = true;
     }
@@ -1301,7 +1301,7 @@ emit_array(
 
     if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
       return ret;
-    if (idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
+    if (idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
       opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
       ctype->has_key_member = true;
     }
@@ -1460,7 +1460,7 @@ emit_declarator(
     assert(ctype->instructions.count <= INT16_MAX);
     int16_t addr_offs = (int16_t)ctype->instructions.count;
     bool has_size = false;
-    bool keylist = (pstate->flags & IDL_FLAG_KEYLIST) != 0;
+    bool keylist = (pstate->config.flags & IDL_FLAG_KEYLIST) != 0;
     opcode = DDS_OP_ADR;
     if ((ret = add_typecode(pstate, type_spec, TYPE, true, &opcode)))
       return ret;
@@ -2432,7 +2432,7 @@ generate_descriptor_impl(
   uint32_t n_keys = 0;
   if ((ret = get_ctype_keys(pstate, descriptor, ctype, &ctype_keys, &n_keys, false)) != IDL_RETCODE_OK)
     goto err;
-  if ((ret = descriptor_init_keys(pstate, ctype, ctype_keys, descriptor, n_keys, (pstate->flags & IDL_FLAG_KEYLIST) != 0)) < 0)
+  if ((ret = descriptor_init_keys(pstate, ctype, ctype_keys, descriptor, n_keys, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0)) < 0)
     goto err;
   free_ctype_keys(ctype_keys);
 
@@ -2465,10 +2465,9 @@ generate_descriptor(
   if (print_keys(generator->source.handle, &descriptor, inst_count) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  bool type_info = (pstate->flags & IDL_FLAG_TYPE_INFO) != 0;
-  if (type_info && print_type_meta_ser(generator->source.handle, pstate, node) < 0)
+  if (generator->config.c.generate_type_info && print_type_meta_ser(generator->source.handle, pstate, node) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
-  if (print_descriptor(generator->source.handle, &descriptor, type_info) < 0)
+  if (print_descriptor(generator->source.handle, &descriptor, generator->config.c.generate_type_info) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
 #else
   if (print_descriptor(generator->source.handle, &descriptor, false) < 0)

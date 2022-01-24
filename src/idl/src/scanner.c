@@ -27,16 +27,16 @@ static int32_t
 have_newline(idl_pstate_t *pstate, const char *cur)
 {
   if (cur == pstate->scanner.limit)
-    return pstate->flags & IDL_WRITE ? -2 : 0;
+    return pstate->config.flags & IDL_WRITE ? -2 : 0;
   assert(cur < pstate->scanner.limit);
   if (cur[0] == '\n') {
     if (cur < pstate->scanner.limit - 1)
       return cur[1] == '\r' ? 2 : 1;
-    return pstate->flags & IDL_WRITE ? -1 : 1;
+    return pstate->config.flags & IDL_WRITE ? -1 : 1;
   } else if (cur[0] == '\r') {
     if (cur < pstate->scanner.limit - 1)
       return cur[1] == '\n' ? 2 : 1;
-    return pstate->flags & IDL_WRITE ? -1 : 1;
+    return pstate->config.flags & IDL_WRITE ? -1 : 1;
   }
   return 0;
 }
@@ -46,7 +46,7 @@ have_skip(idl_pstate_t *pstate, const char *cur)
 {
   int cnt = 0;
   if (cur == pstate->scanner.limit)
-    return pstate->flags & IDL_WRITE ? -3 : 0;
+    return pstate->config.flags & IDL_WRITE ? -3 : 0;
   assert(cur < pstate->scanner.limit);
   if (*cur == '\\' && (cnt = have_newline(pstate, cur + 1)) > 0)
     cnt++;
@@ -57,7 +57,7 @@ static int32_t
 have_space(idl_pstate_t *pstate, const char *cur)
 {
   if (cur == pstate->scanner.limit)
-    return pstate->flags & IDL_WRITE ? -2 : 0;
+    return pstate->config.flags & IDL_WRITE ? -2 : 0;
   assert(cur < pstate->scanner.limit);
   if (*cur == ' ' || *cur == '\t' || *cur == '\f' || *cur == '\v')
     return 1;
@@ -68,7 +68,7 @@ static int32_t
 have_digit(idl_pstate_t *pstate, const char *cur)
 {
   if (cur == pstate->scanner.limit)
-    return pstate->flags & IDL_WRITE ? -1 : 0;
+    return pstate->config.flags & IDL_WRITE ? -1 : 0;
   assert(cur < pstate->scanner.limit);
   return (*cur >= '0' && *cur <= '9');
 }
@@ -77,7 +77,7 @@ static int32_t
 have_alpha(idl_pstate_t *pstate, const char *cur)
 {
   if (cur == pstate->scanner.limit)
-    return pstate->flags & IDL_WRITE ? -1 : 0;
+    return pstate->config.flags & IDL_WRITE ? -1 : 0;
   assert(cur < pstate->scanner.limit);
   return (*cur >= 'a' && *cur <= 'z') ||
          (*cur >= 'A' && *cur <= 'Z') ||
@@ -88,7 +88,7 @@ static int32_t
 have_alnum(idl_pstate_t *pstate, const char *cur)
 {
   if (cur == pstate->scanner.limit)
-    return pstate->flags & IDL_WRITE ? -1 : 0;
+    return pstate->config.flags & IDL_WRITE ? -1 : 0;
   assert(cur < pstate->scanner.limit);
   return (*cur >= 'a' && *cur <= 'z') ||
          (*cur >= 'A' && *cur <= 'Z') ||
@@ -630,7 +630,7 @@ scan(idl_pstate_t *pstate, idl_lexeme_t *lex)
       pstate->scanner.state = IDL_SCAN_DIRECTIVE;
       lim = cur + 1;
       code = (unsigned char)*cur;
-    } else if ((pstate->flags & IDL_WRITE) && next(pstate, cur) == pstate->scanner.limit) {
+    } else if ((pstate->config.flags & IDL_WRITE) && next(pstate, cur) == pstate->scanner.limit) {
       code = IDL_RETCODE_NEED_REFILL;
     } else {
       pstate->scanner.state = IDL_SCAN_GRAMMAR;
@@ -759,7 +759,7 @@ tokenize(
         goto identifier;
       if (pstate->scanner.state == IDL_SCAN_ANNOTATION_NAME)
         goto identifier;
-      if ((code = idl_iskeyword(pstate, str, !(pstate->flags & IDL_FLAG_CASE_SENSITIVE))))
+      if ((code = idl_iskeyword(pstate, str, !(pstate->config.flags & IDL_FLAG_CASE_SENSITIVE))))
         break;
 identifier:
       pstate->scanner.state = IDL_SCAN_GRAMMAR;

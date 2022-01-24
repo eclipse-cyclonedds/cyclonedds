@@ -976,7 +976,7 @@ bool idl_is_struct(const void *ptr)
      data types is enabled */
 #if 0
   members = ((const idl_struct_t *)node)->members;
-  if (!(pstate->flags & IDL_FLAG_EXTENDED_DATA_TYPES))
+  if (!(pstate->config.flags & IDL_FLAG_EXTENDED_DATA_TYPES))
     assert(members);
   if (members)
     assert(idl_mask(members) & IDL_MEMBER);
@@ -2020,7 +2020,7 @@ idl_is_switch_type_spec(const void *ptr)
     case IDL_WCHAR:
     case IDL_OCTET:
 #if 0
-      assert(pstate->flags & IDL_FLAG_EXTENDED_DATA_TYPES);
+      assert(pstate->config.flags & IDL_FLAG_EXTENDED_DATA_TYPES);
 #endif
       return true;
     default:
@@ -2072,7 +2072,7 @@ idl_create_switch_type_spec(
   static const struct methods methods = { delete_switch_type_spec,
                                           iterate_switch_type_spec,
                                           describe_switch_type_spec };
-  bool ext = (pstate->flags & IDL_FLAG_EXTENDED_DATA_TYPES) != 0;
+  bool ext = (pstate->config.flags & IDL_FLAG_EXTENDED_DATA_TYPES) != 0;
 
   assert(type_spec);
   type = idl_type(idl_unalias(type_spec));

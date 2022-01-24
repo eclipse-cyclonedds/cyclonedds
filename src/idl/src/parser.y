@@ -940,7 +940,7 @@ identifier:
     IDL_TOKEN_IDENTIFIER
       { $$ = NULL;
         size_t n;
-        bool nocase = (pstate->flags & IDL_FLAG_CASE_SENSITIVE) == 0;
+        bool nocase = (pstate->config.flags & IDL_FLAG_CASE_SENSITIVE) == 0;
         if (pstate->parser.state == IDL_PARSE_ANNOTATION_APPL)
           n = 0;
         else if (pstate->parser.state == IDL_PARSE_ANNOTATION)
@@ -1184,7 +1184,7 @@ int idl_iskeyword(idl_pstate_t *pstate, const char *str, int nc)
     case IDL_TOKEN_MAP:
       /* intX and uintX are considered keywords if and only if building block
          extended data-types is enabled */
-      if (!(pstate->flags & IDL_FLAG_EXTENDED_DATA_TYPES))
+      if (!(pstate->config.flags & IDL_FLAG_EXTENDED_DATA_TYPES))
         return 0;
       break;
     default:
