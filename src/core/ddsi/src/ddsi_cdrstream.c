@@ -85,6 +85,14 @@
 #define dds_stream_extract_keyBO_from_data_pl         NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data_pl)
 #define dds_stream_extract_keyBO_from_key             NAME2_BYTE_ORDER(dds_stream_extract_key, _from_key)
 
+#ifndef NDEBUG
+typedef struct align { uint32_t a; } align_t;
+#define ALIGN(n) ((n).a)
+#else
+typedef uint32_t align_t;
+#define ALIGN(n) (n)
+#endif
+
 // Type used by ddsi_cdrstream_keys.part.c to temporarily store key field positions in CDR
 // and the instructions needed for handling it
 struct key_off_info {
@@ -171,15 +179,15 @@ void dds_ostreamBE_fini (dds_ostreamBE_t * __restrict st)
   dds_ostream_fini (&st->x);
 }
 
-static void dds_cdr_alignto (dds_istream_t * __restrict s, uint32_t a)
+static void dds_cdr_alignto (dds_istream_t * __restrict s, align_t a)
 {
-  s->m_index = (s->m_index + a - 1) & ~(a - 1);
+  s->m_index = (s->m_index + ALIGN(a) - 1) & ~(ALIGN(a) - 1);
   assert (s->m_index < s->m_size);
 }
 
-static uint32_t dds_cdr_alignto_clear_and_resize (dds_ostream_t * __restrict s, uint32_t a, uint32_t extra)
+static uint32_t dds_cdr_alignto_clear_and_resize (dds_ostream_t * __restrict s, align_t a, uint32_t extra)
 {
-  const uint32_t m = s->m_index % a;
+  const uint32_t m = s->m_index % ALIGN(a);
   if (m == 0)
   {
     dds_cdr_resize (s, extra);
@@ -187,7 +195,7 @@ static uint32_t dds_cdr_alignto_clear_and_resize (dds_ostream_t * __restrict s, 
   }
   else
   {
-    const uint32_t pad = a - m;
+    const uint32_t pad = ALIGN(a) - m;
     dds_cdr_resize (s, pad + extra);
     for (uint32_t i = 0; i < pad; i++)
       s->m_buffer[s->m_index++] = 0;
@@ -195,16 +203,22 @@ static uint32_t dds_cdr_alignto_clear_and_resize (dds_ostream_t * __restrict s, 
   }
 }
 
-static uint32_t dds_cdr_alignto_clear_and_resizeBE (dds_ostreamBE_t * __restrict s, uint32_t a, uint32_t extra)
+static uint32_t dds_cdr_alignto_clear_and_resizeBE (dds_ostreamBE_t * __restrict s, align_t a, uint32_t extra)
 {
   return dds_cdr_alignto_clear_and_resize (&s->x, a, extra);
 }
 
-static uint32_t xcdr_max_align (uint32_t xcdr_version, uint32_t align)
+static inline align_t get_align (uint32_t xcdr_version, uint32_t size)
 {
-  if (align > 4)
-    return xcdr_version == CDR_ENC_VERSION_2 ? 4 : 8;
-  return align;
+#ifndef NDEBUG
+#define MK_ALIGN(n) (struct align){(n)}
+#else
+#define MK_ALIGN(n) (n)
+#endif
+  if (size > 4)
+    return xcdr_version == CDR_ENC_VERSION_2 ? MK_ALIGN(4) : MK_ALIGN(8);
+  return MK_ALIGN(size);
+#undef MK_ALIGN
 }
 
 static uint8_t dds_is_get1 (dds_istream_t * __restrict s)
@@ -217,7 +231,7 @@ static uint8_t dds_is_get1 (dds_istream_t * __restrict s)
 
 static uint16_t dds_is_get2 (dds_istream_t * __restrict s)
 {
-  dds_cdr_alignto (s, 2);
+  dds_cdr_alignto (s, get_align (s->m_xcdr_version, 2));
   uint16_t v = * ((uint16_t *) (s->m_buffer + s->m_index));
   s->m_index += 2;
   return v;
@@ -225,7 +239,7 @@ static uint16_t dds_is_get2 (dds_istream_t * __restrict s)
 
 static uint32_t dds_is_get4 (dds_istream_t * __restrict s)
 {
-  dds_cdr_alignto (s, 4);
+  dds_cdr_alignto (s, get_align (s->m_xcdr_version, 4));
   uint32_t v = * ((uint32_t *) (s->m_buffer + s->m_index));
   s->m_index += 4;
   return v;
@@ -233,14 +247,14 @@ static uint32_t dds_is_get4 (dds_istream_t * __restrict s)
 
 static uint32_t dds_is_peek4 (dds_istream_t * __restrict s)
 {
-  dds_cdr_alignto (s, 4);
+  dds_cdr_alignto (s, get_align (s->m_xcdr_version, 4));
   uint32_t v = * ((uint32_t *) (s->m_buffer + s->m_index));
   return v;
 }
 
 static uint64_t dds_is_get8 (dds_istream_t * __restrict s)
 {
-  dds_cdr_alignto (s, xcdr_max_align (s->m_xcdr_version, 8));
+  dds_cdr_alignto (s, get_align (s->m_xcdr_version, 8));
   size_t off_low = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 0 : 4, off_high = 4 - off_low;
   uint32_t v_low = * ((uint32_t *) (s->m_buffer + s->m_index + off_low)),
     v_high = * ((uint32_t *) (s->m_buffer + s->m_index + off_high));
@@ -251,8 +265,7 @@ static uint64_t dds_is_get8 (dds_istream_t * __restrict s)
 
 static void dds_is_get_bytes (dds_istream_t * __restrict s, void * __restrict b, uint32_t num, uint32_t elem_size)
 {
-  const uint32_t align = xcdr_max_align (s->m_xcdr_version, elem_size);
-  dds_cdr_alignto (s, align);
+  dds_cdr_alignto (s, get_align (s->m_xcdr_version, elem_size));
   memcpy (b, s->m_buffer + s->m_index, num * elem_size);
   s->m_index += num * elem_size;
 }
@@ -266,22 +279,21 @@ static void dds_os_put1 (dds_ostream_t * __restrict s, uint8_t v)
 
 static void dds_os_put2 (dds_ostream_t * __restrict s, uint16_t v)
 {
-  dds_cdr_alignto_clear_and_resize (s, 2, 2);
+  dds_cdr_alignto_clear_and_resize (s, get_align (s->m_xcdr_version, 2), 2);
   *((uint16_t *) (s->m_buffer + s->m_index)) = v;
   s->m_index += 2;
 }
 
 static void dds_os_put4 (dds_ostream_t * __restrict s, uint32_t v)
 {
-  dds_cdr_alignto_clear_and_resize (s, 4, 4);
+  dds_cdr_alignto_clear_and_resize (s, get_align (s->m_xcdr_version, 4), 4);
   *((uint32_t *) (s->m_buffer + s->m_index)) = v;
   s->m_index += 4;
 }
 
 static void dds_os_put8 (dds_ostream_t * __restrict s, uint64_t v)
 {
-  uint32_t align = xcdr_max_align (s->m_xcdr_version, 8);
-  dds_cdr_alignto_clear_and_resize (s, align, 8);
+  dds_cdr_alignto_clear_and_resize (s, get_align (s->m_xcdr_version, 8), 8);
   size_t off_low = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 0 : 4, off_high = 4 - off_low;
   *((uint32_t *) (s->m_buffer + s->m_index + off_low)) = (uint32_t) v;
   *((uint32_t *) (s->m_buffer + s->m_index + off_high)) = (uint32_t) (v >> 32);
@@ -290,15 +302,14 @@ static void dds_os_put8 (dds_ostream_t * __restrict s, uint64_t v)
 
 static uint32_t dds_os_reserve4 (dds_ostream_t * __restrict s)
 {
-  dds_cdr_alignto_clear_and_resize (s, 4, 4);
+  dds_cdr_alignto_clear_and_resize (s, get_align (s->m_xcdr_version, 4), 4);
   s->m_index += 4;
   return s->m_index;
 }
 
 static uint32_t dds_os_reserve8 (dds_ostream_t * __restrict s)
 {
-  uint32_t align = xcdr_max_align (s->m_xcdr_version, 8);
-  dds_cdr_alignto_clear_and_resize (s, align, 8);
+  dds_cdr_alignto_clear_and_resize (s, get_align (s->m_xcdr_version, 8), 8);
   s->m_index += 8;
   return s->m_index;
 }
@@ -352,7 +363,7 @@ static void dds_os_put_bytes (dds_ostream_t * __restrict s, const void * __restr
   s->m_index += l;
 }
 
-static void dds_os_put_bytes_aligned (dds_ostream_t * __restrict os, const void * __restrict data, uint32_t num, uint32_t elem_sz, uint32_t align, void **dst)
+static void dds_os_put_bytes_aligned (dds_ostream_t * __restrict os, const void * __restrict data, uint32_t num, uint32_t elem_sz, align_t align, void **dst)
 {
   const uint32_t sz = num * elem_sz;
   dds_cdr_alignto_clear_and_resize (os, align, sz);
@@ -493,7 +504,8 @@ static inline bool op_type_base (const uint32_t insn)
 static uint32_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc * __restrict desc, uint32_t xcdr_version, const uint32_t *ops, uint32_t off, uint32_t member_offs)
 {
 #define ALLOW_ENUM 0 // enums need validation on input; FIXME: should distinguish between read & write
-  uint32_t size, align, insn;
+  uint32_t size, insn;
+  align_t align;
   while ((insn = *ops) != DDS_OP_RTS)
   {
     if (DDS_OP (insn) != DDS_OP_ADR)
@@ -512,9 +524,9 @@ static uint32_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_de
       case DDS_OP_VAL_ENU:
 #endif
         size = get_type_size (DDS_OP_TYPE (insn));
-        align = xcdr_max_align (xcdr_version, size);
-        if (off % align)
-          off += align - (off % align);
+        align = get_align (xcdr_version, size);
+        if (off % ALIGN(align))
+          off += ALIGN(align) - (off % ALIGN(align));
         if (member_offs + ops[1] != off)
           return 0;
         off += size;
@@ -535,9 +547,9 @@ static uint32_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_de
           case DDS_OP_VAL_ENU:
 #endif
             size = get_type_size (DDS_OP_SUBTYPE (insn));
-            align = xcdr_max_align (xcdr_version, size);
-            if (off % align)
-              off += align - (off % align);
+            align = get_align (xcdr_version, size);
+            if (off % ALIGN(align))
+              off += ALIGN(align) - (off % ALIGN(align));
             if (member_offs + ops[1] != off)
               return 0;
             off += size * ops[2];
@@ -2805,7 +2817,7 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t * __restrict 
       const uint32_t subtype = DDS_OP_SUBTYPE (*op);
       assert (subtype <= DDS_OP_VAL_8BY);
       const uint32_t elem_size = get_type_size (subtype);
-      const uint32_t align = xcdr_max_align (os->m_xcdr_version, elem_size);
+      const align_t align = get_align (os->m_xcdr_version, elem_size);
       const uint32_t num = op[2];
       dds_cdr_alignto_clear_and_resize (os, align, num * elem_size);
       void * const dst = os->m_buffer + os->m_index;
@@ -2883,7 +2895,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
       const uint32_t subtype = DDS_OP_SUBTYPE (*op);
       assert (subtype <= DDS_OP_VAL_8BY);
       const uint32_t elem_size = get_type_size (subtype);
-      const uint32_t align = xcdr_max_align (os->x.m_xcdr_version, elem_size);
+      const align_t align = get_align (os->x.m_xcdr_version, elem_size);
       const uint32_t num = op[2];
       dds_cdr_alignto (is, align);
       dds_cdr_alignto_clear_and_resizeBE (os, align, num * elem_size);
@@ -2915,16 +2927,9 @@ static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t * __res
 {
   switch (subtype)
   {
-    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_ENU: {
+    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_ENU: {
       const uint32_t elem_size = get_type_size (subtype);
-      dds_cdr_alignto (is, elem_size);
-      is->m_index += num * elem_size;
-      break;
-    }
-    case DDS_OP_VAL_8BY: {
-      const uint32_t elem_size = 8;
-      const uint32_t align = xcdr_max_align (is->m_xcdr_version, 8);
-      dds_cdr_alignto (is, align);
+      dds_cdr_alignto (is, get_align (is->m_xcdr_version, elem_size));
       is->m_index += num * elem_size;
       break;
     }
@@ -3690,12 +3695,10 @@ void dds_ostream_from_serdata_default (dds_ostream_t * __restrict s, const struc
 void dds_ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct ddsi_serdata_default ** __restrict d)
 {
   /* DDSI requires 4 byte alignment */
-
-  const uint32_t pad = dds_cdr_alignto_clear_and_resize (s, 4, 0);
+  const uint32_t pad = dds_cdr_alignto_clear_and_resize (s, get_align (s->m_xcdr_version, 4), 0);
   assert (pad <= 3);
 
   /* Reset data pointer as stream may have reallocated */
-
   (*d) = (void *) s->m_buffer;
   (*d)->pos = (s->m_index - (uint32_t) offsetof (struct ddsi_serdata_default, data));
   (*d)->size = (s->m_size - (uint32_t) offsetof (struct ddsi_serdata_default, data));
