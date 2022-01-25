@@ -62,7 +62,7 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
         /* fall through */
       case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
         const uint32_t elem_size = get_type_size (subtype);
-        const uint32_t align = is_xcdr2 && subtype == DDS_OP_VAL_8BY ? 4 : elem_size;
+        const uint32_t align = xcdr_max_align (((struct dds_ostream *)os)->m_xcdr_version, elem_size);
         void * dst;
         /* Combining put bytes and swap into a single step would improve the performance
            of writing data in non-native endianess. But in most cases the data will
@@ -119,7 +119,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   uint32_t offs = 0;
   bool is_xcdr2 = ((struct dds_ostream *)os)->m_xcdr_version == CDR_ENC_VERSION_2;
-  if (subtype > DDS_OP_VAL_8BY && ((struct dds_ostream *)os)->m_xcdr_version == CDR_ENC_VERSION_2)
+  if (subtype > DDS_OP_VAL_8BY && is_xcdr2)
   {
     /* reserve space for DHEADER */
     dds_os_reserve4BO (os);
@@ -133,7 +133,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
       /* fall through */
     case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
       const uint32_t elem_size = get_type_size (subtype);
-      const uint32_t align = is_xcdr2 && subtype == DDS_OP_VAL_8BY ? 4 : elem_size;
+      const uint32_t align = xcdr_max_align (((struct dds_ostream *)os)->m_xcdr_version, elem_size);
       void * dst;
       /* See comment for stream_write_seq, swap is a no-op in most cases */
       dds_os_put_bytes_aligned ((struct dds_ostream *)os, addr, num, elem_size, align, &dst);
