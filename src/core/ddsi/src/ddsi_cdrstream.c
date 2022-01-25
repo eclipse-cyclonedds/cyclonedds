@@ -240,7 +240,7 @@ static uint32_t dds_is_peek4 (dds_istream_t * __restrict s)
 
 static uint64_t dds_is_get8 (dds_istream_t * __restrict s)
 {
-  dds_cdr_alignto (s, s->m_xcdr_version == CDR_ENC_VERSION_2 ? 4 : 8);
+  dds_cdr_alignto (s, xcdr_max_align (s->m_xcdr_version, 8));
   size_t off_low = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 0 : 4, off_high = 4 - off_low;
   uint32_t v_low = * ((uint32_t *) (s->m_buffer + s->m_index + off_low)),
     v_high = * ((uint32_t *) (s->m_buffer + s->m_index + off_high));
@@ -251,7 +251,8 @@ static uint64_t dds_is_get8 (dds_istream_t * __restrict s)
 
 static void dds_is_get_bytes (dds_istream_t * __restrict s, void * __restrict b, uint32_t num, uint32_t elem_size)
 {
-  dds_cdr_alignto (s, elem_size);
+  const uint32_t align = xcdr_max_align (s->m_xcdr_version, elem_size);
+  dds_cdr_alignto (s, align);
   memcpy (b, s->m_buffer + s->m_index, num * elem_size);
   s->m_index += num * elem_size;
 }
@@ -2892,9 +2893,10 @@ static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t * __res
       break;
     }
     case DDS_OP_VAL_8BY: {
-      const uint32_t elem_size = is->m_xcdr_version == CDR_ENC_VERSION_2 ? 4 : 8;
-      dds_cdr_alignto (is, elem_size);
-      is->m_index += num * 8;
+      const uint32_t elem_size = 8;
+      const uint32_t align = xcdr_max_align (is->m_xcdr_version, 8);
+      dds_cdr_alignto (is, align);
+      is->m_index += num * elem_size;
       break;
     }
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: {

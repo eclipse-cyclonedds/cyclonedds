@@ -22,6 +22,7 @@ set(_sources
   test_union_external.idl
   test_optional.idl
   test_optional_mutable.idl
+  test_struct_alignment.idl
   test_struct_r.idl
   test_union_member_types_r.idl
   test_union_r.idl
