@@ -25,7 +25,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
     case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, addr); break;
     case DDS_OP_VAL_ARR: {
       const uint32_t elem_size = get_type_size (DDS_OP_SUBTYPE (*insnp));
-      const uint32_t align = xcdr_max_align (((struct dds_ostream *)os)->m_xcdr_version, elem_size);
+      const align_t align = get_align (((struct dds_ostream *)os)->m_xcdr_version, elem_size);
       const uint32_t num = insnp[2];
       dds_cdr_alignto_clear_and_resizeBO (os, align, num * elem_size);
       void * const dst = ((struct dds_ostream *)os)->m_buffer + ((struct dds_ostream *)os)->m_index;
