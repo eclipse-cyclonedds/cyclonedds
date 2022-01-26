@@ -201,7 +201,7 @@ static void serdata_pserop_to_ser_unref (struct ddsi_serdata *serdata_common, co
 static struct ddsi_serdata *serdata_pserop_from_sample (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
 {
   const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)tpcmn;
-  const struct { uint16_t identifier, options; } header = { ddsi_sertype_get_native_encoding_identifier (CDR_ENC_VERSION_1, tp->encoding_format), 0 };
+  const struct { uint16_t identifier, options; } header = { ddsi_sertype_get_native_enc_identifier (CDR_ENC_VERSION_1, tp->encoding_format), 0 };
   if (kind == SDK_KEY && tp->ops_key == NULL)
     return serdata_pserop_fix (tp, serdata_pserop_new (tp, kind, 0, &header));
   else

@@ -92,6 +92,8 @@ DDS_EXPORT size_t dds_stream_print_sample (dds_istream_t * __restrict is, const 
 
 DDS_EXPORT uint16_t dds_stream_minimum_xcdr_version (const uint32_t * __restrict ops);
 DDS_EXPORT uint32_t dds_stream_type_nesting_depth (const uint32_t * __restrict ops);
+DDS_EXPORT bool dds_stream_extensibility (const uint32_t * __restrict ops, enum ddsi_sertype_extensibility *ext);
+
 
 #if defined (__cplusplus)
 }

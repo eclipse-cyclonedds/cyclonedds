@@ -2442,13 +2442,15 @@ static const uint32_t *stream_normalize_data_impl (char * __restrict data, uint3
         break;
       }
       case DDS_OP_DLC: {
-        assert (xcdr_version == CDR_ENC_VERSION_2);
+        if (xcdr_version != CDR_ENC_VERSION_2)
+          return NULL;
         if ((ops = stream_normalize_delimited (data, off, size, bswap, xcdr_version, ops)) == NULL)
           return NULL;
         break;
       }
       case DDS_OP_PLC: {
-        assert (xcdr_version == CDR_ENC_VERSION_2);
+        if (xcdr_version != CDR_ENC_VERSION_2)
+          return NULL;
         if ((ops = stream_normalize_pl (data, off, size, bswap, xcdr_version, ops)) == NULL)
           return NULL;
         break;
@@ -2520,14 +2522,14 @@ static bool stream_normalize_key (void * __restrict data, uint32_t size, bool bs
   return true;
 }
 
-bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_sertype_default * __restrict topic, bool just_key, uint32_t * __restrict actual_size)
+bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_sertype_default * __restrict sertype, bool just_key, uint32_t * __restrict actual_size)
 {
   uint32_t off = 0;
   if (size > CDR_SIZE_MAX)
     return false;
   else if (just_key)
-    return stream_normalize_key (data, size, bswap, xcdr_version, &topic->type, actual_size);
-  else if (!stream_normalize_data_impl (data, &off, size, bswap, xcdr_version, topic->type.ops.ops, false))
+    return stream_normalize_key (data, size, bswap, xcdr_version, &sertype->type, actual_size);
+  else if (!stream_normalize_data_impl (data, &off, size, bswap, xcdr_version, sertype->type.ops.ops, false))
     return false;
   else
   {
@@ -3676,7 +3678,7 @@ void dds_istream_from_serdata_default (dds_istream_t * __restrict s, const struc
 #elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
   assert (!CDR_ENC_LE (d->hdr.identifier));
 #endif
-  s->m_xcdr_version = get_xcdr_version (d->hdr.identifier);
+  s->m_xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
 }
 
 void dds_ostream_from_serdata_default (dds_ostream_t * __restrict s, const struct ddsi_serdata_default * __restrict d)
@@ -3689,7 +3691,7 @@ void dds_ostream_from_serdata_default (dds_ostream_t * __restrict s, const struc
 #elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
   assert (!CDR_ENC_LE (d->hdr.identifier));
 #endif
-  s->m_xcdr_version = get_xcdr_version (d->hdr.identifier);
+  s->m_xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
 }
 
 void dds_ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct ddsi_serdata_default ** __restrict d)
@@ -3707,13 +3709,43 @@ void dds_ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct dd
 
 /* Gets the (minimum) extensibility of the types used for this topic, and returns the XCDR
    version that is required for (de)serializing the type for this topic descriptor */
-// FIXME: move this check to idl-compile time?
 uint16_t dds_stream_minimum_xcdr_version (const uint32_t * __restrict ops)
 {
   uint16_t min_xcdrv = CDR_ENC_VERSION_1;
   const uint32_t *ops_end = ops;
   dds_stream_countops1 (ops, &ops_end, &min_xcdrv, 0, NULL);
   return min_xcdrv;
+}
+
+/* Gets the extensibility of the top-level type for a topic, by inspecting the serializer ops */
+bool dds_stream_extensibility (const uint32_t * __restrict ops, enum ddsi_sertype_extensibility *ext)
+{
+  uint32_t insn;
+
+  assert (ext);
+  while ((insn = *ops) != DDS_OP_RTS)
+  {
+    switch (DDS_OP (insn))
+    {
+      case DDS_OP_ADR:
+        *ext = DDSI_SERTYPE_EXT_FINAL;
+        return true;
+      case DDS_OP_JSR:
+        if (DDS_OP_JUMP (insn) > 0)
+          return dds_stream_extensibility (ops + DDS_OP_JUMP (insn), ext);
+        break;
+      case DDS_OP_DLC:
+        *ext = DDSI_SERTYPE_EXT_APPENDABLE;
+        return true;
+      case DDS_OP_PLC:
+        *ext = DDSI_SERTYPE_EXT_MUTABLE;
+        return true;
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
+        abort ();
+        break;
+    }
+  }
+  return false;
 }
 
 uint32_t dds_stream_type_nesting_depth (const uint32_t * __restrict ops)

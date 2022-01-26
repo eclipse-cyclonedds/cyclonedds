@@ -49,8 +49,6 @@ static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct
     return false;
   if (a->type.flagset != b->type.flagset)
     return false;
-  if (a->type.extensibility != b->type.extensibility)
-    return false;
   if (a->type.keys.nkeys != b->type.keys.nkeys)
     return false;
   if (
@@ -136,7 +134,6 @@ static uint32_t sertype_default_hash (const struct ddsi_sertype *tpcmn)
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->type.size, sizeof (tp->type.size));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->type.align, sizeof (tp->type.align));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->type.flagset, sizeof (tp->type.flagset));
-  ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->type.extensibility, sizeof (tp->type.extensibility));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->type.keys.keys, (uint32_t) (tp->type.keys.nkeys * sizeof (*tp->type.keys.keys)));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->type.ops.ops, (uint32_t) (tp->type.ops.nops * sizeof (*tp->type.ops.ops)));
   ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf);
@@ -320,9 +317,13 @@ dds_return_t ddsi_sertype_default_init (const struct ddsi_domaingv *gv, struct d
       abort ();
   }
 
-  DDSRT_STATIC_ASSERT (DDSI_SERTYPE_EXT_FINAL == DDS_TOPIC_TYPE_EXTENSIBILITY (DDS_TOPIC_TYPE_EXTENSIBILITY_FINAL));
-  DDSRT_STATIC_ASSERT (DDSI_SERTYPE_EXT_APPENDABLE == DDS_TOPIC_TYPE_EXTENSIBILITY (DDS_TOPIC_TYPE_EXTENSIBILITY_APPENDABLE));
-  DDSRT_STATIC_ASSERT (DDSI_SERTYPE_EXT_MUTABLE == DDS_TOPIC_TYPE_EXTENSIBILITY (DDS_TOPIC_TYPE_EXTENSIBILITY_MUTABLE));
+  /* Get the extensility of the outermost object in the type used for the topic. Note that the
+     outermost type can have a different extensibility than nested types used in this type;
+     the extensibility that is returned here is used to set the CDR encapsulation identifier,
+     but nested types can use a different data representation format (not version) */
+  enum ddsi_sertype_extensibility type_ext;
+  if (!dds_stream_extensibility (desc->m_ops, &type_ext))
+    return DDS_RETCODE_BAD_PARAMETER;
 
   ddsi_sertype_init (&st->c, desc->m_typename, &ddsi_sertype_ops_default, serdata_ops, (desc->m_nkeys == 0));
 #ifdef DDS_HAS_SHM
@@ -330,13 +331,12 @@ dds_return_t ddsi_sertype_default_init (const struct ddsi_domaingv *gv, struct d
 #endif
   st->c.fixed_size = (st->c.fixed_size || (desc->m_flagset & DDS_TOPIC_FIXED_SIZE)) ? 1u : 0u;
   st->c.min_xcdrv = min_xcdrv;
-  st->encoding_format = ddsi_sertype_get_encoding_format (DDS_TOPIC_TYPE_EXTENSIBILITY (desc->m_flagset));
+  st->encoding_format = ddsi_sertype_extensibility_enc_format (type_ext);
   st->encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? CDR_ENC_VERSION_1 : CDR_ENC_VERSION_2;
   st->serpool = gv->serpool;
   st->type.size = desc->m_size;
   st->type.align = desc->m_align;
-  st->type.flagset = desc->m_flagset & DDS_TOPIC_FLAGS_MASK;
-  st->type.extensibility = (uint32_t) DDS_TOPIC_TYPE_EXTENSIBILITY (desc->m_flagset);
+  st->type.flagset = desc->m_flagset;
   st->type.keys.nkeys = desc->m_nkeys;
   st->type.keys.keys = ddsrt_malloc (st->type.keys.nkeys  * sizeof (*st->type.keys.keys));
   for (uint32_t i = 0; i < st->type.keys.nkeys; i++)

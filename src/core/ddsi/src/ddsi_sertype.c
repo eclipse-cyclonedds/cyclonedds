@@ -213,7 +213,7 @@ uint32_t ddsi_sertype_compute_serdata_basehash (const struct ddsi_serdata_ops *o
   return res;
 }
 
-uint16_t ddsi_sertype_get_native_encoding_identifier (uint32_t enc_version, uint32_t enc_format)
+uint16_t ddsi_sertype_get_native_enc_identifier (uint32_t enc_version, uint32_t enc_format)
 {
 #define CONCAT_(a,b) (a ## b)
 #define CONCAT(id,suffix) CONCAT_(id,suffix)
@@ -244,7 +244,7 @@ uint16_t ddsi_sertype_get_native_encoding_identifier (uint32_t enc_version, uint
 #undef CONCAT_
 }
 
-uint16_t ddsi_sertype_get_encoding_format (enum ddsi_sertype_extensibility type_extensibility)
+uint16_t ddsi_sertype_extensibility_enc_format (enum ddsi_sertype_extensibility type_extensibility)
 {
   switch (type_extensibility)
   {
@@ -259,7 +259,7 @@ uint16_t ddsi_sertype_get_encoding_format (enum ddsi_sertype_extensibility type_
   }
 }
 
-uint32_t get_xcdr_version (uint16_t cdr_identifier)
+uint32_t ddsi_sertype_enc_id_xcdr_version (uint16_t cdr_identifier)
 {
   switch (cdr_identifier)
   {
@@ -271,6 +271,22 @@ uint32_t get_xcdr_version (uint16_t cdr_identifier)
       return CDR_ENC_VERSION_2;
     default:
       return CDR_ENC_VERSION_UNDEF;
+  }
+}
+
+uint32_t ddsi_sertype_enc_id_enc_format (uint16_t cdr_identifier)
+{
+  switch (cdr_identifier)
+  {
+    case CDR_LE: case CDR_BE:
+    case CDR2_LE: case CDR2_BE:
+      return CDR_ENC_FORMAT_PLAIN;
+    case D_CDR2_LE: case D_CDR2_BE:
+      return CDR_ENC_FORMAT_DELIMITED;
+    case PL_CDR2_LE: case PL_CDR2_BE:
+      return CDR_ENC_FORMAT_PL;
+    default:
+      abort ();
   }
 }
 
