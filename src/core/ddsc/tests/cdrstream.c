@@ -712,7 +712,7 @@ static const uint32_t TestIdl_AppendableMsg_ops [] =
   DDS_OP_RTS,
 };
 
-const dds_topic_descriptor_t TestIdl_MsgAppendable_desc = { sizeof (TestIdl_AppendableMsg), 4u, DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_TYPE_EXTENSIBILITY_APPENDABLE, 0u, "TestIdl::AppendableMsg", NULL, 4, TestIdl_AppendableMsg_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgAppendable_desc = { sizeof (TestIdl_AppendableMsg), 4u, DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl::AppendableMsg", NULL, 4, TestIdl_AppendableMsg_ops, "" };
 
 static void * sample_init_appendable (void)
 {

@@ -265,7 +265,6 @@ enum dds_stream_typecode_subtype {
                                       an optional member also gets the FLAG_EXT, see above. */
 
 /* Topic descriptor flag values */
-#define DDS_TOPIC_FLAGS_MASK                    0x3fffffff  /* The 2 most significant bits are used for type extensibility */
 #define DDS_TOPIC_NO_OPTIMIZE                   (1u << 0)
 #define DDS_TOPIC_FIXED_KEY                     (1u << 1)   /* Set if the XCDR1 serialized key fits in 16 bytes */
 #define DDS_TOPIC_CONTAINS_UNION                (1u << 2)
@@ -276,13 +275,6 @@ enum dds_stream_typecode_subtype {
 
 /* Max size of fixed key */
 #define DDS_FIXED_KEY_MAX_SIZE (16)
-
-
-#define DDS_TOPIC_TYPE_EXTENSIBILITY_MASK       0xc0000000
-#define DDS_TOPIC_TYPE_EXTENSIBILITY(fs)        (((fs) & DDS_TOPIC_TYPE_EXTENSIBILITY_MASK) >> 30)
-#define DDS_TOPIC_TYPE_EXTENSIBILITY_FINAL      (0u << 30)
-#define DDS_TOPIC_TYPE_EXTENSIBILITY_APPENDABLE (1u << 30)
-#define DDS_TOPIC_TYPE_EXTENSIBILITY_MUTABLE    (2u << 30)
 
 #if defined(__cplusplus)
 }

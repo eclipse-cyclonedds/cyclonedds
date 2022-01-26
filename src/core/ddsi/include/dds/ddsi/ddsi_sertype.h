@@ -197,10 +197,10 @@ DDS_EXPORT uint32_t ddsi_sertype_compute_serdata_basehash (const struct ddsi_ser
 DDS_EXPORT bool ddsi_sertype_equal (const struct ddsi_sertype *a, const struct ddsi_sertype *b);
 DDS_EXPORT uint32_t ddsi_sertype_hash (const struct ddsi_sertype *tp);
 
-DDS_EXPORT uint16_t ddsi_sertype_get_encoding_format (enum ddsi_sertype_extensibility type_extensibility);
-DDS_EXPORT uint16_t ddsi_sertype_get_native_encoding_identifier (uint32_t enc_version, uint32_t encoding_format);
-DDS_EXPORT uint32_t get_xcdr_version (uint16_t cdr_identifier);
-
+DDS_EXPORT uint16_t ddsi_sertype_extensibility_enc_format (enum ddsi_sertype_extensibility type_extensibility);
+DDS_EXPORT uint16_t ddsi_sertype_get_native_enc_identifier (uint32_t enc_version, uint32_t encoding_format);
+DDS_EXPORT uint32_t ddsi_sertype_enc_id_xcdr_version (uint16_t cdr_identifier);
+DDS_EXPORT uint32_t ddsi_sertype_enc_id_enc_format (uint16_t cdr_identifier);
 
 DDS_INLINE_EXPORT inline void ddsi_sertype_free (struct ddsi_sertype *tp) {
   tp->ops->free (tp);

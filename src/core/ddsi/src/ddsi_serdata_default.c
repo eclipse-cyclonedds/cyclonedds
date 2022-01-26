@@ -164,7 +164,7 @@ static void serdata_default_init(struct ddsi_serdata_default *d, const struct dd
   d->fixed = false;
 #endif
   if (xcdr_version != CDR_ENC_VERSION_UNDEF)
-    d->hdr.identifier = ddsi_sertype_get_native_encoding_identifier (xcdr_version, tp->encoding_format);
+    d->hdr.identifier = ddsi_sertype_get_native_enc_identifier (xcdr_version, tp->encoding_format);
   else
     d->hdr.identifier = 0;
   d->hdr.options = 0;
@@ -333,7 +333,11 @@ static struct ddsi_serdata_default *serdata_default_from_ser_common (const struc
   const bool needs_bswap = !CDR_ENC_IS_NATIVE (d->hdr.identifier);
   d->hdr.identifier = CDR_ENC_TO_NATIVE (d->hdr.identifier);
   const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & 2;
-  const uint32_t xcdr_version = get_xcdr_version (d->hdr.identifier);
+  const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
+  const uint32_t encoding_format = ddsi_sertype_enc_id_enc_format (d->hdr.identifier);
+  if (encoding_format != tp->encoding_format)
+    return NULL;
+
   uint32_t actual_size;
   if (d->pos < pad)
   {
@@ -348,7 +352,7 @@ static struct ddsi_serdata_default *serdata_default_from_ser_common (const struc
   else
   {
     dds_istream_t is;
-    dds_istream_init (&is, actual_size, d->data, get_xcdr_version (d->hdr.identifier));
+    dds_istream_init (&is, actual_size, d->data, xcdr_version);
     if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
     {
       ddsi_serdata_unref (&d->c);
@@ -391,7 +395,11 @@ static struct ddsi_serdata_default *serdata_default_from_ser_iov_common (const s
   const bool needs_bswap = !CDR_ENC_IS_NATIVE (d->hdr.identifier);
   d->hdr.identifier = CDR_ENC_TO_NATIVE (d->hdr.identifier);
   const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & 2;
-  const uint32_t xcdr_version = get_xcdr_version (d->hdr.identifier);
+  const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
+  const uint32_t encoding_format = ddsi_sertype_enc_id_enc_format (d->hdr.identifier);
+  if (encoding_format != tp->encoding_format)
+    return NULL;
+
   uint32_t actual_size;
   if (d->pos < pad)
   {
@@ -406,7 +414,7 @@ static struct ddsi_serdata_default *serdata_default_from_ser_iov_common (const s
   else
   {
     dds_istream_t is;
-    dds_istream_init (&is, actual_size, d->data, get_xcdr_version (d->hdr.identifier));
+    dds_istream_init (&is, actual_size, d->data, ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier));
     if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
     {
       ddsi_serdata_unref (&d->c);
@@ -678,7 +686,7 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
     void* iox_chunk = d->c.iox_chunk;
     iceoryx_header_t* hdr = iceoryx_header_from_chunk(iox_chunk);
     if(hdr->shm_data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {
-      dds_istream_init (&is, hdr->data_size, iox_chunk, get_xcdr_version(d->hdr.identifier));
+      dds_istream_init (&is, hdr->data_size, iox_chunk, ddsi_sertype_enc_id_xcdr_version(d->hdr.identifier));
       assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));
       if (d->c.kind == SDK_KEY)
         dds_stream_read_key (&is, sample, tp);
@@ -751,7 +759,7 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
   // As nobody should be using the DDSI keyhash, the price to pay for the conversion looks like
   // a price worth paying
 
-  uint32_t xcdrv = get_xcdr_version (d->hdr.identifier);
+  uint32_t xcdrv = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
 
   /* serdata has a XCDR2 serialized key, so initializer the istream with this version
      and with the size of that key (d->key.keysize) */
