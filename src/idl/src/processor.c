@@ -402,13 +402,7 @@ static idl_retcode_t validate_must_understand(idl_pstate_t *pstate, void *root)
 
 static idl_retcode_t set_type_extensibility(idl_pstate_t *pstate)
 {
-  idl_retcode_t ret = IDL_RETCODE_OK;
-  idl_extensibility_t def_ext = pstate->config.default_extensibility >= 0 ? (idl_extensibility_t) pstate->config.default_extensibility : IDL_FINAL;
-  uint32_t num_ext_undefined = 0;
-
-  if ((ret = idl_set_default_extensibility_recursive(pstate->root, def_ext, &num_ext_undefined)) < 0)
-    return ret;
-  if (num_ext_undefined > 0 && pstate->config.default_extensibility == IDL_DEFAULT_EXTENSIBILITY_UNDEFINED) {
+  if (pstate->config.default_extensibility == IDL_DEFAULT_EXTENSIBILITY_UNDEFINED && idl_has_unset_extensibility_r(pstate->root)) {
     idl_warning(pstate, IDL_WARN_IMPLICIT_EXTENSIBILITY, NULL,
       "No default extensibility provided. For one or more of the "
       "aggregated types in the IDL the extensibility is not explicitly set. "
@@ -416,7 +410,7 @@ static idl_retcode_t set_type_extensibility(idl_pstate_t *pstate)
       "may change to 'appendable' in a future release because that is the "
       "default in the DDS XTypes specification.");
   }
-  return ret;
+  return IDL_RETCODE_OK;
 }
 
 idl_retcode_t idl_parse(idl_pstate_t *pstate)

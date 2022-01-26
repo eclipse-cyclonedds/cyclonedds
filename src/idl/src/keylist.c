@@ -304,7 +304,6 @@ void idl_set_keylist_key_flags(idl_pstate_t *pstate, void *list)
             assert(idl_is_member(m));
             m->key.value = true;
             m->key.annotation = NULL;
-            m->key.implicit = true;
             key_names.length--;
           }
         }

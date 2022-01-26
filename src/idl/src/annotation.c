@@ -551,23 +551,18 @@ set_implicitly_nested(void *node)
   for (; ret == IDL_RETCODE_OK && node; node = idl_next(node)) {
     if (idl_is_struct(node)) {
       /* skip if annotated with @nested or @topic before */
-      if (!((idl_struct_t *)node)->nested.annotation) {
+      if (!((idl_struct_t *)node)->nested.annotation)
         ((idl_struct_t *)node)->nested.value = true;
-        ((idl_struct_t *)node)->nested.implicit = true;
-      }
     } else if (idl_is_union(node)) {
       /* skip if annotated with @nested or @topic before */
-      if (!((idl_union_t *)node)->nested.annotation) {
+      if (!((idl_union_t *)node)->nested.annotation)
         ((idl_union_t *)node)->nested.value = true;
-        ((idl_union_t *)node)->nested.implicit = true;
-      }
     } else if (idl_is_module(node)) {
       idl_module_t *module = node;
       /* skip if annotated with @default_nested before */
       if (module->default_nested.annotation)
         continue;
       module->default_nested.value = true;
-      module->default_nested.implicit = true;
       ret = set_implicitly_nested(module->definitions);
     }
   }
