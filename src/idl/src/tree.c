@@ -2407,9 +2407,10 @@ idl_create_enum(
     e1->node.parent = (idl_node_t*)node;
     if (e1->value.annotation)
       value = e1->value.value;
-    else
+    else {
       e1->value.implicit = true;
-    e1->value.value = value;
+      e1->value.value = value;
+    }
     for (idl_enumerator_t *e2 = enumerators; e2; e2 = idl_next(e2)) {
       if (e2 == e1)
         break;
@@ -3529,46 +3530,29 @@ bool idl_is_extensible(const idl_node_t *node, idl_extensibility_t extensibility
   return false;
 }
 
-bool idl_has_implicit_default_extensibility(const idl_node_t *node)
-{
-  assert(node);
-  for (; node; node = idl_next(node)) {
-    if (idl_mask(node) == IDL_MODULE) {
-      const idl_module_t *module = (const idl_module_t *)node;
-      return idl_has_implicit_default_extensibility(module->definitions);
-    } else if (idl_mask(node) == IDL_STRUCT) {
-      const idl_struct_t *_struct = (const idl_struct_t *)node;
-      if (!_struct->extensibility.annotation && !_struct->extensibility.implicit)
-        return true;
-    } else if (idl_mask(node) == IDL_UNION) {
-      const idl_union_t *_union = (const idl_union_t *)node;
-      if (!_union->extensibility.annotation && !_union->extensibility.implicit)
-        return true;
-    }
-  }
-  return false;
-}
-
-idl_retcode_t idl_set_default_extensibility(idl_node_t *node, idl_extensibility_t default_extensibility)
+idl_retcode_t idl_set_default_extensibility_recursive(idl_node_t *node, idl_extensibility_t default_extensibility, uint32_t *num_updated)
 {
   idl_retcode_t ret = IDL_RETCODE_OK;
-
   assert(node);
   for (; node; node = idl_next(node)) {
     if (idl_mask(node) == IDL_MODULE) {
       idl_module_t *module = (idl_module_t *)node;
-      return idl_set_default_extensibility(module->definitions, default_extensibility);
+      return idl_set_default_extensibility_recursive(module->definitions, default_extensibility, num_updated);
     } else if (idl_mask(node) == IDL_STRUCT) {
       idl_struct_t *_struct = (idl_struct_t *)node;
       if (!_struct->extensibility.annotation && !_struct->extensibility.implicit) {
         _struct->extensibility.value = default_extensibility;
         _struct->extensibility.implicit = true;
+        if (num_updated)
+          (*num_updated)++;
       }
     } else if (idl_mask(node) == IDL_UNION) {
       idl_union_t *_union = (idl_union_t *)node;
       if (!_union->extensibility.annotation && !_union->extensibility.implicit) {
         _union->extensibility.value = default_extensibility;
         _union->extensibility.implicit = true;
+        if (num_updated)
+          (*num_updated)++;
       }
     }
   }

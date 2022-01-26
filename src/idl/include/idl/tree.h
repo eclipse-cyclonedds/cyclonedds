@@ -518,8 +518,7 @@ IDL_EXPORT bool idl_is_forward(const void *node);
 /* 1-based, returns 0 if path does not refer to key, non-0 otherwise */
 IDL_EXPORT bool idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, uint32_t *order);
 IDL_EXPORT bool idl_is_extensible(const idl_node_t *node, idl_extensibility_t extensibility);
-IDL_EXPORT bool idl_has_implicit_default_extensibility(const idl_node_t *node);
-IDL_EXPORT idl_retcode_t idl_set_default_extensibility(idl_node_t *node, idl_extensibility_t default_extensibility);
+IDL_EXPORT idl_retcode_t idl_set_default_extensibility_recursive(idl_node_t *node, idl_extensibility_t default_extensibility, uint32_t *num_updated);
 IDL_EXPORT bool idl_is_external(const idl_node_t *node);
 IDL_EXPORT bool idl_is_optional(const idl_node_t *node);
 IDL_EXPORT bool idl_is_must_understand(const idl_node_t *node);
