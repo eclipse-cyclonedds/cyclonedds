@@ -12,17 +12,17 @@
 include(CUnit)
 
 idlc_generate(TARGET RoundTrip FILES RoundTrip.idl)
-idlc_generate(TARGET Space FILES Space.idl NO_WARN implicit-extensibility)
-idlc_generate(TARGET TypesArrayKey FILES TypesArrayKey.idl NO_WARN implicit-extensibility)
-idlc_generate(TARGET WriteTypes FILES WriteTypes.idl NO_WARN implicit-extensibility)
-idlc_generate(TARGET InstanceHandleTypes FILES InstanceHandleTypes.idl NO_WARN implicit-extensibility)
-idlc_generate(TARGET RWData FILES RWData.idl NO_WARN implicit-extensibility)
-idlc_generate(TARGET CreateWriter FILES CreateWriter.idl NO_WARN implicit-extensibility)
-idlc_generate(TARGET DataRepresentationTypes FILES DataRepresentationTypes.idl NO_WARN implicit-extensibility)
+idlc_generate(TARGET Space FILES Space.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET TypesArrayKey FILES TypesArrayKey.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET WriteTypes FILES WriteTypes.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET InstanceHandleTypes FILES InstanceHandleTypes.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET RWData FILES RWData.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET CreateWriter FILES CreateWriter.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET DataRepresentationTypes FILES DataRepresentationTypes.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET MinXcdrVersion FILES MinXcdrVersion.idl)
 idlc_generate(TARGET XSpace FILES XSpace.idl)
 idlc_generate(TARGET XSpaceMustUnderstand FILES XSpaceMustUnderstand.idl)
-idlc_generate(TARGET CdrStreamOptimize FILES CdrStreamOptimize.idl NO_WARN implicit-extensibility)
+idlc_generate(TARGET CdrStreamOptimize FILES CdrStreamOptimize.idl WARNINGS no-implicit-extensibility)
 
 set(ddsc_test_sources
     "basic.c"

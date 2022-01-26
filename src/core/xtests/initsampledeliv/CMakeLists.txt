@@ -9,7 +9,7 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-idlc_generate(TARGET InitSampleDeliv_lib FILES InitSampleDelivData.idl NO_WARN implicit-extensibility)
+idlc_generate(TARGET InitSampleDeliv_lib FILES InitSampleDelivData.idl WARNINGS no-implicit-extensibility)
 
 add_executable(InitSampleDelivPub publisher.c)
 add_executable(InitSampleDelivSub subscriber.c)
