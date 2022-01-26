@@ -75,6 +75,32 @@ set_target_properties(ddsc PROPERTIES
 set_target_properties(ddsc PROPERTIES EXPORT_PROPERTIES
     "SHM_SUPPORT_IS_AVAILABLE")
 
+# define target property to indicate if Cyclone DDS is compiled with type discovery
+define_property(TARGET
+    PROPERTY TYPE_DISCOVERY_IS_AVAILABLE
+    BRIEF_DOCS "Indicator whether type discovery is available with current Cyclone DDS build configuration."
+    FULL_DOCS "Indicator whether type discovery is available with current Cyclone DDS build configuration."
+    )
+set_property(
+    TARGET ddsc
+    APPEND PROPERTY TYPE_DISCOVERY_IS_AVAILABLE "${ENABLE_TYPE_DISCOVERY}")
+set_property(
+    TARGET ddsc
+    APPEND PROPERTY EXPORT_PROPERTIES "TYPE_DISCOVERY_IS_AVAILABLE")
+
+# define target property to indicate if Cyclone DDS is compiled with topic discovery
+define_property(TARGET
+    PROPERTY TOPIC_DISCOVERY_IS_AVAILABLE
+    BRIEF_DOCS "Indicator whether topic discovery is available with current Cyclone DDS build configuration."
+    FULL_DOCS "Indicator whether topic discovery is available with current Cyclone DDS build configuration."
+    )
+set_property(
+    TARGET ddsc
+    APPEND PROPERTY TOPIC_DISCOVERY_IS_AVAILABLE "${ENABLE_TOPIC_DISCOVERY}")
+set_property(
+    TARGET ddsc
+    APPEND PROPERTY EXPORT_PROPERTIES "TOPIC_DISCOVERY_IS_AVAILABLE")
+
 # Create a pseudo-target that other targets (i.e. examples, tests) can depend
 # on and can also be provided as import-target by a package-file when building
 # those targets outside the regular Cyclone build-tree (i.e. the installed tree)
