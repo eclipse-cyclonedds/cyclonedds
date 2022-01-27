@@ -59,7 +59,7 @@ void init_sample (void *s)
   STRA (s1->f2, STR128);
 
   A (s1->f3);
-  strcpy (*(s1->f3), STR128);
+  STRCPY (*(s1->f3), STR128);
 
   A (s1->f4);
   (*s1->f4).b1 = 456;

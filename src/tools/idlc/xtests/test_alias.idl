@@ -75,12 +75,12 @@ void init_sample (void *s)
   s1->f1._buffer[1].a1 = 2;
   // s1->f2
   for (int n = 0; n < 3; n++)
-    strcpy (s1->f2[n], STR128);
+    STRCPY (s1->f2[n], STR128);
   // s1->f3
   SEQA(s1->f3, 1)
   SEQA(s1->f3._buffer[0], 5)
   for (int n = 0; n < 5; n++)
-    strcpy(s1->f3._buffer[0]._buffer[n], STR128);
+    STRCPY(s1->f3._buffer[0]._buffer[n], STR128);
   // s1->f4
   s1->f4 = dds_alloc (sizeof (*s1->f4));
   // s1->f4->b1
@@ -99,15 +99,15 @@ void init_sample (void *s)
   s1->f4->b2[1]._buffer[1].a1 = 7;
   s1->f4->b2[2]._buffer[0].a1 = 8;
   // s1->f4->b3
-  s1->f4->b3 = 1.01;
+  s1->f4->b3 = 1.01f;
   // s1->f4->b4
   SEQA(s1->f4->b4, 2)
   s1->f4->b4._buffer[0]._d = 10;
-  strcpy(s1->f4->b4._buffer[0]._u.ud, STR128);
+  STRCPY(s1->f4->b4._buffer[0]._u.ud, STR128);
   s1->f4->b4._buffer[1]._d = 2;
   SEQA(s1->f4->b4._buffer[1]._u.u2, 5)
   for (int n = 0; n < 5; n++)
-    strcpy(s1->f4->b4._buffer[1]._u.u2._buffer[n], STR128);
+    STRCPY(s1->f4->b4._buffer[1]._u.u2._buffer[n], STR128);
 }
 
 int cmp_sample (const void *sa, const void *sb)

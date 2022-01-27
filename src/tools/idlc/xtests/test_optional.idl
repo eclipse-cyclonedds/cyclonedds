@@ -84,7 +84,7 @@ void init_sample (void *s)
   s1->f2n = NULL;
 
   A (s1->f3);
-  strcpy (*(s1->f3), STR128);
+  STRCPY (*(s1->f3), STR128);
   s1->f3n = NULL;
 
   A (s1->f4);
