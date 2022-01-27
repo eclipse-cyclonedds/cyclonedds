@@ -86,7 +86,7 @@ void init_sample (void *s)
   t->s1._d = 1;
   A (t->s1._u.u1);
   t->s1._u.u1->_d = 6;
-  strcpy(t->s1._u.u1->_u.u6, STR128);
+  STRCPY(t->s1._u.u1->_u.u6, STR128);
 
   // case 2: struct_nested1 u2;
   t->s2._d = 2;
@@ -111,7 +111,7 @@ void init_sample (void *s)
 
   // case 6: string<128> u6;
   t->s6._d = 6;
-  strcpy(t->s6._u.u6, STR128);
+  STRCPY(t->s6._u.u6, STR128);
 
   // case 7: bm1 u7;
   t->s7._d = 7;

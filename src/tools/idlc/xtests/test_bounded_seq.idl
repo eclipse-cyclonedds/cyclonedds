@@ -70,7 +70,7 @@ void init_sample (void *s)
 
   SEQA (s1->f3, 3);
   for (int n = 0; n < 3; n++)
-    strcpy (s1->f3._buffer[n], STR16);
+    STRCPY (s1->f3._buffer[n], STR16);
 
   SEQA (s1->f4, 4);
   for (int n = 0; n < 4; n++)

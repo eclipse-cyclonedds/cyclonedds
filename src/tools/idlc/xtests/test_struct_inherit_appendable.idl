@@ -57,8 +57,7 @@ void init_sample (void *s)
 {
   test_struct_inherit *s1 = (test_struct_inherit *) s;
   s1->parent.b1 = 123;
-  s1->parent.b2.n1 = dds_alloc(sizeof(STR128) + 1);
-  strcpy (s1->parent.b2.n1, STR128);
+  STRA (s1->parent.b2.n1, STR128);
   s1->parent.b2.n2 = 456;
   s1->parent.b2.n3.c1 = 789;
   s1->parent.parent.c1 = 321;

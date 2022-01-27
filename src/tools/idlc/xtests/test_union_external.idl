@@ -80,7 +80,7 @@ void init_sample (void *s)
 
   s1->f[2]._d = 3;
   A (s1->f[2]._u.u3);
-  strcpy (*(s1->f[2]._u.u3), STR128);
+  STRCPY (*(s1->f[2]._u.u3), STR128);
 
   s1->f[3]._d = 4;
   A (s1->f[3]._u.u4);
@@ -109,7 +109,7 @@ void init_sample (void *s)
 
   s1->f[8]._d = 9;
   A (s1->f[8]._u.u9);
-  strcpy (*(s1->f[8]._u.u9), STR128);
+  STRCPY (*(s1->f[8]._u.u9), STR128);
 
   s1->f[9]._d = 10;
   A (s1->f[9]._u.u10);

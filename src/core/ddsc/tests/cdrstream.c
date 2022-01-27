@@ -151,14 +151,14 @@ static void * sample_init_str (void)
 {
   TestIdl_MsgStr *msg = ddsrt_calloc (1, sizeof (*msg));
   msg->msg_field1.str1 = ddsrt_strdup (RND_STR32);
-  strcpy (msg->msg_field1.str2, RND_STR5);
+  ddsrt_strlcpy (msg->msg_field1.str2, RND_STR5, sizeof (msg->msg_field1.str2));
 
   msg->msg_field1.strseq3[0] = ddsrt_strdup (RND_STR32);
   msg->msg_field1.strseq3[1] = ddsrt_strdup (RND_STR32);
 
-  strcpy (msg->msg_field1.strseq4[0], RND_STR5);
-  strcpy (msg->msg_field1.strseq4[1], RND_STR5);
-  strcpy (msg->msg_field1.strseq4[2], RND_STR5);
+  ddsrt_strlcpy (msg->msg_field1.strseq4[0], RND_STR5, sizeof (msg->msg_field1.strseq4[0]));
+  ddsrt_strlcpy (msg->msg_field1.strseq4[1], RND_STR5, sizeof (msg->msg_field1.strseq4[1]));
+  ddsrt_strlcpy (msg->msg_field1.strseq4[2], RND_STR5, sizeof (msg->msg_field1.strseq4[2]));
 
   return msg;
 }
@@ -423,8 +423,8 @@ static void * sample_init_ext (void)
   TestIdl_MsgExt *msg = ddsrt_malloc (sizeof (*msg));
   msg->f1 = ddsrt_strdup (RND_STR32);
 
-  msg->f2 = ddsrt_malloc (sizeof (*msg->f2));
-  strcpy (*msg->f2, RND_STR32);
+  msg->f2 = ddsrt_malloc (sizeof (*msg->f2) + 1);
+  ddsrt_strlcpy (*msg->f2, RND_STR32, sizeof (*msg->f2));
 
   msg->f3 = ddsrt_malloc (sizeof (*msg->f3));
   msg->f3->b1 = ddsrt_malloc (sizeof (*msg->f3->b1));
@@ -555,8 +555,8 @@ static void * sample_init_opt (void)
   }
   if (RND_INT32 % 2)
   {
-    msg->f4 = ddsrt_malloc (sizeof (*msg->f4));
-    strcpy (*msg->f4, RND_STR32);
+    msg->f4 = ddsrt_malloc (sizeof (*msg->f4) + 1);
+    ddsrt_strlcpy (*msg->f4, RND_STR32, sizeof (*msg->f4));
   }
   if (RND_INT32 % 2)
   {

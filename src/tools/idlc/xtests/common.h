@@ -14,6 +14,8 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/string.h"
 
 #define STR16 "abcdef0123456789"
 #define STR128 STR16 STR16 STR16 STR16 STR16 STR16 STR16 STR16
@@ -28,7 +30,11 @@
 #define STRA(s,str) \
 { \
   (s) = dds_alloc (strlen(str) + 1); \
-  strcpy ((s), (str)); \
+  ddsrt_strlcpy ((s), (str), strlen((str)) + 1); \
+}
+#define STRCPY(s,str) \
+{ \
+  ddsrt_strlcpy ((s), (str), sizeof ((s))); \
 }
 #define EXTA(s,n) \
 { \
