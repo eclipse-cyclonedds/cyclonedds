@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ * Copyright(c) 2022 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -9,10 +9,21 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/filesystem.h"
+#ifndef EVENTLIST_H
+#define EVENTLIST_H
 
-#if DDSRT_HAVE_FILESYSTEM
-# error "cmake_HAVE_FILESYSTEM=true"
+#if !_WIN32
+#include <sys/select.h>
 #else
-# error "cmake_HAVE_FILESYSTEM=false"
+#include <winsock2.h>
+#endif
+
+struct eventlist {
+#if !_WIN32
+  int fdmax_plus_1;
+#endif
+  fd_set readfds;
+  fd_set writefds;
+};
+
 #endif

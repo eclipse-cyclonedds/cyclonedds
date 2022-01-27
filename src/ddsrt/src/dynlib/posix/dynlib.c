@@ -13,7 +13,7 @@
 #include <dlfcn.h>
 #include <assert.h>
 #include <string.h>
-#include <dds/ddsrt/dynlib.h>
+#include "dds/ddsrt/dynlib.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/string.h"

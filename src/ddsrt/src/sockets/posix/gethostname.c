@@ -32,19 +32,7 @@
 # endif
 #endif
 
-
-#if LWIP_SOCKET
-dds_return_t
-ddsrt_gethostname(
-  char *name,
-  size_t len)
-{
-  if (ddsrt_strlcpy(name, "localhost", len) >= len) {
-    return DDS_RETCODE_NOT_ENOUGH_SPACE;
-  }
-  return DDS_RETCODE_OK;
-}
-#else
+#if DDSRT_HAVE_GETHOSTNAME
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 256
 #endif
@@ -83,4 +71,4 @@ ddsrt_gethostname(
 
   return DDS_RETCODE_ERROR;
 }
-#endif
+#endif // DDSRT_GETHOSTNAME

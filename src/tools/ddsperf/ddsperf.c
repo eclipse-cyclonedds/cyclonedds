@@ -21,9 +21,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <math.h>
-#if _WIN32
 #include <getopt.h>
-#endif
 
 #include "dds/dds.h"
 #include "dds/ddsc/dds_statistics.h"

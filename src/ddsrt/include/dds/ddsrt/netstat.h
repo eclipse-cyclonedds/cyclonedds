@@ -15,13 +15,8 @@
 #include <stdint.h>
 
 #include "dds/export.h"
+#include "dds/config.h"
 #include "dds/ddsrt/retcode.h"
-
-#if defined (__linux) || defined (__APPLE__) || defined (_WIN32)
-#define DDSRT_HAVE_NETSTAT (1)
-#else
-#define DDSRT_HAVE_NETSTAT (0)
-#endif
 
 #if DDSRT_HAVE_NETSTAT
 

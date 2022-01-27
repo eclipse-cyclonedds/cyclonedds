@@ -1014,6 +1014,7 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   struct whc_writer_info *wrinfo;
   dds_return_t ret = DDS_RETCODE_OK;
   ddsi_tran_conn_t ppconn;
+  ddsrt_event_t *ppevent;
 
   /* no reserved bits may be set */
   assert ((flags & ~(RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS | RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP | RTPS_PF_ONLY_LOCAL)) == 0);
@@ -1031,7 +1032,10 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
     return DDS_RETCODE_PRECONDITION_NOT_MET;
 
   if (gv->config.many_sockets_mode != DDSI_MSM_MANY_UNICAST)
+  {
     ppconn = NULL;
+    ppevent = NULL;
+  }
   else
   {
     const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_RECV_UC, .m_diffserv = 0, .m_interface = NULL };
@@ -1040,6 +1044,7 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
       GVERROR ("new_participant("PGUIDFMT", %x) failed: could not create network endpoint\n", PGUID (*ppguid), flags);
       return DDS_RETCODE_OUT_OF_RESOURCES;
     }
+    ppevent = ddsi_tran_event ((ddsi_tran_base_t) ppconn);
   }
 
   if (gv->config.max_participants == 0)
@@ -1097,7 +1102,7 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
     ddsi_tkmap_instance_unref (gv->m_tkmap, pp->e.tk);
     pp->e.tk = builtintopic_get_tkmap_entry (gv->builtin_topic_interface, &pp->e.guid);
     pp->e.iid = pp->e.tk->m_iid;
- }
+  }
 #else
   if (ddsi_xqos_has_prop_prefix (&pp->plist->qos, "dds.sec."))
   {
@@ -1118,6 +1123,11 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   pp->m_conn = ppconn;
   if (gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
     ddsi_conn_locator (pp->m_conn, &pp->m_locator);
+  /* Event user_data field is currently used to reference the participant
+     if many sockets mode is enabled. The participant is required to
+     determine the guid_prefix. */
+  if (ppconn && ppevent)
+    ppevent->user_data = ppconn;
 
   ddsrt_fibheap_init (&lease_fhdef_pp, &pp->leaseheap_man);
   ddsrt_atomic_stvoidp (&pp->minl_man, NULL);

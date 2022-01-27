@@ -465,7 +465,9 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
       dst->adlink_participant_version_info.flags |= NN_ADLINK_FL_PARTICIPANT_IS_DDSI2;
     ddsrt_mutex_unlock (&pp->e.gv->privileged_pp_lock);
 
+#if DDSRT_HAVE_GETHOSTNAME
     if (ddsrt_gethostname(node, sizeof(node)-1) < 0)
+#endif
       (void) ddsrt_strlcpy (node, "unknown", sizeof (node));
     size = strlen(node) + strlen(DDS_VERSION) + strlen(DDS_HOST_NAME) + strlen(DDS_TARGET_NAME) + 4; /* + ///'\0' */
     dst->adlink_participant_version_info.internals = ddsrt_malloc(size);

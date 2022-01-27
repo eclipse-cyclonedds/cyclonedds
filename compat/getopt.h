@@ -9,10 +9,14 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/process.h"
+#ifndef GETOPT_H
+#define GETOPT_H
 
-#if DDSRT_HAVE_MULTI_PROCESS
-# error "cmake_HAVE_MULTI_PROCESS=true"
-#else
-# error "cmake_HAVE_MULTI_PROCESS=false"
-#endif
+extern int opterr;
+extern int optind;
+extern int optopt;
+extern char *optarg;
+
+int getopt(int argc, char **argv, const char *opts);
+
+#endif /* GETOPT_H */

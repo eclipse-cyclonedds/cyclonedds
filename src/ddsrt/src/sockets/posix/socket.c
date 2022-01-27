@@ -13,9 +13,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "sockets_priv.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/sockets_priv.h"
 
 #if !LWIP_SOCKET
 #if defined(__VXWORKS__)
@@ -520,17 +520,14 @@ ddsrt_select(
   fd_set *readfds,
   fd_set *writefds,
   fd_set *errorfds,
-  dds_duration_t reltime,
-  int32_t *ready)
+  dds_duration_t reltime)
 {
   int n;
   struct timeval tv, *tvp = NULL;
 
   tvp = ddsrt_duration_to_timeval_ceil(reltime, &tv);
-  if ((n = select(nfds, readfds, writefds, errorfds, tvp)) != -1) {
-    *ready = n;
-    return (n == 0 ? DDS_RETCODE_TIMEOUT : DDS_RETCODE_OK);
-  }
+  if ((n = select(nfds, readfds, writefds, errorfds, tvp)) != -1)
+    return (n == 0 ? DDS_RETCODE_TIMEOUT : n);
 
   switch (errno) {
     case EINTR:

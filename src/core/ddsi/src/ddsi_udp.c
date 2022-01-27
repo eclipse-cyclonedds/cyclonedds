@@ -25,8 +25,10 @@
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_pcap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "q_receive.h"
 
 union addr {
   struct sockaddr_storage x;
@@ -39,8 +41,8 @@ union addr {
 
 typedef struct ddsi_udp_conn {
   struct ddsi_tran_conn m_base;
-  ddsrt_socket_t m_sock;
-#if defined _WIN32
+  ddsrt_event_t m_event;
+#if _WIN32
   WSAEVENT m_sockEvent;
 #endif
   int m_diffserv;
@@ -54,6 +56,11 @@ typedef struct ddsi_udp_tran_factory {
   // atomically loaded/stored so we don't have to lie about constness
   ddsrt_atomic_uint32_t receive_buf_size;
 } *ddsi_udp_tran_factory_t;
+
+static inline ddsrt_socket_t ddsi_udp_conn_socket(ddsi_udp_conn_t conn)
+{
+  return conn->m_event.source.socket.socketfd;
+}
 
 static void addr_to_loc (const struct ddsi_tran_factory *tran, ddsi_locator_t *dst, const union addr *src)
 {
@@ -89,7 +96,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn_cmn, unsigned char * bu
 #endif
 
   do {
-    rc = ddsrt_recvmsg (conn->m_sock, &msghdr, 0, &ret);
+    rc = ddsrt_recvmsg (ddsi_udp_conn_socket(conn), &msghdr, 0, &ret);
   } while (rc == DDS_RETCODE_INTERRUPTED);
 
   if (ret > 0)
@@ -101,7 +108,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn_cmn, unsigned char * bu
     {
       union addr dest;
       socklen_t dest_len = sizeof (dest);
-      if (ddsrt_getsockname (conn->m_sock, &dest.a, &dest_len) != DDS_RETCODE_OK)
+      if (ddsrt_getsockname (ddsi_udp_conn_socket(conn), &dest.a, &dest_len) != DDS_RETCODE_OK)
         memset (&dest, 0, sizeof (dest));
       write_pcap_received (gv, ddsrt_time_wallclock (), &src.x, &dest.x, buf, (size_t) ret);
     }
@@ -123,7 +130,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn_cmn, unsigned char * bu
   }
   else if (rc != DDS_RETCODE_BAD_PARAMETER && rc != DDS_RETCODE_NO_CONNECTION)
   {
-    GVERROR ("UDP recvmsg sock %d: ret %d retcode %"PRId32"\n", (int) conn->m_sock, (int) ret, rc);
+    GVERROR ("UDP recvmsg sock %d: ret %d retcode %"PRId32"\n", (int) ddsi_udp_conn_socket(conn), (int) ret, rc);
     ret = -1;
   }
   return ret;
@@ -166,13 +173,13 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn_cmn, const ddsi_locato
   sendflags |= MSG_NOSIGNAL;
 #endif
   do {
-    rc = ddsrt_sendmsg (conn->m_sock, &msg, sendflags, &ret);
+    rc = ddsrt_sendmsg (ddsi_udp_conn_socket(conn), &msg, sendflags, &ret);
 #if defined _WIN32 && !defined WINCE
     if (rc == DDS_RETCODE_TRY_AGAIN)
     {
       WSANETWORKEVENTS ev;
       WaitForSingleObject (conn->m_sockEvent, INFINITE);
-      WSAEnumNetworkEvents (conn->m_sock, conn->m_sockEvent, &ev);
+      WSAEnumNetworkEvents (ddsi_udp_conn_socket(conn), conn->m_sockEvent, &ev);
     }
 #endif
   } while (rc == DDS_RETCODE_INTERRUPTED || rc == DDS_RETCODE_TRY_AGAIN || (rc == DDS_RETCODE_NOT_ALLOWED && retry-- > 0));
@@ -180,7 +187,7 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn_cmn, const ddsi_locato
   {
     union addr sa;
     socklen_t alen = sizeof (sa);
-    if (ddsrt_getsockname (conn->m_sock, &sa.a, &alen) != DDS_RETCODE_OK)
+    if (ddsrt_getsockname (ddsi_udp_conn_socket(conn), &sa.a, &alen) != DDS_RETCODE_OK)
       memset(&sa, 0, sizeof(sa));
     write_pcap_sent (gv, ddsrt_time_wallclock (), &sa.x, &msg, (size_t) ret);
   }
@@ -192,14 +199,36 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn_cmn, const ddsi_locato
   return (rc == DDS_RETCODE_OK) ? ret : -1;
 }
 
+static dds_return_t ddsi_udp_read_callback (ddsrt_event_t *event, uint32_t flags, const void *data, void *user_data)
+{
+  struct ddsi_udp_conn *conn = (struct ddsi_udp_conn *)((uintptr_t)event - offsetof(struct ddsi_udp_conn, m_event));
+  struct recv_thread *recv = user_data;
+
+  if (!(flags & DDSRT_READ))
+    return DDS_RETCODE_OK;
+
+  (void) data;
+  assert (conn && conn->m_base.m_connless);
+  assert (recv);
+
+  const ddsi_guid_prefix_t *guid_prefix;
+  if (event->user_data)
+    guid_prefix = (ddsi_guid_prefix_t *)&((struct participant *)event->user_data)->e.guid.prefix;
+  else
+    guid_prefix = NULL;
+
+  do_packet (recv->ts, recv->arg.gv, (ddsi_tran_conn_t)conn, guid_prefix, recv->arg.rbpool);
+  return DDS_RETCODE_OK;
+}
+
 static void ddsi_udp_disable_multiplexing (ddsi_tran_conn_t conn_cmn)
 {
 #if defined _WIN32 && !defined WINCE
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   uint32_t zero = 0;
   DWORD dummy;
-  WSAEventSelect (conn->m_sock, 0, 0);
-  WSAIoctl (conn->m_sock, FIONBIO, &zero,sizeof(zero), NULL,0, &dummy, NULL,NULL);
+  WSAEventSelect (ddsi_udp_conn_socket(conn), 0, 0);
+  WSAIoctl (ddsi_udp_conn_socket(conn), FIONBIO, &zero,sizeof(zero), NULL,0, &dummy, NULL,NULL);
 #else
   (void) conn_cmn;
 #endif
@@ -208,7 +237,13 @@ static void ddsi_udp_disable_multiplexing (ddsi_tran_conn_t conn_cmn)
 static ddsrt_socket_t ddsi_udp_conn_handle (ddsi_tran_base_t conn_cmn)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
-  return conn->m_sock;
+  return ddsi_udp_conn_socket(conn);
+}
+
+static ddsrt_event_t *ddsi_udp_conn_event (ddsi_tran_base_t conn_cmn)
+{
+  ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
+  return &conn->m_event;
 }
 
 static bool ddsi_udp_supports (const struct ddsi_tran_factory *fact_cmn, int32_t kind)
@@ -222,7 +257,7 @@ static int ddsi_udp_conn_locator (ddsi_tran_factory_t fact_cmn, ddsi_tran_base_t
   struct ddsi_udp_tran_factory const * const fact = (const struct ddsi_udp_tran_factory *) fact_cmn;
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   int ret = -1;
-  if (conn->m_sock != DDSRT_INVALID_SOCKET)
+  if (ddsi_udp_conn_socket(conn) != DDSRT_INVALID_SOCKET)
   {
     loc->kind = fact->m_kind;
     loc->port = conn->m_base.m_base.m_port;
@@ -553,11 +588,15 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
   ddsi_udp_conn_t conn = ddsrt_malloc (sizeof (*conn));
   memset (conn, 0, sizeof (*conn));
 
-  conn->m_sock = sock;
+  conn->m_event.flags = DDSRT_READ;
+  conn->m_event.loop = NULL;
+  conn->m_event.callback = ddsi_udp_read_callback;
+  conn->m_event.user_data = NULL;
+  conn->m_event.source.socket.socketfd = sock;
   conn->m_diffserv = qos->m_diffserv;
 #if defined _WIN32 && !defined WINCE
   conn->m_sockEvent = WSACreateEvent ();
-  WSAEventSelect (conn->m_sock, conn->m_sockEvent, FD_WRITE);
+  WSAEventSelect (conn->m_event.source.socket.socketfd, conn->m_sockEvent, FD_WRITE);
 #endif
 
   ddsi_factory_conn_init (&fact->fact, intf, &conn->m_base);
@@ -565,13 +604,14 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
   conn->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
   conn->m_base.m_base.m_multicast = (qos->m_purpose == DDSI_TRAN_QOS_RECV_MC);
   conn->m_base.m_base.m_handle_fn = ddsi_udp_conn_handle;
+  conn->m_base.m_base.m_event_fn = ddsi_udp_conn_event;
 
   conn->m_base.m_read_fn = ddsi_udp_conn_read;
   conn->m_base.m_write_fn = ddsi_udp_conn_write;
   conn->m_base.m_disable_multiplexing_fn = ddsi_udp_disable_multiplexing;
   conn->m_base.m_locator_fn = ddsi_udp_conn_locator;
 
-  GVTRACE ("ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n", purpose_str, conn->m_sock, conn->m_base.m_base.m_port);
+  GVTRACE ("ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n", purpose_str, conn->m_event.source.socket.socketfd, conn->m_base.m_base.m_port);
   *conn_out = &conn->m_base;
   return DDS_RETCODE_OK;
 
@@ -653,10 +693,10 @@ static int ddsi_udp_join_mc (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *sr
   (void) srcloc;
 #ifdef DDS_HAS_SSM
   if (srcloc)
-    return joinleave_ssm_mcgroup (conn->m_sock, 1, srcloc, mcloc, interf);
+    return joinleave_ssm_mcgroup (conn->m_event.source.socket.socketfd, 1, srcloc, mcloc, interf);
   else
 #endif
-    return joinleave_asm_mcgroup (conn->m_sock, 1, mcloc, interf);
+    return joinleave_asm_mcgroup (conn->m_event.source.socket.socketfd, 1, mcloc, interf);
 }
 
 static int ddsi_udp_leave_mc (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
@@ -665,10 +705,10 @@ static int ddsi_udp_leave_mc (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *s
   (void) srcloc;
 #ifdef DDS_HAS_SSM
   if (srcloc)
-    return joinleave_ssm_mcgroup (conn->m_sock, 0, srcloc, mcloc, interf);
+    return joinleave_ssm_mcgroup (conn->m_event.source.socket.socketfd, 0, srcloc, mcloc, interf);
   else
 #endif
-    return joinleave_asm_mcgroup (conn->m_sock, 0, mcloc, interf);
+    return joinleave_asm_mcgroup (conn->m_event.source.socket.socketfd, 0, mcloc, interf);
 }
 
 static void ddsi_udp_release_conn (ddsi_tran_conn_t conn_cmn)
@@ -677,8 +717,8 @@ static void ddsi_udp_release_conn (ddsi_tran_conn_t conn_cmn)
   struct ddsi_domaingv const * const gv = conn->m_base.m_base.gv;
   GVTRACE ("ddsi_udp_release_conn %s socket %"PRIdSOCK" port %"PRIu32"\n",
            conn_cmn->m_base.m_multicast ? "multicast" : "unicast",
-           conn->m_sock, conn->m_base.m_base.m_port);
-  ddsrt_close (conn->m_sock);
+           conn->m_event.source.socket.socketfd, conn->m_base.m_base.m_port);
+  ddsrt_close (conn->m_event.source.socket.socketfd);
 #if defined _WIN32 && !defined WINCE
   WSACloseEvent (conn->m_sockEvent);
 #endif

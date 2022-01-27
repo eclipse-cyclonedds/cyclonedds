@@ -13,16 +13,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <getopt.h>
 
 #include "idl/string.h"
 
 #include "config.h"
 #include "options.h"
-#if HAVE_GETOPT_H
-# include <getopt.h>
-#else
-# include "getopt.h"
-#endif
 
 static void print_description (const char *desc, int indent, int init_indent, int maxwidth)
 {

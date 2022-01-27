@@ -25,10 +25,10 @@
 
 #include <limits.h>
 
+#include "threads_priv.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsrt/threads_priv.h"
 #include "dds/ddsrt/types.h"
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsrt/misc.h"

@@ -14,6 +14,7 @@
 
 /* DDSI Transport module */
 
+#include "dds/ddsrt/event.h"
 #include "dds/ddsrt/ifaddrs.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsi/ddsi_locator.h"
@@ -50,6 +51,7 @@ typedef ssize_t (*ddsi_tran_write_fn_t) (ddsi_tran_conn_t, const ddsi_locator_t 
 typedef int (*ddsi_tran_locator_fn_t) (ddsi_tran_factory_t, ddsi_tran_base_t, ddsi_locator_t *);
 typedef bool (*ddsi_tran_supports_fn_t) (const struct ddsi_tran_factory *, int32_t);
 typedef ddsrt_socket_t (*ddsi_tran_handle_fn_t) (ddsi_tran_base_t);
+typedef ddsrt_event_t *(*ddsi_tran_event_fn_t) (ddsi_tran_base_t);
 typedef int (*ddsi_tran_listen_fn_t) (ddsi_tran_listener_t);
 typedef void (*ddsi_tran_free_fn_t) (ddsi_tran_factory_t);
 typedef void (*ddsi_tran_peer_locator_fn_t) (ddsi_tran_conn_t, ddsi_locator_t *);
@@ -104,6 +106,7 @@ struct ddsi_tran_base
   /* Functions */
 
   ddsi_tran_handle_fn_t m_handle_fn;
+  ddsi_tran_event_fn_t m_event_fn;
 };
 
 struct ddsi_tran_conn
@@ -262,8 +265,14 @@ void ddsi_tran_free (ddsi_tran_base_t base);
 DDS_INLINE_EXPORT inline ddsrt_socket_t ddsi_tran_handle (ddsi_tran_base_t base) {
   return base->m_handle_fn (base);
 }
+DDS_INLINE_EXPORT inline ddsrt_event_t *ddsi_tran_event (ddsi_tran_base_t base) {
+  return base->m_event_fn (base);
+}
 DDS_INLINE_EXPORT inline ddsrt_socket_t ddsi_conn_handle (ddsi_tran_conn_t conn) {
   return conn->m_base.m_handle_fn (&conn->m_base);
+}
+DDS_INLINE_EXPORT inline ddsrt_event_t *ddsi_conn_event (ddsi_tran_conn_t conn) {
+  return conn->m_base.m_event_fn (&conn->m_base);
 }
 DDS_INLINE_EXPORT inline uint32_t ddsi_conn_type (const struct ddsi_tran_conn *conn) {
   return conn->m_base.m_trantype;
@@ -325,6 +334,9 @@ DDS_INLINE_EXPORT inline int ddsi_listener_listen (ddsi_tran_listener_t listener
 }
 DDS_INLINE_EXPORT inline ddsi_tran_conn_t ddsi_listener_accept (ddsi_tran_listener_t listener) {
   return listener->m_accept_fn (listener);
+}
+DDS_INLINE_EXPORT inline ddsrt_event_t *ddsi_listener_event (ddsi_tran_listener_t listener) {
+  return listener->m_base.m_event_fn (&listener->m_base);
 }
 void ddsi_listener_unblock (ddsi_tran_listener_t listener);
 void ddsi_listener_free (ddsi_tran_listener_t listener);

@@ -36,6 +36,7 @@ if(_include_file)
 
     cmake_parse_arguments(_GEHW "${_opts}" "${_single_opts}" "${_multi_opts}" ${ARGN})
 
+    string(MAKE_C_IDENTIFIER "${TARGET_LIBRARY}" _target_name)
     set(_prefix_name "${_GEHW_PREFIX_NAME}")
     set(_base_name "${TARGET_LIBRARY}")
 
@@ -56,7 +57,7 @@ if(_include_file)
     set(_custom_content
 "
 #ifndef ${_prefix_name}${_base_name_upper}_INLINE_EXPORT
-#  if __MINGW32__ && (!defined(__clang__) || !defined(${TARGET_LIBRARY}_EXPORTS))
+#  if __MINGW32__ && (!defined(__clang__) || !defined(${_target_name}_EXPORTS))
 #    define ${_prefix_name}${_base_name_upper}_INLINE_EXPORT
 #  else
 #    define ${_prefix_name}${_base_name_upper}_INLINE_EXPORT ${_prefix_name}${_base_name_upper}_EXPORT

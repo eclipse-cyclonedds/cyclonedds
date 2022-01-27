@@ -57,6 +57,12 @@ static ddsrt_socket_t ddsi_vnet_conn_handle (ddsi_tran_base_t conn)
   return DDSRT_INVALID_SOCKET;
 }
 
+static ddsrt_event_t *ddsi_vnet_conn_event (ddsi_tran_base_t conn)
+{
+  (void) conn;
+  return NULL;
+}
+
 static int ddsi_vnet_conn_locator (ddsi_tran_factory_t vfact, ddsi_tran_base_t base, ddsi_locator_t *loc)
 {
   (void) base; (void) loc;
@@ -79,6 +85,7 @@ static dds_return_t ddsi_vnet_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran
   x->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
   x->m_base.m_base.m_multicast = false;
   x->m_base.m_base.m_handle_fn = ddsi_vnet_conn_handle;
+  x->m_base.m_base.m_event_fn = ddsi_vnet_conn_event;
   x->m_base.m_locator_fn = ddsi_vnet_conn_locator;
   x->m_base.m_read_fn = 0;
   x->m_base.m_write_fn = 0;

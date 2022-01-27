@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ * Copyright(c) 2022 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -9,10 +9,19 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/dynlib.h"
+#ifndef EVENTLIST_H
+#define EVENTLIST_H
 
-#if DDSRT_HAVE_DYNLIB
-# error "cmake_HAVE_DYNLIB=true"
-#else
-# error "cmake_HAVE_DYNLIB=false"
-#endif
+#include <stddef.h>
+#include <sys/types.h>
+#include <sys/event.h>
+
+struct eventlist {
+  size_t size;
+  struct {
+    struct kevent embedded[ DDSRT_EMBEDDED_EVENTS ];
+    struct kevent *dynamic;
+  } events;
+};
+
+#endif // EVENTSET_H

@@ -74,7 +74,6 @@ set(srcs_ddsi
   q_qosmatch.c
   q_radmin.c
   q_receive.c
-  q_sockwaitset.c
   q_thread.c
   q_transmit.c
   q_inverse_uint32_set.c
@@ -152,7 +151,6 @@ set(hdrs_private_ddsi
   q_radmin.h
   q_receive.h
   q_rtps.h
-  q_sockwaitset.h
   q_thread.h
   q_transmit.h
   q_inverse_uint32_set.h
@@ -160,6 +158,7 @@ set(hdrs_private_ddsi
   q_whc.h
   q_xevent.h
   q_xmsg.h
+  q_receive.h
   sysdeps.h)
 
 if(ENABLE_LIFESPAN)
@@ -178,7 +177,7 @@ if(ENABLE_SECURITY)
   list(APPEND srcs_ddsi ddsi_security_msg.c ddsi_security_exchange.c)
   list(APPEND hdrs_private_ddsi ddsi_security_msg.h ddsi_security_exchange.h)
 endif()
-if(iceoryx_binding_c_FOUND)
+if(ENABLE_SHM)
   list(APPEND srcs_ddsi ddsi_shm_transport.c) 
   list(APPEND hdrs_private_ddsi ddsi_shm_transport.h)
 endif()

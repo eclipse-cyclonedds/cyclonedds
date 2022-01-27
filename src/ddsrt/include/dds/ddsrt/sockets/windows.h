@@ -14,12 +14,6 @@ typedef SOCKET ddsrt_socket_t;
 #define DDSRT_INVALID_SOCKET (INVALID_SOCKET)
 #define PRIdSOCK PRIuPTR
 
-#define DDSRT_HAVE_IPV6        1
-#define DDSRT_HAVE_DNS         DDSRT_WITH_DNS
-#define DDSRT_HAVE_GETADDRINFO DDSRT_WITH_DNS
-#define DDSRT_HAVE_INET_NTOP   1
-#define DDSRT_HAVE_INET_PTON   1
-
 #if defined(NTDDI_VERSION) && \
     defined(_WIN32_WINNT_WS03) && \
     (NTDDI_VERSION >= _WIN32_WINNT_WS03)

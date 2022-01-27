@@ -9,15 +9,6 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-
-if (NOT BUILD_IDLC)
-  return()
-endif()
-
-include(CheckIncludeFile)
-
-check_include_file(getopt.h HAVE_GETOPT_H)
-
 configure_file(src/config.h.in config.h)
 
 set(headers
@@ -46,31 +37,13 @@ if(MSVC)
   # ignore warnings C6255 and 6263 about _alloca
   target_compile_options(idlc PRIVATE /wd6255 /wd6263)
 endif()
-target_link_libraries(idlc PRIVATE idl idlpp ddsc ${CMAKE_DL_LIBS})
+target_link_libraries(idlc PRIVATE compat idl idlpp ddsc ${CMAKE_DL_LIBS})
 target_include_directories(
   idlc PRIVATE
     include
     ${CMAKE_CURRENT_BINARY_DIR}
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsc,INTERFACE_INCLUDE_DIRECTORIES>>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/include>)
-
-if(WIN32 OR NOT HAVE_GETOPT_H)
-  # use getopt.h from ddsrt
-  file(READ "${CycloneDDS_SOURCE_DIR}/src/ddsrt/include/getopt.h.in" getopt_h)
-  # remove occurrences of DDS_EXPORT
-  string(REGEX REPLACE "\n[ \t]*DDS_EXPORT[ \t]+" "\n" getopt_h "${getopt_h}")
-  # remove dds/* includes
-  string(REGEX REPLACE "\n[ \t]*#[ \t]*include[ \t]+[<\"]dds/[^\n]*" "" getopt_h "${getopt_h}")
-  # generate getopt.h
-  file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/getopt.h" CONTENT "${getopt_h}")
-  target_include_directories(idlc PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
-  # add getopt.c
-  configure_file(
-    "${CycloneDDS_SOURCE_DIR}/src/ddsrt/src/getopt.c"
-    "${CMAKE_CURRENT_BINARY_DIR}/getopt.c"
-    COPYONLY)
-  target_sources(idlc PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/getopt.c)
-endif()
 
 add_executable(${PROJECT_NAME}::idlc ALIAS idlc)
 

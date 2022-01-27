@@ -90,6 +90,9 @@
 #if ddsrt_has_attribute(format)
 # define ddsrt_attribute_format(params) __attribute__ ((__format__ params))
 # if __MINGW32__
+#   if !defined(__MINGW_PRINTF_FORMAT)
+#     define __MINGW_PRINTF_FORMAT gnu_printf
+#   endif
     /* GCC assumes printf MS style arguments on Windows */
 #   define ddsrt_attribute_format_printf(string_index, first_to_check) \
       ddsrt_attribute_format((__MINGW_PRINTF_FORMAT, string_index, first_to_check))

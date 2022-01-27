@@ -18,7 +18,6 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/time.h"
-#include "dds/ddsrt/timeconv.h"
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/security/core/dds_security_fsm.h"
