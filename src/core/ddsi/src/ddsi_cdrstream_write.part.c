@@ -299,7 +299,7 @@ static bool dds_stream_write_pl_memberBO (uint32_t mid, DDS_OSTREAM_T * __restri
 {
   assert (!(mid & ~EMHEADER_MEMBERID_MASK));
   uint32_t lc = get_length_code (ops);
-  assert (lc < LENGTH_CODE_ALSO_NEXTINT8);
+  assert (lc <= LENGTH_CODE_ALSO_NEXTINT8);
   uint32_t data_offs = (lc != LENGTH_CODE_NEXTINT) ? dds_os_reserve4BO (os) : dds_os_reserve8BO (os);
   if (!(dds_stream_write_implBO (os, data, ops, true)))
     return false;
