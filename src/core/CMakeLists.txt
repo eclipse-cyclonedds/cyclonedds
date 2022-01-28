@@ -71,7 +71,7 @@ define_property(TARGET
     FULL_DOCS "Indicator whether SHM support is available with current Cyclone DDS build configuration."
     )
 set_target_properties(ddsc PROPERTIES
-    SHM_SUPPORT_IS_AVAILABLE "${DDS_HAS_SHM}")
+    SHM_SUPPORT_IS_AVAILABLE "${ENABLE_SHM}")
 set_target_properties(ddsc PROPERTIES EXPORT_PROPERTIES
     "SHM_SUPPORT_IS_AVAILABLE")
 
