@@ -331,4 +331,11 @@ if(DEFINED ENV{LIB_FUZZING_ENGINE})
   add_subdirectory(fuzz)
 endif()
 
+if(BUILD_TESTING)
+  add_test(
+    NAME versioncheck
+    COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_SOURCE_DIR}/versioncheck.cmake"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
+
 include(CMakeCPack.cmake)
