@@ -23,7 +23,7 @@ In order to build Cyclone DDS you need a Linux, Mac or Windows 10 machine (or, w
 
   * C compiler (most commonly GCC on Linux, Visual Studio on Windows, Xcode on macOS);
   * GIT version control system;
-  * [CMake](https://cmake.org/download/), version 3.7 or later;
+  * [CMake](https://cmake.org/download/), version 3.10 or later;
   * [OpenSSL](https://www.openssl.org/), preferably version 1.1 or later if you want to use TLS over
     TCP.  You can explicitly disable it by setting ``ENABLE_SSL=NO``, which is very useful for
     reducing the footprint or when the FindOpenSSL CMake script gives you trouble;
