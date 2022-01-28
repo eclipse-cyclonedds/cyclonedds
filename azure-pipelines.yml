@@ -45,6 +45,7 @@ strategy:
     'Ubuntu 18.04 LTS with GCC 7 (Debug, x86_64)':
       image: ubuntu-18.04
       coverage: on
+      tests: on
       conanfile: conanfile102.txt
       cc: gcc-7
     'Ubuntu 20.04 LTS with Clang 10 (Debug, x86_64)':
