@@ -12,7 +12,7 @@
 include (GenerateExportHeader)
 include (CUnit)
 
-idlc_generate(TARGET SecurityCoreTests FILES SecurityCoreTests.idl)
+idlc_generate(TARGET SecurityCoreTests FILES SecurityCoreTests.idl WARNINGS no-implicit-extensibility)
 
 function(add_wrapper libname linklibs)
   set(srcs_wrapper

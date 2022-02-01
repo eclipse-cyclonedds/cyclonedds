@@ -151,8 +151,8 @@ target_link_libraries(oneliner PRIVATE RoundTrip Space ddsc)
 # better not be part of the tests.  That also saves us from
 # having to figure out now how to start/stop RouDi on Windows.
 if(ENABLE_SHM)
-  idlc_generate(TARGET Array100 FILES Array100.idl)
-  idlc_generate(TARGET DynamicData FILES DynamicData.idl)
+  idlc_generate(TARGET Array100 FILES Array100.idl WARNINGS no-implicit-extensibility)
+  idlc_generate(TARGET DynamicData FILES DynamicData.idl WARNINGS no-implicit-extensibility)
 
   add_cunit_executable(cunit_ddsc_iox
     "iceoryx.c"
