@@ -625,8 +625,12 @@ static dds_return_t deser_data_representation (void * __restrict dst, struct fla
   uint32_t cnt;
   int16_t v;
   (void) gv;
-  if (deser_uint32 (&cnt, dd, &srcoff) < 0)
+  if (deser_uint32 (&cnt, dd, &srcoff) < 0 || cnt > (dd->bufsz - srcoff) / sizeof (int16_t))
     return DDS_RETCODE_BAD_PARAMETER;
+  /* Consider an empty list as if the parameter is not set, the resulting qos will get default
+     data representation when the default qos for the entity is merged in. */
+  if (cnt == 0)
+    return 0;
   x->value.n = cnt;
   x->value.ids = ddsrt_malloc (cnt * sizeof (*x->value.ids));
   /* coverity[tainted_data: FALSE] */

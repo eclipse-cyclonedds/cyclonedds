@@ -16,6 +16,7 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsi/ddsi_xqos.h"
 #include "test_util.h"
 #include "DataRepresentationTypes.h"
 
@@ -420,3 +421,54 @@ CU_Test(ddsc_data_representation, extensibility, .init = data_representation_ini
   }
 }
 
+CU_Test (ddsc_data_representation, update_qos, .init = data_representation_init, .fini = data_representation_fini)
+{
+  dds_return_t ret;
+
+  char topicname[100];
+  create_unique_topic_name ("ddsc_data_representation", topicname, sizeof topicname);
+  dds_entity_t tp1 = dds_create_topic (dp1, &DESC(TypeFinal), topicname, NULL, NULL);
+  CU_ASSERT_FATAL (tp1 > 0);
+
+  enum { RD, WR, TP } tests[] = { RD, WR, TP };
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    dds_entity_t ent;
+    switch (tests[i]) {
+      case RD: printf("RD\n"); ent = dds_create_reader (dp1, tp1, NULL, NULL); break;
+      case WR: printf("WR\n"); ent = dds_create_writer (dp1, tp1, NULL, NULL); break;
+      case TP: printf("TP\n"); ent = tp1; break;
+    }
+    CU_ASSERT_FATAL (ent > 0);
+
+    {
+      // data representation should be implicitly set to XCDR1, XCDR2
+      datarep_qos_exp_t exp = { .exp = { { XCDR1, XCDR2 }, 2 } };
+      exp_qos (ent, &exp);
+
+      // change a mutable qos: allowed, and implicit data representation should remain unchanged
+      dds_qos_t *qos = dds_create_qos ();
+      dds_qset_userdata (qos, "test", 5);
+      ret = dds_set_qos (ent, qos);
+      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+      exp_qos (ent, &exp);
+
+      // change data representation: not allowed
+      dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { XCDR2 });
+      ret = dds_set_qos (ent, qos);
+      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_IMMUTABLE_POLICY);
+      dds_delete_qos (qos);
+    }
+
+    {
+      // get qos from entity, update mutable qos policy and set qos to entity
+      dds_qos_t *qos = dds_create_qos ();
+      dds_return_t ret = dds_get_qos (ent, qos);
+      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+      dds_qset_partition1 (qos, "test1");
+      ret = dds_set_qos (ent, qos);
+      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+      dds_delete_qos (qos);
+    }
+  }
+}
