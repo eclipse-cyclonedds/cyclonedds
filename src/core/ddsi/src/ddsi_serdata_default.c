@@ -196,11 +196,10 @@ static struct ddsi_serdata_default *serdata_default_new (const struct ddsi_serty
   return serdata_default_new_size (tp, kind, DEFAULT_NEW_SIZE, xcdr_version);
 }
 
-static inline void assert_valid_xcdr_id (unsigned short cdr_identifier)
+static inline bool is_valid_xcdr_id (unsigned short cdr_identifier)
 {
   /* PL_CDR_(L|B)E version 1 only supported for discovery data, using ddsi_serdata_plist */
-  (void) cdr_identifier;
-  assert (cdr_identifier == CDR_LE || cdr_identifier == CDR_BE
+  return (cdr_identifier == CDR_LE || cdr_identifier == CDR_BE
     || cdr_identifier == CDR2_LE || cdr_identifier == CDR2_BE
     || cdr_identifier == D_CDR2_LE || cdr_identifier == D_CDR2_BE
     || cdr_identifier == PL_CDR2_LE || cdr_identifier == PL_CDR2_BE);
@@ -314,7 +313,8 @@ static struct ddsi_serdata_default *serdata_default_from_ser_common (const struc
   assert (fragchain->maxp1 >= off); /* CDR header must be in first fragment */
 
   memcpy (&d->hdr, NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain)), sizeof (d->hdr));
-  assert_valid_xcdr_id (d->hdr.identifier);
+  if (!is_valid_xcdr_id (d->hdr.identifier))
+    goto err;
 
   while (fragchain)
   {
@@ -336,37 +336,28 @@ static struct ddsi_serdata_default *serdata_default_from_ser_common (const struc
   const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
   const uint32_t encoding_format = ddsi_sertype_enc_id_enc_format (d->hdr.identifier);
   if (encoding_format != tp->encoding_format)
-    return NULL;
+    goto err;
 
   uint32_t actual_size;
-  if (d->pos < pad)
-  {
-    ddsi_serdata_unref (&d->c);
-    return NULL;
-  }
-  else if (!dds_stream_normalize (d->data, d->pos - pad, needs_bswap, xcdr_version, tp, kind == SDK_KEY, &actual_size))
-  {
-    ddsi_serdata_unref (&d->c);
-    return NULL;
-  }
-  else
-  {
-    dds_istream_t is;
-    dds_istream_init (&is, actual_size, d->data, xcdr_version);
-    if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
-    {
-      ddsi_serdata_unref (&d->c);
-      return NULL;
-    }
-    // for (int n = 0; n < d->key.keysize; n++) {
-    //   if (d->key.buftype == KEYBUFTYPE_DYNALLOC || d->key.buftype == KEYBUFTYPE_DYNALIAS)
-    //     printf("%02x ", d->key.u.dynbuf[n]);
-    //   else
-    //     printf("%02x ", d->key.u.stbuf[n]);
-    // }
-    // printf("\n");
-    return d;
-  }
+  if (d->pos < pad || !dds_stream_normalize (d->data, d->pos - pad, needs_bswap, xcdr_version, tp, kind == SDK_KEY, &actual_size))
+    goto err;
+
+  dds_istream_t is;
+  dds_istream_init (&is, actual_size, d->data, xcdr_version);
+  if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
+    goto err;
+  // for (int n = 0; n < d->key.keysize; n++) {
+  //   if (d->key.buftype == KEYBUFTYPE_DYNALLOC || d->key.buftype == KEYBUFTYPE_DYNALIAS)
+  //     printf("%02x ", d->key.u.dynbuf[n]);
+  //   else
+  //     printf("%02x ", d->key.u.stbuf[n]);
+  // }
+  // printf("\n");
+  return d;
+
+err:
+  ddsi_serdata_unref (&d->c);
+  return NULL;
 }
 
 static struct ddsi_serdata_default *serdata_default_from_ser_iov_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
@@ -387,7 +378,8 @@ static struct ddsi_serdata_default *serdata_default_from_ser_iov_common (const s
     return NULL;
 
   memcpy (&d->hdr, iov[0].iov_base, sizeof (d->hdr));
-  assert_valid_xcdr_id (d->hdr.identifier);
+  if (!is_valid_xcdr_id (d->hdr.identifier))
+    goto err;
   serdata_default_append_blob (&d, iov[0].iov_len - 4, (const char *) iov[0].iov_base + 4);
   for (ddsrt_msg_iovlen_t i = 1; i < niov; i++)
     serdata_default_append_blob (&d, iov[i].iov_len, iov[i].iov_base);
@@ -398,30 +390,21 @@ static struct ddsi_serdata_default *serdata_default_from_ser_iov_common (const s
   const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
   const uint32_t encoding_format = ddsi_sertype_enc_id_enc_format (d->hdr.identifier);
   if (encoding_format != tp->encoding_format)
-    return NULL;
+    goto err;
 
   uint32_t actual_size;
-  if (d->pos < pad)
-  {
-    ddsi_serdata_unref (&d->c);
-    return NULL;
-  }
-  else if (!dds_stream_normalize (d->data, d->pos - pad, needs_bswap, xcdr_version, tp, kind == SDK_KEY, &actual_size))
-  {
-    ddsi_serdata_unref (&d->c);
-    return NULL;
-  }
-  else
-  {
-    dds_istream_t is;
-    dds_istream_init (&is, actual_size, d->data, ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier));
-    if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
-    {
-      ddsi_serdata_unref (&d->c);
-      return NULL;
-    }
-    return d;
-  }
+  if (d->pos < pad || !dds_stream_normalize (d->data, d->pos - pad, needs_bswap, xcdr_version, tp, kind == SDK_KEY, &actual_size))
+    goto err;
+
+  dds_istream_t is;
+  dds_istream_init (&is, actual_size, d->data, xcdr_version);
+  if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
+    goto err;
+  return d;
+
+err:
+  ddsi_serdata_unref (&d->c);
+  return NULL;
 }
 
 static struct ddsi_serdata *serdata_default_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
