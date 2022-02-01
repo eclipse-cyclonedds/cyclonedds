@@ -117,6 +117,70 @@ CU_Test(idlc_descriptor, keys_nested)
 #undef TEST_MAX_KEYS
 #undef TEST_MAX_KEY_OFFS
 
+#define S(ann) ann " struct s { char f; };"
+#define U(ann) ann " union u switch(short) { case 1: char f; };"
+CU_Test(idlc_descriptor, default_extensibility)
+{
+  idl_retcode_t ret;
+  static const struct {
+    const char *idl;
+    idl_extensibility_t default_ext;
+    idl_extensibility_t exp_ext;
+  } tests[] = {
+    { S(""), IDL_FINAL, IDL_FINAL },
+    { S(""), IDL_APPENDABLE, IDL_APPENDABLE },
+    { S(""), IDL_MUTABLE, IDL_MUTABLE },
+    { U(""), IDL_FINAL, IDL_FINAL },
+    { U(""), IDL_APPENDABLE, IDL_APPENDABLE },
+    { S("@appendable"), IDL_MUTABLE, IDL_APPENDABLE },
+    { S("@extensibility(MUTABLE)"), IDL_APPENDABLE, IDL_MUTABLE },
+    { U("@appendable"), IDL_FINAL, IDL_APPENDABLE },
+    { U("@extensibility(APPENDABLE)"), IDL_MUTABLE, IDL_APPENDABLE },
+  };
+
+  uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
+                   IDL_FLAG_ANONYMOUS_TYPES |
+                   IDL_FLAG_ANNOTATIONS;
+
+  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
+    static idl_pstate_t *pstate = NULL;
+    struct descriptor descriptor;
+
+    printf ("running test for idl: %s\n", tests[i].idl);
+    ret = idl_create_pstate (flags, NULL, &pstate);
+    pstate->config.default_extensibility = (int) tests[i].default_ext;
+    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
+    ret = idl_parse_string(pstate, tests[i].idl);
+    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_PTR_NOT_NULL_FATAL (pstate->root);
+    ret = generate_descriptor_impl(pstate, pstate->root, &descriptor);
+    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+
+    uint32_t instr1 = 0;
+    assert (descriptor.constructed_types);
+    assert (descriptor.constructed_types->instructions.table);
+    if (descriptor.constructed_types->instructions.table[0].type == OPCODE)
+      instr1 = descriptor.constructed_types->instructions.table[0].data.opcode.code;
+    switch (tests[i].exp_ext) {
+      case IDL_FINAL:
+        CU_ASSERT_FATAL(instr1 != DDS_OP_DLC && instr1 != DDS_OP_PLC);
+        break;
+      case IDL_APPENDABLE:
+        CU_ASSERT_FATAL(instr1 == DDS_OP_DLC);
+        break;
+      case IDL_MUTABLE:
+        CU_ASSERT_FATAL(instr1 == DDS_OP_PLC);
+        break;
+    }
+    descriptor_fini (&descriptor);
+    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    idl_delete_pstate (pstate);
+  }
+}
+
+#undef S
+#undef U
 
 #define VAR (DDS_FIXED_KEY_MAX_SIZE + 1)
 CU_Test(idlc_descriptor, key_size)

@@ -172,7 +172,7 @@ idl_declare(
   int (*cmp)(const char *, const char *);
 
   assert(pstate && pstate->scope);
-  cmp = (pstate->flags & IDL_FLAG_CASE_SENSITIVE) ? &strcmp : &idl_strcasecmp;
+  cmp = (pstate->config.flags & IDL_FLAG_CASE_SENSITIVE) ? &strcmp : &idl_strcasecmp;
 
   /* ensure there is no collision with an earlier declaration */
   for (entry = pstate->scope->declarations.first; entry; entry = entry->next) {
@@ -502,7 +502,7 @@ idl_resolve(
 
   if (kind == IDL_ANNOTATION_DECLARATION)
     flags |= IDL_FIND_ANNOTATION;
-  if (pstate->flags & IDL_FLAG_CASE_SENSITIVE)
+  if (pstate->config.flags & IDL_FLAG_CASE_SENSITIVE)
     ignore_case = 0u;
 
   if (scoped_name->absolute)

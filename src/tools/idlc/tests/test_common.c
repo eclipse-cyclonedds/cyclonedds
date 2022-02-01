@@ -28,7 +28,7 @@ static idl_node_t * get_topic_node(idl_pstate_t *pstate, void *list)
       if (topic)
         return topic;
     } else if (idl_mask(list) == IDL_STRUCT || idl_mask(list) == IDL_UNION) {
-      if (idl_is_topic (list, (pstate->flags & IDL_FLAG_KEYLIST)))
+      if (idl_is_topic (list, (pstate->config.flags & IDL_FLAG_KEYLIST)))
         return list;
     }
   }

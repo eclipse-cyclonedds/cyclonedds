@@ -976,7 +976,7 @@ bool idl_is_struct(const void *ptr)
      data types is enabled */
 #if 0
   members = ((const idl_struct_t *)node)->members;
-  if (!(pstate->flags & IDL_FLAG_EXTENDED_DATA_TYPES))
+  if (!(pstate->config.flags & IDL_FLAG_EXTENDED_DATA_TYPES))
     assert(members);
   if (members)
     assert(idl_mask(members) & IDL_MEMBER);
@@ -1223,11 +1223,14 @@ idl_finalize_struct(
     idl_struct_t *base = node->inherit_spec->base;
     assert(idl_is_struct(base));
 
-    node->extensibility.value = base->extensibility.value;
+    if (node->extensibility.annotation == NULL)
+      node->extensibility.value = base->extensibility.value;
+    else
+      assert (node->extensibility.value == base->extensibility.value);
     if (base->extensibility.value == IDL_APPENDABLE) {
       static bool extensibility_inheritance_warned = false;
       if (!extensibility_inheritance_warned) {
-        idl_warning(state, idl_location(node),
+        idl_warning(state, IDL_WARN_INHERIT_APPENDABLE, idl_location(node),
           "Inheriting from appendable structs is unsafe");
         extensibility_inheritance_warned = true;
       }
@@ -1314,6 +1317,10 @@ idl_create_struct(
     node->inherit_spec = inherit_spec;
     inherit_spec->node.parent = (idl_node_t *)node;
   }
+
+  /* set default extensibility from parser configuration; may be overwritten
+     by value from an annotation on this node, or by inheritance */
+  node->extensibility.value = pstate->config.default_extensibility >= 0 ? (idl_extensibility_t)pstate->config.default_extensibility : IDL_FINAL;
 
   idl_enter_scope(pstate, scope);
   *((idl_struct_t **)nodep) = node;
@@ -1985,6 +1992,10 @@ idl_create_union(
   if ((ret = idl_declare(pstate, kind, name, node, scope, NULL)))
     goto err_declare;
 
+  /* set default extensibility from parser configuration; may be overwritten
+     by value from an annotation on this node */
+  node->extensibility.value = pstate->config.default_extensibility >= 0 ? (idl_extensibility_t)pstate->config.default_extensibility : IDL_FINAL;
+
   idl_enter_scope(pstate, scope);
   *((idl_union_t **)nodep) = node;
   node->name = name;
@@ -2020,7 +2031,7 @@ idl_is_switch_type_spec(const void *ptr)
     case IDL_WCHAR:
     case IDL_OCTET:
 #if 0
-      assert(pstate->flags & IDL_FLAG_EXTENDED_DATA_TYPES);
+      assert(pstate->config.flags & IDL_FLAG_EXTENDED_DATA_TYPES);
 #endif
       return true;
     default:
@@ -2072,7 +2083,7 @@ idl_create_switch_type_spec(
   static const struct methods methods = { delete_switch_type_spec,
                                           iterate_switch_type_spec,
                                           describe_switch_type_spec };
-  bool ext = (pstate->flags & IDL_FLAG_EXTENDED_DATA_TYPES) != 0;
+  bool ext = (pstate->config.flags & IDL_FLAG_EXTENDED_DATA_TYPES) != 0;
 
   assert(type_spec);
   type = idl_type(idl_unalias(type_spec));
@@ -2395,7 +2406,8 @@ idl_create_enum(
     e1->node.parent = (idl_node_t*)node;
     if (e1->value.annotation)
       value = e1->value.value;
-    e1->value.value = value;
+    else
+      e1->value.value = value;
     for (idl_enumerator_t *e2 = enumerators; e2; e2 = idl_next(e2)) {
       if (e2 == e1)
         break;
@@ -2582,7 +2594,8 @@ idl_create_bitmask(
     b1->node.parent = (idl_node_t*)node;
     if (b1->position.annotation)
       position = b1->position.value;
-    b1->position.value = position;
+    else
+      b1->position.value = position;
     for (idl_bit_value_t *b2 = bit_values; b2; b2 = idl_next(b2)) {
       if (b2 == b1)
         break;
@@ -3502,9 +3515,45 @@ bool idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, ui
 
 bool idl_is_extensible(const idl_node_t *node, idl_extensibility_t extensibility)
 {
-  return (idl_is_struct(node) && ((idl_struct_t *)node)->extensibility.value == extensibility) ||
-    (idl_is_union(node) && ((idl_union_t *)node)->extensibility.value == extensibility);
+  if (idl_is_struct(node)) {
+    const idl_struct_t *_struct = (const idl_struct_t *)node;
+    return _struct->extensibility.value == extensibility;
+  }
+  if (idl_is_union(node)) {
+    const idl_union_t *_union = (const idl_union_t *)node;
+    return _union->extensibility.value == extensibility;
+  }
+  return false;
 }
+
+bool idl_has_unset_extensibility_r(idl_node_t *node)
+{
+  idl_retcode_t ret = IDL_RETCODE_OK;
+  assert(node);
+  for (; node; node = idl_next(node)) {
+    if (idl_mask(node) == IDL_MODULE) {
+      idl_module_t *module = (idl_module_t *)node;
+      return idl_has_unset_extensibility_r(module->definitions);
+    } else if (idl_mask(node) == IDL_STRUCT) {
+      idl_struct_t *_struct = (idl_struct_t *)node;
+      if (_struct->extensibility.annotation)
+        continue;
+      if (!_struct->inherit_spec)
+        return true;
+      idl_struct_t *base = _struct->inherit_spec->base;
+      while (base && !base->extensibility.annotation)
+        base = base->inherit_spec ? base->inherit_spec->base : NULL;
+      if (!base || !base->extensibility.annotation)
+        return true;
+    } else if (idl_mask(node) == IDL_UNION) {
+      idl_union_t *_union = (idl_union_t *)node;
+      if (!_union->extensibility.annotation)
+        return true;
+    }
+  }
+  return ret;
+}
+
 
 bool idl_is_external(const idl_node_t *node)
 {

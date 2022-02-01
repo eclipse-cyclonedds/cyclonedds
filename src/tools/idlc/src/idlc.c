@@ -31,6 +31,8 @@
 #include "mcpp_lib.h"
 #include "mcpp_out.h"
 
+#include "idlc/generator.h"
+#include "generator.h"
 #include "plugin.h"
 #include "options.h"
 #include "descriptor_type_meta.h"
@@ -41,6 +43,14 @@
 #define IDLC_DEBUG_PARSER (1u<<4)
 #endif
 
+#define DISABLE_WARNING_CHSZ 10
+struct idlc_disable_warning_list
+{
+  idl_warning_t *list;
+  size_t size;
+  size_t count;
+};
+
 static struct {
   char *file; /* path of input file or "-" for STDIN */
   const char *lang;
@@ -48,6 +58,8 @@ static struct {
   int preprocess;
   int keylist;
   int case_sensitive;
+  int default_extensibility;
+  struct idlc_disable_warning_list disable_warnings;
   int help;
   int version;
 #ifdef DDS_HAS_TYPE_DISCOVERY
@@ -70,7 +82,7 @@ static int idlc_printf(OUTDEST od, const char *str, ...);
 
 static int idlc_putn(const char *str, size_t len)
 {
-  assert(pstate->flags & IDL_WRITE);
+  assert(pstate->config.flags & IDL_WRITE);
 
   /* tokenize to free up space */
   if (pstate->buffer.data && (pstate->buffer.size - pstate->buffer.used) <= len) {
@@ -262,10 +274,6 @@ static idl_retcode_t idlc_parse(void)
 
   if(config.case_sensitive)
     flags |= IDL_FLAG_CASE_SENSITIVE;
-#ifdef DDS_HAS_TYPE_DISCOVERY
-  if(!config.no_type_info)
-    flags |= IDL_FLAG_TYPE_INFO;
-#endif
 
   if(config.compile) {
     idl_source_t *source;
@@ -302,13 +310,16 @@ static idl_retcode_t idlc_parse(void)
     pstate->scanner.position.file = (const idl_file_t *)pstate->files;
     pstate->scanner.position.line = 1;
     pstate->scanner.position.column = 1;
-    pstate->flags |= IDL_WRITE;
+    pstate->config.flags |= IDL_WRITE;
+    pstate->config.default_extensibility = config.default_extensibility;
+    pstate->config.disable_warnings = config.disable_warnings.list;
+    pstate->config.n_disable_warnings = config.disable_warnings.count;
   }
 
   if (config.preprocess) {
     if (pstate) {
       assert(config.compile);
-      pstate->flags |= IDL_WRITE;
+      pstate->config.flags |= IDL_WRITE;
     }
     mcpp_set_out_func(&idlc_putc, &idlc_puts, &idlc_printf);
     if (mcpp_lib_main(config.argc, config.argv) == 0) {
@@ -318,7 +329,7 @@ static idl_retcode_t idlc_parse(void)
       ret = retcode ? retcode : IDL_RETCODE_SYNTAX_ERROR;
     }
     if (pstate) {
-      pstate->flags &= ~IDL_WRITE;
+      pstate->config.flags &= ~IDL_WRITE;
     }
   } else {
     FILE *fin = NULL;
@@ -356,7 +367,7 @@ static idl_retcode_t idlc_parse(void)
     assert(ret != IDL_RETCODE_NEED_REFILL);
     if (ret == IDL_RETCODE_OK) {
       if (config.keylist) {
-        pstate->flags |= IDL_FLAG_KEYLIST;
+        pstate->config.flags |= IDL_FLAG_KEYLIST;
       } else if (pstate->keylists && pstate->annotations) {
         idl_error(pstate, NULL,
           "Translation unit contains both annotations and #pragma keylist "
@@ -365,7 +376,7 @@ static idl_retcode_t idlc_parse(void)
           "annotations");
         ret = IDL_RETCODE_SYNTAX_ERROR;
       } else if (pstate->keylists) {
-        pstate->flags |= IDL_FLAG_KEYLIST;
+        pstate->config.flags |= IDL_FLAG_KEYLIST;
       }
     }
   }
@@ -412,6 +423,49 @@ static int set_preprocess_only(const idlc_option_t *opt, const char *arg)
   (void)arg;
   config.compile = 0;
   config.preprocess = 1;
+  return 0;
+}
+
+static int config_default_extensibility(const idlc_option_t *opt, const char *arg)
+{
+  (void)opt;
+  if (strcmp(arg, "final") == 0)
+    config.default_extensibility = IDL_FINAL;
+  else if (strcmp(arg, "appendable") == 0)
+    config.default_extensibility = IDL_APPENDABLE;
+  else if (strcmp(arg, "mutable") == 0)
+    config.default_extensibility = IDL_MUTABLE;
+  else
+    return IDLC_BAD_ARGUMENT;
+  return 0;
+}
+
+static int add_disable_warning(idl_warning_t warning)
+{
+  if (config.disable_warnings.count == config.disable_warnings.size) {
+    config.disable_warnings.size += DISABLE_WARNING_CHSZ;
+    idl_warning_t *tmp = realloc(config.disable_warnings.list, config.disable_warnings.size * sizeof(*config.disable_warnings.list));
+    if (!tmp)
+      return IDLC_NO_MEMORY;
+    config.disable_warnings.list = tmp;
+  }
+  config.disable_warnings.list[config.disable_warnings.count++] = warning;
+  return 0;
+}
+
+static int config_warning(const idlc_option_t *opt, const char *arg)
+{
+  (void)opt;
+  if (strcmp(arg, "no-implicit-extensibility") == 0)
+    add_disable_warning(IDL_WARN_IMPLICIT_EXTENSIBILITY);
+  else if (strcmp(arg, "no-extra-token-directive") == 0)
+    add_disable_warning(IDL_WARN_EXTRA_TOKEN_DIRECTIVE);
+  else if (strcmp(arg, "no-unknown_escape_seq") == 0)
+    add_disable_warning(IDL_WARN_UNKNOWN_ESCAPE_SEQ);
+  else if (strcmp(arg, "no-inherit-appendable") == 0)
+    add_disable_warning(IDL_WARN_INHERIT_APPENDABLE);
+  else
+    return IDLC_BAD_ARGUMENT;
   return 0;
 }
 
@@ -474,6 +528,16 @@ static const idlc_option_t *compopts[] = {
   &(idlc_option_t){
     IDLC_FLAG, { .flag = &config.version }, 'v', "", "",
     "Display version information." },
+  &(idlc_option_t){
+    IDLC_FUNCTION, { .function = &config_default_extensibility }, 'x', "", "<extensibility>",
+    "Set the default extensibility that is used in case no extensibility"
+    "is set on a type. Possible values are final, appendable and mutable. "
+    "(default: final)" },
+  &(idlc_option_t){
+    IDLC_FUNCTION, { .function = &config_warning }, 'W', "", "<no-warning>",
+    "Disable warning. Possible values are: no-implicit-extensibility, "
+    "no-extra-token-directive, no-unknown_escape_seq, no-inherit-appendable, "
+    "no-eof-newline. " },
 #ifdef DDS_HAS_TYPE_DISCOVERY
   &(idlc_option_t){
     IDLC_FLAG, { .flag = &config.no_type_info }, 't', "", "",
@@ -531,6 +595,10 @@ int main(int argc, char *argv[])
 
   config.compile = 1;
   config.preprocess = 1;
+  config.default_extensibility = IDL_DEFAULT_EXTENSIBILITY_UNDEFINED;
+  config.disable_warnings.list = NULL;
+  config.disable_warnings.size = 0;
+  config.disable_warnings.count = 0;
 #ifdef DDS_HAS_TYPE_DISCOVERY
   config.no_type_info = 0;
 #endif
@@ -600,11 +668,15 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Out of memory\n");
       goto err_parse;
     } else if (config.compile) {
+      idlc_generator_config_t generator_config;
+      memset(&generator_config, 0, sizeof(generator_config));
 #ifdef DDS_HAS_TYPE_DISCOVERY
-      pstate->generate_typeinfo_typemap = generate_type_meta_ser;
+      if(!config.no_type_info)
+        generator_config.generate_type_info = true;
+      generator_config.generate_typeinfo_typemap = generate_type_meta_ser;
 #endif // DDS_HAS_TYPE_DISCOVERY
       if (gen.generate)
-        ret = gen.generate(pstate);
+        ret = gen.generate(pstate, &generator_config);
       idl_delete_pstate(pstate);
       if (ret) {
         fprintf(stderr, "Failed to compile '%s'\n", config.file);
@@ -619,6 +691,8 @@ err_parse:
 err_parse_opts:
   free(opts);
 err_alloc_opts:
+  if (config.disable_warnings.list)
+    free(config.disable_warnings.list);
   free(config.argv);
 err_argv:
   return exit_code;

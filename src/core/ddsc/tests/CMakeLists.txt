@@ -12,17 +12,17 @@
 include(CUnit)
 
 idlc_generate(TARGET RoundTrip FILES RoundTrip.idl)
-idlc_generate(TARGET Space FILES Space.idl)
-idlc_generate(TARGET TypesArrayKey FILES TypesArrayKey.idl)
-idlc_generate(TARGET WriteTypes FILES WriteTypes.idl)
-idlc_generate(TARGET InstanceHandleTypes FILES InstanceHandleTypes.idl)
-idlc_generate(TARGET RWData FILES RWData.idl)
-idlc_generate(TARGET CreateWriter FILES CreateWriter.idl)
-idlc_generate(TARGET DataRepresentationTypes FILES DataRepresentationTypes.idl)
+idlc_generate(TARGET Space FILES Space.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET TypesArrayKey FILES TypesArrayKey.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET WriteTypes FILES WriteTypes.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET InstanceHandleTypes FILES InstanceHandleTypes.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET RWData FILES RWData.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET CreateWriter FILES CreateWriter.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET DataRepresentationTypes FILES DataRepresentationTypes.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET MinXcdrVersion FILES MinXcdrVersion.idl)
 idlc_generate(TARGET XSpace FILES XSpace.idl)
-idlc_generate(TARGET CdrStreamOptimize FILES CdrStreamOptimize.idl)
 idlc_generate(TARGET XSpaceMustUnderstand FILES XSpaceMustUnderstand.idl)
+idlc_generate(TARGET CdrStreamOptimize FILES CdrStreamOptimize.idl WARNINGS no-implicit-extensibility)
 
 set(ddsc_test_sources
     "basic.c"
@@ -151,8 +151,8 @@ target_link_libraries(oneliner PRIVATE RoundTrip Space ddsc)
 # better not be part of the tests.  That also saves us from
 # having to figure out now how to start/stop RouDi on Windows.
 if(ENABLE_SHM)
-  idlc_generate(TARGET Array100 FILES Array100.idl)
-  idlc_generate(TARGET DynamicData FILES DynamicData.idl)
+  idlc_generate(TARGET Array100 FILES Array100.idl WARNINGS no-implicit-extensibility)
+  idlc_generate(TARGET DynamicData FILES DynamicData.idl WARNINGS no-implicit-extensibility)
 
   add_cunit_executable(cunit_ddsc_iox
     "iceoryx.c"

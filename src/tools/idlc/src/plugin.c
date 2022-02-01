@@ -38,6 +38,7 @@ static const char ext[] = "so";
 
 #include "plugin.h"
 #include "idl/string.h"
+#include "idlc/generator.h"
 
 static size_t extlen = sizeof(ext) - 1;
 
@@ -148,7 +149,7 @@ static int run_library_locator(const char *command, char **out_output) {
 
 
 extern const idlc_option_t** idlc_generator_options(void);
-extern int idlc_generate(const idl_pstate_t *pstate);
+extern int idlc_generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config);
 
 int32_t
 idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)

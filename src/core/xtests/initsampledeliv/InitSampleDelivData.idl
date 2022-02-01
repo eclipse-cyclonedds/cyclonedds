@@ -9,11 +9,10 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 struct Msg {
+  @key
   long keyval;
   long seq;
   long tldepth;
   long final_seq;
   long seq_at_match[2];
 };
-
-#pragma keylist Msg keyval

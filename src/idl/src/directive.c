@@ -252,7 +252,7 @@ parse_line(idl_pstate_t *pstate, idl_token_t *tok)
           pstate->scanner.state = IDL_SCAN_FILE;
       } else {
 extra_tokens:
-        idl_warning(pstate, &tok->location, "Extra tokens at end of %s", type);
+        idl_warning(pstate, IDL_WARN_EXTRA_TOKEN_DIRECTIVE, &tok->location, "Extra tokens at end of %s", type);
         pstate->scanner.state = IDL_SCAN_EXTRA_TOKENS;
       }
       break;

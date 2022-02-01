@@ -356,7 +356,7 @@ const idlc_option_t** idlc_generator_options(void)
 }
 
 idl_retcode_t
-idlc_generate(const idl_pstate_t *pstate)
+idlc_generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config)
 {
   idl_retcode_t ret = IDL_RETCODE_NO_MEMORY;
   const char *sep, *ext, *file, *path;
@@ -366,6 +366,7 @@ idlc_generate(const idl_pstate_t *pstate)
 
   assert(pstate->paths);
   assert(pstate->paths->name);
+  assert(config);
   path = pstate->sources->path->name;
   /* use relative directory if user provided a relative path, use current
      word directory otherwise */
@@ -403,17 +404,18 @@ idlc_generate(const idl_pstate_t *pstate)
     goto err_source;
   if (!(generator.source.handle = idl_fopen(generator.source.path, "wb")))
     goto err_source;
+  generator.config.c = *config;
   if (export_macro) {
-    if (!(generator.export_macro = idl_strdup (export_macro)))
+    if (!(generator.config.export_macro = idl_strdup (export_macro)))
       goto err_options;
   } else {
-    generator.export_macro = NULL;
+    generator.config.export_macro = NULL;
   }
   ret = generate_nosetup(pstate, &generator);
 
 err_options:
-  if (generator.export_macro)
-    free(generator.export_macro);
+  if (generator.config.export_macro)
+    free(generator.config.export_macro);
 err_source:
   if (generator.source.handle)
     fclose(generator.source.handle);

@@ -10,72 +10,82 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 module TypesArrayKey {
-    struct long_arraytypekey {
-        long key[20]; //@Key
-    };
-#pragma keylist long_arraytypekey key
+  struct long_arraytypekey {
+    @key
+    long key[20];
+  };
 
-    typedef long long longlong;
-    struct longlong_arraytypekey {
-        longlong key[20]; //@Key
-    };
-#pragma keylist longlong_arraytypekey key
+  typedef long long longlong;
+  struct longlong_arraytypekey {
+    @key
+    longlong key[20];
+  };
 
-    typedef unsigned short unsignedshort;
-    struct unsignedshort_arraytypekey {
-        unsignedshort key[20]; //@Key
-    };
-#pragma keylist unsignedshort_arraytypekey key
+  typedef unsigned short unsignedshort;
+  struct unsignedshort_arraytypekey {
+    @key
+    unsignedshort key[20];
+  };
 
-    typedef unsigned long unsignedlong;
-    struct unsignedlong_arraytypekey {
-        unsignedlong key[20]; //@Key
-    };
-#pragma keylist unsignedlong_arraytypekey key
+  typedef unsigned long unsignedlong;
+  struct unsignedlong_arraytypekey {
+    @key
+    unsignedlong key[20];
+  };
 
-    typedef unsigned long long unsignedlonglong;
-    struct unsignedlonglong_arraytypekey {
-        unsignedlonglong key[20]; //@Key
-    };
-#pragma keylist unsignedlonglong_arraytypekey key
+  typedef unsigned long long unsignedlonglong;
+  struct unsignedlonglong_arraytypekey {
+    @key
+    unsignedlonglong key[20];
+  };
 
-    struct float_arraytypekey {
-        float key[20]; //@Key
-    };
-#pragma keylist float_arraytypekey key
+  struct float_arraytypekey {
+    @key
+    float key[20];
+  };
 
-    struct double_arraytypekey {
-        double key[20]; //@Key
-    };
-#pragma keylist double_arraytypekey key
+  struct double_arraytypekey {
+    @key
+    double key[20];
+  };
 
-    struct char_arraytypekey {
-        char key[128]; //@Key
-    };
-#pragma keylist char_arraytypekey key
+  struct char_arraytypekey {
+    @key
+    char key[128];
+  };
 
-    struct boolean_arraytypekey {
-        boolean key[128]; //@Key
-    };
-#pragma keylist boolean_arraytypekey key
+  struct boolean_arraytypekey {
+    @key
+    boolean key[128];
+  };
 
-    struct octet_arraytypekey {
-        octet key[128]; //@Key
-    };
-#pragma keylist octet_arraytypekey key
+  struct octet_arraytypekey {
+    @key
+    octet key[128];
+  };
 
-    struct alltypeskey {
-        long                l;
-        long long           ll;
-        unsigned short      us;
-        unsigned long       ul;
-        unsigned long long  ull;
-        float               f;
-        double              d;
-        char                c;
-        boolean             b;
-        octet               o;
-        string              s; //@Key
-    };
-#pragma keylist alltypeskey l ll us ul ull f d c b o s
+  struct alltypeskey {
+    @key
+    long                l;
+    @key
+    long long           ll;
+    @key
+    unsigned short      us;
+    @key
+    unsigned long       ul;
+    @key
+    unsigned long long  ull;
+    @key
+    float               f;
+    @key
+    double              d;
+    @key
+    char                c;
+    @key
+    boolean             b;
+    @key
+    octet               o;
+    @key
+    string              s;
+  };
 };

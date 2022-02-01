@@ -232,8 +232,8 @@ emit_struct(
       return IDL_RETCODE_NO_MEMORY;
     if (!empty && idl_fprintf(gen->header.handle, "\n") < 0)
       return IDL_RETCODE_NO_MEMORY;
-    if (!empty && idl_is_topic(node, (pstate->flags & IDL_FLAG_KEYLIST) != 0)) {
-      if (gen->export_macro && idl_fprintf(gen->header.handle, "%1$s ", gen->export_macro) < 0)
+    if (!empty && idl_is_topic(node, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0)) {
+      if (gen->config.export_macro && idl_fprintf(gen->header.handle, "%1$s ", gen->config.export_macro) < 0)
         return IDL_RETCODE_NO_MEMORY;
       fmt = "extern const dds_topic_descriptor_t %1$s_desc;\n"
             "\n"
@@ -311,8 +311,8 @@ emit_union(
           "\n";
     if (idl_fprintf(gen->header.handle, fmt, name) < 0)
       return IDL_RETCODE_NO_MEMORY;
-    if (idl_is_topic(node, (pstate->flags & IDL_FLAG_KEYLIST) != 0)) {
-      if (gen->export_macro && idl_fprintf(gen->header.handle, "%1$s ", gen->export_macro) < 0)
+    if (idl_is_topic(node, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0)) {
+      if (gen->config.export_macro && idl_fprintf(gen->header.handle, "%1$s ", gen->config.export_macro) < 0)
         return IDL_RETCODE_NO_MEMORY;
       fmt = "extern const dds_topic_descriptor_t %1$s_desc;\n"
             "\n"

@@ -152,10 +152,11 @@ idl_create_pstate(
   if (idl_create_scope(pstate, IDL_GLOBAL_SCOPE, &builtin_name, NULL, &scope))
     goto err_scope;
 
-  pstate->flags = flags;
+  pstate->config.flags = flags;
+  pstate->config.default_extensibility = IDL_DEFAULT_EXTENSIBILITY_UNDEFINED;
   pstate->global_scope = pstate->scope = scope;
 
-  if (pstate->flags & IDL_FLAG_ANNOTATIONS) {
+  if (pstate->config.flags & IDL_FLAG_ANNOTATIONS) {
     idl_retcode_t ret;
     if ((ret = parse_builtin_annotations(pstate, builtin_annotations))) {
       idl_delete_pstate(pstate);
@@ -284,9 +285,13 @@ idl_error(
 
 void
 idl_warning(
-  const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...)
+  const idl_pstate_t *pstate, idl_warning_t warning, const idl_location_t *loc, const char *fmt, ...)
 {
   va_list ap;
+
+  for (size_t n = 0; n < pstate->config.n_disable_warnings; n++)
+    if (pstate->config.disable_warnings[n] == warning)
+      return;
 
   va_start(ap, fmt);
   idl_log(pstate, IDL_LC_WARNING, loc, fmt, ap);
@@ -395,6 +400,19 @@ static idl_retcode_t validate_must_understand(idl_pstate_t *pstate, void *root)
   return IDL_RETCODE_OK;
 }
 
+static idl_retcode_t set_type_extensibility(idl_pstate_t *pstate)
+{
+  if (pstate->config.default_extensibility == IDL_DEFAULT_EXTENSIBILITY_UNDEFINED && idl_has_unset_extensibility_r(pstate->root)) {
+    idl_warning(pstate, IDL_WARN_IMPLICIT_EXTENSIBILITY, NULL,
+      "No default extensibility provided. For one or more of the "
+      "aggregated types in the IDL the extensibility is not explicitly set. "
+      "Currently the default extensibility for these types is 'final', but this "
+      "may change to 'appendable' in a future release because that is the "
+      "default in the DDS XTypes specification.");
+  }
+  return IDL_RETCODE_OK;
+}
+
 idl_retcode_t idl_parse(idl_pstate_t *pstate)
 {
   idl_retcode_t ret;
@@ -447,6 +465,8 @@ grammar:
 
   /* FIXME: combine these validations into a single pass, e.g. by using
      callback functions for node validation */
+  if ((ret = set_type_extensibility(pstate)) != IDL_RETCODE_OK)
+    goto err;
   if ((ret = validate_forwards(pstate, pstate->root)))
     goto err;
   if ((ret = validate_must_understand(pstate, pstate->root)))

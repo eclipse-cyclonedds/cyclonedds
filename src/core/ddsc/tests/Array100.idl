@@ -12,4 +12,3 @@
 struct Array100 {
   octet data[100];
 };
-#pragma keylist Array100

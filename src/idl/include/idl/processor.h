@@ -39,10 +39,11 @@
 #define IDL_FLAG_ANONYMOUS_TYPES (1u<<3)
 /* enable building block annotations */
 #define IDL_FLAG_ANNOTATIONS (1u<<4)
-/* include CDR serialized type information */
-#define IDL_FLAG_TYPE_INFO (1u<<5)
 /* flag used by idlc to indicate end-of-buffer (private) */
 #define IDL_WRITE (1u<<31)
+
+/* used to indicate that default extensibility is not set */
+#define IDL_DEFAULT_EXTENSIBILITY_UNDEFINED (-1)
 
 typedef struct idl_buffer idl_buffer_t;
 struct idl_buffer {
@@ -59,11 +60,25 @@ struct idl_typeinfo_typemap {
   size_t typemap_size;
 };
 
+typedef enum idl_warning idl_warning_t;
+enum idl_warning {
+  IDL_WARN_GENERIC,
+  IDL_WARN_IMPLICIT_EXTENSIBILITY,
+  IDL_WARN_EXTRA_TOKEN_DIRECTIVE,
+  IDL_WARN_UNKNOWN_ESCAPE_SEQ,
+  IDL_WARN_INHERIT_APPENDABLE
+};
+
 typedef struct idl_pstate idl_pstate_t;
 struct idl_pstate {
   bool keylists;
   bool annotations;
-  uint32_t flags; /**< processor options */
+  struct {
+    uint32_t flags; /**< processor options */
+    int default_extensibility; /**< default extensibility for aggregated types */
+    const idl_warning_t *disable_warnings; /**< list of warning that will be suppressed */
+    size_t n_disable_warnings; /**< number of items in disable_warnings */
+  } config;
   idl_file_t *paths; /**< normalized paths used in include statements */
   idl_file_t *files; /**< filenames used in #line directives */
   idl_source_t *sources;
@@ -128,15 +143,6 @@ struct idl_pstate {
     } state;
     void *yypstate; /**< state of Bison generated parser */
   } parser;
-
-  /** Generating xtypes typeinfo and typemap is logically a language independent operation that
-   various language backends will need to do, but at the same time doing so requires XCDR2
-   serialization, which, for an IDL compiler written in C, really means relying on the C backend.
-   Passing a pointer to a generator function is a reasonable way of avoiding the layering problems
-   this introduces; passing it here (in pstate_t) is a purely pragmatic choice.
-
-   May be a null pointer */
-  idl_retcode_t (*generate_typeinfo_typemap) (const idl_pstate_t *pstate, const idl_node_t *node, idl_typeinfo_typemap_t *result);
 };
 
 typedef struct idl_builtin_annotation idl_builtin_annotation_t;
@@ -169,7 +175,7 @@ idl_error(const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt
   idl_attribute_format_printf(3, 4);
 
 IDL_EXPORT void
-idl_warning(const idl_pstate_t *pstate, const idl_location_t *loc, const char *fmt, ...)
-  idl_attribute_format_printf(3, 4);
+idl_warning(const idl_pstate_t *pstate, idl_warning_t warning, const idl_location_t *loc, const char *fmt, ...)
+  idl_attribute_format_printf(4, 5);
 
 #endif /* IDL_COMPILER_H */

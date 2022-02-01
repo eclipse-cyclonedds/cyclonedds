@@ -908,7 +908,7 @@ emit_switch_type_spec(
     return ret;
   // XTypes spec 7.2.2.4.4.4.6: In a union type, the discriminator member shall always have the 'must understand' attribute set to true.
   opcode |= DDS_OP_FLAG_MU;
-  if (idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
+  if (idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
     opcode |= DDS_OP_FLAG_KEY;
     ctype->has_key_member = true;
   }
@@ -957,18 +957,12 @@ emit_union(
     if ((ret = add_ctype(descriptor, idl_scope(node), node, &ctype)))
       return ret;
 
-    switch (((idl_union_t *)node)->extensibility.value) {
-      case IDL_APPENDABLE:
-        if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u)))
-          return ret;
-        break;
-      case IDL_MUTABLE:
-        idl_error(pstate, idl_location(node), "Mutable unions are not supported yet");
-        //if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u)))
-        //  return ret;
-        return IDL_RETCODE_UNSUPPORTED;
-      case IDL_FINAL:
-        break;
+    if (idl_is_extensible(node, IDL_APPENDABLE)) {
+      if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u)))
+        return ret;
+    } else if (idl_is_extensible(node, IDL_MUTABLE)) {
+      idl_error(pstate, idl_location(node), "Mutable unions are not supported yet");
+      return IDL_RETCODE_UNSUPPORTED;
     }
 
     if ((ret = push_type(descriptor, node, ctype, &stype)))
@@ -1097,18 +1091,13 @@ emit_struct(
     if ((ret = add_ctype(descriptor, idl_scope(node), node, &ctype)))
       return ret;
 
-    switch (((idl_struct_t *)node)->extensibility.value) {
-      case IDL_APPENDABLE:
-        if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u)))
-          return ret;
-        break;
-      case IDL_MUTABLE:
-        if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u)))
-          return ret;
-        ctype->pl_offset = ctype->instructions.count;
-        break;
-      case IDL_FINAL:
-        break;
+    if (idl_is_extensible(node, IDL_APPENDABLE)) {
+      if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_DLC, 0u)))
+        return ret;
+    } else if (idl_is_extensible(node, IDL_MUTABLE)) {
+      if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, nop, DDS_OP_PLC, 0u)))
+        return ret;
+      ctype->pl_offset = ctype->instructions.count;
     }
 
     if (!(ret = push_type(descriptor, node, ctype, NULL))) {
@@ -1174,7 +1163,7 @@ emit_sequence(
     opcode |= idl_is_bounded(node) ? DDS_OP_TYPE_BSQ : DDS_OP_TYPE_SEQ;
     if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
       return ret;
-    if (idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
+    if (idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
       opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
       ctype->has_key_member = true;
     }
@@ -1301,7 +1290,7 @@ emit_array(
 
     if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
       return ret;
-    if (idl_is_topic_key(descriptor->topic, (pstate->flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
+    if (idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order)) {
       opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
       ctype->has_key_member = true;
     }
@@ -1342,6 +1331,10 @@ emit_array(
       }
       if (!idl_is_alias(node) && idl_is_struct(stype->node))
         pop_field(descriptor);
+      /* visit type-spec for bitmask and enum type, so that emit function is triggered
+         and check for unsupported extensibility is done */
+      if (idl_is_bitmask(type_spec) || idl_is_enum(type_spec))
+        return IDL_VISIT_TYPE_SPEC;
       return IDL_RETCODE_OK;
     }
 
@@ -1367,7 +1360,7 @@ emit_member(
   (void)user_data;
   const idl_member_t *member = (const idl_member_t *)node;
   if (member->value.annotation)
-    idl_warning(pstate, idl_location(node), "Explicit defaults are not supported yet in the C generator, the value from the @default annotation will not be used");
+    idl_warning(pstate, IDL_WARN_GENERIC, idl_location(node), "Explicit defaults are not supported yet in the C generator, the value from the @default annotation will not be used");
   return IDL_RETCODE_OK;
 }
 
@@ -1384,7 +1377,24 @@ emit_bitmask(
   (void)user_data;
   const idl_bitmask_t *bitmask = (const idl_bitmask_t *)node;
   if (bitmask->extensibility.annotation && bitmask->extensibility.value != IDL_FINAL)
-    idl_warning(pstate, idl_location(node), "Extensibility appendable and mutable are not yet supported in the C generator, the extensibility will not be used");
+    idl_warning(pstate, IDL_WARN_GENERIC, idl_location(node), "Extensibility appendable and mutable for bitmask type are not yet supported in the C generator, the extensibility will not be used");
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+emit_enum(
+  const idl_pstate_t *pstate,
+  bool revisit,
+  const idl_path_t *path,
+  const void *node,
+  void *user_data)
+{
+  (void)revisit;
+  (void)path;
+  (void)user_data;
+  const idl_enum_t *_enum = (const idl_enum_t *)node;
+  if (_enum->extensibility.annotation && _enum->extensibility.value != IDL_FINAL)
+    idl_warning(pstate, IDL_WARN_GENERIC, idl_location(node), "Extensibility appendable and mutable for enum type are not yet supported in the C generator, the extensibility will not be used");
   return IDL_RETCODE_OK;
 }
 
@@ -1460,7 +1470,7 @@ emit_declarator(
     assert(ctype->instructions.count <= INT16_MAX);
     int16_t addr_offs = (int16_t)ctype->instructions.count;
     bool has_size = false;
-    bool keylist = (pstate->flags & IDL_FLAG_KEYLIST) != 0;
+    bool keylist = (pstate->config.flags & IDL_FLAG_KEYLIST) != 0;
     opcode = DDS_OP_ADR;
     if ((ret = add_typecode(pstate, type_spec, TYPE, true, &opcode)))
       return ret;
@@ -1512,7 +1522,11 @@ emit_declarator(
         return ret;
     }
 
-    if (idl_is_union(type_spec) || idl_is_struct(type_spec) || idl_is_bitmask(type_spec))
+    /* Type spec in case of aggregated type needs to be visited, to generate
+       the serializer ops for these types. For enumerated types, also visit
+       the type-spec, so that emit function is triggered that checks for
+       unsupported extensibility */
+    if (idl_is_union(type_spec) || idl_is_struct(type_spec) || idl_is_bitmask(type_spec) || idl_is_enum(type_spec))
       return IDL_VISIT_TYPE_SPEC | IDL_VISIT_UNALIAS_TYPE_SPEC | IDL_VISIT_REVISIT;
 
     return IDL_VISIT_REVISIT;
@@ -2401,7 +2415,7 @@ generate_descriptor_impl(
   descriptor->topic = topic_node;
 
   memset(&visitor, 0, sizeof(visitor));
-  visitor.visit = IDL_DECLARATOR | IDL_SEQUENCE | IDL_STRUCT | IDL_UNION | IDL_SWITCH_TYPE_SPEC | IDL_CASE | IDL_FORWARD | IDL_MEMBER | IDL_BITMASK | IDL_INHERIT_SPEC;
+  visitor.visit = IDL_DECLARATOR | IDL_SEQUENCE | IDL_STRUCT | IDL_UNION | IDL_SWITCH_TYPE_SPEC | IDL_CASE | IDL_FORWARD | IDL_MEMBER | IDL_BITMASK | IDL_ENUM | IDL_INHERIT_SPEC;
   visitor.accept[IDL_ACCEPT_SEQUENCE] = &emit_sequence;
   visitor.accept[IDL_ACCEPT_UNION] = &emit_union;
   visitor.accept[IDL_ACCEPT_SWITCH_TYPE_SPEC] = &emit_switch_type_spec;
@@ -2412,6 +2426,7 @@ generate_descriptor_impl(
   visitor.accept[IDL_ACCEPT_MEMBER] = &emit_member;
   visitor.accept[IDL_ACCEPT_BITMASK] = &emit_bitmask;
   visitor.accept[IDL_ACCEPT_INHERIT_SPEC] = &emit_inherit_spec;
+  visitor.accept[IDL_ACCEPT_ENUM] = &emit_enum;
 
   if ((ret = idl_visit(pstate, descriptor->topic, &visitor, descriptor))) {
     /* Clear the type stack in case an error occured during visit, so that the check
@@ -2432,7 +2447,7 @@ generate_descriptor_impl(
   uint32_t n_keys = 0;
   if ((ret = get_ctype_keys(pstate, descriptor, ctype, &ctype_keys, &n_keys, false)) != IDL_RETCODE_OK)
     goto err;
-  if ((ret = descriptor_init_keys(pstate, ctype, ctype_keys, descriptor, n_keys, (pstate->flags & IDL_FLAG_KEYLIST) != 0)) < 0)
+  if ((ret = descriptor_init_keys(pstate, ctype, ctype_keys, descriptor, n_keys, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0)) < 0)
     goto err;
   free_ctype_keys(ctype_keys);
 
@@ -2465,10 +2480,9 @@ generate_descriptor(
   if (print_keys(generator->source.handle, &descriptor, inst_count) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  bool type_info = (pstate->flags & IDL_FLAG_TYPE_INFO) != 0;
-  if (type_info && print_type_meta_ser(generator->source.handle, pstate, node) < 0)
+  if (generator->config.c.generate_type_info && print_type_meta_ser(generator->source.handle, pstate, node) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
-  if (print_descriptor(generator->source.handle, &descriptor, type_info) < 0)
+  if (print_descriptor(generator->source.handle, &descriptor, generator->config.c.generate_type_info) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
 #else
   if (print_descriptor(generator->source.handle, &descriptor, false) < 0)

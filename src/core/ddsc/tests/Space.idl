@@ -10,37 +10,38 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 module Space {
-    struct Type1 {
-	long	long_1; //@Key
-	long	long_2;
-	long	long_3;
-    };
-#pragma keylist Type1 long_1
-    struct Type2 {
-	long	long_1; //@Key
-	long	long_2;
-	long	long_3;
-    };
-#pragma keylist Type2 long_1
-    struct Type3 {
-	long	long_1;
-	long	long_2;
-	long	long_3;
-    };
-#pragma keylist Type3
+  struct Type1 {
+    @key
+    long	long_1;
+    long	long_2;
+    long	long_3;
+  };
 
-    struct simpletypes {
-        long                l;
-        long long           ll;
-        unsigned short      us;
-        unsigned long       ul;
-        unsigned long long  ull;
-        float               f;
-        double              d;
-        char                c;
-        boolean             b;
-        octet               o;
-        string              s; //@Key
-    };
-#pragma keylist simpletypes s
+  struct Type2 {
+    @key
+    long	long_1;
+    long	long_2;
+    long	long_3;
+  };
+
+  struct Type3 {
+    long	long_1;
+    long	long_2;
+    long	long_3;
+  };
+
+  struct simpletypes {
+    long                l;
+    long long           ll;
+    unsigned short      us;
+    unsigned long       ul;
+    unsigned long long  ull;
+    float               f;
+    double              d;
+    char                c;
+    boolean             b;
+    octet               o;
+    @key
+    string              s;
+  };
 };
