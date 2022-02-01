@@ -357,7 +357,9 @@ static SSL *ddsi_ssl_accept (const struct ddsi_domaingv *gv, BIO *bio, ddsrt_soc
 static bool ddsi_ssl_init (struct ddsi_domaingv *gv)
 {
   /* FIXME: allocate this stuff ... don't copy gv into a global variable ... */
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
   ERR_load_BIO_strings ();
+#endif
   SSL_load_error_strings ();
   SSL_library_init ();
   OpenSSL_add_all_algorithms ();
