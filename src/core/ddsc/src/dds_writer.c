@@ -415,7 +415,6 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wr->m_whc = whc_new (gv, wrinfo);
   whc_free_wrinfo (wrinfo);
   wr->whc_batch = gv->config.whc_batch;
-  wr->m_data_representation = data_representation;
 
 #ifdef DDS_HAS_SHM
   assert(wqos->present & QP_LOCATOR_MASK);
@@ -423,7 +422,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     wqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
 #endif
 
-  struct ddsi_sertype *sertype = ddsi_sertype_derive_sertype (tp->m_stype, wr->m_data_representation,
+  struct ddsi_sertype *sertype = ddsi_sertype_derive_sertype (tp->m_stype, data_representation,
     wqos->present & QP_TYPE_CONSISTENCY_ENFORCEMENT ? wqos->type_consistency : ddsi_default_qos_topic.type_consistency);
   if (!sertype)
     sertype = tp->m_stype;

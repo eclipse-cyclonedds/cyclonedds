@@ -355,7 +355,6 @@ typedef struct dds_writer {
   struct writer *m_wr;
   struct whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
   bool whc_batch; /* FIXME: channels + latency budget */
-  dds_data_representation_id_t m_data_representation;
 #ifdef DDS_HAS_SHM
   iox_pub_storage_t m_iox_pub_stor;
   iox_pub_t m_iox_pub;
