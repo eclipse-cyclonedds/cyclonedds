@@ -2345,6 +2345,18 @@ bool idl_is_enum(const void *ptr)
   return true;
 }
 
+uint32_t idl_enum_max_value(const void *ptr)
+{
+  const idl_enum_t *node = ptr;
+  assert(idl_mask(node) & IDL_ENUM);
+  uint32_t max = 0;
+  for (idl_enumerator_t *e = node->enumerators; e; e = idl_next(e)) {
+    if (e->value.value > max)
+      max = e->value.value;
+  }
+  return max;
+}
+
 static void delete_enum(void *ptr)
 {
   idl_enum_t *node = ptr;

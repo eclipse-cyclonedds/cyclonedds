@@ -22,6 +22,7 @@
 extern dds_topic_descriptor_t *desc;
 extern void init_sample (void *s);
 extern int cmp_sample (const void *sa, const void *sb);
+extern int cmp_key (const void *sa, const void *sb);
 
 static void free_sample (void *s)
 {
@@ -36,17 +37,61 @@ static void init_sertype (struct ddsi_sertype_default *sertype)
     .size = desc->m_size,
     .align = desc->m_align,
     .flagset = desc->m_flagset,
-    .keys.nkeys = 0,
-    .keys.keys = NULL,
     .ops.nops = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys),
     .ops.ops = (uint32_t *) desc->m_ops
   };
+
+  sertype->type.keys.nkeys = desc->m_nkeys;
+  if (sertype->type.keys.nkeys > 0)
+  {
+    sertype->type.keys.keys = dds_alloc (sertype->type.keys.nkeys  * sizeof (*sertype->type.keys.keys));
+    for (uint32_t i = 0; i < sertype->type.keys.nkeys; i++)
+    {
+      sertype->type.keys.keys[i].ops_offs = desc->m_keys[i].m_offset;
+      sertype->type.keys.keys[i].idx = desc->m_keys[i].m_idx;
+    }
+  }
+}
+
+static void print_raw_cdr (dds_ostream_t *os)
+{
+  for (uint32_t n = 0; n < os->m_index; n++)
+  {
+    printf("%02x ", os->m_buffer[n]);
+    if (!((n + 1) % 16))
+      printf("\n");
+  }
+  printf("\n");
+}
+
+int rd_cmp_print_key (dds_ostream_t *os, const void *msg_wr, struct ddsi_sertype_default *sertype)
+{
+  int res;
+  char buf[99999];
+  dds_istream_t is = { os->m_buffer, os->m_size, 0, CDR_ENC_VERSION_2 };
+
+  // read
+  void *msg_rd = ddsrt_calloc (1, desc->m_size);
+  dds_stream_read_key (&is, msg_rd, sertype);
+
+  // compare
+  res = cmp_key(msg_wr, msg_rd);
+  printf("key compare result: %d\n", res);
+
+  // print
+  is.m_index = 0;
+  (void) dds_stream_print_key (&is, sertype, buf, sizeof (buf));
+  printf("key: %s\n", buf);
+
+  free_sample(msg_rd);
+  return res;
 }
 
 int main(int argc, char **argv)
 {
   (void)argc;
   (void)argv;
+  int res = 0;
 
   printf("Running test for type %s\n", desc->m_typename);
 
@@ -57,8 +102,11 @@ int main(int argc, char **argv)
   enum { LE, BE } tests[2] = { LE, BE };
   for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
+    char buf[99999];
+
     // init data
-    void *msg_wr = ddsrt_calloc (1, desc->m_size);
+    void *msg_wr = ddsrt_malloc (desc->m_size);
+    memset (msg_wr, 0xdd, desc->m_size);
     init_sample(msg_wr);
 
     // write data
@@ -74,15 +122,8 @@ int main(int argc, char **argv)
       printf("cdr write failed\n");
       return 1;
     }
-
-    // output raw cdr
-    for (uint32_t n = 0; n < os.m_index; n++)
-    {
-      printf("%02x ", os.m_buffer[n]);
-      if (!((n + 1) % 16))
-        printf("\n");
-    }
-    printf("\n");
+    printf("sample data cdr:\n");
+    print_raw_cdr (&os);
 
     dds_istream_t is = { os.m_buffer, os.m_size, 0, CDR_ENC_VERSION_2 };
 
@@ -101,29 +142,59 @@ int main(int argc, char **argv)
       return 1;
     }
 
-    // read data
-    printf("cdr read\n");
+    // read data and check for expected result
+    printf("cdr read data\n");
     void *msg_rd = ddsrt_calloc (1, desc->m_size);
     dds_stream_read_sample (&is, msg_rd, &sertype);
-
-    // check for expected result
-    int res = cmp_sample(msg_wr, msg_rd);
-    printf("compare result: %d\n", res);
+    res = cmp_sample(msg_wr, msg_rd);
+    printf("data compare result: %d\n", res);
 
     // print sample
-    char buf[99999];
     is.m_index = 0;
     (void) dds_stream_print_sample (&is, &sertype, buf, sizeof (buf));
     printf("sample: %s\n", buf);
 
+    if (res == 0 && sertype.type.keys.nkeys > 0)
+    {
+      // extract key from data
+      is.m_index = 0;
+      dds_ostream_t os_key_from_data = { NULL, 0, 0, CDR_ENC_VERSION_2 };
+      if (!dds_stream_extract_key_from_data (&is, &os_key_from_data, &sertype))
+      {
+        printf("extract key from data failed\n");
+        return 1;
+      }
+      printf("key cdr:\n");
+      print_raw_cdr (&os_key_from_data);
+
+      res = rd_cmp_print_key (&os_key_from_data, msg_wr, &sertype);
+      if (res != 0)
+        break;
+
+      // write key
+      dds_ostream_t os_wr_key = { NULL, 0, 0, CDR_ENC_VERSION_2 };
+      dds_stream_write_key (&os_wr_key, msg_wr, &sertype);
+
+      // extract key from key
+      dds_istream_t is_key_from_key = { os_wr_key.m_buffer, os_wr_key.m_size, 0, CDR_ENC_VERSION_2 };
+      dds_ostream_t os_key_from_key = { NULL, 0, 0, CDR_ENC_VERSION_2 };
+      dds_stream_extract_key_from_key (&is_key_from_key, &os_key_from_key, &sertype);
+      res = rd_cmp_print_key (&os_key_from_key, msg_wr, &sertype);
+
+      dds_ostream_fini (&os_key_from_data);
+      dds_ostream_fini (&os_key_from_key);
+      dds_ostream_fini (&os_wr_key);
+    }
+
     dds_ostream_fini (&os);
-    // is->_buffer aliases os->_buffer, so no free
     free_sample(msg_wr);
     free_sample(msg_rd);
-
     if (res != 0)
-      return res;
+      break;
   }
 
-  return 0;
+  if (sertype.type.keys.nkeys > 0)
+    dds_free (sertype.type.keys.keys);
+
+  return res;
 }

@@ -39,35 +39,35 @@
 #define EXTA(s,n) \
 { \
   (s) = dds_alloc (sizeof (*(s))); \
-  *(s) = n; \
+  *(s) = (n); \
 }
 
 #define CMP(a,b,f,n) { \
-  if ((a->f) != n) return -2; \
+  if ((a->f) != (n)) return -2; \
   if ((a->f) != (b->f)) return (a->f) > (b->f) ? 1 : -1; \
 }
 #define CMPSTR(a,b,f,s) { \
-  if (strcmp(a->f, s)) return -2; \
+  if (strcmp(a->f, (s))) return -2; \
   if (strcmp((a->f), (b->f))) return strcmp((a->f), (b->f)); \
 }
 #define CMPEXT(a,b,f,n) { \
-  if ((a->f) && *(a->f) != n) return -2; \
+  if ((a->f) && *(a->f) != (n)) return -2; \
   if ((!(a->f) && (b->f)) || ((a->f) && !(b->f))) return 2; \
   if (*(a->f) != *(b->f)) return *(a->f) > *(b->f) ? 1 : -1; \
 }
 #define CMPEXTF(a,b,f,f2,n) { \
-  if ((a->f) && (*(a->f)).f2 != n) return -2; \
+  if ((a->f) && (*(a->f)).f2 != (n)) return -2; \
   if ((!(a->f) && (b->f)) || ((a->f) && !(b->f))) return 2; \
   if ((*(a->f)).f2 != (*(b->f)).f2) return (*(a->f)).f2 > (*(b->f)).f2 ? 1 : -1; \
 }
 #define CMPEXTEXTF(a,b,f,f2,n) { \
-  if ((a->f) && (a->f)->f2 && *((a->f)->f2) != n) return -2; \
+  if ((a->f) && (a->f)->f2 && *((a->f)->f2) != (n)) return -2; \
   if ((!(a->f) && (b->f)) || ((a->f) && !(b->f))) return 2; \
   if ((!((a->f)->f2) && ((b->f)->f2)) || (((a->f)->f2) && !((b->f)->f2))) return 3; \
   if (*((a->f)->f2) != *((b->f)->f2)) return *((a->f)->f2) > *((b->f)->f2) ? 1 : -1; \
 }
 #define CMPEXTA(a,b,f,i,n) { \
-  if ((a->f) && (*(a->f))[i] != n) return -2; \
+  if ((a->f) && (*(a->f))[i] != (n)) return -2; \
   if ((!(a->f) && (b->f)) || ((a->f) && !(b->f))) return 2; \
   if ((*(a->f))[i] != (*(b->f))[i]) return (*(a->f))[i] > (*(b->f))[i] ? 1 : -1; \
 }
@@ -86,5 +86,14 @@
   if ((!(a->f) && (b->f)) || ((a->f) && !(b->f))) return 2; \
   if (strcmp(*(a->f), *(b->f))) return strcmp(*(a->f), *(b->f)); \
 }
+
+
+#define NO_KEY_CMP \
+  int cmp_key (const void *sa, const void *sb) { (void) sa; (void) sb; abort (); }
+
+
+void init_sample (void *s);
+int cmp_sample (const void *sa, const void *sb);
+int cmp_key (const void *sa, const void *sb);
 
 #endif /* CMP_H */

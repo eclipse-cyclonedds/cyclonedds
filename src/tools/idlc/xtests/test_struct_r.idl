@@ -28,8 +28,6 @@ struct struct_test {
 #include "common.h"
 
 const dds_topic_descriptor_t *desc = &struct_test_desc;
-void init_sample (void *s);
-int cmp_sample (const void *sa, const void *sb);
 
 void init_sample (void *s)
 {
@@ -55,5 +53,7 @@ int cmp_sample (const void *sa, const void *sb)
   CMP(a, b, u1._buffer[0].u1._buffer[0].u1._buffer[0].u2, 4);
   return 0;
 }
+
+NO_KEY_CMP
 
 #endif

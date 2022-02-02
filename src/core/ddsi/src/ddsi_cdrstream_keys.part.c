@@ -9,33 +9,63 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const uint32_t *insnp, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn);
-static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const uint32_t *insnp, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn)
+static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const uint32_t *ops, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn);
+static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const uint32_t *ops, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn)
 {
-  assert (DDS_OP (*insnp) == DDS_OP_ADR);
-  assert (insn_key_ok_p (*insnp));
-  const void *addr = (char *) src + insnp[1];
-  switch (DDS_OP_TYPE (*insnp))
+  uint32_t insn = *ops;
+  assert (DDS_OP (insn) == DDS_OP_ADR);
+  assert (insn_key_ok_p (insn));
+  void *addr = (char *) src + ops[1];
+
+  if (op_type_external (insn))
+    dds_stream_alloc_external (ops, insn, &addr);
+
+  switch (DDS_OP_TYPE (insn))
   {
     case DDS_OP_VAL_1BY: dds_os_put1BO (os, *((uint8_t *) addr)); break;
     case DDS_OP_VAL_2BY: dds_os_put2BO (os, *((uint16_t *) addr)); break;
-    case DDS_OP_VAL_4BY: case DDS_OP_VAL_ENU: dds_os_put4BO (os, *((uint32_t *) addr)); break;
+    case DDS_OP_VAL_4BY: dds_os_put4BO (os, *((uint32_t *) addr)); break;
     case DDS_OP_VAL_8BY: dds_os_put8BO (os, *((uint64_t *) addr)); break;
+    case DDS_OP_VAL_ENU:
+      (void) dds_stream_write_enum_valueBO (os, insn, *((uint32_t *) addr));
+      break;
     case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, *(char **) addr); break;
     case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, addr); break;
     case DDS_OP_VAL_ARR: {
-      const uint32_t elem_size = get_type_size (DDS_OP_SUBTYPE (*insnp));
-      const align_t align = get_align (((struct dds_ostream *)os)->m_xcdr_version, elem_size);
-      const uint32_t num = insnp[2];
-      dds_cdr_alignto_clear_and_resizeBO (os, align, num * elem_size);
-      void * const dst = ((struct dds_ostream *)os)->m_buffer + ((struct dds_ostream *)os)->m_index;
-      dds_os_put_bytes ((struct dds_ostream *)os, addr, num * elem_size);
-      dds_stream_swap_if_needed_insituBO (dst, elem_size, num);
+      const uint32_t num = ops[2];
+      switch (DDS_OP_SUBTYPE (insn))
+      {
+        case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
+          const uint32_t elem_size = get_type_size (DDS_OP_SUBTYPE (insn));
+          const align_t align = get_align (((struct dds_ostream *)os)->m_xcdr_version, elem_size);
+          dds_cdr_alignto_clear_and_resizeBO (os, align, num * elem_size);
+          void * const dst = ((struct dds_ostream *)os)->m_buffer + ((struct dds_ostream *)os)->m_index;
+          dds_os_put_bytes ((struct dds_ostream *)os, addr, num * elem_size);
+          dds_stream_swap_if_needed_insituBO (dst, elem_size, num);
+          break;
+        }
+        case DDS_OP_VAL_ENU: {
+          uint32_t offs = 0, xcdrv = ((struct dds_ostream *)os)->m_xcdr_version;
+          if (xcdrv == CDR_ENC_VERSION_2)
+          {
+            /* reserve space for DHEADER */
+            dds_os_reserve4BO (os);
+            offs = ((struct dds_ostream *)os)->m_index;
+          }
+          (void) dds_stream_write_enum_arrBO (os, insn, (const uint32_t *) addr, num);
+          /* write DHEADER */
+          if (xcdrv == CDR_ENC_VERSION_2)
+            *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = to_BO4u(((struct dds_ostream *)os)->m_index - offs);
+          break;
+        }
+        default:
+          abort ();
+      }
       break;
     }
     case DDS_OP_VAL_EXT: {
       assert (key_offset_count > 0);
-      const uint32_t *jsr_ops = insnp + DDS_OP_ADR_JSR (insnp[2]) + *key_offset_insn;
+      const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]) + *key_offset_insn;
       dds_stream_write_keyBO_impl (os, jsr_ops, addr, --key_offset_count, ++key_offset_insn);
       break;
     }
@@ -77,7 +107,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
   uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_sertype_default_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
 {
   assert (DDS_OP (insn) == DDS_OP_ADR);
-  const uint32_t type = DDS_OP_TYPE (insn);
+  const enum dds_stream_typecode type = DDS_OP_TYPE (insn);
   const bool is_key = (insn & DDS_OP_FLAG_KEY) && (os != NULL);
   if (!stream_is_member_present (insn, is, mutable_member))
   {
