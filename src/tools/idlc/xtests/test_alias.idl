@@ -63,8 +63,6 @@ struct test_alias {
 #include "common.h"
 
 const dds_topic_descriptor_t *desc = &test_alias_desc;
-void init_sample (void *s);
-int cmp_sample (const void *sa, const void *sb);
 
 void init_sample (void *s)
 {
@@ -143,5 +141,7 @@ int cmp_sample (const void *sa, const void *sb)
     CMPSTR(a, b, f4->b4._buffer[1]._u.u2._buffer[n], STR128);
   return 0;
 }
+
+NO_KEY_CMP
 
 #endif

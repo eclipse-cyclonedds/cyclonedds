@@ -71,11 +71,11 @@ enum dds_stream_opcode {
        where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, SEQ, EXT, f] *** not supported
 
-     [ADR, BSQ, nBY, 0] [offset] [sbound]
-     [ADR, BSQ, ENU, 0] [offset] [sbound] [max]
-     [ADR, BSQ, STR, 0] [offset] [sbound]
-     [ADR, BSQ, BST, 0] [offset] [sbound] [max-size]
-     [ADR, BSQ,   s, 0] [offset] [sbound] [elem-size] [next-insn, elem-insn]
+     [ADR, BSQ, nBY, f] [offset] [sbound]
+     [ADR, BSQ, ENU, f] [offset] [sbound] [max]
+     [ADR, BSQ, STR, f] [offset] [sbound]
+     [ADR, BSQ, BST, f] [offset] [sbound] [max-size]
+     [ADR, BSQ,   s, f] [offset] [sbound] [elem-size] [next-insn, elem-insn]
        where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, BSQ, EXT, f] *** not supported
 
@@ -107,6 +107,7 @@ enum dds_stream_opcode {
                     - base type member, used with EXT type (DDS_OP_FLAG_BASE)
                     - optional (DDS_OP_FLAG_OPT)
                     - must-understand (DDS_OP_FLAG_MU)
+                    - storage size, only for ENU (DDS_OP_FLAG_SZ1 and DDS_OP_FLAG_SZ2)
      [offset]     = field offset from start of element in memory
      [elem-size]  = element size in memory (elem-size is only included in case 'external' flag is set)
      [max-size]   = string bound + 1
@@ -131,9 +132,9 @@ enum dds_stream_opcode {
      [JEQ, nBY, 0] [disc] [offset]
      [JEQ, STR, 0] [disc] [offset]
      [JEQ, s,   i] [disc] [offset]
-     [JEQ4, nBY, 0] [disc] [offset] 0
-     [JEQ4, STR, 0] [disc] [offset] 0
-     [JEQ4, ENU, 0] [disc] [offset] [max]
+     [JEQ4, e | nBY, 0] [disc] [offset] 0
+     [JEQ4, e | STR, 0] [disc] [offset] 0
+     [JEQ4, e | ENU, f] [disc] [offset] [max]
      [JEQ4, EXT, 0] *** not supported, use STU/UNI for external defined types
      [JEQ4, e | s, i] [disc] [offset] [elem-size iff "external" flag e is set, else 0]
        where
@@ -142,6 +143,7 @@ enum dds_stream_opcode {
          i  = (unsigned 16 bits) offset to first instruction for case, from start of insn
               instruction sequence must end in RTS, at which point executes continues
               at the next field's instruction as specified by the union
+         f  = size flags for ENU instruction
 
       Note that the JEQ instruction is deprecated and replaced by the JEQ4 instruction. The
       IDL compiler only generates JEQ4 for union cases, the JEQ instruction is included here
@@ -248,14 +250,14 @@ enum dds_stream_typecode_subtype {
 /* key field: applicable to {1,2,4,8}BY, STR, BST, ARR-of-{1,2,4,8}BY.
    Note that when defining keys in nested types, the key flag should be set
    on both the field(s) in the subtype and on the enclosing STU/EXT field. */
-#define DDS_OP_FLAG_KEY 0x01
-
-#define DDS_OP_FLAG_DEF 0x02 /* union has a default case (for DDS_OP_ADR | DDS_OP_TYPE_UNI) */
+#define DDS_OP_FLAG_KEY  (1u << 0)
 
 /* For a union: (1) the discriminator may be a key field; (2) there may be a default value;
    and (3) the discriminator can be an integral type (or enumerated - here treated as equivalent).
    What it can't be is a floating-point type. So DEF and FP need never be set at the same time.
    There are only a few flag bits, so saving one is not such a bad idea. */
+#define DDS_OP_FLAG_DEF  (1u << 1) /* union has a default case (for DDS_OP_ADR | DDS_OP_TYPE_UNI) */
+
 #define DDS_OP_FLAG_FP   (1u << 1) /* floating-point: applicable to {4,8}BY and arrays, sequences of them */
 #define DDS_OP_FLAG_SGN  (1u << 2) /* signed: applicable to {1,2,4,8}BY and arrays, sequences of them */
 #define DDS_OP_FLAG_MU   (1u << 3) /* must-understand flag */
@@ -263,6 +265,10 @@ enum dds_stream_typecode_subtype {
                                       the TYPE_EXT 'parent' member in final and appendable types */
 #define DDS_OP_FLAG_OPT  (1u << 5) /* optional flag, used with struct members. For non-string types,
                                       an optional member also gets the FLAG_EXT, see above. */
+
+#define DDS_OP_FLAG_SZ1  (1u << 6) /* Enum storage size -- SZ2, SZ1: 00 = 4 bytes, 10 = 2 bytes, 01 = 1 byte, 11 = unused */
+#define DDS_OP_FLAG_SZ2  (1u << 7) /* (2nd bit of storage size) */
+
 
 /* Topic descriptor flag values */
 #define DDS_TOPIC_NO_OPTIMIZE                   (1u << 0)

@@ -55,8 +55,6 @@ module test_module
 #include "common.h"
 
 const dds_topic_descriptor_t *desc = &test_module_test_bounded_seq_desc;
-void init_sample (void *s);
-int cmp_sample (const void *sa, const void *sb);
 
 void init_sample (void *s)
 {
@@ -183,5 +181,7 @@ int cmp_sample (const void *sa, const void *sb)
 
   return 0;
 }
+
+NO_KEY_CMP
 
 #endif
