@@ -482,6 +482,8 @@ dds_entity_t dds_create_topic_impl (
    * for reliability that is dependent on the entity type: readers and
    * topics default to best-effort, but writers to reliable.
    *
+   * Similar for DATA_REPRESENTATION.
+   *
    * Leaving the topic QoS sparse means a default-default topic QoS of
    * best-effort will do "the right thing" and let a writer still default to
    * reliable ... (and keep behaviour unchanged) */
