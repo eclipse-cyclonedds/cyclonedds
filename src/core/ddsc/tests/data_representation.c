@@ -433,7 +433,7 @@ CU_Test (ddsc_data_representation, update_qos, .init = data_representation_init,
   enum { RD, WR, TP } tests[] = { RD, WR, TP };
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
-    dds_entity_t ent;
+    dds_entity_t ent = 0;
     switch (tests[i]) {
       case RD: printf("RD\n"); ent = dds_create_reader (dp1, tp1, NULL, NULL); break;
       case WR: printf("WR\n"); ent = dds_create_writer (dp1, tp1, NULL, NULL); break;
@@ -463,7 +463,7 @@ CU_Test (ddsc_data_representation, update_qos, .init = data_representation_init,
     {
       // get qos from entity, update mutable qos policy and set qos to entity
       dds_qos_t *qos = dds_create_qos ();
-      dds_return_t ret = dds_get_qos (ent, qos);
+      ret = dds_get_qos (ent, qos);
       CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
       dds_qset_partition1 (qos, "test1");
       ret = dds_set_qos (ent, qos);
