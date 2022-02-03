@@ -576,7 +576,9 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     ddsi_xqos_mergein_missing (rqos, sub->m_entity.m_qos, ~(uint64_t)0);
   if (tp->m_ktopic->qos)
     ddsi_xqos_mergein_missing (rqos, tp->m_ktopic->qos, ~(uint64_t)0);
-  ddsi_xqos_mergein_missing (rqos, &ddsi_default_qos_reader, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (rqos, &ddsi_default_qos_reader, ~QP_DATA_REPRESENTATION);
+  if ((rc = dds_ensure_valid_data_representation (rqos, tp->m_stype->min_xcdrv, false)) != 0)
+    goto err_data_repr;
 
   if ((rc = ddsi_xqos_valid (&gv->logconfig, rqos)) < 0 || (rc = validate_reader_qos(rqos)) != DDS_RETCODE_OK)
     goto err_bad_qos;
@@ -589,9 +591,6 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     rc = DDS_RETCODE_INCONSISTENT_POLICY;
     goto err_bad_qos;
   }
-
-  if ((rc = dds_ensure_valid_data_representation (rqos, tp->m_stype->min_xcdrv, false)) != 0)
-    goto err_data_repr;
 
   thread_state_awake (lookup_thread_state (), gv);
   const struct ddsi_guid * ppguid = dds_entity_participant_guid (&sub->m_entity);
@@ -720,8 +719,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 err_not_allowed:
   thread_state_asleep (lookup_thread_state ());
 #endif
-err_data_repr:
 err_bad_qos:
+err_data_repr:
   dds_delete_qos (rqos);
   dds_topic_allow_set_qos (tp);
 err_pp_mismatch:

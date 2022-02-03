@@ -370,13 +370,12 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     ddsi_xqos_mergein_missing (wqos, pub->m_entity.m_qos, ~(uint64_t)0);
   if (tp->m_ktopic->qos)
     ddsi_xqos_mergein_missing (wqos, tp->m_ktopic->qos, ~(uint64_t)0);
-  ddsi_xqos_mergein_missing (wqos, &ddsi_default_qos_writer, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (wqos, &ddsi_default_qos_writer, ~QP_DATA_REPRESENTATION);
+  if ((rc = dds_ensure_valid_data_representation (wqos, tp->m_stype->min_xcdrv, false)) != 0)
+    goto err_data_repr;
 
   if ((rc = ddsi_xqos_valid (&gv->logconfig, wqos)) < 0 || (rc = validate_writer_qos(wqos)) != DDS_RETCODE_OK)
     goto err_bad_qos;
-
-  if ((rc = dds_ensure_valid_data_representation (wqos, tp->m_stype->min_xcdrv, false)) != 0)
-    goto err_data_repr;
 
   assert (wqos->present & QP_DATA_REPRESENTATION && wqos->data_representation.value.n > 0);
   dds_data_representation_id_t data_representation = wqos->data_representation.value.ids[0];
@@ -469,8 +468,8 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 err_not_allowed:
   thread_state_asleep (lookup_thread_state ());
 #endif
-err_data_repr:
 err_bad_qos:
+err_data_repr:
   dds_delete_qos(wqos);
   dds_topic_allow_set_qos (tp);
 err_pp_mismatch:
