@@ -200,6 +200,13 @@ enum idl_try_construct {
   IDL_TRIM
 };
 
+typedef uint32_t allowable_data_representations_t;
+typedef enum {
+  IDL_DATAREPRESENTATION_FLAG_XCDR1 = 0x1 << 0,
+  IDL_DATAREPRESENTATION_FLAG_XML   = 0x1 << 1,
+  IDL_DATAREPRESENTATION_FLAG_XCDR2 = 0x1 << 2
+} idl_data_representation_flags_t;
+
 /* most types have convenience members for information that is shared between
    generators or makes sense to calculate in advance. e.g. the field
    identifier for struct members, which can be assigned through @id, @hashid,
@@ -280,6 +287,7 @@ struct idl_module {
   /* metadata */
   IDL_ANNOTATABLE(bool) default_nested;
   IDL_ANNOTATABLE(idl_autoid_t) autoid;
+  IDL_ANNOTATABLE(allowable_data_representations_t) data_representation;
 };
 
 typedef struct idl_declarator idl_declarator_t;
@@ -351,6 +359,7 @@ struct idl_struct {
      single boolean */
   IDL_ANNOTATABLE(bool) nested;
   IDL_ANNOTATABLE(idl_extensibility_t) extensibility;
+  IDL_ANNOTATABLE(allowable_data_representations_t) data_representation;
 };
 
 typedef struct idl_forward idl_forward_t;
@@ -407,6 +416,7 @@ struct idl_union {
   IDL_ANNOTATABLE(bool) nested; /**< if type is nested or a topic */
   IDL_ANNOTATABLE(idl_extensibility_t) extensibility;
   IDL_ANNOTATABLE(idl_autoid_t) autoid;
+  IDL_ANNOTATABLE(allowable_data_representations_t) data_representation;
 };
 
 typedef struct idl_enumerator idl_enumerator_t;
@@ -552,6 +562,8 @@ IDL_EXPORT const idl_name_t *idl_name(const void *node);
 IDL_EXPORT uint32_t idl_array_size(const void *node);
 IDL_EXPORT uint32_t idl_bound(const void *node);
 IDL_EXPORT const idl_literal_t *idl_default_value(const void *node);
+IDL_EXPORT bool idl_requires_xtypes_functionality(const void *node);
+IDL_EXPORT allowable_data_representations_t supported_data_representations(const void *node);
 IDL_EXPORT uint32_t idl_enum_max_value(const void *node);
 
 /* navigation */

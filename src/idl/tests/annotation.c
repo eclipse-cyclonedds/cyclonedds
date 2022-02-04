@@ -1360,3 +1360,91 @@ CU_Test(idl_annotation, units)
 #undef S
 #undef S_L
 #undef S_D
+
+typedef struct rep_test {
+  const char *s;
+  idl_retcode_t ret;
+  allowable_data_representations_t reps[4];
+  size_t i;
+} rep_test_t;
+
+static idl_retcode_t
+test_rep(
+  const idl_pstate_t* pstate,
+  const bool revisit,
+  const idl_path_t* path,
+  const void* node,
+  void* user_data)
+{
+  (void) pstate;
+  (void) revisit;
+  (void) path;
+
+  rep_test_t *test = (rep_test_t*)user_data;
+
+  allowable_data_representations_t
+    result = supported_data_representations(node),
+    required = test->reps[test->i++];
+  CU_ASSERT_EQUAL(required,result);
+
+  return required == result ? IDL_RETCODE_OK : IDL_RETCODE_SEMANTIC_ERROR;
+}
+
+static void test_representation(rep_test_t test)
+{
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.s, &pstate);
+  if (ret != test.ret)
+  CU_ASSERT_EQUAL(ret, test.ret);
+
+  if (ret)
+    return;
+
+  idl_visitor_t visitor;
+  memset(&visitor, 0, sizeof(visitor));
+  visitor.visit = IDL_STRUCT | IDL_MODULE | IDL_UNION | IDL_TYPEDEF;
+  visitor.accept[IDL_ACCEPT_STRUCT] = &test_rep;
+  visitor.accept[IDL_ACCEPT_MODULE] = &test_rep;
+  visitor.accept[IDL_ACCEPT_UNION] = &test_rep;
+  visitor.accept[IDL_ACCEPT_TYPEDEF] = &test_rep;
+  (void) idl_visit(pstate, pstate->root, &visitor, &test);
+
+  idl_delete_pstate(pstate);
+}
+
+#define U(name, val)\
+"@data_representation(" val ") union " name " switch(char) {\n case 'a': long l;\n};\n"
+#define S(name, val)\
+"@data_representation(" val ") struct " name "{\nlong l;\n};\n"
+#define M(name, val, etc)\
+"@data_representation(" val ") module " name " {\n" etc "};\n"
+
+CU_Test(idl_annotation, data_representation)
+{
+  rep_test_t tests[] = {
+    //unsupported annotations
+    {"@data_representation module m { struct s { char c; }; };", IDL_RETCODE_SEMANTIC_ERROR},
+    {"@data_representation(1) enum e { e_0, e_1, e_2 };", IDL_RETCODE_SEMANTIC_ERROR},
+    //on modules, should also propagate down
+    {M("m","1","struct s {char c;};"), IDL_RETCODE_OK, {1, 1} },
+    {M("m","XCDR1","struct s {char c;};"), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR1, IDL_DATAREPRESENTATION_FLAG_XCDR1} },
+    {M("m","6", S("s","2") U("u","4")), IDL_RETCODE_OK, {6, 2, 4} },
+    {M("m","XML|XCDR2", S("s","XML") U("u","XCDR2")), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XML | IDL_DATAREPRESENTATION_FLAG_XCDR2, IDL_DATAREPRESENTATION_FLAG_XML, IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    //on structs
+    {S("s","2"), IDL_RETCODE_OK, {2} },
+    {S("s","XCDR1|XCDR2"), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR1 | IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    //on unions
+    {U("u","4"), IDL_RETCODE_OK, {4} },
+    {U("u","XML"), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XML} },
+    //combined with restrictions on datarepresentations due to xtypes
+    {"@appendable " S("s","XCDR1|XCDR2"), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+    test_representation(tests[i]);
+  }
+}
+
+#undef U
+#undef S
+#undef M
