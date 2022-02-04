@@ -595,7 +595,7 @@ idl_scope_t *idl_scope(const void *node)
 idl_declaration_t *idl_declaration(const void *node)
 {
   if (idl_is_declaration(node)) {
-    assert(((const idl_node_t *)node)->declaration);
+    assert(((const idl_node_t *)node)->declaration || idl_mask(node) & IDL_BITMASK);
     return (idl_declaration_t *)((const idl_node_t *)node)->declaration;
   } else {
     assert(!((const idl_node_t *)node)->declaration);

@@ -182,7 +182,7 @@ int_add(idl_intval_t *a, idl_intval_t *b, idl_intval_t *r)
       break;
     case 3:
       if (s(b) < (intmin(gt) + -s(a)))
-        return -1;
+        return IDL_RETCODE_OUT_OF_RANGE;
       s(r) = s(a) + s(b);
       t(r) = gt & ~1u;
       break;
@@ -431,6 +431,15 @@ eval_unary_int_expr(
   return IDL_RETCODE_OK;
 }
 
+static idl_intval_t bitval(const idl_const_expr_t *const_expr)
+{
+  assert(idl_is_bit_value(const_expr));
+
+  const idl_bit_value_t *val = (idl_bit_value_t *)const_expr;
+
+  return (idl_intval_t){.type = IDL_ULLONG, .value = {.ullng = (uint64_t) (0x1 << val->position.value)} };
+}
+
 #undef u
 #undef s
 #undef t
@@ -457,11 +466,38 @@ eval_int_expr(
   {
     *valp = intval(const_expr);
     return IDL_RETCODE_OK;
+  } else if (mask & IDL_BIT_VALUE) {
+    *valp = bitval(const_expr);
+    return IDL_RETCODE_OK;
   }
 
   idl_error(pstate, idl_location(const_expr),
     "Cannot evaluate %s as integer expression", idl_construct(const_expr));
   return IDL_RETCODE_ILLEGAL_EXPRESSION;
+}
+
+static idl_retcode_t
+eval_bitmask(
+  idl_pstate_t *pstate,
+  idl_const_expr_t *expr,
+  idl_type_t type,
+  void *nodep)
+{
+  idl_retcode_t ret;
+  idl_intval_t val;
+  idl_literal_t literal;
+  idl_type_t as = IDL_ULLONG;
+
+  memset(&literal, 0, sizeof(literal));
+
+  if ((ret = eval_int_expr(pstate, expr, as, &val)) ||
+      (ret = idl_create_literal(pstate, idl_location(expr), type, nodep)))
+    return ret;
+
+  literal.value.uint64 = val.value.ullng;
+
+  (*((idl_literal_t **)nodep))->value = literal.value;
+  return IDL_RETCODE_OK;
 }
 
 static idl_retcode_t
@@ -715,6 +751,10 @@ idl_evaluate(
     }
     *((idl_enumerator_t **)nodep) = const_expr;
     return IDL_RETCODE_OK;
+  } else if (implicit == IDL_BITMASK) {
+    if ((ret = eval_bitmask(pstate, const_expr, type, nodep)))
+      return ret;
+    goto done;
   } else if (implicit == IDL_OCTET || (implicit & IDL_INTEGER_TYPE)) {
     if ((ret = eval_int(pstate, const_expr, type, nodep)))
       return ret;
@@ -858,6 +898,7 @@ idl_intval_t idl_intval(const idl_const_expr_t *const_expr)
   assert(idl_is_literal(const_expr));
 
   switch (type) {
+    case IDL_BITMASK: return bitval(const_expr);
     case IDL_INT8:   return SIGNED(IDL_LONG, val->value.int8);
     case IDL_UINT8:
     case IDL_OCTET:  return UNSIGNED(IDL_ULONG, val->value.uint8);

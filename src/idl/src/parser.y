@@ -361,7 +361,7 @@ const_type:
           "Scoped name '%s' does not resolve to a valid constant type";
         TRY(idl_resolve(pstate, 0u, $1, &declaration));
         node = idl_unalias(declaration->node);
-        if (!(idl_mask(node) & (IDL_BASE_TYPE|IDL_STRING|IDL_ENUM)))
+        if (!(idl_mask(node) & (IDL_BASE_TYPE|IDL_STRING|IDL_ENUM|IDL_BITMASK)))
           SEMANTIC_ERROR(&@1, fmt, $1->identifier);
         $$ = idl_reference_node((idl_node_t *)declaration->node);
         idl_delete_scoped_name($1);
@@ -465,7 +465,7 @@ primary_expr:
           static const char fmt[] =
             "Scoped name '%s' does not resolve to an enumerator or a constant";
           TRY(idl_resolve(pstate, 0u, $1, &declaration));
-          if (!(idl_mask(declaration->node) & (IDL_CONST|IDL_ENUMERATOR)))
+          if (!(idl_mask(declaration->node) & (IDL_CONST|IDL_ENUMERATOR|IDL_BIT_VALUE)))
             SEMANTIC_ERROR(&@1, fmt, $1->identifier);
           $$ = idl_reference_node((idl_node_t *)declaration->node);
         }
