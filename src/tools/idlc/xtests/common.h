@@ -86,5 +86,10 @@
   if ((!(a->f) && (b->f)) || ((a->f) && !(b->f))) return 2; \
   if (strcmp(*(a->f), *(b->f))) return strcmp(*(a->f), *(b->f)); \
 }
+#define CMPEXTASTR(a,b,f,i,s) { \
+  if ((a->f) && strcmp((*(a->f))[(i)], s)) return -2; \
+  if ((!(a->f) && (b->f)) || ((a->f) && !(b->f))) return 2; \
+  if (strcmp((*(a->f))[(i)], (*(b->f))[(i)])) return strcmp((*(a->f))[(i)], (*(b->f))[(i)]); \
+}
 
 #endif /* CMP_H */

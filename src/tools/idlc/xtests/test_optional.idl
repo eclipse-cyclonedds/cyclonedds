@@ -58,6 +58,14 @@ struct test_opt : test_opt_base {
   @optional seqlong2_t f11n;
   @optional @external long f12;
   @optional @external long f12n;
+  @optional sequence<string> f13;
+  @optional sequence<string> f13n;
+  @optional string f14[3];
+  @optional string f14n[3];
+  @optional sequence<string<128> > f15;
+  @optional sequence<string<128> > f15n;
+  @optional string<128> f16[3];
+  @optional string<128> f16n[3];
 };
 
 #else
@@ -140,6 +148,28 @@ void init_sample (void *s)
 
   EXTA (s1->f12, 321);
   s1->f12n = NULL;
+
+  A (s1->f13);
+  SEQA(*(s1->f13), 3);
+  for (int n = 0; n < 3; n++)
+    STRA (s1->f13->_buffer[n], STR128);
+  s1->f13n = NULL;
+
+  A (s1->f14);
+  for (int n = 0; n < 3; n++)
+    STRA ((*s1->f14)[n], STR128);
+  s1->f14n = NULL;
+
+  A (s1->f15);
+  SEQA(*(s1->f15), 3);
+  for (int n = 0; n < 3; n++)
+    STRCPY (s1->f15->_buffer[n], STR128);
+  s1->f15n = NULL;
+
+  A (s1->f16);
+  for (int n = 0; n < 3; n++)
+    STRCPY ((*s1->f16)[n], STR128);
+  s1->f16n = NULL;
 }
 
 int cmp_sample (const void *sa, const void *sb)
@@ -196,6 +226,22 @@ int cmp_sample (const void *sa, const void *sb)
 
   CMPEXT (a, b, f12, 321);
   CMP (a, b, f12n, NULL);
+
+  for (int n = 0; n < 3; n++)
+    CMPSTR(a, b, f13->_buffer[n], STR128);
+  CMP (a, b, f13n, NULL);
+
+  for (int n = 0; n < 3; n++)
+    CMPEXTASTR(a, b, f14, n, STR128);
+  CMP (a, b, f14n, NULL);
+
+  for (int n = 0; n < 3; n++)
+    CMPSTR(a, b, f15->_buffer[n], STR128);
+  CMP (a, b, f15n, NULL);
+
+  for (int n = 0; n < 3; n++)
+    CMPEXTASTR(a, b, f16, n, STR128);
+  CMP (a, b, f16n, NULL);
 
   return 0;
 }
