@@ -139,7 +139,7 @@ emit_field(
 {
   struct generator *gen = user_data;
   char *type;
-  const char *fmt, *indent, *name, *ptr_open = "", *ptr_close = "", *type_prefix = "";
+  const char *fmt, *indent, *name, *str_ptr = "", *ptr_open = "", *ptr_close = "", *type_prefix = "";
   const void *root;
   idl_literal_t *literal;
   idl_type_spec_t *type_spec;
@@ -155,7 +155,7 @@ emit_field(
     return IDL_RETCODE_NO_MEMORY;
 
   if (idl_is_string(type_spec) && !idl_is_bounded(type_spec))
-    ptr_open = "* ";
+    str_ptr = "* ";
 
   if (idl_is_external(root) || idl_is_optional(root)) {
     if (idl_is_array(node) || (idl_is_string(type_spec) && idl_is_bounded(type_spec))) {
@@ -179,8 +179,8 @@ emit_field(
     if (fputs("/* ", gen->header.handle) < 0)
       return IDL_RETCODE_NO_MEMORY;
 
-  fmt = "%s%s %s%s%s";
-  if (idl_fprintf(gen->header.handle, fmt, type_prefix, type, ptr_open, name, ptr_close) < 0)
+  fmt = "%s%s %s%s%s%s";
+  if (idl_fprintf(gen->header.handle, fmt, type_prefix, type, str_ptr, ptr_open, name, ptr_close) < 0)
     return IDL_RETCODE_NO_MEMORY;
 
   /* array dims */

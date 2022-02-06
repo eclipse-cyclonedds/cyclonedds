@@ -1175,12 +1175,12 @@ emit_sequence(
          because the latter could be a typedef in case of an aliased type */
       idl_node_t *member_node = idl_parent(field->node);
       assert(idl_is_member(member_node));
-      if (idl_is_external(member_node) && !idl_is_unbounded_string(type_spec))
+      if (idl_is_external(member_node))
         opcode |= DDS_OP_FLAG_EXT;
-      /* Add FLAG_OPT, and add FLAG_EXT for non-string type as an optional field is represented in
-         the same way as external fields */
+      /* Add FLAG_OPT, and add FLAG_EXT, because an optional field is represented in the same way as
+         external fields */
       if (idl_is_optional(member_node))
-        opcode |= DDS_OP_FLAG_OPT | (idl_is_unbounded_string(type_spec) ? 0 : DDS_OP_FLAG_EXT);
+        opcode |= DDS_OP_FLAG_OPT | DDS_OP_FLAG_EXT;
       if (idl_is_must_understand(member_node))
         opcode |= DDS_OP_FLAG_MU;
     }
@@ -1300,10 +1300,12 @@ emit_array(
        an external member */
     idl_node_t *parent = idl_parent(node);
     if (idl_is_struct(stype->node)) {
-      if (idl_is_external(parent) && !idl_is_unbounded_string(type_spec))
+      if (idl_is_external(parent))
         opcode |= DDS_OP_FLAG_EXT;
+      /* Add FLAG_OPT, and add FLAG_EXT, because an optional field is represented in the same way as
+         external fields */
       if (idl_is_optional(parent))
-        opcode |= DDS_OP_FLAG_OPT | (idl_is_unbounded_string(type_spec) ? 0 : DDS_OP_FLAG_EXT);
+        opcode |= DDS_OP_FLAG_OPT | DDS_OP_FLAG_EXT;
       if (idl_is_must_understand(parent))
         opcode |= DDS_OP_FLAG_MU;
     }
@@ -1488,6 +1490,8 @@ emit_declarator(
     if (idl_is_struct(stype->node) && (idl_is_external(parent) || idl_is_optional(parent))) {
       if (idl_is_external(parent) && !idl_is_unbounded_string(type_spec))
         opcode |= DDS_OP_FLAG_EXT;
+      /* For optional field of non-string (or bounded string) types, add EXT flag because
+         an optional field is represented in the same way as external fields */
       if (idl_is_optional(parent))
         opcode |= DDS_OP_FLAG_OPT | (idl_is_unbounded_string(type_spec) ? 0 : DDS_OP_FLAG_EXT);
       /* For @external and @optional fields of type OP_TYPE_EXT include the size of the field to
