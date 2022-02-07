@@ -16,7 +16,8 @@ function(IDLC_GENERATE)
   cmake_parse_arguments(
     IDLC "" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
 
-  idlc_generate_generic(TARGET ${IDLC_TARGET}
+  idlc_generate_generic(${IDLC_UNPARSED_ARGUMENTS}
+    TARGET ${IDLC_TARGET}
     FILES ${IDLC_FILES}
     FEATURES ${IDLC_FEATURES}
     INCLUDES ${IDLC_INCLUDES}
