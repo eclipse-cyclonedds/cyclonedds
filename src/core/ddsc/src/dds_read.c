@@ -554,3 +554,94 @@ dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz)
   ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
   return DDS_RETCODE_OK;
 }
+
+
+void dds_transfer_samples_from_iox_to_rhc (dds_reader * rd)
+{
+#if DDS_HAS_SHM
+  void* chunk = NULL;
+  struct ddsi_domaingv* gv = rd->m_rd->e.gv;
+  thread_state_awake(lookup_thread_state(), gv);
+
+  while (true)
+  {
+    shm_lock_iox_sub(rd->m_iox_sub);
+    enum iox_ChunkReceiveResult take_result = iox_sub_take_chunk(rd->m_iox_sub, (const void** const)&chunk);
+    shm_unlock_iox_sub(rd->m_iox_sub);
+
+    // NB: If we cannot take the chunk (sample) the user may lose data.
+    // Since the subscriber queue can overflow and will evict the least recent sample.
+    // This entirely depends on the producer and consumer frequency (and the queue size if they are close).
+    // The consumer here is essentially the reader history cache.
+    if (ChunkReceiveResult_SUCCESS != take_result)
+    {
+      switch(take_result)
+      {
+        case ChunkReceiveResult_TOO_MANY_CHUNKS_HELD_IN_PARALLEL :
+        {
+          // we hold to many chunks and cannot get more
+          DDS_CLOG (DDS_LC_WARNING | DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig,
+              "DDS reader with topic %s : iceoryx subscriber - TOO_MANY_CHUNKS_HELD_IN_PARALLEL -"
+              "could not take sample\n", rd->m_topic->m_name);
+          break;
+        }
+        case ChunkReceiveResult_NO_CHUNK_AVAILABLE: {
+          // no more chunks to take, ok
+          break;
+        }
+        default : {
+          // some unkown error occurred
+          DDS_CLOG(DDS_LC_WARNING | DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig,
+              "DDS reader with topic %s : iceoryx subscriber - UNKNOWN ERROR -"
+              "could not take sample\n", rd->m_topic->m_name);
+        }
+      }
+
+      break;
+    }
+
+    const iceoryx_header_t* ice_hdr = iceoryx_header_from_chunk(chunk);
+
+    // Get writer or proxy writer
+    struct entity_common * e = entidx_lookup_guid_untyped (gv->entity_index, &ice_hdr->guid);
+    if (e == NULL || (e->kind != EK_PROXY_WRITER && e->kind != EK_WRITER))
+    {
+      // Ignore the sample that is not from a known writer or proxy writer
+      DDS_CLOG (DDS_LC_SHM, &gv->logconfig, "unknown source entity, ignore.\n");
+      continue;
+    }
+
+    // Create struct ddsi_serdata
+    struct ddsi_serdata* d = ddsi_serdata_from_iox(rd->m_topic->m_stype, ice_hdr->data_kind, &rd->m_iox_sub, chunk);
+    d->timestamp.v = ice_hdr->tstamp;
+    d->statusinfo = ice_hdr->statusinfo;
+
+    // Get struct ddsi_tkmap_instance
+    struct ddsi_tkmap_instance* tk;
+    if ((tk = ddsi_tkmap_lookup_instance_ref(gv->m_tkmap, d)) == NULL)
+    {
+      DDS_CLOG(DDS_LC_SHM, &gv->logconfig, "ddsi_tkmap_lookup_instance_ref failed.\n");
+      goto release;
+    }
+
+    // Generate writer_info
+    struct ddsi_writer_info wrinfo;
+    struct dds_qos *xqos;
+    if (e->kind == EK_PROXY_WRITER)
+      xqos = ((struct proxy_writer *) e)->c.xqos;
+    else
+      xqos = ((struct writer *) e)->xqos;
+    ddsi_make_writer_info(&wrinfo, e, xqos, d->statusinfo);
+    (void)ddsi_rhc_store(rd->m_rd->rhc, &wrinfo, d, tk);
+
+release:
+    if (tk)
+      ddsi_tkmap_instance_unref(gv->m_tkmap, tk);
+    if (d)
+      ddsi_serdata_unref(d);
+  }
+  thread_state_asleep(lookup_thread_state());
+#else
+  (void)rd;
+#endif
+}
