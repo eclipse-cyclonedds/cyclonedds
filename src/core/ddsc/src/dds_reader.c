@@ -717,23 +717,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     iox_sub_context_t **context = iox_sub_context_ptr(rd->m_iox_sub);
     *context = &rd->m_iox_sub_context;
 
-    rc = shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
-
-    if (rc != DDS_RETCODE_OK) {
-      // we fail if we cannot attach to the listener (as we would get no data)
-      iox_sub_deinit(rd->m_iox_sub);
-      rd->m_iox_sub = NULL;
-      DDS_CLOG(DDS_LC_WARNING | DDS_LC_SHM,
-               &rd->m_entity.m_domain->gv.logconfig,
-               "Failed to attach iox subscriber to iox listener\n");
-      // FIXME: We need to clean up everything created up to now.
-      //        Currently there is only partial cleanup, we need to extend it.
-      goto err_bad_qos;
-    }
-
     // those are set once and never changed
-    // they are used to access reader and monitor from the callback when data is received
-    rd->m_iox_sub_context.monitor = &rd->m_entity.m_domain->m_shm_monitor;
+    // they are used to access reader from the callback when data is received
     rd->m_iox_sub_context.parent_reader = rd;
   }
 #endif
