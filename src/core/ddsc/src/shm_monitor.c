@@ -70,24 +70,46 @@ dds_return_t shm_monitor_wake_and_enable(shm_monitor_t* monitor)
 
 dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader) 
 {
-
-    if(iox_listener_attach_subscriber_event_with_context_data(monitor->m_listener,
-                                                              reader->m_iox_sub,
-                                                              SubscriberEvent_DATA_RECEIVED,
-                                                              shm_subscriber_callback,
-                                                              &reader->m_iox_sub_context) != ListenerResult_SUCCESS) {
-        DDS_CLOG(DDS_LC_SHM, &reader->m_rd->e.gv->logconfig, "error attaching reader\n");    
+  enum iox_ListenerResult attach_result =
+      iox_listener_attach_subscriber_event_with_context_data(monitor->m_listener,
+                                                             reader->m_iox_sub,
+                                                             SubscriberEvent_DATA_RECEIVED,
+                                                             shm_subscriber_callback,
+                                                             &reader->m_iox_sub_context);
+  if(ListenerResult_SUCCESS != attach_result) {
+    switch (attach_result) {
+      case ListenerResult_EVENT_ALREADY_ATTACHED:{
+        break;
+      }
+      case ListenerResult_LISTENER_FULL:
+      case ListenerResult_EMPTY_EVENT_CALLBACK:
+      case ListenerResult_EMPTY_INVALIDATION_CALLBACK:
+      case ListenerResult_UNDEFINED_ERROR:
+      default: {
+        DDS_CLOG(DDS_LC_SHM, &reader->m_rd->e.gv->logconfig, "error attaching reader\n");
         return DDS_RETCODE_OUT_OF_RESOURCES;
+      }
     }
-    ++monitor->m_number_of_attached_readers;
+  }
 
-    return DDS_RETCODE_OK;
+  // TODO(Sumanth), do we even use this at all?
+  ++monitor->m_number_of_attached_readers;
+  reader->m_iox_sub_context.monitor = &reader->m_entity.m_domain->m_shm_monitor;
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader) 
 {
-    iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_DATA_RECEIVED); 
-    --monitor->m_number_of_attached_readers;
+    ddsrt_mutex_lock(&monitor->m_lock);
+    // if the reader is attached
+    if (reader->m_iox_sub_context.monitor != NULL && reader->m_iox_sub_context.parent_reader != NULL) {
+        iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_DATA_RECEIVED);
+        // are we really tracking the number of attached readers?
+        --monitor->m_number_of_attached_readers;
+        reader->m_iox_sub_context.monitor = NULL;
+        reader->m_iox_sub_context.parent_reader = NULL;
+    }
+    ddsrt_mutex_unlock(&monitor->m_lock);
     return DDS_RETCODE_OK;
 }
 
@@ -182,7 +204,7 @@ static void shm_subscriber_callback(iox_sub_t subscriber, void * context_data)
     (void)subscriber;
     // we know it is actually in extended storage since we created it like this
     iox_sub_context_t *context = (iox_sub_context_t*) context_data;
-    if(context->monitor->m_state == SHM_MONITOR_RUNNING) {
+    if((context->monitor) && (context->monitor->m_state == SHM_MONITOR_RUNNING)) {
         receive_data_wakeup_handler(context->parent_reader);
     }
 }
