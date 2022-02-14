@@ -313,6 +313,14 @@ annotate_extensibility(
     }
   }
 
+  if (idl_is_enum(node) || idl_is_bitmask(node)) {
+    if (extensibility == IDL_MUTABLE) {
+      idl_error(pstate, idl_location(annotation_appl),
+        "Extensibility 'mutable' not allowed for enumerated types");
+      return IDL_RETCODE_SEMANTIC_ERROR;
+    }
+  }
+
   *annotationp = annotation_appl;
   *extensibilityp = extensibility;
   return IDL_RETCODE_OK;
