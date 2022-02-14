@@ -1596,6 +1596,8 @@ static bool xt_is_assignable_from_enum (const struct xt_type *t1, const struct x
     else
       i2++;
   }
+  if ((i1 != i1_max || i2 != i2_max) && xt_get_extensibility (t1) == DDS_XTypes_IS_FINAL)
+    return false;
   return true;
 }
 
@@ -2033,6 +2035,7 @@ void ddsi_xt_get_typeobject_impl (const struct xt_type *xt, struct DDS_XTypes_Ty
       case DDS_XTypes_TK_ENUM:
       {
         struct DDS_XTypes_MinimalEnumeratedType *menum = &mto->_u.enumerated_type;
+        menum->enum_flags = xt->_u.enum_type.flags;
         menum->header.common.bit_bound = xt->_u.enum_type.bit_bound;
         menum->literal_seq._length = xt->_u.enum_type.literals.length;
         menum->literal_seq._buffer = ddsrt_malloc (xt->_u.enum_type.literals.length * sizeof (*menum->literal_seq._buffer));

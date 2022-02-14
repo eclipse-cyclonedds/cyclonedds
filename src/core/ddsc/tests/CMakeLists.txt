@@ -20,8 +20,7 @@ idlc_generate(TARGET RWData FILES RWData.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET CreateWriter FILES CreateWriter.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET DataRepresentationTypes FILES DataRepresentationTypes.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET MinXcdrVersion FILES MinXcdrVersion.idl)
-idlc_generate(TARGET XSpace FILES XSpace.idl)
-idlc_generate(TARGET XSpaceMustUnderstand FILES XSpaceMustUnderstand.idl)
+idlc_generate(TARGET XSpace FILES XSpace.idl XSpaceMustUnderstand.idl XSpaceEnum.idl)
 idlc_generate(TARGET CdrStreamOptimize FILES CdrStreamOptimize.idl WARNINGS no-implicit-extensibility)
 
 set(ddsc_test_sources
@@ -111,7 +110,7 @@ if(ENABLE_SHM)
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
 endif()
 target_link_libraries(cunit_ddsc PRIVATE
-  RoundTrip Space XSpace XSpaceMustUnderstand TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter DataRepresentationTypes MinXcdrVersion CdrStreamOptimize ddsc)
+  RoundTrip Space XSpace TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter DataRepresentationTypes MinXcdrVersion CdrStreamOptimize ddsc)
 
 # Setup environment for config-tests
 get_test_property(CUnit_ddsc_config_simple_udp ENVIRONMENT CUnit_ddsc_config_simple_udp_env)

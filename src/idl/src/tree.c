@@ -2411,6 +2411,7 @@ idl_create_enum(
     goto err_alloc;
   node->name = name;
   node->bit_bound.value = 32; /* default value, can be overwritten with @bit_bound */
+  node->extensibility.value = pstate->config.default_extensibility == IDL_APPENDABLE ? (idl_extensibility_t)pstate->config.default_extensibility : IDL_FINAL;
 
   assert(enumerators);
   node->enumerators = enumerators;
