@@ -72,9 +72,20 @@ struct ddsi_serdata_default_key {
   struct ddsi_serdata_default_key key;\
   struct serdatapool *serpool;        \
   struct ddsi_serdata_default *next /* in pool->freelist */
+/* We suppress the zero-array warning (MSVC C4200) here ONLY for MSVC
+   and ONLY if it is being compiled as C++ code, as it only causes
+   issues there */
+#if defined _MSC_VER && defined __cplusplus
+#define DDSI_SERDATA_DEFAULT_POSTPAD  \
+  struct CDRHeader hdr;               \
+  DDSRT_WARNING_MSVC_OFF(4200)        \
+  char data[];                        \
+  DDSRT_WARNING_MSVC_ON(4200)
+#else
 #define DDSI_SERDATA_DEFAULT_POSTPAD  \
   struct CDRHeader hdr;               \
   char data[]
+#endif
 
 struct ddsi_serdata_default_unpadded {
   DDSI_SERDATA_DEFAULT_PREPAD;
