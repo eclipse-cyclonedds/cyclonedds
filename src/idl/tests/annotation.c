@@ -940,13 +940,16 @@ CU_Test(idl_annotation, bit_bound)
     { E("21"), true, 21 },
     { E("32"), true, 32 },
     { "enum MyEnum { ENUM1 };", true, 32 },
+    { "@bit_bound(1) enum MyEnum { ENUM1, ENUM2 };", true, 1 },
+    { "@bit_bound(3) enum MyEnum { ENUM1, @value (7) ENUM2 };", true, 3 },
     /* invalid */
     { BM("0"), false, 0 },
     { BM("65"), false, 0 },
     { E("0"), false, 0 },
     { E("33"), false, 0 },
     { "@bit_bound(1) bitmask MyBitMask { flag0, flag1 };", false, 0 },
-    { "@bit_bound(1) enum MyEnum { ENUM1, ENUM2 };", false, 0 },
+    { "@bit_bound(1) enum MyEnum { ENUM1, ENUM2, ENUM3 };", false, 0 },
+    { "@bit_bound(2) enum MyEnum { ENUM1, @value (4) ENUM2 };", false, 0 },
   };
   static const size_t n = sizeof(tests)/sizeof(tests[0]);
 

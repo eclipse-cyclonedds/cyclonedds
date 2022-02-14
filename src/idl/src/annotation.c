@@ -645,18 +645,17 @@ annotate_bit_bound(
       }
     }
   } else if (idl_is_enum(node)) {
-    if (value > 32) {
+    if (value == 0 || value > 32) {
       idl_error(pstate, idl_location(annotation_appl),
-        "@bit_bound for enum must be <= 32");
+        "@bit_bound for enum must be greater than zero and no greater than 32");
       return IDL_RETCODE_OUT_OF_RANGE;
     }
     idl_enum_t *_enum = (idl_enum_t *)node;
     _enum->bit_bound.annotation = annotation_appl;
     _enum->bit_bound.value = value;
-    uint32_t cnt = 0;
     for (idl_enumerator_t *e1 = _enum->enumerators; e1; e1 = idl_next(e1)) {
-      if (++cnt >= (1ull << _enum->bit_bound.value)) {
-        idl_error(pstate, idl_location(e1), "Enumerator count (%u) overflow, bit_bound is %u", cnt, _enum->bit_bound.value);
+      if (e1->value.value >= (1ull << _enum->bit_bound.value)) {
+        idl_error(pstate, idl_location(e1), "Enumerator value (%u) overflow, bit_bound is %u", e1->value.value, _enum->bit_bound.value);
         return IDL_RETCODE_OUT_OF_RANGE;
       }
     }
