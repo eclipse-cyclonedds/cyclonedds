@@ -1389,10 +1389,10 @@ emit_array(
       }
       if (!idl_is_alias(node) && idl_is_struct(stype->node))
         pop_field(descriptor);
-      /* visit type-spec for bitmask, so that emit function is triggered
-         and check for unsupported extensibility is done */
-      if (idl_is_bitmask(type_spec))
-        return IDL_VISIT_TYPE_SPEC;
+      /* visit type-spec for bitmask and enum, so that emit function is triggered
+         and some additional checks are done. */
+      if (idl_is_bitmask(type_spec) || idl_is_enum(type_spec))
+        return IDL_VISIT_TYPE_SPEC | IDL_VISIT_UNALIAS_TYPE_SPEC;
       return IDL_RETCODE_OK;
     }
 
@@ -1436,6 +1436,31 @@ emit_bitmask(
   const idl_bitmask_t *bitmask = (const idl_bitmask_t *)node;
   if (bitmask->extensibility.annotation && bitmask->extensibility.value != IDL_FINAL)
     idl_warning(pstate, IDL_WARN_GENERIC, idl_location(node), "Extensibility appendable and mutable for bitmask type are not yet supported in the C generator, the extensibility will not be used");
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+emit_enum(
+  const idl_pstate_t *pstate,
+  bool revisit,
+  const idl_path_t *path,
+  const void *node,
+  void *user_data)
+{
+  (void)revisit;
+  (void)path;
+  (void)user_data;
+  const idl_enum_t *_enum = (const idl_enum_t *)node;
+  uint32_t value = 0, value_c = 0;
+  for (idl_enumerator_t *e1 = _enum->enumerators; e1; e1 = idl_next(e1), value++) {
+    if (e1->value.annotation)
+      value = e1->value.value;
+    if (value != value_c++) {
+      idl_warning(pstate, IDL_WARN_ENUM_CONSECUTIVE, idl_location(e1),
+        "Warning: values for literals of this enumerator are not consecutive or not starting from zero. The serializer currently does not support checking for valid values for incoming and outgoing data for enums using non-consecutive literal values.");
+      break;
+    }
+  }
   return IDL_RETCODE_OK;
 }
 
@@ -1574,8 +1599,9 @@ emit_declarator(
     /* Type spec in case of aggregated type needs to be visited, to generate
        the serializer ops for these types. For bitmask type, also visit
        the type-spec, so that emit function is triggered that checks for
-       unsupported extensibility */
-    if (idl_is_union(type_spec) || idl_is_struct(type_spec) || idl_is_bitmask(type_spec))
+       unsupported extensibility. For enum types, the emit function is called
+       to check for non-consecutive values. */
+    if (idl_is_union(type_spec) || idl_is_struct(type_spec) || idl_is_bitmask(type_spec) || idl_is_enum(type_spec))
       return IDL_VISIT_TYPE_SPEC | IDL_VISIT_UNALIAS_TYPE_SPEC | IDL_VISIT_REVISIT;
 
     return IDL_VISIT_REVISIT;
@@ -2499,7 +2525,7 @@ generate_descriptor_impl(
   descriptor->topic = topic_node;
 
   memset(&visitor, 0, sizeof(visitor));
-  visitor.visit = IDL_DECLARATOR | IDL_SEQUENCE | IDL_STRUCT | IDL_UNION | IDL_SWITCH_TYPE_SPEC | IDL_CASE | IDL_FORWARD | IDL_MEMBER | IDL_BITMASK | IDL_INHERIT_SPEC;
+  visitor.visit = IDL_DECLARATOR | IDL_SEQUENCE | IDL_STRUCT | IDL_UNION | IDL_SWITCH_TYPE_SPEC | IDL_CASE | IDL_FORWARD | IDL_MEMBER | IDL_BITMASK | IDL_ENUM | IDL_INHERIT_SPEC;
   visitor.accept[IDL_ACCEPT_SEQUENCE] = &emit_sequence;
   visitor.accept[IDL_ACCEPT_UNION] = &emit_union;
   visitor.accept[IDL_ACCEPT_SWITCH_TYPE_SPEC] = &emit_switch_type_spec;
@@ -2509,6 +2535,7 @@ generate_descriptor_impl(
   visitor.accept[IDL_ACCEPT_FORWARD] = &emit_forward;
   visitor.accept[IDL_ACCEPT_MEMBER] = &emit_member;
   visitor.accept[IDL_ACCEPT_BITMASK] = &emit_bitmask;
+  visitor.accept[IDL_ACCEPT_ENUM] = &emit_enum;
   visitor.accept[IDL_ACCEPT_INHERIT_SPEC] = &emit_inherit_spec;
 
   if ((ret = idl_visit(pstate, descriptor->topic, &visitor, descriptor))) {
