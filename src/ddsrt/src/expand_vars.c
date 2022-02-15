@@ -21,27 +21,38 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/process.h"
 
+// Limit expanded string size, this is really only used for configuration
+// and so 10MB should be plenty for now
+#define MAX_SIZE (10 * 1048576)
+
 typedef char * (*expand_fn)(const char *src0, expand_lookup_fn lookup, void * data, uint32_t depth);
 
 static void errorN (size_t n0, const char *s, const char *msg)
 {
-  const int n = (n0 > 100) ? 100 : (int) n0;
-  DDS_ERROR("%*.*s%s: %s\n", n, n, s, ((size_t) n < n0) ? "..." : "", msg);
+    const int n = (n0 > 100) ? 100 : (int) n0;
+    DDS_ERROR("%*.*s%s: %s\n", n, n, s, ((size_t) n < n0) ? "..." : "", msg);
 }
 
 static void error (const char *s, const char *msg)
 {
-  errorN (strlen (s), s, msg);
+    errorN (strlen (s), s, msg);
 }
 
-static void expand_append (char **dst, size_t *sz, size_t *pos, char c)
+static bool expand_append (char **dst, size_t *sz, size_t *pos, char c)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
+
+static bool expand_append (char **dst, size_t *sz, size_t *pos, char c)
 {
     if (*pos == *sz) {
-        *sz += 1024;
+        if (*sz >= MAX_SIZE) {
+            return false;
+        }
+        *sz = (*sz < 1024) ? 1024 : (*sz * 2);
         *dst = ddsrt_realloc (*dst, *sz);
     }
     (*dst)[*pos] = c;
     (*pos)++;
+    return true;
 }
 
 static char *expand_var (const char *name, char op, const char *alt, expand_fn expand, expand_lookup_fn lookup, void * data, uint32_t depth)
@@ -185,17 +196,18 @@ static char *ddsrt_expand_vars_sh1 (const char *src0, expand_lookup_fn lookup, v
             src++;
             if (*src == 0) {
                 error(src0, "incomplete escape at end of string");
-                ddsrt_free(dst);
-                return NULL;
+                goto err;
             }
-            expand_append (&dst, &sz, &pos, *src++);
+            if (!expand_append (&dst, &sz, &pos, *src++)) {
+                error(src0, "result too large");
+                goto err;
+            }
         } else if (*src == '$') {
             char *x, *xp;
             src++;
             if (*src == 0) {
                 error(src0, "incomplete variable expansion at end of string");
-                ddsrt_free(dst);
-                return NULL;
+                goto err;
             } else if (*src == '{') {
                 x = expand_varbrace (&src, &ddsrt_expand_vars_sh1, lookup, data, depth);
             } else if (isalnum ((unsigned char) *src) || *src == '_') {
@@ -204,20 +216,32 @@ static char *ddsrt_expand_vars_sh1 (const char *src0, expand_lookup_fn lookup, v
                 x = expand_varchar (&src, &ddsrt_expand_vars_sh1, lookup, data, depth);
             }
             if (x == NULL) {
-                ddsrt_free(dst);
-                return NULL;
+                goto err;
             }
             xp = x;
             while (*xp) {
-                expand_append (&dst, &sz, &pos, *xp++);
+                if (!expand_append (&dst, &sz, &pos, *xp++)) {
+                    error(src0, "result too large");
+                    ddsrt_free(x);
+                    goto err;
+                }
             }
             ddsrt_free (x);
         } else {
-            expand_append (&dst, &sz, &pos, *src++);
+            if (!expand_append (&dst, &sz, &pos, *src++)) {
+                error(src0, "result too large");
+                goto err;
+            }
         }
     }
-    expand_append (&dst, &sz, &pos, 0);
+    if (!expand_append (&dst, &sz, &pos, 0)) {
+        error(src0, "result too large");
+        goto err;
+    }
     return dst;
+err:
+    ddsrt_free(dst);
+    return NULL;
 }
 
 static char *ddsrt_expand_vars1 (const char *src0, expand_lookup_fn lookup, void * data, uint32_t depth)
@@ -242,15 +266,28 @@ static char *ddsrt_expand_vars1 (const char *src0, expand_lookup_fn lookup, void
             }
             xp = x;
             while (*xp) {
-                expand_append (&dst, &sz, &pos, *xp++);
+                if (!expand_append (&dst, &sz, &pos, *xp++)) {
+                    error(src0, "result too large");
+                    ddsrt_free (x);
+                    goto err;
+                }
             }
             ddsrt_free (x);
         } else {
-            expand_append (&dst, &sz, &pos, *src++);
+            if (!expand_append (&dst, &sz, &pos, *src++)) {
+                error(src0, "result too large");
+                goto err;
+            }
         }
     }
-    expand_append (&dst, &sz, &pos, 0);
+    if (!expand_append (&dst, &sz, &pos, 0)) {
+        error(src0, "result too large");
+        goto err;
+    }
     return dst;
+err:
+    ddsrt_free(dst);
+    return NULL;
 }
 
 char *ddsrt_expand_vars_sh (const char *src0, expand_lookup_fn lookup, void * data)
