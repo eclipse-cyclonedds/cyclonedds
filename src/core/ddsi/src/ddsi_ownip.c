@@ -163,7 +163,6 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
   ddsrt_ifaddrs_t *ifa, *ifa_root = NULL;
   size_t *maxq_list;
   size_t maxq_count = 0;
-  size_t maxq_strlen = 0;
   char addrbuf[DDSI_LOCSTRLEN];
 
   size_t n_interfaces;
@@ -288,11 +287,9 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
     GVLOG (DDS_LC_CONFIG, "q%d)", q);
     if (q == quality) {
       maxq_list[maxq_count] = n_interfaces;
-      maxq_strlen += 2 + strlen (if_name);
       maxq_count++;
     } else if (q > quality) {
       maxq_list[0] = n_interfaces;
-      maxq_strlen += 2 + strlen (if_name);
       maxq_count = 1;
       quality = q;
     }
