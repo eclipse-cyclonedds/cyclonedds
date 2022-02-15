@@ -127,6 +127,11 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
       ops_offs[ops_offs_idx] = (uint32_t) (ops - op0_type);
     }
 
+    /* skip DLC instruction for base type, handle as if it is final because the base type's
+        members follow the derived types members without an extra DHEADER */
+    if (op_type_base (insn) && jsr_ops[0] == DDS_OP_DLC)
+      jsr_ops++;
+
     /* only in case the ADR|EXT has the key flag set, pass the actual ostream, otherwise skip the EXT type by passing NULL for ostream */
     (void) dds_stream_extract_keyBO_from_data1 (is, is_key ? os : NULL, ops_offs_idx + 1, ops_offs, op0, jsr_ops, jsr_ops, false, mutable_member_or_parent, n_keys, keys_remaining, keys, key_offs);
     ops += jmp ? jmp : 3;
@@ -224,6 +229,35 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
   return ops;
 }
 
+static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, uint32_t m_id,
+  uint32_t ops_offs_idx, uint32_t * __restrict ops_offs, const uint32_t * const __restrict op0, const uint32_t * const __restrict op0_type, const uint32_t * __restrict ops,
+  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_sertype_default_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
+{
+  uint32_t insn, ops_csr = 0;
+  bool found = false;
+
+  while (*keys_remaining > 0 && !found && (insn = ops[ops_csr]) != DDS_OP_RTS)
+  {
+    assert (DDS_OP (insn) == DDS_OP_PLM);
+    uint32_t flags = DDS_PLM_FLAGS (insn);
+    const uint32_t *plm_ops = ops + ops_csr + DDS_OP_ADR_PLM (insn);
+    if (flags & DDS_OP_FLAG_BASE)
+    {
+      assert (DDS_OP (plm_ops[0]) == DDS_OP_PLC);
+      plm_ops++; /* skip PLC to go to first PLM from base type */
+      found = dds_stream_extract_keyBO_from_data_pl_member (is, os, m_id, ops_offs_idx, ops_offs, op0, op0_type, plm_ops, n_keys, keys_remaining, keys, key_offs);
+    }
+    else if (ops[ops_csr + 1] == m_id)
+    {
+      (void) dds_stream_extract_keyBO_from_data1 (is, os, ops_offs_idx, ops_offs, op0, op0_type, plm_ops, true, true, n_keys, keys_remaining, keys, key_offs);
+      found = true;
+      break;
+    }
+    ops_csr += 2;
+  }
+  return found;
+}
+
 static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os,
   uint32_t ops_offs_idx, uint32_t * __restrict ops_offs, const uint32_t * const __restrict op0, const uint32_t * const __restrict op0_type, const uint32_t * __restrict ops,
   uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_sertype_default_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
@@ -237,7 +271,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t * __
   {
     /* read EMHEADER and next_int */
     uint32_t em_hdr = dds_is_get4 (is);
-    uint32_t lc = EMHEADER_LENGTH_CODE (em_hdr), mid = EMHEADER_MEMBERID (em_hdr), msz;
+    uint32_t lc = EMHEADER_LENGTH_CODE (em_hdr), m_id = EMHEADER_MEMBERID (em_hdr), msz;
     switch (lc)
     {
       case LENGTH_CODE_1B: case LENGTH_CODE_2B: case LENGTH_CODE_4B: case LENGTH_CODE_8B:
@@ -258,28 +292,9 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t * __
         break;
     }
 
-    /* find member and deserialize */
-    uint32_t insn, ops_csr = 0;
-    bool found = false;
-
-    /* FIXME: continue finding the member in the ops member list starting from the last
-       found one, because in many cases the members will be in the data sequentially */
-    while (*keys_remaining > 0 && !found && (insn = ops[ops_csr]) != DDS_OP_RTS)
-    {
-      assert (DDS_OP (insn) == DDS_OP_PLM);
-      if (ops[ops_csr + 1] == mid)
-      {
-        const uint32_t *plm_ops = ops + ops_csr + DDS_OP_ADR_JSR (insn);
-        (void) dds_stream_extract_keyBO_from_data1 (is, os, ops_offs_idx, ops_offs, op0, op0_type, plm_ops, true, true, n_keys, keys_remaining, keys, key_offs);
-        found = true;
-        break;
-      }
-      ops_csr += 2;
-    }
-
     /* If member not found or in case no more keys remaining to be found, skip the member
        in the input stream */
-    if (!found)
+    if (!dds_stream_extract_keyBO_from_data_pl_member (is, os, m_id, ops_offs_idx, ops_offs, op0, op0_type, ops, n_keys, keys_remaining, keys, key_offs))
     {
       is->m_index += msz;
       if (lc >= LENGTH_CODE_ALSO_NEXTINT)

@@ -18,7 +18,7 @@ module test {
 
   @final
   struct d {
-    short d1;
+    @key short d1;
     @external u d2;
   };
 
@@ -97,6 +97,12 @@ int cmp_sample (const void *sa, const void *sb)
   return 0;
 }
 
-NO_KEY_CMP
+int cmp_key (const void *sa, const void *sb)
+{
+  test_struct_inherit *a = (test_struct_inherit *) sa;
+  test_struct_inherit *b = (test_struct_inherit *) sb;
+  CMP(a, b, parent.parent.parent.d1, 456);
+  return 0;
+}
 
 #endif

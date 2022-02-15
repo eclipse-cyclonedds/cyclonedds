@@ -17,7 +17,7 @@ struct struct_test;
 @topic @final
 struct struct_test {
   sequence<struct_test> u1;
-  long u2;
+  @key long u2;
 };
 
 #else
@@ -54,6 +54,12 @@ int cmp_sample (const void *sa, const void *sb)
   return 0;
 }
 
-NO_KEY_CMP
+int cmp_key (const void *sa, const void *sb)
+{
+  struct_test *a = (struct_test *) sa;
+  struct_test *b = (struct_test *) sb;
+  CMP(a, b, u2, 1);
+  return 0;
+}
 
 #endif

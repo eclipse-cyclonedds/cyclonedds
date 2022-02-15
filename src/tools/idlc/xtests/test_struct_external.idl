@@ -29,12 +29,12 @@ typedef sequence<seqlong_t> seqlong2_t;
 @topic @final
 struct test_ext {
     @external long f1;
-    @external string f2;          // char * f2;
-    @external string<128> f3;     // char (* f3)[129];
-    @external b f4;
+    @key @external string f2;      // char * f2;
+    @external string<128> f3;      // char (* f3)[129];
+    @key @external b f4;
     @external u f5;
-    @external short f6[2];        // int16_t (* f6)[10]
-    @external short f7[2][3];     // int16_t (* f7)[2][3]
+    @external short f6[2];         // int16_t (* f6)[10]
+    @key @external short f7[2][3]; // int16_t (* f7)[2][3]
     @external sequence<short> f8;
     @external seqfloat_t f9;
     @external sequence<seqlong_t> f10;
@@ -136,6 +136,15 @@ int cmp_sample (const void *sa, const void *sb)
   return 0;
 }
 
-NO_KEY_CMP
+int cmp_key (const void *sa, const void *sb)
+{
+  test_ext *a = (test_ext *) sa;
+  test_ext *b = (test_ext *) sb;
+  CMPSTR (a, b, f2, STR128);
+  CMPEXTF (a, b, f4, b1, 456);
+  for (int n = 0; n < 6; n++)
+    CMPEXTA2 (a, b, f7, n / 3, n % 3, 1000 * n);
+  return 0;
+}
 
 #endif

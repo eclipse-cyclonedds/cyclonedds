@@ -17,7 +17,7 @@ module test {
 
   @appendable
   struct c {
-    long c1;
+    @key long c1;
   };
 
   @mutable
@@ -79,6 +79,14 @@ int cmp_sample (const void *sa, const void *sb)
   return 0;
 }
 
-NO_KEY_CMP
+int cmp_key (const void *sa, const void *sb)
+{
+  test_struct_inherit *a = (test_struct_inherit *) sa;
+  test_struct_inherit *b = (test_struct_inherit *) sb;
+
+  CMP (a, b, parent.parent.c1, 321);
+
+  return 0;
+}
 
 #endif
