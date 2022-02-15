@@ -18,7 +18,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsrt/avl.h"

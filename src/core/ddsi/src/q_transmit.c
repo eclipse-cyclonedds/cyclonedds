@@ -26,7 +26,7 @@
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_entity.h"

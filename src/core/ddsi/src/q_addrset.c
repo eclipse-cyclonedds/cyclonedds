@@ -21,7 +21,7 @@
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/ddsi_domaingv.h" /* gv.mattr */
 #include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */

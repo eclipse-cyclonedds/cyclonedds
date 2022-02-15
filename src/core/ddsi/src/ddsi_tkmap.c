@@ -19,7 +19,7 @@
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_cdrstream.h"

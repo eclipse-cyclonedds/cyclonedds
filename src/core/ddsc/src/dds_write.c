@@ -21,7 +21,7 @@
 #include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"

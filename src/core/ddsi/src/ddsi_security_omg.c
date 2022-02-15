@@ -33,7 +33,7 @@
 #include "dds/ddsi/ddsi_security_exchange.h"
 #include "dds/ddsi/ddsi_handshake.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/security/dds_security_api.h"

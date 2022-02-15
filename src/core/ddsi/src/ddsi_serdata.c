@@ -17,7 +17,7 @@
 #include "dds/export.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_serdata.h"

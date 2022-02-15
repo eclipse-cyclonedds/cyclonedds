@@ -18,7 +18,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_unused.h"

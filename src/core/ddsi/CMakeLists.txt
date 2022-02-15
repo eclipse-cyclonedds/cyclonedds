@@ -52,6 +52,7 @@ set(srcs_ddsi
   ddsi_deliver_locally.c
   ddsi_plist.c
   ddsi_cdrstream.c
+  ddsi_config.c
   ddsi_time.c
   ddsi_ownip.c
   ddsi_acknack.c
@@ -61,7 +62,6 @@ set(srcs_ddsi
   q_addrset.c
   q_bitset_inlines.c
   q_bswap.c
-  q_config.c
   q_ddsi_discovery.c
   q_debmon.c
   q_entity.c
@@ -126,6 +126,7 @@ set(hdrs_private_ddsi
   ddsi_cfgunits.h
   ddsi_cfgelems.h
   ddsi_config.h
+  ddsi_config_impl.h
   ddsi_acknack.h
   ddsi_list_tmpl.h
   ddsi_list_genptr.h
@@ -134,7 +135,6 @@ set(hdrs_private_ddsi
   q_addrset.h
   q_bitset.h
   q_bswap.h
-  q_config.h
   q_ddsi_discovery.h
   q_debmon.h
   q_entity.h

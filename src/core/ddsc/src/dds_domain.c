@@ -26,7 +26,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_threadmon.h"
 #include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_typelib.h"
@@ -109,7 +109,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
       break;
 
     case CFGKIND_XML:
-      domain->cfgst = config_init (config->u.xml, &domain->gv.config, domain_id);
+      domain->cfgst = ddsi_config_init (config->u.xml, &domain->gv.config, domain_id);
       if (domain->cfgst == NULL)
       {
         DDS_ILOG (DDS_LC_CONFIG, domain_id, "Failed to parse configuration\n");
@@ -208,7 +208,7 @@ fail_threadmon_new:
 fail_rtps_init:
 fail_rtps_config:
   if (domain->cfgst)
-    config_fini (domain->cfgst);
+    ddsi_config_fini (domain->cfgst);
 fail_config:
   dds_handle_delete (&domain->m_entity.m_hdllink);
   return domh;
@@ -351,7 +351,7 @@ static dds_return_t dds_domain_free (dds_entity *vdomain)
   ddsrt_avl_delete (&dds_domaintree_def, &dds_global.m_domains, domain);
   dds_entity_final_deinit_before_free (vdomain);
   if (domain->cfgst)
-    config_fini (domain->cfgst);
+    ddsi_config_fini (domain->cfgst);
   dds_free (vdomain);
   ddsrt_cond_broadcast (&dds_global.m_cond);
   ddsrt_mutex_unlock (&dds_global.m_mutex);

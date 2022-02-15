@@ -16,7 +16,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/dds.h"
 #include "dds/version.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/ddsi_entity_index.h"

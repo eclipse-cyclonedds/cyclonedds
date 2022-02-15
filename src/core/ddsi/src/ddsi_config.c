@@ -24,7 +24,7 @@
 #include "dds/ddsrt/strtod.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/environ.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_unused.h"
@@ -2251,7 +2251,7 @@ static void reverse_lists (struct cfgst *cfgst, void *parent, struct cfgelem con
   }
 }
 
-struct cfgst *config_init (const char *config, struct ddsi_config *cfg, uint32_t domid)
+struct cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uint32_t domid)
 {
   int ok = 1;
   struct cfgst *cfgst;
@@ -2441,7 +2441,7 @@ error:
   return NULL;
 }
 
-void config_print_cfgst (struct cfgst *cfgst, const struct ddsrt_log_cfg *logcfg)
+void ddsi_config_print_cfgst (struct cfgst *cfgst, const struct ddsrt_log_cfg *logcfg)
 {
   if (cfgst == NULL)
     return;
@@ -2450,7 +2450,7 @@ void config_print_cfgst (struct cfgst *cfgst, const struct ddsrt_log_cfg *logcfg
   print_configitems (cfgst, cfgst->cfg, 0, root_cfgelems, 0);
 }
 
-void config_print_rawconfig (const struct ddsi_config *cfg, const struct ddsrt_log_cfg *logcfg)
+void ddsi_config_print_rawconfig (const struct ddsi_config *cfg, const struct ddsrt_log_cfg *logcfg)
 {
   struct cfgst cfgst = {
     .cfg = (struct ddsi_config *) cfg,
@@ -2461,13 +2461,13 @@ void config_print_rawconfig (const struct ddsi_config *cfg, const struct ddsrt_l
   print_configitems (&cfgst, (void *) cfg, 0, root_cfgelems, 0);
 }
 
-void config_free_source_info (struct cfgst *cfgst)
+void ddsi_config_free_source_info (struct cfgst *cfgst)
 {
   assert (!cfgst->error);
   ddsrt_avl_free (&cfgst_found_treedef, &cfgst->found, ddsrt_free);
 }
 
-void config_fini (struct cfgst *cfgst)
+void ddsi_config_fini (struct cfgst *cfgst)
 {
   assert (cfgst);
   assert (cfgst->cfg != NULL);

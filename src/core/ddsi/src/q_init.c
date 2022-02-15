@@ -24,7 +24,7 @@
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_unused.h"
@@ -668,12 +668,12 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
      free those. */
   if (cfgst != NULL)
   {
-    config_print_cfgst (cfgst, &gv->logconfig);
-    config_free_source_info (cfgst);
+    ddsi_config_print_cfgst (cfgst, &gv->logconfig);
+    ddsi_config_free_source_info (cfgst);
   }
   else
   {
-    config_print_rawconfig (&gv->config, &gv->logconfig);
+    ddsi_config_print_rawconfig (&gv->config, &gv->logconfig);
   }
   return 0;
 

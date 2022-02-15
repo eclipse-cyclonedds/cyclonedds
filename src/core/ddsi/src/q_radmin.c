@@ -33,7 +33,7 @@
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_misc.h"
 
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_log.h"
 
 #include "dds/ddsi/ddsi_plist.h"

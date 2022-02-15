@@ -18,7 +18,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_radmin.h"
@@ -88,44 +88,13 @@ int LLVMFuzzerTestOneInput(
     memcpy(str, data, size);
     str[size] = '\0';
 
-    if ((cfgst = config_init(str, &gv.config, 0)) == NULL)
+    if ((cfgst = ddsi_config_init(str, &gv.config, 0)) == NULL)
     {
         free(str);
-
         return EXIT_FAILURE;
     }
 
-// #ifdef FULL_BLOWN_DDS
-//     rtps_config_prep(&gv, cfgst);
-//     dds_set_log_sink(null_log_sink, NULL);
-//     dds_set_trace_sink(null_log_sink, NULL);
-
-//     rtps_init(&gv);
-
-//     ddsi_vnet_init(&gv, "fake", 123);
-//     fakenet = ddsi_factory_find(&gv, "fake");
-//     ddsi_factory_create_conn(&fakeconn, fakenet, 0, &(const struct ddsi_tran_qos){.m_purpose = DDSI_TRAN_QOS_XMIT, .m_interface = &gv.interfaces[0]});
-//     fakeconn = ddsrt_realloc(fakeconn, sizeof(struct ddsi_tran_conn) + 128);
-//     fakeconn->m_read_fn = &fakeconn_read;
-//     fakeconn->m_write_fn = &fakeconn_write;
-
-//     rtps_start(&gv);
-
-//     ts1 = lookup_thread_state();
-//     ts1->state = THREAD_STATE_ALIVE;
-//     ddsrt_atomic_stvoidp(&ts1->gv, &gv);
-
-//     thread_state_awake(ts1, &gv);
-//     thread_state_asleep(ts1);
-
-//     rbpool = nn_rbufpool_new(&gv.logconfig, gv.config.rbuf_size, gv.config.rmsg_chunk_size);
-//     nn_rbufpool_setowner(rbpool, ddsrt_thread_self());
-
-//     rtps_fini(&gv);
-// #endif
-
     free(str);
-    config_fini(cfgst);
-
+    ddsi_config_fini(cfgst);
     return EXIT_SUCCESS;
 }
