@@ -18,7 +18,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds__alloc.h"
 

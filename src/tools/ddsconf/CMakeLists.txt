@@ -13,7 +13,7 @@
 if (BUILD_DDSCONF)
   add_executable(ddsconf
     ddsconf.c rnc.c md.c xsd.c defconfig.c
-    ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/q_config.c
+    ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi_config.c
     )
 
   target_link_libraries(ddsconf PRIVATE ddsrt-internal compat)

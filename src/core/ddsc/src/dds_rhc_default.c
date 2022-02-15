@@ -34,7 +34,7 @@
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_radmin.h" /* sampleinfo */
 #include "dds/ddsi/q_entity.h" /* proxy_writer_info */

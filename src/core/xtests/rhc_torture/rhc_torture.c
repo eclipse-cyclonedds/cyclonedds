@@ -22,7 +22,7 @@
 #include "dds/dds.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__entity.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_radmin.h"

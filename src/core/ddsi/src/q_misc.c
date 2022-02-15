@@ -15,7 +15,7 @@
 #include "dds/ddsrt/heap.h"
 
 #include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_misc.h"
 
 DDS_EXPORT extern inline seqno_t fromSN (const nn_sequence_number_t sn);

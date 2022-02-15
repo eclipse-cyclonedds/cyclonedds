@@ -8,7 +8,7 @@
 
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsrt/misc.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/features.h"
 
 #include "ddsconf.h"
@@ -231,7 +231,7 @@ int printdefconfig (FILE *out, struct cfgelem *elem)
   struct ddsi_config cfg;
   struct cfgst *cfgst;
 
-  if ((cfgst = config_init ("", &cfg, 0)) == NULL)
+  if ((cfgst = ddsi_config_init ("", &cfg, 0)) == NULL)
   {
     fprintf (stderr, "Failed to initialize default configuration\n");
     return -1;
@@ -249,6 +249,6 @@ void ddsi_config_init_default (struct ddsi_config *cfg)\n\
   gen_defaults (out, &cfg, elem);
   fprintf (out, "}\n");
 
-  config_fini (cfgst);
+  ddsi_config_fini (cfgst);
   return 0;
 }

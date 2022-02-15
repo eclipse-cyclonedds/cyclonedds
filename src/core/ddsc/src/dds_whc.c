@@ -27,7 +27,7 @@
 #include "dds/ddsi/ddsi_deadline.h"
 #endif
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_freelist.h"
