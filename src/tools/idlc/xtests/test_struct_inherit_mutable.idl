@@ -22,7 +22,7 @@ module test {
   @mutable
   struct b {
     @id(1) long f1;
-    @id(3) c f3;
+    @key @id(3) c f3;
   };
 
   @topic
@@ -65,6 +65,12 @@ int cmp_sample (const void *sa, const void *sb)
   return 0;
 }
 
-NO_KEY_CMP
+int cmp_key (const void *sa, const void *sb)
+{
+  test_struct_inherit *a = (test_struct_inherit *) sa;
+  test_struct_inherit *b = (test_struct_inherit *) sb;
+  CMP(a, b, parent.f3.c0, 321);
+  return 0;
+}
 
 #endif

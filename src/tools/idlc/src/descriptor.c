@@ -1945,12 +1945,13 @@ static uint32_t add_to_key_size(uint32_t keysize, uint32_t field_size, uint32_t 
   return sz;
 }
 
-static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key);
+static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key, uint32_t base_type_ops_offs);
 
 static idl_retcode_t get_ctype_keys_adr(
   const idl_pstate_t *pstate,
   struct descriptor *descriptor,
   uint32_t offs,
+  uint32_t base_type_ops_offs,
   struct instruction *inst,
   struct constructed_type *ctype,
   uint32_t *n_keys,
@@ -1974,7 +1975,7 @@ static idl_retcode_t get_ctype_keys_adr(
   }
 
   key->ctype = ctype;
-  key->offset = offs;
+  key->offset = offs + base_type_ops_offs;
   key->order = inst->data.opcode.order;
 
   if (DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_EXT) {
@@ -1982,7 +1983,7 @@ static idl_retcode_t get_ctype_keys_adr(
     const idl_node_t *node = ctype->instructions.table[offs + 2].data.inst_offset.node;
     struct constructed_type *csubtype = find_ctype(descriptor, node);
     assert(csubtype);
-    if ((ret = get_ctype_keys(pstate, descriptor, csubtype, &key->sub, n_keys, true)))
+    if ((ret = get_ctype_keys(pstate, descriptor, csubtype, &key->sub, n_keys, true, 0)))
       return ret;
   } else {
     bool is_array = DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_ARR;
@@ -2066,7 +2067,7 @@ static idl_retcode_t get_ctype_keys_adr(
   return IDL_RETCODE_OK;
 }
 
-static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key)
+static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key, uint32_t base_type_ops_offs)
 {
   idl_retcode_t ret;
   assert(keys);
@@ -2077,7 +2078,12 @@ static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descripto
       case BASE_MEMBERS_OFFSET: {
         struct constructed_type *cbasetype = find_ctype(descriptor, inst->data.inst_offset.node);
         assert (cbasetype);
-        if ((ret = get_ctype_keys(pstate, descriptor, cbasetype, &ctype_keys, n_keys, false)) != IDL_RETCODE_OK)
+        /* Get the offset that will be used for ops in the basetype (calculated by adding the base-type offset
+           to the current PLM instruction offset, which is within its ctype). A derived type cannot add keys
+           (not allowed in IDL) and therefore is not in the offset list, the offset in this list is the offset
+           of the key field in the base type. */
+        uint32_t ops_offs = (uint32_t) inst->data.inst_offset.addr_offs + (uint32_t) inst->data.inst_offset.elem_offs;
+        if ((ret = get_ctype_keys(pstate, descriptor, cbasetype, &ctype_keys, n_keys, false, ops_offs)) != IDL_RETCODE_OK)
           goto err;
         break;
       }
@@ -2091,7 +2097,7 @@ static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descripto
           if (parent_is_key && !ctype->has_key_member)
             inst->data.opcode.code |= DDS_OP_FLAG_KEY;
           if (inst->data.opcode.code & DDS_OP_FLAG_KEY) {
-            if ((ret = get_ctype_keys_adr(pstate, descriptor, offs, inst, ctype, n_keys, &ctype_keys)) != IDL_RETCODE_OK)
+            if ((ret = get_ctype_keys_adr(pstate, descriptor, offs, base_type_ops_offs, inst, ctype, n_keys, &ctype_keys)) != IDL_RETCODE_OK)
               goto err;
           }
         }
@@ -2527,7 +2533,7 @@ generate_descriptor_impl(
   struct constructed_type *ctype = find_ctype(descriptor, descriptor->topic);
   assert(ctype);
   uint32_t n_keys = 0;
-  if ((ret = get_ctype_keys(pstate, descriptor, ctype, &ctype_keys, &n_keys, false)) != IDL_RETCODE_OK)
+  if ((ret = get_ctype_keys(pstate, descriptor, ctype, &ctype_keys, &n_keys, false, 0)) != IDL_RETCODE_OK)
     goto err;
   if ((ret = descriptor_init_keys(pstate, ctype, ctype_keys, descriptor, n_keys, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0)) < 0)
     goto err;
