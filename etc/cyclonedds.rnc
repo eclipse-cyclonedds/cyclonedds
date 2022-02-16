@@ -76,6 +76,13 @@ CycloneDDS configuration""" ] ]
           text
         }?
         & [ a:documentation [ xml:lang="en" """
+<p>This setting controls the default participant lease duration.<p>
+<p>The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.</p>
+<p>The default value is: "10 s".</p>""" ] ]
+        element LeaseDuration {
+          duration
+        }?
+        & [ a:documentation [ xml:lang="en" """
 <p>This element specifies the maximum DDSI participant index selected by this instance of the Cyclone DDS service if the Discovery/ParticipantIndex is "auto".</p>
 <p>The default value is: "9".</p>""" ] ]
         element MaxAutoParticipantIndex {
@@ -436,13 +443,6 @@ CycloneDDS configuration""" ] ]
 <p>The default value is: "false".</p>""" ] ]
         element LateAckMode {
           xsd:boolean
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>This setting controls the default participant lease duration.<p>
-<p>The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.</p>
-<p>The default value is: "10 s".</p>""" ] ]
-        element LeaseDuration {
-          duration
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This element controls whether or not implementation should internally monitor its own liveliness. If liveliness monitoring is enabled, stack traces can be dumped automatically when some thread appears to have stopped making progress.</p>
@@ -1087,24 +1087,6 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 <p>The default value is: "DDS_CYCLONE".</p>""" ] ]
         element Prefix {
           text
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>The number of messages which will be stored on the publisher for late joining subscribers. Should be a value between 0 and 16 and be equal to or larger than SubHistoryRequest.</p>
-<p>The default value is: "16".</p>""" ] ]
-        element PubHistoryCapacity {
-          xsd:integer
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>The number of messages published before subscription which will be requested by a subscriber upon subscription. Should be a value between 0 and 16.</p>
-<p>The default value is: "16".</p>""" ] ]
-        element SubHistoryRequest {
-          xsd:integer
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue. Should be a value between 1 and 256.</p>
-<p>The default value is: "256".</p>""" ] ]
-        element SubQueueCapacity {
-          xsd:integer
         }?
       }?
       & [ a:documentation [ xml:lang="en" """
