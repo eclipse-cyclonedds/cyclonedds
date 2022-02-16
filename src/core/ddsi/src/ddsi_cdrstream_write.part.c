@@ -12,6 +12,14 @@
 
 static const uint32_t *dds_stream_write_implBO (DDS_OSTREAM_T * __restrict os, const char * __restrict data, const uint32_t * __restrict ops, bool is_mutable_member);
 
+static inline bool dds_stream_write_bool_valueBO (DDS_OSTREAM_T * __restrict os, const uint8_t val)
+{
+  if (val > 1)
+    return false;
+  dds_os_put1BO (os, val);
+  return true;
+}
+
 static bool dds_stream_write_enum_valueBO (DDS_OSTREAM_T * __restrict os, uint32_t insn, uint32_t val, uint32_t max)
 {
   if (val > max)
@@ -41,6 +49,16 @@ static void dds_stream_write_stringBO (DDS_OSTREAM_T * __restrict os, const char
     dds_os_put_bytes ((struct dds_ostream *)os, val, size);
   else
     dds_os_put1BO (os, 0);
+}
+
+static bool dds_stream_write_bool_arrBO (DDS_OSTREAM_T * __restrict os, const uint8_t * __restrict addr, uint32_t num)
+{
+  for (uint32_t i = 0; i < num; i++)
+  {
+    if (!dds_stream_write_bool_valueBO (os, addr[i]))
+      return false;
+  }
+  return true;
 }
 
 static bool dds_stream_write_enum_arrBO (DDS_OSTREAM_T * __restrict os, uint32_t insn, const uint32_t * __restrict addr, uint32_t num, uint32_t max)
@@ -86,7 +104,7 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
   uint32_t bound_op = seq_is_bounded (DDS_OP_TYPE (insn)) ? 1 : 0;
   uint32_t bound = bound_op ? ops[2] : 0;
 
-  if (subtype > DDS_OP_VAL_8BY && xcdrv == CDR_ENC_VERSION_2)
+  if (!is_primitive_type (subtype) && xcdrv == CDR_ENC_VERSION_2)
   {
     /* reserve space for DHEADER */
     dds_os_reserve4BO (os);
@@ -111,6 +129,11 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
     /* following length, stream is aligned to mod 4 */
     switch (subtype)
     {
+      case DDS_OP_VAL_BLN:
+        if (!dds_stream_write_bool_arrBO (os, (const uint8_t *) seq->_buffer, num))
+          return NULL;
+        ops += 2 + bound_op;
+        break;
       case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
         const uint32_t elem_size = get_type_size (subtype);
         const align_t align = get_align (xcdrv, elem_size);
@@ -162,7 +185,7 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
     }
   }
 
-  if (subtype > DDS_OP_VAL_8BY && xcdrv == CDR_ENC_VERSION_2)
+  if (!is_primitive_type (subtype) && xcdrv == CDR_ENC_VERSION_2)
   {
     /* write DHEADER */
     *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = to_BO4u(((struct dds_ostream *)os)->m_index - offs);
@@ -175,7 +198,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   uint32_t offs = 0, xcdrv = ((struct dds_ostream *)os)->m_xcdr_version;
-  if (subtype > DDS_OP_VAL_8BY && xcdrv == CDR_ENC_VERSION_2)
+  if (!is_primitive_type (subtype) && xcdrv == CDR_ENC_VERSION_2)
   {
     /* reserve space for DHEADER */
     dds_os_reserve4BO (os);
@@ -184,6 +207,11 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
   const uint32_t num = ops[2];
   switch (subtype)
   {
+    case DDS_OP_VAL_BLN:
+      if (!dds_stream_write_bool_arrBO (os, (const uint8_t *) addr, num))
+        return NULL;
+      ops += 3;
+      break;
     case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
       const uint32_t elem_size = get_type_size (subtype);
       const align_t align = get_align (xcdrv, elem_size);
@@ -229,7 +257,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
       break;
   }
 
-  if (subtype > DDS_OP_VAL_8BY && xcdrv == CDR_ENC_VERSION_2)
+  if (!is_primitive_type (subtype) && xcdrv == CDR_ENC_VERSION_2)
   {
     /* write DHEADER */
     *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = to_BO4u(((struct dds_ostream *)os)->m_index - offs);
@@ -242,9 +270,14 @@ static bool dds_stream_write_union_discriminantBO (DDS_OSTREAM_T * __restrict os
 {
   assert (disc);
   enum dds_stream_typecode type = DDS_OP_SUBTYPE (insn);
-  assert (type == DDS_OP_VAL_1BY || type == DDS_OP_VAL_2BY || type == DDS_OP_VAL_4BY || type == DDS_OP_VAL_ENU);
+  assert (type == DDS_OP_VAL_BLN || type == DDS_OP_VAL_1BY || type == DDS_OP_VAL_2BY || type == DDS_OP_VAL_4BY || type == DDS_OP_VAL_ENU);
   switch (type)
   {
+    case DDS_OP_VAL_BLN:
+      *disc = *((const uint8_t *) addr);
+      if (!dds_stream_write_bool_valueBO (os, (uint8_t) *disc))
+        return false;
+      break;
     case DDS_OP_VAL_1BY:
       *disc = *((const uint8_t *) addr);
       dds_os_put1BO (os, (uint8_t) *disc);
@@ -292,6 +325,10 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
 
     switch (valtype)
     {
+      case DDS_OP_VAL_BLN:
+        if (!dds_stream_write_bool_valueBO (os, *(const uint8_t *) valaddr))
+          return NULL;
+        break;
       case DDS_OP_VAL_1BY: dds_os_put1BO (os, *(const uint8_t *) valaddr); break;
       case DDS_OP_VAL_2BY: dds_os_put2BO (os, *(const uint16_t *) valaddr); break;
       case DDS_OP_VAL_4BY: dds_os_put4BO (os, *(const uint32_t *) valaddr); break;
@@ -336,6 +373,11 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, DDS_OSTREAM_T * __
 
   switch (DDS_OP_TYPE (insn))
   {
+    case DDS_OP_VAL_BLN:
+      if (!dds_stream_write_bool_valueBO (os, *((const uint8_t *) addr)))
+        return NULL;
+      ops += 2;
+      break;
     case DDS_OP_VAL_1BY: dds_os_put1BO (os, *((const uint8_t *) addr)); ops += 2; break;
     case DDS_OP_VAL_2BY: dds_os_put2BO (os, *((const uint16_t *) addr)); ops += 2; break;
     case DDS_OP_VAL_4BY: dds_os_put4BO (os, *((const uint32_t *) addr)); ops += 2; break;

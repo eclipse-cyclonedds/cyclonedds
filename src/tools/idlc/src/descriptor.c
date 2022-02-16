@@ -229,6 +229,7 @@ stash_opcode(
     case DDS_OP_VAL_2BY:
       alignment = ALIGNMENT_2BY;
       break;
+    case DDS_OP_VAL_BLN:
     case DDS_OP_VAL_1BY:
       alignment = ALIGNMENT_1BY;
       break;
@@ -244,8 +245,6 @@ stash_opcode(
          less than the alignment of the members */
       alignment = ALIGNMENT_1BY;
       descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_CONTAINS_UNION;
-      break;
-    default:
       break;
   }
 
@@ -589,7 +588,7 @@ static idl_retcode_t add_typecode(const idl_pstate_t *pstate, const idl_type_spe
       *add_to |= ((uint32_t)DDS_OP_VAL_1BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
       break;
     case IDL_BOOL:
-      *add_to |=  ((uint32_t)DDS_OP_VAL_1BY << shift);
+      *add_to |=  ((uint32_t)DDS_OP_VAL_BLN << shift);
       break;
     case IDL_INT8:
       *add_to |= ((uint32_t)DDS_OP_VAL_1BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
@@ -1671,6 +1670,7 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
     if (inst->data.opcode.code & DDS_OP_FLAG_EXT)
       vec[len++] = " | DDS_OP_FLAG_EXT";
     switch (DDS_OP_TYPE(inst->data.opcode.code)) {
+      case DDS_OP_VAL_BLN: vec[len++] = " | DDS_OP_TYPE_BLN"; break;
       case DDS_OP_VAL_1BY: vec[len++] = " | DDS_OP_TYPE_1BY"; break;
       case DDS_OP_VAL_2BY: vec[len++] = " | DDS_OP_TYPE_2BY"; break;
       case DDS_OP_VAL_4BY: vec[len++] = " | DDS_OP_TYPE_4BY"; break;
@@ -1692,7 +1692,7 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
     if (type == DDS_OP_VAL_ENU) {
       idl_snprintf(buf, sizeof(buf), " | (%u << DDS_OP_FLAG_SZ_SHIFT)", (inst->data.opcode.code & DDS_OP_FLAG_SZ_MASK) >> DDS_OP_FLAG_SZ_SHIFT);
       vec[len++] = buf;
-    } else if (type != DDS_OP_VAL_1BY && type != DDS_OP_VAL_2BY && type != DDS_OP_VAL_4BY && type != DDS_OP_VAL_8BY && type != DDS_OP_VAL_STR) {
+    } else if (type != DDS_OP_VAL_BLN && type != DDS_OP_VAL_1BY && type != DDS_OP_VAL_2BY && type != DDS_OP_VAL_4BY && type != DDS_OP_VAL_8BY && type != DDS_OP_VAL_STR) {
       /* lower 16 bits contain an offset */
       idl_snprintf(buf, sizeof(buf), " | %u", (uint16_t) DDS_OP_JUMP (inst->data.opcode.code));
       vec[len++] = buf;
@@ -1704,6 +1704,7 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
     enum dds_stream_typecode subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
     assert((type == DDS_OP_VAL_SEQ || type == DDS_OP_VAL_ARR || type == DDS_OP_VAL_UNI || type == DDS_OP_VAL_STU || type == DDS_OP_VAL_BSQ) == (subtype != 0));
     switch (subtype) {
+      case DDS_OP_VAL_BLN: vec[len++] = " | DDS_OP_SUBTYPE_BLN"; break;
       case DDS_OP_VAL_1BY: vec[len++] = " | DDS_OP_SUBTYPE_1BY"; break;
       case DDS_OP_VAL_2BY: vec[len++] = " | DDS_OP_SUBTYPE_2BY"; break;
       case DDS_OP_VAL_4BY: vec[len++] = " | DDS_OP_SUBTYPE_4BY"; break;
@@ -2012,6 +2013,7 @@ static idl_retcode_t get_ctype_keys_adr(
       assert(ctype->instructions.table[offs + 2].type == SINGLE);
       key->dims = ctype->instructions.table[offs + 2].data.single;
       switch (DDS_OP_SUBTYPE(inst->data.opcode.code)) {
+        case DDS_OP_VAL_BLN:
         case DDS_OP_VAL_1BY: key->size = key->align = 1; break;
         case DDS_OP_VAL_2BY: key->size = key->align = 2; break;
         case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
@@ -2038,6 +2040,7 @@ static idl_retcode_t get_ctype_keys_adr(
     } else {
       key->dims = 1;
       switch (DDS_OP_TYPE(inst->data.opcode.code)) {
+        case DDS_OP_VAL_BLN:
         case DDS_OP_VAL_1BY: key->size = key->align = 1; break;
         case DDS_OP_VAL_2BY: key->size = key->align = 2; break;
         case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
