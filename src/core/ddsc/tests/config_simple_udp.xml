@@ -17,7 +17,7 @@
        correctly. -->
   <Domain Id="3">
     <General>
-      <NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress>
+      <Interfaces><NetworkInterface address="127.0.0.1" /></Interfaces>
       <AllowMulticast>true</AllowMulticast>
       <EnableMulticastLoopback>true</EnableMulticastLoopback>
     </General>

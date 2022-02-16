@@ -139,6 +139,11 @@ struct ddsi_config_maybe_uint32 {
   uint32_t value;
 };
 
+struct ddsi_config_maybe_boolean {
+  int isdefault;
+  int value;
+};
+
 struct ddsi_config_thread_properties_listelem {
   struct ddsi_config_thread_properties_listelem *next;
   char *name;
@@ -235,6 +240,20 @@ struct ddsi_config_socket_buf_size {
   struct ddsi_config_maybe_uint32 min, max;
 };
 
+struct ddsi_config_network_interface {
+  bool automatic;
+  char *name;
+  char *address;
+  bool prefer_multicast;
+  struct ddsi_config_maybe_boolean multicast;
+  struct ddsi_config_maybe_int32 priority;
+};
+
+struct ddsi_config_network_interface_listelem {
+  struct ddsi_config_network_interface_listelem *next;
+  struct ddsi_config_network_interface cfg;
+};
+
 /* Expensive checks (compiled in when NDEBUG not defined, enabled only if flag set in xchecks) */
 #define DDSI_XCHECK_WHC 1u
 #define DDSI_XCHECK_RHC 2u
@@ -247,15 +266,21 @@ struct ddsi_config
   uint32_t enabled_xchecks;
   char *pcap_file;
 
-  char *networkAddressString;
+  /* interfaces */
+  struct ddsi_config_network_interface_listelem *network_interfaces;
+
+  /* deprecated interface support */
+  char *depr_networkAddressString;
+  int depr_prefer_multicast;
+  char *depr_assumeMulticastCapable;
+
   char **networkRecvAddressStrings;
+  uint32_t allowMulticast;
   char *externalAddressString;
   char *externalMaskString;
   FILE *tracefp;
   char *tracefile;
   int tracingAppendToFile;
-  uint32_t allowMulticast;
-  int prefer_multicast;
   enum ddsi_transport_selector transport_selector;
   enum ddsi_boolean_default compat_use_ipv6;
   enum ddsi_boolean_default compat_tcp_enable;
@@ -268,7 +293,6 @@ struct ddsi_config
   int maxAutoParticipantIndex;
   char *spdpMulticastAddressString;
   char *defaultMulticastAddressString;
-  char *assumeMulticastCapable;
   int64_t spdp_interval;
   int64_t spdp_response_delay_max;
   int64_t lease_duration;

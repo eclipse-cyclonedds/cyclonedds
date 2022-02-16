@@ -33,58 +33,10 @@
 #include "dds/ddsi/ddsi_ipaddr.h"
 #include "dds/ddsrt/avl.h"
 
-static int multicast_override(const char *ifname, const struct ddsi_config *config)
-{
-  char *copy = ddsrt_strdup (config->assumeMulticastCapable), *cursor = copy, *tok;
-  int match = 0;
-  if (copy != NULL)
-  {
-    while ((tok = ddsrt_strsep (&cursor, ",")) != NULL)
-    {
-      if (ddsi2_patmatch (tok, ifname))
-        match = 1;
-    }
-  }
-  ddsrt_free (copy);
-  return match;
-}
-
 #ifdef __linux
 /* FIMXE: HACK HACK */
 #include <linux/if_packet.h>
 #endif
-
-static size_t count_commas (const char *str)
-{
-  size_t n = 0;
-  const char *comma = strchr (str, ',');
-  while (comma)
-  {
-    n++;
-    comma = strchr (comma + 1, ',');
-  }
-  return n;
-}
-
-static char **split_at_comma (const char *str, size_t *nwords)
-{
-  *nwords = count_commas (str) + 1;
-  size_t strsize = strlen (str) + 1;
-  char **ptrs = ddsrt_malloc (*nwords * sizeof (*ptrs) + strsize);
-  char *copy = (char *) ptrs + *nwords * sizeof (*ptrs);
-  memcpy (copy, str, strsize);
-  size_t i = 0;
-  ptrs[i++] = copy;
-  char *comma = strchr (copy, ',');
-  while (comma)
-  {
-    *comma++ = 0;
-    ptrs[i++] = comma;
-    comma = strchr (comma, ',');
-  }
-  assert (i == *nwords);
-  return ptrs;
-}
 
 enum find_interface_result {
   FIR_OK,
@@ -92,7 +44,7 @@ enum find_interface_result {
   FIR_INVALID
 };
 
-static enum find_interface_result find_interface (const struct ddsi_domaingv *gv, const char *reqname, size_t n_interfaces, const struct nn_interface *interfaces, size_t *match)
+static enum find_interface_result find_interface_by_name (const char *reqname, size_t n_interfaces, const struct nn_interface *interfaces, size_t *match)
 {
   // see if there's an interface with this name
   for (size_t k = 0; k < n_interfaces; k++)
@@ -103,10 +55,14 @@ static enum find_interface_result find_interface (const struct ddsi_domaingv *gv
       return FIR_OK;
     }
   }
+  return FIR_NOTFOUND;
+}
 
-  // if not, try matching on address
+static enum find_interface_result find_interface_by_address (const struct ddsi_domaingv *gv, const char *reqip, size_t n_interfaces, const struct nn_interface *interfaces, size_t *match)
+{
+  // try matching on address
   ddsi_locator_t req;
-  if (ddsi_locator_from_string (gv, &req, reqname, gv->m_factory) != AFSR_OK)
+  if (ddsi_locator_from_string (gv, &req, reqip, gv->m_factory) != AFSR_OK)
   {
     return FIR_INVALID;
   }
@@ -148,14 +104,20 @@ static enum find_interface_result find_interface (const struct ddsi_domaingv *gv
   return FIR_NOTFOUND;
 }
 
-static int compare_size_t (const void *va, const void *vb)
+struct interface_priority {
+  size_t match;
+  int32_t priority;
+};
+
+static int compare_interface_priority_t (const void *va, const void *vb)
 {
-  const size_t *a = va;
-  const size_t *b = vb;
-  return (*a == *b) ? 0 : (*a < *b) ? -1 : 1;
+  const struct interface_priority *a = va;
+  const struct interface_priority *b = vb;
+  return (a->priority == b->priority) ? 0 : (a->priority < b->priority) ? 1 : -1;
 }
 
-int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
+
+int find_own_ip (struct ddsi_domaingv *gv)
 {
   const char *sep = " ";
   char last_if_name[80] = "";
@@ -231,12 +193,6 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
     }
     ddsi_locator_to_string_no_port(addrbuf, sizeof(addrbuf), &interfaces[n_interfaces].loc);
     GVLOG (DDS_LC_CONFIG, " %s(", addrbuf);
-
-    if (!(ifa->flags & IFF_MULTICAST) && multicast_override (if_name, &gv->config))
-    {
-      GVLOG (DDS_LC_CONFIG, "assume-mc:");
-      ifa->flags |= IFF_MULTICAST;
-    }
 
     bool link_local = false;
     bool loopback = false;
@@ -315,6 +271,8 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
     interfaces[n_interfaces].link_local = link_local ? 1 : 0;
     interfaces[n_interfaces].if_index = ifa->index;
     interfaces[n_interfaces].name = ddsrt_strdup (if_name);
+    interfaces[n_interfaces].priority = loopback ? 2 : 0;
+    interfaces[n_interfaces].prefer_multicast = 0;
     n_interfaces++;
   }
   GVLOG (DDS_LC_CONFIG, "\n");
@@ -331,8 +289,129 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
 
   bool ok = true;
   gv->n_interfaces = 0;
-  if (requested_address == NULL)
+
+  // Obtain priority settings
+  if (gv->config.network_interfaces != NULL)
   {
+    size_t num_matches = 0;
+    struct interface_priority *matches = ddsrt_malloc (n_interfaces * sizeof (*matches));
+
+    struct ddsi_config_network_interface_listelem *iface = gv->config.network_interfaces;
+    while (iface) {
+      size_t match = SIZE_MAX;
+      bool has_name = iface->cfg.name != NULL && iface->cfg.name[0] != '\0';
+      bool has_address = iface->cfg.address != NULL && iface->cfg.address[0] != '\0';
+
+      if (iface->cfg.automatic) {
+        // Autoselect the most appropriate interface
+        if (has_name || has_address) {
+          GVERROR ("An autodetermined interface should not have its name or address property specified.\n");
+          ok = false;
+          break;
+        } else if (maxq_count == 0) {
+          GVERROR ("No appropriate interface to autoselect, cannot determine own ip.\n");
+          ok = false;
+          break;
+        } else {
+          match = maxq_list[0];
+          ddsi_locator_to_string_no_port (addrbuf, sizeof(addrbuf), &interfaces[match].loc);
+          GVLOG (DDS_LC_INFO, "determined %s (%s) as highest quality interface, selected for automatic interface.\n", interfaces[match].name, addrbuf);
+        }
+      }
+      else if (has_name && has_address) {
+        // If the user specified both name and ip they better match the same interface
+        size_t name_match = SIZE_MAX;
+        size_t address_match = SIZE_MAX;
+        enum find_interface_result name_result = find_interface_by_name (iface->cfg.name, n_interfaces, interfaces, &name_match);
+        enum find_interface_result address_result = find_interface_by_address (gv, iface->cfg.address, n_interfaces, interfaces, &address_match);
+
+        if (name_result != FIR_OK || address_result != FIR_OK) {
+          GVERROR ("%s/%s: does not match an available interface\n", iface->cfg.name, iface->cfg.address);
+          ok = false;
+        }
+        else if (name_match != address_match) {
+          GVERROR ("%s/%s: do not match the same interface\n", iface->cfg.name, iface->cfg.address);
+          ok = false;
+        }
+        else {
+          match = name_match;
+        }
+      } else if (has_name) {
+        enum find_interface_result name_result = find_interface_by_name (iface->cfg.name, n_interfaces, interfaces, &match);
+
+        if (name_result != FIR_OK) {
+          GVERROR ("%s: does not match an available interface\n", iface->cfg.name);
+          ok = false;
+        }
+      } else if (has_address) {
+        enum find_interface_result address_result = find_interface_by_address (gv, iface->cfg.address, n_interfaces, interfaces, &match);
+
+        if (address_result != FIR_OK) {
+          GVERROR ("%s: does not match an available interface\n", iface->cfg.address);
+          ok = false;
+        }
+      } else {
+        GVERROR ("Nameless and address-less interface listed in interfaces.\n");
+        ok = false;
+      }
+
+      if (match != SIZE_MAX && ok) {
+        interfaces[match].prefer_multicast = (unsigned int) iface->cfg.prefer_multicast;
+
+        if (!iface->cfg.priority.isdefault)
+          interfaces[match].priority = iface->cfg.priority.value;
+
+        if (!iface->cfg.multicast.isdefault) {
+          if (interfaces[match].mc_capable && !iface->cfg.multicast.value) {
+            GVLOG (DDS_LC_CONFIG, "disabling multicast on interface %s.", interfaces[match].name);
+            interfaces[match].mc_capable = 0;
+          }
+          else if (!interfaces[match].mc_capable && iface->cfg.multicast.value) {
+            GVLOG (DDS_LC_CONFIG, "assuming multicast capable interface %s.", interfaces[match].name);
+            interfaces[match].mc_capable = 1;
+          }
+        }
+
+        if (num_matches == MAX_XMIT_CONNS)
+        {
+          GVERROR ("too many interfaces specified\n");
+          ok = false;
+          break;
+        }
+        matches[num_matches].match = match;
+        matches[num_matches].priority = interfaces[match].priority;
+        num_matches++;
+      }
+
+      iface = iface->next;
+    }
+
+    if (ok) {
+      if (num_matches == 0) {
+        GVERROR ("No network interfaces selected\n");
+        ok = false;
+      } else {
+        qsort (matches, num_matches, sizeof (*matches), compare_interface_priority_t);
+        for (size_t i = 1; i < num_matches; i++) {
+          if (matches[i].match == matches[i-1].match)
+          {
+            GVERROR ("%s: the same interface may not be selected twice\n", interfaces[matches[i].match].name);
+            ok = false;
+            break;
+          }
+        }
+        if (ok) {
+          for(size_t i = 0; i < num_matches; ++i) {
+            gv->interfaces[gv->n_interfaces] = interfaces[matches[i].match];
+            gv->interfaces[gv->n_interfaces].name = ddsrt_strdup (gv->interfaces[gv->n_interfaces].name);
+            gv->n_interfaces++;
+          }
+        }
+      }
+    }
+
+    free(matches);
+  } else { /* if gv->config.network_interfaces == NULL */
     if (maxq_count > 1)
     {
       const size_t idx = maxq_list[0];
@@ -354,52 +433,6 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
       gv->interfaces[0] = interfaces[maxq_list[0]];
       gv->interfaces[0].name = ddsrt_strdup (gv->interfaces[0].name);
     }
-  }
-  else
-  {
-    size_t nnames;
-    char **reqnames = split_at_comma (requested_address, &nnames);
-    size_t *selected = ddsrt_malloc (nnames * sizeof (*selected));
-    for (size_t i = 0; i < nnames; i++)
-    {
-      size_t match = SIZE_MAX;
-      switch (find_interface (gv, reqnames[i], n_interfaces, interfaces, &match))
-      {
-        case FIR_OK:
-          if (gv->n_interfaces == MAX_XMIT_CONNS)
-          {
-            GVERROR ("too many interfaces specified\n");
-            ok = false;
-            break;
-          }
-          assert (match < n_interfaces);
-          selected[gv->n_interfaces] = match;
-          gv->interfaces[gv->n_interfaces] = interfaces[match];
-          gv->interfaces[gv->n_interfaces].name = ddsrt_strdup (gv->interfaces[gv->n_interfaces].name);
-          gv->n_interfaces++;
-          break;
-        case FIR_NOTFOUND:
-        case FIR_INVALID:
-          GVERROR ("%s: does not match an available interface supporting %s\n", reqnames[i], gv->m_factory->m_typename);
-          ok = false;
-          break;
-      }
-    }
-    qsort (selected, (size_t) gv->n_interfaces, sizeof (*selected), compare_size_t);
-    for (int i = 1; i < gv->n_interfaces; i++)
-    {
-      if (selected[i] == selected[i-1])
-      {
-        if (strcmp (reqnames[i-1], reqnames[i]) == 0)
-          GVERROR ("%s: the same interface may not be selected twice\n", reqnames[i]);
-        else
-          GVERROR ("%s, %s: the same interface may not be selected twice\n", reqnames[i-1], reqnames[i]);
-        ok = false;
-        break;
-      }
-    }
-    ddsrt_free (reqnames);
-    ddsrt_free (selected);
   }
 
   gv->using_link_local_intf = false;
@@ -436,7 +469,7 @@ int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
 
   GVLOG (DDS_LC_CONFIG, "selected interfaces: ");
   for (int i = 0; i < gv->n_interfaces; i++)
-    GVLOG (DDS_LC_CONFIG, "%s%s (index %"PRIu32")", (i == 0) ? "" : ", ", gv->interfaces[i].name, gv->interfaces[i].if_index);
+    GVLOG (DDS_LC_CONFIG, "%s%s (index %"PRIu32" priority %"PRId32")", (i == 0) ? "" : ", ", gv->interfaces[i].name, gv->interfaces[i].if_index, gv->interfaces[i].priority);
   GVLOG (DDS_LC_CONFIG, "\n");
   return 1;
 }

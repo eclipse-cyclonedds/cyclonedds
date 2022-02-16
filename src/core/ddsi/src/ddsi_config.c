@@ -177,6 +177,7 @@ DUPF(retransmit_merging);
 DUPF(sched_class);
 DUPF(maybe_memsize);
 DUPF(maybe_int32);
+DUPF(maybe_boolean);
 #ifdef DDS_HAS_BANDWIDTH_LIMITING
 DUPF(bandwidth);
 #endif
@@ -208,6 +209,7 @@ DI(if_network_partition);
 DI(if_ignored_partition);
 DI(if_partition_mapping);
 #endif
+DI(if_network_interfaces);
 DI(if_peer);
 DI(if_thread_properties);
 #ifdef DDS_HAS_SECURITY
@@ -680,6 +682,17 @@ static int if_thread_properties (struct cfgst *cfgst, void *parent, struct cfgel
   if (new == NULL)
     return -1;
   new->name = NULL;
+  return 0;
+}
+
+static int if_network_interfaces(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+{
+  struct ddsi_config_network_interface_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
+  if (new == NULL)
+    return -1;
+  new->cfg.automatic = false;
+  new->cfg.name = NULL;
+  new->cfg.address = NULL;
   return 0;
 }
 
@@ -1328,6 +1341,40 @@ static void pf_maybe_int32 (struct cfgst *cfgst, void *parent, struct cfgelem co
   else
     cfg_logelem (cfgst, sources, "%"PRId32, p->value);
 }
+
+static enum update_result uf_maybe_boolean (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  DDSRT_WARNING_MSVC_OFF(4996);
+  struct ddsi_config_maybe_boolean * const elem = cfg_address (cfgst, parent, cfgelem);
+  if (ddsrt_strcasecmp (value, "default") == 0) {
+    elem->isdefault = 1;
+    elem->value = 0;
+    return URES_SUCCESS;
+  } else if (ddsrt_strcasecmp(value, "true") == 0) {
+    elem->isdefault = 0;
+    elem->value = 1;
+    return URES_SUCCESS;
+  } else if (ddsrt_strcasecmp(value, "false") == 0) {
+    elem->isdefault = 0;
+    elem->value = 0;
+    return URES_SUCCESS;
+  } else {
+    return cfg_error (cfgst, "'%s': is not 'default', 'true' or 'false'\n", value);
+  }
+  DDSRT_WARNING_MSVC_ON(4996);
+}
+
+static void pf_maybe_boolean (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  struct ddsi_config_maybe_boolean const * const p = cfg_address (cfgst, parent, cfgelem);
+  if (p->isdefault)
+    cfg_logelem (cfgst, sources, "default");
+  else if (p->value)
+    cfg_logelem (cfgst, sources, "true");
+  else
+    cfg_logelem (cfgst, sources, "false");
+}
+
 
 static enum update_result uf_maybe_memsize (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
@@ -2251,6 +2298,66 @@ static void reverse_lists (struct cfgst *cfgst, void *parent, struct cfgelem con
   }
 }
 
+
+static size_t count_commas (const char *str)
+{
+  size_t n = 0;
+  const char *comma = strchr (str, ',');
+  while (comma)
+  {
+    n++;
+    comma = strchr (comma + 1, ',');
+  }
+  return n;
+}
+
+static char **split_at_comma (const char *str, size_t *nwords)
+{
+  *nwords = count_commas (str) + 1;
+  size_t strsize = strlen (str) + 1;
+  char **ptrs = ddsrt_malloc (*nwords * sizeof (*ptrs) + strsize);
+  char *copy = (char *) ptrs + *nwords * sizeof (*ptrs);
+  memcpy (copy, str, strsize);
+  size_t i = 0;
+  ptrs[i++] = copy;
+  char *comma = strchr (copy, ',');
+  while (comma)
+  {
+    *comma++ = 0;
+    ptrs[i++] = comma;
+    comma = strchr (comma, ',');
+  }
+  assert (i == *nwords);
+  return ptrs;
+}
+
+static struct ddsi_config_network_interface * network_interface_find_or_append(struct ddsi_config *cfg, bool allow_append, const char * name, const char * address)
+{
+  struct ddsi_config_network_interface_listelem * iface = cfg->network_interfaces;
+  struct ddsi_config_network_interface_listelem ** prev_iface = &cfg->network_interfaces;
+
+  while (iface && ((name && ddsrt_strcasecmp(iface->cfg.name, name) != 0) || (address && ddsrt_strcasecmp(iface->cfg.address, address) != 0))) {
+    prev_iface = &iface->next;
+    iface = iface->next;
+  }
+
+  if (iface) return &iface->cfg;
+  if (!allow_append) return NULL;
+
+  iface = (struct ddsi_config_network_interface_listelem *) malloc(sizeof(*iface));
+  if (!iface) return NULL;
+
+  iface->cfg.name = name ? ddsrt_strdup(name) : NULL;
+  iface->cfg.address = address ? ddsrt_strdup(address) : NULL;
+  iface->cfg.prefer_multicast = false;
+  iface->cfg.priority.isdefault = 1;
+  iface->cfg.multicast.isdefault = 1;
+
+  *prev_iface = iface;
+
+  return &iface->cfg;
+}
+
 struct cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uint32_t domid)
 {
   int ok = 1;
@@ -2427,6 +2534,93 @@ struct cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uin
     }
   }
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
+
+  /* convert deprecated interface specifiers */
+
+  if (cfg->network_interfaces && (
+      cfg->depr_networkAddressString ||
+      (cfg->depr_assumeMulticastCapable && strlen(cfg->depr_assumeMulticastCapable)) ||
+      cfg->depr_prefer_multicast
+    )
+  ) {
+    // Both deprecated and new-style config specified, refuse to parse
+    DDS_ILOG (DDS_LC_ERROR, domid,
+      "config: General/Interfaces: do not pass deprecated configuration "
+      "General/{NetworkAddressString,MulticastRecvNetworkInterfaceAddresses,"
+      "AssumeMulticastCapable}\n");
+    ok = 0;
+  } else if (!(cfg->network_interfaces) && (
+      cfg->depr_networkAddressString ||
+      (cfg->depr_assumeMulticastCapable && strlen(cfg->depr_assumeMulticastCapable)) ||
+      cfg->depr_prefer_multicast
+    )
+  ) {
+    // Convert deprecated
+
+    if (cfg->depr_networkAddressString) {
+      size_t addr_count;
+      char ** addresses = split_at_comma(cfg->depr_networkAddressString, &addr_count);
+      if (!addresses) {
+        ok = 0;
+        goto error;
+      }
+
+      for (size_t i = 0; i < addr_count; ++i) {
+        // Have to make a guess whether it is a name or address
+        // Hack incoming!
+        if (addresses[i][0] == ':' || (addresses[i][0] >= '0' && addresses[i][0] <= '9')) {
+          // address!
+          network_interface_find_or_append(cfg, true, NULL, addresses[i]);
+        } else {
+          // name!
+          network_interface_find_or_append(cfg, true, addresses[i], NULL);
+        }
+      }
+
+      free(addresses);
+    }
+
+    if ((cfg->depr_assumeMulticastCapable && strlen(cfg->depr_assumeMulticastCapable))) {
+      if (strcmp(cfg->depr_assumeMulticastCapable, "*") == 0) {
+        // Assume all interfaces
+        struct ddsi_config_network_interface_listelem *iface = cfg->network_interfaces;
+        while (iface) {
+          iface->cfg.multicast.isdefault = 0;
+          iface->cfg.multicast.value = 1;
+          iface = iface->next;
+        }
+      }
+      else {
+        size_t len = strlen(cfg->depr_assumeMulticastCapable);
+        for (size_t i = 0; i < len; ++i) {
+          if (cfg->depr_assumeMulticastCapable[i] == '?' || cfg->depr_assumeMulticastCapable[i] == '*') {
+            DDS_ILOG (DDS_LC_ERROR, domid,
+              "config: General/AssumeMulticastCapable: patterns are no longer supported in this "
+              "deprecated configuration option. Migrate to using General/Interfaces.\n");
+            ok = 0;
+            goto error;
+          }
+        }
+
+        size_t addr_count;
+        char ** names = split_at_comma(cfg->depr_assumeMulticastCapable, &addr_count);
+
+        for (size_t i = 0; i < addr_count; ++i) {
+          struct ddsi_config_network_interface *iface_cfg = network_interface_find_or_append(cfg, true, names[i], NULL);
+          iface_cfg->multicast.isdefault = 0;
+          iface_cfg->multicast.value = 1;
+        }
+      }
+    }
+
+    if (cfg->depr_prefer_multicast) {
+      struct ddsi_config_network_interface_listelem *iface = cfg->network_interfaces;
+      while (iface) {
+        iface->cfg.prefer_multicast = true;
+        iface = iface->next;
+      }
+    }
+  }
 
   if (ok)
   {

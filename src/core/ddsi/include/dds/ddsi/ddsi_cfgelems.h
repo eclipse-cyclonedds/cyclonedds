@@ -14,20 +14,73 @@
 
 #include "dds/features.h"
 
-static struct cfgelem general_cfgelems[] = {
-  STRING("NetworkInterfaceAddress", NULL, 1, "auto",
-    MEMBER(networkAddressString),
-    FUNCTIONS(0, uf_networkAddress, ff_free, pf_networkAddress),
+
+static struct cfgelem network_interface_attributes[] = {
+  STRING("autodetermine", NULL, 1, "false",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.automatic),
+    FUNCTIONS(0,  uf_boolean, 0, pf_boolean),
     DESCRIPTION(
-      "<p>This element specifies the preferred network interface for use by "
-      "Cyclone DDS. The preferred network interface determines the IP address "
-      "that Cyclone DDS advertises in the discovery protocol (but see also "
-      "General/ExternalNetworkAddress), and is also the only interface over "
-      "which multicasts are transmitted. The interface can be identified by "
-      "its IP address, network interface name or network portion of the "
-      "address. If the value \"auto\" is entered here, Cyclone DDS will "
-      "select what it considers the most suitable interface.</p>"
+      "<p>If set to \"true\" an interface is automatically selected. Specifying "
+      "a name or an address when automatic is set is considered an error.</p>"
     )),
+  STRING("name", NULL, 1, "",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.name),
+    FUNCTIONS(0, uf_string, ff_free, pf_string),
+    DESCRIPTION(
+      "<p>This attribute specifies the name of the interface. </p>"
+    )),
+  STRING("address", NULL, 1, "",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.address),
+    FUNCTIONS(0, uf_string, ff_free, pf_string),
+    DESCRIPTION(
+      "<p>This attribute specifies the address of the interface. With ipv4 allows "
+      " matching on network part if host part is set to zero. </p>"
+    )),
+  STRING("priority", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.priority),
+    FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
+    DESCRIPTION(
+      "<p>This attribute specifies the interface priority (decimal integer or "
+      "<i>default</i>). The default value for loopback interfaces is 2, for all "
+      "other interfaces it is 0.</p>"
+    )),
+  BOOL("prefer_multicast", NULL, 1, "false",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.prefer_multicast),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION(
+      "<p>When false (default) Cyclone DDS uses unicast for data whenever "
+      "there a single unicast suffices. Setting this to true makes it prefer "
+      "multicasting data, falling back to unicast only when no multicast "
+      "is available.</p>"
+    )),
+  STRING("multicast", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.multicast),
+    FUNCTIONS(0, uf_maybe_boolean, 0, pf_maybe_boolean),
+    DESCRIPTION(
+      "<p>This attribute specifies the whether the interface should use multicast. "
+      "On its default setting 'default' it will use the value as return by the operating "
+      "system. If set to 'true' the interface will be assumed to be multicast capable "
+      "even when the interface flags returned by the operating system state it is not "
+      "(this provides a workaround for some platforms). If set to 'false' the interface "
+      "will never be used for multicast.")
+  ),
+  END_MARKER
+};
+
+
+static struct cfgelem interfaces_cfgelems[] = {
+  GROUP("NetworkInterface", NULL, network_interface_attributes, INT_MAX,
+    MEMBER(network_interfaces),
+    FUNCTIONS(if_network_interfaces, 0, 0, 0),
+    DESCRIPTION(
+      "<p>This element defines a network interface. You can set autodetermine=\"true\" "
+      "to autoselect the interface CycloneDDS deems to be the highest quality. If "
+      "autodetermine=\"false\" (the default), you must specify the name and/or address "
+      "attribute. If you specify both they must match the same interface.</p>")),
+  END_MARKER
+};
+
+static struct cfgelem general_cfgelems[] = {
   STRING("MulticastRecvNetworkInterfaceAddresses", NULL, 1, "preferred",
     MEMBER(networkRecvAddressStrings),
     FUNCTIONS(0, uf_networkAddresses, ff_networkAddresses, pf_networkAddresses),
@@ -43,7 +96,7 @@ static struct cfgelem general_cfgelems[] = {
       "</li>\n"
       "<li><i>preferred</i>: "
       "listen for multicasts on the preferred interface "
-      "(General/NetworkInterfaceAddress); or"
+      "(General/Interface/NetworkInterface with highest priority); or"
       "</li>\n"
       "<li><i>none</i>: "
       "does not listen for multicasts on any interface; or"
@@ -56,6 +109,30 @@ static struct cfgelem general_cfgelems[] = {
       "interface is a link-local address, \"all\" is treated as a synonym for "
       "\"preferred\" and a comma-separated list is treated as \"preferred\" "
       "if it contains the preferred interface and as \"none\" if not.</p>"
+    )),
+  GROUP("Interfaces", interfaces_cfgelems, NULL, 1,
+    NOMEMBER,
+    NOFUNCTIONS,
+    DESCRIPTION(
+      "<p>This element specifies the network interfaces for use by Cyclone "
+      "DDS. Multiple interfaces can be specified with an assigned priority. "
+      "The list in use will be sorted by priority. If interfaces have an "
+      "equal priority the specification order will be preserved.</p>"
+    )),
+  STRING(DEPRECATED("NetworkInterfaceAddress"), NULL, 1, "auto",
+    MEMBER(depr_networkAddressString),
+    FUNCTIONS(0, uf_networkAddress, ff_free, pf_networkAddress),
+    DESCRIPTION(
+      "<p>This configuration option is deprecated. Use General/Interfaces "
+      " instead. "
+      " This element specifies the preferred network interface for use by "
+      "Cyclone DDS. The preferred network interface determines the IP address "
+      "that Cyclone DDS advertises in the discovery protocol (but see also "
+      "General/ExternalNetworkAddress), and is also the only interface over "
+      "which multicasts are transmitted. The interface can be identified by "
+      "its IP address, network interface name or network portion of the "
+      "address. If the value \"auto\" is entered here, Cyclone DDS will "
+      "select what it considers the most suitable interface.</p>"
     )),
   STRING("ExternalNetworkAddress", NULL, 1, "auto",
     MEMBER(externalAddressString),
@@ -110,11 +187,12 @@ static struct cfgelem general_cfgelems[] = {
       "<p>\"default\" maps on spdp if the network is a WiFi network, on true "
       "if it is a wired network</p>"),
     VALUES("false","spdp","asm","ssm","true")),
-  BOOL("PreferMulticast", NULL, 1, "false",
-    MEMBER(prefer_multicast),
+  BOOL(DEPRECATED("PreferMulticast"), NULL, 1, "false",
+    MEMBER(depr_prefer_multicast),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
-      "<p>When false (default) Cyclone DDS uses unicast for data whenever "
+      "<p>Deprecated, use Interfaces/NetworkInterface[@multicast_cost] instead. "
+      "When false (default) Cyclone DDS uses unicast for data whenever "
       "there a single unicast suffices. Setting this to true makes it prefer "
       "multicasting data, falling back to unicast only when no multicast "
       "address is available.</p>")),
@@ -1399,11 +1477,12 @@ static struct cfgelem internal_cfgelems[] = {
       "(-1), this is disabled; specifying 0 means a kernel-allocated port is "
       "used; a positive number is used as the TCP port number.</p>"
     )),
-  STRING("AssumeMulticastCapable", NULL, 1, "",
-    MEMBER(assumeMulticastCapable),
+  STRING(DEPRECATED("AssumeMulticastCapable"), NULL, 1, "",
+    MEMBER(depr_assumeMulticastCapable),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
-      "<p>This element controls which network interfaces are assumed to be "
+      "<p>Deprecated, use General/Interfaces/NetworkInterface[@multicast] instead. "
+      "This element controls which network interfaces are assumed to be "
       "capable of multicasting even when the interface flags returned by the "
       "operating system state it is not (this provides a workaround for some "
       "platforms). It is a comma-separated lists of patterns (with ? and * "

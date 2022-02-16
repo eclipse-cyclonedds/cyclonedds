@@ -1401,7 +1401,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   }
   gv->m_factory->m_enable = true;
 
-  if (!find_own_ip (gv, gv->config.networkAddressString))
+  if (!find_own_ip (gv))
   {
     /* find_own_ip already logs a more informative error message */
     GVLOG (DDS_LC_CONFIG, "No network interface selected\n");

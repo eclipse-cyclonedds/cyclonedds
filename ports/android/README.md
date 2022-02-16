@@ -145,7 +145,7 @@ $ ip rule add from all lookup main pref 99
 
  * Force the guest to use the `eth1` interface.
 ```
-$ export CYCLONEDDS_URI='<CycloneDDS><Domain><General><NetworkInterfaceAddress>eth1</NetworkInterfaceAddress></General></Domain></CycloneDDS>'
+$ export CYCLONEDDS_URI='<CycloneDDS><Domain><General><Interfaces><NetworkInterface name="eth1" /></Interfaces></General></Domain></CycloneDDS>'
 ```
 
  * Change to `/data/local/tmp`.
@@ -153,6 +153,6 @@ $ export CYCLONEDDS_URI='<CycloneDDS><Domain><General><NetworkInterfaceAddress>e
  * Switch to the host.
  * Force the host to use the `br0` interface.
 ```
-$ export CYCLONEDDS_URI='<CycloneDDS><Domain><General><NetworkInterfaceAddress>br0</NetworkInterfaceAddress></General></Domain></CycloneDDS>'
+$ export CYCLONEDDS_URI='<CycloneDDS><Domain><General><Interfaces><NetworkInterface name="br0" /></Interfaces></General></Domain></CycloneDDS>'
 ```
  * Execute `./ddsperf -D10 sub` (native build).

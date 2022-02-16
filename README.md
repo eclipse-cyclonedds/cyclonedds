@@ -188,7 +188,7 @@ point to it.  E.g. (on Linux):
     <CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd">
         <Domain Id="any">
             <General>
-                <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>
+                <Interfaces></Interfaces>
                 <AllowMulticast>default</AllowMulticast>
                 <MaxMessageSize>65500B</MaxMessageSize>
                 <FragmentSize>4000B</FragmentSize>
@@ -210,9 +210,7 @@ point to it.  E.g. (on Linux):
 
 This example shows a few things:
 
-* ``NetworkInterfaceAddress`` can be used to override the interface selected by default (you can use
-  the address or the interface name).  Proper use of multiple network interfaces simultaneously will
-  come, but is not there yet.
+* ``Interfaces`` can be used to override the interfaces selected by default.
 * ``AllowMulticast`` configures the circumstances under which multicast will be used.  If the
   selected interface doesn't support it, it obviously won't be used (``false``); but if it does
   support it, the type of the network adapter determines the default value.  For a wired network, it

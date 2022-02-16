@@ -122,7 +122,7 @@ while(<>) {
   #printf $_;
   s/[\r\n]+$//; # chomp;
 
-  if (defined $t0sec && /\(anon\): config: DDSI2EService\/General\/NetworkInterfaceAddress/) {
+  if (defined $t0sec && /\(anon\): config: Domain\/General\/MulticastRecvNetworkInterfaceAddresses/) {
     restart();
   }
 

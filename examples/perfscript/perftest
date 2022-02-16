@@ -282,7 +282,7 @@ cat >$cfg <<EOF
 <CycloneDDS>
   <Domain id="17">
     <General>
-      <NetworkInterfaceAddress>\${nwif}</NetworkInterfaceAddress>
+      <Interfaces><NetworkInterface name="\${nwif}" /></Interfaces>
       <EnableMulticastLoopback>$loopback</EnableMulticastLoopback>
       <MaxMessageSize>65500B</MaxMessageSize>
     </General>

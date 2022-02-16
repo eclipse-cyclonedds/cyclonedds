@@ -24,6 +24,7 @@ void gendef_pf_uint32 (FILE *fp, void *parent, struct cfgelem const * const cfge
 void gendef_pf_int64 (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_maybe_int32 (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_maybe_uint32 (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_maybe_boolean (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 #ifdef DDS_HAS_SSL
 void gendef_pf_min_tls_version (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 #endif

@@ -26,7 +26,7 @@
 #include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
 
 // For each (reader, locator) pair, the coverage map gives:
-// -1 if the reader isn't covered by this locator, >= 0 if it is
+// INT32_MIN if the reader isn't covered by this locator, >= INT32_MIN+1 if it is
 //
 // If covered, the value depends on the kind of locator:
 // - for regular locators: 0
@@ -323,15 +323,12 @@ static cost_t sat_cost_add (cost_t x, int32_t a)
     return (x < INT32_MIN - a) ? INT32_MIN : x + a;
 }
 
-static readercount_cost_t calc_locator_cost (const struct cover *c, int lidx, bool prefer_multicast, dds_locator_mask_t ignore)
+static readercount_cost_t calc_locator_cost (const struct locset *locs, const struct cover *c, int lidx, dds_locator_mask_t ignore)
 {
-  const int32_t cost_uc  = prefer_multicast ? 1000000 : 2;
-  const int32_t cost_mc  = prefer_multicast ? 1 : 3;
-  const int32_t cost_ssm = prefer_multicast ? 0 : 2;
-  const int32_t cost_non_loopback = 2;
-  readercount_cost_t x = { .nrds = 0, .cost = 0 };
-
-  // FIXME: should associate costs with interfaces, so that, e.g., iceoryx << loopback < GbE < WiFi without any details needed here
+  const int32_t cost_uc  = locs->locs[lidx].conn->m_interf->prefer_multicast ? 1000000 : 2;
+  const int32_t cost_mc  = locs->locs[lidx].conn->m_interf->prefer_multicast ? 1 : 3;
+  const int32_t cost_ssm = locs->locs[lidx].conn->m_interf->prefer_multicast ? 0 : 2;
+  readercount_cost_t x = { .nrds = 0, .cost = - locs->locs[lidx].conn->m_interf->priority };
 
   // Find first reader that this locator addresses so we actually know something
   // about the locator.  There should be at least one, but if none were to be there
@@ -360,8 +357,6 @@ static readercount_cost_t calc_locator_cost (const struct cover *c, int lidx, bo
     x.cost += cost_ssm;
   else
     x.cost += cost_mc;
-  if (!(ci & CI_LOOPBACK))
-    x.cost += cost_non_loopback;
 
   for (; rdidx < c->nreaders; rdidx++)
   {
@@ -599,12 +594,12 @@ addrset_changed:
   return false;
 }
 
-static struct costmap *wras_calc_costmap (const struct cover *covered, bool prefer_multicast, dds_locator_mask_t ignore)
+static struct costmap *wras_calc_costmap (const struct locset *locs, const struct cover *covered, dds_locator_mask_t ignore)
 {
   const int nlocs = cover_get_nlocs (covered);
   struct costmap *wm = costmap_new (nlocs);
   for (int i = 0; i < nlocs; i++)
-    costmap_set (wm, i, calc_locator_cost (covered, i, prefer_multicast, ignore));
+    costmap_set (wm, i, calc_locator_cost (locs, covered, i, ignore));
   return wm;
 }
 
@@ -659,7 +654,7 @@ static int wras_choose_locator (const struct locset *locs, const struct costmap 
   // prefer_multicast: done by assigning much greater cost to unicast than to multicast
   // "reader favours SSM": slightly lower cost than ASM (it only "favours" it, after all)
   if (locs->nlocs == 0)
-    return -1;
+    return INT32_MIN;
   int best = 0;
   readercount_cost_t w_best = costmap_get (wm, best);
   for (int i = 1; i < locs->nlocs; i++)
@@ -671,7 +666,7 @@ static int wras_choose_locator (const struct locset *locs, const struct costmap 
       w_best = w_i;
     }
   }
-  return (w_best.cost != INT32_MAX) ? best : -1;
+  return (w_best.cost != INT32_MAX) ? best : INT32_MIN;
 }
 
 static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *newas, int locidx, const struct locset *locs, const struct cover *covered)
@@ -720,7 +715,7 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *ne
   }
 }
 
-static void wras_drop_covered_readers (int locidx, struct costmap *wm, struct cover *covered, bool prefer_multicast)
+static void wras_drop_covered_readers (int locidx, struct costmap *wm, struct cover *covered)
 {
   /* readers covered by this locator no longer matter */
   const int nreaders = cover_get_nreaders (covered);
@@ -743,25 +738,11 @@ static void wras_drop_covered_readers (int locidx, struct costmap *wm, struct co
       }
     }
   }
-#if 0 && !defined NDEBUG
-  // if distinguishing between consequences of delivering via multiple locators to one
-  // already covered by iceoryx, this doesn't work anymore
-  for (int j = 0; j < nlocs; j++)
-  {
-    const readercount_cost_t a = costmap_get (wm, j);
-    const readercount_cost_t b = calc_locator_cost (covered, j, prefer_multicast);
-    assert (a.nrds == b.nrds);
-    assert (a.cost == b.cost);
-  }
-#else
-  (void) prefer_multicast;
-#endif
 }
 
 struct addrset *compute_writer_addrset (const struct writer *wr)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
-  const bool prefer_multicast = gv->config.prefer_multicast;
   struct locset *locs;
   struct cover *covered;
   struct addrset *newas;
@@ -795,15 +776,15 @@ struct addrset *compute_writer_addrset (const struct writer *wr)
   else
   {
     assert(wr->xqos->present & QP_LOCATOR_MASK);
-    struct costmap *wm = wras_calc_costmap (covered, prefer_multicast, wr->xqos->ignore_locator_type);
+    struct costmap *wm = wras_calc_costmap (locs, covered, wr->xqos->ignore_locator_type);
     int best;
     newas = new_addrset ();
-    while ((best = wras_choose_locator (locs, wm)) >= 0)
+    while ((best = wras_choose_locator (locs, wm)) > INT32_MIN)
     {
       wras_trace_cover (gv, locs, wm, covered);
       ELOGDISC (wr, "  best = %d\n", best);
       wras_add_locator (gv, newas, best, locs, covered);
-      wras_drop_covered_readers (best, wm, covered, prefer_multicast);
+      wras_drop_covered_readers (best, wm, covered);
     }
     costmap_free (wm);
     cover_free (covered);

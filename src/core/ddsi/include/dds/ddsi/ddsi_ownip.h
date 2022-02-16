@@ -35,10 +35,12 @@ struct nn_interface {
   unsigned point_to_point: 1;
   unsigned loopback: 1;
   unsigned link_local: 1;
+  unsigned prefer_multicast: 1;
+  int32_t priority;
   char *name;
 };
 
-int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address);
+int find_own_ip (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)
 }
