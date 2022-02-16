@@ -1,4 +1,5 @@
 #
+# Copyright(c) 2022 ZettaScale Technology
 # Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
 #
 # This program and the accompanying materials are made available under the
@@ -45,6 +46,7 @@ set(ddsc_test_sources
     "loan.c"
     "multi_sertopic.c"
     "participant.c"
+    "pp_lease_dur.c"
     "publisher.c"
     "qos.c"
     "qosmatch.c"
