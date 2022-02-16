@@ -562,4 +562,3 @@ CU_Test(ddsc_builtin_topics, get_qos)
     check_default_qos_of_builtin_entity (tps[i].h, CDQOBE_TOPIC);
   }
 }
-
