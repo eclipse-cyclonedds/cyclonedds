@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -99,16 +100,28 @@ static struct ddsi_serdata_builtintopic *serdata_builtin_new(const struct ddsi_s
   return d;
 }
 
+static void translate_pp_lease_duration (dds_qos_t *qos, const ddsi_plist_t *plist)
+{
+  // Participant lease duration doesn't play by the rules because it doesn't officially exist as a QoS
+  // and we make it available via the liveliness QoS setting
+  assert (plist->present & PP_PARTICIPANT_LEASE_DURATION);
+  qos->present |= QP_LIVELINESS;
+  qos->liveliness.kind = DDS_LIVELINESS_AUTOMATIC;
+  qos->liveliness.lease_duration = plist->participant_lease_duration;
+}
+
 static void from_entity_pp (struct ddsi_serdata_builtintopic_participant *d, const struct participant *pp)
 {
   ddsi_xqos_copy(&d->common.xqos, &pp->plist->qos);
   d->pphandle = pp->e.iid;
+  translate_pp_lease_duration (&d->common.xqos, pp->plist);
 }
 
 static void from_entity_proxypp (struct ddsi_serdata_builtintopic_participant *d, const struct proxy_participant *proxypp)
 {
   ddsi_xqos_copy(&d->common.xqos, &proxypp->plist->qos);
   d->pphandle = proxypp->e.iid;
+  translate_pp_lease_duration (&d->common.xqos, proxypp->plist);
 }
 
 static void from_qos (struct ddsi_serdata_builtintopic *d, const dds_qos_t *xqos)

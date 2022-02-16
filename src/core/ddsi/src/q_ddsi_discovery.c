@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -501,7 +502,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
   /* Participant QoS's insofar as they are set, different from the default, and mapped to the SPDP data, rather than to the Adlink-specific CMParticipant endpoint.  Currently, that means just USER_DATA. */
   qosdiff = ddsi_xqos_delta (&pp->plist->qos, &ddsi_default_plist_participant.qos, QP_USER_DATA);
   if (pp->e.gv->config.explicitly_publish_qos_set_to_default)
-    qosdiff |= ~QP_UNRECOGNIZED_INCOMPATIBLE_MASK;
+    qosdiff |= ~(QP_UNRECOGNIZED_INCOMPATIBLE_MASK | QP_LIVELINESS);
 
   assert (dst->qos.present == 0);
   ddsi_plist_mergein_missing (dst, pp->plist, 0, qosdiff);
