@@ -27,11 +27,10 @@ In order to build Cyclone DDS you need a Linux, Mac or Windows 10 machine (or, w
   * [OpenSSL](https://www.openssl.org/), preferably version 1.1 or later if you want to use TLS over
     TCP.  You can explicitly disable it by setting ``ENABLE_SSL=NO``, which is very useful for
     reducing the footprint or when the FindOpenSSL CMake script gives you trouble;
-  * [Bison](https://www.gnu.org/software/bison/) parser generator.
+  * Optionally [Bison](https://www.gnu.org/software/bison/) parser generator. A cached source is checked into the repository.
 
-On Ubuntu ``apt install bison`` should do the trick for getting Bison installed, and the rest should
-already be there.  On Windows, installing chocolatey and ``choco install winflexbison3`` should get
-you a long way.  On macOS, ``brew install bison`` is easiest.
+If you want to play around with the parser you will need to install the bison parser generator. On Ubuntu ``apt install bison`` should do the trick for getting it installed.
+On Windows, installing chocolatey and ``choco install winflexbison3`` should get you a long way.  On macOS, ``brew install bison`` is easiest.
 
 To obtain Eclipse Cyclone DDS, do
 
