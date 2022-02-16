@@ -400,6 +400,7 @@ stash_member_size(
     }
   } else {
     const idl_type_spec_t *array = NULL;
+    bool arr_of_seq = false;
 
     type_spec = idl_type_spec(node);
     while (idl_is_alias(type_spec)) {
@@ -412,8 +413,10 @@ stash_member_size(
       type_spec = idl_type_spec(array);
       /* sequences are special if non-implicit, because no implicit sequence
          is generated for typedefs of a sequence with a complex declarator */
-      if (idl_is_sequence(type_spec))
+      if (idl_is_sequence(type_spec)) {
         type_spec = array;
+        arr_of_seq = true;
+      }
     } else {
       assert(idl_is_array(node));
       type_spec = idl_type_spec(node);
@@ -434,24 +437,41 @@ stash_member_size(
       if (IDL_PRINT(&typestr, print_type, type_spec) < 0)
         goto err_type;
 
-      len = pos = strlen(typestr);
-      const_expr = ((const idl_declarator_t *)type_spec)->const_expr;
-      assert(const_expr);
-      for (; const_expr; const_expr = idl_next(const_expr), len += 3)
-        /* do nothing */;
+      if (arr_of_seq) {
+        /* We're dealing with a typedef of an array of sequences, and therefore
+           sizeof (array[0]) won't work. The generated type for this is
+           typedef struct decl { .. seq type members .. } decl[n]; so we can
+           use sizeof (struct decl) to get size of the array elements. */
+        const char * _struct = "struct ";
+        size_t sz = strlen(typestr) + strlen(_struct) + 1;
+        inst.data.size.type = malloc(sz);
+        if (inst.data.size.type) {
+          idl_strlcpy(inst.data.size.type, _struct, sz);
+          idl_strlcpy(inst.data.size.type + strlen(_struct), typestr, sz - strlen(_struct));
+        }
+        free(typestr);
+        if (!inst.data.size.type)
+          goto err_type;
+      } else {
+        len = pos = strlen(typestr);
+        const_expr = ((const idl_declarator_t *)type_spec)->const_expr;
+        assert(const_expr);
+        for (; const_expr; const_expr = idl_next(const_expr), len += 3)
+          /* do nothing */;
 
-      inst.data.size.type = malloc(len + 1);
-      if (inst.data.size.type)
-        memcpy(inst.data.size.type, typestr, pos);
-      free(typestr);
-      if (!inst.data.size.type)
-        goto err_type;
+        inst.data.size.type = malloc(len + 1);
+        if (inst.data.size.type)
+          memcpy(inst.data.size.type, typestr, pos);
+        free(typestr);
+        if (!inst.data.size.type)
+          goto err_type;
 
-      const_expr = ((const idl_declarator_t *)type_spec)->const_expr;
-      assert(const_expr);
-      for (; const_expr; const_expr = idl_next(const_expr), pos += 3)
-        memmove(inst.data.size.type + pos, "[0]", 3);
-      inst.data.size.type[pos] = '\0';
+        const_expr = ((const idl_declarator_t *)type_spec)->const_expr;
+        assert(const_expr);
+        for (; const_expr; const_expr = idl_next(const_expr), pos += 3)
+          memmove(inst.data.size.type + pos, "[0]", 3);
+        inst.data.size.type[pos] = '\0';
+      }
     } else {
       if (IDL_PRINT(&inst.data.size.type, print_type, type_spec) < 0)
         goto err_type;
