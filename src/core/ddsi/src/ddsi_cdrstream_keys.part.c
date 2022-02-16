@@ -22,6 +22,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
 
   switch (DDS_OP_TYPE (insn))
   {
+    case DDS_OP_VAL_BLN:
     case DDS_OP_VAL_1BY: dds_os_put1BO (os, *((uint8_t *) addr)); break;
     case DDS_OP_VAL_2BY: dds_os_put2BO (os, *((uint16_t *) addr)); break;
     case DDS_OP_VAL_4BY: dds_os_put4BO (os, *((uint32_t *) addr)); break;
@@ -35,7 +36,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
       const uint32_t num = ops[2];
       switch (DDS_OP_SUBTYPE (insn))
       {
-        case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
+        case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
           const uint32_t elem_size = get_type_size (DDS_OP_SUBTYPE (insn));
           const align_t align = get_align (((struct dds_ostream *)os)->m_xcdr_version, elem_size);
           dds_cdr_alignto_clear_and_resizeBO (os, align, num * elem_size);

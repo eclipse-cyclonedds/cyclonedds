@@ -61,11 +61,13 @@ enum dds_stream_opcode {
 
   /* data field
      [ADR, nBY,   0, f] [offset]
+     [ADR, BLN,   0, f] [offset]
      [ADR, ENU,   0, f] [offset] [max]
      [ADR, STR,   0, f] [offset]
      [ADR, BST,   0, f] [offset] [max-size]
 
      [ADR, SEQ, nBY, f] [offset]
+     [ADR, SEQ, BLN, f] [offset]
      [ADR, SEQ, ENU, f] [offset] [max]
      [ADR, SEQ, STR, f] [offset]
      [ADR, SEQ, BST, f] [offset] [max-size]
@@ -74,6 +76,7 @@ enum dds_stream_opcode {
      [ADR, SEQ, EXT, f] *** not supported
 
      [ADR, BSQ, nBY, f] [offset] [sbound]
+     [ADR, BSQ, BLN, f] [offset] [sbound]
      [ADR, BSQ, ENU, f] [offset] [sbound] [max]
      [ADR, BSQ, STR, f] [offset] [sbound]
      [ADR, BSQ, BST, f] [offset] [sbound] [max-size]
@@ -82,6 +85,7 @@ enum dds_stream_opcode {
      [ADR, BSQ, EXT, f] *** not supported
 
      [ADR, ARR, nBY, f] [offset] [alen]
+     [ADR, ARR, BLN, f] [offset] [alen]
      [ADR, ARR, ENU, f] [offset] [alen] [max]
      [ADR, ARR, STR, f] [offset] [alen]
      [ADR, ARR, BST, f] [offset] [alen] [0] [max-size]
@@ -93,7 +97,7 @@ enum dds_stream_opcode {
      [ADR, UNI, ENU, z] [offset] [alen] [next-insn, cases] [max]
      [ADR, UNI, EXT, f] *** not supported
        where
-         d = discriminant type of {1BY,2BY,4BY}
+         d = discriminant type of {1BY,2BY,4BY,BLN}
          z = default present/not present (DDS_OP_FLAG_DEF)
          offset = discriminant offset
          max = max enum value
@@ -132,6 +136,7 @@ enum dds_stream_opcode {
 
   /* jump-if-equal, used for union cases:
      [JEQ, nBY, 0] [disc] [offset]
+     [JEQ, BLN, 0] [disc] [offset]
      [JEQ, STR, 0] [disc] [offset]
      [JEQ, s,   i] [disc] [offset]
      [JEQ4, e | nBY, 0] [disc] [offset] 0
@@ -190,9 +195,9 @@ enum dds_stream_opcode {
 };
 
 enum dds_stream_typecode {
-  DDS_OP_VAL_1BY = 0x01, /* one byte simple type (char, octet, boolean) */
+  DDS_OP_VAL_1BY = 0x01, /* one byte simple type (char, octet) */
   DDS_OP_VAL_2BY = 0x02, /* two byte simple type ((unsigned) short) */
-  DDS_OP_VAL_4BY = 0x03, /* four byte simple type ((unsigned) long, enums, float) */
+  DDS_OP_VAL_4BY = 0x03, /* four byte simple type ((unsigned) long, float) */
   DDS_OP_VAL_8BY = 0x04, /* eight byte simple type ((unsigned) long long, double) */
   DDS_OP_VAL_STR = 0x05, /* string */
   DDS_OP_VAL_BST = 0x06, /* bounded string */
@@ -202,7 +207,8 @@ enum dds_stream_typecode {
   DDS_OP_VAL_STU = 0x0a, /* struct */
   DDS_OP_VAL_BSQ = 0x0b, /* bounded sequence */
   DDS_OP_VAL_ENU = 0x0c, /* enumerated value (long) */
-  DDS_OP_VAL_EXT = 0x0d  /* field with external definition */
+  DDS_OP_VAL_EXT = 0x0d, /* field with external definition */
+  DDS_OP_VAL_BLN = 0x0e  /* boolean */
 };
 
 /* primary type code for DDS_OP_ADR, DDS_OP_JEQ */
@@ -219,7 +225,8 @@ enum dds_stream_typecode_primary {
   DDS_OP_TYPE_STU = DDS_OP_VAL_STU << 16,
   DDS_OP_TYPE_BSQ = DDS_OP_VAL_BSQ << 16,
   DDS_OP_TYPE_ENU = DDS_OP_VAL_ENU << 16,
-  DDS_OP_TYPE_EXT = DDS_OP_VAL_EXT << 16
+  DDS_OP_TYPE_EXT = DDS_OP_VAL_EXT << 16,
+  DDS_OP_TYPE_BLN = DDS_OP_VAL_BLN << 16
 };
 #define DDS_OP_TYPE_BOO DDS_OP_TYPE_1BY
 
@@ -245,9 +252,9 @@ enum dds_stream_typecode_subtype {
   DDS_OP_SUBTYPE_UNI = DDS_OP_VAL_UNI << 8,
   DDS_OP_SUBTYPE_STU = DDS_OP_VAL_STU << 8,
   DDS_OP_SUBTYPE_BSQ = DDS_OP_VAL_BSQ << 8,
-  DDS_OP_SUBTYPE_ENU = DDS_OP_VAL_ENU << 8
+  DDS_OP_SUBTYPE_ENU = DDS_OP_VAL_ENU << 8,
+  DDS_OP_SUBTYPE_BLN = DDS_OP_VAL_BLN << 8
 };
-#define DDS_OP_SUBTYPE_BOO DDS_OP_SUBTYPE_1BY
 
 /* key field: applicable to {1,2,4,8}BY, STR, BST, ARR-of-{1,2,4,8}BY.
    Note that when defining keys in nested types, the key flag should be set

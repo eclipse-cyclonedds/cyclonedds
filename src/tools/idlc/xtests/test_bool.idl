@@ -1,0 +1,119 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+@final @nested
+union u switch (boolean) {
+  case true: @external boolean u1;
+  case false: boolean u2;
+};
+
+typedef boolean b;
+typedef boolean b_arr[50];
+typedef sequence<boolean> b_seq_arr[2];
+
+@topic @final
+struct test_bool {
+  @key boolean f1;
+  @key boolean f2[3];
+  sequence<boolean> f3;
+  u f4;
+  @external boolean f5;
+  @optional boolean f6;
+  @key @external boolean f7[4];
+  b f8;
+  @key b_arr f9;
+  b_seq_arr f10;
+};
+
+#else
+
+#include <string.h>
+#include "dds/dds.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
+#include "test_bool.h"
+#include "common.h"
+
+const dds_topic_descriptor_t *desc = &test_bool_desc;
+
+void init_sample (void *s)
+{
+  test_bool *s1 = (test_bool *) s;
+  s1->f1 = true;
+  for (uint32_t n = 0; n < 3; n++)
+    s1->f2[n] = n % 2;
+  SEQA(s1->f3, 2)
+  s1->f3._buffer[0] = false;
+  s1->f3._buffer[1] = true;
+  s1->f4._d = true;
+  EXTA(s1->f4._u.u1, true);
+  EXTA(s1->f5, false);
+  s1->f6 = NULL;
+  A(s1->f7);
+  for (uint32_t n = 0; n < 4; n++)
+    (*s1->f7)[n] = n % 2 ? false : true;
+  s1->f8 = true;
+  for (uint32_t n = 0; n < 50; n++)
+    s1->f9[n] = true;
+  SEQA(s1->f10[0], 1);
+  s1->f10[0]._buffer[0] = true;
+  SEQA(s1->f10[1], 2);
+  s1->f10[1]._buffer[0] = true;
+  s1->f10[1]._buffer[1] = false;
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_bool *a = (test_bool *) sa;
+  test_bool *b = (test_bool *) sb;
+
+  CMP (a, b, f1, true);
+  for (uint32_t n = 0; n < 3; n++)
+    CMP (a, b, f2[n], n % 2);
+  CMP (a, b, f3._length, 2);
+  CMP (a, b, f3._buffer[0], false);
+  CMP (a, b, f3._buffer[1], true);
+  CMP (a, b, f4._d, true);
+  CMPEXT (a, b, f4._u.u1, true);
+  CMPEXT (a, b, f5, false);
+  CMP (a, b, f6, NULL);
+  for (uint32_t n = 0; n < 4; n++)
+    CMPEXTA (a, b, f7, n, n % 2 ? false : true);
+  CMP (a, b, f8, true);
+  for (uint32_t n = 0; n < 50; n++)
+    CMP (a, b, f9[n], true);
+  CMP (a, b, f10[0]._length, 1);
+  CMP (a, b, f10[0]._buffer[0], true);
+  CMP (a, b, f10[1]._length, 2);
+  CMP (a, b, f10[1]._buffer[0], true);
+  CMP (a, b, f10[1]._buffer[1], false);
+  return 0;
+}
+
+int cmp_key (const void *sa, const void *sb)
+{
+  test_bool *a = (test_bool *) sa;
+  test_bool *b = (test_bool *) sb;
+
+  CMP (a, b, f1, true);
+  for (uint32_t n = 0; n < 3; n++)
+    CMP (a, b, f2[n], n % 2);
+  for (uint32_t n = 0; n < 4; n++)
+    CMPEXTA (a, b, f7, n, n % 2 ? false : true);
+  for (uint32_t n = 0; n < 50; n++)
+    CMP (a, b, f9[n], true);
+
+  return 0;
+}
+
+#endif

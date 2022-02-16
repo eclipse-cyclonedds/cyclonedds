@@ -28,6 +28,7 @@ set(_sources
   test_union_r.idl
   test_bounded_seq.idl
   test_enum.idl
+  test_bool.idl
 )
 
 set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/ddsc/include")
