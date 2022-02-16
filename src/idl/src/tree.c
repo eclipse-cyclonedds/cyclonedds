@@ -3326,7 +3326,7 @@ idl_finalize_annotation_appl(
   } else if (idl_mask(parameters) & IDL_ANNOTATION_APPL_PARAM) {
     node->parameters = parameters;
     for (idl_annotation_appl_param_t *ap = parameters; ap; ap = idl_next(ap))
-      ((idl_node_t *)parameters)->parent = (idl_node_t *)node;
+      ((idl_node_t *)ap)->parent = (idl_node_t *)node;
   }
 
   return IDL_RETCODE_OK;
