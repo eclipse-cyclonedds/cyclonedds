@@ -114,6 +114,7 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:DefaultMulticastAddress"/>
         <xs:element minOccurs="0" ref="config:EnableTopicDiscoveryEndpoints"/>
         <xs:element minOccurs="0" ref="config:ExternalDomainId"/>
+        <xs:element minOccurs="0" ref="config:LeaseDuration"/>
         <xs:element minOccurs="0" ref="config:MaxAutoParticipantIndex"/>
         <xs:element minOccurs="0" ref="config:ParticipantIndex"/>
         <xs:element minOccurs="0" ref="config:Peers"/>
@@ -151,6 +152,14 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;An override for the domain id, to be used in discovery and for determining the port number mapping. This allows creating multiple domains in a single process while making them appear as a single domain on the network. The value "default" disables the override.&lt;/p&gt;
 &lt;p&gt;The default value is: "default".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="LeaseDuration" type="config:duration">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This setting controls the default participant lease duration.&lt;p&gt;
+&lt;p&gt;The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
+&lt;p&gt;The default value is: "10 s".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="MaxAutoParticipantIndex" type="xs:integer">
@@ -492,7 +501,6 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:GenerateKeyhash"/>
         <xs:element minOccurs="0" ref="config:HeartbeatInterval"/>
         <xs:element minOccurs="0" ref="config:LateAckMode"/>
-        <xs:element minOccurs="0" ref="config:LeaseDuration"/>
         <xs:element minOccurs="0" ref="config:LivelinessMonitoring"/>
         <xs:element minOccurs="0" ref="config:MaxParticipants"/>
         <xs:element minOccurs="0" ref="config:MaxQueuedRexmitBytes"/>
@@ -704,14 +712,6 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;Ack a sample only when it has been delivered, instead of when committed to delivering it.&lt;/p&gt;
 &lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="LeaseDuration" type="config:duration">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This setting controls the default participant lease duration.&lt;p&gt;
-&lt;p&gt;The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
-&lt;p&gt;The default value is: "10 s".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="LivelinessMonitoring">
@@ -1573,9 +1573,6 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
         <xs:element minOccurs="0" ref="config:Locator"/>
         <xs:element minOccurs="0" ref="config:LogLevel"/>
         <xs:element minOccurs="0" ref="config:Prefix"/>
-        <xs:element minOccurs="0" ref="config:PubHistoryCapacity"/>
-        <xs:element minOccurs="0" ref="config:SubHistoryRequest"/>
-        <xs:element minOccurs="0" ref="config:SubQueueCapacity"/>
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1617,27 +1614,6 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
       <xs:documentation>
 &lt;p&gt;Override the Iceoryx service name used by Cyclone.&lt;/p&gt;
 &lt;p&gt;The default value is: "DDS_CYCLONE".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="PubHistoryCapacity" type="xs:integer">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;The number of messages which will be stored on the publisher for late joining subscribers. Should be a value between 0 and 16 and be equal to or larger than SubHistoryRequest.&lt;/p&gt;
-&lt;p&gt;The default value is: "16".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="SubHistoryRequest" type="xs:integer">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;The number of messages published before subscription which will be requested by a subscriber upon subscription. Should be a value between 0 and 16.&lt;/p&gt;
-&lt;p&gt;The default value is: "16".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="SubQueueCapacity" type="xs:integer">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue. Should be a value between 1 and 256.&lt;/p&gt;
-&lt;p&gt;The default value is: "256".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="Sizing">

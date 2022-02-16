@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2020 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -1217,12 +1218,7 @@ static struct cfgelem internal_cfgelems[] = {
       "<p>This settings limits the maximum number of samples queued for "
       "retransmission.</p>"
     )),
-  STRING("LeaseDuration", NULL, 1, "10 s",
-    MEMBER(lease_duration),
-    FUNCTIONS(0, uf_duration_ms_1hr, 0, pf_duration),
-    DESCRIPTION(
-      "<p>This setting controls the default participant lease duration.<p>"),
-    UNIT("duration")),
+  MOVED("LeaseDuration", "CycloneDDS/Domain/Discovery/LeaseDuration"),
   STRING("WriterLingerDuration", NULL, 1, "1 s",
     MEMBER(writer_linger_duration),
     FUNCTIONS(0, uf_duration_ms_1hr, 0, pf_duration),
@@ -1713,12 +1709,12 @@ static struct cfgelem shmem_cfgelems[] = {
     DESCRIPTION("<p>Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue. Should be a value between 1 and 256.</p>")),
   INT(DEPRECATED("SubHistoryRequest"), NULL, 1, "16",
     NOMEMBER,
-    NOFUNCTIONS,    
+    NOFUNCTIONS,
     DESCRIPTION("<p>The number of messages published before subscription which will be requested by a subscriber upon subscription. Should be a value between 0 and 16.</p>")),
   INT(DEPRECATED("PubHistoryCapacity"), NULL, 1, "16",
     NOMEMBER,
     NOFUNCTIONS,
-    DESCRIPTION("<p>The number of messages which will be stored on the publisher for late joining subscribers. Should be a value between 0 and 16 and be equal to or larger than SubHistoryRequest.</p>")),    
+    DESCRIPTION("<p>The number of messages which will be stored on the publisher for late joining subscribers. Should be a value between 0 and 16 and be equal to or larger than SubHistoryRequest.</p>")),
   END_MARKER
 };
 #endif
@@ -1871,6 +1867,12 @@ static struct cfgelem discovery_cfgelems[] = {
       "discovery are created and used to exchange topic discovery information.</p>"
     )),
 #endif
+  STRING("LeaseDuration", NULL, 1, "10 s",
+    MEMBER(lease_duration),
+    FUNCTIONS(0, uf_duration_ms_1hr, 0, pf_duration),
+    DESCRIPTION(
+      "<p>This setting controls the default participant lease duration.<p>"),
+    UNIT("duration")),
   END_MARKER
 };
 
