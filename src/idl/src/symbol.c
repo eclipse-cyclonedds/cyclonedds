@@ -72,8 +72,10 @@ idl_create_scoped_name(
   size_t len, off;
   const char *root = absolute ? "::" : "";
 
+  if (!name)
+    return IDL_RETCODE_SYNTAX_ERROR;
+
   (void)pstate;
-  assert(name);
   assert(name->identifier);
   if (!(scoped_name = calloc(1, sizeof(*scoped_name))))
     goto err_alloc;
