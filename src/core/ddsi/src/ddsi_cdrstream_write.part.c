@@ -14,21 +14,23 @@ static const uint32_t *dds_stream_write_implBO (DDS_OSTREAM_T * __restrict os, c
 
 static bool dds_stream_write_enum_valueBO (DDS_OSTREAM_T * __restrict os, uint32_t insn, uint32_t val)
 {
-  switch (get_enum_cdr_size (DDS_OP_FLAGS (insn)))
+  switch (DDS_OP_TYPE_SZ (insn))
   {
-    case ENUM_CDR_SZ_8:
+    case 1:
       if (val > UINT8_MAX)
         return false;
       dds_os_put1BO (os, (uint8_t) val);
       break;
-    case ENUM_CDR_SZ_16:
+    case 2:
       if (val > UINT16_MAX)
         return false;
       dds_os_put2BO (os, (uint16_t) val);
       break;
-    case ENUM_CDR_SZ_32:
+    case 4:
       dds_os_put4BO (os, val);
       break;
+    default:
+      abort ();
   }
   return true;
 }
@@ -46,9 +48,9 @@ static void dds_stream_write_stringBO (DDS_OSTREAM_T * __restrict os, const char
 static bool dds_stream_write_enum_arrBO (DDS_OSTREAM_T * __restrict os, uint32_t insn, const uint32_t * __restrict addr, uint32_t num)
 {
   uint32_t xcdrv = ((struct dds_ostream *) os)->m_xcdr_version;
-  switch (get_enum_cdr_size (DDS_OP_FLAGS (insn)))
+  switch (DDS_OP_TYPE_SZ (insn))
   {
-    case ENUM_CDR_SZ_8: {
+    case 1:
       for (uint32_t i = 0; i < num; i++)
       {
         if (addr[i] > UINT8_MAX)
@@ -56,8 +58,7 @@ static bool dds_stream_write_enum_arrBO (DDS_OSTREAM_T * __restrict os, uint32_t
         dds_os_put1BO (os, (uint8_t) addr[i]);
       }
       break;
-    }
-    case ENUM_CDR_SZ_16: {
+    case 2:
       for (uint32_t i = 0; i < num; i++)
       {
         if (addr[i] > UINT16_MAX)
@@ -65,15 +66,14 @@ static bool dds_stream_write_enum_arrBO (DDS_OSTREAM_T * __restrict os, uint32_t
         dds_os_put2BO (os, (uint16_t) addr[i]);
       }
       break;
-    }
-    case ENUM_CDR_SZ_32: {
-      const uint32_t elem_size = 4;
-      const align_t align = get_align (xcdrv, elem_size);
+    case 4: {
       void * dst;
-      dds_os_put_bytes_aligned ((struct dds_ostream *) os, addr, num, elem_size, align, &dst);
-      dds_stream_to_BO_insitu (dst, elem_size, num);
+      dds_os_put_bytes_aligned ((struct dds_ostream *) os, addr, num, 4, get_align (xcdrv, 4), &dst);
+      dds_stream_to_BO_insitu (dst, 4, num);
       break;
     }
+    default:
+      abort ();
   }
   return true;
 }

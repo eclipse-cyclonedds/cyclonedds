@@ -1235,6 +1235,7 @@ static void * sample_init_appenddefaults2 (void)
   msg.msg_field_su8._length = 0;
   msg.msg_field_ssubm._length = 0;
   msg.msg_field_uni._d = 0;
+  msg.msg_field_enum = TestIdl_APPEND_DEFAULTS_KIND2;
   msg.msg_field1 = 456;
   return ddsrt_memdup (&msg, sizeof (TestIdl_MsgAppendDefaults2));
 }
