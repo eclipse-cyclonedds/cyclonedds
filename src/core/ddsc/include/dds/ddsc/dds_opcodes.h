@@ -21,6 +21,8 @@
 #ifndef DDS_OPCODES_H
 #define DDS_OPCODES_H
 
+#include "dds/ddsrt/static_assert.h"
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -107,7 +109,7 @@ enum dds_stream_opcode {
                     - base type member, used with EXT type (DDS_OP_FLAG_BASE)
                     - optional (DDS_OP_FLAG_OPT)
                     - must-understand (DDS_OP_FLAG_MU)
-                    - storage size, only for ENU (DDS_OP_FLAG_SZ1 and DDS_OP_FLAG_SZ2)
+                    - storage size, only for ENU (n << DDS_OP_FLAG_SZ_SHIFT)
      [offset]     = field offset from start of element in memory
      [elem-size]  = element size in memory (elem-size is only included in case 'external' flag is set)
      [max-size]   = string bound + 1
@@ -266,9 +268,10 @@ enum dds_stream_typecode_subtype {
 #define DDS_OP_FLAG_OPT  (1u << 5) /* optional flag, used with struct members. For non-string types,
                                       an optional member also gets the FLAG_EXT, see above. */
 
-#define DDS_OP_FLAG_SZ1  (1u << 6) /* Enum storage size -- SZ2, SZ1: 00 = 4 bytes, 10 = 2 bytes, 01 = 1 byte, 11 = unused */
-#define DDS_OP_FLAG_SZ2  (1u << 7) /* (2nd bit of storage size) */
-
+#define DDS_OP_FLAG_SZ_SHIFT  (6)
+#define DDS_OP_FLAG_SZ_MASK   (3u << DDS_OP_FLAG_SZ_SHIFT) /* Enum and bitmask storage size -- SZ2, SZ1: 00 = 1 byte, 01 = 2 bytes, 10 = 4 bytes, 11 = 8 bytes (bitmask only) */
+#define DDS_OP_FLAGS_SZ(f)    (1 << (((f) & DDS_OP_FLAG_SZ_MASK) >> DDS_OP_FLAG_SZ_SHIFT))
+#define DDS_OP_TYPE_SZ(o)     DDS_OP_FLAGS_SZ(DDS_OP_FLAGS(o))
 
 /* Topic descriptor flag values */
 #define DDS_TOPIC_NO_OPTIMIZE                   (1u << 0)
