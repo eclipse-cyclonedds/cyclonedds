@@ -258,7 +258,7 @@ The default value is: "".
 
 
 ### //CycloneDDS/Domain/General
-Children: [AllowMulticast](#cycloneddsdomaingeneralallowmulticast), [DontRoute](#cycloneddsdomaingeneraldontroute), [EnableMulticastLoopback](#cycloneddsdomaingeneralenablemulticastloopback), [ExternalNetworkAddress](#cycloneddsdomaingeneralexternalnetworkaddress), [ExternalNetworkMask](#cycloneddsdomaingeneralexternalnetworkmask), [FragmentSize](#cycloneddsdomaingeneralfragmentsize), [MaxMessageSize](#cycloneddsdomaingeneralmaxmessagesize), [MaxRexmitMessageSize](#cycloneddsdomaingeneralmaxrexmitmessagesize), [MulticastRecvNetworkInterfaceAddresses](#cycloneddsdomaingeneralmulticastrecvnetworkinterfaceaddresses), [MulticastTimeToLive](#cycloneddsdomaingeneralmulticasttimetolive), [NetworkInterfaceAddress](#cycloneddsdomaingeneralnetworkinterfaceaddress), [PreferMulticast](#cycloneddsdomaingeneralprefermulticast), [RedundantNetworking](#cycloneddsdomaingeneralredundantnetworking), [Transport](#cycloneddsdomaingeneraltransport), [UseIPv6](#cycloneddsdomaingeneraluseipv)
+Children: [AllowMulticast](#cycloneddsdomaingeneralallowmulticast), [DontRoute](#cycloneddsdomaingeneraldontroute), [EnableMulticastLoopback](#cycloneddsdomaingeneralenablemulticastloopback), [ExternalNetworkAddress](#cycloneddsdomaingeneralexternalnetworkaddress), [ExternalNetworkMask](#cycloneddsdomaingeneralexternalnetworkmask), [FragmentSize](#cycloneddsdomaingeneralfragmentsize), [Interfaces](#cycloneddsdomaingeneralinterfaces), [MaxMessageSize](#cycloneddsdomaingeneralmaxmessagesize), [MaxRexmitMessageSize](#cycloneddsdomaingeneralmaxrexmitmessagesize), [MulticastRecvNetworkInterfaceAddresses](#cycloneddsdomaingeneralmulticastrecvnetworkinterfaceaddresses), [MulticastTimeToLive](#cycloneddsdomaingeneralmulticasttimetolive), [RedundantNetworking](#cycloneddsdomaingeneralredundantnetworking), [Transport](#cycloneddsdomaingeneraltransport), [UseIPv6](#cycloneddsdomaingeneraluseipv)
 
 The General element specifies overall Cyclone DDS service settings.
 
@@ -328,6 +328,65 @@ The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^
 The default value is: "1344 B".
 
 
+#### //CycloneDDS/Domain/General/Interfaces
+Children: [NetworkInterface](#cycloneddsdomaingeneralinterfacesnetworkinterface)
+
+This element specifies the network interfaces for use by Cyclone DDS. Multiple interfaces can be specified with an assigned priority. The list in use will be sorted by priority. If interfaces have an equal priority the specification order will be preserved.
+
+
+##### //CycloneDDS/Domain/General/Interfaces/NetworkInterface
+Attributes: [address](#cycloneddsdomaingeneralinterfacesnetworkinterfaceaddress), [autodetermine](#cycloneddsdomaingeneralinterfacesnetworkinterfaceautodetermine), [multicast](#cycloneddsdomaingeneralinterfacesnetworkinterfacemulticast), [name](#cycloneddsdomaingeneralinterfacesnetworkinterfacename), [prefer_multicast](#cycloneddsdomaingeneralinterfacesnetworkinterfaceprefermulticast), [priority](#cycloneddsdomaingeneralinterfacesnetworkinterfacepriority)
+
+This element defines a network interface. You can set autodetermine="true" to autoselect the interface CycloneDDS deems to be the highest quality. If autodetermine="false" (the default), you must specify the name and/or address attribute. If you specify both they must match the same interface.
+
+
+##### //CycloneDDS/Domain/General/Interfaces/NetworkInterface[@address]
+Text
+
+This attribute specifies the address of the interface. With ipv4 allows  matching on network part if host part is set to zero. 
+
+The default value is: "".
+
+
+##### //CycloneDDS/Domain/General/Interfaces/NetworkInterface[@autodetermine]
+Text
+
+If set to "true" an interface is automatically selected. Specifying a name or an address when automatic is set is considered an error.
+
+The default value is: "false".
+
+
+##### //CycloneDDS/Domain/General/Interfaces/NetworkInterface[@multicast]
+Text
+
+This attribute specifies the whether the interface should use multicast. On its default setting 'default' it will use the value as return by the operating system. If set to 'true' the interface will be assumed to be multicast capable even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). If set to 'false' the interface will never be used for multicast.
+The default value is: "default".
+
+
+##### //CycloneDDS/Domain/General/Interfaces/NetworkInterface[@name]
+Text
+
+This attribute specifies the name of the interface. 
+
+The default value is: "".
+
+
+##### //CycloneDDS/Domain/General/Interfaces/NetworkInterface[@prefer_multicast]
+Boolean
+
+When false (default) Cyclone DDS uses unicast for data whenever there a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast is available.
+
+The default value is: "false".
+
+
+##### //CycloneDDS/Domain/General/Interfaces/NetworkInterface[@priority]
+Text
+
+This attribute specifies the interface priority (decimal integer or default). The default value for loopback interfaces is 2, for all other interfaces it is 0.
+
+The default value is: "default".
+
+
 #### //CycloneDDS/Domain/General/MaxMessageSize
 Number-with-unit
 
@@ -361,7 +420,7 @@ This element specifies on which network interfaces Cyclone DDS listens to multic
 
  * any: listen for multicasts on the operating system default interface; or
 
- * preferred: listen for multicasts on the preferred interface (General/NetworkInterfaceAddress); or
+ * preferred: listen for multicasts on the preferred interface (General/Interface/NetworkInterface with highest priority); or
 
  * none: does not listen for multicasts on any interface; or
 
@@ -379,22 +438,6 @@ Integer
 This element specifies the time-to-live setting for outgoing multicast packets.
 
 The default value is: "32".
-
-
-#### //CycloneDDS/Domain/General/NetworkInterfaceAddress
-Text
-
-This element specifies the preferred network interface for use by Cyclone DDS. The preferred network interface determines the IP address that Cyclone DDS advertises in the discovery protocol (but see also General/ExternalNetworkAddress), and is also the only interface over which multicasts are transmitted. The interface can be identified by its IP address, network interface name or network portion of the address. If the value "auto" is entered here, Cyclone DDS will select what it considers the most suitable interface.
-
-The default value is: "auto".
-
-
-#### //CycloneDDS/Domain/General/PreferMulticast
-Boolean
-
-When false (default) Cyclone DDS uses unicast for data whenever there a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast address is available.
-
-The default value is: "false".
 
 
 #### //CycloneDDS/Domain/General/RedundantNetworking
@@ -422,7 +465,7 @@ The default value is: "default".
 
 
 ### //CycloneDDS/Domain/Internal
-Children: [AccelerateRexmitBlockSize](#cycloneddsdomaininternalacceleraterexmitblocksize), [AckDelay](#cycloneddsdomaininternalackdelay), [AssumeMulticastCapable](#cycloneddsdomaininternalassumemulticastcapable), [AutoReschedNackDelay](#cycloneddsdomaininternalautoreschednackdelay), [BuiltinEndpointSet](#cycloneddsdomaininternalbuiltinendpointset), [BurstSize](#cycloneddsdomaininternalburstsize), [ControlTopic](#cycloneddsdomaininternalcontroltopic), [DDSI2DirectMaxThreads](#cycloneddsdomaininternalddsidirectmaxthreads), [DefragReliableMaxSamples](#cycloneddsdomaininternaldefragreliablemaxsamples), [DefragUnreliableMaxSamples](#cycloneddsdomaininternaldefragunreliablemaxsamples), [DeliveryQueueMaxSamples](#cycloneddsdomaininternaldeliveryqueuemaxsamples), [EnableExpensiveChecks](#cycloneddsdomaininternalenableexpensivechecks), [GenerateKeyhash](#cycloneddsdomaininternalgeneratekeyhash), [HeartbeatInterval](#cycloneddsdomaininternalheartbeatinterval), [LateAckMode](#cycloneddsdomaininternallateackmode), [LeaseDuration](#cycloneddsdomaininternalleaseduration), [LivelinessMonitoring](#cycloneddsdomaininternallivelinessmonitoring), [MaxParticipants](#cycloneddsdomaininternalmaxparticipants), [MaxQueuedRexmitBytes](#cycloneddsdomaininternalmaxqueuedrexmitbytes), [MaxQueuedRexmitMessages](#cycloneddsdomaininternalmaxqueuedrexmitmessages), [MaxSampleSize](#cycloneddsdomaininternalmaxsamplesize), [MeasureHbToAckLatency](#cycloneddsdomaininternalmeasurehbtoacklatency), [MonitorPort](#cycloneddsdomaininternalmonitorport), [MultipleReceiveThreads](#cycloneddsdomaininternalmultiplereceivethreads), [NackDelay](#cycloneddsdomaininternalnackdelay), [PreEmptiveAckDelay](#cycloneddsdomaininternalpreemptiveackdelay), [PrimaryReorderMaxSamples](#cycloneddsdomaininternalprimaryreordermaxsamples), [PrioritizeRetransmit](#cycloneddsdomaininternalprioritizeretransmit), [RediscoveryBlacklistDuration](#cycloneddsdomaininternalrediscoveryblacklistduration), [RetransmitMerging](#cycloneddsdomaininternalretransmitmerging), [RetransmitMergingPeriod](#cycloneddsdomaininternalretransmitmergingperiod), [RetryOnRejectBestEffort](#cycloneddsdomaininternalretryonrejectbesteffort), [SPDPResponseMaxDelay](#cycloneddsdomaininternalspdpresponsemaxdelay), [ScheduleTimeRounding](#cycloneddsdomaininternalscheduletimerounding), [SecondaryReorderMaxSamples](#cycloneddsdomaininternalsecondaryreordermaxsamples), [SocketReceiveBufferSize](#cycloneddsdomaininternalsocketreceivebuffersize), [SocketSendBufferSize](#cycloneddsdomaininternalsocketsendbuffersize), [SquashParticipants](#cycloneddsdomaininternalsquashparticipants), [SynchronousDeliveryLatencyBound](#cycloneddsdomaininternalsynchronousdeliverylatencybound), [SynchronousDeliveryPriorityThreshold](#cycloneddsdomaininternalsynchronousdeliveryprioritythreshold), [Test](#cycloneddsdomaininternaltest), [UnicastResponseToSPDPMessages](#cycloneddsdomaininternalunicastresponsetospdpmessages), [UseMulticastIfMreqn](#cycloneddsdomaininternalusemulticastifmreqn), [Watermarks](#cycloneddsdomaininternalwatermarks), [WriteBatch](#cycloneddsdomaininternalwritebatch), [WriterLingerDuration](#cycloneddsdomaininternalwriterlingerduration)
+Children: [AccelerateRexmitBlockSize](#cycloneddsdomaininternalacceleraterexmitblocksize), [AckDelay](#cycloneddsdomaininternalackdelay), [AutoReschedNackDelay](#cycloneddsdomaininternalautoreschednackdelay), [BuiltinEndpointSet](#cycloneddsdomaininternalbuiltinendpointset), [BurstSize](#cycloneddsdomaininternalburstsize), [ControlTopic](#cycloneddsdomaininternalcontroltopic), [DDSI2DirectMaxThreads](#cycloneddsdomaininternalddsidirectmaxthreads), [DefragReliableMaxSamples](#cycloneddsdomaininternaldefragreliablemaxsamples), [DefragUnreliableMaxSamples](#cycloneddsdomaininternaldefragunreliablemaxsamples), [DeliveryQueueMaxSamples](#cycloneddsdomaininternaldeliveryqueuemaxsamples), [EnableExpensiveChecks](#cycloneddsdomaininternalenableexpensivechecks), [GenerateKeyhash](#cycloneddsdomaininternalgeneratekeyhash), [HeartbeatInterval](#cycloneddsdomaininternalheartbeatinterval), [LateAckMode](#cycloneddsdomaininternallateackmode), [LeaseDuration](#cycloneddsdomaininternalleaseduration), [LivelinessMonitoring](#cycloneddsdomaininternallivelinessmonitoring), [MaxParticipants](#cycloneddsdomaininternalmaxparticipants), [MaxQueuedRexmitBytes](#cycloneddsdomaininternalmaxqueuedrexmitbytes), [MaxQueuedRexmitMessages](#cycloneddsdomaininternalmaxqueuedrexmitmessages), [MaxSampleSize](#cycloneddsdomaininternalmaxsamplesize), [MeasureHbToAckLatency](#cycloneddsdomaininternalmeasurehbtoacklatency), [MonitorPort](#cycloneddsdomaininternalmonitorport), [MultipleReceiveThreads](#cycloneddsdomaininternalmultiplereceivethreads), [NackDelay](#cycloneddsdomaininternalnackdelay), [PreEmptiveAckDelay](#cycloneddsdomaininternalpreemptiveackdelay), [PrimaryReorderMaxSamples](#cycloneddsdomaininternalprimaryreordermaxsamples), [PrioritizeRetransmit](#cycloneddsdomaininternalprioritizeretransmit), [RediscoveryBlacklistDuration](#cycloneddsdomaininternalrediscoveryblacklistduration), [RetransmitMerging](#cycloneddsdomaininternalretransmitmerging), [RetransmitMergingPeriod](#cycloneddsdomaininternalretransmitmergingperiod), [RetryOnRejectBestEffort](#cycloneddsdomaininternalretryonrejectbesteffort), [SPDPResponseMaxDelay](#cycloneddsdomaininternalspdpresponsemaxdelay), [ScheduleTimeRounding](#cycloneddsdomaininternalscheduletimerounding), [SecondaryReorderMaxSamples](#cycloneddsdomaininternalsecondaryreordermaxsamples), [SocketReceiveBufferSize](#cycloneddsdomaininternalsocketreceivebuffersize), [SocketSendBufferSize](#cycloneddsdomaininternalsocketsendbuffersize), [SquashParticipants](#cycloneddsdomaininternalsquashparticipants), [SynchronousDeliveryLatencyBound](#cycloneddsdomaininternalsynchronousdeliverylatencybound), [SynchronousDeliveryPriorityThreshold](#cycloneddsdomaininternalsynchronousdeliveryprioritythreshold), [Test](#cycloneddsdomaininternaltest), [UnicastResponseToSPDPMessages](#cycloneddsdomaininternalunicastresponsetospdpmessages), [UseMulticastIfMreqn](#cycloneddsdomaininternalusemulticastifmreqn), [Watermarks](#cycloneddsdomaininternalwatermarks), [WriteBatch](#cycloneddsdomaininternalwritebatch), [WriterLingerDuration](#cycloneddsdomaininternalwriterlingerduration)
 
 The Internal elements deal with a variety of settings that evolving and that are not necessarily fully supported. For the vast majority of the Internal settings, the functionality per-se is supported, but the right to change the way the options control the functionality is reserved. This includes renaming or moving options.
 
@@ -443,14 +486,6 @@ This setting controls the delay between sending identical acknowledgements.
 The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.
 
 The default value is: "10 ms".
-
-
-#### //CycloneDDS/Domain/Internal/AssumeMulticastCapable
-Text
-
-This element controls which network interfaces are assumed to be capable of multicasting even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). It is a comma-separated lists of patterns (with ? and \* wildcards) against which the interface names are matched.
-
-The default value is: "".
 
 
 #### //CycloneDDS/Domain/Internal/AutoReschedNackDelay
@@ -1518,7 +1553,7 @@ The default value is: "dds\_security\_crypto".
 
 
 ### //CycloneDDS/Domain/SharedMemory
-Children: [Enable](#cycloneddsdomainsharedmemoryenable), [Locator](#cycloneddsdomainsharedmemorylocator), [LogLevel](#cycloneddsdomainsharedmemoryloglevel), [Prefix](#cycloneddsdomainsharedmemoryprefix), [PubHistoryCapacity](#cycloneddsdomainsharedmemorypubhistorycapacity), [SubHistoryRequest](#cycloneddsdomainsharedmemorysubhistoryrequest), [SubQueueCapacity](#cycloneddsdomainsharedmemorysubqueuecapacity)
+Children: [Enable](#cycloneddsdomainsharedmemoryenable), [Locator](#cycloneddsdomainsharedmemorylocator), [LogLevel](#cycloneddsdomainsharedmemoryloglevel), [Prefix](#cycloneddsdomainsharedmemoryprefix)
 
 The Shared Memory element allows specifying various parameters related to using shared memory.
 
@@ -1568,30 +1603,6 @@ Text
 Override the Iceoryx service name used by Cyclone.
 
 The default value is: "DDS\_CYCLONE".
-
-
-#### //CycloneDDS/Domain/SharedMemory/PubHistoryCapacity
-Integer
-
-The number of messages which will be stored on the publisher for late joining subscribers. Should be a value between 0 and 16 and be equal to or larger than SubHistoryRequest.
-
-The default value is: "16".
-
-
-#### //CycloneDDS/Domain/SharedMemory/SubHistoryRequest
-Integer
-
-The number of messages published before subscription which will be requested by a subscriber upon subscription. Should be a value between 0 and 16.
-
-The default value is: "16".
-
-
-#### //CycloneDDS/Domain/SharedMemory/SubQueueCapacity
-Integer
-
-Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue. Should be a value between 1 and 256.
-
-The default value is: "256".
 
 
 ### //CycloneDDS/Domain/Sizing

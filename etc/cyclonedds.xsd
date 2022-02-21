@@ -310,12 +310,11 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:ExternalNetworkAddress"/>
         <xs:element minOccurs="0" ref="config:ExternalNetworkMask"/>
         <xs:element minOccurs="0" ref="config:FragmentSize"/>
+        <xs:element minOccurs="0" ref="config:Interfaces"/>
         <xs:element minOccurs="0" ref="config:MaxMessageSize"/>
         <xs:element minOccurs="0" ref="config:MaxRexmitMessageSize"/>
         <xs:element minOccurs="0" ref="config:MulticastRecvNetworkInterfaceAddresses"/>
         <xs:element minOccurs="0" ref="config:MulticastTimeToLive"/>
-        <xs:element minOccurs="0" ref="config:NetworkInterfaceAddress"/>
-        <xs:element minOccurs="0" ref="config:PreferMulticast"/>
         <xs:element minOccurs="0" ref="config:RedundantNetworking"/>
         <xs:element minOccurs="0" ref="config:Transport"/>
         <xs:element minOccurs="0" ref="config:UseIPv6"/>
@@ -378,6 +377,67 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default value is: "1344 B".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
+  <xs:element name="Interfaces">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element specifies the network interfaces for use by Cyclone DDS. Multiple interfaces can be specified with an assigned priority. The list in use will be sorted by priority. If interfaces have an equal priority the specification order will be preserved.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:NetworkInterface"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="NetworkInterface">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element defines a network interface. You can set autodetermine="true" to autoselect the interface CycloneDDS deems to be the highest quality. If autodetermine="false" (the default), you must specify the name and/or address attribute. If you specify both they must match the same interface.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="address">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This attribute specifies the address of the interface. With ipv4 allows  matching on network part if host part is set to zero. &lt;/p&gt;
+&lt;p&gt;The default value is: "".&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="autodetermine">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;If set to "true" an interface is automatically selected. Specifying a name or an address when automatic is set is considered an error.&lt;/p&gt;
+&lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="multicast">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This attribute specifies the whether the interface should use multicast. On its default setting 'default' it will use the value as return by the operating system. If set to 'true' the interface will be assumed to be multicast capable even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). If set to 'false' the interface will never be used for multicast.
+&lt;p&gt;The default value is: "default".&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="name">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This attribute specifies the name of the interface. &lt;/p&gt;
+&lt;p&gt;The default value is: "".&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="prefer_multicast" type="xs:boolean">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;When false (default) Cyclone DDS uses unicast for data whenever there a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast is available.&lt;/p&gt;
+&lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="priority">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This attribute specifies the interface priority (decimal integer or &lt;i&gt;default&lt;/i&gt;). The default value for loopback interfaces is 2, for all other interfaces it is 0.&lt;/p&gt;
+&lt;p&gt;The default value is: "default".&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
   <xs:element name="MaxMessageSize" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
@@ -403,7 +463,7 @@ CycloneDDS configuration</xs:documentation>
 &lt;ul&gt;
 &lt;li&gt;&lt;i&gt;all&lt;/i&gt;: listen for multicasts on all multicast-capable interfaces; or&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;any&lt;/i&gt;: listen for multicasts on the operating system default interface; or&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;preferred&lt;/i&gt;: listen for multicasts on the preferred interface (General/NetworkInterfaceAddress); or&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;preferred&lt;/i&gt;: listen for multicasts on the preferred interface (General/Interface/NetworkInterface with highest priority); or&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;none&lt;/i&gt;: does not listen for multicasts on any interface; or&lt;/li&gt;
 &lt;li&gt;a comma-separated list of network addresses: configures Cyclone DDS to listen for multicasts on all of the listed addresses.&lt;/li&gt;
 &lt;/ul&gt;
@@ -416,20 +476,6 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;This element specifies the time-to-live setting for outgoing multicast packets.&lt;/p&gt;
 &lt;p&gt;The default value is: "32".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="NetworkInterfaceAddress" type="xs:string">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This element specifies the preferred network interface for use by Cyclone DDS. The preferred network interface determines the IP address that Cyclone DDS advertises in the discovery protocol (but see also General/ExternalNetworkAddress), and is also the only interface over which multicasts are transmitted. The interface can be identified by its IP address, network interface name or network portion of the address. If the value "auto" is entered here, Cyclone DDS will select what it considers the most suitable interface.&lt;/p&gt;
-&lt;p&gt;The default value is: "auto".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="PreferMulticast" type="xs:boolean">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;When false (default) Cyclone DDS uses unicast for data whenever there a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast address is available.&lt;/p&gt;
-&lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="RedundantNetworking" type="xs:boolean">
@@ -479,7 +525,6 @@ CycloneDDS configuration</xs:documentation>
       <xs:all>
         <xs:element minOccurs="0" ref="config:AccelerateRexmitBlockSize"/>
         <xs:element minOccurs="0" ref="config:AckDelay"/>
-        <xs:element minOccurs="0" ref="config:AssumeMulticastCapable"/>
         <xs:element minOccurs="0" ref="config:AutoReschedNackDelay"/>
         <xs:element minOccurs="0" ref="config:BuiltinEndpointSet"/>
         <xs:element minOccurs="0" ref="config:BurstSize"/>
@@ -539,13 +584,6 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;This setting controls the delay between sending identical acknowledgements.&lt;/p&gt;
 &lt;p&gt;The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
 &lt;p&gt;The default value is: "10 ms".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="AssumeMulticastCapable" type="xs:string">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This element controls which network interfaces are assumed to be capable of multicasting even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). It is a comma-separated lists of patterns (with ? and * wildcards) against which the interface names are matched.&lt;/p&gt;
-&lt;p&gt;The default value is: "".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="AutoReschedNackDelay" type="config:duration_inf">
@@ -1573,9 +1611,6 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
         <xs:element minOccurs="0" ref="config:Locator"/>
         <xs:element minOccurs="0" ref="config:LogLevel"/>
         <xs:element minOccurs="0" ref="config:Prefix"/>
-        <xs:element minOccurs="0" ref="config:PubHistoryCapacity"/>
-        <xs:element minOccurs="0" ref="config:SubHistoryRequest"/>
-        <xs:element minOccurs="0" ref="config:SubQueueCapacity"/>
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1617,27 +1652,6 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
       <xs:documentation>
 &lt;p&gt;Override the Iceoryx service name used by Cyclone.&lt;/p&gt;
 &lt;p&gt;The default value is: "DDS_CYCLONE".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="PubHistoryCapacity" type="xs:integer">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;The number of messages which will be stored on the publisher for late joining subscribers. Should be a value between 0 and 16 and be equal to or larger than SubHistoryRequest.&lt;/p&gt;
-&lt;p&gt;The default value is: "16".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="SubHistoryRequest" type="xs:integer">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;The number of messages published before subscription which will be requested by a subscriber upon subscription. Should be a value between 0 and 16.&lt;/p&gt;
-&lt;p&gt;The default value is: "16".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="SubQueueCapacity" type="xs:integer">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue. Should be a value between 1 and 256.&lt;/p&gt;
-&lt;p&gt;The default value is: "256".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="Sizing">
