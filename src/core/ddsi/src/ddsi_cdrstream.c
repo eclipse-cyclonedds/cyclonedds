@@ -2016,6 +2016,8 @@ static bool read_normalize_enum (char * __restrict data, uint32_t * __restrict o
       *val = *((uint32_t *) (data + *off));
       (*off) += 4;
       break;
+    default:
+      abort ();
   }
   return *val <= max;
 }
@@ -2130,7 +2132,7 @@ static bool normalize_enumarray (char * __restrict data, uint32_t * __restrict o
         return false;
       uint16_t * const xs = (uint16_t *) (data + *off);
       for (uint32_t i = 0; i < num; i++)
-        if ((bswap ? (xs[i] = ddsrt_bswap2u (xs[i])) : xs[i]) > max)
+        if ((uint16_t) (bswap ? (xs[i] = ddsrt_bswap2u (xs[i])) : xs[i]) > max)
           return false;
       *off += 2 * num;
       break;
@@ -2140,11 +2142,13 @@ static bool normalize_enumarray (char * __restrict data, uint32_t * __restrict o
         return false;
       uint32_t * const xs = (uint32_t *) (data + *off);
       for (uint32_t i = 0; i < num; i++)
-        if ((bswap ? (xs[i] = ddsrt_bswap4u (xs[i])) : xs[i]) > max)
+        if ((uint32_t) (bswap ? (xs[i] = ddsrt_bswap4u (xs[i])) : xs[i]) > max)
           return false;
       *off += 4 * num;
       break;
     }
+    default:
+      abort ();
   }
   return true;
 }

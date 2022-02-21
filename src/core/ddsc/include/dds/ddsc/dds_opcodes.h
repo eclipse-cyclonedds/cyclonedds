@@ -270,7 +270,7 @@ enum dds_stream_typecode_subtype {
 
 #define DDS_OP_FLAG_SZ_SHIFT  (6)
 #define DDS_OP_FLAG_SZ_MASK   (3u << DDS_OP_FLAG_SZ_SHIFT) /* Enum and bitmask storage size -- SZ2, SZ1: 00 = 1 byte, 01 = 2 bytes, 10 = 4 bytes, 11 = 8 bytes (bitmask only) */
-#define DDS_OP_FLAGS_SZ(f)    (1 << (((f) & DDS_OP_FLAG_SZ_MASK) >> DDS_OP_FLAG_SZ_SHIFT))
+#define DDS_OP_FLAGS_SZ(f)    (1u << (((f) & DDS_OP_FLAG_SZ_MASK) >> DDS_OP_FLAG_SZ_SHIFT))
 #define DDS_OP_TYPE_SZ(o)     DDS_OP_FLAGS_SZ(DDS_OP_FLAGS(o))
 
 /* Topic descriptor flag values */
