@@ -228,6 +228,12 @@ CU_Test(idlc_descriptor, key_size)
       true, true, 1, 1 }, // key size: 1
     { "@bit_bound(16) enum e { E0, E1 }; @topic struct test { @key char a; @key e b[4]; }; ",
       true, true, 10, 10 }, // key size: 1 + 1 (pad) + 4 * 2
+    { "bitmask bm { BM0, BM1 }; @topic struct test { @key bm a; }; ",
+      true, true, 4, 4 }, // key size: 4
+    { "@bit_bound(8) bitmask bm { BM0, BM1 }; @topic struct test { @key bm a; }; ",
+      true, true, 1, 1 }, // key size: 1
+    { "@bit_bound(43) bitmask bm { BM0, BM1 }; @topic struct test { @key char a; @key bm b[1]; }; ",
+      true, true, 16, 12 } // key size XCDR1: 1 + 7 (pad) + 1 * 8 / XCDR2: 1 + 3 (pad) + 1 * 8 /
   };
 
   idl_retcode_t ret;
@@ -384,6 +390,8 @@ CU_Test(idlc_descriptor, no_optimize)
     { false, "@topic struct test { long f1[100]; long f2; float f3; char f4; boolean f5; };" },
     { false, "enum en { E0, E1 }; @topic struct test { en f1; };" },
     { false, "bitmask bm { B0, B1 }; @topic struct test { bm f1; };" },
+    { false, "@bit_bound(8) bitmask bm { B0, B1 }; @topic struct test { bm f1; };" },
+    { false, "@bit_bound(64) bitmask bm { B0, B1 }; @topic struct test { bm f1; };" },
     { false, "@nested struct s { long s1; }; @topic struct test { s f1; };" },
     { false, "@nested struct s2 { char f3[100]; }; @nested struct s1 { s2 f2; }; @topic struct test { s1 f1; };" },
     { true,  "@topic struct test { string f1; };" },

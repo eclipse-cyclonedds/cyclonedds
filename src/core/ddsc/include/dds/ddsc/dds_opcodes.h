@@ -63,12 +63,14 @@ enum dds_stream_opcode {
      [ADR, nBY,   0, f] [offset]
      [ADR, BLN,   0, f] [offset]
      [ADR, ENU,   0, f] [offset] [max]
+     [ADR, BMK,   0, f] [offset] [bits-high] [bits-low]
      [ADR, STR,   0, f] [offset]
      [ADR, BST,   0, f] [offset] [max-size]
 
      [ADR, SEQ, nBY, f] [offset]
      [ADR, SEQ, BLN, f] [offset]
      [ADR, SEQ, ENU, f] [offset] [max]
+     [ADR, SEQ, BMK, f] [offset] [bits-high] [bits-low]
      [ADR, SEQ, STR, f] [offset]
      [ADR, SEQ, BST, f] [offset] [max-size]
      [ADR, SEQ,   s, f] [offset] [elem-size] [next-insn, elem-insn]
@@ -78,6 +80,7 @@ enum dds_stream_opcode {
      [ADR, BSQ, nBY, f] [offset] [sbound]
      [ADR, BSQ, BLN, f] [offset] [sbound]
      [ADR, BSQ, ENU, f] [offset] [sbound] [max]
+     [ADR, BSQ, BMK, f] [offset] [sbound] [bits-high] [bits-low]
      [ADR, BSQ, STR, f] [offset] [sbound]
      [ADR, BSQ, BST, f] [offset] [sbound] [max-size]
      [ADR, BSQ,   s, f] [offset] [sbound] [elem-size] [next-insn, elem-insn]
@@ -87,6 +90,7 @@ enum dds_stream_opcode {
      [ADR, ARR, nBY, f] [offset] [alen]
      [ADR, ARR, BLN, f] [offset] [alen]
      [ADR, ARR, ENU, f] [offset] [alen] [max]
+     [ADR, ARR, BMK, f] [offset] [alen] [bits-high] [bits-low]
      [ADR, ARR, STR, f] [offset] [alen]
      [ADR, ARR, BST, f] [offset] [alen] [0] [max-size]
      [ADR, ARR,   s, f] [offset] [alen] [next-insn, elem-insn] [elem-size]
@@ -113,11 +117,12 @@ enum dds_stream_opcode {
                     - base type member, used with EXT type (DDS_OP_FLAG_BASE)
                     - optional (DDS_OP_FLAG_OPT)
                     - must-understand (DDS_OP_FLAG_MU)
-                    - storage size, only for ENU (n << DDS_OP_FLAG_SZ_SHIFT)
+                    - storage size, only for ENU and BMK (n << DDS_OP_FLAG_SZ_SHIFT)
      [offset]     = field offset from start of element in memory
      [elem-size]  = element size in memory (elem-size is only included in case 'external' flag is set)
      [max-size]   = string bound + 1
      [max]        = max enum value
+     [bits-..]    = identified bits in the bitmask, split into high and low 32 bits
      [alen]       = array length, number of cases
      [sbound]     = bounded sequence maximum number of elements
      [next-insn]  = (unsigned 16 bits) offset to instruction for next field, from start of insn
@@ -147,6 +152,8 @@ enum dds_stream_opcode {
        where
          e  = external: stored as external data (pointer) (DDS_OP_FLAG_EXT)
          s  = subtype other than {nBY,STR} for JEQ and {nBY,STR,ENU,EXT} for JEQ4
+              (note that BMK cannot be inline, because it needs 2 additional instructions
+              for the bits that are identified in the bitmask type)
          i  = (unsigned 16 bits) offset to first instruction for case, from start of insn
               instruction sequence must end in RTS, at which point executes continues
               at the next field's instruction as specified by the union
@@ -208,7 +215,8 @@ enum dds_stream_typecode {
   DDS_OP_VAL_BSQ = 0x0b, /* bounded sequence */
   DDS_OP_VAL_ENU = 0x0c, /* enumerated value (long) */
   DDS_OP_VAL_EXT = 0x0d, /* field with external definition */
-  DDS_OP_VAL_BLN = 0x0e  /* boolean */
+  DDS_OP_VAL_BLN = 0x0e, /* boolean */
+  DDS_OP_VAL_BMK = 0x0f  /* bitmask */
 };
 
 /* primary type code for DDS_OP_ADR, DDS_OP_JEQ */
@@ -226,7 +234,8 @@ enum dds_stream_typecode_primary {
   DDS_OP_TYPE_BSQ = DDS_OP_VAL_BSQ << 16,
   DDS_OP_TYPE_ENU = DDS_OP_VAL_ENU << 16,
   DDS_OP_TYPE_EXT = DDS_OP_VAL_EXT << 16,
-  DDS_OP_TYPE_BLN = DDS_OP_VAL_BLN << 16
+  DDS_OP_TYPE_BLN = DDS_OP_VAL_BLN << 16,
+  DDS_OP_TYPE_BMK = DDS_OP_VAL_BMK << 16
 };
 #define DDS_OP_TYPE_BOO DDS_OP_TYPE_1BY
 
@@ -253,7 +262,8 @@ enum dds_stream_typecode_subtype {
   DDS_OP_SUBTYPE_STU = DDS_OP_VAL_STU << 8,
   DDS_OP_SUBTYPE_BSQ = DDS_OP_VAL_BSQ << 8,
   DDS_OP_SUBTYPE_ENU = DDS_OP_VAL_ENU << 8,
-  DDS_OP_SUBTYPE_BLN = DDS_OP_VAL_BLN << 8
+  DDS_OP_SUBTYPE_BLN = DDS_OP_VAL_BLN << 8,
+  DDS_OP_SUBTYPE_BMK = DDS_OP_VAL_BMK << 8
 };
 
 /* key field: applicable to {1,2,4,8}BY, STR, BST, ARR-of-{1,2,4,8}BY.

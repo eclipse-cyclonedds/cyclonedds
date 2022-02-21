@@ -30,6 +30,9 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
     case DDS_OP_VAL_ENU:
       (void) dds_stream_write_enum_valueBO (os, insn, *((uint32_t *) addr), ops[2]);
       break;
+    case DDS_OP_VAL_BMK:
+      (void) dds_stream_write_bitmask_valueBO (os, insn, addr, ops[2], ops[3]);
+      break;
     case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, *(char **) addr); break;
     case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, addr); break;
     case DDS_OP_VAL_ARR: {
@@ -37,7 +40,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
       switch (DDS_OP_SUBTYPE (insn))
       {
         case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
-          const uint32_t elem_size = get_type_size (DDS_OP_SUBTYPE (insn));
+          const uint32_t elem_size = get_primitive_size (DDS_OP_SUBTYPE (insn));
           const align_t align = get_align (((struct dds_ostream *)os)->m_xcdr_version, elem_size);
           dds_cdr_alignto_clear_and_resizeBO (os, align, num * elem_size);
           void * const dst = ((struct dds_ostream *)os)->m_buffer + ((struct dds_ostream *)os)->m_index;
@@ -45,7 +48,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
           dds_stream_swap_if_needed_insituBO (dst, elem_size, num);
           break;
         }
-        case DDS_OP_VAL_ENU: {
+        case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
           uint32_t offs = 0, xcdrv = ((struct dds_ostream *)os)->m_xcdr_version;
           if (xcdrv == CDR_ENC_VERSION_2)
           {
@@ -53,7 +56,10 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
             dds_os_reserve4BO (os);
             offs = ((struct dds_ostream *)os)->m_index;
           }
-          (void) dds_stream_write_enum_arrBO (os, insn, (const uint32_t *) addr, num, ops[3]);
+          if (DDS_OP_SUBTYPE (insn) == DDS_OP_VAL_ENU)
+            (void) dds_stream_write_enum_arrBO (os, insn, (const uint32_t *) addr, num, ops[3]);
+          else
+            (void) dds_stream_write_bitmask_arrBO (os, insn, (const uint32_t *) addr, num, ops[3], ops[4]);
           /* write DHEADER */
           if (xcdrv == CDR_ENC_VERSION_2)
             *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = to_BO4u(((struct dds_ostream *)os)->m_index - offs);
