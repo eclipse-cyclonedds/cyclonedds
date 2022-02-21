@@ -2336,7 +2336,9 @@ static struct ddsi_config_network_interface * network_interface_find_or_append(s
   struct ddsi_config_network_interface_listelem * iface = cfg->network_interfaces;
   struct ddsi_config_network_interface_listelem ** prev_iface = &cfg->network_interfaces;
 
-  while (iface && ((name && ddsrt_strcasecmp(iface->cfg.name, name) != 0) || (address && ddsrt_strcasecmp(iface->cfg.address, address) != 0))) {
+  while (iface && (
+      (name && iface->cfg.name && ddsrt_strcasecmp(iface->cfg.name, name) != 0) ||
+      (address && iface->cfg.address && ddsrt_strcasecmp(iface->cfg.address, address) != 0))) {
     prev_iface = &iface->next;
     iface = iface->next;
   }
@@ -2347,6 +2349,7 @@ static struct ddsi_config_network_interface * network_interface_find_or_append(s
   iface = (struct ddsi_config_network_interface_listelem *) malloc(sizeof(*iface));
   if (!iface) return NULL;
 
+  iface->next = NULL;
   iface->cfg.name = name ? ddsrt_strdup(name) : NULL;
   iface->cfg.address = address ? ddsrt_strdup(address) : NULL;
   iface->cfg.prefer_multicast = false;
@@ -2561,7 +2564,6 @@ struct cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uin
       size_t addr_count;
       char ** addresses = split_at_comma(cfg->depr_networkAddressString, &addr_count);
       if (!addresses) {
-        ok = 0;
         goto error;
       }
 
@@ -2597,7 +2599,6 @@ struct cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uin
             DDS_ILOG (DDS_LC_ERROR, domid,
               "config: General/AssumeMulticastCapable: patterns are no longer supported in this "
               "deprecated configuration option. Migrate to using General/Interfaces.\n");
-            ok = 0;
             goto error;
           }
         }
