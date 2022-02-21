@@ -544,7 +544,7 @@ emit_bitmask(
 {
   struct generator *gen = user_data;
   char *name = NULL, *type = NULL;
-  const char *fmt, *base_type_str;
+  const char *fmt, *base_type_str, *suffix = "";
   const idl_bitmask_t *bitmask = (const idl_bitmask_t *)node;
   const idl_bit_value_t *bit_value;
 
@@ -558,10 +558,13 @@ emit_bitmask(
     base_type_str = "uint8_t";
   else if (bit_bound <= 16)
     base_type_str = "uint16_t";
-  else if (bit_bound <= 32)
+  else if (bit_bound <= 32) {
     base_type_str = "uint32_t";
-  else
+    suffix = "lu";
+  } else {
+    suffix = "llu";
     base_type_str = "uint64_t";
+  }
   if (idl_fprintf(gen->header.handle, "typedef %s %s;\n", base_type_str, type) < 0)
     return IDL_RETCODE_NO_MEMORY;
 
@@ -569,8 +572,8 @@ emit_bitmask(
   for (; bit_value; bit_value = idl_next(bit_value)) {
     if (IDL_PRINTA(&name, print_type, bit_value) < 0)
       return IDL_RETCODE_NO_MEMORY;
-    fmt = "#define %s (1 << %u)\n";
-    if (idl_fprintf(gen->header.handle, fmt, name, bit_value->position.value) < 0)
+    fmt = "#define %s (1%s << %u)\n";
+    if (idl_fprintf(gen->header.handle, fmt, name, suffix, bit_value->position.value) < 0)
       return IDL_RETCODE_NO_MEMORY;
   }
 

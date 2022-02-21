@@ -41,6 +41,44 @@ static bool dds_stream_write_enum_valueBO (DDS_OSTREAM_T * __restrict os, uint32
   return true;
 }
 
+static bool dds_stream_write_bitmask_valueBO (DDS_OSTREAM_T * __restrict os, uint32_t insn, const void * __restrict addr, uint32_t bits_h, uint32_t bits_l)
+{
+  switch (DDS_OP_TYPE_SZ (insn))
+  {
+    case 1: {
+      const uint8_t *ptr = (const uint8_t *) addr;
+      if (!bitmask_value_valid (*ptr, bits_h, bits_l))
+        return false;
+      dds_os_put1BO (os, *ptr);
+      break;
+    }
+    case 2: {
+      const uint16_t *ptr = (const uint16_t *) addr;
+      if (!bitmask_value_valid (*ptr, bits_h, bits_l))
+        return false;
+      dds_os_put2BO (os, *ptr);
+      break;
+    }
+    case 4: {
+      const uint32_t *ptr = (const uint32_t *) addr;
+      if (!bitmask_value_valid (*ptr, bits_h, bits_l))
+        return false;
+      dds_os_put4BO (os, *ptr);
+      break;
+    }
+    case 8: {
+      const uint64_t *ptr = (const uint64_t *) addr;
+      if (!bitmask_value_valid (*ptr, bits_h, bits_l))
+        return false;
+      dds_os_put8BO (os, *ptr);
+      break;
+    }
+    default:
+      abort ();
+  }
+  return true;
+}
+
 static void dds_stream_write_stringBO (DDS_OSTREAM_T * __restrict os, const char * __restrict val)
 {
   uint32_t size = val ? (uint32_t) strlen (val) + 1 : 1;
@@ -95,6 +133,56 @@ static bool dds_stream_write_enum_arrBO (DDS_OSTREAM_T * __restrict os, uint32_t
   return true;
 }
 
+static bool dds_stream_write_bitmask_arrBO (DDS_OSTREAM_T * __restrict os, uint32_t insn, const void * __restrict addr, uint32_t num, uint32_t bits_h, uint32_t bits_l)
+{
+  switch (DDS_OP_TYPE_SZ (insn))
+  {
+    case 1: {
+      const uint8_t *ptr = (const uint8_t *) addr;
+      for (uint32_t i = 0; i < num; i++)
+      {
+        if (!bitmask_value_valid (ptr[i], bits_h, bits_l))
+          return false;
+        dds_os_put1BO (os, ptr[i]);
+      }
+      break;
+    }
+    case 2: {
+      const uint16_t *ptr = (const uint16_t *) addr;
+      for (uint32_t i = 0; i < num; i++)
+      {
+        if (!bitmask_value_valid (ptr[i], bits_h, bits_l))
+          return false;
+        dds_os_put2BO (os, ptr[i]);
+      }
+      break;
+    }
+    case 4: {
+      const uint32_t *ptr = (const uint32_t *) addr;
+      for (uint32_t i = 0; i < num; i++)
+      {
+        if (!bitmask_value_valid (ptr[i], bits_h, bits_l))
+          return false;
+        dds_os_put4BO (os, ptr[i]);
+      }
+      break;
+    }
+    case 8: {
+      const uint64_t *ptr = (const uint64_t *) addr;
+      for (uint32_t i = 0; i < num; i++)
+      {
+        if (!bitmask_value_valid (ptr[i], bits_h, bits_l))
+          return false;
+        dds_os_put8BO (os, ptr[i]);
+      }
+      break;
+    }
+    default:
+      abort ();
+  }
+  return true;
+}
+
 static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, const char * __restrict addr, const uint32_t * __restrict ops, uint32_t insn)
 {
   const dds_sequence_t * const seq = (const dds_sequence_t *) addr;
@@ -135,7 +223,7 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
         ops += 2 + bound_op;
         break;
       case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
-        const uint32_t elem_size = get_type_size (subtype);
+        const uint32_t elem_size = get_primitive_size (subtype);
         const align_t align = get_align (xcdrv, elem_size);
         void * dst;
         /* Combining put bytes and swap into a single step would improve the performance
@@ -152,7 +240,12 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
           return NULL;
         ops += 3 + bound_op;
         break;
-
+      case DDS_OP_VAL_BMK: {
+        if (!dds_stream_write_bitmask_arrBO (os, insn, seq->_buffer, num, ops[2 + bound_op], ops[3 + bound_op]))
+          return NULL;
+        ops += 4 + bound_op;
+        break;
+      }
       case DDS_OP_VAL_STR: {
         const char **ptr = (const char **) seq->_buffer;
         for (uint32_t i = 0; i < num; i++)
@@ -211,7 +304,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
       ops += 3;
       break;
     case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
-      const uint32_t elem_size = get_type_size (subtype);
+      const uint32_t elem_size = get_primitive_size (subtype);
       const align_t align = get_align (xcdrv, elem_size);
       void * dst;
       /* See comment for stream_write_seq, swap is a no-op in most cases */
@@ -224,6 +317,11 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
       if (!dds_stream_write_enum_arrBO (os, insn, (const uint32_t *) addr, num, ops[3]))
         return NULL;
       ops += 4;
+      break;
+    case DDS_OP_VAL_BMK:
+      if (!dds_stream_write_bitmask_arrBO (os, insn, addr, num, ops[3], ops[4]))
+        return NULL;
+      ops += 5;
       break;
     case DDS_OP_VAL_STR: {
       const char **ptr = (const char **) addr;
@@ -335,16 +433,10 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
         break;
       case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, *(const char **) valaddr); break;
       case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, (const char *) valaddr); break;
-      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR:
+      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: case DDS_OP_VAL_BMK:
         if (!dds_stream_write_implBO (os, valaddr, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), false))
           return NULL;
         break;
-      case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
-        const uint32_t *jsr_ops = jeq_op + DDS_OP_ADR_JSR (jeq_op[0]);
-        if (!dds_stream_write_implBO (os, valaddr, jsr_ops, false))
-          return NULL;
-        break;
-      }
       case DDS_OP_VAL_EXT:
         abort (); /* op type EXT as union subtype not supported */
         break;
@@ -382,6 +474,11 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, DDS_OSTREAM_T * __
       if (!dds_stream_write_enum_valueBO (os, insn, *((const uint32_t *) addr), ops[2]))
         return NULL;
       ops += 3;
+      break;
+    case DDS_OP_VAL_BMK:
+      if (!dds_stream_write_bitmask_valueBO (os, insn, addr, ops[2], ops[3]))
+        return NULL;
+      ops += 4;
       break;
     case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, (const char *) addr); ops += 2; break;
     case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, (const char *) addr); ops += 3; break;

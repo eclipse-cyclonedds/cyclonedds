@@ -238,6 +238,15 @@ stash_opcode(
       if (DDS_OP_TYPE_SZ(code) != 4)
         descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
       break;
+    case DDS_OP_VAL_BMK:
+      switch (DDS_OP_TYPE_SZ(code)) {
+        case 1: alignment = ALIGNMENT_1BY; break;
+        case 2: alignment = ALIGNMENT_2BY; break;
+        case 4: alignment = ALIGNMENT_4BY; break;
+        case 8: alignment = ALIGNMENT_8BY; break;
+        default: abort ();
+      }
+      break;
     case DDS_OP_VAL_UNI:
       /* strictly speaking a topic with a union can be optimized if all
          members have the same size, and if the non-basetype members are all
@@ -574,6 +583,23 @@ stash_single(
   return stash_instruction(pstate, instructions, index, &inst);
 }
 
+static idl_retcode_t
+stash_bitmask_bits(
+  const idl_pstate_t *pstate, struct instructions *instructions, uint32_t index, const idl_bitmask_t * bitmask)
+{
+  idl_retcode_t ret;
+  uint64_t bits = 0;
+  idl_bit_value_t *bitv;
+
+  IDL_FOREACH(bitv, bitmask->bit_values) {
+    bits |= 1llu << bitv->position.value;
+  }
+
+  if ((ret = stash_single (pstate, instructions, index, (uint32_t) (bits >> 32))) != IDL_RETCODE_OK)
+    return ret;
+  return stash_single (pstate, instructions, index, (uint32_t) (bits & 0xffffffffu));
+}
+
 static idl_retcode_t add_typecode(const idl_pstate_t *pstate, const idl_type_spec_t *type_spec, uint32_t shift, bool struct_union_ext, uint32_t *add_to)
 {
   assert(add_to && (shift == 8 || shift == 16));
@@ -661,15 +687,16 @@ static idl_retcode_t add_typecode(const idl_pstate_t *pstate, const idl_type_spe
       break;
     case IDL_BITMASK:
     {
+      *add_to |= ((uint32_t)DDS_OP_VAL_BMK << shift);
       uint32_t bit_bound = idl_bound(type_spec);
-      if (bit_bound <= 8)
-        *add_to |= ((uint32_t)DDS_OP_VAL_1BY << shift);
-      else if (bit_bound <= 16)
-        *add_to |= ((uint32_t)DDS_OP_VAL_2BY << shift);
-      else if (bit_bound <= 32)
-        *add_to |= ((uint32_t)DDS_OP_VAL_4BY << shift);
-      else
-        *add_to |= ((uint32_t)DDS_OP_VAL_8BY << shift);
+      assert (bit_bound > 0 && bit_bound <= 64);
+      if (bit_bound > 32)
+        *add_to |= 3 << DDS_OP_FLAG_SZ_SHIFT;
+      else if (bit_bound > 16)
+        *add_to |= 2 << DDS_OP_FLAG_SZ_SHIFT;
+      else if (bit_bound > 8)
+        *add_to |= 1 << DDS_OP_FLAG_SZ_SHIFT;
+      break;
     }
       break;
     default:
@@ -841,7 +868,7 @@ emit_case(
         return ret;
       if (idl_is_struct(type_spec) || idl_is_union(type_spec))
         case_type = EXTERNAL;
-      else if (idl_is_array(type_spec) || idl_is_bounded_string(type_spec) || idl_is_sequence(type_spec))
+      else if (idl_is_array(type_spec) || idl_is_bounded_string(type_spec) || idl_is_sequence(type_spec) || idl_is_bitmask(type_spec))
         case_type = IN_UNION;
       else {
         assert (idl_is_base_type(type_spec) || idl_is_unbounded_string(type_spec) || idl_is_bitmask(type_spec) || idl_is_enum(type_spec));
@@ -1250,7 +1277,11 @@ emit_sequence(
     if (idl_is_enum(type_spec)) {
       if ((ret = stash_single(pstate, &ctype->instructions, nop, idl_enum_max_value(type_spec))))
         return ret;
+    } else if (idl_is_bitmask(type_spec)) {
+      if ((ret = stash_bitmask_bits(pstate, &ctype->instructions, nop, (const idl_bitmask_t *)(type_spec))))
+        return ret;
     }
+
     /* short-circuit on simple types */
     if (idl_is_string(type_spec) || idl_is_base_type(type_spec) || idl_is_bitmask(type_spec) || idl_is_enum(type_spec)) {
       if (idl_is_bounded(type_spec)) {
@@ -1380,6 +1411,9 @@ emit_array(
 
     if (idl_is_enum(type_spec)) {
       if ((ret = stash_single(pstate, &ctype->instructions, nop, idl_enum_max_value(type_spec))))
+        return ret;
+    } else if (idl_is_bitmask(type_spec)) {
+      if ((ret = stash_bitmask_bits(pstate, &ctype->instructions, nop, (const idl_bitmask_t *)(type_spec))))
         return ret;
     }
 
@@ -1589,6 +1623,9 @@ emit_declarator(
     } else if (idl_is_enum(type_spec)) {
       if ((ret = stash_single(pstate, &ctype->instructions, nop, idl_enum_max_value(type_spec))))
         return ret;
+    } else if (idl_is_bitmask(type_spec)) {
+      if ((ret = stash_bitmask_bits(pstate, &ctype->instructions, nop, (const idl_bitmask_t *)(type_spec))))
+        return ret;
     } else if (idl_is_struct(type_spec) || idl_is_union(type_spec)) {
       if ((ret = stash_element_offset(pstate, &ctype->instructions, nop, type_spec, 3 + (has_size ? 1 : 0), addr_offs)))
         return ret;
@@ -1683,6 +1720,7 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       case DDS_OP_VAL_UNI: vec[len++] = " | DDS_OP_TYPE_UNI"; break;
       case DDS_OP_VAL_STU: vec[len++] = " | DDS_OP_TYPE_STU"; break;
       case DDS_OP_VAL_ENU: vec[len++] = " | DDS_OP_TYPE_ENU"; break;
+      case DDS_OP_VAL_BMK: vec[len++] = " | DDS_OP_TYPE_BMK"; break;
       case DDS_OP_VAL_EXT: vec[len++] = " | DDS_OP_TYPE_EXT"; break;
     }
   }
@@ -1717,10 +1755,11 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       case DDS_OP_VAL_UNI: vec[len++] = " | DDS_OP_SUBTYPE_UNI"; break;
       case DDS_OP_VAL_STU: vec[len++] = " | DDS_OP_SUBTYPE_STU"; break;
       case DDS_OP_VAL_ENU: vec[len++] = " | DDS_OP_SUBTYPE_ENU"; break;
+      case DDS_OP_VAL_BMK: vec[len++] = " | DDS_OP_SUBTYPE_BMK"; break;
       case DDS_OP_VAL_EXT: abort(); break;
     }
 
-    if (type == DDS_OP_VAL_ENU || subtype == DDS_OP_VAL_ENU) {
+    if (type == DDS_OP_VAL_ENU || subtype == DDS_OP_VAL_ENU || type == DDS_OP_VAL_BMK || subtype == DDS_OP_VAL_BMK) {
       idl_snprintf(buf, sizeof(buf), " | (%u << DDS_OP_FLAG_SZ_SHIFT)", (inst->data.opcode.code & DDS_OP_FLAG_SZ_MASK) >> DDS_OP_FLAG_SZ_SHIFT);
       vec[len++] = buf;
     }
@@ -1827,8 +1866,12 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
           else if (optype == DDS_OP_VAL_ARR || optype == DDS_OP_VAL_SEQ || optype == DDS_OP_VAL_BSQ) {
             subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
             brk = op + (optype == DDS_OP_VAL_SEQ ? 2 : 3);
-            if (subtype > DDS_OP_VAL_8BY)
-              brk += 2;
+            switch (subtype) {
+              case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_STR: break;
+              case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU: brk++; break;
+              default: brk += 2; break;
+            }
+            if (optype == DDS_OP_VAL_ARR && subtype == DDS_OP_VAL_BST) brk++;
           } else if (optype == DDS_OP_VAL_UNI) {
             brk = op + 4;
             subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
@@ -1836,6 +1879,8 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
               brk++;
           } else if (optype == DDS_OP_VAL_ENU)
             brk = op + 3;
+          else if (optype == DDS_OP_VAL_BMK)
+            brk = op + 4;
           else
             brk = op + 2;
           if (inst->data.opcode.code & (DDS_OP_FLAG_EXT | DDS_OP_FLAG_OPT))
@@ -2012,15 +2057,16 @@ static idl_retcode_t get_ctype_keys_adr(
       assert(offs + 2 < ctype->instructions.count);
       assert(ctype->instructions.table[offs + 2].type == SINGLE);
       key->dims = ctype->instructions.table[offs + 2].data.single;
-      switch (DDS_OP_SUBTYPE(inst->data.opcode.code)) {
+      const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
+      switch (subtype) {
         case DDS_OP_VAL_BLN:
         case DDS_OP_VAL_1BY: key->size = key->align = 1; break;
         case DDS_OP_VAL_2BY: key->size = key->align = 2; break;
         case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
         case DDS_OP_VAL_8BY: key->size = key->align = 8; break;
-        case DDS_OP_VAL_ENU: {
+        case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
           uint32_t sz = DDS_OP_TYPE_SZ(inst->data.opcode.code);
-          assert (sz > 0 && sz <= 4);
+          assert (sz > 0 && sz <= (subtype == DDS_OP_VAL_ENU ? 4u : 8u));
           key->size = key->align = sz;
           break;
         }
@@ -2039,15 +2085,16 @@ static idl_retcode_t get_ctype_keys_adr(
       }
     } else {
       key->dims = 1;
-      switch (DDS_OP_TYPE(inst->data.opcode.code)) {
+      const enum dds_stream_typecode type = DDS_OP_TYPE(inst->data.opcode.code);
+      switch (type) {
         case DDS_OP_VAL_BLN:
         case DDS_OP_VAL_1BY: key->size = key->align = 1; break;
         case DDS_OP_VAL_2BY: key->size = key->align = 2; break;
         case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
         case DDS_OP_VAL_8BY: key->size = key->align = 8; break;
-        case DDS_OP_VAL_ENU: {
+        case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
           uint32_t sz = DDS_OP_TYPE_SZ(inst->data.opcode.code);
-          assert (sz > 0 && sz <= 4);
+          assert (sz > 0 && sz <= (type == DDS_OP_VAL_ENU ? 4u : 8u));
           key->size = key->align = sz;
           break;
         }
