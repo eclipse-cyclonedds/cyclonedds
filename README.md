@@ -188,7 +188,9 @@ point to it.  E.g. (on Linux):
     <CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd">
         <Domain Id="any">
             <General>
-                <Interfaces></Interfaces>
+                <Interfaces>
+                    <NetworkInterface autodetermine="true" priority="default" multicast="default" />
+                </Interfaces>
                 <AllowMulticast>default</AllowMulticast>
                 <MaxMessageSize>65500B</MaxMessageSize>
                 <FragmentSize>4000B</FragmentSize>
@@ -210,7 +212,16 @@ point to it.  E.g. (on Linux):
 
 This example shows a few things:
 
-* ``Interfaces`` can be used to override the interfaces selected by default.
+* ``Interfaces`` can be used to override the interfaces selected by default. Members are
+  * ``NetworkInterface[@autodetermine]`` tells Cyclone DDS to autoselect the interface it deems best.
+  * ``NetworkInterface[@name]`` specifies the name of an interface to select (not shown above, alternative for autodetermine).
+  * ``NetworkInterface[@ip]`` specifies the ipv4/ipv6 address of an interface to select (not shown above, alternative for autodetermine).
+  * ``NetworkInterface[@multicast]`` specifies whether multicast should be used on this interface.
+    The default value 'default' means Cyclone DDS will check the OS reported flags of the interface
+    and enable multicast if it is supported. Use 'true' to ignore what the OS reports and enable it
+    anyway and 'false' to always disable multicast on this interface.
+  * ``NetworkInterface[@priority]`` specifies the priority of an interface. The default value (``default``)
+    means priority ``0`` for normal interfaces and ``2`` for loopback interfaces.
 * ``AllowMulticast`` configures the circumstances under which multicast will be used.  If the
   selected interface doesn't support it, it obviously won't be used (``false``); but if it does
   support it, the type of the network adapter determines the default value.  For a wired network, it
