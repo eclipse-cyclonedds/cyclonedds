@@ -12,18 +12,16 @@
 
 static const uint32_t *dds_stream_write_implBO (DDS_OSTREAM_T * __restrict os, const char * __restrict data, const uint32_t * __restrict ops, bool is_mutable_member);
 
-static bool dds_stream_write_enum_valueBO (DDS_OSTREAM_T * __restrict os, uint32_t insn, uint32_t val)
+static bool dds_stream_write_enum_valueBO (DDS_OSTREAM_T * __restrict os, uint32_t insn, uint32_t val, uint32_t max)
 {
+  if (val > max)
+    return false;
   switch (DDS_OP_TYPE_SZ (insn))
   {
     case 1:
-      if (val > UINT8_MAX)
-        return false;
       dds_os_put1BO (os, (uint8_t) val);
       break;
     case 2:
-      if (val > UINT16_MAX)
-        return false;
       dds_os_put2BO (os, (uint16_t) val);
       break;
     case 4:
@@ -45,15 +43,14 @@ static void dds_stream_write_stringBO (DDS_OSTREAM_T * __restrict os, const char
     dds_os_put1BO (os, 0);
 }
 
-static bool dds_stream_write_enum_arrBO (DDS_OSTREAM_T * __restrict os, uint32_t insn, const uint32_t * __restrict addr, uint32_t num)
+static bool dds_stream_write_enum_arrBO (DDS_OSTREAM_T * __restrict os, uint32_t insn, const uint32_t * __restrict addr, uint32_t num, uint32_t max)
 {
-  uint32_t xcdrv = ((struct dds_ostream *) os)->m_xcdr_version;
   switch (DDS_OP_TYPE_SZ (insn))
   {
     case 1:
       for (uint32_t i = 0; i < num; i++)
       {
-        if (addr[i] > UINT8_MAX)
+        if (addr[i] > max)
           return false;
         dds_os_put1BO (os, (uint8_t) addr[i]);
       }
@@ -61,17 +58,19 @@ static bool dds_stream_write_enum_arrBO (DDS_OSTREAM_T * __restrict os, uint32_t
     case 2:
       for (uint32_t i = 0; i < num; i++)
       {
-        if (addr[i] > UINT16_MAX)
+        if (addr[i] > max)
           return false;
         dds_os_put2BO (os, (uint16_t) addr[i]);
       }
       break;
-    case 4: {
-      void * dst;
-      dds_os_put_bytes_aligned ((struct dds_ostream *) os, addr, num, 4, get_align (xcdrv, 4), &dst);
-      dds_stream_to_BO_insitu (dst, 4, num);
+    case 4:
+      for (uint32_t i = 0; i < num; i++)
+      {
+        if (addr[i] > max)
+          return false;
+        dds_os_put4BO (os, addr[i]);
+      }
       break;
-    }
     default:
       abort ();
   }
@@ -126,7 +125,7 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
         break;
       }
       case DDS_OP_VAL_ENU:
-        if (!dds_stream_write_enum_arrBO (os, insn, (const uint32_t *) seq->_buffer, num))
+        if (!dds_stream_write_enum_arrBO (os, insn, (const uint32_t *) seq->_buffer, num, ops[2 + bound_op]))
           return NULL;
         ops += 3 + bound_op;
         break;
@@ -196,7 +195,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
       break;
     }
     case DDS_OP_VAL_ENU:
-      if (!dds_stream_write_enum_arrBO (os, insn, (const uint32_t *) addr, num))
+      if (!dds_stream_write_enum_arrBO (os, insn, (const uint32_t *) addr, num, ops[3]))
         return NULL;
       ops += 4;
       break;
@@ -239,7 +238,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
   return ops;
 }
 
-static bool dds_stream_write_union_discriminantBO (DDS_OSTREAM_T * __restrict os, uint32_t insn, const void * __restrict addr, uint32_t *disc)
+static bool dds_stream_write_union_discriminantBO (DDS_OSTREAM_T * __restrict os, const uint32_t * __restrict ops, uint32_t insn, const void * __restrict addr, uint32_t *disc)
 {
   assert (disc);
   enum dds_stream_typecode type = DDS_OP_SUBTYPE (insn);
@@ -260,7 +259,7 @@ static bool dds_stream_write_union_discriminantBO (DDS_OSTREAM_T * __restrict os
       break;
     case DDS_OP_VAL_ENU:
       *disc = *((const uint32_t *) addr);
-      if (!dds_stream_write_enum_valueBO (os, insn, *disc))
+      if (!dds_stream_write_enum_valueBO (os, insn, *disc, ops[4]))
         return false;
       break;
     default:
@@ -272,7 +271,7 @@ static bool dds_stream_write_union_discriminantBO (DDS_OSTREAM_T * __restrict os
 static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, const char * __restrict discaddr, const char * __restrict baseaddr, const uint32_t * __restrict ops, uint32_t insn)
 {
   uint32_t disc;
-  if (!dds_stream_write_union_discriminantBO (os, insn, discaddr, &disc))
+  if (!dds_stream_write_union_discriminantBO (os, ops, insn, discaddr, &disc))
     return NULL;
   uint32_t const * const jeq_op = find_union_case (ops, disc);
   ops += DDS_OP_ADR_JMP (ops[3]);
@@ -298,7 +297,7 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
       case DDS_OP_VAL_4BY: dds_os_put4BO (os, *(const uint32_t *) valaddr); break;
       case DDS_OP_VAL_8BY: dds_os_put8BO (os, *(const uint64_t *) valaddr); break;
       case DDS_OP_VAL_ENU:
-        if (!dds_stream_write_enum_valueBO (os, jeq_op[0], *((const uint32_t *) valaddr)))
+        if (!dds_stream_write_enum_valueBO (os, jeq_op[0], *((const uint32_t *) valaddr), jeq_op[3]))
           return NULL;
         break;
       case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, *(const char **) valaddr); break;
@@ -342,7 +341,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, DDS_OSTREAM_T * __
     case DDS_OP_VAL_4BY: dds_os_put4BO (os, *((const uint32_t *) addr)); ops += 2; break;
     case DDS_OP_VAL_8BY: dds_os_put8BO (os, *((const uint64_t *) addr)); ops += 2; break;
     case DDS_OP_VAL_ENU:
-      if (!dds_stream_write_enum_valueBO (os, insn, *((const uint32_t *) addr)))
+      if (!dds_stream_write_enum_valueBO (os, insn, *((const uint32_t *) addr), ops[2]))
         return NULL;
       ops += 3;
       break;

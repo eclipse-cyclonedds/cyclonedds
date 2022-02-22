@@ -1235,14 +1235,14 @@ static inline void dds_stream_write_string (dds_ostream_t * __restrict os, const
   dds_stream_write_stringLE ((dds_ostreamLE_t *) os, val);
 }
 
-static inline bool dds_stream_write_enum_value (dds_ostream_t * __restrict os, uint32_t insn, uint32_t val)
+static inline bool dds_stream_write_enum_value (dds_ostream_t * __restrict os, uint32_t insn, uint32_t val, uint32_t max)
 {
-  return dds_stream_write_enum_valueLE ((dds_ostreamLE_t *) os, insn, val);
+  return dds_stream_write_enum_valueLE ((dds_ostreamLE_t *) os, insn, val, max);
 }
 
-static inline bool dds_stream_write_enum_arr (dds_ostream_t * __restrict os, uint32_t insn, const uint32_t * __restrict addr, uint32_t num)
+static inline bool dds_stream_write_enum_arr (dds_ostream_t * __restrict os, uint32_t insn, const uint32_t * __restrict addr, uint32_t num, uint32_t max)
 {
-  return dds_stream_write_enum_arrLE ((dds_ostreamLE_t *) os, insn, addr, num);
+  return dds_stream_write_enum_arrLE ((dds_ostreamLE_t *) os, insn, addr, num, max);
 }
 
 inline const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
@@ -1280,14 +1280,14 @@ static inline void dds_stream_write_string (dds_ostream_t * __restrict os, const
   dds_stream_write_stringBE ((dds_ostreamBE_t *) os, val);
 }
 
-static inline bool dds_stream_write_enum_value (dds_ostream_t * __restrict os, uint32_t insn, uint32_t val)
+static inline bool dds_stream_write_enum_value (dds_ostream_t * __restrict os, uint32_t insn, uint32_t val, uint32_t max)
 {
-  return dds_stream_write_enum_valueBE ((dds_ostreamBE_t *) os, insn, val);
+  return dds_stream_write_enum_valueBE ((dds_ostreamBE_t *) os, insn, val, max);
 }
 
-static inline bool dds_stream_write_enum_arr (dds_ostream_t * __restrict os, uint32_t insn, const uint32_t * __restrict addr, uint32_t num)
+static inline bool dds_stream_write_enum_arr (dds_ostream_t * __restrict os, uint32_t insn, const uint32_t * __restrict addr, uint32_t num, uint32_t max)
 {
-  return dds_stream_write_enum_arrBE ((dds_ostreamBE_t *) os, insn, addr, num);
+  return dds_stream_write_enum_arrBE ((dds_ostreamBE_t *) os, insn, addr, num, max);
 }
 
 inline const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
@@ -1965,8 +1965,30 @@ static bool read_and_normalize_bool (bool * __restrict val, char * __restrict da
   return true;
 }
 
-static bool read_and_normalize_uint32 (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
-static bool read_and_normalize_uint32 (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap)
+static inline bool read_and_normalize_uint8 (uint8_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+static inline bool read_and_normalize_uint8 (uint8_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size)
+{
+  if ((*off = check_align_prim (*off, size, 0)) == UINT32_MAX)
+    return false;
+  *val = *((uint8_t *) (data + *off));
+  (*off)++;
+  return true;
+}
+
+static inline bool read_and_normalize_uint16 (uint16_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+static inline bool read_and_normalize_uint16 (uint16_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap)
+{
+  if ((*off = check_align_prim (*off, size, 1)) == UINT32_MAX)
+    return false;
+  if (bswap)
+    *((uint16_t *) (data + *off)) = ddsrt_bswap2u (*((uint16_t *) (data + *off)));
+  *val = *((uint16_t *) (data + *off));
+  (*off) += 2;
+  return true;
+}
+
+static inline bool read_and_normalize_uint32 (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+static inline bool read_and_normalize_uint32 (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap)
 {
   if ((*off = check_align_prim (*off, size, 2)) == UINT32_MAX)
     return false;
@@ -1989,35 +2011,29 @@ static bool peek_and_normalize_uint32 (uint32_t * __restrict val, char * __restr
   return true;
 }
 
-static bool read_normalize_enum (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t insn, uint32_t max, uint32_t *val) ddsrt_attribute_warn_unused_result ddsrt_nonnull((1,2,7));
-static bool read_normalize_enum (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t insn, uint32_t max, uint32_t *val)
+static bool read_normalize_enum (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t insn, uint32_t max) ddsrt_attribute_warn_unused_result ddsrt_nonnull((1,2,3));
+static bool read_normalize_enum (uint32_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t insn, uint32_t max)
 {
   switch (DDS_OP_TYPE_SZ (insn))
   {
-    case 1:
-      if ((*off = check_align_prim (*off, size, 0)) == UINT32_MAX)
+    case 1: {
+      uint8_t val8;
+      if (!read_and_normalize_uint8 (&val8, data, off, size))
         return false;
-      *val = *((uint8_t *) (data + *off));
-      (*off)++;
+      *val = val8;
       break;
-    case 2:
-      if ((*off = check_align_prim (*off, size, 1)) == UINT32_MAX)
+    }
+    case 2: {
+      uint16_t val16;
+      if (!read_and_normalize_uint16 (&val16, data, off, size, bswap))
         return false;
-      if (bswap)
-        *((uint16_t *) (data + *off)) = ddsrt_bswap2u (*((uint16_t *) (data + *off)));
-      *val = *((uint16_t *) (data + *off));
-      (*off) += 2;
+      *val = val16;
       break;
+    }
     case 4:
-      if ((*off = check_align_prim (*off, size, 2)) == UINT32_MAX)
+      if (!read_and_normalize_uint32 (val, data, off, size, bswap))
         return false;
-      if (bswap)
-        *((uint32_t *) (data + *off)) = ddsrt_bswap4u (*((uint32_t *) (data + *off)));
-      *val = *((uint32_t *) (data + *off));
-      (*off) += 4;
       break;
-    default:
-      abort ();
   }
   return *val <= max;
 }
@@ -2026,7 +2042,7 @@ static bool normalize_enum (char * __restrict data, uint32_t * __restrict off, u
 static bool normalize_enum (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t insn, uint32_t max)
 {
   uint32_t val;
-  return read_normalize_enum (data, off, size, bswap, insn, max, &val);
+  return read_normalize_enum (&val, data, off, size, bswap, insn, max);
 }
 
 static bool normalize_uint64 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
@@ -2316,7 +2332,7 @@ static bool normalize_uni_disc (uint32_t * __restrict val, char * __restrict dat
       (*off) += 4;
       return true;
     case DDS_OP_VAL_ENU:
-      return read_normalize_enum (data, off, size, bswap, insn, ops[4], val);
+      return read_normalize_enum (val, data, off, size, bswap, insn, ops[4]);
     default:
       abort ();
   }
