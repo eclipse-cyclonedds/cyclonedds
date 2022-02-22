@@ -2034,6 +2034,8 @@ static bool read_normalize_enum (uint32_t * __restrict val, char * __restrict da
       if (!read_and_normalize_uint32 (val, data, off, size, bswap))
         return false;
       break;
+    default:
+      return false;
   }
   return *val <= max;
 }
@@ -2164,7 +2166,7 @@ static bool normalize_enumarray (char * __restrict data, uint32_t * __restrict o
       break;
     }
     default:
-      abort ();
+      return false;
   }
   return true;
 }
