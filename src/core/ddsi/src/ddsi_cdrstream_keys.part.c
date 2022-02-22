@@ -27,7 +27,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
     case DDS_OP_VAL_4BY: dds_os_put4BO (os, *((uint32_t *) addr)); break;
     case DDS_OP_VAL_8BY: dds_os_put8BO (os, *((uint64_t *) addr)); break;
     case DDS_OP_VAL_ENU:
-      (void) dds_stream_write_enum_valueBO (os, insn, *((uint32_t *) addr));
+      (void) dds_stream_write_enum_valueBO (os, insn, *((uint32_t *) addr), ops[2]);
       break;
     case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, *(char **) addr); break;
     case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, addr); break;
@@ -52,7 +52,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
             dds_os_reserve4BO (os);
             offs = ((struct dds_ostream *)os)->m_index;
           }
-          (void) dds_stream_write_enum_arrBO (os, insn, (const uint32_t *) addr, num);
+          (void) dds_stream_write_enum_arrBO (os, insn, (const uint32_t *) addr, num, ops[3]);
           /* write DHEADER */
           if (xcdrv == CDR_ENC_VERSION_2)
             *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = to_BO4u(((struct dds_ostream *)os)->m_index - offs);

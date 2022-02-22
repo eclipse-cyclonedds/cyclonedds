@@ -174,7 +174,7 @@ static idl_retcode_t
 stash_opcode(
   const idl_pstate_t *pstate, struct descriptor *descriptor, struct instructions *instructions, uint32_t index, uint32_t code, uint32_t order)
 {
-  uint32_t typecode = 0;
+  enum dds_stream_typecode typecode = 0;
   struct instruction inst = { OPCODE, { .opcode = { .code = code, .order = order } } };
   const struct alignment *alignment = NULL;
 
@@ -205,6 +205,11 @@ stash_opcode(
       alignment = ALIGNMENT_PTR;
       descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
       break;
+    case DDS_OP_VAL_STU:
+    case DDS_OP_VAL_ARR:
+      /* alignment set by array element type or members of nested struct */
+      descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
+      break;
     case DDS_OP_VAL_BST:
       alignment = ALIGNMENT_1BY;
       descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
@@ -228,12 +233,9 @@ stash_opcode(
       alignment = ALIGNMENT_1BY;
       break;
     case DDS_OP_VAL_ENU:
-      switch (DDS_OP_TYPE_SZ(code)) {
-        case 1: alignment = ALIGNMENT_1BY; break;
-        case 2: alignment = ALIGNMENT_2BY; break;
-        case 4: alignment = ALIGNMENT_4BY; break;
-        default: abort();
-      }
+      alignment = ALIGNMENT_4BY; /* enum size in memory is 4 bytes (FIXME: some exceptions..) */
+      if (DDS_OP_TYPE_SZ(code) != 4)
+        descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
       break;
     case DDS_OP_VAL_UNI:
       /* strictly speaking a topic with a union can be optimized if all
