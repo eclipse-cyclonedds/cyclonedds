@@ -174,7 +174,7 @@ static idl_retcode_t
 stash_opcode(
   const idl_pstate_t *pstate, struct descriptor *descriptor, struct instructions *instructions, uint32_t index, uint32_t code, uint32_t order)
 {
-  enum dds_stream_typecode typecode = 0;
+  enum dds_stream_typecode typecode;
   struct instruction inst = { OPCODE, { .opcode = { .code = code, .order = order } } };
   const struct alignment *alignment = NULL;
 
@@ -193,7 +193,7 @@ stash_opcode(
       break;
     case DDS_OP_JEQ:
       assert (0); // deprecated
-      break;
+      return IDL_RETCODE_BAD_PARAMETER;
     default:
       return stash_instruction(pstate, instructions, index, &inst);
   }
