@@ -3296,7 +3296,7 @@ idl_finalize_annotation_appl(
   /* constant expressions cannot be evaluated until annotations are applied
      as values for members of type any must match with the element under
      annotation */
-  if (idl_mask(parameters) & (IDL_EXPRESSION|IDL_ENUMERATOR)) {
+  if (idl_mask(parameters) & (IDL_EXPRESSION|IDL_ENUMERATOR|IDL_BIT_VALUE|IDL_CONST)) {
     idl_definition_t *definition = node->annotation->definitions;
     idl_annotation_member_t *member = NULL;
     while (definition && !member) {
@@ -3327,6 +3327,10 @@ idl_finalize_annotation_appl(
     node->parameters = parameters;
     for (idl_annotation_appl_param_t *ap = parameters; ap; ap = idl_next(ap))
       ((idl_node_t *)ap)->parent = (idl_node_t *)node;
+  } else if (parameters) {
+    idl_error(pstate, idl_location(parameters),
+      "internal error in parsing annotation @%s", idl_identifier(node->annotation));
+    return IDL_RETCODE_BAD_PARAMETER;
   }
 
   return IDL_RETCODE_OK;
