@@ -18,26 +18,28 @@ set(binary_dir "${CMAKE_CURRENT_BINARY_DIR}")
 set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 if(BISON_FOUND)
-  bison_target(parser "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y" "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.c")
+  bison_target(parser "src/parser.y" "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.c")
 
   # Hashing routine, remove \r to not get confused on windows if git changes the line endings.
   file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y" _parser_y_data)
-  string(REPLACE "\r" "" _parser_y_data ${_parser_y_data})
-  string(SHA1 _parser_y_hash ${_parser_y_data})
+  string(REPLACE "\r" "" _parser_y_data "${_parser_y_data}")
+  string(SHA1 _parser_y_hash "${_parser_y_data}")
 
   # Store hash
-  file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.hash" ${_parser_y_hash})
+  file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y.hash" "${_parser_y_hash}")
+  file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.h" "\n\n/* generated from parser.y[${_parser_y_hash}]*/\n")
+  file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.c" "\n\n/* generated from parser.y[${_parser_y_hash}]*/\n")
 else()
   # Hashing routine, remove \r to not get confused on windows if git changes the line endings.
   file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y" _parser_y_data)
-  string(REPLACE "\r" "" _parser_y_data ${_parser_y_data})
-  string(SHA1 _parser_y_hash ${_parser_y_data})
+  string(REPLACE "\r" "" _parser_y_data "${_parser_y_data}")
+  string(SHA1 _parser_y_hash "${_parser_y_data}")
 
   # Fetched stored hash
-  file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.hash" _parser_y_disk_hash)
+  file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y.hash" _parser_y_disk_hash)
 
   # Ensure equality
-  if(NOT ${_parser_y_hash} STREQUAL ${_parser_y_disk_hash})
+  if(NOT "${_parser_y_hash}" STREQUAL "${_parser_y_disk_hash}")
     message(FATAL_ERROR "parser.y was updated but parser.c not regenerated, and no bison available!")
   endif()
   message(STATUS "bison not found, using cached 'parser.c'.")

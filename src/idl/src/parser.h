@@ -220,3 +220,12 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
 #line 221 "src/parser.h"
 
 #endif /* !YY_IDL_YY_SRC_PARSER_H_INCLUDED  */
+
+
+/* generated from parser.y[bc003cce562263ea1888e9ead2f94f2b236e29ec]*/
+
+
+/* generated from parser.y[ab2744b1a47205f85a5a45bc918d9a06168e1c80]*/
+
+
+/* generated from parser.y[bc003cce562263ea1888e9ead2f94f2b236e29ec]*/

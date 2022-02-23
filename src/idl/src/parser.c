@@ -4009,3 +4009,13 @@ yyerror(idl_location_t *loc, idl_pstate_t *pstate, idl_retcode_t *result, const 
   idl_error(pstate, loc, "%s", str);
   *result = IDL_RETCODE_SYNTAX_ERROR;
 }
+
+
+
+/* generated from parser.y[bc003cce562263ea1888e9ead2f94f2b236e29ec]*/
+
+
+/* generated from parser.y[ab2744b1a47205f85a5a45bc918d9a06168e1c80]*/
+
+
+/* generated from parser.y[bc003cce562263ea1888e9ead2f94f2b236e29ec]*/
