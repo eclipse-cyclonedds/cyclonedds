@@ -1551,18 +1551,6 @@ static void sample_free_mutable2 (void *s_wr, void *s_rd)
  * Generic implementation and tests
  **********************************************/
 
-static void msg (const char *msg, ...)
-{
-  va_list args;
-  dds_time_t t;
-  t = dds_time ();
-  printf ("%d.%06d ", (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000);
-  va_start (args, msg);
-  vprintf (msg, args);
-  va_end (args);
-  printf ("\n");
-}
-
 static dds_entity_t d1, d2, tp1, tp2, dp1, dp2, rd, wr;
 
 static void cdrstream_init (void)
@@ -1640,7 +1628,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_empty 
     ddsc_cdrstream, ser_des, .init = cdrstream_init, .fini = cdrstream_fini)
 {
   dds_return_t ret;
-  msg ("Running test ser_des: %s", descr);
+  tprintf ("Running test ser_des: %s\n", descr);
 
   entity_init (desc, DDS_DATA_REPRESENTATION_XCDR2, false);
   dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
@@ -1717,7 +1705,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_init s
     ddsc_cdrstream, ser_des_multiple, .init = cdrstream_init, .fini = cdrstream_fini)
 {
   dds_return_t ret;
-  msg ("Running test ser_des_multiple: %s", descr);
+  tprintf ("Running test ser_des_multiple: %s\n", descr);
 
   entity_init (desc, DDS_DATA_REPRESENTATION_XCDR2, false);
 
@@ -1765,7 +1753,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
 {
   for (int t = 0; t <= 1; t++)
   {
-    msg ("Running test appendable_mutable: %s (run %d/2)", descr, t + 1);
+    tprintf ("Running test appendable_mutable: %s (run %d/2)\n", descr, t + 1);
 
     const dds_topic_descriptor_t *desc_wr = t ? desc2 : desc1;
     const dds_topic_descriptor_t *desc_rd = t ? desc1 : desc2;

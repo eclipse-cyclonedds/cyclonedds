@@ -111,24 +111,10 @@ static void deadline_fini(void)
   dds_delete(g_remote_domain);
 }
 
-static void msg(const char *msg, ...) ddsrt_attribute_format_printf(1, 2);
-
-static void msg(const char *msg, ...)
-{
-  va_list args;
-  dds_time_t t;
-  t = dds_time();
-  printf("%d.%06d ", (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000);
-  va_start(args, msg);
-  vprintf(msg, args);
-  va_end(args);
-  printf("\n");
-}
-
 static void sleepfor(dds_duration_t sleep_dur)
 {
   dds_sleepfor (sleep_dur);
-  msg("after sleeping %"PRId64, sleep_dur);
+  tprintf("after sleeping %"PRId64"\n", sleep_dur);
 }
 
 static bool check_missed_deadline_reader(dds_entity_t reader, uint32_t exp_missed_total, int32_t exp_missed_change)
@@ -136,7 +122,7 @@ static bool check_missed_deadline_reader(dds_entity_t reader, uint32_t exp_misse
   struct dds_requested_deadline_missed_status dstatus;
   dds_return_t ret = dds_get_requested_deadline_missed_status(reader, &dstatus);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  msg("- check reader total actual %u == expected %u / change actual %d == expected %d", dstatus.total_count, exp_missed_total, dstatus.total_count_change, exp_missed_change);
+  tprintf("- check reader total actual %u == expected %u / change actual %d == expected %d\n", dstatus.total_count, exp_missed_total, dstatus.total_count_change, exp_missed_change);
   return dstatus.total_count == exp_missed_total && dstatus.total_count_change == exp_missed_change;
 }
 
@@ -145,7 +131,7 @@ static bool check_missed_deadline_writer(dds_entity_t writer, uint32_t exp_misse
   struct dds_offered_deadline_missed_status dstatus;
   dds_return_t ret = dds_get_offered_deadline_missed_status(writer, &dstatus);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  msg("- check writer total actual %u == expected %u / change actual %d == expected %d", dstatus.total_count, exp_missed_total, dstatus.total_count_change, exp_missed_change);
+  tprintf("- check writer total actual %u == expected %u / change actual %d == expected %d\n", dstatus.total_count, exp_missed_total, dstatus.total_count_change, exp_missed_change);
   return dstatus.total_count == exp_missed_total && dstatus.total_count_change == exp_missed_change;
 }
 
@@ -160,7 +146,7 @@ CU_Test(ddsc_deadline, basic, .init=deadline_init, .fini=deadline_fini)
 
   do
   {
-    msg("deadline test: duration %"PRId64, deadline_dur);
+    tprintf("deadline test: duration %"PRId64"\n", deadline_dur);
 
     dds_qset_deadline(g_qos, deadline_dur);
     writer = dds_create_writer(g_publisher, g_topic, g_qos, NULL);
@@ -177,7 +163,7 @@ CU_Test(ddsc_deadline, basic, .init=deadline_init, .fini=deadline_fini)
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Write first sample */
-    msg("write sample 1");
+    tprintf("write sample 1\n");
     ret = dds_write (writer, &sample);
     CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 
@@ -192,7 +178,7 @@ CU_Test(ddsc_deadline, basic, .init=deadline_init, .fini=deadline_fini)
     else
     {
       /* Write another sample */
-      msg("write sample 2");
+      tprintf("write sample 2\n");
       ret = dds_write (writer, &sample);
       CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 
@@ -237,13 +223,13 @@ CU_Test(ddsc_deadline, basic, .init=deadline_init, .fini=deadline_fini)
     {
       if (++run > MAX_RUNS)
       {
-        msg("run limit reached, test failed");
+        tprintf("run limit reached, test failed\n");
         CU_FAIL_FATAL("Run limit reached");
         test_finished = true;
       }
       else
       {
-        msg("restarting test with deadline duration %"PRId64, deadline_dur);
+        tprintf("restarting test with deadline duration %"PRId64"\n", deadline_dur);
         sleepfor(deadline_dur);
       }
     }
@@ -284,7 +270,7 @@ CU_Theory((dds_durability_kind_t dur_kind, dds_reliability_kind_t rel_kind, dds_
 
   do
   {
-    msg("deadline test: duration %"PRId64", writer type %d %d %s", deadline_dur, dur_kind, rel_kind, hist_kind == DDS_HISTORY_KEEP_ALL ? "all" : "1");
+    tprintf("deadline test: duration %"PRId64", writer type %d %d %s\n", deadline_dur, dur_kind, rel_kind, hist_kind == DDS_HISTORY_KEEP_ALL ? "all" : "1");
 
     qos = dds_create_qos();
     CU_ASSERT_PTR_NOT_NULL_FATAL(qos);
@@ -312,7 +298,7 @@ CU_Theory((dds_durability_kind_t dur_kind, dds_reliability_kind_t rel_kind, dds_
     sleepfor(2 * deadline_dur);
     ret = dds_get_offered_deadline_missed_status(writer, &dstatus);
     CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-    msg("- check writer total actual %u > 0 / change actual %d > 0", dstatus.total_count, dstatus.total_count_change);
+    tprintf("- check writer total actual %u > 0 / change actual %d > 0\n", dstatus.total_count, dstatus.total_count_change);
     if (dstatus.total_count == 0 || dstatus.total_count_change == 0)
       deadline_dur *= 10 / (run + 1);
     else
@@ -323,7 +309,7 @@ CU_Theory((dds_durability_kind_t dur_kind, dds_reliability_kind_t rel_kind, dds_
       sleepfor(3 * deadline_dur);
       ret = dds_get_offered_deadline_missed_status(writer, &dstatus);
       CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-      msg("- check reader total actual %u > expected %u / change actual %d > 0", dstatus.total_count, prev_cnt, dstatus.total_count_change);
+      tprintf("- check reader total actual %u > expected %u / change actual %d > 0\n", dstatus.total_count, prev_cnt, dstatus.total_count_change);
       if (dstatus.total_count <= prev_cnt || dstatus.total_count_change == 0)
         deadline_dur *= 10 / (run + 1);
       else
@@ -338,13 +324,13 @@ CU_Theory((dds_durability_kind_t dur_kind, dds_reliability_kind_t rel_kind, dds_
     {
       if (++run > MAX_RUNS)
       {
-        msg("run limit reached, test failed");
+        tprintf("run limit reached, test failed\n");
         CU_FAIL_FATAL("Run limit reached");
         test_finished = true;
       }
       else
       {
-        msg("restarting test with deadline duration %"PRId64, deadline_dur);
+        tprintf("restarting test with deadline duration %"PRId64"\n", deadline_dur);
         sleepfor(deadline_dur);
       }
     }
@@ -367,7 +353,7 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
 
   do
   {
-    msg("deadline test: duration %"PRId64", instance count %d, unreg %dth, dispose %dth", deadline_dur, n_inst, unreg_nth, dispose_nth);
+    tprintf("deadline test: duration %"PRId64", instance count %d, unreg %dth, dispose %dth\n", deadline_dur, n_inst, unreg_nth, dispose_nth);
     dds_qset_deadline(g_qos, deadline_dur);
     CU_ASSERT_PTR_NOT_NULL_FATAL(g_qos);
 
@@ -436,13 +422,13 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
     {
       if (++run > MAX_RUNS)
       {
-        msg("run limit reached, test failed");
+        tprintf("run limit reached, test failed\n");
         CU_FAIL_FATAL("Run limit reached");
         test_finished = true;
       }
       else
       {
-        msg("restarting test with deadline duration %"PRId64, deadline_dur);
+        tprintf("restarting test with deadline duration %"PRId64"\n", deadline_dur);
         sleepfor(deadline_dur);
       }
     }

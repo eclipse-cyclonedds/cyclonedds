@@ -9,11 +9,22 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#include <stdarg.h>
 #include "dds/dds.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
 #include "test_util.h"
+
+void tprintf (const char *msg, ...)
+{
+  va_list args;
+  dds_time_t t = dds_time ();
+  printf ("%d.%06d ", (int32_t) (t / DDS_NSECS_IN_SEC), (int32_t) (t % DDS_NSECS_IN_SEC) / 1000);
+  va_start (args, msg);
+  vprintf (msg, args);
+  va_end (args);
+}
 
 char *create_unique_topic_name (const char *prefix, char *name, size_t size)
 {
