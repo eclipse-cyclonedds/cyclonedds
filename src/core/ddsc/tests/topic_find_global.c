@@ -102,20 +102,6 @@ CU_Test(ddsc_topic_find_global, participant, .init = topic_find_global_init, .fi
   CU_ASSERT_FATAL (topic > 0);
 }
 
-static void msg (const char *msg, ...) ddsrt_attribute_format_printf(1, 2);
-
-static void msg (const char *msg, ...)
-{
-  va_list args;
-  dds_time_t t;
-  t = dds_time ();
-  printf ("%d.%06d ", (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000);
-  va_start (args, msg);
-  vprintf (msg, args);
-  va_end (args);
-  printf ("\n");
-}
-
 enum topic_thread_state {
   INIT,
   DONE,
@@ -144,7 +130,7 @@ static uint32_t topics_thread (void *a)
   dds_entity_t *topics = ddsrt_malloc (arg->num_tp * sizeof (*topics));
 
   /* create topics */
-  msg ("%s topics thread: creating %u topics with prefix %s", arg->remote ? "remote" : "local", arg->num_tp, arg->topic_name_prefix);
+  tprintf ("%s topics thread: creating %u topics with prefix %s\n", arg->remote ? "remote" : "local", arg->num_tp, arg->topic_name_prefix);
   for (uint32_t t = 0; t < arg->num_tp; t++)
   {
     set_topic_name (topic_name, arg->topic_name_prefix, t);
@@ -152,7 +138,7 @@ static uint32_t topics_thread (void *a)
     CU_ASSERT_FATAL (topics[t] > 0);
   }
   ddsrt_atomic_st32 (&arg->state, DONE);
-  msg ("%s topics thread: finished creating topics with prefix %s", arg->remote ? "remote" : "local", arg->topic_name_prefix);
+  tprintf ("%s topics thread: finished creating topics with prefix %s\n", arg->remote ? "remote" : "local", arg->topic_name_prefix);
 
   /* wait for stop signal */
   while (!ddsrt_atomic_ld32 (&g_stop))
@@ -166,7 +152,7 @@ static uint32_t topics_thread (void *a)
     dds_sleepfor (DDS_MSECS (1));
   }
   ddsrt_atomic_st32 (&arg->state, STOPPED);
-  msg ("%s topics thread: deleted topics with prefix %s", arg->remote ? "remote" : "local", arg->topic_name_prefix);
+  tprintf ("%s topics thread: deleted topics with prefix %s\n", arg->remote ? "remote" : "local", arg->topic_name_prefix);
   ddsrt_free (topics);
   return 0;
 }
@@ -187,7 +173,7 @@ CU_TheoryDataPoints (ddsc_topic_find_global, find_delete_topics) = {
 
 CU_Theory ((uint32_t num_local_pp, uint32_t num_remote_pp, uint32_t num_tp), ddsc_topic_find_global, find_delete_topics, .init = topic_find_global_init, .fini = topic_find_global_fini, .timeout = 60)
 {
-  msg("ddsc_topic_find_global.find_delete_topics: %u/%u local/remote participants, %u topics", num_local_pp, num_remote_pp, num_tp);
+  tprintf("ddsc_topic_find_global.find_delete_topics: %u/%u local/remote participants, %u topics\n", num_local_pp, num_remote_pp, num_tp);
   dds_return_t ret;
   dds_entity_t participant_remote = dds_create_participant (DDS_DOMAINID2, NULL, NULL);
   CU_ASSERT_FATAL (participant_remote > 0);
@@ -214,7 +200,7 @@ CU_Theory ((uint32_t num_local_pp, uint32_t num_remote_pp, uint32_t num_tp), dds
   }
 
   /* wait for all created topics to be found */
-  msg ("find topics");
+  tprintf ("find topics\n");
   for (uint32_t n = 0; n < num_local_pp + num_remote_pp; n++)
   {
     ret = topics_thread_state (&create_args[n], DONE, DDS_MSECS (10000));
