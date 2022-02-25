@@ -922,7 +922,7 @@ int main (int argc, char **argv)
   if (argc > 5)
     xchecks = atoi (argv[5]);
 
-  printf ("prng seed %u first %d count %d print %d xchecks %d\n", seed, first, count, print, xchecks);
+  printf ("%"PRId64" prng seed %u first %d count %d print %d xchecks %d\n", dds_time (), seed, first, count, print, xchecks);
   ddsrt_prng_init_simple (&prng, seed);
 
   if (xchecks != 0)
@@ -952,8 +952,7 @@ int main (int argc, char **argv)
   {
     struct ddsi_domaingv *gv = get_gv (pp);
     struct ddsi_tkmap *tkmap = gv->m_tkmap;
-    if (print)
-      printf ("************* 0 *************\n");
+    printf ("%"PRId64" ************* 0 *************\n", dds_time ());
     struct dds_rhc *rhc = mkrhc (gv, NULL, DDS_HISTORY_KEEP_LAST, 1, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
     struct proxy_writer *wr0 = mkwr (1);
     struct proxy_writer *wr1 = mkwr (1);
@@ -1027,8 +1026,7 @@ int main (int argc, char **argv)
   {
     struct ddsi_domaingv *gv = get_gv (pp);
     struct ddsi_tkmap *tkmap = gv->m_tkmap;
-    if (print)
-      printf ("************* 1 *************\n");
+    printf ("%"PRId64" ************* 1 *************\n", dds_time ());
     struct dds_rhc *rhc = mkrhc (gv, NULL, DDS_HISTORY_KEEP_LAST, 4, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
     struct proxy_writer *wr[] = { mkwr (0), mkwr (0), mkwr (0) };
     uint64_t iid0, iid_t;
@@ -1105,11 +1103,11 @@ int main (int argc, char **argv)
     for (int zz = 0; zz < (int) (sizeof (zztab) / sizeof (zztab[0])); zz++)
       if (zz + 2 >= first)
       {
-        if (print)
-          printf ("************* %d *************\n", zz + 2);
+        printf ("%"PRId64" ************* %d *************\n", dds_time (), zz + 2);
         test_conditions (pp, tp, count, zztab[zz].create, zztab[zz].filter0, zztab[zz].filter1, print);
       }
   }
+  printf ("%"PRId64" cleaning up\n", dds_time ());
 
   ddsrt_cond_destroy (&wait_gc_cycle_cond);
   ddsrt_mutex_destroy (&wait_gc_cycle_lock);
