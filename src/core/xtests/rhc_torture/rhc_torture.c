@@ -920,7 +920,7 @@ int main (int argc, char **argv)
   if (argc > 4)
     print = (atoi (argv[4]) != 0);
   if (argc > 5)
-    xchecks = atoi (argv[4]);
+    xchecks = atoi (argv[5]);
 
   printf ("prng seed %u first %d count %d print %d xchecks %d\n", seed, first, count, print, xchecks);
   ddsrt_prng_init_simple (&prng, seed);
