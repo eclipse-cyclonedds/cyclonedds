@@ -19,6 +19,7 @@
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/random.h"
+#include "dds/ddsrt/cdtors.h"
 #include "dds/dds.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__entity.h"
@@ -896,8 +897,40 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
     fwr (wr[i]);
 }
 
+struct stacktracethread_arg {
+  dds_time_t when;
+  dds_time_t period;
+  bool stop;
+  ddsrt_mutex_t lock;
+  ddsrt_cond_t cond;
+};
+
+static uint32_t stacktracethread (void *varg)
+{
+  struct stacktracethread_arg * const arg = varg;
+  ddsrt_log_cfg_t logcfg;
+  dds_time_t when = arg->when;
+  dds_log_cfg_init (&logcfg, 0, ~0u, stdout, stdout);
+  ddsrt_mutex_lock (&arg->lock);
+  while (!arg->stop)
+  {
+    if (ddsrt_cond_waituntil (&arg->cond, &arg->lock, when))
+      continue;
+    ddsrt_mutex_unlock (&arg->lock);
+    log_stack_traces (&logcfg, NULL);
+    ddsrt_mutex_lock (&arg->lock);
+    if (arg->period == 0)
+      break;
+    if (when < INT64_MAX)
+      when += arg->period;
+  }
+  ddsrt_mutex_unlock (&arg->lock);
+  return 0;
+}
+
 int main (int argc, char **argv)
 {
+  ddsrt_init ();
   dds_entity_t pp = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
   dds_entity_t tp = dds_create_topic(pp, &RhcTypes_T_desc, "RhcTypes_T", NULL, NULL);
   uint32_t states_seen[2 * 2 * 3][2] = {{ 0 }};
@@ -905,6 +938,9 @@ int main (int argc, char **argv)
   bool print = false;
   int xchecks = 1;
   int first = 0, count = 10000;
+  struct stacktracethread_arg sttarg = { 0 };
+  ddsrt_thread_t stttid;
+  memset (&stttid, 0, sizeof (stttid));
 
   ddsrt_mutex_init (&wait_gc_cycle_lock);
   ddsrt_cond_init (&wait_gc_cycle_cond);
@@ -921,6 +957,18 @@ int main (int argc, char **argv)
     print = (atoi (argv[4]) != 0);
   if (argc > 5)
     xchecks = atoi (argv[5]);
+  if (argc > 6)
+  {
+    sttarg.when = dds_time () + DDS_SECS (atoi (argv[6]));
+    sttarg.period = DDS_SECS (1);
+    sttarg.stop = 0;
+    ddsrt_mutex_init (&sttarg.lock);
+    ddsrt_cond_init (&sttarg.cond);
+    ddsrt_threadattr_t tattr;
+    ddsrt_threadattr_init (&tattr);
+    if (ddsrt_thread_create (&stttid, "stacktracethread", &tattr, stacktracethread, &sttarg) != 0)
+      abort ();
+  }
 
   printf ("%"PRId64" prng seed %u first %d count %d print %d xchecks %d\n", dds_time (), seed, first, count, print, xchecks);
   ddsrt_prng_init_simple (&prng, seed);
@@ -1116,6 +1164,18 @@ int main (int argc, char **argv)
     RhcTypes_T_free (&rres_mseq[i], DDS_FREE_CONTENTS);
 
   ddsi_sertype_unref (mdtype);
-  dds_delete(pp);
+  dds_delete (pp);
+
+  if (sttarg.when)
+  {
+    ddsrt_mutex_lock (&sttarg.lock);
+    sttarg.stop = 1;
+    ddsrt_cond_signal (&sttarg.cond);
+    ddsrt_mutex_unlock (&sttarg.lock);
+    (void) ddsrt_thread_join (stttid, NULL);
+    ddsrt_cond_destroy (&sttarg.cond);
+    ddsrt_mutex_destroy (&sttarg.lock);
+  }
+  ddsrt_fini ();
   return 0;
 }
