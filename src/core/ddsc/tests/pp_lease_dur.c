@@ -344,8 +344,8 @@ CU_Test(ddsc_participant_lease_duration, expiry)
   // must not expire too soon (unless lax_check says we really don't know)
   assert (ldur[1] <= ldur[2]);
   CU_ASSERT_FATAL (lax_check || texpire - tdeaf > ldur[1]);
-  // must not have taken ridiculously long either
-  CU_ASSERT_FATAL (texpire - tdeaf < ldur[2] + DDS_MSECS (100));
+  // must not have taken ridiculously long either (100ms margin is not enough on CI)
+  CU_ASSERT_FATAL (texpire - tdeaf < ldur[2] + DDS_MSECS (300));
   ret = dds_delete (DDS_CYCLONEDDS_HANDLE);
   CU_ASSERT_FATAL (ret == 0);
 }
