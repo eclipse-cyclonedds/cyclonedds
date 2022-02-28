@@ -683,10 +683,56 @@ static idl_retcode_t check_and_attach_minmax(
     max_lit = ((idl_case_t*)node)->max.value;
   }
 
-  if (min_lit && max_lit && idl_arithmetic_to_double(min_lit) > idl_arithmetic_to_double(max_lit)) {
-    idl_error(pstate, idl_location(param),
-      "@range parameter error: min parameter larger than max");
-    return IDL_RETCODE_SEMANTIC_ERROR;
+  if (min_lit && max_lit) {
+    bool range_error = false;
+    if (idl_is_integer_type(min_lit) && idl_is_integer_type(max_lit)) {
+      //both are integers, check that min >= max
+      idl_intval_t minval = idl_intval(min_lit), maxval = idl_intval(max_lit);
+
+      if (minval.type & IDL_UNSIGNED) {
+        if (maxval.type & IDL_UNSIGNED) {
+          range_error = minval.value.ullng > maxval.value.ullng;
+        } else {
+          if (minval.value.ullng > INT64_MAX)
+            range_error = true;
+          else
+            range_error = minval.value.llng > maxval.value.llng;
+        }
+      } else {
+        if (maxval.type & IDL_UNSIGNED) {
+          if (minval.value.llng > 0 && maxval.value.ullng < INT64_MAX)
+            range_error = minval.value.llng > maxval.value.llng;
+        } else {
+          range_error = minval.value.llng > maxval.value.llng;
+        }
+      }
+    } else {
+      if (idl_is_integer_type(min_lit) || idl_is_integer_type(max_lit)) {
+        //one is an integer, check that the double cast does not alias away significant bits
+        idl_intval_t ival;
+        if (idl_is_integer_type(min_lit))
+          ival = idl_intval(min_lit);
+        else
+          ival = idl_intval(max_lit);
+
+        //9007199254740992 (2^53) is the largest integer that can be accurately represented as a double precision float
+        if (((ival.type & IDL_UNSIGNED) && ival.value.ullng > 9007199254740992) ||
+                         (!(ival.type & IDL_UNSIGNED) && (ival.value.llng > 9007199254740992 || ival.value.llng < -9007199254740992))) {
+          idl_error(pstate, idl_location(param),
+            "@range/@min/@max parameter error: unreliable min to max comparison due to limited floating point precision");
+          return IDL_RETCODE_SEMANTIC_ERROR;
+        }
+      }
+
+      range_error = idl_arithmetic_to_double(min_lit) > idl_arithmetic_to_double(max_lit);
+    }
+
+    if (range_error) {
+      idl_error(pstate, idl_location(param),
+        "@range/@min/@max parameter error: minimum larger than maximum for field");
+      return IDL_RETCODE_SEMANTIC_ERROR;
+    }
+
   }
 
   return IDL_RETCODE_OK;

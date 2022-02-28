@@ -1295,6 +1295,8 @@ CU_Test(idl_annotation, limits)
     {U_L("@range(min = 4, max = 5) @min(3)"), IDL_RETCODE_SEMANTIC_ERROR},
     {S_L("@min(3) @range(min = 4, max = 5)"), IDL_RETCODE_SEMANTIC_ERROR},
     {S_L("@range(min = 4, max = 5) @min(3)"), IDL_RETCODE_SEMANTIC_ERROR},
+    //inaccurate comparisons
+    {"struct s { @range(min = 9007199254740993, max = 9007199254740993.5) double mem; };", IDL_RETCODE_SEMANTIC_ERROR},
   };
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
