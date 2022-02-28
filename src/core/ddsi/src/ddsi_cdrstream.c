@@ -387,6 +387,18 @@ static inline bool is_primitive_type (enum dds_stream_typecode type)
   return type <= DDS_OP_VAL_8BY || type == DDS_OP_VAL_BLN;
 }
 
+#ifndef NDEBUG
+static inline bool is_primitive_or_enum_type (enum dds_stream_typecode type)
+{
+  return is_primitive_type (type) || type == DDS_OP_VAL_ENU;
+}
+#endif
+
+static inline bool is_dheader_needed (enum dds_stream_typecode type, uint32_t xcdrv)
+{
+  return !is_primitive_type (type) && xcdrv == CDR_ENC_VERSION_2;
+}
+
 static uint32_t get_type_size (enum dds_stream_typecode type)
 {
   DDSRT_STATIC_ASSERT (DDS_OP_VAL_1BY == 1 && DDS_OP_VAL_2BY == 2 && DDS_OP_VAL_4BY == 3 && DDS_OP_VAL_8BY == 4);
@@ -891,8 +903,8 @@ static bool insn_key_ok_p (uint32_t insn)
 {
   return (DDS_OP (insn) == DDS_OP_ADR && (insn & DDS_OP_FLAG_KEY) &&
           (!type_has_subtype_or_members (DDS_OP_TYPE (insn)) // don't allow seq, uni, arr (unless exception below), struct (unless exception below)
-            || (DDS_OP_TYPE (insn) == DDS_OP_VAL_ARR && (is_primitive_type (DDS_OP_SUBTYPE (insn)) || DDS_OP_SUBTYPE (insn) == DDS_OP_VAL_ENU)) // allow prim-array and enum-array as key
-            || (DDS_OP_TYPE (insn) == DDS_OP_VAL_EXT) // allow fields in nested structs as key
+            || (DDS_OP_TYPE (insn) == DDS_OP_VAL_ARR && is_primitive_or_enum_type (DDS_OP_SUBTYPE (insn))) // allow prim-array and enum-array as key
+            || DDS_OP_TYPE (insn) == DDS_OP_VAL_EXT // allow fields in nested structs as key
           ));
 }
 #endif
@@ -900,7 +912,7 @@ static bool insn_key_ok_p (uint32_t insn)
 static uint32_t read_union_discriminant (dds_istream_t * __restrict is, uint32_t insn)
 {
   enum dds_stream_typecode type = DDS_OP_SUBTYPE (insn);
-  assert (is_primitive_type (type) || type == DDS_OP_VAL_ENU);
+  assert (is_primitive_or_enum_type (type));
   switch (type)
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: return dds_is_get1 (is);
@@ -1374,7 +1386,7 @@ static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char 
   dds_sequence_t * const seq = (dds_sequence_t *) addr;
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   uint32_t bound_op = seq_is_bounded (DDS_OP_TYPE (insn)) ? 1 : 0;
-  if (!is_primitive_type (subtype) && is->m_xcdr_version == CDR_ENC_VERSION_2)
+  if (is_dheader_needed (subtype, is->m_xcdr_version))
   {
     /* skip DHEADER */
     dds_is_get4 (is);
@@ -1463,7 +1475,7 @@ static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char 
 static const uint32_t *dds_stream_read_arr (dds_istream_t * __restrict is, char * __restrict addr, const uint32_t * __restrict ops, uint32_t insn)
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
-  if (!is_primitive_type (subtype) && is->m_xcdr_version == CDR_ENC_VERSION_2)
+  if (is_dheader_needed (subtype, is->m_xcdr_version))
   {
     /* skip DHEADER */
     dds_is_get4 (is);
@@ -2189,7 +2201,7 @@ static bool normalize_enumarray (char * __restrict data, uint32_t * __restrict o
 static bool read_and_normalize_collection_dheader (bool * __restrict has_dheader, uint32_t * __restrict size1, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, const enum dds_stream_typecode subtype, uint32_t xcdr_version) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool read_and_normalize_collection_dheader (bool * __restrict has_dheader, uint32_t * __restrict size1, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, const enum dds_stream_typecode subtype, uint32_t xcdr_version)
 {
-  if (!is_primitive_type (subtype) && xcdr_version == CDR_ENC_VERSION_2)
+  if (is_dheader_needed (subtype, xcdr_version))
   {
     if (!read_and_normalize_uint32 (size1, data, off, size, bswap))
       return false;
@@ -3047,7 +3059,7 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t * __restrict 
     case DDS_OP_VAL_ARR: {
       const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
       uint32_t elem_size, offs = 0, xcdrv = ((struct dds_ostream *)os)->m_xcdr_version;
-      if (!is_primitive_type (subtype) && xcdrv == CDR_ENC_VERSION_2)
+      if (is_dheader_needed (subtype, xcdrv))
       {
         /* In case of non-primitive element type, reserve space for DHEADER in the
            output stream, and skip the DHEADER in the input */
@@ -3069,7 +3081,7 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t * __restrict 
       dds_is_get_bytes (is, dst, num, elem_size);
       os->m_index += num * elem_size;
       /* set DHEADER */
-      if (!is_primitive_type (subtype) && xcdrv == CDR_ENC_VERSION_2)
+      if (is_dheader_needed (subtype, xcdrv))
         *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = ((struct dds_ostream *)os)->m_index - offs;
       break;
     }
@@ -3153,7 +3165,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
     case DDS_OP_VAL_ARR: {
       const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
       uint32_t elem_size, offs = 0, xcdrv = ((struct dds_ostream *)os)->m_xcdr_version;
-      if (!is_primitive_type (subtype) && xcdrv == CDR_ENC_VERSION_2)
+      if (is_dheader_needed (subtype, xcdrv))
       {
         /* In case of non-primitive element type, reserve space for DHEADER in the
            output stream, and skip the DHEADER in the input */
@@ -3182,7 +3194,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
       is->m_index += num * elem_size;
 
       /* set DHEADER */
-      if (!is_primitive_type (subtype) && xcdrv == CDR_ENC_VERSION_2)
+      if (is_dheader_needed (subtype, xcdrv))
         *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = ddsrt_toBE4u(((struct dds_ostream *)os)->m_index - offs);
       break;
     }
@@ -3244,7 +3256,7 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_array (dds_istream_
   const uint32_t num = ops[2];
 
   // if DHEADER present, use its value to skip array
-  if (!is_primitive_type (subtype) && is->m_xcdr_version == CDR_ENC_VERSION_2)
+  if (is_dheader_needed (subtype, is->m_xcdr_version))
   {
     const uint32_t sz = dds_is_get4 (is);
     is->m_index += sz;
@@ -3263,7 +3275,7 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_sequence (dds_istre
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
 
   // if DHEADER present, use its value to skip sequence
-  if (!is_primitive_type (subtype) && is->m_xcdr_version == CDR_ENC_VERSION_2)
+  if (is_dheader_needed (subtype, is->m_xcdr_version))
   {
     const uint32_t sz = dds_is_get4 (is);
     is->m_index += sz;
@@ -3381,7 +3393,7 @@ static void dds_stream_read_key_impl (dds_istream_t * __restrict is, char * __re
       const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
       uint32_t num = ops[2];
       /* In case of non-primitive element type skip the DHEADER in the input */
-      if (!is_primitive_type (subtype) && is->m_xcdr_version == CDR_ENC_VERSION_2)
+      if (is_dheader_needed (subtype, is->m_xcdr_version))
         (void) dds_is_get4 (is);
       switch (subtype)
       {
@@ -3663,11 +3675,8 @@ static const uint32_t *prtf_seq (char * __restrict *buf, size_t *bufsize, dds_is
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   uint32_t bound_op = seq_is_bounded (DDS_OP_TYPE (insn)) ? 1 : 0;
-  if (!is_primitive_type (subtype) && is->m_xcdr_version == CDR_ENC_VERSION_2)
-  {
-    /* skip DHEADER */
-    dds_is_get4 (is);
-  }
+  if (is_dheader_needed (subtype, is->m_xcdr_version))
+    (void) dds_is_get4 (is);
 
   const uint32_t num = dds_is_get4 (is);
   if (num == 0)
@@ -3707,11 +3716,8 @@ static const uint32_t *prtf_seq (char * __restrict *buf, size_t *bufsize, dds_is
 static const uint32_t *prtf_arr (char * __restrict *buf, size_t *bufsize, dds_istream_t * __restrict is, const uint32_t * __restrict ops, uint32_t insn)
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
-  if (!is_primitive_type (subtype) && is->m_xcdr_version == CDR_ENC_VERSION_2)
-  {
-    /* skip DHEADER */
-    dds_is_get4 (is);
-  }
+  if (is_dheader_needed (subtype, is->m_xcdr_version))
+    (void) dds_is_get4 (is);
   const uint32_t num = ops[2];
   switch (subtype)
   {
