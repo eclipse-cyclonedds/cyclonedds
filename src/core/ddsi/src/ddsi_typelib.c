@@ -667,7 +667,7 @@ uint32_t ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_
   return n;
 }
 
-bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_pair *rd_type_pair, const struct ddsi_type_pair *wr_type_pair)
+bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_pair *rd_type_pair, const struct ddsi_type_pair *wr_type_pair, const dds_type_consistency_enforcement_qospolicy_t *tce)
 {
   if (!rd_type_pair || !wr_type_pair)
     return false;
@@ -675,7 +675,7 @@ bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_p
   const struct xt_type
     *rd_xt = rd_type_pair->minimal ? &rd_type_pair->minimal->xt : &rd_type_pair->complete->xt,
     *wr_xt = wr_type_pair->minimal ? &wr_type_pair->minimal->xt : &wr_type_pair->complete->xt;
-  bool assignable = ddsi_xt_is_assignable_from (gv, rd_xt, wr_xt);
+  bool assignable = ddsi_xt_is_assignable_from (gv, rd_xt, wr_xt, tce);
   ddsrt_mutex_unlock (&gv->typelib_lock);
   return assignable;
 }

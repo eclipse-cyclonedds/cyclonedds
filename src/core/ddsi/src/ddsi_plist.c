@@ -590,9 +590,6 @@ static dds_return_t valid_type_consistency (const void *src, size_t srcoff)
 {
   DDSRT_STATIC_ASSERT (DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION == 0 && DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION == 1);
   dds_type_consistency_enforcement_qospolicy_t const * const x = deser_generic_src (src, &srcoff, alignof (dds_type_consistency_enforcement_qospolicy_t));
-  if (x->kind == DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION
-      && (x->ignore_sequence_bounds || x->ignore_string_bounds || x->ignore_member_names || !x->prevent_type_widening))
-    return DDS_RETCODE_BAD_PARAMETER;
   if (x->kind > DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION)
     return DDS_RETCODE_BAD_PARAMETER;
   return 0;
@@ -3480,8 +3477,8 @@ const dds_qos_t ddsi_default_qos_reader = {
   .subscription_keys.key_list.n = 0,
   .subscription_keys.key_list.strs = NULL,
   .type_consistency.kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION,
-  .type_consistency.ignore_sequence_bounds = false,
-  .type_consistency.ignore_string_bounds = false,
+  .type_consistency.ignore_sequence_bounds = true,
+  .type_consistency.ignore_string_bounds = true,
   .type_consistency.ignore_member_names = false,
   .type_consistency.prevent_type_widening = false,
   .type_consistency.force_type_validation = false,
