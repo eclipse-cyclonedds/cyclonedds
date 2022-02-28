@@ -11,26 +11,32 @@
 #
 
 function(IDLC_GENERATE)
+  set(options NO_TYPE_INFO)
   set(one_value_keywords TARGET DEFAULT_EXTENSIBILITY)
   set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS)
   cmake_parse_arguments(
-    IDLC "" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
+    IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
 
-  idlc_generate_generic(${IDLC_UNPARSED_ARGUMENTS}
+  set(gen_args
+    ${IDLC_UNPARSED_ARGUMENTS}
     TARGET ${IDLC_TARGET}
     FILES ${IDLC_FILES}
     FEATURES ${IDLC_FEATURES}
     INCLUDES ${IDLC_INCLUDES}
     WARNINGS ${IDLC_WARNINGS}
-    DEFAULT_EXTENSIBILITY ${IDLC_DEFAULT_EXTENSIBILITY}
-  )
+    DEFAULT_EXTENSIBILITY ${IDLC_DEFAULT_EXTENSIBILITY})
+  if(${IDLC_NO_TYPE_INFO})
+    list(APPEND gen_args NO_TYPE_INFO)
+  endif()
+  idlc_generate_generic(${gen_args})
 endfunction()
 
 function(IDLC_GENERATE_GENERIC)
+  set(options NO_TYPE_INFO)
   set(one_value_keywords TARGET BACKEND DEFAULT_EXTENSIBILITY)
   set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS SUFFIXES DEPENDS)
   cmake_parse_arguments(
-    IDLC "" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
+    IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
 
   # find idlc binary
   if(CMAKE_CROSSCOMPILING)
@@ -101,6 +107,10 @@ function(IDLC_GENERATE_GENERIC)
     foreach(_warn ${IDLC_WARNINGS})
       list(APPEND IDLC_ARGS "-W${_warn}")
     endforeach()
+  endif()
+
+  if(IDLC_NO_TYPE_INFO)
+    list(APPEND IDLC_ARGS "-t")
   endif()
 
   set(_dir ${CMAKE_CURRENT_BINARY_DIR})
