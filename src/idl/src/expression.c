@@ -908,6 +908,11 @@ compare_int(const idl_const_expr_t *lhs, const idl_const_expr_t *rhs)
   }
 }
 
+idl_floatval_t
+idl_floatval(const idl_const_expr_t *const_expr) {
+  return floatval(const_expr);
+}
+
 static idl_floatval_t floatval(const idl_const_expr_t *const_expr)
 {
   idl_type_t type = idl_type(const_expr);

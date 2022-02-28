@@ -510,6 +510,230 @@ annotate_must_understand(
   return IDL_RETCODE_OK;
 }
 
+static idl_floatval_t idl_arithmetic_to_double(const idl_literal_t *lit) {
+  if (idl_type(lit) & IDL_INTEGER_TYPE) {
+    idl_intval_t val = idl_intval(lit);
+    if (IDL_UNSIGNED & val.type)
+      return (idl_floatval_t)val.value.ullng;
+    else
+      return (idl_floatval_t)val.value.llng;
+  } else if (idl_type(lit) & IDL_FLOATING_PT_TYPE) {
+    return idl_floatval(lit);
+  } else {
+    assert(0);
+  }
+  return 0;
+}
+
+static idl_retcode_t check_and_attach_minmax(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *parent,
+  idl_annotation_appl_param_t *param,
+  idl_node_t *node,
+  bool to_max)
+{
+  idl_type_t param_type, field_type;
+  const idl_const_expr_t *const_expr;
+  const idl_annotation_appl_t *existing_for_field;
+
+  assert(param);
+  const_expr = param->const_expr;
+
+  assert(idl_is_literal(const_expr));
+  param_type = idl_type(const_expr);
+
+  if (idl_is_member(node)) {
+    if (to_max)
+      existing_for_field = ((idl_member_t*)node)->max.annotation;
+    else
+      existing_for_field = ((idl_member_t*)node)->min.annotation;
+    field_type = idl_type(((idl_member_t*)node)->type_spec);
+  } else if (idl_is_case(node)) {
+    if (to_max)
+      existing_for_field = ((idl_case_t*)node)->max.annotation;
+    else
+      existing_for_field = ((idl_case_t*)node)->min.annotation;
+    field_type = idl_type(((idl_case_t*)node)->type_spec);
+  } else {
+    idl_error(pstate, idl_location(param),
+      "@max/@min/@range values can only be assigned to members and cases");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  if (existing_for_field) {
+    idl_error(pstate, idl_location(param),
+      "attempting to overwrite existing limit value");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  if (!(field_type & IDL_INTEGER_TYPE) && !(field_type & IDL_FLOATING_PT_TYPE) && field_type != IDL_OCTET) {
+    idl_error(pstate, idl_location(param),
+      "@max/@min/@range field type mismatch: attempt to set limits on non-arithmetic field");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  } else if ((param_type & IDL_FLOATING_PT_TYPE) && (field_type & IDL_INTEGER_TYPE)) {
+    idl_error(pstate, idl_location(param),
+      "@max/@min/@range field type mismatch: attempt to set floating point limit on integer field");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  const idl_literal_t *lit = (const idl_literal_t *)const_expr;
+  if (param_type == IDL_OCTET || (param_type & IDL_INTEGER_TYPE)) {
+    //check whether range of value falls inside type
+    idl_intval_t intval = idl_intval(lit);
+    bool is_unsigned = intval.type & IDL_UNSIGNED;
+    uint64_t uval = intval.value.ullng;
+    int64_t sval = intval.value.llng;
+
+    if (!is_unsigned && sval < 0 && (field_type & IDL_UNSIGNED) && !(field_type & IDL_FLOATING_PT_TYPE)) {
+      idl_error(pstate, idl_location(param),
+        "@max/@min/@range field type mismatch: attempt to set limit < 0 on unsigned field");
+      return IDL_RETCODE_SEMANTIC_ERROR;
+    }
+
+    bool range_error = false;
+    switch (field_type) {
+      case IDL_INT8:
+        range_error =
+          (is_unsigned && uval > INT8_MAX) ||
+          (!is_unsigned && (sval > INT8_MAX || sval < INT8_MIN));
+        break;
+      case IDL_UINT8:
+      case IDL_OCTET:
+        range_error =
+          (is_unsigned && uval > UINT8_MAX) ||
+          (!is_unsigned && (sval > UINT8_MAX || sval < 0));
+        break;
+      case IDL_SHORT:
+      case IDL_INT16:
+        range_error =
+          (is_unsigned && uval > INT16_MAX) ||
+          (!is_unsigned && (sval > INT16_MAX || sval < INT16_MIN));
+        break;
+      case IDL_UINT16:
+      case IDL_USHORT:
+        range_error =
+          (is_unsigned && uval > UINT16_MAX) ||
+          (!is_unsigned && (sval > UINT16_MAX || sval < 0));
+        break;
+      case IDL_INT32:
+      case IDL_LONG:
+        range_error =
+          (is_unsigned && uval > INT32_MAX) ||
+          (!is_unsigned && (sval > INT32_MAX || sval < INT32_MIN));
+        break;
+      case IDL_UINT32:
+      case IDL_ULONG:
+        range_error =
+          (is_unsigned && uval > UINT32_MAX) ||
+          (!is_unsigned && (sval > UINT32_MAX || sval < 0));
+        break;
+      case IDL_LLONG:
+      case IDL_INT64:
+        range_error = is_unsigned && uval > INT64_MAX;
+        break;
+      case IDL_ULLONG:
+      case IDL_UINT64:
+        range_error = !is_unsigned && sval < 0;
+        break;
+      default:
+        //boundary checking done on setting int limits on floating point fields
+        break;
+    }
+
+    if (range_error) {
+      idl_error(pstate, idl_location(const_expr),
+        "@max/@min/@range limit range error");
+      return IDL_RETCODE_SEMANTIC_ERROR;
+    }
+  } else if (param_type & IDL_FLOATING_PT_TYPE) {
+    if (!(field_type & IDL_FLOATING_PT_TYPE)) {
+      idl_error(pstate, idl_location(const_expr),
+        "@max/@min/@range error: floating point limit on non-floating point field");
+      return IDL_RETCODE_SEMANTIC_ERROR;
+    }
+  } else {
+    idl_error(pstate, idl_location(param),
+      "@max/@min/@range with %s cannot be applied to '%s' element",
+      idl_construct(const_expr), idl_construct(node));
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  //check that min is not larger than max
+  const idl_literal_t *min_lit = NULL,
+                      *max_lit = NULL;
+  if (idl_is_member(node)) {
+    if (to_max) {
+      ((idl_member_t*)node)->max.annotation = parent;
+      ((idl_member_t*)node)->max.value = lit;
+    } else {
+      ((idl_member_t*)node)->min.annotation = parent;
+      ((idl_member_t*)node)->min.value = lit;
+    }
+    min_lit = ((idl_member_t*)node)->min.value;
+    max_lit = ((idl_member_t*)node)->max.value;
+  } else if (idl_is_case(node)) {
+    if (to_max) {
+      ((idl_case_t*)node)->max.annotation = parent;
+      ((idl_case_t*)node)->max.value = lit;
+    } else {
+      ((idl_case_t*)node)->min.annotation = parent;
+      ((idl_case_t*)node)->min.value = lit;
+    }
+    min_lit = ((idl_case_t*)node)->min.value;
+    max_lit = ((idl_case_t*)node)->max.value;
+  }
+
+  if (min_lit && max_lit && idl_arithmetic_to_double(min_lit) > idl_arithmetic_to_double(max_lit)) {
+    idl_error(pstate, idl_location(param),
+      "@range parameter error: min parameter larger than max");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+annotate_range(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+  idl_retcode_t ret = IDL_RETCODE_OK;
+  idl_annotation_appl_param_t *par = NULL;
+
+  IDL_FOREACH(par,annotation_appl->parameters) {
+    //are the parameters sorted, or in the order of declaration of the file
+    if (ret)
+      break;
+    if (idl_strcasecmp(par->member->declarator->name->identifier, "min") == 0) {
+      ret = check_and_attach_minmax(pstate, annotation_appl, par, node, false);
+    } else if (idl_strcasecmp(par->member->declarator->name->identifier, "max") == 0) {
+      ret = check_and_attach_minmax(pstate, annotation_appl, par, node, true);
+    }
+  }
+
+  return ret;
+
+}
+
+static idl_retcode_t
+annotate_min(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+  return check_and_attach_minmax(pstate, annotation_appl, annotation_appl->parameters, node, false);
+}
+
+static idl_retcode_t
+annotate_max(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+  return check_and_attach_minmax(pstate, annotation_appl, annotation_appl->parameters, node, true);
+}
+
 static idl_retcode_t
 annotate_nested(
   idl_pstate_t *pstate,
@@ -853,7 +1077,6 @@ static const idl_builtin_annotation_t annotations[] = {
       "<p>Specify the data member must be understood by any application "
       "making use of that piece of data.</p>",
     .callback = annotate_must_understand },
-#if 0
   /* units and ranges */
   { .syntax = "@annotation range { any min; any max; };",
     .summary =
@@ -867,6 +1090,7 @@ static const idl_builtin_annotation_t annotations[] = {
     .summary =
       "<p>Specify a maximum value for the annotated element.</p>",
     .callback = annotate_max },
+#if 0
   { .syntax = "@annotation unit { string value; };",
     .summary =
       "<p>Specify a unit of measurement for the annotated element.</p>",
