@@ -104,7 +104,7 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
   uint32_t bound_op = seq_is_bounded (DDS_OP_TYPE (insn)) ? 1 : 0;
   uint32_t bound = bound_op ? ops[2] : 0;
 
-  if (!is_primitive_type (subtype) && xcdrv == CDR_ENC_VERSION_2)
+  if (is_dheader_needed (subtype, xcdrv))
   {
     /* reserve space for DHEADER */
     dds_os_reserve4BO (os);
@@ -185,11 +185,9 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
     }
   }
 
-  if (!is_primitive_type (subtype) && xcdrv == CDR_ENC_VERSION_2)
-  {
-    /* write DHEADER */
+  /* write DHEADER */
+  if (is_dheader_needed (subtype, xcdrv))
     *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = to_BO4u(((struct dds_ostream *)os)->m_index - offs);
-  }
 
   return ops;
 }
@@ -198,7 +196,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   uint32_t offs = 0, xcdrv = ((struct dds_ostream *)os)->m_xcdr_version;
-  if (!is_primitive_type (subtype) && xcdrv == CDR_ENC_VERSION_2)
+  if (is_dheader_needed (subtype, xcdrv))
   {
     /* reserve space for DHEADER */
     dds_os_reserve4BO (os);
@@ -257,11 +255,9 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
       break;
   }
 
-  if (!is_primitive_type (subtype) && xcdrv == CDR_ENC_VERSION_2)
-  {
-    /* write DHEADER */
+  /* write DHEADER */
+  if (is_dheader_needed (subtype, xcdrv))
     *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = to_BO4u(((struct dds_ostream *)os)->m_index - offs);
-  }
 
   return ops;
 }
