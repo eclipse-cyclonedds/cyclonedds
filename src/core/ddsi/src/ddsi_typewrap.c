@@ -1285,16 +1285,16 @@ static struct xt_type *xt_expand_basetype (struct ddsi_domaingv *gv, const struc
   assert (t->_u.structure.base_type);
   const struct xt_type *b = ddsi_xt_unalias (&t->_u.structure.base_type->xt);
   struct xt_type *te = xt_has_basetype (b) ? xt_expand_basetype (gv, b) : xt_dup (gv, t);
-  struct xt_struct_member_seq ms = te->_u.structure.members;
+  struct xt_struct_member_seq *ms = &te->_u.structure.members;
 
   /* Expand members of the base type in the resulting type
      before the members of the derived type */
   uint32_t incr = b->_u.structure.members.length;
-  ms.length += incr;
-  ms.seq = ddsrt_realloc (ms.seq, ms.length * sizeof (*ms.seq));
-  memmove (&ms.seq[incr], ms.seq, incr * sizeof (*ms.seq));
+  ms->length += incr;
+  ms->seq = ddsrt_realloc (ms->seq, ms->length * sizeof (*ms->seq));
+  memmove (&ms->seq[incr], ms->seq, incr * sizeof (*ms->seq));
   for (uint32_t i = 0; i < b->_u.structure.members.length; i++)
-    memcpy (&ms.seq[i], &b->_u.structure.members.seq[i], sizeof (ms.seq[i]));
+    xt_struct_member_copy (gv, &ms->seq[i], &b->_u.structure.members.seq[i]);
   return te;
 }
 
@@ -1391,6 +1391,7 @@ static struct xt_type *xt_type_keyholder (struct ddsi_domaingv *gv, const struct
     default:
       assert (false);
       ddsi_xt_type_fini (gv, tkh);
+      ddsrt_free (tkh);
       return NULL;
   }
 }
@@ -1782,7 +1783,9 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
             *m2_kh = xt_type_keyholder (gv, m2t);
           bool kh_assignable = ddsi_xt_is_assignable_from (gv, m1_kh, m2_kh);
           ddsi_xt_type_fini (gv, m1_kh);
+          ddsrt_free (m1_kh);
           ddsi_xt_type_fini (gv, m2_kh);
+          ddsrt_free (m2_kh);
           if (!kh_assignable)
             goto struct_failed;
         }
@@ -1804,7 +1807,9 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
                   *km2_kh = xt_type_keyholder (gv, ddsi_xt_unalias (&km2->type->xt));
                 bool kh_assignable = ddsi_xt_is_assignable_from (gv, km1_kh, km2_kh);
                 ddsi_xt_type_fini (gv, km1_kh);
+                ddsrt_free (km1_kh);
                 ddsi_xt_type_fini (gv, km2_kh);
+                ddsrt_free (km1_kh);
                 if (!kh_assignable)
                   goto struct_failed;
               }
@@ -1868,9 +1873,15 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
 
 struct_failed:
   if (te1 != t1)
+  {
     ddsi_xt_type_fini (gv, te1);
+    ddsrt_free (te1);
+  }
   if (te2 != t2)
+  {
     ddsi_xt_type_fini (gv, te2);
+    ddsrt_free (te2);
+  }
   return result;
 }
 
