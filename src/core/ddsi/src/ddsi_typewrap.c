@@ -1874,9 +1874,9 @@ struct_failed:
   return result;
 }
 
-bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *t1a, const struct xt_type *t2a)
+bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt)
 {
-  const struct xt_type *t1 = ddsi_xt_unalias (t1a), *t2 = ddsi_xt_unalias (t2a);
+  const struct xt_type *t1 = ddsi_xt_unalias (rd_xt), *t2 = ddsi_xt_unalias (wr_xt);
 
   if (xt_is_equivalent_minimal (t1, t2))
     return true;

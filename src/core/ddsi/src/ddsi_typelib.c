@@ -667,15 +667,17 @@ uint32_t ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_
   return n;
 }
 
-bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type *type_a, const struct ddsi_type_pair *type_pair_b)
+bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_pair *rd_type_pair, const struct ddsi_type_pair *wr_type_pair)
 {
-  if (!type_a || !type_pair_b)
+  if (!rd_type_pair || !wr_type_pair)
     return false;
-  if (type_pair_b->minimal)
-    return ddsi_xt_is_assignable_from (gv, &type_a->xt, &type_pair_b->minimal->xt);
-  if (type_pair_b->complete)
-    return ddsi_xt_is_assignable_from (gv, &type_a->xt, &type_pair_b->complete->xt);
-  return false;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  const struct xt_type
+    *rd_xt = rd_type_pair->minimal ? &rd_type_pair->minimal->xt : &rd_type_pair->complete->xt,
+    *wr_xt = wr_type_pair->minimal ? &wr_type_pair->minimal->xt : &wr_type_pair->complete->xt;
+  bool assignable = ddsi_xt_is_assignable_from (gv, rd_xt, wr_xt);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+  return assignable;
 }
 
 char *ddsi_make_typeid_str_impl (struct ddsi_typeid_str *buf, const DDS_XTypes_TypeIdentifier *type_id)

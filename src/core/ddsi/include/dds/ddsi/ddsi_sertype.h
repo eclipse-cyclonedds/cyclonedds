@@ -132,9 +132,6 @@ typedef ddsi_typemap_t * (*ddsi_sertype_typemap_t) (const struct ddsi_sertype *t
 /* Gets the CDR blob for the type information of this sertype */
 typedef ddsi_typeinfo_t * (*ddsi_sertype_typeinfo_t) (const struct ddsi_sertype *tp);
 
-/* Check if (an object of) type a is assignable from (an object of) the type b */
-typedef bool (*ddsi_sertype_assignable_from_t) (const struct ddsi_sertype *sertype_a, const struct ddsi_type_pair *type_pair_b);
-
 /* Create a new derived sertype (a shallow copy of the provided sertype) with the
    serdata_ops for the provided data representation */
 typedef struct ddsi_sertype * (*ddsi_sertype_derive_t) (const struct ddsi_sertype *sertype, dds_data_representation_id_t data_representation, dds_type_consistency_enforcement_qospolicy_t tce_qos);
@@ -162,7 +159,6 @@ struct ddsi_sertype_ops {
   ddsi_sertype_typeid_t type_id;
   ddsi_sertype_typemap_t type_map;
   ddsi_sertype_typeinfo_t type_info;
-  ddsi_sertype_assignable_from_t assignable_from;
   ddsi_sertype_derive_t derive_sertype;
   ddsi_sertype_get_serialized_size_t get_serialized_size;
   ddsi_sertype_serialize_into_t serialize_into;
@@ -244,16 +240,6 @@ DDS_INLINE_EXPORT inline ddsi_typeinfo_t *ddsi_sertype_typeinfo (const struct dd
     return NULL;
   return tp->ops->type_info (tp);
 }
-DDS_INLINE_EXPORT inline bool ddsi_sertype_assignable_from (const struct ddsi_sertype *sertype_a, const struct ddsi_type_pair *type_pair_b) {
-  /* If sertype_a does not have a assignability check function
-     (e.g. because it is an older sertype implementation), consider
-     the types as assignable */
-  if (!sertype_a->ops->assignable_from)
-    return true;
-
-  return sertype_a->ops->assignable_from (sertype_a, type_pair_b);
-}
-
 DDS_INLINE_EXPORT inline struct ddsi_sertype * ddsi_sertype_derive_sertype (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t data_representation, dds_type_consistency_enforcement_qospolicy_t tce_qos) {
   if (!base_sertype->ops->derive_sertype)
     return NULL;
