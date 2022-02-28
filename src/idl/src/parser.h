@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.8.2.  */
+/* A Bison parser, made by GNU Bison 3.5.1.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2021 Free Software Foundation,
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
    Inc.
 
    This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -31,12 +31,11 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
-/* DO NOT RELY ON FEATURES THAT ARE NOT DOCUMENTED in the manual,
-   especially those whose name start with YY_ or yy_.  They are
-   private implementation details that can be changed or removed.  */
+/* Undocumented macros, especially those whose name start with YY_,
+   are private implementation details.  Do not rely on them.  */
 
-#ifndef YY_IDL_YY_USERS_ERIK_C_CDDS_CC_SRC_IDL_PARSER_H_INCLUDED
-# define YY_IDL_YY_USERS_ERIK_C_CDDS_CC_SRC_IDL_PARSER_H_INCLUDED
+#ifndef YY_IDL_YY_PARSER_H_INCLUDED
+# define YY_IDL_YY_PARSER_H_INCLUDED
 /* Debug traces.  */
 #ifndef IDL_YYDEBUG
 # if defined YYDEBUG
@@ -66,71 +65,66 @@ typedef struct idl_location IDL_YYLTYPE;
 #define LOC(first, last) \
   &(IDL_YYLTYPE){ first, last }
 
-#line 70 "/Users/erik/C/cdds/CC/src/idl/parser.h"
+#line 69 "parser.h"
 
-/* Token kinds.  */
+/* Token type.  */
 #ifndef IDL_YYTOKENTYPE
 # define IDL_YYTOKENTYPE
   enum idl_yytokentype
   {
-    IDL_YYEMPTY = -2,
-    IDL_YYEOF = 0,                 /* "end of file"  */
-    IDL_YYerror = 256,             /* error  */
-    IDL_YYUNDEF = 257,             /* "invalid token"  */
-    IDL_TOKEN_LINE_COMMENT = 258,  /* IDL_TOKEN_LINE_COMMENT  */
-    IDL_TOKEN_COMMENT = 259,       /* IDL_TOKEN_COMMENT  */
-    IDL_TOKEN_PP_NUMBER = 260,     /* IDL_TOKEN_PP_NUMBER  */
-    IDL_TOKEN_IDENTIFIER = 261,    /* IDL_TOKEN_IDENTIFIER  */
-    IDL_TOKEN_CHAR_LITERAL = 262,  /* IDL_TOKEN_CHAR_LITERAL  */
-    IDL_TOKEN_STRING_LITERAL = 263, /* IDL_TOKEN_STRING_LITERAL  */
-    IDL_TOKEN_INTEGER_LITERAL = 264, /* IDL_TOKEN_INTEGER_LITERAL  */
-    IDL_TOKEN_FLOATING_PT_LITERAL = 265, /* IDL_TOKEN_FLOATING_PT_LITERAL  */
-    IDL_TOKEN_ANNOTATION_SYMBOL = 266, /* "@"  */
-    IDL_TOKEN_ANNOTATION = 267,    /* "annotation"  */
-    IDL_TOKEN_SCOPE = 268,         /* IDL_TOKEN_SCOPE  */
-    IDL_TOKEN_SCOPE_NO_SPACE = 269, /* IDL_TOKEN_SCOPE_NO_SPACE  */
-    IDL_TOKEN_MODULE = 270,        /* "module"  */
-    IDL_TOKEN_CONST = 271,         /* "const"  */
-    IDL_TOKEN_NATIVE = 272,        /* "native"  */
-    IDL_TOKEN_STRUCT = 273,        /* "struct"  */
-    IDL_TOKEN_TYPEDEF = 274,       /* "typedef"  */
-    IDL_TOKEN_UNION = 275,         /* "union"  */
-    IDL_TOKEN_SWITCH = 276,        /* "switch"  */
-    IDL_TOKEN_CASE = 277,          /* "case"  */
-    IDL_TOKEN_DEFAULT = 278,       /* "default"  */
-    IDL_TOKEN_ENUM = 279,          /* "enum"  */
-    IDL_TOKEN_UNSIGNED = 280,      /* "unsigned"  */
-    IDL_TOKEN_FIXED = 281,         /* "fixed"  */
-    IDL_TOKEN_SEQUENCE = 282,      /* "sequence"  */
-    IDL_TOKEN_STRING = 283,        /* "string"  */
-    IDL_TOKEN_WSTRING = 284,       /* "wstring"  */
-    IDL_TOKEN_FLOAT = 285,         /* "float"  */
-    IDL_TOKEN_DOUBLE = 286,        /* "double"  */
-    IDL_TOKEN_SHORT = 287,         /* "short"  */
-    IDL_TOKEN_LONG = 288,          /* "long"  */
-    IDL_TOKEN_CHAR = 289,          /* "char"  */
-    IDL_TOKEN_WCHAR = 290,         /* "wchar"  */
-    IDL_TOKEN_BOOLEAN = 291,       /* "boolean"  */
-    IDL_TOKEN_OCTET = 292,         /* "octet"  */
-    IDL_TOKEN_ANY = 293,           /* "any"  */
-    IDL_TOKEN_MAP = 294,           /* "map"  */
-    IDL_TOKEN_BITSET = 295,        /* "bitset"  */
-    IDL_TOKEN_BITFIELD = 296,      /* "bitfield"  */
-    IDL_TOKEN_BITMASK = 297,       /* "bitmask"  */
-    IDL_TOKEN_INT8 = 298,          /* "int8"  */
-    IDL_TOKEN_INT16 = 299,         /* "int16"  */
-    IDL_TOKEN_INT32 = 300,         /* "int32"  */
-    IDL_TOKEN_INT64 = 301,         /* "int64"  */
-    IDL_TOKEN_UINT8 = 302,         /* "uint8"  */
-    IDL_TOKEN_UINT16 = 303,        /* "uint16"  */
-    IDL_TOKEN_UINT32 = 304,        /* "uint32"  */
-    IDL_TOKEN_UINT64 = 305,        /* "uint64"  */
-    IDL_TOKEN_TRUE = 306,          /* "TRUE"  */
-    IDL_TOKEN_FALSE = 307,         /* "FALSE"  */
-    IDL_TOKEN_LSHIFT = 308,        /* "<<"  */
-    IDL_TOKEN_RSHIFT = 309         /* ">>"  */
+    IDL_TOKEN_LINE_COMMENT = 258,
+    IDL_TOKEN_COMMENT = 259,
+    IDL_TOKEN_PP_NUMBER = 260,
+    IDL_TOKEN_IDENTIFIER = 261,
+    IDL_TOKEN_CHAR_LITERAL = 262,
+    IDL_TOKEN_STRING_LITERAL = 263,
+    IDL_TOKEN_INTEGER_LITERAL = 264,
+    IDL_TOKEN_FLOATING_PT_LITERAL = 265,
+    IDL_TOKEN_ANNOTATION_SYMBOL = 266,
+    IDL_TOKEN_ANNOTATION = 267,
+    IDL_TOKEN_SCOPE = 268,
+    IDL_TOKEN_SCOPE_NO_SPACE = 269,
+    IDL_TOKEN_MODULE = 270,
+    IDL_TOKEN_CONST = 271,
+    IDL_TOKEN_NATIVE = 272,
+    IDL_TOKEN_STRUCT = 273,
+    IDL_TOKEN_TYPEDEF = 274,
+    IDL_TOKEN_UNION = 275,
+    IDL_TOKEN_SWITCH = 276,
+    IDL_TOKEN_CASE = 277,
+    IDL_TOKEN_DEFAULT = 278,
+    IDL_TOKEN_ENUM = 279,
+    IDL_TOKEN_UNSIGNED = 280,
+    IDL_TOKEN_FIXED = 281,
+    IDL_TOKEN_SEQUENCE = 282,
+    IDL_TOKEN_STRING = 283,
+    IDL_TOKEN_WSTRING = 284,
+    IDL_TOKEN_FLOAT = 285,
+    IDL_TOKEN_DOUBLE = 286,
+    IDL_TOKEN_SHORT = 287,
+    IDL_TOKEN_LONG = 288,
+    IDL_TOKEN_CHAR = 289,
+    IDL_TOKEN_WCHAR = 290,
+    IDL_TOKEN_BOOLEAN = 291,
+    IDL_TOKEN_OCTET = 292,
+    IDL_TOKEN_ANY = 293,
+    IDL_TOKEN_MAP = 294,
+    IDL_TOKEN_BITSET = 295,
+    IDL_TOKEN_BITFIELD = 296,
+    IDL_TOKEN_BITMASK = 297,
+    IDL_TOKEN_INT8 = 298,
+    IDL_TOKEN_INT16 = 299,
+    IDL_TOKEN_INT32 = 300,
+    IDL_TOKEN_INT64 = 301,
+    IDL_TOKEN_UINT8 = 302,
+    IDL_TOKEN_UINT16 = 303,
+    IDL_TOKEN_UINT32 = 304,
+    IDL_TOKEN_UINT64 = 305,
+    IDL_TOKEN_TRUE = 306,
+    IDL_TOKEN_FALSE = 307,
+    IDL_TOKEN_LSHIFT = 308,
+    IDL_TOKEN_RSHIFT = 309
   };
-  typedef enum idl_yytokentype idl_yytoken_kind_t;
 #endif
 
 /* Value type.  */
@@ -182,7 +176,7 @@ union IDL_YYSTYPE
   unsigned long long ullng;
   long double ldbl;
 
-#line 186 "/Users/erik/C/cdds/CC/src/idl/parser.h"
+#line 180 "parser.h"
 
 };
 typedef union IDL_YYSTYPE IDL_YYSTYPE;
@@ -206,7 +200,6 @@ struct IDL_YYLTYPE
 
 
 
-
 #ifndef YYPUSH_MORE_DEFINED
 # define YYPUSH_MORE_DEFINED
 enum { YYPUSH_MORE = 4 };
@@ -214,22 +207,19 @@ enum { YYPUSH_MORE = 4 };
 
 typedef struct idl_yypstate idl_yypstate;
 
+int idl_yypush_parse (idl_yypstate *ps, int pushed_char, IDL_YYSTYPE const *pushed_val, IDL_YYLTYPE *pushed_loc, idl_pstate_t *pstate, idl_retcode_t *result);
 
-int idl_yypush_parse (idl_yypstate *ps,
-                  int pushed_char, IDL_YYSTYPE const *pushed_val, IDL_YYLTYPE *pushed_loc, idl_pstate_t *pstate, idl_retcode_t *result);
-
-idl_yypstate *idl_yypstate_new (void);
+idl_yypstate * idl_yypstate_new (void);
 void idl_yypstate_delete (idl_yypstate *ps);
-
 /* "%code provides" blocks.  */
 #line 98 "src/parser.y"
 
 int idl_iskeyword(idl_pstate_t *pstate, const char *str, int nc);
 void idl_yypstate_delete_stack(idl_yypstate *yyps);
 
-#line 231 "/Users/erik/C/cdds/CC/src/idl/parser.h"
+#line 221 "parser.h"
 
-#endif /* !YY_IDL_YY_USERS_ERIK_C_CDDS_CC_SRC_IDL_PARSER_H_INCLUDED  */
+#endif /* !YY_IDL_YY_PARSER_H_INCLUDED  */
 
 
-/* generated from parser.y[bc003cce562263ea1888e9ead2f94f2b236e29ec]*/
+/* generated from parser.y[23595b522566a548f3435a7bd36b0a4eca7e89d7]*/
