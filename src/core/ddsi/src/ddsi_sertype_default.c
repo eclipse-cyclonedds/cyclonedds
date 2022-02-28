@@ -95,31 +95,6 @@ static ddsi_typeinfo_t *sertype_default_typeinfo (const struct ddsi_sertype *tpc
   return ddsi_typeinfo_deser (&tp->type.typeinfo_ser);
 }
 
-static bool sertype_default_assignable_from (const struct ddsi_sertype *sertype_a, const struct ddsi_type_pair *type_pair_b)
-{
-  assert (type_pair_b);
-  struct ddsi_type *type_a;
-  struct ddsi_domaingv *gv = ddsrt_atomic_ldvoidp (&sertype_a->gv);
-
-  // If receiving type disables type checking, type b is assignable
-  struct ddsi_sertype_default *a = (struct ddsi_sertype_default *) sertype_a;
-  if (a->type.flagset & DDS_TOPIC_DISABLE_TYPECHECK)
-    return true;
-
-  ddsi_typeid_t *type_id = sertype_default_typeid (sertype_a, DDSI_TYPEID_KIND_MINIMAL);
-  type_a = ddsi_type_lookup_locked (gv, type_id);
-  ddsi_typeid_fini (type_id);
-  ddsrt_free (type_id);
-  if (!type_a)
-  {
-    type_id = sertype_default_typeid (sertype_a, DDSI_TYPEID_KIND_COMPLETE);
-    type_a = ddsi_type_lookup_locked (gv, type_id);
-    ddsi_typeid_fini (type_id);
-    ddsrt_free (type_id);
-  }
-  return ddsi_is_assignable_from (gv, type_a, type_pair_b);
-}
-
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 
 static uint32_t sertype_default_hash (const struct ddsi_sertype *tpcmn)
@@ -290,12 +265,10 @@ const struct ddsi_sertype_ops ddsi_sertype_ops_default = {
   .type_id = sertype_default_typeid,
   .type_map = sertype_default_typemap,
   .type_info = sertype_default_typeinfo,
-  .assignable_from = sertype_default_assignable_from,
 #else
   .type_id = 0,
   .type_map = 0,
   .type_info = 0,
-  .assignable_from = 0,
 #endif
   .derive_sertype = sertype_default_derive_sertype,
   .get_serialized_size = sertype_default_get_serialized_size,
