@@ -219,20 +219,41 @@ bool qos_match_mask_p (
       *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
       return false;
     }
-    // If either the reader or writer does not provide a type id,the type names are consulted
+    // If either the reader or writer does not provide a type id, the type names are consulted
     // (XTypes spec 7.6.3.4.2)
     if ((mask & QP_TYPE_NAME) && strcmp (rd_qos->type_name, wr_qos->type_name) != 0)
       return false;
   }
   else
   {
-    if (!is_endpoint_type_resolved (gv, rd_qos->type_name, rd_type_pair, rd_typeid_req_lookup, "rd")
-        || !is_endpoint_type_resolved (gv, wr_qos->type_name, wr_type_pair, wr_typeid_req_lookup, "wr"))
-      return false;
-    if (!ddsi_is_assignable_from (gv, rd_type_pair, wr_type_pair))
+    dds_type_consistency_enforcement_qospolicy_t tce = {
+      .kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION,
+      .ignore_sequence_bounds = true,
+      .ignore_string_bounds = true,
+      .ignore_member_names = false,
+      .prevent_type_widening = false,
+      .force_type_validation = false
+    };
+    (void) dds_qget_type_consistency (rd_qos, &tce.kind, &tce.ignore_sequence_bounds, &tce.ignore_string_bounds, &tce.ignore_member_names, &tce.prevent_type_widening, &tce.force_type_validation);
+
+    if (tce.kind == DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION)
     {
-      *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
-      return false;
+      if (ddsi_typeid_compare (ddsi_type_pair_minimal_id (rd_type_pair), ddsi_type_pair_minimal_id (wr_type_pair)))
+      {
+        *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
+        return false;
+      }
+    }
+    else
+    {
+      if (!is_endpoint_type_resolved (gv, rd_qos->type_name, rd_type_pair, rd_typeid_req_lookup, "rd")
+          || !is_endpoint_type_resolved (gv, wr_qos->type_name, wr_type_pair, wr_typeid_req_lookup, "wr"))
+        return false;
+      if (!ddsi_is_assignable_from (gv, rd_type_pair, wr_type_pair, &tce))
+      {
+        *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
+        return false;
+      }
     }
   }
 #else

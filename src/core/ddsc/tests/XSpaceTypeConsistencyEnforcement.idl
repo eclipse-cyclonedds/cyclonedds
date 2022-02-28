@@ -1,0 +1,40 @@
+/*
+ * Copyright(c) 2006 to 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+module XSpaceTypeConsistencyEnforcement
+{
+  // sequence bounds
+  struct t1_1 { sequence<long, 5> f1; };
+  struct t1_2 { sequence<long, 10> f1;};
+  struct t1_3 { sequence<long> f1; };
+
+  // string bounds
+  struct t2_1 { string<5> f1; };
+  struct t2_2 { string<10> f1; };
+  struct t2_3 { string f1; };
+
+  // member names
+  struct t3_1 { long f1; };
+  struct t3_2 { long f1a; };
+  union t4_1 switch (long) { case 1: long f1; };
+  union t4_2 switch (long) { case 1: long f1a; };
+
+  // type widening
+  @appendable struct t5_1 { long f1; };
+  @appendable struct t5_2 : t5_1 { long f2; };
+  @appendable struct t5_3 { long f1; long f2; };
+  @appendable struct t5_4 { long f1; @optional long f2; };
+  @mutable struct t6_1 { long f1; };
+  @mutable struct t6_2 { long f1; long f2; };
+  @appendable union t7_1 switch (long) { case 1: long f1; };
+  @appendable union t7_2 switch (long) { case 1: long f1; case 2: short f2; };
+};
