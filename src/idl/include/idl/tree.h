@@ -302,6 +302,8 @@ struct idl_member {
   IDL_ANNOTATABLE(bool) external;
   IDL_ANNOTATABLE(bool) must_understand;
   IDL_ANNOTATABLE(idl_try_construct_t) try_construct;
+  IDL_ANNOTATABLE(const idl_literal_t*) min;
+  IDL_ANNOTATABLE(const idl_literal_t*) max;
   IDL_ANNOTATABLE(const idl_literal_t*) value;
 };
 
@@ -375,6 +377,8 @@ struct idl_case {
   idl_declarator_t *declarator;
   IDL_ANNOTATABLE(bool) external;
   IDL_ANNOTATABLE(idl_try_construct_t) try_construct;
+  IDL_ANNOTATABLE(const idl_literal_t*) min;
+  IDL_ANNOTATABLE(const idl_literal_t*) max;
 };
 
 typedef struct idl_switch_type_spec idl_switch_type_spec_t;

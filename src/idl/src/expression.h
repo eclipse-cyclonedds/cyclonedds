@@ -54,8 +54,9 @@ struct idl_intval {
 
 idl_intval_t idl_intval(const idl_const_expr_t *const_expr);
 
-
 typedef long double idl_floatval_t;
+
+idl_floatval_t idl_floatval(const idl_const_expr_t *const_expr);
 
 IDL_EXPORT idl_retcode_t
 idl_evaluate(
