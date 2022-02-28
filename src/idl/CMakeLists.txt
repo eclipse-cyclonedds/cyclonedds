@@ -18,17 +18,18 @@ set(binary_dir "${CMAKE_CURRENT_BINARY_DIR}")
 set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 if(BISON_FOUND)
-  bison_target(parser "src/parser.y" "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.c")
-
-  # Hashing routine, remove \r to not get confused on windows if git changes the line endings.
-  file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y" _parser_y_data)
-  string(REPLACE "\r" "" _parser_y_data "${_parser_y_data}")
-  string(SHA1 _parser_y_hash "${_parser_y_data}")
-
-  # Store hash
-  file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y.hash" "${_parser_y_hash}")
-  file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.h" "\n\n/* generated from parser.y[${_parser_y_hash}]*/\n")
-  file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.c" "\n\n/* generated from parser.y[${_parser_y_hash}]*/\n")
+  # Run bison targetting an intermediate file
+  bison_target(parser "src/parser.y"
+    "${CMAKE_CURRENT_BINARY_DIR}/parser.c"
+    DEFINES_FILE "${CMAKE_CURRENT_BINARY_DIR}/parser.h")
+  # ... that we can then copy into place while appending a hash
+  add_custom_command(
+    OUTPUT  "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.c"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y.hash"
+    DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/parser.c"
+            "${CMAKE_CURRENT_BINARY_DIR}/parser.h"
+    COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_LIST_DIR}/append-hash.cmake")
 else()
   # Hashing routine, remove \r to not get confused on windows if git changes the line endings.
   file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y" _parser_y_data)
@@ -83,6 +84,7 @@ set(sources
   src/expression.h
   src/file.h
   src/hashid.h
+  src/parser.h
   src/scanner.h
   src/scope.h
   src/symbol.h
