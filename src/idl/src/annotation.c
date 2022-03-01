@@ -424,6 +424,7 @@ annotate_default(
 
   assert(annotation_appl);
   assert(annotation_appl->parameters);
+  value = annotation_appl->parameters->const_expr;
 
   if (!idl_is_member(node)) {
     idl_error(pstate, idl_location(annotation_appl),
@@ -433,10 +434,11 @@ annotate_default(
     idl_error(pstate, idl_location(annotation_appl),
       "@default cannot be set on optional members");
     return IDL_RETCODE_SEMANTIC_ERROR;
+  } else if (!(idl_mask(value) & IDL_BASE_TYPE) && !(idl_mask(value) & IDL_STRING)) {
+    idl_error(pstate, idl_location(annotation_appl),
+      "@default can only set primitive types");
+    return IDL_RETCODE_SEMANTIC_ERROR;
   }
-
-  value = annotation_appl->parameters->const_expr;
-  assert(idl_is_literal(value));
 
   /*check whether type of literal matches and falls inside spec of member*/
   idl_type_t mem_type = idl_type(mem_spec);
