@@ -1,17 +1,11 @@
 repos:
 - repo: local
   hooks:
-  - id: must-match-hash
+  - id: parser-hashes
     name: bison-parser-hashcheck
     language: python
-    entry: python hooks/must-match-hash.py
-    files: 'src/idl/src/parser\.y$'
-  - id: checked-in-together
-    name: bison-parser-all-files-checked
-    language: python
-    entry: python hooks/checked-in-together.py
+    entry: python hooks/parser-hashes.py
     pass_filenames: false
-    args: ['src/idl/src/parser.c', 'src/idl/src/parser.h', 'src/idl/src/parser.y', 'src/idl/src/parser.y.hash']
   - id: version-check
     name: version-check
     language: python
