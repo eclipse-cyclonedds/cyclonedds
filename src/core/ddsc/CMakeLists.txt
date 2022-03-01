@@ -76,7 +76,7 @@ prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__get_status.h
   dds__data_allocator.h)
 
-prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:include>/dds/"
+prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>/dds/"
   dds.h
   ddsc/dds_public_error.h
   ddsc/dds_public_impl.h
@@ -104,7 +104,7 @@ target_sources(ddsc
     ${hdrs_private_ddsc}
   PUBLIC
     ${hdrs_public_ddsc}
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>$<INSTALL_INTERFACE:include>/dds/export.h")
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>/dds/export.h")
 
 target_include_directories(ddsc
   PUBLIC
@@ -114,7 +114,7 @@ target_include_directories(ddsc
   PRIVATE
     "${CMAKE_CURRENT_LIST_DIR}/src"
   INTERFACE
-    $<INSTALL_INTERFACE:include>)
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 install(
   DIRECTORY
