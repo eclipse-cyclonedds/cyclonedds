@@ -263,6 +263,15 @@ include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 include(CTest)
 
+option(APPEND_PROJECT_NAME_TO_INCLUDEDIR
+  "When ON headers are installed to a folder ending with an extra ${PROJECT_NAME}. \
+  This avoids include directory search order issues when overriding this package
+  from a merged catkin, ament, or colcon workspace." ON)
+
+if(APPEND_PROJECT_NAME_TO_INCLUDEDIR)
+  set(CMAKE_INSTALL_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}")
+endif()
+
 if(APPLE)
   set(CMAKE_INSTALL_RPATH "@loader_path/../${CMAKE_INSTALL_LIBDIR}")
 else()
