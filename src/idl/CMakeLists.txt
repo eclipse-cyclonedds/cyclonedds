@@ -17,33 +17,32 @@ find_package(Threads QUIET REQUIRED)
 set(binary_dir "${CMAKE_CURRENT_BINARY_DIR}")
 set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
-if(BISON_FOUND)
-  # Run bison targetting an intermediate file
-  bison_target(parser "src/parser.y"
-    "${CMAKE_CURRENT_BINARY_DIR}/parser.c"
-    DEFINES_FILE "${CMAKE_CURRENT_BINARY_DIR}/parser.h")
-  # ... that we can then copy into place while appending a hash
-  add_custom_command(
-    OUTPUT  "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.c"
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y.hash"
-    DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/parser.c"
-            "${CMAKE_CURRENT_BINARY_DIR}/parser.h"
-    COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_LIST_DIR}/append-hash.cmake")
-else()
-  # Hashing routine, remove \r to not get confused on windows if git changes the line endings.
-  file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y" _parser_y_data)
-  string(REPLACE "\r" "" _parser_y_data "${_parser_y_data}")
-  string(SHA1 _parser_y_hash "${_parser_y_data}")
+# Hashing routine, remove \r to not get confused on windows if git changes the line endings.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y" _parser_y_data)
+string(REPLACE "\r" "" _parser_y_data "${_parser_y_data}")
+string(SHA1 _parser_y_hash "${_parser_y_data}")
 
-  # Fetched stored hash
-  file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y.hash" _parser_y_disk_hash)
+# Fetched stored hash
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y.hash" _parser_y_disk_hash)
 
-  # Ensure equality
-  if(NOT "${_parser_y_hash}" STREQUAL "${_parser_y_disk_hash}")
+# Ensure equality
+if(NOT "${_parser_y_hash}" STREQUAL "${_parser_y_disk_hash}")
+  if(BISON_FOUND)
+    # Run bison targetting an intermediate file
+    bison_target(parser "src/parser.y"
+      "${CMAKE_CURRENT_BINARY_DIR}/parser.c"
+      DEFINES_FILE "${CMAKE_CURRENT_BINARY_DIR}/parser.h")
+    # ... that we can then copy into place while appending a hash
+    add_custom_command(
+      OUTPUT  "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.c"
+              "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.h"
+              "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y.hash"
+      DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/parser.c"
+              "${CMAKE_CURRENT_BINARY_DIR}/parser.h"
+      COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_LIST_DIR}/append-hash.cmake")
+  else()
     message(FATAL_ERROR "parser.y was updated but parser.c not regenerated, and no bison available!")
   endif()
-  message(STATUS "bison not found, using cached 'parser.c'.")
 endif()
 
 configure_file(include/idl/version.h.in include/idl/version.h @ONLY)

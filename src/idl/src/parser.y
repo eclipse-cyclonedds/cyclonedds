@@ -1200,5 +1200,3 @@ yyerror(idl_location_t *loc, idl_pstate_t *pstate, idl_retcode_t *result, const 
   idl_error(pstate, loc, "%s", str);
   *result = IDL_RETCODE_SYNTAX_ERROR;
 }
-
-

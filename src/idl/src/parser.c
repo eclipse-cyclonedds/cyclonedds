@@ -2555,7 +2555,7 @@ yyreduce:
           "Scoped name '%s' does not resolve to a valid constant type";
         TRY(idl_resolve(pstate, 0u, (yyvsp[0].scoped_name), &declaration));
         node = idl_unalias(declaration->node);
-        if (!(idl_mask(node) & (IDL_BASE_TYPE|IDL_STRING|IDL_ENUM)))
+        if (!(idl_mask(node) & (IDL_BASE_TYPE|IDL_STRING|IDL_ENUM|IDL_BITMASK)))
           SEMANTIC_ERROR(&(yylsp[0]), fmt, (yyvsp[0].scoped_name)->identifier);
         (yyval.type_spec) = idl_reference_node((idl_node_t *)declaration->node);
         idl_delete_scoped_name((yyvsp[0].scoped_name));
@@ -2715,7 +2715,7 @@ yyreduce:
           static const char fmt[] =
             "Scoped name '%s' does not resolve to an enumerator or a constant";
           TRY(idl_resolve(pstate, 0u, (yyvsp[0].scoped_name), &declaration));
-          if (!(idl_mask(declaration->node) & (IDL_CONST|IDL_ENUMERATOR)))
+          if (!(idl_mask(declaration->node) & (IDL_CONST|IDL_ENUMERATOR|IDL_BIT_VALUE)))
             SEMANTIC_ERROR(&(yylsp[0]), fmt, (yyvsp[0].scoped_name)->identifier);
           (yyval.const_expr) = idl_reference_node((idl_node_t *)declaration->node);
         }
@@ -4011,6 +4011,4 @@ yyerror(idl_location_t *loc, idl_pstate_t *pstate, idl_retcode_t *result, const 
 }
 
 
-
-
-/* generated from parser.y[23595b522566a548f3435a7bd36b0a4eca7e89d7]*/
+/* generated from parser.y[82e26f82aaa31c5b02630cd864b56142d56a9d30]*/
