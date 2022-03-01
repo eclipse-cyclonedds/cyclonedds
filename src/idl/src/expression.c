@@ -962,6 +962,29 @@ static idl_floatval_t floatval(const idl_const_expr_t *const_expr)
   assert(idl_is_literal(const_expr));
 
   switch (type) {
+    case IDL_INT8:
+      return (idl_floatval_t)val->value.int8;
+    case IDL_OCTET:
+    case IDL_UINT8:
+      return (idl_floatval_t)val->value.uint8;
+    case IDL_SHORT:
+    case IDL_INT16:
+      return (idl_floatval_t)val->value.int16;
+    case IDL_USHORT:
+    case IDL_UINT16:
+      return (idl_floatval_t)val->value.uint16;
+    case IDL_LONG:
+    case IDL_INT32:
+      return (idl_floatval_t)val->value.int32;
+    case IDL_ULONG:
+    case IDL_UINT32:
+      return (idl_floatval_t)val->value.uint32;
+    case IDL_LLONG:
+    case IDL_INT64:
+      return (idl_floatval_t)val->value.int64;
+    case IDL_ULLONG:
+    case IDL_UINT64:
+      return (idl_floatval_t)val->value.uint64;
     case IDL_FLOAT:
       return (idl_floatval_t)val->value.flt;
     case IDL_DOUBLE:

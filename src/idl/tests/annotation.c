@@ -164,6 +164,7 @@ CU_Test(idl_annotation, idl_default)
   static const bool t4 = true;
   static const char *t5 = "hello world!";
   static const uint32_t t6 = 123456789;
+  static const double t7 = 123456789;
   static const idl_default_test_t tests[] = {
     {"struct s { long l; };",                                IDL_RETCODE_OK,                  false, IDL_NULL,    NULL}, //no default whatsoever
     {"struct s { @default(-123456789) long l; };",           IDL_RETCODE_OK,                  true,  IDL_LONG,    &t1},  //default long
@@ -172,13 +173,15 @@ CU_Test(idl_annotation, idl_default)
     {"struct s { @default(true) boolean b; };",              IDL_RETCODE_OK,                  true,  IDL_BOOL,    &t4},  //default bool
     {"struct s { @default(\"hello world!\") string str; };", IDL_RETCODE_OK,                  true,  IDL_STRING,  &t5},  //default string
     {"struct s { @default(123456789) unsigned long l; };",   IDL_RETCODE_OK,                  true,  IDL_ULONG,   &t6},  //default unsigned long
+    {"struct s { @default(123456789) double l; };",          IDL_RETCODE_OK,                  true,  IDL_DOUBLE,  &t7},  //setting a double member to integer default
     {"struct s { @default(123) @optional long l; };",        IDL_RETCODE_SEMANTIC_ERROR,      false, IDL_NULL,    NULL}, //mixing default and optional
     {"struct s { @default long l; };",                       IDL_RETCODE_SEMANTIC_ERROR,      false, IDL_NULL,    NULL}, //misssing parameter
     {"struct s { @default(123) string str; };",              IDL_RETCODE_ILLEGAL_EXPRESSION,  false, IDL_NULL,    NULL}, //parameter type mismatch (int vs string)
     {"struct s { @default(\"false\") boolean b; };",         IDL_RETCODE_ILLEGAL_EXPRESSION,  false, IDL_NULL,    NULL}, //parameter type mismatch (string vs bool)
     {"struct s { @default(123) boolean b; };",               IDL_RETCODE_ILLEGAL_EXPRESSION,  false, IDL_NULL,    NULL}, //parameter type mismatch (int vs bool)
     {"struct s { @default(-123) unsigned long l; };",        IDL_RETCODE_OUT_OF_RANGE,        false, IDL_NULL,    NULL}, //parameter type mismatch (unsigned vs signed)
-    {"@default(e_0) enum e { e_0, e_1, e_2, e_3 };",         IDL_RETCODE_SEMANTIC_ERROR,      false, IDL_NULL,    NULL}  //setting default on enums is done through @default_literal
+    {"@default(e_0) enum e { e_0, e_1, e_2, e_3 };",         IDL_RETCODE_SEMANTIC_ERROR,      false, IDL_NULL,    NULL},  //setting default on enums is done through @default_literal
+    {"enum e { e_0, e_1, e_2, e_3 }; struct s { @default(e_1) e m_e; };", IDL_RETCODE_SEMANTIC_ERROR, false, IDL_NULL, NULL},  //setting enums default is not yet supported
   };
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
