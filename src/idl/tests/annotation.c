@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology and others
  * Copyright(c) 2020 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -37,6 +38,7 @@ parse_string(uint32_t flags, const char *str, idl_pstate_t **pstatep)
 
   if ((ret = idl_create_pstate(flags, NULL, &pstate)) != IDL_RETCODE_OK)
     return ret;
+  pstate->config.default_extensibility = IDL_FINAL;
   ret = idl_parse_string(pstate, str);
   if (ret != IDL_RETCODE_OK)
     idl_delete_pstate(pstate);
@@ -1387,10 +1389,13 @@ test_rep(
 
   rep_test_t *test = (rep_test_t*)user_data;
 
-  allowable_data_representations_t
-    result = supported_data_representations(node),
+  allowable_data_representations_t result, required;
+    result = idl_supported_data_representations(node),
     required = test->reps[test->i++];
-  CU_ASSERT_EQUAL(required,result);
+  if (idl_requires_xcdr2(node))
+    result &= ~((allowable_data_representations_t)IDL_DATAREPRESENTATION_FLAG_XCDR1);
+
+  CU_ASSERT_EQUAL(required, result);
 
   return required == result ? IDL_RETCODE_OK : IDL_RETCODE_SEMANTIC_ERROR;
 }
@@ -1407,11 +1412,10 @@ static void test_representation(rep_test_t test)
 
   idl_visitor_t visitor;
   memset(&visitor, 0, sizeof(visitor));
-  visitor.visit = IDL_STRUCT | IDL_MODULE | IDL_UNION | IDL_TYPEDEF;
+  visitor.visit = IDL_STRUCT | IDL_MODULE | IDL_UNION;
   visitor.accept[IDL_ACCEPT_STRUCT] = &test_rep;
   visitor.accept[IDL_ACCEPT_MODULE] = &test_rep;
   visitor.accept[IDL_ACCEPT_UNION] = &test_rep;
-  visitor.accept[IDL_ACCEPT_TYPEDEF] = &test_rep;
   (void) idl_visit(pstate, pstate->root, &visitor, &test);
 
   idl_delete_pstate(pstate);
@@ -1443,6 +1447,22 @@ CU_Test(idl_annotation, data_representation)
     {U("u","XML"), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XML} },
     //combined with restrictions on datarepresentations due to xtypes
     {"@appendable " S("s","XCDR1|XCDR2"), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    //enum/bitmask
+    {"enum e { E1 }; @data_representation(XCDR1|XCDR2) struct temp { e f1; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR1 | IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    {"@appendable enum e { E1 }; @data_representation(XCDR1|XCDR2) struct temp { e f1; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    //typedefs
+    {"@appendable enum e { E1 }; typedef e td_e; @data_representation(XCDR1|XCDR2) struct temp { long l; td_e l2; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    {"@appendable @data_representation(XCDR1|XCDR2) struct a { long f1; }; typedef a td_a; @data_representation(XCDR1|XCDR2) @final struct b { long f1; td_a f2; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2, IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    //sequences/arrays
+    {"@appendable enum e { E1 }; @data_representation(XCDR1|XCDR2) struct temp { sequence<e> l; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    {"@appendable enum e { E1 }; @data_representation(XCDR1|XCDR2) struct temp { e l[5]; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    //inheritance
+    {"@data_representation(XCDR1|XCDR2) @mutable struct a { long f1; }; @data_representation(XCDR1|XCDR2) struct b : a { long f2; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2, IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    {"@data_representation(XCDR1|XCDR2) @final struct a { @optional long f1; }; @data_representation(XCDR1|XCDR2) struct b : a { long f2; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2, IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    //default
+    {"struct a { long f1; };", IDL_RETCODE_OK, {IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT} },
+    {"struct b { long b1; }; struct a : b { long f1; };", IDL_RETCODE_OK, {IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT, IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT} },
+    {"union u switch(long) { case 1: long f1; };", IDL_RETCODE_OK, {IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT} },
   };
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {

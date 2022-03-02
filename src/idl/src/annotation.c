@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology and others
  * Copyright(c) 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -823,9 +824,6 @@ annotate_datarepresentation(
   idl_literal_t *literal = annotation_appl->parameters->const_expr;
   assert(idl_type(literal) == IDL_BITMASK);
   allowable_data_representations_t val = (allowable_data_representations_t)literal->value.uint32;  //native type of datarepresentation is uint32_t
-
-  if (idl_requires_xtypes_functionality(node))
-    val &= ~((allowable_data_representations_t)IDL_DATAREPRESENTATION_FLAG_XCDR1);
 
   if (0 == val) {
     idl_error(pstate, idl_location(annotation_appl),

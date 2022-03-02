@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology and others
  * Copyright(c) 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -201,11 +202,19 @@ enum idl_try_construct {
 };
 
 typedef uint32_t allowable_data_representations_t;
+#define IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT (0xffffffff)
 typedef enum {
   IDL_DATAREPRESENTATION_FLAG_XCDR1 = 0x1 << 0,
   IDL_DATAREPRESENTATION_FLAG_XML   = 0x1 << 1,
   IDL_DATAREPRESENTATION_FLAG_XCDR2 = 0x1 << 2
 } idl_data_representation_flags_t;
+
+typedef enum {
+  IDL_REQUIRES_XCDR2_UNSET,
+  IDL_REQUIRES_XCDR2_SETTING,
+  IDL_REQUIRES_XCDR2_TRUE,
+  IDL_REQUIRES_XCDR2_FALSE
+} idl_requires_xcdr2_t;
 
 /* most types have convenience members for information that is shared between
    generators or makes sense to calculate in advance. e.g. the field
@@ -350,6 +359,7 @@ struct idl_struct {
   idl_member_t *members;
   /* metadata */
   idl_keylist_t *keylist; /**< if type is a topic (#pragma keylist) */
+  idl_requires_xcdr2_t requires_xcdr2;
   IDL_ANNOTATABLE(uint32_t) id;
   IDL_ANNOTATABLE(idl_autoid_t) autoid;
   /* constructed types are not considered @nested types by default, implicitly
@@ -413,6 +423,7 @@ struct idl_union {
      implicit default case that does not reference any branch */
   idl_case_label_t *default_case;
   uint64_t unused_labels; /**< number of unused labels */
+  idl_requires_xcdr2_t requires_xcdr2;
   IDL_ANNOTATABLE(bool) nested; /**< if type is nested or a topic */
   IDL_ANNOTATABLE(idl_extensibility_t) extensibility;
   IDL_ANNOTATABLE(idl_autoid_t) autoid;
@@ -562,8 +573,8 @@ IDL_EXPORT const idl_name_t *idl_name(const void *node);
 IDL_EXPORT uint32_t idl_array_size(const void *node);
 IDL_EXPORT uint32_t idl_bound(const void *node);
 IDL_EXPORT const idl_literal_t *idl_default_value(const void *node);
-IDL_EXPORT bool idl_requires_xtypes_functionality(const void *node);
-IDL_EXPORT allowable_data_representations_t supported_data_representations(const void *node);
+IDL_EXPORT bool idl_requires_xcdr2(const void *node);
+IDL_EXPORT allowable_data_representations_t idl_supported_data_representations(const void *node);
 IDL_EXPORT uint32_t idl_enum_max_value(const void *node);
 
 /* navigation */
