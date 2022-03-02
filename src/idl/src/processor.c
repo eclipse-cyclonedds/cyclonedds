@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology and others
  * Copyright(c) 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -472,6 +473,8 @@ grammar:
   if ((ret = validate_must_understand(pstate, pstate->root)))
     goto err;
   if ((ret = idl_propagate_autoid(pstate, pstate->root, IDL_SEQUENTIAL)) != IDL_RETCODE_OK)
+    goto err;
+  if ((ret = idl_set_xcdr2_required(pstate->root) != IDL_RETCODE_OK))
     goto err;
 
   if (pstate->keylists) {

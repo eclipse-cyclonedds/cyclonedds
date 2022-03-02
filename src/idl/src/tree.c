@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology and others
  * Copyright(c) 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -828,84 +829,48 @@ const idl_literal_t *idl_default_value(const void *node)
   return NULL;
 }
 
-bool idl_requires_xtypes_functionality(const void *node)
+static bool idl_has_data_representation(const void *node)
 {
-  if (idl_is_optional(node))
-    return true;
+  if (idl_is_module(node))
+    return ((const idl_module_t*)node)->data_representation.annotation;
+  else if (idl_is_struct(node))
+    return ((const idl_struct_t*)node)->data_representation.annotation;
+  else if (idl_is_union(node))
+    return ((const idl_union_t*)node)->data_representation.annotation;
+  else
+    return false;
+}
 
-  if (idl_is_typedef(node)) {
-    const idl_typedef_t *_typedef = (const idl_typedef_t*)node;
+static allowable_data_representations_t idl_data_representation_value(const void *node)
+{
+  if (idl_is_module(node))
+    return ((const idl_module_t*)node)->data_representation.value;
+  else if (idl_is_struct(node))
+    return ((const idl_struct_t*)node)->data_representation.value;
+  else if (idl_is_union(node))
+    return ((const idl_union_t*)node)->data_representation.value;
+  else
+    return 0;
+}
 
-    return idl_requires_xtypes_functionality(_typedef->type_spec);
-  } else if (idl_is_struct(node)) {
-    const idl_struct_t *_struct = (const idl_struct_t*)node;
-
-    if (_struct->extensibility.annotation && _struct->extensibility.value != IDL_FINAL)
-      return true;
-
-    if (_struct->inherit_spec &&
-        idl_requires_xtypes_functionality(_struct->inherit_spec->base))
-      return true;
-
-    const idl_member_t *_member = NULL;
-    IDL_FOREACH(_member, _struct->members) {
-      if (idl_requires_xtypes_functionality(_member->type_spec))
-        return true;
-    };
-  } else if (idl_is_union(node)) {
-    const idl_union_t *_union = (const idl_union_t*)node;
-
-    if (_union->extensibility.annotation && _union->extensibility.value != IDL_FINAL)
-      return true;
-
-    if (idl_requires_xtypes_functionality(_union->switch_type_spec->type_spec))
-      return true;
-
-    const idl_case_t *_case = NULL;
-    IDL_FOREACH(_case, _union->cases) {
-      if (idl_requires_xtypes_functionality(_case->type_spec))
-        return true;
-    };
-  } else if (idl_is_enum(node)) {
-    const idl_enum_t *_enum = (const idl_enum_t*)node;
-
-    return _enum->extensibility.annotation && _enum->extensibility.value != IDL_FINAL;
-  } else if (idl_is_bitmask(node)) {
-    const idl_bitmask_t *_bitmask = (const idl_bitmask_t*)node;
-
-    return _bitmask->extensibility.annotation && _bitmask->extensibility.value != IDL_FINAL;
-  }
-
+bool idl_requires_xcdr2(const void *node)
+{
+  if (idl_is_struct(node))
+    return ((const idl_struct_t*)node)->requires_xcdr2 == IDL_REQUIRES_XCDR2_TRUE;
+  else if (idl_is_union(node))
+    return ((const idl_union_t*)node)->requires_xcdr2 == IDL_REQUIRES_XCDR2_TRUE;
   return false;
 }
 
-allowable_data_representations_t supported_data_representations(const void *node)
+allowable_data_representations_t idl_supported_data_representations(const void *node)
 {
-  //look for existing annotations
-  if (idl_is_typedef(node)) {
-    return supported_data_representations(((const idl_typedef_t*)node)->type_spec);
-  } else if (idl_is_module(node)) {
-    const idl_module_t *_module = (const idl_module_t*)node;
-    if (_module->data_representation.annotation)
-      return _module->data_representation.value;
-  } else if (idl_is_struct(node)) {
-    const idl_struct_t *_struct = (const idl_struct_t*)node;
-    if (_struct->data_representation.annotation)
-      return _struct->data_representation.value;
-  } else if (idl_is_union(node)) {
-    const idl_union_t *_union = (const idl_union_t*)node;
-    if (_union->data_representation.annotation)
-      return _union->data_representation.value;
-  } else if (NULL == node) {
-    return 0xFFFFFFFF;
-  }
+  if (node == NULL)
+    return IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT;
+  if (idl_is_alias(node))
+    return idl_supported_data_representations(idl_unalias(node));
 
-  //else look at parent
-  allowable_data_representations_t val = supported_data_representations(((const idl_node_t*)node)->parent);
-  if (idl_requires_xtypes_functionality(node))  //xtypes turns off XCDR1
-    val &= ~((allowable_data_representations_t)IDL_DATAREPRESENTATION_FLAG_XCDR1);
-
-  return val;
+  return idl_has_data_representation(node) ?
+    idl_data_representation_value(node) : idl_supported_data_representations(idl_parent(node));
 }
 
 bool idl_is_sequence(const void *ptr)
@@ -1288,6 +1253,78 @@ idl_propagate_autoid(idl_pstate_t *pstate, void *list, idl_autoid_t autoid)
     }
   }
 
+  return ret;
+}
+
+static bool
+set_node_xcdr2_required(void *node)
+{
+  if (idl_is_alias(node)) {
+    return set_node_xcdr2_required(idl_unalias(node));
+  } else if (idl_is_sequence(node)) {
+    return set_node_xcdr2_required(idl_type_spec(node));
+  } else if (idl_is_struct(node)) {
+    idl_struct_t *_struct = (idl_struct_t*)node;
+    if (_struct->requires_xcdr2 != IDL_REQUIRES_XCDR2_UNSET)
+      return (_struct->requires_xcdr2 == IDL_REQUIRES_XCDR2_SETTING) ?
+        false : (_struct->requires_xcdr2 == IDL_REQUIRES_XCDR2_TRUE);
+    _struct->requires_xcdr2 = IDL_REQUIRES_XCDR2_SETTING;
+
+    bool ret = !idl_is_extensible(node, IDL_FINAL)
+        || (_struct->inherit_spec && set_node_xcdr2_required(idl_type_spec(_struct->inherit_spec)));
+
+    idl_member_t *_member;
+    IDL_FOREACH(_member, _struct->members) {
+      if (idl_is_optional(&_member->node) || set_node_xcdr2_required(idl_type_spec(_member))) {
+        ret = true;
+        break;
+      }
+    };
+    _struct->requires_xcdr2 = ret ? IDL_REQUIRES_XCDR2_TRUE : IDL_REQUIRES_XCDR2_FALSE;
+    return ret;
+  } else if (idl_is_union(node)) {
+    idl_union_t *_union = (idl_union_t*)node;
+    if (_union->requires_xcdr2 != IDL_REQUIRES_XCDR2_UNSET)
+      return (_union->requires_xcdr2 == IDL_REQUIRES_XCDR2_SETTING) ? false : (_union->requires_xcdr2 == IDL_REQUIRES_XCDR2_TRUE);
+    _union->requires_xcdr2 = IDL_REQUIRES_XCDR2_SETTING;
+
+    bool ret = !idl_is_extensible(node, IDL_FINAL) || set_node_xcdr2_required(idl_type_spec(_union->switch_type_spec));
+
+    idl_case_t *_case;
+    IDL_FOREACH(_case, _union->cases) {
+      if (set_node_xcdr2_required(idl_type_spec(_case)))
+        ret = true;
+    };
+    _union->requires_xcdr2 = ret ? IDL_REQUIRES_XCDR2_TRUE : IDL_REQUIRES_XCDR2_FALSE;
+    return ret;
+  } else if (idl_is_enum(node) || idl_is_bitmask(node)) {
+    return !idl_is_extensible(node, IDL_FINAL);
+  }
+
+  return false;
+}
+
+idl_retcode_t
+idl_set_xcdr2_required(void *node)
+{
+  idl_retcode_t ret = IDL_RETCODE_OK;
+  assert(node);
+  for (; ret == IDL_RETCODE_OK && node; node = idl_next(node)) {
+    if (idl_mask(node) == IDL_MODULE) {
+      idl_module_t *_module = node;
+      ret = idl_set_xcdr2_required(_module->definitions);
+    } else if (idl_mask(node) == IDL_STRUCT) {
+      idl_struct_t *_struct = node;
+      if (_struct->requires_xcdr2 == IDL_REQUIRES_XCDR2_UNSET)
+        (void) set_node_xcdr2_required(node);
+      assert(_struct->requires_xcdr2 != IDL_REQUIRES_XCDR2_SETTING);
+    } else if (idl_mask(node) == IDL_UNION) {
+      idl_union_t *_union = node;
+      if (_union->requires_xcdr2 == IDL_REQUIRES_XCDR2_UNSET)
+        (void) set_node_xcdr2_required(node);
+      assert(_union->requires_xcdr2 != IDL_REQUIRES_XCDR2_SETTING);
+    }
+  }
   return ret;
 }
 
@@ -3618,10 +3655,15 @@ bool idl_is_extensible(const idl_node_t *node, idl_extensibility_t extensibility
   if (idl_is_struct(node)) {
     const idl_struct_t *_struct = (const idl_struct_t *)node;
     return _struct->extensibility.value == extensibility;
-  }
-  if (idl_is_union(node)) {
+  } else if (idl_is_union(node)) {
     const idl_union_t *_union = (const idl_union_t *)node;
     return _union->extensibility.value == extensibility;
+  } else if (idl_is_enum(node)) {
+    const idl_enum_t *_enum = (const idl_enum_t *)node;
+    return _enum->extensibility.value == extensibility;
+  } else if (idl_is_bitmask(node)) {
+    const idl_bitmask_t *_bitmask = (const idl_bitmask_t *)node;
+    return _bitmask->extensibility.value == extensibility;
   }
   return false;
 }

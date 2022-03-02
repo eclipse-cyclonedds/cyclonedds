@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology and others
  * Copyright(c) 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -294,5 +295,9 @@ idl_create_inherit_spec(
   const idl_location_t *location,
   void *base,
   void *nodep);
+
+idl_retcode_t
+idl_set_xcdr2_required(
+  void *node);
 
 #endif /* TREE_H */
