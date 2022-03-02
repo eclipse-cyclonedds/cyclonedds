@@ -392,6 +392,20 @@ dds_return_t dds_waitset_detach (dds_entity_t waitset, dds_entity_t entity)
       ; /* entity invalid */
     else
     {
+#if DDS_HAS_SHM
+      if ((dds_entity_kind(e) == DDS_KIND_COND_READ) &&
+          (dds_entity_kind(e->m_parent) == DDS_KIND_READER)) {
+        struct dds_reader * rd = (dds_reader *) e->m_parent;
+        if (rd->m_iox_sub != NULL) {
+          // If the currently detached entity is a read condition and if there are no valid
+          // statuses for this reader, then detach the iox listener from this specific reader
+          if (!dds_entity_supports_validate_status(e)) {
+            shm_monitor_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+          }
+        }
+      }
+      // TODO(Sumanth), detaching based on the status mask seems to be not trivial, check this
+#endif
       ret = dds_entity_observer_unregister (e, ws, true);
 
       // This waitset no longer requires a subscriber to have a materialized DATA_ON_READERS
