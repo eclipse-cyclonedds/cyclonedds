@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -84,5 +85,49 @@ module DataRepresentationTypes {
       long c;
   };
 
+  @final @topic @data_representation(XCDR1)
+  struct TypeXcdr1 {
+    long f1;
+  };
+
+  @final @topic @data_representation(XCDR2)
+  struct TypeXcdr2 {
+    long f1;
+  };
+
+  @final @topic @data_representation(XCDR1 | XCDR2)
+  struct TypeXcdr1_2 {
+    long f1;
+  };
+
+  @final @topic @data_representation(XCDR1 | XML | XCDR2)
+  struct TypeXcdr1_xml_2 {
+    long f1;
+  };
+
+  @final @topic @data_representation(XCDR1 | 0xfffffff8)
+  struct TypeXcdr1_other {
+    long f1;
+  };
+
+  @final @topic @data_representation(XCDR2 | 0xfffffff8)
+  struct TypeXcdr2_other {
+    long f1;
+  };
+
+  @appendable @topic @data_representation(XCDR1)
+  struct TypeXcdrA1 {
+    long f1;
+  };
+
+  @appendable @topic @data_representation(XCDR2)
+  struct TypeXcdrA2 {
+    long f1;
+  };
+
+  @appendable @topic @data_representation(XCDR1 | XCDR2)
+  struct TypeXcdrA1_2 {
+    long f1;
+  };
 
 };

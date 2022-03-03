@@ -862,15 +862,15 @@ bool idl_requires_xcdr2(const void *node)
   return false;
 }
 
-allowable_data_representations_t idl_supported_data_representations(const void *node)
+allowable_data_representations_t idl_allowable_data_representations(const void *node)
 {
   if (node == NULL)
     return IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT;
   if (idl_is_alias(node))
-    return idl_supported_data_representations(idl_unalias(node));
+    return idl_allowable_data_representations(idl_unalias(node));
 
   return idl_has_data_representation(node) ?
-    idl_data_representation_value(node) : idl_supported_data_representations(idl_parent(node));
+    idl_data_representation_value(node) : idl_allowable_data_representations(idl_parent(node));
 }
 
 bool idl_is_sequence(const void *ptr)

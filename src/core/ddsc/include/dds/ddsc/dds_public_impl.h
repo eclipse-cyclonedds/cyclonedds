@@ -1,6 +1,6 @@
 /*
- * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
  * Copyright(c) 2022 ZettaScale Technology and others
+ * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -65,6 +65,11 @@ struct dds_type_meta_ser
 #define DDS_DATA_REPRESENTATION_XCDR1    0
 #define DDS_DATA_REPRESENTATION_XML      1
 #define DDS_DATA_REPRESENTATION_XCDR2    2
+
+#define DDS_DATA_REPRESENTATION_FLAG_XCDR1  (1u << DDS_DATA_REPRESENTATION_XCDR1)
+#define DDS_DATA_REPRESENTATION_FLAG_XML    (1u << DDS_DATA_REPRESENTATION_XML)
+#define DDS_DATA_REPRESENTATION_FLAG_XCDR2  (1u << DDS_DATA_REPRESENTATION_XCDR2)
+#define DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT  (DDS_DATA_REPRESENTATION_FLAG_XCDR1 | DDS_DATA_REPRESENTATION_FLAG_XCDR2)
 
 typedef struct dds_topic_descriptor
 {

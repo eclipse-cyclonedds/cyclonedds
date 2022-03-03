@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -577,7 +578,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   if (tp->m_ktopic->qos)
     ddsi_xqos_mergein_missing (rqos, tp->m_ktopic->qos, ~(uint64_t)0);
   ddsi_xqos_mergein_missing (rqos, &ddsi_default_qos_reader, ~QP_DATA_REPRESENTATION);
-  if ((rc = dds_ensure_valid_data_representation (rqos, tp->m_stype->min_xcdrv, false)) != 0)
+  if ((rc = dds_ensure_valid_data_representation (rqos, tp->m_stype->allowed_data_representation, false)) != 0)
     goto err_data_repr;
 
   if ((rc = ddsi_xqos_valid (&gv->logconfig, rqos)) < 0 || (rc = validate_reader_qos(rqos)) != DDS_RETCODE_OK)
@@ -657,7 +658,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
     iox_sub_options_t opts;
     iox_sub_options_init(&opts);
-    
+
     iox_sub_storage_extension_init(&rd->m_iox_sub_stor);
 
     assert (rqos->durability.kind == DDS_DURABILITY_VOLATILE);
@@ -685,7 +686,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     // NB: since currently we only support the volatile reader case we will
     // never request historical data
     opts.historyRequest = 0;
-    
+
     rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor.storage, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
     shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
 

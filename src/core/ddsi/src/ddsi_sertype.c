@@ -180,7 +180,7 @@ void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, co
   tp->typekind_no_key = (flags & DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY) ? 1u : 0u;
   tp->request_keyhash = (flags & DDSI_SERTYPE_FLAG_REQUEST_KEYHASH) ? 1u : 0u;
   tp->fixed_size = (flags & DDSI_SERTYPE_FLAG_FIXED_SIZE) ? 1u : 0u;
-  tp->min_xcdrv = CDR_ENC_VERSION_1;
+  tp->allowed_data_representation = DDS_DATA_REPRESENTATION_FLAG_XCDR1;
   tp->base_sertype = NULL;
   tp->wrapped_sertopic = NULL;
 #ifdef DDS_HAS_SHM
