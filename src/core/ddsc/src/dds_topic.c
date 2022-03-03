@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -648,12 +649,17 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
     ddsi_xqos_mergein_missing (tpqos, qos, DDS_TOPIC_QOS_MASK);
 
   /* Check the data representation in the provided QoS for compatiblity with the extensibility
-     of the types used in this topic. In case any of these (nested) types is mutable and appendable,
-     XCDR2 data representation is required and the only valid value for this QoS.
-     If the data representation is not set in the QoS (or no QoS object provided), the allowed
-     data representations are added to the QoS object. */
+     of the types used in this topic. In case any functionality is used that we don't support in
+     XCDR1 (extensibility mutable and appendable, optional members), the XCDR2 data representation
+     is required and the only valid value for this QoS. If the data representation is not set in
+     the QoS (or no QoS object provided), the allowed data representations are added to the
+     QoS object. */
+  uint32_t allowed_repr = desc->m_flagset & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION ?
+      desc->restrict_data_representation : DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
   uint16_t min_xcdrv = dds_stream_minimum_xcdr_version (desc->m_ops);
-  if ((hdl = dds_ensure_valid_data_representation (tpqos, min_xcdrv, true)) != 0)
+  if (min_xcdrv == CDR_ENC_VERSION_2)
+    allowed_repr &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
+  if ((hdl = dds_ensure_valid_data_representation (tpqos, allowed_repr, true)) != 0)
     goto err_data_repr;
 
   assert (tpqos->present & QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0);

@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -47,7 +48,8 @@ struct ddsi_sertype {
   uint32_t typekind_no_key : 1;
   uint32_t request_keyhash : 1;
   uint32_t fixed_size : 1;
-  uint16_t min_xcdrv;  /* minimum XCDR version required for (de)serialization */
+  uint32_t allowed_data_representation; /* Allowed data representations set in IDL for this type, or DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT in case of
+                                            no restrictions in the IDL. Unsupported representations for the type are left out when creating the sertype. */
   char *type_name;
   ddsrt_atomic_voidp_t gv; /* set during registration */
   ddsrt_atomic_uint32_t flags_refc; /* counts refs from entities (topic, reader, writer), not from data */

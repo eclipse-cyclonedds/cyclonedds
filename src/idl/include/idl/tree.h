@@ -574,7 +574,7 @@ IDL_EXPORT uint32_t idl_array_size(const void *node);
 IDL_EXPORT uint32_t idl_bound(const void *node);
 IDL_EXPORT const idl_literal_t *idl_default_value(const void *node);
 IDL_EXPORT bool idl_requires_xcdr2(const void *node);
-IDL_EXPORT allowable_data_representations_t idl_supported_data_representations(const void *node);
+IDL_EXPORT allowable_data_representations_t idl_allowable_data_representations(const void *node);
 IDL_EXPORT uint32_t idl_enum_max_value(const void *node);
 
 /* navigation */

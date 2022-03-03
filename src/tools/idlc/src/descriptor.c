@@ -2478,7 +2478,6 @@ static int print_descriptor(FILE *fp, struct descriptor *descriptor, bool type_i
         return -1;
       if (idl_fprintf(fp, "(1u << DDS_DATA_REPRESENTATION_XCDR2)") < 0)
         return -1;
-      first = false;
     }
   }
 
@@ -2646,7 +2645,7 @@ generate_descriptor_impl(
     descriptor->flags |= DDS_TOPIC_FIXED_KEY_XCDR2;
 
   /* set data representation restriction flag and mask (ignore unsupported data representations) */
-  allowable_data_representations_t dr = idl_supported_data_representations(descriptor->topic);
+  allowable_data_representations_t dr = idl_allowable_data_representations(descriptor->topic);
   if (dr != IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT && (dr & (IDL_DATAREPRESENTATION_FLAG_XCDR1 | IDL_DATAREPRESENTATION_FLAG_XCDR2))) {
     descriptor->flags |= DDS_TOPIC_RESTRICT_DATA_REPRESENTATION;
     descriptor->data_representations = dr;

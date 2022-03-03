@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -823,9 +824,11 @@ bool dds_qget_data_representation (const dds_qos_t * __restrict qos, uint32_t *n
   return true;
 }
 
-dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint16_t min_xcdrv, bool topicqos)
+dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allowed_data_representations, bool topicqos)
 {
-  assert (min_xcdrv <= CDR_ENC_VERSION_2);
+  const bool allow1 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR1,
+    allow2 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR2;
+
   if ((qos->present & QP_DATA_REPRESENTATION) && qos->data_representation.value.n > 0)
   {
     assert (qos->data_representation.value.ids != NULL);
@@ -836,10 +839,12 @@ dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint16_t min_
         case DDS_DATA_REPRESENTATION_XML:
           return DDS_RETCODE_UNSUPPORTED;
         case DDS_DATA_REPRESENTATION_XCDR1:
-          if (min_xcdrv == CDR_ENC_VERSION_2)
+          if (!allow1)
             return DDS_RETCODE_BAD_PARAMETER;
           break;
         case DDS_DATA_REPRESENTATION_XCDR2:
+          if (!allow2)
+            return DDS_RETCODE_BAD_PARAMETER;
           break;
         default:
           return DDS_RETCODE_BAD_PARAMETER;
@@ -848,9 +853,11 @@ dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint16_t min_
   }
   else
   {
-    if (min_xcdrv == CDR_ENC_VERSION_2)
+    if (!allow1 && !allow2)
+      return DDS_RETCODE_BAD_PARAMETER;
+    if (!allow1)
       dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR2 });
-    else if (!topicqos)
+    else if (!topicqos || !allow2)
       dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1 });
     else
       dds_qset_data_representation (qos, 2, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1, DDS_DATA_REPRESENTATION_XCDR2 });

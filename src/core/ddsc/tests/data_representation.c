@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -469,6 +470,51 @@ CU_Test (ddsc_data_representation, update_qos, .init = data_representation_init,
       ret = dds_set_qos (ent, qos);
       CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
       dds_delete_qos (qos);
+    }
+  }
+}
+
+
+CU_Test(ddsc_data_representation, qos_annotation, .init = data_representation_init, .fini = data_representation_fini)
+{
+#define X_ { { -1 }, 0 }
+#define X1 { { XCDR1 }, 1 }
+#define X1_2 { { XCDR1, XCDR2 }, 2 }
+#define X2 { { XCDR2 }, 1 }
+#define X2_1 { { XCDR2, XCDR1 }, 2 }
+  static const struct {
+    const dds_topic_descriptor_t *desc;
+    datarep_qos_exp_t tp[4];
+  } tests[] = {
+    { &DESC(TypeXcdr1),       { { X_, true,  X1 },   { X1, true,  X1 }, { X2, false, X_ }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdr2),       { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdr1_2),     { { X_, true,  X1_2 }, { X1, true,  X1 }, { X2, true,  X2 }, { X1_2, true,  X1_2 } } },
+    { &DESC(TypeXcdr1_xml_2), { { X_, true,  X1_2 }, { X1, true,  X1 }, { X2, true,  X2 }, { X1_2, true,  X1_2 } } },
+    { &DESC(TypeXcdr1_other), { { X_, true,  X1 },   { X1, true,  X1 }, { X2, false, X_ }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdr2_other), { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdrA1),      { { X_, false, X_ },   { X1, false, X_ }, { X2, false, X_ }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdrA2),      { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdrA1_2),    { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
+  };
+#undef X_
+#undef X1
+#undef X1_2
+#undef X2
+#undef X2_1
+
+  char topicname[100];
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    printf ("running tests for type %s \n", tests[i].desc->m_typename);
+    for (uint32_t t = 0; t < 4; t++)
+    {
+      dds_qos_t *qos_tp = get_qos (&tests[i].tp[t]);
+      create_unique_topic_name ("ddsc_data_representation", topicname, sizeof topicname);
+      dds_entity_t tp = dds_create_topic (dp1, tests[i].desc, topicname, qos_tp, NULL);
+      CU_ASSERT_EQUAL_FATAL (tp > 0, tests[i].tp[t].valid);
+      if (tests[i].tp[t].valid)
+        exp_qos (tp, &tests[i].tp[t]);
+      dds_delete_qos (qos_tp);
     }
   }
 }

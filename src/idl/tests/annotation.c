@@ -1389,8 +1389,8 @@ test_rep(
 
   rep_test_t *test = (rep_test_t*)user_data;
 
-  allowable_data_representations_t result, required;
-    result = idl_supported_data_representations(node),
+  allowable_data_representations_t
+    result = idl_allowable_data_representations(node),
     required = test->reps[test->i++];
   if (idl_requires_xcdr2(node))
     result &= ~((allowable_data_representations_t)IDL_DATAREPRESENTATION_FLAG_XCDR1);
