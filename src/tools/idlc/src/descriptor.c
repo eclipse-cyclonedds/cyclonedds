@@ -894,18 +894,19 @@ emit_case(
 
       bool has_size = false;
       if (case_type == INLINE || case_type == IN_UNION) {
+        uint32_t label_opcode = opcode;
         /* update offset to first instruction for in-union cases */
         if (!idl_is_enum(type_spec))
-          opcode &= (DDS_OP_MASK | DDS_OP_TYPE_FLAGS_MASK | DDS_OP_TYPE_MASK);
+          label_opcode &= (DDS_OP_MASK | DDS_OP_TYPE_FLAGS_MASK | DDS_OP_TYPE_MASK);
         if (case_type == IN_UNION)
-          opcode |= (cnt - off);
-        /* generate union case opcode */
-        if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, off++, opcode, 0u)))
-          return ret;
+          label_opcode |= (cnt - off);
         if (idl_is_external(node) && !idl_is_unbounded_string(type_spec)) {
-          opcode |= DDS_OP_FLAG_EXT;
+          label_opcode |= DDS_OP_FLAG_EXT;
           has_size = idl_is_array(type_spec) || idl_is_sequence(type_spec);
         }
+        /* generate union case opcode */
+        if ((ret = stash_opcode(pstate, descriptor, &ctype->instructions, off++, label_opcode, 0u)))
+          return ret;
       } else { /* EXTERNAL */
         assert(off <= INT16_MAX);
         if (idl_is_external(node))
