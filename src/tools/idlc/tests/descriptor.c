@@ -227,13 +227,13 @@ CU_Test(idlc_descriptor, key_size)
     { "@bit_bound(8) enum e { E0, E1 }; @topic struct test { @key e a; }; ",
       true, true, 1, 1 }, // key size: 1
     { "@bit_bound(16) enum e { E0, E1 }; @topic struct test { @key char a; @key e b[4]; }; ",
-      true, true, 10, 10 }, // key size: 1 + 1 (pad) + 4 * 2
+      true, true, 10, 16 }, // key size XCDR1: 1 + 1 (pad) + 4 * 2 / XCDR2: 1 + 3 (pad) + 4 (dheader) + 4 * 2
     { "bitmask bm { BM0, BM1 }; @topic struct test { @key bm a; }; ",
       true, true, 4, 4 }, // key size: 4
     { "@bit_bound(8) bitmask bm { BM0, BM1 }; @topic struct test { @key bm a; }; ",
       true, true, 1, 1 }, // key size: 1
     { "@bit_bound(43) bitmask bm { BM0, BM1 }; @topic struct test { @key char a; @key bm b[1]; }; ",
-      true, true, 16, 12 } // key size XCDR1: 1 + 7 (pad) + 1 * 8 / XCDR2: 1 + 3 (pad) + 1 * 8 /
+      true, true, 16, 16 }, // key size XCDR1: 1 + 7 (pad) + 1 * 8 / XCDR2: 1 + 3 (pad) + 4 (dheader) + 1 * 8 /
   };
 
   idl_retcode_t ret;

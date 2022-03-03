@@ -1998,11 +1998,17 @@ static void free_ctype_keys(struct constructed_type_key *key)
   }
 }
 
-static uint32_t add_to_key_size(uint32_t keysize, uint32_t field_size, uint32_t field_dims, uint32_t field_align, uint32_t max_align)
+static uint32_t add_to_key_size(uint32_t keysize, uint32_t field_size, bool dheader, uint32_t field_dims, uint32_t field_align, uint32_t max_align)
 {
   uint32_t sz = keysize;
   if (field_align > max_align)
     field_align = max_align;
+  if (dheader) {
+    uint32_t dh_size = 4, dh_align = 4;
+    if (sz % dh_align)
+      sz += dh_align - (sz % dh_align);
+    sz += dh_size;
+  }
   if (sz % field_align)
     sz += field_align - (sz % field_align);
   sz += field_size * field_dims;
@@ -2068,6 +2074,7 @@ static idl_retcode_t get_ctype_keys_adr(
           uint32_t sz = DDS_OP_TYPE_SZ(inst->data.opcode.code);
           assert (sz > 0 && sz <= (subtype == DDS_OP_VAL_ENU ? 4u : 8u));
           key->size = key->align = sz;
+          key->dheader = true;
           break;
         }
         case DDS_OP_VAL_BST: case DDS_OP_VAL_STR:
@@ -2209,6 +2216,7 @@ static idl_retcode_t descriptor_add_key_recursive(const idl_pstate_t *pstate, st
       uint32_t i = descriptor->n_keys;
       descriptor->keys[i].name = idl_strdup(name1);
       descriptor->keys[i].size = key->size;
+      descriptor->keys[i].dheader = key->dheader;
       descriptor->keys[i].dims = key->dims;
       descriptor->keys[i].align = key->align;
 
@@ -2299,14 +2307,14 @@ static idl_retcode_t descriptor_init_keys(const idl_pstate_t *pstate, struct con
 
   // calculate key size for XCDR1 keys (by definition order)
   for (uint32_t k = 0; k < descriptor->n_keys; k++)
-    descriptor->keysz_xcdr1 = add_to_key_size(descriptor->keysz_xcdr1, descriptor->keys[k].size, descriptor->keys[k].dims, descriptor->keys[k].align, XCDR1_MAX_ALIGN);
+    descriptor->keysz_xcdr1 = add_to_key_size(descriptor->keysz_xcdr1, descriptor->keys[k].size, false, descriptor->keys[k].dims, descriptor->keys[k].align, XCDR1_MAX_ALIGN);
 
   // sort keys by member id (scoped within the containing aggregated type)
   qsort(descriptor->keys, descriptor->n_keys, sizeof (*descriptor->keys), key_meta_data_cmp);
 
   // calculate key size for XCDR2 keys (ordered by member id)
   for (uint32_t k = 0; k < descriptor->n_keys; k++)
-    descriptor->keysz_xcdr2 = add_to_key_size(descriptor->keysz_xcdr2, descriptor->keys[k].size, descriptor->keys[k].dims, descriptor->keys[k].align, XCDR2_MAX_ALIGN);
+    descriptor->keysz_xcdr2 = add_to_key_size(descriptor->keysz_xcdr2, descriptor->keys[k].size, descriptor->keys[k].dheader, descriptor->keys[k].dims, descriptor->keys[k].align, XCDR2_MAX_ALIGN);
 
   return IDL_RETCODE_OK;
 }
