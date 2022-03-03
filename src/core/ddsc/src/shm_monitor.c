@@ -88,7 +88,7 @@ dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader
                                                               reader->m_iox_sub,
                                                               SubscriberEvent_DATA_RECEIVED,
                                                               shm_subscriber_callback,
-                                                              &reader->m_iox_sub_stor) != ListenerResult_SUCCESS) {
+                                                              &reader->m_iox_sub_context) != ListenerResult_SUCCESS) {
         DDS_CLOG(DDS_LC_SHM, &reader->m_rd->e.gv->logconfig, "error attaching reader\n");    
         return DDS_RETCODE_OUT_OF_RESOURCES;
     }
@@ -177,9 +177,9 @@ static void shm_subscriber_callback(iox_sub_t subscriber, void * context_data)
 {
     (void)subscriber;
     // we know it is actually in extended storage since we created it like this
-    iox_sub_storage_extension_t *storage = (iox_sub_storage_extension_t*) context_data;
-    if(storage->monitor->m_state == SHM_MONITOR_RUNNING) {
-        receive_data_wakeup_handler(storage->parent_reader);
+    iox_sub_context_t *context = (iox_sub_context_t*) context_data;
+    if(context->monitor->m_state == SHM_MONITOR_RUNNING) {
+        receive_data_wakeup_handler(context->parent_reader);
     }
 }
 

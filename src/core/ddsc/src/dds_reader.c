@@ -110,7 +110,7 @@ static dds_return_t dds_reader_delete (dds_entity *e)
     // since the mutex is needed and the data needs to be released using the iceoryx subscriber
     DDS_CLOG (DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's subscriber\n");
     iox_sub_deinit(rd->m_iox_sub);
-    iox_sub_storage_extension_fini(&rd->m_iox_sub_stor);
+    iox_sub_context_fini(&rd->m_iox_sub_context);
   }
 #endif
 
@@ -658,8 +658,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
     iox_sub_options_t opts;
     iox_sub_options_init(&opts);
-
-    iox_sub_storage_extension_init(&rd->m_iox_sub_stor);
+    
+    iox_sub_context_init(&rd->m_iox_sub_context);
 
     assert (rqos->durability.kind == DDS_DURABILITY_VOLATILE);
 
@@ -692,8 +692,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
     // those are set once and never changed
     // they are used to access reader and monitor from the callback when data is received
-    rd->m_iox_sub_stor.monitor = &rd->m_entity.m_domain->m_shm_monitor;
-    rd->m_iox_sub_stor.parent_reader = rd;
+    rd->m_iox_sub_context.monitor = &rd->m_entity.m_domain->m_shm_monitor;
+    rd->m_iox_sub_context.parent_reader = rd;
   }
 #endif
 
