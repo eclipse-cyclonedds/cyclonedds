@@ -663,10 +663,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
     assert (rqos->durability.kind == DDS_DURABILITY_VOLATILE);
 
-    // TODO: need the max from iceoryx here,
-    // available in the API of master but not in release_1.0, will be available
-    // in the upcoming release 2.0 (planned March 2022)
-    const int32_t max_sub_queue_capacity = 256; // value from iceoryx 1.0
+    const uint32_t max_sub_queue_capacity = iox_cfg_max_subscriber_queue_capacity();
 
     // NB: We may lose data after history.depth many samples are received (if we
     // are not taking them fast enough from the iceoryx queue and move them in
@@ -677,10 +674,10 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     // shared memory but limit the queueCapacity accordingly (otherwise iceoryx
     // emits a warning and limits it itself)
 
-    if (rqos->history.depth <= max_sub_queue_capacity) {
+    if ((uint32_t) rqos->history.depth <= max_sub_queue_capacity) {
       opts.queueCapacity = (uint64_t)rqos->history.depth;
     } else {
-      opts.queueCapacity = (uint64_t)max_sub_queue_capacity;
+      opts.queueCapacity = max_sub_queue_capacity;
     }
 
     // NB: since currently we only support the volatile reader case we will
