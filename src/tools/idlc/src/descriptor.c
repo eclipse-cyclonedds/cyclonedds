@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology and others
  * Copyright(c) 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -2378,6 +2379,8 @@ static int print_flags(FILE *fp, struct descriptor *descriptor, bool type_info)
     vec[len++] = "DDS_TOPIC_FIXED_KEY";
   if (descriptor->flags & DDS_TOPIC_FIXED_KEY_XCDR2)
     vec[len++] = "DDS_TOPIC_FIXED_KEY_XCDR2";
+  if (descriptor->flags & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION)
+    vec[len++] = "DDS_TOPIC_RESTRICT_DATA_REPRESENTATION";
 
   bool fixed_size = true;
   for (struct constructed_type *ctype = descriptor->constructed_types; ctype && fixed_size; ctype = ctype->next) {
@@ -2460,6 +2463,24 @@ static int print_descriptor(FILE *fp, struct descriptor *descriptor, bool type_i
       return -1;
   }
 #endif
+
+  if (descriptor->flags & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION) {
+    if (idl_fprintf(fp, ",\n  .restrict_data_representation = ") < 0)
+      return -1;
+    bool first = true;
+    if (descriptor->data_representations & IDL_DATAREPRESENTATION_FLAG_XCDR1) {
+      if (idl_fprintf(fp, "(1u << DDS_DATA_REPRESENTATION_XCDR1)") < 0)
+        return -1;
+      first = false;
+    }
+    if (descriptor->data_representations & IDL_DATAREPRESENTATION_FLAG_XCDR2) {
+      if (!first && idl_fprintf(fp, " | ") < 0)
+        return -1;
+      if (idl_fprintf(fp, "(1u << DDS_DATA_REPRESENTATION_XCDR2)") < 0)
+        return -1;
+      first = false;
+    }
+  }
 
   if (idl_fprintf(fp, "\n};\n\n") < 0)
     return -1;
@@ -2623,6 +2644,13 @@ generate_descriptor_impl(
     descriptor->flags |= DDS_TOPIC_FIXED_KEY;
   if (descriptor->keysz_xcdr2 > 0 && descriptor->keysz_xcdr2 <= DDS_FIXED_KEY_MAX_SIZE)
     descriptor->flags |= DDS_TOPIC_FIXED_KEY_XCDR2;
+
+  /* set data representation restriction flag and mask (ignore unsupported data representations) */
+  allowable_data_representations_t dr = idl_supported_data_representations(descriptor->topic);
+  if (dr != IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT && (dr & (IDL_DATAREPRESENTATION_FLAG_XCDR1 | IDL_DATAREPRESENTATION_FLAG_XCDR2))) {
+    descriptor->flags |= DDS_TOPIC_RESTRICT_DATA_REPRESENTATION;
+    descriptor->data_representations = dr;
+  }
 
 err:
   if (ret < 0)
