@@ -26,13 +26,17 @@ void iox_sub_storage_extension_fini(iox_sub_storage_extension_t* storage)
 
 void shm_lock_iox_sub(iox_sub_t sub)
 {
-    iox_sub_storage_extension_t* storage = (iox_sub_storage_extension_t*) sub;
+    // compute the offset to get the iox_sub_storage from the iox_sub_t
+    iox_sub_storage_extension_t* storage =
+        *(iox_sub_storage_extension_t**)((uint64_t)sub - sizeof(void *));
     ddsrt_mutex_lock(&storage->mutex);
 }
 
 void shm_unlock_iox_sub(iox_sub_t sub)
 {
-    iox_sub_storage_extension_t* storage = (iox_sub_storage_extension_t*) sub;
+    // compute the offset to get the iox_sub_storage from the iox_sub_t
+    iox_sub_storage_extension_t* storage =
+        *(iox_sub_storage_extension_t**)((uint64_t)sub - sizeof(void *));
     ddsrt_mutex_unlock(&storage->mutex);
 }
 

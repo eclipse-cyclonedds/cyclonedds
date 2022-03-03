@@ -28,8 +28,8 @@
 extern "C" {
 #endif
 
-static void shm_wakeup_trigger_callback(iox_user_trigger_t trigger);
-static void shm_subscriber_callback(iox_sub_t subscriber);
+static void shm_wakeup_trigger_callback(iox_user_trigger_t trigger, void * context_data);
+static void shm_subscriber_callback(iox_sub_t subscriber, void * context_data);
 
 void shm_monitor_init(shm_monitor_t* monitor) 
 {
@@ -38,7 +38,10 @@ void shm_monitor_init(shm_monitor_t* monitor)
     monitor->m_listener = iox_listener_init(&monitor->m_listener_storage);
     monitor->m_wakeup_trigger = iox_user_trigger_init(&monitor->m_wakeup_trigger_storage.storage);
     monitor->m_wakeup_trigger_storage.monitor = monitor;
-    iox_listener_attach_user_trigger_event(monitor->m_listener, monitor->m_wakeup_trigger, shm_wakeup_trigger_callback);
+    iox_listener_attach_user_trigger_event_with_context_data(monitor->m_listener,
+                                                             monitor->m_wakeup_trigger,
+                                                             shm_wakeup_trigger_callback,
+                                                             &monitor->m_wakeup_trigger_storage);
 
     monitor->m_state = SHM_MONITOR_RUNNING;
 }
@@ -81,7 +84,11 @@ dds_return_t shm_monitor_wake_and_enable(shm_monitor_t* monitor)
 dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader) 
 {
 
-    if(iox_listener_attach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_DATA_RECEIVED, shm_subscriber_callback) != ListenerResult_SUCCESS) {
+    if(iox_listener_attach_subscriber_event_with_context_data(monitor->m_listener,
+                                                              reader->m_iox_sub,
+                                                              SubscriberEvent_DATA_RECEIVED,
+                                                              shm_subscriber_callback,
+                                                              &reader->m_iox_sub_stor) != ListenerResult_SUCCESS) {
         DDS_CLOG(DDS_LC_SHM, &reader->m_rd->e.gv->logconfig, "error attaching reader\n");    
         return DDS_RETCODE_OUT_OF_RESOURCES;
     }
@@ -109,9 +116,10 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
     enum iox_ChunkReceiveResult take_result = iox_sub_take_chunk(rd->m_iox_sub, (const void** const)&chunk);
     shm_unlock_iox_sub(rd->m_iox_sub);
 
-    if (ChunkReceiveResult_SUCCESS != take_result)
+    if (ChunkReceiveResult_SUCCESS != take_result) {
       break;
-   
+    }
+
     const iceoryx_header_t* ice_hdr = iceoryx_header_from_chunk(chunk);
 
     // Get writer or proxy writer
@@ -155,19 +163,21 @@ release:
   thread_state_asleep(lookup_thread_state());
 }
 
-static void shm_wakeup_trigger_callback(iox_user_trigger_t trigger) 
-{    
+static void shm_wakeup_trigger_callback(iox_user_trigger_t trigger, void * context_data)
+{
+    (void)trigger;
     // we know it is actually in extended storage since we created it like this
-    iox_user_trigger_storage_extension_t* storage = (iox_user_trigger_storage_extension_t*) trigger;
+    iox_user_trigger_storage_extension_t* storage = (iox_user_trigger_storage_extension_t*) context_data;
     if(storage->monitor->m_state == SHM_MONITOR_RUNNING && storage->call) {
         storage->call(storage->arg);
     }
 }
 
-static void shm_subscriber_callback(iox_sub_t subscriber) 
+static void shm_subscriber_callback(iox_sub_t subscriber, void * context_data)
 {
+    (void)subscriber;
     // we know it is actually in extended storage since we created it like this
-    iox_sub_storage_extension_t *storage = (iox_sub_storage_extension_t*) subscriber; 
+    iox_sub_storage_extension_t *storage = (iox_sub_storage_extension_t*) context_data;
     if(storage->monitor->m_state == SHM_MONITOR_RUNNING) {
         receive_data_wakeup_handler(storage->parent_reader);
     }
