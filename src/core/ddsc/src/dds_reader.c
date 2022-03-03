@@ -687,8 +687,21 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     // never request historical data
     opts.historyRequest = 0;
 
-    rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor.storage, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
-    shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+    // NB: This may fail due to icoeryx being out of internal resources for subsribers.
+    //     In this case terminate is called by iox_sub_init.
+    //     it is currently (iceoryx 2.0 and lower) not possible to change this to
+    //     e.g. return a nullptr and handle the error here.    
+    rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_storage, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
+
+    rc = shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+
+    if (rc != DDS_RETCODE_OK) {
+      // we fail if we cannot attach to the listener (as we would get no data)
+      iox_sub_deinit(rd->m_iox_sub);
+      rd->m_iox_sub = NULL;
+      DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Failed to attach iox subscriber to iox listener\n");
+      goto err_bad_qos; // we need to clean up everything
+    }
 
     // those are set once and never changed
     // they are used to access reader and monitor from the callback when data is received

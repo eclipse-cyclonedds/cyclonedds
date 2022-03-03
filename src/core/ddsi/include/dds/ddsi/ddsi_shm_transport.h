@@ -24,6 +24,7 @@
 #include "iceoryx_binding_c/chunk.h"
 #include "iceoryx_binding_c/publisher.h"
 #include "iceoryx_binding_c/subscriber.h"
+#include "iceoryx_binding_c/config.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -56,13 +57,13 @@ typedef struct {
   struct dds_reader *parent_reader;
 } iox_sub_context_t;
 
-// lock and unlock for individual subscribers
 DDS_EXPORT void
 iox_sub_context_init(iox_sub_context_t *context);
 
 DDS_EXPORT void
 iox_sub_context_fini(iox_sub_context_t *context);
 
+// lock and unlock for individual subscribers
 DDS_EXPORT void shm_lock_iox_sub(iox_sub_t sub);
 
 DDS_EXPORT void shm_unlock_iox_sub(iox_sub_t sub);
