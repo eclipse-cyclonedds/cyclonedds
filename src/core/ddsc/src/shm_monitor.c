@@ -116,10 +116,36 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
     enum iox_ChunkReceiveResult take_result = iox_sub_take_chunk(rd->m_iox_sub, (const void** const)&chunk);
     shm_unlock_iox_sub(rd->m_iox_sub);
 
-    if (ChunkReceiveResult_SUCCESS != take_result) {
+    // NB: If we cannot take the chunk (sample) the user may lose data.
+    // Since the subscriber queue can overflow and will evict the least recent sample.
+    // This entirely depends on the producer and consumer frequency (and the queue size if they are close).
+    // The consumer here is essentially the reader history cache.
+    if (ChunkReceiveResult_SUCCESS != take_result) 
+    {
+      switch(take_result) {
+        case ChunkReceiveResult_TOO_MANY_CHUNKS_HELD_IN_PARALLEL : 
+        {
+          // we hold to many chunks and cannot get more
+          DDS_WARNING("iceoryx subscriber: TOO_MANY_CHUNKS_HELD_IN_PARALLEL - could not take sample\n");
+          DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, 
+              "iceoryx subscriber: TOO_MANY_CHUNKS_HELD_IN_PARALLEL - could not take sample\n");
+          break;
+        }
+        case ChunkReceiveResult_NO_CHUNK_AVAILABLE: {
+          // no more chunks to take, ok
+          break;
+        }
+        default : {
+          // some unkown error occurred
+          DDS_WARNING("iceoryx subscriber: UNKNOWN_ERROR - could not take sample\n");
+          DDS_CLOG(DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig,
+              "iceoryx subscriber: UNKNOWN_ERROR - could not take sample\n");
+        }
+      }
+
       break;
     }
-
+  
     const iceoryx_header_t* ice_hdr = iceoryx_header_from_chunk(chunk);
 
     // Get writer or proxy writer
