@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology and others
  * Copyright(c) 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -151,6 +152,7 @@ struct descriptor {
   struct key_meta_data *keys; /**< key meta-data */
   uint32_t n_opcodes; /**< number of opcodes in descriptor */
   uint32_t flags; /**< topic descriptor flag values */
+  uint32_t data_representations; /**< restrict data representations for top-level type */
   uint32_t keysz_xcdr1; /**< size of the XCDR1 serialized key (or set to MAX_FIXED_KEY + 1 if more than MAX_FIXED_KEY) */
   uint32_t keysz_xcdr2; /**< size of the XCDR2 serialized key (or set to MAX_FIXED_KEY + 1 if more than MAX_FIXED_KEY) */
   struct stack_type *type_stack;

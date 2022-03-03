@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology and others
  * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -40,6 +41,7 @@ const dds_topic_descriptor_t OneULong_desc =
   "<MetaData version=\"1.0.0\"><Struct name=\"OneULong\"><Member name=\"seq\"><ULong/></Member></Struct></MetaData>",
   { NULL, 0 },
   { NULL, 0 },
+  0
 };
 
 
@@ -69,6 +71,7 @@ const dds_topic_descriptor_t Keyed32_desc =
   "<MetaData version=\"1.0.0\"><Struct name=\"Keyed32\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"24\"><Octet/></Array></Member></Struct></MetaData>",
   { NULL, 0 },
   { NULL, 0 },
+  0
 };
 
 
@@ -98,6 +101,7 @@ const dds_topic_descriptor_t Keyed64_desc =
   "<MetaData version=\"1.0.0\"><Struct name=\"Keyed64\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"56\"><Octet/></Array></Member></Struct></MetaData>",
   { NULL, 0 },
   { NULL, 0 },
+  0
 };
 
 
@@ -127,6 +131,7 @@ const dds_topic_descriptor_t Keyed128_desc =
   "<MetaData version=\"1.0.0\"><Struct name=\"Keyed128\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"120\"><Octet/></Array></Member></Struct></MetaData>",
   { NULL, 0 },
   { NULL, 0 },
+  0
 };
 
 
@@ -156,6 +161,7 @@ const dds_topic_descriptor_t Keyed256_desc =
   "<MetaData version=\"1.0.0\"><Struct name=\"Keyed256\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Array size=\"248\"><Octet/></Array></Member></Struct></MetaData>",
   { NULL, 0 },
   { NULL, 0 },
+  0
 };
 
 
@@ -185,4 +191,5 @@ const dds_topic_descriptor_t KeyedSeq_desc =
   "<MetaData version=\"1.0.0\"><Struct name=\"KeyedSeq\"><Member name=\"seq\"><ULong/></Member><Member name=\"keyval\"><Long/></Member><Member name=\"baggage\"><Sequence><Octet/></Sequence></Member></Struct></MetaData>",
   { NULL, 0 },
   { NULL, 0 },
+  0
 };
