@@ -687,8 +687,9 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     // NB: This may fail due to icoeryx being out of internal resources for subsribers.
     //     In this case terminate is called by iox_sub_init.
     //     it is currently (iceoryx 2.0 and lower) not possible to change this to
-    //     e.g. return a nullptr and handle the error here.    
-    rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_storage, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
+    //     e.g. return a nullptr and handle the error here.
+    iox_sub_storage_t s; // storage is ignored internally now but we cannot pass a nullptr
+    rd->m_iox_sub = iox_sub_init(&s, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
 
     // NB: Due to some storage paradigm change of iceoryx structs
     // we now have a pointer 8 bytes before m_iox_sub

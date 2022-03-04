@@ -28,20 +28,17 @@
 extern "C" {
 #endif
 
-static void shm_wakeup_trigger_callback(iox_user_trigger_t trigger, void * context_data);
 static void shm_subscriber_callback(iox_sub_t subscriber, void * context_data);
 
 void shm_monitor_init(shm_monitor_t* monitor) 
 {
     ddsrt_mutex_init(&monitor->m_lock);
-
-    monitor->m_listener = iox_listener_init(&monitor->m_listener_storage);
-    monitor->m_wakeup_trigger = iox_user_trigger_init(&monitor->m_wakeup_trigger_storage.storage);
-    monitor->m_wakeup_trigger_storage.monitor = monitor;
-    iox_listener_attach_user_trigger_event_with_context_data(monitor->m_listener,
-                                                             monitor->m_wakeup_trigger,
-                                                             shm_wakeup_trigger_callback,
-                                                             &monitor->m_wakeup_trigger_storage);
+    
+    // storage is ignored internally now but we cannot pass a nullptr
+    iox_listener_storage_t s;
+    monitor->m_listener = iox_listener_init(&s);
+    iox_user_trigger_storage_t t;
+    monitor->m_wakeup_trigger = iox_user_trigger_init(&t);
 
     monitor->m_state = SHM_MONITOR_RUNNING;
 }
@@ -57,15 +54,6 @@ void shm_monitor_destroy(shm_monitor_t* monitor)
     iox_listener_deinit(monitor->m_listener);
     iox_user_trigger_deinit(monitor->m_wakeup_trigger);
     ddsrt_mutex_destroy(&monitor->m_lock);
-}
-
-dds_return_t shm_monitor_wake_and_invoke(shm_monitor_t* monitor, void (*function) (void*), void* arg) 
-{
-    iox_user_trigger_storage_extension_t* storage = (iox_user_trigger_storage_extension_t*) monitor->m_wakeup_trigger;
-    storage->call = function;
-    storage->arg = arg;
-    iox_user_trigger_trigger(monitor->m_wakeup_trigger);
-    return DDS_RETCODE_OK;
 }
 
 dds_return_t shm_monitor_wake_and_disable(shm_monitor_t* monitor) 
@@ -188,16 +176,6 @@ release:
       ddsi_serdata_unref(d);
   }
   thread_state_asleep(lookup_thread_state());
-}
-
-static void shm_wakeup_trigger_callback(iox_user_trigger_t trigger, void * context_data)
-{
-    (void)trigger;
-    // we know it is actually in extended storage since we created it like this
-    iox_user_trigger_storage_extension_t* storage = (iox_user_trigger_storage_extension_t*) context_data;
-    if(storage->monitor->m_state == SHM_MONITOR_RUNNING && storage->call) {
-        storage->call(storage->arg);
-    }
 }
 
 static void shm_subscriber_callback(iox_sub_t subscriber, void * context_data)
