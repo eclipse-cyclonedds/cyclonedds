@@ -282,6 +282,8 @@ static idl_retcode_t idlc_parse(void)
     }
     assert(config.file);
     if (strcmp(config.file, "-") != 0 && (ret = figure_file(&pstate->paths)) != 0) {
+      if (ret == IDL_RETCODE_NO_ENTRY)
+        idl_error(pstate, NULL, "could not open file at location: %s", config.file);
       idl_delete_pstate(pstate);
       return ret;
     }
