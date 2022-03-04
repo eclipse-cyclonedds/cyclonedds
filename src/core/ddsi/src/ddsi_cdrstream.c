@@ -1985,6 +1985,11 @@ const uint32_t *dds_stream_read (dds_istream_t * __restrict is, char * __restric
  **
  *******************************************************************************************/
 
+static inline void normalize_error (void) { }
+static inline uint32_t normalize_error_offset (void) { normalize_error (); return UINT32_MAX; }
+static inline bool normalize_error_bool (void) { normalize_error (); return false; }
+static inline const uint32_t *normalize_error_ops (void) { normalize_error (); return NULL; }
+
 /* Limit the size of the input buffer so we don't need to worry about adding
    padding and a primitive type overflowing our offset */
 #define CDR_SIZE_MAX ((uint32_t) 0xfffffff0)
@@ -1998,7 +2003,7 @@ static uint32_t check_align_prim (uint32_t off, uint32_t size, uint32_t a_lg2)
   const uint32_t off1 = (off + a - 1) & ~(a - 1);
   assert (off <= off1 && off1 <= CDR_SIZE_MAX);
   if (size < off1 + a)
-    return UINT32_MAX;
+    return normalize_error_offset ();
   return off1;
 }
 
@@ -2011,7 +2016,7 @@ static uint32_t check_align_prim_many (uint32_t off, uint32_t size, uint32_t a_l
   const uint32_t off1 = (off + a - 1) & ~(a - 1);
   assert (off <= off1 && off1 <= CDR_SIZE_MAX);
   if (size < off1 || ((size - off1) >> a_lg2) < n)
-    return UINT32_MAX;
+    return normalize_error_offset ();
   return off1;
 }
 
@@ -2019,7 +2024,7 @@ static bool normalize_uint8 (uint32_t *off, uint32_t size) ddsrt_attribute_warn_
 static bool normalize_uint8 (uint32_t *off, uint32_t size)
 {
   if (*off == size)
-    return false;
+    return normalize_error_bool ();
   (*off)++;
   return true;
 }
@@ -2065,10 +2070,10 @@ static bool normalize_bool (char * __restrict data, uint32_t * __restrict off, u
 static bool normalize_bool (char * __restrict data, uint32_t * __restrict off, uint32_t size)
 {
   if (*off == size)
-    return false;
+    return normalize_error_bool ();
   uint8_t b = *((uint8_t *) (data + *off));
   if (b > 1)
-    return false;
+    return normalize_error_bool ();
   (*off)++;
   return true;
 }
@@ -2077,10 +2082,10 @@ static bool read_and_normalize_bool (bool * __restrict val, char * __restrict da
 static bool read_and_normalize_bool (bool * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size)
 {
   if (*off == size)
-    return false;
+    return normalize_error_bool ();
   uint8_t b = *((uint8_t *) (data + *off));
   if (b > 1)
-    return false;
+    return normalize_error_bool ();
   *val = b;
   (*off)++;
   return true;
@@ -2172,9 +2177,11 @@ static bool read_normalize_enum (uint32_t * __restrict val, char * __restrict da
         return false;
       break;
     default:
-      return false;
+      return normalize_error_bool ();
   }
-  return *val <= max;
+  if (*val > max)
+    return normalize_error_bool ();
+  return true;
 }
 
 static bool normalize_enum (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t insn, uint32_t max) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
@@ -2217,7 +2224,9 @@ static bool read_normalize_bitmask (uint64_t * __restrict val, char * __restrict
     default:
       abort ();
   }
-  return bitmask_value_valid (*val, bits_h, bits_l);
+  if (!bitmask_value_valid (*val, bits_h, bits_l))
+    return normalize_error_bool ();
+  return true;
 }
 
 static bool normalize_bitmask (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, uint32_t insn, uint32_t bits_h, uint32_t bits_l) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
@@ -2234,9 +2243,9 @@ static bool normalize_string (char * __restrict data, uint32_t * __restrict off,
   if (!read_and_normalize_uint32 (&sz, data, off, size, bswap))
     return false;
   if (sz == 0 || size - *off < sz || maxsz < sz)
-    return false;
+    return normalize_error_bool ();
   if (data[*off + sz - 1] != 0)
-    return false;
+    return normalize_error_bool ();
   *off += sz;
   return true;
 }
@@ -2306,7 +2315,7 @@ static bool normalize_enumarray (char * __restrict data, uint32_t * __restrict o
       uint8_t * const xs = (uint8_t *) (data + *off);
       for (uint32_t i = 0; i < num; i++)
         if (xs[i] > max)
-          return false;
+          return normalize_error_bool ();
       *off += num;
       break;
     }
@@ -2316,7 +2325,7 @@ static bool normalize_enumarray (char * __restrict data, uint32_t * __restrict o
       uint16_t * const xs = (uint16_t *) (data + *off);
       for (uint32_t i = 0; i < num; i++)
         if ((uint16_t) (bswap ? (xs[i] = ddsrt_bswap2u (xs[i])) : xs[i]) > max)
-          return false;
+          return normalize_error_bool ();
       *off += 2 * num;
       break;
     }
@@ -2326,12 +2335,12 @@ static bool normalize_enumarray (char * __restrict data, uint32_t * __restrict o
       uint32_t * const xs = (uint32_t *) (data + *off);
       for (uint32_t i = 0; i < num; i++)
         if ((uint32_t) (bswap ? (xs[i] = ddsrt_bswap4u (xs[i])) : xs[i]) > max)
-          return false;
+          return normalize_error_bool ();
       *off += 4 * num;
       break;
     }
     default:
-      return false;
+      return normalize_error_bool ();
   }
   return true;
 }
@@ -2347,7 +2356,7 @@ static bool normalize_bitmaskarray (char * __restrict data, uint32_t * __restric
       uint8_t * const xs = (uint8_t *) (data + *off);
       for (uint32_t i = 0; i < num; i++)
         if (!bitmask_value_valid (xs[i], bits_h, bits_l))
-          return false;
+          return normalize_error_bool ();
       *off += num;
       break;
     }
@@ -2357,7 +2366,7 @@ static bool normalize_bitmaskarray (char * __restrict data, uint32_t * __restric
       uint16_t * const xs = (uint16_t *) (data + *off);
       for (uint32_t i = 0; i < num; i++)
         if (!bitmask_value_valid (bswap ? (xs[i] = ddsrt_bswap2u (xs[i])) : xs[i], bits_h, bits_l))
-          return false;
+          return normalize_error_bool ();
       *off += 2 * num;
       break;
     }
@@ -2367,7 +2376,7 @@ static bool normalize_bitmaskarray (char * __restrict data, uint32_t * __restric
       uint32_t * const xs = (uint32_t *) (data + *off);
       for (uint32_t i = 0; i < num; i++)
         if (!bitmask_value_valid (bswap ? (xs[i] = ddsrt_bswap4u (xs[i])) : xs[i], bits_h, bits_l))
-          return false;
+          return normalize_error_bool ();
       *off += 4 * num;
       break;
     }
@@ -2384,7 +2393,7 @@ static bool normalize_bitmaskarray (char * __restrict data, uint32_t * __restric
           *(((uint32_t *) &xs[i]) + 1) = x;
         }
         if (!bitmask_value_valid (xs[i], bits_h, bits_l))
-          return false;
+          return normalize_error_bool ();
       }
       *off += 8 * num;
       break;
@@ -2401,7 +2410,7 @@ static bool read_and_normalize_collection_dheader (bool * __restrict has_dheader
     if (!read_and_normalize_uint32 (size1, data, off, size, bswap))
       return false;
     if (*size1 > size - *off)
-      return false;
+      return normalize_error_bool ();
     *has_dheader = true;
     *size1 += *off;
     return true;
@@ -2430,11 +2439,11 @@ static const uint32_t *normalize_seq (char * __restrict data, uint32_t * __restr
   if (num == 0)
   {
     if (has_dheader && *off != size1)
-      return NULL;
+      return normalize_error_ops ();
     return skip_sequence_insns (insn, ops);
   }
   if (bound && num > bound)
-    return NULL;
+    return normalize_error_ops ();
   switch (subtype)
   {
     case DDS_OP_VAL_BLN:
@@ -2480,7 +2489,7 @@ static const uint32_t *normalize_seq (char * __restrict data, uint32_t * __restr
       break;
   }
   if (has_dheader && *off != size1)
-    return NULL;
+    return normalize_error_ops ();
   return ops;
 }
 
@@ -2538,7 +2547,7 @@ static const uint32_t *normalize_arr (char * __restrict data, uint32_t * __restr
       break;
   }
   if (has_dheader && *off != size1)
-    return NULL;
+    return normalize_error_ops ();
   return ops;
 }
 
@@ -2673,7 +2682,7 @@ static const uint32_t *stream_normalize_delimited (char * __restrict data, uint3
 
   // can't trust the declared size in the header: certainly it must fit in the remaining bytes
   if (delimited_sz > size - *off)
-    return NULL;
+    return normalize_error_ops ();
   // can't trust the payload either: it must not only fit in the remaining bytes in the input,
   // but also in the declared size in the header
   uint32_t size1 = *off + delimited_sz;
@@ -2766,7 +2775,7 @@ static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * _
     return NULL;
   // reject if fewer than pl_sz bytes remain in the input
   if (pl_sz > size - *off)
-    return NULL;
+    return normalize_error_ops ();
   const uint32_t size1 = *off + pl_sz;
 
   while (*off < size1)
@@ -2795,14 +2804,14 @@ static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * _
         {
           uint32_t shift = lc - 4;
           if (msz > UINT32_MAX >> shift)
-            return NULL;
+            return normalize_error_ops ();
           msz <<= shift;
         }
         /* length embedded in member does not include it's own 4 bytes, we need to be able
            to add those 4; technically perhaps this would be valid CDR but if so, we don't
            support it */
         if (msz > UINT32_MAX - 4)
-          return NULL;
+          return normalize_error_ops ();
         else
           msz += 4;
         break;
@@ -2812,7 +2821,7 @@ static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * _
     }
     // reject if fewer than msz bytes remain in declared size of the parameter list
     if (msz > size1 - *off)
-      return NULL;
+      return normalize_error_ops ();
     // don't allow member values that exceed its declared size
     const uint32_t size2 = *off + msz;
     switch (dds_stream_normalize_pl_member (data, m_id, off, size2, bswap, xcdr_version, ops))
@@ -2824,12 +2833,12 @@ static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * _
            changes in the cdrstream interface, but also in the serdata interface to
            pass the return value to q_receive. */
         if (must_understand)
-          return NULL;
+          return normalize_error_ops ();
         *off = size2;
         break;
       case NPMR_FOUND:
         if (*off != size2)
-          return NULL;
+          return normalize_error_ops ();
         break;
       case NPMR_ERROR:
         return NULL;
@@ -2868,14 +2877,14 @@ static const uint32_t *stream_normalize_data_impl (char * __restrict data, uint3
       }
       case DDS_OP_DLC: {
         if (xcdr_version != CDR_ENC_VERSION_2)
-          return NULL;
+          return normalize_error_ops ();
         if ((ops = stream_normalize_delimited (data, off, size, bswap, xcdr_version, ops)) == NULL)
           return NULL;
         break;
       }
       case DDS_OP_PLC: {
         if (xcdr_version != CDR_ENC_VERSION_2)
-          return NULL;
+          return normalize_error_ops ();
         if ((ops = stream_normalize_pl (data, off, size, bswap, xcdr_version, ops)) == NULL)
           return NULL;
         break;
@@ -2954,7 +2963,7 @@ bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, ui
 {
   uint32_t off = 0;
   if (size > CDR_SIZE_MAX)
-    return false;
+    return normalize_error_bool ();
   else if (just_key)
     return stream_normalize_key (data, size, bswap, xcdr_version, &sertype->type, actual_size);
   else if (!stream_normalize_data_impl (data, &off, size, bswap, xcdr_version, sertype->type.ops.ops, false))
