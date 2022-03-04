@@ -24,22 +24,22 @@ void iox_sub_context_fini(iox_sub_context_t* context)
   ddsrt_mutex_destroy(&context->mutex);
 }
 
-static iox_sub_context_t* get_context(iox_sub_t sub) {
+iox_sub_context_t **get_context_ptr(iox_sub_t sub) {
   // we know that 8 bytes in front of sub there is a pointer to the context
   char* p = (char*) sub - sizeof(void *);
-  return (iox_sub_context_t*) p;
+  return (iox_sub_context_t **)p;
 }
 
 void shm_lock_iox_sub(iox_sub_t sub)
-{    
-    iox_sub_context_t* context = get_context(sub);
-    ddsrt_mutex_lock(&context->mutex);
+{
+  iox_sub_context_t **context = get_context_ptr(sub);
+  ddsrt_mutex_lock(&(*context)->mutex);
 }
 
 void shm_unlock_iox_sub(iox_sub_t sub)
 {
-    iox_sub_context_t* context = get_context(sub);
-    ddsrt_mutex_unlock(&context->mutex);
+  iox_sub_context_t **context = get_context_ptr(sub);
+  ddsrt_mutex_unlock(&(*context)->mutex);
 }
 
 iceoryx_header_t *iceoryx_header_from_chunk(const void *iox_chunk) {

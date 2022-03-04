@@ -57,8 +57,9 @@ typedef struct {
   struct dds_reader *parent_reader;
 } iox_sub_context_t;
 
-DDS_EXPORT void
-iox_sub_context_init(iox_sub_context_t *context);
+DDS_EXPORT iox_sub_context_t **get_context_ptr(iox_sub_t sub);
+
+DDS_EXPORT void iox_sub_context_init(iox_sub_context_t *context);
 
 DDS_EXPORT void
 iox_sub_context_fini(iox_sub_context_t *context);

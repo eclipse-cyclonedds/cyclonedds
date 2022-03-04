@@ -55,6 +55,7 @@ void shm_monitor_destroy(shm_monitor_t* monitor)
     // any remaining callbacks will be executed
 
     iox_listener_deinit(monitor->m_listener);
+    iox_user_trigger_deinit(monitor->m_wakeup_trigger);
     ddsrt_mutex_destroy(&monitor->m_lock);
 }
 

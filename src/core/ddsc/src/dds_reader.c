@@ -690,6 +690,12 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     //     e.g. return a nullptr and handle the error here.    
     rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_storage, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
 
+    // NB: Due to some storage paradigm change of iceoryx structs
+    // we now have a pointer 8 bytes before m_iox_sub
+    // We use this address to store a pointer to the context.
+    iox_sub_context_t **context = get_context_ptr(rd->m_iox_sub);
+    *context = &rd->m_iox_sub_context;
+
     rc = shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
 
     if (rc != DDS_RETCODE_OK) {
