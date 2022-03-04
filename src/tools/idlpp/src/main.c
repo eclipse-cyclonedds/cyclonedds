@@ -444,11 +444,11 @@ fatal_error_exit:
     clear_symtable();
 #endif
 
-    if (fp_in != stdin)
+    if (fp_in && fp_in != stdin)
         fclose( fp_in);
-    if (fp_out != stdout)
+    if (fp_out && fp_out != stdout)
         fclose( fp_out);
-    if (fp_err != stderr)
+    if (fp_err && fp_err != stderr)
         fclose( fp_err);
 
     if (mcpp_debug & MEMORY)
