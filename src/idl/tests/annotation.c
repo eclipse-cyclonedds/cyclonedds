@@ -1466,3 +1466,24 @@ CU_Test(idl_annotation, data_representation)
 #undef XCDR2
 #undef XML
 #undef DEFAULT
+
+CU_Test(idl_annotation, idl_is_string_fix)
+{
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, "struct s { @default(\"abcdef\") string str;};", &pstate);
+  CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
+
+  if (ret)
+    return;
+
+  const idl_struct_t *_struct = (const idl_struct_t*)pstate->root;
+  CU_ASSERT_FATAL(idl_is_struct(pstate->root));
+
+  const idl_member_t *_member = _struct->members;
+  CU_ASSERT_FATAL(idl_is_member(_member));
+
+  CU_ASSERT_FATAL(_member->value.annotation != NULL);
+  CU_ASSERT(idl_is_string(_member->value.value));
+
+  idl_delete_pstate(pstate);
+}
