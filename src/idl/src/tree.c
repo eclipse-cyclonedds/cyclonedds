@@ -945,7 +945,7 @@ bool idl_is_string(const void *ptr)
 {
 #if !defined(NDEBUG)
   static const idl_mask_t mask = IDL_CONST | IDL_TYPEDEF | IDL_MEMBER |
-                                 IDL_CASE | IDL_SEQUENCE |
+                                 IDL_CASE | IDL_SEQUENCE | IDL_ANNOTATION_APPL_PARAM |
                                  IDL_SWITCH_TYPE_SPEC;
 #endif
   const idl_string_t *node = ptr;
