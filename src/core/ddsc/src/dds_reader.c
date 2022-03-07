@@ -491,6 +491,45 @@ static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_
           DDS_DURABILITY_VOLATILE == qos->durability.kind &&
           DDS_HISTORY_KEEP_LAST == qos->history.kind);
 }
+
+static iox_sub_options_t create_iox_sub_options(const dds_qos_t* qos) {
+
+  iox_sub_options_t opts;
+  iox_sub_options_init(&opts);
+
+  const uint32_t max_sub_queue_capacity = iox_cfg_max_subscriber_queue_capacity();
+
+  // NB: We may lose data after history.depth many samples are received (if we
+  // are not taking them fast enough from the iceoryx queue and move them in
+  // the reader history cache), but this is valid behavior for volatile.
+  // It may still lead to undesired behavior as the queues are filled very
+  // fast if data is published as fast as possible.
+  // NB: If the history depth is larger than the queue capacity, we still use
+  // shared memory but limit the queueCapacity accordingly (otherwise iceoryx
+  // emits a warning and limits it itself)
+
+  if ((uint32_t) qos->history.depth <= max_sub_queue_capacity) {
+    opts.queueCapacity = (uint64_t)qos->history.depth;
+  } else {
+    opts.queueCapacity = max_sub_queue_capacity;
+  }
+
+  if(qos->reliability.kind ==  DDS_RELIABILITY_RELIABLE) {
+    opts.queueFullPolicy = QueueFullPolicy_BLOCK_PRODUCER; 
+  }
+
+  if(qos->durability.kind == DDS_DURABILITY_VOLATILE) {
+    opts.historyRequest = 0;
+  } else {
+    // Transient Local and stronger
+    opts.historyRequest = (uint64_t) qos->history.depth;
+    // if the publisher cannot guarantee support for this request we
+    // will not be connected by iceoryx
+    opts.requirePublisherHistorySupport = true;
+  }
+
+  return opts;
+}
 #endif
 
 static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
@@ -655,35 +694,13 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 #ifdef DDS_HAS_SHM
   if (0x0 == (rqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM))
   {
-    DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Reader's topic name will be DDS:Cyclone:%s\n", rd->m_topic->m_name);
-
-    iox_sub_options_t opts;
-    iox_sub_options_init(&opts);
+    DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Reader's topic name will be DDS:Cyclone:%s\n", rd->m_topic->m_name);    
     
     iox_sub_context_init(&rd->m_iox_sub_context);
 
     assert (rqos->durability.kind == DDS_DURABILITY_VOLATILE);
 
-    const uint32_t max_sub_queue_capacity = iox_cfg_max_subscriber_queue_capacity();
-
-    // NB: We may lose data after history.depth many samples are received (if we
-    // are not taking them fast enough from the iceoryx queue and move them in
-    // the reader history cache), but this is valid behavior for volatile.
-    // It may still lead to undesired behavior as the queues are filled very
-    // fast if data is published as fast as possible.
-    // NB: If the history depth is larger than the queue capacity, we still use
-    // shared memory but limit the queueCapacity accordingly (otherwise iceoryx
-    // emits a warning and limits it itself)
-
-    if ((uint32_t) rqos->history.depth <= max_sub_queue_capacity) {
-      opts.queueCapacity = (uint64_t)rqos->history.depth;
-    } else {
-      opts.queueCapacity = max_sub_queue_capacity;
-    }
-
-    // NB: since currently we only support the volatile reader case we will
-    // never request historical data
-    opts.historyRequest = 0;
+    iox_sub_options_t opts = create_iox_sub_options(rqos);
 
     // NB: This may fail due to icoeryx being out of internal resources for subsribers.
     //     In this case terminate is called by iox_sub_init.
