@@ -298,15 +298,26 @@ static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_
     return false;
   }
 
-  return (NULL != qos &&
-          DDS_WRITER_QOS_CHECK_FIELDS ==
-              (qos->present & DDS_WRITER_QOS_CHECK_FIELDS) &&
+  // only VOLATILE or TRANSIENT LOCAL
+  if(!(qos->durability.kind == DDS_DURABILITY_VOLATILE ||
+    qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL)) {
+    return false;
+  }
+
+  // only KEEP LAST
+  if(qos->history.kind != DDS_HISTORY_KEEP_LAST) {
+    return false;
+  }
+
+  // we cannot support the required history with iceoryx
+  if(qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL && 
+    qos->history.depth > (int32_t) iox_cfg_max_publisher_history()) {
+    return false;
+  } 
+
+  return (DDS_WRITER_QOS_CHECK_FIELDS == (qos->present & DDS_WRITER_QOS_CHECK_FIELDS) &&
           DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
-          DDS_INFINITY == qos->deadline.deadline &&
-          DDS_RELIABILITY_RELIABLE == qos->reliability.kind &&
-          DDS_DURABILITY_VOLATILE == qos->durability.kind &&
-          DDS_HISTORY_KEEP_LAST == qos->history.kind
-          );
+          DDS_INFINITY == qos->deadline.deadline);
 }
 
 static iox_pub_options_t create_iox_pub_options(const dds_qos_t* qos) {
@@ -314,8 +325,8 @@ static iox_pub_options_t create_iox_pub_options(const dds_qos_t* qos) {
   iox_pub_options_t opts;
   iox_pub_options_init(&opts);
 
-  if(qos->reliability.kind ==  DDS_RELIABILITY_RELIABLE) {
-    opts.subscriberTooSlowPolicy = ConsumerTooSlowPolicy_WAIT_FOR_CONSUMER; 
+  if(qos->reliability.kind == DDS_RELIABILITY_RELIABLE) {
+    opts.subscriberTooSlowPolicy = ConsumerTooSlowPolicy_WAIT_FOR_CONSUMER;
   }
 
   if(qos->durability.kind == DDS_DURABILITY_VOLATILE) {
