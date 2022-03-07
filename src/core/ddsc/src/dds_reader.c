@@ -483,13 +483,19 @@ static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_
     return false;
   }
 
-  return (NULL != qos &&
-          DDS_READER_QOS_CHECK_FIELDS ==
+  if(qos->history.kind != DDS_HISTORY_KEEP_LAST) {
+    return false;
+  }
+
+  if(!(qos->durability.kind == DDS_DURABILITY_VOLATILE ||
+    qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL)) {
+    return false;
+  }  
+
+  return (DDS_READER_QOS_CHECK_FIELDS ==
               (qos->present & DDS_READER_QOS_CHECK_FIELDS) &&
           DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
-          DDS_INFINITY == qos->deadline.deadline &&
-          DDS_DURABILITY_VOLATILE == qos->durability.kind &&
-          DDS_HISTORY_KEEP_LAST == qos->history.kind);
+          DDS_INFINITY == qos->deadline.deadline);
 }
 
 static iox_sub_options_t create_iox_sub_options(const dds_qos_t* qos) {
@@ -514,7 +520,7 @@ static iox_sub_options_t create_iox_sub_options(const dds_qos_t* qos) {
     opts.queueCapacity = max_sub_queue_capacity;
   }
 
-  if(qos->reliability.kind ==  DDS_RELIABILITY_RELIABLE) {
+  if(qos->reliability.kind == DDS_RELIABILITY_RELIABLE) {
     opts.queueFullPolicy = QueueFullPolicy_BLOCK_PRODUCER; 
   }
 
