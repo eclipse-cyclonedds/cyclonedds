@@ -308,6 +308,25 @@ static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_
           DDS_HISTORY_KEEP_LAST == qos->history.kind
           );
 }
+
+static iox_pub_options_t create_iox_pub_options(const dds_qos_t* qos) {
+
+  iox_pub_options_t opts;
+  iox_pub_options_init(&opts);
+
+  if(qos->reliability.kind ==  DDS_RELIABILITY_RELIABLE) {
+    opts.subscriberTooSlowPolicy = ConsumerTooSlowPolicy_WAIT_FOR_CONSUMER; 
+  }
+
+  if(qos->durability.kind == DDS_DURABILITY_VOLATILE) {
+    opts.historyCapacity = 0;
+  } else {
+    // Transient Local and stronger
+    opts.historyCapacity = (uint64_t) qos->history.depth;
+  }
+
+  return opts;
+}
 #endif
 
 dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
@@ -435,12 +454,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   if (0x0 == (wqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM))
   {
     DDS_CLOG (DDS_LC_SHM, &wr->m_entity.m_domain->gv.logconfig, "Writer's topic name will be DDS:Cyclone:%s\n", wr->m_topic->m_name);
-    iox_pub_options_t opts;
-    iox_pub_options_init(&opts);
-
-    // NB: since currently we only support the volatile reader case, there is no
-    // requirement for a specific historyCapacity value > 0 in iceoryx
-    opts.historyCapacity = 0;
+    iox_pub_options_t opts = create_iox_pub_options(wqos);
 
     // NB: This may fail due to icoeryx being out of internal resources for publishers
     //     In this case terminate is called by iox_pub_init.
