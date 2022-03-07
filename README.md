@@ -7,7 +7,7 @@
 # Eclipse Cyclone DDS
 
 Eclipse Cyclone DDS is a very performant and robust open-source DDS implementation.  Cyclone DDS is developed completely in the open as an Eclipse IoT project
-(see [eclipse-cyclone-dds](https://projects.eclipse.org/projects/iot.cyclonedds)) with a growing list of [adopters](https://iot.eclipse.org/adopters/?#iot.cyclonedds) (if you're one of them, please add your [logo](https://github.com/EclipseFdn/iot.eclipse.org/issues/new?template=adopter_request.md)).  It is a tier-1 middleware for the Robot Operating System [ROS 2](https://index.ros.org/doc/ros2/).
+(see [eclipse-cyclone-dds](https://projects.eclipse.org/projects/iot.cyclonedds)) with a growing list of [adopters](https://iot.eclipse.org/adopters/?#iot.cyclonedds) (if you're one of them, please add your [logo](https://github.com/EclipseFdn/iot.eclipse.org/issues/new?template=adopter_request.md)).  It is a tier-1 middleware for the Robot Operating System [ROS 2](https://docs.ros.org/en/rolling/).
 
 * [Getting Started](#getting-started)
 * [Performance](#performance)
