@@ -3495,7 +3495,7 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_union (dds_istream_
   const uint32_t disc = read_union_discriminant (is, insn);
   uint32_t const * const jeq_op = find_union_case (ops, disc);
   if (jeq_op)
-    dds_stream_extract_key_from_data_skip_subtype (is, 1, insn, DDS_JEQ_TYPE (jeq_op[0]), jeq_op + DDS_OP_ADR_JSR (jeq_op[0]));
+    dds_stream_extract_key_from_data_skip_subtype (is, 1, jeq_op[0], DDS_JEQ_TYPE (jeq_op[0]), jeq_op + DDS_OP_ADR_JSR (jeq_op[0]));
   return ops + DDS_OP_ADR_JMP (ops[3]);
 }
 
