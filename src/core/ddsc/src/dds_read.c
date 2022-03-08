@@ -64,6 +64,14 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
 
   thread_state_awake (ts1, &entity->m_domain->gv);
 
+#ifdef DDS_HAS_SHM
+  // If SHM is supported and if the monitor is not attached
+  if(rd->m_iox_sub && !rd->m_iox_sub_context.monitor) {
+    // transfer the samples from iox to rhc in the same thread context
+    dds_transfer_samples_from_iox_to_rhc(rd);
+  }
+#endif
+
   /* Allocate samples if not provided (assuming all or none provided) */
   if (buf[0] == NULL)
   {
@@ -163,6 +171,13 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
   }
 
   thread_state_awake (ts1, &entity->m_domain->gv);
+#ifdef DDS_HAS_SHM
+  // If SHM is supported and if the monitor is not attached
+  if(rd->m_iox_sub && !rd->m_iox_sub_context.monitor) {
+    // transfer the samples from iox to rhc in the same thread context
+    dds_transfer_samples_from_iox_to_rhc(rd);
+  }
+#endif
 
   /* read/take resets data available status -- must reset before reading because
      the actual writing is protected by RHC lock, not by rd->m_entity.m_lock */
