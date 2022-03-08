@@ -32,11 +32,11 @@ static void shm_subscriber_callback(iox_sub_t subscriber, void * context_data);
 
 void shm_monitor_init(shm_monitor_t* monitor) 
 {
-    ddsrt_mutex_init(&monitor->m_lock);
-    
-    // storage is ignored internally now but we cannot pass a nullptr    
-    monitor->m_listener = iox_listener_init(&(iox_listener_storage_t){0});
-    monitor->m_wakeup_trigger = iox_user_trigger_init(&(iox_user_trigger_storage_t){0});
+    // storage is ignored internally now but we cannot pass a nullptr
+    iox_listener_storage_t s;
+    monitor->m_listener = iox_listener_init(&s);
+    iox_user_trigger_storage_t t;
+    monitor->m_wakeup_trigger = iox_user_trigger_init(&t);
 
     monitor->m_state = SHM_MONITOR_RUNNING;
 }
@@ -51,7 +51,6 @@ void shm_monitor_destroy(shm_monitor_t* monitor)
 
     iox_listener_deinit(monitor->m_listener);
     iox_user_trigger_deinit(monitor->m_wakeup_trigger);
-    ddsrt_mutex_destroy(&monitor->m_lock);
 }
 
 dds_return_t shm_monitor_wake_and_disable(shm_monitor_t* monitor) 
@@ -98,14 +97,12 @@ dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader
 
 dds_return_t shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader) 
 {
-    ddsrt_mutex_lock(&monitor->m_lock);
     // if the reader is attached
     if (reader->m_iox_sub_context.monitor != NULL && reader->m_iox_sub_context.parent_reader != NULL) {
         iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_DATA_RECEIVED);
         reader->m_iox_sub_context.monitor = NULL;
         reader->m_iox_sub_context.parent_reader = NULL;
     }
-    ddsrt_mutex_unlock(&monitor->m_lock);
     return DDS_RETCODE_OK;
 }
 
