@@ -44,8 +44,6 @@ struct shm_monitor {
 
     //use this if we wait but want to wake up for some reason e.g. terminate   
     iox_user_trigger_t m_wakeup_trigger;
-   
-    uint32_t m_number_of_attached_readers;
     uint32_t m_state;
 };
 

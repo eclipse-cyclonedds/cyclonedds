@@ -92,8 +92,6 @@ dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader
     }
   }
 
-  // TODO(Sumanth), do we even use this at all?
-  ++monitor->m_number_of_attached_readers;
   reader->m_iox_sub_context.monitor = &reader->m_entity.m_domain->m_shm_monitor;
   return DDS_RETCODE_OK;
 }
@@ -104,8 +102,6 @@ dds_return_t shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader
     // if the reader is attached
     if (reader->m_iox_sub_context.monitor != NULL && reader->m_iox_sub_context.parent_reader != NULL) {
         iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_DATA_RECEIVED);
-        // are we really tracking the number of attached readers?
-        --monitor->m_number_of_attached_readers;
         reader->m_iox_sub_context.monitor = NULL;
         reader->m_iox_sub_context.parent_reader = NULL;
     }
