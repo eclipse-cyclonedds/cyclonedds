@@ -1817,7 +1817,7 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
                 ddsi_xt_type_fini (gv, km1_kh);
                 ddsrt_free (km1_kh);
                 ddsi_xt_type_fini (gv, km2_kh);
-                ddsrt_free (km1_kh);
+                ddsrt_free (km2_kh);
                 if (!kh_assignable)
                   goto struct_failed;
               }
