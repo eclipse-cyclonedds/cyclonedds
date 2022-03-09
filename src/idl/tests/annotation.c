@@ -1214,7 +1214,6 @@ static void test_min_max(minmax_test_t test)
 {
   idl_pstate_t *pstate = NULL;
   idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.s, &pstate);
-  if (ret != test.ret)
   CU_ASSERT_EQUAL(ret, test.ret);
 
   if (ret)
@@ -1319,7 +1318,6 @@ static void test_unit(unit_test_t test)
 {
   idl_pstate_t *pstate = NULL;
   idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.s, &pstate);
-  if (ret != test.ret)
   CU_ASSERT_EQUAL(ret, test.ret);
 
   if (ret)
@@ -1402,7 +1400,6 @@ static void test_representation(rep_test_t test)
 {
   idl_pstate_t *pstate = NULL;
   idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.s, &pstate);
-  if (ret != test.ret)
   CU_ASSERT_EQUAL(ret, test.ret);
 
   if (ret)
