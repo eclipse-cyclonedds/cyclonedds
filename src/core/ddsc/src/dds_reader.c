@@ -704,8 +704,6 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     
     iox_sub_context_init(&rd->m_iox_sub_context);
 
-    assert (rqos->durability.kind == DDS_DURABILITY_VOLATILE);
-
     iox_sub_options_t opts = create_iox_sub_options(rqos);
 
     // NB: This may fail due to icoeryx being out of internal resources for subsribers.
