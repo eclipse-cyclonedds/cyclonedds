@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -115,10 +116,23 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   ddsi_xqos_mergein_missing (new_qos, &dom->gv.default_local_plist_pp.qos, ~(uint64_t)0);
   if ((ret = ddsi_xqos_valid (&dom->gv.logconfig, new_qos)) < 0)
     goto err_qos_validation;
+  // generic validation code will check lease duration, we only need to check kind
+  // is what we insist on
+  if (new_qos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC)
+  {
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto err_qos_validation;
+  }
 
-  /* Translate qos */
+  // DDSI layer wants a plist that it will copy, DDS layer takes ownership of QoS object
+  // passed into entity_init.  That we have to copy the QoS into the plist here
   ddsi_plist_init_empty (&plist);
-  dds_merge_qos (&plist.qos, new_qos);
+  ddsi_xqos_mergein_missing (&plist.qos, new_qos, ~(uint64_t)0);
+
+  // Participants don't have a liveliness QoS according to the spec, that's a Cyclone
+  // extension.  DDSI has a "participant lease duration" parameter.
+  plist.participant_lease_duration = new_qos->liveliness.lease_duration;
+  plist.present |= PP_PARTICIPANT_LEASE_DURATION;
 
   thread_state_awake (lookup_thread_state (), &dom->gv);
   ret = new_participant (&guid, &dom->gv, 0, &plist);

@@ -21,6 +21,8 @@
 #ifndef DDS_OPCODES_H
 #define DDS_OPCODES_H
 
+#include "dds/ddsrt/static_assert.h"
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -59,28 +61,36 @@ enum dds_stream_opcode {
 
   /* data field
      [ADR, nBY,   0, f] [offset]
+     [ADR, BLN,   0, f] [offset]
      [ADR, ENU,   0, f] [offset] [max]
+     [ADR, BMK,   0, f] [offset] [bits-high] [bits-low]
      [ADR, STR,   0, f] [offset]
      [ADR, BST,   0, f] [offset] [max-size]
 
      [ADR, SEQ, nBY, f] [offset]
+     [ADR, SEQ, BLN, f] [offset]
      [ADR, SEQ, ENU, f] [offset] [max]
+     [ADR, SEQ, BMK, f] [offset] [bits-high] [bits-low]
      [ADR, SEQ, STR, f] [offset]
      [ADR, SEQ, BST, f] [offset] [max-size]
      [ADR, SEQ,   s, f] [offset] [elem-size] [next-insn, elem-insn]
        where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, SEQ, EXT, f] *** not supported
 
-     [ADR, BSQ, nBY, 0] [offset] [sbound]
-     [ADR, BSQ, ENU, 0] [offset] [sbound] [max]
-     [ADR, BSQ, STR, 0] [offset] [sbound]
-     [ADR, BSQ, BST, 0] [offset] [sbound] [max-size]
-     [ADR, BSQ,   s, 0] [offset] [sbound] [elem-size] [next-insn, elem-insn]
+     [ADR, BSQ, nBY, f] [offset] [sbound]
+     [ADR, BSQ, BLN, f] [offset] [sbound]
+     [ADR, BSQ, ENU, f] [offset] [sbound] [max]
+     [ADR, BSQ, BMK, f] [offset] [sbound] [bits-high] [bits-low]
+     [ADR, BSQ, STR, f] [offset] [sbound]
+     [ADR, BSQ, BST, f] [offset] [sbound] [max-size]
+     [ADR, BSQ,   s, f] [offset] [sbound] [elem-size] [next-insn, elem-insn]
        where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, BSQ, EXT, f] *** not supported
 
      [ADR, ARR, nBY, f] [offset] [alen]
+     [ADR, ARR, BLN, f] [offset] [alen]
      [ADR, ARR, ENU, f] [offset] [alen] [max]
+     [ADR, ARR, BMK, f] [offset] [alen] [bits-high] [bits-low]
      [ADR, ARR, STR, f] [offset] [alen]
      [ADR, ARR, BST, f] [offset] [alen] [0] [max-size]
      [ADR, ARR,   s, f] [offset] [alen] [next-insn, elem-insn] [elem-size]
@@ -91,7 +101,7 @@ enum dds_stream_opcode {
      [ADR, UNI, ENU, z] [offset] [alen] [next-insn, cases] [max]
      [ADR, UNI, EXT, f] *** not supported
        where
-         d = discriminant type of {1BY,2BY,4BY}
+         d = discriminant type of {1BY,2BY,4BY,BLN}
          z = default present/not present (DDS_OP_FLAG_DEF)
          offset = discriminant offset
          max = max enum value
@@ -107,10 +117,12 @@ enum dds_stream_opcode {
                     - base type member, used with EXT type (DDS_OP_FLAG_BASE)
                     - optional (DDS_OP_FLAG_OPT)
                     - must-understand (DDS_OP_FLAG_MU)
+                    - storage size, only for ENU and BMK (n << DDS_OP_FLAG_SZ_SHIFT)
      [offset]     = field offset from start of element in memory
      [elem-size]  = element size in memory (elem-size is only included in case 'external' flag is set)
      [max-size]   = string bound + 1
      [max]        = max enum value
+     [bits-..]    = identified bits in the bitmask, split into high and low 32 bits
      [alen]       = array length, number of cases
      [sbound]     = bounded sequence maximum number of elements
      [next-insn]  = (unsigned 16 bits) offset to instruction for next field, from start of insn
@@ -129,19 +141,23 @@ enum dds_stream_opcode {
 
   /* jump-if-equal, used for union cases:
      [JEQ, nBY, 0] [disc] [offset]
+     [JEQ, BLN, 0] [disc] [offset]
      [JEQ, STR, 0] [disc] [offset]
      [JEQ, s,   i] [disc] [offset]
-     [JEQ4, nBY, 0] [disc] [offset] 0
-     [JEQ4, STR, 0] [disc] [offset] 0
-     [JEQ4, ENU, 0] [disc] [offset] [max]
+     [JEQ4, e | nBY, 0] [disc] [offset] 0
+     [JEQ4, e | STR, 0] [disc] [offset] 0
+     [JEQ4, e | ENU, f] [disc] [offset] [max]
      [JEQ4, EXT, 0] *** not supported, use STU/UNI for external defined types
      [JEQ4, e | s, i] [disc] [offset] [elem-size iff "external" flag e is set, else 0]
        where
          e  = external: stored as external data (pointer) (DDS_OP_FLAG_EXT)
          s  = subtype other than {nBY,STR} for JEQ and {nBY,STR,ENU,EXT} for JEQ4
+              (note that BMK cannot be inline, because it needs 2 additional instructions
+              for the bits that are identified in the bitmask type)
          i  = (unsigned 16 bits) offset to first instruction for case, from start of insn
               instruction sequence must end in RTS, at which point executes continues
               at the next field's instruction as specified by the union
+         f  = size flags for ENU instruction
 
       Note that the JEQ instruction is deprecated and replaced by the JEQ4 instruction. The
       IDL compiler only generates JEQ4 for union cases, the JEQ instruction is included here
@@ -186,9 +202,9 @@ enum dds_stream_opcode {
 };
 
 enum dds_stream_typecode {
-  DDS_OP_VAL_1BY = 0x01, /* one byte simple type (char, octet, boolean) */
+  DDS_OP_VAL_1BY = 0x01, /* one byte simple type (char, octet) */
   DDS_OP_VAL_2BY = 0x02, /* two byte simple type ((unsigned) short) */
-  DDS_OP_VAL_4BY = 0x03, /* four byte simple type ((unsigned) long, enums, float) */
+  DDS_OP_VAL_4BY = 0x03, /* four byte simple type ((unsigned) long, float) */
   DDS_OP_VAL_8BY = 0x04, /* eight byte simple type ((unsigned) long long, double) */
   DDS_OP_VAL_STR = 0x05, /* string */
   DDS_OP_VAL_BST = 0x06, /* bounded string */
@@ -198,7 +214,9 @@ enum dds_stream_typecode {
   DDS_OP_VAL_STU = 0x0a, /* struct */
   DDS_OP_VAL_BSQ = 0x0b, /* bounded sequence */
   DDS_OP_VAL_ENU = 0x0c, /* enumerated value (long) */
-  DDS_OP_VAL_EXT = 0x0d  /* field with external definition */
+  DDS_OP_VAL_EXT = 0x0d, /* field with external definition */
+  DDS_OP_VAL_BLN = 0x0e, /* boolean */
+  DDS_OP_VAL_BMK = 0x0f  /* bitmask */
 };
 
 /* primary type code for DDS_OP_ADR, DDS_OP_JEQ */
@@ -215,7 +233,9 @@ enum dds_stream_typecode_primary {
   DDS_OP_TYPE_STU = DDS_OP_VAL_STU << 16,
   DDS_OP_TYPE_BSQ = DDS_OP_VAL_BSQ << 16,
   DDS_OP_TYPE_ENU = DDS_OP_VAL_ENU << 16,
-  DDS_OP_TYPE_EXT = DDS_OP_VAL_EXT << 16
+  DDS_OP_TYPE_EXT = DDS_OP_VAL_EXT << 16,
+  DDS_OP_TYPE_BLN = DDS_OP_VAL_BLN << 16,
+  DDS_OP_TYPE_BMK = DDS_OP_VAL_BMK << 16
 };
 #define DDS_OP_TYPE_BOO DDS_OP_TYPE_1BY
 
@@ -241,21 +261,22 @@ enum dds_stream_typecode_subtype {
   DDS_OP_SUBTYPE_UNI = DDS_OP_VAL_UNI << 8,
   DDS_OP_SUBTYPE_STU = DDS_OP_VAL_STU << 8,
   DDS_OP_SUBTYPE_BSQ = DDS_OP_VAL_BSQ << 8,
-  DDS_OP_SUBTYPE_ENU = DDS_OP_VAL_ENU << 8
+  DDS_OP_SUBTYPE_ENU = DDS_OP_VAL_ENU << 8,
+  DDS_OP_SUBTYPE_BLN = DDS_OP_VAL_BLN << 8,
+  DDS_OP_SUBTYPE_BMK = DDS_OP_VAL_BMK << 8
 };
-#define DDS_OP_SUBTYPE_BOO DDS_OP_SUBTYPE_1BY
 
 /* key field: applicable to {1,2,4,8}BY, STR, BST, ARR-of-{1,2,4,8}BY.
    Note that when defining keys in nested types, the key flag should be set
    on both the field(s) in the subtype and on the enclosing STU/EXT field. */
-#define DDS_OP_FLAG_KEY 0x01
-
-#define DDS_OP_FLAG_DEF 0x02 /* union has a default case (for DDS_OP_ADR | DDS_OP_TYPE_UNI) */
+#define DDS_OP_FLAG_KEY  (1u << 0)
 
 /* For a union: (1) the discriminator may be a key field; (2) there may be a default value;
    and (3) the discriminator can be an integral type (or enumerated - here treated as equivalent).
    What it can't be is a floating-point type. So DEF and FP need never be set at the same time.
    There are only a few flag bits, so saving one is not such a bad idea. */
+#define DDS_OP_FLAG_DEF  (1u << 1) /* union has a default case (for DDS_OP_ADR | DDS_OP_TYPE_UNI) */
+
 #define DDS_OP_FLAG_FP   (1u << 1) /* floating-point: applicable to {4,8}BY and arrays, sequences of them */
 #define DDS_OP_FLAG_SGN  (1u << 2) /* signed: applicable to {1,2,4,8}BY and arrays, sequences of them */
 #define DDS_OP_FLAG_MU   (1u << 3) /* must-understand flag */
@@ -264,11 +285,16 @@ enum dds_stream_typecode_subtype {
 #define DDS_OP_FLAG_OPT  (1u << 5) /* optional flag, used with struct members. For non-string types,
                                       an optional member also gets the FLAG_EXT, see above. */
 
+#define DDS_OP_FLAG_SZ_SHIFT  (6)
+#define DDS_OP_FLAG_SZ_MASK   (3u << DDS_OP_FLAG_SZ_SHIFT) /* Enum and bitmask storage size -- SZ2, SZ1: 00 = 1 byte, 01 = 2 bytes, 10 = 4 bytes, 11 = 8 bytes (bitmask only) */
+#define DDS_OP_FLAGS_SZ(f)    (1u << (((f) & DDS_OP_FLAG_SZ_MASK) >> DDS_OP_FLAG_SZ_SHIFT))
+#define DDS_OP_TYPE_SZ(o)     DDS_OP_FLAGS_SZ(DDS_OP_FLAGS(o))
+
 /* Topic descriptor flag values */
 #define DDS_TOPIC_NO_OPTIMIZE                   (1u << 0)
 #define DDS_TOPIC_FIXED_KEY                     (1u << 1)   /* Set if the XCDR1 serialized key fits in 16 bytes */
 #define DDS_TOPIC_CONTAINS_UNION                (1u << 2)
-#define DDS_TOPIC_DISABLE_TYPECHECK             (1u << 3)
+// (1u << 3) unused, was used for DDS_TOPIC_DISABLE_TYPECHECK
 #define DDS_TOPIC_FIXED_SIZE                    (1u << 4)
 #define DDS_TOPIC_FIXED_KEY_XCDR2               (1u << 5)   /* Set if the XCDR2 serialized key fits in 16 bytes */
 #define DDS_TOPIC_XTYPES_METADATA               (1u << 6)   /* Set if XTypes meta-data is present for this topic */

@@ -114,6 +114,7 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:DefaultMulticastAddress"/>
         <xs:element minOccurs="0" ref="config:EnableTopicDiscoveryEndpoints"/>
         <xs:element minOccurs="0" ref="config:ExternalDomainId"/>
+        <xs:element minOccurs="0" ref="config:LeaseDuration"/>
         <xs:element minOccurs="0" ref="config:MaxAutoParticipantIndex"/>
         <xs:element minOccurs="0" ref="config:ParticipantIndex"/>
         <xs:element minOccurs="0" ref="config:Peers"/>
@@ -151,6 +152,14 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;An override for the domain id, to be used in discovery and for determining the port number mapping. This allows creating multiple domains in a single process while making them appear as a single domain on the network. The value "default" disables the override.&lt;/p&gt;
 &lt;p&gt;The default value is: "default".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="LeaseDuration" type="config:duration">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This setting controls the default participant lease duration.&lt;p&gt;
+&lt;p&gt;The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
+&lt;p&gt;The default value is: "10 s".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="MaxAutoParticipantIndex" type="xs:integer">
@@ -537,7 +546,6 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:GenerateKeyhash"/>
         <xs:element minOccurs="0" ref="config:HeartbeatInterval"/>
         <xs:element minOccurs="0" ref="config:LateAckMode"/>
-        <xs:element minOccurs="0" ref="config:LeaseDuration"/>
         <xs:element minOccurs="0" ref="config:LivelinessMonitoring"/>
         <xs:element minOccurs="0" ref="config:MaxParticipants"/>
         <xs:element minOccurs="0" ref="config:MaxQueuedRexmitBytes"/>
@@ -742,14 +750,6 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;Ack a sample only when it has been delivered, instead of when committed to delivering it.&lt;/p&gt;
 &lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="LeaseDuration" type="config:duration">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This setting controls the default participant lease duration.&lt;p&gt;
-&lt;p&gt;The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
-&lt;p&gt;The default value is: "10 s".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="LivelinessMonitoring">

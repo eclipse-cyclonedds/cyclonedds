@@ -247,7 +247,7 @@ static const uint32_t TestIdl_MsgUnion_ops [] =
 
   DDS_OP_ADR | DDS_OP_TYPE_UNI | DDS_OP_SUBTYPE_ENU, offsetof (TestIdl_MsgUnion, msg_field3._d), 3u, (26u << 16) + 5u, 2u,
     DDS_OP_JEQ | DDS_OP_TYPE_4BY | DDS_OP_FLAG_SGN | 0, TestIdl_KIND3_0, offsetof (TestIdl_MsgUnion, msg_field3._u.field1),
-    DDS_OP_JEQ4 | DDS_OP_TYPE_ENU | 0, TestIdl_KIND3_1, offsetof (TestIdl_MsgUnion, msg_field3._u.field2), 10u,
+    DDS_OP_JEQ4 | DDS_OP_TYPE_ENU, TestIdl_KIND3_1, offsetof (TestIdl_MsgUnion, msg_field3._u.field2), 10u,
     DDS_OP_JEQ | DDS_OP_TYPE_UNI | 3, TestIdl_KIND3_2, offsetof (TestIdl_MsgUnion, msg_field3._u.field3),
 
   DDS_OP_ADR | DDS_OP_TYPE_UNI | DDS_OP_SUBTYPE_4BY | DDS_OP_FLAG_SGN, offsetof (TestIdl_Union0, _d), 2u, (10u << 16) + 4u,
@@ -1235,6 +1235,7 @@ static void * sample_init_appenddefaults2 (void)
   msg.msg_field_su8._length = 0;
   msg.msg_field_ssubm._length = 0;
   msg.msg_field_uni._d = 0;
+  msg.msg_field_enum = TestIdl_APPEND_DEFAULTS_KIND2;
   msg.msg_field1 = 456;
   return ddsrt_memdup (&msg, sizeof (TestIdl_MsgAppendDefaults2));
 }
@@ -1550,18 +1551,6 @@ static void sample_free_mutable2 (void *s_wr, void *s_rd)
  * Generic implementation and tests
  **********************************************/
 
-static void msg (const char *msg, ...)
-{
-  va_list args;
-  dds_time_t t;
-  t = dds_time ();
-  printf ("%d.%06d ", (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000);
-  va_start (args, msg);
-  vprintf (msg, args);
-  va_end (args);
-  printf ("\n");
-}
-
 static dds_entity_t d1, d2, tp1, tp2, dp1, dp2, rd, wr;
 
 static void cdrstream_init (void)
@@ -1639,7 +1628,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_empty 
     ddsc_cdrstream, ser_des, .init = cdrstream_init, .fini = cdrstream_fini)
 {
   dds_return_t ret;
-  msg ("Running test ser_des: %s", descr);
+  tprintf ("Running test ser_des: %s\n", descr);
 
   entity_init (desc, DDS_DATA_REPRESENTATION_XCDR2, false);
   dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
@@ -1716,7 +1705,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_init s
     ddsc_cdrstream, ser_des_multiple, .init = cdrstream_init, .fini = cdrstream_fini)
 {
   dds_return_t ret;
-  msg ("Running test ser_des_multiple: %s", descr);
+  tprintf ("Running test ser_des_multiple: %s\n", descr);
 
   entity_init (desc, DDS_DATA_REPRESENTATION_XCDR2, false);
 
@@ -1764,7 +1753,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
 {
   for (int t = 0; t <= 1; t++)
   {
-    msg ("Running test appendable_mutable: %s (run %d/2)", descr, t + 1);
+    tprintf ("Running test appendable_mutable: %s (run %d/2)\n", descr, t + 1);
 
     const dds_topic_descriptor_t *desc_wr = t ? desc2 : desc1;
     const dds_topic_descriptor_t *desc_rd = t ? desc1 : desc2;

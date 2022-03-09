@@ -164,6 +164,7 @@ CU_Test(idl_annotation, idl_default)
   static const bool t4 = true;
   static const char *t5 = "hello world!";
   static const uint32_t t6 = 123456789;
+  static const double t7 = 123456789;
   static const idl_default_test_t tests[] = {
     {"struct s { long l; };",                                IDL_RETCODE_OK,                  false, IDL_NULL,    NULL}, //no default whatsoever
     {"struct s { @default(-123456789) long l; };",           IDL_RETCODE_OK,                  true,  IDL_LONG,    &t1},  //default long
@@ -172,13 +173,15 @@ CU_Test(idl_annotation, idl_default)
     {"struct s { @default(true) boolean b; };",              IDL_RETCODE_OK,                  true,  IDL_BOOL,    &t4},  //default bool
     {"struct s { @default(\"hello world!\") string str; };", IDL_RETCODE_OK,                  true,  IDL_STRING,  &t5},  //default string
     {"struct s { @default(123456789) unsigned long l; };",   IDL_RETCODE_OK,                  true,  IDL_ULONG,   &t6},  //default unsigned long
+    {"struct s { @default(123456789) double l; };",          IDL_RETCODE_OK,                  true,  IDL_DOUBLE,  &t7},  //setting a double member to integer default
     {"struct s { @default(123) @optional long l; };",        IDL_RETCODE_SEMANTIC_ERROR,      false, IDL_NULL,    NULL}, //mixing default and optional
     {"struct s { @default long l; };",                       IDL_RETCODE_SEMANTIC_ERROR,      false, IDL_NULL,    NULL}, //misssing parameter
     {"struct s { @default(123) string str; };",              IDL_RETCODE_ILLEGAL_EXPRESSION,  false, IDL_NULL,    NULL}, //parameter type mismatch (int vs string)
     {"struct s { @default(\"false\") boolean b; };",         IDL_RETCODE_ILLEGAL_EXPRESSION,  false, IDL_NULL,    NULL}, //parameter type mismatch (string vs bool)
     {"struct s { @default(123) boolean b; };",               IDL_RETCODE_ILLEGAL_EXPRESSION,  false, IDL_NULL,    NULL}, //parameter type mismatch (int vs bool)
     {"struct s { @default(-123) unsigned long l; };",        IDL_RETCODE_OUT_OF_RANGE,        false, IDL_NULL,    NULL}, //parameter type mismatch (unsigned vs signed)
-    {"@default(e_0) enum e { e_0, e_1, e_2, e_3 };",         IDL_RETCODE_SEMANTIC_ERROR,      false, IDL_NULL,    NULL}  //setting default on enums is done through @default_literal
+    {"@default(e_0) enum e { e_0, e_1, e_2, e_3 };",         IDL_RETCODE_SEMANTIC_ERROR,      false, IDL_NULL,    NULL},  //setting default on enums is done through @default_literal
+    {"enum e { e_0, e_1, e_2, e_3 }; struct s { @default(e_1) e m_e; };", IDL_RETCODE_SEMANTIC_ERROR, false, IDL_NULL, NULL},  //setting enums default is not yet supported
   };
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
@@ -940,13 +943,16 @@ CU_Test(idl_annotation, bit_bound)
     { E("21"), true, 21 },
     { E("32"), true, 32 },
     { "enum MyEnum { ENUM1 };", true, 32 },
+    { "@bit_bound(1) enum MyEnum { ENUM1, ENUM2 };", true, 1 },
+    { "@bit_bound(3) enum MyEnum { ENUM1, @value (7) ENUM2 };", true, 3 },
     /* invalid */
     { BM("0"), false, 0 },
     { BM("65"), false, 0 },
     { E("0"), false, 0 },
     { E("33"), false, 0 },
     { "@bit_bound(1) bitmask MyBitMask { flag0, flag1 };", false, 0 },
-    { "@bit_bound(1) enum MyEnum { ENUM1, ENUM2 };", false, 0 },
+    { "@bit_bound(1) enum MyEnum { ENUM1, ENUM2, ENUM3 };", false, 0 },
+    { "@bit_bound(2) enum MyEnum { ENUM1, @value (4) ENUM2 };", false, 0 },
   };
   static const size_t n = sizeof(tests)/sizeof(tests[0]);
 
@@ -1092,3 +1098,358 @@ CU_Test(idl_annotation, must_understand)
     test_must_understand(tests[i]);
   }
 }
+
+typedef struct tc_test {
+  const char *s;
+  idl_retcode_t ret;
+  bool defaulted;
+  idl_try_construct_t tc;
+} tc_test_t;
+
+
+static void test_try_construct(tc_test_t test)
+{
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.s, &pstate);
+  CU_ASSERT_EQUAL(ret, test.ret);
+
+  if (ret)
+    return;
+
+  if (idl_is_struct(pstate->root)) {
+    const idl_member_t *mem = ((const idl_struct_t*)pstate->root)->members;
+    CU_ASSERT_EQUAL(test.defaulted, mem->try_construct.annotation == NULL);
+    CU_ASSERT_EQUAL(test.tc, mem->try_construct.value);
+  } else if (idl_is_union(pstate->root)) {
+    const idl_case_t *cs = ((const idl_union_t*)pstate->root)->cases;
+    CU_ASSERT_EQUAL(test.defaulted, cs->try_construct.annotation == NULL);
+    CU_ASSERT_EQUAL(test.tc, cs->try_construct.value);
+  } else {
+    CU_FAIL("Invalid data type");
+  }
+
+  idl_delete_pstate(pstate);
+}
+
+#define U(annotation, field_type) "union u switch(char) { case 'a': " annotation " " field_type " l; };"
+#define U_L(annotation) U(annotation, "long")
+#define U_D(annotation) U(annotation, "double")
+#define S(annotation, type, bound) "struct s { " annotation " " type bound " mem;};"
+#define S_L(annotation) S(annotation, "long", "")
+#define S_D(annotation) S(annotation, "double", "")
+
+CU_Test(idl_annotation, try_construct)
+{
+  tc_test_t tests[] = {
+    {"@try_construct module m { struct s { char c; }; };",
+      IDL_RETCODE_SEMANTIC_ERROR},
+    {U_L(""),
+      IDL_RETCODE_OK, true,   IDL_DISCARD},
+    {U_L("@try_construct"),
+      IDL_RETCODE_OK, false,  IDL_USE_DEFAULT},
+    {U_L("@try_construct(DISCARD)"),
+      IDL_RETCODE_OK, false,  IDL_DISCARD},
+    {U_L("@try_construct(USE_DEFAULT)"),
+      IDL_RETCODE_OK, false,  IDL_USE_DEFAULT},
+    {U_L("@try_construct(NONSENSE)"),
+      IDL_RETCODE_SEMANTIC_ERROR},
+    {S_L("@try_construct"),
+      IDL_RETCODE_OK, false, IDL_USE_DEFAULT},
+    {S_L("@try_construct(USE_DEFAULT)"),
+      IDL_RETCODE_OK, false, IDL_USE_DEFAULT},
+    {S_L("@try_construct(DISCARD)"),
+      IDL_RETCODE_OK, false, IDL_DISCARD},
+    {S_L("@try_construct(TRIM)"),
+      IDL_RETCODE_SEMANTIC_ERROR},
+    {S("@try_construct(TRIM)", "string", "<5>"),
+      IDL_RETCODE_OK, false, IDL_TRIM},
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+    test_try_construct(tests[i]);
+  }
+}
+
+typedef struct minmax_test {
+  const char *s;
+  idl_retcode_t ret;
+  bool min_present;
+  bool max_present;
+  double min;
+  double max;
+} minmax_test_t;
+
+static void validate_limit(const idl_literal_t *lit, double to_test, double granularity)
+{
+  assert(lit);
+  double fval = 0;
+  idl_type_t type = idl_type(lit);
+  if (type & IDL_INTEGER_TYPE) {
+    if (type & IDL_UNSIGNED)
+      fval = (double)lit->value.uint64;
+    else
+      fval = (double)lit->value.int64;
+  } else {
+    switch (type) {
+      case IDL_FLOAT:
+        fval = (double)lit->value.flt;
+        break;
+      case IDL_DOUBLE:
+        fval = (double)lit->value.dbl;
+        break;
+      case IDL_LDOUBLE:
+        fval = (double)lit->value.ldbl;
+        break;
+      default:
+        CU_ASSERT(false);
+    }
+  }
+
+  CU_ASSERT_DOUBLE_EQUAL(fval, to_test, granularity);
+}
+
+static void test_min_max(minmax_test_t test)
+{
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.s, &pstate);
+  if (ret != test.ret)
+  CU_ASSERT_EQUAL(ret, test.ret);
+
+  if (ret)
+    return;
+
+  if (idl_is_struct(pstate->root)) {
+    const idl_member_t *mem = ((const idl_struct_t*)pstate->root)->members;
+    CU_ASSERT_EQUAL(test.min_present, mem->min.annotation != NULL);
+    if (mem->min.annotation)
+      validate_limit(mem->min.value,test.min, 0.000001);
+    CU_ASSERT_EQUAL(test.max_present, mem->max.annotation != NULL);
+    if (mem->max.annotation)
+      validate_limit(mem->max.value,test.max, 0.000001);
+  } else if (idl_is_union(pstate->root)) {
+    const idl_case_t *cs = ((const idl_union_t*)pstate->root)->cases;
+    CU_ASSERT_EQUAL(test.min_present, cs->min.annotation != NULL);
+    if (cs->min.annotation)
+      validate_limit(cs->min.value,test.min, 0.000001);
+    CU_ASSERT_EQUAL(test.max_present, cs->max.annotation != NULL);
+    if (cs->max.annotation)
+      validate_limit(cs->max.value,test.max, 0.000001);
+  } else {
+    CU_FAIL("Invalid data type");
+  }
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_annotation, limits)
+{
+  minmax_test_t tests[] = {
+    //unsupported annotation
+    {"@min(0) module m { struct s { char c; }; };", IDL_RETCODE_SEMANTIC_ERROR},
+    {"@max(10) module m { struct s { char c; }; };", IDL_RETCODE_SEMANTIC_ERROR},
+    {"@range(min = 0, max = 10) module m { struct s { char c; }; };", IDL_RETCODE_SEMANTIC_ERROR},
+    {U_L("@min"), IDL_RETCODE_SEMANTIC_ERROR},
+    {U_L("@max"), IDL_RETCODE_SEMANTIC_ERROR},
+    {U_L("@range"), IDL_RETCODE_SEMANTIC_ERROR},
+    {U_L("@min(3"), IDL_RETCODE_SYNTAX_ERROR},
+    {U_L("@min(\"Some String\")"), IDL_RETCODE_SEMANTIC_ERROR},
+    {U_L("@max(\"Some String\")"), IDL_RETCODE_SEMANTIC_ERROR},
+    {U_L("@range(min = \"Some String\", max = \"Some other string\")"), IDL_RETCODE_SEMANTIC_ERROR},
+    //nothing
+    {U_L(""), IDL_RETCODE_OK, false, false},
+    {S_L(""), IDL_RETCODE_OK, false, false},
+    //int parameter on int field
+    {U_L("@min(5)"), IDL_RETCODE_OK, true, false, 5},
+    {U_L("@max(10)"), IDL_RETCODE_OK, false, true, 0, 10},
+    {U_L("@range(min = 5, max = 10)"), IDL_RETCODE_OK, true, true, 5, 10},
+    {S_L("@min(5)"), IDL_RETCODE_OK, true, false, 5},
+    {S_L("@max(10)"), IDL_RETCODE_OK, false, true, 0, 10},
+    {S_L("@range(min = 5, max = 10)"), IDL_RETCODE_OK, true, true, 5, 10},
+    //double parameter on int field
+    {U_L("@min(2.71828)"), IDL_RETCODE_SEMANTIC_ERROR},
+    {U_L("@max(3.1415)"), IDL_RETCODE_SEMANTIC_ERROR},
+    {U_L("@range(min = 2.71828, max = 3.1415)"), IDL_RETCODE_SEMANTIC_ERROR},
+    {S_L("@min(2.71828)"), IDL_RETCODE_SEMANTIC_ERROR},
+    {S_L("@max(3.1415)"), IDL_RETCODE_SEMANTIC_ERROR},
+    {S_L("@range(min = 2.71828, max = 3.1415)"), IDL_RETCODE_SEMANTIC_ERROR},
+    //double parameter on double field
+    {U_D("@min(2.71828)"), IDL_RETCODE_OK, true, false, 2.71828},
+    {U_D("@max(3.1415)"), IDL_RETCODE_OK, false, true, 0, 3.1415},
+    {U_D("@range(min = 2.71828, max = 3.1415)"), IDL_RETCODE_OK, true, true, 2.71828, 3.1415},
+    {S_D("@min(2.71828)"), IDL_RETCODE_OK, true, false, 2.71828},
+    {S_D("@max(3.1415)"), IDL_RETCODE_OK, false, true, 0, 3.1415},
+    {S_D("@range(min = 2.71828, max = 3.1415)"), IDL_RETCODE_OK, true, true, 2.71828, 3.1415},
+    //int parameter on double field
+    {U_D("@min(5)"), IDL_RETCODE_OK, true, false, 5},
+    {U_D("@max(10)"), IDL_RETCODE_OK, false, true, 0, 10},
+    {U_D("@range(min = 5, max = 10)"), IDL_RETCODE_OK, true, true, 5, 10},
+    {S_D("@min(5)"), IDL_RETCODE_OK, true, false, 5},
+    {S_D("@max(10)"), IDL_RETCODE_OK, false, true, 0, 10},
+    {S_D("@range(min = 5, max = 10)"), IDL_RETCODE_OK, true, true, 5, 10},
+    //unsupported field type
+    {U("@min(0)", "string"), IDL_RETCODE_SEMANTIC_ERROR},
+    {U("@max(0)", "string"), IDL_RETCODE_SEMANTIC_ERROR},
+    {U("@range(min = 5, max = 10)", "string"), IDL_RETCODE_SEMANTIC_ERROR},
+    {S("@min(0)", "string", ""), IDL_RETCODE_SEMANTIC_ERROR},
+    {S("@max(0)", "string", ""), IDL_RETCODE_SEMANTIC_ERROR},
+    {S("@range(min = 5, max = 10)", "string", ""), IDL_RETCODE_SEMANTIC_ERROR},
+    //attempting to double set
+    {U_L("@min(3) @range(min = 4, max = 5)"), IDL_RETCODE_SEMANTIC_ERROR},
+    {U_L("@range(min = 4, max = 5) @min(3)"), IDL_RETCODE_SEMANTIC_ERROR},
+    {S_L("@min(3) @range(min = 4, max = 5)"), IDL_RETCODE_SEMANTIC_ERROR},
+    {S_L("@range(min = 4, max = 5) @min(3)"), IDL_RETCODE_SEMANTIC_ERROR},
+    //inaccurate comparisons
+    {"struct s { @range(min = 9007199254740993, max = 9007199254740993.5) double mem; };", IDL_RETCODE_SEMANTIC_ERROR},
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+    test_min_max(tests[i]);
+  }
+}
+
+typedef struct unit_test {
+  const char *s;
+  idl_retcode_t ret;
+  const char *unitstr;
+} unit_test_t;
+
+static void test_unit(unit_test_t test)
+{
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.s, &pstate);
+  if (ret != test.ret)
+  CU_ASSERT_EQUAL(ret, test.ret);
+
+  if (ret)
+    return;
+
+  if (idl_is_struct(pstate->root)) {
+    const idl_member_t *mem = ((const idl_struct_t*)pstate->root)->members;
+    CU_ASSERT_EQUAL(test.unitstr != NULL, mem->unit.value != NULL);
+    if (test.unitstr&& mem->unit.value) {
+        CU_ASSERT_STRING_EQUAL(test.unitstr, mem->unit.value);
+    }
+  } else if (idl_is_union(pstate->root)) {
+    const idl_case_t *cs = ((const idl_union_t*)pstate->root)->cases;
+    CU_ASSERT_EQUAL(test.unitstr != NULL, cs->unit.value != NULL);
+    if (test.unitstr&& cs->unit.value) {
+        CU_ASSERT_STRING_EQUAL(test.unitstr, cs->unit.value);
+    }
+  } else {
+    CU_FAIL("Invalid data type");
+  }
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_annotation, units)
+{
+  unit_test_t tests[] = {
+    //unsupported annotations
+    {"@unit(\"Watt\") module m { struct s { char c; }; };", IDL_RETCODE_SEMANTIC_ERROR},
+    {U_L("@unit"), IDL_RETCODE_SEMANTIC_ERROR},
+    {U_L("@unit(0.1234)"), IDL_RETCODE_ILLEGAL_EXPRESSION},
+    //allowed annotations
+    {U_L("@unit(\"Watt\")"), IDL_RETCODE_OK, "Watt"},
+    {S_L("@unit(\"Watt\")"), IDL_RETCODE_OK, "Watt"},
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+    test_unit(tests[i]);
+  }
+}
+
+#undef U
+#undef U_L
+#undef U_D
+#undef S
+#undef S_L
+#undef S_D
+
+typedef struct rep_test {
+  const char *s;
+  idl_retcode_t ret;
+  allowable_data_representations_t reps[4];
+  size_t i;
+} rep_test_t;
+
+static idl_retcode_t
+test_rep(
+  const idl_pstate_t* pstate,
+  const bool revisit,
+  const idl_path_t* path,
+  const void* node,
+  void* user_data)
+{
+  (void) pstate;
+  (void) revisit;
+  (void) path;
+
+  rep_test_t *test = (rep_test_t*)user_data;
+
+  allowable_data_representations_t
+    result = supported_data_representations(node),
+    required = test->reps[test->i++];
+  CU_ASSERT_EQUAL(required,result);
+
+  return required == result ? IDL_RETCODE_OK : IDL_RETCODE_SEMANTIC_ERROR;
+}
+
+static void test_representation(rep_test_t test)
+{
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.s, &pstate);
+  if (ret != test.ret)
+  CU_ASSERT_EQUAL(ret, test.ret);
+
+  if (ret)
+    return;
+
+  idl_visitor_t visitor;
+  memset(&visitor, 0, sizeof(visitor));
+  visitor.visit = IDL_STRUCT | IDL_MODULE | IDL_UNION | IDL_TYPEDEF;
+  visitor.accept[IDL_ACCEPT_STRUCT] = &test_rep;
+  visitor.accept[IDL_ACCEPT_MODULE] = &test_rep;
+  visitor.accept[IDL_ACCEPT_UNION] = &test_rep;
+  visitor.accept[IDL_ACCEPT_TYPEDEF] = &test_rep;
+  (void) idl_visit(pstate, pstate->root, &visitor, &test);
+
+  idl_delete_pstate(pstate);
+}
+
+#define U(name, val)\
+"@data_representation(" val ") union " name " switch(char) {\n case 'a': long l;\n};\n"
+#define S(name, val)\
+"@data_representation(" val ") struct " name "{\nlong l;\n};\n"
+#define M(name, val, etc)\
+"@data_representation(" val ") module " name " {\n" etc "};\n"
+
+CU_Test(idl_annotation, data_representation)
+{
+  rep_test_t tests[] = {
+    //unsupported annotations
+    {"@data_representation module m { struct s { char c; }; };", IDL_RETCODE_SEMANTIC_ERROR},
+    {"@data_representation(1) enum e { e_0, e_1, e_2 };", IDL_RETCODE_SEMANTIC_ERROR},
+    //on modules, should also propagate down
+    {M("m","1","struct s {char c;};"), IDL_RETCODE_OK, {1, 1} },
+    {M("m","XCDR1","struct s {char c;};"), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR1, IDL_DATAREPRESENTATION_FLAG_XCDR1} },
+    {M("m","6", S("s","2") U("u","4")), IDL_RETCODE_OK, {6, 2, 4} },
+    {M("m","XML|XCDR2", S("s","XML") U("u","XCDR2")), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XML | IDL_DATAREPRESENTATION_FLAG_XCDR2, IDL_DATAREPRESENTATION_FLAG_XML, IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    //on structs
+    {S("s","2"), IDL_RETCODE_OK, {2} },
+    {S("s","XCDR1|XCDR2"), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR1 | IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    //on unions
+    {U("u","4"), IDL_RETCODE_OK, {4} },
+    {U("u","XML"), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XML} },
+    //combined with restrictions on datarepresentations due to xtypes
+    {"@appendable " S("s","XCDR1|XCDR2"), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+  };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+    test_representation(tests[i]);
+  }
+}
+
+#undef U
+#undef S
+#undef M

@@ -69,10 +69,10 @@ static int partitions_match_p (const dds_qos_t *a, const dds_qos_t *b)
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
 
-static bool check_endpoint_typeid (struct ddsi_domaingv *gv, char *type_name, const ddsi_type_pair_t *type_pair, bool *req_lookup, const char *entity)
+static bool is_endpoint_type_resolved (struct ddsi_domaingv *gv, char *type_name, const ddsi_type_pair_t *type_pair, bool *req_lookup, const char *entity)
   ddsrt_nonnull((1, 2, 3));
 
-static bool check_endpoint_typeid (struct ddsi_domaingv *gv, char *type_name, const ddsi_type_pair_t *type_pair, bool *req_lookup, const char *entity)
+static bool is_endpoint_type_resolved (struct ddsi_domaingv *gv, char *type_name, const ddsi_type_pair_t *type_pair, bool *req_lookup, const char *entity)
 {
   assert (type_pair);
   ddsrt_mutex_lock (&gv->typelib_lock);
@@ -155,51 +155,6 @@ bool qos_match_mask_p (
   if ((mask & QP_TOPIC_NAME) && strcmp (rd_qos->topic_name, wr_qos->topic_name) != 0)
     return false;
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
-  if (!type_pair_has_id (rd_type_pair) || !type_pair_has_id (wr_type_pair))
-  {
-    // Type info missing on either or both: automatic failure if "force type validation"
-    // is set.  If it is missing for one, there is no point in requesting it for the
-    // other (it wouldn't be inspected anyway).
-    if (rd_qos->type_consistency.force_type_validation)
-    {
-      *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
-      return false;
-    }
-    // If either the reader or writer does not provide a type id,the type names are consulted
-    // (XTypes spec 7.6.3.4.2)
-    if ((mask & QP_TYPE_NAME) && strcmp (rd_qos->type_name, wr_qos->type_name) != 0)
-      return false;
-  }
-  else
-  {
-    if (!check_endpoint_typeid (gv, rd_qos->type_name, rd_type_pair, rd_typeid_req_lookup, "rd"))
-      return false;
-    if (!check_endpoint_typeid (gv, wr_qos->type_name, wr_type_pair, wr_typeid_req_lookup, "wr"))
-      return false;
-    bool assignable = false;
-    ddsrt_mutex_lock (&gv->typelib_lock);
-    const struct ddsi_sertype *rd_sertype = ddsi_type_pair_complete_sertype (rd_type_pair);
-    if (rd_sertype)
-      assignable = ddsi_sertype_assignable_from (rd_sertype, wr_type_pair);
-    else
-    {
-      const struct ddsi_sertype *wr_sertype = ddsi_type_pair_complete_sertype (wr_type_pair);
-      if (wr_sertype)
-        assignable = ddsi_sertype_assignable_from (wr_sertype, rd_type_pair);
-    }
-    ddsrt_mutex_unlock (&gv->typelib_lock);
-    if (!assignable)
-    {
-      *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
-      return false;
-    }
-  }
-#else
-  if ((mask & QP_TYPE_NAME) && strcmp (rd_qos->type_name, wr_qos->type_name) != 0)
-    return false;
-#endif
-
   if ((mask & QP_RELIABILITY) && rd_qos->reliability.kind > wr_qos->reliability.kind) {
     *reason = DDS_RELIABILITY_QOS_POLICY_ID;
     return false;
@@ -252,6 +207,60 @@ bool qos_match_mask_p (
     *reason = DDS_DATA_REPRESENTATION_QOS_POLICY_ID;
     return false;
   }
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  if (!type_pair_has_id (rd_type_pair) || !type_pair_has_id (wr_type_pair))
+  {
+    // Type info missing on either or both: automatic failure if "force type validation"
+    // is set.  If it is missing for one, there is no point in requesting it for the
+    // other (it wouldn't be inspected anyway).
+    if (rd_qos->type_consistency.force_type_validation)
+    {
+      *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
+      return false;
+    }
+    // If either the reader or writer does not provide a type id, the type names are consulted
+    // (XTypes spec 7.6.3.4.2)
+    if ((mask & QP_TYPE_NAME) && strcmp (rd_qos->type_name, wr_qos->type_name) != 0)
+      return false;
+  }
+  else
+  {
+    dds_type_consistency_enforcement_qospolicy_t tce = {
+      .kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION,
+      .ignore_sequence_bounds = true,
+      .ignore_string_bounds = true,
+      .ignore_member_names = false,
+      .prevent_type_widening = false,
+      .force_type_validation = false
+    };
+    (void) dds_qget_type_consistency (rd_qos, &tce.kind, &tce.ignore_sequence_bounds, &tce.ignore_string_bounds, &tce.ignore_member_names, &tce.prevent_type_widening, &tce.force_type_validation);
+
+    if (tce.kind == DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION)
+    {
+      if (ddsi_typeid_compare (ddsi_type_pair_minimal_id (rd_type_pair), ddsi_type_pair_minimal_id (wr_type_pair)))
+      {
+        *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
+        return false;
+      }
+    }
+    else
+    {
+      if (!is_endpoint_type_resolved (gv, rd_qos->type_name, rd_type_pair, rd_typeid_req_lookup, "rd")
+          || !is_endpoint_type_resolved (gv, wr_qos->type_name, wr_type_pair, wr_typeid_req_lookup, "wr"))
+        return false;
+      if (!ddsi_is_assignable_from (gv, rd_type_pair, wr_type_pair, &tce))
+      {
+        *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
+        return false;
+      }
+    }
+  }
+#else
+  if ((mask & QP_TYPE_NAME) && strcmp (rd_qos->type_name, wr_qos->type_name) != 0)
+    return false;
+#endif
+
   return true;
 }
 

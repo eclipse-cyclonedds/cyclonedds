@@ -1,0 +1,48 @@
+/*
+ * Copyright(c) 2006 to 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+module XSpaceEnum {
+  @final enum enum_f { F1, F2, F3 };
+  @appendable enum enum_a { A1, A2, A3 };
+
+  @final struct rd1 { enum_f f1; };
+  @final struct wr1_1 { enum_f f1; };
+  @final struct wr1_2 { enum_a f1; };
+
+  @final struct rd2 { enum_a f1; };
+  @final struct wr2_1 { enum_a f1; };
+  @final struct wr2_2 { enum_f f1; };
+};
+
+module XSpaceEnumPlus {
+  @final enum enum_f_plus { F1, F2, F3, F4 };
+  @appendable enum enum_a_plus { A1, A2, A3, A4 };
+
+  @final struct wr1_3 { enum_f_plus f1; };
+  @final struct wr2_3 { enum_a_plus f1; };
+};
+
+module XSpaceEnumMin {
+  @final enum enum_f_min { F1, F2 };
+  @appendable enum enum_a_min { A1, A2 };
+
+  @final struct wr1_4 { enum_f_min f1; };
+  @final struct wr2_4 { enum_a_min f1; };
+};
+
+module XSpaceEnumLabel {
+  @final enum enum_f_label { F1, FFF2, F3 };
+  @appendable enum enum_a_label { A1, AAA2, A3 };
+
+  @final struct wr1_5 { enum_f_label f1; };
+  @final struct wr2_5 { enum_a_label f1; };
+};

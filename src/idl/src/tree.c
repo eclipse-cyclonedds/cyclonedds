@@ -375,6 +375,8 @@ void *idl_delete_node(void *ptr)
 bool idl_is_declaration(const void *ptr)
 {
   const idl_node_t *node = ptr;
+  if (idl_mask(node) & IDL_BITMASK)
+    return true;
   if (!(idl_mask(node) & IDL_DECLARATION))
     return false;
   /* a declaration must have been declared */
@@ -824,6 +826,86 @@ const idl_literal_t *idl_default_value(const void *node)
   }
 
   return NULL;
+}
+
+bool idl_requires_xtypes_functionality(const void *node)
+{
+  if (idl_is_optional(node))
+    return true;
+
+  if (idl_is_typedef(node)) {
+    const idl_typedef_t *_typedef = (const idl_typedef_t*)node;
+
+    return idl_requires_xtypes_functionality(_typedef->type_spec);
+  } else if (idl_is_struct(node)) {
+    const idl_struct_t *_struct = (const idl_struct_t*)node;
+
+    if (_struct->extensibility.annotation && _struct->extensibility.value != IDL_FINAL)
+      return true;
+
+    if (_struct->inherit_spec &&
+        idl_requires_xtypes_functionality(_struct->inherit_spec->base))
+      return true;
+
+    const idl_member_t *_member = NULL;
+    IDL_FOREACH(_member, _struct->members) {
+      if (idl_requires_xtypes_functionality(_member->type_spec))
+        return true;
+    };
+  } else if (idl_is_union(node)) {
+    const idl_union_t *_union = (const idl_union_t*)node;
+
+    if (_union->extensibility.annotation && _union->extensibility.value != IDL_FINAL)
+      return true;
+
+    if (idl_requires_xtypes_functionality(_union->switch_type_spec->type_spec))
+      return true;
+
+    const idl_case_t *_case = NULL;
+    IDL_FOREACH(_case, _union->cases) {
+      if (idl_requires_xtypes_functionality(_case->type_spec))
+        return true;
+    };
+  } else if (idl_is_enum(node)) {
+    const idl_enum_t *_enum = (const idl_enum_t*)node;
+
+    return _enum->extensibility.annotation && _enum->extensibility.value != IDL_FINAL;
+  } else if (idl_is_bitmask(node)) {
+    const idl_bitmask_t *_bitmask = (const idl_bitmask_t*)node;
+
+    return _bitmask->extensibility.annotation && _bitmask->extensibility.value != IDL_FINAL;
+  }
+
+  return false;
+}
+
+allowable_data_representations_t supported_data_representations(const void *node)
+{
+  //look for existing annotations
+  if (idl_is_typedef(node)) {
+    return supported_data_representations(((const idl_typedef_t*)node)->type_spec);
+  } else if (idl_is_module(node)) {
+    const idl_module_t *_module = (const idl_module_t*)node;
+    if (_module->data_representation.annotation)
+      return _module->data_representation.value;
+  } else if (idl_is_struct(node)) {
+    const idl_struct_t *_struct = (const idl_struct_t*)node;
+    if (_struct->data_representation.annotation)
+      return _struct->data_representation.value;
+  } else if (idl_is_union(node)) {
+    const idl_union_t *_union = (const idl_union_t*)node;
+    if (_union->data_representation.annotation)
+      return _union->data_representation.value;
+  } else if (NULL == node) {
+    return 0xFFFFFFFF;
+  }
+
+  //else look at parent
+  allowable_data_representations_t val = supported_data_representations(((const idl_node_t*)node)->parent);
+  if (idl_requires_xtypes_functionality(node))  //xtypes turns off XCDR1
+    val &= ~((allowable_data_representations_t)IDL_DATAREPRESENTATION_FLAG_XCDR1);
+
+  return val;
 }
 
 bool idl_is_sequence(const void *ptr)
@@ -2345,6 +2427,18 @@ bool idl_is_enum(const void *ptr)
   return true;
 }
 
+uint32_t idl_enum_max_value(const void *ptr)
+{
+  const idl_enum_t *node = ptr;
+  assert(idl_mask(node) & IDL_ENUM);
+  uint32_t max = 0;
+  for (idl_enumerator_t *e = node->enumerators; e; e = idl_next(e)) {
+    if (e->value.value > max)
+      max = e->value.value;
+  }
+  return max;
+}
+
 static void delete_enum(void *ptr)
 {
   idl_enum_t *node = ptr;
@@ -2399,6 +2493,7 @@ idl_create_enum(
     goto err_alloc;
   node->name = name;
   node->bit_bound.value = 32; /* default value, can be overwritten with @bit_bound */
+  node->extensibility.value = pstate->config.default_extensibility == IDL_APPENDABLE ? (idl_extensibility_t)pstate->config.default_extensibility : IDL_FINAL;
 
   assert(enumerators);
   node->enumerators = enumerators;
@@ -3217,7 +3312,8 @@ idl_create_annotation_appl_param(
   node->member = member;
   assert((idl_mask(const_expr) & IDL_EXPRESSION) ||
          (idl_mask(const_expr) & IDL_CONST) ||
-         (idl_mask(const_expr) & IDL_ENUMERATOR));
+         (idl_mask(const_expr) & IDL_ENUMERATOR) ||
+         (idl_mask(const_expr) & IDL_BIT_VALUE));
   node->const_expr = const_expr;
   *((idl_annotation_appl_param_t **)nodep) = node;
   return ret;
@@ -3283,7 +3379,7 @@ idl_finalize_annotation_appl(
   /* constant expressions cannot be evaluated until annotations are applied
      as values for members of type any must match with the element under
      annotation */
-  if (idl_mask(parameters) & (IDL_EXPRESSION|IDL_ENUMERATOR)) {
+  if (idl_mask(parameters) & (IDL_EXPRESSION|IDL_ENUMERATOR|IDL_BIT_VALUE|IDL_CONST)) {
     idl_definition_t *definition = node->annotation->definitions;
     idl_annotation_member_t *member = NULL;
     while (definition && !member) {
@@ -3313,7 +3409,11 @@ idl_finalize_annotation_appl(
   } else if (idl_mask(parameters) & IDL_ANNOTATION_APPL_PARAM) {
     node->parameters = parameters;
     for (idl_annotation_appl_param_t *ap = parameters; ap; ap = idl_next(ap))
-      ((idl_node_t *)parameters)->parent = (idl_node_t *)node;
+      ((idl_node_t *)ap)->parent = (idl_node_t *)node;
+  } else if (parameters) {
+    idl_error(pstate, idl_location(parameters),
+      "internal error in parsing annotation @%s", idl_identifier(node->annotation));
+    return IDL_RETCODE_BAD_PARAMETER;
   }
 
   return IDL_RETCODE_OK;

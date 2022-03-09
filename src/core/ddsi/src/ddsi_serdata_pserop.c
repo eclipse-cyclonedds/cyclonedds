@@ -113,6 +113,8 @@ static struct ddsi_serdata *serdata_pserop_from_ser (const struct ddsi_sertype *
 {
   const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)tpcmn;
   struct ddsi_serdata_pserop *d = serdata_pserop_new (tp, kind, size, NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain)));
+  if (d == NULL)
+    return NULL;
   uint32_t off = 4; /* must skip the CDR header */
   assert (fragchain->min == 0);
   assert (fragchain->maxp1 >= off); /* CDR header must be in first fragment */
@@ -139,6 +141,8 @@ static struct ddsi_serdata *serdata_pserop_from_ser_iov (const struct ddsi_serty
   const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)tpcmn;
   assert (niov >= 1);
   struct ddsi_serdata_pserop *d = serdata_pserop_new (tp, kind, size, iov[0].iov_base);
+  if (d == NULL)
+    return NULL;
   const uint16_t *hdrsrc = (uint16_t *) iov[0].iov_base;
   d->identifier = hdrsrc[0];
   d->options = hdrsrc[1];
@@ -202,8 +206,12 @@ static struct ddsi_serdata *serdata_pserop_from_sample (const struct ddsi_sertyp
 {
   const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)tpcmn;
   const struct { uint16_t identifier, options; } header = { ddsi_sertype_get_native_enc_identifier (CDR_ENC_VERSION_1, tp->encoding_format), 0 };
+  struct ddsi_serdata_pserop *d;
   if (kind == SDK_KEY && tp->ops_key == NULL)
-    return serdata_pserop_fix (tp, serdata_pserop_new (tp, kind, 0, &header));
+  {
+    if ((d = serdata_pserop_new (tp, kind, 0, &header)) == NULL)
+      return NULL;
+  }
   else
   {
     void *data;
@@ -211,7 +219,11 @@ static struct ddsi_serdata *serdata_pserop_from_sample (const struct ddsi_sertyp
     if (plist_ser_generic (&data, &size, sample, (kind == SDK_DATA) ? tp->ops : tp->ops_key) < 0)
       return NULL;
     const size_t size4 = (size + 3) & ~(size_t)3;
-    struct ddsi_serdata_pserop *d = serdata_pserop_new (tp, kind, size4, &header);
+    if ((d = serdata_pserop_new (tp, kind, size4, &header)) == NULL)
+    {
+      ddsrt_free (data);
+      return NULL;
+    }
     assert (tp->ops_key == NULL || (size >= 16 && tp->memsize >= 16));
     assert (d->data != NULL); // clang static analyzer
     memcpy (d->data, data, size);
@@ -219,8 +231,8 @@ static struct ddsi_serdata *serdata_pserop_from_sample (const struct ddsi_sertyp
     d->pos = (uint32_t) size;
     ddsrt_free (data); // FIXME: shouldn't allocate twice & copy
     // FIXME: and then this silly thing deserialises it immediately again -- perhaps it should be a bit lazier
-    return serdata_pserop_fix (tp, d);
   }
+  return serdata_pserop_fix (tp, d);
 }
 
 static struct ddsi_serdata *serdata_pserop_to_untyped (const struct ddsi_serdata *serdata_common)

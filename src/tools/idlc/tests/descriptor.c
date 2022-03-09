@@ -222,6 +222,18 @@ CU_Test(idlc_descriptor, key_size)
       false, true, VAR, 16 }, // key size XCDR1: 1 + 7 (pad) + 8 + 4 / XCDR2: 1 + 3 (pad) + 8 + 4
     { "@topic struct test { @key @id(0) char c1; @key @id(2) char c2; @key @id(4) char c3; @key @id(1) long l1; @key @id(3) long l2; }; ",
       true, false, 12, VAR }, // key size XCDR1: 1 + 1 + 1 + 1 (pad) + 4 + 4 / XCDR2: 1 + 3 (pad) + 4 + 1 + 3 (pad) + 4 + 1
+    { "enum e { E0, E1 }; @topic struct test { @key e a; }; ",
+      true, true, 4, 4 }, // key size: 4
+    { "@bit_bound(8) enum e { E0, E1 }; @topic struct test { @key e a; }; ",
+      true, true, 1, 1 }, // key size: 1
+    { "@bit_bound(16) enum e { E0, E1 }; @topic struct test { @key char a; @key e b[4]; }; ",
+      true, true, 10, 16 }, // key size XCDR1: 1 + 1 (pad) + 4 * 2 / XCDR2: 1 + 3 (pad) + 4 (dheader) + 4 * 2
+    { "bitmask bm { BM0, BM1 }; @topic struct test { @key bm a; }; ",
+      true, true, 4, 4 }, // key size: 4
+    { "@bit_bound(8) bitmask bm { BM0, BM1 }; @topic struct test { @key bm a; }; ",
+      true, true, 1, 1 }, // key size: 1
+    { "@bit_bound(43) bitmask bm { BM0, BM1 }; @topic struct test { @key char a; @key bm b[1]; }; ",
+      true, true, 16, 16 }, // key size XCDR1: 1 + 7 (pad) + 1 * 8 / XCDR2: 1 + 3 (pad) + 4 (dheader) + 1 * 8 /
   };
 
   idl_retcode_t ret;
@@ -378,6 +390,8 @@ CU_Test(idlc_descriptor, no_optimize)
     { false, "@topic struct test { long f1[100]; long f2; float f3; char f4; boolean f5; };" },
     { false, "enum en { E0, E1 }; @topic struct test { en f1; };" },
     { false, "bitmask bm { B0, B1 }; @topic struct test { bm f1; };" },
+    { false, "@bit_bound(8) bitmask bm { B0, B1 }; @topic struct test { bm f1; };" },
+    { false, "@bit_bound(64) bitmask bm { B0, B1 }; @topic struct test { bm f1; };" },
     { false, "@nested struct s { long s1; }; @topic struct test { s f1; };" },
     { false, "@nested struct s2 { char f3[100]; }; @nested struct s1 { s2 f2; }; @topic struct test { s1 f1; };" },
     { true,  "@topic struct test { string f1; };" },
@@ -386,6 +400,8 @@ CU_Test(idlc_descriptor, no_optimize)
     { true,  "@topic struct test { @external long f1; };" },
     { true,  "@topic struct test { @external long f1[100]; };" },
     { true,  "enum en { E0, E1 }; @topic struct test { @external en f1; };" },
+    { true,  "@bit_bound(8) enum en { E0, E1 }; @topic struct test { en f1; };" },
+    { true,  "@bit_bound(16) enum en { E0, E1 }; @topic struct test { en f1; };" },
     { true,  "@nested struct s { long s1; }; @topic struct test { @external s f1; };" },
     { true,  "@nested struct s { @external long s1; }; @topic struct test { s f1; };" },
     { true,  "@topic union test switch(short) { case 1: long f1; };" },

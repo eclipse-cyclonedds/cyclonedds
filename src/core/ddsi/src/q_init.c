@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -1485,6 +1486,10 @@ int rtps_init (struct ddsi_domaingv *gv)
   // a plain copy is safe because it doesn't alias anything
   gv->default_local_plist_pp = ddsi_default_plist_participant;
   assert (gv->default_local_plist_pp.aliased == 0 && gv->default_local_plist_pp.qos.aliased == 0);
+  assert (!(gv->default_local_plist_pp.qos.present & QP_LIVELINESS));
+  gv->default_local_plist_pp.qos.present |= QP_LIVELINESS;
+  gv->default_local_plist_pp.qos.liveliness.kind = DDS_LIVELINESS_AUTOMATIC;
+  gv->default_local_plist_pp.qos.liveliness.lease_duration = gv->config.lease_duration;
   ddsi_xqos_copy (&gv->spdp_endpoint_xqos, &ddsi_default_qos_reader);
   ddsi_xqos_mergein_missing (&gv->spdp_endpoint_xqos, &ddsi_default_qos_writer, ~(uint64_t)0);
   gv->spdp_endpoint_xqos.durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;

@@ -1,0 +1,13 @@
+repos:
+- repo: local
+  hooks:
+  - id: parser-hashes
+    name: bison-parser-hashcheck
+    language: python
+    entry: python hooks/parser-hashes.py
+    pass_filenames: false
+  - id: version-check
+    name: version-check
+    language: python
+    entry: python hooks/version-check.py
+    pass_filenames: false

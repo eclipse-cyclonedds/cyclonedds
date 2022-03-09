@@ -282,6 +282,8 @@ static idl_retcode_t idlc_parse(void)
     }
     assert(config.file);
     if (strcmp(config.file, "-") != 0 && (ret = figure_file(&pstate->paths)) != 0) {
+      if (ret == IDL_RETCODE_NO_ENTRY)
+        idl_error(pstate, NULL, "could not open file at location: %s", config.file);
       idl_delete_pstate(pstate);
       return ret;
     }
@@ -464,6 +466,8 @@ static int config_warning(const idlc_option_t *opt, const char *arg)
     add_disable_warning(IDL_WARN_UNKNOWN_ESCAPE_SEQ);
   else if (strcmp(arg, "no-inherit-appendable") == 0)
     add_disable_warning(IDL_WARN_INHERIT_APPENDABLE);
+  else if (strcmp(arg, "no-enum-consecutive") == 0)
+    add_disable_warning(IDL_WARN_ENUM_CONSECUTIVE);
   else
     return IDLC_BAD_ARGUMENT;
   return 0;
@@ -535,9 +539,9 @@ static const idlc_option_t *compopts[] = {
     "(default: final)" },
   &(idlc_option_t){
     IDLC_FUNCTION, { .function = &config_warning }, 'W', "", "<no-warning>",
-    "Disable warning. Possible values are: no-implicit-extensibility, "
+    "Enable or disable warnings. Possible values are: no-implicit-extensibility, "
     "no-extra-token-directive, no-unknown_escape_seq, no-inherit-appendable, "
-    "no-eof-newline. " },
+    "no-eof-newline, no-enum-consecutive. " },
 #ifdef DDS_HAS_TYPE_DISCOVERY
   &(idlc_option_t){
     IDLC_FLAG, { .flag = &config.no_type_info }, 't', "", "",

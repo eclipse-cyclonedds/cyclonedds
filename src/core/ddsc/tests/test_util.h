@@ -24,5 +24,8 @@ void sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_e
 /* Try to sync the reader to the writer and writer to reader, expect to fail */
 void no_sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_entity_t participant_wr, dds_entity_t writer, dds_duration_t timeout);
 
+/* Print message preceded by time stamp */
+void tprintf (const char *msg, ...)
+  ddsrt_attribute_format_printf (1, 2);
 
 #endif /* _TEST_UTIL_H_ */

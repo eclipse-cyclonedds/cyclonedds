@@ -61,7 +61,18 @@ static void sync_reader_writer_impl (dds_entity_t participant_rd, dds_entity_t r
 
 void sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_entity_t participant_wr, dds_entity_t writer)
 {
-  sync_reader_writer_impl (participant_rd, reader, participant_wr, writer, true, DDS_SECS (1));
+  // Timing out after 1s would seem to be reasonable, but in reality seems to result in CI flakiness
+  // for some tests (e.g., CUnit_ddsc_xtypes_basic at the time of this comment).  A hypothesis is
+  // that some of the tests that happen to run in parallel cause so much load and network traffic
+  // that there is the occasional bit of packet loss, and if that affects discovery packets, it could
+  // plausibly make it take longer than 1s.
+  //
+  // Given that some of the tests running in parallel are ones that intentionally generate massive
+  // amounts of discovery traffic for topics and types, I think this hypothesis is plausible.
+  //
+  // Increasing the timeout by quite a bit if "expect_sync" is set (which it is here) should not
+  // introduce any new problems as a timeout here results in immediate test failure.
+  sync_reader_writer_impl (participant_rd, reader, participant_wr, writer, true, DDS_SECS (5));
 }
 
 void no_sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_entity_t participant_wr, dds_entity_t writer, dds_duration_t timeout)

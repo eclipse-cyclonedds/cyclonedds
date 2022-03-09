@@ -1,0 +1,155 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+enum e { E_0, E_1, E_2, E_3, E_4 };
+
+@bit_bound(5)
+enum e8 { E8_0, E8_1, E8_2, E8_3 };
+
+@bit_bound(16)
+enum e16 { E16_0, @value(65000) E16_65000, E16_65001 };
+
+typedef sequence<e> seq_e;
+typedef e td_e;
+typedef e8 td_e8_arr[97];
+
+@nested @final
+union u switch (e8) {
+  case E8_0: short f0;
+  case E8_1: e f1;
+  case E8_2: @external e16 f2;
+  default:  float fd;
+};
+
+@nested @appendable
+struct test_sub {
+  @key @external e8 f13;
+  @optional @external e8 f14;
+  @optional e16 f15;
+  char f15b;
+  @optional e f16;
+};
+
+@topic @mutable
+struct test_enum {
+  @key e f1;
+  @key e8 f2;
+  char f2b;
+  @key e16 f3;
+  char f3b;
+  sequence<e> f4;
+  sequence<e8> f5;
+  char f5b;
+  sequence<e16, 3> f6;
+  char f6b;
+  e f7[99];
+  @key e16 f8[98];
+  seq_e f9;
+  td_e f10;
+  @key td_e8_arr f11;
+  char f11b;
+  u f12;
+  char f12b;
+  @key test_sub s;
+};
+
+#else
+
+#include <string.h>
+#include "dds/dds.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
+#include "test_enum.h"
+#include "common.h"
+
+const dds_topic_descriptor_t *desc = &test_enum_desc;
+
+void init_sample (void *s)
+{
+  test_enum *s1 = (test_enum *) s;
+  s1->f1 = E_1;
+  s1->f2 = E8_2;
+  s1->f3 = E16_65000;
+  SEQA(s1->f4, 1)
+  s1->f4._buffer[0] = E_2;
+  SEQA(s1->f5, 2)
+  s1->f5._buffer[0] = E8_2;
+  s1->f5._buffer[1] = E8_3;
+  SEQA(s1->f6, 3)
+  s1->f6._buffer[0] = E16_65000;
+  s1->f6._buffer[1] = E16_0;
+  s1->f6._buffer[2] = E16_65001;
+  for (uint32_t n = 0; n < 99; n++)
+    s1->f7[n] = n % 5;
+  for (uint32_t n = 0; n < 98; n++)
+    s1->f8[n] = n % 2 ? E16_0 : E16_65000;
+  SEQA(s1->f9, 1)
+  s1->f9._buffer[0] = E_4;
+  s1->f10 = E_3;
+  for (uint32_t n = 0; n < 97; n++)
+    s1->f11[n] = n % 4;
+  s1->f12._d = E8_2;
+  EXTA(s1->f12._u.f2, E16_65001);
+  EXTA(s1->s.f13, E8_2);
+  s1->s.f14 = NULL;
+  EXTA(s1->s.f15, E16_65001);
+  s1->s.f16 = NULL;
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_enum *a = (test_enum *) sa;
+  test_enum *b = (test_enum *) sb;
+
+  CMP (a, b, f1, E_1);
+  CMP (a, b, f2, E8_2);
+  CMP (a, b, f3, E16_65000);
+  CMP (a, b, f4._buffer[0], E_2);
+  CMP (a, b, f5._buffer[0], E8_2);
+  CMP (a, b, f5._buffer[1], E8_3);
+  CMP (a, b, f6._buffer[0], E16_65000);
+  CMP (a, b, f6._buffer[1], E16_0);
+  CMP (a, b, f6._buffer[2], E16_65001);
+  for (uint32_t n = 0; n < 99; n++)
+    CMP (a, b, f7[n], n % 5);
+  for (uint32_t n = 0; n < 98; n++)
+    CMP (a, b, f8[n], n % 2 ? E16_0 : E16_65000);
+  CMP (a, b, f9._buffer[0], E_4);
+  CMP (a, b, f10, E_3);
+  for (uint32_t n = 0; n < 97; n++)
+    CMP (a, b, f11[n], n % 4);
+  CMP (a, b, f12._d, E8_2);
+  CMPEXT (a, b, f12._u.f2, E16_65001);
+  CMPEXT (a, b, s.f13, E8_2);
+  CMP (a, b, s.f14, NULL);
+  CMPEXT (a, b, s.f15, E16_65001);
+  CMP (a, b, s.f16, NULL);
+  return 0;
+}
+
+int cmp_key (const void *sa, const void *sb)
+{
+  test_enum *a = (test_enum *) sa;
+  test_enum *b = (test_enum *) sb;
+  CMP (a, b, f1, E_1);
+  CMP (a, b, f2, E8_2);
+  CMP (a, b, f3, E16_65000);
+  for (uint32_t n = 0; n < 98; n++)
+    CMP (a, b, f8[n], n % 2 ? E16_0 : E16_65000);
+  for (uint32_t n = 0; n < 97; n++)
+    CMP (a, b, f11[n], n % 4);
+  CMPEXT (a, b, s.f13, E8_2);
+  return 0;
+}
+
+#endif

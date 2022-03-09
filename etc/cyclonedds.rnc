@@ -76,6 +76,13 @@ CycloneDDS configuration""" ] ]
           text
         }?
         & [ a:documentation [ xml:lang="en" """
+<p>This setting controls the default participant lease duration.<p>
+<p>The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.</p>
+<p>The default value is: "10 s".</p>""" ] ]
+        element LeaseDuration {
+          duration
+        }?
+        & [ a:documentation [ xml:lang="en" """
 <p>This element specifies the maximum DDSI participant index selected by this instance of the Cyclone DDS service if the Discovery/ParticipantIndex is "auto".</p>
 <p>The default value is: "9".</p>""" ] ]
         element MaxAutoParticipantIndex {
@@ -462,13 +469,6 @@ CycloneDDS configuration""" ] ]
 <p>The default value is: "false".</p>""" ] ]
         element LateAckMode {
           xsd:boolean
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>This setting controls the default participant lease duration.<p>
-<p>The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.</p>
-<p>The default value is: "10 s".</p>""" ] ]
-        element LeaseDuration {
-          duration
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This element controls whether or not implementation should internally monitor its own liveliness. If liveliness monitoring is enabled, stack traces can be dumped automatically when some thread appears to have stopped making progress.</p>

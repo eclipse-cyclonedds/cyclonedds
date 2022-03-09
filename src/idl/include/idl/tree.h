@@ -193,6 +193,20 @@ enum idl_extensibility {
   IDL_MUTABLE
 };
 
+typedef enum idl_try_construct idl_try_construct_t;
+enum idl_try_construct {
+  IDL_DISCARD,
+  IDL_USE_DEFAULT,
+  IDL_TRIM
+};
+
+typedef uint32_t allowable_data_representations_t;
+typedef enum {
+  IDL_DATAREPRESENTATION_FLAG_XCDR1 = 0x1 << 0,
+  IDL_DATAREPRESENTATION_FLAG_XML   = 0x1 << 1,
+  IDL_DATAREPRESENTATION_FLAG_XCDR2 = 0x1 << 2
+} idl_data_representation_flags_t;
+
 /* most types have convenience members for information that is shared between
    generators or makes sense to calculate in advance. e.g. the field
    identifier for struct members, which can be assigned through @id, @hashid,
@@ -273,6 +287,7 @@ struct idl_module {
   /* metadata */
   IDL_ANNOTATABLE(bool) default_nested;
   IDL_ANNOTATABLE(idl_autoid_t) autoid;
+  IDL_ANNOTATABLE(allowable_data_representations_t) data_representation;
 };
 
 typedef struct idl_declarator idl_declarator_t;
@@ -294,7 +309,11 @@ struct idl_member {
   IDL_ANNOTATABLE(bool) optional;
   IDL_ANNOTATABLE(bool) external;
   IDL_ANNOTATABLE(bool) must_understand;
+  IDL_ANNOTATABLE(idl_try_construct_t) try_construct;
+  IDL_ANNOTATABLE(const idl_literal_t*) min;
+  IDL_ANNOTATABLE(const idl_literal_t*) max;
   IDL_ANNOTATABLE(const idl_literal_t*) value;
+  IDL_ANNOTATABLE(const char *) unit;
 };
 
 /* types can inherit from and extend other types (interfaces, values and
@@ -340,6 +359,7 @@ struct idl_struct {
      single boolean */
   IDL_ANNOTATABLE(bool) nested;
   IDL_ANNOTATABLE(idl_extensibility_t) extensibility;
+  IDL_ANNOTATABLE(allowable_data_representations_t) data_representation;
 };
 
 typedef struct idl_forward idl_forward_t;
@@ -366,6 +386,10 @@ struct idl_case {
   idl_type_spec_t *type_spec;
   idl_declarator_t *declarator;
   IDL_ANNOTATABLE(bool) external;
+  IDL_ANNOTATABLE(idl_try_construct_t) try_construct;
+  IDL_ANNOTATABLE(const idl_literal_t*) min;
+  IDL_ANNOTATABLE(const idl_literal_t*) max;
+  IDL_ANNOTATABLE(const char *) unit;
 };
 
 typedef struct idl_switch_type_spec idl_switch_type_spec_t;
@@ -392,6 +416,7 @@ struct idl_union {
   IDL_ANNOTATABLE(bool) nested; /**< if type is nested or a topic */
   IDL_ANNOTATABLE(idl_extensibility_t) extensibility;
   IDL_ANNOTATABLE(idl_autoid_t) autoid;
+  IDL_ANNOTATABLE(allowable_data_representations_t) data_representation;
 };
 
 typedef struct idl_enumerator idl_enumerator_t;
@@ -537,6 +562,9 @@ IDL_EXPORT const idl_name_t *idl_name(const void *node);
 IDL_EXPORT uint32_t idl_array_size(const void *node);
 IDL_EXPORT uint32_t idl_bound(const void *node);
 IDL_EXPORT const idl_literal_t *idl_default_value(const void *node);
+IDL_EXPORT bool idl_requires_xtypes_functionality(const void *node);
+IDL_EXPORT allowable_data_representations_t supported_data_representations(const void *node);
+IDL_EXPORT uint32_t idl_enum_max_value(const void *node);
 
 /* navigation */
 IDL_EXPORT void *idl_ancestor(const void *node, size_t levels);

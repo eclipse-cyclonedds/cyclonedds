@@ -1,4 +1,5 @@
 #
+# Copyright(c) 2022 ZettaScale Technology
 # Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
 #
 # This program and the accompanying materials are made available under the
@@ -20,9 +21,11 @@ idlc_generate(TARGET RWData FILES RWData.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET CreateWriter FILES CreateWriter.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET DataRepresentationTypes FILES DataRepresentationTypes.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET MinXcdrVersion FILES MinXcdrVersion.idl)
-idlc_generate(TARGET XSpace FILES XSpace.idl)
-idlc_generate(TARGET XSpaceMustUnderstand FILES XSpaceMustUnderstand.idl)
 idlc_generate(TARGET CdrStreamOptimize FILES CdrStreamOptimize.idl WARNINGS no-implicit-extensibility)
+if(ENABLE_TYPE_DISCOVERY)
+  idlc_generate(TARGET XSpace FILES XSpace.idl XSpaceEnum.idl XSpaceMustUnderstand.idl XSpaceTypeConsistencyEnforcement.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
+  idlc_generate(TARGET XSpaceNoTypeInfo FILES XSpaceNoTypeInfo.idl NO_TYPE_INFO WARNINGS no-implicit-extensibility)
+endif()
 
 set(ddsc_test_sources
     "basic.c"
@@ -46,6 +49,7 @@ set(ddsc_test_sources
     "loan.c"
     "multi_sertopic.c"
     "participant.c"
+    "pp_lease_dur.c"
     "publisher.c"
     "qos.c"
     "qosmatch.c"
@@ -78,8 +82,7 @@ set(ddsc_test_sources
     "test_common.c"
     "test_oneliner.c"
     "test_oneliner.h"
-    "cdrstream.c"
-    "data_representation.c")
+    "cdrstream.c")
 
 if(ENABLE_LIFESPAN)
   list(APPEND ddsc_test_sources "lifespan.c")
@@ -90,7 +93,10 @@ if(ENABLE_DEADLINE_MISSED)
 endif()
 
 if(ENABLE_TYPE_DISCOVERY)
-  list(APPEND ddsc_test_sources "typelookup.c" "xtypes.c")
+  list(APPEND ddsc_test_sources
+    "typelookup.c"
+    "xtypes.c"
+    "data_representation.c")
 endif()
 
 if(ENABLE_TOPIC_DISCOVERY)
@@ -110,8 +116,14 @@ if(ENABLE_SHM)
     cunit_ddsc PRIVATE
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
 endif()
+
 target_link_libraries(cunit_ddsc PRIVATE
-  RoundTrip Space XSpace XSpaceMustUnderstand TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter DataRepresentationTypes MinXcdrVersion CdrStreamOptimize ddsc)
+  RoundTrip Space TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter DataRepresentationTypes MinXcdrVersion CdrStreamOptimize ddsc)
+
+if(ENABLE_TYPE_DISCOVERY)
+  target_link_libraries(cunit_ddsc PRIVATE
+  XSpace XSpaceNoTypeInfo)
+endif()
 
 # Setup environment for config-tests
 get_test_property(CUnit_ddsc_config_simple_udp ENVIRONMENT CUnit_ddsc_config_simple_udp_env)

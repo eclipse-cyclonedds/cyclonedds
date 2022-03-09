@@ -107,6 +107,7 @@ struct constructed_type_key {
   uint32_t order;
   uint32_t dims;
   uint32_t size;
+  bool dheader;
   uint32_t align;
   struct constructed_type_key *sub;
 };
@@ -139,6 +140,7 @@ struct key_meta_data {
   uint32_t key_idx;
   uint32_t dims;
   uint32_t size;
+  bool dheader;
   uint32_t align;
 };
 

@@ -300,7 +300,6 @@ DDS_EXPORT extern inline void ddsi_sertype_free_sample (const struct ddsi_sertyp
 DDS_EXPORT extern inline ddsi_typeid_t * ddsi_sertype_typeid (const struct ddsi_sertype *tp, ddsi_typeid_kind_t kind);
 DDS_EXPORT extern inline ddsi_typemap_t * ddsi_sertype_typemap (const struct ddsi_sertype *tp);
 DDS_EXPORT extern inline ddsi_typeinfo_t * ddsi_sertype_typeinfo (const struct ddsi_sertype *tp);
-DDS_EXPORT extern inline bool ddsi_sertype_assignable_from (const struct ddsi_sertype *sertype_a, const struct ddsi_type_pair *type_pair_b);
 DDS_EXPORT extern inline struct ddsi_sertype * ddsi_sertype_derive_sertype (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t data_representation, dds_type_consistency_enforcement_qospolicy_t tce_qos);
 
 DDS_EXPORT extern inline size_t ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp, const void *sample);

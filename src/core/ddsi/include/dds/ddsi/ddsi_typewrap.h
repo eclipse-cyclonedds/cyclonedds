@@ -29,6 +29,11 @@ extern "C" {
 
 #define XT_FLAG_EXTENSIBILITY_MASK  0x7
 
+#define DDS_XTypes_TRY_CONSTRUCT_INVALID 0
+#define DDS_XTypes_TRY_CONSTRUCT_DISCARD DDS_XTypes_TRY_CONSTRUCT1
+#define DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT DDS_XTypes_TRY_CONSTRUCT2
+#define DDS_XTypes_TRY_CONSTRUCT_TRIM (DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_TRY_CONSTRUCT2)
+
 struct xt_type;
 
 typedef struct ddsi_typeid ddsi_typeid_t;
@@ -63,7 +68,7 @@ DDS_EXPORT dds_return_t ddsi_xt_type_init (struct ddsi_domaingv *gv, struct xt_t
 DDS_EXPORT dds_return_t ddsi_xt_type_add_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeObject *to);
 DDS_EXPORT void ddsi_xt_get_typeobject (const struct xt_type *xt, ddsi_typeobj_t *to);
 DDS_EXPORT void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt);
-DDS_EXPORT bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *t1, const struct xt_type *t2);
+DDS_EXPORT bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce);
 
 
 #else /* DDS_HAS_TYPE_DISCOVERY */

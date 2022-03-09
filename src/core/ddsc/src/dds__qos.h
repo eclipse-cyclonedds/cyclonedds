@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -26,7 +27,8 @@ extern "C" {
    QP_DATA_REPRESENTATION)
 
 #define DDS_PARTICIPANT_QOS_MASK                                        \
-  (QP_USER_DATA | QP_ADLINK_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL | QP_PROPERTY_LIST)
+  (QP_USER_DATA | QP_ADLINK_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL |   \
+   QP_PROPERTY_LIST | QP_LIVELINESS) // liveliness is a Cyclone DDS special
 
 #define DDS_PUBLISHER_QOS_MASK                                          \
   (QP_PARTITION | QP_PRESENTATION | QP_GROUP_DATA |                     \

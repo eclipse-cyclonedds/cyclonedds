@@ -14,17 +14,24 @@
 
 union test_union;
 
+enum e { E1, E2 };
+
 @nested
 union union_nested1 switch (short) {
   case 1:
     long a1;
   case 2:
     @external test_union c1;
+  case 3:
+  case 4:
+  case 5:
+    e d1[2];
 };
 
 @nested
 struct struct_nested1 {
   @external union_nested1 a2;
+  @external union_nested1 a3;
 };
 
 @topic @appendable
@@ -42,19 +49,23 @@ default:
 #include "common.h"
 
 const dds_topic_descriptor_t *desc = &test_union_desc;
-void init_sample (void *s);
-int cmp_sample (const void *sa, const void *sb);
 
 void init_sample (void *s)
 {
   test_union *s1 = (test_union *) s;
   s1->_d = 2;
+
   A (s1->_u.b.a2);
   s1->_u.b.a2->_d = 2;
   A (s1->_u.b.a2->_u.c1);
   s1->_u.b.a2->_u.c1->_d = 1;
   s1->_u.b.a2->_u.c1->_u.a._d = 1;
   s1->_u.b.a2->_u.c1->_u.a._u.a1 = 123;
+
+  A (s1->_u.b.a3);
+  s1->_u.b.a3->_d = 5;
+  s1->_u.b.a3->_u.d1[0] = E2;
+  s1->_u.b.a3->_u.d1[1] = E1;
 }
 
 int cmp_sample (const void *sa, const void *sb)
@@ -63,9 +74,16 @@ int cmp_sample (const void *sa, const void *sb)
   test_union *b = (test_union *) sb;
   CMP(a, b, _d, 2)
   CMP(a, b, _u.b.a2->_d, 2)
+  CMP(a, b, _u.b.a2->_u.c1->_d, 1)
   CMP(a, b, _u.b.a2->_u.c1->_u.a._d, 1)
   CMP(a, b, _u.b.a2->_u.c1->_u.a._u.a1, 123)
+
+  CMP(a, b, _u.b.a3->_d, 5)
+  CMP(a, b, _u.b.a3->_u.d1[0], E2)
+  CMP(a, b, _u.b.a3->_u.d1[1], E1)
   return 0;
 }
+
+NO_KEY_CMP
 
 #endif

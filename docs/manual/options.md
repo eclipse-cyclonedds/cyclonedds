@@ -67,7 +67,7 @@ The default value is: "lax".
 
 
 ### //CycloneDDS/Domain/Discovery
-Children: [DSGracePeriod](#cycloneddsdomaindiscoverydsgraceperiod), [DefaultMulticastAddress](#cycloneddsdomaindiscoverydefaultmulticastaddress), [EnableTopicDiscoveryEndpoints](#cycloneddsdomaindiscoveryenabletopicdiscoveryendpoints), [ExternalDomainId](#cycloneddsdomaindiscoveryexternaldomainid), [MaxAutoParticipantIndex](#cycloneddsdomaindiscoverymaxautoparticipantindex), [ParticipantIndex](#cycloneddsdomaindiscoveryparticipantindex), [Peers](#cycloneddsdomaindiscoverypeers), [Ports](#cycloneddsdomaindiscoveryports), [SPDPInterval](#cycloneddsdomaindiscoveryspdpinterval), [SPDPMulticastAddress](#cycloneddsdomaindiscoveryspdpmulticastaddress), [Tag](#cycloneddsdomaindiscoverytag)
+Children: [DSGracePeriod](#cycloneddsdomaindiscoverydsgraceperiod), [DefaultMulticastAddress](#cycloneddsdomaindiscoverydefaultmulticastaddress), [EnableTopicDiscoveryEndpoints](#cycloneddsdomaindiscoveryenabletopicdiscoveryendpoints), [ExternalDomainId](#cycloneddsdomaindiscoveryexternaldomainid), [LeaseDuration](#cycloneddsdomaindiscoveryleaseduration), [MaxAutoParticipantIndex](#cycloneddsdomaindiscoverymaxautoparticipantindex), [ParticipantIndex](#cycloneddsdomaindiscoveryparticipantindex), [Peers](#cycloneddsdomaindiscoverypeers), [Ports](#cycloneddsdomaindiscoveryports), [SPDPInterval](#cycloneddsdomaindiscoveryspdpinterval), [SPDPMulticastAddress](#cycloneddsdomaindiscoveryspdpmulticastaddress), [Tag](#cycloneddsdomaindiscoverytag)
 
 The Discovery element allows specifying various parameters related to the discovery of peers.
 
@@ -104,6 +104,15 @@ Text
 An override for the domain id, to be used in discovery and for determining the port number mapping. This allows creating multiple domains in a single process while making them appear as a single domain on the network. The value "default" disables the override.
 
 The default value is: "default".
+
+
+#### //CycloneDDS/Domain/Discovery/LeaseDuration
+Number-with-unit
+
+This setting controls the default participant lease duration.
+The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.
+
+The default value is: "10 s".
 
 
 #### //CycloneDDS/Domain/Discovery/MaxAutoParticipantIndex
@@ -465,7 +474,7 @@ The default value is: "default".
 
 
 ### //CycloneDDS/Domain/Internal
-Children: [AccelerateRexmitBlockSize](#cycloneddsdomaininternalacceleraterexmitblocksize), [AckDelay](#cycloneddsdomaininternalackdelay), [AutoReschedNackDelay](#cycloneddsdomaininternalautoreschednackdelay), [BuiltinEndpointSet](#cycloneddsdomaininternalbuiltinendpointset), [BurstSize](#cycloneddsdomaininternalburstsize), [ControlTopic](#cycloneddsdomaininternalcontroltopic), [DDSI2DirectMaxThreads](#cycloneddsdomaininternalddsidirectmaxthreads), [DefragReliableMaxSamples](#cycloneddsdomaininternaldefragreliablemaxsamples), [DefragUnreliableMaxSamples](#cycloneddsdomaininternaldefragunreliablemaxsamples), [DeliveryQueueMaxSamples](#cycloneddsdomaininternaldeliveryqueuemaxsamples), [EnableExpensiveChecks](#cycloneddsdomaininternalenableexpensivechecks), [GenerateKeyhash](#cycloneddsdomaininternalgeneratekeyhash), [HeartbeatInterval](#cycloneddsdomaininternalheartbeatinterval), [LateAckMode](#cycloneddsdomaininternallateackmode), [LeaseDuration](#cycloneddsdomaininternalleaseduration), [LivelinessMonitoring](#cycloneddsdomaininternallivelinessmonitoring), [MaxParticipants](#cycloneddsdomaininternalmaxparticipants), [MaxQueuedRexmitBytes](#cycloneddsdomaininternalmaxqueuedrexmitbytes), [MaxQueuedRexmitMessages](#cycloneddsdomaininternalmaxqueuedrexmitmessages), [MaxSampleSize](#cycloneddsdomaininternalmaxsamplesize), [MeasureHbToAckLatency](#cycloneddsdomaininternalmeasurehbtoacklatency), [MonitorPort](#cycloneddsdomaininternalmonitorport), [MultipleReceiveThreads](#cycloneddsdomaininternalmultiplereceivethreads), [NackDelay](#cycloneddsdomaininternalnackdelay), [PreEmptiveAckDelay](#cycloneddsdomaininternalpreemptiveackdelay), [PrimaryReorderMaxSamples](#cycloneddsdomaininternalprimaryreordermaxsamples), [PrioritizeRetransmit](#cycloneddsdomaininternalprioritizeretransmit), [RediscoveryBlacklistDuration](#cycloneddsdomaininternalrediscoveryblacklistduration), [RetransmitMerging](#cycloneddsdomaininternalretransmitmerging), [RetransmitMergingPeriod](#cycloneddsdomaininternalretransmitmergingperiod), [RetryOnRejectBestEffort](#cycloneddsdomaininternalretryonrejectbesteffort), [SPDPResponseMaxDelay](#cycloneddsdomaininternalspdpresponsemaxdelay), [ScheduleTimeRounding](#cycloneddsdomaininternalscheduletimerounding), [SecondaryReorderMaxSamples](#cycloneddsdomaininternalsecondaryreordermaxsamples), [SocketReceiveBufferSize](#cycloneddsdomaininternalsocketreceivebuffersize), [SocketSendBufferSize](#cycloneddsdomaininternalsocketsendbuffersize), [SquashParticipants](#cycloneddsdomaininternalsquashparticipants), [SynchronousDeliveryLatencyBound](#cycloneddsdomaininternalsynchronousdeliverylatencybound), [SynchronousDeliveryPriorityThreshold](#cycloneddsdomaininternalsynchronousdeliveryprioritythreshold), [Test](#cycloneddsdomaininternaltest), [UnicastResponseToSPDPMessages](#cycloneddsdomaininternalunicastresponsetospdpmessages), [UseMulticastIfMreqn](#cycloneddsdomaininternalusemulticastifmreqn), [Watermarks](#cycloneddsdomaininternalwatermarks), [WriteBatch](#cycloneddsdomaininternalwritebatch), [WriterLingerDuration](#cycloneddsdomaininternalwriterlingerduration)
+Children: [AccelerateRexmitBlockSize](#cycloneddsdomaininternalacceleraterexmitblocksize), [AckDelay](#cycloneddsdomaininternalackdelay), [AutoReschedNackDelay](#cycloneddsdomaininternalautoreschednackdelay), [BuiltinEndpointSet](#cycloneddsdomaininternalbuiltinendpointset), [BurstSize](#cycloneddsdomaininternalburstsize), [ControlTopic](#cycloneddsdomaininternalcontroltopic), [DDSI2DirectMaxThreads](#cycloneddsdomaininternalddsidirectmaxthreads), [DefragReliableMaxSamples](#cycloneddsdomaininternaldefragreliablemaxsamples), [DefragUnreliableMaxSamples](#cycloneddsdomaininternaldefragunreliablemaxsamples), [DeliveryQueueMaxSamples](#cycloneddsdomaininternaldeliveryqueuemaxsamples), [EnableExpensiveChecks](#cycloneddsdomaininternalenableexpensivechecks), [GenerateKeyhash](#cycloneddsdomaininternalgeneratekeyhash), [HeartbeatInterval](#cycloneddsdomaininternalheartbeatinterval), [LateAckMode](#cycloneddsdomaininternallateackmode), [LivelinessMonitoring](#cycloneddsdomaininternallivelinessmonitoring), [MaxParticipants](#cycloneddsdomaininternalmaxparticipants), [MaxQueuedRexmitBytes](#cycloneddsdomaininternalmaxqueuedrexmitbytes), [MaxQueuedRexmitMessages](#cycloneddsdomaininternalmaxqueuedrexmitmessages), [MaxSampleSize](#cycloneddsdomaininternalmaxsamplesize), [MeasureHbToAckLatency](#cycloneddsdomaininternalmeasurehbtoacklatency), [MonitorPort](#cycloneddsdomaininternalmonitorport), [MultipleReceiveThreads](#cycloneddsdomaininternalmultiplereceivethreads), [NackDelay](#cycloneddsdomaininternalnackdelay), [PreEmptiveAckDelay](#cycloneddsdomaininternalpreemptiveackdelay), [PrimaryReorderMaxSamples](#cycloneddsdomaininternalprimaryreordermaxsamples), [PrioritizeRetransmit](#cycloneddsdomaininternalprioritizeretransmit), [RediscoveryBlacklistDuration](#cycloneddsdomaininternalrediscoveryblacklistduration), [RetransmitMerging](#cycloneddsdomaininternalretransmitmerging), [RetransmitMergingPeriod](#cycloneddsdomaininternalretransmitmergingperiod), [RetryOnRejectBestEffort](#cycloneddsdomaininternalretryonrejectbesteffort), [SPDPResponseMaxDelay](#cycloneddsdomaininternalspdpresponsemaxdelay), [ScheduleTimeRounding](#cycloneddsdomaininternalscheduletimerounding), [SecondaryReorderMaxSamples](#cycloneddsdomaininternalsecondaryreordermaxsamples), [SocketReceiveBufferSize](#cycloneddsdomaininternalsocketreceivebuffersize), [SocketSendBufferSize](#cycloneddsdomaininternalsocketsendbuffersize), [SquashParticipants](#cycloneddsdomaininternalsquashparticipants), [SynchronousDeliveryLatencyBound](#cycloneddsdomaininternalsynchronousdeliverylatencybound), [SynchronousDeliveryPriorityThreshold](#cycloneddsdomaininternalsynchronousdeliveryprioritythreshold), [Test](#cycloneddsdomaininternaltest), [UnicastResponseToSPDPMessages](#cycloneddsdomaininternalunicastresponsetospdpmessages), [UseMulticastIfMreqn](#cycloneddsdomaininternalusemulticastifmreqn), [Watermarks](#cycloneddsdomaininternalwatermarks), [WriteBatch](#cycloneddsdomaininternalwritebatch), [WriterLingerDuration](#cycloneddsdomaininternalwriterlingerduration)
 
 The Internal elements deal with a variety of settings that evolving and that are not necessarily fully supported. For the vast majority of the Internal settings, the functionality per-se is supported, but the right to change the way the options control the functionality is reserved. This includes renaming or moving options.
 
@@ -649,15 +658,6 @@ Boolean
 Ack a sample only when it has been delivered, instead of when committed to delivering it.
 
 The default value is: "false".
-
-
-#### //CycloneDDS/Domain/Internal/LeaseDuration
-Number-with-unit
-
-This setting controls the default participant lease duration.
-The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.
-
-The default value is: "10 s".
 
 
 #### //CycloneDDS/Domain/Internal/LivelinessMonitoring

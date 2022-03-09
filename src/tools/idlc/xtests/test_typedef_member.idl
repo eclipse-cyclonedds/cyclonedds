@@ -51,8 +51,6 @@ module test_module
 #include "common.h"
 
 const dds_topic_descriptor_t *desc = &test_module_test_typedef_member_desc;
-void init_sample (void *s);
-int cmp_sample (const void *sa, const void *sb);
 
 void init_sample (void *s)
 {
@@ -87,6 +85,15 @@ int cmp_sample (const void *sa, const void *sb)
   CMP(a, b, t2._u.u2._buffer[0].i2, 876);
   CMP(a, b, t2._u.u2._buffer[1].i1, 789);
   CMP(a, b, t2._u.u2._buffer[1].i2, 987);
+  return 0;
+}
+
+int cmp_key (const void *sa, const void *sb)
+{
+  test_module_test_typedef_member *a = (test_module_test_typedef_member *) sa;
+  test_module_test_typedef_member *b = (test_module_test_typedef_member *) sb;
+  CMP(a, b, t1.s1.i1, 123);
+  CMP(a, b, t1.s1.i2, 321);
   return 0;
 }
 

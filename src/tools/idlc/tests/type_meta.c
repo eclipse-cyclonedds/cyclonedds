@@ -731,5 +731,149 @@ CU_Test(idlc_type_meta, type_obj_serdes)
   }
 }
 
+typedef struct member_annotation_test {
+  char *hash_id;
+  bool min_present;
+  int min;
+  bool max_present;
+  int max;
+  char *unit;
+} m_a_t;
+
+typedef struct struct_annotation_test {
+  char *idl;
+  m_a_t members[8];
+} s_a_t;
+
+static void test_annotation_meta_info(s_a_t test)
+{
+  uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
+                   IDL_FLAG_ANONYMOUS_TYPES |
+                   IDL_FLAG_ANNOTATIONS;
+
+  static idl_pstate_t *pstate = NULL;
+  struct descriptor descriptor;
+  struct descriptor_type_meta dtm;
+
+  idl_retcode_t ret = idl_create_pstate (flags, NULL, &pstate);
+  CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+
+  memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
+  ret = generate_test_descriptor (pstate, test.idl, &descriptor);
+  CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+
+  ret = generate_descriptor_type_meta (pstate, descriptor.topic, &dtm);
+  CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+
+  assert(NULL == dtm.admin->admin_next);  /*only one struct allowed*/
+  for (struct type_meta *tm = dtm.admin; tm; tm = tm->admin_next)
+  {
+    DDS_XTypes_CompleteStructMemberSeq mseq = tm->to_complete->_u.complete._u.struct_type.member_seq;
+    for (size_t i = 0; i < mseq._length; i++)
+    {
+      //CU_ASSERT_FATAL(i < sizeof(test.members)/sizeof(test.members[0]));
+      m_a_t m = test.members[i];
+      CU_ASSERT_PTR_NOT_NULL_FATAL(mseq._buffer);
+      if (!mseq._buffer)
+        continue;
+      struct DDS_XTypes_CompleteStructMember csm = mseq._buffer[i];
+      DDS_XTypes_AppliedBuiltinMemberAnnotations *annptr = csm.detail.ann_builtin;
+      CU_ASSERT_PTR_NOT_NULL_FATAL(annptr);
+      if (!annptr)
+        continue;
+
+      //check hashid (if any)
+      if (m.hash_id) {
+        CU_ASSERT_PTR_NOT_NULL_FATAL(annptr->hash_id);
+        if (annptr->hash_id)
+          CU_ASSERT_STRING_EQUAL(m.hash_id, annptr->hash_id);
+      } else {
+        CU_ASSERT_PTR_NULL(annptr->hash_id);
+      }
+
+      //check max (if any)
+      if (m.max_present) {
+        CU_ASSERT_PTR_NOT_NULL_FATAL(annptr->max);
+        if (annptr->max)
+          CU_ASSERT_EQUAL(annptr->max->_u.int32_value, m.max);
+      } else {
+        CU_ASSERT_PTR_NULL(annptr->max);
+      }
+
+      //check min (if any)
+      if (m.min_present) {
+        CU_ASSERT_PTR_NOT_NULL_FATAL(annptr->min);
+        if (annptr->min)
+          CU_ASSERT_EQUAL(annptr->min->_u.int32_value, m.min);
+      } else {
+        CU_ASSERT_PTR_NULL(annptr->min);
+      }
+
+      //check unit (if any)
+      if (m.unit) {
+        CU_ASSERT_PTR_NOT_NULL_FATAL(annptr->unit);
+        if (annptr->unit)
+          CU_ASSERT_STRING_EQUAL(m.unit, annptr->unit);
+      } else {
+        CU_ASSERT_PTR_NULL(annptr->unit);
+      }
+    }
+  }
+
+  descriptor_type_meta_fini (&dtm);
+  descriptor_fini (&descriptor);
+  idl_delete_pstate (pstate);
+}
+
+CU_Test(idlc_type_meta, type_obj_annotations)
+{
+  s_a_t tests[] = {
+    //min/max/range
+    {"struct test_struct {\n"
+      "@max(123456) long f1;\n"
+      "@min(654321) long f2;\n"
+      "@range(min = 123456, max = 654321) long f3;\n"
+      "};",
+      {{ NULL, false, 0, true, 123456, NULL},
+       { NULL, true, 654321, false, 0, NULL},
+       { NULL, true, 123456, true, 654321, NULL},
+       }},
+    //hashid
+    {"struct test_struct {\n"
+      "@hashid long f1;\n"
+      "@hashid(\"abc\") long f2;\n"
+      "@hashid(\"def\") long f3;\n"
+      "};",
+      {{ "" },
+       { "abc" },
+       { "def" },
+        }},
+    //unit
+    {"struct test_struct {\n"
+      "@unit(\"Cubits\") long f1;\n"
+      "@unit(\"Heqats\") long f2;\n"
+      "@unit(\"Zolotniks\") long f3;\n"
+      "};",
+      {{ NULL, false, 0, false, 0, "Cubits" },
+       { NULL, false, 0, false, 0, "Heqats" },
+       { NULL, false, 0, false, 0, "Zolotniks" },
+        }},
+    //mixing annotations
+    {"struct test_struct {\n"
+      "@max(123456) @hashid @unit(\"Cubits\") long f1;\n"
+      "@min(654321) @hashid(\"abc\") @unit(\"Heqats\") long f2;\n"
+      "@range(min = 123456, max = 654321) @hashid(\"def\") @unit(\"Zolotniks\") long f3;\n"
+      "};",
+      {{ "", false, 0, true, 123456, "Cubits"},
+       { "abc", true, 654321, false, 0, "Heqats"},
+       { "def", true, 123456, true, 654321, "Zolotniks"},
+       }},
+    };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++)
+    test_annotation_meta_info(tests[i]);
+}
+
+
 
 #endif /* DDS_HAS_TYPE_DISCOVERY */

@@ -1,0 +1,186 @@
+/*
+ * Copyright(c) 2021 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+bitmask bm {
+  BM_0,
+  @position(28) BM_28,
+  BM_29
+};
+
+@bit_bound(5)
+bitmask bm8 {
+  BM8_0,
+  @position(3) BM8_3,
+  @position(2) BM8_2
+};
+
+@bit_bound(14)
+bitmask bm16 {
+  BM16_0,
+  @position(12) BM16_12,
+  BM16_13
+};
+@bit_bound(62)
+bitmask bm64 {
+  BM64_0,
+  BM64_1,
+  @position(60) BM64_60,
+  BM64_61
+};
+
+@final @nested
+union u switch (long) {
+  case 1: bm8 u1;
+  case 2: bm16 u2;
+  case 4: @external bm u4;
+  case 8: bm64 u8;
+};
+
+typedef bm8 b;
+typedef bm16 b_arr[50];
+typedef sequence<bm> b_seq_arr[2];
+
+@topic @final
+struct test_bitmask {
+  @key bm f1;
+  @key bm8 f2;
+  @key bm16 f3;
+  @key bm f4[3];
+  sequence<bm8> f5;
+  u f6[4];
+  @external bm16 f7;
+  @optional bm8 f8;
+  @key @external bm f9[2];
+  b f10;
+  @key b_arr f11;
+  b_seq_arr f12;
+  @key bm64 f13;
+  @key bm64 f14[2];
+  sequence<bm64> f15[2];
+};
+
+#else
+
+#include <string.h>
+#include "dds/dds.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
+#include "test_bitmask.h"
+#include "common.h"
+
+const dds_topic_descriptor_t *desc = &test_bitmask_desc;
+
+void init_sample (void *s)
+{
+  test_bitmask *s1 = (test_bitmask *) s;
+  s1->f1 = BM_0 | BM_28;
+  s1->f2 = BM8_3 | BM8_2;
+  s1->f3 = BM16_13;
+  s1->f4[0] = BM_28 | BM_29;
+  s1->f4[1] = BM_0;
+  s1->f4[2] = BM_29;
+  SEQA (s1->f5, 2);
+  s1->f5._length = 2;
+  s1->f5._buffer[0] = BM8_0 | BM8_2;
+  s1->f5._buffer[1] = BM8_0 | BM8_3;
+  s1->f6[0]._d = 1;
+  s1->f6[0]._u.u1 = BM8_2;
+  s1->f6[1]._d = 2;
+  s1->f6[1]._u.u2 = BM16_13;
+  s1->f6[2]._d = 4;
+  EXTA (s1->f6[2]._u.u4, BM_28);
+  s1->f6[3]._d = 8;
+  s1->f6[3]._u.u8 = BM64_60 | BM64_61 | BM64_1;
+  EXTA (s1->f7, BM16_12);
+  EXTA (s1->f8, BM8_3);
+  A (s1->f9);
+  (*s1->f9)[0] = 0;
+  (*s1->f9)[1] = BM_28;
+  s1->f10 = BM8_3;
+  for (uint32_t n = 0; n < 50; n++)
+    s1->f11[n] = n % 2 ? BM16_12 : 0;
+  SEQA (s1->f12[0], 1);
+  s1->f12[0]._length = 1;
+  s1->f12[0]._buffer[0] = BM_29;
+  SEQA (s1->f12[1], 2);
+  s1->f12[1]._length = 2;
+  s1->f12[1]._buffer[0] = 0;
+  s1->f12[1]._buffer[1] = BM_28;
+  s1->f13 = BM64_60 | BM64_61;
+  s1->f14[0] = BM64_1;
+  s1->f14[1] = BM64_61;
+  SEQA (s1->f15[0], 1);
+  s1->f15[0]._length = 1;
+  s1->f15[0]._buffer[0] = BM64_1;
+  SEQA (s1->f15[1], 2);
+  s1->f15[1]._length = 2;
+  s1->f15[1]._buffer[0] = 0;
+  s1->f15[1]._buffer[1] = BM64_60;
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_bitmask *a = (test_bitmask *) sa;
+  test_bitmask *b = (test_bitmask *) sb;
+
+  CMP (a, b, f1, BM_0 | BM_28);
+  CMP (a, b, f2, BM8_3 | BM8_2);
+  CMP (a, b, f3, BM16_13);
+  CMP (a, b, f4[0], BM_28 | BM_29);
+  CMP (a, b, f4[1], BM_0);
+  CMP (a, b, f4[2], BM_29);
+  CMP (a, b, f5._length, 2);
+  CMP (a, b, f5._buffer[0], BM8_0 | BM8_2);
+  CMP (a, b, f5._buffer[1], BM8_0 | BM8_3);
+  CMP (a, b, f6[0]._d, 1);
+  CMP (a, b, f6[0]._u.u1, BM8_2);
+  CMP (a, b, f6[1]._d, 2);
+  CMP (a, b, f6[1]._u.u2, BM16_13);
+  CMP (a, b, f6[2]._d, 4);
+  CMPEXT (a, b, f6[2]._u.u4, BM_28);
+  CMP (a, b, f6[3]._d, 8);
+  CMP (a, b, f6[3]._u.u8, BM64_60 | BM64_61 | BM64_1);
+  CMPEXT (a, b, f7, BM16_12);
+  CMPEXT (a, b, f8, BM8_3);
+  CMPEXTA (a, b, f9, 0, 0);
+  CMPEXTA (a, b, f9, 1, BM_28);
+  CMP (a, b, f10, BM8_3);
+  for (uint32_t n = 0; n < 50; n++)
+    CMP (a, b, f11[n], n % 2 ? BM16_12 : 0);
+  CMP (a, b, f12[0]._length, 1);
+  CMP (a, b, f12[0]._buffer[0], BM_29);
+  CMP (a, b, f12[1]._length, 2);
+  CMP (a, b, f12[1]._buffer[0], 0);
+  CMP (a, b, f12[1]._buffer[1], BM_28);
+  CMP (a, b, f13, BM64_60 | BM64_61);
+  CMP (a, b, f14[0], BM64_1);
+  CMP (a, b, f14[1], BM64_61);
+  CMP (a, b, f15[0]._length, 1);
+  CMP (a, b, f15[0]._buffer[0], BM64_1);
+  CMP (a, b, f15[1]._length, 2);
+  CMP (a, b, f15[1]._buffer[0], 0);
+  CMP (a, b, f15[1]._buffer[1], BM64_60);
+  return 0;
+}
+
+int cmp_key (const void *sa, const void *sb)
+{
+  test_bitmask *a = (test_bitmask *) sa;
+  test_bitmask *b = (test_bitmask *) sb;
+
+  CMP (a, b, f1, BM_0 | BM_28);
+
+  return 0;
+}
+
+#endif

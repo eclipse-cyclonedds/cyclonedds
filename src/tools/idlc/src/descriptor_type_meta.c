@@ -386,6 +386,19 @@ static DDS_XTypes_StructMemberFlag
 get_struct_member_flags(const idl_member_t *member)
 {
   DDS_XTypes_StructMemberFlag flags = 0u;
+  if (member->try_construct.annotation) {
+    switch (member->try_construct.value) {
+      case IDL_DISCARD:
+        flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
+        break;
+      case IDL_USE_DEFAULT:
+        flags |= DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+        break;
+      case IDL_TRIM:
+        flags |= DDS_XTypes_TRY_CONSTRUCT_TRIM;
+        break;
+    }
+  }
   if (member->external.value)
     flags |= DDS_XTypes_IS_EXTERNAL;
   if (member->key.value)
@@ -433,7 +446,19 @@ static DDS_XTypes_UnionMemberFlag
 get_union_case_flags(const idl_case_t *_case)
 {
   DDS_XTypes_UnionMemberFlag flags = 0u;
-  // FIXME: implement try-construct
+  if (_case->try_construct.annotation) {
+    switch (_case->try_construct.value) {
+      case IDL_DISCARD:
+        flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
+        break;
+      case IDL_USE_DEFAULT:
+        flags |= DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+        break;
+      case IDL_TRIM:
+        flags |= DDS_XTypes_TRY_CONSTRUCT_TRIM;
+        break;
+    }
+  }
   if (_case->external.value)
     flags |= DDS_XTypes_IS_EXTERNAL;
   if (idl_is_default_case (_case))
@@ -553,47 +578,156 @@ get_type_spec_typeids(
 }
 
 static idl_retcode_t
+set_xtypes_annotation_parameter_value(
+  struct DDS_XTypes_AnnotationParameterValue *val,
+  const idl_literal_t *lit)
+{
+  switch (idl_type(lit)) {
+    case IDL_BOOL:
+      val->_d = DDS_XTypes_TK_BOOLEAN;
+      val->_u.boolean_value = lit->value.bln;
+      break;
+    case IDL_OCTET:
+    case IDL_UINT8:
+      val->_d = DDS_XTypes_TK_BYTE;
+      val->_u.byte_value = lit->value.uint8;
+      break;
+    case IDL_SHORT:
+    case IDL_INT16:
+      val->_d = DDS_XTypes_TK_INT16;
+      val->_u.int16_value = lit->value.int16;
+      break;
+    case IDL_USHORT:
+    case IDL_UINT16:
+      val->_d = DDS_XTypes_TK_UINT16;
+      val->_u.uint_16_value = lit->value.uint16;
+      break;
+    case IDL_LONG:
+    case IDL_INT32:
+      val->_d = DDS_XTypes_TK_INT32;
+      val->_u.int32_value = lit->value.int32;
+      break;
+    case IDL_ULONG:
+    case IDL_UINT32:
+      val->_d = DDS_XTypes_TK_UINT32;
+      val->_u.uint32_value = lit->value.uint32;
+      break;
+    case IDL_LLONG:
+    case IDL_INT64:
+      val->_d = DDS_XTypes_TK_INT64;
+      val->_u.int64_value = lit->value.int64;
+      break;
+    case IDL_ULLONG:
+    case IDL_UINT64:
+      val->_d = DDS_XTypes_TK_UINT64;
+      val->_u.uint64_value = lit->value.uint64;
+      break;
+    case IDL_FLOAT:
+      val->_d = DDS_XTypes_TK_FLOAT32;
+      val->_u.float32_value = lit->value.flt;
+      break;
+    case IDL_DOUBLE:
+      val->_d = DDS_XTypes_TK_FLOAT64;
+      val->_u.float64_value = lit->value.dbl;
+      break;
+    case IDL_CHAR:
+      val->_d = DDS_XTypes_TK_CHAR8;
+      val->_u.char_value = lit->value.chr;
+      break;
+    /*  //enums are currently not allowed in min/max/range annotations
+    case IDL_ENUM:
+      val->_d = DDS_XTypes_TK_ENUM;
+      val->_u.enumerated_value = ???;
+      break;*/
+    default:
+      return IDL_RETCODE_BAD_PARAMETER;
+  }
+
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
 get_builtin_member_ann(
   const idl_node_t *node,
   DDS_XTypes_AppliedBuiltinMemberAnnotations **ann_builtin)
 {
   idl_retcode_t ret = IDL_RETCODE_OK;
   *ann_builtin = NULL;
-  if (idl_is_member (node) || idl_is_case (node))
-  {
+  bool set = false;
+  DDS_XTypes_AppliedBuiltinMemberAnnotations *ptr = calloc (1, sizeof (**ann_builtin));
+  if (ptr == NULL) {
+    ret = IDL_RETCODE_NO_MEMORY;
+    goto cleanup;
+  }
+
+  if (idl_is_member (node) || idl_is_case (node)) {
+    const idl_member_t *mem = (const idl_member_t*)node;
+    const idl_case_t *cs = (const idl_case_t*)node;
+    const idl_literal_t *min = idl_is_member(node) ? mem->min.value : cs->min.value,
+                        *max = idl_is_member(node) ? mem->max.value : cs->max.value;
+    const char *unit = idl_is_member(node) ? mem->unit.value : cs->unit.value;
+
     for (idl_annotation_appl_t *a = ((idl_node_t *) node)->annotations; a; a = idl_next (a)) {
       if (!strcmp (a->annotation->name->identifier, "hashid")) {
-        assert (*ann_builtin == NULL);
-        *ann_builtin = calloc (1, sizeof (**ann_builtin));
-        if (*ann_builtin == NULL) {
-          ret = IDL_RETCODE_NO_MEMORY;
-          goto err;
-        }
         if (a->parameters) {
           assert (idl_type(a->parameters->const_expr) == IDL_STRING);
           assert (idl_is_literal(a->parameters->const_expr));
-          (*ann_builtin)->hash_id = idl_strdup (((const idl_literal_t *)a->parameters->const_expr)->value.str);
+          ptr->hash_id = idl_strdup (((const idl_literal_t *)a->parameters->const_expr)->value.str);
         } else {
-          (*ann_builtin)->hash_id = idl_strdup ("");
+          ptr->hash_id = idl_strdup ("");
         }
-        if ((*ann_builtin)->hash_id == NULL) {
+        if (ptr->hash_id == NULL) {
           ret = IDL_RETCODE_NO_MEMORY;
-          goto err;
+          goto cleanup;
         }
+        set = true;
         break;
       }
-      // FIXME: implement unit, min, max
+    }
+
+    if (unit) {
+      if (!(ptr->unit = idl_strdup(unit))) {
+        ret = IDL_RETCODE_NO_MEMORY;
+        goto cleanup;
+      }
+      set = true;
+    }
+    if (min) {
+      if (!(ptr->min = calloc(1, sizeof(*(ptr->min))))) {
+        ret = IDL_RETCODE_NO_MEMORY;
+        goto cleanup;
+      }
+      if ((ret = set_xtypes_annotation_parameter_value(ptr->min, min)))
+        goto cleanup;
+      set = true;
+    }
+    if (max) {
+      if (!(ptr->max = calloc(1, sizeof(*(ptr->max))))) {
+        ret = IDL_RETCODE_NO_MEMORY;
+        goto cleanup;
+      }
+      if ((ret = set_xtypes_annotation_parameter_value(ptr->max, max)))
+        goto cleanup;
+      set = true;
     }
   }
-  return ret;
-err:
-  if (*ann_builtin) {
-    if ((*ann_builtin)->hash_id) {
-      free ((*ann_builtin)->hash_id);
-      (*ann_builtin)->hash_id = NULL;
-    }
-    free (*ann_builtin);
-    *ann_builtin = NULL;
+
+  if (set) {
+    *ann_builtin = ptr;
+    return ret;
+  }
+
+cleanup:
+  if (ptr) {
+    if (ptr->hash_id)
+      free (ptr->hash_id);
+    if (ptr->unit)
+      free (ptr->unit);
+    if (ptr->min)
+      free (ptr->min);
+    if (ptr->max)
+      free (ptr->max);
+    free (ptr);
   }
   return ret;
 }

@@ -19,11 +19,10 @@ struct test_basic {
 #else
 
 #include "dds/ddsrt/heap.h"
+#include "common.h"
 #include "test_basic.h"
 
 const dds_topic_descriptor_t *desc = &test_basic_desc;
-void init_sample (void *s);
-int cmp_sample (const void *sa, const void *sb);
 
 void init_sample (void *s)
 {
@@ -37,5 +36,7 @@ int cmp_sample (const void *sa, const void *sb)
   test_basic *b = (test_basic *) sb;
   return (a->field1 > b->field1) ? 1 : -1 * (a->field1 < b->field1);
 }
+
+NO_KEY_CMP
 
 #endif
