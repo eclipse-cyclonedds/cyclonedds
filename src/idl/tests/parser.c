@@ -18,8 +18,6 @@
 
 #include "CUnit/Theory.h"
 
-#define T(type) "struct s{" type " c;};"
-
 static void
 test_base_type(const char *str, uint32_t flags, int32_t retcode, idl_mask_t mask)
 {
@@ -63,6 +61,8 @@ bail:
   idl_delete_pstate(pstate);
 }
 
+#define T(type) "struct s{" type " c;};"
+
 CU_TheoryDataPoints(idl_parser, base_types) = {
   CU_DataPoints(const char *,
     T("short"), T("unsigned short"),
@@ -95,6 +95,7 @@ CU_TheoryDataPoints(idl_parser, extended_base_types) = {
                           IDL_INT32, IDL_UINT32,
                           IDL_INT64, IDL_UINT64)
 };
+#undef T
 
 CU_Theory((const char *s, uint32_t t), idl_parser, extended_base_types)
 {
@@ -170,6 +171,11 @@ CU_Test(idl_parser, embedded_module)
   idl_delete_pstate(pstate);
 }
 
+#undef M
+#undef S
+#undef LL
+#undef LD
+
 // x. use already existing name
 
 CU_Test(idl_parser, struct_in_struct_same_module)
@@ -239,3 +245,102 @@ CU_Test(idl_parser, struct_in_struct_other_module)
 // x. struct with anonymous embedded struct
 // x. constant expressions
 // x. identifier that collides with a keyword
+
+typedef struct rep_req_xcdr2 {
+  const char *idl;
+  bool req_xcdr2[4];
+  size_t i;
+} rep_req_xcdr2_t;
+
+static idl_retcode_t test_req_xcdr2(const idl_pstate_t* pstate, const bool revisit, const idl_path_t* path, const void* node, void* user_data)
+{
+  (void) pstate;
+  (void) revisit;
+  (void) path;
+
+  rep_req_xcdr2_t *test = (rep_req_xcdr2_t *)user_data;
+  bool expected = test->req_xcdr2[test->i++];
+  CU_ASSERT_EQUAL(idl_requires_xcdr2(node), expected);
+  if (idl_requires_xcdr2(node) == expected)
+    return IDL_RETCODE_OK;
+  printf("required xcdr test failed\n");
+  return IDL_RETCODE_SEMANTIC_ERROR;
+}
+
+static void test_require_xcdr2(rep_req_xcdr2_t *test)
+{
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = idl_create_pstate(IDL_FLAG_ANNOTATIONS, NULL, &pstate);
+  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  pstate->config.default_extensibility = IDL_FINAL;
+  ret = idl_parse_string(pstate, test->idl);
+  CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
+
+  idl_visitor_t visitor;
+  memset(&visitor, 0, sizeof(visitor));
+  visitor.visit = IDL_STRUCT | IDL_UNION;
+  visitor.accept[IDL_ACCEPT_STRUCT] = &test_req_xcdr2;
+  visitor.accept[IDL_ACCEPT_UNION] = &test_req_xcdr2;
+  (void) idl_visit(pstate, pstate->root, &visitor, test);
+  idl_delete_pstate(pstate);
+}
+
+#define S(ext,name,mem) ext " struct " name " { " mem " }; "
+#define SB(ext,name,base,mem) ext " struct " name " : " base " { " mem " }; "
+#define U(ext,name,mem) ext " union " name " switch (long) { " mem " }; "
+#define E(ext,name,labels) ext " enum " name " { " labels " }; "
+#define BM(ext,name,bits) ext " bitmask " name " { " bits " }; "
+#define F "@final"
+#define A "@appendable"
+#define M "@mutable"
+#define MEM_DEF "long f1;"
+#define MEM_OPT "@optional long f1;"
+#define MEM_EXT "@external long f1;"
+#define LB_DEF "E1, E2, E3"
+#define BITS_DEF "BM1, BM2, BM3"
+#define UMEM_DEF "case 1: long f1;"
+
+CU_Test(idl_parser, require_xcdr2)
+{
+  rep_req_xcdr2_t tests[] = {
+    { S(F, "t", MEM_DEF), { false } },
+    { S(F, "n", MEM_DEF) S(F, "t", "n f1;"), { false, false } },
+    { S(F, "tb", MEM_DEF) SB(F, "t", "tb", ""), { false, false } },
+    { S(F, "t", MEM_OPT), { true } },
+    { S(F, "t", MEM_EXT), { false } },
+    { S(A, "t", MEM_DEF), { true } },
+    { S(M, "t", MEM_DEF), { true } },
+    { S(M, "n", MEM_DEF) S(F, "t", "n f1;"), { true, true } },
+    { S(F, "n", MEM_OPT) S(F, "t", "n f1;"), { true, true } },
+    { S(F, "tb", MEM_OPT) SB(F, "t", "tb", ""), { true, true } },
+    { E(A, "e", LB_DEF) S(F, "t", "e f1;"), { false } },
+    { BM(A, "bm", BITS_DEF) S(F, "t", "bm f1;"), { false } },
+    { S(M, "n", MEM_DEF) "typedef n td_n;" S(F, "t", "td_n f1;"), { true, true } },
+    { S(M, "n", MEM_DEF) S(F, "t", "sequence<n> f1;"), { true, true } },
+    { S(M, "n", MEM_DEF) S(F, "t", "n f1[3];"), { true, true } },
+    { U(F, "u", UMEM_DEF), { false } },
+    { U(A, "u", UMEM_DEF), { true } },
+    { S(A, "n", MEM_DEF) U(F, "u", "case 1: n f1;"), { true, true } },
+  };
+
+  for (size_t i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+    printf("idl_parser_require_xcdr2 for idl: %s\n", tests[i].idl);
+    test_require_xcdr2(&tests[i]);
+  }
+}
+
+#undef S
+#undef SB
+#undef U
+#undef E
+#undef BM
+#undef F
+#undef A
+#undef M
+#undef MEM_DEF
+#undef MEM_OPT
+#undef MEM_EXT
+#undef LB_DEF
+#undef BITS_DEF
+#undef UMEM_DEF
