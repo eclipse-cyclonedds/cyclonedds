@@ -1390,14 +1390,12 @@ test_rep(
   rep_test_t *test = (rep_test_t*)user_data;
 
   allowable_data_representations_t
-    result = idl_allowable_data_representations(node),
-    required = test->reps[test->i++];
-  if (idl_requires_xcdr2(node))
-    result &= ~((allowable_data_representations_t)IDL_DATAREPRESENTATION_FLAG_XCDR1);
+    allowed = idl_allowable_data_representations(node),
+    expected = test->reps[test->i++];
 
-  CU_ASSERT_EQUAL(required, result);
+  CU_ASSERT_EQUAL(expected, allowed);
 
-  return required == result ? IDL_RETCODE_OK : IDL_RETCODE_SEMANTIC_ERROR;
+  return expected == allowed ? IDL_RETCODE_OK : IDL_RETCODE_SEMANTIC_ERROR;
 }
 
 static void test_representation(rep_test_t test)
@@ -1427,6 +1425,10 @@ static void test_representation(rep_test_t test)
 "@data_representation(" val ") struct " name "{\nlong l;\n};\n"
 #define M(name, val, etc)\
 "@data_representation(" val ") module " name " {\n" etc "};\n"
+#define XCDR1 IDL_DATAREPRESENTATION_FLAG_XCDR1
+#define XCDR2 IDL_DATAREPRESENTATION_FLAG_XCDR2
+#define XML IDL_DATAREPRESENTATION_FLAG_XML
+#define DEFAULT IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT
 
 CU_Test(idl_annotation, data_representation)
 {
@@ -1436,33 +1438,20 @@ CU_Test(idl_annotation, data_representation)
     {"@data_representation(1) enum e { e_0, e_1, e_2 };", IDL_RETCODE_SEMANTIC_ERROR},
     //on modules, should also propagate down
     {M("m","1","struct s {char c;};"), IDL_RETCODE_OK, {1, 1} },
-    {M("m","XCDR1","struct s {char c;};"), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR1, IDL_DATAREPRESENTATION_FLAG_XCDR1} },
+    {M("m","XCDR1","struct s {char c;};"), IDL_RETCODE_OK, {XCDR1, XCDR1} },
     {M("m","6", S("s","2") U("u","4")), IDL_RETCODE_OK, {6, 2, 4} },
-    {M("m","XML|XCDR2", S("s","XML") U("u","XCDR2")), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XML | IDL_DATAREPRESENTATION_FLAG_XCDR2, IDL_DATAREPRESENTATION_FLAG_XML, IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    {M("m","XML|XCDR2", S("s","XML") U("u","XCDR2")), IDL_RETCODE_OK, {XML | XCDR2, XML, XCDR2} },
     //on structs
     {S("s","2"), IDL_RETCODE_OK, {2} },
-    {S("s","XCDR1|XCDR2"), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR1 | IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    {S("s","XCDR1|XCDR2"), IDL_RETCODE_OK, {XCDR1 | XCDR2} },
     //on unions
     {U("u","4"), IDL_RETCODE_OK, {4} },
-    {U("u","XML"), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XML} },
-    //combined with restrictions on datarepresentations due to xtypes
-    {"@appendable " S("s","XCDR1|XCDR2"), IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2} },
-    //enum/bitmask
-    {"enum e { E1 }; @data_representation(XCDR1|XCDR2) struct temp { e f1; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR1 | IDL_DATAREPRESENTATION_FLAG_XCDR2} },
-    {"@appendable enum e { E1 }; @data_representation(XCDR1|XCDR2) struct temp { e f1; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2} },
-    //typedefs
-    {"@appendable enum e { E1 }; typedef e td_e; @data_representation(XCDR1|XCDR2) struct temp { long l; td_e l2; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2} },
-    {"@appendable @data_representation(XCDR1|XCDR2) struct a { long f1; }; typedef a td_a; @data_representation(XCDR1|XCDR2) @final struct b { long f1; td_a f2; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2, IDL_DATAREPRESENTATION_FLAG_XCDR2} },
-    //sequences/arrays
-    {"@appendable enum e { E1 }; @data_representation(XCDR1|XCDR2) struct temp { sequence<e> l; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2} },
-    {"@appendable enum e { E1 }; @data_representation(XCDR1|XCDR2) struct temp { e l[5]; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2} },
-    //inheritance
-    {"@data_representation(XCDR1|XCDR2) @mutable struct a { long f1; }; @data_representation(XCDR1|XCDR2) struct b : a { long f2; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2, IDL_DATAREPRESENTATION_FLAG_XCDR2} },
-    {"@data_representation(XCDR1|XCDR2) @final struct a { @optional long f1; }; @data_representation(XCDR1|XCDR2) struct b : a { long f2; };", IDL_RETCODE_OK, {IDL_DATAREPRESENTATION_FLAG_XCDR2, IDL_DATAREPRESENTATION_FLAG_XCDR2} },
+    {U("u","XML"), IDL_RETCODE_OK, {XML} },
     //default
-    {"struct a { long f1; };", IDL_RETCODE_OK, {IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT} },
-    {"struct b { long b1; }; struct a : b { long f1; };", IDL_RETCODE_OK, {IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT, IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT} },
-    {"union u switch(long) { case 1: long f1; };", IDL_RETCODE_OK, {IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT} },
+    {"struct a { long f1; };", IDL_RETCODE_OK, {DEFAULT} },
+    {"struct b { long b1; }; struct a : b { long f1; };", IDL_RETCODE_OK, {DEFAULT, DEFAULT} },
+    {"union u switch(long) { case 1: long f1; };", IDL_RETCODE_OK, {DEFAULT} },
+    {"module m { struct a { long f1; }; };", IDL_RETCODE_OK, {DEFAULT, DEFAULT} }
   };
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
@@ -1473,3 +1462,7 @@ CU_Test(idl_annotation, data_representation)
 #undef U
 #undef S
 #undef M
+#undef XCDR1
+#undef XCDR2
+#undef XML
+#undef DEFAULT
