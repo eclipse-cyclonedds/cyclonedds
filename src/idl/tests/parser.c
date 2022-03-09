@@ -273,6 +273,8 @@ static void test_require_xcdr2(rep_req_xcdr2_t *test)
   idl_retcode_t ret = idl_create_pstate(IDL_FLAG_ANNOTATIONS, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  if (!pstate)
+    return;
   pstate->config.default_extensibility = IDL_FINAL;
   ret = idl_parse_string(pstate, test->idl);
   CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
