@@ -72,14 +72,6 @@ void gendef_pf_maybe_uint32 (FILE *out, void *parent, struct cfgelem const * con
     fprintf (out, "  cfg->%s.value = UINT32_C (%"PRIu32");\n", cfgelem->membername, p->value);
 }
 
-void gendef_pf_maybe_boolean (FILE *out, void *parent, struct cfgelem const * const cfgelem)
-{
-  struct ddsi_config_maybe_boolean const * const p = cfg_address (parent, cfgelem);
-  fprintf (out, "  cfg->%s.isdefault = %d;\n", cfgelem->membername, p->isdefault);
-  if (!p->isdefault)
-    fprintf (out, "  cfg->%s.value = INT32_C (%"PRIu32");\n", cfgelem->membername, p->value);
-}
-
 #ifdef DDS_HAS_SSL
 void gendef_pf_min_tls_version (FILE *out, void *parent, struct cfgelem const * const cfgelem)
 {

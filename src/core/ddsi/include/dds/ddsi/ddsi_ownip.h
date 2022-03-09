@@ -24,7 +24,6 @@ extern "C" {
 
 struct ddsi_domaingv;
 
-#define MAX_INTERFACES 128
 struct nn_interface {
   ddsi_locator_t loc; // actual interface address
   ddsi_locator_t extloc; // interface address to advertise in discovery

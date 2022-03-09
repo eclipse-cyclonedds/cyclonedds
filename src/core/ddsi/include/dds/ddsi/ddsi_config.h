@@ -139,11 +139,6 @@ struct ddsi_config_maybe_uint32 {
   uint32_t value;
 };
 
-struct ddsi_config_maybe_boolean {
-  int isdefault;
-  int value;
-};
-
 struct ddsi_config_thread_properties_listelem {
   struct ddsi_config_thread_properties_listelem *next;
   char *name;
@@ -245,7 +240,7 @@ struct ddsi_config_network_interface {
   char *name;
   char *address;
   bool prefer_multicast;
-  struct ddsi_config_maybe_boolean multicast;
+  enum ddsi_boolean_default multicast;
   struct ddsi_config_maybe_int32 priority;
 };
 

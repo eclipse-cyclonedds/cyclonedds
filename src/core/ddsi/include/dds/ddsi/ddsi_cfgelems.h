@@ -55,7 +55,7 @@ static struct cfgelem network_interface_attributes[] = {
     )),
   STRING("multicast", NULL, 1, "default",
     MEMBEROF(ddsi_config_network_interface_listelem, cfg.multicast),
-    FUNCTIONS(0, uf_maybe_boolean, 0, pf_maybe_boolean),
+    FUNCTIONS(0, uf_boolean_default, 0, pf_boolean_default),
     DESCRIPTION(
       "<p>This attribute specifies the whether the interface should use multicast. "
       "On its default setting 'default' it will use the value as return by the operating "
