@@ -24,7 +24,6 @@ extern "C" {
 
 struct ddsi_domaingv;
 
-#define MAX_INTERFACES 128
 struct nn_interface {
   ddsi_locator_t loc; // actual interface address
   ddsi_locator_t extloc; // interface address to advertise in discovery
@@ -35,10 +34,12 @@ struct nn_interface {
   unsigned point_to_point: 1;
   unsigned loopback: 1;
   unsigned link_local: 1;
+  unsigned prefer_multicast: 1;
+  int32_t priority;
   char *name;
 };
 
-int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address);
+int find_own_ip (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)
 }

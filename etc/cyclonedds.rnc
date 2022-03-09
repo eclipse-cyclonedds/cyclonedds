@@ -241,6 +241,50 @@ CycloneDDS configuration""" ] ]
           memsize
         }?
         & [ a:documentation [ xml:lang="en" """
+<p>This element specifies the network interfaces for use by Cyclone DDS. Multiple interfaces can be specified with an assigned priority. The list in use will be sorted by priority. If interfaces have an equal priority the specification order will be preserved.</p>""" ] ]
+        element Interfaces {
+          [ a:documentation [ xml:lang="en" """
+<p>This element defines a network interface. You can set autodetermine="true" to autoselect the interface CycloneDDS deems to be the highest quality. If autodetermine="false" (the default), you must specify the name and/or address attribute. If you specify both they must match the same interface.</p>""" ] ]
+          element NetworkInterface {
+            [ a:documentation [ xml:lang="en" """
+<p>This attribute specifies the address of the interface. With ipv4 allows  matching on network part if host part is set to zero. </p>
+<p>The default value is: "".</p>""" ] ]
+            attribute address {
+              text
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>If set to "true" an interface is automatically selected. Specifying a name or an address when automatic is set is considered an error.</p>
+<p>The default value is: "false".</p>""" ] ]
+            attribute autodetermine {
+              text
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>This attribute specifies the whether the interface should use multicast. On its default setting 'default' it will use the value as return by the operating system. If set to 'true' the interface will be assumed to be multicast capable even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). If set to 'false' the interface will never be used for multicast.
+<p>The default value is: "default".</p>""" ] ]
+            attribute multicast {
+              text
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>This attribute specifies the name of the interface. </p>
+<p>The default value is: "".</p>""" ] ]
+            attribute name {
+              text
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>When false (default) Cyclone DDS uses unicast for data whenever there a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast is available.</p>
+<p>The default value is: "false".</p>""" ] ]
+            attribute prefer_multicast {
+              xsd:boolean
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>This attribute specifies the interface priority (decimal integer or <i>default</i>). The default value for loopback interfaces is 2, for all other interfaces it is 0.</p>
+<p>The default value is: "default".</p>""" ] ]
+            attribute priority {
+              text
+            }?
+          }*
+        }?
+        & [ a:documentation [ xml:lang="en" """
 <p>This element specifies the maximum size of the UDP payload that Cyclone DDS will generate. Cyclone DDS will try to maintain this limit within the bounds of the DDSI specification, which means that in some cases (especially for very low values of MaxMessageSize) larger payloads may sporadically be observed (currently up to 1192 B).</p>
 <p>On some networks it may be necessary to set this item to keep the packetsize below the MTU to prevent IP fragmentation.</p>
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
@@ -261,7 +305,7 @@ CycloneDDS configuration""" ] ]
 <ul>
 <li><i>all</i>: listen for multicasts on all multicast-capable interfaces; or</li>
 <li><i>any</i>: listen for multicasts on the operating system default interface; or</li>
-<li><i>preferred</i>: listen for multicasts on the preferred interface (General/NetworkInterfaceAddress); or</li>
+<li><i>preferred</i>: listen for multicasts on the preferred interface (General/Interface/NetworkInterface with highest priority); or</li>
 <li><i>none</i>: does not listen for multicasts on any interface; or</li>
 <li>a comma-separated list of network addresses: configures Cyclone DDS to listen for multicasts on all of the listed addresses.</li>
 </ul>
@@ -275,18 +319,6 @@ CycloneDDS configuration""" ] ]
 <p>The default value is: "32".</p>""" ] ]
         element MulticastTimeToLive {
           xsd:integer
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>This element specifies the preferred network interface for use by Cyclone DDS. The preferred network interface determines the IP address that Cyclone DDS advertises in the discovery protocol (but see also General/ExternalNetworkAddress), and is also the only interface over which multicasts are transmitted. The interface can be identified by its IP address, network interface name or network portion of the address. If the value "auto" is entered here, Cyclone DDS will select what it considers the most suitable interface.</p>
-<p>The default value is: "auto".</p>""" ] ]
-        element NetworkInterfaceAddress {
-          text
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>When false (default) Cyclone DDS uses unicast for data whenever there a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast address is available.</p>
-<p>The default value is: "false".</p>""" ] ]
-        element PreferMulticast {
-          xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>When enabled, use selected network interfaces in parallel for redundancy.</p>
@@ -322,12 +354,6 @@ CycloneDDS configuration""" ] ]
 <p>The default value is: "10 ms".</p>""" ] ]
         element AckDelay {
           duration
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>This element controls which network interfaces are assumed to be capable of multicasting even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). It is a comma-separated lists of patterns (with ? and * wildcards) against which the interface names are matched.</p>
-<p>The default value is: "".</p>""" ] ]
-        element AssumeMulticastCapable {
-          text
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This setting controls the interval with which a reader will continue NACK'ing missing samples in the absence of a response from the writer, as a protection mechanism against writers incorrectly stopping the sending of HEARTBEAT messages.</p>

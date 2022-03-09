@@ -129,7 +129,7 @@ getflags(const PIP_ADAPTER_ADDRESSES iface)
     /* multicast over loopback doesn't seem to work despite the NO_MULTICAST
        flag being clear assuming an interface is multicast-capable when in fact
        it isn't is disastrous, so it makes more sense to err by assuming it
-       won't work as there is always the AssumeMulticastCapable setting to
+       won't work as there is always the General/Interfaces/NetworkInterface[@multicast] setting to
        overrule it */
     flags |= IFF_MULTICAST;
   }

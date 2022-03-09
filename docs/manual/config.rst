@@ -384,18 +384,19 @@ IPv6).  Priority is then determined as follows:
 
 + interfaces with a non-link-local address are preferred over those with
   a link-local one;
-+ multicast-capable is preferred (see also ``Internal/AssumeMulticastCapable``), or if
++ multicast-capable is preferred (see also ``General/Interfaces/NetworkInterface[@multicast]``), or if
   none is available
 + non-multicast capable but neither point-to-point, or if none is available
 + point-to-point, or if none is available
 + loopback
 
 If this procedure doesn’t select the desired interface automatically, it can be
-overridden by setting ``General/NetworkInterfaceAddress`` to either the name of the
-interface, the IP address of the host on the desired interface, or the network portion
-of the IP address of the host on the desired interface.  An exact match on the address
-is always preferred and is the only option that allows selecting the desired one when
-multiple addresses are tied to a single interface.
+overridden by setting ``General/Interfaces`` by adding the interface(s) either by name of the
+interface (<NetworkInterface name='interface_name' />), the IP address of the host
+on the desired interface (<NetworkInterface address='128.129.0.42' />), or the network portion
+of the IP address of the host on the desired interface (<NetworkInterface address='128.11.0.0' />).
+An exact match on the address is always preferred and is the only option that allows selecting
+the desired one when multiple addresses are tied to a single interface.
 
 The default address family is IPv4, setting General/UseIPv6 will change this to IPv6.
 Currently, Eclipse Cyclone DDS does not mix IPv4 and IPv6 addressing.  Consequently, all DDSI

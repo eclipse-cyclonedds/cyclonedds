@@ -208,6 +208,7 @@ DI(if_network_partition);
 DI(if_ignored_partition);
 DI(if_partition_mapping);
 #endif
+DI(if_network_interfaces);
 DI(if_peer);
 DI(if_thread_properties);
 #ifdef DDS_HAS_SECURITY
@@ -680,6 +681,17 @@ static int if_thread_properties (struct cfgst *cfgst, void *parent, struct cfgel
   if (new == NULL)
     return -1;
   new->name = NULL;
+  return 0;
+}
+
+static int if_network_interfaces(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+{
+  struct ddsi_config_network_interface_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
+  if (new == NULL)
+    return -1;
+  new->cfg.automatic = false;
+  new->cfg.name = NULL;
+  new->cfg.address = NULL;
   return 0;
 }
 
@@ -2251,6 +2263,202 @@ static void reverse_lists (struct cfgst *cfgst, void *parent, struct cfgelem con
   }
 }
 
+
+static size_t count_commas (const char *str)
+{
+  size_t n = 0;
+  const char *comma = strchr (str, ',');
+  while (comma)
+  {
+    n++;
+    comma = strchr (comma + 1, ',');
+  }
+  return n;
+}
+
+static char **split_at_comma (const char *str, size_t *nwords)
+{
+  *nwords = count_commas (str) + 1;
+  size_t strsize = strlen (str) + 1;
+  char **ptrs = ddsrt_malloc (*nwords * sizeof (*ptrs) + strsize);
+  char *copy = (char *) ptrs + *nwords * sizeof (*ptrs);
+  memcpy (copy, str, strsize);
+  size_t i = 0;
+  ptrs[i++] = copy;
+  char *comma = strchr (copy, ',');
+  while (comma)
+  {
+    *comma++ = 0;
+    ptrs[i++] = comma;
+    comma = strchr (comma, ',');
+  }
+  assert (i == *nwords);
+  return ptrs;
+}
+
+static struct ddsi_config_network_interface * network_interface_find_or_append(struct ddsi_config *cfg, bool allow_append, const char * name, const char * address)
+{
+  struct ddsi_config_network_interface_listelem * iface = cfg->network_interfaces;
+  struct ddsi_config_network_interface_listelem ** prev_iface = &cfg->network_interfaces;
+
+  while (iface && (
+      (name && iface->cfg.name && ddsrt_strcasecmp(iface->cfg.name, name) != 0) ||
+      (address && iface->cfg.address && ddsrt_strcasecmp(iface->cfg.address, address) != 0))) {
+    prev_iface = &iface->next;
+    iface = iface->next;
+  }
+
+  if (iface) return &iface->cfg;
+  if (!allow_append) return NULL;
+
+  iface = (struct ddsi_config_network_interface_listelem *) malloc(sizeof(*iface));
+  if (!iface) return NULL;
+
+  iface->next = NULL;
+  iface->cfg.name = name ? ddsrt_strdup(name) : NULL;
+  iface->cfg.address = address ? ddsrt_strdup(address) : NULL;
+  iface->cfg.prefer_multicast = false;
+  iface->cfg.priority.isdefault = 1;
+  iface->cfg.multicast = DDSI_BOOLDEF_DEFAULT;
+
+  *prev_iface = iface;
+
+  return &iface->cfg;
+}
+
+static int setup_network_channels (struct cfgst *cfgst)
+{
+#ifdef DDS_HAS_NETWORK_CHANNELS
+  /* Default channel gets set outside set_defaults -- a bit too
+     complicated for the poor framework */
+  if (set_default_channel (cfgst->cfg) < 0)
+    return 0;
+  if (cfgst->cfg->channels && sort_channels_check_nodups (cfgst->cfg) < 0)
+    return 0;
+#else
+  (void) cfgst;
+#endif
+  return 1;
+}
+
+static int setup_network_partitions (struct cfgst *cfgst)
+{
+  int ok = 1;
+#ifdef DDS_HAS_NETWORK_PARTITIONS
+  const uint32_t domid = cfgst->cfg->domainId;
+  /* Create links from the partitionmappings to the network partitions
+     and signal errors if partitions do not exist */
+  struct ddsi_config_partitionmapping_listelem * m = cfgst->cfg->partitionMappings;
+  while (m)
+  {
+    struct ddsi_config_networkpartition_listelem * p = cfgst->cfg->networkPartitions;
+    while (p && ddsrt_strcasecmp(m->networkPartition, p->name) != 0)
+      p = p->next;
+    if (p)
+      m->partition = p;
+    else
+    {
+      DDS_ILOG (DDS_LC_ERROR, domid, "config: DDSI2Service/Partitioning/PartitionMappings/PartitionMapping[@networkpartition]: %s: unknown partition\n", m->networkPartition);
+      ok = 0;
+    }
+    m = m->next;
+  }
+#else
+  (void) cfgst;
+#endif /* DDS_HAS_NETWORK_PARTITIONS */
+  return ok;
+}
+
+static int convert_networkinterfaceaddress (struct ddsi_config * const cfg)
+{
+  size_t addr_count;
+  char ** addresses = split_at_comma(cfg->depr_networkAddressString, &addr_count);
+  if (!addresses) {
+    return 0;
+  }
+  for (size_t i = 0; i < addr_count; ++i) {
+    // Have to make a guess whether it is a name or address
+    // Hack incoming!
+    if (addresses[i][0] == ':' || (addresses[i][0] >= '0' && addresses[i][0] <= '9')) {
+      // address!
+      network_interface_find_or_append(cfg, true, NULL, addresses[i]);
+    } else {
+      // name!
+      network_interface_find_or_append(cfg, true, addresses[i], NULL);
+    }
+  }
+  free(addresses);
+  return 1;
+}
+
+static int convert_assumemulticastcapable (struct ddsi_config * const cfg)
+{
+  if (strcmp(cfg->depr_assumeMulticastCapable, "*") == 0)
+  {
+    // Assume all interfaces
+    struct ddsi_config_network_interface_listelem *iface = cfg->network_interfaces;
+    while (iface) {
+      iface->cfg.multicast = DDSI_BOOLDEF_TRUE;
+      iface = iface->next;
+    }
+  }
+  else
+  {
+    if (strchr (cfg->depr_assumeMulticastCapable, '?') || strchr (cfg->depr_assumeMulticastCapable, '*'))
+    {
+      DDS_ILOG (DDS_LC_ERROR, cfg->domainId,
+                "config: General/AssumeMulticastCapable: patterns are no longer supported in this "
+                "deprecated configuration option. Migrate to using General/Interfaces.\n");
+      return 0;
+    }
+    size_t addr_count;
+    char ** names = split_at_comma(cfg->depr_assumeMulticastCapable, &addr_count);
+    for (size_t i = 0; i < addr_count; ++i) {
+      struct ddsi_config_network_interface *iface_cfg = network_interface_find_or_append(cfg, true, names[i], NULL);
+      iface_cfg->multicast = DDSI_BOOLDEF_TRUE;
+    }
+    ddsrt_free (names);
+  }
+  return 1;
+}
+
+static int convert_deprecated_interface_specification (struct cfgst *cfgst)
+{
+  struct ddsi_config * const cfg = cfgst->cfg;
+  const uint32_t domid = cfg->domainId;
+
+  if (cfg->network_interfaces)
+  {
+    if (cfg->depr_networkAddressString ||
+        (cfg->depr_assumeMulticastCapable && strlen(cfg->depr_assumeMulticastCapable)) ||
+        cfg->depr_prefer_multicast)
+    {
+      DDS_ILOG (DDS_LC_ERROR, domid,
+        "config: General/Interfaces: do not pass deprecated configuration "
+        "General/{NetworkAddressString,MulticastRecvNetworkInterfaceAddresses,"
+        "AssumeMulticastCapable}\n");
+      return 0;
+    }
+    return 1;
+  }
+
+  if (cfg->depr_networkAddressString)
+    if (!convert_networkinterfaceaddress (cfg))
+      return 0;
+  if (cfg->depr_assumeMulticastCapable && strlen(cfg->depr_assumeMulticastCapable))
+    if (convert_assumemulticastcapable (cfg))
+      return 0;
+  if (cfg->depr_prefer_multicast)
+  {
+    struct ddsi_config_network_interface_listelem *iface = cfg->network_interfaces;
+    while (iface) {
+      iface->cfg.prefer_multicast = true;
+      iface = iface->next;
+    }
+  }
+  return 1;
+}
+
 struct cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uint32_t domid)
 {
   int ok = 1;
@@ -2393,40 +2601,9 @@ struct cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uin
     cfgst->cfg->compat_tcp_enable = (cfgst->cfg->transport_selector == DDSI_TRANS_TCP || cfgst->cfg->transport_selector == DDSI_TRANS_TCP6) ? DDSI_BOOLDEF_TRUE : DDSI_BOOLDEF_FALSE;
   }
 
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  /* Default channel gets set outside set_defaults -- a bit too
-     complicated for the poor framework */
-  if (ok)
-  {
-    if (set_default_channel (cfgst->cfg) < 0)
-      ok = 0;
-    if (cfgst->cfg->channels && sort_channels_check_nodups (cfgst->cfg) < 0)
-      ok = 0;
-  }
-#endif
-
-#ifdef DDS_HAS_NETWORK_PARTITIONS
-  /* Create links from the partitionmappings to the network partitions
-     and signal errors if partitions do not exist */
-  if (ok)
-  {
-    struct ddsi_config_partitionmapping_listelem * m = cfgst->cfg->partitionMappings;
-    while (m)
-    {
-      struct ddsi_config_networkpartition_listelem * p = cfgst->cfg->networkPartitions;
-      while (p && ddsrt_strcasecmp(m->networkPartition, p->name) != 0)
-        p = p->next;
-      if (p)
-        m->partition = p;
-      else
-      {
-        DDS_ILOG (DDS_LC_ERROR, domid, "config: DDSI2Service/Partitioning/PartitionMappings/PartitionMapping[@networkpartition]: %s: unknown partition\n", m->networkPartition);
-        ok = 0;
-      }
-      m = m->next;
-    }
-  }
-#endif /* DDS_HAS_NETWORK_PARTITIONS */
+  ok = ok && setup_network_channels (cfgst);
+  ok = ok && setup_network_partitions (cfgst);
+  ok = ok && convert_deprecated_interface_specification (cfgst);
 
   if (ok)
   {
