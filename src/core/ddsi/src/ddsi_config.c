@@ -2315,6 +2315,7 @@ static struct ddsi_config_network_interface * network_interface_find_or_append(s
   if (!iface) return NULL;
 
   iface->next = NULL;
+  iface->cfg.automatic = false;
   iface->cfg.name = name ? ddsrt_strdup(name) : NULL;
   iface->cfg.address = address ? ddsrt_strdup(address) : NULL;
   iface->cfg.prefer_multicast = false;
