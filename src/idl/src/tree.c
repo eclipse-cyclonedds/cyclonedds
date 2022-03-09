@@ -1297,8 +1297,6 @@ set_node_xcdr2_required(void *node)
     };
     _union->requires_xcdr2 = ret ? IDL_REQUIRES_XCDR2_TRUE : IDL_REQUIRES_XCDR2_FALSE;
     return ret;
-  } else if (idl_is_enum(node) || idl_is_bitmask(node)) {
-    return !idl_is_extensible(node, IDL_FINAL);
   }
 
   return false;
