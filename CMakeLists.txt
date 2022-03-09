@@ -41,7 +41,6 @@ option(WERROR "Treat compiler warnings as errors" OFF)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 option(BUILD_IDLC "Build IDL preprocessor" ${not_crosscompiling})
-option(BUILD_DDSCONF "Build DDSCONF buildtool" ${not_crosscompiling})
 option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
 
 set(CMAKE_C_STANDARD 99)
@@ -318,6 +317,14 @@ install(
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
   COMPONENT dev
 )
+
+# Generated file paths
+# although the following files are generated, they are checked into source
+# control for convenience, but the user must copy them manually
+set(generated_cyclonedds_rnc "${CMAKE_CURRENT_SOURCE_DIR}/etc/cyclonedds.rnc")
+set(generated_cyclonedds_xsd "${CMAKE_CURRENT_SOURCE_DIR}/etc/cyclonedds.xsd")
+set(generated_options_md     "${CMAKE_CURRENT_SOURCE_DIR}/docs/manual/options.md")
+set(generated_defconfig_src  "${CMAKE_CURRENT_SOURCE_DIR}/src/core/ddsi/defconfig.c")
 
 add_subdirectory(compat)
 add_subdirectory(src)

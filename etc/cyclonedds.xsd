@@ -18,6 +18,7 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
+        <xs:element minOccurs="0" ref="config:Channels"/>
         <xs:element minOccurs="0" ref="config:Compatibility"/>
         <xs:element minOccurs="0" ref="config:Discovery"/>
         <xs:element minOccurs="0" ref="config:General"/>
@@ -39,6 +40,53 @@ CycloneDDS configuration</xs:documentation>
         </xs:annotation>
       </xs:attribute>
     </xs:complexType>
+  </xs:element>
+  <xs:element name="Channels">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element is used to group a set of channels. The channels are independent data paths through Cyclone DDS and by using separate threads and setting their priorities appropriately, chanenls can be used to map transport priorities to operating system scheduler priorities, ensuring system-wide end-to-end priority preservation.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:Channel"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Channel">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element defines a channel.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element minOccurs="0" ref="config:DiffServField"/>
+      </xs:sequence>
+      <xs:attribute name="Name" use="required">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This attribute specifies name of this channel. The name should uniquely identify the channel.&lt;/p&gt;
+&lt;p&gt;The default value is: "".&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="TransportPriority" type="xs:integer">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This attribute sets the transport priority threshold for the channel. Each DCPS data writer has a "transport_priority" QoS and this QoS is used to select a channel for use by this writer. The selected channel is the one with the largest threshold not greater than the writer's transport priority, and if no such channel exists, the channel with the lowest threshold.&lt;/p&gt;
+&lt;p&gt;The default value is: "0".&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="DiffServField" type="xs:integer">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element describes the DiffServ setting the channel will apply to the networking messages. This parameter determines the value of the diffserv field of the IP version 4 packets sent on this channel which allows QoS setting to be applied to the network traffic send on this channel.&lt;br/&gt;
+Windows platform support for setting the diffserv field is dependent on the OS version.&lt;br/&gt;
+For Windows version 7 or higher a new API (qWAVE) has been introduced. For these platforms the specified diffserv value is mapped to one of the support traffic types.
+The mapping is as follows: 1-8 background traffic; 9-40 excellent traffic; 41-55 audio/video traffic; 56 voice traffic; 57-63 control traffic.
+When an application is run without Administrative priveleges then only the diffserv value of 0, 8, 40 or 56 is allowed.&lt;/p&gt;
+&lt;p&gt;The default value is: "0".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
   </xs:element>
   <xs:element name="Compatibility">
     <xs:annotation>
@@ -535,6 +583,7 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:AccelerateRexmitBlockSize"/>
         <xs:element minOccurs="0" ref="config:AckDelay"/>
         <xs:element minOccurs="0" ref="config:AutoReschedNackDelay"/>
+        <xs:element minOccurs="0" ref="config:AuxiliaryBandwidthLimit"/>
         <xs:element minOccurs="0" ref="config:BuiltinEndpointSet"/>
         <xs:element minOccurs="0" ref="config:BurstSize"/>
         <xs:element minOccurs="0" ref="config:ControlTopic"/>
@@ -600,6 +649,13 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;This setting controls the interval with which a reader will continue NACK'ing missing samples in the absence of a response from the writer, as a protection mechanism against writers incorrectly stopping the sending of HEARTBEAT messages.&lt;/p&gt;
 &lt;p&gt;Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
 &lt;p&gt;The default value is: "1 s".&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="AuxiliaryBandwidthLimit" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element specifies the maximum transmit rate of auxiliary traffic not bound to a specific channel, such as discovery traffic, as well as auxiliary traffic related to a certain channel if that channel has elected to share this global AuxiliaryBandwidthLimit. Bandwidth limiting uses a leaky bucket scheme. The default value "inf" means Cyclone DDS imposes no limitation, the underlying operating system and hardware will likely limit the maximum transmit rate.&lt;/p&gt;
+&lt;p&gt;The default value is: "inf".&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="BuiltinEndpointSet">
@@ -1944,3 +2000,13 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:restriction>
   </xs:simpleType>
 </xs:schema>
+<!--- generated from ddsi_config.h[81137ec4f9a12c61074bb251ad2c5e79f2982bbd] -->
+<!--- generated from ddsi_cfgunits.h[1e595223d52f30511d2b844a979277227d15fd3e] -->
+<!--- generated from ddsi_cfgelems.h[66c7e8fef02d44cb781dc9536eb1cb173dcbcdd1] -->
+<!--- generated from ddsi_config.c[eecf3cb79d462ae1769e68d995c9e681930c7aa3] -->
+<!--- generated from _confgen.h[bfa548c4078abfb0db13763279973342ad972697] -->
+<!--- generated from _confgen.c[5423ce1f5ae356284dab2ecd7f16a83cf34fc782] -->
+<!--- generated from generate_rnc.c[9785c4c557a472db1c1685daa2b82c39202ed17a] -->
+<!--- generated from generate_md.c[c3f3a8c63374bad4dbfb792e3509d4a5ab0d03fd] -->
+<!--- generated from generate_xsd.c[47ff306dce0c19d2c18704ce674642f62cccf40f] -->
+<!--- generated from generate_defconfig.c[eeb1b57da1570d7e534468a01b04175b8a05a80e] -->

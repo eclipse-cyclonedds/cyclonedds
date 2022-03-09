@@ -177,19 +177,13 @@ DUPF(retransmit_merging);
 DUPF(sched_class);
 DUPF(maybe_memsize);
 DUPF(maybe_int32);
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
 DUPF(bandwidth);
-#endif
 DUPF(domainId);
 DUPF(transport_selector);
 DUPF(many_sockets_mode);
 DU(deaf_mute);
-#ifdef DDS_HAS_SSL
 DUPF(min_tls_version);
-#endif
-#ifdef DDS_HAS_SHM
 DUPF(shm_loglevel);
-#endif
 #undef DUPF
 #undef DU
 #undef PF
@@ -200,20 +194,14 @@ DF(ff_networkAddresses);
 #undef DF
 
 #define DI(fname) static int fname (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
-#ifdef DDS_HAS_NETWORK_CHANNELS
 DI(if_channel);
-#endif /* DDS_HAS_NETWORK_CHANNELS */
-#ifdef DDS_HAS_NETWORK_PARTITIONS
 DI(if_network_partition);
 DI(if_ignored_partition);
 DI(if_partition_mapping);
-#endif
 DI(if_network_interfaces);
 DI(if_peer);
 DI(if_thread_properties);
-#ifdef DDS_HAS_SECURITY
 DI(if_omg_security);
-#endif
 #undef DI
 
 /* drop extra information, i.e. DESCRIPTION, RANGE, UNIT and VALUES */
@@ -322,7 +310,6 @@ static const struct unit unittab_memsize[] = {
   { NULL, 0 }
 };
 
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
 static const struct unit unittab_bandwidth_bps[] = {
   { "b/s", 1 },{ "bps", 1 },
   { "Kib/s", 1024 },{ "Kibps", 1024 },
@@ -351,7 +338,6 @@ static const struct unit unittab_bandwidth_Bps[] = {
   { "GB/s", 1000000000 },{ "GBps", 1000000000 },
   { NULL, 0 }
 };
-#endif
 
 static void free_configured_elements (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
 static void free_configured_element (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
@@ -695,7 +681,6 @@ static int if_network_interfaces(struct cfgst *cfgst, void *parent, struct cfgel
   return 0;
 }
 
-#ifdef DDS_HAS_NETWORK_CHANNELS
 static int if_channel(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
   struct ddsi_config_channel_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
@@ -709,9 +694,6 @@ static int if_channel(struct cfgst *cfgst, void *parent, struct cfgelem const * 
   new->transmit_conn = NULL;
   return 0;
 }
-#endif /* DDS_HAS_NETWORK_CHANNELS */
-
-#ifdef DDS_HAS_NETWORK_PARTITIONS
 static int if_network_partition (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
   struct ddsi_config_networkpartition_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
@@ -720,9 +702,7 @@ static int if_network_partition (struct cfgst *cfgst, void *parent, struct cfgel
   new->address_string = NULL;
   new->uc_addresses = NULL;
   new->asm_addresses = NULL;
-#ifdef DDS_HAS_SSM
   new->ssm_addresses = NULL;
-#endif
   new->name = NULL;
   return 0;
 }
@@ -746,7 +726,6 @@ static int if_partition_mapping (struct cfgst *cfgst, void *parent, struct cfgel
   new->partition = NULL;
   return 0;
 }
-#endif /* DDS_HAS_NETWORK_PARTITIONS */
 
 static int if_peer (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
@@ -757,7 +736,6 @@ static int if_peer (struct cfgst *cfgst, void *parent, struct cfgelem const * co
   return 0;
 }
 
-#ifdef DDS_HAS_SECURITY
 static int if_omg_security (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
   struct ddsi_config_omg_security_listelem *new = if_common (cfgst, parent, cfgelem, sizeof (*new));
@@ -766,7 +744,6 @@ static int if_omg_security (struct cfgst *cfgst, void *parent, struct cfgelem co
   memset(&new->cfg, 0, sizeof(new->cfg));
   return 0;
 }
-#endif
 
 static void ff_free (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
@@ -989,11 +966,9 @@ static const char *en_standards_conformance_vs[] = { "pedantic", "strict", "lax"
 static const enum ddsi_standards_conformance en_standards_conformance_ms[] = { DDSI_SC_PEDANTIC, DDSI_SC_STRICT, DDSI_SC_LAX, 0 };
 GENERIC_ENUM_CTYPE (standards_conformance, enum ddsi_standards_conformance)
 
-#ifdef DDS_HAS_SHM
 static const char *en_shm_loglevel_vs[] = { "off", "fatal", "error", "warn", "info", "debug", "verbose", NULL };
 static const enum ddsi_shm_loglevel en_shm_loglevel_ms[] = { DDSI_SHM_OFF, DDSI_SHM_FATAL, DDSI_SHM_ERROR, DDSI_SHM_WARN, DDSI_SHM_INFO, DDSI_SHM_DEBUG, DDSI_SHM_VERBOSE, 0 };
 GENERIC_ENUM_CTYPE (shm_loglevel, enum ddsi_shm_loglevel)
-#endif
 
 /* "trace" is special: it enables (nearly) everything */
 static const char *tracemask_names[] = {
@@ -1063,7 +1038,6 @@ static void pf_xcheck (struct cfgst *cfgst, void *parent, struct cfgelem const *
   do_print_uint32_bitset (cfgst, *p, sizeof (xcheck_codes) / sizeof (*xcheck_codes), xcheck_names, xcheck_codes, sources, suffix);
 }
 
-#ifdef DDS_HAS_SSL
 static enum update_result uf_min_tls_version (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
 {
   static const char *vs[] = {
@@ -1086,7 +1060,6 @@ static void pf_min_tls_version (struct cfgst *cfgst, void *parent, struct cfgele
   struct ddsi_config_ssl_min_version * const p = cfg_address (cfgst, parent, cfgelem);
   cfg_logelem (cfgst, sources, "%d.%d", p->major, p->minor);
 }
-#endif
 
 static enum update_result uf_string (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
@@ -1101,9 +1074,9 @@ static void pf_string (struct cfgst *cfgst, void *parent, struct cfgelem const *
   cfg_logelem (cfgst, sources, "%s", *p ? *p : "(null)");
 }
 
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
 static enum update_result uf_bandwidth (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
   int64_t bandwidth_bps = 0;
   if (strncmp (value, "inf", 3) == 0) {
     /* special case: inf needs no unit */
@@ -1122,6 +1095,14 @@ static enum update_result uf_bandwidth (struct cfgst *cfgst, void *parent, struc
     *elem = (uint32_t) (bandwidth_bps / 8);
     return URES_SUCCESS;
   }
+#else
+  DDSRT_UNUSED_ARG(unittab_bandwidth_bps);
+  DDSRT_UNUSED_ARG(cfgst);
+  DDSRT_UNUSED_ARG(parent);
+  DDSRT_UNUSED_ARG(cfgelem);
+  DDSRT_UNUSED_ARG(value);
+  return URES_SUCCESS;
+#endif
 }
 
 static void pf_bandwidth(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
@@ -1132,7 +1113,6 @@ static void pf_bandwidth(struct cfgst *cfgst, void *parent, struct cfgelem const
   else
     pf_int64_unit (cfgst, *elem, sources, unittab_bandwidth_Bps, "B/s");
 }
-#endif
 
 static enum update_result uf_memsize (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
@@ -1278,13 +1258,8 @@ static void ff_networkAddresses (struct cfgst *cfgst, void *parent, struct cfgel
   ddsrt_free (*elem);
 }
 
-#ifdef DDS_HAS_SSM
 static const char *allow_multicast_names[] = { "false", "spdp", "asm", "ssm", "true", NULL };
 static const uint32_t allow_multicast_codes[] = { DDSI_AMC_FALSE, DDSI_AMC_SPDP, DDSI_AMC_ASM, DDSI_AMC_SSM, DDSI_AMC_TRUE };
-#else
-static const char *allow_multicast_names[] = { "false", "spdp", "asm", "true", NULL };
-static const uint32_t allow_multicast_codes[] = { DDSI_AMC_FALSE, DDSI_AMC_SPDP, DDSI_AMC_ASM, DDSI_AMC_TRUE };
-#endif
 
 static enum update_result uf_allow_multicast (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {

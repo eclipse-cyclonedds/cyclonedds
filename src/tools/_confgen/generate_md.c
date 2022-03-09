@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ddsconf.h"
+#include "_confgen.h"
 
 #include "dds/ddsrt/heap.h"
 

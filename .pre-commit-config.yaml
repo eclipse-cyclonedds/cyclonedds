@@ -1,10 +1,42 @@
 repos:
 - repo: local
   hooks:
-  - id: parser-hashes
+  - id: must-match-hash
     name: bison-parser-hashcheck
     language: python
-    entry: python hooks/parser-hashes.py
+    always_run: true
+    entry: python hooks/must-match-hash.py
+    args: [
+      '--hash-files',
+        'src/idl/src/parser.y',
+      '--append-files',
+        'src/idl/src/parser.h',
+        'src/idl/src/parser.c'
+    ]
+    pass_filenames: false
+  - id: must-match-hash
+    name: confgen-hashcheck
+    language: python
+    always_run: true
+    entry: python hooks/must-match-hash.py
+    args: [
+      '--hash-files',
+        'src/core/ddsi/include/dds/ddsi/ddsi_cfgelems.h',
+        'src/core/ddsi/include/dds/ddsi/ddsi_cfgunits.h',
+        'src/core/ddsi/include/dds/ddsi/ddsi_config.h',
+        'src/core/ddsi/src/ddsi_config.c',
+        'src/tools/_confgen/_confgen.h',
+        'src/tools/_confgen/_confgen.c',
+        'src/tools/_confgen/generate_rnc.c',
+        'src/tools/_confgen/generate_md.c',
+        'src/tools/_confgen/generate_xsd.c',
+        'src/tools/_confgen/generate_defconfig.c',
+      '--append-files',
+        'src/core/ddsi/defconfig.c',
+        'etc/cyclonedds.rnc',
+        'etc/cyclonedds.xsd',
+        'docs/manual/options.md'
+    ]
     pass_filenames: false
   - id: version-check
     name: version-check

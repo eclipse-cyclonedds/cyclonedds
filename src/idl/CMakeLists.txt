@@ -10,6 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 include(GenerateExportHeader)
+include(HashUtilities)
 
 find_package(BISON 3.0.4)
 find_package(Threads QUIET REQUIRED)
@@ -17,29 +18,37 @@ find_package(Threads QUIET REQUIRED)
 set(binary_dir "${CMAKE_CURRENT_BINARY_DIR}")
 set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
-# Hashing routine, remove \r to not get confused on windows if git changes the line endings.
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y" _parser_y_data)
-string(REPLACE "\r" "" _parser_y_data "${_parser_y_data}")
-string(SHA1 _parser_y_hash "${_parser_y_data}")
+check_hashes(
+  OUTVAR _bison_hash_correct
+  HASH_FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y"
+  APPEND_FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.h"
+)
 
-# Fetched stored hash
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y.hash" _parser_y_disk_hash)
 
-# Ensure equality
-if(NOT "${_parser_y_hash}" STREQUAL "${_parser_y_disk_hash}")
+if(NOT ${_bison_hash_correct})
   if(BISON_FOUND)
+    message(STATUS "Running Bison, parser.y was updated.")
+
+    file(REMOVE "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.c")
+    file(REMOVE "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.h")
+
     # Run bison targetting an intermediate file
     bison_target(parser "src/parser.y"
       "${CMAKE_CURRENT_BINARY_DIR}/parser.c"
-      DEFINES_FILE "${CMAKE_CURRENT_BINARY_DIR}/parser.h")
-    # ... that we can then copy into place while appending a hash
+      DEFINES_FILE "${CMAKE_CURRENT_BINARY_DIR}/parser.h"
+    )
+
+    # Run postprocessing (copying/hashing)
     add_custom_command(
-      OUTPUT  "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.c"
-              "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.h"
-              "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.y.hash"
-      DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/parser.c"
-              "${CMAKE_CURRENT_BINARY_DIR}/parser.h"
-      COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_LIST_DIR}/append-hash.cmake")
+      DEPENDS parser
+      OUTPUT
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.h"
+      COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_LIST_DIR}/postprocess-parser.cmake"
+    )
   else()
     message(FATAL_ERROR "parser.y was updated but parser.c not regenerated, and no bison available!")
   endif()

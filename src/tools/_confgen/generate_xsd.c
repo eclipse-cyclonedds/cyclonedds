@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ddsconf.h"
+#include "_confgen.h"
 
 static const char *xlatxsd(const char *str, const char **end)
 {

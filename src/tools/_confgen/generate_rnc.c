@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ddsconf.h"
+#include "_confgen.h"
 #include "dds/ddsrt/heap.h"
 
 #define FLAG_AMP (1u<<0)

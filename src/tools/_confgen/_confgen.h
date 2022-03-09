@@ -25,16 +25,12 @@ void gendef_pf_int64 (FILE *fp, void *parent, struct cfgelem const * const cfgel
 void gendef_pf_maybe_int32 (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_maybe_uint32 (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_maybe_boolean (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
-#ifdef DDS_HAS_SSL
 void gendef_pf_min_tls_version (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
-#endif
 void gendef_pf_string (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_networkAddresses (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_tracemask (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_xcheck (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
 void gendef_pf_bandwidth (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
-#endif
 void gendef_pf_memsize (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_memsize16 (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_networkAddress (FILE *fp, void *parent, struct cfgelem const * const cfgelem);

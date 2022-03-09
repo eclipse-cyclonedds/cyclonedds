@@ -10,22 +10,9 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 
-# although the following files are generated, they are checked into source
-# control for convenience, but the user must copy them manually
-set(cyclonedds_rnc "${CMAKE_CURRENT_BINARY_DIR}/cyclonedds.rnc")
-set(cyclonedds_xsd "${CMAKE_CURRENT_BINARY_DIR}/cyclonedds.xsd")
-set(options_md "${CMAKE_CURRENT_BINARY_DIR}/manual/options.md")
-
 if(BUILD_SCHEMA OR BUILD_DOCS)
-  add_custom_command(
-    OUTPUT "${cyclonedds_rnc}" "${cyclonedds_xsd}" "${options_md}"
-    COMMAND ddsconf-native ARGS -f rnc -o "${cyclonedds_rnc}"
-    COMMAND ddsconf-native ARGS -f xsd -o "${cyclonedds_xsd}"
-    COMMAND ${CMAKE_COMMAND} -E make_directory manual
-    COMMAND ddsconf-native ARGS -f md -o "${options_md}"
-    DEPENDS ddsconf-native)
   add_custom_target(
-    schema ALL DEPENDS "${cyclonedds_rnc}" "${cyclonedds_xsd}" "${options_md}")
+    schema ALL DEPENDS "${generated_cyclonedds_rnc}" "${generated_cyclonedds_xsd}" "${generated_options_md}" _confgen)
 endif()
 
 if(BUILD_DOCS)

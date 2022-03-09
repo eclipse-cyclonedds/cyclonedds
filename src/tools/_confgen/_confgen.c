@@ -27,8 +27,7 @@
 /* ddsi_config.h provides the definition of "struct ddsi_config", which is needed for the offsetof macro */
 #include "dds/ddsi/ddsi_config.h"
 
-#include "ddsconf.h"
-
+#include "_confgen.h"
 
 /* configuration units */
 #define UNIT(str, ...) { .name = str, __VA_ARGS__ }
