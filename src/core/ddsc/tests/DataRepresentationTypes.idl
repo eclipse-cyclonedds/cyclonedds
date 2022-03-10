@@ -115,11 +115,6 @@ module DataRepresentationTypes {
     long f1;
   };
 
-  @appendable @topic @data_representation(XCDR1)
-  struct TypeXcdrA1 {
-    long f1;
-  };
-
   @appendable @topic @data_representation(XCDR2)
   struct TypeXcdrA2 {
     long f1;

@@ -401,6 +401,29 @@ static idl_retcode_t validate_must_understand(idl_pstate_t *pstate, void *root)
   return IDL_RETCODE_OK;
 }
 
+static idl_retcode_t
+validate_datarepresentation(
+  const idl_pstate_t* pstate,
+  const bool revisit,
+  const idl_path_t* path,
+  const void* node,
+  void* user_data)
+{
+  (void) revisit;
+  (void) path;
+  (void) user_data;
+
+  allowable_data_representations_t val = idl_allowable_data_representations(node);
+  if ((idl_is_extensible(node, IDL_APPENDABLE) || idl_is_extensible(node, IDL_MUTABLE)) &&
+      !(val & IDL_DATAREPRESENTATION_FLAG_XCDR2)) {
+    idl_error(pstate, idl_location(node),
+      "Datarepresentation does not support XCDR2, but non-final extensibility set.");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
+  return IDL_RETCODE_OK;
+}
+
 static idl_retcode_t set_type_extensibility(idl_pstate_t *pstate)
 {
   if (pstate->config.default_extensibility == IDL_DEFAULT_EXTENSIBILITY_UNDEFINED && idl_has_unset_extensibility_r(pstate->root)) {
@@ -463,6 +486,15 @@ grammar:
       break;
     }
   }
+
+  idl_visitor_t visitor;
+  memset(&visitor, 0, sizeof(visitor));
+  visitor.visit = IDL_STRUCT | IDL_UNION;
+  visitor.accept[IDL_ACCEPT_STRUCT] = &validate_datarepresentation;
+  visitor.accept[IDL_ACCEPT_UNION] = &validate_datarepresentation;
+
+  if ((ret = idl_visit(pstate, pstate->root, &visitor, NULL)))
+    goto err;
 
   /* FIXME: combine these validations into a single pass, e.g. by using
      callback functions for node validation */
