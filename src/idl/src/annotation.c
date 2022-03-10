@@ -322,6 +322,13 @@ annotate_extensibility(
     }
   }
 
+  //check that extensibility does not clash with datarepresentation value
+  if (IDL_FINAL != extensibility && !(idl_allowable_data_representations(node) & IDL_DATAREPRESENTATION_FLAG_XCDR2)) {
+    idl_error(pstate, idl_location(annotation_appl),
+      "Non-final extensibility set while datarepresentation requires XCDR2");
+    return IDL_RETCODE_SEMANTIC_ERROR;
+  }
+
   *annotationp = annotation_appl;
   *extensibilityp = extensibility;
   return IDL_RETCODE_OK;
@@ -835,9 +842,19 @@ annotate_datarepresentation(
     ((idl_module_t*)node)->data_representation.annotation = annotation_appl;
     ((idl_module_t*)node)->data_representation.value = val;
   } else if (idl_is_struct(node)) {
+    if (IDL_FINAL != ((idl_struct_t*)node)->extensibility.value && !(val & IDL_DATAREPRESENTATION_FLAG_XCDR2)) {
+      idl_error(pstate, idl_location(annotation_appl),
+        "Datarepresentation does not support XCDR2, but non-final extensibility set.");
+      return IDL_RETCODE_SEMANTIC_ERROR;
+    }
     ((idl_struct_t*)node)->data_representation.annotation = annotation_appl;
     ((idl_struct_t*)node)->data_representation.value = val;
   } else if (idl_is_union(node)) {
+    if (IDL_FINAL != ((idl_union_t*)node)->extensibility.value && !(val & IDL_DATAREPRESENTATION_FLAG_XCDR2)) {
+      idl_error(pstate, idl_location(annotation_appl),
+        "Datarepresentation does not support XCDR2, but non-final extensibility set.");
+      return IDL_RETCODE_SEMANTIC_ERROR;
+    }
     ((idl_union_t*)node)->data_representation.annotation = annotation_appl;
     ((idl_union_t*)node)->data_representation.value = val;
   } else {
