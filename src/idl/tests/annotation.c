@@ -802,6 +802,9 @@ CU_Test(idl_annotation, extensibility)
     { IDL_STRUCT, S("@extensibility(MUTABLE)"), IDL_MUTABLE, IDL_RETCODE_OK },
     { IDL_UNION, U("@mutable"), IDL_MUTABLE, IDL_RETCODE_OK },
     { IDL_UNION, U("@extensibility(APPENDABLE)"), IDL_APPENDABLE, IDL_RETCODE_OK },
+    //clashes with datarepresentation
+    { IDL_STRUCT, S("@mutable @data_representation(XCDR1)"), IDL_MUTABLE, IDL_RETCODE_SEMANTIC_ERROR },
+    { IDL_UNION, U("@mutable @data_representation(XCDR1)"), IDL_MUTABLE, IDL_RETCODE_SEMANTIC_ERROR },
 
     /* FIXME: extensibility on bitmask and enum not supported yet
         (both can be final or appendable, not mutable */
@@ -1445,6 +1448,9 @@ CU_Test(idl_annotation, data_representation)
     //on unions
     {U("u","4"), IDL_RETCODE_OK, {4} },
     {U("u","XML"), IDL_RETCODE_OK, {XML} },
+    //clashes with extensibility
+    {"@data_representation(XCDR1) @mutable struct a { long f1; };", IDL_RETCODE_SEMANTIC_ERROR },
+    {"@data_representation(XCDR1) @mutable union u switch (long) { case 1: long f1; };", IDL_RETCODE_SEMANTIC_ERROR },
     //default
     {"struct a { long f1; };", IDL_RETCODE_OK, {DEFAULT} },
     {"struct b { long b1; }; struct a : b { long f1; };", IDL_RETCODE_OK, {DEFAULT, DEFAULT} },
